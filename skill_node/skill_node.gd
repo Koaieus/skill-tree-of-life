@@ -307,11 +307,19 @@ var _local_modifiers: Array[StatModifier] = []:
 ## leaf-set currently applied in its place on its contribution board. Only
 ## populated while an override returns an Array; the value path is drift-free
 ## by construction and keeps no state.
-var _scaled_sets: Dictionary[StatModifier, Array] = {}
+var _scaled_sets: Dictionary[StatModifier, Array] = {}:
+	get:
+		return state.scaled_sets
+	set(value):
+		state.scaled_sets = value
 
 ## Same ledger for the effect path: effect -> scaled leaf-set applied in
 ## place of the effect's granted modifiers on the entity board.
-var _scaled_effect_sets: Dictionary[Effect, Array] = {}
+var _scaled_effect_sets: Dictionary[Effect, Array] = {}:
+	get:
+		return state.scaled_effect_sets
+	set(value):
+		state.scaled_effect_sets = value
 
 ## Old fill for the mutator's (old_al, new_al) pair — PoolStat.current_changed
 ## only carries the new value.
@@ -1075,12 +1083,12 @@ func add_local_modifier(m: StatModifier) -> void:
 	# distance, never the node's allocation ladder. Bring it up to this
 	# node's CURRENT allocation level right here, or it sits at baseline
 	# until the next stake_level change happens to fire
-	# _on_stake_level_changed. `_scale_modifier` is the same universal-law /
-	# override walk _apply_local_scale already runs per stake change, so a
+	# _on_stake_level_changed. `LocalScaleMutator.scale_modifier` is the same
+	# universal-law / override walk `apply` already runs per stake change, so a
 	# composite's children and any `_local_scale_override` are honoured
 	# identically; it needs a live board, which is exactly why this runs
 	# after `node_board` is bound above.
-	_scale_modifier(m, 1, _last_allocation_level)
+	_mutator.scale_modifier(state, m, 1, _last_allocation_level)
 
 
 ## Remove a modifier previously applied by [method add_local_modifier]. Removal
@@ -1642,228 +1650,26 @@ func _on_stake_level_changed(new_current: Variant) -> void:
 	var new_al := int(new_current)
 	var old_al := _last_allocation_level
 	_last_allocation_level = new_al
-	_apply_local_scale(old_al, new_al)
+	_mutator.apply(state, old_al, new_al, get_node_effects(), self)
 
 
-# ── Local-scale mutator (#376) ───────────────────────────────────────────────
-#
-# The magnitude curve: every node-local and node-granted-to-entity modifier
-# scales with the allocation level, per a per-operation law. SkillNode is the
-# AUTHORITY over the canonical instances; the entity board (and node_board)
-# hold references to the same instances, so a live `value` write propagates
-# with no re-grant. The ladder is linear by default; `_local_scale` is the
-# one line to swap for a curve.
-#
-# The mutator only ever writes `m.value` (share-safe via Resource.changed) —
-# it never touches `_board` / `_bound_sources` / `_propagating` (decision 9).
-# Composition mutations (Array overrides) are the one stateful exception: the
-# swap ledger tracks which scaled leaf-set is currently applied in a parent's
-# place, so the restore is exact.
-
-## The ladder: al → scale factor. Identity, floored at 1 so an unowned node
-## (al 0) reads as the baseline — going 0→1 is a ×1 no-op and 1→0 restores
-## the authored value exactly. Swap the body for a curve later = one line.
-func _local_scale(al: int) -> float:
-	return maxf(float(al), 1.0)
-
-
-func _laddered_multiply(value: float, old_al: int, new_al: int) -> float:
-	# "Add the growth part": X(al) = 1 + (X_base - 1) × ladder(al), so the
-	# transition is X_new = 1 + (X_old - 1) × ladder(new) / ladder(old) —
-	# the exact inverse of the up-scale, so round-trips don't drift.
-	return 1.0 + (value - 1.0) * _local_scale(new_al) / _local_scale(old_al)
-
-
-## Run one mutator pass for a fill transition. Walks the node's entity-scoped
-## modifiers, its node-local ledger (which includes addons), and its effects
-## (composition path only — see [method _scale_effect]). Iterates UNTYPED
-## copies: an `is CompositeStatModifier` on a typed-array loop variable is a
-## parse error in this repo (.claude/rules/stats-system.md).
-func _apply_local_scale(old_al: int, new_al: int) -> void:
-	if old_al == new_al:
-		return
-	var entity_mods: Array = modifiers
-	for m in entity_mods:
-		_scale_modifier(m, old_al, new_al)
-	var local_mods: Array = _local_modifiers
-	for m in local_mods:
-		_scale_modifier(m, old_al, new_al)
-	for e in get_node_effects():
-		_scale_effect(e, old_al, new_al)
-
-
-func _scale_modifier(m: StatModifier, old_al: int, new_al: int) -> void:
-	if m == null:
-		return
-	if m.scales_with(&"stake_level"):
-		return  # already al-scaled by formula — the #375 parallel path
-	var override: Variant = m._local_scale_override(old_al, new_al)
-	# Type-guard the sentinel BEFORE comparing: a Variant holding an Array or
-	# float cannot be ==-compared with a StringName (runtime error, not false).
-	if override is StringName and override == StatModifier.UNSCALED:
-		return
-	if override is float or override is int:
-		_restore_scaled_contribution(m)
-		m.value = float(override)
-		return
-	if override is Array:
-		_swap_scaled_contribution(m, override)
-		return
-	if override != null:
-		push_warning("SkillNode._apply_local_scale: modifier '%s' returned unsupported override type %s; falling through to the universal law" % [m.resource_path, typeof(override)])
-	# Universal law (null override).
-	_restore_scaled_contribution(m)
-	if m is CompositeStatModifier:
-		for leaf in m.flatten():
-			_scale_modifier(leaf, old_al, new_al)
-		return
-	match m.operation:
-		StatModifier.Operation.ADD_BASE, StatModifier.Operation.ADD_BONUS, StatModifier.Operation.INCREASE:
-			# "+X → +X × ladder(al)" — value × ladder(new)/ladder(old) is
-			# exact for integer ladders (5 × 2/1 = 10, 10 × 1/2 = 5).
-			m.value = m.value * _local_scale(new_al) / _local_scale(old_al)
-		StatModifier.Operation.MULTIPLY:
-			m.value = _laddered_multiply(m.value, old_al, new_al)
-		StatModifier.Operation.SET:
-			pass  # SET opts out of the universal law by default (#376 decision 7)
-
-
-## The board a modifier is applied to: the entity board for entity-scoped
-## modifiers (when owned), node_board for the local ledger. null when the
-## modifier is not currently applied anywhere (unowned entity grants).
-func _contribution_board(m: StatModifier) -> StatBoard:
-	if owned_by != null and owned_by.stat_board != null and modifiers.has(m):
-		return owned_by.stat_board
-	if _node_board_ready and _local_modifiers.has(m):
-		return node_board
-	return null
-
-
-## Composition mutation (decision 8): replace the parent's applied contribution
-## with the override's scaled leaf-set. The parent STAYS in its ledger (it is
-## still the canonical authority); `_scaled_sets` tracks what the board
-## actually holds so the restore is exact.
-func _swap_scaled_contribution(m: StatModifier, leaves: Array) -> void:
-	var board := _contribution_board(m)
-	if board == null:
-		return  # unowned / not applied: nothing to swap on the board
-	var prev: Array = _scaled_sets.get(m, [])
-	if not prev.is_empty():
-		_remove_leaf_set(board, prev)
-	else:
-		board.remove_modifier(m)
-	_apply_leaf_set(board, leaves)
-	_scaled_sets[m] = leaves
-
-
-## Reverse of [method _swap_scaled_contribution]: put the parent's own leaves
-## back where the scaled set was.
-func _restore_scaled_contribution(m: StatModifier) -> void:
-	var prev: Array = _scaled_sets.get(m, [])
-	if prev.is_empty():
-		return
-	var board := _contribution_board(m)
-	_scaled_sets.erase(m)
-	if board == null:
-		return  # the board is gone (dealloc); nothing to restore on it
-	_remove_leaf_set(board, prev)
-	_apply_leaf_set(board, m.flatten())
-
-
-## Node boards are sparse — a scaled set may target stats the board doesn't
-## carry yet, so the local apply/remove paths ensure (apply) or no-op
-## (remove) through the stat lookup, mirroring add/remove_local_modifier.
-func _apply_leaf_set(board: StatBoard, leaves: Array) -> void:
-	for leaf in leaves:
-		if board == node_board:
-			node_board.bind_modifier(leaf)
-			_ensure_local_stat(leaf.stat_id).add_modifier(leaf, node_board)
-		else:
-			board.add_modifier(leaf)
-
-
-func _remove_leaf_set(board: StatBoard, leaves: Array) -> void:
-	for leaf in leaves:
-		if board == node_board:
-			node_board.unbind_modifier(leaf)
-			var s: Stat = node_board.get_stat(leaf.stat_id)
-			if s != null:
-				s.remove_modifier(leaf, node_board)
-		else:
-			board.remove_modifier(leaf)
-
-
-## Effect composition path (acceptance 6): an effect whose override returns an
-## Array has its granted contribution replaced on the entity board with the
-## scaled leaf-set. Effects never value-scale — their canonical modifiers are
-## shared .tres instances, so a Float override is rejected with a warning.
-func _scale_effect(e: Effect, old_al: int, new_al: int) -> void:
-	if e == null:
-		return
-	var override: Variant = e._local_scale_override(old_al, new_al)
-	if override is StringName and override == StatModifier.UNSCALED:
-		return
-	if override is Array:
-		var entity := owned_by
-		if entity == null or entity.stat_board == null:
-			return
-		if _scaled_effect_sets.has(e):
-			_remove_leaf_set(entity.stat_board, _scaled_effect_sets[e])
-			_scaled_effect_sets.erase(e)
-		else:
-			for inst in entity.get_effects():
-				if inst.source_node == self and inst.effect == e:
-					entity.revoke_effect(inst)
-		_apply_leaf_set(entity.stat_board, override)
-		_scaled_effect_sets[e] = override
-		return
-	# Identity form: restore a previously-swapped contribution, then stop.
-	if _scaled_effect_sets.has(e):
-		_restore_scaled_effect(e)
-	if override == null:
-		return
-	if override is float or override is int:
-		push_warning("SkillNode._scale_effect: effect '%s' returned a Float override — effects carry shared .tres modifiers; use the Array (composition) form" % e.resource_path)
-		return
-	push_warning("SkillNode._scale_effect: effect '%s' returned unsupported override type %s" % [e.resource_path, typeof(override)])
-
-
-func _restore_scaled_effect(e: Effect) -> void:
-	var entity := owned_by
-	if entity == null or entity.stat_board == null:
-		_scaled_effect_sets.erase(e)
-		return
-	_remove_leaf_set(entity.stat_board, _scaled_effect_sets[e])
-	_scaled_effect_sets.erase(e)
-	entity.grant_effect(e, self)
+## The local-scale law lives in [LocalScaleMutator] (#376, docs/adr/0004);
+## this node owns only the trigger above and the two forwarders below.
+var _mutator := LocalScaleMutator.new()
 
 
 ## Every leaf currently applied through a scaled effect-set — the read half of
 ## [method clear_scaled_effect_sets] (#520), for the same reason
 ## [method granted_entity_modifiers] exists.
 func scaled_effect_leaves() -> Array[StatModifier]:
-	var out: Array[StatModifier] = []
-	for e in _scaled_effect_sets:
-		for leaf: StatModifier in _scaled_effect_sets[e]:
-			out.append(leaf)
-	return out
+	return _mutator.scaled_effect_leaves(state)
 
 
-## Strip any scaled effect-sets applied to [param board] — called by
-## AllocationSystem just before an ownership transition revokes the effect
-## instances, because a swapped set is applied OUTSIDE the effect ledger and
-## would strand on the board otherwise.
-##
-## Note this one was ALREADY shadow-safe: it only ever removed leaves from the
-## board it was handed and never touched [member _scaled_effect_sets] (#520's
-## body reads it as mutating the node; it does not). Kept as the named verb, now
-## expressed over [method scaled_effect_leaves] so there is one answer to "what
-## did the swap put on the board".
+## Strip any scaled effect-sets applied to [param board] — called just before
+## an ownership transition revokes the effect instances, because a swapped set
+## is applied OUTSIDE the effect ledger and would strand on the board otherwise.
 func clear_scaled_effect_sets(board: StatBoard) -> void:
-	if board == null:
-		return
-	_remove_leaf_set(board, scaled_effect_leaves())
-	_scaled_effect_sets.clear()
+	_mutator.clear_scaled_effect_sets(state, board)
 
 
 ## Ownership-transition fill writer (#337): a node that stops being owned

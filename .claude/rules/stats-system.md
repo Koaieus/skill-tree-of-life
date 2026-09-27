@@ -438,13 +438,14 @@ The ladder itself is **linear — `1 : 2 : 3`** — for every scaling modifier
 alike, and MULTIPLY scales its *growth part* (`1 + (X−1)·ladder`), not its whole
 value. Settled, re-affirmed, and not to be re-argued without evidence from play:
 **[ADR 0004](../../docs/adr/0004-the-allocation-level-magnitude-ladder-is-linear.md)**.
+The law lives in `skill_node/local_scale_mutator.gd` (`LocalScaleMutator`, a stateless verb over a `NodeState`); `SkillNode` keeps only the `stake_level.current_changed` trigger, and the swap ledgers live on `NodeState`.
 
 A modifier lands on `add_local_modifier` at its AUTHORED (baseline, al=1)
 value — an aura re-grant included, since #623's fix scales the aura's
 *distance*, never the node's allocation ladder, and those are different
 owners that must not merge. `SkillNode.add_local_modifier` therefore ends by
-calling `_scale_modifier(m, 1, _last_allocation_level)` — the same
-universal-law / `_local_scale_override` walk `_apply_local_scale` runs per
+calling `LocalScaleMutator.scale_modifier(state, m, 1, _last_allocation_level)` — the same
+universal-law / `_local_scale_override` walk `apply` runs per
 stake change — bringing the freshly bound handle up to the node's *current*
 allocation level immediately, rather than leaving it at baseline until the
 next `stake_level` change happens to fire `_on_stake_level_changed`.
@@ -452,7 +453,7 @@ next `stake_level` change happens to fire `_on_stake_level_changed`.
 **Why this doesn't double-scale:** `_local_scale`'s ladder is floored at 1, so
 `al ∈ {0, 1}` both read as baseline — a fresh grant is always "coming from
 al=1" regardless of `_last_allocation_level`'s literal value at grant time.
-`_apply_local_scale`'s later per-stake-change call then applies its OWN delta
+`LocalScaleMutator.apply`'s later per-stake-change call then applies its OWN delta
 from wherever the handle now sits, which composes correctly (grant at al=3,
 stake to 4: `x 4/3`) — see `test_grant_at_al3_then_stake_round_trip_returns_exactly_no_double_scaling`.
 

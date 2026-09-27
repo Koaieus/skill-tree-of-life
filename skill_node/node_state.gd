@@ -32,6 +32,11 @@ var last_allocation_level: int = 0
 var regen_stacks: int = 0
 var shots_fired_this_turn: int = 0
 var damaged_since_upkeep: bool = false
+## Composition-swap ledgers of [LocalScaleMutator] (#376 decision 8): parent
+## modifier / effect -> the scaled leaf-set applied in its place on its
+## contribution board. Only populated while an override returns an Array.
+var scaled_sets: Dictionary[StatModifier, Array] = {}
+var scaled_effect_sets: Dictionary[Effect, Array] = {}
 
 
 ## Mint [member board] if not yet ready: a DEEP clone of the authored
@@ -51,8 +56,8 @@ func ensure_board(template: NodeStatBoard) -> NodeStatBoard:
 
 ## A detached copy at COMBAT depth: [member board] via
 ## [method StatBoard.clone_live], [member tags] duplicated, everything else
-## copied by value or (modifiers, effects, local modifiers, owner identity) by
-## reference.
+## copied by value or (modifiers, effects, local modifiers, the two
+## [LocalScaleMutator] ledgers, owner identity) by reference.
 func clone() -> NodeState:
 	var c := NodeState.new()
 	c.owned_by = owned_by
@@ -68,4 +73,8 @@ func clone() -> NodeState:
 	c.regen_stacks = regen_stacks
 	c.shots_fired_this_turn = shots_fired_this_turn
 	c.damaged_since_upkeep = damaged_since_upkeep
+	# By reference: a shadow only ever reads the ledgers (it strips what they
+	# list from its own board), never writes them.
+	c.scaled_sets = scaled_sets
+	c.scaled_effect_sets = scaled_effect_sets
 	return c
