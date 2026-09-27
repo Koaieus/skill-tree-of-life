@@ -49,3 +49,7 @@ func apply(command: Command, ctx: CommandContext) -> bool:
 			@warning_ignore("redundant_await")
 			return await (addon as SkillDustAddon).run_round(round, collector)
 	return false
+
+
+func open_round(_addon: SkillDustAddon, _collector: Entity, _ctx: CommandContext) -> void:
+	pass
