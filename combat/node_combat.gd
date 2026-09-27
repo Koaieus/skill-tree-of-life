@@ -52,6 +52,8 @@ var _tags: Dictionary[StringName, int] = {}
 ## shadow tick never moves the live one. This slice is the host's `owner`:
 ## every def hook sees the NodeCombat, never the StatusHost.
 var _status_host := StatusHost.new(self)
+## STUB (#1141 red): the slice's NodeState.
+var _state := NodeState.new()
 
 
 func _init(p_host: SkillNode = null) -> void:
