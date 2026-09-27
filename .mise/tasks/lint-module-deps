@@ -47,8 +47,51 @@ ALLOWED_PRIMITIVES = {
                             "vocabulary, not UI; permanent, not a debt.",
 }
 
-# "src→dst": (retiring issue or None, why). Today's upward edges, verbatim.
+# "src→dst": (retiring issue or None, what crosses). Today's upward edges,
+# verbatim, as of the landing of this check (2026-09-27). The second field names
+# the classes/paths that carry the edge, so a reader can grep for them;
+# `--json` lists every file:line. None = no issue retires it yet.
 ALLOWLIST = {
+    "archetypes→skill_node": (None, "no retiring issue — CarveShape"),
+    "attack→command": (None, "no retiring issue — CommandCodec, LaunchAttackCommand, WireFields"),
+    "attack→session": (None, "no retiring issue — SeatPolicy"),
+    "attack→settings": (None, "no retiring issue — GameSettings"),
+    "attack→systems": (None, "no retiring issue — BattleSystem, VisionSystem"),
+    "attack→ui": (None, "no retiring issue — HighlightProvider, ShatterField, ui/z_layers.gd"),
+    "autoload→settings": (None, "no retiring issue — GameSettings, settings/default_settings.tres"),
+    "combat→attack": (None, "no retiring issue — DamageInstance, HealInstance, HitInstance, Mitigation"),
+    "combat→systems": (None, "no retiring issue — AllocationSystem"),
+    "command→network": (1133, "WorldFingerprint"),
+    "effects→attack": (None, "no retiring issue — CritRoll, DamageInstance, EuclideanRangeFinder, HealInstance, HitInstance, …"),
+    "effects→combat": (None, "no retiring issue — CombatWorld, EntityCombat, NodeCombat"),
+    "entity→attack": (None, "no retiring issue — AmmoTypeRoster, AttackOutcome, BladeDefenderZones, BladeDriver, BladeSim, …"),
+    "entity→combat": (None, "no retiring issue — EntityCombat"),
+    "entity→command": (None, "no retiring issue — AllocateCommand, Command, CommandApplier, EndTurnCommand, ReloadCommand"),
+    "entity→effects": (None, "no retiring issue — AuraDistanceCache, Effect, EffectContext, EffectInstance, NodeStatus"),
+    "entity→scenes": (1131, "GameRoot"),
+    "entity→systems": (None, "no retiring issue — BattleSystem, LootSystem, TurnManager, VisionCircles"),
+    "graph→entity": (None, "no retiring issue — Entity"),
+    "graph→scenes": (None, "no retiring issue — GraphCamera"),
+    "graph→skill_node": (None, "no retiring issue — ClampAddon, SkillNode"),
+    "procgen→scenes": (None, "no retiring issue — GameRoot"),
+    "scenes→settings": (None, "no retiring issue — GameSettings"),
+    "session→network": (1133, "NetworkTransport"),
+    "session→procgen": (None, "no retiring issue — GraphProcgenConfig"),
+    "session→ui": (1133, "LobbyPolicy, PlayerPalette, ui/theme/player_palette.tres"),
+    "skill_node→attack": (None, "no retiring issue — AttackPlan, BladeDistanceConstraint, BladeState, HitInstance, SpellDef, …"),
+    "skill_node→combat": (None, "no retiring issue — NodeCombat"),
+    "skill_node→command": (1138, "CommandApplier, LootRoundCommand"),
+    "skill_node→effects": (None, "no retiring issue — Effect, NodeStatus, StatusDef"),
+    "skill_node→entity": (None, "no retiring issue — Entity, Sigil"),
+    "skill_node→procgen": (None, "no retiring issue — NodeSubtype"),
+    "skill_node→systems": (1138, "BattleSystem, HighlightController, LootPickRegistry, LootPickRequest, SpellLootRequest"),
+    "skill_node→ui": (None, "no retiring issue — SubBag, TweenClock, ui/z_layers.gd"),
+    "systems→command": (None, "no retiring issue — AllocateCommand, Command, CommandApplier, DeallocateCommand, DeallocateSetCommand, …"),
+    "systems→network": (1133, "CommandLink"),
+    "systems→session": (None, "no retiring issue — LastCampStandingCondition, Participant, ParticipantRoster, RunOutcome, SeatPolicy, …"),
+    "systems→settings": (None, "no retiring issue — GameSettings"),
+    "systems→ui": (None, "no retiring issue — AttackVFX, CoreMoveHighlightProvider, DeferredOnce, HighlightProvider, KeyChip, …"),
+    "ui→scenes": (None, "no retiring issue — GameRoot, GraphCamera"),
 }
 
 
