@@ -93,8 +93,12 @@ an issue framed as such before this review.
 Found along the way, both verified:
 
 - Seat handover writes `Participant.Kind.AI` into the run roster
-  (`game_root.gd:675`); the roster survives the pause-menu
-  `reload_current_scene`, so a seat handed to the AI stays AI after restart.
+  (`game_root.gd:675`) and the roster survives the pause-menu restart.
+  *Corrected 2026-09-27 during swarmify:* handover fires only on peer-left or
+  under the autoplay harness, so a departed peer staying AI is correct. The
+  real findings are that the pause-menu restart has no networked-run guard
+  and that `GameSession.start` adds `RunConfig`'s own `Participant` objects
+  to the roster (aliasing). Retitled #1135.
 - The melee same-frame broadphase window is guarded only in debug builds
   (`blade_defender_zones.gd:196-206`) and the command drain never yields a
   physics frame, so one drain that attaches an addon and then attacks can
@@ -175,7 +179,7 @@ nearly every wiring decision carrying a *why*.
 | #1132 | Needs design | Split BattleSystem; AI gets its own plan (ranked 3) |
 | #1133 | Needs design | Spine as a DAG; decompose CommandLink; LootSystem off the link (ranked 4), blocked by #1138 |
 | #1134 | Needs design | Enforce dependency direction: layer map + `deps-check` (ranked 5) |
-| #1135 | Backlog | Bug: seat handover writes AI kind into the run roster |
+| #1135 | Ready | Pause-menu restart unguarded online; roster aliases RunConfig participants |
 | #1136 | Backlog | Bug: melee same-frame broadphase window unguarded in release |
 | #1137 | Backlog | Events bus hygiene |
 | #1138 | Needs design | skill_dust_addon runs a controller flow |
