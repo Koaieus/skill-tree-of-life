@@ -79,6 +79,7 @@ func _ready() -> void:
 		ctl.core_move_targeting_changed.connect(_on_source_changed.unbind(1))
 		ctl.manage_arm_changed.connect(_on_source_changed.unbind(1))
 		ctl.mass_action_pending_changed.connect(_on_source_changed.unbind(1))
+		ctl.core_drag_target_changed.connect(_on_core_drag_target_changed)
 	if allocation_system != null:
 		allocation_system.allocated.connect(_on_source_changed.unbind(3))
 		allocation_system.deallocated.connect(_on_source_changed.unbind(2))
@@ -140,10 +141,17 @@ func _build_core_provider() -> CoreMoveHighlightProvider:
 	return _core_provider
 
 
-## Read the active core-move provider (if core-move is the active driver) so the
-## input controller can push drag-target previews into it. Null otherwise.
+## The active core-move provider when core-move is the active driver; null otherwise.
 func active_core_provider() -> CoreMoveHighlightProvider:
 	return provider as CoreMoveHighlightProvider
+
+
+## Mirror the core-drag ghost's landing into the core-move provider so the
+## brightened target ring tracks it. No-op when anything else drives highlights.
+func _on_core_drag_target_changed(landing: SkillNode) -> void:
+	var core_provider := active_core_provider()
+	if core_provider != null:
+		core_provider.set_target(landing)
 
 
 func _set_provider(value: HighlightProvider) -> void:

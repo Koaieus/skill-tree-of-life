@@ -1196,16 +1196,10 @@ func _movement_points_current() -> int:
 	return mp.available() if mp != null else 0
 
 
-## Mirror the drag's snapped landing into the active core-move highlight provider
-## (if that's what's driving highlights right now) so the brightened target ring
-## tracks the ghost. No-op when an attack plan owns the highlights.
+## Announce the drag's snapped landing; [HighlightController] owns what the
+## highlights do with it.
 func _set_drag_preview_target(landing: SkillNode) -> void:
-	var ctl := get_tree().get_first_node_in_group(HighlightController.GROUP) as HighlightController
-	if ctl == null:
-		return
-	var core_provider := ctl.active_core_provider()
-	if core_provider != null:
-		core_provider.set_target(landing)
+	core_drag_target_changed.emit(landing)
 
 
 ## Builds the drag-ghost lazily: a standalone [CorePresence] instance (the
