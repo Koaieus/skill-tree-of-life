@@ -20,6 +20,8 @@ const _GAME_ROOT := preload("res://scenes/game_root.tscn")
 ## (scene path relative to the root, `@export` property) — every `node_paths`
 ## entry authored in `game_root.tscn`, in file order.
 const _EXPORT_DEPS: Array = [
+	["Systems/EntityFactory", "graph"],
+	["Systems/EntityFactory", "allocation_system"],
 	["Systems/AllocationSystem", "graph"],
 	["Systems/AllocationSystem", "navigator"],
 	["Systems/AllocationSystem", "turn_manager"],
