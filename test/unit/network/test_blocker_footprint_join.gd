@@ -20,7 +20,7 @@ const _EDGE_SCENE := preload("res://graph/edge.tscn")
 
 
 ## A line of `count` nodes with matching stable ids on both sides, plus the
-## GameRoot + AllocationSystem `spawn_blocker` needs. A Dictionary rather than
+## EntityFactory + AllocationSystem `spawn_blocker` needs. A Dictionary rather than
 ## an inner class: an `await`ing helper's declared return type is the coroutine,
 ## not the value, so a typed one will not parse.
 func _side(count: int) -> Dictionary:
@@ -45,13 +45,13 @@ func _side(count: int) -> Dictionary:
 	var alloc := AllocationSystem.new()
 	alloc.graph = graph
 	add_child_autofree(alloc)
-	var root := GameRoot.new()
-	autofree(root)
-	root.graph = graph
-	root.allocation_system = alloc
+	var factory := EntityFactory.new()
+	autofree(factory)
+	factory.graph = graph
+	factory.allocation_system = alloc
 	await get_tree().process_frame
 	s["graph"] = graph
-	s["root"] = root
+	s["factory"] = factory
 	return s
 
 
@@ -66,7 +66,7 @@ func test_a_multi_node_blocker_crosses_with_its_falloff_intact() -> void:
 	var host: Dictionary = await _side(5)
 	var client: Dictionary = await _side(5)
 	var footprint: Array[SkillNode] = [host["nodes"][2], host["nodes"][3], host["nodes"][4]]
-	var blocker: Entity = (host["root"] as GameRoot).spawn_blocker(
+	var blocker: Entity = (host["factory"] as EntityFactory).spawn_blocker(
 			EntityFactory.BlockerSize.MEDIUM, host["nodes"][1], footprint)
 	await get_tree().process_frame
 	assert_eq(_caps(host), [0.0, 40.0, 35.0, 30.0, 25.0] as Array[float],
@@ -77,7 +77,7 @@ func test_a_multi_node_blocker_crosses_with_its_falloff_intact() -> void:
 	# that ran no procgen.
 	var entity_bytes := EntitySnapshot.encode(host["graph"] as Graph)
 	var graph_bytes := GraphSnapshot.encode(host["graph"] as Graph)
-	var spawner := Callable((client["root"] as GameRoot).entity_factory, "spawn_snapshot_entity")
+	var spawner := Callable(client["factory"], "spawn_snapshot_entity")
 	EntitySnapshot.decode(entity_bytes, client["graph"] as Graph, spawner)
 	GraphSnapshot.decode(graph_bytes, client["graph"] as Graph)
 	EntitySnapshot.resolve_graph_refs(entity_bytes, client["graph"] as Graph, spawner)

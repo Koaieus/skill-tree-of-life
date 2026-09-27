@@ -35,20 +35,20 @@ func _side(count: int) -> Dictionary:
 	var alloc := AllocationSystem.new()
 	alloc.graph = graph
 	add_child_autofree(alloc)
-	var root := GameRoot.new()
-	autofree(root)
-	root.graph = graph
-	root.allocation_system = alloc
+	var factory := EntityFactory.new()
+	autofree(factory)
+	factory.graph = graph
+	factory.allocation_system = alloc
 	await get_tree().process_frame
 	s["graph"] = graph
-	s["root"] = root
+	s["factory"] = factory
 	return s
 
 
 func test_a_3_of_3_blocker_core_crosses_the_join_as_3_of_3() -> void:
 	var host: Dictionary = await _side(3)
 	var client: Dictionary = await _side(3)
-	var blocker: Entity = (host["root"] as GameRoot).spawn_blocker(
+	var blocker: Entity = (host["factory"] as EntityFactory).spawn_blocker(
 			EntityFactory.BlockerSize.SMALL, host["nodes"][1],
 			[host["nodes"][2]] as Array[SkillNode], 0, 0.0, 0, 3)
 	await get_tree().process_frame
@@ -58,7 +58,7 @@ func test_a_3_of_3_blocker_core_crosses_the_join_as_3_of_3() -> void:
 
 	var entity_bytes := EntitySnapshot.encode(host["graph"] as Graph)
 	var graph_bytes := GraphSnapshot.encode(host["graph"] as Graph)
-	var spawner := Callable((client["root"] as GameRoot).entity_factory, "spawn_snapshot_entity")
+	var spawner := Callable(client["factory"], "spawn_snapshot_entity")
 	EntitySnapshot.decode(entity_bytes, client["graph"] as Graph, spawner)
 	GraphSnapshot.decode(graph_bytes, client["graph"] as Graph)
 	EntitySnapshot.resolve_graph_refs(entity_bytes, client["graph"] as Graph, spawner)
