@@ -17,12 +17,11 @@ only hostless-slice factory, and it takes no host argument.
 
 ## Ownership is accessed, never stored — on a live slice
 
-`owned()` / `core()` / `board()` are ACCESSORS. On a live slice they read
-through `host` on every call and cache nothing: `AllocationSystem` writes
-`node.owned_by` and mirrors the navigator without knowing this slice exists,
-so a cached read would go stale silently. A shadow falls back to its own
-`_owned` / `_core` / `_board`, populated once at `snapshot()` and kept current
-by `apply_cascade` — the ONLY place that mutates a shadow's ownership, and it
+`owned()` / `core()` are ACCESSORS. On a live slice they read through `host`
+on every call and cache nothing: `AllocationSystem` writes `node.owned_by` and
+mirrors the navigator without knowing this slice exists, so a cached read would
+go stale silently. A shadow falls back to its own `_owned` / `_core`, populated
+at `snapshot()` and kept current by `apply_cascade` — the ONLY place that mutates a shadow's ownership, and it
 nulls the stripped node's `_state.owned_by` and trims the shadow `GraphMirror`
 together, never one without the other (or islanding would answer a set the
 slice itself disagrees with).
@@ -35,6 +34,15 @@ never the raw `_world`, so a bare snapshot's first node still resolves). That
 world backpointer is the `RefCounted` cycle `free_shadow` severs. An orphan's
 clone is un-owned (`owned_by = null`), or resolving it would snapshot an
 entity that does not hold the node.
+
+`EntityCombat` has the same shape one level up: it holds an `EntityState`
+(board, tags, `core_location` identity, the effect ledger) — `Entity.state`
+itself when live, a `clone()` when shadow — so `board()` and the tag verbs
+never branch on `host`. The owned set is NOT state: it stays derived from the
+navigator mirror (`_mirror` / `_owned`). The clone leaves the effect ledger
+empty: `snapshot()` twins the effects into `_effects`, because a twin's
+context binds to the slice (`EffectInstance.clone_for`), the same reason
+statuses stay on `StatusHost`.
 
 ## The cascade is ONE driver with one sanctioned branch
 
