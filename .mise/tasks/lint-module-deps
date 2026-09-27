@@ -1,0 +1,267 @@
+#!/usr/bin/env python3
+#MISE description="Fail on a new upward module dependency: `mise run lint-module-deps [-- --json|--explain <src→dst>|--self-test]`"
+"""
+Dependency direction between top-level modules. The layer map and the allowlist
+below are THE owner of that fact; docs/architecture.md is prose about them.
+
+A reference is either
+  - a `class_name` token in code (comments and string contents stripped), or
+  - a `"res://…"` string literal (covers `preload(` / `load(` / bare paths).
+Granularity is the top-level directory. A module may reference itself and any
+module BELOW it in LAYERS; anything else is an upward edge. Every upward edge
+not in ALLOWLIST is printed with its file:line and the script exits 1.
+
+Only `.gd` files under a layered directory are scanned; `addons/ test/ tools/`
+and friends are outside the map, as sources and as targets.
+
+  ALLOWLIST DISCIPLINE: the allowlist only SHRINKS. An edge that a refactor
+  removes is a one-line delete in the same landing (a stale entry is reported
+  as a warning). Adding an entry is an architectural call — cite the issue
+  that retires it, or say why it is permanent.
+"""
+import json
+import os
+import re
+import subprocess
+import sys
+import tempfile
+
+# Lowest first. A layer may reference itself and anything earlier in the list.
+LAYERS = [
+    # sim
+    "archetypes", "stats_system", "graph", "skill_node", "entity",
+    "effects", "combat", "attack", "systems",
+    # spine — `procgen` sits just above `session`: it may read sim and session.
+    "session", "procgen", "command", "network",
+    # shell
+    "presentation", "ui", "scenes", "autoload", "settings",
+]
+RANK = {name: i for i, name in enumerate(LAYERS)}
+
+# Reachable from every layer (the bus). Its OWN outgoing edges are still checked.
+REACHABLE_FROM_ALL = {"autoload"}
+
+# Single files every layer may reference: permanent primitives, each with why.
+ALLOWED_PRIMITIVES = {
+    "ui/theme/emissive.gd": "the HDR glow tier table (hdr-color.md) — a colour "
+                            "vocabulary, not UI; permanent, not a debt.",
+}
+
+# "src→dst": (retiring issue or None, why). Today's upward edges, verbatim.
+ALLOWLIST = {
+}
+
+
+def top_dir(rel):
+    return rel.split("/", 1)[0] if "/" in rel else ""
+
+
+def allowed(src, dst):
+    if src == dst or dst in REACHABLE_FROM_ALL:
+        return True
+    return RANK[dst] < RANK[src]
+
+
+def strip_line(line, state):
+    """Return (code with strings blanked and comment dropped, [string literals]).
+    `state` carries an open triple-quoted string across lines."""
+    code, strings = [], []
+    i, n = 0, len(line)
+    buf = None
+    quote = state.get("triple")
+    if quote:
+        buf = []
+    while i < n:
+        if quote:
+            if line.startswith(quote, i):
+                strings.append("".join(buf))
+                code.append('""')
+                i += len(quote)
+                quote, buf = None, None
+                continue
+            if line[i] == "\\" and i + 1 < n:
+                buf.append(line[i:i + 2])
+                i += 2
+                continue
+            buf.append(line[i])
+            i += 1
+            continue
+        c = line[i]
+        if c == "#":
+            break
+        if c in "\"'":
+            q = c * 3 if line.startswith(c * 3, i) else c
+            quote, buf = q, []
+            i += len(q)
+            continue
+        code.append(c)
+        i += 1
+    if quote:
+        if len(quote) == 3:
+            state["triple"] = quote
+            strings.append("".join(buf))
+        else:
+            strings.append("".join(buf))
+            state["triple"] = None
+    else:
+        state["triple"] = None
+    return "".join(code), strings
+
+
+CLASS_RE = re.compile(r"^\s*class_name\s+([A-Za-z_][A-Za-z0-9_]*)", re.M)
+TOKEN_RE = re.compile(r"\b[A-Z][A-Za-z0-9_]*\b")
+RES_RE = re.compile(r"^res://([^\"']+)")
+
+
+def gd_files(root):
+    for dirpath, dirnames, filenames in os.walk(root):
+        rel_dir = os.path.relpath(dirpath, root)
+        dirnames[:] = [d for d in dirnames if not d.startswith(".")]
+        if rel_dir == ".":
+            continue
+        for f in filenames:
+            if f.endswith(".gd"):
+                yield os.path.relpath(os.path.join(dirpath, f), root).replace(os.sep, "/")
+
+
+def class_map(root, files):
+    out = {}
+    for rel in files:
+        with open(os.path.join(root, rel), encoding="utf-8", errors="replace") as fh:
+            m = CLASS_RE.search(fh.read())
+        if m:
+            out[m.group(1)] = rel
+    return out
+
+
+def scan(root):
+    """Return {(src, dst): [(file, line, target_file_or_token)]} for every upward reference."""
+    files = sorted(gd_files(root))
+    classes = class_map(root, files)
+    edges = {}
+    for rel in files:
+        src = top_dir(rel)
+        if src not in RANK:
+            continue
+        state = {"triple": None}
+        with open(os.path.join(root, rel), encoding="utf-8", errors="replace") as fh:
+            lines = fh.read().splitlines()
+        for ln, line in enumerate(lines, 1):
+            code, strings = strip_line(line, state)
+            targets = []
+            if not re.match(r"^\s*class_name\b", code):
+                for tok in TOKEN_RE.findall(code):
+                    tgt = classes.get(tok)
+                    if tgt and tgt != rel:
+                        targets.append((tgt, tok))
+            for s in strings:
+                m = RES_RE.match(s)
+                if m:
+                    targets.append((m.group(1), s))
+            for tgt, what in targets:
+                dst = top_dir(tgt)
+                if dst not in RANK or tgt in ALLOWED_PRIMITIVES:
+                    continue
+                if allowed(src, dst):
+                    continue
+                edges.setdefault((src, dst), []).append((rel, ln, what))
+    return edges
+
+
+def edge_key(src, dst):
+    return "%s→%s" % (src, dst)
+
+
+def run(root, use_allowlist=True, as_json=False):
+    edges = scan(root)
+    allow = ALLOWLIST if use_allowlist else {}
+    new = {k: v for k, v in edges.items() if edge_key(*k) not in allow}
+    found = {edge_key(*k) for k in edges}
+    stale = sorted(k for k in allow if k not in found)
+    if as_json:
+        print(json.dumps({
+            "new": [{"edge": edge_key(*k), "refs": [{"file": f, "line": l, "ref": w} for f, l, w in v]}
+                    for k, v in sorted(new.items())],
+            "allowlisted": sorted(k for k in found if k in allow),
+            "stale": stale,
+        }, indent=2, ensure_ascii=False))
+    else:
+        for k, refs in sorted(new.items()):
+            print("✗ upward edge %s (not in allowlist)" % edge_key(*k))
+            for f, l, w in refs:
+                print("    %s:%d  %s" % (f, l, w))
+        for k in stale:
+            print("⚠ stale allowlist entry %s — no reference left; delete the line" % k)
+        if not new:
+            print("✓ module deps: %d upward edge(s), all allowlisted" % len(edges))
+    return 1 if new else 0
+
+
+def explain(edge):
+    key = edge.replace("->", "→")
+    if key not in ALLOWLIST:
+        print("%s is not in the allowlist." % key)
+        return 1
+    issue, why = ALLOWLIST[key]
+    print('"%s": (%s, %r)' % (key, "#%d" % issue if issue else "no retiring issue", why))
+    return 0
+
+
+def self_test():
+    """Plant one upward reference in a temp tree; expect exit 1 naming file:line."""
+    ok = True
+    with tempfile.TemporaryDirectory() as tmp:
+        def write(rel, body):
+            p = os.path.join(tmp, rel)
+            os.makedirs(os.path.dirname(p), exist_ok=True)
+            with open(p, "w") as fh:
+                fh.write(body)
+        write("graph/graph_thing.gd", "class_name GraphThing\nextends Node\n")
+        write("ui/panel.gd", "class_name Panel2\nvar g: GraphThing  # down: fine\n")
+        write("ui/theme/emissive.gd", "class_name Emissive\n")
+        write("autoload/events.gd", "extends Node\n")
+        write("graph/clean.gd",
+              "extends Node\n"
+              "# Panel2 in a comment is not a reference\n"
+              "var s := \"Panel2 in a string is not one either\"\n"
+              "var c := Emissive  # primitive: allowed\n"
+              "var e := load(\"res://autoload/events.gd\")  # bus: allowed\n")
+        me = os.path.abspath(__file__)
+        clean = subprocess.run([sys.executable, me, "--root", tmp, "--no-allowlist"],
+                               capture_output=True, text=True)
+        if clean.returncode != 0:
+            ok = False
+            print("✗ clean tree should exit 0:\n" + clean.stdout)
+        write("graph/leak.gd", "extends Node\n\nvar p: Panel2\n")
+        write("skill_node/leak2.gd", "extends Node\nconst S := preload(\"res://ui/panel.gd\")\n")
+        dirty = subprocess.run([sys.executable, me, "--root", tmp, "--no-allowlist"],
+                               capture_output=True, text=True)
+        for want in ["graph→ui", "graph/leak.gd:3", "skill_node→ui", "skill_node/leak2.gd:2"]:
+            if want not in dirty.stdout:
+                ok = False
+                print("✗ planted upward reference: expected %r in output:\n%s" % (want, dirty.stdout))
+        if dirty.returncode != 1:
+            ok = False
+            print("✗ planted upward reference should exit 1, got %d" % dirty.returncode)
+    print("✓ lint-module-deps self-test" if ok else "✗ lint-module-deps self-test failed")
+    return 0 if ok else 1
+
+
+def main(argv):
+    root = subprocess.run(["git", "rev-parse", "--show-toplevel"],
+                          capture_output=True, text=True).stdout.strip() or "."
+    if "--self-test" in argv:
+        return self_test()
+    if "--explain" in argv:
+        i = argv.index("--explain")
+        if i + 1 >= len(argv):
+            print("usage: lint-module-deps --explain <src→dst>")
+            return 2
+        return explain(argv[i + 1])
+    if "--root" in argv:
+        root = argv[argv.index("--root") + 1]
+    return run(root, use_allowlist="--no-allowlist" not in argv, as_json="--json" in argv)
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))
