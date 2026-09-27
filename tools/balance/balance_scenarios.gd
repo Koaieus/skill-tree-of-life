@@ -120,7 +120,7 @@ static func _snipe(root: Node, name: String, attacker_level: int, defender_level
 
 ## REQUIRED fixture (#268): defender's own core-adjacent territory (hop 0/1/2/3
 ## and beyond-range) under a base-10/range-3 heal aura, granted through a real
-## `CoreClass` so `Entity._on_turn_started` applies it via the production path
+## `CoreClass` so `Entity.begin_turn` applies it via the production path
 ## (never a hand-rolled `values_from` call standing in for the real mechanic).
 ## Makes both `aura_coverage_fraction` and `core_node_ttk_under_sustained_pressure`
 ## computable.

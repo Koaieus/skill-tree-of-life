@@ -44,7 +44,7 @@ fails rather than passing on an empty set.
 | Hook | Fired from |
 |---|---|
 | `_on_granted` / `_on_revoked` | `Entity.grant_effect` / `revoke_effect` |
-| `_on_turn_start` / `_on_turn_end` | `Entity._on_turn_started` / `_on_turn_ended` |
+| `_on_turn_start` / `_on_turn_end` | `Entity.begin_turn` / `finish_turn` |
 | `_on_node_allocated` / `_on_node_deallocated` | `AllocationSystem`, all four allocate/deallocate paths |
 | `_on_core_moved` | `AllocationSystem.move_core` |
 | `_on_level_up` | `Entity._on_xp_replenished` |
@@ -336,7 +336,7 @@ read is already correct.
   (#878), landed via `NodeCombat.apply_status`/`land_on` on whichever
   `CombatWorld` the applier hands in — same shadow/live split as every other
   hit. Ticking is a **sparse** subscription (#879): a node with ≥ 1 status
-  connects once to `Events.turn_started` (fired after `Entity._on_turn_started`'s
+  connects once to `Events.turn_started` (fired after `Entity.begin_turn`'s
   own upkeep, never on an adopted resync cursor) and disconnects on its last —
   never a territory sweep. All statuses void on any deallocation path
   (`AllocationSystem.clear_statuses()` on `deallocate`/`force_deallocate`/

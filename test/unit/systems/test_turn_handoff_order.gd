@@ -75,6 +75,19 @@ func test_adopt_turn_runs_no_upkeep_and_no_take_turn_but_marks_the_turn() -> voi
 	assert_true(e.is_taking_turn, "the adopted entity is not lying about whose turn it is")
 
 
+func test_adopt_turn_clears_the_displaced_holders_flag() -> void:
+	# A mirror never runs end_turn for the entity the authority's cursor
+	# displaces, so without the clear its flag would stick.
+	var a := _make_entity("A")
+	_graph.entities_container.add_child(a)
+	var b := _make_entity("B")
+	_graph.entities_container.add_child(b)
+	_tm.start_turn(a)
+	_tm.adopt_turn(b, 7)
+	assert_false(a.is_taking_turn, "the displaced holder's turn is over")
+	assert_true(b.is_taking_turn, "the adopted holder's turn is live")
+
+
 func test_a_controller_kicked_by_hand_mid_turn_may_continue() -> void:
 	var e := _make_entity("E")
 	_graph.entities_container.add_child(e)

@@ -7,7 +7,7 @@ extends GutTest
 ## don't hand-compose) and .claude/rules/graph.md (populate a Graph via
 ## add_skill_node / add_edge so Navigator/EntityNavigator actually mirror it).
 ##
-## Below drives `_on_turn_started` by name deliberately (#989): this file
+## Below drives `begin_turn` by name deliberately (#989): this file
 ## tests the upkeep/regen formula, not the `TurnManager.turn_started` wiring
 ## that invokes it — that connect is asserted once, in
 ## `test/integration/test_game_root_wiring.gd::test_entity_signals_connect_on_spawn`.
@@ -144,7 +144,7 @@ func test_turn_start_no_longer_refills_to_full() -> void:
 
 # ── D-10: CoreClass healing aura (HealAuraEffect on AuraEffect, #720) ─────
 #
-# Driven through Entity._on_turn_started — the production path — never a
+# Driven through Entity.begin_turn — the production path — never a
 # hand-rolled `_distances`/`values_from` call. Every node is pre-damaged
 # (`_true_damage`) immediately before the turn so D-9's base-regen gate reads
 # "damaged this turn" and contributes exactly 0, isolating the aura's own

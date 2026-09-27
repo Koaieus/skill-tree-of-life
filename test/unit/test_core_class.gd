@@ -6,7 +6,7 @@ extends GutTest
 ##  - The .tres is sharable: every entity applies the SAME modifier instances
 ##    (#377 — no more per-entity duplication); binding lives on each entity's
 ##    own board, so formula-driven entries still don't crosstalk.
-##  - on_turn_started() runs from Entity._on_turn_started (default no-op).
+##  - on_turn_started() runs from Entity.begin_turn (default no-op).
 
 const _BOARD := preload("res://entity/default_entity_board.tres")
 const _BALANCED := preload("res://entity/core/balanced_core.tres")

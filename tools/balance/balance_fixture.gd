@@ -127,7 +127,7 @@ func core_node() -> SkillNode:
 	return nodes[0] if not nodes.is_empty() else null
 
 
-## Simulate `count` real turn-start upkeeps (`Entity._on_turn_started`) — pool
+## Simulate `count` real turn-start upkeeps (`Entity.begin_turn`) — pool
 ## replenishment, node regen, class aura, all through the production code path.
 func run_turns(count: int) -> void:
 	for _i in range(count):

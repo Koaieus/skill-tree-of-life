@@ -24,7 +24,7 @@ turn-start regen (D-9) and the CoreClass aura (D-10) apply on top of it.
 
 ## Turn-start regen (D-9) — replaces refill-to-full
 
-`Entity._on_turn_started` no longer refills owned nodes to full. Instead,
+`Entity.begin_turn` no longer refills owned nodes to full. Instead,
 per owned node, `SkillNode.apply_turn_regen()` runs:
 
 - took damage since the last upkeep → `regen_stacks = 0`, no base heal;
@@ -64,7 +64,7 @@ A `CoreClass` may carry a `HealAuraEffect` (`effects/heal_aura_effect.gd`) —
 an `AuraEffect` subclass authored on `CoreClass.effects` like any other class
 effect, radiating from the entity's `core_location` (there is no separate
 `CoreClass.aura` field, and no standalone `CoreAura`/`HealAura` pair — #720
-ported the channel onto `AuraEffect`). `Entity._on_turn_started` dispatches
+ported the channel onto `AuraEffect`). `Entity.begin_turn` dispatches
 `_on_turn_start`, where `HealAuraEffect` walks the **owned** subgraph via the
 shared `AuraEffect._distances` (`reach`/`metric`, never `graph.navigator` —
 see `.claude/rules/graph.md` "Reach queries") and calls `node.heal_damage`

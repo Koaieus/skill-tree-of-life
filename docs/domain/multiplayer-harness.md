@@ -863,7 +863,7 @@ still diverged 25 times a run. Two independent causes, both in the replay path:
 - **a decoded world left its owner mirrors stale.** `GraphSnapshot._decode_node`
   assigns `owned_by` directly (a snapshot is a world, not a sequence of moves),
   which is exactly the write `EntityNavigator`'s mutation contract says will
-  drift the mirror — and nothing repaired it. `Entity._on_turn_started` runs the
+  drift the mirror — and nothing repaired it. `Entity.begin_turn` runs the
   D-9 regen sweep over `navigator.get_mirrored_nodes()`, so a node missing from a
   joining peer's mirror never healed there while it healed on the authority. The
   first missing node is the client's own core.

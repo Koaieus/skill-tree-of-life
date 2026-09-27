@@ -2,7 +2,7 @@ extends GutTest
 
 ## #996 (hub #994): the ENTITY hosts statuses through the same [StatusHost]
 ## the node composes. An entity-hosted DoT ticks the `health` pool on the
-## owner's turn start — AFTER `Entity._on_turn_started`'s pool upkeep
+## owner's turn start — AFTER `Entity.begin_turn`'s pool upkeep
 ## (`core_healing`), through the one pool-damage door (#995) — and the rows
 ## ride a core move for free because they are on the entity, not a node.
 ##
@@ -51,7 +51,7 @@ func before_each() -> void:
 	for n in [_n0, _n1, _n2]:
 		_alloc.force_allocate(_entity, n)
 	_entity.core_location = _n0
-	# Entity._on_turn_started runs no upkeep on turns_taken == 1 — prime that
+	# Entity.begin_turn runs no upkeep on turns_taken == 1 — prime that
 	# throwaway turn so every turn below is a real upkeep turn.
 	_tm.start_turn(_entity)
 	_tm.adopt_turn(null, _tm.turns_taken)  # bypass end_turn's auto-tick-to-ready

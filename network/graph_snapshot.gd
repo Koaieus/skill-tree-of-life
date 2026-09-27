@@ -179,7 +179,7 @@ static func decode(bytes: PackedByteArray, graph: Graph) -> void:
 ## [EntityNavigator]'s mutation contract says will drift the mirror. Nothing
 ## repaired it, so a peer that decoded a world owned nodes its own navigator had
 ## never heard of. The symptom is quiet and cumulative rather than loud:
-## [method Entity._on_turn_started] runs the D-9 regen sweep over
+## [method Entity.begin_turn] runs the D-9 regen sweep over
 ## `navigator.get_mirrored_nodes()`, so an unmirrored node never regens on that
 ## peer while it regens on the authority, and the ACCUMULATED fingerprint tier
 ## walks apart a fraction of an HP at a time. On a joining client the first

@@ -47,7 +47,7 @@ func before_each() -> void:
 	for n in [_n0, _n1]:
 		_alloc.force_allocate(_entity, n)
 	_entity.core_location = _n0
-	# Entity._on_turn_started runs no upkeep on turns_taken == 1 — prime that
+	# Entity.begin_turn runs no upkeep on turns_taken == 1 — prime that
 	# throwaway turn so every turn below is a real upkeep turn.
 	_turn()
 

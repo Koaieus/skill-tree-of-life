@@ -15,11 +15,11 @@ extends GutTest
 ##     sealed after bring-up — `test/unit/entity/test_entity_board_owner.gd`),
 ##
 ## so PIC sat listening to a discarded pool. This test keeps guarding the
-## re-subscription half. On `turn_started` the gate is
-## computed BEFORE `Entity._on_turn_started` refills AP (same synchronous
-## emit, PIC's handler runs first), so a turn entered with AP spent emits
-## `false` and the refill's `current_changed` — the only thing that would
-## correct it — never arrived. Tray dead for the rest of the run.
+## re-subscription half. On `turn_started` the gate used to be computed
+## BEFORE the entity's upkeep refilled AP (same synchronous emit, PIC's
+## handler ran first — `Entity.begin_turn` now runs before the emit), so a
+## turn entered with AP spent emitted `false` and the refill's
+## `current_changed` — the only thing that would correct it — never arrived. Tray dead for the rest of the run.
 ##
 ## Drives `dev_sandbox.tscn` because that scene IS the reproduction: a
 ## procgen sandbox spawns its player during `_setup_level`, after the board

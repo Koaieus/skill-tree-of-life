@@ -599,7 +599,7 @@ func _on_seat_vacated(peer_id: int) -> void:
 ## The entity half swaps the no-op [PlayerController] for an [AIController].
 ## If it is this hero's turn RIGHT NOW the new controller missed
 ## `turn_started`, and the human who would have ended the turn is gone — so the
-## turn is kicked by hand. Fire-and-forget, as [method EntityController._on_turn_started]
+## turn is kicked by hand. Fire-and-forget, as [signal Entity.turn_began]
 ## calls it. This half is the host's ALONE: a mirror that grew an
 ## [AIController] of its own would be a second machine deciding actions for a
 ## hero it has no authority over, which is the whole of

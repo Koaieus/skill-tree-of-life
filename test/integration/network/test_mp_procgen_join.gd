@@ -20,11 +20,10 @@ extends GutTest
 ##
 ## [b]Two worlds in one process, same accepted hazard as
 ## test_command_link.gd.[/b] Nothing here kills anything, so the death/loot/
-## victory cross-wiring that rules this out elsewhere never fires. The OTHER
-## tree-wide lookup that file warns about — `Entity._find_turn_manager` via
-## `get_first_node_in_group(TurnManager.GROUP)` — DOES apply here: every spawn
-## below goes through [method _spawn_scoped], hiding every other world's
-## TurnManager while an entity binds, exactly like that file's `_build_world`.
+## victory cross-wiring that rules this out elsewhere never fires. No entity
+## discovers a TurnManager any more — each is served only by the manager that
+## calls [method Entity.begin_turn] on it — so [method _spawn_scoped]'s group
+## hiding is belt-and-braces for any remaining group reader, kept as is.
 ##
 ## [b]GameSession is a singleton autoload[/b] — this file plays BOTH machines
 ## in one process, so the host's config is captured into a local BEFORE
@@ -63,8 +62,8 @@ func _build_root(label: String) -> GameRoot:
 
 
 ## See the class docstring's tree-wide-lookup note: hides every OTHER world's
-## TurnManager from the group for the duration of one spawn, so
-## `Entity._find_turn_manager` can only find the spawning world's own.
+## TurnManager from the group for the duration of one spawn, so a group reader
+## during bring-up can only find the spawning world's own.
 func _spawn_scoped(root: GameRoot, ent_name: String, color: Color,
 		core_location: SkillNode, core_class: CoreClass) -> Entity:
 	var hidden: Array[Node] = []
@@ -212,8 +211,7 @@ func test_each_instance_is_bound_to_a_different_participant() -> void:
 ## with two full worlds sharing one SceneTree they see BOTH worlds' entities
 ## regardless of which TurnManager is ticking — a fresh instance of exactly
 ## the hazard this file's own class docstring (and `test_command_link.gd`'s)
-## already name for `Entity._find_turn_manager`, on a different pair of
-## groups. That combination is precisely what the real two-OS-process harness
+## once named for TurnManager discovery, on a different pair of groups. That combination is precisely what the real two-OS-process harness
 ## exists to avoid; a real end-to-end multi-turn run is exercised manually
 ## via the Multiplayer tab (see docs/domain/multiplayer-harness.md), not in a
 ## single-process GUT test. What IS provable here, safely: fingerprint parity

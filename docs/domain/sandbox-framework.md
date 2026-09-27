@@ -280,9 +280,9 @@ Graph's job, not the tab's.
   synchronously into that entity's next `start_turn` (real upkeep + the
   `Events.turn_started` status tick). "Lone" needs work here, because the host
   instantiates every live tab into one tree: the bench's TurnManager is scoped
-  (`entity_root` = its Graph) and its entity wired (`turn_manager_override`),
-  or an unscoped tick serves another tab's entity and an unwired entity binds
-  to another tab's TurnManager. Build that TurnManager with `TurnManager.new()`
+  (`entity_root` = its Graph), or an unscoped tick serves another tab's
+  entity. Nothing else needs wiring: an entity never binds to a TurnManager —
+  it is served only by the manager that calls `begin_turn` on it. Build that TurnManager with `TurnManager.new()`
   from `@tool` code (hand it to `sandbox_world.build` as `adopt_turn_manager`)
   — `turn_manager.gd` is not `@tool`, so one authored in a `.tscn` is a
   placeholder in the editor. Killer attribution without a turn stays

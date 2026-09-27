@@ -13,7 +13,7 @@ An evaluator, not a search: a fixed set of named scenario fixtures
 (`balance_scenarios.gd`), each assembling real `Entity`/`SkillNode` instances
 via `preload(...).instantiate()` and driving them through the real allocation
 (`AllocationSystem`), damage (`Mitigation.apply` / `SkillNode.take_damage`),
-and turn-upkeep (`Entity._on_turn_started`) code paths — never a
+and turn-upkeep (`Entity.begin_turn`) code paths — never a
 reimplementation of a combat formula. See `docs/domain/` and
 `.claude/rules/stats-system.md` for what those paths actually do.
 

@@ -2,7 +2,7 @@ extends GutTest
 
 ## Declarative start-of-turn pool replenishment: PoolStatDef.per_turn_mode
 ## drives StatBoard.apply_per_turn_upkeep() in one sweep (no per-pool wiring in
-## Entity._on_turn_started). REFILL pools go to cap; ADD pools gain their
+## Entity.begin_turn). REFILL pools go to cap; ADD pools gain their
 ## `<id>_per_turn` companion; NONE pools (skill_points, health) are untouched.
 
 const _BOARD := preload("res://entity/default_entity_board.tres")

@@ -88,7 +88,7 @@ so a plain tab launch you intend to *play* is not supposed to show inflated
 stats, and if it does, that gate broke again.
 
 **`--turns=N` above ~10 does not do what it says.** The autopilot stops sweeping
-once Red dies (around sweep 10), because `_on_turn_started` only sweeps when
+once Red dies (around sweep 10), because `begin_turn` only sweeps when
 `entity == _red` — Blue's AI then grinds solo until you kill the process. So
 `end_turn`'s probe counts are wall-clock-dependent, not run-shape-dependent, and
 are **not comparable between two runs**. Compare the sweep-driven verbs.

@@ -3,7 +3,7 @@ extends GutTest
 ## #879 — the lifecycle wiring around NodeCombat's status slice (#872):
 ## - the sparse `Events.turn_started` tick subscription, entity-filtered and
 ##   never firing on a resync `adopt_turn`;
-## - tick running strictly AFTER `Entity._on_turn_started`'s own upkeep
+## - tick running strictly AFTER `Entity.begin_turn`'s own upkeep
 ##   (regen included), same emit;
 ## - every `AllocationSystem` dealloc path clearing statuses.
 ## `test_node_combat_status.gd` pins apply/tick/remove/clear by hand; this
@@ -139,7 +139,7 @@ func test_tick_runs_after_regen_so_its_own_damage_only_gates_the_next_turn() -> 
 	_alloc.force_allocate(a, node_a)
 	a.core_location = node_a
 
-	# Entity._on_turn_started runs no upkeep at all on turns_taken == 1 (you
+	# Entity.begin_turn runs no upkeep at all on turns_taken == 1 (you
 	# spawn as-is, not one free tick richer) — prime that throwaway first
 	# turn before the two turns this test actually measures.
 	_tm.start_turn(a)

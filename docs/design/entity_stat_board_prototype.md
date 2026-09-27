@@ -58,7 +58,7 @@ sp_in_use       = count of non-core allocated nodes  (implicit — not stored se
 | `staked` | stored | Spent to raise a node's allocation cap; recoverable via the future *extract* action |
 | `used` | **derived** | SP locked into currently-allocated nodes (one per node beyond core) |
 
-**Wound mechanics:** forced deallocation routes used → wounded (no SP returned to hand). `Entity._on_turn_started` heals `wound_heal_per_turn` (default 1) per turn. Voluntary deallocation uses `refund(n)`, which moves used → current immediately.
+**Wound mechanics:** forced deallocation routes used → wounded (no SP returned to hand). `Entity.begin_turn` heals `wound_heal_per_turn` (default 1) per turn. Voluntary deallocation uses `refund(n)`, which moves used → current immediately.
 
 **Mints (max grows):**
 

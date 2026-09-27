@@ -2,7 +2,7 @@ extends GutTest
 ## The wiring smoke for `scenes/game_root.tscn` (#360): the seams that
 ## `GameRoot._ready` / `HudRoot.compose` establish are otherwise asserted once,
 ## for one system pair, and every unit test drives the handlers by name
-## (`_on_turn_started(...)`) without ever asserting the `connect` behind them.
+## (`begin_turn()`) without ever asserting the `connect` behind them.
 ##
 ## Two halves, deliberately separate:
 ##  1. scene-time `@export` NodePaths — `instantiate()` WITHOUT `add_child`

@@ -56,9 +56,9 @@ const BUDGET_POOLS: Array[StringName] = [
 ## but `skill_points`: since dev_sandbox adopted `default_entity_board.tres`
 ## (the board that carries `level`), turn-start XP levels Red and a level MINTS
 ## skill points into `base_value` — and whether a given level's Red gets that
-## upkeep depends on which TurnManager holds the group when his entity binds
-## ([method Entity._find_turn_manager] is a global group lookup, so two levels
-## in one process do not both get one). The other three are REFILL/ADD pools
+## upkeep depends on which level's TurnManager actually starts his turn (only
+## the manager that calls [method Entity.begin_turn] on him runs it, and two
+## levels in one process do not both tick). The other three are REFILL/ADD pools
 ## whose `base_value` no amount of play moves. `skill_points` keeps its own
 ## assertion below, against the boost constant.
 const COMPARABLE_POOLS: Array[StringName] = [

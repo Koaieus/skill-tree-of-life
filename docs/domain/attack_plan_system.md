@@ -175,7 +175,7 @@ The plans plan; this layer commits.
 
 ### Turn-start upkeep
 
-Lives on `Entity._on_turn_started` (the explicit "no god-mode
+Lives on `Entity.begin_turn` (the explicit "no god-mode
 TurnManager" pattern). Per-turn bookkeeping consumes:
 
 - `action_points` → `restore_to_full()`
@@ -687,7 +687,7 @@ graph/
 skill_node/
 └── skill_node.gd                 # +current_hp, take_damage, refill, damaged/depleted
 entity/
-├── entity.gd                     # _on_turn_started: AP/DP, XP, wound heal, node refill
+├── entity.gd                     # begin_turn: AP/DP, XP, wound heal, node refill
 └── stats/
     ├── stat_board.gd             # +wound_heal_per_turn
     └── list/wound_heal_per_turn.tres

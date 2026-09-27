@@ -11,16 +11,14 @@ extends GutTest
 ## fire. Add a test that kills an entity and it belongs in a separate file with
 ## one world, not here.
 ##
-## [b]The death listeners are not the only tree-wide lookup.[/b]
-## [method Entity._find_turn_manager] (and [EntityController]) resolve their
-## manager with `get_first_node_in_group(TurnManager.GROUP)` — TREE-wide, not
-## world-scoped. Correct by construction in a real one-world process; here the
-## SECOND world's entity would silently bind to the FIRST world's TurnManager,
-## never receive its own `turn_started`, and so never run
-## `apply_per_turn_upkeep()` — diverging in every pool that upkeep feeds
-## (xp → level → constitution → node_health). `_build_world` scopes the group
-## while each entity binds, and `test_both_worlds_run_their_own_turn_upkeep`
-## guards it. This was invisible while [WorldFingerprint] folded ownership
+## [b]Per-world turn upkeep.[/b] An entity once discovered its TurnManager by
+## a TREE-wide group lookup, so the SECOND world's entity bound to the FIRST
+## world's manager and never ran `apply_per_turn_upkeep()` — diverging in every
+## pool that upkeep feeds (xp → level → constitution → node_health). Nothing
+## discovers a manager now: an entity's upkeep runs only when the manager that
+## starts its turn calls [method Entity.begin_turn]. `_build_world` still scopes
+## the group per world, and `test_both_worlds_run_their_own_turn_upkeep`
+## guards the outcome. This was invisible while [WorldFingerprint] folded ownership
 ## only; it surfaced the moment #527 folded HP.
 
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")

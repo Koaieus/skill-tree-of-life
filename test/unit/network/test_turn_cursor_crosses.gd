@@ -303,7 +303,7 @@ func test_adopting_the_cursor_it_already_holds_is_a_no_op() -> void:
 
 ## [method GraphSnapshot._decode_node] writes `owned_by` directly, which is the
 ## write [EntityNavigator]'s mutation contract says will drift the mirror. The
-## drift is silent and cumulative: [method Entity._on_turn_started] runs the D-9
+## drift is silent and cumulative: [method Entity.begin_turn] runs the D-9
 ## regen sweep over `navigator.get_mirrored_nodes()`, so an unmirrored node
 ## never heals on that peer while it heals on the authority.
 func test_a_decoded_world_repairs_its_owner_mirrors() -> void:

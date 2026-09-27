@@ -326,7 +326,7 @@ At `sp_gain = 2` plus the milestone: level 20 ≈ 42 nodes, **level 50 ≈ 108 n
 
 **Consequence for #268:** this **redefines every matrix axis.** "Level 20" now means ~42 nodes, "level 50" ~108. It also feeds back into D-15 — more nodes means room for more WIS-bearing territory, which is what lets WIS reach the 100–200 mid-game band. And it enlarges the D-9/D-14 surfaces in both directions at once: a bigger total HP bucket, but also more chip surface and a larger forced-dealloc cascade to island.
 
-**Impl status:** Not built. `Entity._on_turn_started` / `_on_xp_replenished` hardcodes `grant(1)`; `sp_gain_on_levelup.tres` is net-new; starting SP lives on `skill_points.tres` / the board. Same child issue as D-15 (they collide on `default_entity_board.tres`).
+**Impl status:** Not built. `Entity.begin_turn` / `_on_xp_replenished` hardcodes `grant(1)`; `sp_gain_on_levelup.tres` is net-new; starting SP lives on `skill_points.tres` / the board. Same child issue as D-15 (they collide on `default_entity_board.tres`).
 
 ---
 

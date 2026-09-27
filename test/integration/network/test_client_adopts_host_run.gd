@@ -29,8 +29,9 @@ extends GutTest
 ##
 ## [b]Two worlds in one process[/b], with the same accepted hazards
 ## `test_mp_procgen_join.gd` documents at length: nothing dies here, and every
-## spawn goes through [method _spawn_scoped] so `Entity._find_turn_manager`'s
-## tree-wide group lookup can only see the spawning world's own TurnManager.
+## spawn goes through [method _spawn_scoped] so a tree-wide group lookup can
+## only see the spawning world's own TurnManager (no entity discovers one any
+## more — only the manager that starts its turn runs its upkeep).
 ##
 ## [b]GameSession is a singleton autoload[/b], so this file plays both machines
 ## against one instance — the host's config is captured into a local before

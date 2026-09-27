@@ -86,7 +86,7 @@ func test_firer_turn_end_reset_relights_all() -> void:
 	_battle.request_attack_mode(BattleSystem.AttackMode.RANGED)
 	_leaf.mark_shot_fired(5)
 	assert_eq(_pips(_leaf).lit, 0, "fixture: spent")
-	# The exact write Entity._on_turn_ended performs over its fired set.
+	# The exact write Entity.finish_turn performs over its fired set.
 	_leaf.shots_fired_this_turn = 0
 	assert_eq(_pips(_leaf).lit, 5, "turn-end reset relights every pip")
 	assert_true(_pips(_leaf).visible)

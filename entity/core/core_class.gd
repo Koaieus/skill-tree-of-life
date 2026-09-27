@@ -166,7 +166,7 @@ func apply(entity: Entity) -> void:
 		entity.grant_effect(e)
 
 
-## Called from Entity._on_turn_started after the entity's own upkeep.
+## Called from Entity.begin_turn after the entity's own upkeep.
 ## Default no-op; override for class-specific per-turn behavior
 ## (mana regen for casters, rage decay for berserkers, etc.).
 func on_turn_started(_entity: Entity) -> void:

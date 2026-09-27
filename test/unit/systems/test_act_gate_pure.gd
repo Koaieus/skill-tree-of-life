@@ -66,9 +66,10 @@ func before_each() -> void:
 	alloc.turn_manager = _tm
 	add_child_autofree(alloc)
 
-	# PIC enters the tree before the entities so its `turn_started` handler
-	# runs BEFORE `Entity._on_turn_started` refills AP — the same order the
-	# regression story depends on: gate computed first, refill second.
+	# PIC enters the tree before the entities. The regression story was "gate
+	# computed first, refill second"; since `Entity.begin_turn` refills before
+	# `turn_started` is emitted that order can no longer arise, but the gate
+	# must still track the pool's own `current_changed`.
 	_ctl = PlayerInputController.new()
 	_ctl.graph = _graph
 	_ctl.allocation_system = alloc

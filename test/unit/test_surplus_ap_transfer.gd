@@ -2,7 +2,7 @@ extends GutTest
 
 ## #152: at turn end, each unused action point transfers into the following
 ## turn's DP/MP surplus, scaled by the `ap_transfer_rate` board stat
-## (Entity._on_turn_ended → _transfer_unused_ap_to_surplus). boost =
+## (Entity.finish_turn → _transfer_unused_ap_to_surplus). boost =
 ## roundi(unused_ap × rate). set_surplus overwrites, so a turn ending with 0
 ## unused AP self-clears the boost.
 
