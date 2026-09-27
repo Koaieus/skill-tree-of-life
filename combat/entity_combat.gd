@@ -14,8 +14,12 @@ extends RefCounted
 ## See docs/domain/entity-combat.md.
 var host: Entity
 
+## The entity's state — board, tags, core identity. Live: [member Entity.state]
+## itself, shared. Shadow: the [method EntityState.clone] made at
+## [method snapshot]. A bare `EntityCombat.new()` gets an empty one of its own.
+var _state := EntityState.new()
+
 ## Shadow-only backing (meaningful only when [member host] == null).
-var _board: StatBoard
 var _owned: Array[NodeCombat] = []
 var _core: NodeCombat
 ## Manual-mode [GraphMirror] over the REAL [Graph] (topology never changes
@@ -53,11 +57,6 @@ var _materialized: bool = false
 ## door to [member host]. It answers "whose territory is this" for
 ## [method NodeCombat.ownership_bit], which a landing gate asks on every hit.
 var _origin: Entity
-## Meaningful ONLY when [member host] == null — the shadow's own refcounted tag
-## set: an [Effect] recomputing against a shadow grants and revokes tags, and
-## there is no real entity they may land on (the node twin keeps its tags in
-## [member NodeCombat._state]).
-var _tags: Dictionary[StringName, int] = {}
 ## Meaningful ONLY when [member host] == null — the shadow's stand-in for
 ## [member Entity._effect_instances] (#520). Populated at [method snapshot] from
 ## [method Entity.get_effects] via [method EffectInstance.clone_for], one twin
@@ -111,6 +110,8 @@ var _dead: bool = false
 
 func _init(p_host: Entity = null) -> void:
 	host = p_host
+	if p_host != null:
+		_state = p_host.state
 
 
 func _notification(what: int) -> void:
@@ -154,9 +155,9 @@ func free_shadow() -> void:
 			n._state.board.release()
 			n._state.board = null
 			n._state.board_ready = false
-	if _board != null:
-		_board.release()
-		_board = null
+	if _state.stat_board != null:
+		_state.stat_board.release()
+		_state.stat_board = null
 	for n in _shadow_by_real.values():
 		n._world = null
 		n._real = null
@@ -164,7 +165,7 @@ func free_shadow() -> void:
 	_shadow_by_real.clear()
 	_core = null
 	_origin = null
-	_tags.clear()
+	_state.tags.clear()
 	# The twins hold a context that backpoints here — a third cycle of the same
 	# shape as the owned nodes and the cloned boards.
 	for inst in _effects:
@@ -185,7 +186,7 @@ func free_shadow() -> void:
 ## This entity's [StatBoard]. Live: [member Entity.stat_board], read fresh
 ## every call. Shadow: the deep clone made at [method snapshot].
 func board() -> StatBoard:
-	return host.stat_board if host != null else _board
+	return _state.stat_board
 
 
 ## The ONE door every drain of the entity `health` pool goes through (#995,
@@ -297,7 +298,8 @@ func core() -> NodeCombat:
 		# Null-guarded — GDScript has no safe-navigation operator, and
 		# `core_location` genuinely is null before an entity's first
 		# placement.
-		return host.core_location.get_combat() if host.core_location != null else null
+		var c := _state.core_location
+		return c.get_combat() if c != null else null
 	return _core
 
 
@@ -326,11 +328,9 @@ func snapshot(into: CombatWorld = null) -> EntityCombat:
 	if into != null:
 		shadow._world = into
 	shadow._origin = host
-	if host.stat_board != null:
-		# clone_live, not duplicate(true) — see its doc: a bare duplicate
-		# silently drops every already-applied modifier's bins and every
-		# dynamically-minted stat.
-		shadow._board = host.stat_board.clone_live()
+	# Board via clone_live, tags duplicated, core by identity; the effect
+	# ledger is NOT cloned — its twins are minted below, bound to the shadow.
+	shadow._state = _state.clone()
 	shadow._mirror = GraphMirror.new()
 	shadow._mirror.graph = host.navigator.graph if host.navigator != null else null
 	# Two statements, not `… if host.navigator != null else []` — a ternary's
@@ -349,7 +349,6 @@ func snapshot(into: CombatWorld = null) -> EntityCombat:
 		# `core_location` without allocating) — the same answer the eager
 		# lookup gave.
 		shadow._core = shadow.shadow_for(host.core_location)
-	shadow._tags = host._tags.duplicate()
 	# The entity's own rows, cloned the way a node's are (#996): same shared
 	# defs, own power, so a shadow tick never moves the live row.
 	_status_host.clone_into(shadow._status_host)
@@ -459,19 +458,13 @@ func mirror() -> GraphMirror:
 	return host.navigator if host != null else _mirror
 
 
-## The refcounted tag dictionary to read and write — the real entity's when
-## live, this slice's own when shadow.
-func _tag_store() -> Dictionary[StringName, int]:
-	return host._tags if host != null else _tags
-
-
 func add_tag(tag: StringName) -> void:
-	var store := _tag_store()
+	var store := _state.tags
 	store[tag] = store.get(tag, 0) + 1
 
 
 func remove_tag(tag: StringName) -> void:
-	var store := _tag_store()
+	var store := _state.tags
 	var count: int = store.get(tag, 0) - 1
 	if count <= 0:
 		store.erase(tag)
@@ -480,7 +473,7 @@ func remove_tag(tag: StringName) -> void:
 
 
 func has_tag(tag: StringName) -> bool:
-	return _tag_store().get(tag, 0) > 0
+	return _state.tags.get(tag, 0) > 0
 
 
 ## Every [EffectInstance] currently attached to this entity — the live ledger

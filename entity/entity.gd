@@ -55,7 +55,12 @@ enum Attitude { SELF, ALLIED, HOSTILE }
 ## [method GameRoot.apply_roster], or set directly on a hand-authored scene's
 ## node) rather than derived from entity identity. See #475.
 @export var is_human_controlled: bool = false
-## STUB (#1143 red).
+## The entity's authoritative, SILENT state — [member stat_board],
+## [member _tags], [member core_location] and [member _effect_instances] are
+## forwarders into it whose setters keep the entity's emits and dispatches.
+## Declared before every forwarder and before [member _combat], whose
+## initialiser reads it. Not exported: the forwarders carry the serialized
+## surface.
 var state := EntityState.new()
 
 ## One owner (#1031): outside the editor the setter stores a private
@@ -67,14 +72,16 @@ var state := EntityState.new()
 ## the shared ext_resource as given (the inspector must see it); an authored
 ## entity brought up in a live tab gets its copy inside [method initialize].
 @export var stat_board: EntityStatBoard = null:
+	get:
+		return state.stat_board
 	set(v):
 		if _board_sealed:
 			push_error("Entity.stat_board is sealed after initialize(); assign the board before bring-up")
 			return
 		if v == null or Engine.is_editor_hint():
-			stat_board = v
+			state.stat_board = v
 		else:
-			stat_board = v.duplicate(true)
+			state.stat_board = v.duplicate(true)
 
 ## Flipped by [method initialize] right after the board is duplicated and
 ## intrinsics applied — the seal on [member stat_board]. Not `_initialized`:
@@ -135,19 +142,19 @@ func get_spellbook() -> SpellBook:
 
 
 @export var core_location: SkillNode:
+	get:
+		return state.core_location
 	set(value):
-		if core_location == value:
+		if state.core_location == value:
 			return
-		var previous := core_location
-		core_location = value
+		var previous := state.core_location
+		state.core_location = value
 		core_location_changed.emit()
 		# EVERY core placement re-derives auras, not just `AllocationSystem.move_core`.
 		# The opening placement — `spawn_entity` assigning core_location after
 		# `_ready` already granted the core class's effects, or scene-export
 		# deserialization — never passes through move_core. Dispatching from the
-		# setter is the only point that catches all of them. (No recursion: in
-		# GDScript, assigning a property to its own backing field inside its setter
-		# does not re-enter the setter.)
+		# setter is the only point that catches all of them.
 		dispatch(&"_on_core_moved", [previous, value])
 
 ## [member faction]'s [member Faction.id], or [code]&""[/code] with no faction
@@ -233,7 +240,11 @@ var _initialized: bool = false
 
 ## Live [Effect] attachments, in grant order. Each holds its own grant ledger,
 ## so revocation is exact without a provenance field on [StatModifier].
-var _effect_instances: Array[EffectInstance] = []
+var _effect_instances: Array[EffectInstance]:
+	get:
+		return state.effect_instances
+	set(v):
+		state.effect_instances = v
 
 ## The granted-atom ledger for CORE modifiers (#323) — every [StatModifier]
 ## ever permanently granted onto this entity's core, UNFLATTENED. Two honest
@@ -448,7 +459,11 @@ var ai_growth_capped: bool = false
 ## Refcounted status markers, entity-wide twin of [member SkillNode._tags] — see
 ## docs/design/status-tags.md. Granted/revoked through [method EffectContext.grant_tag]
 ## / `revoke`, never written to directly.
-var _tags: Dictionary[StringName, int] = {}
+var _tags: Dictionary[StringName, int]:
+	get:
+		return state.tags
+	set(v):
+		state.tags = v
 
 ## The live combat-state slice (#498 step 1, docs/domain/attack-timeline.md).
 ## Entity COMPOSES this — it owns the live one, it does not copy one.
