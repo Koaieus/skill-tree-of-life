@@ -11,8 +11,27 @@ decide — tier, fence, land / fix / resume / abandon — and you spend your
 context on nothing else. Reading, grepping and verifying are delegated
 downward, always. Why each rule below exists: `docs/charters/swarm.md`.
 
-Read `.claude/agents/drone.md` once so you know what a drone already
-carries; never restate it in a brief.
+## What a drone already carries — never in a brief
+
+Never open `.claude/agents/drone.md`; this is all of it you need. A drone
+makes its own worktree (`worktree:new`, warm and checked); reads the issue
+and `--comments` once as its spec (skips the view on a `swarm-brief-*.md`);
+`cat`s the repo skill the issue names; searches via `Explore(haiku)` leaves;
+batches, reads narrow, never polls; runs `check` → `test:one` → `test:dir`
+→ the full suite at most once and only if the brief allows; commits as it
+goes by explicit path, the red test first when a claim is testable; writes
+only owned paths and reports a need outside the fence instead of reaching;
+`@export`s an open number as a knob and lists it as tentative; calls
+`advisor` once, early, and treats a second as retire; retires on a blown
+budget by `wip(...)` commit + successor `gh issue comment` + report; never
+`Closes`, rebases, lands, asks the user, or expands scope.
+
+Its report is six lines — `BRANCH:` (your merge handle) / `FILES:` /
+`TESTS:` / `DID:` / `COST:` (ctx · tool calls · advisor/Sage exchanges) /
+`NOTES:` (`none`, or one line each: blocker, deviation, stale spec,
+out-of-scope, tentative knob, `poison: <path>:<line> — <wrong> → <right>`;
+anything a future worker needs is also on the issue). With Sage, the
+report's `NOTES:` carries the review round and the drone is spent.
 
 ## Gate — do not swarm the wrong work
 
@@ -210,9 +229,9 @@ mise run issue-drift -- <n>                             # silent = the Ready com
   true`; then do nothing — no sleep, no tail, no re-reading the output
   file; then END YOUR TURN.*
 
-Acceptance restated, "what done means", file maps, house rules by name,
-`git show` tours — none of it. If the issue cannot carry it, the issue is
-not `Ready`: bounce it, don't patch it in a brief.
+Acceptance restated, "what done means", file maps, `git show` tours, or
+anything from the digest above — none of it. If the issue cannot carry it,
+the issue is not `Ready`: bounce it, don't patch it in a brief.
 
 ### 4. Collect — act on each report as it lands
 

@@ -142,7 +142,13 @@ disk at `scratchpad/land/land-<n>.log` (#920), so filling the ledger is a
     drone counts its own calls anyway; "commit early and often, even
     partial" as its own
     line; the three suite clauses if a full suite is allowed at all, else
-    "never the full suite". Nothing the issue already says.
+    "never the full suite". Nothing the issue already says, nothing the
+    drone already carries — and **the skill itself holds the digest of
+    what a drone carries plus the report shape it returns, so the lead
+    never opens `.claude/agents/drone.md`** (owner, 2026-09-27: "if you
+    needed to read the drone contract that's a failure of the `swarm`
+    skill"). The digest mirrors a file the lead will now never read: a
+    change to the drone agent re-derives it.
 13. **Brief in `prompt`; `name` for addressability; `subagent_type: "drone"`;
     `model` mandatory and equal to the ledger's tier.** No `isolation`
     parameter — the drone makes its own `mise` worktree. If a drone idles on
@@ -251,6 +257,7 @@ disk at `scratchpad/land/land-<n>.log` (#920), so filling the ledger is a
 | 2026-09-15 | owner | thresholds "depend on the model … and how much is in flight, if 5 drones working expect 5× the turns taken to settle each, then 150k might already be a lot" → the ceiling formula; sizing "worker cap + ledger Σctx, drop the %-window table"; "the swarm mayve mentioned an issue planner throwaway Opus but our new swarmify skill would (i hope) make that largely obsolete" | 5, 6, 11 |
 | 2026-09-09 | #813 | A read-only peer produced 15 numbered traps in one turn; the drone named four it would have gotten wrong, including a sorted-`std::map` banking that was silently wrong only when one edge takes load from two pushed vertices in one substep. | 29 |
 | 2026-09-19 | week of 09-14 | per-issue cost fell to ~5.5% of a window (owner, 2026-09-21: "due to updated swarmify mostly (better specs, map and seams provided, a lot less research needed to be done by implementer drones the first 40 tool calls etc)"); ledger 2026-09-19 corroborates: owner window 9% at start → 32% after 5 landed units (≈4.6%/issue). A snapshot, not a trend line — the window size moves with promotions, so compare `priced`, not % | 5 |
+| 2026-09-27 | lead | the skill said "read `.claude/agents/drone.md` once"; the lead spent ~2.5k tokens on the full contract (start steps, economy, retiring, Sage flow) to learn what not to put in a brief — owner: "if you needed to read the drone contract that's a failure of the `swarm` skill" | 12 |
 | 2026-09-19 | `f9` → `b6` | an Opus lead relieved at its 200k ceiling; the one in-flight drone was drained by redirecting it to the relief session's address — the last handover of that shape; the relief charter replaced the redirect with one outgoing wake per drone (ledger row + one-line ping), since the report reaches the outgoing regardless | 7 |
 
 ## What the skill must not contain
@@ -259,8 +266,10 @@ disk at `scratchpad/land/land-<n>.log` (#920), so filling the ledger is a
   harness table, the Claude Code `<details>` block on harness worktrees
   (`isolation: "worktree"` is not used).
 - The wake arithmetic, the window-percentage table, the worker-cost table.
-- Restatements of the drone's standing rules (they are in the agent), of
-  `warp`'s rebase discipline (`land` mechanises it), or of always-on rules.
+- The drone's standing rules themselves (they are in the agent; the skill
+  carries only the digest of what a brief must not restate and the six-line
+  report shape), `warp`'s rebase discipline (`land` mechanises it), or
+  always-on rules.
 
 ## Open follow-ups
 
