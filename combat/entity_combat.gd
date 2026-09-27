@@ -944,7 +944,7 @@ func revoke_node(node: SkillNode) -> void:
 			node.clear_scaled_effect_sets(b)
 		else:
 			# Same removal, aimed at the shadow's board. Not
-			# `clear_scaled_effect_sets`: its `_remove_leaf_set` branches on
+			# `clear_scaled_effect_sets`: its LocalScaleMutator's `_remove_leaf_set` branches on
 			# `board == node_board` and would reach the real node's board.
 			for leaf in node.scaled_effect_leaves():
 				b.remove_modifier(leaf)
