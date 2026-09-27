@@ -502,8 +502,8 @@ func test_an_unstamped_plan_resolves_on_a_fixed_stream() -> void:
 
 
 func test_relic_rolls_are_unseeded_and_deliberately_stay_that_way() -> void:
-	# NOT a gap, despite looking exactly like one. skill_dust_addon.gd
-	# (249,297,307,355) shuffles relic pools off Godot's global RNG, so two
+	# NOT a gap, despite looking exactly like one. The relic round's resolve
+	# side (LootRoundCommandHandler) shuffles relic pools off Godot's global RNG, so two
 	# peers rolling the same kill would draw different relics.
 	#
 	# The resolution is NOT to seed this. Per
@@ -515,8 +515,8 @@ func test_relic_rolls_are_unseeded_and_deliberately_stay_that_way() -> void:
 	# So do NOT "fix" this by threading AttackPlan.resolve_seed into it —
 	# that would be solving a problem the authority model already deletes.
 	# What is still owed is the host-only wiring, not a seed.
-	var src := FileAccess.get_file_as_string("res://skill_node/addons/skill_dust_addon.gd")
-	assert_false(src.is_empty(), "could not read skill_dust_addon.gd")
+	var src := FileAccess.get_file_as_string("res://command/handlers/loot_round_command_handler.gd")
+	assert_false(src.is_empty(), "could not read loot_round_command_handler.gd")
 	assert_string_contains(src, "pool.shuffle()",
 		"relic rolls draw from the global RNG by design — the sync answer " +
 		"is host-only rolls, not a seeded stream")
