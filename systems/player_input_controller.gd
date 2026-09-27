@@ -51,6 +51,10 @@ signal player_can_act_changed(can_act: bool)
 ## composed. Future highlight overlay subscribes here to paint CORE_LANDING /
 ## CORE_PATH roles.
 signal core_move_targeting_changed(source: SkillNode)
+## The core-drag ghost's snapped landing moved (null when it snaps to nothing).
+## [HighlightController] mirrors it into the active core-move provider so the
+## brightened target ring tracks the ghost.
+signal core_drag_target_changed(landing: SkillNode)
 
 ## A node was pinned (right-clicked when no attack plan was eating the click) or
 ## unpinned (null). [NodeInspectorCard] surfaces the pinned node's details.
