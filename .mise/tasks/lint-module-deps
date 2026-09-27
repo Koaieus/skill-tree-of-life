@@ -26,17 +26,30 @@ import subprocess
 import sys
 import tempfile
 
-# Lowest first. A layer may reference itself and anything earlier in the list.
+# Lowest first. A module may reference itself and anything earlier in the list.
+# Owner's order of 2026-09-27 (#1134).
 LAYERS = [
-    # sim
-    "archetypes", "stats_system", "graph", "skill_node", "entity",
-    "effects", "combat", "attack", "systems",
+    # sim — `settings` is the player's GameSettings resource, read by the rules.
+    "settings", "archetypes", "stats_system", "skill_node", "graph",
+    "entity", "effects", "combat", "attack", "systems",
+    # the controllers decide for an entity and drive attacks and systems.
+    "entity/controller",
     # spine — `procgen` sits just above `session`: it may read sim and session.
     "session", "procgen", "command", "network",
     # shell
-    "presentation", "ui", "scenes", "autoload", "settings",
+    "presentation", "ui", "scenes", "autoload",
 ]
 RANK = {name: i for i, name in enumerate(LAYERS)}
+
+# A subdirectory that is its own module, ranked apart from its parent directory.
+SUBDIR_MODULES = ["entity/controller"]
+
+# Declared peers: both directions allowed, each with why.
+PEERS = {
+    frozenset(("attack", "combat")): "combat math and attack resolution share the "
+        "hit vocabulary (HitInstance, DamageInstance live under attack/; "
+        "EntityCombat/NodeCombat under combat/) — one layer split across two dirs.",
+}
 
 # Reachable from every layer (the bus). Its OWN outgoing edges are still checked.
 REACHABLE_FROM_ALL = {"autoload"}
@@ -53,28 +66,23 @@ ALLOWED_PRIMITIVES = {
 # `--json` lists every file:line. None = no issue retires it yet.
 ALLOWLIST = {
     "archetypes→skill_node": (None, "no retiring issue — CarveShape"),
-    "attack→command": (None, "no retiring issue — CommandCodec, LaunchAttackCommand, WireFields"),
+    "attack→command": (None, "no retiring issue — codec types, not submission: AttackRecord builds on WireFields (38 refs), OutcomeFixture on CommandCodec/LaunchAttackCommand. Moving command below attack was measured and rejected: it trades this line for command→attack/systems/session. Retire by moving WireFields down."),
     "attack→session": (None, "no retiring issue — SeatPolicy"),
-    "attack→settings": (None, "no retiring issue — GameSettings"),
     "attack→systems": (None, "no retiring issue — BattleSystem, VisionSystem"),
     "attack→ui": (None, "no retiring issue — HighlightProvider, ShatterField, ui/z_layers.gd"),
-    "autoload→settings": (None, "no retiring issue — GameSettings, settings/default_settings.tres"),
-    "combat→attack": (None, "no retiring issue — DamageInstance, HealInstance, HitInstance, Mitigation"),
     "combat→systems": (None, "no retiring issue — AllocationSystem"),
     "command→network": (1133, "WorldFingerprint"),
     "effects→attack": (None, "no retiring issue — CritRoll, DamageInstance, EuclideanRangeFinder, HealInstance, HitInstance, …"),
     "effects→combat": (None, "no retiring issue — CombatWorld, EntityCombat, NodeCombat"),
-    "entity→attack": (None, "no retiring issue — AmmoTypeRoster, AttackOutcome, BladeDefenderZones, BladeDriver, BladeSim, …"),
+    "entity→attack": (None, "no retiring issue — AmmoTypeRoster, HealInstance, SpellDef, attack/ammo/ammo_type_roster.tres"),
     "entity→combat": (None, "no retiring issue — EntityCombat"),
-    "entity→command": (None, "no retiring issue — AllocateCommand, Command, CommandApplier, EndTurnCommand, ReloadCommand"),
     "entity→effects": (None, "no retiring issue — AuraDistanceCache, Effect, EffectContext, EffectInstance, NodeStatus"),
-    "entity→scenes": (1131, "GameRoot"),
-    "entity→systems": (None, "no retiring issue — BattleSystem, LootSystem, TurnManager, VisionCircles"),
+    "entity→systems": (None, "no retiring issue — TurnManager"),
+    "entity/controller→command": (None, "no retiring issue — AllocateCommand, Command, CommandApplier, EndTurnCommand, ReloadCommand"),
+    "entity/controller→scenes": (1131, "GameRoot"),
     "graph→entity": (None, "no retiring issue — Entity"),
     "graph→scenes": (None, "no retiring issue — GraphCamera"),
-    "graph→skill_node": (None, "no retiring issue — ClampAddon, SkillNode"),
     "procgen→scenes": (None, "no retiring issue — GameRoot"),
-    "scenes→settings": (None, "no retiring issue — GameSettings"),
     "session→network": (1133, "NetworkTransport"),
     "session→procgen": (None, "no retiring issue — GraphProcgenConfig"),
     "session→ui": (1133, "LobbyPolicy, PlayerPalette, ui/theme/player_palette.tres"),
@@ -83,24 +91,31 @@ ALLOWLIST = {
     "skill_node→command": (1138, "CommandApplier, LootRoundCommand"),
     "skill_node→effects": (None, "no retiring issue — Effect, NodeStatus, StatusDef"),
     "skill_node→entity": (None, "no retiring issue — Entity, Sigil"),
+    "skill_node→graph": (None, "no retiring issue — Edge, Graph"),
     "skill_node→procgen": (None, "no retiring issue — NodeSubtype"),
     "skill_node→systems": (1138, "BattleSystem, HighlightController, LootPickRegistry, LootPickRequest, SpellLootRequest"),
     "skill_node→ui": (None, "no retiring issue — SubBag, TweenClock, ui/z_layers.gd"),
     "systems→command": (None, "no retiring issue — AllocateCommand, Command, CommandApplier, DeallocateCommand, DeallocateSetCommand, …"),
     "systems→network": (1133, "CommandLink"),
     "systems→session": (None, "no retiring issue — LastCampStandingCondition, Participant, ParticipantRoster, RunOutcome, SeatPolicy, …"),
-    "systems→settings": (None, "no retiring issue — GameSettings"),
     "systems→ui": (None, "no retiring issue — AttackVFX, CoreMoveHighlightProvider, DeferredOnce, HighlightProvider, KeyChip, …"),
     "ui→scenes": (None, "no retiring issue — GameRoot, GraphCamera"),
 }
 
 
 def top_dir(rel):
+    """The module a repo-relative path belongs to: a SUBDIR_MODULES entry, else
+    the top-level directory."""
+    for sub in SUBDIR_MODULES:
+        if rel.startswith(sub + "/"):
+            return sub
     return rel.split("/", 1)[0] if "/" in rel else ""
 
 
 def allowed(src, dst):
     if src == dst or dst in REACHABLE_FROM_ALL:
+        return True
+    if frozenset((src, dst)) in PEERS:
         return True
     return RANK[dst] < RANK[src]
 
@@ -271,6 +286,11 @@ def self_test():
               "var s := \"Panel2 in a string is not one either\"\n"
               "var c := Emissive  # primitive: allowed\n"
               "var e := load(\"res://autoload/events.gd\")  # bus: allowed\n")
+        write("systems/sys.gd", "class_name Sys\n")
+        write("attack/atk.gd", "class_name Atk\nvar c: Cmb  # peer: fine\n")
+        write("combat/cmb.gd", "class_name Cmb\nvar a: Atk  # peer: fine\n")
+        write("entity/controller/brain.gd",
+              "class_name Brain\nvar s: Sys  # controller sits above systems: fine\n")
         me = os.path.abspath(__file__)
         clean = subprocess.run([sys.executable, me, "--root", tmp, "--no-allowlist"],
                                capture_output=True, text=True)
@@ -278,11 +298,13 @@ def self_test():
             ok = False
             print("✗ clean tree should exit 0:\n" + clean.stdout)
         write("graph/leak.gd", "extends Node\n\nvar p: Panel2\n")
+        write("systems/leak3.gd", "extends Node\nvar b: Brain\n")
         write("zz_tests/fake_panel.gd", "class_name Panel2\n")  # collides, sorts last
         write("skill_node/leak2.gd", "extends Node\nconst S := preload(\"res://ui/panel.gd\")\n")
         dirty = subprocess.run([sys.executable, me, "--root", tmp, "--no-allowlist"],
                                capture_output=True, text=True)
-        for want in ["graph→ui", "graph/leak.gd:3", "skill_node→ui", "skill_node/leak2.gd:2"]:
+        for want in ["graph→ui", "graph/leak.gd:3", "skill_node→ui", "skill_node/leak2.gd:2",
+                     "systems→entity/controller", "systems/leak3.gd:2"]:
             if want not in dirty.stdout:
                 ok = False
                 print("✗ planted upward reference: expected %r in output:\n%s" % (want, dirty.stdout))
