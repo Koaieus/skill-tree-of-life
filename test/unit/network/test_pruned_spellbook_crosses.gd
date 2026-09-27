@@ -6,7 +6,7 @@ extends GutTest
 ## tier's authored `.tres`: a fresh [code]SpellBook.new()[/code] with no
 ## `resource_path`, so [EntitySnapshot]'s intern table has nothing to carry.
 ## Since #715 the client runs no procgen, so it cannot re-derive the slice
-## either — [method GameRoot.spawn_snapshot_entity] hands the rebuilt blocker
+## either — [method EntityFactory.spawn_snapshot_entity] hands the rebuilt blocker
 ## its tier's WHOLE authored book. These tests pin the by-value channel that
 ## closes the gap: the kept [member SpellDef.id]s ride the row and
 ## [method EntitySnapshot._decode_identity] rebuilds a fresh book from them.

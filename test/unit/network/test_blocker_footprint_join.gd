@@ -9,7 +9,7 @@ extends GutTest
 ## what re-derives the caps on this side.
 ##
 ## The joining peer runs NO procgen (#715), so its blocker is rebuilt by
-## [method GameRoot.spawn_snapshot_entity] — which spawns with an empty
+## [method EntityFactory.spawn_snapshot_entity] — which spawns with an empty
 ## footprint by design. If the aura did not re-derive from the decoded world,
 ## every footprint node on the client would draw a health bar 5-per-hop too
 ## tall, and the client would disagree with the host about what a kill costs.
@@ -67,7 +67,7 @@ func test_a_multi_node_blocker_crosses_with_its_falloff_intact() -> void:
 	var client: Dictionary = await _side(5)
 	var footprint: Array[SkillNode] = [host["nodes"][2], host["nodes"][3], host["nodes"][4]]
 	var blocker: Entity = (host["root"] as GameRoot).spawn_blocker(
-			GameRoot.BlockerSize.MEDIUM, host["nodes"][1], footprint)
+			EntityFactory.BlockerSize.MEDIUM, host["nodes"][1], footprint)
 	await get_tree().process_frame
 	assert_eq(_caps(host), [0.0, 40.0, 35.0, 30.0, 25.0] as Array[float],
 			"host: an unowned node never mints a pool at all (0), then 40 − 5 per hop")
@@ -77,7 +77,7 @@ func test_a_multi_node_blocker_crosses_with_its_falloff_intact() -> void:
 	# that ran no procgen.
 	var entity_bytes := EntitySnapshot.encode(host["graph"] as Graph)
 	var graph_bytes := GraphSnapshot.encode(host["graph"] as Graph)
-	var spawner := Callable(client["root"], "spawn_snapshot_entity")
+	var spawner := Callable((client["root"] as GameRoot).entity_factory, "spawn_snapshot_entity")
 	EntitySnapshot.decode(entity_bytes, client["graph"] as Graph, spawner)
 	GraphSnapshot.decode(graph_bytes, client["graph"] as Graph)
 	EntitySnapshot.resolve_graph_refs(entity_bytes, client["graph"] as Graph, spawner)

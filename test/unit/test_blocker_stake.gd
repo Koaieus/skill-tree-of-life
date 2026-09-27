@@ -1,5 +1,5 @@
 extends GutTest
-## #916 — a pre-staked Dormant Core: `GameRoot.spawn_blocker(..., stake_level)`
+## #916 — a pre-staked Dormant Core: `EntityFactory.spawn_blocker(..., stake_level)`
 ## stamps the cap, fills it through `force_fill` (no SP minted for the fill),
 ## offsets the kill XP by a clamped MULTIPLY read off the blocker's own board,
 ## and the node it leaves behind on a kill is a 0/3 a player can fill.
@@ -11,7 +11,7 @@ const _BOARD := preload("res://entity/default_entity_board.tres")
 
 var _graph: Graph
 var _alloc: AllocationSystem
-var _root: GameRoot
+var _root: EntityFactory
 var _nodes: Array[SkillNode] = []
 
 
@@ -36,7 +36,7 @@ func before_each() -> void:
 	_alloc = AllocationSystem.new()
 	_alloc.graph = _graph
 	add_child_autofree(_alloc)
-	_root = GameRoot.new()
+	_root = EntityFactory.new()
 	autofree(_root)
 	_root.graph = _graph
 	_root.allocation_system = _alloc
@@ -51,7 +51,7 @@ func after_each() -> void:
 
 
 func _spawn(stake: int) -> Entity:
-	var ent := _root.spawn_blocker(GameRoot.BlockerSize.SMALL, _nodes[1],
+	var ent := _root.spawn_blocker(EntityFactory.BlockerSize.SMALL, _nodes[1],
 			[_nodes[2]] as Array[SkillNode], 0, 0.0, 0, stake)
 	return ent
 

@@ -213,7 +213,7 @@ static func _encode_entity(
 ## [method SpellBook.duplicate_pruned] slice — a random subset of its tier's
 ## authored book — and since #715 the client does not run the procgen that drew
 ## it, so it cannot re-derive the slice either.
-## [method GameRoot.spawn_snapshot_entity] hands the rebuilt blocker its tier's
+## [method EntityFactory.spawn_snapshot_entity] hands the rebuilt blocker its tier's
 ## WHOLE authored book instead, and a player inspecting one sees a longer spell
 ## list on the client than the host has. The ids are how the slice crosses.
 ##
@@ -349,13 +349,13 @@ static func _resolve(graph: Graph, row: Array, res: Array, spawner: Callable) ->
 ## [b]Why a CALLBACK and not an `instantiate()` here.[/b] The row's scene path is
 ## carried ([constant _R_SCENE]) and this class could instantiate it — but a
 ## blocker's [EntityStatBoard] is assigned in CODE per tier
-## (`GameRoot.spawn_blocker`), not authored in `blocker_entity.tscn`, and
+## (`EntityFactory.spawn_blocker`), not authored in `blocker_entity.tscn`, and
 ## [method StatBoard.read_dict] cannot rebuild a board from nothing:
 ## [EntityStatBoard] refuses to mint a stat it has no field for, by design. A
 ## bare instantiate would therefore produce a blocker with no board and no
 ## health, which the accumulated fold would then disagree about instead. So the
 ## LEVEL builds it — it is the one that knows what a blocker is — and this class
-## keeps knowing only about rows. See [method GameRoot.spawn_snapshot_entity].
+## keeps knowing only about rows. See [method EntityFactory.spawn_snapshot_entity].
 static func _materialize(row: Array, res: Array, spawner: Callable) -> Entity:
 	if not spawner.is_valid() or row.size() <= _R_SCENE:
 		return null
@@ -425,7 +425,7 @@ static func _decode_identity(e: Entity, row: Array, res: Array, spells: Array) -
 ##
 ## When it does rebuild it is always a FRESH [SpellBook], never the entity's own
 ## book narrowed in place. What this peer holds is a level-side assumption
-## ([method GameRoot.spawn_blocker]'s tier default), and reconciling INTO it
+## ([method EntityFactory.spawn_blocker]'s tier default), and reconciling INTO it
 ## would make the result depend on that assumption; and a caller that handed
 ## over an authored `.tres` directly — a fixture, a sandbox — does not get that
 ## shared const narrowed under it.

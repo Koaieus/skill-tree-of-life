@@ -48,7 +48,7 @@ cross:
 - Every row resolves through `Graph.get_by_entity_id` and DECORATES an entity
   the roster already spawned.
 - A row whose entity is absent asks `_materialize` (an optional spawner
-  callback, `CommandLink.entity_spawner` → `GameRoot.spawn_snapshot_entity`,
+  callback, `CommandLink.entity_spawner` → `EntityFactory.spawn_snapshot_entity`,
   which accepts blockers only) and, if that declines, is SKIPPED with a
   warning — mirroring how `GraphSnapshot._decode_node` decodes an unresolvable
   `owner_id` as unowned rather than inventing an entity. This is not a second

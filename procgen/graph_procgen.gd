@@ -19,7 +19,7 @@ extends RefCounted
 ## `config.starting.starting_points[i]`, for the caller to wire as entity cores, and
 ## each `blockers` entry is `{"node": SkillNode, "size": int, "prune_seed":
 ## int, "footprint": Array[SkillNode], "stake_level": int}` (`size` being a
-## [GameRoot.BlockerSize] int, `prune_seed` the #586 loot-book prune's seed,
+## [EntityFactory.BlockerSize] int, `prune_seed` the #586 loot-book prune's seed,
 ## `footprint` the #777 bonus nodes the blocker also owns, `stake_level` the
 ## #916 pre-stake in 1..3) for the caller to hand to `spawn_blocker`.
 
@@ -916,7 +916,7 @@ static func _build_placement_context(
 ## the sampled count would drift those counts for no reason a level author
 ## could see in the inspector.
 ##
-## Returns a [Dictionary] mapping index → [GameRoot.BlockerSize] int, in
+## Returns a [Dictionary] mapping index → [EntityFactory.BlockerSize] int, in
 ## insertion (tier) order. Rides its own derived [param rng] (see
 ## [constant _BLOCKER_RNG_SALT]), not the shared stream the rest of `generate`
 ## uses — so placements are still seed-deterministic without perturbing every
@@ -954,9 +954,9 @@ static func _place_blocker_indices(
 	# Yates-shuffles the front of the remaining pool and slices the winners off,
 	# so no node can be picked by two tiers.
 	var tiers: Array = [
-		[config.blockers.blocker_per_small, GameRoot.BlockerSize.SMALL],
-		[config.blockers.blocker_per_medium, GameRoot.BlockerSize.MEDIUM],
-		[config.blockers.blocker_per_large, GameRoot.BlockerSize.LARGE],
+		[config.blockers.blocker_per_small, EntityFactory.BlockerSize.SMALL],
+		[config.blockers.blocker_per_medium, EntityFactory.BlockerSize.MEDIUM],
+		[config.blockers.blocker_per_large, EntityFactory.BlockerSize.LARGE],
 	]
 	for tier in tiers:
 		var denom: int = tier[0]

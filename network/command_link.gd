@@ -1050,7 +1050,7 @@ var _pending_entities: PackedByteArray = PackedByteArray()
 
 ## How an arriving snapshot builds an [Entity] this peer does not have (#715).
 ##
-## Set by [GameRoot] to [method GameRoot.spawn_snapshot_entity]; left unset a
+## Set by [GameRoot] to [method EntityFactory.spawn_snapshot_entity]; left unset a
 ## missing row is skipped with a warning, exactly as before. It is a [Callable]
 ## and not a subclass hook because the knowledge is the LEVEL's — what a blocker
 ## is, which board its tier carries — and this class deliberately knows only

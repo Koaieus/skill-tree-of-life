@@ -21,7 +21,7 @@ const MIN_BLOCKER_PER := 5
 ## uniformly without replacement among regular nodes (never a starter core or
 ## an authored landmark node, #330). `0` disables a tier; any positive denominator below
 ## [constant MIN_BLOCKER_PER] is clamped up to it at placement time. The
-## `size` value in a returned placement is the [GameRoot.BlockerSize] int
+## `size` value in a returned placement is the [EntityFactory.BlockerSize] int
 ## (0/1/2).
 ##
 ## [b]Rebalanced in #777.[/b] The defaults were 10/25/100 when a Dormant Core
@@ -93,7 +93,7 @@ const MIN_BLOCKER_PER := 5
 @export_range(0.0, 1.0, 0.01) var stake_xp_offset_floor: float = 0.25
 
 
-## The pre-stake chance for a [GameRoot.BlockerSize] int, clamped to `[0, 1]`.
+## The pre-stake chance for a [EntityFactory.BlockerSize] int, clamped to `[0, 1]`.
 func stake_chance(size: int) -> float:
 	var c := stake_chance_small
 	if size == 1:
@@ -103,7 +103,7 @@ func stake_chance(size: int) -> float:
 	return clampf(c, 0.0, 1.0)
 
 
-## The `[min, max]` bonus-node range for a [GameRoot.BlockerSize] int, ordered
+## The `[min, max]` bonus-node range for a [EntityFactory.BlockerSize] int, ordered
 ## and floored at 0 so an inspector typo (max below min) narrows to a point
 ## instead of making `randi_range` fail.
 func footprint_range(size: int) -> Vector2i:

@@ -3,7 +3,7 @@ extends GutTest
 ## #916 seam — a PRE-STAKED Dormant Core survives a join with zero new
 ## serialization. `GraphSnapshot` already carries `stake_level` and
 ## `allocation_level` per node, so the adopting peer's node reads 3/3 off its
-## row; the adoption path ([method GameRoot.spawn_snapshot_entity]) spawns
+## row; the adoption path ([method EntityFactory.spawn_snapshot_entity]) spawns
 ## with NO core and the default stake, so nothing there re-runs
 ## `force_allocate` (which hardcodes a 1) or `force_fill` over the row.
 ## `mp:e2e` cannot see this (default chance 0), hence the unit test.
@@ -49,7 +49,7 @@ func test_a_3_of_3_blocker_core_crosses_the_join_as_3_of_3() -> void:
 	var host: Dictionary = await _side(3)
 	var client: Dictionary = await _side(3)
 	var blocker: Entity = (host["root"] as GameRoot).spawn_blocker(
-			GameRoot.BlockerSize.SMALL, host["nodes"][1],
+			EntityFactory.BlockerSize.SMALL, host["nodes"][1],
 			[host["nodes"][2]] as Array[SkillNode], 0, 0.0, 0, 3)
 	await get_tree().process_frame
 	var host_core: SkillNode = host["nodes"][1]
@@ -58,7 +58,7 @@ func test_a_3_of_3_blocker_core_crosses_the_join_as_3_of_3() -> void:
 
 	var entity_bytes := EntitySnapshot.encode(host["graph"] as Graph)
 	var graph_bytes := GraphSnapshot.encode(host["graph"] as Graph)
-	var spawner := Callable(client["root"], "spawn_snapshot_entity")
+	var spawner := Callable((client["root"] as GameRoot).entity_factory, "spawn_snapshot_entity")
 	EntitySnapshot.decode(entity_bytes, client["graph"] as Graph, spawner)
 	GraphSnapshot.decode(graph_bytes, client["graph"] as Graph)
 	EntitySnapshot.resolve_graph_refs(entity_bytes, client["graph"] as Graph, spawner)

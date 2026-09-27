@@ -104,7 +104,7 @@ size was legible only through a visual and a tooltip, and whether the thing
 landed on a bunker or a spike addon was a coin flip rather than a shape.
 
 Now `GraphProcgen` rolls a **bonus-node footprint** per placement and
-`GameRoot.spawn_blocker` force-allocates it alongside the core. The ranges are
+`EntityFactory.spawn_blocker` force-allocates it alongside the core. The ranges are
 authored per size on `GraphProcgenBlockers` (`footprint_small_min` … ), default
 **small 0-2, medium 2-4, large 4-6** — so a small can still roll 0 and behave
 exactly like the pre-#777 blocker, and size finally reads on the board as
@@ -195,7 +195,7 @@ effect's resource path.
 
 ## Sizes, boards, and loot tiers
 
-Three sizes (`GameRoot.BlockerSize`), each with an authored stat board (which
+Three sizes (`EntityFactory.BlockerSize`), each with an authored stat board (which
 sets the held node's HP) and an authored **loot book** — a `SpellBook` whose
 spells the killer's relic can offer. Blockers never cast; the book is purely
 what they carry.

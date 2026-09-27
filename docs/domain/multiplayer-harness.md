@@ -184,7 +184,7 @@ harness's odd case — is the primary path.
 **One consequence worth knowing before you debug a fingerprint:** procgen spawns
 entities the roster never names (one per removable blocker, ~120 on the shipped
 preset). A peer that ran no procgen has none of them, so `EntitySnapshot` asks
-`CommandLink.entity_spawner` (`GameRoot.spawn_snapshot_entity`) to rebuild any
+`CommandLink.entity_spawner` (`EntityFactory.spawn_snapshot_entity`) to rebuild any
 row it cannot resolve, at the authority's `entity_id`. Without that their nodes
 decode as *unowned* and the ownership fold disagrees on the very first compare —
 which looks exactly like a procgen desync and is not one.

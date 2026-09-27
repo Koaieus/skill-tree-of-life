@@ -269,7 +269,7 @@ spawns ~120 entities the roster never names (one per removable blocker, #477);
 without them the client decodes their nodes as unowned and the ownership fold
 disagrees on the first compare. So a row whose entity is absent now asks an
 optional `spawner` callback (`CommandLink.entity_spawner` →
-`GameRoot.spawn_snapshot_entity`, which refuses anything that is not a blocker)
+`EntityFactory.spawn_snapshot_entity`, which refuses anything that is not a blocker)
 before it is skipped. **The prohibition D7 was really protecting still holds:**
 this is not a second minting path, because the `entity_id` is the AUTHORITY's,
 read off the row and stamped before the entity enters `entities_container`

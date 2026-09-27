@@ -54,9 +54,9 @@ func test_density_at_50_nodes() -> void:
 	var result: Dictionary = await _generate(cfg)
 	var blockers: Array = result.get("blockers", [])
 	var counts := _counts(blockers)
-	assert_eq(counts.get(GameRoot.BlockerSize.SMALL, 0), 5, "50/10 = 5 small")
-	assert_eq(counts.get(GameRoot.BlockerSize.MEDIUM, 0), 2, "50/25 = 2 medium")
-	assert_eq(counts.get(GameRoot.BlockerSize.LARGE, 0), 0, "50/100 = 0 large")
+	assert_eq(counts.get(EntityFactory.BlockerSize.SMALL, 0), 5, "50/10 = 5 small")
+	assert_eq(counts.get(EntityFactory.BlockerSize.MEDIUM, 0), 2, "50/25 = 2 medium")
+	assert_eq(counts.get(EntityFactory.BlockerSize.LARGE, 0), 0, "50/100 = 0 large")
 	assert_eq(blockers.size(), 7, "total placements = 5 + 2 + 0")
 
 
@@ -67,9 +67,9 @@ func test_density_at_100_nodes() -> void:
 	cfg.blockers.blocker_per_large = 100
 	var result: Dictionary = await _generate(cfg)
 	var counts := _counts(result.get("blockers", []))
-	assert_eq(counts.get(GameRoot.BlockerSize.SMALL, 0), 10, "100/10 = 10 small")
-	assert_eq(counts.get(GameRoot.BlockerSize.MEDIUM, 0), 4, "100/25 = 4 medium")
-	assert_eq(counts.get(GameRoot.BlockerSize.LARGE, 0), 1, "100/100 = 1 large")
+	assert_eq(counts.get(EntityFactory.BlockerSize.SMALL, 0), 10, "100/10 = 10 small")
+	assert_eq(counts.get(EntityFactory.BlockerSize.MEDIUM, 0), 4, "100/25 = 4 medium")
+	assert_eq(counts.get(EntityFactory.BlockerSize.LARGE, 0), 1, "100/100 = 1 large")
 
 
 func test_placements_skip_starters_and_landmarks() -> void:
@@ -135,9 +135,9 @@ func test_denom_zero_disables_tier() -> void:
 	cfg.blockers.blocker_per_large = 0
 	result = await _generate(cfg)
 	var counts := _counts(result.get("blockers", []))
-	assert_eq(counts.get(GameRoot.BlockerSize.SMALL, 0), 0, "small disabled")
-	assert_eq(counts.get(GameRoot.BlockerSize.MEDIUM, 0), 10, "50/5 = 10 medium")
-	assert_eq(counts.get(GameRoot.BlockerSize.LARGE, 0), 0, "large disabled")
+	assert_eq(counts.get(EntityFactory.BlockerSize.SMALL, 0), 0, "small disabled")
+	assert_eq(counts.get(EntityFactory.BlockerSize.MEDIUM, 0), 10, "50/5 = 10 medium")
+	assert_eq(counts.get(EntityFactory.BlockerSize.LARGE, 0), 0, "large disabled")
 
 
 func test_denom_below_floor_clamps_to_min() -> void:
@@ -149,9 +149,9 @@ func test_denom_below_floor_clamps_to_min() -> void:
 	cfg.blockers.blocker_per_large = 3
 	var result: Dictionary = await _generate(cfg)
 	var counts := _counts(result.get("blockers", []))
-	assert_eq(counts.get(GameRoot.BlockerSize.SMALL, 0), 10, "denom 1 clamps to 5 → 50/5 = 10")
-	assert_eq(counts.get(GameRoot.BlockerSize.MEDIUM, 0), 10, "denom 2 clamps to 5 → 10")
-	assert_eq(counts.get(GameRoot.BlockerSize.LARGE, 0), 10, "denom 3 clamps to 5 → 10")
+	assert_eq(counts.get(EntityFactory.BlockerSize.SMALL, 0), 10, "denom 1 clamps to 5 → 50/5 = 10")
+	assert_eq(counts.get(EntityFactory.BlockerSize.MEDIUM, 0), 10, "denom 2 clamps to 5 → 10")
+	assert_eq(counts.get(EntityFactory.BlockerSize.LARGE, 0), 10, "denom 3 clamps to 5 → 10")
 
 
 func _hops_from(graph: Graph, nodes: Array, origins: Array, max_hops: int) -> Dictionary:
@@ -260,9 +260,9 @@ func test_prune_seed_stream_does_not_shift_placements() -> void:
 	cfg.blockers.blocker_per_large = 100
 	var result: Dictionary = await _generate(cfg)
 	var counts := _counts(result.get("blockers", []))
-	assert_eq(counts.get(GameRoot.BlockerSize.SMALL, 0), 10, "100/10 = 10 small")
-	assert_eq(counts.get(GameRoot.BlockerSize.MEDIUM, 0), 4, "100/25 = 4 medium")
-	assert_eq(counts.get(GameRoot.BlockerSize.LARGE, 0), 1, "100/100 = 1 large")
+	assert_eq(counts.get(EntityFactory.BlockerSize.SMALL, 0), 10, "100/10 = 10 small")
+	assert_eq(counts.get(EntityFactory.BlockerSize.MEDIUM, 0), 4, "100/25 = 4 medium")
+	assert_eq(counts.get(EntityFactory.BlockerSize.LARGE, 0), 1, "100/100 = 1 large")
 
 
 func _prune_seeds(blockers: Array) -> Array[int]:
@@ -299,8 +299,8 @@ func test_footprint_count_is_within_the_authored_range_per_tier() -> void:
 		var n := _footprint_of(placement).size()
 		assert_between(n, span.x, span.y,
 				"a %s blocker's footprint must sit in [%d, %d]"
-				% [GameRoot.BlockerSize.keys()[size], span.x, span.y])
-		if size == GameRoot.BlockerSize.MEDIUM:
+				% [EntityFactory.BlockerSize.keys()[size], span.x, span.y])
+		if size == EntityFactory.BlockerSize.MEDIUM:
 			saw_medium = true
 	assert_true(saw_medium, "the sample includes a tier whose range floor is > 0")
 

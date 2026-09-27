@@ -21,22 +21,6 @@ const _DEFAULT_BOARD := preload("res://entity/default_entity_board.tres")
 ## pulls in the whole menu tree, and SceneDirector loads threaded anyway.
 const META_ROOT := "res://scenes/meta/meta_root.tscn"
 
-## Removable blocker sizes (#300). Tier = size + 1 (SMALL → 1, MEDIUM → 2,
-## LARGE → 3); see [method spawn_blocker]. Procgen blocker placements carry
-## this enum's int value as the per-node `size` marker.
-enum BlockerSize { SMALL, MEDIUM, LARGE }
-
-const _BLOCKER_SCENE := preload("res://entity/blocker/blocker_entity.tscn")
-const _BLOCKER_BOARDS: Dictionary = {
-	BlockerSize.SMALL: preload("res://entity/blocker/blocker_small_board.tres"),
-	BlockerSize.MEDIUM: preload("res://entity/blocker/blocker_medium_board.tres"),
-	BlockerSize.LARGE: preload("res://entity/blocker/blocker_large_board.tres"),
-}
-const _BLOCKER_SPELLBOOKS: Dictionary = {
-	BlockerSize.SMALL: preload("res://entity/blocker/blocker_spellbook_small.tres"),
-	BlockerSize.MEDIUM: preload("res://entity/blocker/blocker_spellbook_medium.tres"),
-	BlockerSize.LARGE: preload("res://entity/blocker/blocker_spellbook_large.tres"),
-}
 
 ## Dev shortcut (#244): `F2` flips FogOverlay.intensity between fully opaque
 ## (ship default, 1.0) and the dimmer "almost black" (0.88) that lets a dev see
@@ -101,6 +85,7 @@ var _link_end_presented: bool = false
 # Systems
 @onready var input_ctl: PlayerInputController = %PlayerInputController
 @onready var allocation_system: AllocationSystem = %AllocationSystem
+@onready var entity_factory: EntityFactory = %EntityFactory
 @onready var battle_system: BattleSystem = %BattleSystem
 ## Read by [AIController] (kill-XP preview for its scorer) through the same
 ## GameRoot walk as [member battle_system].
@@ -170,6 +155,7 @@ func _assert_systems_present() -> void:
 		[floater_director, "FloaterDirector"], [fog_overlay, "FogOverlay"],
 		[aura_overlay, "AuraOverlay"], [camera, "GraphCamera"],
 		[camera_director, "CameraDirector"], [hud_root, "HudRoot"],
+		[entity_factory, "EntityFactory"],
 	]:
 		assert(pair[0] != null, ("GameRoot: %%%s is missing — every system is present in "
 				+ "every GameRoot scene; set its own `enabled` to turn it off (#1006)") % pair[1])
@@ -184,9 +170,9 @@ func _ready() -> void:
 	# [method NetworkSession.join_or_host].
 	network_session.adopt_role()
 	# #715: how the arriving world builds an entity the roster never names — see
-	# [method spawn_snapshot_entity]. Set here, before any link can be up, because
-	# the first thing a joining client does with its link is ask for that world.
-	command_link.entity_spawner = spawn_snapshot_entity
+	# [method EntityFactory.spawn_snapshot_entity]. Set here, before any link
+	# can be up, because the first thing a joining client does with its link is ask for that world.
+	command_link.entity_spawner = entity_factory.spawn_snapshot_entity
 	# The session owns the wire's lifecycle; the root keeps the presentation of
 	# each event (#1004). The world-arrived hook re-runs `_ensure_controllers`
 	# for entities the resync brought with it — idempotent and cheap.
@@ -1009,196 +995,23 @@ func _setup_level() -> void:
 		player = get_node("%Player") as Entity
 
 
-## Spawn an [Entity] under `graph.entities_container` with a duplicated copy
-## of the default stat board. If [param core_location] is given, force-allocates
-## it as the entity's first node and sets `core_location`. If [param core_class]
-## is given, assigns it as `core_class` so its modifier set + on_turn_started
-## hook fire from Entity._ready. Returns the entity.
-##
-## Skips [method AllocationSystem.allocate] gating — this is dev/procgen
-## setup, not a gameplay action. Mid-game spawning should still route through
-## the gated path.
-func spawn_entity(
-	ent_name: String,
-	color: Color,
-	core_location: SkillNode = null,
-	core_class: CoreClass = null,
-	with_ai: bool = false,
-) -> Entity:
-	var ent := preload("res://entity/entity.tscn").instantiate() as Entity
-	ent.name = ent_name
-	ent.display_name = ent_name
-	ent.color = color
-	ent.core_class = core_class
-	graph.entities_container.add_child(ent)
-	if core_location != null:
-		allocation_system.force_allocate(ent, core_location)
-		ent.core_location = core_location
-	if with_ai:
-		ent.add_child(_new_ai_controller(ent))
-	return ent
+## Forwarder — see [method EntityFactory.spawn_entity].
+func spawn_entity(ent_name: String, color: Color, core_location: SkillNode = null,
+		core_class: CoreClass = null) -> Entity:
+	return entity_factory.spawn_entity(ent_name, color, core_location, core_class)
 
 
-## Spawn a removable blocker entity (#300) owning [param core_location] and
-## [param footprint]. A blocker is a plain [Entity] — no controller — whose
-## tiered board ([param size] → CON/armor/health, no initiative) and the size's
-## spellbook are authored under `entity/blocker/`.
-##
-## [b]The #777 falloff aura is NOT granted here.[/b] `blocker_entity.tscn`
-## authors `core_class = blocker_core.tres`, whose `effects` array carries it,
-## so [method Entity._ready] grants it on `add_child` below — the ordinary
-## entity-wide effect seam, reached with no code. That class is deliberately
-## not a pickable one: `pickable_in = 0`, absent from `core_class_roster.tres`,
-## and filed under `entity/blocker/` rather than `entity/core/`.
-##
-## The aura is inert on a footprintless blocker — [ProportionalScale] puts the
-## source itself at scale 0, so a lone core is the only node in scope and takes
-## nothing. It is also inert at grant time on the [method spawn_snapshot_entity]
-## path, which spawns with a null core; the snapshot's later `core_location`
-## assignment is what fills it, since that setter dispatches `_on_core_moved`
-## (a full recompute — see [member Entity.core_location]). Parents under
-## `graph.entities_container` and force-allocates the core, exactly like
-## [method spawn_entity] (procgen setup, not a gameplay action). Returns the
-## entity, with [member Entity.entity_tier] set to size + 1 (1/2/3).
-## Spawn one Dormant Core of [param size] onto [param core_location].
-##
-## [param spell_prune_m] is the #586 loot-book prune's shape parameter (see
-## [method SpellBook.duplicate_pruned]); leaving it at `0.0` keeps the tier's
-## authored book whole, which is what a hand-authored level or a fixture
-## wants. [param spell_prune_seed] seeds that prune — procgen hands one out
-## per placement, because every peer re-runs this and must land on the same
-## book. The prune copies before it pops — the tier books are `preload`ed
-## resources shared by every blocker of a size, so popping in place would
-## strip the tier for the rest of the run.
-##
-## [param preassigned_id] adopts an [Entity] id decided elsewhere instead of
-## letting [Graph] mint one (#715) — the authority's, when a snapshot is
-## rebuilding a blocker on a peer that ran no procgen. `0`, the default, is
-## every ordinary caller and mints as before.
-##
-## [param stake_level] is the #916 pre-stake (1..[constant
-## AllocationSystem.STAKE_CEILING], procgen rolls it per placement): the core
-## node's cap is stamped, `force_allocate` opens the 0→1 as usual, and
-## [method AllocationSystem.force_fill] walks the fill to the cap — no SP
-## minted for the fill, so the blocker's pool never says it bought it. A
-## staked kill then frees a node already filled to 3, SP the killer never
-## spent, so the kill XP is offset by a MULTIPLY on `core_kill_xp` clamped to
-## `blockers_cfg.stake_xp_offset_floor` (owner's formula on #784; every input
-## is a live board read). Only the CORE is staked, never the footprint. The
-## snapshot adoption path ([method spawn_snapshot_entity]) leaves it at 1 and
-## passes no core, so the row's own `stake_level`/`allocation_level` land
-## untouched by anything here.
-func spawn_blocker(size: BlockerSize, core_location: SkillNode,
+## Forwarder — see [method EntityFactory.spawn_blocker].
+func spawn_blocker(size: EntityFactory.BlockerSize, core_location: SkillNode,
 		footprint: Array[SkillNode] = [], spell_prune_seed: int = 0,
 		spell_prune_m: float = 0.0, preassigned_id: int = 0,
 		stake_level: int = 1, stake_xp_offset_floor: float = 0.25) -> Entity:
-	var ent := _BLOCKER_SCENE.instantiate() as Entity
-	# Before `add_child`: `Graph._mint_entity_id` assigns only to an entity whose
-	# id is still 0, so stamping first is adoption rather than a second mint.
-	ent.entity_id = preassigned_id
-	ent.name = "Blocker_%s" % BlockerSize.keys()[size].to_lower()
-	# #587 — the player-facing name is "Dormant Core", never "Blocker": these
-	# hold a patch of territory but never move or act, and `blocker` is the
-	# mechanic, not the thing. The node NAME stays `Blocker_*`
-	# so scene-tree lookups and the group are untouched; only `display_name`
-	# reaches a tooltip.
-	ent.display_name = "Dormant Core (%s)" % BlockerSize.keys()[size].capitalize()
-	ent.entity_tier = int(size) + 1
-	ent.stat_board = _BLOCKER_BOARDS[size] as EntityStatBoard
-	var book := _BLOCKER_SPELLBOOKS[size] as SpellBook
-	if spell_prune_m > 0.0:
-		var prune_rng := RandomNumberGenerator.new()
-		prune_rng.seed = spell_prune_seed
-		book = book.duplicate_pruned(prune_rng, spell_prune_m)
-	ent.spellbook = book
-	graph.entities_container.add_child(ent)
-	if core_location != null:
-		var stake := clampi(stake_level, 1, AllocationSystem.STAKE_CEILING)
-		# Cap BEFORE the allocate: the fill is clamped to the cap, and the
-		# stake_level setter re-derives the radius the halo reads.
-		core_location.stake_level = stake
-		allocation_system.force_allocate(ent, core_location)
-		ent.core_location = core_location
-		if stake > 1:
-			allocation_system.force_fill(core_location, stake)
-			_offset_kill_xp_for_stake(ent, stake, stake_xp_offset_floor)
-		# The core FIRST, then the bonus nodes: `force_allocate` is the setup
-		# primitive, so nothing here checks adjacency — but the footprint is
-		# grown connected at placement time and the class's falloff aura measures
-		# hops over the owned subgraph, which only reads right with the core in it.
-		for node in footprint:
-			if node != null and node != core_location:
-				allocation_system.force_allocate(ent, node)
-	return ent
-
-
-## The #916 kill-XP offset for a pre-staked blocker, owner's formula verbatim
-## (#784): `core_kill_xp × clamp(1 − (stake − 1) · XP_PER_SP / core_kill_xp,
-## floor, 1)` with `XP_PER_SP = xp.value / sp_gain_on_levelup.value` — what one
-## SP is worth in XP on THIS blocker's board, so the freed fill is priced in
-## the board's own currency and no literal number lives here. Granted as a
-## core modifier: per-entity (the board is duplicated at `initialize`), and
-## it rides [EntitySnapshot] with the rest of them.
-func _offset_kill_xp_for_stake(ent: Entity, stake: int, floor_: float) -> void:
-	var board := ent.stat_board
-	if board == null or board.core_kill_xp == null or board.xp == null \
-			or board.sp_gain_on_levelup == null:
-		return
-	var sp_gain: float = board.sp_gain_on_levelup.value
-	var kill_xp: float = board.core_kill_xp.value
-	if sp_gain <= 0.0 or kill_xp <= 0.0:
-		return
-	# `Stat.value` is Variant-typed — cast, or an int/int pair divides as ints.
-	var xp_per_sp: float = float(board.xp.value) / sp_gain
-	var m := StatModifier.new()
-	m.stat_id = &"core_kill_xp"
-	m.operation = StatModifier.Operation.MULTIPLY
-	m.value = clampf(1.0 - float(stake - 1) * xp_per_sp / kill_xp, clampf(floor_, 0.0, 1.0), 1.0)
-	ent.grant_core_modifier(m)
-
-
-## Rebuild an [Entity] an arriving snapshot names and this peer does not have
-## (#715) — [member CommandLink.entity_spawner]'s one production implementation.
-##
-## [b]Only a BLOCKER, and refusing anything else is the point.[/b] Since #715 a
-## joining client runs no procgen, so the entities procgen spawns that the roster
-## never names — one per removable blocker (#477), 50 on the shipped preset since
-## #777's density rebalance — have no other way to exist here, and their nodes
-## would otherwise decode as
-## unowned and move the ownership fold. Every OTHER entity is the roster's, and
-## the roster spawns the same set on every peer by construction
-## ([method ProcgenPlaySandbox._seat_the_roster]): a row asking for one of those
-## means the two peers disagree about who is playing, which is a fault to
-## surface, not to paper over by inventing a hero.
-##
-## The tier is what names the size — [method spawn_blocker] writes
-## `entity_tier = size + 1` — and everything else the blocker needs (its tiered
-## [EntityStatBoard], its scene, its `scenery` group) comes from that same call,
-## which is exactly why this lives here and not in [EntitySnapshot].
-##
-## [b]The #586 PRUNED spellbook crosses by value (#726).[/b] The tier book this
-## assigns is the WHOLE authored one; the host's is a `duplicate_pruned` slice
-## of it, with no `resource_path` to intern. [method EntitySnapshot._decode_identity]
-## overwrites what this hands out with a fresh book rebuilt from the row's
-## [member SpellDef.id] list, so nothing here needs to know about the prune.
-func spawn_snapshot_entity(
-	entity_id: int, scene_path: String, tier: int, _display_name: String
-) -> Entity:
-	if scene_path != _BLOCKER_SCENE.resource_path:
-		push_warning(
-			"GameRoot: snapshot names entity %d from '%s', which is not a blocker — "
-			% [entity_id, scene_path]
-			+ "the roster should have spawned it. Refusing to invent one.")
-		return null
-	var size := clampi(tier - 1, 0, BlockerSize.size() - 1) as BlockerSize
-	# Empty footprint: on a joining peer every owned node arrives through
-	# `GraphSnapshot`'s per-node `owner_id`, so there is nothing to allocate
-	# here and nothing about the footprint to serialize (#777 decision 9).
-	return spawn_blocker(size, null, [], 0, 0.0, entity_id)
+	return entity_factory.spawn_blocker(size, core_location, footprint, spell_prune_seed,
+			spell_prune_m, preassigned_id, stake_level, stake_xp_offset_floor)
 
 
 ## The authority's world has landed (#715, [signal NetworkSession.world_ready]).
-## Anything [method spawn_snapshot_entity]
+## Anything [method EntityFactory.spawn_snapshot_entity]
 ## built arrived after the level's own pass, so give it a controller and put the
 ## fog back on this machine's real subgraph — the seat's vision was derived from
 ## a player that owned nothing at the time.

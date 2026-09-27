@@ -82,7 +82,6 @@ ALLOWLIST = {
     "entity/controller→scenes": (1131, "GameRoot"),
     "graph→entity": (None, "no retiring issue — Entity"),
     "graph→scenes": (None, "no retiring issue — GraphCamera"),
-    "procgen→scenes": (None, "no retiring issue — GameRoot"),
     "session→network": (1133, "NetworkTransport"),
     "session→procgen": (None, "no retiring issue — GraphProcgenConfig"),
     "session→ui": (1133, "LobbyPolicy, PlayerPalette, ui/theme/player_palette.tres"),

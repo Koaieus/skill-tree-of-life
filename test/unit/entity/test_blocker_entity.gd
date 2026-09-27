@@ -56,7 +56,7 @@ func before_each() -> void:
 	_player.core_location = _nodes[0]
 
 
-## Build a blocker owning `_nodes[1]` directly (not via GameRoot) — the
+## Build a blocker owning `_nodes[1]` directly (not via EntityFactory) — the
 ## mechanics-under-test, isolated from the composition root.
 func _spawn_blocker(board: EntityStatBoard, tier: int) -> Entity:
 	var blocker := Entity.new()
@@ -156,15 +156,15 @@ func test_blocked_node_cannot_be_allocated() -> void:
 	assert_false(_alloc.can_allocate(_nodes[1], other), "blocker blocks everyone")
 
 
-# ── spawn_blocker (GameRoot path) ────────────────────────────────────────────
+# ── spawn_blocker (EntityFactory path) ────────────────────────────────────────────
 
 func test_spawn_blocker_spawns_with_tiered_board_and_spellbook() -> void:
-	var gr := GameRoot.new()
+	var gr := EntityFactory.new()
 	autofree(gr)
 	gr.graph = _graph
 	gr.allocation_system = _alloc
 
-	var blocker := gr.spawn_blocker(GameRoot.BlockerSize.MEDIUM, _nodes[2])
+	var blocker := gr.spawn_blocker(EntityFactory.BlockerSize.MEDIUM, _nodes[2])
 	assert_not_null(blocker)
 	assert_eq(blocker.get_parent(), _graph.entities_container, "parented under entities_container")
 	assert_eq(blocker.entity_tier, 2, "tier = size + 1")
@@ -179,13 +179,13 @@ func test_spawn_blocker_spawns_with_tiered_board_and_spellbook() -> void:
 
 
 func test_spawn_blocker_size_to_tier_and_board_mapping() -> void:
-	var gr := GameRoot.new()
+	var gr := EntityFactory.new()
 	autofree(gr)
 	gr.graph = _graph
 	gr.allocation_system = _alloc
 
-	var small := gr.spawn_blocker(GameRoot.BlockerSize.SMALL, null)
-	var large := gr.spawn_blocker(GameRoot.BlockerSize.LARGE, null)
+	var small := gr.spawn_blocker(EntityFactory.BlockerSize.SMALL, null)
+	var large := gr.spawn_blocker(EntityFactory.BlockerSize.LARGE, null)
 	assert_eq(small.entity_tier, 1, "SMALL → tier 1")
 	assert_eq(large.entity_tier, 3, "LARGE → tier 3")
 	assert_eq(small.spellbook.spells.size(), 2, "small blocker carries its own loot tier since #586")
@@ -197,12 +197,12 @@ func test_spawn_blocker_size_to_tier_and_board_mapping() -> void:
 func test_spawn_blocker_without_prune_keeps_the_tier_book_whole() -> void:
 	# The default (`spell_prune_m == 0.0`) is the pre-#586 behaviour a
 	# hand-authored level still gets: the tier's authored contents, entire.
-	var gr := GameRoot.new()
+	var gr := EntityFactory.new()
 	autofree(gr)
 	gr.graph = _graph
 	gr.allocation_system = _alloc
 
-	var a := gr.spawn_blocker(GameRoot.BlockerSize.MEDIUM, null)
+	var a := gr.spawn_blocker(EntityFactory.BlockerSize.MEDIUM, null)
 	assert_eq(a.spellbook.spells, _MEDIUM_SPELLBOOK.spells, "un-pruned = the whole authored tier")
 
 
@@ -211,25 +211,25 @@ func test_prune_leaves_the_authored_resource_untouched() -> void:
 	# size shares — it must copy before popping, or one spawn would strip the
 	# resource for the whole run. (Entity._ready separately duplicates the
 	# book it is handed, so per-entity isolation is not what this guards.)
-	var gr := GameRoot.new()
+	var gr := EntityFactory.new()
 	autofree(gr)
 	gr.graph = _graph
 	gr.allocation_system = _alloc
 
 	for seed_value in [11, 22, 33, 44]:
-		gr.spawn_blocker(GameRoot.BlockerSize.MEDIUM, null, [], seed_value, 1.0)
+		gr.spawn_blocker(EntityFactory.BlockerSize.MEDIUM, null, [], seed_value, 1.0)
 	assert_eq(_MEDIUM_SPELLBOOK.spells.size(), 3, "the authored resource is left whole")
 
 
 func test_prune_actually_varies_what_a_tier_offers() -> void:
-	var gr := GameRoot.new()
+	var gr := EntityFactory.new()
 	autofree(gr)
 	gr.graph = _graph
 	gr.allocation_system = _alloc
 
 	var sizes := {}
 	for seed_value in 40:
-		var b := gr.spawn_blocker(GameRoot.BlockerSize.MEDIUM, null, [], seed_value, 1.0)
+		var b := gr.spawn_blocker(EntityFactory.BlockerSize.MEDIUM, null, [], seed_value, 1.0)
 		sizes[b.spellbook.spells.size()] = true
 	assert_true(sizes.has(0), "some medium blockers offer nothing at all")
 	assert_true(sizes.has(3), "some keep the whole book")
@@ -238,13 +238,13 @@ func test_prune_actually_varies_what_a_tier_offers() -> void:
 func test_same_prune_seed_spawns_the_same_book_on_every_peer() -> void:
 	# Every peer re-runs the level scene, so this roll is reproduced rather
 	# than received — procgen hands out the seed for exactly this reason.
-	var gr := GameRoot.new()
+	var gr := EntityFactory.new()
 	autofree(gr)
 	gr.graph = _graph
 	gr.allocation_system = _alloc
 
-	var a := gr.spawn_blocker(GameRoot.BlockerSize.MEDIUM, null, [], 4242, 1.0)
-	var b := gr.spawn_blocker(GameRoot.BlockerSize.MEDIUM, null, [], 4242, 1.0)
+	var a := gr.spawn_blocker(EntityFactory.BlockerSize.MEDIUM, null, [], 4242, 1.0)
+	var b := gr.spawn_blocker(EntityFactory.BlockerSize.MEDIUM, null, [], 4242, 1.0)
 	assert_eq(a.spellbook.spells, b.spellbook.spells, "same seed → same book")
 
 
@@ -277,8 +277,8 @@ func _falloff_per_hop() -> float:
 	return -(_FALLOFF.modifiers[0] as StatModifier).value
 
 
-func _game_root() -> GameRoot:
-	var gr := GameRoot.new()
+func _factory() -> EntityFactory:
+	var gr := EntityFactory.new()
 	autofree(gr)
 	gr.graph = _graph
 	gr.allocation_system = _alloc
@@ -287,7 +287,7 @@ func _game_root() -> GameRoot:
 
 func test_spawn_blocker_force_allocates_every_footprint_node() -> void:
 	var chain := await _extend_chain(3)
-	var blocker := _game_root().spawn_blocker(GameRoot.BlockerSize.MEDIUM, _nodes[2], chain)
+	var blocker := _factory().spawn_blocker(EntityFactory.BlockerSize.MEDIUM, _nodes[2], chain)
 	assert_eq(_nodes[2].owned_by, blocker, "the core is still the core")
 	assert_eq(blocker.core_location, _nodes[2], "core_location is the CORE, not a footprint node")
 	for node in chain:
@@ -300,7 +300,7 @@ func test_spawn_blocker_force_allocates_every_footprint_node() -> void:
 ## keeps its full authored HP — [ProportionalScale] puts the source at scale 0.
 func test_footprint_node_health_falls_off_five_per_hop() -> void:
 	var chain := await _extend_chain(3)
-	_game_root().spawn_blocker(GameRoot.BlockerSize.MEDIUM, _nodes[2], chain)
+	_factory().spawn_blocker(EntityFactory.BlockerSize.MEDIUM, _nodes[2], chain)
 	await get_tree().process_frame
 	var base := _nodes[2].get_max_hp()
 	var per_hop := _falloff_per_hop()
@@ -314,7 +314,7 @@ func test_footprint_node_health_falls_off_five_per_hop() -> void:
 ## small tops out at hop 2 (20 − 10 = 10), so nothing ever reaches zero.
 func test_a_small_blockers_deepest_footprint_node_still_has_health() -> void:
 	var chain := await _extend_chain(2)
-	_game_root().spawn_blocker(GameRoot.BlockerSize.SMALL, _nodes[2], chain)
+	_factory().spawn_blocker(EntityFactory.BlockerSize.SMALL, _nodes[2], chain)
 	await get_tree().process_frame
 	var per_hop := _falloff_per_hop()
 	assert_eq(_nodes[2].get_max_hp(), 20.0, "tier-1 board → 20 at the core")
@@ -329,7 +329,7 @@ func test_a_small_blockers_deepest_footprint_node_still_has_health() -> void:
 ## it on every blocker regardless. On a lone core it is inert: the only node in
 ## scope is the source, and [ProportionalScale] puts that at scale 0.
 func test_a_footprintless_blocker_is_todays_blocker_with_an_inert_aura() -> void:
-	var blocker := _game_root().spawn_blocker(GameRoot.BlockerSize.MEDIUM, _nodes[2])
+	var blocker := _factory().spawn_blocker(EntityFactory.BlockerSize.MEDIUM, _nodes[2])
 	await get_tree().process_frame
 	assert_eq(_nodes[2].get_max_hp(), 40.0, "the lone core keeps its full HP")
 	var owned := 0
@@ -350,7 +350,7 @@ func test_a_footprintless_blocker_is_todays_blocker_with_an_inert_aura() -> void
 ## loses territory, so this is the path players actually take.
 func test_losing_a_footprint_node_re_derives_the_remaining_caps() -> void:
 	var chain := await _extend_chain(3)
-	var blocker := _game_root().spawn_blocker(GameRoot.BlockerSize.MEDIUM, _nodes[2], chain)
+	var blocker := _factory().spawn_blocker(EntityFactory.BlockerSize.MEDIUM, _nodes[2], chain)
 	await get_tree().process_frame
 	var per_hop := _falloff_per_hop()
 	assert_eq(chain[2].get_max_hp(), 40.0 - per_hop * 3.0, "hop 3 before the cut")

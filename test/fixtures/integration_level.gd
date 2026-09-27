@@ -51,11 +51,13 @@ func _setup_level() -> void:
 	player = spawn_entity("Player", Color(0.945, 0.271, 0.247), player_core, _CORE_CLASS)
 	player.faction = _PLAYER_FACTION
 	player.is_human_controlled = true
-	# `with_ai = true` mounts the AIController here, so its pacing delay can be
-	# zeroed in this same hook; `_ensure_controllers` then skips the enemy.
-	enemy = spawn_entity("Enemy", Color(0.318, 0.776, 0.447), enemy_core, _CORE_CLASS, true)
+	enemy = spawn_entity("Enemy", Color(0.318, 0.776, 0.447), enemy_core, _CORE_CLASS)
 	enemy.faction = _ENEMY_FACTION
 	enemy.is_human_controlled = false
+	# Attach controllers now rather than after this hook, so the enemy's
+	# AIController exists for its pacing delay to be zeroed below; GameRoot's
+	# own `_ensure_controllers` pass is idempotent and skips both.
+	_ensure_controllers()
 	allocation_system.force_allocate(enemy, enemy_out)
 	allocation_system.force_allocate(enemy, enemy_out2)
 	# `turn_delay` is host-local presentation pacing between an AI's actions —
