@@ -23,9 +23,18 @@ through `host` on every call and cache nothing: `AllocationSystem` writes
 so a cached read would go stale silently. A shadow falls back to its own
 `_owned` / `_core` / `_board`, populated once at `snapshot()` and kept current
 by `apply_cascade` — the ONLY place that mutates a shadow's ownership, and it
-updates the `NodeCombat` backpointer and the shadow `GraphMirror` together,
-never one without the other (or islanding would answer a set the slice itself
-disagrees with).
+nulls the stripped node's `_state.owned_by` and trims the shadow `GraphMirror`
+together, never one without the other (or islanding would answer a set the
+slice itself disagrees with).
+
+A `NodeCombat` stores no owner at all. It holds a `NodeState` — the live
+node's own when live, a `clone()` when shadow — and `owner()` resolves
+`_state.owned_by` (the real `Entity`): live through `get_combat()`, shadow
+through the `CombatWorld` that minted it (`shadow_for` hands it `world()`,
+never the raw `_world`, so a bare snapshot's first node still resolves). That
+world backpointer is the `RefCounted` cycle `free_shadow` severs. An orphan's
+clone is un-owned (`owned_by = null`), or resolving it would snapshot an
+entity that does not hold the node.
 
 ## The cascade is ONE driver with one sanctioned branch
 

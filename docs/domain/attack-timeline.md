@@ -453,8 +453,8 @@ should not be: a flag is something you can fail to set; a null host is
 something that cannot be reached.
 
 Two facts make this small. `StatBoard` / `NodeStatBoard` already extend
-`Resource` and are deep-duplicable — `_init_node_board()` does
-`source.duplicate(true)` today — so the stat system does not move at all. And
+`Resource` and are deep-duplicable — `NodeState.ensure_board()` does
+`source.duplicate(true)` — so the stat system does not move at all. And
 `_node_board_ready` is lazy, driven from every write path rather than
 `_ready()`, so a detached slice initialises correctly with no scene tree.
 

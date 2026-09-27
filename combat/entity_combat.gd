@@ -124,9 +124,9 @@ func _notification(what: int) -> void:
 
 ## Tear down a SHADOW explicitly — the caller's job once it's done with one
 ## (an AI rollout between iterations, a test in `after_each`). Ordinary
-## refcounting cannot do this for us: every owned [NodeCombat]'s
-## [member NodeCombat._owner] backpoints at THIS instance, so a shadow entity
-## and its shadow nodes form a reference CYCLE, and GDScript's [RefCounted]
+## refcounting cannot do this for us: every minted [NodeCombat]'s
+## [member NodeCombat._world] backpoints at the world that indexes it, so the
+## shadow nodes and their world form a reference CYCLE, and GDScript's [RefCounted]
 ## has no cycle collector — [method _notification]'s [constant NOTIFICATION_PREDELETE]
 ## would never fire on its own. This method breaks the cycle (clears every
 ## backpointer) and frees [member _mirror] (a [Node] — also never freed by
@@ -458,8 +458,8 @@ func mirror() -> GraphMirror:
 	return host.navigator if host != null else _mirror
 
 
-## The refcounted tag dictionary to read and write — the entity-wide twin of
-## [method NodeCombat._tag_store].
+## The refcounted tag dictionary to read and write — the real entity's when
+## live, this slice's own when shadow.
 func _tag_store() -> Dictionary[StringName, int]:
 	return host._tags if host != null else _tags
 
