@@ -44,17 +44,23 @@ because it went red on every deliberate rearrange of a scratchpad.
 since #811 so does the defender field: `BladeDefenderZones.query()` is one
 `intersect_shape` against the `swing_drag` / `deflection` collision bits, so a
 fortified or bunkered node the physics space has not seen yet simply does not
-defend, with no error. So a fixture needs `await get_tree().physics_frame`
-before swinging — one
-`process_frame` is not enough — and anything that sets `PROCESS_MODE_DISABLED` on
-the world (the melee sandbox tab does exactly that when its tab is hidden) takes
-those Area2Ds out of the broadphase entirely.
+defend, with no error — unless the write itself is what made it stale (see
+below). Anything that sets `PROCESS_MODE_DISABLED` on the world (the melee
+sandbox tab does exactly that when its tab is hidden) takes those Area2Ds out
+of the broadphase entirely, and that case has no fallback: still needs
+`await get_tree().physics_frame` before swinging, one `process_frame` is not
+enough.
 
-Two extra teeth since #811: a node's defender bits are driven by
-`SkillNode._sync_defender_bit` off the stat's local value, so **attach the addon
-and then `await get_tree().physics_frame`** — attaching after the last physics
-frame leaves the bit set but the query already run. And a defender placed at the
-blade's *rest* span is no longer culled (that was #808's bug) but a defender
-placed where the blade never actually goes still never contacts; place it on a
-point read off the free swing's own trajectory, as
-`test_blade_whip_reach.gd` and `test_bunker_break_live.gd` both do.
+A node's defender bits are driven by `SkillNode._sync_defender_bit`, and its
+radius by `SkillNode._sync_collision`, off the stat's/radius's own write — since
+#1136 both call `BladeDefenderZones.mark_broadphase_dirty()`, so `query()`
+walks the graph instead of trusting the stale physics query for one frame
+after either write. **The "attach the addon and then `await
+get_tree().physics_frame`" step is no longer required for correctness** — the
+same-frame fallback finds it either way — **it is still needed to exercise the
+physics path itself** rather than the walk fallback (`test_defender_zone_missed_frame_guard.gd`
+pins both paths). And a defender placed at the blade's *rest* span is no
+longer culled (that was #808's bug) but a defender placed where the blade
+never actually goes still never contacts; place it on a point read off the
+free swing's own trajectory, as `test_blade_whip_reach.gd` and
+`test_bunker_break_live.gd` both do.
