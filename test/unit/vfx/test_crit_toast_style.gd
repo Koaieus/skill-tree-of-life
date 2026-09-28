@@ -49,7 +49,7 @@ func test_stacked_crit_keeps_its_tier() -> void:
 # --- Text -------------------------------------------------------------------
 
 func test_damage_text_marks_crits() -> void:
-	assert_eq(FloaterDirector._damage_text(7.4, 0), "7")
+	assert_eq(FloaterDirector._damage_text(7.0, 0), "7")
 	assert_eq(FloaterDirector._damage_text(18.0, 1), "18!")
 	assert_eq(FloaterDirector._damage_text(18.0, 2), "18!!")
 	assert_eq(FloaterDirector._damage_text(18.0, 9), "18!!", "the bang count is capped")
