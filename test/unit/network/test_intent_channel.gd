@@ -17,13 +17,14 @@ extends GutTest
 ## observe the open window is to make sure nothing answers.
 
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
+const _Rig := preload("res://test/fixtures/link_rig.gd")
 const _BOARD := preload("res://entity/default_entity_board.tres")
 const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 
 var _host: Dictionary
 var _client: Dictionary
-var _host_link: CommandLink
-var _client_link: CommandLink
+var _host_link: NetworkLink
+var _client_link: NetworkLink
 var _client_pic: PlayerInputController
 
 
@@ -47,15 +48,8 @@ func before_each() -> void:
 	add_child_autofree(_client_pic)
 
 
-func _make_link(world: Dictionary, transport: NetworkTransport, mode: NetworkConfig.Role) -> CommandLink:
-	var link := CommandLink.new()
-	# Exports before `add_child`: `_ready` is what connects the signals.
-	link.transport = transport
-	link.command_applier = world["applier"]
-	link.graph = world["graph"]
-	link.role = mode
-	add_child_autofree(link)
-	return link
+func _make_link(world: Dictionary, transport: NetworkTransport, mode: NetworkConfig.Role) -> NetworkLink:
+	return _Rig.compose(self, transport, world["applier"], mode, world["graph"])
 
 
 ## One self-contained world: graph, four nodes in a path, a player holding A.

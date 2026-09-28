@@ -15,9 +15,10 @@ extends GutTest
 ## `mp_dev_sandbox.bind_failure_lines` — extracted pure for exactly that reason.
 
 const _SANDBOX := preload("res://scenes/dev/mp_dev_sandbox.gd")
+const _Rig := preload("res://test/fixtures/link_rig.gd")
 
-var _host: CommandLink
-var _client: CommandLink
+var _host: NetworkLink
+var _client: NetworkLink
 var _host_lines: PackedStringArray
 var _client_lines: PackedStringArray
 
@@ -36,11 +37,8 @@ func before_each() -> void:
 ## handshake, and [method WorldSyncChannel.send_hello] tolerates a null graph
 ## ([method WorldFingerprint.compute] folds nothing).
 func _make_link(transport: NetworkTransport, mode: NetworkConfig.Role,
-		sink: PackedStringArray) -> CommandLink:
-	var link := CommandLink.new()
-	link.transport = transport
-	link.role = mode
-	add_child_autofree(link)
+		sink: PackedStringArray) -> NetworkLink:
+	var link: NetworkLink = _Rig.compose(self, transport, null, mode)
 	link.logged.connect(func(line: String) -> void: sink.append(line))
 	return link
 
@@ -63,7 +61,7 @@ func test_matching_builds_link_normally() -> void:
 	var refusals := 0
 	_client.link_refused.connect(func(_r: String) -> void: refusals += 1)
 
-	_host.send_hello()
+	_Rig.world(_host).send_hello()
 
 	assert_eq(refusals, 0, "same sha must not refuse")
 	assert_true(_client.transport.is_linked(), "the link must survive a matching build")
@@ -83,7 +81,7 @@ func test_mismatched_sha_refuses_and_both_ends_name_the_other_build() -> void:
 	_host.build_stamp = _stamp("4174f36")
 	_client.build_stamp = _stamp("54cfcd7", "master", "issue-546")
 
-	_host.send_hello()
+	_Rig.world(_host).send_hello()
 
 	var client_log := _joined(_client_lines)
 	assert_string_contains(client_log, "link REFUSED")
@@ -103,7 +101,7 @@ func test_the_refusing_peer_hangs_up_and_the_host_keeps_listening() -> void:
 	_host.build_stamp = _stamp("4174f36")
 	_client.build_stamp = _stamp("54cfcd7")
 
-	_host.send_hello()
+	_Rig.world(_host).send_hello()
 
 	assert_false(_client.transport.is_linked(), "the refusing peer must hang up")
 	assert_true(_host.transport.is_linked(), "the host must stay reachable")
@@ -113,10 +111,10 @@ func test_the_refusing_peer_hangs_up_and_the_host_keeps_listening() -> void:
 func test_a_host_told_of_a_refusal_still_applies_nothing_from_that_peer() -> void:
 	var applier := CommandApplier.new()
 	add_child_autofree(applier)
-	_host.command_applier = applier
+	_Rig.command(_host).command_applier = applier
 	_host.build_stamp = _stamp("4174f36")
 	_client.build_stamp = _stamp("54cfcd7")
-	_host.send_hello()
+	_Rig.world(_host).send_hello()
 	_host_lines.clear()
 
 	_host.transport.message_received.emit({
@@ -135,7 +133,7 @@ func test_refusal_emits_link_refused_on_both_ends() -> void:
 	_client.link_refused.connect(func(r: String) -> void: seen.append("client:" + r))
 	_host.link_refused.connect(func(r: String) -> void: seen.append("host:" + r))
 
-	_host.send_hello()
+	_Rig.world(_host).send_hello()
 
 	# Order is not a contract — the loopback delivers the reject synchronously
 	# from inside `_refuse`, so the host announces first — but both must fire.
@@ -174,7 +172,7 @@ func test_two_stampless_exported_builds_still_link() -> void:
 	_host.build_stamp = _stamp("", "", "")
 	_client.build_stamp = _stamp("", "", "")
 
-	_host.send_hello()
+	_Rig.world(_host).send_hello()
 
 	assert_true(_client.transport.is_linked())
 	assert_false(_joined(_client_lines).contains("REFUSED"))
@@ -185,7 +183,7 @@ func test_two_stampless_exported_builds_still_link() -> void:
 func test_a_refused_client_applies_nothing_afterwards() -> void:
 	_host.build_stamp = _stamp("4174f36")
 	_client.build_stamp = _stamp("54cfcd7")
-	_host.send_hello()
+	_Rig.world(_host).send_hello()
 	_client_lines.clear()
 
 	# Straight at the receive side: the transport is already down, so a real
@@ -208,12 +206,12 @@ func test_a_refused_client_applies_nothing_afterwards() -> void:
 func test_refusal_does_not_promote_the_client_to_authority() -> void:
 	var applier := CommandApplier.new()
 	add_child_autofree(applier)
-	_client.command_applier = applier
+	_Rig.command(_client).command_applier = applier
 	_client.role = NetworkConfig.Role.CLIENT
 	_host.build_stamp = _stamp("4174f36")
 	_client.build_stamp = _stamp("54cfcd7")
 
-	_host.send_hello()
+	_Rig.world(_host).send_hello()
 
 	assert_false(applier.is_authority, "a refused client must go quiet, not take over")
 

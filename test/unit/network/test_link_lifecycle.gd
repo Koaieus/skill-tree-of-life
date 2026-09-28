@@ -1,4 +1,5 @@
 extends GutTest
+const _Rig := preload("res://test/fixtures/link_rig.gd")
 
 ## #716 item 1: refusing a PEER is not refusing the socket.
 ##
@@ -26,9 +27,9 @@ var _host_transport: LoopbackTransport
 var _a_transport: LoopbackTransport
 var _b_transport: LoopbackTransport
 
-var _host: CommandLink
-var _a: CommandLink
-var _b: CommandLink
+var _host: NetworkLink
+var _a: NetworkLink
+var _b: NetworkLink
 
 ## Counted into arrays rather than into ints: a lambda captures an outer local BY
 ## VALUE, so a `var n := 0` incremented inside a handler never moves and the test
@@ -77,12 +78,8 @@ func after_each() -> void:
 
 ## No [CommandApplier] and no [Graph] — every assertion here is about the
 ## handshake, same as `test_link_build_check.gd`.
-func _link(transport: NetworkTransport, mode: NetworkConfig.Role) -> CommandLink:
-	var link := CommandLink.new()
-	link.transport = transport
-	link.role = mode
-	add_child_autofree(link)
-	return link
+func _link(transport: NetworkTransport, mode: NetworkConfig.Role) -> NetworkLink:
+	return _Rig.compose(self, transport, null, mode)
 
 
 func _stamp(sha: String) -> Dictionary:
@@ -138,7 +135,8 @@ func test_the_host_still_broadcasts_to_the_client_it_kept() -> void:
 	_a_transport.message_received.connect(func(p: Dictionary) -> void: to_a.append(p))
 	_b_transport.message_received.connect(func(p: Dictionary) -> void: to_b.append(p))
 
-	_host.send_lobby_roster(ParticipantRoster.of([]))
+	_host.send({NetworkLink.KEY_KIND: LobbyChannel.KIND_LOBBY,
+			LobbyChannel.KEY_ROSTER: ParticipantRoster.of([]).to_dict()}, NetworkConfig.Role.HOST)
 
 	assert_eq(to_a.size(), 1, "the roster reached the client that cleared")
 	assert_eq(String(to_a[0].get(NetworkLink.KEY_KIND)), LobbyChannel.KIND_LOBBY)
@@ -307,18 +305,19 @@ func _stage_live_run(seated_peer_ids: Array[int]) -> void:
 
 
 ## A [NetworkSession] whose `_ready` never ran — [method NetworkSession._on_peer_joined]'s
-## host branch only reads [member NetworkSession.command_link] and [GameSession],
+## host branch only reads [member NetworkSession.network_link] (and its world channel) and [GameSession],
 ## so this stands in for "a level up" without paying for a [GameRoot] at all
 ## (#1004). Freed at the end of the test that builds it: a bare [Node] never
 ## added to the tree is not autofreed by [method GutTest.add_child_autofree].
-func _headless_host(link: CommandLink) -> NetworkSession:
+func _headless_host(link: NetworkLink) -> NetworkSession:
 	var session := NetworkSession.new()
-	session.command_link = link
+	session.network_link = link
+	session.world_sync = _Rig.world(link)
 	return session
 
 
 func test_a_peer_that_dials_into_a_live_run_is_refused_with_a_reason() -> void:
-	_host.graph = _empty_graph()
+	_Rig.world(_host).graph = _empty_graph()
 	_stage_live_run([_CLIENT_A])
 	var mystery := LoopbackTransport.attach(_host_transport, _MYSTERY_PEER)
 	add_child_autofree(mystery)
@@ -341,7 +340,7 @@ func test_a_peer_that_dials_into_a_live_run_is_refused_with_a_reason() -> void:
 ## `send_resync(..., true)` — the WHOLE WORLD — to any peer that connected,
 ## roster seat or not. Must be RED on master.
 func test_a_mid_run_joiner_is_never_shipped_the_world() -> void:
-	_host.graph = _empty_graph()
+	_Rig.world(_host).graph = _empty_graph()
 	_stage_live_run([_CLIENT_A])
 	var mystery := LoopbackTransport.attach(_host_transport, _MYSTERY_PEER)
 	add_child_autofree(mystery)
@@ -362,7 +361,7 @@ func test_a_mid_run_joiner_is_never_shipped_the_world() -> void:
 ## for a peer already on the socket, which on the lobby path is every peer — is
 ## still resynced and never refused. Must pass before AND after.
 func test_the_replayed_lobby_peer_still_gets_its_world() -> void:
-	_host.graph = _empty_graph()
+	_Rig.world(_host).graph = _empty_graph()
 	_stage_live_run([_CLIENT_A])
 	var seen: Array[Dictionary] = []
 	_a_transport.message_received.connect(func(p: Dictionary) -> void: seen.append(p))
