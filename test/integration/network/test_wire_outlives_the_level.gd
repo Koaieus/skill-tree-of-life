@@ -323,7 +323,7 @@ func test_a_game_root_adopts_the_lobby_s_link_rather_than_reopening_it() -> void
 	assert_true(root.transport is EnetTransport, "sanity: the swap took")
 	assert_eq(root.transport.role, NetworkConfig.Role.HOST,
 			"the level took the role off the live link")
-	assert_eq(root.command_link.role, NetworkConfig.Role.HOST, "and it is the authority")
+	assert_eq(root.network_link.role, NetworkConfig.Role.HOST, "and it is the authority")
 	assert_true(Wire.is_open(), "the link the lobby opened is still up")
 	assert_eq(Wire._peer, opened_by_the_lobby,
 			"and it is the SAME socket — a re-start would have dropped every "

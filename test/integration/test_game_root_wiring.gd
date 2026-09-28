@@ -81,16 +81,15 @@ const _EXPORT_DEPS: Array = [
 	["Graph/AllocationVFX", "allocation_system"],
 	["Graph/AllocationVFX", "battle_system"],
 	["Graph/MeleePreview", "battle_system"],
-	["CommandLink", "transport"],
-	["CommandLink", "command_applier"],
+	["CommandChannel", "command_applier"],
 	["LootOfferChannel", "loot_pick_registry"],
 	["NetworkLink", "transport"],
-	["NetworkLink", "command_applier"],
 	["WorldSyncChannel", "graph"],
 	["WorldSyncChannel", "turn_manager"],
 	["WorldSyncChannel", "command_applier"],
 	["NetworkSession", "transport"],
-	["NetworkSession", "command_link"],
+	["NetworkSession", "network_link"],
+	["NetworkSession", "world_sync"],
 	["NetworkSession", "command_applier"],
 ]
 
@@ -164,8 +163,8 @@ func test_ready_and_compose_connect_every_cross_system_signal() -> void:
 		# SeatHandover._ready
 		[root.network_session, "peer_left", root.seat_handover, "_on_seat_vacated"],
 		# NetworkSession._ready
-		[root.command_link, "resync_applied", root.network_session, "_on_resync_applied"],
-		[root.command_link, "link_refused", root.network_session, "_on_refused_by_host"],
+		[root.world_sync, "resync_applied", root.network_session, "_on_resync_applied"],
+		[root.network_link, "link_refused", root.network_session, "_on_refused_by_host"],
 		[Events, "entity_died", root, "_on_entity_died"],
 		[Events, "entity_death_shown", root, "_on_entity_death_shown"],
 		[Events, "run_ended", root, "_on_run_ended"],

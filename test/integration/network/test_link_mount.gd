@@ -22,7 +22,7 @@ const FIRST_LEVEL := "res://scenes/first_level_sandbox.tscn"
 ## Where every peer must find the pair. Change these and you have changed the
 ## wire protocol.
 const TRANSPORT_PATH := "Transport"
-const LINK_PATH := "CommandLink"
+const LINK_PATH := "CommandChannel"
 const CORE_PATH := "NetworkLink"
 
 
@@ -81,14 +81,14 @@ func _discard(root: Node) -> void:
 	root.queue_free()
 
 
-## Direct children carrying a [NetworkTransport] / [NetworkLink] / [CommandLink] script, by
+## Direct children carrying a [NetworkTransport] / [NetworkLink] / [CommandChannel] script, by
 ## name — an added-instead-of-swapped pair shows up here as `Transport2`.
 func _network_children(root: Node) -> Dictionary:
 	var found := {"transport": [], "link": [], "core": []}
 	for child in root.get_children():
 		if child is NetworkLink:
 			found["core"].append(String(child.name))
-		elif child is CommandLink:
+		elif child is CommandChannel:
 			found["link"].append(String(child.name))
 		elif child is NetworkTransport:
 			found["transport"].append(String(child.name))
@@ -97,23 +97,22 @@ func _network_children(root: Node) -> Dictionary:
 
 # --- the composition root ---------------------------------------------------
 
-## One core beside one transport, and the level's [CommandLink] is a channel ON
-## that core — not a second core it composed for itself because nothing
-## registered it.
+## One core beside one transport, and the level's [CommandChannel] is a channel
+## ON that core — registered by the scene, not left riding nothing.
 func test_game_root_mounts_one_core_beside_one_transport() -> void:
 	var root: GameRoot = await _live_game_root()
 	var found := _network_children(root)
 	assert_eq(found["core"], [CORE_PATH], "exactly one NetworkLink under GameRoot")
 	assert_eq(found["transport"], [TRANSPORT_PATH], "exactly one Transport under GameRoot")
 	var core: NetworkLink = root.get_node(CORE_PATH)
-	var link: CommandLink = root.get_node(LINK_PATH)
+	var link: CommandChannel = root.get_node(LINK_PATH)
 	assert_eq(core.transport, root.get_node(TRANSPORT_PATH), "the core rides the Transport")
-	assert_eq(core.channel_for(CommandChannel.KIND_COMMAND), link, "the core routes commands to CommandLink")
-	assert_eq(link.link, core, "and CommandLink rides that core, not a private one")
+	assert_eq(core.channel_for(CommandChannel.KIND_COMMAND), link, "the core routes commands to CommandChannel")
+	assert_eq(link.link, core, "and CommandChannel rides that core")
 	var world: WorldSyncChannel = root.get_node("WorldSyncChannel")
 	assert_eq(core.channel_for(WorldSyncChannel.KIND_RESYNC), world,
 			"the core routes the world kinds to the scene's WorldSyncChannel")
-	assert_eq(link.world_sync(), world, "and CommandLink's shims reach that one")
+	assert_eq(world.link, core, "and the world channel rides the same core")
 
 
 func test_game_root_mounts_the_pair_at_the_expected_path() -> void:
@@ -122,7 +121,7 @@ func test_game_root_mounts_the_pair_at_the_expected_path() -> void:
 	assert_not_null(root.get_node_or_null(TRANSPORT_PATH), "a transport at %s" % TRANSPORT_PATH)
 	assert_not_null(root.get_node_or_null(LINK_PATH), "a link at %s" % LINK_PATH)
 	assert_eq(root.transport, root.get_node(TRANSPORT_PATH), "%Transport is that node")
-	assert_eq(root.command_link, root.get_node(LINK_PATH), "%CommandLink is that node")
+	assert_eq(root.network_link, root.get_node(CORE_PATH), "%NetworkLink is the core")
 
 
 func test_the_default_transport_is_the_loopback() -> void:
@@ -136,14 +135,14 @@ func test_the_default_transport_is_the_loopback() -> void:
 
 func test_the_mounted_link_is_wired_but_idle() -> void:
 	var root: GameRoot = await _live_game_root()
-	var link: CommandLink = root.command_link
-	assert_eq(link.transport, root.transport, "transport NodePath")
+	var link: CommandChannel = root.get_node(LINK_PATH)
+	assert_eq(root.network_link.transport, root.transport, "transport NodePath, on the core")
 	assert_eq(link.command_applier, root.command_applier, "command_applier NodePath")
 	assert_eq((root.get_node("WorldSyncChannel") as WorldSyncChannel).graph, root.graph,
 			"graph NodePath, on the world channel")
 	# OFF is what keeps offline play byte-for-byte unchanged: nothing is
 	# serialized, nothing is sent. A role raises the mode; the mount never does.
-	assert_eq(link.role, NetworkConfig.Role.OFFLINE, "mounted idle")
+	assert_eq(root.network_link.role, NetworkConfig.Role.OFFLINE, "mounted idle")
 	assert_true(root.command_applier.is_authority,
 			"and an unlinked peer still decides for itself")
 
@@ -178,7 +177,7 @@ func test_a_host_role_raises_the_link_to_broadcast() -> void:
 	# `_open_link` (which opens the socket) sits past `_live_game_root`'s own
 	# frame budget under load — wait for the root's own "done" flag instead.
 	await _wait_for_reveal(root)
-	assert_eq(root.command_link.role, NetworkConfig.Role.HOST)
+	assert_eq(root.network_link.role, NetworkConfig.Role.HOST)
 	assert_true(root.command_applier.is_authority, "a host decides")
 	assert_eq(root.transport.role, NetworkConfig.Role.HOST, "and the socket was opened")
 
@@ -186,7 +185,7 @@ func test_a_host_role_raises_the_link_to_broadcast() -> void:
 func test_a_client_role_makes_this_peer_a_mirror() -> void:
 	GameSession.network = NetworkConfig.join("127.0.0.1")
 	var root: GameRoot = await _live_game_root()
-	assert_eq(root.command_link.role, NetworkConfig.Role.CLIENT)
+	assert_eq(root.network_link.role, NetworkConfig.Role.CLIENT)
 	# The one consequence that has to be true BEFORE the level's first turn:
 	# a client that thinks it decides has already diverged.
 	assert_false(root.command_applier.is_authority, "a client is told")
@@ -195,7 +194,7 @@ func test_a_client_role_makes_this_peer_a_mirror() -> void:
 func test_an_offline_role_is_the_same_as_no_role_at_all() -> void:
 	GameSession.network = NetworkConfig.offline()
 	var root: GameRoot = await _live_game_root()
-	assert_eq(root.command_link.role, NetworkConfig.Role.OFFLINE)
+	assert_eq(root.network_link.role, NetworkConfig.Role.OFFLINE)
 	assert_eq(root.transport.role, NetworkConfig.Role.OFFLINE, "no socket was opened")
 
 
@@ -216,9 +215,12 @@ func test_the_harness_link_still_reaches_its_probe() -> void:
 	# is dev-only and stays authored here). If the override stops resolving,
 	# the probe measures nothing and says so nowhere.
 	var root: Node = preload(MP_SANDBOX).instantiate()
-	var link: CommandLink = root.get_node(LINK_PATH)
+	var link: CommandChannel = root.get_node(LINK_PATH)
 	assert_not_null(link.probe, "probe NodePath survives the inherited-node override")
-	assert_eq(link.transport, root.get_node(TRANSPORT_PATH), "and it points at the swapped transport")
+	assert_not_null((root.get_node("WorldSyncChannel") as WorldSyncChannel).probe,
+			"and the world channel's, which observes the world compare")
+	assert_eq((root.get_node(CORE_PATH) as NetworkLink).transport, root.get_node(TRANSPORT_PATH),
+			"and the core points at the swapped transport")
 	_discard(root)
 
 

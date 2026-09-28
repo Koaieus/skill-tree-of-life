@@ -44,7 +44,7 @@ func before_each() -> void:
 	# `_ready` issues its first pull (`pull_host_world`) and enters
 	# `_await_join_world` in the same synchronous run, so the pull's log line IS
 	# the fixture-ready signal. It is not counted: `_asks` holds renewals only.
-	_root.command_link.logged.connect(_on_logged)
+	_root.network_link.logged.connect(_on_logged)
 	var pulled: bool = await wait_until(func() -> bool: return _first_pull_seen, 5.0)
 	assert_true(pulled, "fixture: the level asked for the host's world and is waiting")
 
@@ -63,7 +63,7 @@ func _on_logged(line: String) -> void:
 
 
 func test_the_fixture_is_a_mirror_still_waiting_for_its_world() -> void:
-	assert_eq(_root.command_link.role, NetworkConfig.Role.CLIENT)
+	assert_eq(_root.network_link.role, NetworkConfig.Role.CLIENT)
 	assert_false(_root.is_reveal_ready(), "no world, no reveal")
 
 
@@ -93,7 +93,7 @@ func test_a_link_lost_while_waiting_ends_the_wait_and_lifts_the_curtain() -> voi
 func test_a_refusal_keeps_its_reason_over_the_hang_up_that_follows() -> void:
 	var overlay := _root.hud_root.run_end_overlay
 
-	_root.command_link.link_refused.emit("refused by peer — the run has already started")
+	_root.network_link.link_refused.emit("refused by peer — the run has already started")
 	_root.transport.link_lost.emit("the host went away")
 	await wait_process_frames(3)
 
@@ -105,7 +105,7 @@ func test_a_refusal_keeps_its_reason_over_the_hang_up_that_follows() -> void:
 
 
 func test_the_world_arriving_ends_the_wait_and_reveals() -> void:
-	_root.command_link.resync_applied.emit("join: adopting the host's world")
+	_root.world_sync.resync_applied.emit("join: adopting the host's world")
 	await wait_process_frames(3)
 
 	assert_true(_root.is_reveal_ready(), "a world landed, the level is presentable")

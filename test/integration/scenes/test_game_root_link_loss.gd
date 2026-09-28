@@ -231,7 +231,7 @@ func _playing_main_text() -> String:
 
 func test_the_host_announces_the_handover_and_broadcasts_it() -> void:
 	var lines: Array[String] = []
-	_root.command_link.logged.connect(func(line: String) -> void: lines.append(line))
+	_root.network_link.logged.connect(func(line: String) -> void: lines.append(line))
 
 	_root.transport.peer_left.emit(_REMOTE_PEER)
 
@@ -246,7 +246,7 @@ func test_the_host_announces_the_handover_and_broadcasts_it() -> void:
 ## has no authority over.
 func test_a_mirror_applies_the_handover_without_growing_a_controller() -> void:
 	GameSession.network = NetworkConfig.join("127.0.0.1")
-	_root.command_link.role = NetworkConfig.Role.CLIENT
+	_root.network_link.role = NetworkConfig.Role.CLIENT
 
 	_root.seat_handover.receive(SeatHandover.KIND_SEAT_HANDOVER, {SeatHandover.KEY_PARTICIPANT: 2})
 
@@ -260,7 +260,7 @@ func test_a_mirror_applies_the_handover_without_growing_a_controller() -> void:
 
 
 func test_a_handover_for_a_seat_this_peer_does_not_know_is_ignored() -> void:
-	_root.command_link.role = NetworkConfig.Role.CLIENT
+	_root.network_link.role = NetworkConfig.Role.CLIENT
 
 	_root.seat_handover.receive(SeatHandover.KIND_SEAT_HANDOVER, {SeatHandover.KEY_PARTICIPANT: 99})
 
@@ -295,7 +295,7 @@ func test_a_coop_allys_departure_stops_it_revealing_for_the_camp() -> void:
 ## where the departed peer is a THIRD machine's coop ally.
 func test_a_mirror_drops_the_departed_ally_from_its_fog_too() -> void:
 	GameSession.network = NetworkConfig.join("127.0.0.1")
-	_root.command_link.role = NetworkConfig.Role.CLIENT
+	_root.network_link.role = NetworkConfig.Role.CLIENT
 	_remote.faction = _CAMP_1
 	_remote_seat.camp = _CAMP_1
 	_root._apply_seat_vision()

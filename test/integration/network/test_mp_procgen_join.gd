@@ -111,8 +111,8 @@ func _join() -> Dictionary:
 	client_transport.peer = host_transport
 	host_transport.role = NetworkConfig.Role.HOST
 	client_transport.role = NetworkConfig.Role.CLIENT
-	_host_root.command_link.role = NetworkConfig.Role.HOST
-	_client_root.command_link.role = NetworkConfig.Role.CLIENT
+	_host_root.network_link.role = NetworkConfig.Role.HOST
+	_client_root.network_link.role = NetworkConfig.Role.CLIENT
 
 	# HOST: procgen a small level from a fixed, already-resolved seed.
 	var cfg := RunConfig.new()
@@ -147,7 +147,7 @@ func _join() -> Dictionary:
 	assert_eq(client_red.entity_id, red.entity_id, "sanity: minting order matched")
 	assert_eq(client_blue.entity_id, blue.entity_id, "sanity: minting order matched")
 
-	_host_root.command_link.send_run_setup(GameSession.config, GameSession.roster)
+	_host_root.world_sync.send_run_setup(GameSession.config, GameSession.roster)
 	assert_eq(GameSession.config.to_dict(), host_config_dict,
 			"sanity: sending must not mutate the host's own config")
 	# #560: the ENTITY half of the join, sent BEFORE the graph — its own
@@ -156,8 +156,8 @@ func _join() -> Dictionary:
 	# the already-spawned placeholders (never mints) and is what resolves
 	# `core_location`, the opposite direction from GraphSnapshot's
 	# `owner_id` → entity.
-	_host_root.command_link.send_entity_snapshot()
-	_host_root.command_link.send_graph_snapshot()
+	_host_root.world_sync.send_entity_snapshot()
+	_host_root.world_sync.send_graph_snapshot()
 
 	# Both peers open Red's turn AFTER the send, not before — same reasoning
 	# as `mp_procgen_sandbox.gd::_greet_if_linked_and_ready`'s docstring:

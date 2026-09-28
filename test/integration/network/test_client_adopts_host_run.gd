@@ -158,8 +158,8 @@ func _two_divergent_worlds() -> void:
 	client_transport.role = NetworkConfig.Role.CLIENT
 	host_transport.my_peer_id = NetworkConfig.HOST_PEER_ID
 	client_transport.my_peer_id = _CLIENT_PEER_ID
-	_host_root.command_link.role = NetworkConfig.Role.HOST
-	_client_root.command_link.role = NetworkConfig.Role.CLIENT
+	_host_root.network_link.role = NetworkConfig.Role.HOST
+	_client_root.network_link.role = NetworkConfig.Role.CLIENT
 
 	# HOST: the run it decided.
 	var host_cfg := RunConfig.new()
@@ -193,7 +193,7 @@ func _two_divergent_worlds() -> void:
 	# the id, so this is the first moment the joining machine knows its own.
 	GameSession.local_peer_id = client_transport.local_peer_id()
 	# And what it does on the HOST side — the run's shape, and only that.
-	_host_root.command_link.send_run_setup(_host_config, _host_roster)
+	_host_root.world_sync.send_run_setup(_host_config, _host_roster)
 
 
 ## The run the client is now holding is the host's, not the one it typed —
@@ -281,7 +281,7 @@ func test_the_world_pull_is_inert_off_the_join_path() -> void:
 	var root := _build_root("offline")
 	await wait_physics_frames(1)
 	var asked: Array[String] = []
-	root.command_link.resync_sent.connect(func(reason: String) -> void: asked.append(reason))
+	root.world_sync.resync_sent.connect(func(reason: String) -> void: asked.append(reason))
 
 	GameSession.network = null
 	root.network_session.pull_host_world()

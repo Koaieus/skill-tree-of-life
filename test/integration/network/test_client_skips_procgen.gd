@@ -164,7 +164,7 @@ func test_a_joined_level_waits_for_the_world_and_nothing_else() -> void:
 
 	assert_false(root.is_reveal_ready(),
 			"no world has arrived, so there is nothing worth revealing")
-	assert_true(root.command_link.defer_until_resync,
+	assert_true(root.network_link.defer_until_world,
 			"and it is the RESYNC it is waiting on — #667's latch, still armed")
 	assert_gt(EntitySnapshot.entities_of(root.graph).size(), 0,
 			"`_setup_level` itself ran to completion: it did not block on a run setup")
