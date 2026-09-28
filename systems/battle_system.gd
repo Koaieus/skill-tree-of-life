@@ -326,10 +326,9 @@ func _ready() -> void:
 	Events.skill_node_depleted.connect(_on_node_depleted)
 	Events.entity_dying.connect(_on_entity_dying)
 	_seed_source.randomize()
-	# Provisions a private slot now if none is wired, so its union
-	# invalidation is subscribed before the first allocation.
-	if plan_slot == null:
-		push_error("BattleSystem: no plan slot")
+	# A bare BattleSystem provisions its private slot here (the read mints it),
+	# so the slot's union invalidation subscribes before the first allocation.
+	plan_slot.locked = is_launching
 
 
 

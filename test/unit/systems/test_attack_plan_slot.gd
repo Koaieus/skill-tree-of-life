@@ -2,8 +2,9 @@ extends GutTest
 
 ## [AttackPlanSlot] is the local plan-in-progress on its own: arming a mode,
 ## the sticky preferences that outlive a plan reset, the magic union's
-## invalidation on allocation, and temp-upgrade toggling — all with NO
-## [BattleSystem] in the tree. That absence is the point of the file.
+## invalidation on allocation, and temp-upgrade toggling. Those cases run with
+## NO [BattleSystem] in the tree; the last two pin that a wired BattleSystem
+## mints no slot of its own and a bare one forwards to a private slot.
 
 ## A `var`, not a `const`: the parser constant-folds `CONST.kinds[i]`.
 var _catalog: TempUpgradeCatalog = preload("res://attack/melee/temp_upgrade_catalog.tres")
