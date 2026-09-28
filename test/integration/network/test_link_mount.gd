@@ -202,8 +202,9 @@ func test_the_harness_link_still_reaches_its_probe() -> void:
 ##
 ## The adapter code was complete and its two-world harness was green, but
 ## `game_root.tscn` set no `CommandLink.loot_pick_registry` (the SEND side, a
-## hole that predated #564 and broke the HOST) and no `LootSystem.command_link`
-## (the RECEIVE side, added by #564 itself). So a remote loot round was inert in
+## hole that predated #564 and broke the HOST) and no receive-side wiring (added
+## by #564 itself; since #1176 that is `LootPickRegistry.graph`, which
+## `receive_offer` resolves the collector on, plus `LootSystem.pick_registry`). So a remote loot round was inert in
 ## real play while every test that mattered passed — the harness authors its own
 ## wiring, so nothing in the suite ever read the scene's.
 ##
@@ -221,8 +222,11 @@ func test_the_scene_wires_both_ends_of_a_remote_loot_round() -> void:
 	# link, so `send_loot_offer` never fires and the HOST silently drops it.
 	assert_eq(link.loot_pick_registry, registry,
 			"CommandLink.loot_pick_registry resolves to Systems/LootPickRegistry")
-	# Receive side: without this a client's `loot_offer_received` reaches no
-	# adapter, so the offer never becomes a local pick request.
-	assert_eq(loot.command_link, link,
-			"LootSystem.command_link resolves to the mounted CommandLink")
+	# Receive side: the link hands an arriving offer to the same registry, which
+	# resolves its collector on the graph and emits to LootSystem. Without
+	# either path the offer never becomes a local pick request.
+	assert_eq(registry.graph, root.get_node("Graph"),
+			"LootPickRegistry.graph resolves to the level's Graph")
+	assert_eq(loot.pick_registry, registry,
+			"LootSystem.pick_registry resolves to Systems/LootPickRegistry")
 	_discard(root)
