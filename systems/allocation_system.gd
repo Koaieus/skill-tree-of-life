@@ -444,37 +444,42 @@ func deallocate_set(nodes: Array[SkillNode], entity: Entity) -> bool:
 # enemy's staked node and extracting it reclaims YOUR staked SP, not theirs
 # (extract() caps at min(n, staked), so a never-staked entity gains nothing).
 
-func stake_denial(_node: SkillNode, _entity: Entity) -> StringName:
-	return &""
-
-
-func extract_denial(_node: SkillNode, _entity: Entity) -> StringName:
-	return &""
-
-
 ## Can this entity stake [param node] — raise its allocation cap by 1?
-## Requires: ownership · core within 1 hop over the OWNED subgraph · ≥ 1 SP ·
-## ≥ 1 AP · cap below the ceiling. Budget gates read `available()`, never
-## `.current` (.claude/rules/stats-system.md).
+## True exactly when [method stake_denial] names no reason.
 func can_stake(node: SkillNode, entity: Entity) -> bool:
+	return stake_denial(node, entity) == &""
+
+
+## Why [param entity] may not stake [param node]: the `node_action_denied`
+## reason key of the first failing gate, or `&""` when the stake is allowed.
+## Gates, in order: ownership · cap below the ceiling · core within 1 hop over
+## the OWNED subgraph · ≥ 1 SP · ≥ 1 AP. Budget gates read `available()`, never
+## `.current` (.claude/rules/stats-system.md). A null node or entity is the
+## generic `stake_denied`.
+func stake_denial(node: SkillNode, entity: Entity) -> StringName:
 	if entity == null or node == null:
-		return false
+		return &"stake_denied"
 	if node.owned_by != entity:
-		return false
+		return &"stake_denied_not_owned"
 	if node.stake_level >= STAKE_CEILING:
-		return false
-	# Core itself, or an immediate neighbour over the OWNED subgraph — one
-	# are_adjacent on the territory mirror, no frontier (#940). Fails closed
-	# without a navigator; are_adjacent is already false on a null core.
-	var core := entity.core_location
-	if entity.navigator == null or not (node == core or entity.navigator.are_adjacent(core, node)):
-		return false
+		return &"stake_denied_at_ceiling"
+	if not _within_core_hop(node, entity):
+		return &"stake_denied_not_adjacent"
 	var board := entity.stat_board
 	if board != null and board.skill_points != null and board.skill_points.available() < 1:
-		return false
+		return &"stake_denied_no_sp"
 	if board != null and board.action_points != null and board.action_points.available() < 1:
-		return false
-	return true
+		return &"stake_denied_no_ap"
+	return &""
+
+
+## The core itself, or an immediate neighbour over the OWNED subgraph — one
+## are_adjacent on the territory mirror, no frontier. Fails closed without a
+## navigator; are_adjacent is already false on a null core.
+func _within_core_hop(node: SkillNode, entity: Entity) -> bool:
+	var core := entity.core_location
+	return entity.navigator != null \
+			and (node == core or entity.navigator.are_adjacent(core, node))
 
 
 ## Raise [param node]'s allocation cap by 1: 1 SP moves current → staked,
@@ -492,27 +497,31 @@ func stake(node: SkillNode, entity: Entity) -> bool:
 
 
 ## Can this entity extract [param node] — drop its cap by 1 and reclaim the
-## staked SP? Requires: ownership · cap above 1 (a 1/1 node is a deallocate,
-## not an extract) · core within 1 hop · ≥ 1 DP · ≥ 1 staked SP.
+## staked SP? True exactly when [method extract_denial] names no reason.
 func can_extract(node: SkillNode, entity: Entity) -> bool:
+	return extract_denial(node, entity) == &""
+
+
+## Why [param entity] may not extract [param node]: the `node_action_denied`
+## reason key of the first failing gate, or `&""` when the extract is allowed.
+## Gates, in order: ownership · cap above 1 (a 1/1 node is a deallocate, not an
+## extract) · core within 1 hop · ≥ 1 DP · ≥ 1 staked SP. A null node or
+## entity is the generic `extract_denied`.
+func extract_denial(node: SkillNode, entity: Entity) -> StringName:
 	if entity == null or node == null:
-		return false
+		return &"extract_denied"
 	if node.owned_by != entity:
-		return false
+		return &"extract_denied_not_owned"
 	if node.stake_level <= 1:
-		return false
-	# Core itself, or an immediate neighbour over the OWNED subgraph — one
-	# are_adjacent on the territory mirror, no frontier (#940). Fails closed
-	# without a navigator; are_adjacent is already false on a null core.
-	var core := entity.core_location
-	if entity.navigator == null or not (node == core or entity.navigator.are_adjacent(core, node)):
-		return false
+		return &"extract_denied_at_floor"
+	if not _within_core_hop(node, entity):
+		return &"extract_denied_not_adjacent"
 	var board := entity.stat_board
 	if board != null and board.deallocation_points != null and board.deallocation_points.available() < 1:
-		return false
+		return &"extract_denied_no_dp"
 	if board != null and board.skill_points != null and board.skill_points.staked < 1:
-		return false
-	return true
+		return &"extract_denied_no_staked_sp"
+	return &""
 
 
 ## Drop [param node]'s cap by 1. Costs 1 DP. Refunds the staked SP; when the
