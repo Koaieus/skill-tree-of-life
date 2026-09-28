@@ -253,12 +253,15 @@ func test_node_parent_set_beats_entity_child_set() -> void:
 	assert_almost_eq(float(node.get_local_value(_FC)), 5.0, 0.0001, "node side is more local than the entity side")
 
 
+## Node-side family only: an [EntityStatBoard] refuses to mint, so its
+## `clone_live` cannot carry a throwaway id the fixture seeded through
+## `_register_minted` — the entity half is pinned by the live cases above.
 func test_shadow_read_sees_family_modifiers() -> void:
-	var node := _family_node({_FP: 0.0, _FC: 10.0})
-	_entity_board(node).add_modifier(_fmod(_FP, StatModifier.Operation.INCREASE, 10.0))
+	var node := _family_node({})
+	node.node_board._register_minted(_FC, _fam_stat(_FC, 10.0))
 	node.add_local_modifier(_fmod(_FP, StatModifier.Operation.INCREASE, 20.0))
 	var live := float(node.get_local_value(_FC))
-	assert_almost_eq(live, 13.0, 0.0001)
+	assert_almost_eq(live, 12.0, 0.0001)
 	var w := CombatWorld.shadow()
 	var slice := w.combat_for(node)
 	assert_almost_eq(float(slice.get_local_value(_FC)), live, 0.0001, "a shadow resolve folds the same family")

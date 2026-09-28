@@ -377,6 +377,24 @@ func collect_formula_edges(out: Dictionary) -> void:
 		out[child_id] = deps
 
 
+## The bins this board contributes to a read of [param id]: every present
+## ancestor's bins farthest-first, then the stat's own bins if present — the
+## list [method Stat.all_bins] returns when the stat exists, and the door for
+## the case where it does not (a node-local `+20%` on a parent moves a child
+## the node board never minted). Empty when neither exists. Never mints.
+func bins_for(id: StringName) -> Array[ModifierBins]:
+	var own := get_stat(id)
+	if own != null:
+		return own.all_bins()
+	var out: Array[ModifierBins] = []
+	var ancestors := StatRegistry.ancestors_of(id)
+	for i in range(ancestors.size() - 1, -1, -1):
+		var p := get_stat(ancestors[i])
+		if p != null:
+			out.append(p.bins)
+	return out
+
+
 ## Every Stat on this board — typed fields, then the minted extras.
 func _all_stats() -> Array[Stat]:
 	var out: Array[Stat] = []

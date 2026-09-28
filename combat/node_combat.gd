@@ -163,10 +163,14 @@ func get_spike_power() -> float:
 ##
 ## Tiers, most specific source LAST so an equal-priority SET tie goes to the
 ## most local one ([method ModifierBins._pick_set_winner_bins]):
-## 1. entity stat + node stat → `es.get_value_with([ns.bins] + overlays)`
-## 2. entity stat only        → `es.get_value_with(overlays)`
-## 3. node stat only          → `ns.get_value_with(overlays)`
-## 4. no stat on either board → [code]null[/code], never a def default: there
+## 1. entity stat → `es.get_value_with(board().bins_for(id) + overlays)`. The
+##    source order is entity ancestors → entity stat (folded by
+##    [method Stat.get_value_with]), then node ancestors → node stat
+##    ([method StatBoard.bins_for]), then overlays — so a node-local modifier
+##    on a PARENT stat moves this read even when the node board has no stat
+##    for [param stat_id] itself (ADR 0029).
+## 2. node stat only → `ns.get_value_with(overlays)`
+## 3. no stat on either board → [code]null[/code], never a def default: there
 ##    is no [Stat] to coerce through, and a caller folding an authored base
 ##    wants to fall back to that base, not to 0. Only the delegating wrapper
 ##    keeps the def-default tail.
@@ -185,9 +189,7 @@ func get_local_value_with(stat_id: StringName, overlays: Array[ModifierBins]) ->
 	if o != null and o.board() != null:
 		var es := o.board().get_stat(stat_id)
 		if es != null:
-			if ns == null:
-				return es.get_value_with(overlays)
-			var sources: Array[ModifierBins] = [ns.bins]
+			var sources: Array[ModifierBins] = board().bins_for(stat_id) if board() != null else []
 			sources.append_array(overlays)
 			return es.get_value_with(sources)
 	if ns != null:
