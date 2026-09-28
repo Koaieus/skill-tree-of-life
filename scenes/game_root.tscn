@@ -32,6 +32,7 @@
 [ext_resource type="Script" uid="uid://eh0d3jiuwstk" path="res://systems/loot_pick_registry.gd" id="22_lootreg"]
 [ext_resource type="Script" path="res://network/loopback_transport.gd" id="23_transport"]
 [ext_resource type="Script" path="res://network/command_link.gd" id="24_link"]
+[ext_resource type="Script" uid="uid://qthwmyqxblub" path="res://network/network_link.gd" id="24_netlink"]
 [ext_resource type="Script" uid="uid://dwnyeq8jqb23e" path="res://network/network_session.gd" id="25_session"]
 [ext_resource type="Resource" uid="uid://tucatalog00001" path="res://attack/melee/temp_upgrade_catalog.tres" id="26_temp_upgrades"]
 [ext_resource type="PackedScene" path="res://skill_node/visuals/gimbal_3d/gimbal_world.tscn" id="30_gimbalworld"]
@@ -214,6 +215,13 @@ unique_name_in_owner = true
 [node name="Transport" type="Node" parent="." unique_id=1000000531]
 unique_name_in_owner = true
 script = ExtResource("23_transport")
+
+[node name="NetworkLink" type="Node" parent="." unique_id=1000001177 node_paths=PackedStringArray("transport", "command_applier", "channels")]
+unique_name_in_owner = true
+script = ExtResource("24_netlink")
+transport = NodePath("../Transport")
+command_applier = NodePath("../Systems/CommandApplier")
+channels = [NodePath("../CommandLink")]
 
 [node name="CommandLink" type="Node" parent="." unique_id=1000000532 node_paths=PackedStringArray("transport", "command_applier", "graph", "turn_manager", "loot_pick_registry")]
 unique_name_in_owner = true

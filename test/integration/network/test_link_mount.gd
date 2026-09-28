@@ -23,6 +23,7 @@ const FIRST_LEVEL := "res://scenes/first_level_sandbox.tscn"
 ## wire protocol.
 const TRANSPORT_PATH := "Transport"
 const LINK_PATH := "CommandLink"
+const CORE_PATH := "NetworkLink"
 
 
 func before_each() -> void:
@@ -80,12 +81,14 @@ func _discard(root: Node) -> void:
 	root.queue_free()
 
 
-## Direct children carrying a [NetworkTransport] / [CommandLink] script, by
+## Direct children carrying a [NetworkTransport] / [NetworkLink] / [CommandLink] script, by
 ## name — an added-instead-of-swapped pair shows up here as `Transport2`.
 func _network_children(root: Node) -> Dictionary:
-	var found := {"transport": [], "link": []}
+	var found := {"transport": [], "link": [], "core": []}
 	for child in root.get_children():
-		if child is CommandLink:
+		if child is NetworkLink:
+			found["core"].append(String(child.name))
+		elif child is CommandLink:
 			found["link"].append(String(child.name))
 		elif child is NetworkTransport:
 			found["transport"].append(String(child.name))
@@ -93,6 +96,21 @@ func _network_children(root: Node) -> Dictionary:
 
 
 # --- the composition root ---------------------------------------------------
+
+## One core beside one transport, and the level's [CommandLink] is a channel ON
+## that core — not a second core it composed for itself because nothing
+## registered it.
+func test_game_root_mounts_one_core_beside_one_transport() -> void:
+	var root: GameRoot = await _live_game_root()
+	var found := _network_children(root)
+	assert_eq(found["core"], [CORE_PATH], "exactly one NetworkLink under GameRoot")
+	assert_eq(found["transport"], [TRANSPORT_PATH], "exactly one Transport under GameRoot")
+	var core: NetworkLink = root.get_node(CORE_PATH)
+	var link: CommandLink = root.get_node(LINK_PATH)
+	assert_eq(core.transport, root.get_node(TRANSPORT_PATH), "the core rides the Transport")
+	assert_eq(core.channel_for(CommandLink.KIND_COMMAND), link, "the core routes commands to CommandLink")
+	assert_eq(link.link, core, "and CommandLink rides that core, not a private one")
+
 
 func test_game_root_mounts_the_pair_at_the_expected_path() -> void:
 	var root: GameRoot = await _live_game_root()
@@ -136,6 +154,7 @@ func test_the_harness_swaps_the_transport_instead_of_adding_one() -> void:
 	assert_eq(found["transport"], [TRANSPORT_PATH],
 			"exactly one transport, at the inherited name — a second pair is the failure this test exists for")
 	assert_eq(found["link"], [LINK_PATH], "exactly one link, at the inherited name")
+	assert_eq(found["core"], [CORE_PATH], "exactly one core, at the inherited name")
 	assert_true(root.get_node(TRANSPORT_PATH) is EnetTransport,
 			"and the harness's is the ENet one, got %s" % root.get_node(TRANSPORT_PATH))
 	_discard(root)
