@@ -41,6 +41,7 @@ func test_every_status_def_names_its_familys_extra_stacks_stats() -> void:
 		seen += 1
 		var expected: Array[StringName] = []
 		if def.id in _DOT_FAMILIES:
-			expected = [StringName("%s_stacks_per_hit" % def.id), &"dot_stacks_per_hit"]
+			# The umbrella folds into each family stat as its parent (ADR 0029), never listed beside it.
+			expected = [StringName("%s_stacks_per_hit" % def.id)]
 		assert_eq(def.extra_stacks_stat_ids, expected, "%s extra_stacks_stat_ids" % def.id)
 	assert_gt(seen, 5, "the sweep found the authored defs")
