@@ -268,7 +268,7 @@ func test_pipeline_clamps_negative_increase_below_minus_100() -> void:
 ## curse→CON, wither→INT after #1058); a node never rolls a potency its
 ## archetype does not own, and after #1059 only its BLIGHTED nodes roll it at
 ## all. Seeded budget-7 draws, the same harness as the mobility test.
-func _potency_ids_over_seeded_draws(primary: StringName,
+func _stacks_increase_ids_over_seeded_draws(primary: StringName,
 		subtype_id: StringName = &"blight") -> Array[StringName]:
 	var pool_set: ModifierPoolSet = _SET.duplicate(true) as ModifierPoolSet
 	var subtype := NodeSubtype.new()
@@ -279,21 +279,27 @@ func _potency_ids_over_seeded_draws(primary: StringName,
 				pool_set, [], primary, primary, [], Vector2.ZERO, 0, 7, _rng(seed_value),
 				{}, subtype)
 		for m in mods:
-			if String(m.stat_id).ends_with("_potency") and not (m.stat_id in seen):
+			if _is_stacks_increase_roll(m.stat_id, m.operation) and not (m.stat_id in seen):
 				seen.append(m.stat_id)
 	return seen
 
 
-func test_dot_potency_rolls_only_on_its_attribute_home() -> void:
-	var str_seen := _potency_ids_over_seeded_draws(&"strength")
-	assert_true(&"corruption_potency" in str_seen, "corruption_potency rolls on a STR node (seen %s)" % [str_seen])
-	assert_false(&"poison_potency" in str_seen, "poison_potency never rolls on a STR node (seen %s)" % [str_seen])
-	var dex_seen := _potency_ids_over_seeded_draws(&"dexterity")
-	assert_true(&"poison_potency" in dex_seen, "poison_potency rolls on a DEX node (seen %s)" % [dex_seen])
-	assert_false(&"corruption_potency" in dex_seen, "corruption_potency never rolls on a DEX node (seen %s)" % [dex_seen])
+## Potency is the stacks stat's INCREASE row (the flat `dot_stacks_per_hit +`
+## WIS row is a different pool).
+func _is_stacks_increase_roll(stat_id: StringName, op: int) -> bool:
+	return String(stat_id).ends_with("_stacks_per_hit") and op == StatModifier.Operation.INCREASE
+
+
+func test_dot_stacks_increase_rolls_only_on_its_attribute_home() -> void:
+	var str_seen := _stacks_increase_ids_over_seeded_draws(&"strength")
+	assert_true(&"corruption_stacks_per_hit" in str_seen, "corruption_stacks_per_hit rolls on a STR node (seen %s)" % [str_seen])
+	assert_false(&"poison_stacks_per_hit" in str_seen, "poison_stacks_per_hit never rolls on a STR node (seen %s)" % [str_seen])
+	var dex_seen := _stacks_increase_ids_over_seeded_draws(&"dexterity")
+	assert_true(&"poison_stacks_per_hit" in dex_seen, "poison_stacks_per_hit rolls on a DEX node (seen %s)" % [dex_seen])
+	assert_false(&"corruption_stacks_per_hit" in dex_seen, "corruption_stacks_per_hit never rolls on a DEX node (seen %s)" % [dex_seen])
 	# #1059's second key: the same STR node, regular or blessed, rolls none.
 	for pole: StringName in [&"regular", &"bless"]:
-		assert_eq(_potency_ids_over_seeded_draws(&"strength", pole).size(), 0,
+		assert_eq(_stacks_increase_ids_over_seeded_draws(&"strength", pole).size(), 0,
 			"a %s STR node rolls no potency at all — potency is the blighted pole" % pole)
 
 
@@ -316,7 +322,7 @@ func test_dot_pools_shape() -> void:
 		for sp in (pack as StatPack).pools:
 			var pp := sp as StatPool
 			var sid := String(pp.stat_id)
-			if sid.ends_with("_potency"):
+			if _is_stacks_increase_roll(pp.stat_id, pp.operation):
 				potency_count += 1
 				assert_ne(pack.archetype_stat, &"", "%s must have an attribute home" % sid)
 				assert_eq(_subtype_ids(pp), [&"blight"] as Array[StringName],

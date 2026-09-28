@@ -41,11 +41,11 @@ const _ALL_ARCHETYPES: Array[StringName] = [&"strength", &"dexterity",
 ## #1058 decision 4 — where each DoT family's potency lives. Archetype picks
 ## the family: STR corrupts, DEX poisons, INT withers, CON curses. Structural
 ## only, like everything else here: no magnitude is pinned.
-const _POTENCY_HOME := {
-	&"corruption_potency": &"strength",
-	&"poison_potency": &"dexterity",
-	&"wither_potency": &"intelligence",
-	&"curse_potency": &"constitution",
+const _STACKS_INCREASE_HOME := {
+	&"corruption_stacks_per_hit": &"strength",
+	&"poison_stacks_per_hit": &"dexterity",
+	&"wither_stacks_per_hit": &"intelligence",
+	&"curse_stacks_per_hit": &"constitution",
 }
 
 
@@ -116,15 +116,15 @@ func _reachable_stat_ids(primary: StringName,
 ## #1059 then gated every potency to the `blight` subtype, so the sweep runs
 ## over all three poles and exactly one (archetype, pole) cell may reach each
 ## potency.
-func test_each_dot_potency_reaches_only_its_own_archetype() -> void:
+func test_each_dot_stacks_increase_reaches_only_its_own_archetype() -> void:
 	var blight := NodeSubtype.new()
 	blight.id = &"blight"
 	var bless := NodeSubtype.new()
 	bless.id = &"bless"
 	var poles: Array[NodeSubtype] = [NodeSubtype.regular(), blight, bless]
 	for primary in _ALL_ARCHETYPES:
-		for stat: StringName in _POTENCY_HOME:
-			var home: StringName = _POTENCY_HOME[stat]
+		for stat: StringName in _STACKS_INCREASE_HOME:
+			var home: StringName = _STACKS_INCREASE_HOME[stat]
 			for pole in poles:
 				var reachable := _reachable_stat_ids(primary, pole)
 				if home == primary and pole.id == &"blight":
@@ -138,7 +138,7 @@ func test_each_dot_potency_reaches_only_its_own_archetype() -> void:
 
 ## #1094 — the archive umbrella (`dot_stacks_per_hit`) is blighted WIS's own
 ## content and no other archetype/pole may roll it (same absence shape as
-## `_POTENCY_HOME`'s sweep above, one stat instead of four).
+## `_STACKS_INCREASE_HOME`'s sweep above, one stat instead of four).
 func test_dot_stacks_per_hit_is_blighted_wisdom_only() -> void:
 	var blight := NodeSubtype.new(); blight.id = &"blight"
 	var bless := NodeSubtype.new(); bless.id = &"bless"
@@ -156,7 +156,7 @@ func test_dot_stacks_per_hit_is_blighted_wisdom_only() -> void:
 
 
 ## #1095 — blindness potency/resistance are PER-only, one per pole, same
-## absence shape as `_POTENCY_HOME`'s sweep and #1094's umbrella sweep.
+## absence shape as `_STACKS_INCREASE_HOME`'s sweep and #1094's umbrella sweep.
 func test_blindness_stats_are_perception_only() -> void:
 	var blight := NodeSubtype.new(); blight.id = &"blight"
 	var bless := NodeSubtype.new(); bless.id = &"bless"
@@ -164,14 +164,14 @@ func test_blindness_stats_are_perception_only() -> void:
 	for primary in _ALL_ARCHETYPES:
 		for pole in poles:
 			var reachable := _reachable_stat_ids(primary, pole)
-			var want_potency := primary == &"perception" and pole.id == &"blight"
+			var want_stacks := primary == &"perception" and pole.id == &"blight"
 			var want_resistance := primary == &"perception" and pole.id == &"bless"
-			if want_potency:
-				assert_true(&"blindness_potency" in reachable,
-					"blighted perception must be able to roll blindness_potency")
+			if want_stacks:
+				assert_true(&"blindness_stacks_per_hit" in reachable,
+					"blighted perception must be able to roll blindness_stacks_per_hit")
 			else:
-				assert_false(&"blindness_potency" in reachable,
-					"a %s/%s node must NOT roll blindness_potency" % [String(primary), String(pole.id)])
+				assert_false(&"blindness_stacks_per_hit" in reachable,
+					"a %s/%s node must NOT roll blindness_stacks_per_hit" % [String(primary), String(pole.id)])
 			if want_resistance:
 				assert_true(&"blindness_resistance" in reachable,
 					"blessed perception must be able to roll blindness_resistance")

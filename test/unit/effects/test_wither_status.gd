@@ -188,7 +188,7 @@ func test_authored_wither_loads_and_names_its_pair() -> void:
 	if w == null:
 		return
 	assert_eq(w.id, &"wither")
-	assert_eq(w.potency_stat_id, &"wither_potency")
+	assert_eq(w.stacks_stat_id, &"wither_stacks_per_hit")
 	assert_eq(w.resistance_stat_id, &"wither_resistance")
 	assert_true(w.tags.has(&"debuff"))
 	assert_true(w.factor_per_stack > 0.0, "a per-stack factor is authored")

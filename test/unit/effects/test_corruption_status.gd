@@ -186,7 +186,7 @@ func test_authored_corruption_loads_with_the_model_shape() -> void:
 	assert_eq(c.id, &"corruption")
 	assert_true(&"debuff" in c.tags, "tagged as a debuff")
 	assert_true(&"dot" in c.tags, "tagged as a dot")
-	assert_eq(c.potency_stat_id, &"corruption_potency")
+	assert_eq(c.stacks_stat_id, &"corruption_stacks_per_hit")
 	assert_eq(c.resistance_stat_id, &"corruption_resistance")
 	assert_true(c.power_max <= 0.0, "uncapped")
 	# Decay shape is pinned by test_status_decay_shapes; the rate is the owner's

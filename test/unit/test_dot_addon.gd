@@ -204,7 +204,11 @@ func test_allocating_a_toxin_node_grants_the_owner_poison_arrows() -> void:
 ## BladeStatusInstance never crosses: the peer lands a plain StatusInstance.
 func test_the_record_replays_the_toxic_status_at_the_landed_power() -> void:
 	_attach_toxin(_tip)
-	_attacker.stat_board.get_stat(&"poison_potency").base_value = 1.5
+	var more_stacks := StatModifier.new()
+	more_stacks.stat_id = &"poison_stacks_per_hit"
+	more_stacks.operation = StatModifier.Operation.INCREASE
+	more_stacks.value = 50.0
+	_attacker.stat_board.add_modifier(more_stacks)
 	await _settle()
 	var outcome := _plan().resolve_against(CombatWorld.live())
 	var landed := _status_hits(outcome)
@@ -212,7 +216,7 @@ func test_the_record_replays_the_toxic_status_at_the_landed_power() -> void:
 	if landed.is_empty():
 		return
 	var authority_power := landed[0].power
-	assert_almost_eq(authority_power, 1.5, 0.0001, "1 stack x 1.5 potency, no resistance")
+	assert_almost_eq(authority_power, 1.5, 0.0001, "1 stack x +50% stacks, no resistance")
 
 	var wired: Dictionary = bytes_to_var(var_to_bytes(AttackRecord.capture(outcome, _graph)))
 	var rebuilt := AttackRecord.rebuild(wired, _graph)

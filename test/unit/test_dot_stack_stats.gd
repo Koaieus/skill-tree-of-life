@@ -1,9 +1,9 @@
 extends GutTest
 
-## The DoT extra-stacks vocabulary: the seven stats resolve with their
-## defaults, and every authored status def names exactly the extra-stacks
-## stats its family owns — the four DoTs their own plus the umbrella, every
-## other status nothing.
+## The stacks-per-hit vocabulary: the seven stats resolve with their
+## defaults, and every authored status def names the one stacks stat it folds
+## through — each DoT its family stat, blindness its own, every other status
+## none.
 
 const _STATUS_DIR := "res://effects/status/"
 const _DOT_FAMILIES: Array[StringName] = [&"poison", &"corruption", &"curse", &"wither"]
@@ -13,7 +13,7 @@ const _DEFAULTS := {
 	&"curse_stacks_per_hit": 0.0,
 	&"wither_stacks_per_hit": 0.0,
 	&"dot_stacks_per_hit": 0.0,
-	&"blindness_potency": 1.0,
+	&"blindness_stacks_per_hit": 0.0,
 	&"blindness_resistance": 0.0,
 }
 
@@ -30,7 +30,7 @@ func test_the_seven_stats_resolve_through_the_registry_with_their_defaults() -> 
 		assert_almost_eq(float(board.get_value(id)), float(_DEFAULTS[id]), 0.0001, "%s board value" % id)
 
 
-func test_every_status_def_names_its_familys_extra_stacks_stats() -> void:
+func test_every_status_def_names_its_familys_stacks_stat() -> void:
 	var seen := 0
 	for file in DirAccess.get_files_at(_STATUS_DIR):
 		if not file.ends_with(".tres"):
@@ -39,9 +39,9 @@ func test_every_status_def_names_its_familys_extra_stacks_stats() -> void:
 		if def == null:
 			continue
 		seen += 1
-		var expected: Array[StringName] = []
-		if def.id in _DOT_FAMILIES:
-			# The umbrella folds into each family stat as its parent (ADR 0029), never listed beside it.
-			expected = [StringName("%s_stacks_per_hit" % def.id)]
-		assert_eq(def.extra_stacks_stat_ids, expected, "%s extra_stacks_stat_ids" % def.id)
+		var expected := &""
+		if def.id in _DOT_FAMILIES or def.id == &"blindness":
+			# The umbrella folds into each DoT family stat as its parent (ADR 0029); blindness has none.
+			expected = StringName("%s_stacks_per_hit" % def.id)
+		assert_eq(def.stacks_stat_id, expected, "%s stacks_stat_id" % def.id)
 	assert_gt(seen, 5, "the sweep found the authored defs")

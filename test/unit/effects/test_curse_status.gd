@@ -181,7 +181,7 @@ func test_authored_curse_and_hex_load_and_are_in_the_debug_book() -> void:
 		return
 	assert_eq(curse.id, &"curse")
 	assert_true(&"debuff" in curse.tags, "tagged as a debuff")
-	assert_eq(curse.potency_stat_id, &"curse_potency")
+	assert_eq(curse.stacks_stat_id, &"curse_stacks_per_hit")
 	assert_eq(curse.resistance_stat_id, &"curse_resistance")
 	# FLAT since #1091 (a legible "cursed for N turns" window); the shape law
 	# lives in test_status_decay_shapes. The hand-built fixture above keeps

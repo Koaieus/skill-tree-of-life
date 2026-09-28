@@ -60,11 +60,11 @@ func _reachable(primary: StringName, subtype: NodeSubtype) -> Array[StringName]:
 
 # ── 1. the sidegrade law ─────────────────────────────────────────────────
 
-func test_blighted_draws_the_family_potency_and_regular_does_not() -> void:
+func test_blighted_draws_the_family_stacks_increase_and_regular_does_not() -> void:
 	var blight := _subtype(&"blight")
 	var regular := NodeSubtype.regular()
 	for primary: StringName in _FAMILY:
-		var potency: StringName = StringName("%s_potency" % _FAMILY[primary])
+		var potency: StringName = StringName("%s_stacks_per_hit" % _FAMILY[primary])
 		assert_true(potency in _reachable(primary, blight),
 			"a blighted %s node must be able to roll %s" % [primary, potency])
 		assert_false(potency in _reachable(primary, regular),
