@@ -41,10 +41,9 @@ extends Node2D
 const FloaterStyles := preload("res://ui/floating_number_layer/floater_styles.gd")
 
 ## Player-facing text per [signal Events.node_action_denied] reason string.
-## The reasons are minted by [PlayerInputController] (`_stake_denial_reason` /
-## `_extract_denial_reason` — mirrors of [method AllocationSystem.can_stake] /
-## [method AllocationSystem.can_extract] gate order — plus the allocate and
-## deallocate sites) and by [BattleSystem.can_toggle_temp_upgrade_on]. This
+## The reasons are minted by [method AllocationSystem.stake_denial] /
+## [method AllocationSystem.extract_denial] (emitted by [PlayerInputController],
+## alongside its allocate and deallocate sites) and by [BattleSystem.can_toggle_temp_upgrade_on]. This
 ## table is the single place a raw reason becomes words; an unmapped reason
 ## toasts nothing (better silent than snake_case on screen), so a new reason
 ## minted without a row here is a missing translation, not a crash.
