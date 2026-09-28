@@ -94,9 +94,9 @@ max_tier = 2
 script = ExtResource("3_sl04t")
 
 [sub_resource type="Resource" id="blindness_pot"]
-resource_name = "blindness_potency +%"
+resource_name = "blindness_stacks_per_hit +%"
 script = ExtResource("2_pool")
-stat_id = &"blindness_potency"
+stat_id = &"blindness_stacks_per_hit"
 operation = 1
 subtypes = Array[ExtResource("90_nsub")]([ExtResource("92_sbli")])
 tags = Array[StringName]([&"per", &"percent", &"sense"])

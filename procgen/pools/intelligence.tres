@@ -128,9 +128,9 @@ metadata/_custom_type_script = "uid://csc1d4c2smgr7"
 script = ExtResource("3_7qv30")
 
 [sub_resource type="Resource" id="wither_pot"]
-resource_name = "wither_potency +%"
+resource_name = "wither_stacks_per_hit +%"
 script = ExtResource("2_pool")
-stat_id = &"wither_potency"
+stat_id = &"wither_stacks_per_hit"
 operation = 1
 subtypes = Array[ExtResource("90_nsub")]([ExtResource("92_sbli")])
 tags = Array[StringName]([&"attack", &"dot", &"percent"])

@@ -69,9 +69,9 @@ metadata/_custom_type_script = "uid://csc1d4c2smgr7"
 script = ExtResource("3_m6jpa")
 
 [sub_resource type="Resource" id="corruption_pot"]
-resource_name = "corruption_potency +%"
+resource_name = "corruption_stacks_per_hit +%"
 script = ExtResource("2_pool")
-stat_id = &"corruption_potency"
+stat_id = &"corruption_stacks_per_hit"
 operation = 1
 subtypes = Array[ExtResource("90_nsub")]([ExtResource("92_sbli")])
 tags = Array[StringName]([&"attack", &"dot", &"percent"])

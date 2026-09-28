@@ -57,21 +57,14 @@ enum DecayMode {
 ## Classification tags a consumer may filter on (`&"debuff"`, `&"dot"`, …).
 ## Metadata only — NOT granted to the node as [method NodeCombat.add_tag] tags.
 @export var tags: Array[StringName] = []
-## The attacker-side scaling stat for this status (#963): [method
-## StatusInstance.land_on] multiplies the per-hit power by the attacker's
-## board value of this id (e.g. `&"poison_potency"`). Blank → unscaled (×1).
-@export var potency_stat_id: StringName = &""
 ## The defender-side scaling stat (#963): a fraction read node-locally on the
 ## landing node (e.g. `&"poison_resistance"`), applied as `× (1 − value)`.
 ## Reduces stacks incurred, never decay. Blank → unscaled (×1).
 @export var resistance_stat_id: StringName = &""
-## Attacker-side flat stack stats summed into the per-hit power BEFORE
-## potency: `(power + Σ attacker value) × potency × (1 − resistance)`, read in
-## [method StatusInstance.land_on]. The four DoT families list their own
-## `<family>_stacks_per_hit` plus the shared `dot_stacks_per_hit`; a status
-## that must not grow per hit lists nothing. Null attacker or an unknown id
-## contributes 0.
-@export var extra_stacks_stat_ids: Array[StringName] = []
+## The attacker-side stacks stat this status folds its per-hit power through
+## ([method stacks_per_hit]): `<family>_stacks_per_hit` for a DoT, whose
+## `dot_stacks_per_hit` parent folds in the same read, or blindness's own
+## parentless stat. Blank → the authored power lands as-is.
 @export var stacks_stat_id: StringName = &""
 ## Power is clamped to this on apply and on accumulate. `<= 0` → uncapped
 ## (#962): [method NodeCombat.apply_status] skips the clamp entirely.
@@ -99,8 +92,23 @@ func get_description() -> String:
 	return "%s (max %s, -%s per turn)" % [name, NumFmt.num(power_max), NumFmt.num(decay_per_tick)]
 
 
+## The stacks one hit of [param authored] power lands from an attacker with
+## [param board], before the defender's resistance: ONE read of
+## [member stacks_stat_id] with [param authored] as a `base_add` overlay, so
+## the stat's flats add to it and its INCREASE / MORE scale it (ADR 0029).
+## Never floored — the status row is a float. A null board, a blank id or an
+## unknown stat answers [param authored]. The landing and the on-hit readout
+## both call this, so they cannot disagree.
 func stacks_per_hit(board: StatBoard, authored: float) -> float:
-	return authored
+	if board == null or stacks_stat_id.is_empty():
+		return authored
+	var stat: Stat = board.get_stat(stacks_stat_id)
+	if stat == null:
+		return authored
+	var bins := ModifierBins.new()
+	bins.base_add = authored
+	var overlays: Array[ModifierBins] = [bins]
+	return float(stat.get_value_with(overlays))
 
 
 ## The power this status would carry after one tick's decay — the one place

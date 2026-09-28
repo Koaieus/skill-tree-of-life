@@ -94,9 +94,9 @@ min_tier = 2
 script = ExtResource("3_x53si")
 
 [sub_resource type="Resource" id="curse_pot"]
-resource_name = "curse_potency +%"
+resource_name = "curse_stacks_per_hit +%"
 script = ExtResource("2_pool")
-stat_id = &"curse_potency"
+stat_id = &"curse_stacks_per_hit"
 operation = 1
 subtypes = Array[ExtResource("90_nsub")]([ExtResource("92_sbli")])
 tags = Array[StringName]([&"attack", &"dot", &"percent"])

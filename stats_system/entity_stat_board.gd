@@ -69,22 +69,6 @@ extends StatBoard
 ## Floor on post-armor damage. A landed hit always deals at least this much
 ## unless TRUE-typed. Default 3; defensive classes (Bulwark) may push lower.
 @export var min_damage_taken: ScalarStat
-## Multiplier on the poison stacks this entity's hits land (#963): stacks =
-## per-hit x poison_potency x (1 - target's poison_resistance), resolved once in
-## StatusInstance.land_on. Default 1.0; procgen rolls it as INCREASE only.
-@export var poison_potency: ScalarStat
-## Multiplier on the corruption stacks this entity's hits land (#963): stacks =
-## per-hit x corruption_potency x (1 - target's corruption_resistance), resolved once in
-## StatusInstance.land_on. Default 1.0; procgen rolls it as INCREASE only.
-@export var corruption_potency: ScalarStat
-## Multiplier on the curse stacks this entity's hits land (#963): stacks =
-## per-hit x curse_potency x (1 - target's curse_resistance), resolved once in
-## StatusInstance.land_on. Default 1.0; procgen rolls it as INCREASE only.
-@export var curse_potency: ScalarStat
-## Multiplier on the wither stacks this entity's hits land (#963): stacks =
-## per-hit x wither_potency x (1 - target's wither_resistance), resolved once in
-## StatusInstance.land_on. Default 1.0; procgen rolls it as INCREASE only.
-@export var wither_potency: ScalarStat
 ## Fraction of incoming poison stacks a node shrugs off (#963). Read node-locally
 ## via get_local_value like armor. Reduces stacks incurred, never decay. Default 0.
 @export var poison_resistance: ScalarStat
@@ -97,21 +81,21 @@ extends StatBoard
 ## Fraction of incoming wither stacks a node shrugs off (#963). Read node-locally
 ## via get_local_value like armor. Reduces stacks incurred, never decay. Default 0.
 @export var wither_resistance: ScalarStat
-## Flat poison stacks added to each poison application this entity lands, before
-## poison_potency: (per-hit + this, dot_stacks_per_hit folded in) x potency x
-## (1 - resistance). Default 0.
+## The poison stacks this entity's hits land: the authored per-hit amount is a
+## base_add overlay on this stat (StatusDef.stacks_per_hit), dot_stacks_per_hit
+## folds in as its parent, then x (1 - resistance). Default 0.
 @export var poison_stacks_per_hit: ScalarStat
-## Flat corruption stacks added to each corruption application this entity lands, before
-## corruption_potency: (per-hit + this, dot_stacks_per_hit folded in) x potency x
-## (1 - resistance). Default 0.
+## The corruption stacks this entity's hits land: the authored per-hit amount is a
+## base_add overlay on this stat (StatusDef.stacks_per_hit), dot_stacks_per_hit
+## folds in as its parent, then x (1 - resistance). Default 0.
 @export var corruption_stacks_per_hit: ScalarStat
-## Flat curse stacks added to each curse application this entity lands, before
-## curse_potency: (per-hit + this, dot_stacks_per_hit folded in) x potency x
-## (1 - resistance). Default 0.
+## The curse stacks this entity's hits land: the authored per-hit amount is a
+## base_add overlay on this stat (StatusDef.stacks_per_hit), dot_stacks_per_hit
+## folds in as its parent, then x (1 - resistance). Default 0.
 @export var curse_stacks_per_hit: ScalarStat
-## Flat wither stacks added to each wither application this entity lands, before
-## wither_potency: (per-hit + this, dot_stacks_per_hit folded in) x potency x
-## (1 - resistance). Default 0.
+## The wither stacks this entity's hits land: the authored per-hit amount is a
+## base_add overlay on this stat (StatusDef.stacks_per_hit), dot_stacks_per_hit
+## folds in as its parent, then x (1 - resistance). Default 0.
 @export var wither_stacks_per_hit: ScalarStat
 ## Family parent of the four <family>_stacks_per_hit (ADR 0029): its bins fold
 ## into each family stat's read, never summed separately; never blindness/
@@ -126,8 +110,9 @@ extends StatBoard
 ## Family parent of the four DoT resistances (not blindness_resistance) —
 ## folds into their node-local reads (ADR 0029). Its own value is never read.
 @export var dot_resistance: ScalarStat
-## Multiplier on the blindness this entity's hits land, as poison_potency. Default 1.0.
-@export var blindness_potency: ScalarStat
+## The blindness this entity's hits land, folded as poison_stacks_per_hit is but
+## with no parent (blindness is not a DoT). Default 0.
+@export var blindness_stacks_per_hit: ScalarStat
 ## Fraction of incoming blindness a node shrugs off, read node-locally. Default 0.
 @export var blindness_resistance: ScalarStat
 ## Flat HP damage dealt to this entity per node forced-deallocated in a battle

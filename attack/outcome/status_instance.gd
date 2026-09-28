@@ -24,7 +24,7 @@ var def: StatusDef = null
 ## Stacks handed to [method NodeCombat.apply_status]. Until [method land_on]
 ## runs this is the applier's authored per-hit number ([member
 ## ApplyStatusEffect.power], `AmmoType.status_power`); land folds the
-## attacker's potency and the landing node's resistance into it exactly once
+## attacker's stacks fold and the landing node's resistance into it exactly once
 ## (#963) and the LANDED number is what [AttackRecord] ships.
 var power: float = 0.0
 ## True once [member power] is the landed number — set by [method land_on]
@@ -65,11 +65,11 @@ func _init() -> void:
 ## node-hosted row on the core stays node-hosted: the hosts never merge.
 ##
 ## Scaling (`docs/design/damage_over_time.md` §Applying):
-## `(power + Σ extra(attacker)) × potency(attacker) × (1 − resistance(host))`,
-## the flat extras summed from [member StatusDef.extra_stacks_stat_ids] before
-## the multiply, the rest read through the def's [member
-## StatusDef.potency_stat_id] / [member StatusDef.resistance_stat_id] — blank
-## id, null attacker or an unknown stat each contribute +0 / ×1. Resistance is read on the RECEIVING host — the landing
+## `StatusDef.stacks_per_hit(attacker board, power) × (1 − resistance(host))` —
+## one fold of the attacker's stacks stat with the authored power as its
+## `base_add`, then the def's [member StatusDef.resistance_stat_id]; a null
+## attacker, blank id or unknown stat leaves the fold at the authored power.
+## Resistance is read on the RECEIVING host — the landing
 ## node slice (so a shadow resolve sees the shadow's modifiers), or the entity
 ## board alone on fall-through. Resolved once: a rebuilt hit arrives
 ## [member power_resolved] and lands as-is.
@@ -88,31 +88,17 @@ func land_on(node: NodeCombat, _world: CombatWorld) -> void:
 			effective_amount = 0.0
 			return
 	if not power_resolved:
-		power = (power + _extra_stacks()) * _potency() * (1.0 - _resistance(host))
+		if def != null:
+			power = def.stacks_per_hit(_attacker_board(), power)
+		power *= 1.0 - _resistance(host)
 		power_resolved = true
 	host.apply_status(def, power)
 	amount = power
 	effective_amount = power
 
 
-func _extra_stacks() -> float:
-	if def == null or attacker == null or attacker.stat_board == null:
-		return 0.0
-	var sum := 0.0
-	for id: StringName in def.extra_stacks_stat_ids:
-		var v: Variant = attacker.stat_board.get_value(id)
-		if v != null:
-			sum += float(v)
-	return sum
-
-
-func _potency() -> float:
-	if def == null or def.potency_stat_id.is_empty():
-		return 1.0
-	if attacker == null or attacker.stat_board == null:
-		return 1.0
-	var v: Variant = attacker.stat_board.get_value(def.potency_stat_id)
-	return float(v) if v != null else 1.0
+func _attacker_board() -> StatBoard:
+	return attacker.stat_board if attacker != null else null
 
 
 ## [param host] is the receiving [StatusHost] owner — a [NodeCombat] or, on
