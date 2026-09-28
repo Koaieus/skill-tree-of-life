@@ -187,6 +187,19 @@ func announce_self() -> void:
 	logged.emit("↑ hello (%s)" % describe_build(build_stamp))
 
 
+## Host-side: "this is the code I am running", plus whatever a channel wants
+## the joiner to read off [signal hello_accepted]. The channel composes
+## [param extras] and hands them in — the core never names a channel.
+## [WorldSyncChannel.send_hello] is the one caller that adds any.
+func send_hello(extras: Dictionary = {}) -> void:
+	if transport == null or role != NetworkConfig.Role.HOST:
+		return
+	var payload := extras.duplicate()
+	payload[KEY_KIND] = KIND_HELLO
+	payload[KEY_BUILD] = build_stamp
+	transport.send(payload)
+
+
 ## The one dispatch: refused gate → handshake kinds → owner lookup → pre-world
 ## gate → [method LinkChannel.receive]. Every gate is a property of the LINK,
 ## so the decision about every kind is readable here.
