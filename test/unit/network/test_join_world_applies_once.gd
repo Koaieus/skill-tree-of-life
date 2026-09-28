@@ -4,10 +4,10 @@ extends GutTest
 ##
 ## The host PUSHES its world when a peer joins (`GameRoot._on_peer_joined`) AND
 ## answers the client's PULL (`GameRoot.pull_host_world` ->
-## `CommandLink._on_resync_request`), because either leg alone can be dropped in
+## `WorldSyncChannel._on_resync_request`), because either leg alone can be dropped in
 ## silence — see the comment block at `_on_peer_joined`. So on the happy path the
 ## client receives TWO whole worlds, and applying the second would re-decode a
-## world it already holds, re-emit [signal CommandLink.resync_applied] (whose
+## world it already holds, re-emit [signal WorldSyncChannel.resync_applied] (whose
 ## `GameRoot` handler re-derives seat vision and controllers) and re-enter
 ## `entity_spawner` for every materialised blocker.
 ##
@@ -24,8 +24,8 @@ const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 
 var _host_graph: Graph
 var _client_graph: Graph
-var _host_link: CommandLink
-var _client_link: CommandLink
+var _host_link: WorldSyncChannel
+var _client_link: WorldSyncChannel
 var _applied: Array[String]
 
 
@@ -41,13 +41,18 @@ func before_each() -> void:
 	_client_link.resync_applied.connect(func(r: String) -> void: _applied.append(r))
 
 
-func _make_link(graph: Graph, transport: NetworkTransport, mode: NetworkConfig.Role) -> CommandLink:
-	var link := CommandLink.new()
-	link.transport = transport
-	link.graph = graph
-	link.role = mode
-	add_child_autofree(link)
-	return link
+## The world channel alone on its core — the join's world needs no command
+## channel.
+func _make_link(graph: Graph, transport: NetworkTransport, mode: NetworkConfig.Role) -> WorldSyncChannel:
+	var core := NetworkLink.new()
+	core.transport = transport
+	var sync := WorldSyncChannel.new()
+	sync.graph = graph
+	core.channels = [sync] as Array[LinkChannel]
+	add_child_autofree(core)
+	add_child_autofree(sync)
+	core.role = mode
+	return sync
 
 
 ## A path of [param count] nodes. `count == 0` is the joining client's world:
@@ -115,17 +120,17 @@ func test_whichever_leg_arrives_first_is_the_one_that_applies() -> void:
 ## arrived". Belt and braces on the guard's scope.
 func test_the_join_flag_rides_the_request_through_to_the_answer() -> void:
 	var seen: Array[Dictionary] = []
-	(_client_link.transport as NetworkTransport).message_received.connect(
+	(_client_link.link.transport as NetworkTransport).message_received.connect(
 			func(p: Dictionary) -> void: seen.append(p))
 
 	await _pull_join_world()
 
 	var resyncs: Array[Dictionary] = []
 	for payload in seen:
-		if String(payload.get(CommandLink.KEY_KIND, "")) == CommandLink.KIND_RESYNC:
+		if String(payload.get(NetworkLink.KEY_KIND, "")) == WorldSyncChannel.KIND_RESYNC:
 			resyncs.append(payload)
 	assert_eq(resyncs.size(), 1, "the host answered the pull once")
-	assert_true(bool(resyncs[0].get(CommandLink.KEY_JOIN, false)),
+	assert_true(bool(resyncs[0].get(WorldSyncChannel.KEY_JOIN, false)),
 			"and the answer is flagged as the join's world, not as a repair — "
 			+ "the flag was set on the REQUEST and `_on_resync_request` forwards it")
 

@@ -23,6 +23,8 @@ var _host: Dictionary
 var _client: Dictionary
 var _host_link: CommandLink
 var _client_link: CommandLink
+var _host_sync: WorldSyncChannel
+var _client_sync: WorldSyncChannel
 
 
 func before_each() -> void:
@@ -33,15 +35,27 @@ func before_each() -> void:
 	add_child_autofree(pair[1])
 	_host_link = _make_link(_host, pair[0], NetworkConfig.Role.HOST)
 	_client_link = _make_link(_client, pair[1], NetworkConfig.Role.CLIENT)
+	_host_sync = _host_link.link.channel_for(WorldSyncChannel.KIND_RESYNC)
+	_client_sync = _client_link.link.channel_for(WorldSyncChannel.KIND_RESYNC)
 
 
+## The level's composition: a core with the world channel and the command
+## channel on it. The backstop is the world channel's; commands still cross so
+## a green run has something to compare.
 func _make_link(world: Dictionary, transport: NetworkTransport, mode: NetworkConfig.Role) -> CommandLink:
+	var core := NetworkLink.new()
+	core.transport = transport
+	core.command_applier = world["applier"]
+	var sync := WorldSyncChannel.new()
+	sync.graph = world["graph"]
+	sync.command_applier = world["applier"]
 	var link := CommandLink.new()
-	link.transport = transport
 	link.command_applier = world["applier"]
-	link.graph = world["graph"]
-	link.role = mode
+	core.channels = [sync, link] as Array[LinkChannel]
+	add_child_autofree(core)
+	add_child_autofree(sync)
 	add_child_autofree(link)
+	core.role = mode
 	return link
 
 
@@ -119,7 +133,7 @@ func _sniff_upward() -> Array[Dictionary]:
 func _kinds(payloads: Array[Dictionary]) -> Array[String]:
 	var out: Array[String] = []
 	for p in payloads:
-		out.append(String(p.get(CommandLink.KEY_KIND, "")))
+		out.append(String(p.get(NetworkLink.KEY_KIND, "")))
 	return out
 
 
@@ -135,7 +149,7 @@ func test_a_verdict_triggers_a_resync() -> void:
 	_drift_the_client()
 	assert_ne(_fp(_client), _fp(_host), "the fixture must actually be diverged")
 
-	_host_link.send_hello()
+	_host_sync.send_hello()
 	await get_tree().process_frame
 
 	assert_eq(_fp(_client), _fp(_host),
@@ -146,15 +160,15 @@ func test_a_verdict_triggers_a_resync() -> void:
 
 func test_a_verdict_shouts_as_loudly_as_before_the_auto_heal() -> void:
 	var lines: Array[String] = []
-	_client_link.logged.connect(func(l: String) -> void: lines.append(l))
+	_client_sync.link.logged.connect(func(l: String) -> void: lines.append(l))
 	var verdicts: Array = []
-	_client_link.sync_checked.connect(
+	_client_sync.sync_checked.connect(
 			func(a: bool, l: int, r: int) -> void: verdicts.append([a, l, r]))
 
 	_drift_the_client()
 	var wrong := _fp(_client)
 	var right := _fp(_host)
-	_host_link.send_hello()
+	_host_sync.send_hello()
 	await get_tree().process_frame
 
 	assert_eq(verdicts.size(), 1, "exactly one comparison happened")
@@ -173,10 +187,10 @@ func test_a_verdict_shouts_as_loudly_as_before_the_auto_heal() -> void:
 
 func test_a_green_run_never_resyncs() -> void:
 	var pushes: Array[String] = []
-	_host_link.resync_sent.connect(func(r: String) -> void: pushes.append(r))
+	_host_sync.resync_sent.connect(func(r: String) -> void: pushes.append(r))
 	var upward := _sniff_upward()
 
-	_host_link.send_hello()
+	_host_sync.send_hello()
 	await get_tree().process_frame
 	var command := AllocateCommand.new((_host["player"] as Entity).entity_id,
 			(_host["graph"] as Graph).get_stable_id(_host["nodes"]["B"]))
@@ -185,7 +199,7 @@ func test_a_green_run_never_resyncs() -> void:
 
 	assert_eq(_fp(_client), _fp(_host), "the fixture ran green")
 	assert_true(pushes.is_empty(), "a world that never drifted is never repaired: %s" % [pushes])
-	assert_false(_kinds(upward).has(CommandLink.KIND_RESYNC_REQUEST),
+	assert_false(_kinds(upward).has(WorldSyncChannel.KIND_RESYNC_REQUEST),
 			"and the client never asked")
 
 
@@ -194,14 +208,14 @@ func test_a_green_run_never_resyncs() -> void:
 func test_a_client_asks_and_never_reconstructs() -> void:
 	var upward := _sniff_upward()
 	_drift_the_client()
-	_host_link.send_hello()
+	_host_sync.send_hello()
 	await get_tree().process_frame
 
 	var kinds := _kinds(upward)
-	for state_kind in [CommandLink.KIND_RESYNC, CommandLink.KIND_SNAPSHOT, CommandLink.KIND_ENTITIES]:
+	for state_kind in [WorldSyncChannel.KIND_RESYNC, WorldSyncChannel.KIND_SNAPSHOT, WorldSyncChannel.KIND_ENTITIES]:
 		assert_false(kinds.has(state_kind),
 				"a client must never put %s on the wire — only the authority sends state" % state_kind)
-	assert_eq(kinds.count(CommandLink.KIND_RESYNC_REQUEST), 1,
+	assert_eq(kinds.count(WorldSyncChannel.KIND_RESYNC_REQUEST), 1,
 			"it asks exactly once, and the latch stops it asking again: %s" % [kinds])
 
 
@@ -220,7 +234,7 @@ func test_a_resync_repairs_a_populated_graph_exactly() -> void:
 			client_graph.remove_edge(edge)
 	await get_tree().process_frame
 
-	_host_link.send_resync("test")
+	_host_sync.send_resync("test")
 	await get_tree().process_frame
 
 	var host_graph: Graph = _host["graph"]
@@ -248,7 +262,7 @@ func _stable_ids(graph: Graph) -> Array:
 func test_a_node_that_never_drifted_is_not_rebuilt() -> void:
 	var before: SkillNode = _client["nodes"]["C"]
 	_drift_the_client()
-	_host_link.send_hello()
+	_host_sync.send_hello()
 	await get_tree().process_frame
 
 	var after := (_client["graph"] as Graph).get_by_stable_id(
@@ -269,7 +283,7 @@ func test_a_resync_does_not_animate() -> void:
 			func(c: Command, _ok: bool) -> void: applied.append(c))
 
 	_drift_the_client()
-	_host_link.send_hello()
+	_host_sync.send_hello()
 	await get_tree().process_frame
 
 	assert_true(confirmed.is_empty(),
@@ -290,7 +304,7 @@ func test_a_resync_removes_an_entity_the_authority_does_not_have() -> void:
 	var stray_id := stray.entity_id
 	assert_ne(stray_id, 0, "the fixture's stray entity must have minted an id")
 
-	_host_link.send_resync("test")
+	_host_sync.send_resync("test")
 	await get_tree().process_frame
 
 	assert_null((_client["graph"] as Graph).get_by_entity_id(stray_id),
@@ -312,7 +326,7 @@ func test_a_stacked_tag_survives_the_repair_at_its_full_count() -> void:
 	client_player.add_tag(&"burning")
 	client_player.add_tag(&"blessed")
 
-	_host_link.send_resync("test")
+	_host_sync.send_resync("test")
 	await get_tree().process_frame
 
 	assert_eq(client_player.get_tag_count(&"burning"), 2,
