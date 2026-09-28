@@ -110,6 +110,10 @@ func test_game_root_mounts_one_core_beside_one_transport() -> void:
 	assert_eq(core.transport, root.get_node(TRANSPORT_PATH), "the core rides the Transport")
 	assert_eq(core.channel_for(CommandLink.KIND_COMMAND), link, "the core routes commands to CommandLink")
 	assert_eq(link.link, core, "and CommandLink rides that core, not a private one")
+	var world: WorldSyncChannel = root.get_node("WorldSyncChannel")
+	assert_eq(core.channel_for(WorldSyncChannel.KIND_RESYNC), world,
+			"the core routes the world kinds to the scene's WorldSyncChannel")
+	assert_eq(link.world_sync(), world, "and CommandLink's shims reach that one")
 
 
 func test_game_root_mounts_the_pair_at_the_expected_path() -> void:
@@ -135,7 +139,8 @@ func test_the_mounted_link_is_wired_but_idle() -> void:
 	var link: CommandLink = root.command_link
 	assert_eq(link.transport, root.transport, "transport NodePath")
 	assert_eq(link.command_applier, root.command_applier, "command_applier NodePath")
-	assert_eq(link.graph, root.graph, "graph NodePath")
+	assert_eq((root.get_node("WorldSyncChannel") as WorldSyncChannel).graph, root.graph,
+			"graph NodePath, on the world channel")
 	# OFF is what keeps offline play byte-for-byte unchanged: nothing is
 	# serialized, nothing is sent. A role raises the mode; the mount never does.
 	assert_eq(link.role, NetworkConfig.Role.OFFLINE, "mounted idle")

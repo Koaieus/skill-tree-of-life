@@ -122,36 +122,13 @@ const KIND_COMMAND := "command"
 ## #546: "I am hanging up, and here is the build you failed to match." Sent by
 ## whichever side detects the mismatch, so BOTH ends print it.
 const KIND_REFUSED := "refused"
-## #527's join-handshake payload: an encoded [GraphSnapshot]. Additive and
-## opt-in — sent only by [method send_graph_snapshot], never by [method send_hello]
-## — so existing hello/fingerprint flows (and their tests) are untouched by a
-## client that never calls it.
-const KIND_SNAPSHOT := "snapshot"
-## #528's join-handshake payload: [RunConfig] + [ParticipantRoster], both by
-## value. Same additive shape as [constant KIND_SNAPSHOT] — sent only by
-## [method send_run_setup].
-const KIND_SETUP := "setup"
-## #560's join-handshake payload: an encoded [EntitySnapshot] — the ENTITY half
-## of what [constant KIND_SNAPSHOT] does for the graph. Same additive, opt-in
-## shape: sent only by [method send_entity_snapshot].
-const KIND_ENTITIES := "entities"
-## #561's repair envelope: the WHOLE world, entities and graph together, in one
-## message. Sent only by [method send_resync], applied only under
-## [constant NetworkConfig.Role.CLIENT].
-##
-## [b]One envelope rather than the two separate sends the join uses[/b], and
-## that is the point: [method EntitySnapshot.resolve_graph_refs] has to run
-## AFTER the nodes exist, which the join gets by parking the entity bytes until
-## a graph arrives. A repair cannot rely on that — it decodes into a graph that
-## is ALREADY populated, so the park would drain against the pre-repair nodes
-## and never re-run against the new ones. Carrying both halves together makes
-## the dependency order (#521 D5) local to one handler instead of a property of
-## arrival timing. It is the same three calls in the same order; nothing here
-## is a second decode path.
-const KIND_RESYNC := "resync"
-## #561: "our worlds disagree — send me yours." The only thing a client emits
-## on a desync verdict, because only the authority may send state (#521 D4).
-const KIND_RESYNC_REQUEST := "resync_request"
+## shim: the world kinds are [WorldSyncChannel]'s; aliased for the callers
+## that still name them here.
+const KIND_SNAPSHOT := WorldSyncChannel.KIND_SNAPSHOT
+const KIND_SETUP := WorldSyncChannel.KIND_SETUP
+const KIND_ENTITIES := WorldSyncChannel.KIND_ENTITIES
+const KIND_RESYNC := WorldSyncChannel.KIND_RESYNC
+const KIND_RESYNC_REQUEST := WorldSyncChannel.KIND_RESYNC_REQUEST
 ## #548's upward leg: a client's INTENT, not yet a command. Sent only under
 ## [constant NetworkConfig.Role.CLIENT], received only under [constant NetworkConfig.Role.HOST] — the
 ## exact inverse of [constant KIND_COMMAND], which is why it is its own kind
@@ -273,13 +250,19 @@ signal seat_handover_received(participant_id: int)
 		command_applier = value
 		if link != null:
 			link.command_applier = value
-@export var graph: Graph
+@export var graph: Graph:
+	set(value):
+		graph = value
+		_forward_to_world(&"graph", value)
 
 ## The level's clock. Only ever WRITTEN through
 ## [method EntitySnapshot.restore_turn_cursor], and only on a mirror: who holds
 ## the turn is a host decision that a repaired peer receives rather than
 ## reproduces (#756). Wired by `game_root.tscn`.
-@export var turn_manager: TurnManager
+@export var turn_manager: TurnManager:
+	set(value):
+		turn_manager = value
+		_forward_to_world(&"turn_manager", value)
 ## #646: the outstanding-pick book, ONLY consulted here for
 ## [signal LootPickRegistry.offer_parked] — the trigger for
 ## [method send_loot_offer]. Null is supported (no registry wired, e.g. every
@@ -292,7 +275,10 @@ signal seat_handover_received(participant_id: int)
 ## below are three calls and no logic, because the question "could a peer have
 ## derived this?" is a whole subject and belongs in its own file, not smeared
 ## across the verb path #463's other children are also editing.
-@export var probe: DeterminismProbe
+@export var probe: DeterminismProbe:
+	set(value):
+		probe = value
+		_forward_to_world(&"probe", value)
 
 ## shim: the role, build stamp, join name and refused latch live on the core
 ## ([NetworkLink]) now; these forward so callers not yet re-pointed keep working.
@@ -341,13 +327,23 @@ func _ready() -> void:
 	# A level mounts a [NetworkLink] beside this node and lists it as a channel
 	# there; a bare `CommandLink.new()` (tests, the outcome playground) composes
 	# its own so it keeps working as the one node it always was.
+	# The private core gets a private [WorldSyncChannel] too, fed this node's
+	# world exports, since the world kinds are no longer this channel's.
 	if link == null:
+		var world := WorldSyncChannel.new()
+		world.name = "WorldSyncChannel"
+		world.graph = graph
+		world.turn_manager = turn_manager
+		world.command_applier = command_applier
+		world.probe = probe
+		add_child(world)
 		var core := NetworkLink.new()
 		core.name = "NetworkLink"
 		core.transport = transport
 		core.command_applier = command_applier
-		core.channels = [self] as Array[LinkChannel]
+		core.channels = [world, self] as Array[LinkChannel]
 		add_child(core)
+	_wire_world_shims()
 	if command_applier != null:
 		command_applier.command_confirmed.connect(_on_command_confirmed)
 		command_applier.intent_submitted.connect(_on_intent_submitted)
@@ -355,6 +351,32 @@ func _ready() -> void:
 		command_applier.command_stamped.connect(_on_command_stamped)
 	if loot_pick_registry != null:
 		loot_pick_registry.offer_parked.connect(_on_offer_parked)
+
+
+## shim: re-emit the world channel's signals here and hand it what callers
+## still set on this node, until those callers re-point to the channel. Runs
+## from [method _ready], by which point the core has registered every channel.
+func _wire_world_shims() -> void:
+	var world := world_sync()
+	if world == null or world.resync_applied.is_connected(resync_applied.emit):
+		return
+	world.sync_checked.connect(sync_checked.emit)
+	world.resync_sent.connect(resync_sent.emit)
+	world.resync_applied.connect(resync_applied.emit)
+	if world.probe == null:
+		world.probe = probe
+	if _early.has("spawner"):
+		world.entity_spawner = _early["spawner"]
+		_early.erase("spawner")
+
+
+## shim: a world export written on this node after [method _ready] (tests set
+## [member graph] late) reaches the world channel it now feeds. [member probe]
+## is also this channel's own, for the skipped/before-apply observations.
+func _forward_to_world(property: StringName, value: Variant) -> void:
+	var world := world_sync()
+	if world != null:
+		world.set(property, value)
 
 
 func _on_attached() -> void:
@@ -372,7 +394,6 @@ func _on_attached() -> void:
 	link.link_refused.connect(link_refused.emit)
 	link.peer_cleared.connect(peer_cleared.emit)
 	link.peer_refused.connect(peer_refused.emit)
-	link.hello_accepted.connect(_on_hello_accepted)
 
 
 ## Every line this channel traces goes through the core's [signal
@@ -390,128 +411,50 @@ func announce_self() -> void:
 
 
 
-## Announce our world to a freshly-connected peer. Host-side; the client's reply
-## is a log line, not a handshake — with one exception, below.
-##
-## [b]The hello carries this peer's build stamp (#546), and a mismatch REFUSES
-## the link.[/b] That is the one thing here that negotiates, and it rides the
-## hello rather than a message of its own precisely so it cannot be forgotten:
-## the hello IS link establishment, so there is no way to bring a link up
-## without the check running. It is emphatically NOT a [Command] and must never
-## enter [method Command.to_dict] — a fixture at `test/fixtures/outcome/` is a
-## serialized command dict, and a per-checkout sha inside one would re-capture
-## every fixture on every commit.
+## The world channel on this link — [WorldSyncChannel] owns snapshot, setup,
+## entities and resync. Null only before the link is composed.
+func world_sync() -> WorldSyncChannel:
+	return link.channel_for(KIND_RESYNC) as WorldSyncChannel if link != null else null
+
+
+## shim: [method WorldSyncChannel.send_hello] — the hello's world half is the
+## world channel's. Every method below forwards the same way until its callers
+## re-point.
 func send_hello() -> void:
-	if transport == null or role != NetworkConfig.Role.HOST:
-		return
-	transport.send({
-		KEY_KIND: KIND_HELLO,
-		KEY_BUILD: build_stamp,
-		KEY_FINGERPRINT: WorldFingerprint.compute(graph),
-		KEY_SUMMARY: WorldFingerprint.describe(graph),
-	})
+	var w := world_sync()
+	if w != null:
+		w.send_hello()
 
 
-## Send the whole graph to a freshly-connected peer (#527) — host-side, opt-in.
-## Not called from [method send_hello]: existing hello/fingerprint-only flows
-## (the multiplayer harness's rung 1, #532) must keep working for a client
-## that never wants a graph transferred to it. The receiving side handles
-## [constant KIND_SNAPSHOT] in [method _on_message_received] regardless of
-## `role` — decoding a snapshot is not a mirrored command, so it isn't gated
-## behind `NetworkConfig.Role.CLIENT` the way [method _on_remote_command] is.
 func send_graph_snapshot() -> void:
-	if transport == null or role != NetworkConfig.Role.HOST or graph == null:
-		return
-	transport.send({KEY_KIND: KIND_SNAPSHOT, KEY_SNAPSHOT: GraphSnapshot.encode(graph)})
-	_log("→ graph snapshot (%s)" % WorldFingerprint.describe(graph))
+	var w := world_sync()
+	if w != null:
+		w.send_graph_snapshot()
 
 
-## Send every entity's accumulated state to a freshly-connected peer (#560) —
-## host-side, opt-in, the sibling of [method send_graph_snapshot]. The peer
-## DECORATES the entities its roster (#528) already spawned; nothing here
-## spawns or mints an id. Send order does not matter: the receive side runs
-## [method EntitySnapshot.decode] on arrival and defers the entity->node pass
-## until a graph exists (see [method _on_entity_snapshot]).
 func send_entity_snapshot() -> void:
-	if transport == null or role != NetworkConfig.Role.HOST or graph == null:
-		return
-	transport.send({KEY_KIND: KIND_ENTITIES, KEY_ENTITIES: EntitySnapshot.encode(graph)})
-	_log("→ entity snapshot (%d entities)" % EntitySnapshot.entities_of(graph).size())
+	var w := world_sync()
+	if w != null:
+		w.send_entity_snapshot()
 
 
-## #561's backstop. Push the WHOLE world to every client, as a repair —
-## host-side, and the only thing that ever sends state on a desync verdict.
-##
-## Both halves ride one [constant KIND_RESYNC] envelope in the dependency order
-## #521 D5 settled and #560 established: entities decode first (pass 1 needs no
-## [SkillNode]), the graph next (its `owner_id` resolves through
-## [method Graph.get_by_entity_id]), and the entity->node references last. See
-## [constant KIND_RESYNC] for why it is one message rather than two.
-##
-## [b]It has no presentation semantics and must never acquire any[/b] (#521 D1).
-## No [Command] is submitted, so nothing this peer draws off
-## [signal CommandApplier.command_confirmed] — #525's camera director included —
-## fires. Nobody animates a repair.
 func send_resync(reason: String, is_join_world: bool = false) -> void:
-	if transport == null or role != NetworkConfig.Role.HOST or graph == null:
-		return
-	transport.send({
-		KEY_KIND: KIND_RESYNC,
-		KEY_ENTITIES: EntitySnapshot.encode(graph),
-		KEY_SNAPSHOT: GraphSnapshot.encode(graph),
-		KEY_SUMMARY: reason,
-		KEY_JOIN: is_join_world,
-	})
-	_log("⟳ RESYNC pushed — %s (%s)" % [reason, WorldFingerprint.describe(graph)])
-	resync_sent.emit(reason)
+	var w := world_sync()
+	if w != null:
+		w.send_resync(reason, is_join_world)
 
 
-## Client-side half of #521 D4: ask, do not reconstruct.
-##
-## Latched until the next boundary agrees. A verdict fires per applied command,
-## so an unrepairable divergence would otherwise beg for a full world snapshot
-## on every command for the rest of the run — turning a diagnostic into a flood
-## and hiding the very log line the verdict exists to print.
 func request_resync(reason: String, is_join_world: bool = false) -> void:
-	if transport == null or role != NetworkConfig.Role.CLIENT:
-		return
-	if _awaiting_resync:
-		return
-	_awaiting_resync = true
-	transport.send({
-		KEY_KIND: KIND_RESYNC_REQUEST,
-		KEY_SUMMARY: reason,
-		KEY_JOIN: is_join_world,
-	})
-	_log("↑ resync requested — %s" % reason)
+	var w := world_sync()
+	if w != null:
+		w.request_resync(reason, is_join_world)
 
 
-## The join's pull, asked AGAIN (2026-09-06). [method request_resync] latches
-## on [member _awaiting_resync] so a mid-run verdict cannot flood the host, but
-## a joining client with NO world has nothing to flood and nothing to lose: the
-## host answers each ask with a whole world (~40 KB on the shipped preset) and
-## [member _join_world_arrived] drops every answer after the first. So a peer
-## that has been waiting a while asks once more rather than trusting that its
-## first ask, or the host's push, survived whatever happened on the wire — the
-## one window a LAN exposes and loopback never did. A no-op once a join world
-## has landed.
 func renew_join_pull(reason: String) -> void:
-	if _join_world_arrived:
-		return
-	_awaiting_resync = false
-	request_resync(reason, true)
+	var w := world_sync()
+	if w != null:
+		w.renew_join_pull(reason)
 
-
-## Latched between asking for a repair and the next agreeing boundary. See
-## [method request_resync].
-var _awaiting_resync: bool = false
-
-
-## #715: consumed by the FIRST [constant KEY_JOIN]-flagged resync to arrive.
-## Never reset — a peer joins once per level, and a level that re-joins is a new
-## [CommandLink]. Read at [method _on_resync]'s guard, which is where the reason
-## it exists is written down.
-var _join_world_arrived: bool = false
 
 
 ## #667's drop-until-resync latch. A joining CLIENT opens its socket BEFORE it
@@ -578,102 +521,13 @@ var defer_until_resync: bool:
 const DEFERRED_KINDS: Array[String] = [KIND_COMMAND, KIND_LOOT_OFFER, KIND_SEAT_HANDOVER]
 
 
-## #561 receive side, host-only. A client asking is treated exactly as the
-## host's own verdict would be — one push, same payload.
-func _on_resync_request(payload: Dictionary) -> void:
-	if role != NetworkConfig.Role.HOST:
-		return
-	var reason := String(payload.get(KEY_SUMMARY, "peer asked"))
-	_log("↓ resync requested by peer — %s" % reason)
-	# The join flag rides the request through, so the answer is recognisable as
-	# the join's world on the way back down (#715). See [constant KEY_JOIN].
-	send_resync(reason, bool(payload.get(KEY_JOIN, false)))
 
 
-## #561 receive side, client-only — a host must never apply a repair, which is
-## what the [constant NetworkConfig.Role.CLIENT] gate here says out loud.
-##
-## The three calls below are [method EntitySnapshot.decode] ->
-## [method GraphSnapshot.decode] -> [method EntitySnapshot.resolve_graph_refs],
-## the join's own order with no parking step, because both halves arrived
-## together. Every one of them reconciles rather than rebuilds (#561 D6), so
-## the graph this decodes into being POPULATED is the ordinary case, not the
-## dangerous one: an entity's [method Entity.initialize] signal wiring, its
-## [Stat] instances and every [EffectInstance] handle survive, and a world that
-## never actually drifted comes out untouched.
-func _on_resync(payload: Dictionary) -> void:
-	if role != NetworkConfig.Role.CLIENT or graph == null:
-		return
-	var entity_bytes: PackedByteArray = payload.get(KEY_ENTITIES, PackedByteArray())
-	var graph_bytes: PackedByteArray = payload.get(KEY_SNAPSHOT, PackedByteArray())
-	var reason := String(payload.get(KEY_SUMMARY, ""))
-	if graph_bytes.is_empty():
-		# `GraphSnapshot._unpack` reads a 4-byte size header off the front, so
-		# an empty payload is not a no-op there — it is a decode error.
-		_log("← resync with no graph half, dropped")
-		return
-	var is_join_world := bool(payload.get(KEY_JOIN, false))
-	if is_join_world and _join_world_arrived:
-		# The join race's loser (#715). Both legs — the host's push and the
-		# answer to this peer's pull — carry a WHOLE world, and one of them is
-		# redundant by construction. Dropping the second is not merely an
-		# optimisation: applying it would re-run the decode against a graph the
-		# first leg populated, re-emit [signal resync_applied] (whose GameRoot
-		# handler re-derives seat vision and controllers) and re-enter
-		# [member entity_spawner] for every materialised blocker.
-		#
-		# Safe because the transport is ONE ordered reliable channel: everything
-		# the host sent between the two encodes has already been received and —
-		# the first leg having cleared [member defer_until_resync] — applied. So
-		# this peer's world is ALREADY the world this payload describes, in the
-		# parts a fingerprint folds and the parts it does not (tags, effects).
-		#
-		# Scoped to the flag, never to "a world is present": a mid-run repair
-		# (#521/#560/#561) carries no join flag and must always apply, including
-		# the case where it repairs state the fingerprint fold cannot see —
-		# which is why this is a flag and not a fingerprint compare.
-		_log("← join world already applied, dropped — %s" % reason)
-		return
-	EntitySnapshot.decode(entity_bytes, graph, entity_spawner)
-	GraphSnapshot.decode(graph_bytes, graph)
-	EntitySnapshot.resolve_graph_refs(entity_bytes, graph, entity_spawner)
-	# LAST, and it is a fourth step rather than part of the graph half: HP is a
-	# POOL and a pool clamps to a cap the owner's board decides, so it can only be
-	# restored once that board is whole — which pass 2 above is what finishes.
-	# See [method GraphSnapshot.restore_hp].
-	GraphSnapshot.restore_hp(graph_bytes, graph)
-	# FIFTH, and after the HP for the same reason the HP is after pass 2: the
-	# cursor's [signal TurnManager.turn_started] reaches the HUD, and a banner
-	# raised over a half-restored world is the same class of bug one step later.
-	EntitySnapshot.restore_turn_cursor(entity_bytes, graph, turn_manager)
-	# Cleared here, not on the next verdict: the repair has landed, and the very
-	# next compare is the one that says whether it worked.
-	_awaiting_resync = false
-	# #667: and the world this peer was missing is now the host's, so the drop
-	# window is over. Same line for the same reason — the repair HAS landed.
-	link.defer_until_world = false
-	if is_join_world:
-		_join_world_arrived = true
-	_log("⟳ resync applied — %s (%s)" % [reason, WorldFingerprint.describe(graph)])
-	resync_applied.emit(reason)
-
-
-## Send the run's shape to a freshly-connected peer (#528) — host-side,
-## opt-in, same additive shape as [method send_graph_snapshot]. [param config]
-## and [param roster] cross BY VALUE ([method RunConfig.to_dict] /
-## [method ParticipantRoster.to_dict]); the receiving peer decodes and hands
-## both to [method GameSession.apply_received], which does NOT re-resolve the
-## seed — it already is the host's resolved value.
+## shim: see [method WorldSyncChannel.send_run_setup].
 func send_run_setup(config: RunConfig, roster: ParticipantRoster) -> void:
-	if transport == null or role != NetworkConfig.Role.HOST or config == null:
-		return
-	transport.send({
-		KEY_KIND: KIND_SETUP,
-		KEY_CONFIG: config.to_dict(),
-		KEY_ROSTER: (roster.to_dict() if roster != null else {"participants": []}),
-	})
-	_log("→ run setup (seed %d, %d participants)" %
-			[config.seed, roster.all().size() if roster != null else 0])
+	var w := world_sync()
+	if w != null:
+		w.send_run_setup(config, roster)
 
 
 ## shim: the lobby protocol is [LobbyChannel]'s; this sender stays only for a
@@ -875,7 +729,7 @@ func _on_refusal(payload: Dictionary) -> void:
 ## Every kind this link still carries until the world-sync, loot-offer and
 ## command channels split it (the core owns hello/refused; the lobby its own).
 func kinds() -> Array[String]:
-	return [KIND_COMMAND, KIND_SNAPSHOT, KIND_SETUP, KIND_ENTITIES, KIND_RESYNC, KIND_RESYNC_REQUEST, KIND_INTENT, KIND_REFUSAL, KIND_LOOT_OFFER, KIND_SEAT_HANDOVER]
+	return [KIND_COMMAND, KIND_INTENT, KIND_REFUSAL, KIND_LOOT_OFFER, KIND_SEAT_HANDOVER]
 
 
 ## Only [constant DEFERRED_KINDS] wait for a world; the rest are how one arrives.
@@ -887,16 +741,6 @@ func receive(kind: String, payload: Dictionary) -> void:
 	match kind:
 		KIND_COMMAND:
 			_on_remote_command(payload)
-		KIND_SNAPSHOT:
-			_on_graph_snapshot(payload)
-		KIND_SETUP:
-			_on_run_setup(payload)
-		KIND_ENTITIES:
-			_on_entity_snapshot(payload)
-		KIND_RESYNC:
-			_on_resync(payload)
-		KIND_RESYNC_REQUEST:
-			_on_resync_request(payload)
 		KIND_INTENT:
 			_on_intent(payload)
 		KIND_REFUSAL:
@@ -907,84 +751,20 @@ func receive(kind: String, payload: Dictionary) -> void:
 			_on_seat_handover(payload)
 
 
-## #527 receive side. Decodes straight into [member graph]. The join flow (a
-## lobby, #531) still hands this link an empty graph, but that is now a
-## convention rather than a requirement: since #561 [method GraphSnapshot.decode]
-## RECONCILES, so decoding into a populated graph is well-defined — it is what
-## the resync backstop does on every repair.
-func _on_graph_snapshot(payload: Dictionary) -> void:
-	var bytes: PackedByteArray = payload.get(KEY_SNAPSHOT, PackedByteArray())
-	if graph == null or bytes.is_empty():
-		return
-	GraphSnapshot.decode(bytes, graph)
-	# #560 pass 2: an entity snapshot that landed first parked its bytes here
-	# because `core_location` and node-sourced effects need nodes to resolve
-	# against. Now they exist.
-	_drain_pending_entities()
-	_log("← graph snapshot (%s)" % WorldFingerprint.describe(graph))
+## shim: the world's legs are [WorldSyncChannel]'s; forwarded until the callers
+## (GameRoot, the out-of-fence tests) re-point. Early writes are held until the
+## channel is found.
+var entity_spawner: Callable:
+	get:
+		var w := world_sync()
+		return w.entity_spawner if w != null else _early.get("spawner", Callable())
+	set(value):
+		var w := world_sync()
+		if w != null:
+			w.entity_spawner = value
+		else:
+			_early["spawner"] = value
 
-
-## #528 receive side. Decodes [RunConfig] + [ParticipantRoster] and hands both
-## to [method GameSession.apply_received] — the seed is NOT re-resolved here,
-## it rides the wire as the host's already-resolved value.
-func _on_run_setup(payload: Dictionary) -> void:
-	var config := RunConfig.from_dict(payload.get(KEY_CONFIG, {}))
-	var roster := ParticipantRoster.from_dict(payload.get(KEY_ROSTER, {}))
-	GameSession.apply_received(config, roster)
-	_log("← run setup (seed %d, %d participants)" % [config.seed, roster.all().size()])
-
-
-## #560 receive side. [method EntitySnapshot.decode] is pass 1 — identity,
-## entity-wide effects, and the whole stat board, none of which needs a
-## [SkillNode]. Pass 2 (`core_location`, node-sourced effects) needs the graph,
-## so it runs immediately if one has already arrived and is otherwise parked
-## for [method _on_graph_snapshot] to drain. Both passes are idempotent, so
-## neither ordering loses anything.
-func _on_entity_snapshot(payload: Dictionary) -> void:
-	var bytes: PackedByteArray = payload.get(KEY_ENTITIES, PackedByteArray())
-	if graph == null or bytes.is_empty():
-		return
-	EntitySnapshot.decode(bytes, graph, entity_spawner)
-	_pending_entities = bytes
-	if not graph.get_skill_nodes().is_empty():
-		_drain_pending_entities()
-	_log("← entity snapshot (%d entities)" % EntitySnapshot.entities_of(graph).size())
-
-
-func _drain_pending_entities() -> void:
-	if _pending_entities.is_empty() or graph == null:
-		return
-	var bytes := _pending_entities
-	_pending_entities = PackedByteArray()
-	EntitySnapshot.resolve_graph_refs(bytes, graph, entity_spawner)
-	EntitySnapshot.restore_turn_cursor(bytes, graph, turn_manager)
-
-
-## An entity snapshot whose pass 2 is still waiting on a graph. Cleared the
-## moment it is drained, so a later graph snapshot cannot re-run it.
-var _pending_entities: PackedByteArray = PackedByteArray()
-
-
-## How an arriving snapshot builds an [Entity] this peer does not have (#715).
-##
-## Set by [GameRoot] to [method EntityFactory.spawn_snapshot_entity]; left unset a
-## missing row is skipped with a warning, exactly as before. It is a [Callable]
-## and not a subclass hook because the knowledge is the LEVEL's — what a blocker
-## is, which board its tier carries — and this class deliberately knows only
-## about rows. See [method EntitySnapshot._materialize] for why a joining client
-## needs it at all: since #715 it runs no procgen, so the entities procgen would
-## have spawned (one per removable blocker) arrive only here.
-var entity_spawner: Callable = Callable()
-
-
-## The core cleared the host's hello (build gate — [method NetworkLink._on_hello]);
-## its WORLD half is this channel's until the world-sync channel takes it.
-func _on_hello_accepted(payload: Dictionary) -> void:
-	var remote := int(payload.get(KEY_FINGERPRINT, 0))
-	var local := WorldFingerprint.compute(graph)
-	_log("host world: %s" % payload.get(KEY_SUMMARY, "?"))
-	_log("mine:       %s" % WorldFingerprint.describe(graph))
-	_report_sync(local, remote, "at link-up")
 
 
 ## shim: the build stamp moved to [NetworkLink]; removed when the callers re-point.
@@ -1057,76 +837,13 @@ func _on_remote_command(payload: Dictionary) -> void:
 	_log("← %s" % command.type_tag())
 
 
-## The divergence check, at the mirror's own [member Command.pre_fingerprint]
-## stamp (#756) — pre-state against pre-state, for EVERY command.
-##
-## [b]What moved, and why.[/b] This used to run in
-## [method _on_remote_command], on arrival, behind a `settled` guard: a command
-## that landed while the applier was mid-drain was compared against a world
-## sitting at no command's boundary, so it had to be skipped instead. Under
-## autoplay — and under any burst, which is what a real turn of an AI looks
-## like — nine commands in a row would arrive inside one drain and exactly one
-## of them was ever looked at. The count was honest (they were tallied
-## `skipped`) and useless: "the mirror diverged 3 times" could not say which
-## command diverged first, which is the only question a sync bug is debugged by.
-##
-## Here there is no such thing as an unsettled world. [method
-## CommandApplier._drain] pops one command, stamps the world it is about to
-## apply it to, and emits — the exact counterpart of the moment the host
-## stamped. Nothing is skipped, and the first `✗` names the first command that
-## actually disagreed.
-##
-## [b]CLIENT only.[/b] The authority's stamp IS the reference; comparing it
-## against itself would be a tautology, and every command it drains carries
-## [member Command.host_fingerprint] 0 anyway.
+## The unstamped half of the per-command check: a received command whose
+## envelope carried no host stamp is COUNTED, not dropped, or the probe's
+## denominator would lie ("0 diverged of 412" while 280 were looked at). The
+## compare itself is [method WorldSyncChannel._on_command_stamped]'s — it needs
+## no command channel; this half needs [member _applying_remote], which is ours.
 func _on_command_stamped(command: Command) -> void:
-	if role != NetworkConfig.Role.CLIENT or command == null:
+	if role != NetworkConfig.Role.CLIENT or command == null or command.host_fingerprint != 0:
 		return
-	if command.host_fingerprint == 0:
-		# A received command whose envelope carried no stamp — nothing to
-		# compare against. Counted, not dropped, or the probe's denominator
-		# would silently be a lie ("0 diverged of 412" while only 280 were ever
-		# looked at).
-		if probe != null and _applying_remote:
-			probe.observe_skipped(command)
-		return
-	var agrees := _report_sync(command.pre_fingerprint, command.host_fingerprint,
-			"before %s" % command.type_tag())
-	if probe != null:
-		probe.observe_world(command, agrees)
-
-
-## Returns the verdict as well as announcing it, so #529's probe can attribute
-## it to the command that produced it without re-deriving the comparison.
-func _report_sync(local: int, remote: int, when: String) -> bool:
-	var agrees := local == remote
-	sync_checked.emit(agrees, local, remote)
-	if agrees:
-		_log("  ✓ in sync %s (fp %d)" % [when, local])
-		# The repair landed and the next boundary agreed, so the client may ask
-		# again if it ever drifts a second time.
-		_awaiting_resync = false
-		return true
-	_log("  ✗ DIVERGED %s — mine %d, host %d" % [when, local, remote])
-	_heal_desync("%s (mine %d, host %d)" % [when, local, remote])
-	return false
-
-
-## #521 D3, both halves. The shout above is not optional and is not replaced by
-## the repair: a silent auto-heal would retire the "the client's number crept
-## wrong" bug class from the LOGS rather than from the code, which is exactly
-## what the #529/#532 harness ladder exists to prevent. `sync_checked` has
-## already fired by the time this runs, so a rung asserting on it still sees
-## the failure.
-##
-## [b]Only the authority sends state (#521 D4).[/b] A client that detects
-## disagreement asks; it never reconstructs, because a peer repairing itself
-## from its own wrong world is not a repair.
-func _heal_desync(reason: String) -> void:
-	match role:
-		NetworkConfig.Role.HOST:
-			send_resync(reason)
-		NetworkConfig.Role.CLIENT:
-			request_resync(reason)
-		_:
-			pass
+	if probe != null and _applying_remote:
+		probe.observe_skipped(command)
