@@ -52,6 +52,7 @@ mise run adr-hygiene     # frontmatter, supersede links, index coverage, immutab
 | [0028](0028-the-stat-pack-is-the-only-archetype-gate-with-one-universal-pack.md) | A procgen pool rolls where its StatPack says; `&""` on a pack is universal and exactly one pack (`universal.tres`) is | accepted | 2026-09-23 | procgen, content, authoring |
 | [0029](0029-related-stats-compose-through-parents-folded-at-read-and-every-stat-takes-every-bin.md) | Related stats compose through declared parents folded in as overlays at read; a quantity is one stat with every bin, never a flat stat plus a multiplier stat | accepted | 2026-09-28 | stats, architecture, authoring, balance, dot |
 | [0030](0030-parent-invalidation-propagates-through-the-board-wired-link-not-a-signal.md) | A parent stat invalidates its children through the board-wired link, never through its value_changed signal; parent edges order the batch flush | accepted | 2026-09-28 | stats, architecture, performance |
+| [0031](0031-status-resistance-filters-the-accumulated-row-at-effect-time-on-the-host.md) | Status resistance filters the accumulated float row on the host at each apply and tick, cancelling ⌈row × res − ½⌉ stacks; 100% blocks landing; never a per-hit scale at land | accepted | 2026-09-28 | combat, status, dot, balance, sync |
 
 ## Reading order
 
