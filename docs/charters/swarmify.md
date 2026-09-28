@@ -105,6 +105,11 @@ Numbered so the skill can be checked against them law by law.
 7. **An unsettleable fork keeps the issue in `Needs design`.** "Still blocked,
    here is why" is a valid outcome. Never promote an issue a drone will stall
    on.
+   The converse: a `Backlog` issue named in `/swarmify` is already picked up —
+   it goes straight to its landing lane, never via a `Needs design` hop, and
+   the move earns no comment. Owner, 2026-09-28: *"swarmifying a backlog
+   issue implicitly moves it to needs design; sometimes agents comment on it.
+   it's just: if it is to be swarmified we *are* picking it up"*.
 8. **A dependency is recorded, not disqualifying.** Cross-issue dependencies
    go in as `gh` `--blocked-by` relations *and* in the spec prose; the
    orchestrator sequences them. Only a dependency on a decision nobody has

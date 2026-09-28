@@ -333,6 +333,10 @@ and a milestone, in one breath. The **milestone is a default, not a
 question** — the live one (`mise gh-project -- roadmap`) or the parent's,
 stated in the spec.
 
+A `Backlog` issue named in `/swarmify` is picked up by being named: it goes
+straight to `Ready` (or `Needs design` if a fork stays open), with no
+intermediate move and no comment about leaving `Backlog`.
+
 You do not run the board calls. Write a manifest next to the spec files —
 its shape is in `.claude/agents/clerk.md`; the gist:
 
