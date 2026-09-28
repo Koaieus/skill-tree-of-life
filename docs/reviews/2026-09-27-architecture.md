@@ -139,6 +139,8 @@ nearly every wiring decision carrying a *why*.
   doc), `ai_decision` (test-only), `turn_started` emitted on both `TurnManager`
   and the bus with split consumers.
 - Order-dependent `entity_dying` listeners (`LootSystem`, `BattleSystem`).
+  *Corrected 2026-09-28:* not order-dependent. Both handlers only read the
+  pre-strip corpse, and the dying→died phases already sequence them.
 - The input controller's denial-reason ladder hand-mirrors the extract gate
   order (`player_input_controller.gd:457-510`).
 - Code-composed ghost labels in the input controller (1211-1236); #721, #442
@@ -152,6 +154,8 @@ nearly every wiring decision carrying a *why*.
 **Performance**
 - Every `SkillNode` connects to the bus's `turn_started`
   (`skill_node.gd:1415`): one tick runs 800 handlers. #1110.
+  *Corrected 2026-09-28:* stale since #879. A node subscribes only while it
+  holds a status. #1137 retires the bus signal outright.
 - Per-frame processing is gated (node visuals, vision lerp); no non-procgen
   source iterates the whole graph per frame. Good.
 - Melee resolve coupled to the physics tick; a geometry-only zone query (the
