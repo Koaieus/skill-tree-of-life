@@ -395,7 +395,7 @@ func _drive_lobby_from_cmdline() -> void:
 ##
 ## [b]This used to be one deferred hop, and #716 made that too short.[/b] The hop
 ## was enough while the host stamped the waiting seat on the bare join; since
-## #716 it stamps on [signal CommandLink.peer_cleared], once the build-gate hello
+## #716 it stamps on [signal NetworkLink.peer_cleared], once the build-gate hello
 ## has round-tripped, which is a network hop rather than a frame. START fired in
 ## between: the broadcast roster still carried [constant LobbyScreen._PENDING_PEER_ID],
 ## the joiner found no row with its own id, and its level came up with no seated
