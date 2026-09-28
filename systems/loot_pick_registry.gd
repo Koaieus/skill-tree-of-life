@@ -39,7 +39,7 @@ extends Node
 ## offer_received] hands it to [LootSystem].
 ##
 ## [b]The upward channel and the roster correlation both exist now (#564).[/b]
-## The intent channel (#548: [CommandLink] `MIRROR` sends,
+## The intent channel (#548: [CommandChannel] sends intents up,
 ## [method CommandApplier._submit_upward] routes a [PickLootCommand] there) and
 ## the roster CAN say which peer a participant sits at
 ## ([member Participant.peer_id], [method Participant.is_local] — never
@@ -61,7 +61,7 @@ extends Node
 ## [method CommandApplier.submit] routes [PickLootCommand] there rather than
 ## enqueueing it.
 
-## A request was parked for a REMOTE collector (#646) — [CommandLink] listens
+## A request was parked for a REMOTE collector (#646) — [LootOfferChannel] listens
 ## for this to send the matching [LootPickOffer] to the one peer that owes the
 ## answer ([method peer_for]). Fired from [method park] itself rather than by the caller,
 ## so nothing can park a request and forget to announce it.

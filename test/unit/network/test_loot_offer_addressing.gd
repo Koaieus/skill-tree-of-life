@@ -1,4 +1,5 @@
 extends GutTest
+const _Rig := preload("res://test/fixtures/link_rig.gd")
 
 ## #1176 — a parked loot pick's [LootPickOffer] is ADDRESSED to the peer that
 ## seats the collector's human ([method LootPickRegistry.peer_for]), never
@@ -52,14 +53,11 @@ func test_offer_reaches_the_collectors_peer_only() -> void:
 	registry.local_peer_id = host_end.my_peer_id
 	add_child_autofree(registry)
 
-	var link := CommandLink.new()
-	link.transport = host_end
-	link.role = NetworkConfig.Role.HOST
-	add_child_autofree(link)
+	var link: NetworkLink = _Rig.compose(self, host_end, null, NetworkConfig.Role.HOST)
 	var offer_channel := LootOfferChannel.new()
 	offer_channel.loot_pick_registry = registry
 	add_child_autofree(offer_channel)
-	link.link.register(offer_channel)
+	link.register(offer_channel)
 
 	var at_collector := _loot_offers_on(collector_end)
 	var at_bystander := _loot_offers_on(bystander_end)
@@ -83,14 +81,11 @@ func test_offer_for_the_other_human_follows_them() -> void:
 	registry.roster = _roster()
 	registry.local_peer_id = host_end.my_peer_id
 	add_child_autofree(registry)
-	var link := CommandLink.new()
-	link.transport = host_end
-	link.role = NetworkConfig.Role.HOST
-	add_child_autofree(link)
+	var link: NetworkLink = _Rig.compose(self, host_end, null, NetworkConfig.Role.HOST)
 	var offer_channel := LootOfferChannel.new()
 	offer_channel.loot_pick_registry = registry
 	add_child_autofree(offer_channel)
-	link.link.register(offer_channel)
+	link.register(offer_channel)
 
 	var at_pair_client := _loot_offers_on(ends[1])
 	var at_attached := _loot_offers_on(bystander_end)

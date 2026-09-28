@@ -10,7 +10,7 @@ extends Node
 ## and the presets' `include_filter` packs — so a shipped build knows its own
 ## sha even though it has no repository.
 ##
-## That second source is not cosmetic: [CommandLink] builds its #546 hello
+## That second source is not cosmetic: [NetworkLink] builds its #546 hello
 ## stamp straight off this autoload, and that gate compares shas. With no
 ## stamp, two DIFFERENT exported builds both announce an empty sha, compare
 ## equal, and go on to desync — the exact silent failure #546 exists to kill.

@@ -24,7 +24,6 @@ func before_each() -> void:
 
 	var core := NetworkLink.new()
 	core.transport = pair[1]
-	core.command_applier = _applier
 	_sync = WorldSyncChannel.new()
 	_sync.command_applier = _applier
 	core.channels = [_sync] as Array[LinkChannel]
@@ -37,7 +36,7 @@ func before_each() -> void:
 
 func test_no_command_channel_is_mounted() -> void:
 	for node in get_children():
-		assert_false(node is CommandLink, "the pin is void if a CommandLink rides along")
+		assert_false(node is CommandChannel, "the pin is void if a CommandChannel rides along")
 
 
 func test_a_stamped_divergence_is_healed_without_a_command_channel() -> void:

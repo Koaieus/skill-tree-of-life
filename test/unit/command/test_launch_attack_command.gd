@@ -114,7 +114,7 @@ func test_launch_attack_routes_through_the_applier() -> void:
 
 
 func test_the_confirmed_command_carries_the_record_out() -> void:
-	# CommandLink encodes on `command_confirmed`, and since #545 the record is
+	# CommandChannel encodes on `command_confirmed`, and since #545 the record is
 	# stamped by `_validate` — so the record rides out with the broadcast for
 	# free. If this ever went empty, every peer would silently receive an
 	# initiate. (`test_melee_launch_lifecycle.gd` pins the other half: that this

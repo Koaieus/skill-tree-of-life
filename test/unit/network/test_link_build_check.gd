@@ -33,7 +33,7 @@ func before_each() -> void:
 
 
 ## No [CommandApplier] and no [Graph]: every assertion here is about the
-## handshake, and [method CommandLink.send_hello] tolerates a null graph
+## handshake, and [method WorldSyncChannel.send_hello] tolerates a null graph
 ## ([method WorldFingerprint.compute] folds nothing).
 func _make_link(transport: NetworkTransport, mode: NetworkConfig.Role,
 		sink: PackedStringArray) -> CommandLink:
@@ -47,9 +47,9 @@ func _make_link(transport: NetworkTransport, mode: NetworkConfig.Role,
 
 func _stamp(sha: String, branch: String = "master", worktree: String = "") -> Dictionary:
 	return {
-		CommandLink.BUILD_SHA: sha,
-		CommandLink.BUILD_BRANCH: branch,
-		CommandLink.BUILD_WORKTREE: worktree,
+		NetworkLink.BUILD_SHA: sha,
+		NetworkLink.BUILD_BRANCH: branch,
+		NetworkLink.BUILD_WORKTREE: worktree,
 	}
 
 
@@ -76,7 +76,7 @@ func test_matching_builds_link_normally() -> void:
 func test_a_real_process_stamps_itself_and_agrees_with_itself() -> void:
 	assert_eq(_host.build_stamp, _client.build_stamp,
 			"one process's two links must announce the same build")
-	assert_eq(_host.build_stamp.get(CommandLink.BUILD_SHA), BuildInfo.short_sha)
+	assert_eq(_host.build_stamp.get(NetworkLink.BUILD_SHA), BuildInfo.short_sha)
 
 
 func test_mismatched_sha_refuses_and_both_ends_name_the_other_build() -> void:
@@ -120,9 +120,9 @@ func test_a_host_told_of_a_refusal_still_applies_nothing_from_that_peer() -> voi
 	_host_lines.clear()
 
 	_host.transport.message_received.emit({
-		CommandLink.KEY_KIND: CommandLink.KIND_COMMAND,
-		CommandLink.KEY_COMMAND: {},
-		CommandLink.KEY_FINGERPRINT: 0,
+		NetworkLink.KEY_KIND: CommandChannel.KIND_COMMAND,
+		CommandChannel.KEY_COMMAND: {},
+		CommandChannel.KEY_FINGERPRINT: 0,
 	})
 
 	assert_eq(_joined(_host_lines), "", "a BROADCAST link must not mirror")
@@ -154,9 +154,9 @@ func test_a_hello_with_no_build_stamp_is_refused() -> void:
 
 	# What a pre-#546 host puts on the wire, verbatim.
 	_client.transport.message_received.emit({
-		CommandLink.KEY_KIND: CommandLink.KIND_HELLO,
-		CommandLink.KEY_FINGERPRINT: 0,
-		CommandLink.KEY_SUMMARY: "0 nodes",
+		NetworkLink.KEY_KIND: NetworkLink.KIND_HELLO,
+		CommandChannel.KEY_FINGERPRINT: 0,
+		NetworkLink.KEY_SUMMARY: "0 nodes",
 	})
 
 	var client_log := _joined(_client_lines)
@@ -192,9 +192,9 @@ func test_a_refused_client_applies_nothing_afterwards() -> void:
 	# send would be dropped by the transport rather than by the gate, and this
 	# test would pass for the wrong reason.
 	_client.transport.message_received.emit({
-		CommandLink.KEY_KIND: CommandLink.KIND_COMMAND,
-		CommandLink.KEY_COMMAND: {},
-		CommandLink.KEY_FINGERPRINT: 0,
+		NetworkLink.KEY_KIND: CommandChannel.KIND_COMMAND,
+		CommandChannel.KEY_COMMAND: {},
+		CommandChannel.KEY_FINGERPRINT: 0,
 	})
 
 	assert_eq(_joined(_client_lines), "", "a refused link must not log an apply")

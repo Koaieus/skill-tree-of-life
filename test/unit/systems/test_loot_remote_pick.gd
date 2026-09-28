@@ -15,6 +15,7 @@ extends GutTest
 ## than hand-building a [PickLootCommand] directly the way the #646 tests do.
 
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
+const _Rig := preload("res://test/fixtures/link_rig.gd")
 const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _BOARD := preload("res://entity/default_entity_board.tres")
 
@@ -84,22 +85,17 @@ func _receiver() -> LootPickRegistry:
 
 
 ## #1179: the loot-offer leg rides its own [LootOfferChannel] now, registered
-## onto the same core [CommandLink] composes for itself in [method Node._ready]
-## — [member LinkChannel.link] is that core.
+## onto the same [NetworkLink] core `test/fixtures/link_rig.gd` composes with
+## the world and command channels — the level's shape.
 func _link(applier: CommandApplier, graph: Graph, transport: NetworkTransport,
-		mode: NetworkConfig.Role, registry: LootPickRegistry = null) -> CommandLink:
-	var link := CommandLink.new()
-	link.transport = transport
-	link.command_applier = applier
-	link.graph = graph
-	link.role = mode
-	add_child_autofree(link)
+		mode: NetworkConfig.Role, registry: LootPickRegistry = null) -> NetworkLink:
+	var link: NetworkLink = _Rig.compose(self, transport, applier, mode, graph)
 	if registry != null:
 		registry.graph = graph
 	var offer := LootOfferChannel.new()
 	offer.loot_pick_registry = registry
 	add_child_autofree(offer)
-	link.link.register(offer)
+	link.register(offer)
 	return link
 
 

@@ -8,7 +8,7 @@ extends Node
 ## lockstep + snapshot recovery.
 ##
 ## [b]It mutates nothing and changes nothing about what the client applies.[/b]
-## [CommandLink] still submits the host's version through the same
+## [CommandChannel] still submits the host's version through the same
 ## [CommandApplier]; this only watches, tallies, and prints. It is
 ## [member enabled]-gated and OFF by default, so a normal run pays one branch
 ## per command.
@@ -28,13 +28,13 @@ extends Node
 ##      was added 2026-08-24 and it is the one the model decision actually
 ##      turns on — see [constant LAND_KEYS].
 ##   3. [b]WORLD[/b] — after applying, do the two worlds agree? That is
-##      [method WorldFingerprint.compute], which [CommandLink] already
+##      [method WorldFingerprint.compute], which [WorldSyncChannel] already
 ##      compares; the probe only attributes each verdict to the command type
 ##      that produced it, because "3 mismatches out of 412, all launch_attack"
 ##      is the useful output and a single boolean is not.
 ##
 ## [b]The denominator is reported, not assumed.[/b] [method
-## CommandLink._on_remote_command] deliberately SKIPS the fingerprint compare
+## CommandChannel._on_remote_command] deliberately SKIPS the fingerprint compare
 ## while the queue is non-empty or a newer command has superseded it (a
 ## spurious ✗ poisons the only diagnostic the harness has). Those commands are
 ## tallied as `skipped`, not silently dropped from the count — a clean
@@ -147,7 +147,7 @@ signal logged(line: String)
 @export var enabled: bool = false
 
 ## Needed to rebuild a received [AttackPlan] and to re-encode the outcome it
-## resolves to. The same graph [CommandLink] holds; wired by the scene.
+## resolves to. The same graph [WorldSyncChannel] holds; wired by the scene.
 @export var graph: Graph
 
 ## tag -> {"agreed": int, "diverged": int, "skipped": int, "exempt": int}
@@ -253,7 +253,7 @@ func observe_before_apply(command: Command, world_settled: bool = true) -> void:
 	_note("probe: ✗ launch_attack LAND diverged on %s" % ", ".join(land_diverging))
 
 
-## [CommandLink]'s post-apply fingerprint verdict, attributed to the command
+## [WorldSyncChannel]'s per-command fingerprint verdict, attributed to the command
 ## that produced it.
 func observe_world(command: Command, agrees: bool) -> void:
 	if not enabled or command == null:
@@ -265,7 +265,7 @@ func observe_world(command: Command, agrees: bool) -> void:
 	_bump(_world, tag, "agreed" if agrees else "diverged")
 
 
-## [CommandLink] chose not to compare this one — a command still in the queue,
+## [CommandChannel] chose not to compare this one — a command still in the queue,
 ## or superseded by a newer arrival. Counted so the denominator is honest.
 func observe_skipped(command: Command) -> void:
 	if not enabled or command == null:
@@ -401,7 +401,7 @@ func report() -> String:
 	lines.append("  `ok(uns)` / `div(uns)` are verdicts taken while an earlier command was")
 	lines.append("  still draining, i.e. against a world that had not settled. They are NOT")
 	lines.append("  evidence in either direction and are bucketed apart for that reason.")
-	lines.append("  `skipped` is a command CommandLink chose not to compare (queue")
+	lines.append("  `skipped` is a command CommandChannel chose not to compare (queue")
 	lines.append("  non-empty), not a pass. `landings` is a column's real size — an attack")
 	lines.append("  that resolved to nothing agrees trivially and proves nothing.")
 	lines.append("  `deferred` (RESOLVE) is that column's unsettled count, annotated rather")

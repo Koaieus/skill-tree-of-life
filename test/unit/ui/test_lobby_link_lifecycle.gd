@@ -71,9 +71,9 @@ func _join(transport: LoopbackTransport) -> void:
 ## is how every other build-gate fixture stages this without two checkouts.
 static func _mismatch(lobby: LobbyScreen) -> void:
 	lobby._link.build_stamp = {
-		CommandLink.BUILD_SHA: "54cfcd7",
-		CommandLink.BUILD_BRANCH: "master",
-		CommandLink.BUILD_WORKTREE: "issue-716",
+		NetworkLink.BUILD_SHA: "54cfcd7",
+		NetworkLink.BUILD_BRANCH: "master",
+		NetworkLink.BUILD_WORKTREE: "issue-716",
 	}
 
 
@@ -159,7 +159,7 @@ func test_clearing_the_gate_unblocks_start() -> void:
 
 
 ## A refused peer is disconnected as part of being refused ([method
-## CommandLink._refuse_peer]) — the window it opened at `peer_joined` must
+## NetworkLink.refuse_peer]) — the window it opened at `peer_joined` must
 ## close with it rather than leaving START stuck refused for a connection that
 ## no longer exists.
 func test_a_refused_peer_unblocks_start_too() -> void:

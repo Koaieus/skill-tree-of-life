@@ -87,7 +87,7 @@ func test_missing_git_dir_yields_empty_non_dev_result() -> void:
 
 
 ## The export-time fallback (`mise run build` writes this; the presets pack it).
-## It is what lets [CommandLink]'s #546 gate compare real shas between two
+## It is what lets [NetworkLink]'s #546 gate compare real shas between two
 ## exported builds instead of two empty strings.
 func test_stamp_file_is_read_when_present() -> void:
 	var path := _fixture_root.path_join("build_stamp.cfg")

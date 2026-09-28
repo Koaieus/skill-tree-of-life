@@ -26,7 +26,7 @@ extends Resource
 ## [b][member world_fingerprint_at_capture] is NOT #540's `pre_fingerprint`.[/b]
 ## Same idea, different lifetime and different owner. #540's is transient
 ## applier state stamped per command at `_drain` time and sent in
-## [CommandLink]'s envelope; it is explicitly never serialized into
+## [CommandChannel]'s envelope; it is explicitly never serialized into
 ## `Command.to_dict()`, precisely so it cannot invalidate the fixtures this
 ## class commits. This field is authored once, at capture, and lives only here.
 

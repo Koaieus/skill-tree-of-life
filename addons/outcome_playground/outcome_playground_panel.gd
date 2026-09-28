@@ -15,7 +15,7 @@ extends PanelContainer
 ## attack as the authority and keeps the command it stamped its record onto;
 ## Replay ▶ pushes that same dictionary, through `var_to_bytes` and
 ## [CommandCodec], into this world's own [CommandApplier] with **no
-## [CommandLink] attached**. That is byte-for-byte the peer path, which is what
+## [CommandChannel] attached**. That is byte-for-byte the peer path, which is what
 ## makes this a proof rather than a demo.
 ##
 ## [b]Recorded outcomes only.[/b] Authoring an [AttackOutcome] by hand is a

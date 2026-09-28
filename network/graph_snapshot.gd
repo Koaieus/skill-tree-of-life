@@ -185,9 +185,9 @@ static func decode(bytes: PackedByteArray, graph: Graph) -> void:
 ## walks apart a fraction of an HP at a time. On a joining client the first
 ## missing node is its own core.
 ##
-## Here rather than in [CommandLink] because it belongs to the write that broke
+## Here rather than in [WorldSyncChannel] because it belongs to the write that broke
 ## it: every caller of [method decode] — the join, the resync, the standalone
-## [constant CommandLink.KIND_SNAPSHOT] leg — needs it, and none of them should
+## [constant WorldSyncChannel.KIND_SNAPSHOT] leg — needs it, and none of them should
 ## have to remember.
 ##
 ## [method Navigator]'s full-graph mirror needs nothing: it mirrors every node

@@ -5,7 +5,7 @@ extends GutTest
 ## continues, AND the verdict still shouts (#521 D3, both halves).
 ##
 ## [b]The fixture is two worlds in one process[/b], the same arrangement — and
-## the same TurnManager-group caveat — `test/unit/network/test_command_link.gd`
+## the same TurnManager-group caveat — `test/unit/network/test_command_channel.gd`
 ## documents at length. Nothing here kills anything, so none of the process-global
 ## death/loot listeners cross-wire.
 ##
@@ -16,13 +16,14 @@ extends GutTest
 ## drifted is never repaired at all (acceptance 3).
 
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
+const _Rig := preload("res://test/fixtures/link_rig.gd")
 const _BOARD := preload("res://entity/default_entity_board.tres")
 const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 
 var _host: Dictionary
 var _client: Dictionary
-var _host_link: CommandLink
-var _client_link: CommandLink
+var _host_link: NetworkLink
+var _client_link: NetworkLink
 var _host_sync: WorldSyncChannel
 var _client_sync: WorldSyncChannel
 
@@ -35,28 +36,15 @@ func before_each() -> void:
 	add_child_autofree(pair[1])
 	_host_link = _make_link(_host, pair[0], NetworkConfig.Role.HOST)
 	_client_link = _make_link(_client, pair[1], NetworkConfig.Role.CLIENT)
-	_host_sync = _host_link.link.channel_for(WorldSyncChannel.KIND_RESYNC)
-	_client_sync = _client_link.link.channel_for(WorldSyncChannel.KIND_RESYNC)
+	_host_sync = _host_link.channel_for(WorldSyncChannel.KIND_RESYNC)
+	_client_sync = _client_link.channel_for(WorldSyncChannel.KIND_RESYNC)
 
 
 ## The level's composition: a core with the world channel and the command
 ## channel on it. The backstop is the world channel's; commands still cross so
 ## a green run has something to compare.
-func _make_link(world: Dictionary, transport: NetworkTransport, mode: NetworkConfig.Role) -> CommandLink:
-	var core := NetworkLink.new()
-	core.transport = transport
-	core.command_applier = world["applier"]
-	var sync := WorldSyncChannel.new()
-	sync.graph = world["graph"]
-	sync.command_applier = world["applier"]
-	var link := CommandLink.new()
-	link.command_applier = world["applier"]
-	core.channels = [sync, link] as Array[LinkChannel]
-	add_child_autofree(core)
-	add_child_autofree(sync)
-	add_child_autofree(link)
-	core.role = mode
-	return link
+func _make_link(world: Dictionary, transport: NetworkTransport, mode: NetworkConfig.Role) -> NetworkLink:
+	return _Rig.compose(self, transport, world["applier"], mode, world["graph"])
 
 
 ## One self-contained world: four nodes in a path, a player holding A.
@@ -89,7 +77,7 @@ func _build_world(label: String) -> Dictionary:
 	player.display_name = "Player_%s" % label
 	player.stat_board = _BOARD.duplicate(true) as EntityStatBoard
 	# Each world's entity must bind to ITS OWN TurnManager — the lookup is
-	# tree-wide. See test_command_link.gd's class docstring.
+	# tree-wide. See test_command_channel.gd's class docstring.
 	var hidden: Array[Node] = []
 	for other in get_tree().get_nodes_in_group(TurnManager.GROUP):
 		if other != tm:

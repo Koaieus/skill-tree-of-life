@@ -1,6 +1,6 @@
 class_name LootOfferChannel
 extends LinkChannel
-## #646's downward offer, split off [CommandLink] (#1179): "show this collector
+## #646's downward offer, split off the old command link (#1179): "show this collector
 ## a pick screen, here is the draw" ([LootPickOffer]). NOT a [Command]: it
 ## mutates nothing on arrival, so it never touches [CommandApplier] at all.
 ## Rides [signal LootPickRegistry.offer_parked], host-side only —

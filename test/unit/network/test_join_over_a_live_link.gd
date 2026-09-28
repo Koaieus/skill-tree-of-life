@@ -8,7 +8,7 @@ extends GutTest
 ##    is the primary path, and populated is a mid-run desync repair
 ##    (#521/#560/#561). They exercise different halves of
 ##    [method EntitySnapshot.resolve_graph_refs] — on an empty graph
-##    [CommandLink] parks pass 2 and drains it when the nodes land; on a
+##    [WorldSyncChannel] parks pass 2 and drains it when the nodes land; on a
 ##    populated one it runs straight through — so a change that fixes one and
 ##    breaks the other is exactly what this pins.
 ## 2. [b]A snapshot may rebuild an entity the roster never named[/b] — the
@@ -80,7 +80,7 @@ func test_the_world_decodes_onto_an_empty_graph_with_refs_resolved() -> void:
 	var entity_bytes := EntitySnapshot.encode(source)
 	var graph_bytes := GraphSnapshot.encode(source)
 	# The resync's own order, and the order that serves BOTH shapes. HP restores
-	# LAST, as a fourth step (see CommandLink._apply_snapshot / GraphSnapshot.restore_hp)
+	# LAST, as a fourth step (see WorldSyncChannel._apply_snapshot / GraphSnapshot.restore_hp)
 	# — a pool clamps to a cap the owner's board decides, so it can only be
 	# restored once resolve_graph_refs has finished rebuilding that board.
 	EntitySnapshot.decode(entity_bytes, target)

@@ -205,7 +205,7 @@ func test_a_disabled_probe_tallies_nothing() -> void:
 			"an off probe must not accumulate — that is what makes it free")
 
 
-## The denominator is the finding. `CommandLink` deliberately skips the
+## The denominator is the finding. `CommandChannel` deliberately skips the
 ## fingerprint compare while its queue is non-empty or a newer command has
 ## superseded it, so a probe that only counted verdicts would hand the owner
 ## "0 diverged" while a third of the traffic was never looked at.

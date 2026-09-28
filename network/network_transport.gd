@@ -16,7 +16,7 @@ extends Node
 ##
 ## [b]This is wave 0 of the harness, not the sync layer.[/b] There is no
 ## host-authority validation here and no intent channel upward — see
-## [CommandLink] for exactly what is and is not wired, and why (#463 owns the
+## [NetworkLink] and its channels for exactly what is and is not wired, and why (#463 owns the
 ## rest).
 
 ## A payload arrived from the other side. Never emitted for our own [method send].

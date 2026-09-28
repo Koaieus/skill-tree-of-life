@@ -274,7 +274,7 @@ static func _encode_turn_cursor(graph: Graph) -> Array:
 ## world that must already be whole.
 ##
 ## [param turn_manager] is passed in rather than looked up: this class knows
-## about rows, and [CommandLink] is the one that holds the level's wiring.
+## about rows, and [WorldSyncChannel] is the one that holds the level's wiring.
 ## Optional only in the sense that a null one is a no-op — a caller that has no
 ## [TurnManager] has no cursor to repair.
 static func restore_turn_cursor(

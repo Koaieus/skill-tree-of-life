@@ -35,7 +35,7 @@ var entity_id: int = 0
 ## queue (#540 decision 4). PRE-mutation, on every peer, for every command.
 ##
 ## [b]Transient applier state — deliberately absent from [method to_dict].[/b]
-## It rides the wire as [CommandLink]'s envelope-level `KEY_FINGERPRINT`, not as
+## It rides the wire as [CommandChannel]'s envelope-level `KEY_FINGERPRINT`, not as
 ## a command field, and that separation is load-bearing twice over: the codec's
 ## namespace stays the command's own, and `test/fixtures/outcome/*.tres` IS a
 ## serialized [LaunchAttackCommand] dictionary (#539), so adding a field here
@@ -45,7 +45,7 @@ var entity_id: int = 0
 ## [b]Why pre- and not post-mutation.[/b] The authority confirms BEFORE it
 ## applies, so there is no post-mutation world to fingerprint at confirm time. So
 ## both sides compare pre-state against pre-state: the host stamps here, the
-## receiving peer compares at [method CommandLink._on_remote_command] entry.
+## receiving peer compares at [method CommandChannel._on_remote_command] entry.
 ## Uniform across every verb since #545 took the last exception away — there is
 ## no second confirm ordering left for this to have to be true under. The honest
 ## cost is that divergence detection lags one command and a run's final command
@@ -53,13 +53,13 @@ var entity_id: int = 0
 var pre_fingerprint: int = 0
 
 ## The host's [member pre_fingerprint] for this same command, attached by
-## [method CommandLink._on_remote_command] on the way in (#756). 0 on any
+## [method CommandChannel._on_remote_command] on the way in (#756). 0 on any
 ## locally-originated command, and on a received one whose envelope carried no
 ## stamp.
 ##
 ## [b]Transient applier state, absent from [method to_dict] for exactly the
 ## reasons [member pre_fingerprint]'s note gives[/b] — it is the same number,
-## one peer over, and it rides the wire as [CommandLink]'s envelope-level
+## one peer over, and it rides the wire as [CommandChannel]'s envelope-level
 ## `KEY_FINGERPRINT`. Adding either to the command's own dictionary would
 ## invalidate every `test/fixtures/outcome/*.tres`.
 ##

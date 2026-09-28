@@ -22,13 +22,14 @@ extends GutTest
 ## only; it surfaced the moment #527 folded HP.
 
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
+const _Rig := preload("res://test/fixtures/link_rig.gd")
 const _BOARD := preload("res://entity/default_entity_board.tres")
 const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 
 var _host: Dictionary
 var _client: Dictionary
-var _host_link: CommandLink
-var _client_link: CommandLink
+var _host_link: NetworkLink
+var _client_link: NetworkLink
 
 
 func before_each() -> void:
@@ -43,14 +44,8 @@ func before_each() -> void:
 	_client_link = _make_link(_client, pair[1], NetworkConfig.Role.CLIENT)
 
 
-func _make_link(world: Dictionary, transport: NetworkTransport, mode: NetworkConfig.Role) -> CommandLink:
-	var link := CommandLink.new()
-	# Exports before `add_child`: `_ready` is what connects the signals.
-	link.transport = transport
-	link.command_applier = world["applier"]
-	link.graph = world["graph"]
-	link.role = mode
-	add_child_autofree(link)
+func _make_link(world: Dictionary, transport: NetworkTransport, mode: NetworkConfig.Role) -> NetworkLink:
+	var link: NetworkLink = _Rig.compose(self, transport, world["applier"], mode, world["graph"])
 	return link
 
 
@@ -189,7 +184,7 @@ func test_the_broadcast_fingerprint_is_the_pre_command_world() -> void:
 	await get_tree().process_frame
 
 	assert_eq(payloads.size(), 1, "exactly one command crossed")
-	assert_eq(int(payloads[0][CommandLink.KEY_FINGERPRINT]), before,
+	assert_eq(int(payloads[0][CommandChannel.KEY_FINGERPRINT]), before,
 			"the host ships the world it was ABOUT to mutate, not the one it just made")
 	assert_ne(WorldFingerprint.compute(_host["graph"]), before,
 			"and the command really did move the host's world, so the two differ")
@@ -201,7 +196,7 @@ func test_the_client_compares_before_it_applies() -> void:
 	# #529's WORLD column with it.
 	var verdicts: Array[bool] = []
 	var owner_at_check: Array = [&"unset"]
-	_client_link.sync_checked.connect(func(agrees: bool, _l: int, _r: int) -> void:
+	_Rig.world(_client_link).sync_checked.connect(func(agrees: bool, _l: int, _r: int) -> void:
 		verdicts.append(agrees)
 		owner_at_check[0] = (_client["nodes"]["B"] as SkillNode).owned_by)
 
@@ -228,7 +223,7 @@ func test_the_wire_carries_no_pre_fingerprint_field_in_the_command() -> void:
 			AllocateCommand.new((_host["player"] as Entity).entity_id, _id(_host, "B")))
 	await get_tree().process_frame
 
-	assert_false((payloads[0][CommandLink.KEY_COMMAND] as Dictionary).has("pre_fingerprint"),
+	assert_false((payloads[0][CommandChannel.KEY_COMMAND] as Dictionary).has("pre_fingerprint"),
 			"the command's own namespace stays the codec's")
 
 

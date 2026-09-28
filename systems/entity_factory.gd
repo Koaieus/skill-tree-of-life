@@ -4,7 +4,7 @@ extends Node
 ## Builds and places a level's runtime [Entity]s: heroes/NPCs
 ## ([method spawn_entity]), removable Dormant Cores ([method spawn_blocker]) and
 ## the blockers an arriving snapshot names ([method spawn_snapshot_entity],
-## [member CommandLink.entity_spawner]'s production implementation). It never
+## [member WorldSyncChannel.entity_spawner]'s production implementation). It never
 ## attaches a controller — that is the composition root's.
 
 const _ENTITY_SCENE := preload("res://entity/entity.tscn")
@@ -177,7 +177,7 @@ func _offset_kill_xp_for_stake(ent: Entity, stake: int, floor_: float) -> void:
 
 
 ## Rebuild an [Entity] an arriving snapshot names and this peer does not have
-## (#715) — [member CommandLink.entity_spawner]'s one production implementation.
+## (#715) — [member WorldSyncChannel.entity_spawner]'s one production implementation.
 ##
 ## [b]Only a BLOCKER, and refusing anything else is the point.[/b] Since #715 a
 ## joining client runs no procgen, so the entities procgen spawns that the roster

@@ -6,10 +6,10 @@ extends RefCounted
 ##
 ## [b]NOT a [Command].[/b] It carries an OFFER, not a decided outcome, and it
 ## mutates nothing on arrival — so unlike [LootRoundCommand] it never enters
-## [method CommandApplier._drain]. [CommandLink] sends it directly
-## ([constant CommandLink.KIND_LOOT_OFFER]), outside the
+## [method CommandApplier._drain]. [LootOfferChannel] sends it directly
+## ([constant LootOfferChannel.KIND_LOOT_OFFER]), outside the
 ## validate/confirm/apply pipeline, the same additive-and-opt-in shape as
-## [constant CommandLink.KIND_SNAPSHOT] / `KIND_SETUP` / `KIND_ENTITIES`.
+## [constant WorldSyncChannel.KIND_SNAPSHOT] / `KIND_SETUP` / `KIND_ENTITIES`.
 ##
 ## Raised when [LootPickRegistry] parks a request for a REMOTE collector
 ## ([enum LootPickRequest.Claim.REMOTE]) — see [signal LootPickRegistry.offer_parked].

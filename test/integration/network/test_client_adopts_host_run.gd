@@ -4,7 +4,7 @@ extends GutTest
 ##
 ## Before this, both machines pressed their own START, each resolved its own
 ## seed, each generated its own map, and the socket only came up afterwards:
-## `CommandLink._on_run_setup` handed the host's [RunConfig] to
+## `WorldSyncChannel._on_run_setup` handed the host's [RunConfig] to
 ## [method GameSession.apply_received] and nothing in `scenes/` consumed the
 ## [signal GameSession.run_started] that came back out. Two lobbies configured
 ## identically genuinely played each other; anything else desynced in silence,
@@ -35,7 +35,7 @@ extends GutTest
 ##
 ## [b]GameSession is a singleton autoload[/b], so this file plays both machines
 ## against one instance — the host's config is captured into a local before
-## [method CommandLink._on_run_setup] overwrites it with the client's decoded
+## [method WorldSyncChannel._on_run_setup] overwrites it with the client's decoded
 ## reading, exactly as a second OS process would receive it into its own.
 
 const _PRESET := preload("res://procgen/presets/first_level/first_level.tres")

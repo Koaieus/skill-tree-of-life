@@ -73,7 +73,7 @@ func test_tempo_is_wired_and_inert() -> void:
 func test_capture_then_replay_lands_the_same_world() -> void:
 	# Acceptance 1's world half, through the tab rather than around it: fire a
 	# live cast as the authority, then push the record it stamped back through
-	# this world's own applier with no CommandLink attached.
+	# this world's own applier with no CommandChannel attached.
 	await _press(_panel._on_capture_pressed)
 	assert_not_null(_panel._fixture, "Capture must leave a fixture in hand")
 	if _panel._fixture == null:

@@ -39,7 +39,7 @@ const DEFAULT_ADDRESS := "127.0.0.1"
 ## [constant Wire.DIAL_TIMEOUT_SEC] rather than hanging.
 const BLANK_ADDRESS_PROBLEM := "Type the host's address — the host reads it out in its lobby."
 
-## Who this machine is on the link. Also [member CommandLink.role] and
+## Who this machine is on the link. Also [member NetworkLink.role] and
 ## [member NetworkTransport.role]: one enum for the one question, homed here
 ## because the config is what a menu writes before any wire exists.
 enum Role {

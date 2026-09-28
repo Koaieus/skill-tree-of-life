@@ -4,19 +4,20 @@ extends GutTest
 ## CLIENT's own [TurnManager], not only the host's — the "it only ended
 ## locally" failure the harness exists to make loud.
 ##
-## Fixture shape mirrors test_command_link.gd's two-world pattern, extended
+## Fixture shape mirrors test_command_channel.gd's two-world pattern, extended
 ## with a SECOND entity per world so the turn hands off to somebody rather
 ## than just going idle — a fixture that could pass by "current_entity became
 ## null on both" would not distinguish a real handover from a no-op.
 
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
+const _Rig := preload("res://test/fixtures/link_rig.gd")
 const _BOARD := preload("res://entity/default_entity_board.tres")
 const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 
 var _host: Dictionary
 var _client: Dictionary
-var _host_link: CommandLink
-var _client_link: CommandLink
+var _host_link: NetworkLink
+var _client_link: NetworkLink
 
 
 func before_each() -> void:
@@ -31,13 +32,8 @@ func before_each() -> void:
 	_client_link = _make_link(_client, pair[1], NetworkConfig.Role.CLIENT)
 
 
-func _make_link(world: Dictionary, transport: NetworkTransport, mode: NetworkConfig.Role) -> CommandLink:
-	var link := CommandLink.new()
-	link.transport = transport
-	link.command_applier = world["applier"]
-	link.graph = world["graph"]
-	link.role = mode
-	add_child_autofree(link)
+func _make_link(world: Dictionary, transport: NetworkTransport, mode: NetworkConfig.Role) -> NetworkLink:
+	var link: NetworkLink = _Rig.compose(self, transport, world["applier"], mode, world["graph"])
 	return link
 
 

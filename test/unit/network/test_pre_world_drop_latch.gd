@@ -1,13 +1,13 @@
 extends GutTest
 
-## #667 — [member CommandLink.defer_until_resync], the joining client's
+## #667 — [member NetworkLink.defer_until_world], the joining client's
 ## pre-world drop latch.
 ##
 ## [b]The window.[/b] A client opens its socket in `GameRoot._ready` BEFORE
 ## `_setup_level` (#463: it has nothing to build until the host's `run_setup`
 ## lands) and only asks for the host's world at the tail of the same method.
 ## Between those two points the link is up and the world is not, and a
-## [constant CommandLink.KIND_COMMAND] arriving there applies against a
+## [constant CommandChannel.KIND_COMMAND] arriving there applies against a
 ## half-built graph — where, worst case, a kill reaches [VictorySystem] and
 ## latches an outcome that has no reset.
 ##
@@ -23,13 +23,14 @@ extends GutTest
 ## documents applies here unchanged.
 
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
+const _Rig := preload("res://test/fixtures/link_rig.gd")
 const _BOARD := preload("res://entity/default_entity_board.tres")
 const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 
 var _host: Dictionary
 var _client: Dictionary
-var _host_link: CommandLink
-var _client_link: CommandLink
+var _host_link: NetworkLink
+var _client_link: NetworkLink
 
 
 func before_each() -> void:
@@ -42,13 +43,8 @@ func before_each() -> void:
 	_client_link = _make_link(_client, pair[1], NetworkConfig.Role.CLIENT)
 
 
-func _make_link(world: Dictionary, transport: NetworkTransport, mode: NetworkConfig.Role) -> CommandLink:
-	var link := CommandLink.new()
-	link.transport = transport
-	link.command_applier = world["applier"]
-	link.graph = world["graph"]
-	link.role = mode
-	add_child_autofree(link)
+func _make_link(world: Dictionary, transport: NetworkTransport, mode: NetworkConfig.Role) -> NetworkLink:
+	var link: NetworkLink = _Rig.compose(self, transport, world["applier"], mode, world["graph"])
 	return link
 
 
@@ -82,7 +78,7 @@ func _build_world(label: String) -> Dictionary:
 	player.display_name = "Player_%s" % label
 	player.stat_board = _BOARD.duplicate(true) as EntityStatBoard
 	# Each world's entity must bind to ITS OWN TurnManager — the lookup is
-	# tree-wide. See test_command_link.gd's class docstring.
+	# tree-wide. See test_command_channel.gd's class docstring.
 	var hidden: Array[Node] = []
 	for other in get_tree().get_nodes_in_group(TurnManager.GROUP):
 		if other != tm:
@@ -116,7 +112,7 @@ func _fp(world: Dictionary) -> int:
 
 
 ## The host allocates [param id], which broadcasts a [constant
-## CommandLink.KIND_COMMAND] down the wire.
+## CommandChannel.KIND_COMMAND] down the wire.
 func _host_allocates(id: String) -> void:
 	var command := AllocateCommand.new((_host["player"] as Entity).entity_id,
 			(_host["graph"] as Graph).get_stable_id(_host["nodes"][id]))
@@ -131,7 +127,7 @@ func _client_owner(id: String) -> Entity:
 # --- 1. The window swallows commands ----------------------------------------
 
 func test_a_command_during_the_window_is_not_applied() -> void:
-	_client_link.defer_until_resync = true
+	_client_link.defer_until_world = true
 
 	await _host_allocates("B")
 
@@ -146,11 +142,11 @@ func test_a_command_during_the_window_is_not_applied() -> void:
 ## the envelope it encodes when the request arrives, so the client ends up on
 ## the host's world without a single command being replayed.
 func test_after_the_resync_the_client_matches_the_host() -> void:
-	_client_link.defer_until_resync = true
+	_client_link.defer_until_world = true
 	await _host_allocates("B")
 	await _host_allocates("C")
 
-	_client_link.request_resync("join: adopting the host's world")
+	_Rig.world(_client_link).request_resync("join: adopting the host's world")
 	await get_tree().process_frame
 
 	assert_eq(_fp(_client), _fp(_host), "the resync carried both dropped commands")
@@ -159,11 +155,11 @@ func test_after_the_resync_the_client_matches_the_host() -> void:
 
 
 func test_the_resync_closes_the_window() -> void:
-	_client_link.defer_until_resync = true
-	_client_link.request_resync("join: adopting the host's world")
+	_client_link.defer_until_world = true
+	_Rig.world(_client_link).request_resync("join: adopting the host's world")
 	await get_tree().process_frame
 
-	assert_false(_client_link.defer_until_resync,
+	assert_false(_client_link.defer_until_world,
 			"the repair landed, so the drop window is over")
 
 	await _host_allocates("B")
@@ -176,11 +172,11 @@ func test_the_resync_closes_the_window() -> void:
 
 ## Gating these deadlocks the join: they are how the client gets a world at all.
 func test_a_graph_snapshot_still_lands_inside_the_window() -> void:
-	_client_link.defer_until_resync = true
+	_client_link.defer_until_world = true
 	(_client["nodes"]["B"] as SkillNode).allocation_level = 3
 	assert_ne(_fp(_client), _fp(_host), "the fixture must actually be diverged")
 
-	_host_link.send_graph_snapshot()
+	_Rig.world(_host_link).send_graph_snapshot()
 	await get_tree().process_frame
 
 	assert_eq(_fp(_client), _fp(_host),
@@ -191,7 +187,7 @@ func test_a_graph_snapshot_still_lands_inside_the_window() -> void:
 
 ## Every host, offline sandbox and existing mp harness runs with the flag down.
 func test_the_latch_is_off_by_default() -> void:
-	assert_false(_client_link.defer_until_resync)
+	assert_false(_client_link.defer_until_world)
 
 	await _host_allocates("B")
 
@@ -208,7 +204,7 @@ func test_the_latch_is_off_by_default() -> void:
 ## cannot be FOR a peer that is still joining, and the whole window is pre-HUD,
 ## so nothing would be listening to answer it anyway. Dropped via
 ## [member LinkChannel.deferred_until_world] (#1179), same latch [constant
-## CommandLink.DEFERRED_KINDS] still gates [constant CommandLink.KIND_COMMAND]
+## CommandChannel.is_deferred] still gates [constant CommandChannel.KIND_COMMAND]
 ## with — including why KIND_INTENT needs no guard here (host-only handler;
 ## this latch only ever rides a MIRROR peer).
 func test_a_loot_offer_during_the_window_is_dropped() -> void:
@@ -219,22 +215,22 @@ func test_a_loot_offer_during_the_window_is_dropped() -> void:
 	var client_offer_channel := LootOfferChannel.new()
 	client_offer_channel.loot_pick_registry = receiver
 	add_child_autofree(client_offer_channel)
-	_client_link.link.register(client_offer_channel)
+	_client_link.register(client_offer_channel)
 	var host_offer_channel := LootOfferChannel.new()
 	add_child_autofree(host_offer_channel)
-	_host_link.link.register(host_offer_channel)
+	_host_link.register(host_offer_channel)
 	receiver.offer_received.connect(func(o: LootPickOffer) -> void: offers.append(o))
 	var client_peer := _client_link.transport.local_peer_id()
 	var offer := LootPickOffer.new()
 	offer.request_id = 7
 	offer.collector_id = (_host["player"] as Entity).entity_id
 
-	_client_link.defer_until_resync = true
+	_client_link.defer_until_world = true
 	host_offer_channel.send_loot_offer(offer, client_peer)
 	await get_tree().process_frame
 	assert_true(offers.is_empty(), "no picker may open against a world that does not exist")
 
-	_client_link.defer_until_resync = false
+	_client_link.defer_until_world = false
 	host_offer_channel.send_loot_offer(offer, client_peer)
 	await get_tree().process_frame
 	assert_eq(offers.size(), 1, "and it is the window that gates it, not the kind")

@@ -108,7 +108,7 @@ func test_game_root_mounts_one_core_beside_one_transport() -> void:
 	var core: NetworkLink = root.get_node(CORE_PATH)
 	var link: CommandLink = root.get_node(LINK_PATH)
 	assert_eq(core.transport, root.get_node(TRANSPORT_PATH), "the core rides the Transport")
-	assert_eq(core.channel_for(CommandLink.KIND_COMMAND), link, "the core routes commands to CommandLink")
+	assert_eq(core.channel_for(CommandChannel.KIND_COMMAND), link, "the core routes commands to CommandLink")
 	assert_eq(link.link, core, "and CommandLink rides that core, not a private one")
 	var world: WorldSyncChannel = root.get_node("WorldSyncChannel")
 	assert_eq(core.channel_for(WorldSyncChannel.KIND_RESYNC), world,
@@ -225,7 +225,7 @@ func test_the_harness_link_still_reaches_its_probe() -> void:
 ## #564 — both ends of the remote loot round, which shipped with NEITHER wired.
 ##
 ## The adapter code was complete and its two-world harness was green, but
-## `game_root.tscn` set no `CommandLink.loot_pick_registry` (the SEND side, a
+## `game_root.tscn` set no `LootOfferChannel.loot_pick_registry` (the SEND side, a
 ## hole that predated #564 and broke the HOST) and no receive-side wiring (added
 ## by #564 itself; since #1176 that is `LootPickRegistry.graph`, which
 ## `receive_offer` resolves the collector on, plus `LootSystem.pick_registry`). So a remote loot round was inert in

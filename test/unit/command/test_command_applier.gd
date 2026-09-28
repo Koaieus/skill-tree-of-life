@@ -317,7 +317,7 @@ func test_a_synchronous_verb_confirms_immediately_before_it_reports() -> void:
 
 
 func test_a_refused_command_never_confirms() -> void:
-	# What CommandLink used to enforce with `if not success`. A refusal changed
+	# What CommandChannel used to enforce with `if not success`. A refusal changed
 	# nothing, so there is nothing for a peer to mirror — and now that the
 	# broadcast rides confirmation, this IS that guarantee.
 	var confirmed: Array[String] = []

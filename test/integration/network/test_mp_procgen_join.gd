@@ -1,9 +1,9 @@
 extends GutTest
 
 ## Rung 2 of the multiplayer harness (#533): a joining peer receives its run
-## settings (#528, [method CommandLink.send_run_setup]), its graph (#527,
-## [method CommandLink.send_graph_snapshot]) and its entity state (#560,
-## [method CommandLink.send_entity_snapshot]) instead of re-deriving any of
+## settings (#528, [method WorldSyncChannel.send_run_setup]), its graph (#527,
+## [method WorldSyncChannel.send_graph_snapshot]) and its entity state (#560,
+## [method WorldSyncChannel.send_entity_snapshot]) instead of re-deriving any of
 ## it locally. See docs/domain/multiplayer-harness.md's "Rung 2" section, and
 ## #547's comment on #533 for why re-deriving from a shared seed is unsafe —
 ## `procgen/` leans on transcendentals whose last bit is not IEEE-754-portable
@@ -19,7 +19,7 @@ extends GutTest
 ## spawned process).
 ##
 ## [b]Two worlds in one process, same accepted hazard as
-## test_command_link.gd.[/b] Nothing here kills anything, so the death/loot/
+## test_command_channel.gd.[/b] Nothing here kills anything, so the death/loot/
 ## victory cross-wiring that rules this out elsewhere never fires. No entity
 ## discovers a TurnManager any more — each is served only by the manager that
 ## calls [method Entity.begin_turn] on it — so [method _spawn_scoped]'s group
@@ -27,8 +27,8 @@ extends GutTest
 ##
 ## [b]GameSession is a singleton autoload[/b] — this file plays BOTH machines
 ## in one process, so the host's config is captured into a local BEFORE
-## [method CommandLink._on_run_setup] (triggered synchronously by
-## [method CommandLink.send_run_setup] over a loopback) overwrites the shared
+## [method WorldSyncChannel._on_run_setup] (triggered synchronously by
+## [method WorldSyncChannel.send_run_setup] over a loopback) overwrites the shared
 ## instance with the CLIENT's decoded reading, exactly as a second real
 ## process would receive it into its own separate instance.
 
@@ -210,7 +210,7 @@ func test_each_instance_is_bound_to_a_different_participant() -> void:
 ## `Entity.READY_GROUP` TREE-WIDE (`get_tree().get_nodes_in_group(...)`), so
 ## with two full worlds sharing one SceneTree they see BOTH worlds' entities
 ## regardless of which TurnManager is ticking — a fresh instance of exactly
-## the hazard this file's own class docstring (and `test_command_link.gd`'s)
+## the hazard this file's own class docstring (and `test_command_channel.gd`'s)
 ## once named for TurnManager discovery, on a different pair of groups. That combination is precisely what the real two-OS-process harness
 ## exists to avoid; a real end-to-end multi-turn run is exercised manually
 ## via the Multiplayer tab (see docs/domain/multiplayer-harness.md), not in a

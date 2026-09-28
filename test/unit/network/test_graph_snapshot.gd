@@ -8,7 +8,7 @@ extends GutTest
 ##
 ## [b]Why fingerprints, not field-by-field asserts.[/b] [WorldFingerprint] is
 ## the SAME contract the join handshake itself checks at link-up
-## (`network/command_link.gd`'s `_on_hello`) — proving decode reproduces a
+## (`network/world_sync_channel.gd`'s `_on_hello_accepted`) — proving decode reproduces a
 ## matching fingerprint is proving the thing that actually gets checked live,
 ## not a parallel notion of "correct" this test invented.
 

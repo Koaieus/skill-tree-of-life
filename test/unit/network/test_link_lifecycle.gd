@@ -87,9 +87,9 @@ func _link(transport: NetworkTransport, mode: NetworkConfig.Role) -> CommandLink
 
 func _stamp(sha: String) -> Dictionary:
 	return {
-		CommandLink.BUILD_SHA: sha,
-		CommandLink.BUILD_BRANCH: "master",
-		CommandLink.BUILD_WORKTREE: "",
+		NetworkLink.BUILD_SHA: sha,
+		NetworkLink.BUILD_BRANCH: "master",
+		NetworkLink.BUILD_WORKTREE: "",
 	}
 
 
@@ -141,7 +141,7 @@ func test_the_host_still_broadcasts_to_the_client_it_kept() -> void:
 	_host.send_lobby_roster(ParticipantRoster.of([]))
 
 	assert_eq(to_a.size(), 1, "the roster reached the client that cleared")
-	assert_eq(String(to_a[0].get(CommandLink.KEY_KIND)), CommandLink.KIND_LOBBY)
+	assert_eq(String(to_a[0].get(NetworkLink.KEY_KIND)), LobbyChannel.KIND_LOBBY)
 	assert_eq(to_b, [], "and nothing reached the peer that was hung up on")
 
 
@@ -179,8 +179,8 @@ func test_an_announce_with_no_build_stamp_is_refused() -> void:
 	_agree()
 
 	_host_transport.message_received.emit({
-		CommandLink.KEY_KIND: CommandLink.KIND_HELLO,
-		CommandLink.KEY_PEER: _CLIENT_B,
+		NetworkLink.KEY_KIND: NetworkLink.KIND_HELLO,
+		NetworkLink.KEY_PEER: _CLIENT_B,
 	})
 
 	assert_eq(_cleared, [])
@@ -210,8 +210,8 @@ func test_the_announce_names_the_sender() -> void:
 	_b_transport.announce_joined()
 
 	assert_eq(seen.size(), 1)
-	assert_eq(String(seen[0].get(CommandLink.KEY_KIND)), CommandLink.KIND_HELLO)
-	assert_eq(int(seen[0].get(CommandLink.KEY_PEER)), _CLIENT_B)
+	assert_eq(String(seen[0].get(NetworkLink.KEY_KIND)), NetworkLink.KIND_HELLO)
+	assert_eq(int(seen[0].get(NetworkLink.KEY_PEER)), _CLIENT_B)
 
 
 ## [b]The announce names its sender, and the host does not take its word for
@@ -229,9 +229,9 @@ func test_a_peer_announcing_someone_else_s_id_is_refused_itself() -> void:
 
 	# B announces, correctly stamped, but claiming to be A.
 	_b_transport.send({
-		CommandLink.KEY_KIND: CommandLink.KIND_HELLO,
-		CommandLink.KEY_BUILD: _b.build_stamp,
-		CommandLink.KEY_PEER: _CLIENT_A,
+		NetworkLink.KEY_KIND: NetworkLink.KIND_HELLO,
+		NetworkLink.KEY_BUILD: _b.build_stamp,
+		NetworkLink.KEY_PEER: _CLIENT_A,
 	})
 
 	assert_eq(_refused.size(), 1, "one refusal, and it is not A's")
@@ -250,8 +250,8 @@ func test_the_gate_keys_off_the_transport_s_id_not_the_payload_s() -> void:
 	_agree()
 
 	_b_transport.send({
-		CommandLink.KEY_KIND: CommandLink.KIND_HELLO,
-		CommandLink.KEY_BUILD: _b.build_stamp,
+		NetworkLink.KEY_KIND: NetworkLink.KIND_HELLO,
+		NetworkLink.KEY_BUILD: _b.build_stamp,
 	})
 
 	assert_eq(_cleared, [_CLIENT_B], "the host cleared whoever actually sent it")
@@ -330,8 +330,8 @@ func test_a_peer_that_dials_into_a_live_run_is_refused_with_a_reason() -> void:
 	root.free()
 
 	assert_eq(seen.size(), 1, "the dialling peer hears exactly one thing")
-	assert_eq(String(seen[0].get(CommandLink.KEY_KIND, "")), CommandLink.KIND_REFUSED)
-	var summary := String(seen[0].get(CommandLink.KEY_SUMMARY, ""))
+	assert_eq(String(seen[0].get(NetworkLink.KEY_KIND, "")), NetworkLink.KIND_REFUSED)
+	var summary := String(seen[0].get(NetworkLink.KEY_SUMMARY, ""))
 	assert_false(summary.is_empty(), "the reason reaches the human on the joiner's screen")
 	assert_string_contains(summary, _POLICY_PHRASE, "and names the policy")
 	assert_false(mystery.is_linked(), "drop_peer took the dialling peer off the socket")
@@ -353,7 +353,7 @@ func test_a_mid_run_joiner_is_never_shipped_the_world() -> void:
 	root.free()
 
 	for payload in seen:
-		assert_ne(String(payload.get(CommandLink.KEY_KIND, "")), CommandLink.KIND_RESYNC,
+		assert_ne(String(payload.get(NetworkLink.KEY_KIND, "")), WorldSyncChannel.KIND_RESYNC,
 				"no world payload may ever reach a peer with no roster seat")
 
 
@@ -373,16 +373,16 @@ func test_the_replayed_lobby_peer_still_gets_its_world() -> void:
 
 	var resyncs: Array[Dictionary] = []
 	for payload in seen:
-		assert_ne(String(payload.get(CommandLink.KEY_KIND, "")), CommandLink.KIND_REFUSED,
+		assert_ne(String(payload.get(NetworkLink.KEY_KIND, "")), NetworkLink.KIND_REFUSED,
 				"a seated peer is never refused")
-		if String(payload.get(CommandLink.KEY_KIND, "")) == CommandLink.KIND_RESYNC:
+		if String(payload.get(NetworkLink.KEY_KIND, "")) == WorldSyncChannel.KIND_RESYNC:
 			resyncs.append(payload)
 	assert_eq(resyncs.size(), 1, "and it still gets exactly one world")
 	assert_true(_a_transport.is_linked(), "and stays on the socket")
 
 
 ## An empty world, same shape `test_join_world_applies_once.gd` builds for the
-## joining side — [method CommandLink.send_resync] no-ops on a null graph, so
+## joining side — [method WorldSyncChannel.send_resync] no-ops on a null graph, so
 ## the fixture needs one even though its node count is never asserted on.
 func _empty_graph() -> Graph:
 	var graph: Graph = preload("res://graph/graph.tscn").instantiate()

@@ -79,7 +79,7 @@ signal command_confirmed(command: Command)
 ## compared (#756).
 ##
 ## Exists so the divergence check happens at the same point of the same queue on
-## both peers. [method CommandLink._on_remote_command] used to compare on
+## both peers. [method CommandChannel._on_remote_command] used to compare on
 ## ARRIVAL, gated on the applier being idle, which meant a burst of commands was
 ## compared once and the first one to actually diverge could not be named. The
 ## host's number rides in on [member Command.host_fingerprint]; this is where
@@ -90,7 +90,7 @@ signal command_stamped(command: Command)
 ## upward as an INTENT. Carries the command with its [member Command.intent_id]
 ## already minted; the authority echoes that id back verbatim on the confirm.
 ##
-## A signal rather than a [CommandLink] reference, for the same reason
+## A signal rather than a [CommandChannel] reference, for the same reason
 ## [signal command_confirmed] is one: the applier does not know a transport
 ## exists, and offline it simply has no listener.
 signal intent_submitted(command: Command)
@@ -142,7 +142,7 @@ const CORE_HOP_SLIDE_DELAY := MoveCoreCommandHandler.CORE_HOP_SLIDE_DELAY
 var seat_policy: SeatPolicy = null
 
 ## Is this peer the one that DECIDES, or the one that is told? True offline,
-## true on the host, false only while [member CommandLink.role] is `CLIENT` —
+## true on the host, false only while [member NetworkLink.role] is `CLIENT` —
 ## that setter is the single writer, so nothing has to be kept in sync by hand
 ## and no scene grows a second role flag.
 ##
@@ -156,7 +156,7 @@ var seat_policy: SeatPolicy = null
 var is_authority: bool = true
 
 ## Who this peer is on the link, for minting a globally-unique
-## [member Command.intent_id] (#548). Written by [CommandLink]'s `mode` setter
+## [member Command.intent_id] (#548). Written by [CommandChannel] whenever [member NetworkLink.role] changes,
 ## alongside [member is_authority] — one place, one lifetime — and left at 0
 ## offline, where there is nobody to collide with.
 var local_peer_id: int = 0
@@ -348,7 +348,7 @@ func _enqueue(command: Command) -> void:
 ## would pan to a node that did not move.
 ##
 ## [param reason] is an enum-ish [StringName], never a UI string; see
-## [constant CommandLink.REASON_REFUSED].
+## [constant CommandChannel.REASON_REFUSED].
 func refuse_intent(intent_id: int, reason: StringName = &"") -> void:
 	if intent_id == 0 or _pending_intent == null:
 		return
@@ -437,7 +437,7 @@ func confirm(command: Command) -> void:
 		return
 	_confirmed = command
 	# BEFORE the announcement, so a [signal command_confirmed] handler —
-	# [CommandLink]'s broadcast is one — reads a flag that already accounts for
+	# [CommandChannel]'s broadcast is one — reads a flag that already accounts for
 	# this decision. Same hazard [signal applying_changed] documents, one signal
 	# earlier. (It stays true if something is queued behind: the flag asks
 	# "anything undecided", not "is THIS one decided".)
@@ -489,7 +489,7 @@ func _drain() -> void:
 			command.pre_fingerprint = WorldFingerprint.compute(graph)
 		# The one moment this peer's pre-state is knowable for THIS command, and
 		# therefore the only honest place to compare it against the host's stamp
-		# (#756). Emitted for every command on every peer; [CommandLink] is the
+		# (#756). Emitted for every command on every peer; [CommandChannel] is the
 		# only listener and it answers on a MIRROR only.
 		command_stamped.emit(command)
 		var success := _validate(command)

@@ -4,7 +4,7 @@ extends GutTest
 ## applies — so a confirm means "this is going to happen", not "this happened".
 ##
 ## `_validate` is private and is deliberately never called directly here. What
-## matters is observable through the seam [CommandLink] actually uses: a command
+## matters is observable through the seam [CommandChannel] actually uses: a command
 ## that fails its gate must never emit `command_confirmed`, because that signal
 ## is what puts a command on the wire. A test that poked `_validate` would pass
 ## while the wire leaked.
@@ -157,7 +157,7 @@ func test_pre_fingerprint_is_stamped_even_when_validation_fails() -> void:
 func test_pre_fingerprint_is_not_serialized() -> void:
 	# The tripwire #539 left: `test/fixtures/outcome/*.tres` IS a serialized
 	# LaunchAttackCommand dict. A field added here invalidates every committed
-	# fixture, so it stays CommandLink's envelope-level concern.
+	# fixture, so it stays CommandChannel's envelope-level concern.
 	var command := AllocateCommand.new(_player.entity_id, _sid("B"))
 	command.pre_fingerprint = 123456
 	assert_false(command.to_dict().has("pre_fingerprint"),

@@ -17,6 +17,7 @@ extends GutTest
 ## encoded after the host had already started).
 
 const _GRAPH_SCENE := preload("res://graph/graph.tscn")
+const _Rig := preload("res://test/fixtures/link_rig.gd")
 const _BOARD := preload("res://entity/default_entity_board.tres")
 const _NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 
@@ -86,14 +87,8 @@ func _build_world(label: String) -> Dictionary:
 
 
 func _make_link(world: Dictionary, transport: NetworkTransport,
-		mode: NetworkConfig.Role) -> CommandLink:
-	var link := CommandLink.new()
-	link.transport = transport
-	link.command_applier = world["applier"]
-	link.graph = world["graph"]
-	link.turn_manager = world["tm"]
-	link.role = mode
-	add_child_autofree(link)
+		mode: NetworkConfig.Role) -> NetworkLink:
+	var link: NetworkLink = _Rig.compose(self, transport, world["applier"], mode, world["graph"], world["tm"])
 	return link
 
 

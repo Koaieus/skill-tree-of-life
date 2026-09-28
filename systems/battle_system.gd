@@ -461,7 +461,7 @@ func launch_attack() -> void:
 	if command == null:
 		return
 	# Routed through the applier when one is wired, so an attack is an ordinary
-	# confirmed command that [CommandLink] mirrors like every other verb. This
+	# confirmed command that [CommandChannel] mirrors like every other verb. This
 	# does NOT return early: `submit` drains synchronously up to the first
 	# await inside the mutation loop, and parking on `applying_changed` after
 	# it means every existing caller — the HUD launch buttons, `await
@@ -595,8 +595,9 @@ func prepare_launch_command(command: LaunchAttackCommand) -> bool:
 ## [method AttackPlanCodec.from_dict] here, having already confirmed. Vetting it
 ## in [method prepare_launch_command] would mean rebuilding the plan twice per
 ## replay to catch a corrupt payload that is already corrupt — not worth it, and
-## it costs nothing on the wire ([method CommandLink._on_command_confirmed]
-## broadcasts only in `BROADCAST` mode, which a replaying peer is not in).
+## it costs nothing on the wire ([method CommandChannel._on_command_confirmed]
+## broadcasts only under [constant NetworkConfig.Role.HOST], which a replaying
+## peer is not).
 ##
 ## [b]The round trip through capture -> rebuild is the point, not waste.[/b]
 ## Reusing the computed [AttackOutcome] object for the live pass would land the

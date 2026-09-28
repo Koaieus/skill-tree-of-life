@@ -1,13 +1,13 @@
 extends GutTest
 
 ## #548 — the UPWARD channel. A client's [Command] does not apply locally: it
-## goes up as a [constant CommandLink.KIND_INTENT], the host runs it through the
+## goes up as a [constant CommandChannel.KIND_INTENT], the host runs it through the
 ## same `_validate -> confirm -> apply` a local command takes, and the confirm
-## comes back down as an ordinary [constant CommandLink.KIND_COMMAND] the client
-## applies. A refusal rides its own [constant CommandLink.KIND_REFUSAL].
+## comes back down as an ordinary [constant CommandChannel.KIND_COMMAND] the client
+## applies. A refusal rides its own [constant CommandChannel.KIND_REFUSAL].
 ##
 ## [b]Two worlds in one process[/b] — the same fixture, and the same caveats, as
-## `test/unit/network/test_command_link.gd`; read that file's docstring before
+## `test/unit/network/test_command_channel.gd`; read that file's docstring before
 ## adding anything here that kills an entity.
 ##
 ## [b]The loopback is synchronous.[/b] [method LoopbackTransport.send] emits on
@@ -59,7 +59,7 @@ func _make_link(world: Dictionary, transport: NetworkTransport, mode: NetworkCon
 
 
 ## One self-contained world: graph, four nodes in a path, a player holding A.
-## Lifted from `test_command_link.gd` — see there for why each world's entity
+## Lifted from `test_command_channel.gd` — see there for why each world's entity
 ## has to bind its OWN [TurnManager] while the others are hidden from the group.
 func _build_world(label: String) -> Dictionary:
 	var graph: Graph = _GRAPH_SCENE.instantiate()
@@ -269,19 +269,19 @@ func test_a_refusal_names_a_code_not_a_ui_string() -> void:
 	_applier(_client).submit(_allocate(_client, "D"))
 	await get_tree().process_frame
 
-	assert_eq(_applier(_client).last_refusal_reason, CommandLink.REASON_REFUSED,
+	assert_eq(_applier(_client).last_refusal_reason, CommandChannel.REASON_REFUSED,
 			"the reason crosses as a StringName code; rendering it is a HUD question")
 
 
 func test_a_successful_client_command_sends_no_refusal() -> void:
 	var kinds: Array[String] = []
 	(_client_link.transport as NetworkTransport).message_received.connect(
-			func(p: Dictionary) -> void: kinds.append(String(p.get(CommandLink.KEY_KIND, ""))))
+			func(p: Dictionary) -> void: kinds.append(String(p.get(NetworkLink.KEY_KIND, ""))))
 
 	_applier(_client).submit(_allocate(_client, "B"))
 	await get_tree().process_frame
 
-	assert_eq(kinds, [CommandLink.KIND_COMMAND] as Array[String],
+	assert_eq(kinds, [CommandChannel.KIND_COMMAND] as Array[String],
 			"a confirmed command already closes the gate; a second message would be noise")
 
 

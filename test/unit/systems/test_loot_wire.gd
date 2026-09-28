@@ -332,7 +332,7 @@ func test_a_pick_answers_a_request_parked_while_the_queue_is_blocked() -> void:
 
 
 ## An answer travelling UP must not be echoed back DOWN. Bypassing the queue
-## means it never confirms, so CommandLink needs no guard of its own.
+## means it never confirms, so CommandChannel needs no guard of its own.
 func test_a_pick_never_confirms_and_so_never_mirrors() -> void:
 	var registry := _registry()
 	var applier := _applier(registry)

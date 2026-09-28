@@ -52,7 +52,7 @@ func _build(policy: LobbyPolicy) -> void:
 
 ## The join, driven from the CLIENT's socket event rather than by calling the
 ## host's handler (#716). Since the build gate moved host-side and per peer, a
-## seat is offered on [signal CommandLink.peer_cleared] and not on the bare join
+## seat is offered on [signal NetworkLink.peer_cleared] and not on the bare join
 ## — so a fixture that pokes `_on_link_peer_joined` directly would be asserting
 ## against a path production no longer takes. `announce_joined` is exactly what
 ## a completed dial emits, and the announce, the gate and the roster answer all
@@ -134,8 +134,8 @@ func test_changing_the_ai_count_after_a_join_keeps_the_joiner_seated() -> void:
 
 ## #741: a joiner's saved name rides its own hello, so the seat never shows the
 ## generic "Player 2" even for one hop — [method LobbyScreen.bind_link] wires
-## [member CommandLink.join_display_name] straight from the CLIENT's own
-## machine, and [signal CommandLink.peer_cleared] carries it to the seat's
+## [member NetworkLink.join_display_name] straight from the CLIENT's own
+## machine, and [signal NetworkLink.peer_cleared] carries it to the seat's
 ## writer BEFORE the roster that seats the joiner is ever broadcast.
 func test_a_joiners_saved_name_is_seated_at_join_not_typed_afterward() -> void:
 	_client._link.join_display_name = "Bramh"
@@ -360,7 +360,7 @@ func test_an_offline_lobby_mounts_nothing() -> void:
 
 ## Acceptance 7, at the lobby's own scope: START is the only thing that opens a
 ## run, and the lobby hands its own link back before it fires so the level can
-## adopt the socket without a second [CommandLink] answering on it.
+## adopt the socket without a second [NetworkLink] answering on it.
 ## [b]Re-pointed by #715[/b], which moved the release one signal later. The
 ## button no longer releases: it only emits, and the shell answers by opening the
 ## run — which is the moment the HOST has a resolved seed to broadcast, and so

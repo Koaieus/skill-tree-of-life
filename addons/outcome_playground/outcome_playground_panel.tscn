@@ -52,7 +52,7 @@ text = "⏺  Capture"
 [node name="ReplayBtn" type="Button" parent="VBox/Bar"]
 unique_name_in_owner = true
 layout_mode = 2
-tooltip_text = "Re-arm the board, then push the held command through this world's own CommandApplier — no CommandLink, no live attack."
+tooltip_text = "Re-arm the board, then push the held command through this world's own CommandApplier — no CommandChannel, no live attack."
 text = "▶  Replay"
 
 [node name="ResetBtn" type="Button" parent="VBox/Bar"]

@@ -3,7 +3,7 @@ extends GutTest
 ## A joining CLIENT level waiting for the authority's world (2026-09-06, from a
 ## LAN playtest that ended on a black loading screen at 0%).
 ##
-## `GameRoot._ready` used to `await command_link.resync_applied` bare, with
+## `GameRoot._ready` used to `await` the link's `resync_applied` bare, with
 ## [SceneDirector]'s 30s reveal timeout as the only way out — and a link that
 ## ended meanwhile presented its overlay UNDER the curtain. This pins the wait's
 ## three exits: the world lands, the link is lost, the host refuses us — and

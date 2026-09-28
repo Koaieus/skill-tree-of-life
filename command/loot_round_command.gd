@@ -18,7 +18,7 @@ extends Command
 ##
 ## The old shape stamped the outcome from DEEP INSIDE `_apply`
 ## ([SkillDustAddon]'s `_run_round` chain calling `record()`), so
-## [CommandLink]'s confirm-before-apply ordering broadcast an EMPTY `resolved`
+## [CommandChannel]'s confirm-before-apply ordering broadcast an EMPTY `resolved`
 ## — a peer read that as an unstamped INITIATE and rolled its own divergent
 ## loot instead of replaying the authority's. That is the #646 defect, and the
 ## fix is this class no longer having an INITIATE state to be caught

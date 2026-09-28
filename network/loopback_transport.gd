@@ -92,7 +92,7 @@ static func attach(host: LoopbackTransport, client_id: int) -> LoopbackTransport
 ## emit this off an actual socket event.
 ##
 ## [b]On a CLIENT end this is now the announce half of the build gate.[/b] Since
-## #716 [method CommandLink._on_transport_peer_joined] sends a hello upward under
+## #716 [method NetworkLink._on_transport_peer_joined] sends a hello upward under
 ## [constant NetworkConfig.Role.CLIENT], so a fixture calling this on a client
 ## drives the very handshake a real dial does — which is the point.
 func announce_joined() -> void:

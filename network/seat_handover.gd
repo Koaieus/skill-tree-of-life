@@ -3,7 +3,7 @@ extends LinkChannel
 ## "This seat is the AI's now" — the one flow that turns a human's seat over to
 ## the AI, host and mirror alike (#755). Composed beside [NetworkSession] in
 ## `game_root.tscn` AND into [member NetworkLink.channels] (#1179: it absorbs
-## its own kind rather than riding [CommandLink]'s). It listens to the
+## its own kind rather than riding [CommandChannel]'s). It listens to the
 ## session's [signal NetworkSession.peer_left] for the host half and to its own
 ## [constant KIND_SEAT_HANDOVER] for the mirror half, and emits
 ## [signal seat_handed_over] for the level's presentation (seat vision, the

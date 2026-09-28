@@ -123,7 +123,7 @@ func start(cfg: RunConfig) -> void:
 ## so re-resolving here would hand this peer a different map than everyone
 ## else's. [param received_roster] is [method ParticipantRoster.from_dict]'s
 ## result — this method doesn't decode the wire payload itself, so a
-## [CommandLink] caller can decode once and reuse the roster for logging
+## [WorldSyncChannel] caller can decode once and reuse the roster for logging
 ## before handing it here.
 func apply_received(cfg: RunConfig, received_roster: ParticipantRoster) -> void:
 	assert(cfg != null, "GameSession.apply_received: null RunConfig")

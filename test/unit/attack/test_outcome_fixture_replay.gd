@@ -4,7 +4,7 @@ extends GutTest
 ##
 ## A committed [OutcomeFixture] holds one recorded [LaunchAttackCommand] — plan
 ## + record + seed, the exact wire payload. This replays it into a freshly built
-## world by **submitting it to a local [CommandApplier] with no [CommandLink]
+## world by **submitting it to a local [CommandApplier] with no [CommandChannel]
 ## attached**, which is byte-for-byte the peer path, and asserts the resulting
 ## [method WorldFingerprint.compute].
 ##
@@ -183,7 +183,7 @@ func test_a_committed_fixture_replays_to_its_recorded_fingerprint() -> void:
 
 func test_the_replay_needs_no_link_and_no_live_plan() -> void:
 	# The proof this is a peer path and not a host path in disguise: nothing
-	# armed a plan on this BattleSystem, and no CommandLink exists anywhere. A
+	# armed a plan on this BattleSystem, and no CommandChannel exists anywhere. A
 	# replay that quietly re-resolved would have refused outright ("initiate
 	# with no live plan") instead of landing anything.
 	var fixture: OutcomeFixture = await _fixture()

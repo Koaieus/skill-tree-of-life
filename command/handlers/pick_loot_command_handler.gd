@@ -17,7 +17,7 @@ extends CommandHandler
 ##
 ## It emits neither `command_applied` nor `command_confirmed`, which is also
 ## correct: an intent travelling UP must not be echoed back down by
-## [CommandLink], and the grant it unblocks crosses as the round's own record.
+## [CommandChannel], and the grant it unblocks crosses as the round's own record.
 ## It never opens the awaiting-confirmation gate on any peer either
 ## ([method CommandApplier._submit_upward]) — a window nothing would close.
 ##

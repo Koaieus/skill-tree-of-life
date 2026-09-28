@@ -10,7 +10,7 @@ extends Command
 ##     [method BattleSystem.prepare_launch_command] stamps the seed, resolves on
 ##     a shadow, checks affordability, and stamps the record it produced into
 ##     this same object — all of it BEFORE the command confirms (#545), so
-##     [CommandLink] broadcasts a complete record and the authority mutates
+##     [CommandChannel] broadcasts a complete record and the authority mutates
 ##     nothing until every peer has been told.
 ##   * [member record] POPULATED — the attack is decided and what remains is a
 ##     REPLAY: rebuild the recorded effects and land them. Since #545 that is

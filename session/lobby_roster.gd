@@ -60,7 +60,7 @@ const MAX_NAME_LENGTH := 24
 ## `test_center_core_starters.gd` pins that procgen can place that many.
 const DEFAULT_AI_OPPONENTS := 5
 const MAX_AI_OPPONENTS := 12
-## Keys inside a [constant CommandLink.KIND_LOBBY_PICK] payload that are not
+## Keys inside a [constant LobbyChannel.KIND_LOBBY_PICK] payload that are not
 ## themselves [Participant] fields: WHICH seat, and WHO is asking. The changed
 ## fields beside them use [method Participant.to_dict]'s own names.
 const PICK_ID := "id"
@@ -131,7 +131,7 @@ var _picks: Dictionary = {}
 ## [method build_participants] authored them: the rule's last resort.
 var _defaults: Dictionary = {}
 ## #736: peers connected at the TRANSPORT level but not yet through
-## [CommandLink]'s build gate. A pending SEAT and a connecting SOCKET are two
+## [NetworkLink]'s build gate. A pending SEAT and a connecting SOCKET are two
 ## different things, and START must wait for the second. Every entry has a
 ## removal path — [method clear_remote] or [method remove_remote].
 var _connecting_peers: Dictionary = {}
@@ -638,7 +638,7 @@ static func normalize_name(text: String) -> String:
 	return text.strip_edges().left(MAX_NAME_LENGTH)
 
 
-## A [constant CommandLink.KIND_LOBBY_PICK] payload: resources cross by path.
+## A [constant LobbyChannel.KIND_LOBBY_PICK] payload: resources cross by path.
 static func encode_pick(
 	participant: Participant, from_peer: int, changes: Dictionary
 ) -> Dictionary:

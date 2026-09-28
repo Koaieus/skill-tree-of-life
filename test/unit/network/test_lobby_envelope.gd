@@ -3,7 +3,7 @@ extends GutTest
 ## #714: the two lobby envelopes, on the wire and nowhere near a world.
 ##
 ## [b]What this file pins that no other network test can.[/b] Every other kind
-## [CommandLink] carries needs a [Graph], a [CommandApplier], or both — these two
+## the level link carries needs a [Graph], a [CommandApplier], or both — these two
 ## need neither, and that is the property under test as much as the round trip
 ## is: a lobby has no world, so a [LobbyChannel] on `lobby_link.tscn`, with no graph and
 ## no applier, must still carry a roster in both directions.
@@ -87,7 +87,7 @@ func test_the_host_s_roster_crosses_down_whole() -> void:
 ## run; #714 acceptance 7 is that a lobby message does neither.
 func test_a_lobby_roster_needs_no_graph_no_applier_and_opens_no_run() -> void:
 	assert_false("graph" in _host.link, "sanity: the lobby link has no world")
-	assert_null(_client.link.command_applier, "sanity: and no applier")
+	assert_null(_client.link.channel_for(CommandChannel.KIND_COMMAND), "sanity: and no command channel, so no applier")
 	var run_started_seen: Array[bool] = []
 	var handler := func(_cfg: RunConfig): run_started_seen.append(true)
 	GameSession.run_started.connect(handler)
