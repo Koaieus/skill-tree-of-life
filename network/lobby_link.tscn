@@ -1,0 +1,11 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://network/network_link.gd" id="1_link"]
+[ext_resource type="Script" path="res://network/lobby_channel.gd" id="2_lobby"]
+
+[node name="LobbyLink" type="Node" node_paths=PackedStringArray("channels")]
+script = ExtResource("1_link")
+channels = [NodePath("LobbyChannel")]
+
+[node name="LobbyChannel" type="Node" parent="."]
+script = ExtResource("2_lobby")

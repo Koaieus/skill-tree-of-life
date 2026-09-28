@@ -5,11 +5,11 @@ extends GutTest
 ## [b]What this file pins that no other network test can.[/b] Every other kind
 ## [CommandLink] carries needs a [Graph], a [CommandApplier], or both — these two
 ## need neither, and that is the property under test as much as the round trip
-## is: a lobby has no world, so a link with `graph == null` and
-## `command_applier == null` must still carry a roster in both directions.
+## is: a lobby has no world, so a [LobbyChannel] on `lobby_link.tscn`, with no graph and
+## no applier, must still carry a roster in both directions.
 ##
-## The direction gates are the other half. [constant CommandLink.KIND_LOBBY] is
-## the exact inverse of [constant CommandLink.KIND_LOBBY_PICK] — down under
+## The direction gates are the other half. [constant LobbyChannel.KIND_LOBBY] is
+## the exact inverse of [constant LobbyChannel.KIND_LOBBY_PICK] — down under
 ## BROADCAST, up under MIRROR — because a pick is an INTENT and the roster is its
 ## confirmation (`docs/domain/multiplayer-sync-model.md`).
 
@@ -17,8 +17,10 @@ const _CAMP_1 := preload("res://entity/factions/camp_1.tres")
 const _CAMP_2 := preload("res://entity/factions/camp_2.tres")
 const _CORE := preload("res://entity/core/balanced_core.tres")
 
-var _host: CommandLink
-var _client: CommandLink
+const _LOBBY_LINK := preload("res://network/lobby_link.tscn")
+
+var _host: LobbyChannel
+var _client: LobbyChannel
 var _host_transport: LoopbackTransport
 var _client_transport: LoopbackTransport
 
@@ -33,12 +35,14 @@ func before_each() -> void:
 	_client = _link_on(_client_transport, NetworkConfig.Role.CLIENT)
 
 
-func _link_on(transport: LoopbackTransport, mode: NetworkConfig.Role) -> CommandLink:
-	var link := CommandLink.new()
+func _link_on(transport: LoopbackTransport, mode: NetworkConfig.Role) -> LobbyChannel:
+	var link: NetworkLink = _LOBBY_LINK.instantiate()
 	link.transport = transport
 	add_child_autofree(link)
 	link.role = mode
-	return link
+	var channel := link.channel_for(LobbyChannel.KIND_LOBBY) as LobbyChannel
+	assert_not_null(channel, "the scene registers its LobbyChannel on the core")
+	return channel
 
 
 static func _seat(id: int, name_text: String, camp: Faction, peer_id: int) -> Participant:
@@ -79,11 +83,11 @@ func test_the_host_s_roster_crosses_down_whole() -> void:
 
 
 ## A link with no world at all carries it. This is the difference from
-## [constant CommandLink.KIND_SETUP], which lands in [GameSession] and opens a
+## the setup kind, which lands in [GameSession] and opens a
 ## run; #714 acceptance 7 is that a lobby message does neither.
 func test_a_lobby_roster_needs_no_graph_no_applier_and_opens_no_run() -> void:
-	assert_null(_host.graph, "sanity: the lobby link has no world")
-	assert_null(_client.command_applier, "sanity: and no applier")
+	assert_false("graph" in _host.link, "sanity: the lobby link has no world")
+	assert_null(_client.link.command_applier, "sanity: and no applier")
 	var run_started_seen: Array[bool] = []
 	var handler := func(_cfg: RunConfig): run_started_seen.append(true)
 	GameSession.run_started.connect(handler)
@@ -128,7 +132,7 @@ func test_an_empty_pick_is_dropped() -> void:
 
 	_client.send_lobby_pick({})
 	_host_transport.message_received.emit(
-			{CommandLink.KEY_KIND: CommandLink.KIND_LOBBY_PICK, CommandLink.KEY_PICK: {}})
+			{NetworkLink.KEY_KIND: LobbyChannel.KIND_LOBBY_PICK, LobbyChannel.KEY_PICK: {}})
 
 	assert_true(seen.is_empty(), "nothing to apply, nothing raised")
 
