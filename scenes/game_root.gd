@@ -113,7 +113,7 @@ var _link_end_presented: bool = false
 ## (`scenes/dev/mp_dev_sandbox.tscn` swaps in [EnetTransport]); it must never
 ## author a SECOND pair, or `$Transport` resolves to whichever one Godot named
 ## first. The default is a [LoopbackTransport] with the link in
-## [constant CommandLink.Mode.OFF]: mounted and inert, so offline play is
+## [constant NetworkConfig.Role.OFFLINE]: mounted and inert, so offline play is
 ## unchanged — nothing is serialized until a role raises the mode.
 @onready var transport: NetworkTransport = %Transport
 @onready var command_link: CommandLink = %CommandLink

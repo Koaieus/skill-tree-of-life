@@ -73,7 +73,7 @@ const AUTOPILOT_TURNS_UNBOUNDED := -1
 @onready var _banner: Label = %NetBanner
 @onready var _log: RichTextLabel = %NetLog
 
-var _role: NetworkTransport.Role = NetworkTransport.Role.OFFLINE
+var _role: NetworkConfig.Role = NetworkConfig.Role.OFFLINE
 var _address: String = DEFAULT_ADDRESS
 var _port: int = DEFAULT_PORT
 var _blue: Entity
@@ -128,10 +128,10 @@ func _ready() -> void:
 	# (`CommandApplier.is_authority == true`) and Blue's AI decides and
 	# submits LOCALLY on the client — silently diverging the world before a
 	# single command has crossed the wire. Setting it early closes that
-	# window; `_start_link()` still sets `_link.mode` itself (idempotent) so
+	# window; `_start_link()` still sets `_link.role` itself (idempotent) so
 	# it stays the one documented writer once the link is actually up.
 	if command_applier != null:
-		command_applier.is_authority = _role != NetworkTransport.Role.CLIENT
+		command_applier.is_authority = _role != NetworkConfig.Role.CLIENT
 	# GameRoot's own opening `start_turn` (`TurnManager.opens_first_turn`) targets [member
 	# player] — but `player` is a PER-MACHINE view pointer, re-pointed to Blue
 	# on the CLIENT for the HUD/camera (see `_setup_level`). Turn order is
@@ -184,7 +184,7 @@ func _setup_level() -> void:
 	_red = get_node_or_null(^"Graph/Entities/Player") as Entity
 	if _blue == null:
 		return
-	if _role == NetworkTransport.Role.CLIENT:
+	if _role == NetworkConfig.Role.CLIENT:
 		player = _blue
 		# The client is a SEAT, not a couch: its view is pinned to Blue. Said
 		# once, as policy — previously this was two separate un-decisions
@@ -248,9 +248,9 @@ func _parse_cmdline() -> void:
 			"role":
 				match pair[1]:
 					"host":
-						_role = NetworkTransport.Role.HOST
+						_role = NetworkConfig.Role.HOST
 					"client":
-						_role = NetworkTransport.Role.CLIENT
+						_role = NetworkConfig.Role.CLIENT
 			"address":
 				_address = pair[1]
 			"port":
@@ -268,8 +268,8 @@ func _start_link() -> void:
 		turn_manager.turn_started.connect(_on_turn_started)
 
 	match _role:
-		NetworkTransport.Role.HOST:
-			_link.mode = CommandLink.Mode.BROADCAST
+		NetworkConfig.Role.HOST:
+			_link.role = NetworkConfig.Role.HOST
 			_write_log(WorldFingerprint.describe(graph))
 			var err := _transport.start_host(_port)
 			if err != OK:
@@ -277,8 +277,8 @@ func _start_link() -> void:
 				return
 			# The client connects later; greet it when it does.
 			_transport.link_changed.connect(_greet_if_linked)
-		NetworkTransport.Role.CLIENT:
-			_link.mode = CommandLink.Mode.MIRROR
+		NetworkConfig.Role.CLIENT:
+			_link.role = NetworkConfig.Role.CLIENT
 			# A spectator, on purpose: wave 0 has no intent channel upward, so a
 			# local mutation here would diverge from the host with nothing to
 			# correct it. `set_input_frozen` (#486) is the existing seam for
@@ -287,7 +287,7 @@ func _start_link() -> void:
 			_write_log(WorldFingerprint.describe(graph))
 			_transport.start_client(_address, _port)
 		_:
-			_link.mode = CommandLink.Mode.OFF
+			_link.role = NetworkConfig.Role.OFFLINE
 			# Hot-seat, as the base scene plays — leave handover connected.
 			_refresh_banner()
 			return
@@ -355,7 +355,7 @@ static func bind_failure_lines(port: int, err: Error) -> PackedStringArray:
 func _arm_probe() -> void:
 	if _probe == null or not _probe_enabled:
 		return
-	if _role != NetworkTransport.Role.CLIENT:
+	if _role != NetworkConfig.Role.CLIENT:
 		_write_log("--probe ignored: it measures the MIRRORING peer, and this is not one")
 		return
 	_probe.enabled = true
@@ -788,9 +788,9 @@ func _write_log(line: String) -> void:
 
 func _role_name() -> String:
 	match _role:
-		NetworkTransport.Role.HOST:
+		NetworkConfig.Role.HOST:
 			return "host"
-		NetworkTransport.Role.CLIENT:
+		NetworkConfig.Role.CLIENT:
 			return "client"
 		_:
 			return "solo"
@@ -803,10 +803,10 @@ func _refresh_banner() -> void:
 	if _link_refused:
 		linked = " · REFUSED (build mismatch)"
 	match _role:
-		NetworkTransport.Role.HOST:
+		NetworkConfig.Role.HOST:
 			_banner.text = "HOST — Red + Blue (hot-seat)%s" % linked
 			_banner.modulate = Color(1.0, 0.55, 0.5)
-		NetworkTransport.Role.CLIENT:
+		NetworkConfig.Role.CLIENT:
 			_banner.text = "CLIENT — Blue, spectating%s" % linked
 			_banner.modulate = Color(0.55, 0.75, 1.0)
 		_:

@@ -70,7 +70,7 @@ func test_a_host_lobby_seats_a_remote_human_on_its_own_camp() -> void:
 	assert_eq(parts.size(), 2)
 	assert_eq(parts[0].kind, Participant.Kind.HUMAN)
 	assert_eq(parts[0].camp, _CAMP_1)
-	assert_eq(parts[0].peer_id, NetworkTransport.HOST_PEER_ID, "a host is always peer 1")
+	assert_eq(parts[0].peer_id, NetworkConfig.HOST_PEER_ID, "a host is always peer 1")
 	assert_eq(parts[1].kind, Participant.Kind.HUMAN)
 	assert_eq(parts[1].camp, _CAMP_2, "the joiner is a rival, not a couch partner")
 	assert_true(parts[1].peer_id != parts[0].peer_id,
@@ -82,7 +82,7 @@ func test_a_join_lobby_mirrors_the_host_shape() -> void:
 			RunConfig.Mode.COOP_HOTSEAT, NetworkConfig.join("127.0.0.1"), 0)
 	assert_eq(parts.size(), 2)
 	assert_eq(parts[1].kind, Participant.Kind.HUMAN)
-	assert_eq(parts[1].peer_id, NetworkTransport.HOST_PEER_ID,
+	assert_eq(parts[1].peer_id, NetworkConfig.HOST_PEER_ID,
 			"from a client, the remote human IS the host")
 
 
@@ -120,7 +120,7 @@ func test_a_host_roster_yields_a_seat_not_a_couch() -> void:
 	var policy := SeatPolicy.from_roster(
 			{parts[0].id: mine, parts[1].id: theirs},
 			roster,
-			NetworkTransport.HOST_PEER_ID)
+			NetworkConfig.HOST_PEER_ID)
 	assert_eq(policy.seating, SeatPolicy.Seating.SEAT,
 			"a remote human in the roster is what makes this machine a seat")
 	assert_eq(policy.seated_entity_id, mine.entity_id)

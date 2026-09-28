@@ -157,12 +157,12 @@ func test_the_two_panels_share_one_answer_about_junk() -> void:
 
 func test_a_join_config_carries_the_address_a_host_config_does_not() -> void:
 	var joining := NetworkConfig.join("10.0.0.4", 7777)
-	assert_eq(joining.role, NetworkTransport.Role.CLIENT)
+	assert_eq(joining.role, NetworkConfig.Role.CLIENT)
 	assert_eq(joining.address, "10.0.0.4")
 	assert_true(joining.is_online())
 
 	var hosting := NetworkConfig.host(7777)
-	assert_eq(hosting.role, NetworkTransport.Role.HOST)
+	assert_eq(hosting.role, NetworkConfig.Role.HOST)
 	assert_true(hosting.is_online())
 
 	assert_false(NetworkConfig.offline().is_online(), "and offline is offline")

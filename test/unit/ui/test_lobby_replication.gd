@@ -105,7 +105,7 @@ func test_a_join_stamps_the_host_s_waiting_seat_and_replicates_the_roster() -> v
 	assert_eq(_seat_of(_host, 2).peer_id, _CLIENT_PEER, "the waiting seat is stamped")
 	assert_false(LobbyRoster.is_pending_remote(_seat_of(_host, 2)))
 	# And the client is now showing the host's roster, not the one it authored.
-	assert_eq(_seat_of(_client, 1).peer_id, NetworkTransport.HOST_PEER_ID,
+	assert_eq(_seat_of(_client, 1).peer_id, NetworkConfig.HOST_PEER_ID,
 			"the host's own row crossed with the host's id on it")
 	assert_eq(_seat_of(_client, 2).peer_id, _CLIENT_PEER,
 			"and the joiner's row carries the id the host stamped")
@@ -126,7 +126,7 @@ func test_changing_the_ai_count_after_a_join_keeps_the_joiner_seated() -> void:
 	assert_eq(_seat_of(_host, 2).peer_id, _CLIENT_PEER,
 			"the joiner's seat survives the rebuild with its id on it")
 	assert_false(_host.has_pending_remote(), "nothing is back to waiting")
-	assert_eq(_seat_of(_host, 1).peer_id, NetworkTransport.HOST_PEER_ID)
+	assert_eq(_seat_of(_host, 1).peer_id, NetworkConfig.HOST_PEER_ID)
 	# And the rebuilt shape reached the joiner rather than waiting for START.
 	assert_eq(_client.participants().size(), 4, "the joiner's lobby shows the new shape")
 	assert_eq(_seat_of(_client, 2).peer_id, _CLIENT_PEER)
@@ -343,7 +343,7 @@ func test_a_remote_pick_from_peer_zero_is_refused() -> void:
 
 
 ## Acceptance 8. An offline lobby mounts no link at all — not a link in
-## [constant CommandLink.Mode.OFF], no transport, no traffic, and every row still
+## [constant NetworkConfig.Role.OFFLINE], no transport, no traffic, and every row still
 ## editable, which is the whole hot-seat shape.
 func test_an_offline_lobby_mounts_nothing() -> void:
 	var lobby := LobbyScreen.new()

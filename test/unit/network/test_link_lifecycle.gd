@@ -59,9 +59,9 @@ func before_each() -> void:
 	_b_refusals = []
 	_b_lost = []
 
-	_host = _link(_host_transport, CommandLink.Mode.BROADCAST)
-	_a = _link(_a_transport, CommandLink.Mode.MIRROR)
-	_b = _link(_b_transport, CommandLink.Mode.MIRROR)
+	_host = _link(_host_transport, NetworkConfig.Role.HOST)
+	_a = _link(_a_transport, NetworkConfig.Role.CLIENT)
+	_b = _link(_b_transport, NetworkConfig.Role.CLIENT)
 
 	_host.peer_cleared.connect(func(id: int, _join_prefs: Dictionary) -> void: _cleared.append(id))
 	_host.peer_refused.connect(
@@ -77,10 +77,10 @@ func after_each() -> void:
 
 ## No [CommandApplier] and no [Graph] — every assertion here is about the
 ## handshake, same as `test_link_build_check.gd`.
-func _link(transport: NetworkTransport, mode: CommandLink.Mode) -> CommandLink:
+func _link(transport: NetworkTransport, mode: NetworkConfig.Role) -> CommandLink:
 	var link := CommandLink.new()
 	link.transport = transport
-	link.mode = mode
+	link.role = mode
 	add_child_autofree(link)
 	return link
 
@@ -115,7 +115,7 @@ func test_a_mismatched_joiner_is_dropped_alone_and_the_other_client_survives() -
 	assert_eq(_b_refusals, ["refused by peer — build mismatch"],
 			"the reason travels, so a lobby has something to put on screen")
 	assert_eq(_b_lost, ["dropped by host"], "and the link went away without B asking")
-	assert_eq(_b_transport.role, NetworkTransport.Role.OFFLINE)
+	assert_eq(_b_transport.role, NetworkConfig.Role.OFFLINE)
 	assert_false(_b_transport.is_linked())
 
 	# …and nothing happened to anybody else. This is the defect, stated.

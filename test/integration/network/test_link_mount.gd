@@ -120,7 +120,7 @@ func test_the_mounted_link_is_wired_but_idle() -> void:
 	assert_eq(link.graph, root.graph, "graph NodePath")
 	# OFF is what keeps offline play byte-for-byte unchanged: nothing is
 	# serialized, nothing is sent. A role raises the mode; the mount never does.
-	assert_eq(link.mode, CommandLink.Mode.OFF, "mounted idle")
+	assert_eq(link.role, NetworkConfig.Role.OFFLINE, "mounted idle")
 	assert_true(root.command_applier.is_authority,
 			"and an unlinked peer still decides for itself")
 
@@ -154,15 +154,15 @@ func test_a_host_role_raises_the_link_to_broadcast() -> void:
 	# `_open_link` (which opens the socket) sits past `_live_game_root`'s own
 	# frame budget under load — wait for the root's own "done" flag instead.
 	await _wait_for_reveal(root)
-	assert_eq(root.command_link.mode, CommandLink.Mode.BROADCAST)
+	assert_eq(root.command_link.role, NetworkConfig.Role.HOST)
 	assert_true(root.command_applier.is_authority, "a host decides")
-	assert_eq(root.transport.role, NetworkTransport.Role.HOST, "and the socket was opened")
+	assert_eq(root.transport.role, NetworkConfig.Role.HOST, "and the socket was opened")
 
 
 func test_a_client_role_makes_this_peer_a_mirror() -> void:
 	GameSession.network = NetworkConfig.join("127.0.0.1")
 	var root: GameRoot = await _live_game_root()
-	assert_eq(root.command_link.mode, CommandLink.Mode.MIRROR)
+	assert_eq(root.command_link.role, NetworkConfig.Role.CLIENT)
 	# The one consequence that has to be true BEFORE the level's first turn:
 	# a client that thinks it decides has already diverged.
 	assert_false(root.command_applier.is_authority, "a client is told")
@@ -171,8 +171,8 @@ func test_a_client_role_makes_this_peer_a_mirror() -> void:
 func test_an_offline_role_is_the_same_as_no_role_at_all() -> void:
 	GameSession.network = NetworkConfig.offline()
 	var root: GameRoot = await _live_game_root()
-	assert_eq(root.command_link.mode, CommandLink.Mode.OFF)
-	assert_eq(root.transport.role, NetworkTransport.Role.OFFLINE, "no socket was opened")
+	assert_eq(root.command_link.role, NetworkConfig.Role.OFFLINE)
+	assert_eq(root.transport.role, NetworkConfig.Role.OFFLINE, "no socket was opened")
 
 
 func test_the_level_the_menu_routes_to_can_actually_reach_a_peer() -> void:

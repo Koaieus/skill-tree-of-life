@@ -38,16 +38,16 @@ func before_each() -> void:
 	var pair := LoopbackTransport.pair()
 	add_child_autofree(pair[0])
 	add_child_autofree(pair[1])
-	_host_link = _make_link(_host, pair[0], CommandLink.Mode.BROADCAST)
-	_client_link = _make_link(_client, pair[1], CommandLink.Mode.MIRROR)
+	_host_link = _make_link(_host, pair[0], NetworkConfig.Role.HOST)
+	_client_link = _make_link(_client, pair[1], NetworkConfig.Role.CLIENT)
 
 
-func _make_link(world: Dictionary, transport: NetworkTransport, mode: CommandLink.Mode) -> CommandLink:
+func _make_link(world: Dictionary, transport: NetworkTransport, mode: NetworkConfig.Role) -> CommandLink:
 	var link := CommandLink.new()
 	link.transport = transport
 	link.command_applier = world["applier"]
 	link.graph = world["graph"]
-	link.mode = mode
+	link.role = mode
 	add_child_autofree(link)
 	return link
 

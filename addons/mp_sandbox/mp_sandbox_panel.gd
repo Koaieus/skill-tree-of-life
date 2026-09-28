@@ -114,17 +114,17 @@ func _on_scene_picked(index: int) -> void:
 
 
 func _on_launch_both() -> void:
-	if _launch(NetworkTransport.Role.HOST) == -1:
+	if _launch(NetworkConfig.Role.HOST) == -1:
 		return
-	_launch(NetworkTransport.Role.CLIENT)
+	_launch(NetworkConfig.Role.CLIENT)
 
 
 func _on_launch_host() -> void:
-	_launch(NetworkTransport.Role.HOST)
+	_launch(NetworkConfig.Role.HOST)
 
 
 func _on_launch_client() -> void:
-	_launch(NetworkTransport.Role.CLIENT)
+	_launch(NetworkConfig.Role.CLIENT)
 
 
 func _on_kill_all() -> void:
@@ -147,8 +147,8 @@ func _on_kill_all() -> void:
 ## The role rides AFTER `--`, which is what puts it in
 ## [method OS.get_cmdline_user_args] rather than in Godot's own argument
 ## namespace — pass it before the separator and the engine tries to interpret it.
-func build_args(role: NetworkTransport.Role, scene: String) -> PackedStringArray:
-	var is_host := role == NetworkTransport.Role.HOST
+func build_args(role: NetworkConfig.Role, scene: String) -> PackedStringArray:
+	var is_host := role == NetworkConfig.Role.HOST
 	var position := HOST_POSITION if is_host else CLIENT_POSITION
 	var lobby_route := scene.strip_edges() == LOBBY_ROUTE
 	var args: PackedStringArray = [
@@ -194,12 +194,12 @@ func build_args(role: NetworkTransport.Role, scene: String) -> PackedStringArray
 
 
 ## Spawns one instance. Returns its PID, or -1 on failure.
-func _launch(role: NetworkTransport.Role) -> int:
+func _launch(role: NetworkConfig.Role) -> int:
 	var scene := _scene_field.text.strip_edges()
 	if scene != LOBBY_ROUTE and not ResourceLoader.exists(scene):
 		_write("[color=#e06c60]No such scene: %s[/color]" % scene)
 		return -1
-	var is_host := role == NetworkTransport.Role.HOST
+	var is_host := role == NetworkConfig.Role.HOST
 	var sweeping := _autopilot_toggle.button_pressed
 	_warn_if_the_pair_would_be_asymmetric(sweeping)
 	var pid := OS.create_instance(build_args(role, scene))

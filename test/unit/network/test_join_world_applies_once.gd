@@ -35,17 +35,17 @@ func before_each() -> void:
 	var pair := LoopbackTransport.pair()
 	add_child_autofree(pair[0])
 	add_child_autofree(pair[1])
-	_host_link = _make_link(_host_graph, pair[0], CommandLink.Mode.BROADCAST)
-	_client_link = _make_link(_client_graph, pair[1], CommandLink.Mode.MIRROR)
+	_host_link = _make_link(_host_graph, pair[0], NetworkConfig.Role.HOST)
+	_client_link = _make_link(_client_graph, pair[1], NetworkConfig.Role.CLIENT)
 	_applied = []
 	_client_link.resync_applied.connect(func(r: String) -> void: _applied.append(r))
 
 
-func _make_link(graph: Graph, transport: NetworkTransport, mode: CommandLink.Mode) -> CommandLink:
+func _make_link(graph: Graph, transport: NetworkTransport, mode: NetworkConfig.Role) -> CommandLink:
 	var link := CommandLink.new()
 	link.transport = transport
 	link.graph = graph
-	link.mode = mode
+	link.role = mode
 	add_child_autofree(link)
 	return link
 

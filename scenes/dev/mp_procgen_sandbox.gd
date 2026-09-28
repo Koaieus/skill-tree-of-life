@@ -36,7 +36,7 @@ const _CORE_CLASS_AI := preload("res://entity/core/basic_enemy_core.tres")
 @onready var _banner: Label = %NetBanner
 @onready var _log: RichTextLabel = %NetLog
 
-var _role: NetworkTransport.Role = NetworkTransport.Role.OFFLINE
+var _role: NetworkConfig.Role = NetworkConfig.Role.OFFLINE
 var _address: String = DEFAULT_ADDRESS
 var _port: int = DEFAULT_PORT
 ## Participant 0 (host's hero) and participant 1 (Blue, AI-driven, client's
@@ -66,7 +66,7 @@ func _ready() -> void:
 	# AIController's authority gate must never read the library default while
 	# a role is still being adopted.
 	if command_applier != null:
-		command_applier.is_authority = _role != NetworkTransport.Role.CLIENT
+		command_applier.is_authority = _role != NetworkConfig.Role.CLIENT
 	turn_manager.opens_first_turn = false
 	# BEFORE `super()`, unlike rung 1. A CLIENT's `_setup_level` (below) has
 	# nothing to read locally and must AWAIT wire data — so the socket has to
@@ -75,7 +75,7 @@ func _ready() -> void:
 	# into `_setup_level()`'s own await suspends AT that inner await (GDScript
 	# coroutine semantics — see rung 1's `_ready` for the same mechanism used
 	# the other way round), so this ordering is what makes the wait legal.
-	if _role != NetworkTransport.Role.OFFLINE:
+	if _role != NetworkConfig.Role.OFFLINE:
 		_start_link()
 	super()
 	if Engine.is_editor_hint():
@@ -113,7 +113,7 @@ func _setup_level_as_host_or_solo() -> void:
 	_blue = spawn_entity("Blue", _BLUE_COLOR, starting_nodes[1], _CORE_CLASS_AI)
 	GameRoot.apply_roster({0: _red, 1: _blue}, roster)
 	player = _red
-	if _role == NetworkTransport.Role.HOST:
+	if _role == NetworkConfig.Role.HOST:
 		# No hot-seat (class docstring) — pinned to Red instead of the couch
 		# `apply_roster` alone would otherwise leave in place.
 		seat_policy = SeatPolicy.seat(_red.entity_id)
@@ -178,7 +178,7 @@ func _fixed_roster() -> ParticipantRoster:
 
 func _setup_level() -> void:
 	match _role:
-		NetworkTransport.Role.CLIENT:
+		NetworkConfig.Role.CLIENT:
 			await _setup_level_as_client()
 		_:
 			await _setup_level_as_host_or_solo()
@@ -218,9 +218,9 @@ func _parse_cmdline() -> void:
 			"role":
 				match pair[1]:
 					"host":
-						_role = NetworkTransport.Role.HOST
+						_role = NetworkConfig.Role.HOST
 					"client":
-						_role = NetworkTransport.Role.CLIENT
+						_role = NetworkConfig.Role.CLIENT
 			"address":
 				_address = pair[1]
 			"port":
@@ -237,8 +237,8 @@ func _start_link() -> void:
 		turn_manager.turn_started.connect(_on_turn_started)
 
 	match _role:
-		NetworkTransport.Role.HOST:
-			_link.mode = CommandLink.Mode.BROADCAST
+		NetworkConfig.Role.HOST:
+			_link.role = NetworkConfig.Role.HOST
 			var err := _transport.start_host(_port)
 			if err != OK:
 				_die_without_a_socket(err)
@@ -252,8 +252,8 @@ func _start_link() -> void:
 			# rung 2 has no automated coverage, and the error is a signal-call
 			# fault rather than a crash, so it only shows in the host's log.
 			_transport.link_changed.connect(_greet_if_linked_and_ready.unbind(1))
-		NetworkTransport.Role.CLIENT:
-			_link.mode = CommandLink.Mode.MIRROR
+		NetworkConfig.Role.CLIENT:
+			_link.role = NetworkConfig.Role.CLIENT
 			# A spectator, on purpose — same reasoning as rung 1: wave 0 has
 			# no intent channel upward, so a local mutation here would
 			# diverge from the host with nothing to correct it.
@@ -266,7 +266,7 @@ func _start_link() -> void:
 			_transport.message_received.connect(_observe_snapshots)
 			_transport.start_client(_address, _port)
 		_:
-			_link.mode = CommandLink.Mode.OFF
+			_link.role = NetworkConfig.Role.OFFLINE
 			_refresh_banner()
 			return
 
@@ -422,9 +422,9 @@ func _write_log(line: String) -> void:
 
 func _role_name() -> String:
 	match _role:
-		NetworkTransport.Role.HOST:
+		NetworkConfig.Role.HOST:
 			return "host"
-		NetworkTransport.Role.CLIENT:
+		NetworkConfig.Role.CLIENT:
 			return "client"
 		_:
 			return "solo"
@@ -437,10 +437,10 @@ func _refresh_banner() -> void:
 	if _link_refused:
 		linked = " · REFUSED (build mismatch)"
 	match _role:
-		NetworkTransport.Role.HOST:
+		NetworkConfig.Role.HOST:
 			_banner.text = "HOST — procgen'd, seated on Red%s" % linked
 			_banner.modulate = Color(1.0, 0.55, 0.5)
-		NetworkTransport.Role.CLIENT:
+		NetworkConfig.Role.CLIENT:
 			_banner.text = "CLIENT — seated on Blue, spectating%s" % linked
 			_banner.modulate = Color(0.55, 0.75, 1.0)
 		_:

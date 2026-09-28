@@ -109,7 +109,7 @@ func _versus_roster() -> ParticipantRoster:
 	red.color = _RED_COLOR
 	red.camp = _PLAYER_FACTION
 	red.kind = Participant.Kind.HUMAN
-	red.peer_id = NetworkTransport.HOST_PEER_ID
+	red.peer_id = NetworkConfig.HOST_PEER_ID
 	roster.add(red)
 	var blue := Participant.new()
 	blue.id = 2
@@ -154,12 +154,12 @@ func _two_divergent_worlds() -> void:
 	var client_transport := _client_root.transport as LoopbackTransport
 	host_transport.peer = client_transport
 	client_transport.peer = host_transport
-	host_transport.role = NetworkTransport.Role.HOST
-	client_transport.role = NetworkTransport.Role.CLIENT
-	host_transport.my_peer_id = NetworkTransport.HOST_PEER_ID
+	host_transport.role = NetworkConfig.Role.HOST
+	client_transport.role = NetworkConfig.Role.CLIENT
+	host_transport.my_peer_id = NetworkConfig.HOST_PEER_ID
 	client_transport.my_peer_id = _CLIENT_PEER_ID
-	_host_root.command_link.mode = CommandLink.Mode.BROADCAST
-	_client_root.command_link.mode = CommandLink.Mode.MIRROR
+	_host_root.command_link.role = NetworkConfig.Role.HOST
+	_client_root.command_link.role = NetworkConfig.Role.CLIENT
 
 	# HOST: the run it decided.
 	var host_cfg := RunConfig.new()
@@ -262,7 +262,7 @@ func test_the_client_is_seated_on_its_own_participant_after_adopting() -> void:
 	# And the host reads the same roster the other way round, from its own id.
 	var host_seat := SeatPolicy.from_roster(
 			{1: _host_root.graph.get_by_entity_id(1), 2: _host_root.graph.get_by_entity_id(2)},
-			GameSession.roster, NetworkTransport.HOST_PEER_ID)
+			GameSession.roster, NetworkConfig.HOST_PEER_ID)
 	assert_ne(host_seat.seated_entity_id, seat.seated_entity_id,
 			"the two machines are seated on different heroes — the WANTED difference")
 

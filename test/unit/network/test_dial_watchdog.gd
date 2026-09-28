@@ -65,7 +65,7 @@ func test_an_unanswered_dial_is_given_up_with_the_endpoint_named() -> void:
 	assert_eq(_lost, ["no answer from 127.0.0.1:1"],
 			"the reason names what was dialled, so a typo is visible in the message")
 	assert_false(Wire.is_open(), "the dead dial is torn down, not left polling")
-	assert_eq(Wire.role, NetworkTransport.Role.OFFLINE)
+	assert_eq(Wire.role, NetworkConfig.Role.OFFLINE)
 	assert_string_contains(Wire.last_status, "no answer from 127.0.0.1:1",
 			"and a lobby that mounts late still finds the account in last_status")
 
@@ -73,7 +73,7 @@ func test_an_unanswered_dial_is_given_up_with_the_endpoint_named() -> void:
 func test_the_timeout_is_a_no_op_once_the_server_answered() -> void:
 	Wire.start_client(_NOBODY_HOME, _DEAD_PORT)
 	# The server's arrival, as ENet reports it client-side.
-	Wire._on_peer_connected(NetworkTransport.HOST_PEER_ID)
+	Wire._on_peer_connected(NetworkConfig.HOST_PEER_ID)
 
 	Wire._on_dial_watchdog_timeout()
 

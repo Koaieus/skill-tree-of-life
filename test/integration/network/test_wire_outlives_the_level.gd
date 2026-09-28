@@ -58,8 +58,8 @@ func test_the_singleton_opens_a_socket_with_no_level_anywhere() -> void:
 	assert_eq(Wire.start_host(_EPHEMERAL), OK, "a host listens without a GameRoot in sight")
 	assert_true(Wire.is_open(), "the socket is up")
 	assert_false(Wire.is_linked(), "open is not linked — nobody has joined")
-	assert_eq(Wire.role, NetworkTransport.Role.HOST)
-	assert_eq(Wire.local_peer_id(), NetworkTransport.HOST_PEER_ID,
+	assert_eq(Wire.role, NetworkConfig.Role.HOST)
+	assert_eq(Wire.local_peer_id(), NetworkConfig.HOST_PEER_ID,
 			"and this machine knows its own id before any level could ask")
 
 
@@ -72,13 +72,13 @@ func test_freeing_the_mounted_transport_does_not_close_the_socket() -> void:
 	var transport := EnetTransport.new()
 	add_child(transport)
 	transport.start_host(_EPHEMERAL)
-	assert_eq(transport.role, NetworkTransport.Role.HOST, "sanity: it adopted")
+	assert_eq(transport.role, NetworkConfig.Role.HOST, "sanity: it adopted")
 
 	transport.free()
 	await get_tree().process_frame
 
 	assert_true(Wire.is_open(), "the level went away; the link did not")
-	assert_eq(Wire.local_peer_id(), NetworkTransport.HOST_PEER_ID, "and it is the same link")
+	assert_eq(Wire.local_peer_id(), NetworkConfig.HOST_PEER_ID, "and it is the same link")
 
 
 # --- adopting a link this level did not open --------------------------------
@@ -91,10 +91,10 @@ func test_a_mounted_transport_adopts_a_live_host_link_instead_of_restarting_it()
 	var transport := _mounted()
 	assert_eq(transport.start_host(_EPHEMERAL), OK)
 
-	assert_eq(transport.role, NetworkTransport.Role.HOST, "the facade mirrors the live role")
+	assert_eq(transport.role, NetworkConfig.Role.HOST, "the facade mirrors the live role")
 	assert_true(transport.is_linked(),
 			"and it is linked on arrival — a re-start would have dropped peer 7")
-	assert_eq(transport.local_peer_id(), NetworkTransport.HOST_PEER_ID)
+	assert_eq(transport.local_peer_id(), NetworkConfig.HOST_PEER_ID)
 
 
 func test_a_client_adopts_the_link_its_lobby_dialled() -> void:
@@ -104,7 +104,7 @@ func test_a_client_adopts_the_link_its_lobby_dialled() -> void:
 	var transport := _mounted()
 
 	assert_eq(transport.start_client("127.0.0.1", 1), OK)
-	assert_eq(transport.role, NetworkTransport.Role.CLIENT)
+	assert_eq(transport.role, NetworkConfig.Role.CLIENT)
 
 
 ## The join replay. Every host-side consequence of a peer arriving — stamping
@@ -130,7 +130,7 @@ func test_a_level_that_wants_the_other_role_is_refused_rather_than_stealing_the_
 
 	assert_ne(transport.start_client("127.0.0.1", 1), OK,
 			"a client mount must not silently take over a host's socket")
-	assert_eq(Wire.role, NetworkTransport.Role.HOST, "and the live link is untouched")
+	assert_eq(Wire.role, NetworkConfig.Role.HOST, "and the live link is untouched")
 	assert_true(Wire.is_open())
 
 
@@ -198,7 +198,7 @@ func test_stopping_through_the_seam_closes_the_underlying_socket() -> void:
 	transport.stop()
 
 	assert_false(Wire.is_open(), "stop() still means stop")
-	assert_eq(transport.role, NetworkTransport.Role.OFFLINE)
+	assert_eq(transport.role, NetworkConfig.Role.OFFLINE)
 	assert_eq(Wire.local_peer_id(), 0, "a closed link is nobody")
 
 
@@ -281,7 +281,7 @@ func test_a_lost_link_reaches_the_seam_as_offline() -> void:
 	Wire._on_server_disconnected()
 
 	assert_eq(lost.size(), 1, "the facade re-emits the loss")
-	assert_eq(roles, [NetworkTransport.Role.OFFLINE],
+	assert_eq(roles, [NetworkConfig.Role.OFFLINE],
 			"and by the time it does, the role it reports is already the true one")
 	assert_false(Wire.is_open())
 	assert_string_contains(Wire.last_status, "host went away")
@@ -321,9 +321,9 @@ func test_a_game_root_adopts_the_lobby_s_link_rather_than_reopening_it() -> void
 	await wait_until(root.is_reveal_ready, 2.0)
 
 	assert_true(root.transport is EnetTransport, "sanity: the swap took")
-	assert_eq(root.transport.role, NetworkTransport.Role.HOST,
+	assert_eq(root.transport.role, NetworkConfig.Role.HOST,
 			"the level took the role off the live link")
-	assert_eq(root.command_link.mode, CommandLink.Mode.BROADCAST, "and it is the authority")
+	assert_eq(root.command_link.role, NetworkConfig.Role.HOST, "and it is the authority")
 	assert_true(Wire.is_open(), "the link the lobby opened is still up")
 	assert_eq(Wire._peer, opened_by_the_lobby,
 			"and it is the SAME socket — a re-start would have dropped every "

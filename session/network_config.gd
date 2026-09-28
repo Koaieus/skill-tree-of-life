@@ -39,7 +39,21 @@ const DEFAULT_ADDRESS := "127.0.0.1"
 ## [constant Wire.DIAL_TIMEOUT_SEC] rather than hanging.
 const BLANK_ADDRESS_PROBLEM := "Type the host's address — the host reads it out in its lobby."
 
-var role: NetworkTransport.Role = NetworkTransport.Role.OFFLINE
+## Who this machine is on the link. Also [member CommandLink.role] and
+## [member NetworkTransport.role]: one enum for the one question, homed here
+## because the config is what a menu writes before any wire exists.
+enum Role {
+	OFFLINE,  ## No link. A link left here is wired but idle — and its own authority.
+	HOST,     ## Decides; broadcasts confirmed commands down.
+	CLIENT,   ## Applies what it is told.
+}
+
+## The id Godot's high-level multiplayer always gives the server. Named here
+## rather than typed as a literal at each site that stamps the host's own
+## participant.
+const HOST_PEER_ID := 1
+
+var role: Role = Role.OFFLINE
 ## Unread as a HOST — a listener binds every interface, it does not dial one.
 var address: String = DEFAULT_ADDRESS
 var port: int = DEFAULT_PORT
@@ -52,14 +66,14 @@ static func offline() -> NetworkConfig:
 
 static func host(listen_port: int = DEFAULT_PORT) -> NetworkConfig:
 	var cfg := NetworkConfig.new()
-	cfg.role = NetworkTransport.Role.HOST
+	cfg.role = Role.HOST
 	cfg.port = listen_port
 	return cfg
 
 
 static func join(dial_address: String, dial_port: int = DEFAULT_PORT) -> NetworkConfig:
 	var cfg := NetworkConfig.new()
-	cfg.role = NetworkTransport.Role.CLIENT
+	cfg.role = Role.CLIENT
 	cfg.address = dial_address
 	cfg.port = dial_port
 	return cfg
@@ -78,15 +92,15 @@ static func join_address_problem(address: String) -> String:
 ## True when this machine should bring a link up at all. The one question
 ## [GameRoot] asks before touching the mounted transport.
 func is_online() -> bool:
-	return role != NetworkTransport.Role.OFFLINE
+	return role != Role.OFFLINE
 
 
 ## For a log line or a lobby caption. Never parsed.
 func describe() -> String:
 	match role:
-		NetworkTransport.Role.HOST:
+		Role.HOST:
 			return "hosting on port %d" % port
-		NetworkTransport.Role.CLIENT:
+		Role.CLIENT:
 			return "joining %s:%d" % [address, port]
 		_:
 			return "offline"

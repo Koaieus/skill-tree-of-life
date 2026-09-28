@@ -89,13 +89,13 @@ func _build_world(label: String, candidates: Array[StatModifier],
 
 
 func _link(applier: CommandApplier, graph: Graph, transport: NetworkTransport,
-		mode: CommandLink.Mode, registry: LootPickRegistry = null) -> CommandLink:
+		mode: NetworkConfig.Role, registry: LootPickRegistry = null) -> CommandLink:
 	var link := CommandLink.new()
 	link.transport = transport
 	link.command_applier = applier
 	link.graph = graph
 	link.loot_pick_registry = registry
-	link.mode = mode
+	link.role = mode
 	add_child_autofree(link)
 	return link
 
@@ -125,8 +125,8 @@ func test_a_local_or_npc_round_still_mirrors_correctly() -> void:
 	var pair := LoopbackTransport.pair()
 	add_child_autofree(pair[0])
 	add_child_autofree(pair[1])
-	_link(host["applier"], host["graph"], pair[0], CommandLink.Mode.BROADCAST)
-	_link(client["applier"], client["graph"], pair[1], CommandLink.Mode.MIRROR)
+	_link(host["applier"], host["graph"], pair[0], NetworkConfig.Role.HOST)
+	_link(client["applier"], client["graph"], pair[1], NetworkConfig.Role.CLIENT)
 
 	_open_stat_round(host)
 	await get_tree().process_frame
@@ -153,8 +153,8 @@ func test_a_single_survivor_auto_grants_and_still_mirrors() -> void:
 	var pair := LoopbackTransport.pair()
 	add_child_autofree(pair[0])
 	add_child_autofree(pair[1])
-	_link(host["applier"], host["graph"], pair[0], CommandLink.Mode.BROADCAST)
-	_link(client["applier"], client["graph"], pair[1], CommandLink.Mode.MIRROR)
+	_link(host["applier"], host["graph"], pair[0], NetworkConfig.Role.HOST)
+	_link(client["applier"], client["graph"], pair[1], NetworkConfig.Role.CLIENT)
 
 	var requests := 0
 	var on_request := func(_r: LootPickRequest) -> void: requests += 1
@@ -185,8 +185,8 @@ func test_a_remote_collectors_pick_round_trips_and_closes_the_clients_gate() -> 
 	add_child_autofree(pair[0])
 	add_child_autofree(pair[1])
 	var host_link := _link(host["applier"], host["graph"], pair[0],
-			CommandLink.Mode.BROADCAST, host_registry)
-	var client_link := _link(client["applier"], client["graph"], pair[1], CommandLink.Mode.MIRROR)
+			NetworkConfig.Role.HOST, host_registry)
+	var client_link := _link(client["applier"], client["graph"], pair[1], NetworkConfig.Role.CLIENT)
 	var offers: Array[LootPickOffer] = []
 	client_link.loot_offer_received.connect(func(o: LootPickOffer) -> void: offers.append(o))
 
@@ -244,8 +244,8 @@ func test_a_mirror_peers_registry_stays_inert_through_a_loot_round() -> void:
 	var pair := LoopbackTransport.pair()
 	add_child_autofree(pair[0])
 	add_child_autofree(pair[1])
-	_link(host["applier"], host["graph"], pair[0], CommandLink.Mode.BROADCAST)
-	_link(client["applier"], client["graph"], pair[1], CommandLink.Mode.MIRROR)
+	_link(host["applier"], host["graph"], pair[0], NetworkConfig.Role.HOST)
+	_link(client["applier"], client["graph"], pair[1], NetworkConfig.Role.CLIENT)
 
 	assert_eq(client_registry.pending_count(), 0)
 

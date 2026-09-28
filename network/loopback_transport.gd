@@ -38,7 +38,7 @@ var peer: LoopbackTransport:
 ## What this end calls itself, so [signal NetworkTransport.peer_joined] and
 ## [method NetworkTransport.local_peer_id] mean something headlessly. [method
 ## pair] mints the same two ids ENet would: the host is [constant
-## NetworkTransport.HOST_PEER_ID], the client is the next one up.
+## NetworkConfig.HOST_PEER_ID], the client is the next one up.
 var my_peer_id: int = 0
 
 ## Who last delivered to THIS end, stamped by the sender in [method send] /
@@ -63,9 +63,9 @@ static func pair() -> Array[LoopbackTransport]:
 	var client := LoopbackTransport.new()
 	host.peer = client
 	client.peer = host
-	host.role = Role.HOST
-	client.role = Role.CLIENT
-	host.my_peer_id = HOST_PEER_ID
+	host.role = NetworkConfig.Role.HOST
+	client.role = NetworkConfig.Role.CLIENT
+	host.my_peer_id = NetworkConfig.HOST_PEER_ID
 	client.my_peer_id = _CLIENT_PEER_ID
 	# No `peer_joined` here: these two objects were minted on the line above, so
 	# nothing can be connected yet and the emit would land on nobody. A test that
@@ -80,7 +80,7 @@ static func pair() -> Array[LoopbackTransport]:
 ## every other end's.
 static func attach(host: LoopbackTransport, client_id: int) -> LoopbackTransport:
 	var client := LoopbackTransport.new()
-	client.role = Role.CLIENT
+	client.role = NetworkConfig.Role.CLIENT
 	client.my_peer_id = client_id
 	client.peer = host
 	host.links.append(client)
@@ -93,7 +93,7 @@ static func attach(host: LoopbackTransport, client_id: int) -> LoopbackTransport
 ##
 ## [b]On a CLIENT end this is now the announce half of the build gate.[/b] Since
 ## #716 [method CommandLink._on_transport_peer_joined] sends a hello upward under
-## [constant NetworkTransport.Role.CLIENT], so a fixture calling this on a client
+## [constant NetworkConfig.Role.CLIENT], so a fixture calling this on a client
 ## drives the very handshake a real dial does — which is the point.
 func announce_joined() -> void:
 	if peer == null:
@@ -102,14 +102,14 @@ func announce_joined() -> void:
 
 
 func start_host(_port: int) -> Error:
-	role = Role.HOST
-	my_peer_id = HOST_PEER_ID
+	role = NetworkConfig.Role.HOST
+	my_peer_id = NetworkConfig.HOST_PEER_ID
 	_announce("loopback: host")
 	return OK
 
 
 func start_client(_address: String, _port: int) -> Error:
-	role = Role.CLIENT
+	role = NetworkConfig.Role.CLIENT
 	my_peer_id = _CLIENT_PEER_ID
 	_announce("loopback: client")
 	return OK
@@ -160,7 +160,7 @@ func drop_peer(peer_id: int) -> void:
 			continue
 		links.remove_at(i)
 		victim.links = []
-		victim.role = Role.OFFLINE
+		victim.role = NetworkConfig.Role.OFFLINE
 		victim._announce("loopback: dropped by host")
 		victim.link_lost.emit("dropped by host")
 		peer_left.emit(peer_id)

@@ -43,7 +43,7 @@ func _exit_tree() -> void:
 
 func start_host(port: int) -> Error:
 	if Wire.is_open():
-		return _adopt_live_link(Role.HOST)
+		return _adopt_live_link(NetworkConfig.Role.HOST)
 	if not _bind():
 		return ERR_ALREADY_IN_USE
 	var err := Wire.start_host(port)
@@ -53,7 +53,7 @@ func start_host(port: int) -> Error:
 
 func start_client(address: String, port: int) -> Error:
 	if Wire.is_open():
-		return _adopt_live_link(Role.CLIENT)
+		return _adopt_live_link(NetworkConfig.Role.CLIENT)
 	if not _bind():
 		return ERR_ALREADY_IN_USE
 	var err := Wire.start_client(address, port)
@@ -101,7 +101,7 @@ func last_sender_id() -> int:
 ## Emitted AFTER [signal NetworkTransport.link_changed], for the same ordering
 ## reason [method Wire._on_peer_connected] documents: a listener may send, and
 ## sending is gated on [method is_linked].
-func _adopt_live_link(expected: Role) -> Error:
+func _adopt_live_link(expected: NetworkConfig.Role) -> Error:
 	if Wire.role != expected:
 		_announce("adopt: REFUSED — the live link is %s, this level wants %s"
 				% [Wire.role, expected])
@@ -154,7 +154,7 @@ func _on_wire_message(payload: Dictionary) -> void:
 
 ## Also the point where a link that closed itself (a failed dial, a host that
 ## went away) is reflected back into this node's own [member role] — [Wire] can
-## drop to [constant NetworkTransport.Role.OFFLINE] without anybody calling
+## drop to [constant NetworkConfig.Role.OFFLINE] without anybody calling
 ## [method stop] here.
 func _on_wire_status(status: String) -> void:
 	role = Wire.role

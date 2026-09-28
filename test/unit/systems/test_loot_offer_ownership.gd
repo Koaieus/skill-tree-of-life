@@ -87,7 +87,7 @@ func _mirror(label: String, local_peer: int, roster: ParticipantRoster) -> Dicti
 	var link := CommandLink.new()
 	link.command_applier = applier
 	link.graph = graph
-	link.mode = CommandLink.Mode.MIRROR
+	link.role = NetworkConfig.Role.CLIENT
 	add_child_autofree(link)
 
 	var system := LootSystem.new()

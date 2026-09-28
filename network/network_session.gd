@@ -95,7 +95,7 @@ func _ready() -> void:
 ## missing link is an offline run, which is its own authority, and so is a link
 ## left in `Mode.OFF`. Only a MIRROR is told.
 func is_authority() -> bool:
-	return command_link == null or command_link.mode != CommandLink.Mode.MIRROR
+	return command_link == null or command_link.role != NetworkConfig.Role.CLIENT
 
 
 ## #463: does this machine ADOPT its run, or DECIDE it?
@@ -114,7 +114,7 @@ func is_authority() -> bool:
 func is_client() -> bool:
 	var net: NetworkConfig = GameSession.network
 	return (net != null and net.is_online()
-			and net.role == NetworkTransport.Role.CLIENT)
+			and net.role == NetworkConfig.Role.CLIENT)
 
 
 ## The menu made this machine the host. False offline, false for a level that
@@ -122,7 +122,7 @@ func is_client() -> bool:
 func is_host() -> bool:
 	var net: NetworkConfig = GameSession.network
 	return (net != null and net.is_online()
-			and net.role == NetworkTransport.Role.HOST)
+			and net.role == NetworkConfig.Role.HOST)
 
 
 ## What the wire trace is prefixed with on an online run that was not launched
@@ -132,13 +132,13 @@ static func online_role_name() -> String:
 	var net: NetworkConfig = GameSession.network
 	if net == null or not net.is_online():
 		return ""
-	return "host" if net.role == NetworkTransport.Role.HOST else "client"
+	return "host" if net.role == NetworkConfig.Role.HOST else "client"
 
 
 # --- Lifecycle -------------------------------------------------------------
 
 ## Half one of bringing the wire up (#531): tell the link which side of it we
-## are on. [member CommandLink.mode] is the single writer of
+## are on. [member CommandLink.role] is the single writer of
 ## [member CommandApplier.is_authority], so this one assignment is also what
 ## decides whether this machine DECIDES or is TOLD.
 ##
@@ -159,9 +159,9 @@ func adopt_role() -> void:
 	var net: NetworkConfig = GameSession.network
 	if net == null or not net.is_online():
 		return
-	command_link.mode = (CommandLink.Mode.BROADCAST
-			if net.role == NetworkTransport.Role.HOST
-			else CommandLink.Mode.MIRROR)
+	command_link.role = (NetworkConfig.Role.HOST
+			if net.role == NetworkConfig.Role.HOST
+			else NetworkConfig.Role.CLIENT)
 
 
 ## Half two: open the socket on whatever transport this level mounted.
@@ -187,12 +187,12 @@ func open_link() -> void:
 	transport.peer_left.connect(_on_peer_left)
 	transport.link_lost.connect(_on_link_lost)
 	match net.role:
-		NetworkTransport.Role.HOST:
+		NetworkConfig.Role.HOST:
 			# The hello is what produces the in-sync / DIVERGED verdict, and it
 			# has to wait for a peer — `start_host` only opens a socket.
 			transport.link_changed.connect(_greet_if_linked)
 			transport.start_host(net.port)
-		NetworkTransport.Role.CLIENT:
+		NetworkConfig.Role.CLIENT:
 			transport.start_client(net.address, net.port)
 
 
@@ -356,7 +356,7 @@ func _on_peer_joined(peer_id: int) -> void:
 	var net: NetworkConfig = GameSession.network
 	if net == null:
 		return
-	if net.role == NetworkTransport.Role.CLIENT:
+	if net.role == NetworkConfig.Role.CLIENT:
 		GameSession.local_peer_id = transport.local_peer_id()
 		# The root restates BOTH of its registry copies on this (#668): its
 		# `_ready` pushed a snapshot of `GameSession.roster` and
@@ -451,7 +451,7 @@ func _on_refused_by_host(reason: String) -> void:
 ## mirror applies its shared half (#755, [signal seat_handover]).
 func _on_peer_left(peer_id: int) -> void:
 	var net: NetworkConfig = GameSession.network
-	if net == null or net.role != NetworkTransport.Role.HOST:
+	if net == null or net.role != NetworkConfig.Role.HOST:
 		return
 	peer_left.emit(peer_id)
 

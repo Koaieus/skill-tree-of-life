@@ -72,13 +72,13 @@ func _build_world(label: String, candidates: Array[StatModifier],
 
 
 func _link(applier: CommandApplier, graph: Graph, transport: NetworkTransport,
-		mode: CommandLink.Mode, registry: LootPickRegistry = null) -> CommandLink:
+		mode: NetworkConfig.Role, registry: LootPickRegistry = null) -> CommandLink:
 	var link := CommandLink.new()
 	link.transport = transport
 	link.command_applier = applier
 	link.graph = graph
 	link.loot_pick_registry = registry
-	link.mode = mode
+	link.role = mode
 	add_child_autofree(link)
 	return link
 
@@ -126,9 +126,9 @@ func test_a_remote_collectors_offer_opens_a_picker_and_the_pick_closes_the_round
 	var pair := LoopbackTransport.pair()
 	add_child_autofree(pair[0])
 	add_child_autofree(pair[1])
-	_link(host["applier"], host["graph"], pair[0], CommandLink.Mode.BROADCAST, host_registry)
+	_link(host["applier"], host["graph"], pair[0], NetworkConfig.Role.HOST, host_registry)
 	var client_link := _link(client["applier"], client["graph"], pair[1],
-			CommandLink.Mode.MIRROR, client_registry)
+			NetworkConfig.Role.CLIENT, client_registry)
 	_mirror_adapter(client["applier"], client_link)
 
 	# Events is a shared autoload across both worlds in this harness — the
@@ -184,8 +184,8 @@ func test_a_forfeited_round_closes_the_clients_open_request_without_a_local_answ
 	var pair := LoopbackTransport.pair()
 	add_child_autofree(pair[0])
 	add_child_autofree(pair[1])
-	_link(host["applier"], host["graph"], pair[0], CommandLink.Mode.BROADCAST, host_registry)
-	var client_link := _link(client["applier"], client["graph"], pair[1], CommandLink.Mode.MIRROR)
+	_link(host["applier"], host["graph"], pair[0], NetworkConfig.Role.HOST, host_registry)
+	var client_link := _link(client["applier"], client["graph"], pair[1], NetworkConfig.Role.CLIENT)
 	_mirror_adapter(client["applier"], client_link)
 
 	# See the previous test for why this filters to the client's collector —
@@ -231,8 +231,8 @@ func test_a_collector_death_mid_pick_forfeits_and_travels_upward() -> void:
 	var pair := LoopbackTransport.pair()
 	add_child_autofree(pair[0])
 	add_child_autofree(pair[1])
-	_link(host["applier"], host["graph"], pair[0], CommandLink.Mode.BROADCAST, host_registry)
-	var client_link := _link(client["applier"], client["graph"], pair[1], CommandLink.Mode.MIRROR)
+	_link(host["applier"], host["graph"], pair[0], NetworkConfig.Role.HOST, host_registry)
+	var client_link := _link(client["applier"], client["graph"], pair[1], NetworkConfig.Role.CLIENT)
 	_mirror_adapter(client["applier"], client_link)
 
 	_open_stat_round(host)

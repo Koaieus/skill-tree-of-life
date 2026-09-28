@@ -128,7 +128,7 @@ func test_spawn_index_0_opens_regardless_of_peer_id() -> void:
 	root.network_session = autofree(NetworkSession.new())
 	GameSession.config = RunConfig.new()
 	GameSession.network = NetworkConfig.new()
-	GameSession.network.role = NetworkTransport.Role.HOST
+	GameSession.network.role = NetworkConfig.Role.HOST
 	GameSession.roster = ParticipantRoster.new()
 	var p_first := Participant.new()  # roster index 0 — a joined client, not the host
 	p_first.id = 10
@@ -136,7 +136,7 @@ func test_spawn_index_0_opens_regardless_of_peer_id() -> void:
 	GameSession.roster.add(p_first)
 	var p_second := Participant.new()  # roster index 1 — the host's seat
 	p_second.id = 20
-	p_second.peer_id = NetworkTransport.HOST_PEER_ID
+	p_second.peer_id = NetworkConfig.HOST_PEER_ID
 	GameSession.roster.add(p_second)
 
 	_tm.stagger_opening_clocks()

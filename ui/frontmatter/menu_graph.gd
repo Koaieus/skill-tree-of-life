@@ -28,7 +28,7 @@ extends RefCounted
 ## [b]The tree mirrors the routing `scenes/meta/meta_root.gd` ships today[/b],
 ## including the config panels HOST and JOIN raise before a lobby (#582). The routing is not being
 ## redesigned, only its presentation — [member Item.route] records, per leaf,
-## the [RunConfig.Mode] and [NetworkTransport.Role] that leaf has always
+## the [RunConfig.Mode] and [NetworkConfig.Role] that leaf has always
 ## produced, and `test/unit/ui/test_meta_routing_parity.gd` pins that
 ## correspondence against the live `meta_root.gd` so the deletion of the old
 ## `MenuStack` breadcrumb (#579) could not quietly change it.
@@ -59,7 +59,7 @@ class Route extends RefCounted:
 	## and load-bearing — see [method MetaRoot._push_lobby]'s comment: a player
 	## who hosted, backed out, and then started a solo run must not silently
 	## open a socket.
-	var network_role: NetworkTransport.Role = NetworkTransport.Role.OFFLINE
+	var network_role: NetworkConfig.Role = NetworkConfig.Role.OFFLINE
 	## What this route's lobby lets its slots choose (#615 D2) — null on a route
 	## that opens no lobby, and null is also the legal "today's behaviour" answer
 	## ([LobbyPolicy]'s class docs).
@@ -74,7 +74,7 @@ class Route extends RefCounted:
 
 	func _init(
 		mode: RunConfig.Mode = RunConfig.Mode.SINGLE,
-		role: NetworkTransport.Role = NetworkTransport.Role.OFFLINE,
+		role: NetworkConfig.Role = NetworkConfig.Role.OFFLINE,
 		policy: LobbyPolicy = null
 	) -> void:
 		requested_mode = mode
@@ -164,7 +164,7 @@ static func build() -> MenuGraph:
 	tree.add(_item(ID_SINGLE_PLAYER, ID_ROOT))
 	# `_on_new_game_pressed` -> `_push_lobby(SINGLE, NetworkConfig.offline())`.
 	tree.add(_leaf(ID_NEW_GAME, ID_SINGLE_PLAYER, PANEL_LOBBY,
-			Route.new(RunConfig.Mode.SINGLE, NetworkTransport.Role.OFFLINE,
+			Route.new(RunConfig.Mode.SINGLE, NetworkConfig.Role.OFFLINE,
 					POLICY_SINGLE)))
 	var load_game := _leaf(ID_LOAD_GAME, ID_SINGLE_PLAYER, PANEL_LOAD)
 	load_game.disabled = true  # #23 save/load is parked.
@@ -176,20 +176,20 @@ static func build() -> MenuGraph:
 	# the two networked ones stop at a panel first, because that is where the
 	# port (and, for JOIN, the address) gets typed.
 	tree.add(_leaf(ID_LOCAL, ID_MULTIPLAYER, PANEL_LOBBY,
-			Route.new(RunConfig.Mode.COOP_HOTSEAT, NetworkTransport.Role.OFFLINE,
+			Route.new(RunConfig.Mode.COOP_HOTSEAT, NetworkConfig.Role.OFFLINE,
 					POLICY_HOTSEAT)))
 	# HOST's panel is its config screen, so — exactly like JOIN — its policy is
 	# not read on arrival but when that screen reports a port and
 	# `_on_host_requested` pushes the lobby (#582 D1).
 	tree.add(_leaf(ID_HOST, ID_MULTIPLAYER, PANEL_HOST,
-			Route.new(RunConfig.Mode.COOP_HOTSEAT, NetworkTransport.Role.HOST,
+			Route.new(RunConfig.Mode.COOP_HOTSEAT, NetworkConfig.Role.HOST,
 					POLICY_VERSUS)))
 	# JOIN's panel is the address screen, so its policy is not read on arrival —
 	# it is read when that screen reports an address and `_on_join_requested`
 	# pushes the lobby. Authored anyway, and identical to HOST's, because both
 	# ends of one link must show the same lobby.
 	tree.add(_leaf(ID_JOIN, ID_MULTIPLAYER, PANEL_JOIN,
-			Route.new(RunConfig.Mode.COOP_HOTSEAT, NetworkTransport.Role.CLIENT,
+			Route.new(RunConfig.Mode.COOP_HOTSEAT, NetworkConfig.Role.CLIENT,
 					POLICY_VERSUS)))
 
 	# The catalogue (#853) opens a read-only panel, so like OPTIONS it has no

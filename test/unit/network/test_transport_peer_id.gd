@@ -18,7 +18,7 @@ func test_a_paired_loopback_mints_two_different_ids() -> void:
 	var pair := LoopbackTransport.pair()
 	var host := pair[0]
 	var client := pair[1]
-	assert_eq(host.local_peer_id(), NetworkTransport.HOST_PEER_ID)
+	assert_eq(host.local_peer_id(), NetworkConfig.HOST_PEER_ID)
 	assert_true(client.local_peer_id() != host.local_peer_id(),
 			"a versus fixture is exactly two peers that disagree about who they are")
 
@@ -39,6 +39,6 @@ func test_starting_a_host_claims_the_server_id() -> void:
 	autofree(t)
 	assert_eq(t.local_peer_id(), 0, "not linked yet")
 	t.start_host(0)
-	assert_eq(t.local_peer_id(), NetworkTransport.HOST_PEER_ID)
+	assert_eq(t.local_peer_id(), NetworkConfig.HOST_PEER_ID)
 	t.stop()
 	assert_eq(t.local_peer_id(), 0, "a closed link is nobody")

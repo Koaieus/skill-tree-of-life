@@ -65,10 +65,10 @@ const DIAL_TIMEOUT_SEC := 8.0
 ## real seconds on it. Production never writes it.
 var dial_timeout_sec: float = DIAL_TIMEOUT_SEC
 
-## Mirrors [enum NetworkTransport.Role] by value. Declared here rather than
+## Mirrors [enum NetworkConfig.Role] by value. Declared here rather than
 ## imported so this singleton does not depend on the seam that wraps it — the
 ## dependency runs the other way.
-var role: NetworkTransport.Role = NetworkTransport.Role.OFFLINE
+var role: NetworkConfig.Role = NetworkConfig.Role.OFFLINE
 
 ## Peers currently connected to us. Host-side this can be many; client-side it is
 ## only ever the server.
@@ -178,7 +178,7 @@ func start_host(port: int) -> Error:
 	if err != OK:
 		_announce("host: FAILED to listen on %d (%s)" % [port, error_string(err)])
 		return err
-	_adopt(peer, NetworkTransport.Role.HOST)
+	_adopt(peer, NetworkConfig.Role.HOST)
 	_announce("host: listening on port %d" % port)
 	return OK
 
@@ -193,7 +193,7 @@ func start_client(address: String, port: int) -> Error:
 	if err != OK:
 		_announce("client: FAILED to dial %s:%d (%s)" % [address, port, error_string(err)])
 		return err
-	_adopt(peer, NetworkTransport.Role.CLIENT)
+	_adopt(peer, NetworkConfig.Role.CLIENT)
 	_dial_endpoint = "%s:%d" % [address, port]
 	_dial_watchdog.start(dial_timeout_sec)
 	_announce("client: dialling %s…" % _dial_endpoint)
@@ -223,7 +223,7 @@ func stop() -> void:
 	if multiplayer != null:
 		multiplayer.multiplayer_peer = OfflineMultiplayerPeer.new()
 	_peers = PackedInt32Array()
-	role = NetworkTransport.Role.OFFLINE
+	role = NetworkConfig.Role.OFFLINE
 
 
 ## Ship [param payload] to every connected peer. Silently drops when not linked.
@@ -253,7 +253,7 @@ func send_to(peer_id: int, payload: Dictionary) -> void:
 ## reason, so ENet's own later notification is a no-op rather than a second
 ## [signal peer_left].
 func drop_peer(peer_id: int) -> void:
-	if role != NetworkTransport.Role.HOST:
+	if role != NetworkConfig.Role.HOST:
 		return
 	if _peer != null:
 		_peer.disconnect_peer(peer_id)
@@ -269,7 +269,7 @@ func drop_peer(peer_id: int) -> void:
 ## Asked for by a caller that wants to re-open the very endpoint it just held —
 ## which is the only way to state #716 acceptance 3 when the port was ephemeral.
 func port() -> int:
-	if _peer == null or role != NetworkTransport.Role.HOST:
+	if _peer == null or role != NetworkConfig.Role.HOST:
 		return 0
 	return _peer.host.get_local_port()
 
@@ -283,10 +283,10 @@ func is_linked() -> bool:
 ## true here and false to [method is_linked]. What a lobby asks to decide whether
 ## a second Host click would rebind a port it already holds.
 func is_open() -> bool:
-	return role != NetworkTransport.Role.OFFLINE
+	return role != NetworkConfig.Role.OFFLINE
 
 
-## This machine's own id on the link. [constant NetworkTransport.HOST_PEER_ID] on
+## This machine's own id on the link. [constant NetworkConfig.HOST_PEER_ID] on
 ## a host, whatever the server minted on a client, and `0` with no socket.
 ## [OfflineMultiplayerPeer] answers `1` — the same id ENet gives a host — so it
 ## is ruled out explicitly rather than by a null check. A peer that is not on a
@@ -306,7 +306,7 @@ func peers() -> PackedInt32Array:
 	return _peers.duplicate()
 
 
-func _adopt(peer: ENetMultiplayerPeer, as_role: NetworkTransport.Role) -> void:
+func _adopt(peer: ENetMultiplayerPeer, as_role: NetworkConfig.Role) -> void:
 	_peer = peer
 	role = as_role
 	multiplayer.multiplayer_peer = peer
@@ -354,7 +354,7 @@ func _on_peer_disconnected(id: int) -> void:
 func _on_connected_to_server() -> void:
 	_disarm_dial_watchdog()
 	_announce("client: connected (my id %d)" % multiplayer.get_unique_id())
-	peer_joined.emit(NetworkTransport.HOST_PEER_ID)
+	peer_joined.emit(NetworkConfig.HOST_PEER_ID)
 
 
 ## [b]`stop()` comes FIRST, and that order is the whole fix (#716 item 4).[/b]
@@ -375,7 +375,7 @@ func _on_server_disconnected() -> void:
 ## server answered, or one whose dial was already torn down another way, must
 ## not report a loss over a link that is fine.
 func _on_dial_watchdog_timeout() -> void:
-	if role != NetworkTransport.Role.CLIENT or is_linked():
+	if role != NetworkConfig.Role.CLIENT or is_linked():
 		return
 	_lost("no answer from %s" % _dial_endpoint)
 

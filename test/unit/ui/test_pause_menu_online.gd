@@ -25,7 +25,7 @@ func after_each() -> void:
 
 func _go_online() -> void:
 	var net := NetworkConfig.new()
-	net.role = NetworkTransport.Role.HOST
+	net.role = NetworkConfig.Role.HOST
 	GameSession.network = net
 
 

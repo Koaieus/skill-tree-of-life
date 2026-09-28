@@ -109,10 +109,10 @@ func _join() -> Dictionary:
 	var client_transport := _client_root.transport as LoopbackTransport
 	host_transport.peer = client_transport
 	client_transport.peer = host_transport
-	host_transport.role = NetworkTransport.Role.HOST
-	client_transport.role = NetworkTransport.Role.CLIENT
-	_host_root.command_link.mode = CommandLink.Mode.BROADCAST
-	_client_root.command_link.mode = CommandLink.Mode.MIRROR
+	host_transport.role = NetworkConfig.Role.HOST
+	client_transport.role = NetworkConfig.Role.CLIENT
+	_host_root.command_link.role = NetworkConfig.Role.HOST
+	_client_root.command_link.role = NetworkConfig.Role.CLIENT
 
 	# HOST: procgen a small level from a fixed, already-resolved seed.
 	var cfg := RunConfig.new()

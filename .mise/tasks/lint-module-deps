@@ -79,7 +79,6 @@ ALLOWLIST = {
     "entity/controller→command": (None, "no retiring issue — AllocateCommand, Command, CommandApplier, EndTurnCommand, ReloadCommand"),
     "graph→entity": (None, "no retiring issue — Entity"),
     "graph→scenes": (None, "no retiring issue — GraphCamera"),
-    "session→network": (1133, "NetworkTransport"),
     "session→procgen": (None, "no retiring issue — GraphProcgenConfig"),
     "session→ui": (1133, "LobbyPolicy, PlayerPalette, ui/theme/player_palette.tres"),
     "skill_node→attack": (None, "no retiring issue — AttackPlan, BladeDistanceConstraint, BladeState, HitInstance, SpellDef, …"),

@@ -139,8 +139,8 @@ func test_the_launcher_sends_the_sweep_flag_to_both_peers() -> void:
 	var panel: PanelContainer = await _panel()
 	panel.get_node("%AutopilotToggle").button_pressed = true
 
-	var host: PackedStringArray = panel.build_args(NetworkTransport.Role.HOST, MP_SANDBOX)
-	var client: PackedStringArray = panel.build_args(NetworkTransport.Role.CLIENT, MP_SANDBOX)
+	var host: PackedStringArray = panel.build_args(NetworkConfig.Role.HOST, MP_SANDBOX)
+	var client: PackedStringArray = panel.build_args(NetworkConfig.Role.CLIENT, MP_SANDBOX)
 
 	assert_true(Array(host).has("--autopilot"), "the host sweeps, so it gets the flag")
 	assert_true(Array(client).has("--autopilot"),
@@ -153,8 +153,8 @@ func test_the_launcher_sends_no_sweep_flag_when_the_toggle_is_off() -> void:
 	var panel: PanelContainer = await _panel()
 	panel.get_node("%AutopilotToggle").button_pressed = false
 
-	var host: PackedStringArray = panel.build_args(NetworkTransport.Role.HOST, MP_SANDBOX)
-	var client: PackedStringArray = panel.build_args(NetworkTransport.Role.CLIENT, MP_SANDBOX)
+	var host: PackedStringArray = panel.build_args(NetworkConfig.Role.HOST, MP_SANDBOX)
+	var client: PackedStringArray = panel.build_args(NetworkConfig.Role.CLIENT, MP_SANDBOX)
 
 	assert_false(Array(host).has("--autopilot"), "off means off")
 	assert_false(Array(client).has("--autopilot"), "on both")
@@ -206,8 +206,8 @@ func test_the_probe_flag_by_contrast_stays_client_only() -> void:
 	var panel: PanelContainer = await _panel()
 	panel.get_node("%ProbeToggle").button_pressed = true
 
-	var host: PackedStringArray = panel.build_args(NetworkTransport.Role.HOST, MP_SANDBOX)
-	var client: PackedStringArray = panel.build_args(NetworkTransport.Role.CLIENT, MP_SANDBOX)
+	var host: PackedStringArray = panel.build_args(NetworkConfig.Role.HOST, MP_SANDBOX)
+	var client: PackedStringArray = panel.build_args(NetworkConfig.Role.CLIENT, MP_SANDBOX)
 
 	assert_false(Array(host).has("--probe"),
 			"a host receives nothing to re-derive, so the probe there measures an empty table")
@@ -227,7 +227,7 @@ func test_the_lobby_route_passes_no_scene() -> void:
 	var panel: PanelContainer = await _panel()
 
 	var host: PackedStringArray = panel.build_args(
-			NetworkTransport.Role.HOST, panel.LOBBY_ROUTE)
+			NetworkConfig.Role.HOST, panel.LOBBY_ROUTE)
 
 	var separator := Array(host).find("--")
 	assert_gt(separator, 0, "there is still a `--`")
@@ -240,9 +240,9 @@ func test_the_lobby_route_asks_for_a_lobby_role_not_a_scene_role() -> void:
 	var panel: PanelContainer = await _panel()
 
 	var host: PackedStringArray = panel.build_args(
-			NetworkTransport.Role.HOST, panel.LOBBY_ROUTE)
+			NetworkConfig.Role.HOST, panel.LOBBY_ROUTE)
 	var client: PackedStringArray = panel.build_args(
-			NetworkTransport.Role.CLIENT, panel.LOBBY_ROUTE)
+			NetworkConfig.Role.CLIENT, panel.LOBBY_ROUTE)
 
 	assert_true(Array(host).has("--lobby=host"))
 	assert_true(Array(client).has("--lobby=client"))
@@ -258,9 +258,9 @@ func test_the_autopilot_toggle_spells_itself_autoplay_on_the_lobby_route() -> vo
 	panel.get_node("%AutopilotToggle").button_pressed = true
 
 	var host: PackedStringArray = panel.build_args(
-			NetworkTransport.Role.HOST, panel.LOBBY_ROUTE)
+			NetworkConfig.Role.HOST, panel.LOBBY_ROUTE)
 	var client: PackedStringArray = panel.build_args(
-			NetworkTransport.Role.CLIENT, panel.LOBBY_ROUTE)
+			NetworkConfig.Role.CLIENT, panel.LOBBY_ROUTE)
 
 	assert_true(Array(host).has("--autoplay"), "the host is the one that hands the seats over")
 	assert_true(Array(client).has("--autoplay"),
@@ -272,7 +272,7 @@ func test_a_scene_rung_is_untouched_by_all_of_this() -> void:
 	var panel: PanelContainer = await _panel()
 	panel.get_node("%AutopilotToggle").button_pressed = true
 
-	var host: PackedStringArray = panel.build_args(NetworkTransport.Role.HOST, MP_SANDBOX)
+	var host: PackedStringArray = panel.build_args(NetworkConfig.Role.HOST, MP_SANDBOX)
 
 	assert_true(Array(host).has(MP_SANDBOX))
 	assert_true(Array(host).has("--role=host"))

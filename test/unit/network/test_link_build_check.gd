@@ -28,18 +28,18 @@ func before_each() -> void:
 	add_child_autofree(pair[1])
 	_host_lines = PackedStringArray()
 	_client_lines = PackedStringArray()
-	_host = _make_link(pair[0], CommandLink.Mode.BROADCAST, _host_lines)
-	_client = _make_link(pair[1], CommandLink.Mode.MIRROR, _client_lines)
+	_host = _make_link(pair[0], NetworkConfig.Role.HOST, _host_lines)
+	_client = _make_link(pair[1], NetworkConfig.Role.CLIENT, _client_lines)
 
 
 ## No [CommandApplier] and no [Graph]: every assertion here is about the
 ## handshake, and [method CommandLink.send_hello] tolerates a null graph
 ## ([method WorldFingerprint.compute] folds nothing).
-func _make_link(transport: NetworkTransport, mode: CommandLink.Mode,
+func _make_link(transport: NetworkTransport, mode: NetworkConfig.Role,
 		sink: PackedStringArray) -> CommandLink:
 	var link := CommandLink.new()
 	link.transport = transport
-	link.mode = mode
+	link.role = mode
 	add_child_autofree(link)
 	link.logged.connect(func(line: String) -> void: sink.append(line))
 	return link
@@ -209,7 +209,7 @@ func test_refusal_does_not_promote_the_client_to_authority() -> void:
 	var applier := CommandApplier.new()
 	add_child_autofree(applier)
 	_client.command_applier = applier
-	_client.mode = CommandLink.Mode.MIRROR
+	_client.role = NetworkConfig.Role.CLIENT
 	_host.build_stamp = _stamp("4174f36")
 	_client.build_stamp = _stamp("54cfcd7")
 

@@ -63,7 +63,7 @@ func _on_logged(line: String) -> void:
 
 
 func test_the_fixture_is_a_mirror_still_waiting_for_its_world() -> void:
-	assert_eq(_root.command_link.mode, CommandLink.Mode.MIRROR)
+	assert_eq(_root.command_link.role, NetworkConfig.Role.CLIENT)
 	assert_false(_root.is_reveal_ready(), "no world, no reveal")
 
 

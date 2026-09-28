@@ -86,13 +86,13 @@ func _build_world(label: String) -> Dictionary:
 
 
 func _make_link(world: Dictionary, transport: NetworkTransport,
-		mode: CommandLink.Mode) -> CommandLink:
+		mode: NetworkConfig.Role) -> CommandLink:
 	var link := CommandLink.new()
 	link.transport = transport
 	link.command_applier = world["applier"]
 	link.graph = world["graph"]
 	link.turn_manager = world["tm"]
-	link.mode = mode
+	link.role = mode
 	add_child_autofree(link)
 	return link
 
@@ -169,8 +169,8 @@ func test_the_host_opening_turn_reaches_the_mirrors_own_p1() -> void:
 	var pair := LoopbackTransport.pair()
 	add_child_autofree(pair[0])
 	add_child_autofree(pair[1])
-	_make_link(host, pair[0], CommandLink.Mode.BROADCAST)
-	_make_link(client, pair[1], CommandLink.Mode.MIRROR)
+	_make_link(host, pair[0], NetworkConfig.Role.HOST)
+	_make_link(client, pair[1], NetworkConfig.Role.CLIENT)
 
 	assert_null((client["tm"] as TurnManager).current_entity,
 			"sanity: a mirror holds no cursor of its own before the host speaks")
@@ -205,8 +205,8 @@ func test_the_cursor_stays_in_step_across_end_turns() -> void:
 	var pair := LoopbackTransport.pair()
 	add_child_autofree(pair[0])
 	add_child_autofree(pair[1])
-	_make_link(host, pair[0], CommandLink.Mode.BROADCAST)
-	_make_link(client, pair[1], CommandLink.Mode.MIRROR)
+	_make_link(host, pair[0], NetworkConfig.Role.HOST)
+	_make_link(client, pair[1], NetworkConfig.Role.CLIENT)
 
 	var host_tm: TurnManager = host["tm"]
 	var client_tm: TurnManager = client["tm"]

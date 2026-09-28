@@ -137,7 +137,7 @@ const KIND_SETUP := "setup"
 const KIND_ENTITIES := "entities"
 ## #561's repair envelope: the WHOLE world, entities and graph together, in one
 ## message. Sent only by [method send_resync], applied only under
-## [constant Mode.MIRROR].
+## [constant NetworkConfig.Role.CLIENT].
 ##
 ## [b]One envelope rather than the two separate sends the join uses[/b], and
 ## that is the point: [method EntitySnapshot.resolve_graph_refs] has to run
@@ -153,12 +153,12 @@ const KIND_RESYNC := "resync"
 ## on a desync verdict, because only the authority may send state (#521 D4).
 const KIND_RESYNC_REQUEST := "resync_request"
 ## #548's upward leg: a client's INTENT, not yet a command. Sent only under
-## [constant Mode.MIRROR], received only under [constant Mode.BROADCAST] — the
+## [constant NetworkConfig.Role.CLIENT], received only under [constant NetworkConfig.Role.HOST] — the
 ## exact inverse of [constant KIND_COMMAND], which is why it is its own kind
 ## rather than a [constant KIND_COMMAND] with the mode gate inverted.
 const KIND_INTENT := "intent"
 ## #548's refusal leg: the authority's gate said no. Sent only under
-## [constant Mode.BROADCAST], received only under [constant Mode.MIRROR].
+## [constant NetworkConfig.Role.HOST], received only under [constant NetworkConfig.Role.CLIENT].
 ##
 ## A dedicated kind rather than an echoed command with a `refused` flag:
 ## [method CommandApplier.confirm] documents that a refused command "changed
@@ -191,7 +191,7 @@ const KIND_LOBBY := "lobby"
 ## #714's upward leg: "I picked X for my seat." Carries the sender's `peer_id`,
 ## the target [member Participant.id] and only the fields that changed, in
 ## [method Participant.to_dict]'s encoding. Sent only under
-## [constant Mode.MIRROR], received only under [constant Mode.BROADCAST] — the
+## [constant NetworkConfig.Role.CLIENT], received only under [constant NetworkConfig.Role.HOST] — the
 ## same inversion [constant KIND_INTENT] draws for the world, at the roster's
 ## scope: a pick is an INTENT, and the host's [constant KIND_LOBBY] answer is the
 ## confirmation.
@@ -220,12 +220,6 @@ const KIND_SEAT_HANDOVER := "seat_handover"
 ## bool, so there is nothing finer to report yet. A [StringName], never a UI
 ## string: rendering a reason is a HUD question, not a wire one.
 const REASON_REFUSED := &"refused"
-
-enum Mode {
-	OFF,        ## Wired but idle.
-	BROADCAST,  ## Host: publish every confirmed command.
-	MIRROR,     ## Client: apply everything received.
-}
 
 ## A line worth showing a human (both roles). The harness prints these; nothing
 ## depends on their text.
@@ -319,11 +313,11 @@ signal seat_handover_received(participant_id: int)
 ## Single writer, so no scene has to carry a second role flag and the two can
 ## never disagree — see [member CommandApplier.is_authority] for the one thing
 ## that reads it.
-var mode: Mode = Mode.OFF:
+var role: NetworkConfig.Role = NetworkConfig.Role.OFFLINE:
 	set(value):
-		mode = value
+		role = value
 		if command_applier != null:
-			command_applier.is_authority = value != Mode.MIRROR
+			command_applier.is_authority = value != NetworkConfig.Role.CLIENT
 			command_applier.local_peer_id = _local_peer_id()
 
 ## True while a RECEIVED command is being submitted, so a client that is also
@@ -348,9 +342,9 @@ var join_display_name: String = ""
 ## Latched once a build mismatch hung the link up. Every payload is dropped
 ## from here on.
 ##
-## [b]This is a separate flag and NOT `mode = Mode.OFF`[/b], which is the
-## tempting one-liner and is a trap: the `mode` setter writes
-## `command_applier.is_authority = value != Mode.MIRROR`, so parking a refused
+## [b]This is a separate flag and NOT `role = NetworkConfig.Role.OFFLINE`[/b], which is the
+## tempting one-liner and is a trap: the `role` setter writes
+## `command_applier.is_authority = value != NetworkConfig.Role.CLIENT`, so parking a refused
 ## CLIENT at OFF would hand it authority — and a client with authority is
 ## exactly the silent-divergence hole `mp_dev_sandbox._ready` documents (Blue's
 ## [AIController] starts deciding locally). A refused link must go quiet, not
@@ -368,9 +362,9 @@ func _ready() -> void:
 	if build_stamp.is_empty():
 		build_stamp = local_build_stamp()
 	# The export resolves after the setter may already have run (a level scene
-	# can set `mode` before this node is ready), so re-apply it here.
+	# can set `role` before this node is ready), so re-apply it here.
 	if command_applier != null:
-		command_applier.is_authority = mode != Mode.MIRROR
+		command_applier.is_authority = role != NetworkConfig.Role.CLIENT
 		command_applier.local_peer_id = _local_peer_id()
 	if transport != null:
 		transport.message_received.connect(_on_message_received)
@@ -395,7 +389,7 @@ func _ready() -> void:
 ## would put transport knowledge above the seam — plus it cannot tell an
 ## [OfflineMultiplayerPeer]'s `1` from a real host's.
 ##
-## Only `0` — not linked yet — falls back to the role, because [member mode] is
+## Only `0` — not linked yet — falls back to the role, because [member role] is
 ## set before a level calls `_open_link()` and the applier needs *some* distinct
 ## half from the first command. It stops being a guess the moment
 ## [signal NetworkTransport.peer_joined] re-stamps it below.
@@ -403,7 +397,7 @@ func _local_peer_id() -> int:
 	var assigned := transport.local_peer_id() if transport != null else 0
 	if assigned != 0:
 		return assigned
-	return 2 if mode == Mode.MIRROR else 1
+	return 2 if role == NetworkConfig.Role.CLIENT else 1
 
 
 ## The link came up, so the transport now knows an id the role could only guess.
@@ -418,7 +412,7 @@ func _local_peer_id() -> int:
 func _on_transport_peer_joined(_peer_id: int) -> void:
 	if command_applier != null:
 		command_applier.local_peer_id = _local_peer_id()
-	if mode == Mode.MIRROR:
+	if role == NetworkConfig.Role.CLIENT:
 		announce_self()
 
 
@@ -426,7 +420,7 @@ func _on_transport_peer_joined(_peer_id: int) -> void:
 ## rather than a branch inside [method send_hello], which is host-only and
 ## carries a world.
 func announce_self() -> void:
-	if transport == null or mode != Mode.MIRROR:
+	if transport == null or role != NetworkConfig.Role.CLIENT:
 		return
 	var payload := {
 		KEY_KIND: KIND_HELLO,
@@ -451,7 +445,7 @@ func announce_self() -> void:
 ## serialized command dict, and a per-checkout sha inside one would re-capture
 ## every fixture on every commit.
 func send_hello() -> void:
-	if transport == null or mode != Mode.BROADCAST:
+	if transport == null or role != NetworkConfig.Role.HOST:
 		return
 	transport.send({
 		KEY_KIND: KIND_HELLO,
@@ -466,10 +460,10 @@ func send_hello() -> void:
 ## (the multiplayer harness's rung 1, #532) must keep working for a client
 ## that never wants a graph transferred to it. The receiving side handles
 ## [constant KIND_SNAPSHOT] in [method _on_message_received] regardless of
-## `mode` — decoding a snapshot is not a mirrored command, so it isn't gated
-## behind `Mode.MIRROR` the way [method _on_remote_command] is.
+## `role` — decoding a snapshot is not a mirrored command, so it isn't gated
+## behind `NetworkConfig.Role.CLIENT` the way [method _on_remote_command] is.
 func send_graph_snapshot() -> void:
-	if transport == null or mode != Mode.BROADCAST or graph == null:
+	if transport == null or role != NetworkConfig.Role.HOST or graph == null:
 		return
 	transport.send({KEY_KIND: KIND_SNAPSHOT, KEY_SNAPSHOT: GraphSnapshot.encode(graph)})
 	logged.emit("→ graph snapshot (%s)" % WorldFingerprint.describe(graph))
@@ -482,7 +476,7 @@ func send_graph_snapshot() -> void:
 ## [method EntitySnapshot.decode] on arrival and defers the entity->node pass
 ## until a graph exists (see [method _on_entity_snapshot]).
 func send_entity_snapshot() -> void:
-	if transport == null or mode != Mode.BROADCAST or graph == null:
+	if transport == null or role != NetworkConfig.Role.HOST or graph == null:
 		return
 	transport.send({KEY_KIND: KIND_ENTITIES, KEY_ENTITIES: EntitySnapshot.encode(graph)})
 	logged.emit("→ entity snapshot (%d entities)" % EntitySnapshot.entities_of(graph).size())
@@ -502,7 +496,7 @@ func send_entity_snapshot() -> void:
 ## [signal CommandApplier.command_confirmed] — #525's camera director included —
 ## fires. Nobody animates a repair.
 func send_resync(reason: String, is_join_world: bool = false) -> void:
-	if transport == null or mode != Mode.BROADCAST or graph == null:
+	if transport == null or role != NetworkConfig.Role.HOST or graph == null:
 		return
 	transport.send({
 		KEY_KIND: KIND_RESYNC,
@@ -522,7 +516,7 @@ func send_resync(reason: String, is_join_world: bool = false) -> void:
 ## on every command for the rest of the run — turning a diagnostic into a flood
 ## and hiding the very log line the verdict exists to print.
 func request_resync(reason: String, is_join_world: bool = false) -> void:
-	if transport == null or mode != Mode.MIRROR:
+	if transport == null or role != NetworkConfig.Role.CLIENT:
 		return
 	if _awaiting_resync:
 		return
@@ -613,7 +607,7 @@ var defer_until_resync: bool = false
 ## [constant KIND_HELLO], [constant KIND_REFUSED]: link-level handshake and
 ## diagnostics; they touch no world state.
 ## [constant KIND_INTENT], [constant KIND_RESYNC_REQUEST]: host-only handlers
-## ([code]mode != Mode.BROADCAST[/code] early-return), and this latch is only
+## ([code]role != NetworkConfig.Role.HOST[/code] early-return), and this latch is only
 ## ever set on a MIRROR peer — gating them would be unreachable code, so the
 ## decision is recorded here rather than as a guard that can never fire.
 ## [constant KIND_REFUSAL]: the answer to an intent this peer raised, and a
@@ -626,7 +620,7 @@ const DEFERRED_KINDS: Array[String] = [KIND_COMMAND, KIND_LOOT_OFFER, KIND_SEAT_
 ## #561 receive side, host-only. A client asking is treated exactly as the
 ## host's own verdict would be — one push, same payload.
 func _on_resync_request(payload: Dictionary) -> void:
-	if mode != Mode.BROADCAST:
+	if role != NetworkConfig.Role.HOST:
 		return
 	var reason := String(payload.get(KEY_SUMMARY, "peer asked"))
 	logged.emit("↓ resync requested by peer — %s" % reason)
@@ -636,7 +630,7 @@ func _on_resync_request(payload: Dictionary) -> void:
 
 
 ## #561 receive side, client-only — a host must never apply a repair, which is
-## what the [constant Mode.MIRROR] gate here says out loud.
+## what the [constant NetworkConfig.Role.CLIENT] gate here says out loud.
 ##
 ## The three calls below are [method EntitySnapshot.decode] ->
 ## [method GraphSnapshot.decode] -> [method EntitySnapshot.resolve_graph_refs],
@@ -647,7 +641,7 @@ func _on_resync_request(payload: Dictionary) -> void:
 ## [Stat] instances and every [EffectInstance] handle survive, and a world that
 ## never actually drifted comes out untouched.
 func _on_resync(payload: Dictionary) -> void:
-	if mode != Mode.MIRROR or graph == null:
+	if role != NetworkConfig.Role.CLIENT or graph == null:
 		return
 	var entity_bytes: PackedByteArray = payload.get(KEY_ENTITIES, PackedByteArray())
 	var graph_bytes: PackedByteArray = payload.get(KEY_SNAPSHOT, PackedByteArray())
@@ -710,7 +704,7 @@ func _on_resync(payload: Dictionary) -> void:
 ## both to [method GameSession.apply_received], which does NOT re-resolve the
 ## seed — it already is the host's resolved value.
 func send_run_setup(config: RunConfig, roster: ParticipantRoster) -> void:
-	if transport == null or mode != Mode.BROADCAST or config == null:
+	if transport == null or role != NetworkConfig.Role.HOST or config == null:
 		return
 	transport.send({
 		KEY_KIND: KIND_SETUP,
@@ -728,7 +722,7 @@ func send_run_setup(config: RunConfig, roster: ParticipantRoster) -> void:
 ## Not gated on [member graph]: a lobby has no world, which is the entire point
 ## of the kind.
 func send_lobby_roster(roster: ParticipantRoster) -> void:
-	if transport == null or mode != Mode.BROADCAST or roster == null:
+	if transport == null or role != NetworkConfig.Role.HOST or roster == null:
 		return
 	transport.send({KEY_KIND: KIND_LOBBY, KEY_ROSTER: roster.to_dict()})
 	logged.emit("→ lobby roster (%d participants)" % roster.all().size())
@@ -737,7 +731,7 @@ func send_lobby_roster(roster: ParticipantRoster) -> void:
 ## #714 send side, client-only: one seat's changed fields. [param pick] is built
 ## by the lobby (see [method LobbyRoster.encode_pick]) and crosses verbatim.
 func send_lobby_pick(pick: Dictionary) -> void:
-	if transport == null or mode != Mode.MIRROR or pick.is_empty():
+	if transport == null or role != NetworkConfig.Role.CLIENT or pick.is_empty():
 		return
 	transport.send({KEY_KIND: KIND_LOBBY_PICK, KEY_PICK: pick})
 	logged.emit("↑ lobby pick for seat %d" % int(pick.get("id", 0)))
@@ -747,7 +741,7 @@ func send_lobby_pick(pick: Dictionary) -> void:
 ## shows — there is no merge and no prediction (#548 D5 at the roster's scope),
 ## which is what makes a refused pick converge rather than linger.
 func _on_lobby_roster(payload: Dictionary) -> void:
-	if mode != Mode.MIRROR:
+	if role != NetworkConfig.Role.CLIENT:
 		return
 	var roster := ParticipantRoster.from_dict(payload.get(KEY_ROSTER, {}))
 	lobby_roster_received.emit(roster)
@@ -756,7 +750,7 @@ func _on_lobby_roster(payload: Dictionary) -> void:
 
 ## #714 receive side, host-only.
 func _on_lobby_pick(payload: Dictionary) -> void:
-	if mode != Mode.BROADCAST:
+	if role != NetworkConfig.Role.HOST:
 		return
 	var pick: Dictionary = payload.get(KEY_PICK, {})
 	if pick.is_empty():
@@ -785,7 +779,7 @@ func _offer_for(request: Variant) -> LootPickOffer:
 ## Send [param offer] to every connected peer. Mutates nothing and carries no
 ## [Command] — see [constant KIND_LOOT_OFFER].
 func send_loot_offer(offer: LootPickOffer) -> void:
-	if transport == null or mode != Mode.BROADCAST or offer == null:
+	if transport == null or role != NetworkConfig.Role.HOST or offer == null:
 		return
 	transport.send({KEY_KIND: KIND_LOOT_OFFER, KEY_OFFER: offer.to_dict()})
 	logged.emit("→ loot offer (request %d, collector %d)" %
@@ -795,7 +789,7 @@ func send_loot_offer(offer: LootPickOffer) -> void:
 ## #646 receive side. Decodes and re-emits — see [signal loot_offer_received]
 ## for why this does not itself open a picker.
 func _on_loot_offer(payload: Dictionary) -> void:
-	if mode != Mode.MIRROR:
+	if role != NetworkConfig.Role.CLIENT:
 		return
 	var offer := LootPickOffer.from_dict(payload.get(KEY_OFFER, {}))
 	loot_offer_received.emit(offer)
@@ -807,7 +801,7 @@ func _on_loot_offer(payload: Dictionary) -> void:
 ## needs the flip, and the one peer that does not — the one that left — is not
 ## on the link to receive it.
 func send_seat_handover(participant_id: int) -> void:
-	if transport == null or mode != Mode.BROADCAST or participant_id == 0:
+	if transport == null or role != NetworkConfig.Role.HOST or participant_id == 0:
 		return
 	transport.send({KEY_KIND: KIND_SEAT_HANDOVER, KEY_PARTICIPANT: participant_id})
 	logged.emit("→ seat %d handed to the AI" % participant_id)
@@ -815,7 +809,7 @@ func send_seat_handover(participant_id: int) -> void:
 
 ## #755 receive side. Decodes and re-emits — see [signal seat_handover_received].
 func _on_seat_handover(payload: Dictionary) -> void:
-	if mode != Mode.MIRROR:
+	if role != NetworkConfig.Role.CLIENT:
 		return
 	var participant_id := int(payload.get(KEY_PARTICIPANT, 0))
 	if participant_id == 0:
@@ -841,7 +835,7 @@ func _on_seat_handover(payload: Dictionary) -> void:
 ## This also fixes a plain waste: the fingerprint used to be computed twice per
 ## send, once for the payload and once for the log line.
 func _on_command_confirmed(command: Command) -> void:
-	if mode != Mode.BROADCAST or transport == null:
+	if role != NetworkConfig.Role.HOST or transport == null:
 		return
 	if _applying_remote:
 		return
@@ -861,7 +855,7 @@ func _on_command_confirmed(command: Command) -> void:
 ## from, and the authority's own pre-state is what the downward
 ## [constant KIND_COMMAND] compares against.
 func _on_intent_submitted(command: Command) -> void:
-	if mode != Mode.MIRROR or transport == null:
+	if role != NetworkConfig.Role.CLIENT or transport == null:
 		return
 	transport.send({KEY_KIND: KIND_INTENT, KEY_COMMAND: command.to_dict()})
 	logged.emit("↑ %s (intent %d)" % [command.type_tag(), command.intent_id])
@@ -889,7 +883,7 @@ var _remote_intents: Dictionary = {}
 ## The client's [member Command.intent_id] is preserved verbatim through
 ## `submit`'s mint-if-absent; nothing here re-stamps it.
 func _on_intent(payload: Dictionary) -> void:
-	if mode != Mode.BROADCAST or command_applier == null:
+	if role != NetworkConfig.Role.HOST or command_applier == null:
 		return
 	var command := CommandCodec.from_dict(payload.get(KEY_COMMAND, {}))
 	if command == null:
@@ -916,7 +910,7 @@ func _on_intent(payload: Dictionary) -> void:
 ## Only ever for a REFUSED intent. A successful one already went down as a
 ## [constant KIND_COMMAND], which is what closes the client's gate.
 func _on_command_applied(command: Command, success: bool) -> void:
-	if mode != Mode.BROADCAST or transport == null or command == null:
+	if role != NetworkConfig.Role.HOST or transport == null or command == null:
 		return
 	if not _remote_intents.has(command.intent_id):
 		return
@@ -937,7 +931,7 @@ func _on_command_applied(command: Command, success: bool) -> void:
 ## emphatically no [signal CommandApplier.command_confirmed] (#525's camera
 ## director pans on that one).
 func _on_refusal(payload: Dictionary) -> void:
-	if mode != Mode.MIRROR or command_applier == null:
+	if role != NetworkConfig.Role.CLIENT or command_applier == null:
 		return
 	var intent_id := int(payload.get(KEY_INTENT_ID, 0))
 	command_applier.refuse_intent(intent_id,
@@ -1186,8 +1180,8 @@ func refuse_peer(peer_id: int, reason: String) -> void:
 ## relaunch it too. On a LAN with several clients it is worse: one stale peer's
 ## refusal would disconnect everybody.
 ##
-## Nothing is lost by staying open. This side is [constant Mode.BROADCAST], and
-## [method _on_remote_command] requires [constant Mode.MIRROR], so a stale peer
+## Nothing is lost by staying open. This side is [constant NetworkConfig.Role.HOST], and
+## [method _on_remote_command] requires [constant NetworkConfig.Role.CLIENT], so a stale peer
 ## still cannot make it apply anything. The latch belongs on the side that
 ## REFUSED, where [method _refuse] sets it.
 ##
@@ -1205,7 +1199,7 @@ func refuse_peer(peer_id: int, reason: String) -> void:
 func _on_refused_by_peer(payload: Dictionary) -> void:
 	var summary := String(payload.get(KEY_SUMMARY, "build mismatch"))
 	_log_refusal(summary, payload.get(KEY_BUILD, {}))
-	if mode == Mode.MIRROR:
+	if role == NetworkConfig.Role.CLIENT:
 		_refused = true
 	link_refused.emit("refused by peer — %s" % summary)
 
@@ -1241,18 +1235,18 @@ static func describe_build(stamp: Dictionary) -> String:
 
 
 ## A hello means two different things depending on which end reads it (#716), so
-## it dispatches on [member mode] rather than growing a second kind:
+## it dispatches on [member role] rather than growing a second kind:
 ##
-## - under [constant Mode.BROADCAST] it is a JOINER announcing itself, and the
+## - under [constant NetworkConfig.Role.HOST] it is a JOINER announcing itself, and the
 ##   answer is [method _gate_peer] — clear that peer or hang up on that peer;
-## - under [constant Mode.MIRROR] it is the host's world announcement, unchanged
+## - under [constant NetworkConfig.Role.CLIENT] it is the host's world announcement, unchanged
 ##   since #546, and a mismatch hangs up this machine's own link.
 ##
 ## The asymmetry is the point. A client owns nothing but its own link, so
 ## [method _refuse] closing it is correct; a host owns the listener every OTHER
 ## peer is on, so it must never take that route.
 func _on_hello(payload: Dictionary) -> void:
-	if mode == Mode.BROADCAST:
+	if role == NetworkConfig.Role.HOST:
 		_gate_peer(payload)
 		return
 	if not _accept_build(payload):
@@ -1265,7 +1259,7 @@ func _on_hello(payload: Dictionary) -> void:
 
 
 func _on_remote_command(payload: Dictionary) -> void:
-	if mode != Mode.MIRROR or command_applier == null:
+	if role != NetworkConfig.Role.CLIENT or command_applier == null:
 		return
 	var command := CommandCodec.from_dict(payload.get(KEY_COMMAND, {}))
 	if command == null:
@@ -1341,7 +1335,7 @@ func _on_remote_command(payload: Dictionary) -> void:
 ## against itself would be a tautology, and every command it drains carries
 ## [member Command.host_fingerprint] 0 anyway.
 func _on_command_stamped(command: Command) -> void:
-	if mode != Mode.MIRROR or command == null:
+	if role != NetworkConfig.Role.CLIENT or command == null:
 		return
 	if command.host_fingerprint == 0:
 		# A received command whose envelope carried no stamp — nothing to
@@ -1384,10 +1378,10 @@ func _report_sync(local: int, remote: int, when: String) -> bool:
 ## disagreement asks; it never reconstructs, because a peer repairing itself
 ## from its own wrong world is not a repair.
 func _heal_desync(reason: String) -> void:
-	match mode:
-		Mode.BROADCAST:
+	match role:
+		NetworkConfig.Role.HOST:
 			send_resync(reason)
-		Mode.MIRROR:
+		NetworkConfig.Role.CLIENT:
 			request_resync(reason)
 		_:
 			pass

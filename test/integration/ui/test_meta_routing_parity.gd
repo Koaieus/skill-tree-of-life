@@ -173,7 +173,7 @@ func test_new_game_is_offline_and_single() -> void:
 	_navigate_to(MenuGraph.ID_NEW_GAME)
 	var lobby := _lobby()
 
-	assert_eq(GameSession.network.role, NetworkTransport.Role.OFFLINE)
+	assert_eq(GameSession.network.role, NetworkConfig.Role.OFFLINE)
 	assert_false(GameSession.network.is_online(), "a solo run opens no socket")
 	assert_eq(lobby.roster().mode, RunConfig.Mode.SINGLE, "the route asks for SINGLE")
 
@@ -194,7 +194,7 @@ func test_hot_seat_is_offline_and_two_humans_on_one_camp() -> void:
 	_navigate_to(MenuGraph.ID_LOCAL)
 	var lobby := _lobby()
 
-	assert_eq(GameSession.network.role, NetworkTransport.Role.OFFLINE)
+	assert_eq(GameSession.network.role, NetworkConfig.Role.OFFLINE)
 	assert_eq(lobby.roster().mode, RunConfig.Mode.COOP_HOTSEAT)
 
 	var cfg := lobby.build_run_config()
@@ -213,14 +213,14 @@ func test_hot_seat_is_offline_and_two_humans_on_one_camp() -> void:
 func test_host_listens_and_seats_the_absent_player_up_front() -> void:
 	var lobby := _host("7777")
 
-	assert_eq(GameSession.network.role, NetworkTransport.Role.HOST)
+	assert_eq(GameSession.network.role, NetworkConfig.Role.HOST)
 	assert_eq(GameSession.network.port, 7777, "the typed port reaches the config")
 	assert_true(GameSession.network.is_online())
 
 	var cfg := lobby.build_run_config()
 	var humans := _humans(cfg.participants)
 	assert_eq(humans.size(), 2, "the remote seat exists before anyone joins (#554 D2)")
-	assert_eq(humans[0].peer_id, NetworkTransport.HOST_PEER_ID, "this machine hosts")
+	assert_eq(humans[0].peer_id, NetworkConfig.HOST_PEER_ID, "this machine hosts")
 	assert_true(LobbyRoster.is_pending_remote(humans[1]), "the joiner's seat is waiting")
 
 	var item := _tree.get_item(MenuGraph.ID_HOST)
@@ -233,7 +233,7 @@ func test_host_listens_and_seats_the_absent_player_up_front() -> void:
 func test_join_dials_and_offers_no_ai_opponents() -> void:
 	var lobby := _dial("192.168.1.7", "7777")
 
-	assert_eq(GameSession.network.role, NetworkTransport.Role.CLIENT)
+	assert_eq(GameSession.network.role, NetworkConfig.Role.CLIENT)
 	assert_eq(GameSession.network.address, "192.168.1.7")
 	assert_eq(GameSession.network.port, 7777)
 
@@ -245,7 +245,7 @@ func test_join_dials_and_offers_no_ai_opponents() -> void:
 			"a client's own roster is replaced by the host's, so it authors no AI")
 	var humans := _humans(cfg.participants)
 	assert_eq(humans.size(), 2)
-	assert_eq(humans[1].peer_id, NetworkTransport.HOST_PEER_ID, "the other seat is the host")
+	assert_eq(humans[1].peer_id, NetworkConfig.HOST_PEER_ID, "the other seat is the host")
 
 	var item := _tree.get_item(MenuGraph.ID_JOIN)
 	assert_eq(item.panel, MenuGraph.PANEL_JOIN, "JOIN asks for an address before a lobby")
@@ -290,12 +290,12 @@ func test_backing_out_of_hosting_and_starting_solo_opens_no_socket() -> void:
 	# a stack pop, but the thing being asserted is unchanged: what the next
 	# route leaves on GameSession.
 	_host()
-	assert_eq(GameSession.network.role, NetworkTransport.Role.HOST)
+	assert_eq(GameSession.network.role, NetworkConfig.Role.HOST)
 
 	_back_out(2)  # out of the lobby panel, then out of Multiplayer
 	_navigate_to(MenuGraph.ID_NEW_GAME)
 
-	assert_eq(GameSession.network.role, NetworkTransport.Role.OFFLINE)
+	assert_eq(GameSession.network.role, NetworkConfig.Role.OFFLINE)
 	assert_false(GameSession.network.is_online(), "hosting did not survive the back-out")
 
 
@@ -350,7 +350,7 @@ func test_which_peer_this_machine_is_comes_from_the_socket() -> void:
 	assert_eq(Wire.start_host(0), OK, "sanity: a listening socket")
 	GameSession.network = NetworkConfig.host()
 	_META_SCRIPT._stamp_local_peer()
-	assert_eq(GameSession.local_peer_id, NetworkTransport.HOST_PEER_ID,
+	assert_eq(GameSession.local_peer_id, NetworkConfig.HOST_PEER_ID,
 			"a host is always peer 1 under Godot's high-level multiplayer")
 
 	# And back to nobody once the socket goes (#716 stops it on every leave), so
@@ -411,9 +411,9 @@ func test_every_leaf_that_starts_a_run_names_a_network_role() -> void:
 		routed += 1
 		assert_true(item.is_leaf(), "'%s' is a leaf" % id)
 		assert_true(item.route.network_role in [
-			NetworkTransport.Role.OFFLINE,
-			NetworkTransport.Role.HOST,
-			NetworkTransport.Role.CLIENT,
+			NetworkConfig.Role.OFFLINE,
+			NetworkConfig.Role.HOST,
+			NetworkConfig.Role.CLIENT,
 		], "'%s' names a role" % id)
 	assert_eq(routed, 4, "new game, local, host, join — the four routes into a lobby")
 

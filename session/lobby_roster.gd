@@ -52,7 +52,7 @@ extends RefCounted
 signal changed
 
 const PENDING_PEER_ID := -1
-const HOST_PEER_ID := NetworkTransport.HOST_PEER_ID
+const HOST_PEER_ID := NetworkConfig.HOST_PEER_ID
 ## The name field's cap, enforced locally by the row's `max_length` and
 ## remotely by [method normalize_name] — one number, both ends.
 const MAX_NAME_LENGTH := 24
@@ -156,7 +156,7 @@ func is_online() -> bool:
 
 
 func is_client() -> bool:
-	return network != null and network.role == NetworkTransport.Role.CLIENT
+	return network != null and network.role == NetworkConfig.Role.CLIENT
 
 
 ## Hot-seat coop and versus alike want the AI count; a host offers it because
@@ -175,7 +175,7 @@ func local_peer_id() -> int:
 		return 0
 	if local_peer != 0:
 		return local_peer
-	return HOST_PEER_ID if network.role == NetworkTransport.Role.HOST else PENDING_PEER_ID
+	return HOST_PEER_ID if network.role == NetworkConfig.Role.HOST else PENDING_PEER_ID
 
 
 func by_id(id: int) -> Participant:
@@ -501,7 +501,7 @@ static func build_participants(
 		# The local human is peer 1 when hosting, and gets the host's id back
 		# over the wire when joining — a client's own roster is discarded on
 		# receipt, so what it puts here only has to be a coherent placeholder.
-		var hosting := network_in.role == NetworkTransport.Role.HOST
+		var hosting := network_in.role == NetworkConfig.Role.HOST
 		var local := HOST_PEER_ID if hosting else PENDING_PEER_ID
 		# Seeded only when HOSTING — a client's placeholder would flash the saved
 		# name and then revert to "Player 2" when the host's broadcast lands.

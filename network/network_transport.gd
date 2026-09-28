@@ -19,13 +19,6 @@ extends Node
 ## [CommandLink] for exactly what is and is not wired, and why (#463 owns the
 ## rest).
 
-## Who this peer is on the link. Set by [method start_host] / [method start_client].
-enum Role {
-	OFFLINE,  ## No link.
-	HOST,     ## Decides; broadcasts confirmed commands down.
-	CLIENT,   ## Applies what it is told.
-}
-
 ## A payload arrived from the other side. Never emitted for our own [method send].
 signal message_received(payload: Dictionary)
 
@@ -60,12 +53,8 @@ signal peer_left(peer_id: int)
 ## that is about to be true.
 signal link_lost(reason: String)
 
-## The id Godot's high-level multiplayer always gives the server. Named here
-## rather than typed as a literal at each site that stamps the host's own
-## participant.
-const HOST_PEER_ID := 1
-
-var role: Role = Role.OFFLINE
+## Who this peer is on the link. Set by [method start_host] / [method start_client].
+var role: NetworkConfig.Role = NetworkConfig.Role.OFFLINE
 
 
 ## Listen on [param port]. Returns an [enum Error]; [constant OK] means the
@@ -82,7 +71,7 @@ func start_client(_address: String, _port: int) -> Error:
 
 ## Tear the link down. Idempotent.
 func stop() -> void:
-	role = Role.OFFLINE
+	role = NetworkConfig.Role.OFFLINE
 
 
 ## Ship [param payload] to the other side. Silently drops when not linked — a
@@ -129,7 +118,7 @@ func is_linked() -> bool:
 
 ## This machine's own id on the link — the value [member GameSession.local_peer_id]
 ## takes, and what [method SeatPolicy.from_roster] compares each
-## [member Participant.peer_id] against. [constant HOST_PEER_ID] on a host,
+## [member Participant.peer_id] against. [constant NetworkConfig.HOST_PEER_ID] on a host,
 ## whatever the server minted on a client, and `0` offline — which is exactly the
 ## [member Participant.peer_id] a lobby-authored offline seat carries, so an
 ## offline run stays a couch by construction.

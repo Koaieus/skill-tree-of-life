@@ -145,9 +145,9 @@ static func _leave_lobby() -> void:
 ## offline.
 static func _network_for(route: MenuGraph.Route) -> NetworkConfig:
 	match route.network_role:
-		NetworkTransport.Role.HOST:
+		NetworkConfig.Role.HOST:
 			return NetworkConfig.host()
-		NetworkTransport.Role.CLIENT:
+		NetworkConfig.Role.CLIENT:
 			return NetworkConfig.join(NetworkConfig.DEFAULT_ADDRESS)
 		_:
 			return NetworkConfig.offline()
@@ -225,7 +225,7 @@ static func _open_wire_for(net: NetworkConfig) -> void:
 	Wire.stop()
 	if net == null or not net.is_online():
 		return
-	if net.role == NetworkTransport.Role.HOST:
+	if net.role == NetworkConfig.Role.HOST:
 		Wire.start_host(net.port)
 	else:
 		Wire.start_client(net.address, net.port)

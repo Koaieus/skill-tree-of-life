@@ -29,15 +29,15 @@ func before_each() -> void:
 	_client_transport = pair[1]
 	add_child_autofree(_host_transport)
 	add_child_autofree(_client_transport)
-	_host = _link_on(_host_transport, CommandLink.Mode.BROADCAST)
-	_client = _link_on(_client_transport, CommandLink.Mode.MIRROR)
+	_host = _link_on(_host_transport, NetworkConfig.Role.HOST)
+	_client = _link_on(_client_transport, NetworkConfig.Role.CLIENT)
 
 
-func _link_on(transport: LoopbackTransport, mode: CommandLink.Mode) -> CommandLink:
+func _link_on(transport: LoopbackTransport, mode: NetworkConfig.Role) -> CommandLink:
 	var link := CommandLink.new()
 	link.transport = transport
 	add_child_autofree(link)
-	link.mode = mode
+	link.role = mode
 	return link
 
 
