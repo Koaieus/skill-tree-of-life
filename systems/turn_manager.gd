@@ -14,6 +14,12 @@ extends Node
 
 signal ticked
 signal turn_started(entity: Entity)
+
+## A REAL turn begin only — emitted by [method start_turn] right after
+## [signal turn_started], never by [method adopt_turn]'s resync cursor. For a
+## listener whose state must advance once per turn actually served (scout-mark
+## decay), where [signal turn_started] would double-count a repaired mirror.
+signal real_turn_started(entity: Entity)
 signal turn_ended(entity: Entity)
 
 ## Fires whenever [method forecast]'s answer could have changed: after
@@ -207,10 +213,7 @@ func start_turn(entity: Entity) -> void:
 	turns_taken += 1
 	entity.begin_turn()
 	turn_started.emit(entity)
-	# Sparse status-tick channel (#879): after `begin_turn`'s upkeep (regen
-	# included) — never from `adopt_turn`, which is a resync repair, not a
-	# real turn begin.
-	Events.turn_started.emit(entity)
+	real_turn_started.emit(entity)
 	forecast_changed.emit()
 
 

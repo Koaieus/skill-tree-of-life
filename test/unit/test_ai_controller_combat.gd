@@ -132,16 +132,11 @@ func before_each() -> void:
 	# except where a test explicitly grants SP.
 	_enemy.stat_board.skill_points.set_current(0)
 
-	Events.ai_decision.connect(_on_ai_decision)
+	_ai.decided.connect(_on_ai_decision)
 	_bs.attack_launched.connect(_on_attack_launched)
 
 
-func after_each() -> void:
-	if Events.ai_decision.is_connected(_on_ai_decision):
-		Events.ai_decision.disconnect(_on_ai_decision)
-
-
-func _on_ai_decision(_entity: Entity, summary: String) -> void:
+func _on_ai_decision(summary: String) -> void:
 	_decisions.append(summary)
 
 

@@ -52,6 +52,9 @@ signal vision_render_tick
 
 @export var graph: Graph
 @export var allocation_system: AllocationSystem
+## The scout-mark clock: marks decay on [signal TurnManager.real_turn_started]
+## only — an adopted resync cursor is not a turn of the firer.
+@export var turn_manager: TurnManager
 ## The off switch (#1006, ADR 0026). Off, the system is the "no fog"
 ## null object: every node reads visible AND sensed, the fog overlay is not
 ## drawn, and no circles are offered to the renderers — what a self-driven
@@ -128,7 +131,7 @@ var _sensed: Dictionary = {}    # SkillNode → true (logical)
 ## Scouted marks (#1033): node → { viewer → power }, power = radius /
 ## [constant SCOUT_FLOOR]. Held for EVERY viewer (a peer carries the same
 ## marks off the same record); only the effective viewers' marks draw.
-## Ticked on [signal Events.turn_started] of the mark's own viewer — the
+## Ticked on [signal TurnManager.real_turn_started] of the mark's own viewer — the
 ## firer's clock, never the host node's — through [member scouted_def].
 var _scout_marks: Dictionary[SkillNode, Dictionary] = {}
 # Per-source animation state. SkillNode → { radius: float, target: float }.
@@ -150,7 +153,10 @@ func _ready() -> void:
 			graph.node_added.connect(_on_allocation_changed.unbind(1))
 			graph.node_removed.connect(_on_allocation_changed.unbind(1))
 		Events.node_scouted.connect(_on_node_scouted)
-		Events.turn_started.connect(_on_turn_started)
+		# By name: `TurnManager` is not @tool, so a property read of the
+		# signal on its editor placeholder throws (see BattleSystem).
+		if turn_manager != null:
+			turn_manager.connect(&"real_turn_started", _on_real_turn_started)
 	_rebind_viewers()
 	_recompute.call_deferred()
 
@@ -304,7 +310,7 @@ func _on_node_scouted(node: SkillNode, viewer: Entity, radius: float) -> void:
 
 ## The firer's clock: every mark this entity holds decays one tick through
 ## [member scouted_def] and is dropped when the def says it is gone.
-func _on_turn_started(entity: Entity) -> void:
+func _on_real_turn_started(entity: Entity) -> void:
 	if scouted_def == null:
 		return
 	var changed := false

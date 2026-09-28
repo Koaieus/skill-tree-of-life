@@ -143,8 +143,9 @@ target would never tick).
   def unmodified. Marks are held for every viewer — a peer carries the same
   marks off the same record — and only those whose viewer is in
   `_effective_viewers()` draw, so a hostile scout leaks nothing.
-- **Clock.** `Events.turn_started(entity)` — the **firer's** turn start,
-  never the host node's — runs every mark keyed by that entity through
+- **Clock.** `TurnManager.real_turn_started(entity)` (the `@export
+  turn_manager`, connected by name) — the **firer's** real turn start, never
+  the host node's and never an adopted resync cursor — runs every mark keyed by that entity through
   `scouted_def.decayed()` (`decay_per_tick 0.5`, halves) and drops it at 0.
   `scouted_def` is an `@export` defaulting to the preload so a level or a
   test can inject a variant; the `.tres` sets the tick count, code never does.

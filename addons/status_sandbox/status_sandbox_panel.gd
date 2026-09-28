@@ -11,7 +11,7 @@ extends PanelContainer
 ##
 ## Explicit-step only: ▶ Tick turn calls `TurnManager.end_turn()` once, which
 ## with the bench's lone (scoped) Bearer rolls straight into its next
-## `start_turn` — real upkeep plus the `Events.turn_started` status tick. No
+## `start_turn` — real upkeep plus the owned-node status sweep. No
 ## `_process`, timer or await ever drives the clock.
 
 const _STATUS_DIR := "res://effects/status/"

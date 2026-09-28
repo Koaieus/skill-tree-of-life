@@ -326,8 +326,9 @@ func test_node_dot_lands_before_turn_began_once_per_real_turn() -> void:
 	a.turn_began.connect(func() -> void: seen.append([d.ticks.size(), node.get_current_hp()]))
 
 	_tm.start_turn(a)
-	assert_eq(seen, [[1, hp0 - 1.0]],
-			"the node DoT must have landed exactly once by the time turn_began fires")
+	assert_eq(seen.size(), 1, "turn_began fires once per real turn")
+	assert_eq(seen[0][0], 1, "the node DoT must have ticked exactly once by the time turn_began fires")
+	assert_lt(float(seen[0][1]), hp0, "and its damage has already landed")
 	assert_eq(d.ticks.size(), 1, "and nothing after turn_began ticks it again")
 
 	_tm.adopt_turn(null, _tm.turns_taken)

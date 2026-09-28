@@ -47,6 +47,13 @@ extends EntityController
 ## reveal in v1. Faction filtering uses [member Entity.faction] so future
 ## multi-faction support drops in trivially.
 
+## Every decision this AI makes on its turn (growth allocation, attack pick,
+## or "nothing sensible") — ALWAYS, regardless of [member debug_trace]. No
+## production listener yet; this is the seam a future HUD overlay or
+## DebugClipboard fan connects to on the controller it was handed (#378).
+## [param summary] is a short human-readable description of the decision.
+signal decided(summary: String)
+
 const _DEFAULT_TURN_DELAY := 0.4
 
 ## No-run fallback base for [member rng]'s seed (#823 D5) — `GameSession` may
@@ -122,7 +129,7 @@ const DEFAULT_TIER := Tier.TACTICIAN
 ## the same way regardless — directly, before `add_child`.
 var rng: RandomNumberGenerator = null
 ## Verbose `print_rich` trace of candidate scoring / chosen action to the
-## console. [signal Events.ai_decision] fires regardless of this toggle —
+## console. [signal decided] fires regardless of this toggle —
 ## this only gates the local console sink.
 @export var debug_trace: bool = false
 ## The AI's three system deps, set by whoever builds the controller
@@ -348,11 +355,11 @@ func _end_turn() -> void:
 		_submit(EndTurnCommand.new(entity.entity_id))
 
 
-## Emits [signal Events.ai_decision] unconditionally, and mirrors it to the
+## Emits [signal decided] unconditionally, and mirrors it to the
 ## console when [member debug_trace] is on. The single seam both channels
 ## (#378) go through.
 func _decide(summary: String) -> void:
-	Events.ai_decision.emit(entity, summary)
+	decided.emit(summary)
 	if debug_trace:
 		print_rich("[AIController] %s: %s" % [entity.display_name, summary])
 

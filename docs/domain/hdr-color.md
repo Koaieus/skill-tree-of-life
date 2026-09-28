@@ -129,8 +129,8 @@ generalize to a different width without retesting.
 
 **#399 answered the first of two open questions this raised**: `Edge.width` is
 now authored in screen pixels and held constant across camera zoom —
-`graph/edge.gd`'s `_current_zoom` (updated via `Events.camera_zoom_changed`,
-broadcast once per zoom step from `GraphCamera`, not per frame) divides the
+the global `edge_camera_zoom` shader parameter (written once per zoom step
+by `GraphCamera`, not per frame) divides the
 authored width by the current zoom so the rendered `Line2D`/self-loop
 `draw_arc` width inflates in world units exactly enough to hold on-screen
 coverage constant. This turns camera zoom off as a variable in `lit_glow_stops`

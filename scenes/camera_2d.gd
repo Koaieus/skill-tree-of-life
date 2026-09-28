@@ -29,8 +29,8 @@ const MAX_ZOOM := 2.00
 var _target_zoom: float = 1.0
 var _zoom_tween: Tween = null
 
-## Last-known zoom TARGET, mirrored via [signal Events.camera_zoom_changed]
-## (#399). Static so a consumer with no live camera in its scene (bloom
+## Last-known zoom TARGET (#399), pushed to the GPU as the global
+## `edge_camera_zoom` shader parameter. Static so a consumer with no live camera in its scene (bloom
 ## sandbox SubViewport, headless GUT fixtures) still reads a sane default
 ## instead of needing a tree lookup, and so an Edge spawned between zoom
 ## steps (procgen/`Graph.add_edge` at level load) sees the current value
@@ -39,8 +39,8 @@ static var current_zoom: float = 1.0
 
 ## Coalesces same-frame `_zoom_by` calls into one broadcast — a fast scroll
 ## burst (trackpad inertial scroll, a high-poll-rate wheel) can fire several
-## wheel ticks inside a single rendered frame, and each broadcast is O(live
-## Edge count) downstream. Same debounce shape as
+## wheel ticks inside a single rendered frame; one shader-parameter write per
+## frame is enough. Same debounce shape as
 ## `VisionSystem._request_recompute` (`systems/vision_system.gd`).
 var _zoom_broadcast_deferred := DeferredOnce.new(_broadcast_zoom_deferred)
 
@@ -123,7 +123,6 @@ var _follow_velocity: Vector2 = Vector2.ZERO
 func _ready() -> void:
 	_target_zoom = zoom.x
 	current_zoom = _target_zoom
-	Events.camera_zoom_changed.emit(current_zoom)
 	RenderingServer.global_shader_parameter_set(&"edge_camera_zoom", current_zoom)
 
 
@@ -221,9 +220,8 @@ func _follow(delta: float) -> void:
 ##
 ## Takes a resolved zoom rather than the span's `fit_size`: the fit policy (the
 ## 0.25 lattice, the floor, the centre-of-mass fallback) is the director's, and
-## it must land as ONE discrete zoom target because
-## [signal Events.camera_zoom_changed] is O(live Edge count) and is deliberately
-## broadcast on the target rather than per tween frame.
+## it must land as ONE discrete zoom target, broadcast on the target rather
+## than per tween frame.
 ##
 ## [param duration] of 0.0 is a hard cut. Re-calling while already directed
 ## RETARGETS rather than queueing — a multi-attack turn reads as one continuous
@@ -509,5 +507,4 @@ func _request_zoom_broadcast() -> void:
 
 
 func _broadcast_zoom_deferred() -> void:
-	Events.camera_zoom_changed.emit(current_zoom)
 	RenderingServer.global_shader_parameter_set(&"edge_camera_zoom", current_zoom)

@@ -21,6 +21,7 @@ const _BOARD := preload("res://entity/default_entity_board.tres")
 var _graph: Graph
 var _alloc: AllocationSystem
 var _vision: VisionSystem
+var _tm: TurnManager
 var _a: Entity
 var _b: Entity
 var _n0: SkillNode
@@ -51,8 +52,11 @@ func before_each() -> void:
 	_alloc.force_allocate(_a, _n0)
 	_set_stat(&"vision_range", 100.0)
 
+	_tm = TurnManager.new()
+	add_child_autofree(_tm)
 	_vision = VisionSystem.new()
 	_vision.graph = _graph
+	_vision.turn_manager = _tm
 	_vision.viewers = [_a]
 	add_child_autofree(_vision)
 	await get_tree().process_frame
@@ -94,8 +98,11 @@ func _scout(node: SkillNode, viewer: Entity, radius: float) -> void:
 	_vision._recompute()
 
 
+## One REAL turn of [param viewer], closed through the resync cursor so the
+## next `start_turn` is legal without `end_turn`'s auto-tick-to-ready.
 func _tick(viewer: Entity) -> void:
-	Events.turn_started.emit(viewer)
+	_tm.start_turn(viewer)
+	_tm.adopt_turn(null, _tm.turns_taken)
 	_vision._recompute()
 
 
@@ -124,6 +131,14 @@ func test_another_viewers_turn_does_not_decay_the_mark() -> void:
 	_scout(_n5, _a, 200.0)
 	_tick(_b)
 	assert_true(_vision.is_visible(_n6), "B's turn start is not A's clock")
+
+
+func test_an_adopted_cursor_does_not_decay_the_mark() -> void:
+	_scout(_n5, _a, 200.0)
+	_tm.adopt_turn(_a, _tm.turns_taken)
+	_tm.adopt_turn(null, _tm.turns_taken)
+	_vision._recompute()
+	assert_true(_vision.is_visible(_n6), "a resync cursor is not a real turn of the firer")
 
 
 func test_the_mark_is_gone_below_the_floor() -> void:

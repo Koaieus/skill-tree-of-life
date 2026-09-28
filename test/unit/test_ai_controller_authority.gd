@@ -105,7 +105,7 @@ func test_non_authority_ai_does_not_submit_on_its_turn() -> void:
 	_tm.start_turn(_enemy)
 	# Absence assert, not a wiring wait (#987): take_turn's authority gate
 	# (ai_controller.gd:187) returns before any await, before the decision
-	# loop, before Events.ai_decision ever fires and before _end_turn — so
+	# loop, before `decided` ever fires and before _end_turn — so
 	# there is no positive marker "the AI had its chance" to wait on without
 	# a production change, and no turn-end to wait on either, since nothing
 	# ends this turn on a non-authority peer. This sleep is a deliberate

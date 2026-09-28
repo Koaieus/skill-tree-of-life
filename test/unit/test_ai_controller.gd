@@ -1,7 +1,7 @@
 extends GutTest
 
 ## Coverage for #378 slice A: fog-aware recon short-circuit + the
-## Events.ai_decision seam on [AIController].
+## [signal AIController.decided] seam.
 ##
 ## Fixture mirrors test_turn_handoff.gd's TurnManager + Entity + AIController
 ## setup, minus BattleSystem (not needed — no hostile is ever visible or
@@ -91,12 +91,7 @@ func before_each() -> void:
 	_alloc.force_allocate(_enemy, _nodes[0])
 	_enemy.core_location = _nodes[0]
 
-	Events.ai_decision.connect(_on_ai_decision)
-
-
-func after_each() -> void:
-	if Events.ai_decision.is_connected(_on_ai_decision):
-		Events.ai_decision.disconnect(_on_ai_decision)
+	_ai.decided.connect(_on_ai_decision)
 
 
 ## The idle PlayerController entity parks the clock on itself after the AI
@@ -107,7 +102,7 @@ func _await_enemy_turn_end() -> void:
 	await wait_until(func() -> bool: return _tm.current_entity != _enemy, 2.0)
 
 
-func _on_ai_decision(_entity: Entity, summary: String) -> void:
+func _on_ai_decision(summary: String) -> void:
 	_decisions.append(summary)
 
 
@@ -149,7 +144,7 @@ func test_fog_short_circuit_still_spends_all_sp() -> void:
 
 
 # ---------------------------------------------------------------------------
-# Events.ai_decision — always emitted, debug_trace only gates the console sink
+# AIController.decided — always emitted, debug_trace only gates the console sink
 # ---------------------------------------------------------------------------
 
 func test_ai_decision_emitted_regardless_of_debug_trace() -> void:
@@ -159,7 +154,7 @@ func test_ai_decision_emitted_regardless_of_debug_trace() -> void:
 
 	await _await_enemy_turn_end()
 
-	assert_gt(_decisions.size(), 0, "Events.ai_decision must fire even with debug_trace off")
+	assert_gt(_decisions.size(), 0, "decided must fire even with debug_trace off")
 
 
 func test_ai_decision_emitted_with_debug_trace_on() -> void:
@@ -169,4 +164,4 @@ func test_ai_decision_emitted_with_debug_trace_on() -> void:
 
 	await _await_enemy_turn_end()
 
-	assert_gt(_decisions.size(), 0, "Events.ai_decision must fire with debug_trace on too")
+	assert_gt(_decisions.size(), 0, "decided must fire with debug_trace on too")

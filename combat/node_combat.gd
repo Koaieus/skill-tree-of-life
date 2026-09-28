@@ -650,17 +650,15 @@ func get_statuses() -> Array[NodeStatus]:
 	return _status_host.get_statuses()
 
 
-## Sparse tick subscription (#879): the FIRST status on a live node connects
-## it to Events.turn_started.
+## Host contract: nothing to subscribe — the owner's [method Entity.begin_turn]
+## sweeps its owned nodes' statuses every real turn.
 func _on_first_status() -> void:
-	if host != null:
-		host._subscribe_status_tick()
+	pass
 
 
-## Sparse tick subscription (#879): the LAST status leaving drops it.
+## Host contract: see [method _on_first_status].
 func _on_last_status_removed() -> void:
-	if host != null:
-		host._unsubscribe_status_tick()
+	pass
 
 
 ## #880: the node tint reads the strongest LIVE status.

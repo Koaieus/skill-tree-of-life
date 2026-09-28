@@ -278,7 +278,7 @@ Graph's job, not the tab's.
   A single button-bound step is explicit-step and allowed: the Status tab's
   ▶ Tick turn calls `end_turn()` once per click, which with a lone entity rolls
   synchronously into that entity's next `start_turn` (real upkeep + the
-  `Events.turn_started` status tick). "Lone" needs work here, because the host
+  owned-node status sweep in `Entity.begin_turn`). "Lone" needs work here, because the host
   instantiates every live tab into one tree: the bench's TurnManager is scoped
   (`entity_root` = its Graph), or an unscoped tick serves another tab's
   entity. Nothing else needs wiring: an entity never binds to a TurnManager —

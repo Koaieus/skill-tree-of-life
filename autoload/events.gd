@@ -1,6 +1,12 @@
 @tool
 extends Node
 
+## The global signal bus. A signal belongs here iff its emitters are many or
+## short-lived and no composing scene can hand the listener a reference (every
+## entity, every picker button, a per-launch coordinator, a static applier).
+## A fact with one stable owner is that owner's own signal, wired by the scene
+## that composes both ends — [signal TurnManager.turn_started], not a bus copy.
+
 #region World facts — emitted by the owner of the fact, after it is true; a listener may not mutate the world in response (that is a system's job through a named entry)
 
 ## Re-emitted by SkillNode.take_damage so UI (floating damage numbers, screen
@@ -81,18 +87,6 @@ signal blade_vertex_popped(defender: SkillNode, attacker: Entity, position: Vect
 ## [HudRoot] resolves it at display time from the local [SeatPolicy].
 signal run_ended(outcome: RunOutcome)
 
-## Sparse status-tick channel (#879). Re-emitted by [method TurnManager.start_turn]
-## for a REAL turn begin only — never [method TurnManager.adopt_turn]'s resync
-## cursor (#756) — and only AFTER [method Entity.begin_turn]'s upkeep
-## ([method SkillNode.apply_turn_regen] included) and [signal TurnManager.turn_started]'s
-## own emit have both run. A [SkillNode] with ≥ 1 status connects to this once (on its
-## first status) and disconnects on its last, checks `entity == owned_by`, then
-## calls [method NodeCombat.tick_statuses] — never a territory sweep. Distinct
-## from [signal TurnManager.turn_started] on purpose: that one's seven listeners
-## (HUD, initiative bar, action cluster, …) all want to hear an adopted cursor
-## too; this one exists so a status tick never has to.
-signal turn_started(entity: Entity)
-
 ## A scout landing revealed [param node]'s surroundings to [param viewer]'s
 ## vision group: emitted by [method RevealInstance.land_on] on the LIVE world
 ## only (a shadow land is a no-op — the preview shows no disc), so a peer
@@ -113,12 +107,6 @@ signal skill_node_unhovered
 signal spell_hovered(spell: SpellDef, caster: Entity)
 signal spell_unhovered
 
-## Fired by GraphCamera (`scenes/camera_2d.gd`) whenever a zoom step lands —
-## the tween's TARGET, not a per-frame mid-tween value. Edge listens so its
-## line width can hold constant screen-pixel coverage (#399) without every
-## edge polling the camera in `_process`.
-signal camera_zoom_changed(zoom: float)
-
 ## A node-targeted verb was denied by its own gate (DP/SP/AP, non-islanding,
 ## etc.) — PURE fact, no presentation baggage: node + a short reason string.
 ## Any verb can fire this on gate failure, not just deallocate (#404). Consumers
@@ -133,16 +121,6 @@ signal node_action_denied(node: SkillNode, reason: String)
 ## world node. [FloaterDirector] renders both through the same
 ## `_denial_text()` / `_DENIAL_TEXTS` table; see its docstring.
 signal ui_action_denied(anchor: Node2D, reason: String)
-
-## Fired by [AIController] on every AI decision this turn (growth allocation,
-## attack pick, or "nothing sensible") — ALWAYS, regardless of the
-## controller's local `debug_trace` toggle. No production listener yet;
-## `test_ai_controller.gd` / `test_ai_controller_combat.gd` connect to pin
-## the unconditional-emit contract. This is the seam a future HUD overlay /
-## DebugClipboard fan subscribes to without touching the controller (#378).
-## `entity` is the deciding AI, `summary` a short human-readable description
-## of the decision.
-signal ai_decision(entity: Entity, summary: String)
 
 ## #504: the death is now visible — [method Entity.die] is the sole emitter and
 ## fires this LAST, after both bus phases above, so the corpse's nodes are

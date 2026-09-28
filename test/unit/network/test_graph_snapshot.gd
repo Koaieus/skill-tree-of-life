@@ -94,10 +94,9 @@ func test_non_pristine_round_trip_fingerprints_agree() -> void:
 
 ## #879's Resync acceptance: a node's `(status id, power)` survives the round
 ## trip, [WorldFingerprint] actually folds it (not just carries it inert), and
-## decode leaves the node genuinely SUBSCRIBED to the sparse tick channel —
-## not merely holding the right dict entry. `apply_status`/`clear_statuses`
-## do the restore (see `GraphSnapshot._reconcile_statuses`), so the same
-## 0→1 subscription hook that a live application would trigger fires here too.
+## decode leaves the node genuinely TICKING on its owner's turn — not merely
+## holding the right dict entry. `apply_status`/`clear_statuses` do the
+## restore (see `GraphSnapshot._reconcile_statuses`).
 func test_status_round_trip_preserves_id_and_power_and_ticks_after_decode() -> void:
 	var source := await _procgen_graph(12, 20260914)
 	var target := await _new_graph()
@@ -121,9 +120,10 @@ func test_status_round_trip_preserves_id_and_power_and_ticks_after_decode() -> v
 	assert_eq(decoded.get_combat().get_status_power(&"test_status"), 3.0,
 			"status id/power did not survive the round trip")
 
-	# The mirror ticks afterwards: decode must have re-subscribed the node to
-	# Events.turn_started, not just written the power into the dict.
-	Events.turn_started.emit(target_owner)
+	# The mirror ticks afterwards: the owner's real turn sweeps the decoded
+	# node, so decode must have put it in the owner's owned set, not just
+	# written the power into the dict.
+	target_owner.begin_turn()
 	assert_lt(decoded.get_combat().get_status_power(&"test_status"), 3.0,
 			"decoded node must be subscribed to the sparse tick channel after resync")
 

@@ -216,15 +216,10 @@ func before_each() -> void:
 	_nodes[2].global_position = Vector2(200.0, 0.0)
 	_nodes[3].global_position = Vector2(300.0, 0.0)
 
-	Events.ai_decision.connect(_on_ai_decision)
+	_ai.decided.connect(_on_ai_decision)
 
 
-func after_each() -> void:
-	if Events.ai_decision.is_connected(_on_ai_decision):
-		Events.ai_decision.disconnect(_on_ai_decision)
-
-
-func _on_ai_decision(_entity: Entity, summary: String) -> void:
+func _on_ai_decision(summary: String) -> void:
 	_decisions.append(summary)
 
 

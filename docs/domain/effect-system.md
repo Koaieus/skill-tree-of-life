@@ -335,10 +335,11 @@ read is already correct.
   `StatusInstance : HitInstance` pushed by `ApplyStatusEffect : OnHitEffect`
   (#878), landed via `NodeCombat.apply_status`/`land_on` on whichever
   `CombatWorld` the applier hands in — same shadow/live split as every other
-  hit. Ticking is a **sparse** subscription (#879): a node with ≥ 1 status
-  connects once to `Events.turn_started` (fired after `Entity.begin_turn`'s
-  own upkeep, never on an adopted resync cursor) and disconnects on its last —
-  never a territory sweep. All statuses void on any deallocation path
+  hit. Ticking is an owned-set sweep in
+  `Entity.begin_turn` (#1137): after the entity's own upkeep and status tick,
+  before `turn_began` kicks the controller, over a snapshot of the owned set
+  (the one regen already walks), skipping a node stripped mid-sweep. Every
+  real turn, never on an adopted resync cursor. All statuses void on any deallocation path
   (`AllocationSystem.clear_statuses()` on `deallocate`/`force_deallocate`/
   `deallocate_all_owned`) — `StatusDef.OnDealloc` reserves a `LINGER` door but
   only `CLEAR` is built. `network/graph_snapshot.gd` carries `(status id,
