@@ -88,7 +88,7 @@ func test_the_host_handover_flips_the_seat_and_swaps_in_an_ai() -> void:
 
 
 func test_the_mirror_entry_flips_the_facts_and_grows_no_ai() -> void:
-	_session.seat_handover.emit(_seat.id)
+	_handover.receive(SeatHandover.KIND_SEAT_HANDOVER, {SeatHandover.KEY_PARTICIPANT: _seat.id})
 
 	assert_eq(_seat.kind, Participant.Kind.AI, "the roster says AI")
 	assert_false(_human.is_human_controlled, "the entity says AI")

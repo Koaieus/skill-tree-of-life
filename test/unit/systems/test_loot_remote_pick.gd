@@ -83,27 +83,33 @@ func _receiver() -> LootPickRegistry:
 	return registry
 
 
+## #1179: the loot-offer leg rides its own [LootOfferChannel] now, registered
+## onto the same core [CommandLink] composes for itself in [method Node._ready]
+## — [member LinkChannel.link] is that core.
 func _link(applier: CommandApplier, graph: Graph, transport: NetworkTransport,
 		mode: NetworkConfig.Role, registry: LootPickRegistry = null) -> CommandLink:
 	var link := CommandLink.new()
 	link.transport = transport
 	link.command_applier = applier
 	link.graph = graph
-	link.loot_pick_registry = registry
-	if registry != null:
-		registry.graph = graph
 	link.role = mode
 	add_child_autofree(link)
+	if registry != null:
+		registry.graph = graph
+	var offer := LootOfferChannel.new()
+	offer.loot_pick_registry = registry
+	add_child_autofree(offer)
+	link.link.register(offer)
 	return link
 
 
 ## #564: wire a bare [LootSystem] purely as the mirror-side adapter — no
 ## `turn_manager` / `battle_system` needed for this unit, both stay null (a
 ## documented supported configuration; see the class doc).
-func _mirror_adapter(applier: CommandApplier, link: CommandLink) -> LootSystem:
+func _mirror_adapter(applier: CommandApplier, registry: LootPickRegistry) -> LootSystem:
 	var system := LootSystem.new()
 	system.command_applier = applier
-	system.pick_registry = link.loot_pick_registry
+	system.pick_registry = registry
 	add_child_autofree(system)
 	return system
 
@@ -141,9 +147,9 @@ func test_a_remote_collectors_offer_opens_a_picker_and_the_pick_closes_the_round
 	add_child_autofree(pair[0])
 	add_child_autofree(pair[1])
 	_link(host["applier"], host["graph"], pair[0], NetworkConfig.Role.HOST, host_registry)
-	var client_link := _link(client["applier"], client["graph"], pair[1],
+	_link(client["applier"], client["graph"], pair[1],
 			NetworkConfig.Role.CLIENT, client_registry)
-	_mirror_adapter(client["applier"], client_link)
+	_mirror_adapter(client["applier"], client_registry)
 
 	# Events is a shared autoload across both worlds in this harness — the
 	# HOST's own SkillDustAddon._run_stat_round ALSO emits unconditionally
@@ -199,9 +205,10 @@ func test_a_forfeited_round_closes_the_clients_open_request_without_a_local_answ
 	add_child_autofree(pair[0])
 	add_child_autofree(pair[1])
 	_link(host["applier"], host["graph"], pair[0], NetworkConfig.Role.HOST, host_registry)
+	var client_registry := _receiver()
 	var client_link := _link(client["applier"], client["graph"], pair[1], NetworkConfig.Role.CLIENT,
-			_receiver())
-	_mirror_adapter(client["applier"], client_link)
+			client_registry)
+	_mirror_adapter(client["applier"], client_registry)
 
 	# See the previous test for why this filters to the client's collector —
 	# the host's own SkillDustAddon emits on the same shared Events bus too.
@@ -247,9 +254,10 @@ func test_a_collector_death_mid_pick_forfeits_and_travels_upward() -> void:
 	add_child_autofree(pair[0])
 	add_child_autofree(pair[1])
 	_link(host["applier"], host["graph"], pair[0], NetworkConfig.Role.HOST, host_registry)
+	var client_registry := _receiver()
 	var client_link := _link(client["applier"], client["graph"], pair[1], NetworkConfig.Role.CLIENT,
-			_receiver())
-	_mirror_adapter(client["applier"], client_link)
+			client_registry)
+	_mirror_adapter(client["applier"], client_registry)
 
 	_open_stat_round(host)
 	await get_tree().process_frame

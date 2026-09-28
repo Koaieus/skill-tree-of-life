@@ -100,17 +100,23 @@ func _receiver() -> LootPickRegistry:
 	return registry
 
 
+## #1179: the loot-offer leg rides its own [LootOfferChannel] now, registered
+## onto the same core [CommandLink] composes for itself in [method Node._ready]
+## — [member LinkChannel.link] is that core.
 func _link(applier: CommandApplier, graph: Graph, transport: NetworkTransport,
 		mode: NetworkConfig.Role, registry: LootPickRegistry = null) -> CommandLink:
 	var link := CommandLink.new()
 	link.transport = transport
 	link.command_applier = applier
 	link.graph = graph
-	link.loot_pick_registry = registry
-	if registry != null:
-		registry.graph = graph
 	link.role = mode
 	add_child_autofree(link)
+	if registry != null:
+		registry.graph = graph
+	var offer := LootOfferChannel.new()
+	offer.loot_pick_registry = registry
+	add_child_autofree(offer)
+	link.link.register(offer)
 	return link
 
 
@@ -202,10 +208,11 @@ func test_a_remote_collectors_pick_round_trips_and_closes_the_clients_gate() -> 
 	add_child_autofree(pair[1])
 	var host_link := _link(host["applier"], host["graph"], pair[0],
 			NetworkConfig.Role.HOST, host_registry)
+	var client_registry := _receiver()
 	var client_link := _link(client["applier"], client["graph"], pair[1], NetworkConfig.Role.CLIENT,
-			_receiver())
+			client_registry)
 	var offers: Array[LootPickOffer] = []
-	client_link.loot_pick_registry.offer_received.connect(func(o: LootPickOffer) -> void: offers.append(o))
+	client_registry.offer_received.connect(func(o: LootPickOffer) -> void: offers.append(o))
 
 	var collector_id: int = (host["collector"] as Entity).entity_id
 	_open_stat_round(host)

@@ -201,21 +201,28 @@ func test_the_latch_is_off_by_default() -> void:
 
 # --- 5. The two non-command kinds, decided explicitly ------------------------
 
-## [constant CommandLink.KIND_LOOT_OFFER] is not a [Command], but it parks state
-## on the receiver: it resolves `collector_id` through the applier's graph (null
-## mid-generation), binds a `died` handler on an entity the resync is about to
-## reconcile, and holds `LootSystem._pending_mirror_request`. It also cannot be
-## FOR a peer that is still joining, and the whole window is pre-HUD, so nothing
-## would be listening to answer it anyway. Dropped — see
-## [constant CommandLink.DEFERRED_KINDS] for the full ruling, including why
-## KIND_INTENT needs no guard here (host-only handler; this latch only ever
-## rides a MIRROR peer).
+## [constant LootOfferChannel.KIND_LOOT_OFFER] is not a [Command], but it parks
+## state on the receiver: it resolves `collector_id` through the applier's graph
+## (null mid-generation), binds a `died` handler on an entity the resync is
+## about to reconcile, and holds `LootSystem._pending_mirror_request`. It also
+## cannot be FOR a peer that is still joining, and the whole window is pre-HUD,
+## so nothing would be listening to answer it anyway. Dropped via
+## [member LinkChannel.deferred_until_world] (#1179), same latch [constant
+## CommandLink.DEFERRED_KINDS] still gates [constant CommandLink.KIND_COMMAND]
+## with — including why KIND_INTENT needs no guard here (host-only handler;
+## this latch only ever rides a MIRROR peer).
 func test_a_loot_offer_during_the_window_is_dropped() -> void:
 	var offers: Array = []
 	var receiver := LootPickRegistry.new()
 	receiver.graph = _client["graph"]
 	add_child_autofree(receiver)
-	_client_link.loot_pick_registry = receiver
+	var client_offer_channel := LootOfferChannel.new()
+	client_offer_channel.loot_pick_registry = receiver
+	add_child_autofree(client_offer_channel)
+	_client_link.link.register(client_offer_channel)
+	var host_offer_channel := LootOfferChannel.new()
+	add_child_autofree(host_offer_channel)
+	_host_link.link.register(host_offer_channel)
 	receiver.offer_received.connect(func(o: LootPickOffer) -> void: offers.append(o))
 	var client_peer := _client_link.transport.local_peer_id()
 	var offer := LootPickOffer.new()
@@ -223,11 +230,11 @@ func test_a_loot_offer_during_the_window_is_dropped() -> void:
 	offer.collector_id = (_host["player"] as Entity).entity_id
 
 	_client_link.defer_until_resync = true
-	_host_link.send_loot_offer(offer, client_peer)
+	host_offer_channel.send_loot_offer(offer, client_peer)
 	await get_tree().process_frame
 	assert_true(offers.is_empty(), "no picker may open against a world that does not exist")
 
 	_client_link.defer_until_resync = false
-	_host_link.send_loot_offer(offer, client_peer)
+	host_offer_channel.send_loot_offer(offer, client_peer)
 	await get_tree().process_frame
 	assert_eq(offers.size(), 1, "and it is the window that gates it, not the kind")

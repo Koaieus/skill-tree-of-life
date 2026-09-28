@@ -27,7 +27,7 @@ func _roster() -> ParticipantRoster:
 func _loot_offers_on(transport: LoopbackTransport) -> Array[Dictionary]:
 	var got: Array[Dictionary] = []
 	transport.message_received.connect(func(payload: Dictionary) -> void:
-		if payload.get(CommandLink.KEY_KIND) == CommandLink.KIND_LOOT_OFFER:
+		if payload.get(NetworkLink.KEY_KIND) == LootOfferChannel.KIND_LOOT_OFFER:
 			got.append(payload))
 	return got
 
@@ -54,9 +54,12 @@ func test_offer_reaches_the_collectors_peer_only() -> void:
 
 	var link := CommandLink.new()
 	link.transport = host_end
-	link.loot_pick_registry = registry
 	link.role = NetworkConfig.Role.HOST
 	add_child_autofree(link)
+	var offer_channel := LootOfferChannel.new()
+	offer_channel.loot_pick_registry = registry
+	add_child_autofree(offer_channel)
+	link.link.register(offer_channel)
 
 	var at_collector := _loot_offers_on(collector_end)
 	var at_bystander := _loot_offers_on(bystander_end)
@@ -82,9 +85,12 @@ func test_offer_for_the_other_human_follows_them() -> void:
 	add_child_autofree(registry)
 	var link := CommandLink.new()
 	link.transport = host_end
-	link.loot_pick_registry = registry
 	link.role = NetworkConfig.Role.HOST
 	add_child_autofree(link)
+	var offer_channel := LootOfferChannel.new()
+	offer_channel.loot_pick_registry = registry
+	add_child_autofree(offer_channel)
+	link.link.register(offer_channel)
 
 	var at_pair_client := _loot_offers_on(ends[1])
 	var at_attached := _loot_offers_on(bystander_end)

@@ -238,14 +238,14 @@ func test_the_harness_link_still_reaches_its_probe() -> void:
 ## produces, so both are compared against the node they must be.
 func test_the_scene_wires_both_ends_of_a_remote_loot_round() -> void:
 	var root: Node = preload(GAME_ROOT).instantiate()
-	var link: CommandLink = root.get_node(LINK_PATH)
+	var offer_channel: LootOfferChannel = root.get_node("LootOfferChannel")
 	var loot: LootSystem = root.get_node("Systems/LootSystem")
 	var registry: LootPickRegistry = root.get_node("Systems/LootPickRegistry")
 
 	# Send side: without this the registry's `offer_parked` never reaches the
-	# link, so `send_loot_offer` never fires and the HOST silently drops it.
-	assert_eq(link.loot_pick_registry, registry,
-			"CommandLink.loot_pick_registry resolves to Systems/LootPickRegistry")
+	# channel, so `send_loot_offer` never fires and the HOST silently drops it.
+	assert_eq(offer_channel.loot_pick_registry, registry,
+			"LootOfferChannel.loot_pick_registry resolves to Systems/LootPickRegistry")
 	# Receive side: the link hands an arriving offer to the same registry, which
 	# resolves its collector on the graph and emits to LootSystem. Without
 	# either path the offer never becomes a local pick request.
