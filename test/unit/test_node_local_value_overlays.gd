@@ -157,3 +157,109 @@ func test_higher_priority_entity_set_wins_over_the_node_local_set() -> void:
 
 	assert_eq(node.get_local_value_with(_ID, [_overlay(3.0)]), 7.0,
 			"priority beats locality")
+
+
+# --- 7: parent stats fold from BOTH boards (ADR 0029) ------------------------
+# Throwaway family defs through the StatRegistry.register_def seam: entity side
+# first (ancestors → child), then node side (ancestors → child), then overlays.
+
+const _FP := &"fam_parent"
+const _FC := &"fam_child"
+
+
+func _family_def(id: StringName, parents: Array[StringName] = []) -> StatDef:
+	var d := StatDef.new()
+	d.id = id
+	d.value_type = StatDef.ValueType.FLOAT
+	d.parent_ids = parents
+	StatRegistry.register_def(d)
+	return d
+
+
+func before_each() -> void:
+	_family_def(_FP)
+	_family_def(_FC, [_FP])
+
+
+func after_each() -> void:
+	StatRegistry.unregister_def(_FC)
+	StatRegistry.unregister_def(_FP)
+
+
+func _fam_stat(id: StringName, base: float = 0.0) -> ScalarStat:
+	var s := ScalarStat.new()
+	s.definition = StatRegistry.get_def(id)
+	s.base_value = base
+	return s
+
+
+func _fmod(id: StringName, op: int, value: float, priority: int = 0) -> StatModifier:
+	var m := _mod(op, value, priority)
+	m.stat_id = id
+	return m
+
+
+## An owned node whose owner carries family stats [param entity_stats]
+## ({id: base}) on its board, and whose own board is initialised empty.
+func _family_node(entity_stats: Dictionary) -> SkillNode:
+	var graph := preload("res://graph/graph.tscn").instantiate()
+	add_child_autofree(graph)
+	var entity: Entity = autofree(Entity.new())
+	entity.stat_board = preload("res://entity/default_entity_board.tres").duplicate(true)
+	graph.add_child(entity)
+	for id in entity_stats:
+		entity.stat_board._register_minted(id, _fam_stat(id, entity_stats[id]))
+	var node := _NODE_SCENE.instantiate() as SkillNode
+	graph.skill_nodes_container.add_child(node)
+	autofree(node)
+	node._init_node_board()
+	var alloc := AllocationSystem.new()
+	alloc.graph = graph
+	add_child_autofree(alloc)
+	alloc.force_allocate(entity, node)
+	return node
+
+
+func _entity_board(node: SkillNode) -> StatBoard:
+	return node.owned_by.stat_board
+
+
+func test_node_parent_moves_entity_child_with_no_node_child() -> void:
+	var node := _family_node({_FC: 10.0})
+	node.add_local_modifier(_fmod(_FP, StatModifier.Operation.INCREASE, 20.0))
+	assert_null(node.node_board.get_stat(_FC), "arrangement: no child stat on the node board")
+	assert_almost_eq(float(node.get_local_value(_FC)), 12.0, 0.0001)
+
+
+func test_increases_sum_across_both_boards_and_both_generations() -> void:
+	var node := _family_node({_FP: 0.0, _FC: 10.0})
+	_entity_board(node).add_modifier(_fmod(_FP, StatModifier.Operation.INCREASE, 10.0))
+	node.add_local_modifier(_fmod(_FP, StatModifier.Operation.INCREASE, 20.0))
+	node.add_local_modifier(_fmod(_FC, StatModifier.Operation.INCREASE, 10.0))
+	assert_almost_eq(float(node.get_local_value(_FC)), 14.0, 0.0001, "one sum: 10 x (1 + 0.4)")
+
+
+func test_node_child_set_beats_entity_parent_set() -> void:
+	var node := _family_node({_FP: 0.0, _FC: 0.0})
+	_entity_board(node).add_modifier(_fmod(_FP, StatModifier.Operation.SET, 3.0))
+	node.add_local_modifier(_fmod(_FC, StatModifier.Operation.SET, 8.0))
+	assert_almost_eq(float(node.get_local_value(_FC)), 8.0, 0.0001)
+
+
+func test_node_parent_set_beats_entity_child_set() -> void:
+	var node := _family_node({_FC: 0.0})
+	_entity_board(node).add_modifier(_fmod(_FC, StatModifier.Operation.SET, 3.0))
+	node.add_local_modifier(_fmod(_FP, StatModifier.Operation.SET, 5.0))
+	assert_almost_eq(float(node.get_local_value(_FC)), 5.0, 0.0001, "node side is more local than the entity side")
+
+
+func test_shadow_read_sees_family_modifiers() -> void:
+	var node := _family_node({_FP: 0.0, _FC: 10.0})
+	_entity_board(node).add_modifier(_fmod(_FP, StatModifier.Operation.INCREASE, 10.0))
+	node.add_local_modifier(_fmod(_FP, StatModifier.Operation.INCREASE, 20.0))
+	var live := float(node.get_local_value(_FC))
+	assert_almost_eq(live, 13.0, 0.0001)
+	var w := CombatWorld.shadow()
+	var slice := w.combat_for(node)
+	assert_almost_eq(float(slice.get_local_value(_FC)), live, 0.0001, "a shadow resolve folds the same family")
+	w.free_shadow()
