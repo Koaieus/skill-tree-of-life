@@ -57,7 +57,7 @@ static func scale(inc_: float, mult_: float) -> float:
 ##   + bonus        → "(X+3) × 1.5 + 2"
 func describe(base_label: String = "X") -> String:
 	if set_value != null:
-		return "= %s" % _trim(float(set_value))
+		return "= %s" % NumFmt.num(float(set_value))
 	var out := base_label
 	if not is_zero_approx(add):
 		out += _signed(add, "")
@@ -66,7 +66,7 @@ func describe(base_label: String = "X") -> String:
 	if has_factor:
 		if not is_zero_approx(add):
 			out = "(%s)" % out
-		out += " × %s" % _trim(f)
+		out += " × %s" % NumFmt.num(f)
 	if not is_zero_approx(bon):
 		out += _signed(bon, " ")
 	return out
@@ -75,12 +75,4 @@ func describe(base_label: String = "X") -> String:
 ## "+3" / "−3" (typographic minus), with [param gap] on both sides of the sign.
 static func _signed(v: float, gap: String) -> String:
 	var sign := "+" if v >= 0.0 else "−"
-	return "%s%s%s%s" % [gap, sign, gap, _trim(absf(v))]
-
-
-## Render a float without trailing zeros — whole values print as ints.
-## Mirrors [method StatFormula._trim].
-static func _trim(v: float) -> String:
-	if is_equal_approx(v, roundf(v)):
-		return "%d" % roundi(v)
-	return ("%.2f" % v).trim_suffix("0")
+	return "%s%s%s%s" % [gap, sign, gap, NumFmt.num(absf(v))]

@@ -100,4 +100,4 @@ func describe_per(value: float = 1.0) -> String:
 	var step := _step(value)
 	if step < 1.0 or is_equal_approx(step, 1.0):
 		return abbr
-	return "%s %s" % [_trim(step), abbr]
+	return "%s %s" % [NumFmt.num(step), abbr]

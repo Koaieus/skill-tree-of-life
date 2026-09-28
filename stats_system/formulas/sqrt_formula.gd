@@ -81,4 +81,4 @@ func describe_per(_value: float = 1.0) -> String:
 	var abbr := _abbrev(StatFormula.base_of(source_stat_id))
 	if is_equal_approx(divisor, 1.0):
 		return "√%s" % abbr
-	return "%s √%s" % [_trim(divisor), abbr]
+	return "%s √%s" % [NumFmt.num(divisor), abbr]

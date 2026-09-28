@@ -68,4 +68,5 @@ func animate_to(prefix: String, current: float, maximum: float, tint: Color) -> 
 func _render(c: float) -> void:
 	value = c
 	if label != null:
-		label.text = "%s: %d/%d" % [_prefix, int(round(c)), int(_cap)]
+		# roundf snaps the tween's in-between frames, not the game value.
+		label.text = "%s: %s/%s" % [_prefix, NumFmt.num(roundf(c)), NumFmt.num(_cap)]

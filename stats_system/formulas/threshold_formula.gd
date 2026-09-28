@@ -99,7 +99,7 @@ func describe_per(_value: float = 1.0) -> String:
 	var ratio := _common_ratio()
 	if ratio <= 0.0:
 		return abbr
-	return "×%s %s" % [_trim(ratio), abbr]
+	return "×%s %s" % [NumFmt.num(ratio), abbr]
 
 
 ## Overrides [StatFormula.describe_clause] for the one shape [method
@@ -151,10 +151,10 @@ func _ladder_list() -> String:
 	var strs: Array[String] = []
 	if breakpoints.size() > 5:
 		for b in breakpoints.slice(0, 3):
-			strs.append(_trim(b))
+			strs.append(NumFmt.num(b))
 		strs.append("…")
-		strs.append(_trim(breakpoints[-1]))
+		strs.append(NumFmt.num(breakpoints[-1]))
 	else:
 		for b in breakpoints:
-			strs.append(_trim(b))
+			strs.append(NumFmt.num(b))
 	return " / ".join(strs)

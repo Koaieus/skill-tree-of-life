@@ -116,7 +116,7 @@ static func _crit_tier(source: HitInstance) -> int:
 ## hit) — cheap, universally read, and it survives colour-blind viewing, which
 ## is the one thing none of the crit registers do on their own.
 static func _damage_text(amount: float, crit_tier: int) -> String:
-	var text := "%d" % int(round(amount))
+	var text := NumFmt.num(amount)
 	if crit_tier <= 0:
 		return text
 	return text + "!".repeat(mini(crit_tier, 2))
@@ -129,7 +129,7 @@ static func _damage_text(amount: float, crit_tier: int) -> String:
 func _on_skill_node_healed(node: SkillNode, amount: float, _source: HitInstance) -> void:
 	if node == null or amount <= 0.0 or not _node_visible(node):
 		return
-	_emit(node, "+%d" % int(round(amount)), FloaterStyles.node_heal())
+	_emit(node, "+%s" % NumFmt.num(amount), FloaterStyles.node_heal())
 
 
 func _on_entity_wounded(entity: Entity, amount: int) -> void:
@@ -154,7 +154,7 @@ func _on_entity_healed(entity: Entity, amount: int) -> void:
 func _on_entity_xp_gained(entity: Entity, amount: float) -> void:
 	if amount <= 0.0 or entity == player:
 		return
-	_emit_at_entity(entity, "+%d XP" % int(round(amount)), FloaterStyles.xp_gain())
+	_emit_at_entity(entity, "+%s XP" % NumFmt.num(amount), FloaterStyles.xp_gain())
 
 
 ## #70/#79 — a stat modifier became visible on an entity. Render its op-aware

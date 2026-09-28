@@ -149,30 +149,23 @@ func _add_terms_row(id: StringName) -> void:
 ## A fold with no terms reads `—`.
 static func terms_text(t: FoldTerms) -> String:
 	if t.set_value != null:
-		return "= %s" % _num(float(t.set_value))
+		return "= %s" % NumFmt.num(float(t.set_value))
 	var parts: PackedStringArray = []
 	if not is_zero_approx(t.add):
 		parts.append(_signed(t.add))
 	if not is_zero_approx(t.inc):
 		# PoE grammar: the word carries the sign, the number does not.
-		parts.append("%s%% reduced" % _num(-t.inc) if t.inc < 0.0
-				else "+%s%% increased" % _num(t.inc))
+		parts.append("%s%% reduced" % NumFmt.num(-t.inc) if t.inc < 0.0
+				else "+%s%% increased" % NumFmt.num(t.inc))
 	if not is_equal_approx(t.mult, 1.0):
-		parts.append("×%s" % _num(t.mult))
+		parts.append("×%s" % NumFmt.num(t.mult))
 	if not is_zero_approx(t.bon):
 		parts.append("%s bonus" % _signed(t.bon))
 	return ", ".join(parts) if not parts.is_empty() else "—"
 
 
 static func _signed(v: float) -> String:
-	return ("+" if v >= 0.0 else "−") + _num(absf(v))
-
-
-## Whole values print as ints, otherwise up to two decimals, zeros trimmed.
-static func _num(v: float) -> String:
-	if is_equal_approx(v, roundf(v)):
-		return "%d" % roundi(v)
-	return ("%.2f" % v).trim_suffix("0")
+	return ("+" if v >= 0.0 else "−") + NumFmt.num(absf(v))
 
 
 ## Every stat id live on [member SkillNode.node_board] — baked node-only ones

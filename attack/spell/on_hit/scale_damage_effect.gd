@@ -75,7 +75,7 @@ func _scaled(state: CastSpell, lctx: LandingContext) -> float:
 func get_description(_spell: SpellDef = null, _board: StatBoard = null) -> String:
 	var what := ""
 	match mode:
-		Mode.MULTIPLY: what = "×%s damage" % _fmt_num(factor)
+		Mode.MULTIPLY: what = "×%s damage" % NumFmt.num(factor)
 		Mode.SQUARE: what = "squared damage"
 		Mode.MULTIPLY_BY_DEGREE: what = "damage × the node's degree"
 	if when == null:

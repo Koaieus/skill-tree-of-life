@@ -83,10 +83,8 @@ func get_abbrev() -> String:
 ## handling — callers own sign prefixing and [member display_as_percent].
 ##
 ## INT always rounds to a whole number, regardless of an upstream fractional
-## artifact. FLOAT prints a whole value bare and otherwise keeps two decimals,
-## trimmed of one trailing zero — mirrors [method StatModifier._trim], which
-## stays independent since MULTIPLY/SET are deliberately NOT type-aware (#622
-## acceptance 3). BOOL (#805, the first ValueType with a live consumer —
+## artifact. FLOAT goes through [method NumFmt.num] — the same rule
+## [StatModifier]'s MULTIPLY/SET use, which are deliberately NOT type-aware. BOOL (#805, the first ValueType with a live consumer —
 ## `deflection`) renders "True"/"False" rather than a magnitude: a BOOL stat
 ## is presence, not an amount, so there is no quantity to round or trim.
 ## Callers wanting the "bare trait line, no sign, no number" grammar a BOOL
@@ -98,6 +96,4 @@ static func format_number(value_type: ValueType, v: float) -> String:
 		return str(roundi(v))
 	if value_type == ValueType.BOOL:
 		return "True" if v != 0.0 else "False"
-	if is_equal_approx(v, roundf(v)):
-		return str(int(v))
-	return ("%.2f" % v).trim_suffix("0")
+	return NumFmt.num(v)

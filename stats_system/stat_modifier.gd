@@ -363,9 +363,9 @@ func contribution_text(board: StatBoard = null) -> String:
 		Operation.INCREASE:
 			return "%+d%%" % roundi(v)
 		Operation.MULTIPLY:
-			return "×%s" % _trim(v)
+			return "×%s" % NumFmt.num(v)
 		Operation.SET:
-			return "=%s" % _trim(v)
+			return "=%s" % NumFmt.num(v)
 	return ""
 
 
@@ -472,7 +472,7 @@ func _with_per_clause(sentence: String) -> String:
 ## `display_as_percent` stays on its own `roundi(v * 100.0)` path, unchanged
 ## (#622 decision: it composes with the type rule rather than replacing it —
 ## a percent display is already whole-number-of-percent regardless of the
-## underlying stat's type). MULTIPLY / SET keep `_trim(v)` untouched — neither
+## underlying stat's type). MULTIPLY / SET keep `NumFmt.num(v)` untouched — neither
 ## is type-aware; see [StatDef.format_number]'s docstring for why.
 ##
 ## BOOL (#805, owner call) renders as a bare TRAIT LINE — the stat's own name,
@@ -531,11 +531,11 @@ func _value_text(as_percent: bool, value_type: StatDef.ValueType, v: float, unsi
 				return "%s%%" % StatDef.format_number(value_type, absf(v))
 			return "%s%%" % _signed(value_type, v)
 		Operation.MULTIPLY:
-			return "×%s" % _trim(v)
+			return "×%s" % NumFmt.num(v)
 		Operation.SET:
 			if as_percent:
 				return "%d%%" % roundi(v * 100.0)
-			return _trim(v)
+			return NumFmt.num(v)
 	return ""
 
 
@@ -547,16 +547,6 @@ func _value_text(as_percent: bool, value_type: StatDef.ValueType, v: float, unsi
 static func _signed(value_type: StatDef.ValueType, v: float) -> String:
 	var body := StatDef.format_number(value_type, v)
 	return body if v < 0.0 else "+" + body
-
-
-## Render a float without trailing ".00" — whole values print as ints.
-## NOT type-aware — MULTIPLY/SET keep this literal-trim behaviour regardless
-## of the stat's [enum StatDef.ValueType] (#622 acceptance 3); the type-aware
-## sibling is [method StatDef.format_number], used by the other three ops.
-static func _trim(v: float) -> String:
-	if is_equal_approx(v, roundf(v)):
-		return "%d" % roundi(v)
-	return ("%.2f" % v).trim_suffix("0")  # 1.50 → "1.5", 1.25 stays
 
 
 ## Fired when a source stat this modifier's formula depends on changes, via a

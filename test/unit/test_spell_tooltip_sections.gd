@@ -132,7 +132,7 @@ func test_on_arrival_line_names_the_impact_damage_number() -> void:
 	var expected := SpellResolver.impact_damage(spell, null, null)
 	var lines := await _on_arrival_lines(spell)
 	assert_eq(lines.size(), 1, "fixture: Spark has exactly one on-hit effect, no reducer")
-	assert_string_contains(lines[0], OnHitEffect._fmt_num(expected))
+	assert_string_contains(lines[0], NumFmt.num(expected))
 
 
 ## Then (#764 half 2b) — Spark's propagation authors a filter but no spread

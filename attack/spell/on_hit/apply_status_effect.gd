@@ -41,4 +41,4 @@ func get_description(_spell: SpellDef = null, _board: StatBoard = null) -> Strin
 	if def == null:
 		return "Applies a status."
 	var name := def.display_name if not def.display_name.is_empty() else String(def.id)
-	return "Applies %s (%s)." % [name, _fmt_num(power)]
+	return "Applies %s (%s)." % [name, NumFmt.num(power)]

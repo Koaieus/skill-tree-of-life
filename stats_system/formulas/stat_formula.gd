@@ -138,12 +138,3 @@ static func accessor_of(token: StringName) -> StringName:
 ## See #333 → Decision 7.
 static func is_accessor_token(token: StringName) -> bool:
 	return String(token).find("__") >= 0
-
-
-## Render a float without trailing ".00" — whole values print as ints.
-## Mirrors [method StatModifier._trim]; duplicated rather than reached for
-## across the formula/modifier boundary, which points the other way.
-static func _trim(v: float) -> String:
-	if is_equal_approx(v, roundf(v)):
-		return "%d" % roundi(v)
-	return ("%.2f" % v).trim_suffix("0")

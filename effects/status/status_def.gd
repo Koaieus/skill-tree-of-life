@@ -95,11 +95,7 @@ func get_description() -> String:
 	if not description.is_empty():
 		return description
 	var name := display_name if not display_name.is_empty() else String(id)
-	return "%s (max %s, -%s per turn)" % [name, _fmt(power_max), _fmt(decay_per_tick)]
-
-
-static func _fmt(v: float) -> String:
-	return str(int(v)) if is_equal_approx(v, floor(v)) else "%.2f" % v
+	return "%s (max %s, -%s per turn)" % [name, NumFmt.num(power_max), NumFmt.num(decay_per_tick)]
 
 
 ## The power this status would carry after one tick's decay — the one place

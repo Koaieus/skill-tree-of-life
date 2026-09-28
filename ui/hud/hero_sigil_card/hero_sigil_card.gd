@@ -151,9 +151,9 @@ func _bind_pool(gauge: PoolGauge, caption: Label, pool: PoolStat, per_turn: Scal
 		var refresh_caption := func():
 			var cur: float = float(pool.current)
 			if per_turn != null and float(per_turn.value) > 0.0:
-				caption.text = "%d/%d (+%d/t)" % [int(cur), int(pool.value), int(per_turn.value)]
+				caption.text = "%s/%s (+%s/t)" % [NumFmt.num(cur), NumFmt.num(float(pool.value)), NumFmt.num(float(per_turn.value))]
 			else:
-				caption.text = "%d/%d" % [int(cur), int(pool.value)]
+				caption.text = "%s/%s" % [NumFmt.num(cur), NumFmt.num(float(pool.value))]
 		_binds.link(pool.current_changed, refresh_caption.unbind(1))
 		_binds.link(pool.value_changed, refresh_caption)
 		if per_turn != null:

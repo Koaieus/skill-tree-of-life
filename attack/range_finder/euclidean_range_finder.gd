@@ -139,4 +139,4 @@ func effective_distance(attacker: Entity, source: SkillNode, board: StatBoard = 
 ## See [method RangeFinder.get_description].
 func get_description(board: StatBoard = null) -> String:
 	var eff := effective_distance(null, null, board)
-	return "Within %s units" % _fmt_num(eff)
+	return "Within %s units" % NumFmt.num(eff)
