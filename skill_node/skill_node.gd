@@ -789,7 +789,11 @@ func _ranged_plan_of_owner() -> AttackPlan:
 		_pips_battle_system = ctl.battle_system
 		_pips_battle_system.attack_plan_changed.connect(_sync_shot_pips.unbind(1))
 		_pips_battle_system.attack_plan_state_changed.connect(_sync_shot_pips)
-	var plan := _pips_battle_system.attack_plan
+		_pips_battle_system.in_flight_plan_changed.connect(_sync_shot_pips.unbind(1))
+	# The volley in flight first — an AI's or a mirror's never sits in the slot.
+	var plan := _pips_battle_system.in_flight_plan
+	if plan == null:
+		plan = _pips_battle_system.attack_plan
 	if plan == null or plan.mode != BattleSystem.AttackMode.RANGED or plan.attacker != owned_by:
 		return null
 	if owned_by.navigator == null or owned_by.navigator.get_degree(self) != 1:

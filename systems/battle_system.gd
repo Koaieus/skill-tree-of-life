@@ -294,7 +294,8 @@ func _invalidate_plan_union() -> void: plan_slot._invalidate_plan_union()
 
 
 ## The launch-side teardown, at [method _commit]'s release: drops
-## [member _coordinator], resets the plan that was in flight (freeing its
+## [member _coordinator], announces [signal in_flight_plan_changed] with null,
+## resets the plan that was in flight (freeing its
 ## temp-upgrade addons), and clears the slot only when the slot holds that same
 ## plan — an AI's or a replay's launch leaves the human's armed plan alone.
 func _reset() -> void:
@@ -303,6 +304,7 @@ func _reset() -> void:
 	_in_flight_plan = null
 	if plan == null:
 		return
+	in_flight_plan_changed.emit(null)
 	if plan_slot.attack_plan == plan:
 		plan_slot._reset()
 	else:
@@ -318,6 +320,12 @@ func _reset() -> void:
 var in_flight_plan: AttackPlan:
 	get: return _in_flight_plan
 var _in_flight_plan: AttackPlan = null
+
+## [member in_flight_plan] was set ([method _commit] entry) or cleared (release,
+## with null — after [member is_launching] drops, before the slot clears). A
+## reader of "the plan on screen" resolves `in_flight_plan ?? attack_plan` and
+## listens to this beside [signal attack_plan_changed].
+signal in_flight_plan_changed(plan: AttackPlan)
 
 
 ## Mint a fresh plan for [param mode], attacked by [param attacker], wired with
@@ -706,6 +714,7 @@ func _can_afford(plan: AttackPlan, outcome: AttackOutcome) -> bool:
 func _commit(plan: AttackPlan, outcome: AttackOutcome) -> void:
 	is_launching = true
 	_in_flight_plan = plan
+	in_flight_plan_changed.emit(plan)
 	_draining = false
 	var entity := plan.attacker
 	var board: StatBoard = entity.stat_board if entity != null else null

@@ -74,6 +74,7 @@ func _enter_tree() -> void:
 func _ready() -> void:
 	if battle_system != null:
 		battle_system.attack_plan_changed.connect(_on_source_changed.unbind(1))
+		battle_system.in_flight_plan_changed.connect(_on_source_changed.unbind(1))
 	var ctl := _live_input_ctl()
 	if ctl != null:
 		ctl.core_move_targeting_changed.connect(_on_source_changed.unbind(1))
@@ -98,13 +99,20 @@ func _resolve() -> void:
 	var ctl := _live_input_ctl()
 	if ctl != null and ctl.pending_mass_action() != null:
 		next = _build_mass_action_provider()
-	elif battle_system != null and battle_system.attack_plan != null:
-		next = battle_system.attack_plan
+	elif battle_system != null and _shown_plan() != null:
+		next = _shown_plan()
 	elif ctl != null and ctl.move_targeting_source() != null:
 		next = _build_core_provider()
 	elif _is_player_managing():
 		next = _build_allocation_provider()
 	provider = next
+
+
+## The plan whose highlights paint: the launch in flight (an AI's or a
+## mirror's never sits in the slot), else the seat's armed plan.
+func _shown_plan() -> AttackPlan:
+	var in_flight := battle_system.in_flight_plan
+	return in_flight if in_flight != null else battle_system.attack_plan
 
 
 ## [member input_ctl], or null when touching it would throw.
