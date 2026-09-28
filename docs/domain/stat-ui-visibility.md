@@ -98,7 +98,7 @@ duplication.
 
 ## Stats with NO UI representation
 
-These three are system-internal — consumed by game logic but never surfaced
+These are system-internal — consumed by game logic but never surfaced
 to the player. Likely intentional (visual clutter vs. player need-to-know),
 but listed for triage awareness.
 
@@ -107,6 +107,9 @@ but listed for triage awareness.
 | `initiative_speed` | `TurnManager` to tick initiative | Harder to tune blind — player can't see why initiative is fast/slow |
 | `node_health` | Seeds per-node `node_combat_health` max | Already visible indirectly through node HP; showing it separately would be redundant |
 | `dealloc_damage` | `BattleSystem._on_node_depleted` cascade | Tuning lever with zero feedback; a core that raises this gives no UI clue |
+| `damage` | Family parent — folds into blade/spell/ranged_damage reads (ADR 0029) | Own value is meaningless; a parent row renders bins, never a value — until the readout unit lands |
+| `attributes` | Family parent — folds into the six attributes | As `damage` |
+| `dot_resistance` | Family parent — folds into the four DoT resistances | As `damage` |
 
 ---
 
