@@ -782,9 +782,10 @@ func test_one_volley_sized_to_the_kill_plus_margin_never_four_single_shots() -> 
 	var h1: SkillNode = await _add_hostile_leaf()
 	var per_arrow := _effective_per_arrow(h1)
 	# The issue's worked example is 7 hp at 2/arrow = 4 arrows; the fixture
-	# lands 3/arrow on a 10-hp leaf, so 2.5 arrows' worth -> 3 arrows to kill.
-	_true_damage(h1, h1.get_current_hp() - per_arrow * 2.5)
-	assert_almost_eq(h1.get_current_hp(), per_arrow * 2.5, 0.01, "fixture: H1 is worth 3 arrows")
+	# lands 3/arrow on a 10-hp leaf, so 2 arrows + 1 hp (whole, as HP lands)
+	# -> 3 arrows to kill.
+	_true_damage(h1, h1.get_current_hp() - (per_arrow * 2.0 + 1.0))
+	assert_almost_eq(h1.get_current_hp(), per_arrow * 2.0 + 1.0, 0.01, "fixture: H1 is worth 3 arrows")
 
 	_tm.start_turn(_enemy)
 	await _await_enemy_turn_end()

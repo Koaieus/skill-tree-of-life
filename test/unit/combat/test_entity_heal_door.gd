@@ -97,10 +97,10 @@ func _wither(stacks: float) -> WitherStatus:
 func test_heal_multiplies_by_healing_received_unless_raw() -> void:
 	var pool := _health()
 	pool.deplete(8.0)
-	_entity.stat_board.get_stat(&"healing_received").base_value = 0.5
+	_entity.stat_board.get_stat(&"healing_received").base_value = 0.6
 	var before := pool.current
 	_combat().heal(5.0, null)
-	assert_almost_eq(pool.current, before + 2.5, 0.001, "5 × 0.5 = 2.5 replenished")
+	assert_almost_eq(pool.current, before + 3.0, 0.001, "5 × 0.6 = 3 replenished")
 	before = pool.current
 	_combat().heal(5.0, null, true)
 	assert_almost_eq(pool.current, before + 5.0, 0.001, "raw bypasses healing_received")
@@ -150,8 +150,8 @@ func test_a_withered_core_healing_upkeep_drains_the_pool_as_true_damage() -> voi
 	var before := pool.current
 
 	_turn()
-	assert_almost_eq(pool.current, before - healing * 0.5, 0.001,
-			"the trickle inverted: core_healing × −0.5 drains the pool")
+	assert_almost_eq(pool.current, before - floorf(healing * 0.5), 0.001,
+			"the trickle inverted: core_healing × −0.5 drains the pool, floored on landing")
 	assert_eq(spy.door_calls.size(), 1, "exactly one drain, through take_pool_damage")
 	if spy.door_calls.size() == 1:
 		assert_almost_eq(float(spy.door_calls[0].amount), healing * 0.5, 0.001)
@@ -165,8 +165,8 @@ func test_a_withered_core_healing_upkeep_drains_the_pool_as_true_damage() -> voi
 	# 0.25) heals again, positively.
 	before = pool.current
 	_turn()
-	assert_almost_eq(pool.current, before + healing * 0.25, 0.001,
-			"no gate, no ramp: the decayed Wither leaves a positive product and it lands")
+	assert_almost_eq(pool.current, before + floorf(healing * 0.25), 0.001,
+			"no gate, no ramp: the decayed Wither leaves a positive product and it lands, floored")
 
 
 class _SpyCombat extends EntityCombat:

@@ -133,18 +133,19 @@ func test_authored_poison_shape_is_flat_uncapped_halving() -> void:
 
 
 func test_twenty_stacks_of_authored_poison_deal_the_halving_series() -> void:
-	# 20, 10, 5, 2.5, 1.25 over five ticks (sum 38.75) on a node of ANY max hp —
-	# stacks are floats, damage is stacks x damage_per_power unrounded, TRUE-typed
-	# (armor untouched and irrelevant).
+	# 20, 10, 5, 2.5, 1.25 stacks over five ticks on a node of ANY max hp —
+	# stacks are floats, a tick mints stacks x damage_per_power, TRUE-typed
+	# (armor untouched and irrelevant), and the HP door floors it on landing
+	# (ADR 0017): 20 + 10 + 5 + 2 + 1 = 38.
 	_set_max_hp(100.0)
 	_combat().apply_status(_AUTHORED, 20.0)
 	var expected := [20.0, 10.0, 5.0, 2.5, 1.25]
 	var hp := 100.0
 	for dmg: float in expected:
 		_combat().tick_statuses()
-		hp -= dmg
-		assert_almost_eq(_nodes[0].get_current_hp(), hp, 0.001, "tick deals %s" % dmg)
-	assert_almost_eq(_nodes[0].get_current_hp(), 100.0 - 38.75, 0.001, "five ticks sum 38.75")
+		hp -= floorf(dmg)
+		assert_almost_eq(_nodes[0].get_current_hp(), hp, 0.001, "tick of %s lands %s" % [dmg, floorf(dmg)])
+	assert_almost_eq(_nodes[0].get_current_hp(), 100.0 - 38.0, 0.001, "five ticks land 38")
 	assert_almost_eq(_combat().get_status_power(&"poison"), 0.0, 0.001,
 			"0.625 < 1: cleared on the fifth tick")
 
