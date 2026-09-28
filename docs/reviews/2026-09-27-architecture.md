@@ -88,7 +88,10 @@ an issue framed as such before this review.
 - **Fractal / nested graphs** are feasible: no static single graph; every system
   takes its graph by export.
 - **Deeper AI** is blocked: shadow worlds cover only combat; allocation or stake
-  lookahead would touch `Area2D`s.
+  lookahead would touch `Area2D`s. *Filed 2026-09-28 as hub #1192:* the AI
+  leaves whole toolsets unused (it never spends DP, #1193) and plans no turn
+  across budgets; whether #1130's `NodeState` clone lifts the `Area2D` block
+  is that hub's first open question.
 
 Found along the way, both verified:
 
@@ -153,6 +156,10 @@ nearly every wiring decision carrying a *why*.
   source iterates the whole graph per frame. Good.
 - Melee resolve coupled to the physics tick; a geometry-only zone query (the
   debug cross-check already walks it) removes the physics server from rules.
+  *Corrected 2026-09-28:* already decided against. Owner stance 2026-09-09
+  (#817): keep hit-scanning on the engine; the `Geometry2D` port is a parked
+  escape hatch, triggered only if AI rollouts must leave the main thread. The
+  real hazard, the release same-frame window, is closed by #1136.
 - AI rollouts pay for the scene tree until the model split lands.
 - Known quadratic walks: #440, #471, #1109 — filed, unmilestoned.
 - Sixteen benches, no budget: nothing fails on regression. #53.
