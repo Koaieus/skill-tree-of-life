@@ -96,13 +96,12 @@ func _on_turn_start(ctx: EffectContext) -> void:
 		var d: float = dists[node]
 		var computed: float = magnitude if distance_scale == null else distance_scale.scale(d, bound, magnitude)
 		# Clamped here, not via `discard` (see class doc): a negative result
-		# heals 0, it never damages. Floored once, here, per ADR 0017 —
-		# health is an INT quantity end to end.
+		# heals 0, it never damages. The heal door floors it (ADR 0017).
 		# The door's `source` is a HitInstance or null. The aura rides
 		# as `HitInstance.source` (the thing that produced the hit), so nothing
 		# downstream loses the "who" — and `effective_amount` comes back.
 		var heal := HealInstance.new()
-		heal.amount = floorf(maxf(computed, 0.0))
+		heal.amount = maxf(computed, 0.0)
 		heal.source = self
 		heal.attacker = ctx.entity
 		heal.target = node

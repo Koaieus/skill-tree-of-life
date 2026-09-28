@@ -285,7 +285,9 @@ static func cheap_estimate(target: SkillNode, raw_damage: float) -> float:
 	var target_hp := target.get_current_hp()
 	if target_hp <= 0.0:
 		return -INF
-	var mitigated := maxf(0.0, raw_damage - float(target.get_local_value(&"armor")))
+	# Floored like the door lands it, or the kill check predicts kills a
+	# fractional estimate never delivers.
+	var mitigated := HitPoints.land(maxf(0.0, raw_damage - float(target.get_local_value(&"armor"))))
 	var score := minf(mitigated, target_hp)
 	if mitigated >= target_hp:
 		score += _KILL_BONUS

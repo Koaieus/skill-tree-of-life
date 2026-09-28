@@ -323,7 +323,7 @@ base_value = 1.0
 resource_name = "node_healing_ramp"
 script = ExtResource("2_scalar")
 definition = ExtResource("def_node_healing_ramp")
-base_value = 0.5
+base_value = 1.0
 
 [sub_resource type="Resource" id="scalar_node_health"]
 resource_name = "node_health"

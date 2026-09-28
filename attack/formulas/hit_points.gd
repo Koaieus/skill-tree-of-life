@@ -13,4 +13,4 @@ class_name HitPoints
 
 
 static func land(amount: float) -> float:
-	return amount
+	return float(int(amount))

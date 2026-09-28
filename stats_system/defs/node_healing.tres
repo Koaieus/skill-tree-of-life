@@ -7,6 +7,6 @@ script = ExtResource("1_stat_def")
 id = &"node_healing"
 display_name = "Node Healing"
 description = "Base HP a node regenerates at its owner's turn start, gated: none if the node took damage since the last turn start (D-9). Node-local — read via SkillNode.get_local_value, not applied directly from the board. # TBD (#268)"
-value_type = 1
+value_type = 0
 default_value = 1.0
 tint_color = Color(0.5, 0.85, 0.55, 1)
