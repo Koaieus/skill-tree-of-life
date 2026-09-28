@@ -138,9 +138,9 @@ const ID_EXIT := &"exit"
 ## The three lobby shapes (#615). One authored resource per shape, not per leaf:
 ## HOST and JOIN open the same versus lobby and must agree about it, which is
 ## the whole reason the policy is data rather than a branch in the lobby.
-const POLICY_SINGLE := preload("res://ui/frontmatter/policies/lobby_policy_single.tres")
-const POLICY_HOTSEAT := preload("res://ui/frontmatter/policies/lobby_policy_hotseat.tres")
-const POLICY_VERSUS := preload("res://ui/frontmatter/policies/lobby_policy_versus.tres")
+const POLICY_SINGLE := preload("res://session/policies/lobby_policy_single.tres")
+const POLICY_HOTSEAT := preload("res://session/policies/lobby_policy_hotseat.tres")
+const POLICY_VERSUS := preload("res://session/policies/lobby_policy_versus.tres")
 
 ## The root's id. Set by [method add] for the first parentless item.
 var root: StringName = &""

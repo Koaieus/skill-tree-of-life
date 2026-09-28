@@ -32,9 +32,9 @@ signal start_pressed(run_config: RunConfig)
 signal remote_start(run_config: RunConfig)
 
 ## Every hero colour a slot may hold (#616 D5). One authored resource, not a
-## const array here — see `ui/theme/player_palette.gd` for why gold and pure
+## const array here — see `session/player_palette.gd` for why gold and pure
 ## white are both absent from it.
-const _PALETTE := preload("res://ui/theme/player_palette.tres")
+const _PALETTE := preload("res://session/player_palette.tres")
 
 ## The rules behind these live on [LobbyRoster]; the names stay here because
 ## the rows and the routes still read them off the screen.

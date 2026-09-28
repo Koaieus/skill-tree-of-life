@@ -70,7 +70,7 @@ const _PLAYER_FACTION := preload("res://entity/factions/player.tres")
 const _CAMP_1 := preload("res://entity/factions/camp_1.tres")
 const _CAMP_2 := preload("res://entity/factions/camp_2.tres")
 const _NPC_FACTION := preload("res://entity/factions/npc.tres")
-const _PALETTE := preload("res://ui/theme/player_palette.tres")
+const _PALETTE := preload("res://session/player_palette.tres")
 const _DEFAULT_PLAYER_CORE := preload("res://entity/core/balanced_core.tres")
 const _DEFAULT_AI_CORE := preload("res://entity/core/balanced_core.tres")
 

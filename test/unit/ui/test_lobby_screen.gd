@@ -80,7 +80,7 @@ func test_multiplayer_participants_are_allied_and_human_controlled_via_apply_ros
 
 # --- #616: the lobby owns hero colour --------------------------------------
 
-const _PALETTE := preload("res://ui/theme/player_palette.tres")
+const _PALETTE := preload("res://session/player_palette.tres")
 const _ROW_SCENE := preload("res://ui/frontmatter/panels/participant_row.tscn")
 
 
@@ -418,9 +418,9 @@ func test_hot_seats_second_slot_never_overwrites_the_saved_default() -> void:
 # --- #615: a LobbyPolicy on the route decides who may pick a camp ------------
 
 const _CAMP_2 := preload("res://entity/factions/camp_2.tres")
-const _POLICY_SINGLE := preload("res://ui/frontmatter/policies/lobby_policy_single.tres")
-const _POLICY_HOTSEAT := preload("res://ui/frontmatter/policies/lobby_policy_hotseat.tres")
-const _POLICY_VERSUS := preload("res://ui/frontmatter/policies/lobby_policy_versus.tres")
+const _POLICY_SINGLE := preload("res://session/policies/lobby_policy_single.tres")
+const _POLICY_HOTSEAT := preload("res://session/policies/lobby_policy_hotseat.tres")
+const _POLICY_VERSUS := preload("res://session/policies/lobby_policy_versus.tres")
 
 
 func _policied_lobby(

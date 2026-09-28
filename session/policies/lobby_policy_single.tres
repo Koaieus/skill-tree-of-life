@@ -1,6 +1,6 @@
 [gd_resource type="Resource" script_class="LobbyPolicy" format=3 uid="uid://bsubc7ou2qlef"]
 
-[ext_resource type="Script" uid="uid://70wk1lwe3viq" path="res://ui/frontmatter/lobby_policy.gd" id="1_policy"]
+[ext_resource type="Script" uid="uid://70wk1lwe3viq" path="res://session/lobby_policy.gd" id="1_policy"]
 [ext_resource type="Script" uid="uid://cgfee17sltixd" path="res://entity/faction.gd" id="2_faction"]
 [ext_resource type="Resource" path="res://entity/factions/npc.tres" id="3_npc"]
 [ext_resource type="Resource" path="res://entity/factions/player.tres" id="4_player"]

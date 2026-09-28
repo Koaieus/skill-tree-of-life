@@ -3,7 +3,7 @@ class_name PlayerPalette
 extends Resource
 
 ## The colours a lobby slot may pick a hero from (#616). Authored once as
-## `ui/theme/player_palette.tres`; the lobby assigns defaults round-robin and
+## `session/player_palette.tres`; the lobby assigns defaults round-robin and
 ## the per-slot picker overrides.
 ##
 ## [b]Distinct from the stat palette.[/b] `.claude/rules/ui-palette.md` makes

@@ -80,7 +80,6 @@ ALLOWLIST = {
     "graph→entity": (None, "no retiring issue — Entity"),
     "graph→scenes": (None, "no retiring issue — GraphCamera"),
     "session→procgen": (None, "no retiring issue — GraphProcgenConfig"),
-    "session→ui": (1133, "LobbyPolicy, PlayerPalette, ui/theme/player_palette.tres"),
     "skill_node→attack": (None, "no retiring issue — AttackPlan, BladeDistanceConstraint, BladeState, HitInstance, SpellDef, …"),
     "skill_node→combat": (None, "no retiring issue — NodeCombat"),
     "skill_node→effects": (None, "no retiring issue — Effect, NodeStatus, StatusDef"),

@@ -1,6 +1,6 @@
 [gd_resource type="Resource" script_class="PlayerPalette" format=3]
 
-[ext_resource type="Script" path="res://ui/theme/player_palette.gd" id="1_palette"]
+[ext_resource type="Script" path="res://session/player_palette.gd" id="1_palette"]
 
 [resource]
 script = ExtResource("1_palette")
