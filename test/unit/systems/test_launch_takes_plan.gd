@@ -211,3 +211,24 @@ func test_presenter_is_live_during_an_ai_melee_launch() -> void:
 	await _launch(_melee_candidate(true))
 	assert_eq(presenters.size(), 1, "sanity: one commit")
 	assert_eq(presenters[0], _preview, "the melee presenter answers for the AI's in-flight plan")
+
+
+# Replay-time readers ---------------------------------------------------------
+
+## The attacker's highlights paint for the swing in flight — an AI's or a
+## mirror's plan never sits in the slot — and hand back to the human's armed
+## plan at release.
+func test_highlights_follow_the_in_flight_plan_then_the_slot() -> void:
+	var hc := HighlightController.new()
+	hc.battle_system = _bs
+	add_child_autofree(hc)
+	var human := _arm_human_plan()
+	assert_eq(hc.provider, human, "sanity: the armed plan paints before the swing")
+	var during: Array = []
+	_bs.attack_committed.connect(func(_o: AttackOutcome, _e: Entity) -> void:
+		during.append(hc.provider))
+	await _launch(_melee_candidate(true))
+	assert_eq(during.size(), 1, "sanity: one commit")
+	assert_true(during[0] is MeleeAttackPlan and during[0] != human,
+			"the AI's in-flight plan paints during its swing")
+	assert_eq(hc.provider, human, "the human's armed plan paints again after release")
