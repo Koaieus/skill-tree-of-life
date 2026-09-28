@@ -15,6 +15,13 @@ enum ValueType { INT, FLOAT, BOOL }
 @export var default_value: float = 0.0
 @export var tint_color: Color = Color.WHITE
 
+## Ids of the stats this one folds under (ADR 0029): a child's read is
+## `compute(child.base_value, [ancestors' bins farthest-first…, own bins])` —
+## a parent's bins join, its `base_value` never does. Declaration only;
+## [code]StatRegistry[/code] flattens the ancestor graph and rejects unknown
+## ids and cycles, [StatBoard] wires the per-board links.
+@export var parent_ids: Array[StringName] = []
+
 ## Noun phrase used when a modifier targeting this stat is described in words
 ## ("Max Action Points"). Empty falls back to display_name. Applies to every
 ## [enum StatModifier.Operation] — a pool's cap is what a modifier always

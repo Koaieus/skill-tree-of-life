@@ -46,3 +46,23 @@ func get_all_defs() -> Array[StatDef]:
 	for def in _defs.values():
 		out.append(def)
 	return out
+
+
+func ancestors_of(_id: StringName) -> Array[StringName]:
+	return []
+
+
+func children_of(_id: StringName) -> Array[StringName]:
+	return []
+
+
+func is_parent(_id: StringName) -> bool:
+	return false
+
+
+func register_def(def: StatDef) -> void:
+	_defs[def.id] = def
+
+
+func unregister_def(id: StringName) -> void:
+	_defs.erase(id)
