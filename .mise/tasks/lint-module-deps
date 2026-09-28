@@ -71,7 +71,6 @@ ALLOWLIST = {
     "attack→systems": (None, "no retiring issue — BattleSystem, VisionSystem"),
     "attack→ui": (None, "no retiring issue — HighlightProvider, ShatterField, ui/z_layers.gd"),
     "combat→systems": (None, "no retiring issue — AllocationSystem"),
-    "command→network": (1133, "WorldFingerprint"),
     "effects→attack": (None, "no retiring issue — CritRoll, DamageInstance, EuclideanRangeFinder, HealInstance, HitInstance, …"),
     "effects→combat": (None, "no retiring issue — CombatWorld, EntityCombat, NodeCombat"),
     "entity→attack": (None, "no retiring issue — AmmoTypeRoster, HealInstance, SpellDef, attack/ammo/ammo_type_roster.tres"),

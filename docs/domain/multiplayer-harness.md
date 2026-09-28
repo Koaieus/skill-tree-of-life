@@ -20,7 +20,7 @@ It is a harness, not the sync layer. The architecture it serves is
 | Where the wire is MOUNTED | `scenes/game_root.tscn` → `Transport` + `CommandLink` (#531) |
 | Transport seam | `network/network_transport.gd` + `enet_transport.gd` / `loopback_transport.gd` |
 | Applier ↔ transport bridge | `network/command_link.gd` |
-| Divergence detector | `network/world_fingerprint.gd` |
+| Divergence detector | `command/world_fingerprint.gd` |
 | Determinism probe (#529) | `network/determinism_probe.gd` |
 
 From a terminal, no editor needed:
