@@ -13,7 +13,7 @@ extends VBoxContainer
 ## repaints on [signal LobbyRoster.changed]. What stays here is what only a
 ## screen can do: the widgets, the run-section ladders the route's
 ## [LobbyPolicy] unlocks (map size, blockers, arrangement, victory, budget),
-## the [CommandLink] it adopts, and the status copy the wire produces.
+## the [NetworkLink] it adopts, and the status copy the wire produces.
 ##
 ## The three roster shapes, why the remote seat is declared before anybody
 ## joins, and why colour is run shape are documented on [LobbyRoster].
@@ -104,13 +104,17 @@ var _rows_container: VBoxContainer
 
 ## --- #714: the roster replicates while the menu is up --------------------------
 ##
-## The lobby's own [NetworkTransport] + [CommandLink] pair, mounted only when a
+## The lobby's own [NetworkTransport] + [NetworkLink] pair, mounted only when a
 ## socket is ALREADY open (see [method _mount_link]). It is the same seam the
 ## level mounts, at the one other scope that needs it — and it never opens the
 ## link itself, so a lobby built with no wire behind it is byte-for-byte the
 ## offline lobby that shipped before this.
 var _transport: NetworkTransport = null
-var _link: CommandLink = null
+var _link: NetworkLink = null
+## The lobby protocol on [member _link] — `network/lobby_link.tscn`'s channel.
+var _lobby: LobbyChannel = null
+
+const _LOBBY_LINK := preload("res://network/lobby_link.tscn")
 
 ## --- #716: what the wire is doing, said out loud -------------------------------
 ##
@@ -289,7 +293,7 @@ func _on_start_button_pressed() -> void:
 
 ## The run is open — on a HOST because the shell just called
 ## [method GameSession.start] with what the button above emitted, on a CLIENT
-## because the host's [constant CommandLink.KIND_SETUP] landed on this lobby's
+## because the host's [constant LobbyChannel.KIND_SETUP] landed on this lobby's
 ## own link and [method GameSession.apply_received] adopted it (#715).
 ##
 ## [b]One signal, both sides, and that symmetry is the point.[/b] Before this,
@@ -302,7 +306,7 @@ func _on_start_button_pressed() -> void:
 ##
 ## The release is here rather than at the button for the ordering reason above,
 ## and it still runs BEFORE either machine routes: the socket outlives this
-## screen and the level adopts it (#713), but this lobby's [CommandLink] must
+## screen and the level adopts it (#713), but this lobby's [NetworkLink] must
 ## not, or two bound facades answer every packet ([method Wire.claim_binder]).
 func _on_run_started(config: RunConfig) -> void:
 	if _link == null or _started:
@@ -320,7 +324,7 @@ func _on_run_started(config: RunConfig) -> void:
 		# has just rebuilt the roster from the config it resolved, and that
 		# resolved config is what the peer must adopt — the sentinel seed this
 		# lobby was showing a moment ago is not a run.
-		_link.send_run_setup(config, GameSession.roster)
+		_lobby.send_run_setup(config, GameSession.roster)
 	release_link()
 	if _is_client():
 		remote_start.emit(config)
@@ -388,7 +392,7 @@ func _on_link_refused(reason: String) -> void:
 ## refused peer leaves anywhere is this line.
 ##
 ## [b]Removal path for the #736 connecting gate[/b] — the refusal already
-## dropped the socket ([method CommandLink._refuse_peer]), so this seat's
+## dropped the socket ([method NetworkLink._refuse_peer]), so this seat's
 ## transient hold on START is over too. Erase-then-refresh BEFORE the explicit
 ## message below, so that message is the one left standing rather than
 ## whatever [method _refresh_start_enabled] would otherwise have written.
@@ -402,7 +406,7 @@ func _on_link_refused(reason: String) -> void:
 ## and can blank it. Deliberate — tracking "was the last write mine" costs more
 ## than a status line that outlives its moment, and skipping the empty write
 ## would leave a stale "waiting" line behind it. A host that wants the reason
-## after the fact has the trace in [signal CommandLink.logged] instead.
+## after the fact has the trace in [signal NetworkLink.logged] instead.
 func _on_link_peer_refused(peer_id: int, reason: String) -> void:
 	_roster.remove_remote(peer_id)
 	_set_status("Refused peer %d — %s" % [peer_id, reason])
@@ -476,15 +480,15 @@ func _mount_link() -> void:
 ## (`test/unit/network/`). Production has exactly one caller, above.
 func bind_link(transport: NetworkTransport) -> void:
 	_transport = transport
-	_link = CommandLink.new()
-	_link.name = "CommandLink"
+	_link = _LOBBY_LINK.instantiate()
 	_link.transport = _transport
-	# #741: only a CLIENT's own [method CommandLink.announce_self] ever reads
+	_lobby = _link.get_node("LobbyChannel") as LobbyChannel
+	# #741: only a CLIENT's own [method NetworkLink.announce_self] ever reads
 	# this — a host announces its WORLD, not an identity — but setting it here
 	# unconditionally means this file is the one place the value comes from.
 	_link.join_display_name = Settings.current.player_name
-	_link.lobby_roster_received.connect(_adopt_remote_roster)
-	_link.lobby_pick_received.connect(_on_remote_pick)
+	_lobby.lobby_roster_received.connect(_adopt_remote_roster)
+	_lobby.lobby_pick_received.connect(_on_remote_pick)
 	# #716: the build gate, on both of its ends. A seat is offered on
 	# `peer_cleared` and never on the bare join, so a peer on the wrong commit
 	# cannot appear in anybody's roster even for one broadcast.
@@ -497,7 +501,7 @@ func bind_link(transport: NetworkTransport) -> void:
 	var trace_role := "client lobby" if _is_client() else "host lobby"
 	_link.logged.connect(func(line: String) -> void: print("[%s] %s" % [trace_role, line]))
 	add_child(_link)
-	# Set AFTER `add_child`, because [method CommandLink._ready] re-applies the
+	# Set AFTER `add_child`, because [method NetworkLink._ready] re-applies the
 	# role onto its (here absent) applier — and because a lobby-time link must
 	# have a role the moment the socket is live, not when a level says so.
 	_link.role = _roster.network.role
@@ -522,7 +526,7 @@ func bind_link(transport: NetworkTransport) -> void:
 
 
 ## Drop this lobby's binding to the socket WITHOUT closing it. The socket is what
-## the level adopts (#713); what must not survive is a second [CommandLink]
+## the level adopts (#713); what must not survive is a second [NetworkLink]
 ## listening on it, which is why this runs at START rather than waiting for the
 ## menu scene to be freed.
 ##
@@ -543,6 +547,7 @@ func release_link() -> void:
 			remove_child(node)
 			node.queue_free()
 	_link = null
+	_lobby = null
 	_transport = null
 
 
@@ -587,7 +592,7 @@ func _on_link_peer_left(peer_id: int) -> void:
 
 func _broadcast_roster() -> void:
 	if _link != null:
-		_link.send_lobby_roster(_roster.to_participant_roster())
+		_lobby.send_lobby_roster(_roster.to_participant_roster())
 
 
 func _adopt_remote_roster(roster: ParticipantRoster) -> void:
@@ -603,7 +608,7 @@ func _on_remote_pick(pick: Dictionary) -> void:
 
 func _submit_pick(participant: Participant, changes: Dictionary) -> void:
 	if _link != null:
-		_link.send_lobby_pick(LobbyRoster.encode_pick(participant, _local_peer_id(), changes))
+		_lobby.send_lobby_pick(LobbyRoster.encode_pick(participant, _local_peer_id(), changes))
 	_refresh_rows()
 ## cannot drift into two answers.
 ## rule but the same "null means today's behaviour" the camp half already keeps.
