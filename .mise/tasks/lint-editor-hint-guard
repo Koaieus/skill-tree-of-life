@@ -54,14 +54,6 @@ ALLOWLIST = {
         "subgraph mirror rather than the full graph): pure AStar2D data "
         "mirror, no live-tab spawn path. See graph/navigator.gd's entry (#685)."
     ),
-    "network/command_link.gd": (
-        "checked every sandbox_host live tab (addons/sandbox_host/,  "
-        "addons/mp_sandbox/): none instantiates CommandLink at runtime — it "
-        "is only ever a child of game_root.tscn, which no live tab spawns. "
-        "The in-body comment ('Nothing in the editor links anyway') is "
-        "correct today; void this entry the day a live tab mounts a "
-        "CommandLink or a GameRoot (#685)."
-    ),
 }
 
 def exemption_for(path: str) -> str | None:
