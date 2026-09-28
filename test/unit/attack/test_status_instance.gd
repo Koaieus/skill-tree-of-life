@@ -141,30 +141,42 @@ func test_blank_ids_leave_power_unscaled() -> void:
 
 
 ## A poison hit of [param per_hit] from `_attacker`, potency 1.21 and the
-## defender's resistance 0.3, with the two flat extra-stacks stats set.
-func _poison_hit(per_hit: float, family_extra: float, umbrella_extra: float) -> StatusInstance:
+## defender's resistance 0.3, with the family extra-stacks stat set.
+func _poison_hit(per_hit: float, family_extra: float) -> StatusInstance:
 	_attacker.stat_board.get_stat(&"poison_potency").base_value = 1.21
 	_entity.stat_board.get_stat(&"poison_resistance").base_value = 0.3
 	_attacker.stat_board.get_stat(&"poison_stacks_per_hit").base_value = family_extra
-	_attacker.stat_board.get_stat(&"dot_stacks_per_hit").base_value = umbrella_extra
 	var hit := _status_hit(per_hit, _POISON)
 	hit.attacker = _attacker
 	return hit
 
 
 func test_family_extra_stacks_add_flat_before_potency() -> void:
-	var hit := _poison_hit(0.5, 1.0, 0.0)
+	var hit := _poison_hit(0.5, 1.0)
 	OutcomeApplier.land_one(hit, CombatWorld.live())
 	assert_almost_eq(_node.get_combat().get_status_power(&"poison"), 1.5 * 1.21 * 0.7, 0.0001,
 			"(0.5 + 1) × 1.21 × (1 − 0.3)")
 	assert_almost_eq(hit.effective_amount, 1.5 * 1.21 * 0.7, 0.0001)
 
 
-func test_the_umbrella_sums_with_the_family_stat_before_potency() -> void:
-	var hit := _poison_hit(0.5, 1.0, 0.5)
+## `dot_stacks_per_hit` is the family parent of `poison_stacks_per_hit`: it
+## folds into the child's read, so the status lists only the child — listing
+## both would count the umbrella twice.
+func test_the_umbrella_folds_into_the_family_stat_exactly_once() -> void:
+	var hit := _poison_hit(0.5, 0.0)
+	_attacker.stat_board.add_modifier(_add_base(&"dot_stacks_per_hit", 2.0))
+	_attacker.stat_board.add_modifier(_add_base(&"poison_stacks_per_hit", 1.0))
 	OutcomeApplier.land_one(hit, CombatWorld.live())
-	assert_almost_eq(_node.get_combat().get_status_power(&"poison"), 2.0 * 1.21 * 0.7, 0.0001,
-			"(0.5 + 1 + 0.5) × 1.21 × (1 − 0.3)")
+	assert_almost_eq(_node.get_combat().get_status_power(&"poison"), 3.5 * 1.21 * 0.7, 0.0001,
+			"(0.5 + 1 + 2) × 1.21 × (1 − 0.3), the umbrella counted once")
+
+
+func _add_base(stat_id: StringName, value: float) -> StatModifier:
+	var m := StatModifier.new()
+	m.stat_id = stat_id
+	m.operation = StatModifier.Operation.ADD_BASE
+	m.value = value
+	return m
 
 
 func test_blindness_ignores_the_dot_extra_stacks() -> void:

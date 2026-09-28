@@ -266,3 +266,24 @@ func test_shadow_read_sees_family_modifiers() -> void:
 	var slice := w.combat_for(node)
 	assert_almost_eq(float(slice.get_local_value(_FC)), live, 0.0001, "a shadow resolve folds the same family")
 	w.free_shadow()
+
+
+## Entity-side family on real typed fields: `clone_live` of an
+## [EntityStatBoard] relinks `blade_damage` to `damage`, so a shadow resolve
+## folds an entity-board `+20% Damage` exactly as the live read does.
+func test_shadow_read_sees_entity_side_family_modifiers() -> void:
+	var node := _family_node({})
+	var es := _entity_board(node)
+	es.get_stat(&"blade_damage").base_value = 50.0
+	var m := StatModifier.new()
+	m.stat_id = &"damage"
+	m.operation = StatModifier.Operation.INCREASE
+	m.value = 20.0
+	es.add_modifier(m)
+	var live := float(node.get_local_value(&"blade_damage"))
+	assert_gt(live, 50.0, "arrangement: the entity family modifier moves the live read")
+	var w := CombatWorld.shadow()
+	var slice := w.combat_for(node)
+	assert_almost_eq(float(slice.get_local_value(&"blade_damage")), live, 0.0001,
+			"a shadow resolve folds the entity-side family")
+	w.free_shadow()
