@@ -154,18 +154,15 @@ var _input_frozen: bool = false
 ## the click). Null when nothing is pinned.
 var _pinned_node: SkillNode = null
 
-const _CORE_PRESENCE_SCENE := preload("res://skill_node/visuals/core_presence.tscn")
+const _CORE_DRAG_GHOST_SCENE := preload("res://skill_node/visuals/core_drag_ghost.tscn")
 
 ## Core-move drag state (#21, #128). `_core_drag_started` flips once the
 ## cursor leaves the core past CORE_DRAG_THRESHOLD; `_core_drag_landing` is the
-## currently snapped landing (committed on release). Ghost + badge are lazily
-## built. `_core_ghost` is a standalone CorePresence instance (same scene the
-## live in-node one uses) — halo always shown, bloom shown only while snapped
-## to a valid landing (see the locked #128 drag-ghost design).
+## currently snapped landing (committed on release). The [CoreDragGhost]
+## (presence + badge) is lazily built on the first drag step.
 var _core_drag_started := false
 var _core_drag_landing: SkillNode = null
-var _core_ghost: CorePresence = null
-var _core_badge: Label = null
+var _core_drag_ghost: CoreDragGhost = null
 
 
 ## [b]Only the OS-input carriers are editor-gated, never the wiring.[/b] An
@@ -437,9 +434,11 @@ func _on_command_applied(command: Command, success: bool) -> void:
 			return
 		Events.node_action_denied.emit(node, "deallocate_denied")
 	elif command is StakeCommand:
-		Events.node_action_denied.emit(node, _stake_denial_reason(node))
+		Events.node_action_denied.emit(node,
+				_gate_denial(allocation_system.stake_denial(node, player), &"stake_denied"))
 	elif command is ExtractCommand:
-		Events.node_action_denied.emit(node, _extract_denial_reason(node))
+		Events.node_action_denied.emit(node,
+				_gate_denial(allocation_system.extract_denial(node, player), &"extract_denied"))
 	# ToggleTempUpgradeCommand deliberately absent: BattleSystem announces that
 	# refusal itself, where the reason (slot full vs. budget) is knowable.
 
@@ -455,44 +454,11 @@ func _submit(command: Command) -> void:
 	command_applier.submit(command)
 
 
-## Re-derives why `can_stake` rejected [param node] as a reason string.
-## AllocationSystem.can_stake only returns a bool (#338 doesn't touch
-## allocation_system.gd), so the gate order here must mirror can_stake's.
-func _stake_denial_reason(node: SkillNode) -> String:
-	if node == null or node.owned_by != player:
-		return "stake_denied_not_owned"
-	if node.stake_level >= AllocationSystem.STAKE_CEILING:
-		return "stake_denied_at_ceiling"
-	# `owned_by != player` lets an unowned node through when player is null
-	# (null == null), so the null guard stays ahead of the dereference.
-	if player == null or player.navigator == null \
-			or not (node == player.core_location or player.navigator.are_adjacent(player.core_location, node)):
-		return "stake_denied_not_adjacent"
-	var board := player.stat_board if player != null else null
-	if board != null and board.skill_points != null and board.skill_points.available() < 1:
-		return "stake_denied_no_sp"
-	if board != null and board.action_points != null and board.action_points.available() < 1:
-		return "stake_denied_no_ap"
-	return "stake_denied"
-
-
-## Mirrors can_extract's gate order — see _stake_denial_reason.
-func _extract_denial_reason(node: SkillNode) -> String:
-	if node == null or node.owned_by != player:
-		return "extract_denied_not_owned"
-	if node.stake_level <= 1:
-		return "extract_denied_at_floor"
-	# `owned_by != player` lets an unowned node through when player is null
-	# (null == null), so the null guard stays ahead of the dereference.
-	if player == null or player.navigator == null \
-			or not (node == player.core_location or player.navigator.are_adjacent(player.core_location, node)):
-		return "extract_denied_not_adjacent"
-	var board := player.stat_board if player != null else null
-	if board != null and board.deallocation_points != null and board.deallocation_points.available() < 1:
-		return "extract_denied_no_dp"
-	if board != null and board.skill_points != null and board.skill_points.staked < 1:
-		return "extract_denied_no_staked_sp"
-	return "extract_denied"
+## The gate's reason, or [param generic] when the gate now passes — the
+## command was refused on something the gate does not see (it was re-read
+## after the fact).
+static func _gate_denial(reason: StringName, generic: StringName) -> String:
+	return String(generic if reason == &"" else reason)
 
 
 ## Requests an armed temp-upgrade placement (#406) — click-to-toggle, same
@@ -1146,18 +1112,15 @@ func _update_core_drag() -> void:
 	_core_drag_landing = landing
 	# Bloom glyph joins the ghost only once snapped to a valid target (#128) —
 	# the halo alone follows the cursor otherwise.
-	_core_ghost.get_node(^"CoreSigilBloom").visible = landing != null
 	if landing != null:
 		var hops := maxi(0, allocation_system.core_path(player, landing).size() - 1)
 		var mp := _movement_points_current()
-		_core_ghost.global_position = landing.global_position
-		_core_ghost.modulate.a = 0.85
-		_core_badge.text = "%d hop%s · %d MP left" % [hops, "" if hops == 1 else "s", maxi(0, mp - hops)]
+		_core_drag_ghost.place(landing.global_position, true)
+		_core_drag_ghost.set_badge("%d hop%s · %d MP left" \
+				% [hops, "" if hops == 1 else "s", maxi(0, mp - hops)], world)
 	else:
-		_core_ghost.global_position = world
-		_core_ghost.modulate.a = 0.4
-		_core_badge.text = "—"
-	_core_badge.global_position = world + Vector2(18, -10)
+		_core_drag_ghost.place(world, false)
+		_core_drag_ghost.set_badge("—", world)
 	_set_drag_preview_target(landing)
 
 
@@ -1202,45 +1165,23 @@ func _set_drag_preview_target(landing: SkillNode) -> void:
 	core_drag_target_changed.emit(landing)
 
 
-## Builds the drag-ghost lazily: a standalone [CorePresence] instance (the
-## same scene the live in-node core presence uses, #128) rather than the old
-## hardcoded star Label. It's a Node2D, so it centers on a world point with a
-## bare `global_position` assignment — no Control top-left correction needed.
+## Builds the [CoreDragGhost] lazily, dressed as the player's core at the
+## dragged node's radius.
 func _ensure_core_drag_visuals() -> void:
-	if _core_ghost == null:
-		_core_ghost = _CORE_PRESENCE_SCENE.instantiate()
-		_core_ghost.z_index = ZLayers.CORE_MOVE
-		graph.add_child(_core_ghost)
-		var tint := player.color if player != null else Color.WHITE
-		var r := _move_targeting_source.radius if _move_targeting_source != null else 32.0
-		var sigil: Sigil = null
-		if player != null and player.core_class != null:
-			sigil = player.core_class.sigil
-		_core_ghost.entity_tint = tint
-		_core_ghost.configure(r)
-		if player != null and player.core_class != null:
-			_core_ghost.set_look(player.core_class.core_look)
-		var bloom := _core_ghost.get_node(^"CoreSigilBloom")
-		bloom.sigil = sigil
-		bloom.visible = false  # joins the ghost only once snapped to a target
-	if _core_badge == null:
-		_core_badge = Label.new()
-		_core_badge.add_theme_font_size_override("font_size", 18)
-		_core_badge.z_index = ZLayers.CORE_MOVE
-		graph.add_child(_core_badge)
-	_core_ghost.visible = true
-	_core_badge.visible = true
+	if _core_drag_ghost != null:
+		return
+	_core_drag_ghost = _CORE_DRAG_GHOST_SCENE.instantiate()
+	graph.add_child(_core_drag_ghost)
+	var r := _move_targeting_source.radius if _move_targeting_source != null else 32.0
+	_core_drag_ghost.configure(player, r)
 
 
 func _clear_core_drag() -> void:
 	_core_drag_started = false
 	_core_drag_landing = null
-	if _core_ghost != null:
-		_core_ghost.queue_free()
-		_core_ghost = null
-	if _core_badge != null:
-		_core_badge.queue_free()
-		_core_badge = null
+	if _core_drag_ghost != null:
+		_core_drag_ghost.queue_free()
+		_core_drag_ghost = null
 
 
 func _player_has_movement_points() -> bool:
