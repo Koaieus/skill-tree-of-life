@@ -17,7 +17,7 @@ call `_update_resource_name()`, which overwrites any authored `resource_name` wi
 
 **Keep `metadata/…` lines last in a sub-resource.** A property line (`pool_weight = …`)
 placed *after* a `metadata/…` line in a StatPool sub-resource silently dropped the loaded
-`subtypes` gate — a regular STR node rolled blight-gated `corruption_potency`. Found by
+`subtypes` gate — a regular STR node rolled blight-gated `corruption_potency` (now `corruption_stacks_per_hit`). Found by
 #1079; no parse error, no warning.
 
 **Why:** the failure is invisible except as wrong content, and only a scoping sweep

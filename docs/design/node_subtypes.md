@@ -27,7 +27,7 @@ combinatorial payoff is the argument for the axis.
 
 Every archetype already hosts one status family's potency (#974). So
 "blighted DEX" needs no new mapping — it *is* poison territory, because DEX
-is where `poison_potency` lives. The subtype then says which end of that
+is where `poison_stacks_per_hit` lives. The subtype then says which end of that
 family you get: blighted = the offensive stats, blessed = the defensive ones.
 
 > *"you need more vision? find and hold PER nodes. need more XP? find and
@@ -45,7 +45,7 @@ Owner re-homed two families in this session (see Decisions): **wither → INT**,
 | **STR** | corruption | corruption potency | corruption resistance | strength ladder, armor (pending #1052) |
 | **INT** | wither | wither potency | wither resistance | mana, cast range, node_health |
 | **CON** | curse | curse potency | curse resistance | node_health, the defensive ladder |
-| **PER** | blindness | `blindness_potency +%` — trades `sensor_range` (#1095) | `blindness_resistance +` — trades the flat `vision_range +` (#1095) | vision range %, **scout arrows per reload** (shared by all three poles) |
+| **PER** | blindness | `blindness_stacks_per_hit +%` — trades `sensor_range` (#1095) | `blindness_resistance +` — trades the flat `vision_range +` (#1095) | vision range %, **scout arrows per reload** (shared by all three poles) |
 | **WIS** | — (archive umbrella, #1094) | dot_stacks_per_hit — trades the small xp_per_turn +% (#1094) | wound_heal_per_turn, fat xp_per_turn (flat + %) — trades the small xp_per_turn +% (#1093) | wisdom ladder, small xp_per_turn +% |
 
 Why the re-homing is better than what ships today:
@@ -441,7 +441,7 @@ later upgrade with its own justification, not part of the first cut.
 
 17. **Blighted WIS is the archive as the *application umbrella*, not falloff/duration — supersedes decision 10.** Under the halving model falloff 0.5 → 0.4 is +25 % total on every family at once (a damage umbrella in disguise), and an attacker-side falloff needs the status row to carry a second number. The archive hosts `dot_stacks_per_hit`, the one umbrella `damage_over_time.md` blesses: *knows every plague* — whatever rot you already deal lands harder. Contagion reach (#970) is its later upgrade. Blighted WIS gives up the XP trickle.
 18. **Blessed WIS is the XP engine plus recovery.** `wound_heal_per_turn` (*"good pick"*) and a fatter `xp_per_turn` (flat and %), replacing the small `xp_per_turn +%` pool so decision 11 holds. Rejected: `ap_transfer_rate` (*"hard to balance"*), `sp_gain_on_levelup` (*"incredibly OP"*); tempo and initiative_speed are power, not economy. *"xp_per_turn: dont trade away, if anything boost these modifiers."*
-19. **PER's cells.** Blighted PER = `blindness_potency`, trading `sensor_range` (blinding others instead of sensing them). Blessed PER = `blindness_resistance`, trading the flat `vision_range +` pool. Scout arrows stay shared.
+19. **PER's cells.** Blighted PER = `blindness_stacks_per_hit`, trading `sensor_range` (blinding others instead of sensing them). Blessed PER = `blindness_resistance`, trading the flat `vision_range +` pool. Scout arrows stay shared.
 20. **Blindness potency is depth, and blindness is commutative.** Uncapped, `ACCUMULATE`, one saturating curve on the *total* power easing to a ~10 % floor (`k / (power + k)`, k = 3 keeps today's power-3 dazzle at 0.5), fractional fade ≈ 0.7. A light blind then a heavy one equals heavy then light because the multiplier is a function of the sum. The owner's concern that 10 % of an extreme vision range still sees is parked (an absolute hop cap needs a clamping bin).
 21. **"Stack application" is flat +N stacks per hit, one stat per family** (`{family}_stacks_per_hit`), homed with the family's potency. The flat-versus-increased axis: rewards volleys and blade contacts over the big cast.
 22. **v1 vocabulary is 7 stats, not 14**: the four flats, the umbrella, and blindness potency/resistance. Falloff/duration are per-def shapes, tabulated in `damage_over_time.md` (2026-09-23), not stats.
