@@ -172,9 +172,9 @@ func _land(dust: SkillDustAddon, granted: StatModifier, spell: SpellDef, finishe
 ##
 ##   * `LOCAL` — a picker on this machine is up; await its confirm.
 ##   * `REMOTE` — a human on another peer owes the answer; park it in the
-##     registry (which fires the downward [LootPickOffer]) so the returning
-##     [PickLootCommand] can land. Dormant: `is_remote_collector` is false in
-##     real play today (see [LootPickRegistry]'s class doc).
+##     registry (which fires the [LootPickOffer], addressed to that peer) so
+##     the returning [PickLootCommand] can land. Live in real play: the roster
+##     and peer id are wired at [method GameRoot.apply_roster].
 ##   * `UNCLAIMED` — NPC / headless / no HUD: a random 1 of the offer. A
 ##     HOST-ONLY roll, exempt from seeding (`.claude/rules/multiplayer-sync.md`):
 ##     the peer receives the result, it does not reproduce it.

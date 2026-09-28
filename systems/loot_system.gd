@@ -65,17 +65,13 @@ extends Node
 ## then land inline, the pre-#522 behaviour.
 @export var command_applier: CommandApplier
 
-## The outstanding-pick book the loot round controller parks a pick in.
-## Only consulted for a REMOTE collector — #564 wired that consumer: a mirror
-## peer's pick arrives via [signal CommandLink.loot_offer_received] and closes
-## its round through this book. See [LootPickRegistry].
+## The outstanding-pick book, both ends of the wire. The host's loot round
+## controller parks a REMOTE collector's pick in it; on the collector's peer it
+## is where the addressed offer lands — [signal
+## LootPickRegistry.offer_received] drives [method _on_loot_offer_received].
+## Null (headless fixture, editor) means no remote picks either way. See
+## [LootPickRegistry].
 @export var pick_registry: LootPickRegistry
-
-## The mirror-side signal source for #564's adapter (see [method
-## _on_loot_offer_received], below). Null on the authority side and on any
-## no-link configuration (headless fixture, editor, offline sandbox) — a mirror
-## peer is the only consumer of [signal CommandLink.loot_offer_received].
-@export var command_link: CommandLink
 
 ## Per-side-effect kill-switches. A sandbox tab (a GameRoot-inherited scene) flips
 ## these in the inspector to neuter a reward path while keeping 1:1 wiring with
@@ -198,11 +194,11 @@ var _round_controller := LootRoundCommandHandler.new()
 
 func _ready() -> void:
 	Events.entity_dying.connect(_on_entity_dying)
-	# #564: the mirror-side adapter. Independent of the battle_system-null
-	# early return below — a headless fixture that never runs a cascade may
-	# still want to exercise the loot-offer adapter, and vice versa.
-	if command_link != null:
-		command_link.loot_offer_received.connect(_on_loot_offer_received)
+	# The mirror-side adapter. Independent of the battle_system-null early
+	# return below — a headless fixture that never runs a cascade may still
+	# want to exercise the loot-offer adapter, and vice versa.
+	if pick_registry != null:
+		pick_registry.offer_received.connect(_on_loot_offer_received)
 	if command_applier != null:
 		command_applier.command_applied.connect(_on_command_applied)
 	# The cascade is the only place that knows the full removal set (impact node
@@ -669,10 +665,11 @@ func _spell_candidates(victim: Entity) -> Array[SpellDef]:
 
 
 # ── #564: mirror-side loot-pick adapter ───────────────────────────────────────
-## Gives [signal CommandLink.loot_offer_received] its first production
-## consumer. A remote collector's peer receives a downward [LootPickOffer] (see
-## that class + [LootPickRegistry]'s class doc) and has nothing that opens a
-## picker for it — this rebuilds the SAME [LootPickRequest] / [SpellLootRequest]
+## The consumer of [signal LootPickRegistry.offer_received]. A remote
+## collector's peer receives a [LootPickOffer] addressed to it (see that class
+## + [LootPickRegistry]'s class doc; the registry has already checked this peer
+## seats the collector) and has nothing that opens a picker for it — this
+## rebuilds the SAME [LootPickRequest] / [SpellLootRequest]
 ## shape the host's own claim flow raises and re-emits it on the SAME
 ## `Events.loot_pick_requested` / `Events.spell_loot_requested` bus (owner call
 ## 2026-08-28: reuse the Events path — [HudRoot] and [LootPicker] /
@@ -702,32 +699,8 @@ func _on_loot_offer_received(offer: LootPickOffer) -> void:
 		return
 	var graph: Graph = command_applier.graph if command_applier != null else null
 	var collector: Entity = graph.get_by_entity_id(offer.collector_id) if graph != null else null
-	# #668: the offer arrives on EVERY mirror peer, not just the collector's —
-	# `CommandLink.send_loot_offer` is an unaddressed `transport.send` broadcast.
-	# Without this gate two clients both raise a picker for the same offer and
-	# whichever answers first submits a [PickLootCommand] for a collector that
-	# is not theirs. Bail BEFORE the force-settle below: a foreign offer must
-	# not forfeit this peer's own open picker.
-	#
-	# The roster answers this, never [SeatPolicy] — `scenes/game_root.gd`'s #564
-	# note states the rule ("is_remote_collector answers for a PEER (a roster
-	# question), which is exactly what the per-machine SeatPolicy cannot do"),
-	# and [method LootPickRegistry.is_local_collector] is that method's
-	# receive-side dual — which answers TRUE for a run with no roster (one
-	# machine: everything here is mine), so a hand-authored sandbox keeps
-	# behaving exactly as it did. No registry at all (a headless fixture that
-	# wires only the adapter) skips the question for the same reason.
-	#
-	# A collector that does not resolve in this peer's graph at all bails here
-	# too, where it used to raise a collector-less request that force-settled
-	# into an upward forfeit. That is a behaviour change on the host's close
-	# path (it now waits out its own timeout instead), and an acceptable one:
-	# [constant CommandLink.DEFERRED_KINDS] already withholds a
-	# [constant CommandLink.KIND_LOOT_OFFER] across the only window in which
-	# the graph is incomplete, so an unresolvable collector means the offer was
-	# never for this peer.
-	if pick_registry != null and not pick_registry.is_local_collector(collector):
-		return
+	# Ownership was gated by [method LootPickRegistry.receive_offer] before
+	# this fired — a foreign offer never reaches the force-settle below.
 	_force_settle_pending_mirror_request()
 	var request: Variant
 	if offer.kind == LootPickOffer.KIND_SPELL:

@@ -89,7 +89,6 @@ ALLOWLIST = {
     "skill_node→systems": (None, "no retiring issue — BattleSystem, HighlightController (ranged-plan pips)"),
     "skill_node→ui": (None, "no retiring issue — SubBag, TweenClock, ui/z_layers.gd"),
     "systems→command": (None, "no retiring issue — AllocateCommand, Command, CommandApplier, DeallocateCommand, DeallocateSetCommand, …"),
-    "systems→network": (1133, "CommandLink"),
     "systems→session": (None, "no retiring issue — LastCampStandingCondition, Participant, ParticipantRoster, RunOutcome, SeatPolicy, …"),
     "systems→ui": (None, "no retiring issue — AttackVFX, CoreMoveHighlightProvider, DeferredOnce, HighlightProvider, KeyChip, …"),
     "ui→scenes": (None, "no retiring issue — GameRoot, GraphCamera"),

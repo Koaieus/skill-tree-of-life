@@ -33,9 +33,10 @@ extends Node
 ## owner call this class's issue settled (a mirror decides nothing and
 ## reproduces nothing it can be told; the resolved outcome rides down as a
 ## confirmed [LootRoundCommand] instead).
-## [i]Inert means it parks nothing, not that it answers nothing:[/i] since #668
-## a mirror peer READS one predicate off it — [method is_local_collector], the
-## ownership gate on an incoming broadcast [LootPickOffer].
+## [i]Inert means it parks nothing, not that it answers nothing:[/i] a mirror
+## peer's registry is where an incoming [LootPickOffer] lands ([method
+## receive_offer]), gated on [method is_local_collector] before [signal
+## offer_received] hands it to [LootSystem].
 ##
 ## [b]The upward channel and the roster correlation both exist now (#564).[/b]
 ## The intent channel (#548: [CommandLink] `MIRROR` sends,
@@ -61,8 +62,8 @@ extends Node
 ## enqueueing it.
 
 ## A request was parked for a REMOTE collector (#646) — [CommandLink] listens
-## for this to broadcast the matching [LootPickOffer] down to the peer that
-## owes the answer. Fired from [method park] itself rather than by the caller,
+## for this to send the matching [LootPickOffer] to the one peer that owes the
+## answer ([method peer_for]). Fired from [method park] itself rather than by the caller,
 ## so nothing can park a request and forget to announce it.
 signal offer_parked(request: Variant)
 
@@ -196,13 +197,10 @@ func is_remote_collector(collector: Entity) -> bool:
 
 ## Is [param collector] played by a human sitting at THIS peer — the receive-side
 ## question, and the reason a mirror's registry is READ even though it parks
-## nothing (#668). [method CommandLink.send_loot_offer] broadcasts a
-## [LootPickOffer] to every connected peer (an unaddressed `transport.send`), so
-## [method LootSystem._on_loot_offer_received] fires on all of them and needs a
-## gate; without one, two clients both raise a picker for the same offer and
-## whichever answers first submits a [PickLootCommand] for a collector that is
-## not theirs. Invisible at one client, where "every mirror peer" and "the right
-## mirror peer" are the same set.
+## nothing (#668). [method receive_offer] gates on it. The offer is addressed
+## to [method peer_for]'s answer, so this is a sanity check now; before it was,
+## two clients both raised a picker for one broadcast offer and whichever
+## answered first submitted a [PickLootCommand] for a collector not theirs.
 ##
 ## [b]Not the negation of [method is_remote_collector].[/b] Two independent
 ## predicates over the same roster, and only the last two rows are complements:
@@ -241,14 +239,33 @@ func is_local_collector(collector: Entity) -> bool:
 	return participant.is_local(local_peer_id)
 
 
-## STUB (#1176 red): the peer that seats [param collector]'s human.
-func peer_for(_collector: Entity) -> int:
-	return 0
+## The peer that seats [param collector]'s human — where the send side
+## ADDRESSES a [LootPickOffer], so nobody else hears of a pick until it lands
+## as a [LootRoundCommand]. 0 when no human seats it (NPC, AI seat, no roster,
+## unknown participant): there is nobody to ask. Roster-sourced, like both
+## predicates below.
+func peer_for(collector: Entity) -> int:
+	if collector == null or roster == null or collector.participant_id == 0:
+		return 0
+	var participant := roster.by_id(collector.participant_id)
+	if participant == null or participant.kind == Participant.Kind.AI:
+		return 0
+	return participant.peer_id
 
 
-## STUB (#1176 red).
-func receive_offer(_offer: LootPickOffer) -> void:
-	pass
+## The receive side: an offer arrived off the link. Resolves its collector on
+## [member graph] and emits [signal offer_received] only if THIS peer seats
+## it ([method is_local_collector]). The offer is addressed, so the gate is a
+## sanity check — but it is also what keeps a misaddressed offer from raising
+## a picker whose answer would submit a pick for someone else's collector. An
+## unresolvable collector drops too: the offer cannot be for this peer.
+func receive_offer(offer: LootPickOffer) -> void:
+	if offer == null or graph == null:
+		return
+	var collector := graph.get_by_entity_id(offer.collector_id)
+	if collector == null or not is_local_collector(collector):
+		return
+	offer_received.emit(offer)
 
 
 func pending_count() -> int:

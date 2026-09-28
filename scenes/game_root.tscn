@@ -87,18 +87,18 @@ graph = NodePath("../../Graph")
 turn_manager = NodePath("../TurnManager")
 metadata/_custom_type_script = "uid://dkhgm4v74h1ya"
 
-[node name="LootPickRegistry" type="Node" parent="Systems" unique_id=1000000522]
+[node name="LootPickRegistry" type="Node" parent="Systems" unique_id=1000000522 node_paths=PackedStringArray("graph")]
 unique_name_in_owner = true
 script = ExtResource("22_lootreg")
+graph = NodePath("../../Graph")
 
-[node name="LootSystem" type="Node" parent="Systems" unique_id=1000000012 node_paths=PackedStringArray("turn_manager", "battle_system", "command_applier", "pick_registry", "command_link")]
+[node name="LootSystem" type="Node" parent="Systems" unique_id=1000000012 node_paths=PackedStringArray("turn_manager", "battle_system", "command_applier", "pick_registry")]
 unique_name_in_owner = true
 script = ExtResource("12_loot")
 turn_manager = NodePath("../TurnManager")
 battle_system = NodePath("../BattleSystem")
 command_applier = NodePath("../CommandApplier")
 pick_registry = NodePath("../LootPickRegistry")
-command_link = NodePath("../../CommandLink")
 skill_dust_scene = ExtResource("12_dust")
 
 [node name="CommandApplier" type="Node" parent="Systems" unique_id=1000000510 node_paths=PackedStringArray("graph", "allocation_system", "battle_system", "turn_manager", "loot_pick_registry")]

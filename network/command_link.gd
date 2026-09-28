@@ -261,14 +261,6 @@ signal peer_cleared(peer_id: int, join_prefs: Dictionary)
 ## on this end latched — refusing the PEER is not refusing the socket.
 signal peer_refused(peer_id: int, reason: String)
 
-## #646: a [LootPickOffer] arrived — a REMOTE collector's peer owes a pick.
-## [method LootSystem._on_loot_offer_received] is the one consumer (#564): the
-## mirror-side adapter that rebuilds the offer into the same [LootPickRequest] /
-## [SpellLootRequest] the host's own claim flow raises, on the same `Events`
-## bus. The signal exists so that adapter has a single source rather than
-## reaching into [method _on_message_received] itself.
-signal loot_offer_received(offer: LootPickOffer)
-
 ## #714, client-side: the host's authoritative lobby roster arrived. Decoded
 ## here and re-emitted, never applied here — this class owns the envelope, and
 ## [LobbyScreen] owns what a roster means to a lobby.
@@ -763,11 +755,17 @@ func _on_lobby_pick(payload: Dictionary) -> void:
 ## #646 send side. [method LootPickRegistry.park] only ever parks a REMOTE
 ## claim ([LootRoundCommandHandler]'s `_await_pick`), so every [signal
 ## LootPickRegistry.offer_parked] this connects to is, by construction, a pick
-## that owes a downward offer. Host-only and NOT gated on [member graph] —
-## unlike every other `send_*` here, this message names no node, only stat
-## candidates (BY VALUE) or spell ids.
+## that owes a downward offer — ADDRESSED to [method LootPickRegistry.peer_for]'s
+## answer: nobody but the picker needs to know until the pick lands as a
+## [LootRoundCommand]. Host-only and NOT gated on [member graph] — unlike every
+## other `send_*` here, this message names no node, only stat candidates (BY
+## VALUE) or spell ids.
 func _on_offer_parked(request: Variant) -> void:
-	send_loot_offer(_offer_for(request))
+	var peer_id := loot_pick_registry.peer_for(request.collector)
+	if peer_id == 0:
+		logged.emit("✗ loot offer: no peer seats the collector")
+		return
+	send_loot_offer(_offer_for(request), peer_id)
 
 
 func _offer_for(request: Variant) -> LootPickOffer:
@@ -776,23 +774,25 @@ func _offer_for(request: Variant) -> LootPickOffer:
 	return LootPickOffer.for_stat_request(request as LootPickRequest)
 
 
-## Send [param offer] to every connected peer. Mutates nothing and carries no
+## Send [param offer] to [param peer_id] alone. Mutates nothing and carries no
 ## [Command] — see [constant KIND_LOOT_OFFER].
-func send_loot_offer(offer: LootPickOffer) -> void:
+func send_loot_offer(offer: LootPickOffer, peer_id: int) -> void:
 	if transport == null or role != NetworkConfig.Role.HOST or offer == null:
 		return
-	transport.send({KEY_KIND: KIND_LOOT_OFFER, KEY_OFFER: offer.to_dict()})
-	logged.emit("→ loot offer (request %d, collector %d)" %
-			[offer.request_id, offer.collector_id])
+	transport.send_to(peer_id, {KEY_KIND: KIND_LOOT_OFFER, KEY_OFFER: offer.to_dict()})
+	logged.emit("→ loot offer (request %d, collector %d) to peer %d" %
+			[offer.request_id, offer.collector_id, peer_id])
 
 
-## #646 receive side. Decodes and re-emits — see [signal loot_offer_received]
-## for why this does not itself open a picker.
+## #646 receive side. Decodes and hands to [method
+## LootPickRegistry.receive_offer], which gates ownership and emits the signal
+## [LootSystem] opens its picker on — the link itself opens nothing.
 func _on_loot_offer(payload: Dictionary) -> void:
 	if role != NetworkConfig.Role.CLIENT:
 		return
 	var offer := LootPickOffer.from_dict(payload.get(KEY_OFFER, {}))
-	loot_offer_received.emit(offer)
+	if loot_pick_registry != null:
+		loot_pick_registry.receive_offer(offer)
 	logged.emit("← loot offer (request %d, collector %d)" %
 			[offer.request_id, offer.collector_id])
 
