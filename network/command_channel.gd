@@ -1,4 +1,3 @@
-@tool
 class_name CommandChannel
 extends LinkChannel
 ## Bridges one [CommandApplier] to a [NetworkLink]: the host broadcasts the
