@@ -212,17 +212,22 @@ func test_the_latch_is_off_by_default() -> void:
 ## rides a MIRROR peer).
 func test_a_loot_offer_during_the_window_is_dropped() -> void:
 	var offers: Array = []
-	_client_link.loot_offer_received.connect(func(o: LootPickOffer) -> void: offers.append(o))
+	var receiver := LootPickRegistry.new()
+	receiver.graph = _client["graph"]
+	add_child_autofree(receiver)
+	_client_link.loot_pick_registry = receiver
+	receiver.offer_received.connect(func(o: LootPickOffer) -> void: offers.append(o))
+	var client_peer := _client_link.transport.local_peer_id()
 	var offer := LootPickOffer.new()
 	offer.request_id = 7
 	offer.collector_id = (_host["player"] as Entity).entity_id
 
 	_client_link.defer_until_resync = true
-	_host_link.send_loot_offer(offer)
+	_host_link.send_loot_offer(offer, client_peer)
 	await get_tree().process_frame
 	assert_true(offers.is_empty(), "no picker may open against a world that does not exist")
 
 	_client_link.defer_until_resync = false
-	_host_link.send_loot_offer(offer)
+	_host_link.send_loot_offer(offer, client_peer)
 	await get_tree().process_frame
 	assert_eq(offers.size(), 1, "and it is the window that gates it, not the kind")

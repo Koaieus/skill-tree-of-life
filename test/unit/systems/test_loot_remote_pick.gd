@@ -1,6 +1,6 @@
 extends GutTest
 
-## #564 — the post-#646 remainder: [signal CommandLink.loot_offer_received]
+## #564 — the post-#646 remainder: [signal LootPickRegistry.offer_received]
 ## gets its first production consumer. A mirror peer translates the incoming
 ## [LootPickOffer] back into the SAME `Events.loot_pick_requested` /
 ## `Events.spell_loot_requested` emission the host path already uses, so the
@@ -22,6 +22,10 @@ const _BOARD := preload("res://entity/default_entity_board.tres")
 class _AlwaysRemoteRegistry extends LootPickRegistry:
 	func is_remote_collector(_collector: Entity) -> bool:
 		return true
+
+	## The offer is addressed; `LoopbackTransport.pair()`'s client is peer 2.
+	func peer_for(_collector: Entity) -> int:
+		return 2
 
 
 func _mod(id: StringName, op: int, v: float) -> StatModifier:
@@ -71,6 +75,14 @@ func _build_world(label: String, candidates: Array[StatModifier],
 	}
 
 
+## A client-side registry for a MIRROR link: where an addressed offer lands.
+## No roster, so it answers "local" for every collector — one human here.
+func _receiver() -> LootPickRegistry:
+	var registry := LootPickRegistry.new()
+	add_child_autofree(registry)
+	return registry
+
+
 func _link(applier: CommandApplier, graph: Graph, transport: NetworkTransport,
 		mode: NetworkConfig.Role, registry: LootPickRegistry = null) -> CommandLink:
 	var link := CommandLink.new()
@@ -78,6 +90,8 @@ func _link(applier: CommandApplier, graph: Graph, transport: NetworkTransport,
 	link.command_applier = applier
 	link.graph = graph
 	link.loot_pick_registry = registry
+	if registry != null:
+		registry.graph = graph
 	link.role = mode
 	add_child_autofree(link)
 	return link
@@ -89,7 +103,7 @@ func _link(applier: CommandApplier, graph: Graph, transport: NetworkTransport,
 func _mirror_adapter(applier: CommandApplier, link: CommandLink) -> LootSystem:
 	var system := LootSystem.new()
 	system.command_applier = applier
-	system.command_link = link
+	system.pick_registry = link.loot_pick_registry
 	add_child_autofree(system)
 	return system
 
@@ -185,7 +199,8 @@ func test_a_forfeited_round_closes_the_clients_open_request_without_a_local_answ
 	add_child_autofree(pair[0])
 	add_child_autofree(pair[1])
 	_link(host["applier"], host["graph"], pair[0], NetworkConfig.Role.HOST, host_registry)
-	var client_link := _link(client["applier"], client["graph"], pair[1], NetworkConfig.Role.CLIENT)
+	var client_link := _link(client["applier"], client["graph"], pair[1], NetworkConfig.Role.CLIENT,
+			_receiver())
 	_mirror_adapter(client["applier"], client_link)
 
 	# See the previous test for why this filters to the client's collector —
@@ -232,7 +247,8 @@ func test_a_collector_death_mid_pick_forfeits_and_travels_upward() -> void:
 	add_child_autofree(pair[0])
 	add_child_autofree(pair[1])
 	_link(host["applier"], host["graph"], pair[0], NetworkConfig.Role.HOST, host_registry)
-	var client_link := _link(client["applier"], client["graph"], pair[1], NetworkConfig.Role.CLIENT)
+	var client_link := _link(client["applier"], client["graph"], pair[1], NetworkConfig.Role.CLIENT,
+			_receiver())
 	_mirror_adapter(client["applier"], client_link)
 
 	_open_stat_round(host)

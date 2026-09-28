@@ -40,6 +40,10 @@ class _AlwaysRemoteRegistry extends LootPickRegistry:
 	func is_remote_collector(_collector: Entity) -> bool:
 		return true
 
+	## The offer is addressed; `LoopbackTransport.pair()`'s client is peer 2.
+	func peer_for(_collector: Entity) -> int:
+		return 2
+
 
 func _mod(id: StringName, op: int, v: float) -> StatModifier:
 	var m := StatModifier.new()
@@ -88,6 +92,14 @@ func _build_world(label: String, candidates: Array[StatModifier],
 	}
 
 
+## A client-side registry for a MIRROR link: where an addressed offer lands.
+## No roster, so it answers "local" for every collector — one human here.
+func _receiver() -> LootPickRegistry:
+	var registry := LootPickRegistry.new()
+	add_child_autofree(registry)
+	return registry
+
+
 func _link(applier: CommandApplier, graph: Graph, transport: NetworkTransport,
 		mode: NetworkConfig.Role, registry: LootPickRegistry = null) -> CommandLink:
 	var link := CommandLink.new()
@@ -95,6 +107,8 @@ func _link(applier: CommandApplier, graph: Graph, transport: NetworkTransport,
 	link.command_applier = applier
 	link.graph = graph
 	link.loot_pick_registry = registry
+	if registry != null:
+		registry.graph = graph
 	link.role = mode
 	add_child_autofree(link)
 	return link
@@ -126,7 +140,8 @@ func test_a_local_or_npc_round_still_mirrors_correctly() -> void:
 	add_child_autofree(pair[0])
 	add_child_autofree(pair[1])
 	_link(host["applier"], host["graph"], pair[0], NetworkConfig.Role.HOST)
-	_link(client["applier"], client["graph"], pair[1], NetworkConfig.Role.CLIENT)
+	_link(client["applier"], client["graph"], pair[1], NetworkConfig.Role.CLIENT,
+			_receiver())
 
 	_open_stat_round(host)
 	await get_tree().process_frame
@@ -154,7 +169,8 @@ func test_a_single_survivor_auto_grants_and_still_mirrors() -> void:
 	add_child_autofree(pair[0])
 	add_child_autofree(pair[1])
 	_link(host["applier"], host["graph"], pair[0], NetworkConfig.Role.HOST)
-	_link(client["applier"], client["graph"], pair[1], NetworkConfig.Role.CLIENT)
+	_link(client["applier"], client["graph"], pair[1], NetworkConfig.Role.CLIENT,
+			_receiver())
 
 	var requests := 0
 	var on_request := func(_r: LootPickRequest) -> void: requests += 1
@@ -186,9 +202,10 @@ func test_a_remote_collectors_pick_round_trips_and_closes_the_clients_gate() -> 
 	add_child_autofree(pair[1])
 	var host_link := _link(host["applier"], host["graph"], pair[0],
 			NetworkConfig.Role.HOST, host_registry)
-	var client_link := _link(client["applier"], client["graph"], pair[1], NetworkConfig.Role.CLIENT)
+	var client_link := _link(client["applier"], client["graph"], pair[1], NetworkConfig.Role.CLIENT,
+			_receiver())
 	var offers: Array[LootPickOffer] = []
-	client_link.loot_offer_received.connect(func(o: LootPickOffer) -> void: offers.append(o))
+	client_link.loot_pick_registry.offer_received.connect(func(o: LootPickOffer) -> void: offers.append(o))
 
 	var collector_id: int = (host["collector"] as Entity).entity_id
 	_open_stat_round(host)
@@ -245,7 +262,8 @@ func test_a_mirror_peers_registry_stays_inert_through_a_loot_round() -> void:
 	add_child_autofree(pair[0])
 	add_child_autofree(pair[1])
 	_link(host["applier"], host["graph"], pair[0], NetworkConfig.Role.HOST)
-	_link(client["applier"], client["graph"], pair[1], NetworkConfig.Role.CLIENT)
+	_link(client["applier"], client["graph"], pair[1], NetworkConfig.Role.CLIENT,
+			_receiver())
 
 	assert_eq(client_registry.pending_count(), 0)
 
