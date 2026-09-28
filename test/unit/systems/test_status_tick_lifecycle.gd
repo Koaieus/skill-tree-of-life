@@ -1,10 +1,11 @@
 extends GutTest
 
 ## #879 — the lifecycle wiring around NodeCombat's status slice (#872):
-## - the sparse `Events.turn_started` tick subscription, entity-filtered and
-##   never firing on a resync `adopt_turn`;
+## - the owned-node status sweep inside `Entity.begin_turn`: owner-filtered,
+##   landing BEFORE `turn_began` kicks the controller, never on a resync
+##   `adopt_turn`;
 ## - tick running strictly AFTER `Entity.begin_turn`'s own upkeep
-##   (regen included), same emit;
+##   (regen included);
 ## - every `AllocationSystem` dealloc path clearing statuses.
 ## `test_node_combat_status.gd` pins apply/tick/remove/clear by hand; this
 ## file is the wiring that calls `tick_statuses()` for real.
@@ -43,8 +44,8 @@ class TrackedDef:
 
 
 ## The def that DOES the cascading: from inside its own `_on_tick` (itself
-## mid-[method NodeCombat.tick_statuses], itself mid-[signal Events.turn_started]),
-## force-deallocates a SIBLING node still queued behind it in the same emit,
+## mid-[method NodeCombat.tick_statuses], itself mid-sweep in [method Entity.begin_turn]),
+## force-deallocates a SIBLING node still queued behind it in the same sweep,
 ## then force-deallocates the node it is CURRENTLY ticking.
 class CascadeDef:
 	extends TrackedDef
@@ -95,7 +96,7 @@ func _new_node() -> SkillNode:
 	return n
 
 
-# ── Sparse subscription: entity-filtered, never on adopt_turn ───────────────
+# ── Owned-node sweep: owner-filtered, never on adopt_turn ───────────────────
 
 func test_status_ticks_only_on_owning_entitys_real_turn_never_on_adopt() -> void:
 	var a: Entity = autofree(_make_entity("A"))
@@ -246,12 +247,11 @@ func test_deallocate_all_owned_clears_every_owned_nodes_statuses() -> void:
 	assert_eq(d_node.ticks.size(), 0)
 
 
-# ── Signal-level re-entrancy (Sage review, hub amendment 2026-09-14) ────────
+# ── Sweep re-entrancy (Sage review, hub amendment 2026-09-14) ────────────
 #
 # #872 pins the SLICE-level half (a status vanishing mid-tick_statuses).
-# This is the SIGNAL-level half: a SkillNode disconnecting itself — and a
-# sibling — from Events.turn_started WHILE that signal is mid-emit, with
-# other subscribers still queued behind it in connection order.
+# This is the SWEEP-level half: a tick stripping its own node — and a sibling
+# still queued behind it in the owned-set snapshot — mid-sweep.
 
 func test_force_dealloc_from_inside_a_tick_does_not_crash_and_stops_both_nodes() -> void:
 	var a: Entity = autofree(_make_entity("A"))
@@ -267,8 +267,8 @@ func test_force_dealloc_from_inside_a_tick_does_not_crash_and_stops_both_nodes()
 	_alloc.force_allocate(a, n2)
 	_alloc.force_allocate(a, n3)
 
-	# Subscribe order n1 -> n2 -> n3: Events.turn_started calls handlers in
-	# connection order, so n2's cascade (below) fires with n3 still queued.
+	# Mirror order n1 -> n2 -> n3: the sweep walks the owned set in that
+	# order, so n2's cascade (below) fires with n3 still queued.
 	var d1 := TrackedDef.new()
 	d1.id = &"d1"
 	d1.power_max = 5.0
@@ -286,8 +286,8 @@ func test_force_dealloc_from_inside_a_tick_does_not_crash_and_stops_both_nodes()
 	d3.power_max = 5.0
 	n3.get_combat().apply_status(d3, 3.0)
 
-	# The test completing at all (no engine abort on a mid-emit disconnect)
-	# is itself part of the assertion.
+	# The test completing at all (no error on a node stripped mid-sweep) is
+	# itself part of the assertion.
 	_tm.start_turn(a)
 
 	assert_eq(d1.ticks.size(), 1, "n1 (unaffected bystander) ticked exactly once")
@@ -296,12 +296,96 @@ func test_force_dealloc_from_inside_a_tick_does_not_crash_and_stops_both_nodes()
 	assert_true(n3.get_combat().get_statuses().is_empty(), "n3 was cleared before its own turn in the emit")
 	assert_eq(d3.ticks.size(), 0, "n3's _on_tick must never fire — cleared before it ran")
 
-	for n in [n1, n2, n3]:
-		assert_eq(n._status_tick_connected, Events.turn_started.is_connected(Callable(n, "_on_status_tick_turn_started")),
-				"%s's connected flag must agree with the live signal connection" % n.name)
-
 	_tm.adopt_turn(null, _tm.turns_taken)  # bypass end_turn's auto-tick-to-ready
 	_tm.start_turn(a)
 	assert_eq(d1.ticks.size(), 2, "n1 keeps ticking on a's next turn")
-	assert_eq(d2.ticks.size(), 1, "n2 stayed unsubscribed — no further tick")
-	assert_eq(d3.ticks.size(), 0, "n3 stayed unsubscribed — no further tick")
+	assert_eq(d2.ticks.size(), 1, "n2 left the owned set — no further tick")
+	assert_eq(d3.ticks.size(), 0, "n3 left the owned set — no further tick")
+
+
+# ── Sweep placement: inside begin_turn, before the controller is kicked ─────
+
+func test_node_dot_lands_before_turn_began_once_per_real_turn() -> void:
+	var a: Entity = autofree(_make_entity("A"))
+	_graph.entities_container.add_child(a)
+	await get_tree().process_frame
+
+	var core := _new_node()
+	var node := _new_node()
+	await get_tree().process_frame
+	_alloc.force_allocate(a, core)
+	a.core_location = core
+	_alloc.force_allocate(a, node)
+
+	var d := _def(&"poison", 10.0, 0.0)
+	d.damage_per_tick = 1.0
+	node.get_combat().apply_status(d, 5.0)
+	var hp0: float = node.get_current_hp()
+
+	var seen: Array = []
+	a.turn_began.connect(func() -> void: seen.append([d.ticks.size(), node.get_current_hp()]))
+
+	_tm.start_turn(a)
+	assert_eq(seen, [[1, hp0 - 1.0]],
+			"the node DoT must have landed exactly once by the time turn_began fires")
+	assert_eq(d.ticks.size(), 1, "and nothing after turn_began ticks it again")
+
+	_tm.adopt_turn(null, _tm.turns_taken)
+	_tm.adopt_turn(a, _tm.turns_taken)
+	assert_eq(d.ticks.size(), 1, "an adopted cursor is not a real turn — no tick")
+
+
+func test_a_node_that_changes_owner_ticks_on_its_new_owners_turn() -> void:
+	var a: Entity = autofree(_make_entity("A"))
+	_graph.entities_container.add_child(a)
+	var b: Entity = autofree(_make_entity("B"))
+	_graph.entities_container.add_child(b)
+	await get_tree().process_frame
+
+	var core_a := _new_node()
+	var core_b := _new_node()
+	var node := _new_node()
+	await get_tree().process_frame
+	_alloc.force_allocate(a, core_a)
+	a.core_location = core_a
+	_alloc.force_allocate(b, core_b)
+	b.core_location = core_b
+	_alloc.force_allocate(a, node)
+
+	var d := _def(&"poison", 5.0)
+	node.get_combat().apply_status(d, 3.0)
+	_alloc.force_allocate(b, node)
+	assert_false(node.get_combat().get_statuses().is_empty(),
+			"fixture: a direct capture keeps the status")
+
+	_tm.start_turn(a)
+	assert_eq(d.ticks.size(), 0, "the former owner's turn must not tick it")
+	_tm.adopt_turn(null, _tm.turns_taken)
+
+	_tm.start_turn(b)
+	assert_eq(d.ticks.size(), 1, "the new owner's real turn ticks it exactly once")
+
+
+func test_a_dot_kill_mid_sweep_does_not_error() -> void:
+	var a: Entity = autofree(_make_entity("A"))
+	_graph.entities_container.add_child(a)
+	await get_tree().process_frame
+
+	var core := _new_node()
+	var n1 := _new_node()
+	var n2 := _new_node()
+	await get_tree().process_frame
+	_alloc.force_allocate(a, core)
+	a.core_location = core
+	_alloc.force_allocate(a, n1)
+	_alloc.force_allocate(a, n2)
+
+	var killer := _def(&"poison", 0.0, 0.0)
+	killer.damage_per_tick = 1.0e6
+	n1.get_combat().apply_status(killer, 1.0)
+	var bystander := _def(&"blind", 5.0)
+	n2.get_combat().apply_status(bystander, 3.0)
+
+	_tm.start_turn(a)
+	assert_eq(killer.ticks.size(), 1, "the lethal DoT ticked once")
+	assert_eq(bystander.ticks.size(), 1, "the sweep carried on past the kill")
