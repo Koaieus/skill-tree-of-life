@@ -174,16 +174,18 @@ func send_resync(reason: String, is_join_world: bool = false) -> void:
 ## Client-side: ask the host for its world. Latched on [member _awaiting_resync]
 ## so a mid-run verdict cannot flood the host.
 func request_resync(reason: String, is_join_world: bool = false) -> void:
-	if _awaiting_resync or link == null:
+	if _awaiting_resync or _role() != NetworkConfig.Role.CLIENT:
 		return
+	# Latched BEFORE the send: over a synchronous transport the host's answer
+	# lands (and clears the latch) inside the send itself.
+	_awaiting_resync = true
+	_log("↑ resync requested — %s" % reason)
 	if not link.send({
 		NetworkLink.KEY_KIND: KIND_RESYNC_REQUEST,
 		KEY_SUMMARY: reason,
 		KEY_JOIN: is_join_world,
 	}, NetworkConfig.Role.CLIENT):
-		return
-	_awaiting_resync = true
-	_log("↑ resync requested — %s" % reason)
+		_awaiting_resync = false
 
 
 ## The join's pull, asked AGAIN: the latch would swallow a second ask, and a
