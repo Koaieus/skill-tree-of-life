@@ -79,8 +79,6 @@ func _on_attached() -> void:
 
 
 func _connect_applier() -> void:
-	if command_applier == null and link != null:
-		command_applier = link.command_applier
 	if command_applier != null and not command_applier.command_stamped.is_connected(_on_command_stamped):
 		command_applier.command_stamped.connect(_on_command_stamped)
 

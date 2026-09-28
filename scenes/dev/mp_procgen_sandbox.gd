@@ -32,7 +32,7 @@ const _CORE_CLASS_AI := preload("res://entity/core/basic_enemy_core.tres")
 @export var fixed_seed: int = 90210533
 
 @onready var _transport: NetworkTransport = $Transport
-@onready var _link: CommandLink = $CommandLink
+@onready var _link: NetworkLink = $NetworkLink
 @onready var _world_sync: WorldSyncChannel = $WorldSyncChannel
 @onready var _banner: Label = %NetBanner
 @onready var _log: RichTextLabel = %NetLog
@@ -71,7 +71,7 @@ func _ready() -> void:
 	turn_manager.opens_first_turn = false
 	# BEFORE `super()`, unlike rung 1. A CLIENT's `_setup_level` (below) has
 	# nothing to read locally and must AWAIT wire data — so the socket has to
-	# already be dialing and CommandLink's listeners already wired by the
+	# already be dialing and the link's channels' already wired by the
 	# time that await runs, or the await never resolves. `super()` calling
 	# into `_setup_level()`'s own await suspends AT that inner await (GDScript
 	# coroutine semantics — see rung 1's `_ready` for the same mechanism used

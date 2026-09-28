@@ -43,17 +43,12 @@ signal peer_refused(peer_id: int, reason: String)
 signal hello_accepted(payload: Dictionary)
 
 @export var transport: NetworkTransport
-## Only for the [member role] setter — the applier learns from the role whether
-## it DECIDES or is told. Optional: a lobby link has no applier.
-@export var command_applier: CommandApplier:
-	set(value):
-		command_applier = value
-		_apply_role()
 ## The channels this core dispatches to. Registered in [method _ready]; a
 ## channel may also [method register] itself later.
 @export var channels: Array[LinkChannel] = []
 
-## Setting this is also what tells the applier whether it DECIDES or is told —
+## Setting this tells every channel ([method LinkChannel._on_identity_changed]);
+## [CommandChannel] is how the applier learns whether it DECIDES or is told —
 ## single writer, so the two can never disagree. See
 ## [member CommandApplier.is_authority].
 var role: NetworkConfig.Role = NetworkConfig.Role.OFFLINE:
@@ -120,6 +115,7 @@ func register(channel: LinkChannel) -> void:
 	if channel.link != self:
 		channel.link = self
 		channel._on_attached()
+		channel._on_identity_changed()
 
 
 ## The channel that owns [param kind], or null.
@@ -147,15 +143,15 @@ func send_to(peer_id: int, payload: Dictionary, only_as: int = -1) -> bool:
 
 
 func _apply_role() -> void:
-	if command_applier != null:
-		command_applier.is_authority = role != NetworkConfig.Role.CLIENT
-		command_applier.local_peer_id = _local_peer_id()
+	for channel in channels:
+		if channel != null and channel.link == self:
+			channel._on_identity_changed()
 
 
-## Who this peer is for the applier's intent-id high half. Asks the transport,
+## Who this peer is, for the applier's intent-id high half. Asks the transport,
 ## never [member Node.multiplayer]; only `0` (not linked yet) falls back to the
 ## role, and [signal NetworkTransport.peer_joined] re-stamps it.
-func _local_peer_id() -> int:
+func local_peer_id() -> int:
 	var assigned := transport.local_peer_id() if transport != null else 0
 	if assigned != 0:
 		return assigned
@@ -166,8 +162,7 @@ func _local_peer_id() -> int:
 ## guess — and a CLIENT announces its build the instant its dial completes, so
 ## a joiner on the wrong commit is refused before anybody seats it.
 func _on_transport_peer_joined(_peer_id: int) -> void:
-	if command_applier != null:
-		command_applier.local_peer_id = _local_peer_id()
+	_apply_role()
 	if role == NetworkConfig.Role.CLIENT:
 		announce_self()
 

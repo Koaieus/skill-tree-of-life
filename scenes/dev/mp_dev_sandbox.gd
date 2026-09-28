@@ -38,8 +38,8 @@ extends "res://scenes/dev_sandbox.gd"
 ## CLIENT peer's copy would decide and submit independently of the host's AI
 ## the moment its local [TurnManager] hands Blue the turn (which a mirrored
 ## [EndTurnCommand] does). Closed by gating [method AIController.take_turn] on
-## [member CommandApplier.is_authority] (`network/command_link.gd`'s `mode`
-## setter is the only writer), extending the same "a non-authority peer does
+## [member CommandApplier.is_authority] ([member NetworkLink.role]'s
+## setter, through [CommandChannel], is the only writer), extending the same "a non-authority peer does
 ## not originate mutations" invariant [SkillDustAddon]'s claim flow already
 ## relies on. The host hot-seats between Red and Blue; the client watches,
 ## bound to Blue.
@@ -68,7 +68,8 @@ const PROBE_REPORT_PERIOD_SECONDS := 60.0
 const AUTOPILOT_TURNS_UNBOUNDED := -1
 
 @onready var _transport: NetworkTransport = $Transport
-@onready var _link: CommandLink = $CommandLink
+@onready var _link: NetworkLink = $NetworkLink
+@onready var _world_sync: WorldSyncChannel = $WorldSyncChannel
 @onready var _probe: DeterminismProbe = $DeterminismProbe
 @onready var _banner: Label = %NetBanner
 @onready var _log: RichTextLabel = %NetLog
@@ -111,7 +112,7 @@ var _autopilot_turns_run: int = 0
 ## than finding out it can.
 var _autopilot_running: bool = false
 ## #546: the peers were not on the same build and the link was hung up. Banner
-## state only — [CommandLink] owns the refusal itself.
+## state only — [NetworkLink] owns the refusal itself.
 var _link_refused: bool = false
 
 
@@ -293,8 +294,8 @@ func _start_link() -> void:
 	_refresh_banner()
 
 
-## #546. [CommandLink] has already logged both builds through [signal
-## CommandLink.logged]; this only makes the banner stop claiming a link. Not
+## #546. [NetworkLink] has already logged both builds through [signal
+## NetworkLink.logged]; this only makes the banner stop claiming a link. Not
 ## fatal the way a failed bind is — the process is a legible, inert window
 ## saying why, and on the CLIENT that is the whole point (a refused client that
 ## quit would leave nothing on screen to read).
@@ -371,7 +372,7 @@ func _arm_probe() -> void:
 	# `sync_checked` fires once per COMPARED command; the skipped ones ride in
 	# on the same burst and are already tallied, so this is enough to keep the
 	# timer alive for as long as the wire is busy.
-	_link.sync_checked.connect(func(_a: bool, _l: int, _r: int) -> void:
+	_world_sync.sync_checked.connect(func(_a: bool, _l: int, _r: int) -> void:
 			_probe_report_timer.start())
 	_write_log("determinism probe ARMED (#529) — breakdown every %.0fs, and %.0fs after the wire goes quiet"
 			% [PROBE_REPORT_PERIOD_SECONDS, PROBE_REPORT_QUIET_SECONDS])
@@ -385,7 +386,7 @@ func _print_probe_report() -> void:
 func _greet_if_linked(_status: String) -> void:
 	if not _transport.is_linked():
 		return
-	_link.send_hello()
+	_world_sync.send_hello()
 	# Through the same gate as a turn-driven sweep: `link_changed` fires again
 	# on a reconnect, and this entry point used to bypass the `--turns` budget
 	# entirely.

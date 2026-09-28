@@ -106,7 +106,7 @@ var _link_end_presented: bool = false
 ## a plain dependency-taking object.
 @onready var pick_registry: LootPickRegistry = %LootPickRegistry
 ## The wire, mounted every level (#531). [b]The node PATH is the contract[/b] —
-## Godot resolves an RPC by node path, so `Transport` and `CommandLink` must sit
+## Godot resolves an RPC by node path, so `Transport` and `NetworkLink` must sit
 ## at the same place in every scene both peers run, which is why they live in
 ## the composition root rather than in whichever level happens to be networked.
 ## A level that wants a real socket overrides the mounted `Transport`'s script
@@ -116,7 +116,8 @@ var _link_end_presented: bool = false
 ## [constant NetworkConfig.Role.OFFLINE]: mounted and inert, so offline play is
 ## unchanged — nothing is serialized until a role raises the mode.
 @onready var transport: NetworkTransport = %Transport
-@onready var command_link: CommandLink = %CommandLink
+@onready var network_link: NetworkLink = %NetworkLink
+@onready var world_sync: WorldSyncChannel = %WorldSyncChannel
 ## The network role of this level (#1004): who decides, bringing the socket
 ## up, a joiner's wait for the world, and the peer events. The root subscribes
 ## to its signals for the presentation half.
@@ -153,7 +154,7 @@ func _assert_systems_present() -> void:
 		[input_ctl, "PlayerInputController"], [allocation_system, "AllocationSystem"],
 		[battle_system, "BattleSystem"], [turn_manager, "TurnManager"],
 		[command_applier, "CommandApplier"], [pick_registry, "LootPickRegistry"],
-		[transport, "Transport"], [command_link, "CommandLink"],
+		[transport, "Transport"], [network_link, "NetworkLink"], [world_sync, "WorldSyncChannel"],
 		[network_session, "NetworkSession"], [vision_system, "VisionSystem"],
 		[victory_system, "VictorySystem"], [highlight_controller, "HighlightController"],
 		[floater_director, "FloaterDirector"], [fog_overlay, "FogOverlay"],
@@ -178,7 +179,7 @@ func _ready() -> void:
 	# #715: how the arriving world builds an entity the roster never names — see
 	# [method EntityFactory.spawn_snapshot_entity]. Set here, before any link
 	# can be up, because the first thing a joining client does with its link is ask for that world.
-	command_link.entity_spawner = entity_factory.spawn_snapshot_entity
+	world_sync.entity_spawner = entity_factory.spawn_snapshot_entity
 	# The session owns the wire's lifecycle; the root keeps the presentation of
 	# each event (#1004). The world-arrived hook re-runs `_ensure_controllers`
 	# for entities the resync brought with it — idempotent and cheap.
@@ -295,7 +296,7 @@ func _stagger_initiative() -> void:
 ##
 ## So the authority SUBMITS and the mirror WAITS. A mirror's cursor arrives
 ## either as this command coming back down the [constant
-## CommandLink.KIND_COMMAND] leg, or — for a peer whose join world was encoded
+## CommandChannel.KIND_COMMAND] leg, or — for a peer whose join world was encoded
 ## after the host had already started — inside the resync itself
 ## ([method EntitySnapshot.restore_turn_cursor]).
 ##

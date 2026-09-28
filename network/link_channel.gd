@@ -23,9 +23,9 @@ func kinds() -> Array[String]:
 	return []
 
 
-## Is [param kind] dropped before a world exists? Per-kind so a channel that
-## still carries a mix (today's [CommandLink]) can say which; a single-purpose
-## channel only sets [member deferred_until_world].
+## Is [param kind] dropped before a world exists? Per-kind so a channel whose
+## kinds split ([CommandChannel]: a command waits, a refusal must not) can say
+## which; a single-purpose channel only sets [member deferred_until_world].
 func is_deferred(_kind: String) -> bool:
 	return deferred_until_world
 
@@ -33,6 +33,14 @@ func is_deferred(_kind: String) -> bool:
 ## Called once by [method NetworkLink.register] after [member link] is set —
 ## where a channel subscribes to the core's signals. Default: nothing.
 func _on_attached() -> void:
+	pass
+
+
+## The core's [member NetworkLink.role] or its transport-assigned peer id
+## ([method NetworkLink.local_peer_id]) changed — also called once right after
+## [method _on_attached], so a role set before registration still lands.
+## Default: nothing.
+func _on_identity_changed() -> void:
 	pass
 
 

@@ -33,11 +33,12 @@ signal link_lost(reason: String)
 signal refused(reason: String)
 
 @export var transport: NetworkTransport
-@export var command_link: CommandLink
+@export var network_link: NetworkLink
+@export var world_sync: WorldSyncChannel
 @export var command_applier: CommandApplier
 
 ## How long a joining client waits for the authority's world before asking for
-## it again ([method CommandLink.renew_join_pull], 2026-09-06). Three seconds is
+## it again ([method WorldSyncChannel.renew_join_pull], 2026-09-06). Three seconds is
 ## well past a LAN round trip and well short of a human deciding the screen is
 ## dead. Overridable so a test can watch the renewal without waiting it out.
 const JOIN_PULL_RETRY_SEC := 3.0
@@ -52,17 +53,18 @@ var _join_world_arrived: bool = false
 var _link_ended: bool = false
 
 
-## Hooks the link's inbound events. The node sits after `CommandLink` in
+## Hooks the link's inbound events. The node sits after `NetworkLink` and its channels in
 ## `game_root.tscn`, so the link is up (its own `_ready` done) by the time this
 ## runs, and both are ready before the root's `_ready` adopts the role.
 func _ready() -> void:
-	if command_link == null:
+	if network_link == null:
 		return
-	command_link.resync_applied.connect(_on_resync_applied)
+	if world_sync != null:
+		world_sync.resync_applied.connect(_on_resync_applied)
 	# The host turning this peer away with a reason (a join it did not seat,
 	# a build it does not match). It arrives a message BEFORE the drop that
 	# follows it, and it is the sentence a human needs to read.
-	command_link.link_refused.connect(_on_refused_by_host)
+	network_link.link_refused.connect(_on_refused_by_host)
 	# Rung 3's protocol trace, hooked HERE rather than beside the verdict line
 	# at the tail of the root's `_ready` — by then the resync has already been
 	# pushed (host) or applied (client) and the interesting lines are gone. It is
@@ -79,7 +81,7 @@ func _ready() -> void:
 	if trace_role.is_empty():
 		trace_role = online_role_name()
 	if not trace_role.is_empty():
-		command_link.logged.connect(
+		network_link.logged.connect(
 				func(line: String) -> void: print("[%s] %s" % [trace_role, line]))
 
 
@@ -90,7 +92,7 @@ func _ready() -> void:
 ## missing link is an offline run, which is its own authority, and so is a link
 ## left [code]OFFLINE[/code]. Only a CLIENT is told.
 func is_authority() -> bool:
-	return command_link == null or command_link.role != NetworkConfig.Role.CLIENT
+	return network_link == null or network_link.role != NetworkConfig.Role.CLIENT
 
 
 ## #463: does this machine ADOPT its run, or DECIDE it?
@@ -133,7 +135,7 @@ static func online_role_name() -> String:
 # --- Lifecycle -------------------------------------------------------------
 
 ## Half one of bringing the wire up (#531): tell the link which side of it we
-## are on. [member CommandLink.role] is the single writer of
+## are on. [member NetworkLink.role] is the single writer of
 ## [member CommandApplier.is_authority], so this one assignment is also what
 ## decides whether this machine DECIDES or is TOLD.
 ##
@@ -149,12 +151,12 @@ static func online_role_name() -> String:
 ## [member GameSession.network], so nothing here touches the authority flag it
 ## set by hand a moment earlier.
 func adopt_role() -> void:
-	if command_link == null:
+	if network_link == null:
 		return
 	var net: NetworkConfig = GameSession.network
 	if net == null or not net.is_online():
 		return
-	command_link.role = net.role
+	network_link.role = net.role
 
 
 ## Half two: open the socket on whatever transport this level mounted.
@@ -166,7 +168,7 @@ func adopt_role() -> void:
 ## not an error here; it announces itself and links to nobody, which is exactly
 ## what a level that never meant to be networked should do.
 func open_link() -> void:
-	if command_link == null or transport == null:
+	if network_link == null or transport == null:
 		return
 	var net: NetworkConfig = GameSession.network
 	if net == null or not net.is_online():
@@ -191,7 +193,7 @@ func open_link() -> void:
 
 ## #463/#715: how a joining client gets a world at all. It does not generate one
 ## — it asks the authority for the serialized one, through the [constant
-## CommandLink.KIND_RESYNC] envelope #561 already ships: entities, graph, then
+## WorldSyncChannel.KIND_RESYNC] envelope #561 already ships: entities, graph, then
 ## the entity->node pass, in one message.
 ##
 ## [b]#715 made this the ONLY way a client gets a map, and that closed a
@@ -207,10 +209,10 @@ func open_link() -> void:
 ## races the level's own construction — over a loopback it lands INSIDE
 ## `_on_run_setup`, before the level has spawned anything at all. Asking once
 ## the level is built has no such window, and needs no upward "I am ready"
-## message: [method CommandLink.request_resync] IS that message.
+## message: [method WorldSyncChannel.request_resync] IS that message.
 ##
 ## [b]The reply's internal order is load-bearing, and it serves BOTH shapes.[/b]
-## [method CommandLink._on_resync] decodes entities, decodes the graph, THEN
+## [method WorldSyncChannel._on_resync] decodes entities, decodes the graph, THEN
 ## resolves the entity->node refs. On the join path the graph is EMPTY, which is
 ## the #533 harness's old odd case and is now the primary one. On a mid-run
 ## repair (#521/#560/#561) it is POPULATED, and the order is what stops
@@ -221,28 +223,28 @@ func open_link() -> void:
 ## order. Anyone "fixing" this to match the harness's order will reintroduce the
 ## bug; `test_graph_snapshot.gd` pins both shapes.
 func pull_host_world() -> void:
-	if command_link == null or not is_client():
+	if world_sync == null or not is_client():
 		return
-	command_link.request_resync("join: adopting the host's world", true)
+	world_sync.request_resync("join: adopting the host's world", true)
 
 
 ## Wait for the authority's world, or for the link to end — whichever comes
 ## first. `true` when a world landed. Polled per frame rather than awaited on a
 ## signal because there are two signals to wait on, and because the renewal
 ## below needs a clock: every [member join_pull_retry_sec] without a world, the
-## pull is sent again ([method CommandLink.renew_join_pull]).
+## pull is sent again ([method WorldSyncChannel.renew_join_pull]).
 func join_world() -> bool:
 	var last_pull := Time.get_ticks_msec()
 	while not _join_world_arrived and not _link_ended:
 		if not is_inside_tree():
 			return false
 		await get_tree().process_frame
-		if _join_world_arrived or _link_ended or command_link == null:
+		if _join_world_arrived or _link_ended or world_sync == null:
 			break
 		var now := Time.get_ticks_msec()
 		if now - last_pull >= int(join_pull_retry_sec * 1000.0):
 			last_pull = now
-			command_link.renew_join_pull("join: still no world, asking again")
+			world_sync.renew_join_pull("join: still no world, asking again")
 	return _join_world_arrived
 
 
@@ -303,9 +305,9 @@ func join_world() -> bool:
 ## on the overlay that says why. While it waits, it re-asks for the world
 ## every [member join_pull_retry_sec] rather than trusting one ask.
 func join_or_host() -> bool:
-	var joining := is_client() and command_link != null
+	var joining := is_client() and network_link != null
 	if joining:
-		command_link.defer_until_resync = true
+		network_link.defer_until_world = true
 	open_link()
 	pull_host_world()
 	if joining:
@@ -319,8 +321,8 @@ func join_or_host() -> bool:
 ## fires for disconnects too, hence the [method NetworkTransport.is_linked]
 ## gate rather than greeting on every status line.
 func _greet_if_linked(_status: String) -> void:
-	if transport != null and transport.is_linked() and command_link != null:
-		command_link.send_hello()
+	if transport != null and transport.is_linked() and world_sync != null:
+		world_sync.send_hello()
 
 
 ## #554: a peer arrived. On the lobby path everything about that has ALREADY
@@ -364,8 +366,8 @@ func _on_peer_joined(peer_id: int) -> void:
 				seated = true
 				break
 	if not seated:
-		if command_link != null:
-			command_link.refuse_peer(peer_id,
+		if network_link != null:
+			network_link.refuse_peer(peer_id,
 					"the run has already started — there is no drop-in mid-game")
 		return
 	LobbyRoster.stamp_pending_remote(GameSession.roster, peer_id)
@@ -383,19 +385,19 @@ func _on_peer_joined(peer_id: int) -> void:
 	# client's level is the slower one.
 	#
 	# [b]And when BOTH legs land, the world is applied ONCE.[/b] Both are flagged
-	# [constant CommandLink.KEY_JOIN] (the flag rides the request through
+	# [constant WorldSyncChannel.KEY_JOIN] (the flag rides the request through
 	# `_on_resync_request`, so the answer carries it too) and the client's
 	# `_join_world_arrived` latch drops the loser outright rather than decoding a
 	# whole world it already holds. `_awaiting_resync` stops it asking twice.
-	# `CommandLink._on_resync`'s guard is where that is argued, including why it
+	# `WorldSyncChannel._on_resync`'s guard is where that is argued, including why it
 	# keys off the flag rather than off a fingerprint compare — a mid-run repair
 	# (#521/#560/#561) must still apply even when the fold agrees.
 	#
 	# The old warning against pushing from here does not survive #715: it said a
 	# graph snapshot would "decode into a graph that is about to be generated
 	# over", and the joining peer no longer generates anything.
-	if command_link != null:
-		command_link.send_resync(
+	if world_sync != null:
+		world_sync.send_resync(
 				"join: the peer is on the link and has no world", true)
 
 
