@@ -444,6 +444,14 @@ func deallocate_set(nodes: Array[SkillNode], entity: Entity) -> bool:
 # enemy's staked node and extracting it reclaims YOUR staked SP, not theirs
 # (extract() caps at min(n, staked), so a never-staked entity gains nothing).
 
+func stake_denial(_node: SkillNode, _entity: Entity) -> StringName:
+	return &""
+
+
+func extract_denial(_node: SkillNode, _entity: Entity) -> StringName:
+	return &""
+
+
 ## Can this entity stake [param node] — raise its allocation cap by 1?
 ## Requires: ownership · core within 1 hop over the OWNED subgraph · ≥ 1 SP ·
 ## ≥ 1 AP · cap below the ceiling. Budget gates read `available()`, never
