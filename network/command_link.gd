@@ -90,7 +90,7 @@ const KEY_PICK := "pick"
 const KEY_PARTICIPANT := "participant"
 ## #716: what the sender CLAIMS its own peer id is, on a client's announce.
 ##
-## [b]It is never the authority.[/b] [method _gate_peer] acts on
+## [b]It is never the authority.[/b] [method NetworkLink._gate_peer] acts on
 ## [method NetworkTransport.last_sender_id], the id the transport itself vouches
 ## for; this key exists only so a disagreement between the two can be seen and
 ## named. Trusting it would let one client announce its neighbour's id and have
@@ -264,7 +264,7 @@ signal peer_refused(peer_id: int, reason: String)
 ## #755, client-side: the host handed a dropped peer's seat to the AI. Carries
 ## the [member Participant.id], decoded no further here — what a handover MEANS
 ## to a level ([method SeatHandover._on_seat_handover]) is the level's, same split
-## as [signal lobby_roster_received].
+## as [signal LobbyChannel.lobby_roster_received].
 signal seat_handover_received(participant_id: int)
 
 @export var transport: NetworkTransport
