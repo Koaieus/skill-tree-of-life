@@ -107,9 +107,10 @@ but listed for triage awareness.
 | `initiative_speed` | `TurnManager` to tick initiative | Harder to tune blind — player can't see why initiative is fast/slow |
 | `node_health` | Seeds per-node `node_combat_health` max | Already visible indirectly through node HP; showing it separately would be redundant |
 | `dealloc_damage` | `BattleSystem._on_node_depleted` cascade | Tuning lever with zero feedback; a core that raises this gives no UI clue |
-| `damage` | Family parent — folds into blade/spell/ranged_damage reads (ADR 0029) | Own value is meaningless; a parent row renders bins, never a value — until the readout unit lands |
+| `damage` | Family parent — folds into blade/spell/ranged_damage reads (ADR 0029) | No entity panel lists it. Minted on a node board (e.g. a Ninja aura), NodeStatsPanel renders its terms (`+20% increased`) via `StatRegistry.is_parent` — bins, never a value |
 | `attributes` | Family parent — folds into the six attributes | As `damage` |
 | `dot_resistance` | Family parent — folds into the four DoT resistances | As `damage` |
+| `dot_stacks_per_hit` | Family parent — folds into the four DoT stacks-per-hit | As `damage` |
 
 ---
 

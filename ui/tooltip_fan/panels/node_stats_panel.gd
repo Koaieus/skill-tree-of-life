@@ -12,6 +12,8 @@ extends FanPanel
 ## [method StatBoard.get_dynamic_stat_ids] (already on master — consumed
 ## here, NOT re-added to `stats_system/stat_board.gd`, which this panel does
 ## not own).
+## A family parent among those ids ([method StatRegistry.is_parent]) gets a
+## terms row instead — see [method _add_terms_row].
 ##
 ## Offensive damage stats are deliberately excluded from that enumeration —
 ## [CombatValueRow.resolve_override] already previews
@@ -34,6 +36,9 @@ const _EXCLUDED_STAT_IDS: Array[StringName] = [&"blade_damage", &"ranged_damage"
 const _ALWAYS_SHOWN_STAT_IDS: Array[StringName] = [&"node_health", &"armor", &"min_damage_taken"]
 
 const _STAT_VALUE_ROW_SCENE: PackedScene = preload("res://ui/tooltip_fan/stat_value_row.tscn")
+## A parent stat's row: [StatValueRow] has no text form, and [CombatValueRow]
+## is the row that already prints fold terms ([method CombatValueRow.set_text]).
+const _TERMS_ROW_SCENE: PackedScene = preload("res://ui/hud/combat_readout/combat_value_row.tscn")
 
 ## Per-index reveal delay (fraction of the panel's own `progress`) — same
 ## staggered-reveal shape as [AddonsPanel] / [GrantedModifiersRoot].
@@ -87,7 +92,10 @@ func _rebuild_rows() -> void:
 	if _bound_node.is_allocated():
 		_add_always_shown_rows()
 	for id in _visible_dynamic_ids():
-		_add_scalar_row(id)
+		if StatRegistry.is_parent(id):
+			_add_terms_row(id)
+		else:
+			_add_scalar_row(id)
 
 
 ## Node HP (numeric, never a bar — the floating bar keeps its own lifetime
@@ -118,6 +126,53 @@ func _add_scalar_row(id: StringName) -> void:
 	_rows.add_child(row)
 	row.bind_scalar(def, float(_bound_node.get_local_value(id)))
 	_row_setters.append(row.set_progress)
+
+
+## A family parent (ADR 0029) has no number of its own — only its bins reach
+## its children — so its row renders the node-local fold's terms
+## (`+20% increased, +5`) and never a value.
+func _add_terms_row(id: StringName) -> void:
+	var def: StatDef = StatRegistry.get_def(id)
+	var stat: Stat = _bound_node.node_board.get_stat(id)
+	if def == null or stat == null:
+		return
+	var row := _TERMS_ROW_SCENE.instantiate() as CombatValueRow
+	_rows.add_child(row)
+	row.row_label = def.display_name
+	row.set_text(terms_text(stat.resolve_with([])))
+	_row_setters.append(func(t: float) -> void:
+		row.modulate.a = Easing.out_cubic(clampf(t, 0.0, 1.0)))
+
+
+## [param t]'s non-identity terms in modifier grammar ([method StatModifier.format]),
+## comma-joined: `+5, +20% increased, ×1.5, +2 bonus`; a SET winner is `= N`.
+## A fold with no terms reads `—`.
+static func terms_text(t: FoldTerms) -> String:
+	if t.set_value != null:
+		return "= %s" % _num(float(t.set_value))
+	var parts: PackedStringArray = []
+	if not is_zero_approx(t.add):
+		parts.append(_signed(t.add))
+	if not is_zero_approx(t.inc):
+		# PoE grammar: the word carries the sign, the number does not.
+		parts.append("%s%% reduced" % _num(-t.inc) if t.inc < 0.0
+				else "+%s%% increased" % _num(t.inc))
+	if not is_equal_approx(t.mult, 1.0):
+		parts.append("×%s" % _num(t.mult))
+	if not is_zero_approx(t.bon):
+		parts.append("%s bonus" % _signed(t.bon))
+	return ", ".join(parts) if not parts.is_empty() else "—"
+
+
+static func _signed(v: float) -> String:
+	return ("+" if v >= 0.0 else "−") + _num(absf(v))
+
+
+## Whole values print as ints, otherwise up to two decimals, zeros trimmed.
+static func _num(v: float) -> String:
+	if is_equal_approx(v, roundf(v)):
+		return "%d" % roundi(v)
+	return ("%.2f" % v).trim_suffix("0")
 
 
 ## Every stat id live on [member SkillNode.node_board] — baked node-only ones

@@ -30,13 +30,24 @@ func _node() -> SkillNode:
 	return node
 
 
-## Every Label's text under [param row], joined — what the player reads.
+## Every Label's text under [param row] the player can see (visible and not
+## faded to zero alpha, e.g. an idle delta chip), joined.
 func _row_text(row: Node) -> String:
 	var parts: PackedStringArray = []
 	for label in row.find_children("*", "Label", true, false):
-		if (label as Label).is_visible_in_tree():
+		if (label as Label).is_visible_in_tree() and _alpha_to(label, row) > 0.0:
 			parts.append((label as Label).text)
 	return " ".join(parts)
+
+
+func _alpha_to(item: CanvasItem, root: Node) -> float:
+	var a := 1.0
+	var n: Node = item
+	while n != null and n != root:
+		if n is CanvasItem:
+			a *= (n as CanvasItem).modulate.a * (n as CanvasItem).self_modulate.a
+		n = n.get_parent()
+	return a
 
 
 func _rows_text(panel: NodeStatsPanel) -> PackedStringArray:
