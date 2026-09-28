@@ -55,7 +55,7 @@ func test_offer_reaches_the_collectors_peer_only() -> void:
 	var link := CommandLink.new()
 	link.transport = host_end
 	link.loot_pick_registry = registry
-	link.mode = CommandLink.Mode.BROADCAST
+	link.role = NetworkConfig.Role.HOST
 	add_child_autofree(link)
 
 	var at_collector := _loot_offers_on(collector_end)
@@ -83,7 +83,7 @@ func test_offer_for_the_other_human_follows_them() -> void:
 	var link := CommandLink.new()
 	link.transport = host_end
 	link.loot_pick_registry = registry
-	link.mode = CommandLink.Mode.BROADCAST
+	link.role = NetworkConfig.Role.HOST
 	add_child_autofree(link)
 
 	var at_pair_client := _loot_offers_on(ends[1])
