@@ -339,11 +339,11 @@ ADD_BONUS magnitude = `unit · V[t]`; MULTIPLY = `1 + unit · V[t]`.
 | `movement_points` .addb (universal) | 1 | — | 0.6 | 1 | 2 | +1 +3 |
 | `deallocation_points` .addb (universal) | 1 | — | 0.8 | 1 | 2 | +1 +3 |
 | `intelligence` .inc **debuff** (str) | −5 | — | 0.5 | 1 | 1 | −5% (cost −1) |
-| `poison_potency` .inc (dex, blight) | 7 | — | 0.5 | 1 | 3 | +7% +21% +49% |
-| `corruption_potency` .inc (str, blight) | 7 | — | 0.5 | 1 | 3 | +7% +21% +49% |
-| `curse_potency` .inc (con, blight) | 7 | — | 0.5 | 1 | 3 | +7% +21% +49% |
-| `wither_potency` .inc (int, blight) | 7 | — | 0.5 | 1 | 3 | +7% +21% +49% |
-| `blindness_potency` .inc (per, blight) | 7 | — | 0.5 | 1 | 3 | +7% +21% +49% |
+| `poison_stacks_per_hit` .inc (dex, blight) | 7 | — | 0.5 | 1 | 3 | +7% +21% +49% |
+| `corruption_stacks_per_hit` .inc (str, blight) | 7 | — | 0.5 | 1 | 3 | +7% +21% +49% |
+| `curse_stacks_per_hit` .inc (con, blight) | 7 | — | 0.5 | 1 | 3 | +7% +21% +49% |
+| `wither_stacks_per_hit` .inc (int, blight) | 7 | — | 0.5 | 1 | 3 | +7% +21% +49% |
+| `blindness_stacks_per_hit` .inc (per, blight) | 7 | — | 0.5 | 1 | 3 | +7% +21% +49% |
 | `blindness_resistance` .addb (per, bless) | 0.05 | — | 0.25 | 2 | 4 | +0.05 +0.15 +0.35 |
 | `poison_resistance` .addb (dex, bless) | 0.05 | — | 0.25 | 2 | 4 | +0.05 +0.15 +0.35 |
 | `corruption_resistance` .addb (str, bless) | 0.05 | — | 0.25 | 2 | 4 | +0.05 +0.15 +0.35 |
@@ -360,7 +360,7 @@ adds mana+mana_per_turn; wis adds xp_per_turn (addb+inc, `[regular]` since
 movement_points+deallocation_points.
 
 **PER's cells (#1095) mirror the DoT shape, one stat per pole**:
-`blindness_potency` .inc `[blight]` trades `sensor_range` (now `[regular,
+`blindness_stacks_per_hit` .inc `[blight]` trades `sensor_range` (now `[regular,
 bless]`); `blindness_resistance` .addb `[bless]` trades the flat `vision_range
 +b` pool (now `[regular, blight]`). `scout_arrows_per_reload` is untouched —
 shared by all three poles (decision 5).
@@ -378,12 +378,13 @@ gives up the small `xp_per_turn` .inc pool, which after both #1093 and #1094
 land carries `subtypes = [regular]` only (decision 17).
 
 The four DoT families each have one attribute home holding both poles, gated
-by subtype (#1059): the **potency** rolls only on blighted nodes, the
+by subtype (#1059): the **potency** — the family `_stacks_per_hit` stat's
+INCREASE row, since potency retired into it (ADR 0029) — rolls only on blighted nodes, the
 **resistance** only on blessed ones — corruption → str, poison → dex,
-wither → int, curse → con. WIS and PER carry none of the four family potencies —
+wither → int, curse → con. WIS and PER carry none of the four family INCREASE rows —
 the archive umbrella above is a different (fifth, cross-family) stat, homed on
 blighted WIS instead. A build that wants poison
-on a melee blade finds `poison_potency` only on blighted DEX nodes — hybrids
+on a melee blade finds `poison_stacks_per_hit` +% only on blighted DEX nodes — hybrids
 are the deal (owner, #974): combining two concepts means allocating related
 nodes on both sides. Resistances are T2+, so they never crowd a T1 draw.
 

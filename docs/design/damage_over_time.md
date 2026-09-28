@@ -68,20 +68,22 @@ mode is a per-def knob, not a global change (the per-family shapes: the
   effect, blade vertex): a dart 0.5, an arrow 1, a blade contact 2, a venom
   cast 8. Hit size never scales stacks — that would reintroduce the
   pre/post-mitigation legibility problem for no gain.
-- **Potency** is an attacker stat per type (`poison_potency`, …), default 1.0,
-  multiplying the stacks landed. Procgen rolls it **only as `INCREASE`**
-  (+7% / +21% / +49%, the attribute ladder), because a flat +1 on a stat
-  designed at 1 is a doubling. A rare keystone roll *may* `ADD_BASE +0.1`, and
-  a specialised core class may sit at +0.2..0.5 baseline (owner, 2026-09-20).
+- **The attacker's stacks stat scales it.** Each family has one attacker stat,
+  `<family>_stacks_per_hit` (blindness: `blindness_stacks_per_hit`), and the
+  authored per-hit amount is a `base_add` on it: its flats add stacks, its
+  INCREASE / MORE multiply the total, authored amount included (ADR 0029 —
+  there is no separate potency stat). Procgen rolls it on blighted nodes as
+  `INCREASE` (+7% / +21% / +49%, the attribute ladder).
 - **Resistance** is a defender stat per type (`poison_resistance`, …),
   default 0, a fraction that reduces stacks *incurred*, read node-locally like
   armor. Battlefield-found: it rolls on blessed nodes of its family's
-  archetype ([node_subtypes.md](node_subtypes.md)). It mirrors potency and
-  snapshots at apply, so the row still holds one number. Faster decay was
+  archetype ([node_subtypes.md](node_subtypes.md)). It mirrors the stacks stat and
+  snapshots at land, so the row still holds one number. Faster decay was
   the alternative and stays available as a **class** identity later.
 
-`landed = per_hit × potency(attacker) × (1 − resistance(node))`, computed once
-at land, on the landing world.
+`landed = fold(stacks_stat(attacker), base_add = per_hit) × (1 − resistance(node))`,
+computed once at land, on the landing world, never floored (1 × +49% lands
+1.49) — `StatusDef.stacks_per_hit`.
 
 ## Cures
 
@@ -137,7 +139,7 @@ spreads faster. Own issue.
 
 Reference: an arrow is `1 + DEX/20` (1–3 early, ~11 at DEX 200); the floor of
 3 dominates early; armor 15 already floors a late hit. A 20-arrow poison volley
-= 20 stacks = 38.75 HP over five turns (20, 10, 5, 2.5, 1.25 — stacks are floats, never rounded); sustained every turn ≈ 40/turn.
+= 20 stacks = 38.75 HP over five turns (20, 10, 5, 2.5, 1.25 — the row is a float; damage lands whole (#1156)); sustained every turn ≈ 40/turn.
 
 | Node HP | Poison (one 20-arrow volley / sustained) | Direct arrows, armor 0 / 15 / 100 | Verdict |
 |---|---|---|---|
@@ -156,12 +158,11 @@ Owner's model, verbatim: *"each application adds 1 stack (unless 'extra stacks
 applied per application' stat value > 0), and damage scales with potency and
 reduces with resistance, and total damage is then up to how falloff behaves."*
 
-**Landing:** `landed = (per_hit + Σ extra_stacks(attacker)) × potency(attacker) × (1 − resistance(node))`,
-flat before the multiply. The extra-stacks stats are `{poison,corruption,curse,wither}_stacks_per_hit`
-(flat, per family, default 0) plus one shared umbrella, `dot_stacks_per_hit`, read by the
-four DoT defs and not by blindness/armor-break (`StatusDef.extra_stacks_stat_ids`, one array,
-one loop). A flat bonus doubles a 0.5-stack dart and barely touches an 8-stack cast: the
-flat-versus-increased axis. The umbrella never scales damage — potency stays per family.
+**Landing:** one fold of the family stat, the authored per-hit as its `base_add`, then
+`× (1 − resistance(node))` (§Applying). The stacks stats are `{poison,corruption,curse,wither}_stacks_per_hit`
+(per family, default 0) whose parent is one shared umbrella, `dot_stacks_per_hit` — it folds
+into each family read, never blindness's (`blindness_stacks_per_hit`, no parent) or armor-break's
+(`StatusDef.stacks_stat_id`, one id per def). The umbrella never scales damage — it lands more stacks.
 
 **Falloff and duration are not stats.** Under halving, total effect is stacks ÷ decay
 fraction, so a shared falloff stat is +25 % on every family per 0.1 step — the umbrella trap —
