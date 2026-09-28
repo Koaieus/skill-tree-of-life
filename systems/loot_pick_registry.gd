@@ -66,6 +66,17 @@ extends Node
 ## so nothing can park a request and forget to announce it.
 signal offer_parked(request: Variant)
 
+## An addressed [LootPickOffer] arrived for a collector THIS peer seats —
+## [LootSystem] opens its mirror-side picker on this. Emitted by [method
+## receive_offer] only after its ownership gate, so a listener never re-asks.
+signal offer_received(offer: LootPickOffer)
+
+## The board an incoming offer's `collector_id` resolves against — the receive
+## side's one extra dependency, wired by the composing scene. Null (a fixture
+## that only parks) means [method receive_offer] can resolve nobody and drops
+## every offer.
+@export var graph: Graph
+
 ## Injected by [method GameRoot._ready] (#564), never read off an autoload
 ## in here — a leaf system takes its dependencies, it doesn't go fetch them.
 ## Null outside an active [GameSession] run (a hand-authored sandbox with no
@@ -228,6 +239,16 @@ func is_local_collector(collector: Entity) -> bool:
 	if participant == null or participant.kind == Participant.Kind.AI:
 		return false
 	return participant.is_local(local_peer_id)
+
+
+## STUB (#1176 red): the peer that seats [param collector]'s human.
+func peer_for(_collector: Entity) -> int:
+	return 0
+
+
+## STUB (#1176 red).
+func receive_offer(_offer: LootPickOffer) -> void:
+	pass
 
 
 func pending_count() -> int:

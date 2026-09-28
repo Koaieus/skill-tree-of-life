@@ -1,24 +1,19 @@
 extends GutTest
 
-## #668 — a broadcast [LootPickOffer] must open a picker on ONE mirror peer.
+## #668, re-homed by #1176 — a [LootPickOffer] opens a picker on ONE peer.
 ##
-## [method CommandLink.send_loot_offer] is an unaddressed `transport.send`, so
-## the same offer arrives on every mirror. Before this gate, both clients raised
-## a picker for it and whichever answered first submitted a [PickLootCommand]
-## for a collector that was not theirs. Invisible at one client — "every mirror
-## peer" and "the right mirror peer" are the same set — which is why it survived
-## #564 and #646.
-##
-## The broadcast itself is not re-proved here (it is `send_loot_offer`'s two-line
-## body, and `test_loot_offer_split.gd` already covers the send/receive leg);
-## what this file stages is its consequence — the IDENTICAL offer landing on two
-## mirror peers that seat different humans.
+## The offer is now ADDRESSED to the collector's peer
+## ([method LootPickRegistry.peer_for]), so a foreign offer should never arrive;
+## [method LootPickRegistry.receive_offer]'s ownership gate survives as the
+## sanity check. What this file stages is that gate — the IDENTICAL offer
+## handed to two peers' registries that seat different humans: exactly one
+## emits [signal LootPickRegistry.offer_received].
 ##
 ## [b]Assertions are per-instance, never on the bus.[/b] `Events` is a shared
 ## autoload, so two [LootSystem]s in one process emit on the same signal and an
-## emission count alone cannot say WHICH peer opened. Each peer's own
-## `_pending_mirror_request` is the discriminator; the bus count only backs the
-## "exactly one" wording.
+## emission count alone cannot say WHICH peer opened. Each registry's own
+## `offer_received` and each peer's `_pending_mirror_request` are the
+## discriminators; the bus count only backs the "exactly one" wording.
 
 const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _BOARD := preload("res://entity/default_entity_board.tres")
@@ -53,7 +48,7 @@ func _two_peer_roster() -> ParticipantRoster:
 ## One mirror peer's world: a graph holding an entity per roster seat (spawned
 ## in roster order, so `entity_id` minting matches across peers exactly as
 ## `mp_procgen_sandbox`'s client path relies on), plus the adapter chain the
-## real scene wires — applier, registry, MIRROR link, [LootSystem].
+## real scene wires — applier, registry (on the graph), [LootSystem].
 ##
 ## [param roster] is the SAME instance both peers get, which is the point: a
 ## roster is identical on every machine and only `local_peer_id` differs.
@@ -82,23 +77,20 @@ func _mirror(label: String, local_peer: int, roster: ParticipantRoster) -> Dicti
 	var registry := LootPickRegistry.new()
 	registry.roster = roster
 	registry.local_peer_id = local_peer
+	registry.graph = graph
 	add_child_autofree(registry)
-
-	var link := CommandLink.new()
-	link.command_applier = applier
-	link.graph = graph
-	link.role = NetworkConfig.Role.CLIENT
-	add_child_autofree(link)
 
 	var system := LootSystem.new()
 	system.command_applier = applier
-	system.command_link = link
 	system.pick_registry = registry
 	add_child_autofree(system)
 
+	var received: Array[LootPickOffer] = []
+	registry.offer_received.connect(func(o: LootPickOffer) -> void: received.append(o))
+
 	return {
 		"graph": graph, "applier": applier, "registry": registry,
-		"link": link, "system": system, "entities": by_participant,
+		"system": system, "entities": by_participant, "received": received,
 	}
 
 
@@ -123,14 +115,18 @@ func test_only_the_peer_that_seats_the_collector_opens_a_picker() -> void:
 	var on_request := func(r: LootPickRequest) -> void: raised.append(r)
 	Events.loot_pick_requested.connect(on_request)
 
-	# Participant 1 sits at peer A. The offer goes to BOTH links, exactly as
-	# the unaddressed broadcast delivers it.
+	# Participant 1 sits at peer A. The offer goes to BOTH registries, as
+	# a misaddressed offer would deliver it.
 	var offer := _stat_offer((a["entities"][1] as Entity).entity_id)
-	(a["link"] as CommandLink).loot_offer_received.emit(offer)
-	(b["link"] as CommandLink).loot_offer_received.emit(offer)
+	(a["registry"] as LootPickRegistry).receive_offer(offer)
+	(b["registry"] as LootPickRegistry).receive_offer(offer)
 	await get_tree().process_frame
 	Events.loot_pick_requested.disconnect(on_request)
 
+	assert_eq((a["received"] as Array).size(), 1,
+			"offer_received fires on the registry that seats the collector")
+	assert_eq((b["received"] as Array).size(), 0,
+			"and on no other peer's registry")
 	assert_not_null((a["system"] as LootSystem)._pending_mirror_request,
 			"the peer that SEATS the collector still gets its picker, unchanged")
 	assert_null((b["system"] as LootSystem)._pending_mirror_request,
@@ -147,8 +143,8 @@ func test_the_gate_follows_the_collector_rather_than_favouring_one_peer() -> voi
 	var b := await _mirror("b", _PEER_B, roster)
 
 	var offer := _stat_offer((b["entities"][2] as Entity).entity_id)
-	(a["link"] as CommandLink).loot_offer_received.emit(offer)
-	(b["link"] as CommandLink).loot_offer_received.emit(offer)
+	(a["registry"] as LootPickRegistry).receive_offer(offer)
+	(b["registry"] as LootPickRegistry).receive_offer(offer)
 	await get_tree().process_frame
 
 	assert_null((a["system"] as LootSystem)._pending_mirror_request)
@@ -163,7 +159,7 @@ func test_a_foreign_offer_does_not_forfeit_this_peers_own_open_request() -> void
 	var roster := _two_peer_roster()
 	var a := await _mirror("a", _PEER_A, roster)
 
-	(a["link"] as CommandLink).loot_offer_received.emit(
+	(a["registry"] as LootPickRegistry).receive_offer(
 			_stat_offer((a["entities"][1] as Entity).entity_id))
 	await get_tree().process_frame
 	var mine: Variant = (a["system"] as LootSystem)._pending_mirror_request
@@ -172,7 +168,7 @@ func test_a_foreign_offer_does_not_forfeit_this_peers_own_open_request() -> void
 	# The rival's offer, broadcast to everyone including this peer.
 	var foreign := _stat_offer((a["entities"][2] as Entity).entity_id)
 	foreign.request_id = 2
-	(a["link"] as CommandLink).loot_offer_received.emit(foreign)
+	(a["registry"] as LootPickRegistry).receive_offer(foreign)
 	await get_tree().process_frame
 
 	assert_false(mine.is_resolved(),
@@ -190,7 +186,7 @@ func test_a_run_with_no_roster_still_opens_its_picker() -> void:
 	var a := await _mirror("a", _PEER_A, roster)
 	(a["registry"] as LootPickRegistry).roster = null
 
-	(a["link"] as CommandLink).loot_offer_received.emit(
+	(a["registry"] as LootPickRegistry).receive_offer(
 			_stat_offer((a["entities"][2] as Entity).entity_id))
 	await get_tree().process_frame
 
