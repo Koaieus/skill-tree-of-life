@@ -19,8 +19,6 @@ extends Node
 ## every mid-run repair (#521/#560/#561). The root re-derives what depends on
 ## the world (controllers, seat vision) on each.
 signal world_ready(reason: String)
-## Mirror-side: the host says this seat is the AI's now (#755).
-signal seat_handover(participant_id: int)
 ## Host-side only: a peer on the socket went away mid-run. The root decides
 ## what happens to the seats it held.
 signal peer_left(peer_id: int)
@@ -65,9 +63,6 @@ func _ready() -> void:
 	# a build it does not match). It arrives a message BEFORE the drop that
 	# follows it, and it is the sentence a human needs to read.
 	command_link.link_refused.connect(_on_refused_by_host)
-	# #755, mirror-side: the host telling us a dropped peer's seat is the
-	# AI's now.
-	command_link.seat_handover_received.connect(_on_seat_handover)
 	# Rung 3's protocol trace, hooked HERE rather than beside the verdict line
 	# at the tail of the root's `_ready` — by then the resync has already been
 	# pushed (host) or applied (client) and the interesting lines are gone. It is
@@ -446,18 +441,13 @@ func _on_refused_by_host(reason: String) -> void:
 ## A client never acts on THIS signal: its host leaving is
 ## [method _on_link_lost], and a sibling client leaving is the host's to detect.
 ## It does hear about the outcome — the host broadcasts the handover and every
-## mirror applies its shared half (#755, [signal seat_handover]).
+## mirror applies its shared half directly (#1179: [SeatHandover] receives its
+## own kind now; there is no relay through this class any more).
 func _on_peer_left(peer_id: int) -> void:
 	var net: NetworkConfig = GameSession.network
 	if net == null or net.role != NetworkConfig.Role.HOST:
 		return
 	peer_left.emit(peer_id)
-
-
-## Mirror-side entry for a seat handover, off
-## [signal CommandLink.seat_handover_received] (#755).
-func _on_seat_handover(participant_id: int) -> void:
-	seat_handover.emit(participant_id)
 
 
 ## The authority's world has landed (#715): the join wait may end, and the

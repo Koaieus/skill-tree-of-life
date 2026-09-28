@@ -70,10 +70,6 @@ const KEY_ENTITIES := "entities"
 const KEY_INTENT_ID := "intent"
 ## #548: why the authority refused, as a [StringName] code.
 const KEY_REASON := "reason"
-## #646: a [LootPickOffer]'s wire form. Its own key, not [constant KEY_COMMAND]
-## — an offer is explicitly NOT a [Command], and this class's convention is one
-## key per concept even where several nest a plain [Dictionary].
-const KEY_OFFER := "offer"
 ## #546: which code the sender is running. Rides the hello, never a [Command] —
 ## see [method send_hello].
 const KEY_BUILD := "build"
@@ -82,12 +78,6 @@ const KEY_BUILD := "build"
 ## sends one, it sends the single row it touched and lets the host answer with
 ## the whole thing.
 const KEY_PICK := "pick"
-## #755: which seat a [constant KIND_SEAT_HANDOVER] is about — a [member
-## Participant.id], never a `peer_id`. The peer whose id it was is by definition
-## gone, and every mirror already resolves a seat by participant id
-## ([method SeatHandover.entity_for_participant]); a mirror has no view of a
-## sibling's peer id at all.
-const KEY_PARTICIPANT := "participant"
 ## #716: what the sender CLAIMS its own peer id is, on a client's announce.
 ##
 ## [b]It is never the authority.[/b] [method NetworkLink._gate_peer] acts on
@@ -143,13 +133,6 @@ const KIND_INTENT := "intent"
 ## fingerprint compare and [DeterminismProbe] to special-case the one path that
 ## is the only cross-process diagnostic there is.
 const KIND_REFUSAL := "refusal"
-## #646's downward offer — "show this collector a pick screen, here is the
-## draw" ([LootPickOffer]). NOT a [Command]: it mutates nothing on arrival, so
-## it never touches [CommandApplier] at all, unlike every kind above it. Same
-## additive, opt-in shape as [constant KIND_SNAPSHOT] — sent only by
-## [method send_loot_offer], which [method _ready] wires to
-## [signal LootPickRegistry.offer_parked].
-const KIND_LOOT_OFFER := "loot_offer"
 ## #714's downward leg: the host's WHOLE authoritative [ParticipantRoster] while
 ## the menu is still up, after every accepted change, join or drop.
 ##
@@ -173,25 +156,6 @@ const KIND_LOBBY := "lobby"
 ## scope: a pick is an INTENT, and the host's [constant KIND_LOBBY] answer is the
 ## confirmation.
 const KIND_LOBBY_PICK := "lobby_pick"
-## #755's downward leg: "the human on this seat is gone; the AI has it now."
-## Sent by the host from [method SeatHandover.hand_seat_to_ai] when a seated peer
-## drops mid-run.
-##
-## [b]Not a [Command].[/b] Same shape as [constant KIND_LOOT_OFFER]: it never
-## touches [CommandApplier], because there is nothing to validate and nothing
-## that may refuse it — the peer is already gone, and a gate with no gate behind
-## it is only a way for the mirrors to disagree with the host. It also mutates
-## no world state that [WorldFingerprint] or [EntitySnapshot] carry
-## ([member Entity.is_human_controlled] is in neither), so it cannot desync a
-## compare.
-##
-## [b]Why it has to cross at all[/b], rather than staying the host-local banner
-## it was until #755: [method SeatPolicy.vision_group] keys on
-## [member Entity.is_human_controlled], so a coop ally on a THIRD machine kept
-## seeing through a hero that had become an AI — AI never shares vision, and the
-## host had already stopped. That fog divergence is the argument; the banner
-## every peer now gets is the smaller half.
-const KIND_SEAT_HANDOVER := "seat_handover"
 
 ## The one refusal code today — [method CommandApplier._validate] answers a
 ## bool, so there is nothing finer to report yet. A [StringName], never a UI
@@ -238,12 +202,6 @@ signal peer_cleared(peer_id: int, join_prefs: Dictionary)
 ## on this end latched — refusing the PEER is not refusing the socket.
 signal peer_refused(peer_id: int, reason: String)
 
-## #755, client-side: the host handed a dropped peer's seat to the AI. Carries
-## the [member Participant.id], decoded no further here — what a handover MEANS
-## to a level ([method SeatHandover._on_seat_handover]) is the level's, same split
-## as [signal LobbyChannel.lobby_roster_received].
-signal seat_handover_received(participant_id: int)
-
 @export var transport: NetworkTransport
 @export var command_applier: CommandApplier:
 	set(value):
@@ -263,13 +221,6 @@ signal seat_handover_received(participant_id: int)
 	set(value):
 		turn_manager = value
 		_forward_to_world(&"turn_manager", value)
-## #646: the outstanding-pick book, ONLY consulted here for
-## [signal LootPickRegistry.offer_parked] — the trigger for
-## [method send_loot_offer]. Null is supported (no registry wired, e.g. every
-## existing [CommandLink] test): the offer leg simply never sends, same as
-## every other additive/opt-in kind on this class.
-@export var loot_pick_registry: LootPickRegistry
-
 ## #529's measurement, optional and OFF unless a harness enables it. A null
 ## probe, or a disabled one, costs one branch per received command — the hooks
 ## below are three calls and no logic, because the question "could a peer have
@@ -349,8 +300,6 @@ func _ready() -> void:
 		command_applier.intent_submitted.connect(_on_intent_submitted)
 		command_applier.command_applied.connect(_on_command_applied)
 		command_applier.command_stamped.connect(_on_command_stamped)
-	if loot_pick_registry != null:
-		loot_pick_registry.offer_parked.connect(_on_offer_parked)
 
 
 ## shim: re-emit the world channel's signals here and hand it what callers
@@ -489,20 +438,10 @@ var defer_until_resync: bool:
 ## [b]Dropped[/b]
 ## [constant KIND_COMMAND]: the whole point. A world mutation against a
 ## half-built graph, superseded wholesale by the resync.
-## [constant KIND_LOOT_OFFER]: not a [Command], but it parks state. It resolves
-## `collector_id` through the applier's graph (null, mid-generation), binds a
-## [signal Entity.died] handler on an entity the resync is about to reconcile,
-## and parks [code]LootSystem._pending_mirror_request[/code]. It also cannot be
-## FOR this peer — an offer follows its collector's own claim, and a peer still
-## joining has taken no action to claim from. The whole window is pre-HUD too,
-## so nothing is listening on `Events.loot_pick_requested` to answer it; letting
-## it through buys a forfeit against the wrong world, not an answer.
-## [constant KIND_SEAT_HANDOVER]: it names a seat by [member Participant.id]
-## and a peer mid-join has no entities to resolve one against. Nothing is lost
-## by dropping it — the [constant KIND_SETUP] this peer is joining on carries
-## the host's roster as it stands NOW, seat already AI, so the join applies the
-## same flip by the shorter route. Its banner is dropped with it, correctly: it
-## announces something that happened before this peer was in the room.
+##
+## (#1179: the loot-offer and seat-handover rulings that used to live here now
+## live on [LootOfferChannel] and [SeatHandover] respectively, each via its own
+## [member LinkChannel.deferred_until_world].)
 ##
 ## [b]Passed[/b]
 ## [constant KIND_SETUP], [constant KIND_SNAPSHOT], [constant KIND_ENTITIES],
@@ -518,7 +457,7 @@ var defer_until_resync: bool:
 ## joining client has raised none — but it mutates nothing and a swallowed
 ## refusal would strand a waiting submitter forever, which is exactly the
 ## failure #548 refused to ship.
-const DEFERRED_KINDS: Array[String] = [KIND_COMMAND, KIND_LOOT_OFFER, KIND_SEAT_HANDOVER]
+const DEFERRED_KINDS: Array[String] = [KIND_COMMAND]
 
 
 
@@ -537,72 +476,6 @@ func send_lobby_roster(roster: ParticipantRoster) -> void:
 		return
 	transport.send({KEY_KIND: KIND_LOBBY, KEY_ROSTER: roster.to_dict()})
 
-
-
-## #646 send side. [method LootPickRegistry.park] only ever parks a REMOTE
-## claim ([LootRoundCommandHandler]'s `_await_pick`), so every [signal
-## LootPickRegistry.offer_parked] this connects to is, by construction, a pick
-## that owes a downward offer — ADDRESSED to [method LootPickRegistry.peer_for]'s
-## answer: nobody but the picker needs to know until the pick lands as a
-## [LootRoundCommand]. Host-only and NOT gated on [member graph] — unlike every
-## other `send_*` here, this message names no node, only stat candidates (BY
-## VALUE) or spell ids.
-func _on_offer_parked(request: Variant) -> void:
-	var peer_id := loot_pick_registry.peer_for(request.collector)
-	if peer_id == 0:
-		_log("✗ loot offer: no peer seats the collector")
-		return
-	send_loot_offer(_offer_for(request), peer_id)
-
-
-func _offer_for(request: Variant) -> LootPickOffer:
-	if request is SpellLootRequest:
-		return LootPickOffer.for_spell_request(request as SpellLootRequest)
-	return LootPickOffer.for_stat_request(request as LootPickRequest)
-
-
-## Send [param offer] to [param peer_id] alone. Mutates nothing and carries no
-## [Command] — see [constant KIND_LOOT_OFFER].
-func send_loot_offer(offer: LootPickOffer, peer_id: int) -> void:
-	if transport == null or role != NetworkConfig.Role.HOST or offer == null:
-		return
-	transport.send_to(peer_id, {KEY_KIND: KIND_LOOT_OFFER, KEY_OFFER: offer.to_dict()})
-	_log("→ loot offer (request %d, collector %d) to peer %d" %
-			[offer.request_id, offer.collector_id, peer_id])
-
-
-## #646 receive side. Decodes and hands to [method
-## LootPickRegistry.receive_offer], which gates ownership and emits the signal
-## [LootSystem] opens its picker on — the link itself opens nothing.
-func _on_loot_offer(payload: Dictionary) -> void:
-	if role != NetworkConfig.Role.CLIENT:
-		return
-	var offer := LootPickOffer.from_dict(payload.get(KEY_OFFER, {}))
-	if loot_pick_registry != null:
-		loot_pick_registry.receive_offer(offer)
-	_log("← loot offer (request %d, collector %d)" %
-			[offer.request_id, offer.collector_id])
-
-
-## #755 send side, host-only. Broadcast rather than addressed: every mirror
-## needs the flip, and the one peer that does not — the one that left — is not
-## on the link to receive it.
-func send_seat_handover(participant_id: int) -> void:
-	if transport == null or role != NetworkConfig.Role.HOST or participant_id == 0:
-		return
-	transport.send({KEY_KIND: KIND_SEAT_HANDOVER, KEY_PARTICIPANT: participant_id})
-	_log("→ seat %d handed to the AI" % participant_id)
-
-
-## #755 receive side. Decodes and re-emits — see [signal seat_handover_received].
-func _on_seat_handover(payload: Dictionary) -> void:
-	if role != NetworkConfig.Role.CLIENT:
-		return
-	var participant_id := int(payload.get(KEY_PARTICIPANT, 0))
-	if participant_id == 0:
-		return
-	seat_handover_received.emit(participant_id)
-	_log("← seat %d handed to the AI" % participant_id)
 
 
 ## Mirrors off [signal CommandApplier.command_confirmed], NOT `command_applied`:
@@ -729,7 +602,7 @@ func _on_refusal(payload: Dictionary) -> void:
 ## Every kind this link still carries until the world-sync, loot-offer and
 ## command channels split it (the core owns hello/refused; the lobby its own).
 func kinds() -> Array[String]:
-	return [KIND_COMMAND, KIND_INTENT, KIND_REFUSAL, KIND_LOOT_OFFER, KIND_SEAT_HANDOVER]
+	return [KIND_COMMAND, KIND_INTENT, KIND_REFUSAL]
 
 
 ## Only [constant DEFERRED_KINDS] wait for a world; the rest are how one arrives.
@@ -745,10 +618,6 @@ func receive(kind: String, payload: Dictionary) -> void:
 			_on_intent(payload)
 		KIND_REFUSAL:
 			_on_refusal(payload)
-		KIND_LOOT_OFFER:
-			_on_loot_offer(payload)
-		KIND_SEAT_HANDOVER:
-			_on_seat_handover(payload)
 
 
 ## shim: the world's legs are [WorldSyncChannel]'s; forwarded until the callers
