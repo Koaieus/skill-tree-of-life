@@ -210,7 +210,7 @@ runtime. Chasing the cache gets you nowhere, twice.
 Get the real error out of the file itself:
 
 ```bash
-godot --headless --path . --check-only --script network/world_fingerprint.gd
+godot --headless --path . --check-only --script command/world_fingerprint.gd
 ```
 
 That prints the parse error with a line number. Ignore any *"Identifier not
