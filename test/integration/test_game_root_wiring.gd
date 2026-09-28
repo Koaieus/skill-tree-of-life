@@ -66,6 +66,7 @@ const _EXPORT_DEPS: Array = [
 	["Systems/PlayerInputController", "command_applier"],
 	["Systems/VisionSystem", "graph"],
 	["Systems/VisionSystem", "allocation_system"],
+	["Systems/VisionSystem", "turn_manager"],
 	["Systems/VictorySystem", "graph"],
 	["Systems/VictorySystem", "turn_manager"],
 	["Systems/CameraDirector", "camera"],
