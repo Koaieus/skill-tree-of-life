@@ -72,6 +72,7 @@ enum DecayMode {
 ## that must not grow per hit lists nothing. Null attacker or an unknown id
 ## contributes 0.
 @export var extra_stacks_stat_ids: Array[StringName] = []
+@export var stacks_stat_id: StringName = &""
 ## Power is clamped to this on apply and on accumulate. `<= 0` → uncapped
 ## (#962): [method NodeCombat.apply_status] skips the clamp entirely.
 @export var power_max: float = 1.0
@@ -96,6 +97,10 @@ func get_description() -> String:
 		return description
 	var name := display_name if not display_name.is_empty() else String(id)
 	return "%s (max %s, -%s per turn)" % [name, NumFmt.num(power_max), NumFmt.num(decay_per_tick)]
+
+
+func stacks_per_hit(board: StatBoard, authored: float) -> float:
+	return authored
 
 
 ## The power this status would carry after one tick's decay — the one place

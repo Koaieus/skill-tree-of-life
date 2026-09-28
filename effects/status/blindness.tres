@@ -20,3 +20,4 @@ cure_per_hp = 0.0
 on_dealloc = 0
 depth_k = 3.0
 floor_factor = 0.1
+stacks_stat_id = &"blindness_stacks_per_hit"

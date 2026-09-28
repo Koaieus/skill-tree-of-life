@@ -8,8 +8,8 @@ const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _BOARD := preload("res://entity/default_entity_board.tres")
 const _TEST_DEF := preload("res://test/fixtures/status/test_status.tres")
-## Same shape with `potency_stat_id` / `resistance_stat_id` naming the poison
-## pair (#963) — a `.tres` so it survives an AttackRecord round trip by path.
+## Same shape with `stacks_stat_id` / `resistance_stat_id` naming the poison
+## pair — a `.tres` so it survives an AttackRecord round trip by path.
 const _SCALED_DEF := preload("res://test/fixtures/status/test_scaled_status.tres")
 const _POISON := preload("res://effects/status/poison.tres")
 const _BLINDNESS := preload("res://effects/status/blindness.tres")
@@ -68,23 +68,33 @@ func _status_hit(power: float = 2.0, def: StatusDef = _TEST_DEF) -> StatusInstan
 	return hit
 
 
-## A power-2 hit of the scaled def from `_attacker`, with the potency /
-## resistance pair set on the two boards (hand-built objects, never authored
-## content): 2 × 1.21 × (1 − 0.3) = 1.694.
-func _scaled_hit(potency: float = 1.21, resistance: float = 0.3) -> StatusInstance:
-	_attacker.stat_board.get_stat(&"poison_potency").base_value = potency
+## A power-2 hit of the scaled def from `_attacker`, with the stacks INCREASE
+## / resistance pair set on the two boards (hand-built objects, never authored
+## content): [param scale] 1.21 is +21% on `poison_stacks_per_hit`, so
+## 2 × 1.21 × (1 − 0.3) = 1.694.
+func _scaled_hit(scale: float = 1.21, resistance: float = 0.3) -> StatusInstance:
+	_attacker.stat_board.add_modifier(_mod(&"poison_stacks_per_hit",
+			StatModifier.Operation.INCREASE, (scale - 1.0) * 100.0))
 	_entity.stat_board.get_stat(&"poison_resistance").base_value = resistance
 	var hit := _status_hit(2.0, _SCALED_DEF)
 	hit.attacker = _attacker
 	return hit
 
 
-func _resistance_mod(add: float) -> StatModifier:
+func _mod(stat_id: StringName, op: StatModifier.Operation, value: float) -> StatModifier:
 	var m := StatModifier.new()
-	m.stat_id = &"poison_resistance"
-	m.operation = StatModifier.Operation.ADD_BASE
-	m.value = add
+	m.stat_id = stat_id
+	m.operation = op
+	m.value = value
 	return m
+
+
+func _add_base(stat_id: StringName, value: float) -> StatModifier:
+	return _mod(stat_id, StatModifier.Operation.ADD_BASE, value)
+
+
+func _resistance_mod(add: float) -> StatModifier:
+	return _add_base(&"poison_resistance", add)
 
 
 func test_land_on_a_shadow_leaves_the_live_node_untouched() -> void:
@@ -111,9 +121,13 @@ func test_land_on_carries_power_into_amount_and_effective_amount() -> void:
 			"AttackRecord.capture reads effective_amount generically — a status must ride it")
 
 
-# ── Potency × (1 − resistance), once, at land (#963) ─────────────────────────
+# ── One fold of the stacks stat, then × (1 − resistance), once, at land ─────
+#
+# The authored per-hit power is a `base_add` overlay on the attacker's stacks
+# stat (ADR 0029): its flats add to it, its INCREASE / MORE scale it, and its
+# `parent_ids` fold `dot_stacks_per_hit` in the same read.
 
-func test_land_scales_power_by_attacker_potency_and_node_resistance() -> void:
+func test_land_scales_power_by_the_stacks_increase_and_node_resistance() -> void:
 	var hit := _scaled_hit(1.21, 0.3)
 	OutcomeApplier.land_one(hit, CombatWorld.live())
 	assert_almost_eq(_node.get_combat().get_status_power(&"test_scaled_status"), 1.694, 0.0001,
@@ -122,7 +136,7 @@ func test_land_scales_power_by_attacker_potency_and_node_resistance() -> void:
 			"the LANDED stacks ride effective_amount — that is what the record ships")
 
 
-func test_a_null_attacker_scales_potency_by_one() -> void:
+func test_a_null_attacker_lands_the_authored_amount() -> void:
 	var hit := _scaled_hit(1.21, 0.3)
 	hit.attacker = null
 	OutcomeApplier.land_one(hit, CombatWorld.live())
@@ -132,7 +146,8 @@ func test_a_null_attacker_scales_potency_by_one() -> void:
 
 func test_blank_ids_leave_power_unscaled() -> void:
 	# Both boards carry the pair, but the def does not name it.
-	_attacker.stat_board.get_stat(&"poison_potency").base_value = 1.21
+	_attacker.stat_board.add_modifier(_mod(&"poison_stacks_per_hit",
+			StatModifier.Operation.INCREASE, 21.0))
 	_entity.stat_board.get_stat(&"poison_resistance").base_value = 0.3
 	var hit := _status_hit(2.0, _TEST_DEF)
 	hit.attacker = _attacker
@@ -140,63 +155,68 @@ func test_blank_ids_leave_power_unscaled() -> void:
 	assert_almost_eq(_node.get_combat().get_status_power(&"test_status"), 2.0, 0.0001)
 
 
-## A poison hit of [param per_hit] from `_attacker`, potency 1.21 and the
-## defender's resistance 0.3, with the family extra-stacks stat set.
-func _poison_hit(per_hit: float, family_extra: float) -> StatusInstance:
-	_attacker.stat_board.get_stat(&"poison_potency").base_value = 1.21
-	_entity.stat_board.get_stat(&"poison_resistance").base_value = 0.3
-	_attacker.stat_board.get_stat(&"poison_stacks_per_hit").base_value = family_extra
+## A poison hit of [param per_hit] from `_attacker`; no resistance.
+func _poison_hit(per_hit: float) -> StatusInstance:
 	var hit := _status_hit(per_hit, _POISON)
 	hit.attacker = _attacker
 	return hit
 
 
-func test_family_extra_stacks_add_flat_before_potency() -> void:
-	var hit := _poison_hit(0.5, 1.0)
+func test_a_49_percent_increase_lands_1_49_never_floored() -> void:
+	_attacker.stat_board.add_modifier(_mod(&"poison_stacks_per_hit",
+			StatModifier.Operation.INCREASE, 49.0))
+	var hit := _poison_hit(1.0)
 	OutcomeApplier.land_one(hit, CombatWorld.live())
-	assert_almost_eq(_node.get_combat().get_status_power(&"poison"), 1.5 * 1.21 * 0.7, 0.0001,
-			"(0.5 + 1) × 1.21 × (1 − 0.3)")
-	assert_almost_eq(hit.effective_amount, 1.5 * 1.21 * 0.7, 0.0001)
+	assert_almost_eq(hit.effective_amount, 1.49, 0.0001, "1 authored × +49%, the row is a float")
+	assert_almost_eq(_node.get_combat().get_status_power(&"poison"), 1.49, 0.0001)
 
 
-## `dot_stacks_per_hit` is the family parent of `poison_stacks_per_hit`: it
-## folds into the child's read, so the status lists only the child — listing
-## both would count the umbrella twice.
+func test_a_flat_on_the_umbrella_reaches_poison() -> void:
+	_attacker.stat_board.add_modifier(_add_base(&"dot_stacks_per_hit", 1.0))
+	var hit := _poison_hit(1.0)
+	OutcomeApplier.land_one(hit, CombatWorld.live())
+	assert_almost_eq(_node.get_combat().get_status_power(&"poison"), 2.0, 0.0001,
+			"1 authored + 1 from the parent")
+
+
+func test_a_more_on_the_family_stat_scales_the_authored_amount_too() -> void:
+	_attacker.stat_board.add_modifier(_mod(&"poison_stacks_per_hit",
+			StatModifier.Operation.MULTIPLY, 2.0))
+	_attacker.stat_board.add_modifier(_add_base(&"poison_stacks_per_hit", 1.0))
+	var hit := _poison_hit(1.0)
+	OutcomeApplier.land_one(hit, CombatWorld.live())
+	assert_almost_eq(_node.get_combat().get_status_power(&"poison"), 4.0, 0.0001,
+			"(1 authored + 1 flat) × 2")
+
+
 func test_the_umbrella_folds_into_the_family_stat_exactly_once() -> void:
-	var hit := _poison_hit(0.5, 0.0)
 	_attacker.stat_board.add_modifier(_add_base(&"dot_stacks_per_hit", 2.0))
 	_attacker.stat_board.add_modifier(_add_base(&"poison_stacks_per_hit", 1.0))
+	var hit := _poison_hit(0.5)
 	OutcomeApplier.land_one(hit, CombatWorld.live())
-	assert_almost_eq(_node.get_combat().get_status_power(&"poison"), 3.5 * 1.21 * 0.7, 0.0001,
-			"(0.5 + 1 + 2) × 1.21 × (1 − 0.3), the umbrella counted once")
+	assert_almost_eq(_node.get_combat().get_status_power(&"poison"), 3.5, 0.0001,
+			"0.5 + 1 + 2, the umbrella counted once")
 
 
-func _add_base(stat_id: StringName, value: float) -> StatModifier:
-	var m := StatModifier.new()
-	m.stat_id = stat_id
-	m.operation = StatModifier.Operation.ADD_BASE
-	m.value = value
-	return m
-
-
-func test_blindness_ignores_the_dot_extra_stacks() -> void:
-	_attacker.stat_board.get_stat(&"poison_stacks_per_hit").base_value = 1.0
-	_attacker.stat_board.get_stat(&"dot_stacks_per_hit").base_value = 0.5
-	var hit := _status_hit(1.0, _BLINDNESS)
-	hit.attacker = _attacker
-	OutcomeApplier.land_one(hit, CombatWorld.live())
-	assert_almost_eq(_node.get_combat().get_status_power(&"blindness"), 1.0, 0.0001,
-			"blindness lists no extra-stacks stat")
-
-
-func test_blindness_scales_by_its_own_potency_and_resistance() -> void:
-	_attacker.stat_board.get_stat(&"blindness_potency").base_value = 2.0
+func test_blindness_ignores_the_umbrella_and_folds_its_own_stat() -> void:
+	_attacker.stat_board.add_modifier(_add_base(&"poison_stacks_per_hit", 1.0))
+	_attacker.stat_board.add_modifier(_add_base(&"dot_stacks_per_hit", 0.5))
+	_attacker.stat_board.add_modifier(_mod(&"blindness_stacks_per_hit",
+			StatModifier.Operation.INCREASE, 100.0))
 	_entity.stat_board.get_stat(&"blindness_resistance").base_value = 0.25
 	var hit := _status_hit(1.0, _BLINDNESS)
 	hit.attacker = _attacker
 	OutcomeApplier.land_one(hit, CombatWorld.live())
 	assert_almost_eq(_node.get_combat().get_status_power(&"blindness"), 1.5, 0.0001,
-			"1 × 2 × (1 − 0.25)")
+			"1 × +100% × (1 − 0.25); dot_stacks_per_hit is not blindness's parent")
+
+
+func test_stacks_per_hit_answers_authored_on_a_null_board_or_blank_id() -> void:
+	assert_almost_eq(_POISON.stacks_per_hit(null, 1.5), 1.5, 0.0001, "null board")
+	assert_almost_eq(_TEST_DEF.stacks_per_hit(_attacker.stat_board, 1.5), 1.5, 0.0001, "blank id")
+	_attacker.stat_board.add_modifier(_add_base(&"poison_stacks_per_hit", 1.0))
+	assert_almost_eq(_POISON.stacks_per_hit(_attacker.stat_board, 1.5), 2.5, 0.0001,
+			"the public fold the readout shares")
 
 
 func test_a_shadow_land_reads_the_shadow_nodes_resistance_never_the_live_one() -> void:

@@ -20,3 +20,4 @@ decay_per_tick = 0.5
 display_max = 10.0
 reapply = 1
 cure_per_hp = 0.25
+stacks_stat_id = &"poison_stacks_per_hit"

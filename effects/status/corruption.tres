@@ -19,3 +19,4 @@ decay_per_tick = 0.2
 display_max = 10.0
 reapply = 1
 cure_per_hp = 0.05
+stacks_stat_id = &"corruption_stacks_per_hit"
