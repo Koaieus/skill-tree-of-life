@@ -199,13 +199,17 @@ func temp_upgrade_kinds() -> Array[TempUpgradeDef]:
 	return temp_upgrade_catalog.kinds
 
 
+## Mints through [method BattleSystem.mint_plan] — the one minter an
+## [AIController]'s [method BattleSystem.new_plan] shares — then layers on this
+## seat's sticky preferences, which belong to the slot's human alone.
 func _new_plan(plan_class: Script) -> AttackPlan:
-	var p: AttackPlan = plan_class.new()
-	p.attacker = turn_manager.current_entity
-	if p is MagicAttackPlan:
-		(p as MagicAttackPlan).viewer_vision = vision_system
-		if selected_spell != null:
-			(p as MagicAttackPlan).spell = selected_spell
+	var mode := BattleSystem.AttackMode.NONE
+	if plan_class == MeleeAttackPlan: mode = BattleSystem.AttackMode.MELEE
+	elif plan_class == RangedAttackPlan: mode = BattleSystem.AttackMode.RANGED
+	elif plan_class == MagicAttackPlan: mode = BattleSystem.AttackMode.MAGIC
+	var p := BattleSystem.mint_plan(mode, turn_manager.current_entity, vision_system)
+	if p is MagicAttackPlan and selected_spell != null:
+		(p as MagicAttackPlan).spell = selected_spell
 	if p is MeleeAttackPlan:
 		(p as MeleeAttackPlan).swing_cw = next_melee_cw
 	return p

@@ -81,8 +81,8 @@ func before_each() -> void:
 	_player = _make_entity("Player")
 	_graph.entities_container.add_child(_player)
 	_player.add_child(PlayerController.new())
-	# The AI is driven by hand through `_execute_candidate`; the entity itself
-	# carries no controller, so starting its turn races no `take_turn`.
+	# The AI is driven by hand through `_execute_candidate`; it is not the
+	# entity's child, so starting its turn races no `take_turn`.
 	_enemy = _make_entity("Enemy")
 	_graph.entities_container.add_child(_enemy)
 	_ai = AIController.new()
@@ -90,6 +90,8 @@ func before_each() -> void:
 	_ai.command_applier = _applier
 	_ai.battle_system = _bs
 	add_child_autofree(_ai)
+	# Wired after `_ready`, so it never subscribes to `turn_began`.
+	_ai.entity = _enemy
 	_hostile = _make_entity("Hostile", _PLAYER_FACTION)
 	_graph.entities_container.add_child(_hostile)
 

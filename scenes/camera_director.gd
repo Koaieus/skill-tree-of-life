@@ -231,13 +231,16 @@ func is_focusing() -> bool:
 
 
 ## The [AttackPlan] a commit is hanging off, or null for an unwired battle
-## system. [member BattleSystem.attack_plan] is guaranteed live during a commit
-## — `_commit` holds it through the whole launch (#406). Mode-agnostic since
-## ADR 0027: every mode takes the #866 treatment.
+## system. [member BattleSystem.in_flight_plan] is guaranteed live during a
+## commit — `_commit` holds it through the whole launch (#406), whoever
+## launched it. Mode-agnostic since ADR 0027: every mode takes the #866
+## treatment. Outside a launch it falls back to the armed slot plan — the
+## aim-time picture a request built off-commit frames.
 func _live_plan() -> AttackPlan:
 	if battle_system == null:
 		return null
-	return battle_system.attack_plan
+	var in_flight := battle_system.in_flight_plan
+	return in_flight if in_flight != null else battle_system.attack_plan
 
 
 func is_shot_locked() -> bool:

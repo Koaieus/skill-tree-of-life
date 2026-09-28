@@ -192,7 +192,9 @@ func _process(_delta: float) -> void:
 	if battle_system == null:
 		set_process(false)
 		return
-	var replay_plan := battle_system.attack_plan as MeleeAttackPlan
+	# The replay is a launch in flight — an AI's or a mirror's plan never sits
+	# in the slot, so it is read off `in_flight_plan`.
+	var replay_plan := battle_system.in_flight_plan as MeleeAttackPlan
 	if replay_plan != null and replay_plan.is_replaying():
 		# #796: a committed swing's resim keeps stepping regardless of
 		# `_live_swing` / `preview_enabled` — [method launch]'s docstring
@@ -228,7 +230,8 @@ func focus_marker() -> Node2D:
 		return _ghost.focus_marker()
 	if battle_system == null:
 		return null
-	var plan := battle_system.attack_plan as MeleeAttackPlan
+	var in_flight := battle_system.in_flight_plan
+	var plan := (in_flight if in_flight != null else battle_system.attack_plan) as MeleeAttackPlan
 	if plan == null or plan.source == null or not is_instance_valid(plan.source):
 		return null
 	return plan.source

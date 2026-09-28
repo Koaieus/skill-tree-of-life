@@ -685,58 +685,50 @@ func _gather_magic_candidates(visible_enemies: Array[SkillNode]) -> Array[AiComb
 	return out
 
 
-## Re-requests the mode fresh off [BattleSystem] (which stamps the live
-## `attacker`) and copies the scored candidate's target/source/spell onto it,
-## rather than committing the throwaway plan [method _gather_ranged_candidates]
-## / [method _gather_magic_candidates] scored against — BattleSystem owns the
-## one live [member BattleSystem.attack_plan] and its signal-driven UI/VFX
-## seam, so scoring must not mutate it N times per turn.
+## Builds its OWN plan with [method BattleSystem.new_plan] and copies the scored
+## candidate's target/source/spell onto it, rather than committing the throwaway
+## plan [method _gather_ranged_candidates] / [method _gather_magic_candidates]
+## scored against — and never through the [AttackPlanSlot], which is the seated
+## human's plan-in-progress: the AI neither arms, cancels nor reads it.
 func _execute_candidate(candidate: AiCombatScorer.ScoredCandidate) -> bool:
 	var bs := battle_system
 	if bs == null or candidate == null:
 		return false
-	bs.request_attack_mode(candidate.mode)
+	var attack := bs.new_plan(candidate.mode, entity)
 	match candidate.mode:
 		BattleSystem.AttackMode.RANGED:
-			var plan := bs.attack_plan as RangedAttackPlan
-			if plan == null:
-				return false
+			var plan := attack as RangedAttackPlan
 			plan.target = candidate.target
 			# The N that was scored is the N that fires (#958).
 			plan.ammo_counts = candidate.ammo_counts.duplicate()
 		BattleSystem.AttackMode.MAGIC:
-			var plan := bs.attack_plan as MagicAttackPlan
-			if plan == null:
-				return false
+			var plan := attack as MagicAttackPlan
 			plan.source = candidate.source_node
 			plan.spell = candidate.spell
 			plan.target = candidate.target
 		BattleSystem.AttackMode.MELEE:
-			var plan := bs.attack_plan as MeleeAttackPlan
-			if plan == null:
-				return false
+			var plan := attack as MeleeAttackPlan
 			plan.source = candidate.source_node
 			plan.blade_nodes = candidate.blade_nodes
-			# Not cosmetic, and not optional: the rollout ranked and resolved
-			# THIS direction. `request_attack_mode` seeds a fresh plan from
-			# `BattleSystem.next_melee_cw` — the HUMAN's sticky tray toggle —
-			# so leaving it alone makes an AI swing whichever way the player
-			# last chose, which is neither what was scored nor reproducible.
+			# The rollout ranked and resolved THIS direction; `new_plan` carries
+			# no human sticky toggle, and this is what makes the swing the
+			# scored one.
 			plan.swing_cw = candidate.swing_cw
 			# #823 requirement 9: arm the SAME handle the rollout scored —
-			# same shape [member AiCombatScorer.ScoredCandidate.swing_cw]
-			# above is, and same reason: a phantom clamp only ever existed to
-			# be scored (`MeleeAttackPlan.ai_phantom_clamp_nodes`), so
-			# launching without turning it into a real temp-upgrade addon
-			# would execute a floppier blade than the one that won. No new
-			# command (owner, 2026-08-21: AI is host-only, so direct calls
-			# are fine) — the same door `apply_temp_upgrade`'s UI caller uses.
+			# a phantom clamp only ever existed to be scored
+			# (`MeleeAttackPlan.ai_phantom_clamp_nodes`), so launching without
+			# turning it into a real temp-upgrade addon would execute a floppier
+			# blade than the one that won. Attached on THIS plan, directly — no
+			# command (owner, 2026-08-21: AI is host-only, so direct calls are
+			# fine).
+			var clamp := bs.temp_upgrade_by_id(&"clamp")
 			for node in candidate.clamp_nodes:
-				bs.toggle_temp_upgrade_on(node, bs.temp_upgrade_by_id(&"clamp"))
+				plan.toggle_temp_upgrade(node, clamp)
 		_:
 			return false
-	if not bs.attack_plan.is_valid():
-		bs.cancel_attack()
+	if not attack.is_valid():
+		# Never launched, so its temp-upgrade addons would otherwise outlive it.
+		attack.reset()
 		return false
 	# A plain call, and deliberately so: since #511 `launch_attack` IS the
 	# routing — it builds the [LaunchAttackCommand], submits it, and awaits that
@@ -749,7 +741,7 @@ func _execute_candidate(candidate: AiCombatScorer.ScoredCandidate) -> bool:
 	# **owner call 2026-08-21:** *"hmm well AI will only be ran by the host, so
 	# to me it matters little how they do it, via a command or directly.
 	# clients won't ever run AI controllers anyway."*
-	await bs.launch_attack()
+	await bs.launch_attack(attack)
 	return true
 
 

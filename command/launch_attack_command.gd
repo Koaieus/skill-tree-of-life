@@ -44,9 +44,9 @@ var record: Dictionary = {}
 
 ## [b]Did THIS machine compute [member record][/b] — set by
 ## [method BattleSystem.prepare_launch_command] when it resolves, read by
-## [method BattleSystem.apply_launch_command] to decide whether the live
-## [member BattleSystem.attack_plan] is this command's plan or whether the plan
-## has to be rebuilt from [member plan].
+## [method BattleSystem.apply_launch_command] to decide whether
+## [member local_plan] is the plan this machine resolved or whether it has to be
+## rebuilt from [member plan].
 ##
 ## [b]Transient applier state — deliberately absent from [method to_dict] and
 ## [method from_dict][/b], exactly like [member Command.pre_fingerprint] and for
@@ -59,6 +59,17 @@ var record: Dictionary = {}
 ## (#545): the authority now reaches [method BattleSystem.apply_launch_command]
 ## with a POPULATED record, so emptiness no longer distinguishes the halves.
 var computed_here: bool = false
+
+## [b]The plan this command launches, on THIS machine[/b] — the authority's own
+## plan object (the HUD's armed plan, or one an [AIController] built), or a
+## mirror's [method AttackPlanCodec.from_dict] of [member plan]. What
+## [method BattleSystem.apply_launch_command] commits; never the
+## [AttackPlanSlot]'s by re-read.
+##
+## [b]Local-only, like [member computed_here][/b]: never in [method to_dict], so
+## it never reaches the wire or a committed outcome fixture. Off the wire it is
+## null until the apply half decodes into it.
+var local_plan: AttackPlan = null
 
 ## The seed the authority stamped for this attack, carried separately from
 ## [member record] because it is an INPUT to resolution, not a result of it.

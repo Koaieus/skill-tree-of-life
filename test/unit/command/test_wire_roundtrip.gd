@@ -15,10 +15,10 @@ const ITERATIONS := 25
 
 ## Vars that deliberately never ride the command's own dictionary — see the
 ## notes on [member Command.pre_fingerprint] and
-## [member LaunchAttackCommand.computed_here]. A new var on a command is
+## [member LaunchAttackCommand.computed_here] / [member LaunchAttackCommand.local_plan]. A new var on a command is
 ## either declared in `wire_fields()` or named here, on purpose.
 const TRANSIENT: Array[StringName] = [
-	&"pre_fingerprint", &"host_fingerprint", &"computed_here",
+	&"pre_fingerprint", &"host_fingerprint", &"computed_here", &"local_plan",
 ]
 
 ## Tagless records — classes that join [WireFields] without being a [Command],

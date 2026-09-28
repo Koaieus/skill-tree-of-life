@@ -293,12 +293,56 @@ func _sync_pick_sensed() -> void: plan_slot._sync_pick_sensed()
 func _invalidate_plan_union() -> void: plan_slot._invalidate_plan_union()
 
 
-## The launch-side teardown: drops this system's [member _coordinator], then
-## the plan through [method AttackPlanSlot._reset]. [method _commit] calls it at
-## release.
+## The launch-side teardown, at [method _commit]'s release: drops
+## [member _coordinator], resets the plan that was in flight (freeing its
+## temp-upgrade addons), and clears the slot only when the slot holds that same
+## plan — an AI's or a replay's launch leaves the human's armed plan alone.
 func _reset() -> void:
 	_coordinator = null
-	plan_slot._reset()
+	var plan := _in_flight_plan
+	_in_flight_plan = null
+	if plan == null:
+		return
+	if plan_slot.attack_plan == plan:
+		plan_slot._reset()
+	else:
+		plan.reset()
+
+
+## The plan being launched right now, from [method _commit]'s entry to its
+## release; null between launches. Read-only outside: the launch path is its
+## one writer. Every reader of "the plan on screen during a swing" —
+## [method presenter], [MeleePreview]'s replay pump, [CameraDirector] — reads
+## this, never [member attack_plan], because an AI's or a mirror's launch never
+## passes through the slot.
+var in_flight_plan: AttackPlan:
+	get: return _in_flight_plan
+var _in_flight_plan: AttackPlan = null
+
+
+## Mint a fresh plan for [param mode], attacked by [param attacker], wired with
+## this system's defaults (the viewing seat's fog). Null for
+## [constant AttackMode.NONE]. Carries none of the human's sticky tray
+## preferences — [member next_melee_cw], [member selected_spell] — which the
+## [AttackPlanSlot] layers on for its own plans; an explicit attacker gets the
+## plan's own defaults.
+func new_plan(mode: AttackMode, attacker: Entity) -> AttackPlan:
+	return mint_plan(mode, attacker, plan_slot.vision_system)
+
+
+## The one plan minter, shared by [method new_plan] and
+## [method AttackPlanSlot._new_plan] (which holds no [BattleSystem] reference).
+static func mint_plan(mode: AttackMode, attacker: Entity, vision: VisionSystem) -> AttackPlan:
+	var p: AttackPlan
+	match mode:
+		AttackMode.MELEE: p = MeleeAttackPlan.new()
+		AttackMode.RANGED: p = RangedAttackPlan.new()
+		AttackMode.MAGIC: p = MagicAttackPlan.new()
+		_: return null
+	p.attacker = attacker
+	if p is MagicAttackPlan:
+		(p as MagicAttackPlan).viewer_vision = vision
+	return p
 
 ## Mints the per-attack [member AttackPlan.resolve_seed] stamped by
 ## [method launch_attack]. The AUTHORITY owns this — under
@@ -332,8 +376,10 @@ func _ready() -> void:
 
 
 
-## Commit the active plan — the entry point every caller still uses (the HUD
-## launch buttons, [AiController]). Since #511 this is a thin front for a
+## Commit [param plan] — or, when null, the [AttackPlanSlot]'s armed plan (the
+## HUD's call). An [AIController] builds its own plan with [method new_plan] and
+## passes it, so the slot is never written by anyone but its human. Since #511
+## this is a thin front for a
 ## [LaunchAttackCommand]: build it, submit it, and wait out the queue. The
 ## work itself lives in [method apply_launch_command], which the
 ## [CommandApplier] calls back — see [LaunchAttackCommand] for why one command
@@ -341,8 +387,8 @@ func _ready() -> void:
 ## did".
 ##
 ## Awaits the whole action, not just the mutation, exactly as before.
-func launch_attack() -> void:
-	var command := build_launch_command()
+func launch_attack(plan: AttackPlan = null) -> void:
+	var command := build_launch_command(plan)
 	if command == null:
 		return
 	# Routed through the applier when one is wired, so an attack is an ordinary
@@ -381,8 +427,9 @@ func launch_attack() -> void:
 	await apply_launch_command(command)
 
 
-## The active plan as a [LaunchAttackCommand], or null if there is nothing
-## launchable. Runs the checks that need the LIVE plan and are cheap to answer
+## [param plan] (null: the slot's armed plan) as a [LaunchAttackCommand], or
+## null if there is nothing launchable. The plan rides the command as
+## [member LaunchAttackCommand.local_plan]. Runs the checks that need the LIVE plan and are cheap to answer
 ## before anything is queued — is there a plan, is it valid, is somebody's turn
 ## — and stamps the per-attack seed.
 ##
@@ -391,19 +438,23 @@ func launch_attack() -> void:
 ## self-describing: (plan + seed) is everything an authority needs to re-resolve
 ## and compare. `apply_launch_command` copies it onto the plan before calling
 ## [method AttackPlan.resolve], so "stamp before resolving" still holds.
-func build_launch_command() -> LaunchAttackCommand:
-	if not is_attacking or is_launching:
+func build_launch_command(plan: AttackPlan = null) -> LaunchAttackCommand:
+	if plan == null:
+		plan = attack_plan
+	if plan == null or is_launching:
 		push_warning("BattleSystem.launch_attack: no plan, or already launching")
 		return null
-	if not attack_plan.is_valid():
-		push_warning("BattleSystem.launch_attack: invalid plan: %s" % str(attack_plan.validate()))
+	if not plan.is_valid():
+		push_warning("BattleSystem.launch_attack: invalid plan: %s" % str(plan.validate()))
 		return null
 	var entity := turn_manager.current_entity if turn_manager != null else null
 	if entity == null:
 		push_warning("BattleSystem.launch_attack: no current entity")
 		return null
-	return LaunchAttackCommand.new(
-			entity.entity_id, attack_plan.to_dict(graph), _seed_source.randi())
+	var command := LaunchAttackCommand.new(
+			entity.entity_id, plan.to_dict(graph), _seed_source.randi())
+	command.local_plan = plan
+	return command
 
 
 ## [b]The VALIDATE half of a launch (#545)[/b] — [method CommandApplier._validate]'s
@@ -427,7 +478,7 @@ func prepare_launch_command(command: LaunchAttackCommand) -> bool:
 		return false
 	if not command.record.is_empty():
 		return true
-	var plan := attack_plan
+	var plan := command.local_plan
 	if plan == null:
 		# An initiate for a plan this peer does not hold. Rebuilding one here
 		# would be the intent-up path, which is #463 — refuse loudly instead of
@@ -444,7 +495,7 @@ func prepare_launch_command(command: LaunchAttackCommand) -> bool:
 	if not _compute_record(plan, command):
 		return false
 	# LAST, and only on the success path: it is what tells the apply half that
-	# `attack_plan` is this command's plan. See [member
+	# `local_plan` is the plan this machine resolved. See [member
 	# LaunchAttackCommand.computed_here].
 	command.computed_here = true
 	return true
@@ -501,18 +552,19 @@ func apply_launch_command(command: LaunchAttackCommand) -> bool:
 		return false
 	var plan: AttackPlan
 	if command.computed_here:
-		# Re-read rather than carried over from `prepare_launch_command`, which is
-		# safe only because [method CommandApplier._drain] has NO await between
-		# validate and apply — nothing can re-arm in between. Do not add one.
-		plan = attack_plan
+		# Carried on the command from `build_launch_command`, never re-read off
+		# the slot — the plan this machine resolved is the plan it commits.
+		plan = command.local_plan
 		if plan == null:
 			push_warning("BattleSystem: the prepared plan went away before apply")
 			return false
 	else:
+		# A replay decodes into the same local field and never writes the slot:
+		# the slot is this seat's plan-in-progress, not the attacker's.
 		plan = AttackPlanCodec.from_dict(command.plan, graph)
 		if plan == null:
 			return false
-		attack_plan = plan
+		command.local_plan = plan
 		# Melee draws off `last_trajectory` / `last_events`, which only a
 		# resolve fills in. The outcome that resolve produces is DISCARDED —
 		# the record is what lands, and it runs against a throwaway shadow, so
@@ -653,6 +705,7 @@ func _can_afford(plan: AttackPlan, outcome: AttackOutcome) -> bool:
 ## `attack_vfx.play`.
 func _commit(plan: AttackPlan, outcome: AttackOutcome) -> void:
 	is_launching = true
+	_in_flight_plan = plan
 	_draining = false
 	var entity := plan.attacker
 	var board: StatBoard = entity.stat_board if entity != null else null
@@ -748,7 +801,7 @@ func _commit(plan: AttackPlan, outcome: AttackOutcome) -> void:
 	if _vfx_running:
 		await _vfx_finished
 	# is_launching flips false BEFORE _reset() (not after) — _reset()'s
-	# attack_plan = null synchronously fires attack_plan_changed, and
+	# slot clear synchronously fires attack_plan_changed, and
 	# PlayerInputController's gate-refresh listener reads is_launching the
 	# instant that signal fires. Clearing it after would have that listener
 	# observe a stale "still launching" and never re-enable AttackModeBar.
@@ -814,7 +867,7 @@ func release_record() -> void:
 ## [Node] because the two presenters share no base class — the contract is
 ## the pair of signatures, and callers duck-type it.
 func presenter() -> Node:
-	if attack_plan is MeleeAttackPlan:
+	if _in_flight_plan is MeleeAttackPlan:
 		return melee_preview
 	if _coordinator != null and is_instance_valid(_coordinator):
 		return _coordinator
