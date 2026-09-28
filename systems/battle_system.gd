@@ -9,7 +9,6 @@ enum AttackMode {
 	MAGIC
 }
 
-signal attack_plan_changed(plan: AttackPlan)
 ## Fired once a launch commits (resource checks passed, about to resolve).
 ## `spell` is the active [MagicAttackPlan]'s spell, null for melee/ranged.
 ## Consumed by [AnnouncementLayer] (#117, #135) for the mode-tinted CALLOUT FX.
@@ -38,11 +37,6 @@ signal attack_committed(outcome: AttackOutcome, attacker: Entity)
 ## this beat (#894) rather than on a wall-clock re-derivation of the wind-up,
 ## which could not see the hold and drifted from the swing.
 signal attack_replay_started(outcome: AttackOutcome)
-## Fires for both plan swap and plan-internal mutation. Subscribers that
-## care about lifecycle (mount per-mode UI) use [signal attack_plan_changed];
-## subscribers that care about content (re-paint highlights) use this one.
-signal attack_plan_state_changed
-
 ## Forced-deallocation cascade about to run. `layers[i]` holds every cascade
 ## node at BFS graph-distance `i` from the impact node; `layers[0] == [impact]`.
 ## Emitted BEFORE the synchronous force_deallocate loop so VFX can snapshot
@@ -61,41 +55,19 @@ signal cascade_started(layers: Array, defender: Entity)
 ## plumbing for [method await_record_ready] — park on that, never on this.
 signal record_ready
 
-## The currently-selected spell for magic attacks. Updated by the spell-picker
-## UI; consumed by [method _new_plan] when constructing a [MagicAttackPlan].
-## Null means "use the plan's bundled fallback". Live mutation is supported:
-## changing this while a magic plan is active re-equips on the active plan
-## via [method MagicAttackPlan.set_spell].
-signal selected_spell_changed(spell: SpellDef)
-var selected_spell: SpellDef = null:
+@export var turn_manager: TurnManager:
 	set(value):
-		if selected_spell == value:
-			return
-		selected_spell = value
-		if attack_plan is MagicAttackPlan:
-			(attack_plan as MagicAttackPlan).set_spell(value)
-		selected_spell_changed.emit(value)
-
-@export var turn_manager: TurnManager
-@export var allocation_system: AllocationSystem
+		turn_manager = value
+		if _own_slot != null:
+			_own_slot.turn_manager = value
+@export var allocation_system: AllocationSystem:
+	set(value):
+		allocation_system = value
+		if _own_slot != null:
+			_own_slot.allocation_system = value
 @export var graph: Graph
 @export var attack_vfx: AttackVFX
 @export var melee_preview: MeleePreview
-## The offerable temp-upgrade kinds (#406, #1008) — authored data, wired to
-## `attack/melee/temp_upgrade_catalog.tres` by the composing scene. Optional:
-## an unwired BattleSystem (headless fixtures that never toggle an upgrade)
-## simply offers none — [method temp_upgrade_by_id] answers null and
-## [method temp_upgrade_kinds] is empty.
-@export var temp_upgrade_catalog: TempUpgradeCatalog
-
-## The viewing seat's fog, handed down to each [MagicAttackPlan] so its
-## highlights can be filtered caller-side (#728). Optional — an unwired
-## BattleSystem (tests, the spell playground) simply casts without fog, which
-## is what those callers had before.
-@export var vision_system: VisionSystem
-
-const _AMMO_ROSTER: AmmoTypeRoster = preload("res://attack/ammo/ammo_type_roster.tres")
-
 ## The queue an attack is applied through (#511). Optional: without one,
 ## [method launch_attack] applies straight, which is what every headless
 ## fixture and the editor do. Wired by [CommandApplier] itself at `_ready`
@@ -207,171 +179,126 @@ var instant_mutation: bool = false
 @export var release_beat: float = 0.12
 
 
-var attack_plan: AttackPlan:
-	set(value):
-		if attack_plan == value:
-			return
-		if attack_plan != null and attack_plan.state_changed.is_connected(_on_plan_state_changed):
-			attack_plan.state_changed.disconnect(_on_plan_state_changed)
-		attack_plan = value
-		if attack_plan != null:
-			attack_plan.state_changed.connect(_on_plan_state_changed)
-		_sync_pick_sensed()
-		attack_plan_changed.emit(value)
-		attack_plan_state_changed.emit()
-
-
-func _on_plan_state_changed() -> void:
-	attack_plan_state_changed.emit()
-
-
-## The sensed-pickability lever (#1033) on [member vision_system]: on while a
-## [RangedAttackPlan] is armed and the attacker's quiver holds scout stock —
-## the scout shot's target set is the sensed nodes — off for every other plan
-## and for none. VisionSystem owns the lever; this system owns the mode; the
-## plan never writes another system's state.
-func _sync_pick_sensed() -> void:
-	if vision_system == null:
-		return
-	var want := false
-	var ranged := attack_plan as RangedAttackPlan
-	if ranged != null:
-		# The plan's fog for the scout shot: wired on the setter so every
-		# assigned RangedAttackPlan gets it, including one not minted by
-		# _new_plan.
-		ranged.viewer_vision = vision_system
-	if ranged != null and ranged.attacker != null and ranged.attacker.stat_board != null:
-		var quiver: Quiver = ranged.attacker.stat_board.arrows
-		if quiver != null:
-			for t in _AMMO_ROSTER.sorted():
-				if t.reveal_fraction > 0.0 and quiver.stock_of(t.id) > 0:
-					want = true
-					break
-	vision_system.pick_sensed = want
-
-var attack_mode: AttackMode:
-	get(): return attack_plan.mode if attack_plan else AttackMode.NONE
-
-var is_attacking: bool:
-	get(): return attack_plan != null
-
 ## True while resolve()..VFX-await..AP-deduction is in flight, independent
 ## of whether attack_plan is still set (#406 — the plan now stays live
 ## through the melee await so its temp-upgrade addons render correctly).
 ## The one thing that blocks a second launch_attack() mid-swing.
-var is_launching := false
-
-func cancel_attack() -> void:
-	if is_attacking and not is_launching:
-		_reset()
-	else:
-		push_warning('Cannot cancel attack: not attacking, or a swing is resolving')
+var is_launching := false:
+	set(value):
+		is_launching = value
+		plan_slot.locked = value
 
 
-## Clear the active plan's selection state without dropping the plan itself —
-## keeps the mode set and any sticky preferences (melee swing_cw, magic spell)
-## alive. UI's RESET button routes here.
-func reset_plan() -> void:
-	if attack_plan != null and not is_launching:
-		attack_plan.reset()
+# ── The plan slot ────────────────────────────────────────────────────────────
+# Every member below forwards to [member plan_slot], which owns it; see
+# [AttackPlanSlot].
 
-## The single choke point that tears a plan down (#406) — always calls
-## reset() first, so a plan's attached temp-upgrade addons (real SkillNode
-## children, not plan-owned state) are freed no matter which path got here:
-## cancel, RESET-adjacent teardown, or post-launch.
+signal attack_plan_changed(plan: AttackPlan)
+## Fires for both plan swap and plan-internal mutation. Re-emitted from
+## [signal AttackPlanSlot.attack_plan_state_changed].
+signal attack_plan_state_changed
+## Re-emitted from [signal AttackPlanSlot.selected_spell_changed].
+signal selected_spell_changed(spell: SpellDef)
+
+## The local plan-in-progress. A composing scene wires its sibling slot here.
+## Left unwired (a fixture, a code-built world) the getter mints a private
+## child slot on first read, seeded with this system's [member turn_manager] and
+## [member allocation_system] — the one creation point, so there is never a
+## second live slot under one BattleSystem.
+@export var plan_slot: AttackPlanSlot:
+	get:
+		if _plan_slot == null:
+			var own := AttackPlanSlot.new()
+			own.name = "AttackPlanSlot"
+			own.turn_manager = turn_manager
+			own.allocation_system = allocation_system
+			_own_slot = own
+			_plan_slot = own
+			_adopt_slot(own)
+			add_child(own, false, Node.INTERNAL_MODE_FRONT)
+		return _plan_slot
+	set(value):
+		if _plan_slot == value:
+			return
+		if _plan_slot != null:
+			_release_slot(_plan_slot)
+		if _own_slot != null and _own_slot != value:
+			_own_slot.queue_free()
+			_own_slot = null
+		_plan_slot = value
+		if _plan_slot != null:
+			_adopt_slot(_plan_slot)
+
+var _plan_slot: AttackPlanSlot = null
+
+## The self-provisioned slot, or null when [member plan_slot] is scene-wired.
+## Only a self-owned slot takes [member turn_manager] / [member allocation_system]
+## pushes; a wired sibling keeps its scene-wired exports.
+var _own_slot: AttackPlanSlot = null
+
+
+func _adopt_slot(slot: AttackPlanSlot) -> void:
+	slot.attack_plan_changed.connect(attack_plan_changed.emit)
+	slot.attack_plan_state_changed.connect(attack_plan_state_changed.emit)
+	slot.selected_spell_changed.connect(selected_spell_changed.emit)
+	slot.locked = is_launching
+
+
+func _release_slot(slot: AttackPlanSlot) -> void:
+	if slot.attack_plan_changed.is_connected(attack_plan_changed.emit):
+		slot.attack_plan_changed.disconnect(attack_plan_changed.emit)
+	if slot.attack_plan_state_changed.is_connected(attack_plan_state_changed.emit):
+		slot.attack_plan_state_changed.disconnect(attack_plan_state_changed.emit)
+	if slot.selected_spell_changed.is_connected(selected_spell_changed.emit):
+		slot.selected_spell_changed.disconnect(selected_spell_changed.emit)
+
+
+var attack_plan: AttackPlan:
+	get: return plan_slot.attack_plan
+	set(value): plan_slot.attack_plan = value
+
+var attack_mode: AttackMode:
+	get: return plan_slot.attack_mode
+
+var is_attacking: bool:
+	get: return plan_slot.is_attacking
+
+var selected_spell: SpellDef:
+	get: return plan_slot.selected_spell
+	set(value): plan_slot.selected_spell = value
+
+var next_melee_cw: bool:
+	get: return plan_slot.next_melee_cw
+	set(value): plan_slot.next_melee_cw = value
+
+var temp_upgrade_catalog: TempUpgradeCatalog:
+	get: return plan_slot.temp_upgrade_catalog
+	set(value): plan_slot.temp_upgrade_catalog = value
+
+var vision_system: VisionSystem:
+	get: return plan_slot.vision_system
+	set(value): plan_slot.vision_system = value
+
+func cancel_attack() -> void: plan_slot.cancel_attack()
+func reset_plan() -> void: plan_slot.reset_plan()
+func request_attack_mode(mode: AttackMode) -> void: plan_slot.request_attack_mode(mode)
+func toggle_temp_upgrade_on(node: SkillNode, def: TempUpgradeDef) -> bool:
+	return plan_slot.toggle_temp_upgrade_on(node, def)
+func can_toggle_temp_upgrade_on(node: SkillNode, def: TempUpgradeDef) -> bool:
+	return plan_slot.can_toggle_temp_upgrade_on(node, def)
+func temp_upgrade_by_id(id: StringName) -> TempUpgradeDef: return plan_slot.temp_upgrade_by_id(id)
+func temp_upgrade_kinds() -> Array[TempUpgradeDef]: return plan_slot.temp_upgrade_kinds()
+func _new_plan(plan_class: Script) -> AttackPlan: return plan_slot._new_plan(plan_class)
+func _sync_pick_sensed() -> void: plan_slot._sync_pick_sensed()
+func _invalidate_plan_union() -> void: plan_slot._invalidate_plan_union()
+
+
+## The launch-side teardown: drops this system's [member _coordinator], then
+## the plan through [method AttackPlanSlot._reset]. [method _commit] calls it at
+## release.
 func _reset() -> void:
 	_coordinator = null
-	if attack_plan:
-		attack_plan.reset()
-		attack_plan = null
-
-func request_attack_mode(mode: AttackMode) -> void:
-	if is_launching or attack_mode == mode:
-		return
-	match mode:
-		AttackMode.NONE:    cancel_attack()
-		AttackMode.MELEE:   attack_plan = _new_plan(MeleeAttackPlan)
-		AttackMode.RANGED:  attack_plan = _new_plan(RangedAttackPlan)
-		AttackMode.MAGIC:   attack_plan = _new_plan(MagicAttackPlan)
-
-## Toggle a temp upgrade (#406) onto [param node] of the live [MeleeAttackPlan],
-## refunding an identical one already there. Moved here from
-## `PlayerInputController.apply_armed_temp_upgrade_to` by #510 — **owner call
-## 2026-08-21:** *"BattleSystem or AttackPlan. (or a AddonManager system would be
-## cleaner … but i'm afraid that adds a lot of complexity while i want to SOLVE
-## issues and get stuff done, not create more)."* BattleSystem, because it is
-## what mounts addons on the live plan; an `AddonManager` is out of scope.
-##
-## Takes [param upgrade] EXPLICITLY rather than reading a controller's armed
-## state: the arm is local plan-building that never crosses a wire, so it stays
-## in [PlayerInputController], and [ToggleTempUpgradeCommand] carries the
-## catalog id instead (#509). Pass a [TempUpgradeDef] — resolve one with
-## [method temp_upgrade_by_id].
-##
-## Returns whether the toggle landed. A refusal is announced on
-## [signal Events.node_action_denied] by [method can_toggle_temp_upgrade_on],
-## where the reason is knowable — whether the CLICK was consumed is a routing
-## question the caller answers on its own.
-func toggle_temp_upgrade_on(node: SkillNode, def: TempUpgradeDef) -> bool:
-	if not can_toggle_temp_upgrade_on(node, def):
-		return false
-	return (attack_plan as MeleeAttackPlan).toggle_temp_upgrade(node, def)
-
-
-## The gate half of [method toggle_temp_upgrade_on], lifted so
-## [method CommandApplier._validate] can decide a [ToggleTempUpgradeCommand]
-## before it is confirmed (#540). Not a second copy of the rule — the rule is
-## [method MeleeAttackPlan.can_toggle_temp_upgrade]; what lives here is the
-## live-plan lookup and the denial announcement.
-##
-## [b]It announces, so it must be asked exactly once per attempt.[/b] That holds
-## by construction under the applier's ordering: a validate-fail never reaches
-## the apply, and a validate-pass makes the apply's own re-ask succeed silently.
-func can_toggle_temp_upgrade_on(node: SkillNode, def: TempUpgradeDef) -> bool:
-	var plan := attack_plan as MeleeAttackPlan
-	if plan == null or node == null or def == null:
-		return false
-	if plan.can_toggle_temp_upgrade(node, def):
-		return true
-	var reason := "temp_upgrade_denied_slot_full" \
-			if not node.can_attach_addon(def.addon_script) \
-			else "temp_upgrade_denied_budget"
-	Events.node_action_denied.emit(node, reason)
-	return false
-
-
-## The catalog kind named by [param id] — the handler's door for a
-## [ToggleTempUpgradeCommand]'s wire id — or null if unknown or no catalog is
-## wired. Returns the loaded def itself, so identity checks keep working.
-func temp_upgrade_by_id(id: StringName) -> TempUpgradeDef:
-	if temp_upgrade_catalog == null:
-		return null
-	return temp_upgrade_catalog.by_id(id)
-
-
-## The offerable kinds in tray order; empty when no catalog is wired.
-func temp_upgrade_kinds() -> Array[TempUpgradeDef]:
-	if temp_upgrade_catalog == null:
-		return []
-	return temp_upgrade_catalog.kinds
-
-
-func _new_plan(plan_class: Script) -> AttackPlan:
-	var p: AttackPlan = plan_class.new()
-	p.attacker = turn_manager.current_entity
-	if p is MagicAttackPlan:
-		(p as MagicAttackPlan).viewer_vision = vision_system
-		if selected_spell != null:
-			(p as MagicAttackPlan).spell = selected_spell
-	if p is MeleeAttackPlan:
-		(p as MeleeAttackPlan).swing_cw = next_melee_cw
-	return p
-
-
-## Sticky preference for the next [MeleeAttackPlan]'s [member MeleeAttackPlan.swing_cw].
-## Toggled by UI; survives plan resets so the player doesn't re-pick direction
-## every time they switch into melee mode.
-var next_melee_cw: bool = false
+	plan_slot._reset()
 
 ## Mints the per-attack [member AttackPlan.resolve_seed] stamped by
 ## [method launch_attack]. The AUTHORITY owns this — under
@@ -399,52 +326,11 @@ func _ready() -> void:
 	Events.skill_node_depleted.connect(_on_node_depleted)
 	Events.entity_dying.connect(_on_entity_dying)
 	_seed_source.randomize()
-	_subscribe_union_invalidation()
+	# Provisions a private slot now if none is wired, so its union
+	# invalidation is subscribed before the first allocation.
+	if plan_slot == null:
+		push_error("BattleSystem: no plan slot")
 
-
-## The pick-spell-first target union (#728) is cached on the plan and depends on
-## (spell, ownership, turn) — never on the hovered or committed target, which is
-## why it cannot ride [signal AttackPlan.state_changed] like the older caches do.
-## Ownership and turn move it from OUTSIDE the plan, so the invalidation is
-## pushed from here, over the same allocation signals [VisionSystem] listens to
-## for the same reason.
-##
-## It matters more than it used to: with the source set derived from ownership
-## rather than clicked, allocating a high-degree node mid-turn has to make the
-## spell castable immediately — a stale union would keep saying "no caster"
-## while the player looks at the node that fixes it.
-func _subscribe_union_invalidation() -> void:
-	if allocation_system != null:
-		allocation_system.allocated.connect(_invalidate_plan_union.unbind(3))
-		allocation_system.deallocated.connect(_invalidate_plan_union.unbind(2))
-		allocation_system.force_deallocated.connect(_invalidate_plan_union.unbind(2))
-	# `TurnManager` is not @tool, so in the editor the engine hands this @tool
-	# script a placeholder: `.turn_started` as a PROPERTY read throws there
-	# (gdscript-pitfalls.md), while connecting by name goes through Object's
-	# signal table and works on placeholder and real instance alike.
-	if turn_manager != null:
-		turn_manager.connect(&"turn_started", _invalidate_plan_union.unbind(1))
-
-
-## Emits the PLAN's [signal AttackPlan.state_changed], not this system's
-## [signal attack_plan_state_changed] directly: the latter reaches the HUD
-## bodies and [PlayerInputController] but NOT the highlight overlays, which
-## repaint off [signal HighlightController.provider_state_changed] — i.e. off
-## the plan's own signal. Allocating a node that newly clears a spell's
-## `min_degree` therefore left the painted caster/target sets stale until an
-## unrelated hover forced a repaint. Going through the plan reaches both:
-## [method _on_plan_state_changed] re-emits it here.
-##
-## This is the opposite direction from [method _subscribe_union_invalidation]'s
-## warning and does not reintroduce it — the union must not be INVALIDATED BY
-## `state_changed` (target hover fires it constantly); invalidating it and then
-## announcing the change is fine, and terminates: `state_changed` only sets
-## dirty flags on the plan and re-emits outward.
-func _invalidate_plan_union() -> void:
-	var magic_plan := attack_plan as MagicAttackPlan
-	if magic_plan != null:
-		magic_plan.invalidate_union()
-		magic_plan.state_changed.emit()
 
 
 ## Commit the active plan — the entry point every caller still uses (the HUD

@@ -9,6 +9,7 @@
 [ext_resource type="Script" path="res://network/seat_handover.gd" id="25_seathandover"]
 [ext_resource type="Script" path="res://network/mp_harness.gd" id="25_mpharness"]
 [ext_resource type="Script" uid="uid://c8h46d4u0rss3" path="res://systems/battle_system.gd" id="6_battle"]
+[ext_resource type="Script" uid="uid://d2qx35jtwie3y" path="res://systems/attack_plan_slot.gd" id="6_planslot"]
 [ext_resource type="Script" uid="uid://hhfetuy6hfu" path="res://systems/turn_manager.gd" id="7_turn"]
 [ext_resource type="Script" uid="uid://tmd2wsn34dny" path="res://systems/player_input_controller.gd" id="8_input"]
 [ext_resource type="Script" uid="uid://dnlkufr5kwkn3" path="res://systems/vision_system.gd" id="9_vision"]
@@ -69,7 +70,15 @@ command_applier = NodePath("../CommandApplier")
 battle_system = NodePath("../BattleSystem")
 loot_system = NodePath("../LootSystem")
 
-[node name="BattleSystem" type="Node" parent="Systems" unique_id=1847539356 node_paths=PackedStringArray("turn_manager", "allocation_system", "graph", "attack_vfx", "melee_preview", "vision_system")]
+[node name="AttackPlanSlot" type="Node" parent="Systems" node_paths=PackedStringArray("turn_manager", "allocation_system", "vision_system")]
+unique_name_in_owner = true
+script = ExtResource("6_planslot")
+turn_manager = NodePath("../TurnManager")
+allocation_system = NodePath("../AllocationSystem")
+temp_upgrade_catalog = ExtResource("26_temp_upgrades")
+vision_system = NodePath("../VisionSystem")
+
+[node name="BattleSystem" type="Node" parent="Systems" unique_id=1847539356 node_paths=PackedStringArray("turn_manager", "allocation_system", "graph", "attack_vfx", "melee_preview", "plan_slot")]
 unique_name_in_owner = true
 script = ExtResource("6_battle")
 turn_manager = NodePath("../TurnManager")
@@ -77,8 +86,7 @@ allocation_system = NodePath("../AllocationSystem")
 graph = NodePath("../../Graph")
 attack_vfx = NodePath("../../Graph/AttackVFX")
 melee_preview = NodePath("../../Graph/MeleePreview")
-temp_upgrade_catalog = ExtResource("26_temp_upgrades")
-vision_system = NodePath("../VisionSystem")
+plan_slot = NodePath("../AttackPlanSlot")
 
 [node name="HighlightController" type="Node" parent="Systems" unique_id=39417906 node_paths=PackedStringArray("battle_system", "input_ctl", "allocation_system", "graph", "turn_manager")]
 unique_name_in_owner = true
