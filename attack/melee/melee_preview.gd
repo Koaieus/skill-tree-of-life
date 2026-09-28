@@ -182,7 +182,15 @@ func _pump_prediction(plan: MeleeAttackPlan) -> void:
 ## real. Idempotent — see [method MeleeAttackPlan.begin_replay_resolve].
 func begin_replay(plan: MeleeAttackPlan, substeps: int, enable_length_scaling: bool) -> void:
 	plan.begin_replay_resolve(substeps, enable_length_scaling)
+	_replay_plan = plan
 	set_process(true)
+
+
+## The committed swing [method begin_replay] was handed, until its resim
+## completes. Held here rather than re-read off [BattleSystem]: an AI's or a
+## mirror's plan never sits in the slot, and the replay starts before
+## [member BattleSystem.in_flight_plan] is set.
+var _replay_plan: MeleeAttackPlan = null
 
 
 ## The slice pump. Deliberately NOT the preview loop — that loop is parked on
@@ -192,15 +200,18 @@ func _process(_delta: float) -> void:
 	if battle_system == null:
 		set_process(false)
 		return
-	# The replay is a launch in flight — an AI's or a mirror's plan never sits
-	# in the slot, so it is read off `in_flight_plan`.
-	var replay_plan := battle_system.in_flight_plan as MeleeAttackPlan
-	if replay_plan != null and replay_plan.is_replaying():
+	var replay_plan := _replay_plan
+	if replay_plan != null and not replay_plan.is_replaying():
+		replay_plan = null
+		_replay_plan = null
+	if replay_plan != null:
 		# #796: a committed swing's resim keeps stepping regardless of
 		# `_live_swing` / `preview_enabled` — [method launch]'s docstring
 		# already establishes both are ignored for a committed swing, and this
 		# is what [method launch] is waiting on.
 		var complete := replay_plan.advance_replay_resolve(replay_slice_steps)
+		if complete:
+			_replay_plan = null
 		set_process(not complete)
 		return
 	if _live_swing or not preview_enabled:
