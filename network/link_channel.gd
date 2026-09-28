@@ -1,3 +1,4 @@
+@tool
 class_name LinkChannel
 extends Node
 ## One protocol riding a [NetworkLink]: the wire kinds it owns and what to do

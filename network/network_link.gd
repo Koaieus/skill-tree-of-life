@@ -45,7 +45,10 @@ signal hello_accepted(payload: Dictionary)
 @export var transport: NetworkTransport
 ## Only for the [member role] setter — the applier learns from the role whether
 ## it DECIDES or is told. Optional: a lobby link has no applier.
-@export var command_applier: CommandApplier
+@export var command_applier: CommandApplier:
+	set(value):
+		command_applier = value
+		_apply_role()
 ## The channels this core dispatches to. Registered in [method _ready]; a
 ## channel may also [method register] itself later.
 @export var channels: Array[LinkChannel] = []

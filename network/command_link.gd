@@ -1,6 +1,6 @@
 @tool
 class_name CommandLink
-extends Node
+extends LinkChannel
 
 ## Bridges one [CommandApplier] to one [NetworkTransport]: the host broadcasts
 ## the commands it confirmed, every client applies them through its own applier.
@@ -261,17 +261,6 @@ signal peer_cleared(peer_id: int, join_prefs: Dictionary)
 ## on this end latched — refusing the PEER is not refusing the socket.
 signal peer_refused(peer_id: int, reason: String)
 
-## #714, client-side: the host's authoritative lobby roster arrived. Decoded
-## here and re-emitted, never applied here — this class owns the envelope, and
-## [LobbyScreen] owns what a roster means to a lobby.
-signal lobby_roster_received(roster: ParticipantRoster)
-
-## #714, host-side: a client asked for a change to one seat. The payload is left
-## as a raw [Dictionary] on purpose — validating it against the roster (may this
-## peer edit that seat, is that colour taken) is the LOBBY's rule set, and this
-## class must not become a second place that decides.
-signal lobby_pick_received(pick: Dictionary)
-
 ## #755, client-side: the host handed a dropped peer's seat to the AI. Carries
 ## the [member Participant.id], decoded no further here — what a handover MEANS
 ## to a level ([method SeatHandover._on_seat_handover]) is the level's, same split
@@ -279,7 +268,11 @@ signal lobby_pick_received(pick: Dictionary)
 signal seat_handover_received(participant_id: int)
 
 @export var transport: NetworkTransport
-@export var command_applier: CommandApplier
+@export var command_applier: CommandApplier:
+	set(value):
+		command_applier = value
+		if link != null:
+			link.command_applier = value
 @export var graph: Graph
 
 ## The level's clock. Only ever WRITTEN through
@@ -301,67 +294,60 @@ signal seat_handover_received(participant_id: int)
 ## across the verb path #463's other children are also editing.
 @export var probe: DeterminismProbe
 
-## Setting this is also what tells the applier whether it DECIDES or is told.
-## Single writer, so no scene has to carry a second role flag and the two can
-## never disagree — see [member CommandApplier.is_authority] for the one thing
-## that reads it.
-var role: NetworkConfig.Role = NetworkConfig.Role.OFFLINE:
+## shim: the role, build stamp, join name and refused latch live on the core
+## ([NetworkLink]) now; these forward so callers not yet re-pointed keep working.
+## A value written before a core is attached is parked in [member _early] and
+## handed over on attach.
+var role: NetworkConfig.Role:
+	get:
+		return link.role if link != null else _early.get("role", NetworkConfig.Role.OFFLINE)
 	set(value):
-		role = value
-		if command_applier != null:
-			command_applier.is_authority = value != NetworkConfig.Role.CLIENT
-			command_applier.local_peer_id = _local_peer_id()
+		_forward("role", "role", value)
+
+var build_stamp: Dictionary:
+	get:
+		return link.build_stamp if link != null else _early.get("stamp", {})
+	set(value):
+		_forward("stamp", "build_stamp", value)
+
+var join_display_name: String:
+	get:
+		return link.join_display_name if link != null else _early.get("name", "")
+	set(value):
+		_forward("name", "join_display_name", value)
+
+var _refused: bool:
+	get:
+		return link._refused if link != null else false
+
+var _early: Dictionary = {}
 
 ## True while a RECEIVED command is being submitted, so a client that is also
 ## broadcasting cannot echo it back. Wave 0 never sets both, but the guard is
 ## one line and its absence is an infinite loop.
 var _applying_remote: bool = false
 
-## #546. What this peer announces at link-up, and what it compares an incoming
-## hello against. Filled from [BuildInfo] in [method _ready]; a test sets it
-## after `add_child` to stage a mismatch without needing two checkouts.
-var build_stamp: Dictionary = {}
 
-## #741: a joining CLIENT's preferred name, carried in its own hello
-## ([constant KEY_JOIN_PREFS]) rather than waited on as a lobby pick — the
-## alternative left the seat showing a generic "Player 2" for one network hop
-## and then a silent revert the instant the joiner typed their own. Set by
-## [method LobbyScreen.bind_link] from [member GameSettings.player_name];
-## empty means the client is not offering one, and this class asks nothing
-## about what the string means or where it goes — that is [LobbyScreen]'s.
-var join_display_name: String = ""
-
-## Latched once a build mismatch hung the link up. Every payload is dropped
-## from here on.
-##
-## [b]This is a separate flag and NOT `role = NetworkConfig.Role.OFFLINE`[/b], which is the
-## tempting one-liner and is a trap: the `role` setter writes
-## `command_applier.is_authority = value != NetworkConfig.Role.CLIENT`, so parking a refused
-## CLIENT at OFF would hand it authority — and a client with authority is
-## exactly the silent-divergence hole `mp_dev_sandbox._ready` documents (Blue's
-## [AIController] starts deciding locally). A refused link must go quiet, not
-## become an authority.
-var _refused: bool = false
+func _forward(early_key: String, core_property: String, value: Variant) -> void:
+	if link != null:
+		link.set(core_property, value)
+	else:
+		_early[early_key] = value
 
 
 func _ready() -> void:
 	if Engine.is_editor_hint():
-		# Deliberately BEFORE the build stamp is read: [BuildInfo] resolves in
-		# its own `_ready`, and this `@tool` script runs during the editor's
-		# import pass, when reaching into that autoload is not safe. Nothing in
-		# the editor links anyway.
 		return
-	if build_stamp.is_empty():
-		build_stamp = local_build_stamp()
-	# The export resolves after the setter may already have run (a level scene
-	# can set `role` before this node is ready), so re-apply it here.
-	if command_applier != null:
-		command_applier.is_authority = role != NetworkConfig.Role.CLIENT
-		command_applier.local_peer_id = _local_peer_id()
-	if transport != null:
-		transport.message_received.connect(_on_message_received)
-		transport.link_changed.connect(func(status: String) -> void: logged.emit(status))
-		transport.peer_joined.connect(_on_transport_peer_joined)
+	# A level mounts a [NetworkLink] beside this node and lists it as a channel
+	# there; a bare `CommandLink.new()` (tests, the outcome playground) composes
+	# its own so it keeps working as the one node it always was.
+	if link == null:
+		var core := NetworkLink.new()
+		core.name = "NetworkLink"
+		core.transport = transport
+		core.command_applier = command_applier
+		core.channels = [self] as Array[LinkChannel]
+		add_child(core)
 	if command_applier != null:
 		command_applier.command_confirmed.connect(_on_command_confirmed)
 		command_applier.intent_submitted.connect(_on_intent_submitted)
@@ -371,58 +357,37 @@ func _ready() -> void:
 		loot_pick_registry.offer_parked.connect(_on_offer_parked)
 
 
-## Who this peer is for [method CommandApplier._mint_intent_id]'s high half. It
-## has one job: make sure no two peers ever mint the same
-## [member Command.intent_id].
-##
-## [b]It asks the transport, never [member Node.multiplayer].[/b] A peer id is
-## the one datum [signal NetworkTransport.peer_joined] exists to carry across
-## the seam, and reaching past it for [method MultiplayerAPI.get_unique_id]
-## would put transport knowledge above the seam — plus it cannot tell an
-## [OfflineMultiplayerPeer]'s `1` from a real host's.
-##
-## Only `0` — not linked yet — falls back to the role, because [member role] is
-## set before a level calls `_open_link()` and the applier needs *some* distinct
-## half from the first command. It stops being a guess the moment
-## [signal NetworkTransport.peer_joined] re-stamps it below.
-func _local_peer_id() -> int:
-	var assigned := transport.local_peer_id() if transport != null else 0
-	if assigned != 0:
-		return assigned
-	return 2 if role == NetworkConfig.Role.CLIENT else 1
+func _on_attached() -> void:
+	if transport == null:
+		transport = link.transport
+	if link.command_applier == null and command_applier != null:
+		link.command_applier = command_applier
+	var early := _early
+	_early = {}
+	for pair in [["role", "role"], ["stamp", "build_stamp"], ["name", "join_display_name"],
+			["defer", "defer_until_world"]]:
+		if early.has(pair[0]):
+			link.set(pair[1], early[pair[0]])
+	link.logged.connect(logged.emit)
+	link.link_refused.connect(link_refused.emit)
+	link.peer_cleared.connect(peer_cleared.emit)
+	link.peer_refused.connect(peer_refused.emit)
+	link.hello_accepted.connect(_on_hello_accepted)
 
 
-## The link came up, so the transport now knows an id the role could only guess.
-##
-## [b]A CLIENT also ANNOUNCES here (#716).[/b] The build-stamp gate used to ride
-## the host's hello, which a lobby only sends once a level exists — so a joiner
-## on the wrong commit was already seated by the time anybody compared. Now the
-## first thing a client puts on the wire is its own stamp, the instant its dial
-## completes, and the host answers by clearing or refusing it. The hello itself
-## is unchanged and still goes the other way: this is an ADDITIONAL, upward leg,
-## not a move of the existing one.
-func _on_transport_peer_joined(_peer_id: int) -> void:
-	if command_applier != null:
-		command_applier.local_peer_id = _local_peer_id()
-	if role == NetworkConfig.Role.CLIENT:
-		announce_self()
+## Every line this channel traces goes through the core's [signal
+## NetworkLink.logged], which [signal logged] re-emits — one stream either way.
+func _log(line: String) -> void:
+	if link != null:
+		link.logged.emit(line)
+	else:
+		logged.emit(line)
 
 
-## Client-side: "here I am, and this is the code I am running." Its own send
-## rather than a branch inside [method send_hello], which is host-only and
-## carries a world.
+## shim: see [method NetworkLink.announce_self].
 func announce_self() -> void:
-	if transport == null or role != NetworkConfig.Role.CLIENT:
-		return
-	var payload := {
-		KEY_KIND: KIND_HELLO,
-		KEY_BUILD: build_stamp,
-		KEY_PEER: transport.local_peer_id(),
-	}
-	if not join_display_name.is_empty():
-		payload[KEY_JOIN_PREFS] = {"display_name": join_display_name}
-	transport.send(payload)
-	logged.emit("↑ hello (%s)" % describe_build(build_stamp))
+	link.announce_self()
+
 
 
 ## Announce our world to a freshly-connected peer. Host-side; the client's reply
@@ -458,7 +423,7 @@ func send_graph_snapshot() -> void:
 	if transport == null or role != NetworkConfig.Role.HOST or graph == null:
 		return
 	transport.send({KEY_KIND: KIND_SNAPSHOT, KEY_SNAPSHOT: GraphSnapshot.encode(graph)})
-	logged.emit("→ graph snapshot (%s)" % WorldFingerprint.describe(graph))
+	_log("→ graph snapshot (%s)" % WorldFingerprint.describe(graph))
 
 
 ## Send every entity's accumulated state to a freshly-connected peer (#560) —
@@ -471,7 +436,7 @@ func send_entity_snapshot() -> void:
 	if transport == null or role != NetworkConfig.Role.HOST or graph == null:
 		return
 	transport.send({KEY_KIND: KIND_ENTITIES, KEY_ENTITIES: EntitySnapshot.encode(graph)})
-	logged.emit("→ entity snapshot (%d entities)" % EntitySnapshot.entities_of(graph).size())
+	_log("→ entity snapshot (%d entities)" % EntitySnapshot.entities_of(graph).size())
 
 
 ## #561's backstop. Push the WHOLE world to every client, as a repair —
@@ -497,7 +462,7 @@ func send_resync(reason: String, is_join_world: bool = false) -> void:
 		KEY_SUMMARY: reason,
 		KEY_JOIN: is_join_world,
 	})
-	logged.emit("⟳ RESYNC pushed — %s (%s)" % [reason, WorldFingerprint.describe(graph)])
+	_log("⟳ RESYNC pushed — %s (%s)" % [reason, WorldFingerprint.describe(graph)])
 	resync_sent.emit(reason)
 
 
@@ -518,7 +483,7 @@ func request_resync(reason: String, is_join_world: bool = false) -> void:
 		KEY_SUMMARY: reason,
 		KEY_JOIN: is_join_world,
 	})
-	logged.emit("↑ resync requested — %s" % reason)
+	_log("↑ resync requested — %s" % reason)
 
 
 ## The join's pull, asked AGAIN (2026-09-06). [method request_resync] latches
@@ -568,7 +533,11 @@ var _join_world_arrived: bool = false
 ## Set by GameRoot before [code]_open_link()[/code] on the client path and
 ## cleared in [method _on_resync]. Defaults OFF, so every host, offline sandbox
 ## and existing harness is untouched.
-var defer_until_resync: bool = false
+var defer_until_resync: bool:
+	get:
+		return link.defer_until_world if link != null else _early.get("defer", false)
+	set(value):
+		_forward("defer", "defer_until_world", value)
 
 
 ## The kinds [member defer_until_resync] swallows, and — as important — the ones
@@ -615,7 +584,7 @@ func _on_resync_request(payload: Dictionary) -> void:
 	if role != NetworkConfig.Role.HOST:
 		return
 	var reason := String(payload.get(KEY_SUMMARY, "peer asked"))
-	logged.emit("↓ resync requested by peer — %s" % reason)
+	_log("↓ resync requested by peer — %s" % reason)
 	# The join flag rides the request through, so the answer is recognisable as
 	# the join's world on the way back down (#715). See [constant KEY_JOIN].
 	send_resync(reason, bool(payload.get(KEY_JOIN, false)))
@@ -641,7 +610,7 @@ func _on_resync(payload: Dictionary) -> void:
 	if graph_bytes.is_empty():
 		# `GraphSnapshot._unpack` reads a 4-byte size header off the front, so
 		# an empty payload is not a no-op there — it is a decode error.
-		logged.emit("← resync with no graph half, dropped")
+		_log("← resync with no graph half, dropped")
 		return
 	var is_join_world := bool(payload.get(KEY_JOIN, false))
 	if is_join_world and _join_world_arrived:
@@ -663,7 +632,7 @@ func _on_resync(payload: Dictionary) -> void:
 		# (#521/#560/#561) carries no join flag and must always apply, including
 		# the case where it repairs state the fingerprint fold cannot see —
 		# which is why this is a flag and not a fingerprint compare.
-		logged.emit("← join world already applied, dropped — %s" % reason)
+		_log("← join world already applied, dropped — %s" % reason)
 		return
 	EntitySnapshot.decode(entity_bytes, graph, entity_spawner)
 	GraphSnapshot.decode(graph_bytes, graph)
@@ -682,10 +651,10 @@ func _on_resync(payload: Dictionary) -> void:
 	_awaiting_resync = false
 	# #667: and the world this peer was missing is now the host's, so the drop
 	# window is over. Same line for the same reason — the repair HAS landed.
-	defer_until_resync = false
+	link.defer_until_world = false
 	if is_join_world:
 		_join_world_arrived = true
-	logged.emit("⟳ resync applied — %s (%s)" % [reason, WorldFingerprint.describe(graph)])
+	_log("⟳ resync applied — %s (%s)" % [reason, WorldFingerprint.describe(graph)])
 	resync_applied.emit(reason)
 
 
@@ -703,53 +672,17 @@ func send_run_setup(config: RunConfig, roster: ParticipantRoster) -> void:
 		KEY_CONFIG: config.to_dict(),
 		KEY_ROSTER: (roster.to_dict() if roster != null else {"participants": []}),
 	})
-	logged.emit("→ run setup (seed %d, %d participants)" %
+	_log("→ run setup (seed %d, %d participants)" %
 			[config.seed, roster.all().size() if roster != null else 0])
 
 
-## #714 send side, host-only: the whole authoritative lobby roster. Unlike
-## [method send_run_setup] this carries no [RunConfig], so nothing about it can
-## open a run — see [constant KIND_LOBBY].
-##
-## Not gated on [member graph]: a lobby has no world, which is the entire point
-## of the kind.
+## shim: the lobby protocol is [LobbyChannel]'s; this sender stays only for a
+## lifecycle test that needs any host broadcast. Removed when that test re-points.
 func send_lobby_roster(roster: ParticipantRoster) -> void:
 	if transport == null or role != NetworkConfig.Role.HOST or roster == null:
 		return
 	transport.send({KEY_KIND: KIND_LOBBY, KEY_ROSTER: roster.to_dict()})
-	logged.emit("→ lobby roster (%d participants)" % roster.all().size())
 
-
-## #714 send side, client-only: one seat's changed fields. [param pick] is built
-## by the lobby (see [method LobbyRoster.encode_pick]) and crosses verbatim.
-func send_lobby_pick(pick: Dictionary) -> void:
-	if transport == null or role != NetworkConfig.Role.CLIENT or pick.is_empty():
-		return
-	transport.send({KEY_KIND: KIND_LOBBY_PICK, KEY_PICK: pick})
-	logged.emit("↑ lobby pick for seat %d" % int(pick.get("id", 0)))
-
-
-## #714 receive side, client-only. The host's answer REPLACES what this peer
-## shows — there is no merge and no prediction (#548 D5 at the roster's scope),
-## which is what makes a refused pick converge rather than linger.
-func _on_lobby_roster(payload: Dictionary) -> void:
-	if role != NetworkConfig.Role.CLIENT:
-		return
-	var roster := ParticipantRoster.from_dict(payload.get(KEY_ROSTER, {}))
-	lobby_roster_received.emit(roster)
-	logged.emit("← lobby roster (%d participants)" % roster.all().size())
-
-
-## #714 receive side, host-only.
-func _on_lobby_pick(payload: Dictionary) -> void:
-	if role != NetworkConfig.Role.HOST:
-		return
-	var pick: Dictionary = payload.get(KEY_PICK, {})
-	if pick.is_empty():
-		logged.emit("↑ empty lobby pick, dropped")
-		return
-	lobby_pick_received.emit(pick)
-	logged.emit("↑ lobby pick for seat %d" % int(pick.get("id", 0)))
 
 
 ## #646 send side. [method LootPickRegistry.park] only ever parks a REMOTE
@@ -763,7 +696,7 @@ func _on_lobby_pick(payload: Dictionary) -> void:
 func _on_offer_parked(request: Variant) -> void:
 	var peer_id := loot_pick_registry.peer_for(request.collector)
 	if peer_id == 0:
-		logged.emit("✗ loot offer: no peer seats the collector")
+		_log("✗ loot offer: no peer seats the collector")
 		return
 	send_loot_offer(_offer_for(request), peer_id)
 
@@ -780,7 +713,7 @@ func send_loot_offer(offer: LootPickOffer, peer_id: int) -> void:
 	if transport == null or role != NetworkConfig.Role.HOST or offer == null:
 		return
 	transport.send_to(peer_id, {KEY_KIND: KIND_LOOT_OFFER, KEY_OFFER: offer.to_dict()})
-	logged.emit("→ loot offer (request %d, collector %d) to peer %d" %
+	_log("→ loot offer (request %d, collector %d) to peer %d" %
 			[offer.request_id, offer.collector_id, peer_id])
 
 
@@ -793,7 +726,7 @@ func _on_loot_offer(payload: Dictionary) -> void:
 	var offer := LootPickOffer.from_dict(payload.get(KEY_OFFER, {}))
 	if loot_pick_registry != null:
 		loot_pick_registry.receive_offer(offer)
-	logged.emit("← loot offer (request %d, collector %d)" %
+	_log("← loot offer (request %d, collector %d)" %
 			[offer.request_id, offer.collector_id])
 
 
@@ -804,7 +737,7 @@ func send_seat_handover(participant_id: int) -> void:
 	if transport == null or role != NetworkConfig.Role.HOST or participant_id == 0:
 		return
 	transport.send({KEY_KIND: KIND_SEAT_HANDOVER, KEY_PARTICIPANT: participant_id})
-	logged.emit("→ seat %d handed to the AI" % participant_id)
+	_log("→ seat %d handed to the AI" % participant_id)
 
 
 ## #755 receive side. Decodes and re-emits — see [signal seat_handover_received].
@@ -815,7 +748,7 @@ func _on_seat_handover(payload: Dictionary) -> void:
 	if participant_id == 0:
 		return
 	seat_handover_received.emit(participant_id)
-	logged.emit("← seat %d handed to the AI" % participant_id)
+	_log("← seat %d handed to the AI" % participant_id)
 
 
 ## Mirrors off [signal CommandApplier.command_confirmed], NOT `command_applied`:
@@ -844,7 +777,7 @@ func _on_command_confirmed(command: Command) -> void:
 		KEY_COMMAND: command.to_dict(),
 		KEY_FINGERPRINT: command.pre_fingerprint,
 	})
-	logged.emit("→ %s (pre-fp %d)" % [command.type_tag(), command.pre_fingerprint])
+	_log("→ %s (pre-fp %d)" % [command.type_tag(), command.pre_fingerprint])
 
 
 ## #548's upward leg. Mirrors off [signal CommandApplier.intent_submitted],
@@ -858,7 +791,7 @@ func _on_intent_submitted(command: Command) -> void:
 	if role != NetworkConfig.Role.CLIENT or transport == null:
 		return
 	transport.send({KEY_KIND: KIND_INTENT, KEY_COMMAND: command.to_dict()})
-	logged.emit("↑ %s (intent %d)" % [command.type_tag(), command.intent_id])
+	_log("↑ %s (intent %d)" % [command.type_tag(), command.intent_id])
 
 
 ## Host-side. Watches every intent this link accepted, so a validate-fail can be
@@ -887,10 +820,10 @@ func _on_intent(payload: Dictionary) -> void:
 		return
 	var command := CommandCodec.from_dict(payload.get(KEY_COMMAND, {}))
 	if command == null:
-		logged.emit("↑ undecodable intent, dropped")
+		_log("↑ undecodable intent, dropped")
 		return
 	if command.intent_id == 0:
-		logged.emit("↑ %s with no intent id, dropped" % command.type_tag())
+		_log("↑ %s with no intent id, dropped" % command.type_tag())
 		return
 	# [PickLootCommand] bypasses the queue ([method CommandApplier.submit]) and
 	# so never reports through `command_applied`. It also never opens the
@@ -898,7 +831,7 @@ func _on_intent(payload: Dictionary) -> void:
 	# leak — watching it would strand an entry here forever.
 	if not (command is PickLootCommand):
 		_remote_intents[command.intent_id] = true
-	logged.emit("↑ %s (intent %d)" % [command.type_tag(), command.intent_id])
+	_log("↑ %s (intent %d)" % [command.type_tag(), command.intent_id])
 	command_applier.submit(command)
 
 
@@ -922,7 +855,7 @@ func _on_command_applied(command: Command, success: bool) -> void:
 		KEY_INTENT_ID: command.intent_id,
 		KEY_REASON: String(REASON_REFUSED),
 	})
-	logged.emit("→ refused %s (intent %d)" % [command.type_tag(), command.intent_id])
+	_log("→ refused %s (intent %d)" % [command.type_tag(), command.intent_id])
 
 
 ## #548 receive side, client-only. Closes the awaiting window and reports the
@@ -936,26 +869,22 @@ func _on_refusal(payload: Dictionary) -> void:
 	var intent_id := int(payload.get(KEY_INTENT_ID, 0))
 	command_applier.refuse_intent(intent_id,
 			StringName(payload.get(KEY_REASON, String(REASON_REFUSED))))
-	logged.emit("← refused (intent %d)" % intent_id)
+	_log("← refused (intent %d)" % intent_id)
 
 
-func _on_message_received(payload: Dictionary) -> void:
-	# One gate for every kind, rather than one per handler: a refused link is
-	# refused for commands, snapshots and run setup alike (#546).
-	if _refused:
-		return
-	var kind := String(payload.get(KEY_KIND, ""))
-	# #667: same reasoning for the placement — the pre-world window is a
-	# property of the LINK, not of one handler, so the decision about every kind
-	# is readable in one place. See [constant DEFERRED_KINDS].
-	if defer_until_resync and DEFERRED_KINDS.has(kind):
-		logged.emit("← %s dropped — no world yet, waiting on resync" % kind)
-		return
+## Every kind this link still carries until the world-sync, loot-offer and
+## command channels split it (the core owns hello/refused; the lobby its own).
+func kinds() -> Array[String]:
+	return [KIND_COMMAND, KIND_SNAPSHOT, KIND_SETUP, KIND_ENTITIES, KIND_RESYNC, KIND_RESYNC_REQUEST, KIND_INTENT, KIND_REFUSAL, KIND_LOOT_OFFER, KIND_SEAT_HANDOVER]
+
+
+## Only [constant DEFERRED_KINDS] wait for a world; the rest are how one arrives.
+func is_deferred(kind: String) -> bool:
+	return DEFERRED_KINDS.has(kind)
+
+
+func receive(kind: String, payload: Dictionary) -> void:
 	match kind:
-		KIND_HELLO:
-			_on_hello(payload)
-		KIND_REFUSED:
-			_on_refused_by_peer(payload)
 		KIND_COMMAND:
 			_on_remote_command(payload)
 		KIND_SNAPSHOT:
@@ -974,14 +903,8 @@ func _on_message_received(payload: Dictionary) -> void:
 			_on_refusal(payload)
 		KIND_LOOT_OFFER:
 			_on_loot_offer(payload)
-		KIND_LOBBY:
-			_on_lobby_roster(payload)
-		KIND_LOBBY_PICK:
-			_on_lobby_pick(payload)
 		KIND_SEAT_HANDOVER:
 			_on_seat_handover(payload)
-		_:
-			logged.emit("ignored payload with unknown kind %s" % payload.get(KEY_KIND))
 
 
 ## #527 receive side. Decodes straight into [member graph]. The join flow (a
@@ -998,7 +921,7 @@ func _on_graph_snapshot(payload: Dictionary) -> void:
 	# because `core_location` and node-sourced effects need nodes to resolve
 	# against. Now they exist.
 	_drain_pending_entities()
-	logged.emit("← graph snapshot (%s)" % WorldFingerprint.describe(graph))
+	_log("← graph snapshot (%s)" % WorldFingerprint.describe(graph))
 
 
 ## #528 receive side. Decodes [RunConfig] + [ParticipantRoster] and hands both
@@ -1008,7 +931,7 @@ func _on_run_setup(payload: Dictionary) -> void:
 	var config := RunConfig.from_dict(payload.get(KEY_CONFIG, {}))
 	var roster := ParticipantRoster.from_dict(payload.get(KEY_ROSTER, {}))
 	GameSession.apply_received(config, roster)
-	logged.emit("← run setup (seed %d, %d participants)" % [config.seed, roster.all().size()])
+	_log("← run setup (seed %d, %d participants)" % [config.seed, roster.all().size()])
 
 
 ## #560 receive side. [method EntitySnapshot.decode] is pass 1 — identity,
@@ -1025,7 +948,7 @@ func _on_entity_snapshot(payload: Dictionary) -> void:
 	_pending_entities = bytes
 	if not graph.get_skill_nodes().is_empty():
 		_drain_pending_entities()
-	logged.emit("← entity snapshot (%d entities)" % EntitySnapshot.entities_of(graph).size())
+	_log("← entity snapshot (%d entities)" % EntitySnapshot.entities_of(graph).size())
 
 
 func _drain_pending_entities() -> void:
@@ -1054,208 +977,30 @@ var _pending_entities: PackedByteArray = PackedByteArray()
 var entity_spawner: Callable = Callable()
 
 
-## #546's build gate, run before anything in the hello is believed.
-##
-## [b]An ABSENT stamp is a mismatch, not a pass.[/b] That is the whole incident:
-## the peer that corrupted #534's sweep was a `dc5ef29`-era orphan — code from
-## before this check existed, which sends a hello with no build key at all. If
-## "no stamp" read as agreement, this fix would sail straight past the one run
-## it was written for. Present-but-empty is different and DOES compare equal —
-## though that case is now rare on purpose: an exported build has no
-## `res://.git`, so it used to announce an empty sha and two DIFFERENT builds
-## compared equal all the way into a desync. `mise run build` writes a build
-## stamp that [BuildInfo] falls back to, so a build knows its sha too and this
-## gate fires between builds, not just between checkouts.
-##
-## [b]Only the sha is compared.[/b] Bare sha is the strictest key and the right
-## one for a LAN where everyone pulls the same commit; it also refuses when one
-## side has an unrelated uncommitted edit, which is a loud, instantly
-## diagnosable false positive — the exact opposite of the silent failure this
-## exists to kill. Branch and worktree ride along for the message only.
-func _accept_build(payload: Dictionary) -> bool:
-	if not payload.has(KEY_BUILD):
-		_refuse("the peer sent no build stamp — it predates this check", {})
-		return false
-	var theirs: Dictionary = payload.get(KEY_BUILD, {})
-	if String(theirs.get(BUILD_SHA, "")) == String(build_stamp.get(BUILD_SHA, "")):
-		return true
-	_refuse("build mismatch", theirs)
-	return false
-
-
-## Hang up, loudly, on both ends. The reject payload goes out BEFORE
-## [method NetworkTransport.stop] — a transport silently drops a send once it is
-## no longer linked, so the order here is what makes the other end print
-## anything at all.
-func _refuse(reason: String, theirs: Dictionary) -> void:
-	if _refused:
-		return
-	_refused = true
-	_log_refusal(reason, theirs)
-	if transport != null:
-		transport.send({KEY_KIND: KIND_REFUSED, KEY_BUILD: build_stamp, KEY_SUMMARY: reason})
-		transport.stop()
-	link_refused.emit(reason)
-
-
-## #716, host-side: the gate a joining peer clears before it is offered
-## anything. Same comparison as [method _accept_build] — absent is a mismatch,
-## present-but-empty is a match, only the sha counts — reached through the one
-## place that decides it.
-##
-## [b]It emits rather than acts.[/b] Whether a cleared peer gets a lobby seat, a
-## run setup, or nothing at all is not this class's call; what is this class's
-## call is that no peer is heard from before the comparison ran.
-##
-## [b]The peer acted on is the one the TRANSPORT names[/b]
-## ([method NetworkTransport.last_sender_id]), never the one the payload claims.
-## The two exist because a claim can be wrong: a client announcing its
-## neighbour's id would otherwise have that neighbour — already cleared, already
-## seated — disconnected on its say-so. A disagreement is itself a refusal, and
-## of the sender: there is no legitimate way to produce one, and a client that
-## cannot name itself correctly has nothing to contribute to a roster.
-##
-## Falling back to the claimed id when the transport answers `0` keeps a fixture
-## that emits [signal NetworkTransport.message_received] by hand — and any
-## transport with no id of its own — on the path it was on.
-func _gate_peer(payload: Dictionary) -> void:
-	var claimed := int(payload.get(KEY_PEER, 0))
-	var verified := transport.last_sender_id() if transport != null else 0
-	var peer_id := verified if verified != 0 else claimed
-	if verified != 0 and claimed != 0 and claimed != verified:
-		_refuse_peer(peer_id, "announced as peer %d but sent from peer %d"
-				% [claimed, verified], payload.get(KEY_BUILD, {}))
-		return
-	if not payload.has(KEY_BUILD):
-		_refuse_peer(peer_id, "the peer sent no build stamp — it predates this check", {})
-		return
-	var theirs: Dictionary = payload.get(KEY_BUILD, {})
-	if String(theirs.get(BUILD_SHA, "")) != String(build_stamp.get(BUILD_SHA, "")):
-		_refuse_peer(peer_id, "build mismatch", theirs)
-		return
-	logged.emit("↑ peer %d cleared (%s)" % [peer_id, describe_build(theirs)])
-	peer_cleared.emit(peer_id, payload.get(KEY_JOIN_PREFS, {}))
-
-
-## Hang up on ONE peer and keep listening (#716 item 1, acceptance 1).
-##
-## [b]No latch and no [method NetworkTransport.stop].[/b] Both are what
-## [method _refuse] does, and both are wrong for a host: the listener the socket
-## holds belongs to every other peer on it, and a latch would make this machine
-## deaf to the client whose checkout the operator is about to fix. What the host
-## loses by staying up is nothing — a refused peer is no longer connected, so it
-## has no way to say anything else.
-##
-## The reject goes out BEFORE the disconnect, same reason [method _refuse]
-## documents: a message aimed at a peer that is already gone is dropped, and then
-## the refused end has nothing on screen to explain itself with.
-func _refuse_peer(peer_id: int, reason: String, theirs: Dictionary) -> void:
-	_log_refusal(reason, theirs)
-	if transport != null:
-		transport.send_to(peer_id, {
-			KEY_KIND: KIND_REFUSED, KEY_BUILD: build_stamp, KEY_SUMMARY: reason,
-		})
-		transport.drop_peer(peer_id)
-	peer_refused.emit(peer_id, reason)
-
-
-## #733's door in: a caller OUTSIDE this file that already knows a peer must be
-## turned away — [GameRoot]'s in-run join gate, which has no build stamp to
-## compare and so nothing to put in [param theirs]. [method _refuse_peer] stays
-## private; this is the one public way onto it, so nothing outside this class
-## reaches for the private method directly.
-func refuse_peer(peer_id: int, reason: String) -> void:
-	_refuse_peer(peer_id, reason, {})
-
-
-## The other end did the comparing, so this side only reports it.
-##
-## [b]It deliberately neither latches nor stops.[/b] Both are one line and both
-## are wrong here. The refusing peer has already hung up its own side, so the
-## socket goes down on its own and a send drops by itself — while stopping HERE
-## closes a host's listening socket, and latching makes it deaf forever. That
-## breaks the exact workflow this feature exists to serve: the operator reads
-## the mismatch, fixes the client's checkout, relaunches the CLIENT — and would
-## find a host that can no longer be reached, with nothing on screen saying to
-## relaunch it too. On a LAN with several clients it is worse: one stale peer's
-## refusal would disconnect everybody.
-##
-## Nothing is lost by staying open. This side is [constant NetworkConfig.Role.HOST], and
-## [method _on_remote_command] requires [constant NetworkConfig.Role.CLIENT], so a stale peer
-## still cannot make it apply anything. The latch belongs on the side that
-## REFUSED, where [method _refuse] sets it.
-##
-## [b]A CLIENT told this does latch, since #716.[/b] Everything above is about a
-## HOST, and stays true for one. A client, though, has just been disconnected by
-## the peer that sent this — [method _refuse_peer] drops it — so there is no
-## socket left to be deaf on, and going quiet is what stops it acting on
-## anything still in flight. The one behaviour that must not change either way is
-## [method NetworkTransport.stop] on a host, which is why the latch is the only
-## line under the mode check.
-##
-## The reason travels (#716 item 4): the lobby shows it, so "Refused" alone —
-## which is all this used to emit — would put a screen in front of a human that
-## says a build mismatch happened without saying which build.
-func _on_refused_by_peer(payload: Dictionary) -> void:
-	var summary := String(payload.get(KEY_SUMMARY, "build mismatch"))
-	_log_refusal(summary, payload.get(KEY_BUILD, {}))
-	if role == NetworkConfig.Role.CLIENT:
-		_refused = true
-	link_refused.emit("refused by peer — %s" % summary)
-
-
-func _log_refusal(reason: String, theirs: Dictionary) -> void:
-	logged.emit("link REFUSED — %s" % reason)
-	logged.emit("  peer:   %s" % describe_build(theirs))
-	logged.emit("  mine:   %s" % describe_build(build_stamp))
-	logged.emit("The peers are not running the same code.")
-
-
-## This peer's stamp, straight off the [BuildInfo] autoload — which reads
-## `res://.git` once at startup, with no `git` subprocess.
-static func local_build_stamp() -> Dictionary:
-	return {
-		BUILD_SHA: BuildInfo.short_sha,
-		BUILD_BRANCH: BuildInfo.branch,
-		BUILD_WORKTREE: BuildInfo.worktree,
-	}
-
-
-## e.g. `4174f36 (master)`, or `54cfcd7 (master @ issue-546-…)` in a worktree.
-static func describe_build(stamp: Dictionary) -> String:
-	var sha := String(stamp.get(BUILD_SHA, ""))
-	if sha.is_empty():
-		return "unknown — no build stamp"
-	var branch := String(stamp.get(BUILD_BRANCH, ""))
-	var worktree := String(stamp.get(BUILD_WORKTREE, ""))
-	var where := branch if branch != "" else "detached"
-	if worktree != "":
-		where += " @ " + worktree
-	return "%s (%s)" % [sha, where]
-
-
-## A hello means two different things depending on which end reads it (#716), so
-## it dispatches on [member role] rather than growing a second kind:
-##
-## - under [constant NetworkConfig.Role.HOST] it is a JOINER announcing itself, and the
-##   answer is [method _gate_peer] — clear that peer or hang up on that peer;
-## - under [constant NetworkConfig.Role.CLIENT] it is the host's world announcement, unchanged
-##   since #546, and a mismatch hangs up this machine's own link.
-##
-## The asymmetry is the point. A client owns nothing but its own link, so
-## [method _refuse] closing it is correct; a host owns the listener every OTHER
-## peer is on, so it must never take that route.
-func _on_hello(payload: Dictionary) -> void:
-	if role == NetworkConfig.Role.HOST:
-		_gate_peer(payload)
-		return
-	if not _accept_build(payload):
-		return
+## The core cleared the host's hello (build gate — [method NetworkLink._on_hello]);
+## its WORLD half is this channel's until the world-sync channel takes it.
+func _on_hello_accepted(payload: Dictionary) -> void:
 	var remote := int(payload.get(KEY_FINGERPRINT, 0))
 	var local := WorldFingerprint.compute(graph)
-	logged.emit("host world: %s" % payload.get(KEY_SUMMARY, "?"))
-	logged.emit("mine:       %s" % WorldFingerprint.describe(graph))
+	_log("host world: %s" % payload.get(KEY_SUMMARY, "?"))
+	_log("mine:       %s" % WorldFingerprint.describe(graph))
 	_report_sync(local, remote, "at link-up")
+
+
+## shim: the build stamp moved to [NetworkLink]; removed when the callers re-point.
+static func local_build_stamp() -> Dictionary:
+	return NetworkLink.local_build_stamp()
+
+
+## shim: see [method NetworkLink.describe_build].
+static func describe_build(stamp: Dictionary) -> String:
+	return NetworkLink.describe_build(stamp)
+
+
+## shim: see [method NetworkLink.refuse_peer].
+func refuse_peer(peer_id: int, reason: String) -> void:
+	link.refuse_peer(peer_id, reason)
+
 
 
 func _on_remote_command(payload: Dictionary) -> void:
@@ -1263,7 +1008,7 @@ func _on_remote_command(payload: Dictionary) -> void:
 		return
 	var command := CommandCodec.from_dict(payload.get(KEY_COMMAND, {}))
 	if command == null:
-		logged.emit("← undecodable payload, dropped")
+		_log("← undecodable payload, dropped")
 		return
 	# ── Compared BEFORE the mutation, on both sides (#540 decision 4) ─────────
 	# The host stamped its fingerprint when this command left ITS queue, so what
@@ -1309,7 +1054,7 @@ func _on_remote_command(payload: Dictionary) -> void:
 	if command_applier.is_applying:
 		await command_applier.applying_changed
 	_applying_remote = false
-	logged.emit("← %s" % command.type_tag())
+	_log("← %s" % command.type_tag())
 
 
 ## The divergence check, at the mirror's own [member Command.pre_fingerprint]
@@ -1357,12 +1102,12 @@ func _report_sync(local: int, remote: int, when: String) -> bool:
 	var agrees := local == remote
 	sync_checked.emit(agrees, local, remote)
 	if agrees:
-		logged.emit("  ✓ in sync %s (fp %d)" % [when, local])
+		_log("  ✓ in sync %s (fp %d)" % [when, local])
 		# The repair landed and the next boundary agreed, so the client may ask
 		# again if it ever drifts a second time.
 		_awaiting_resync = false
 		return true
-	logged.emit("  ✗ DIVERGED %s — mine %d, host %d" % [when, local, remote])
+	_log("  ✗ DIVERGED %s — mine %d, host %d" % [when, local, remote])
 	_heal_desync("%s (mine %d, host %d)" % [when, local, remote])
 	return false
 
