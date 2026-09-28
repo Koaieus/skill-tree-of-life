@@ -260,7 +260,7 @@ func _start_link() -> void:
 			input_ctl.set_input_frozen(true)
 			# ALONGSIDE the link core's own listener, not instead of it — both
 			# connect to the same signal, and children ready before their
-			# parent, so the core's dispatch (the world channel decodes each snapshot) are
+			# parent, so the core's dispatch (the world channel decodes each snapshot) is
 			# guaranteed to run before this one (connected here, in the
 			# root's own `_ready`). See the class docstring's send-order note.
 			_transport.message_received.connect(_observe_snapshots)
