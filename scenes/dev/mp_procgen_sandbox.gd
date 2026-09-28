@@ -33,6 +33,7 @@ const _CORE_CLASS_AI := preload("res://entity/core/basic_enemy_core.tres")
 
 @onready var _transport: NetworkTransport = $Transport
 @onready var _link: CommandLink = $CommandLink
+@onready var _world_sync: WorldSyncChannel = $WorldSyncChannel
 @onready var _banner: Label = %NetBanner
 @onready var _log: RichTextLabel = %NetLog
 
@@ -55,7 +56,7 @@ var _round_running: bool = false
 var _link_refused: bool = false
 
 ## Fired once BOTH `KIND_SNAPSHOT` and `KIND_ENTITIES` have been OBSERVED
-## arriving — after [CommandLink] has already decoded each (see [method
+## arriving — after [WorldSyncChannel] has already decoded each (see [method
 ## _observe_snapshots] for why that ordering is guaranteed, not assumed).
 signal _snapshots_arrived
 
@@ -257,9 +258,9 @@ func _start_link() -> void:
 			# no intent channel upward, so a local mutation here would
 			# diverge from the host with nothing to correct it.
 			input_ctl.set_input_frozen(true)
-			# ALONGSIDE CommandLink's own listener, not instead of it — both
+			# ALONGSIDE the link core's own listener, not instead of it — both
 			# connect to the same signal, and children ready before their
-			# parent, so `_link`'s handlers (which decode each snapshot) are
+			# parent, so the core's dispatch (the world channel decodes each snapshot) are
 			# guaranteed to run before this one (connected here, in the
 			# root's own `_ready`). See the class docstring's send-order note.
 			_transport.message_received.connect(_observe_snapshots)
@@ -298,26 +299,26 @@ func _greet_if_linked_and_ready() -> void:
 	# Run settings (#528), then the graph (#527) and the entity state (#560,
 	# order between these two doesn't matter), THEN hello — see the class
 	# docstring's send-order note for why hello must be last here.
-	_link.send_run_setup(GameSession.config, GameSession.roster)
-	_link.send_graph_snapshot()
-	_link.send_entity_snapshot()
-	_link.send_hello()
+	_world_sync.send_run_setup(GameSession.config, GameSession.roster)
+	_world_sync.send_graph_snapshot()
+	_world_sync.send_entity_snapshot()
+	_world_sync.send_hello()
 	_start_opening_turn()
 
 
-## CLIENT-side observer, alongside (not instead of) `CommandLink`'s own
+## CLIENT-side observer, alongside (not instead of) [WorldSyncChannel]'s own
 ## handling of the same messages. Exists only to unblock [signal
 ## _snapshots_arrived] once BOTH have been seen — the decode itself, and the
-## `core_location` resolution it drives, are entirely `CommandLink`'s (#560).
+## `core_location` resolution it drives, are entirely the world channel's (#560).
 var _seen_graph_snapshot := false
 var _seen_entity_snapshot := false
 
 
 func _observe_snapshots(payload: Dictionary) -> void:
-	match String(payload.get(CommandLink.KEY_KIND, "")):
-		CommandLink.KIND_SNAPSHOT:
+	match String(payload.get(NetworkLink.KEY_KIND, "")):
+		WorldSyncChannel.KIND_SNAPSHOT:
 			_seen_graph_snapshot = true
-		CommandLink.KIND_ENTITIES:
+		WorldSyncChannel.KIND_ENTITIES:
 			_seen_entity_snapshot = true
 		_:
 			return
