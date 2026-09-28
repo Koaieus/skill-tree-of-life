@@ -37,6 +37,7 @@ minutes at a time.
 | `ls -la <output>` to "check progress" | a poll |
 | foreground with `timeout: 600000` | blocks the user out of their own session |
 | ending the turn with `"idle"` / `"waiting"` / `"still going"` | a full model turn on a full context, N times over |
+| `mise run mp:e2e &` then a separate wait-loop | a hand-rolled background job the harness cannot notify you about — put `run_in_background: true` on the command itself and there is nothing to wait on |
 
 **A backgrounded command's cwd:** it does inherit the Bash tool's persisted
 working directory, but never assume it — make `pwd` the first thing the command
@@ -54,6 +55,13 @@ until <check>; do sleep 5; done
 
 One launch, one notification, not N. Pick the interval from how fast the state
 actually changes.
+
+**`<check>` is never `pgrep -f "<text>"` for a command you launched** — it
+matches the loop's own shell, whose command line contains that same text, so
+`while pgrep -f "mp:e2e"` / `"gut_cmdln.gd"` never ends. Wait on a PID instead
+(`while kill -0 $pid; do sleep 3; done`, `$pid` captured from `$!`), or better,
+don't wait at all: a process you started goes under `run_in_background: true`,
+and the tool's own exit is the notification.
 
 ## Every dispatch brief needs all three clauses
 
@@ -85,6 +93,12 @@ obedient worker from replacing polling with a string of one-word idle turns.
   no-polling clause; the worker polled ~a dozen times and the owner killed it
   mid-run. Its work was already committed, so only the drone's remaining context
   was lost — but the merge gate had to be re-run by the lead.
+- **`pgrep -f` self-match, 5×, 2026-08-30 → 2026-09-28** — `while pgrep -f
+  "gut_cmdln.gd"` (4×, one with no `sleep`: a CPU spin) and, on #1179's drone,
+  `until ! pgrep -f "mise run mp:e2e"` after hand-backgrounding the e2e with
+  `&`. Each loop matched itself and outlived its target (mp:e2e was done in 4
+  min; the loop ran 30 more; another was killed after 63). ~54 min lost across
+  the five.
 
 Correcting a worker mid-run is itself expensive (it re-derives its whole
 context), so the clause belongs in the brief at dispatch, not in a follow-up.
