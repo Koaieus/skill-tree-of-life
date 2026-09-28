@@ -39,6 +39,10 @@ Five things that fail silently if you forget them:
 
 Full reasoning, the sub-board-array alternative that was rejected, and the +153 ms/2500-node measurement with its breakdown: **`docs/domain/stat-board-classes.md`**.
 
+## Parent stats (ADR 0029, ADR 0030)
+
+**A child stat folds its ancestors' BINS, never their base.** `StatDef.parent_ids` declares the edges; `StatRegistry` flattens them once (`ancestors_of` nearest-first + deduped, `children_of` direct, `is_parent`), `push_error`s and drops an unknown id or a cycle-closing edge. A read is `compute(child.base_value, [farthest ancestor … nearest parent, own bins])` at every door (`get_value`, `get_value_with`, `resolve_with`, `PoolStat`'s `base_provider` read) via `Stat.all_bins()` — so INCREASEs sum across the chain and a child SET beats a parent SET at equal priority. **Invalidation is a link, not a signal:** `StatBoard._link_parents` wires `Stat._parents` (present ancestors) / `_children` (present descendants) at the three registration sites (`apply_intrinsics`' typed-field pass, `_register_minted`, `clone_live`), both ways, and a parent's `_emit_value_changed` dirties + notifies every descendant through the batch branch; parent edges join `collect_formula_edges` so a flush emits parents first. **Tests arrange throwaway defs through `StatRegistry.register_def` / `unregister_def`** — nothing outside `test/` may call them.
+
 ## Local stats (per-node overrides)
 
 `SkillNode.node_board` is a `NodeStatBoard` — owned stats baked, borrowed ones created only when a node-local modifier targets them (via `_ensure_local_stat(id)`) or when the node is allocated (combat health pool). No `LocalStat` class — the merge happens directly: `StatBoard.get_stat(id)` may differ per board, and combined reads use `ModifierBins.compute()` with bins from both the entity and node board.
