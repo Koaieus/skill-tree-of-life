@@ -117,6 +117,14 @@ func _melee_candidate(cw: bool) -> AiCombatScorer.ScoredCandidate:
 	return c
 
 
+## Drive one AI swing, then let the swing's own coroutine chain unwind — the
+## test must not end (and autofree the fixture) inside the preview's emit.
+func _launch(candidate: AiCombatScorer.ScoredCandidate) -> bool:
+	var launched: bool = await _ai._execute_candidate(candidate)
+	await get_tree().process_frame
+	return launched
+
+
 ## A plan the seated human has armed and is still building.
 func _arm_human_plan() -> AttackPlan:
 	var plan := RangedAttackPlan.new()
@@ -134,7 +142,7 @@ func _watch_slot() -> void:
 
 func test_ai_launch_leaves_an_empty_slot_empty() -> void:
 	_watch_slot()
-	var launched: bool = await _ai._execute_candidate(_melee_candidate(true))
+	var launched: bool = await _launch(_melee_candidate(true))
 	assert_true(launched, "sanity: the melee candidate launches")
 	assert_null(_bs.plan_slot.attack_plan, "the AI never parks its plan in the slot")
 	assert_eq(_slot_writes.size(), 0, "the slot was never written during the AI's swing")
@@ -143,7 +151,7 @@ func test_ai_launch_leaves_an_empty_slot_empty() -> void:
 func test_ai_launch_leaves_the_humans_armed_plan_armed() -> void:
 	var human := _arm_human_plan()
 	_watch_slot()
-	var launched: bool = await _ai._execute_candidate(_melee_candidate(true))
+	var launched: bool = await _launch(_melee_candidate(true))
 	assert_true(launched, "sanity: the melee candidate launches")
 	assert_eq(_bs.plan_slot.attack_plan, human, "the human's armed plan survives the AI's swing")
 	assert_eq(_slot_writes.size(), 0, "the slot was never written during the AI's swing")
@@ -166,6 +174,7 @@ func test_mirror_replay_leaves_the_slot_untouched() -> void:
 	var human := _arm_human_plan()
 	_watch_slot()
 	var applied: bool = await _bs.apply_launch_command(replay)
+	await get_tree().process_frame
 	assert_true(applied, "sanity: the replay applies")
 	assert_eq(_bs.plan_slot.attack_plan, human, "a replay never writes the slot")
 	assert_eq(_slot_writes.size(), 0, "the slot was never written during the replay")
@@ -179,7 +188,7 @@ func _confirmed_swing_cw(candidate_cw: bool, sticky_cw: bool) -> Array:
 	_applier.command_confirmed.connect(func(c: Command) -> void:
 		if c is LaunchAttackCommand:
 			seen.append(bool((c as LaunchAttackCommand).plan.get("swing_cw", not candidate_cw))))
-	await _ai._execute_candidate(_melee_candidate(candidate_cw))
+	await _launch(_melee_candidate(candidate_cw))
 	return seen
 
 
@@ -199,6 +208,6 @@ func test_presenter_is_live_during_an_ai_melee_launch() -> void:
 	var presenters: Array = []
 	_bs.attack_committed.connect(func(_o: AttackOutcome, _e: Entity) -> void:
 		presenters.append(_bs.presenter()))
-	await _ai._execute_candidate(_melee_candidate(true))
+	await _launch(_melee_candidate(true))
 	assert_eq(presenters.size(), 1, "sanity: one commit")
 	assert_eq(presenters[0], _preview, "the melee presenter answers for the AI's in-flight plan")
