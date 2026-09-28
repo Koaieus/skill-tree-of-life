@@ -472,8 +472,9 @@ func _with_per_clause(sentence: String) -> String:
 ## `display_as_percent` stays on its own `roundi(v * 100.0)` path, unchanged
 ## (#622 decision: it composes with the type rule rather than replacing it —
 ## a percent display is already whole-number-of-percent regardless of the
-## underlying stat's type). MULTIPLY / SET keep `NumFmt.num(v)` untouched — neither
-## is type-aware; see [StatDef.format_number]'s docstring for why.
+## underlying stat's type). MULTIPLY / SET call [method NumFmt.num] directly
+## rather than [method StatDef.format_number], because neither is type-aware;
+## see [method StatDef.format_number]'s docstring.
 ##
 ## BOOL (#805, owner call) renders as a bare TRAIT LINE — the stat's own name,
 ## no sign, no number — regardless of op, ahead of the match below: two
