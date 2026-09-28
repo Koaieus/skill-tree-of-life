@@ -220,8 +220,8 @@ func test_aura_falloff_by_hop() -> void:
 	_entity.begin_turn()
 
 	# LinearScale-equivalent formula: base * (1 - d/max) = 10, 6.667, 3.333, 0
-	# for base 10 / max_hops 3 — floored once, here, per ADR 0017 (health is
-	# an INT quantity end to end), and the rim (hop == max_hops) computes
+	# for base 10 / max_hops 3 — floored once by the heal door, per ADR 0017
+	# (health is an INT quantity end to end), and the rim (hop == max_hops) computes
 	# exactly 0 and heals nothing.
 	assert_almost_eq(_hp_pool(core).current, 60.0, 0.001, "core's own node heals base (hop 0)")
 	assert_almost_eq(_hp_pool(chain[1]).current, 56.0, 0.001, "hop 1: 6.667 floors to 6")

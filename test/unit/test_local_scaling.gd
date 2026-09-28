@@ -92,36 +92,36 @@ func test_sequence_1_2_3_2_1_returns_exactly() -> void:
 
 
 func test_multiply_1_5_round_trip_is_exact() -> void:
-	# node_healing is FLOAT-typed with base 1.0, so a MULTIPLY reads straight
-	# through (base 1.0 × multiplier = multiplier).
+	# healing_received is FLOAT-typed with base 1.0, so a MULTIPLY reads
+	# straight through (base 1.0 × multiplier = multiplier).
 	var m := StatModifier.new()
-	m.stat_id = &"node_healing"
+	m.stat_id = &"healing_received"
 	m.operation = StatModifier.Operation.MULTIPLY
 	m.value = 1.5
 	_node.stake_level = 3
 	_node.add_local_modifier(m)
 	_set_al(1)
-	assert_almost_eq(float(_node.get_local_value(&"node_healing")), 1.5, 0.0001)
+	assert_almost_eq(float(_node.get_local_value(&"healing_received")), 1.5, 0.0001)
 	_set_al(3)
-	assert_almost_eq(float(_node.get_local_value(&"node_healing")), 2.5, 0.0001,
+	assert_almost_eq(float(_node.get_local_value(&"healing_received")), 2.5, 0.0001,
 			"×1.5 at al=3: 1 + 0.5x3 (growth part added)")
 	_set_al(1)
-	assert_almost_eq(float(_node.get_local_value(&"node_healing")), 1.5, 0.0001,
+	assert_almost_eq(float(_node.get_local_value(&"healing_received")), 1.5, 0.0001,
 			"lowered back: ×1.5 exactly")
 
 
 func test_multiply_1_1_percent_more_round_trip() -> void:
 	var m := StatModifier.new()
-	m.stat_id = &"node_healing"
+	m.stat_id = &"healing_received"
 	m.operation = StatModifier.Operation.MULTIPLY
 	m.value = 1.1
 	_node.stake_level = 3
 	_node.add_local_modifier(m)
 	_set_al(2)
-	assert_almost_eq(float(_node.get_local_value(&"node_healing")), 1.2, 0.0001,
+	assert_almost_eq(float(_node.get_local_value(&"healing_received")), 1.2, 0.0001,
 			"+10% More at al=2 reads +20% More")
 	_set_al(1)
-	assert_almost_eq(float(_node.get_local_value(&"node_healing")), 1.1, 0.0001,
+	assert_almost_eq(float(_node.get_local_value(&"healing_received")), 1.1, 0.0001,
 			"backed to al=1 reads ×1.1")
 
 
