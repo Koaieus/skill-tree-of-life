@@ -236,9 +236,9 @@ func _start_link() -> void:
 	if turn_manager != null:
 		turn_manager.turn_started.connect(_on_turn_started)
 
+	_link.role = _role
 	match _role:
 		NetworkConfig.Role.HOST:
-			_link.role = NetworkConfig.Role.HOST
 			var err := _transport.start_host(_port)
 			if err != OK:
 				_die_without_a_socket(err)
@@ -253,7 +253,6 @@ func _start_link() -> void:
 			# fault rather than a crash, so it only shows in the host's log.
 			_transport.link_changed.connect(_greet_if_linked_and_ready.unbind(1))
 		NetworkConfig.Role.CLIENT:
-			_link.role = NetworkConfig.Role.CLIENT
 			# A spectator, on purpose — same reasoning as rung 1: wave 0 has
 			# no intent channel upward, so a local mutation here would
 			# diverge from the host with nothing to correct it.
@@ -266,7 +265,6 @@ func _start_link() -> void:
 			_transport.message_received.connect(_observe_snapshots)
 			_transport.start_client(_address, _port)
 		_:
-			_link.role = NetworkConfig.Role.OFFLINE
 			_refresh_banner()
 			return
 

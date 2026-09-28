@@ -500,9 +500,7 @@ func bind_link(transport: NetworkTransport) -> void:
 	# Set AFTER `add_child`, because [method CommandLink._ready] re-applies the
 	# role onto its (here absent) applier — and because a lobby-time link must
 	# have a role the moment the socket is live, not when a level says so.
-	_link.role = (NetworkConfig.Role.HOST
-			if _roster.network.role == NetworkConfig.Role.HOST
-			else NetworkConfig.Role.CLIENT)
+	_link.role = _roster.network.role
 	_transport.peer_joined.connect(_on_link_peer_joined)
 	_transport.peer_left.connect(_on_link_peer_left)
 	_transport.link_lost.connect(_on_transport_link_lost)

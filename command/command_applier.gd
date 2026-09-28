@@ -142,7 +142,7 @@ const CORE_HOP_SLIDE_DELAY := MoveCoreCommandHandler.CORE_HOP_SLIDE_DELAY
 var seat_policy: SeatPolicy = null
 
 ## Is this peer the one that DECIDES, or the one that is told? True offline,
-## true on the host, false only while [member CommandLink.role] is `MIRROR` —
+## true on the host, false only while [member CommandLink.role] is `CLIENT` —
 ## that setter is the single writer, so nothing has to be kept in sync by hand
 ## and no scene grows a second role flag.
 ##

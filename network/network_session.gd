@@ -93,7 +93,7 @@ func _ready() -> void:
 ## Is this process the one that decides, rather than one that is told? The same
 ## question [CommandApplier.is_authority] answers, asked from the level: a
 ## missing link is an offline run, which is its own authority, and so is a link
-## left in `Mode.OFF`. Only a MIRROR is told.
+## left [code]OFFLINE[/code]. Only a CLIENT is told.
 func is_authority() -> bool:
 	return command_link == null or command_link.role != NetworkConfig.Role.CLIENT
 
@@ -159,9 +159,7 @@ func adopt_role() -> void:
 	var net: NetworkConfig = GameSession.network
 	if net == null or not net.is_online():
 		return
-	command_link.role = (NetworkConfig.Role.HOST
-			if net.role == NetworkConfig.Role.HOST
-			else NetworkConfig.Role.CLIENT)
+	command_link.role = net.role
 
 
 ## Half two: open the socket on whatever transport this level mounted.

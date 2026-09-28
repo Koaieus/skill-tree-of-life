@@ -608,7 +608,7 @@ var defer_until_resync: bool = false
 ## diagnostics; they touch no world state.
 ## [constant KIND_INTENT], [constant KIND_RESYNC_REQUEST]: host-only handlers
 ## ([code]role != NetworkConfig.Role.HOST[/code] early-return), and this latch is only
-## ever set on a MIRROR peer — gating them would be unreachable code, so the
+## ever set on a CLIENT peer — gating them would be unreachable code, so the
 ## decision is recorded here rather than as a guard that can never fire.
 ## [constant KIND_REFUSAL]: the answer to an intent this peer raised, and a
 ## joining client has raised none — but it mutates nothing and a swallowed
@@ -848,7 +848,7 @@ func _on_command_confirmed(command: Command) -> void:
 
 
 ## #548's upward leg. Mirrors off [signal CommandApplier.intent_submitted],
-## which only a peer that does NOT decide ever emits — so the `MIRROR` gate here
+## which only a peer that does NOT decide ever emits — so the `CLIENT` gate here
 ## is belt-and-braces, and the honest statement of which direction this travels.
 ##
 ## No fingerprint rides up: the client's world is not the one being mutated
@@ -1298,7 +1298,7 @@ func _on_remote_command(payload: Dictionary) -> void:
 				not command_applier.is_applying and command_applier.pending_count() == 0)
 	_applying_remote = true
 	# [method CommandApplier.apply_remote], NOT `submit` — since #548 `submit`
-	# is the INTENT door, and on this MIRROR peer it would send the host's own
+	# is the INTENT door, and on this CLIENT peer it would send the host's own
 	# confirmed command straight back up. `apply_remote` is the same queue and
 	# the same full `_validate -> confirm -> apply`, so
 	# [signal CommandApplier.command_confirmed] still fires here, on the peer
@@ -1331,7 +1331,7 @@ func _on_remote_command(payload: Dictionary) -> void:
 ## stamped. Nothing is skipped, and the first `✗` names the first command that
 ## actually disagreed.
 ##
-## [b]MIRROR only.[/b] The authority's stamp IS the reference; comparing it
+## [b]CLIENT only.[/b] The authority's stamp IS the reference; comparing it
 ## against itself would be a tautology, and every command it drains carries
 ## [member Command.host_fingerprint] 0 anyway.
 func _on_command_stamped(command: Command) -> void:

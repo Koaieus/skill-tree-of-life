@@ -35,7 +35,7 @@ extends "res://scenes/dev_sandbox.gd"
 ## Restoring it exposes a real trap: [method GameRoot._ensure_controllers]
 ## attaches an [AIController] to Blue on BOTH peers, and that controller
 ## resolves [member GameRoot.command_applier] — its OWN peer's applier — so a
-## MIRROR peer's copy would decide and submit independently of the host's AI
+## CLIENT peer's copy would decide and submit independently of the host's AI
 ## the moment its local [TurnManager] hands Blue the turn (which a mirrored
 ## [EndTurnCommand] does). Closed by gating [method AIController.take_turn] on
 ## [member CommandApplier.is_authority] (`network/command_link.gd`'s `mode`
@@ -267,9 +267,9 @@ func _start_link() -> void:
 	if turn_manager != null:
 		turn_manager.turn_started.connect(_on_turn_started)
 
+	_link.role = _role
 	match _role:
 		NetworkConfig.Role.HOST:
-			_link.role = NetworkConfig.Role.HOST
 			_write_log(WorldFingerprint.describe(graph))
 			var err := _transport.start_host(_port)
 			if err != OK:
@@ -278,7 +278,6 @@ func _start_link() -> void:
 			# The client connects later; greet it when it does.
 			_transport.link_changed.connect(_greet_if_linked)
 		NetworkConfig.Role.CLIENT:
-			_link.role = NetworkConfig.Role.CLIENT
 			# A spectator, on purpose: wave 0 has no intent channel upward, so a
 			# local mutation here would diverge from the host with nothing to
 			# correct it. `set_input_frozen` (#486) is the existing seam for
@@ -287,7 +286,6 @@ func _start_link() -> void:
 			_write_log(WorldFingerprint.describe(graph))
 			_transport.start_client(_address, _port)
 		_:
-			_link.role = NetworkConfig.Role.OFFLINE
 			# Hot-seat, as the base scene plays — leave handover connected.
 			_refresh_banner()
 			return
