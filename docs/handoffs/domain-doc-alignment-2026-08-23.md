@@ -282,7 +282,7 @@ several. **Not a decision — an inventory.**
 
 | Gap | State |
 |---|---|
-| **Upward channel (client→host intent)** | **Does not exist.** `CommandLink` sends only on `Mode.BROADCAST` (`command_link.gd:189`). Unfiled on purpose — blocked on item 1's decision |
+| **Upward channel (client→host intent)** | **Does not exist.** the command link sends only on `Mode.BROADCAST` (then `network/command_link.gd:189`, since retired). Unfiled on purpose — blocked on item 1's decision |
 | **Join handshake never fires in production** | `send_graph_snapshot` / `send_run_setup` (#527/#528) have **zero non-test callers**. `GameRoot._greet_if_linked` sends `hello` only. Survivable, per the row below |
 | **Procgen is genuinely seed-reproducible** | Checked, not assumed: every roll under `procgen/` goes through an `rng` instance — no bare `randi()`/`randf()`/`shuffle()` in the pipeline (the one global `randi()` is `playground_panel.gd:298` seeding its own dev RNG). So `HostJoinScreen`'s "both type the same seed" hint **works**, and #527's snapshot is robustness, not a hard prerequisite |
 | **Level ignores the session roster** | `procgen_play_sandbox.gd:99-125`, per item 6 |

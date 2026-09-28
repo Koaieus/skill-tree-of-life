@@ -30,16 +30,16 @@ open; `meta_root._push_lobby` alone decides a route opens a socket, and
 facade** (#715), and a **client runs no procgen**.
 
 **There is no drop-in mid-game (#733).** `GameRoot._on_peer_joined`'s host branch
-refuses — via `CommandLink.refuse_peer`, ahead of `stamp_pending_remote` and the
+refuses — via `NetworkLink.refuse_peer`, ahead of `stamp_pending_remote` and the
 join-world push — any peer absent from `GameSession.roster`. A peer that dials a
 live run gets no world; don't "fix" a silent late joiner by widening that gate.
 
-**`Transport` + `CommandLink` are still mounted in `scenes/game_root.tscn`
+**`Transport` + `NetworkLink` (and its channels) are still mounted in `scenes/game_root.tscn`
 (#531), and a level may only SWAP the transport's script, never author a second
 pair** — the seam stays per-level because two worlds in one process need a
 transport each, and colliding sibling names mean `$Transport` picks whichever
 Godot renamed last, silently. The default is `LoopbackTransport` with the link
-`Mode.OFF`; the role comes from `GameSession.network` (`NetworkConfig`), which is
+`Role.OFFLINE`; the role comes from `GameSession.network` (`NetworkConfig`), which is
 per-machine and deliberately not on `RunConfig`.
 
 **One direction only, on purpose.** The host broadcasts confirmed commands; the
@@ -66,7 +66,7 @@ timeline — *not* effective damage, HP numbers, the reclassified kind, the
 `FLAG_GATED` bit or the dealloc sets, which `AttackRecord`'s own contract says a
 peer cannot re-derive. So don't widen the diff to "the whole record" — that
 reports 100% divergence for structural reasons. Its `skipped` column is
-`CommandLink` declining to compare (the peer's queue was non-empty when the
+`CommandChannel` declining to compare (the peer's queue was non-empty when the
 command arrived, so its world is not at a command boundary), **not** a pass, and
 `exempt` is loot's host-only roll working as designed.
 
@@ -95,7 +95,7 @@ are **not comparable between two runs**. Compare the sweep-driven verbs.
 
 **Suspect a replay bug? The Outcome playground tab takes the wire out of it
 (#539)** — it submits a recorded `LaunchAttackCommand` to a local
-`CommandApplier` with no `CommandLink`, so a fixture that replays there clears
+`CommandApplier` with no `CommandChannel`, so a fixture that replays there clears
 the replay path and leaves messaging as the only suspect. The world is rebuilt
 from `scenes/dev/outcome_playground_world.gd` rather than carried in the fixture
 (ids mint from per-`Graph` child order, so both sides must build it the same

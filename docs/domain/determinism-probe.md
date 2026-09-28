@@ -21,7 +21,7 @@ floating-point portability, and the ground that actually decided the model
 | Piece | Where |
 |---|---|
 | The probe | `network/determinism_probe.gd` |
-| Its three hooks | `network/command_link.gd` (`_on_remote_command`) |
+| Its hooks | `network/command_channel.gd` (`_on_remote_command`, `_on_command_stamped`) and `network/world_sync_channel.gd` (the compare) |
 | The `--probe` flag + readout | `scenes/dev/mp_dev_sandbox.gd` |
 | The tab toggle | `addons/mp_sandbox/mp_sandbox_panel.tscn` |
 
@@ -67,7 +67,7 @@ prints *promptly* when a sweep — or a human clicking — stops.
 ## Three questions, tallied apart
 
 **WORLD — do the two worlds agree?** This is `WorldFingerprint.compute`, which
-`CommandLink` already compared; the probe only attributes each verdict to the
+`WorldSyncChannel` already compared; the probe only attributes each verdict to the
 command type that produced it. Columns: `ok / DIVERGED / skipped / exempt`.
 
 Since #540 the comparison is **pre-state against pre-state**, not post-apply:
@@ -157,7 +157,7 @@ Neither, on one machine, says anything about `libm`.
 
 ## `skipped` is the honest denominator, not a pass
 
-`CommandLink._on_remote_command` deliberately suppresses the fingerprint compare
+`CommandChannel._on_remote_command` deliberately suppresses the fingerprint compare
 when the applier's queue is non-empty at the moment the command arrives — a peer
 that is somewhere *inside* an earlier command is not at any command's boundary,
 so comparing would report a divergence that never happened. A spurious ✗ poisons

@@ -17,9 +17,11 @@ It is a harness, not the sync layer. The architecture it serves is
 | The scene both processes run — rung 1 | `scenes/dev/mp_dev_sandbox.tscn` (inherits `dev_sandbox.tscn`) |
 | The scene both processes run — rung 2 (#533) | `scenes/dev/mp_procgen_sandbox.tscn` (instances `game_root.tscn`) |
 | Rung 3 (#715) — no scene at all, the REAL menu | `MetaRoot._drive_lobby_from_cmdline`, `--lobby=host\|client` |
-| Where the wire is MOUNTED | `scenes/game_root.tscn` → `Transport` + `CommandLink` (#531) |
+| Where the wire is MOUNTED | `scenes/game_root.tscn` → `Transport` + `NetworkLink` and its channels (#531, #1133) |
 | Transport seam | `network/network_transport.gd` + `enet_transport.gd` / `loopback_transport.gd` |
-| Applier ↔ transport bridge | `network/command_link.gd` |
+| Link core (role, build gate, pre-world latch, dispatch) | `network/network_link.gd` |
+| Applier ↔ link bridge (command / intent / refusal) | `network/command_channel.gd` |
+| World sync (snapshot / setup / entities / resync) | `network/world_sync_channel.gd` |
 | Divergence detector | `command/world_fingerprint.gd` |
 | Determinism probe (#529) | `network/determinism_probe.gd` |
 
@@ -82,8 +84,8 @@ level-1 board.
 > is the SEAM's mount, which is still per-level and still swappable, and the
 > "never author a second pair" rule, which is still absolute.
 
-`Transport` and `CommandLink` are direct children of `GameRoot`, so every level
-inherits them at the same two node paths. That is not tidiness: Godot's
+`Transport` and `NetworkLink` (with its channels) are direct children of
+`GameRoot`, so every level inherits them at the same node paths. That is not tidiness: Godot's
 high-level multiplayer resolves an RPC **by node path**, so two peers running
 different scenes only reach each other if the transport sits in the same place
 in both. Mounting it in the composition root is what makes that true by
@@ -91,9 +93,9 @@ construction instead of by convention.
 
 Three consequences, in the order they bite:
 
-- **The default is `LoopbackTransport`, and the link is mounted `Mode.OFF`.**
+- **The default is `LoopbackTransport`, and the link is mounted `Role.OFFLINE`.**
   Mounted and inert — nothing is serialized, nothing is sent, so single-player
-  is unchanged. A role raises the mode; the mount never does.
+  is unchanged. A role raises it; the mount never does.
 - **A level that wants a real socket overrides that node's SCRIPT.** An
   inherited-node property override in the `.tscn`, exactly like any other:
   ```
@@ -104,7 +106,7 @@ Three consequences, in the order they bite:
   routes to, which would otherwise be asked to host over a loopback and link to
   nobody. `first_level_sandbox.tscn` inherits it from there (#584).
 - **Never author a SECOND pair.** Before #531 the harness authored its own
-  `Transport` / `CommandLink`; once the pair is inherited, doing that gives you
+  `Transport` / link pair; once the pair is inherited, doing that gives you
   colliding sibling names and `$Transport` resolves to whichever one Godot
   renamed last — a dead link with no error anywhere.
   `test/integration/network/test_link_mount.gd` asserts the *count*, not just the
@@ -132,7 +134,7 @@ step further.
 
 Two facts made this a small change rather than a rewrite:
 
-- **There was only ever one production `@rpc`** — `_receive`. `CommandLink` is
+- **There was only ever one production `@rpc`** — `_receive`. `NetworkLink` is
   not an RPC target; it speaks to the transport over plain signals. So exactly
   one function had to move.
 - **The peer was always tree-scoped.** `multiplayer.multiplayer_peer` belongs to
@@ -178,13 +180,13 @@ again — so with the socket outliving the scene, a level would have waited out
 and **the joining client no longer runs `GraphProcgen` at all**: it seats the
 roster, builds an empty graph, and `NetworkSession.pull_host_world` brings the
 authority's serialized world. So a joined level with an empty graph is the
-NORMAL shape now, and the `_pending_entities` park in `CommandLink` — long the
+NORMAL shape now, and the `_pending_entities` park in `WorldSyncChannel` — long the
 harness's odd case — is the primary path.
 
 **One consequence worth knowing before you debug a fingerprint:** procgen spawns
 entities the roster never names (one per removable blocker, ~120 on the shipped
 preset). A peer that ran no procgen has none of them, so `EntitySnapshot` asks
-`CommandLink.entity_spawner` (`EntityFactory.spawn_snapshot_entity`) to rebuild any
+`WorldSyncChannel.entity_spawner` (`EntityFactory.spawn_snapshot_entity`) to rebuild any
 row it cannot resolve, at the authority's `entity_id`. Without that their nodes
 decode as *unowned* and the ownership fold disagrees on the very first compare —
 which looks exactly like a procgen desync and is not one.
@@ -204,7 +206,7 @@ Two processes give two sets of autoloads for free. This is also why the tab is a
 `SandboxLiveTab` and not a `SandboxPlayedTab`: the latter's Run button calls
 `EditorInterface.play_custom_scene`, which gives you exactly one instance.
 
-The one place two worlds *do* share a process is `test/unit/network/test_command_link.gd`
+The one place two worlds *do* share a process is `test/unit/network/test_command_channel.gd`
 — legitimate only because nothing in that file kills anything, so none of the
 cross-wiring listeners ever fire. A test that kills an entity does not belong there.
 
@@ -234,7 +236,7 @@ peers, and that controller resolves *its own peer's* `CommandApplier` — so a
 MIRROR peer's copy would decide and submit independently of the host's AI the
 instant a mirrored `EndTurnCommand` hands Blue the turn locally. Closed by
 gating `AIController.take_turn` on `CommandApplier.is_authority`
-(`network/command_link.gd`'s `mode` setter is the only writer) — the same "a
+(`NetworkLink.role`'s setter, through `CommandChannel`, is the only writer) — the same "a
 non-authority peer does not originate mutations" invariant `SkillDustAddon`'s
 claim flow already relies on. The host hot-seats between Red and Blue; the
 client stays bound to Blue.
@@ -288,7 +290,7 @@ logged (`SKIPPED`) outcome, not a bug.
 **Does not:** anything travelling UPWARD. `PickLootCommand` is the one verb
 built for that direction — a remote human's answer to a parked offer — and it is
 dormant rather than unrouted: `CommandApplier` answers it for real against
-`LootPickRegistry`, but `MIRROR` never sends and the client's input is frozen.
+`LootPickRegistry`, but a client never sent it and the client's input is frozen.
 #463 owns the channel and the roster that says which peer seats which entity.
 
 ## The fingerprint
@@ -357,7 +359,7 @@ table posted to an issue as fact.
 
 **2. Peers on different builds refuse to link.** The fatal bind closes one route
 to a wrong-host link; a stale process on another machine, a mistyped IP, or
-someone else's session on the same LAN are others. `CommandLink.send_hello`
+someone else's session on the same LAN are others. `WorldSyncChannel.send_hello`
 carries a `BuildInfo` stamp, the receiver compares it, and a mismatch hangs the
 link up with both builds printed on both ends:
 
@@ -374,7 +376,7 @@ Details that are easy to get wrong, all covered by
 - **The gate runs in the LOBBY, host-side, per peer (#716).** It used to ride
   the host's hello alone, which a lobby cannot send — it has no world — so a
   joiner on the wrong commit was already seated by the time anything compared.
-  The client now announces its own stamp (`CommandLink.announce_self`, a
+  The client now announces its own stamp (`NetworkLink.announce_self`, a
   `KIND_HELLO` carrying `KEY_BUILD` + `KEY_PEER`) the instant its dial
   completes, and the host answers with `peer_cleared` or `peer_refused`.
   `LobbyScreen` seats on `peer_cleared` and never on the bare `peer_joined`, so
@@ -391,7 +393,7 @@ Details that are easy to get wrong, all covered by
   purpose rather than left to close itself — `NetworkSession._on_peer_joined`'s host
   branch checks the new peer's id against `GameSession.roster` (some seat's
   `peer_id` must already match) before it does anything else, and a peer with
-  no seat is turned away through the same `CommandLink.refuse_peer` the build
+  no seat is turned away through the same `NetworkLink.refuse_peer` the build
   gate uses, ahead of `LobbyScreen.stamp_pending_remote` and ahead of the
   join-world push. Not a socket seal: refusing the SOCKET rather than the peer
   would have ENet reset the connect silently, so the joiner would sit out its
@@ -418,8 +420,8 @@ Details that are easy to get wrong, all covered by
   uncommitted edit — a loud, instantly diagnosable false positive, which is the
   opposite of the failure being killed. Branch and worktree ride along for the
   message only.
-- **Refusal is its own latch, not `mode = Mode.OFF`.** The `mode` setter writes
-  `is_authority = value != Mode.MIRROR`, so parking a refused *client* at OFF
+- **Refusal is its own latch, not `role = Role.OFFLINE`.** The role writes
+  `is_authority = role != Role.CLIENT`, so parking a refused *client* at OFFLINE
   hands it authority — the silent-divergence hole `mp_dev_sandbox._ready`
   documents. A refused link goes quiet; it does not become an authority.
 - **The stamp catches different commits, not different working trees.** Godot
@@ -554,7 +556,7 @@ is what the code allowed and what changed, not a traced packet.
   now ends on `link_lost` / `link_refused` too, lifts the curtain and leaves the
   overlay's reason on screen (`test_game_root_join_wait.gd`).
 - **The pull is renewed.** While it waits, the joiner re-asks every
-  `GameRoot.JOIN_PULL_RETRY_SEC` (3s) via `CommandLink.renew_join_pull`; the
+  `GameRoot.JOIN_PULL_RETRY_SEC` (3s) via `WorldSyncChannel.renew_join_pull`; the
   `_join_world_arrived` latch makes every extra answer a drop. Insurance
   against whatever a real wire does to the first ask that loopback cannot show.
 - **The slow-joiner order works, and the harness could not tell.** With the
@@ -579,7 +581,7 @@ is what the code allowed and what changed, not a traced packet.
   handles the same `--role` / `--port` / `--address` args.
 - **The intent channel upward** — that is #463, and it starts by making
   `PlayerInputController` submit to a *link* rather than to the applier
-  directly. `CommandLink._applying_remote` already exists so a peer that both
+  directly. `CommandChannel._applying_remote` already exists so a peer that both
   mirrors and broadcasts cannot echo itself into a loop.
 
 ## Rung 2: the graph and run settings actually cross the wire (#533)
@@ -589,9 +591,9 @@ hand-authored `dev_sandbox.tscn`, so any divergence there is a *messaging* bug
 by construction, never a serialization one. Rung 2 (`scenes/dev/mp_procgen_sandbox.tscn`
 + `.gd`) is the first harness scene where that stops being true: the HOST
 procgens a small level from a fixed `RunConfig`, and the CLIENT receives it —
-run settings first (#528, `CommandLink.send_run_setup`), then the graph
-(#527, `CommandLink.send_graph_snapshot`), then every entity's accumulated
-state (#560, `CommandLink.send_entity_snapshot`) — rather than re-deriving any
+run settings first (#528, `WorldSyncChannel.send_run_setup`), then the graph
+(#527, `WorldSyncChannel.send_graph_snapshot`), then every entity's accumulated
+state (#560, `WorldSyncChannel.send_entity_snapshot`) — rather than re-deriving any
 of it locally. Launch it the same way as rung 1, over `--role` / `--port` /
 `--address`:
 
@@ -630,7 +632,7 @@ unfiled rung 3) — only the authority's `AIController` ever decides, gated by
 `Entity` nodes — no `core_location`, so no graph is needed yet — in the SAME
 order the host does, so `Graph`'s per-entry `entity_id` minting lands on the
 identical numbers. It waits for `GameSession.run_started` (fired by
-`GameSession.apply_received`, which `CommandLink._on_run_setup` calls) before
+`GameSession.apply_received`, which `WorldSyncChannel._on_run_setup` calls) before
 it knows how many participants there are; only once the graph snapshot itself
 arrives can ownership resolve — `GraphSnapshot.decode`'s own contract is that
 ownership resolves through the RECEIVING graph's entities, so the placeholders
@@ -640,7 +642,7 @@ must already exist and be correctly ID'd first.
 landed alongside this rung.** `GraphSnapshot` carries which `Entity` owns each
 `SkillNode` (by `entity_id`) but rebuilds nothing on the OWNER's side —
 #560's own framing: a client whose board never got the starting node's grants
-shows the wrong HP/stats from its first frame, silently. `CommandLink
+shows the wrong HP/stats from its first frame, silently. `WorldSyncChannel
 .send_entity_snapshot` is the sibling send this rung also makes: it DECORATES
 the entities the roster already spawned (#560 D7 — relaxed by #715 for the
 blockers no roster names; see multiplayer-sync-model.md), and its
@@ -650,14 +652,14 @@ between the graph and entity snapshots does not matter (both passes are
 idempotent).
 
 **Send order: run_setup, graph snapshot, entity snapshot, THEN hello —
-reversed (and extended) from rung 1.** `CommandLink.send_hello` is what
+reversed (and extended) from rung 1.** `WorldSyncChannel.send_hello` is what
 produces the "✓ in sync at link-up" verdict, comparing `WorldFingerprint` on
 both sides, and the CLIENT's graph is empty until the snapshots decode.
 Sending hello first (rung 1's order, safe there because both peers already
 share a graph) would report a structural, false DIVERGED before any real
 state could differ. Sending it last makes "at link-up" mean what it says —
 ENet's reliable channel is ordered, so every send before hello arrives before
-it does. One accepted consequence, already called out in `command_link.gd`'s
+it does. One accepted consequence, already called out in the old command link's
 own #546 note: `KIND_SETUP` / `KIND_SNAPSHOT` / `KIND_ENTITIES` are all
 handled regardless of a prior hello, so a build mismatch is not caught until
 after every one of them has already been applied. That gap is pre-existing
@@ -694,7 +696,7 @@ holds: `EnetTransport` claims the SceneTree's one `MultiplayerAPI`), so
 `test/integration/network/test_mp_procgen_join.gd` drives two real `game_root.tscn`
 instances in one process instead, paired through their own mounted default
 transport — the same two-worlds-in-one-process technique
-`test_command_link.gd` already established, extended to also exercise
+`test_command_channel.gd` already established, extended to also exercise
 `send_run_setup` / `send_graph_snapshot` / `send_entity_snapshot`. It pins:
 ownership + topology + HP match once the join handshake completes,
 `core_location` resolves via `EntitySnapshot`, each instance ends up bound to
@@ -752,7 +754,7 @@ an ordinary launch, an exported build and every test parse no arguments at all.
 **A joining peer runs no procgen whatsoever** (#715), so its level's graph is
 empty until the host's world lands, and its loading bar is covering the *host's*
 generate-and-ship rather than its own generation. Its `_ready` awaits
-`CommandLink.resync_applied` before arming `VictorySystem`, starting a turn or
+`WorldSyncChannel.resync_applied` before arming `VictorySystem`, starting a turn or
 lifting the curtain — unbounded on purpose, with `SceneDirector`'s 30s reveal
 timeout as the backstop and `_reveal_ready` staying false as the honest report.
 
@@ -760,7 +762,7 @@ timeout as the backstop and `_reveal_ready` staying false as the honest report.
 `peer_joined` and also answers the client's `request_resync`, because either leg
 alone can be dropped in silence (the client's level is up in milliseconds while
 the host spends 5-10s generating, so a pull can arrive before the host's level
-has adopted the link and reach nobody). Both legs carry `CommandLink.KEY_JOIN`
+has adopted the link and reach nobody). Both legs carry `WorldSyncChannel.KEY_JOIN`
 and the client's `_join_world_arrived` latch drops the loser. That latch is keyed
 off the message flag rather than off a fingerprint compare on purpose: the fold
 covers neither tags nor effects, so a mid-run repair (#521/#560/#561) must still
@@ -875,7 +877,7 @@ peer that decoded a world reconciles what the decode bypassed. It is green as of
 divergence count rather than the end-state compare.
 
 **The divergence check moved onto the mirror's own stamp.** It used to run in
-`CommandLink._on_remote_command`, on arrival, behind a "is the applier idle"
+`CommandChannel._on_remote_command`, on arrival, behind a "is the applier idle"
 guard — so every command that landed mid-drain was tallied `skipped` rather than
 compared, and one AI turn arriving as a burst of nine commands was compared
 exactly once. Honest, and useless: it could not name the command that diverged
@@ -892,7 +894,7 @@ The two-process harness proves *host acts → client mirrors*, which means every
 failure it reports has two candidate causes: the replay path, or the messaging.
 The **Outcome playground** tab (`addons/outcome_playground/`) removes the second
 one. It replays a recorded attack against a local `CommandApplier` with **no
-`CommandLink` attached** — byte-for-byte the peer path, minus the wire. If a
+`CommandChannel` attached** — byte-for-byte the peer path, minus the wire. If a
 recorded outcome plays back correctly there, anything still broken over ENet is
 a messaging bug and cannot be a replay bug.
 

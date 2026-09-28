@@ -6,7 +6,7 @@ paths:
   - "autoload/build_info.gd"
   - "autoload/stat_registry.gd"
   - "stats_system/stat_def_roster.*"
-  - "network/command_link.gd"
+  - "network/network_link.gd"
   - "*.gdextension"
 ---
 

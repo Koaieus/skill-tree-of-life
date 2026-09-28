@@ -203,7 +203,7 @@ func test_the_latch_is_off_by_default() -> void:
 ## about to reconcile, and holds `LootSystem._pending_mirror_request`. It also
 ## cannot be FOR a peer that is still joining, and the whole window is pre-HUD,
 ## so nothing would be listening to answer it anyway. Dropped via
-## [member LinkChannel.deferred_until_world] (#1179), same latch [constant
+## [member LinkChannel.deferred_until_world] (#1179), same latch [method
 ## CommandChannel.is_deferred] still gates [constant CommandChannel.KIND_COMMAND]
 ## with — including why KIND_INTENT needs no guard here (host-only handler;
 ## this latch only ever rides a MIRROR peer).

@@ -86,7 +86,7 @@ spelling — *not* the mise pin's `4.7.2-stable`. Any other spelling reports
 ## The build stamps its own commit, and why that is not cosmetic
 
 An exported build has no `res://.git`, so [`BuildInfo`](../../autoload/build_info.gd)
-would report an empty sha. That matters because `CommandLink`'s #546 hello gate
+would report an empty sha. That matters because `NetworkLink`'s #546 hello gate
 **compares shas and refuses a mismatched link** — and with no stamp, two
 *different* builds both announce `""`, compare equal, and go on to desync on
 the wire instead of refusing at link-up. That is precisely the silent failure

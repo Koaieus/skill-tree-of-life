@@ -195,7 +195,7 @@ all: the client's number crept wrong and nothing will ever notice.
 1. **Join.** A peer arriving mid-run receives the world rather than
    regenerating it — `GraphSnapshot` (#527) for the nodes, `EntitySnapshot`
    (#560) for the boards.
-2. **A desync verdict.** `CommandLink._report_sync` finds the two fingerprints
+2. **A desync verdict.** `WorldSyncChannel._report_sync` finds the two fingerprints
    disagree, and the authority pushes the same pair as one `KIND_RESYNC`.
 
 **A green fingerprint is not a green join** (#715). The fold answers "do our two
@@ -268,7 +268,7 @@ while both peers ran procgen. Since #715 the client runs none, and procgen
 spawns ~120 entities the roster never names (one per removable blocker, #477);
 without them the client decodes their nodes as unowned and the ownership fold
 disagrees on the first compare. So a row whose entity is absent now asks an
-optional `spawner` callback (`CommandLink.entity_spawner` →
+optional `spawner` callback (`WorldSyncChannel.entity_spawner` →
 `EntityFactory.spawn_snapshot_entity`, which refuses anything that is not a blocker)
 before it is skipped. **The prohibition D7 was really protecting still holds:**
 this is not a second minting path, because the `entity_id` is the AUTHORITY's,
@@ -359,8 +359,8 @@ other:
 
 | | Kind | Payload | Gate |
 |---|---|---|---|
-| Up | `KIND_LOBBY_PICK` | `{id, peer_id, …changed fields}` — one seat, only what moved, in `Participant.to_dict`'s encoding (a `Faction` / `CoreClass` as its `resource_path`, never a reference) | `Mode.MIRROR` sends, `Mode.BROADCAST` receives |
-| Down | `KIND_LOBBY` | `roster.to_dict()`, the **whole** authoritative roster | `Mode.BROADCAST` sends, `Mode.MIRROR` applies |
+| Up | `KIND_LOBBY_PICK` | `{id, peer_id, …changed fields}` — one seat, only what moved, in `Participant.to_dict`'s encoding (a `Faction` / `CoreClass` as its `resource_path`, never a reference) | `Role.CLIENT` sends, `Role.HOST` receives |
+| Down | `KIND_LOBBY` | `roster.to_dict()`, the **whole** authoritative roster | `Role.HOST` sends, `Role.CLIENT` applies |
 
 Whole-roster rather than a delta: it is a handful of rows, and a delta protocol
 would buy an ordering problem a lobby does not have.
@@ -406,7 +406,7 @@ enforced twice on purpose: in the UI (`ParticipantRow.set_editable`) so a player
 sees it, and on the host against the *roster* (`LobbyScreen.may_edit_remotely`)
 so a payload cannot claim it.
 
-**The lobby mounts its own `NetworkTransport` + `CommandLink` pair, and never
+**The lobby mounts its own `NetworkTransport` + `NetworkLink` pair (with a `LobbyChannel`), and never
 opens the socket.** `meta_root._push_lobby` is the one place that decides a
 route opens a link — the same file that already decides which `NetworkConfig` a
 route leaves on `GameSession` — so a lobby with no live `Wire` behind it mounts
@@ -452,7 +452,7 @@ regression.
 reliable-ordered, so sequencing the handover ahead of the AI's first command is
 what stops a mirror seeing an AI act on a seat it still believes a human holds.
 
-**Deferred during a join** (`CommandLink.DEFERRED_KINDS`): it names a seat by
+**Deferred during a join** (`SeatHandover`'s `deferred_until_world`): it names a seat by
 `Participant.id` and a peer mid-join has no entities to resolve one against.
 Nothing is lost — the `KIND_SETUP` it is joining on carries the host's roster as
 it stands *now*, seat already AI. Its banner drops with it, correctly: it
@@ -491,7 +491,7 @@ Application spans more than mutation: `BattleSystem._commit` keeps awaiting
 plan's lifetime through the swing (#406). Mirroring off `command_applied`
 therefore made a peer wait out the *host's animation* before it could start its
 own — lag proportional to spell length, for a payload that was final much
-earlier. `_drain` confirms at the flip point instead, and `CommandLink`
+earlier. `_drain` confirms at the flip point instead, and `CommandChannel`
 broadcasts off that. (Until #545 the attack called `applier.confirm(cmd)` itself,
 at its own mid-apply settle point; the signal outlived that arrangement because
 the animation tail it exists for is still there.)
@@ -583,7 +583,7 @@ free and reversible behind the seam. Lobby: type-an-IP.
 asymmetric verb in the vocabulary, and that is deliberate. An EMPTY `record`
 means *initiate*: nobody has computed this attack yet, so the authority stamps
 the seed, resolves on a shadow, gates on affordability, and stamps the record it
-produced onto the same object — all inside `_validate`, so `CommandLink` (which
+produced onto the same object — all inside `_validate`, so `CommandChannel` (which
 encodes on `command_confirmed`) broadcasts a complete record before anything
 local has moved. A POPULATED `record` means *replay*: rebuild the plan (for the
 animation only) and the recorded deltas (for the world), and land them through
@@ -633,7 +633,7 @@ downward messages instead of two states of one type:
 
 * A `LootPickOffer` — NOT a `Command` — carries "show this collector a pick
   screen, here is the draw" when a round needs a REMOTE human. It mutates
-  nothing and never touches `CommandApplier._drain`; `CommandLink` sends it off
+  nothing and never touches `CommandApplier._drain`; `LootOfferChannel` sends it off
   `LootPickRegistry.offer_parked` as its own additive, opt-in wire kind
   (`KIND_LOOT_OFFER`), the same shape as `KIND_SNAPSHOT` / `KIND_SETUP`.
 * `LootRoundCommand` is minted only once a round's outcome is fully known — its

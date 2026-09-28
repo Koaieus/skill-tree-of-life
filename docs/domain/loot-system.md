@@ -496,7 +496,7 @@ application (the applier QUEUES rather than re-entering, by documented design).
 Two states, one type, copying `LaunchAttackCommand`:
 
 - **empty record — INITIATE.** The authority filters, samples, offers, awaits
-  the pick, grants, and stamps what it did. That stamp is what `CommandLink`
+  the pick, grants, and stamps what it did. That stamp is what `CommandChannel`
   broadcasts.
 - **populated — REPLAY.** A peer grants exactly what is recorded. It does not
   roll, filter, raise a request, trim its pool, or advance the chain.
