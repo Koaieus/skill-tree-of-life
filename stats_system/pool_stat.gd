@@ -130,7 +130,7 @@ func _init() -> void:
 ## identical insertion order — #463's stable-order obligation is untouched.
 func get_value() -> Variant:
 	if base_provider.is_valid():
-		return _coerce(ModifierBins.compute_single(float(base_provider.call()), bins))
+		return _coerce(_fold(float(base_provider.call())))
 	return super()
 
 

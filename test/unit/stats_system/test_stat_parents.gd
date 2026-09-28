@@ -150,8 +150,10 @@ func test_clone_live_relinks_on_the_clone() -> void:
 
 
 func test_registry_drops_a_cycle() -> void:
-	_def(&"_tp_a", 0.0, [&"_tp_b"])
+	var a := _def(&"_tp_a", 0.0)
 	_def(&"_tp_b", 0.0, [&"_tp_a"])
+	a.parent_ids = [&"_tp_b"]
+	StatRegistry.register_def(a)
 	assert_push_error("cycle")
 	var a_anc := StatRegistry.ancestors_of(&"_tp_a")
 	var b_anc := StatRegistry.ancestors_of(&"_tp_b")

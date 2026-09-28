@@ -123,12 +123,58 @@ var _board: StatBoard = null
 ## [method get_value] memo dirty FIRST, unconditionally, before the batching
 ## branch — a read taken mid-batch recomputes and is already correct. Only the
 ## notification waits.
+##
+## Parent stats (ADR 0030): a move here also moves every linked descendant's
+## fold, so each one in [member _children] is dirtied and notified through the
+## same branch — a link, not a signal connection. [member _children] already
+## holds every present DESCENDANT (not just direct children), so the fan-out
+## does not recurse and a diamond notifies its grandchild once.
 func _emit_value_changed() -> void:
 	_value_dirty = true
+	for c in _children:
+		c._on_ancestor_moved()
+	_notify_value_changed()
+
+
+func _on_ancestor_moved() -> void:
+	_value_dirty = true
+	_notify_value_changed()
+
+
+func _notify_value_changed() -> void:
 	if _board != null and _board.is_batching():
 		_board.mark_stat_dirty(self)
 		return
 	value_changed.emit()
+
+
+## Parent-stat links, wired by [method StatBoard._link_parents] and never by
+## anything else. [member _parents] = every present ANCESTOR on this board,
+## nearest-first (the registry's order); [member _children] = every present
+## DESCENDANT. Both are refs into the same board, never serialized.
+var _parents: Array[Stat] = []
+var _children: Array[Stat] = []
+
+
+## The source list this stat folds: ancestors' bins farthest-first, then its
+## own [member bins] LAST — so at equal priority the child's SET wins
+## ([method ModifierBins.resolve]'s last-source tiebreak). A parent's
+## [member base_value] is never a source.
+func all_bins() -> Array[ModifierBins]:
+	var out: Array[ModifierBins] = []
+	for i in range(_parents.size() - 1, -1, -1):
+		out.append(_parents[i].bins)
+	out.append(bins)
+	return out
+
+
+## The fold over [method all_bins] from [param base], uncoerced. Keeps
+## [method ModifierBins.compute_single]'s allocation-free path for the common
+## no-parent case.
+func _fold(base: float) -> float:
+	if _parents.is_empty():
+		return ModifierBins.compute_single(base, bins)
+	return ModifierBins.compute(base, all_bins())
 
 
 ## Shorthand for `get_value()`. Delegates so subclass overrides win — e.g.
@@ -474,7 +520,7 @@ func _find_winning_set() -> StatModifier:
 ## literal.
 func get_value() -> Variant:
 	if _value_dirty:
-		_cached_raw_value = ModifierBins.compute_single(base_value, bins)
+		_cached_raw_value = _fold(base_value)
 		_value_dirty = false
 	return _coerce(_cached_raw_value)
 
@@ -487,7 +533,7 @@ func get_value() -> Variant:
 ## so a node-local ratio line contributed its fraction on the local path only.
 ## Not memoized: overlays are the caller's and can change under us.
 func get_value_with(overlays: Array[ModifierBins]) -> Variant:
-	var sources: Array[ModifierBins] = [bins]
+	var sources := all_bins()
 	sources.append_array(overlays)
 	return _coerce(ModifierBins.compute(base_value, sources))
 
@@ -497,7 +543,7 @@ func get_value_with(overlays: Array[ModifierBins]) -> Variant:
 ## with the same source order. For readouts: what the fold IS, uncoerced and
 ## unfolded, so a consumer describes it without summing bins itself.
 func resolve_with(overlays: Array[ModifierBins]) -> FoldTerms:
-	var sources: Array[ModifierBins] = [bins]
+	var sources := all_bins()
 	sources.append_array(overlays)
 	return ModifierBins.resolve(sources)
 

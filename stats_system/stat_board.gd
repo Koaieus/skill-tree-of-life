@@ -219,6 +219,7 @@ func _mint_stat(stat_id: StringName) -> Stat:
 ## cannot be forgotten by a future third path (#812).
 func _register_minted(stat_id: StringName, s: Stat) -> Stat:
 	_extra_stats[stat_id] = s
+	_link_parents(s)
 	stat_created.emit(stat_id, s)
 	return s
 
@@ -362,6 +363,82 @@ func collect_formula_edges(out: Dictionary) -> void:
 			v.collect_formula_edges(out)
 	for id in _extra_stats:
 		_extra_stats[id].collect_formula_edges(out)
+	# Parent edges (ADR 0030): a child derives from each present ancestor, so
+	# the flush depth orders parents before children.
+	for s in _all_stats():
+		if s._parents.is_empty():
+			continue
+		var child_id := _stat_id_of(s)
+		var deps: Array = out.get(child_id, [])
+		for p in s._parents:
+			var pid := _stat_id_of(p)
+			if not deps.has(pid):
+				deps.append(pid)
+		out[child_id] = deps
+
+
+## Every Stat on this board — typed fields, then the minted extras.
+func _all_stats() -> Array[Stat]:
+	var out: Array[Stat] = []
+	for prop_name in _stat_property_names():
+		var v: Variant = get(prop_name)
+		if v is Stat:
+			out.append(v)
+	for id in _extra_stats:
+		out.append(_extra_stats[id])
+	return out
+
+
+## Wire [param s] into the parent graph on THIS board, both ways (ADR 0030):
+## [param s] links to every present ancestor, and every present descendant
+## relinks so it picks [param s] up. Called from the three registration
+## sites — [method _link_all_parents] (typed-field init), [method
+## _register_minted], and [method clone_live] (a clone copies bins, never
+## links). No-op on a roster with no parent edges.
+func _link_parents(s: Stat) -> void:
+	if not StatRegistry.has_parents():
+		return
+	var id := _stat_id_of(s)
+	if id == &"":
+		return
+	_relink_up(s)
+	if not StatRegistry.is_parent(id):
+		return
+	for other in _all_stats():
+		if other != s and StatRegistry.ancestors_of(_stat_id_of(other)).has(id):
+			_relink_up(other)
+
+
+## Rebuild [param s]'s [member Stat._parents] from the registry's
+## nearest-first ancestors present on this board, keeping each ancestor's
+## [member Stat._children] in step. Also sets `_board` / `bins.board` on every
+## stat it links: a stat that never received a modifier has no board yet, and
+## its notification would bypass batching when a parent moves.
+func _relink_up(s: Stat) -> void:
+	for p in s._parents:
+		p._children.erase(s)
+	s._parents.clear()
+	for anc_id in StatRegistry.ancestors_of(_stat_id_of(s)):
+		var p := get_stat(anc_id)
+		if p == null:
+			continue
+		s._parents.append(p)
+		p._children.append(s)
+		p._board = self
+		p.bins.board = self
+	if not s._parents.is_empty():
+		s._board = self
+		s.bins.board = self
+	s._value_dirty = true
+
+
+## Link every stat on this board — the typed-field init pass, run from
+## [method apply_intrinsics] (the post-duplicate init every board takes).
+func _link_all_parents() -> void:
+	if not StatRegistry.has_parents():
+		return
+	for s in _all_stats():
+		_relink_up(s)
 
 
 ## {stat_id: [depends_on_id, ...]} over an AUTHORED modifier list — the static
@@ -571,6 +648,7 @@ func _formula_depth(id: StringName, edges: Dictionary, memo: Dictionary, visitin
 
 
 func apply_intrinsics() -> void:
+	_link_all_parents()
 	for m in intrinsic_modifiers:
 		add_modifier(m)
 
@@ -802,6 +880,9 @@ func clone_live() -> StatBoard:
 	# silently drop the binding of any modifier whose source stat had not been
 	# minted on dst yet — a push_warning at clone time, then a stat that never
 	# moves.
+	# A clone copies bins, never links (the link arrays are not storage, and a
+	# typed field's duplicate starts unlinked): relink on dst.
+	dst._link_all_parents()
 	dst._is_clone = true
 	for dst_stat in dst_stats:
 		dst_stat.localize_formula_modifiers(dst._localized)
@@ -855,6 +936,8 @@ func release() -> void:
 		if s == null:
 			continue
 		s.release_modifier_subscriptions()
+		s._parents.clear()
+		s._children.clear()
 		s._board = null
 		s.bins.board = null
 		# The bins didn't change, but which BOARD a SET/MULTIPLY leaf resolves
