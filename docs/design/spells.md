@@ -27,6 +27,19 @@ The unifying insight: **a node hit by N branches in the same BFS wave is one mer
 
 Self-loops are first-class under this model: a self-looped node propagating to itself contributes two incidents on its own self in the next wave, which a SUM-merger spell can weaponise (see Resonator below).
 
+### How a spell dies
+
+A spell is a **graph automaton**: a local rule applied in synchronous waves. It is a signal-carrying one, closer to Wireworld or a sandpile than to Conway's Life. So *how it stops* is as much part of its identity as how it spreads. There are two independent ways to fizzle:
+
+| Death | Mechanism | Established name | Ours |
+|---|---|---|---|
+| **Structural** | The wave collides with itself and the merger kills it there | interference: an overcrowding threshold, or a parity rule | `CancelIfMultiReducer` (built, no shipped spell uses it yet); `CANCEL_IF_EVEN` (designed, not built) |
+| **Energetic** | The payload shrinks each hop until nothing is left | a subcritical branching process | per-hop falloff (Lightning); Cyclone below its `closing_gain` threshold; a spent `max_hops` budget |
+
+Energetic death has a **criticality** dial. If each hop keeps less than it loses, the wave dies out. If it keeps more, the wave grows. Near the balance point, cascade size depends on the board's structure more than on the numbers. That is why Cyclone demolishes a lone triangle but radiates out of a cluster of them (owner call 2026-09-01).
+
+The two deaths imply different counter-play. You **starve** an energetic spell by breaking the board into short chains that give it nothing to feed on. You **trap** a structural spell by closing loops so it runs into itself. Every catalogue entry should eventually say which death it has. That formalization, and mining the graph-automata field for new spells, is #1201.
+
 ---
 
 ## Field Schema
