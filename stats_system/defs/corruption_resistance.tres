@@ -5,6 +5,7 @@
 [resource]
 script = ExtResource("1_stat_def")
 id = &"corruption_resistance"
+parent_ids = Array[StringName]([&"dot_resistance"])
 display_name = "Corruption Resistance"
 description = "Fraction of incoming corruption stacks this node shrugs off: stacks landed = per-hit x attacker's Corruption Potency x (1 - Corruption Resistance), resolved once at land (#963). Read node-locally like Armor, so a node-scoped modifier reaches it. Reduces stacks incurred, never the decay rate. Default 0."
 value_type = 1

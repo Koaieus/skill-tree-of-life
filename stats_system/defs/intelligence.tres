@@ -5,6 +5,7 @@
 [resource]
 script = ExtResource("1_stat_def")
 id = &"intelligence"
+parent_ids = Array[StringName]([&"attributes"])
 display_name = "Intelligence"
 description = "Magic attribute (B/Blue). INT//10 per damage instance — potency, never reach."
 default_value = 10.0

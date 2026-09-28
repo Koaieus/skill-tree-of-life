@@ -5,6 +5,7 @@
 [resource]
 script = ExtResource("1_stat_def")
 id = &"dexterity"
+parent_ids = Array[StringName]([&"attributes"])
 display_name = "Dexterity"
 description = "Ranged attribute (G/Green). DEX//10 per firing leaf."
 default_value = 10.0

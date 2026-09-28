@@ -5,6 +5,7 @@
 [resource]
 script = ExtResource("1_stat_def")
 id = &"spell_damage"
+parent_ids = Array[StringName]([&"damage"])
 display_name = "Spell Damage"
 description = "Damage the caster puts behind one spell seed, multiplied by the spell's own power coefficient. Base 1, scales with √INT (a sqrt transfer, not a flat per-point rate — #776). Node-local addons (e.g. a mana font) add on top per-node."
 value_type = 0

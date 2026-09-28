@@ -5,6 +5,7 @@
 [resource]
 script = ExtResource("1_stat_def")
 id = &"curse_resistance"
+parent_ids = Array[StringName]([&"dot_resistance"])
 display_name = "Curse Resistance"
 description = "Fraction of incoming curse stacks this node shrugs off: stacks landed = per-hit x attacker's Curse Potency x (1 - Curse Resistance), resolved once at land (#963). Read node-locally like Armor, so a node-scoped modifier reaches it. Reduces stacks incurred, never the decay rate. Default 0."
 value_type = 1

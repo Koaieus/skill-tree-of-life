@@ -5,6 +5,7 @@
 [resource]
 script = ExtResource("1_stat_def")
 id = &"perception"
+parent_ids = Array[StringName]([&"attributes"])
 display_name = "Perception"
 description = "Sensing attribute (Purple). +1 sense_range / 10 PER, +2% vision_range / PER."
 default_value = 10.0

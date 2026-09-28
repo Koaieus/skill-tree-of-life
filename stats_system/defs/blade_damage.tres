@@ -5,6 +5,7 @@
 [resource]
 script = ExtResource("1_stat_def")
 id = &"blade_damage"
+parent_ids = Array[StringName]([&"damage"])
 display_name = "Blade Damage"
 description = "Base damage per node contact in a melee attack. Base 1, +1 per 20 STR. Node-local addons (e.g. spikes) add on top per-node."
 value_type = 0

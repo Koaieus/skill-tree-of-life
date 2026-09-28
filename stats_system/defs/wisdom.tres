@@ -5,6 +5,7 @@
 [resource]
 script = ExtResource("1_stat_def")
 id = &"wisdom"
+parent_ids = Array[StringName]([&"attributes"])
 display_name = "Wisdom"
 description = "Economic attribute (Gold). XP-gain rate; carries growth modifiers."
 default_value = 10.0

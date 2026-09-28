@@ -5,6 +5,7 @@
 [resource]
 script = ExtResource("1_stat_def")
 id = &"strength"
+parent_ids = Array[StringName]([&"attributes"])
 display_name = "Strength"
 description = "Melee attribute (R/Red). Scales phantom-blade damage; +1 damage per 20 STR, +1 blade size per 40 STR."
 default_value = 10.0

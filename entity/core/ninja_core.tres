@@ -20,24 +20,9 @@
 script = ExtResource("5_scale")
 
 [sub_resource type="Resource" id="Resource_aoidj"]
-resource_name = "+5 Blade Damage"
+resource_name = "+5 Damage"
 script = ExtResource("2_mod")
-stat_id = &"blade_damage"
-value = 5.0
-metadata/_custom_type_script = "uid://che6xhl6srqh3"
-
-[sub_resource type="Resource" id="Resource_bmjmu"]
-resource_name = "+40% increased Spell Damage"
-script = ExtResource("2_mod")
-stat_id = &"spell_damage"
-operation = 1
-value = 40.0
-metadata/_custom_type_script = "uid://che6xhl6srqh3"
-
-[sub_resource type="Resource" id="Resource_hf1oc"]
-resource_name = "+5 Ranged Damage"
-script = ExtResource("2_mod")
-stat_id = &"ranged_damage"
+stat_id = &"damage"
 value = 5.0
 metadata/_custom_type_script = "uid://che6xhl6srqh3"
 
@@ -52,7 +37,7 @@ distance_scale = SubResource("scale_falling")
 discard = 1
 display_name = "Phantom Strike"
 description = "Nearby owned nodes hit harder, most intense at the core, gone by 5 hops out."
-modifiers = Array[ExtResource("2_mod")]([SubResource("Resource_aoidj"), SubResource("Resource_bmjmu"), SubResource("Resource_hf1oc")])
+modifiers = Array[ExtResource("2_mod")]([SubResource("Resource_aoidj")])
 
 [sub_resource type="Resource" id="Resource_486ch"]
 script = ExtResource("8_aoidj")

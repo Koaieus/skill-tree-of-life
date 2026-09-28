@@ -5,6 +5,7 @@
 [resource]
 script = ExtResource("1_stat_def")
 id = &"ranged_damage"
+parent_ids = Array[StringName]([&"damage"])
 display_name = "Ranged Damage"
 description = "Damage per shot in a ranged attack. Base 1, +1 per 20 DEX. Node-local addons (e.g. sniper nest) add on top per-node."
 value_type = 0
