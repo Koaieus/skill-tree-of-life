@@ -29,6 +29,12 @@ func is_deferred(_kind: String) -> bool:
 	return deferred_until_world
 
 
+## Called once by [method NetworkLink.register] after [member link] is set —
+## where a channel subscribes to the core's signals. Default: nothing.
+func _on_attached() -> void:
+	pass
+
+
 ## One payload of a kind this channel owns, already past the core's gates.
 func receive(_kind: String, _payload: Dictionary) -> void:
 	pass
