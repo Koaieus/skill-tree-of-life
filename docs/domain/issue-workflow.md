@@ -3,8 +3,15 @@
 The full version of `CLAUDE.md` → *Issue tracking*. Read this before running
 `mise gh-project`, filing an issue, swarmifying, or dispatching a drone.
 
-GitHub Issues via `gh` (repo `Koaieus/skill-tree-of-life`). Labels: `core`,
-`design`, `blocked` (open upstream fork), plus defaults.
+GitHub Issues via `gh` (repo `Koaieus/skill-tree-of-life`). `gh label list` is
+the label set; `blocked` means an open upstream fork.
+
+**Milestone or label?** A milestone is a *push that closes* — one per issue, and
+it is the pull order (below). A label is *area or kind* — any number, never
+closes (`ai`, `ui`, `frontmatter`, `tech-debt`). The test: if you would ever
+close it, it is a milestone. An area with no end is a label, so a `Backlog`
+issue with no push behind it carries **no milestone** rather than a catch-all
+one; from `Needs design` on it is scheduled and carries its push.
 
 ## The board
 
