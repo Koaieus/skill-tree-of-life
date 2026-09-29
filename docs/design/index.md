@@ -6,13 +6,13 @@ A Godot 4.7 game where the skill tree *is* the game. Entities live on a graph of
 
 The high-level **[GDD](../GDD.md)** is the entry point — vision, core loop, and a map into the per-system docs below.
 
-> 📍 **For MVP-current state on contested questions, read [mvp_decisions.md](mvp_decisions.md) first** — it supersedes older sketches in the per-system docs where they disagree. Also see [../ROADMAP.md](../ROADMAP.md) for what's done vs in-flight.
+> 📍 **What exists is code; why is an ADR.** The spell and core-class rosters are `attack/spell/defs/` and `entity/core/core_class_roster.tres` — a design doc naming something absent there is describing an idea, not the game. Settled calls live in the [ADR index](../adr/index.md). The early `mvp_decisions.md` log is frozen history — cite it for rationale, never as current state. Also see [../ROADMAP.md](../ROADMAP.md) for what's done vs in-flight.
 
 ## Documents
 
 | File | What it covers |
 |---|---|
-| [mvp_decisions.md](mvp_decisions.md) | **MVP decisions log** — authoritative current state for the 8 D-decisions (melee model, cast range, addons, factions, etc.). Supersedes per-system sketches where they disagree |
+| [mvp_decisions.md](mvp_decisions.md) | **Frozen, historical** — the early D-1…D-34 decisions log (Jun–Aug 2026). Not authoritative: settled calls are ADRs, current behaviour is code + `docs/domain/`. Kept so `D-N` citations resolve; its header maps each D to its ADR |
 | [../ROADMAP.md](../ROADMAP.md) | **Roadmap** — done / in-progress / todo across all milestones |
 | [../GDD.md](../GDD.md) | **Master GDD** — pitch, core loop, the supergraph, entities, combat summary, classes, progression, open questions, roadmap |
 | [lore.md](lore.md) | Narrative, acts, the Fairy, graph theology, the Field/Tethers/Breakout, the Fractal, tone, visual language |
@@ -20,14 +20,14 @@ The high-level **[GDD](../GDD.md)** is the entry point — vision, core loop, an
 | [combat_system.md](combat_system.md) | Damage pipeline (//10 spine), six-color triangle, ranged/magic/melee (phantom blade), degree → offense, self-loops, single-phase turn (intent by input channel), islands, Breakout, loot/proliferation |
 | [combat_worked_examples.md](combat_worked_examples.md) | 3 worked fights in real numbers; the tempo axiom; the defense-function decision (battle-formula handoff doc) |
 | [click_grammar.md](click_grammar.md) | Unified left/right click grammar for targeting + allocation: left pushes/arms/resolves, right pops one level off a stack; self-targeting-as-pop; core-move deferred to #338 |
-| [core_classes.md](core_classes.md) | All entity core classes: Allround, Predator, Bulwark, Ninja, Hive, Halo, Serpent, Frontier, Harvester |
+| [core_classes.md](core_classes.md) | Core-class design intent. **Shipped:** Balanced, Ninja, Serpent, Pacifist, Wise Cheater (roster: `entity/core/core_class_roster.tres`). Halo has an issue (#786); Allround, Predator, Bulwark, Hive, Frontier, Harvester are ideas only |
 | [stat_system.md](stat_system.md) | Stat architecture (v2 direction), modifier pipeline, canonical stat vocabulary |
 | [entity_stat_board_prototype.md](entity_stat_board_prototype.md) | Prototype stat values, SP accounting model, damage formula, class stat variations |
 | [metagame.md](metagame.md) | Hub between runs, meta skill tree, commit-on-completion, The Way Out |
 | [skill_node_addons.md](skill_node_addons.md) | Node addons (Armor Ring, Buffer, Gate, Relay, Anti-Magic, etc.), Tech Seeds |
 | [skill_node_specializations.md](skill_node_specializations.md) | Node specializations (Corrupted, Crystallized, Anchor) — **early spitball, nothing built or scheduled**; inspiration only |
 | [node_subtypes.md](node_subtypes.md) | **Node subtypes** — `blighted`/`blessed` as an axis orthogonal to archetype; archetype picks the status family, subtype picks the pole. Reframes #1025 away from a seventh archetype |
-| [spells.md](spells.md) | Spell catalogue — identity and propagation mechanics for all Blue (INT/magic) spells |
+| [spells.md](spells.md) | Spell identities for the 13 shipped spells (roster: `attack/spell/defs/`), the issue-backed ones, and a fenced idea pool of spells that do **not** exist |
 | [core_movement_plan.md](core_movement_plan.md) | Core-movement interaction plan (#21) — click-source-then-target, drag as accelerator; the phase-gating parts are obsolete post-#60 |
 | [damage_over_time.md](damage_over_time.md) | The DoT family (poison / corruption / curse / wither): one halving-stacks model, per-type potency and resistance, cures, the defensive-axis matrix — #952 design session |
 | [status-tags.md](status-tags.md) | **Proposed, not implemented** — status tags as a second grant channel; moves back to `docs/domain/` once it ships |

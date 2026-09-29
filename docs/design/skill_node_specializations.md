@@ -3,7 +3,7 @@
 > **Status: early spitball, not a design commitment.** Owner, 2026-09-22:
 > *"one of the earliest design docs where spitballing was more prominent than
 > ever — at best see it as inspiration for mechanics we don't yet have."*
-> None of it is built or scheduled (`mvp_decisions.md` defers the lot). Mine it
+> None of it is built or scheduled (the early MVP pass deferred the lot). Mine it
 > for ideas; do not treat any mechanic, name or number here as settled, and do
 > not reconcile newer designs against it.
 

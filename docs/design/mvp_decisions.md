@@ -1,8 +1,51 @@
-# MVP design decisions log
+# MVP design decisions log — FROZEN
 
-Authoritative current state for design decisions that gate MVP work. Where this doc disagrees with older docs (`combat_system.md`, `spells.md`, etc.), **this doc wins** — the older docs predate implementation choices and may contain superseded sketches.
+> 🧊 **Historical, not authoritative.** This was the early "get things in order" log (June–August 2026), from before `docs/adr/` existed ([ADR 0001](../adr/0001-adrs-record-decisions-domain-docs-record-behaviour.md)). It is **no longer edited and no longer wins** over anything:
+>
+> - **What exists** is code — spells are `attack/spell/defs/`, core classes are `entity/core/core_class_roster.tres`, and behaviour is described in `docs/domain/`.
+> - **Settled calls** are ADRs — see the [ADR index](../adr/index.md).
+> - **This file** is kept so the `D-N` citations in code and docs still resolve to their original rationale. Several entries were later revised, superseded, or never built — check the crosswalk below before relying on one.
 
-Each decision lists: the question, the resolution, the rationale, and the implementation status.
+## Crosswalk: where each D now lives
+
+Compiled 2026-09-29. An empty cell means no ADR or domain doc holds that decision yet; a still-load-bearing D with no ADR is a candidate for one.
+
+| D | Title (short) | ADR | Domain doc | Note |
+|---|---|---|---|---|
+| D-1 | Melee damage source: edges inert | [0005](../adr/0005-blade-parts-and-counters-are-orthogonal.md) | [melee-blade-sim.md](../domain/melee-blade-sim.md) | #785 briefly gave edges damage; ADR 0005 restored D-1's call |
+| D-2 | Magic cast range: INT-scaling | | | revised by D-18, then #912/#1018 (`cast_range_hops` / `cast_range_distance`); no ADR |
+| D-3 | Addon application model | | | live balance call, no ADR |
+| D-4 | Spell gating: allocated-degree | | [degree.md](../domain/degree.md) | canonicalized as `get_entity_degree` |
+| D-5 | Damage type taxonomy: armor-only | [0018](../adr/0018-hit-basis-and-damage-type-are-orthogonal-knobs.md) | | R/G/B taxonomy still deferred; 0018 is orthogonal to it |
+| D-6 | Battle-mode UI: contextual action bar | | | no ADR — live UI/design call |
+| D-7 | NPC factions: single, add field | | [ownership-vocabulary.md](../domain/ownership-vocabulary.md) | faction field landed; hostility still owner-based |
+| D-8 | Announcer toaster stale-drop policy | | [strikethrough-toast.md](../domain/strikethrough-toast.md) | tangential; no dedicated policy doc |
+| D-9 | Node attrition model: gated ramp regen | | [node-hp.md](../domain/node-hp.md) | built as resolved |
+| D-10 | CoreClass healing aura semantics | | [node-hp.md](../domain/node-hp.md) | shape revised by #896/#900; code wins |
+| D-11 | CON as the fifth attribute | | | built via #276; no dedicated domain doc |
+| D-12 | Cross-archetype procgen rolls | | [procgen-v4.md](../domain/procgen-v4.md) | **revised away** by #321 — off-archetype rolls deleted |
+| D-13 | How #248 balancing gets done | | | process decision (#268), no ADR |
+| D-14 | Durability scales with level via CON | | [stat-knobs-and-bins.md](../domain/stat-knobs-and-bins.md) | rates are #268 tuning values |
+| D-15 | XP economy: cost curve, income | | | live tuning call, no ADR |
+| D-16 | SP gain scales with level | | | live tuning call, no ADR |
+| D-17 | Attribute numeric bands | | | extended by D-18 |
+| D-18 | INT is the runaway attribute | | | pinned design call, no ADR |
+| D-19 | Enemies levelled but landless | | | **not built** |
+| D-20 | Spell damage scales with INT | | [spell-propagation.md](../domain/spell-propagation.md) | built (#274) |
+| D-21 | Entity health scales with CON | | [stat-knobs-and-bins.md](../domain/stat-knobs-and-bins.md) | built #276; ratchet mechanism later reworked, semantics kept |
+| D-22 | `core_healing` is a sliver | | | **superseded** by D-25 |
+| D-23 | Procgen needs no level input | | [procgen-v4.md](../domain/procgen-v4.md) | radial gradient built; keystone scatter open (#180) |
+| D-24 | Territory selection: one shared policy | | | built via #275; no domain doc |
+| D-25 | `core_healing`: integer heal, ungated | | | built #277 |
+| D-26 | `health = 10 + core_health_scaling × CON` | | [stat-knobs-and-bins.md](../domain/stat-knobs-and-bins.md) | built with D-21 (#276) |
+| D-27 | CoreClass is a leaf; reuse via arrays | | [loot-system.md](../domain/loot-system.md) | revised twice in-doc before settling |
+| D-28 | Node survives via life-source reach | | | **not built** (#240 open) |
+| D-29 | Depletions resolve as a set | | | **not built** |
+| D-30 | Degree has three definitions | | [degree.md](../domain/degree.md) | **superseded** 2026-08-15; degree.md is current |
+| D-31 | Node combat pool ratchets like entity pool | | [stat-knobs-and-bins.md](../domain/stat-knobs-and-bins.md) | built #346; mechanism later replaced by `PoolStatDef` |
+| D-32 | Spell has one absolute number | | [spell-propagation.md](../domain/spell-propagation.md) | built; amended same day re `FlatAddProgression` |
+| D-33 | Spell power gated by four conditions | | [spell-propagation.md](../domain/spell-propagation.md) | ladder values are #278's |
+| D-34 | Mana is INT-bought sustain tempo | | | verified, no code change |
 
 ---
 

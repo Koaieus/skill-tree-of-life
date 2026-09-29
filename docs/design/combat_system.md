@@ -1,6 +1,6 @@
 # Combat System Design — Skill Tree of Life
 
-> ⚠️ **MVP-current state lives in [mvp_decisions.md](mvp_decisions.md).** This doc retains the original design sketches; sections on the **face/cycle damage model** (§Melee) and the **R/G/B color triangle + resists** are **deferred post-MVP** — implementation today uses node-only melee and a single `armor` stat.
+> ⚠️ **Current behaviour is code + `docs/domain/`; settled calls are [ADRs](../adr/index.md).** This doc retains the original design sketches; sections on the **face/cycle damage model** (§Melee) and the **R/G/B color triangle + resists** are **deferred post-MVP** — implementation today uses node-only melee and a single `armor` stat.
 
 ---
 

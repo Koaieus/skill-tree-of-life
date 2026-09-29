@@ -4,7 +4,7 @@ Living overview of what's done and what's left. Each theme below is a [GitHub mi
 
 Status legend: ✅ done · 🚧 in progress · ⬜ todo · ❌ removed/obsolete
 
-> 📍 **Authoritative current state on contested design questions: [docs/design/mvp_decisions.md](design/mvp_decisions.md).** Older per-system design docs may contain superseded sketches; mvp_decisions.md wins.
+> 📍 **Settled calls are [ADRs](adr/index.md); what exists is code.** Older per-system design docs may contain superseded sketches. `design/mvp_decisions.md` is a frozen early log — history, not authority.
 >
 > 🎯 **This file is the full inventory, and its ⬜/✅ ticks are stale.** For *what is actually
 > scheduled right now* see the live GitHub milestone (`mise gh-project -- roadmap`); this
