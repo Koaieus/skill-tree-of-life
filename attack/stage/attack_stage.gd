@@ -34,10 +34,16 @@ func mount(_plan: AttackPlan, _outcome: AttackOutcome) -> void:
 	pass
 
 
-## Stage [param plan]'s wind-up on [param tempo] and return the seconds it
+## Stage [param plan]'s wind-up on [method tempo] and return the seconds it
 ## takes. The caller waits those seconds on its own clock.
-func begin_windup(_plan: AttackPlan, _tempo: PresentationTempo) -> float:
+func begin_windup(_plan: AttackPlan) -> float:
 	return 0.0
+
+
+## The wind-up shape this stage stages on. The base answers the authored
+## `.tres` — what a stage-less launch's camera reads too.
+func tempo() -> PresentationTempo:
+	return PresentationTempo.shared_default()
 
 
 ## True when [method play] will draw [param plan] — the caller compiles the

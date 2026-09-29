@@ -66,8 +66,10 @@ signal record_ready
 		if _own_slot != null:
 			_own_slot.allocation_system = value
 @export var graph: Graph
-@export var attack_vfx: AttackVFX
-@export var melee_preview: MeleePreview
+## What draws a launch — the wind-up, the swing or volley, the camera's focus
+## (#1196). Null, or the no-op [AttackStage] base, is a headless peer: nothing
+## staged, nothing held, and a world identical to a presented launch's (#474).
+## The level mounts an `AttackPresenter`; this system names no `ui/` class.
 @export var stage: AttackStage
 ## The queue an attack is applied through (#511). Optional: without one,
 ## [method launch_attack] applies straight, which is what every headless
@@ -89,14 +91,6 @@ var seat_policy: SeatPolicy = null
 ## the way a process-global would (#815).
 var presentation_rate_scale: float = 1.0
 
-## The wind-up SHAPE a committed melee is staged on (#559). Null takes
-## [method PresentationTempo.shared_default] — the authored `.tres`, which is
-## what every level uses. A plain instance var rather than an `@export`,
-## deliberately: shape is authored content, not per-level inspector surface,
-## and a fixture that wants zero-length beats hands over its own copy instead
-## of mutating the one shared default out from under every other test (#815).
-var presentation_tempo: PresentationTempo = null
-
 ## See [method await_record_ready]. False means the record is already in hand,
 ## which is every path that exists today.
 var _record_pending: bool = false
@@ -111,51 +105,18 @@ var _draining: bool = false
 
 var command_applier: CommandApplier = null
 
-## The ranged/magic coordinator mounted for the launch in flight — mounted AT
-## COMMIT (ADR 0027) so it can answer the presenter contract before the
-## mutation loop starts; null between launches and on a peer with no
-## [member attack_vfx]. Read through [method presenter].
-var _coordinator: VFXCoordinator = null
-
 ## Design B (#504): the clock the CURRENT attack's mutation loop is walking, or
 ## null between attacks. Held so [method drain_pending_mutations] can cut the
 ## window short — the one mitigation for B's single real risk, a loop
 ## interrupted mid-volley leaving its remaining hits permanently unlanded.
 var _beat_clock: BeatClock = null
 
-## True while an attack's VFX coroutine is parked. See `launch_attack` for why
-## the flag exists rather than a bare `await _vfx_finished`.
-##
-## [b]Melee only, since the release-beat split.[/b] The coordinator modes
-## (ranged/magic) run their VFX fire-and-forget and release on
-## [member release_beat] instead — see [method _commit] — so
-## [method _run_attack_vfx] deliberately does NOT touch this pair. That also
-## means the flag can never be claimed by two runs at once: `is_launching`
-## serialises the one path that sets it.
-##
-## [b]Load-bearing invariant: nothing may free the animating node mid-play.[/b]
-## A coroutine awaiting a freed object is silently dropped, so `_vfx_finished`
-## would never fire, `_reset()` would never run, and the plan would stay armed
-## forever — a permanent hang, not a cosmetic glitch. This is not theoretical:
-## it happened to melee while building #504 (the cascade now fires mid-swing,
-## and `MeleePreview._refresh` tore down the blade `launch()` was awaiting),
-## and `MeleePreview._live_swing` is the guard that closes it.
-##
-## Audited for the ranged/magic path as of #504: the ONLY free of a coordinator
-## is `AttackVFX.play`'s own `coord.queue_free()`, after its await returns, and
-## nothing frees the `%AttackVFX` mount outside level teardown (where
-## [method drain_pending_mutations] covers the mutation half). If a path is
-## added that can free a coordinator mid-`play`, this parks forever — give it
-## the same treatment `_live_swing` got.
-var _vfx_running: bool = false
-signal _vfx_finished
-
 ## Land the whole outcome synchronously instead of on the beat clock (#504).
 ## For fixtures and headless callers that read world state on the line after
 ## `launch_attack`. Production leaves this false: the beat clock IS the
 ## presentation clock, so turning it off makes an attack land invisibly.
 ##
-## Not inferred from whether `attack_vfx` / `melee_preview` are mounted —
+## Not inferred from whether a [member stage] is mounted —
 ## see [method _apply_outcome].
 var instant_mutation: bool = false
 
@@ -176,7 +137,7 @@ var instant_mutation: bool = false
 ##
 ## Melee is deliberately excluded: its plan (and the temp-upgrade addons
 ## mounted on it, #406) must stay live through the visible swing, so it still
-## releases on [MeleePreview].
+## releases when the [member stage] stops holding it.
 @export var release_beat: float = 0.12
 
 
@@ -295,12 +256,13 @@ func _invalidate_plan_union() -> void: plan_slot._invalidate_plan_union()
 
 
 ## The launch-side teardown, at [method _commit]'s release: drops
-## [member _coordinator], announces [signal in_flight_plan_changed] with null,
+## the [member stage]'s mount, announces [signal in_flight_plan_changed] with null,
 ## resets the plan that was in flight (freeing its
 ## temp-upgrade addons), and clears the slot only when the slot holds that same
 ## plan — an AI's or a replay's launch leaves the human's armed plan alone.
 func _reset() -> void:
-	_coordinator = null
+	if stage != null:
+		stage.unmount()
 	var plan := _in_flight_plan
 	_in_flight_plan = null
 	if plan == null:
@@ -575,26 +537,12 @@ func apply_launch_command(command: LaunchAttackCommand) -> bool:
 			return false
 		command.local_plan = plan
 		# Melee draws off `last_trajectory` / `last_events`, which only a
-		# resolve fills in. The outcome that resolve produces is DISCARDED —
-		# the record is what lands, and it runs against a throwaway shadow, so
-		# re-simulating to DRAW mutates nothing (see [AttackRecord]). Skipped
-		# when there is no preview mounted, so a headless peer pays nothing for
-		# an animation it won't play.
-		#
-		# #796: started here, STEPPED, never baked whole before this method
-		# returns. [method MeleePreview.begin_replay] kicks off [method
-		# MeleeAttackPlan.begin_replay_resolve] and arms the frame pump that
-		# advances it — by the time [method launch] needs the trajectory,
-		# it may already be complete (the wind-up's own seconds are a free
-		# head start) or still stepping, which [method
-		# MeleeAttackPlan.replay_duration] / [SkillBlade]'s duration override
-		# both handle. Fidelity is a settings knob: this resim is draw-only
-		# per ADR 0002, so a spectating peer may downgrade it for free.
-		if plan is MeleeAttackPlan and melee_preview != null:
-			var low_fidelity := Settings.current.melee_peer_sim_fidelity \
-					== GameSettings.PeerSimFidelity.LOW
-			var substeps := 1 if low_fidelity else BladeSim.DEFAULT_SUBSTEPS
-			melee_preview.begin_replay(plan, substeps, not low_fidelity)
+		# resolve fills in; the stage starts that draw-only resim (#796),
+		# stepped, never baked whole before this method returns. The outcome
+		# it produces is DISCARDED — the record is what lands (see
+		# [AttackRecord]). A stage-less peer pays nothing for it.
+		if stage != null:
+			stage.prepare_replay(plan)
 	# Everyone, authority included, from here down.
 	# Seconds are minted here, on THIS machine, at THIS machine's rate for this
 	# actor — the one melee rate door (#819/#820). Passed rather than left
@@ -711,7 +659,7 @@ func _can_afford(plan: AttackPlan, outcome: AttackOutcome) -> bool:
 ## this does not break is [b]never frame-ordered mutation[/b] — see [BeatClock].
 ## VFX still gates nothing: dropping every frame of the animation leaves the
 ## applied world identical, because the loop waits on its own timer and not on
-## `attack_vfx.play`.
+## any animation.
 func _commit(plan: AttackPlan, outcome: AttackOutcome) -> void:
 	is_launching = true
 	_in_flight_plan = plan
@@ -729,12 +677,11 @@ func _commit(plan: AttackPlan, outcome: AttackOutcome) -> void:
 		_consume_volley(plan as RangedAttackPlan, outcome)
 	var launched_spell: SpellDef = (plan as MagicAttackPlan).spell if plan is MagicAttackPlan else null
 	attack_launched.emit(plan.mode, launched_spell)
-	# The coordinator is mounted BEFORE the commit signal (ADR 0027): the
-	# director reads [method presenter] inside `attack_committed` to open its
-	# shot on the presenter's marker, so the presenter has to exist by then.
-	_coordinator = _mount_coordinator(plan)
-	if _coordinator != null:
-		_coordinator.outcome = outcome
+	# The stage mounts BEFORE the commit signal (ADR 0027): the director
+	# reads [method presenter] inside `attack_committed` to open its shot on
+	# the presenter's marker, so the presenter has to exist by then.
+	if stage != null:
+		stage.mount(plan, outcome)
 	# Un-awaited, like every other observer on this path: `_apply_outcome`
 	# below is what waits on the beat clock, and anything awaited here would
 	# gate the mutation loop.
@@ -743,42 +690,31 @@ func _commit(plan: AttackPlan, outcome: AttackOutcome) -> void:
 	# its targets. Replaces the issue's `_on_battle_start` — there is no battle.
 	if plan.attacker != null:
 		plan.attacker.dispatch(&"_on_attack_launched", [plan.mode, launched_spell])
-	# VFX starts FIRST and UN-AWAITED, so it runs alongside the mutation loop
-	# below: the arrow is in the air while the loop waits out its
-	# `arrival_time`. It is still a pure observer — it reads the outcome to
-	# time itself and never mutates, and the loop waits on its own timer rather
-	# than on any animation, so a dropped frame cannot change gameplay.
+	# ADR 0027: one staging path for every mode. The wind-up is the ONLY
+	# awaited beat between the commit and the replay; it compiles nothing,
+	# reorders nothing, and waits on no animation. A null stage stages 0 s.
+	await _stage_windup(plan)
+	# The replay starts FIRST and UN-AWAITED, so it runs alongside the
+	# mutation loop below: the arrow is in the air while the loop waits out
+	# its `arrival_time`. It is a pure observer — the loop waits on its own
+	# timer, so a dropped frame cannot change gameplay.
 	#
-	# The un-awaited call runs synchronously up to the coroutine's first await,
-	# which is what makes `_vfx_running` trustworthy on the line after it:
-	# true means "parked, will emit later", false means "already finished".
-	# Checking it before parking on `_vfx_finished` is what keeps a
-	# fully-synchronous VFX path (a stub, a mode with nothing to draw) from
-	# emitting into no listener and hanging the launch forever.
-	_vfx_running = false
-	# ADR 0027: one staging path for every mode. The presenter is whatever
-	# answers the contract for this plan — the MeleePreview for melee, the
-	# coordinator mounted above for ranged/magic, null on a headless peer —
-	# and the wind-up it stages is the ONLY awaited beat between the commit
-	# and the replay. It compiles nothing, reorders nothing, and waits on no
-	# animation. With every duration authored to 0.0 (and the coordinators'
-	# default 0.0) the world applies exactly as it did before.
-	var melee_plan: MeleeAttackPlan = plan as MeleeAttackPlan
-	if melee_plan != null:
-		if melee_preview != null:
-			await _stage_windup(plan, melee_preview)
-			# Melee: the MeleePreview (which has the ghost mounted) animates
-			# the swing on the same `BladeHitEvent.t` clock the applier lands
-			# hits on, so the blade now visibly reaches a node as that node
-			# takes its hit.
-			_run_melee_preview(melee_plan, outcome)
-	else:
-		await _stage_windup(plan, _coordinator)
-		if _coordinator != null:
-			if outcome != null and outcome.schedule == null:
-				outcome.schedule = OutcomeSchedule.compile(outcome)
-			attack_replay_started.emit(outcome)
-			_run_attack_vfx(_coordinator, outcome)
+	# The schedule is compiled here when nothing has yet — the blade has to
+	# know the rate its hits land on, and this runs BEFORE `_apply_outcome`,
+	# where [method OutcomeApplier.apply] would otherwise compile it. The
+	# compile is pure and the applier reuses this instance. After the compile,
+	# before the play: an observer sizes itself off the schedule and must see
+	# the replay's first moving frame, not its second.
+	if stage != null and stage.stages(plan):
+		if outcome != null and outcome.schedule == null:
+			outcome.schedule = OutcomeSchedule.compile(outcome)
+		attack_replay_started.emit(outcome)
+		# Runs synchronously up to its first await, which is what makes
+		# `holds_release` trustworthy on the lines after it: true means
+		# "parked, will emit `finished`", false means "already done" — the
+		# check that keeps a fully-synchronous stage from emitting into no
+		# listener and hanging the launch forever.
+		stage.play(plan, outcome)
 	# World mutation, on the beat clock. Awaited: `is_launching` gates on the
 	# WORLD being finished, never on the animation.
 	await _apply_outcome(outcome)
@@ -797,7 +733,7 @@ func _commit(plan: AttackPlan, outcome: AttackOutcome) -> void:
 	# mutation: it is what blocks a second launch, and the plan stays live
 	# behind it. Two ways out, because the two modes want different things:
 	#
-	#   * MELEE parks on the swing (`_vfx_running`). A melee plan's
+	#   * MELEE parks on the swing (`stage.holds_release`). A melee plan's
 	#     temp-upgrade addons (#406) must keep rendering through the visible
 	#     blade, and the ghost the preview animates IS the plan — clearing at
 	#     mutation-end would let a player arm and fire again mid-swing with the
@@ -808,8 +744,8 @@ func _commit(plan: AttackPlan, outcome: AttackOutcome) -> void:
 	#     stick-and-fade — three quarters of a second in which the world was
 	#     already final. The arrows finish fading under `%AttackVFX` on their
 	#     own; see [member release_beat].
-	if _vfx_running:
-		await _vfx_finished
+	if _stage_holds(plan):
+		await stage.finished
 	# is_launching flips false BEFORE _reset() (not after) — _reset()'s
 	# slot clear synchronously fires attack_plan_changed, and
 	# PlayerInputController's gate-refresh listener reads is_launching the
@@ -821,10 +757,15 @@ func _commit(plan: AttackPlan, outcome: AttackOutcome) -> void:
 	_reset()
 
 
-## The wind-up shape in force, authored `.tres` unless a caller overrode it.
+## The wind-up shape in force — the [member stage]'s, or the authored `.tres`
+## with no stage. The camera reads it to time its shot.
 func tempo() -> PresentationTempo:
-	return presentation_tempo if presentation_tempo != null \
-			else PresentationTempo.shared_default()
+	return stage.tempo() if stage != null else PresentationTempo.shared_default()
+
+
+## Whether the [member stage]'s play in flight still holds the release.
+func _stage_holds(plan: AttackPlan) -> bool:
+	return stage != null and stage.holds_release(plan)
 
 
 ## [b]"The record is ready" — the swing beat's one await point, and the seam
@@ -871,32 +812,10 @@ func release_record() -> void:
 
 ## The presenter for the launch in flight — whatever answers the contract
 ## ([method VFXCoordinator.begin_windup] / [method VFXCoordinator.focus_marker]
-## / [signal VFXCoordinator.focus_marker_changed], ADR 0027): the
-## [MeleePreview] for a melee plan, the coordinator mounted at commit for
-## ranged/magic. Null on a peer with neither wired, or between launches. Typed
-## [Node] because the two presenters share no base class — the contract is
-## the pair of signatures, and callers duck-type it.
+## / [signal VFXCoordinator.focus_marker_changed], ADR 0027), as the
+## [member stage] reports it. Null with no stage, or between launches.
 func presenter() -> Node:
-	if _in_flight_plan is MeleeAttackPlan:
-		return melee_preview
-	if _coordinator != null and is_instance_valid(_coordinator):
-		return _coordinator
-	return null
-
-
-## Mount the ranged/magic coordinator for [param plan], or null for a melee
-## plan or a peer with no [member attack_vfx]. A magic plan's spell names its
-## own scene; ranged uses the default volley.
-func _mount_coordinator(plan: AttackPlan) -> VFXCoordinator:
-	if attack_vfx == null or plan is MeleeAttackPlan:
-		return null
-	var coord_scene: PackedScene = null
-	var magic_plan: MagicAttackPlan = plan as MagicAttackPlan
-	if magic_plan != null and magic_plan.spell != null:
-		coord_scene = magic_plan.spell.vfx_coordinator_scene
-	if coord_scene == null:
-		coord_scene = AttackVFX.RANGED_VOLLEY_COORDINATOR
-	return attack_vfx.mount(coord_scene)
+	return stage.focus() if stage != null else null
 
 
 ## Stage a committed attack's wind-up (#559, generalised by ADR 0027): the
@@ -920,52 +839,13 @@ func _mount_coordinator(plan: AttackPlan) -> VFXCoordinator:
 ##
 ## Nothing here compiles or touches [OutcomeSchedule]: this shifts WHEN the
 ## mutation loop starts and changes nothing about what lands or in what order.
-func _stage_windup(plan: AttackPlan, presenter: Node) -> void:
-	var staged: float = 0.0
-	if presenter != null:
-		staged = presenter.begin_windup(plan, tempo())
+func _stage_windup(plan: AttackPlan) -> void:
+	var staged: float = stage.begin_windup(plan) if stage != null else 0.0
 	if staged > 0.0:
 		await _new_beat_clock().advance_to(staged)
 		_beat_clock = null
 	@warning_ignore("redundant_await")
 	await await_record_ready()
-
-
-## Runs [MeleePreview] to completion, then reports. See `launch_attack` for why
-## this is a named coroutine rather than an inline un-awaited call: GDScript
-## cannot hold a handle to a `-> void` coroutine, so the completion report has
-## to be a signal the caller can park on.
-##
-## Compiles the schedule here if nothing has yet — the same `if null` guard
-## [ArrowVolleyCoordinator] and [MagicBounceCoordinator] use, and for the same
-## reason: the blade has to know the rate its hits will land on, and this runs
-## BEFORE `_apply_outcome`, which is where [method OutcomeApplier.apply] would
-## otherwise compile it. Compiling early changes nothing — the applier reuses
-## this instance rather than minting a second one, and the compile is pure.
-func _run_melee_preview(melee_plan: MeleeAttackPlan, outcome: AttackOutcome) -> void:
-	_vfx_running = true
-	if outcome != null and outcome.schedule == null:
-		outcome.schedule = OutcomeSchedule.compile(outcome)
-	# After the compile, before the swing: an observer sizes itself off the
-	# schedule and must see the blade's first moving frame, not its second.
-	attack_replay_started.emit(outcome)
-	await melee_preview.launch(melee_plan, outcome.schedule if outcome != null else null)
-	_vfx_running = false
-	_vfx_finished.emit()
-
-
-## Runs the ranged/magic coordinator mounted at commit — and, unlike
-## [method _run_melee_preview], reports nothing. Nobody waits on it: the
-## launch releases on [member release_beat] instead, so this coroutine
-## outlives `_commit` and [method AttackVFX.play] tears the coordinator down
-## whenever its last arrow has faded.
-##
-## That is also why it must not touch `_vfx_running` / `_vfx_finished` — an
-## un-awaited runner that still set them would emit into the NEXT launch's
-## park, releasing melee early. Leaving the pair to melee alone keeps it
-## serialised by `is_launching`.
-func _run_attack_vfx(coord: VFXCoordinator, outcome: AttackOutcome) -> void:
-	await attack_vfx.play(coord, outcome)
 
 
 ## The one place world mutation happens for an attack: every hit in
@@ -980,7 +860,7 @@ func _run_attack_vfx(coord: VFXCoordinator, outcome: AttackOutcome) -> void:
 ##
 ## [member instant_mutation] is the opt-out, and it is deliberately NOT
 ## inferred from whether VFX happens to be mounted. #474's acceptance is that
-## the applied world is identical whether or not `attack_vfx` is wired — so
+## the applied world is identical whether or not a [member stage] is wired — so
 ## making the clock depend on that is exactly the thing that must not matter.
 ## A fixture that wants the whole outcome on one line says so out loud.
 func _apply_outcome(outcome: AttackOutcome) -> void:
@@ -990,7 +870,7 @@ func _apply_outcome(outcome: AttackOutcome) -> void:
 	# under `instant_mutation`, and cut short by `drain_pending_mutations`.
 	# Melee doesn't want it — it has a whole swing left to watch — and asking
 	# for it there would just push the blade's own release out by 0.12 s.
-	if release_beat > 0.0 and not _vfx_running:
+	if release_beat > 0.0 and not _stage_holds(_in_flight_plan):
 		@warning_ignore("redundant_await")
 		await _beat_clock.advance_to(_beat_clock.elapsed + release_beat)
 	_beat_clock = null
