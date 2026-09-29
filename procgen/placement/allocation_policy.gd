@@ -5,7 +5,7 @@ extends Resource
 ## Picks the next node an entity should claim. Shared between spawn-time
 ## territory seeding ([TerritorySeeder], via [method AllocationSystem.force_allocate])
 ## and runtime AI allocation (`AIController`, via the gated
-## [method AllocationSystem.allocate]) — see D-24 in docs/design/mvp_decisions.md
+## [method AllocationSystem.allocate]) — see D-24 in docs/adr/legacy-mvp-decisions.md
 ## and #275.
 ##
 ## NEVER reaches for `graph` or `navigator` itself — the caller supplies the

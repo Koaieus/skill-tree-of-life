@@ -409,7 +409,7 @@ whether the spell scales with the caster**:
 `FlatAddProgression`'s absolute increment is a *compressive* curve (7× its own
 seed at INT 10, 1.12× at INT 1000) — a wanted spell personality, not a
 dimensional bug. What D-32 forbids is an *undeclared* absolute. See the D-32
-amendment in `docs/design/mvp_decisions.md`, and the guard test in
+amendment in `docs/adr/legacy-mvp-decisions.md`, and the guard test in
 `test/unit/spell/test_spell_damage_scaling.gd`.
 
 **`ExpressionProgression`'s seed identifier is `seed_damage`, not `seed`** —

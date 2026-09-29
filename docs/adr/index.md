@@ -54,6 +54,10 @@ mise run adr-hygiene     # frontmatter, supersede links, index coverage, immutab
 | [0030](0030-parent-invalidation-propagates-through-the-board-wired-link-not-a-signal.md) | A parent stat invalidates its children through the board-wired link, never through its value_changed signal; parent edges order the batch flush | accepted | 2026-09-28 | stats, architecture, performance |
 | [0031](0031-status-resistance-filters-the-accumulated-row-at-effect-time-on-the-host.md) | Status resistance filters the accumulated float row on the host at each apply and tick, cancelling ⌈row × res − ½⌉ stacks; 100% blocks landing; never a per-hit scale at land | accepted | 2026-09-28 | combat, status, dot, balance, sync |
 
+## Pre-ADR log
+
+**[legacy-mvp-decisions.md](legacy-mvp-decisions.md)** — the D-1…D-34 log from June–August 2026, written before this tier existed. Same standing as a record: history, never edited. Some D's were later revised or never built, and its crosswalk table says which. Code and docs cite it as `D-N`. When a D turns out to still matter, backfill it as a numbered record (see below) rather than citing the log.
+
 ## Reading order
 
 Every ADR is standalone — that is the point of the format — so there is no

@@ -358,7 +358,7 @@ pack, `effects` via a shared `Effect` `.tres`, e.g. an `AuraEffect` subclass) in
 outside `entity/core/` (`stats_system/packs/`) so `CoreClass.load_all()` never
 picks one up as a phantom selectable class. Two class-level mechanisms
 (`inherits: CoreClass`, then `composes: Array[CoreClass]`) were built and
-reverted before this landed — see D-27 in `docs/design/mvp_decisions.md` for why.
+reverted before this landed — see D-27 in `docs/adr/legacy-mvp-decisions.md` for why.
 
 **The whole feature is one virtual: `StatModifier.flatten() -> Array[StatModifier]`.**
 A leaf returns `[self]`; the composite returns its children (recursively). Two

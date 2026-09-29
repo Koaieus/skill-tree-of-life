@@ -41,7 +41,7 @@ extends AuraEffect
 ## every [method _on_turn_start], never cached on the resource, so a
 ## mid-run CON grant raises next turn's heal (a board stat read as a formula
 ## input — `.claude/rules/stat-knobs-and-bins.md`). Sub-linear on purpose
-## (D-10, `docs/design/mvp_decisions.md`): node_health grows ~linearly with
+## (D-10, `docs/adr/legacy-mvp-decisions.md`): node_health grows ~linearly with
 ## CON, so a flat aura decays into irrelevance as levels climb, but matching
 ## that growth 1:1 would keep the fortress dominant forever — `sqrt` sits
 ## between the two. `max_hops` (on [member AuraEffect.reach]) deliberately

@@ -1319,7 +1319,7 @@ func get_emblem_contributions() -> Array:
 ## full. That costs 1 DP (+2 MP if the core sits there) and requires topology
 ## that permits the dealloc without islanding — a real turn-budget price, not
 ## a bug. Do not "fix" this without a design decision first — see D-9 in
-## docs/design/mvp_decisions.md.
+## docs/adr/legacy-mvp-decisions.md.
 func refill(silent: bool = false) -> void:
 	_combat.refill(silent)
 

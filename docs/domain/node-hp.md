@@ -56,7 +56,7 @@ can be deallocated and reallocated to come back full. This is a **known,
 accepted interaction** (D-9): it costs 1 DP (+2 MP if the core sits on that
 node) and requires topology that permits the dealloc without islanding — a
 real turn-budget price. Do not "fix" this without a design decision first;
-see D-9 in `docs/design/mvp_decisions.md`.
+see D-9 in `docs/adr/legacy-mvp-decisions.md`.
 
 ## The CoreClass healing aura (D-10)
 
@@ -75,7 +75,7 @@ combat (applies even to a node that took damage this turn) and grants no
 ramp (never touches `regen_stacks`). `base` and `con_coefficient` (#896:
 `v = base + con_coefficient × sqrt(CON)`, CON read live off the board every
 turn) are authored directly on the `HealAuraEffect` resource, not board
-stats — see D-10 in `docs/design/mvp_decisions.md` for the rationale (why
+stats — see D-10 in `docs/adr/legacy-mvp-decisions.md` for the rationale (why
 flat-not-percent, why the aura doesn't need to bribe the core forward; its
 "Impl status" line is current, some of its `Shape`/`Scaling` prose predates
 #900/#896 and may not match the code).

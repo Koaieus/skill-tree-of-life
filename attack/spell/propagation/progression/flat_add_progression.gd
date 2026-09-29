@@ -17,7 +17,7 @@ extends HopDamageProgression
 ## advantage — so a flat-ramp spell is strong for a novice and marginal for an
 ## archmage, which is exactly the niche D-33 wants. This was once reported as a
 ## "dimensional bug" and deleted; see the D-32 amendment
-## ([code]docs/design/mvp_decisions.md[/code], 2026-08-03), which is left
+## ([code]docs/adr/legacy-mvp-decisions.md[/code], 2026-08-03), which is left
 ## standing as the trap marker. Want the relative behaviour? That is a
 ## different progression — [ScaledAddProgression] — chosen deliberately.
 ##

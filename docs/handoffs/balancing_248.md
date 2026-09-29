@@ -1,6 +1,6 @@
 # #248 — session handoff (after round 6)
 
-**State as of commit `30ec71b`+.** Rounds 1–6 are done; `docs/design/mvp_decisions.md`
+**State as of commit `30ec71b`+.** Rounds 1–6 are done; `docs/adr/legacy-mvp-decisions.md`
 carries **D-1 … D-27** and is authoritative. **#248's own open list is exhausted** —
 every remaining fork lives on a child issue with the fork written down.
 

@@ -1,9 +1,9 @@
 # MVP design decisions log — FROZEN
 
-> 🧊 **Historical, not authoritative.** This was the early "get things in order" log (June–August 2026), from before `docs/adr/` existed ([ADR 0001](../adr/0001-adrs-record-decisions-domain-docs-record-behaviour.md)). It is **no longer edited and no longer wins** over anything:
+> 🧊 **Historical, not authoritative.** This was the early "get things in order" log (June–August 2026), from before `docs/adr/` existed ([ADR 0001](0001-adrs-record-decisions-domain-docs-record-behaviour.md)). It is **no longer edited and no longer wins** over anything:
 >
 > - **What exists** is code — spells are `attack/spell/defs/`, core classes are `entity/core/core_class_roster.tres`, and behaviour is described in `docs/domain/`.
-> - **Settled calls** are ADRs — see the [ADR index](../adr/index.md).
+> - **Settled calls** are ADRs — see the [ADR index](index.md).
 > - **This file** is kept so the `D-N` citations in code and docs still resolve to their original rationale. Several entries were later revised, superseded, or never built — check the crosswalk below before relying on one.
 
 ## Crosswalk: where each D now lives
@@ -12,11 +12,11 @@ Compiled 2026-09-29. An empty cell means no ADR or domain doc holds that decisio
 
 | D | Title (short) | ADR | Domain doc | Note |
 |---|---|---|---|---|
-| D-1 | Melee damage source: edges inert | [0005](../adr/0005-blade-parts-and-counters-are-orthogonal.md) | [melee-blade-sim.md](../domain/melee-blade-sim.md) | #785 briefly gave edges damage; ADR 0005 restored D-1's call |
+| D-1 | Melee damage source: edges inert | [0005](0005-blade-parts-and-counters-are-orthogonal.md) | [melee-blade-sim.md](../domain/melee-blade-sim.md) | #785 briefly gave edges damage; ADR 0005 restored D-1's call |
 | D-2 | Magic cast range: INT-scaling | | | revised by D-18, then #912/#1018 (`cast_range_hops` / `cast_range_distance`); no ADR |
 | D-3 | Addon application model | | | live balance call, no ADR |
 | D-4 | Spell gating: allocated-degree | | [degree.md](../domain/degree.md) | canonicalized as `get_entity_degree` |
-| D-5 | Damage type taxonomy: armor-only | [0018](../adr/0018-hit-basis-and-damage-type-are-orthogonal-knobs.md) | | R/G/B taxonomy still deferred; 0018 is orthogonal to it |
+| D-5 | Damage type taxonomy: armor-only | [0018](0018-hit-basis-and-damage-type-are-orthogonal-knobs.md) | | R/G/B taxonomy still deferred; 0018 is orthogonal to it |
 | D-6 | Battle-mode UI: contextual action bar | | | no ADR — live UI/design call |
 | D-7 | NPC factions: single, add field | | [ownership-vocabulary.md](../domain/ownership-vocabulary.md) | faction field landed; hostility still owner-based |
 | D-8 | Announcer toaster stale-drop policy | | [strikethrough-toast.md](../domain/strikethrough-toast.md) | tangential; no dedicated policy doc |
@@ -40,7 +40,7 @@ Compiled 2026-09-29. An empty cell means no ADR or domain doc holds that decisio
 | D-26 | `health = 10 + core_health_scaling × CON` | | [stat-knobs-and-bins.md](../domain/stat-knobs-and-bins.md) | built with D-21 (#276) |
 | D-27 | CoreClass is a leaf; reuse via arrays | | [loot-system.md](../domain/loot-system.md) | revised twice in-doc before settling |
 | D-28 | Node survives via life-source reach | | | life-source generalisation **not built**; survival is still connected-to-core (#240 open) |
-| D-29 | Depletions resolve as a set | [0011](../adr/0011-one-attack-timeline-contract-for-every-mode.md) | [attack-timeline.md](../domain/attack-timeline.md) | the resolve-side death call lives on in ADR 0011 (shadow-world resolve, a kill gates the next wave) |
+| D-29 | Depletions resolve as a set | [0011](0011-one-attack-timeline-contract-for-every-mode.md) | [attack-timeline.md](../domain/attack-timeline.md) | the resolve-side death call lives on in ADR 0011 (shadow-world resolve, a kill gates the next wave) |
 | D-30 | Degree has three definitions | | [degree.md](../domain/degree.md) | **superseded** 2026-08-15; degree.md is current |
 | D-31 | Node combat pool ratchets like entity pool | | [stat-knobs-and-bins.md](../domain/stat-knobs-and-bins.md) | built #346; mechanism later replaced by `PoolStatDef` |
 | D-32 | Spell has one absolute number | | [spell-propagation.md](../domain/spell-propagation.md) | built; amended same day re `FlatAddProgression` |
