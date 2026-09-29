@@ -1,6 +1,19 @@
-# `presentation/` — parked, not dead (#488 / #504)
+# `presentation/` — one live class, four parked ones
 
-**Nothing in this directory is wired up.** All four classes are unreferenced by
+## Live: `AttackPresenter` (#1196)
+
+`attack_presenter.gd` + `.tscn` is the real `AttackStage` (`attack/stage/`):
+it draws a committed attack — `MeleePreview`'s swing, a `VFXCoordinator` under
+`AttackVFX` for ranged/magic — and answers the camera's focus. `BattleSystem`
+reaches it only through its `stage` export and the sim-side base class, so a
+null stage is a headless peer and the world applies identically either way.
+`game_root.tscn` mounts it; the dev sandboxes mount one via
+`AttackPresenter.ensure_on`. It names `AttackVFX`/`VFXCoordinator` duck-typed,
+because `presentation` ranks below `ui` in `docs/architecture.md`.
+
+## Parked, not dead (#488 / #504)
+
+**The other four classes are not wired up.** They are unreferenced by
 production code, deliberately. Do not delete them as dead code, and do not
 mistake them for live machinery.
 
