@@ -47,7 +47,7 @@ The difference from the keystone base above: nothing ever inherited the addon
 template, so its defaults were dead on arrival — the keystone base earns its
 keep because the whole family actually does inherit it.
 
-## An addon is its scene — read the `.tscn` before the script
+## A `SkillNodeAddon` is its scene — read the `.tscn` before the script
 
 A `SkillNodeAddon` is authored as `skill_node/addons/<name>_addon.tscn`: the
 root node names the script it runs, and the scene holds the authored
