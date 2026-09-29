@@ -106,7 +106,7 @@ Granting `&"lifeline"` to nodes within N hops of the carrier node is the easy
 turn" behavior needs new work **outside** the tag system, because it changes
 *when* death happens, not just *what data* a node carries.
 
-> **Superseded.** The design's home is #240 (open); the rationale is D-28/D-29 in the frozen `mvp_decisions.md` log (life sources with a reach; the resolver owns deaths).
+> **Superseded.** The design's home is #240 (open); the rationale is D-28/D-29 in `docs/adr/legacy-mvp-decisions.md` (life sources with a reach; the resolver owns deaths).
 > Two claims this section originally made are now known wrong, and are kept
 > here only so the reasoning that replaced them is legible:
 >

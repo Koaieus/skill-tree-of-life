@@ -6,13 +6,12 @@ A Godot 4.7 game where the skill tree *is* the game. Entities live on a graph of
 
 The high-level **[GDD](../GDD.md)** is the entry point — vision, core loop, and a map into the per-system docs below.
 
-> 📍 **What exists is code; why is an ADR.** The spell and core-class rosters are `attack/spell/defs/` and `entity/core/core_class_roster.tres` — a design doc naming something absent there is describing an idea, not the game. Settled calls live in the [ADR index](../adr/index.md). The early `mvp_decisions.md` log is frozen history — cite it for rationale, never as current state. Also see [../ROADMAP.md](../ROADMAP.md) for what's done vs in-flight.
+> 📍 **This folder is what *could* be.** What *is* lives in `docs/domain/` and in code — the spell and core-class rosters are `attack/spell/defs/` and `entity/core/core_class_roster.tres`, and a design doc naming something absent there is describing an idea. What *was* decided lives in [`docs/adr/`](../adr/index.md), including the pre-ADR D-1…D-34 log. Design docs carry no history: a passage the code or a later call has overtaken is deleted, not annotated.
 
 ## Documents
 
 | File | What it covers |
 |---|---|
-| [mvp_decisions.md](mvp_decisions.md) | **Frozen, historical** — the early D-1…D-34 decisions log (Jun–Aug 2026). Not authoritative: settled calls are ADRs, current behaviour is code + `docs/domain/`. Kept so `D-N` citations resolve; its header maps each D to its ADR |
 | [../ROADMAP.md](../ROADMAP.md) | **Roadmap** — done / in-progress / todo across all milestones |
 | [../GDD.md](../GDD.md) | **Master GDD** — pitch, core loop, the supergraph, entities, combat summary, classes, progression, open questions, roadmap |
 | [lore.md](lore.md) | Narrative, acts, the Fairy, graph theology, the Field/Tethers/Breakout, the Fractal, tone, visual language |
