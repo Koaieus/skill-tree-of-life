@@ -205,36 +205,33 @@ entry each, no code (ADR 0023).
 
 ---
 
-### Gate *(NEW — confirmed direction; a couple of sub-points OPEN)*
+### Gate *(confirmed — owner design pass 2026-09-30, #187)*
 
-> **A 2-component addon** — one addon spanning **two endpoint nodes** (paired, shared), not the usual single-node attachment. Theme-perfect for an edge-centric cosmos: it is the only addon whose unit *is an edge.*
+> **The addon whose unit is an edge.** A Gate spans **two endpoint nodes** and makes the edge between them switchable: **open** is a real edge in every sense, **closed** is no edge at all. Whether an edge existed there before is irrelevant; "depower an existing edge" and "create a new one" are the same flip.
 
-**Effect — a toggleable edge.** The Gate acts as a `gate` the owner can **toggle at will**:
+**Placement — any unobstructed pair.** Owner, 2026-09-30: *"Any center to center unobstructed (by node circles or edges) node"*. The segment between the two centres must cross no node disc and no edge, and no other gate may already run there. A closed gate still occupies its span, so nothing can later route through it; that preserves planarity. **Procgen scores a pair by the chasm it bridges**: a pair already close in hops (two corners of a triangle) is a weak gate, and a pair far apart in hops but close in space is a strong one. Owner, 2026-09-30, on the sticking-out triangle: *"it's not really a chasm being bridged hence the consideration of the pair is penalized in procgen"*.
 
-- If an edge **already existed** between the endpoints → the gate can **depower** it (turn it off).
-- If **no edge existed** → the gate can **create a temporary edge**.
+**Control — your side only.** A gate may be toggled by an entity that owns at least one endpoint, **provided the other endpoint is neutral or also its own**. A gate touching another entity's node is frozen. Owner, 2026-09-30: *"By design you can't affect enemy nodes by toggling your own held edges, can't bridge toward enemy occupied nodes (but killing that node first makes it unoccupied, free game, bridge breach."* So the **breach** needs no extra rule: kill the far node and the gate is yours to open.
 
-**Placement constraints:**
-- The two endpoint nodes must be within **euclidean range `X`** of each other.
-- No **gate** may already run between them. (A normal edge *may* exist — the gate depowers it.)
-- A **depowered** edge still renders and still counts as "present / not crossable" for placement — preserving planarity. You cannot route a new gate through the space a depowered edge occupies.
+**Toggling.** You can toggle a single gate (click its span), or all your gates at once (a HUD button or a hotkey), at any point in your own turn. Toggles **persist** across turn end. **Toggle-all is order-independent**: every flip applies first, then connectivity is judged once. A component that one closing gate would strand, but another opening gate in the same toggle-all reconnects, stays allocated.
 
-**Self-islanding is allowed.** Toggling can island (and therefore wound) your own constellation — e.g. depowering what was a bridge. The player gets a **warning** *(frequency OPEN: once vs. every time)*, then it is their call. Power with rope to hang yourself on — consistent with bridge-sniping being intended skill expression.
+**Self-cutting is allowed, behind one warning.** A flip that would strand your own nodes (a deallocation cascade) shows one warning and then goes through when you confirm. The warning only ever concerns your own territory, because the control rule means a flip can never cut anyone else. Owner, 2026-09-30: *"one warning when you try to turn off an edge that would hurt you (forcing deallocation cascade) but otherwise even that's permitted"*.
 
-**Persistence *(OPEN — leaning persistent)*:** either the toggle **persists on turn end**, or it reverts (re-powers / removes the temp edge) at turn end. Leaning persistence.
+**What each use is for** (owner, 2026-09-30: *"All points are excellent"*; the weakest two are last):
+- **Wormhole.** Open a gate from your node to a neutral node across a gap. The far end becomes a frontier node that you allocate at the normal SP cost: a portal, a flank, a chasm crossing.
+- **Drawbridge / firebreak.** Spell propagation and blade rigidity ride edges. Closing a gate before ending your turn removes that path, which is safe only if your territory is padded with redundant connections. The warning is the tension.
+- **Melee: brace, whip, and the fuse.** At launch, an open gate triangulates the blade (rigid) and a closed one leaves it a whip. Mid-swing, a **timed fuse** set in the attack plan toggles every gate at time *t*: the blade's copy of the edge parts and the far side flies off on its own momentum (free-flight severance). The real gate flips too, and your territory cascades if it isn't padded. Owner, 2026-09-30: *"a timed fuse as part of the attack plan … user able to scrub the fuse timer along the duration the blade nodes are hot with preview matching"*. The fuse's self-cut warning is shown **at plan time**: the preview resolves the fuse, so the nodes it would strand are shown before launch, and launching is the confirmation.
+- **Amputation / quarantine.** Deliberately cut off a limb carrying a status or DoT, at the cascade's cost in health and wounds. If an affliction ever spreads along edges, a closed gate is a quarantine line.
+- **Ranged: gun ports** *(niche, mostly topological)*. Cut the edge across a protruding triangle and both corners become leaves, which are volley origins.
+- **Magic: degree pump** *(weakest)*. Opening raises endpoint degree for degree-gated casts, but usually you just leave it open, and the only downside is spell exposure.
 
-**Lifecycle:**
-- **On addon removal:** reverts to the original situation (re-powers a depowered edge / removes a created edge).
-- **On either endpoint node's death:** the addon is removed (and thus reverts). Refund / addon-breakage policy is **deferred** (a general addon-lifecycle question — see Open Questions).
+**The flip has a body.** Opening is a glowing rope thrown from one endpoint that latches on the far node and is pulled taut with a *thwang*, a plucked string whose pitch falls with its length. Closing snaps it: the halves whip back into their endpoints. This is presentation only; the topology flips at the logical instant (see `docs/domain/presentation-clock.md`).
 
-**Per-mode interactions (design hooks):**
-- **Melee:** toggling an internal edge changes the induced subgraph's faces and rigidity → **reshapes the phantom blade on demand** (brace/unbrace, open/close a face).
-- **Magic:** powering an edge raises the endpoints' degree → potential **cast-tier / degree-gate shift** (extra effective degree).
-- **Ranged:** depowering edges manufactures **leaves** (degree-1 nodes are the firing ports) → "leaf city," more volley origins on demand.
+**Relationship to existing systems:**
+- **Edge-deletion invariant / Edgelord — not violated.** The combat doc's invariant ("no mechanic may leave a region permanently unreachable") and the Edgelord's *permanent* edge add/remove specialty (Bleeding Edge) are untouched, because a gate is always reversible. Permanent severing remains Edgelord's domain. (Mirrored in `combat_system.md` — Edge-cutting jab invariant.)
+- **Buffer — distinct.** Buffer temporarily reaches across the *existing* graph for one attack; the Gate *rewires* it, persistently. Revisit if play shows the two identities blur.
 
-**Relationship to existing systems (`FLAG`):**
-- **Edge-deletion invariant / Edgelord — not violated.** The combat doc's invariant ("no mechanic may leave a region permanently unreachable") and the Edgelord's *permanent* edge add/remove specialty (Bleeding Edge) are **not** infringed by the Gate, because the Gate is **fully reversible** (re-power, or remove-to-revert). Permanent severing remains Edgelord's heresy-free domain; the Gate is universal *precisely because* it is reversible/toggle. The two are not redundant — distinct on permanence. (Mirrored in `combat_system.md` — Edge-cutting jab invariant.)
-- **Buffer overlap — reconcile.** Buffer is "universal temporary **reach** utility" (temporarily allocate existing *nodes* for an attack); the Gate is temporary **edge** toggling. They share a "temporary topology" identity but operate on different objects (nodes vs. edges) and at different scopes (Buffer reverts when the attack resolves and goes on cooldown; Gate leans persistent and is a placed 2-node addon). Treat them as **distinct addons** for now — Buffer reaches across the *existing* graph, the Gate *rewires* it — and revisit if play shows the identities blur.
+**Open:** what happens to a gate when an endpoint dies, and whether removing one refunds anything or reverts its flip. This is part of the general addon-lifecycle question in Open Questions.
 
 ---
 
@@ -368,10 +365,8 @@ Seeds are rare field items — not buyable, not craftable in v1. Finding a seed 
 2. **Addon transferability:** Can addons be moved from one node to another? Removed entirely? Or are they permanent once applied? If removable, they're more like equipment. If permanent, they're closer to specializations.
 3. **Addon stacking:** Can a node have multiple addons simultaneously? Are there compatibility rules? (E.g., Armor Ring + Reinforcement = yes. Lifeline + Lifelink = probably not, doesn't make sense.)
 4. **Buffer addon vs Buffer specialization:** Resolve by playtesting whether the capability difference is meaningful enough to warrant two systems.
-5. **Gate persistence on turn end:** Does a toggle persist past turn end, or revert? Leaning persistent.
-6. **Gate self-island warning frequency:** Warn once, or every time a toggle would island the owner's own constellation?
-7. **Addon lifecycle on node death (general):** Refund / addon-breakage policy when an endpoint (Gate) or carrier node dies — does the addon drop, refund, or break? Deferred general question raised by the Gate's 2-endpoint lifecycle.
-8. **Gate vs. Buffer identity:** Both are "temporary topology" utility — keep distinct (edges vs. nodes) or let one absorb part of the other's role? Revisit if play shows the identities blur.
-9. **Relay damage bonus:** Is the amplification per-Relay (stacking) or a flat bonus for using any relay at all? TBD in playtesting.
-10. **Relay routing cost:** Is the relay chain transparent (free origin-shift, no hop cost to traverse), or does routing through relays consume hops to reach the terminal relay? Direction: transparent (free); confirm in playtesting.
-11. **Anti-Magic / Conduit classification:** +1-hop-cost and 0-hop-cost as player-applied addons or field-generated specializations? Resolve once magic propagation model is stable.
+5. **Addon lifecycle on node death (general):** Refund / addon-breakage policy when an endpoint (Gate) or carrier node dies — does the addon drop, refund, or break? Deferred general question raised by the Gate's 2-endpoint lifecycle.
+6. **Gate vs. Buffer identity:** Both are "temporary topology" utility — keep distinct (edges vs. nodes) or let one absorb part of the other's role? Revisit if play shows the identities blur.
+7. **Relay damage bonus:** Is the amplification per-Relay (stacking) or a flat bonus for using any relay at all? TBD in playtesting.
+8. **Relay routing cost:** Is the relay chain transparent (free origin-shift, no hop cost to traverse), or does routing through relays consume hops to reach the terminal relay? Direction: transparent (free); confirm in playtesting.
+9. **Anti-Magic / Conduit classification:** +1-hop-cost and 0-hop-cost as player-applied addons or field-generated specializations? Resolve once magic propagation model is stable.
