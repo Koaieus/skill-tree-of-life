@@ -47,6 +47,24 @@ The difference from the keystone base above: nothing ever inherited the addon
 template, so its defaults were dead on arrival — the keystone base earns its
 keep because the whole family actually does inherit it.
 
+## An addon is its scene — read the `.tscn` before the script
+
+A `SkillNodeAddon` is authored as `skill_node/addons/<name>_addon.tscn`: the
+root node names the script it runs, and the scene holds the authored
+`local_modifiers` / `entity_modifiers`, icon and visuals. The script is only
+the behaviour a scene can't author — `toxin_addon.tscn` has no script of its
+own (it runs the shared `dot_addon.gd`), and `spike_ring_addon.gd` computes
+only its stake-scaled grants while its `×1.5 blade_damage` sits in the scene.
+
+**The recurring mistake:** reading `<name>_addon.gd`, seeing no modifiers,
+and minting `StatModifier.new()` in an apply hook — a duplicate of what the
+scene already grants, so the stat double-counts. **How to apply:** open the
+`.tscn` first; add a modifier there (a `resource_local_to_scene` sub-resource,
+as the existing scenes do); code-mint one only when it's computed (scales with
+`stake_level`, reads another stat). A new addon is a scene on the base or a
+shared script; subclass only for a hook (`apply_to_blade`, visuals) the base
+can't express.
+
 ## What an inherited scene CAN and CANNOT change
 
 An inherited scene may **add** nodes freely, and may override exported

@@ -1,1 +1,1 @@
-Prefer a `.tscn` you `instantiate()` over a code-composed `X.new()` + `add_child` tree, and inject cross-system deps as `@export` NodePaths wired by the composing scene rather than `get_node` in code. See docs/domain/scene-composition.md
+Prefer a `.tscn` you `instantiate()` over a code-composed `X.new()` + `add_child` tree, and inject cross-system deps as `@export` NodePaths wired by the composing scene rather than `get_node` in code. An addon is its `.tscn`: its modifiers live there, so read it before the `.gd`. See docs/domain/scene-composition.md
