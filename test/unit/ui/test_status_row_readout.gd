@@ -78,8 +78,9 @@ func test_poison_row_dmg_matches_next_tick_damage_and_the_real_tick() -> void:
 		var status: NodeStatus = _combat().get_statuses()[0]
 		var expected: float = _POISON.next_tick_damage(_combat(), status.power)
 		var row := _row(status, _combat())
-		assert_string_contains(row._label.text, "%s" % [NumFmt.num(expected)],
-				"res %s: row's dmg number matches next_tick_damage" % res)
+		assert_true(row._label.text.ends_with("— %s dmg next tick" % NumFmt.num(expected)),
+				"res %s: row's dmg clause exactly matches next_tick_damage (got %s)" %
+						[res, row._label.text])
 		var before := _node.get_current_hp()
 		_combat().tick_statuses()
 		var landed := before - _node.get_current_hp()
@@ -91,15 +92,16 @@ func test_poison_row_shows_the_floored_stacks() -> void:
 	_combat().apply_status(_POISON, 12.7)
 	var status: NodeStatus = _combat().get_statuses()[0]
 	var row := _row(status, _combat())
-	assert_string_contains(row._label.text, "12", "the floored row, not 12.7 or 12.70")
+	assert_true(row._label.text.begins_with("Poison 12 "), "the floored row, not 12.7 or 12.70")
+	assert_false(row._label.text.contains("12.7"), "never the raw float")
 
 
 func test_curse_row_shows_floored_power_and_no_dmg_clause() -> void:
 	_combat().apply_status(_CURSE, 5.4)
 	var status: NodeStatus = _combat().get_statuses()[0]
 	var row := _row(status, _combat())
-	assert_string_contains(row._label.text, "5", "floored power shows")
-	assert_false(row._label.text.contains("dmg"), "a damageless def shows no dmg clause")
+	assert_eq(row._label.text, "Curse 5", "floored power, no dmg clause")
+	assert_false(row._label.text.contains("5.4"), "never the raw float")
 
 
 func test_get_description_folds_stacks_per_hit_with_a_board_null_falls_back_to_authored() -> void:

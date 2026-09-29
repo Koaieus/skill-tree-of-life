@@ -2,11 +2,12 @@
 class_name StatusRow
 extends SlabRow
 
-## One [NodeStatus] rendered as its own mini slab — display name plus
-## normalised power (`power / power_max`), tinted by the status def's own
-## [member StatusDef.tint]. Tooltip-fan Effects panel row for #876 (child of
-## #868); the node's own visual tint from the same [member StatusDef.tint] is
-## a separate consumer (#880), out of scope here.
+## One [NodeStatus] rendered as its own mini slab — display name, the
+## floored whole stacks, and (for a damage-dealing def) what the next tick
+## will actually land — tinted by the status def's own [member StatusDef.tint].
+## Tooltip-fan Effects panel row for #876 (child of #868); the node's own
+## visual tint from the same [member StatusDef.tint] is a separate consumer
+## (#880), out of scope here.
 ##
 ## [b]Everything visual lives on [SlabRow][/b] (#588) — this is an inherited
 ## scene of `slab_row.tscn`, same shape as [ModSlabRow]: resolve the
@@ -24,9 +25,9 @@ extends SlabRow
 func bind(status: NodeStatus, host) -> void:
 	var def := status.def
 	var label := def.display_name if not def.display_name.is_empty() else String(def.id)
-	var whole := floori(status.power)
+	var whole := NumFmt.num(floorf(status.power))
 	var dmg := def.next_tick_damage(host, status.power)
 	if dmg > 0.0:
-		bind_text("%s %d — %s dmg next tick" % [label, whole, NumFmt.num(dmg)], def.tint)
+		bind_text("%s %s — %s dmg next tick" % [label, whole, NumFmt.num(dmg)], def.tint)
 	else:
-		bind_text("%s %d" % [label, whole], def.tint)
+		bind_text("%s %s" % [label, whole], def.tint)

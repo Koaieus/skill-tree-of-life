@@ -184,9 +184,9 @@ func _rebuild_rows() -> void:
 	# Sibling gather (#876): the node's own status state (NodeCombat's status
 	# slice), never NodeEffectReadout's entity walk above — kept as its own
 	# loop so the aura/effect gather + hide/rollup logic above is untouched.
-	var _combat := _bound_node.get_combat()
-	for status in _combat.get_statuses():
-		shown.append({"status": status, "host": _combat})
+	var combat := _bound_node.get_combat()
+	for status in combat.get_statuses():
+		shown.append({"status": status, "host": combat})
 
 	_has_rows = not shown.is_empty()
 	_pages = paginate(shown, max_rows_per_page)
