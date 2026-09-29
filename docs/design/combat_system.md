@@ -147,10 +147,10 @@ The roster grew to **six attributes** — three attack (prevalent), three utilit
 
 | Color | Attribute | Role | Attack | Notes |
 |---|---|---|---|---|
-| **Red** | STR | melee | Adjacency / phantom blade | Per-contact damage and blade size (`STR//10+1` nodes). Beats Blue. |
+| **Red** | STR | melee | Adjacency / phantom blade | Per-contact damage and blade size (`STR//10+1` nodes); **+weight for armor modifiers** (flat and %) in affix generation. Beats Blue. |
 | **Green** | DEX | ranged | **Euclidean**, leaf-only | Per-leaf damage (`1/node @ 0 DEX → 2/node @ 10 DEX`). Beats Red. |
 | **Blue** | INT | magic | **Spell-native (graph)** | Per-instance **potency, never reach**. Beats Green. |
-| **White** | CON | durability | none | Scales node/core HP; **+weight for armor modifiers** in affix generation. No attack mode. |
+| **White** | CON | durability | none | Scales node/core HP; a light armor sprinkle (armor is now STR-primary, see Red) in affix generation. No attack mode. |
 | **Gold** | WIS | XP / growth | none | Wisdom ≈ accumulated experience → **XP-gain rate**. Carries the most valuable growth-oriented modifiers. |
 | **Purple** | PER | perception | none | Vision + sensor range. Information *is* the weapon (spot cut-vertices/bridges early, scout). No attack needed; one may surface later. |
 | **X** (Other) | — | — | — | Mystery / keystone / special nodes (rule-changers, sockets). Not yet specified — see GDD §3. |

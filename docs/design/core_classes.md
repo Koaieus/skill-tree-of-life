@@ -116,7 +116,7 @@ Always available. Designed to be legible to new players.
 
 **Synergizes with:** Armor Ring and Reinforcement addons; compact ring topologies; W (White) economic nodes in the interior.
 
-**Counterplay:** Economic starvation — deny White node access. B (Blue/magic) graph-traversal may reach inside the fortress if the graph provides a path. At late stages when the floor is negative: disrupting the healing-on-hit requires forcing the Bulwark to stop being hit, which means denying adjacency.
+**Counterplay:** Economic starvation — deny White node access. Armor is now STR-primary (#1082), not CON, so denying **Red** node access is now also part of starving a Bulwark's defense, not just White's. Flagged on #1082 for the owner rather than redesigned here; if this dilutes the fortress fantasy it needs a real pass. B (Blue/magic) graph-traversal may reach inside the fortress if the graph provides a path. At late stages when the floor is negative: disrupting the healing-on-hit requires forcing the Bulwark to stop being hit, which means denying adjacency.
 
 **Introduction point:** Early game.
 

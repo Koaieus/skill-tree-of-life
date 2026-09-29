@@ -19,18 +19,6 @@ pool_weight = 1.5
 tier_shape = SubResource("Resource_yv0nh")
 max_tier = 2
 
-[sub_resource type="Resource" id="Resource_y7j1m"]
-script = ExtResource("3_ts")
-
-[sub_resource type="Resource" id="ar"]
-resource_name = "armor +"
-script = ExtResource("2_pool")
-stat_id = &"armor"
-tags = Array[StringName]([&"defense", &"flat"])
-pool_weight = 14.0
-tier_shape = SubResource("Resource_y7j1m")
-max_tier = 3
-
 [sub_resource type="Resource" id="ts_sqrt2"]
 script = ExtResource("3_ts")
 ratio = 1.4142135623730951
@@ -55,4 +43,4 @@ max_tier = 2
 
 [resource]
 script = ExtResource("1_sp")
-pools = Array[ExtResource("2_pool")]([SubResource("nh_inc"), SubResource("ar"), SubResource("mv"), SubResource("dp")])
+pools = Array[ExtResource("2_pool")]([SubResource("nh_inc"), SubResource("mv"), SubResource("dp")])

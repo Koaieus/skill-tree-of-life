@@ -48,6 +48,18 @@ pool_weight = 6.0
 tier_shape = SubResource("Resource_ktr80")
 min_tier = 3
 
+[sub_resource type="Resource" id="Resource_ar"]
+script = ExtResource("3_x53si")
+
+[sub_resource type="Resource" id="ar"]
+resource_name = "armor +"
+script = ExtResource("2_pool")
+stat_id = &"armor"
+tags = Array[StringName]([&"defense", &"flat"])
+pool_weight = 5.74
+tier_shape = SubResource("Resource_ar")
+max_tier = 3
+
 [sub_resource type="Resource" id="Resource_dh05o"]
 script = ExtResource("3_x53si")
 
@@ -108,4 +120,4 @@ max_tier = 3
 [resource]
 script = ExtResource("1_sp")
 archetype_stat = &"constitution"
-pools = Array[ExtResource("2_pool")]([SubResource("ab"), SubResource("inc"), SubResource("mul"), SubResource("dex_debuff"), SubResource("Resource_u38nb"), SubResource("curse_res"), SubResource("curse_pot")])
+pools = Array[ExtResource("2_pool")]([SubResource("ab"), SubResource("inc"), SubResource("mul"), SubResource("ar"), SubResource("dex_debuff"), SubResource("Resource_u38nb"), SubResource("curse_res"), SubResource("curse_pot")])

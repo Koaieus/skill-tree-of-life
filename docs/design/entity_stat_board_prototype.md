@@ -104,10 +104,10 @@ Stakes are pure node-local — never registered with an entity `StatBoard`. Futu
 | `initiative` | INT | Scalar | 10 | Turn order |
 | `movement_speed` | INT | Scalar (resets per turn) | 1 | Core hops per turn within owned territory |
 | `deallocation_points` | INT | Pool (resets per turn) | 1 | Deallocations available per turn. Drives constellation reshaping. |
-| `strength` | INT | Scalar | 0² | Melee (R). Scales blade size (`STR//10+1` nodes) **and** per-contact bite (`+STR//10`). Roughly quadratic in investment — see `combat_system.md` Melee. |
+| `strength` | INT | Scalar | 0² | Melee (R). Scales blade size (`STR//10+1` nodes) **and** per-contact bite (`+STR//10`). Roughly quadratic in investment — see `combat_system.md` Melee. STR is now the armor archetype: **+weight for armor modifiers** (flat and %) in affix generation. |
 | `dexterity` | INT | Scalar | 0² | Ranged (G). Per firing leaf: `DEX//10` (target `1→2/leaf` across `0→10`). `base_ranged` counted once per volley. |
 | `intelligence` | INT | Scalar | 0² | Magic (B). Per damage instance: `+INT//10`. Scales **potency, never reach** (reach is `bonus_hop_count`). |
-| `constitution` | INT | Scalar | 0² | **CON (White).** Durability: scales node/core HP (replaces degree-defense). Adds weight to armor modifiers in affix generation. No attack mode. |
+| `constitution` | INT | Scalar | 0² | **CON (White).** Durability: scales node/core HP (replaces degree-defense). A light armor sprinkle in affix generation (armor is now STR-primary — see `strength`). No attack mode. |
 | `wisdom` | INT | Scalar | 0² | **WIS (Gold).** XP-gain rate (% multiplier). Carries the most valuable growth-oriented modifiers. The new economy attribute (was White's role). |
 | `perception` | INT | Scalar | 0² | **PER (Purple).** Vision + sensor range. Gearing: `+1 sense_range / 10 PER` (hops) and `+2% vision_range / PER` (euclidean). Information as weapon. |
 | `bonus_hop_count` | INT | Scalar | 0 | Magic reach. **Ultra-rare** — at most ~1–2 `+1` modifiers on the whole map. INT scales potency; this is the *only* way to buy spell reach. Prime (but rarity-throttled) proliferation target. |

@@ -90,9 +90,22 @@ stat_id = &"node_health"
 operation = 1
 unit_value = -2.0
 range_floor = -1.0
-pool_weight = 10.5
+pool_weight = 5.25
 tier_shape = SubResource("Resource_yny3n")
 max_tier = 3
+metadata/_custom_type_script = "uid://csc1d4c2smgr7"
+
+[sub_resource type="Resource" id="Resource_mdt"]
+script = ExtResource("3_7qv30")
+
+[sub_resource type="Resource" id="mdt"]
+resource_name = "min_damage_taken +"
+script = ExtResource("2_pool")
+stat_id = &"min_damage_taken"
+unit_value = 1.0
+pool_weight = 5.25
+tier_shape = SubResource("Resource_mdt")
+max_tier = 2
 metadata/_custom_type_script = "uid://csc1d4c2smgr7"
 
 [sub_resource type="Resource" id="Resource_hgcp0"]
@@ -156,4 +169,4 @@ min_tier = 2
 [resource]
 script = ExtResource("1_sp")
 archetype_stat = &"intelligence"
-pools = Array[ExtResource("2_pool")]([SubResource("ab"), SubResource("inc"), SubResource("mul"), SubResource("mana"), SubResource("mpt"), SubResource("Resource_0tuuk"), SubResource("Resource_u38nb"), SubResource("Resource_b5k8y"), SubResource("wither_pot"), SubResource("wither_res")])
+pools = Array[ExtResource("2_pool")]([SubResource("ab"), SubResource("inc"), SubResource("mul"), SubResource("mana"), SubResource("mpt"), SubResource("Resource_0tuuk"), SubResource("mdt"), SubResource("Resource_u38nb"), SubResource("Resource_b5k8y"), SubResource("wither_pot"), SubResource("wither_res")])

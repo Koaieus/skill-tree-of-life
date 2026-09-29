@@ -50,6 +50,33 @@ pool_weight = 12.0
 tier_shape = SubResource("Resource_5h6j0")
 min_tier = 3
 
+[sub_resource type="Resource" id="Resource_ar"]
+script = ExtResource("3_m6jpa")
+
+[sub_resource type="Resource" id="ar"]
+resource_name = "armor +"
+script = ExtResource("2_pool")
+stat_id = &"armor"
+tags = Array[StringName]([&"defense", &"flat"])
+pool_weight = 24.07
+tier_shape = SubResource("Resource_ar")
+max_tier = 3
+
+[sub_resource type="Resource" id="Resource_ar_pct"]
+script = ExtResource("3_m6jpa")
+
+[sub_resource type="Resource" id="ar_pct"]
+resource_name = "armor +%"
+script = ExtResource("2_pool")
+stat_id = &"armor"
+operation = 1
+unit_value = 3.0
+range_floor = 1.0
+tags = Array[StringName]([&"defense", &"percent"])
+pool_weight = 9.63
+tier_shape = SubResource("Resource_ar_pct")
+max_tier = 3
+
 [sub_resource type="Resource" id="Resource_8nxce"]
 script = ExtResource("3_m6jpa")
 
@@ -97,4 +124,4 @@ min_tier = 2
 [resource]
 script = ExtResource("1_sp")
 archetype_stat = &"strength"
-pools = Array[ExtResource("2_pool")]([SubResource("ab"), SubResource("inc"), SubResource("mul"), SubResource("Resource_u38nb"), SubResource("corruption_pot"), SubResource("corruption_res")])
+pools = Array[ExtResource("2_pool")]([SubResource("ab"), SubResource("inc"), SubResource("mul"), SubResource("ar"), SubResource("ar_pct"), SubResource("Resource_u38nb"), SubResource("corruption_pot"), SubResource("corruption_res")])

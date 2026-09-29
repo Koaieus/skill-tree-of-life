@@ -278,6 +278,7 @@ weights = {
 
 [resource]
 script = ExtResource("24_euka3")
+universal_share = 0.15
 modifier_pool_set = ExtResource("23_3abnx")
 weight_profiles = Array[Resource]([SubResource("awp_main")])
 budget_policy = SubResource("bp_main")
