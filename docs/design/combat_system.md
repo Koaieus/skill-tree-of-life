@@ -1,6 +1,6 @@
 # Combat System Design — Skill Tree of Life
 
-> ⚠️ **Current behaviour is code + `docs/domain/`; settled calls are [ADRs](../adr/index.md).** This doc retains the original design sketches; sections on the **face/cycle damage model** (§Melee) and the **R/G/B color triangle + resists** are **deferred post-MVP** — implementation today uses node-only melee and a single `armor` stat.
+> ⚠️ **Current behaviour is code + `docs/domain/`; settled calls are [ADRs](../adr/index.md).** This doc retains the original design sketches; sections on the **face/cycle damage model** (§Melee) and the **R/G/B color triangle + resists** are **deferred post-MVP** — implementation today uses node-only melee and a single `armor` stat. Class-specific mechanics here (Predator's BLITZ, Bulwark's `damage_floor` perk path, the Halo shell, Frontier, Hive) belong to classes that are **not built** — `core_classes.md`'s status table says which.
 
 ---
 

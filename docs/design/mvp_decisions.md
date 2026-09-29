@@ -30,7 +30,7 @@ Compiled 2026-09-29. An empty cell means no ADR or domain doc holds that decisio
 | D-16 | SP gain scales with level | | | live tuning call, no ADR |
 | D-17 | Attribute numeric bands | | | extended by D-18 |
 | D-18 | INT is the runaway attribute | | | pinned design call, no ADR |
-| D-19 | Enemies levelled but landless | | | **not built** |
+| D-19 | Enemies levelled but landless | | | level = starting nodes is built (`procgen_play_sandbox.gd`); the WIS difficulty dial is unverified |
 | D-20 | Spell damage scales with INT | | [spell-propagation.md](../domain/spell-propagation.md) | built (#274) |
 | D-21 | Entity health scales with CON | | [stat-knobs-and-bins.md](../domain/stat-knobs-and-bins.md) | built #276; ratchet mechanism later reworked, semantics kept |
 | D-22 | `core_healing` is a sliver | | | **superseded** by D-25 |
@@ -39,8 +39,8 @@ Compiled 2026-09-29. An empty cell means no ADR or domain doc holds that decisio
 | D-25 | `core_healing`: integer heal, ungated | | | built #277 |
 | D-26 | `health = 10 + core_health_scaling × CON` | | [stat-knobs-and-bins.md](../domain/stat-knobs-and-bins.md) | built with D-21 (#276) |
 | D-27 | CoreClass is a leaf; reuse via arrays | | [loot-system.md](../domain/loot-system.md) | revised twice in-doc before settling |
-| D-28 | Node survives via life-source reach | | | **not built** (#240 open) |
-| D-29 | Depletions resolve as a set | | | **not built** |
+| D-28 | Node survives via life-source reach | | | life-source generalisation **not built**; survival is still connected-to-core (#240 open) |
+| D-29 | Depletions resolve as a set | [0011](../adr/0011-one-attack-timeline-contract-for-every-mode.md) | [attack-timeline.md](../domain/attack-timeline.md) | the resolve-side death call lives on in ADR 0011 (shadow-world resolve, a kill gates the next wave) |
 | D-30 | Degree has three definitions | | [degree.md](../domain/degree.md) | **superseded** 2026-08-15; degree.md is current |
 | D-31 | Node combat pool ratchets like entity pool | | [stat-knobs-and-bins.md](../domain/stat-knobs-and-bins.md) | built #346; mechanism later replaced by `PoolStatDef` |
 | D-32 | Spell has one absolute number | | [spell-propagation.md](../domain/spell-propagation.md) | built; amended same day re `FlatAddProgression` |
