@@ -109,7 +109,7 @@ func test_get_description_folds_stacks_per_hit_with_a_board_null_falls_back_to_a
 	assert_eq(effect.get_description(null, null), "Applies Poison (1 per hit).",
 			"null board: the authored power lands unscaled")
 
-	var board := EntityStatBoard.new()
+	var board := _BOARD.duplicate(true) as EntityStatBoard
 	var m := StatModifier.new()
 	m.stat_id = &"poison_stacks_per_hit"
 	m.operation = StatModifier.Operation.INCREASE
