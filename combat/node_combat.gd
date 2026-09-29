@@ -645,6 +645,16 @@ func get_status_power(id: StringName) -> float:
 	return _status_host.get_status_power(id)
 
 
+## See [method StatusHost.effective_power].
+func effective_status_power(def: StatusDef, power: float) -> float:
+	return _status_host.effective_power(def, power)
+
+
+## See [method StatusHost.blocks].
+func blocks_status(def: StatusDef) -> bool:
+	return _status_host.blocks(def)
+
+
 ## See [method StatusHost.get_statuses].
 func get_statuses() -> Array[NodeStatus]:
 	return _status_host.get_statuses()

@@ -132,6 +132,11 @@ func projected_damage(_host, _power: float) -> float:
 	return 0.0
 
 
+## STUB (#1190): the damage the next tick lands on [param host] at [param power].
+func next_tick_damage(_host, _power: float) -> float:
+	return 0.0
+
+
 # ── Behaviour hooks — override on a subclass; the base does nothing ─────────
 #
 # `host` is the composing slice a [StatusHost] serves — a [NodeCombat] today,

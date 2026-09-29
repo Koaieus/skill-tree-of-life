@@ -175,6 +175,16 @@ func clear_statuses() -> void:
 		remove_status(id)
 
 
+## STUB (#1190): the resisted count a tick or an apply hands the def.
+func effective_power(def: StatusDef, power: float) -> float:
+	return power
+
+
+## STUB (#1190): true when the host's resistance to [param def] is 100%.
+func blocks(def: StatusDef) -> bool:
+	return false
+
+
 ## Current power of status [param id], `0.0` when absent.
 func get_status_power(id: StringName) -> float:
 	var row: NodeStatus = _statuses.get(id)
