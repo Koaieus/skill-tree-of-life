@@ -68,6 +68,7 @@ signal record_ready
 @export var graph: Graph
 @export var attack_vfx: AttackVFX
 @export var melee_preview: MeleePreview
+@export var stage: AttackStage
 ## The queue an attack is applied through (#511). Optional: without one,
 ## [method launch_attack] applies straight, which is what every headless
 ## fixture and the editor do. Wired by [CommandApplier] itself at `_ready`
