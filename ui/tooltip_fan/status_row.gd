@@ -12,11 +12,21 @@ extends SlabRow
 ## scene of `slab_row.tscn`, same shape as [ModSlabRow]: resolve the
 ## (text, tint) pair from the domain object, the base renders it.
 
-## Renders "<display_name>: <normalised power, 2dp>" — e.g. "Blindness: 0.50"
-## for a status sitting at half its [member StatusDef.power_max] — tinted by
-## the def's own [member StatusDef.tint]. Falls back to the status id when
-## [member StatusDef.display_name] is blank.
-func bind(status: NodeStatus) -> void:
+## Renders "<display_name> <⌊power⌋> — <dmg> dmg next tick" for a status that
+## deals damage — e.g. "Poison 12 — 9 dmg next tick" for a 12.7 row at 25%
+## resistance — and bare "<display_name> <⌊power⌋>" for one that doesn't
+## (curse, wither, blindness, armor-break). [param host] answers
+## [method StatusDef.next_tick_damage], the SAME call the health bar's
+## projection reads its first term from (#1190), so the row and the bar never
+## disagree; a def that deals no damage answers `0` there and the dmg clause
+## is dropped. Tinted by the def's own [member StatusDef.tint]. Falls back to
+## the status id when [member StatusDef.display_name] is blank.
+func bind(status: NodeStatus, host) -> void:
 	var def := status.def
 	var label := def.display_name if not def.display_name.is_empty() else String(def.id)
-	bind_text("%s: %.2f" % [label, status.normalised()], def.tint)
+	var whole := floori(status.power)
+	var dmg := def.next_tick_damage(host, status.power)
+	if dmg > 0.0:
+		bind_text("%s %d — %s dmg next tick" % [label, whole, NumFmt.num(dmg)], def.tint)
+	else:
+		bind_text("%s %d" % [label, whole], def.tint)
