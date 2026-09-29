@@ -34,15 +34,17 @@ func test_constitution_pool_values() -> void:
 	assert_true(found, "the pack must carry a constitution addb pool at all")
 
 
-func test_universal_defense_lives_in_universal_tres_not_here() -> void:
-	# The pack is the only gate (#751): a pool in constitution.tres rolls on
-	# CON nodes only, so the shared armor / node_health+% pools live in
-	# universal.tres instead.
+func test_con_carries_a_minor_flat_armor_pool() -> void:
+	# The pack is the only gate (#751): armor is STR-primary, CON-minor
+	# archetype content, so CON rolls its own flat armor + and the shared
+	# node_health+% pool stays in universal.tres.
 	var p: StatPack = _PACK.duplicate(true) as StatPack
+	var found := false
 	for sp in p.pools:
 		var pp: StatPool = sp as StatPool
-		assert_false(pp.stat_id == &"armor" and pp.operation == StatModifier.Operation.ADD_BASE,
-			"armor + is universal content; it belongs in universal.tres")
+		if pp.stat_id == &"armor" and pp.operation == StatModifier.Operation.ADD_BASE:
+			found = true
+	assert_true(found, "constitution.tres carries the minor armor + pool")
 
 
 ## The CON pack's DEX pool — asserts the pool's SHAPE, not its magnitudes.

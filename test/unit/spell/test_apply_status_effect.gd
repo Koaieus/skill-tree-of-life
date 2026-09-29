@@ -77,7 +77,7 @@ func test_get_description_pins_the_output() -> void:
 	var eff := ApplyStatusEffect.new()
 	eff.def = _TEST_DEF
 	eff.power = 2.0
-	assert_eq(eff.get_description(), "Applies Test Status (2).")
+	assert_eq(eff.get_description(), "Applies Test Status (2 per hit).")
 
 
 func test_get_description_with_no_def_does_not_crash() -> void:

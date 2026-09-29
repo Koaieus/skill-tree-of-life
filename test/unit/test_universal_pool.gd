@@ -17,13 +17,15 @@ func test_pack_loads_as_statpack() -> void:
 	assert_true(p.pools.size() > 0)
 
 
-func test_carries_the_shared_defensive_and_mobility_content() -> void:
+func test_carries_the_shared_defensive_and_mobility_content_but_no_armor() -> void:
 	var p: StatPack = _PACK.duplicate(true) as StatPack
 	var stats: Array[StringName] = []
 	for sp in p.pools:
 		stats.append((sp as StatPool).stat_id)
-	for want: StringName in [&"armor", &"node_health", &"movement_points", &"deallocation_points"]:
+	for want: StringName in [&"node_health", &"movement_points", &"deallocation_points"]:
 		assert_true(want in stats, "universal.tres must carry %s" % String(want))
+	# Armor is archetype content (STR main, CON minor), never universal.
+	assert_false(&"armor" in stats, "universal.tres must not carry armor")
 
 
 func test_movement_points_pool_values() -> void:
