@@ -37,6 +37,8 @@ static func mint(host, amount: float, basis: HitInstance.AmountBasis) -> void:
 			dmg.amount *= host.get_max_hp()
 			dmg.basis = HitInstance.AmountBasis.FLAT
 		CritRoll.apply(dmg)
+		# ADR 0017: the floater reads the whole number the pool door lands.
+		dmg.amount = HitPoints.land(dmg.amount)
 		dmg.effective_amount = dmg.amount
 		host.take_pool_damage(dmg.amount, dmg)
 		return
@@ -44,24 +46,37 @@ static func mint(host, amount: float, basis: HitInstance.AmountBasis) -> void:
 	dmg.land_on(host, null)
 
 
-## The sum of every remaining tick's damage under [param def]'s own decay
-## (#962, for #953's overlay): at 20 stacks halving, 20 + 10 + 5 + 2.5 + 1.25
-## = 38.75 — the 0.625 tail is cut before it ticks. PERCENT_MAX resolves
-## against the node's max hp as of now. A FLAT-decay def sums its linear
-## run-down the same way; a def that never decays is capped at one tick so
-## the loop terminates.
+## The damage ONE tick lands on [param host] from a row of [param power]
+## raw stacks — exactly what [method mint] lands for that tick: the host's
+## resisted count ([method StatusHost.effective_power]) × [param
+## damage_per_power], × max hp for PERCENT_MAX (the same `get_max_hp()` the
+## landing resolves against), floored once by [method HitPoints.land] as the
+## door floors it. TRUE damage, so no mitigation sits between.
+static func tick_damage(def: StatusDef, host, power: float, damage_per_power: float,
+		basis: HitInstance.AmountBasis) -> float:
+	var amount: float = host.effective_status_power(def, power) * damage_per_power
+	if basis == HitInstance.AmountBasis.PERCENT_MAX:
+		amount *= host.get_max_hp()
+	return HitPoints.land(amount) if amount > 0.0 else 0.0
+
+
+## The sum of every remaining tick's damage (#962, for #953's overlay): the
+## RAW row walked down by [method StatusDef.decayed], each term the
+## [method tick_damage] that tick lands — resisted and floored per tick, so
+## the projection equals what actually lands (ADR 0031). At 20 stacks halving
+## with no resistance: 20 + 10 + 5 + 2 + 1 = 38 (the 0.625 tail is cut
+## before it ticks). Max hp is read as of now. A def that never decays is
+## capped at one tick so the loop terminates.
 static func project(def: StatusDef, host, power: float, damage_per_power: float,
 		basis: HitInstance.AmountBasis) -> float:
 	var total := 0.0
 	var p := power
 	var guard := 0
 	while p > 0.0 and guard < 1000:
-		total += p * damage_per_power
+		total += tick_damage(def, host, p, damage_per_power, basis)
 		var next := def.decayed(p)
 		if next >= p:
 			break  # non-decaying def: one tick is all we can honestly project
 		p = next
 		guard += 1
-	if basis == HitInstance.AmountBasis.PERCENT_MAX:
-		total *= host.get_max_hp()
 	return total

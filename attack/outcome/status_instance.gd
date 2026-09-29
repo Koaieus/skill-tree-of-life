@@ -24,8 +24,10 @@ var def: StatusDef = null
 ## Stacks handed to [method NodeCombat.apply_status]. Until [method land_on]
 ## runs this is the applier's authored per-hit number ([member
 ## ApplyStatusEffect.power], `AmmoType.status_power`); land folds the
-## attacker's stacks fold and the landing node's resistance into it exactly once
-## (#963) and the LANDED number is what [AttackRecord] ships.
+## attacker's stacks stat into it exactly once (#963) — or zeroes it when the
+## receiving host [method StatusHost.blocks] it — and the LANDED number is
+## what [AttackRecord] ships. Resistance below 100% never touches it: the
+## host filters the row at effect time (ADR 0031).
 var power: float = 0.0
 ## True once [member power] is the landed number — set by [method land_on]
 ## on the authority's own resolve and by [method AttackRecord.rebuild], which
@@ -65,14 +67,16 @@ func _init() -> void:
 ## node-hosted row on the core stays node-hosted: the hosts never merge.
 ##
 ## Scaling (`docs/design/damage_over_time.md` §Applying):
-## `StatusDef.stacks_per_hit(attacker board, power) × (1 − resistance(host))` —
-## one fold of the attacker's stacks stat with the authored power as its
-## `base_add`, then the def's [member StatusDef.resistance_stat_id]; a null
-## attacker, blank id or unknown stat leaves the fold at the authored power.
-## Resistance is read on the RECEIVING host — the landing
-## node slice (so a shadow resolve sees the shadow's modifiers), or the entity
-## board alone on fall-through. Resolved once: a rebuilt hit arrives
-## [member power_resolved] and lands as-is.
+## `StatusDef.stacks_per_hit(attacker board, power)` — one fold of the
+## attacker's stacks stat with the authored power as its `base_add`; a null
+## attacker, blank id or unknown stat leaves it at the authored power.
+## Resistance is NOT folded here (ADR 0031): the host filters the row at each
+## apply and tick. The one thing decided at land is the 100% gate — the
+## RECEIVING host (the landing slice, so a shadow resolve reads the shadow,
+## or the entity on fall-through) [method NodeCombat.blocks_status] it and
+## the hit resolves to 0, which [method StatusHost.apply_status]'s
+## non-positive gate makes a no-op. Resolved once: a rebuilt hit arrives
+## [member power_resolved] and lands the recorded number as-is.
 func land_on(node: NodeCombat, _world: CombatWorld) -> void:
 	if not power_resolved:
 		if node.is_core() and node.get_current_hp() <= 0.0:
@@ -90,7 +94,8 @@ func land_on(node: NodeCombat, _world: CombatWorld) -> void:
 	if not power_resolved:
 		if def != null:
 			power = def.stacks_per_hit(_attacker_board(), power)
-		power *= 1.0 - _resistance(host)
+			if host.blocks_status(def):
+				power = 0.0
 		power_resolved = true
 	host.apply_status(def, power)
 	amount = power
@@ -99,15 +104,6 @@ func land_on(node: NodeCombat, _world: CombatWorld) -> void:
 
 func _attacker_board() -> StatBoard:
 	return attacker.stat_board if attacker != null else null
-
-
-## [param host] is the receiving [StatusHost] owner — a [NodeCombat] or, on
-## fall-through, an [EntityCombat]; untyped because the contract is.
-func _resistance(host) -> float:
-	if def == null or def.resistance_stat_id.is_empty() or host == null:
-		return 0.0
-	var v: Variant = host.get_local_value(def.resistance_stat_id)
-	return float(v) if v != null else 0.0
 
 
 func _to_string() -> String:

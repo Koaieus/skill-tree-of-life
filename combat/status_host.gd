@@ -73,7 +73,8 @@ func apply_status(def: StatusDef, power: float) -> void:
 				next = maxf(row.power, power)
 	# `power_max <= 0` is uncapped (#962: poison stacks without limit).
 	row.power = next if def.power_max <= 0.0 else minf(next, def.power_max)
-	def._on_applied(owner, row.power)
+	# ADR 0031: the def sees the resisted count; the row keeps the raw one.
+	def._on_applied(owner, effective_power(def, row.power))
 	# Sparse tick subscription (#879): the FIRST status landing is the owner's
 	# cue to subscribe to the turn.
 	if not had_status:
@@ -83,7 +84,8 @@ func apply_status(def: StatusDef, power: float) -> void:
 
 
 ## One tick for every status on the host: [method StatusDef._on_tick] first
-## (damage, effects), then decay per [method StatusDef.decayed] — flat by
+## (damage, effects) — handed [method effective_power] of both `before` and
+## `after` — then decay of the RAW row per [method StatusDef.decayed] — flat by
 ## [member StatusDef.decay_per_tick], or halving with the tail cut below 1
 ## for a FRACTION def (#962) — then removal at `<= 0`. Iterates a COPY and re-checks each row is still the
 ## one on the host before touching it — a tick can `take_damage` into a kill
@@ -98,7 +100,8 @@ func tick_statuses() -> void:
 			continue  # vanished mid-tick
 		var before := row.power
 		var after := row.def.decayed(before)  # by decay_mode; 0 means removed
-		row.def._on_tick(owner, before, after)
+		# ADR 0031: the hook sees both ends resisted; decay stays raw below.
+		row.def._on_tick(owner, effective_power(row.def, before), effective_power(row.def, after))
 		if _statuses.get(id) != row:
 			continue  # the hook removed it (or the host was cleared under us)
 		row.power = after
@@ -110,8 +113,9 @@ func tick_statuses() -> void:
 
 
 ## Damage the statuses on the host still have in them (#962): the sum of
-## [method StatusDef.projected_damage] over every row — poison's remaining
-## halving series; a damageless def contributes 0. Drawn by #953.
+## [method StatusDef.projected_damage] over every row — each remaining tick
+## as it would land (resisted, floored), so the bar equals reality; a
+## damageless def contributes 0. Drawn by #953.
 func projected_status_damage() -> float:
 	var total := 0.0
 	for row: NodeStatus in _statuses.values():
@@ -145,7 +149,7 @@ func cure_debuffs(heal_amount: float) -> void:
 			remove_status(id)
 		else:
 			row.power = after
-			row.def._on_applied(owner, after)
+			row.def._on_applied(owner, effective_power(row.def, after))
 	# #880: a cure changes power on rows that survive too (same reasoning as
 	# tick_statuses' trailing refresh) — the zeroed-out ones already notified
 	# via remove_status.
@@ -175,14 +179,40 @@ func clear_statuses() -> void:
 		remove_status(id)
 
 
-## STUB (#1190): the resisted count a tick or an apply hands the def.
+## The count [param power] stacks of [param def] act as on this host — what
+## every apply and every tick hands the def (ADR 0031). Resistance is read
+## node-locally on [member owner] (`get_local_value`: a node slice, or the
+## entity board for a fallen-through row); a blank or unknown id reads 0.
+## Round half-down: `cancelled = ⌈power × res − ½⌉`, clamped to
+## `[0, power]`, so 1% never curbs a small row to 0 and 1·50% keeps its
+## stack. At [method blocks] the answer is 0 outright — the formula alone
+## would leave a fractional row's `< ½` standing. The row itself is never
+## touched: this is a live filter, so shedding resistance restores the full
+## count on the very next tick.
 func effective_power(def: StatusDef, power: float) -> float:
-	return power
+	if power <= 0.0:
+		return 0.0
+	var res := _resistance(def)
+	if res >= 1.0:
+		return 0.0
+	var cancelled := clampf(ceilf(power * res - 0.5), 0.0, power)
+	return power - cancelled
 
 
-## STUB (#1190): true when the host's resistance to [param def] is 100%.
+## True when this host's resistance to [param def] is 100% or more: a
+## landing resolves to 0 stacks (the gate lives in [StatusInstance]'s
+## authority resolve, so a replay lands the recorded 0), and a row already
+## standing deals 0 while it still decays.
 func blocks(def: StatusDef) -> bool:
-	return false
+	return _resistance(def) >= 1.0
+
+
+func _resistance(def: StatusDef) -> float:
+	var o = owner
+	if def == null or def.resistance_stat_id.is_empty() or o == null:
+		return 0.0
+	var v: Variant = o.get_local_value(def.resistance_stat_id)
+	return float(v) if v != null else 0.0
 
 
 ## Current power of status [param id], `0.0` when absent.

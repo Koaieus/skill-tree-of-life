@@ -57,9 +57,11 @@ enum DecayMode {
 ## Classification tags a consumer may filter on (`&"debuff"`, `&"dot"`, …).
 ## Metadata only — NOT granted to the node as [method NodeCombat.add_tag] tags.
 @export var tags: Array[StringName] = []
-## The defender-side scaling stat (#963): a fraction read node-locally on the
-## landing node (e.g. `&"poison_resistance"`), applied as `× (1 − value)`.
-## Reduces stacks incurred, never decay. Blank → unscaled (×1).
+## The defender-side resistance stat (e.g. `&"poison_resistance"`): a
+## fraction read on the HOST at effect time, filtering how many stacks each
+## apply and tick counts, round half-down, while the row decays raw; at
+## `>= 1` stacks do not land ([method StatusHost.effective_power], ADR 0031).
+## Blank → unresisted.
 @export var resistance_stat_id: StringName = &""
 ## The attacker-side stacks stat this status folds its per-hit power through
 ## ([method stacks_per_hit]): `<family>_stacks_per_hit` for a DoT, whose
@@ -93,7 +95,8 @@ func get_description() -> String:
 
 
 ## The stacks one hit of [param authored] power lands from an attacker with
-## [param board], before the defender's resistance: ONE read of
+## [param board] (the defender's resistance filters later, on the host):
+## ONE read of
 ## [member stacks_stat_id] with [param authored] as a `base_add` overlay, so
 ## the stat's flats add to it and its INCREASE / MORE scale it (ADR 0029).
 ## Never floored — the status row is a float. A null board, a blank id or an
@@ -132,7 +135,9 @@ func projected_damage(_host, _power: float) -> float:
 	return 0.0
 
 
-## STUB (#1190): the damage the next tick lands on [param host] at [param power].
+## The damage the NEXT tick lands on [param host] from a row of [param power]
+## raw stacks — the first term of [method projected_damage], resisted and
+## floored exactly as it lands. The base deals none, so `0`.
 func next_tick_damage(_host, _power: float) -> float:
 	return 0.0
 
@@ -145,14 +150,17 @@ func next_tick_damage(_host, _power: float) -> float:
 # `add_local_modifier` / `remove_local_modifier`, `host`. Untyped on purpose;
 # an override keeps it untyped too.
 
-## The status was just applied (or re-applied) to [param host];
-## [param power] is the resulting post-clamp power.
+## The status was just applied (or re-applied, or cured) on [param host];
+## [param power] is the resulting post-clamp power AS RESISTED by the host
+## ([method StatusHost.effective_power]) — the row keeps the raw count.
 func _on_applied(_host, _power: float) -> void:
 	pass
 
 
 ## One turn tick on [param host], BEFORE decay lands: [param before] is the
-## current power, [param after] what it will be once this hook returns. Damage
+## current power, [param after] what it will be once this hook returns —
+## both AS RESISTED by the host ([method StatusHost.effective_power]); the
+## raw row decays after this returns. Damage
 ## and other effects go here (poison: [method DotTick.mint]). The host may
 ## vanish under you (a kill cascades into `clear_statuses`); the slice tolerates
 ## it, so don't assume the status still exists when you return.

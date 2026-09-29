@@ -25,8 +25,12 @@ func _on_tick(host, before: float, _after: float) -> void:
 	DotTick.mint(host, before * damage_per_power, HitInstance.AmountBasis.PERCENT_MAX)
 
 
-## Every remaining tick's damage under halving decay, against max hp as of
-## now (#962, for #953's overlay): ten stacks at 0.02 on 2000 hp project
-## 400 + 200 + 100 + 50 = 750 — the 0.625-stack tail is cut before it ticks.
+## Every remaining tick's damage as it will land, against max hp as of now —
+## resisted and floored per tick ([method DotTick.project]): ten stacks at
+## 0.02 on 2000 hp project 400 + 200 + 100 + 50 = 750.
 func projected_damage(host, power: float) -> float:
 	return DotTick.project(self, host, power, damage_per_power, HitInstance.AmountBasis.PERCENT_MAX)
+
+
+func next_tick_damage(host, power: float) -> float:
+	return DotTick.tick_damage(self, host, power, damage_per_power, HitInstance.AmountBasis.PERCENT_MAX)
