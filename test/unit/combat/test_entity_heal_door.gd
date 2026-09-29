@@ -177,9 +177,9 @@ class _SpyCombat extends EntityCombat:
 		super(amount, source)
 
 
-# ── Acceptance 6: entity resistance scales a fallen-through power ───────────
+# ── Acceptance 6: entity resistance filters a fallen-through row ────────────
 
-func test_entity_curse_resistance_scales_a_fallen_through_curse() -> void:
+func test_entity_curse_resistance_filters_a_fallen_through_curse() -> void:
 	var def := CurseStatus.new()
 	def.id = &"curse"
 	def.power_max = 0.0
@@ -201,6 +201,8 @@ func test_entity_curse_resistance_scales_a_fallen_through_curse() -> void:
 	hit.target = _n0
 	hit.land_on(_n0.get_combat(), CombatWorld.live())
 	assert_eq(hit.host_kind, StatusInstance.HostKind.ENTITY, "fell through to the entity")
-	assert_almost_eq(_combat().get_status_power(&"curse"), 4.0 * (1.0 - 0.25), 0.001,
-			"scaled by the ENTITY's curse_resistance")
+	assert_almost_eq(_combat().get_status_power(&"curse"), 4.0, 0.001,
+			"the row lands raw on the entity")
+	assert_almost_eq(_combat().effective_status_power(def, 4.0), 3.0, 0.001,
+			"filtered by the ENTITY's curse_resistance: 4 − ⌈1 − ½⌉")
 	assert_almost_eq(_n0.get_combat().get_status_power(&"curse"), 0.0, 0.001, "nothing on the node")

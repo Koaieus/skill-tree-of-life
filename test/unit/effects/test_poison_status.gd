@@ -166,10 +166,10 @@ func test_projected_status_damage_sums_the_remaining_ticks() -> void:
 	_set_max_hp(100.0)
 	assert_almost_eq(_combat().projected_status_damage(), 0.0, 0.0001, "no statuses")
 	_combat().apply_status(_AUTHORED, 20.0)
-	assert_almost_eq(_combat().projected_status_damage(), 38.75, 0.001,
-			"20 + 10 + 5 + 2.5 + 1.25; the 0.625 tail never ticks")
+	assert_almost_eq(_combat().projected_status_damage(), 38.0, 0.001,
+			"20 + 10 + 5 + 2 + 1: each tick floored as it lands; the 0.625 tail never ticks")
 	_combat().tick_statuses()
-	assert_almost_eq(_combat().projected_status_damage(), 18.75, 0.001, "shrinks as it ticks")
+	assert_almost_eq(_combat().projected_status_damage(), 18.0, 0.001, "shrinks as it ticks")
 
 
 func test_poisoned_node_does_not_regen_the_same_upkeep() -> void:

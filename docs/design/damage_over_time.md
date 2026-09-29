@@ -75,15 +75,26 @@ mode is a per-def knob, not a global change (the per-family shapes: the
   there is no separate potency stat). Procgen rolls it on blighted nodes as
   `INCREASE` (+7% / +21% / +49%, the attribute ladder).
 - **Resistance** is a defender stat per type (`poison_resistance`, …),
-  default 0, a fraction that reduces stacks *incurred*, read node-locally like
-  armor. Battlefield-found: it rolls on blessed nodes of its family's
-  archetype ([node_subtypes.md](node_subtypes.md)). It mirrors the stacks stat and
-  snapshots at land, so the row still holds one number. Faster decay was
-  the alternative and stays available as a **class** identity later.
+  default 0, a fraction read on the **host** (the node, or the entity for a
+  fallen-through row) like armor. Battlefield-found: it rolls on blessed nodes
+  of its family's archetype ([node_subtypes.md](node_subtypes.md)). It acts on
+  the **accumulated row at effect time**, never per incoming hit (ADR 0031):
+  each apply and each tick counts `row − cancelled`, with
+  `cancelled = ⌈row × res − ½⌉` clamped to `[0, row]` — round half-down, so
+  1% never curbs a small row to 0 (1·1% → 1, 1·50% → 1, 1·60% → 0,
+  10·25% → 8, 20·1% → 20). It is a **live filter**: the row itself decays
+  from its full, unresisted size, and shedding resistance makes the next tick
+  count the whole row. At **≥ 100%** stacks do not land (the authority
+  resolves the hit to 0 and the record carries it); a row already standing
+  deals 0 and still decays. Faster decay was the alternative and stays
+  available as a **class** identity later.
 
-`landed = fold(stacks_stat(attacker), base_add = per_hit) × (1 − resistance(node))`,
-computed once at land, on the landing world, never floored (1 × +49% lands
-1.49) — `StatusDef.stacks_per_hit`.
+`landed = fold(stacks_stat(attacker), base_add = per_hit)` (0 when the host
+is at 100%), computed once at land, on the landing world, never floored
+(1 × +49% lands 1.49) — `StatusDef.stacks_per_hit`. The health-bar
+projection walks the raw row down and sums each tick as it lands — resisted,
+then floored by the landing rule — so the bar equals reality;
+`StatusDef.next_tick_damage` is its first term.
 
 ## Cures
 

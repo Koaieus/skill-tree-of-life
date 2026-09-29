@@ -71,7 +71,7 @@ func _status_hit(power: float = 2.0, def: StatusDef = _TEST_DEF) -> StatusInstan
 ## A power-2 hit of the scaled def from `_attacker`, with the stacks INCREASE
 ## / resistance pair set on the two boards (hand-built objects, never authored
 ## content): [param scale] 1.21 is +21% on `poison_stacks_per_hit`, so
-## 2 × 1.21 × (1 − 0.3) = 1.694.
+## 2 × 1.21 = 2.42 lands — resistance below 100% filters on the host later.
 func _scaled_hit(scale: float = 1.21, resistance: float = 0.3) -> StatusInstance:
 	_attacker.stat_board.add_modifier(_mod(&"poison_stacks_per_hit",
 			StatModifier.Operation.INCREASE, (scale - 1.0) * 100.0))
@@ -121,18 +121,18 @@ func test_land_on_carries_power_into_amount_and_effective_amount() -> void:
 			"AttackRecord.capture reads effective_amount generically — a status must ride it")
 
 
-# ── One fold of the stacks stat, then × (1 − resistance), once, at land ─────
+# ── One fold of the stacks stat, once, at land; resistance filters later ────
 #
 # The authored per-hit power is a `base_add` overlay on the attacker's stacks
 # stat (ADR 0029): its flats add to it, its INCREASE / MORE scale it, and its
 # `parent_ids` fold `dot_stacks_per_hit` in the same read.
 
-func test_land_scales_power_by_the_stacks_increase_and_node_resistance() -> void:
+func test_land_scales_by_the_stacks_increase_and_ignores_resistance_below_100() -> void:
 	var hit := _scaled_hit(1.21, 0.3)
 	OutcomeApplier.land_one(hit, CombatWorld.live())
-	assert_almost_eq(_node.get_combat().get_status_power(&"test_scaled_status"), 1.694, 0.0001,
-			"2 × 1.21 × (1 − 0.3)")
-	assert_almost_eq(hit.effective_amount, 1.694, 0.0001,
+	assert_almost_eq(_node.get_combat().get_status_power(&"test_scaled_status"), 2.42, 0.0001,
+			"2 × 1.21; the 0.3 resistance filters on the host at effect time, never here")
+	assert_almost_eq(hit.effective_amount, 2.42, 0.0001,
 			"the LANDED stacks ride effective_amount — that is what the record ships")
 
 
@@ -140,8 +140,8 @@ func test_a_null_attacker_lands_the_authored_amount() -> void:
 	var hit := _scaled_hit(1.21, 0.3)
 	hit.attacker = null
 	OutcomeApplier.land_one(hit, CombatWorld.live())
-	assert_almost_eq(_node.get_combat().get_status_power(&"test_scaled_status"), 1.4, 0.0001,
-			"2 × 1 × 0.7")
+	assert_almost_eq(_node.get_combat().get_status_power(&"test_scaled_status"), 2.0, 0.0001,
+			"2 × 1; resistance never touches the landing")
 
 
 func test_blank_ids_leave_power_unscaled() -> void:
@@ -207,8 +207,8 @@ func test_blindness_ignores_the_umbrella_and_folds_its_own_stat() -> void:
 	var hit := _status_hit(1.0, _BLINDNESS)
 	hit.attacker = _attacker
 	OutcomeApplier.land_one(hit, CombatWorld.live())
-	assert_almost_eq(_node.get_combat().get_status_power(&"blindness"), 1.5, 0.0001,
-			"1 × +100% × (1 − 0.25); dot_stacks_per_hit is not blindness's parent")
+	assert_almost_eq(_node.get_combat().get_status_power(&"blindness"), 2.0, 0.0001,
+			"1 × +100%, its 0.25 resistance filtering later; dot_stacks_per_hit is not blindness's parent")
 
 
 func test_stacks_per_hit_answers_authored_on_a_null_board_or_blank_id() -> void:
@@ -219,9 +219,9 @@ func test_stacks_per_hit_answers_authored_on_a_null_board_or_blank_id() -> void:
 			"the public fold the readout shares")
 
 
-func test_a_shadow_land_reads_the_shadow_nodes_resistance_never_the_live_one() -> void:
+func test_a_shadow_tick_reads_the_shadow_nodes_resistance_never_the_live_one() -> void:
 	# Live defender at 0.3; the shadow node alone carries +0.5 more → 0.8.
-	var hit := _scaled_hit(1.21, 0.3)
+	_entity.stat_board.get_stat(&"poison_resistance").base_value = 0.3
 	var w := _shadow()
 	var shadow := w.combat_for(_node)
 	shadow.add_local_modifier(_resistance_mod(0.5))
@@ -229,26 +229,32 @@ func test_a_shadow_land_reads_the_shadow_nodes_resistance_never_the_live_one() -
 			"sanity: the shadow-local modifier is on the shadow")
 	assert_almost_eq(float(_node.get_local_value(&"poison_resistance")), 0.3, 0.0001,
 			"sanity: the live node never saw it")
+	assert_gt(shadow.get_current_hp(), 10.0, "sanity: the shadow survives the tick")
 
+	shadow.apply_status(_POISON, 10.0)
+	var before := shadow.get_current_hp()
+	shadow.tick_statuses()
+	assert_almost_eq(before - shadow.get_current_hp(), 2.0, 0.0001,
+			"the shadow tick filtered by the SHADOW's 0.8: 10 − ⌈8 − ½⌉, never the live 0.3's 7")
+	assert_almost_eq(_node.get_combat().get_status_power(&"poison"), 0.0, 0.0001,
+			"the live node is untouched by a shadow tick")
+
+
+func test_a_shadow_land_gates_on_the_shadow_nodes_full_resistance() -> void:
+	# Live at 0.3, the shadow alone at 1.0: the authority's resolve blocks.
+	var hit := _scaled_hit(1.21, 0.3)
+	var w := _shadow()
+	var shadow := w.combat_for(_node)
+	shadow.add_local_modifier(_resistance_mod(0.7))
 	OutcomeApplier.land_one(hit, w)
-	assert_almost_eq(shadow.get_status_power(&"test_scaled_status"), 2.0 * 1.21 * 0.2, 0.0001,
-			"the shadow landing scaled by the SHADOW's resistance (0.8)")
-	assert_almost_eq(_node.get_combat().get_status_power(&"test_scaled_status"), 0.0, 0.0001,
-			"the live node is untouched by a shadow landing")
+	assert_almost_eq(hit.power, 0.0, 0.0001, "blocked on the shadow: resolved 0")
+	assert_almost_eq(hit.effective_amount, 0.0, 0.0001)
+	assert_almost_eq(shadow.get_status_power(&"test_scaled_status"), 0.0, 0.0001, "no row on the shadow")
 
 
-func test_the_record_replays_the_landed_stacks_never_rescaling_on_the_peer() -> void:
-	# Authority: 1.694 lands. The peer's boards would scale it again (the
-	# rebuilt hit resolves its attacker, and the peer node has a resistance)
-	# unless the rebuilt hit carries the number FLAT — the PERCENT_MAX
-	# precedent (hit_instance.gd `basis`).
-	var outcome := AttackOutcome.new()
-	outcome.hits.append(_scaled_hit(1.21, 0.3))
-	OutcomeApplier.apply(outcome, CombatWorld.live())
-	var wired: Dictionary = bytes_to_var(var_to_bytes(AttackRecord.capture(outcome, _graph)))
-	assert_almost_eq(wired[AttackRecord.KEY_HIT_AMOUNT][0], 1.694, 0.0001,
-			"the record ships the landed stacks")
-
+## A second allocated graph standing in for a peer, its defender at
+## [param resistance]; forces the same stable_id sequence as `_graph`.
+func _peer_node(resistance: float) -> SkillNode:
 	var peer_graph: Graph = _GRAPH_SCENE.instantiate()
 	add_child_autofree(peer_graph)
 	var peer_alloc := AllocationSystem.new()
@@ -257,9 +263,7 @@ func test_the_record_replays_the_landed_stacks_never_rescaling_on_the_peer() -> 
 	var peer_entity: Entity = autofree(Entity.new())
 	peer_entity.display_name = "PeerDefender"
 	peer_entity.stat_board = _BOARD.duplicate(true) as EntityStatBoard
-	# The peer's defender is MORE resistant than the authority saw — a second
-	# scaling pass would show up as 1.694 × 0.5.
-	peer_entity.stat_board.get_stat(&"poison_resistance").base_value = 0.5
+	peer_entity.stat_board.get_stat(&"poison_resistance").base_value = resistance
 	peer_graph.add_child(peer_entity)
 	var peer_node := _SKILL_NODE_SCENE.instantiate() as SkillNode
 	peer_graph.skill_nodes_container.add_child(peer_node)
@@ -268,12 +272,47 @@ func test_the_record_replays_the_landed_stacks_never_rescaling_on_the_peer() -> 
 	peer_entity.core_location = peer_node
 	peer_graph.get_stable_id(peer_node)
 	_graph.get_stable_id(_node)
+	return peer_node
 
-	var rebuilt := AttackRecord.rebuild(wired, peer_graph)
+
+func test_the_record_replays_the_landed_stacks_never_rescaling_on_the_peer() -> void:
+	# Authority: 2.42 lands (0.3 resistance filters at effect time, not here).
+	# The peer's boards would scale it again (the rebuilt hit resolves its
+	# attacker) unless the rebuilt hit carries the number FLAT — the
+	# PERCENT_MAX precedent (hit_instance.gd `basis`).
+	var outcome := AttackOutcome.new()
+	outcome.hits.append(_scaled_hit(1.21, 0.3))
+	OutcomeApplier.apply(outcome, CombatWorld.live())
+	var wired: Dictionary = bytes_to_var(var_to_bytes(AttackRecord.capture(outcome, _graph)))
+	assert_almost_eq(wired[AttackRecord.KEY_HIT_AMOUNT][0], 2.42, 0.0001,
+			"the record ships the landed stacks")
+
+	# The peer's defender sits at 100% — a second resolve would block it.
+	var peer_node: SkillNode = await _peer_node(1.0)
+	var rebuilt := AttackRecord.rebuild(wired, _peer_graph_of(peer_node))
 	assert_eq(rebuilt.hits.size(), 1)
 	OutcomeApplier.apply(rebuilt, CombatWorld.live())
-	assert_almost_eq(peer_node.get_combat().get_status_power(&"test_scaled_status"), 1.694, 0.0001,
-			"the peer lands exactly what the authority landed — no second scaling pass")
+	assert_almost_eq(peer_node.get_combat().get_status_power(&"test_scaled_status"), 2.42, 0.0001,
+			"the peer lands exactly what the authority landed — no second resolve")
+
+
+func test_a_blocked_landing_ships_0_and_the_peer_lands_nothing() -> void:
+	var outcome := AttackOutcome.new()
+	outcome.hits.append(_scaled_hit(1.21, 1.0))
+	OutcomeApplier.apply(outcome, CombatWorld.live())
+	assert_almost_eq(_node.get_combat().get_status_power(&"test_scaled_status"), 0.0, 0.0001,
+			"100% blocks the authority's landing")
+	var wired: Dictionary = bytes_to_var(var_to_bytes(AttackRecord.capture(outcome, _graph)))
+	assert_almost_eq(wired[AttackRecord.KEY_HIT_AMOUNT][0], 0.0, 0.0001, "the record carries the 0")
+
+	# The peer's defender has no resistance — the record, not its board, decides.
+	var peer_node: SkillNode = await _peer_node(0.0)
+	OutcomeApplier.apply(AttackRecord.rebuild(wired, _peer_graph_of(peer_node)), CombatWorld.live())
+	assert_eq(peer_node.get_combat().get_statuses().size(), 0, "the recorded 0 lands nothing")
+
+
+func _peer_graph_of(node: SkillNode) -> Graph:
+	return node.get_parent().get_parent() as Graph
 
 
 func test_the_record_round_trip_lands_the_status_live_on_a_second_world() -> void:

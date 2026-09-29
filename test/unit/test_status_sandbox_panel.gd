@@ -110,8 +110,10 @@ func test_resistance_slider_scales_the_next_apply() -> void:
 
 	_panel.apply_status(_POISON, 4.0)
 
-	assert_almost_eq(_node().get_combat().get_status_power(&"poison"), 2.0, 0.001,
-			"landed through the real hit path: power × (1 − resistance)")
+	assert_almost_eq(_node().get_combat().get_status_power(&"poison"), 4.0, 0.001,
+			"landed through the real hit path: the row stays raw")
+	assert_almost_eq(_node().get_combat().effective_status_power(_POISON, 4.0), 2.0, 0.001,
+			"the host filters it at effect time: 4 − ⌈2 − ½⌉")
 
 
 func test_reset_rearms_a_fresh_bench_that_still_ticks() -> void:

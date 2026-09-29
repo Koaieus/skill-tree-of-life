@@ -400,15 +400,15 @@ func test_a_rebuilt_status_lands_on_the_shipped_host_without_rechecking_node_hp(
 	assert_almost_eq(_poison_power(core), 0.0, 0.001)
 
 
-func test_fall_through_reads_the_entity_boards_resistance_not_the_nodes() -> void:
+func test_fall_through_gates_on_the_entity_boards_resistance_not_the_nodes() -> void:
 	var ctx: Dictionary = await _build()
 	var core := _core_of(ctx)
 	var defender: Entity = ctx.defender
 	assert_eq(_POISON_DEF.resistance_stat_id, &"poison_resistance", "the authored def names the stat")
 	assert_not_null(defender.stat_board.get_stat(&"poison_resistance"), "the entity board carries it")
-	defender.stat_board.get_stat(&"poison_resistance").base_value = 0.5
-	_set_local(core, &"poison_resistance", 0.9)
+	defender.stat_board.get_stat(&"poison_resistance").base_value = 0.0
+	_set_local(core, &"poison_resistance", 1.0)
 	_crack_shot(ctx)
 	_land_poison_arrow(ctx, CombatWorld.live())
-	assert_almost_eq(_entity_poison(ctx), 1.0 * (1.0 - 0.5), 0.001,
-			"scaled by the ENTITY's resistance (0.5), never the node's local 0.9")
+	assert_almost_eq(_entity_poison(ctx), 1.0, 0.001,
+			"the ENTITY's 0% lets it land; the node's local 100% would have blocked it")
