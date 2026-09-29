@@ -49,6 +49,9 @@ var command_applier: CommandApplier
 var input_controller: PlayerInputController
 var melee_preview: MeleePreview
 var attack_vfx: AttackVFX
+## The [BattleSystem]'s stage, mounted when `melee` or `attack_vfx` is asked
+## for; null otherwise (a headless world).
+var presenter: AttackPresenter
 var highlight_controller: HighlightController
 var node_highlight: NodeHighlightOverlay
 var edge_highlight: EdgeHighlightOverlay
@@ -122,6 +125,9 @@ func build(p_graph: Graph, opts: Dictionary = {}) -> void:
 	battle_system.turn_manager = turn_manager
 	add_child(battle_system)
 
+	if want_melee or want_attack_vfx:
+		presenter = AttackPresenter.ensure_on(battle_system)
+
 	if want_melee:
 		# Under the graph so blade coordinates line up with node positions, and
 		# handed to the BattleSystem BEFORE entering the tree: MeleePreview is
@@ -130,7 +136,7 @@ func build(p_graph: Graph, opts: Dictionary = {}) -> void:
 		melee_preview.name = "MeleePreview"
 		melee_preview.battle_system = battle_system
 		graph.add_child(melee_preview)
-		battle_system.melee_preview = melee_preview
+		presenter.melee_preview = melee_preview
 
 	if want_attack_vfx:
 		# Under the graph, like game_root.tscn — every coordinator it spawns is a
@@ -139,7 +145,7 @@ func build(p_graph: Graph, opts: Dictionary = {}) -> void:
 		attack_vfx = _ATTACK_VFX_SCRIPT.new()
 		attack_vfx.name = "AttackVFX"
 		graph.add_child(attack_vfx)
-		battle_system.attack_vfx = attack_vfx
+		presenter.attack_vfx = attack_vfx
 
 	if want_commands:
 		command_applier = _COMMAND_APPLIER_SCRIPT.new()

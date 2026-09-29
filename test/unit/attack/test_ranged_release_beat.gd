@@ -88,7 +88,7 @@ func _build() -> Dictionary:
 	bs.turn_manager = tm
 	bs.allocation_system = alloc
 	bs.graph = graph
-	bs.attack_vfx = vfx
+	AttackPresenter.ensure_on(bs).attack_vfx = vfx
 	add_child_autofree(bs)
 
 	return {"bs": bs, "vfx": vfx, "target": target, "hostile": hostile}

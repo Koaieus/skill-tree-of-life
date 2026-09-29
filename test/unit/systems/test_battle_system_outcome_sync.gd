@@ -114,7 +114,7 @@ func _build(with_live_vfx: bool) -> Dictionary:
 	if with_live_vfx:
 		var vfx := AttackVFX.new()
 		add_child_autofree(vfx)
-		bs.attack_vfx = vfx
+		AttackPresenter.ensure_on(bs).attack_vfx = vfx
 
 	return {"bs": bs, "attacker": attacker, "hostile": hostile,
 			"core": core, "leaf": leaf, "target": target}

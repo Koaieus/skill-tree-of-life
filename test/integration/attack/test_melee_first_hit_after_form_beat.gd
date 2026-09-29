@@ -53,7 +53,7 @@ func before_each() -> void:
 	_bs.turn_manager = _tm
 	_bs.allocation_system = _alloc
 	_bs.graph = _graph
-	_bs.melee_preview = _preview
+	AttackPresenter.ensure_on(_bs).melee_preview = _preview
 	_preview.battle_system = _bs
 	# The real clock — the point of this file.
 	_bs.instant_mutation = false
@@ -105,7 +105,7 @@ func test_the_first_hit_lands_strictly_after_the_form_beat_ends_on_the_real_cloc
 	tempo.melee_windup_stamp_time = 0.0
 	tempo.melee_windup_glow_ramp = 0.0
 	tempo.melee_windup_flare = 0.0
-	_bs.presentation_tempo = tempo
+	AttackPresenter.ensure_on(_bs).presentation_tempo = tempo
 	var form_beat_end := tempo.windup_lead(BattleSystem.AttackMode.MELEE) + tempo.melee_windup_form_span
 	assert_gt(form_beat_end, tempo.swing_duration,
 			"the injected form beat must outlast the whole swing, or a hit "
@@ -187,13 +187,13 @@ func test_a_ranged_first_hit_lands_after_the_presenters_windup_on_the_real_clock
 	var vfx := _StubAttackVFX.new()
 	vfx.lead = 0.6
 	add_child_autofree(vfx)
-	_bs.attack_vfx = vfx
+	AttackPresenter.ensure_on(_bs).attack_vfx = vfx
 	# The tempo's own ranged lead is zeroed so the wait below is the stub
 	# presenter's alone — what `_stage_windup` awaits is the presenter's return.
 	var tempo := PresentationTempo.new()
 	tempo.volley_draw_time = 0.0
 	tempo.volley_windup_pivot_focus = 0.0
-	_bs.presentation_tempo = tempo
+	AttackPresenter.ensure_on(_bs).presentation_tempo = tempo
 	assert_eq(_bs.tempo().windup_lead(BattleSystem.AttackMode.RANGED), 0.0,
 			"the tempo authors no ranged lead — the wait below is the presenter's alone")
 	_attacker.stat_board.arrows.add(AmmoTypeRoster.BASE_ID, 10)

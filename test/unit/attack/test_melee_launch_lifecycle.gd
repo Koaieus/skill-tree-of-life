@@ -51,7 +51,7 @@ func before_each() -> void:
 	_bs.turn_manager = _tm
 	_bs.allocation_system = _alloc
 	_bs.graph = _graph
-	_bs.melee_preview = _preview
+	AttackPresenter.ensure_on(_bs).melee_preview = _preview
 	_preview.battle_system = _bs
 	# #982: the staging and mutation beats run on `BeatClock.instant_clock()`
 	# — order and authored slots survive, wall-clock waits do not.

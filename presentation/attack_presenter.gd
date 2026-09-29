@@ -138,3 +138,17 @@ func _focus_for(plan: AttackPlan) -> Node:
 	if _coordinator != null and is_instance_valid(_coordinator):
 		return _coordinator
 	return null
+
+
+## [param battle]'s presenter, mounting a bare one as its child when it has no
+## stage yet — for a code-composed world (the dev sandboxes, fixtures) that
+## wires the preview and the VFX mount onto it afterwards. A level mounts its
+## presenter from `game_root.tscn` instead.
+static func ensure_on(battle: BattleSystem) -> AttackPresenter:
+	var presenter := battle.stage as AttackPresenter
+	if presenter == null:
+		presenter = AttackPresenter.new()
+		presenter.name = "AttackPresenter"
+		battle.add_child(presenter)
+		battle.stage = presenter
+	return presenter

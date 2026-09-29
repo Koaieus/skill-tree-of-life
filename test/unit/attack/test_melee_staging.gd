@@ -56,7 +56,7 @@ func before_each() -> void:
 	_bs.turn_manager = _tm
 	_bs.allocation_system = _alloc
 	_bs.graph = _graph
-	_bs.melee_preview = _preview
+	AttackPresenter.ensure_on(_bs).melee_preview = _preview
 	_preview.battle_system = _bs
 	# #982: the staging and mutation beats run on `BeatClock.instant_clock()`
 	# — order and authored slots survive, wall-clock waits do not.
@@ -191,7 +191,7 @@ func _assert_first_hit_lands_after_the_form_beat() -> void:
 	var tempo := _zeroed_tempo()
 	tempo.melee_windup_pivot_focus = 0.6
 	tempo.melee_windup_form_span = 1.4
-	_bs.presentation_tempo = tempo
+	AttackPresenter.ensure_on(_bs).presentation_tempo = tempo
 	var form_beat_end := tempo.windup_lead(BattleSystem.AttackMode.MELEE) + tempo.melee_windup_form_span
 	assert_gt(form_beat_end, tempo.swing_duration,
 			"the injected form beat must outlast the whole swing, or a hit "
@@ -396,7 +396,7 @@ func test_the_hook_is_awaited_on_the_seated_path_too() -> void:
 # --- Acceptance 5: the escape hatch ------------------------------------------
 
 func test_zeroed_windup_durations_stage_nothing_and_still_land_the_swing() -> void:
-	_bs.presentation_tempo = _zeroed_tempo()
+	AttackPresenter.ensure_on(_bs).presentation_tempo = _zeroed_tempo()
 	assert_eq(_bs.tempo().melee_windup_seconds(true), 0.0,
 			"every beat authored to 0 is a zero-length wind-up, addons or not")
 

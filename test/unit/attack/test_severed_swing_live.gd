@@ -68,7 +68,7 @@ func before_each() -> void:
 	_bs.turn_manager = _tm
 	_bs.allocation_system = _alloc
 	_bs.graph = _graph
-	_bs.melee_preview = _preview
+	AttackPresenter.ensure_on(_bs).melee_preview = _preview
 	_preview.battle_system = _bs
 	add_child(_bs)
 	_preview._ready()

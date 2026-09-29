@@ -343,7 +343,7 @@ func test_commit_follows_the_pivot_node_and_blade_spawned_rebinds_to_the_marker(
 	var bs := _battle_system(plan)
 	var preview := MeleePreview.new()
 	_holder.add_child(preview)
-	bs.melee_preview = preview
+	AttackPresenter.ensure_on(bs).melee_preview = preview
 	# The presenter answers `focus_marker()` off the live plan before a ghost
 	# exists, so it needs the battle system the plan hangs on.
 	preview.battle_system = bs
@@ -379,7 +379,7 @@ func test_the_widen_changes_the_zoom_without_restarting_the_pan() -> void:
 	cam.limit_bottom = 100000
 	var pivot := _node_at(Vector2.ZERO)
 	var bs := _battle_system(_melee_plan(pivot))
-	bs.presentation_tempo = _tempo(0.0, 1.0)
+	AttackPresenter.ensure_on(bs).presentation_tempo = _tempo(0.0, 1.0)
 	_dir.battle_system = bs
 	_dir.default_focus_duration = 0.0
 	var hits: Array[HitInstance] = [_hit(pivot, _node_at(Vector2(0, 3000)))]
@@ -407,7 +407,7 @@ func test_a_melee_shot_waits_for_its_swing_however_long_the_windup_holds() -> vo
 	_camera()
 	var pivot := _node_at(Vector2.ZERO)
 	var bs := _battle_system(_melee_plan(pivot))
-	bs.presentation_tempo = _tempo(0.0, 5.0)
+	AttackPresenter.ensure_on(bs).presentation_tempo = _tempo(0.0, 5.0)
 	_dir.battle_system = bs
 	var outcome := _outcome([_hit(pivot, _node_at(Vector2(400, 0)), 0.5)])
 
@@ -444,7 +444,7 @@ func test_the_swing_beat_does_not_reopen_a_shot_the_widen_already_holds() -> voi
 	var cam := _camera()
 	var pivot := _node_at(Vector2.ZERO)
 	var bs := _battle_system(_melee_plan(pivot))
-	bs.presentation_tempo = _tempo(0.1, 0.3)
+	AttackPresenter.ensure_on(bs).presentation_tempo = _tempo(0.1, 0.3)
 	_dir.battle_system = bs
 	var outcome := _outcome([_hit(pivot, _node_at(Vector2(400, 0)))])
 
@@ -627,7 +627,7 @@ func _anchored_ranged_bs(presenter: Node, anchors: Array[SkillNode],
 	var tempo := PresentationTempo.new()
 	tempo.volley_draw_time = 1.5
 	tempo.volley_windup_pivot_focus = pivot_focus
-	bs.presentation_tempo = tempo
+	AttackPresenter.ensure_on(bs).presentation_tempo = tempo
 	return bs
 
 
