@@ -2,6 +2,12 @@
 class_name SkillNodeAddon
 extends Node2D
 
+## [b]An addon is a scene, not a script.[/b] Read [code]<name>_addon.tscn[/code]
+## first: its root names the script it runs (possibly a shared one,
+## [code]toxin_addon.tscn[/code] runs [code]dot_addon.gd[/code]) and holds the
+## authored modifiers, icon and visuals. A new addon is a scene on this class
+## or a shared one; subclass only for behaviour a scene can't author.
+##
 ## Component-as-node attached to a SkillNode as a plain direct child. Carries
 ## stat modifiers (entity- or node-scoped), a visual, and behavior hooks
 ## that other systems dispatch into (e.g. SkillBlade.apply_to_blade for

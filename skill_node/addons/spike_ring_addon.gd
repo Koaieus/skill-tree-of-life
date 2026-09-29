@@ -2,6 +2,10 @@
 class_name SpikeRingAddon
 extends SkillNodeAddon
 
+## [b]The real addon is the scene[/b], [code]spike_ring_addon.tscn[/code]: the
+## authored [code]local_modifiers[/code], icon and visuals live there. This
+## script only adds what a scene can't author (the stake-scaled grants below).
+##
 ## Offensive sharpness: contributes to the carrier's node-local `blade_damage`
 ## stat via the base class's authored `local_modifiers` array (see the
 ## addon's .tscn). Both blade-build paths read per-vertex damage via
