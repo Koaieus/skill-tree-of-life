@@ -1,6 +1,6 @@
 # Melee blade — PBD physics & deterministic preview
 
-> ⚠️ **Damage model:** blade **vertices** deal `blade_damage`; blade **edges** deal **nothing** — they collide as swept capsules and that is all they do ([ADR 0005](../adr/0005-blade-parts-and-counters-are-orthogonal.md): *nodes deal damage, edges give rigidity; spikes pop vertices, bunkers break edges*). There is no `edge_damage` stat. STR//10 scales per-vertex damage, and it is multiplied by the per-contact speed curve (#779 — see "Speed-scaled damage" below). Face/cycle bonus is deferred post-MVP and explicitly **rejected** as a geometric filled region. See [../design/mvp_decisions.md](../design/mvp_decisions.md) §D-1 and "Edge collision" below.
+> ⚠️ **Damage model:** blade **vertices** deal `blade_damage`; blade **edges** deal **nothing** — they collide as swept capsules and that is all they do ([ADR 0005](../adr/0005-blade-parts-and-counters-are-orthogonal.md): *nodes deal damage, edges give rigidity; spikes pop vertices, bunkers break edges*). There is no `edge_damage` stat. STR//10 scales per-vertex damage, and it is multiplied by the per-contact speed curve (#779 — see "Speed-scaled damage" below). Face/cycle bonus is deferred post-MVP and explicitly **rejected** as a geometric filled region. See [../adr/legacy-mvp-decisions.md](../adr/legacy-mvp-decisions.md) §D-1 and "Edge collision" below.
 
 ## Goal
 
