@@ -58,7 +58,8 @@ only its stake-scaled grants while its `×1.5 blade_damage` sits in the scene.
 
 **The recurring mistake:** reading `<name>_addon.gd`, seeing no modifiers,
 and minting `StatModifier.new()` in an apply hook — a duplicate of what the
-scene already grants, so the stat double-counts. **How to apply:** open the
+scene already grants, so the stat double-counts (`4165473` minted spike ring's
+`blade_damage` in `get_local_modifiers`; `f3b5b24` moved it back to the scene). **How to apply:** open the
 `.tscn` first; add a modifier there (a `resource_local_to_scene` sub-resource,
 as the existing scenes do); code-mint one only when it's computed (scales with
 `stake_level`, reads another stat). A new addon is a scene on the base or a
