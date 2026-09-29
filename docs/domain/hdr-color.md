@@ -338,7 +338,7 @@ it.
 
 ### Seven ways glow silently does nothing
 
-All six fail with no error and no warning. In diagnosis order:
+All seven fail with no error and no warning. In diagnosis order:
 
 1. **`background_canvas_max_layer` defaults to `0`,** which excludes every
    `CanvasLayer` — i.e. the entire HUD. Set to `100`: verified to include the base
