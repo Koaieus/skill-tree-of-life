@@ -1,12 +1,12 @@
 # Spells — Skill Tree of Life
 
-> ⚠️ **MVP-current state lives in [mvp_decisions.md](mvp_decisions.md).** Cast-range scales by INT (the `cast_range_hops` / `cast_range_distance` stats, folded over the spell's authored reach), not by source-node degree. Degree-gating uses **allocated-degree** (`EntityNavigator`). "Overqualified casting" bonuses are deferred.
+> **The roster is code.** A spell exists if and only if it has a `SpellDef` in [`attack/spell/defs/`](../../attack/spell/defs/). Its `.tres` holds the numbers and the player-facing `description`; the propagation stages live in [`docs/domain/spell-propagation.md`](../domain/spell-propagation.md). This doc holds each shipped spell's *identity* — the design intent the numbers serve — plus a fenced **idea pool** of spells that do **not** exist. Never cite an idea-pool entry as a game mechanic.
+>
+> Settled calls on cast range, degree gating, mana and spell damage are ADRs — see the [ADR index](../adr/index.md).
 
 ## Overview
 
-Blue (INT/magic) attacks. Each spell defines its own graph-native targeting and propagation — not a generic damage type applied to a graph, but a mechanism *that is* a graph operation. INT scales potency; degree gates casting tier. See `combat_system.md` for the full degree-gating table and damage pipeline.
-
-All power levels, ranges, hop counts, and damage values are placeholders. Nothing here is calibrated — this is an identity catalogue. Power and range balancing come much later.
+Blue (INT/magic) attacks. Each spell defines its own graph-native targeting and propagation — not a generic damage type applied to a graph, but a mechanism *that is* a graph operation. INT scales potency; degree gates casting tier. See `combat_system.md` for the damage pipeline.
 
 ---
 
@@ -17,11 +17,11 @@ Most spells are configured, not coded. A `PropagationConfig` composes three smal
 | Dial | Question it answers | Examples |
 |---|---|---|
 | **Filter** | Given current node, which neighbours is the spell *allowed* to copy itself to? | enemy-only / unallocated-only / lower-degree-only / highest-armor / toward-Core / away-from-Core |
-| **Step (mutate)** | As the spell hops, how does its payload change? | damage ×0.5 per hop (Lightning) / damage ×2 per hop (Crunch, Resonator) / flip filter mid-cast (Ghost Walk: neutral → enemy) |
+| **Step (mutate)** | As the spell hops, how does its payload change? | per-hop falloff (Lightning Bolt) / flat ramp (Resonator, Trail Blazer) / flip filter mid-cast (*idea pool:* Ghost Walk) |
 | **Merger (reducer)** | A node has ≥1 incidents arriving in the same wave. What lands? | SUM (additive, e.g. Resonator weaponising self-loops) / MAX / FIRST / CANCEL_IF_MULTI (the spell fizzles where it overlaps itself) / CANCEL_IF_EVEN |
-| `max_hops` | When does propagation stop expanding? | 0 = single-target; ∞ = Flood |
+| `max_hops` | When does propagation stop expanding? | 0 = single-target (Spark); ∞ = walk until the filter stops it (Trail Blazer) |
 | `max_visits_per_node` | How many times can the *same* node be hit by *this one cast*? | 1 = never-revisit (default, sane); 2+ = node can take multiple waves; ∞ = pure-hop-gated chaos |
-| `damage_multiplier_per_hop` | Scalar shortcut for the most common Step mutation | < 1: falloff (Lightning); > 1: rampup (Crunch); 0: detonate-only-at-end (Silencing) |
+| `damage_multiplier_per_hop` | Scalar shortcut for the most common Step mutation | < 1: falloff (Lightning Bolt); > 1: rampup (Leafblower) |
 
 The unifying insight: **a node hit by N branches in the same BFS wave is one merger event**, not N separate damage instances. Branches still carry their own per-branch payload state (their own visited-trail, their own multiplied damage), but they share a global visit ledger and converge through the merger. Spells that *want* the additive feel ("hit me from 3 directions and you'll regret it") set merger = SUM; spells that want a sanity floor set merger = MAX or FIRST.
 
@@ -42,195 +42,55 @@ The two deaths imply different counter-play. You **starve** an energetic spell b
 
 ---
 
-## Field Schema
+## Shipped
 
-| Field | Values |
-|---|---|
-| **target type** | `node` (default) / `AoE` (rare) / `edge` (rare) |
-| **power** | `low` / `medium` / `high` / `ultra` — maps to minimum caster degree required |
-| **range** | `short` / `medium` / `long` — euclidean casting distance, caster node to initial target |
-| **min range** | only listed when applicable |
-| **mechanics/propagation** | what the spell does after hitting its initial target |
-| **notes** | design remarks, open questions, interactions |
+Thirteen spells, one per file in `attack/spell/defs/`. The one-line thesis is the design intent; for numbers, targeting and the current rules text, read the `.tres`. When the two disagree, the `.tres` wins and this entry is stale.
 
----
+| Spell | `.tres` | Thesis |
+|---|---|---|
+| Spark | `spark.tres` | Cheap single-target poke — the baseline every other spell is measured against |
+| Lightning Bolt | `lightning_bolt.tres` | Full hit, then chains to every enemy neighbour with per-hop falloff; overlaps take the strongest incident |
+| Bruiser | `bruiser.tres` | Climbs the HP gradient nicking the toughest nodes; never kills alone |
+| Leafblower | `leafblower.tres` | Flows downhill in territory degree and crits the leaf it dead-ends on |
+| Resonator | `resonator.tres` | Fans out; converging branches SUM and crit — diamonds and hexagons detonate |
+| Reverberator | `reverberator.tres` | Climbs toward hubs; a self-loop crits and folds the wave back in |
+| Trail Blazer | `trail_blazer.tres` | Walks degree-2 strings, ramping, and slams the junction it lands on |
+| Cyclone | `cyclone.tres` | The curl: a clockwise turn-ranked fan that types terrain by 2-dimensionality |
+| Healing Beam | `healing_beam.tres` | Heals any node in reach, ally or enemy |
+| Dazzle | `dazzle.tres` | Status applier — blinds one enemy node (vision/sensor down, recovering) |
+| Sunder | `sunder.tres` | Status applier — armor break on one enemy node |
+| Venom | `venom.tres` | Status applier — poison ticking on one enemy node |
+| Hex | `hex.tres` | Status applier — curse stacks raising the floor on damage the node takes |
 
-## Catalogue
+The four status appliers are the DoT / status families' delivery spells; their design is [`damage_over_time.md`](damage_over_time.md), not this doc.
 
-### Lightning Bolt [proposal: 9/10]
+### Design notes worth keeping
 
-- **target type:** node
-- **power:** medium
-- **range:** medium
-- **mechanics/propagation:** damage targeted node, then propagate to all neighbours, `N` hops total, each hop applies (previous damage × 0.5 [or ×0.6-0.8 if .5 is too steep downhill])
-- **notes:** no friendly fire; hops and falloff TBD/tweakable.
-- review: simple, effective. Just something that hops and re-deals damage
+Only the *why* that the `.tres` cannot carry. No numbers here — they drift.
 
----
+#### Leafblower
 
-### Crunch Bolt [proposal: 8/10]
-
-- **target type:** node
-- **power:** high
-- **range:** short/medium
-- **mechanics/propagation:** damage targeted node for 1/4 of rated damage, then propagate to all neighbours, `2` (?) hops total, each hop applies (previous damage × 2)
-- **notes:** no friendly fire (or?); rampup TBD/tweakable. Inverse of Lightning Bolt — starts small, escalates. Best aimed at nodes deep inside enemy territory rather than the perimeter.
-- review: Just some basic hops based damage ramping spell, needs tweaking for range or mana cost to balance
-
-
----
-
-### Heavy Bolt
-
-- **target type:** node
-- **power:** high
-- **range:** short
-- **mechanics/propagation:** damage targeted node, then propagate to adjacent node with **most** armor, `N` (2–3?) hops total
-- **notes:** no friendly fire. Climbs the armor gradient — the tank-hunter that ironically seeks out the toughest nodes.
-- review: Just some basic spell, whether we let it focus on `armor` specifically or something else like `health`, we can see.
-
----
-
-### Piercing Bolt
-
-- **target type:** node
-- **power:** high
-- **range:** short
-- **mechanics/propagation:** damage targeted node, then propagate to adjacent node with **least** armor, `N` (2–3?) hops total
-- **notes:** no friendly fire (or?); rampup TBD/tweakable. Seeks out glass nodes — the leaf-hunter.
-- review: Just some basic spell, whether we let it focus on `armor` specifically or something else, we can see.
-
----
-
-### ~~Silencing Bolt~~ Reverberator [proposal: 10/10, most elegant and mechanically simple]
-
-- **target type:** node
-- **power:** high/ultra?
-- **range:** medium
-- **mechanics/propagation:** deal **no** damage to targeted node, then propagate to adjacent node with highest degree, `N` hops total; after last hop: explodes, dealing 1× damage to the node it is at, half that to adjacents
-- **notes:** if this travels to an enemy node with a self-loop (an ideal launching spot for heavy spells due to its high degree), it will do *massive* damage: the hit + 2 outgoing edges as part of the self-loop → these hit the same node, for a total of 3 hits; damage factors tweakable/TBD
-- review: a must-have, should be configured to be an absolute self-loop killer, and also likely to find hubs and deal with them; an enemy hub that is also a self-loop.. bingo.. they're already dead just don't know it yet
-
----
-
-### Flood [proposal: 2/10, fights healing mechanics in game]
-
-- **target type:** node
-- **power:** low
-- **range:** medium
-- **mechanics/propagation:** from the target, propagate simultaneously to every enemy-owned node reachable within `N` graph-hops (BFS, not a walk — fans out everywhere at once). Each node takes the same flat damage regardless of hop distance. No falloff.
-- **notes:** low damage per node is the price of hitting everything. Effective against distributed constellations (Hive, thin tendrils) where no single node is a priority target — you can't dodge it by spreading out. Does not propagate across unallocated or own-owned nodes. Whether it can jump Lifelink pod gaps via neutral-node corridors is open — probably yes if the graph has the path, which makes it the intended anti-Hive tool.
-- review: would be a free hit on all owned nodes of an enemy entity, which.. yeah not that useful? given that nodes heal up to full at start of their owner's turn, though we might add healing reduction effects later (or make such a spell like this apply it), then this may become useful in grinding down enemy nodes over multiple turns
-
----
-
-### Degree Drain [proposal: 8/10]
-
-- **target type:** node
-- **power:** medium
-- **range:** medium
-- **mechanics/propagation:** single-target, no propagation. Damage = base × **target's owned degree**. A leaf takes near-zero; a degree-5 hub takes the full multiplied hit.
-- **notes:** the anti-hub precision tool. The enemy's best casting node is simultaneously the most rewarding Degree Drain target and the node they most need to protect. Pairs thematically with Reverberator (Reverberator climbs toward the highest-degree node; Degree Drain hits it hardest). Explicitly punishes sloppy targeting — firing at a leaf is a wasted action. Open: owned degree or total degree? Owned mirrors the casting-power metric; total mirrors the HP-bracing metric. Different answers produce different spells.
-- review: simple point and click should be less rewarding than e.g. landing a perfectly thought out Reverberator that finds and nukes a target -- we should make the cast range or damage to balance.
-
----
-
-### Topple [proposal: 7/10]
-
-- **target type:** node
-- **power:** high
-- **range:** short
-- **mechanics/propagation:** deal base damage to target. If the target is a **cut vertex** (its removal disconnects the enemy's graph), multiply the damage (×2–3?), and the island check fires *immediately* on the severed component before the enemy can respond.
-- **notes:** the graph-reading reward spell. Huge payoff for correctly identifying an articulation point; expensive, poor-value strike against a non–cut-vertex. The immediate island check is the dangerous part — no grace period, no response window. Forces the enemy to think about topology hardening (ring sub-graphs have no cut vertices by definition). Probably wants a visual indicator — should the game highlight cut vertices when Topple is selected, or is partial-information read a design feature?
-- review: this sounds finnicky but could be cool, but would need a specialized class because we can't produce this behavior cleanly via the regular knobs for spell propagation/merger
-
----
-
-### Ghost Walk [proposal: 6/10]
-
-- **target type:** node
-- **power:** medium
-- **range:** long
-- **min range:** short (must cross at least one unallocated node)
-- **mechanics/propagation:** the spell travels a path that passes **only through unallocated (neutral) nodes** — cannot enter or cross enemy-held territory as a waypoint. Hits the first enemy-owned node it reaches at the end of the neutral corridor.
-- **notes:** a backdoor weapon — bypasses a wall of enemy nodes entirely if there's a neutral corridor behind them. Counter-play: cheap, strategic allocation of a neutral node to close the corridor. Creates a pre-combat map read: "is there a neutral path that opens a back-door angle?" Satisfying when it lands; appropriately unreliable when the enemy has been board-aware. Allocation-boundary mechanic (see `combat_system.md`). Open: if multiple corridors exist, does the caster choose, or does the spell pick the shortest path?
-- review:
-
----
-
-### Aftershock [rating: 7.5/10]
-
-- **target type:** node
-- **power:** high
-- **range:** short/medium
-- **mechanics/propagation:** deal standard damage to target. If the target is severed (HP → 0), a secondary cast fires from the dead node's former graph position — propagating outward one hop to all of the dead node's former neighbours (ghost cast; the dead node itself is gone, so the secondary hits only its former neighbours, not itself).
-- **notes:** rewards aiming at low-HP targets over tanks — the aftershock's value scales with *where* the kill happens. Killing a perimeter leaf nets a weak secondary wave; killing a connector deep inside enemy territory fires the secondary into the interior. Combo-friendly with Topple (Topple to identify the cut vertex, Aftershock to extract the bonus wave on kill). Open: if the secondary also kills a node, does it generate a further aftershock? Probably not by default (recursion hazard), but a build upgrade is imaginable.
-- review: can be cool. in-flight spell would need to know if hit killed the node
-
----
-
-### Detonate [rating: 3/10, maybe if game evolves to use `traps`]
-
-- **target type:** node
-- **power:** medium
-- **range:** medium
-- **mechanics/propagation:** deal zero direct damage. Place a **charge** on the target node. The charge is visible (marked). When any damage source hits the charged node next (any type, any origin), it detonates: full base damage to the node + half to all neighbours. Charge expires after `N` turns if undetonated.
-- **notes:** a trap spell — the threat of detonation is often more valuable than the detonation itself. Forces the enemy to route around the marked node or eat the explosion. A well-placed charge on a cut vertex or high-traffic bridge endpoint creates serious movement tension. Open: does the charge trigger on thorns returns, recovery penalty ticks, or only active attack hits? Can the caster detonate it on purpose by following up with a melee hit from an adjacent owned node? Both seem valid and potentially fun.
-- review: can do this but maybe later, introduces entire new realm of concepts
-
----
-
-### Supernova
-
-- **target type:** AoE
-- **power:** ultra
-- **range:** short (euclidean)
-- **mechanics/propagation:** all enemy nodes within euclidean radius of the target point take full base damage simultaneously. No graph propagation — pure geometric area blast.
-- **notes:** the deliberate exception in the catalogue: euclidean, not topological. Reserved for ultra (degree 5+) to keep it rare and earned. The spell exists so the graph-magic player who has been reading topology all game has one option to just *explode an area* when the graph is too chaotic to parse. Interesting tension: in dense graphs it hits many nodes, but smart dense-graph play (ring topology) means those nodes have more HP and resist. In sparse graphs the nodes are spread far apart and few fall in the radius. Less overpowered than it sounds in both extremes.
-- review: possible, if we tweak spells to accept multiple main targets
-
----
-
-### Leafblower [new]
-
-- **target type:** node
-- **power:** medium
-- **range:** medium
-- **mechanics/propagation:** filter = `degree(next) <= degree(current)`, where degree is measured inside each node's **own territory** (its owner's induced subgraph), not the whole board. `damage_multiplier_per_hop = 1.5` over `max_hops = 7` so the final leaf eats a big payload while intermediate hubs barely register. Merger = MAX (downhill flow rarely converges, but if it does we don't want a freebie).
+- **shape:** filter = `degree(next) <= degree(current)`, degree measured inside each node's **own territory** (its owner's induced subgraph), not the whole board. Compounding per-hop rampup so the final leaf eats the payload while intermediate hubs barely register. Merger = MAX (downhill flow rarely converges, but if it does we don't want a freebie).
   - **`<=`, not `<`.** Strict-less cannot traverse a chain *at all* — every interior node of a path is degree 2, so the walk stalls one hop past the seed and the promised "payload on the leaf" is topologically unreachable. Plateau-looping isn't a risk: `max_visits_per_node = 1` is what terminates the walk, not the strictness.
   - **Territory degree, not graph degree.** On a contested board a defender's dangling leaf is routinely adjacent to two *enemy* nodes; whole-board degree reads that as a hub and hides it from the very walk this spell exists to perform.
 - **notes:** the inverse of an anti-hub strike — punishes the enemy's *extremities* by blowing through hubs cheaply and detonating on whatever dangling leaf carries an addon or special node. Counter-play: pull leaves inward (raise their territory degree), or **fortify with self-loops** — a loop counts +2, so two loops lift a degree-2 node to 6 and turn the flow away, taking everything behind it off the table. That's a real defensive line, and it's the one counter that also protects the branch rather than just the node.
-- review: clean configuration-spell, a good early proof that the propagation dials are expressive enough.
 
----
+#### Bruiser
 
-### Bruiser [new]
+The softener. Cannot kill anything by itself — it climbs the HP gradient nicking the toughest nodes, setting up a follow-up spell or melee strike that finishes the now-bracketed targets. It only earns its slot because node HP persists and regenerates at a rate rather than refilling each turn (#175); if that ever reverts, Bruiser does nothing.
 
-- **target type:** node
-- **power:** medium
-- **range:** medium
-- **mechanics/propagation:** filter = `highest current HP among unvisited enemy neighbours` (greedy, single onward branch). `damage_multiplier_per_hop ≈ 1.0` (no falloff) but base damage is low — *intentionally* less than the average node's current HP. `max_visits_per_node = 1`. Merger irrelevant (single branch).
-- **notes:** the softener. Cannot kill anything by itself — it climbs the HP gradient nicking the toughest nodes for wound-tier damage. Sets up a follow-up spell or melee strike that finishes the now-bracketed targets, and meanwhile keeps damage spread wide so node refill-on-turn-start can't fully undo it. Plays nasty with wound mechanics (see `stats-system.md`'s `wound_heal_per_turn`).
-- review: relies on the wound system being meaningful — if combat HP fully heals every turn and there's no wound conversion, this spell does nothing of value. Worth shipping once wound stickiness is tuned.
+#### Resonator
 
----
+Constructive interference — the spell built explicitly to abuse the merger model. Branches that converge on one node in the same wave SUM and the landing crits, so diamonds, hexagons and self-loops (whose two outbound copies land back on the same node) are the kill setups; straight chains are where it is merely respectable. It *could not exist* under the old per-branch-visited model, which had no merger and no shared visit count to weaponise.
 
-### Resonator [new] — the self-loop exploder
+#### Reverberator
 
-- **target type:** node
-- **power:** high/ultra
-- **range:** medium
-- **mechanics/propagation:** filter = `max-degree neighbour(s)` (ties allowed — fans to *all* max-degree neighbours, not just one). `damage_multiplier_per_hop = 2.0` (doubles every hop). `max_hops = 2–3`. `max_visits_per_node = ∞` (revisits are the whole point). **Merger = SUM.**
-- **notes:** the spell built explicitly to abuse the new model. Fire it at an enemy node with a self-loop and the self-loop's two outbound copies converge back on the same node in the next wave — SUM merger collapses them into one double-damage incident, which then doubles again next hop, and so on. Even a single self-loop in the propagation path turns this into a kill spell; landing it *near* (one hop from) a self-loop is already strong. Against a graph with no self-loops it degenerates into "Crunch Bolt aimed at hubs" — still respectable, just not the highlight reel.
-- review: the strongest argument for the propagation refactor — a spell that simply *could not exist* under the per-branch-visited model, because there's no merger and no shared visit count to weaponise. Also pushes us to render self-loops legibly so players can spot the kill setups (see open question below).
+Began life as "Silencing Bolt" (travel silently, explode at the end); what shipped climbs toward hubs with a SUM merger and treats a self-loop as the crit. Intent unchanged: *an absolute self-loop killer that also finds hubs — an enemy hub that is also a self-loop is already dead, it just doesn't know it yet.*
 
----
+#### Cyclone — the curl spell (#696, #699, #703)
 
-### Cyclone [shipped #696, redesigned #699, re-thesised #703] — the curl spell
+Casts off a high-degree node at short **euclidean** range — the first non-hop range in the roster.
 
-- **target type:** node
-- **power:** medium, mana 5, `min_degree` **4** — the catalogue's deepest casting requirement (measured on the *cast-from* node, in the caster's own territory)
-- **range:** short, **euclidean** ~150px (the first non-hop range in the catalogue)
 - **mechanics/propagation:** at every node the storm ranks the turns it could make — clockwise from the edge it arrived on — and mints one front per rank, each carrying a share `c_r` of the incoming damage, hardest into the sharpest turn. Merger = **SUM**. Closing a loop crits (×2) *and* multiplies the share feeding that loop (`closing_gain`).
 - **why a curl at all:** the graph is **planar** (procgen builds edges from a Delaunay triangulation and only ever prunes), so every vertex carries a cyclic order of its incident edges — a **rotation system**, which is exactly what handedness means, and it is already sitting in the node positions. A rotation-*blind* fan has no handedness, and parity was never a designed property: it is the residue left over when the curl is missing.
 - **the engine, in two numbers:** each `c_r` is below 1 so no single thread survives the split; they SUM to more than 1 and converging fronts add, so energy grows globally while decaying per thread and therefore concentrates **only where geometry folds threads back together**. Circulation reinforces, offshoots bleed out — with no cycle detection anywhere in the loop. As a linear operator on directed edges, growth per wave is its spectral radius:
@@ -257,6 +117,148 @@ The two deaths imply different counter-play. You **starve** an energetic spell b
 
 ---
 
+## Designed, issue open — not built
+
+These have an issue; the issue is the design's home, not this doc.
+
+| Idea | Issue |
+|---|---|
+| Chromatic Cascade — colour-rule variant of Resonator | #355 |
+| One cleanse spell per DoT family + a rare cure-all | #969 |
+| Corruption / Curse / Wither spells | #971 / #972 / #973 |
+| Mining the graph-automata field for new spells | #1201 |
+| Composable / bred spells | #1200 |
+
+---
+
+## Idea pool — NONE of these exist
+
+> ⚠️ **Not in the game, no issue, not scheduled.** Early spitballs kept as inspiration. None has a `SpellDef`; before treating any as real, check `attack/spell/defs/`. Promote one by filing an issue, then move it up to *Designed, issue open*.
+
+### Field schema (the vocabulary the entries below use)
+
+| Field | Values |
+|---|---|
+| **target type** | `node` (default) / `AoE` (rare) / `edge` (rare) |
+| **power** | `low` / `medium` / `high` / `ultra` — maps to minimum caster degree required |
+| **range** | `short` / `medium` / `long` — euclidean casting distance, caster node to initial target |
+| **min range** | only listed when applicable |
+| **mechanics/propagation** | what the spell does after hitting its initial target |
+| **notes** | design remarks, open questions, interactions |
+
+---
+
+### Crunch Bolt
+
+- **target type:** node
+- **power:** high
+- **range:** short/medium
+- **mechanics/propagation:** damage targeted node for 1/4 of rated damage, then propagate to all neighbours, `2` (?) hops total, each hop applies (previous damage × 2)
+- **notes:** no friendly fire (or?); rampup TBD/tweakable. Inverse of Lightning Bolt — starts small, escalates. Best aimed at nodes deep inside enemy territory rather than the perimeter.
+- review: Just some basic hops based damage ramping spell, needs tweaking for range or mana cost to balance
+
+---
+
+### Heavy Bolt
+
+- **target type:** node
+- **power:** high
+- **range:** short
+- **mechanics/propagation:** damage targeted node, then propagate to adjacent node with **most** armor, `N` (2–3?) hops total
+- **notes:** no friendly fire. Climbs the armor gradient — the tank-hunter that ironically seeks out the toughest nodes.
+- review: Just some basic spell, whether we let it focus on `armor` specifically or something else like `health`, we can see.
+
+---
+
+### Piercing Bolt
+
+- **target type:** node
+- **power:** high
+- **range:** short
+- **mechanics/propagation:** damage targeted node, then propagate to adjacent node with **least** armor, `N` (2–3?) hops total
+- **notes:** no friendly fire (or?); rampup TBD/tweakable. Seeks out glass nodes — the leaf-hunter.
+- review: Just some basic spell, whether we let it focus on `armor` specifically or something else, we can see.
+
+---
+
+### Flood
+
+- **target type:** node
+- **power:** low
+- **range:** medium
+- **mechanics/propagation:** from the target, propagate simultaneously to every enemy-owned node reachable within `N` graph-hops (BFS, not a walk — fans out everywhere at once). Each node takes the same flat damage regardless of hop distance. No falloff.
+- **notes:** low damage per node is the price of hitting everything. Effective against distributed constellations (Hive, thin tendrils) where no single node is a priority target — you can't dodge it by spreading out. Does not propagate across unallocated or own-owned nodes. Whether it can jump Lifelink pod gaps via neutral-node corridors is open — probably yes if the graph has the path, which makes it the intended anti-Hive tool.
+- review: would be a free hit on all owned nodes of an enemy entity, which.. yeah not that useful? given that nodes heal up to full at start of their owner's turn, though we might add healing reduction effects later (or make such a spell like this apply it), then this may become useful in grinding down enemy nodes over multiple turns
+
+---
+
+### Degree Drain
+
+- **target type:** node
+- **power:** medium
+- **range:** medium
+- **mechanics/propagation:** single-target, no propagation. Damage = base × **target's owned degree**. A leaf takes near-zero; a degree-5 hub takes the full multiplied hit.
+- **notes:** the anti-hub precision tool. The enemy's best casting node is simultaneously the most rewarding Degree Drain target and the node they most need to protect. Pairs thematically with Reverberator (Reverberator climbs toward the highest-degree node; Degree Drain hits it hardest). Explicitly punishes sloppy targeting — firing at a leaf is a wasted action. Open: owned degree or total degree? Owned mirrors the casting-power metric; total mirrors the HP-bracing metric. Different answers produce different spells.
+- review: simple point and click should be less rewarding than e.g. landing a perfectly thought out Reverberator that finds and nukes a target -- we should make the cast range or damage to balance.
+
+---
+
+### Topple
+
+- **target type:** node
+- **power:** high
+- **range:** short
+- **mechanics/propagation:** deal base damage to target. If the target is a **cut vertex** (its removal disconnects the enemy's graph), multiply the damage (×2–3?), and the island check fires *immediately* on the severed component before the enemy can respond.
+- **notes:** the graph-reading reward spell. Huge payoff for correctly identifying an articulation point; expensive, poor-value strike against a non–cut-vertex. The immediate island check is the dangerous part — no grace period, no response window. Forces the enemy to think about topology hardening (ring sub-graphs have no cut vertices by definition). Probably wants a visual indicator — should the game highlight cut vertices when Topple is selected, or is partial-information read a design feature?
+- review: this sounds finnicky but could be cool, but would need a specialized class because we can't produce this behavior cleanly via the regular knobs for spell propagation/merger
+
+---
+
+### Ghost Walk
+
+- **target type:** node
+- **power:** medium
+- **range:** long
+- **min range:** short (must cross at least one unallocated node)
+- **mechanics/propagation:** the spell travels a path that passes **only through unallocated (neutral) nodes** — cannot enter or cross enemy-held territory as a waypoint. Hits the first enemy-owned node it reaches at the end of the neutral corridor.
+- **notes:** a backdoor weapon — bypasses a wall of enemy nodes entirely if there's a neutral corridor behind them. Counter-play: cheap, strategic allocation of a neutral node to close the corridor. Creates a pre-combat map read: "is there a neutral path that opens a back-door angle?" Satisfying when it lands; appropriately unreliable when the enemy has been board-aware. Allocation-boundary mechanic (see `combat_system.md`). Open: if multiple corridors exist, does the caster choose, or does the spell pick the shortest path?
+- review:
+
+---
+
+### Aftershock
+
+- **target type:** node
+- **power:** high
+- **range:** short/medium
+- **mechanics/propagation:** deal standard damage to target. If the target is severed (HP → 0), a secondary cast fires from the dead node's former graph position — propagating outward one hop to all of the dead node's former neighbours (ghost cast; the dead node itself is gone, so the secondary hits only its former neighbours, not itself).
+- **notes:** rewards aiming at low-HP targets over tanks — the aftershock's value scales with *where* the kill happens. Killing a perimeter leaf nets a weak secondary wave; killing a connector deep inside enemy territory fires the secondary into the interior. Combo-friendly with Topple (Topple to identify the cut vertex, Aftershock to extract the bonus wave on kill). Open: if the secondary also kills a node, does it generate a further aftershock? Probably not by default (recursion hazard), but a build upgrade is imaginable.
+- review: can be cool. in-flight spell would need to know if hit killed the node
+
+---
+
+### Detonate
+
+- **target type:** node
+- **power:** medium
+- **range:** medium
+- **mechanics/propagation:** deal zero direct damage. Place a **charge** on the target node. The charge is visible (marked). When any damage source hits the charged node next (any type, any origin), it detonates: full base damage to the node + half to all neighbours. Charge expires after `N` turns if undetonated.
+- **notes:** a trap spell — the threat of detonation is often more valuable than the detonation itself. Forces the enemy to route around the marked node or eat the explosion. A well-placed charge on a cut vertex or high-traffic bridge endpoint creates serious movement tension. Open: does the charge trigger on thorns returns, recovery penalty ticks, or only active attack hits? Can the caster detonate it on purpose by following up with a melee hit from an adjacent owned node? Both seem valid and potentially fun.
+- review: can do this but maybe later, introduces entire new realm of concepts
+
+---
+
+### Supernova
+
+- **target type:** AoE
+- **power:** ultra
+- **range:** short (euclidean)
+- **mechanics/propagation:** all enemy nodes within euclidean radius of the target point take full base damage simultaneously. No graph propagation — pure geometric area blast.
+- **notes:** the deliberate exception in the catalogue: euclidean, not topological. Reserved for ultra (degree 5+) to keep it rare and earned. The spell exists so the graph-magic player who has been reading topology all game has one option to just *explode an area* when the graph is too chaotic to parse. Interesting tension: in dense graphs it hits many nodes, but smart dense-graph play (ring topology) means those nodes have more HP and resist. In sparse graphs the nodes are spread far apart and few fall in the radius. Less overpowered than it sounds in both extremes.
+- review: possible, if we tweak spells to accept multiple main targets
+
+---
+
 ### Homing Decoring [wip need a better name than this pun; tho it has a charm]
 #### Live Laugh Loathe: Home Decor(e) but homing in on Core
 
@@ -271,42 +273,22 @@ The two deaths imply different counter-play. You **starve** an energetic spell b
 - **target type:** node
 - **mechanics/propagation:** filter = `neighbour farther from enemy Core`. Opposite of the homing spell — moves *away* from Core. Likely wants a heavier per-hop damage scaling to justify firing it, since "away from the brain" is intrinsically less valuable than "toward the brain".
 
+---
 
-## Quick Reference
+### Open questions on the idea pool
 
-| Spell | Power | Range | Target | Propagation type |
-|---|---|---|---|---|
-| Lightning Bolt | medium | medium | node | Fork all, 0.5× falloff |
-| Crunch Bolt | high | short/med | node | Fork all, 2× rampup |
-| Heavy Bolt | high | short | node | Greedy → max armor |
-| Piercing Bolt | high | short | node | Greedy → min armor |
-| Reverberator | high/ultra | medium | node | Climb ≥ own territory-degree, fan-all, **SUM merger**, self-loop crit (#417) |
-| Flood | low | medium | node | BFS fan-out (all reachable) |
-| Degree Drain | medium | medium | node | None (single-target, damage scales with degree) |
-| Topple | high | short | node | None (bonus damage + instant island on cut vertex) |
-| Ghost Walk | medium | long | node | Neutral-corridor traversal |
-| Aftershock | high | short/med | node | Ghost cast from dead node's position on kill |
-| Detonate | medium | medium | node | Trap (detonates on next incoming hit) |
-| Supernova | ultra | short | AoE | Euclidean blast |
-| Leafblower | medium | medium | node | Downhill territory-degree filter (`<=`), rampup, payload-on-leaf |
-| Bruiser | medium | medium | node | Greedy → max HP, low base damage, single branch |
-| Resonator | high/ultra | medium | node | Fan-all, flat +2/hop, **SUM merger**, crit on convergence (#352) |
-| Cyclone | medium | short (euclidean) | node | **Curl** — clockwise turn-ranked fan with decaying shares, **SUM merger**, crit + gain on loop closure; types terrain by 2-dimensionality, not parity (#703) |
-| Homing Decoring | TBD | TBD | node | Greedy → toward enemy Core |
-| Corifugal Bolt | TBD | TBD | node | Greedy → away from enemy Core |
+1. **Friendly fire policy** — most ideas say "no friendly fire"; should be decided per spell, not globally.
+2. **Propagation across own nodes** — can enemy-origin spells relay through player-owned nodes? Undefined.
+3. **Detonate trigger** — thorns returns, penalty ticks, or only active attack hits? Can the caster trigger it?
+4. **Topple + cut-vertex UX** — highlight cut vertices when armed, or is the partial-information read the challenge?
+5. **Ghost Walk path choice** — caster picks the corridor, or shortest wins?
+6. **Degree Drain metric** — owned degree (casting-power metric) or total degree (bracing metric)? Different spells.
+7. **Aftershock recursion** — does a secondary kill chain another aftershock? No by default.
+8. **Flood + Lifelink gaps** — can Flood cross pod gaps through the field?
 
 ---
 
-## Open Questions
+## Open questions (shipped spells)
 
-1. **Friendly fire policy** — most spells say "no friendly fire" but Crunch Bolt and Piercing Bolt might be interesting with it enabled. Should be decided per-spell, not globally.
-2. **Propagation across own nodes** — can enemy-origin spells propagate through player-owned nodes, using them as relays? Undefined. If yes, the path-finding problem becomes shared and the player's topology affects incoming spell routing. If no, owned nodes block at their boundary.
-3. **Detonate trigger** — does the charge detonate on thorns returns, recovery penalty ticks, or only active attack hits? Can the caster intentionally trigger it?
-4. **Topple + cut vertex UX** — the spell rewards correct cut vertex identification but players need to *see* this. Highlight cut vertices in the targeting UI when Topple is equipped? Or is partial-information read a deliberate design challenge?
-5. **Ghost Walk path choice** — if multiple neutral corridors exist, does the caster choose, or does the spell pick the shortest? Caster choice is more skill-expressive; automatic shortest is simpler.
-6. **Degree Drain metric** — owned degree (mirrors casting power, same metric as spell tier) or total degree (mirrors HP bracing)? These are meaningfully different spells.
-7. **Aftershock recursion** — if the secondary cast also kills a node, does it generate a further aftershock? No by default; build upgrade potentially yes.
-8. **Flood + Lifelink gaps** — can Flood cross Hive pod gaps if graph connectivity exists through the field? Probably yes; intended as the anti-Hive tool.
-9. **Self-loop interactions** — under the new propagation model self-loops are well-defined (the two outbound copies converge in the merger), but each spell still needs to confirm its intent, and **#699 is the cautionary tale**: Cyclone's intent to refuse them was documented in four places and implemented in none, because it was left to emerge from an unrelated rule instead of being authored. `NoSelfLoopFilter` exists so that "this spell refuses self-loops" is a line in the `.tres` a reader can check. Resonator *wants* them; Leafblower reads a self-loop as +2 degree, so loops are its designed counter-play (they turn the flow away rather than absorbing it); Bruiser is single-branch so merger never fires. Worth a per-spell line.
-10. **Self-loop rendering & procgen seeding** — Resonator only sings if self-loops actually exist on the board and the player can *see* them. Two prerequisites: (a) procgen should seed at least one self-loop per generated graph (rare, premium node — feels like a fang in the topology), (b) the edge renderer needs a self-loop variant (a small arc/halo glyph around the node, not a degenerate straight line). Neither exists today; both are blockers for Resonator shipping playable rather than just configured.
-11. **Spell slots / economy** — catalogue assumes unlimited access (any spell if degree allows). Is there a selection mechanic, cooldown, or equip-slot model? TBD.
+1. **Self-loop intent, per spell** — self-loops are well defined under the merger model, but each spell must *author* its intent, and **#699 is the cautionary tale**: Cyclone's intent to refuse them was documented in four places and implemented in none. `NoSelfLoopFilter` exists so "this spell refuses self-loops" is a line in the `.tres` a reader can check. Resonator and Reverberator *want* them; Leafblower reads a loop as +2 degree, so loops are its designed counterplay; Bruiser is single-branch so the merger never fires.
+2. **Spell slots / economy** — spells are granted per node and looted as spellbooks (#198, #204); whether there is also an equip-slot or cooldown model is open.

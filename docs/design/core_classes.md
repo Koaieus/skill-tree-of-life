@@ -4,6 +4,16 @@ A **core class** defines an entity's fundamental identity — starting stat weig
 
 Core classes are not locked. A run may present opportunities to shift class identity through late-game loot or landmark (keystone) nodes. The starting class sets the trajectory.
 
+> **The roster is code.** A core class exists if and only if it is listed in [`entity/core/core_class_roster.tres`](../../entity/core/core_class_roster.tres); its `.tres` holds the numbers and the player-facing `description`. This doc is design intent — **most classes below are not built**. Check the status line under each heading before citing one as a mechanic.
+
+| Status | Classes |
+|---|---|
+| **Shipped** (in the roster) | Balanced (`balanced_core.tres`), Ninja (`ninja_core.tres`), Serpent (`serpent_core.tres`), Pacifist (`pacifist_core.tres`, #160 — no entry below), Wise Cheater (`basic_enemy_core.tres`, the AI default — no entry below) |
+| **Designed, issue open — not built** | Halo (#786) |
+| **Idea only — no issue, not scheduled** | Allround, Predator, Bulwark, Hive, Frontier, Harvester |
+
+Shipped entries below describe the original design; where one disagrees with its `.tres`, the `.tres` wins. The shipped Balanced class is **not** the Allround below (Balanced is flat attributes plus a heal aura; Allround is an XP edge).
+
 > **Combat-redesign deltas affecting classes (see `combat_system.md`).**
 > - **Degree-defense is removed.** Node durability now comes from **CON (White)**, not from edge count. This leaves **Bulwark** and **Halo unaffected** — they always defended through armor / `damage_floor` / thorns / shell topology, never through degree. Hubs are now glass cannons (great casters, normal HP), which only sharpens the "silence, then grind" counterplay.
 > - **Six-attribute roster:** R/STR, G/DEX, B/INT (attack) + **White/CON** (durability), **Gold/WIS** (XP/growth — the new economy color), **Purple/PER** (vision/sensing). Class economy prose below still says "White nodes" for the economy (Hive, Harvester, Halo interior) — read that as **Gold** under the new roster; a dedicated migration sweep is pending and the reassignment is not yet final.
@@ -36,6 +46,8 @@ Always available. Designed to be legible to new players.
 
 ### The Allround — *The Human*
 
+> **Status: idea only — not built, no issue.** The shipped default is Balanced (`balanced_core.tres`), a different design.
+
 **Identity:** No specialization, no constraints, a small persistent edge in experience — the reliable generalist.
 
 **Playstyle:** The Allround adapts to whatever the field offers. No mechanic forces a particular constellation shape, no stat constraint narrows attack options. It plays whatever the situation calls for — a melee push here, a ranged nest there, White node economy if the field supports it. Its small XP bonus means it reaches new SP slightly faster than anyone else, compounding quietly over a long run.
@@ -64,6 +76,8 @@ Always available. Designed to be legible to new players.
 ---
 
 ### The Predator — *The Hunter*
+
+> **Status: idea only — not built, no issue.**
 
 **Identity:** Grows by consuming enemies, not by leveling — feeds on adjacency kills.
 
@@ -95,6 +109,8 @@ Always available. Designed to be legible to new players.
 ---
 
 ### The Bulwark — *The Fortress*
+
+> **Status: idea only — not built, no issue.**
 
 **Identity:** An immovable fortress that becomes exponentially harder to damage with each investment in its floor-reduction progression.
 
@@ -132,6 +148,8 @@ Introduced after the player is comfortable with basic island rules and the stat 
 
 ### The Ninja — *The Phantom*
 
+> **Status: shipped** — `entity/core/ninja_core.tres`. The `.tres` is authoritative for what it does.
+
 **Identity:** A mobile surgical striker that hits from a tight core cluster and retreats before the enemy can respond.
 
 **Playstyle:** Defined by deallocation budget. More deallocations per turn than any other class means it can reshape dramatically within a single turn — extend a tendril toward a target, strike, retract, all in sequence. Its core aura is intense but very short-ranged, so the core must be close to the fighting nodes for them to hit hard. Low SP cap means it can't sprawl. The class identity lives in the interplay between high DAP, intense close-range aura, and SP constraint.
@@ -158,6 +176,8 @@ Introduced after the player is comfortable with basic island rules and the stat 
 ---
 
 ### The Hive — *The Swarm*
+
+> **Status: idea only — not built, no issue.**
 
 **Identity:** A distributed organism that sacrifices any individual pod but never exposes the real core.
 
@@ -190,6 +210,8 @@ Introduced after the player is comfortable with basic island rules and the stat 
 ---
 
 ### The Halo — *The Ring*
+
+> **Status: designed, not built** — #786.
 
 **Identity:** Power lives at exactly the right distance — and touching the ring hurts.
 
@@ -256,6 +278,8 @@ The ring doesn't shrink in parameter (`shell_distance` is unchanged). The *set o
 
 ### The Serpent — *The Coil*
 
+> **Status: shipped** — `entity/core/serpent_core.tres`. The `.tres` is authoritative for what it does.
+
 **Identity:** Power flows to nodes that are far in hops but near in space — a constellation that winds around itself.
 
 **Playstyle:** The Serpent's aura scales two ways simultaneously: buff proportional to hop-distance from core (further hops = more buff), penalty proportional to euclidean distance from core (further in space = penalized). The sweet spot is many hops away but spatially near. The shape this produces: a tight coil, spiral, or labyrinthine path that winds many times around the core without straying far. The chasm scenario is the class's peak power state: core on one side of a region with few edges crossing, with a winding path crossing the chasm and back, placing premium nodes near the core geometrically while being many hops away topologically. Those nodes receive both the hop-distance buff AND the core's euclidean aura — double-buffed.
@@ -304,6 +328,8 @@ Identified directions with clear identity; mechanics not yet fully developed.
 
 ### The Frontier — *The Pioneer*
 
+> **Status: idea only — not built, no issue.**
+
 **Identity:** Power comes from exposed ends — the more dead-ends in the constellation, the stronger every node.
 
 Mechanics sketch: buff proportional to the count of leaf nodes (nodes with only one connection). Rewards sprawling, tendril-heavy builds that avoid closing cycles. Counterintuitively penalized by ring topology — a ring has no leaf nodes. Attacked strongly by ring-lovers (Bulwark, Halo). Edge case to rule: does the Frontier benefit from nodes that briefly become leaves during island creation before dissolving?
@@ -311,6 +337,8 @@ Mechanics sketch: buff proportional to the count of leaf nodes (nodes with only 
 ---
 
 ### The Harvester — *The Cultivator*
+
+> **Status: idea only — not built, no issue.**
 
 **Identity:** An economic engine that fights through resource dominance rather than military force.
 
@@ -320,17 +348,17 @@ Mechanics sketch: White (W) nodes generate double or triple normal xp_per_turn. 
 
 ## Class Comparison Matrix
 
-| Class | Primary resource | Aura type | Ideal shape | Thorns | Complexity |
-|---|---|---|---|---|---|
-| Allround | XP (bonus) | Linear / hop | Any | No | Low |
-| Predator | Enemy nodes (BLITZ) | Close-range attack | Forward-extended | No | Low-Med |
-| Bulwark | Armor / floor reduction | Close-range defense | Compact ring | No | Low-Med |
-| Ninja | Dealloc budget | Intense, very short | Compact + tendrils | No | Med |
-| Hive | Distributed pods | Per-pod (or none) | Many isolated pods | No | High |
-| Halo | Shell ring + thorns | Shell at N hops | Ring at shell_dist | **Yes** | Med |
-| Serpent | Hop/euclid tension | Dual-metric | Coil / spiral | No | High |
-| Frontier | Leaf nodes | Leaf-count scalar | Sprawling tendrils | No | Med |
-| Harvester | White XP income | TBD | White-heavy cluster | No | Med |
+| Class | Status | Primary resource | Aura type | Ideal shape | Thorns | Complexity |
+|---|---|---|---|---|---|---|
+| Allround | idea | XP (bonus) | Linear / hop | Any | No | Low |
+| Predator | idea | Enemy nodes (BLITZ) | Close-range attack | Forward-extended | No | Low-Med |
+| Bulwark | idea | Armor / floor reduction | Close-range defense | Compact ring | No | Low-Med |
+| Ninja | **shipped** | Dealloc budget | Intense, very short | Compact + tendrils | No | Med |
+| Hive | idea | Distributed pods | Per-pod (or none) | Many isolated pods | No | High |
+| Halo | #786 | Shell ring + thorns | Shell at N hops | Ring at shell_dist | **Yes** | Med |
+| Serpent | **shipped** | Hop/euclid tension | Dual-metric | Coil / spiral | No | High |
+| Frontier | idea | Leaf nodes | Leaf-count scalar | Sprawling tendrils | No | Med |
+| Harvester | idea | White XP income | TBD | White-heavy cluster | No | Med |
 
 ---
 

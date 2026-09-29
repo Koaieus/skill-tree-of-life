@@ -177,7 +177,7 @@ Node health is determined by:
 
 ## 6. Entity Classes
 
-> *There are 7 classes. Each has a mechanical identity — a distinct playstyle that follows from its stat loadout and class-specific rules.*
+> *The roster is code: `entity/core/core_class_roster.tres`. Shipped today: **Balanced** (the default), **Ninja**, **Serpent**, **Pacifist**, and **Wise Cheater** (the AI default). Everything else below is design intent, and most of it is not built.*
 
 A **core class** = starting stat weights + one aura rule (+ occasionally a unique mechanic). Two entities with identical allocations but different classes play completely differently. The class shapes the *aura* the core radiates, which is the carrot that pulls the core toward the front line — and that shaping is most of where class identity lives.
 
@@ -186,16 +186,16 @@ A **core class** = starting stat weights + one aura rule (+ occasionally a uniqu
 | Allround — *The Human* | The reliable generalist. No constraints, no specialization, a small persistent XP edge. The default. | 📐 |
 | Predator — *The Hunter* | Grows by consuming, not leveling — BLITZ steals an adjacent enemy node on an adjacency kill. XP-starved; must stay aggressive. | 📐 |
 | Bulwark — *The Fortress* | Immovable. A `damage_floor` reduction path that ramps from chip-resistant → chip-immune → healing-on-hit. | 📐 |
-| Ninja — *The Phantom* | High deallocation budget, intense but very short aura, low SP cap. Hit-and-run; every turn is a new shape. | 📐 |
+| Ninja — *The Phantom* | High deallocation budget, intense but very short aura, low SP cap. Hit-and-run; every turn is a new shape. | ✅ |
 | Hive — *The Swarm* | Distributed Lifelink-anchored pods, each small and expendable; the real core hides in one. Economic sprawl. | 📐 |
-| Halo — *The Ring* | Shell aura that buffs nodes at exactly N hops and bites back with thorns. Touching the ring hurts. | 📐 |
-| Serpent — *The Coil* | Dual-metric aura: buffed for being far in hops but near in space. Winds around itself; exploits chasms. | 📐 |
+| Halo — *The Ring* | Shell aura that buffs nodes at exactly N hops and bites back with thorns. Touching the ring hurts. | 📐 #786 |
+| Serpent — *The Coil* | Dual-metric aura: buffed for being far in hops but near in space. Winds around itself; exploits chasms. | ✅ |
 
 > *For each class, answer: what is the intended win condition? What does the player DO differently when playing this class?*
 
 Beyond these seven, the detail doc also carries the **Edgelord** (fights *with* edges — adds/cuts them, the Bleeding Edge wielder; likely the last class to unlock) and two sketched directions, the **Frontier** (leaf-count scaling) and **Harvester** (White-economy engine).
 
-**Status:** 📐 Designed — Allround/Predator/Bulwark/Halo/Serpent are fleshed out; aura coefficients and unique-mechanic numbers all await calibration.
+**Status:** Ninja and Serpent ✅ shipped; Halo 📐 designed with an open issue (#786); Allround, Predator, Bulwark, Hive, Edgelord, Frontier and Harvester are 📐 ideas with no issue — not built, not scheduled.
 
 **Detail doc:** `design/core_classes.md`
 
@@ -253,7 +253,7 @@ Three distinct layers sit on top of a node's base type and modifier list:
 - **Node Specializations** — deeper, rarer states a node either is generated with or is irreversibly transformed into (not freely applicable). Candidates: **Melee Buffer**, **Corrupted** (fused benefit + downside), **Crystallized** (frozen, stronger, undeployable), **Anchor** (intrinsic island grace).
 - **Tech Seeds** — plantable items: plant on an owned node, a little Tech Tree grows over 3–5 turns, then bears N fruits (you pick one core-bound modifier, skewed toward the rare ceiling). Racing to fruit before being cut off is real tactical tension. This is the clean, safe build-portability tool (vs. the footgun of Uprooting).
 
-**Spells** are the **Blue** design space: graph-math made into a weapon. Each spell *is* a graph operation — forking propagation (lightning), greedy walks up/down a stat gradient, degree-reactive chains, allocation-boundary targeting. **Degree gates casting tier** (Cantrip…Ultimate), so hubs are the great casters and self-loops (+2 degree) are prized casting stations. INT scales potency; `attack_range` doesn't apply. A catalogue of named spells exists (Lightning Bolt, Crunch Bolt, Heavy Bolt, Piercing Bolt, …) as an identity list — all numbers are placeholders.
+**Spells** are the **Blue** design space: graph-math made into a weapon. Each spell *is* a graph operation — forking propagation (lightning), greedy walks up/down a stat gradient, degree-reactive chains, allocation-boundary targeting. **Degree gates casting tier** (Cantrip…Ultimate), so hubs are the great casters and self-loops (+2 degree) are prized casting stations. INT scales potency; `attack_range` doesn't apply. The roster is code — one `SpellDef` per file in `attack/spell/defs/` (Spark, Lightning Bolt, Bruiser, Leafblower, Resonator, Reverberator, Trail Blazer, Cyclone, Healing Beam, and the status appliers Dazzle, Sunder, Venom, Hex); `spells.md` also keeps a fenced idea pool of spells that do **not** exist.
 
 **Status:** 📐 Designed (addon roster + spell identities catalogued; ❓ magic propagation rules and Relay still open).
 
@@ -367,7 +367,7 @@ Open sub-decisions feeding this: scaling shape (linear vs. steeper) and armor pe
 | `design/combat_worked_examples.md` | 3 worked fights in real numbers; the tempo axiom; the defense-function decision (battle-formula handoff) |
 | `design/stat_system.md` | v2 stat architecture, `StatDefinition`, modifier operators, canonical Stat Vocabulary |
 | `design/entity_stat_board_prototype.md` | Prototype stat values, SP accounting, damage-formula sketch, per-class stat variations |
-| `design/core_classes.md` | All entity core classes (Allround, Predator, Bulwark, Ninja, Hive, Halo, Serpent, Frontier, Harvester, Edgelord) |
+| `design/core_classes.md` | Core-class design intent — shipped (Ninja, Serpent), issue-backed (Halo) and idea-only classes, each labelled |
 | `design/metagame.md` | Hub between runs, meta skill tree, commit-on-completion, The Way Out |
 | `design/skill_node_addons.md` | Node addons, node specializations, Tech Seeds |
 | `design/spells.md` | Spell catalogue — identity and propagation for all Blue (INT/magic) spells |
