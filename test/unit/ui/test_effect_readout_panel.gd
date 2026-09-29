@@ -385,7 +385,12 @@ func _status_def(display: String, power_max: float = 3.0, tint: Color = Color.WH
 	return def
 
 
-func test_status_row_shows_display_name_and_normalised_power() -> void:
+## #1191: a bare test def's [method StatusDef.next_tick_damage] is the base
+## class's `0` (no override), so the row is just "<name> <⌊power⌋>" — no dmg
+## clause. Asserts the relationship ([method NumFmt.num] of the floored raw
+## power), not a literal string, so a display-format tweak elsewhere doesn't
+## make this fail for the wrong reason.
+func test_status_row_shows_display_name_and_the_floored_power() -> void:
 	var ent := _spawn_entity()
 	_node.owned_by = ent
 	_node.get_combat().apply_status(_status_def("Blinded", 3.0), 1.5)
@@ -395,10 +400,11 @@ func test_status_row_shows_display_name_and_normalised_power() -> void:
 	var texts := _row_texts(panel)
 	assert_eq(texts.size(), 1)
 	assert_string_contains(texts[0], "Blinded")
-	assert_string_contains(texts[0], "0.5")
+	assert_string_contains(texts[0], NumFmt.num(floorf(1.5)))
+	assert_false(texts[0].contains("dmg"), "a damageless def shows no dmg clause")
 
 
-func test_two_statuses_show_two_rows_with_normalised_power() -> void:
+func test_two_statuses_show_two_rows_with_the_floored_power() -> void:
 	var ent := _spawn_entity()
 	_node.owned_by = ent
 	_node.get_combat().apply_status(_status_def("Blinded", 3.0), 1.5)
@@ -409,9 +415,10 @@ func test_two_statuses_show_two_rows_with_normalised_power() -> void:
 	assert_eq(texts.size(), 2)
 	var joined := "\n".join(texts)
 	assert_string_contains(joined, "Blinded")
-	assert_string_contains(joined, "0.5")
+	assert_string_contains(joined, NumFmt.num(floorf(1.5)))
 	assert_string_contains(joined, "Poisoned")
-	assert_string_contains(joined, "1.00")
+	assert_string_contains(joined, NumFmt.num(floorf(4.0)))
+	assert_false(joined.contains("dmg"), "a damageless def shows no dmg clause")
 
 
 func test_no_statuses_has_no_status_section() -> void:
