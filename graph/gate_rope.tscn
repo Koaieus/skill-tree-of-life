@@ -1,0 +1,14 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://graph/gate_rope.gd" id="1_rope"]
+[ext_resource type="Shader" path="res://graph/gate_rope.gdshader" id="2_shader"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_rope"]
+resource_local_to_scene = true
+shader = ExtResource("2_shader")
+
+[node name="GateRope" type="Node2D"]
+script = ExtResource("1_rope")
+
+[node name="Strip" type="MeshInstance2D" parent="."]
+material = SubResource("ShaderMaterial_rope")
