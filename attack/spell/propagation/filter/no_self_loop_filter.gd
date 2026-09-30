@@ -9,8 +9,7 @@ extends PropagationFilter
 ## adjacency twice, per graph theory's degree +2), and every spell has to
 ## confirm its own intent about them — Resonator [i]wants[/i] the two self
 ## copies so its SUM merger can weaponise them, Reverberator crits on
-## traversing one, Leafblower reads one as +2 degree. See the self-loop open
-## question in [code]docs/design/spells.md[/code].
+## traversing one, Leafblower reads one as +2 degree.
 ##
 ## Cyclone refuses them: going nowhere is not a cycle, and a length-1 loop is
 ## Reverberator's turf. It used to refuse them [i]by accident[/i] — the claim

@@ -1,7 +1,7 @@
 # Spell propagation — filter / spread / mint / merger
 
 Engineering-side architecture doc for the spell propagation pipeline. The
-design-side (what spells *do* and why) lives in `docs/design/spells.md`;
+design-side (spells not built yet) lives in `docs/design/spells.md`;
 this doc covers the code shape that has to support it.
 
 Session-handoff format: where we are, where we're going, why, and the
@@ -54,7 +54,7 @@ Two consequences fall out of this design:
    "add the incoming damage", "take the max", "cancel if overlapping".
 
 This refactor fixes both, and in the process makes self-loops a
-first-class mechanic (see Resonator in `spells.md`).
+first-class mechanic (see `attack/spell/defs/resonator.tres`).
 
 ---
 
@@ -691,7 +691,7 @@ existing `_on_arrival()`, not to a distinct event kind. Reserve a `HIT` verb onl
 if a genuine no-travel case (aura / in-place application) ever needs it.
 
 `SELF_LOOP` is defined but **untestable until self-loops are procgen-seeded and
-rendered** (see Open Question #4 below and `spells.md` OQ#10). Don't claim it
+rendered** (see Open Question #4 below). Don't claim it
 verified this pass.
 
 ### What the coordinator does with it
@@ -778,5 +778,4 @@ manufacture a whole mechanic nobody asked for. Cyclone now sums (see
    maybe an entry in `AttackOutcome`. Out of scope for the first cut.
 4. **Self-loop rendering & procgen seeding.** Not propagation code, but
    the propagation refactor surfaces it: without rendered self-loops
-   the player can't see Resonator setups. Tracked in `spells.md` Open
-   Question #10.
+   the player can't see Resonator setups.

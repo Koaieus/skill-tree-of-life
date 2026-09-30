@@ -14,8 +14,8 @@ extends Resource
 ## Design rationale: filter / spread / reducer are orthogonal axes — mixing
 ## stock subclasses produces a combinatorial space of spell behaviours
 ## without subclassing. See [code]docs/domain/spell-propagation.md[/code]
-## for the full pipeline and [code]docs/design/spells.md[/code] for the
-## spell catalogue authored against this shape.
+## for the full pipeline; the shipped spells authored against this shape
+## are the [code].tres[/code] files in [code]attack/spell/defs/[/code].
 
 ## Decides which neighbour candidates are eligible at each step. Null = no
 ## filtering (every neighbour passes — useful for tests).

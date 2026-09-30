@@ -1,33 +1,10 @@
 # Spells — Skill Tree of Life
 
-> **The roster is code.** A spell exists if and only if it has a `SpellDef` in [`attack/spell/defs/`](../../attack/spell/defs/). Its `.tres` holds the numbers and the player-facing `description`; the propagation stages live in [`docs/domain/spell-propagation.md`](../domain/spell-propagation.md). This doc holds each shipped spell's *identity* — the design intent the numbers serve — plus a fenced **idea pool** of spells that do **not** exist. Never cite an idea-pool entry as a game mechanic.
+> **The roster is code.** A spell exists if and only if it has a `SpellDef` in [`attack/spell/defs/`](../../attack/spell/defs/). Its `.tres` holds the numbers and the player-facing `description`; the propagation pipeline is [`docs/domain/spell-propagation.md`](../domain/spell-propagation.md); a shipped spell's *why* is a docstring on the filter / spread / reducer that implements it. This doc holds only what is **not built**: the design lens below, the issue-backed spells, and a fenced **idea pool** of spells that do **not** exist. Never cite an idea-pool entry as a game mechanic.
 >
 > Settled calls on cast range, degree gating, mana and spell damage are ADRs — see the [ADR index](../adr/index.md).
 
-## Overview
-
-Blue (INT/magic) attacks. Each spell defines its own graph-native targeting and propagation — not a generic damage type applied to a graph, but a mechanism *that is* a graph operation. INT scales potency; degree gates casting tier. See `combat_system.md` for the damage pipeline.
-
----
-
-## Propagation Model
-
-Most spells are configured, not coded. A `PropagationConfig` composes three small interfaces plus a handful of scalars; swapping any of them produces a meaningfully different spell. Think of these as the dials we have to turn — virtually every spell in this catalogue is some combination of them.
-
-| Dial | Question it answers | Examples |
-|---|---|---|
-| **Filter** | Given current node, which neighbours is the spell *allowed* to copy itself to? | enemy-only / unallocated-only / lower-degree-only / highest-armor / toward-Core / away-from-Core |
-| **Step (mutate)** | As the spell hops, how does its payload change? | per-hop falloff (Lightning Bolt) / flat ramp (Resonator, Trail Blazer) / flip filter mid-cast (*idea pool:* Ghost Walk) |
-| **Merger (reducer)** | A node has ≥1 incidents arriving in the same wave. What lands? | SUM (additive, e.g. Resonator weaponising self-loops) / MAX / FIRST / CANCEL_IF_MULTI (the spell fizzles where it overlaps itself) / CANCEL_IF_EVEN |
-| `max_hops` | When does propagation stop expanding? | 0 = single-target (Spark); ∞ = walk until the filter stops it (Trail Blazer) |
-| `max_visits_per_node` | How many times can the *same* node be hit by *this one cast*? | 1 = never-revisit (default, sane); 2+ = node can take multiple waves; ∞ = pure-hop-gated chaos |
-| `damage_multiplier_per_hop` | Scalar shortcut for the most common Step mutation | < 1: falloff (Lightning Bolt); > 1: rampup (Leafblower) |
-
-The unifying insight: **a node hit by N branches in the same BFS wave is one merger event**, not N separate damage instances. Branches still carry their own per-branch payload state (their own visited-trail, their own multiplied damage), but they share a global visit ledger and converge through the merger. Spells that *want* the additive feel ("hit me from 3 directions and you'll regret it") set merger = SUM; spells that want a sanity floor set merger = MAX or FIRST.
-
-Self-loops are first-class under this model: a self-looped node propagating to itself contributes two incidents on its own self in the next wave, which a SUM-merger spell can weaponise (see Resonator below).
-
-### How a spell dies
+## How a spell dies
 
 A spell is a **graph automaton**: a local rule applied in synchronous waves. It is a signal-carrying one, closer to Wireworld or a sandpile than to Conway's Life. So *how it stops* is as much part of its identity as how it spreads. There are two independent ways to fizzle:
 
@@ -39,81 +16,6 @@ A spell is a **graph automaton**: a local rule applied in synchronous waves. It 
 Energetic death has a **criticality** dial. If each hop keeps less than it loses, the wave dies out. If it keeps more, the wave grows. Near the balance point, cascade size depends on the board's structure more than on the numbers. That is why Cyclone demolishes a lone triangle but radiates out of a cluster of them (owner call 2026-09-01).
 
 The two deaths imply different counter-play. You **starve** an energetic spell by breaking the board into short chains that give it nothing to feed on. You **trap** a structural spell by closing loops so it runs into itself. Every catalogue entry should eventually say which death it has. That formalization, and mining the graph-automata field for new spells, is #1201.
-
----
-
-## Shipped
-
-Thirteen spells, one per file in `attack/spell/defs/`. The one-line thesis is the design intent; for numbers, targeting and the current rules text, read the `.tres`. When the two disagree, the `.tres` wins and this entry is stale.
-
-| Spell | `.tres` | Thesis |
-|---|---|---|
-| Spark | `spark.tres` | Cheap single-target poke — the baseline every other spell is measured against |
-| Lightning Bolt | `lightning_bolt.tres` | Full hit, then chains to every enemy neighbour with per-hop falloff; overlaps take the strongest incident |
-| Bruiser | `bruiser.tres` | Climbs the HP gradient nicking the toughest nodes; never kills alone |
-| Leafblower | `leafblower.tres` | Flows downhill in territory degree and crits the leaf it dead-ends on |
-| Resonator | `resonator.tres` | Fans out; converging branches SUM and crit — diamonds and hexagons detonate |
-| Reverberator | `reverberator.tres` | Climbs toward hubs; a self-loop crits and folds the wave back in |
-| Trail Blazer | `trail_blazer.tres` | Walks degree-2 strings, ramping, and slams the junction it lands on |
-| Cyclone | `cyclone.tres` | The curl: a clockwise turn-ranked fan that types terrain by 2-dimensionality |
-| Healing Beam | `healing_beam.tres` | Heals any node in reach, ally or enemy |
-| Dazzle | `dazzle.tres` | Status applier — blinds one enemy node (vision/sensor down, recovering) |
-| Sunder | `sunder.tres` | Status applier — armor break on one enemy node |
-| Venom | `venom.tres` | Status applier — poison ticking on one enemy node |
-| Hex | `hex.tres` | Status applier — curse stacks raising the floor on damage the node takes |
-
-The four status appliers are the DoT / status families' delivery spells; their design is [`damage_over_time.md`](damage_over_time.md), not this doc.
-
-### Design notes worth keeping
-
-Only the *why* that the `.tres` cannot carry. No numbers here — they drift.
-
-#### Leafblower
-
-- **shape:** filter = `degree(next) <= degree(current)`, degree measured inside each node's **own territory** (its owner's induced subgraph), not the whole board. Compounding per-hop rampup so the final leaf eats the payload while intermediate hubs barely register. Merger = MAX (downhill flow rarely converges, but if it does we don't want a freebie).
-  - **`<=`, not `<`.** Strict-less cannot traverse a chain *at all* — every interior node of a path is degree 2, so the walk stalls one hop past the seed and the promised "payload on the leaf" is topologically unreachable. Plateau-looping isn't a risk: `max_visits_per_node = 1` is what terminates the walk, not the strictness.
-  - **Territory degree, not graph degree.** On a contested board a defender's dangling leaf is routinely adjacent to two *enemy* nodes; whole-board degree reads that as a hub and hides it from the very walk this spell exists to perform.
-- **notes:** the inverse of an anti-hub strike — punishes the enemy's *extremities* by blowing through hubs cheaply and detonating on whatever dangling leaf carries an addon or special node. Counter-play: pull leaves inward (raise their territory degree), or **fortify with self-loops** — a loop counts +2, so two loops lift a degree-2 node to 6 and turn the flow away, taking everything behind it off the table. That's a real defensive line, and it's the one counter that also protects the branch rather than just the node.
-
-#### Bruiser
-
-The softener. Cannot kill anything by itself — it climbs the HP gradient nicking the toughest nodes, setting up a follow-up spell or melee strike that finishes the now-bracketed targets. It only earns its slot because node HP persists and regenerates at a rate rather than refilling each turn (#175); if that ever reverts, Bruiser does nothing.
-
-#### Resonator
-
-Constructive interference — the spell built explicitly to abuse the merger model. Branches that converge on one node in the same wave SUM and the landing crits, so diamonds, hexagons and self-loops (whose two outbound copies land back on the same node) are the kill setups; straight chains are where it is merely respectable. It *could not exist* under the old per-branch-visited model, which had no merger and no shared visit count to weaponise.
-
-#### Reverberator
-
-Began life as "Silencing Bolt" (travel silently, explode at the end); what shipped climbs toward hubs with a SUM merger and treats a self-loop as the crit. Intent unchanged: *an absolute self-loop killer that also finds hubs — an enemy hub that is also a self-loop is already dead, it just doesn't know it yet.*
-
-#### Cyclone — the curl spell (#696, #699, #703)
-
-Casts off a high-degree node at short **euclidean** range — the first non-hop range in the roster.
-
-- **mechanics/propagation:** at every node the storm ranks the turns it could make — clockwise from the edge it arrived on — and mints one front per rank, each carrying a share `c_r` of the incoming damage, hardest into the sharpest turn. Merger = **SUM**. Closing a loop crits (×2) *and* multiplies the share feeding that loop (`closing_gain`).
-- **why a curl at all:** the graph is **planar** (procgen builds edges from a Delaunay triangulation and only ever prunes), so every vertex carries a cyclic order of its incident edges — a **rotation system**, which is exactly what handedness means, and it is already sitting in the node positions. A rotation-*blind* fan has no handedness, and parity was never a designed property: it is the residue left over when the curl is missing.
-- **the engine, in two numbers:** each `c_r` is below 1 so no single thread survives the split; they SUM to more than 1 and converging fronts add, so energy grows globally while decaying per thread and therefore concentrates **only where geometry folds threads back together**. Circulation reinforces, offshoots bleed out — with no cycle detection anywhere in the loop. As a linear operator on directed edges, growth per wave is its spectral radius:
-
-  | terrain | ρ |
-  |---|---|
-  | path, star, **any tree** | 0.000 |
-  | triangle / square / pentagon / hexagon | 0.650 |
-  | stringy chain with one loop | 0.650 |
-  | double triangle · rect + triangle | 0.893 · 0.849 |
-  | hex wheel | 1.159 |
-  | triangulated lattice, 19 / 37 nodes | 1.296 / 1.326 |
-
-  Every lone ring is identical regardless of **length or parity**, so it collapses to `ρ(lone ring) = c₁` and `ρ(dense triangulated) → Σc_r`, and the authoring condition is **`c₁ < 1 < Σc_r`**. The spell stopped typing terrain by *"is it cyclic"* and started typing it by *"is it two-dimensional"*.
-- **why a ranked fan and not a face-trace:** taking only rank 1 is the next-edge permutation, whose orbits are the embedding's faces — elegant, and wrong here. It necessarily assigns one arm to the **outer** face, so a triangle reads as two arms colliding rather than one storm turning. A ranked fan has no such arm: verified that all six arms off a hex hub trace same-signed faces, i.e. they co-rotate.
-- **`closing_gain` is the sustain term** and it is distinct from the crit: the crit multiplies the *landing*, the gain feeds *forward*. It is the dial that makes a lone triangle worth killing over instead of fizzling at `c₁` per hop. Owner call 2026-09-01: *"a single triangle will get demolished, but a group of them will absolutely become a center of death and destruction radiating outwards."*
-- **measured on the real resolver** (seed damage 4.0, 8 hops, `0.70 / 0.40 / 0.20`, `closing_gain` 1.35, visits uncapped): star/tree **9.2 with zero crits, dead by beat 1**; rings 3-6 at **64 / 74 / 30 / 34** — no odd/even alternation, they pair up 3-4 and 5-6 by how many laps fit in `max_hops`; double triangle **286**; hex wheel **392, peak node 130**. A lone ring to joined triangles is a 4-6x step, which is the epicentre.
-- **what this deleted:** `ConvergenceCondition` off the preset, `BacktrackFilter` off the composite (the ranking measures *from* the arrival edge and so can never offer it back — stronger than a filter can promise a merged front), the union-veto stranding that made a rectangle worth 26 damage, and the whole parity apparatus. `CycleCondition` survives, now as sparkle and a damage floor rather than half the design.
-- **tuning is inspector-live:** every knob (`rank_coefficients`, `closing_gain`, `clockwise`) is an `@export` on `CycloneSpread`, and the spell playground re-reads step exports on each Cast. `max_visits_per_node` is **uncapped** (owner call 2026-09-01) — `max_hops` bounds the walk on its own, so the visit counter has nothing left to protect against, and capping it strangled the epicentre exactly when it started mattering. `max_hops` is therefore the only balance knob, and it is exponential.
-- **the merge redirects the flow:** `CycloneReducer` writes the damage-weighted mean heading onto the survivor (`CastSpell.arrival_bearing`), so a strong front from the west and a weak one from the south leave heading west-by-south and the curl ranks its next turn against that. Owner spec: *"from this side, this strength; from that side, that strength; combined: this strength that direction."* Two fronts meeting head-on average to zero, which is what colliding arms genuinely are, so the survivor keeps its own heading rather than stalling.
-- **the float trap that costs the whole design:** the arrival edge can only be recognised within an epsilon, never by exact equality. A merged front arrives on an averaged heading that is merely *nearly* antiparallel to the edge it came in on, so the cross product lands on ~1e-14; an exact-zero test misses, the front walks back the way it came, and a **tree grows circulation** (measured: a 6-leaf star went 9.2 damage / 0 crits to 34.5 / 5). `Curl.ARRIVAL_EPSILON` and its regression test exist for exactly this.
-- **no transcendentals, on cost:** the angular sort is a cross-product pseudo-angle comparator (`Curl.pseudo_angle`), not `atan2`, because it is cheaper — the sync rule's transcendental ban does not reach a propagation walk, whose result ships as an `AttackRecord` (#706). Self-loops arrive as zero-length directions with no angular slot and are dropped before the sort.
-- review: still dead weight on stringy territory by design, and now for a sharper reason — a chain with an incidental loop reads identically to a bare ring (ρ 0.650). The counterplay against it is to keep territory *thin*, which is in direct tension with every other spell that punishes low degree.
 
 ---
 
@@ -288,7 +190,6 @@ These have an issue; the issue is the design's home, not this doc.
 
 ---
 
-## Open questions (shipped spells)
+## Open questions (spells)
 
-1. **Self-loop intent, per spell** — self-loops are well defined under the merger model, but each spell must *author* its intent, and **#699 is the cautionary tale**: Cyclone's intent to refuse them was documented in four places and implemented in none. `NoSelfLoopFilter` exists so "this spell refuses self-loops" is a line in the `.tres` a reader can check. Resonator and Reverberator *want* them; Leafblower reads a loop as +2 degree, so loops are its designed counterplay; Bruiser is single-branch so the merger never fires.
-2. **Spell slots / economy** — spells are granted per node and looted as spellbooks (#198, #204); whether there is also an equip-slot or cooldown model is open.
+1. **Spell slots / economy** — spells are granted per node and looted as spellbooks (#198, #204); whether there is also an equip-slot or cooldown model is open.

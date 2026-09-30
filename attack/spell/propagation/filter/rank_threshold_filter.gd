@@ -36,8 +36,11 @@ enum Compare {
 ## (entity degree, see [code].claude/rules/degree.md[/code]); in a 3-way fight
 ## [param from] and [param to] can therefore be compared across two
 ## subgraphs. That's intended — "downhill" means downhill relative to the land
-## each node actually sits in. Self-loops count +2 on both sides, so a
-## fortified node genuinely reads as higher-degree and turns the walk away.
+## each node actually sits in: on a contested board a defender's dangling
+## leaf is routinely adjacent to enemy nodes too, and whole-board degree would
+## read it as a hub and hide it from Leafblower. Self-loops count +2 on both
+## sides, so a fortified node genuinely reads as higher-degree and turns the
+## walk away.
 ## Degenerate case worth naming: with a null [member PropagationContext.graph]
 ## a [DegreeRanker] scores 0.0 on both sides, so the "or equal" compares admit
 ## rather than refuse (the old hardcoded `DegreeFilter` refused outright). No
