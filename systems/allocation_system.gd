@@ -438,22 +438,59 @@ func deallocate_set(nodes: Array[SkillNode], entity: Entity) -> bool:
 
 ## PREVIEW: the owned nodes [param entity] would lose if every gate in
 ## [param gates] flipped at once — the set [method apply_gate_flip] strands.
-func gate_flip_cascade(_gates: Array[Gate], _entity: Entity) -> Array[SkillNode]:
-	return []
+func gate_flip_cascade(gates: Array[Gate], entity: Entity) -> Array[SkillNode]:
+	if entity == null or entity.navigator == null or entity.core_location == null:
+		return [] as Array[SkillNode]
+	return entity.navigator.nodes_islanded_by_flipping(gates, entity.core_location)
 
 
 ## APPLY (authority / direct caller): flip every gate, THEN judge connectivity
 ## once, then force-deallocate the stranded set with the normal charge. Returns
 ## the stranded set.
-func apply_gate_flip(_gates: Array[Gate], _entity: Entity) -> Array[SkillNode]:
-	return []
+func apply_gate_flip(gates: Array[Gate], entity: Entity) -> Array[SkillNode]:
+	var stranded: Array[SkillNode] = []
+	var g := _graph_of(gates)
+	if g == null:
+		return stranded
+	g.flip_gates(gates)
+	if entity != null and entity.navigator != null and entity.core_location != null:
+		# An empty removal set already means "owned nodes the core cannot reach".
+		stranded = entity.navigator.nodes_islanded_by_removing_set([], entity.core_location)
+	_cascade_stranded(stranded, entity)
+	return stranded
 
 
 ## APPLY (replay): flip every gate and cascade the RECORDED [param stranded]
 ## set without re-walking — a peer applies what the authority stamped.
-func apply_gate_flip_recorded(_gates: Array[Gate], _entity: Entity,
-		_stranded: Array[SkillNode]) -> void:
-	pass
+func apply_gate_flip_recorded(gates: Array[Gate], entity: Entity,
+		stranded: Array[SkillNode]) -> void:
+	var g := _graph_of(gates)
+	if g == null:
+		return
+	g.flip_gates(gates)
+	_cascade_stranded(stranded, entity)
+
+
+## A self-cut is permitted and charged like a combat cascade: forced
+## deallocation through [method EntityCombat.apply_cascade] with charge = true
+## (wound + core-HP chip; `force_deallocate` clears the statuses).
+func _cascade_stranded(stranded: Array[SkillNode], entity: Entity) -> void:
+	if entity == null or stranded.is_empty():
+		return
+	var combats: Array[NodeCombat] = []
+	for n in stranded:
+		if n != null and n.owned_by == entity and not n.is_core():
+			combats.append(n.get_combat())
+	entity.get_combat().apply_cascade(combats, self, true)
+
+
+func _graph_of(gates: Array[Gate]) -> Graph:
+	if graph != null:
+		return graph
+	for gate in gates:
+		if gate != null and gate.get_graph() != null:
+			return gate.get_graph()
+	return null
 
 
 # ── Staking (#337): raise a node's cap with SP+AP, reclaim with extract ──────

@@ -520,16 +520,38 @@ func add_gate(from: SkillNode, to: SkillNode, open: bool = true) -> Gate:
 
 
 ## The [Edge] joining [param a] and [param b] in either direction, or null.
-func edge_between(_a: SkillNode, _b: SkillNode) -> Edge:
+## O(degree) to reject a non-neighbour, O(edges) to find the one that is — a
+## flip is a player action, never a per-frame query.
+func edge_between(a: SkillNode, b: SkillNode) -> Edge:
+	if a == null or b == null or edges_container == null:
+		return null
+	if not get_neighbours(a).has(b):
+		return null
+	for c in edges_container.get_children():
+		var e := c as Edge
+		if e != null and ((e.from == a and e.to == b) or (e.from == b and e.to == a)):
+			return e
 	return null
 
 
 ## The [Gate] on the pair [param a] / [param b] in either direction, or null.
-func gate_between(_a: SkillNode, _b: SkillNode) -> Gate:
+func gate_between(a: SkillNode, b: SkillNode) -> Gate:
+	if a == null or b == null:
+		return null
+	for g in get_gates():
+		if (g.from == a and g.to == b) or (g.from == b and g.to == a):
+			return g
 	return null
 
 
 ## Flip each gate in turn: remove its edge if open, add one if closed. Pure
 ## topology — no ownership, no cascade (that is [method AllocationSystem.apply_gate_flip]).
-func flip_gates(_gates: Array[Gate]) -> void:
-	pass
+func flip_gates(gates: Array[Gate]) -> void:
+	for g in gates:
+		if g == null or g.from == null or g.to == null:
+			continue
+		var edge := edge_between(g.from, g.to)
+		if edge != null:
+			remove_edge(edge)
+		else:
+			add_edge(g.from, g.to)

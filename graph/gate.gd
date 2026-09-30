@@ -24,7 +24,8 @@ func get_graph() -> Graph:
 
 ## Is there a real edge between the endpoints right now?
 func is_open() -> bool:
-	return false
+	var graph := get_graph()
+	return graph != null and graph.edge_between(from, to) != null
 
 
 ## May [param entity] flip this gate? Iff it owns at least one endpoint and the
@@ -32,5 +33,11 @@ func is_open() -> bool:
 ## relation: an ally owning the far end is another entity, so it freezes the
 ## gate too — flipping may neither cut someone else's edge nor bridge onto an
 ## occupied node.
-func can_toggle(_entity: Entity) -> bool:
-	return false
+func can_toggle(entity: Entity) -> bool:
+	if entity == null or from == null or to == null:
+		return false
+	var a := from.owned_by
+	var b := to.owned_by
+	if a != entity and b != entity:
+		return false
+	return (a == null or a == entity) and (b == null or b == entity)
