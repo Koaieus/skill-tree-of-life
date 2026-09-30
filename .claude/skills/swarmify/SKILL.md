@@ -290,6 +290,9 @@ path/to/scene.tscn — seam: instances the node
   That shape is a parse contract (`mise run issue-drift` consumes it); the
   info string is the key, anything else in the comment is prose. The last
   stamp on the issue wins, so a re-swarmified issue simply posts a new one.
+  Every `docs/design/*` path the spec cites is a stamp entry with a line
+  range. `issue-drift` diffs only listed paths, and a design doc may change
+  any day.
 
 **Shapes and seams, not bodies.** Signatures, seams, reading list, red
 tests — never the implementation.

@@ -185,6 +185,14 @@ Numbered so the skill can be checked against them law by law.
     text. The fence info string is the parse key; anything else in the
     comment is prose. Body and comments are scanned in order and the last
     stamp wins, so a re-swarmified issue simply posts a new one.
+
+    **A cited design doc is a stamp entry.** Every `docs/design/*` path the
+    acceptance spec cites goes in the stamp with a line range. `issue-drift`
+    diffs only the listed paths, and a design doc may be rewritten any day
+    (`.claude/rules/design-docs-vs-code.md`). A cited doc left out of the
+    stamp lets that rewrite reach the drone silently, as spec. Copying the
+    settled text into the issue instead was rejected: the copy drifts from
+    the doc, and the issue quietly turns into the design doc.
 16. **Verify at write time.** Every reading-list `path:range` is confirmed to
     exist and to say what the entry claims (the Haiku Explore of law 3, or
     a `sed -n` of the range), or it is a stale spec with extra authority.
