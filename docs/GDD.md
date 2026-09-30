@@ -72,7 +72,7 @@ The structures the player destroys are actually incidence points of edges into a
 
 ### Node types
 
-Six colours: three **attack** attributes (prevalent) + three **utility** attributes (rarer). The old four-color RGBW reassigned White from XP to durability and moved economy to a new Gold color — see the migration note in `combat_system.md`.
+Six colours: three **attack** attributes (prevalent) + three **utility** attributes (rarer). The old four-color RGBW reassigned White from XP to durability and moved economy to a new Gold color.
 
 | Attribute | Colour | Role |
 |------|--------|------|
@@ -296,7 +296,7 @@ You boot what looks like a normal Zelda-ish adventure game. You kill cute, harml
 
 ### 11a. The Battle Formula — a plan to actually nail it down
 
-This is the single biggest hole (your words: defensive resolution is "at best a stub"). It won't be solved by more prose — it needs **anchored worked examples**. The 3 fights are **drafted in real numbers** in `design/combat_worked_examples.md`, which is also the standalone handoff for continuing this in a fresh session. Summary of the path:
+This is the single biggest hole (your words: defensive resolution is "at best a stub"). It won't be solved by more prose — it needs **anchored worked examples**. Summary of the path:
 
 1. **Anchor to a *focus-count-per-round*, fast-leaning tempo target** (the old multi-turn "3–4 volleys" anchor is **retired** — `node_health` now resets at each owner's turn start, so survivability is *converged sources within one round*, not turns of chipping):
    - **Fast (1–2 converged sources)** — super-effective / vulnerable / low-defense, *or converged fire*.
@@ -312,8 +312,6 @@ This is the single biggest hole (your words: defensive resolution is "at best a 
 5. **Defer crit, status effects, and the triangle multiplier** until the base offence/defence curve is locked — they're modifiers on top of a function that has to exist first.
 
 Open sub-decisions feeding this: scaling shape (linear vs. steeper) and armor per-hit vs. per-attack (combat doc leans *per-attack* for combined volleys/taps — keep that). *(Resolved feeders: defense model = CON, degree decoupled; action economy = **2 `action_points`/turn** — multiplies tempo directly, and the second action is the dent-finisher against the owner-turn `node_health` reset.)*
-
-**Detail doc:** `design/combat_worked_examples.md`
 
 ---
 
