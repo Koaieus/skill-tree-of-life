@@ -65,39 +65,9 @@ Owner, 2026-09-30, settled:
 - **The grudge ledger.** Cuss keeps a running list of who wronged whom
   and brings up old entries. Owner: a fun basis for story progression
   with real choices.
-- **Maybe family to the Fairy**, who is also known to hold grudges.
-- **Maybe kin to the Lord of Edge** too (owner, 2026-09-30: "not too far
-  fetched"). See [lore.md](lore.md), *The pantheon*.
-
-### Explosive (`explosive_aspect`)
-
-Fiery, explosive personality. Easily triggered, short fused.
-
-### Blindness: Justice × Sandman (`blindness_aspect`)
-
-Trusting (kinda has to be), always has an ear to lend. The owner doubted
-a wise sage fits blindness as a concept. Of the alternatives (a
-**Sandman**, a **bat**, a blindfolded **Justice**), all three appealed.
-The leading pick is a Justice × Sandman mix.
-
-The hook, owner, 2026-09-30: a **Throw Sand** spell that blinds (see the
-matrix's Blindness row). It is of course a REAL SKILL (it's a skill tree!
-skills!) and not a CHEATING TACTIC. Justice, blindfolded and impartial,
-ruling that sand to the eyes is perfectly fair play fits the irony. So
-does the Sandman, whose job already is sand in the eyes.
-
-### Armor break (`armor_break_aspect`)
-
-A pet dog or cat or bird, or all in one. Notorious for gnawing on
-everything and everyone. Very cute though: the goodest grill/boi.
-
-### Scout (`scout_aspect`)
-
-A small wink to TF2's Scout × Hades II's Hermes. In a rush, places to
-go, talks fast, knows they play a vital role despite seeming
-underwhelming.
-
-### Contenders (only if promoted in the matrix)
+- **Maybe family to the Fairy**, who also holds grudges, and so kin to the
+  Lord of Edge (owner, 2026-09-30: "not too far fetched"; the Fairy most
+  likely *is* the Lord). See [lore.md](lore.md), *The pantheon*.
 
 - **Spikes** (`spike_aspect`): hedgehog-ish or something very pointy.
   Sharp, witty, loves to poke around, at people, at things.
