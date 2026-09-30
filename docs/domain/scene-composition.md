@@ -59,7 +59,11 @@ only its stake-scaled grants while its `×1.5 blade_damage` sits in the scene.
 **The recurring mistake:** reading `<name>_addon.gd`, seeing no modifiers,
 and minting `StatModifier.new()` in an apply hook — a duplicate of what the
 scene already grants, so the stat double-counts (`4165473` minted spike ring's
-`blade_damage` in `get_local_modifiers`; `f3b5b24` moved it back to the scene). **How to apply:** open the
+`blade_damage` in `get_local_modifiers`; `f3b5b24` moved it back to the scene).
+The owner caught it twice more before anything landed: 2026-09-16, an agent
+placed `BunkerAddon` as a bare script node instead of instancing its scene;
+2026-09-24, an agent surveyed addon modifiers from the scripts alone ("you
+should be looking at the *scenes*"). **How to apply:** open the
 `.tscn` first; add a modifier there (a `resource_local_to_scene` sub-resource,
 as the existing scenes do); code-mint one only when it's computed (scales with
 `stake_level`, reads another stat). A new addon is a scene on the base or a
