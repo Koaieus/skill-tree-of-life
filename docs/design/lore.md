@@ -168,7 +168,7 @@ tree, stats — and above all the six main attributes (STR DEX INT WIS PER
 CON) — are like gods or Titans: real, ruling, but abstract, never met. The
 greek parallel reaches past the Titans to the primordials who rule even
 them (Chaos, Gaia). The **aspects** (`poison_aspect`, `wither_aspect`, … —
-see [aspect_matrix.md](aspect_matrix.md), Personas) are the lesser gods,
+see [aspect_personas.md](aspect_personas.md)) are the lesser gods,
 closer to the Olympians: they materialize in the world, act, and talk.
 Only aspects get characters for now; real attribute-god characters may
 come later.

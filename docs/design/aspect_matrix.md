@@ -36,7 +36,7 @@ TBD on #1199.
 | Corruption | `corruption_aspect` | #971 | #971 | #971 | spreads as a sandpile by nature (#1202); health bar shows blips per stack, extra-mean when critical (#1092) |
 | Curse | `curse_aspect` | #972 | #972 | #972 | raises `min_damage_taken`; spills to surviving direct neighbours on death AND dealloc (#1204) |
 | Wither | `wither_aspect` | #973 | #973 | #973 | drives healing received negative |
-| Blindness | `blindness_aspect` | TBD | TBD | TBD | count stacks, effect reads as a % via a saturating curve |
+| Blindness | `blindness_aspect` | TBD | TBD | candidate: **Throw Sand** spell (owner, 2026-09-30) | count stacks, effect reads as a % via a saturating curve |
 | Scout (a reveal, #949) | `scout_aspect` | scouting arrow (shipped) | watchtower addon (shipped); temp: lit blade node pushing back fog (owner pitch, perf-sensitive: one moving mark per blade, never a second vision path) | TBD | `effects/status/scouted.tres` is live (VisionSystem's decay rule); first-class concept (owner, 2026-09-30) |
 | Armor break | `armor_break_aspect` | #395 | #395 | #395 | flat −1 armor per stack, uncapped, can go below zero (#1203, owner 2026-09-30) |
 | Explosive | `explosive_aspect` | explosive arrow (#1211) | explosive addon, procgen at low rate; detonation kills the blade node, reuses spike-pop plumbing (#1211) | stub (#1211) | euclidean hitscan radius from `SkillNode.radius`; barrels / friendly fire open (#1211) |
@@ -50,52 +50,11 @@ Not yet promoted into the Matrix proper — fill cells when a good idea shows up
 | Spikes | `spike_aspect` (if promoted) | TBD | `spike_ring_addon.tscn` (×1.5 local `blade_damage` + stake-scaled `spikes`) | TBD | owner estimate ~×4.5 damage at 3/3 allocation, unmeasured |
 | Blunting | `blunting_aspect` (if promoted) | TBD | today only a spiked node's +1 | TBD | — |
 
-## Personas (lore, parked)
+## Personas
 
-Owner idea, 2026-09-30 — nothing to start on soon, written down so it isn't
-lost: each `*_aspect` gets a real personified character. Owner's sketches,
-kept close to verbatim:
-
-| Aspect | Persona |
-|---|---|
-| `poison_aspect` | Green-ish, radiant, cuddly yet insidious; named **Ivy** — or, in a heavy Brit accent, **Oivy**. Favourite encouragement: *"you have got it in you! running through your veins"* |
-| `wither_aspect` | Gray tones, sad-ish. Possibly only quotes U2, leaning on "Wither Withoutyou" before snapping out of it — or maybe their name really is **Withou-Chu** |
-| `corruption_aspect` | Sleek, devilish business"man". Archetypal capitalist, loves stacking, soft spot for deals — especially at the cost of morals |
-| `curse_aspect` | ??? (open) |
-| `explosive_aspect` | Fiery, explosive personality. Easily triggered, short fused |
-| `blindness_aspect` | Trusting (kinda has to be), always has an ear to lend. A wise sage? — owner doubts a sage fits blindness as a concept; open |
-| `armor_break_aspect` | A pet dog or cat or bird, or all in one. Notorious for gnawing on everything and everyone. Very cute though — the goodest grill/boi |
-| `scout_aspect` | A small wink to TF2's Scout × Hades II's Hermes: in a rush, places to go, talks fast, knows they play a vital role despite seeming underwhelming |
-| `spike_aspect` *(only if promoted)* | Hedgehog-ish or something very pointy. Sharp, witty, loves to poke around / at people / at things |
-| `blunting_aspect` *(only if promoted)* | Maximal stoner. Yeah, take the edge off |
-
-Agent suggestions for the open cells (2026-09-30, not owner calls):
-
-- **Curse** — the lore already has a curse spoken in Old Tongue that
-  English ears parse as profanity ([lore.md](lore.md), the Fairy's
-  "AAH FUUUCK"). A curse persona who only speaks Old Tongue, so every
-  line *sounds* like swearing, rhymes with that — but may pre-empt the
-  reveal, so weigh it against the lore beat. Mechanically the curse is
-  petty and outlives its host (raises `min_damage_taken`, spills to
-  neighbours on death), so a grudge-holder who never forgets fits too.
-- **Blindness** — alternatives to the sage that keep "trusting, has an
-  ear": a **Sandman** (blinds by sand in the eyes, gentle, lulling, a
-  listener); a **bat** (lives by ear, echolocation puns); a blindfolded
-  **Justice** ("I don't see sides").
-- **Poison** — "Ivy" leans on DC's Poison Ivy; "Oivy" is the twist that
-  makes it its own.
-
-Owner, 2026-09-30: for a single-player story expansion (wayyyy later),
-the aspects could be introduced one at a time, in order — each debut is
-where that persona's character gets to shine in the dialogues.
-
-Where they sit in the cosmology — attributes as abstract Titan-class gods,
-aspects as the lesser gods who materialize and talk — is in
-[lore.md](lore.md), *The pantheon*. Voiced eventually; the game has no
-audio yet, so voice is later work.
-
-Open: the introduction order; whether personas get speech bubbles like
-the Fairy, sit behind the aspect's UI, or stay flavour text only.
+Each aspect's personified character lives in
+[aspect_personas.md](aspect_personas.md), designed separately on top of
+this table's rows.
 
 ## Open
 
