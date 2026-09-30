@@ -169,7 +169,7 @@ func test_temp_upgrade_over_melee_still_reads_melee() -> void:
 
 func test_disarming_returns_to_transparent() -> void:
 	_ctl.on_attack_mode_requested(BattleSystem.AttackMode.MELEE)
-	_battle.cancel_attack()
+	_ctl.on_attack_mode_requested(BattleSystem.AttackMode.NONE)
 	assert_eq(_ctl.get_armed_tint().a, 0.0)
 
 
@@ -188,7 +188,7 @@ func test_signal_fires_once_per_tint_transition() -> void:
 	_ctl._refresh_armed_state()
 	assert_signal_emit_count(_ctl, "armed_tint_changed", 1)
 
-	_battle.cancel_attack()
+	_ctl.on_attack_mode_requested(BattleSystem.AttackMode.NONE)
 	assert_signal_emit_count(_ctl, "armed_tint_changed", 2)
 	assert_signal_emitted_with_parameters(
 			_ctl, "armed_tint_changed", [Color.TRANSPARENT], 1)

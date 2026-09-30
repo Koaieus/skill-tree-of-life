@@ -67,6 +67,8 @@ func test_resolve_none_when_idle() -> void:
 
 func test_resolve_core_move_when_targeting() -> void:
 	var ictl: PlayerInputController = autofree(PlayerInputController.new())
+	ictl.armed_stack = autofree(ArmedStack.new())
+	ictl.armed_stack.set_root(ManageMode.new(ictl))
 	ictl.armed_stack.push(CoreMoveMode.new(ictl, _nodes[0]))  # pretend the player picked their core
 	_ctl.input_ctl = ictl
 	_ctl._resolve()
@@ -87,6 +89,8 @@ func test_attack_plan_node_role_survives_rename() -> void:
 
 func test_attack_plan_outranks_core_move() -> void:
 	var ictl: PlayerInputController = autofree(PlayerInputController.new())
+	ictl.armed_stack = autofree(ArmedStack.new())
+	ictl.armed_stack.set_root(ManageMode.new(ictl))
 	ictl.armed_stack.push(CoreMoveMode.new(ictl, _nodes[0]))
 	_ctl.input_ctl = ictl
 	var bs: BattleSystem = autofree(BattleSystem.new())
