@@ -523,6 +523,9 @@ func _find_winning_set() -> StatModifier:
 ## runtime counts, never judged on its bare coefficient. No cache: a scan of a
 ## handful of [method StatModifier.valence] calls, taken at read time.
 func is_volatile() -> bool:
+	for m in _modifiers:
+		if m.valence(_board) == StatModifier.Valence.VOLATILE:
+			return true
 	return false
 
 

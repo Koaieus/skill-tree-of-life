@@ -217,7 +217,12 @@ func get_local_value(stat_id: StringName) -> Variant:
 ## [method get_local_value_with] folds — this node's board and its owner's
 ## entity board. An accessor token reads state, not a fold: never volatile.
 func is_local_volatile(stat_id: StringName) -> bool:
-	return false
+	if StatFormula.is_accessor_token(stat_id):
+		return false
+	if board() != null and board().is_stat_volatile(stat_id):
+		return true
+	var o := owner()
+	return o != null and o.board() != null and o.board().is_stat_volatile(stat_id)
 
 
 ## Reads an accessor token (`<stat_id>__<accessor>`) off whichever board owns
