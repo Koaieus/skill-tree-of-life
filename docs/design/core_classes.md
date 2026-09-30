@@ -4,15 +4,9 @@ A **core class** defines an entity's fundamental identity — starting stat weig
 
 Core classes are not locked. A run may present opportunities to shift class identity through late-game loot or landmark (keystone) nodes. The starting class sets the trajectory.
 
-> **The roster is code.** A core class exists if and only if it is listed in [`entity/core/core_class_roster.tres`](../../entity/core/core_class_roster.tres); its `.tres` holds the numbers and the player-facing `description`. This doc is design intent — **most classes below are not built**. Check the status line under each heading before citing one as a mechanic.
+> **The roster is code.** A core class exists if and only if it is listed in [`entity/core/core_class_roster.tres`](../../entity/core/core_class_roster.tres); its `.tres` holds the numbers and the player-facing `description`, and a shipped class has no entry here. **Every class below is unbuilt** — Halo has an issue (#786), the rest are ideas with no issue — so never cite one as a mechanic.
 
-| Status | Classes |
-|---|---|
-| **Shipped** (in the roster) | Balanced (`balanced_core.tres`), Ninja (`ninja_core.tres`), Serpent (`serpent_core.tres`), Pacifist (`pacifist_core.tres`, #160 — no entry below), Wise Cheater (`basic_enemy_core.tres`, the AI default — no entry below) |
-| **Designed, issue open — not built** | Halo (#786) |
-| **Idea only — no issue, not scheduled** | Allround, Predator, Bulwark, Hive, Frontier, Harvester |
-
-Shipped entries below describe the original design; where one disagrees with its `.tres`, the `.tres` wins. The shipped Balanced class is **not** the Allround below (Balanced is flat attributes plus a heal aura; Allround is an XP edge).
+The shipped Balanced class is **not** the Allround below (Balanced is flat attributes plus a heal aura; Allround is an XP edge).
 
 > **Combat-redesign deltas affecting classes (see `combat_system.md`).**
 > - **Degree-defense is removed.** Node durability now comes from **CON (White)**, not from edge count. This leaves **Bulwark** and **Halo unaffected** — they always defended through armor / `damage_floor` / thorns / shell topology, never through degree. Hubs are now glass cannons (great casters, normal HP), which only sharpens the "silence, then grind" counterplay.
@@ -146,35 +140,6 @@ Introduced after the player is comfortable with basic island rules and the stat 
 
 ---
 
-### The Ninja — *The Phantom*
-
-> **Status: shipped** — `entity/core/ninja_core.tres`. The `.tres` is authoritative for what it does.
-
-**Identity:** A mobile surgical striker that hits from a tight core cluster and retreats before the enemy can respond.
-
-**Playstyle:** Defined by deallocation budget. More deallocations per turn than any other class means it can reshape dramatically within a single turn — extend a tendril toward a target, strike, retract, all in sequence. Its core aura is intense but very short-ranged, so the core must be close to the fighting nodes for them to hit hard. Low SP cap means it can't sprawl. The class identity lives in the interplay between high DAP, intense close-range aura, and SP constraint.
-
-**Stat profile:**
-| | |
-|---|---|
-| Boosted | `deallocation_points` (high); core aura strength (intense, very short-range) |
-| Nerfed | `skill_points_max` (low cap); effectiveness of nodes more than ~6 hops from core |
-| Unique | None beyond stat weights + aura shape |
-
-**Aura:** Intense, very short-range (~2 hops). Steep falloff.
-
-**Ideal constellation:** Compact core cluster with temporary tendrils. Between strikes, constellation collapses inward.
-
-**Unique mechanic(s):** None — the class is the aura constraint and the DAP budget. Stats and shape rules are the mechanic.
-
-**Synergizes with:** Buffer addon; high-dealloc nodes; R (Red) STR nodes.
-
-**Counterplay:** Ring topology. A 2-edge-connected constellation with no single bridge is hard to sever with one strike. Force the Ninja to make multiple cuts it can't afford with its low SP cap.
-
-**Introduction point:** Mid-game.
-
----
-
 ### The Hive — *The Swarm*
 
 > **Status: idea only — not built, no issue.**
@@ -276,49 +241,6 @@ The ring doesn't shrink in parameter (`shell_distance` is unchanged). The *set o
 
 ---
 
-### The Serpent — *The Coil*
-
-> **Status: shipped** — `entity/core/serpent_core.tres`. The `.tres` is authoritative for what it does.
-
-**Identity:** Power flows to nodes that are far in hops but near in space — a constellation that winds around itself.
-
-**Playstyle:** The Serpent's aura scales two ways simultaneously: buff proportional to hop-distance from core (further hops = more buff), penalty proportional to euclidean distance from core (further in space = penalized). The sweet spot is many hops away but spatially near. The shape this produces: a tight coil, spiral, or labyrinthine path that winds many times around the core without straying far. The chasm scenario is the class's peak power state: core on one side of a region with few edges crossing, with a winding path crossing the chasm and back, placing premium nodes near the core geometrically while being many hops away topologically. Those nodes receive both the hop-distance buff AND the core's euclidean aura — double-buffed.
-
-**Stat profile:**
-| | |
-|---|---|
-| Boosted | Nodes far in hops from core: buff proportional to `hop_distance_from_core` |
-| Nerfed | Nodes far in spatial distance from core: penalty proportional to `euclidean_distance_from_core` |
-| Unique | Dual-metric aura (both components active simultaneously) |
-
-**Aura:** Dual-component. Component A: buff scales with hop_distance_from_core (further = stronger). Component B: penalty scales with euclidean_distance_from_core (closer = no penalty; further = penalized). Net: the premium zone is many hops away, spatially close. A node at hop 9 and euclidean 180px: maximum buff + inside core aura range = double-buffed.
-
-**Ideal constellation:** Coil / spiral / labyrinth. The path from core to leaf winds many times without expanding geographically. In dense graphs: zigzag or spiral patterns. Looks nothing like a normal constellation.
-
-**Chasm exploitation:**
-When a field has a sparse region (a "chasm" — few or no edges crossing it), the Serpent can cross it via a small bridge and wind back to the core side. The end nodes on the return path are:
-- Euclidean-close to the core (across the chasm, but spatially near if the chasm is narrow)
-- Many hops from the core (the path wound up, across, and back down)
-- Potentially inside the core's euclidean aura range (if the aura radius exceeds the chasm width)
-
-These nodes receive both the Serpent's hop-distance buff and the core's euclidean aura simultaneously. They are the most powerful nodes the class can produce.
-
-**Unique mechanic(s):**
-- **Dual-metric aura:** The first class to make hop-distance and euclidean-distance explicitly compete. Players must reason in both metrics simultaneously.
-- **Deceptive reach:** "Far" nodes (by hops) are actually nearby geometrically. Opponents who expect distant nodes to be weakly supported are wrong — and their ranged attacks can reach those nodes easily.
-
-**Synergizes with:** Winch addon (reduces euclidean distance, helps avoid penalties); The Web and dense field themes (many edges = many winding paths); B (Blue) magic spells with hop-based propagation (long hop-paths = long spell chains).
-
-**Counterplay:**
-- **Bridge targeting (primary):** Do NOT attack N9 (the premium node at the end of the wind). Attack the bridge — the 1–2 nodes that make the chasm crossing possible. Destroying the bridge collapses the entire arm on the far side. The Serpent's premium nodes are a consequence of the bridge existing; remove the bridge, remove the nodes.
-- **Why ranged alone doesn't win:** Ranged attacks reach the premium nodes easily (they're spatially close). But hitting the premium nodes doesn't solve the problem while the bridge stands. The bridge itself is typically at a *higher* euclidean distance from the attacker than the premium nodes, making it harder to range-snipe than it looks. Magic (B-type, hop-based) may be more effective at reaching the bridge through the graph.
-- **Field theme denial:** Force the Serpent to fight in sparse or radial fields (Constellation Map, Classic Talent Tree) where winding paths are few and chasm opportunities are scarce. In The Web, the Serpent thrives.
-
-**Introduction point:** Mid-to-late game. Requires fluency with both distance metrics simultaneously.
-
-**Balancing notes:** The dual-coefficient aura needs careful calibration. If penalty is too weak, the Serpent is good at everything; if too strong, it's unplayable outside dense fields. The Winch addon interaction needs a cap — otherwise Winch trivializes the euclidean penalty. The chasm scenario is the intended power fantasy, not an exploit.
-
----
 
 ## Design Space — Sketched Classes
 
@@ -353,10 +275,8 @@ Mechanics sketch: White (W) nodes generate double or triple normal xp_per_turn. 
 | Allround | idea | XP (bonus) | Linear / hop | Any | No | Low |
 | Predator | idea | Enemy nodes (BLITZ) | Close-range attack | Forward-extended | No | Low-Med |
 | Bulwark | idea | Armor / floor reduction | Close-range defense | Compact ring | No | Low-Med |
-| Ninja | **shipped** | Dealloc budget | Intense, very short | Compact + tendrils | No | Med |
 | Hive | idea | Distributed pods | Per-pod (or none) | Many isolated pods | No | High |
 | Halo | #786 | Shell ring + thorns | Shell at N hops | Ring at shell_dist | **Yes** | Med |
-| Serpent | **shipped** | Hop/euclid tension | Dual-metric | Coil / spiral | No | High |
 | Frontier | idea | Leaf nodes | Leaf-count scalar | Sprawling tendrils | No | Med |
 | Harvester | idea | White XP income | TBD | White-heavy cluster | No | Med |
 
