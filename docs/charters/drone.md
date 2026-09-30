@@ -101,11 +101,15 @@ against them.
     report). Compaction resets the usage the hook reads, so the hook is now
     the floor for a drone that spends 50k+ in a few fat turns right after a
     compaction, not the common path.
-11. **Three failed cycles on one thing is a loop.** The next action is a
-    message to the designated advisor (Sage when the run has one, else
-    `main`) with goal / exact error / the three attempts / current
-    hypothesis — then end the turn and wait. The model that got into the loop
-    is the wrong model to get out of it.
+11. **Stuck is a state, not a count.** Before each retry the drone states
+    what it believes is wrong and what the attempt will show; when it can't,
+    or the belief was already disproved, it is throwing things at a wall and
+    asks its advisor (goal / exact error / attempts / where understanding
+    ran out), then ends the turn. A cause known on sight (typo, wrong path)
+    is not stuck. A count misfired both ways: three typos tripped it, a
+    drone lost after two tries didn't. The model that got into the loop is
+    the wrong model to get out of it; stuck again after the answer → report
+    `PULL` (owner, 2026-09-30).
 12. **A stop instruction outranks the plan.** No new long command after a
     stop; report the half-finished thing as unfinished.
 
@@ -141,9 +145,13 @@ against them.
     `Sage`, `main`, or the `advisor` tool — and the drone does not pick a
     different one. `advisor` re-sends the whole transcript per call at Fable rates, so
     one call costs ~5× the drone's context in sonnet units — a Sonnet drone
-    at 80k spends ~400k, about a whole unit; the law is therefore **one
-    call, before ~100k, on the first loop**, and a second call means retire
-    (swarm charter law 8, owner call 2026-09-15).
+    at 80k spends ~400k, about a whole unit; the law is therefore **three
+    moments**: the plan (cheapest, default), stuck (once) and done (only
+    with no Sage) — swarm charter law 8, owner 2026-09-30, superseding the
+    2026-09-15 one-call-on-the-first-loop rule. The drone agent file ends
+    with a short note addressed to the advisor, which reads the drone's
+    context: straight route or "stop, report `PULL`", never a list of
+    things to try.
 21. **Act on whichever arrives first — the spawn prompt or the first message
     from `main`.** Named teammates have been observed idling on a prompt and
     waiting for a mailbox brief; a drone with a brief in hand starts.

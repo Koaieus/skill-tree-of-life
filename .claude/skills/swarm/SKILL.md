@@ -23,7 +23,8 @@ goes by explicit path (a new script's generated `.uid` included), the red
 test first when a claim is testable; writes
 only owned paths and reports a need outside the fence instead of reaching;
 `@export`s an open number as a knob and lists it as tentative; calls
-`advisor` once, early, and treats a second as retire; retires on a blown
+`advisor` at the plan, once when stuck (no hypothesis left, not a
+count), and at done when there is no Sage; reports `PULL` on a fork or wall; retires on a blown
 budget by `wip(...)` commit + successor `gh issue comment` + report; never
 `Closes`, rebases, lands, asks the user, or expands scope.
 
@@ -96,14 +97,18 @@ questions to resolve by reading.
 
 ## Roles
 
-- **Drones' advisor is the `advisor` tool**, named in every brief with the
-  *when*: once, early (before ~100k), on the first loop, a design doubt, or
-  a stub that looks wrong — never on a green path. A second call means
-  retire. The tool's job is calm in one message: the straight route, or
-  "retire, this needs another design pass".
+- **Drones' advisor is the `advisor` tool**, named in every brief with its
+  three moments: the plan (before the first edit), stuck (once — out of
+  hypotheses, not a count of failures), and done (only with no Sage: it
+  reviews the diff so you don't have to). Its answer is the straight route
+  or "stop, report `PULL`".
+- **A `PULL` report takes the unit off this run.** Comment the fork on the
+  issue, move it to `Needs design`, and don't dispatch anything it blocks;
+  a dependent whose spec the fork changes goes back to `Needs design` too.
 - **You review and you land.** `git diff master...<branch> --stat` for the
-  fence on every unit; the full diff on opus-tier units and anything a
-  player would notice. One `advisor` call per wave for the judgement, not
+  fence on every unit; the full diff only where your cross-unit overview
+  is what's being checked — a seam another unit touches, anything a player
+  would notice — since the drone's done-call has reviewed the rest. One `advisor` call per wave for the judgement, not
   per unit. `mise run land` from your own context — never resume a
   deep-context drone to rebase, merge or land.
 - **Sage is opt-in, and never lands.** At four or more concurrent drones,
@@ -217,8 +222,8 @@ mise run issue-drift -- <n>                             # silent = the Ready com
   `HudRoot.compose()`, on master at `<sha>`." For a collision pair, the
   second brief names the first's landed sha.
 - **Tier**, and that it decides the drone's model.
-- **"Your advisor is the `advisor` tool: once, early, on the first loop or a
-  design doubt; a second call means retire."** (Or "Sage is your advisor;
+- **"Your advisor is the `advisor` tool: at the plan, once when stuck, and
+  at done."** (Drop "at done" when Sage runs.) (Or "Sage is your advisor;
   your last turn is the review request to Sage plus your report as text —
   never wait for its verdict.")
 - **A turn/time budget as a HARD stop, budgeting the first report**: "80

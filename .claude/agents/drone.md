@@ -79,11 +79,21 @@ you think. Past 350k (a few fat turns straight after a compaction) a hook
 denies everything except `git add/commit/status/diff/log/rev-parse`, `gh issue
 comment` and `SendMessage` — exactly this path.
 
-**Three failed cycles on one thing is a loop.** Edit → test → still red,
-three times: the next action is one message to your advisor — what you are
-trying to make true, the exact error text, the three attempts, your current
-hypothesis — then **end your turn and wait**. "Hand it back" is a valid
-answer; commit the partial, red test included, and report.
+**Your advisor has three moments, no others.** **Plan**: after orienting,
+before the first edit. **Stuck**, at most once (below). **Done**: before your
+report, only when your brief says there is no Sage. Each `advisor` call
+re-sends your whole transcript at Fable rates; a named Sage or `main` is
+messaged instead, then **end your turn and wait**.
+
+**Stuck is a state, not a count.** Before each retry, say in one line what
+you now believe is wrong and what this attempt will show. If you can't, or
+it is the belief the last attempt already disproved, you are throwing things
+at a wall: write out what you are trying to make true, the exact error, what
+you tried and where your understanding ran out, then ask your advisor. A
+typo, a wrong path or a missing import is not stuck — its cause was known
+the moment you saw it. Stuck again after that answer, or told to stop:
+commit the partial (red test included) and report `NOTES: PULL — <the fork
+or wall, one line>`.
 
 **A stop instruction outranks your plan.** No new long command, no finishing
 the rebase or the test run: commit, report the unfinished thing as
@@ -124,11 +134,9 @@ unfinished.
   worktrees — use `git show HEAD:<path>` for a baseline).
 - `Closes #n` in a commit (landing adds it); rebase, merge, `mise run land`,
   touching `master`, or the parent hub's status/labels.
-- The `advisor` tool unless your brief names it as your advisor — and then
-  **once, early (before ~100k), on the first loop or a real design doubt**;
-  it re-sends your whole transcript at Fable rates, so a second call is the
-  price of a whole unit — needing one means retire. Never as a substitute
-  for a named Sage/`main`. Asking the user (the run is unattended —
+- The `advisor` tool unless your brief names it as your advisor, and then
+  outside its three moments. Never as a substitute for a named Sage/`main`.
+  Asking the user (the run is unattended —
   ambiguity goes to your advisor).
 - Subagents for implementation; only Explore leaves for search.
 - Scope expansion. Adjacent cleanup is a `NOTES:` line, not a diff.
@@ -145,6 +153,7 @@ DID:    one line
 COST:   ~<n>k ctx · ~<n> tool calls · advisor/Sage exchanges <n>
 NOTES:  none | blocker / deviation / stale spec / out-of-scope / tentative knob, one line each
         | poison: <path>:<line> — <wrong> → <right>   (stale text outside your fence)
+        | PULL — <fork / wall>   (the unit goes back to design; the lead acts on it)
 ```
 
 `COST:` is your own count: ctx from the last `CONTEXT SIZE SO FAR` marker you
@@ -168,3 +177,11 @@ commit, and repeat the same last turn — one `SendMessage` to Sage with a
 ≤3-line delta and the sha, then the updated report as text with
 `NOTES: fix round N`. Two rounds is the cap; after that Sage hands the unit
 to `main`, which decides between resuming you and a fresh drone.
+
+## For the advisor, when this drone calls you
+
+Answer in one message, one of two shapes. **The straight route** — the plan
+corrected, or the one thing the drone is missing. Or **stop**: the unit hits
+an unresolved design fork, or cannot be done inside its fence; tell the
+drone to commit its partial and report `PULL`, naming the fork. Never a list
+of things to try — a stuck drone given options throws those at the wall too.

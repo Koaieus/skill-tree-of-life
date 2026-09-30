@@ -38,9 +38,11 @@ Fable land: the mechanical step is not where a Fable earns its seat, and its
 context compounded across every drone's questions. The drone-side
 arithmetic decides the advisor cap: one `advisor` call at context *c*
 costs ≈ 5*c* sonnet units; Sage costs ≈ 20–25k Fable per unit ≈ 100–125k
-sonnet units, mostly cache reads. So `advisor` beats Sage only at one
-call made before ~100k — which is exactly the loop-breaking use the
-owner wants, and why the drone's second call is a retirement.
+sonnet units, mostly cache reads. So `advisor` beats Sage on price only
+at small context — the plan call, which is why it is the default. The
+done-call (no Sage) is dearer in tokens than the lead reading a diff; what
+it buys is the lead's context, the run's scarce resource: every page the
+lead reads is re-read at every later wake and brings its ceiling closer.
 
 Everything is measured after the fact by `mise run agent-cost` (`priced`
 column, sonnet units) and logged per unit in the ledger; the tier heuristic
@@ -104,17 +106,27 @@ disk at `scratchpad/land/land-<n>.log` (#920), so filling the ledger is a
 
 **Roles**
 
-8. **The drone's advisor is the `advisor` tool**, named in the brief, and the
-   brief says *when*: early — on the first loop (three failed cycles), on a
-   design doubt, on a stub that looks wrong — never on a green path, and
-   **once, before ~100k**: a call costs ~5× the drone's context in sonnet
-   units (a Sonnet drone at 80k → ~400k, about one whole unit; at two calls
-   it is already Sage-priced), so a second call means retire. Its job is
-   calm in one message: the straight route, or "retire, this needs another
-   design pass". `agent-cost` prices each advisor call and adds it to
+8. **The drone's advisor is the `advisor` tool** (Fable — two tiers above a
+   Sonnet drone, one above the Opus lead), named in the brief with three
+   moments. **Plan**: after orientation, before the first edit — the
+   drone's context is smallest there, so it is the cheapest call and the one
+   that saves the most. **Stuck**, at most once — a state, not a count: the
+   drone can no longer state what it believes is wrong and what the next
+   attempt will show, and is throwing things at the wall; tripping over a
+   typo or a wrong path is not stuck. **Done**, only when no Sage runs: the
+   advisor reviews the diff instead of the lead reading it. A call costs
+   ~5× the drone's context in sonnet units, which is why the plan call is
+   the default and the other two are conditional. Its answer is one message:
+   the straight route, or "stop — report `PULL`" when the unit hits an
+   unresolved fork or a wall; a `PULL` takes the unit off the run and back
+   to `Needs design`, and what it blocks is not dispatched. The advisor sees
+   only the drone's context, so the done-call checks the unit and the lead
+   still checks what spans units. `agent-cost` prices each advisor call and adds it to
    `priced`, so the Sage-vs-advisor comparison is on one axis.
 9. **The lead reviews and lands.** `--stat` for the fence on every unit;
-   the full diff on opus-tier and anything a player would notice; one
+   the full diff only where the cross-unit overview is what's checked (a
+   shared seam, anything a player would notice) — a drone's done-call
+   reviewed the rest, cheaper than bloating the lead's context; one
    `advisor` call per wave for the judgement, not per unit; `mise run land`
    from the lead's own cheap context. Never resume a deep-context drone to
    rebase, merge or land.
@@ -264,6 +276,7 @@ disk at `scratchpad/land/land-<n>.log` (#920), so filling the ledger is a
 | 2026-09-27 | 10 units | 10 opus-tier units (two hubs, 3 waves, 4 drones resumed across waves for hot context, 1 Sage, 0 rejects, 16 review exchanges) landed + train-gated in ~40 min wall; owner: "43% of limit used" — a snapshot unit (law 5 text above), ≈4%/unit against 2026-08-03's ~12%/unit; lead finished at ~160k by delegating every sweep | 5, 6 |
 | 2026-09-28 | #1179 tier experiment | owner: "try the experiment, ask it to let advisor have a pass when done"; Sonnet on #1179 (new channel + 7 re-pointed tests) vs #1178 (opus, comparable): 123 calls (90 cap) / Σctx 18.4M / 2.48M priced / 48 min vs 45 / 4.2M / 1.74M / 12 min — landed clean, ~40% dearer; overrun blamed on recovering from an early write to the main checkout | 6, 12 |
 | 2026-09-29 | 3 sonnet + 2 opus | priced per 100 changed lines: opus 0.19M (#1190) / 0.20M (#1196), sonnet 0.37M (#1191) / 0.70M (#1082); both medium Sonnet units left stale characterization tests the lead re-pointed in the train; the 2-line #1107 leftovers unit at 125k was the only clean Sonnet win → owner, 2026-09-30: Sonnet for "small units or dumb units" | 6 |
+| 2026-09-30 | owner | advisor law redrawn: "we shouldn't underestimate the power of the Advisor tool … so long Sonnet gets the plan right at the right time (and doesn't try 100 failed attempts first) that should help a lot"; a loop is not a count — the target is "i'm throwing things at a wall now", where drones "should raise their finger and be like 'help pls sensei, shed some light'"; with no Sage "a final advisor call might still be cheaper than bloating lead's context; though lead may have more of an overview"; an advisor answering a fork says stop and flag the lead, and the issue is "pulled from the swarm, sent back to the drawing board; possibly issues it blocks removed too" | 8, 9 |
 
 ## What the skill must not contain
 
