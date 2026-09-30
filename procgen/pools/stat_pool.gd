@@ -50,7 +50,7 @@ extends Resource
 ## Matched by [method admits_subtype]; a non-empty list also mints an id
 ## segment in [method to_entries], so two pools for the same (stat, op,
 ## archetype) gated to different subtypes stay addressable by weight profiles.
-## See docs/design/node_subtypes.md.
+## See docs/domain/node-subtypes.md.
 @export var subtypes: Array[NodeSubtype] = []
 
 ## Tags shared by every tier of this pool, auto-stamped onto each entry

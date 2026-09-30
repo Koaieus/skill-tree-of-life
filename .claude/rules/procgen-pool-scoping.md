@@ -60,7 +60,7 @@ mechanism. There is no `NodeSubtype.forbid_tags` — the set IS the give-up (D12
   `[]` pool deliberately does not count — it is drawn by everyone, so counting it would
   let a node look blighted and play regular.
 
-Full model and the decision list: `docs/design/node_subtypes.md`.
+Full model and the decision list: `docs/domain/node-subtypes.md`.
 
 **The subtype half stays per-pool (D8):** a pack is one archetype by definition, so the
 archetype lives on the pack; a pack deliberately holds *mixed* subtypes, so subtype is real

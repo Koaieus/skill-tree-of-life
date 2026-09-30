@@ -145,6 +145,8 @@ Implementation: `docs/domain/melee-blade-sim.md`, "Bunker deflection (#781)".
 
 ### Clamp
 
+> **Shipped** as `ClampAddon` (`skill_node/addons/clamp_addon.gd`, `clamp_addon.tscn`). Implementation: `docs/domain/melee-blade-sim.md` § `ClampAddon`.
+
 **Effect:** If a node carrying the Clamp addon is used in a **phantom blade** (see melee, `combat_system.md`), its corresponding **joint becomes a clamp (a weld) instead of a free pin.** That is the *whole* effect — it locks the angles at that one joint into the blade's swing frame.
 
 **Why it matters:** Melee rigidity is normally **emergent from triangulation** (the grip/pivot is the only default clamp; every other joint is a free pin). Clamp lets you **stiffen a chosen joint *without* a triangle**, opening crafting options triangulation can't:
@@ -161,23 +163,19 @@ Implementation: `docs/domain/melee-blade-sim.md`, "Bunker deflection (#781)".
 
 ---
 
-### Spikes *(offensive direction shipped #778; defensive collision model + Thorns unification remain OPEN)*
-
-> Spikes unify (and physically reframe) the offensive and defensive sides of node *sharpness*. Closely related to **Thorns** — see the `FLAG` below; resolve whether they are one stat or two **before either ships.**
+### Spikes *(offensive direction and pop budget shipped #778; defensive collision model remains OPEN)*
 
 > **Resolved by #778 (2026-09-07 #772 session):** the "sharpness" unification never shipped. Owner: *"no 'sharpness' anymore, blade_pops only (and defensively). the offensive stats already live on the SpikeAddon-granted 'blade damage' modifiers."* `SpikeRingAddon` grants three independent things now: the offensive `blade_damage` modifiers below (unchanged), plus a node-local `spikes` pop-budget `PoolStat` (default 0, scales 1:2:3 with stake) and `spike_regen` (same scaling, `PerTurnMode.ADD`). `blunting` (default 1, 2 on a spiked attacking vertex) is the new per-vertex cost term on the OTHER side of a contact. `thorns`/`thorns_base` stayed exactly what they were — there is no `thorns` StatDef; Thorns is `armor.tres` / `min_damage_taken.tres`.
 
-**Offensive *(confirmed direction)*:** Spikes raise a node's **vertex-spike** contribution when that node is part of a phantom blade. The combat doc bundles face damage as `Σ edges + Σ vertex spikes + B`; a Spikes modifier/addon raises that **vertex term** — a swung spiked node drives its spikes through whatever it sweeps (this is the "swung = offensive" half of thorns=spikes in `combat_system.md`).
+**Offensive *(confirmed direction)*:** Spikes raise a node's **vertex-spike** contribution when that node is part of a phantom blade. The combat doc bundles face damage as `Σ edges + Σ vertex spikes + B`; a Spikes modifier/addon raises that **vertex term** — a swung spiked node drives its spikes through whatever it sweeps.
 
 **Defensive *(the pop-budget half shipped #778; the collision/structure-attack candidate below remains OPEN)*:**
 - *Rejected/uncertain candidate:* spikes damage *your own* nodes when struck. Leaning **no** / unclear.
 - *Candidate worth exploring, still OPEN:* spikes **damage or sever the edges/faces of an incoming phantom blade** on collision — a **physics-layer melee defense** (it only matters vs. melee, not ranged/magic). Because a phantom blade's rigidity comes from triangulation, **popping an edge can de-rigidify a braced blade into a floppy whip mid-swing.**
-- This is **thorns reframed**: instead of flat counter-damage to the attacker's node HP (current `thorns`), spikes attack the attacker's *blade structure*. Still unimplemented — see the `FLAG` resolution below.
+- This is **thorns reframed**: instead of flat counter-damage to the attacker's node HP (current `thorns`), spikes attack the attacker's *blade structure*. Still unimplemented — see the open collision questions below.
 - **What DID ship (#778):** a per-node **pop budget**, replacing the old "every spiked node pops every vertex, for free, gated on the attacker's own offensive stat" behaviour. Contact rule: remaining `spikes` ≥ the attacking vertex's `blunting` → deplete by `blunting` and pop the vertex (it dies, deals no damage, and disconnects everything downstream of it from the pivot — unchanged severance mechanics, see `BladePopResolver`); remaining < `blunting` → drain the remainder and let the vertex through, dealing ordinary damage ("pop only if full amount is removed"). `spikes` regenerates by `spike_regen` at the *owner's* turn start only (`PerTurnMode.ADD`, a sparse spent-node sweep — never a level-wide walk), so a node under a blocker that never takes a turn absorbs a finite number of pops for the whole run, by design. Ownership change resets the pool to full.
 
-**`FLAG` — Thorns vs. Spikes (resolve before either ships):** are `thorns` / `thorns_base` and `spikes` the **same stat viewed two ways**, or **distinct** (HP-counter vs. structure-attack)? The current `combat_system.md` treats thorns = spikes = one stat (*sharpness*: stationary→counter-damage, swung→offensive contact). The new defensive candidate (structure-attack on the incoming blade) is a *third* behaviour that may not collapse into flat counter-damage. Decide before implementing either.
-
-> **Resolved by #778 (2026-09-07 #772 session): distinct, and the "sharpness" unification is retired.** `spikes` (the pop-budget pool), `spike_regen`, and `blunting` are their own StatDefs, unrelated to `thorns`/`thorns_base` (which never became a stat — Thorns is `armor.tres` / `min_damage_taken.tres`). The collision/structure-attack candidate two bullets up remains genuinely open; #778 did not touch it.
+**Thorns vs. Spikes — distinct (#778); there is no "sharpness" stat.** `spikes` (the pop-budget pool), `spike_regen`, and `blunting` are their own StatDefs, unrelated to `thorns`/`thorns_base` (which never became a stat — Thorns is `armor.tres` / `min_damage_taken.tres`). The collision/structure-attack candidate two bullets up remains genuinely open; #778 did not touch it.
 
 **Open collision questions (dedicated pass — do not implement until specified):** what exactly does contact do — damage an edge's HP? sever it outright? cost the blade rigidity? — how it is balanced, and what feels right.
 

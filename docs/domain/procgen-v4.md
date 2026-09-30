@@ -369,7 +369,7 @@ shared by all three poles (decision 5).
 adds `wound_heal_per_turn` .addb and a fatter `xp_per_turn` pair
 (addb+inc, both `[bless]`), replacing rather than stacking onto the small
 `xp_per_turn` .inc pool — that pool's `subtypes` lost `bless` so a blessed
-node draws the fat pair instead (decision 11/18, `docs/design/node_subtypes.md`).
+node draws the fat pair instead (decision 11/18, `docs/domain/node-subtypes.md`).
 
 **Blighted WIS is the archive umbrella (#1094)**: `dot_stacks_per_hit` .addb,
 `[blight]`-gated, WIS-only (`test_pool_scoping.gd::test_dot_stacks_per_hit_is_blighted_wisdom_only`)

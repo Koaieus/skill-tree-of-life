@@ -41,7 +41,7 @@ const DEFAULT_UNIVERSAL_SHARE := 0.2
 ## `base_chance`; the default subtype is the remainder and authors none. Empty
 ## = every node lands on [method resolved_default_subtype]. The roll comes off
 ## a salted stream ([constant GraphProcgen._SUBTYPE_RNG_SALT]), so authoring or
-## retuning one shifts no other node's content. See docs/design/node_subtypes.md.
+## retuning one shifts no other node's content. See docs/domain/node-subtypes.md.
 @export var subtypes: Array[NodeSubtype] = []
 
 ## Per-preset override of the global default subtype (D14). `null` =

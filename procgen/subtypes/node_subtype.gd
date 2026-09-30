@@ -14,7 +14,7 @@ extends Resource
 ## The gate lives on [member StatPool.subtypes], NOT here: a pool states which
 ## subtypes may draw it, which makes "blighted DEX trades crit% for DoT stats"
 ## one line of authoring on the crit pool, per-archetype, with no second
-## mechanism. See docs/design/node_subtypes.md.
+## mechanism. See docs/domain/node-subtypes.md.
 
 ## Stable identity. `&"regular"` is the default every node falls back to.
 @export var id: StringName = &"":

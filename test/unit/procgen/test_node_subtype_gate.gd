@@ -3,7 +3,7 @@ extends GutTest
 ## orthogonal to archetype. Five guards — the gate, its inertness, the entry-id
 ## collision it creates, decision 13's demotion, and the salted stream.
 ##
-## See docs/design/node_subtypes.md for the model and the decisions.
+## See docs/domain/node-subtypes.md for the model and the decisions.
 
 const _SET := preload("res://procgen/pools/specimen_pool_set.tres")
 const _PRESET := "res://procgen/presets/first_level/first_level.tres"

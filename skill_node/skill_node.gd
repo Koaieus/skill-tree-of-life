@@ -132,7 +132,7 @@ var state := NodeState.new()
 ## `regular` / `blight` / `bless`. Procgen stamps the resolved subtype on every
 ## archetype-bearing node; `null` means unset, as on a hand-authored sandbox
 ## node. Carries the tint and emissive tier the visuals read — see
-## [NodeSubtype] and docs/design/node_subtypes.md.
+## [NodeSubtype] and docs/domain/node-subtypes.md.
 @export var subtype: NodeSubtype = null:
 	set(value):
 		if subtype == value:
