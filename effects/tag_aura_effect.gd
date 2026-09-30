@@ -5,7 +5,7 @@ extends AuraEffect
 ## [AuraEffect] on the tag channel: radiates a status [member tag] (not a numeric
 ## modifier) over the same reach/metric/distance_scale knobs, granted through
 ## [method EffectContext.grant_tag] instead of [method EffectContext.grant_at]. See
-## docs/design/status-tags.md.
+## docs/domain/effect-system.md § "Known limits".
 ##
 ## [b]A payload, not a second aura.[/b] Everything about the walk — the three
 ## knobs, the origin rule (`source_node ?? core_location`), the batching, the

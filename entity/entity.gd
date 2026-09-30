@@ -457,7 +457,7 @@ var _turn_start_leaves: Array[SkillNode] = []
 var ai_growth_capped: bool = false
 
 ## Refcounted status markers, entity-wide twin of [member SkillNode._tags] — see
-## docs/design/status-tags.md. Granted/revoked through [method EffectContext.grant_tag]
+## docs/domain/effect-system.md § "Known limits". Granted/revoked through [method EffectContext.grant_tag]
 ## / `revoke`, never written to directly.
 var _tags: Dictionary[StringName, int]:
 	get:

@@ -16,7 +16,7 @@ var owned_by: Entity = null
 var board: NodeStatBoard = null
 ## "Minted" as distinct from "authored" — see [member SkillNode.node_board].
 var board_ready: bool = false
-## Refcounted status markers — see docs/design/status-tags.md.
+## Refcounted status markers — see docs/domain/effect-system.md § "Known limits".
 var tags: Dictionary[StringName, int] = {}
 ## Entity-scoped offerings this node grants its owner.
 var modifiers: Array[StatModifier] = []

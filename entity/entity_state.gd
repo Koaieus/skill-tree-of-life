@@ -14,7 +14,7 @@ extends RefCounted
 ## The entity's [EntityStatBoard]. Duplicated at assignment by
 ## [member Entity.stat_board]'s setter, never here.
 var stat_board: EntityStatBoard = null
-## Refcounted status markers — see docs/design/status-tags.md.
+## Refcounted status markers — see docs/domain/effect-system.md § "Known limits".
 var tags: Dictionary[StringName, int] = {}
 ## The real [SkillNode] the core sits on — IDENTITY, shared by a clone.
 var core_location: SkillNode = null

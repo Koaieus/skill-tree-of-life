@@ -7,7 +7,7 @@ extends StatusDef
 ## curve easing toward [member floor_factor]. Authored uncapped + ACCUMULATE,
 ## so reapplies commute (light then heavy == heavy then light); with a
 ## FRACTION fade the flat top of the curve makes recovery slow first, then
-## faster. See docs/design/damage_over_time.md.
+## faster. See docs/domain/effect-system.md, "Status effects — the DoT model".
 ##
 ## The def is shared and stateless, so the per-node handle is FOUND rather
 ## than stored: the modifiers are [BlindModifier]s, and the one on a node's

@@ -66,7 +66,7 @@ func _init() -> void:
 ## a rebuilt hit lands on the shipped host without re-reading node HP. A
 ## node-hosted row on the core stays node-hosted: the hosts never merge.
 ##
-## Scaling (`docs/design/damage_over_time.md` §Applying):
+## Scaling (`docs/domain/effect-system.md` § "Status effects — the DoT model"):
 ## `StatusDef.stacks_per_hit(attacker board, power)` — one fold of the
 ## attacker's stacks stat with the authored power as its `base_add`; a null
 ## attacker, blank id or unknown stat leaves it at the authored power.

@@ -316,10 +316,9 @@ read is already correct.
 - **LifeLine** — "kept alive despite being islanded" overrides the islanding rule.
   It needs a **query hook with a return value** inside
   `nodes_islanded_by_removing_set` / the cascade, not a fire-and-forget notification
-  and not a modifier grant. Different hook shape; its own issue. Design sketch
-  (including the broader "status tags" grant channel this implies) now lives in
-  [status-tags.md](../design/status-tags.md) (it moved to `docs/design/` while
-  unimplemented; it moves back here once shipped).
+  and not a modifier grant. Different hook shape; its own issue (#240). The tag
+  channel it rides on has shipped (Known limits below); the grace mechanic
+  itself is a design sketch in [status-tags.md](../design/status-tags.md).
 - **Presentation** — icon + `get_description()` rendering in the HUD.
 - **Node-local effect bin — SHIPPED (#868 hub, #872/#878/#879).** This cell used
   to describe a coherent-but-empty sibling to `node_board`, waiting on "the first
@@ -350,6 +349,73 @@ read is already correct.
   `basis` — `HitInstance.AmountBasis` (flat, % max, % current), resolved in `DamageInstance.land_on`,
   not a poison-local enum — can kill through the ordinary `notify_depleted` cascade).
 
+## Status effects — the DoT model
+
+The status slice above (`StatusDef` + a per-node `NodeStatus{power}` row) carries
+four damage-over-time families, one per defensive axis they answer. The *why* —
+one family per axis, uncapped halving stacks, the rejected timers — is
+[ADR 0022](../adr/0022-one-dot-per-defensive-axis-stacks-halve-uncapped.md);
+the hosts (node, or the entity once the row falls through a cracked core) are
+[ADR 0024](../adr/0024-status-effects-have-two-hosts-and-fall-through-a-cracked-core.md).
+What could still come (cures, contagion, the other families' arrows and spells)
+is `docs/design/damage_over_time.md`.
+
+| Family | Denomination | Answers | Weak against |
+|---|---|---|---|
+| **Poison** | flat HP per stack per tick, unmitigated | armor, a sub-zero `min_damage_taken` | bulk |
+| **Corruption** | % of max HP per stack per tick, unmitigated | bulk (the CON stacker) | rarity and cure only |
+| **Curse** | raises `min_damage_taken` by its stacks | armor: every hit lands again | deals nothing alone |
+| **Wither** | multiplies `healing_received` down, below zero | the heal aura and regen | nodes nobody heals |
+
+There is **no per-tick clamp**: every family is lethal in sufficient amount.
+
+**Stacks.** A row is one float, `power`. Each tick `_on_tick` spends the
+pre-decay stacks, then the row decays by its def's shape (the table below); a
+FRACTION row clears below 1. Stacks are uncapped.
+
+**Landing.** `landed = fold(<family>_stacks_per_hit(attacker), base_add = per_hit)`
+— `StatusDef.stacks_per_hit`: the per-hit amount authored on the applier (ammo
+type, on-hit effect, blade vertex) is the `base_add` of the attacker's stacks
+stat, whose INCREASE/MORE scale the total ([ADR 0029](../adr/0029-related-stats-compose-through-parents-folded-at-read-and-every-stat-takes-every-bin.md)
+— no separate potency stat). Computed once at land on the landing world, never
+floored (1 × +49% lands 1.49). Hit size never scales stacks. The four families'
+stacks stats share one parent umbrella, `dot_stacks_per_hit`, which lands more
+stacks and never scales damage; blindness (`blindness_stacks_per_hit`) and
+armor break (`StatusDef.stacks_stat_id`) sit outside it.
+
+**Resistance** (`poison_resistance`, …, default 0, a fraction) is read on the
+**host** and filters the accumulated row at effect time, never the incoming hit
+([ADR 0031](../adr/0031-status-resistance-filters-the-accumulated-row-at-effect-time-on-the-host.md)):
+each apply and each tick counts `row − cancelled`, with
+`cancelled = ⌈row × res − ½⌉` clamped to `[0, row]` — round half-down
+(1·1% → 1, 1·50% → 1, 1·60% → 0, 10·25% → 8, 20·1% → 20). The row itself decays
+from its unresisted size. At **≥ 100%** stacks do not land (the authority
+resolves the hit to 0 and the record carries it); a standing row deals 0 and
+still decays. `StatusDef.next_tick_damage` is the first term of the health-bar
+projection, which walks the raw row down tick by tick, resisted then floored.
+
+**The regen gate.** A DoT tick is damage and closes the node's regen gate
+(`node-hp.md`). The one exception is wither: a heal inverted by
+`healing_received < 0` is damage that leaves the gate open, so a withered node
+left alone ramps its regen up and heals itself to death, and the core aura
+unheals its own neighbourhood — `NodeCombat._withered_heal`.
+
+**Decay shapes.** Falloff and duration are per def, never stats (#1060):
+
+| Status | Shape | Total per stack applied once |
+|---|---|---|
+| Poison | FRACTION, retains 0.5 | 2 |
+| Corruption | FRACTION, retains 0.8 | 5 stack-ticks |
+| Curse | FLAT 1/turn | a window of N turns |
+| Wither | FRACTION, retains 0.75 | 4 |
+| Blindness | FRACTION, removes 0.7, ACCUMULATE | see [node_subtypes.md](../design/node_subtypes.md) D20 |
+| Armor break | FLAT | |
+
+Authoring gotcha: the `.tres` knob `decay_per_tick` is the fraction
+**removed**, so a row retaining *f* is authored as 1 − *f* (corruption 0.2,
+wither 0.25); blindness's 0.7 is the fraction removed (#1090). The shape law is
+`test/unit/effects/test_status_decay_shapes.gd`.
+
 ## Known limits — file an issue to extend
 
 This is the boundary of what the effect system can express **today**. Hitting one
@@ -357,8 +423,10 @@ of these is the signal to file (or revisit) an issue, not to work around it loca
 
 Two rows left this table in #267 and are now ordinary features: a **non-numeric
 marker** on a node/entity (`poisoned`, `marked`) is `EffectContext.grant_tag` —
-refcounted on the carrier, ledgered alongside modifier rows, radiated by
-`TagAuraEffect`; and an aura **radiating from its carrier node** rather than the
+refcounted on the carrier (`_tags: Dictionary[StringName, int]` on `SkillNode`
+and `Entity`; `add_tag`/`remove_tag`/`has_tag`/`get_active_tags`, no
+`StatRegistry` entry and no board slot), ledgered alongside modifier rows so
+`revoke_all()` sweeps both, radiated by `TagAuraEffect`; and an aura **radiating from its carrier node** rather than the
 core is the origin rule `ctx.source_node ?? ctx.core_location`, resolved once in
 `AuraEffect.recompute`.
 

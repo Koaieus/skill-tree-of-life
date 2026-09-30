@@ -3,7 +3,7 @@ extends GutTest
 
 ## Tag grant channel (#267): a refcounted, ledgered second grant target
 ## alongside StatModifier, sharing EffectInstance's grant ledger so
-## revoke_all() sweeps both channels uniformly. See docs/design/status-tags.md.
+## revoke_all() sweeps both channels uniformly. See docs/domain/effect-system.md § "Known limits".
 
 const _BOARD := preload("res://entity/default_entity_board.tres")
 const _NODE_SCENE := preload("res://skill_node/skill_node.tscn")

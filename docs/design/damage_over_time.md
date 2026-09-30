@@ -1,143 +1,40 @@
-# Damage over time — the DoT family (#952 design session, 2026-09-20)
+# Damage over time — what the DoT family could still grow
 
-> Design doc: the *model*. What shipped and how it is wired lives in
-> `docs/domain/effect-system.md` (status slice) once the #952 children land.
+> Design doc: the *unbuilt* part of the DoT family. The shipped model — the
+> four families, stacks that halve, landing, resistance, wither below zero,
+> the decay shapes — is `docs/domain/effect-system.md` § "Status effects —
+> the DoT model". The *why* is in the ADRs: one DoT per defensive axis with
+> uncapped halving stacks ([0022](../adr/0022-one-dot-per-defensive-axis-stacks-halve-uncapped.md)),
+> every notable stat gets an addon and an arrow ([0023](../adr/0023-every-notable-stat-gets-an-addon-and-an-arrow.md)),
+> the two hosts ([0024](../adr/0024-status-effects-have-two-hosts-and-fall-through-a-cracked-core.md)),
+> stacks stats composed through parents ([0029](../adr/0029-related-stats-compose-through-parents-folded-at-read-and-every-stat-takes-every-bin.md))
+> and resistance as a live filter on the host ([0031](../adr/0031-status-resistance-filters-the-accumulated-row-at-effect-time-on-the-host.md)).
 > Numbers here are **anchors for the owner to tune**, never pins.
 
-## Why a family and not one poison
+## Cures still to build
 
-An entity's node is a point in six defensive dimensions, and each one blocks a
-*different shape* of incoming damage. A single DoT that beats all of them is
-today's `%max HP, unmitigated` poison: it counters everything, so it is the
-only thing worth using. Owner, 2026-09-20: *"yes 100%, and that was kinda the
-reason i posted that comment."*
+Fading (halving) and the topological cure (every deallocation path voids a
+node's statuses) ship. The owner called the topological cure *"not the most
+satisfying (bit hacky)"* — never the only cure. The choices still to come:
 
-| Axis | Blocks | Growth | Blind spot |
-|---|---|---|---|
-| **HP bulk** (`node_health = 10 + CON`) | everything, linearly | +1 CON/level for free, +% rolls | anything denominated in % of itself |
-| **Armor** (flat per hit) | mid-size hits | battlefield-found only | unmitigated damage; irrelevant vs one huge hit |
-| **Floor** (`min_damage_taken`, 3 → 0 → negative) | chip and floods; below 0, chip *heals* | battlefield-found, rare | unmitigated damage; anything that raises the floor |
-| **Regen** (gated ramp, reset by any damage) | attrition across turns | node-local stats | anything that shuts the gate every turn |
-| **Core heal aura** (ungated, flat, √CON) | chip near the core | class | heal-block; damage above the trickle |
-| **Topology** (2-connected, degree) | cascades | play | a *cure* axis, not a damage axis |
-
-Growth makes bulk free and mitigation rare, so the generic late entity is a
-big bucket, and the specialists are the **bunker** (armor 50+, floor ≤ 0), the
-**fortress** (aura + regen) and the **CON stacker** (hundreds to thousands of
-node HP). Each wants its own answer.
-
-## The four members
-
-| Member | Denomination | Answers | Weak against | Feel |
-|---|---|---|---|---|
-| **Poison** | flat HP per stack per tick, unmitigated | armor, sub-zero floor | bulk | "the green segment fades unless you keep hitting" |
-| **Corruption** | % of max HP per stack per tick, unmitigated | bulk (the CON stacker) | nothing but rarity and cure — a fully corrupted node dies, at level 1 too. *"the harsh reality of % damage"* | rare, late, dreadful |
-| **Curse** | raises `min_damage_taken` by stacks | bunker: makes every hit land again | deals nothing alone; a multiplier on floods and volleys | safe to spread wide |
-| **Wither** | multiplies `healing_received` down, below zero | fortress: the aura heals its own core to death | nodes nobody heals | the "undead" sandbox |
-
-Every member becomes lethal in sufficient amount. Owner: *"like even water can
-be poisonous if you drink too much of it. big curse? better watch out. massive
-poison stacks? you're DOOMED. high corruption? DOOMED."* There is deliberately
-**no per-tick clamp**: a ranged build emptying a quiver of poison arrows into a
-node kills it that turn.
-
-## One model for all four: stacks that halve
-
-A status on a node is **one number, its stacks** (`power`). Each tick the def's
-`_on_tick` spends the pre-decay stacks, then the stacks **halve** (proportional
-decay, tail cleared below 1). Total effect of N stacks applied once is 2N,
-linear in what you did; sustained application of N per turn settles at 2N.
-
-Why not the other timers (rejected 2026-09-20):
-
-- **Linear decay with damage ∝ stacks** (what shipped in #874): total is
-  N(N+1)/2, quadratic. With uncapped stacks a 40-arrow volley is 820 HP. So
-  "uncapped" and "linear decay" cannot both ship, and the owner wants uncapped.
-- **Fixed duration refreshed on apply**: linear, but adds a second field per
-  row (turns left), a resync column, and the "last applier resets vs max" fork.
-- **Per-hit instances** (PoE): linear and faithful, but the slice becomes a
-  list and every reader changes.
-
-Stacks are **uncapped**. Armor-break keeps its flat decay and cap; the decay
-mode is a per-def knob, not a global change (the per-family shapes: the
-2026-09-23 table below).
-
-## Applying: flat stacks per hit, scaled by percent stats
-
-- **Stacks per hit is a float authored on the applier** (ammo type, on-hit
-  effect, blade vertex): a dart 0.5, an arrow 1, a blade contact 2, a venom
-  cast 8. Hit size never scales stacks — that would reintroduce the
-  pre/post-mitigation legibility problem for no gain.
-- **The attacker's stacks stat scales it.** Each family has one attacker stat,
-  `<family>_stacks_per_hit` (blindness: `blindness_stacks_per_hit`), and the
-  authored per-hit amount is a `base_add` on it: its flats add stacks, its
-  INCREASE / MORE multiply the total, authored amount included (ADR 0029 —
-  there is no separate potency stat). Procgen rolls it on blighted nodes as
-  `INCREASE` (+7% / +21% / +49%, the attribute ladder).
-- **Resistance** is a defender stat per type (`poison_resistance`, …),
-  default 0, a fraction read on the **host** (the node, or the entity for a
-  fallen-through row) like armor. Battlefield-found: it rolls on blessed nodes
-  of its family's archetype ([node_subtypes.md](node_subtypes.md)). It acts on
-  the **accumulated row at effect time**, never per incoming hit (ADR 0031):
-  each apply and each tick counts `row − cancelled`, with
-  `cancelled = ⌈row × res − ½⌉` clamped to `[0, row]` — round half-down, so
-  1% never curbs a small row to 0 (1·1% → 1, 1·50% → 1, 1·60% → 0,
-  10·25% → 8, 20·1% → 20). It is a **live filter**: the row itself decays
-  from its full, unresisted size, and shedding resistance makes the next tick
-  count the whole row. At **≥ 100%** stacks do not land (the authority
-  resolves the hit to 0 and the record carries it); a row already standing
-  deals 0 and still decays. Faster decay was the alternative and stays
-  available as a **class** identity later.
-
-`landed = fold(stacks_stat(attacker), base_add = per_hit)` (0 when the host
-is at 100%), computed once at land, on the landing world, never floored
-(1 × +49% lands 1.49) — `StatusDef.stacks_per_hit`. The health-bar
-projection walks the raw row down and sums each tick as it lands — resisted,
-then floored by the landing rule — so the bar equals reality;
-`StatusDef.next_tick_damage` is its first term.
-
-## Cures
-
-Ordered from "always there" to "a choice":
-
-1. **Fading.** Halving means a status is gone in a few turns unless the
-   pressure continues. This is the baseline counterplay and costs nothing.
-2. **The topological cure.** Statuses already void on deallocation; deallocate
-   and reallocate the limb, or move the core off a corrupted node and drop it.
-   DP/MP, never AP. Stated design, but owner: *"not the most satisfying (bit
-   hacky)"* — never the only cure.
-3. **Connectedness cures** — follow-up issue. Decay scales with the node's
+1. **Connectedness cures** — follow-up issue. Decay scales with the node's
    entity degree: the body fights it, a poisoned leaf lingers, a poisoned
    node deep in territory clears fast. Self-loops ("purity rings") are an
    open question there: special interaction, or simply high degree?
-4. **Cleansing / healing fountain addons** — follow-up. The defensive
+2. **Cleansing / healing fountain addons** — follow-up. The defensive
    counterpart of each type's offensive addon; cleansing and healing may be
    two addons.
-5. **One cleanse spell per family**, and possibly a **cure-all** that is
+3. **One cleanse spell per family**, and possibly a **cure-all** that is
    rare, expensive or costly — never castable willy-nilly.
-
-Regen does not cure by itself: a DoT tick counts as damage and keeps the
-regen gate shut (owner, 2026-09-20), so poison is pressure you cannot simply
-step back from; the halving does the fading.
-
-## Wither below zero — the special case
-
-`healing_received` is a multiplier stat, default 1.0; wither plants a
-node-local `MULTIPLY` below it. Below zero a heal becomes damage, *and that
-damage does not close the regen gate* (owner call, 2026-09-20: *"yes special
-case. it ruins your healing to making you effectively undead"*). So a withered
-node that is left alone ramps its regen up turn after turn and heals itself to
-death — a playstyle that must damage nodes to start the ramp and then must
-**not** touch them. The core aura is ungated and heals the core's
-neighbourhood, so a withered fortress unheals from its own sanctuary.
 
 ## Content per type
 
-Each DoT gets, as siblings of the model work: an **arrow ammo type**
-(`attack/ammo/types/`), an **addon** (with a blade-copy face for melee, the
-#951 shape), and **one to two spells** — whichever creates build variety
-(*"oh you're stacking CORRUPTION, not POISON, well we got some spells in store
-for that too"*).
+Each DoT gets an **arrow ammo type** (`attack/ammo/types/`), an **addon**
+(with a blade-copy face for melee, the #951 shape), and **one to two spells**
+— whichever creates build variety (*"oh you're stacking CORRUPTION, not
+POISON, well we got some spells in store for that too"*). Poison's arrow
+exists; the corruption, curse and wither arrows and the per-family spells
+do not yet.
 
 ## Contagion (parked)
 
@@ -163,40 +60,11 @@ Corruption at 2% per stack: 10 stacks on a 2000-HP node is 400/tick; on a
 20-HP node 0.4/tick. Curse +10 turns a 50-node 1-damage flood from 150 into
 650 against any armor.
 
-## The stat vocabulary and the decay shapes (#1060 pass, 2026-09-23)
+## Decay alternatives kept open
 
-Owner's model, verbatim: *"each application adds 1 stack (unless 'extra stacks
-applied per application' stat value > 0), and damage scales with potency and
-reduces with resistance, and total damage is then up to how falloff behaves."*
-
-**Landing:** one fold of the family stat, the authored per-hit as its `base_add`, then
-`× (1 − resistance(node))` (§Applying). The stacks stats are `{poison,corruption,curse,wither}_stacks_per_hit`
-(per family, default 0) whose parent is one shared umbrella, `dot_stacks_per_hit` — it folds
-into each family read, never blindness's (`blindness_stacks_per_hit`, no parent) or armor-break's
-(`StatusDef.stacks_stat_id`, one id per def). The umbrella never scales damage — it lands more stacks.
-
-**Falloff and duration are not stats.** Under halving, total effect is stacks ÷ decay
-fraction, so a shared falloff stat is +25 % on every family per 0.1 step — the umbrella trap —
-and an attacker-side falloff needs the row to carry the applier's decay (the second field
-rejected above). The shape is per def instead:
-
-| Status | Effect | Feel | Shape | Total per stack applied once |
-|---|---|---|---|---|
-| Poison | flat HP per stack per tick | fades unless you keep hitting | FRACTION 0.5 | 2 |
-| Corruption | % max HP per stack per tick | rare, dreadful, lingers; cure or die | FRACTION 0.8 | 5 stack-ticks (10 % max HP at 2 %/stack/tick; rescaled with the minting mechanics) |
-| Curse | +min_damage_taken per stack | a legible "cursed for N turns" window | FLAT 1/turn | window of N turns |
-| Wither | healing multiplier below 1; below zero the node *degenerates* — kept, *"a niche but fun concept"* | must outlast the victim's patience | FRACTION 0.75 | 4 |
-| Blindness | vision multiplier on a saturating curve | deeper and longer the more lands; recovers slowly first | FRACTION 0.7, uncapped, ACCUMULATE | see node_subtypes.md D20 |
-| Armor break | as shipped | | FLAT | |
-
-The table's *f* is the fraction **retained** per tick (so 1/(1−f) stack-ticks); the `.tres` knob
-`decay_per_tick` is the fraction **removed**, so it is authored as 1 − f: corruption 0.2, wither 0.25.
-Blindness is the exception: #1090's "~0.7" is authored as the fraction **removed** (0.7), since the
-owner paired it with *"staying blind for too long is ehhhh annoying"*. That reading is the
-implementer's, pending the owner's confirmation (#1090). Shipped by #1090 (blindness) and #1091 (the other families); the shape law is
-`test/unit/effects/test_status_decay_shapes.gd`.
-
-Corruption with **no decay, cure-only** was floated as the bold alternative; revisit when the
-cleanse lane exists. A defender-side "this ground sheds rot" knob (node-local decay bonus)
-stays available for the connectedness cure. Corruption on the health bar and turn-start vs
-turn-end proc: #1092.
+- Corruption with **no decay, cure-only** was floated as the bold alternative;
+  revisit when the cleanse lane exists.
+- A defender-side "this ground sheds rot" knob (node-local decay bonus) stays
+  available for the connectedness cure.
+- Faster decay as a **class** identity, instead of resistance.
+- Corruption on the health bar and turn-start vs turn-end proc: #1092.

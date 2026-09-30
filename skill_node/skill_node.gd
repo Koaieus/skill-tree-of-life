@@ -401,7 +401,7 @@ var _node_board_ready: bool = false:
 		state.board_ready = value
 
 ## Refcounted status markers ("poisoned", "lifeline", ...) — the non-numeric
-## sibling to [member node_board]. See docs/design/status-tags.md. Sparse:
+## sibling to [member node_board]. See docs/domain/effect-system.md § "Known limits". Sparse:
 ## an entry exists only while at least one source has granted it. Refcounted,
 ## not a bool, because multiplicity is real — two effects granting the same
 ## tag must both need to revoke before it clears. Granted/revoked through

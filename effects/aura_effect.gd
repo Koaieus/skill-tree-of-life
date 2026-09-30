@@ -144,7 +144,7 @@ func recompute(ctx: EffectContext) -> void:
 		return
 	# Origin rule: a node-carried aura (keystone/addon) radiates from its own
 	# node; an entity-wide aura (core class) falls back to the core. No new
-	# knob — resolved once here, see docs/design/status-tags.md.
+	# knob — resolved once here, see docs/domain/effect-system.md § "Known limits".
 	var source := ctx.source_node if ctx.source_node != null else ctx.core_location
 	var mirror := _mirror(ctx)
 	if source == null or mirror == null:

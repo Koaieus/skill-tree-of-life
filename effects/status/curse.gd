@@ -8,7 +8,7 @@ extends StatusDef
 ## decay and no cap are the authored def's knobs (`curse.tres`). It is the
 ## answer to the bunker: a negative Bulwark-style floor is pushed toward and
 ## past zero, so enough stacks take the heal flip away
-## (`docs/design/damage_over_time.md` §The four members).
+## (`docs/domain/effect-system.md` § "Status effects — the DoT model").
 ##
 ## Same shape and discipline as [ArmorBreakStatus] / [BlindnessStatus]: the
 ## def is shared and stateless, the per-node handle is FOUND by type and

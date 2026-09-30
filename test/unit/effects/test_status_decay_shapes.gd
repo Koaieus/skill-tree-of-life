@@ -3,7 +3,7 @@ extends GutTest
 ## The decay SHAPE per authored status family (#1091, hub #1060) — a law over
 ## `effects/status/*.tres`, pinning FLAT vs FRACTION, never the magnitude
 ## (`decay_per_tick` is the owner's knob). Why each family has its shape:
-## docs/design/damage_over_time.md, "The stat vocabulary and the decay shapes".
+## docs/domain/effect-system.md, "Status effects — the DoT model".
 
 const _DIR := "res://effects/status/"
 
