@@ -26,6 +26,7 @@ The high-level **[GDD](../GDD.md)** is the entry point — vision, core loop, an
 | [skill_node_addons.md](skill_node_addons.md) | Node addons (Armor Ring, Buffer, Gate, Relay, Anti-Magic, etc.), Tech Seeds |
 | [skill_node_specializations.md](skill_node_specializations.md) | Node specializations (Corrupted, Crystallized, Anchor) — **early spitball, nothing built or scheduled**; inspiration only |
 | [node_subtypes.md](node_subtypes.md) | **Node subtypes** — `blighted`/`blessed` as an axis orthogonal to archetype; archetype picks the status family, subtype picks the pole. Reframes #1025 away from a seventh archetype |
+| [aspect_matrix.md](aspect_matrix.md) | **The Matrix** — every status/concept × ranged/melee/magic, living home of the concept-to-delivery table (#1199) |
 | [spells.md](spells.md) | Spell identities for the 13 shipped spells (roster: `attack/spell/defs/`), the issue-backed ones, and a fenced idea pool of spells that do **not** exist |
 | [core_movement_plan.md](core_movement_plan.md) | Core-movement interaction plan (#21) — click-source-then-target, drag as accelerator; the phase-gating parts are obsolete post-#60 |
 | [damage_over_time.md](damage_over_time.md) | The DoT family (poison / corruption / curse / wither): one halving-stacks model, per-type potency and resistance, cures, the defensive-axis matrix — #952 design session |
