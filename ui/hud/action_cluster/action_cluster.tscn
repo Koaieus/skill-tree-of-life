@@ -113,6 +113,34 @@ fit_content = true
 scroll_active = false
 autowrap_mode = 0
 
+[node name="GateConfirmLabel" type="Label" parent="." unique_id=1284495551]
+unique_name_in_owner = true
+modulate = Color(0.95, 0.45, 0.45, 0)
+layout_mode = 2
+theme_override_font_sizes/font_size = 10
+text = "Strands 0 nodes: repeat to confirm"
+horizontal_alignment = 2
+
+[node name="GatesButton" type="MenuButton" parent="." unique_id=1284495552]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+size_flags_horizontal = 8
+theme_override_font_sizes/font_size = 11
+text = "Gates"
+flat = false
+item_count = 5
+popup/item_0/text = "Toggle unlocked   G"
+popup/item_0/id = 0
+popup/item_1/text = "Open all unlocked"
+popup/item_1/id = 1
+popup/item_2/text = "Close all unlocked"
+popup/item_2/id = 2
+popup/item_3/text = "Unlock all   Shift+G"
+popup/item_3/id = 3
+popup/item_4/text = "Lock all   Shift+G"
+popup/item_4/id = 4
+
 [node name="EndTurnButton" parent="." unique_id=355718479 instance=ExtResource("3_endturn")]
 unique_name_in_owner = true
 layout_mode = 2
