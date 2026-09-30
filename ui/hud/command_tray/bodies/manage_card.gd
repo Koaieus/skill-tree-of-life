@@ -50,10 +50,19 @@ func _ready() -> void:
 	_button.toggle_mode = toggle_mode
 
 
+var _armed := false
+
+
+## Whether the card reads as active — its level is on the armed branch.
+func is_armed() -> bool:
+	return _armed
+
+
 ## Reflects the card's armed/active state — brightens the card so the
 ## currently-armed verb reads as pressed, cleared cursor-style feedback lives
 ## in PlayerInputController._update_cursor instead of here.
 func set_armed(value: bool) -> void:
+	_armed = value
 	if _button != null:
 		_button.button_pressed = value
 	self_modulate = Color(1.35, 1.35, 1.35, 1) if value else Color(1, 1, 1, 1)

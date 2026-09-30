@@ -65,6 +65,7 @@ const _EXPORT_DEPS: Array = [
 	["Systems/PlayerInputController", "battle_system"],
 	["Systems/PlayerInputController", "turn_manager"],
 	["Systems/PlayerInputController", "command_applier"],
+	["Systems/PlayerInputController", "armed_stack"],
 	["Systems/VisionSystem", "graph"],
 	["Systems/VisionSystem", "allocation_system"],
 	["Systems/VisionSystem", "turn_manager"],

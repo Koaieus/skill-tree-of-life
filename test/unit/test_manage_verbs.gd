@@ -283,3 +283,71 @@ func test_idle_still_tints_allocatable_unowned_nodes() -> void:
 	_hl._resolve()
 	assert_eq(_hl.provider.get_node_role(_nodes[3]), HighlightProvider.HighlightRole.ALLOCATABLE,
 			"idle Manage mode still tints an allocatable unowned node")
+
+
+# ── Level pop policy on the stack (#1222) ───────────────────────────────
+
+func _wire_battle() -> void:
+	_battle.turn_manager = _tm
+	_battle.graph = _graph
+
+
+func _branch_types() -> Array:
+	return _ctl.armed_stack.branch().map(func(m: ArmedMode) -> Script: return m.get_script())
+
+
+func test_another_players_successful_stake_changes_nothing() -> void:
+	_ctl.arm_verb(PlayerInputController.ManageVerb.STAKE)
+	var theirs := StakeCommand.new(_player.entity_id + 1, _graph.get_stable_id(_nodes[1]))
+	_ctl._on_command_applied(theirs, true)
+	assert_eq(_branch_types(), [ManageMode, StakeMode], "only this player's stake pops Stake")
+
+
+func test_extract_stays_armed_after_a_landed_extract() -> void:
+	_alloc.stake(_nodes[1], _player)
+	_ctl.arm_verb(PlayerInputController.ManageVerb.EXTRACT)
+	_nodes[1].left_clicked.emit(_nodes[1])
+	assert_eq(_nodes[1].stake_level, 1, "precondition: the extract landed")
+	assert_eq(_branch_types(), [ManageMode, ExtractMode])
+
+
+func test_deallocate_stays_armed_after_a_landed_deallocate() -> void:
+	_ctl.arm_verb(PlayerInputController.ManageVerb.DEALLOCATE)
+	_nodes[2].left_clicked.emit(_nodes[2])
+	assert_null(_nodes[2].owned_by, "precondition: the deallocate landed")
+	assert_eq(_branch_types(), [ManageMode, DeallocateMode])
+
+
+func test_deallocate_cascade_offer_pushes_and_cancel_returns_to_deallocate() -> void:
+	_ctl.arm_verb(PlayerInputController.ManageVerb.DEALLOCATE)
+	_nodes[1].left_clicked.emit(_nodes[1])  # would island C — cascade offer
+	assert_eq(_branch_types(), [ManageMode, DeallocateMode, MassActionMode])
+	_ctl.cancel_mass_action()
+	assert_eq(_branch_types(), [ManageMode, DeallocateMode])
+
+
+func test_arming_stake_over_an_attack_switches_and_cancels_the_plan() -> void:
+	_wire_battle()
+	_ctl.on_attack_mode_requested(BattleSystem.AttackMode.MELEE)
+	assert_true(_battle.is_attacking, "precondition: melee armed")
+	watch_signals(_ctl.armed_stack)
+	_ctl.arm_verb(PlayerInputController.ManageVerb.STAKE)
+	assert_eq(_branch_types(), [ManageMode, StakeMode])
+	assert_false(_battle.is_attacking, "the switch cancelled the attack plan")
+	assert_signal_emit_count(_ctl.armed_stack, "changed", 1, "one arm, one change")
+
+
+func test_attack_request_over_stake_switches_to_the_attack_level() -> void:
+	_wire_battle()
+	_ctl.arm_verb(PlayerInputController.ManageVerb.STAKE)
+	watch_signals(_ctl.armed_stack)
+	_ctl.on_attack_mode_requested(BattleSystem.AttackMode.MELEE)
+	assert_eq(_branch_types(), [ManageMode, AttackPlanMode])
+	assert_signal_emit_count(_ctl.armed_stack, "changed", 1, "one arm, one change")
+
+
+func test_a_refused_attack_request_pushes_nothing() -> void:
+	_battle.is_launching = true  # mid-swing: the slot is locked
+	_ctl.on_attack_mode_requested(BattleSystem.AttackMode.MELEE)
+	_battle.is_launching = false
+	assert_eq(_branch_types(), [ManageMode], "no level over an empty slot")
