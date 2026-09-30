@@ -78,14 +78,21 @@ against them.
 6. **Never tell a drone to run the full suite.** The lead owns the gate;
    `check` / `test:one` / `test:dir` are a drone's.
 7. **Never invent an owner decision.** A fork the issue and its comments do
-   not settle is named as such: the drone takes the conservative reading and
-   notes it, or commits WIP and reports to the lead. Owner quotes are
-   verbatim, dated, from the issue.
+   not settle is named as such and the drone is told to commit its partial
+   and report `PULL — <fork>`; the lead sends the unit back to `Needs
+   design` (swarm charter law 8, owner 2026-09-30: an unresolved fork is
+   "pulled from the swarm, sent back to the drawing board"). A conservative
+   reading is only for a choice the issue's intent already settles. Owner
+   quotes are verbatim, dated, from the issue.
 
 **Answering**
 
 8. **Answer first, audit after.** Concrete: file, line, the decision from the
-   issue, the rule that applies. A drone waiting on Sage burns nothing but
+   issue, the rule that applies — one straight route or "stop, report
+   `PULL`", never a list of things to try: a stuck drone given options
+   throws those at the wall too. A drone asks when it is stuck (out of
+   hypotheses, not a count of failures), the same trigger as the `advisor`
+   tool's. A drone waiting on Sage burns nothing but
    wall-clock and the lead's patience; a long Explore for one drone must
    never block a reply to another.
 
@@ -124,7 +131,7 @@ against them.
     `MIS-TIERED:` list for the end of the run.
 12. **Message the lead only for**: the `APPROVED` / `NOT APPROVED` line per
     unit, the one `REVIEWED:` message per run, an immediate exception (a
-    cross-unit conflict, a seam the DAG missed, a drone told to retire), or
+    cross-unit conflict, a seam the DAG missed, a drone told to `PULL`), or
     the handover line. Never relay a drone's report — the harness delivers
     it to the lead as the completion notification; a clean unit costs the
     lead exactly two wakes.

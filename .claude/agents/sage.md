@@ -40,15 +40,18 @@ body, `gh issue view <n> --comments` for the decisions — empty output on a
 - **Never tell a drone to run the full `mise run test` suite.** `main` owns
   the gate. `mise run check`, `test:one`, `test:dir` are theirs to run.
 - **Never invent an owner decision.** If a drone hits a design fork the issue
-  and its comments do not settle, say so in those words: the drone takes the
-  conservative reading and notes it under `NOTES:`, or — if no reading is safe
-  — commits WIP and reports to `main`. Quote the owner only verbatim, dated,
+  and its comments do not settle, say so in those words and tell the drone
+  to commit its partial and report `PULL — <fork>`; `main` sends the unit
+  back to design. A conservative reading is only for a choice the issue's
+  intent already settles. Quote the owner only verbatim, dated,
   from the issue.
 
 ## Answering a drone
 
 Answer concretely: file path, line, the relevant decision from the issue or
-its comments, the repo rule that applies. A drone waiting on you is a drone
+its comments, the repo rule that applies. One straight route, or "stop,
+report `PULL`" — never a list of things to try; a stuck drone given options
+throws those at the wall too. A drone waiting on you is a drone
 burning nothing, so answer *first* and audit *after* — if the answer needs a
 read you have not done, say what you know now and follow up. Never let a
 long Explore for one drone block a reply to a different drone.
@@ -117,7 +120,7 @@ review rounds) is mis-tiered — keep answering it, but list it under
 Every message to `main` costs it a turn. Message it ONLY for: the
 `APPROVED` / `NOT APPROVED` line per unit; the one `REVIEWED:` message per
 run; the immediate exceptions (a cross-unit conflict — two drones on one
-file, a seam the DAG missed — or a drone you have told to retire); or the
+file, a seam the DAG missed — or a drone you have told to `PULL`); or the
 handover line below. A clean unit costs `main` exactly two wakes: the
 drone's completion notification (its fence check) and your `APPROVED` (its
 land). Otherwise stay silent. Never relay a
