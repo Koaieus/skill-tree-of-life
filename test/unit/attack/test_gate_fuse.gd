@@ -41,7 +41,7 @@ func _make_entity() -> Entity:
 	entity.stat_board = _BOARD.duplicate(true) as EntityStatBoard
 	entity.stat_board.get_stat(&"crit_chance").base_value = 0.0
 	entity.turns_taken = 1
-	_graph.add_child(entity)
+	_graph.entities_container.add_child(entity)
 	return entity
 
 
@@ -51,6 +51,7 @@ func before_each() -> void:
 	add_child_autofree(_graph)
 	_alloc = AllocationSystem.new()
 	_alloc.graph = _graph
+	_alloc.navigator = _graph.navigator
 	add_child_autofree(_alloc)
 	_tm = autofree(TurnManager.new())
 	add_child(_tm)

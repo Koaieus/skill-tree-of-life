@@ -62,6 +62,18 @@ var _done: bool = false
 ## degrading its solve buys nothing to lose.
 var _substeps: int = BladeSim.DEFAULT_SUBSTEPS
 var _enable_length_scaling: bool = true
+## #1209: armed gate fuses, GLOBAL sample -> [Fuse]. Empty for the ordinary
+## swing, which then runs none of the fuse code below.
+var _fuses: Dictionary[int, Fuse] = {}
+
+
+## Every gate fused to ONE quantised sample — one outcome entry, one stranded
+## set judged after all of its flips.
+class Fuse extends RefCounted:
+	var gates: Array[Gate] = []
+	## The blade's own copy of each gate edge, parallel to [member gates]; -1
+	## when the pair is not a blade edge (the real gate still flips).
+	var edges: PackedInt32Array = PackedInt32Array()
 
 
 func _init(ctx: SwingContext) -> void:
@@ -133,6 +145,26 @@ func _init(ctx: SwingContext) -> void:
 	result.trajectory = _trajectory
 	result.events = _events
 	result.hits = _hits
+
+
+## Arm [param gate] to flip at [param frac] of the swing (#1209), cutting blade
+## edge [param edge_idx] at the same sample. Quantises to a trajectory sample —
+## the determinism contract (`melee-blade-sim.md` "Golden trajectories") has
+## no between-samples. Call before the first [method advance]; the caller owns
+## which gates are legal (see [method MeleeAttackPlan.fusable_gates]).
+##
+## Belongs on [SwingContext] by rights; it is a setter here only because this
+## unit's fence stopped at this file.
+func arm_fuse(gate: Gate, frac: float, edge_idx: int) -> void:
+	if gate == null or _total_steps <= 0:
+		return
+	var step := clampi(int(round(clampf(frac, 0.0, 1.0) * float(_total_steps))), 1, _total_steps)
+	var fuse: Fuse = _fuses.get(step)
+	if fuse == null:
+		fuse = Fuse.new()
+		_fuses[step] = fuse
+	fuse.gates.append(gate)
+	fuse.edges.append(edge_idx)
 
 
 func is_done() -> bool:
@@ -220,7 +252,9 @@ func advance(max_steps: int) -> bool:
 			# per sample whether or not anything was hit, and severs exactly
 			# like a pop: stop, rewind, apply, re-bake.
 			var broke := _obstacles != null and _obstacles.has_break_at(step)
-			if _gate.result.pops.size() != pops_before or broke or disowned:
+			# #1209: a fuse severs like a break — stop, rewind, cut, re-bake.
+			var fused := not _fuses.is_empty() and _fuses.has(step)
+			if _gate.result.pops.size() != pops_before or broke or disowned or fused:
 				severed_at = step
 				break
 		if severed_at < 0:
@@ -269,6 +303,10 @@ func advance(max_steps: int) -> bool:
 				# `disowned`: a pop or a break severance can disown a defender
 				# too, the call is idempotent, and the walk is O(zones).
 				_obstacles.retire_disowned_defenders(_world)
+			# The fuse after the rewind and the break, before the pops/severance
+			# sweep below: its cut feeds that sweep like any other severance.
+			if not _fuses.is_empty() and _fuses.has(severed_at):
+				_fire_fuse(_fuses[severed_at], severed_at)
 			for pop in _gate.result.pops:
 				if pop.particle_idx >= 0:
 					_state.remove_vertex(pop.particle_idx)
@@ -297,6 +335,32 @@ func _finish() -> void:
 	# swing actually DESTROYED. Pops only (#799) — a vertex that merely lost its
 	# path to the handle coasts on in this same trajectory and is not a loss.
 	_outcome.popped_nodes += _gate.result.vertex_pop_count()
+
+
+## Cut every fused gate's blade edge at [param step] through the bunker-break
+## severance path, then land ONE [GateFlipInstance] for them on the world — so
+## every later sample resolves against the flipped topology and its cascade.
+## Never draws the crit stream: a flip has no damage to roll for.
+func _fire_fuse(fuse: Fuse, step: int) -> void:
+	var t := float(step) * _dt
+	for idx in fuse.edges:
+		if idx >= 0 and not _state.is_edge_removed(idx):
+			_gate._sever_edge(idx, t, null, 0.0)
+	var flip := GateFlipInstance.new()
+	flip.gates = fuse.gates.duplicate()
+	flip.target = fuse.gates[0].from
+	flip.origin = _ctx.origin
+	flip.source = _ctx.hit_source
+	flip.attacker = _ctx.attacker
+	flip.structural_key = t / maxf(0.001, _ctx.swing_duration)
+	var sub := AttackOutcome.new()
+	sub.cadence = ScheduleEntry.Cadence.SWING
+	sub.resolve_seed = _ctx.resolve_seed
+	sub.hits.append(flip)
+	sub.schedule = OutcomeSchedule.compile(sub)
+	OutcomeApplier.apply(sub, _world)
+	_outcome.hits.append(flip)
+	result.gate_flips.append(flip)
 
 
 ## Mint, crit and LAND one sample's contacts, appending what landed to

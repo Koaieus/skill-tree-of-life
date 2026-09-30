@@ -195,6 +195,14 @@ func to_dict(graph: Graph) -> Dictionary:
 	d["blade"] = ids
 	d["blade_target"] = blade_target
 	d["swing_cw"] = swing_cw
+	# Only when armed, so an unfused plan's dict is unchanged (#1209).
+	if not _gate_fuses.is_empty() and graph != null:
+		var fuses: Array = []
+		for gate in _gate_fuses:
+			if is_instance_valid(gate):
+				fuses.append([graph.get_stable_id(gate.from), graph.get_stable_id(gate.to),
+						_gate_fuses[gate]])
+		d["fuses"] = fuses
 	return d
 
 
@@ -223,6 +231,13 @@ static func from_dict(d: Dictionary, graph: Graph) -> MeleeAttackPlan:
 			continue
 		plan._blade_mirror.mirror_add(member)
 		plan.blade_nodes.append(member)
+	# Straight into the dict, not through [method set_gate_fuse]: the
+	# authority already judged these legal, and a peer never re-adjudicates.
+	for entry in d.get("fuses", [] as Array):
+		var gate := graph.gate_between(graph.get_by_stable_id(int(entry[0])),
+				graph.get_by_stable_id(int(entry[1])))
+		if gate != null:
+			plan._gate_fuses[gate] = float(entry[2])
 	return plan
 
 
@@ -802,7 +817,7 @@ func advance_prediction(max_steps: int) -> bool:
 		return false
 	if _pending_prediction == null:
 		_pending_world = CombatWorld.shadow()
-		_pending_prediction = SwingResolve.new(swing_context(_pending_world))
+		_pending_prediction = _new_run(swing_context(_pending_world))
 		# Counted per RUN, not per slice: one logical prediction per selection is
 		# what this number has always meant (#782 acceptance 5, #821 acceptance 4).
 		prediction_runs += 1
@@ -899,7 +914,7 @@ func begin_replay_resolve(substeps: int, enable_length_scaling: bool) -> void:
 	if _replay_run != null:
 		return
 	_replay_world = CombatWorld.shadow()
-	_replay_run = SwingResolve.new(
+	_replay_run = _new_run(
 			swing_context(_replay_world, substeps, enable_length_scaling))
 	last_trajectory = _replay_run.result.trajectory
 	last_events = _replay_run.result.events
@@ -997,7 +1012,7 @@ func swing_context(world: CombatWorld,
 ## [SwingResult] for why the artifacts come back in a bundle instead of being
 ## written onto this plan.
 func _resolve_swing(world: CombatWorld) -> SwingResult:
-	var run := SwingResolve.new(swing_context(world))
+	var run := _new_run(swing_context(world))
 	# Unbounded: one optimistic bake per severance, exactly the loop this method
 	# ran inline before #821 hoisted it into [SwingResolve]. The slice budget is
 	# the ONLY thing the preview varies — see that class for why there is not a
@@ -1005,6 +1020,38 @@ func _resolve_swing(world: CombatWorld) -> SwingResult:
 	while not run.advance(0):
 		pass
 	return run.result
+
+
+## The one place a [SwingResolve] of THIS plan is minted — the prediction, the
+## committed resolve and the peer's draw-only replay all arm the same fuses.
+## A fuse whose gate is no longer [method fusable_gates] (closed, frozen, or
+## outside the blade since it was armed) is dropped here, silently: #1209
+## acceptance 4, a no-op rather than an error.
+func _new_run(ctx: SwingContext) -> SwingResolve:
+	var run := SwingResolve.new(ctx)
+	if _gate_fuses.is_empty() or ctx.state == null:
+		return run
+	var selection: Array[SkillNode] = [source]
+	selection.append_array(blade_nodes)
+	for gate in fusable_gates():
+		if _gate_fuses.has(gate):
+			run.arm_fuse(gate, _gate_fuses[gate], _blade_edge_of(ctx.state, selection, gate))
+	return run
+
+
+## [param gate]'s pair as an index into [param state]'s own edge list (either
+## orientation), or -1. Scanned rather than assumed from induced order —
+## addons append constraints after [method BladeState.build].
+static func _blade_edge_of(state: BladeState, selection: Array[SkillNode], gate: Gate) -> int:
+	var a := selection.find(gate.from)
+	var b := selection.find(gate.to)
+	if a < 0 or b < 0:
+		return -1
+	for i in state.edges.size():
+		var e := state.edges[i]
+		if (e.x == a and e.y == b) or (e.x == b and e.y == a):
+			return i
+	return -1
 
 
 ## Build a fresh BladeState from the current selection. `MeleePreview` does

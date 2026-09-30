@@ -159,6 +159,12 @@ const KEY_EVENT_PRED_ALL := "e_preda"
 const KEY_EVENT_VISIT := "e_visit"
 const KEY_EVENT_TERMINAL := "e_term"
 const KEY_EVENT_HITS := "e_hits"
+## A melee fuse's gate flips (#1209): one count per [constant HitInstance.Kind.GATE_FLIP]
+## hit, in hit order, slicing the flat pair arrays. Omitted when empty, so a
+## fuse-less record is dict-identical to one captured before fuses existed.
+const KEY_GATE_COUNT := "g_n"
+const KEY_GATE_FROM := "g_from"
+const KEY_GATE_TO := "g_to"
 
 ## [constant KEY_HIT_FLAGS] bits.
 const FLAG_GATED := 1
@@ -214,6 +220,9 @@ var visits := PackedInt32Array()
 var terminals := PackedByteArray()
 ## Per event, the INDICES into [member kinds] & co. of the hits it carries.
 var event_hits: Array[PackedInt32Array] = []
+var gate_counts := PackedInt32Array()
+var gate_from := PackedInt32Array()
+var gate_to := PackedInt32Array()
 
 
 static func wire_fields() -> Array[WireFields.Field]:
@@ -254,6 +263,9 @@ static func wire_fields() -> Array[WireFields.Field]:
 		WireFields.Field.new(&"visits", TYPE_PACKED_INT32_ARRAY).as_key(KEY_EVENT_VISIT),
 		WireFields.Field.new(&"terminals", TYPE_PACKED_BYTE_ARRAY).as_key(KEY_EVENT_TERMINAL),
 		WireFields.Field.new(&"event_hits", TYPE_ARRAY).of(TYPE_PACKED_INT32_ARRAY).as_key(KEY_EVENT_HITS),
+		WireFields.Field.new(&"gate_counts", TYPE_PACKED_INT32_ARRAY).as_key(KEY_GATE_COUNT).omitted_at_default(),
+		WireFields.Field.new(&"gate_from", TYPE_PACKED_INT32_ARRAY).as_key(KEY_GATE_FROM).omitted_at_default(),
+		WireFields.Field.new(&"gate_to", TYPE_PACKED_INT32_ARRAY).as_key(KEY_GATE_TO).omitted_at_default(),
 	]
 
 
@@ -311,6 +323,12 @@ static func capture(outcome: AttackOutcome, graph: Graph) -> Dictionary:
 			r.dealloc_chips.append(e.chip)
 			r.dealloc_label_counts.append(e.revoked_labels.size())
 			r.dealloc_labels.append_array(e.revoked_labels)
+		var flip := hit as GateFlipInstance
+		if flip != null:
+			r.gate_counts.append(flip.gates.size())
+			for g in flip.gates:
+				r.gate_from.append(_id_of(g.from if g != null else null, graph))
+				r.gate_to.append(_id_of(g.to if g != null else null, graph))
 	for event in outcome.timeline:
 		r.beats.append(event.beat)
 		r.visits.append(event.visit_index)
@@ -371,6 +389,10 @@ static func rebuild(d: Dictionary, graph: Graph, rate: float = -1.0) -> AttackOu
 	# own count. The counts array is what slices one flat run back into per-hit
 	# groups; without it the entries would all belong to hit 0.
 	var dealloc_at := 0
+	# Running offsets for the gate-flip arrays: `flip_at` over flip hits,
+	# `gate_at` over their flattened pairs.
+	var flip_at := 0
+	var gate_at := 0
 	for i in r.kinds.size():
 		var gated := (r.flags[i] & FLAG_GATED) != 0
 		var amount: float = 0.0 if gated else r.amounts[i]
@@ -399,6 +421,23 @@ static func rebuild(d: Dictionary, graph: Graph, rate: float = -1.0) -> AttackOu
 			# `attackers`, the node `targets` — all assigned by the tail below.
 			hit = RevealInstance.new()
 			hit.amount = amount
+		elif r.kinds[i] == int(HitInstance.Kind.GATE_FLIP):
+			# The pairs back to [Gate]s by identity on THIS board; a pair the
+			# peer cannot resolve is dropped loudly rather than flipped blind.
+			var flip := GateFlipInstance.new()
+			var count := r.gate_counts[flip_at] if flip_at < r.gate_counts.size() else 0
+			flip_at += 1
+			for k in count:
+				var a := _node_of(r.gate_from[gate_at + k], graph)
+				var b := _node_of(r.gate_to[gate_at + k], graph)
+				var gate := graph.gate_between(a, b) if graph != null and a != null and b != null else null
+				if gate == null:
+					push_warning("AttackRecord: fused gate %d-%d not found on this machine"
+							% [r.gate_from[gate_at + k], r.gate_to[gate_at + k]])
+					continue
+				flip.gates.append(gate)
+			gate_at += count
+			hit = flip
 		else:
 			var di := DamageInstance.new()
 			# Already mitigated on the host. TRUE is the one path

@@ -34,6 +34,11 @@ class_name OutcomeApplier
 ## [method BeatClock.instant_clock] (the default) to land the whole outcome
 ## synchronously; see [BeatClock] for why this is not frame-ordered mutation.
 ##
+## [param alloc] is read only by a [GateFlipInstance] landing on a LIVE world
+## (#1209) — a melee fuse's real flip goes through
+## [method AllocationSystem.apply_gate_flip_recorded]. Null skips such a
+## landing with a warning rather than flipping without the cascade.
+##
 ## [param world] chooses WHICH world it lands in (#535). Hand it
 ## [method CombatWorld.live] for a real launch or a peer replay, or a
 ## [method CombatWorld.shadow] and the identical loop, the identical gates and
@@ -62,7 +67,7 @@ static func apply(outcome: AttackOutcome, world: CombatWorld,
 		# dropping the await would land the whole volley on frame one.
 		@warning_ignore("redundant_await")
 		await beat.advance_to(hit.arrival_time)
-		land_one(hit, world)
+		land_one(hit, world, alloc)
 
 
 ## One landing, gate and cue included — the body of [method apply]'s loop, and
@@ -79,8 +84,14 @@ static func apply(outcome: AttackOutcome, world: CombatWorld,
 ## Never [code]await[/code]s, deliberately: the clock is [method apply]'s
 ## concern, so a mid-walk caller pays no coroutine and cannot accidentally
 ## stagger a wave it meant to land at once.
-static func land_one(hit: HitInstance, world: CombatWorld) -> void:
+static func land_one(hit: HitInstance, world: CombatWorld,
+		alloc: AllocationSystem = null) -> void:
 	if hit == null or hit.target == null:
+		return
+	# A fuse's gate flip (#1209) lands on the TOPOLOGY, not on a slice — and
+	# live it needs [param alloc], the one flip-and-cascade implementation.
+	if hit.kind == HitInstance.Kind.GATE_FLIP:
+		(hit as GateFlipInstance).land_flip(world, alloc)
 		return
 	# Re-checked here rather than hoisted: an earlier beat's cascade can
 	# free a target between landings. `origin` is checked too (#503) — a

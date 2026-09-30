@@ -36,4 +36,8 @@ var gate_flips: Array[GateFlipInstance] = []
 ## The union of every fuse's stranded set — #1210's plan-time warning.
 func predicted_stranded() -> Array[SkillNode]:
 	var out: Array[SkillNode] = []
+	for flip in gate_flips:
+		for e in flip.deallocations:
+			if e.node != null and not out.has(e.node):
+				out.append(e.node)
 	return out
