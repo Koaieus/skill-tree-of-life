@@ -1,8 +1,8 @@
 # Click grammar — left pushes, right pops
 
 The one input grammar allocation, targeting and every armed verb share. The
-mechanism lives in `systems/player_input_controller.gd` and the
-`systems/*_armed_mode.gd` levels; this doc is the grammar they implement.
+mechanism lives in `systems/player_input_controller.gd`, `systems/armed/armed_stack.gd`
+and the `systems/armed/*_mode.gd` levels; this doc is the grammar they implement.
 Direction for its rework: ADR 0034, implemented by #1223.
 
 ## The rule
@@ -42,19 +42,26 @@ call.
 
 ## The stack, in pop order
 
-`PlayerInputController._armed_modes` — array order **is** nesting order; the
-first armed entry pops.
+`ArmedStack.branch()` is the active root-to-leaf path of a statechart: a real
+push/pop stack, seat-local, never synced. `ManageMode` is the unpoppable root
+(its native click is allocate, so the Allocate card is active iff the stack
+is at root); every other level is pushed on it. `pop_top()` pops the top;
+`pop(mode)` pops that level and everything above it ("pop me" — `StakeMode`
+pops itself when its command lands). Arming a top-level mode while another
+is up switches: pop to root, then push. Mid-swing the stack is frozen — a pop
+is refused until the launch releases the attack level.
 
-| # | Level | Armed while | Pop clears |
+| Level | Sits on | Armed while | Pop clears |
 |---|---|---|---|
-| 1 | `MassActionArmedMode` | a distant-allocate / would-island-deallocate click awaits confirmation | the pending request |
-| 2 | `TempUpgradeArmedMode` | a temp-upgrade card (Clamp, Spikes…) is armed inside a Melee plan | just the arm — never the pivot/members under it |
-| 3 | `AttackPlanArmedMode` | an attack plan is live | one level of the plan (table below); at the floor, the plan itself |
-| 4 | `CoreMoveArmedMode` | core-move targeting has a source | the source |
-| 5 | `ManageArmedMode` | a Deallocate / Stake / Extract card is armed (Allocate is not a level) | the verb |
+| `MassActionMode` | whatever is top | a distant-allocate / would-island-deallocate click awaits confirmation | the pending request |
+| `TempUpgradeMode` | `AttackPlanMode` | a temp-upgrade card (Clamp, Spikes…) is armed inside a Melee plan | just the arm — never the pivot/members under it |
+| `AttackPlanMode` (interim, #1223 splits it) | `ManageMode` | an attack plan is live | one level of the plan (table below); at the floor, the plan itself |
+| `CoreMoveMode` | `ManageMode` | core-move targeting has a source | the source |
+| `StakeMode` / `ExtractMode` / `DeallocateMode` | `ManageMode` | that card is armed (Allocate is not a level) | the verb |
 
-The viewport armed-mode glow reads the same array **in reverse** — the base of
-the stack decides the colour while the top pops. Opposite ends, on purpose.
+The viewport armed-mode glow reads the same branch **base-first** — the base
+of the stack decides the colour while the badge and the pop read the top.
+Opposite ends, on purpose.
 
 ## Per-mode shape
 
@@ -82,14 +89,15 @@ source is always the core. Then:
   click still allocates.
 
 Dragging from the core is the same state machine, accelerated. The routing is
-`PlayerInputController._route_core_move_click`.
+`CoreMoveMode.handle_left_click`.
 
 ## Where it lives
 
 - `AttackPlan.pop()` / `handle_right_click` — the shared pop; `false` means
   the plan was at its floor.
 - `PlayerInputController._unhandled_input` — right-click is global, not a
-  per-node signal; `_route_battle_click` exits the plan when nothing was left
-  to pop.
+  per-node signal; `pop_armed_level` pops the top level (`false` at root
+  falls through to pin-toggle / the pause menu), and `AttackPlanMode` exits
+  the plan when nothing was left to pop.
 - `docs/domain/attack_plan_system.md` — the attack-plan architecture this
   grammar rides on.
