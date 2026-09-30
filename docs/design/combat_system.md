@@ -1,6 +1,6 @@
 # Combat System Design — Skill Tree of Life
 
-> ⚠️ **Current behaviour is code + `docs/domain/`; settled calls are [ADRs](../adr/index.md).** This doc retains the original design sketches; sections on the **face/cycle damage model** (§Melee) and the **R/G/B color triangle + resists** are **deferred post-MVP** — implementation today uses node-only melee and a single `armor` stat. Class-specific mechanics here (Predator's BLITZ, Bulwark's `damage_floor` perk path, the Halo shell, Frontier, Hive) belong to classes that are **not built** — `core_classes.md`'s status table says which.
+> ⚠️ **Design intent, not a description of the game.** Current behaviour is code + `docs/domain/`; settled calls are [ADRs](../adr/index.md). What stays here is the philosophy, the //10 spine, and mechanics that are **not built**: the face/cycle damage model, the R/G/B triangle + resists, thorns, the degree-tier cast table, the loot draft, Breakout. The classes named here (Predator, Bulwark, Halo, Frontier, Edgelord, Hive) are not built — `core_classes.md`'s status table says which are.
 
 ---
 
@@ -23,9 +23,8 @@ The two most basic laws:
 
 **Base-10 is the anchor.**
 
-- Default node HP: **10** *(placeholder — the per-round focus-soak threshold; set in Balance against amped damage)*
+- Default node HP: **10**, scaled by CON
 - Core attributes (STR, DEX, INT) at run start: **≈ 10 each**
-- Calibration target: a **focus-count per round** — "N converged damage-sources this round to kill a node," *not* "N turns of chipping." The old "3–4 volleys per node" multi-turn anchor is **dead** (it assumed persistent chip; `node_health` now resets at owner turn start — see Node HP). Damage is **amped** relative to node HP: losing nodes is more common, and sniping and melee both feel more decisive.
 - Offensive and defensive buffs scale from there (e.g. +1 STR on an early skill node; +10 STR at the Apex end of the meta tree)
 
 The goal is never to scale into the thousands and never to need e-notation. A `+10` to an attribute should feel *strong*.
@@ -90,7 +89,7 @@ outgoing ×= type_advantage(attacker_color, target_color)
 (roll crit) → if crit, apply crit effect
 
 per target node:
-    taken = max(damage_floor, outgoing − armor − resist[attack_color])
+    taken = max(min_damage_taken, outgoing − armor − resist[attack_color])
     target_node.health −= taken
     if attack is melee and target_node.thorns > 0:
         attacking_node.health −= target_node.thorns   ← not reduced by attacker's armor
@@ -98,52 +97,17 @@ per target node:
     if attacking_node.health <= 0 → attacking_node severed → island check (immediate)
 ```
 
-**Combined strikes apply defense once (per *target*, not per-hit).** The ranged **volley** (many leaves on one target) and the melee **phantom-blade swing** (many contacts — edges + spikes + faces — on one target) sum their contributions into a single `outgoing` per target, and `armor`/`resist` subtract **once** from that total. See the scaling spine and Melee.
+**Defense once per target — the spine's intent, not what shipped.** The design summed a combined strike (a volley's leaves, a blade's contacts) into one `outgoing` per target and subtracted `armor`/`resist` **once**. Ranged shipped per arrow instead — armor applies per landing (#496) — and every hit rolls its own crit.
 
-**`damage_floor`:** replaces the old hardcoded `max(1, ...)`. Global default `1` — behavior identical for most entities. The Bulwark class starts at `damage_floor = 3` with a class path to reduce it. Below `0`, the entity heals when hit (intentional extreme-build payoff). See `entity_stat_board_prototype.md`.
+**`min_damage_taken`** floors a hit after reductions, and below `0` a hit heals — shipped (`attack/formulas/mitigation.gd`). The unbuilt Bulwark class would start at `3` with a class path to reduce it.
 
-**Thorns:** flat counter-damage returned on a melee hit to the attacking node, not reduced by armor. The Halo class's aura grants thorns to shell and near-shell nodes from `thorns_base`. See `skill_node_addons.md` and `core_classes.md`.
-
-### Critical strikes — one universal roll, per HIT *(LOCKED 2026-08-21, #507)*
-
-`crit_chance` and `crit_multiplier` are **universal entity stats**: melee,
-ranged and magic all roll the same one, from the attacker's board. This was a
-gap for a long time — the stats existed and were documented as universal, but
-only spells read them, so a player investing in crit got nothing from two
-thirds of their offense with nothing on screen to say so.
-
-**A crit is decided per hit.** Owner call 2026-08-21, verbatim: *"a hit can
-crit."* No per-mode special case:
-
-- a volley of arrows is many hits, so many rolls;
-- a blade of N vertices sweeping M nodes is many rolls;
-- a spell that bounces A → B/C/D → … is one roll per landing.
-
-The obvious objection — a **wide blade** gets more lottery tickets, and a
-**40-node empire** rolls forty times against one node — was raised and
-settled: **that is fine and is not a problem to design around.** More hits
-means more chances, which is what a hit-based crit model means everywhere
-else in the genre. It makes blade width and territory size quietly
-crit-relevant, and that is a legitimate build axis rather than a leak.
-
-**Magic keeps one deviation, and only one.** `SpellDef.crit_conditions` —
-guaranteed crits on a self-loop traversal, a leaf landing, a convergence — sit
-**on top of** the universal roll, not instead of it. Both firing on the same
-landing is `crit_tier 2`. Melee and ranged have no condition analogue; a
-"crit on a cut vertex" or "crit on the killing blow" is imaginable and is a
-separate design question, not part of this.
-
-**Design tension 2 below (global vs per-type crit) resolves to global.**
-
-The implementation contract — which clock rolls, which clock multiplies, and
-why the two differ — is engineering, and lives in `CritRoll`
-(`attack/outcome/crit_roll.gd`) and `../domain/attack-timeline.md`.
+**Thorns (unbuilt):** flat counter-damage returned on a melee hit to the attacking node, not reduced by armor. See Thorns below.
 
 ---
 
 ## Attributes, Colors & the Attack Triangle
 
-The roster grew to **six attributes** — three attack (prevalent), three utility (rarer) — each earning its slot via a real graph-native mechanic (the standing bar: *no stats for stats' sake*). The old "W = XP economy" role is **reassigned**: White now owns durability (CON), and XP/growth moves to a new Gold color (WIS). See the migration note below.
+The roster grew to **six attributes** — three attack (prevalent), three utility (rarer) — each earning its slot via a real graph-native mechanic (the standing bar: *no stats for stats' sake*). White owns durability (CON); XP/growth is Gold (WIS).
 
 | Color | Attribute | Role | Attack | Notes |
 |---|---|---|---|---|
@@ -160,7 +124,6 @@ The roster grew to **six attributes** — three attack (prevalent), three utilit
 - Illustrative gearing (Balance-phase, *pool-appropriate* — **not** the damage //10): PER → `+1 sensor_range / 10 PER` (integer, hop-based) and `+2% vision_range / PER` (smooth, euclidean); WIS → a % XP-gain multiplier; CON → HP + armor-affix weight.
 - **`coolness` → non-core → prestige only.** Does nothing mechanically; tallied at end credits. Thematically the purest "**all edge, no point**" — style with no anchor — so winning a coolness build is the cardinal aesthetic heresy, and the Fairy should have opinions. Procgen-sprinkled. The joke-CHA of the set.
 
-> **Migration note (White → CON; economy → Gold).** Older docs (this one included, plus `lore.md`, `core_classes.md`, the GDD) describe **White nodes as the XP/economy lifeblood**. Under the new roster that role belongs to **Gold (WIS)**, and **White becomes the durability color (CON)**. This is the newer intent but is *still potentially not final* — the central tables (here, `stat_system.md`, `entity_stat_board_prototype.md`, GDD §3) reflect the six-color model; per-class economy prose (Hive, Harvester, Halo interiors) still says "White" and should be read as "the economy color (Gold)" until a dedicated sweep migrates them.
 
 ### Colors are content, not a graph-coloring
 
@@ -183,71 +146,21 @@ The 4-color-theorem resonance (planar graphs are 4-colorable) is a **red herring
 
 ---
 
-## Perception & Fog of War
 
-Two-layer system. Both entity-level stats. Per-node position determines coverage zone.
+## Turn Structure
 
-| Stat | Basis | What you see | Default |
-|---|---|---|---|
-| `sense_range` | **Hops** from any owned node | Silhouette: node exists at position X, no details | 3 |
-| `vision_range` | **Euclidean** from any owned node | Full detail: node type, HP, visible modifiers | ~4 |
-
-Beyond `sense_range`: total fog. Inside sense but outside vision: silhouette only. Inside vision: full information. A silhouette-only node can still be targeted by ranged attacks if within `attack_range`. `vision_range` belongs on the entity stat board (not on individual nodes — legacy code misplaces it).
-
----
-
-## Turn Structure — one turn, intent by input channel
-
-**Two action points per turn by default** (`action_points`, default 2 — *LOCKED*). There is **one implicit phase per turn**: at `turn_started` every per-turn budget replenishes (AP / DP / SP / XP / mana / wound-heal / node-refill), and the entity spends them **in any order** until it presses End Turn. There are no CONTRACT / EXPAND / BATTLE sub-phases — that split is dropped. (The old "temp SP via battle-phase allocations" model is likewise gone: all allocation is permanent.)
-
-> **Action economy — 2 actions, load-bearing *(LOCKED)*.** Two action points is not just throughput: the second action's primary role is to **capitalize on the first's dent before the owner-turn-start reset** (see Node HP — enemy nodes don't reset mid-turn, so two actions stack on one target). Ranged volleys cost 0 AP (budgeted by arrows, per-leaf shots and `volleys_per_turn` instead), so an action can be a **different mode** (e.g. volley then melee tap) stacking on the same node — cross-mode same-turn stacking is the expected combining pattern.
-
-**Intent is disambiguated by INPUT CHANNEL, not by phase.** Each channel is gated only by *"is it your turn?"* plus its own budget:
-
-- **Allocate** — bare **left-click on an unowned adjacent node**. Spends `skill_points`; obeys adjacency. Each allocation extends `vision_range` (euclidean, full detail) and adds a `sensor_range` silhouette ping.
-- **Deallocate** — hover a node + press the **`D` key**. Spends `deallocation_points`; refunds SP and obeys the no-island rule (the would-disconnect gate). Together with core-move, this is how you "move the constellation."
-- **Move core** — left-click your **own core**, then click an **adjacent owned node**. Spends `movement_points` (issue #21).
-- **Attack / cast** — the **AttackModeBar** picks the mode (melee / ranged / magic), then node clicks feed the active plan. Melee and magic spend `action_points`; ranged volleys cost 0 AP and are budgeted by arrows and per-leaf shots instead (#496). A second melee action can stack on a dented node — *dent then finish* — since enemy nodes don't reset until their own turn.
-
-**Why input-channel and not phases:** the previous three-phase split (CONTRACT → EXPAND → BATTLE) existed to keep a context-sensitive click on your own node from deallocating when you meant to allocate (or vice versa), wasting one of the very limited pools. Separate input channels solve that disambiguation directly — allocate (a left-click) and deallocate (a keypress) can't be confused — without forcing the player to switch modes first. End Turn warns **only** about unspent `action_points`, and **only** when an enemy node is visible (no visible enemy → no AP-costing action left to waste → no warning). SP / DP / MP are spent at the player's discretion with no warning, and there are no phase-exit confirmation modals.
+One turn, no phases, intent read from the input channel — shipped; the per-turn budgets are ordinary stats (`action_points`, `skill_points`, `deallocation_points`, `movement_points`).
 
 > A polished AoE2-style contextual **Action Bar** (click a node → fan out its legal actions) is a **deferred follow-up** (ROADMAP #27), not the current model. Today attacks route through the AttackModeBar.
 
 NPC turns resolve by the same rules; the player sees them play out in full only inside their vision, otherwise fast-forwarded unless something happens in view.
 
-*(Mirrors GDD §2. The buffer-node "temporary reach" mechanic from earlier drafts is parked — Buffer addons currently exist on the node side, the temp-allocation hook hasn't been built, and removing the phase split removed its main rationale.)*
 
 ---
 
 ## Ranged Attacks
 
-**Firing origin: leaf nodes only.**
-
-A **leaf** is a node of degree 1 in the entity's *own allocated subgraph*. Only leaves may fire ranged attacks; non-leaf owned nodes cannot.
-
-**Why this is graph-native:** tendrils and stubs become firing ports. Growing ranged capability means sprouting stubs off a filament (turning an I-shape into an E-shape adds 3 firing leaves). Compact cluster builds lose ranged presence. Ring builds (zero leaves by definition) cannot fire ranged at all — they trade ranged offense for topological resilience.
-
-**Volley model** (Ranged2.0, owner 2026-09-18 — #496):
-- A volley = one target + **N arrows**, N chosen 1..max, `max N = min(quiver stock, Σ shots_left over leaves in range)`, default max. **Firing costs 0 AP**: the economy is arrows (the `arrows` Quiver, refilled by `ReloadCommand` for 1 AP) and per-leaf shots (`max_shots_per_leaf`, base 5, reset at the firer's turn end).
-- **Wave-major fill:** each wave, every owned leaf within euclidean range of the target fires one arrow, nearest-first; waves repeat until N (3 leaves at 5/5, 5/5, 4/5 → waves of 3, 3, 3, 3, 2). One volley is one presentation ramp; waves sit back-to-back inside it.
-- **Volleys per turn == max shots per leaf** (`volleys_per_turn`, base 5), so a fully committed front can always fire everything it produces — this is what lets kills/turn exceed AP (a 3-connected foe needs ≥ 4 cuts in one turn).
-- **Composition** is typed counts (`ammo_counts: {type_id: n}`); types are assigned along the schedule in the roster's fixed `AmmoType.order` — specials first, the base arrow last — so "5 armour-breaker shots configured first land first, regardless of what wave they launch in".
-- **Damage is per arrow.** Each shot reads its firing leaf's node-local `ranged_damage` (`DEX//10` off the [scaling spine](#the-attribute-scaling-spine--the-10-model) plus node-local addons); armour and resist apply **per landing**, never once per volley — the code has been per-shot since the ramp landed, and a dud (target already dead, leaf lost mid-volley) is vetoed at landing but still consumed: *"a shot fired is a shot fired and a shot fired uses ammo"*.
-- Range is the natural volley-size cap: you cannot get 40 leaves within one target's euclidean radius. No explicit leaf cap needed.
-
-```
-per arrow:  outgoing_i = ranged_damage(firing leaf)
-            taken_i    = max(damage_floor, outgoing_i − armor − resist_g)   ← per landing
-```
-
-**Two intended outcomes:**
-- Converged leaves → dismember a weak node. A comb of leaves on a low-HP target can one-shot it.
-- 1–2 overextended leaves into a stronghold → won't cut it; armor absorbs the trickle.
-
-**Leaf cooldown:** none beyond the per-leaf shot budget. `shots_fired_this_turn` on the node resets at the firer's turn end; there is no cooldown on top, and no lock of a leaf to one target.
-
-**Crit:** global `crit_chance` (5%) and `crit_mult` (×2) to start — rolled
-**per arrow**, so a wide volley gets one roll per shot. See "Critical strikes".
+Leaf-only firing and the volley model are shipped — [ADRs 0019–0021](../adr/index.md) and the ranged plan code. What follows is the role design around them.
 
 ### Ranged identity — the cut-vertex sniper *(open: GitHub #11)*
 
@@ -263,7 +176,7 @@ Ranged's signature role is **precision reach**: it is the only attack that can p
 
 ```
 per damage instance:  outgoing = base_magic + INT//10    (or spell-specific formula)
-                       taken    = max(damage_floor, outgoing − armor − resist_b)   ← once per target
+                       taken    = max(min_damage_taken, outgoing − armor − resist_b)   ← once per target
 instances            = initial hit + each hop + each self-loop return
 ```
 
@@ -311,37 +224,10 @@ Design principle: every spell should feel like it *is* something that happens in
 
 ## Melee, In Depth
 
-> **Supersedes the old "tap-and-recover" + abstract-shape model.** Melee shapes are no longer hitboxes that come from nowhere, and Buffer nodes are no longer melee fuel (they are repurposed — see `skill_node_addons.md` and the Turn Structure section). The melee weapon *is your topology.*
+> The melee weapon *is your topology.* The shipped blade — phantom copy, handle, size, the XPBD tensegrity sim, swept capsules, speed-scaled damage — is `../domain/melee-blade-sim.md`; nodes deal damage and edges give rigidity ([ADR 0005](../adr/0005-blade-parts-and-counters-are-orthogonal.md)). What follows is the design around it, mostly unbuilt.
 
-### The phantom blade
+### Faces (deferred post-MVP)
 
-**You select a connected set of your owned nodes; a phantom copy of that subgraph is swung as a weapon.** The shape is 100% your topology — consistent with how ranged reads leaves and magic reads edges.
-
-**Geometry:**
-
-- **1:1-scale copy** of the selected nodes — true geometry, true distances. The real constellation never deforms; the blade is a copy.
-- **Induced, connected subgraph.** Pick vertices; the edges *between selected vertices* come automatically (edges to unselected nodes are excluded — a selected straight line is a clean line). The selection must be connected. Induced (not hand-picked edges) because it force-feeds your real topology onto the weapon. An "edge-trim" addon could allow shaping later; not core.
-- **Handle = the attacking node, full stop.** No separate handle-pick. The blade is the connected subgraph rooted at the attacking node; that node is the **pivot**, pinned at its real position while the phantom sweeps.
-- **Size:** attacking node (free handle) + up to `STR//10 + 1` blade nodes. At 0 STR you still get a handle+1 dagger, so melee never fully switches off.
-
-**Cadence:**
-
-- **One swing per action** — so up to **two swings per turn** under the 2-action economy (ranged, by contrast, fires for 0 AP and is capped by arrows and per-leaf shots, not by actions; a second melee action can stack on the dented node before its owner-turn reset).
-- **No source-node cooldown** — the blade is a copy, nothing is spent. Melee's cost is **structural** (blade-shaped filaments are cut-vertex-ridden) and **positional** (the attacking node must be where the fight is). Cooldown remains available as a tuning throttle if melee ever needs one, but is not baseline.
-
-**Intentional early-game weakness.** Melee is deliberately weak early — early game is a wet-noodle fight across all attack types by design. The strongest *early* melee is a **"triangle on a stick"** — `(handle)—(triangle)` — the minimal rigid, faced blade. A triangle is 3 blade nodes, which needs `STR//10+1 ≥ 3`, i.e. **~20 STR**. Below that you have a handle+1 dagger (single rigid edge) or a handle+2 path (floppy, no face). Offense in general starts soft and scales hard.
-
-### Melee damage model
-
-For a swing, against each target node, count **contacts** — each phantom damage-element that sweeps the target during the motion:
-
-- **Each edge** that sweeps the target (the baseline cutting surface).
-- **Each spiked node** that sweeps the target (offensive payload; see thorns=spikes).
-- **Each face** whose swept area covers the target (see faces).
-
-Each contact deals `base + STR//10`. **Sum contacts per target; apply defense once per target.** Cap each element to **one contact per target per swing** for legibility and bounding.
-
-So STR pulls double duty — size (`//10+1` nodes) and per-contact bite (`+STR//10`) — making melee roughly **quadratic in STR investment**. Intended ("can't be hit by a giant blade for weaksauce damage"); tune down if OP. Self-limiting: geometry caps single-target damage the way range caps volley size. **Big blades pay off in breadth.** This gives a role triangle for free: **melee = area control (chip line → heavy pan), ranged = single-target burst, magic = topological reach.**
 
 **Faces (the "pan").** A selected cycle floods into a filled face. When the phantom swings, a far-out face sweeps a wide, fast **area**, not a line.
 
@@ -352,45 +238,10 @@ So STR pulls double duty — size (`//10+1` nodes) and per-contact bite (`+STR//
 - **Anti-double-dip:** a node inside a swept face takes the face's *bundled* damage (which already includes that face's edges) and does **not** also eat those same edges separately; it still takes any *non-face* edges grazing it, plus standalone spikes, on top.
 - Trigger the face off **cycle presence** (a graph fact, always defined) rather than a geometric filled region (no runtime planarity guarantee). Render the fill when the cycle happens to be planar.
 
-> **2026-09-07 (#772 melee design session), resolved by #785 — edges collide, and `edge_damage` is its own stat.** Blade contact was vertex-only ("D-1 MVP: edges are inert"), which produced two defects. Owner: *"say a truss blade slams into a bunker, but the initial nodes pass it -- no hitbox on the edge, it could slip in between; then it could hit in the 2nd part of the truss as it sweeps, causing bounces and largely chaotic behavior because the bunker is now in the center of the blade. […] we need SOMETHING against this"* — plus **spacing luck**, where whether a spike bit depended on landing on a vertex hitbox versus the gap between two.
->
-> What shipped: **swept capsules** on every edge, covering the segment *minus* the two endpoint hitbox disks — one collision model for every defender-side effect (spike pops #778, bunker #781, fortification drag #780). **Faces stay rejected**: the cycle-presence rule above still stands, and polygon containment per sim step buys nothing capsules don't. **Anti-double-dip is now a hard cap on the counting rule** — per sim step a target takes at most ONE blade-element contact, the highest-damage one, never a sum — so a target on a degree-6 hub takes vertex damage only, and a target inside two splayed capsules takes the higher. That is the bounded form of *"tame runaway with the scalars, never the counting rule"*: here the rule itself is bounded, so no scalar patching is needed.
->
-> **`edge_damage` is a new stat, default 0, granted by the paired sharpener addon** — **not** lerped, min'd or derived from `blade_damage`. Owner's framing: *"Edges.. cut? Blades.. clobber?"* — a vertex is mass at the end of a lever (concentrated impact, carries spikes); an edge is a line under shear (distributed, carries sharpeners). Deriving it from `blade_damage` would count one investment roughly twice on a 100-edge blade. So capsules add **contact**, not damage, until a sharpener is equipped. A capsule contact is otherwise a full contact for every defender effect: it spends `spikes` on exactly #778's ladder, and a full drain severs the **edge** while both endpoints survive (#781's "the element that owns the contact point is the element that breaks"). Engineering detail — an edge's coefficient and blunting are the MIN of its two endpoints', so the *paired* sharpener must sit on both ends; that pairing rule is an implementation call, not an owner decision. See `../domain/melee-blade-sim.md` § "Edge collision (#785)".
-
-> **2026-09-08 — SUPERSEDED IN PART by [ADR 0005](../adr/0005-blade-parts-and-counters-are-orthogonal.md): `edge_damage` and edge blunting are gone.** The entry above records what #785 shipped, and two thirds of it stood for one day. The principle the owner adopted instead: **nodes deal damage, edges give rigidity; spikes pop vertices, bunkers break edges** — *"i like that orthogonal split, we should adopt it officially"* (owner, 2026-09-08). So: **an edge carries no stats at all** (no `edge_damage`, no `blunting`, and no MIN-of-endpoints derivation of either — that ground is dead, on the owner's lever test and on the build-decision collapse a derivation causes), and **an edge never interacts with spikes** (it drains nothing and severs nothing). What survives from #785 unchanged is the **swept capsule geometry**, which is the half that fixed the real defect: keeping a bunker from slipping between two vertices into the blade's interior. `_sever_edge` survives too, re-homed as #781's bunker seam. The spacing-luck argument for edge blunting is retired — owner: *"blades be floppy as heck, intentionally threading the spiked-defender needle would be close to impossible"*. Read the ADR before re-arguing any of it; it marks which grounds are already dead.
-
-**Thorns = spikes (one stat — *sharpness*; motion decides which way it cuts).**
-
-- **Stationary** thorny node → defensive: an incoming melee attacker impales itself (counter-damage, unaffected by attacker armor; hits the attacker's handle/attacking node). *(This is the existing Thorns mechanic — see below.)*
-- **Swung** thorny node → offensive: drives its spikes through whatever it sweeps (a spiked-node contact). The **Spikes** addon/modifier raises this **vertex-spike** term of face damage (see `skill_node_addons.md`).
-- The terms are interchangeable; they draw from one stat.
-
-> **2026-09-07 (#772 melee design session), resolved by #778 — the "sharpness" one-stat unification above is SUPERSEDED.** Owner: *"no 'sharpness' anymore, blade_pops only (and defensively). the offensive stats already live on the SpikeAddon-granted 'blade damage' modifiers."* What shipped: `spikes` is a node-local `PoolStat` pop-budget (default 0, granted only by the Spikes addon, scaling 1:2:3 with stake), `spike_regen` recovers it `PerTurnMode.ADD` at the owner's turn start, and `blunting` (default 1, 2 on a spiked attacking vertex; crit doubling is real but filed under the Crits milestone, not this resolution) is the vertex-side cost. `thorns`/`thorns_base` were never unified with any of this — there is no `thorns` StatDef; the existing Thorns mechanic is backed by `armor.tres` / `min_damage_taken.tres` alone. History kept below for the `FLAG` this closes.
-
-> **`FLAG` — a second defensive model for spikes is OPEN (resolve before either ships).** Beyond flat counter-damage, a candidate worth exploring: spikes **damage or sever the edges/faces of an incoming phantom blade on collision** — a *physics-layer* melee defense (matters vs. melee only). Since blade rigidity comes from triangulation, **popping an edge can de-rigidify a braced blade into a floppy whip mid-swing.** This is **thorns reframed** — attacking the attacker's *blade structure* rather than its node HP — and may **not** collapse cleanly into the one-stat "sharpness" unification above. Are `thorns`/`thorns_base` and `spikes` the **same stat two ways** or **distinct** (HP-counter vs. structure-attack)? Decide before implementing. The full collision model (damage an edge's HP? sever it? cost rigidity?) needs a **dedicated design pass**; do not implement until specified. See `skill_node_addons.md` (Spikes) and Open Questions.
->
-> **Resolved by #778: this collision/structure-attack model did NOT ship.** It remains purely speculative — a future defensive layer, not this issue's `spikes` pop-budget. #778's `spikes` reads and depletes exactly like the flat counter-budget above always implied; nothing here attacks blade *structure*.
 
 **Core-swing (emergent, no new mechanic).** Because the handle is the attacking node and every node carries its payload into the swing: if your **core is the attacking node**, you swing *from your heart* — its payload amplifies the swing and your core is now forward and exposed. Big payoff, real danger (core positioning is a real risk). A melee class that invests offense (thorns/spikes/STR) into its core gets a signature finisher and pays for it in exposure. (Bonus: hands the Halo a melee option — swing your thorny shell.)
 
-### Tensegrity — rigidity from topology
-
-**Rigidity is not a stat, addon, or toggle. It is a physical consequence of triangulation,** computed from the blade's graph structure.
-
-- A **triangulated** strip holds posture through the sweep → clean **swing/jab**.
-- A **line or open quad** bends and flops → **whip**. (Whip needs no separate mechanic: a floppy chain *is* a whip; coil it with a tip spike and it uncurls into a flail.)
-- A **square-grid patch is floppy** — a 4-cycle is a shearing mechanism (1 internal DOF). Bracing it with a diagonal makes two triangles → rigid. The classroom-bridge lesson; **bracing edges (diagonals) are a melee-rigidity build goal.**
-
-This unifies three things previously treated separately: rigidity, the whip, and "cycles are naturally strong." Triangulate and you get rigidity *and* faces (area damage) *and* structural robustness at once — the heavy reliable cleaver. Sparse chains are the cheap reachy whip.
-
-**It is graph rigidity theory.** 2D generic rigidity is decidable and cheap (Laman's condition / the pebble game), so **the game auto-detects sweep vs. wobble vs. whip from topology — no player toggle.** The player provides aim (the drag); the game owns the swing kinematics (drives the handle to snap a floppy tip properly). Keep the simulation **deterministic** so the ghost-trail preview shows the true outcome (essential for legibility, especially whips). Physics for <80 edge-bones is trivial in Godot.
-
-**Grip = clamp, not pin (the handle is a hand).** The handle (attacking/pivot node) **welds its single edge into the swing frame** — you *hold* the weapon, so the **first joint is stiff by definition of gripping**, leaf or hub pivot alike (consistent with "handle+1 = single rigid edge"). Every *other* joint is an ideal free pin; downstream rigidity is **purely emergent from triangulation** — **no per-joint stiffness, no uniform global stiffness, no player floppiness toggle.** A uniform joint stiffness would rigidify sparse chains and mute the triangulate-or-flop axis; a rigidity toggle is either never-used or breaks tensegrity. The **only** dev scalar is a **weak global damping for sim stability + legibility** (deterministic preview = real outcome), kept low enough that a sparse chain still reads as a clean whip — *"shabby = whip" is a valid weapon, not a failure.* (Settled — GitHub #10.)
-
-**Leaves are the haft, not weak melee.** A leaf pivot can't brace its first *internal* joint (that needs pivot degree ≥2), so a leaf-launched blade = rigid haft + a (possibly braced) head hinging at one point → the **mace / axe / flail** family (the hinge becomes tip velocity, not flop-snap). A degree-≥2 (interior/hub) pivot *can* brace that joint → the **cleaver / pan** family. Melee thus gets its own **leaf↔hub gradient**, paralleling ranged-from-leaves and magic-from-hubs. The real switch is **pivot degree ≥2**, not "handle on a cycle."
-
-**Implementation phasing:** ~~ship an **all-rigid placeholder** as MVP; layer the bones/joints physics in when the blade system matures.~~ **Stale as of #778 — the XPBD tensegrity sim already shipped** (`attack/melee/sim/`, substep BladeSim + BladeState constraints); there is no all-rigid placeholder left to layer onto. Everything above stands; tensegrity only swaps "perfectly rigid" for "rigidity from triangulation."
+### Rigidity as a damage term (declined for now)
 
 **Rigidity scales damage delivery (the balloon principle).** Rigidity isn't only the *hit pattern* — it **scales how much of a face's potential damage actually lands.** A face is potential mass; you cash the full face-damage only if the structure is rigid enough to deliver it. A floppy cycle shears mid-swing and deflates — *an inflated balloon vs. a deflated one.*
 
@@ -416,8 +267,6 @@ This unifies three things previously treated separately: rigidity, the whip, and
 - Damage is **breadth, not depth** (thin contacts per enemy, board-wide chip); a swept line barely moves at the pivot and screams at the tip (only the outer arc threatens), and only the part you can **see** (a PER/vision flex).
 
 Grid/mesh-owners earn giant cleavers; filament-owners get giant flails. A Godot **grid sandbox** ("draw a shape, swing it") is the right tool to playtest blade feel — a dev task.
-
-> **Resolved (GitHub #10): grip = clamp.** The small-blade / leaf-pivot floppiness question is settled by the grip paragraph above — the handle is a **clamp** (you grip it), so the first joint is always stiff; all other joints are free pins with rigidity **emergent from triangulation**, with **no stiffness stat and no floppiness toggle** (the candidate low/med/hi toggle is dropped). A single edge off a leaf pivot swings for real because the grip is welded; leaf pivots specialize into haft/mace weapons rather than being weak.
 
 ### The swing — sector aim + profile *(direction; tuning awaits the playground)*
 
@@ -480,17 +329,9 @@ Exerts pull force on adjacent nodes, reducing effective euclidean distance. Math
 
 ---
 
-## Degree → Offense (degree-defense removed)
+## Degree → Offense
 
-> **Supersedes the old degree-defense model.** Degree previously drove *both* casting tier and HP, so high-degree hubs were strictly better — offense and defense stacking the same direction. We want a trade, not a stack. **Degree-defense is cut.** Durability now lives entirely in CON (White). Node HP no longer scales with degree (see Defense, Node Health & Thorns).
-
-The clean three-way split that replaces it:
-
-- **Degree = offense** (cast tier; the magic count lever).
-- **Connectivity = topological survival** (rings resist islanding; cut-vertices are weak points). Untouched.
-- **CON = durability** (hits a node eats).
-
-A hub becomes a **glass cannon** — powerful caster, normal HP, priority target. "Silence, then grind" survives, simplified (the hub was never extra-tanky).
+Degree gates offense only; durability is CON, not degree (shipped — `node_health_scaling`). A hub is a **glass cannon** — powerful caster, normal HP, priority target. The tier gradient below is unbuilt.
 
 ### The degree gradient (offense only)
 
@@ -511,15 +352,7 @@ Killing one neighbor of a degree-4 hub drops its degree (−1 casting tier if it
 
 A **self-loop** is an edge from a node to itself. A rare presence in the field; occasionally produced by specific events or conditions (origin: open — see below).
 
-**Confirmed properties:**
-
-**+2 degree (casting tier only).** Convention: a self-loop adds +2 to the node's degree (both endpoints are the same vertex). With degree-defense cut, this matters *only* for degree-gated casting: a self-looped node with a single external neighbor has degree 3 (Major spells) rather than 1 (Cantrip). A completely isolated self-looped node has degree 2 (Minor spells) with no neighbors at all. **Degree no longer affects HP** — durability is CON.
-
-**Never a leaf.** A self-looped node has minimum degree 2, so it permanently exits the ranged-firing pool (leaf = degree 1 only). A self-loop on a formerly-firing leaf converts it from a ranged gun into a magic station — a real build tradeoff.
-
-**Unprunable casting-tier floor.** The +2 cannot be pruned by killing a neighbor (there is no neighbor to kill for the loop's contribution). A self-loop provides a *casting-tier* floor that enemy pruning cannot reach. It grants **no** durability floor — so the self-loop only sharpens the node's glass-cannon identity.
-
-**No connectivity contribution.** A self-loop creates no path to any other node. It cannot help an island survive disconnection, and cannot be cut to disconnect anything. Its effects are entirely expressed through the node's degree.
+Self-loops add **+2 degree** and never make a leaf — shipped (`SkillNode.self_loop_count`, `../domain/degree.md`).
 
 ### The glass cannon — triple magic damage
 
@@ -551,90 +384,20 @@ Self-loops are internal topology of the level. At Breakout, the entire field col
 
 **[OPEN] How self-loops arise.** Candidates: rare field node property (found, not created); Edgelord power (it adds edges — why not an edge-to-self?); Tech Seed fruit (rare modifier-pool result); Blue-specialist unlock. Whether the player manufactures, finds, or is occasionally cursed with them is undecided. High-priority design space; do not waste on a small effect.
 
-**[RESOLVED] Self-loop degree and defense.** Moot — degree-defense is cut. The +2 degree affects casting tier only; it grants no HP. Durability is CON.
-
 ---
 
-## Defense, Node Health & Thorns
+## Defense & Thorns
 
-### Node HP — the focus-soak model *(LOCKED)*
+Node HP, its regen and the core's overflow into the entity `health` pool are shipped: `../domain/node-hp.md`. Every drain of `health` (core overflow, the cascade chip, a fallen-through DoT) goes through `EntityCombat`; forced deallocation wounds SP (`SkillPointStat.wounded`, healed by `wound_heal_per_turn`).
 
-Each node has its own HP pool, `node_health`, base **10** (see Scale Anchor — a placeholder; the docs disagree 1–3 vs 10, and the real value is set in Balance against amped damage), scaled by **CON** (White) — *not* degree (degree-defense is cut). When HP hits 0, the node is severed → island check fires immediately.
+Unbuilt defensive stats:
 
-**The reset rule:** a node's `node_health` resets to `node_health_max` **at the start of its owner entity's turn.** It does *not* reset at the end of every turn. This single boundary is what gives `node_health` its meaning.
-
-- **Within the owner's own turn**, the owner's two actions (see Turn Structure) stack on a target — enemy nodes don't reset mid-turn — so **dent-then-finish** works.
-- **During the enemy phase**, wounds on a node persist across multiple enemy turns, so **multiple attackers can focus-fire** a node down even if no single one could kill it. More enemies = more converged burst per round = a genuinely scarier swarm.
-- **No dent ever survives the round into its owner's own turn.** Every entity plans its turn from a clean wall.
-
-*Why owner-turn-start and not "end of every turn":* resetting after every turn would preserve your own 2-action combining but destroy cross-attacker focus-fire — a hub no single attacker can crack would become immortal to the whole swarm. Owner-turn-start keeps **both** your own combining *and* enemy-phase focus-fire. The candidates differ on exactly one question — *do multiple attackers combine across the enemy phase?* — and we chose **yes**.
-
-**What `node_health` now means.** Not "durability over time." It is **"how much damage must converge on me in a single round to kill me."** A tanky node is a **focus-soak**: its HP is the per-round damage gate. CON is the durability lever; the Reinforcement addon, per-node modifiers, and the Halo shell aura also raise it. Degree does **not** (degree-defense removed).
-
-### The kill primitive
-
-A kill requires **enough damage converging within one round**, sourced from:
-
-- **within-action bundling** — a ranged volley's many leaves, a melee blade's faces + edges + spikes, all summing into one `outgoing` before armor/resist subtract once; and/or
-- **across-action stacking** — the two action points (see Turn Structure) landing on the same node.
-
-A node whose `node_health` exceeds your *entire round's* output is unkillable by you that round. That is **intended, not a bug** — bring more sources, hit a softer target, or grow your output on the XP clock. The only requirement is that the breach number be **legible** (shown on the node): nothing in this system happens silently. Single-target value routes to **cut-vertices** (sniping an articulation point to island an arm is strong; sniping a bare leaf is near-worthless — "go ahead, waste your turn on my leaf"); melee's craft is *reaching many nodes at once* via blade positioning, not whittling.
-
-### Two-layer health scope *(LOCKED)*
-
-The reset applies to **`node_health` only.** It must **not** touch the entity-aggregate `health` pool.
-
-- **`node_health`** — ephemeral, per-node, resets at owner turn start. The focus-soak wall.
-- **`health` (entity aggregate)** — **persistent.** Depleted by arm-loss (`health.decrease(N)` when an N-node arm is severed). If this reset, severing arms would be free. It does **not** reset. (See `stat_system.md` — The Health / Node Loss Model.)
-
-### Core-on-node health — shield over persistent pool *(LOCKED)*
-
-The core node is special: it carries the death condition *and* sits on a node with `node_health`. Naively, either the node tanks everything and force-deallocates (displacing/exposing the core), or the core eats everything (making `node_health` useless as protection). Neither is acceptable. The resolution **unifies** the two health concepts:
-
-The core node carries **two layers**:
-
-1. **A recharging shield = its `node_health`.** Resets to full at owner turn start like every node. Armor/resist apply *before* it. It **never force-deallocates the core node** — you cannot island the core by killing its node.
-2. **The persistent pool underneath = the entity `health` stat.** Does **not** reset. Only damage that breaks the shield *within a single round* overflows into it.
-
-**Attack order:** `armor/resist → node_health (shield) → overflow-this-round → health (persistent)`. To hurt the core you must out-damage its shield in one round and spill over; next turn the shield recharges. This is the focus-soak model pointed **inward** — the intended "gang up to crack the core in one round" play: attacker 1 breaks the shield, attackers 2..N pour into the real pool.
-
-- **0-shield is a legal transient state.** The core node's shield may reach exactly 0 during the enemy phase — fully consumed for the round, core fully exposed. This is **not** node severance: a normal node at 0 `node_health` severs/deallocates, but the core node does not. At 0 shield, all further post-mitigation damage that round routes straight into the persistent `health` pool. The shield recharges to full at the next owner-turn-start reset.
-- **Core-movement edge case — resolved non-issue.** "What if the core moves off a 0-HP node?" can't arise: the shield only depletes during the **enemy phase**, while core relocation (`movement_speed`) only happens on the **owner's turn**, which *begins* with the turn-start reset → the shield is always full whenever the core can move. Revisit only if a forced-core-movement (mid-round displacement) mechanic is ever introduced.
-
-**Consequences (LOCKED):**
-
-- **The two health concepts unify.** The persistent `health` pool is depleted **two ways** — arm-loss (`health.decrease(N)`) and core-shield overflow — so attriting the body and grinding the core are the *same* pool. `health` becomes the single decisive attrition clock the turn-based loop wants.
-- **`core_health` collapses** into "the base value / bonus to the `health` pool that core classes upgrade," rather than a separate pool. Trims the stat table.
-- **The death condition reframes** from *"core node loss = death"* to *"`health` pool depletion = death."* (The core node still cannot be *islanded away* — the islanding rule keeps the core's piece as the entity — so "lose the core" only ever means "deplete the pool.") See the Resolved-line reconciliation below.
-- **`node_health` becomes *very* effective core protection** (it is the per-round gate), resolving the "node_health is useless on the core" worry without letting the node tank-and-deallocate.
-
-### Entity-level defensive stats
-
-- `armor`: flat reduction against all attack types.
 - `resist_r / resist_g / resist_b`: per-color reduction. Triangle lives here.
-- `damage_floor`: minimum damage taken per hit after reductions. Default 1. Bulwark starts at 3; can go negative (heals).
-- `health` / `health_max`: the entity-aggregate persistent pool — **the death clock.** Depleted by arm-loss and by core-shield overflow (above). `core_health` folds in as a class-upgradable bonus to it.
+- The Bulwark would start `min_damage_taken` at 3, with a perk path to 0 and below.
 
-### Thorns
+### Thorns (unbuilt)
 
-A melee hit on a node with `thorns > 0` deals `thorns` flat damage back to the attacking node, not reduced by armor. The Halo class aura grants it dynamically: shell nodes get `2 × thorns_base`, near-shell (±1 hop) get `1 × thorns_base`. Base `thorns` is `0` unless granted by addon or modifier.
-
-### SP Reservation (Wounds)
-
-Force-deallocation (a node destroyed in combat) creates a **Reservation**:
-```
-effective_max_sp = skill_points_max − sp_reservation
-```
-Healing removes reservations 1:1. Node transfers do not create reservations (BLITZ; Uprooting where available — Uprooting is an Edgelord class specialty, not a universal power).
-
-**Tutorial enemy example:**
-```
-Before:    SP = 0 / 5   (5 nodes, 0 spare)
-Attack:    cut-vertex snipe + 2 island deaths = 3 force-deallocations
-After:     SP = 0 / 2   [3 reserved] — stuck, can't reallocate
-```
-
-SP Reservation is also a **mid-fight suppression tool**: sustained damage shrinks the enemy's effective options in real time.
+A melee hit on a thorny node would deal flat damage back to the attacking node, not reduced by armor; the Halo aura would grant it (shell nodes `2 × thorns_base`, near-shell ±1 hop `1 × thorns_base`). None of it is built: there is no `thorns` or `thorns_base` stat and no counter-damage path. The shipped defender-side melee counter is `spikes`, which pops blade vertices (`../domain/melee-blade-sim.md`). Whether thorns and spikes ever share a stat, and spikes attacking a blade's structure, is Open Question 32.
 
 ---
 
@@ -648,11 +411,7 @@ Uprooting severs **all** edges of a target node. No longer a universal core powe
 
 ## Island Rule
 
-**Default: immediate death.**
-
-When a sub-graph has no path back to the entity's core (or Lifelink proxy core), it dissolves immediately. All nodes become unallocated; SP Reservation fires for each.
-
-See `skill_node_addons.md` for **Lifeline** (1-turn grace) and **Lifelink** (indefinite proxy core).
+Islanded nodes dissolve immediately (shipped). **Lifeline** (1-turn grace, #240 — `status-tags.md`) and **Lifelink** (indefinite proxy core) are unbuilt; see `skill_node_addons.md`.
 
 **Lifeline + Lifelink combo:** concerning but undesigned. Flag, don't balance against until seen in play.
 
@@ -660,7 +419,7 @@ See `skill_node_addons.md` for **Lifeline** (1-turn grace) and **Lifelink** (ind
 
 ## Killing Blow Resolution
 
-When the killing blow drops an entity's core HP to 0:
+What shipped — XP on the killing blow, tempo, a relic on the victim's former core — is `../domain/loot-system.md`. The draft below is the fuller, unbuilt design. When the killing blow drops an entity's core HP to 0:
 
 ### 1. XP Reward (universal)
 XP proportional to the dead entity's level. Converts to SP through the normal leveling pipeline.
@@ -680,7 +439,7 @@ The dead core becomes a **Relic Node** — fused with core modifiers, sits indef
 
 ## Node Ownership Staining
 
-Each node tracks `last_owner: EntityRef`. Set on allocation; cleared when a different entity allocates it.
+*Shelved indefinitely (`../domain/loot-system.md`).* Each node tracks `last_owner: EntityRef`. Set on allocation; cleared when a different entity allocates it.
 
 **Loot pool rules (A/B/C/D):**
 - **(A) Unallocated:** not in draft.
@@ -751,52 +510,10 @@ After Breakout the new starting node arrives with **zero edges** (every Tether w
 
 **[OPEN]** Whether the player ever gains influence over re-edging is undecided.
 
----
-
-## Core Classes (summary reference)
-
-Full class entries in `core_classes.md`. Combat-relevant highlights:
-
-- **Predator:** BLITZ on killing blow. XP ×0.5.
-- **Bulwark:** `damage_floor = 3` starting; floor-reduction perk path to 0 and below.
-- **Halo:** shell aura grants `thorns` to ring nodes. Shell adjustable ±1 per turn. Now also has a **melee option** — swing the thorny shell as a phantom blade (thorns = swung spikes; see Melee).
-- **Frontier / Pioneer:** hardens its leaves (defensive buff to degree-1 nodes) → forward-push playstyle. Identity needs differentiating now that all leaves are generic firing ports.
-- **Edgelord:** signature Bleeding Edge user (cut-and-restore edges); Uprooting class specialty. Likely the entity that can also *create* self-loops.
-- **Ninja:** high DAP, intense short-range aura, low SP cap.
-- **Hive:** Lifelink proxy cores sustain isolated pods.
-- **Serpent:** dual-metric aura (hop-buff × euclid-penalty).
-
----
-
-## Prototype Stat Defaults
-
-> **Note:** `entity_stat_board_prototype.md` is a **stat-existence vocabulary** — it tracks *which* stats exist, not their calibrated values. Numeric values are a Balance-phase activity. The illustrative numbers below follow the base-10 anchor; they are not commitments. The obligation from this doc is to ensure new stats introduced here (`constitution`, `wisdom`, `perception`, `coolness`, `bonus_hop_count`) are registered in the vocabulary — and that obsolete ones (`pressure_recovery`, from the dropped tap-and-recover model) are retired.
-
-Allround combat prototype (illustrative, base-10 anchor):
-
-```
-STR = 10, DEX = 10, INT = 10
-CON = 10, WIS = 10, PER = 10        ← utility attributes (White/Gold/Purple)
-armor = 0, resist_r/g/b = 0, damage_floor = 1, thorns = 0
-node_health = 10 (base; scaled by CON — NOT by degree; resets to max at owner turn start — focus-soak gate)
-health = ~30 / ~30   (entity-aggregate persistent pool — the death clock; depleted by arm-loss + core-shield overflow)
-core_health = (folds into `health` as a class-upgradable bonus — no longer a separate pool; see Core-on-node health)
-attack_range = ?    (recalibrate vs leaf-only volley model)
-sense_range = 3 (hops), vision_range = ~4 (euclidean)   ← scaled by PER
-bonus_hop_count = 0                  ← ultra-rare; INT scales potency, this scales reach
-skill_points = 0 / 5   (5 nodes allocated, all SP in use)
-sp_reservation = 0
-deallocation_points = 1 / turn
-```
-
----
 
 ## Design Tensions (Unresolved)
 
-1. **Armor per-hit vs per-attack — *resolved for the blade.*** A phantom-blade swing sums all contacts (edges + spikes + faces) per target and applies armor/resist **once per target node** (multiple distinct targets each subtract armor separately). Combined ranged volleys likewise apply defense once. Consistent with the scaling spine.
-2. ~~**Crit: global vs per-type.**~~ *Resolved 2026-08-21 (#507): global — one
-   universal `crit_chance`/`crit_multiplier` rolled per hit by all three
-   modes. See "Critical strikes" under the damage pipeline.*
+1. **Armor per-hit vs per-target.** The spine wants defense once per target; ranged shipped per landing (#496). Whether melee should sum contacts before armor is open — the shipped blade is `../domain/melee-blade-sim.md`.
 3. **Triangle: emergent resist vs hardcoded baseline.** Decide alongside armor.
 4. **Dual-color attack timing.** Free per attack, or source-node-inherited?
 5. **Lifeline + Lifelink combo.** Don't design around until seen in play.
@@ -808,39 +525,7 @@ deallocation_points = 1 / turn
 11. **vision_range calibration.** Verify against editor node spacing.
 12. **DAP from killing blow N.** Proposed 2.
 13. **Thorns ceiling.** At what `thorns_base` does Halo shell deter all melee?
-14. ~~**Thorns=spikes — *partially reopened (`FLAG`).*** The *offensive* unification holds: one stat (*sharpness*); stationary = counter-damage, swung = offensive contact (the Spikes addon raises the swung vertex term). **But a second *defensive* model is now OPEN** — spikes attacking an incoming blade's *structure* (sever/de-rigidify edges) rather than dealing flat counter-damage to attacker HP. Resolve whether thorns and spikes are one stat or two (HP-counter vs. structure-attack) **before either ships**, plus the full collision model (a dedicated pass). See the Thorns=spikes `FLAG` and OQ32.~~ **Resolved by #778 (2026-09-07 #772 session):** no "sharpness" unification shipped — `spikes`/`spike_regen`/`blunting` are their own StatDefs, and `thorns`/`thorns_base` never existed as a stat (Thorns is `armor.tres` / `min_damage_taken.tres`). The structure-attack defensive model stays unspeculated-on, not chosen.
 
----
-
-## Resolved
-
-- ~~Death condition~~ → **`health` pool depletion = death.** No Breakout. *(Reframed from "core node loss = death" — see Defense, Core-on-node health. The core node can never be islanded away, so "lose the core" only ever meant "deplete the pool"; the persistent `health` pool is now that single death clock, depleted by arm-loss and core-shield overflow alike, with `core_health` folded in as a class bonus to it.)*
-- ~~Island grace timer~~ → No default grace. Lifeline addon grants it.
-- ~~Ghost pool~~ → Dropped. Stain tracking handles mid-fight captures.
-- ~~Bargain sale~~ → Dropped.
-- ~~Ranged firing origin~~ → **Leaf nodes only.** ~~One volley per turn; armor/resist once per volley~~ → superseded by Ranged2.0 (#496): volleys cost 0 AP, up to `volleys_per_turn`, and armour applies per arrow.
-- ~~Magic targeting~~ → Spell-native, graph-based, **degree-gated**. `attack_range` does not apply.
-- ~~Triangle direction~~ → R › B › G › R.
-- ~~Scale~~ → **Base-10 anchor.** Linear scaling baseline.
-- ~~"Bridge node" terminology~~ → **Cut vertex** (node) vs. **bridge** (cut-edge). Locked.
-- ~~Melee charge model (tap-and-recover)~~ → **Phantom blade.** Swing a 1:1 induced-connected copy of owned nodes; size `STR//10+1`; one swing/turn; damage = contacts (edges + spikes + faces) × `(base+STR//10)`, defense once per target; rigidity from triangulation (tensegrity). Buffer nodes repurposed.
-- ~~Melee grip / floppy-first-joint (leaf melee)~~ → **Grip = clamp** (#10). Handle welds its edge into the swing frame, so the first joint is always stiff (leaf or hub); other joints free pins, rigidity emergent from triangulation — no stiffness stat, no floppiness toggle; only a weak global damping for legibility. Leaf pivot = haft (mace/axe/flail); degree-≥2 pivot = cleaver/pan. Switch is pivot degree ≥2, not "handle on a cycle."
-- ~~Degree's role (offense + defense)~~ → **Offense only.** Degree gates cast tier; degree-defense is cut. Durability = CON. Connectivity still governs topological survival. Hubs are glass cannons; "silence, then grind" survives, simplified.
-- ~~Attribute roster~~ → **Six:** R/STR, G/DEX, B/INT (attack) + White/CON, Gold/WIS, Purple/PER (utility). Plus non-mechanical `coolness`. White→CON and economy→Gold supersede the old "W = XP."
-- ~~Attribute → damage scaling~~ → **The //10 spine:** `base (once) + attribute//10 × instances`, defense once per target. Floors per-attribute (breakpoints, surfaced in UI). Gear-ratio decouples modifier economy from damage economy.
-- ~~Proliferation~~ → **core→field ×N trade** (remove a core mod, spread N tainted copies). Intrinsic non-extractable taint breaks the extract→proliferate loop. Rarity-scaled efficiency.
-- ~~Turn structure~~ → **One implicit phase per turn** (the CONTRACT/EXPAND/BATTLE split is removed). All budgets replenish at turn start; spend in any order. Intent is disambiguated by **input channel** (left-click = allocate, `D` = deallocate, own-core-then-adjacent = move core, AttackModeBar = attack), each gated by your turn + its own budget.
-- ~~Self-loop propagation model~~ → Triple-hit baseline (initial + 2 loop returns). Spell-dependent further behavior. No global rule.
-- ~~Claim bonus → BLITZ~~ → BLITZ Predator-only. Universal: XP + DAP.
-- ~~Killing blow → direct +1 SP~~ → XP reward (pipeline) + universal DAP bonus.
-- ~~Node staining~~ → Confirmed. `last_owner` field. A/B/C/D loot pool logic.
-- ~~damage_floor hardcoded~~ → Now a stat. Default 1. Bulwark 3; can go negative.
-- ~~Relay as confirmed~~ → TBD. See `skill_node_addons.md`.
-- ~~Uprooting as universal~~ → Removed. Edgelord specialty.
-- ~~Breakout condition~~ → Tethers + boss, then grace window. Entire field collapses → 1 node.
-- ~~Breakout scope~~ → **Entire field** (all constellations + wall) collapses to 1 node. Internal topology (incl. self-loops) dissolves.
-
----
 
 ## Open Questions
 
@@ -856,22 +541,16 @@ deallocation_points = 1 / turn
 10. **proliferation_power** — fixed count vs. min-max range?
 11. **Linear vs. steeper attribute scaling** — revisit if linear flattens build diversity.
 12. **Self-loop origin** — how do self-loops arise? Class power, field node, Tech Seed, unlock?
-13. ~~**Self-loop degree and defense**~~ — *resolved:* degree-defense cut, so +2 loop degree affects casting tier only, never HP.
 14. **Spell propagation at self-loops** — each spell must define its recursion/hop-limit rule for handling the two loop returns. No global constraint.
 15. **Grace period duration** — calibrate `X` turns.
 16. **Re-edging influence** — does the player ever gain say over which edges are restored?
 17. **Second volley upgrade** — what grants a second ranged volley per turn?
-18. ~~**Degree-defense HP calibration**~~ — *resolved:* degree-defense removed. Node HP scales with CON; calibrate the CON→HP curve vs base-10 in Balance phase.
-19. ~~**Defense model (degree-based vs alternatives)**~~ — *resolved:* durability lives in **CON**, decoupled from degree entirely. Degree is offense-only.
 23. **Magic canonical situations** — magic is balanced LAST; needs a set of canonical attack topologies to pin per-instance `INT//10` scaling against. Friendly-fire lean: ON for propagating, OFF for targeted, rare opt-out — confirm during magic balancing.
 24. **`bonus_hop_count` rarity & proliferation curve** — ~1–2 on the whole map; rarity-scaled proliferation efficiency needs a curve.
 25. **Proliferation taint** — confirm the intrinsic, owner-independent, non-extractable taint as the loop-break (recommended yes).
-26. ~~**Small-blade melee feel**~~ — *resolved (#10):* grip = clamp; rigidity emergent from triangulation, no stiffness stat, no floppiness toggle; leaf pivot = haft. See Tensegrity.
 27. **Color nodes at all?** — content (attribute/role) exists regardless; whether to render node color is a presentation question. Procgen should cluster like-colors into biome-like regions either way.
 28. **DP vs DAP** — abbreviation for deallocation points (cosmetic).
-20. ~~**Action economy**~~ — *resolved (LOCKED):* **2 `action_points` per turn by default.** Second action's role is to finish the first's dent before the owner-turn-start reset (commit-vs-pivot read). ~~Ranged stays one volley/turn~~ (Ranged2.0 #496: 0 AP, arrow/shot-budgeted); the second action can be a different mode stacking on one node. More-than-2 only via ultra-rare `action_points` modifiers. **TurnManager impact:** `systems/turn_manager.gd` budgets 2 actions/turn when the combat loop is built; `action_points` is a board stat (default 2) with a rare modifier path. (GDD §5.)
 21. **Triangle weight** — is type-advantage a *primary* combat axis or a *situational tiebreaker*? GDD §5 leans situational (positioning, topology, and target defense matter more than color); this doc currently treats the triangle as load-bearing. Reconcile — likely "situational, backstopped by a small baseline" so color never feels absent but rarely decides a fight alone.
-22. ~~**Tempo target / the kill-speed anchor**~~ — *reframed (LOCKED).* The multi-turn "3–4 volleys per node" anchor is **retired**; `node_health` resets at owner turn start (see Node HP), so survivability is a **focus-count per round** — "N converged damage-sources this round to kill," not "N turns of chipping." Damage is amped relative to node HP; nodes die more often (intended — churn forces rerouting and keeps the turn-based game from going static). Calibrate the focus-count against the rewritten worked examples — see `combat_worked_examples.md`.
 29. **Ranged identity & cut-vertex surgery** — perception gating (must you *see* the articulation point?), volley concentrate-vs-spread, reach calibration to deep cut vertices, Lifeline/grace interaction with the island cascade, and whether ranged earns its keep against 2-connected (cut-vertex-free) builds. (GitHub #11 — see Ranged identity.)
 30. **Swing model tuning** — the model is locked (two motion primitives swing/thrust; easing-curve profile per technique; mass/inertia → feel + achievable-arc, never base damage; rest→rest damage envelope as the anti-cheese spine). The **grid/blade playground (GitHub #12)** owns the numbers: robust default + specialist presets (or an auto-scaled default), the per-profile envelope shape, the `arc ≈ torque/inertia` curve, tip-velocity→whip-delivery coupling, the reliability floor across topologies, and whether `θ`/thrust-reach are fixed-per-weapon or stat-bounded player choices. (See *The swing — sector aim + profile*; Clamp addon in `skill_node_addons.md`.)
 31. **Initial blade orientation & the preview ghost** — the blade is your real, arbitrarily-embedded topology; a frontline pivot usually has its blade *behind* it (bending left/right/forward/anywhere), so rest orientation is arbitrary relative to the enemy. Aim-rotation + **aim-phase** orient the sweep analytically; the in-game answer is a **preview ghost** that telegraphs the true swept path before commit. Settle how aim is expressed to the player (drag-to-aim, sector handle, aim-phase exposure) and how the ghost reads. (Playground #12; see *The swing*.)

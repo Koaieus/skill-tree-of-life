@@ -24,8 +24,12 @@ turn-start regen (D-9) and the CoreClass aura (D-10) apply on top of it.
 
 ## Turn-start regen (D-9) — replaces refill-to-full
 
-`Entity.begin_turn` no longer refills owned nodes to full. Instead,
-per owned node, `SkillNode.apply_turn_regen()` runs:
+`Entity.begin_turn` no longer refills owned nodes to full. Why the refill
+could go — owner, 2026-09-30, verbatim: *"the major shift that allowed this:
+node-local stat boards + node-local stat queries/readouts × {combined/transposed
+StatBins readout} × {stat readout including `overlay`}"* — a node's damage state
+is legible on the node itself, so it no longer needs wiping every round to stay
+readable. Instead, per owned node, `SkillNode.apply_turn_regen()` runs:
 
 - took damage since the last upkeep → `regen_stacks = 0`, no base heal;
 - else if HP < max → heal `node_healing + regen_stacks × node_healing_ramp`,
