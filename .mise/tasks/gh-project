@@ -140,16 +140,35 @@ cmd_add() {
   echo "✓ issue #$issue added to project"
 }
 
+# REST fallback for a Status write. Projects v2 has a REST API
+# (users/<owner>/projectsV2/<n>/items) billed against the CORE budget, so a
+# status write still lands when GraphQL is rate-limited. REST ids are numeric
+# and distinct from the GraphQL node ids above; the option ids are shared.
+REST_FIELD_STATUS=364697354
+rest_set_status() {
+  local issue=$1 option=$2 owner=${REPO%/*} rid iid
+  rid=$(gh api --paginate "users/$owner/projectsV2/$PROJECT/items?per_page=100" \
+          --jq ".[] | select(.content.number == $issue and .content.repository_url == \"https://api.github.com/repos/$REPO\") | .id" \
+        | head -1) || return 1
+  if [ -z "$rid" ]; then
+    iid=$(gh api "repos/$REPO/issues/$issue" --jq .id) || return 1
+    rid=$(gh api -X POST "users/$owner/projectsV2/$PROJECT/items" -f type=Issue -F id="$iid" --jq .id) || return 1
+  fi
+  [ -n "$rid" ] || return 1
+  printf '{"fields":[{"id":%s,"value":"%s"}]}' "$REST_FIELD_STATUS" "$option" \
+    | gh api -X PATCH "users/$owner/projectsV2/$PROJECT/items/$rid" --input - >/dev/null
+}
+
 cmd_status() {
   local issue=$1 status=${2:-}
   local id
-  id=$(ensure_item "$issue")
-  if [ -z "$id" ]; then
-    echo "✗ issue #$issue: not resolvable on project $PROJECT — item-add may have failed, or the issue doesn't exist" >&2
-    exit 1
-  fi
 
   if [ -z "$status" ]; then
+    id=$(ensure_item "$issue")
+    if [ -z "$id" ]; then
+      echo "✗ issue #$issue: not resolvable on project $PROJECT — item-add may have failed, or the issue doesn't exist" >&2
+      exit 1
+    fi
     items_json \
       | jq -r '.items[] | select(.content.number == '$issue') | .status // empty'
     return
@@ -179,8 +198,16 @@ cmd_status() {
     done)                option="220ac0d8" ;;
     *) echo "✗ unknown status: $status ($STATUS_NAMES)"; exit 1 ;;
   esac
-  gh project item-edit --id "$id" --project-id "$PROJECT_ID" --field-id "$FIELD_STATUS" --single-select-option-id "$option"
-  echo "✓ issue #$issue status → $status"
+  local gql_err
+  if id=$(ensure_item "$issue" 2>/dev/null) && [ -n "$id" ] \
+     && gql_err=$(gh project item-edit --id "$id" --project-id "$PROJECT_ID" --field-id "$FIELD_STATUS" --single-select-option-id "$option" 2>&1 >/dev/null); then
+    echo "✓ issue #$issue status → $status"
+  elif rest_set_status "$issue" "$option"; then
+    echo "✓ issue #$issue status → $status (REST fallback; GraphQL failed${gql_err:+: $gql_err})"
+  else
+    echo "✗ issue #$issue: status write failed on GraphQL${gql_err:+ ($gql_err)} and REST" >&2
+    exit 1
+  fi
 }
 
 cmd_priority() {
