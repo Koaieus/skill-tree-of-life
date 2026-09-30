@@ -243,6 +243,19 @@ static func from_dict(d: Dictionary, graph: Graph) -> MeleeAttackPlan:
 
 # ── Input ──────────────────────────────────────────────────────────────────
 
+## Verbs — the named builders every carrier uses. STUB.
+func set_pivot(_node: SkillNode) -> bool:
+	return false
+
+
+func clear_pivot() -> bool:
+	return false
+
+
+func toggle_member(_node: SkillNode) -> bool:
+	return false
+
+
 func pop() -> bool:
 	if source == null:
 		return false

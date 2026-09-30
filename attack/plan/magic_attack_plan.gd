@@ -137,6 +137,10 @@ func pop() -> bool:
 	return true
 
 
+func set_target(_node: SkillNode) -> bool:
+	return false
+
+
 func handle_left_click(node: SkillNode) -> void:
 	if attacker == null or node == null:
 		return
