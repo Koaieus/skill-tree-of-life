@@ -85,7 +85,11 @@ Agent suggestions for the open cells (2026-09-30, not owner calls):
 - **Poison** — "Ivy" leans on DC's Poison Ivy; "Oivy" is the twist that
   makes it its own.
 
-Open: whether personas are voiced (speech bubbles like the Fairy), sit
+Owner, 2026-09-30: for a single-player story expansion (wayyyy later),
+the aspects could be introduced one at a time, in order — each debut is
+where that persona's character gets to shine in the dialogues.
+
+Open: the introduction order; whether personas are voiced (speech bubbles like the Fairy), sit
 behind the aspect's UI, or stay flavour text only.
 
 ## Open
