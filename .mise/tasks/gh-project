@@ -36,10 +36,13 @@ FIELD_TARGET="PVTF_lAHOAExWR84BcS99zhW82C0"
 #     one-per-command. item-add invalidates it (membership changed); field edits
 #     don't (item-ids are stable), so id lookups stay correct.
 #
-# The FULL item-list (field values) is deliberately NOT cached — `list` and
-# read-mode must reflect the live board. Parallel agents use `list` to find work
-# to pick up, so a stale read there risks two agents claiming the same issue.
-# Reads are infrequent; the burst problem was writes, and (1)+(2) already fix it.
+# The FULL item-list (field values) is cached for ITEMS_TTL (10 s) — long
+# enough that a swarm wave's `list`/`hygiene`/read calls share one fetch, short
+# enough that a `list` used to pick up work is never a wave stale. Any WRITE
+# through this script drops it first (dispatcher, bottom), so a read after a
+# write in the same or another process is live. Both refetches take a flock:
+# N concurrent cache misses used to fire N paginated queries (the 2026-09-30
+# swarm tripped GitHub's secondary limit that way); now the waiters reuse one.
 #
 # STILL EXHAUSTIBLE BY BULK WRITES. Restoring 297 items' Status (see the warning
 # in cmd_status) plus a handful of --paginate reads burned the full 5000-point
@@ -49,16 +52,22 @@ FIELD_TARGET="PVTF_lAHOAExWR84BcS99zhW82C0"
 #   gh api graphql -f query='mutation { m1: updateProjectV2ItemFieldValue(...){...}
 #                                       m2: ... }'   # ~40 per request is comfortable
 # Check before a bulk pass: gh api rate_limit --jq .resources.graphql
-CACHE_TTL=${GH_PROJECT_CACHE_TTL:-15}
-CACHE_TMP="${TMPDIR:-/tmp}/gh-project-${PROJECT}-items.tmp"
+CACHE_TTL=${GH_PROJECT_CACHE_TTL:-60}
+ITEMS_TTL=${GH_PROJECT_ITEMS_TTL:-10}
 ID_CACHE="${TMPDIR:-/tmp}/gh-project-${PROJECT}-ids.txt"
+ITEMS_CACHE="${TMPDIR:-/tmp}/gh-project-${PROJECT}-items.json"
+
+# True when $1 exists and is younger than $2 seconds.
+fresh() { [ -f "$1" ] || return 1; local age=$(( $(date +%s) - $(stat -c %Y "$1" 2>/dev/null || echo 0) )); [ "$age" -ge 0 ] && [ "$age" -lt "$2" ]; }
 
 # Lean "<number> <item-id>" map — cheap query, the hot path for field edits.
+# The refetch runs under a lock so N concurrent cache misses (a swarm wave on
+# an expired cache) cost ONE query: the waiters re-check freshness on entry.
 ids_json() {
-  if [ -f "$ID_CACHE" ]; then
-    local age=$(( $(date +%s) - $(stat -c %Y "$ID_CACHE" 2>/dev/null || echo 0) ))
-    if [ "$age" -ge 0 ] && [ "$age" -lt "$CACHE_TTL" ]; then cat "$ID_CACHE"; return 0; fi
-  fi
+  fresh "$ID_CACHE" "$CACHE_TTL" && { cat "$ID_CACHE"; return 0; }
+  (
+  flock -w 120 9 || exit 1
+  fresh "$ID_CACHE" "$CACHE_TTL" && { cat "$ID_CACHE"; exit 0; }
   local tmp="${ID_CACHE}.tmp.$$"
   if gh api graphql --paginate -f id="$PROJECT_ID" -f query='
       query($id: ID!, $endCursor: String) {
@@ -78,22 +87,30 @@ ids_json() {
     rm -f "$tmp"
     [ -f "$ID_CACHE" ] && cat "$ID_CACHE" || true   # stale fallback / empty
   fi
+  ) 9>"${ID_CACHE}.lock"
 }
 
-# Full item-list JSON (with field values) — read/list display paths. Always
-# fetched fresh (see the "NOT cached" note above): correctness over cost here.
+# Full item-list JSON (with field values) — read/list display paths. Cached
+# for ITEMS_TTL seconds under the same lock discipline (see the header note:
+# any write through this script drops it first, so a read after a write is
+# live; the stale window is only between processes, and shorter than a wave).
 items_json() {
-  local tmp="${CACHE_TMP}.$$"
+  fresh "$ITEMS_CACHE" "$ITEMS_TTL" && { cat "$ITEMS_CACHE"; return 0; }
+  (
+  flock -w 120 9 || exit 1
+  fresh "$ITEMS_CACHE" "$ITEMS_TTL" && { cat "$ITEMS_CACHE"; exit 0; }
+  local tmp="${ITEMS_CACHE}.tmp.$$"
   if gh project item-list "$PROJECT" --owner "$OWNER" --limit 999 --format json > "$tmp" && [ -s "$tmp" ]; then
-    cat "$tmp"; rm -f "$tmp"
+    mv -f "$tmp" "$ITEMS_CACHE"; cat "$ITEMS_CACHE"
   else
     rm -f "$tmp"
     echo '{"items":[]}'   # query failed (e.g. rate-limited) → empty, not partial
   fi
+  ) 9>"${ITEMS_CACHE}.lock"
 }
 
 # Membership changed (item added) → drop the id map so the next lookup refetches.
-invalidate_cache() { rm -f "$ID_CACHE" "${ID_CACHE}.tmp.$$"; }
+invalidate_cache() { rm -f "$ID_CACHE" "${ID_CACHE}.tmp.$$" "$ITEMS_CACHE"; }
 
 # Per-issue live lookup, bypassing the board's items() connection entirely —
 # GitHub's items() index has been observed to lag `repository.issue().
@@ -857,6 +874,14 @@ EOF
 }
 
 CMD=${1:-}
+# A write (add, sync-parent, or a field command given a value) drops the
+# item-list cache before running, so the next read reflects it.
+case "$CMD" in
+  add|sync-parent) rm -f "$ITEMS_CACHE" ;;
+  list|hygiene|roadmap|blocking|help|-h|--help|"") ;;
+  *) [ -n "${3:-}" ] && rm -f "$ITEMS_CACHE" ;;
+esac
+
 case "$CMD" in
   list)     shift; cmd_list "$@" ;;
   add)      cmd_add "${2:-}" ;;
