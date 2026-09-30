@@ -17,6 +17,8 @@ graph = NodePath("..")
 
 [node name="Edges" type="Node2D" parent="." unique_id=983028403]
 
+[node name="Gates" type="Node2D" parent="." unique_id=1570342817]
+
 [node name="EdgeMesh" type="MultiMeshInstance2D" parent="." unique_id=2847193056]
 material = ExtResource("3_edge_mat")
 z_index = -10

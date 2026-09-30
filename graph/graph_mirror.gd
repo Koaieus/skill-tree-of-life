@@ -314,6 +314,12 @@ func nodes_islanded_by_removing_set(nodes: Array[SkillNode], anchor: SkillNode) 
 	return result
 
 
+## The flip PREVIEW: every mirrored node that would lose reachability to
+## [param anchor] if every gate in [param gates] were flipped at once.
+func nodes_islanded_by_flipping(_gates: Array[Gate], _anchor: SkillNode) -> Array[SkillNode]:
+	return []
+
+
 ## Convenience: single-node form of [method nodes_islanded_by_removing_set].
 func nodes_islanded_by_removing(node: SkillNode, anchor: SkillNode) -> Array[SkillNode]:
 	var single: Array[SkillNode] = [node]

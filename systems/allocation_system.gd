@@ -434,6 +434,28 @@ func deallocate_set(nodes: Array[SkillNode], entity: Entity) -> bool:
 	return true
 
 
+# ── Gates: flip, then cascade what the core can no longer reach ─────────────
+
+## PREVIEW: the owned nodes [param entity] would lose if every gate in
+## [param gates] flipped at once — the set [method apply_gate_flip] strands.
+func gate_flip_cascade(_gates: Array[Gate], _entity: Entity) -> Array[SkillNode]:
+	return []
+
+
+## APPLY (authority / direct caller): flip every gate, THEN judge connectivity
+## once, then force-deallocate the stranded set with the normal charge. Returns
+## the stranded set.
+func apply_gate_flip(_gates: Array[Gate], _entity: Entity) -> Array[SkillNode]:
+	return []
+
+
+## APPLY (replay): flip every gate and cascade the RECORDED [param stranded]
+## set without re-walking — a peer applies what the authority stamped.
+func apply_gate_flip_recorded(_gates: Array[Gate], _entity: Entity,
+		_stranded: Array[SkillNode]) -> void:
+	pass
+
+
 # ── Staking (#337): raise a node's cap with SP+AP, reclaim with extract ──────
 #
 # `stake_level` is the cap N, `allocation_level` the fill M — a node reads M/N.

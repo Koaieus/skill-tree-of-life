@@ -26,6 +26,9 @@ signal edge_removed(edge: Edge)
 @onready var entities_container: Node = $Entities
 @onready var skill_nodes_container: Node2D = $Nodes
 @onready var edges_container: Node2D = $Edges
+## Where [Gate]s live — a sibling of `edges_container`. A gate is a pair, not an
+## edge: its open/closed state is whether a real Edge joins its endpoints.
+@onready var gates_container: Node2D = get_node_or_null(^"Gates")
 
 ## Shared multimesh every regular (non-self-loop) Edge draws through (#413) —
 ## one draw call, one z_index, no per-edge CanvasItem. Public (not `_edge_mesh`)
@@ -472,6 +475,7 @@ func remove_skill_node(node: SkillNode) -> void:
 	node.queue_free()
 
 const EDGE = preload("res://graph/edge.tscn")
+const GATE = preload("res://graph/gate.tscn")
 
 func add_edge(from: SkillNode, to: SkillNode) -> Edge:
 	var edge := EDGE.instantiate() as Edge
@@ -488,3 +492,44 @@ func remove_edge(edge: Edge) -> void:
 	edges_container.remove_child(edge)
 	edge_removed.emit(edge)
 	edge.queue_free()
+
+
+# ── Gates ──────────────────────────────────────────────────────────────────
+
+## Every [Gate] in the graph, in child order.
+func get_gates() -> Array[Gate]:
+	var out: Array[Gate] = []
+	if gates_container == null:
+		return out
+	for c in gates_container.get_children():
+		if c is Gate:
+			out.append(c)
+	return out
+
+
+## Mint a [Gate] between [param from] and [param to]. [param open] adds the
+## joining edge when none exists yet; a closed gate never removes one.
+func add_gate(from: SkillNode, to: SkillNode, open: bool = true) -> Gate:
+	var gate := GATE.instantiate() as Gate
+	gate.from = from
+	gate.to = to
+	gates_container.add_child(gate)
+	if open and edge_between(from, to) == null:
+		add_edge(from, to)
+	return gate
+
+
+## The [Edge] joining [param a] and [param b] in either direction, or null.
+func edge_between(_a: SkillNode, _b: SkillNode) -> Edge:
+	return null
+
+
+## The [Gate] on the pair [param a] / [param b] in either direction, or null.
+func gate_between(_a: SkillNode, _b: SkillNode) -> Gate:
+	return null
+
+
+## Flip each gate in turn: remove its edge if open, add one if closed. Pure
+## topology — no ownership, no cascade (that is [method AllocationSystem.apply_gate_flip]).
+func flip_gates(_gates: Array[Gate]) -> void:
+	pass

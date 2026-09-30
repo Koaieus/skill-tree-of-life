@@ -40,6 +40,8 @@ static func _build() -> void:
 	_register(DeallocateCommand.TAG, DeallocateCommand.from_dict, DeallocateCommandHandler.new())
 	_register(DeallocateSetCommand.TAG, DeallocateSetCommand.from_dict,
 			DeallocateSetCommandHandler.new())
+	_register(ToggleGatesCommand.TAG, ToggleGatesCommand.from_dict,
+			ToggleGatesCommandHandler.new())
 	_register(MassAllocateCommand.TAG, MassAllocateCommand.from_dict,
 			MassAllocateCommandHandler.new())
 	_register(StakeCommand.TAG, StakeCommand.from_dict, StakeCommandHandler.new())
