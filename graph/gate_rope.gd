@@ -47,7 +47,8 @@ const SEGMENTS := 16
 ## Flash of the knot where a handshake's two ropes meet.
 @export var handshake_meet_flash := Emissive.Tier.PEAK
 @export_range(1.0, 60.0, 0.5, "suffix:px") var flash_radius := 12.0
-@export_range(0.02, 1.0, 0.01, "suffix:s") var flash_decay := 0.2
+## How long the latch / meet flash takes to fade out (quadratic falloff).
+@export_range(0.02, 1.0, 0.01, "suffix:s") var flash_duration := 0.3
 
 var mode := Mode.THROW
 var elapsed := 0.0
@@ -145,9 +146,10 @@ func _draw() -> void:
 	var since := elapsed - throw_duration
 	if since < 0.0:
 		return
-	var k := exp(-since / flash_decay)
-	if k < 0.02:
+	var fall := 1.0 - since / flash_duration
+	if fall <= 0.0:
 		return
+	var k := fall * fall
 	var at := Vector2(span, 0.0) if mode == Mode.THROW else Vector2(span * 0.5, 0.0)
 	var c := _flash_color
 	c.a *= k

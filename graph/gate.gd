@@ -60,9 +60,22 @@ signal span_clicked(gate: Gate, button: MouseButton)
 @export_range(0.0, 200.0) var endpoint_inset := 48.0
 @export_range(2.0, 60.0) var click_radius := 14.0
 
+@export_group("Rope")
+## Played on every flip after load; its knobs live on the rope scene.
+@export var rope_scene: PackedScene = preload("res://graph/gate_rope.tscn")
+
 ## Display only: the local seat's lock on this gate, pushed by the input side.
 ## Not world state — never read it for a rule.
 var locked_display := false
+
+## Flips play only once armed, one deferred call after [method _ready] — the
+## Graph's load-time re-emit, `add_gate(open = true)` and a procgen
+## `_setup_level` all add edges in the same frame and must stay silent.
+var _armed := false
+var _rope: GateRope = null
+## The edge an open rope is revealing; null for a snap (that edge is freed).
+var _revealing: Edge = null
+var _median_span := -1.0
 
 @onready var _span_area: Area2D = get_node_or_null(^"SpanArea")
 @onready var _span_shape: CollisionShape2D = get_node_or_null(^"SpanArea/Shape")
@@ -71,8 +84,9 @@ var locked_display := false
 func _ready() -> void:
 	var graph := get_graph()
 	if graph != null and not Engine.is_editor_hint():
-		graph.edge_added.connect(_on_edge_changed)
-		graph.edge_removed.connect(_on_edge_changed)
+		graph.edge_added.connect(_on_edge_changed.bind(true))
+		graph.edge_removed.connect(_on_edge_changed.bind(false))
+		set_deferred(&"_armed", true)
 	if _span_area != null:
 		_span_area.input_event.connect(_on_span_input)
 	_refresh_geometry()
@@ -85,9 +99,84 @@ func set_locked_display(locked: bool) -> void:
 	queue_redraw()
 
 
-func _on_edge_changed(edge: Edge) -> void:
+func _on_edge_changed(edge: Edge, added: bool) -> void:
 	if edge != null and ((edge.from == from and edge.to == to) or (edge.from == to and edge.to == from)):
 		queue_redraw()
+		if _armed:
+			_play(edge if added else null)
+
+
+## Throw a rope onto [param edge] (open) or snap one (null: closed). Which throw
+## follows from ownership right now: both ends one entity's → a handshake; one
+## owned → from that end; neither → from `from`.
+func _play(edge: Edge) -> void:
+	_stop_rope()
+	if rope_scene == null or from == null or to == null:
+		return
+	var thrower := from
+	var far := to
+	var mode := GateRope.Mode.SNAP
+	if edge != null:
+		mode = GateRope.Mode.THROW
+		if from.owned_by != null and from.owned_by == to.owned_by:
+			mode = GateRope.Mode.HANDSHAKE
+		elif from.owned_by == null and to.owned_by != null:
+			thrower = to
+			far = from
+	var seg := SkillNode.segment_between(thrower, far)
+	if seg.size() < 2:
+		return
+	_rope = rope_scene.instantiate() as GateRope
+	add_child(_rope)
+	_rope.finished.connect(_on_rope_finished.bind(_rope))
+	if edge != null:
+		_revealing = edge
+		edge.reveal = 0.0
+		_rope.reveal_changed.connect(_on_rope_reveal)
+	_rope.play(mode, seg[0], seg[1], thrower.base_type_color, far.base_type_color, _reference_span())
+
+
+func _on_rope_reveal(value: float) -> void:
+	if is_instance_valid(_revealing):
+		_revealing.reveal = value
+
+
+func _on_rope_finished(rope: GateRope) -> void:
+	if rope != _rope:
+		return
+	if is_instance_valid(_revealing):
+		_revealing.reveal = 1.0
+	_revealing = null
+	_rope = null
+
+
+## Cut a playing rope short (a flip landed mid-play): its edge shows in full.
+func _stop_rope() -> void:
+	if is_instance_valid(_revealing):
+		_revealing.reveal = 1.0
+	_revealing = null
+	if is_instance_valid(_rope):
+		_rope.queue_free()
+	_rope = null
+
+
+## The median edge length of this gate's graph, measured once — the span that
+## rings at the rope's base frequency.
+func _reference_span() -> float:
+	if _median_span >= 0.0:
+		return _median_span
+	_median_span = 0.0
+	var graph := get_graph()
+	if graph == null:
+		return _median_span
+	var lengths: Array[float] = []
+	for e in graph.get_edges():
+		if e.from != null and e.to != null and not e.is_self_loop:
+			lengths.append(e.from.global_position.distance_to(e.to.global_position))
+	if not lengths.is_empty():
+		lengths.sort()
+		_median_span = lengths[lengths.size() / 2]
+	return _median_span
 
 
 ## Place the click capsule along the span, trimmed by [member endpoint_inset].
