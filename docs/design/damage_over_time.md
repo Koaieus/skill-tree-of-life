@@ -67,4 +67,4 @@ Corruption at 2% per stack: 10 stacks on a 2000-HP node is 400/tick; on a
 - A defender-side "this ground sheds rot" knob (node-local decay bonus) stays
   available for the connectedness cure.
 - Faster decay as a **class** identity, instead of resistance.
-- Corruption on the health bar and turn-start vs turn-end proc: #1092.
+- Corruption on the health bar and turn-start vs turn-end proc: #1092 (readout) and #1256 (timing).

@@ -12,9 +12,9 @@ Every concept gets a stat, an arrow, an addon, and a magic infusion. Naming:
 `<concept>_aspect` (e.g. `poison_aspect`), so it sorts with the concept's
 other `poison_*` stats. Every first-class row now has its stat name
 pinned (owner, 2026-09-30) — names only: the stats don't exist in code
-yet, and adding them is a `/swarmify` pass once #1199 settles. Supply model of the aspect stat (per-turn refill
+yet, and adding them is a `/swarmify` pass once #1248 settles. Supply model of the aspect stat (per-turn refill
 pool vs Civ-style capacity vs minting arrows on reload) is **open**, on
-#1199.
+#1248.
 
 **Addon column note:** "addon" and "temp addon" are one thing — a
 `SkillNodeAddon` scene (entity + node-local modifier lists, plus the
@@ -26,7 +26,7 @@ melee blade nodes and take effect there — hence one column, not two.
 **Magic infusion** is a fifth spell component (an `Infusion` resource adding
 an on-hit effect plus optional drawback on another component), not a patch
 onto the existing four — keeps #1200 (composable spells) open. Mechanics
-TBD on #1199.
+TBD on #1250.
 
 ## The Matrix
 
@@ -36,8 +36,8 @@ TBD on #1199.
 | Corruption | `corruption_aspect` | #971 | #971 | #971 | spreads as a sandpile by nature (#1202); health bar shows blips per stack, extra-mean when critical (#1092) |
 | Curse | `curse_aspect` | #972 | #972 | #972 | raises `min_damage_taken`; spills to surviving direct neighbours on death AND dealloc (#1204) |
 | Wither | `wither_aspect` | #973 | #973 | #973 | drives healing received negative |
-| Blindness | `blindness_aspect` | TBD | TBD | candidate: **Throw Sand** spell (owner, 2026-09-30) | count stacks, effect reads as a % via a saturating curve |
-| Scout (a reveal, #949) | `scout_aspect` | scouting arrow (shipped) | watchtower addon (shipped); temp: lit blade node pushing back fog (owner pitch, perf-sensitive: one moving mark per blade, never a second vision path) | TBD | `effects/status/scouted.tres` is live (VisionSystem's decay rule); first-class concept (owner, 2026-09-30) |
+| Blindness | `blindness_aspect` | TBD | TBD | candidate: **Throw Sand** spell (owner, 2026-09-30) — row: #1253 | count stacks, effect reads as a % via a saturating curve |
+| Scout (a reveal, #949) | `scout_aspect` | scouting arrow (shipped) | watchtower addon (shipped); temp: lit blade node pushing back fog (owner pitch, perf-sensitive: one moving mark per blade, never a second vision path) | TBD (#1254) | `effects/status/scouted.tres` is live (VisionSystem's decay rule); first-class concept (owner, 2026-09-30) |
 | Armor break | `armor_break_aspect` | #395 | #395 | #395 | flat −1 armor per stack, uncapped, can go below zero (#1203, owner 2026-09-30) |
 | Explosive | `explosive_aspect` | explosive arrow (#1211) | explosive addon, procgen at low rate; detonation kills the blade node, reuses spike-pop plumbing (#1211) | stub (#1211) | euclidean hitscan radius from `SkillNode.radius`; barrels / friendly fire open (#1211) |
 
@@ -58,14 +58,14 @@ this table's rows.
 
 ## Open
 
-- Supply model for `<concept>_aspect` (#1199).
+- Supply model for `<concept>_aspect` (#1248).
 - Attribute archetype per concept: the 2026-09-22 grid in
   [node_subtypes.md](node_subtypes.md) (DEX poison, STR corruption, INT
   wither, CON curse, PER blindness/scout, WIS none) vs. the owner's
   2026-09-29 mapping (INT curse, CON wither, STR also armor break) —
-  unresolved (#1199).
-- Can one hit carry two aspects (#1199).
-- WIS status family (#1199 brainstorm).
+  unresolved (#1249).
+- Can one hit carry two aspects (#1251).
+- WIS status family (#1252).
 
-Related: #1199 (design discussion), #1211, #1212 (addons become scenes),
+Related: #1199 (the hub), #1255 (status model: decay / spread / timing, #1256), #1211, #1212 (addons become scenes),
 #1202, #1204, #1203, #1217, #971–#973, #395, #1200.
