@@ -21,13 +21,12 @@ re-deriving anything.
 - **`AttackPlan`** (abstract `RefCounted`) — base for every mode. Owns
   `attacker`, `mode`, `signal state_changed`, the `HighlightRole` enum,
   and the virtual surface: `validate()`, `get_node_role(node)`,
-  `handle_left_click(node)`, `handle_right_click(node) -> bool`,
-  `pop() -> bool`, `get_node_range(node)`. Concrete plans override what
-  they care about and emit `state_changed` on any internal mutation.
-  Click grammar (left arms/resolves, right pops one level, self-targeting
-  falls through to a pop when invalid) is `docs/domain/click-grammar.md`
-  — `pop()` is the one primitive shared by right-click and the
-  self-targeting fallthrough.
+  `get_node_range(node)`, `reset()`. Concrete plans add domain verbs
+  only — melee `set_pivot` / `clear_pivot` / `toggle_member`, ranged and
+  magic `set_target` — and emit `state_changed` on any internal mutation.
+  A plan has no click grammar: what a click means lives in the
+  `systems/armed/` levels (`MeleeMode` / `BladeMode`, `RangedMode` /
+  `MagicMode` / `TargetMode`) — see `docs/domain/click-grammar.md`.
 - **`HighlightRole`** enum on `AttackPlan` — `NONE`, `ORIGIN`, `MEMBER`,
   `HOSTILE_TARGET`, `FRIENDLY_TARGET`, `IN_RANGE`, `INVALID`. Semantic,
   not literal — `ORIGIN` covers melee pivot, magic source, and ranged
