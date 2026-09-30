@@ -1103,6 +1103,10 @@ func arm_temp_upgrade(upgrade: TempUpgradeDef) -> void:
 		armed_stack.pop(current)
 
 
+func can_arm_temp_upgrade() -> bool:
+	return false
+
+
 func temp_upgrade_arm() -> TempUpgradeDef:
 	var level := armed_stack.find(TempUpgradeMode) as TempUpgradeMode if armed_stack != null else null
 	return level.def if level != null else null

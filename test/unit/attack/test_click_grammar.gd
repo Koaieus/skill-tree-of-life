@@ -1,346 +1,260 @@
 extends GutTest
 
-## #411: left-click always pushes forward (arms/sets origin/resolves a
-## target); right-click always pops exactly one level off the plan's state
-## stack, regardless of which node it lands on; a left-click on the armed
-## origin that fails the mode's own target-validity check falls through to
-## the same pop instead of a silent no-op. See docs/domain/click-grammar.md.
+## The attack click grammar on the [ArmedStack] (#1223): each step of an
+## attack is its own level. Melee pushes Blade on a pivot; Ranged and Magic
+## push Target on a target. Right-click / Esc pops the top level, so two pops
+## from anywhere reach the root. The plan owns *which node*; the stack owns
+## *what the next click means*. See docs/domain/click-grammar.md.
 ##
-## [b]Magic left the three-level shape in #728[/b] — with the cast-from node
-## auto-picked there is no origin to arm, so magic now matches ranged: one
-## left-click sets the target, right-click clears it. The magic section below
-## is re-pointed accordingly; melee and ranged are untouched.
+## Board: Pivot - Joint - Tip owned by the attacker; Hostile adjacent to Tip,
+## Far adjacent to Hostile, both owned by an NPC.
 
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _BOARD := preload("res://entity/default_entity_board.tres")
 const _PLAYER_FACTION := preload("res://entity/factions/player.tres")
+const _NPC_FACTION := preload("res://entity/factions/npc.tres")
 
-var _graph: Node
+var _graph: Graph
+var _alloc: AllocationSystem
+var _tm: TurnManager
+var _bs: BattleSystem
+var _ctl: PlayerInputController
 var _attacker: Entity
+var _pivot: SkillNode
+var _joint: SkillNode
+var _tip: SkillNode
+var _enemy: SkillNode
+var _far: SkillNode
+
+
+func _spawn(nm: String, pos: Vector2) -> SkillNode:
+	var sn := _SKILL_NODE_SCENE.instantiate() as SkillNode
+	sn.name = nm
+	sn.position = pos
+	_graph.add_skill_node(sn)
+	return sn
+
+
+func _entity(faction: Faction) -> Entity:
+	var e: Entity = autofree(Entity.new())
+	e.faction = faction
+	e.stat_board = _BOARD.duplicate(true) as EntityStatBoard
+	_graph.add_child(e)
+	return e
 
 
 func before_each() -> void:
 	_graph = _GRAPH_SCENE.instantiate()
 	add_child_autofree(_graph)
-	_attacker = autofree(Entity.new())
-	_attacker.faction = _PLAYER_FACTION
-	_attacker.stat_board = _BOARD.duplicate(true) as EntityStatBoard
-	_graph.add_child(_attacker)
+	_pivot = _spawn("Pivot", Vector2(0, 0))
+	_joint = _spawn("Joint", Vector2(200, 0))
+	_tip = _spawn("Tip", Vector2(400, 0))
+	_enemy = _spawn("Hostile", Vector2(450, 0))
+	_far = _spawn("Far", Vector2(600, 0))
+	_graph.add_edge(_pivot, _joint)
+	_graph.add_edge(_joint, _tip)
+	_graph.add_edge(_tip, _enemy)
+	_graph.add_edge(_enemy, _far)
+	_attacker = _entity(_PLAYER_FACTION)
+	var hostile := _entity(_NPC_FACTION)
+	_alloc = AllocationSystem.new()
+	_alloc.graph = _graph
+	add_child_autofree(_alloc)
+	for n in [_pivot, _joint, _tip]:
+		_alloc.force_allocate(_attacker, n)
+	_alloc.force_allocate(hostile, _enemy)
+	_alloc.force_allocate(hostile, _far)
+	_tm = TurnManager.new()
+	add_child_autofree(_tm)
+	_tm.start_turn(_attacker)
+	_bs = BattleSystem.new()
+	_bs.turn_manager = _tm
+	_bs.allocation_system = _alloc
+	_bs.graph = _graph
+	_bs.instant_mutation = true
+	add_child_autofree(_bs)
+	_ctl = PlayerInputController.new()
+	_ctl.graph = _graph
+	_ctl.allocation_system = _alloc
+	_ctl.turn_manager = _tm
+	_ctl.battle_system = _bs
+	_ctl.player = _attacker
+	add_child_autofree(_ctl)
 
 
-func _spawn(node_owner: Entity = null) -> SkillNode:
-	var sn := _SKILL_NODE_SCENE.instantiate() as SkillNode
-	_graph.skill_nodes_container.add_child(sn)
-	sn.owned_by = node_owner
-	return sn
+func _branch() -> Array:
+	return _ctl.armed_stack.branch().map(func(m: ArmedMode) -> Script: return m.get_script())
 
 
-# ── Melee ─────────────────────────────────────────────────────────────────
-
-func test_melee_left_click_sets_pivot_when_unset() -> void:
-	var plan: MeleeAttackPlan = autofree(MeleeAttackPlan.new())
-	plan.attacker = _attacker
-	var a := _spawn(_attacker)
-	plan.handle_left_click(a)
-	assert_eq(plan.source, a, "left-click on an owned node arms the pivot")
+func _melee() -> MeleeAttackPlan:
+	return _bs.attack_plan as MeleeAttackPlan
 
 
-func test_melee_right_click_pops_pivot_and_blade() -> void:
-	var plan: MeleeAttackPlan = autofree(MeleeAttackPlan.new())
-	plan.attacker = _attacker
-	var a := _spawn(_attacker)
-	plan.handle_left_click(a)
-	assert_true(plan.handle_right_click(a), "pops the armed pivot")
-	assert_null(plan.source, "pivot cleared")
-	assert_true(plan.blade_nodes.is_empty(), "blade members cleared with the pivot")
+func _upgrade() -> TempUpgradeDef:
+	var def := TempUpgradeDef.new()
+	def.id = &"test_spike"
+	return def
 
 
-func test_melee_right_click_with_nothing_armed_has_nothing_to_pop() -> void:
-	var plan: MeleeAttackPlan = autofree(MeleeAttackPlan.new())
-	plan.attacker = _attacker
-	var somewhere := _spawn(_attacker)
-	assert_false(plan.handle_right_click(somewhere),
-			"floor state (no pivot) returns false — caller exits the mode")
-
-
-func test_melee_left_click_on_pivot_itself_pops_instead_of_denying() -> void:
-	# Self-targeting fallthrough: the pivot is never a valid blade member, so
-	# re-clicking it is "never mind", same as a right-click.
-	var plan: MeleeAttackPlan = autofree(MeleeAttackPlan.new())
-	plan.attacker = _attacker
-	var a := _spawn(_attacker)
-	plan.handle_left_click(a)
-	plan.handle_left_click(a)
-	assert_null(plan.source, "left-clicking the armed pivot pops it")
-
-
-# ── Ranged ────────────────────────────────────────────────────────────────
-
-func test_ranged_right_click_pops_target_regardless_of_clicked_node() -> void:
-	# The one behavioral widening in this issue: right-click used to require
-	# landing on the current target; now it pops no matter where it lands.
-	var plan: RangedAttackPlan = autofree(RangedAttackPlan.new())
-	plan.attacker = _attacker
-	# A second entity, no faction, so ownership_bit reads HOSTILE relative
-	# to the player-faction attacker.
-	var enemy: Entity = autofree(Entity.new())
-	_graph.add_child(enemy)
-	var hostile := _spawn(enemy)
-	plan.handle_left_click(hostile)
-	assert_eq(plan.target, hostile, "precondition: target armed")
-	var elsewhere := _spawn()
-	assert_true(plan.handle_right_click(elsewhere),
-			"right-click pops the target even when clicked elsewhere")
-	assert_null(plan.target)
-
-
-func test_ranged_right_click_with_no_target_has_nothing_to_pop() -> void:
-	var plan: RangedAttackPlan = autofree(RangedAttackPlan.new())
-	plan.attacker = _attacker
-	assert_false(plan.handle_right_click(_spawn()),
-			"floor state (no target) returns false — caller exits the mode")
-
-
-# ── Magic ─────────────────────────────────────────────────────────────────
-
-func _magic_targeting(filter: int) -> NodeTargeting:
+func _heal_spell() -> SpellDef:
 	var t := NodeTargeting.new()
-	t.ownership_filter = filter
-	return t  # range_finder left null: unlimited reach, isolates the ownership check
-
-
-## Since #728 the eligible-caster set is read off `attacker.navigator`, which
-## only a real allocation populates — `_spawn`'s bare `owned_by =` leaves the
-## mirror empty and every union comes back with no sources (see
-## .claude/rules/graph.md). These magic fixtures therefore allocate for real.
-func _own(node: SkillNode) -> SkillNode:
-	var alloc := _graph.get_node_or_null(^"ClickGrammarAlloc") as AllocationSystem
-	if alloc == null:
-		alloc = AllocationSystem.new()
-		alloc.name = "ClickGrammarAlloc"
-		alloc.graph = _graph
-		_graph.add_child(alloc)
-	alloc.force_allocate(_attacker, node)
-	return node
-
-
-## A spell with no reach limit and no degree requirement, so these tests read
-## as ownership-filter tests and nothing else.
-func _magic_spell(filter: int) -> SpellDef:
+	t.ownership_filter = SkillNode.Ownership.MINE
 	var spell := SpellDef.new()
-	spell.targeting = _magic_targeting(filter)
+	spell.targeting = t
 	spell.min_degree = 0
 	return spell
 
 
-func test_magic_left_click_sets_the_target_and_stamps_a_source_in_one_step() -> void:
-	# Heal-shaped spell (Mine in the filter) so a second owned node is a legal
-	# target — one click, two fields set, no origin step in between.
-	var plan: MagicAttackPlan = autofree(MagicAttackPlan.new())
-	plan.attacker = _attacker
-	plan.spell = _magic_spell(SkillNode.Ownership.MINE)
-	var a := _own(_spawn())
-	var b := _own(_spawn())
-	plan.handle_left_click(b)
-	assert_eq(plan.target, b, "the clicked node IS the target — there is no origin to arm")
-	assert_true(plan.source == a or plan.source == b,
-			"and a caster was auto-picked from the eligible set")
+# ── Melee / Blade ─────────────────────────────────────────────────────────
+
+func test_melee_pivot_pushes_blade_and_two_pops_reach_the_root() -> void:
+	assert_true(_ctl.arm_attack(BattleSystem.AttackMode.MELEE))
+	assert_eq(_branch(), [ManageMode, MeleeMode])
+	_ctl.route_left_click(_pivot)
+	assert_eq(_branch(), [ManageMode, MeleeMode, BladeMode], "a pivot pushes Blade")
+	assert_eq(_melee().source, _pivot)
+	assert_true(_ctl.pop_armed_level())
+	assert_eq(_branch(), [ManageMode, MeleeMode], "pop 1 drops Blade")
+	assert_null(_melee().source, "and Blade's pop clears the pivot")
+	assert_true(_ctl.pop_armed_level())
+	assert_eq(_branch(), [ManageMode], "pop 2 exits melee")
+	assert_false(_bs.is_attacking, "with no plan left")
+	assert_false(_ctl.pop_armed_level(), "the root does not pop")
 
 
-func test_magic_right_click_pops_target_and_source() -> void:
-	var plan: MagicAttackPlan = autofree(MagicAttackPlan.new())
-	plan.attacker = _attacker
-	plan.spell = _magic_spell(SkillNode.Ownership.MINE)
-	_own(_spawn())
-	var b := _own(_spawn())
-	plan.handle_left_click(b)
-	assert_eq(plan.target, b, "precondition: target armed")
-	assert_true(plan.handle_right_click(_spawn()), "pops regardless of where it lands")
-	assert_null(plan.target)
-	assert_null(plan.source, "the auto-picked source goes with it")
+func test_clicking_the_pivot_at_blade_pops_blade() -> void:
+	_ctl.arm_attack(BattleSystem.AttackMode.MELEE)
+	_ctl.route_left_click(_pivot)
+	_ctl.route_left_click(_joint)
+	assert_eq(_melee().blade_nodes, [_joint] as Array[SkillNode], "precondition: a member")
+	watch_signals(Events)
+	_ctl.route_left_click(_pivot)
+	assert_eq(_branch(), [ManageMode, MeleeMode], "the pivot click pops Blade")
+	assert_null(_melee().source)
+	assert_signal_not_emitted(Events, "node_action_denied", "no denial shake")
 
 
-func test_magic_right_click_with_nothing_armed_has_nothing_to_pop() -> void:
-	var plan: MagicAttackPlan = autofree(MagicAttackPlan.new())
-	plan.attacker = _attacker
-	assert_false(plan.handle_right_click(_spawn(_attacker)),
-			"floor state (no target) returns false — caller exits the mode")
+func test_reset_button_pops_blade() -> void:
+	_ctl.arm_attack(BattleSystem.AttackMode.MELEE)
+	_ctl.route_left_click(_pivot)
+	_bs.reset_plan()
+	assert_eq(_branch(), [ManageMode, MeleeMode], "RESET is Blade's pop event")
+	assert_null(_melee().source)
 
 
-func test_magic_click_on_an_owned_node_does_nothing_for_a_hostile_spell() -> void:
-	# Hostile-only spell: the attacker's own node is never a legal target, and
-	# post-#728 there is no source step for such a click to land on either — so
-	# it commits nothing at all. (Pre-#728 this was the "invalid self-target
-	# falls through to a pop" case; the pop went with the source step.)
-	var plan: MagicAttackPlan = autofree(MagicAttackPlan.new())
-	plan.attacker = _attacker
-	plan.spell = _magic_spell(SkillNode.Ownership.HOSTILE)
-	var a := _own(_spawn())
-	plan.handle_left_click(a)
-	assert_null(plan.target)
-	assert_null(plan.source)
+func test_a_launch_pops_blade_and_melee_stays_armed_then_reform_pushes_blade() -> void:
+	_ctl.arm_attack(BattleSystem.AttackMode.MELEE)
+	_ctl.route_left_click(_pivot)
+	_ctl.route_left_click(_joint)
+	assert_true(_melee().is_valid(), "precondition: %s" % str(_melee().validate()))
+	_bs.launch_attack()
+	await wait_until(func() -> bool: return not _bs.is_launching, 5.0)
+	assert_eq(_branch(), [ManageMode, MeleeMode], "Blade is gone, Melee stays armed")
+	assert_true(_bs.is_attacking, "with a fresh melee plan")
+	assert_null(_melee().source if _melee() != null else null, "the fresh plan is empty")
+	assert_true(_ctl.reform_blade(), "precondition: the last blade reforms")
+	assert_eq(_branch(), [ManageMode, MeleeMode, BladeMode], "reform pushes Blade")
+	assert_eq(_melee().source, _pivot)
+	assert_eq(_melee().blade_nodes, [_joint] as Array[SkillNode], "with the reformed members")
 
 
-func test_magic_self_target_resolves_when_an_owned_node_is_a_legal_target() -> void:
-	# Heal-shaped spell: Mine is in the filter, so a lone owned node is a legal
-	# target for itself — it targets itself and casts from itself.
-	var plan: MagicAttackPlan = autofree(MagicAttackPlan.new())
-	plan.attacker = _attacker
-	plan.spell = _magic_spell(SkillNode.Ownership.MINE)
-	var a := _own(_spawn())
-	plan.handle_left_click(a)
-	assert_eq(plan.target, a, "self is a legal target, so it resolves as the target")
-	assert_eq(plan.source, a, "and it is its own caster")
+func test_temp_upgrade_arms_only_with_blade_up() -> void:
+	var def := _upgrade()
+	_ctl.arm_attack(BattleSystem.AttackMode.MELEE)
+	assert_false(_ctl.can_arm_temp_upgrade(), "no blade, no temp upgrade")
+	_ctl.arm_temp_upgrade(def)
+	assert_eq(_branch(), [ManageMode, MeleeMode], "refused: nothing pushed")
+	_ctl.route_left_click(_pivot)
+	_ctl.route_left_click(_joint)
+	assert_true(_ctl.can_arm_temp_upgrade())
+	_ctl.arm_temp_upgrade(def)
+	assert_eq(_branch(), [ManageMode, MeleeMode, BladeMode, TempUpgradeMode])
+	assert_true(_ctl.pop_armed_level())
+	assert_eq(_branch(), [ManageMode, MeleeMode, BladeMode], "right-click pops only the upgrade")
+	assert_eq(_melee().source, _pivot, "pivot intact")
+	assert_eq(_melee().blade_nodes, [_joint] as Array[SkillNode], "members intact")
 
 
-# ── PlayerInputController integration: two pops reach idle ─────────────────
-
-func test_right_click_with_nothing_armed_exits_attack_mode() -> void:
-	var ctl := PlayerInputController.new()
-	var alloc := AllocationSystem.new()
-	alloc.graph = _graph
-	add_child_autofree(alloc)
-	var tm: TurnManager = autofree(TurnManager.new())
-	add_child(tm)
-	var bs := BattleSystem.new()
-	bs.turn_manager = tm
-	add_child_autofree(bs)
-
-	tm.start_turn(_attacker)
-
-	# Node must exist before PlayerInputController._ready() runs (it wires
-	# left_clicked for the nodes present at that point; a node added straight
-	# to skill_nodes_container afterward, as _spawn does, doesn't fire
-	# Graph.node_added — see .claude/rules/graph.md).
-	var a := _spawn(_attacker)
-
-	ctl.graph = _graph
-	ctl.allocation_system = alloc
-	ctl.turn_manager = tm
-	ctl.battle_system = bs
-	ctl.player = _attacker
-	add_child_autofree(ctl)
-
-	ctl.arm_attack(BattleSystem.AttackMode.MELEE)
-	assert_true(bs.is_attacking, "precondition: melee mode armed")
-
-	a.left_clicked.emit(a)  # arm the pivot
-	assert_eq((bs.attack_plan as MeleeAttackPlan).source, a, "precondition: pivot armed")
-
-	var rmb := InputEventMouseButton.new()
-	rmb.button_index = MOUSE_BUTTON_RIGHT
-	rmb.pressed = true
-
-	ctl._unhandled_input(rmb)  # pop 1: clears the pivot, stays in melee mode
-	assert_true(bs.is_attacking, "first pop clears the pivot but stays armed")
-	assert_null((bs.attack_plan as MeleeAttackPlan).source)
-
-	ctl._unhandled_input(rmb)  # pop 2: nothing left to pop — exits the mode
-	assert_false(bs.is_attacking, "second pop, with nothing armed, exits the mode entirely")
+func test_melee_tint_is_the_same_at_every_depth() -> void:
+	_ctl.arm_attack(BattleSystem.AttackMode.MELEE)
+	var at_melee := _ctl.get_armed_tint()
+	assert_gt(at_melee.a, 0.0, "melee lends a tint")
+	_ctl.route_left_click(_pivot)
+	assert_eq(_ctl.get_armed_tint(), at_melee, "same at Blade")
+	_ctl.arm_temp_upgrade(_upgrade())
+	assert_eq(_branch().back(), TempUpgradeMode, "precondition")
+	assert_eq(_ctl.get_armed_tint(), at_melee, "same at TempUpgrade")
 
 
-# ── #404: Esc aliases the same pop primitive as right-click ────────────────
+# ── Ranged / Magic → Target ───────────────────────────────────────────────
+
+func test_ranged_target_pushes_target_retargets_in_place_and_two_pops_exit() -> void:
+	_ctl.arm_attack(BattleSystem.AttackMode.RANGED)
+	assert_eq(_branch(), [ManageMode, RangedMode])
+	_ctl.route_left_click(_enemy)
+	assert_eq(_branch(), [ManageMode, RangedMode, TargetMode], "a target pushes Target")
+	_ctl.route_left_click(_far)
+	assert_eq(_branch(), [ManageMode, RangedMode, TargetMode], "retarget keeps the depth")
+	assert_eq((_bs.attack_plan as RangedAttackPlan).target, _far)
+	assert_true(_ctl.pop_armed_level())
+	assert_eq(_branch(), [ManageMode, RangedMode])
+	assert_null((_bs.attack_plan as RangedAttackPlan).target, "the pop clears the target")
+	assert_true(_ctl.pop_armed_level())
+	assert_eq(_branch(), [ManageMode], "the next pop exits")
+	assert_false(_bs.is_attacking)
+
+
+func test_magic_target_pushes_target_retargets_in_place_and_two_pops_exit() -> void:
+	_ctl.arm_attack(BattleSystem.AttackMode.MAGIC)
+	_bs.selected_spell = _heal_spell()
+	_ctl.route_left_click(_joint)
+	assert_eq(_branch(), [ManageMode, MagicMode, TargetMode], "a target pushes Target")
+	_ctl.route_left_click(_tip)
+	assert_eq(_branch(), [ManageMode, MagicMode, TargetMode], "retarget keeps the depth")
+	var plan := _bs.attack_plan as MagicAttackPlan
+	assert_eq(plan.target, _tip)
+	assert_true(_ctl.pop_armed_level())
+	assert_eq(_branch(), [ManageMode, MagicMode])
+	assert_null(plan.target, "the pop clears the target")
+	assert_null(plan.source, "and its auto-picked caster")
+	assert_true(_ctl.pop_armed_level())
+	assert_eq(_branch(), [ManageMode])
+
+
+func test_a_spell_swap_that_drops_the_target_pops_target() -> void:
+	_ctl.arm_attack(BattleSystem.AttackMode.MAGIC)
+	_bs.selected_spell = _heal_spell()
+	_ctl.route_left_click(_joint)
+	assert_eq(_branch(), [ManageMode, MagicMode, TargetMode], "precondition")
+	var hostile_only := _heal_spell()
+	(hostile_only.targeting as NodeTargeting).ownership_filter = SkillNode.Ownership.HOSTILE
+	_bs.selected_spell = hostile_only
+	assert_null((_bs.attack_plan as MagicAttackPlan).target, "precondition: the swap dropped it")
+	assert_eq(_branch(), [ManageMode, MagicMode], "the spell swap is Target's pop event")
+
+
+# ── Controller-wide ───────────────────────────────────────────────────────
 
 func test_esc_pops_one_level_same_as_right_click() -> void:
-	var ctl := PlayerInputController.new()
-	var alloc := AllocationSystem.new()
-	alloc.graph = _graph
-	add_child_autofree(alloc)
-	var tm: TurnManager = autofree(TurnManager.new())
-	add_child(tm)
-	var bs := BattleSystem.new()
-	bs.turn_manager = tm
-	add_child_autofree(bs)
-
-	tm.start_turn(_attacker)
-	var a := _spawn(_attacker)
-
-	ctl.graph = _graph
-	ctl.allocation_system = alloc
-	ctl.turn_manager = tm
-	ctl.battle_system = bs
-	ctl.player = _attacker
-	add_child_autofree(ctl)
-
-	ctl.arm_attack(BattleSystem.AttackMode.MELEE)
-	a.left_clicked.emit(a)  # arm the pivot
-	assert_eq((bs.attack_plan as MeleeAttackPlan).source, a, "precondition: pivot armed")
-
+	_ctl.arm_attack(BattleSystem.AttackMode.MELEE)
+	_ctl.route_left_click(_pivot)
 	var esc := InputEventAction.new()
 	esc.action = &"ui_cancel"
 	esc.pressed = true
-
-	ctl._unhandled_key_input(esc)  # pop 1: clears the pivot, stays in melee mode
-	assert_true(bs.is_attacking, "Esc pop 1 clears the pivot but stays armed")
-	assert_null((bs.attack_plan as MeleeAttackPlan).source)
-
-	ctl._unhandled_key_input(esc)  # pop 2: nothing left to pop — exits the mode
-	assert_false(bs.is_attacking, "Esc pop 2, with nothing armed, exits the mode entirely")
-
-
-func test_esc_with_nothing_armed_leaves_event_unhandled() -> void:
-	var ctl := PlayerInputController.new()
-	var alloc := AllocationSystem.new()
-	alloc.graph = _graph
-	add_child_autofree(alloc)
-	var tm: TurnManager = autofree(TurnManager.new())
-	add_child(tm)
-	var bs := BattleSystem.new()
-	bs.turn_manager = tm
-	add_child_autofree(bs)
-
-	tm.start_turn(_attacker)
-
-	ctl.graph = _graph
-	ctl.allocation_system = alloc
-	ctl.turn_manager = tm
-	ctl.battle_system = bs
-	ctl.player = _attacker
-	add_child_autofree(ctl)
-
-	assert_false(bs.is_attacking, "precondition: nothing armed")
-	var esc := InputEventAction.new()
-	esc.action = &"ui_cancel"
-	esc.pressed = true
-	# pop_armed_level() returning false means _unhandled_key_input never calls
-	# set_input_as_handled() — verified by reading the method, not asserted via
-	# viewport state here (that state isn't reliably isolated per-call outside
-	# the real input pipeline). This just proves the no-op path doesn't error
-	# or spuriously arm/cancel anything.
-	ctl._unhandled_key_input(esc)
-	assert_false(bs.is_attacking, "Esc with nothing armed still leaves nothing armed")
+	_ctl._unhandled_key_input(esc)
+	assert_eq(_branch(), [ManageMode, MeleeMode], "Esc pop 1 drops Blade")
+	_ctl._unhandled_key_input(esc)
+	assert_eq(_branch(), [ManageMode], "Esc pop 2 exits the mode")
+	assert_false(_bs.is_attacking)
 
 
 func test_d_gated_while_attack_plan_armed() -> void:
-	var ctl := PlayerInputController.new()
-	var alloc := AllocationSystem.new()
-	alloc.graph = _graph
-	add_child_autofree(alloc)
-	var tm: TurnManager = autofree(TurnManager.new())
-	add_child(tm)
-	var bs := BattleSystem.new()
-	bs.turn_manager = tm
-	add_child_autofree(bs)
-
-	tm.start_turn(_attacker)
-	var a := _spawn(_attacker)
-	var b := _spawn(_attacker)
-
-	ctl.graph = _graph
-	ctl.allocation_system = alloc
-	ctl.turn_manager = tm
-	ctl.battle_system = bs
-	ctl.player = _attacker
-	add_child_autofree(ctl)
-
-	ctl.arm_attack(BattleSystem.AttackMode.MELEE)
-	a.left_clicked.emit(a)  # arm the pivot
-	assert_true(bs.is_attacking, "precondition: melee mode armed")
-
-	Events.skill_node_hovered.emit(b)
+	_ctl.arm_attack(BattleSystem.AttackMode.MELEE)
+	_ctl.route_left_click(_pivot)
+	Events.skill_node_hovered.emit(_joint)
 	var d := InputEventKey.new()
 	d.physical_keycode = KEY_D
 	d.pressed = true
-	ctl._unhandled_input(d)
-	assert_eq(b.owned_by, _attacker, "D is gated off while an attack plan is armed (#404)")
+	_ctl._unhandled_input(d)
+	assert_eq(_joint.owned_by, _attacker, "D is gated off while an attack plan is armed (#404)")
