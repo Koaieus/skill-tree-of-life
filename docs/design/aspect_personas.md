@@ -51,24 +51,21 @@ Owner, 2026-09-30: named **Cuss** or **Cussy**. There is an explicit or
 veiled curse word in virtually every sentence, and bits of the dialogue
 may be bleeped or blacked out. Cuss definitely holds grudges.
 
-Temperament is open:
-- **Serene.** Never agitated; even the cursing sounds calm.
-- **Crashes out.** Now and then flies off the handle for real.
-
-Agent suggestions (not owner calls):
-- **Do both: serene by default, with rare crash-outs.** A crash-out lands
-  hardest when it's rare. It could be tied to the mechanic: a curse
-  spills onto surviving neighbours when its host dies. So the crash-out
-  could be the moment a grudge's target escapes by dying and the curse
-  has to jump elsewhere.
-- **Tie it to the Fairy.** The Fairy's curse is spoken in Old Tongue and
-  English ears hear profanity ("AAH FUUUCK", [lore.md](lore.md)). So
-  Cuss's censored words could be Old Tongue: the redaction bars hide
-  actual casting. Beware that this may give away the Act 1 reveal, so
-  weigh the reveal before using it.
-- **Grudge ledger.** Cuss keeps a running list of who wronged whom and
-  brings up old entries, mirroring how the curse sticks around and
-  spreads.
+Owner, 2026-09-30, settled:
+- **Serene, with crash-outs.** Calm by default, even the cursing sounds
+  serene, and now and then Cuss flies off the handle for real. Agent
+  suggestion for the trigger: a curse spills onto surviving neighbours
+  when its host dies, so a crash-out could fire when the target of a
+  grudge escapes by dying and the curse has to jump elsewhere.
+- **Old Tongue on the page.** Cuss's curse words are written in symbols or
+  runes and partly censored. The redaction hides actual casting, the same
+  language as the Fairy's curse ("AAH FUUUCK", [lore.md](lore.md)). Weigh
+  it against the Act 1 reveal before shipping it early.
+- **Scoffs at positive words**, like "friendly" and "rainbows".
+- **The grudge ledger.** Cuss keeps a running list of who wronged whom
+  and brings up old entries. Owner: a fun basis for story progression
+  with real choices.
+- **Maybe family to the Fairy**, who is also known to hold grudges.
 
 ### Explosive (`explosive_aspect`)
 
@@ -110,6 +107,7 @@ underwhelming.
 - The order the aspects are introduced in.
 - Speech bubbles like the Fairy's, a face behind the aspect's UI, or
   flavour text only.
-- Cuss's temperament.
+- Cuss: what the ledger's choices are, and whether Cuss and the Fairy
+  really are family.
 - Final names for wither and blindness; names at all for corruption,
   explosive, armor break and scout.
