@@ -55,6 +55,8 @@ mise run adr-hygiene     # frontmatter, supersede links, index coverage, immutab
 | [0031](0031-status-resistance-filters-the-accumulated-row-at-effect-time-on-the-host.md) | Status resistance filters the accumulated float row on the host at each apply and tick, cancelling ⌈row × res − ½⌉ stacks; 100% blocks landing; never a per-hit scale at land | accepted | 2026-09-28 | combat, status, dot, balance, sync |
 | [0032](0032-status-stacks-are-integers-a-def-derives-any-fractional-effect-from-the-count.md) | Status stacks are integers — the row stores an int, and a def derives any fractional effect (blindness's %) from the count; no second float field | accepted | 2026-09-30 | combat, status, dot, balance |
 | [0033](0033-damage-and-heal-magnitudes-round-up-once-where-produced-mitigation-stays-max-floor.md) | Damage and heal magnitudes round UP once, where the value is produced, so mitigation runs int-on-int; mitigation stays max(min_damage_taken, raw − armor) with negative armor applied before the floor | accepted | 2026-09-30 | combat, balance, stats |
+| [0034](0034-armed-input-is-a-statechart-stack-system-whose-attack-level-owns-the-plan.md) | Armed input is a statechart held as a push/pop stack system, a sibling of BattleSystem; levels change only on events, and the attack level owns the in-progress plan | accepted | 2026-09-30 | input, ui, attack, architecture |
+| [0035](0035-a-plan-is-seat-local-until-launch-the-host-checks-only-affordability.md) | An attack plan, temp upgrades included, is seat-local until launch; the host judges it once in LaunchAttackCommand and checks only that the player can pay | accepted | 2026-09-30 | multiplayer, sync, attack |
 
 ## Pre-ADR log
 
