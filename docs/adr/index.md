@@ -59,6 +59,7 @@ mise run adr-hygiene     # frontmatter, supersede links, index coverage, immutab
 | [0035](0035-a-plan-is-seat-local-until-launch-the-host-checks-only-affordability.md) | An attack plan, temp upgrades included, is seat-local until launch; the host judges it once in LaunchAttackCommand and checks only that the player can pay | accepted | 2026-09-30 | multiplayer, sync, attack |
 | [0036](0036-a-coreclass-is-a-leaf-reuse-lives-inside-its-typed-arrays.md) | A CoreClass is a leaf that never references another CoreClass; shared parts are file-backed packs and effects dropped into its typed arrays | accepted | 2026-08-04 | entity, core-class, stats, loot, authoring, architecture |
 | [0037](0037-territory-selection-is-one-policy-shared-by-spawn-seeding-and-the-ai.md) | Territory selection is one AllocationPolicy, pick_next(entity, candidates, objective), shared by spawn seeding and any AI picker; callers supply candidates and gate, the policy only picks | accepted | 2026-07-21 | ai, procgen, allocation, territory, architecture |
+| [0038](0038-int-is-the-runaway-attribute-and-every-int-transfer-is-thinned.md) | INT is the runaway attribute, and every transfer out of it is thinned — spell damage takes √INT, reach and mana take big divisors or saturating ladders; the linear damage payoff and the ×2 reach cap are retired | accepted | 2026-09-21 | stats, balance, int, spells, formulas, design |
 
 ## Pre-ADR log
 
