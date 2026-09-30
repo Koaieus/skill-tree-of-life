@@ -44,6 +44,10 @@ const CORE_DRAG_SNAP_RADIUS := 90.0
 ## Local plan-building (hover, pin, the armed-mode stack, the core-drag ghost,
 ## attack-mode selection) deliberately does NOT: it never crosses a wire.
 @export var command_applier: CommandApplier
+## The seat-local armed stack (#1222) — a sibling system in the level scene
+## (`%ArmedStack`). Left unwired (a bare fixture), the controller makes a
+## private one in `_ready`.
+@export var armed_stack: ArmedStack
 
 signal player_can_act_changed(can_act: bool)
 ## Core-move targeting state (#21). `source` is the player's core node while a
@@ -60,17 +64,12 @@ signal core_drag_target_changed(landing: SkillNode)
 ## unpinned (null). [NodeInspectorCard] surfaces the pinned node's details.
 signal node_pinned(node: SkillNode)
 
-## The player's core node while a click-to-move is in progress. Null between
-## moves. Set only via `_set_move_targeting_source` so the signal fires once
-## per transition.
-var _move_targeting_source: SkillNode = null
-
-## Which temp upgrade (a [TempUpgradeDef] from the battle system's catalog) is
-## armed for placement via the command-tray card, or null when unarmed (#406).
-## Set only via `_set_temp_upgrade_arm` so the signal fires once per
-## transition.
+## Derived off the stack: fires when the [CoreMoveMode] source changes.
+## Which temp upgrade is armed ([TempUpgradeMode] on the branch), or null (#406).
+## Derived off the stack; fires once per transition.
 signal temp_upgrade_arm_changed(upgrade: TempUpgradeDef)
-var _temp_upgrade_arm: TempUpgradeDef = null
+var _last_temp_upgrade: TempUpgradeDef = null
+var _last_move_source: SkillNode = null
 
 ## The last melee blade each entity successfully launched (#466), keyed by
 ## `Object.get_instance_id()` — never `Entity.entity_id`, which is 0 until the
@@ -91,22 +90,20 @@ var _temp_upgrade_arm: TempUpgradeDef = null
 ## the memory of a completed action, and it lasts the whole run.
 var _reform_slots: Dictionary[int, Dictionary] = {}
 
-## Manage-tab verbs (#338), armed via CommandTray's ManageBody cards through
-## the #404 shared dispatcher. ALLOCATE mirrors the always-on bare-click
-## fallback (arming it is cosmetic — cursor + card affordance only, no new
-## click routing); DEALLOCATE/STAKE/EXTRACT resolve through
-## [method _route_manage_click]. Move Core has no verb of its own — its card
-## calls [method enter_core_move_targeting], reusing CoreMoveArmedMode.
+## Manage-tab verb ids (#338) — the tray's card ids and the highlight's verb
+## key. NOT arm state: that is the [ArmedStack] branch, where Deallocate,
+## Stake and Extract are [ManageVerbMode] levels on the [ManageMode] root.
 enum ManageVerb { NONE, ALLOCATE, DEALLOCATE, STAKE, EXTRACT }
+## Compat for [HighlightController], which still reads the verb: derived off
+## the stack, fires once per transition. New readers use [member armed_stack].
 signal manage_arm_changed(verb: ManageVerb)
-var _manage_arm: ManageVerb = ManageVerb.NONE
+var _last_manage_verb: ManageVerb = ManageVerb.NONE
 
 ## A distant-allocate-path or would-island-deallocate click is pending
-## confirmation (see MassActionRequest, MassActionArmedMode). Null when
-## nothing is pending. Set only via `begin_mass_action`/`cancel_mass_action`/
-## `confirm_mass_action` so the signal fires once per transition.
+## confirmation ([MassActionMode] on the branch). Derived off the stack; fires
+## once per transition.
 signal mass_action_pending_changed(request: MassActionRequest)
-var _mass_action_request: MassActionRequest = null
+var _last_mass_request: MassActionRequest = null
 
 ## Gate management (#1206). The bulk verbs a toggle expands into; locks are a
 ## seat-local input filter held by [GateLockSet], never world state.
@@ -122,13 +119,6 @@ var _gate_locks := GateLockSet.new()
 var _gate_pending_key: Array[Vector2i] = []
 var _gate_pending_strand: Array[SkillNode] = []
 
-
-## Ordered pop stack (#404's shared arm/pop primitive, generalized #406).
-## Earlier entries pop before later ones — TempUpgradeArmedMode is checked
-## first because it nests inside an already-armed attack plan and must pop
-## before the plan does. Populated in _ready().
-var _armed_modes: Array[ArmedMode] = []
-var _manage_mode: ManageArmedMode
 
 ## Colour for the viewport armed-mode glow (#412), carried so the overlay is a
 ## pure consumer with no knowledge of the stack. Fires on every *tint*
@@ -192,6 +182,12 @@ var _core_drag_ghost: CoreDragGhost = null
 ## (the sandbox hand-routes those itself), `_unhandled_input`, the mouse cursor
 ## — stays gated, at its own site.
 func _ready() -> void:
+	if armed_stack == null:
+		armed_stack = ArmedStack.new()
+		armed_stack.name = "ArmedStack"
+		add_child(armed_stack)
+	armed_stack.set_root(ManageMode.new(self))
+	armed_stack.changed.connect(_on_armed_stack_changed)
 	# `player` may be wired post-_ready (procgen sandboxes spawn it during
 	# GameRoot._setup_level). Skip the player-dependent gate, not the graph
 	# subscription — clicks still connect; routing checks player at fire time.
@@ -218,15 +214,6 @@ func _ready() -> void:
 	Events.skill_node_unhovered.connect(_on_skill_node_unhovered)
 	Events.node_action_denied.connect(_on_node_action_denied)
 
-	_manage_mode = ManageArmedMode.new(self)
-	_armed_modes = [
-		MassActionArmedMode.new(self),
-		TempUpgradeArmedMode.new(self),
-		AttackPlanArmedMode.new(self),
-		CoreMoveArmedMode.new(self),
-		_manage_mode,
-	]
-
 	if battle_system != null:
 		battle_system.attack_plan_changed.connect(_refresh_armed_state.unbind(1))
 		# ...and plan *state*, not just plan lifecycle (#683). The melee badge
@@ -237,9 +224,6 @@ func _ready() -> void:
 		# icon/tint that actually differs, and `_update_cursor` above the dedup
 		# is an idempotent `Input.set_default_cursor_shape`.
 		battle_system.attack_plan_state_changed.connect(_refresh_armed_state)
-		# The arm can't outlive its plan (#406) — a plan swap or clear always
-		# invalidates whatever temp-upgrade card was armed for the old one.
-		battle_system.attack_plan_changed.connect(func(_p): _set_temp_upgrade_arm(null))
 		# can_player_act() now also reads battle_system.is_launching (#406),
 		# whose transitions have no signal of their own. attack_plan_changed
 		# fires when a swing's post-await _reset() clears the plan — the only
@@ -263,7 +247,6 @@ func _ready() -> void:
 		# queue between rounds, so `is_applying` no longer covers "a pick is
 		# outstanding" — see [CommandApplier.has_outstanding_loot].
 		command_applier.outstanding_loot_changed.connect(_emit_gate_changed.unbind(1))
-	core_move_targeting_changed.connect(_refresh_armed_state.unbind(1))
 
 
 func _on_node_added(skill_node: SkillNode) -> void:
@@ -285,36 +268,18 @@ func route_left_click(skill_node: SkillNode) -> void:
 
 
 func _on_skill_node_left_clicked(skill_node: SkillNode) -> void:
-	if _input_frozen:
+	if _input_frozen or armed_stack == null:
 		return
-	if _mass_action_request != null:
+	# The one flow gate for every level's click.
+	if not can_player_act():
 		return
-	if _route_temp_upgrade_click(skill_node):
-		return
-	if _route_battle_click(skill_node, true):
-		return
-	if _route_manage_click(skill_node):
-		return
-	if _route_core_move_click(skill_node):
-		return
-	# Allocate channel: bare left-click on an unowned node (first allocation)
-	# or a player-owned node with cap headroom from a stake (refill, #337).
-	# allocate() enforces SP + adjacency; deallocation is the `D`-on-hover
-	# channel, not a click.
-	if not _is_players_turn():
-		return
-	if skill_node.owned_by == player and skill_node.allocation_level < skill_node.stake_level:
-		_submit(AllocateCommand.new(player.entity_id, graph.get_stable_id(skill_node)))
-		return
-	if skill_node.owned_by != null:
-		return
-	# can_allocate is still read here — not as a gate (allocate() re-gates at
-	# apply time) but as ROUTING: it decides whether this click is a plain
-	# allocate or falls through to the multi-hop confirm flow below.
-	if allocation_system.can_allocate(skill_node, player):
-		_submit(AllocateCommand.new(player.entity_id, graph.get_stable_id(skill_node)))
-		return
-	_try_begin_mass_allocate(skill_node)
+	# Top-first; the first level to consume the click wins. A level that popped
+	# itself mid-walk is skipped.
+	var levels := armed_stack.branch()
+	for i in range(levels.size() - 1, -1, -1):
+		var level := levels[i]
+		if armed_stack.has(level) and level.handle_left_click(skill_node):
+			return
 
 
 ## The bare-click fell through can_allocate — usually because [param target] is
@@ -345,28 +310,6 @@ func _skill_points_available() -> int:
 		return 0
 	var sp: PoolStat = player.stat_board.skill_points
 	return sp.available() if sp != null else 0
-
-
-## Resolves an armed Manage verb (#338, via #404). STAKE/EXTRACT/DEALLOCATE
-## consume the click whether they succeed or not (denial feedback fires on
-## failure); ALLOCATE and NONE fall through so the existing core-move /
-## bare-allocate routing below still runs unarmed. Must run BEFORE
-## _route_core_move_click — staking/extracting the core itself (0 hops still
-## counts as "within 1 hop") must not be swallowed by core-move targeting.
-func _route_manage_click(skill_node: SkillNode) -> bool:
-	if not _is_players_turn():
-		return false
-	match _manage_arm:
-		ManageVerb.STAKE:
-			_resolve_stake(skill_node)
-			return true
-		ManageVerb.EXTRACT:
-			_resolve_extract(skill_node)
-			return true
-		ManageVerb.DEALLOCATE:
-			_resolve_deallocate(skill_node)
-			return true
-	return false
 
 
 ## Shared deallocate verb call (#338) — both the `D`-hover accelerator and an
@@ -439,10 +382,13 @@ func request_reload() -> bool:
 func _on_command_applied(command: Command, success: bool) -> void:
 	if player == null or command.entity_id != player.entity_id:
 		return
-	# Stake is a one-off: players rarely stake twice in a row, so a landed stake
-	# drops the arm. A denial keeps it armed so the click can be retried.
-	if success and command is StakeCommand and _manage_arm == ManageVerb.STAKE:
-		_manage_mode.pop()
+	# Pop policy is the levels' (Stake pops itself on success); the feedback
+	# below stays here, so a denial that lands after its level popped still shakes.
+	if armed_stack != null:
+		var levels := armed_stack.branch()
+		for i in range(levels.size() - 1, -1, -1):
+			if armed_stack.has(levels[i]):
+				levels[i].on_command_resolved(command, success)
 	if success:
 		return
 	var node := graph.get_by_stable_id(command.node_id) \
@@ -507,19 +453,14 @@ static func _gate_denial(reason: StringName, generic: StringName) -> String:
 ## "this click was consumed", never "the upgrade landed": the outcome is
 ## async now, and every caller only ever used it for routing.
 func request_temp_upgrade_at(skill_node: SkillNode) -> bool:
-	if _temp_upgrade_arm == null or not can_player_act():
+	var arm := temp_upgrade_arm()
+	if arm == null or not can_player_act():
 		return false
 	if _active_attack_plan() as MeleeAttackPlan == null:
 		return false
 	_submit(ToggleTempUpgradeCommand.new(
-			player.entity_id, graph.get_stable_id(skill_node), _temp_upgrade_arm.id))
+			player.entity_id, graph.get_stable_id(skill_node), arm.id))
 	return true
-
-
-## Must run BEFORE _route_battle_click, which would otherwise claim the click
-## for blade-membership toggling.
-func _route_temp_upgrade_click(skill_node: SkillNode) -> bool:
-	return request_temp_upgrade_at(skill_node)
 
 
 # ── Reform last blade (#466) ───────────────────────────────────────────────
@@ -595,9 +536,11 @@ func can_reform() -> bool:
 ## the last blade, which arms melee itself. Returns whether the key was
 ## consumed; false leaves it free for anything downstream.
 func reload_in_hand() -> bool:
-	for m in _armed_modes:
-		if m.is_armed() and m.reload():
-			return true
+	if armed_stack != null:
+		var levels := armed_stack.branch()
+		for i in range(levels.size() - 1, -1, -1):
+			if levels[i].reload():
+				return true
 	return reform_blade()
 
 
@@ -611,7 +554,7 @@ func reload_in_hand() -> bool:
 func reform_blade() -> bool:
 	if not can_reform():
 		return false
-	battle_system.request_attack_mode(BattleSystem.AttackMode.MELEE)
+	arm_attack(BattleSystem.AttackMode.MELEE)
 	var plan := battle_system.attack_plan as MeleeAttackPlan
 	if plan == null:
 		return false
@@ -679,7 +622,7 @@ func _unhandled_input(event: InputEvent) -> void:
 	if _input_frozen:
 		return
 	if event is InputEventMouseMotion:
-		if _move_targeting_source != null and Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
+		if move_targeting_source() != null and Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
 			_update_core_drag()
 		return
 	if event is InputEventMouseButton:
@@ -688,7 +631,7 @@ func _unhandled_input(event: InputEvent) -> void:
 			_on_core_drag_released()
 			return
 		if mb.button_index == MOUSE_BUTTON_RIGHT and mb.pressed:
-			if _pop_armed_mode():
+			if pop_armed_level():
 				get_viewport().set_input_as_handled()
 			elif _hovered_node != null:
 				_set_pinned(null if _hovered_node == _pinned_node else _hovered_node)
@@ -703,7 +646,7 @@ func _unhandled_input(event: InputEvent) -> void:
 	# D is Manage's accelerator, not a global override — gated off while any
 	# other targeting mode is armed so it can't deallocate mid-attack-plan-
 	# selection or mid-core-move (#404).
-	if _has_armed_mode():
+	if has_armed_level():
 		return
 	if _hovered_node.owned_by == player:
 		_resolve_deallocate(_hovered_node)
@@ -720,7 +663,7 @@ func _unhandled_key_input(event: InputEvent) -> void:
 		return
 	if _input_frozen:
 		return
-	if event.is_action_pressed(&"ui_cancel") and _pop_armed_mode():
+	if event.is_action_pressed(&"ui_cancel") and pop_armed_level():
 		get_viewport().set_input_as_handled()
 		return
 	if event.is_action_pressed(&"ui_reload") and reload_in_hand():
@@ -884,36 +827,9 @@ func _on_node_action_denied(node: SkillNode, _reason: String) -> void:
 ## Returns true if an active attack plan handled the click. Gating: player's
 ## turn AND the active plan belongs to this player. Caller treats `true`
 ## as "consumed, no further routing".
-func _route_battle_click(skill_node: SkillNode, is_left: bool) -> bool:
-	if not can_player_act():
-		return false
-	if battle_system == null or not battle_system.is_attacking:
-		return false
-	var plan := battle_system.attack_plan
-	if plan == null or plan.attacker != player:
-		return false
-	if is_left:
-		plan.handle_left_click(skill_node)
-	else:
-		# Right-click always affects the attack-mode stack while a plan is
-		# armed — never falls through to pin-toggle. A pop with nothing left
-		# to clear (mode armed, no origin) exits the mode entirely instead of
-		# being swallowed silently. See docs/domain/click-grammar.md.
-		if not plan.handle_right_click(skill_node):
-			battle_system.cancel_attack()
-	return true
-
-
-## True if any level of the armed-mode stack (#404, generalized #406 —
-## _armed_modes) is currently active. Single source of truth for "is
-## anything armed right now" — gates the D-key channel and decides whether
-## right-click / Esc pop a level instead of falling through to pin-toggle /
-## PauseMenu.
-func _has_armed_mode() -> bool:
-	for m in _armed_modes:
-		if m.is_armed():
-			return true
-	return false
+## Whether any level sits above the [ManageMode] root.
+func has_armed_level() -> bool:
+	return armed_stack != null and armed_stack.branch().size() > 1
 
 
 func _active_attack_plan() -> AttackPlan:
@@ -923,17 +839,18 @@ func _active_attack_plan() -> AttackPlan:
 	return plan if plan.attacker == player else null
 
 
-## Node-independent stack-pop primitive shared by right-click and Esc (#404,
-## generalized #406). Right-click "ignores which node was clicked"
-## (docs/domain/click-grammar.md), and Esc has no node at all, so this never
-## takes one. Pops the first armed level in _armed_modes — priority is array
-## order, encoding nesting (a temp-upgrade arm sits on top of an attack plan
-## and pops first). Returns true if something was armed to pop/exit.
-func _pop_armed_mode() -> bool:
-	for m in _armed_modes:
-		if m.is_armed():
-			return m.pop()
-	return false
+## Node-independent pop shared by right-click and Esc (#404): right-click
+## "ignores which node was clicked" (docs/design/click_grammar.md) and Esc has
+## no node at all. The top level first retreats inside itself
+## ([method ArmedMode.pop_within]); otherwise it pops. False at the root, so
+## the caller falls through to pin-toggle / the pause menu.
+func pop_armed_level() -> bool:
+	if armed_stack == null:
+		return false
+	var top := armed_stack.top()
+	if top != null and top.pop_within():
+		return true
+	return armed_stack.pop_top()
 
 
 ## Swaps the OS cursor while any targeting mode is armed (#404) — a plain
@@ -947,65 +864,42 @@ func _update_cursor() -> void:
 	if Engine.is_editor_hint():
 		return
 	Input.set_default_cursor_shape(
-			Input.CURSOR_CROSS if _has_armed_mode() else Input.CURSOR_ARROW)
+			Input.CURSOR_CROSS if has_armed_level() else Input.CURSOR_ARROW)
 
 
 ## The colour the viewport armed-mode glow should paint (#412), or a
 ## transparent colour when nothing armed contributes one.
 ##
-## Walks `_armed_modes` **in reverse** — the BASE of the stack decides, which is
-## the opposite end from [method _pop_armed_mode]'s. **Owner call 2026-08-21:**
+## Walks [method ArmedStack.branch] **base-first** — the BASE of the stack
+## decides, the opposite end from [method pop_armed_level]'s. **Owner call 2026-08-21:**
 ## "in any stacked mode e.g. 'Melee -> Blade select mode -> place Spike Addon
 ## mode [armed]' -> still just red outline (Melee) … so i think the root of the
-## stack (1st el?) may be decisive here". Array order *is* pop order, so the
-## outermost/base level is the LAST armed entry, not the first.
+## stack (1st el?) may be decisive here". The [ManageMode] root has no tint, so
+## the first level above it with a colour decides.
 ##
 ## An armed level with no colour falls through instead of blanking the glow, so
-## it can never mask a tinted level beneath it. Unreachable today —
-## [ManageArmedMode] documents that a Manage verb never coexists with an attack
-## plan — but the fall-through keeps the rule true if that ever changes.
+## it can never mask a tinted level beneath it.
 ##
 ## Pure: no side effects, no frame state. That is deliberate — glow can't be
 ## judged headless (`docs/domain/godot-workflow.md`), so the resolution has to
 ## live somewhere a GUT test can call directly.
 func get_armed_tint() -> Color:
-	for i in range(_armed_modes.size() - 1, -1, -1):
-		var mode := _armed_modes[i]
-		if not mode.is_armed():
-			continue
+	if armed_stack == null:
+		return Color.TRANSPARENT
+	for mode in armed_stack.branch():
 		var color := mode.tint()
 		if color.a > 0.0:
 			return color
 	return Color.TRANSPARENT
 
 
-## The armed level whose badge the cursor should show (#664), or null.
-##
-## Walks `_armed_modes` in **array order** — the TOP of the stack decides, the
-## same end [method _pop_armed_mode] starts from and the OPPOSITE end from
-## [method get_armed_tint]. **Owner call 2026-08-29:** "top first", for the
-## badge specifically; the 2026-08-21 base-first call stands unchanged for the
-## outline. The divergence is the feature, not a bug to reconcile: in
-## `Melee → blade select → Clamp armed` the border stays STR red (*what am I
-## wielding*) while the badge becomes the clamp (*what does my next click do*).
-## Make both walk top-first and arming a clamp kills the red border, which
-## reads as "you left Melee" and is false; make both walk base-first and the
-## badge shows a sword while the click places a clamp, which lies about the
-## click.
-##
-## Private, and the single walk BOTH public readers below go through — that is
-## what makes decision 4 ("one level supplies the texture *and* its colour")
-## structural rather than a convention two functions have to remember.
-##
-## An armed level with no icon falls through instead of blanking the badge, so
-## it can never mask a level beneath it — the same rule [method ArmedMode.icon]
-## documents.
 func _armed_icon_level() -> ArmedMode:
-	for mode in _armed_modes:
-		if not mode.is_armed():
-			continue
-		if mode.icon() != null:
-			return mode
+	if armed_stack == null:
+		return null
+	var levels := armed_stack.branch()
+	for i in range(levels.size() - 1, -1, -1):
+		if levels[i].icon() != null:
+			return levels[i]
 	return null
 
 
@@ -1030,9 +924,8 @@ func get_armed_icon_tint() -> Color:
 
 
 ## Single fan-in for "the armed stack may have changed": re-reads it once and
-## pushes both consumers (cursor shape, viewport glow). Called from every
-## arm/disarm setter and from the turn/act gate, since `can_player_act()` gates
-## [method AttackPlanArmedMode.is_armed] — a turn ending disarms the glow.
+## pushes both consumers (cursor shape, viewport glow). Called on every stack
+## change and on plan-state changes, which move a badge inside one level.
 func _refresh_armed_state() -> void:
 	_update_cursor()
 
@@ -1058,57 +951,15 @@ func _refresh_armed_state() -> void:
 		armed_icon_changed.emit(next_icon, next_icon_tint)
 
 
-## Core-movement (#21) click routing. Two clicks: first click on the player's
-## own core enters targeting; second click on an adjacent owned node commits
-## via `AllocationSystem.move_core`. Returns true when the click was consumed
-## (don't fall through to allocate). Runs only when no attack plan is active —
-## `_route_battle_click` takes precedence and already consumed the click if so.
-##
-## Rules:
-##  - Not the player's turn, or zero MP → no-op, fall through. Active targeting
-##    state is cleared so a stale source can't outlive its eligibility window.
-##  - No source set + click on player.core_location → enter targeting.
-##  - Source set + click on source → cancel targeting.
-##  - Source set + click on any owned node → call move_core (succeeds for
-##    adjacent, fails silently for non-adjacent) and clear targeting. Consumed
-##    so a non-adjacent owned click can't fall through unexpectedly.
-##  - Source set + click on unowned/enemy node → cancel targeting, fall through
-##    so the player can still allocate.
-func _route_core_move_click(skill_node: SkillNode) -> bool:
-	if player == null or turn_manager == null or allocation_system == null:
-		return false
-	if turn_manager.current_entity != player:
-		return false
-	if not _player_has_movement_points():
-		if _move_targeting_source != null:
-			_set_move_targeting_source(null)
-		return false
-
-	if _move_targeting_source == null:
-		if skill_node == player.core_location:
-			_set_move_targeting_source(skill_node)
-			return true
-		return false
-
-	# Targeting is active — this click is the target.
-	if skill_node == _move_targeting_source:
-		_set_move_targeting_source(null)
-		return true
-	if skill_node.owned_by == player:
-		_commit_core_move(skill_node)
-		_set_move_targeting_source(null)
-		return true
-	# Click on someone else's node / unowned: cancel and fall through so
-	# allocate still works without a second click.
-	_set_move_targeting_source(null)
-	return false
-
-
-## Public read of the active core-move source (the player's core while a
-## click-to-move or drag is being composed), or null. Highlight providers read
-## this to paint reachability.
 func move_targeting_source() -> SkillNode:
-	return _move_targeting_source
+	var level := armed_stack.find(CoreMoveMode) as CoreMoveMode if armed_stack != null else null
+	return level.source if level != null else null
+
+
+func _pop_core_move() -> void:
+	var level := armed_stack.find(CoreMoveMode) if armed_stack != null else null
+	if level != null:
+		armed_stack.pop(level)
 
 
 ## Commit a core move to [param target] along the shortest owned-edge path.
@@ -1136,7 +987,7 @@ func _commit_core_move(target: SkillNode) -> void:
 ## CORE_DRAG_SNAP_RADIUS) and float a hop badge. Pushes the snapped landing into
 ## the active highlight provider so the on-route preview brightens live.
 func _update_core_drag() -> void:
-	var src := _move_targeting_source
+	var src := move_targeting_source()
 	if src == null or graph == null:
 		return
 	var world := graph.get_global_mouse_position()
@@ -1169,13 +1020,13 @@ func _on_core_drag_released() -> void:
 		return
 	var landing := _core_drag_landing
 	_clear_core_drag()
-	if landing != null and _move_targeting_source != null:
+	if landing != null and move_targeting_source() != null:
 		_commit_core_move(landing)
-	_set_move_targeting_source(null)
+	_pop_core_move()
 
 
 func _nearest_reachable_landing(world: Vector2) -> SkillNode:
-	var src := _move_targeting_source
+	var src := move_targeting_source()
 	if src == null or src.owned_by == null or allocation_system == null:
 		return null
 	var reach := allocation_system.reachable_core_landings(src.owned_by, _movement_points_current())
@@ -1209,7 +1060,8 @@ func _ensure_core_drag_visuals() -> void:
 		return
 	_core_drag_ghost = _CORE_DRAG_GHOST_SCENE.instantiate()
 	graph.add_child(_core_drag_ghost)
-	var r := _move_targeting_source.radius if _move_targeting_source != null else 32.0
+	var src := move_targeting_source()
+	var r := src.radius if src != null else 32.0
 	_core_drag_ghost.configure(player, r)
 
 
@@ -1228,79 +1080,95 @@ func _player_has_movement_points() -> bool:
 	return mp != null and mp.available() >= 1
 
 
-func _set_move_targeting_source(value: SkillNode) -> void:
-	if _move_targeting_source == value:
-		return
-	_move_targeting_source = value
-	if value == null:
-		_clear_core_drag()
-	core_move_targeting_changed.emit(value)
-
-
-func _set_temp_upgrade_arm(upgrade: TempUpgradeDef) -> void:
-	if _temp_upgrade_arm == upgrade:
-		return
-	_temp_upgrade_arm = upgrade
-	temp_upgrade_arm_changed.emit(upgrade)
-	_refresh_armed_state()
-
-
-## Arms `upgrade` (a [TempUpgradeDef] from the battle system's catalog) for
-## placement, or clears the arm if it's already armed with the same one
-## (tray button acts as a toggle on top of right-click/Esc pop).
+## Arm or disarm [param upgrade] on the melee [AttackPlanMode] (#406):
+## re-arming the armed card pops it, another card replaces it. A no-op while
+## no melee level is on the branch — the arm never outlives its plan.
 func arm_temp_upgrade(upgrade: TempUpgradeDef) -> void:
-	_set_temp_upgrade_arm(null if _temp_upgrade_arm == upgrade else upgrade)
+	if armed_stack == null:
+		return
+	var attack := armed_stack.find(AttackPlanMode) as AttackPlanMode
+	if attack == null or attack.mode != BattleSystem.AttackMode.MELEE:
+		return
+	var current := armed_stack.find(TempUpgradeMode) as TempUpgradeMode
+	if current != null and current.def == upgrade:
+		armed_stack.pop(current)
+	elif upgrade != null:
+		armed_stack.switch_to(TempUpgradeMode.new(self, upgrade), attack)
+	elif current != null:
+		armed_stack.pop(current)
 
 
 func temp_upgrade_arm() -> TempUpgradeDef:
-	return _temp_upgrade_arm
+	var level := armed_stack.find(TempUpgradeMode) as TempUpgradeMode if armed_stack != null else null
+	return level.def if level != null else null
 
 
-func _set_manage_arm(verb: ManageVerb) -> void:
-	if _manage_arm == verb:
+## Arm a Manage verb card (#338): Deallocate / Stake / Extract switch to their
+## level (pop to root, then push), and re-pressing the armed card pops it.
+## ALLOCATE and NONE clear to the root — Allocate is the root's native click.
+func arm_verb(verb: ManageVerb) -> void:
+	if armed_stack == null:
 		return
-	_manage_arm = verb
-	manage_arm_changed.emit(verb)
-	_refresh_armed_state()
+	var current := armed_stack.find(ManageVerbMode) as ManageVerbMode
+	match verb:
+		ManageVerb.DEALLOCATE, ManageVerb.STAKE, ManageVerb.EXTRACT:
+			if current != null and current.verb == verb:
+				armed_stack.pop(current)
+			else:
+				armed_stack.switch_to(_verb_level(verb))
+		_:
+			armed_stack.clear_to_root()
 
 
-## Arms [param verb] for ManageBody's tray cards (#338), toggling off if it's
-## already armed (re-click to cancel, same shape as arm_temp_upgrade). Arming
-## any verb cancels an in-flight core-move targeting first — the two are
-## mutually exclusive entry points into the graph, and Move Core re-enters its
-## own targeting via [method enter_core_move_targeting] instead of a verb.
-func arm_manage_verb(verb: ManageVerb) -> void:
-	if verb != ManageVerb.NONE and _move_targeting_source != null:
-		_set_move_targeting_source(null)
-	_set_manage_arm(ManageVerb.NONE if _manage_arm == verb else verb)
+func _verb_level(verb: ManageVerb) -> ManageVerbMode:
+	match verb:
+		ManageVerb.DEALLOCATE: return DeallocateMode.new(self)
+		ManageVerb.STAKE: return StakeMode.new(self)
+		_: return ExtractMode.new(self)
 
 
+## The armed Manage verb, derived off the branch — compat for
+## [HighlightController]; see [signal manage_arm_changed].
 func manage_arm() -> ManageVerb:
-	return _manage_arm
+	var level := armed_stack.find(ManageVerbMode) as ManageVerbMode if armed_stack != null else null
+	return level.verb if level != null else ManageVerb.NONE
+
+
+## Arm an attack mode — the HUD's attack buttons, the melee hotkey, reform.
+## Switches (pop to root, then push); the mode already armed is a no-op, not a
+## rebuilt plan. A refused request (mid-swing) pushes nothing. Returns whether
+## [param mode] is armed afterwards.
+func arm_attack(mode: BattleSystem.AttackMode) -> bool:
+	if armed_stack == null or battle_system == null:
+		return false
+	var current := armed_stack.find(AttackPlanMode) as AttackPlanMode
+	if mode == BattleSystem.AttackMode.NONE:
+		if current != null:
+			armed_stack.pop(current)
+		return false
+	if current != null and current.mode == mode:
+		return true
+	if not can_player_act():
+		return false
+	return armed_stack.switch_to(AttackPlanMode.new(self, mode))
 
 
 func pending_mass_action() -> MassActionRequest:
-	return _mass_action_request
+	var level := armed_stack.find(MassActionMode) as MassActionMode if armed_stack != null else null
+	return level.request if level != null else null
 
 
-## Arms a pending mass-allocate/deallocate confirmation (MassActionConfirmPanel
-## presents on this signal). Cancels any in-flight core-move targeting first,
-## same mutual-exclusion rule as arm_manage_verb.
+## Push a pending confirmation on whatever is on top.
 func begin_mass_action(request: MassActionRequest) -> void:
-	if _move_targeting_source != null:
-		_set_move_targeting_source(null)
-	_mass_action_request = request
-	mass_action_pending_changed.emit(request)
-	_refresh_armed_state()
+	if armed_stack != null:
+		armed_stack.push(MassActionMode.new(self, request))
 
 
-## Executes the pending request via AllocationSystem, then clears it. No-op if
-## nothing is pending. Called by MassActionConfirmPanel's Confirm button, after
-## it unpauses the tree.
 func confirm_mass_action() -> void:
-	var request := _mass_action_request
-	if request == null:
+	var level := armed_stack.find(MassActionMode) as MassActionMode if armed_stack != null else null
+	if level == null:
 		return
+	var request := level.request
 	var ids: Array[int] = []
 	for n in request.nodes:
 		ids.append(graph.get_stable_id(n))
@@ -1311,45 +1179,52 @@ func confirm_mass_action() -> void:
 			_submit(MassAllocateCommand.new(request.entity.entity_id, ids))
 		MassActionRequest.Verb.DEALLOCATE:
 			_submit(DeallocateSetCommand.new(request.entity.entity_id, ids))
-	_clear_mass_action()
+	armed_stack.pop(level)
 
 
-## Discards the pending request without executing it. Called by
-## MassActionConfirmPanel's Cancel/Esc/right-click and by
-## MassActionArmedMode.pop().
+## Drop the pending confirmation, back to the level it was pushed on.
 func cancel_mass_action() -> void:
-	if _mass_action_request == null:
+	var level := armed_stack.find(MassActionMode) if armed_stack != null else null
+	if level != null:
+		armed_stack.pop(level)
+
+
+## The Move Core card: switch to core-move targeting from the player's core,
+## or pop it when it is already armed.
+func enter_core_move_targeting() -> void:
+	if player == null or player.core_location == null or armed_stack == null:
 		return
-	_clear_mass_action()
+	var current := armed_stack.find(CoreMoveMode)
+	if current != null:
+		armed_stack.pop(current)
+	else:
+		armed_stack.switch_to(CoreMoveMode.new(self, player.core_location))
 
 
-func _clear_mass_action() -> void:
-	_mass_action_request = null
-	mass_action_pending_changed.emit(null)
+## The one place the stack's single [signal ArmedStack.changed] fans out into
+## the controller's derived signals — each only on a real transition.
+func _on_armed_stack_changed() -> void:
+	var src := move_targeting_source()
+	if src != _last_move_source:
+		_last_move_source = src
+		if src == null:
+			_clear_core_drag()
+		core_move_targeting_changed.emit(src)
+	var upgrade := temp_upgrade_arm()
+	if upgrade != _last_temp_upgrade:
+		_last_temp_upgrade = upgrade
+		temp_upgrade_arm_changed.emit(upgrade)
+	var request := pending_mass_action()
+	if request != _last_mass_request:
+		_last_mass_request = request
+		mass_action_pending_changed.emit(request)
+	var verb := manage_arm()
+	if verb != _last_manage_verb:
+		_last_manage_verb = verb
+		manage_arm_changed.emit(verb)
 	_refresh_armed_state()
 
 
-## Move Core card's entry point (#338) — arms the same click-to-move /
-## drag targeting `_route_core_move_click` already drives when the player
-## clicks their own core directly; this is just another door into it.
-## Re-pressing while already targeting cancels, mirroring the click-own-core
-## toggle. Clears any armed Manage verb first (mutual exclusion, see
-## arm_manage_verb).
-func enter_core_move_targeting() -> void:
-	if player == null or player.core_location == null:
-		return
-	if _manage_arm != ManageVerb.NONE:
-		_set_manage_arm(ManageVerb.NONE)
-	if _move_targeting_source == player.core_location:
-		_set_move_targeting_source(null)
-	else:
-		_set_move_targeting_source(player.core_location)
-
-
-## Freeze/unfreeze every player input channel (#486) — called by [ModalBase]
-## around a full-screen modal pick instead of `get_tree().paused`. Distinct
-## from `can_player_act()` (AP/turn/launch gating that drives button dimming);
-## this is transient modal state, so keep the two separate.
 func set_input_frozen(frozen: bool) -> void:
 	_input_frozen = frozen
 
@@ -1404,15 +1279,11 @@ func can_afford(plan: AttackPlan) -> bool:
 
 
 func on_attack_mode_requested(mode: BattleSystem.AttackMode) -> void:
-	if can_player_act():
-		battle_system.request_attack_mode(mode)
+	arm_attack(mode)
 
 
 func _emit_gate_changed() -> void:
 	player_can_act_changed.emit(can_player_act())
-	# can_player_act() gates AttackPlanArmedMode.is_armed(), so a turn ending
-	# (or the player being swapped) silently disarms — the glow and cursor have
-	# to follow, and no arm/disarm setter runs on that path.
 	_refresh_armed_state()
 
 
@@ -1469,16 +1340,14 @@ func _set_player(value: Entity) -> void:
 ## [method GameRoot._exit_tree] and the attack-timeline rule); a turn cannot
 ## end mid-swing anyway, so this is belt-and-braces, not a live path.
 ##
-## Safe before `_ready`: `_armed_modes` is empty until then, and every setter
+## Safe before `_ready`: the stack has no root until then, and every call
 ## below is a no-op on already-default state.
 func clear_transient_state() -> void:
+	if armed_stack != null and armed_stack.root() != null:
+		armed_stack.clear_to_root()
 	if battle_system != null and battle_system.is_attacking and not battle_system.is_launching:
 		battle_system.cancel_attack()
-	cancel_mass_action()
 	_disarm_gate_confirm()
-	_set_temp_upgrade_arm(null)
-	_set_manage_arm(ManageVerb.NONE)
-	_set_move_targeting_source(null)
 	_clear_core_drag()
 	_set_pinned(null)
 	_hovered_node = null

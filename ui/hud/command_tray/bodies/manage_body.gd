@@ -3,10 +3,10 @@ class_name ManageBody
 extends CommandTrayBodyBase
 ## Manage tab content (#114, #338): five live [ManageCard] buttons —
 ## Allocate/Move Core/Deallocate/Stake/Extract. Allocate/Deallocate/Stake/
-## Extract arm PlayerInputController's shared Manage-verb dispatcher (#404);
-## Move Core re-enters the pre-existing core-move targeting via
-## [method PlayerInputController.enter_core_move_targeting]. Each card's
-## pressed state mirrors whichever verb (or core-move) is currently armed.
+## Extract switch the [ArmedStack] to their level (Allocate pops to the root);
+## Move Core arms [CoreMoveMode] via
+## [method PlayerInputController.enter_core_move_targeting]. A card is lit iff
+## its level is on the stack's active branch.
 
 @onready var _allocate_card: ManageCard = %AllocateCard
 @onready var _move_card: ManageCard = %MoveCard
@@ -29,7 +29,7 @@ const _PALETTE := preload("res://ui/theme/action_palette.tres")
 ## Card → palette key. Move Core is keyed `&"move_core"` because it is a
 ## targeting mode rather than a [enum PlayerInputController.ManageVerb]; the
 ## other four are the lower-cased verb names, which is the same key
-## [ManageArmedMode] looks its badge tint up by.
+## [ManageVerbMode] looks its badge tint up by.
 func _palette_keyed_cards() -> Dictionary:
 	return {
 		&"allocate": _allocate_card,
@@ -52,33 +52,33 @@ func _ready() -> void:
 
 
 func _on_bound() -> void:
-	if Engine.is_editor_hint() or _input_ctl == null:
+	if Engine.is_editor_hint() or _input_ctl == null or _input_ctl.armed_stack == null:
 		return
-	_allocate_card.pressed.connect(_input_ctl.arm_manage_verb.bind(PlayerInputController.ManageVerb.ALLOCATE))
-	_dealloc_card.pressed.connect(_input_ctl.arm_manage_verb.bind(PlayerInputController.ManageVerb.DEALLOCATE))
-	_stake_card.pressed.connect(_input_ctl.arm_manage_verb.bind(PlayerInputController.ManageVerb.STAKE))
-	_extract_card.pressed.connect(_input_ctl.arm_manage_verb.bind(PlayerInputController.ManageVerb.EXTRACT))
+	# Allocate is the root's native click: its card pops back to the root.
+	_allocate_card.pressed.connect(_input_ctl.armed_stack.clear_to_root)
+	_dealloc_card.pressed.connect(_input_ctl.arm_verb.bind(PlayerInputController.ManageVerb.DEALLOCATE))
+	_stake_card.pressed.connect(_input_ctl.arm_verb.bind(PlayerInputController.ManageVerb.STAKE))
+	_extract_card.pressed.connect(_input_ctl.arm_verb.bind(PlayerInputController.ManageVerb.EXTRACT))
 	_move_card.pressed.connect(_input_ctl.enter_core_move_targeting)
-	_input_ctl.manage_arm_changed.connect(_refresh.unbind(1))
-	_input_ctl.core_move_targeting_changed.connect(_refresh.unbind(1))
+	_input_ctl.armed_stack.changed.connect(_refresh)
 	_refresh()
 
 
 func teardown() -> void:
-	if _input_ctl == null:
+	if _input_ctl == null or _input_ctl.armed_stack == null:
 		return
-	if _input_ctl.manage_arm_changed.is_connected(_refresh.unbind(1)):
-		_input_ctl.manage_arm_changed.disconnect(_refresh.unbind(1))
-	if _input_ctl.core_move_targeting_changed.is_connected(_refresh.unbind(1)):
-		_input_ctl.core_move_targeting_changed.disconnect(_refresh.unbind(1))
+	if _input_ctl.armed_stack.changed.is_connected(_refresh):
+		_input_ctl.armed_stack.changed.disconnect(_refresh)
 
 
+## A card is active iff its level is on the active branch (owner, 2026-09-30) —
+## so Allocate, the root's own verb, is active iff nothing sits above the root.
 func _refresh() -> void:
-	if _input_ctl == null:
+	if _input_ctl == null or _input_ctl.armed_stack == null:
 		return
-	var arm := _input_ctl.manage_arm()
-	_allocate_card.set_armed(arm == PlayerInputController.ManageVerb.ALLOCATE)
-	_dealloc_card.set_armed(arm == PlayerInputController.ManageVerb.DEALLOCATE)
-	_stake_card.set_armed(arm == PlayerInputController.ManageVerb.STAKE)
-	_extract_card.set_armed(arm == PlayerInputController.ManageVerb.EXTRACT)
-	_move_card.set_armed(_input_ctl.move_targeting_source() != null)
+	var stack := _input_ctl.armed_stack
+	_allocate_card.set_armed(stack.branch().size() == 1)
+	_dealloc_card.set_armed(stack.find(DeallocateMode) != null)
+	_stake_card.set_armed(stack.find(StakeMode) != null)
+	_extract_card.set_armed(stack.find(ExtractMode) != null)
+	_move_card.set_armed(stack.find(CoreMoveMode) != null)

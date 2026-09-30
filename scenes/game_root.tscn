@@ -12,6 +12,7 @@
 [ext_resource type="Script" uid="uid://d2qx35jtwie3y" path="res://systems/attack_plan_slot.gd" id="6_planslot"]
 [ext_resource type="Script" uid="uid://hhfetuy6hfu" path="res://systems/turn_manager.gd" id="7_turn"]
 [ext_resource type="Script" uid="uid://tmd2wsn34dny" path="res://systems/player_input_controller.gd" id="8_input"]
+[ext_resource type="Script" uid="uid://dbogeip2q3nu" path="res://systems/armed/armed_stack.gd" id="8_armed"]
 [ext_resource type="Script" uid="uid://dnlkufr5kwkn3" path="res://systems/vision_system.gd" id="9_vision"]
 [ext_resource type="Script" uid="uid://iab4mte1alr4" path="res://command/command_applier.gd" id="9_applier"]
 [ext_resource type="Script" path="res://systems/victory_system.gd" id="9_victory"]
@@ -126,7 +127,11 @@ battle_system = NodePath("../BattleSystem")
 turn_manager = NodePath("../TurnManager")
 loot_pick_registry = NodePath("../LootPickRegistry")
 
-[node name="PlayerInputController" type="Node" parent="Systems" unique_id=2090560635 node_paths=PackedStringArray("graph", "allocation_system", "battle_system", "turn_manager", "command_applier")]
+[node name="ArmedStack" type="Node" parent="Systems" unique_id=1222000001]
+unique_name_in_owner = true
+script = ExtResource("8_armed")
+
+[node name="PlayerInputController" type="Node" parent="Systems" unique_id=2090560635 node_paths=PackedStringArray("graph", "allocation_system", "battle_system", "turn_manager", "command_applier", "armed_stack")]
 unique_name_in_owner = true
 script = ExtResource("8_input")
 graph = NodePath("../../Graph")
@@ -134,6 +139,7 @@ allocation_system = NodePath("../AllocationSystem")
 battle_system = NodePath("../BattleSystem")
 turn_manager = NodePath("../TurnManager")
 command_applier = NodePath("../CommandApplier")
+armed_stack = NodePath("../ArmedStack")
 
 [node name="TurnManager" type="Node" parent="Systems" unique_id=1421103909]
 unique_name_in_owner = true

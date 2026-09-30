@@ -5,7 +5,6 @@ extends GutTest
 class Probe extends ArmedMode:
 	var tag: String
 	var log: Array
-	var stack: ArmedStack
 	var present_in_own_pop: bool = true
 
 	func _init(p_tag: String, p_log: Array) -> void:
@@ -35,7 +34,6 @@ func before_each() -> void:
 
 func _probe(tag: String) -> Probe:
 	var p := Probe.new(tag, _log)
-	p.stack = _stack
 	return p
 
 

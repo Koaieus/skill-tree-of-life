@@ -14,13 +14,12 @@ extends CanvasLayer
 ##
 ## The rule this creates, and which the player learns for free: **a badge means
 ## your click is modal. No badge means the plain default allocate.** That holds
-## only because `ManageVerb.ALLOCATE` is deliberately not an [ArmedMode].
+## only because allocate is the [ManageMode] root, which contributes no badge.
 ##
 ## **A pure consumer.** It takes one resolved (texture, colour) pair from
 ## [PlayerInputController] and draws it. It does NOT subscribe to the per-mode
 ## arm signals and re-derive which level wins — that ordering belongs to the
-## `_armed_modes` stack, and a second copy here would rot the moment a tenth
-## armed state lands.
+## [ArmedStack], and a second copy here would rot the moment a level lands.
 ##
 ## **Not [method Input.set_custom_mouse_cursor].** An OS cursor composites
 ## outside the viewport, so it could never use the [Emissive]/`Tier*` colour

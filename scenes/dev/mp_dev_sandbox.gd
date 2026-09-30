@@ -107,9 +107,10 @@ var _autopilot_turns_run: int = 0
 ## and [EndTurnCommand]'s application spans Blue's ENTIRE AI turn (see
 ## [CommandApplier]'s class note), so `turn_started(_red)` can fire while a
 ## sweep is still parked in [method _submit_and_wait]. Two concurrent sweeps
-## both drive [method BattleSystem.request_attack_mode] and stomp each other's
-## `attack_plan`. Never observed in a 40-turn run — and one flag is cheaper
-## than finding out it can.
+## both arm through the controller's [ArmedStack], which switches rather than
+## stomps — but a second sweep would still pull the plan out from under the
+## first. Never observed in a 40-turn run — and one flag is cheaper than
+## finding out it can.
 var _autopilot_running: bool = false
 ## #546: the peers were not on the same build and the link was hung up. Banner
 ## state only — [NetworkLink] owns the refusal itself.
@@ -621,7 +622,7 @@ func _sweep_magic() -> void:
 		_write_log("autopilot: magic SKIPPED — no owned node in reach of a hostile one")
 		return
 	battle_system.selected_spell = SpellCatalog.SPARK
-	battle_system.request_attack_mode(BattleSystem.AttackMode.MAGIC)
+	input_ctl.arm_attack(BattleSystem.AttackMode.MAGIC)
 	var plan := battle_system.attack_plan as MagicAttackPlan
 	plan.set_target(source)
 	for candidate in graph.get_skill_nodes():
@@ -643,7 +644,7 @@ func _sweep_magic() -> void:
 ## (`.claude/rules/ranged-attack-fixtures.md`), so any owned leaf against any
 ## visible hostile is enough — no scene authoring needed.
 func _sweep_ranged() -> void:
-	battle_system.request_attack_mode(BattleSystem.AttackMode.RANGED)
+	input_ctl.arm_attack(BattleSystem.AttackMode.RANGED)
 	var plan := battle_system.attack_plan as RangedAttackPlan
 	var target: SkillNode = null
 	for candidate in graph.get_skill_nodes():
@@ -680,7 +681,7 @@ func _sweep_melee() -> void:
 	if best == null:
 		_write_log("autopilot: melee SKIPPED — no reachable blade")
 		return
-	battle_system.request_attack_mode(BattleSystem.AttackMode.MELEE)
+	input_ctl.arm_attack(BattleSystem.AttackMode.MELEE)
 	var plan := battle_system.attack_plan as MeleeAttackPlan
 	plan.source = best.source_node
 	plan.blade_nodes = best.blade_nodes

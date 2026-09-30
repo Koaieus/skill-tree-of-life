@@ -10,9 +10,8 @@ extends CanvasLayer
 ##
 ## **A pure consumer.** It asks [PlayerInputController] for one resolved colour
 ## and paints it. It deliberately does NOT subscribe to the five per-mode arm
-## signals and re-derive which one wins — that ordering is the `_armed_modes`
-## pop stack's to own, and a second copy of it here would rot the moment a
-## sixth [ArmedMode] is added.
+## signals and re-derive which one wins — that ordering is the [ArmedStack]'s
+## to own, and a second copy of it here would rot the moment a level is added.
 ##
 ## Sits at [constant LAYER] — above the world, below the HUD (**owner call
 ## 2026-08-21**: the glow frames the play area and the tray / left column /
