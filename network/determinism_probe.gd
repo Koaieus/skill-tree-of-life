@@ -203,9 +203,8 @@ func observe_before_apply(command: Command, world_settled: bool = true) -> void:
 	if not world_settled:
 		_bump(_resolve, tag, "deferred")
 	if attack.record.is_empty():
-		# An INITIATE, not a replay — there is no host result to compare
-		# against. Cannot happen on today's one-directional link, but the
-		# intent channel (#463) will make it possible.
+		# An INITIATE, not a replay — it carries no host record to compare
+		# against, so it counts as unavailable.
 		_bump(_resolve, tag, "unavailable")
 		_bump(_land, tag, "unavailable")
 		return

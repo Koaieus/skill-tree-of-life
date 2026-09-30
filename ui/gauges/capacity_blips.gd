@@ -203,12 +203,9 @@ func _teardown_children() -> void:
 	# An immediate free() on an object mid-signal-emission is a locked-object
 	# error; queue_free() defers the actual deletion past that emission.
 	#
-	# #510 narrowed this but did not remove it. The toggle is a Command now, so
-	# the MUTATION half can no longer re-enter — `attack_plan_state_changed`
-	# fires while CommandApplier holds its guard, and a second toggle raised
-	# from this rebuild is refused by `can_player_act()` or queued behind the
-	# first (test/unit/systems/test_command_routing.gd pins both). The REBUILD
-	# still happens mid-emission, so the queue_free() above is still load-bearing.
+	# The toggle is a synchronous plan edit (a temp upgrade is plan content), so
+	# the REBUILD runs mid-emission and the queue_free() above is load-bearing.
+	# The rebuild itself never raises a second toggle — only a click does.
 	for child in get_children():
 		remove_child(child)
 		child.queue_free()
