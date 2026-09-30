@@ -408,7 +408,7 @@ unheals its own neighbourhood — `NodeCombat._withered_heal`.
 | Corruption | FRACTION, retains 0.8 | 5 stack-ticks |
 | Curse | FLAT 1/turn | a window of N turns |
 | Wither | FRACTION, retains 0.75 | 4 |
-| Blindness | FRACTION, removes 0.7, ACCUMULATE | see [node_subtypes.md](../design/node_subtypes.md) D20 |
+| Blindness | FRACTION, removes 0.7, ACCUMULATE | see [node-subtypes.md](node-subtypes.md) decision 20 |
 | Armor break | FLAT | |
 
 Authoring gotcha: the `.tres` knob `decay_per_tick` is the fraction

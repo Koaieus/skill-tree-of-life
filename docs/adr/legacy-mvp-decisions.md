@@ -29,7 +29,7 @@ Compiled 2026-09-29. An empty cell means no ADR or domain doc holds that decisio
 | D-15 | XP economy: cost curve, income | | | live tuning call, no ADR |
 | D-16 | SP gain scales with level | | | live tuning call, no ADR |
 | D-17 | Attribute numeric bands | | | extended by D-18 |
-| D-18 | INT is the runaway attribute | [0038](0038-int-is-the-runaway-attribute-and-every-int-transfer-is-thinned.md) | | pinned design call, no ADR |
+| D-18 | INT is the runaway attribute | [0038](0038-int-is-the-runaway-attribute-and-every-int-transfer-is-thinned.md) | | backfilled as ADR 0038 |
 | D-19 | Enemies levelled but landless | | | level = starting nodes is built (`procgen_play_sandbox.gd`); the WIS difficulty dial is unverified |
 | D-20 | Spell damage scales with INT | | [spell-propagation.md](../domain/spell-propagation.md) | built (#274) |
 | D-21 | Entity health scales with CON | | [stat-knobs-and-bins.md](../domain/stat-knobs-and-bins.md) | built #276; ratchet mechanism later reworked, semantics kept |
