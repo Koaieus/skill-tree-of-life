@@ -475,8 +475,6 @@ static func combat_readouts(attacker: BalanceFixture, defender: BalanceFixture) 
 		# owner call 2026-09-04: "the whole design of sprinkling
 		# `-min_damage_taken` modifiers on the board is to allow to go <0 and
 		# actually heal from having sufficient armor / tanking low hits heals".
-		# It was never the design either: docs/design/combat_system.md has said
-		# `damage_floor` "can go negative (heals)" all along, and
 		# `bunker_addon.tscn` authors -5 on purpose.
 		#
 		# So read these two as a TANKING reading, not a hazard one: a node whose

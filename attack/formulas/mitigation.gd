@@ -23,9 +23,8 @@ class_name Mitigation
 ## makes a glancing hit HEAL the defender.[/b] [method compute] returns the
 ## negative number as-is and [method NodeCombat.take_damage] reclassifies the
 ## landing to [constant HitInstance.Kind.HEAL] (#381). That is the design, not
-## an underflow to guard — docs/design/combat_system.md has always specified
-## `damage_floor` "can go negative (heals)", `bunker_addon.tscn` authors `-5`,
-## and the owner reaffirmed it 2026-09-04: "the whole design of sprinkling
+## an underflow to guard — `bunker_addon.tscn` authors `-5`, and the owner
+## affirmed it 2026-09-04: "the whole design of sprinkling
 ## `-min_damage_taken` modifiers on the board is to allow to go <0 and actually
 ## heal from having sufficient armor / tanking low hits heals". Anything that
 ## clamps this at zero is deleting a mechanic; anything that DROPS such a
