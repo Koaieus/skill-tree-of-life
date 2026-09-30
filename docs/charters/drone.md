@@ -22,8 +22,9 @@ reading files has already lost the economy game before it edits anything.
 
 **Default model is Sonnet**, set in the agent frontmatter. The orchestrator
 overrides per unit with the `Agent` call's `model` parameter (the tier tag
-from the brief: `opus` for the rare unit that earns it; Fable essentially
-never — too expensive for a leaf).
+from the brief: `opus` for anything medium or larger, Sonnet for small or
+dumb units, per the swarm charter's tiering; Fable essentially never — too
+expensive for a leaf).
 
 ## The cost model — why this charter exists
 
