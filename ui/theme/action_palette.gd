@@ -19,7 +19,7 @@ extends Resource
 ## `.claude/rules/ui-palette.md` makes [member StatDef.tint_color] the single
 ## source of truth for attribute colours and forbids a second resource repeating
 ## them. Melee/Ranged/Magic are therefore deliberately ABSENT — they are
-## attribute colours (STR/DEX/INT) and [AttackPlanArmedMode] reads them off
+## attribute colours (STR/DEX/INT) and [AttackPlanMode] reads them off
 ## `StatRegistry` exactly as it already did. What lives here is the set of
 ## actions that have no attribute behind them at all.
 ##
@@ -29,7 +29,7 @@ extends Resource
 
 ## Plain allocate — the idle default click. Tray-card only: allocate is
 ## deliberately not an [ArmedMode], so it has no badge (see
-## [ManageArmedMode]'s docs and #664's "badge ⇔ your click is modal" rule).
+## [ManageMode]'s docs and #664's "badge ⇔ your click is modal" rule).
 @export var allocate: Color = Color(0.2606, 0.6387, 0.9922, 1)
 
 ## Core movement (#21). WIS gold.

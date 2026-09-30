@@ -271,7 +271,7 @@ candidate awaiting exactly this live comparison.
 additive blending → `tint_peak()`. Neither is a substitute for looking at it.
 
 **The tier is the VIEW's to pick, not the model's.** #412 first put the
-`Emissive` call in `AttackPlanArmedMode` alongside the hue lookup, which left
+`Emissive` call in the attack level (then `AttackPlanArmedMode`, now `AttackPlanMode`) alongside the hue lookup, which left
 no knob to turn when the result was too hot — the owner's first ask on seeing it
 was for a brightness slider. The armed stack now returns the authored
 `StatDef.tint_color` unlifted and `ArmedModeGlow` applies the tier, exposed as

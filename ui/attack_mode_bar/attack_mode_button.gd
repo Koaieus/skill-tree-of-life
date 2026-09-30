@@ -13,7 +13,7 @@ const ICON_SIZE := Vector2(24, 24)
 ## decision 6). Per `.claude/rules/ui-palette.md` [member StatDef.tint_color] is
 ## the single source of truth for attribute colours — `attack_mode_bar.tscn`
 ## used to restate all three as inline literals, a duplicate the rule names
-## explicitly. Same read [constant AttackPlanArmedMode._MODE_STAT_ID] already
+## explicitly. Same read [constant AttackPlanMode._MODE_STAT_ID] already
 ## does, so the tab, the viewport glow and the cursor badge share one value.
 ##
 ## The Manage tab is deliberately absent: it has no attribute behind it. Its
