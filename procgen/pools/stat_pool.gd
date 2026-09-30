@@ -212,7 +212,7 @@ func _init() -> void:
 		tier_shape.changed.connect(notify_property_list_changed)
 	_update_resource_name()
 
-## `<valence> <stat> <op>` — the contents minus the value, prefixed by
+## `<stat> <op> [<valence>]` — the contents minus the value, suffixed by
 ## [method valence_tag] when a roll can land anywhere but on a boon. Every
 ## field the name reads has a setter calling this: deserialization assigns in
 ## declaration order, so an unwired later field (`unit_value`'s sign) leaves
@@ -220,7 +220,7 @@ func _init() -> void:
 func _update_resource_name():
 	var tag := valence_tag()
 	var base := '%s %s' % [stat_id, _op_symbol()]
-	resource_name = base if tag.is_empty() else '%s %s' % [tag, base]
+	resource_name = base if tag.is_empty() else '%s [%s]' % [base, tag]
 
 
 ## Which side this pool's rolls land on for whoever holds them, judged over

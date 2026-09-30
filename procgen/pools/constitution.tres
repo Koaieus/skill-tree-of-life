@@ -64,7 +64,7 @@ max_tier = 3
 script = ExtResource("3_x53si")
 
 [sub_resource type="Resource" id="dex_debuff"]
-resource_name = "bane dexterity -%"
+resource_name = "dexterity -% [bane]"
 script = ExtResource("2_pool")
 stat_id = &"dexterity"
 operation = 1

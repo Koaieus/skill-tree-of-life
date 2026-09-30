@@ -119,7 +119,7 @@ metadata/_custom_type_script = "uid://csc1d4c2smgr7"
 script = ExtResource("3_5awml")
 
 [sub_resource type="Resource" id="armor_debuff"]
-resource_name = "bane armor -%"
+resource_name = "armor -% [bane]"
 script = ExtResource("2_pool")
 stat_id = &"armor"
 operation = 1
