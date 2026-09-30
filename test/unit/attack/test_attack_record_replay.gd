@@ -205,15 +205,15 @@ func _assert_worlds_agree(host: Dictionary, peer: Dictionary, what: String) -> v
 func _arm_ranged(ctx: Dictionary) -> void:
 	var bs: BattleSystem = ctx.bs
 	bs.request_attack_mode(BattleSystem.AttackMode.RANGED)
-	(bs.attack_plan as RangedAttackPlan).handle_left_click(ctx.nodes.target)
+	(bs.attack_plan as RangedAttackPlan).set_target(ctx.nodes.target)
 
 
 func _arm_melee(ctx: Dictionary) -> void:
 	var bs: BattleSystem = ctx.bs
 	bs.request_attack_mode(BattleSystem.AttackMode.MELEE)
 	var plan := bs.attack_plan as MeleeAttackPlan
-	plan.handle_left_click(ctx.nodes.core)
-	plan.handle_left_click(ctx.nodes.leaf)
+	plan.set_pivot(ctx.nodes.core)
+	plan.toggle_member(ctx.nodes.leaf)
 
 
 func _arm_magic(ctx: Dictionary) -> void:
@@ -221,8 +221,8 @@ func _arm_magic(ctx: Dictionary) -> void:
 	bs.selected_spell = SpellCatalog.SPARK
 	bs.request_attack_mode(BattleSystem.AttackMode.MAGIC)
 	var plan := bs.attack_plan as MagicAttackPlan
-	plan.handle_left_click(ctx.nodes.leaf)
-	plan.handle_left_click(ctx.nodes.target)
+	plan.set_target(ctx.nodes.leaf)
+	plan.set_target(ctx.nodes.target)
 
 
 # ── The three modes ─────────────────────────────────────────────────────────

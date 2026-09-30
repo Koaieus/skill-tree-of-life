@@ -92,7 +92,7 @@ func _plan() -> RangedAttackPlan:
 	var p := RangedAttackPlan.new()
 	autofree(p)
 	p.attacker = _attacker
-	p.handle_left_click(_target)
+	p.set_target(_target)
 	return p
 
 
@@ -231,7 +231,7 @@ func test_launch_consumes_bins_leaf_shots_and_a_volley_slot_but_no_ap() -> void:
 	var bs := _battle_system()
 	bs.request_attack_mode(BattleSystem.AttackMode.RANGED)
 	var plan := bs.attack_plan as RangedAttackPlan
-	plan.handle_left_click(_target)
+	plan.set_target(_target)
 	plan.ammo_counts = {_POISON: 2, _ARROW: 5}
 	assert_true(plan.is_valid(), str(plan.validate()))
 
@@ -259,14 +259,14 @@ func test_volley_limit_reached_fails_validate_with_the_volleys_reason() -> void:
 	for i in limit:
 		bs.request_attack_mode(BattleSystem.AttackMode.RANGED)
 		var plan := bs.attack_plan as RangedAttackPlan
-		plan.handle_left_click(_target)
+		plan.set_target(_target)
 		plan.ammo_counts = {_ARROW: 1}
 		assert_true(plan.is_valid(), "volley %d: %s" % [i, str(plan.validate())])
 		await bs.launch_attack()
 	assert_eq(_attacker.volleys_launched_this_turn, limit)
 	bs.request_attack_mode(BattleSystem.AttackMode.RANGED)
 	var extra := bs.attack_plan as RangedAttackPlan
-	extra.handle_left_click(_target)
+	extra.set_target(_target)
 	extra.ammo_counts = {_ARROW: 1}
 	assert_has(extra.validate(), RangedAttackPlan.ERR_VOLLEY_LIMIT)
 
@@ -277,7 +277,7 @@ func test_a_target_that_dies_mid_volley_still_consumes_every_arrow() -> void:
 	var bs := _battle_system()
 	bs.request_attack_mode(BattleSystem.AttackMode.RANGED)
 	var plan := bs.attack_plan as RangedAttackPlan
-	plan.handle_left_click(_target)
+	plan.set_target(_target)
 	plan.ammo_counts = {_ARROW: 7}
 	assert_true(plan.is_valid(), str(plan.validate()))
 	var stock_before := roundi(_attacker.stat_board.arrows.current)

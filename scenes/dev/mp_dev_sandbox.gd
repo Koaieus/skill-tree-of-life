@@ -623,10 +623,10 @@ func _sweep_magic() -> void:
 	battle_system.selected_spell = SpellCatalog.SPARK
 	battle_system.request_attack_mode(BattleSystem.AttackMode.MAGIC)
 	var plan := battle_system.attack_plan as MagicAttackPlan
-	plan.handle_left_click(source)
+	plan.set_target(source)
 	for candidate in graph.get_skill_nodes():
 		if candidate.ownership_bit(_red) == SkillNode.Ownership.HOSTILE:
-			plan.handle_left_click(candidate)
+			plan.set_target(candidate)
 			if plan.is_valid():
 				break
 	if not plan.is_valid():
@@ -649,7 +649,7 @@ func _sweep_ranged() -> void:
 	for candidate in graph.get_skill_nodes():
 		if candidate.ownership_bit(_red) != SkillNode.Ownership.HOSTILE:
 			continue
-		plan.handle_left_click(candidate)
+		plan.set_target(candidate)
 		if plan.is_valid():
 			target = candidate
 			break

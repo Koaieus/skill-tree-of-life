@@ -103,7 +103,7 @@ func test_the_launch_releases_a_beat_after_the_last_landing_not_after_the_drain(
 
 	bs.request_attack_mode(BattleSystem.AttackMode.RANGED)
 	var plan := bs.attack_plan as RangedAttackPlan
-	plan.handle_left_click(target)
+	plan.set_target(target)
 	assert_true(plan.is_valid(), "fixture plan must be valid before launching")
 
 	await bs.launch_attack()

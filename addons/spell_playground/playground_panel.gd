@@ -460,15 +460,15 @@ func _arm_plan() -> MagicAttackPlan:
 		push_warning("Spell Playground: no magic plan to arm")
 		return null
 	plan.reset()
-	plan.handle_left_click(caster_node)
+	plan.set_target(caster_node)
 	if _selected_target != null:
-		plan.handle_left_click(_selected_target)
+		plan.set_target(_selected_target)
 		# A left-click on the source that the spell won't self-target pops the
 		# whole plan (the click grammar's "never mind" — see
 		# docs/design/click_grammar.md). Here the source is fixed furniture, so
 		# put it back; the seed simply stays unaccepted.
 		if plan.source == null:
-			plan.handle_left_click(caster_node)
+			plan.set_target(caster_node)
 	return plan
 
 

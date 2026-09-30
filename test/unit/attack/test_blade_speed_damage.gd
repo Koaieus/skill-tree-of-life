@@ -219,8 +219,8 @@ func _melee_swing(radius: float, origin: Vector2 = Vector2.ZERO) -> Dictionary:
 
 	var plan := MeleeAttackPlan.new()
 	plan.attacker = attacker
-	plan.handle_left_click(pivot)
-	plan.handle_left_click(arm)
+	plan.set_pivot(pivot)
+	plan.toggle_member(arm)
 	plan.resolve_seed = 0xA11CE
 	return {"graph": graph, "plan": plan, "attacker": attacker, "target": target}
 

@@ -200,7 +200,7 @@ func _ensure_fixture() -> void:
 	_plan = MagicAttackPlan.new()
 	_plan.attacker = _attacker
 	_plan.spell = _TRAIL_BLAZER
-	_plan.handle_left_click(frontline)
+	_plan.set_target(frontline)
 	assert_eq(_plan.source, frontline, "the plan must have accepted the frontline node as source")
 
 	gut.p("--- fixture: %s, node_count=%d, edges=%d, seed=0x%X, generated in %d ms ---"

@@ -202,8 +202,8 @@ func test_melee_application_appends_no_landing_and_re_aims_none() -> void:
 
 	var plan := MeleeAttackPlan.new()
 	plan.attacker = attacker
-	plan.handle_left_click(w.hub)
-	plan.handle_left_click(arm)
+	plan.set_pivot(w.hub)
+	plan.toggle_member(arm)
 	var shadow := CombatWorld.shadow()
 	var outcome := plan.resolve_against(shadow)
 	shadow.free_shadow()

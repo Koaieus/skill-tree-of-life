@@ -149,9 +149,9 @@ func _arm() -> MeleeAttackPlan:
 	_bs.request_attack_mode(BattleSystem.AttackMode.NONE)
 	_bs.request_attack_mode(BattleSystem.AttackMode.MELEE)
 	var plan := _bs.attack_plan as MeleeAttackPlan
-	plan.handle_left_click(_pivot)
-	plan.handle_left_click(_mid)
-	plan.handle_left_click(_tip)
+	plan.set_pivot(_pivot)
+	plan.toggle_member(_mid)
+	plan.toggle_member(_tip)
 	assert_true(plan.is_valid(), "fixture: the plan must be valid before resolving")
 	return plan
 
@@ -385,11 +385,11 @@ func test_changing_the_selection_earns_a_fresh_resolve() -> void:
 	plan.refresh_prediction()
 	var armed := plan.prediction_runs
 
-	# Drop the tip. This goes through the real click path, so it exercises the
+	# Drop the tip. This goes through the real toggle verb, so it exercises the
 	# invalidation every state change shares. The mounted preview re-primes the
 	# cache synchronously off the same signal, so assert the COUNT moved rather
 	# than that the cache is momentarily empty.
-	plan.handle_left_click(_tip)
+	plan.toggle_member(_tip)
 	plan.refresh_prediction()
 	assert_eq(plan.prediction_runs, armed + 1,
 			"a changed selection earns exactly one fresh resolve")
@@ -544,9 +544,9 @@ func test_a_click_mid_slice_yields_the_new_selection_never_the_old() -> void:
 	assert_eq(stale.trajectory.samples[0].size(), 3,
 			"fixture: the superseded run describes a three-vertex blade")
 
-	# Drop the tip through the real click path — the same invalidation every
+	# Drop the tip through the real toggle verb — the same invalidation every
 	# state change shares.
-	plan.handle_left_click(_tip)
+	plan.toggle_member(_tip)
 	assert_not_same(plan.prediction_partial(), stale,
 			"the superseded run is dropped, never resumed")
 
