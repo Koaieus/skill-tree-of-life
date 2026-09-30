@@ -156,10 +156,11 @@ func test_core_move_targeting_shows_no_outline() -> void:
 func test_temp_upgrade_over_melee_still_reads_melee() -> void:
 	# The owner's worked example: "Melee -> Blade select mode -> place Spike
 	# Addon mode [armed] -> still just red outline (Melee)". TempUpgrade is
-	# ABOVE AttackPlan on the branch (it pops first), so a
+	# ABOVE Melee and Blade on the branch (it pops first), so a
 	# topmost-wins walk would return transparent here and the glow would blink
 	# off mid-combo.
 	_ctl.on_attack_mode_requested(BattleSystem.AttackMode.MELEE)
+	_ctl.route_left_click(_nodes[0])  # the pivot: a card arms only on a Blade
 	_ctl.arm_temp_upgrade(_catalog.kinds[0])
 	assert_true(_ctl.temp_upgrade_arm() != null,
 			"fixture check: the temp upgrade should be armed on top")

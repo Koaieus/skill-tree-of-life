@@ -111,9 +111,9 @@ func _mount_body(blade: int) -> MeleeBody:
 	var plan := _battle.attack_plan as MeleeAttackPlan
 	assert_not_null(plan, "fixture check: melee must be the active plan")
 	plan.attacker = _player
-	plan.set_pivot(_pivot)
+	_ctl.route_left_click(_pivot)
 	for i in blade:
-		plan.toggle_member(_leaves[i])
+		_ctl.route_left_click(_leaves[i])
 	assert_eq(plan.blade_nodes.size(), blade,
 			"fixture check: every leaf click must land in the blade")
 

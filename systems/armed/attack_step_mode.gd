@@ -50,3 +50,9 @@ func _on_attack_launched(_mode: BattleSystem.AttackMode, _spell: SpellDef) -> vo
 
 func _on_plan_reset() -> void:
 	pop_self()
+
+
+## A step's badge burns in its arm's colour — one level supplies both halves
+## of the badge, and the arm's is the attack's identity.
+func icon_tint() -> Color:
+	return parent.tint()

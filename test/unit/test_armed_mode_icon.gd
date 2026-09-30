@@ -192,6 +192,13 @@ func test_switching_the_armed_spell_moves_the_badge() -> void:
 ## left-click channel, not by poking `plan.source`. The badge is downstream of
 ## the signal that click emits, so a hand-set field would test the branch while
 ## silently skipping the wiring this issue exists to fix.
+## A card arms only on a Blade: pick the pivot first when none stands.
+func _arm_on_blade(def: TempUpgradeDef) -> void:
+	if _ctl.armed_stack.find(BladeMode) == null:
+		_ctl.route_left_click(_nodes[0])
+	_ctl.arm_temp_upgrade(def)
+
+
 func _pick_pivot(node: SkillNode) -> MeleeAttackPlan:
 	_ctl.route_left_click(node)
 	var plan := _ctl._active_attack_plan() as MeleeAttackPlan
@@ -257,12 +264,12 @@ func test_ranged_and_magic_are_untouched_by_the_pivot_split() -> void:
 # --- 3. the two walks disagree, on purpose -----------------------------------
 
 func test_clamp_over_melee_badges_the_clamp_while_the_glow_stays_red() -> void:
-	# The headline case. TempUpgrade sits ABOVE AttackPlan on the branch
+	# The headline case. TempUpgrade sits ABOVE Melee on the branch
 	# (it pops first), so the top-first badge walk finds it and the base-first
 	# tint walk does not. Both statements are true at once: the border says
 	# "you are wielding Melee", the badge says "this click places a clamp".
 	_ctl.on_attack_mode_requested(BattleSystem.AttackMode.MELEE)
-	_ctl.arm_temp_upgrade(_catalog.kinds[0])
+	_arm_on_blade(_catalog.kinds[0])
 	assert_true(_ctl.temp_upgrade_arm() != null,
 			"fixture check: the temp upgrade should be armed on top")
 
@@ -278,7 +285,7 @@ func test_the_badge_forwards_the_addon_scenes_own_icon() -> void:
 	# pressed a second earlier renders this exact Texture2D off the same scene.
 	var upgrade: TempUpgradeDef = _catalog.kinds[1]
 	_ctl.on_attack_mode_requested(BattleSystem.AttackMode.MELEE)
-	_ctl.arm_temp_upgrade(upgrade)
+	_arm_on_blade(upgrade)
 
 	var probe := upgrade.scene.instantiate()
 	var authored: Texture2D = (probe as SkillNodeAddon).icon
@@ -296,9 +303,10 @@ func test_icon_signal_fires_when_the_tint_signal_does_not() -> void:
 	# base-first tint and top-first icon, arming a clamp over an armed melee plan
 	# is exactly that case — the headline scenario of #664 silently breaking.
 	_ctl.on_attack_mode_requested(BattleSystem.AttackMode.MELEE)
+	_pick_pivot(_nodes[0])
 
 	watch_signals(_ctl)
-	_ctl.arm_temp_upgrade(_catalog.kinds[0])
+	_arm_on_blade(_catalog.kinds[0])
 
 	assert_signal_emit_count(_ctl, "armed_tint_changed", 0,
 			"the glow is unchanged — the base of the stack is still the plan")
@@ -319,13 +327,13 @@ func test_a_refresh_that_changed_nothing_does_not_re_fire() -> void:
 
 func test_popping_the_clamp_restores_the_melee_badge() -> void:
 	_ctl.on_attack_mode_requested(BattleSystem.AttackMode.MELEE)
-	_ctl.arm_temp_upgrade(_catalog.kinds[0])
+	_arm_on_blade(_catalog.kinds[0])
 
 	watch_signals(_ctl)
 	assert_true(_ctl.pop_armed_level(), "the temp upgrade is the top level")
 
-	assert_eq(_ctl.get_armed_icon(), _icon("armed_melee_hilt"),
-			"a level with no icon falls through — it never blanks the badge")
+	assert_eq(_ctl.get_armed_icon(), _icon("armed_melee"),
+			"back to the Blade beneath — the card's pop never takes the pivot")
 	assert_eq(_ctl.get_armed_icon_tint(), _stat_color(&"strength"))
 	assert_signal_emit_count(_ctl, "armed_icon_changed", 1)
 
@@ -397,10 +405,10 @@ func test_every_level_with_an_icon_also_names_a_colour() -> void:
 		func() -> void: _ctl.on_attack_mode_requested(BattleSystem.AttackMode.MAGIC),
 		func() -> void:
 			_ctl.on_attack_mode_requested(BattleSystem.AttackMode.MELEE)
-			_ctl.arm_temp_upgrade(_catalog.kinds[0]),
+			_arm_on_blade(_catalog.kinds[0]),
 		func() -> void:
 			_ctl.on_attack_mode_requested(BattleSystem.AttackMode.MELEE)
-			_ctl.arm_temp_upgrade(_catalog.kinds[1]),
+			_arm_on_blade(_catalog.kinds[1]),
 		func() -> void: _ctl.arm_verb(PlayerInputController.ManageVerb.DEALLOCATE),
 		func() -> void: _ctl.arm_verb(PlayerInputController.ManageVerb.STAKE),
 		func() -> void: _ctl.arm_verb(PlayerInputController.ManageVerb.EXTRACT),

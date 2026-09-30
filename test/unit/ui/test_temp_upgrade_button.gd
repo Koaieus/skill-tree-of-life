@@ -119,9 +119,9 @@ func _arm_plan(members: Array[SkillNode] = []) -> MeleeAttackPlan:
 	_bs.reset_plan()
 	_pic.arm_attack(BattleSystem.AttackMode.MELEE)
 	var plan := _bs.attack_plan as MeleeAttackPlan
-	plan.set_pivot(_pivot)
+	_pic.route_left_click(_pivot)
 	for m in members:
-		plan.toggle_member(m)
+		_pic.route_left_click(m)
 	return plan
 
 
@@ -213,7 +213,7 @@ func test_spending_the_blade_budget_flips_affordability_only() -> void:
 	# Grown on the SAME plan, so this is genuinely "the budget was spent" rather
 	# than "a fresh plan happened to start smaller".
 	var plan := _bs.attack_plan as MeleeAttackPlan
-	plan.set_pivot(_a)
+	plan.toggle_member(_a)
 	plan.toggle_member(_b)
 	assert_eq(_card(1).state, TempUpgradeButton.State.UNAFFORDABLE,
 		"spending the shared budget must read as UNAFFORDABLE, not as Godot's disabled grey")

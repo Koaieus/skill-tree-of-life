@@ -126,7 +126,8 @@ func test_melee_armed_reforms_the_blade_and_never_touches_the_quiver() -> void:
 
 func test_unarmed_reforms_the_last_blade_as_the_global_accelerator() -> void:
 	await _launch_blade_and_settle()
-	assert_null(_bs.attack_plan, "fixture: nothing armed after the launch")
+	_pic.arm_attack(BattleSystem.AttackMode.NONE)  # a launch leaves melee armed
+	assert_null(_bs.attack_plan, "fixture: nothing armed")
 	assert_true(_pic.reload_in_hand())
 	assert_true(_bs.attack_plan is MeleeAttackPlan, "#466: R from nowhere arms melee with the last blade")
 

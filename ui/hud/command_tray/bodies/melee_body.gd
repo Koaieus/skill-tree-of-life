@@ -55,6 +55,10 @@ func _on_bound() -> void:
 	if _input_ctl != null:
 		_input_ctl.player_can_act_changed.connect(_refresh.unbind(1))
 		_input_ctl.temp_upgrade_arm_changed.connect(_refresh.unbind(1))
+		# A card arms only on a Blade, which is pushed AFTER the pivot's
+		# state_changed — the stack's own change is what re-reads it.
+		if _input_ctl.armed_stack != null:
+			_input_ctl.armed_stack.changed.connect(_refresh)
 	_blade_blips.pip_clicked.connect(_on_pip_clicked)
 	_blade_blips.pip_hover_changed.connect(_on_pip_hover_changed)
 	_upgrade_blips.pip_hover_changed.connect(_on_pip_hover_changed)
@@ -71,6 +75,9 @@ func teardown() -> void:
 		_input_ctl.player_can_act_changed.disconnect(_refresh.unbind(1))
 	if _input_ctl != null and _input_ctl.temp_upgrade_arm_changed.is_connected(_refresh.unbind(1)):
 		_input_ctl.temp_upgrade_arm_changed.disconnect(_refresh.unbind(1))
+	if _input_ctl != null and _input_ctl.armed_stack != null \
+			and _input_ctl.armed_stack.changed.is_connected(_refresh):
+		_input_ctl.armed_stack.changed.disconnect(_refresh)
 	if _blade_blips.pip_clicked.is_connected(_on_pip_clicked):
 		_blade_blips.pip_clicked.disconnect(_on_pip_clicked)
 	if _blade_blips.pip_hover_changed.is_connected(_on_pip_hover_changed):
@@ -256,7 +263,10 @@ func _refresh() -> void:
 		var upgrade := kinds[i]
 		var btn := _upgrade_row.get_child(i) as TempUpgradeButton
 		btn.armed = arm == upgrade
-		btn.affordable = plan != null and can_act and plan.has_temp_upgrade_budget(upgrade)
+		# No blade up reads as unavailable: a card arms "Only with a blade"
+		# (owner, 2026-09-30).
+		btn.affordable = plan != null and can_act and plan.has_temp_upgrade_budget(upgrade) \
+				and (_input_ctl == null or _input_ctl.can_arm_temp_upgrade())
 
 	_fuse_scrubber.sync(plan)
 	# _clear_hover() above dropped the marker's hover with everything else.
