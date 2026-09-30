@@ -69,7 +69,10 @@ extends Resource
 ## **still positive** — #637 retired the refund economics (a debuff no longer
 ## hands budget back), see `docs/domain/procgen-v4.md` §"The refund economics
 ## are retired".
-@export var unit_value: float = 1.0
+@export var unit_value: float = 1.0:
+	set(v):
+		unit_value = v
+		_update_resource_name()
 
 ## Sparse per-tier value override (D11): `tier -> T-magnitude` — the *excess*
 ## for MULTIPLY pools (the +1 is applied by to_entries), the raw value
@@ -78,7 +81,10 @@ extends Resource
 ## steeper/flatter ladder than V (e.g. `crit_chance`). Naive authoring here is
 ## load-bearing, so a test should pin the repo-wide override count under a
 ## budget (seed: ≤ 6).
-@export var value_overrides: Dictionary[int, float] = {}
+@export var value_overrides: Dictionary[int, float] = {}:
+	set(v):
+		value_overrides = v
+		_update_resource_name()
 
 ## Tunable floor magnitude — "M" in #628. `L(min_tier) = range_floor`; every
 ## higher tier's low bound is `H(previous tier) + range_floor` ([method
@@ -112,7 +118,10 @@ extends Resource
 ## _tier_magnitude_bounds] for how the recurrence's near/far pair is ordered
 ## for a negative pool.
 const FLOOR_UNSET := INF
-@export var range_floor: float = FLOOR_UNSET
+@export var range_floor: float = FLOOR_UNSET:
+	set(v):
+		range_floor = v
+		_update_resource_name()
 
 ## This pool's share among its drawable siblings in the same group (universal
 ## or archetype) — the pool level of the draw. Tier weight within the pool is
@@ -143,6 +152,7 @@ const FLOOR_UNSET := INF
 @export_range(1, 4) var min_tier: int = 1:
 	set(v):
 		min_tier = v
+		_update_resource_name()
 		notify_property_list_changed()
 
 ## Highest tier offered. `max_tier < 4` is the honest brake that replaces the
@@ -153,6 +163,7 @@ const FLOOR_UNSET := INF
 @export_range(1, 4) var max_tier: int = 4:
 	set(v):
 		max_tier = v
+		_update_resource_name()
 		notify_property_list_changed()
 
 
@@ -201,8 +212,50 @@ func _init() -> void:
 		tier_shape.changed.connect(notify_property_list_changed)
 	_update_resource_name()
 
+## `<valence> <stat> <op>` — the contents minus the value, prefixed by
+## [method valence_tag] when a roll can land anywhere but on a boon. Every
+## field the name reads has a setter calling this: deserialization assigns in
+## declaration order, so an unwired later field (`unit_value`'s sign) leaves
+## the name computed before it landed.
 func _update_resource_name():
-	resource_name = '%s %s' % [stat_id, _op_symbol()]
+	var tag := valence_tag()
+	var base := '%s %s' % [stat_id, _op_symbol()]
+	resource_name = base if tag.is_empty() else '%s %s' % [tag, base]
+
+
+## Which side this pool's rolls land on for whoever holds them, judged over
+## both ends of every tier's range by [method StatModifier.valence]'s law
+## (displacement from the op's neutral, through [method StatDef.is_improvement]):
+## `""` all boons, `bane` all banes, `mixed` a range spanning both,
+## `volatile` a SET or a range reaching a sign-flipping multiplier. Rolls at
+## the neutral element count for neither side. Empty while [StatRegistry] is
+## down (a `.tres` deserialized outside a tree) — the name then just drops
+## the tag until the next edit.
+func valence_tag() -> String:
+	if operation == StatModifier.Operation.SET:
+		return "volatile"
+	if not is_instance_valid(StatRegistry):
+		return ""
+	var def: StatDef = StatRegistry.get_def(stat_id)
+	if def == null:
+		return ""
+	var boon := false
+	var bane := false
+	for b in _tier_magnitude_bounds():
+		for m: float in [b.lo, b.hi]:
+			var v := 1.0 + m if operation == StatModifier.Operation.MULTIPLY else m
+			if operation == StatModifier.Operation.MULTIPLY and v <= 0.0:
+				return "volatile"
+			var delta := StatModifier.displacement_from_neutral(operation, v)
+			if is_zero_approx(delta):
+				continue
+			if def.is_improvement(delta):
+				boon = true
+			else:
+				bane = true
+	if boon and bane:
+		return "mixed"
+	return "bane" if bane else ""
 
 ## Resolves [member range_floor]'s sentinel — see its docstring.
 func _effective_floor() -> float:

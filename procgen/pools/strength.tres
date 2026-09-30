@@ -81,7 +81,7 @@ max_tier = 3
 script = ExtResource("3_m6jpa")
 
 [sub_resource type="Resource" id="Resource_u38nb"]
-resource_name = "intelligence +%"
+resource_name = "bane intelligence -%"
 script = ExtResource("2_pool")
 stat_id = &"intelligence"
 operation = 1

@@ -64,7 +64,7 @@ max_tier = 3
 script = ExtResource("3_x53si")
 
 [sub_resource type="Resource" id="dex_debuff"]
-resource_name = "dexterity +%"
+resource_name = "bane dexterity -%"
 script = ExtResource("2_pool")
 stat_id = &"dexterity"
 operation = 1
@@ -78,7 +78,7 @@ max_tier = 3
 script = ExtResource("3_x53si")
 
 [sub_resource type="Resource" id="Resource_u38nb"]
-resource_name = "min_damage_taken +"
+resource_name = "min_damage_taken -"
 script = ExtResource("2_pool")
 stat_id = &"min_damage_taken"
 subtypes = Array[ExtResource("90_nsub")]([ExtResource("91_sreg"), ExtResource("93_sble")])
