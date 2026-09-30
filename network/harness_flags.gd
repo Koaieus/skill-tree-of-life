@@ -41,6 +41,11 @@ const MAX_TURNS := "max-turns"
 ## break when commands arrive back to back?" gets asked without editing code
 ## (#756).
 const AI_DELAY := "ai-delay"
+## A LETHAL run: every entity is capped at a few node losses
+## ([method MpHarness.make_lethal]) so a two-AI game ends in a few dozen launches
+## instead of a few hundred. Read by BOTH processes — the flag has to reach the
+## mirror too, exactly as `--autopilot`'s budget boost does.
+const LETHAL := "lethal"
 
 
 ## `--<name>=<v>` -> `v`; `--<name>` alone -> `""`; absent -> [param fallback].

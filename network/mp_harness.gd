@@ -157,3 +157,11 @@ func _watch_turn_cap(role: String, cap: int) -> void:
 		role, turn_manager.turns_taken, cap, WorldFingerprint.describe(graph),
 	])
 	get_tree().quit(_RUNG4_TIMEOUT_EXIT)
+
+
+static func make_lethal(_entity: Entity) -> void:
+	pass
+
+
+func arm_lethal() -> void:
+	pass
