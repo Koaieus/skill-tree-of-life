@@ -321,26 +321,13 @@ Roguelikes work through the cycle of: fight to a rest area → upgrade → enter
 
 ---
 
-## Node Types — The RGBW System
+## Node Types
 
-Nodes on the field are color-coded by type. The four types form the core design vocabulary:
-
-| Color | Attribute | Attack Type | Notes |
-|---|---|---|---|
-| **R** (Red) | Strength | Melee | Close-range. High damage, short reach. Beats Blue. |
-| **G** (Green) | Dexterity | Ranged | Long-range. Euclidean targeting. Precise, lower raw damage. Beats Red. |
-| **B** (Blue) | Intelligence | Graph-magic / Spells | Propagates along edges. Hop-based. Bypasses geometry. Beats Green. |
-| **W** (White) | — | — | The lifeblood: XP/turn → skill-point income, plus general passive bonuses. |
-
-**Triangle (R › B › G › R):** Brute force closes on wizards, wizards outrange archers, archers kite bruisers. Lives primarily in emergent per-color resist stats — a Red-heavy entity naturally builds resist_b through its node choices, not because the engine mandates it. See combat doc.
-
-White nodes are the **economic lifeblood:** their XP/turn becomes skill points, the currency of all expansion and recovery. They grant no combat identity — a constellation heavy in W is resource-rich but toothless, and precisely for that reason, White nodes are the objectives entities fight over like resource patches in a strategy game.
+A node's colour is the attribute it carries — six of them, three attack colours (Red/STR melee, Green/DEX ranged, Blue/INT magic) and three utility ones; the colour roles and the combat triangle are `combat_system.md`'s, the attributes `stats_system/entity_stat_board.gd`'s.
 
 **Mixed builds** are rewarded by the tree structure itself: high-value interior nodes often combine colors (e.g. a Red/Blue node grants STR + INT bonuses), representing natural synergy points worth fighting for.
 
-**Topology is your loadout.** Beyond color, a node's *graph position* determines what it can do offensively and how well it defends — leaves fire ranged, hubs cast magic, dense adjacency melees. Durability now lives in a dedicated attribute (CON), not in degree. This is the spine of the combat redesign; see `combat_system.md`.
-
-> **Roster expansion (newer intent, not yet fully back-propagated through this doc).** The RGBW four has grown to **six colors:** R/STR (melee), G/DEX (ranged), B/INT (magic) — and three rarer utility colors: **White/CON** (durability), **Gold/WIS** (XP/growth — *the new economic lifeblood*), **Purple/PER** (vision/sensing). The old "White = XP economy" role moves to **Gold**; White becomes durability. Where this doc still says "White nodes" for the economy, read **Gold**. Mechanics: `combat_system.md`. A purely cosmetic, non-mechanical **coolness** attribute also exists (see "All edge, no point"). Procgen **clusters like-colors into biome-like regions** — Red territory, Blue territory — so the battlefield reads as a map of warring colors; node color is *content* (which attribute a node carries), deliberately **not** an adjacency-coloring (the planar 4-color theorem is a red herring noted against).
+**Topology is your loadout.** Beyond color, a node's *graph position* determines what it can do offensively and how well it defends — leaves fire ranged, hubs cast magic, dense adjacency melees. Durability lives in a dedicated attribute (CON), not in degree.
 
 ---
 
@@ -366,40 +353,16 @@ Structurally:
 
 ## Core Classes
 
-Stat weights and one aura rule define a class. The core class is the single most important architectural choice an entity makes — it shapes the whole constellation's tactical identity. Full entries live in `core_classes.md`.
-
-### The Ninja
-High deallocation budget. Massive aura buff to nodes close to the core. Steep penalty to nodes far from the core. Small `skill_points_max` — can't sprawl. Hit-and-run warfare. Every turn is a shape.
-
-### The Hive
-Multiple isolated sub-constellations, each anchored by a **Lifelink** proxy core (see Addons). Multiplicative penalty to all node stats if any sub-graph exceeds N nodes, forcing pods to stay small and spread. The real core hides deep in one pod. An economic sprawler with inherently fragile pieces.
+Stat weights and one aura rule define a class. The core class is the single most important architectural choice an entity makes — it shapes the whole constellation's tactical identity. The shipped classes are `entity/core/core_class_roster.tres`; unbuilt ones are `core_classes.md`.
 
 ### The Edgelord
-The entity that fights *with* edges rather than against them — master of the very topology the combat redesign runs on. Adds edges (safe by construction — only increasing connectivity, so it can never strand a region), closes rings, builds hubs, collapses hop-distance, and is the natural wielder of **Bleeding Edge** — the edge-severing move — which it can use without committing the unreachable-region heresy, because it can re-add what it cuts. The convert who uses the Lord of Edge's own tools — and is *still* damned the instant it Breaks Out. High complexity, and likely **the final core class to unlock.** The Edgelord is also the most plausible *creator* of self-loops — if any entity can add an edge from a node to itself, it is this one. Full entry in `core_classes.md`.
-
----
-
-## SP Reservation — Wounds on the Tree
-
-When a node is lost in combat, its freed skill point does not return cleanly. It becomes a **Reservation** — a wound in the entity's capacity that cannot be filled until healed.
-
-In world terms: the entity's constellation has been forcibly torn. The lost node's connection to the core was not gracefully severed — it was ripped. That damage propagates inward, locking off a portion of the entity's available energy. The entity *remembers* what it lost, and the memory costs it. A `health_per_turn` flow heals these wounds, restoring capacity 1:1 — but until then, the entity cannot re-expand into the space left by its lost nodes even if it has nowhere else to go.
-
-This creates a **suppression mechanic:** sustained node damage shrinks the enemy's effective options in real time. An entity that loses three nodes in a single turn is not just smaller — it's crippled, its reallocation budget collapsed to near zero. Healing is the only way back.
+The entity that fights *with* edges rather than against them — master of the very topology the combat redesign runs on. Adds edges (safe by construction — only increasing connectivity, so it can never strand a region), closes rings, builds hubs, collapses hop-distance, and is the natural wielder of **Bleeding Edge** — the edge-severing move — which it can use without committing the unreachable-region heresy, because it can re-add what it cuts. The convert who uses the Lord of Edge's own tools — and is *still* damned the instant it Breaks Out. High complexity, and likely **the final core class to unlock.** The Edgelord is also the most plausible *creator* of self-loops — if any entity can add an edge from a node to itself, it is this one.
 
 ---
 
 ## Magic & Spells — the Blue Design Space
 
-Magic is not a generic "ranged attack that goes further." It is **graph-theory made into a weapon.**
-
-Each spell defines its own targeting mechanism, expressed in terms of the graph: hops from source, forks at junctions, propagation through specific node types, relay through edges. INT scales the spell's potency — damage, propagation depth, fork count, propagation distance — but the spell's *shape* is inherent to it.
-
-A **lightning spell** forks. It follows all available edges simultaneously from the source, and the player has to reason about the graph's branching structure to predict what it hits. But forking is only one primitive among many. The Blue design space is meant to hold *dozens* of spells, each a different graph-math behavior fit to a different situation — greedy walks, degree-reactive chains, allocation-boundary targeting. See `combat_system.md` for the full taxonomy.
-
-Crucially, **a node's degree gates and boosts magic:** weak spells can be cast from low-degree nodes, while the heaviest spells require high-degree **hubs**, as if a node draws power from its allocated neighbors. Hunting and holding the finest casting hubs becomes a Blue-build quest in itself. Degree is counted over the entity's own (owned) subgraph by default; certain rare or drain-flavored spells may instead count *any* incident neighbor, owned or not. **Self-loops add degree** and are of acute interest to Blue builds chasing casting tiers. See `combat_system.md` for mechanics.
-
-This is a design space to open carefully and incrementally — too many spell types creates incomprehensible states; too few and Blue is just a better ranged attack. The guiding principle: every spell should feel like it *is* something that happens in a graph, not something that happens *to* a graph.
+Magic is **graph theory made into a weapon**: every spell should feel like it *is* something that happens in a graph, not something that happens *to* a graph. Shipped spells are `attack/spell/defs/` and `docs/domain/spell-propagation.md`; unbuilt ones are `spells.md`.
 
 ---
 
@@ -470,7 +433,7 @@ A **cycle** — a constellation that closes a loop — is **2-edge-connected:** 
 
 ### Islands
 
-An **island** is a sub-graph of owned nodes with no path back to the core. Islands cannot persist. **Default: when an island is created, it dissolves immediately.** All its nodes become unallocated; SP Reservation fires for each.
+An **island** is a sub-graph of owned nodes with no path back to the core. Islands cannot persist. **Default: when an island is created, it dissolves immediately.** All its nodes become unallocated.
 
 There is no default grace period. The grace is an upgrade, not a right.
 
@@ -484,7 +447,7 @@ Islands created by Uprooting follow the same immediate-death rule.
 
 ## Node Components — The Addon System
 
-Nodes support **attachable components** (addons) that modify behavior beyond base stat modifiers — an ECS layer on top of the base node type. Key addons: **Armor Ring** (damage resistance), **Reinforcement** (HP), **Buffer** (melee charging), **Winch** (euclidean pull force), **Lifeline** (island grace period), **Lifelink** (proxy core). See `skill_node_addons.md` for the full system including node specializations and Tech Seeds.
+Nodes support **attachable components** (addons) that modify behavior beyond base stat modifiers — an ECS layer on top of the base node type. Unbuilt addons: **Buffer** (melee charging), **Winch** (euclidean pull force), **Lifeline** (island grace period), **Lifelink** (proxy core). The shipped ones are `skill_node/addons/`; see `skill_node_addons.md` for the design space including node specializations and Tech Seeds.
 
 **Designer rule:** addons change *how a node behaves on the tree*, not what stats it grants.
 
@@ -492,19 +455,13 @@ Nodes support **attachable components** (addons) that modify behavior beyond bas
 
 ## Death, Loot, and the Kill Economy
 
-### When an enemy core dies
+What a kill yields today — XP for the victim's territory, tempo, and a relic on its former core node — is `docs/domain/loot-system.md`'s.
 
-1. **XP reward:** The killing attacker receives XP proportional to the dead entity's level, converting to skill points through the normal pipeline.
+### BLITZ (Predator only — unbuilt)
 
-2. **BLITZ (Predator only):** If the Predator had at least one node adjacent to at least one of the dying entity's nodes at the moment of the kill, it may immediately **steal one adjacent enemy-owned node** — direct transfer, no SP cost. If it BLITZes the core node itself (the Relic Node), loot resolution triggers immediately with a bonus. (Universal kill reward is XP + a DAP bonus; see `combat_system.md`.)
+If the Predator had at least one node adjacent to at least one of the dying entity's nodes at the moment of the kill, it may immediately **steal one adjacent enemy-owned node** — direct transfer, no SP cost. If it BLITZes the core node itself (the Relic Node), loot resolution triggers immediately with a bonus.
 
-3. **Relic Node:** The dead core's node becomes a **Relic Node** — fused with the dead entity's core modifiers, sitting on the board indefinitely (provisional). All remaining enemy-owned nodes become neutral immediately — not destroyed, available to allocate.
-
-### Reaching the loot
-
-To trigger loot resolution, the player must **allocate the Relic Node.** The path to it usually runs through former-enemy neutral territory — chasing the loot naturally means claiming land. They are the same decision.
-
-### The STEAL / PROLIFERATE tension
+### The STEAL / PROLIFERATE tension (unbuilt)
 
 STEAL is portable power. PROLIFERATE is multiplied-but-fixed power. A roaming, aggressive build wants STEAL; a territorial anchor build wants PROLIFERATE. Neither is always dominant. The first loot window teaches this tension. Playtime is over. Pick one.
 

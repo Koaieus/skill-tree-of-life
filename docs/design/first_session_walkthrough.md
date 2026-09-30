@@ -70,7 +70,7 @@ Your starter node — labeled **ENTITY CORE — +10 XP/TURN** — glows warm, yo
 
 You look outward. Edges run off your three leaf nodes to unallocated neighbors — cold and silent in the dark. Past those, edges trail off into a **fog.** You can see a few hops; beyond that, nothing.
 
-A new HUD has arrived. Buttons: **Allocate, Move Core, Attack, End Turn.** A **Skill Points** pool sits at 1. An **Initiative** bar fills slowly. There is no inventory. There is no map. There is no sword.
+A new HUD has arrived: an **Action Points** gauge, a **Gates** menu and an **End Turn** button — everything else you do by clicking the tree itself. A **Skill Points** pool sits at 1. An **Initiative** bar fills slowly. There is no inventory. There is no map. There is no sword.
 
 > **Questionable.** Where did your character go? Are you the entity now? Were you always the entity? The game does not answer.
 
