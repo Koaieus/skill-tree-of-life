@@ -96,8 +96,8 @@ func _n(id: String) -> SkillNode:
 func _named(cmd: ToggleGatesCommand) -> Array[String]:
 	var out: Array[String] = []
 	for i in range(0, cmd.pairs.size(), 2):
-		var a := _graph.get_by_stable_id(cmd.pairs[i]).name
-		var b := _graph.get_by_stable_id(cmd.pairs[i + 1]).name
+		var a := String(_graph.get_by_stable_id(cmd.pairs[i]).name)
+		var b := String(_graph.get_by_stable_id(cmd.pairs[i + 1]).name)
 		var ab := [a, b]
 		ab.sort()
 		out.append("%s-%s" % ab)

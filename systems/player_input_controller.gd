@@ -116,6 +116,11 @@ enum GateAction { TOGGLE_UNLOCKED, OPEN_UNLOCKED, CLOSE_UNLOCKED, UNLOCK_ALL, LO
 signal gate_confirm_changed(stranded: Array[SkillNode])
 ## The current player's lock set changed (or the player did).
 signal gate_locks_changed
+## Survives [method clear_transient_state] like `_reform_slots`: a lock is a
+## standing preference, not half-finished intent.
+var _gate_locks := GateLockSet.new()
+var _gate_pending_key: Array[Vector2i] = []
+var _gate_pending_strand: Array[SkillNode] = []
 
 
 ## Ordered pop stack (#404's shared arm/pop primitive, generalized #406).
@@ -202,6 +207,11 @@ func _ready() -> void:
 
 	turn_manager.turn_started.connect(_emit_gate_changed.unbind(1))
 	turn_manager.turn_ended.connect(_emit_gate_changed.unbind(1))
+	turn_manager.turn_ended.connect(_disarm_gate_confirm.unbind(1))
+	if not Engine.is_editor_hint() and graph.gates_container != null:
+		graph.gates_container.child_entered_tree.connect(_on_gate_added)
+		for g in graph.get_gates():
+			_on_gate_added(g)
 
 	Events.skill_node_hovered.connect(_on_skill_node_hovered)
 	Events.skill_node_unhovered.connect(_on_skill_node_unhovered)
@@ -706,6 +716,15 @@ func _unhandled_key_input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 		return
 	if event.is_action_pressed(&"ui_reload") and reload_in_hand():
+		get_viewport().set_input_as_handled()
+		return
+	# Shift+G before G: plain G's action would also match Shift+G unless exact.
+	if event.is_action_pressed(&"ui_gate_locks") and player != null:
+		request_gate_locks_hotkey()
+		get_viewport().set_input_as_handled()
+		return
+	if event.is_action_pressed(&"ui_toggle_gates", false, true) and _is_players_turn():
+		request_gate_action(GateAction.TOGGLE_UNLOCKED)
 		get_viewport().set_input_as_handled()
 		return
 	# Z / X arm the temp-upgrade cards by CATALOG INDEX, never by name (#718).
@@ -1416,6 +1435,7 @@ func _set_player(value: Entity) -> void:
 				prev_ap.current_changed.disconnect(_on_ap_changed)
 		clear_transient_state()
 		player = value
+		_on_gate_locks_changed()
 	# Unconditional. A connection left behind on a board the entity discarded
 	# is unreachable from here (`player.stat_board` is the new one) and needs no
 	# cleanup — that board is garbage, and its pools die with it.
@@ -1447,6 +1467,7 @@ func clear_transient_state() -> void:
 	if battle_system != null and battle_system.is_attacking and not battle_system.is_launching:
 		battle_system.cancel_attack()
 	cancel_mass_action()
+	_disarm_gate_confirm()
 	_set_temp_upgrade_arm(null)
 	_set_manage_arm(ManageVerb.NONE)
 	_set_move_targeting_source(null)
@@ -1462,26 +1483,150 @@ func _on_ap_changed(_new_current: Variant) -> void:
 
 
 # ── Gates (#1206) ───────────────────────────────────────────────────────────
+# Locks are seat-local (GateLockSet); a flip goes out as one ToggleGatesCommand
+# naming every gate explicitly. A flip whose preview strands owned nodes arms a
+# one-warning confirm first — the identical request again submits it, any other
+# gate request disarms it. See docs/design/skill_node_addons.md § Gate.
 
-func request_gate_action(_action: GateAction) -> void:
-	pass
+## Run a bulk gate verb for the current player. Lock verbs only touch the
+## seat-local set; the flip verbs expand to the unlocked, toggleable gates in
+## the right state (so open-all / close-all are idempotent).
+func request_gate_action(action: GateAction) -> void:
+	if player == null or graph == null:
+		return
+	if action == GateAction.LOCK_ALL or action == GateAction.UNLOCK_ALL:
+		_disarm_gate_confirm()
+		for g in graph.get_gates():
+			_gate_locks.set_locked(player, GateLockSet.key_of(graph, g),
+					action == GateAction.LOCK_ALL)
+		_on_gate_locks_changed()
+		return
+	var gates: Array[Gate] = []
+	for g in toggleable_gates():
+		if is_gate_locked(g):
+			continue
+		if action == GateAction.OPEN_UNLOCKED and g.is_open():
+			continue
+		if action == GateAction.CLOSE_UNLOCKED and not g.is_open():
+			continue
+		gates.append(g)
+	_request_gate_flip(gates)
 
 
+## Shift+G: unlock all while anything is locked, else lock all.
 func request_gate_locks_hotkey() -> void:
-	pass
+	request_gate_action(GateAction.UNLOCK_ALL if _gate_locks.any_locked(player) \
+			else GateAction.LOCK_ALL)
 
 
-func route_gate_click(_gate: Gate) -> void:
-	pass
+## A span click: flip that one gate, locked or not — the click is deliberate.
+## Also the carrier for any surface that names a gate by other means.
+func route_gate_click(gate: Gate) -> void:
+	if player == null or gate == null or not gate.can_toggle(player):
+		return
+	var gates: Array[Gate] = [gate]
+	_request_gate_flip(gates)
 
 
-func toggle_gate_lock(_gate: Gate) -> void:
-	pass
+func toggle_gate_lock(gate: Gate) -> void:
+	if player == null or gate == null or graph == null:
+		return
+	_gate_locks.set_locked(player, GateLockSet.key_of(graph, gate), not is_gate_locked(gate))
+	_on_gate_locks_changed()
 
 
-func is_gate_locked(_gate: Gate) -> bool:
-	return false
+func is_gate_locked(gate: Gate) -> bool:
+	return gate != null and graph != null \
+			and _gate_locks.is_locked(player, GateLockSet.key_of(graph, gate))
 
 
+## Every gate the current player may flip right now.
+func toggleable_gates() -> Array[Gate]:
+	var out: Array[Gate] = []
+	if player == null or graph == null:
+		return out
+	for g in graph.get_gates():
+		if g.can_toggle(player):
+			out.append(g)
+	return out
+
+
+## The owned nodes the armed gate flip would strand; empty when nothing is armed.
 func pending_gate_strand() -> Array[SkillNode]:
-	return []
+	return _gate_pending_strand
+
+
+func cancel_gate_confirm() -> void:
+	_disarm_gate_confirm()
+
+
+func _request_gate_flip(gates: Array[Gate]) -> void:
+	if gates.is_empty():
+		_disarm_gate_confirm()
+		return
+	var key := _gate_request_key(gates)
+	if not _gate_pending_strand.is_empty() and key == _gate_pending_key:
+		_disarm_gate_confirm()
+		_submit_gate_flip(gates)
+		return
+	_disarm_gate_confirm()
+	var stranded := allocation_system.gate_flip_cascade(gates, player) \
+			if allocation_system != null else [] as Array[SkillNode]
+	if stranded.is_empty():
+		_submit_gate_flip(gates)
+		return
+	_gate_pending_key = key
+	_gate_pending_strand = stranded
+	gate_confirm_changed.emit(_gate_pending_strand)
+
+
+func _submit_gate_flip(gates: Array[Gate]) -> void:
+	var pairs: Array[int] = []
+	for g in gates:
+		pairs.append(graph.get_stable_id(g.from))
+		pairs.append(graph.get_stable_id(g.to))
+	_submit(ToggleGatesCommand.new(player.entity_id, pairs))
+
+
+func _gate_request_key(gates: Array[Gate]) -> Array[Vector2i]:
+	var out: Array[Vector2i] = []
+	for g in gates:
+		out.append(GateLockSet.key_of(graph, g))
+	out.sort()
+	return out
+
+
+func _disarm_gate_confirm() -> void:
+	_gate_pending_key = []
+	if _gate_pending_strand.is_empty():
+		return
+	_gate_pending_strand = []
+	gate_confirm_changed.emit(_gate_pending_strand)
+
+
+func _on_gate_locks_changed() -> void:
+	if graph != null:
+		for g in graph.get_gates():
+			g.set_locked_display(is_gate_locked(g))
+	gate_locks_changed.emit()
+
+
+func _on_gate_added(child: Node) -> void:
+	var gate := child as Gate
+	if gate == null:
+		return
+	if not gate.span_clicked.is_connected(_on_gate_span_clicked):
+		gate.span_clicked.connect(_on_gate_span_clicked)
+	if graph != null and gate.from != null and gate.to != null:
+		gate.set_locked_display(is_gate_locked(gate))
+
+
+## A node disc wins over a span it overlaps: a click while a node is hovered
+## belongs to the node.
+func _on_gate_span_clicked(gate: Gate, button: MouseButton) -> void:
+	if _input_frozen or _hovered_node != null or not _is_players_turn():
+		return
+	if button == MOUSE_BUTTON_LEFT:
+		route_gate_click(gate)
+	elif button == MOUSE_BUTTON_RIGHT:
+		toggle_gate_lock(gate)

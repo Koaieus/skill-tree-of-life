@@ -8,5 +8,5 @@ extends HighlightProvider
 var stranded: Array[SkillNode] = []
 
 
-func get_node_role(_node: SkillNode) -> HighlightRole:
-	return HighlightRole.NONE
+func get_node_role(node: SkillNode) -> HighlightRole:
+	return HighlightRole.HOSTILE_TARGET if node != null and stranded.has(node) else HighlightRole.NONE
