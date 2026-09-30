@@ -59,6 +59,7 @@ number still cited resolves to where it is embodied now:
 | 5 | #1095; `procgen/pools/perception.tres` |
 | 8 | ADR 0028 |
 | 11 | #1093; `procgen/pools/wisdom.tres` |
+| 12 | `StatPool.subtypes`; § The authoring law |
 | 13 | § Placement; `GraphProcgen._build_subtype_drawability` |
 | 14 | `NodeSubtype.regular()`, `GraphProcgenContent.default_subtype` |
 | 16 | § The authoring law |
