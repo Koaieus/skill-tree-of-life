@@ -51,16 +51,17 @@ would need a per-node phase, which is another instance-uniform slot.
 ## Decision numbers cited elsewhere
 
 Code, rules and docs cite the owner's 2026-09-22/23 subtype decisions by
-number. The ones still cited:
+number. The full log is `docs/design/node_subtypes.md` at `179054c`; each
+number still cited resolves to where it is embodied now:
 
-| # | Decision |
+| # | Settled in / embodied by |
 |---|---|
-| 5 | PER's family is blindness; `scout_arrows_per_reload` stays shared by all three PER poles. |
-| 8 | The subtype gate stays on `StatPool` after the archetype gate moved to `StatPack`: a pack is one archetype, but holds mixed subtypes (ADR 0028). |
-| 11 | Blessed WIS gets a pool-shaped answer, never a budget multiplier — replace-not-add holds. |
-| 13 | A rolled subtype with no drawable content demotes to the default. |
-| 14 | `regular` is the global default (`NodeSubtype.regular()`, a lazy accessor); a preset may override it via `default_subtype`. |
-| 16 | Partial coverage is authoring discipline, not a validated invariant (above). |
-| 17 | Blighted WIS is the archive: `dot_stacks_per_hit`, the one cross-family umbrella; it gives up the small `xp_per_turn` pool. |
-| 18 | Blessed WIS is the XP engine plus recovery (`wound_heal_per_turn`, a fatter `xp_per_turn`), replacing the small `xp_per_turn +%` pool. |
-| 20 | Blindness potency is depth and commutative: one saturating curve on total power. |
+| 5 | #1095; `procgen/pools/perception.tres` |
+| 8 | ADR 0028 |
+| 11 | #1093; `procgen/pools/wisdom.tres` |
+| 13 | § Placement; `GraphProcgen._build_subtype_drawability` |
+| 14 | `NodeSubtype.regular()`, `GraphProcgenContent.default_subtype` |
+| 16 | § The authoring law |
+| 17 | #1094; `procgen/pools/wisdom.tres` |
+| 18 | #1093; `procgen/pools/wisdom.tres` |
+| 20 | `effects/status/blindness.gd` |
