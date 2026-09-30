@@ -143,17 +143,21 @@ static func from_dict(d: Dictionary, graph: Graph) -> RangedAttackPlan:
 	return plan
 
 
-func set_target(_node: SkillNode) -> bool:
-	return false
+## Aim the volley at [param node]. Refused unless it is a valid target (a
+## visible hostile, or a sensed-only node for a scout shot); re-aiming at the
+## current target is a no-op.
+func set_target(node: SkillNode) -> bool:
+	if not _is_valid_target(node):
+		return false
+	if target == node:
+		return false
+	target = node
+	state_changed.emit()
+	return true
 
 
 func handle_left_click(node: SkillNode) -> void:
-	if not _is_valid_target(node):
-		return
-	if target == node:
-		return
-	target = node
-	state_changed.emit()
+	set_target(node)
 
 
 func pop() -> bool:

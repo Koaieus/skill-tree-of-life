@@ -15,7 +15,7 @@ extends AttackPlan
 
 const _FALLBACK_SPELL: SpellDef = preload("res://attack/spell/defs/spark.tres")
 
-## The cast-from node. No longer clicked — [method handle_left_click]
+## The cast-from node. No longer clicked — [method set_target]
 ## stamps it from [method SpellTargetUnion.source_for] the moment a target is
 ## picked, and [method validate] still requires it (a cast has to leave from
 ## somewhere, and the launch command ships its stable id).
@@ -137,29 +137,28 @@ func pop() -> bool:
 	return true
 
 
-func set_target(_node: SkillNode) -> bool:
-	return false
-
-
-func handle_left_click(node: SkillNode) -> void:
+## Target [param node] in one step: its caster is looked up from the union
+## (#728), never picked first. Refused when the union can't reach it — the
+## drawn reach already explains why, as a ranged attack with nothing in range
+## does. Re-picking the same target from the same caster is a no-op.
+func set_target(node: SkillNode) -> bool:
 	if attacker == null or node == null:
-		return
+		return false
 	if spell == null or spell.targeting == null:
-		return
-	# One click, not two (#728): the clicked node IS the target, and its caster
-	# is looked up from the union rather than picked by a prior click. A click
-	# on anything the union can't reach is dropped silently — the drawn reach
-	# already explains why, exactly as a ranged attack with nothing in range
-	# does. The old self-targeting "never mind" fallthrough went with the
-	# source step it belonged to.
+		return false
 	var picked := union().source_for(node)
 	if picked == null:
-		return
+		return false
 	if target == node and source == picked:
-		return
+		return false
 	source = picked
 	target = node
 	state_changed.emit()
+	return true
+
+
+func handle_left_click(node: SkillNode) -> void:
+	set_target(node)
 
 
 func reset() -> void:

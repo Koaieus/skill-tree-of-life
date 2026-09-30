@@ -243,17 +243,41 @@ static func from_dict(d: Dictionary, graph: Graph) -> MeleeAttackPlan:
 
 # ── Input ──────────────────────────────────────────────────────────────────
 
-## Verbs — the named builders every carrier uses. STUB.
-func set_pivot(_node: SkillNode) -> bool:
-	return false
+## Arm [param node] as the pivot, dropping any previous pivot and its blade.
+## Refused (false, no signal) unless the attacker owns [param node]; re-arming
+## the current pivot is a no-op.
+func set_pivot(node: SkillNode) -> bool:
+	if attacker == null or node == null or node.owned_by != attacker:
+		return false
+	if node == source:
+		return false
+	_set_pivot(node)
+	_notify_selection_changed()
+	return true
 
 
+## Clear the pivot and every member built on it. False when already empty.
 func clear_pivot() -> bool:
-	return false
+	if source == null and blade_nodes.is_empty():
+		return false
+	reset()
+	return true
 
 
-func toggle_member(_node: SkillNode) -> bool:
-	return false
+## Deselect [param node] if it is a member (islanded members go with it),
+## otherwise select it plus the shortest owned path joining it to the blade
+## set, atomically under the budget. Refused without an armed pivot, on the
+## pivot itself, on a node the attacker doesn't own, or on a path that doesn't
+## fit.
+func toggle_member(node: SkillNode) -> bool:
+	if node == null or node == source or not _can_be_blade(node):
+		return false
+	if blade_nodes.has(node):
+		_deselect_blade(node)
+	elif not _try_select_path(node):
+		return false
+	_notify_selection_changed()
+	return true
 
 
 func pop() -> bool:
@@ -263,31 +287,18 @@ func pop() -> bool:
 	return true
 
 
+## Click grammar over the verbs: arm the pivot, re-click it to pop (the
+## pivot is never a valid member — docs/design/click_grammar.md), or toggle a
+## member.
 func handle_left_click(node: SkillNode) -> void:
 	if attacker == null or node == null:
 		return
 	if source == null:
-		if node.owned_by != attacker:
-			return
-		_set_pivot(node)
-		_notify_selection_changed()
-		return
-	if node == source:
-		# Self-targeting fallthrough: the pivot is never a valid blade member,
-		# so clicking it again isn't a denial — it's "never mind", same as a
-		# right-click. See docs/design/click_grammar.md.
+		set_pivot(node)
+	elif node == source:
 		pop()
-		return
-	if not _can_be_blade(node):
-		return
-	var changed := false
-	if blade_nodes.has(node):
-		_deselect_blade(node)
-		changed = true
-	elif _try_select_path(node):
-		changed = true
-	if changed:
-		_notify_selection_changed()
+	else:
+		toggle_member(node)
 
 
 # ── Reform (#466) ──────────────────────────────────────────────────────────

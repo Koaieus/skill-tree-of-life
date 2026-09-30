@@ -4,8 +4,10 @@ extends HighlightProvider
 ## Abstract parent class for a plan for an [Entity] preparing an attack.
 ##
 ## Holds shared state (attacker, mode) and the input + visualization contract:
-## concrete plans implement [method handle_left_click] /
-## [method handle_right_click] for input, expose visualization roles via
+## concrete plans are built through named domain verbs (melee
+## `set_pivot` / `clear_pivot` / `toggle_member`, ranged and magic
+## `set_target`), with [method handle_left_click] / [method handle_right_click]
+## a thin click dispatcher over them; they expose visualization roles via
 ## [method HighlightProvider.get_node_role], and emit
 ## [signal HighlightProvider.state_changed] whenever any of their internal state
 ## shifts (pivot picked, blade toggled, target set, spell selected, etc.).
@@ -158,8 +160,9 @@ func reset() -> void:
 	pass
 
 
-## Public input entry — every carrier (PlayerInputController, the spell
-## playground, dev sandboxes, tests) clicks through these. Concrete plans
+## Click grammar — PlayerInputController's entry, a dispatcher over each
+## plan's domain verbs; builders (playground, dev sandboxes, tests) call the
+## verbs directly. Concrete plans
 ## override the ones they react to; the defaults are no-ops so plans only
 ## implement what's relevant to their mode.
 ## (get_node_role / get_node_range / get_range_visual are inherited from
