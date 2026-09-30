@@ -19,7 +19,7 @@ tags: [spells, balance, degree, mana, range, design]
 
 # ADR 0039 — Spell power is gated by four conditions, not by damage tuning
 
-> **Backfilled 2026-09-30** from [D-33](legacy-mvp-decisions.md#d-33--spell-power-is-gated-by-four-independent-conditions-not-by-damage-tuning), with gate 3 as [D-34](legacy-mvp-decisions.md#d-34--mana-is-int-bought-across-turn-sustain-tempo-gate-3-settled) settled it and #766 later revised it. It is a balance call, and it is recorded because the owner picked it in the #1224 sweep (*"D-18 + D-33 (balance)"*, owner, 2026-09-30).
+> **Backfilled 2026-09-30** from [D-33](legacy-mvp-decisions.md#d-33--spell-power-is-gated-by-four-independent-conditions-not-by-damage-tuning), with gate 3 as [D-34](legacy-mvp-decisions.md#d-34--mana-is-int-bought-across-turn-sustain-tempo-gate-3-settled) settled it and #766 later revised it. It is a balance call, and it is recorded because the owner picked it in the #1224 sweep (*"D-18 + D-33 (balance)"*, owner, 2026-09-30, recorded on #1235).
 
 ## Context
 
@@ -44,7 +44,7 @@ The resolution adopted 2026-08-03 (D-33): **a spell's power is gated by four ind
 ## Consequences
 
 - Gate 1: `Entity.spellbook` (`entity/entity.gd:98`); `SpellGrant` effects on allocated nodes add and revoke spells (`entity/spell_book.gd:45`, `:62`).
-- Gate 2: `SpellBook._node_meets_source_requirements` checks `navigator.get_degree(source) >= min_degree` inside the entity's mirror (`spell_book.gd:125`). Authored values are 2–4 across the 13 defs in `attack/spell/defs/`; unset defs default to 1.
+- Gate 2: `SpellBook._node_meets_source_requirements` checks `navigator.get_degree(source) >= min_degree` inside the entity's mirror (`spell_book.gd:133-134`). Authored values are 2–4 across the 13 defs in `attack/spell/defs/`; unset defs default to 1.
 - Gate 3: launch refuses when `mana` is below the cost (`systems/battle_system.gd:637`). Gate 4: `HopRangeFinder` reads `cast_range_hops` (`attack/range_finder/hop_range_finder.gd:46`). Eleven defs are hop-ranged; `cyclone` and `healing_beam` are euclidean.
 - Mana, the one per-entity gate, is where caster identity choices concentrate. The other three gates carry the topology.
 

@@ -19,7 +19,7 @@ tags: [stats, balance, int, spells, formulas, design]
 
 # ADR 0038 — INT is the runaway attribute, and every transfer out of it is thinned
 
-> **Backfilled 2026-09-30** from [D-18](legacy-mvp-decisions.md#d-18--int-is-the-runaway-attribute-utility-compresses-damage-does-not) (2026-07-21). Two of its three legs have since been revised by owner calls, so this record states the call as it stands and is dated to the latest of them. It is a balance call, and it is recorded because the owner picked it in the #1224 sweep (*"D-18 + D-33 (balance)"*, owner, 2026-09-30).
+> **Backfilled 2026-09-30** from [D-18](legacy-mvp-decisions.md#d-18--int-is-the-runaway-attribute-utility-compresses-damage-does-not) (2026-07-21). Two of its three legs have since been revised by owner calls, so this record states the call as it stands and is dated to the latest of them. It is a balance call, and it is recorded because the owner picked it in the #1224 sweep (*"D-18 + D-33 (balance)"*, owner, 2026-09-30, recorded on #1234).
 
 ## Context
 

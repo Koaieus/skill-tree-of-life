@@ -45,7 +45,7 @@ Compiled 2026-09-29. An empty cell means no ADR or domain doc holds that decisio
 | D-31 | Node combat pool ratchets like entity pool | | [stat-knobs-and-bins.md](../domain/stat-knobs-and-bins.md) | built #346; mechanism later replaced by `PoolStatDef` |
 | D-32 | Spell has one absolute number | | [spell-propagation.md](../domain/spell-propagation.md) | built; amended same day re `FlatAddProgression` |
 | D-33 | Spell power gated by four conditions | [0039](0039-spell-power-is-gated-by-four-conditions-not-by-damage-tuning.md) | [spell-propagation.md](../domain/spell-propagation.md) | ladder values are #278's |
-| D-34 | Mana is INT-bought sustain tempo | | | verified, no code change |
+| D-34 | Mana is INT-bought sustain tempo | [0039](0039-spell-power-is-gated-by-four-conditions-not-by-damage-tuning.md) | | verified, no code change |
 
 ---
 

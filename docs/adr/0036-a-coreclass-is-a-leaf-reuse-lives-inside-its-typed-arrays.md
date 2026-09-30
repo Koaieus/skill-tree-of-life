@@ -20,7 +20,7 @@ tags: [entity, core-class, stats, loot, authoring, architecture]
 
 # ADR 0036 — A CoreClass is a leaf; reuse lives inside its typed arrays
 
-> **Backfilled 2026-09-30** from [D-27](legacy-mvp-decisions.md#d-27--a-coreclass-is-a-leaf-reuse-lives-inside-its-typed-arrays), dated to its third and final resolution. The owner picked it for a record in the #1224 design-doc sweep: *"for the most important decisions some ADR might be warranted"* (owner, 2026-09-30).
+> **Backfilled 2026-09-30** from [D-27](legacy-mvp-decisions.md#d-27--a-coreclass-is-a-leaf-reuse-lives-inside-its-typed-arrays), dated to its third and final resolution. The owner picked it for a record in the #1224 design-doc sweep: *"for the most important decisions some ADR might be warranted"* (owner, 2026-09-30, recorded on #1232).
 
 ## Context
 

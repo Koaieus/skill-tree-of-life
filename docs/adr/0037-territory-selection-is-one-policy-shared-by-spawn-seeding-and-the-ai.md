@@ -20,7 +20,7 @@ tags: [ai, procgen, allocation, territory, architecture]
 
 # ADR 0037 — Territory selection is one policy: spawn seeding and the AI share it
 
-> **Backfilled 2026-09-30** from [D-24](legacy-mvp-decisions.md#d-24--territory-selection-is-one-policy-spawn-seeding-and-the-ai-share-it), dated to its resolution. The owner picked it for a record in the #1224 sweep (*"D-24 one territory policy"*, confirmed *"ADR"*, owner, 2026-09-30).
+> **Backfilled 2026-09-30** from [D-24](legacy-mvp-decisions.md#d-24--territory-selection-is-one-policy-spawn-seeding-and-the-ai-share-it), dated to its resolution. The owner picked it for a record in the #1224 sweep (*"D-24 one territory policy"*, confirmed *"ADR"*, owner, 2026-09-30, recorded on #1233).
 
 ## Context
 
