@@ -180,6 +180,16 @@ node, and so gain any power at all. *Tension, unresolved:* this reopens
 identity ambiguous (Open Questions 2 and 6); the reserved "deeper twist"
 under *The betrayal(s)* is the nearest existing door.
 
+Owner, 2026-09-30: the Lord of Edge being somehow related to the spirit
+of cursing (Cuss, `curse_aspect`) "sounds not too far fetched". Agent
+notes on why it holds: a curse *binds* its target, which makes it an edge
+laid on someone against their will. It already travels along edges (it
+spills onto surviving neighbours when its host dies), and the Fairy, the
+Lord's herald, casts the game's founding curse. Cursing is also the
+edgiest speech there is. Open: the kind of kinship (child, aspect, or the
+Lord's own voice), alongside the Fairy-as-family question in
+[aspect_personas.md](aspect_personas.md).
+
 Agent note (not an owner call): in Hesiod the primordial beside Chaos and
 Gaia is **Eros** — the binding force that pairs things up. Connection as a
 first principle, older than the Titans, is exactly the Lord of Edge's

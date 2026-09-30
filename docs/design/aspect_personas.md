@@ -66,6 +66,8 @@ Owner, 2026-09-30, settled:
   and brings up old entries. Owner: a fun basis for story progression
   with real choices.
 - **Maybe family to the Fairy**, who is also known to hold grudges.
+- **Maybe kin to the Lord of Edge** too (owner, 2026-09-30: "not too far
+  fetched"). See [lore.md](lore.md), *The pantheon*.
 
 ### Explosive (`explosive_aspect`)
 
