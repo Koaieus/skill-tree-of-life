@@ -164,6 +164,14 @@ func test_stake_stays_armed_after_a_denial() -> void:
 			"a denied click doesn't disarm Stake — right-click/Esc cancels explicitly")
 
 
+func test_stake_disarms_after_a_successful_stake() -> void:
+	_ctl.arm_manage_verb(PlayerInputController.ManageVerb.STAKE)
+	_nodes[1].left_clicked.emit(_nodes[1])
+	assert_eq(_nodes[1].stake_level, 2, "precondition: the stake landed")
+	assert_eq(_ctl.manage_arm(), PlayerInputController.ManageVerb.NONE,
+			"Stake is a one-off — a landed stake drops the arm")
+
+
 # ── Extract ──────────────────────────────────────────────────────────────
 
 func test_arming_extract_then_clicking_staked_node_extracts() -> void:

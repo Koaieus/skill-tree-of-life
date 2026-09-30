@@ -128,6 +128,7 @@ var _gate_pending_strand: Array[SkillNode] = []
 ## first because it nests inside an already-armed attack plan and must pop
 ## before the plan does. Populated in _ready().
 var _armed_modes: Array[ArmedMode] = []
+var _manage_mode: ManageArmedMode
 
 ## Colour for the viewport armed-mode glow (#412), carried so the overlay is a
 ## pure consumer with no knowledge of the stack. Fires on every *tint*
@@ -217,12 +218,13 @@ func _ready() -> void:
 	Events.skill_node_unhovered.connect(_on_skill_node_unhovered)
 	Events.node_action_denied.connect(_on_node_action_denied)
 
+	_manage_mode = ManageArmedMode.new(self)
 	_armed_modes = [
 		MassActionArmedMode.new(self),
 		TempUpgradeArmedMode.new(self),
 		AttackPlanArmedMode.new(self),
 		CoreMoveArmedMode.new(self),
-		ManageArmedMode.new(self),
+		_manage_mode,
 	]
 
 	if battle_system != null:
@@ -435,7 +437,13 @@ func request_reload() -> bool:
 ## through the same applier, and another player's refusal is not this player's
 ## denial shake.
 func _on_command_applied(command: Command, success: bool) -> void:
-	if success or player == null or command.entity_id != player.entity_id:
+	if player == null or command.entity_id != player.entity_id:
+		return
+	# Stake is a one-off: players rarely stake twice in a row, so a landed stake
+	# drops the arm. A denial keeps it armed so the click can be retried.
+	if success and command is StakeCommand and _manage_arm == ManageVerb.STAKE:
+		_manage_mode.pop()
+	if success:
 		return
 	var node := graph.get_by_stable_id(command.node_id) \
 			if command is NodeCommand and graph != null else null
