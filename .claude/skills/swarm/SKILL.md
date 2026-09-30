@@ -23,15 +23,16 @@ goes by explicit path (a new script's generated `.uid` included), the red
 test first when a claim is testable; writes
 only owned paths and reports a need outside the fence instead of reaching;
 `@export`s an open number as a knob and lists it as tentative; calls
-`advisor` at the plan, once when stuck (no hypothesis left, not a
-count), and at done when there is no Sage; reports `PULL` on a fork or wall; retires on a blown
-budget by `wip(...)` commit + successor `gh issue comment` + report; never
+`advisor` at the plan, once when stuck (out of hypotheses, not a count of
+failures), and at done when there is no Sage; reports `PULL` on a fork or
+a wall; retires on a blown budget by `wip(...)` commit + successor `gh issue comment` + report; never
 `Closes`, rebases, lands, asks the user, or expands scope.
 
 Its report is six lines — `BRANCH:` (your merge handle) / `FILES:` /
 `TESTS:` / `DID:` / `COST:` (ctx · tool calls · advisor/Sage exchanges) /
 `NOTES:` (`none`, or one line each: blocker, deviation, stale spec,
-out-of-scope, tentative knob, `poison: <path>:<line> — <wrong> → <right>`;
+out-of-scope, tentative knob, `poison: <path>:<line> — <wrong> → <right>`,
+`PULL — <fork>`;
 anything a future worker needs is also on the issue). With Sage, the
 report's `NOTES:` carries the review round and the drone is spent.
 
@@ -108,8 +109,8 @@ questions to resolve by reading.
 - **You review and you land.** `git diff master...<branch> --stat` for the
   fence on every unit; the full diff only where your cross-unit overview
   is what's being checked — a seam another unit touches, anything a player
-  would notice — since the drone's done-call has reviewed the rest. One `advisor` call per wave for the judgement, not
-  per unit. `mise run land` from your own context — never resume a
+  would notice — since the drone's done-call has reviewed the rest. One
+  `advisor` call per wave for the judgement, not per unit. `mise run land` from your own context — never resume a
   deep-context drone to rebase, merge or land.
 - **Sage is opt-in, and never lands.** At four or more concurrent drones,
   or an absent owner, spawn `Agent(subagent_type: "sage", name: "Sage")`
@@ -160,11 +161,11 @@ the owner, never inherited into a brief.
    comments leave open, or simply >150 lines of expected diff; `sonnet` only
    for small or dumb units — ≤150 lines with a named test that already
    exists, or mechanical churn where rigor buys nothing; `haiku` only for
-   pure mechanical churn with nothing to decide. Priced per landed line, opus is the
-   cheaper tier on medium units — it finishes in a third of the calls and
-   context — so the default is not the cheap-looking model. A Sonnet past
-   three advisor/Sage exchanges is mis-tiered by definition — the ledger
-   records it and the next brief is tiered from that.
+   pure mechanical churn with nothing to decide. Priced per landed line, opus
+   is the cheaper tier on medium units, so the default is not the
+   cheap-looking model. A Sonnet that spent its stuck call, reported `PULL`
+   on a non-fork, or passed three Sage exchanges is logged as mis-tiered,
+   and the next brief is tiered from that.
 4. **Shared contracts land on master first.** A seam every unit overrides,
    a registry every unit appends to, a `.tres` every unit touches: commit
    it in the main checkout, test it, then spawn — drones branch from the tip.
@@ -257,7 +258,7 @@ Per report, in order:
 
 ```bash
 git diff master...<branch> --stat        # 1. fence — every tier (+ agent-cost --branch, same call)
-git diff master...<branch>               # 2. content — opus tier / player-visible only
+git diff master...<branch>               # 2. content — shared seam / player-visible only
 ```
 
 1. **Fence.** Strayed outside its paths? Understand why before reading
@@ -277,9 +278,10 @@ Then branch, most frequent first:
   resume-and-re-review.
 - **Recoverable** — `SendMessage` the drone by name with a sharp diagnosis
   and the new target; its context is still hot.
-- **Stuck** — the same blocker twice after a resume, or a real fork: move the
-  issue to `in-review` with a one-line comment naming the fork, and serve
-  the rest of the swarm. A blocker reported on a *first* report is the
+- **Pulled** — a `PULL` report or a real fork you found yourself: the
+  `PULL` handling under Roles, then serve the rest of the swarm.
+- **Stuck** — the same blocker twice after a resume, no fork: move the issue
+  to `in-review` with a one-line comment naming the blocker. A blocker reported on a *first* report is the
   drone doing the right thing; the blocker is the signal.
 
 **A drone that died** (spend limit, kill): check its worktree before writing

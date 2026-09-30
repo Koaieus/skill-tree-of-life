@@ -79,25 +79,32 @@ you think. Past 350k (a few fat turns straight after a compaction) a hook
 denies everything except `git add/commit/status/diff/log/rev-parse`, `gh issue
 comment` and `SendMessage` — exactly this path.
 
-**Your advisor has three moments, no others.** **Plan**: after orienting,
-before the first edit. **Stuck**, at most once (below). **Done**: before your
-report, only when your brief says there is no Sage. Each `advisor` call
-re-sends your whole transcript at Fable rates; a named Sage or `main` is
-messaged instead, then **end your turn and wait**.
-
-**Stuck is a state, not a count.** Before each retry, say in one line what
-you now believe is wrong and what this attempt will show. If you can't, or
-it is the belief the last attempt already disproved, you are throwing things
-at a wall: write out what you are trying to make true, the exact error, what
-you tried and where your understanding ran out, then ask your advisor. A
-typo, a wrong path or a missing import is not stuck — its cause was known
-the moment you saw it. Stuck again after that answer, or told to stop:
-commit the partial (red test included) and report `NOTES: PULL — <the fork
-or wall, one line>`.
-
 **A stop instruction outranks your plan.** No new long command, no finishing
 the rebase or the test run: commit, report the unfinished thing as
 unfinished.
+
+## Your advisor
+
+Your brief names it: the `advisor` tool, `Sage` or `main`. The tool gets
+three moments and no others — each call re-sends your whole transcript at
+Fable rates:
+
+- **Plan** — after orienting, before your first edit. Write your plan in a
+  few lines (what changes where, the test that proves it), then call.
+- **Stuck** — at most once. Stuck is a state, not a count: before each
+  retry, say in one line what you now believe is wrong and what this attempt
+  will show. If you can't, or the last attempt already disproved that
+  belief, you are throwing things at a wall — write out what you are trying
+  to make true, the exact error, what you tried and where your
+  understanding ran out, then call. A typo, a wrong path or a missing
+  import is not stuck: its cause was known the moment you saw it.
+- **Done** — only when your brief says no Sage: at final green, everything
+  committed, print `git -C <worktree> diff master...HEAD` so the advisor
+  sees the change, then call. Fix what it finds, then report.
+
+A named Sage or `main` is messaged instead, then **end your turn and
+wait**. Stuck again after the answer, or told to stop: commit the partial
+(red test included) and report `NOTES: PULL — <the fork or wall>`.
 
 ## Fence, spec, tests
 
@@ -134,10 +141,9 @@ unfinished.
   worktrees — use `git show HEAD:<path>` for a baseline).
 - `Closes #n` in a commit (landing adds it); rebase, merge, `mise run land`,
   touching `master`, or the parent hub's status/labels.
-- The `advisor` tool unless your brief names it as your advisor, and then
-  outside its three moments. Never as a substitute for a named Sage/`main`.
-  Asking the user (the run is unattended —
-  ambiguity goes to your advisor).
+- The `advisor` tool unless your brief names it, or outside its three
+  moments; never as a substitute for a named Sage/`main`.
+- Asking the user — the run is unattended; ambiguity goes to your advisor.
 - Subagents for implementation; only Explore leaves for search.
 - Scope expansion. Adjacent cleanup is a `NOTES:` line, not a diff.
 
@@ -180,8 +186,10 @@ to `main`, which decides between resuming you and a fresh drone.
 
 ## For the advisor, when this drone calls you
 
-Answer in one message, one of two shapes. **The straight route** — the plan
-corrected, or the one thing the drone is missing. Or **stop**: the unit hits
-an unresolved design fork, or cannot be done inside its fence; tell the
-drone to commit its partial and report `PULL`, naming the fork. Never a list
-of things to try — a stuck drone given options throws those at the wall too.
+Answer in one message. At the plan or when stuck: **the straight route** —
+the plan corrected, or the one thing the drone is missing. At done: the
+findings it must fix before reporting, or "clean". At any moment, **stop**
+when the unit hits an unresolved design fork or cannot be done inside its
+fence: tell the drone to commit its partial and report `PULL`, naming the
+fork. Never a list of things to try — a stuck drone given options throws
+those at the wall too.

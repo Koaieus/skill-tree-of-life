@@ -116,7 +116,9 @@ disk at `scratchpad/land/land-<n>.log` (#920), so filling the ledger is a
    typo or a wrong path is not stuck. **Done**, only when no Sage runs: the
    advisor reviews the diff instead of the lead reading it. A call costs
    ~5× the drone's context in sonnet units, which is why the plan call is
-   the default and the other two are conditional. Its answer is one message:
+   the default and the other two are conditional. A Sonnet that spent its
+   stuck call, or `PULL`ed on something that was not a fork, is logged as a
+   mis-tier. Its answer is one message:
    the straight route, or "stop — report `PULL`" when the unit hits an
    unresolved fork or a wall; a `PULL` takes the unit off the run and back
    to `Needs design`, and what it blocks is not dispatched. The advisor sees
@@ -188,8 +190,9 @@ disk at `scratchpad/land/land-<n>.log` (#920), so filling the ledger is a
     drone-contract violation, not something to summarise.
 18. **Per report: fence, content, tests — then branch.** Land it; fix a
     one-liner yourself then land; resume the drone with a sharp diagnosis;
-    or stop — `in-review` with a one-line comment naming the fork — and
-    serve the rest of the swarm.
+    pull it — a `PULL` or a fork, back to `Needs design` per law 8 (owner,
+    2026-09-30); or stop — the same blocker twice with no fork, `in-review`
+    with a one-line comment — and serve the rest of the swarm.
 19. **"Pre-existing failure" is a claim.** Check against a real `master` run
     before landing over it.
 20. **`mise run land -- <branch> [--closes <n>]` is the only way onto

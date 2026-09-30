@@ -150,8 +150,12 @@ against them.
     with no Sage) — swarm charter law 8, owner 2026-09-30, superseding the
     2026-09-15 one-call-on-the-first-loop rule. The drone agent file ends
     with a short note addressed to the advisor, which reads the drone's
-    context: straight route or "stop, report `PULL`", never a list of
-    things to try.
+    context: straight route (plan, stuck), findings or "clean" (done), or
+    "stop, report `PULL`" at any moment — never a list of things to try.
+    The advisor sees only what is in the transcript, so the done-call is
+    preceded by the drone printing its diff. Verified 2026-09-30: a test
+    drone's `advisor` quoted the agent file's last sentence verbatim, so a
+    note addressed to the advisor in the agent file reaches it.
 21. **Act on whichever arrives first — the spawn prompt or the first message
     from `main`.** Named teammates have been observed idling on a prompt and
     waiting for a mailbox brief; a drone with a brief in hand starts.
@@ -197,7 +201,7 @@ undercounted against a Sage run.
 `mise run drone-budget-guard-selftest`) enforces laws 3 (the `Read` half only)
 and 10. Everything else is wording — and the corpus below is the record of
 wording being ignored, which is why the laws with a number attached (150k,
-250k, three cycles) are phrased as imperatives with a named next action, never
+250k) are phrased as imperatives with a named next action, never
 as "consider".
 
 The hook receives `agent_type`, so rules can be scoped to `drone` specifically
