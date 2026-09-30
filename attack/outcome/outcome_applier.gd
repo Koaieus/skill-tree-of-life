@@ -50,7 +50,7 @@ class_name OutcomeApplier
 ## makes it hold by discipline again. Naming the world at the call site costs
 ## eleven lines repo-wide and buys back the guarantee.
 static func apply(outcome: AttackOutcome, world: CombatWorld,
-		clock: BeatClock = null) -> void:
+		clock: BeatClock = null, alloc: AllocationSystem = null) -> void:
 	var beat: BeatClock = clock if clock != null else BeatClock.instant_clock()
 	if outcome.schedule == null:
 		outcome.schedule = OutcomeSchedule.compile(outcome)

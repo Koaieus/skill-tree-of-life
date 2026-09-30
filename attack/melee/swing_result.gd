@@ -27,3 +27,13 @@ var hits: Array[HitInstance] = []
 ## travel together: one field, one clock, or neither.
 var clock: BladeSwingClock = null
 var obstacles: BladeObstacleField = null
+## The timed gate flips this swing's fuses landed (#1209), in time order —
+## the SAME objects as in [member AttackOutcome.hits]. Empty for an unfused
+## swing.
+var gate_flips: Array[GateFlipInstance] = []
+
+
+## The union of every fuse's stranded set — #1210's plan-time warning.
+func predicted_stranded() -> Array[SkillNode]:
+	var out: Array[SkillNode] = []
+	return out

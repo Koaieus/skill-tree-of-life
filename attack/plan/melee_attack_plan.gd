@@ -52,6 +52,85 @@ var swing_cw: bool = false: set = _set_swing_cw
 # this plan calls mirror_add / mirror_remove directly.
 var _blade_mirror: GraphMirror = null
 
+## Timed gate fuses (#1209): gate -> t, a fraction of the hot window
+## ([method hot_window_duration]) in 0..1. Plan INPUT, resolved with the swing
+## on the shadow world — never live input during the replay
+## (docs/domain/attack-timeline.md "The invariant"). Empty = unarmed. Only
+## [method fusable_gates] are admitted; an entry the selection has since
+## outgrown is dropped at resolve time, never an error.
+var _gate_fuses: Dictionary[Gate, float] = {}
+
+
+## A copy of the armed fuses, gate -> t.
+func gate_fuses() -> Dictionary[Gate, float]:
+	return _gate_fuses.duplicate()
+
+
+## [param gate]'s fuse t, or -1.0 when it has none.
+func gate_fuse(gate: Gate) -> float:
+	return _gate_fuses.get(gate, -1.0)
+
+
+## Arm [param gate] at [param t] (clamped to 0..1). A negative [param t]
+## clears it. Refuses (false) a gate [method fusable_gates] does not list.
+func set_gate_fuse(gate: Gate, t: float) -> bool:
+	if t < 0.0:
+		clear_gate_fuse(gate)
+		return true
+	if gate == null or not fusable_gates().has(gate):
+		return false
+	var clamped := clampf(t, 0.0, 1.0)
+	if _gate_fuses.get(gate, -1.0) == clamped:
+		return true
+	_gate_fuses[gate] = clamped
+	_notify_selection_changed()
+	return true
+
+
+func clear_gate_fuse(gate: Gate) -> void:
+	if _gate_fuses.erase(gate):
+		_notify_selection_changed()
+
+
+func clear_gate_fuses() -> void:
+	if _gate_fuses.is_empty():
+		return
+	_gate_fuses.clear()
+	_notify_selection_changed()
+
+
+## Arm every [method fusable_gates] entry at one [param t] — the "linked"
+## default. One invalidation, not one per gate.
+func set_all_gate_fuses(t: float) -> void:
+	var clamped := clampf(t, 0.0, 1.0)
+	var changed := false
+	for gate in fusable_gates():
+		if _gate_fuses.get(gate, -1.0) != clamped:
+			_gate_fuses[gate] = clamped
+			changed = true
+	if changed:
+		_notify_selection_changed()
+
+
+## The gates a fuse may name: open, toggleable by [member attacker], and a
+## pair of the blade's own induced edges. Sorted by the pair's stable ids so
+## the order is a function of the board, never of child order.
+func fusable_gates() -> Array[Gate]:
+	var out: Array[Gate] = []
+	if attacker == null or attacker.navigator == null or attacker.navigator.graph == null:
+		return out
+	var graph := attacker.navigator.graph
+	for pair in get_induced_edges():
+		var gate := graph.gate_between(pair[0], pair[1])
+		if gate != null and gate.is_open() and gate.can_toggle(attacker) and not out.has(gate):
+			out.append(gate)
+	return out
+
+
+## Seconds of the swing a fuse t is a fraction of.
+func hot_window_duration() -> float:
+	return SWING_DURATION
+
 
 ## The wind-up hangs off the source (#1048) — empty until one is armed.
 func windup_anchors() -> Array[SkillNode]:
