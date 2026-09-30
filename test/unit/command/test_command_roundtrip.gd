@@ -133,11 +133,12 @@ func _every_command() -> Array[Command]:
 		EndTurnCommand.new(1),
 		PickLootCommand.new(1, 5, 0),
 		ToggleTempUpgradeCommand.new(1, 2, &"spike_ring"),
+		ToggleGatesCommand.new(1, node_ids),
 	]
 
 
-func test_the_vocabulary_is_ten_commands() -> void:
-	assert_eq(_every_command().size(), 10)
+func test_the_vocabulary_is_eleven_commands() -> void:
+	assert_eq(_every_command().size(), 11)
 
 
 ## The load-bearing invariant: a command NEVER holds a SkillNode or Entity
