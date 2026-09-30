@@ -55,9 +55,6 @@ Many concepts seem well rounded, lore and meta-game all set up, rules of engagem
 Actual numeric value tweaking for stats and stat modifiers and offensive/defensive parameters and other battle mechanics, has yet to start.
 For most things we have no specifics in mind, more of a "ball park" estimate; a real battle example including stats and rolls in actual numbers has yet to be fleshed out. Some anchoring interactions would need to be written out still where we could base some numbers on, and for the most part beyond that we just let the game mechanic do its thing, let people construct broken builds, we're here for it.
 
-#### Godot: 
-The Godot project is a playing field somewhat resembling a try at implementing an early version, but also mostly just a tour around the possibilities Godot offers. Take it the entire thing will be rebuilt from scratch by the time the design phase is done.
-
 ---
 
 ## 3. The Playing Field — The Supergraph
@@ -276,24 +273,24 @@ You boot what looks like a normal Zelda-ish adventure game. You kill cute, harml
 > *The "up for grabs" list. Park decisions here until they're resolved, then move the answer into the relevant section above and strike this entry.*
 
 **The big one — the battle formula (see §11a below):**
-- [ ] How do offensive vs. defensive stats resolve into damage (or no damage)? What is the actual function — and especially, how killable should a baseline node be? See the dedicated plan below.
+- How do offensive vs. defensive stats resolve into damage (or no damage)? What is the actual function — and especially, how killable should a baseline node be? See the dedicated plan below.
 
 **Combat resolution & scaling:**
-- [ ] **Scaling shape** — linear baseline vs. steeper (quadratic/exponential) curves; revisit if linear flattens build diversity. (combat_system.md Q11)
+- **Scaling shape** — linear baseline vs. steeper (quadratic/exponential) curves; revisit if linear flattens build diversity. (combat_system.md Q11)
 - [x] **Defense model** — *resolved:* durability is the **CON (White)** attribute, decoupled from degree entirely. Degree-defense is cut; degree is offense-only (cast tier). Calibrate the CON→HP curve in Balance phase. (combat §"Degree → Offense")
-- [ ] **Magic friendly-fire & reach** — lean: friendly-fire ON for propagating spells / OFF for targeted, rare opt-out; reach grows only via ultra-rare `bonus_hop_count`. Confirm during magic balancing (balanced LAST). (combat Q23–24)
-- [ ] **Small-blade melee feel** — joint floppiness for ≤5-node acyclic blades; floppiness-as-attack-toggle; leaf-pivot swings. (combat Q26 — next design session)
-- [ ] **Proliferation taint** — confirm intrinsic owner-independent non-extractable taint as the loop-break (recommended yes). (combat Q25)
+- **Magic friendly-fire & reach** — lean: friendly-fire ON for propagating spells / OFF for targeted, rare opt-out; reach grows only via ultra-rare `bonus_hop_count`. Confirm during magic balancing (balanced LAST). (combat Q23–24)
+- **Small-blade melee feel** — joint floppiness for ≤5-node acyclic blades; floppiness-as-attack-toggle; leaf-pivot swings. (combat Q26 — next design session)
+- **Proliferation taint** — confirm intrinsic owner-independent non-extractable taint as the loop-break (recommended yes). (combat Q25)
 - [x] **Action economy** — *resolved:* **2 `action_points` per turn** by default (second action finishes the first's dent before the owner-turn `node_health` reset). Ranged stays one volley/turn; the second action can be a different mode. More-than-2 only via ultra-rare modifiers. (GDD §5 / combat Q20)
-- [ ] **Triangle backstop** — emergent `resist_*` only, or a small hardcoded `type_advantage` so the triangle isn't absent early-game? (combat Q3 / stat Q8)
-- [ ] **Magic propagation rules** — owned nodes only vs. any traversable edge; hop-limit; terminal vs. AoE; Relay. Blocks several other systems. (combat Q1)
-- [ ] **Edge re-introduction** — what restores severed bridges so nothing is left permanently unreachable (Bleeding Edge invariant)? Relay is TBD. (combat Q2)
+- **Triangle backstop** — emergent `resist_*` only, or a small hardcoded `type_advantage` so the triangle isn't absent early-game? (combat Q3 / stat Q8)
+- **Magic propagation rules** — owned nodes only vs. any traversable edge; hop-limit; terminal vs. AoE; Relay. Blocks several other systems. (combat Q1)
+- **Edge re-introduction** — what restores severed bridges so nothing is left permanently unreachable (Bleeding Edge invariant)? Relay is TBD. (combat Q2)
 
 **Worldbuilding / structure:**
-- [ ] **Tether terminology & visual** — Tether / Conduit / edge-anchor; how an "edge seen from inside a vertex" looks. (lore Q10)
-- [ ] **Metagame Breakout vs. the Apex** — same summit reached two ways, or two distinct escapes? (lore Q9, metagame Q8)
-- [ ] **Self-loop origin** — found field property, Edgelord power, Tech Seed fruit, or Blue unlock? (combat Q12)
-- [ ] **Re-edging influence** — does the player ever get a say in which edges restore the new starter node? (combat Q16)
+- **Tether terminology & visual** — Tether / Conduit / edge-anchor; how an "edge seen from inside a vertex" looks. (lore Q10)
+- **Metagame Breakout vs. the Apex** — same summit reached two ways, or two distinct escapes? (lore Q9, metagame Q8)
+- **Self-loop origin** — found field property, Edgelord power, Tech Seed fruit, or Blue unlock? (combat Q12)
+- **Re-edging influence** — does the player ever get a say in which edges restore the new starter node? (combat Q16)
 
 > **How to use this section:** when you hit a design blocker in Godot, write it here. When a playtest raises a question, write it here. Review this list before each design session. Each detail doc also keeps its own Open Questions at the bottom — this list only surfaces the cross-cutting ones.
 
@@ -320,55 +317,31 @@ Open sub-decisions feeding this: scaling shape (linear vs. steeper) and armor pe
 
 ---
 
-## 12. Roadmap & Feature Status
+## 12. Roadmap
 
-> *A flat checklist of features — use this as a lightweight backlog. Note: the Godot project will be rebuilt from scratch once design is locked, so early milestones are design deliverables, not code.*
+> *The owner's tiers, in order (2026-09-30). The GitHub milestones named under each hold the scope and what has shipped — this section holds only the ordering.*
 
-### Milestone 0 — Design lock-in (current phase)
-- [ ] Resolve the battle formula via the §11a worked-example plan.
-- [ ] Decide the triangle backstop. *(Action economy resolved: 2 `action_points`/turn — §5.)*
-- [ ] Settle the defense model (degree-based vs. alternatives).
-- [ ] Finalize magic propagation rules (unblocks Relay, spells, Bleeding Edge).
+**[NOW DESIGNING, SOON IMPLEMENTING]** milestone 23 + some random issues / QoL
+- Milestone: *Status effects & spell automata*
 
-### Milestone 1 — First playable loop (rebuild)
-- [ ] v2 stat system (`StatDefinition` / `StatRegistry` / `RuntimeStat`).
-- [ ] Allocation/deallocation on a generated graph with SP economy + Reservation.
-- [ ] One attack type end-to-end (ranged leaf volley is the simplest) against per-node HP.
-- [ ] Core movement + aura projection.
-- [ ] A single hand-built level with Tethers, a triggered guardian, and a Breakout that compresses to one node.
+**[AFTER 23]** balancing, multiplayer playtesting
+- Milestone: *Balance & MP playtest*
 
-### Milestone 2 — Combat depth & classes
-- [ ] All three attack types (ranged volley, magic, melee phantom blade).
-- [ ] The three starter classes (Allround, Predator, Bulwark).
-- [ ] Loot resolution (STEAL / PROLIFERATE / Relic Node).
-- [ ] Islands, cut-vertex snipes, dismemberment.
+**[FUTURE]** single player story mode, meta game + progression, saving/loading, roguelite-ish play mode
+- Story and meta progression: milestone *Metagame*
+- Saving/loading: issue #23, in milestone *Cross-cutting / infra*
+- The roguelite-ish play mode has no milestone yet
 
-### Milestone 3 — The fractal & metagame
-- [ ] Procedural field generation with themes.
-- [ ] Metagame hub + meta skill tree with commit-on-completion.
-- [ ] Apex Entity (Ophanim ring) as run capstone.
-- [ ] Mid/late classes (Ninja, Hive, Halo, Serpent), addons, Tech Seeds.
-
-### Icebox
-- [ ] Self-loops as a manufacturable mechanic.
-- [ ] The Edgelord class and Bleeding Edge.
-- [ ] The metagame Breakout endgame.
-- [ ] Act 0 adventure-game framing & the Fairy.
+**[BACKLOG]** occasional pickup of issue, not sure
+- Milestones: *Content depth*, *Procgen v3: stamping & authoring tools*, *Procgen v5: content & distribution*, *VFX & juice*, *SkillNode-visuals-v2*, *AI v2*, *Audio*, *Onboarding & accessibility*, *Multiplayer*, *Crits*, *Cross-cutting / infra*
+- Unscheduled ideas, no milestone:
+  - Self-loops as a manufacturable mechanic.
+  - The Edgelord class and Bleeding Edge.
+  - The metagame Breakout endgame.
+  - Act 0 adventure-game framing & the Fairy.
 
 ---
 
 ## Appendix — Design Doc Index
 
-| Doc | What it covers |
-|-----|---------------|
-| `design/lore.md` | Narrative, Acts, the Fairy, Graph Theology, the Field/Tethers/Breakout, the Fractal, tone, visual language |
-| `design/first_session_walkthrough.md` | Spoiler-free, second-person UX walkthrough — boot → first cut-vertex snipe; calls out funny/questionable beats |
-| `design/combat_system.md` | Damage pipeline (//10 spine), six-color triangle, ranged/magic/melee (phantom blade), degree → offense, self-loops, single-phase turn (intent by input channel), islands, Breakout, loot/proliferation |
-| `design/combat_worked_examples.md` | 3 worked fights in real numbers; the tempo axiom; the defense-function decision (battle-formula handoff) |
-| `design/stat_system.md` | v2 stat architecture, `StatDefinition`, modifier operators, canonical Stat Vocabulary |
-| `design/entity_stat_board_prototype.md` | Prototype stat values, SP accounting, damage-formula sketch, per-class stat variations |
-| `design/core_classes.md` | Core-class design intent — shipped (Ninja, Serpent), issue-backed (Halo) and idea-only classes, each labelled |
-| `design/metagame.md` | Hub between runs, meta skill tree, commit-on-completion, The Way Out |
-| `design/skill_node_addons.md` | Node addons, node specializations, Tech Seeds |
-| `design/spells.md` | Spell catalogue — identity and propagation for all Blue (INT/magic) spells |
-| `design/index.md` | Doc map + reading order |
+See [`design/index.md`](design/index.md) for the design doc map and reading order.
