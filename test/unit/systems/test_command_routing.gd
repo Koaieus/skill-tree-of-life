@@ -241,7 +241,7 @@ func _arm_melee_with_clamp() -> void:
 	_player.stat_board.blade_size.base_value = 3.0
 	_alloc.force_allocate(_player, _n("B"))
 	_alloc.force_allocate(_player, _n("C"))
-	_battle.request_attack_mode(BattleSystem.AttackMode.MELEE)
+	_ctl.arm_attack(BattleSystem.AttackMode.MELEE)
 	var plan := _battle.attack_plan as MeleeAttackPlan
 	plan.handle_left_click(_n("A"))
 	plan.handle_left_click(_n("B"))

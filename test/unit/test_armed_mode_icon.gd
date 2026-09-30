@@ -127,7 +127,7 @@ func test_nothing_armed_has_no_badge() -> void:
 func test_arming_plain_allocate_still_has_no_badge() -> void:
 	# Decision 3: badge present ⇔ the click is modal. ALLOCATE is deliberately
 	# not an ArmedMode, and that is the whole rule the player learns for free.
-	_ctl.arm_manage_verb(PlayerInputController.ManageVerb.ALLOCATE)
+	_ctl.arm_verb(PlayerInputController.ManageVerb.ALLOCATE)
 	assert_null(_ctl.get_armed_icon(),
 			"Allocate must never get a badge — it is the unmodal default")
 
@@ -257,13 +257,13 @@ func test_ranged_and_magic_are_untouched_by_the_pivot_split() -> void:
 # --- 3. the two walks disagree, on purpose -----------------------------------
 
 func test_clamp_over_melee_badges_the_clamp_while_the_glow_stays_red() -> void:
-	# The headline case. TempUpgrade is EARLIER in _armed_modes than AttackPlan
+	# The headline case. TempUpgrade sits ABOVE AttackPlan on the branch
 	# (it pops first), so the top-first badge walk finds it and the base-first
 	# tint walk does not. Both statements are true at once: the border says
 	# "you are wielding Melee", the badge says "this click places a clamp".
 	_ctl.on_attack_mode_requested(BattleSystem.AttackMode.MELEE)
 	_ctl.arm_temp_upgrade(_catalog.kinds[0])
-	assert_true(_ctl._temp_upgrade_arm != null,
+	assert_true(_ctl.temp_upgrade_arm() != null,
 			"fixture check: the temp upgrade should be armed on top")
 
 	assert_eq(_ctl.get_armed_icon(), _icon("addon_clamp"),
@@ -322,7 +322,7 @@ func test_popping_the_clamp_restores_the_melee_badge() -> void:
 	_ctl.arm_temp_upgrade(_catalog.kinds[0])
 
 	watch_signals(_ctl)
-	assert_true(_ctl._pop_armed_mode(), "the temp upgrade is the top level")
+	assert_true(_ctl.pop_armed_level(), "the temp upgrade is the top level")
 
 	assert_eq(_ctl.get_armed_icon(), _icon("armed_melee_hilt"),
 			"a level with no icon falls through — it never blanks the badge")
@@ -342,12 +342,12 @@ func test_each_manage_verb_badges_its_own_icon_and_colour() -> void:
 				[_icon("armed_extract"), _PALETTE.color_for(&"extract")],
 	}
 	for verb in expected:
-		_ctl.arm_manage_verb(verb)
-		assert_true(_ctl._has_armed_mode(),
+		_ctl.arm_verb(verb)
+		assert_true(_ctl.has_armed_level(),
 				"fixture check: verb %s should actually be armed" % verb)
 		assert_eq(_ctl.get_armed_icon(), expected[verb][0], "icon for verb %s" % verb)
 		assert_eq(_ctl.get_armed_icon_tint(), expected[verb][1], "tint for verb %s" % verb)
-		_ctl.arm_manage_verb(PlayerInputController.ManageVerb.NONE)
+		_ctl.arm_verb(PlayerInputController.ManageVerb.NONE)
 
 	assert_null(_ctl.get_armed_icon(), "NONE leaves nothing armed and no badge")
 
@@ -364,7 +364,7 @@ func test_stake_and_extract_are_mirrored_art_told_apart_by_colour() -> void:
 
 func test_core_move_targeting_badges_the_move_icon() -> void:
 	_ctl.enter_core_move_targeting()
-	assert_true(_ctl._has_armed_mode(), "fixture check: core-move should be armed")
+	assert_true(_ctl.has_armed_level(), "fixture check: core-move should be armed")
 	assert_eq(_ctl.get_armed_icon(), _icon("armed_move_core"))
 	assert_eq(_ctl.get_armed_icon_tint(), _PALETTE.color_for(&"move_core"))
 	assert_eq(_ctl.get_armed_tint().a, 0.0,
@@ -388,7 +388,7 @@ func test_a_pending_mass_action_has_no_badge() -> void:
 # --- 9. the structural guard -------------------------------------------------
 
 func test_every_level_with_an_icon_also_names_a_colour() -> void:
-	# A loop over `_armed_modes` rather than a list of today's nine states, so a
+	# A loop over the armed branch rather than a list of today's nine states, so a
 	# future TENTH armed mode cannot ship a white-modulated badge by omission.
 	# Each level is armed in turn via its own real entry point.
 	var arms: Array[Callable] = [
@@ -401,17 +401,17 @@ func test_every_level_with_an_icon_also_names_a_colour() -> void:
 		func() -> void:
 			_ctl.on_attack_mode_requested(BattleSystem.AttackMode.MELEE)
 			_ctl.arm_temp_upgrade(_catalog.kinds[1]),
-		func() -> void: _ctl.arm_manage_verb(PlayerInputController.ManageVerb.DEALLOCATE),
-		func() -> void: _ctl.arm_manage_verb(PlayerInputController.ManageVerb.STAKE),
-		func() -> void: _ctl.arm_manage_verb(PlayerInputController.ManageVerb.EXTRACT),
+		func() -> void: _ctl.arm_verb(PlayerInputController.ManageVerb.DEALLOCATE),
+		func() -> void: _ctl.arm_verb(PlayerInputController.ManageVerb.STAKE),
+		func() -> void: _ctl.arm_verb(PlayerInputController.ManageVerb.EXTRACT),
 		func() -> void: _ctl.enter_core_move_targeting(),
 	]
 	for arm in arms:
 		_ctl.clear_transient_state()
 		_battle.cancel_attack()
 		arm.call()
-		for mode in _ctl._armed_modes:
-			if not mode.is_armed() or mode.icon() == null:
+		for mode in _ctl.armed_stack.branch():
+			if mode.icon() == null:
 				continue
 			assert_gt(mode.icon_tint().a, 0.0,
 					"%s returns an icon but no colour — it would modulate white"

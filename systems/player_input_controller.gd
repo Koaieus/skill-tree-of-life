@@ -1146,7 +1146,10 @@ func arm_attack(mode: BattleSystem.AttackMode) -> bool:
 		if current != null:
 			armed_stack.pop(current)
 		return false
-	if current != null and current.mode == mode:
+	# Already armed AND still holding its plan: a repeat press keeps the plan.
+	# A level whose plan the slot tore down on its own (a launch with no
+	# applier to report it) is replaced, not trusted.
+	if current != null and current.mode == mode and battle_system.attack_mode == mode:
 		return true
 	if not can_player_act():
 		return false

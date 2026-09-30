@@ -107,7 +107,7 @@ func _build_star(leaf_count: int) -> void:
 
 ## The body, bound and laid out, with `blade` leaves picked into the blade.
 func _mount_body(blade: int) -> MeleeBody:
-	_battle.request_attack_mode(BattleSystem.AttackMode.MELEE)
+	_ctl.arm_attack(BattleSystem.AttackMode.MELEE)
 	var plan := _battle.attack_plan as MeleeAttackPlan
 	assert_not_null(plan, "fixture check: melee must be the active plan")
 	plan.attacker = _player
@@ -359,7 +359,7 @@ func test_re_pressing_the_same_key_cancels_the_arm() -> void:
 func test_the_keys_are_dead_outside_melee() -> void:
 	await _build_star(3)
 	await _mount_body(2)
-	_battle.request_attack_mode(BattleSystem.AttackMode.RANGED)
+	_ctl.arm_attack(BattleSystem.AttackMode.RANGED)
 	assert_eq(_battle.attack_mode, BattleSystem.AttackMode.RANGED,
 			"fixture check: melee must actually be gone")
 

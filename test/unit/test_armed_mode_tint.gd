@@ -139,29 +139,29 @@ func test_manage_verbs_show_no_outline() -> void:
 		PlayerInputController.ManageVerb.EXTRACT,
 		PlayerInputController.ManageVerb.DEALLOCATE,
 	]:
-		_ctl.arm_manage_verb(verb)
-		assert_true(_ctl._has_armed_mode(),
+		_ctl.arm_verb(verb)
+		assert_true(_ctl.has_armed_level(),
 				"fixture check: %s should actually be armed" % verb)
 		assert_eq(_ctl.get_armed_tint().a, 0.0,
 				"Manage verb %s must contribute no glow" % verb)
-		_ctl.arm_manage_verb(PlayerInputController.ManageVerb.NONE)
+		_ctl.arm_verb(PlayerInputController.ManageVerb.NONE)
 
 
 func test_core_move_targeting_shows_no_outline() -> void:
 	_ctl.enter_core_move_targeting()
-	assert_true(_ctl._has_armed_mode(), "fixture check: core-move should be armed")
+	assert_true(_ctl.has_armed_level(), "fixture check: core-move should be armed")
 	assert_eq(_ctl.get_armed_tint().a, 0.0)
 
 
 func test_temp_upgrade_over_melee_still_reads_melee() -> void:
 	# The owner's worked example: "Melee -> Blade select mode -> place Spike
 	# Addon mode [armed] -> still just red outline (Melee)". TempUpgrade is
-	# EARLIER in _armed_modes than AttackPlan (it pops first), so a
+	# ABOVE AttackPlan on the branch (it pops first), so a
 	# topmost-wins walk would return transparent here and the glow would blink
 	# off mid-combo.
 	_ctl.on_attack_mode_requested(BattleSystem.AttackMode.MELEE)
 	_ctl.arm_temp_upgrade(_catalog.kinds[0])
-	assert_true(_ctl._temp_upgrade_arm != null,
+	assert_true(_ctl.temp_upgrade_arm() != null,
 			"fixture check: the temp upgrade should be armed on top")
 	assert_eq(_ctl.get_armed_tint(), _expected(&"strength"),
 			"the base of the stack decides, not the top")
@@ -199,26 +199,21 @@ func test_arming_a_manage_verb_emits_nothing() -> void:
 	# future per-verb colour would make this fire — which is the point of
 	# naming it armed_tint_changed rather than armed_mode_changed.
 	watch_signals(_ctl)
-	_ctl.arm_manage_verb(PlayerInputController.ManageVerb.STAKE)
+	_ctl.arm_verb(PlayerInputController.ManageVerb.STAKE)
 	assert_signal_emit_count(_ctl, "armed_tint_changed", 0)
 
 
-func test_turn_ending_clears_the_glow() -> void:
-	# can_player_act() gates AttackPlanArmedMode.is_armed(), and NO arm/disarm
-	# setter runs on the turn-end path — _emit_gate_changed has to carry it, or
-	# a glow stays burning through the AI's turn saying the player can act.
-	#
-	# Asserted through the signal rather than a final read: the player is the
-	# only entity in this fixture, so _tick_until_ready hands the turn straight
-	# back and the end state is armed again. The transient is the whole point.
+func test_the_glow_survives_your_own_end_turn() -> void:
+	# Stated behaviour change (#1222): presentation reads the armed branch
+	# unconditionally, and the stack survives your own end_turn as the plan
+	# slot does — so the glow no longer darkens off-turn.
 	_ctl.on_attack_mode_requested(BattleSystem.AttackMode.MELEE)
 	assert_eq(_ctl.get_armed_tint(), _expected(&"strength"))
 
 	watch_signals(_ctl)
 	_tm.end_turn()
-	# turn_ended must darken the glow before anyone else acts.
-	assert_signal_emitted_with_parameters(
-			_ctl, "armed_tint_changed", [Color.TRANSPARENT], 0)
+	assert_signal_emit_count(_ctl, "armed_tint_changed", 0)
+	assert_eq(_ctl.get_armed_tint(), _expected(&"strength"))
 
 
 # --- the presentation half: ArmedModeGlow owns the emissive tier -------------

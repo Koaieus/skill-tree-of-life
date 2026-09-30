@@ -102,10 +102,14 @@ func _enter(mode: ArmedMode) -> bool:
 	return true
 
 
+## Cut the branch first, THEN run the hooks top-down: an [method ArmedMode.on_popped]
+## that re-arms something (a cancel whose plan-changed listener pushes a fresh
+## level) lands on the new branch instead of being popped by this loop forever.
 func _pop_above(index: int) -> bool:
-	var any := false
-	while _branch.size() - 1 > index:
-		var mode: ArmedMode = _branch.pop_back()
-		mode.on_popped()
-		any = true
-	return any
+	if _branch.size() - 1 <= index:
+		return false
+	var popped := _branch.slice(index + 1)
+	_branch.resize(index + 1)
+	for i in range(popped.size() - 1, -1, -1):
+		(popped[i] as ArmedMode).on_popped()
+	return true

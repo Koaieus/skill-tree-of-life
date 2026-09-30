@@ -46,7 +46,7 @@ func on_popped() -> void:
 	var bs := ctl.battle_system
 	if _launched or bs == null:
 		return
-	if bs.is_attacking and not bs.is_launching:
+	if bs.is_attacking and bs.attack_mode == mode and not bs.is_launching:
 		bs.cancel_attack()
 
 

@@ -225,7 +225,7 @@ func _mount_tray() -> void:
 func arm_world() -> void:
 	if _battle.is_launching:
 		return
-	_battle.cancel_attack()
+	_input_ctl.arm_attack(BattleSystem.AttackMode.NONE)
 	# The reform slot deliberately SURVIVES a board re-arm: this restores the
 	# authored ownership on the same SkillNode instances, so the last blade is
 	# constructible again and Reset → Reform reproduces it.
@@ -249,7 +249,7 @@ func arm_world() -> void:
 	# cursor (silent, idempotent across resets) is the whole of "it's the
 	# wielder's turn".
 	_battle.turn_manager.adopt_turn(_wielder, _battle.turn_manager.turns_taken)
-	_battle.request_attack_mode(BattleSystem.AttackMode.MELEE)
+	_input_ctl.arm_attack(BattleSystem.AttackMode.MELEE)
 	_apply_blade_size()
 	_refresh_status()
 
@@ -322,17 +322,10 @@ func _on_world_gui_input(event: InputEvent) -> void:
 			_input_ctl.route_left_click(hit)
 			_world_container.accept_event()
 	elif mb.button_index == MOUSE_BUTTON_RIGHT:
-		# One level off whichever plan is armed — the same primitive right-click
-		# pops in-game, minus the armed-mode stack this panel doesn't run.
-		#
-		# Gated on `can_player_act()` because that stack is exactly where the
-		# game's own gate lives: [method AttackPlanArmedMode.is_armed] asks it
-		# before popping, so a right-click mid-swing (or mid-drain) is refused
-		# in-game and was NOT here — this panel reached past the only gate there
-		# is and popped a plan that was still being launched. `cancel_attack`
-		# and `reset_plan` both check the same thing; raw `pop()` was the hole.
-		if _battle.attack_plan != null and _input_ctl.can_player_act():
-			_battle.attack_plan.pop()
+		# One level off the armed stack — the same primitive right-click pops
+		# in-game. Gated on `can_player_act()` as in-game: a right-click
+		# mid-swing (or mid-drain) must not pop a plan still being launched.
+		if _input_ctl.can_player_act() and _input_ctl.pop_armed_level():
 			_world_container.accept_event()
 	_refresh_status()
 
@@ -582,7 +575,7 @@ func _on_plan_changed(plan: AttackPlan) -> void:
 	if not is_inside_tree():
 		return
 	_reset_board(_wielder)
-	_battle.request_attack_mode(BattleSystem.AttackMode.MELEE)
+	_input_ctl.arm_attack(BattleSystem.AttackMode.MELEE)
 	if _rearm_toggle.button_pressed:
 		_rearm_pending = true
 		# No applier means nothing to wait for — reform immediately (the shape

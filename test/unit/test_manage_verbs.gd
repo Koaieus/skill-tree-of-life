@@ -128,7 +128,7 @@ func _add_edge(a: SkillNode, b: SkillNode) -> void:
 
 func test_arming_stake_then_clicking_legal_node_stakes() -> void:
 	assert_eq(_nodes[1].stake_level, 1, "precondition: B starts at stake_level 1")
-	_ctl.arm_manage_verb(PlayerInputController.ManageVerb.STAKE)
+	_ctl.arm_verb(PlayerInputController.ManageVerb.STAKE)
 	var sp_before: int = _player.stat_board.skill_points.available()
 	var ap_before: int = _player.stat_board.action_points.available()
 	_nodes[1].left_clicked.emit(_nodes[1])
@@ -138,7 +138,7 @@ func test_arming_stake_then_clicking_legal_node_stakes() -> void:
 
 
 func test_stake_click_on_illegal_node_denies_and_spends_nothing() -> void:
-	_ctl.arm_manage_verb(PlayerInputController.ManageVerb.STAKE)
+	_ctl.arm_verb(PlayerInputController.ManageVerb.STAKE)
 	var sp_before: int = _player.stat_board.skill_points.available()
 	var ap_before: int = _player.stat_board.action_points.available()
 	_nodes[2].left_clicked.emit(_nodes[2])  # owned but 2 hops from core
@@ -151,24 +151,24 @@ func test_stake_click_on_illegal_node_denies_and_spends_nothing() -> void:
 
 
 func test_stake_click_on_unowned_node_denies_not_owned() -> void:
-	_ctl.arm_manage_verb(PlayerInputController.ManageVerb.STAKE)
+	_ctl.arm_verb(PlayerInputController.ManageVerb.STAKE)
 	_nodes[3].left_clicked.emit(_nodes[3])  # unowned
 	var reasons: Array = _denials.map(func(d: Array) -> String: return d[1])
 	assert_eq(reasons, ["stake_denied_not_owned"], "unowned node denies with not_owned reason")
 
 
 func test_stake_stays_armed_after_a_denial() -> void:
-	_ctl.arm_manage_verb(PlayerInputController.ManageVerb.STAKE)
+	_ctl.arm_verb(PlayerInputController.ManageVerb.STAKE)
 	_nodes[3].left_clicked.emit(_nodes[3])  # illegal — denied
-	assert_eq(_ctl.manage_arm(), PlayerInputController.ManageVerb.STAKE,
+	assert_true(_ctl.armed_stack.find(StakeMode) != null,
 			"a denied click doesn't disarm Stake — right-click/Esc cancels explicitly")
 
 
 func test_stake_disarms_after_a_successful_stake() -> void:
-	_ctl.arm_manage_verb(PlayerInputController.ManageVerb.STAKE)
+	_ctl.arm_verb(PlayerInputController.ManageVerb.STAKE)
 	_nodes[1].left_clicked.emit(_nodes[1])
 	assert_eq(_nodes[1].stake_level, 2, "precondition: the stake landed")
-	assert_eq(_ctl.manage_arm(), PlayerInputController.ManageVerb.NONE,
+	assert_eq(_ctl.armed_stack.branch().size(), 1,
 			"Stake is a one-off — a landed stake drops the arm")
 
 
@@ -177,7 +177,7 @@ func test_stake_disarms_after_a_successful_stake() -> void:
 func test_arming_extract_then_clicking_staked_node_extracts() -> void:
 	_alloc.stake(_nodes[1], _player)  # bring B to stake_level 2 so it's extractable
 	assert_eq(_nodes[1].stake_level, 2, "precondition: B staked to level 2")
-	_ctl.arm_manage_verb(PlayerInputController.ManageVerb.EXTRACT)
+	_ctl.arm_verb(PlayerInputController.ManageVerb.EXTRACT)
 	var dp_before: int = _player.stat_board.deallocation_points.available()
 	_nodes[1].left_clicked.emit(_nodes[1])
 	assert_eq(_nodes[1].stake_level, 1, "arm Extract + click legal node drops stake_level")
@@ -185,7 +185,7 @@ func test_arming_extract_then_clicking_staked_node_extracts() -> void:
 
 
 func test_extract_click_on_floor_node_denies_at_floor() -> void:
-	_ctl.arm_manage_verb(PlayerInputController.ManageVerb.EXTRACT)
+	_ctl.arm_verb(PlayerInputController.ManageVerb.EXTRACT)
 	_nodes[1].left_clicked.emit(_nodes[1])  # stake_level 1 — nothing to extract
 	var reasons: Array = _denials.map(func(d: Array) -> String: return d[1])
 	assert_eq(reasons, ["extract_denied_at_floor"], "a 1/1 node denies extract at the floor, not a deallocate")
@@ -194,13 +194,13 @@ func test_extract_click_on_floor_node_denies_at_floor() -> void:
 # ── Deallocate (armed click, distinct from D-hover) ─────────────────────
 
 func test_arming_deallocate_then_clicking_owned_node_deallocates() -> void:
-	_ctl.arm_manage_verb(PlayerInputController.ManageVerb.DEALLOCATE)
+	_ctl.arm_verb(PlayerInputController.ManageVerb.DEALLOCATE)
 	_nodes[2].left_clicked.emit(_nodes[2])  # owned, non-core, non-islanding
 	assert_null(_nodes[2].owned_by, "arm Deallocate + click legal node deallocates it")
 
 
 func test_armed_deallocate_click_on_core_denies() -> void:
-	_ctl.arm_manage_verb(PlayerInputController.ManageVerb.DEALLOCATE)
+	_ctl.arm_verb(PlayerInputController.ManageVerb.DEALLOCATE)
 	_nodes[0].left_clicked.emit(_nodes[0])  # core — can_deallocate rejects
 	assert_eq(_nodes[0].owned_by, _player, "the core cannot be deallocated via the armed click either")
 	var reasons: Array = _denials.map(func(d: Array) -> String: return d[1])
@@ -219,13 +219,13 @@ func test_d_hover_deallocate_still_works_unarmed() -> void:
 # ── Right-click cancels an armed Manage verb ────────────────────────────
 
 func test_right_click_cancels_armed_manage_verb() -> void:
-	_ctl.arm_manage_verb(PlayerInputController.ManageVerb.STAKE)
-	assert_eq(_ctl.manage_arm(), PlayerInputController.ManageVerb.STAKE, "precondition: Stake armed")
+	_ctl.arm_verb(PlayerInputController.ManageVerb.STAKE)
+	assert_true(_ctl.armed_stack.find(StakeMode) != null, "precondition: Stake armed")
 	var ev := InputEventMouseButton.new()
 	ev.button_index = MOUSE_BUTTON_RIGHT
 	ev.pressed = true
 	_ctl._unhandled_input(ev)
-	assert_eq(_ctl.manage_arm(), PlayerInputController.ManageVerb.NONE,
+	assert_eq(_ctl.armed_stack.branch().size(), 1,
 			"right-click pops an armed Manage verb instead of falling through to pin-toggle")
 
 
@@ -235,7 +235,7 @@ func test_right_click_still_pins_while_allocate_armed() -> void:
 	# Allocate's arm is view-affordance only (cursor + card highlight) — it
 	# must not join the pop stack, or the first right-click after clicking
 	# the Allocate card would silently disarm instead of pinning.
-	_ctl.arm_manage_verb(PlayerInputController.ManageVerb.ALLOCATE)
+	_ctl.arm_verb(PlayerInputController.ManageVerb.ALLOCATE)
 	Events.skill_node_hovered.emit(_nodes[2])
 	var pinned: Array = []
 	_ctl.node_pinned.connect(func(n: SkillNode) -> void: pinned.append(n))
@@ -247,7 +247,7 @@ func test_right_click_still_pins_while_allocate_armed() -> void:
 
 
 func test_d_hover_deallocate_still_works_while_allocate_armed() -> void:
-	_ctl.arm_manage_verb(PlayerInputController.ManageVerb.ALLOCATE)
+	_ctl.arm_verb(PlayerInputController.ManageVerb.ALLOCATE)
 	Events.skill_node_hovered.emit(_nodes[2])
 	var ev := InputEventKey.new()
 	ev.physical_keycode = KEY_D
@@ -259,7 +259,7 @@ func test_d_hover_deallocate_still_works_while_allocate_armed() -> void:
 # ── Highlight reachability tinting (HighlightController → ManagerHighlightProvider) ──
 
 func test_stake_armed_tints_legal_target_in_range_and_leaves_non_adjacent_none() -> void:
-	_ctl.arm_manage_verb(PlayerInputController.ManageVerb.STAKE)
+	_ctl.arm_verb(PlayerInputController.ManageVerb.STAKE)
 	_hl._resolve()
 	assert_eq(_hl.provider.get_node_role(_nodes[1]), HighlightProvider.HighlightRole.IN_RANGE,
 			"Stake-armed: the 1-hop legal target is tinted IN_RANGE")
@@ -269,7 +269,7 @@ func test_stake_armed_tints_legal_target_in_range_and_leaves_non_adjacent_none()
 
 func test_extract_armed_tints_only_a_staked_node() -> void:
 	_alloc.stake(_nodes[1], _player)  # B now stake_level 2, extractable
-	_ctl.arm_manage_verb(PlayerInputController.ManageVerb.EXTRACT)
+	_ctl.arm_verb(PlayerInputController.ManageVerb.EXTRACT)
 	_hl._resolve()
 	assert_eq(_hl.provider.get_node_role(_nodes[1]), HighlightProvider.HighlightRole.IN_RANGE,
 			"Extract-armed: a staked 1-hop node is tinted IN_RANGE")

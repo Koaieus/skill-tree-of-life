@@ -86,7 +86,7 @@ func before_each() -> void:
 
 
 func _launch_blade_and_settle() -> void:
-	_bs.request_attack_mode(BattleSystem.AttackMode.MELEE)
+	_pic.arm_attack(BattleSystem.AttackMode.MELEE)
 	_pic.route_left_click(_pivot)
 	_pic.route_left_click(_joint)
 	_bs.launch_attack()
@@ -96,7 +96,7 @@ func _launch_blade_and_settle() -> void:
 
 func test_ranged_armed_reloads_the_quiver_and_never_arms_melee() -> void:
 	await _launch_blade_and_settle()
-	_bs.request_attack_mode(BattleSystem.AttackMode.RANGED)
+	_pic.arm_attack(BattleSystem.AttackMode.RANGED)
 	assert_true(_pic.reload_in_hand(), "the ranged level consumes the action")
 	assert_true(_bs.attack_plan is RangedAttackPlan, "still ranged — the blade handler was not live")
 	await wait_until(func() -> bool: return not _applier.is_applying, 5.0)
@@ -106,7 +106,7 @@ func test_ranged_armed_reloads_the_quiver_and_never_arms_melee() -> void:
 
 func test_ranged_armed_with_nothing_to_reload_is_still_consumed() -> void:
 	await _launch_blade_and_settle()
-	_bs.request_attack_mode(BattleSystem.AttackMode.RANGED)
+	_pic.arm_attack(BattleSystem.AttackMode.RANGED)
 	_attacker.stat_board.action_points.set_current(0.0)
 	assert_false(_attacker.can_reload(), "fixture: no AP, no reload")
 	assert_true(_pic.reload_in_hand(), "the armed level owns the key even when it refuses")
@@ -116,7 +116,7 @@ func test_ranged_armed_with_nothing_to_reload_is_still_consumed() -> void:
 
 func test_melee_armed_reforms_the_blade_and_never_touches_the_quiver() -> void:
 	await _launch_blade_and_settle()
-	_bs.request_attack_mode(BattleSystem.AttackMode.MELEE)
+	_pic.arm_attack(BattleSystem.AttackMode.MELEE)
 	assert_true(_pic.reload_in_hand())
 	var plan := _bs.attack_plan as MeleeAttackPlan
 	assert_not_null(plan)

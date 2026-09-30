@@ -222,7 +222,7 @@ func test_right_click_with_nothing_armed_exits_attack_mode() -> void:
 	ctl.player = _attacker
 	add_child_autofree(ctl)
 
-	bs.request_attack_mode(BattleSystem.AttackMode.MELEE)
+	ctl.arm_attack(BattleSystem.AttackMode.MELEE)
 	assert_true(bs.is_attacking, "precondition: melee mode armed")
 
 	a.left_clicked.emit(a)  # arm the pivot
@@ -263,7 +263,7 @@ func test_esc_pops_one_level_same_as_right_click() -> void:
 	ctl.player = _attacker
 	add_child_autofree(ctl)
 
-	bs.request_attack_mode(BattleSystem.AttackMode.MELEE)
+	ctl.arm_attack(BattleSystem.AttackMode.MELEE)
 	a.left_clicked.emit(a)  # arm the pivot
 	assert_eq((bs.attack_plan as MeleeAttackPlan).source, a, "precondition: pivot armed")
 
@@ -303,7 +303,7 @@ func test_esc_with_nothing_armed_leaves_event_unhandled() -> void:
 	var esc := InputEventAction.new()
 	esc.action = &"ui_cancel"
 	esc.pressed = true
-	# _pop_armed_mode() returning false means _unhandled_key_input never calls
+	# pop_armed_level() returning false means _unhandled_key_input never calls
 	# set_input_as_handled() — verified by reading the method, not asserted via
 	# viewport state here (that state isn't reliably isolated per-call outside
 	# the real input pipeline). This just proves the no-op path doesn't error
@@ -334,7 +334,7 @@ func test_d_gated_while_attack_plan_armed() -> void:
 	ctl.player = _attacker
 	add_child_autofree(ctl)
 
-	bs.request_attack_mode(BattleSystem.AttackMode.MELEE)
+	ctl.arm_attack(BattleSystem.AttackMode.MELEE)
 	a.left_clicked.emit(a)  # arm the pivot
 	assert_true(bs.is_attacking, "precondition: melee mode armed")
 

@@ -221,7 +221,7 @@ func test_the_emblem_takes_the_active_heros_colour() -> void:
 func test_handover_clears_a_half_built_swing() -> void:
 	_hand_turn_to(_p1)
 	_root.battle_system.request_attack_mode(BattleSystem.AttackMode.MELEE)
-	_root.input_ctl.arm_manage_verb(PlayerInputController.ManageVerb.STAKE)
+	_root.input_ctl.arm_verb(PlayerInputController.ManageVerb.STAKE)
 	assert_true(_root.battle_system.is_attacking, "sanity: player 1 armed a swing")
 
 	_hand_turn_to(_p2)
@@ -229,7 +229,7 @@ func test_handover_clears_a_half_built_swing() -> void:
 
 	assert_false(_root.battle_system.is_attacking,
 			"player 2 must not inherit player 1's attack plan")
-	assert_eq(_root.input_ctl.manage_arm(), PlayerInputController.ManageVerb.NONE,
+	assert_eq(_root.input_ctl.armed_stack.branch().size(), 1,
 			"nor a leftover armed Manage verb")
 	assert_null(_root.input_ctl.move_targeting_source())
 	assert_true(_root.input_ctl.can_player_act(),

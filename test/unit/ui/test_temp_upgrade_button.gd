@@ -117,7 +117,7 @@ func _arm_plan(members: Array[SkillNode] = []) -> MeleeAttackPlan:
 	# Reset first: re-requesting a mode already selected keeps the live plan, so
 	# without this a second call would grow the FIRST plan rather than start over.
 	_bs.reset_plan()
-	_bs.request_attack_mode(BattleSystem.AttackMode.MELEE)
+	_pic.arm_attack(BattleSystem.AttackMode.MELEE)
 	var plan := _bs.attack_plan as MeleeAttackPlan
 	plan.handle_left_click(_pivot)
 	for m in members:
