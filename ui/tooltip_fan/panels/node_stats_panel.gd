@@ -114,7 +114,9 @@ func _add_always_shown_rows() -> void:
 		var min_damage: float = float(_bound_node.get_local_value(&"min_damage_taken"))
 		var row := _STAT_VALUE_ROW_SCENE.instantiate() as StatValueRow
 		_rows.add_child(row)
-		row.bind_parenthetical(armor_def, armor, min_damage)
+		row.bind_parenthetical(armor_def, armor, min_damage,
+				_bound_node.is_local_volatile(&"armor"),
+				_bound_node.is_local_volatile(&"min_damage_taken"))
 		_row_setters.append(row.set_progress)
 
 
@@ -124,7 +126,7 @@ func _add_scalar_row(id: StringName) -> void:
 		return
 	var row := _STAT_VALUE_ROW_SCENE.instantiate() as StatValueRow
 	_rows.add_child(row)
-	row.bind_scalar(def, float(_bound_node.get_local_value(id)))
+	row.bind_scalar(def, float(_bound_node.get_local_value(id)), _bound_node.is_local_volatile(id))
 	_row_setters.append(row.set_progress)
 
 

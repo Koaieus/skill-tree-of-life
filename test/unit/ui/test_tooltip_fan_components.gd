@@ -114,7 +114,21 @@ func test_stat_value_row_parenthetical_form() -> void:
 	add_child_autofree(row)
 	var def := _stat_def(&"armor", "Armor", Color.RED)
 	row.bind_parenthetical(def, 5.0, 3.0)
-	assert_eq(row._value_label.text, "5 (3)")
+	assert_eq(row._value_label.text + " " + row._paren_label.text, "5 (3)")
+	assert_true(row._paren_label.visible)
+
+
+func test_stat_value_row_parenthetical_colours_only_the_volatile_half() -> void:
+	var row := _STAT_VALUE_ROW_SCENE.instantiate()
+	add_child_autofree(row)
+	var def := _stat_def(&"armor", "Armor", Color.RED)
+	row.bind_parenthetical(def, 5.0, 3.0, false, true)
+	assert_false(row.value_volatile)
+	assert_true(row.paren_volatile)
+	assert_false(row._value_label.has_theme_color_override(&"font_color"))
+	assert_eq(row._paren_label.get_theme_color(&"font_color"), Emissive.VOLATILE)
+	row.bind_scalar(def, 5.0)
+	assert_false(row._paren_label.visible, "scalar form hides the bracket half")
 
 
 func test_stat_value_row_int_stat_rounds_a_scaled_fraction() -> void:

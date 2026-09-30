@@ -12,6 +12,11 @@ extends Control
 ##   [method bind_parenthetical] "5 (3)"   — a value with a bracketed second
 ##                                            reading (e.g. armor + min_damage_taken)
 ##
+## Each bind takes a `volatile` flag (the caller asked the owner —
+## [method SkillNode.is_local_volatile] / [method StatBoard.is_stat_volatile]):
+## a volatile value renders in [constant Emissive.VOLATILE]. The parenthetical
+## form colours each half on its own, so its bracket lives in `%ParenLabel`.
+##
 ## Carries a hidden [TextureRect] icon slot (`%Icon`, `visible = false`) so the
 ## icon pipeline (#210) is later a single texture assignment in one scene —
 ## nothing here needs to change to light it up.
@@ -25,27 +30,37 @@ extends Control
 @onready var _icon: TextureRect = %Icon
 @onready var _name_label: Label = %NameLabel
 @onready var _value_label: Label = %ValueLabel
+@onready var _paren_label: Label = %ParenLabel
+
+## Whether the value / the parenthetical half rendered volatile on the last
+## bind. Read-only by contract.
+var value_volatile: bool = false
+var paren_volatile: bool = false
 
 
 ## Scalar form: a single signed value, e.g. `+5` / `-3`.
-func bind_scalar(stat_def: StatDef, value: float) -> void:
+func bind_scalar(stat_def: StatDef, value: float, volatile := false) -> void:
 	_bind_name(stat_def)
 	var prefix := "+" if value >= 0.0 else ""
 	_value_label.text = prefix + _val(value, stat_def)
+	_bind_volatility(volatile, false, false)
 
 
 ## Pool form: `current / max`, e.g. `6 / 10`. Never falls back to a bar —
 ## callers wanting a bar own that decision elsewhere.
-func bind_pool(stat_def: StatDef, current: float, max_value: float) -> void:
+func bind_pool(stat_def: StatDef, current: float, max_value: float, volatile := false) -> void:
 	_bind_name(stat_def)
 	_value_label.text = "%s / %s" % [_val(current, stat_def), _val(max_value, stat_def)]
+	_bind_volatility(volatile, false, false)
 
 
 ## Suffixed/parenthetical form: a primary value with a bracketed secondary
 ## reading, e.g. `5 (3)` — #230's combined armor + min_damage_taken row.
-func bind_parenthetical(stat_def: StatDef, value: float, paren_value: float) -> void:
+func bind_parenthetical(stat_def: StatDef, value: float, paren_value: float, volatile := false, p_paren_volatile := false) -> void:
 	_bind_name(stat_def)
-	_value_label.text = "%s (%s)" % [_val(value, stat_def), _val(paren_value, stat_def)]
+	_value_label.text = _val(value, stat_def)
+	_paren_label.text = "(%s)" % _val(paren_value, stat_def)
+	_bind_volatility(volatile, true, p_paren_volatile)
 
 
 ## Applies the fan reveal at clock position `t` (0..1): cubic ease-out driving
@@ -56,6 +71,21 @@ func set_progress(t: float) -> void:
 	var m := modulate
 	m.a = eased
 	modulate = m
+
+
+func _bind_volatility(volatile: bool, show_paren: bool, p_paren_volatile: bool) -> void:
+	value_volatile = volatile
+	paren_volatile = show_paren and p_paren_volatile
+	_paren_label.visible = show_paren
+	_tint_volatile(_value_label, value_volatile)
+	_tint_volatile(_paren_label, paren_volatile)
+
+
+static func _tint_volatile(label: Label, volatile: bool) -> void:
+	if volatile:
+		label.add_theme_color_override(&"font_color", Emissive.VOLATILE)
+	else:
+		label.remove_theme_color_override(&"font_color")
 
 
 func _bind_name(stat_def: StatDef) -> void:
