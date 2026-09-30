@@ -4,7 +4,7 @@ class_name Stat
 extends Resource
 
 ## Runtime stat. Pairs a StatDef (identity, type, display) with a base value
-## and a modifier list. v2 of the stat system; see docs/design/stat_system.md.
+## and a modifier list. See .claude/rules/stats-system.md.
 ##
 ## Modifier pipeline (PoE-style with a late additive):
 ##   SET wins outright (highest priority, last-in breaks ties). Otherwise:

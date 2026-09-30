@@ -123,7 +123,7 @@ Nodes can't move (_generally_, let's keep it at that for now), but your Core *ca
 The core is the brain of the entity, it can also hold stat modifiers just like skill nodes do, effectively making it a portable skill node.
 If the Core of an entity falls, the entire entity ceases to exist — deallocates fully and may only leave behind core remnants to be looted.
 
-> **Enrichment (the core aura — from `stat_system.md` / `lore.md`):** the core *radiates* a stat bonus to nearby owned nodes, falling off with distance (by hops, euclidean radius, or a shell band — per class). This solves the "safe core" problem: you *could* hide your core on a far, safe filament and become hard to kill, but then your fighting nodes get no aura and underperform. The aura is the carrot that drags the core to the front, and *shaping* it (boost-near / boost-a-shell / boost-the-far-out) is most of where a **core class** gets its identity (§6).
+> **Enrichment (the core aura — from `lore.md`):** the core *radiates* a stat bonus to nearby owned nodes, falling off with distance (by hops, euclidean radius, or a shell band — per class). This solves the "safe core" problem: you *could* hide your core on a far, safe filament and become hard to kill, but then your fighting nodes get no aura and underperform. The aura is the carrot that drags the core to the front, and *shaping* it (boost-near / boost-a-shell / boost-the-far-out) is most of where a **core class** gets its identity (§6).
 
 > **Enrichment (entity = connected subgraph; the core is the nucleus):** because an entity is just its connected set of owned nodes, an attack that kills a **cut vertex** would split it in two — the piece with the core stays the entity; any orphaned **island** dissolves immediately (unless a Lifeline grants a 1-turn grace or a Lifelink sustains it). Losing an arm of N nodes also costs `health.decrease(N)` and removes that arm's modifiers — you become weaker, not just smaller. This is the dismemberment fantasy of §2 stated mechanically.
 
@@ -203,7 +203,7 @@ Beyond these seven, the detail doc also carries the **Edgelord** (fights *with* 
 
 ## 7. Stat System
 
-> *Short summary — what stats exist, what they govern, and how modifiers work. The full design lives in `design/stat_system.md`.*
+> *Short summary — what stats exist, what they govern, and how modifiers work. The live reference is `.claude/rules/stats-system.md`; the stat ids are `stats_system/defs/*.tres`.*
 
 ### Stat categories
 One shared vocabulary, instantiated by every entity (player and NPC alike). The main buckets:
@@ -220,7 +220,7 @@ Nodes carry `StatModifier`s — a `stat_id` (StringName), an operator, and a val
 
 **Status:** 🔨 In progress (v2 refactor). v2 replaces GDScript-as-key with `StatDefinition` resources, `StringName` IDs, a `StatRegistry` autoload, and slim `RuntimeStat`/`RuntimePoolStat` objects. Prefer v2 patterns for new stats.
 
-**Detail doc:** `design/stat_system.md` (canonical Stat Vocabulary table is the source of truth for stat IDs)
+**Detail docs:** `.claude/rules/stats-system.md`, `docs/domain/stat-board-classes.md`; the stat ids are the `.tres` files in `stats_system/defs/`.
 
 ---
 
