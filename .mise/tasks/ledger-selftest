@@ -23,6 +23,11 @@ def run(argv):
     return code, out.getvalue() + err.getvalue()
 
 
+def _cell(row, col):
+    hdr = [c.strip() for c in ld.HEADER.strip().strip("|").split("|")]
+    return [c.strip() for c in row.strip().strip("|").split("|")][hdr.index(col)]
+
+
 def roster_row(path, unit):
     with open(path) as fh:
         return next((l for l in fh if l.startswith(f"| {unit} |")), "")
@@ -73,6 +78,11 @@ code, out = run(["dispatch", "1240", "d1240b", "sonnet"])
 row = roster_row(path, "1240")
 check("re-dispatch keeps the row, updates drone/tier, states redispatched@", "| d1240b |" in row and "| sonnet |" in row and "redispatched@" in row)
 check("re-dispatch keeps the earlier note", "fork: who owns the cursor" in row)
+before = roster_row(path, "1240")
+code, out = run(["note", "1240", "idle once"])
+row = roster_row(path, "1240")
+check("note appends to the notes cell and leaves the state untouched",
+      code == 0 and "idle once" in row and _cell(row, "state") == _cell(before, "state"))
 code, out = run(["report", "9999"])
 check("report on a unit never dispatched is a no-op that says so", code == 0 and "no row" in out and "| 9999 |" not in open(path).read())
 check("unit count stays two", open(path).read().count("\n| 1") == 2)

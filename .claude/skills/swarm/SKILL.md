@@ -198,7 +198,7 @@ mise run issue-drift -- <n>                             # silent = the Ready com
   `reported@` | `pulled@` → `landed <sha>`; a re-dispatch says
   `redispatched@`) / PLAN / STUCK / PULL (the advisor's three moments) /
   adv / ctx / calls / priced (from `agent-cost`) / notes (`--note '…'` on
-  any write). Below the roster, the queue order, carried items and open
+  any write, or `ledger -- note <n> '…'` alone, state untouched). Below the roster, the queue order, carried items and open
   owner calls are your prose: ≤ ~1.5k tokens total. Delete the file at
   teardown; anything that must outlive the run goes to the issue.
 - **`issue-drift`** prints nothing when the issue's stamped reading list and
@@ -220,7 +220,7 @@ mise run issue-drift -- <n>                             # silent = the Ready com
 - **The full brief in `prompt`.** If a drone idles without starting, one
   `SendMessage` with the same brief; if idles recur, write the brief to a
   file and spawn with a one-line pointer instead. Log every idle in the
-  ledger (`ledger -- report <n> --note 'idle'` keeps the row's state).
+  ledger: `mise run ledger -- note <n> 'idle'` (notes only, state untouched).
 - **A split shares one brief file.** Splitting one issue across drones:
   write `docs/handoffs/swarm-brief-<n>.md` (gitignored) — first line "the
   issue is still your spec" (or "this brief replaces the issue"), then the
@@ -325,8 +325,8 @@ serial by `flock`, rebases inside the drone's worktree, runs `check` +
 drone once; a second failure is a stop. `--closes` only on the *final*
 branch of a multi-unit issue; on every branch of independent issues.
 
-**Before the gate, sweep `poison:` lines** out of the reports (a `--note
-'poison: …'` on the row keeps them findable): apply
+**Before the gate, sweep `poison:` lines** out of the reports (`ledger --
+note <n> 'poison: …'` keeps them findable): apply
 the one-liners yourself in the main checkout as one docs commit; anything
 that is not a one-liner → `mise gh-project -- add`.
 

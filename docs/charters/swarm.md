@@ -190,8 +190,10 @@ disk at `scratchpad/land/land-<n>.log` (#920), so filling the ledger is a
     <tier>` in the dispatch call (creates the file for a new run, prints the
     roster back so the read is free), `mise run ledger -- report <n>
     --branch <slug> [--plan] [--stuck] [--pull]` in the collect call, and
-    `mise run land --closes <n>` writes the `landed <sha>` row itself. The
-    roster carries per unit the three advisor moments of law 8 as PLAN /
+    `mise run land --closes <n>` writes the `landed <sha>` row itself;
+    `ledger -- note <n> '…'` appends to a row's notes without touching its
+    state (an idle, a poison line), since relief classifies units off the
+    state column. The roster carries per unit the three advisor moments of law 8 as PLAN /
     STUCK / PULL columns plus `adv` / ctx / calls / priced from
     `agent-cost`; the prose under it (queue order, carried items, open
     owner calls) stays the lead's. The 09-30 run kept no ledger until the

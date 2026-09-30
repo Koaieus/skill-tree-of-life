@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-#MISE description="The swarm ledger, written by commands not memory: `mise run ledger -- show | dispatch <n> <drone> <tier> | report <n> [--branch <slug>] [--plan] [--stuck] [--pull] | land <n> <sha> [--branch <slug>]` (+ `--note '…'` on any write)"
+#MISE description="The swarm ledger, written by commands not memory: `mise run ledger -- show | dispatch <n> <drone> <tier> | report <n> [--branch <slug>] [--plan] [--stuck] [--pull] | land <n> <sha> [--branch <slug>] | note <n> '…'` (+ `--note '…'` on any write)"
 """
 Owns the Roster table of the swarm ledger, `docs/handoffs/swarm-<date>.md`
 (gitignored — relief reads it, nobody commits it). The lead's dispatch and
@@ -16,6 +16,8 @@ the lead's and is never touched.
                                the advisor-moment columns; with --branch fills
                                ctx / calls / adv / priced from agent-cost
     land <n> <sha> [--branch <slug>]   state → `landed <sha7>`, cost cells refreshed
+    note <n> '…'               append to the notes cell only — the state is
+                               untouched (an idle, a poison line, an owner call)
     --note '…'                 on any write: appended to the notes cell
 
 Which file: $SWARM_LEDGER if set; else today's `swarm-YYYY-MM-DD.md`; else the
@@ -178,6 +180,7 @@ def main(argv=None):
         p.add_argument(f"--{flag}", action="store_true")
     p.add_argument("--note", default="")
     p = sub.add_parser("land"); p.add_argument("unit"); p.add_argument("sha"); p.add_argument("--branch", default=""); p.add_argument("--note", default="")
+    p = sub.add_parser("note"); p.add_argument("unit"); p.add_argument("note")
     args = ap.parse_args(argv)
 
     path = resolve(create=args.cmd == "dispatch")
@@ -211,14 +214,16 @@ def main(argv=None):
             print(f"ledger: no row for unit {args.unit} in {path} — dispatch writes rows; nothing changed")
             return 0
         row = roster.get(i)
-        if args.cmd == "report":
+        if args.cmd == "note":
+            pass  # notes only; the state column is the roster's truth and stays
+        elif args.cmd == "report":
             row["state"] = f"{'pulled' if args.pull else 'reported'}@{_hhmm()}"
             for flag in ("plan", "stuck", "pull"):
                 if getattr(args, flag):
                     row[flag.upper()] = "✓"
         else:
             row["state"] = f"landed {args.sha[:7]}"
-        if args.branch:
+        if args.cmd != "note" and args.branch:
             row.update(cost_cells(args.branch))
         _note(row, args.note)
         roster.put(i, row)
