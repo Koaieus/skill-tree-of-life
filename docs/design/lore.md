@@ -112,6 +112,15 @@ The Fairy is too clumsy by half: in cursing the player to the regression, it **t
 
 The Fairy is a **herald and servant of the Lord of Edge — not the Lord Himself.** This keeps the Apex Entity's identity ambiguous (the god you climb toward may or may not be the Fairy's master) and keeps the Fairy fallible: it makes mistakes, it gets caught, it is in over its head.
 
+> **Owner lean, 2026-09-30:** "the Fairy *is* the Lord of Edge most likely
+> and just pretends to be their herald." Read this section as the Fairy's
+> **cover story**, not the truth. The disguise needs the fallibility above
+> to be real: the clumsiness that makes it "too clumsy to be a god" is
+> exactly why nobody suspects. It also absorbs the reserved "deeper twist"
+> under *The betrayal(s)*. Open: what this does to the Apex (Open
+> Question 2). Is the god you climb toward the Fairy all along, an
+> Ophanim, or a decoy?
+
 ### The betrayal(s)
 
 The Fairy's **first and largest betrayal is already on the table:** it cursed you — crashed you into infinite regression — under the cover of being your helpful guide. Everything since has been a being that damned you still chirping encouragement in your ear. That alone is a complete betrayal arc, and it lands when the player understands what the crash *was* and who caused it.
@@ -173,12 +182,10 @@ closer to the Olympians: they materialize in the world, act, and talk.
 Only aspects get characters for now; real attribute-god characters may
 come later.
 
-The Fairy might be one of these gods — or their leader: the **EdgeLord**,
-whose edges are the connective tissue that lets an entity own more than one
-node, and so gain any power at all. *Tension, unresolved:* this reopens
-*Herald, not god* above, which keeps the Fairy fallible and the Apex's
-identity ambiguous (Open Questions 2 and 6); the reserved "deeper twist"
-under *The betrayal(s)* is the nearest existing door.
+The Fairy leads them: it is most likely the **EdgeLord** itself (owner
+lean, 2026-09-30), whose edges are the connective tissue that lets an
+entity own more than one node, and so gain any power at all. It is only
+*posing* as the Lord's herald (see the callout under *Herald, not god*).
 
 Owner, 2026-09-30: the Lord of Edge being somehow related to the spirit
 of cursing (Cuss, `curse_aspect`) "sounds not too far fetched". Agent
@@ -594,7 +601,7 @@ This game earns a JRPG-style finale. The Apex Entity is not ironic. It is the na
 
 1. **What is the tree?** A simulation? A being? A prison? A garden? Intentionally ambiguous — the player's interpretation should be valid. (Graph theology now offers one in-world answer: it is the body of a cosmos held together by sacred edges. That answer is a *faith*, not necessarily the truth.)
 
-2. **Who built it / who is the Apex?** Is the Apex the Lord of Edge Himself, or His greatest Ophanim? Deliberately unresolved; the Fairy being only a herald protects this ambiguity.
+2. **Who built it / who is the Apex?** Is the Apex the Lord of Edge Himself, or His greatest Ophanim? Deliberately unresolved. The ambiguity used to rest on the Fairy being only a herald. With the owner's lean that the Fairy *is* the Lord of Edge, disguised (2026-09-30), the question becomes: is the Apex the Fairy's true form, an Ophanim, or a decoy?
 
 3. **The party.** If the intro implies a party of fighters, where are they on the tree? Other entities to find? Competitors for nodes?
 
@@ -602,7 +609,7 @@ This game earns a JRPG-style finale. The Apex Entity is not ironic. It is the na
 
 5. **Going down.** The fractal ascends through Breakouts — does it also go down? Can a node be pried open and fought inside?
 
-6. **The Fairy across runs.** Resolved that the Fairy is the crash-agent, the antichrist-judge, a herald (not god), self-trapped in the curse, and carries a late betrayal. *Open:* does it ride along every dive, narrate from the hub "outside," go quiet as betrayal nears, or not even know it is imprisoned? And what *is* the betrayal?
+6. **The Fairy across runs.** Resolved that the Fairy is the crash-agent, the antichrist-judge, a herald (not god; owner lean 2026-09-30: that is a disguise, and it is the Lord of Edge), self-trapped in the curse, and carries a late betrayal. *Open:* does it ride along every dive, narrate from the hub "outside," go quiet as betrayal nears, or not even know it is imprisoned? And what *is* the betrayal?
 
 7. **Curse vs. crime order.** Is the player cursed *because* they killed the innocents, or were they already cursed (the metagame already a prison) and the killing merely fit a doomed spirit? Leaning ambiguous — both readings should hold.
 
@@ -614,7 +621,7 @@ This game earns a JRPG-style finale. The Apex Entity is not ironic. It is the na
 
 11. **Self-loop origin.** How do self-loops arise in play — rare field property, Edgelord power, Tech Seed fruit, Blue unlock, rare event? And can they be destroyed/targeted directly?
 
-12. **The pantheon.** Is the Fairy a herald, one of the gods, or the EdgeLord who leads them (see *The pantheon*)? Do the attribute-gods ever take a form, or stay abstract forever?
+12. **The pantheon.** Leaning: the Fairy is the EdgeLord, posing as its own herald (see *The pantheon*). When, and how, does the player find out? Do the attribute-gods ever take a form, or stay abstract forever?
 
 ---
 
