@@ -179,6 +179,59 @@ func test_a_melee_plan_does_not_wire_its_resolution_residue() -> void:
 		assert_false(d.has(key), "%s is resolution residue, not plan input" % key)
 
 
+const _CATALOG: TempUpgradeCatalog = preload("res://attack/melee/temp_upgrade_catalog.tres")
+
+
+## A temp upgrade is plan content (#1240), like the blade and the swing: it
+## crosses as `[stable id, def id]` and lands back on the same node. The
+## original's addons are freed before the rebuild — that is the OTHER machine,
+## whose live node has never seen this seat's preview.
+func test_a_melee_plan_round_trips_its_temp_upgrades() -> void:
+	var clamp := _CATALOG.by_id(&"clamp")
+	_attacker.stat_board.blade_size.base_value = 3.0
+	var plan := MeleeAttackPlan.new()
+	plan.attacker = _attacker
+	plan.set_pivot(_nodes.A)
+	plan.toggle_member(_nodes.B)
+	plan.toggle_member(_nodes.C)
+	assert_true(plan.toggle_temp_upgrade(_nodes.C, clamp),
+			"fixture must have placed the upgrade for this to mean anything")
+	var d := plan.to_dict(_graph)
+	_assert_no_live_references(d)
+	plan.reset()
+
+	var back := AttackPlanCodec.from_dict(d, _graph) as MeleeAttackPlan
+	assert_eq(back.temp_upgrade_cost_for(clamp), clamp.cost,
+			"the rebuilt plan carries the upgrade and its cost")
+	assert_not_null(back._existing_temp_upgrade(_nodes.C, clamp),
+			"…on the same node it was placed on")
+	assert_null(back._existing_temp_upgrade(_nodes.B, clamp), "…and nowhere else")
+	back.reset()
+
+
+## The originating seat decodes its own confirmed launch while its preview
+## addons are still mounted: the rebuild adopts them rather than stacking a
+## second addon on the same node.
+func test_a_rebuild_adopts_a_preview_addon_already_on_the_node() -> void:
+	var clamp := _CATALOG.by_id(&"clamp")
+	_attacker.stat_board.blade_size.base_value = 3.0
+	var plan := MeleeAttackPlan.new()
+	plan.attacker = _attacker
+	plan.set_pivot(_nodes.A)
+	plan.toggle_member(_nodes.B)
+	plan.toggle_member(_nodes.C)
+	plan.toggle_temp_upgrade(_nodes.C, clamp)
+	var back := AttackPlanCodec.from_dict(plan.to_dict(_graph), _graph) as MeleeAttackPlan
+	var temps := 0
+	for a in _nodes.C.get_addons():
+		if a.is_temporary:
+			temps += 1
+	assert_eq(temps, 1, "one addon on the node, shared by preview and rebuild")
+	assert_eq(back.temp_upgrade_cost_for(clamp), clamp.cost)
+	back.reset()
+	plan.reset()
+
+
 # ── Codec ───────────────────────────────────────────────────────────────────
 
 func test_the_codec_refuses_an_unknown_mode_rather_than_half_building() -> void:
