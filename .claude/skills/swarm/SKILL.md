@@ -153,8 +153,9 @@ the owner, never inherited into a brief.
 3. **Tier every unit**: `opus` default for anything medium or larger — a
    new scene, system or surface, a reshaping across modules, any fork the
    comments leave open, or simply >150 lines of expected diff; `sonnet` only
-   for a unit of ≤150 lines with a named test that already exists; `haiku`
-   only for pure mechanical churn. Priced per landed line, opus is the
+   for small or dumb units — ≤150 lines with a named test that already
+   exists, or mechanical churn where rigor buys nothing; `haiku` only for
+   pure mechanical churn with nothing to decide. Priced per landed line, opus is the
    cheaper tier on medium units — it finishes in a third of the calls and
    context — so the default is not the cheap-looking model. A Sonnet past
    three advisor/Sage exchanges is mis-tiered by definition — the ledger

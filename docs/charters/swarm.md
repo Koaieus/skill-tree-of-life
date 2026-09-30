@@ -49,7 +49,9 @@ rows so far say the tier default is opus, not sonnet: on medium units a
 Sonnet drone integrates 3–4× the context (Σctx) of an Opus drone doing
 comparable work, in 2–3× the calls, and lands at the same or higher
 `priced` — the per-call discount is eaten by call count. Sonnet wins only
-on small units with an existing named test.
+on **small or dumb units** — a small unit with an existing named test, or
+mechanical churn where rigor buys nothing (owner, 2026-09-30: "Opus is more
+rigorous, more effective, but loses at dumb mechanical churn").
 
 A rate-limit-window percentage is a **snapshot unit**, never a comparable
 one: the window's size moves with Anthropic's promotions ("more Claude Code
@@ -260,6 +262,8 @@ disk at `scratchpad/land/land-<n>.log` (#920), so filling the ledger is a
 | 2026-09-27 | lead | the skill said "read `.claude/agents/drone.md` once"; the lead spent ~2.5k tokens on the full contract (start steps, economy, retiring, Sage flow) to learn what not to put in a brief — owner: "if you needed to read the drone contract that's a failure of the `swarm` skill" | 12 |
 | 2026-09-19 | `f9` → `b6` | an Opus lead relieved at its 200k ceiling; the one in-flight drone was drained by redirecting it to the relief session's address — the last handover of that shape; the relief charter replaced the redirect with one outgoing wake per drone (ledger row + one-line ping), since the report reaches the outgoing regardless | 7 |
 | 2026-09-27 | 10 units | 10 opus-tier units (two hubs, 3 waves, 4 drones resumed across waves for hot context, 1 Sage, 0 rejects, 16 review exchanges) landed + train-gated in ~40 min wall; owner: "43% of limit used" — a snapshot unit (law 5 text above), ≈4%/unit against 2026-08-03's ~12%/unit; lead finished at ~160k by delegating every sweep | 5, 6 |
+| 2026-09-28 | #1179 tier experiment | owner: "try the experiment, ask it to let advisor have a pass when done"; Sonnet on #1179 (new channel + 7 re-pointed tests) vs #1178 (opus, comparable): 123 calls (90 cap) / Σctx 18.4M / 2.48M priced / 48 min vs 45 / 4.2M / 1.74M / 12 min — landed clean, ~40% dearer; overrun blamed on recovering from an early write to the main checkout | 6, 12 |
+| 2026-09-29 | 3 sonnet + 2 opus | priced per 100 changed lines: opus 0.19M (#1190) / 0.20M (#1196), sonnet 0.37M (#1191) / 0.70M (#1082); both medium Sonnet units left stale characterization tests the lead re-pointed in the train; the 2-line #1107 leftovers unit at 125k was the only clean Sonnet win → owner, 2026-09-30: Sonnet for "small units or dumb units" | 6 |
 
 ## What the skill must not contain
 
