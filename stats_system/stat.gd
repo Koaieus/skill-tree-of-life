@@ -518,6 +518,13 @@ func _find_winning_set() -> StatModifier:
 ## sibling of [method ModifierBins.compute] (used for multi-source reads like
 ## [method SkillNode.get_local_value]) — no per-call `Array[ModifierBins]`
 ## literal.
+func get_value() -> Variant:
+	if _value_dirty:
+		_cached_raw_value = _fold(base_value)
+		_value_dirty = false
+	return _coerce(_cached_raw_value)
+
+
 ## True iff any modifier bound here reads [constant StatModifier.Valence.VOLATILE]
 ## on this stat's own board — so a formula MULTIPLY that only crosses zero at
 ## runtime counts, never judged on its bare coefficient. No cache: a scan of a
@@ -527,13 +534,6 @@ func is_volatile() -> bool:
 		if m.valence(_board) == StatModifier.Valence.VOLATILE:
 			return true
 	return false
-
-
-func get_value() -> Variant:
-	if _value_dirty:
-		_cached_raw_value = _fold(base_value)
-		_value_dirty = false
-	return _coerce(_cached_raw_value)
 
 
 ## The multi-source sibling of [method get_value]: this stat's own bins plus
