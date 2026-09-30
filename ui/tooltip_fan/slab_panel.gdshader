@@ -55,6 +55,11 @@ uniform float corner_radius : hint_range(0.0, 12.0, 0.5) = 4.0;
 // by SlabPanel — never re-authored here.
 uniform float harmful : hint_range(0.0, 1.0, 0.01) = 0.0;
 uniform vec4 harmful_color : source_color = vec4(0.95, 0.45, 0.45, 1.0);
+// The volatile slab: 0 = clean, 1 = volatile (the stat can swing either way).
+// Same darkness and corroded-stroke treatment as harmful, in volatile_color
+// (Emissive.VOLATILE, pushed by SlabPanel). Harmful wins if both are set.
+uniform float volatile : hint_range(0.0, 1.0, 0.01) = 0.0;
+uniform vec4 volatile_color : source_color = vec4(0.75, 0.5, 0.95, 1.0);
 // How many EV stops dimmer the cursed stroke sits than glow_energy — one tier
 // (VALUE -> LABEL at the defaults): still lit, no longer the clean neon hug.
 const float HARMFUL_STROKE_DROP = 1.0;
@@ -84,10 +89,13 @@ void fragment() {
 	// see the file header for why an outward term can't work here.
 	float stroke = 1.0 - smoothstep(0.0, glow_width, -d);
 
-	// Cursed material: same darkness knob, harmful hue instead of the tint.
-	vec3 harm_fill = mix(harmful_color.rgb, vec3(0.03, 0.02, 0.02), fill_darkness);
-	float harm_luma = max(dot(harmful_color.rgb, LUMA), 0.0001);
-	vec3 harm_hot = (harmful_color.rgb / harm_luma)
+	// Cursed material: same darkness knob, harmful (or volatile) hue instead
+	// of the tint. One treatment, two hues.
+	float curse = max(harmful, volatile);
+	vec3 curse_rgb = harmful >= volatile ? harmful_color.rgb : volatile_color.rgb;
+	vec3 harm_fill = mix(curse_rgb, vec3(0.03, 0.02, 0.02), fill_darkness);
+	float harm_luma = max(dot(curse_rgb, LUMA), 0.0001);
+	vec3 harm_hot = (curse_rgb / harm_luma)
 		* pow(2.0, glow_energy - HARMFUL_STROKE_DROP);
 	// Corrosion: a per-cell hash on the row's own pixel grid (stable, not
 	// screen-space) so the stroke reads pitted rather than a clean line.
@@ -95,9 +103,9 @@ void fragment() {
 	float pit = fract(sin(dot(cell, vec2(12.9898, 78.233))) * 43758.5453);
 	float harm_stroke = stroke * mix(0.35, 1.0, pit);
 
-	fill = mix(fill, harm_fill, harmful);
-	hot_tint = mix(hot_tint, harm_hot, harmful);
-	stroke = mix(stroke, harm_stroke, harmful);
+	fill = mix(fill, harm_fill, curse);
+	hot_tint = mix(hot_tint, harm_hot, curse);
+	stroke = mix(stroke, harm_stroke, curse);
 	vec3 col = mix(fill, hot_tint, stroke * glow_strength);
 
 	COLOR = vec4(col, rr_coverage(d));

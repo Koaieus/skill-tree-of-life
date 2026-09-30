@@ -66,6 +66,12 @@ const NEUTRAL := Color(0.8586, 0.9018, 0.9482)
 const HARMFUL := Color(0.95, 0.45, 0.45)
 
 
+## The repo's one "this could swing either way" colour — the volatile
+## [SlabPanel]'s wash + stroke and the value text of a volatile stat readout.
+## A violet off [constant HARMFUL]'s red; SDR like it, lifted through [method at].
+const VOLATILE := Color(0.75, 0.5, 0.95)
+
+
 ## Raise `base` by `stops` EV and return the sRGB-encoded result.
 ##
 ## Uses the engine's own conversions — the same code path `ColorPicker`'s `I`

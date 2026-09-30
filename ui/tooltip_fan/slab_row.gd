@@ -36,8 +36,10 @@ extends Control
 ## The slab's material (#1051). [constant PLAIN] is the clean neon slab;
 ## [constant HARMFUL] keeps the tint on the text but turns the slab itself
 ## wrong — a dark harmful wash and a soured stroke (the shader owns the look).
+## [constant VOLATILE] is the same treatment in [constant Emissive.VOLATILE]:
+## the modifier's stat can swing either way in the read it lands in.
 ## An enum, not a bool, so a further look is one entry and no re-pointing.
-enum SlabStyle { PLAIN, HARMFUL }
+enum SlabStyle { PLAIN, HARMFUL, VOLATILE }
 
 ## The style the last [method bind_text] rendered. Read-only by contract —
 ## set it through [method bind_text].
@@ -108,6 +110,7 @@ func bind_text(text: String, tint: Color, style: SlabStyle = SlabStyle.PLAIN) ->
 	_background.color = tint
 	slab_style = style
 	_slab.harmful = 1.0 if style == SlabStyle.HARMFUL else 0.0
+	_slab.volatile = 1.0 if style == SlabStyle.VOLATILE else 0.0
 	_refresh_label_color()
 	# New text is a different WIDTH (never a different number of lines — this
 	# label does not wrap), so this row's minimum changes; recompute it now

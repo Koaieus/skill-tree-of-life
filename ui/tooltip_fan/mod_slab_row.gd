@@ -21,15 +21,24 @@ extends SlabRow
 ## [member StatDef.tint_color], read raw. Falls back to [constant Color.WHITE]
 ## only if the def can't be resolved (not expected for a real stat_id).
 ##
-## A [constant StatModifier.Valence.BANE] modifier renders as a cursed slab
-## ([constant SlabRow.SlabStyle.HARMFUL]); BOON, NEUTRAL and VOLATILE all
-## render PLAIN. The judgement is [method StatModifier.valence]'s, never
-## re-derived here.
+## [constant SlabRow.SlabStyle.VOLATILE] when [param stat_volatile] (the
+## CALLER asked the owner — [method SkillNode.is_local_volatile] /
+## [method StatBoard.is_stat_volatile] — whether the stat is volatile in its
+## read context) or when the modifier is itself
+## [constant StatModifier.Valence.VOLATILE] (the no-context fallback, e.g.
+## #306's toast). Otherwise a BANE renders the cursed slab
+## ([constant SlabRow.SlabStyle.HARMFUL]) and the rest PLAIN. The judgement is
+## [method StatModifier.valence]'s, never re-derived here; the slab stays dumb.
 ##
 ## `m` is assumed to be a leaf modifier — a [CompositeStatModifier] has no
 ## single meaningful `stat_id`; callers are specified to flatten before
 ## binding one row per leaf (see `.claude/rules/stats-system.md` §Composite).
-func bind(m: StatModifier) -> void:
+func bind(m: StatModifier, stat_volatile := false) -> void:
 	var def := StatRegistry.get_def(m.stat_id)
-	var style := SlabStyle.HARMFUL if m.valence() == StatModifier.Valence.BANE else SlabStyle.PLAIN
+	var valence := m.valence()
+	var style := SlabStyle.PLAIN
+	if stat_volatile or valence == StatModifier.Valence.VOLATILE:
+		style = SlabStyle.VOLATILE
+	elif valence == StatModifier.Valence.BANE:
+		style = SlabStyle.HARMFUL
 	bind_text(m.format(), def.tint_color if def != null else Color.WHITE, style)

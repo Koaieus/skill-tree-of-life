@@ -61,8 +61,8 @@ enum Operation {
 
 ## How this modifier reads for whoever HOLDS it (#1049) — never "good for me
 ## the viewer": hovering an enemy's `-3% Dexterity` still reports BANE.
-## BANE is the one that earns the cursed slab; NEUTRAL and VOLATILE both
-## render plain.
+## BANE earns the cursed slab, VOLATILE the volatile one; NEUTRAL renders
+## plain.
 enum Valence {
 	## Moves the stat toward better, per [member StatDef.lower_is_better].
 	BOON,

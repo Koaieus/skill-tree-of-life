@@ -117,10 +117,10 @@ func test_bane_renders_harmful_and_lower_is_better_negative_renders_plain() -> v
 	assert_eq(_style_of(boon), SlabRow.SlabStyle.PLAIN)
 
 
-func test_neutral_set_and_sign_flip_render_plain() -> void:
+func test_neutral_renders_plain_set_and_sign_flip_render_volatile() -> void:
 	assert_eq(_style_of(_make_modifier(StatModifier.Operation.MULTIPLY, 1.0)), SlabRow.SlabStyle.PLAIN)
-	assert_eq(_style_of(_make_modifier(StatModifier.Operation.SET, 3.0)), SlabRow.SlabStyle.PLAIN)
-	assert_eq(_style_of(_make_modifier(StatModifier.Operation.MULTIPLY, -1.0)), SlabRow.SlabStyle.PLAIN)
+	assert_eq(_style_of(_make_modifier(StatModifier.Operation.SET, 3.0)), SlabRow.SlabStyle.VOLATILE)
+	assert_eq(_style_of(_make_modifier(StatModifier.Operation.MULTIPLY, -1.0)), SlabRow.SlabStyle.VOLATILE)
 
 
 func test_cursed_slab_keeps_the_stat_hue_on_tint_and_label() -> void:
@@ -141,3 +141,37 @@ func test_harmful_style_pushes_the_harmful_knob_to_the_slab() -> void:
 	assert_almost_eq(float(row._slab.get(&"harmful")), 1.0, 0.001)
 	row.bind(_make_modifier(StatModifier.Operation.INCREASE, 3.0, &"dexterity"))
 	assert_almost_eq(float(row._slab.get(&"harmful")), 0.0, 0.001)
+
+
+# --- Stat-level volatility (#1239) -------------------------------------------
+
+func test_bind_with_volatile_stat_context_renders_volatile_even_for_boon() -> void:
+	var row := _SCENE.instantiate()
+	add_child_autofree(row)
+	var m := _make_modifier(StatModifier.Operation.INCREASE, 20.0, &"armor")
+	assert_eq(m.valence(), StatModifier.Valence.BOON, "fixture must be a boon")
+	row.bind(m, true)
+	assert_eq(row.slab_style, SlabRow.SlabStyle.VOLATILE)
+	assert_almost_eq(float(row._slab.get(&"volatile")), 1.0, 0.001)
+	assert_almost_eq(float(row._slab.get(&"harmful")), 0.0, 0.001)
+
+
+func test_bind_sign_flip_without_context_renders_volatile() -> void:
+	var row := _SCENE.instantiate()
+	add_child_autofree(row)
+	row.bind(_make_modifier(StatModifier.Operation.MULTIPLY, -1.0, &"min_damage_taken"))
+	assert_eq(row.slab_style, SlabRow.SlabStyle.VOLATILE)
+
+
+func test_bind_bane_without_context_stays_harmful() -> void:
+	var row := _SCENE.instantiate()
+	add_child_autofree(row)
+	row.bind(_make_modifier(StatModifier.Operation.ADD_BASE, -1.0, &"dexterity"))
+	assert_eq(row.slab_style, SlabRow.SlabStyle.HARMFUL)
+
+
+func test_bind_boon_without_context_stays_plain() -> void:
+	var row := _SCENE.instantiate()
+	add_child_autofree(row)
+	row.bind(_make_modifier(StatModifier.Operation.INCREASE, 20.0, &"armor"))
+	assert_eq(row.slab_style, SlabRow.SlabStyle.PLAIN)

@@ -70,6 +70,37 @@ func test_bare_row_with_no_subclass_shows_board_value_and_updates_on_change() ->
 	assert_eq(row.get_node("%Value").text, "20", "row updates on its own — it self-bound to armor.value_changed")
 
 
+func test_row_colours_value_volatile_when_board_stat_is_volatile() -> void:
+	# #1239: the readout asks its bound board is_stat_volatile and colours the
+	# value text with Emissive.VOLATILE; without a volatile modifier, no override.
+	var graph: Graph = _GRAPH_SCENE.instantiate()
+	add_child_autofree(graph)
+	var entity := _spawn_entity(graph)
+	var card: CombatReadoutCard = _BASE_CARD_SCENE.instantiate()
+	add_child_autofree(card)
+	var row: CombatValueRow = _ROW_SCENE.instantiate()
+	row.stat_id = &"min_damage_taken"
+	card.get_node("Padded/TitleAndBody/Body").add_child(row)
+	card.bind(entity)
+	var value: Label = row.get_node("%Value")
+	assert_false(row.value_volatile)
+	assert_false(value.has_theme_color_override(&"font_color"))
+
+	var flip := StatModifier.new()
+	flip.stat_id = &"min_damage_taken"
+	flip.operation = StatModifier.Operation.MULTIPLY
+	flip.value = -1.0
+	entity.stat_board.add_modifier(flip)
+	card.bind(entity)
+	assert_true(row.value_volatile)
+	assert_eq(value.get_theme_color(&"font_color"), Emissive.VOLATILE)
+
+	entity.stat_board.remove_modifier(flip)
+	card.bind(entity)
+	assert_false(row.value_volatile)
+	assert_false(value.has_theme_color_override(&"font_color"))
+
+
 # --- Acceptance 2: hover override shows and clears --------------------------
 
 func test_hover_node_override_shows_then_clears_on_unhover() -> void:

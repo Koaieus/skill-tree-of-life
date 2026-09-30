@@ -66,6 +66,13 @@ extends ColorRect
 		harmful = v
 		_push(&"harmful", v)
 
+## 0 = clean, 1 = the volatile slab: the harmful treatment in
+## [constant Emissive.VOLATILE] — the stat on this row can swing either way.
+@export_range(0.0, 1.0, 0.01) var volatile: float = 0.0:
+	set(v):
+		volatile = v
+		_push(&"volatile", v)
+
 @export_range(0.0, 12.0, 0.5) var corner_radius: float = 4.0:
 	set(v):
 		corner_radius = v
@@ -95,6 +102,8 @@ func _push_all() -> void:
 	_push(&"corner_radius", corner_radius)
 	_push(&"harmful", harmful)
 	_push(&"harmful_color", Emissive.HARMFUL)
+	_push(&"volatile", volatile)
+	_push(&"volatile_color", Emissive.VOLATILE)
 
 
 func _push(param: StringName, value: Variant) -> void:

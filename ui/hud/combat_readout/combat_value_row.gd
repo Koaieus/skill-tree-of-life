@@ -82,6 +82,11 @@ var _flush_delta_deferred := DeferredOnce.new(_flush_delta)
 ## cached because [SubBag] delivers [method _on_stat_changed] with zero
 ## arguments (see its doc) — the hover state has to come from somewhere else.
 var _bound_board: StatBoard = null
+
+## Whether the bound board's stat is volatile ([method StatBoard.is_stat_volatile])
+## as of the last read — the value text renders in [constant Emissive.VOLATILE]
+## while true (a hover override's colour still wins). Read-only by contract.
+var value_volatile: bool = false
 var _bound_hover_node: SkillNode = null
 var _sub := SubBag.new()
 
@@ -125,6 +130,7 @@ func _on_stat_changed() -> void:
 		return
 	var stat := _bound_board.get_stat(stat_id)
 	var baseline: float = float(stat.value) if stat != null else 0.0
+	value_volatile = _bound_board.is_stat_volatile(stat_id)
 	set_value(baseline * value_scale, suffix)
 	var ov: Variant = resolve_override(_bound_hover_node, _bound_board, baseline)
 	if ov != null:
@@ -233,6 +239,9 @@ func _render() -> void:
 		_value.add_theme_color_override(&"font_color", override_color)
 	else:
 		_value.text = fmt % [_last_value, _last_suffix]
-		_value.remove_theme_color_override(&"font_color")
+		if value_volatile:
+			_value.add_theme_color_override(&"font_color", Emissive.VOLATILE)
+		else:
+			_value.remove_theme_color_override(&"font_color")
 	if _override_badge != null:
 		_override_badge.visible = _override_active
