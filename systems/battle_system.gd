@@ -865,7 +865,7 @@ func _stage_windup(plan: AttackPlan) -> void:
 ## A fixture that wants the whole outcome on one line says so out loud.
 func _apply_outcome(outcome: AttackOutcome) -> void:
 	@warning_ignore("redundant_await")
-	await OutcomeApplier.apply(outcome, CombatWorld.live(), _new_beat_clock())
+	await OutcomeApplier.apply(outcome, CombatWorld.live(), _new_beat_clock(), allocation_system)
 	# The release beat, on the same clock and for the same reasons: instant
 	# under `instant_mutation`, and cut short by `drain_pending_mutations`.
 	# Melee doesn't want it — it has a whole swing left to watch — and asking
