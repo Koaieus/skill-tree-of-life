@@ -14,6 +14,13 @@ def derive(items):
         print(p.stderr); sys.exit(1)
     return json.loads(p.stdout)
 
+def stalled(items):
+    p = subprocess.run(["jq", "-c", "include \"hub_derive\"; stalled", "-L", os.path.dirname(JQ)],
+                       input=json.dumps(items), capture_output=True, text=True)
+    if p.returncode != 0:
+        print(p.stderr); sys.exit(1)
+    return json.loads(p.stdout)
+
 cases = [
     ("hollow hub In progress -> Done + close (closed kids archived off the board)",
      [item(1, "In progress", kids=2, done=2)],
@@ -52,5 +59,34 @@ for name, items, want_actions, want_unboarded in cases:
     if not ok:
         failed += 1
         print("   got:", json.dumps(out))
-print(f"{len(cases) - failed}/{len(cases)} passed")
+
+stalled_cases = [
+    ("In progress hub, every child parked -> stalled",
+     [item(1, "In progress", kids=2), item(2, "Backlog", parent=1), item(3, "Needs design", parent=1)],
+     [{"number": 1, "children": [2, 3]}]),
+    ("hub moved back to Needs design over a Needs design child -> not stalled",
+     [item(1, "Needs design", kids=2), item(2, "Backlog", parent=1), item(3, "Needs design", parent=1)],
+     []),
+    ("hub moved back to Backlog over all-Backlog children -> not stalled",
+     [item(1, "Backlog", kids=1), item(2, "Backlog", parent=1)],
+     []),
+    ("hub in Needs design over all-Backlog children -> stalled (belongs in Backlog)",
+     [item(1, "Needs design", kids=1), item(2, "Backlog", parent=1)],
+     [{"number": 1, "children": [2]}]),
+    ("hub in Backlog over a Needs design child -> stalled (belongs in Needs design)",
+     [item(1, "Backlog", kids=1), item(2, "Needs design", parent=1)],
+     [{"number": 1, "children": [2]}]),
+    ("a child actually moving -> not stalled",
+     [item(1, "In progress", kids=2), item(2, "In progress", parent=1), item(3, "Backlog", parent=1)],
+     []),
+]
+for name, items, want in stalled_cases:
+    got = stalled(items)
+    ok = got == want
+    print(("✓" if ok else "✗"), "stalled:", name)
+    if not ok:
+        failed += 1
+        print("   got:", json.dumps(got))
+total = len(cases) + len(stalled_cases)
+print(f"{total - failed}/{total} passed")
 sys.exit(1 if failed else 0)

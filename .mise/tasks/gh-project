@@ -550,7 +550,7 @@ cmd_hygiene() {
           stalled_hub:
             [ $stalled[] | . as $s | ($every[] | select(.number == $s.number)) as $h
               | { number, title: $h.title,
-                  detail: "parked: \([ $s.children[] | "#\(.)" ] | join(", ")) — detach the parked children or move the hub back" } ],
+                  detail: "parked: \([ $s.children[] | "#\(.)" ] | join(", ")) — detach the parked children or move the hub back (Needs design if any child is, else Backlog)" } ],
           unboarded_child:
             [ $hubs.unboarded[] | . as $u | ($every[] | select(.number == $u.number)) as $h
               | { number, title: $h.title, detail: "\(.missing) child(ren) not on the board — not derived" } ],

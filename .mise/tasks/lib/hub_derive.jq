@@ -47,11 +47,11 @@ def derive:
     };
 
 # stalled_hub — report-only, never fixed (detaching a child is an owner call).
-# An open hub where every open child is parked in Backlog or Needs design:
-# nobody is actually working any of them, so the hub's "In progress"-shaped
-# status (or whatever it holds) is a lie. Distinct from `derive` above, which
-# only acts once a child has moved past filing (Ready/In progress/In review);
-# this flags the case where none ever did.
+# An open hub where every open child is parked in Backlog or Needs design and
+# the hub does not sit in the parked lane they imply: Needs design if any child
+# is, else Backlog. Moving the hub there clears it. Distinct from `derive`
+# above, which only acts once a child has moved past filing (Ready/In
+# progress/In review); this flags the case where none ever did.
 #
 # Input:  same shape as `derive`.
 # Output: [{number, children: [child numbers]}] — one entry per stalled hub.
@@ -63,5 +63,6 @@ def stalled:
       | [ $items[] | select(.parent == $hub.number and .state == "OPEN") ] as $open
       | select(($open | length) > 0)
       | select(all($open[]; .status == "Backlog" or .status == "Needs design"))
+      | select($hub.status != (if any($open[]; .status == "Needs design") then "Needs design" else "Backlog" end))
       | { number: $hub.number, children: [ $open[].number ] }
     ];
