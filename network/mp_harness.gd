@@ -26,6 +26,16 @@ const _RUNG4_MAX_TURNS := 400
 ## ended" from "the process fell over".
 const _RUNG4_TIMEOUT_EXIT := 2
 
+## `--lethal`'s four SETs — the owner's bound (2026-09-30): "each could at most
+## tank 3 node losses before dying". Tentative tuning, harness-only.
+const _LETHAL_SETS: Dictionary[StringName, float] = {
+	&"node_health": 1.0,
+	&"health": 3.0,
+	&"dealloc_damage": 1.0,
+	&"core_healing": 0.0,
+}
+const _LETHAL_PRIORITY := 1000
+
 @export var turn_manager: TurnManager
 @export var graph: Graph
 @export var network_session: NetworkSession
@@ -40,6 +50,8 @@ func _ready() -> void:
 	var role := _rung_3_role()
 	if role.is_empty() or turn_manager == null:
 		return
+	if HarnessFlags.has(HarnessFlags.LETHAL):
+		arm_lethal()
 	_announce_first_turn_for_rung_3(role)
 	_arm_rung_4(role)
 
@@ -159,9 +171,39 @@ func _watch_turn_cap(role: String, cap: int) -> void:
 	get_tree().quit(_RUNG4_TIMEOUT_EXIT)
 
 
-static func make_lethal(_entity: Entity) -> void:
-	pass
+## Caps [param entity] at a few node losses (`--lethal`): nodes die to one hit,
+## each node lost costs the core one HP of three, and the core never regenerates.
+## SET modifiers, never `base_value` writes — `health` and `node_health` are
+## derived from CON, and a SET is the value asked for
+## (`docs/domain/stat-knobs-and-bins.md`). [constant _LETHAL_PRIORITY] outranks
+## any core-class SET on the same stat.
+##
+## [b]Both processes apply it, to every entity as it enters the tree.[/b] The
+## boards also cross by value on every resync; [method StatBoard.read_dict]
+## reconciles against the full modifier form, so a mirror that already applied
+## the same four holds the host's board exactly rather than two copies.
+static func make_lethal(entity: Entity) -> void:
+	if entity.stat_board == null:
+		return
+	for stat_id: StringName in _LETHAL_SETS:
+		var m := StatModifier.new()
+		m.stat_id = stat_id
+		m.operation = StatModifier.Operation.SET
+		m.value = _LETHAL_SETS[stat_id]
+		m.priority = _LETHAL_PRIORITY
+		entity.stat_board.add_modifier(m)
 
 
+## Arms [method make_lethal] for every [Entity] that enters the tree from now on
+## — heroes, blockers, and the ones a join snapshot spawns — once its own
+## `_ready` has run, since [method Entity.initialize] applies the intrinsics and
+## the core class there and the SETs must land on top of both. Tree-wide
+## rather than on [member Graph.entities_container], which is an `@onready` of
+## a sibling that may not have readied yet when this node's `_ready` runs.
 func arm_lethal() -> void:
-	pass
+	get_tree().node_added.connect(_on_node_added_lethal)
+
+
+func _on_node_added_lethal(node: Node) -> void:
+	if node is Entity:
+		node.ready.connect(make_lethal.bind(node), CONNECT_ONE_SHOT)

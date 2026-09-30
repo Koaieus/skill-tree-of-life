@@ -7,7 +7,8 @@ Spawns two headless Godot processes on 127.0.0.1, drives the SHIPPED menu
 (HOST / JOIN / START, the same rows a human presses), hands both heroes to the
 AI, and lets the run play itself to a verdict. Then it compares the two logs.
 
-    mise run mp:e2e                     # the default: smallest map, 400-turn cap
+    mise run mp:e2e                     # the default: smallest map, 400-turn cap, lethal
+    mise run mp:e2e -- --no-lethal      # the shipped stats: a full-length game
     mise run mp:e2e -- --port 9412      # a specific port
     mise run mp:e2e -- --max-turns 80   # tighter cap (entity-turns, not rounds)
     mise run mp:e2e -- --timeout 240    # wall-clock ceiling per run
@@ -149,6 +150,13 @@ def main():
                     help="how long the host gets to open its socket")
     ap.add_argument("--ai-delay", type=float, default=None,
                     help="seconds an AI waits before acting (default 0 — see #756)")
+    # Lethal by default (owner, 2026-09-30): every entity dies to ~3 node
+    # losses, so the game fits the default timeout — on shipped stats one lasts
+    # as long as its seed says (~3 s a launch, 70+ launches). What this run
+    # proves is the sync, not the balance. BOTH roles get it: the mirror's
+    # boards must match the host's (`MpHarness.make_lethal`).
+    ap.add_argument("--no-lethal", dest="lethal", action="store_false",
+                    help="play on shipped stats instead of the lethal e2e preset")
     args = ap.parse_args()
 
     os.makedirs(OUT_DIR, exist_ok=True)
@@ -161,6 +169,8 @@ def main():
         extra.append("--max-turns=%d" % args.max_turns)
     if args.ai_delay is not None:
         extra.append("--ai-delay=%s" % args.ai_delay)
+    if args.lethal:
+        extra.append("--lethal")
 
     print("rung 4: two processes on 127.0.0.1:%d — logs at .godot/mp-e2e-*.log" % port)
     started = time.monotonic()
