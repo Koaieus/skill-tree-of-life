@@ -216,11 +216,6 @@ func test_the_geometryless_and_non_territorial_verbs_frame_nothing() -> void:
 	var npc := _npc()
 	assert_null(_dir._build_command_request(EndTurnCommand.new(npc)), "end_turn")
 	assert_null(_dir._build_command_request(LootRoundCommand.new(npc)), "loot_round")
-	# A NodeCommand WITH geometry, excluded on purpose: it is not a territory
-	# change. This is what a subtype test instead of an allow-list would break.
-	var toggle := ToggleTempUpgradeCommand.new(npc)
-	toggle.node_id = _node_at(Vector2.ZERO)
-	assert_null(_dir._build_command_request(toggle), "toggle_temp_upgrade")
 
 
 # --- the non-negotiable -----------------------------------------------------

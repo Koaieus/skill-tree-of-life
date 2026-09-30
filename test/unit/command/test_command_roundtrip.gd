@@ -109,16 +109,6 @@ func test_a_forfeited_pick_round_trips_as_minus_one() -> void:
 	assert_eq(back.chosen_index, -1)
 
 
-func test_toggle_temp_upgrade_round_trips_including_the_upgrade_id() -> void:
-	var cmd := ToggleTempUpgradeCommand.new(7, 42, &"clamp")
-	var back := _round_trip(cmd) as ToggleTempUpgradeCommand
-	assert_not_null(back)
-	assert_eq(back.entity_id, 7)
-	assert_eq(back.node_id, 42)
-	assert_eq(back.upgrade_id, &"clamp", "which upgrade, not just where")
-	assert_eq(back.type_tag(), ToggleTempUpgradeCommand.TAG)
-
-
 func _every_command() -> Array[Command]:
 	var node_ids: Array[int] = [1, 2]
 	var path: Array[int] = [1, 2, 3]
@@ -132,13 +122,12 @@ func _every_command() -> Array[Command]:
 		MoveCoreCommand.new(1, path),
 		EndTurnCommand.new(1),
 		PickLootCommand.new(1, 5, 0),
-		ToggleTempUpgradeCommand.new(1, 2, &"spike_ring"),
 		ToggleGatesCommand.new(1, node_ids),
 	]
 
 
-func test_the_vocabulary_is_eleven_commands() -> void:
-	assert_eq(_every_command().size(), 11)
+func test_the_vocabulary_is_ten_commands() -> void:
+	assert_eq(_every_command().size(), 10)
 
 
 ## The load-bearing invariant: a command NEVER holds a SkillNode or Entity

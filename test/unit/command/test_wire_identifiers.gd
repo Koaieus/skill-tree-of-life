@@ -34,19 +34,6 @@ func test_by_id_on_an_unknown_id_is_null() -> void:
 	assert_null(_catalog.by_id(&"no_such_upgrade"))
 
 
-## A ToggleTempUpgradeCommand's payload resolves back to a real catalog entry —
-## the whole point of the owner's correction to #509's payload table — through
-## the same door the handler uses, [method BattleSystem.temp_upgrade_by_id].
-func test_a_toggle_command_names_a_resolvable_upgrade() -> void:
-	var upgrade: TempUpgradeDef = _catalog.kinds[0]
-	var bs: BattleSystem = autofree(BattleSystem.new())
-	bs.temp_upgrade_catalog = _catalog
-	var cmd := ToggleTempUpgradeCommand.new(1, 2, upgrade.id)
-	var back := CommandCodec.from_dict(cmd.to_dict()) as ToggleTempUpgradeCommand
-
-	assert_not_null(back)
-	assert_true(bs.temp_upgrade_by_id(back.upgrade_id) == upgrade, "identical def")
-
 
 func _request() -> LootPickRequest:
 	var candidates: Array[StatModifier] = [_MOD.new(), _MOD.new()]

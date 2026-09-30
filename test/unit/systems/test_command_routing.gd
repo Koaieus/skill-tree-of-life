@@ -156,10 +156,9 @@ func test_no_mutation_path_on_the_controller_returns_a_bool() -> void:
 
 func test_apply_armed_temp_upgrade_to_is_gone_from_the_controller() -> void:
 	assert_false(_ctl.has_method("apply_armed_temp_upgrade_to"),
-			"it moved to BattleSystem.toggle_temp_upgrade_on (#510)")
+			"the toggle is a plan edit (ADR 0035), reached by request_temp_upgrade_at")
 	assert_true(_ctl.has_method("request_temp_upgrade_at"),
 			"what stays behind is the arm + the routing answer")
-	assert_true(_battle.has_method("toggle_temp_upgrade_on"))
 
 
 # ── Multi-hop core move: ONE command ────────────────────────────────────────
@@ -249,61 +248,12 @@ func _arm_melee_with_clamp() -> void:
 	_ctl.arm_temp_upgrade(_catalog.by_id(&"clamp"))
 
 
-func test_an_armed_temp_upgrade_lands_through_the_applier() -> void:
+func test_an_armed_temp_upgrade_is_a_local_plan_edit_with_no_command() -> void:
 	_arm_melee_with_clamp()
 	var seen := _tags()
 	assert_true(_ctl.request_temp_upgrade_at(_n("C")), "the click is consumed")
-	assert_eq(seen, [&"toggle_temp_upgrade"] as Array[StringName])
-	assert_false(_n("C").get_addons().is_empty(), "and the addon is really mounted")
-
-
-func test_a_toggle_raised_from_a_plan_state_listener_is_queued() -> void:
-	# `attack_plan_state_changed` is what drives MeleeBody._refresh ->
-	# CapacityBlips._rebuild, whose comment documents the synchronous
-	# re-entrancy hazard on `pip_clicked -> apply_armed_temp_upgrade_to ->
-	# _rebuild()`. That listener now fires while the applier holds its guard,
-	# so a re-entrant toggle is structurally impossible rather than merely
-	# survivable.
-	_arm_melee_with_clamp()
-	var applying_when_notified: Array[bool] = [false]
-	var reentrant_consumed: Array[bool] = [true]
-	var fired: Array[bool] = [false]
-	_battle.attack_plan_state_changed.connect(func():
-		if fired[0]:
-			return
-		fired[0] = true
-		applying_when_notified[0] = _applier.is_applying
-		reentrant_consumed[0] = _ctl.request_temp_upgrade_at(_n("B")))
-	_ctl.request_temp_upgrade_at(_n("C"))
-	assert_true(applying_when_notified[0],
-			"the rebuild-triggering signal fires inside the applier's guard")
-	assert_false(reentrant_consumed[0],
-			"and can_player_act() — now reading is_applying — refuses the click outright")
-	assert_true(_n("B").get_addons().is_empty(), "so no second toggle snuck in mid-apply")
-	assert_false(_n("C").get_addons().is_empty(), "while the one the player asked for landed")
-
-
-func test_a_raw_submit_from_that_same_listener_queues_rather_than_reenters() -> void:
-	# The gate above is the first line of defence; the queue is the structural
-	# one. Bypass the gate (a peer's confirmed command arrives this way, with no
-	# can_player_act() in the path) and the applier still refuses to re-enter.
-	_arm_melee_with_clamp()
-	var pending_inside: Array[int] = [-1]
-	var fired: Array[bool] = [false]
-	_battle.attack_plan_state_changed.connect(func():
-		if fired[0]:
-			return
-		fired[0] = true
-		_applier.submit(ToggleTempUpgradeCommand.new(
-				_player.entity_id, _graph.get_stable_id(_n("B")), &"clamp"))
-		pending_inside[0] = _applier.pending_count())
-	_ctl.request_temp_upgrade_at(_n("C"))
-	assert_eq(pending_inside[0], 1, "queued, not applied down the stack")
-	# Whether the queued toggle then LANDS is the plan's own budget call (the
-	# shared blade_size may well be spent by the first one) — the point here is
-	# that it was applied in its turn and the queue drained, not re-entrantly.
-	assert_eq(_applier.pending_count(), 0)
-	assert_false(_applier.is_applying)
+	assert_eq(seen, [] as Array[StringName], "plan content never submits a command")
+	assert_false(_n("C").get_addons().is_empty(), "and the preview addon is mounted")
 
 
 # ── The widened act gate ────────────────────────────────────────────────────

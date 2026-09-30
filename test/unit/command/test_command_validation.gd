@@ -229,12 +229,6 @@ func test_a_refused_move_core_does_not_confirm() -> void:
 	assert_eq(_player.core_location, _n("A"), "and the core did not move")
 
 
-func test_a_refused_toggle_temp_upgrade_does_not_confirm() -> void:
-	# No BattleSystem wired at all, so there is no live melee plan to toggle on.
-	await _run(ToggleTempUpgradeCommand.new(_player.entity_id, _sid("B"), &"reach"))
-	_assert_refused(&"toggle_temp_upgrade")
-
-
 func test_a_refused_loot_round_does_not_confirm() -> void:
 	# B carries no SkillDustAddon, so no round can run on it.
 	await _run(LootRoundCommand.new(_player.entity_id, _sid("B")))

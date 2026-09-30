@@ -266,12 +266,11 @@ func test_a_missing_key_leaves_the_fresh_default_in_place() -> void:
 
 
 func test_from_dict_coerces_wire_primitives_to_the_declared_types() -> void:
-	var back := WireFields.from_dict(ToggleTempUpgradeCommand,
-			{"entity_id": 3.0, "node_id": "12", "upgrade_id": "blade"}) as ToggleTempUpgradeCommand
+	var back := WireFields.from_dict(StakeCommand,
+			{"entity_id": 3.0, "node_id": "12"}) as StakeCommand
 	assert_eq(typeof(back.entity_id), TYPE_INT)
+	assert_eq(typeof(back.node_id), TYPE_INT)
 	assert_eq(back.node_id, 12)
-	assert_eq(typeof(back.upgrade_id), TYPE_STRING_NAME)
-	assert_eq(back.upgrade_id, &"blade")
 
 
 func test_to_dict_copies_arrays_and_keeps_them_typed_after_decode() -> void:

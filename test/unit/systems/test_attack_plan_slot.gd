@@ -152,10 +152,10 @@ func test_toggles_a_temp_upgrade() -> void:
 	assert_not_null(clamp, "the wired catalog answers by id")
 	assert_true(_slot.temp_upgrade_kinds().has(clamp))
 	var before := _joint.get_addons().size()
-	assert_true(_slot.can_toggle_temp_upgrade_on(_joint, clamp))
-	assert_true(_slot.toggle_temp_upgrade_on(_joint, clamp), "first toggle applies")
+	assert_true(plan.can_toggle_temp_upgrade(_joint, clamp))
+	assert_true(plan.toggle_temp_upgrade(_joint, clamp), "first toggle applies")
 	assert_eq(_joint.get_addons().size(), before + 1)
-	assert_true(_slot.toggle_temp_upgrade_on(_joint, clamp), "second toggle refunds")
+	assert_true(plan.toggle_temp_upgrade(_joint, clamp), "second toggle refunds")
 	assert_eq(_joint.get_addons().size(), before)
 
 

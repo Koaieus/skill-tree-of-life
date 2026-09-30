@@ -262,8 +262,8 @@ func test_a_command_raised_during_an_attack_queues_rather_than_re_entering() -> 
 
 
 func test_an_initiate_with_no_live_plan_is_refused_rather_than_guessed() -> void:
-	# Rebuilding a plan from an initiate is the intent-up path (#463). Until
-	# then, a peer handed one refuses loudly instead of inventing a swing.
+	# A remote seat's initiate is rebuilt from its plan dict (ADR 0035); one
+	# whose dict is not a plan is refused loudly instead of inventing a swing.
 	var command := LaunchAttackCommand.new(_attacker.entity_id, {}, 1234)
 	var applied: Array[bool] = []
 	_applier.command_applied.connect(func(_cmd: Command, ok: bool): applied.append(ok))
