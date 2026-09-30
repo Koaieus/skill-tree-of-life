@@ -11,9 +11,11 @@ extends SkillNodeVisual
 ## ([method Gimbal3D.rings_for_level]); `node_seed` -> [member phase] (golden
 ## angle, so neighbouring cores never share a pose).
 ##
-## Gate: rig `visible` = in-tree visible AND (revealed OR on screen) — the
-## CoreHalos #802 gate; the on-screen half is the holder's
-## VisibleOnScreenNotifier3D. The rig is acquired lazily (deferred: an ancestor
+## Gate: rig `visible` = in-tree visible AND revealed. Not CoreHalos' "revealed
+## OR on screen" animation gate: the front half composites OVER the fog, so a
+## fogged rig on screen would show its near rings. A revealed rig near the fog
+## edge is fogged per pixel by the front composite's shader instead
+## (`gimbal_front_fog.gdshader`). The rig is acquired lazily (deferred: an ancestor
 ## may still be setting up its children) and freed on `_exit_tree`; the holder
 ## follows this node by `set_notify_transform`. In the editor the rig is built
 ## only outside the edited scene ([method GimbalWorld.is_live_for]): the sandbox
@@ -63,7 +65,6 @@ var revealed: bool = true:
 
 var _rig: Gimbal3D = null
 var _holder: Node3D = null
-var _on_screen: bool = false
 
 
 func _on_identity_changed() -> void:
@@ -111,10 +112,6 @@ func _acquire() -> void:
 	_rig.phase = phase
 	_rig.base_radius = _rig_radius()
 	_holder = GimbalWorld.acquire(self).add_rig(_rig, global_position, radius)
-	var notifier := _holder.get_node_or_null(^"OnScreen") as VisibleOnScreenNotifier3D
-	if notifier != null:
-		notifier.screen_entered.connect(_on_screen_changed.bind(true))
-		notifier.screen_exited.connect(_on_screen_changed.bind(false))
 	_refresh_gate()
 
 
@@ -123,17 +120,11 @@ func _release() -> void:
 		_holder.queue_free()
 	_holder = null
 	_rig = null
-	_on_screen = false
-
-
-func _on_screen_changed(value: bool) -> void:
-	_on_screen = value
-	_refresh_gate()
 
 
 func _refresh_gate() -> void:
 	if _rig != null:
-		_rig.visible = is_visible_in_tree() and (revealed or _on_screen)
+		_rig.visible = is_visible_in_tree() and revealed
 
 
 func _sync_holder() -> void:

@@ -4,7 +4,9 @@ extends Node2D
 ## THE gimbal substrate (#804, shape A2): every 3D gimbal rig lives in ONE
 ## World3D drawn by two SubViewports, each composited once into the graph
 ## canvas — the back half just UNDER the node disks, the front half at
-## ZLayers.GIMBAL (over the fog-lifted disks, under spell VFX / HUD). The real 2D disk
+## ZLayers.GIMBAL (over the fog-lifted disks, under spell VFX / HUD; it fogs
+## itself per pixel off the shared vision field, `gimbal_front_fog.gdshader`,
+## since it sits above FogOverlay). The real 2D disk
 ## sits between the halves: hidden exactly where a disk is, visible everywhere
 ## else, and opaque rings order correctly because a clip plane does not care
 ## about draw order.

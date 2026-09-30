@@ -9,7 +9,7 @@
 ##   CORE_MOVE    100     relative — core ghost/badge above graph siblings during a move
 ##   FOG         1000     absolute — FogOverlay shader covers all graph content
 ##   SENSED      1001     absolute — sensed/visible nodes punch through the fog
-##   GIMBAL      1500     absolute — GimbalWorld's front composite (its back one sits at GRAPH_DEFAULT-1): over the SENSED-lifted disks it sandwiches; a fogged core's rig is not revealed, so nothing leaks
+##   GIMBAL      1500     absolute — GimbalWorld's front composite (its back one sits at GRAPH_DEFAULT-1): over the SENSED-lifted disks it sandwiches; a fogged core's rig is hidden and the composite fogs itself per pixel, so nothing leaks
 ##   SPELL_VFX   2000     absolute — allocation ring + floaters, above fog + sensed
 ##   PROJECTILE  3000     absolute — attack projectiles, above spell VFX
 ##   UI          4096     absolute — pause overlay; engine ceiling (CanvasItem range ±4096)

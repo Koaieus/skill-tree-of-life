@@ -57,6 +57,18 @@ func test_gate_mirrors_the_rig_visibility() -> void:
 	assert_true(rig.visible, "revealed -> rig shown")
 
 
+func test_a_fogged_core_on_screen_hides_its_rig() -> void:
+	var leaf := await _make()
+	var rig: Gimbal3D = leaf._rig
+	assert_not_null(rig)
+	if rig == null:
+		return
+	(leaf._holder.get_node(^"OnScreen") as VisibleOnScreenNotifier3D).screen_entered.emit()
+	leaf.revealed = false
+	assert_false(rig.visible,
+		"on screen but fogged -> rig hidden (its front half draws over the fog)")
+
+
 func test_travel_glide_moves_the_holder() -> void:
 	var leaf := await _make(Vector2(100, 50))
 	assert_not_null(leaf._holder)
