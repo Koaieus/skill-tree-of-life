@@ -1,7 +1,7 @@
 # The Aspect Matrix — every concept × every attack mode
 
 > Design doc: the living table. Every status/concept must fill every column —
-> Ranged (arrow), Melee (addon), Magic (infusion) — each delivered through
+> Ranged (arrow), Addon, Magic (infusion) — each delivered through
 > whatever hit kind the concept actually is (Scout is a reveal, not a damage
 > status). An empty cell is a deliberate call written into the table, never
 > a gap.
@@ -23,6 +23,22 @@ stays; a temp addon is added to a blade before a swing, costs aspect
 charges + blade size budget, and is removed after. Addons are copied onto
 melee blade nodes and take effect there — hence one column, not two.
 
+**The addon recipe (owner, 2026-10-01).** It's just "addon", never "melee
+addon". Designing a concept's addon cell means filling in these parts:
+
+1. **Modifier list** — the entity + node-local modifiers the scene carries.
+2. **Blade-node behaviour** — what it does when copied onto a blade
+   (`apply_to_blade`), or "none".
+3. **Looks** — how it reads on the board: a visual child of the addon scene
+   (#1212's shape) and/or a central emblem (`get_emblem`). An addon with no
+   look is invisible outside its tooltip.
+4. **Customization needed?** — be on the lookout for anything the addon
+   contract doesn't already cover: a new hook, extra hitscans, perf work,
+   worst case C++ marshalling (e.g. explosive's AoE, #1211). Name it in the
+   cell, so it becomes its own unit instead of a surprise mid-build.
+5. **Procgen weight** (optional, lower priority) — whether procgen places it
+   as a map addon, and at what rate.
+
 **Magic infusion** is a fifth spell component (an `Infusion` resource adding
 an on-hit effect plus optional drawback on another component), not a patch
 onto the existing four — keeps #1200 (composable spells) open. Mechanics
@@ -30,9 +46,9 @@ TBD on #1250.
 
 ## The Matrix
 
-| Concept | Stat | Ranged (arrow) | Melee (addon: map / temp) | Magic (infusion) | Notes |
+| Concept | Stat | Ranged (arrow) | Addon (map / temp) | Magic (infusion) | Notes |
 |---|---|---|---|---|---|
-| Poison | `poison_aspect` | shipped (`poison_arrows_per_reload`, to be replaced by aspect supply) | `toxin_addon.tscn` (on shared `dot_addon.gd`) | spells apply poison; infusion TBD | spread signature undecided (#1204) |
+| Poison | `poison_aspect` | shipped (`poison_arrows_per_reload`, to be replaced by aspect supply) | `toxin_addon.tscn` (on shared `dot_addon.gd`); modifiers + blade behaviour shipped, **no look** (#1271) | spells apply poison; infusion TBD | spread signature undecided (#1204) |
 | Corruption | `corruption_aspect` | #971 | #971 | #971 | spreads as a sandpile by nature (#1202); health bar shows blips per stack, extra-mean when critical (#1092) |
 | Curse | `curse_aspect` | #972 | #972 | #972 | raises `min_damage_taken`; spills to surviving direct neighbours on death AND dealloc (#1204) |
 | Wither | `wither_aspect` | #973 | #973 | #973 | drives healing received negative |
@@ -45,7 +61,7 @@ TBD on #1250.
 
 Not yet promoted into the Matrix proper — fill cells when a good idea shows up.
 
-| Concept | Stat | Ranged (arrow) | Melee (addon) | Magic (infusion) | Notes |
+| Concept | Stat | Ranged (arrow) | Addon | Magic (infusion) | Notes |
 |---|---|---|---|---|---|
 | Spikes | `spike_aspect` (if promoted) | TBD | `spike_ring_addon.tscn` (×1.5 local `blade_damage` + stake-scaled `spikes`) | TBD | owner estimate ~×4.5 damage at 3/3 allocation, unmeasured |
 | Blunting | `blunting_aspect` (if promoted) | TBD | today only a spiked node's +1 | TBD | — |
