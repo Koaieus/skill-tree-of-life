@@ -68,6 +68,6 @@ Corruption at 2% per stack: 10 stacks on a 2000-HP node is 400/tick; on a
   available for the connectedness cure.
 - Faster decay as a **class** identity, instead of resistance.
 - Corruption on the health bar: #1092 (readout). Proc timing is settled —
-  statuses tick at the afflicted entity's **turn start** (owner, #1256,
-  2026-09-30), so a fresh application always lands one tick before the victim
-  can answer it.
+  statuses tick at the afflicted entity's **turn end**, so every tick, the
+  first included, can be answered; a last action before a DoT death is
+  intended ([ADR 0040](../adr/0040-statuses-tick-at-the-end-of-the-afflicted-entitys-turn.md), #1256).

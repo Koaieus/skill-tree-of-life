@@ -61,6 +61,7 @@ mise run adr-hygiene     # frontmatter, supersede links, index coverage, immutab
 | [0037](0037-territory-selection-is-one-policy-shared-by-spawn-seeding-and-the-ai.md) | Territory selection is one AllocationPolicy, pick_next(entity, candidates, objective), shared by spawn seeding and any AI picker; callers supply candidates and gate, the policy only picks | accepted | 2026-07-21 | ai, procgen, allocation, territory, architecture |
 | [0038](0038-int-is-the-runaway-attribute-and-every-int-transfer-is-thinned.md) | INT is the runaway attribute, and every transfer out of it is thinned — spell damage takes √INT, reach and mana take big divisors or saturating ladders; the linear damage payoff and the ×2 reach cap are retired | accepted | 2026-09-21 | stats, balance, int, spells, formulas, design |
 | [0039](0039-spell-power-is-gated-by-four-conditions-not-by-damage-tuning.md) | Spell power is gated by four independent conditions — knowing the spell, entity degree at the cast node, mana, range from the cast node — never by tuning damage down | accepted | 2026-08-03 | spells, balance, degree, mana, range, design |
+| [0040](0040-statuses-tick-at-the-end-of-the-afflicted-entitys-turn.md) | Statuses tick at the END of the afflicted entity's turn, both hosts in one beat — never at turn start, never per family; a last action before a DoT death is intended | accepted | 2026-09-30 | combat, status, dot, turn, design |
 
 ## Pre-ADR log
 

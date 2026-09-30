@@ -338,9 +338,8 @@ read is already correct.
   `Entity.begin_turn` (#1137): after the entity's own upkeep and status tick,
   before `turn_began` kicks the controller, over a snapshot of the owned set
   (the one regen already walks), skipping a node stripped mid-sweep. Every
-  real turn, never on an adopted resync cursor. Turn start, not turn end, is
-  an owner call (#1256, 2026-09-30): a fresh application's first tick is
-  certain, and a cleanse on your turn answers every tick after it. All statuses void on any deallocation path
+  real turn, never on an adopted resync cursor. ADR 0040 moves this to the
+  end of the turn (#1256). All statuses void on any deallocation path
   (`AllocationSystem.clear_statuses()` on `deallocate`/`force_deallocate`/
   `deallocate_all_owned`) — `StatusDef.OnDealloc` reserves a `LINGER` door but
   only `CLEAR` is built. `network/graph_snapshot.gd` carries `(status id,
