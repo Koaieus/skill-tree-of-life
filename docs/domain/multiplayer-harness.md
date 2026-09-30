@@ -786,7 +786,16 @@ turn one:
 ```
 mise run mp:e2e                     # the whole thing: spawn, play, compare
 mise run mp:e2e -- --max-turns 80   # entity-turns, not rounds
+mise run mp:e2e -- --no-lethal      # normal stats: a long game, may outrun --timeout
 ```
+
+**Lethal by default.** Both processes get `--lethal`, which puts four `SET`
+modifiers on every entity (`MpHarness._LETHAL_SETS`): `node_health` 1,
+`health` 3, `dealloc_damage` 1, `core_healing` 0, so each entity survives at
+most about three node losses. Owner, 2026-09-30: "if AI can't manage *that*
+then battle is truly broken". A run on normal stats lasts as long as its seed
+decides (about 3 s per launch) and can outrun the 180 s default, which is a
+game length, not a failure. `--no-lethal` plays that game.
 
 which is `.mise/tasks/mp/e2e` spawning rung 3's own command line plus
 `--autoplay`:
