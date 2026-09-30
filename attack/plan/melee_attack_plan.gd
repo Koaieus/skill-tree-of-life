@@ -10,7 +10,7 @@ extends AttackPlan
 ## cascades the other way — anyone newly disconnected from the pivot drops
 ## too — keeping the blade well-formed at every step. Right-click pops the
 ## pivot (and every member with it) back to "no pivot yet" — see
-## docs/design/click_grammar.md.
+## docs/domain/click-grammar.md.
 
 const _BLADE_SIZE_ID: StringName = &"blade_size"
 
@@ -288,7 +288,7 @@ func pop() -> bool:
 
 
 ## Click grammar over the verbs: arm the pivot, re-click it to pop (the
-## pivot is never a valid member — docs/design/click_grammar.md), or toggle a
+## pivot is never a valid member — docs/domain/click-grammar.md), or toggle a
 ## member.
 func handle_left_click(node: SkillNode) -> void:
 	if attacker == null or node == null:
