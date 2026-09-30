@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+#MISE description="Self-test for .mise/bin/gh (the rate-limit retry shim): a fake gh behind it fails in scripted ways. `mise run gh-shim-selftest`"
+set -u
+root=$(cd "$(dirname "$0")/../.." && pwd)
+work=$(mktemp -d); trap 'rm -rf "$work"' EXIT
+mkdir -p "$work/fake"
+# The fake "real" gh: reads a script of per-call behaviours from $work/plan,
+# one line per attempt (`rl` = rate-limit failure, `err` = other failure,
+# `ok` = success echoing its args and stdin), and counts calls in $work/n.
+cat >"$work/fake/gh" <<'EOF'
+#!/usr/bin/env bash
+n=$(( $(cat "$WORK/n" 2>/dev/null || echo 0) + 1 )); echo "$n" >"$WORK/n"
+mode=$(sed -n "${n}p" "$WORK/plan")
+case "$mode" in
+  rl)  echo "GraphQL: API rate limit already exceeded for user ID 1" >&2; exit 1 ;;
+  err) echo "GraphQL: Could not resolve to an Issue" >&2; exit 3 ;;
+  ok)  echo "ok:$*"; [ -t 0 ] || cat; exit 0 ;;
+  *)   echo "fake gh: no plan for call $n" >&2; exit 99 ;;
+esac
+EOF
+chmod +x "$work/fake/gh"
+export WORK="$work" PATH="$root/.mise/bin:$work/fake:$PATH" GH_SHIM_BACKOFF=0
+fail=0
+check() { if [ "$2" = "$3" ]; then echo "  ok   $1"; else echo "  FAIL $1: expected [$3] got [$2]"; fail=1; fi; }
+reset() { printf '%s\n' "$@" >"$work/plan"; rm -f "$work/n"; }
+
+echo "gh-shim-selftest"
+reset rl rl ok
+out=$(gh issue view 7 </dev/null 2>"$work/err"); rc=$?
+check "two rate limits then success -> stdout of the success, rc 0" "$rc:$out" "0:ok:issue view 7"
+check "  ...after exactly 3 calls" "$(cat "$work/n")" "3"
+check "  ...retry notices on stderr" "$(grep -c 'retrying' "$work/err")" "2"
+
+reset err
+out=$(gh issue view 7 </dev/null 2>"$work/err"); rc=$?
+check "non-rate-limit failure passes through once, rc kept" "$rc:$(cat "$work/n")" "3:1"
+check "  ...stderr kept" "$(grep -c 'Could not resolve' "$work/err")" "1"
+
+reset rl rl rl
+out=$(GH_SHIM_RETRIES=2 gh issue edit 7 </dev/null 2>"$work/err"); rc=$?
+check "gives up after GH_SHIM_RETRIES, rc kept" "$rc:$(cat "$work/n")" "1:2"
+check "  ...give-up message names the secondary limit" "$(grep -c 'SECONDARY' "$work/err")" "1"
+check "  ...and says the call may not have landed" "$(grep -c 'DID NOT LAND' "$work/err")" "1"
+
+reset rl ok
+out=$(printf 'body text' | gh issue comment 7 --body-file - 2>/dev/null); rc=$?
+check "stdin is replayed on retry when gh reads it" "$rc:$out" "0:ok:issue comment 7 --body-file -
+body text"
+
+reset ok
+out=$(GH_SHIM=off gh x </dev/null 2>/dev/null)
+check "GH_SHIM=off passes through" "$out" "ok:x"
+
+[ "$fail" -eq 0 ] && echo "gh-shim-selftest: all green" || { echo "gh-shim-selftest: FAILED"; exit 1; }

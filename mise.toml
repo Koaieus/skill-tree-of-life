@@ -35,10 +35,12 @@ GH_PROJECT_ID = "PVT_kwHOAExWR84BcS99"
 # use plain `gh issue view <n> --comments` instead of guessing at --json fields.
 GH_PAGER = "cat"
 
+# .mise/bin first: its `gh` shim retries GitHub rate limits for every agent
+# call (interactive terminals pass through; `mise run gh-shim-selftest`).
 # msdfgen has no packaged Linux binary (releases ship Windows-only); the
-# `tools:bootstrap` task builds it from source into this dir.
+# `tools:bootstrap` task builds it from source into that dir.
 [env._]
-path = "~/.local/share/mise/installs/msdfgen/1.13/bin"
+path = ["{{config_root}}/.mise/bin", "~/.local/share/mise/installs/msdfgen/1.13/bin"]
 
 # `mise install` promises to be the whole setup (CLAUDE.md), and #816 makes
 # the blade solver's GDExtension mandatory — so a fresh clone needs the

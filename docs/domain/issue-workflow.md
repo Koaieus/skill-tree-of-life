@@ -159,6 +159,24 @@ none gives empty output and exit 0, which is not a broken pager. `mise.toml`
 exports `GH_PAGER=cat` repo-wide, so `gh` never pages even under a pty; reaching
 for `--json` to dodge a suspected hang just makes you guess at field names.
 
+## Rate limits: "exceeded" with quota to spare is the secondary limit
+
+GitHub has two limits. The hourly quota (5000/h, `gh api rate_limit`) is
+almost never the one that bites. The **secondary** limit is per-user burst /
+concurrency, and a swarm — twenty drones, a lead, a clerk and a sibling
+session all shelling out to `gh` — trips it while `remaining` still reads
+~4900. Its error is the same text ("API rate limit already exceeded"), it
+ignores the `reset` timestamp, and it clears when the concurrent traffic
+eases, usually within minutes. The harness's built-in "sleep until reset"
+reminder is wrong for this case.
+
+Every `gh` call in this repo goes through `.mise/bin/gh` (first on PATH via
+`mise.toml`), which retries with backoff and, on giving up, prints the
+diagnosis at the moment it matters — no one reads this section mid-failure.
+What it says: a call that died on the limit did not land unless stdout shows
+it; verify via REST (throttled separately), re-run as-is, never hand-poll.
+`GH_SHIM=off` bypasses it; `GH_SHIM_RETRIES` / `GH_SHIM_BACKOFF` tune it.
+
 ## Never pass `gh --body "..."` with backticks
 
 The shell runs command substitution and silently deletes the span, publishing
