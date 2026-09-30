@@ -64,6 +64,17 @@ var _allocation_provider: ManagerHighlightProvider = null
 var _mass_action_provider: MassActionHighlightProvider = null
 var _gate_cut_provider: GateCutHighlightProvider = null
 
+## The armed melee plan's fuse warning — the fused swing's predicted stranded
+## union, pushed by the melee tray body once the prediction is in (nothing
+## signals a prediction completing, so this is a push, never a pull). Non-empty
+## overlays [GateCutHighlightProvider] on the armed plan; reset with the plan.
+var fuse_stranded: Array[SkillNode] = []:
+	set(v):
+		if v == fuse_stranded:
+			return
+		fuse_stranded = v.duplicate()
+		_resolve()
+
 
 func _enter_tree() -> void:
 	add_to_group(GROUP)
@@ -74,7 +85,7 @@ func _enter_tree() -> void:
 ## populated by the time `_ready` runs.
 func _ready() -> void:
 	if battle_system != null:
-		battle_system.attack_plan_changed.connect(_on_source_changed.unbind(1))
+		battle_system.attack_plan_changed.connect(_on_attack_plan_changed.unbind(1))
 		battle_system.in_flight_plan_changed.connect(_on_source_changed.unbind(1))
 	var ctl := _live_input_ctl()
 	if ctl != null:
@@ -94,6 +105,14 @@ func _on_source_changed() -> void:
 	_resolve()
 
 
+## A new (or cleared) plan never inherits the last one's fuse warning.
+func _on_attack_plan_changed() -> void:
+	if fuse_stranded.is_empty():
+		_resolve()
+	else:
+		fuse_stranded = [] as Array[SkillNode]
+
+
 ## Pick the active provider by priority and install it (the setter handles
 ## rebinding + the provider_changed emit).
 func _resolve() -> void:
@@ -102,9 +121,15 @@ func _resolve() -> void:
 	if ctl != null and ctl.pending_mass_action() != null:
 		next = _build_mass_action_provider()
 	elif ctl != null and not ctl.pending_gate_strand().is_empty():
-		next = _build_gate_cut_provider()
+		next = _build_gate_cut_provider(ctl.pending_gate_strand(), null)
 	elif battle_system != null and _shown_plan() != null:
-		next = _shown_plan()
+		var shown := _shown_plan()
+		# The fuse warning is PLAN-time: it overlays the armed plan only, never
+		# a launch in flight (whose flips are landing for real).
+		if not fuse_stranded.is_empty() and shown == battle_system.attack_plan:
+			next = _build_gate_cut_provider(fuse_stranded, shown)
+		else:
+			next = shown
 	elif ctl != null and ctl.move_targeting_source() != null:
 		next = _build_core_provider()
 	elif _is_player_managing():
@@ -192,10 +217,11 @@ func _is_player_managing() -> bool:
 
 ## Reused across arms; the controller disarms (emitting empty) between two
 ## arms, so the provider always passes through another before it returns.
-func _build_gate_cut_provider() -> GateCutHighlightProvider:
+func _build_gate_cut_provider(stranded: Array[SkillNode], base: HighlightProvider) -> GateCutHighlightProvider:
 	if _gate_cut_provider == null:
 		_gate_cut_provider = GateCutHighlightProvider.new()
-	_gate_cut_provider.stranded = input_ctl.pending_gate_strand().duplicate()
+	_gate_cut_provider.base = base
+	_gate_cut_provider.stranded = stranded.duplicate()
 	return _gate_cut_provider
 
 

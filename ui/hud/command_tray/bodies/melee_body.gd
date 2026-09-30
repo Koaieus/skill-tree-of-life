@@ -15,6 +15,7 @@ extends CommandTrayBodyBase
 @onready var _reform_button: Button = %ReformButton
 @onready var _reset_button: Button = %ResetButton
 @onready var _launch_button: LaunchAttackButton = %LaunchButton
+@onready var _fuse_scrubber: FuseScrubber = %FuseScrubber
 
 ## Blip tint per [TempUpgradeDef] in the battle system's catalog (#406) — reused
 ## both for the upgrade-spend pips and as the addon-outline decoration on
@@ -57,6 +58,8 @@ func _on_bound() -> void:
 	_blade_blips.pip_clicked.connect(_on_pip_clicked)
 	_blade_blips.pip_hover_changed.connect(_on_pip_hover_changed)
 	_upgrade_blips.pip_hover_changed.connect(_on_pip_hover_changed)
+	_fuse_scrubber.edited.connect(_refresh)
+	_fuse_scrubber.marker_hovered.connect(_on_fuse_marker_hovered)
 	_build_upgrade_buttons()
 	_refresh()
 
@@ -74,6 +77,11 @@ func teardown() -> void:
 		_blade_blips.pip_hover_changed.disconnect(_on_pip_hover_changed)
 	if _upgrade_blips.pip_hover_changed.is_connected(_on_pip_hover_changed):
 		_upgrade_blips.pip_hover_changed.disconnect(_on_pip_hover_changed)
+	if _fuse_scrubber.edited.is_connected(_refresh):
+		_fuse_scrubber.edited.disconnect(_refresh)
+	if _fuse_scrubber.marker_hovered.is_connected(_on_fuse_marker_hovered):
+		_fuse_scrubber.marker_hovered.disconnect(_on_fuse_marker_hovered)
+	_push_fuse_stranded([] as Array[SkillNode])
 	_clear_hover()
 
 
@@ -99,6 +107,14 @@ func _on_pip_hover_changed(node: SkillNode, hovering: bool) -> void:
 		else:
 			_hover_counts.erase(node)
 			node.set_forced_hover(false)
+
+
+## A fuse marker stands for its gate's edge: hovering it hovers both ends.
+func _on_fuse_marker_hovered(gate: Gate, hovering: bool) -> void:
+	if gate == null or not is_instance_valid(gate):
+		return
+	_on_pip_hover_changed(gate.from, hovering)
+	_on_pip_hover_changed(gate.to, hovering)
 
 
 ## Drops EVERY forced hover this panel is holding. The invariant it exists to
@@ -241,6 +257,39 @@ func _refresh() -> void:
 		var btn := _upgrade_row.get_child(i) as TempUpgradeButton
 		btn.armed = arm == upgrade
 		btn.affordable = plan != null and can_act and plan.has_temp_upgrade_budget(upgrade)
+
+	_fuse_scrubber.sync(plan)
+	# _clear_hover() above dropped the marker's hover with everything else.
+	_on_fuse_marker_hovered(_fuse_scrubber.hovered_gate(), true)
+	# Mid-write the plan is between gates; the scrubber's `edited` lands here
+	# once the whole gesture step is in.
+	if not _fuse_scrubber.is_editing():
+		_refresh_fuse_warning(plan)
+
+
+## The plan-time self-cut warning: the fused swing's predicted stranded union
+## feeds the chip and the gate-cut highlight. Resolved whole, here, only while a
+## fuse is armed — the warning must match what launching commits, and an
+## unfused aim never pays for it (MeleePreview's sliced pump is untouched).
+## [method MeleeAttackPlan.refresh_prediction] is idempotent per selection, so
+## this and the preview's pump never resolve one selection twice.
+func _refresh_fuse_warning(plan: MeleeAttackPlan) -> void:
+	var stranded: Array[SkillNode] = []
+	if plan != null and plan.is_valid() and not plan.gate_fuses().is_empty():
+		plan.refresh_prediction()
+		var p := plan.prediction()
+		if p != null:
+			stranded = p.predicted_stranded()
+	_fuse_scrubber.show_stranded(stranded.size())
+	_push_fuse_stranded(stranded)
+
+
+func _push_fuse_stranded(stranded: Array[SkillNode]) -> void:
+	if not is_inside_tree():
+		return
+	var hc := get_tree().get_first_node_in_group(HighlightController.GROUP) as HighlightController
+	if hc != null:
+		hc.fuse_stranded = stranded
 
 
 ## Outline colors (up to two, catalog order) for every catalog addon kind
