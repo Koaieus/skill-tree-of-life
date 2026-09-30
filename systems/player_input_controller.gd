@@ -108,6 +108,16 @@ var _manage_arm: ManageVerb = ManageVerb.NONE
 signal mass_action_pending_changed(request: MassActionRequest)
 var _mass_action_request: MassActionRequest = null
 
+## Gate management (#1206). The bulk verbs a toggle expands into; locks are a
+## seat-local input filter held by [GateLockSet], never world state.
+enum GateAction { TOGGLE_UNLOCKED, OPEN_UNLOCKED, CLOSE_UNLOCKED, UNLOCK_ALL, LOCK_ALL }
+## A gate flip that would strand owned nodes is armed (non-empty) or disarmed
+## (empty). The same request again submits it.
+signal gate_confirm_changed(stranded: Array[SkillNode])
+## The current player's lock set changed (or the player did).
+signal gate_locks_changed
+
+
 ## Ordered pop stack (#404's shared arm/pop primitive, generalized #406).
 ## Earlier entries pop before later ones — TempUpgradeArmedMode is checked
 ## first because it nests inside an already-armed attack plan and must pop
@@ -1449,3 +1459,29 @@ func clear_transient_state() -> void:
 
 func _on_ap_changed(_new_current: Variant) -> void:
 	_emit_gate_changed()
+
+
+# ── Gates (#1206) ───────────────────────────────────────────────────────────
+
+func request_gate_action(_action: GateAction) -> void:
+	pass
+
+
+func request_gate_locks_hotkey() -> void:
+	pass
+
+
+func route_gate_click(_gate: Gate) -> void:
+	pass
+
+
+func toggle_gate_lock(_gate: Gate) -> void:
+	pass
+
+
+func is_gate_locked(_gate: Gate) -> bool:
+	return false
+
+
+func pending_gate_strand() -> Array[SkillNode]:
+	return []
