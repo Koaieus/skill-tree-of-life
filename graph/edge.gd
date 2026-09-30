@@ -108,6 +108,17 @@ const VIS_SENSED: float = 2.0
 		vision_visible = value
 		_push_colors()
 
+## Presentation only: fraction of this edge drawn, folded into the endpoint-A
+## colour alpha (the shader's only alpha channel). 1 = fully shown; a [Gate]
+## ramps a fresh edge 0 → 1 while its rope settles. Never read for a rule.
+var reveal: float = 1.0:
+	set(value):
+		value = clampf(value, 0.0, 1.0)
+		if reveal == value:
+			return
+		reveal = value
+		_push_colors()
+
 var is_self_loop: bool:
 	get(): return from != null and from == to
 
@@ -213,6 +224,7 @@ func _push_colors() -> void:
 	var lit := is_lit()
 	render_color_a = _display_color_lifted(from.base_type_color, lit)
 	render_color_b = _display_color_lifted(to.base_type_color, lit)
+	render_color_a.a *= reveal
 	render_vis_state = (VIS_SENSED if sensed else (VIS_VISIBLE if vision_visible else VIS_HIDDEN)) \
 		+ _CLAMP_CODE_SCALE * _clamp_code(from, to)
 	if _render_graph != null:
@@ -420,6 +432,7 @@ func _push_self_loop_colors() -> void:
 	var lit := is_lit()
 	var c := _display_color_lifted(from.base_type_color, lit)
 	render_color_a = c
+	render_color_a.a *= reveal
 	render_color_b = c
 	render_vis_state = _VIS_LOOP_OFFSET \
 		+ (VIS_SENSED if sensed else (VIS_VISIBLE if vision_visible else VIS_HIDDEN))
