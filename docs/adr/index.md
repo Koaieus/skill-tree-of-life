@@ -58,6 +58,7 @@ mise run adr-hygiene     # frontmatter, supersede links, index coverage, immutab
 | [0034](0034-armed-input-is-a-statechart-stack-system-whose-attack-level-owns-the-plan.md) | Armed input is a statechart held as a push/pop stack system, a sibling of BattleSystem; levels change only on events, and the attack level owns the in-progress plan | accepted | 2026-09-30 | input, ui, attack, architecture |
 | [0035](0035-a-plan-is-seat-local-until-launch-the-host-checks-only-affordability.md) | An attack plan, temp upgrades included, is seat-local until launch; the host judges it once in LaunchAttackCommand and checks only that the player can pay | accepted | 2026-09-30 | multiplayer, sync, attack |
 | [0036](0036-a-coreclass-is-a-leaf-reuse-lives-inside-its-typed-arrays.md) | A CoreClass is a leaf that never references another CoreClass; shared parts are file-backed packs and effects dropped into its typed arrays | accepted | 2026-08-04 | entity, core-class, stats, loot, authoring, architecture |
+| [0037](0037-territory-selection-is-one-policy-shared-by-spawn-seeding-and-the-ai.md) | Territory selection is one AllocationPolicy, pick_next(entity, candidates, objective), shared by spawn seeding and any AI picker; callers supply candidates and gate, the policy only picks | accepted | 2026-07-21 | ai, procgen, allocation, territory, architecture |
 
 ## Pre-ADR log
 

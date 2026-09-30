@@ -35,7 +35,7 @@ Compiled 2026-09-29. An empty cell means no ADR or domain doc holds that decisio
 | D-21 | Entity health scales with CON | | [stat-knobs-and-bins.md](../domain/stat-knobs-and-bins.md) | built #276; ratchet mechanism later reworked, semantics kept |
 | D-22 | `core_healing` is a sliver | | | **superseded** by D-25 |
 | D-23 | Procgen needs no level input | | [procgen-v4.md](../domain/procgen-v4.md) | radial gradient built; keystone scatter open (#180) |
-| D-24 | Territory selection: one shared policy | | | built via #275; no domain doc |
+| D-24 | Territory selection: one shared policy | [0037](0037-territory-selection-is-one-policy-shared-by-spawn-seeding-and-the-ai.md) | | built via #275; no domain doc |
 | D-25 | `core_healing`: integer heal, ungated | | | built #277 |
 | D-26 | `health = 10 + core_health_scaling × CON` | | [stat-knobs-and-bins.md](../domain/stat-knobs-and-bins.md) | built with D-21 (#276) |
 | D-27 | CoreClass is a leaf; reuse via arrays | [0036](0036-a-coreclass-is-a-leaf-reuse-lives-inside-its-typed-arrays.md) | [loot-system.md](../domain/loot-system.md) | revised twice in-doc before settling |
