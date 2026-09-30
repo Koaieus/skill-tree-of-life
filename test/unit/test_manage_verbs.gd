@@ -346,6 +346,16 @@ func test_attack_request_over_stake_switches_to_the_attack_level() -> void:
 	assert_signal_emit_count(_ctl.armed_stack, "changed", 1, "one arm, one change")
 
 
+func test_a_pop_mid_swing_is_refused_and_falls_through() -> void:
+	_wire_battle()
+	_ctl.on_attack_mode_requested(BattleSystem.AttackMode.MELEE)
+	assert_eq(_branch_types(), [ManageMode, AttackPlanMode], "precondition: melee armed")
+	_battle.is_launching = true  # the sword is flying: the level stays until the launch releases it
+	assert_false(_ctl.pop_armed_level(), "mid-swing, right-click/Esc fall through")
+	assert_eq(_branch_types(), [ManageMode, AttackPlanMode], "the attack level survives the swing")
+	_battle.is_launching = false
+
+
 func test_a_refused_attack_request_pushes_nothing() -> void:
 	_battle.is_launching = true  # mid-swing: the slot is locked
 	_ctl.on_attack_mode_requested(BattleSystem.AttackMode.MELEE)
