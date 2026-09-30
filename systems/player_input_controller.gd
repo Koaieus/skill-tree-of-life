@@ -843,9 +843,14 @@ func _active_attack_plan() -> AttackPlan:
 ## "ignores which node was clicked" (docs/design/click_grammar.md) and Esc has
 ## no node at all. The top level first retreats inside itself
 ## ([method ArmedMode.pop_within]); otherwise it pops. False at the root, so
-## the caller falls through to pin-toggle / the pause menu.
+## the caller falls through to pin-toggle / the pause menu. Mid-swing the
+## stack is frozen: the attack level outlives the launch until the slot
+## releases it, so a pop is refused (false) rather than stripping the badge
+## and glow off a sword that is still flying.
 func pop_armed_level() -> bool:
 	if armed_stack == null:
+		return false
+	if battle_system != null and battle_system.is_launching:
 		return false
 	var top := armed_stack.top()
 	if top != null and top.pop_within():

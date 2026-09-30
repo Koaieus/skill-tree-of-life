@@ -7,7 +7,7 @@ not built.
 ## Core-move on the generic pop
 
 Core-move still cancels on a re-click of its source through a dedicated
-branch in `PlayerInputController._route_core_move_click`, and has no "armed,
+branch in `CoreMoveMode.handle_left_click`, and has no "armed,
 no origin" level: both doors (clicking the core, the Move Core card) arm it
 with the core already set as source. The candidate: give it the attack modes'
 shape — the card arms, clicking the core sets the origin, clicking a landing

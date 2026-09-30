@@ -2,7 +2,7 @@ extends GutTest
 const _EDGE_SCENE := preload("res://graph/edge.tscn")
 
 ## Manage-tab verb dispatch (#338): Stake/Extract/Deallocate arm via
-## PlayerInputController.arm_manage_verb, then resolve on the next legal node
+## PlayerInputController.arm_verb (a level pushed on ArmedStack), then resolve on the next legal node
 ## click through the #404 shared dispatcher. Complements test_intent_dispatch.gd
 ## (bare-click allocate / D-hover-deallocate / core-move), which this doesn't
 ## re-cover.
