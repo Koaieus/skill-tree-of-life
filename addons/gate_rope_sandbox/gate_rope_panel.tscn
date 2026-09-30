@@ -1,6 +1,6 @@
 [gd_scene format=3]
 
-[ext_resource type="Script" path="res://addons/sandbox_host/tabs/72_gate_rope_panel.gd" id="1_panel"]
+[ext_resource type="Script" path="res://addons/gate_rope_sandbox/gate_rope_panel.gd" id="1_panel"]
 [ext_resource type="PackedScene" path="res://ui/theme/bloom_viewport.tscn" id="2_vp"]
 
 [node name="GateRopePanel" type="PanelContainer"]

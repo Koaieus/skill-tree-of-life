@@ -85,3 +85,9 @@ func _draw_stage() -> void:
 			_stage.draw_polyline_colors(PackedVector2Array([a, b]), PackedColorArray([ca, cb]), 3.0)
 		_stage.draw_circle(a, node_radius, color_a)
 		_stage.draw_circle(b, node_radius, color_b)
+
+
+## The live-tab loader hook. The rope stage is self-contained — it builds its
+## own node pairs — so a loaded object has nothing to feed it.
+func load_object(_obj: Object) -> void:
+	pass
