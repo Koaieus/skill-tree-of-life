@@ -1,7 +1,16 @@
 [gd_scene format=3]
 
 [ext_resource type="PackedScene" path="res://entity/keystone/keystone_skill_node.tscn" id="1_base"]
+[ext_resource type="Script" uid="uid://che6xhl6srqh3" path="res://stats_system/stat_modifier.gd" id="3_mod"]
+
+[sub_resource type="Resource" id="m_min_damage_taken"]
+resource_name = "×-1 Min Damage Taken"
+script = ExtResource("3_mod")
+stat_id = &"min_damage_taken"
+operation = 2
+value = -1.0
 
 [node name="InversionNode" instance=ExtResource("1_base")]
 base_type_color = Color(0.55, 0.3, 0.8, 1)
+modifiers = Array[ExtResource("3_mod")]([SubResource("m_min_damage_taken")])
 display_name = "Inversion"
