@@ -205,6 +205,7 @@ func _ready() -> void:
 	turn_manager.turn_started.connect(_emit_gate_changed.unbind(1))
 	turn_manager.turn_ended.connect(_emit_gate_changed.unbind(1))
 	turn_manager.turn_ended.connect(_disarm_gate_confirm.unbind(1))
+	turn_manager.turn_ended.connect(_reset_arm_on_turn_ended)
 	if not Engine.is_editor_hint() and graph.gates_container != null:
 		graph.gates_container.child_entered_tree.connect(_on_gate_added)
 		for g in graph.get_gates():
@@ -1374,6 +1375,20 @@ func clear_transient_state() -> void:
 	_hovered_node = null
 	_input_frozen = false
 	_refresh_armed_state()
+
+
+## Every armed level is turn-local intent, so ending the seated player's turn
+## drops back to the [ManageMode] root: a Manage verb, an attack arm with a
+## half-built plan, a core-move or a pending confirm mean nothing to a turn
+## that is over, and carrying one across the handover would re-arm it (and its
+## crosshair/glow) through the NPC's turn and back onto a board that has moved.
+## [param entity] is the entity whose turn ended — other seats' and NPCs'
+## endings leave this seat's stack alone. A death mid-turn (`abandon_turn`)
+## reaches the same contract through the same signal.
+func _reset_arm_on_turn_ended(entity: Entity) -> void:
+	if player == null or entity != player or armed_stack == null:
+		return
+	armed_stack.clear_to_root()
 
 
 func _on_ap_changed(_new_current: Variant) -> void:
