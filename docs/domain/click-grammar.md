@@ -37,8 +37,8 @@ origin set, selecting targets   (pivot locked, picking members/target)
 Left-clicking the armed origin again runs the mode's ordinary target check. A
 legal target resolves normally; an illegal one (Melee: the pivot is never a
 blade member) **pops, silently** — no `shake_denied`, since it is the expected
-"never mind", not an error. `AttackPlan.pop()` is the one primitive both paths
-call.
+"never mind", not an error. Both paths are `BladeMode`'s pop: the pivot click
+is consumed there so the `MeleeMode` below never re-arms it.
 
 ## The stack, in pop order
 
@@ -51,11 +51,23 @@ pops itself when its command lands). Arming a top-level mode while another
 is up switches: pop to root, then push. Mid-swing the stack is frozen — a pop
 is refused until the launch releases the attack level.
 
+**The plan owns *which node*; the stack owns *what the next click means*.**
+A step level (`BladeMode`, `TargetMode`) holds a typed reference to the arm
+under it and moves on events, never by watching the plan: this player's
+`BattleSystem.attack_launched` and the RESET button's
+`BattleSystem.plan_reset` pop it, `TargetMode` also pops on a
+`selected_spell_changed` that dropped the target, and a successful
+`reform_blade` pushes Blade. After a launch the arm itself stays: the slot's
+release (`attack_plan_changed` with null) re-requests its mode, so
+`[Manage, Melee]` stands with a fresh, empty plan.
+
 | Level | Sits on | Armed while | Pop clears |
 |---|---|---|---|
 | `MassActionMode` | whatever is top | a distant-allocate / would-island-deallocate click awaits confirmation | the pending request |
-| `TempUpgradeMode` | `AttackPlanMode` | a temp-upgrade card (Clamp, Spikes…) is armed inside a Melee plan | just the arm — never the pivot/members under it |
-| `AttackPlanMode` (interim, #1223 splits it) | `ManageMode` | an attack plan is live | one level of the plan (table below); at the floor, the plan itself |
+| `TempUpgradeMode` | `BladeMode` | a temp-upgrade card (Clamp, Spikes…) is armed — only ever with a blade up (owner, 2026-09-30) | just the arm — never the pivot/members under it |
+| `BladeMode` | `MeleeMode` | a pivot is set | the pivot and every member |
+| `TargetMode` | `RangedMode` / `MagicMode` | a target is set | the target (magic: and its auto-picked caster) |
+| `MeleeMode` / `RangedMode` / `MagicMode` | `ManageMode` | that attack is armed | the plan itself (`cancel_attack`) |
 | `CoreMoveMode` | `ManageMode` | core-move targeting has a source | the source |
 | `StakeMode` / `ExtractMode` / `DeallocateMode` | `ManageMode` | that card is armed (Allocate is not a level) | the verb |
 
@@ -65,14 +77,14 @@ Opposite ends, on purpose.
 
 ## Per-mode shape
 
-| Mode | Origin (left-click) | Leaf (left-click) | `pop()` clears |
+| Mode | Origin (left-click) | Leaf (left-click) | Pop clears |
 |---|---|---|---|
 | Melee | pivot (an owned node) | blade members, toggled, cap `blade_size` | pivot + all members |
 | Melee + temp upgrade | *(the card, armed from the command tray)* | a blade member; the arm stays set for repeat placement | the arm only |
 | Ranged | *(none — firing positions are derived)* | the target, retargeted directly: a visible hostile, or any sensed node while the quiver holds scout arrows | the target |
 | Magic | *(none — the cast-from node is auto-picked from the spell's reach union)* | the spell target, directly | source + target |
 
-Ranged and Magic are two-level: `pop()` is gated on the **target**, since a
+Ranged and Magic are two-level: their only step is the **target**, since a
 null source is their resting state. See `MagicAttackPlan` and
 `SpellTargetUnion` for the source pick.
 
@@ -93,11 +105,12 @@ Dragging from the core is the same state machine, accelerated. The routing is
 
 ## Where it lives
 
-- `AttackPlan.pop()` / `handle_right_click` — the shared pop; `false` means
-  the plan was at its floor.
+- `systems/armed/` — one class per level; `AttackArmMode` and
+  `AttackStepMode` are the attack arms' and steps' shared bases. The plans
+  carry only domain verbs (`set_pivot` / `clear_pivot` / `toggle_member`,
+  `set_target`), no click grammar.
 - `PlayerInputController._unhandled_input` — right-click is global, not a
   per-node signal; `pop_armed_level` pops the top level (`false` at root
-  falls through to pin-toggle / the pause menu), and `AttackPlanMode` exits
-  the plan when nothing was left to pop.
+  falls through to pin-toggle / the pause menu).
 - `docs/domain/attack_plan_system.md` — the attack-plan architecture this
   grammar rides on.
