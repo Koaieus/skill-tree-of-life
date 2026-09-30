@@ -198,7 +198,8 @@ def analyse(path):
                 requests[key] = parts if prev is None else {k: max(prev[k], parts[k]) for k in parts}
             if isinstance(content, list):
                 for block in content:
-                    if block.get("type") == "tool_use" and block.get("id") not in tool_ids:
+                    # `advisor` is a server tool: its call is a `server_tool_use` block.
+                    if block.get("type") in ("tool_use", "server_tool_use") and block.get("id") not in tool_ids:
                         tool_ids.add(block.get("id"))
                         tools[block.get("name") or "?"] += 1
                         if block.get("name") == "advisor":

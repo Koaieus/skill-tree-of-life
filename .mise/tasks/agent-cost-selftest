@@ -46,7 +46,7 @@ def check(name, cond):
 r = ac.analyse(sub)
 adv = os.path.join(root, sess, "subagents", "agent-adv999.jsonl")
 write(adv, [
-    assistant("a1", u1, [{"type": "tool_use", "id": "t9", "name": "advisor", "input": {}}]),
+    assistant("a1", u1, [{"type": "server_tool_use", "id": "srvtoolu_9", "name": "advisor", "input": {}}]),  # the real shape: advisor is a server tool
     assistant("a2", u2, [{"type": "text", "text": "ok"}], ts="2026-09-15T10:01:00Z"),
 ])
 ra = ac.analyse(adv)
