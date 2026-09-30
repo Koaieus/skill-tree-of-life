@@ -266,7 +266,7 @@ echo "LANDED $branch $(git -C "$main" rev-parse --short "$sha") master=$(git -C 
 # no live ledger or a hand-kept roster is a one-line "ledger:" note, never
 # a failed land.
 if [ -n "$closes" ]; then
-  (cd "$main" && mise run --quiet ledger -- land "$closes" "$sha" --branch "$branch" 2>/dev/null | grep -E '^ledger:|^\| '"$closes"' \|' | sed 's/^/  ledger: /') || true
+  (cd "$main" && mise run --quiet ledger -- land "$closes" "$sha" --branch "$branch" 2>/dev/null | grep -E '^ledger:|^\| '"$closes"' \|' | sed 's/^ledger: //; s/^/  ledger: /') || true
 fi
 }
 
