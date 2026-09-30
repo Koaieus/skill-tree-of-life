@@ -46,7 +46,7 @@ func _right_click() -> void:
 
 
 func test_a_right_click_mid_swing_is_refused_like_it_is_in_game() -> void:
-	# The panel calls `pop()` raw, reaching past AttackPlanArmedMode — the only
+	# The panel pops through the armed stack, gated on can_player_act() — the
 	# place the game gates right-click. Un-gated, a mid-swing right-click tears
 	# down the plan the launch is still running on.
 	var battle: BattleSystem = _panel._battle

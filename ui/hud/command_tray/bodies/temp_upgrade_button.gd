@@ -17,7 +17,7 @@ extends PanelContainer
 ##
 ## [b]Nothing here is a new colour.[/b] The glyph is the addon scene's authored
 ## [member SkillNodeAddon.icon] and the accent is [ActionPalette]'s entry for the
-## catalog `id` — the same two reads [TempUpgradeArmedMode] makes for the cursor
+## catalog `id` — the same two reads [TempUpgradeMode] makes for the cursor
 ## badge, so the card the player presses and the badge that lands on their
 ## cursor a frame later are the same glyph in the same colour, for free.
 

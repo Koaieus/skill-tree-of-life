@@ -1,7 +1,7 @@
 extends GutTest
 
 ## PlayerInputController routing for the mass-action confirm flow: a distant
-## click arms MassActionArmedMode instead of silently no-oping; a would-island
+## click pushes a MassActionMode instead of silently no-oping; a would-island
 ## deallocate offers the cascade instead of a flat reject; confirm/cancel
 ## drive AllocationSystem and clear the pending state. Complements
 ## test/unit/systems/test_mass_action.gd (AllocationSystem primitives) and
@@ -120,13 +120,12 @@ func test_cancel_clears_pending_state() -> void:
 
 
 func test_mass_action_armed_mode_pops_via_cancel() -> void:
-	var mode := MassActionArmedMode.new(_ctl)
-	assert_false(mode.is_armed())
+	assert_null(_ctl.armed_stack.find(MassActionMode))
 	_ctl.route_left_click(_n("C"))
-	assert_true(mode.is_armed())
-	assert_true(mode.pop())
+	assert_not_null(_ctl.armed_stack.find(MassActionMode))
+	assert_true(_ctl.pop_armed_level())
 	assert_null(_ctl.pending_mass_action(), "pop cancels the pending request")
-	assert_false(mode.is_armed())
+	assert_null(_ctl.armed_stack.find(MassActionMode))
 
 
 func test_confirm_executes_the_affordable_prefix() -> void:

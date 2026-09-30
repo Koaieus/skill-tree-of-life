@@ -139,7 +139,7 @@ const _UPGRADE_BUTTON := preload("res://ui/hud/command_tray/bodies/temp_upgrade_
 ## def dragged into the `.tres`, zero changes here. Cost comes off the def;
 ## label and glyph still come off a throwaway instance of the addon's own
 ## scene (#465), since the addon scene is the source of truth for its own
-## art: the icon here and the one [TempUpgradeArmedMode] puts on the cursor
+## art: the icon here and the one [TempUpgradeMode] puts on the cursor
 ## are the same authored [member SkillNodeAddon.icon], never two copies.
 func _build_upgrade_buttons() -> void:
 	for child in _upgrade_row.get_children():
