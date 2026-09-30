@@ -19,8 +19,9 @@ the diff, the commits and a six-line report. (Design behind this file:
    working. Absolute paths into `.worktrees/<slug>/` from then on.
 3. Your brief carries the issue number(s), the paths you own, the seams, your
    advisor (`Sage`, `main`, or the `advisor` tool) and a turn/time budget. **The issue is the
-   spec**: `gh issue view <n>` and `--comments`, once. If the brief is a
-   `swarm-brief-*.md` it already holds the decisions — skip the view.
+   spec**: `gh issue view <n>` and `--comments`, once. A `swarm-brief-*.md`
+   says on its first line whether it replaces the issue (skip the view) or
+   only adds your section to it (view as usual).
 4. Repo skills (`.claude/skills/<name>/SKILL.md`, e.g. `manage-stats`) are
    plain markdown: `cat` the one the issue calls for; you have no `Skill` tool.
 5. Need "where/how is X handled across the repo"? Fire

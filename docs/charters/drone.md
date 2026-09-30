@@ -65,7 +65,9 @@ against them.
    Verification not asked for is where drones burn a third more than peers on
    identical code.
 6. **Don't re-read the spec.** The issue body once (or not at all, if the brief
-   is a `swarm-brief-*.md` that already carries the decisions); `--comments`
+   is a `swarm-brief-*.md` whose first line says it replaces the issue — a
+   split brief for a `Ready` issue says the issue is still the spec, and the
+   drone views it as usual); `--comments`
    only, once more, for drift before asking for review.
 
 **Context budget and retirement**

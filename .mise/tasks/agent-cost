@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-#MISE description="Best-estimate cost of subagent runs from their transcripts — Σ(context × turns), effective tokens, tool calls: `mise run agent-cost -- --name <teammate> | --branch <slug> | --id <agentId> | --latest N`"
+#MISE description="Best-estimate cost of subagent runs from their transcripts — Σ(context × turns), effective tokens, tool calls: `mise run agent-cost -- --name <teammate> | --branch <slug> | --id <agentId> | --latest N | --main [<session>]` (--main prices a lead's own transcript)"
 """
 Deterministic, read-only cost report over Claude Code subagent transcripts
 (~/.claude/projects/<cwd-slug>/<session>/subagents/agent-<id>.jsonl).
@@ -19,6 +19,11 @@ Selection (any combination; results are deduped, newest first):
   --branch <slug>      every subagent whose transcript mentions .worktrees/<slug>
                        (the drone and whoever reviewed it) — what `land` uses
   --latest N           the N most recently modified subagent transcripts
+  --main [<id>]        the MAIN transcript of session <id> itself (the swarm
+                       lead, or any main session) — what a lead's own turns
+                       cost, which the subagent selectors never see. Defaults
+                       to $CLAUDE_CODE_SESSION_ID; combine with --session
+                       for lead + subagents on one table.
   --session <id>       every subagent transcript under session <id>, across
                        EVERY project slug — not day-filtered. Defaults to
                        $CLAUDE_CODE_SESSION_ID when no other selector is
@@ -100,6 +105,14 @@ def _session_transcripts(root, session_id):
     the session id already bounds the selection (#920)."""
     parent = os.path.dirname(root.rstrip("/"))
     return sorted(glob.glob(os.path.join(parent, "*", session_id, "subagents", "agent-*.jsonl")))
+
+
+def _main_transcript(root, session_id):
+    """The main transcript of `session_id`, `<slug>/<session>.jsonl`, across
+    every project slug like _session_transcripts. None when absent."""
+    parent = os.path.dirname(root.rstrip("/"))
+    hits = glob.glob(os.path.join(parent, "*", f"{session_id}.jsonl"))
+    return max(hits, key=os.path.getmtime) if hits else None
 
 
 def _parent_transcripts(root, days):
@@ -287,13 +300,14 @@ def main(argv=None):
     ap.add_argument("--branch", action="append", default=[])
     ap.add_argument("--latest", type=int, default=0)
     ap.add_argument("--session", action="append", default=[])
+    ap.add_argument("--main", nargs="?", const="", default=None, metavar="SESSION_ID")
     ap.add_argument("--days", type=float, default=7)
     ap.add_argument("--json", action="store_true")
     ap.add_argument("--quiet-empty", action="store_true", help="print nothing when no transcript matches (for `land`)")
     args = ap.parse_args(argv)
     root = _projects_dir()
 
-    have_selector = bool(args.id or args.name or args.branch or args.latest or args.session)
+    have_selector = bool(args.id or args.name or args.branch or args.latest or args.session) or args.main is not None
     if not have_selector:
         env_sid = os.environ.get("CLAUDE_CODE_SESSION_ID")
         if env_sid:
@@ -308,6 +322,14 @@ def main(argv=None):
             return 0 if args.quiet_empty else 1
 
     paths = []
+    if args.main is not None:
+        main_sid = args.main or os.environ.get("CLAUDE_CODE_SESSION_ID", "")
+        if not main_sid:
+            print("agent-cost: --main needs a session id or $CLAUDE_CODE_SESSION_ID", file=sys.stderr)
+            return 1
+        p = _main_transcript(root, main_sid)
+        if p:
+            paths.append(p)
     for session_id in args.session:
         paths.extend(_session_transcripts(root, session_id))
     for agent_id in args.id:

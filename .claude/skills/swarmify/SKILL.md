@@ -313,10 +313,12 @@ work moves into children, the hub's own defect included as "child 0". The hub
 keeps the problem statement, the decisions and the DAG; never set its status
 by hand — `land` and `hygiene --fix` derive it.
 
-- Every child is drone-sized: one subsystem, a handful of files, one test file
-  — under ~150k drone context. More than three subsystems or more than five
-  tests is a split, along state / wiring / consumer seams, now. Prefer more
-  small children with native `blocked-by` over one fat one.
+- Every child is drone-sized: one subsystem, a handful of files, one test
+  file, one or two deliverables — under ~150k drone context. More than
+  three subsystems, more than five tests, or three or more deliverables is
+  a split, along state / wiring / consumer seams, now — load balancing is
+  this pass's job, the swarm lead only keeps a size net. Prefer more small
+  children with native `blocked-by` over one fat one.
 - Split along the seam the design has: one decision, one unit. Where that
   is also a file boundary, say so; where it is not, split anyway and record
   the overlap. A unit describing three or more deliverables is split before

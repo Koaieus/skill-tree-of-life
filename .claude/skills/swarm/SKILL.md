@@ -15,7 +15,8 @@ downward, always. Why each rule below exists: `docs/charters/swarm.md`.
 
 Never open `.claude/agents/drone.md`; this is all of it you need. A drone
 makes its own worktree (`worktree:new`, warm and checked); reads the issue
-and `--comments` once as its spec (skips the view on a `swarm-brief-*.md`);
+and `--comments` once as its spec (a `swarm-brief-*.md` says on its first
+line whether it replaces the issue or only adds a section to it);
 `cat`s the repo skill the issue names; searches via `Explore(haiku)` leaves;
 batches, reads narrow, never polls; runs `check` → `test:one` → `test:dir`
 → the full suite at most once and only if the brief allows; commits as it
@@ -55,7 +56,10 @@ plus its own test file settles it in two minutes; run that before deferring
 anything as "new surface".
 
 **A unit describing three or more deliverables is split before dispatch.**
-Never hope a drone self-splits.
+Never hope a drone self-splits. Sizing was swarmify's job; your net at
+dispatch is **a unit expected to exceed ~40 calls or ~120k context is split
+before dispatch** — a unit that looks like it needs the whole budget will
+blow it.
 
 ## Size the swarm
 
@@ -67,7 +71,8 @@ Never hope a drone self-splits.
 - **Per-unit cost is the ledger's number**, not a constant: ask the owner for
   the remaining window as one figure, and price the wave from the last
   run's `mise run agent-cost` `priced` per landed unit at the tier you are
-  dispatching.
+  dispatching. Your own session is priced by `mise run agent-cost -- --main`
+  (add `--session` for you plus your drones on one table).
 
 ## Hard units: a trap list first
 
@@ -179,19 +184,23 @@ If the work will not come apart, that is a real answer: `warp`.
 **Before every dispatch, in a single Bash call:**
 
 ```bash
-cat docs/handoffs/swarm-<date>.md 2>/dev/null          # the ledger — at-most-once record
+mise run ledger -- dispatch <n> <drone-name> <tier>     # writes the roster row, prints the ledger back
 mise gh-project -- status <n> in-progress               # claim on the persistent board
 mise run issue-drift -- <n>                             # silent = the Ready comment still holds
 ```
 
-- **The ledger** (`docs/handoffs/swarm-<date>.md`, gitignored — write it,
-  never commit it) is the roster table — unit / drone name / tier / state
-  (`dispatched@HH:MM` → `reported` → `landed <sha>` | `rejected→redispatched`)
-  plus per-unit `model / ctx at report / tool calls / advisor calls /
-  findings / priced` — and the queue order. Rewrite in place on every
-  dispatch, report, land and owner call; ≤ ~1.5k tokens; it is what relief
-  reads. Delete it at teardown; anything that must outlive the run goes to
-  the issue.
+- **The ledger** (`docs/handoffs/swarm-<date>.md`, gitignored — never
+  commit it) is what relief reads. **Its roster is written by commands**:
+  `ledger -- dispatch` here (it creates the file on a new run and prints
+  the whole ledger, so you never `cat` it), `ledger -- report` at collect
+  (step 4), and `mise run land --closes <n>` writes the `landed <sha>` row
+  itself. A row is unit / drone / tier / state (`dispatched@HH:MM` →
+  `reported@` | `pulled@` → `landed <sha>`; a re-dispatch says
+  `redispatched@`) / PLAN / STUCK / PULL (the advisor's three moments) /
+  adv / ctx / calls / priced (from `agent-cost`) / notes (`--note '…'` on
+  any write). Below the roster, the queue order, carried items and open
+  owner calls are your prose: ≤ ~1.5k tokens total. Delete the file at
+  teardown; anything that must outlive the run goes to the issue.
 - **`issue-drift`** prints nothing when the issue's stamped reading list and
   seam map still hold on `master`; prints the drifted entries otherwise —
   then one `Explore(model: "haiku")` re-verifies *those entries* before you
@@ -211,7 +220,13 @@ mise run issue-drift -- <n>                             # silent = the Ready com
 - **The full brief in `prompt`.** If a drone idles without starting, one
   `SendMessage` with the same brief; if idles recur, write the brief to a
   file and spawn with a one-line pointer instead. Log every idle in the
-  ledger.
+  ledger (`ledger -- report <n> --note 'idle'` keeps the row's state).
+- **A split shares one brief file.** Splitting one issue across drones:
+  write `docs/handoffs/swarm-brief-<n>.md` (gitignored) — first line "the
+  issue is still your spec" (or "this brief replaces the issue"), then the
+  common part once, then one short `## <drone-name>` section per drone.
+  Each `prompt` is the path plus its section name. The common part is the
+  bare brief below; a section holds only what differs (fence, seam sha).
 
 **The bare brief** — ~15 lines, only what the issue cannot know:
 
@@ -258,8 +273,14 @@ Per report, in order:
 
 ```bash
 git diff master...<branch> --stat        # 1. fence — every tier (+ agent-cost --branch, same call)
+mise run ledger -- report <n> --branch <slug> [--plan] [--stuck] [--pull] [--note '…']   # the row, from the report's COST:/NOTES:
 git diff master...<branch>               # 2. content — shared seam / player-visible only
 ```
+
+`--plan` / `--stuck` are read off the report's `COST:` exchanges and
+`NOTES:` (a drone that called its advisor at the plan; one that spent its
+stuck call); `--pull` on a `PULL` report. The row's ctx / calls / adv /
+priced come from the transcript.
 
 1. **Fence.** Strayed outside its paths? Understand why before reading
    content: the drone guessed (resume-and-redirect) or your fence was wrong
@@ -304,7 +325,8 @@ serial by `flock`, rebases inside the drone's worktree, runs `check` +
 drone once; a second failure is a stop. `--closes` only on the *final*
 branch of a multi-unit issue; on every branch of independent issues.
 
-**Before the gate, sweep `poison:` lines** out of the ledger's reports: apply
+**Before the gate, sweep `poison:` lines** out of the reports (a `--note
+'poison: …'` on the row keeps them findable): apply
 the one-liners yourself in the main checkout as one docs commit; anything
 that is not a one-liner → `mise gh-project -- add`.
 

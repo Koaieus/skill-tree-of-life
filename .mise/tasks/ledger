@@ -1,0 +1,231 @@
+#!/usr/bin/env python3
+#MISE description="The swarm ledger, written by commands not memory: `mise run ledger -- show | dispatch <n> <drone> <tier> | report <n> [--branch <slug>] [--plan] [--stuck] [--pull] | land <n> <sha> [--branch <slug>]` (+ `--note '…'` on any write)"
+"""
+Owns the Roster table of the swarm ledger, `docs/handoffs/swarm-<date>.md`
+(gitignored — relief reads it, nobody commits it). The lead's dispatch and
+collect steps and `mise run land` call this; the lead never hand-edits a
+roster row again, so a ledger exists whenever a drone was dispatched through
+the skill. The prose under the roster (Queue, Carried, Open owner calls) is
+the lead's and is never touched.
+
+    show                       print the ledger; "no ledger" is a normal answer
+    dispatch <n> <drone> <tier>   create the ledger if this run has none; add
+                               the row (or re-dispatch an existing one)
+    report <n> [--branch <slug>] [--plan] [--stuck] [--pull]
+                               state → reported@ (pulled@ with --pull); ticks
+                               the advisor-moment columns; with --branch fills
+                               ctx / calls / adv / priced from agent-cost
+    land <n> <sha> [--branch <slug>]   state → `landed <sha7>`, cost cells refreshed
+    --note '…'                 on any write: appended to the notes cell
+
+Which file: $SWARM_LEDGER if set; else today's `swarm-YYYY-MM-DD.md`; else the
+newest `swarm-YYYY-MM-DD.md` modified within LIVE_HOURS (a run spans
+midnight); else none — `dispatch` creates today's, everything else no-ops
+and says so. A roster whose header is not this tool's schema is refused,
+never rewritten: that file is a hand-kept run, move it aside.
+
+Exit 0 on every no-op/refusal (the `land` hook is `|| true` anyway); non-zero
+only on a usage error.
+"""
+import argparse
+import glob
+import importlib.machinery
+import importlib.util
+import os
+import re
+import sys
+import time
+
+LIVE_HOURS = 36
+HEADER = "| unit | drone | tier | state | PLAN | STUCK | PULL | adv | ctx | calls | priced | notes |"
+COLS = [c.strip() for c in HEADER.strip().strip("|").split("|")]
+SEP = "|" + "|".join("---" for _ in COLS) + "|"
+HERE = os.path.dirname(os.path.abspath(__file__))
+
+
+def ledger_dir():
+    override = os.environ.get("SWARM_LEDGER_DIR")
+    if override:
+        return override
+    root = os.environ.get("MISE_PROJECT_ROOT") or os.getcwd()
+    return os.path.join(root, "docs", "handoffs")
+
+
+def resolve(create=False):
+    """The live run's ledger path, or None (today's path when `create`)."""
+    override = os.environ.get("SWARM_LEDGER")
+    if override:
+        return override
+    d = ledger_dir()
+    today = os.path.join(d, f"swarm-{time.strftime('%Y-%m-%d')}.md")
+    if os.path.exists(today):
+        return today
+    live = [p for p in glob.glob(os.path.join(d, "swarm-[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9].md"))
+            if time.time() - os.path.getmtime(p) <= LIVE_HOURS * 3600]
+    if live:
+        return max(live, key=os.path.getmtime)
+    return today if create else None
+
+
+def new_ledger(date):
+    sid = os.environ.get("CLAUDE_CODE_SESSION_ID", "")
+    lead = f" Lead session: {sid[:8]}." if sid else ""
+    return (
+        f"# Swarm {date} — ledger (gitignored; relief reads this)\n"
+        f"Roster rows are written by `mise run ledger` (dispatch / report / `land`); the sections below are the lead's prose.{lead}\n\n"
+        f"## Roster\n{HEADER}\n{SEP}\n\n"
+        "## Queue\n\n## Open owner calls\n"
+    )
+
+
+def _split(line):
+    return [c.strip() for c in line.strip().strip("|").split("|")]
+
+
+def _join(cells):
+    return "| " + " | ".join(cells) + " |"
+
+
+def _hhmm():
+    return time.strftime("%H:%M")
+
+
+def _k(n):
+    return f"{n / 1000:.0f}k" if n < 1_000_000 else f"{n / 1_000_000:.2f}M"
+
+
+def cost_cells(branch):
+    """ctx / calls / adv / priced for every subagent that worked in
+    `.worktrees/<branch>` (drone + reviewer), via agent-cost's own analysis —
+    blank cells when no transcript matches. Never fatal."""
+    try:
+        spec = importlib.util.spec_from_loader("agent_cost", importlib.machinery.SourceFileLoader("agent_cost", os.path.join(HERE, "agent-cost")))
+        ac = importlib.util.module_from_spec(spec); spec.loader.exec_module(ac)
+        root = ac._projects_dir()
+        paths = ac._grep_l(f".worktrees/{branch}", ac._sub_transcripts(root, 7))
+        rows = [ac.analyse(p) for p in paths]
+    except Exception:  # a missing projects dir, an unreadable transcript — the ledger still gets its state
+        rows = []
+    if not rows:
+        return {}
+    return {
+        "ctx": _k(max(r["final_ctx"] for r in rows)),
+        "calls": str(sum(r["tool_calls"] for r in rows)),
+        "adv": str(sum(r["advisor_calls"] for r in rows)),
+        "priced": _k(sum(r["priced_tokens"] for r in rows)),
+    }
+
+
+class Roster:
+    """The lines of the ledger, with the roster table located and parsed."""
+
+    def __init__(self, path):
+        self.path = path
+        with open(path, encoding="utf-8") as fh:
+            self.lines = fh.read().split("\n")
+        self.head = self.rows = None
+        for i, l in enumerate(self.lines):
+            if l.startswith("|") and self.head is None:
+                self.head = i
+                continue
+            if self.head is not None:
+                if l.startswith("|"):
+                    continue
+                self.end = i
+                break
+        else:
+            self.end = len(self.lines)
+        self.ok = self.head is not None and _split(self.lines[self.head]) == COLS
+
+    def find(self, unit):
+        for i in range(self.head + 2, self.end):
+            if _split(self.lines[i])[0] == unit:
+                return i
+        return None
+
+    def get(self, i):
+        cells = _split(self.lines[i])
+        cells += ["-"] * (len(COLS) - len(cells))
+        return dict(zip(COLS, cells))
+
+    def put(self, i, row):
+        self.lines[i] = _join([row.get(c, "-") or "-" for c in COLS])
+
+    def append(self, row):
+        self.lines.insert(self.end, _join([row.get(c, "-") or "-" for c in COLS]))
+        self.end += 1
+
+    def save(self):
+        with open(self.path, "w", encoding="utf-8") as fh:
+            fh.write("\n".join(self.lines))
+
+    def table(self):
+        return "\n".join(self.lines[self.head:self.end])
+
+
+def _note(row, note):
+    if note:
+        row["notes"] = note if row.get("notes", "-") in ("", "-") else f"{row['notes']}; {note}"
+
+
+def main(argv=None):
+    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    sub = ap.add_subparsers(dest="cmd", required=True)
+    sub.add_parser("show")
+    p = sub.add_parser("dispatch"); p.add_argument("unit"); p.add_argument("drone"); p.add_argument("tier"); p.add_argument("--note", default="")
+    p = sub.add_parser("report"); p.add_argument("unit"); p.add_argument("--branch", default="")
+    for flag in ("plan", "stuck", "pull"):
+        p.add_argument(f"--{flag}", action="store_true")
+    p.add_argument("--note", default="")
+    p = sub.add_parser("land"); p.add_argument("unit"); p.add_argument("sha"); p.add_argument("--branch", default=""); p.add_argument("--note", default="")
+    args = ap.parse_args(argv)
+
+    path = resolve(create=args.cmd == "dispatch")
+    if path is None or (args.cmd != "dispatch" and not os.path.exists(path)):
+        print(f"ledger: no ledger for a live run under {ledger_dir()} (dispatch creates one)")
+        return 0
+    if args.cmd == "dispatch" and not os.path.exists(path):
+        with open(path, "w", encoding="utf-8") as fh:
+            fh.write(new_ledger(re.sub(r".*swarm-|\.md$", "", os.path.basename(path)) or time.strftime("%Y-%m-%d")))
+        print(f"ledger: created {path}")
+
+    roster = Roster(path)
+    if not roster.ok:
+        print(f"ledger: {path} has no roster with this tool's header — a hand-kept run; row not written. Expected:\n{HEADER}")
+        return 0
+    if args.cmd == "show":
+        print(open(path, encoding="utf-8").read().rstrip())
+        return 0
+
+    i = roster.find(args.unit)
+    if args.cmd == "dispatch":
+        row = roster.get(i) if i is not None else {"unit": args.unit}
+        row.update(drone=args.drone, tier=args.tier, state=f"{'re' if i is not None else ''}dispatched@{_hhmm()}")
+        _note(row, args.note)
+        if i is None:
+            roster.append(row)
+        else:
+            roster.put(i, row)
+    else:
+        if i is None:
+            print(f"ledger: no row for unit {args.unit} in {path} — dispatch writes rows; nothing changed")
+            return 0
+        row = roster.get(i)
+        if args.cmd == "report":
+            row["state"] = f"{'pulled' if args.pull else 'reported'}@{_hhmm()}"
+            for flag in ("plan", "stuck", "pull"):
+                if getattr(args, flag):
+                    row[flag.upper()] = "✓"
+        else:
+            row["state"] = f"landed {args.sha[:7]}"
+        if args.branch:
+            row.update(cost_cells(args.branch))
+        _note(row, args.note)
+        roster.put(i, row)
+    roster.save()
+    print(roster.table())
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

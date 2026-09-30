@@ -45,7 +45,11 @@ it buys is the lead's context, the run's scarce resource: every page the
 lead reads is re-read at every later wake and brings its ceiling closer.
 
 Everything is measured after the fact by `mise run agent-cost` (`priced`
-column, sonnet units) and logged per unit in the ledger; the tier heuristic
+column, sonnet units) and logged per unit in the ledger — the lead's own
+session included, via `--main` (2026-09-30: a swarm lead and a concurrent
+main session each blamed the other for the window; the subagents alone
+measured 18.1M priced against a main session's ~1–3M, and until `--main`
+existed only one side could be measured); the tier heuristic
 and the per-unit budget are tuned from those rows, never from memory. The
 rows so far say the tier default is opus, not sonnet: on medium units a
 Sonnet drone integrates 3–4× the context (Σctx) of an Opus drone doing
@@ -79,7 +83,15 @@ disk at `scratchpad/land/land-<n>.log` (#920), so filling the ledger is a
    A draft that exists but was never run is *not* that: `mise run check` plus
    its own test file, two minutes, settles which.
 3. **Three or more deliverables in one unit is a split**, done before
-   dispatch, never left to a drone.
+   dispatch, never left to a drone. Sizing is swarmify's job (owner,
+   2026-09-30: "load balancing sounds like a swarmify job indeed" — its law
+   27 sizes every child before `Ready`); the lead keeps a **size net** at
+   dispatch: a unit expected to exceed ~40 calls or ~120k context is split
+   before dispatch. The net's numbers are the 09-30 lead's proposal adopted
+   as a tentative default, not an owner call: ~40 expected calls is half the
+   80-call hard stop of law 12 and ~120k leaves room under the ~150k that
+   swarmify's law 27 sizes a child to finish in; a unit that already
+   *looks* like it needs the whole budget will blow it.
 
 **Sizing and the lead's budget**
 
@@ -170,19 +182,46 @@ disk at `scratchpad/land/land-<n>.log` (#920), so filling the ledger is a
     parameter — the drone makes its own `mise` worktree. If a drone idles on
     its prompt, one `SendMessage` nudge, then the file-pointer brief is the
     fallback shape; log the idle in the ledger.
-14. **Before every dispatch, in one Bash call: the ledger, the kanban claim,
-    and `mise run issue-drift -- <n>`.** The ledger (`docs/handoffs/
-    swarm-<date>.md`, gitignored, rewritten in place, ≤1.5k tokens) is the
-    at-most-once record and the relief briefing; `mise gh-project -- status
-    <n> in-progress` claims the issue; `issue-drift` is silent when the
-    issue's stamped reading list still holds, prints the drifted entries
-    otherwise (then one `Explore(model: haiku)` re-verifies them before the
-    brief is written), and says `no stamp` on a pre-charter issue.
+14. **Before every dispatch, in one Bash call: the ledger row, the kanban
+    claim, and `mise run issue-drift -- <n>`.** The ledger (`docs/handoffs/
+    swarm-<date>.md`, gitignored, ≤1.5k tokens) is the at-most-once record
+    and the relief briefing, and **its roster is written by commands, never
+    by the lead remembering**: `mise run ledger -- dispatch <n> <drone>
+    <tier>` in the dispatch call (creates the file for a new run, prints the
+    roster back so the read is free), `mise run ledger -- report <n>
+    --branch <slug> [--plan] [--stuck] [--pull]` in the collect call, and
+    `mise run land --closes <n>` writes the `landed <sha>` row itself. The
+    roster carries per unit the three advisor moments of law 8 as PLAN /
+    STUCK / PULL columns plus `adv` / ctx / calls / priced from
+    `agent-cost`; the prose under it (queue order, carried items, open
+    owner calls) stays the lead's. The 09-30 run kept no ledger until the
+    owner asked and then rebuilt it from transcripts: the skill's dispatch
+    step only *read* the file (`cat … 2>/dev/null`, which also hid that it
+    was missing) and "rewrite in place" was a prose bullet. Not a clerk
+    teammate: the failure was remembering, not writing — a clerk still needs
+    the lead to remember, and each of its replies wakes the lead. `mise
+    gh-project -- status <n> in-progress` claims the issue; `issue-drift`
+    is silent when the issue's stamped reading list still holds, prints
+    the drifted entries otherwise (then one `Explore(model: haiku)`
+    re-verifies them before the brief is written), and says `no stamp` on a
+    pre-charter issue.
 15. **Shared contracts land on master first.** A seam every unit overrides,
     a registry every unit appends to, a `.tres` every unit touches — the
     lead commits it before spawning; drones branch from the tip.
 16. **One wave per message.** All `Agent` calls for a wave in one message;
     act on each completion as it arrives, never batch reports.
+
+30. **A split shares one brief file.** When the lead splits one issue
+    across drones, it writes one `docs/handoffs/swarm-brief-<n>.md`
+    (gitignored) with the common part first and one short section per
+    drone; each drone's `prompt` is the file path plus its section name, and
+    the file's first line says whether the issue is still the spec (a split
+    of a `Ready` issue: it is — the drone views it as usual) or the brief
+    replaces it (the planner shape of law 11). Owner, 2026-09-30: "lead
+    could split and write shared prompts -- 1 output consumed by >1 could be
+    targeted at different parts while most is the same". It saves the lead's
+    output tokens and keeps the parts consistent; the drones' read cost is
+    unchanged.
 
 **Collect and land**
 
@@ -279,6 +318,9 @@ disk at `scratchpad/land/land-<n>.log` (#920), so filling the ledger is a
 | 2026-09-27 | 10 units | 10 opus-tier units (two hubs, 3 waves, 4 drones resumed across waves for hot context, 1 Sage, 0 rejects, 16 review exchanges) landed + train-gated in ~40 min wall; owner: "43% of limit used" — a snapshot unit (law 5 text above), ≈4%/unit against 2026-08-03's ~12%/unit; lead finished at ~160k by delegating every sweep | 5, 6 |
 | 2026-09-28 | #1179 tier experiment | owner: "try the experiment, ask it to let advisor have a pass when done"; Sonnet on #1179 (new channel + 7 re-pointed tests) vs #1178 (opus, comparable): 123 calls (90 cap) / Σctx 18.4M / 2.48M priced / 48 min vs 45 / 4.2M / 1.74M / 12 min — landed clean, ~40% dearer; overrun blamed on recovering from an early write to the main checkout | 6, 12 |
 | 2026-09-29 | 3 sonnet + 2 opus | priced per 100 changed lines: opus 0.19M (#1190) / 0.20M (#1196), sonnet 0.37M (#1191) / 0.70M (#1082); both medium Sonnet units left stale characterization tests the lead re-pointed in the train; the 2-line #1107 leftovers unit at 125k was the only clean Sonnet win → owner, 2026-09-30: Sonnet for "small units or dumb units" | 6 |
+| 2026-09-30 | ledger | the lead kept no ledger until the owner asked, then rebuilt it from transcripts; the dispatch step's Bash call only `cat`-ed the file and "rewrite in place" was prose → `mise run ledger` + `land` write the roster | 14 |
+| 2026-09-30 | #1222 | ≥4 deliverables dispatched as one opus unit against law 3: 4.21M priced (23% of the run), did not land in its drone's budget; the relief lead finished it by hand → sizing moved to swarmify (law 27 there) with the lead's size net here | 3 |
+| 2026-09-30 | lead cost | the swarm lead and a concurrent Fable session each blamed the other for the window; `agent-cost` could only see subagents (18.1M priced) — `--main` prices a main transcript | cost model |
 | 2026-09-30 | owner | advisor law redrawn: "we shouldn't underestimate the power of the Advisor tool … so long Sonnet gets the plan right at the right time (and doesn't try 100 failed attempts first) that should help a lot"; a loop is not a count — the target is "i'm throwing things at a wall now", where drones "should raise their finger and be like 'help pls sensei, shed some light'"; with no Sage "a final advisor call might still be cheaper than bloating lead's context; though lead may have more of an overview"; an advisor answering a fork says stop and flag the lead, and the issue is "pulled from the swarm, sent back to the drawing board; possibly issues it blocks removed too" | 8, 9 |
 
 ## What the skill must not contain

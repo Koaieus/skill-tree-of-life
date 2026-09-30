@@ -21,6 +21,10 @@
 #      sha; never an empty `land:` commit, owner call 2026-09-15) — and the
 #      board moves to in-review.
 #
+# After the fast-forward, two en-passant reports: `agent-cost --branch` (the
+# `cost:` rows) and `ledger -- land <n> <sha>` (the swarm ledger's row for the
+# unit, with --closes only). Both are `|| true`.
+#
 # Every landing's whole console output is tee'd to
 # scratchpad/land/land-<issue-or-branch-slug>.log (in the MAIN checkout,
 # gitignored) plus a land-last.log copy of the most recent — so `cost:` rows
@@ -256,6 +260,14 @@ echo "LANDED $branch $(git -C "$main" rev-parse --short "$sha") master=$(git -C 
 # that worked in its worktree (drone + reviewer). Best estimate, never fatal,
 # silent when no transcript matches (a hand-made branch).
 (cd "$main" && mise run --quiet agent-cost -- --branch "$branch" --quiet-empty 2>/dev/null | sed 's/^/  cost: /') || true
+# En passant too: the swarm ledger's row for this unit flips to `landed <sha>`
+# with its audited cost cells — a ledger written by the commands, not by a
+# lead remembering to. Keyed by --closes (a hand-made branch has no row);
+# no live ledger or a hand-kept roster is a one-line "ledger:" note, never
+# a failed land.
+if [ -n "$closes" ]; then
+  (cd "$main" && mise run --quiet ledger -- land "$closes" "$sha" --branch "$branch" 2>/dev/null | grep -E '^ledger:|^\| '"$closes"' \|' | sed 's/^/  ledger: /') || true
+fi
 }
 
 land_body "$@" 2>&1 | tee "$log"

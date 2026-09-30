@@ -137,5 +137,40 @@ finally:
     else:
         os.environ.pop("CLAUDE_CODE_SESSION_ID", None)
 
+
+# --- --main: price a MAIN session transcript (the lead / any main session) --
+# The main transcript lives in the SIBLING slug, so a hit proves the glob is
+# slug-independent like _session_transcripts; a lead's cwd at report time
+# need not be the slug it started in.
+own_main = os.path.join(sibling_slug, f"{sid_own}.jsonl")
+write(own_main, [
+    {"type": "user", "sessionId": sid_own, "timestamp": "2026-09-30T18:00:00Z", "message": {"content": "swarm #1220"}},
+    assistant("m1", u1, [{"type": "text", "text": "lead turn"}], model="claude-opus-5-5", ts="2026-09-30T18:00:00Z"),
+    assistant("m2", u2, [{"type": "tool_use", "id": "m2t", "name": "Bash", "input": {}}], model="claude-opus-5-5", ts="2026-09-30T18:05:00Z"),
+])
+prev_env = os.environ.pop("CLAUDE_CODE_SESSION_ID", None)
+try:
+    buf_main = io.StringIO()
+    with contextlib.redirect_stdout(buf_main):
+        code_main = ac.main(["--main", sid_own])
+    out_main = buf_main.getvalue()
+    check("--main <sid> prices the parent transcript itself, not its subagents",
+          code_main == 0 and sid_own[:8] in out_main and "own1" not in out_main)
+    os.environ["CLAUDE_CODE_SESSION_ID"] = sid_own
+    buf_main2 = io.StringIO()
+    with contextlib.redirect_stdout(buf_main2):
+        code_main2 = ac.main(["--main"])
+    check("bare --main resolves $CLAUDE_CODE_SESSION_ID across slugs", code_main2 == 0 and sid_own[:8] in buf_main2.getvalue())
+    buf_both = io.StringIO()
+    with contextlib.redirect_stdout(buf_both):
+        code_both = ac.main(["--main", "--session", sid_own])
+    out_both = buf_both.getvalue()
+    check("--main with --session lists lead + subagents + TOTAL", code_both == 0 and sid_own[:8] in out_both and "own1" in out_both and "TOTAL" in out_both)
+finally:
+    if prev_env is not None:
+        os.environ["CLAUDE_CODE_SESSION_ID"] = prev_env
+    else:
+        os.environ.pop("CLAUDE_CODE_SESSION_ID", None)
+
 print("all checks passed" if not failed else f"{failed} FAILED")
 sys.exit(1 if failed else 0)

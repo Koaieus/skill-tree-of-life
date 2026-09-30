@@ -234,12 +234,15 @@ Numbered so the skill can be checked against them law by law.
     **Not a spawn** — the thinking runs in the session with the owner; only
     law 3's lookup and law 33's clerk are delegated.
 
-27. **Every child is drone-sized.** Roughly one subsystem, a handful of
-    files, one test file — finished under ~150k drone context. Size by
-    files × subsystems × tests before promoting; a unit touching more than
-    three subsystems or needing more than five tests is split along its
-    state / wiring / consumer seams *at swarmify time*, never after it
-    stalls. Prefer more small children with native `blocked-by` over one fat
+27. **Every child is drone-sized — load balancing is swarmify's job.**
+    Roughly one subsystem, a handful of files, one test file, **one or two
+    deliverables** — finished under ~150k drone context. Size by
+    deliverables × files × subsystems × tests before promoting; a unit
+    touching more than three subsystems, needing more than five tests, or
+    describing three or more deliverables is split along its state /
+    wiring / consumer seams *at swarmify time*, never after it stalls
+    (owner, 2026-09-30: "load balancing sounds like a swarmify job indeed";
+    the swarm lead keeps only a size net at dispatch, swarm law 3). Prefer more small children with native `blocked-by` over one fat
     one. A drone is reused only for a tiny follow-up ("add this class" → "use
     that class"); one that just did a 200k run has no room left.
 
@@ -425,6 +428,7 @@ have to carry them.
 | 2026-09-26 | transcript scan (59 swarmify sessions, 32 in depth, 251 questions; `.claude/skills/swarmify/corpus/2026-09-26-reask-scan.md`) | most questions code-grounded; re-asks a minority, in three shapes — numeric magnitudes deferred inside a range the owner stated, confirm-everything closers ("OK?", "Settle both?"), and a milestone question in nearly every session. Legit asks (a review finding, an arithmetic hole, a bug in the issue's own fix) are the overcorrection guard | 31, 32 |
 | 2026-09-10 | #764 / #849 | Recommended parking an architectural fork in a design issue; owner overrode — settle now, refactor-first hub with three children. | 28 |
 | 2026-09-14 | last 2–3 swarms | Drones hitting 300k+ on oversized units; a "plumbing" issue spanning five subsystems was the shape that did it. #872 → #872/#878/#879 is the split that worked. | 27 |
+| 2026-09-30 | #1222 | promoted `Ready` with ≥4 deliverables (a statechart stack, its levels, a mass-action pop, docs); dispatched as one opus unit, 4.21M priced (23% of the run), did not land in budget — the deliverable count joins the size test | 27 |
 | 2026-08-24 | #573 | "`test_meta_routing_parity.gd` still passes unmodified" was unsatisfiable — the deletion half of the same issue removed `class_name`s the test cast to, so it stopped *parsing*. A characterization pin enumerates the surviving assertions and says the test may be re-pointed; then asks whether there is anything to re-point onto yet. | 10 |
 | 2026-09-22 | owner | "read the room for when an issue is more about designing before serving forks … put your Epic Game Designer hat on and when the picture becomes clear, then we talk code plans, forks to settle, with the cold hard specs and technical seam maps … sometimes crank up the LLM temperature" | 29 |
 | 2026-09-22 | owner | "when a fork can be settled with 'this option A which is sorta clean' and 'this option B which is hella clean but costs more work' then that's gonna be a B in 99% of cases … This project for a solo dev grew this big yet stayed so maintainable due to our aggressive combating of tech debt … you wouldn't know how much stuff landed by drones that used plumbing that was already there just because what could've been deferred as YAGNI instead was implemented on the spot"; asked for a stars ranking on cleanliness plus blast radius ("which we take to the chin every time"), effectiveness, good practices, lack of smell, perf, style secondary — "swarmify is often a lot of reading and thinking in which i could use all help i can get" | 30 |

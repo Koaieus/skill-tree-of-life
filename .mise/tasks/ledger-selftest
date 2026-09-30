@@ -1,0 +1,112 @@
+#!/usr/bin/env python3
+#MISE description="Self-test for ledger: a scratch ledger dir, asserts dispatch creates the roster, report/land update the row, a foreign roster header is refused, file resolution picks the live run. `mise run ledger-selftest`"
+import contextlib, importlib.machinery, importlib.util, io, os, sys, tempfile, time
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+spec = importlib.util.spec_from_loader("ledger", importlib.machinery.SourceFileLoader("ledger", os.path.join(HERE, "ledger")))
+ld = importlib.util.module_from_spec(spec); spec.loader.exec_module(ld)
+
+failed = 0
+
+
+def check(label, ok):
+    global failed
+    print(("  ✓ " if ok else "  ✗ ") + label)
+    if not ok:
+        failed += 1
+
+
+def run(argv):
+    out, err = io.StringIO(), io.StringIO()
+    with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+        code = ld.main(argv)
+    return code, out.getvalue() + err.getvalue()
+
+
+def roster_row(path, unit):
+    with open(path) as fh:
+        return next((l for l in fh if l.startswith(f"| {unit} |")), "")
+
+
+handoffs = tempfile.mkdtemp(prefix="ledger-selftest-")
+os.environ["SWARM_LEDGER_DIR"] = handoffs
+os.environ.pop("SWARM_LEDGER", None)
+os.environ["AGENT_COST_PROJECTS_DIR"] = tempfile.mkdtemp(prefix="ledger-selftest-projects-")  # no transcripts: cost cells stay blank
+
+# --- no ledger yet ---------------------------------------------------------
+code, out = run(["show"])
+check("show with no ledger says so and exits 0", code == 0 and "no ledger" in out)
+code, out = run(["report", "1223"])
+check("report with no ledger is a no-op, exit 0", code == 0 and "no ledger" in out)
+
+# --- dispatch creates today's ledger + the row ----------------------------
+code, out = run(["dispatch", "1223", "d1223", "opus"])
+today = time.strftime("%Y-%m-%d")
+path = os.path.join(handoffs, f"swarm-{today}.md")
+check("dispatch creates docs/handoffs/swarm-<today>.md", code == 0 and os.path.exists(path))
+row = roster_row(path, "1223")
+check("dispatch writes the row: drone, tier, dispatched@HH:MM", "| d1223 |" in row and "| opus |" in row and "dispatched@" in row)
+check("dispatch prints the roster after writing (the read is free)", "| 1223 |" in out and ld.HEADER.split("|")[1].strip() in out)
+with open(path) as fh:
+    text = fh.read()
+check("the roster header carries PLAN / STUCK / PULL", all(c in text for c in ("PLAN", "STUCK", "PULL")))
+check("the file keeps a prose section the tool never owns", "## Queue" in text)
+
+# --- a second unit, then report / land update rows in place --------------
+run(["dispatch", "1240", "d1240", "opus", "--note", "fence excludes systems/armed/"])
+check("a note lands in the notes cell", "fence excludes systems/armed/" in roster_row(path, "1240"))
+code, out = run(["report", "1223", "--plan", "--stuck"])
+row = roster_row(path, "1223")
+check("report flips state to reported@HH:MM", code == 0 and "reported@" in row and "dispatched@" not in row)
+cells = [c.strip() for c in row.strip().strip("|").split("|")]
+hdr = [c.strip() for c in ld.HEADER.strip().strip("|").split("|")]
+check("report --plan --stuck ticks PLAN and STUCK, leaves PULL blank",
+      cells[hdr.index("PLAN")] == "✓" and cells[hdr.index("STUCK")] == "✓" and cells[hdr.index("PULL")] == "-")
+code, out = run(["land", "1223", "abcdef0123456789"])
+row = roster_row(path, "1223")
+check("land writes `landed <sha7>`", code == 0 and "landed abcdef0" in row)
+check("the other row is untouched by land", "dispatched@" in roster_row(path, "1240"))
+code, out = run(["report", "1240", "--pull", "--note", "fork: who owns the cursor"])
+row = roster_row(path, "1240")
+check("report --pull ticks PULL and states pulled@", "pulled@" in row and cells is not None and "fork: who owns the cursor" in row)
+code, out = run(["dispatch", "1240", "d1240b", "sonnet"])
+row = roster_row(path, "1240")
+check("re-dispatch keeps the row, updates drone/tier, states redispatched@", "| d1240b |" in row and "| sonnet |" in row and "redispatched@" in row)
+check("re-dispatch keeps the earlier note", "fork: who owns the cursor" in row)
+code, out = run(["report", "9999"])
+check("report on a unit never dispatched is a no-op that says so", code == 0 and "no row" in out and "| 9999 |" not in open(path).read())
+check("unit count stays two", open(path).read().count("\n| 1") == 2)
+
+# --- file resolution: a run spanning midnight, an old run ignored ---------
+for f in os.listdir(handoffs):
+    os.remove(os.path.join(handoffs, f))
+yesterday = time.strftime("%Y-%m-%d", time.localtime(time.time() - 86400))
+recent = os.path.join(handoffs, f"swarm-{yesterday}.md")
+with open(recent, "w") as fh:
+    fh.write(ld.new_ledger(yesterday))
+stale = os.path.join(handoffs, "swarm-2026-01-01.md")
+with open(stale, "w") as fh:
+    fh.write(ld.new_ledger("2026-01-01"))
+os.utime(stale, (time.time() - 10 * 86400, time.time() - 10 * 86400))
+brief = os.path.join(handoffs, f"swarm-brief-{today}.md")
+with open(brief, "w") as fh:
+    fh.write("not a ledger\n")
+check("resolve picks yesterday's live run over creating a new file", ld.resolve(create=False) == recent)
+run(["dispatch", "1301", "d1301", "opus"])
+check("dispatch appends to the live run, not a new file", "| 1301 |" in open(recent).read() and not os.path.exists(os.path.join(handoffs, f"swarm-{today}.md")))
+os.utime(recent, (time.time() - 3 * 86400, time.time() - 3 * 86400))
+check("a run last touched 3 days ago is not live: resolve returns None", ld.resolve(create=False) is None)
+check("a swarm-brief-*.md is never mistaken for a ledger", ld.resolve(create=False) is None)
+
+# --- SWARM_LEDGER override + a foreign header is refused, not mangled -----
+foreign = os.path.join(handoffs, "swarm-foreign.md")
+with open(foreign, "w") as fh:
+    fh.write("# old run\n\n## Roster\n| unit | drone | tier | state | notes |\n|---|---|---|---|---|\n| 1222 | x | opus | landed | |\n")
+os.environ["SWARM_LEDGER"] = foreign
+code, out = run(["dispatch", "1223", "d", "opus"])
+check("a roster whose header is not the schema is refused (exit 0, says so, file untouched)",
+      code == 0 and "header" in out and "| 1223 |" not in open(foreign).read())
+del os.environ["SWARM_LEDGER"]
+
+print("all checks passed" if not failed else f"{failed} FAILED")
+sys.exit(1 if failed else 0)
