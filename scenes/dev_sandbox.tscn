@@ -5,6 +5,7 @@
 [ext_resource type="Resource" path="res://entity/factions/player.tres" id="1_player_faction"]
 [ext_resource type="Script" uid="uid://che6xhl6srqh3" path="res://stats_system/stat_modifier.gd" id="2_mod"]
 [ext_resource type="PackedScene" uid="uid://dgog4rl3yb7mh" path="res://graph/edge.tscn" id="4_edge_scene"]
+[ext_resource type="PackedScene" path="res://graph/gate.tscn" id="4_gate_scene"]
 [ext_resource type="Script" uid="uid://ceaxdyhhuysdx" path="res://stats_system/pool_stat.gd" id="8_umwfs"]
 [ext_resource type="PackedScene" uid="uid://c1cye7r2jar3o" path="res://skill_node/skill_node.tscn" id="9_skill"]
 [ext_resource type="PackedScene" uid="uid://b8gxnt7y3a1pk" path="res://entity/entity.tscn" id="10_entity"]
@@ -1037,6 +1038,22 @@ to = NodePath("../../Nodes/Enemy_Recon")
 
 [node name="Edge_DownOut_self" parent="Graph/Edges" parent_id_path=PackedInt32Array(1851662701, 983028403) index="33" unique_id=609108157 node_paths=PackedStringArray("from", "to") instance=ExtResource("4_edge_scene")]
 from = NodePath("../../Nodes/Down_Out")
+to = NodePath("../../Nodes/Down_Out")
+
+[node name="Edge_Right_Down" parent="Graph/Edges" parent_id_path=PackedInt32Array(1851662701, 983028403) index="34" unique_id=1206000001 node_paths=PackedStringArray("from", "to") instance=ExtResource("4_edge_scene")]
+from = NodePath("../../Nodes/Right")
+to = NodePath("../../Nodes/Down")
+
+[node name="Gate_Chasm" parent="Graph/Gates" parent_id_path=PackedInt32Array(1851662701, 1570342817) index="0" unique_id=1206000002 node_paths=PackedStringArray("from", "to") instance=ExtResource("4_gate_scene")]
+from = NodePath("../../Nodes/Right")
+to = NodePath("../../Nodes/Bridge_S")
+
+[node name="Gate_Triangle" parent="Graph/Gates" parent_id_path=PackedInt32Array(1851662701, 1570342817) index="1" unique_id=1206000003 node_paths=PackedStringArray("from", "to") instance=ExtResource("4_gate_scene")]
+from = NodePath("../../Nodes/Right")
+to = NodePath("../../Nodes/Down")
+
+[node name="Gate_SelfCut" parent="Graph/Gates" parent_id_path=PackedInt32Array(1851662701, 1570342817) index="2" unique_id=1206000004 node_paths=PackedStringArray("from", "to") instance=ExtResource("4_gate_scene")]
+from = NodePath("../../Nodes/Down")
 to = NodePath("../../Nodes/Down_Out")
 
 [node name="EdgeMesh" parent="Graph" parent_id_path=PackedInt32Array(1851662701) index="4" unique_id=-1447774240]
