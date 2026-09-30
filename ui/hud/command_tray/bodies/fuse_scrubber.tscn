@@ -1,0 +1,44 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://ui/hud/command_tray/bodies/fuse_scrubber.gd" id="1_script"]
+
+[node name="FuseScrubber" type="HBoxContainer"]
+theme_override_constants/separation = 8
+script = ExtResource("1_script")
+
+[node name="FuseLabel" type="Label" parent="."]
+custom_minimum_size = Vector2(38, 0)
+layout_mode = 2
+theme_override_font_sizes/font_size = 10
+modulate = Color(0.667, 0.714, 0.824, 0.6)
+text = "Fuse:"
+
+[node name="Track" type="Control" parent="."]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(220, 22)
+layout_mode = 2
+size_flags_vertical = 4
+mouse_filter = 0
+tooltip_text = "Drag a marker to fuse its gate at that moment of the swing. Alt-drag splits one marker off."
+
+[node name="LinkButton" type="Button" parent="."]
+unique_name_in_owner = true
+layout_mode = 2
+tooltip_text = "Re-link the markers, snapping them to the last one dragged."
+theme_override_font_sizes/font_size = 10
+text = "⛓ Link"
+
+[node name="ClearButton" type="Button" parent="."]
+unique_name_in_owner = true
+layout_mode = 2
+tooltip_text = "Fuse off — the swing keeps every gate."
+theme_override_font_sizes/font_size = 10
+text = "✕ Off"
+
+[node name="Chip" type="Label" parent="."]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+theme_override_font_sizes/font_size = 10
+modulate = Color(1, 0.55, 0.35, 1)
+text = "⚠ strands 0"

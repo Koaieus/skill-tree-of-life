@@ -5,6 +5,7 @@
 [ext_resource type="PackedScene" uid="uid://coykc218j64qq" path="res://ui/gauges/capacity_blips.tscn" id="3_blips"]
 [ext_resource type="PackedScene" uid="uid://b5lvy7n8p4qbk" path="res://ui/launch_attack_button/launch_attack_button.tscn" id="4_launch"]
 [ext_resource type="PackedScene" path="res://ui/common/key_chip.tscn" id="5_keychip"]
+[ext_resource type="PackedScene" path="res://ui/hud/command_tray/bodies/fuse_scrubber.tscn" id="6_fuse"]
 
 [node name="MeleeBody" instance=ExtResource("1_base")]
 script = ExtResource("2_script")
@@ -83,6 +84,10 @@ collapse_threshold = 15
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_constants/separation = 8
+
+[node name="FuseScrubber" parent="BodyContent/Row/Info" instance=ExtResource("6_fuse")]
+unique_name_in_owner = true
+layout_mode = 2
 
 [node name="Actions" type="VBoxContainer" parent="BodyContent/Row"]
 layout_mode = 2
