@@ -38,7 +38,7 @@ Compiled 2026-09-29. An empty cell means no ADR or domain doc holds that decisio
 | D-24 | Territory selection: one shared policy | | | built via #275; no domain doc |
 | D-25 | `core_healing`: integer heal, ungated | | | built #277 |
 | D-26 | `health = 10 + core_health_scaling × CON` | | [stat-knobs-and-bins.md](../domain/stat-knobs-and-bins.md) | built with D-21 (#276) |
-| D-27 | CoreClass is a leaf; reuse via arrays | | [loot-system.md](../domain/loot-system.md) | revised twice in-doc before settling |
+| D-27 | CoreClass is a leaf; reuse via arrays | [0036](0036-a-coreclass-is-a-leaf-reuse-lives-inside-its-typed-arrays.md) | [loot-system.md](../domain/loot-system.md) | revised twice in-doc before settling |
 | D-28 | Node survives via life-source reach | | | life-source generalisation **not built**; survival is still connected-to-core (#240 open) |
 | D-29 | Depletions resolve as a set | [0011](0011-one-attack-timeline-contract-for-every-mode.md) | [attack-timeline.md](../domain/attack-timeline.md) | the resolve-side death call lives on in ADR 0011 (shadow-world resolve, a kill gates the next wave) |
 | D-30 | Degree has three definitions | | [degree.md](../domain/degree.md) | **superseded** 2026-08-15; degree.md is current |
