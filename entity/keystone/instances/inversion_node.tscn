@@ -1,0 +1,7 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" path="res://entity/keystone/keystone_skill_node.tscn" id="1_base"]
+
+[node name="InversionNode" instance=ExtResource("1_base")]
+base_type_color = Color(0.55, 0.3, 0.8, 1)
+display_name = "Inversion"

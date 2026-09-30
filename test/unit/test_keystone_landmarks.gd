@@ -11,6 +11,7 @@ const _ARCHMAGE:= preload("res://entity/keystone/instances/archmage_node.tscn")
 const _NATURAL_XP := preload("res://entity/keystone/instances/natural_xp_node.tscn")
 const _AP_KEYSTONE := preload("res://entity/keystone/instances/ap_keystone_node.tscn")
 const _WISDOM_KEYSTONE := preload("res://entity/keystone/instances/wisdom_keystone_node.tscn")
+const _INVERSION := preload("res://entity/keystone/instances/inversion_node.tscn")
 const _BASE := preload("res://entity/keystone/keystone_skill_node.tscn")
 
 const _BASE_PATH := "res://entity/keystone/keystone_skill_node.tscn"
@@ -41,6 +42,32 @@ func test_ap_keystone_grants_plus_1_max_action_points() -> void:
 	_check(_AP_KEYSTONE, &"action_points", StatModifier.Operation.ADD_BASE, 1.0, "ap_keystone")
 func test_wisdom_keystone_grants_plus_20_wisdom() -> void:
 	_check(_WISDOM_KEYSTONE, &"wisdom", StatModifier.Operation.ADD_BASE, 20.0, "wisdom_keystone")
+func test_inversion_grants_x_minus_1_min_damage_taken() -> void:
+	_check(_INVERSION, &"min_damage_taken", StatModifier.Operation.MULTIPLY, -1.0, "inversion")
+
+
+## #1219: the flip lands after ADD_BASE — the default floor 3 reads -3, and
+## Mythic Ward's -1 on the same entity (3 - 1 = 2) reads -2, not -4.
+func test_inversion_flips_min_damage_taken_on_allocate() -> void:
+	var alloc := autofree(AllocationSystem.new()) as AllocationSystem
+	add_child(alloc)
+	var ent := autofree(Entity.new()) as Entity
+	ent.display_name = "Daring"
+	ent.stat_board = (preload("res://entity/default_entity_board.tres") as EntityStatBoard).duplicate(true)
+	add_child(ent)
+	var inv: SkillNode = autofree(_INVERSION.instantiate()) as SkillNode
+	var ward: SkillNode = autofree(_WARD.instantiate()) as SkillNode
+	add_child(inv)
+	add_child(ward)
+	await get_tree().process_frame
+	assert_almost_eq(float(ent.stat_board.get_value(&"min_damage_taken")), 3.0, 0.001,
+		"default floor before the flip")
+	alloc.force_allocate(ent, inv)
+	assert_almost_eq(float(ent.stat_board.get_value(&"min_damage_taken")), -3.0, 0.001,
+		"default board: 3 flips to -3")
+	alloc.force_allocate(ent, ward)
+	assert_almost_eq(float(ent.stat_board.get_value(&"min_damage_taken")), -2.0, 0.001,
+		"with Mythic Ward: (3 - 1) x -1 = -2")
 
 
 ## #886 acceptance 1: allocating the AP keystone reads exactly +1 max AP over
@@ -148,6 +175,7 @@ func test_landmarks_contribute_no_emblem() -> void:
 		"natural_xp": _NATURAL_XP,
 		"ap_keystone": _AP_KEYSTONE,
 		"wisdom_keystone": _WISDOM_KEYSTONE,
+		"inversion": _INVERSION,
 	}
 	for label in scenes:
 		var n: SkillNode = autofree(scenes[label].instantiate()) as SkillNode
@@ -167,6 +195,7 @@ func test_base_and_landmarks_share_the_authored_radius() -> void:
 		"natural_xp": _NATURAL_XP,
 		"ap_keystone": _AP_KEYSTONE,
 		"wisdom_keystone": _WISDOM_KEYSTONE,
+		"inversion": _INVERSION,
 	}
 	for label in scenes:
 		var n: SkillNode = autofree(scenes[label].instantiate()) as SkillNode
@@ -203,6 +232,7 @@ func test_landmarks_carry_a_non_empty_display_name() -> void:
 		"natural_xp": _NATURAL_XP,
 		"ap_keystone": _AP_KEYSTONE,
 		"wisdom_keystone": _WISDOM_KEYSTONE,
+		"inversion": _INVERSION,
 	}
 	for label in scenes:
 		var n: SkillNode = autofree(scenes[label].instantiate()) as SkillNode
