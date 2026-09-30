@@ -11,7 +11,7 @@ extends Resource
 ## `addon.temp_upgrade_def == def`). That holds because a `.tres` loads once
 ## per process — never `duplicate()` one.
 
-## The wire identity — what [ToggleTempUpgradeCommand] carries; `scene` and
+## The wire identity — what a melee plan's wire form carries; `scene` and
 ## `addon_script` are process-local references and the catalog's position is
 ## not a contract.
 @export var id: StringName = &""

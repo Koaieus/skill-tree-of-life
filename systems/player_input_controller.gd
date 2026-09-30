@@ -413,8 +413,6 @@ func _on_command_applied(command: Command, success: bool) -> void:
 	elif command is ExtractCommand:
 		Events.node_action_denied.emit(node,
 				_gate_denial(allocation_system.extract_denial(node, player), &"extract_denied"))
-	# ToggleTempUpgradeCommand deliberately absent: BattleSystem announces that
-	# refusal itself, where the reason (slot full vs. budget) is knowable.
 
 
 ## The one door out of this controller into the world. Drops the command with a
@@ -445,21 +443,21 @@ static func _gate_denial(reason: StringName, generic: StringName) -> String:
 ## the exact same gating/denial path when a red blip is clicked, instead of
 ## routing a synthetic graph click.
 ##
-## Replaces `apply_armed_temp_upgrade_to` (#510), which both decided and
-## performed. The toggle itself now lives on
-## [method BattleSystem.toggle_temp_upgrade_on], reached through a
-## [ToggleTempUpgradeCommand]; what stays here is the ARM — local plan state
-## that never crosses a wire — and the routing answer. The returned bool is
-## "this click was consumed", never "the upgrade landed": the outcome is
-## async now, and every caller only ever used it for routing.
+## A temp upgrade is plan content (ADR 0035): the toggle is a seat-local edit
+## of the armed [MeleeAttackPlan], no command — the host judges its cost once,
+## at launch. A refusal is announced here on [signal Events.node_action_denied]
+## with the plan's reason. The returned bool is "this click was consumed",
+## never "the upgrade landed"; every caller only uses it for routing.
 func request_temp_upgrade_at(skill_node: SkillNode) -> bool:
 	var arm := temp_upgrade_arm()
 	if arm == null or not can_player_act():
 		return false
-	if _active_attack_plan() as MeleeAttackPlan == null:
+	var plan := _active_attack_plan() as MeleeAttackPlan
+	if plan == null:
 		return false
-	_submit(ToggleTempUpgradeCommand.new(
-			player.entity_id, graph.get_stable_id(skill_node), arm.id))
+	if skill_node != null and not plan.toggle_temp_upgrade(skill_node, arm):
+		Events.node_action_denied.emit(skill_node,
+				plan.temp_upgrade_denial_reason(skill_node, arm))
 	return true
 
 

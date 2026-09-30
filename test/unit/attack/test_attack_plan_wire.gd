@@ -200,7 +200,7 @@ func test_a_melee_plan_round_trips_its_temp_upgrades() -> void:
 	_assert_no_live_references(d)
 	plan.reset()
 
-	var back := AttackPlanCodec.from_dict(d, _graph) as MeleeAttackPlan
+	var back := AttackPlanCodec.from_dict(d, _graph, _CATALOG) as MeleeAttackPlan
 	assert_eq(back.temp_upgrade_cost_for(clamp), clamp.cost,
 			"the rebuilt plan carries the upgrade and its cost")
 	assert_not_null(back._existing_temp_upgrade(_nodes.C, clamp),
@@ -221,7 +221,7 @@ func test_a_rebuild_adopts_a_preview_addon_already_on_the_node() -> void:
 	plan.toggle_member(_nodes.B)
 	plan.toggle_member(_nodes.C)
 	plan.toggle_temp_upgrade(_nodes.C, clamp)
-	var back := AttackPlanCodec.from_dict(plan.to_dict(_graph), _graph) as MeleeAttackPlan
+	var back := AttackPlanCodec.from_dict(plan.to_dict(_graph), _graph, _CATALOG) as MeleeAttackPlan
 	var temps := 0
 	for a in _nodes.C.get_addons():
 		if a.is_temporary:

@@ -34,7 +34,7 @@ var blade_nodes: Array[SkillNode] = []
 ## see the same phantom braces — a parameter on `build_blade_state` alone
 ## would reach only the former. Deliberately absent from [method to_dict]:
 ## a launched swing carries real addons via [method AIController._execute_candidate]'s
-## `toggle_temp_upgrade_on` calls, never a phantom set crossing the wire.
+## [method toggle_temp_upgrade] calls, never a phantom set crossing the wire.
 var ai_phantom_clamp_nodes: Array[SkillNode] = []
 
 ## Arc / sweep target — kept as Vector2 for now per the original sketch;
@@ -180,10 +180,12 @@ func _notification(what: int) -> void:
 ##
 ## The `last_*` fields are resolution residue, not plan input, and stay off the
 ## wire deliberately: a peer that re-runs [method resolve] for its animation
-## rebuilds them itself, and a peer that does not has no use for them. The
-## temp-upgrade addons attached to blade members are not here either — they are
-## real [SkillNodeAddon] children put there by [ToggleTempUpgradeCommand],
-## which already crosses on its own.
+## rebuilds them itself, and a peer that does not has no use for them.
+##
+## Temp upgrades ARE plan input, like the blade and the swing (ADR 0035): they
+## cross as `[stable id, TempUpgradeDef id]` pairs under `temps`, only when there
+## are any, so an un-upgraded plan's dict is unchanged. Until launch the
+## `is_temporary` addons they name exist only on the planning seat.
 func to_dict(graph: Graph) -> Dictionary:
 	var d := super(graph)
 	d["source"] = graph.get_stable_id(source) if graph != null and source != null else 0
@@ -203,6 +205,16 @@ func to_dict(graph: Graph) -> Dictionary:
 				fuses.append([graph.get_stable_id(gate.from), graph.get_stable_id(gate.to),
 						_gate_fuses[gate]])
 		d["fuses"] = fuses
+	if graph != null:
+		var temps: Array = []
+		for n in blade_nodes:
+			if n == null:
+				continue
+			for a in n.get_addons():
+				if a.is_temporary and a.temp_upgrade_def != null:
+					temps.append([graph.get_stable_id(n), String(a.temp_upgrade_def.id)])
+		if not temps.is_empty():
+			d["temps"] = temps
 	return d
 
 
@@ -214,7 +226,14 @@ func to_dict(graph: Graph) -> Dictionary:
 ## The BUDGET gate is deliberately not re-run: the authority already decided
 ## this blade is legal, and re-adjudicating it on a peer is exactly what host
 ## authority exists to avoid.
-static func from_dict(d: Dictionary, graph: Graph) -> MeleeAttackPlan:
+##
+## Temp upgrades resolve through [param catalog] — the composing scene's, never
+## a loaded default — and attach UNGATED: the host judges their cost once, at
+## launch ([method budget_overrun]). An identical `is_temporary` addon already on
+## the node (the originating seat's own preview) is adopted, never stacked. A
+## rebuilt plan owns the addons it names: [method reset] frees them.
+static func from_dict(d: Dictionary, graph: Graph,
+		catalog: TempUpgradeCatalog = null) -> MeleeAttackPlan:
 	var plan := MeleeAttackPlan.new()
 	plan._read_base(d, graph)
 	plan.swing_cw = bool(d.get("swing_cw", false))
@@ -238,6 +257,18 @@ static func from_dict(d: Dictionary, graph: Graph) -> MeleeAttackPlan:
 				graph.get_by_stable_id(int(entry[1])))
 		if gate != null:
 			plan._gate_fuses[gate] = float(entry[2])
+	var temps: Array = d.get("temps", [])
+	if not temps.is_empty() and catalog == null:
+		push_warning("MeleeAttackPlan.from_dict: no catalog, %d temp upgrade(s) dropped"
+				% temps.size())
+		return plan
+	for entry in temps:
+		var node := graph.get_by_stable_id(int(entry[0]))
+		var def := catalog.by_id(StringName(entry[1]))
+		if node == null or def == null or not plan.blade_nodes.has(node):
+			continue
+		if plan._existing_temp_upgrade(node, def) == null:
+			plan._attach_temp_addon(node, def)
 	return plan
 
 
@@ -484,11 +515,24 @@ func has_temp_upgrade_budget(def: TempUpgradeDef) -> bool:
 func apply_temp_upgrade(node: SkillNode, def: TempUpgradeDef) -> bool:
 	if not can_apply_temp_upgrade(node, def):
 		return false
+	_attach_temp_addon(node, def)
+	_notify_selection_changed()
+	return true
+
+
+## The attach itself, ungated — [method apply_temp_upgrade] gates it for the
+## planning seat, [method from_dict] trusts the wire and leaves cost to launch.
+func _attach_temp_addon(node: SkillNode, def: TempUpgradeDef) -> void:
 	var addon := def.scene.instantiate() as SkillNodeAddon
 	addon.temp_upgrade_def = def
 	node.add_child(addon)
-	_notify_selection_changed()
-	return true
+
+
+## How far the plan's spend runs past [method max_blades]: one blade-size unit
+## per member plus every temp upgrade's cost. The host's launch-time
+## affordability sum (ADR 0035) — a new cost type joins this sum.
+func budget_overrun() -> int:
+	return maxi(0, -_budget_remaining())
 
 
 ## Refund `node`'s temp upgrade, if any — frees the attached addon.
@@ -507,11 +551,18 @@ func _existing_temp_upgrade(node: SkillNode, def: TempUpgradeDef) -> SkillNodeAd
 	return null
 
 
+## Why [param node] refuses [param def] — the `node_action_denied` reason the
+## seat announces when [method can_toggle_temp_upgrade] says no.
+func temp_upgrade_denial_reason(node: SkillNode, def: TempUpgradeDef) -> String:
+	return "temp_upgrade_denied_slot_full" \
+			if not node.can_attach_addon(def.addon_script) \
+			else "temp_upgrade_denied_budget"
+
+
 ## Would [method toggle_temp_upgrade] change anything? Composed from the two
 ## halves that method already branches on, never a third copy of either — a
 ## refund is always legal, so the only question a fresh apply has to answer is
-## `can_apply_temp_upgrade`. Lifted out so [method CommandApplier._validate] can
-## gate a [ToggleTempUpgradeCommand] before it is confirmed (#540).
+## `can_apply_temp_upgrade`.
 func can_toggle_temp_upgrade(node: SkillNode, def: TempUpgradeDef) -> bool:
 	if node == null or def == null:
 		return false

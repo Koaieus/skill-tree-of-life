@@ -52,8 +52,6 @@ static func _build() -> void:
 	_register(StartTurnCommand.TAG, StartTurnCommand.from_dict, StartTurnCommandHandler.new())
 	_register(PickLootCommand.TAG, PickLootCommand.from_dict, PickLootCommandHandler.new())
 	_register(LootRoundCommand.TAG, LootRoundCommand.from_dict, LootRoundCommandHandler.new())
-	_register(ToggleTempUpgradeCommand.TAG, ToggleTempUpgradeCommand.from_dict,
-			ToggleTempUpgradeCommandHandler.new())
 	_register(LaunchAttackCommand.TAG, LaunchAttackCommand.from_dict,
 			LaunchAttackCommandHandler.new())
 

@@ -251,10 +251,6 @@ func reset_plan() -> void:
 	plan_slot.reset_plan()
 	plan_reset.emit()
 func request_attack_mode(mode: AttackMode) -> void: plan_slot.request_attack_mode(mode)
-func toggle_temp_upgrade_on(node: SkillNode, def: TempUpgradeDef) -> bool:
-	return plan_slot.toggle_temp_upgrade_on(node, def)
-func can_toggle_temp_upgrade_on(node: SkillNode, def: TempUpgradeDef) -> bool:
-	return plan_slot.can_toggle_temp_upgrade_on(node, def)
 func temp_upgrade_by_id(id: StringName) -> TempUpgradeDef: return plan_slot.temp_upgrade_by_id(id)
 func temp_upgrade_kinds() -> Array[TempUpgradeDef]: return plan_slot.temp_upgrade_kinds()
 func _new_plan(plan_class: Script) -> AttackPlan: return plan_slot._new_plan(plan_class)
@@ -457,21 +453,29 @@ func prepare_launch_command(command: LaunchAttackCommand) -> bool:
 	if not command.record.is_empty():
 		return true
 	var plan := command.local_plan
-	if plan == null:
-		# An initiate for a plan this peer does not hold. Rebuilding one here
-		# would be the intent-up path, which is #463 — refuse loudly instead of
-		# guessing what the sender had armed.
-		push_warning("BattleSystem: launch_attack initiate with no live plan")
-		return false
+	var decoded := plan == null
+	if decoded:
+		# Another seat's intent: plans are seat-local until launch (ADR 0035),
+		# so the plan — temp upgrades included — arrives only as the dict. Every
+		# refusal below frees what the decode attached to live nodes.
+		plan = AttackPlanCodec.from_dict(command.plan, graph, temp_upgrade_catalog)
+		if plan == null:
+			push_warning("BattleSystem: launch_attack initiate with an undecodable plan")
+			return false
 	# Re-validated HERE, not only in `build_launch_command`: a command can sit in
 	# the queue while the world moves under it (a cascade frees the pivot, the
 	# target is captured). An invalidated plan resolves to an EMPTY outcome whose
 	# `ap_cost` still defaults to 1, so skipping this spends AP on nothing.
 	if not plan.is_valid():
 		push_warning("BattleSystem: plan went invalid before apply: %s" % str(plan.validate()))
+		if decoded:
+			plan.reset()
 		return false
 	if not _compute_record(plan, command):
+		if decoded:
+			plan.reset()
 		return false
+	command.local_plan = plan
 	# LAST, and only on the success path: it is what tells the apply half that
 	# `local_plan` is the plan this machine resolved. See [member
 	# LaunchAttackCommand.computed_here].
@@ -539,7 +543,7 @@ func apply_launch_command(command: LaunchAttackCommand) -> bool:
 	else:
 		# A replay decodes into the same local field and never writes the slot:
 		# the slot is this seat's plan-in-progress, not the attacker's.
-		plan = AttackPlanCodec.from_dict(command.plan, graph)
+		plan = AttackPlanCodec.from_dict(command.plan, graph, temp_upgrade_catalog)
 		if plan == null:
 			return false
 		command.local_plan = plan
@@ -633,6 +637,11 @@ func _consume_volley(plan: RangedAttackPlan, outcome: AttackOutcome) -> void:
 ## Can [param plan]'s attacker pay for [param outcome]? Reads the LIVE pools —
 ## an attack computed on a shadow is still paid for out of the real board.
 func _can_afford(plan: AttackPlan, outcome: AttackOutcome) -> bool:
+	# The plan's own budget (blade members + temp upgrades) — the one sum a new
+	# plan-level cost type joins. Membership and placement are NOT re-judged.
+	if plan.budget_overrun() > 0:
+		push_warning("BattleSystem.launch_attack: plan over budget by %d" % plan.budget_overrun())
+		return false
 	var entity := plan.attacker
 	var board: StatBoard = entity.stat_board if entity != null else null
 	var ap_pool: PoolStat = board.action_points if board != null else null

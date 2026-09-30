@@ -689,17 +689,16 @@ func _sweep_melee() -> void:
 		_write_log("autopilot: melee SKIPPED — the rolled blade did not validate")
 		battle_system.cancel_attack()
 		return
-	await _sweep_toggle_temp_upgrade(plan)
+	_sweep_toggle_temp_upgrade(plan)
 	_write_log("autopilot: swinging a blade from %s (%d members)"
 			% [plan.source.name, plan.blade_nodes.size()])
 	await battle_system.launch_attack()
 	_write_log("autopilot: melee OK")
 
 
-## A real melee sub-step, not a separate combat action: `toggle_temp_upgrade`
-## only makes sense against an ARMED melee plan (`BattleSystem
-## .toggle_temp_upgrade_on` reads `battle_system.attack_plan` directly), so it
-## fires here, before the swing it augments.
+## A real melee sub-step, not a separate combat action: a temp upgrade is plan
+## content (ADR 0035), a seat-local edit that crosses inside the launch, so it
+## is placed here, before the swing it augments.
 func _sweep_toggle_temp_upgrade(plan: MeleeAttackPlan) -> void:
 	var upgrade := battle_system.temp_upgrade_by_id(&"clamp")
 	if upgrade == null or plan.source == null:
@@ -708,10 +707,10 @@ func _sweep_toggle_temp_upgrade(plan: MeleeAttackPlan) -> void:
 	if not plan.has_temp_upgrade_budget(upgrade):
 		_write_log("autopilot: toggle_temp_upgrade SKIPPED — no blade budget left")
 		return
-	var ok := await _submit_and_wait(ToggleTempUpgradeCommand.new(
-			_red.entity_id, graph.get_stable_id(plan.source), &"clamp"))
+	var member: SkillNode = plan.blade_nodes[0] if not plan.blade_nodes.is_empty() else null
+	var ok := member != null and plan.toggle_temp_upgrade(member, upgrade)
 	_write_log("autopilot: toggle_temp_upgrade %s"
-			% ("OK — clamp on %s" % plan.source.name if ok else "SKIPPED — command refused"))
+			% ("OK — clamp on %s" % member.name if ok else "SKIPPED — the plan refused it"))
 
 
 ## Loot only has something to claim once an entity actually dies (#69: the

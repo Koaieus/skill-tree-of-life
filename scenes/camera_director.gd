@@ -666,8 +666,8 @@ func _on_command_confirmed(command: Command) -> void:
 ## unresolvable actor, or an actor this machine seats.
 ##
 ## [b]The verb list is an explicit allow-list, never a subtype test.[/b]
-## [ToggleTempUpgradeCommand] IS a [NodeCommand] and so has geometry, but it is
-## not a territory change and is excluded on purpose; [LaunchAttackCommand] is
+## A [NodeCommand] that is not a territory change must stay excluded, which a
+## subtype test cannot express; [LaunchAttackCommand] is
 ## excluded because [method _build_attack_request] already frames it, and wiring
 ## both would raise two focus requests per attack. So `is NodeCommand` would
 ## over-match and a `Command` fallback would over-match harder — every verb is
@@ -718,7 +718,6 @@ func _build_command_request(command: Command) -> FocusRequest:
 ## this path does not claim. The exclusions are deliberate, not an oversight:
 ##   * [LaunchAttackCommand] — already framed by `attack_committed` (#524).
 ##   * [EndTurnCommand], [LootRoundCommand], [PickLootCommand] — no geometry.
-##   * [ToggleTempUpgradeCommand] — has geometry, is not a territory change.
 ##
 ## [MassAllocateCommand] over-frames by design: its affordable count is
 ## re-computed at apply time (#458), so the path framed here may be longer than

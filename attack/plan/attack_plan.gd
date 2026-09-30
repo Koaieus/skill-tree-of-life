@@ -79,6 +79,13 @@ func to_dict(_graph: Graph) -> Dictionary:
 	}
 
 
+## How far this plan's spend runs past what its attacker can pay out of the
+## plan's own budget — the host's launch-time affordability sum (ADR 0035), read
+## by [method BattleSystem._can_afford]. 0 for a mode with no plan-level budget.
+func budget_overrun() -> int:
+	return 0
+
+
 ## Read the base fields back. Subclasses call this from their own
 ## `static from_dict` before filling in their mode-specific slots — see
 ## [AttackPlanCodec] for why the dispatch is not a static on this class.

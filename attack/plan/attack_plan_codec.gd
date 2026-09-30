@@ -14,17 +14,19 @@ extends RefCounted
 ##
 ## [param graph] is not optional anywhere here. A plan's wire form is nothing
 ## but ids, and only a [Graph] can turn those back into the live
-## [SkillNode]s / [Entity] the rebuilt plan needs.
+## [SkillNode]s / [Entity] the rebuilt plan needs. [param catalog] resolves a
+## melee plan's temp-upgrade ids — pass the composing scene's.
 
 
 ## Rebuild a plan from its wire form. Returns null on an unknown or missing
 ## mode rather than half-building something a launch would then act on.
-static func from_dict(d: Dictionary, graph: Graph) -> AttackPlan:
+static func from_dict(d: Dictionary, graph: Graph,
+		catalog: TempUpgradeCatalog = null) -> AttackPlan:
 	if d.is_empty():
 		return null
 	match int(d.get("mode", BattleSystem.AttackMode.NONE)):
 		BattleSystem.AttackMode.MELEE:
-			return MeleeAttackPlan.from_dict(d, graph)
+			return MeleeAttackPlan.from_dict(d, graph, catalog)
 		BattleSystem.AttackMode.RANGED:
 			return RangedAttackPlan.from_dict(d, graph)
 		BattleSystem.AttackMode.MAGIC:

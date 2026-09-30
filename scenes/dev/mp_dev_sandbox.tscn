@@ -1,9 +1,10 @@
-[gd_scene load_steps=5 format=3]
+[gd_scene load_steps=6 format=3]
 
 [ext_resource type="PackedScene" uid="uid://ch0s7sw18mc23" path="res://scenes/dev_sandbox.tscn" id="1_base"]
 [ext_resource type="Script" path="res://scenes/dev/mp_dev_sandbox.gd" id="2_script"]
 [ext_resource type="Script" path="res://network/enet_transport.gd" id="3_transport"]
 [ext_resource type="Script" path="res://network/determinism_probe.gd" id="5_probe"]
+[ext_resource type="Resource" uid="uid://tucatalog00001" path="res://attack/melee/temp_upgrade_catalog.tres" id="6_catalog"]
 
 [node name="DevSandbox" instance=ExtResource("1_base")]
 script = ExtResource("2_script")
@@ -11,6 +12,7 @@ script = ExtResource("2_script")
 [node name="DeterminismProbe" type="Node" parent="." node_paths=PackedStringArray("graph")]
 script = ExtResource("5_probe")
 graph = NodePath("../Graph")
+temp_upgrade_catalog = ExtResource("6_catalog")
 
 [node name="Transport" parent="." unique_id=1000000531]
 script = ExtResource("3_transport")

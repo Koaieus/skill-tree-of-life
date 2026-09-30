@@ -137,54 +137,8 @@ func request_attack_mode(mode: BattleSystem.AttackMode) -> void:
 		BattleSystem.AttackMode.RANGED:  attack_plan = _new_plan(RangedAttackPlan)
 		BattleSystem.AttackMode.MAGIC:   attack_plan = _new_plan(MagicAttackPlan)
 
-## Toggle a temp upgrade (#406) onto [param node] of the live [MeleeAttackPlan],
-## refunding an identical one already there. Moved here from
-## `PlayerInputController.apply_armed_temp_upgrade_to` by #510 — **owner call
-## 2026-08-21:** *"BattleSystem or AttackPlan. (or a AddonManager system would be
-## cleaner … but i'm afraid that adds a lot of complexity while i want to SOLVE
-## issues and get stuff done, not create more)."* BattleSystem, because it is
-## what mounts addons on the live plan; an `AddonManager` is out of scope.
-##
-## Takes [param upgrade] EXPLICITLY rather than reading a controller's armed
-## state: the arm is local plan-building that never crosses a wire, so it stays
-## in [PlayerInputController], and [ToggleTempUpgradeCommand] carries the
-## catalog id instead (#509). Pass a [TempUpgradeDef] — resolve one with
-## [method temp_upgrade_by_id].
-##
-## Returns whether the toggle landed. A refusal is announced on
-## [signal Events.node_action_denied] by [method can_toggle_temp_upgrade_on],
-## where the reason is knowable — whether the CLICK was consumed is a routing
-## question the caller answers on its own.
-func toggle_temp_upgrade_on(node: SkillNode, def: TempUpgradeDef) -> bool:
-	if not can_toggle_temp_upgrade_on(node, def):
-		return false
-	return (attack_plan as MeleeAttackPlan).toggle_temp_upgrade(node, def)
-
-
-## The gate half of [method toggle_temp_upgrade_on], lifted so
-## [method CommandApplier._validate] can decide a [ToggleTempUpgradeCommand]
-## before it is confirmed (#540). Not a second copy of the rule — the rule is
-## [method MeleeAttackPlan.can_toggle_temp_upgrade]; what lives here is the
-## live-plan lookup and the denial announcement.
-##
-## [b]It announces, so it must be asked exactly once per attempt.[/b] That holds
-## by construction under the applier's ordering: a validate-fail never reaches
-## the apply, and a validate-pass makes the apply's own re-ask succeed silently.
-func can_toggle_temp_upgrade_on(node: SkillNode, def: TempUpgradeDef) -> bool:
-	var plan := attack_plan as MeleeAttackPlan
-	if plan == null or node == null or def == null:
-		return false
-	if plan.can_toggle_temp_upgrade(node, def):
-		return true
-	var reason := "temp_upgrade_denied_slot_full" \
-			if not node.can_attach_addon(def.addon_script) \
-			else "temp_upgrade_denied_budget"
-	Events.node_action_denied.emit(node, reason)
-	return false
-
-
-## The catalog kind named by [param id] — the handler's door for a
-## [ToggleTempUpgradeCommand]'s wire id — or null if unknown or no catalog is
+## The catalog kind named by [param id] — the door for a temp upgrade's wire
+## id — or null if unknown or no catalog is
 ## wired. Returns the loaded def itself, so identity checks keep working.
 func temp_upgrade_by_id(id: StringName) -> TempUpgradeDef:
 	if temp_upgrade_catalog == null:

@@ -150,6 +150,10 @@ signal logged(line: String)
 ## resolves to. The same graph [WorldSyncChannel] holds; wired by the scene.
 @export var graph: Graph
 
+## Resolves a received melee plan's temp-upgrade ids — without it the
+## re-derivation drops them and reports a false divergence. Wired by the scene.
+@export var temp_upgrade_catalog: TempUpgradeCatalog
+
 ## tag -> {"agreed": int, "diverged": int, "skipped": int, "exempt": int}
 var _world: Dictionary = {}
 ## tag -> {"agreed": int, "diverged": int, "unavailable": int}
@@ -421,7 +425,10 @@ func report() -> String:
 func _rederive(command: LaunchAttackCommand) -> Dictionary:
 	if graph == null:
 		return {}
-	var plan := AttackPlanCodec.from_dict(command.plan, graph)
+	# Not reset afterwards: the temp-upgrade addons this decode attaches (or
+	# adopts) are the ones the apply's own decode adopts next, and that plan's
+	# post-swing reset frees them — freeing here would strip the replay's.
+	var plan := AttackPlanCodec.from_dict(command.plan, graph, temp_upgrade_catalog)
 	if plan == null:
 		return {}
 	# Stamped BEFORE resolving, mirroring `BattleSystem._compute_record` —
