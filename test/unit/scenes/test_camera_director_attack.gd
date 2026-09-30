@@ -243,6 +243,20 @@ func test_a_fully_fogged_attack_does_not_move_the_camera() -> void:
 	assert_eq(decision.reason, &"fogged", "and say so — this is not a malformed request")
 
 
+func test_a_fully_fogged_commit_leaves_the_camera_in_the_players_hands() -> void:
+	# A refused focus arms no release timer, so a lock raised for it would
+	# never come down — the player could not pan for the rest of the run.
+	_dir.seat_policy = SeatPolicy.couch()
+	var cam := _camera()
+	var pivot := _node_at(Vector2.ZERO, false)
+	_dir.battle_system = _battle_system(_melee_plan(pivot))
+	var hits: Array[HitInstance] = [_hit(pivot, _node_at(Vector2(400, 0), false))]
+
+	_dir._on_attack_committed(_outcome(hits), _entity(false))
+	assert_false(_dir.is_shot_locked(), "nothing visible happens, so there is no shot")
+	assert_false(cam.is_input_locked(), "and the player keeps free movement")
+
+
 func test_a_sensed_but_not_visible_node_does_not_count() -> void:
 	# The stub reports EVERYTHING sensed. `is_sensed` does not count (#524
 	# item 3), so a director reading it instead would frame this attack.

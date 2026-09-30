@@ -416,7 +416,9 @@ func _clamp_target(ideal: Vector2, at_zoom: float, ctx: CameraContext) -> Vector
 ## would gate the mutation loop.
 func _on_attack_committed(outcome: AttackOutcome, attacker: Entity) -> void:
 	var request := _build_attack_request(outcome, attacker)
-	if request == null:
+	# A fully fogged attack is no shot at all: its focus is refused, so nothing
+	# arms the timer that [method release]s — a lock raised for it never lifts.
+	if request == null or request.points.is_empty():
 		return
 	# #866's director's shot, for EVERY commit — seated, AI, remote, and every
 	# mode alike (ADR 0027). The lock goes up before the first focus and comes
