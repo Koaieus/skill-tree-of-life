@@ -5,7 +5,10 @@ extends HighlightProvider
 ## confirm is armed. Its input is a plain settable set so a second source (the
 ## fuse scrubber) can feed it the same way.
 
-var stranded: Array[SkillNode] = []
+var stranded: Array[SkillNode] = []:
+	set(v):
+		stranded = v
+		state_changed.emit()
 
 
 func get_node_role(node: SkillNode) -> HighlightRole:

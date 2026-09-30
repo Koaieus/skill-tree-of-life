@@ -62,6 +62,7 @@ var provider: HighlightProvider = null:
 var _core_provider: CoreMoveHighlightProvider = null
 var _allocation_provider: ManagerHighlightProvider = null
 var _mass_action_provider: MassActionHighlightProvider = null
+var _gate_cut_provider: GateCutHighlightProvider = null
 
 
 func _enter_tree() -> void:
@@ -80,6 +81,7 @@ func _ready() -> void:
 		ctl.core_move_targeting_changed.connect(_on_source_changed.unbind(1))
 		ctl.manage_arm_changed.connect(_on_source_changed.unbind(1))
 		ctl.mass_action_pending_changed.connect(_on_source_changed.unbind(1))
+		ctl.gate_confirm_changed.connect(_on_source_changed.unbind(1))
 		ctl.core_drag_target_changed.connect(_on_core_drag_target_changed)
 	if allocation_system != null:
 		allocation_system.allocated.connect(_on_source_changed.unbind(3))
@@ -99,6 +101,8 @@ func _resolve() -> void:
 	var ctl := _live_input_ctl()
 	if ctl != null and ctl.pending_mass_action() != null:
 		next = _build_mass_action_provider()
+	elif ctl != null and not ctl.pending_gate_strand().is_empty():
+		next = _build_gate_cut_provider()
 	elif battle_system != null and _shown_plan() != null:
 		next = _shown_plan()
 	elif ctl != null and ctl.move_targeting_source() != null:
@@ -184,6 +188,15 @@ func _on_player_sp_changed(_new_current: Variant) -> void:
 func _is_player_managing() -> bool:
 	return player != null and turn_manager != null \
 			and turn_manager.current_entity == player
+
+
+## Reused across arms; the controller disarms (emitting empty) between two
+## arms, so the provider always passes through another before it returns.
+func _build_gate_cut_provider() -> GateCutHighlightProvider:
+	if _gate_cut_provider == null:
+		_gate_cut_provider = GateCutHighlightProvider.new()
+	_gate_cut_provider.stranded = input_ctl.pending_gate_strand().duplicate()
+	return _gate_cut_provider
 
 
 func _build_mass_action_provider() -> MassActionHighlightProvider:
