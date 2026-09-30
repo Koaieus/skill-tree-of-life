@@ -161,6 +161,30 @@ The Lord of Edge's official position, if He has one, is not on record. Self-loop
 
 **Mechanically, self-loops are rare.** They arise in the field as anomalies — scars, relics, perhaps sites of ancient compression or forgotten entities that fed on themselves. Finding one means finding something that graph theology cannot agree is good or bad. A node that has become its own neighbor is: a glass-cannon wizard station, a resonance chamber for incoming spells, and an object the faithful will argue about for as long as anything believes. See Self-Loops section for full mechanics.
 
+### The pantheon — attributes above, aspects among
+
+Owner framing, 2026-09-30: for an entity living in a world that *is* a skill
+tree, stats — and above all the six main attributes (STR DEX INT WIS PER
+CON) — are like gods or Titans: real, ruling, but abstract, never met. The
+greek parallel reaches past the Titans to the primordials who rule even
+them (Chaos, Gaia). The **aspects** (`poison_aspect`, `wither_aspect`, … —
+see [aspect_matrix.md](aspect_matrix.md), Personas) are the lesser gods,
+closer to the Olympians: they materialize in the world, act, and talk.
+Only aspects get characters for now; real attribute-god characters may
+come later.
+
+The Fairy might be one of these gods — or their leader: the **EdgeLord**,
+whose edges are the connective tissue that lets an entity own more than one
+node, and so gain any power at all. *Tension, unresolved:* this reopens
+*Herald, not god* above, which keeps the Fairy fallible and the Apex's
+identity ambiguous (Open Questions 2 and 6); the reserved "deeper twist"
+under *The betrayal(s)* is the nearest existing door.
+
+Agent note (not an owner call): in Hesiod the primordial beside Chaos and
+Gaia is **Eros** — the binding force that pairs things up. Connection as a
+first principle, older than the Titans, is exactly the Lord of Edge's
+seat in graph theology.
+
 ---
 
 ## The Field — How a Level is Structured
@@ -579,6 +603,8 @@ This game earns a JRPG-style finale. The Apex Entity is not ironic. It is the na
 10. **Tether terminology and visualization.** Tether / Conduit / something else, and the exact look of "an edge seen from inside a vertex." Also: the disguised Tethers of the metagame hub.
 
 11. **Self-loop origin.** How do self-loops arise in play — rare field property, Edgelord power, Tech Seed fruit, Blue unlock, rare event? And can they be destroyed/targeted directly?
+
+12. **The pantheon.** Is the Fairy a herald, one of the gods, or the EdgeLord who leads them (see *The pantheon*)? Do the attribute-gods ever take a form, or stay abstract forever?
 
 ---
 

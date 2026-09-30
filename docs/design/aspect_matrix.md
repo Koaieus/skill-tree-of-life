@@ -89,8 +89,13 @@ Owner, 2026-09-30: for a single-player story expansion (wayyyy later),
 the aspects could be introduced one at a time, in order — each debut is
 where that persona's character gets to shine in the dialogues.
 
-Open: the introduction order; whether personas are voiced (speech bubbles like the Fairy), sit
-behind the aspect's UI, or stay flavour text only.
+Where they sit in the cosmology — attributes as abstract Titan-class gods,
+aspects as the lesser gods who materialize and talk — is in
+[lore.md](lore.md), *The pantheon*. Voiced eventually; the game has no
+audio yet, so voice is later work.
+
+Open: the introduction order; whether personas get speech bubbles like
+the Fairy, sit behind the aspect's UI, or stay flavour text only.
 
 ## Open
 
