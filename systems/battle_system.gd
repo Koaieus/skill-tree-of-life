@@ -159,6 +159,9 @@ signal attack_plan_changed(plan: AttackPlan)
 ## Fires for both plan swap and plan-internal mutation. Re-emitted from
 ## [signal AttackPlanSlot.attack_plan_state_changed].
 signal attack_plan_state_changed
+## The RESET button cleared the live plan's selection ([method reset_plan]) —
+## the event the armed step levels ([BladeMode], [TargetMode]) pop on.
+signal plan_reset
 ## Re-emitted from [signal AttackPlanSlot.selected_spell_changed].
 signal selected_spell_changed(spell: SpellDef)
 
@@ -242,7 +245,11 @@ var vision_system: VisionSystem:
 	set(value): plan_slot.vision_system = value
 
 func cancel_attack() -> void: plan_slot.cancel_attack()
-func reset_plan() -> void: plan_slot.reset_plan()
+func reset_plan() -> void:
+	if attack_plan == null or plan_slot.locked:
+		return
+	plan_slot.reset_plan()
+	plan_reset.emit()
 func request_attack_mode(mode: AttackMode) -> void: plan_slot.request_attack_mode(mode)
 func toggle_temp_upgrade_on(node: SkillNode, def: TempUpgradeDef) -> bool:
 	return plan_slot.toggle_temp_upgrade_on(node, def)

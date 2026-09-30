@@ -6,8 +6,8 @@ extends HighlightProvider
 ## Holds shared state (attacker, mode) and the input + visualization contract:
 ## concrete plans are built through named domain verbs (melee
 ## `set_pivot` / `clear_pivot` / `toggle_member`, ranged and magic
-## `set_target`), with [method handle_left_click] / [method handle_right_click]
-## a thin click dispatcher over them; they expose visualization roles via
+## `set_target`) — the click grammar that drives them is the armed stack's
+## ([MeleeMode], [BladeMode], [RangedMode], [MagicMode], [TargetMode]); they expose visualization roles via
 ## [method HighlightProvider.get_node_role], and emit
 ## [signal HighlightProvider.state_changed] whenever any of their internal state
 ## shifts (pivot picked, blade toggled, target set, spell selected, etc.).
@@ -158,39 +158,6 @@ func is_valid() -> bool:
 ## state_changed when they've actually cleared something.
 func reset() -> void:
 	pass
-
-
-## Click grammar — PlayerInputController's entry, a dispatcher over each
-## plan's domain verbs; builders (playground, dev sandboxes, tests) call the
-## verbs directly. Concrete plans
-## override the ones they react to; the defaults are no-ops so plans only
-## implement what's relevant to their mode.
-## (get_node_role / get_node_range / get_range_visual are inherited from
-## HighlightProvider — concrete plans override those.)
-##
-## Left-click always pushes forward: arms the origin, resolves a target, or
-## toggles a blade member — whatever the plan's current level expects.
-func handle_left_click(_node: SkillNode) -> void:
-	pass
-
-
-## Right-click always pops exactly one level and ignores which node was
-## clicked — see docs/domain/click-grammar.md. Returns true if there was a
-## level to pop (origin/target cleared); false means the plan was already at
-## its floor ("mode armed, no origin"), and the caller
-## (PlayerInputController) exits the mode entirely instead.
-func handle_right_click(_node: SkillNode) -> bool:
-	return pop()
-
-
-## The stack-pop primitive: clear the origin level (and everything built on
-## it — target, blade members) in one step. Returns false when there was
-## nothing set to clear. Also called from a left-click on the origin when it
-## fails the mode's own target-validity check (self-targeting fallthrough,
-## docs/domain/click-grammar.md) — never call this from a left-click for any
-## other reason.
-func pop() -> bool:
-	return false
 
 
 func _to_string() -> String:

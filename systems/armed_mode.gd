@@ -52,8 +52,8 @@ func pop_self() -> bool:
 ## armed level owns the verb, so a refusal (empty quiver, no AP) is still its
 ## answer and never falls through to a lower level's meaning of the same key.
 ## `false` means "not mine, keep walking", the same fall-through rule as
-## [method icon]. Only [AttackPlanMode] answers today — ranged reloads
-## the quiver, melee re-forms the last blade.
+## [method icon]. Only the attack arms answer today — [RangedMode] reloads
+## the quiver, [MeleeMode] re-forms the last blade.
 func reload() -> bool:
 	return false
 
@@ -61,7 +61,7 @@ func reload() -> bool:
 ## The identity colour this level lends to the viewport armed-mode glow
 ## (#412), or a transparent colour for "this level shows no glow".
 ##
-## Only [AttackPlanMode] overrides this today — **owner call 2026-08-21:**
+## Only [AttackArmMode] overrides this today — **owner call 2026-08-21:**
 ## "in Manage mode: no outline". Every other level (Manage verbs, core-move,
 ## temp-upgrade, mass-action) deliberately contributes nothing, so the
 ## highlight-ring language doesn't gain colours ahead of a design pass.

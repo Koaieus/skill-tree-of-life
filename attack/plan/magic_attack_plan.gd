@@ -126,17 +126,6 @@ static func from_dict(d: Dictionary, graph: Graph) -> MagicAttackPlan:
 	return plan
 
 
-## Right-click clears the pick. Gated on [member target], not [member source]:
-## post-#728 a null source IS the resting state (nothing is committed until a
-## target is clicked), so the old `source == null` guard would have made
-## right-click a permanent no-op.
-func pop() -> bool:
-	if target == null:
-		return false
-	reset()
-	return true
-
-
 ## Target [param node] in one step: its caster is looked up from the union
 ## (#728), never picked first. Refused when the union can't reach it — the
 ## drawn reach already explains why, as a ranged attack with nothing in range
@@ -155,10 +144,6 @@ func set_target(node: SkillNode) -> bool:
 	target = node
 	state_changed.emit()
 	return true
-
-
-func handle_left_click(node: SkillNode) -> void:
-	set_target(node)
 
 
 func reset() -> void:

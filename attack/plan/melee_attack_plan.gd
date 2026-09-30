@@ -280,27 +280,6 @@ func toggle_member(node: SkillNode) -> bool:
 	return true
 
 
-func pop() -> bool:
-	if source == null:
-		return false
-	reset()
-	return true
-
-
-## Click grammar over the verbs: arm the pivot, re-click it to pop (the
-## pivot is never a valid member — docs/domain/click-grammar.md), or toggle a
-## member.
-func handle_left_click(node: SkillNode) -> void:
-	if attacker == null or node == null:
-		return
-	if source == null:
-		set_pivot(node)
-	elif node == source:
-		pop()
-	else:
-		toggle_member(node)
-
-
 # ── Reform (#466) ──────────────────────────────────────────────────────────
 
 ## Whether `members` — in THIS order — would rebuild a legal blade on `pivot`

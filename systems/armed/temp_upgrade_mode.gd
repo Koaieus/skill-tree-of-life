@@ -1,9 +1,10 @@
 class_name TempUpgradeMode
 extends ArmedMode
 
-## A temp-upgrade card armed on top of the melee [AttackPlanMode] (#406). Its
-## click toggles the upgrade onto a node; it stays armed either way. Popping
-## the attack level pops it too — the arm never outlives its plan.
+## A temp-upgrade card armed on top of a [BladeMode] (#406) — only ever there:
+## owner, 2026-09-30, a temp upgrade arms "Only with a blade". Its click
+## toggles the upgrade onto a node; it stays armed either way. Popping the
+## blade pops it too — the arm never outlives its blade.
 
 const _PALETTE := preload("res://ui/theme/action_palette.tres")
 ## One icon per addon scene; instancing the scene is the only way to read it.

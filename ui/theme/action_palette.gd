@@ -19,7 +19,7 @@ extends Resource
 ## `.claude/rules/ui-palette.md` makes [member StatDef.tint_color] the single
 ## source of truth for attribute colours and forbids a second resource repeating
 ## them. Melee/Ranged/Magic are therefore deliberately ABSENT — they are
-## attribute colours (STR/DEX/INT) and [AttackPlanMode] reads them off
+## attribute colours (STR/DEX/INT) and [AttackArmMode] reads them off
 ## `StatRegistry` exactly as it already did. What lives here is the set of
 ## actions that have no attribute behind them at all.
 ##

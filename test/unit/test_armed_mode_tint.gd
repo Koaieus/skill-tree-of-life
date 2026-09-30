@@ -95,7 +95,7 @@ func _add_edge(a: SkillNode, b: SkillNode) -> void:
 
 ## The colour a given attribute's identity tint should produce, read the same
 ## way production does — not a literal. Unlifted: the emissive tier is
-## ArmedModeGlow's, not the armed stack's (see AttackPlanMode.tint).
+## ArmedModeGlow's, not the armed stack's (see AttackArmMode.tint).
 func _expected(stat_id: StringName) -> Color:
 	var def := StatRegistry.get_def(stat_id)
 	assert_not_null(def, "StatRegistry has no def for %s" % stat_id)

@@ -563,6 +563,10 @@ func reform_blade() -> bool:
 	var members: Array[SkillNode] = payload.members
 	if not plan.try_reform(pivot, members):
 		return false
+	# The reform set the pivot outside input: the Melee level follows it here.
+	var melee := armed_stack.find(MeleeMode) as MeleeMode
+	if melee != null:
+		melee.open_blade()
 	# The swing direction is BattleSystem's sticky preference, and that is what
 	# the tray's toggle label reads — setting only `plan.swing_cw` would restore
 	# the swing while the button kept advertising the old direction.
@@ -1085,26 +1089,26 @@ func _player_has_movement_points() -> bool:
 	return mp != null and mp.available() >= 1
 
 
-## Arm or disarm [param upgrade] on the melee [AttackPlanMode] (#406):
-## re-arming the armed card pops it, another card replaces it. A no-op while
-## no melee level is on the branch — the arm never outlives its plan.
+## Arm or disarm [param upgrade] on the [BladeMode] (#406): re-arming the
+## armed card pops it, another card replaces it. Refused (nothing pushed)
+## while no blade stands — see [method can_arm_temp_upgrade].
 func arm_temp_upgrade(upgrade: TempUpgradeDef) -> void:
-	if armed_stack == null:
-		return
-	var attack := armed_stack.find(AttackPlanMode) as AttackPlanMode
-	if attack == null or attack.mode != BattleSystem.AttackMode.MELEE:
+	var blade := armed_stack.find(BladeMode) as BladeMode if armed_stack != null else null
+	if blade == null:
 		return
 	var current := armed_stack.find(TempUpgradeMode) as TempUpgradeMode
 	if current != null and current.def == upgrade:
 		armed_stack.pop(current)
 	elif upgrade != null:
-		armed_stack.switch_to(TempUpgradeMode.new(self, upgrade), attack)
+		blade.arm_temp_upgrade(upgrade)
 	elif current != null:
 		armed_stack.pop(current)
 
 
+## Whether a temp-upgrade card can arm now — owner, 2026-09-30: "Only with a
+## blade". The tray's cards read this to show unavailable.
 func can_arm_temp_upgrade() -> bool:
-	return false
+	return armed_stack != null and armed_stack.find(BladeMode) != null
 
 
 func temp_upgrade_arm() -> TempUpgradeDef:
@@ -1150,7 +1154,7 @@ func manage_arm() -> ManageVerb:
 func arm_attack(mode: BattleSystem.AttackMode) -> bool:
 	if armed_stack == null or battle_system == null:
 		return false
-	var current := armed_stack.find(AttackPlanMode) as AttackPlanMode
+	var current := armed_stack.find(AttackArmMode) as AttackArmMode
 	if mode == BattleSystem.AttackMode.NONE:
 		if current != null:
 			armed_stack.pop(current)
@@ -1162,7 +1166,14 @@ func arm_attack(mode: BattleSystem.AttackMode) -> bool:
 		return true
 	if not can_player_act():
 		return false
-	return armed_stack.switch_to(AttackPlanMode.new(self, mode))
+	return armed_stack.switch_to(_attack_level(mode))
+
+
+func _attack_level(mode: BattleSystem.AttackMode) -> AttackArmMode:
+	match mode:
+		BattleSystem.AttackMode.MELEE: return MeleeMode.new(self)
+		BattleSystem.AttackMode.RANGED: return RangedMode.new(self)
+		_: return MagicMode.new(self)
 
 
 func pending_mass_action() -> MassActionRequest:

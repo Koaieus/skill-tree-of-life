@@ -156,17 +156,6 @@ func set_target(node: SkillNode) -> bool:
 	return true
 
 
-func handle_left_click(node: SkillNode) -> void:
-	set_target(node)
-
-
-func pop() -> bool:
-	if target == null:
-		return false
-	reset()
-	return true
-
-
 func reset() -> void:
 	if target == null:
 		return
