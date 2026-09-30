@@ -922,6 +922,12 @@ func get_local_value(stat_id: StringName) -> Variant:
 	return _combat.get_local_value(stat_id)
 
 
+## Passthrough to [method NodeCombat.is_local_volatile]: is [param stat_id]
+## volatile on what [method get_local_value] folds for this node.
+func is_local_volatile(stat_id: StringName) -> bool:
+	return _combat.is_local_volatile(stat_id)
+
+
 ## [method get_local_value] with caller overlays folded after the node bins —
 ## the passthrough to [method NodeCombat.get_local_value_with]; an id on
 ## neither board reads [code]null[/code] here, not the def default.

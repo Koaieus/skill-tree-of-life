@@ -213,6 +213,13 @@ func get_local_value(stat_id: StringName) -> Variant:
 	return 0.0
 
 
+## The node-local volatility question: volatile on either of the two boards
+## [method get_local_value_with] folds — this node's board and its owner's
+## entity board. An accessor token reads state, not a fold: never volatile.
+func is_local_volatile(stat_id: StringName) -> bool:
+	return false
+
+
 ## Reads an accessor token (`<stat_id>__<accessor>`) off whichever board owns
 ## the state — the #333 grammar, taught to this method rather than reimplemented
 ## anywhere (#702). Adds no grammar: [StatFormula]'s statics split the token and

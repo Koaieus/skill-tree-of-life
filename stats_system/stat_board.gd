@@ -224,6 +224,13 @@ func _register_minted(stat_id: StringName, s: Stat) -> Stat:
 	return s
 
 
+## The entity-readout volatility question: [method Stat.is_volatile] for
+## [param stat_id]'s stat on this board. False for an id this board holds no
+## stat for — never mints one.
+func is_stat_volatile(stat_id: StringName) -> bool:
+	return false
+
+
 ## Read the computed value of a Stat by id. Returns null if the id is unknown.
 func get_value(id: StringName) -> Variant:
 	var s := get_stat(id)
