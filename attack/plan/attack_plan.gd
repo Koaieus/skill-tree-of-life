@@ -175,7 +175,7 @@ func handle_left_click(_node: SkillNode) -> void:
 
 
 ## Right-click always pops exactly one level and ignores which node was
-## clicked — see docs/design/click_grammar.md. Returns true if there was a
+## clicked — see docs/domain/click-grammar.md. Returns true if there was a
 ## level to pop (origin/target cleared); false means the plan was already at
 ## its floor ("mode armed, no origin"), and the caller
 ## (PlayerInputController) exits the mode entirely instead.
@@ -187,7 +187,7 @@ func handle_right_click(_node: SkillNode) -> bool:
 ## it — target, blade members) in one step. Returns false when there was
 ## nothing set to clear. Also called from a left-click on the origin when it
 ## fails the mode's own target-validity check (self-targeting fallthrough,
-## docs/design/click_grammar.md) — never call this from a left-click for any
+## docs/domain/click-grammar.md) — never call this from a left-click for any
 ## other reason.
 func pop() -> bool:
 	return false

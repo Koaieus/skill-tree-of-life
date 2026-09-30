@@ -15,7 +15,7 @@ const ZLayers = preload("res://ui/z_layers.gd")
 ##                                             then node clicks feed the plan
 ##                                             (left arms/resolves, right pops
 ##                                             one level — see
-##                                             docs/design/click_grammar.md)
+##                                             docs/domain/click-grammar.md)
 ##
 ## Emits [signal player_can_act_changed] so UI can mirror enabled/disabled
 ## state (AP-driven now that phases are gone).
@@ -662,7 +662,7 @@ func _push_magic_hover(skill_node: SkillNode) -> void:
 ##    reachable landing and a hop badge floats by the cursor; release commits.
 ##    Click-to-move still works untouched — drag is the layered accelerator.
 ##  - RIGHT-CLICK: pops one level off whichever mode is armed (attack plan or
-##    core-move — docs/design/click_grammar.md), node-independent like Esc
+##    core-move — docs/domain/click-grammar.md), node-independent like Esc
 ##    (below). Handled here rather than via a per-`SkillNode` signal so it
 ##    fires over empty space too, not just when the cursor is over a node —
 ##    `SkillNode._on_input_event`'s physics picking runs a physics tick after
@@ -898,7 +898,7 @@ func _route_battle_click(skill_node: SkillNode, is_left: bool) -> bool:
 		# Right-click always affects the attack-mode stack while a plan is
 		# armed — never falls through to pin-toggle. A pop with nothing left
 		# to clear (mode armed, no origin) exits the mode entirely instead of
-		# being swallowed silently. See docs/design/click_grammar.md.
+		# being swallowed silently. See docs/domain/click-grammar.md.
 		if not plan.handle_right_click(skill_node):
 			battle_system.cancel_attack()
 	return true
@@ -925,7 +925,7 @@ func _active_attack_plan() -> AttackPlan:
 
 ## Node-independent stack-pop primitive shared by right-click and Esc (#404,
 ## generalized #406). Right-click "ignores which node was clicked"
-## (docs/design/click_grammar.md), and Esc has no node at all, so this never
+## (docs/domain/click-grammar.md), and Esc has no node at all, so this never
 ## takes one. Pops the first armed level in _armed_modes — priority is array
 ## order, encoding nesting (a temp-upgrade arm sits on top of an attack plan
 ## and pops first). Returns true if something was armed to pop/exit.

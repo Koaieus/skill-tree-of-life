@@ -25,7 +25,7 @@ re-deriving anything.
   `pop() -> bool`, `get_node_range(node)`. Concrete plans override what
   they care about and emit `state_changed` on any internal mutation.
   Click grammar (left arms/resolves, right pops one level, self-targeting
-  falls through to a pop when invalid) is `docs/design/click_grammar.md`
+  falls through to a pop when invalid) is `docs/domain/click-grammar.md`
   — `pop()` is the one primitive shared by right-click and the
   self-targeting fallthrough.
 - **`HighlightRole`** enum on `AttackPlan` — `NONE`, `ORIGIN`, `MEMBER`,
@@ -76,7 +76,7 @@ re-deriving anything.
   target directly; the cast-from node is auto-picked and stamped in the
   same click. Right-click pops target and source together. There is no
   source-selection step since #728 — see `SpellTargetUnion` below and
-  `docs/design/click_grammar.md`. Auto-equips `spark.tres` at plan
+  `docs/domain/click-grammar.md`. Auto-equips `spark.tres` at plan
   creation so a plan is never silently unarmed.
 - **`SpellTargetUnion`** (`attack/targeting/spell_target_union.gd`) — the
   one shared answer to "what can this spell hit, from anywhere I own, and

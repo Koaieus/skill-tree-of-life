@@ -6,7 +6,7 @@ extends AttackPlan
 ## left-clicks a target directly and the casting source is auto-picked for
 ## them; right-click clears the pick. There is no source-selection step any
 ## more — see [member source] for why choosing one was never really a choice,
-## and docs/design/click_grammar.md for the grammar this collapsed.
+## and docs/domain/click-grammar.md for the grammar this collapsed.
 ## The active spell comes from
 ## [BattleSystem.selected_spell] when the plan is constructed by the system;
 ## hand-instantiated plans (tests, AI scoring) can assign [member spell]

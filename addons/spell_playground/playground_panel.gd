@@ -465,7 +465,7 @@ func _arm_plan() -> MagicAttackPlan:
 		plan.set_target(_selected_target)
 		# A left-click on the source that the spell won't self-target pops the
 		# whole plan (the click grammar's "never mind" — see
-		# docs/design/click_grammar.md). Here the source is fixed furniture, so
+		# docs/domain/click-grammar.md). Here the source is fixed furniture, so
 		# put it back; the seed simply stays unaccepted.
 		if plan.source == null:
 			plan.set_target(caster_node)

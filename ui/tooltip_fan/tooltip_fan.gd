@@ -136,7 +136,7 @@ func _poll_more_info() -> void:
 func _on_hovered(node: SkillNode) -> void:
 	# The reveal gate: a sensed-only node is pickable while a scout shot is
 	# armed (VisionSystem.pick_sensed) and hovers like any other, but shows
-	# archetype only (docs/design/info_gating.md) — no fan, nothing to leak.
+	# archetype only (docs/domain/vision-system.md § Logical visibility) — no fan, nothing to leak.
 	if not node.revealed:
 		_on_unhovered()
 		return

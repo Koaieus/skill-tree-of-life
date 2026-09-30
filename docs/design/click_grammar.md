@@ -1,157 +1,21 @@
-# Click grammar — left commits/arms, right pops
+# Click grammar — open threads
 
-Settles #411, surfaced while swarmifying #404 (shared targeting-mode input):
-#404's spec had claimed right-click was already the universal "cancel armed
-mode" gesture, citing attack plans' right-click handling as precedent. That
-didn't hold up — before this doc, right-click was three different things
-(melee/magic setup-step, ranged clear-selection, idle pin/unpin) plus a
-left-only precedent (core-move). This doc is the one settled grammar node
-allocation and targeting — the game's central verb — uses everywhere.
+The shipped grammar (left pushes, right pops one level) is
+[docs/domain/click-grammar.md](../domain/click-grammar.md). What follows is
+not built.
 
-## The rule
+## Core-move on the generic pop
 
-**Left-click always pushes forward. Right-click always pops exactly one
-level off a state stack**, and ignores which node was clicked — it isn't a
-click on a *thing*, it's closer to pressing Backspace once.
+Core-move still cancels on a re-click of its source through a dedicated
+branch in `PlayerInputController._route_core_move_click`, and has no "armed,
+no origin" level: both doors (clicking the core, the Move Core card) arm it
+with the core already set as source. The candidate: give it the attack modes'
+shape — the card arms, clicking the core sets the origin, clicking a landing
+resolves — and let a click on the source fall through to the generic
+invalid-target pop, retiring the special case.
 
-```
-idle / Manage             (nothing armed)
-  ↓ left-click a tray verb / a mode-eligible node
-mode armed, no origin      (e.g. Melee selected, no pivot yet)
-  ↓ left-click an origin-eligible node
-origin set, selecting targets   (pivot/source locked, picking members/target)
-```
+## Idle right-click pin/unpin
 
-- **Left-click** arms a mode, sets/locks the origin, or resolves a
-  target/toggles a blade member — whatever the current level expects.
-- **Right-click** pops one level: from "origin set" (with or without a
-  target/blade members already picked) back to "mode armed, no origin" —
-  clearing the origin AND everything built on it in one step, since blade
-  membership / target validity are derived from the origin and can't
-  outlive it. A second right-click, now at "mode armed, no origin", exits
-  the mode entirely back to idle/Manage. **Two pops, worst case, from
-  anywhere in the stack to idle** — there is no separate flat "cancel
-  everything" shortcut, and none is needed. **Three, worst case, in Melee
-  when a temp-upgrade card (#406) is armed** — that arm is a level nested
-  *inside* "origin set, selecting members" (waiting for a click on which
-  blade member gets the upgrade), so it's the first thing a pop clears,
-  same rule applied one level deeper: `_armed_modes` in
-  `player_input_controller.gd` orders it ahead of the attack-plan pop for
-  exactly this reason.
-- **Re-pivoting/re-sourcing mid-plan is pop-then-push**, not a shortcut:
-  right-click clears the origin, then left-click the new one. The old
-  behavior — right-clicking a *different* node instantly re-pivoted — let
-  one button mean two different things depending on which node it landed on
-  (origin-eligible vs. blade-eligible). That ambiguity is exactly what this
-  grammar removes. Applied to melee's pivot; magic no longer has an origin to
-  re-source (see below), so right-click there just clears the target.
-
-## Self-targeting resolves through ordinary target validity, no special case
-
-Clicking the armed origin node again is just a left-click like any other —
-it runs through the mode's normal targeting check:
-
-- If the origin is a **legal target** (a heal spell whose source can equal
-  its target) → resolves normally, cast lands on self.
-- If the origin is **not** a legal target (melee: the pivot is never a
-  valid blade member; core-move: a 0-hop move isn't valid) → falls through to
-  a **pop** — silent, no `shake_denied` — because this is the expected
-  "never mind," not an error.
-
-Magic dropped out of this section with #728: with no origin to click, there is
-no "clicked the origin again" case. A spell that can legally target an owned
-node still self-targets by clicking it, like any other target.
-
-This is why `pop()` lives on `AttackPlan` as a named, reusable primitive
-(`attack/plan/attack_plan.gd`) rather than being buried inside the
-right-click handler: both right-click and this self-click fallthrough call
-the exact same one-level pop. It retires core-move's dedicated
-self-click-cancel branch as special code — self-isn't-a-valid-target is now
-one mechanism, not a per-mode exception.
-
-## Per-mode shape
-
-| Mode | Origin (left-click, unset → set) | Leaf level (left-click) | `pop()` clears |
-|---|---|---|---|
-| Melee | pivot | blade members (toggle, cap = `blade_size`) | pivot + all blade members |
-| Melee, nested (#406) | *(a temp-upgrade card armed via the command tray, e.g. Clamp/Spikes — not a left-click origin)* | a blade member (left-click, resolves the upgrade — arm stays set for repeat placement) | just the arm; a right-click here does **not** touch the pivot/members underneath |
-| Ranged | *(none — firing positions are derived, not chosen)* | target (direct left-click retarget, no origin to pop first) — a visible hostile, or, while the quiver holds scout arrows, any **sensed** node (the scout shot, #1036: the click sticks; the volley must be all scouts and costs 1 AP, else `validate()` reads the mix as an error line) | target |
-| Magic | *(none since #728 — the cast-from node is auto-picked, see below)* | spell target (direct left-click, no origin to set first) | source + target |
-
-**Magic is two-level too, since #728.** Picking a spell in the tray unions the
-reach of every owned node that may cast it and paints the result; the player
-left-clicks a target directly and the cast-from node is auto-picked (strongest
-node-local `spell_damage`, lowest stable id breaking a tie). `pop()` is gated on
-the *target* rather than the source for the same reason ranged's is — a null
-source is the resting state now, not a "nothing armed yet" marker. Source
-choice was very nearly always degenerate, and the union is also what lets the
-tray grey a spell no owned node can cast at all. See `MagicAttackPlan` and
-`SpellTargetUnion`.
-
-Ranged has only two states (armed / target-set) because there's no
-separate origin-selection step — a left-click on a different hostile node
-retargets directly, and `pop()` just clears the target. It's the mode
-needing the smallest change: right-click used to only pop when it landed
-on the current target (`node != target → no-op`); now, matching the
-node-independent rule above, it pops regardless of where you click.
-
-## Right-click is global, handled in `_unhandled_input`, not a per-node signal
-
-Right-click pops regardless of what's under the cursor — including empty
-space, matching Esc. It used to be wired as a per-`SkillNode` signal
-(`right_clicked`), which meant a right-click that missed every node did
-nothing; that signal is gone. `PlayerInputController._unhandled_input` now
-owns both the pop (via `_pop_armed_mode()`, shared with Esc) and the idle
-fallback (pin-toggle on `_hovered_node`, when nothing is armed and a node is
-hovered).
-
-This also sidesteps an ordering hazard: `SkillNode`'s old physics-picking
-signal (`Area2D._on_input_event`) fires a *physics tick after*
-`_unhandled_input` for the same click, so a pop routed through it would have
-read the mode's state one click late. Routing through `_unhandled_input`
-directly, keyed off `_hovered_node` for the pin case, avoids depending on
-that cross-callback ordering at all.
-
-A HUD affordance that reads the armed-mode state independent of cursor
-position is `#412`'s concern, not this one.
-
-## Core-move stays two-level, deliberately, until #338
-
-Core-move (left-click own core arms it, left-click a neighbour commits,
-left-click the armed source again cancels) does **not** get this three-level
-treatment yet. Today it has no tray-button arm step ahead of it — clicking
-the core *is* the arm step, so there's no "mode armed, no origin" level to
-pop back to; it's already at floor. #338 is about to add a "Move Core"
-Manage-tray button, which puts core-move on the same three-level shape as
-the attack modes (tray button arms → click own core sets origin → click a
-neighbour resolves) — that refactor, including retiring core-move's
-self-click-cancel branch in favor of the generic invalid-target-pop path
-above, happens once #338 lands, not here.
-
-## Out of scope
-
-- Idle right-click pin/unpin on the context panel (debug-era leftover, not
-  a deliberate design choice) — candidate for hover+`I` instead, tracked
-  separately.
-- Any HUD/viewport visual indicator of the currently-armed mode (`#412`) —
-  a visuals-only consumer of this doc's "armed-mode" concept, not a grammar
-  decision.
-
-## Engineering pointers
-
-- `attack/plan/attack_plan.gd` — `pop()` is the shared primitive;
-  `handle_right_click` defaults to calling it and returning whether
-  there was anything to pop.
-- `systems/player_input_controller.gd`'s `_route_battle_click` — when
-  `handle_right_click` returns `false` (nothing left to pop), it calls
-  `battle_system.cancel_attack()` instead of falling through to the
-  idle pin-toggle channel.
-- `systems/armed_mode.gd` (+ `attack_plan_armed_mode.gd`,
-  `core_move_armed_mode.gd`, `temp_upgrade_armed_mode.gd`) — #404's shared
-  `_pop_armed_mode()`/`_has_armed_mode()` primitive, generalized (#406) into
-  an ordered `Array[ArmedMode]` instead of a hand-written `if`/`elif` chain
-  per mode. Array order **is** the nesting order this doc describes; a
-  future mode (e.g. #338's Move-Core arm step) is one more entry, not
-  another hand-copied branch.
-- See `docs/domain/attack_plan_system.md` for the wider attack-plan
-  architecture this grammar rides on.
+With nothing armed, right-click toggles the hovered node's pin. It is a
+debug-era leftover, not a deliberate grammar choice; the candidate
+replacement is hover + `I`.

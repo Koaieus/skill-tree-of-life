@@ -4,7 +4,7 @@ extends GutTest
 ## target); right-click always pops exactly one level off the plan's state
 ## stack, regardless of which node it lands on; a left-click on the armed
 ## origin that fails the mode's own target-validity check falls through to
-## the same pop instead of a silent no-op. See docs/design/click_grammar.md.
+## the same pop instead of a silent no-op. See docs/domain/click-grammar.md.
 ##
 ## [b]Magic left the three-level shape in #728[/b] — with the cast-from node
 ## auto-picked there is no origin to arm, so magic now matches ranged: one

@@ -8,7 +8,7 @@ extends AttackPlan
 ## territory). Each leaf reads its own `range` stat (node-local via
 ## [member SkillNode.node_board], so per-node modifiers can extend reach);
 ## leaves whose range reaches the target light up as ORIGIN. Right-click
-## pops the target — see docs/design/click_grammar.md.
+## pops the target — see docs/domain/click-grammar.md.
 
 var target: SkillNode = null
 ## Composition (#957): `{type_id: n}` — N is the sum, each count ≤ its
