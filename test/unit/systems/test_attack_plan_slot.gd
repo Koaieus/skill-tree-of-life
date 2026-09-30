@@ -145,9 +145,9 @@ func test_locked_refuses_cancel_reset_and_mode_change() -> void:
 func test_toggles_a_temp_upgrade() -> void:
 	_slot.request_attack_mode(BattleSystem.AttackMode.MELEE)
 	var plan := _slot.attack_plan as MeleeAttackPlan
-	plan.handle_left_click(_source)
-	plan.handle_left_click(_joint)
-	plan.handle_left_click(_tip)
+	plan.set_pivot(_source)
+	plan.toggle_member(_joint)
+	plan.toggle_member(_tip)
 	var clamp := _slot.temp_upgrade_by_id(&"clamp")
 	assert_not_null(clamp, "the wired catalog answers by id")
 	assert_true(_slot.temp_upgrade_kinds().has(clamp))

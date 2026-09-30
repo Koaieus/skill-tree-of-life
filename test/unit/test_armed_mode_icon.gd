@@ -216,7 +216,7 @@ func test_popping_the_pivot_returns_the_badge_to_the_hilt() -> void:
 	_ctl.on_attack_mode_requested(BattleSystem.AttackMode.MELEE)
 	var plan := _pick_pivot(_nodes[0])
 
-	assert_true(plan.pop(), "fixture check: the plan pops its pivot before it cancels")
+	assert_true(_ctl.pop_armed_level(), "fixture check: right-click pops Blade before it cancels")
 	assert_null(plan.source)
 	assert_eq(_ctl.get_armed_icon(), _icon("armed_melee_hilt"),
 			"back to no pivot — back to the hilt")

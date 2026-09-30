@@ -136,18 +136,18 @@ func _arm(ctx: Dictionary, mode: BattleSystem.AttackMode) -> void:
 	match mode:
 		BattleSystem.AttackMode.RANGED:
 			bs.request_attack_mode(mode)
-			(bs.attack_plan as RangedAttackPlan).handle_left_click(ctx.nodes.target)
+			(bs.attack_plan as RangedAttackPlan).set_target(ctx.nodes.target)
 		BattleSystem.AttackMode.MELEE:
 			bs.request_attack_mode(mode)
 			var melee := bs.attack_plan as MeleeAttackPlan
-			melee.handle_left_click(ctx.nodes.core)
-			melee.handle_left_click(ctx.nodes.leaf)
+			melee.set_pivot(ctx.nodes.core)
+			melee.toggle_member(ctx.nodes.leaf)
 		BattleSystem.AttackMode.MAGIC:
 			bs.selected_spell = SpellCatalog.SPARK
 			bs.request_attack_mode(mode)
 			var magic := bs.attack_plan as MagicAttackPlan
-			magic.handle_left_click(ctx.nodes.leaf)
-			magic.handle_left_click(ctx.nodes.target)
+			magic.set_target(ctx.nodes.leaf)
+			magic.set_target(ctx.nodes.target)
 
 
 ## Launch and wait for release, capped in seconds: melee's live swing is a real

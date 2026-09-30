@@ -1,10 +1,10 @@
 extends GutTest
 
 ## The AttackPlan domain verbs — set_pivot / clear_pivot / toggle_member
-## (melee) and set_target (ranged, magic). Each verb builds the same plan
-## state the equivalent click sequence builds, emits the same state_changed
-## count, and refuses the same illegal inputs, returning whether it changed
-## anything.
+## (melee) and set_target (ranged, magic). Each verb builds the expected plan
+## state, emits one state_changed per change, and refuses illegal inputs,
+## returning whether it changed anything. The clicks that drive them are the
+## armed stack's (test_click_grammar.gd).
 ##
 ## Board: Pivot - Joint - Tip owned by the attacker; Hostile adjacent to Tip;
 ## Far adjacent to Hostile only (2 hops from any owned node); Loose unowned.
@@ -94,46 +94,36 @@ func _melee(budget: float = 3.0) -> MeleeAttackPlan:
 	return plan
 
 
-func _assert_same_melee(verb: MeleeAttackPlan, click: MeleeAttackPlan) -> void:
-	assert_eq(verb.source, click.source, "same pivot as the click sequence")
-	assert_eq(verb.blade_nodes, click.blade_nodes, "same members, same order")
-	assert_eq(verb.validate(), click.validate(), "same validation verdict")
+func _assert_melee(verb: MeleeAttackPlan, pivot: SkillNode, members: Array[SkillNode]) -> void:
+	assert_eq(verb.source, pivot, "the expected pivot")
+	assert_eq(verb.blade_nodes, members, "the expected members, in order")
 
 
-func test_set_pivot_matches_a_pivot_click() -> void:
-	var click := _melee()
-	click.handle_left_click(_pivot)
+func test_set_pivot_arms_the_pivot() -> void:
 	var verb := _melee()
 	watch_signals(verb)
 	assert_true(verb.set_pivot(_pivot), "arming a pivot changes state")
 	assert_signal_emit_count(verb, "state_changed", 1)
-	_assert_same_melee(verb, click)
+	_assert_melee(verb, _pivot, [])
 
 
-func test_toggle_member_mass_selects_like_a_far_click() -> void:
-	var click := _melee()
-	click.handle_left_click(_pivot)
-	click.handle_left_click(_tip)
+func test_toggle_member_mass_selects_a_far_member() -> void:
 	var verb := _melee()
 	verb.set_pivot(_pivot)
 	watch_signals(verb)
 	assert_true(verb.toggle_member(_tip), "a far member pulls its path in")
 	assert_signal_emit_count(verb, "state_changed", 1)
-	assert_eq(verb.blade_nodes.size(), 2, "joint + tip")
-	_assert_same_melee(verb, click)
+	_assert_melee(verb, _pivot, [_joint, _tip])
 
 
-func test_toggle_member_deselects_with_its_cascade_like_a_click() -> void:
-	var click := _melee()
-	for n in [_pivot, _joint, _tip, _joint]:
-		click.handle_left_click(n)
+func test_toggle_member_deselects_with_its_cascade() -> void:
 	var verb := _melee()
 	verb.set_pivot(_pivot)
 	verb.toggle_member(_joint)
 	verb.toggle_member(_tip)
 	assert_true(verb.toggle_member(_joint), "a selected member toggles off")
 	assert_true(verb.blade_nodes.is_empty(), "the islanded tip goes with it")
-	_assert_same_melee(verb, click)
+	_assert_melee(verb, _pivot, [])
 
 
 func test_clear_pivot_empties_the_plan_once() -> void:
@@ -158,14 +148,11 @@ func test_set_pivot_refuses_a_node_the_attacker_does_not_own() -> void:
 
 
 func test_toggle_member_refuses_an_over_budget_path() -> void:
-	var click := _melee(1.0)
-	click.handle_left_click(_pivot)
-	click.handle_left_click(_tip)
 	var verb := _melee(1.0)
 	verb.set_pivot(_pivot)
 	assert_false(verb.toggle_member(_tip), "joint + tip overrun a budget of one")
 	assert_true(verb.blade_nodes.is_empty(), "no partial selection")
-	_assert_same_melee(verb, click)
+	_assert_melee(verb, _pivot, [])
 
 
 func test_toggle_member_refuses_without_a_pivot_or_path() -> void:
@@ -196,16 +183,13 @@ func _ranged() -> RangedAttackPlan:
 	return plan
 
 
-func test_ranged_set_target_matches_a_target_click() -> void:
-	var click := _ranged()
-	click.handle_left_click(_enemy)
+func test_ranged_set_target_aims_the_volley() -> void:
 	var verb := _ranged()
 	watch_signals(verb)
 	assert_true(verb.set_target(_enemy))
 	assert_false(verb.set_target(_enemy), "re-targeting the same node changes nothing")
 	assert_signal_emit_count(verb, "state_changed", 1)
-	assert_eq(verb.target, click.target)
-	assert_eq(verb.validate(), click.validate(), "same validation verdict")
+	assert_eq(verb.target, _enemy)
 	assert_true(verb.is_valid(), "fixture sanity: Tip reaches Hostile")
 
 
@@ -243,19 +227,15 @@ func _magic() -> MagicAttackPlan:
 	return plan
 
 
-func test_magic_set_target_stamps_the_source_like_a_click() -> void:
-	var click := _magic()
-	click.handle_left_click(_enemy)
+func test_magic_set_target_stamps_the_source() -> void:
 	var verb := _magic()
-	verb.spell = click.spell
 	watch_signals(verb)
 	assert_true(verb.set_target(_enemy))
 	assert_false(verb.set_target(_enemy), "same pick again changes nothing")
 	assert_signal_emit_count(verb, "state_changed", 1)
 	assert_eq(verb.target, _enemy)
 	assert_eq(verb.source, _tip, "the caster comes from the union")
-	assert_eq(verb.source, click.source)
-	assert_eq(verb.validate(), click.validate(), "same validation verdict")
+	assert_true(verb.is_valid(), "fixture sanity: Tip casts on Hostile")
 
 
 func test_magic_set_target_refuses_out_of_range_and_own_nodes() -> void:

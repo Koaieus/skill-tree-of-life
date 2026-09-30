@@ -79,7 +79,7 @@ func test_clicks_grow_a_blade_through_the_real_input_channel() -> void:
 	_panel._input_ctl.route_left_click(_node("Guard"))
 	assert_eq(plan.blade_nodes.size(), 1, "the next adjacent click grows the blade")
 	# Right-click pops the pivot and every member with it.
-	plan.pop()
+	_panel._input_ctl.pop_armed_level()
 	assert_null(plan.source, "right-click pops back to nothing")
 
 

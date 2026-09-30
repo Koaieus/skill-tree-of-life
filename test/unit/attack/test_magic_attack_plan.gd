@@ -114,14 +114,13 @@ func test_clicking_an_owned_node_targets_nothing_for_a_hostile_spell() -> void:
 	assert_null(p.source)
 
 
-## Right-click is gated on the target now, not the source — a null source is
-## the resting state post-#728, so the old guard would have made pop() a
-## permanent no-op.
-func test_right_click_clears_both_after_a_pick_and_no_ops_before_one() -> void:
+## Clearing a pick drops the auto-picked source with the target (#728: a
+## null source is the resting state). The right-click that calls this is
+## TargetMode's pop (test_click_grammar.gd).
+func test_reset_clears_both_after_a_pick() -> void:
 	var p := _plan()
-	assert_false(p.pop(), "nothing committed yet, nothing to pop")
 	p.set_target(_in_range_target)
-	assert_true(p.pop())
+	p.reset()
 	assert_null(p.target)
 	assert_null(p.source)
 
