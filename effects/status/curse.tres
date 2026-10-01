@@ -2,10 +2,17 @@
 
 [ext_resource type="Script" path="res://effects/status/curse.gd" id="1_curse"]
 [ext_resource type="Script" uid="uid://h4ca876s2ht3" path="res://effects/status/decay/flat_decay.gd" id="decay_script"]
+[ext_resource type="Script" uid="uid://iigrjih2rio8" path="res://effects/status/spread/spill_spread.gd" id="spill_script"]
 
 [sub_resource type="Resource" id="Resource_decay"]
 script = ExtResource("decay_script")
 per_tick = 1.0
+
+[sub_resource type="Resource" id="Resource_spill"]
+script = ExtResource("spill_script")
+ownership_mask = 2
+spread_fraction = 1.0
+triggers = 3
 
 [resource]
 script = ExtResource("1_curse")
@@ -21,3 +28,4 @@ reapply = 1
 cure_per_hp = 0.25
 stacks_stat_id = &"curse_stacks_per_hit"
 decay = SubResource("Resource_decay")
+spread = SubResource("Resource_spill")

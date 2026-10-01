@@ -233,12 +233,12 @@ func test_remove_status_fires_on_removed_once_and_ignores_unknown_ids() -> void:
 	assert_eq(d.removed, 1)
 
 
-func test_clear_statuses_removes_all_with_hooks() -> void:
+func test_release_statuses_removes_all_with_hooks() -> void:
 	var a := _def(&"a", 3.0)
 	var b := _def(&"b", 3.0)
 	_combat().apply_status(a, 1.0)
 	_combat().apply_status(b, 1.0)
-	_combat().clear_statuses()
+	_combat().release_statuses()
 	assert_true(_combat().get_statuses().is_empty())
 	assert_eq(a.removed, 1)
 	assert_eq(b.removed, 1)
@@ -278,7 +278,7 @@ func test_snapshot_carries_the_slice_and_stays_detached() -> void:
 	assert_eq(_combat().get_status_power(&"poison"), 3.0, "host untouched by a shadow tick")
 	assert_eq(_combat().get_status_power(&"blind"), 0.0, "host untouched by a shadow apply")
 	assert_eq(_combat().get_statuses().size(), 1)
-	shadow.clear_statuses()
+	shadow.release_statuses()
 	assert_eq(_combat().get_statuses().size(), 1, "host untouched by a shadow clear")
 
 

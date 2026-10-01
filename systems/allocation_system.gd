@@ -264,6 +264,7 @@ func deallocate(node: SkillNode, entity: Entity) -> bool:
 	if not can_deallocate(node, entity):
 		return false
 	_deallocate_unchecked(node, entity)
+	CombatWorld.live().flush_removals()
 	return true
 
 
@@ -274,10 +275,12 @@ func _deallocate_unchecked(node: SkillNode, entity: Entity) -> void:
 	var previous := node.owned_by
 	# Statuses are node-local and void on any ownership loss (#879, owner
 	# 2026-09-14: "poison/blind/armor break -> remove effect upon dealloc").
-	# clear_statuses() also drops the node's tick subscription on its last
-	# status — do this before the strip below so nothing downstream reads a
-	# status the node no longer legitimately holds.
-	node.get_combat().clear_statuses()
+	# Released before the strip below so nothing downstream reads a status the
+	# node no longer legitimately holds, and noted while `owned_by` is still
+	# set — the collector snapshots the masked neighbours a spill lands on.
+	# The command that called this flushes ([method deallocate] / [method deallocate_set]).
+	var combat := node.get_combat()
+	CombatWorld.live().note_removed(combat, combat.release_statuses(), StatusSpread.CAUSE_DEALLOC)
 	# Snapshot the fill BEFORE ownership clears — owner_changed zeroes
 	# allocation_level via _refresh_alloc_count, so a read after would return
 	# 0 and under-refund the SP (the #337 ordering hazard; same shape as
@@ -317,11 +320,12 @@ func force_deallocate(node: SkillNode) -> Entity:
 	var previous := node.owned_by
 	if previous == null:
 		return null
-	# Statuses void on any ownership loss (#879) — see _deallocate_unchecked's
-	# note. Re-entrancy: a poison tick can force_deallocate the very node
-	# being ticked (a kill cascading out of NodeCombat.tick_statuses), and
-	# clear_statuses() tolerates being called on a slice already mid-iteration.
-	node.get_combat().clear_statuses()
+	# Statuses void on any ownership loss (#879). A cascade has already
+	# released and noted them (EntityCombat.apply_cascade, the spill feeder),
+	# so this is the net for a direct caller, which drops them unspilled.
+	# Re-entrancy: a poison tick can force_deallocate the very node being
+	# ticked, and release_statuses() tolerates a slice already mid-iteration.
+	node.get_combat().release_statuses()
 	# Revoke sweep + navigator mirror removal (#498 step 1): lives on the
 	# previous owner's EntityCombat slice now — see EntityCombat.revoke_node.
 	previous.get_combat().revoke_node(node)
@@ -440,6 +444,8 @@ func deallocate_set(nodes: Array[SkillNode], entity: Entity) -> bool:
 	for n in nodes:
 		if n.owned_by == entity:
 			_deallocate_unchecked(n, entity)
+	# One command, one beat: the spill sees the whole set as removed.
+	CombatWorld.live().flush_removals()
 	return true
 
 

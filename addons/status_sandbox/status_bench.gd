@@ -106,8 +106,8 @@ func apply_status(def: StatusDef, power: float) -> StatusInstance:
 
 
 func clear_statuses() -> void:
-	node.get_combat().clear_statuses()
-	bearer.get_combat().clear_statuses()
+	node.get_combat().release_statuses()
+	bearer.get_combat().release_statuses()
 
 
 func cure(amount: float) -> void:

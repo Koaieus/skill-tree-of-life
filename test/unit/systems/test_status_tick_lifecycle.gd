@@ -328,7 +328,7 @@ func test_tick_damage_suppresses_the_next_turn_starts_regen_only() -> void:
 			"the next turn start's regen is suppressed by the prior turn-end tick")
 
 	# No tick at turn 2's end: turn 3's regen fires.
-	node_a.get_combat().clear_statuses()
+	node_a.get_combat().release_statuses()
 	_end_turn_to(a)
 	assert_eq(node_a.regen_stacks, 1, "the regen after that fires")
 

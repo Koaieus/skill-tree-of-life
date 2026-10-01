@@ -161,6 +161,11 @@ func test_two_cascades_on_one_beat_share_one_union() -> void:
 	v.get_combat().apply_status(_CURSE, 4.0)
 	var o := _kill(u)
 	o.hits.append_array(_kill(v).hits)
+	# One timeline event carrying both hits: one schedule entry, one beat.
+	var ev := PropagationEvent.new()
+	ev.target = u
+	ev.hits.assign(o.hits)
+	o.timeline.append(ev)
 
 	var shadow := CombatWorld.shadow()
 	OutcomeApplier.apply(o, shadow)
@@ -177,10 +182,12 @@ func test_a_dot_kill_spills_before_the_diffusion_sweep_reads_the_field() -> void
 	var n := await _chain(3)  # C–1–2
 	var seep := StatusDef.new()
 	seep.id = &"seep"
+	seep.power_max = 0.0
 	seep.decay = FlatDecay.new(0.0)
 	seep.spread = SpillingDiffusion.new()
 	var killer := KillerDef.new()
 	killer.id = &"killer"
+	killer.power_max = 0.0
 	killer.decay = FlatDecay.new(0.0)
 	killer.alloc = _alloc
 	n[2].get_combat().apply_status(seep, 4.0)

@@ -80,7 +80,7 @@ func _shadow() -> CombatWorld:
 
 ## Damages [member _node] for HALF its max hp (raw — mitigation may soak
 ## some of it) so a later heal always has room to land, without risking a
-## depleted-node cascade that would `clear_statuses()` out from under us.
+## depleted-node cascade that would `release_statuses()` out from under us.
 func _open_a_heal_deficit() -> void:
 	var combat := _node.get_combat()
 	combat.take_damage(combat.get_max_hp() * 0.5, null)

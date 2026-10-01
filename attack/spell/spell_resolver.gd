@@ -259,6 +259,9 @@ static func resolve_against(
 			CritRoll.decide(outcome.hits[i], crit_rng)
 		for i in range(wave_first, outcome.hits.size()):
 			OutcomeApplier.land_one(outcome.hits[i], world)
+		# One wave, one beat: its strips spill over their union before step
+		# 4's filter reads the world.
+		world.flush_removals()
 
 		# 4. Expand next wave: filter narrows → spread selects → config mints.
 		var next_wave: Array[CastSpell] = []

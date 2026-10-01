@@ -731,6 +731,11 @@ func apply_cascade(nodes: Array[NodeCombat], alloc: AllocationSystem = null,
 			if sp != null:
 				sp.wound(entry.wound)
 				wound_sum += entry.wound
+		# Statuses void on the strip, and spill: released and noted BEFORE
+		# the strip below clears ownership — the world's collector snapshots
+		# the node's masked neighbours, and the beat that drove this cascade
+		# flushes them (CombatWorld.flush_removals). Both worlds.
+		world().note_removed(n, n.release_statuses(), StatusSpread.CAUSE_DEATH)
 		# ── The one branch: which strip verb. Everything else is shared. ──
 		if host != null:
 			if alloc == null:
@@ -790,7 +795,7 @@ func simulate_entity_death() -> Array[DeallocEntry]:
 	# The shadow's "alive" flips here (#996): the entity-hosted rows go the
 	# way a stripped node's do, and `is_allocated()` gates any later apply.
 	_dead = true
-	_status_host.clear_statuses()
+	_status_host.release_statuses()
 	return entries
 
 
@@ -878,9 +883,9 @@ func remove_status(id: StringName) -> void:
 	_status_host.remove_status(id)
 
 
-## See [method StatusHost.clear_statuses].
-func clear_statuses() -> void:
-	_status_host.clear_statuses()
+## See [method StatusHost.release_statuses].
+func release_statuses() -> Array[NodeStatus]:
+	return _status_host.release_statuses()
 
 
 ## See [method StatusHost.get_status_power].

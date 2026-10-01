@@ -59,15 +59,23 @@ static func apply(outcome: AttackOutcome, world: CombatWorld,
 	var beat: BeatClock = clock if clock != null else BeatClock.instant_clock()
 	if outcome.schedule == null:
 		outcome.schedule = OutcomeSchedule.compile(outcome)
+	# One `schedule_index` group is one beat for the removal collector: every
+	# node stripped by the group's landings spills over their union, flushed
+	# before the next group lands (CombatWorld.flush_removals).
+	var group := -1
 	for hit in in_arrival_order(outcome.hits):
 		if hit.target == null:
 			continue
+		if hit.schedule_index != group:
+			world.flush_removals()
+			group = hit.schedule_index
 		# `advance_to` is declared `-> void`, so the analyzer calls this await
 		# redundant — it is a runtime coroutine (it parks on a timer) and
 		# dropping the await would land the whole volley on frame one.
 		@warning_ignore("redundant_await")
 		await beat.advance_to(hit.arrival_time)
 		land_one(hit, world, alloc)
+	world.flush_removals()
 
 
 ## One landing, gate and cue included — the body of [method apply]'s loop, and

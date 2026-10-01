@@ -393,7 +393,7 @@ func test_a_rebuilt_status_lands_on_the_shipped_host_without_rechecking_node_hp(
 	assert_eq(si.host_kind, StatusInstance.HostKind.ENTITY, "rebuild restores the host")
 
 	# A peer whose core is NOT cracked at replay time still lands on the entity.
-	(ctx.defender as Entity).get_combat().clear_statuses()
+	(ctx.defender as Entity).get_combat().release_statuses()
 	core.restore_current_hp(core.get_max_hp())
 	si.land_on(core.get_combat(), CombatWorld.live())
 	assert_almost_eq(_entity_poison(ctx), 1.0, 0.001, "the shipped host wins over node HP")

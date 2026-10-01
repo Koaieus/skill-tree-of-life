@@ -653,9 +653,9 @@ func remove_status(id: StringName) -> void:
 	_status_host.remove_status(id)
 
 
-## See [method StatusHost.clear_statuses].
-func clear_statuses() -> void:
-	_status_host.clear_statuses()
+## See [method StatusHost.release_statuses].
+func release_statuses() -> Array[NodeStatus]:
+	return _status_host.release_statuses()
 
 
 ## See [method StatusHost.get_status_power].

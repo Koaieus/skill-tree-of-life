@@ -800,6 +800,9 @@ func begin_turn() -> void:
 func resolve_turn_end() -> void:
 	_combat.tick_statuses()
 	_tick_owned_node_statuses()
+	# The tick step is one beat: a DoT kill's spill lands before the
+	# diffusion sweep reads the field.
+	CombatWorld.live().flush_removals()
 	_spread_owned_node_statuses()
 
 
@@ -998,9 +1001,9 @@ func die() -> void:
 	# the time the death wave's own entity_dying handler runs" hold.
 	is_dead = true
 	# The entity-hosted rows die with it (#996) — the live twin of
-	# `simulate_entity_death`'s clear; `is_allocated()` (alive) gates any
+	# `simulate_entity_death`'s release; `is_allocated()` (alive) gates any
 	# later apply. Before `died` so no listener sees a corpse still ticking.
-	_combat.clear_statuses()
+	_combat.release_statuses()
 	died.emit()
 	# Before the bus phases: effects see the corpse fully intact (nodes still
 	# owned, modifiers still applied), same pre-strip world LootSystem relies on.

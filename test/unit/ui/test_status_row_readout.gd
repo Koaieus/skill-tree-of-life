@@ -72,7 +72,7 @@ func _row(status: NodeStatus, host) -> StatusRow:
 ## one real tick actually lands on the same host — at two resistances.
 func test_poison_row_dmg_matches_next_tick_damage_and_the_real_tick() -> void:
 	for res in [0.0, 0.25]:
-		_combat().clear_statuses()
+		_combat().release_statuses()
 		_set_res(&"poison_resistance", res)
 		_combat().apply_status(_POISON, 12.7)
 		var status: NodeStatus = _combat().get_statuses()[0]

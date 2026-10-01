@@ -64,6 +64,49 @@ var _entities: Dictionary[Entity, EntityCombat] = {}
 ## Ownerless slices minted for unallocated conduit nodes — held apart from
 ## [member _entities] because no [EntityCombat] will release their boards.
 var _orphans: Array[NodeCombat] = []
+## The removal collector: one [_Removal] per node stripped since the last
+## [method flush_removals], in strip order.
+var _pending: Array[_Removal] = []
+
+
+## One stripped node as it stood at its strip: per spreading def, the stacks
+## it held and its masked neighbours. Snapshotted because by flush time its
+## rows are released and its owner cleared, so the live reads say 0 and NEUTRAL.
+class _Removal:
+	var node: NodeCombat
+	var cause: int
+	var defs: Dictionary = {}    # StringName -> StatusDef
+	var power: Dictionary = {}   # StringName -> float
+	var around: Dictionary = {}  # StringName -> Array[NodeCombat]
+
+
+## The field a flush hands [method StatusSpread.on_removed]: a removed node
+## answers [method stacks] and [method masked_neighbours] from its pre-strip
+## snapshot (its host is empty and ownerless by now); any other node reads
+## live through [StackField].
+class _RemovalField:
+	extends StackField
+	var _power: Dictionary = {}   # NodeCombat -> float
+	var _around: Dictionary = {}  # NodeCombat -> Array[NodeCombat]
+
+	func snap(n: NodeCombat, p: float, around: Array[NodeCombat]) -> void:
+		_power[n] = p
+		_around[n] = around
+
+	func nodes() -> Array[NodeCombat]:
+		var out: Array[NodeCombat] = []
+		out.assign(_power.keys())
+		return out
+
+	func stacks(n: NodeCombat) -> float:
+		return _power[n] if _power.has(n) else super(n)
+
+	func masked_neighbours(n: NodeCombat) -> Array[NodeCombat]:
+		if _around.has(n):
+			var out: Array[NodeCombat] = []
+			out.assign(_around[n])
+			return out
+		return super(n)
 
 
 ## The real world. Every lookup delegates to the live slice each object already
@@ -175,6 +218,7 @@ func index_node(real_node: SkillNode, slice: NodeCombat) -> void:
 func free_shadow() -> void:
 	if not _shadow:
 		return
+	_pending.clear()
 	# Taken and cleared FIRST: EntityCombat.free_shadow hands a world it minted
 	# itself back to this method, so re-entry has to find nothing left to do.
 	var entities: Array = _entities.values()
@@ -191,3 +235,81 @@ func free_shadow() -> void:
 	_orphans.clear()
 	_entities.clear()
 	_nodes.clear()
+
+
+# ── Removal collector ────────────────────────────────────────────────────────
+#
+# Every ownership loss in this world feeds [method note_removed] — a cascade
+# strip (cause DEATH, [method EntityCombat.apply_cascade]) or a voluntary
+# dealloc (cause DEALLOC, [method AllocationSystem._deallocate_unchecked]) — and
+# the beat that caused it calls [method flush_removals] once at its end, so the
+# spill rule sees the beat's whole removed union: a node stripped in the same
+# beat never receives. The beats: one dealloc command, one `schedule_index`
+# group in [method OutcomeApplier.apply], one spell wave, one turn-end tick
+# step (before its diffusion sweep). See docs/domain/effect-system.md.
+
+
+## Record that [param node] is leaving its owner, with the [param rows]
+## [method NodeCombat.release_statuses] just took off it. Call BEFORE the strip
+## clears ownership: the masked-neighbour snapshot reads the node's owner.
+## Every stripped node is recorded, spreading rows or not — it belongs to the
+## union either way. A def with a null [member StatusDef.spread] pays nothing.
+func note_removed(node: NodeCombat, rows: Array[NodeStatus], cause: int) -> void:
+	if node == null:
+		return
+	var r := _Removal.new()
+	r.node = node
+	r.cause = cause
+	var neighbours: Array[NodeCombat] = []
+	var gathered := false
+	for row in rows:
+		var def := row.def if row != null else null
+		if def == null or def.spread == null:
+			continue
+		if not gathered:
+			neighbours = _neighbours_of(node)
+			gathered = true
+		var probe := StackField.new(def, def.spread.ownership_mask, {node: neighbours})
+		r.defs[def.id] = def
+		r.power[def.id] = row.power
+		r.around[def.id] = probe.masked_neighbours(node)
+	_pending.append(r)
+
+
+## Run the spill rule over everything noted since the last flush: per cause,
+## per def, one [method StatusSpread.on_removed] over the whole removed union,
+## landed through [SpreadApplier] in this world. Loops until nothing new was
+## noted, should a landing itself strip a node.
+func flush_removals() -> void:
+	while not _pending.is_empty():
+		var batch := _pending
+		_pending = []
+		var removed: Array[NodeCombat] = []
+		var by_cause := {}  # cause -> {StringName -> StatusDef}, first seen
+		for r in batch:
+			removed.append(r.node)
+			var defs: Dictionary = by_cause.get_or_add(r.cause, {})
+			for id: StringName in r.defs:
+				if not defs.has(id):
+					defs[id] = r.defs[id]
+		for cause: int in by_cause:
+			for def: StatusDef in (by_cause[cause] as Dictionary).values():
+				var field := _RemovalField.new(def, def.spread.ownership_mask)
+				for r in batch:
+					if r.cause == cause and r.power.has(def.id):
+						field.snap(r.node, r.power[def.id], r.around[def.id])
+				SpreadApplier.apply(def, def.spread.on_removed(field, removed, cause), self)
+
+
+## [param node]'s graph neighbours as slices of this world — the topology is
+## the real graph either way, read through the owner's mirror.
+func _neighbours_of(node: NodeCombat) -> Array[NodeCombat]:
+	var out: Array[NodeCombat] = []
+	var owner_slice := node.owner()
+	var mirror := owner_slice.mirror() if owner_slice != null else null
+	var real := node.real()
+	if mirror == null or mirror.graph == null or real == null:
+		return out
+	for m in mirror.graph.get_neighbours(real):
+		out.append(combat_for(m))
+	return out

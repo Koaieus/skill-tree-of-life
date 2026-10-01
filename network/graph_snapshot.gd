@@ -387,7 +387,7 @@ static func _decode_node(
 ## `CLEAR` def's apply_status is a no-op on an unallocated node, same rule as
 ## a live apply.
 static func _reconcile_statuses(node: SkillNode, row: Array, res: Array) -> void:
-	node.get_combat().clear_statuses()
+	node.get_combat().release_statuses()
 	for pair in (row[_R_STATUSES] as Array):
 		var def := _interned(res, int((pair as Array)[0])) as StatusDef
 		if def != null:

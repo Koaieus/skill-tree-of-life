@@ -233,7 +233,7 @@ const _POWERS: Array[float] = [1.0, 12.7, 20.0]
 ## Ticks [param host] to empty, returning `[projected, landed, first_tick,
 ## next_tick_damage]`, [param hp] reading the pool that host drains.
 func _run_to_empty(host, def: StatusDef, power: float, hp: Callable) -> Array[float]:
-	host.clear_statuses()
+	host.release_statuses()
 	host.apply_status(def, power)
 	var projected: float = host.projected_status_damage()
 	var next: float = def.next_tick_damage(host, host.get_status_power(def.id))

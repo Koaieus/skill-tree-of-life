@@ -121,7 +121,7 @@ func _may_host(def: StatusDef) -> bool:
 ## `after` — then decay of the RAW row per [method StatusDef.decayed] (its
 ## [member StatusDef.decay] slot) — then removal at `<= 0`. Iterates a COPY and re-checks each row is still the
 ## one on the host before touching it — a tick can `take_damage` into a kill
-## cascade that `clear_statuses()` this very host, or a hook can remove a
+## cascade that `release_statuses()` this very host, or a hook can remove a
 ## sibling; either way a vanished status is skipped, never resurrected.
 func tick_statuses() -> void:
 	var rows: Array[NodeStatus] = []
@@ -192,7 +192,7 @@ func remove_status(id: StringName) -> void:
 	_statuses.erase(id)
 	row.def._on_removed(owner)
 	# Sparse tick subscription (#879): the LAST status leaving is the owner's
-	# cue to unsubscribe. Fires from every step of [method clear_statuses]
+	# cue to unsubscribe. Fires from every step of [method release_statuses]
 	# too — the one that empties the store is the one that unsubscribes.
 	if _statuses.is_empty():
 		owner._on_last_status_removed()
@@ -200,10 +200,18 @@ func remove_status(id: StringName) -> void:
 	owner._on_statuses_changed()
 
 
-## Drop every status, each through [method remove_status].
-func clear_statuses() -> void:
+## Drop every status, each through [method remove_status], and hand back the
+## rows as they stood — the caller that is stripping the node feeds them to
+## [method CombatWorld.note_removed] so a spreading def can spill them.
+func release_statuses() -> Array[NodeStatus]:
+	var out: Array[NodeStatus] = []
 	for id in _statuses.keys():
+		var row: NodeStatus = _statuses.get(id)
+		if row == null:
+			continue  # an earlier row's _on_removed took it
+		out.append(row)
 		remove_status(id)
+	return out
 
 
 ## The count [param power] stacks of [param def] act as on this host — what

@@ -91,7 +91,7 @@ func test_strongest_status_wins_and_ties_take_the_first_applied() -> void:
 	tie_a.tint = Color(1.0, 0.0, 0.0, 1.0)
 	var tie_b := _def(&"b_tie", 4.0)
 	tie_b.tint = Color(0.0, 0.0, 1.0, 1.0)
-	_node.get_combat().clear_statuses()
+	_node.get_combat().release_statuses()
 	_node.get_combat().apply_status(tie_a, 2.0)
 	_node.get_combat().apply_status(tie_b, 2.0)
 	assert_true(_composite().modulate.is_equal_approx(Color.WHITE.lerp(tie_a.tint, 0.5)),
