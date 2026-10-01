@@ -642,6 +642,10 @@ func _can_afford(plan: AttackPlan, outcome: AttackOutcome) -> bool:
 	if plan.budget_overrun() > 0:
 		push_warning("BattleSystem.launch_attack: plan over budget by %d" % plan.budget_overrun())
 		return false
+	if plan.aspect_overrun() > 0:
+		push_warning("BattleSystem.launch_attack: plan over its aspect caps by %d" \
+				% plan.aspect_overrun())
+		return false
 	var entity := plan.attacker
 	var board: StatBoard = entity.stat_board if entity != null else null
 	var ap_pool: PoolStat = board.action_points if board != null else null

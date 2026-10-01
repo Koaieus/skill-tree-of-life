@@ -121,6 +121,27 @@ func get_local_modifiers() -> Array[StatModifier]:
 	return local_modifiers
 
 
+## Entity-wide modifiers this addon contributes while its carrier is
+## allocated. A temporary addon never grants currency: its modifiers on the
+## `aspects` family (the per-swing caps) and on `blade_size` (the budget temp
+## upgrades are paid from) are dropped, the rest apply for the swing. Filters
+## [member entity_modifiers] rather than rebuilding, so it returns the same
+## instances every call — SkillNode reclaims them by identity on detach.
+func get_entity_modifiers() -> Array[StatModifier]:
+	if not is_temporary:
+		return entity_modifiers
+	return entity_modifiers.filter(func(m: StatModifier) -> bool:
+		return m != null and not _is_currency(m.stat_id))
+
+
+## Is [param stat_id] something a swing spends against?
+static func _is_currency(stat_id: StringName) -> bool:
+	for root: StringName in [&"aspects", &"blade_size"]:
+		if stat_id == root or StatRegistry.ancestors_of(stat_id).has(root):
+			return true
+	return false
+
+
 ## Called by SkillNode._sync_visuals whenever the carrier's radius changes.
 ## Override to redraw at the new size.
 func configure_visual(_radius: float) -> void:

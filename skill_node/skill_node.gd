@@ -285,7 +285,7 @@ var _local_modifiers: Array[StatModifier] = []:
 ## `.tscn` carrying a `StatModifier` sub-resource now sets
 ## `resource_local_to_scene = true` (see docs/domain/resource-local-to-scene.md),
 ## so each instantiation already gets its own private copy — `_attach_addon` /
-## `_detach_addon` route `a.get_local_modifiers()` / `a.entity_modifiers`
+## `_detach_addon` route `a.get_local_modifiers()` / `a.get_entity_modifiers()`
 ## straight through, no clone, no ledger.
 ##
 ## The two below are NOT a binding-state artifact and #377 does not remove
@@ -1748,11 +1748,11 @@ func _attach_addon(a: SkillNodeAddon) -> void:
 		# addon .tscn carries sets `resource_local_to_scene = true`, so Godot
 		# already hands each `instantiate()` its own private copy — the modifier
 		# a script-built addon builds in code was always private too. Either
-		# way `a.get_local_modifiers()` / `a.entity_modifiers` are already
+		# way `a.get_local_modifiers()` / `a.get_entity_modifiers()` are already
 		# this carrier's own instances; detach can just ask the addon again.
 		for m in a.get_local_modifiers():
 			add_local_modifier(m)
-		for m in a.entity_modifiers:
+		for m in a.get_entity_modifiers():
 			add_entity_modifier(m)
 	a.visible = not sensed
 	_sync_visuals()
@@ -1776,7 +1776,7 @@ func _detach_addon(a: SkillNodeAddon) -> void:
 	# before it's freed) hands back the exact same instances to remove.
 	for m in a.get_local_modifiers():
 		remove_local_modifier(m)
-	for m in a.entity_modifiers:
+	for m in a.get_entity_modifiers():
 		remove_entity_modifier(m)
 	addons_changed.emit()
 

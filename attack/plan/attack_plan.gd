@@ -86,6 +86,14 @@ func budget_overrun() -> int:
 	return 0
 
 
+## How many per-swing purchases this plan carries past the attacker's
+## `<concept>_aspect` caps — the host's launch-time aspect check (ADR 0035),
+## read by [method BattleSystem._can_afford] beside [method budget_overrun].
+## 0 for a mode with no per-swing aspect cap.
+func aspect_overrun() -> int:
+	return 0
+
+
 ## Read the base fields back. Subclasses call this from their own
 ## `static from_dict` before filling in their mode-specific slots — see
 ## [AttackPlanCodec] for why the dispatch is not a static on this class.

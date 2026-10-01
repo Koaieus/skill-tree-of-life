@@ -492,7 +492,37 @@ func temp_upgrade_cost_for(def: TempUpgradeDef) -> int:
 
 ## How many temp upgrades of `def`'s kind the swing currently carries.
 func temp_upgrade_count_for(def: TempUpgradeDef) -> int:
-	return 0
+	var count := 0
+	for node in _temp_upgrade_carriers():
+		for a in node.get_addons():
+			if a.temp_upgrade_def == def:
+				count += 1
+	return count
+
+
+## How many of `def`'s kind one swing may carry — the attacker's
+## [member TempUpgradeDef.aspect_stat_id] value, floored; -1 when uncapped.
+func temp_upgrade_aspect_cap(def: TempUpgradeDef) -> int:
+	if def == null or def.aspect_stat_id == &"":
+		return -1
+	if attacker == null or attacker.stat_board == null:
+		return 0
+	return maxi(0, floori(attacker.stat_board.get_value(def.aspect_stat_id)))
+
+
+## Would one more of `def`'s kind stay within its aspect cap?
+func _within_aspect_cap(def: TempUpgradeDef) -> bool:
+	var cap := temp_upgrade_aspect_cap(def)
+	return cap < 0 or temp_upgrade_count_for(def) < cap
+
+
+## The pivot plus the selected members — every node a temp upgrade may sit on.
+func _temp_upgrade_carriers() -> Array[SkillNode]:
+	var nodes: Array[SkillNode] = []
+	if source != null:
+		nodes.append(source)
+	nodes.append_array(blade_nodes)
+	return nodes
 
 
 ## True if `node` (a selected member — the pivot is never a valid target, it
@@ -505,14 +535,15 @@ func can_apply_temp_upgrade(node: SkillNode, def: TempUpgradeDef) -> bool:
 		return false
 	if not node.can_attach_addon(def.addon_script):
 		return false
-	return _budget_remaining() >= def.cost
+	return _within_aspect_cap(def) and _budget_remaining() >= def.cost
 
 
 ## Whether ANY currently-eligible node could accept `upgrade` right now —
 ## cheap plan-level affordability check for UI button enablement, independent
 ## of which specific node gets clicked.
 func has_temp_upgrade_budget(def: TempUpgradeDef) -> bool:
-	return def != null and source != null and _budget_remaining() >= def.cost
+	return def != null and source != null and _within_aspect_cap(def) \
+			and _budget_remaining() >= def.cost
 
 
 ## Spend budget and attach a real `def` addon to `node`. Returns false
@@ -540,6 +571,22 @@ func budget_overrun() -> int:
 	return maxi(0, -_budget_remaining())
 
 
+## How many temp upgrades the plan carries past their kinds' aspect caps,
+## summed over kinds — the host's launch-time aspect check (ADR 0035).
+func aspect_overrun() -> int:
+	var seen: Array[TempUpgradeDef] = []
+	for node in _temp_upgrade_carriers():
+		for a in node.get_addons():
+			if a.is_temporary and not seen.has(a.temp_upgrade_def):
+				seen.append(a.temp_upgrade_def)
+	var total := 0
+	for def in seen:
+		var cap := temp_upgrade_aspect_cap(def)
+		if cap >= 0:
+			total += maxi(0, temp_upgrade_count_for(def) - cap)
+	return total
+
+
 ## Refund `node`'s temp upgrade, if any — frees the attached addon.
 func remove_temp_upgrade(node: SkillNode) -> void:
 	if _free_temp_addons(node):
@@ -559,9 +606,11 @@ func _existing_temp_upgrade(node: SkillNode, def: TempUpgradeDef) -> SkillNodeAd
 ## Why [param node] refuses [param def] — the `node_action_denied` reason the
 ## seat announces when [method can_toggle_temp_upgrade] says no.
 func temp_upgrade_denial_reason(node: SkillNode, def: TempUpgradeDef) -> String:
-	return "temp_upgrade_denied_slot_full" \
-			if not node.can_attach_addon(def.addon_script) \
-			else "temp_upgrade_denied_budget"
+	if not node.can_attach_addon(def.addon_script):
+		return "temp_upgrade_denied_slot_full"
+	if not _within_aspect_cap(def):
+		return "temp_upgrade_denied_aspect"
+	return "temp_upgrade_denied_budget"
 
 
 ## Would [method toggle_temp_upgrade] change anything? Composed from the two

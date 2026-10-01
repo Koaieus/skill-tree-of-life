@@ -10,3 +10,4 @@ id = &"toxin"
 scene = ExtResource("2_scene")
 addon_script = ExtResource("3_script")
 cost = 2
+aspect_stat_id = &"poison_aspect"
