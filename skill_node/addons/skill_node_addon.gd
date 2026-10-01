@@ -93,8 +93,7 @@ var carrier: SkillNode
 ##
 ## In the script rather than per-scene because there is no base addon scene to
 ## put it in: each concrete addon (bunker, fortification, clamp, spike_ring,
-## skill_dust) is its own standalone scene carrying this script, and
-## `addon_tile.gd` builds one in code. A per-scene value would have to be
+## skill_dust) is its own standalone scene carrying this script. A per-scene value would have to be
 ## repeated in each and would be missed by the next addon anyone adds.
 ##
 ## Uniform across every addon, so it costs no batching — see

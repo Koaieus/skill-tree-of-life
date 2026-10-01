@@ -1,8 +1,7 @@
 extends GutTest
 
-## #1292 acceptance 2 — `LootSystem.skill_dust_scene` is required, not a
-## fallback onto a bare `SkillDustAddon.new()` (deleted per the hub's "kind =
-## scene" decision, #1287). Unset: `_drop_skill_dust` logs an error and skips
+## `LootSystem.skill_dust_scene` is required — there is no code-built
+## fallback addon. Unset: `_drop_skill_dust` logs an error and skips
 ## the drop entirely — no addon lands on the former core. Set: every minted
 ## dust is a real scene instance, so it carries a `scene_file_path`.
 

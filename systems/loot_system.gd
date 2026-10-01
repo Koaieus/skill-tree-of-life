@@ -142,7 +142,7 @@ extends Node
 ##   N = loot_rounds, clamp [0, M]
 
 ## Packed scene for the dust addon (inspector-set), required — an addon is a
-## scene, never a bare `SkillDustAddon.new()`. Wired to
+## scene, never built in code. Wired to
 ## `skill_node/addons/defs/skill_dust_addon.tscn` in `game_root.tscn`. When
 ## unset, [method _drop_skill_dust] logs an error and skips the drop.
 @export var skill_dust_scene: PackedScene = null
