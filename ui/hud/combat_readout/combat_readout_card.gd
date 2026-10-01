@@ -44,6 +44,9 @@ var _flash_tween: Tween
 ## override for a node it owns — see [method CombatValueRow.resolve_override].
 var _hover_node: SkillNode = null
 var _owner_entity: Entity = null
+## The active attack plan, set by [CombatReadout] and pushed into every row
+## beside [member _hover_node] — see [method CombatValueRow.resolve_override].
+var _plan: AttackPlan = null
 
 ## Everything `_bind` connects to the CURRENT hero's board, released as a unit
 ## when this card is re-pointed at a different one (#459 hot-seat handover).
@@ -71,6 +74,13 @@ func _ready() -> void:
 ## [method _refresh] (already their per-mode convention) to react.
 func set_hover_node(node: SkillNode) -> void:
 	_hover_node = node
+	_refresh()
+
+
+## Called by [CombatReadout] when the active plan is swapped or its state
+## changes (selection, temp upgrades) — re-renders the hovered values.
+func set_plan(plan: AttackPlan) -> void:
+	_plan = plan
 	_refresh()
 
 ## Bind this card to an entity so it can start listening for stat changes.
@@ -108,7 +118,7 @@ func _bind(board: StatBoard, owner_entity: Entity = null) -> void:
 ## `super._refresh()` too, or its plain rows stop updating.
 func _refresh() -> void:
 	for row in find_children("*", "CombatValueRow", true, false):
-		(row as CombatValueRow).refresh(_board, _hover_node)
+		(row as CombatValueRow).refresh(_board, _hover_node, _plan)
 
 
 ## Called by [CombatReadout] (the shell) when the selected attack mode

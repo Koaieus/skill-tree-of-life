@@ -43,6 +43,7 @@ func bind(battle_system: BattleSystem) -> void:
 
 		if not _battle_system.attack_plan_changed.is_connected(_on_plan_changed):
 			_battle_system.attack_plan_changed.connect(_on_plan_changed)
+			_battle_system.attack_plan_state_changed.connect(_push_plan)
 		_on_plan_changed(_battle_system.attack_plan)
 
 	if not Events.skill_node_hovered.is_connected(_on_skill_node_hovered):
@@ -87,6 +88,17 @@ func _on_plan_changed(plan: AttackPlan) -> void:
 	_magic_card.set_active(manage or mode == BattleSystem.AttackMode.MAGIC)
 	_crit_card.set_active(true)
 	_defense_card.set_active(true)
+	_push_plan()
+
+
+## Hands the active plan to the hover cards — on a swap and on every
+## [signal BattleSystem.attack_plan_state_changed] (the plan's own
+## state_changed, relayed), so a temp upgrade added or removed re-renders the
+## hovered node's swing value without a re-hover.
+func _push_plan() -> void:
+	var plan: AttackPlan = _battle_system.attack_plan if _battle_system != null else null
+	for card in [_melee_card, _ranged_card, _crit_card, _defense_card]:
+		card.set_plan(plan)
 
 
 func _on_skill_node_hovered(node: SkillNode) -> void:

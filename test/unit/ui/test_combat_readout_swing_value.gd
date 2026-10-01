@@ -102,6 +102,8 @@ func test_a_node_outside_the_plan_shows_what_it_shows_today() -> void:
 	assert_null(plan.swing_value(outside, &"blade_damage"), "off the plan: no swing view")
 	Events.skill_node_hovered.emit(outside)
 	assert_eq(_damage_text(), before, "an off-plan node reads as it did with no plan")
+	assert_eq(_damage_text(), _render(outside.get_local_value(&"blade_damage")),
+			"which is its bare local read")
 
 
 func test_no_melee_plan_shows_the_bare_local_value() -> void:
@@ -121,7 +123,7 @@ func test_removing_the_temp_upgrade_updates_without_a_rehover() -> void:
 	assert_true(plan.apply_temp_upgrade(joint, _catalog.by_id(&"spike_ring")))
 	Events.skill_node_hovered.emit(joint)
 	var spiked := _damage_text()
-	plan.remove_temp_upgrade(joint)
+	plan.remove_temp_upgrade(joint)  # no second hover: attack_plan_state_changed drives it
 	var now: Variant = plan.swing_value(joint, &"blade_damage")
 	assert_ne(_damage_text(), spiked, "the hovered value moved off the spiked number")
 	assert_eq(_damage_text(), _render(now), "and shows the swing's number without the temp")

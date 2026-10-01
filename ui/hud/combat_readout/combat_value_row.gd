@@ -88,6 +88,9 @@ var _bound_board: StatBoard = null
 ## while true (a hover override's colour still wins). Read-only by contract.
 var value_volatile: bool = false
 var _bound_hover_node: SkillNode = null
+## The active attack plan, pushed with the hover by [method refresh]. A
+## [MeleeAttackPlan] answers a hovered member's number for the swing.
+var _bound_plan: AttackPlan = null
 var _sub := SubBag.new()
 
 func _ready() -> void:
@@ -107,10 +110,11 @@ func _ready() -> void:
 ## with no [member stat_id] (a derived value the card computes itself, e.g.
 ## Magic's potency/reach) is a no-op — the card still drives those directly
 ## via [method set_value].
-func refresh(board: StatBoard, hover_node: SkillNode) -> void:
+func refresh(board: StatBoard, hover_node: SkillNode, plan: AttackPlan = null) -> void:
 	if stat_id == &"":
 		return
 	_bound_hover_node = hover_node
+	_bound_plan = plan
 	if board != _bound_board:
 		_sub.clear()
 		_bound_board = board
@@ -145,13 +149,21 @@ func _on_stat_changed() -> void:
 ## is owned by the same entity [param board] belongs to (compared via
 ## `stat_board`, since a [StatBoard] carries no owner backpointer of its own —
 ## see [method CombatReadoutCard.bind]'s doc) AND its local value for [member
-## stat_id] differs from [param baseline].
+## stat_id] differs from [param baseline]. A node in the active
+## [MeleeAttackPlan] reads the swing's number ([method
+## MeleeAttackPlan.swing_value] — temp upgrades fold in there, never onto the
+## node) in place of its bare local value.
 func resolve_override(hover_node: SkillNode, board: StatBoard, baseline: float) -> Variant:
 	if hover_node == null or board == null or stat_id == &"":
 		return null
 	if hover_node.owned_by == null or hover_node.owned_by.stat_board != board:
 		return null
-	var overridden: float = float(hover_node.get_local_value(stat_id))
+	var local: Variant = null
+	if is_instance_valid(_bound_plan) and _bound_plan is MeleeAttackPlan:
+		local = (_bound_plan as MeleeAttackPlan).swing_value(hover_node, stat_id)
+	if local == null:
+		local = hover_node.get_local_value(stat_id)
+	var overridden: float = float(local)
 	return overridden if overridden != baseline else null
 
 

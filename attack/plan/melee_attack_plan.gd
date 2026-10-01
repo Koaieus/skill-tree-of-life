@@ -569,7 +569,9 @@ var _temp_scaler := LocalScaleMutator.new()
 ## [code]null[/code] for a node not in the plan (neither pivot nor member) —
 ## "no swing view", so a reader falls back to the bare node.
 func swing_value(node: SkillNode, stat_id: StringName) -> Variant:
-	return null
+	if node == null or not _temp_upgrade_carriers().has(node):
+		return null
+	return node.get_local_value_with(stat_id, overlays_for(node, stat_id))
 
 
 static func _targets(mod_stat: StringName, read_stat: StringName) -> bool:
