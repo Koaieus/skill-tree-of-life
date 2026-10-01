@@ -1350,7 +1350,7 @@ func test_picking_turn_limit_resolves_the_turn_limit_condition() -> void:
 		var options: LobbyOptionSet = lobby._roster.policy.victory_options
 		var index := -1
 		for i in options.choices().size():
-			if options.choices()[i].label.begins_with("Turn limit"):
+			if options.choices()[i].display_label().begins_with("Turn limit"):
 				index = i
 		assert_gte(index, 0, "a Turn limit option exists")
 		lobby.pick_option(LobbyScreen.KNOB_VICTORY, index)
