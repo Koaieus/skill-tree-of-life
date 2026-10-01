@@ -40,8 +40,11 @@ children, which is exactly what the phases immunise against.
    its nodes; it needs that pre-strip world to snapshot loot + reward the killer.
    The mechanics (the loot draw, killer attribution) are LootSystem's own concern
    — see `loot_system.gd` / `docs/domain/loot-system.md`, not duplicated here.
-2. **`entity_died` → AllocationSystem** force-deallocates every owned node (core
-   last) via the `force_deallocate` primitive — VFX shatter fires per node. This
+2. **`entity_died` → AllocationSystem** strips every owned node (core last)
+   through `EntityCombat.apply_cascade(list, alloc, false)` — the one cascade
+   driver, uncharged (no wounds, no chip), the same call a shadow's
+   `simulate_entity_death` makes; its live strip verb is `force_deallocate`, so
+   VFX shatter fires per node. This
    is the only path that force-deallocates a core. (The SkillDust addon survives
    this — it's an addon child, not a `node.modifiers` entry.)
 3. **`entity_died` → GameRoot** owns the player-vs-NPC split. The turn-loop-
@@ -87,8 +90,8 @@ forwards). The instinct is to `call_deferred` the cleanup to let the cascade
 unwind — **don't**. Two reasons:
 
 1. **Synchronous is already safe.** `apply_cascade` guards every cascade step
-   with `if n == null or n.owner() != self: continue`
-   (`combat/entity_combat.gd:562-610`), so nodes the death cleanup deallocates
+   with `if n == null or n.owner() != self: continue` — the death cleanup
+   itself runs through `apply_cascade` too, nested — so nodes the death cleanup deallocates
    are simply skipped when control returns to the loop. The loop never
    restarts; there is no re-entry.
 2. **Deferring introduces a worse bug.** A deferred `deallocate_all_owned(entity)`

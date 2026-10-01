@@ -38,11 +38,21 @@ On success: `skill_points.spend(1)` runs (transfers current → used), then step
 
 On success: removes modifiers, mirror-removes from navigator, clears `owned_by`, then `deallocation_points.deplete(1)` + `skill_points.refund(1)`. Refund lands in `skill_points.current` (voluntary path).
 
-## Forced deallocation: `force_deallocate(node)`
+## Forced deallocation: one driver, `EntityCombat.apply_cascade`
 
-Called by `BattleSystem._on_node_depleted` (the cascade when a non-core node hits 0 HP). Skips every guard above (no DP cost, no would-disconnect check, no core-protection). Doesn't refund SP — the caller is responsible for `skill_points.wound(1)` instead, which puts the freed SP in the `wounded` bucket (heals back over time via `wound_heal_per_turn`). Also deducts 1 from `health` per cascaded node.
+**The SP↔wound rule.** To allocate N nodes an entity spends N skill points. When those nodes are force-deallocated (depleted by damage, or islanded by the cascade), the invested SP is **not** refunded as spendable SP: the owner gains **N wounds** instead (1:1 per allocation level). A wound is a reservation block on the SP pool that heals back to spendable SP at `wound_heal_per_turn`. Losing 3 nodes = 3 wounds, plus 3 × `dealloc_damage` off `health` (bypassing mitigation).
 
-Returns the previous owner so the caller can chain wound + core-HP without re-reading `owned_by` (which is null after).
+**One driver for every forced removal, both worlds.** `EntityCombat.apply_cascade(nodes, alloc, charge)` is the only loop that strips a set of nodes:
+
+- the battle cascade (`BattleSystem._on_node_depleted` live, `cascade_from` on a shadow) — `charge = true`;
+- entity death — `deallocate_all_owned` live, `simulate_entity_death` on a shadow — `charge = false`: a corpse's limbs fall off without further wounds or chip. The set is every owned node, **core last**.
+
+Per node, the order is fixed: **snapshot the entry → wound → strip → chip.**
+
+- **Wound before strip.** `SkillPointStat.wound(n)` clamps to `used` (`max − current − wounded − staked`), and stripping a node whose modifier touches `skill_points` max shrinks `used` first — the wound would silently vanish. `wound` `push_warning`s when `n > used` as a tripwire.
+- **Chip after strip.** A chip that crosses `health` 0 kills synchronously → `deallocate_all_owned` → a nested `apply_cascade` strips the rest. The outer loop's per-node `n.owner() != self` re-check skips what the nested call took — that guard is written for strip-then-chip.
+
+`force_deallocate(node)` is the live **strip primitive** `apply_cascade` calls: it skips every guard above (no DP cost, no would-disconnect check, no core-protection), clears statuses, revokes the node's grants, nulls `owned_by`, dispatches `_on_node_deallocated`, and emits `force_deallocated`. It neither refunds nor wounds — the driver does that. Returns the previous owner.
 
 ## Forced fill: `force_fill(node, level)`
 
@@ -54,7 +64,7 @@ The allocate-path primitive for filling an owned node **beyond 1** without minti
 |---|---|---|
 | Player left-clicks an unowned adjacent node | `allocate` | Full gating; SP cost; signals |
 | Player presses `D` over an owned non-core node | `deallocate` | Full gating; DP cost; islanding check |
-| Forced by attack | `force_deallocate` + caller-side `wound`/`health.deplete` | Bypass gates; route through wound bucket |
+| Forced by attack / death | `EntityCombat.apply_cascade` (strips via `force_deallocate`) | Bypass gates; wound before strip; death uncharged |
 | Procgen setup | `force_allocate` (via `GameRoot.spawn_entity(name, color, core)`) | Bypass SP/adjacency; just plant the core |
 | Procgen expansion | `force_allocate` directly | Random-walk expansion in dev sandboxes |
 | Procgen pre-stake (blockers) | `force_allocate` then `force_fill(node, stake_level)` | Fill 3/3 at spawn; no SP minted for the fill |
@@ -76,4 +86,4 @@ Hand-authored levels (e.g. `dev_sandbox.tscn`) set `owned_by` directly in the sc
 - `deallocated(node, previous_owner)` — fires only from `deallocate` (the voluntary path)
 - `force_deallocated(node, previous_owner)` — fires only from `force_deallocate`
 
-Listeners that care about voluntary vs. forced can branch on `allocated`'s `forced` flag, or on which of the two deallocation signals fired; downstream logic that cares (e.g. wound vs refund) lives in the BattleSystem cascade handler, which listens for `force_deallocated`.
+Listeners that care about voluntary vs. forced can branch on `allocated`'s `forced` flag, or on which of the two deallocation signals fired; wound vs refund is decided by the caller — `EntityCombat.apply_cascade` wounds, voluntary `deallocate` refunds.
