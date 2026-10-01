@@ -49,7 +49,14 @@ ping is the relay. Its Sage stays its own and answers its drones until they
 drain; spawn your own per `swarm` if the run calls for one. `APPROVED <sha>`
 lines already in the ledger stand.
 
-## 4. Now run `swarm`
+## 4. Supervised mode
+
+If your launch prompt says *supervised by `<name>`*, you are `swarm`'s
+supervised mode from here on: its three report lines go to `<name>`, you
+never ask, and `<name>`'s messages are your instructions. State your own
+name to the outgoing exactly as above; the outgoing is in the same mode.
+
+## 5. Now run `swarm`
 
 From the reconciled ledger, `swarm` §3 onward: briefs, tiers, review,
 `land`, the train, teardown. Thresholds, ceilings and when *you* request

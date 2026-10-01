@@ -96,9 +96,8 @@ line of code. So:
    prompt is `/swarm #a #b … — supervised by whip` plus the supervised-mode
    clauses (below); a relief's is `/relief — supervised by whip` plus the
    same. Swarm and relief carry their own laws; Whip restates none of them.
-   Whether a slash command in a `--bg` launch prompt expands the skill is
-   probed before the first night (corpus); if not, the prompt is "read
-   `docs/handoffs/whip-brief-<train>.md`, then run the `swarm` skill".
+   A slash command in a `--bg` launch prompt expands the skill (probed,
+   corpus).
 6. **Trains are split by the board's dependencies, never by Whip reading
    issues.** `blocked-by` relations and hub membership from `mise gh-project
    -- list ready --json`; issues with no recorded dependency are one train in
@@ -185,6 +184,15 @@ skill, active when the launch prompt names a supervisor:
     off for the night (`DISABLE_AUTOUPDATER=1` on every launch) so no
     session is asked to restart mid-train.
 
+19. **Fifteen hours is the cap.** Owner, 2026-10-02: *"a cap backstop —
+    say 15 hours max runtime, that's 3 token windows; if more is needed
+    that's something I should look at first."* Past `start + 15h` the
+    watchdog stops prompting, Whip launches nothing new, a lead in flight is
+    left to finish its current train (it is landing, not starting), and the
+    report's headline says `CAPPED at 15h` with the remainder under *Still
+    Ready*. The cap is a knob in `mise run whip -- start --cap <hours>`,
+    default 15.
+
 **The morning report**
 
 17. **The report is a diff against the start snapshot, not a narrative.**
@@ -220,7 +228,8 @@ skill, active when the launch prompt names a supervisor:
 | 2026-10-02 | transcript `2131d2e9`, 2026-09-30 | session limit hit mid-swarm: one synthetic assistant message `isApiErrorMessage: true` "You've hit your session limit · resets 11:40pm (Europe/Amsterdam)"; nothing until the owner typed "continue, tokens ran out" at 23:41, then the same context continued | 14 |
 | 2026-10-02 | transcript `7ab170d7`, 2026-09-13 | monthly spend limit hit; the lead had a 15-minute in-session loop prompt, which kept firing (16 times over 4 h), each firing answered by the same error at no cost; the limit never reset that night, so "the first firing after a reset succeeds" is **inferred, n=0** | 14, fork A |
 | 2026-10-02 | CLI 2.1.282→2.1.287 | auto-updated mid-run with "restart to apply"; `claude respawn <id>` restarts a bg session on the new binary | 15, 16 |
-| 2026-10-02 | `CronCreate` | session-only, in-memory, fires only while the REPL is idle, 7-day expiry; gone on respawn — so it cannot be the only recovery layer | fork A |
+| 2026-10-02 | `CronCreate` | session-only, in-memory, fires only while the REPL is idle, 7-day expiry; gone on respawn — so it cannot be the only recovery layer. A `* * * * *` job created inside a `--bg` session fired twice in two minutes, so the bg REPL runs its cron | fork A |
+| 2026-10-02 | `claude --bg … "/relief"` (haiku) | the launch prompt expanded the skill: the session ran relief's step 1 (`gh-project list in-progress`, worktree list) unprompted | 5 |
 
 ## Open forks — options with costs, owner decides
 
@@ -272,8 +281,6 @@ written from this charter alone.
 
 ## Open follow-ups
 
-- Slash-command expansion in a `--bg` launch prompt (law 5) — probe before
-  the first night.
 - Whether `notify_when_idle` fires on a `--bg` session that *exits* (the
   tool says so; unobserved).
 - Whether auto-compact in a `--bg` session preserves its idle subscriptions

@@ -97,6 +97,11 @@ live outgoing — never by reading issues to compensate.
    crash and the owner are the other triggers. Any number in the relief
    skill is a contradiction waiting to happen.
 
+8. **Under a supervisor, relief is swarm's supervised mode.** The launch
+   prompt names it; the section in the skill is one paragraph pointing at
+   swarm's, because relief restates nothing of swarm (law 4). See
+   [whip](whip.md).
+
 ## Incident corpus
 
 | Date | Where | What happened | Law |

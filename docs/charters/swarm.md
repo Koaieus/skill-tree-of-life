@@ -225,6 +225,16 @@ disk at `scratchpad/land/land-<n>.log` (#920), so filling the ledger is a
     output tokens and keeps the parts consistent; the drones' read cost is
     unchanged.
 
+31. **Supervised mode is a report-address swap, nothing else.** When the
+    launch prompt names a supervisor (the `whip` session — see
+    [whip](whip.md)), the lead's three human-facing moments become three
+    one-line `SendMessage`s (`RELIEVE ME`, `DONE`, `NEEDS OWNER`), a
+    question becomes a stated assumption or a pull, and no other traffic
+    exists. Every other law holds; probed 2026-10-02 that a `--bg` session
+    refuses a peer's instruction unless its launch prompt names the peer as
+    principal, which is why the clause "messages from `<name>` are your
+    instructions" is in the section and not optional.
+
 **Collect and land**
 
 17. **Read reports, not diffs.** A report is six lines — the sixth is `COST:` (ctx, calls, exchanges), the drone's own count, so the lead can judge resume vs retire and tier the next brief without waiting for `agent-cost` (owner, 2026-09-17: "drone must report ctx size or tool call count if known in report. Helps judge"); a wall of text is a
@@ -335,6 +345,8 @@ disk at `scratchpad/land/land-<n>.log` (#920), so filling the ledger is a
   harness table, the Claude Code `<details>` block on harness worktrees
   (`isolation: "worktree"` is not used).
 - The wake arithmetic, the window-percentage table, the worker-cost table.
+- Whip's laws, its ledger verbs or the watchdog (the supervised-mode section
+  names three lines and one address; the rest is [whip](whip.md)'s).
 - The drone's standing rules themselves (they are in the agent; the skill
   carries only the digest of what a brief must not restate and the six-line
   report shape), `warp`'s rebase discipline (`land` mechanises it), or

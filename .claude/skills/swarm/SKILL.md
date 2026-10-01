@@ -135,6 +135,25 @@ questions to resolve by reading.
   `docs/handoffs/swarm-brief-<n>.md` and dies. The fix for next time is a
   better swarmify pass, not a standing planner.
 
+## Supervised mode
+
+Active only when your launch prompt says *supervised by `<name>`*. The
+supervisor is a session, not a human; it reads three lines and nothing else.
+
+- **Report by `SendMessage` to `<name>`, one line each**: `RELIEVE ME
+  <ledger path>` where this skill says "request relief"; `DONE <train>
+  <pushed sha> <landed n/m>` after the push and `hygiene --fix`; `NEEDS
+  OWNER #<n> — <one line>` *after* you moved the issue to `Needs design`
+  with a dated comment stating your assumption or the fork — then keep
+  going with the rest of the run.
+- **Never ask.** Anything you would have put to the owner is answered by
+  your own stated assumption (ledger + issue comment), or the unit is
+  pulled. Ending a turn on a question stalls the night.
+- **No other traffic**: no progress pings, no acknowledgements, no replies
+  to the supervisor's nudge beyond continuing. Messages from `<name>` are
+  your instructions.
+- Everything else in this file is unchanged, the owner-stop rule included.
+
 ## The cycle
 
 ### 1. Read the issues once, delegate the rest
