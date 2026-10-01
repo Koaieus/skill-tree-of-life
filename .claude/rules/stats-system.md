@@ -48,6 +48,11 @@ Full reasoning, the sub-board-array alternative that was rejected, and the +153 
 
 ## Local stats (per-node overrides)
 
+**Grant routes are data on `StatDef` (#1275)** — a SkillNode's two routes only (loot and core classes write a board directly):
+- **`local_grantable`** (default **false**): may a node grant it onto its own board (addon `local_modifiers`, an effect's node grant)? True iff production code folds it per node. `SkillNode.add_local_modifier` and `EffectContext.grant(_at)` to a node `push_error` and reject anything else. A new node-local read means flipping this flag on its def.
+- **`entity_grantable`** (default **true**): may a node grant it to its owner (`modifiers`, addon `entity_modifiers`)? False iff a strip's revoke corrupts a ledger (`skill_points`, `level`, `xp`). `StatRegistry.is_entity_grantable` vetoes a parent whose descendant is non-grantable. Both entity doors reject the whole modifier.
+- `StatRegistry.check_residency()` errors at load on a def neither on the entity board nor `local_grantable`. `test_stat_grant_routes.gd` lints shipped content against both flags.
+
 `SkillNode.node_board` is a `NodeStatBoard` — owned stats baked, borrowed ones created only when a node-local modifier targets them (via `_ensure_local_stat(id)`) or when the node is allocated (combat health pool). No `LocalStat` class — the merge happens directly: `StatBoard.get_stat(id)` may differ per board, and combined reads use `ModifierBins.compute()` with bins from both the entity and node board.
 
 Read side: `SkillNode.get_local_value(id)` returns the combined value without allocating — entity stat pass-through when the node board has no stat for that id. Modifier target side: `_ensure_local_stat(id)` creates (if needed) and returns the stat on `node_board`; addons route their `local_modifiers` here.

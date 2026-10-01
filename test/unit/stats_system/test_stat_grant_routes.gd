@@ -224,6 +224,18 @@ func test_shipped_content_passes_both_predicates() -> void:
 			_check(m, false, p)
 		_check_effects(n.effects, p)
 	assert_gt(seen_nodes, 1, "found the base node and the keystones")
+	# A core class's aura grants node-locally through EffectContext; its plain
+	# modifiers write the entity board directly, outside a SkillNode's routes.
+	for f in DirAccess.get_files_at("res://entity/core"):
+		if not f.ends_with(".tres"):
+			continue
+		var cc := load("res://entity/core".path_join(f)) as CoreClass
+		if cc == null:
+			continue
+		for e in cc.effects:
+			if e is AuraEffect:
+				for m in e.modifiers:
+					_check(m, true, f)
 	for f in DirAccess.get_files_at("res://effects/status"):
 		if not f.ends_with(".tres"):
 			continue
