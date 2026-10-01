@@ -96,10 +96,11 @@ static func land_one(hit: HitInstance, world: CombatWorld,
 		alloc: AllocationSystem = null) -> void:
 	if hit == null or hit.target == null:
 		return
-	# A rebuilt record arrives with its deallocations pre-populated (#518's
-	# contract); a fresh resolve never does. So this is the replay signal: a
-	# record feeds the beat its recorded spill, a fresh landing has the spill
-	# the flush computes written onto the entries it just produced.
+	# A rebuilt record arrives with its deallocations pre-populated (the
+	# record's contract, see DeallocEntry); a fresh resolve never does. So
+	# this is the replay signal: a record feeds the beat its recorded spill, a
+	# fresh landing has the spill the flush computes written onto the entries
+	# it just produced.
 	var recorded := not hit.deallocations.is_empty()
 	if recorded:
 		world.feed_recorded(hit.deallocations)

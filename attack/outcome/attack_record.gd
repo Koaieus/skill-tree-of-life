@@ -588,6 +588,9 @@ static func _id_of(node: SkillNode, graph: Graph) -> int:
 ## Unpacks [param entry]'s recorded spill starting at [param at]; returns the
 ## offset past it. Slices are the receiving machine's live ones — a replay
 ## translates them into the world it lands in ([method CombatWorld.flush_removals]).
+## A receiver this peer does not hold (fog) rebuilds as null and lands as burned
+## here while the host transferred it — the same seam as a dealloc entry whose
+## node the peer lacks.
 static func _rebuild_spill(r: AttackRecord, entry: DeallocEntry, at: int, count: int,
 		graph: Graph) -> int:
 	var from: NodeCombat = entry.node.get_combat() if entry.node != null else null
