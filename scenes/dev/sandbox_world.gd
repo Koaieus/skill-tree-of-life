@@ -24,6 +24,7 @@ extends Node
 const _ALLOCATION_SYSTEM_SCRIPT: Script = preload("res://systems/allocation_system.gd")
 const _BATTLE_SYSTEM_SCRIPT: Script = preload("res://systems/battle_system.gd")
 const _LOOT_SYSTEM_SCRIPT: Script = preload("res://systems/loot_system.gd")
+const _SKILL_DUST_SCENE: PackedScene = preload("res://skill_node/addons/defs/skill_dust_addon.tscn")
 const _COMMAND_APPLIER_SCRIPT: Script = preload("res://command/command_applier.gd")
 const _INPUT_CONTROLLER_SCRIPT: Script = preload("res://systems/player_input_controller.gd")
 const _MELEE_PREVIEW_SCRIPT: Script = preload("res://attack/melee/melee_preview.gd")
@@ -199,6 +200,7 @@ func build(p_graph: Graph, opts: Dictionary = {}) -> void:
 		loot_system = _LOOT_SYSTEM_SCRIPT.new()
 		loot_system.name = "LootSystem"
 		loot_system.turn_manager = turn_manager
+		loot_system.skill_dust_scene = _SKILL_DUST_SCENE
 		add_child(loot_system)
 
 	# VFX + floaters live under the graph so world coords line up (game_root.tscn
