@@ -49,7 +49,9 @@ keep because the whole family actually does inherit it.
 
 ## A `SkillNodeAddon` is its scene — read the `.tscn` before the script
 
-A `SkillNodeAddon` is authored as `skill_node/addons/<name>_addon.tscn`: the
+A `SkillNodeAddon` is authored as `skill_node/addons/defs/<name>_addon.tscn`
+(concrete, placeable-or-rollable addons; a base or template scene would live
+in `skill_node/addons/` itself, never `defs/`): the
 root node names the script it runs, and the scene holds the authored
 `local_modifiers` / `entity_modifiers`, icon and visuals. The script is only
 the behaviour a scene can't author — `toxin_addon.tscn` has no script of its

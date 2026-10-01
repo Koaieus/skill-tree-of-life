@@ -9,6 +9,8 @@ paths:
 
 # SkillNode addons
 
+Concrete addon scenes live in `skill_node/addons/defs/`; a base or template scene never does.
+
 ## Attaching an addon is `skill_node.add_child(addon)` — nothing else
 
 There is no anchor node to file into and no `attach_addon()` method to call.
