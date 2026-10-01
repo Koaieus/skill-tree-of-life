@@ -192,7 +192,7 @@ static func gallery() -> Array[Dictionary]:
 		{"name": "Damage",          "text": "7",           "style": damage()},
 		{"name": "Crit",            "text": "18!",         "style": crit()},
 		{"name": "Node heal",       "text": "+5",          "style": node_heal()},
-		{"name": "Entity wound",    "text": "+1 WOUNDS",   "style": entity_wound()},
+		{"name": "Entity wound",    "text": "+1 W",        "style": entity_wound()},
 		{"name": "Entity heal",     "text": "-1 WOUNDS",   "style": entity_heal()},
 		{"name": "Denied",          "text": "TOO FAR FROM CORE", "style": denied()},
 		{"name": "Denied (alert)",  "text": "GEEN MANA MEER",   "style": denied_alert()},
