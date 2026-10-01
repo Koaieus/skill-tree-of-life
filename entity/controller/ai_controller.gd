@@ -417,19 +417,19 @@ func _best_attack_candidate(visible_enemies: Array[SkillNode], ranged_only: bool
 ## Owner (2026-09-18): the AI *"reloads when stock < Σ shots_left and no kill
 ## is on the table"* — the kill half is the caller's; this is the stock half,
 ## plus what makes the AP worth it: the entity can pay ([method Entity
-## .can_reload]) and the quiver is below capacity (a full quiver still pays,
-## so that would be an AP for nothing). Σ shots_left is over every firing
+## .can_reload]) and some bin has room — plain arrows below capacity, or a
+## special the reload mints below its own `max_stock` (ADR 0041: specials bank
+## outside capacity, so a full plain quiver is not a full quiver). Stock is
+## every arrow held, plain and special. Σ shots_left is over every firing
 ## position the entity holds, not one target's reaching subset — the question
 ## is "could my leaves fire more than I carry", whoever the target is.
 func _reload_is_due() -> bool:
 	if entity == null or entity.stat_board == null or not entity.can_reload():
 		return false
 	var quiver := entity.stat_board.arrows as Quiver
-	if quiver == null:
+	if quiver == null or not _reload_has_room(quiver):
 		return false
-	var stock: int = roundi(quiver.current)
-	if stock >= roundi(float(quiver.get_value())):
-		return false
+	var stock: int = quiver.total_stock()
 	var probe := RangedAttackPlan.new()
 	probe.attacker = entity
 	var shots := 0
@@ -438,15 +438,30 @@ func _reload_is_due() -> bool:
 	return stock < shots
 
 
+## Plain arrows below capacity, or a special with a positive reload mint below
+## its type's cap.
+func _reload_has_room(quiver: Quiver) -> bool:
+	if quiver.room_for(AmmoTypeRoster.BASE_ID) > 0:
+		return true
+	var mint := entity.reload_yield()
+	for id in mint:
+		if id == AmmoTypeRoster.BASE_ID:
+			continue
+		var t := _AMMO_TYPES.by_id(id)
+		if t != null and quiver.room_for(id, t.max_stock) > 0:
+			return true
+	return false
+
+
 ## Submit a [ReloadCommand] and report whether it actually grew the stock —
 ## the loop's progress signal, since a reload with nothing to mint (no
 ## turn-start leaves, a core that is not a producer) still pays its AP and
 ## would otherwise be re-decided every pass until the AP ran dry.
 func _reload() -> bool:
 	var quiver := entity.stat_board.arrows as Quiver
-	var before: int = roundi(quiver.current)
+	var before: int = quiver.total_stock()
 	var ok := await _submit_and_wait(ReloadCommand.new(entity.entity_id))
-	var after: int = roundi(quiver.current)
+	var after: int = quiver.total_stock()
 	_decide("reload: %d → %d arrows" % [before, after])
 	return ok and after > before
 

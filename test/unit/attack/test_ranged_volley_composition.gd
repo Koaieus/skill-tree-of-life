@@ -106,7 +106,7 @@ func _leaf_counts(schedule: Array) -> Dictionary:
 func test_fixture_shots_left_and_stock() -> void:
 	assert_eq(_near.shots_left(), 5)
 	assert_eq(_far.shots_left(), 4)
-	assert_eq(roundi(_attacker.stat_board.arrows.current), 20)
+	assert_eq(_attacker.stat_board.arrows.total_stock(), 20)
 
 
 func test_max_n_is_min_of_stock_and_shots_left_over_reaching_leaves() -> void:
@@ -240,7 +240,7 @@ func test_launch_consumes_bins_leaf_shots_and_a_volley_slot_but_no_ap() -> void:
 	var quiver: Quiver = _attacker.stat_board.arrows
 	assert_eq(quiver.stock_of(_POISON), 3, "2 poison spent")
 	assert_eq(quiver.stock_of(_ARROW), 10, "5 arrows spent")
-	assert_eq(roundi(quiver.current), 13)
+	assert_eq(quiver.total_stock(), 13)
 	assert_eq(_near.shots_fired_this_turn, 3)
 	assert_eq(_mid_leaf.shots_fired_this_turn, 2)
 	assert_eq(_far.shots_fired_this_turn, 3, "1 before the volley + 2 fired")

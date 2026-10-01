@@ -41,3 +41,8 @@ extends Resource
 ## Entity-board stat id minting this type on reload. The base arrow's is
 ## `arrows_per_reload` (node-local, summed per leaf); specials are flat.
 @export var per_reload_stat_id: StringName = &""
+## A special's own bank cap: its bin holds at most this many, outside the
+## quiver's shared capacity (owner, 2026-10-01: "Banks, capped at 999 per
+## type"; ADR 0041). The base arrow ignores it — its cap is the `arrows` pool's
+## max. Owner tunes.
+@export_range(1, 9999) var max_stock: int = Quiver.DEFAULT_MAX_STOCK

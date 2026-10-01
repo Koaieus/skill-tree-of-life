@@ -49,10 +49,11 @@ func _shots_available() -> int:
 
 
 ## Owner (2026-09-18): `max N = min(arrows.current, Σ shots_left over leaves
-## in range)`.
+## in range)`. Their `arrows.current` was every arrow held; since specials
+## left the shared cap (ADR 0041) that is [method Quiver.total_stock].
 func max_n() -> int:
 	var quiver := _quiver()
-	var stock: int = roundi(quiver.current) if quiver != null else 0
+	var stock: int = quiver.total_stock() if quiver != null else 0
 	return mini(stock, _shots_available())
 
 
@@ -293,7 +294,7 @@ func validate() -> Array[String]:
 	if _shots_available() <= 0:
 		errors.append(ERR_NO_SHOTS)
 	var quiver := _quiver()
-	if quiver == null or roundi(quiver.current) <= 0:
+	if quiver == null or quiver.total_stock() <= 0:
 		errors.append(ERR_NO_AMMO)
 	if attacker.stat_board != null and attacker.stat_board.volleys_per_turn != null \
 			and attacker.volleys_launched_this_turn >= int(attacker.stat_board.volleys_per_turn.value):

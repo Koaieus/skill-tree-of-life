@@ -122,7 +122,8 @@ func test_special_arrows_are_flat_never_times_leaves() -> void:
 	w.applier.submit(_reload(w))
 	assert_eq(w.quiver().stock_of(&"poison"), 1, "one poison arrow, not one per leaf")
 	assert_eq(w.quiver().stock_of(&"arrow"), 4 * w.per_leaf())
-	assert_eq(roundi(w.quiver().current), 4 * w.per_leaf() + 1)
+	assert_eq(w.quiver().total_stock(), 4 * w.per_leaf() + 1)
+	assert_eq(roundi(w.quiver().current), 4 * w.per_leaf(), "current is the plain bin alone")
 
 
 func test_reload_is_refused_without_ap() -> void:

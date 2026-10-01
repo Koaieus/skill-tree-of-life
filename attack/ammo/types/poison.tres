@@ -12,3 +12,4 @@ damage_scale = 0.5
 status_def = ExtResource("2_poison_status")
 status_power = 1.0
 per_reload_stat_id = &"poison_aspect"
+max_stock = 999

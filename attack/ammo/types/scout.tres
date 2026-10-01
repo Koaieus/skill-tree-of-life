@@ -11,3 +11,4 @@ damage_scale = 0.0
 reveal_fraction = 0.5
 reveal_stack_bonus = 0.2
 per_reload_stat_id = &"scout_aspect"
+max_stock = 999

@@ -3,11 +3,11 @@ class_name Quiver
 extends PoolStat
 
 ## The entity's ammo — the `arrows` stat on [EntityStatBoard]. One [PoolStat]
-## (current = total stock, max = quiver capacity, from the modifier pipeline
-## like any pool) with per-[AmmoType] bins *inside* current, the way
-## [SkillPointStat] keeps `wounded` / `staked` inside max. The bins are the
-## only extra state; the identity `current == Σ bins` holds after every
-## transfer below.
+## (current = PLAIN stock, max = quiver capacity, from the modifier pipeline
+## like any pool) plus per-[AmmoType] bins: the plain bin IS `current`, and
+## each special bin sits beside it, capped by its own type's `max_stock`
+## rather than by capacity (ADR 0041, superseding ADR 0019 on that point). The
+## identity `current == bins[BASE_ID]` holds after every transfer below.
 ##
 ## The class IS the stat: there is no separate Quiver resource on [Entity].
 ## The ranged command-tray body is a view of this stat exactly as the magic
@@ -16,14 +16,22 @@ extends PoolStat
 ## `StatBoard._mint_stat`, which would mint a plain PoolStat).
 ##
 ## Cap policy comes from `arrows.tres`: PIN on rise (a capacity modifier never
-## gifts arrows) and CLAMP on fall — and a fall that clamps `current` also
-## trims the bins, last sorted key first, so the identity holds on every peer
-## in the same way (see [method _apply_max_change]).
+## gifts arrows) and CLAMP on fall — a fall trims the plain bin with `current`;
+## specials never shrink on a capacity change (see [method _apply_max_change]).
+##
+## A special's cap reaches this class as an argument ([method add],
+## [method room_for]) — `stats_system/` sits below `attack/`, so it never reads
+## the [AmmoType] roster.
 
 ## Emitted after any bin changes (add / take / clamp / restore), with the type touched.
 signal bin_changed(type_id: StringName)
 
+## The plain arrow's id — the one bin that is `current`. Must equal
+## `AmmoTypeRoster.BASE_ID` (pinned by test_quiver); this class sits below
+## `attack/` and may not name the roster.
 const BASE_ID: StringName = &"arrow"
+## A special's cap when the caller passes none; the default of
+## `AmmoType.max_stock` (owner, 2026-10-01: "capped at 999 per type").
 const DEFAULT_MAX_STOCK := 999
 
 ## `{AmmoType.id: count}`, positive counts only. Exported so a shadow world's
@@ -37,15 +45,17 @@ func stock_of(type_id: StringName) -> int:
 	return _bins.get(type_id, 0)
 
 
-## Adds [param n] arrows of [param type_id], clamped to remaining capacity.
-## Returns the number actually added.
-func add(type_id: StringName, n: int, _max_stock: int = DEFAULT_MAX_STOCK) -> int:
-	var room: int = int(get_value()) - roundi(current)
-	var actual: int = clampi(n, 0, room)
+## Adds [param n] arrows of [param type_id], clamped to that bin's room
+## ([method room_for]): plain arrows against capacity, a special against
+## [param max_stock] (its type's cap; ignored for the plain bin). Returns the
+## number actually added.
+func add(type_id: StringName, n: int, max_stock: int = DEFAULT_MAX_STOCK) -> int:
+	var actual: int = clampi(n, 0, room_for(type_id, max_stock))
 	if actual <= 0:
 		return 0
 	_bins[type_id] = stock_of(type_id) + actual
-	set_current(current + float(actual))
+	if type_id == BASE_ID:
+		set_current(current + float(actual))
 	bin_changed.emit(type_id)
 	return actual
 
@@ -57,17 +67,26 @@ func take(type_id: StringName, n: int) -> int:
 	if actual <= 0:
 		return 0
 	_set_bin(type_id, stock_of(type_id) - actual)
-	set_current(current - float(actual))
+	if type_id == BASE_ID:
+		set_current(current - float(actual))
 	bin_changed.emit(type_id)
 	return actual
 
 
+## Every arrow held, plain and special — what a volley can draw on.
 func total_stock() -> int:
-	return 0
+	var total := 0
+	for k in _bins:
+		total += _bins[k]
+	return total
 
 
-func room_for(_type_id: StringName, _max_stock: int) -> int:
-	return 0
+## How many more arrows of [param type_id] fit: capacity minus `current` for
+## the plain bin, [param max_stock] minus the bin for a special.
+func room_for(type_id: StringName, max_stock: int = DEFAULT_MAX_STOCK) -> int:
+	if type_id == BASE_ID:
+		return maxi(0, int(get_value()) - roundi(current))
+	return maxi(0, max_stock - stock_of(type_id))
 
 
 ## `{type_id: count}` for every bin with a positive count. A copy — mutate
@@ -78,34 +97,14 @@ func ammo_bins() -> Dictionary:
 
 ## The cap-change policy, plus the bin half of the invariant: after the base
 ## class has clamped `current` to a fallen cap (CLAMP — `arrows.tres` never
-## FOLLOWs), shed the surplus from the bins in reverse sorted-key order, so
-## every peer trims the same arrows. A rise is PIN and touches nothing.
+## FOLLOWs), the plain bin follows `current` down. Specials are untouched. A
+## rise is PIN and touches nothing.
 func _apply_max_change(old_max: float) -> void:
 	super(old_max)
-	_trim_bins_to_current()
-
-
-func _trim_bins_to_current() -> void:
-	var excess: int = _sum_bins() - roundi(current)
-	if excess <= 0:
-		return
-	var keys: Array = _bins.keys()
-	keys.sort()
-	keys.reverse()
-	for k in keys:
-		if excess <= 0:
-			break
-		var shed: int = mini(excess, _bins[k])
-		_set_bin(k, _bins[k] - shed)
-		excess -= shed
-		bin_changed.emit(k)
-
-
-func _sum_bins() -> int:
-	var total := 0
-	for k in _bins:
-		total += _bins[k]
-	return total
+	var plain := roundi(current)
+	if stock_of(BASE_ID) > plain:
+		_set_bin(BASE_ID, plain)
+		bin_changed.emit(BASE_ID)
 
 
 func _set_bin(type_id: StringName, count: int) -> void:

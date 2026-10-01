@@ -16,6 +16,7 @@ const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _PLAYER_FACTION := preload("res://entity/factions/player.tres")
 const _SPARK_SPELL := preload("res://attack/spell/defs/spark.tres")
+const _AMMO_ROSTER: AmmoTypeRoster = preload("res://attack/ammo/ammo_type_roster.tres")
 
 var _graph: Graph
 var _alloc: AllocationSystem
@@ -793,6 +794,21 @@ func test_one_volley_sized_to_the_kill_plus_margin_never_four_single_shots() -> 
 	assert_ne(h1.owned_by, _hostile, "and it killed H1")
 	var singles := volleys.filter(func(d: String) -> bool: return d.ends_with(" n=1"))
 	assert_eq(singles.size(), 0, "never a 1-arrow volley: %s" % str(volleys))
+
+
+## Specials bank outside capacity (ADR 0041): a full plain quiver still makes
+## a reload worth its AP while a minted special has room under its own cap.
+func test_reload_has_room_while_a_minted_special_is_below_its_cap() -> void:
+	var quiver: Quiver = _enemy.stat_board.arrows
+	_set_stock(int(quiver.get_value()))
+	var poison := _AMMO_ROSTER.by_id(&"poison")
+	var mint_stat := _enemy.stat_board.get_stat(poison.per_reload_stat_id)
+	mint_stat.base_value = 0.0
+	assert_false(_ai._reload_has_room(quiver), "full plain and no special minted: nothing to gain")
+	mint_stat.base_value = 3.0
+	assert_true(_ai._reload_has_room(quiver), "full plain, but poison mints and has room")
+	quiver.add(&"poison", poison.max_stock, poison.max_stock)
+	assert_false(_ai._reload_has_room(quiver), "poison at its own cap: nothing to gain")
 
 
 func test_reloads_when_the_quiver_is_empty_then_fires_what_it_minted() -> void:

@@ -743,8 +743,9 @@ func reload_yield() -> Dictionary:
 
 
 ## Reload the quiver (#955): 1 AP, then every AmmoType gets its
-## [method reload_yield] mint, clamped by capacity. Returns the number of
-## arrows actually added. A full quiver still pays.
+## [method reload_yield] mint, clamped by its bin's room — plain arrows by
+## capacity, a special by its type's `max_stock`. Returns the number of arrows
+## actually added. A full quiver still pays.
 func reload() -> int:
 	if not can_reload():
 		return 0
@@ -754,7 +755,8 @@ func reload() -> int:
 	var added := 0
 	var mint := reload_yield()
 	for id in mint:
-		added += quiver.add(id, int(mint[id]))
+		var t := _AMMO_TYPES.by_id(id)
+		added += quiver.add(id, int(mint[id]), t.max_stock if t != null else Quiver.DEFAULT_MAX_STOCK)
 	return added
 
 
