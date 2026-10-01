@@ -63,6 +63,18 @@ Haiku is priced a fifth of Opus and never carries the pass's context.
    shape turns out to need judgement, the fix is a clearer manifest field, not
    a bigger model.
 
+7. **A spent GraphQL hour is not waited out.** The quota refills up to an hour
+   later; a clerk that sleeps, polls `rate_limit` or backgrounds a wait loop
+   spends its turns and still fails. On the hourly-quota error it stops
+   issuing GraphQL calls, still runs the REST-backed steps, and reports the
+   rest `FAILED` with the cause — the spawning session re-runs those later.
+   Relations are REST-first (`gh-project blocked-by`), since a pass's
+   dependency wiring is the part least worth losing. The rest stays on `gh
+   issue …` (GraphQL, ~1 point a call): the 2026-10-01 exhaustion was the
+   clerk's *reads* at ~600 points each, not its writes, and wholesale REST
+   would put the internal-id trap (parent links take ids too) in Haiku's
+   hands.
+
 ## What the agent file must not contain
 
 Any issue number from the corpus, the cost argument, or why a trap exists
@@ -75,3 +87,4 @@ beyond the one clause that makes it recognisable.
 | 2026-09-26 | owner | on the proposal to hand the swarmify tail to a Haiku agent: "Clerk does the mechanical stuff that's just tool calls. New agent file too perhaps? and a charter? supplying it with whatever any swarmifying agent would (use this and that tool this that caveat) so they don't even need to output *that*." | all |
 | 2026-09-26 | tail measurement (59 swarmify sessions; `.claude/skills/swarmify/corpus/2026-09-26-tail-measurement.md`) | numbers in the cost argument above. Failures inside tails, by kind: `gh` `--json` field names that had moved (`blockedByIssues`); relations set on a child not yet created, or a milestone typo, exiting 1; hygiene violations fixed by hand; ~15 identical re-runs after a failure. No backtick-mangled `--body` — `--body-file` already holds | 3 |
 | 2026-09-26 | first dry run (read-only manifest: two drift checks + hygiene) | 7 calls, ~35k Haiku tokens, report in the specified shape; `no stamp` on a `/warp`-made issue correctly reported as FAILED | 5, 6 |
+| 2026-10-01 | reticle pass (#1284, six children) | creates, comments and body edits landed; then every `--add-blocked-by`, `milestone` and `issue view` died on "API rate limit already exceeded" — the hourly GraphQL quota, spent by `gh-project status <n>` reads at ~607 points each (now ~1). The clerk tried `sleep 60`, a `rate_limit` poll loop and backgrounded `gh-project` calls hung in the shim's backoff; the parent session finished by hand, links via REST `dependencies/blocked_by`. Owner: "The clerk charter updating to direct using REST first might be good nonetheless" | 7 |

@@ -64,8 +64,9 @@ make it on a copy in the same directory (`<file>.resolved`), never the original.
    `gh issue edit <n> --body-file <resolved>`.
 4. **Existing issues:** `gh issue comment <n> --body-file <resolved>` /
    `gh issue edit <n> --body-file <resolved>`.
-5. **Relations:** `gh issue edit <n> --add-blocked-by <blocker>` (numbers, one
-   per call). To re-parent an existing issue: `gh issue edit <n> --parent <p>`.
+5. **Relations:** `mise gh-project -- blocked-by <n> <blocker>` (numbers, one
+   per call; REST, so it works even when GraphQL is rate-limited). To re-parent
+   an existing issue: `gh issue edit <n> --parent <p>`.
 6. **Board, per issue:** `mise gh-project -- add <n>` (idempotent — a new
    issue is not on the board until added; `add` lands it in Backlog), then
    `milestone <n> <m>`, `label <n> rm <l>` / `label <n> add <l>`, and
@@ -91,10 +92,18 @@ make it on a copy in the same directory (`<file>.resolved`), never the original.
   stderr's first line, and its dependent steps for that issue are skipped.
 - **Re-parent is `--parent`, not `--add-parent`** (every other relation is
   `--add-*`; `--add-parent` exits 1 with `unknown flag`).
-- **`gh issue view --json blockedBy` is an object**: `.blockedBy.nodes[].number`.
-  Prefer `mise gh-project -- blocked-by <n>` to read it.
+- **Read relations with `mise gh-project -- blocked-by <n>`**, never
+  `gh issue view --json blockedBy` (an object: `.blockedBy.nodes[].number`).
 - **Never the raw REST dependencies API** — it takes internal ids, not
-  numbers, and silently hits the wrong issue.
+  numbers, and silently hits the wrong issue. `gh-project blocked-by` wraps it.
+- **"API rate limit already exceeded" is the hourly quota — never wait for
+  it.** No `sleep`, no polling `rate_limit`, no background wait loop: it can
+  last an hour. From then on skip every remaining `gh issue …` call, still
+  run `gh-project blocked-by` and `gh-project status <n> <s>` (they reach GitHub by
+  another route), and list each skipped call as
+  `FAILED: <call> — GraphQL quota`.
+- **One `gh` call per Bash command** for writes — an `&&` chain that dies
+  halfway hides which ones landed.
 - **Never set status on a hub** (an issue with sub-issues). If the manifest
   asks, skip it and report — `land` and `hygiene --fix` derive hub status.
 - **Never close, reopen, or retitle** an issue; never touch git; never edit
