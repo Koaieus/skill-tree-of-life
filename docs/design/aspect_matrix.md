@@ -57,7 +57,7 @@ TBD on #1250.
 
 1. **Stat** — `stats_system/defs/<concept>_aspect.tres`, a child of the
    `aspects` parent, on the `StatDefRoster` and the entity board (the
-   `manage-stats` checklist). All eight exist.
+   `manage-stats` checklist).
 2. **Arrow** — one `AmmoType` `.tres` under `attack/ammo/types/` on the
    poison template (`order`, `damage_scale`, `status_def`, `status_power`,
    `per_reload_stat_id = <concept>_aspect`, `max_stock`) plus a line on
@@ -69,8 +69,7 @@ TBD on #1250.
 4. **Spells** — one or two `SpellDef` `.tres` + a `SpellCatalog` line, each
    doing something other than "damage + apply status".
 5. **Infusion** — designed on #1250; nothing to author yet.
-6. **Procgen home** — the aspect stat in an attribute pool (#1249); only
-   poison (DEX) and scout (PER) are placed today.
+6. **Procgen home** — the aspect stat in an attribute pool (#1249).
 
 **The passes run transposed** (owner, 2026-10-02: *"Transpose by
 column"*): each column has a different gate — arrows none, addons #1212,
@@ -78,8 +77,7 @@ infusion #1250 — and every row appends to the same three registries (ammo
 roster, procgen content pools, spell catalog), so one branch per column
 beats five per row. #1317 is the arrow pass for every statused concept;
 #1318 is the per-concept addon + spell design pass that then files the
-addon and spell column units; #971–#973 (the old per-row issues) are
-closed as superseded.
+addon and spell column units.
 
 ## The Matrix
 
