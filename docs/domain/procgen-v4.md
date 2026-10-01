@@ -362,7 +362,7 @@ movement_points+deallocation_points.
 **PER's cells (#1095) mirror the DoT shape, one stat per pole**:
 `blindness_stacks_per_hit` .inc `[blight]` trades `sensor_range` (now `[regular,
 bless]`); `blindness_resistance` .addb `[bless]` trades the flat `vision_range
-+b` pool (now `[regular, blight]`). `scout_arrows_per_reload` is untouched —
++b` pool (now `[regular, blight]`). `scout_aspect` is untouched —
 shared by all three poles (decision 5).
 
 **Blessed WIS is the XP engine plus recovery (#1093), not a DoT pole**: it

@@ -186,7 +186,7 @@ Implementation: `docs/domain/melee-blade-sim.md`, "Bunker deflection (#781)".
 
 ### Toxin — shipped as **DotAddon** (`skill_node/addons/dot_addon.gd`, `toxin_addon.tscn`)
 
-**Effect:** One item, two faces. *Ranged:* `+1 poison_arrows_per_reload` to the
+**Effect:** One item, two faces. *Ranged:* `+1 poison_aspect` to the
 carrier's owner, authored as `entity_modifiers` on the scene (the first shipped
 user of that field). *Melee:* the blade vertex built from this node applies
 `poison` (1 stack, scaled at land by potency and resistance) on every contact it
