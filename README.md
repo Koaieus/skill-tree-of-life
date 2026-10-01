@@ -92,8 +92,8 @@ The design is much further along than the code. Read in this order:
 1. **[`docs/GDD.md`](docs/GDD.md)** — the master GDD. Elevator pitch, core loop, every system in summary, the open questions, the roadmap.
 2. **[`docs/design/index.md`](docs/design/index.md)** — index with the recommended reading order across detail docs.
 3. **[`docs/design/lore.md`](docs/design/lore.md)** — the world, the Acts, Graph Theology, Tethers, the Fractal, the Fairy.
-4. **[`docs/design/combat_system.md`](docs/design/combat_system.md)** + **[`docs/design/combat_worked_examples.md`](docs/design/combat_worked_examples.md)** — the damage pipeline, the //10 spine, three attack modes, and the worked-examples plan for nailing down the defensive function (the single biggest open question).
-5. **[`docs/design/stat_system.md`](docs/design/stat_system.md)** — the canonical Stat Vocabulary; the source of truth for stat IDs.
+4. **[`docs/design/combat_system.md`](docs/design/combat_system.md)** — the damage pipeline, the //10 spine and three attack modes.
+5. **[`.claude/rules/stats-system.md`](.claude/rules/stats-system.md)** — the stat pipeline and vocabulary; the source of truth for stat IDs.
 6. **[`docs/design/core_classes.md`](docs/design/core_classes.md)** — Allround, Predator, Bulwark, Ninja, Hive, Halo, Serpent, plus sketched Edgelord/Frontier/Harvester.
 7. **[`docs/design/skill_node_addons.md`](docs/design/skill_node_addons.md)**, **[`docs/design/spells.md`](docs/design/spells.md)**, **[`docs/design/metagame.md`](docs/design/metagame.md)** — addons & specializations, the spell catalogue, the hub.
 

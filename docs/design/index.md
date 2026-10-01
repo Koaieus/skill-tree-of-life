@@ -17,21 +17,17 @@ The high-level **[GDD](../GDD.md)** is the entry point — vision, core loop, an
 | [lore.md](lore.md) | Narrative, acts, the Fairy, graph theology, the Field/Tethers/Breakout, the Fractal, tone, visual language |
 | [first_session_walkthrough.md](first_session_walkthrough.md) | Spoiler-free, second-person walkthrough of a player's first session — boot screen → first cut-vertex snipe and dismemberment. Funny/Questionable beats called out |
 | [combat_system.md](combat_system.md) | Damage pipeline (//10 spine), six-color triangle, ranged/magic/melee (phantom blade), degree → offense, self-loops, single-phase turn (intent by input channel), islands, Breakout, loot/proliferation |
-| [combat_worked_examples.md](combat_worked_examples.md) | 3 worked fights in real numbers; the tempo axiom; the defense-function decision (battle-formula handoff doc) |
-| [click_grammar.md](click_grammar.md) | Unified left/right click grammar for targeting + allocation: left pushes/arms/resolves, right pops one level off a stack; self-targeting-as-pop; core-move deferred to #338 |
+| [click_grammar.md](click_grammar.md) | Open threads on the click grammar — moving core-move onto the generic pop, replacing idle right-click pin/unpin. The shipped grammar is [`../domain/click-grammar.md`](../domain/click-grammar.md) |
 | [core_classes.md](core_classes.md) | Core-class design intent. **Shipped:** Balanced, Ninja, Serpent, Pacifist, Wise Cheater (roster: `entity/core/core_class_roster.tres`). Halo has an issue (#786); Allround, Predator, Bulwark, Hive, Frontier, Harvester are ideas only |
-| [stat_system.md](stat_system.md) | Stat architecture (v2 direction), modifier pipeline, canonical stat vocabulary |
-| [entity_stat_board_prototype.md](entity_stat_board_prototype.md) | Prototype stat values, SP accounting model, damage formula, class stat variations |
 | [metagame.md](metagame.md) | Hub between runs, meta skill tree, commit-on-completion, The Way Out |
 | [skill_node_addons.md](skill_node_addons.md) | Node addons (Armor Ring, Buffer, Gate, Relay, Anti-Magic, etc.), Tech Seeds |
 | [skill_node_specializations.md](skill_node_specializations.md) | Node specializations (Corrupted, Crystallized, Anchor) — **early spitball, nothing built or scheduled**; inspiration only |
-| [node_subtypes.md](node_subtypes.md) | **Node subtypes** — `blighted`/`blessed` as an axis orthogonal to archetype; archetype picks the status family, subtype picks the pole. Reframes #1025 away from a seventh archetype |
+| [node_subtypes.md](node_subtypes.md) | Node subtypes — open threads only (clustered placement, territory conversion, more families). Shipped model: [`../domain/node-subtypes.md`](../domain/node-subtypes.md) |
 | [aspect_matrix.md](aspect_matrix.md) | **The Matrix** — every status/concept × ranged/melee/magic, living home of the concept-to-delivery table (#1199) |
 | [aspect_personas.md](aspect_personas.md) | **Aspect Personas** — each aspect as a lesser god with a character (Ivy, Cuss, …); lore, parked; built on the matrix's rows |
 | [spells.md](spells.md) | Spell identities for the 13 shipped spells (roster: `attack/spell/defs/`), the issue-backed ones, and a fenced idea pool of spells that do **not** exist |
-| [core_movement_plan.md](core_movement_plan.md) | Core-movement interaction plan (#21) — click-source-then-target, drag as accelerator; the phase-gating parts are obsolete post-#60 |
-| [damage_over_time.md](damage_over_time.md) | The DoT family (poison / corruption / curse / wither): one halving-stacks model, per-type potency and resistance, cures, the defensive-axis matrix — #952 design session |
-| [status-tags.md](status-tags.md) | **Proposed, not implemented** — status tags as a second grant channel; moves back to `docs/domain/` once it ships |
+| [damage_over_time.md](damage_over_time.md) | The DoT family's unbuilt half — cures, per-type content, contagion, the defensive-axis matrix. The shipped model is `../domain/effect-system.md` § Status effects |
+| [status-tags.md](status-tags.md) | Status tags as a second grant channel — the shipped channel lives in `../domain/effect-system.md`; what remains here is the LifeLine grace-period design (#240) |
 | [info_gating.md](info_gating.md) | Info-gating dimensions (existence/archetype/owner/modifiers/addons/…) — why vision is a vector not a boolean, and how sensor/recon/anti-recon mechanics share one surface |
 
 ## Reading order
@@ -54,6 +50,14 @@ Implementation companions to the design docs — read when modifying systems, no
 | [../domain/node-hp.md](../domain/node-hp.md) | Why per-node HP is a plain field, not a stat; promotion path |
 | [../domain/procgen.md](../domain/procgen.md) | Generation pipeline, config knobs, starter group convention |
 | [../domain/vision-system.md](../domain/vision-system.md) | Fog of war, Euclidean/sensor visibility, shader, animation |
+| [../domain/click-grammar.md](../domain/click-grammar.md) | Shipped left/right click grammar for targeting and allocation |
+| [../domain/node-subtypes.md](../domain/node-subtypes.md) | Shipped subtype model — sidegrade law, authoring rows, the decision-number legend |
+| [../domain/effect-system.md](../domain/effect-system.md) | Effects, the tag grant channel, and the DoT model (§ Status effects) |
+| [../domain/aspect-cell-authoring.md](../domain/aspect-cell-authoring.md) | What each aspect-matrix column actually touches |
+| [../domain/stat-knobs-and-bins.md](../domain/stat-knobs-and-bins.md) | House answers for tuning rates, extra pools and forced stat values |
+| [../domain/stat-board-classes.md](../domain/stat-board-classes.md) | The StatBoard classes and how they compose |
+| [../domain/loot-system.md](../domain/loot-system.md) | Killing-blow XP, tempo and relics |
+| [../domain/victory-system.md](../domain/victory-system.md) | The sole emitter of `run_ended`; conditions are swappable |
 
 ## Open questions
 
