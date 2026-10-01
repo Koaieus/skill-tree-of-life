@@ -53,23 +53,9 @@ TBD on #1250.
 
 ## Authoring a row, and why the passes run by column
 
-**One concept's full row** (what a single status needs to be first class):
-
-1. **Stat** — `stats_system/defs/<concept>_aspect.tres`, a child of the
-   `aspects` parent, on the `StatDefRoster` and the entity board (the
-   `manage-stats` checklist).
-2. **Arrow** — one `AmmoType` `.tres` under `attack/ammo/types/` on the
-   poison template (`order`, `damage_scale`, `status_def`, `status_power`,
-   `per_reload_stat_id = <concept>_aspect`, `max_stock`) plus a line on
-   `attack/ammo/ammo_type_roster.tres`. No code: reload, ammo cards and the
-   AI iterate the roster.
-3. **Addon** — a `SkillNodeAddon` scene per the addon recipe above, to the
-   `spike_ring_addon.tscn` standard (owner, 2026-10-02: toxin and
-   `dot_addon.gd` *"are mostly stubs … not examples to lead by"*).
-4. **Spells** — one or two `SpellDef` `.tres` + a `SpellCatalog` line, each
-   doing something other than "damage + apply status".
-5. **Infusion** — designed on #1250; nothing to author yet.
-6. **Procgen home** — the aspect stat in an attribute pool (#1249).
+What each cell touches — files, fields, registry, guarding test — is
+`docs/domain/aspect-cell-authoring.md`. A full row is every cell for one
+concept; a column pass is one cell for every concept.
 
 **The passes run transposed** (owner, 2026-10-02: *"Transpose by
 column"*): each column has a different gate — arrows none, addons #1212,

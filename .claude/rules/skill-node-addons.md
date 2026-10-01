@@ -141,3 +141,5 @@ and then vanished into the bronze allocated rim underneath it.
 
 Band budget, the geometry helpers, the elevation constraints and the incidents
 behind all of it: **docs/domain/addon-visual-registers.md**.
+
+What an aspect cell authors (arrow / addon / spell / infusion: files, fields, registry, guarding test) is `docs/domain/aspect-cell-authoring.md`.
