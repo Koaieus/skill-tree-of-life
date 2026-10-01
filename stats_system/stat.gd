@@ -414,16 +414,9 @@ func add_modifier(m: StatModifier, board: StatBoard = null) -> void:
 	# call on the modifier, and from formula-source updates (StatModifier's
 	# _on_source_changed re-emits `changed`). One subscription covers all three.
 	m.changed.connect(_on_dependent_modifier_changed.bind(m))
-	match m.operation:
-		StatModifier.Operation.SET:
-			if bins.winning_set == null or m.priority >= bins.winning_set.priority:
-				bins.winning_set = m
-		StatModifier.Operation.MULTIPLY:
-			bins.multipliers.append(m)
-		_:
-			var v := m.get_effective_value(_board)
-			_last_contrib[m] = v
-			_apply_bin_delta(m.operation, 0.0, v)
+	var v := bins.add(m, _board)
+	if m.operation != StatModifier.Operation.SET and m.operation != StatModifier.Operation.MULTIPLY:
+		_last_contrib[m] = v
 	_resync_bins_if_trivial()
 	_emit_value_changed()
 
@@ -465,14 +458,7 @@ func _on_dependent_modifier_changed(m: StatModifier) -> void:
 
 
 func _apply_bin_delta(op: int, old: float, new_v: float) -> void:
-	var delta := new_v - old
-	match op:
-		StatModifier.Operation.ADD_BASE:
-			bins.base_add += delta
-		StatModifier.Operation.INCREASE:
-			bins.increase_sum += delta
-		StatModifier.Operation.ADD_BONUS:
-			bins.bonus_add += delta
+	bins.apply_delta(op, old, new_v)
 
 
 ## Free anti-drift: at 0 or 1 modifiers the bins have a known exact form, so

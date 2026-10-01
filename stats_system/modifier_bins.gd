@@ -17,9 +17,10 @@ extends RefCounted
 ## correct: chaining pipelines (entity result → local base) double-applies
 ## INCREASEs against MULTIPLYs, but bin merge does not.
 ##
-## Bin maintenance lives on Stat (add_modifier/remove_modifier mutate the
-## bins owned by that Stat). ModifierBins is dumb — it just carries the
-## numbers and walks the multiplier list on read. [method resolve] is the
+## Op → bin placement has one home, [method add] (and [method apply_delta]
+## for a sum bin's later moves): [Stat] routes its own add through it, and so
+## does any caller building overlay bins (e.g. a melee swing's temp upgrades).
+## Removal and the SET re-pick stay on [Stat], which owns the modifier list. [method resolve] is the
 ## door to the merged pipeline as a [FoldTerms] value; [method compute] is
 ## that plus the fold.
 
@@ -34,6 +35,38 @@ var winning_set: StatModifier = null
 ## WITH its bins, not as one shared parameter: a multi-source compose (entity
 ## bins + node bins) has a different correct board per source.
 var board: StatBoard = null
+
+
+## Place [param m] in its op's bin, reading its value against [param board].
+## SET contests [member winning_set] (ties go to the later add), MULTIPLY
+## joins [member multipliers], the sum ops add their effective value. Returns
+## the value summed in (0 for SET / MULTIPLY) so a caller tracking per-modifier
+## contributions can later move it by [method apply_delta]. Does no dedupe.
+func add(m: StatModifier, mod_board: StatBoard) -> float:
+	match m.operation:
+		StatModifier.Operation.SET:
+			if winning_set == null or m.priority >= winning_set.priority:
+				winning_set = m
+		StatModifier.Operation.MULTIPLY:
+			multipliers.append(m)
+		_:
+			var v := m.get_effective_value(mod_board)
+			apply_delta(m.operation, 0.0, v)
+			return v
+	return 0.0
+
+
+## Move a sum bin from [param old] to [param new_v] for one modifier of op
+## [param op]; SET / MULTIPLY carry no sum and are ignored.
+func apply_delta(op: int, old: float, new_v: float) -> void:
+	var delta := new_v - old
+	match op:
+		StatModifier.Operation.ADD_BASE:
+			base_add += delta
+		StatModifier.Operation.INCREASE:
+			increase_sum += delta
+		StatModifier.Operation.ADD_BONUS:
+			bonus_add += delta
 
 
 ## N-source resolve — the ONE fold path. SET short-circuits into

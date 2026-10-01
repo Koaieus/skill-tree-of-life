@@ -20,14 +20,32 @@ const VERTEX_STATS: Array[StringName] = [&"blade_damage", &"blunting"]
 const STATE_ARRAYS: Array[StringName] = [&"vertex_damage", &"vertex_blunting"]
 
 
+## Optional `(node: SkillNode, stat_id: StringName) -> Array[ModifierBins]`:
+## extra bins folded into a vertex's read, after the node's own — a swing's
+## temp upgrades ([method MeleeAttackPlan.overlays_for]). Only
+## [constant VERTEX_STATS] are ever asked, which is what makes a temp's other
+## modifiers inert for the swing. Empty: the plain localized read.
+var overlays_for: Callable
+
+
 func fill(state: BladeState, nodes: Array[SkillNode]) -> void:
 	for k in VERTEX_STATS.size():
 		# Packed arrays copy on read, so the column is built whole and set.
 		var column := PackedFloat32Array()
 		column.resize(nodes.size())
 		for i in nodes.size():
-			column[i] = nodes[i].get_local_value(VERTEX_STATS[k])
+			column[i] = _read(nodes[i], VERTEX_STATS[k])
 		state.set(STATE_ARRAYS[k], column)
 	for i in nodes.size():
 		for addon in nodes[i].get_addons():
 			addon.apply_to_blade(state, i)
+
+
+func _read(node: SkillNode, stat_id: StringName) -> float:
+	if overlays_for.is_valid():
+		var overlays: Array[ModifierBins] = overlays_for.call(node, stat_id)
+		if not overlays.is_empty():
+			var v: Variant = node.get_local_value_with(stat_id, overlays)
+			if v != null:
+				return float(v)
+	return float(node.get_local_value(stat_id))

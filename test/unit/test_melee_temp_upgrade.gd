@@ -398,7 +398,7 @@ func test_a_temp_toxin_grants_no_poison_aspect_but_a_permanent_one_does() -> voi
 	var before: float = _entity.stat_board.get_value(&"poison_aspect")
 	assert_true(plan.apply_temp_upgrade(ctx.members[0], _catalog.by_id(&"toxin")))
 	assert_eq(_entity.stat_board.get_value(&"poison_aspect"), before,
-			"a temp toxin is never currency for its own cap")
+			"a temp toxin's modifiers never reach the board, so never its own cap")
 	var permanent := _TOXIN_SCENE.instantiate() as SkillNodeAddon
 	(ctx.members[1] as SkillNode).add_child(permanent)
 	assert_eq(_entity.stat_board.get_value(&"poison_aspect"), before + 1.0,
@@ -413,14 +413,21 @@ func test_a_temp_addon_grants_no_blade_size() -> void:
 	assert_eq(plan.max_blades(), before, "a temp addon never feeds the budget it is paid from")
 
 
-func test_a_temp_addon_entity_wide_blade_damage_applies_for_the_swing() -> void:
+func test_a_temp_addon_entity_wide_blade_damage_folds_into_the_swing_not_the_board() -> void:
 	var ctx: Dictionary = await _setup_chain(5.0, 1)
+	var plan: MeleeAttackPlan = ctx.plan
 	var member: SkillNode = ctx.members[0]
 	var before: float = _entity.stat_board.get_value(&"blade_damage")
+	var bare := plan.build_blade_state()
 	var addon := _temp_addon_with(_modifier(&"blade_damage", 1.0))
 	member.add_child(addon)
-	assert_eq(_entity.stat_board.get_value(&"blade_damage"), before + 1.0,
-			"a temp addon's non-currency entity modifier applies to every node for the swing")
+	assert_eq(_entity.stat_board.get_value(&"blade_damage"), before,
+			"a temp addon's entity modifier never reaches the board")
+	var state := plan.build_blade_state()
+	for i in state.vertex_damage.size():
+		assert_gt(state.vertex_damage[i], bare.vertex_damage[i],
+				"it folds into every vertex of the swing instead")
 	member.remove_child(addon)
 	addon.free()
-	assert_eq(_entity.stat_board.get_value(&"blade_damage"), before, "and drops on detach")
+	assert_eq(Array(plan.build_blade_state().vertex_damage), Array(bare.vertex_damage),
+			"and drops on detach")

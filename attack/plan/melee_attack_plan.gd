@@ -146,6 +146,7 @@ func windup_anchors() -> Array[SkillNode]:
 
 func _init() -> void:
 	mode = BattleSystem.AttackMode.MELEE
+	vertex_fill.overlays_for = overlays_for
 
 
 func _notification(what: int) -> void:
@@ -518,6 +519,53 @@ func temp_upgrade_aspect_cap(def: TempUpgradeDef) -> int:
 func _within_aspect_cap(def: TempUpgradeDef) -> bool:
 	var cap := temp_upgrade_aspect_cap(def)
 	return cap < 0 or temp_upgrade_count_for(def) < cap
+
+
+## The swing's temp upgrades as one overlay on [param node]'s read of
+## [param stat_id]: the local modifiers of the temps ON [param node], plus the
+## entity-wide modifiers of every temp anywhere on the blade. Each enters as a
+## copy scaled to its carrier's allocation level — the permanent addon's law —
+## and is placed by [method ModifierBins.add] against [param node]'s board.
+## Empty for a node off the blade or with nothing to fold. Built per call: a
+## blade is a handful of vertices, and a cache would be a second copy of plan
+## state to invalidate. A modifier on an ancestor of [param stat_id] folds too.
+func overlays_for(node: SkillNode, stat_id: StringName) -> Array[ModifierBins]:
+	var out: Array[ModifierBins] = []
+	var carriers := _temp_upgrade_carriers()
+	if node == null or not carriers.has(node):
+		return out
+	var bins := ModifierBins.new()
+	bins.board = node.node_board
+	var any := false
+	for carrier in carriers:
+		var level := carrier.state.last_allocation_level
+		for a in carrier.get_addons():
+			if not a.is_temporary:
+				continue
+			var mods: Array[StatModifier] = a.get_entity_modifiers().duplicate()
+			if carrier == node:
+				mods.append_array(a.get_local_modifiers())
+			for m in mods:
+				if m == null:
+					continue
+				for leaf in m.flatten():
+					if not _targets(leaf.stat_id, stat_id):
+						continue
+					var scaled := _temp_scaler.scaled_copy(leaf, 1, level)
+					if scaled != null:
+						bins.add(scaled, node.node_board)
+						any = true
+	if any:
+		out.append(bins)
+	return out
+
+
+## The scaling law [method overlays_for] borrows — stateless, one per plan.
+var _temp_scaler := LocalScaleMutator.new()
+
+
+static func _targets(mod_stat: StringName, read_stat: StringName) -> bool:
+	return mod_stat == read_stat or StatRegistry.ancestors_of(read_stat).has(mod_stat)
 
 
 ## The pivot plus the selected members — every node a temp upgrade may sit on.

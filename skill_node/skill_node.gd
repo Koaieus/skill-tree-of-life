@@ -1273,10 +1273,11 @@ func has_addon(script: Script) -> bool:
 ## `blade_damage` local modifier (one quantity drives both the offensive
 ## blade_damage and this defensive pop — see docs/design/skill_node_addons.md
 ## "Spikes"). Read by BladePopResolver during an attacker's swing resolution (#170).
+## A temporary ring is blade-local: it never adds defensive power.
 func get_spike_power() -> float:
 	var total := 0.0
 	for a in _addons:
-		if a is SpikeRingAddon:
+		if a is SpikeRingAddon and not a.is_temporary:
 			for mod in a.get_local_modifiers():
 				if mod.stat_id == &"blade_damage":
 					total += mod.get_effective_value(node_board)
@@ -1759,7 +1760,9 @@ func _attach_addon(a: SkillNodeAddon) -> void:
 	# "never write a DERIVED value back into an @export"). The editor still gets
 	# the addon's visuals — it just doesn't get its stats. #335 removes this
 	# guard by splitting authored from derived modifiers.
-	if not Engine.is_editor_hint():
+	# A temporary addon (a swing's temp upgrade) never transfers: the swing
+	# folds its modifiers as overlays (MeleeAttackPlan.overlays_for).
+	if not Engine.is_editor_hint() and not a.is_temporary:
 		# No clone-and-track needed (#377): every StatModifier sub-resource an
 		# addon .tscn carries sets `resource_local_to_scene = true`, so Godot
 		# already hands each `instantiate()` its own private copy — the modifier
@@ -1784,7 +1787,7 @@ func _detach_addon(a: SkillNodeAddon) -> void:
 	# consumed SkillDustAddon (looted relic) leaves its LOOT gem dent behind
 	# (#369). Runs in the editor branch too, same as attach.
 	_sync_visuals()
-	if Engine.is_editor_hint():
+	if Engine.is_editor_hint() or a.is_temporary:
 		addons_changed.emit()
 		return
 	# Reverse whatever attach added (#377): identity never changed at attach

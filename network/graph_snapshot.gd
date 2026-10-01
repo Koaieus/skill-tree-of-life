@@ -295,6 +295,8 @@ static func _encode_node(graph: Graph, node: SkillNode, table: _InternTable) -> 
 	var addon_idx: Array = []
 	var addon_mod_ids: Dictionary[int, bool] = {}
 	for addon in node.get_addons():
+		if addon.is_temporary:
+			continue  # a swing's temp upgrade lives on the planning seat only
 		if addon.scene_file_path != "":
 			addon_idx.append(table.intern(addon.scene_file_path))
 		for m in addon.entity_modifiers:
@@ -447,12 +449,17 @@ static func _reconcile_addons(node: SkillNode, row: Array, res: Array) -> void:
 	var wanted: Array[String] = []
 	for addon_idx in (row[_R_ADDONS] as Array):
 		wanted.append(String(res[int(addon_idx)]))
+	# Temporary addons never cross (see _encode_node), so they are neither
+	# compared nor torn down: a planning seat keeps its temp upgrades.
 	var current: Array[String] = []
 	for addon in node.get_addons():
-		current.append(addon.scene_file_path)
+		if not addon.is_temporary:
+			current.append(addon.scene_file_path)
 	if current == wanted:
 		return
 	for addon in node.get_addons():
+		if addon.is_temporary:
+			continue
 		node.remove_child(addon)
 		addon.queue_free()
 	for path in wanted:
@@ -478,6 +485,8 @@ static func _reconcile_addons(node: SkillNode, row: Array, res: Array) -> void:
 static func _reconcile_modifiers(node: SkillNode, row: Array) -> void:
 	var addon_mod_ids: Dictionary[int, bool] = {}
 	for addon in node.get_addons():
+		if addon.is_temporary:
+			continue
 		for m in addon.entity_modifiers:
 			addon_mod_ids[m.get_instance_id()] = true
 		for m in addon.get_local_modifiers():

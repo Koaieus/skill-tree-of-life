@@ -85,15 +85,46 @@ func scale_modifier(state: NodeState, m: StatModifier, old_al: int, new_al: int)
 		for leaf in m.flatten():
 			scale_modifier(state, leaf, old_al, new_al)
 		return
+	m.value = _law_value(m, old_al, new_al)
+
+
+## The universal law's value for one plain (non-composite) modifier — the one
+## home both the in-place [method scale_modifier] and [method scaled_copy]
+## read.
+func _law_value(m: StatModifier, old_al: int, new_al: int) -> float:
 	match m.operation:
 		StatModifier.Operation.ADD_BASE, StatModifier.Operation.ADD_BONUS, StatModifier.Operation.INCREASE:
 			# "+X → +X × ladder(al)" — value × ladder(new)/ladder(old) is
 			# exact for integer ladders (5 × 2/1 = 10, 10 × 1/2 = 5).
-			m.value = m.value * _local_scale(new_al) / _local_scale(old_al)
+			return m.value * _local_scale(new_al) / _local_scale(old_al)
 		StatModifier.Operation.MULTIPLY:
-			m.value = _laddered_multiply(m.value, old_al, new_al)
-		StatModifier.Operation.SET:
-			pass  # SET opts out of the universal law by default (#376 decision 7)
+			return _laddered_multiply(m.value, old_al, new_al)
+	return m.value  # SET opts out of the universal law by default (#376 decision 7)
+
+
+## Pure twin of [method scale_modifier]: [param m] as it would read scaled
+## from [param old_al] to [param new_al], as a fresh copy — [param m] and every
+## board holding it are untouched. For a modifier that never reaches a board
+## (a temp upgrade folded as a swing overlay). Leaves only: a composite's
+## caller flattens first. An Array override (composite swap) has no copy form
+## and answers null after a push_error.
+func scaled_copy(m: StatModifier, old_al: int, new_al: int) -> StatModifier:
+	if m == null:
+		return null
+	var copy := m.duplicate() as StatModifier
+	if m.scales_with(&"stake_level"):
+		return copy
+	var override: Variant = m._local_scale_override(old_al, new_al)
+	if override is StringName and override == StatModifier.UNSCALED:
+		return copy
+	if override is float or override is int:
+		copy.value = float(override)
+		return copy
+	if override is Array:
+		push_error("LocalScaleMutator.scaled_copy: modifier '%s' swaps a composite on scale; unsupported off-board" % m.resource_path)
+		return null
+	copy.value = _law_value(m, old_al, new_al)
+	return copy
 
 
 ## The board a modifier is applied to: the entity board for entity-scoped
