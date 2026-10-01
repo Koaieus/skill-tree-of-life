@@ -29,12 +29,17 @@ signal skill_node_healed(node: SkillNode, amount: float, source: HitInstance)
 ## moves to an AI.
 signal skill_node_depleted(node: SkillNode, source: HitInstance)
 
-## Re-emission of [signal SkillPointStat.wounds_applied] / [signal SkillPointStat.wounds_healed]
-## keyed by the owning entity. Entity itself does the re-emit so the global
-## bus carries the entity reference (a stat doesn't know its owner). UI floater
-## layers subscribe here instead of binding to every entity's SP stat.
-signal entity_wounded(entity: Entity, amount: int)
+## A forced-dealloc cascade charged [param entity]: [param chip] HP off its
+## `health` pool and [param wound] SP wounded, summed over the whole cascade.
+## Emitted ONCE per cascade, after its loop, by the live branch of
+## [method EntityCombat.apply_cascade] — the only wound source — so it lands on
+## the reveal clock with the hit that caused it. A shadow (preview) cascade and
+## an uncharged death strip never emit.
 signal entity_cascade_charged(entity: Entity, chip: int, wound: int)
+
+## Re-emission of [signal SkillPointStat.wounds_healed] keyed by the owning
+## entity (a stat doesn't know its owner), so UI floater layers subscribe here
+## instead of binding to every entity's SP stat.
 signal entity_healed(entity: Entity, amount: int)
 
 ## An entity gained XP — kill rewards, the per-turn WIS income, anything that

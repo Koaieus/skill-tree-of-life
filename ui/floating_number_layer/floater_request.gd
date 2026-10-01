@@ -12,6 +12,10 @@ var target: Node2D = null
 var anchor: Vector2 = Vector2.ZERO
 var text: String = ""
 var style: FloaterStyle = null
+## Optional small trailing span after [member text], in its own style — the
+## merged cascade toast's wound (`+3 W`). Empty = none.
+var suffix_text: String = ""
+var suffix_style: FloaterStyle = null
 
 
 func anchor_position() -> Vector2:

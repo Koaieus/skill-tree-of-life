@@ -702,6 +702,9 @@ func apply_cascade(nodes: Array[NodeCombat], alloc: AllocationSystem = null,
 	var dealloc_stat: Stat = b.get_stat(&"dealloc_damage") if b != null else null
 	if dealloc_stat != null:
 		hp_per_node = float(dealloc_stat.get_value())
+	# What was actually charged — a node skipped after its wound still counts.
+	var chip_sum := 0.0
+	var wound_sum := 0
 	for n in nodes:
 		# Re-checked per node, never hoisted. The chip below can
 		# cross the owner's `health` 0 mid-loop, which fires `Events.entity_died`
@@ -726,6 +729,7 @@ func apply_cascade(nodes: Array[NodeCombat], alloc: AllocationSystem = null,
 			var sp := b.get_stat(&"skill_points") as SkillPointStat
 			if sp != null:
 				sp.wound(entry.wound)
+				wound_sum += entry.wound
 		# ── The one branch: which strip verb. Everything else is shared. ──
 		if host != null:
 			if alloc == null:
@@ -748,7 +752,12 @@ func apply_cascade(nodes: Array[NodeCombat], alloc: AllocationSystem = null,
 			# re-enters [method AllocationSystem.deallocate_all_owned], and the
 			# `owner() != self` guard above is written for that order.
 			take_pool_damage(entry.chip, null)
+			chip_sum += entry.chip
 		entries.append(entry)
+	# Once, with the sums: the merged cascade toast. Live only — a shadow is a
+	# preview, and the replay of a recorded hit runs this same live branch.
+	if host != null and chip_sum + float(wound_sum) > 0.0:
+		Events.entity_cascade_charged.emit(host, roundi(chip_sum), wound_sum)
 	return entries
 
 

@@ -552,12 +552,10 @@ func initialize() -> void:
 		# TurnManager serves from READY_GROUP; it removes us again on start_turn.
 		if stat_board.initiative != null:
 			stat_board.initiative.replenished.connect(_on_initiative_ready)
-		# Re-emit SP wound/heal on the global Events bus, keyed by self so
-		# floater layers don't need to bind per-entity. The signals on
-		# SkillPointStat fire on transfers, not on every value_changed —
-		# safe to forward without spam.
+		# Re-emit SP wound healing on the global Events bus, keyed by self so
+		# floater layers don't need to bind per-entity. A wound has no re-emit:
+		# its toast rides `Events.entity_cascade_charged`, from the cascade.
 		if stat_board.skill_points != null:
-			stat_board.skill_points.wounds_applied.connect(_emit_entity_wounded)
 			stat_board.skill_points.wounds_healed.connect(_emit_entity_healed)
 		# Core HP is the entity's `health` pool: combat-HP overflow on the core
 		# node eats it (see SkillNode.take_damage), and it hits 0 → the entity
@@ -994,10 +992,6 @@ func die() -> void:
 	# `entity_died` strip must have run against a still-owned world first (see
 	# `.claude/rules/entity-death.md`).
 	Events.entity_death_shown.emit(self)
-
-
-func _emit_entity_wounded(amount: int) -> void:
-	Events.entity_wounded.emit(self, amount)
 
 
 func _emit_entity_healed(amount: int) -> void:

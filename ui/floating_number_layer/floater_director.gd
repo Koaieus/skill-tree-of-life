@@ -78,7 +78,7 @@ func _ready() -> void:
 	# fires on the beat — and one clock cannot drift from itself.
 	Events.skill_node_damaged.connect(_on_skill_node_damaged)
 	Events.skill_node_healed.connect(_on_skill_node_healed)
-	Events.entity_wounded.connect(_on_entity_wounded)
+	Events.entity_cascade_charged.connect(_on_entity_cascade_charged)
 	Events.entity_healed.connect(_on_entity_healed)
 	Events.entity_xp_gained.connect(_on_entity_xp_gained)
 	Events.stat_modifier_changed.connect(_on_stat_modifier_changed)
@@ -132,8 +132,16 @@ func _on_skill_node_healed(node: SkillNode, amount: float, _source: HitInstance)
 	_emit(node, "+%s" % NumFmt.num(amount), FloaterStyles.node_heal())
 
 
-func _on_entity_wounded(entity: Entity, amount: int) -> void:
-	_spawn_at_core(entity, "+%d WOUNDS" % amount, FloaterStyles.entity_wound())
+## One merged toast per forced-dealloc cascade: the HP chip in the node-damage
+## style, the wound as a small suffix in the wound tint. A cascade that chips
+## nothing (`dealloc_damage` 0) floats the wound span alone as the main text.
+func _on_entity_cascade_charged(entity: Entity, chip: int, wound: int) -> void:
+	var wound_text := "+%d W" % wound if wound > 0 else ""
+	if chip <= 0:
+		_spawn_at_core(entity, wound_text, FloaterStyles.entity_wound())
+		return
+	_spawn_at_core(entity, _damage_text(chip, 0), FloaterStyles.damage(),
+		wound_text, FloaterStyles.entity_wound())
 
 
 func _on_entity_healed(entity: Entity, amount: int) -> void:
@@ -201,13 +209,16 @@ static func _denial_text(reason: String) -> String:
 
 # --- Helpers ----------------------------------------------------------------
 
-func _emit(target: Node2D, text: String, style: FloaterStyle) -> void:
+func _emit(target: Node2D, text: String, style: FloaterStyle,
+		suffix_text: String = "", suffix_style: FloaterStyle = null) -> void:
 	if renderer == null or text.is_empty():
 		return
 	var req := FloaterRequest.new()
 	req.target = target
 	req.text = text
 	req.style = style
+	req.suffix_text = suffix_text
+	req.suffix_style = suffix_style
 	renderer.spawn(req)
 
 
@@ -215,8 +226,9 @@ func _emit(target: Node2D, text: String, style: FloaterStyle) -> void:
 ## like an event happening to the core, not just a number popping up nearby —
 ## then route the actual toast to [method _resolve_target] (Hero Sigil Card
 ## anchor for the bound player, core for everyone else).
-func _spawn_at_core(entity: Entity, text: String, style: FloaterStyle) -> void:
-	if _emit_at_entity(entity, text, style):
+func _spawn_at_core(entity: Entity, text: String, style: FloaterStyle,
+		suffix_text: String = "", suffix_style: FloaterStyle = null) -> void:
+	if _emit_at_entity(entity, text, style, true, suffix_text, suffix_style):
 		entity.core_location.play_hit_flash()
 
 
@@ -229,14 +241,15 @@ func _spawn_at_core(entity: Entity, text: String, style: FloaterStyle) -> void:
 ## so a caller can keep an accompanying effect in step with it.
 func _emit_at_entity(
 		entity: Entity, text: String, style: FloaterStyle,
-		route_to_player_anchor: bool = true) -> bool:
+		route_to_player_anchor: bool = true,
+		suffix_text: String = "", suffix_style: FloaterStyle = null) -> bool:
 	if entity == null or entity.core_location == null:
 		return false
 	var core := entity.core_location
 	var target := _resolve_target(entity, core, route_to_player_anchor)
 	if target == core and not _node_visible(core):
 		return false
-	_emit(target, text, style)
+	_emit(target, text, style, suffix_text, suffix_style)
 	return true
 
 

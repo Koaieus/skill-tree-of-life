@@ -94,6 +94,7 @@ func _pop_toast() -> void:
 	var toast := scene.instantiate() as FloaterToast
 	_vbox.add_child(toast)
 	toast.set_content(request.text, request.style)
+	toast.set_suffix(request.suffix_text, request.suffix_style)
 	toast.animate()
 	_timer.start(toast.fade_in_duration)
 
