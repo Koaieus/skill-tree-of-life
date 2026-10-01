@@ -675,6 +675,40 @@ func test_a_ranged_commit_pivots_on_the_firing_centroid_at_the_players_zoom() ->
 	assert_false(cam.is_following(), "…the camera is on a one-shot pan")
 
 
+## A real ranged plan whose REACHING rim is dictated and nothing else: its
+## [method RangedAttackPlan.windup_anchors] still answers from the outcome.
+class _RimmedRangedPlan:
+	extends RangedAttackPlan
+	var rim: Array[SkillNode] = []
+	func get_reaching_firing_positions() -> Array[SkillNode]:
+		return rim
+
+
+func test_a_ranged_pivot_opens_on_the_leaves_that_fire_not_the_reaching_rim() -> void:
+	# #1274: with N < reaching leaves only the nearest fire; the pivot and the
+	# span's "from" end must sit where the follow later opens.
+	_dir.seat_policy = SeatPolicy.couch()
+	var a := _node_at(Vector2(-1000, 0))
+	var b := _node_at(Vector2(1000, 0))
+	var far := _node_at(Vector2(0, -6000))
+	var target := _node_at(Vector2(0, 2000))
+	var bs := _anchored_ranged_bs(_markerless_presenter(), [])
+	var plan := _RimmedRangedPlan.new()
+	plan.rim = [a, b, far]
+	bs.attack_plan = plan
+	_dir.battle_system = bs
+	var hits: Array[HitInstance] = [_hit(a, target), _hit(b, target)]
+	var outcome := _outcome(hits)
+	var pivot := _dir._windup_focus(plan, outcome)
+	assert_not_null(pivot, "ranged opens on a pivot")
+	if pivot != null:
+		assert_eq(pivot.points, PackedVector2Array([Vector2.ZERO]),
+				"the pivot is the centroid of the firing leaves, not the reaching rim")
+	var req := _dir._build_attack_request(outcome, _entity(true))
+	assert_eq(req.points, PackedVector2Array([Vector2.ZERO, Vector2(0, 2000)]),
+			"the span's from end is the same firing centroid")
+
+
 func test_the_target_is_on_screen_once_the_ranged_drift_lands() -> void:
 	# Acceptance 2 — the assertion decision 1 exists for.
 	_dir.seat_policy = SeatPolicy.couch()

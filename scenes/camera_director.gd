@@ -474,7 +474,7 @@ func _on_attack_committed(outcome: AttackOutcome, attacker: Entity) -> void:
 ## firing leaves (#1048). A point focus, so the zoom is untouched. The anchors
 ## are read off the live plan rather than off the outcome: an [AttackOutcome]
 ## carries hits, and "which nodes the action hangs off" is a plan fact.
-func _windup_focus(plan: AttackPlan) -> FocusRequest:
+func _windup_focus(plan: AttackPlan, _outcome: AttackOutcome = null) -> FocusRequest:
 	if plan == null or battle_system == null:
 		return null
 	var lead := battle_system.tempo().windup_lead(plan.mode)
