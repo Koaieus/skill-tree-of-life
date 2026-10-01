@@ -1,0 +1,12 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" path="res://ui/indicator/arcane_circle.tscn" id="1_arcane"]
+
+[node name="ArcaneCircleGhost" instance=ExtResource("1_arcane")]
+tier = 0
+peak_tier = 0
+outer_spin_deg_s = 0.0
+inner_spin_deg_s = 0.0
+
+[node name="Inner" parent="." index="0"]
+visible = false

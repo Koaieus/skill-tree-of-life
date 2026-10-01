@@ -1,0 +1,17 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" path="res://ui/indicator/indicator_base.tscn" id="1_base"]
+[ext_resource type="Script" path="res://ui/indicator/arcane_circle.gd" id="2_arcane"]
+[ext_resource type="Script" path="res://ui/indicator/dashed_band.gd" id="3_band"]
+
+[node name="ArcaneCircle" instance=ExtResource("1_base")]
+script = ExtResource("2_arcane")
+period_s = 2.0
+
+[node name="Inner" type="Node2D" parent="." index="0"]
+unique_name_in_owner = true
+script = ExtResource("3_band")
+
+[node name="Outer" type="Node2D" parent="." index="1"]
+unique_name_in_owner = true
+script = ExtResource("3_band")

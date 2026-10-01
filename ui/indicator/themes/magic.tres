@@ -1,6 +1,19 @@
 [gd_resource type="Resource" script_class="IndicatorTheme" format=3]
 
 [ext_resource type="Script" path="res://ui/indicator/indicator_theme.gd" id="1_theme"]
+[ext_resource type="PackedScene" path="res://ui/indicator/arcane_circle.tscn" id="2_arcane"]
+[ext_resource type="PackedScene" path="res://ui/indicator/arcane_circle_ghost.tscn" id="3_ghost"]
+[ext_resource type="PackedScene" path="res://ui/indicator/target_ghost.tscn" id="4_target_ghost"]
+[ext_resource type="PackedScene" path="res://ui/indicator/footprint_ring.tscn" id="5_footprint"]
+[ext_resource type="PackedScene" path="res://ui/indicator/target_reticle.tscn" id="6_reticle"]
 
 [resource]
 script = ExtResource("1_theme")
+scenes = Dictionary[int, PackedScene]({
+1: ExtResource("2_arcane"),
+3: ExtResource("6_reticle"),
+4: ExtResource("6_reticle"),
+5: ExtResource("4_target_ghost"),
+6: ExtResource("3_ghost"),
+10: ExtResource("5_footprint")
+})

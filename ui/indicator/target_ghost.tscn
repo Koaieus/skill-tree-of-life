@@ -1,0 +1,12 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" path="res://ui/indicator/target_reticle.tscn" id="1_reticle"]
+[ext_resource type="Script" path="res://ui/indicator/target_ghost.gd" id="2_ghost"]
+
+[node name="TargetGhost" instance=ExtResource("1_reticle")]
+script = ExtResource("2_ghost")
+tier = 0
+spin_degrees_per_second = 0.0
+
+[node name="Ring" parent="." index="0"]
+visible = false

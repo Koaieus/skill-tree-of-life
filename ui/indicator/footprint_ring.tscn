@@ -1,0 +1,10 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" path="res://ui/indicator/target_reticle.tscn" id="1_reticle"]
+
+[node name="FootprintRing" instance=ExtResource("1_reticle")]
+tier = 1
+spin_degrees_per_second = 0.0
+
+[node name="Spinner" parent="." index="1"]
+visible = false
