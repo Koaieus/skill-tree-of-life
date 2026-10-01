@@ -8,7 +8,7 @@ on_cap_rise = 0
 per_turn_mode = 0
 id = &"arrows"
 display_name = "Arrows"
-description = "The Quiver — total arrow stock (current) under a shared capacity (max), with per-AmmoType bins inside current (see Quiver). on_cap_rise = PIN: a capacity modifier never gifts arrows; on_cap_fall = CLAMP trims the bins. per_turn_mode NONE: stock only grows through ReloadCommand. Starts empty. Capacity 40 is the owner's starting point (#955), not a tuning pass."
+description = "The Quiver — plain arrow stock (current) under the quiver capacity (max); each special AmmoType banks in its own bin beside current, capped by that type's max_stock, never by capacity (see Quiver, ADR 0041). on_cap_rise = PIN: a capacity modifier never gifts arrows; on_cap_fall = CLAMP trims the plain arrows only. per_turn_mode NONE: stock only grows through ReloadCommand. Starts empty. Capacity 40 is the owner's starting point (#955), not a tuning pass."
 default_value = 40.0
 tint_color = Color(0.75, 0.55, 0.3, 1)
 modifier_name = "Quiver Capacity"
