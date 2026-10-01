@@ -12,6 +12,8 @@ Two authoring questions that keep getting re-derived from scratch, answered once
 - **"A spell/relic/aura authors its own number and the stat should modify
   *that*. Whose base is it?"** → §5 (an overlay bin when a flat in the stat's
   unit is meaningless; a rate stat keeps base 1 and multiplies it)
+- **"Which way does this number round, and where?"** → not here:
+  `docs/domain/rounding.md` (one table, quantity → unit → direction → site)
 
 `.claude/rules/stats-system.md` is the *reference* — what exists, and how the
 pipeline computes. This doc is the *decision procedure* for adding something new.

@@ -156,8 +156,8 @@ func test_a_withered_core_healing_upkeep_drains_the_pool_as_true_damage() -> voi
 	_turn()
 	assert_almost_eq(float(spy.get_local_value(&"healing_received")), -0.5, 0.001,
 			"15 stacks at 0.1 by the upkeep: 1 − 1.5 = −0.5 on the ENTITY board")
-	assert_almost_eq(pool.current, before - floorf(healing * 0.5), 0.001,
-			"the trickle inverted: core_healing × −0.5 drains the pool, floored on landing")
+	assert_almost_eq(pool.current, before - ceilf(healing * 0.5), 0.001,
+			"the trickle inverted: core_healing × −0.5 drains the pool, rounded up on landing")
 	assert_eq(spy.door_calls.size(), 1, "exactly one drain, through take_pool_damage")
 	if spy.door_calls.size() == 1:
 		assert_almost_eq(float(spy.door_calls[0].amount), healing * 0.5, 0.001)
@@ -171,8 +171,8 @@ func test_a_withered_core_healing_upkeep_drains_the_pool_as_true_damage() -> voi
 	# 0.25) heals again, positively.
 	before = pool.current
 	_turn()
-	assert_almost_eq(pool.current, before + floorf(healing * 0.25), 0.001,
-			"no gate, no ramp: the decayed Wither leaves a positive product and it lands, floored")
+	assert_almost_eq(pool.current, before + ceilf(healing * 0.25), 0.001,
+			"no gate, no ramp: the decayed Wither leaves a positive product and it lands, rounded up")
 
 
 class _SpyCombat extends EntityCombat:

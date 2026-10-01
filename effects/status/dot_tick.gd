@@ -64,7 +64,7 @@ static func tick_damage(def: StatusDef, host, power: float, damage_per_power: fl
 ## RAW row walked down by [method StatusDef.decayed], each term the
 ## [method tick_damage] that tick lands — resisted and rounded up per tick, so
 ## the projection equals what actually lands (ADR 0031). At 20 stacks halving
-## with no resistance: 20 + 10 + 5 + 2 + 1 = 38 (the 0.625 tail is cut
+## with no resistance: 20 + 10 + 5 + ⌈2.5⌉ + ⌈1.25⌉ = 40 (the 0.625 tail is cut
 ## before it ticks). Max hp is read as of now. A def that never decays is
 ## capped at one tick so the loop terminates.
 static func project(def: StatusDef, host, power: float, damage_per_power: float,
