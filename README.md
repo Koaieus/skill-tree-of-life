@@ -94,7 +94,7 @@ The design is much further along than the code. Read in this order:
 3. **[`docs/design/lore.md`](docs/design/lore.md)** — the world, the Acts, Graph Theology, Tethers, the Fractal, the Fairy.
 4. **[`docs/design/combat_system.md`](docs/design/combat_system.md)** — the damage pipeline, the //10 spine and three attack modes.
 5. **[`.claude/rules/stats-system.md`](.claude/rules/stats-system.md)** — the stat pipeline and vocabulary; the source of truth for stat IDs.
-6. **[`docs/design/core_classes.md`](docs/design/core_classes.md)** — Allround, Predator, Bulwark, Ninja, Hive, Halo, Serpent, plus sketched Edgelord/Frontier/Harvester.
+6. **[`docs/design/core_classes.md`](docs/design/core_classes.md)** — the core-class design intent: what shipped, and the ideas still open.
 7. **[`docs/design/skill_node_addons.md`](docs/design/skill_node_addons.md)**, **[`docs/design/spells.md`](docs/design/spells.md)**, **[`docs/design/metagame.md`](docs/design/metagame.md)** — addons & specializations, the spell catalogue, the hub.
 
 ---
