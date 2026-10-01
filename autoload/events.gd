@@ -34,6 +34,7 @@ signal skill_node_depleted(node: SkillNode, source: HitInstance)
 ## bus carries the entity reference (a stat doesn't know its owner). UI floater
 ## layers subscribe here instead of binding to every entity's SP stat.
 signal entity_wounded(entity: Entity, amount: int)
+signal entity_cascade_charged(entity: Entity, chip: int, wound: int)
 signal entity_healed(entity: Entity, amount: int)
 
 ## An entity gained XP — kill rewards, the per-turn WIS income, anything that

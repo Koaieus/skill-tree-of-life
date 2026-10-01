@@ -28,6 +28,7 @@ extends Control
 
 
 @onready var label: Label = $Label
+var suffix: Label = null
 
 
 ## Set the toast text and apply [param style]. [param style] may be null (raw
