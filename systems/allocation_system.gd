@@ -488,7 +488,7 @@ func apply_gate_flip_recorded(gates: Array[Gate], entity: Entity,
 
 ## A self-cut is permitted and charged like a combat cascade: forced
 ## deallocation through [method EntityCombat.apply_cascade] with charge = true
-## (wound + core-HP chip; `force_deallocate` clears the statuses).
+## (wound + core-HP chip; the cascade releases and notes the statuses).
 func _cascade_stranded(stranded: Array[SkillNode], entity: Entity) -> void:
 	if entity == null or stranded.is_empty():
 		return
