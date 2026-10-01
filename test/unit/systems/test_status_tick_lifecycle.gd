@@ -521,3 +521,35 @@ func test_a_dot_kill_mid_sweep_does_not_error() -> void:
 	_play_turn(a)
 	assert_eq(killer.ticks.size(), 1, "the lethal DoT ticked once")
 	assert_eq(bystander.ticks.size(), 1, "the sweep carried on past the kill")
+
+
+# ── The post-tick spread pass (#1260) ──────────────────────────────────────
+
+func test_a_spreading_def_ticks_decays_then_spreads_once_in_end_turn() -> void:
+	var a: Entity = autofree(_make_entity("A"))
+	_graph.entities_container.add_child(a)
+	var b: Entity = autofree(_make_entity("B"))
+	_graph.entities_container.add_child(b)
+	await get_tree().process_frame
+
+	var n0 := _new_node()
+	var n1 := _new_node()
+	var n2 := _new_node()
+	_graph.add_edge(n0, n1)
+	_graph.add_edge(n1, n2)
+	await get_tree().process_frame
+	_alloc.force_allocate(a, n0)
+	a.core_location = n0
+	_alloc.force_allocate(a, n1)
+	_alloc.force_allocate(a, n2)
+
+	var d := _def(&"seep", 0.0, 1.0)
+	d.spread = DiffusionSpread.new()
+	n0.get_combat().apply_status(d, 4.0)
+
+	_tm.start_turn(a)
+	_end_turn_to(b)
+	assert_eq(d.ticks, [[4.0, 3.0]], "only the 4 ticked: a received stack does not tick in that beat")
+	assert_eq([n0.get_combat().get_status_power(&"seep"), n1.get_combat().get_status_power(&"seep"),
+			n2.get_combat().get_status_power(&"seep")], [2.0, 1.0, 0.0],
+			"decay 4→3, then ONE sweep 3–0–0 → 2–1–0")
