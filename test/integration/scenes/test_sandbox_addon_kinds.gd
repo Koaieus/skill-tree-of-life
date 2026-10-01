@@ -23,7 +23,7 @@ func test_every_adopted_addon_has_a_kind() -> void:
 		for n in root.graph.get_skill_nodes():
 			for a in n.get_addons():
 				adopted += 1
-				if a.scene_file_path.is_empty():
+				if a.get_kind().is_empty():
 					kindless.append("%s on %s" % [a.name, n.name])
 		gut.p("%s: %d adopted addons" % [path, adopted])
 		assert_eq(kindless, [] as Array[String],
