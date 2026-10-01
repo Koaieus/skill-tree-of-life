@@ -488,6 +488,9 @@ func test_the_palette_does_not_restate_the_attribute_colours() -> void:
 				&"extract"]:
 			assert_ne(_PALETTE.color_for(key), attr,
 					"%s duplicates the %s identity colour" % [key, stat_id])
+		for upgrade in _catalog.kinds:
+			assert_ne(SkillNodeAddon.tint_of(upgrade.scene), attr,
+					"%s tint duplicates the %s identity colour" % [upgrade.id, stat_id])
 
 
 func test_an_unmapped_palette_key_falls_through_rather_than_blanking() -> void:
