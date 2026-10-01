@@ -122,3 +122,139 @@ func test_empty_theme_gives_zero() -> void:
 	_overlay.set("default_theme", load("res://ui/indicator/themes/default.tres"))
 	_ctl.provider = _hostile_on(_nodes[4])
 	assert_eq(_indicators().size(), 1)
+
+
+# --- per-mode themes (#1297) --------------------------------------------------
+# Dynamic get/set/call throughout: the theme key, facing/order/charge and the
+# `themes` export are the seams under test, named before they exist.
+
+const _SCENE_A := preload("res://ui/indicator/target_reticle.tscn")
+const _SCENE_B := preload("res://ui/indicator/indicator_base.tscn")
+
+
+class KeyedProvider extends HighlightProvider:
+	var key: StringName = &"default"
+	var roles: Dictionary = {}
+	var facings: Dictionary = {}
+	var orders: Dictionary = {}
+	var fills: Dictionary = {}
+
+	func get_theme_key() -> StringName:
+		return key
+
+	func get_node_role(node: SkillNode) -> HighlightRole:
+		return roles.get(node, HighlightRole.NONE)
+
+	func get_node_facing(node: SkillNode) -> Vector2:
+		return facings.get(node, Vector2.ZERO)
+
+	func get_node_order(node: SkillNode) -> int:
+		return orders.get(node, -1)
+
+	func get_node_range_fill(node: SkillNode) -> float:
+		return fills.get(node, 1.0)
+
+
+func _theme(role: HighlightProvider.HighlightRole, scene: PackedScene) -> IndicatorTheme:
+	var t := IndicatorTheme.new()
+	if scene != null:
+		t.scenes[role] = scene
+	return t
+
+
+func _origin_on(sn: SkillNode, key: StringName) -> KeyedProvider:
+	var p := KeyedProvider.new()
+	p.key = key
+	p.roles[sn] = HighlightProvider.HighlightRole.ORIGIN
+	return p
+
+
+func test_theme_key_picks_the_keyed_theme_scene() -> void:
+	var themes: Dictionary[StringName, IndicatorTheme] = {
+		&"ranged": _theme(HighlightProvider.HighlightRole.ORIGIN, _SCENE_A),
+	}
+	_overlay.set("themes", themes)
+	_overlay.default_theme = _theme(HighlightProvider.HighlightRole.ORIGIN, _SCENE_B)
+	_ctl.provider = _origin_on(_nodes[1], &"ranged")
+	var found := _indicators()
+	assert_eq(found.size(), 1)
+	if found.size() == 1:
+		assert_eq(found[0].scene_file_path, _SCENE_A.resource_path)
+
+
+func test_unmapped_key_falls_back_to_default_then_ring() -> void:
+	var themes: Dictionary[StringName, IndicatorTheme] = {
+		&"ranged": _theme(HighlightProvider.HighlightRole.ORIGIN, _SCENE_A),
+	}
+	_overlay.set("themes", themes)
+	_overlay.default_theme = _theme(HighlightProvider.HighlightRole.ORIGIN, _SCENE_B)
+	_ctl.provider = _origin_on(_nodes[1], &"melee")
+	var found := _indicators()
+	assert_eq(found.size(), 1)
+	if found.size() == 1:
+		assert_eq(found[0].scene_file_path, _SCENE_B.resource_path)
+	_overlay.default_theme = _theme(HighlightProvider.HighlightRole.ORIGIN, null)
+	_ctl.provider = _origin_on(_nodes[2], &"melee")
+	assert_eq(_indicators().size(), 0, "no keyed and no default entry keeps the plain ring")
+
+
+func test_theme_change_on_a_live_node_swaps_the_instance() -> void:
+	var themes: Dictionary[StringName, IndicatorTheme] = {
+		&"ranged": _theme(HighlightProvider.HighlightRole.ORIGIN, _SCENE_A),
+	}
+	_overlay.set("themes", themes)
+	_overlay.default_theme = _theme(HighlightProvider.HighlightRole.ORIGIN, _SCENE_B)
+	var p := _origin_on(_nodes[1], &"melee")
+	_ctl.provider = p
+	p.key = &"ranged"
+	p.state_changed.emit()
+	var found := _indicators()
+	assert_eq(found.size(), 1)
+	if found.size() == 1:
+		assert_eq(found[0].scene_file_path, _SCENE_A.resource_path)
+
+
+func test_overlay_pushes_facing_order_and_charge() -> void:
+	_overlay.default_theme = _theme(HighlightProvider.HighlightRole.ORIGIN, _SCENE_A)
+	var p := KeyedProvider.new()
+	var want := {
+		_nodes[0]: [Vector2(1, 0), 0, 0.25],
+		_nodes[3]: [Vector2(0, -1), 2, 0.75],
+	}
+	for sn in want:
+		p.roles[sn] = HighlightProvider.HighlightRole.ORIGIN
+		p.facings[sn] = want[sn][0]
+		p.orders[sn] = want[sn][1]
+		p.fills[sn] = want[sn][2]
+	_ctl.provider = p
+	var found := _indicators()
+	assert_eq(found.size(), 2)
+	for ind in found:
+		var sn: SkillNode = null
+		for n in want:
+			if (ind as Node2D).position == _overlay.to_local(n.global_position):
+				sn = n
+		assert_not_null(sn)
+		if sn == null:
+			continue
+		assert_eq(ind.get("facing"), want[sn][0])
+		assert_eq(ind.get("order"), want[sn][1])
+		assert_almost_eq(float(ind.get("charge")), want[sn][2], 0.0001)
+
+
+func test_gate_cut_reports_its_base_theme_key_facing_and_order() -> void:
+	var gate := GateCutHighlightProvider.new()
+	var melee := MeleeAttackPlan.new()
+	melee.mode = BattleSystem.AttackMode.MELEE
+	gate.base = melee
+	assert_eq(gate.call("get_theme_key"), &"melee")
+	var stub := KeyedProvider.new()
+	stub.key = &"ranged"
+	stub.facings[_nodes[1]] = Vector2(0.6, 0.8)
+	stub.orders[_nodes[1]] = 3
+	gate.base = stub
+	assert_eq(gate.call("get_theme_key"), &"ranged")
+	assert_eq(gate.call("get_node_facing", _nodes[1]), Vector2(0.6, 0.8))
+	assert_eq(gate.call("get_node_order", _nodes[1]), 3)
+	gate.base = null
+	assert_eq(gate.call("get_theme_key"), &"default")
