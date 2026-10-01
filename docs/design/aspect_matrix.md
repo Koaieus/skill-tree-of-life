@@ -15,8 +15,8 @@ pinned (owner, 2026-09-30), and all eight exist as entity stats under the
 `aspects` family parent (+1 `aspects` is +1 to each). Supply is settled
 (owner, 2026-10-01, #1248): the aspect is a plain stat, sourced mostly from
 nodes, and each mode reads it its own way — ranged **mints that many arrows
-of the type on every reload** (*"i AM poison"*), melee spends it as a per-swing
-budget its temp addons draw from, magic's use is #1250. It is a count, not potency:
+of the type on every reload** (*"i AM poison"*), melee caps that concept's
+temp upgrades per swing, magic's use is #1250. It is a count, not potency:
 `<family>_stacks_per_hit` stays separate.
 
 **Addon column note:** "addon" and "temp addon" are one thing — a
