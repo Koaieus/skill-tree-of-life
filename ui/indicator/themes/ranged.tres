@@ -1,6 +1,12 @@
 [gd_resource type="Resource" script_class="IndicatorTheme" format=3]
 
 [ext_resource type="Script" path="res://ui/indicator/indicator_theme.gd" id="1_theme"]
+[ext_resource type="PackedScene" path="res://ui/indicator/squad_marker.tscn" id="2_squad"]
+[ext_resource type="PackedScene" path="res://ui/indicator/squad_marker_armed.tscn" id="3_armed"]
 
 [resource]
 script = ExtResource("1_theme")
+scenes = Dictionary[int, PackedScene]({
+1: ExtResource("3_armed"),
+6: ExtResource("2_squad")
+})
