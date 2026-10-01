@@ -111,6 +111,13 @@ sesh may pick em up by proxy, or such session may backlog it".
 `Ready` with no milestone is a hygiene flag, not a hold: owner, 2026-10-01,
 "Ready = ready = pick it up."
 
+A unit that lands with open owner questions goes back to `Needs design`, its
+landed code kept: owner, 2026-10-01, "questions? -> back to needs design (keep
+the landed stuff, swarmify would set out a final course no problem)". `land
+--closes` already wrote `Closes #n`, so after the push reopen it and set the
+status — then re-read its state: GitHub can process the push's close *after*
+an immediate reopen, closing it again.
+
 If a hub with every child closed still has unshipped scope, the fix is a new
 child, not keeping the hub open by hand. The old `hollow_hub` exemption for "a
 `Ready` parent with its own scope" (#240) is retired with this.
