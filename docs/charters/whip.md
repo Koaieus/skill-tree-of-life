@@ -146,8 +146,11 @@ skill, active when the launch prompt names a supervisor:
     and ledger are the state; relief's disk-orientation handles both the
     crash and the stuck-on-a-question case identically. Whip never
     `--resume`s a lead: a lead that asked a human once will ask again.
-13. **Whip relieves itself from its ledger at its own ceiling**, by
-    launching `whip` again with the ledger path in the prompt and retiring.
+13. **Whip relieves itself from its ledger at its own ceiling**, by setting
+    a marker (`whip -- relieve-me`) and ending its turn; the watchdog stops
+    it and launches a fresh `whip` from the ledger. Two live sessions named
+    `whip` would make every lead's report address ambiguous, which is why
+    the process surgery is the zero-token layer's, not Whip's.
     Whip's ceiling is swarm's per-model number minus nothing — it has no
     drones in flight. (`CLAUDE_CODE_AUTO_COMPACT_WINDOW` is set in this
     environment; if auto-compact proves to keep a `--bg` session's
@@ -280,6 +283,22 @@ written from this charter alone.
 - The report's prose; `mise run whip -- report` renders it from the ledger.
 
 ## Open follow-ups
+
+- **Must probe before any unattended night** (on the first-run issue):
+  (1) `claude -p -r <id>` against a *live* `--bg` session may fork a copy
+  rather than prompt its REPL (`--bg --resume` says it "starts a copy when
+  the session is already running"); the watchdog's post-limit and
+  lead-stuck prompts rest on the opposite — the candidate single mechanism
+  is `claude stop <id>` then `claude --bg --resume <id> -n whip "<prompt>"`,
+  and whether `--bg --resume` takes a trailing prompt at all. (2) Whether
+  env vars reach a `--bg` session: spares are pre-spawned by the daemon and
+  claimed at launch, so `DISABLE_AUTOUPDATER=1` on the launch command may
+  be a no-op (`FOO=bar claude --bg … "echo $FOO"` settles it; fallback is
+  the daemon's own env or `settings.json`).
+- A fresh `/swarm` lead for a later train finds the earlier train's
+  `swarm-<date>.md` and swarm §1 would call it relief; the launch prompt
+  says "fresh lead, never relief, append your rows" — confirm the ledger
+  tool tolerates one night's rows from several leads.
 
 - Whether `notify_when_idle` fires on a `--bg` session that *exits* (the
   tool says so; unobserved).

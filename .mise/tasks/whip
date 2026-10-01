@@ -128,7 +128,8 @@ def cmd_start(a):
     st = {"_path": p, "date": time.strftime("%Y-%m-%d"), "started": now(), "started_ts": time.time(),
           "cap_h": a.cap, "start_sha": sha, "ready": [i["number"] for i in ready],
           "ready_titles": {str(i["number"]): i["title"] for i in ready},
-          "trains": [], "leads": {}, "notes": [], "events": [], "done": False}
+          "trains": [], "leads": {}, "notes": [], "events": [], "done": False,
+          "whip_session": os.environ.get("CLAUDE_CODE_SESSION_ID", "")}
     if not a.no_issue:
         body = f"Overnight run started {st['started']} from master `{sha[:7]}` over {len(ready)} Ready issues: " + \
                " ".join(f"#{i['number']}" for i in ready) + "\n\nThe morning report lands here as a comment."
@@ -195,14 +196,18 @@ def cmd_launch(a):
         print(f"{a.name} already running — not launched"); return
     mode = os.environ.get("WHIP_PERMISSION_MODE", "bypassPermissions")
     model = os.environ.get("WHIP_LEAD_MODEL", "opus")
+    train = a.name.split("-")[1] if "-" in a.name else None
     if a.self:
-        prompt = f"/whip — relief from {st['_path']}. {CLAUSES.replace('your supervisor is the local Claude session named', 'you ARE the supervisor; the leads are the sessions named lead-*/relief-*; ignore the rest of this clause:')}"
+        prompt = (f"/whip — relief from {st['_path']}. You are the supervisor named 'whip'; messages from sessions "
+                  "named lead-*/relief-* are the reports you act on; the watchdog's 'watchdog:' prompts are instructions.")
         model = os.environ.get("WHIP_MODEL", "sonnet")
     elif a.relief:
-        prompt = f"/relief — supervised by whip. {CLAUSES}"
+        outgoing = next((t.get("lead") for t in st["trains"] if t["name"] == train), None) or a.issues
+        prompt = f"/relief — supervised by whip. You relieve the session named '{outgoing}'. {CLAUSES}"
     else:
         nums = " ".join(f"#{n}" for n in re.findall(r"\d+", a.issues))
-        prompt = f"/swarm {nums} — supervised by whip. {CLAUSES}"
+        prompt = (f"/swarm {nums} — supervised by whip. You are a FRESH lead for train {train}, never relief, even if a "
+                  f"swarm ledger from an earlier train tonight is on disk; append your rows to it. {CLAUSES}")
     cmd = ["claude", "--bg", "-n", a.name, "--permission-mode", mode, "--model", model, prompt]
     env = dict(os.environ, DISABLE_AUTOUPDATER="1")
     out = subprocess.run(cmd, capture_output=True, text=True, env=env, cwd=ROOT).stdout
@@ -212,12 +217,17 @@ def cmd_launch(a):
     sess = next((x["sessionId"] for x in agents() if x.get("name") == a.name), m.group(1))
     kind = "whip" if a.self else "relief" if a.relief else "lead"
     st["leads"][a.name] = {"session": sess, "kind": kind, "launched": now(), "state": "running", "issues": a.issues}
-    train = a.name.split("-")[1] if "-" in a.name else None
     for t in st["trains"]:
         if t["name"] == train: t["lead"] = a.name; t["state"] = "running"
     if a.self: st["whip_session"] = sess
     save(st); event(st, f"launched {kind} {a.name} ({sess[:8]}) {a.issues}")
     print(f"launched {a.name} · session {sess[:8]} · now: SendMessage(to: \"{a.name}\", notify_when_idle: true)")
+
+
+def cmd_relieve_me(a):
+    st = current(); st["relieve_whip"] = True; save(st)
+    event(st, "whip asked for its own relief — watchdog will stop it and launch a fresh whip from this ledger")
+    print("marker set: end your turn now and do nothing more")
 
 
 def cmd_done(a):
@@ -310,11 +320,6 @@ def transcript_limited(session_id):
     return True, reset
 
 
-def prompt_session(name, text):
-    sh(["claude", "-p", "--output-format", "text", "--permission-mode",
-        os.environ.get("WHIP_PERMISSION_MODE", "bypassPermissions"), "-r", name, text])
-
-
 def cmd_watchdog(a):
     p = state_path()
     if not p: return
@@ -326,6 +331,11 @@ def cmd_watchdog(a):
     wsess = st.get("whip_session")
     nudge_gap = int(os.environ.get("WHIP_NUDGE_MIN", "20")) * 60
     last_nudge = st.get("last_nudge_ts", 0)
+    if st.get("relieve_whip") and whip and whip.get("status") == "idle" and not capped:
+        sh(["claude", "stop", whip["sessionId"]]); time.sleep(3)
+        st["relieve_whip"] = False; save(st)
+        subprocess.run([sys.executable, __file__, "launch", "whip", "", "--self"], cwd=ROOT)
+        event(st, "watchdog: stopped the old whip, launched a fresh one from the ledger"); return
     if not whip and wsess and not capped:
         out = subprocess.run(["claude", "--bg", "--resume", wsess, "-n", "whip", "--permission-mode",
                               os.environ.get("WHIP_PERMISSION_MODE", "bypassPermissions"),
@@ -410,6 +420,7 @@ def main():
     s = sp.add_parser("done"); s.add_argument("lead"); s.add_argument("sha"); s.add_argument("landed"); s.set_defaults(f=cmd_done)
     s = sp.add_parser("note"); s.add_argument("text"); s.set_defaults(f=cmd_note)
     sp.add_parser("show").set_defaults(f=cmd_show)
+    sp.add_parser("relieve-me").set_defaults(f=cmd_relieve_me)
     sp.add_parser("done-check").set_defaults(f=cmd_done_check)
     sp.add_parser("report").set_defaults(f=cmd_report)
     sp.add_parser("watchdog").set_defaults(f=cmd_watchdog)

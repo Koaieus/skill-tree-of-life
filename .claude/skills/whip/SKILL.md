@@ -48,7 +48,7 @@ which runs, logged to the ledger,
 
 ```
 DISABLE_AUTOUPDATER=1 claude --bg -n lead-<train> --permission-mode <your mode> --model opus \
-  "/swarm #a #b #c — supervised by whip. <supervised-mode clauses>"
+  "/swarm #a #b #c — supervised by whip. You are a fresh lead for train <t>, never relief. <clauses>"
 ```
 
 The supervised-mode clauses are the ones `swarm` and `relief` carry in
@@ -72,8 +72,8 @@ Nothing else is a wake you act on. A lead's report is the only lead→you
 traffic; never acknowledge one.
 
 Your own ceiling is `swarm`'s per-model number. 50k below it:
-`mise run whip -- launch whip "" --self` (prompt: `/whip — relief from
-<ledger path>`), then end your turn and do nothing more.
+`mise run whip -- relieve-me`, then end your turn and do nothing more — the
+watchdog stops you and launches a fresh `whip` from the ledger (§0).
 
 ## 4. Done — board and master must agree
 
