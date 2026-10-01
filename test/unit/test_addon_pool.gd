@@ -30,11 +30,11 @@ func test_mint_returns_addon_instance() -> void:
 
 
 func test_mint_applies_params() -> void:
-	var e := _entry(_SPIKE_RING, {&"spike_count": 16, &"spike_overshoot": 0.6})
-	var addon := e.mint(_rng()) as SpikeRingAddon
+	var e := _entry(_SPIKE_RING, {&"description": "Minted.", &"temp_cost_blade_size": 3})
+	var addon := e.mint(_rng())
 	assert_not_null(addon)
-	assert_eq(addon.spike_count, 16)
-	assert_almost_eq(addon.spike_overshoot, 0.6, 0.001)
+	assert_eq(addon.description, "Minted.")
+	assert_eq(addon.temp_cost_blade_size, 3)
 	addon.queue_free()
 
 

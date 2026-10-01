@@ -400,12 +400,12 @@ func _on_delit_changed(_value: float) -> void:
 	_apply_forced_delit(_preview.current_blade())
 
 
-## Add or strip a [BunkerAddon] on one node. Plain `add_child` / `queue_free`:
+## Add or strip a bunker addon on one node. Plain `add_child` / `queue_free`:
 ## [SkillNode] keeps its addon ledger off `child_entered_tree` / `child_exiting`,
 ## so attaching one at runtime is the same act the scene file performs.
 func _toggle_bunker(node: SkillNode) -> void:
 	for a in node.get_addons():
-		if a is BunkerAddon:
+		if a.scene_file_path == _BUNKER_SCENE.resource_path:
 			a.queue_free()
 			_refresh_status()
 			return
