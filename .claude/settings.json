@@ -14,7 +14,10 @@
       "Bash(mise run --quiet gh-project -- hygiene*)",
       "Bash(mise run --quiet gh-project -- swarmq*)",
       "Bash(mise run --quiet gh-project -- roadmap*)",
-      "Bash(gh api rate_limit)"
+      "Bash(gh api rate_limit)",
+      "mcp__claude-code-remote__create_session",
+      "mcp__claude-code-remote__send_message",
+      "mcp__claude-code-remote__get_session"
     ]
   },
   "hooks": {
