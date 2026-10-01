@@ -146,7 +146,7 @@ func test_both_hosts_tick_once_in_end_turn_and_never_in_start_turn() -> void:
 	var h := HostSpyDef.new()
 	h.id = &"rot"
 	h.power_max = 10.0
-	h.decay_per_tick = 0.0
+	h.decay = null  # no decay
 	a.get_combat().apply_status(h, 5.0)
 
 	var at_began: Array = []
@@ -186,7 +186,7 @@ func test_abandon_turn_never_ticks_alive_or_dying() -> void:
 	var h := HostSpyDef.new()
 	h.id = &"rot"
 	h.power_max = 5.0
-	h.decay_per_tick = 0.0
+	h.decay = null  # no decay
 	a.get_combat().apply_status(h, 3.0)
 
 	# The status sandbox's `disarm()` shape: an alive bearer, abandoned.
@@ -257,7 +257,7 @@ func test_a_dot_killing_the_actor_at_its_own_turn_end_still_hands_on() -> void:
 	var lethal := PoisonStatus.new()
 	lethal.id = &"poison"
 	lethal.power_max = 5.0
-	lethal.decay_per_tick = 0.0
+	lethal.decay = null  # no decay
 	lethal.damage_per_power = 1.0e6
 	a.get_combat().apply_status(lethal, 1.0)
 
