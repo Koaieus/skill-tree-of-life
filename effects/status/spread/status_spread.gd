@@ -15,13 +15,21 @@ extends Resource
 ## [member NodeTargeting.ownership_filter]. Default Mine.
 @export_flags("Neutral:1", "Mine:2", "Ally:4", "Hostile:8", "Friendly:6", "Allocated:14", "Any:15") var ownership_mask: int = 2
 
+## [method on_removed]'s `cause` bits — bit-compatible with a subclass's own
+## `@export_flags("Death", "Dealloc")` (Death=1, Dealloc=2), so a rule's
+## `triggers` mask and the cause it's handed share one encoding.
+const CAUSE_DEATH: int = 1
+const CAUSE_DEALLOC: int = 2
+
 
 ## Once per tick of [param field]'s status: the transfers to land, in order.
 func on_tick(_field: StackField) -> Array[StackTransfer]:
 	return [] as Array[StackTransfer]
 
 
-## [param removed] just lost the status (its row is gone): the transfers to
-## land, in order.
-func on_removed(_field: StackField, _removed: NodeCombat) -> Array[StackTransfer]:
+## [param removed] just lost the status — the beat's whole removed union, judged
+## against [param field]'s state from before removal — for [param cause] (one of
+## [constant CAUSE_DEATH] / [constant CAUSE_DEALLOC]): the transfers to land, in
+## order.
+func on_removed(_field: StackField, _removed: Array[NodeCombat], _cause: int) -> Array[StackTransfer]:
 	return [] as Array[StackTransfer]

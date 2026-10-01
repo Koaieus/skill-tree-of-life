@@ -217,4 +217,4 @@ func test_spread_slot_defaults_to_null_and_signature_to_no_transfers() -> void:
 	assert_eq(s.ownership_mask, SkillNode.Ownership.MINE, "mask defaults to Mine")
 	var field := StackField.new(_def(), s.ownership_mask, {})
 	assert_eq(s.on_tick(field).size(), 0, "on_tick: no transfers")
-	assert_eq(s.on_removed(field, _node(_me)).size(), 0, "on_removed: no transfers")
+	assert_eq(s.on_removed(field, [_node(_me)] as Array[NodeCombat], StatusSpread.CAUSE_DEATH).size(), 0, "on_removed: no transfers")
