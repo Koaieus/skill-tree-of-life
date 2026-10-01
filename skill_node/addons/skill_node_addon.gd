@@ -183,8 +183,10 @@ static func _scene_record(scene: PackedScene) -> Dictionary:
 	var key := scene.resource_path
 	if _scene_records.has(key):
 		return _scene_records[key]
-	var addon := scene.instantiate() as SkillNodeAddon
+	var inst := scene.instantiate()
+	var addon := inst as SkillNodeAddon
 	if addon == null:
+		inst.free()
 		return {}
 	var record := {
 		&"costs": addon.get_temp_costs(),
