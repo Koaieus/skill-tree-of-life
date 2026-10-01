@@ -164,11 +164,22 @@ func reset() -> void:
 	state_changed.emit()
 
 
-## The wind-up hangs off every reaching firing leaf (#1048) — the arrows park
-## there. Range-filtered only, never shots-left: the commit marks shots fired
-## before the director reads this, and that must not thin the anchor set.
-func windup_anchors(_outcome: AttackOutcome) -> Array[SkillNode]:
-	return get_reaching_firing_positions()
+## The wind-up hangs off the leaves that actually FIRE — the arrows park there:
+## the distinct origins of [param outcome]'s non-status hits, in hit order.
+## With fewer shots than reaching leaves that is a strict subset of the rim
+## (the schedule is nearest-first). Read off the outcome, never off the
+## schedule or shots-left: the commit has already spent the shots by the time
+## the director asks. A null [param outcome] (an aim-time read) falls back to
+## every reaching leaf.
+func windup_anchors(outcome: AttackOutcome) -> Array[SkillNode]:
+	if outcome == null:
+		return get_reaching_firing_positions()
+	var out: Array[SkillNode] = []
+	for hit in outcome.hits:
+		if hit.origin == null or hit is StatusInstance or out.has(hit.origin):
+			continue
+		out.append(hit.origin)
+	return out
 
 
 func get_firing_positions() -> Array[SkillNode]:

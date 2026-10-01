@@ -161,9 +161,11 @@ func resolve() -> AttackOutcome:
 
 ## The [SkillNode]s this plan's wind-up hangs off — what the camera pivots on
 ## before the shot opens (the centroid of the visible ones) and the "from" end
-## of the span it frames. Melee and magic answer their source; ranged answers
-## its reaching firing leaves. Empty means "nothing to pivot on": the span is
-## then the targets alone.
+## of the span it frames. The plan interprets [param outcome], the result its
+## commit resolved: ranged answers the leaves that outcome's hits fire from;
+## melee and magic ignore it and answer their source. A null [param outcome]
+## is an aim-time read, answered off the plan alone. Empty means "nothing to
+## pivot on": the span is then the targets alone.
 func windup_anchors(_outcome: AttackOutcome) -> Array[SkillNode]:
 	return []
 

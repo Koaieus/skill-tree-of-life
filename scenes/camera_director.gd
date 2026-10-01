@@ -445,11 +445,11 @@ func _on_attack_committed(outcome: AttackOutcome, attacker: Entity) -> void:
 				and not presenter.wave_landing.is_connected(_on_wave_landing):
 			presenter.wave_landing.connect(_on_wave_landing)
 	else:
-		marker = _lone_anchor(plan)
+		marker = _lone_anchor(plan, outcome)
 	if marker != null:
 		_shot_following = true
 		_follow_node = marker
-	var pivot := _windup_focus(plan)
+	var pivot := _windup_focus(plan, outcome)
 	if pivot == null:
 		# No lead beat to fill (a mode with no wind-up lead, or acceptance 5's
 		# zeroed tempo) — the span simply lands.
@@ -471,17 +471,18 @@ func _on_attack_committed(outcome: AttackOutcome, attacker: Entity) -> void:
 ##
 ## Every mode pivots on the CENTROID of its visible wind-up anchors
 ## ([method AttackPlan.windup_anchors]): melee's and magic's source, ranged's
-## firing leaves (#1048). A point focus, so the zoom is untouched. The anchors
-## are read off the live plan rather than off the outcome: an [AttackOutcome]
-## carries hits, and "which nodes the action hangs off" is a plan fact.
-func _windup_focus(plan: AttackPlan, _outcome: AttackOutcome = null) -> FocusRequest:
+## firing leaves (#1048). A point focus, so the zoom is untouched. The live
+## plan interprets [param outcome] — "which nodes the action hangs off" is a
+## plan fact, but for ranged it is the leaves THIS outcome fires from, so the
+## pivot, the span's "from" end and the presenter's follow agree.
+func _windup_focus(plan: AttackPlan, outcome: AttackOutcome = null) -> FocusRequest:
 	if plan == null or battle_system == null:
 		return null
 	var lead := battle_system.tempo().windup_lead(plan.mode)
 	if lead <= 0.0:
 		return null
 	var points := PackedVector2Array()
-	_append_anchor_centroid(points, plan)
+	_append_anchor_centroid(points, plan, outcome)
 	if points.is_empty():
 		return null
 	# Mandatory for the same reason the span is (#866): this is the lead beat of
@@ -500,20 +501,22 @@ func _windup_focus(plan: AttackPlan, _outcome: AttackOutcome = null) -> FocusReq
 ## exactly ONE, else null. A many-anchored plan (a ranged volley's leaves) has
 ## no single node to follow, and a follow opened on one arbitrary leaf would pin
 ## the pan there for the whole shot — every later widen retargets zoom only.
-func _lone_anchor(plan: AttackPlan) -> SkillNode:
+func _lone_anchor(plan: AttackPlan, outcome: AttackOutcome) -> SkillNode:
 	if plan == null:
 		return null
-	var anchors := plan.windup_anchors(null)
+	var anchors := plan.windup_anchors(outcome)
 	if anchors.size() != 1 or not is_instance_valid(anchors[0]):
 		return null
 	return anchors[0]
 
 
-## Append the centroid of [param plan]'s VISIBLE wind-up anchors, or nothing
-## when none is visible — an empty set has no centroid to invent.
-func _append_anchor_centroid(points: PackedVector2Array, plan: AttackPlan) -> void:
+## Append the centroid of [param plan]'s VISIBLE wind-up anchors for
+## [param outcome], or nothing when none is visible — an empty set has no
+## centroid to invent.
+func _append_anchor_centroid(points: PackedVector2Array, plan: AttackPlan,
+		outcome: AttackOutcome) -> void:
 	var seen := PackedVector2Array()
-	for anchor in plan.windup_anchors(null):
+	for anchor in plan.windup_anchors(outcome):
 		_append_if_visible(seen, anchor)
 	if seen.is_empty():
 		return
@@ -628,7 +631,7 @@ func _build_attack_request(outcome: AttackOutcome, _attacker: Entity) -> FocusRe
 	var last_arrival: float = outcome.schedule.duration()
 	var plan := _live_plan()
 	if plan != null:
-		_append_anchor_centroid(points, plan)
+		_append_anchor_centroid(points, plan, outcome)
 	for hit in outcome.hits:
 		if plan == null:
 			_append_if_visible(points, hit.origin)
