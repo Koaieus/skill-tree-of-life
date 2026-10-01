@@ -29,7 +29,13 @@ extends Node
 signal run_ended(outcome: RunOutcome)
 
 @export var graph: Graph
-@export var turn_manager: TurnManager
+@export var turn_manager: TurnManager:
+	set(value):
+		if turn_manager != null and turn_manager.turn_ended.is_connected(_on_turn_ended):
+			turn_manager.turn_ended.disconnect(_on_turn_ended)
+		turn_manager = value
+		if turn_manager != null:
+			turn_manager.turn_ended.connect(_on_turn_ended)
 ## The rule in force. Authored here so a hand-built level scene can swap it;
 ## [GameRoot] overrides it from [method RunConfig.resolved_victory_condition]
 ## when a run carries one — that RunConfig comes off the `GameSession` autoload
@@ -80,6 +86,14 @@ func _on_entity_death_shown(_entity: Entity) -> void:
 	_evaluate_deferred.request()
 
 
+## The clock trigger (#1257): a condition that fires off elapsed rounds or
+## turns ([TurnLimitCondition]) has no death to wake it.
+func _on_turn_ended(_entity: Entity) -> void:
+	if outcome != null:
+		return
+	_evaluate_deferred.request()
+
+
 ## Build a snapshot and ask the condition. Public so a test (or a future
 ## non-death trigger, e.g. a survive-N-turns condition ticking off
 ## `turn_ended`) can drive an evaluation without faking a death.
@@ -91,6 +105,7 @@ func build_context() -> VictoryContext:
 	var ctx := VictoryContext.new()
 	ctx.graph = graph
 	ctx.turn_count = turn_manager.turns_taken if turn_manager != null else 0
+	ctx.rounds_completed = turn_manager.rounds_completed if turn_manager != null else 0
 	# One enumeration, always [constant Entity.GROUP] — contest membership is a
 	# FILTER the condition applies (#517), never a second group to walk. A
 	# rival enumeration would silently drop every `Entity.new()` fixture and
