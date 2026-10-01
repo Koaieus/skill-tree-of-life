@@ -69,8 +69,10 @@ should be looking at the *scenes*"). **How to apply:** open the
 `.tscn` first; add a modifier there (a `resource_local_to_scene` sub-resource,
 as the existing scenes do); code-mint one only when it's computed (scales with
 `stake_level`, reads another stat). A new addon is a scene on the base or a
-shared script; subclass only for a hook (`apply_to_blade`, visuals) the base
-can't express.
+shared script; subclass only for a hook (`apply_to_blade`) the base can't
+express. Drawing is never a reason to subclass: it goes in a `Visual` child
+running an `AddonVisual` script (`skill_node/addons/visuals/`), which the base
+addon hands the carrier radius — `bunker_addon.tscn` is the shape to copy.
 
 ## What an inherited scene CAN and CANNOT change
 

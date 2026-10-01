@@ -49,7 +49,9 @@ tracks the mechanics (local defensive stats vs. outward projection).
 ## The plan-view band budget
 
 Bands stack — a node can carry all of these at once — so each claims a radius
-range as a fraction of `SkillNode.radius` and documents it:
+range as a fraction of `SkillNode.radius` and documents it. The drawing (and
+its band) lives in the addon scene's `Visual` child — an `AddonVisual` script
+in `skill_node/addons/visuals/` — never in an addon subclass:
 
 | Addon | Band | Elements | Hue |
 |---|---|---|---|
