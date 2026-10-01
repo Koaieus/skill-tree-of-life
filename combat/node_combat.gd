@@ -487,8 +487,16 @@ func add_local_modifier(m: StatModifier) -> bool:
 	if m == null:
 		return false
 	if host != null:
+		# The live body gates itself; its verdict is predicted from the same
+		# predicate since [method SkillNode.add_local_modifier] returns none.
+		var legal := StatRegistry.illegal_leaf(m, true) == &""
 		host.add_local_modifier(m)
-		return true
+		return legal
+	# The shadow body of the local door — the same gate as the live one.
+	var bad := StatRegistry.illegal_leaf(m, true)
+	if bad != &"":
+		push_error("NodeCombat: a node may not grant '%s' locally — nothing folds it per node (StatDef.local_grantable)" % bad)
+		return false
 	var b := board()
 	if b == null:
 		return false

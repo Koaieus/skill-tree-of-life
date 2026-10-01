@@ -103,18 +103,20 @@ func is_local_grantable(id: StringName) -> bool:
 	return def != null and def.local_grantable
 
 
-## Every registered def must live somewhere: declared on the entity board or
+## Every registered def must live somewhere: declared on the entity board, a
+## node board's pool def ([method NodeStatBoard.pool_def_ids]), or
 ## [member StatDef.local_grantable]. Returns (and push_errors) the ids that
 ## live nowhere. Run once at load.
 func check_residency() -> Array[StringName]:
 	var out: Array[StringName] = []
 	var board := load(ENTITY_BOARD_PATH) as StatBoard
 	var resident: Array[StringName] = board.get_stat_ids() if board != null else []
+	resident.append_array(NodeStatBoard.pool_def_ids())
 	var ids: Array = _defs.keys()
 	ids.sort()
 	for id in ids:
 		if not _defs[id].local_grantable and not resident.has(id):
-			push_error("StatRegistry: stat '%s' lives nowhere — not on the entity board and not local_grantable" % id)
+			push_error("StatRegistry: stat '%s' lives nowhere — not on the entity board, not a node pool def and not local_grantable" % id)
 			out.append(id)
 	return out
 

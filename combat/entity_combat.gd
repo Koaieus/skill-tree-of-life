@@ -699,6 +699,16 @@ func apply_cascade(nodes: Array[NodeCombat], alloc: AllocationSystem = null,
 	# What was actually charged — a node skipped after its wound still counts.
 	var chip_sum := 0.0
 	var wound_sum := 0
+	# Every node's chip rate, read before the first strip — PRE-strip, as
+	# [member DeallocEntry.allocation_level]: a node that entity-grants
+	# `dealloc_damage` counts for the whole cascade, its own chip included, so
+	# the cost never depends on cascade order. A node may also grant itself
+	# local `dealloc_damage`; the read falls back to the entity board, then to
+	# the StatDef default.
+	var rates := {}
+	for n in nodes:
+		if n != null:
+			rates[n] = float(n.get_local_value(&"dealloc_damage"))
 	for n in nodes:
 		# Re-checked per node, never hoisted. The chip below can
 		# cross the owner's `health` 0 mid-loop, which fires `Events.entity_died`
@@ -714,9 +724,7 @@ func apply_cascade(nodes: Array[NodeCombat], alloc: AllocationSystem = null,
 		# #337 collapse this ordering exists to avoid.
 		entry.allocation_level = maxi(n.get_allocation_level(), 1)
 		entry.wound = entry.allocation_level
-		# Per node: a node may grant itself local `dealloc_damage`. The read
-		# falls back to the entity board, then to the StatDef default.
-		var hp_per_node := float(n.get_local_value(&"dealloc_damage"))
+		var hp_per_node: float = rates[n]
 		entry.chip = hp_per_node * float(entry.allocation_level) if hp_per_node > 0.0 else 0.0
 		entry.was_core = core() == n
 		entry.revoked_labels = _granted_labels(entry.node)

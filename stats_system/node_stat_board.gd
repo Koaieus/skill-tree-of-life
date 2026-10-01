@@ -68,6 +68,11 @@ extends StatBoard
 @export var max_shots_per_leaf: ScalarStat
 
 
+## Node stat id -> the [StatDef] id its combat POOL is minted from (see
+## [method _mint_stat]).
+const POOL_DEFS := {&"node_health": &"node_combat_health", &"spikes": &"node_spikes"}
+
+
 ## Node boards are the sparse side — they legitimately mint the stats they
 ## borrow from their owner (`armor`, `node_healing`, `blade_damage`, …), so the
 ## registry default applies. The exceptions are `node_health` and `spikes`:
@@ -78,11 +83,18 @@ extends StatBoard
 ## it lives here instead of as a hardcoded branch in
 ## [method SkillNode._ensure_local_stat] reaching into `_extra_stats` directly.
 func _mint_stat(stat_id: StringName) -> Stat:
-	if stat_id == &"node_health":
-		return _mint_pool(stat_id, &"node_combat_health")
-	if stat_id == &"spikes":
-		return _mint_pool(stat_id, &"node_spikes")
+	var def_id: StringName = POOL_DEFS.get(stat_id, &"")
+	if def_id != &"":
+		return _mint_pool(stat_id, def_id)
 	return super(stat_id)
+
+
+## The def ids this board mints a POOL from — resident here, never modifier
+## targets (so never [member StatDef.local_grantable]).
+static func pool_def_ids() -> Array[StringName]:
+	var out: Array[StringName] = []
+	out.assign(POOL_DEFS.values())
+	return out
 
 
 ## Shared body of the `node_health` / `spikes` special cases above: mint a

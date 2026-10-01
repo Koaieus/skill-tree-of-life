@@ -137,16 +137,11 @@ func _apply(handle: StatModifier, target: Variant) -> StatModifier:
 		var node: SkillNode = target
 		if not is_instance_valid(node):
 			return null
-		# The local door, asked here because a shadow slice adds to its own
-		# board without passing through SkillNode.add_local_modifier.
-		var bad := StatRegistry.illegal_leaf(handle, true)
-		if bad != &"":
-			push_error("EffectContext: '%s' may not be granted node-locally (StatDef.local_grantable)" % bad)
-			return null
 		var slice := world.combat_for(node)
-		if slice == null:
+		# The door gates (and reports) an illegal leaf; a rejected handle is
+		# never ledgered, so revoke_all stays exact.
+		if slice == null or not slice.add_local_modifier(handle):
 			return null
-		slice.add_local_modifier(handle)
 	instance.record(handle, target)
 	return handle
 
