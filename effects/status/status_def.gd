@@ -8,7 +8,7 @@ extends Resource
 ##
 ## A status is a bounded, decaying power: [method NodeCombat.apply_status] adds
 ## or refreshes it (per [member reapply]), [method NodeCombat.tick_statuses]
-## fires [method _on_tick] and then decays it by [member decay_per_tick], and
+## fires [method _on_tick] and then decays it per its [member decay] slot, and
 ## a heal cures it at [member cure_per_hp] power per hp (#875). Behaviour hooks
 ## are overridable on a subclass script; the base does nothing on any of them.
 ##
@@ -31,17 +31,6 @@ enum Reapply {
 ## deliberately not built — nothing owns or ticks an unallocated node.
 enum OnDealloc {
 	CLEAR,
-}
-
-## How [member decay_per_tick] is read by [method NodeCombat.tick_statuses]
-## (#962, hub #952): per def, so poison halves while blindness / armor-break
-## keep their flat fade.
-enum DecayMode {
-	## `decay_per_tick` is flat power removed per tick; removed at `<= 0`.
-	FLAT,
-	## `decay_per_tick` is the FRACTION removed per tick (`0.5` = halve);
-	## the tail is cleared on the tick whose post-decay value is below 1.
-	FRACTION,
 }
 
 ## Unique key — the status slice is a dictionary on this.
@@ -71,11 +60,11 @@ enum DecayMode {
 ## Power is clamped to this on apply and on accumulate. `<= 0` → uncapped
 ## (#962): [method NodeCombat.apply_status] skips the clamp entirely.
 @export var power_max: float = 1.0
-## Power removed by every [method NodeCombat.tick_statuses], after
-## [method _on_tick] has fired — flat power or a fraction, per
-## [member decay_mode].
-@export var decay_per_tick: float = 1.0
-@export var decay_mode: DecayMode = DecayMode.FLAT
+## How power falls on every [method NodeCombat.tick_statuses], after
+## [method _on_tick] has fired — a [FlatDecay], a [FractionDecay], or any
+## sibling [StatusDecay] (#1258). Shared and stateless like this def. Defaults
+## to a flat `1` per tick; `null` means the status never decays.
+@export var decay: StatusDecay = FlatDecay.new()
 ## Display anchor for [method NodeStatus.normalised] (bar fill, node tint):
 ## `0` → use [member power_max]. An uncapped def authors one so the 0..1 scale
 ## survives (poison: 10).
@@ -91,7 +80,9 @@ func get_description() -> String:
 	if not description.is_empty():
 		return description
 	var name := display_name if not display_name.is_empty() else String(id)
-	return "%s (max %s, -%s per turn)" % [name, NumFmt.num(power_max), NumFmt.num(decay_per_tick)]
+	if decay == null:
+		return "%s (max %s)" % [name, NumFmt.num(power_max)]
+	return "%s (max %s, %s)" % [name, NumFmt.num(power_max), decay.describe()]
 
 
 ## The stacks one hit of [param authored] power lands from an attacker with
@@ -114,18 +105,12 @@ func stacks_per_hit(board: StatBoard, authored: float) -> float:
 	return float(stat.get_value_with(overlays))
 
 
-## The power this status would carry after one tick's decay — the one place
-## the [member decay_mode] arithmetic lives; [method NodeCombat.tick_statuses]
-## and [method projected_damage] both read it. `0` means "removed": a FLAT
-## def floors there, a FRACTION def's tail is cut on the tick whose post-decay
-## value is below 1.
+## The power this status would carry after one tick's decay, per its
+## [member decay] slot; [method NodeCombat.tick_statuses] and
+## [method projected_damage] both read it. `0` means "removed". A null slot
+## answers [param power] unchanged.
 func decayed(power: float) -> float:
-	match decay_mode:
-		DecayMode.FRACTION:
-			var after := power * (1.0 - decay_per_tick)
-			return after if after >= 1.0 else 0.0
-		_:
-			return maxf(power - decay_per_tick, 0.0)
+	return power if decay == null else decay.decayed(power)
 
 
 ## Total damage this status still has in it on [param host] at [param power],

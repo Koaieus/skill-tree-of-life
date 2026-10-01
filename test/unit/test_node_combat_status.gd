@@ -72,7 +72,7 @@ func _def(id: StringName, power_max: float, decay: float = 1.0,
 	d.id = id
 	d.display_name = String(id).capitalize()
 	d.power_max = power_max
-	d.decay_per_tick = decay
+	d.decay = FlatDecay.new(decay)
 	d.reapply = reapply
 	return d
 
@@ -144,7 +144,7 @@ func test_fraction_decay_halves_each_tick_and_clears_the_tail_below_one() -> voi
 	# #962: 8 -> 4 -> 2 -> 1 -> (0.5 < 1) removed; `_on_tick` sees the pre-decay
 	# power every time, including the tick that cuts the tail.
 	var d := _def(&"poison", 0.0, 0.5, StatusDef.Reapply.ACCUMULATE)
-	d.decay_mode = StatusDef.DecayMode.FRACTION
+	d.decay = FractionDecay.new(0.5)
 	_combat().apply_status(d, 8.0)
 	_combat().tick_statuses()
 	assert_eq(_combat().get_status_power(&"poison"), 4.0)

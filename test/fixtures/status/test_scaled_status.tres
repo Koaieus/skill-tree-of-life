@@ -1,6 +1,11 @@
 [gd_resource type="Resource" script_class="StatusDef" format=3]
 
 [ext_resource type="Script" path="res://effects/status/status_def.gd" id="1_stat"]
+[ext_resource type="Script" uid="uid://h4ca876s2ht3" path="res://effects/status/decay/flat_decay.gd" id="decay_script"]
+
+[sub_resource type="Resource" id="Resource_decay"]
+script = ExtResource("decay_script")
+per_tick = 1.0
 
 [resource]
 script = ExtResource("1_stat")
@@ -8,9 +13,9 @@ id = &"test_scaled_status"
 display_name = "Test Scaled Status"
 tint = Color(0, 1, 0, 1)
 power_max = 5.0
-decay_per_tick = 1.0
 reapply = 0
 cure_per_hp = 0.0
 on_dealloc = 0
 resistance_stat_id = &"poison_resistance"
 stacks_stat_id = &"poison_stacks_per_hit"
+decay = SubResource("Resource_decay")

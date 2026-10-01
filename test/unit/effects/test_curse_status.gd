@@ -53,8 +53,7 @@ func before_each() -> void:
 	_def.id = &"curse"
 	_def.tags = [&"debuff"]
 	_def.power_max = 0.0  # uncapped
-	_def.decay_mode = StatusDef.DecayMode.FRACTION
-	_def.decay_per_tick = 0.5
+	_def.decay = FractionDecay.new(0.5)
 	_def.reapply = StatusDef.Reapply.ACCUMULATE
 
 

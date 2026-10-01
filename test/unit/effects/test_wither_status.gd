@@ -5,7 +5,7 @@ extends GutTest
 ## healing and 20 invert it. Below zero a heal is TRUE damage that leaves D-9's
 ## regen gate open (the "undead" case — [method NodeCombat.heal_damage]), so
 ## the ramp keeps climbing and the node heals itself to death. Stacks halve
-## per tick (`DecayMode.FRACTION`) and the modifier follows them down. Same
+## per tick (a `FractionDecay`) and the modifier follows them down. Same
 ## planted-modifier shape as ArmorBreak, including the shadow-isolation rule:
 ## replace, never mutate, the found modifier. Authored `wither.tres` values
 ## are the owner's knobs and are never pinned here.
@@ -48,8 +48,7 @@ func before_each() -> void:
 	_def.id = &"wither"
 	_def.factor_per_stack = 0.1
 	_def.power_max = 0.0
-	_def.decay_mode = StatusDef.DecayMode.FRACTION
-	_def.decay_per_tick = 0.5
+	_def.decay = FractionDecay.new(0.5)
 	_def.reapply = StatusDef.Reapply.ACCUMULATE
 
 
@@ -192,5 +191,5 @@ func test_authored_wither_loads_and_names_its_pair() -> void:
 	assert_eq(w.resistance_stat_id, &"wither_resistance")
 	assert_true(w.tags.has(&"debuff"))
 	assert_true(w.factor_per_stack > 0.0, "a per-stack factor is authored")
-	assert_eq(w.decay_mode, StatusDef.DecayMode.FRACTION)
+	assert_true(w.decay is FractionDecay)
 	assert_true(w.power_max <= 0.0, "uncapped")

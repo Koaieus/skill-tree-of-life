@@ -4,7 +4,7 @@ extends GutTest
 ## value `1.0 - power`, `power` itself the fraction removed. `reapply =
 ## ACCUMULATE` makes repeated hits additive on that fraction so five 20% hits
 ## reach exactly ×0 armor (never a compounding `(1-0.2)^5`), and
-## `decay_per_tick` recovers it linearly. Same shape as Blindness (#873) on a
+## a flat `decay` recovers it linearly. Same shape as Blindness (#873) on a
 ## different stat — including the shadow-isolation rule: a static modifier is
 ## SHARED between a live board and its clone, so a def must replace, never
 ## mutate, the found modifier (run knowledge on hub #868, 2026-09-14).
@@ -48,7 +48,7 @@ func before_each() -> void:
 	_def = ArmorBreakStatus.new()
 	_def.id = &"armor_break"
 	_def.power_max = 1.0
-	_def.decay_per_tick = 0.25
+	_def.decay = FlatDecay.new(0.25)
 	_def.reapply = StatusDef.Reapply.ACCUMULATE
 
 

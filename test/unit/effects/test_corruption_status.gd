@@ -62,8 +62,7 @@ func _def(per_power: float = 0.02) -> CorruptionStatus:
 	d.tags = [&"debuff", &"dot"]
 	d.reapply = StatusDef.Reapply.ACCUMULATE
 	d.power_max = 0.0
-	d.decay_mode = StatusDef.DecayMode.FRACTION
-	d.decay_per_tick = 0.5
+	d.decay = FractionDecay.new(0.5)
 	d.damage_per_power = per_power
 	return d
 
@@ -203,7 +202,7 @@ func test_authored_corruption_loads_with_the_model_shape() -> void:
 	assert_eq(c.resistance_stat_id, &"corruption_resistance")
 	assert_true(c.power_max <= 0.0, "uncapped")
 	# Decay shape is pinned by test_status_decay_shapes; the rate is the owner's
-	# knob (#1091: 0.2 — decay_per_tick is the fraction REMOVED; the owner's
+	# knob (#1091: 0.2 — FractionDecay.fraction is REMOVED; the owner's
 	# table f is the fraction RETAINED), so no magnitude is pinned here.
 	assert_gt(c.display_max, 0.0, "an uncapped def authors its display anchor")
 	assert_eq(c.reapply, StatusDef.Reapply.ACCUMULATE)

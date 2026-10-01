@@ -1,19 +1,20 @@
 extends GutTest
 
 ## The decay SHAPE per authored status family (#1091, hub #1060) — a law over
-## `effects/status/*.tres`, pinning FLAT vs FRACTION, never the magnitude
-## (`decay_per_tick` is the owner's knob). Why each family has its shape:
+## `effects/status/*.tres`, pinning the [member StatusDef.decay] member —
+## [FlatDecay] vs [FractionDecay] — never the magnitude (its knob is the
+## owner's). Why each family has its shape:
 ## docs/domain/effect-system.md, "Status effects — the DoT model".
 
 const _DIR := "res://effects/status/"
 
 const _SHAPES := {
-	&"poison": StatusDef.DecayMode.FRACTION,
-	&"corruption": StatusDef.DecayMode.FRACTION,
-	&"wither": StatusDef.DecayMode.FRACTION,
-	&"blindness": StatusDef.DecayMode.FRACTION,
-	&"curse": StatusDef.DecayMode.FLAT,
-	&"armor_break": StatusDef.DecayMode.FLAT,
+	&"poison": FractionDecay,
+	&"corruption": FractionDecay,
+	&"wither": FractionDecay,
+	&"blindness": FractionDecay,
+	&"curse": FlatDecay,
+	&"armor_break": FlatDecay,
 }
 
 
@@ -40,8 +41,10 @@ func test_each_family_decays_in_its_shape() -> void:
 		if not defs.has(id):
 			continue
 		var def: StatusDef = defs[id]
-		assert_eq(def.decay_mode, _SHAPES[id], "%s decays %s" % [id,
-			StatusDef.DecayMode.keys()[_SHAPES[id]]])
-		assert_gt(def.decay_per_tick, 0.0, "%s actually decays" % id)
-		if def.decay_mode == StatusDef.DecayMode.FRACTION:
-			assert_lt(def.decay_per_tick, 1.0, "%s: a fraction below 1 leaves a tail" % id)
+		assert_true(is_instance_of(def.decay, _SHAPES[id]), "%s decays %s" % [id,
+			_SHAPES[id].get_global_name()])
+		var rate: float = (def.decay as FractionDecay).fraction if def.decay is FractionDecay \
+			else (def.decay as FlatDecay).per_tick if def.decay is FlatDecay else 0.0
+		assert_gt(rate, 0.0, "%s actually decays" % id)
+		if def.decay is FractionDecay:
+			assert_lt(rate, 1.0, "%s: a fraction below 1 leaves a tail" % id)

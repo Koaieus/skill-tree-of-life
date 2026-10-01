@@ -85,9 +85,8 @@ func apply_status(def: StatusDef, power: float) -> void:
 
 ## One tick for every status on the host: [method StatusDef._on_tick] first
 ## (damage, effects) — handed [method effective_power] of both `before` and
-## `after` — then decay of the RAW row per [method StatusDef.decayed] — flat by
-## [member StatusDef.decay_per_tick], or halving with the tail cut below 1
-## for a FRACTION def (#962) — then removal at `<= 0`. Iterates a COPY and re-checks each row is still the
+## `after` — then decay of the RAW row per [method StatusDef.decayed] (its
+## [member StatusDef.decay] slot) — then removal at `<= 0`. Iterates a COPY and re-checks each row is still the
 ## one on the host before touching it — a tick can `take_damage` into a kill
 ## cascade that `clear_statuses()` this very host, or a hook can remove a
 ## sibling; either way a vanished status is skipped, never resurrected.
@@ -99,7 +98,7 @@ func tick_statuses() -> void:
 		if _statuses.get(id) != row:
 			continue  # vanished mid-tick
 		var before := row.power
-		var after := row.def.decayed(before)  # by decay_mode; 0 means removed
+		var after := row.def.decayed(before)  # per its decay slot; 0 means removed
 		# ADR 0031: the hook sees both ends resisted; decay stays raw below.
 		row.def._on_tick(owner, effective_power(row.def, before), effective_power(row.def, after))
 		if _statuses.get(id) != row:

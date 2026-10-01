@@ -100,7 +100,7 @@ func _debuff(cure_per_hp: float, power_max: float = 10.0) -> _TrackingDebuff:
 	d.id = &"tracked_debuff"
 	d.tags = [&"debuff"]
 	d.power_max = power_max
-	d.decay_per_tick = 0.0
+	d.decay = FlatDecay.new(0.0)
 	d.cure_per_hp = cure_per_hp
 	return d
 
@@ -194,7 +194,7 @@ func test_a_cured_blindness_modifier_tracks_the_new_power_and_clears_at_zero() -
 	blind.id = &"blindness"
 	blind.tags = [&"debuff"]
 	blind.power_max = 3.0
-	blind.decay_per_tick = 0.0
+	blind.decay = FlatDecay.new(0.0)
 	blind.cure_per_hp = 1.0
 
 	_node.get_combat().apply_status(blind, 3.0)

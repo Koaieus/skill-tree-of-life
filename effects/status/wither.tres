@@ -1,6 +1,11 @@
 [gd_resource type="Resource" script_class="WitherStatus" format=3]
 
 [ext_resource type="Script" path="res://effects/status/wither.gd" id="1_wither"]
+[ext_resource type="Script" uid="uid://18mskbhypx7a" path="res://effects/status/decay/fraction_decay.gd" id="decay_script"]
+
+[sub_resource type="Resource" id="Resource_decay"]
+script = ExtResource("decay_script")
+fraction = 0.25
 
 [resource]
 script = ExtResource("1_wither")
@@ -12,9 +17,8 @@ tint = Color(0.7, 0.55, 0.25, 1)
 tags = Array[StringName]([&"debuff"])
 resistance_stat_id = &"wither_resistance"
 power_max = 0.0
-decay_mode = 1
-decay_per_tick = 0.25
 display_max = 10.0
 reapply = 1
 cure_per_hp = 0.0
 stacks_stat_id = &"wither_stacks_per_hit"
+decay = SubResource("Resource_decay")

@@ -9,7 +9,7 @@ extends StatusDef
 ## [method NodeCombat.heal_damage]'s special case, owner (2026-09-20): "it
 ## ruins your healing to making you effectively undead". The def owns none
 ## of that arithmetic; it only sets the multiplier and lets the heal door do
-## the rest. Stacks halve per tick (`DecayMode.FRACTION`, authored on the
+## the rest. Stacks fade by a fraction per tick (a [FractionDecay], authored on the
 ## `.tres`) and the modifier is re-planted at the post-decay power.
 ##
 ## Same shared-stateless shape as [ArmorBreakStatus]: the per-node handle is

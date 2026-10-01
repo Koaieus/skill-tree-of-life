@@ -6,7 +6,7 @@ extends StatusDef
 ## `reapply = ACCUMULATE` in the authored def makes repeated hits additive on
 ## that fraction (two 20% hits leave 60% armor, never (1-0.2)^2 = 64%), so a
 ## fully broken node (`power == power_max == 1.0`) reaches exactly ×0 armor.
-## Recovery is `decay_per_tick` per turn, same shape as everything else here.
+## Recovery is its flat [member StatusDef.decay] per turn, same shape as everything else here.
 ##
 ## The def is shared and stateless (same rationale as [BlindnessStatus]): the
 ## per-node handle is FOUND rather than stored, and every write REPLACES the

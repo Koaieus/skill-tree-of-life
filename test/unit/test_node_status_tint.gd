@@ -46,7 +46,7 @@ func _def(id: StringName, power_max: float, decay: float = 1.0,
 	var d := SpyDef.new()
 	d.id = id
 	d.power_max = power_max
-	d.decay_per_tick = decay
+	d.decay = FlatDecay.new(decay)
 	d.reapply = reapply
 	d.tint = Color(0.2, 0.85, 0.25, 1.0)
 	return d

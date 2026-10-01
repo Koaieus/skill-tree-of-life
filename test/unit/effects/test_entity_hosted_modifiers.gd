@@ -84,8 +84,7 @@ func _entity_mods(stat_id: StringName, cls: Script) -> Array[StatModifier]:
 
 func _decaying(def: StatusDef) -> StatusDef:
 	def.power_max = 0.0
-	def.decay_mode = StatusDef.DecayMode.FRACTION
-	def.decay_per_tick = 0.5
+	def.decay = FractionDecay.new(0.5)
 	def.reapply = StatusDef.Reapply.ACCUMULATE
 	return def
 
@@ -97,8 +96,7 @@ func test_entity_blindness_halves_every_nodes_combined_vision_range() -> void:
 	def.id = &"blindness"
 	def.depth_k = 10.0  # half-depth at the applied power → ×0.5
 	def.power_max = 10.0
-	def.decay_mode = StatusDef.DecayMode.FRACTION
-	def.decay_per_tick = 0.5
+	def.decay = FractionDecay.new(0.5)
 	var v0 := float(_n0.get_local_value(&"vision_range"))
 	var v1 := float(_n1.get_local_value(&"vision_range"))
 	assert_gt(v1, 0.0)
@@ -125,8 +123,7 @@ func test_entity_armor_break_multiplies_every_nodes_armor() -> void:
 	var def := ArmorBreakStatus.new()
 	def.id = &"armor_break"
 	def.power_max = 1.0
-	def.decay_mode = StatusDef.DecayMode.FRACTION
-	def.decay_per_tick = 0.5
+	def.decay = FractionDecay.new(0.5)
 	_entity.stat_board.get_stat(&"armor").base_value = 8.0
 	assert_almost_eq(float(_n1.get_local_value(&"armor")), 8.0, 0.001)
 	_combat().apply_status(def, 0.5)

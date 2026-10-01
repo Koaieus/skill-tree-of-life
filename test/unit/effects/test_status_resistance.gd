@@ -51,8 +51,7 @@ func _poison() -> PoisonStatus:
 	d.id = &"poison"
 	d.resistance_stat_id = &"poison_resistance"
 	d.power_max = 0.0
-	d.decay_mode = StatusDef.DecayMode.FRACTION
-	d.decay_per_tick = 0.5
+	d.decay = FractionDecay.new(0.5)
 	d.reapply = StatusDef.Reapply.ACCUMULATE
 	d.basis = HitInstance.AmountBasis.FLAT
 	d.damage_per_power = 1.0
@@ -64,8 +63,7 @@ func _corruption() -> CorruptionStatus:
 	d.id = &"corruption"
 	d.resistance_stat_id = &"corruption_resistance"
 	d.power_max = 0.0
-	d.decay_mode = StatusDef.DecayMode.FRACTION
-	d.decay_per_tick = 0.5
+	d.decay = FractionDecay.new(0.5)
 	d.reapply = StatusDef.Reapply.ACCUMULATE
 	d.damage_per_power = 0.02
 	return d
@@ -76,8 +74,7 @@ func _curse() -> CurseStatus:
 	d.id = &"curse"
 	d.resistance_stat_id = &"curse_resistance"
 	d.power_max = 0.0
-	d.decay_mode = StatusDef.DecayMode.FLAT
-	d.decay_per_tick = 1.0
+	d.decay = FlatDecay.new(1.0)
 	d.reapply = StatusDef.Reapply.ACCUMULATE
 	return d
 

@@ -85,8 +85,7 @@ func _wither(stacks: float) -> WitherStatus:
 	def.id = &"wither"
 	def.factor_per_stack = 0.1
 	def.power_max = 0.0
-	def.decay_mode = StatusDef.DecayMode.FRACTION
-	def.decay_per_tick = 0.5
+	def.decay = FractionDecay.new(0.5)
 	def.reapply = StatusDef.Reapply.ACCUMULATE
 	_combat().apply_status(def, stacks)
 	return def
@@ -140,8 +139,7 @@ func test_a_withered_core_healing_upkeep_drains_the_pool_as_true_damage() -> voi
 	def.id = &"wither"
 	def.factor_per_stack = 0.1
 	def.power_max = 0.0
-	def.decay_mode = StatusDef.DecayMode.FRACTION
-	def.decay_per_tick = 0.5
+	def.decay = FractionDecay.new(0.5)
 	def.reapply = StatusDef.Reapply.ACCUMULATE
 	spy.apply_status(def, 15.0)
 	assert_almost_eq(float(spy.get_local_value(&"healing_received")), -0.5, 0.001,
@@ -184,8 +182,7 @@ func test_entity_curse_resistance_filters_a_fallen_through_curse() -> void:
 	def.id = &"curse"
 	def.power_max = 0.0
 	def.resistance_stat_id = &"curse_resistance"
-	def.decay_mode = StatusDef.DecayMode.FRACTION
-	def.decay_per_tick = 0.5
+	def.decay = FractionDecay.new(0.5)
 	def.reapply = StatusDef.Reapply.ACCUMULATE
 	_entity.stat_board.get_stat(&"curse_resistance").base_value = 0.25
 	# Crack the core: TRUE damage exactly to its node HP, no overflow.

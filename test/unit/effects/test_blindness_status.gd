@@ -63,10 +63,9 @@ func before_each() -> void:
 	_def.id = &"blindness"
 	_def.power_max = 0.0
 	_def.display_max = 3.0
-	_def.decay_mode = StatusDef.DecayMode.FRACTION
-	# decay_per_tick is the fraction REMOVED; blindness's "~0.7" is read as
+	# FractionDecay.fraction is the fraction REMOVED; blindness's "~0.7" is read as
 	# removed (owner: staying blind too long is annoying), unlike the DoT table.
-	_def.decay_per_tick = 0.7
+	_def.decay = FractionDecay.new(0.7)
 	_def.reapply = StatusDef.Reapply.ACCUMULATE
 	_def.depth_k = 3.0
 	_def.floor_factor = 0.1
@@ -303,7 +302,7 @@ func test_authored_blindness_and_dazzle_load_and_are_in_the_debug_book() -> void
 	assert_true(&"debuff" in blind.tags, "tagged as a debuff")
 	assert_true(blind.power_max <= 0.0, "uncapped — depth is the curve's job, not a clamp")
 	assert_eq(blind.reapply, StatusDef.Reapply.ACCUMULATE, "accumulating, so reapply commutes")
-	assert_eq(blind.decay_mode, StatusDef.DecayMode.FRACTION, "a fractional fade")
+	assert_true(blind.decay is FractionDecay, "a fractional fade")
 	assert_gt(blind.floor_factor, 0.0)
 	assert_lt(blind.floor_factor, 1.0, "a floor below 1 — blindness shrinks, never grows")
 	assert_gt(blind.depth_k, 0.0)

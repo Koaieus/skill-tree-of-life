@@ -61,7 +61,7 @@ func _def(basis: HitInstance.AmountBasis, per_power: float, power_max: float = 5
 	d.tags = [&"debuff"]
 	d.reapply = StatusDef.Reapply.ACCUMULATE
 	d.power_max = power_max
-	d.decay_per_tick = decay
+	d.decay = FlatDecay.new(decay)
 	d.basis = basis
 	d.damage_per_power = per_power
 	return d
@@ -122,12 +122,12 @@ const _AUTHORED: PoisonStatus = preload("res://effects/status/poison.tres")
 
 
 func test_authored_poison_shape_is_flat_uncapped_halving() -> void:
-	# Shape only — `damage_per_power` / `decay_per_tick` are the model, not tuning.
+	# Shape only — `damage_per_power` / the decay fraction are the model, not tuning.
 	assert_eq(_AUTHORED.basis, HitInstance.AmountBasis.FLAT)
 	assert_almost_eq(_AUTHORED.damage_per_power, 1.0, 0.0001, "flat 1 HP per stack per tick")
 	assert_true(_AUTHORED.power_max <= 0.0, "uncapped")
-	assert_eq(_AUTHORED.decay_mode, StatusDef.DecayMode.FRACTION)
-	assert_almost_eq(_AUTHORED.decay_per_tick, 0.5, 0.0001, "halves")
+	assert_true(_AUTHORED.decay is FractionDecay)
+	assert_almost_eq((_AUTHORED.decay as FractionDecay).fraction, 0.5, 0.0001, "halves")
 	assert_gt(_AUTHORED.display_max, 0.0, "an uncapped def authors its display anchor")
 	assert_eq(_AUTHORED.reapply, StatusDef.Reapply.ACCUMULATE)
 

@@ -1,6 +1,11 @@
 [gd_resource type="Resource" script_class="StatusDef" format=3]
 
 [ext_resource type="Script" uid="uid://df26qxsm3sm24" path="res://effects/status/status_def.gd" id="1_status_def"]
+[ext_resource type="Script" uid="uid://18mskbhypx7a" path="res://effects/status/decay/fraction_decay.gd" id="decay_script"]
+
+[sub_resource type="Resource" id="Resource_decay"]
+script = ExtResource("decay_script")
+fraction = 0.5
 
 [resource]
 script = ExtResource("1_status_def")
@@ -10,9 +15,8 @@ description = "A scout arrow lit up this node's surroundings for the firer. The 
 tint = Color(0.55, 0.9, 1, 1)
 tags = Array[StringName]([&"vision"])
 power_max = 0.0
-decay_per_tick = 0.5
-decay_mode = 1
 display_max = 8.0
 reapply = 0
 cure_per_hp = 0.0
 on_dealloc = 0
+decay = SubResource("Resource_decay")

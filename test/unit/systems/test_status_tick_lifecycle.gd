@@ -86,7 +86,7 @@ func _def(id: StringName, power_max: float, decay: float = 1.0) -> SpyDef:
 	var d := SpyDef.new()
 	d.id = id
 	d.power_max = power_max
-	d.decay_per_tick = decay
+	d.decay = FlatDecay.new(decay)
 	return d
 
 

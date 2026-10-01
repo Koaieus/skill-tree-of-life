@@ -165,7 +165,7 @@ func test_a_weaker_relanding_keeps_the_live_mark() -> void:
 
 func test_the_def_owns_the_decay_rate() -> void:
 	var def: StatusDef = _vision.scouted_def.duplicate() as StatusDef
-	def.decay_per_tick = 0.75
+	def.decay = FractionDecay.new(0.75)
 	_vision.scouted_def = def
 	_scout(_n5, _a, 200.0)
 	_tick(_a)  # power 4 → 1
