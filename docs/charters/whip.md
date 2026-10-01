@@ -320,8 +320,8 @@ section.
 ### 2026-10-02 — first live run (run issue #1319, master `7d57a54`)
 
 - **Owner's count ≠ board.** Owner said "just 7 ready issues"; `start`
-  snapshotted 12, `trains` cut 5 trains. Whip trusts the board, but says so
-  in its first reply — the owner's mental model is the thing to correct.
+  snapshotted 12. Cause: a stale filter on the GitHub web board, not the
+  board itself. Whip was right to trust `start` and to name the mismatch.
 - **No verb to drop an issue from a train.** Owner pulled #1317 back to
   Needs design at 01:25 while it sat in queued train e. Only `train split`
   exists; the drop lives in a `note` and in Whip remembering to launch e as
