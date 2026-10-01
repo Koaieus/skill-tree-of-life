@@ -523,7 +523,8 @@ func test_a_spent_reaching_leaf_is_no_longer_an_origin() -> void:
 	p.set_target(_target)
 	assert_eq(p.get_node_role(_leaf_near), HighlightProvider.HighlightRole.ORIGIN, "fresh leaf fires")
 	_leaf_near.mark_shot_fired(1)
-	assert_eq(p.get_node_role(_leaf_near), HighlightProvider.HighlightRole.NONE, "spent leaf will not fire")
+	assert_eq(p.get_node_role(_leaf_near), HighlightProvider.HighlightRole.CASTER,
+			"spent leaf will not fire but stays in the squad")
 
 
 func test_a_spent_leaf_keeps_its_real_range() -> void:
@@ -536,3 +537,44 @@ func test_base_provider_fill_is_solid() -> void:
 	var base := HighlightProvider.new()
 	autofree(base)
 	assert_almost_eq(base.get_node_range_fill(_leaf_near), 1.0, 1e-6)
+
+
+# ── Squad roles + facing ─────────────────────────────────────────────────
+
+
+func test_without_a_target_every_leaf_with_shots_is_a_caster() -> void:
+	var p := _plan()
+	assert_eq(p.get_node_role(_leaf_near), HighlightProvider.HighlightRole.CASTER)
+	assert_eq(p.get_node_role(_leaf_far), HighlightProvider.HighlightRole.CASTER)
+	assert_eq(p.get_node_role(_mid), HighlightProvider.HighlightRole.NONE, "a non-leaf is no firing position")
+
+
+func test_with_a_target_in_range_is_origin_and_out_of_range_is_caster() -> void:
+	var p := _plan()
+	p.set_target(_target)
+	assert_eq(p.get_node_role(_leaf_near), HighlightProvider.HighlightRole.ORIGIN)
+	assert_eq(p.get_node_role(_leaf_far), HighlightProvider.HighlightRole.CASTER)
+
+
+func test_a_spent_leaf_is_a_caster_at_fill_zero() -> void:
+	_leaf_far.mark_shot_fired(1)
+	var p := _plan()
+	assert_eq(p.get_node_role(_leaf_far), HighlightProvider.HighlightRole.CASTER)
+	assert_almost_eq(p.get_node_range_fill(_leaf_far), 0.0, 1e-6)
+
+
+func test_facing_points_outward_from_the_neighbour_without_a_target() -> void:
+	var p := _plan()
+	# _leaf_far (0,0) hangs off _mid (200,0): outward is -x; _leaf_near (400,0) is +x.
+	assert_almost_eq(p.get_node_facing(_leaf_far).normalized(), Vector2.LEFT, Vector2(1e-5, 1e-5))
+	assert_almost_eq(p.get_node_facing(_leaf_near).normalized(), Vector2.RIGHT, Vector2(1e-5, 1e-5))
+
+
+func test_facing_points_at_the_target_when_origin() -> void:
+	_target.position = Vector2(400, 60)
+	var p := _plan()
+	p.set_target(_target)
+	assert_eq(p.get_node_role(_leaf_near), HighlightProvider.HighlightRole.ORIGIN, "precondition")
+	assert_almost_eq(p.get_node_facing(_leaf_near).normalized(), Vector2.DOWN, Vector2(1e-5, 1e-5))
+	assert_almost_eq(p.get_node_facing(_leaf_far).normalized(), Vector2.LEFT, Vector2(1e-5, 1e-5),
+			"an out-of-range caster keeps its outward facing")
