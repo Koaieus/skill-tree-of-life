@@ -360,6 +360,10 @@ func take_damage(amount: float, source: HitInstance) -> void:
 	else:
 		raw = DamageInstance.new()
 		raw.amount = amount
+	# ADR 0033: rounded up ONCE, here at entry and before mitigation — armor
+	# and the floor are INT, so `effective` below is whole with no second
+	# rounding, and the recorded amount is the whole pre-mitigation number.
+	raw.amount = HitPoints.whole(raw.amount)
 	var effective: float
 	if host != null:
 		effective = Mitigation.apply(raw, host)
@@ -382,10 +386,6 @@ func take_damage(amount: float, source: HitInstance) -> void:
 	var flipped_to_heal := source is DamageInstance and effective < 0.0
 	if flipped_to_heal:
 		(source as DamageInstance).kind = HitInstance.Kind.HEAL
-	# ADR 0017: the landing floors ONCE, after the flip test above reads the
-	# raw float (a -0.4 is still a heal, of 0) — so the floater, the bar and
-	# the core overflow below all read this one whole number.
-	effective = signf(effective) * HitPoints.land(absf(effective))
 	var hp := _hp_pool()
 	if hp == null:
 		return
@@ -552,9 +552,10 @@ func heal_damage(amount: float, source: HitInstance, raw: bool = false) -> void:
 	if amount < 0.0:
 		_withered_heal(-amount, source)
 		return
-	# ADR 0017: floored once, after the wither test read the raw float; the
-	# withered branch above floors in the damage door it forwards to.
-	amount = HitPoints.land(amount)
+	# ADR 0033: rounded up once, after the `healing_received` multiply that
+	# finishes producing the heal; the withered branch above rounds in the
+	# damage door it forwards to.
+	amount = HitPoints.whole(amount)
 	if amount <= 0.0:
 		# Blocked outright: nothing moves, no `healed` signal, and a
 		# HealInstance reports 0.

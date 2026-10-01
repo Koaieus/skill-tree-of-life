@@ -203,9 +203,9 @@ func board() -> StatBoard:
 ## [method simulate_entity_death] exactly once, on the drain that crosses,
 ## the way the live signal fires once.
 func take_pool_damage(amount: float, _source: HitInstance) -> void:
-	# ADR 0017: floored once on entry — a no-op on the node door's
-	# already-whole overflow, the one floor for a DoT tick or a dealloc chip.
-	amount = HitPoints.land(amount)
+	# ADR 0033: rounded up once on entry — a no-op on the node door's
+	# already-whole overflow, the one rounding for a DoT tick or a dealloc chip.
+	amount = HitPoints.whole(amount)
 	if amount <= 0.0:
 		return
 	var b := board()
@@ -261,8 +261,8 @@ func heal(amount: float, source: HitInstance, raw: bool = false) -> void:
 			hit.hp_after = health_pool.current
 			hit.hp_max = get_max_hp()
 		return
-	# ADR 0017: floored once, after the wither test read the raw float.
-	amount = HitPoints.land(amount)
+	# ADR 0033: rounded up once, after the wither test read the raw float.
+	amount = HitPoints.whole(amount)
 	if amount <= 0.0:
 		if source is HealInstance:
 			(source as HealInstance).effective_amount = 0.0
