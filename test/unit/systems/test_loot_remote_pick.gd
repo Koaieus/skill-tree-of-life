@@ -15,6 +15,7 @@ extends GutTest
 ## than hand-building a [PickLootCommand] directly the way the #646 tests do.
 
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
+const _DUST_SCENE := preload("res://skill_node/addons/defs/skill_dust_addon.tscn")
 const _Rig := preload("res://test/fixtures/link_rig.gd")
 const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _BOARD := preload("res://entity/default_entity_board.tres")
@@ -61,7 +62,7 @@ func _build_world(label: String, candidates: Array[StatModifier],
 		add_child_autofree(registry)
 	add_child_autofree(applier)
 
-	var addon := SkillDustAddon.new()
+	var addon := _DUST_SCENE.instantiate() as SkillDustAddon
 	var weights: Array[float] = []
 	for _c in candidates:
 		weights.append(1.0)
@@ -104,6 +105,7 @@ func _link(applier: CommandApplier, graph: Graph, transport: NetworkTransport,
 ## documented supported configuration; see the class doc).
 func _mirror_adapter(applier: CommandApplier, registry: LootPickRegistry) -> LootSystem:
 	var system := LootSystem.new()
+	system.skill_dust_scene = _DUST_SCENE
 	system.command_applier = applier
 	system.pick_registry = registry
 	add_child_autofree(system)
@@ -276,6 +278,7 @@ func test_a_collector_death_mid_pick_forfeits_and_travels_upward() -> void:
 func test_a_spell_offer_rebuilds_through_spellcatalog() -> void:
 	var client := await _build_world("client", [])
 	var system := LootSystem.new()
+	system.skill_dust_scene = _DUST_SCENE
 	system.command_applier = client["applier"]
 	add_child_autofree(system)
 

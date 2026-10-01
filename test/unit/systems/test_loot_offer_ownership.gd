@@ -17,6 +17,7 @@ extends GutTest
 
 const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _BOARD := preload("res://entity/default_entity_board.tres")
+const _DUST_SCENE := preload("res://skill_node/addons/defs/skill_dust_addon.tscn")
 
 const _PEER_A := 7
 const _PEER_B := 9
@@ -81,6 +82,7 @@ func _mirror(label: String, local_peer: int, roster: ParticipantRoster) -> Dicti
 	add_child_autofree(registry)
 
 	var system := LootSystem.new()
+	system.skill_dust_scene = _DUST_SCENE
 	system.command_applier = applier
 	system.pick_registry = registry
 	add_child_autofree(system)

@@ -10,6 +10,7 @@ extends GutTest
 ##      requests a REMOTE picker owes an answer to.
 
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
+const _DUST_SCENE := preload("res://skill_node/addons/defs/skill_dust_addon.tscn")
 const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _BOARD := preload("res://entity/default_entity_board.tres")
 const _LEVEL_SCALING := preload("res://stats_system/formulas/level_scaling.tres")
@@ -218,6 +219,7 @@ func test_a_peer_never_opens_a_round_of_its_own() -> void:
 		_mod(&"strength", StatModifier.Operation.ADD_BASE, 1.0),
 	])
 	var loot := LootSystem.new()
+	loot.skill_dust_scene = _DUST_SCENE
 	loot.command_applier = applier
 	add_child_autofree(loot)
 	loot.adopt_relic(dust)
@@ -435,7 +437,7 @@ func _request(resolver: Callable) -> LootPickRequest:
 
 
 func _dust(candidates: Array[StatModifier]) -> SkillDustAddon:
-	var dust := SkillDustAddon.new()
+	var dust := _DUST_SCENE.instantiate() as SkillDustAddon
 	dust.candidates = candidates
 	var weights: Array[float] = []
 	for _c in candidates:

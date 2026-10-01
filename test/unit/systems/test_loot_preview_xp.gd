@@ -30,6 +30,7 @@ const _BALANCED := preload("res://entity/core/balanced_core.tres")
 const _EDGE_SCENE := preload("res://graph/edge.tscn")
 const _PLAYER_FACTION := preload("res://entity/factions/player.tres")
 const _NPC_FACTION := preload("res://entity/factions/npc.tres")
+const _DUST_SCENE := preload("res://skill_node/addons/defs/skill_dust_addon.tscn")
 
 const _PER_NODE := 5.0
 const _CORE_BONUS := 12.0
@@ -83,6 +84,7 @@ func before_each() -> void:
 	add_child_autofree(_battle)
 
 	_loot = LootSystem.new()
+	_loot.skill_dust_scene = _DUST_SCENE
 	_loot.turn_manager = _tm
 	_loot.battle_system = _battle
 	_loot.xp_per_node_killed = _PER_NODE

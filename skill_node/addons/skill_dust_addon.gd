@@ -40,18 +40,17 @@ extends SkillNodeAddon
 ## what makes "on pick, after the regular picks" true by construction instead
 ## of by call-order coincidence.
 ##
-## Visual (#168): scene-composed (skill_dust_addon.tscn) with a child InnerDisk
-## instance, per .claude/rules/scene-composition.md — the gold/mix knobs below
-## are only actually inspector-tunable because they live on a scene, not a
-## script that's always bare `.new()`'d. The disk's authored
+## Visual (#168): scene-composed (defs/skill_dust_addon.tscn) with a child
+## InnerDisk instance, per .claude/rules/scene-composition.md — the gold/mix
+## knobs below are only actually inspector-tunable because they live on a
+## scene, not a script that's always bare `.new()`'d. The disk's authored
 ## `carve_shape = GemCarveShape.SHARED` (see inner_disk.gd) etches the loot gem
 ## cut; this script forces `allocated = true` on it — the "hijack the
 ## allocation-state render" option from #168, scoped to this addon's OWN disk
 ## instance so nothing needs to be faked on the carrier
-## SkillNode/AllocationSystem. LootSystem falls back to `SkillDustAddon.new()`
-## when no scene is configured (see `skill_dust_scene` on LootSystem) — that
-## bare fallback has no InnerDisk child, so it's intentionally visual-lite
-## (sparkles only), not a bug.
+## SkillNode/AllocationSystem. `skill_dust_scene` on LootSystem is required
+## (#1292) — there is no bare-script fallback; an unset scene skips the drop
+## instead of minting a script-only addon.
 
 ## The full drawn candidate pool (#323: all three provenance buckets, unfiltered
 ## by `would_cycle` — that check happens per round at claim time, not here,

@@ -21,6 +21,7 @@ const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _PLAYER_FACTION := preload("res://entity/factions/player.tres")
 const _BALANCED := preload("res://entity/core/balanced_core.tres")
+const _DUST_SCENE := preload("res://skill_node/addons/defs/skill_dust_addon.tscn")
 ## Not innate (spellbook_default.tres holds spark + lightning_bolt), so it
 ## survives `_exclude_permanently_known` and the terminal round has something
 ## real to offer.
@@ -89,6 +90,7 @@ func before_each() -> void:
 	# NodePaths do it, including the applier — so the claim runs as a real
 	# LootRoundCommand chain rather than the inline no-pipeline fallback.
 	_loot = LootSystem.new()
+	_loot.skill_dust_scene = _DUST_SCENE
 	_loot.turn_manager = _tm
 	_loot.command_applier = _applier
 	_loot.xp_per_node_killed = 0.0

@@ -17,6 +17,7 @@ const _BOARD := preload("res://entity/default_entity_board.tres")
 const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _PLAYER_FACTION := preload("res://entity/factions/player.tres")
 const _NPC_FACTION := preload("res://entity/factions/npc.tres")
+const _DUST_SCENE := preload("res://skill_node/addons/defs/skill_dust_addon.tscn")
 
 var _graph: Graph
 var _alloc: AllocationSystem
@@ -39,6 +40,7 @@ func before_each() -> void:
 	add_child_autofree(_tm)
 
 	_loot = LootSystem.new()
+	_loot.skill_dust_scene = _DUST_SCENE
 	_loot.turn_manager = _tm
 	_loot.xp_per_node_killed = 5.0
 	add_child_autofree(_loot)

@@ -141,9 +141,10 @@ extends Node
 ##
 ##   N = loot_rounds, clamp [0, M]
 
-## Optional packed scene for the dust addon (inspector-set). Falls back to a bare
-## `SkillDustAddon.new()` when unset — the addon's visual is script-driven, so the
-## fallback still renders.
+## Packed scene for the dust addon (inspector-set), required — an addon is a
+## scene, never a bare `SkillDustAddon.new()` (#1292). Wired to
+## `skill_node/addons/defs/skill_dust_addon.tscn` in `game_root.tscn`. When
+## unset, [method _drop_skill_dust] logs an error and skips the drop.
 @export var skill_dust_scene: PackedScene = null
 
 ## Loot value scale, keyed off `victim.entity_tier` (#775 — exponential per the
@@ -446,11 +447,10 @@ func _drop_skill_dust(victim: Entity) -> void:
 		spell_candidates = _spell_candidates(victim)
 	if candidates.is_empty() and spell_candidates.is_empty():
 		return
-	var dust: SkillDustAddon = null
-	if skill_dust_scene != null:
-		dust = skill_dust_scene.instantiate() as SkillDustAddon
-	if dust == null:
-		dust = SkillDustAddon.new()
+	if skill_dust_scene == null:
+		push_error("LootSystem.skill_dust_scene is unset; skipping dust drop")
+		return
+	var dust: SkillDustAddon = skill_dust_scene.instantiate() as SkillDustAddon
 	dust.candidates = candidates
 	dust.weights = draw["weights"]
 	dust.rounds = draw["rounds"]

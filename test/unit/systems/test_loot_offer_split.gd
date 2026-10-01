@@ -32,6 +32,7 @@ extends GutTest
 ## that gap.
 
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
+const _DUST_SCENE := preload("res://skill_node/addons/defs/skill_dust_addon.tscn")
 const _Rig := preload("res://test/fixtures/link_rig.gd")
 const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _BOARD := preload("res://entity/default_entity_board.tres")
@@ -78,7 +79,7 @@ func _build_world(label: String, candidates: Array[StatModifier],
 		add_child_autofree(registry)
 	add_child_autofree(applier)
 
-	var addon := SkillDustAddon.new()
+	var addon := _DUST_SCENE.instantiate() as SkillDustAddon
 	var weights: Array[float] = []
 	for _c in candidates:
 		weights.append(1.0)

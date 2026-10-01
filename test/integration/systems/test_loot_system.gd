@@ -15,6 +15,7 @@ const _EDGE_SCENE := preload("res://graph/edge.tscn")
 ## the synchronous "snapshot-before-strip" ordering is actually exercised.
 
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
+const _DUST_SCENE := preload("res://skill_node/addons/defs/skill_dust_addon.tscn")
 const _BOARD := preload("res://entity/default_entity_board.tres")
 const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _BALANCED := preload("res://entity/core/balanced_core.tres")
@@ -53,6 +54,7 @@ func before_each() -> void:
 	# relative to AllocationSystem (on `entity_died`) doesn't matter — the phase
 	# split guarantees the snapshot reads still-owned nodes before the strip.
 	_loot = LootSystem.new()
+	_loot.skill_dust_scene = _DUST_SCENE
 	_loot.turn_manager = _tm  # killer attribution source
 	# XP tests set `xp_per_node_killed` explicitly; the core bonus
 	# (`core_kill_xp`, #774) is zeroed below once the victim's board exists —
@@ -422,7 +424,7 @@ func test_pickup_merges_equivalent_grants_instead_of_stacking_copies() -> void:
 	relic_a.name = "RelicA"
 	_graph.add_skill_node(relic_a)
 	_add_edge(_nodes[0], relic_a)
-	var dust_a := SkillDustAddon.new()
+	var dust_a := _DUST_SCENE.instantiate() as SkillDustAddon
 	dust_a.candidates = [_mk_mod(&"armor", 5.0)]
 	dust_a.weights = [1.0]
 	dust_a.rounds = 1
@@ -433,7 +435,7 @@ func test_pickup_merges_equivalent_grants_instead_of_stacking_copies() -> void:
 	relic_b.name = "RelicB"
 	_graph.add_skill_node(relic_b)
 	_add_edge(_nodes[0], relic_b)
-	var dust_b := SkillDustAddon.new()
+	var dust_b := _DUST_SCENE.instantiate() as SkillDustAddon
 	dust_b.candidates = [_mk_mod(&"armor", 5.0)]
 	dust_b.weights = [1.0]
 	dust_b.rounds = 1
@@ -611,7 +613,7 @@ func test_sequential_would_cycle_filtering_closes_the_joint_cycle_gap() -> void:
 	_graph.add_skill_node(relic)
 	_add_edge(_nodes[0], relic)
 
-	var dust := SkillDustAddon.new()
+	var dust := _DUST_SCENE.instantiate() as SkillDustAddon
 	dust.candidates = [mod_a, mod_b]
 	dust.weights = [1.0, 1.0]
 	dust.rounds = 2
