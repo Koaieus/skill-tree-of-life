@@ -88,7 +88,8 @@ def run(*argv):
 
 
 def launches():
-    return [c for c in calls if c.startswith("claude") and "--version" not in c]
+    """Every session start/stop/prompt, including the relieve path's re-exec of whip itself."""
+    return [c for c in calls if (c.startswith("claude") and "--version" not in c) or wh.__file__ in c]
 
 
 today = time.strftime("%Y-%m-%d")
@@ -165,7 +166,7 @@ check("done-check clean once every still-Ready is noted and no lead runs", code 
 
 # --- report, no gh ---------------------------------------------------------
 fx["needs_design"] = [20]
-n_gh = len([c for c in calls if c.startswith("gh ")])
+base = len(calls)
 code, out = run("report")
 rpath = os.path.join(handoffs, f"whip-report-{today}.md")
 rep = open(rpath).read() if os.path.exists(rpath) else ""
@@ -174,7 +175,7 @@ check("report headline: landed 2/6, back 1, still Ready 2", "Landed 2/6" in rep 
 check("report lists landed by Closes, with titles", "- #10 issue 10" in rep and "- #11 issue 11" in rep)
 check("report carries the still-ready why from the note", "- #21 issue 21 — blocked off-set" in rep)
 check("report sections: needs owner, filed, incidents, cost", "cursor fork" in rep and "#99 Filed overnight" in rep and "## Incidents" in rep and "80k" in rep)
-check("report with no run issue posts no comment", not any("issue comment" in c for c in calls[n_gh:]))
+check("report with no run issue posts no comment", not any("issue comment" in c for c in calls[base:]))
 check("report marks the run done + writes the .done marker", state()["done"] is True and os.path.exists(jpath[:-5] + ".done"))
 
 # --- watchdog no-op paths --------------------------------------------------
