@@ -192,11 +192,14 @@ def cmd_launch(a):
     st = current()
     if time.time() - st["started_ts"] > st["cap_h"] * 3600:
         event(st, f"launch {a.name} REFUSED: past the {st['cap_h']}h cap"); sys.exit(2)
-    if agent(a.name):
+    train = a.name.split("-")[1] if "-" in a.name else None
+    live = agent(a.name)
+    if live and a.name in st["leads"]:
         print(f"{a.name} already running — not launched"); return
+    if live:  # alive but unrecorded (a launch whose output we failed to parse): adopt, never launch twice
+        return record_launch(st, a, train, live["sessionId"])
     mode = os.environ.get("WHIP_PERMISSION_MODE", "bypassPermissions")
     model = os.environ.get("WHIP_LEAD_MODEL", "opus")
-    train = a.name.split("-")[1] if "-" in a.name else None
     if a.self:
         prompt = (f"/whip — relief from {st['_path']}. You are the supervisor named 'whip'; messages from sessions "
                   "named lead-*/relief-* are the reports you act on; the watchdog's 'watchdog:' prompts are instructions.")
@@ -211,10 +214,15 @@ def cmd_launch(a):
     cmd = ["claude", "--bg", "-n", a.name, "--permission-mode", mode, "--model", model, prompt]
     env = dict(os.environ, DISABLE_AUTOUPDATER="1")
     out = subprocess.run(cmd, capture_output=True, text=True, env=env, cwd=ROOT).stdout
+    out = re.sub(r"\x1b\[[0-9;]*m", "", out)  # `claude --bg` colours the id even into a pipe
     m = re.search(r"backgrounded · (\w+)", out)
     if not m:
         event(st, f"launch {a.name} FAILED: {out.strip()[:200]}"); sys.exit(2)
     sess = next((x["sessionId"] for x in agents() if x.get("name") == a.name), m.group(1))
+    record_launch(st, a, train, sess)
+
+
+def record_launch(st, a, train, sess):
     kind = "whip" if a.self else "relief" if a.relief else "lead"
     st["leads"][a.name] = {"session": sess, "kind": kind, "launched": now(), "state": "running", "issues": a.issues}
     for t in st["trains"]:
