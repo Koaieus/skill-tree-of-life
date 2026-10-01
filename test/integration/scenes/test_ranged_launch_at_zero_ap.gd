@@ -65,7 +65,7 @@ func test_ranged_launch_is_live_at_zero_ap_and_fires() -> void:
 	assert_true(body._launch_button.enabled, "ranged Launch live at 0 AP")
 	assert_eq(plan.resolve().ap_cost, plan.ap_cost(), "resolve stamps the plan's price")
 	var before := _root.player.stat_board.arrows.stock_of(&"arrow")
-	await _root.battle_system.launch_attack()
+	await _root.battle_system.launch_attack(_root.battle_system.attack_plan)
 	while _root.command_applier.is_applying:
 		await _root.command_applier.applying_changed
 	assert_lt(_root.player.stat_board.arrows.stock_of(&"arrow"), before, "the volley consumed arrows at 0 AP")

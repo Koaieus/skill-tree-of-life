@@ -766,7 +766,7 @@ func _cast() -> void:
 		return
 	_set_casting(true)
 	@warning_ignore("redundant_await")
-	await _battle.launch_attack()
+	await _battle.launch_attack(_battle.attack_plan)
 	# The panel can be torn down mid-launch (plugin disabled, tab rebuilt); its
 	# buttons are gone by then and re-enabling them would crash.
 	if not is_inside_tree():

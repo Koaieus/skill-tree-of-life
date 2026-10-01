@@ -3,17 +3,24 @@ class_name AttackArmMode
 extends ArmedMode
 
 ## The base of the three attack levels — [MeleeMode], [RangedMode],
-## [MagicMode] — each the sole seat-side writer of the plan slot while it
-## stands: pushing requests its mode, popping cancels it. A push the slot
-## refuses (mid-swing) never lands.
+## [MagicMode]. The level OWNS the plan: pushing creates it (or adopts one of
+## this mode the slot already holds for this player), popping drops it, and
+## [method ArmedStack.attack_plan] exposes it. A push mid-swing
+## ([member BattleSystem.is_launching]) is refused.
+##
+## The level publishes its plan into [member BattleSystem.attack_plan], so the
+## forwarders resolve to the same object — one plan, two doors — and follows
+## that door when something else writes it (a cancel, a launch's release, a
+## sandbox arming directly): it keeps the slot's plan when it is this mode and
+## this player's, and drops to null otherwise.
 ##
 ## The plan owns *which node*; the step levels above this one ([BladeMode],
 ## [TargetMode]) own *what the next click means*. Levels move on events, never
 ## by watching the plan: after this player's launch
 ## ([signal BattleSystem.attack_launched]) the slot's release
-## ([signal BattleSystem.attack_plan_changed] with null) re-requests the mode,
-## so the arm stays up with a fresh, empty plan. A cancel-driven release does
-## not re-arm — only a launch sets the flag.
+## ([signal BattleSystem.attack_plan_changed] with null) creates a fresh plan,
+## so the arm stays up with an empty one. A cancel-driven release does not
+## re-arm — only a launch sets the flag.
 
 const _MODE_STAT_ID := {
 	BattleSystem.AttackMode.MELEE: &"strength",
@@ -28,6 +35,7 @@ const _MODE_ICON := {
 
 var mode: BattleSystem.AttackMode
 var _launched := false
+var _plan: AttackPlan = null
 
 
 func _init(p_ctl: PlayerInputController, p_mode: BattleSystem.AttackMode) -> void:
@@ -35,14 +43,11 @@ func _init(p_ctl: PlayerInputController, p_mode: BattleSystem.AttackMode) -> voi
 	mode = p_mode
 
 
-## This level's live plan: the slot's, when it is this player's and this mode's.
+## This level's plan, or null once dropped.
 func plan() -> AttackPlan:
-	var p := ctl._active_attack_plan() if ctl != null else null
-	return p if p != null and p.mode == mode else null
+	return _plan
 
 
-## `request_attack_mode` is void and drops the request while the slot is
-## locked, so the slot is read back rather than trusted.
 func on_pushed() -> bool:
 	if not _request():
 		return false
@@ -61,8 +66,9 @@ func on_popped() -> void:
 	if bs.attack_plan_changed.is_connected(_on_attack_plan_changed):
 		bs.attack_plan_changed.disconnect(_on_attack_plan_changed)
 	_launched = false
-	if bs.is_attacking and bs.attack_mode == mode and not bs.is_launching:
+	if _plan != null and bs.attack_plan == _plan and not bs.is_launching:
 		bs.cancel_attack()
+	_set_plan(null)
 
 
 ## Aim at [param node] — the ranged and magic arms' verb, which a
@@ -71,12 +77,42 @@ func set_target(_node: SkillNode) -> bool:
 	return false
 
 
+## Create this level's plan — or adopt the slot's when it already is this
+## mode's and this player's (a repeat arm keeps its plan) — and publish it to
+## [member BattleSystem.attack_plan]. False mid-swing or when none can be made.
 func _request() -> bool:
 	var bs := ctl.battle_system if ctl != null else null
-	if bs == null:
+	if bs == null or bs.is_launching:
 		return false
-	bs.request_attack_mode(mode)
-	return bs.is_attacking and bs.attack_mode == mode
+	var p := _ours(bs.attack_plan)
+	if p == null:
+		p = bs._new_plan(_plan_class())
+		if p == null:
+			return false
+		bs.attack_plan = p
+	_set_plan(_ours(p))
+	return true
+
+
+func _plan_class() -> Script:
+	match mode:
+		BattleSystem.AttackMode.MELEE: return MeleeAttackPlan
+		BattleSystem.AttackMode.RANGED: return RangedAttackPlan
+		_: return MagicAttackPlan
+
+
+func _ours(p: AttackPlan) -> AttackPlan:
+	if p != null and p.mode == mode and p.attacker == ctl.player:
+		return p
+	return null
+
+
+func _set_plan(p: AttackPlan) -> void:
+	if _plan == p:
+		return
+	_plan = p
+	if stack != null:
+		stack.sync_attack_plan()
 
 
 func _on_attack_launched(_mode: BattleSystem.AttackMode, _spell: SpellDef) -> void:
@@ -88,6 +124,7 @@ func _on_attack_launched(_mode: BattleSystem.AttackMode, _spell: SpellDef) -> vo
 ## Deferred: re-requesting inside the slot's own `attack_plan_changed(null)`
 ## emission would hand listeners still queued behind this one a stale null.
 func _on_attack_plan_changed(p: AttackPlan) -> void:
+	_set_plan(_ours(p))
 	if p == null and _launched:
 		_launched = false
 		_rearm.call_deferred()

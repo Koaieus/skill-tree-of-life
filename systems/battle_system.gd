@@ -350,9 +350,9 @@ func _ready() -> void:
 
 
 
-## Commit [param plan] — or, when null, the [AttackPlanSlot]'s armed plan (the
-## HUD's call). An [AIController] builds its own plan with [method new_plan] and
-## passes it, so the slot is never written by anyone but its human. Since #511
+## Commit [param plan] — the HUD passes its armed plan, an [AIController] the
+## one it built with [method new_plan], so the slot is never written by anyone
+## but its human. Since #511
 ## this is a thin front for a
 ## [LaunchAttackCommand]: build it, submit it, and wait out the queue. The
 ## work itself lives in [method apply_launch_command], which the
@@ -361,7 +361,7 @@ func _ready() -> void:
 ## did".
 ##
 ## Awaits the whole action, not just the mutation, exactly as before.
-func launch_attack(plan: AttackPlan = null) -> void:
+func launch_attack(plan: AttackPlan) -> void:
 	var command := build_launch_command(plan)
 	if command == null:
 		return

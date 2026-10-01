@@ -126,7 +126,7 @@ func _click_build(members: Array[SkillNode]) -> MeleeAttackPlan:
 ## (pause_leak_pre_run_hook.gd) and varies by an order of magnitude between
 ## machines — 900 ticks was 15 s on one box and 1.4 s on another.
 func _launch_and_settle(max_seconds: float = 15.0) -> float:
-	_bs.launch_attack()
+	_bs.launch_attack(_bs.attack_plan)
 	var started := Time.get_ticks_msec()
 	while _bs.is_launching and Time.get_ticks_msec() - started < max_seconds * 1000.0:
 		await get_tree().process_frame

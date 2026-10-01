@@ -42,7 +42,7 @@ func _on_bound() -> void:
 	_swing_button.pressed.connect(_on_swing_pressed)
 	_reform_button.pressed.connect(_on_reform_pressed)
 	_reset_button.pressed.connect(_battle_system.reset_plan)
-	_launch_button.pressed.connect(_battle_system.launch_attack)
+	_launch_button.pressed.connect(_on_launch_pressed)
 	_battle_system.attack_plan_state_changed.connect(_refresh)
 	if _input_ctl != null:
 		_input_ctl.player_can_act_changed.connect(_refresh.unbind(1))
@@ -313,3 +313,7 @@ func _has_manual_upgrade(node: SkillNode) -> bool:
 		if a.is_temporary:
 			return true
 	return false
+
+
+func _on_launch_pressed() -> void:
+	_battle_system.launch_attack(_battle_system.attack_plan)

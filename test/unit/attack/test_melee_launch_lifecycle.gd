@@ -94,7 +94,7 @@ func test_launch_attack_melee_resets_is_launching_and_allows_a_second_attack() -
 	plan.toggle_member(joint)
 	assert_true(plan.is_valid(), "fixture plan must be valid before launching")
 
-	_bs.launch_attack()
+	_bs.launch_attack(_bs.attack_plan)
 	assert_true(_bs.is_launching, "is_launching should be true immediately after calling launch_attack")
 
 	await _await_launch_settle()
@@ -131,7 +131,7 @@ func test_launch_attack_melee_with_temp_upgrade_frees_it_and_resets_is_launching
 	assert_true(plan.apply_temp_upgrade(joint, preload("res://skill_node/addons/defs/clamp_addon.tscn")))
 	assert_true(plan.is_valid(), "fixture plan must be valid before launching")
 
-	_bs.launch_attack()
+	_bs.launch_attack(_bs.attack_plan)
 	await _await_launch_settle()
 
 	assert_false(_bs.is_launching, "is_launching must reset to false after a swing WITH a temp upgrade attached")
@@ -168,7 +168,7 @@ func test_player_can_act_changed_fires_after_swing_reenabling_attack_mode_bar() 
 	var plan := _bs.attack_plan as MeleeAttackPlan
 	plan.set_pivot(source)
 	plan.toggle_member(joint)
-	_bs.launch_attack()
+	_bs.launch_attack(_bs.attack_plan)
 
 	await _await_launch_settle()
 
@@ -226,7 +226,7 @@ func test_the_command_is_confirmed_before_the_swing_animation_finishes() -> void
 	plan.toggle_member(joint)
 	assert_true(plan.is_valid(), "fixture plan must be valid before launching")
 
-	_bs.launch_attack()
+	_bs.launch_attack(_bs.attack_plan)
 	await _await_launch_settle()
 
 	assert_eq(confirmed_at.size(), 1, "one confirmation")

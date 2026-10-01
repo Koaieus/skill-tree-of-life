@@ -89,7 +89,7 @@ func _launch_blade_and_settle() -> void:
 	_pic.arm_attack(BattleSystem.AttackMode.MELEE)
 	_pic.route_left_click(_pivot)
 	_pic.route_left_click(_joint)
-	_bs.launch_attack()
+	_bs.launch_attack(_bs.attack_plan)
 	await wait_until(func() -> bool: return not _bs.is_launching and not _applier.is_applying, 5.0)
 	_submitted = []  # only what happens AFTER the launch is under test
 

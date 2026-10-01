@@ -106,7 +106,7 @@ func test_the_launch_releases_a_beat_after_the_last_landing_not_after_the_drain(
 	plan.set_target(target)
 	assert_true(plan.is_valid(), "fixture plan must be valid before launching")
 
-	await bs.launch_attack()
+	await bs.launch_attack(bs.attack_plan)
 
 	assert_false(bs.is_launching, "the launch is released by the time it returns")
 	assert_lt(target.get_combat().get_current_hp(), hp_before,

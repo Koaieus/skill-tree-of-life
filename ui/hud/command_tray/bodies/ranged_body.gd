@@ -52,7 +52,7 @@ var _refreshing := false
 
 func _on_bound() -> void:
 	_reset_button.pressed.connect(_battle_system.reset_plan)
-	_launch_button.pressed.connect(_battle_system.launch_attack)
+	_launch_button.pressed.connect(_on_launch_pressed)
 	_reload_button.pressed.connect(_on_reload_pressed)
 	_volley_bar.step_requested.connect(_on_bar_step)
 	_volley_bar.set_requested.connect(set_n)
@@ -80,8 +80,8 @@ func teardown() -> void:
 			_battle_system.attack_plan_state_changed.disconnect(_refresh)
 		if _reset_button.pressed.is_connected(_battle_system.reset_plan):
 			_reset_button.pressed.disconnect(_battle_system.reset_plan)
-		if _launch_button.pressed.is_connected(_battle_system.launch_attack):
-			_launch_button.pressed.disconnect(_battle_system.launch_attack)
+		if _launch_button.pressed.is_connected(_on_launch_pressed):
+			_launch_button.pressed.disconnect(_on_launch_pressed)
 	if _input_ctl != null and _input_ctl.player_can_act_changed.is_connected(_refresh.unbind(1)):
 		_input_ctl.player_can_act_changed.disconnect(_refresh.unbind(1))
 	if _quiver != null and _quiver.bin_changed.is_connected(_refresh.unbind(1)):
@@ -394,5 +394,9 @@ func _unhandled_key_input(event: InputEvent) -> void:
 			get_viewport().set_input_as_handled()
 		KEY_ENTER, KEY_KP_ENTER:
 			if plan.is_valid() and (_input_ctl == null or (_input_ctl.can_player_act() and _input_ctl.can_afford(plan))):
-				_battle_system.launch_attack()
+				_battle_system.launch_attack(_battle_system.attack_plan)
 				get_viewport().set_input_as_handled()
+
+
+func _on_launch_pressed() -> void:
+	_battle_system.launch_attack(_battle_system.attack_plan)

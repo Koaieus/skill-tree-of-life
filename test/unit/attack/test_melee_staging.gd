@@ -221,7 +221,7 @@ func _assert_first_hit_lands_after_the_form_beat() -> void:
 	Events.skill_node_damaged.connect(on_hit)
 
 	_arm_plan()
-	_bs.launch_attack()
+	_bs.launch_attack(_bs.attack_plan)
 	await _await_launch_settle()
 	# `Events` is an autoload that outlives this test; the bus hook must go.
 	Events.skill_node_damaged.disconnect(on_hit)
@@ -292,7 +292,7 @@ func test_a_seated_commit_hands_the_ghost_off_without_re_predicting() -> void:
 	assert_not_null(ghost, "the preview must have a ghost mounted before the commit")
 	var runs_before := plan.prediction_runs
 
-	_bs.launch_attack()
+	_bs.launch_attack(_bs.attack_plan)
 	assert_same(ghost, _preview.current_blade(),
 			"the live swing takes over the ghost the player was watching, "
 			+ "it does not spawn a second blade")
@@ -317,7 +317,7 @@ func test_the_swing_start_beat_fires_once_and_before_the_first_hit() -> void:
 	Events.skill_node_damaged.connect(func(_n: SkillNode, _amt: float, _src: Variant) -> void:
 		order.append(&"hit"), CONNECT_ONE_SHOT)
 	_arm_plan()
-	_bs.launch_attack()
+	_bs.launch_attack(_bs.attack_plan)
 	await _await_launch_settle()
 	assert_eq(order, [&"swing", &"hit"] as Array[StringName],
 			"one swing beat, then the hit lands")
@@ -351,7 +351,7 @@ func test_the_swing_does_not_begin_while_the_record_ready_hook_is_unsatisfied() 
 	_bs.hold_record()
 	watch_signals(Events)
 	_arm_plan()
-	_bs.launch_attack()
+	_bs.launch_attack(_bs.attack_plan)
 
 	# The wind-up is instant here, so `launch_attack()` returned already parked
 	# on the hook; a few frames prove the park is a hold, not a fixed clip.
@@ -378,7 +378,7 @@ func test_the_hook_is_awaited_on_the_seated_path_too() -> void:
 	_bs.hold_record()
 	watch_signals(Events)
 	_arm_plan()
-	_bs.launch_attack()
+	_bs.launch_attack(_bs.attack_plan)
 
 	for _i in 10:
 		await get_tree().process_frame
@@ -402,7 +402,7 @@ func test_zeroed_windup_durations_stage_nothing_and_still_land_the_swing() -> vo
 
 	watch_signals(Events)
 	_arm_plan()
-	_bs.launch_attack()
+	_bs.launch_attack(_bs.attack_plan)
 	await _await_launch_settle()
 
 	assert_signal_emit_count(Events, "skill_node_damaged", 1,

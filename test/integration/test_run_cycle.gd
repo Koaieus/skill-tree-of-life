@@ -64,7 +64,7 @@ func _run_cycle() -> void:
 	plan.blade_nodes = [_root.step2]
 	plan.swing_cw = false
 	assert_true(plan.is_valid(), "the plan validates: %s" % [plan.validate()])
-	bs.launch_attack()
+	bs.launch_attack(bs.attack_plan)
 	assert_true(await wait_until(func() -> bool: return not bs.is_launching, 15),
 			"the launch settles")
 

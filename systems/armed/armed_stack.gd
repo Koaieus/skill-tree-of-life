@@ -11,9 +11,13 @@ extends Node
 ## runs top-down, AFTER the level has left the branch.
 
 signal changed
+## The plan of the attack level on the branch moved — armed, swapped, dropped.
+## Fires once per move, after the branch settled; the argument is the plan
+## itself, or null.
 signal attack_plan_changed(plan: AttackPlan)
 
 var _branch: Array[ArmedMode] = []
+var _last_plan: AttackPlan = null
 
 
 ## Install [param mode] as the unpoppable root, dropping any branch silently
@@ -23,8 +27,21 @@ func set_root(mode: ArmedMode) -> void:
 	mode.stack = self
 
 
+## The plan of the attack level ([AttackArmMode]) on the branch, or null. The
+## level creates it on push and drops it on pop; this only exposes it.
 func attack_plan() -> AttackPlan:
-	return null
+	var level := find(AttackArmMode) as AttackArmMode
+	return level.plan() if level != null else null
+
+
+## Re-reads [method attack_plan] and announces a move. Called after every
+## branch mutation and by an [AttackArmMode] whose plan moved under it.
+func sync_attack_plan() -> void:
+	var p := attack_plan()
+	if p == _last_plan:
+		return
+	_last_plan = p
+	attack_plan_changed.emit(p)
 
 
 func root() -> ArmedMode:
@@ -56,6 +73,7 @@ func find(type: Variant) -> ArmedMode:
 func push(mode: ArmedMode) -> bool:
 	if _branch.is_empty() or not _enter(mode):
 		return false
+	sync_attack_plan()
 	changed.emit()
 	return true
 
@@ -65,6 +83,7 @@ func pop_top() -> bool:
 	if _branch.size() <= 1:
 		return false
 	_pop_above(_branch.size() - 2)
+	sync_attack_plan()
 	changed.emit()
 	return true
 
@@ -76,6 +95,7 @@ func pop(mode: ArmedMode) -> bool:
 	if i <= 0:
 		return false
 	_pop_above(i - 1)
+	sync_attack_plan()
 	changed.emit()
 	return true
 
@@ -89,6 +109,7 @@ func switch_to(mode: ArmedMode, anchor: ArmedMode = null) -> bool:
 		return false
 	var popped := _pop_above(i)
 	var pushed := _enter(mode)
+	sync_attack_plan()
 	if popped or pushed:
 		changed.emit()
 	return pushed
@@ -96,6 +117,7 @@ func switch_to(mode: ArmedMode, anchor: ArmedMode = null) -> bool:
 
 func clear_to_root() -> void:
 	if _pop_above(0):
+		sync_attack_plan()
 		changed.emit()
 
 

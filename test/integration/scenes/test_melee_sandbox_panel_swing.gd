@@ -52,7 +52,7 @@ func test_a_right_click_mid_swing_is_refused_like_it_is_in_game() -> void:
 	var battle: BattleSystem = _panel._battle
 	var plan := _build_blade()
 	assert_true(plan.is_valid(), "the fixture must have a launchable blade")
-	battle.launch_attack()  # deliberately un-awaited: we need the await window
+	battle.launch_attack(battle.attack_plan)  # deliberately un-awaited: we need the await window
 	await get_tree().process_frame
 	assert_true(battle.is_launching, "the swing must still be in flight to test this")
 	_right_click()

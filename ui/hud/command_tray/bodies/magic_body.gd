@@ -63,7 +63,7 @@ func _on_bound() -> void:
 	_spell_bar.spell_selected.connect(_on_spell_selected)
 	_battle_system.selected_spell_changed.connect(_spell_bar.sync_selected)
 	_reset_button.pressed.connect(_battle_system.reset_plan)
-	_launch_button.pressed.connect(_battle_system.launch_attack)
+	_launch_button.pressed.connect(_on_launch_pressed)
 	_battle_system.attack_plan_state_changed.connect(_refresh)
 	if _input_ctl != null:
 		_input_ctl.player_can_act_changed.connect(_on_can_act_changed)
@@ -112,3 +112,7 @@ func _refresh() -> void:
 	_launch_button.text = "Cast %s" % spell_name
 	var can_act := _input_ctl == null or (_input_ctl.can_player_act() and _input_ctl.can_afford(plan))
 	_launch_button.set_enabled(plan != null and plan.is_valid() and can_act)
+
+
+func _on_launch_pressed() -> void:
+	_battle_system.launch_attack(_battle_system.attack_plan)

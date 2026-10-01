@@ -113,7 +113,7 @@ func test_a_launched_swing_damages_the_quarry() -> void:
 	var before := 0.0
 	for n in _panel.graph.get_skill_nodes():
 		before += n.get_current_hp()
-	await battle.launch_attack()
+	await battle.launch_attack(battle.attack_plan)
 	var after := 0.0
 	for n in _panel.graph.get_skill_nodes():
 		after += n.get_current_hp()

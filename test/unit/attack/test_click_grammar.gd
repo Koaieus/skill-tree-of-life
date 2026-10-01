@@ -146,7 +146,7 @@ func test_a_launch_pops_blade_and_melee_stays_armed_then_reform_pushes_blade() -
 	_ctl.route_left_click(_pivot)
 	_ctl.route_left_click(_joint)
 	assert_true(_melee().is_valid(), "precondition: %s" % str(_melee().validate()))
-	_bs.launch_attack()
+	_bs.launch_attack(_bs.attack_plan)
 	await wait_until(func() -> bool: return not _bs.is_launching and _bs.is_attacking, 5.0)
 	assert_eq(_branch(), [ManageMode, MeleeMode], "Blade is gone, Melee stays armed")
 	assert_true(_bs.is_attacking, "with a fresh melee plan")

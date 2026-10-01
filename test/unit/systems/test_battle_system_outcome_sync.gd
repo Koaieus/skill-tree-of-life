@@ -130,7 +130,7 @@ func _fire(ctx: Dictionary) -> void:
 	# never parks, so resolve() + the whole outcome + the cascade have all run
 	# by the time this returns. Without the flag the volley would still be
 	# mid-flight here — see the class docstring.
-	bs.launch_attack()
+	bs.launch_attack(bs.attack_plan)
 
 
 func test_world_state_identical_with_null_and_live_attack_vfx() -> void:

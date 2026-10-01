@@ -130,7 +130,7 @@ func test_the_first_hit_lands_strictly_after_the_form_beat_ends_on_the_real_cloc
 	assert_true(plan.is_valid(), "fixture plan must be valid before launching")
 
 	started_at[0] = Time.get_ticks_usec()
-	_bs.launch_attack()
+	_bs.launch_attack(_bs.attack_plan)
 	# Generous: the whole action is ~2 s of wind-up + a 1.2 s swing + a fade.
 	await wait_until(func() -> bool: return not _bs.is_launching, 15.0)
 	# `Events` is an autoload that outlives this test; the bus hook must go.
@@ -216,7 +216,7 @@ func test_a_ranged_first_hit_lands_after_the_presenters_windup_on_the_real_clock
 	assert_true(plan.is_valid(), "fixture plan must be valid before launching")
 
 	started_at[0] = Time.get_ticks_usec()
-	_bs.launch_attack()
+	_bs.launch_attack(_bs.attack_plan)
 	await wait_until(func() -> bool: return not _bs.is_launching, 15.0)
 	Events.skill_node_damaged.disconnect(probe)
 

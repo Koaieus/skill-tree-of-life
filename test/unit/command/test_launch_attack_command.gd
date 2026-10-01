@@ -107,7 +107,7 @@ func test_launch_attack_routes_through_the_applier() -> void:
 		if ok:
 			applied.append(cmd))
 	_arm()
-	await _bs.launch_attack()
+	await _bs.launch_attack(_bs.attack_plan)
 	assert_eq(applied.size(), 1, "exactly one command was applied")
 	assert_true(applied[0] is LaunchAttackCommand)
 	assert_eq(applied[0].type_tag(), LaunchAttackCommand.TAG)
@@ -124,7 +124,7 @@ func test_the_confirmed_command_carries_the_record_out() -> void:
 		if cmd is LaunchAttackCommand:
 			seen.append(cmd as LaunchAttackCommand))
 	_arm()
-	await _bs.launch_attack()
+	await _bs.launch_attack(_bs.attack_plan)
 	assert_eq(seen.size(), 1)
 	assert_false(seen[0].record.is_empty(),
 			"the record must be stamped by the time command_confirmed fires")
@@ -148,7 +148,7 @@ func test_the_broadcast_goes_out_before_the_world_moves() -> void:
 			ap_at_confirm.append(_attacker.stat_board.action_points.current)
 			record_at_confirm.append((cmd as LaunchAttackCommand).record))
 	_arm()
-	await _bs.launch_attack()
+	await _bs.launch_attack(_bs.attack_plan)
 
 	assert_eq(record_at_confirm.size(), 1, "exactly one confirmation")
 	assert_false(record_at_confirm[0].is_empty(),
@@ -180,7 +180,7 @@ func test_an_unaffordable_launch_neither_confirms_nor_crosses_the_wire() -> void
 	_arm()
 	assert_true(_bs.attack_plan.validate().has(RangedAttackPlan.ERR_NO_AMMO),
 			"the plan itself names the refusal")
-	await _bs.launch_attack()
+	await _bs.launch_attack(_bs.attack_plan)
 
 	assert_eq(confirmed, [] as Array[Command],
 			"an unaffordable attack never confirms, so it never crosses the wire")
@@ -217,7 +217,7 @@ func test_launch_attack_still_awaits_the_whole_action() -> void:
 	# and AiController's `await bs.launch_attack()`. Routing through a queue
 	# must not turn it into fire-and-forget.
 	_arm()
-	await _bs.launch_attack()
+	await _bs.launch_attack(_bs.attack_plan)
 	assert_false(_bs.is_launching, "is_launching is released by the time the await returns")
 	assert_null(_bs.attack_plan, "…and the plan is cleared, adjacent to that flip")
 	assert_false(_applier.is_applying, "the queue drained too")
@@ -231,7 +231,7 @@ func test_is_launching_is_true_while_the_attack_is_in_flight() -> void:
 	var seen: Array[bool] = []
 	_bs.attack_launched.connect(func(_mode, _spell): seen.append(_bs.is_launching))
 	_arm()
-	await _bs.launch_attack()
+	await _bs.launch_attack(_bs.attack_plan)
 	assert_eq(seen, [true] as Array[bool],
 			"is_launching spans the action, and attack_launched fires inside it")
 
@@ -254,7 +254,7 @@ func test_a_command_raised_during_an_attack_queues_rather_than_re_entering() -> 
 		_applier.submit(AllocateCommand.new(_attacker.entity_id,
 				_graph.get_stable_id(_nodes.spare))))
 	_arm()
-	await _bs.launch_attack()
+	await _bs.launch_attack(_bs.attack_plan)
 	assert_eq(order, ["launch_attack", "allocate"] as Array[String],
 			"the attack finished before the command it raised")
 	assert_eq(wire, ["launch_attack", "allocate"] as Array[String],

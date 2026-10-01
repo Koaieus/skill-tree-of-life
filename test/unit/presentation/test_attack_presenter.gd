@@ -157,7 +157,7 @@ func _launch(ctx: Dictionary, mode: BattleSystem.AttackMode) -> bool:
 	var bs: BattleSystem = ctx.bs
 	assert_true(bs.attack_plan != null and bs.attack_plan.is_valid(),
 			"fixture plan for mode %d must be valid" % mode)
-	bs.launch_attack()
+	bs.launch_attack(bs.attack_plan)
 	await wait_until(func() -> bool: return not bs.is_launching, 5.0)
 	return not bs.is_launching
 

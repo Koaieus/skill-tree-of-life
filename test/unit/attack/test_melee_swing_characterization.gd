@@ -117,7 +117,7 @@ func _launch() -> void:
 	plan.set_pivot(_pivot)
 	plan.toggle_member(_arm)
 	assert_true(plan.is_valid(), "fixture plan must be valid before launching")
-	_bs.launch_attack()
+	_bs.launch_attack(_bs.attack_plan)
 	await _await_launch_settle()
 
 

@@ -638,7 +638,7 @@ func _sweep_magic() -> void:
 		return
 	_write_log("autopilot: casting %s from %s at %s"
 			% [battle_system.selected_spell.name, plan.source.name, plan.target.name])
-	await battle_system.launch_attack()
+	await battle_system.launch_attack(battle_system.attack_plan)
 	_write_log("autopilot: magic OK")
 
 
@@ -661,7 +661,7 @@ func _sweep_ranged() -> void:
 		battle_system.cancel_attack()
 		return
 	_write_log("autopilot: firing a ranged volley at %s" % target.name)
-	await battle_system.launch_attack()
+	await battle_system.launch_attack(battle_system.attack_plan)
 	_write_log("autopilot: ranged OK")
 
 
@@ -694,7 +694,7 @@ func _sweep_melee() -> void:
 	_sweep_toggle_temp_upgrade(plan)
 	_write_log("autopilot: swinging a blade from %s (%d members)"
 			% [plan.source.name, plan.blade_nodes.size()])
-	await battle_system.launch_attack()
+	await battle_system.launch_attack(battle_system.attack_plan)
 	_write_log("autopilot: melee OK")
 
 
