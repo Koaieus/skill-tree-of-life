@@ -487,3 +487,52 @@ func test_a_shadow_resolve_lands_the_volley_without_touching_the_real_world() ->
 	assert_eq(WorldFingerprint.compute(_graph), before,
 			"nothing real moved: %s" % WorldFingerprint.describe(_graph))
 	world.free_shadow()
+
+
+# ── Range-circle fill (shots left) ───────────────────────────────────────
+
+func _set_max_shots(node: SkillNode, value: float) -> void:
+	var m := StatModifier.new()
+	m.stat_id = &"max_shots_per_leaf"
+	m.operation = StatModifier.Operation.SET
+	m.value = value
+	node.add_local_modifier(m)
+
+
+func test_range_fill_is_full_for_a_fresh_leaf() -> void:
+	var p := _plan()
+	assert_almost_eq(p.get_node_range_fill(_leaf_near), 1.0, 1e-6)
+
+
+func test_range_fill_is_shots_left_over_max_for_a_partly_spent_leaf() -> void:
+	_set_max_shots(_leaf_near, 4.0)
+	assert_eq(int(_leaf_near.get_local_value(&"max_shots_per_leaf")), 4, "precondition: max 4")
+	_leaf_near.mark_shot_fired(1)
+	var p := _plan()
+	assert_almost_eq(p.get_node_range_fill(_leaf_near), 0.75, 1e-6)
+
+
+func test_range_fill_is_zero_for_a_spent_leaf() -> void:
+	_leaf_near.mark_shot_fired(1)
+	var p := _plan()
+	assert_almost_eq(p.get_node_range_fill(_leaf_near), 0.0, 1e-6)
+
+
+func test_a_spent_reaching_leaf_is_no_longer_an_origin() -> void:
+	var p := _plan()
+	p.set_target(_target)
+	assert_eq(p.get_node_role(_leaf_near), HighlightProvider.HighlightRole.ORIGIN, "fresh leaf fires")
+	_leaf_near.mark_shot_fired(1)
+	assert_eq(p.get_node_role(_leaf_near), HighlightProvider.HighlightRole.NONE, "spent leaf will not fire")
+
+
+func test_a_spent_leaf_keeps_its_real_range() -> void:
+	_leaf_near.mark_shot_fired(1)
+	var p := _plan()
+	assert_almost_eq(p.get_node_range(_leaf_near), 100.0, 1e-6)
+
+
+func test_base_provider_fill_is_solid() -> void:
+	var base := HighlightProvider.new()
+	autofree(base)
+	assert_almost_eq(base.get_node_range_fill(_leaf_near), 1.0, 1e-6)

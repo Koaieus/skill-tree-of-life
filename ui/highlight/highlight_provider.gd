@@ -51,6 +51,13 @@ func get_node_range(_node: SkillNode) -> float:
 	return 0.0
 
 
+## Fraction (0..1) of the [method get_node_range] circle to draw lit, dashed
+## in proportion — ranged: shots left / max shots, so a spent leaf draws none.
+## Default 1.0 = solid. Never shrinks the reach itself.
+func get_node_range_fill(_node: SkillNode) -> float:
+	return 0.0
+
+
 ## Optional richer reach description — rings + edges. Returned [code]null[/code]
 ## (or empty) = nothing to paint. Magic plans hand back the active spell's
 ## range_finder visual; core-move hands back its reachable/route edges.

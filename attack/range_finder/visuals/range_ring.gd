@@ -27,6 +27,12 @@ extends Node2D
 		queue_redraw()
 
 
+## Lit arcs of a reach circle dashed by [param fill] over [param periods]
+## equal periods: x = start angle, y = end angle (radians).
+static func dash_spans(fill: float, periods: int) -> PackedVector2Array:
+	return PackedVector2Array()
+
+
 func configure(p_position: Vector2, p_radius: float) -> void:
 	position = p_position
 	radius = p_radius
