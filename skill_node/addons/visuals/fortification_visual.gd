@@ -1,6 +1,6 @@
 @tool
-class_name FortificationAddon
-extends SkillNodeAddon
+class_name FortificationVisual
+extends AddonVisual
 
 ## Mass, not hardness — the authored `node_health` bonus in
 ## fortification_addon.tscn means "more wall to chew through", so the visual is
@@ -24,7 +24,7 @@ extends SkillNodeAddon
 ## holds the node, and the two identity channels (entity tint on the disk,
 ## archetype tint on the rim) are already spoken for.
 ##
-## Band budget: this occupies [1.14, 1.36] × radius. [BunkerAddon] deliberately
+## Band budget: this occupies [1.14, 1.36] × radius. [BunkerVisual] deliberately
 ## hugs closer and overlaps the rim, at [0.90, 1.12], so a node carrying both
 ## reads as plating under a wall rather than one indistinct crust.
 
@@ -43,7 +43,7 @@ extends SkillNodeAddon
 
 ## Band radii as fractions of the carrier radius: the curtain wall's footing,
 ## the walkway line merlons rise from, and the merlon tops.
-## Sits outboard of [BunkerAddon]'s [0.90, 1.12] plating band, so a node
+## Sits outboard of [BunkerVisual]'s [0.90, 1.12] plating band, so a node
 ## carrying both reads as plating under a wall rather than one indistinct crust.
 const _R_FOOT := 1.14
 const _R_WALK := 1.24
@@ -62,31 +62,16 @@ const _CURTAIN_COLOR := Color(0.24, 0.24, 0.27)
 const _MERLON_COLOR := Color(0.72, 0.74, 0.78)
 const _SHADOW_COLOR := Color(0.02, 0.02, 0.03, 0.55)
 
-var _radius: float = 32.0
-
-
-func _ready() -> void:
-	super._ready()
-	if carrier != null:
-		_radius = carrier.radius
-	queue_redraw()
-
-
-func configure_visual(r: float) -> void:
-	_radius = r
-	queue_redraw()
-
-
 func _draw() -> void:
-	if _radius <= 0.0 or merlon_count <= 0:
+	if radius <= 0.0 or merlon_count <= 0:
 		return
 
-	var foot := _radius * _R_FOOT
-	var walk := _radius * _R_WALK
-	var top := _radius * _R_TOP
+	var foot := radius * _R_FOOT
+	var walk := radius * _R_WALK
+	var top := radius * _R_TOP
 	var step := TAU / float(merlon_count)
 	var half := step * merlon_fill * 0.5
-	var shadow_offset := -AddonGeometry.light_dir() * (_radius * _SHADOW_THROW)
+	var shadow_offset := -AddonGeometry.light_dir() * (radius * _SHADOW_THROW)
 
 	# Curtain wall: one continuous band. `draw_arc` with a width, rather than a
 	# 64-gon polygon, keeps this to a single primitive.

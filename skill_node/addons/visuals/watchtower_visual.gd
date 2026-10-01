@@ -1,13 +1,13 @@
 @tool
-class_name WatchtowerAddon
-extends SkillNodeAddon
+class_name WatchtowerVisual
+extends AddonVisual
 
 ## The one addon that is a BUILDING rather than a shell, and it is drawn as
 ## one: a lattice tower standing in elevation on the carrier's rim, roof and
 ## railing above, legs planted on a contact shadow.
 ##
-## [b]Why this one breaks the concentric habit.[/b] [BunkerAddon] and
-## [FortificationAddon] armour the node itself, so they become part of its
+## [b]Why this one breaks the concentric habit.[/b] [BunkerVisual] and
+## [FortificationVisual] armour the node itself, so they become part of its
 ## shell and are drawn in plan, as bands. Watchtower doesn't change what the
 ## node is made of — it grants `vision_range` and `range`, i.e. it projects
 ## outward — so it is a structure standing ON the territory, and the honest
@@ -52,7 +52,7 @@ extends SkillNodeAddon
 		queue_redraw()
 
 ## Every dimension below is a fraction of the carrier radius, so the tower
-## scales with whatever `configure_visual` hands us.
+## scales with whatever [member AddonVisual.radius] is.
 const _FOOT_HALF := 0.28
 const _TOP_HALF := 0.17
 const _LEG_WIDTH := 0.10
@@ -73,26 +73,11 @@ const _BRACE_COLOR := Color(0.20, 0.18, 0.16)
 const _WINDOW_COLOR := Color(0.05, 0.05, 0.07)
 const _SHADOW_COLOR := Color(0.02, 0.02, 0.03, 0.5)
 
-var _radius: float = 32.0
-
-
-func _ready() -> void:
-	super._ready()
-	if carrier != null:
-		_radius = carrier.radius
-	queue_redraw()
-
-
-func configure_visual(r: float) -> void:
-	_radius = r
-	queue_redraw()
-
-
 func _draw() -> void:
-	if _radius <= 0.0:
+	if radius <= 0.0:
 		return
 
-	var r := _radius
+	var r := radius
 	var base := Vector2.from_angle(deg_to_rad(stand_bearing_deg)) * (r * _STAND_RADIUS)
 
 	var foot_half := r * _FOOT_HALF

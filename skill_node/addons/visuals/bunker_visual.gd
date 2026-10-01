@@ -1,6 +1,6 @@
 @tool
-class_name BunkerAddon
-extends SkillNodeAddon
+class_name BunkerVisual
+extends AddonVisual
 
 ## Hardness, not mass — the authored `armor` bonus and `min_damage_taken` floor
 ## cut in bunker_addon.tscn mean "shots glance off", so the visual is PLATING:
@@ -9,7 +9,7 @@ extends SkillNodeAddon
 ## assets/icons/addons/mapping.txt) is a flat slab roof over a slit with fire
 ## converging on it; this is that object seen from above.
 ##
-## [b]Read it against [FortificationAddon][/b] — the pair has to be
+## [b]Read it against [FortificationVisual][/b] — the pair has to be
 ## distinguishable at a glance or the two defensive addons are one blur:
 ##
 ## [codeblock]
@@ -27,7 +27,7 @@ extends SkillNodeAddon
 ## announce themselves with light, armour is the thing that absorbs it.
 ##
 ## No [method SkillNodeAddon.get_emblem] contribution, for the same reason
-## [FortificationAddon] makes none: CARVE is single-winner and outranked by
+## [FortificationVisual] makes none: CARVE is single-winner and outranked by
 ## SPELL/LOOT/KEYSTONE, so routing defensive state through it would make a
 ## bunker invisible on exactly the high-value nodes worth bunkering.
 
@@ -79,7 +79,7 @@ const _SHADOW_COLOR := Color(0.02, 0.02, 0.03, 0.6)
 ## allocated is the primary case, not the edge. Dark-cool-on-warm-bright works
 ## on bronze; the bevel is what keeps it off the dark rim.
 ##
-## It also stays clear of [FortificationAddon]'s bright cool chrome by VALUE
+## It also stays clear of [FortificationVisual]'s bright cool chrome by VALUE
 ## rather than hue: dark plates over the rim, bright teeth outboard of it.
 ## Every value is still well under 1.0 — see the non-emissive note above, which
 ## this cut serves better than the bright one did.
@@ -89,33 +89,18 @@ const _BEVEL_DARK := Color(0.40, 0.45, 0.55)
 const _BEVEL_LIT := Color(0.74, 0.81, 0.92)
 const _SLIT_COLOR := Color(0.03, 0.03, 0.05)
 
-var _radius: float = 32.0
-
-
-func _ready() -> void:
-	super._ready()
-	if carrier != null:
-		_radius = carrier.radius
-	queue_redraw()
-
-
-func configure_visual(r: float) -> void:
-	_radius = r
-	queue_redraw()
-
-
 func _draw() -> void:
-	if _radius <= 0.0 or plate_count <= 0:
+	if radius <= 0.0 or plate_count <= 0:
 		return
 
-	var r_in := _radius * _R_IN
-	var r_out := _radius * _R_OUT
-	var r_slit := _radius * _R_SLIT
+	var r_in := radius * _R_IN
+	var r_out := radius * _R_OUT
+	var r_slit := radius * _R_SLIT
 	var step := TAU / float(plate_count)
 	var span := step * plate_fill
 	var half := span * 0.5
 	var light := AddonGeometry.light_dir()
-	var shadow_offset := -light * (_radius * _SHADOW_THROW)
+	var shadow_offset := -light * (radius * _SHADOW_THROW)
 
 	# Offset by half a step so plates sit on the diagonals rather than on the
 	# cardinals — nothing else on the node keys off the diagonals, and the

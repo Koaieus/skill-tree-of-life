@@ -570,7 +570,6 @@ base_type_color = Color(0.85882354, 0.9019608, 0.9490196, 1)
 node_board = SubResource("Resource_ryeeh")
 
 [node name="SpikeRingAddon" parent="Graph/Nodes/Down" index="3" unique_id=1569558765 instance=ExtResource("45_8l4hc")]
-spike_color = Color(0.9, 0.2, 0.2, 1)
 local_modifiers = Array[ExtResource("15_0n80t")]([SubResource("Resource_0h1mn")])
 
 [node name="Left" parent="Graph/Nodes" parent_id_path=PackedInt32Array(1851662701, 1428063024) index="4" unique_id=1010139945 instance=ExtResource("43_78xpl")]
@@ -718,7 +717,6 @@ base_type_color = Color(0.69411767, 0.40392157, 0.96862745, 1)
 node_board = SubResource("Resource_3ln1s")
 
 [node name="SpikeRingAddon" parent="Graph/Nodes/Watchtower" index="3" unique_id=1349571620 instance=ExtResource("45_8l4hc")]
-spike_color = Color(0.69411767, 0.40392157, 0.96862745, 1)
 local_modifiers = Array[ExtResource("15_0n80t")]([SubResource("Resource_hvf4f")])
 
 [node name="Juggler" parent="Graph/Nodes" parent_id_path=PackedInt32Array(1851662701, 1428063024) index="19" unique_id=9000002 instance=ExtResource("43_78xpl")]

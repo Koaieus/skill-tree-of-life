@@ -25,6 +25,15 @@ extends Node2D
 ## rotated element bakes that into its own [i]child[/i] visuals — never into
 ## its root transform, which the carrier assumes is neutral.
 ##
+## [b]Visuals are children, not overrides.[/b] An addon's drawing lives in a
+## direct child [AddonVisual] (its own named [code].gd[/code] under
+## [code]visuals/[/code], holding the draw code and the look knobs). The carrier
+## radius reaches it through this base: [method _ready] seeds every direct
+## [AddonVisual] child from [code]carrier.radius[/code], and
+## [method configure_visual] forwards each later change to all of them. A
+## subclass that only draws itself has no reason to exist — its scene runs this
+## script with a visual child.
+##
 ## Only DIRECT children are adopted. Nesting an addon under `Visuals` or under
 ## another addon resolves [member carrier] (the lookup walks up) but never
 ## attaches — an explicit non-contract, not a half-supported arrangement.
@@ -214,6 +223,8 @@ func _get_configuration_warnings() -> PackedStringArray:
 func _ready() -> void:
 	carrier = _find_carrier()
 	z_index = BASE_Z
+	if carrier != null:
+		configure_visual(carrier.radius)
 
 
 # ─── Virtual hooks (override per addon type) ───────────────────────────────
@@ -238,9 +249,11 @@ func get_entity_modifiers() -> Array[StatModifier]:
 
 
 ## Called by SkillNode._sync_visuals whenever the carrier's radius changes.
-## Override to redraw at the new size.
-func configure_visual(_radius: float) -> void:
-	pass
+## Forwards [param radius] to every direct [AddonVisual] child.
+func configure_visual(radius: float) -> void:
+	for child in get_children():
+		if child is AddonVisual:
+			child.radius = radius
 
 
 ## Called once per source SkillNode that carries this addon, by
