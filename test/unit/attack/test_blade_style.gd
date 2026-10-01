@@ -89,7 +89,7 @@ func test_blade_takes_its_tint_from_the_wielder() -> void:
 	var blade := SkillBlade.SCENE.instantiate() as SkillBlade
 	add_child_autofree(blade)
 	var nodes: Array[SkillNode] = [pivot, member]
-	blade.build_from_skill_nodes(nodes, pivot, [[pivot, member]], entity)
+	blade.build_from_skill_nodes(nodes, pivot, [[pivot, member]], entity, BladeVertexFill.new())
 
 	assert_eq(blade.entity_tint(), entity.color,
 			"the blade is a copy of the wielder's nodes and must carry its colour")
@@ -115,7 +115,7 @@ func test_blade_carries_both_radii_from_the_source_skill_nodes() -> void:
 	var blade := SkillBlade.SCENE.instantiate() as SkillBlade
 	add_child_autofree(blade)
 	var nodes: Array[SkillNode] = [pivot, member]
-	blade.build_from_skill_nodes(nodes, pivot, [[pivot, member]], null)
+	blade.build_from_skill_nodes(nodes, pivot, [[pivot, member]], null, BladeVertexFill.new())
 
 	assert_eq(blade.state.radii[1], member.radius,
 			"BladeState.radii must mirror the source node's outer radius")
@@ -142,7 +142,7 @@ func test_a_rebuild_clears_a_previous_swings_deaths() -> void:
 	member.position = Vector2(80.0, 0.0)
 	await get_tree().process_frame
 	var nodes: Array[SkillNode] = [pivot, member]
-	blade.build_from_skill_nodes(nodes, pivot, [[pivot, member]], null)
+	blade.build_from_skill_nodes(nodes, pivot, [[pivot, member]], null, BladeVertexFill.new())
 
 	assert_null(blade.pop_result,
 			"a rebuilt blade must not inherit the last swing's dead set")
@@ -165,7 +165,7 @@ func test_a_severed_edge_visual_reads_disabled_once_playback_passes_its_break_ti
 	var blade := SkillBlade.SCENE.instantiate() as SkillBlade
 	add_child_autofree(blade)
 	var nodes: Array[SkillNode] = [pivot, member]
-	blade.build_from_skill_nodes(nodes, pivot, [[pivot, member]], null)
+	blade.build_from_skill_nodes(nodes, pivot, [[pivot, member]], null, BladeVertexFill.new())
 	blade.pop_result = BladePopResolver.Result.new()
 	blade.pop_result.severed_at[0] = 0.15  # the pivot-member edge, index 0
 

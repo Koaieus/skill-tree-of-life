@@ -26,7 +26,7 @@ func _blade_fixture() -> Dictionary:
 	var blade := SkillBlade.SCENE.instantiate() as SkillBlade
 	add_child_autofree(blade)
 	var nodes: Array[SkillNode] = [pivot, member]
-	blade.build_from_skill_nodes(nodes, pivot, [[pivot, member]], null)
+	blade.build_from_skill_nodes(nodes, pivot, [[pivot, member]], null, BladeVertexFill.new())
 	# Godot's first Tween after a fresh node enters the tree runs on a skewed
 	# initial delta — measured over 3x the requested duration in isolation, and
 	# unpredictably SHORT here depending on GUT's own frame timing. Settle it

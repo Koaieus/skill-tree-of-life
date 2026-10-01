@@ -295,7 +295,7 @@ func test_skill_blade_preview_matches_build_blade_state_for_temp_upgrades() -> v
 	var blade := SkillBlade.SCENE.instantiate() as SkillBlade
 	add_child_autofree(blade)
 	var nodes: Array[SkillNode] = [source, joint, tip]
-	blade.build_from_skill_nodes(nodes, source, plan.get_induced_edges(), _entity)
+	blade.build_from_skill_nodes(nodes, source, plan.get_induced_edges(), _entity, plan.vertex_fill)
 
 	assert_eq(_constraint_pairs(blade.state), _constraint_pairs(resolve_state),
 			"preview (SkillBlade) and resolve (build_blade_state) must produce the exact same constraint set for identical temp upgrades — they're the same real-addon ledger now, not two dispatch paths")

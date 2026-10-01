@@ -153,11 +153,14 @@ static func is_valid_selection(
 ## `induced_edges`: Array of [SkillNode, SkillNode] pairs (induced subgraph).
 ## Call after adding the SkillBlade to the scene tree; safe to call again to
 ## rebuild for an updated selection (visuals are torn down + rebuilt).
+## `fill` is the per-vertex fill to read stats + dispatch addons through —
+## the plan's [member MeleeAttackPlan.vertex_fill], so preview matches resolve.
 func build_from_skill_nodes(
 		skill_nodes: Array[SkillNode],
 		pivot: SkillNode,
 		induced_edges: Array,
-		owner_entity: Entity) -> void:
+		owner_entity: Entity,
+		fill: BladeVertexFill) -> void:
 	owned_by = owner_entity
 	# A rebuild is a fresh blade: last swing's deaths must not de-light it, and
 	# its shards must not still be flying.
@@ -188,22 +191,9 @@ func build_from_skill_nodes(
 	for pair in induced_edges:
 		edges_idx.append(Vector2i(sn_to_idx[pair[0]], sn_to_idx[pair[1]]))
 	state = BladeState.build(positions, pivot_idx, edges_idx, radii, inner_radii)
-	# Per-vertex damage is the node's own blade_damage (wielder base merged with
-	# any node-local spike modifier) — one localized read per source node.
-	for i in skill_nodes.size():
-		state.vertex_damage[i] = skill_nodes[i].get_local_value(&"blade_damage")
-	# Per-vertex blunting, same localized read (#778) — a spiked vertex carries
-	# the SpikeRingAddon's raise to 2, so it reaches BladePopResolver.LiveGate.
-	for i in skill_nodes.size():
-		state.vertex_blunting[i] = skill_nodes[i].get_local_value(&"blunting")
-	# No per-EDGE fill: ADR 0005 — an edge carries no stats. Mirrors the same
-	# absence in melee_attack_plan.gd's build_blade_state.
-	# Dispatch to addons after BladeState is built so they can append
-	# constraints (Clamp's phantom brace). SkillBlade never learns specific
-	# addon types — pure virtual dispatch.
-	for i in skill_nodes.size():
-		for addon in skill_nodes[i].get_addons():
-			addon.apply_to_blade(state, i)
+	# Stat reads + addon dispatch through the caller's fill — the plan's own,
+	# so this blade's numbers are the ones the resolve computes.
+	fill.fill(state, skill_nodes)
 	_spawn_visuals()
 	_mark_all_placed()
 

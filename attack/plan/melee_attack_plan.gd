@@ -37,6 +37,10 @@ var blade_nodes: Array[SkillNode] = []
 ## [method toggle_temp_upgrade] calls, never a phantom set crossing the wire.
 var ai_phantom_clamp_nodes: Array[SkillNode] = []
 
+## The per-vertex fill [method build_blade_state] uses; [MeleePreview] hands
+## the same one to [method SkillBlade.build_from_skill_nodes].
+var vertex_fill := BladeVertexFill.new()
+
 ## Arc / sweep target — kept as Vector2 for now per the original sketch;
 ## targeting integration comes when previews land.
 var blade_target: Vector2
@@ -1195,23 +1199,9 @@ func build_blade_state(zones: BladeDefenderZones = null) -> BladeState:
 	for pair in induced_edges:
 		edge_indices.append(Vector2i(sn_to_idx[pair[0]], sn_to_idx[pair[1]]))
 	var blade_state := BladeState.build(positions, pivot_idx, edge_indices, radii)
-	# Per-vertex damage from each source node's own blade_damage (wielder base
-	# merged with node-local spike modifiers) — keeps preview/AI scoring in step
-	# with the live swing in skill_blade.gd.
-	for i in selection.size():
-		blade_state.vertex_damage[i] = selection[i].get_local_value(&"blade_damage")
-	# Per-vertex blunting, the defensive counterpart (#778) — same localized
-	# read, so preview / AI scoring pop the same vertices the live swing does.
-	for i in selection.size():
-		blade_state.vertex_blunting[i] = selection[i].get_local_value(&"blunting")
-	# No per-EDGE fill: ADR 0005 — an edge carries no stats, derived or
-	# otherwise. Its geometry comes from its endpoints, its damage from nowhere.
-	# Dispatch to addons after vertex_damage is populated (mirror
-	# skill_blade.gd's build_from_skill_nodes) — keeps preview/resolve in
-	# parity with the live swing's constraint set (e.g. Clamp's weld brace).
-	for i in selection.size():
-		for addon in selection[i].get_addons():
-			addon.apply_to_blade(blade_state, i)
+	# The per-vertex stat reads + addon dispatch — the same fill the visual
+	# blade uses, so preview / AI scoring / resolve agree on every vertex.
+	vertex_fill.fill(blade_state, selection)
 	# #823: phantom clamps the AI rollout is SCORING, not real attached
 	# addons — same static ClampAddon uses for a real one
 	# (ClampAddon.apply_to_blade delegates to this exact function), applied

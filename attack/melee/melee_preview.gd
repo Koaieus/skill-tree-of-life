@@ -386,7 +386,8 @@ func _rebuild_blade(blade: SkillBlade, plan: MeleeAttackPlan) -> void:
 	selection.append_array(plan.blade_nodes)
 	blade.swing_cw = plan.swing_cw
 	blade.build_from_skill_nodes(
-			selection, plan.source, plan.get_induced_edges(), plan.attacker)
+			selection, plan.source, plan.get_induced_edges(), plan.attacker,
+			plan.vertex_fill)
 	# The rebuild freed and recreated every vertex visual, so decoration
 	# applied by a listener is gone — same event, same signal.
 	blade_spawned.emit(blade)
@@ -406,7 +407,8 @@ func _spawn_blade(plan: MeleeAttackPlan) -> void:
 		# vertices, so a later assignment would repaint rather than author.
 		blade.style = blade_style
 	blade.build_from_skill_nodes(
-			selection, plan.source, plan.get_induced_edges(), plan.attacker)
+			selection, plan.source, plan.get_induced_edges(), plan.attacker,
+			plan.vertex_fill)
 	_ghost = blade
 	blade_spawned.emit(blade)
 	focus_marker_changed.emit(blade.focus_marker())

@@ -111,7 +111,7 @@ func test_skill_blade_build_fills_per_vertex_damage() -> void:
 	var blade := SkillBlade.SCENE.instantiate() as SkillBlade
 	add_child_autofree(blade)
 	var nodes: Array[SkillNode] = [source, member]
-	blade.build_from_skill_nodes(nodes, source, [], entity)
+	blade.build_from_skill_nodes(nodes, source, [], entity, BladeVertexFill.new())
 
 	# Same ordering ([source, member]) and same numbers as the plan path — the
 	# two build sites must agree so preview matches commit.

@@ -28,7 +28,7 @@ func _build_blade(pop_window: float = 0.1) -> Dictionary:
 	style.pop_window = pop_window
 	blade.style = style
 	var nodes: Array[SkillNode] = [pivot, member]
-	blade.build_from_skill_nodes(nodes, pivot, [[pivot, member]], null)
+	blade.build_from_skill_nodes(nodes, pivot, [[pivot, member]], null, BladeVertexFill.new())
 	return {"blade": blade, "pivot": pivot, "member": member}
 
 

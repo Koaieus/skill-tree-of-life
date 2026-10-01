@@ -90,7 +90,7 @@ func _blade_fixture() -> Dictionary:
 	var blade := SkillBlade.SCENE.instantiate() as SkillBlade
 	add_child_autofree(blade)
 	var nodes: Array[SkillNode] = [pivot, member]
-	blade.build_from_skill_nodes(nodes, pivot, [[pivot, member]], null)
+	blade.build_from_skill_nodes(nodes, pivot, [[pivot, member]], null, BladeVertexFill.new())
 	return {"blade": blade, "pivot": pivot, "member": member}
 
 
