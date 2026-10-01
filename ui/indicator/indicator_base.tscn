@@ -1,0 +1,6 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://ui/indicator/indicator.gd" id="1_ind"]
+
+[node name="Indicator" type="Node2D"]
+script = ExtResource("1_ind")

@@ -15,15 +15,17 @@ extends Node2D
 @export var highlight_controller: HighlightController
 @export var graph: Graph
 
-# Selection / status ring band (ring convention — see SkillNode.ring_centerline):
+# Plain role ring band (ring convention — see SkillNode.ring_centerline):
 # `ring_inner_offset` is the gap from the node boundary to the ring's INNER edge.
-# Default 4.5/3.0 → spans radius+4.5 .. radius+7.5, which currently overlaps the
-# hover band (radius .. radius+8). That overlap, plus a possible hover-as-glow
-# rethink, is tracked as a design follow-up (see #67 discussion) — not changed
-# here so this refactor preserves the rendered pixels.
+# Drawn for every role WITHOUT an indicator scene in `default_theme`.
 @export var ring_inner_offset: float = 4.5
 @export var ring_width: float = 3.0
 @export var ring_segments: int = 32
+
+## Role -> [Indicator] scene. A role with a scene mounts an instance as this
+## overlay's child (and skips the plain ring); every other role keeps the ring.
+## Shared resource — swap it, never mutate it in place.
+@export var default_theme: IndicatorTheme = preload("res://ui/indicator/themes/default.tres")
 
 # The range ring is a GAMEPLAY reach (world-space radius), not a decoration band,
 # so it draws AT `range_radius` (centerline) and is deliberately exempt from the
@@ -70,8 +72,56 @@ func _ready() -> void:
 	highlight_controller.provider_state_changed.connect(_on_repaint_needed)
 
 
+# Live indicator per node, diffed on every repaint signal so an unchanged
+# target keeps its instance (and its spinner's phase).
+var _indicators: Dictionary[SkillNode, Indicator] = {}
+var _indicator_roles: Dictionary[SkillNode, int] = {}
+
+
 func _on_repaint_needed() -> void:
+	_sync_indicators()
 	queue_redraw()
+
+
+func _indicator_scene(role: int) -> PackedScene:
+	if default_theme == null or role == HighlightProvider.HighlightRole.NONE:
+		return null
+	return default_theme.scene_for(role)
+
+
+func _sync_indicators() -> void:
+	var provider: HighlightProvider = null
+	if highlight_controller != null and graph != null:
+		provider = highlight_controller.provider
+	var wanted: Dictionary[SkillNode, int] = {}
+	if provider != null:
+		for sn in graph.get_skill_nodes():
+			var role: int = provider.get_node_role(sn)
+			if _indicator_scene(role) != null:
+				wanted[sn] = role
+	for sn in _indicators.keys():
+		var live: Indicator = _indicators[sn]
+		var keep := wanted.has(sn) and is_instance_valid(sn) and is_instance_valid(live) \
+				and _indicator_scene(wanted[sn]).resource_path == live.scene_file_path
+		if not keep:
+			if is_instance_valid(live):
+				live.queue_free()
+				remove_child(live)
+			_indicators.erase(sn)
+			_indicator_roles.erase(sn)
+	for sn in wanted:
+		var role: int = wanted[sn]
+		var ind: Indicator = _indicators.get(sn)
+		if ind == null:
+			ind = _indicator_scene(role).instantiate() as Indicator
+			add_child(ind)
+			_indicators[sn] = ind
+			_indicator_roles[sn] = -1
+		ind.position = to_local(sn.global_position)
+		ind.radius = sn.radius
+		if _indicator_roles[sn] != role:
+			ind.tint = ROLE_COLORS.get(role, Color.WHITE)
+			_indicator_roles[sn] = role
 
 
 func _draw() -> void:
@@ -95,7 +145,7 @@ func _draw() -> void:
 			var alpha := range_ring_alpha_active if active else range_ring_alpha_idle
 			var tint := Color(base.r, base.g, base.b, alpha)
 			draw_arc(center, range_radius, 0.0, TAU, range_ring_segments, tint, range_ring_width)
-		if role == HighlightProvider.HighlightRole.NONE:
+		if role == HighlightProvider.HighlightRole.NONE or _indicator_scene(role) != null:
 			continue
 		var color: Color = ROLE_COLORS.get(role, Color.WHITE)
 		var ring_c := SkillNode.ring_centerline(sn.radius, ring_inner_offset, ring_width)

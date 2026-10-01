@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="IndicatorTheme" format=3]
+
+[ext_resource type="Script" path="res://ui/indicator/indicator_theme.gd" id="1_theme"]
+[ext_resource type="PackedScene" path="res://ui/indicator/target_reticle.tscn" id="2_reticle"]
+
+[resource]
+script = ExtResource("1_theme")
+scenes = Dictionary[int, PackedScene]({
+3: ExtResource("2_reticle"),
+4: ExtResource("2_reticle")
+})
