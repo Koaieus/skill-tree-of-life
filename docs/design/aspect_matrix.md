@@ -51,17 +51,47 @@ an on-hit effect plus optional drawback on another component), not a patch
 onto the existing four — keeps #1200 (composable spells) open. Mechanics
 TBD on #1250.
 
+## Authoring a row, and why the passes run by column
+
+**One concept's full row** (what a single status needs to be first class):
+
+1. **Stat** — `stats_system/defs/<concept>_aspect.tres`, a child of the
+   `aspects` parent, on the `StatDefRoster` and the entity board (the
+   `manage-stats` checklist). All eight exist.
+2. **Arrow** — one `AmmoType` `.tres` under `attack/ammo/types/` on the
+   poison template (`order`, `damage_scale`, `status_def`, `status_power`,
+   `per_reload_stat_id = <concept>_aspect`, `max_stock`) plus a line on
+   `attack/ammo/ammo_type_roster.tres`. No code: reload, ammo cards and the
+   AI iterate the roster.
+3. **Addon** — a `SkillNodeAddon` scene per the addon recipe above, to the
+   `spike_ring_addon.tscn` standard (owner, 2026-10-02: toxin and
+   `dot_addon.gd` *"are mostly stubs … not examples to lead by"*).
+4. **Spells** — one or two `SpellDef` `.tres` + a `SpellCatalog` line, each
+   doing something other than "damage + apply status".
+5. **Infusion** — designed on #1250; nothing to author yet.
+6. **Procgen home** — the aspect stat in an attribute pool (#1249); only
+   poison (DEX) and scout (PER) are placed today.
+
+**The passes run transposed** (owner, 2026-10-02: *"Transpose by
+column"*): each column has a different gate — arrows none, addons #1212,
+infusion #1250 — and every row appends to the same three registries (ammo
+roster, procgen content pools, spell catalog), so one branch per column
+beats five per row. #1317 is the arrow pass for every statused concept;
+#1318 is the per-concept addon + spell design pass that then files the
+addon and spell column units; #971–#973 (the old per-row issues) are
+closed as superseded.
+
 ## The Matrix
 
 | Concept | Stat | Ranged (arrow) | Addon (map / temp) | Magic (infusion) | Notes |
 |---|---|---|---|---|---|
-| Poison | `poison_aspect` | shipped (each reload mints `poison_aspect` poison arrows, #1248) | `toxin_addon.tscn` (on shared `dot_addon.gd`); modifiers + blade behaviour shipped, **no look** (#1271) | spells apply poison; infusion TBD | spread signature undecided (#1204) |
-| Corruption | `corruption_aspect` | #971 | #971 | #971 | spreads as a sandpile by nature (#1202); health bar shows blips per stack, extra-mean when critical (#1092) |
-| Curse | `curse_aspect` | #972 | #972 | #972 | raises `min_damage_taken`; spills to surviving direct neighbours on death AND dealloc (#1204) |
-| Wither | `wither_aspect` | #973 | #973 | #973 | drives healing received negative |
-| Blindness | `blindness_aspect` | TBD | TBD | candidate: **Throw Sand** spell (owner, 2026-09-30) — row: #1253 | count stacks, effect reads as a % via a saturating curve |
+| Poison | `poison_aspect` | shipped (each reload mints `poison_aspect` poison arrows, #1248) | `toxin_addon.tscn` (on shared `dot_addon.gd`) — a stub, **redone in #1318** to the SpikeRing standard (look: #1271) | spells `venom`, `bruiser`; infusion #1250 | spread signature undecided (#1204) |
+| Corruption | `corruption_aspect` | #1317 | #1318 | #1250 | spreads as a sandpile by nature (#1202); health bar shows blips per stack, extra-mean when critical (#1092) |
+| Curse | `curse_aspect` | #1317 | #1318 (spell `hex` shipped) | #1250 | raises `min_damage_taken`; spills to surviving direct neighbours on death AND dealloc (#1204) |
+| Wither | `wither_aspect` | #1317 | #1318 | #1250 | drives healing received negative |
+| Blindness | `blindness_aspect` | #1317 | #1318 (spell `dazzle` shipped) | candidate: **Throw Sand** spell (owner, 2026-09-30) — row: #1253; infusion #1250 | count stacks, effect reads as a % via a saturating curve |
 | Scout (a reveal, #949) | `scout_aspect` | scouting arrow (shipped) | watchtower addon (shipped); temp: lit blade node pushing back fog (owner pitch, perf-sensitive: one moving mark per blade, never a second vision path) | TBD (#1254) | `effects/status/scouted.tres` is live (VisionSystem's decay rule); first-class concept (owner, 2026-09-30) |
-| Armor break | `armor_break_aspect` | #395 | #395 | #395 | flat −1 armor per stack, uncapped, can go below zero (#1203, owner 2026-09-30) |
+| Armor break | `armor_break_aspect` | #1317 | #1318 (spell `sunder` shipped) | #1250 (#395 holds the design) | flat −1 armor per stack, uncapped, can go below zero (#1203, owner 2026-09-30) |
 | Explosive | `explosive_aspect` | explosive arrow (#1211) | explosive addon, procgen at low rate; detonation kills the blade node, reuses spike-pop plumbing (#1211) | stub (#1211) | euclidean hitscan radius from `SkillNode.radius`; barrels / friendly fire open (#1211) |
 
 ## Contenders
@@ -81,7 +111,7 @@ this table's rows.
 
 ## Open
 
-- Supply model for `<concept>_aspect` (#1248).
+- Supply model: settled (#1248, closed).
 - Attribute archetype per concept: the 2026-09-22 grid in
   [node_subtypes.md](node_subtypes.md) (DEX poison, STR corruption, INT
   wither, CON curse, PER blindness/scout, WIS none) vs. the owner's
@@ -90,5 +120,5 @@ this table's rows.
 - Can one hit carry two aspects (#1251).
 - WIS status family (#1252).
 
-Related: #1199 (the hub), #1255 (status model: decay / spread / timing, #1256), #1211, #1212 (addons become scenes),
+Related: #1199 (the hub), #1317 (arrows), #1318 (addon + spell design), #1255 (status model: decay / spread / timing, #1256), #1211, #1212 (addons become scenes),
 #1202, #1204, #1203, #1217, #971–#973, #395, #1200.
