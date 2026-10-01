@@ -204,17 +204,17 @@ func test_arming_a_manage_verb_emits_nothing() -> void:
 	assert_signal_emit_count(_ctl, "armed_tint_changed", 0)
 
 
-func test_the_glow_survives_your_own_end_turn() -> void:
-	# Stated behaviour change (#1222): presentation reads the armed branch
-	# unconditionally, and the stack survives your own end_turn as the plan
-	# slot does — so the glow no longer darkens off-turn.
+func test_the_glow_darkens_on_your_own_end_turn() -> void:
+	# Ending the seated player's turn clears the armed stack to its Manage
+	# root (an arm is turn-local intent), and the glow follows the stack.
 	_ctl.on_attack_mode_requested(BattleSystem.AttackMode.MELEE)
 	assert_eq(_ctl.get_armed_tint(), _expected(&"strength"))
 
 	watch_signals(_ctl)
 	_tm.end_turn()
-	assert_signal_emit_count(_ctl, "armed_tint_changed", 0)
-	assert_eq(_ctl.get_armed_tint(), _expected(&"strength"))
+	assert_signal_emitted_with_parameters(
+			_ctl, "armed_tint_changed", [Color.TRANSPARENT])
+	assert_eq(_ctl.get_armed_tint(), Color.TRANSPARENT)
 
 
 # --- the presentation half: ArmedModeGlow owns the emissive tier -------------
