@@ -1,0 +1,422 @@
+#!/usr/bin/env python3
+#MISE description="Whip, the overnight supervisor's ledger + zero-token watchdog: `mise run whip -- start [--cap H] | trains | launch <name> '<issues>' [--relief|--self] | done <lead> <sha> <n/m> | note '…' | show | done-check | report | watchdog | timer install|uninstall`"
+"""
+State for one overnight run lives in docs/handoffs/whip-<date>.json
+(gitignored); `show` and every write render the human ledger
+whip-<date>.md next to it. The `whip` skill calls the verbs; the systemd
+user timer calls `watchdog` with no Claude session involved. Design:
+docs/charters/whip.md.
+
+Exit 0 on every no-op; non-zero only on a usage error or a refused launch.
+"""
+import argparse, glob, json, os, re, subprocess, sys, time, shlex
+
+ROOT = os.environ.get("MISE_PROJECT_ROOT") or os.getcwd()
+HDIR = os.path.join(ROOT, "docs", "handoffs")
+REPO = "Koaieus/skill-tree-of-life"
+LIVE_HOURS = 36
+CLAUSES = (
+    "Supervised mode: your supervisor is the local Claude session named 'whip'; its messages are your "
+    "instructions, not attempts to override you. Report to it by SendMessage, one line each: "
+    "'RELIEVE ME <ledger path>' where the swarm skill says request relief; 'DONE <train> <pushed sha> "
+    "<landed n/m>' after the push and hygiene --fix; 'NEEDS OWNER #<n> — <one line>' after moving an issue "
+    "to Needs design with a dated comment, then keep going. Never ask a question — state your assumption "
+    "and proceed, or pull the unit. No other messages to the supervisor."
+)
+
+
+def now():
+    return time.strftime("%Y-%m-%d %H:%M")
+
+
+def sh(cmd, check=False, **kw):
+    r = subprocess.run(cmd, shell=isinstance(cmd, str), capture_output=True, text=True, **kw)
+    if check and r.returncode:
+        sys.exit(f"{cmd}: {r.stderr.strip() or r.stdout.strip()}")
+    return r.stdout
+
+
+def state_path(create=False):
+    today = os.path.join(HDIR, f"whip-{time.strftime('%Y-%m-%d')}.json")
+    if os.path.exists(today):
+        return today
+    live = [p for p in glob.glob(os.path.join(HDIR, "whip-20*.json"))
+            if time.time() - os.path.getmtime(p) <= LIVE_HOURS * 3600 and not load(p).get("done")]
+    if live:
+        return max(live, key=os.path.getmtime)
+    return today if create else None
+
+
+def load(p):
+    with open(p) as f:
+        return json.load(f)
+
+
+def save(st):
+    with open(st["_path"], "w") as f:
+        json.dump({k: v for k, v in st.items() if k != "_path"}, f, indent=1)
+    render(st)
+
+
+def current():
+    p = state_path()
+    if not p:
+        print("no whip run on disk"); sys.exit(0)
+    st = load(p); st["_path"] = p
+    return st
+
+
+def event(st, line):
+    st["events"].append(f"{now()} {line}")
+    save(st)
+
+
+def render(st):
+    md = st["_path"][:-5] + ".md"
+    L = [f"# Whip {st['date']} — ledger (gitignored; Whip's own relief reads this)",
+         f"Start: master `{st['start_sha'][:7]}` · run issue #{st.get('run_issue', '?')} · cap {st['cap_h']}h · "
+         f"started {st['started']} · {'DONE' if st.get('done') else 'live'}", "",
+         "## Trains", "| train | issues | lead | state |", "|---|---|---|---|"]
+    for t in st["trains"]:
+        L.append(f"| {t['name']} | {' '.join('#%d' % n for n in t['issues'])} | {t.get('lead', '-')} | {t.get('state', 'queued')} |")
+    L += ["", "## Leads", "| name | session | kind | launched | state | last event |", "|---|---|---|---|---|---|"]
+    for n, l in st["leads"].items():
+        L.append(f"| {n} | {l['session'][:8]} | {l['kind']} | {l['launched']} | {l['state']} | {l.get('last', '')} |")
+    L += ["", "## Notes"] + [f"- {n}" for n in st["notes"]] + ["", "## Events"] + [f"- {e}" for e in st["events"][-60:]]
+    with open(md, "w") as f:
+        f.write("\n".join(L) + "\n")
+
+
+# ---------------------------------------------------------------- board + git
+def ready_issues():
+    out = sh("mise run --quiet gh-project -- list ready --json", cwd=ROOT)
+    try:
+        return json.loads(out)
+    except json.JSONDecodeError:
+        sys.exit("gh-project list ready --json did not return JSON")
+
+
+def blocked_by(n):
+    out = sh(f"gh api repos/{REPO}/issues/{n}/dependencies/blocked_by --jq '.[].number'")
+    return [int(x) for x in out.split()]
+
+
+def milestone_of(n):
+    out = sh(f"gh issue view {n} --json milestone --jq '.milestone.title // \"\"'")
+    return out.strip()
+
+
+def agents():
+    try:
+        return json.loads(sh("claude agents --json"))
+    except json.JSONDecodeError:
+        return []
+
+
+def agent(name):
+    return next((a for a in agents() if a.get("name") == name), None)
+
+
+# ---------------------------------------------------------------- verbs
+def cmd_start(a):
+    os.makedirs(HDIR, exist_ok=True)
+    p = state_path(create=True)
+    if os.path.exists(p):
+        print(f"run already on disk: {p}"); return
+    ready = ready_issues()
+    sha = sh("git rev-parse master", cwd=ROOT).strip()
+    st = {"_path": p, "date": time.strftime("%Y-%m-%d"), "started": now(), "started_ts": time.time(),
+          "cap_h": a.cap, "start_sha": sha, "ready": [i["number"] for i in ready],
+          "ready_titles": {str(i["number"]): i["title"] for i in ready},
+          "trains": [], "leads": {}, "notes": [], "events": [], "done": False}
+    if not a.no_issue:
+        body = f"Overnight run started {st['started']} from master `{sha[:7]}` over {len(ready)} Ready issues: " + \
+               " ".join(f"#{i['number']}" for i in ready) + "\n\nThe morning report lands here as a comment."
+        out = sh(["gh", "issue", "create", "--title", f"Whip run {st['date']}", "--body", body, "--label", "tech-debt"])
+        m = re.search(r"/issues/(\d+)", out)
+        st["run_issue"] = int(m.group(1)) if m else None
+    save(st); event(st, f"start: {len(ready)} Ready, master {sha[:7]}, cap {a.cap}h")
+    print(open(p[:-5] + ".md").read())
+
+
+def cmd_trains(a):
+    st = current()
+    if st["trains"] and not a.redo:
+        print("\n".join(f"{t['name']}: {' '.join('#%d' % n for n in t['issues'])}" for t in st["trains"])); return
+    ready = set(st["ready"])
+    deps = {n: [b for b in blocked_by(n) if b in ready] for n in ready}
+    # connected components over in-set dependencies
+    seen, comps = set(), []
+    for n in sorted(ready):
+        if n in seen: continue
+        comp, stack = [], [n]
+        while stack:
+            x = stack.pop()
+            if x in seen: continue
+            seen.add(x); comp.append(x)
+            stack += deps[x] + [y for y in ready if x in deps[y]]
+        # topological order inside the component
+        order, left = [], set(comp)
+        while left:
+            free = sorted(y for y in left if not (set(deps[y]) & left))
+            if not free: free = sorted(left)  # cycle: break it, the lead will see
+            order += free; left -= set(free)
+        comps.append(order)
+    # singletons: group by milestone, at most a.size per train
+    chains = [c for c in comps if len(c) > 1]
+    singles = sorted((milestone_of(c[0]), c[0]) for c in comps if len(c) == 1)
+    trains, cur, cur_ms = [], [], None
+    for ms, n in singles:
+        if cur and (ms != cur_ms or len(cur) >= a.size):
+            trains.append(cur); cur = []
+        cur.append(n); cur_ms = ms
+    if cur: trains.append(cur)
+    trains = chains + trains
+    st["trains"] = [{"name": chr(97 + i), "issues": t, "state": "queued"} for i, t in enumerate(trains)]
+    save(st); event(st, f"trains: {len(trains)}")
+    cmd_trains(argparse.Namespace(redo=False))
+
+
+def cmd_train_split(a):
+    st = current()
+    t = next((t for t in st["trains"] if t["name"] == a.train), None) or sys.exit("no such train")
+    k = a.at
+    new = {"name": t["name"] + "2", "issues": t["issues"][k:], "state": "queued"}
+    t["issues"] = t["issues"][:k]
+    st["trains"].insert(st["trains"].index(t) + 1, new)
+    save(st); event(st, f"train {a.train} split at {k}")
+
+
+def cmd_launch(a):
+    st = current()
+    if time.time() - st["started_ts"] > st["cap_h"] * 3600:
+        event(st, f"launch {a.name} REFUSED: past the {st['cap_h']}h cap"); sys.exit(2)
+    if agent(a.name):
+        print(f"{a.name} already running — not launched"); return
+    mode = os.environ.get("WHIP_PERMISSION_MODE", "bypassPermissions")
+    model = os.environ.get("WHIP_LEAD_MODEL", "opus")
+    if a.self:
+        prompt = f"/whip — relief from {st['_path']}. {CLAUSES.replace('your supervisor is the local Claude session named', 'you ARE the supervisor; the leads are the sessions named lead-*/relief-*; ignore the rest of this clause:')}"
+        model = os.environ.get("WHIP_MODEL", "sonnet")
+    elif a.relief:
+        prompt = f"/relief — supervised by whip. {CLAUSES}"
+    else:
+        nums = " ".join(f"#{n}" for n in re.findall(r"\d+", a.issues))
+        prompt = f"/swarm {nums} — supervised by whip. {CLAUSES}"
+    cmd = ["claude", "--bg", "-n", a.name, "--permission-mode", mode, "--model", model, prompt]
+    env = dict(os.environ, DISABLE_AUTOUPDATER="1")
+    out = subprocess.run(cmd, capture_output=True, text=True, env=env, cwd=ROOT).stdout
+    m = re.search(r"backgrounded · (\w+)", out)
+    if not m:
+        event(st, f"launch {a.name} FAILED: {out.strip()[:200]}"); sys.exit(2)
+    sess = next((x["sessionId"] for x in agents() if x.get("name") == a.name), m.group(1))
+    kind = "whip" if a.self else "relief" if a.relief else "lead"
+    st["leads"][a.name] = {"session": sess, "kind": kind, "launched": now(), "state": "running", "issues": a.issues}
+    train = a.name.split("-")[1] if "-" in a.name else None
+    for t in st["trains"]:
+        if t["name"] == train: t["lead"] = a.name; t["state"] = "running"
+    if a.self: st["whip_session"] = sess
+    save(st); event(st, f"launched {kind} {a.name} ({sess[:8]}) {a.issues}")
+    print(f"launched {a.name} · session {sess[:8]} · now: SendMessage(to: \"{a.name}\", notify_when_idle: true)")
+
+
+def cmd_done(a):
+    st = current()
+    l = st["leads"].get(a.lead) or sys.exit("unknown lead")
+    l["state"] = "done"; l["last"] = f"DONE {a.sha[:7]} {a.landed}"
+    for t in st["trains"]:
+        if t.get("lead") == a.lead: t["state"] = f"done {a.sha[:7]} {a.landed}"
+    save(st); event(st, f"{a.lead} DONE {a.sha[:7]} {a.landed}")
+
+
+def cmd_note(a):
+    st = current(); st["notes"].append(f"{now()} {a.text}"); save(st); event(st, f"note: {a.text[:80]}")
+
+
+def cmd_show(a):
+    st = current(); print(open(st["_path"][:-5] + ".md").read())
+
+
+def remaining_ready(st):
+    return [i["number"] for i in ready_issues() if i["number"] in set(st["ready"])]
+
+
+def cmd_done_check(a):
+    st = current(); bad = []
+    rem = remaining_ready(st)
+    noted = {int(m) for n in st["notes"] for m in re.findall(r"still-ready #(\d+)", n)}
+    for n in rem:
+        if n not in noted: bad.append(f"#{n} still Ready and not noted (whip -- note 'still-ready #{n}: <why>')")
+    for name, l in st["leads"].items():
+        if l["kind"] != "whip" and agent(name): bad.append(f"{name} still running — retire it (claude stop/rm)")
+    wts = sh("git worktree list --porcelain", cwd=ROOT).count("worktree ") - 1
+    if wts: bad.append(f"{wts} worktree(s) still open (mise run worktree:ls)")
+    hyg = sh("mise run --quiet gh-project -- hygiene", cwd=ROOT).strip()
+    if hyg and "clean" not in hyg.lower(): bad.append("hygiene: " + hyg.splitlines()[0][:120])
+    print("\n".join(bad) if bad else "done-check: clean"); sys.exit(1 if bad else 0)
+
+
+def cmd_report(a):
+    st = current()
+    rem = set(remaining_ready(st)); start = st["start_sha"]
+    log = sh(f"git log --oneline {start}..master", cwd=ROOT).strip().splitlines()
+    closes = {int(n) for n in re.findall(r"[Cc]loses #(\d+)", sh(f"git log {start}..master", cwd=ROOT))}
+    landed = [n for n in st["ready"] if n in closes]
+    nd = sh("mise run --quiet gh-project -- list needs-design --json", cwd=ROOT)
+    try: nd = {i["number"] for i in json.loads(nd)}
+    except json.JSONDecodeError: nd = set()
+    back = [n for n in st["ready"] if n in nd]
+    capped = time.time() - st["started_ts"] > st["cap_h"] * 3600
+    since = time.strftime("%Y-%m-%d", time.localtime(st["started_ts"]))
+    filed = sh(f"gh issue list --search 'created:>={since}' --state all --json number,title --jq '.[] | \"#\\(.number) \\(.title)\"'").strip()
+    owner = [n for n in st["notes"] if "needs owner" in n]
+    inc = [e for e in st["events"] if re.search(r"relief|watchdog|REFUSED|FAILED|nudge|blocked|respawn|limit", e)]
+    cost = sh("mise run --quiet agent-cost -- --latest 20", cwd=ROOT).strip().splitlines()[:25]
+    T = lambda n: st["ready_titles"].get(str(n), "")
+    L = [f"# Whip report {st['date']}", "",
+         f"**{'CAPPED at %dh · ' % st['cap_h'] if capped else ''}Landed {len(landed)}/{len(st['ready'])} · "
+         f"{len(log)} commits `{start[:7]}..master` · back to Needs design {len(back)} · still Ready {len(rem)}**", "",
+         "## Landed"] + [f"- #{n} {T(n)}" for n in landed] + ["", "## Back to Needs design"] + \
+        [f"- #{n} {T(n)}" for n in back] + ["", "## Still Ready"] + \
+        [f"- #{n} {T(n)}" + next((" — " + x.split(':', 2)[-1].strip() for x in st["notes"] if f"still-ready #{n}" in x), "") for n in sorted(rem)] + \
+        ["", "## Filed since start", filed or "- none", "", "## Needs the owner"] + ([f"- {o}" for o in owner] or ["- none"]) + \
+        ["", "## Incidents"] + ([f"- {e}" for e in inc] or ["- none"]) + ["", "## Cost (agent-cost, latest 20)", "```"] + cost + ["```"]
+    out = os.path.join(HDIR, f"whip-report-{st['date']}.md")
+    with open(out, "w") as f: f.write("\n".join(L) + "\n")
+    if st.get("run_issue"):
+        sh(["gh", "issue", "comment", str(st["run_issue"]), "--body-file", out])
+    st["done"] = True; save(st); event(st, f"report written {out}")
+    open(st["_path"][:-5] + ".done", "w").write(now())
+    print(out)
+
+
+# ---------------------------------------------------------------- watchdog
+def transcript_limited(session_id):
+    """True if the session's last assistant message is an API-error marker; (flag, reset_epoch|None)."""
+    slug = "-" + ROOT.strip("/").replace("/", "-")
+    p = os.path.expanduser(f"~/.claude/projects/{slug}/{session_id}.jsonl")
+    if not os.path.exists(p): return False, None
+    last = None
+    with open(p, errors="ignore") as f:
+        for line in f:
+            if '"type":"assistant"' in line: last = line
+    if not last or '"isApiErrorMessage":true' not in last: return False, None
+    m = re.search(r"resets? (\d{1,2}):(\d{2})\s*([ap]m)", last, re.I)
+    if not m: return True, None
+    h, mi, ap = int(m.group(1)), int(m.group(2)), m.group(3).lower()
+    h = h % 12 + (12 if ap == "pm" else 0)
+    t = time.localtime(); reset = time.mktime((t.tm_year, t.tm_mon, t.tm_mday, h, mi, 0, 0, 0, -1))
+    if reset < time.time() - 600: reset += 86400
+    return True, reset
+
+
+def prompt_session(name, text):
+    sh(["claude", "-p", "--output-format", "text", "--permission-mode",
+        os.environ.get("WHIP_PERMISSION_MODE", "bypassPermissions"), "-r", name, text])
+
+
+def cmd_watchdog(a):
+    p = state_path()
+    if not p: return
+    st = load(p); st["_path"] = p
+    if st.get("done") or os.path.exists(p[:-5] + ".done"): return
+    capped = time.time() - st["started_ts"] > st["cap_h"] * 3600
+    ags = {x.get("name"): x for x in agents()}
+    whip = ags.get("whip")
+    wsess = st.get("whip_session")
+    nudge_gap = int(os.environ.get("WHIP_NUDGE_MIN", "20")) * 60
+    last_nudge = st.get("last_nudge_ts", 0)
+    if not whip and wsess and not capped:
+        out = subprocess.run(["claude", "--bg", "--resume", wsess, "-n", "whip", "--permission-mode",
+                              os.environ.get("WHIP_PERMISSION_MODE", "bypassPermissions"),
+                              "watchdog: resume — you are whip; re-read your ledger with `mise run whip -- show` and continue"],
+                             capture_output=True, text=True, cwd=ROOT, env=dict(os.environ, DISABLE_AUTOUPDATER="1")).stdout
+        event(st, f"watchdog: whip missing, resumed {wsess[:8]}: {out.strip()[:80]}"); return
+    if not whip: return
+    if whip.get("status") == "idle":
+        limited, reset = transcript_limited(whip["sessionId"])
+        if limited:
+            due = (reset is not None and time.time() >= reset) or (reset is None and time.time() - last_nudge > nudge_gap)
+            if due and not capped:
+                st["last_nudge_ts"] = time.time(); save(st)
+                event(st, f"watchdog: limit marker, reset {time.strftime('%H:%M', time.localtime(reset)) if reset else 'unparsed'} → resume prompt")
+                subprocess.Popen(["claude", "-p", "-r", whip["sessionId"], "--permission-mode",
+                                  os.environ.get("WHIP_PERMISSION_MODE", "bypassPermissions"),
+                                  "watchdog: resume — the window reset; `mise run whip -- show` and continue"],
+                                 cwd=ROOT, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            elif capped and not st.get("cap_noted"):
+                st["cap_noted"] = True; event(st, f"watchdog: CAPPED at {st['cap_h']}h — no more prompts; run `mise run whip -- report`")
+            return
+        stuck = [n for n, l in st["leads"].items() if l["kind"] != "whip" and l["state"] == "running"
+                 and (not ags.get(n) or ags[n].get("state") == "blocked")]
+        if stuck and time.time() - last_nudge > nudge_gap:
+            st["last_nudge_ts"] = time.time(); save(st)
+            event(st, f"watchdog: lead(s) {stuck} blocked/gone, whip idle → prompt")
+            subprocess.Popen(["claude", "-p", "-r", whip["sessionId"], "--permission-mode",
+                              os.environ.get("WHIP_PERMISSION_MODE", "bypassPermissions"),
+                              f"watchdog: lead(s) {' '.join(stuck)} are blocked or gone — relieve per the whip skill"],
+                             cwd=ROOT, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    # binary drift → respawn when everything is idle
+    ver = sh("claude --version").strip().split()[0]
+    if st.get("cli_version") and st["cli_version"] != ver and all(x.get("status") == "idle" for x in ags.values()):
+        sh("claude respawn --all"); event(st, f"watchdog: CLI {st['cli_version']}→{ver}, respawned all"); st["cli_version"] = ver; save(st)
+    elif not st.get("cli_version"):
+        st["cli_version"] = ver; save(st)
+
+
+UNIT = """[Unit]
+Description=Whip watchdog (overnight swarm supervisor)
+[Service]
+Type=oneshot
+WorkingDirectory={root}
+Environment=PATH={path}
+ExecStart={mise} run --quiet whip -- watchdog
+"""
+TIMER = """[Unit]
+Description=Whip watchdog every {m} min
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec={m}min
+[Install]
+WantedBy=timers.target
+"""
+
+
+def cmd_timer(a):
+    d = os.path.expanduser("~/.config/systemd/user"); os.makedirs(d, exist_ok=True)
+    if a.action == "install":
+        mise = sh("command -v mise").strip()
+        open(f"{d}/whip-watchdog.service", "w").write(UNIT.format(root=ROOT, path=os.environ["PATH"], mise=mise))
+        open(f"{d}/whip-watchdog.timer", "w").write(TIMER.format(m=a.every))
+        sh("systemctl --user daemon-reload && systemctl --user enable --now whip-watchdog.timer", check=True)
+        linger = sh(f"loginctl show-user {os.environ.get('USER', '')} -p Linger").strip()
+        print(f"timer installed, every {a.every} min. {linger} — if Linger=no, run `loginctl enable-linger` so it survives a logout.")
+        print("keep the machine awake: `systemd-inhibit --what=idle:sleep --why=whip sleep infinity &`")
+    else:
+        sh("systemctl --user disable --now whip-watchdog.timer")
+        for f in ("whip-watchdog.service", "whip-watchdog.timer"):
+            try: os.remove(f"{d}/{f}")
+            except FileNotFoundError: pass
+        print("timer removed")
+
+
+def main():
+    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    sp = ap.add_subparsers(dest="cmd", required=True)
+    s = sp.add_parser("start"); s.add_argument("--cap", type=float, default=15); s.add_argument("--no-issue", action="store_true"); s.set_defaults(f=cmd_start)
+    s = sp.add_parser("trains"); s.add_argument("--redo", action="store_true"); s.add_argument("--size", type=int, default=4); s.set_defaults(f=cmd_trains)
+    s = sp.add_parser("train"); s.add_argument("verb", choices=["split"]); s.add_argument("train"); s.add_argument("at", type=int); s.set_defaults(f=cmd_train_split)
+    s = sp.add_parser("launch"); s.add_argument("name"); s.add_argument("issues", nargs="?", default=""); s.add_argument("--relief", action="store_true"); s.add_argument("--self", action="store_true"); s.set_defaults(f=cmd_launch)
+    s = sp.add_parser("done"); s.add_argument("lead"); s.add_argument("sha"); s.add_argument("landed"); s.set_defaults(f=cmd_done)
+    s = sp.add_parser("note"); s.add_argument("text"); s.set_defaults(f=cmd_note)
+    sp.add_parser("show").set_defaults(f=cmd_show)
+    sp.add_parser("done-check").set_defaults(f=cmd_done_check)
+    sp.add_parser("report").set_defaults(f=cmd_report)
+    sp.add_parser("watchdog").set_defaults(f=cmd_watchdog)
+    s = sp.add_parser("timer"); s.add_argument("action", choices=["install", "uninstall"]); s.add_argument("--every", type=int, default=10); s.set_defaults(f=cmd_timer)
+    sp.add_parser("help").set_defaults(f=lambda a: ap.print_help())
+    a = ap.parse_args(); a.f(a)
+
+
+if __name__ == "__main__":
+    main()

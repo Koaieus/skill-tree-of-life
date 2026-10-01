@@ -15,7 +15,7 @@
 # Durable handoff docs (docs/handoffs/<topic>.md) stay tracked; only swarm-* is a
 # per-run ledger.
 docs/handoffs/swarm-*.md
-docs/handoffs/whip-2*.md
+docs/handoffs/whip-2*
 
 # Drone briefs and scratch bodies for `gh --body-file`. Never tracked in practice;
 # this just stops them showing up as permanent untracked noise in `git status`.
