@@ -40,7 +40,7 @@ extends GutTest
 ## solver's output was supposed to change.
 ##
 ## A missing native binary is a FAILURE here, never PENDING — see
-## [method before_each]. `mise run native:fetch` cures it.
+## [method before_each]. `mise run native:build` cures it.
 
 const _REGENERATE := false
 const _FIXTURE_DIR := "res://test/unit/attack/fixtures/blade_goldens/"
@@ -103,8 +103,8 @@ func before_each() -> void:
 	# report PENDING while the suite prints green — that is how #823 shipped 26
 	# unverified cases. One command fixes it.
 	assert_eq(BladeSim.backend(), &"native",
-			"the native blade solver is loaded — run `mise run native:fetch` "
-			+ "(or `mise run native:build`) and `mise run refresh`")
+			"the native blade solver is loaded — run `mise run native:build` "
+			+ "and `mise run refresh`")
 
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────

@@ -10,10 +10,11 @@ extends RefCounted
 ## One backend (#847): the C++ GDExtension in native/src/blade_solver_native.cpp,
 ## reached through [method _simulate_native]. The GDScript solver that used to
 ## live here was a bit-identical mirror of it and is gone — every melee feature
-## was being written twice. The binary is MANDATORY: `mise run native:fetch`
-## (or `native:build`) puts it in native/bin/, and a checkout without it gets a
-## `push_error` naming that command the first time a swing is simulated — never
-## a parse error (see [member _native]) and never a silent stand-in.
+## was being written twice. The binary is MANDATORY: `mise run native:build`
+## (run automatically by `mise install`'s postinstall hook, #1303) puts it in
+## native/bin/, and a checkout without it gets a `push_error` naming that
+## command the first time a swing is simulated — never a parse error (see
+## [member _native]) and never a silent stand-in.
 ##
 ## What stays GDScript-side: BladeState / drivers / constraints as descriptors,
 ## the pop-gate loop, and `_length_factor`'s BFS, computed here and passed in.
@@ -58,7 +59,7 @@ const LENGTH_ITER_SCALE: float = 0.08
 ## The BladeSolverNative instance, or null when the extension isn't loaded.
 ## Resolved through ClassDB rather than by name: writing `BladeSolverNative`
 ## as a bare identifier would make THIS SCRIPT fail to parse on any machine
-## without the binary, which would turn "run `mise run native:fetch`" into a
+## without the binary, which would turn "run `mise run native:build`" into a
 ## name-resolution error under `mise run check`. Instantiated eagerly
 ## (static-var init) because AiBladeRollout calls simulate() from
 ## WorkerThreadPool tasks; the method is pure, so one shared instance serves

@@ -20,7 +20,7 @@ const REPS := 20
 func _initialize() -> void:
 	# #847: one backend. A checkout without the binary has nothing to measure.
 	if not BladeSim.native_available():
-		print("BladeSolverNative not loaded — nothing to bench. `mise run native:fetch` (or `native:build`), then `mise run refresh`.")
+		print("BladeSolverNative not loaded — nothing to bench. `mise run native:build`, then `mise run refresh`.")
 		quit(1)
 		return
 	_table("native (C++ GDExtension)")

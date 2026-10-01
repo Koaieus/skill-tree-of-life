@@ -585,7 +585,7 @@ def main():
 
     # Since #847 a missing native binary is a FAILURE in test_blade_goldens.gd's
     # before_each (and a push_error on every simulated swing), never a PENDING —
-    # so it shows up in the failure report above with `mise run native:fetch`
+    # so it shows up in the failure report above with `mise run native:build`
     # in the message, and needs no separate verdict line.
 
     if alarms:

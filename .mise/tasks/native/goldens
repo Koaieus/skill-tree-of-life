@@ -21,7 +21,7 @@ SCRIPT="$ROOT/test/unit/attack/test_blade_goldens.gd"
 
 if ! ls "$ROOT"/native/bin/libbladesim.* >/dev/null 2>&1; then
 	echo "✗ no native binary under native/bin/ — the goldens are recorded from the" >&2
-	echo "  C++ solver only. Fetch it first: mise run native:fetch" >&2
+	echo "  C++ solver only. Build it first: mise run native:build" >&2
 	exit 1
 fi
 

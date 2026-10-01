@@ -534,10 +534,10 @@ func _resolve_micro_split(probe: ProbeAI, ent: Entity) -> void:
 
 func test_bench_ai_turn() -> void:
 	# The binary is mandatory (#847): a missing one is a failure here, never
-	# PENDING, and `mise run native:fetch` is the one-line cure.
+	# PENDING, and `mise run native:build` is the one-line cure.
 	assert_eq(BladeSim.backend(), &"native",
-			"the native blade solver is loaded — run `mise run native:fetch` "
-			+ "(or `mise run native:build`) and `mise run refresh`")
+			"the native blade solver is loaded — run `mise run native:build` "
+			+ "and `mise run refresh`")
 	await _run_turn("AI turn on #797's 4-node fixture", _build_fixture)
 
 
@@ -557,8 +557,8 @@ func test_bench_ai_turn() -> void:
 ## never touches; a printed number is the honest artifact.
 func test_bench_ai_turn_large_owned_fixture() -> void:
 	assert_eq(BladeSim.backend(), &"native",
-			"the native blade solver is loaded — run `mise run native:fetch` "
-			+ "(or `mise run native:build`) and `mise run refresh`")
+			"the native blade solver is loaded — run `mise run native:build` "
+			+ "and `mise run refresh`")
 	var result := await _run_turn(
 			"AI turn on #537/#834's >= 200-owned grid fixture", _build_large_fixture)
 	var probe: ProbeAI = result["probe"]
