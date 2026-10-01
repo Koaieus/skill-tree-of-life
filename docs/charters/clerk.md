@@ -70,8 +70,9 @@ Haiku is priced a fifth of Opus and never carries the pass's context.
    rest `FAILED` with the cause — the spawning session re-runs those later.
    Relations are REST-first (`gh-project blocked-by`), since a pass's
    dependency wiring is the part least worth losing. The rest stays on `gh
-   issue …` (GraphQL, ~1 point a call): the 2026-10-01 exhaustion was the
-   clerk's *reads* at ~600 points each, not its writes, and wholesale REST
+   issue …` (GraphQL, ~1 point a call): the 2026-10-01 exhaustion was board
+   reads across sessions at ~600 points each — spent before the clerk's first
+   failing call — not issue writes, and wholesale REST
    would put the internal-id trap (parent links take ids too) in Haiku's
    hands.
 

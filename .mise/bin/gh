@@ -50,8 +50,8 @@ run() {
   else "$real" "$@"; fi
 }
 
-secondary() { grep -qiE 'secondary rate limit|abuse detection' "$tmp/err"; }
-primary()   { grep -qiE 'rate limit|RATE_LIMIT|HTTP 429' "$tmp/err"; }
+secondary() { grep -qiE 'secondary rate limit|abuse detection|HTTP 429' "$tmp/err"; }
+primary()   { grep -qiE 'rate limit|RATE_LIMIT' "$tmp/err"; }
 
 passthrough() { cat "$tmp/out"; cat "$tmp/err" >&2; exit "$rc"; }
 
