@@ -7,9 +7,10 @@ paths:
 # The blade solver's C++ backend (#798, the ONLY backend since #847)
 
 The repo's only GDExtension source, and the only blade solver: the GDScript
-mirror is deleted, the binary is mandatory (`mise run native:fetch` /
-`native:build`), and a checkout without it gets a `push_error` naming that
-command — at simulate time, never at parse time. Full context:
+mirror is deleted, the binary is mandatory (`mise run native:build`, run
+automatically by `mise install`'s postinstall hook, #1303), and a checkout
+without it gets a `push_error` naming that command — at simulate time, never
+at parse time. Full context:
 `docs/domain/melee-blade-sim.md` → "One backend, a mandatory binary".
 
 ## Never name a GDExtension class as a bare identifier in GDScript
@@ -19,7 +20,7 @@ on any machine where the binary is missing — so `blade_sim.gd` fails to load
 entirely and `mise run check` goes red with a name-resolution error instead of
 the message that names the fix. That is the whole reason the dynamic call
 survived #847's cleanup: the error surface is `BladeSim.simulate_range`'s
-`push_error("... run \`mise run native:fetch\` ...")` followed by a `null`
+`push_error("... run \`mise run native:build\` ...")` followed by a `null`
 return, and `check` stays clean with or without a binary.
 
 **How to apply:** go through `ClassDB` and call dynamically.
@@ -133,7 +134,7 @@ before #813 has no `simulate_range_field`. `Object.call()` on a missing method
 returns null without an error, so the crash would be `out["samples"]` a line
 later on every swing. `_acquire_native` therefore requires **both** methods and
 otherwise `push_error`s "stale (built before #813) — run `mise run
-native:fetch`" and returns null — the same broken-checkout state as no binary.
+native:build`" and returns null — the same broken-checkout state as no binary.
 **After pulling a change to `native/src/`, rebuild** (`mise run native:build`).
 
 ## A cached `ptrw()` aliases every snapshot you pushed
@@ -173,13 +174,15 @@ gotcha is invisible without it, which is why `test_blade_goldens.gd`'s
 `mise run test:one -- res://test/unit/attack/test_blade_goldens.gd` must
 report every case passed, 0 pending.
 
-`mise run native:fetch` (#845) runs this same `mise run refresh` itself after
-it actually writes a binary — measured, not assumed: a totally fresh checkout
-with no `.godot/` at all picks the extension up on its very first headless
-pass with no refresh needed (there is no stale cache to be wrong), but an
-*existing* checkout gaining a binary later hits exactly this gotcha, so
-`native:fetch` refreshes unconditionally on the "wrote something new" path
-and is a no-op cost-wise on the steady-state "already present" path.
+`mise install`'s `postinstall` hook runs `native:build` but NOT `refresh`
+(#1303) — measured, not assumed: a totally fresh checkout with no `.godot/`
+at all picks the extension up on its very first headless pass with no
+refresh needed (there is no stale cache to be wrong), so a true first
+`mise install` is unaffected. An *existing* checkout gaining a binary later
+(a `native/src/` rebuild, or a cache that predates it) still hits exactly
+this gotcha and still needs the manual `mise run refresh` above —
+`worktree:new` runs it for you in the worktree it creates, but nothing does
+for the main checkout.
 
 ## `git worktree remove` fails on any worktree that inited the submodule
 

@@ -387,7 +387,7 @@ differing line reported.
   confirm green; the human does, and the commit says why the output changed.
 - **A missing binary is a failure**, not `pending()` — under #816 the binary is
   mandatory, and a PENDING that reads as green is how #823 was reviewed on 26
-  unverified cases. `mise run native:fetch` then `mise run refresh`.
+  unverified cases. `mise run native:build` then `mise run refresh`.
 - **Vacuity guards:** `test_every_golden_case_runs_on_the_native_path` re-runs
   every case through `_simulate_native` directly and requires a trajectory
   (recorded while the routed path could still fall through to GDScript; kept
@@ -415,8 +415,8 @@ melee needing 10 issues to track performance."* What stays in GDScript:
 `_length_factor` BFS (computed once per resolve, ahead of the boundary, and
 passed in — one definition of the length axis), and the dispatch site.
 
-**The binary is mandatory.** `mise run native:fetch` (run by `mise install`)
-or `mise run native:build` puts it in `native/bin/`, `mise run refresh` lists
+**The binary is mandatory.** `mise run native:build` (run by `mise install`'s
+postinstall hook, #1303) puts it in `native/bin/`, `mise run refresh` lists
 it, and `BladeSim.backend()` reports `&"native"`. Without it:
 
 - `mise run check` is **still clean** — `blade_sim.gd` never names
@@ -424,8 +424,8 @@ it, and `BladeSim.backend()` reports `&"native"`. Without it:
   error. This is deliberate; a directly-typed call would be cleaner and would
   turn the fix-it message into a name-resolution failure.
 - the first simulated swing `push_error`s
-  *"no native blade solver in this checkout — run `mise run native:fetch` (or
-  `mise run native:build`), then `mise run refresh`"* and `simulate_range`
+  *"no native blade solver in this checkout — run `mise run native:build`,
+  then `mise run refresh`"* and `simulate_range`
   returns **`null`**. Not a zero-step trajectory: a swing that hits nothing
   reads green to every "nothing severed" test, which is the #823 failure. The
   callers (`MeleeAttackPlan.resolve_against`, `AiBladeRollout`, `SkillBlade`)
@@ -554,34 +554,24 @@ cross-compile, on the llvm-mingw toolchain `mise.toml` pins). godot-cpp is a sub
 `native/godot-cpp`, so a fresh clone needs a recursive submodule init first.
 Binaries are **not** committed -- `native/bin/` is gitignored.
 
-##### Fetching it: no CI, a GitHub Release instead (#845)
+##### Compiled locally, always (#1303)
 
-There is no CI in this repo — `.github/workflows/` is empty, and standing one
-up just to cross-build four files is a whole new axis. Instead the owner
-cross-builds by hand and **publishes**: `mise run native:publish -- <tag>`
-builds all four binaries (`native:build` for each target/platform pair),
-writes a `checksums.txt` (`sha256sum` of the four) alongside them, and
-attaches all five to a **prerelease** GitHub Release via `gh release create`.
-Binaries stay gitignored regardless — committing them means a rebuilt blob in
-git history on every solver edit.
+There is no CI in this repo — `.github/workflows/` is empty. #845 answered
+that with a `native:fetch` / `native:publish` pair (a GitHub Release holding
+the four cross-built binaries, pulled automatically by `mise install`'s
+`postinstall` hook); #1303 retired both — *"with all our solver source code
+local, why would we ever need to fetch or publish; just compile?!"* Every C++
+change was a chance for a fresh checkout to silently fetch a stale binary,
+and #1295's boundary change made that concrete.
 
-`mise run native:fetch` is the matching pull side, and **runs automatically
-after `mise install`** (a `[hooks] postinstall` in `mise.toml`) so
-`mise install` stays literally the whole setup CLAUDE.md promises, now that
-#847 has made the extension mandatory. It resolves the newest Release
-**explicitly** rather than asking `gh` for "the latest release" — a
-prerelease is deliberately excluded from that resolution, which would
-otherwise make every Release this project ever publishes invisible to a bare
-`gh release download`. A binary already on disk with a matching
-`checksums.txt` entry is skipped (idempotent); anything else downloads,
-verifies by sha256, and only then overwrites — a checksum mismatch is a loud
-failure, never a silently-installed truncated file. **Non-fatal when there is
-no Release yet, `gh` is missing, or GitHub is unreachable**: it warns and
-points at `mise run native:build` — a hard failure there would break
-`mise install` for every offline machine, and the checkout is already loud
-about the missing binary the first time a swing is simulated (#847). `mise run
-worktree:new` falls back to the same task when the source checkout it would
-otherwise copy from has nothing to seed.
+`postinstall` now runs `mise run native:build` directly, so `mise install`
+still stays literally the whole setup CLAUDE.md promises — just compiled
+rather than downloaded, on the Linux targets `blade_sim.gdextension`
+declares for a bare `mise install`. The Windows cross build stays an
+explicit, manual `mise run native:build -- <target> windows` for the day an
+export needs it. `mise run worktree:new` copies `native/bin/` from the
+source checkout when one exists, or builds from source in the new worktree
+when it doesn't (never fetches — there is nothing left to fetch).
 
 ##### The supported matrix is exactly what's declared, and exactly what's built (#844)
 
