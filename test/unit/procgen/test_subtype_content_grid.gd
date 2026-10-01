@@ -133,7 +133,7 @@ func test_a_blighted_dex_node_cannot_roll_crit() -> void:
 const _GIVES_UP := {
 	&"dexterity": {
 		&"blight": [&"crit_chance", &"crit_multiplier"],
-		&"bless": [&"poison_arrows_per_reload", &"arrows_per_reload", &"max_shots_per_leaf"],
+		&"bless": [&"poison_aspect", &"arrows_per_reload", &"max_shots_per_leaf"],
 	},
 	&"intelligence": {
 		&"blight": [&"mana", &"mana_per_turn"],
