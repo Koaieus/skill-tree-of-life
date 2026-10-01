@@ -490,6 +490,11 @@ func temp_upgrade_cost_for(def: TempUpgradeDef) -> int:
 	return total
 
 
+## How many temp upgrades of `def`'s kind the swing currently carries.
+func temp_upgrade_count_for(def: TempUpgradeDef) -> int:
+	return 0
+
+
 ## True if `node` (a selected member — the pivot is never a valid target, it
 ## drives the swing and has no meaningful collision area) can receive
 ## `def`: an open addon slot, no unique-collision, and the combined

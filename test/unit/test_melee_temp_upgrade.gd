@@ -313,3 +313,114 @@ func _constraint_pairs(state: BladeState) -> Array:
 			pairs.append([a, b])
 	pairs.sort()
 	return pairs
+
+
+# ── Aspect cap (#1268) ──────────────────────────────────────────────────────
+
+const _TOXIN_SCENE := preload("res://skill_node/addons/toxin_addon.tscn")
+
+
+## Source plus a chain of `count` allocated members, all selected on a plan.
+func _setup_chain(budget: float, count: int) -> Dictionary:
+	_entity.stat_board.blade_size.base_value = budget
+	var source := _spawn("Source")
+	var members: Array[SkillNode] = []
+	var prev := source
+	for i in count:
+		var m := _spawn("M%d" % i)
+		_graph.add_edge(prev, m)
+		members.append(m)
+		prev = m
+	await get_tree().process_frame
+	_alloc.force_allocate(_entity, source)
+	for m in members:
+		_alloc.force_allocate(_entity, m)
+	var plan := autofree(MeleeAttackPlan.new()) as MeleeAttackPlan
+	plan.attacker = _entity
+	plan.set_pivot(source)
+	for m in members:
+		plan.toggle_member(m)
+	return {"plan": plan, "source": source, "members": members}
+
+
+func _modifier(stat_id: StringName, value: float) -> StatModifier:
+	var m := StatModifier.new()
+	m.stat_id = stat_id
+	m.value = value
+	return m
+
+
+## A temp addon (clamp's def) authored with one extra entity modifier.
+func _temp_addon_with(mod: StatModifier) -> SkillNodeAddon:
+	var addon := _CLAMP_SCENE.instantiate() as SkillNodeAddon
+	addon.entity_modifiers = [mod] as Array[StatModifier]
+	addon.temp_upgrade_def = _catalog.by_id(&"clamp")
+	return addon
+
+
+func test_poison_aspect_caps_toxins_per_swing() -> void:
+	var ctx: Dictionary = await _setup_chain(20.0, 3)
+	var plan: MeleeAttackPlan = ctx.plan
+	var members: Array[SkillNode] = []
+	members.assign(ctx.members)
+	var toxin := _catalog.by_id(&"toxin")
+	_entity.stat_board.poison_aspect.base_value = 2.0
+	assert_true(plan.apply_temp_upgrade(members[0], toxin), "first toxin fits the aspect")
+	assert_true(plan.apply_temp_upgrade(members[1], toxin), "second toxin fits the aspect")
+	assert_eq(plan.temp_upgrade_count_for(toxin), 2)
+	assert_false(plan.can_apply_temp_upgrade(members[2], toxin),
+			"a third toxin runs past poison_aspect 2")
+	assert_eq(plan.temp_upgrade_denial_reason(members[2], toxin), "temp_upgrade_denied_aspect")
+
+
+func test_zero_poison_aspect_refuses_any_toxin() -> void:
+	var ctx: Dictionary = await _setup_chain(20.0, 1)
+	var plan: MeleeAttackPlan = ctx.plan
+	var member: SkillNode = ctx.members[0]
+	_entity.stat_board.poison_aspect.base_value = 0.0
+	assert_false(plan.can_apply_temp_upgrade(member, _catalog.by_id(&"toxin")))
+	assert_false(plan.has_temp_upgrade_budget(_catalog.by_id(&"toxin")))
+
+
+func test_clamp_without_an_aspect_is_limited_only_by_budget() -> void:
+	var ctx: Dictionary = await _setup_chain(20.0, 3)
+	var plan: MeleeAttackPlan = ctx.plan
+	var clamp := _catalog.by_id(&"clamp")
+	assert_eq(clamp.aspect_stat_id, &"", "clamp is uncapped")
+	for m in ctx.members:
+		assert_true(plan.apply_temp_upgrade(m, clamp), "budget 20 fits every clamp")
+
+
+func test_a_temp_toxin_grants_no_poison_aspect_but_a_permanent_one_does() -> void:
+	var ctx: Dictionary = await _setup_chain(20.0, 2)
+	var plan: MeleeAttackPlan = ctx.plan
+	_entity.stat_board.poison_aspect.base_value = 1.0
+	var before: float = _entity.stat_board.get_value(&"poison_aspect")
+	assert_true(plan.apply_temp_upgrade(ctx.members[0], _catalog.by_id(&"toxin")))
+	assert_eq(_entity.stat_board.get_value(&"poison_aspect"), before,
+			"a temp toxin is never currency for its own cap")
+	var permanent := _TOXIN_SCENE.instantiate() as SkillNodeAddon
+	(ctx.members[1] as SkillNode).add_child(permanent)
+	assert_eq(_entity.stat_board.get_value(&"poison_aspect"), before + 1.0,
+			"a permanent toxin on an allocated node still raises poison_aspect")
+
+
+func test_a_temp_addon_grants_no_blade_size() -> void:
+	var ctx: Dictionary = await _setup_chain(5.0, 1)
+	var plan: MeleeAttackPlan = ctx.plan
+	var before := plan.max_blades()
+	(ctx.members[0] as SkillNode).add_child(_temp_addon_with(_modifier(&"blade_size", 1.0)))
+	assert_eq(plan.max_blades(), before, "a temp addon never feeds the budget it is paid from")
+
+
+func test_a_temp_addon_entity_wide_blade_damage_applies_for_the_swing() -> void:
+	var ctx: Dictionary = await _setup_chain(5.0, 1)
+	var member: SkillNode = ctx.members[0]
+	var before: float = _entity.stat_board.get_value(&"blade_damage")
+	var addon := _temp_addon_with(_modifier(&"blade_damage", 1.0))
+	member.add_child(addon)
+	assert_eq(_entity.stat_board.get_value(&"blade_damage"), before + 1.0,
+			"a temp addon's non-currency entity modifier applies to every node for the swing")
+	member.remove_child(addon)
+	addon.free()
+	assert_eq(_entity.stat_board.get_value(&"blade_damage"), before, "and drops on detach")

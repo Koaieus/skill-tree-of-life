@@ -94,14 +94,16 @@ func _clamp() -> TempUpgradeDef:
 ## The launch as it leaves a remote seat: built there, clamp placed there, then
 ## the preview addon freed — the host's live node never saw it. What arrives is
 ## the decoded command, with no local plan.
-func _remote_launch() -> LaunchAttackCommand:
+func _remote_launch(def: TempUpgradeDef = null) -> LaunchAttackCommand:
+	if def == null:
+		def = _clamp()
 	_bs.temp_upgrade_catalog = _CATALOG
 	_attacker.stat_board.blade_size.base_value = 3.0
 	var plan := MeleeAttackPlan.new()
 	plan.attacker = _attacker
 	plan.set_pivot(_nodes.core)
 	plan.toggle_member(_nodes.leaf)
-	assert_true(plan.toggle_temp_upgrade(_nodes.leaf, _clamp()),
+	assert_true(plan.toggle_temp_upgrade(_nodes.leaf, def),
 			"fixture: the seat placed the upgrade")
 	var sent := _bs.build_launch_command(plan)
 	assert_not_null(sent, "fixture: the seat's plan is launchable")
@@ -157,4 +159,20 @@ func test_a_launch_over_its_blade_budget_is_refused_whole() -> void:
 	assert_eq(applied, [false] as Array[bool],
 			"refused — the refusal is what the seat's launch-denial reads")
 	assert_eq(confirmed, [] as Array[Command], "never confirmed, so never crosses")
+	assert_eq(_temp_addons(_nodes.leaf), 0, "and the decode left nothing mounted")
+
+
+## #1268 — the aspect cap is judged at the same door as the budget: a remote
+## plan carrying more toxins than the attacker's poison_aspect is refused.
+func test_a_launch_over_its_poison_aspect_is_refused_whole() -> void:
+	_attacker.stat_board.poison_aspect.base_value = 1.0
+	var command := _remote_launch(_CATALOG.by_id(&"toxin"))
+	# The seat planned against poison_aspect 1; the host's board says 0.
+	_attacker.stat_board.poison_aspect.base_value = 0.0
+	var applied: Array[bool] = []
+	_applier.command_applied.connect(func(_cmd: Command, ok: bool): applied.append(ok))
+	_applier.submit(command)
+	while _applier.is_applying:
+		await _applier.applying_changed
+	assert_eq(applied, [false] as Array[bool], "refused — more toxins than poison_aspect")
 	assert_eq(_temp_addons(_nodes.leaf), 0, "and the decode left nothing mounted")

@@ -22,3 +22,7 @@ extends Resource
 @export var addon_script: Script
 ## Spend against [method MeleeAttackPlan.max_blades]' budget.
 @export var cost: int = 1
+## The entity stat capping how many of this kind one swing may carry (the
+## concept's `<concept>_aspect`, floored). Empty = uncapped. Mirrors
+## [member AmmoType.per_reload_stat_id]: the def names the aspect it reads.
+@export var aspect_stat_id: StringName = &""
