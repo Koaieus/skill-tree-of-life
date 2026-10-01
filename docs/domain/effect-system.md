@@ -347,9 +347,20 @@ read is already correct.
   suppresses the owner's next turn-start regen; a tick that kills the actor
   hits `abandon_turn` as a no-op and `end_turn` still hands on. Peers
   reproduce it, since `EndTurnCommand` runs `end_turn` everywhere. All statuses void on any deallocation path
-  (`AllocationSystem.clear_statuses()` on `deallocate`/`force_deallocate`/
-  `deallocate_all_owned`) — `StatusDef.OnDealloc` reserves a `LINGER` door but
-  only `CLEAR` is built. `network/graph_snapshot.gd` carries `(status id,
+  (`NodeCombat.release_statuses()`, which hands back the rows) —
+  `StatusDef.OnDealloc` reserves a `LINGER` door but only `CLEAR` is built.
+  The released rows can SPILL: exactly two feeders note them on the world's
+  removal collector before the strip — `EntityCombat.apply_cascade`'s per-node
+  body (cause DEATH, both worlds; every forced removal, entity death included)
+  and `AllocationSystem._deallocate_unchecked` (cause DEALLOC) — and
+  `CombatWorld.flush_removals()` runs each def's `spread.on_removed` once per
+  beat over the beat's whole removed union, so a node stripped in that beat
+  never receives. A beat: one `deallocate` / `deallocate_set`; one
+  `schedule_index` group in `OutcomeApplier.apply`; one wave in
+  `SpellResolver.resolve_against`; one turn-end tick step (flushed before its
+  diffusion sweep). A bare `force_deallocate` outside a cascade releases
+  without spilling. Curse is authored with `SpillSpread` (both triggers, 1.0,
+  Mine). `network/graph_snapshot.gd` carries `(status id,
   power)` rows in resync, and `WorldFingerprint` folds them. Concrete defs:
   `BlindnessStatus` (#873, MULTIPLY on vision/sensor range), `ArmorBreakStatus`
   (#877, MULTIPLY on armor), `PoisonStatus` (#874, unmitigated
