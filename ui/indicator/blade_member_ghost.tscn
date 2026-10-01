@@ -1,0 +1,8 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" path="res://ui/indicator/blade_member_marker.tscn" id="1_member"]
+
+[node name="BladeMemberGhost" instance=ExtResource("1_member")]
+tier = 0
+ring_width = 2.0
+ripple_gain = 0.0
