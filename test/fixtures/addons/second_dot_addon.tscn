@@ -1,0 +1,10 @@
+[gd_scene format=3 uid="uid://b2fixture2dot"]
+
+[ext_resource type="Script" path="res://skill_node/addons/dot_addon.gd" id="1_dot"]
+[ext_resource type="Resource" uid="uid://c7s5qybcqmll5" path="res://effects/status/poison.tres" id="2_poison"]
+
+[node name="SecondDotAddon" type="Node2D"]
+script = ExtResource("1_dot")
+status_def = ExtResource("2_poison")
+status_power = 1.0
+unique = true

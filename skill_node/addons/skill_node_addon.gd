@@ -101,6 +101,12 @@ var carrier: SkillNode
 const BASE_Z := 1
 
 
+## The addon's kind: the scene it was instantiated from. Two scenes sharing
+## one script are two kinds. Every "same addon?" question compares this.
+func get_kind() -> String:
+	return ""
+
+
 func _ready() -> void:
 	carrier = _find_carrier()
 	z_index = BASE_Z
