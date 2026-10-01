@@ -357,6 +357,9 @@ mise run worktree:rm -- <slug>
 git branch -d <slug>          # -d: refuses if unmerged, which means you dropped work
 ```
 
+A stray worktree (`.claude/worktrees/` too) whose branch is merged, or that
+holds nothing worth mining, is deleted on sight — never an owner question.
+
 Delete the ledger. Relay reports to the user in your own words — never paste
 a diff.
 

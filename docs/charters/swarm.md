@@ -260,7 +260,11 @@ disk at `scratchpad/land/land-<n>.log` (#920), so filling the ledger is a
 
 25. **Tear down only a drone that has reported and will not be resumed**;
     `worktree:rm` then `branch -d` (never `-D` until you know why `-d`
-    refused).
+    refused). A stray worktree found at orientation (`.claude/worktrees/`
+    included) is deleted, not carried as an owner question, once its branch
+    is merged or nothing in it is worth mining — owner, 2026-10-01:
+    "worktrees if merged or nothing of value left to mine from -> always
+    delete".
 26. **Always `git -C`**, never a bare `git` after a `cd`; explicit-path
     `git add`; `checkout -- .` a worktree that cold-imported before
     rebasing; re-read `master` before concluding a merge misbehaved — it

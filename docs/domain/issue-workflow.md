@@ -104,7 +104,9 @@ from the board is never derived (`unboarded_child`) — `add` the child first.
 An open hub whose open children are *all* parked in `Backlog`/`Needs design`
 (none `Ready`, `In progress` or `In review`) is `stalled_hub` — nobody is
 actually working it; `--fix` never touches it, since detaching a child is an
-owner call.
+owner call. The lead's move is to set the stalled hub itself to `Needs design`
+— owner, 2026-10-01: "moe hubs with parked kids to needs design; a swarmify
+sesh may pick em up by proxy, or such session may backlog it".
 
 If a hub with every child closed still has unshipped scope, the fix is a new
 child, not keeping the hub open by hand. The old `hollow_hub` exemption for "a
