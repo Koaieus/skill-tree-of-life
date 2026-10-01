@@ -564,6 +564,14 @@ func overlays_for(node: SkillNode, stat_id: StringName) -> Array[ModifierBins]:
 var _temp_scaler := LocalScaleMutator.new()
 
 
+## This swing's number for [param node]'s [param stat_id]: the node's local
+## read with the swing's temp overlays ([method overlays_for]) folded in.
+## [code]null[/code] for a node not in the plan (neither pivot nor member) —
+## "no swing view", so a reader falls back to the bare node.
+func swing_value(node: SkillNode, stat_id: StringName) -> Variant:
+	return null
+
+
 static func _targets(mod_stat: StringName, read_stat: StringName) -> bool:
 	return mod_stat == read_stat or StatRegistry.ancestors_of(read_stat).has(mod_stat)
 
