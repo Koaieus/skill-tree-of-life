@@ -11,10 +11,13 @@
 Every concept gets a stat, an arrow, an addon, and a magic infusion. Naming:
 `<concept>_aspect` (e.g. `poison_aspect`), so it sorts with the concept's
 other `poison_*` stats. Every first-class row now has its stat name
-pinned (owner, 2026-09-30) — names only: the stats don't exist in code
-yet, and adding them is a `/swarmify` pass once #1248 settles. Supply model of the aspect stat (per-turn refill
-pool vs Civ-style capacity vs minting arrows on reload) is **open**, on
-#1248.
+pinned (owner, 2026-09-30), and all eight exist as entity stats under the
+`aspects` family parent (+1 `aspects` is +1 to each). Supply is settled
+(owner, 2026-10-01, #1248): the aspect is a plain stat, sourced mostly from
+nodes, and each mode reads it its own way — ranged **mints that many arrows
+of the type on every reload** (*"i AM poison"*), melee caps that concept's
+temp upgrades per swing, magic's use is #1250. It is a count, not potency:
+`<family>_stacks_per_hit` stays separate.
 
 **Addon column note:** "addon" and "temp addon" are one thing — a
 `SkillNodeAddon` scene (entity + node-local modifier lists, plus the
@@ -48,7 +51,7 @@ TBD on #1250.
 
 | Concept | Stat | Ranged (arrow) | Addon (map / temp) | Magic (infusion) | Notes |
 |---|---|---|---|---|---|
-| Poison | `poison_aspect` | shipped (`poison_arrows_per_reload`, to be replaced by aspect supply) | `toxin_addon.tscn` (on shared `dot_addon.gd`); modifiers + blade behaviour shipped, **no look** (#1271) | spells apply poison; infusion TBD | spread signature undecided (#1204) |
+| Poison | `poison_aspect` | shipped (each reload mints `poison_aspect` poison arrows, #1248) | `toxin_addon.tscn` (on shared `dot_addon.gd`); modifiers + blade behaviour shipped, **no look** (#1271) | spells apply poison; infusion TBD | spread signature undecided (#1204) |
 | Corruption | `corruption_aspect` | #971 | #971 | #971 | spreads as a sandpile by nature (#1202); health bar shows blips per stack, extra-mean when critical (#1092) |
 | Curse | `curse_aspect` | #972 | #972 | #972 | raises `min_damage_taken`; spills to surviving direct neighbours on death AND dealloc (#1204) |
 | Wither | `wither_aspect` | #973 | #973 | #973 | drives healing received negative |
