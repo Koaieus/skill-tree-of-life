@@ -958,7 +958,7 @@ func _ensure_local_stat(stat_id: StringName) -> Stat:
 ## owner's board by hand. [AllocationSystem] drives the ownership transitions via
 ## [method apply_entity_modifiers_to] / [method remove_entity_modifiers_from].
 func add_entity_modifier(m: StatModifier) -> void:
-	if m == null:
+	if m == null or _grants_sp_cap(m):
 		return
 	modifiers.append(m)
 	var board: StatBoard = owned_by.stat_board if owned_by != null else null
@@ -998,8 +998,24 @@ func apply_entity_modifiers_to(board: StatBoard) -> void:
 	# health pool. See StatBoard.begin_batch for the measurement.
 	board.begin_batch()
 	for m in modifiers:
-		board.add_modifier(m)
+		if not _grants_sp_cap(m):
+			board.add_modifier(m)
 	board.end_batch()
+
+
+## SP is the price of owning a node, so a node may never move the
+## `skill_points` cap: a forced strip wounds the node's SP out of `used` and
+## then takes the cap back, leaving `used` at -1. Rejected loudly, the whole
+## modifier (a bundle is all-or-nothing). Board-only grants (loot) are not
+## node modifiers and stay free to.
+func _grants_sp_cap(m: StatModifier) -> bool:
+	if m == null:
+		return false
+	for leaf in m.flatten():
+		if leaf.stat_id == &"skill_points":
+			push_error("%s: a node modifier may not target skill_points — SP is the price of a node, never its grant" % name)
+			return true
+	return false
 
 
 ## The handles this node is currently contributing to its owner's board — what

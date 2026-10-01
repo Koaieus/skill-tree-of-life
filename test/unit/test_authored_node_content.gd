@@ -197,3 +197,38 @@ func _addon_scene_paths() -> PackedStringArray:
 			out.append("res://skill_node/addons/".path_join(f))
 	assert_gt(out.size(), 0, "found no addon scenes to walk — did the directory move?")
 	return out
+
+
+# ── Nodes never grant max SP ─────────────────────────────────────────────────
+
+## SP is the price of owning a node, so a node raising the SP cap is an
+## authoring error: the forced strip would take the cap back after the wound
+## already moved the SP out of `used`, leaving `used` at -1.
+func _sp_cap_mod() -> StatModifier:
+	var m := StatModifier.new()
+	m.stat_id = &"skill_points"
+	m.operation = StatModifier.Operation.ADD_BASE
+	m.value = 1.0
+	return m
+
+
+func test_an_authored_node_modifier_on_skill_points_is_rejected() -> void:
+	var ent := _make_entity()
+	var n := _make_node()
+	n.modifiers = [_sp_cap_mod()]
+	var before: float = ent.stat_board.skill_points.value
+	n.apply_entity_modifiers_to(ent.stat_board)
+	assert_push_error("skill_points")
+	assert_eq(ent.stat_board.skill_points.value, before, "the SP cap is untouched")
+
+
+func test_a_composite_child_on_skill_points_is_rejected() -> void:
+	var ent := _make_entity()
+	var n := _make_node()
+	var bundle := CompositeStatModifier.new()
+	bundle.children = [_sp_cap_mod()]
+	n.modifiers = [bundle]
+	var before: float = ent.stat_board.skill_points.value
+	n.apply_entity_modifiers_to(ent.stat_board)
+	assert_push_error("skill_points")
+	assert_eq(ent.stat_board.skill_points.value, before, "the SP cap is untouched")

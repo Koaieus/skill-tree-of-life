@@ -723,8 +723,9 @@ func apply_cascade(nodes: Array[NodeCombat], alloc: AllocationSystem = null,
 		entry.chip = hp_per_node * float(entry.allocation_level) if hp_per_node > 0.0 else 0.0
 		entry.was_core = core() == n
 		entry.revoked_labels = _granted_labels(entry.node)
-		# Wound BEFORE the strip: `wound` clamps to `used`, and a stripped
-		# node's modifier on `skill_points` max would shrink `used` first.
+		# Wound BEFORE the strip. Nothing a strip does moves `used` today —
+		# a node may never grant SP cap (SkillNode._grants_sp_cap) — so this is
+		# the safe order, not a load-bearing one.
 		if b != null and charge:
 			var sp := b.get_stat(&"skill_points") as SkillPointStat
 			if sp != null:

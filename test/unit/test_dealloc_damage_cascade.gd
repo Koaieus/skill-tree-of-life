@@ -164,14 +164,6 @@ func _add_leaf_off_n1() -> SkillNode:
 	return sn
 
 
-func _sp_max_mod() -> StatModifier:
-	var m := StatModifier.new()
-	m.stat_id = &"skill_points"
-	m.operation = StatModifier.Operation.ADD_BASE
-	m.value = 1.0
-	return m
-
-
 func test_bare_three_node_cascade_wounds_and_chips_each_node() -> void:
 	_add_leaf_off_n1()
 	_entity.stat_board.dealloc_damage.base_value = 2.0
@@ -181,24 +173,6 @@ func test_bare_three_node_cascade_wounds_and_chips_each_node() -> void:
 	assert_almost_eq(before - _entity.stat_board.health.current, 6.0, 0.001,
 			"3 cascaded nodes x 2.0 dealloc_damage")
 	assert_false(_entity.is_dead, "headroom: the chip must not kill")
-
-
-func test_wound_lands_before_a_stripped_sp_max_modifier_shrinks_used() -> void:
-	# Each cascaded node grants +1 skill_points max; stripping it shrinks the
-	# max and so `used`, which `wound` clamps to. Wounding first keeps all 3.
-	var leaf := _add_leaf_off_n1()
-	for n: SkillNode in [_nodes[1], _nodes[2], leaf]:
-		_alloc.force_deallocate(n)
-		n.modifiers = [_sp_max_mod()]
-		_alloc.force_allocate(_entity, n)
-	# Each cascaded node costs `used` a wound AND a max-shrink. Pin `used` at
-	# 5 = 2*3 - 1: wound-first takes its 3rd wound before the 3rd shrink;
-	# strip-first has spent all 5 by then and the clamp drops that wound.
-	var sp := _entity.stat_board.skill_points
-	sp.set_current(sp.current + float(sp.used - 5))
-	assert_eq(sp.used, 5, "arrange: used pinned")
-	_nodes[1].take_damage(10000.0, null)  # cascade: N1 + N2 + N3
-	assert_eq(_wounded(), 3, "wound before strip: no wound lost to the shrunk max")
 
 
 # ── Entity death through apply_cascade (#368) ────────────────────────────────
