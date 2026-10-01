@@ -108,6 +108,9 @@ owner call. The lead's move is to set the stalled hub itself to `Needs design`
 — owner, 2026-10-01: "moe hubs with parked kids to needs design; a swarmify
 sesh may pick em up by proxy, or such session may backlog it".
 
+`Ready` with no milestone is a hygiene flag, not a hold: owner, 2026-10-01,
+"Ready = ready = pick it up."
+
 If a hub with every child closed still has unshipped scope, the fix is a new
 child, not keeping the hub open by hand. The old `hollow_hub` exemption for "a
 `Ready` parent with its own scope" (#240) is retired with this.

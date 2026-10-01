@@ -43,6 +43,8 @@ All five must hold, else `warp` the single highest-value issue instead:
 
 1. **Pre-decided** — every design question is answered on the issue. It is
    `Ready`, or it is not swarmed. Never pin a fork in a brief.
+   `Ready` is the whole test — a missing milestone is board hygiene, never a
+   reason to hold it back.
 2. **Decomposable** into units a drone can hold. Overlap between units is a
    sequencing fact, not a disqualifier.
 3. **Mechanical** — a failing test or an exact spec defines done.
