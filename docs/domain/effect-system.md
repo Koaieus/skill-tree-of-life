@@ -340,7 +340,9 @@ read is already correct.
   entity-host tick first, then the owned nodes over a snapshot of the owned
   set (the one regen already walks), skipping a node stripped mid-sweep, then
   one `StatusSpread.on_tick` sweep per def carried by an owned node whose
-  `spread` slot is set — senders the owned set, landed through
+  `spread` slot is set (diffusion comes in two modes: `FlatDiffusion` seeps 1
+  stack past a crowding threshold, `FractionDiffusion` a floored share of the gap)
+  — senders the owned set, landed through
   `SpreadApplier` on the live world; defs with a null slot pay nothing. Every
   played-out turn, the first included; never on `abandon_turn` (a death, the
   status sandbox's `disarm`) nor an adopted resync cursor. A tick's damage

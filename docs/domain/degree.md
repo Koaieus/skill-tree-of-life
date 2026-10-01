@@ -76,6 +76,16 @@ double-counts. This is the same reason `get_graph_degree` doesn't add it either
 and `GraphMirror.get_degree` must — AStar holds no self-edge, the adjacency
 index does.
 
+## Inside a status mask: `StackField.masked_degree` (#1264)
+
+A turn-end spread rule asks degree inside a `StackField`'s mask (Mine by
+default), not on the board or in a territory: `StackField.masked_degree(n)` is
+`masked_neighbours(n).size()`, the one owner of "degree inside a mask" — the
+mirror-local form, like `GraphMirror.get_degree`, so the never-`get_neighbours(n).size()`
+rule holds. `FractionDiffusion` reads it; a sandpile threshold reuses it rather
+than counting its own. Caveat: a node outside the field has no adjacency in it
+and reads 0 — harmless under Mine, open for any wider mask.
+
 ## The fourth form: inside a cast, ask the world (#860)
 
 `SkillNode.get_entity_degree(graph)` reads `owned_by` directly, off the LIVE
