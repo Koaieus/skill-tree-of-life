@@ -786,15 +786,23 @@ func begin_turn() -> void:
 	volleys_launched_this_turn = 0
 	if turns_taken > 1:
 		_apply_turn_upkeep()
-	# The entity-hosted status tick: after the pool upkeep above (so
-	# `core_healing` lands before a DoT drains), then the owned nodes', all
-	# before the controller is kicked. Every real turn, the first included —
-	# a poison landed before your first turn ticks on it.
-	_combat.tick_statuses()
-	_tick_owned_node_statuses()
 	turn_began.emit()
 
 
+## This entity's played-out turn is over: its statuses tick, the entity host
+## first, then the owned nodes'. Called by [method TurnManager.end_turn] — its
+## own step, after the cursor is nulled and BEFORE [method finish_turn] — on
+## every played turn, the first included (a poison landed before your first
+## turn ticks at its end). Never on [method TurnManager.abandon_turn] or a
+## resync [method TurnManager.adopt_turn]. A tick's damage gates the regen of
+## this entity's NEXT [method begin_turn]. A tick may kill this entity; the
+## nulled cursor makes the death path's `abandon_turn` a no-op.
+func resolve_turn_end() -> void:
+	_combat.tick_statuses()
+	_tick_owned_node_statuses()
+
+
+## The owned-node half of [method resolve_turn_end]'s tick.
 ## Sweep a SNAPSHOT of the owned set ([method GraphMirror.get_mirrored_nodes]
 ## returns a fresh array): a DoT kill can strip nodes mid-sweep, so a node that
 ## has left this entity since the snapshot is skipped.

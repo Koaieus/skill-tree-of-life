@@ -264,11 +264,18 @@ func adopt_turn(entity: Entity, total_turns_taken: int) -> void:
 ## starts their turn. The acting entity's initiative was already deducted at
 ## fill time (CyclicPoolStatDef carries the overshoot forward), so there is no
 ## deduction here.
+##
+## The ending entity's statuses tick here ([method Entity.resolve_turn_end]),
+## after the cursor is nulled and before [method Entity.finish_turn] — only a
+## played-out turn ticks. The order is load-bearing: a DoT that kills the actor
+## reaches [method abandon_turn] through the death path with the cursor already
+## null, so that call is a no-op and this method still finishes the handoff.
 func end_turn() -> void:
 	if current_entity == null:
 		return
 	var entity := current_entity
 	_current_entity = null
+	entity.resolve_turn_end()
 	entity.finish_turn()
 	turn_ended.emit(entity)
 	forecast_changed.emit()
@@ -288,12 +295,16 @@ func end_turn() -> void:
 ## [method end_turn]. The handoff is command-ordered: [EndTurnCommand] exists
 ## precisely so `_tick_until_ready`'s group-order tiebreak runs at the same
 ## point of the command stream on every peer, and a clock advanced locally out
-## of a death handler is that hazard reopened. Nothing reaches this path today —
-## chip damage and core overflow both kill the DEFENDER during the attacker's
-## turn — so the handoff has no reachable caller to design against; the
-## mechanic that would create one is named at `LootSystem`'s killer-attribution
-## note ("Thorns / counter-damage would kill on the defender's turn — when those
-## land this needs real source-threading"), and that is where it belongs.
+## of a death handler is that hazard reopened. One death reaches this path with
+## the actor's own entity: a status tick killing it at its own turn end — but
+## that tick runs inside [method end_turn] after the cursor is nulled, so the
+## call is a no-op and `end_turn` does the handoff. Chip damage and core
+## overflow kill the DEFENDER during the attacker's turn; a mid-turn death of
+## the actor (thorns / counter-damage, named at `LootSystem`'s
+## killer-attribution note) is still the unbuilt case this guards.
+##
+## [b]Never ticks statuses[/b]: an abandoned turn (a death, the status
+## sandbox's `disarm`) was not played out — see [method Entity.resolve_turn_end].
 ##
 ## No-op unless `entity` is the one actually holding the turn: death fires for
 ## bystanders too, and `Entity.die()` is re-entrant from inside a forced-dealloc

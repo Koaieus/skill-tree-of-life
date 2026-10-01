@@ -9,9 +9,10 @@ extends PanelContainer
 ## setups in [member setups]) hosted in a SubViewport. Reset frees the bench
 ## and instantiates the current setup again; nothing is undone in place.
 ##
-## Explicit-step only: ▶ Tick turn calls `TurnManager.end_turn()` once, which
-## with the bench's lone (scoped) Bearer rolls straight into its next
-## `start_turn` — real upkeep plus the owned-node status sweep. No
+## Explicit-step only: ▶ Tick turn calls `TurnManager.end_turn()` once — the
+## Bearer's turn-end status tick, entity host then owned nodes — which with the
+## bench's lone (scoped) Bearer rolls straight into its next `start_turn`'s real
+## upkeep. No
 ## `_process`, timer or await ever drives the clock.
 
 const _STATUS_DIR := "res://effects/status/"

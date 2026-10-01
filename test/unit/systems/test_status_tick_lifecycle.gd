@@ -104,17 +104,6 @@ class HostSpyDef:
 		ticks.append([before, after])
 
 
-## Kills the entity from inside its own turn-end tick — the DoT-death shape.
-class LethalDef:
-	extends StatusDef
-	var victim: Entity
-	var ticks: int = 0
-
-	func _on_tick(_host, _before: float, _after: float) -> void:
-		ticks += 1
-		victim.die()
-
-
 ## End the current turn and hand it to [param next] deterministically: the
 ## ready set is forced to exactly [param next], so `_tick_until_ready` picks it
 ## without running the initiative clock.
@@ -262,11 +251,15 @@ func test_a_dot_killing_the_actor_at_its_own_turn_end_still_hands_on() -> void:
 	_alloc.force_allocate(b, core_b)
 	b.core_location = core_b
 
-	var lethal := LethalDef.new()
+	# A real poison on A's own entity host, its one tick well past A's health:
+	# the death runs the shipped door (take_pool_damage -> health depleted ->
+	# die -> entity_dying -> abandon_turn).
+	var lethal := PoisonStatus.new()
 	lethal.id = &"poison"
 	lethal.power_max = 5.0
-	lethal.victim = a
-	core_a.get_combat().apply_status(lethal, 3.0)
+	lethal.decay_per_tick = 0.0
+	lethal.damage_per_power = 1.0e6
+	a.get_combat().apply_status(lethal, 1.0)
 
 	var ended: Array = []
 	_tm.turn_ended.connect(func(e: Entity) -> void: ended.append(e))
@@ -276,10 +269,10 @@ func test_a_dot_killing_the_actor_at_its_own_turn_end_still_hands_on() -> void:
 	Events.entity_dying.connect(pull)
 
 	_tm.start_turn(a)
+	assert_false(a.is_dead, "fixture: the poison has not ticked at turn start")
 	_end_turn_to(b)
 	Events.entity_dying.disconnect(pull)
 
-	assert_eq(lethal.ticks, 1, "the lethal DoT ticked once, at A's turn end")
 	assert_true(a.is_dead, "A died to its own turn-end tick")
 	assert_eq(ended, [a], "turn_ended fired exactly once, for A")
 	assert_eq(_tm.current_entity, b, "end_turn still handed the turn to the next ready entity")
