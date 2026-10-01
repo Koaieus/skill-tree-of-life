@@ -23,6 +23,9 @@ extends PoolStat
 ## Emitted after any bin changes (add / take / clamp / restore), with the type touched.
 signal bin_changed(type_id: StringName)
 
+const BASE_ID: StringName = &"arrow"
+const DEFAULT_MAX_STOCK := 999
+
 ## `{AmmoType.id: count}`, positive counts only. Exported so a shadow world's
 ## [method StatBoard.clone_live] (`duplicate(true)`) carries the stock across;
 ## nothing outside this class writes it — the accessor is [method ammo_bins].
@@ -36,7 +39,7 @@ func stock_of(type_id: StringName) -> int:
 
 ## Adds [param n] arrows of [param type_id], clamped to remaining capacity.
 ## Returns the number actually added.
-func add(type_id: StringName, n: int) -> int:
+func add(type_id: StringName, n: int, _max_stock: int = DEFAULT_MAX_STOCK) -> int:
 	var room: int = int(get_value()) - roundi(current)
 	var actual: int = clampi(n, 0, room)
 	if actual <= 0:
@@ -57,6 +60,14 @@ func take(type_id: StringName, n: int) -> int:
 	set_current(current - float(actual))
 	bin_changed.emit(type_id)
 	return actual
+
+
+func total_stock() -> int:
+	return 0
+
+
+func room_for(_type_id: StringName, _max_stock: int) -> int:
+	return 0
 
 
 ## `{type_id: count}` for every bin with a positive count. A copy — mutate

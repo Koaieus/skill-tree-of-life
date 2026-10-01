@@ -41,40 +41,66 @@ func test_take_never_returns_more_than_the_bin_holds() -> void:
 	assert_false(q.ammo_bins().has(&"arrow"), "an empty bin is dropped from the listing")
 
 
-func test_current_equals_sum_of_bins_after_every_transfer() -> void:
+func test_current_equals_the_base_bin_after_every_transfer() -> void:
 	var q := _quiver(10)
 	q.add(&"arrow", 4)
-	assert_eq(roundi(q.current), _sum(q))
+	assert_eq(roundi(q.current), q.stock_of(Quiver.BASE_ID))
 	q.add(&"poison", 3)
-	assert_eq(roundi(q.current), _sum(q))
+	assert_eq(roundi(q.current), q.stock_of(Quiver.BASE_ID), "a special never moves current")
 	q.take(&"arrow", 2)
-	assert_eq(roundi(q.current), _sum(q))
+	assert_eq(roundi(q.current), q.stock_of(Quiver.BASE_ID))
+	q.take(&"poison", 1)
+	assert_eq(roundi(q.current), q.stock_of(Quiver.BASE_ID))
 	q.add(&"arrow", 50)  # overflows the cap
-	assert_eq(roundi(q.current), _sum(q))
 	assert_eq(roundi(q.current), 10)
+	assert_eq(q.total_stock(), _sum(q), "total_stock is every bin")
+	assert_eq(q.total_stock(), 12)
 
 
-func test_add_clamps_to_capacity_and_capacity_rise_does_not_gift_arrows() -> void:
+func test_add_clamps_plain_to_capacity_and_capacity_rise_does_not_gift_arrows() -> void:
 	var q := _quiver(10)
 	assert_eq(q.add(&"arrow", 25), 10, "only the remaining room is added")
 	assert_eq(q.stock_of(&"arrow"), 10)
-	assert_eq(q.add(&"poison", 1), 0, "a full quiver takes nothing")
+	assert_eq(q.add(&"arrow", 1), 0, "a full quiver takes no plain arrow")
 	q.base_value = 20.0  # a capacity raise through the cap-change policy
 	assert_eq(int(q.get_value()), 20)
 	assert_eq(roundi(q.current), 10, "PIN: the cap rose, the stock did not")
-	assert_eq(_sum(q), 10)
+	assert_eq(q.stock_of(&"arrow"), 10)
 
 
-func test_capacity_fall_trims_bins_deterministically() -> void:
+func test_a_special_banks_outside_the_plain_capacity() -> void:
+	var q := _quiver(10)
+	q.add(&"arrow", 10)
+	assert_eq(q.add(&"poison", 5), 5, "a full plain quiver still banks every special")
+	assert_eq(q.stock_of(&"poison"), 5)
+	assert_eq(roundi(q.current), 10, "the special sits beside current")
+
+
+func test_a_special_clamps_at_its_own_max_stock() -> void:
+	var q := _quiver(10)
+	var cap := 7
+	assert_eq(q.add(&"poison", 5, cap), 5)
+	assert_eq(q.add(&"poison", 5, cap), 2, "only the room under the type's cap is added")
+	assert_eq(q.stock_of(&"poison"), cap)
+	assert_eq(q.add(&"poison", 1, cap), 0, "a special at its cap takes nothing")
+	assert_eq(q.room_for(&"poison", cap), 0)
+	assert_eq(q.room_for(&"scout", cap), cap)
+	assert_eq(q.room_for(Quiver.BASE_ID, cap), 10, "plain room is capacity, never the special cap")
+
+
+func test_capacity_fall_trims_plain_arrows_only() -> void:
 	var q := _quiver(10)
 	q.add(&"poison", 4)
 	q.add(&"arrow", 6)
 	q.base_value = 5.0
 	assert_eq(roundi(q.current), 5, "CLAMP: current follows the cap down")
-	assert_eq(_sum(q), 5, "bins follow current down")
-	# Trimmed from the last sorted key first: `poison` sheds before `arrow`.
-	assert_eq(q.stock_of(&"arrow"), 5)
-	assert_eq(q.stock_of(&"poison"), 0)
+	assert_eq(q.stock_of(&"arrow"), 5, "the plain bin follows current down")
+	assert_eq(q.stock_of(&"poison"), 4, "specials never shrink on a capacity change")
+
+
+func test_base_id_matches_the_roster() -> void:
+	assert_eq(Quiver.BASE_ID, AmmoTypeRoster.BASE_ID,
+			"Quiver sits below attack/ and keeps its own copy of the base id")
 
 
 func test_bin_changed_reports_the_type_touched() -> void:
@@ -92,10 +118,12 @@ func test_to_dict_round_trips_bins() -> void:
 	var q := _quiver(40)
 	q.add(&"arrow", 7)
 	q.add(&"poison", 2)
+	q.add(&"scout", 3)
 	var d := q.to_dict()
 	var back := _quiver(40)
 	back.read_dict(d)
-	assert_eq(roundi(back.current), 9)
+	assert_eq(roundi(back.current), 7, "current is the plain bin")
+	assert_eq(back.stock_of(&"scout"), 3)
 	assert_eq(back.stock_of(&"arrow"), 7)
 	assert_eq(back.stock_of(&"poison"), 2)
 	assert_eq(back.ammo_bins(), q.ammo_bins())
