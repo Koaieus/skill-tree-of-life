@@ -50,9 +50,10 @@ func before_each() -> void:
 	for n in [_n0, _n1, _n2]:
 		_alloc.force_allocate(_entity, n)
 	_entity.core_location = _n0
-	# Entity.begin_turn runs no upkeep on turns_taken == 1 — prime that
-	# throwaway turn so every turn below is a real upkeep turn.
-	_turn()
+	# Entity.begin_turn runs no upkeep on turns_taken == 1 — the fixture
+	# leaves the entity INSIDE that throwaway turn; every `_turn()` below ends
+	# it (the status tick) and rolls into a real upkeep turn.
+	_tm.start_turn(_entity)
 
 
 func after_each() -> void:
@@ -75,9 +76,14 @@ func _combat() -> EntityCombat:
 	return _entity.get_combat()
 
 
+## One turn boundary: the current turn ends through the real `end_turn` (the
+## status tick, ADR 0040), handing straight back to the lone entity's next
+## turn start (its upkeep). The ready set is forced, so no initiative clock runs.
 func _turn() -> void:
-	_tm.start_turn(_entity)
-	_tm.adopt_turn(null, _tm.turns_taken)
+	for e in get_tree().get_nodes_in_group(Entity.READY_GROUP):
+		e.remove_from_group(Entity.READY_GROUP)
+	_entity.add_to_group(Entity.READY_GROUP)
+	_tm.end_turn()
 
 
 func _wither(stacks: float) -> WitherStatus:
@@ -141,13 +147,15 @@ func test_a_withered_core_healing_upkeep_drains_the_pool_as_true_damage() -> voi
 	def.power_max = 0.0
 	def.decay = FractionDecay.new(0.5)
 	def.reapply = StatusDef.Reapply.ACCUMULATE
-	spy.apply_status(def, 15.0)
-	assert_almost_eq(float(spy.get_local_value(&"healing_received")), -0.5, 0.001,
-			"15 stacks at 0.1: 1 − 1.5 = −0.5 on the ENTITY board")
+	# 30 stacks: ADR 0040 ticks at the turn END, so the boundary below halves
+	# them to 15 BEFORE the next upkeep reads healing_received.
+	spy.apply_status(def, 30.0)
 	var node_hp := _n0.get_current_hp()
 	var before := pool.current
 
 	_turn()
+	assert_almost_eq(float(spy.get_local_value(&"healing_received")), -0.5, 0.001,
+			"15 stacks at 0.1 by the upkeep: 1 − 1.5 = −0.5 on the ENTITY board")
 	assert_almost_eq(pool.current, before - floorf(healing * 0.5), 0.001,
 			"the trickle inverted: core_healing × −0.5 drains the pool, floored on landing")
 	assert_eq(spy.door_calls.size(), 1, "exactly one drain, through take_pool_damage")
