@@ -182,8 +182,13 @@ GitHub's two limits read differently and want opposite responses:
   to an hour; sleeping and re-running only spend turns. REST (`gh api repos/…`)
   is a separate 5000/h pool and still works: `gh-project blocked-by` is REST,
   `status` writes fall back to REST on their own.
-- **Secondary** — "You have exceeded a secondary rate limit". Burst/concurrency
-  across sessions; clears within minutes as the traffic eases.
+- **Secondary** — "You have exceeded a secondary rate limit" (or HTTP 429).
+  Per-minute limits that no `rate_limit` endpoint reports — roughly 100
+  concurrent requests, ~2000 GraphQL points/min (~900 for REST), ~80
+  content-creating requests/min and 500/h (creates, comments, edits — a
+  clerk pass's shape), ~90 s server CPU per minute. Clears within minutes as
+  the traffic eases. Four concurrent 607-point board reads alone used to cross
+  the per-minute point cap.
 
 `.mise/bin/gh` retries the secondary limit (15 s × attempt, 4 attempts, under
 the 120 s tool timeout), never retries the primary, and on giving up prints
