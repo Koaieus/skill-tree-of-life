@@ -616,7 +616,9 @@ doesn't use the convention.
 
 | Ring | File | `inner_offset` | `width` | span | sits |
 |---|---|---|---|---|---|
-| Selection / status | `node_highlight_overlay.gd` `ring_inner_offset` | 4.5 | 3 | 36.5..39.5 | outside the boundary |
+| Selection / status (plain role ring) | `node_highlight_overlay.gd` `ring_inner_offset` | 4.5 | 3 | 36.5..39.5 | outside the boundary |
+| Target reticle ring | `ui/indicator/target_reticle.gd` `ring_inner_offset` | 9 | 4 | 41..45 | outside the hover band (32..40) |
+| Target reticle arms | `ui/indicator/target_reticle.gd` `arm_inner_offset` / `arm_length` | 15 | 8 (length) | 47..55 | spinning crosshair, outside the ring |
 
 The archetype border and sensed-outline rows this table used to carry
 (`base_circle.gd`) are gone along with that script (#304) — both were retired
@@ -655,9 +657,8 @@ decoration band.
 
 ## Known follow-up (design, not geometry)
 
-The selection ring (36.5..39.5) overlaps the hover band (32..40), so a node that
-is both hovered and selected shows two clashing strokes. Open design question
-raised in #67: make hover a radial **glow/fade** rather than a hard ring, and/or
-unify hover + selection into one state (while still giving hover feedback when
-something is selected). Deferred to a `design`-labelled issue — this rule only
-pins the *geometry* convention, not the visual language.
+The plain role ring (36.5..39.5) sits inside the hover glow band (32..40); hover
+is a glow, not a stroke (#73), so the two coexist. The target roles
+(`HOSTILE_TARGET` / `FRIENDLY_TARGET`) mount a `TargetReticle` instead
+(`ui/indicator/`, picked by the overlay's `IndicatorTheme`), whose ring starts
+past +8 and clears the hover band entirely.
