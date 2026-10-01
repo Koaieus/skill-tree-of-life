@@ -445,6 +445,29 @@ func get_node_role(node: SkillNode) -> HighlightRole:
 	return HighlightRole.NONE
 
 
+## The pivot points at the blade's centroid (the hilt lies across it); every
+## other node, and a pivot with no blade yet, faces nowhere.
+func get_node_facing(node: SkillNode) -> Vector2:
+	if node == null or node != source or blade_nodes.is_empty():
+		return Vector2.ZERO
+	var centroid := Vector2.ZERO
+	for b in blade_nodes:
+		centroid += b.global_position
+	centroid /= float(blade_nodes.size())
+	return (centroid - source.global_position).normalized()
+
+
+## Pivot 0, members 1..n in [member blade_nodes] order (the ripple's
+## sequence), anything else -1.
+func get_node_order(node: SkillNode) -> int:
+	if node == null:
+		return -1
+	if node == source:
+		return 0
+	var i := blade_nodes.find(node)
+	return i + 1 if i >= 0 else -1
+
+
 ## Current cap on `blade_nodes.size()` — reads `blade_size` node-locally off
 ## the pivot (wielder baseline merged with node-local addons, e.g. a
 ## "greatsword pivot" granting local blade_size). Defaults to 1 when there's
