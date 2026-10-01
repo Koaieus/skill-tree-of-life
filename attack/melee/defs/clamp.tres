@@ -7,4 +7,3 @@
 script = ExtResource("1_def")
 id = &"clamp"
 scene = ExtResource("2_scene")
-cost = 1

@@ -7,4 +7,3 @@
 script = ExtResource("1_def")
 id = &"spike_ring"
 scene = ExtResource("2_scene")
-cost = 2

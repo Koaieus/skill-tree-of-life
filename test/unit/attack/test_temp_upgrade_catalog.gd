@@ -20,7 +20,8 @@ func test_every_kind_is_fully_authored() -> void:
 		assert_false(seen.has(def.id), "id %s is unique" % def.id)
 		seen.append(def.id)
 		assert_not_null(def.scene, "%s has a scene" % def.id)
-		assert_gt(def.cost, 0, "%s costs something" % def.id)
+		assert_gt(SkillNodeAddon.temp_costs_of(def.scene).get(&"blade_size", 0), 0,
+				"%s costs blade budget, authored on its scene" % def.id)
 
 
 ## Load-bearing: consumers compare defs by reference, so `by_id` must hand

@@ -201,7 +201,7 @@ func test_a_melee_plan_round_trips_its_temp_upgrades() -> void:
 	plan.reset()
 
 	var back := AttackPlanCodec.from_dict(d, _graph, _CATALOG) as MeleeAttackPlan
-	assert_eq(back.temp_upgrade_cost_for(clamp), clamp.cost,
+	assert_eq(back.temp_upgrade_cost_for(clamp), SkillNodeAddon.temp_costs_of(clamp.scene)[&"blade_size"],
 			"the rebuilt plan carries the upgrade and its cost")
 	assert_not_null(back._existing_temp_upgrade(_nodes.C, clamp),
 			"…on the same node it was placed on")
@@ -227,7 +227,7 @@ func test_a_rebuild_adopts_a_preview_addon_already_on_the_node() -> void:
 		if a.is_temporary:
 			temps += 1
 	assert_eq(temps, 1, "one addon on the node, shared by preview and rebuild")
-	assert_eq(back.temp_upgrade_cost_for(clamp), clamp.cost)
+	assert_eq(back.temp_upgrade_cost_for(clamp), SkillNodeAddon.temp_costs_of(clamp.scene)[&"blade_size"])
 	back.reset()
 	plan.reset()
 

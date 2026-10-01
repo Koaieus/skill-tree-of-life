@@ -315,7 +315,7 @@ func _constraint_pairs(state: BladeState) -> Array:
 	return pairs
 
 
-# ── Aspect cap (#1268) ──────────────────────────────────────────────────────
+# ── Aspect budget (#1268) ─────────────────────────────────────────────────────
 
 const _TOXIN_SCENE := preload("res://skill_node/addons/defs/toxin_addon.tscn")
 
@@ -367,7 +367,7 @@ func test_poison_aspect_caps_toxins_per_swing() -> void:
 	_entity.stat_board.poison_aspect.base_value = 2.0
 	assert_true(plan.apply_temp_upgrade(members[0], toxin), "first toxin fits the aspect")
 	assert_true(plan.apply_temp_upgrade(members[1], toxin), "second toxin fits the aspect")
-	assert_eq(plan.temp_upgrade_count_for(toxin), 2)
+	assert_eq(plan.currency_spent(&"poison_aspect"), 2)
 	assert_false(plan.can_apply_temp_upgrade(members[2], toxin),
 			"a third toxin runs past poison_aspect 2")
 	assert_eq(plan.temp_upgrade_denial_reason(members[2], toxin), "temp_upgrade_denied_aspect")
@@ -386,7 +386,6 @@ func test_clamp_without_an_aspect_is_limited_only_by_budget() -> void:
 	var ctx: Dictionary = await _setup_chain(20.0, 3)
 	var plan: MeleeAttackPlan = ctx.plan
 	var clamp := _catalog.by_id(&"clamp")
-	assert_eq(clamp.aspect_stat_id, &"", "clamp is uncapped")
 	for m in ctx.members:
 		assert_true(plan.apply_temp_upgrade(m, clamp), "budget 20 fits every clamp")
 

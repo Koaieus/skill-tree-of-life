@@ -79,11 +79,12 @@ enum State {
 		if is_node_ready():
 			_restyle()
 
-## Blade-budget cost, shown in the tooltip so "unaffordable" is explicable
+## The addon's swing price ([method SkillNodeAddon.get_temp_costs]): every
+## currency it spends, listed in the tooltip so "unaffordable" is explicable
 ## rather than merely visible.
-@export var cost: int = 1:
+@export var costs: Dictionary[StringName, int] = {&"blade_size": 1}:
 	set(v):
-		cost = v
+		costs = v
 		if is_node_ready():
 			_restyle()
 
@@ -192,8 +193,21 @@ func _restyle() -> void:
 		# the click. Every pixel the player sees comes from _restyle().
 		_button.disabled = state == State.UNAFFORDABLE
 		_button.button_pressed = armed
-	tooltip_text = "%s — costs %d blade node%s%s%s" % [
-		label_text, cost, "" if cost == 1 else "s",
+	tooltip_text = "%s — costs %s%s%s" % [
+		label_text, _cost_text(),
 		"" if keycap.is_empty() else "\nPress %s to arm it." % keycap,
-		"\nNot enough blade budget right now." if state == State.UNAFFORDABLE else "",
+		"\nNot enough budget right now." if state == State.UNAFFORDABLE else "",
 	]
+
+
+## "2 blade nodes · 1 poison aspect" — blade_size first, then every other
+## currency by its stat id, spaced.
+func _cost_text() -> String:
+	var parts: PackedStringArray = []
+	var blades: int = costs.get(&"blade_size", 0)
+	if blades > 0:
+		parts.append("%d blade node%s" % [blades, "" if blades == 1 else "s"])
+	for id in costs:
+		if id != &"blade_size":
+			parts.append("%d %s" % [costs[id], String(id).replace("_", " ")])
+	return " · ".join(parts)

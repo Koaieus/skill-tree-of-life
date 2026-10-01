@@ -21,3 +21,8 @@ status_power = 1.0
 entity_modifiers = Array[ExtResource("2_mod")]([SubResource("Resource_toxin_arrows")])
 description = "A venom reservoir — its owner's quiver gains poison arrows, and a blade swung through this node leaves poison in every contact it makes."
 icon = ExtResource("4_icon")
+temp_placeable = true
+temp_cost_blade_size = 2
+temp_cost_aspects = Dictionary[StringName, int]({
+&"poison_aspect": 1
+})

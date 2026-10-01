@@ -196,13 +196,13 @@ func test_budget_reads_ignore_temps() -> void:
 	var toxin := _catalog.by_id(&"toxin")
 	_entity.stat_board.poison_aspect.base_value = 2.0
 	var blades_before := plan.max_blades()
-	var cap_before := plan.temp_upgrade_aspect_cap(toxin)
+	var cap_before := plan.currency_cap(&"poison_aspect")
 	var no_entity: Array[StatModifier] = []
 	var local: Array[StatModifier] = [_modifier(&"blade_size", 2.0)]
 	(ctx.source as SkillNode).add_child(_temp_addon(no_entity, local))
 	assert_eq(plan.max_blades(), blades_before, "a temp local blade_size on the pivot is no budget")
 	assert_true(plan.apply_temp_upgrade(ctx.joint, toxin))
-	assert_eq(plan.temp_upgrade_aspect_cap(toxin), cap_before,
+	assert_eq(plan.currency_cap(&"poison_aspect"), cap_before,
 			"a temp toxin's poison_aspect is never its own cap")
 	assert_eq(plan.max_blades(), blades_before)
 

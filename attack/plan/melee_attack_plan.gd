@@ -514,66 +514,45 @@ func _temp_spent(id: StringName) -> int:
 ## pool, so both callers (get_node_role / _try_select_blade / temp-upgrade
 ## gating) read the same number instead of each recomputing it.
 func _budget_remaining() -> int:
-	return max_blades() - blade_nodes.size() - temp_upgrade_cost_total()
+	return currency_remaining(_BLADE_SIZE_ID)
 
 
-## Sum of the def cost across every currently-attached is_temporary
-## addon on the pivot + selected members. Reads real addon state — no
-## separate tracked total to drift out of sync with it.
+## The `blade_size` the carried temps spend (pivot + selected members) —
+## members excluded. Reads real addon state, no tracked total to drift.
 func temp_upgrade_cost_total() -> int:
-	var total := 0
-	var nodes: Array[SkillNode] = []
-	if source != null:
-		nodes.append(source)
-	nodes.append_array(blade_nodes)
-	for node in nodes:
-		for a in node.get_addons():
-			if a.is_temporary:
-				total += a.temp_upgrade_def.cost
-	return total
+	return _temp_spent(_BLADE_SIZE_ID)
 
 
-## Sum of the def cost across attached is_temporary addons of `def`'s kind
-## specifically — the per-kind breakdown
-## temp_upgrade_cost_total() sums across every kind. Used by the command-tray
-## blips to show budget spend broken out by kind (#406).
+## The `blade_size` spent by carried temps of `def`'s kind specifically — the
+## per-kind breakdown of [method temp_upgrade_cost_total].
 func temp_upgrade_cost_for(def: TempUpgradeDef) -> int:
 	var total := 0
-	var nodes: Array[SkillNode] = []
-	if source != null:
-		nodes.append(source)
-	nodes.append_array(blade_nodes)
-	for node in nodes:
-		for a in node.get_addons():
-			if a.temp_upgrade_def == def:
-				total += def.cost
-	return total
-
-
-## How many temp upgrades of `def`'s kind the swing currently carries.
-func temp_upgrade_count_for(def: TempUpgradeDef) -> int:
-	var count := 0
 	for node in _temp_upgrade_carriers():
 		for a in node.get_addons():
 			if a.temp_upgrade_def == def:
-				count += 1
-	return count
+				total += a.get_temp_costs().get(_BLADE_SIZE_ID, 0)
+	return total
 
 
-## How many of `def`'s kind one swing may carry — the attacker's
-## [member TempUpgradeDef.aspect_stat_id] value, floored; -1 when uncapped.
-func temp_upgrade_aspect_cap(def: TempUpgradeDef) -> int:
-	if def == null or def.aspect_stat_id == &"":
-		return -1
-	if attacker == null or attacker.stat_board == null:
-		return 0
-	return maxi(0, floori(attacker.stat_board.get_value(def.aspect_stat_id)))
+## Can the swing pay `def`'s whole cost vector out of what is left in each
+## currency? `def`'s scene must also be [member SkillNodeAddon.temp_placeable].
+func _affords(def: TempUpgradeDef) -> bool:
+	if not SkillNodeAddon.temp_placeable_of(def.scene):
+		return false
+	var costs := SkillNodeAddon.temp_costs_of(def.scene)
+	for id in costs:
+		if currency_remaining(id) < costs[id]:
+			return false
+	return true
 
 
-## Would one more of `def`'s kind stay within its aspect cap?
-func _within_aspect_cap(def: TempUpgradeDef) -> bool:
-	var cap := temp_upgrade_aspect_cap(def)
-	return cap < 0 or temp_upgrade_count_for(def) < cap
+## Is some non-`blade_size` currency of `def`'s cost vector short?
+func _short_of_aspect(def: TempUpgradeDef) -> bool:
+	var costs := SkillNodeAddon.temp_costs_of(def.scene)
+	for id in costs:
+		if id != _BLADE_SIZE_ID and currency_remaining(id) < costs[id]:
+			return true
+	return false
 
 
 ## The swing's temp upgrades as one overlay on [param node]'s read of
@@ -652,15 +631,14 @@ func can_apply_temp_upgrade(node: SkillNode, def: TempUpgradeDef) -> bool:
 		return false
 	if not node.can_attach_addon(def.scene.resource_path):
 		return false
-	return _within_aspect_cap(def) and _budget_remaining() >= def.cost
+	return _affords(def)
 
 
 ## Whether ANY currently-eligible node could accept `upgrade` right now —
 ## cheap plan-level affordability check for UI button enablement, independent
 ## of which specific node gets clicked.
 func has_temp_upgrade_budget(def: TempUpgradeDef) -> bool:
-	return def != null and source != null and _within_aspect_cap(def) \
-			and _budget_remaining() >= def.cost
+	return def != null and source != null and _affords(def)
 
 
 ## Spend budget and attach a real `def` addon to `node`. Returns false
@@ -688,19 +666,20 @@ func budget_overrun() -> int:
 	return maxi(0, -_budget_remaining())
 
 
-## How many temp upgrades the plan carries past their kinds' aspect caps,
-## summed over kinds — the host's launch-time aspect check (ADR 0035).
+## How far the carried temps run past their non-`blade_size` currencies'
+## caps, summed over currencies — the host's launch-time aspect check (ADR 0035).
 func aspect_overrun() -> int:
-	var seen: Array[TempUpgradeDef] = []
+	var ids: Array[StringName] = []
 	for node in _temp_upgrade_carriers():
 		for a in node.get_addons():
-			if a.is_temporary and not seen.has(a.temp_upgrade_def):
-				seen.append(a.temp_upgrade_def)
+			if not a.is_temporary:
+				continue
+			for id in a.get_temp_costs():
+				if id != _BLADE_SIZE_ID and not ids.has(id):
+					ids.append(id)
 	var total := 0
-	for def in seen:
-		var cap := temp_upgrade_aspect_cap(def)
-		if cap >= 0:
-			total += maxi(0, temp_upgrade_count_for(def) - cap)
+	for id in ids:
+		total += maxi(0, -currency_remaining(id))
 	return total
 
 
@@ -725,7 +704,7 @@ func _existing_temp_upgrade(node: SkillNode, def: TempUpgradeDef) -> SkillNodeAd
 func temp_upgrade_denial_reason(node: SkillNode, def: TempUpgradeDef) -> String:
 	if not node.can_attach_addon(def.scene.resource_path):
 		return "temp_upgrade_denied_slot_full"
-	if not _within_aspect_cap(def):
+	if _short_of_aspect(def):
 		return "temp_upgrade_denied_aspect"
 	return "temp_upgrade_denied_budget"
 

@@ -128,7 +128,7 @@ func test_the_host_rebuilds_a_remote_seats_plan_with_its_temp_upgrade() -> void:
 	assert_false(command.record.is_empty(), "…and resolves it into a record")
 	var plan := command.local_plan as MeleeAttackPlan
 	assert_not_null(plan, "the decoded plan is the one the apply commits")
-	assert_eq(plan.temp_upgrade_cost_for(_clamp()), _clamp().cost,
+	assert_eq(plan.temp_upgrade_cost_for(_clamp()), SkillNodeAddon.temp_costs_of(_clamp().scene)[&"blade_size"],
 			"the upgrade is in the swing the host resolved")
 	assert_eq(_temp_addons(_nodes.leaf), 1, "mounted on the node the seat chose")
 

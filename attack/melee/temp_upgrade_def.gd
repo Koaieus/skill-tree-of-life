@@ -2,8 +2,8 @@ class_name TempUpgradeDef
 extends Resource
 
 ## One offerable temp-upgrade kind (#406): a REAL [SkillNodeAddon] the melee
-## plan `add_child`s onto a blade member for one swing, spent from the same
-## blade_size budget as blade members. Authored as a `.tres` under
+## plan `add_child`s onto a blade member for one swing. Its price is authored
+## on the scene ([method SkillNodeAddon.get_temp_costs]), never here. Authored as a `.tres` under
 ## `attack/melee/defs/`, listed in [TempUpgradeCatalog]; adding a kind is a new
 ## def dragged into the catalog, zero code.
 ##
@@ -18,9 +18,3 @@ extends Resource
 ## `resource_path` is the addon's kind ([method SkillNodeAddon.get_kind]), so
 ## [method SkillNode.can_attach_addon] can ask before an instance exists.
 @export var scene: PackedScene
-## Spend against [method MeleeAttackPlan.max_blades]' budget.
-@export var cost: int = 1
-## The entity stat capping how many of this kind one swing may carry (the
-## concept's `<concept>_aspect`, floored). Empty = uncapped. Mirrors
-## [member AmmoType.per_reload_stat_id]: the def names the aspect it reads.
-@export var aspect_stat_id: StringName = &""

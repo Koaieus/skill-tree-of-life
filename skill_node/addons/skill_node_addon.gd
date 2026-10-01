@@ -88,8 +88,8 @@ extends Node2D
 		update_configuration_warnings()
 ## The [TempUpgradeDef] this addon was placed by (#406) — the temp-upgrade
 ## spend rather than loot/procgen/editor authoring — or null for a permanent
-## addon. Carries the kind's identity (for "already has this one" checks) and
-## its cost (for budget sums). Never @export — only code instantiating a temp
+## addon. Carries the kind's identity (for "already has this one" checks); the
+## price is the addon's own [method get_temp_costs]. Never @export — only code instantiating a temp
 ## upgrade sets this, after instantiate() and before add_child().
 var temp_upgrade_def: TempUpgradeDef = null
 

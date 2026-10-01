@@ -159,7 +159,7 @@ func _build_upgrade_buttons() -> void:
 		btn.label_text = tmp.get_tooltip_title()
 		btn.keycap = PlayerInputController.temp_upgrade_keycap(i)
 		btn.icon_texture = tmp.icon
-		btn.cost = upgrade.cost
+		btn.costs = SkillNodeAddon.temp_costs_of(upgrade.scene)
 		tmp.free()
 		btn.accent = _upgrade_color(upgrade)
 		if _input_ctl != null:
@@ -219,7 +219,7 @@ func _refresh() -> void:
 	_blade_blips.manual_markers = manual
 	_blade_blips.count = min(count, blade_region_size)
 
-	# Upgrade-region grid: one pip per is_temporary addon's cost, colored and
+	# Upgrade-region grid: one pip per is_temporary addon's blade_size cost, colored and
 	# bound per the node actually carrying it (also hoverable, per #406).
 	var upgrade_bound: Array = []
 	var upgrade_colors: Array[Color] = []
@@ -232,7 +232,7 @@ func _refresh() -> void:
 			for node in nodes:
 				for a in node.get_addons():
 					if a.temp_upgrade_def == upgrade:
-						for _j in upgrade.cost:
+						for _j in a.get_temp_costs().get(&"blade_size", 0):
 							upgrade_bound.append(node)
 							upgrade_colors.append(_upgrade_color(upgrade))
 	_upgrade_blips.max_count = upgrade_bound.size()

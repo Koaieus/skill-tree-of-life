@@ -8,3 +8,7 @@ script = ExtResource("1_dot")
 status_def = ExtResource("2_poison")
 status_power = 1.0
 unique = true
+temp_placeable = true
+temp_cost_aspects = Dictionary[StringName, int]({
+&"poison_aspect": 1
+})

@@ -7,5 +7,3 @@
 script = ExtResource("1_def")
 id = &"toxin"
 scene = ExtResource("2_scene")
-cost = 2
-aspect_stat_id = &"poison_aspect"
