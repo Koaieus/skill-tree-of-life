@@ -232,6 +232,14 @@ def record_launch(st, a, train, sess):
     print(f"launched {a.name} · session {sess[:8]} · now: SendMessage(to: \"{a.name}\", notify_when_idle: true)")
 
 
+def cmd_claim(a):
+    """The calling session becomes the Whip the watchdog resumes if no session named 'whip' is alive."""
+    st = current(); sess = os.environ.get("CLAUDE_CODE_SESSION_ID", "")
+    if not sess: sys.exit("no CLAUDE_CODE_SESSION_ID — run from inside the whip session")
+    st["whip_session"] = sess; save(st); event(st, f"claim: whip_session = {sess[:8]}")
+    print(f"whip_session = {sess[:8]}")
+
+
 def cmd_relieve_me(a):
     st = current(); st["relieve_whip"] = True; save(st)
     event(st, "whip asked for its own relief — watchdog will stop it and launch a fresh whip from this ledger")
@@ -429,6 +437,7 @@ def main():
     s = sp.add_parser("note"); s.add_argument("text"); s.set_defaults(f=cmd_note)
     sp.add_parser("show").set_defaults(f=cmd_show)
     sp.add_parser("relieve-me").set_defaults(f=cmd_relieve_me)
+    sp.add_parser("claim").set_defaults(f=cmd_claim)
     sp.add_parser("done-check").set_defaults(f=cmd_done_check)
     sp.add_parser("report").set_defaults(f=cmd_report)
     sp.add_parser("watchdog").set_defaults(f=cmd_watchdog)
