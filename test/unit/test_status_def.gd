@@ -11,7 +11,6 @@ func test_defaults() -> void:
 	assert_eq(d.on_dealloc, StatusDef.OnDealloc.CLEAR)
 	assert_eq(d.power_max, 1.0)
 	assert_eq((d.decay as FlatDecay).per_tick, 1.0, "flat 1 by default")
-	assert_eq(d.cure_per_hp, 0.0)
 	assert_null(d.icon)
 	assert_eq(d.tint, Color.WHITE)
 

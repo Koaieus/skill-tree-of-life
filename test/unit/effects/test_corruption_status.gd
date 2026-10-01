@@ -207,6 +207,5 @@ func test_authored_corruption_loads_with_the_model_shape() -> void:
 	assert_gt(c.display_max, 0.0, "an uncapped def authors its display anchor")
 	assert_eq(c.reapply, StatusDef.Reapply.ACCUMULATE)
 	assert_gt(c.damage_per_power, 0.0, "deals something per stack")
-	assert_gt(c.cure_per_hp, 0.0, "healable")
 	assert_false(c.display_name.is_empty(), "display identity lives on the .tres")
 	assert_ne(c.tint, Color.WHITE, "authored tint")

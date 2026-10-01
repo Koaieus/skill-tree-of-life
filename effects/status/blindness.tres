@@ -18,7 +18,6 @@ resistance_stat_id = &"blindness_resistance"
 power_max = 0.0
 display_max = 3.0
 reapply = 1
-cure_per_hp = 0.0
 on_dealloc = 0
 depth_k = 3.0
 floor_factor = 0.1

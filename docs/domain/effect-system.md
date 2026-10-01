@@ -328,7 +328,7 @@ read is already correct.
   sketch — not a generic `EffectInstance` bin with its own `_on_*` dispatch, but
   a purpose-built **status slice**: `StatusDef` (`effects/status/status_def.gd`,
   a `.tres`-authored resource — id, tags, `power_max`, a `decay` slot,
-  `reapply` policy, `cure_per_hp`, `on_dealloc`, display identity) plus a
+  `reapply` policy, `on_dealloc`, display identity) plus a
   per-node `NodeStatus{power}` row, held on `NodeCombat._statuses` (#872) beside
   `_tags`/`_board` — "on NodeCombat, like node HP" (owner). Application is a
   `StatusInstance : HitInstance` pushed by `ApplyStatusEffect : OnHitEffect`

@@ -19,6 +19,5 @@ resistance_stat_id = &"wither_resistance"
 power_max = 0.0
 display_max = 10.0
 reapply = 1
-cure_per_hp = 0.0
 stacks_stat_id = &"wither_stacks_per_hit"
 decay = SubResource("Resource_decay")

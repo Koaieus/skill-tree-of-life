@@ -25,7 +25,6 @@ resistance_stat_id = &"curse_resistance"
 power_max = 0.0
 display_max = 10.0
 reapply = 1
-cure_per_hp = 0.25
 stacks_stat_id = &"curse_stacks_per_hit"
 decay = SubResource("Resource_decay")
 spread = SubResource("Resource_spill")

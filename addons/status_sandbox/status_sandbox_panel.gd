@@ -35,8 +35,6 @@ var _resistance_rows: Array[Node] = []
 @onready var _power_spin: SpinBox = %PowerSpin
 @onready var _apply_button: Button = %ApplyBtn
 @onready var _clear_button: Button = %ClearBtn
-@onready var _cure_spin: SpinBox = %CureSpin
-@onready var _cure_button: Button = %CureBtn
 @onready var _ring_toggle: CheckButton = %RingToggle
 @onready var _stat_label: Label = %StatLabel
 @onready var _resistances: Container = %Resistances
@@ -58,7 +56,6 @@ func _ready() -> void:
 	_tick_button.pressed.connect(tick_turn)
 	_apply_button.pressed.connect(_on_apply_pressed)
 	_clear_button.pressed.connect(clear_statuses)
-	_cure_button.pressed.connect(func() -> void: cure(_cure_spin.value))
 	_ring_toggle.toggled.connect(_on_ring_toggled)
 	_world.size_changed.connect(_layout_world)
 	# Events is global across every tab's world: each handler filters to this
@@ -142,13 +139,6 @@ func tick_turn() -> void:
 func clear_statuses() -> void:
 	if bench != null:
 		bench.clear_statuses()
-		_refresh_stats()
-
-
-func cure(amount: float) -> void:
-	if bench != null:
-		bench.cure(amount)
-		_log_line("cure %.1f" % amount)
 		_refresh_stats()
 
 

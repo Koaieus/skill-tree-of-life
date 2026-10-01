@@ -14,6 +14,5 @@ display_name = "Test Status"
 tint = Color(0, 1, 0, 1)
 power_max = 5.0
 reapply = 0
-cure_per_hp = 0.0
 on_dealloc = 0
 decay = SubResource("Resource_decay")

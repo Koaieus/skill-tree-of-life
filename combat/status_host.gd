@@ -70,7 +70,7 @@ func apply_status(def: StatusDef, power: float) -> void:
 
 
 ## Move [param def]'s RAW row on this host by [param delta] stacks — the one
-## primitive [method apply_status], [method cure_debuffs] and [SpreadApplier]
+## primitive [method apply_status] and [SpreadApplier]
 ## land through ([method _settle]). `+n` on an absent row creates it; a
 ## result `<= 0` removes it; `-n` on an absent row is a no-op. Not a landing:
 ## no attacker fold, no reapply policy — moving stacks is not landing them.
@@ -153,34 +153,6 @@ func projected_status_damage() -> float:
 	for row: NodeStatus in _statuses.values():
 		total += row.def.projected_damage(owner, row.power)
 	return total
-
-
-## Cure by [param heal_amount] (#875, hub #868 D7): every `&"debuff"`-tagged
-## status on the host loses `heal_amount * def.cure_per_hp` power — a def that
-## authors no [member StatusDef.cure_per_hp] (`0.0`, the default) is never
-## touched. A status cured to `<= 0` goes through [method remove_status] so
-## [method StatusDef._on_removed] fires normally; one that survives gets
-## [method StatusDef._on_applied] re-run at its new power so a planted
-## modifier (Blindness's factor) follows it down — there is no separate
-## "on cured" hook, `_on_applied` is already idempotent for that shape (#873).
-## Iterates a COPY and re-checks the row is still live, same as
-## [method tick_statuses] — a hook can remove a sibling or the host itself.
-func cure_debuffs(heal_amount: float) -> void:
-	if heal_amount <= 0.0:
-		return
-	var rows: Array[NodeStatus] = []
-	rows.assign(_statuses.values())
-	for row in rows:
-		if row.def.cure_per_hp <= 0.0 or not row.def.tags.has(&"debuff"):
-			continue
-		var id := row.def.id
-		if _statuses.get(id) != row:
-			continue  # vanished from an earlier row's hook this same call
-		_settle(row.def, maxf(row.power - heal_amount * row.def.cure_per_hp, 0.0), false)
-	# #880: a cure changes power on rows that survive too (same reasoning as
-	# tick_statuses' trailing refresh) — the zeroed-out ones already notified
-	# via remove_status.
-	owner._on_statuses_changed()
 
 
 ## Drop the status [param id]; [method StatusDef._on_removed] fires exactly once.

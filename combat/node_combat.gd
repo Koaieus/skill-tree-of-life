@@ -557,8 +557,7 @@ func heal_damage(amount: float, source: HitInstance, raw: bool = false) -> void:
 	amount = HitPoints.land(amount)
 	if amount <= 0.0:
 		# Blocked outright: nothing moves, no `healed` signal, and a
-		# HealInstance reports 0 so its cure (HealInstance.land_on →
-		# cure_debuffs) is the no-op the spec wants.
+		# HealInstance reports 0.
 		if source is HealInstance:
 			(source as HealInstance).effective_amount = 0.0
 		return
@@ -650,11 +649,6 @@ func adjust_status_power(def: StatusDef, delta: float) -> void:
 ## See [method StatusHost.projected_status_damage] (#962, drawn by #953).
 func projected_status_damage() -> float:
 	return _status_host.projected_status_damage()
-
-
-## See [method StatusHost.cure_debuffs] (#875, hub #868 D7).
-func cure_debuffs(heal_amount: float) -> void:
-	_status_host.cure_debuffs(heal_amount)
 
 
 ## See [method StatusHost.remove_status].

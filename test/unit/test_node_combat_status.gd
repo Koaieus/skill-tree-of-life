@@ -314,7 +314,7 @@ func test_healing_received_zero_heals_nothing_and_skips_the_healed_signal() -> v
 	_combat().heal_damage(8.0, heal)
 	assert_almost_eq(_hp(), 10.0, 0.001, "blocked heal moves nothing")
 	assert_signal_not_emitted(_node, "healed", "a 0 heal is skipped, not emitted")
-	assert_almost_eq(heal.effective_amount, 0.0, 0.001, "cure_debuffs is fed the post-multiplier 0")
+	assert_almost_eq(heal.effective_amount, 0.0, 0.001, "a blocked heal reports 0 effective")
 
 
 func test_healing_received_negative_is_true_damage_that_leaves_the_regen_gate_open() -> void:

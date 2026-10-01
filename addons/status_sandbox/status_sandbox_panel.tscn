@@ -78,19 +78,6 @@ layout_mode = 2
 tooltip_text = "Clear node and Bearer statuses"
 text = "Clear"
 
-[node name="CureSpin" type="SpinBox" parent="VBox/Controls"]
-unique_name_in_owner = true
-layout_mode = 2
-max_value = 100.0
-step = 1.0
-value = 5.0
-
-[node name="CureBtn" type="Button" parent="VBox/Controls"]
-unique_name_in_owner = true
-layout_mode = 2
-tooltip_text = "cure_debuffs(N HP) on the node"
-text = "Cure"
-
 [node name="RingToggle" type="CheckButton" parent="VBox/Controls"]
 unique_name_in_owner = true
 layout_mode = 2

@@ -110,10 +110,6 @@ func clear_statuses() -> void:
 	bearer.get_combat().release_statuses()
 
 
-func cure(amount: float) -> void:
-	node.get_combat().cure_debuffs(amount)
-
-
 ## Set the Bearer's [param stat_id] (a resistance) to [param value] by writing
 ## the bench's own modifier's `value` (`docs/domain/stat-knobs-and-bins.md`).
 func set_resistance(stat_id: StringName, value: float) -> void:

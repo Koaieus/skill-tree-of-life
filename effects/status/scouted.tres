@@ -17,6 +17,5 @@ tags = Array[StringName]([&"vision"])
 power_max = 0.0
 display_max = 8.0
 reapply = 0
-cure_per_hp = 0.0
 on_dealloc = 0
 decay = SubResource("Resource_decay")

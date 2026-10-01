@@ -8,9 +8,8 @@ extends Resource
 ##
 ## A status is a bounded, decaying power: [method NodeCombat.apply_status] adds
 ## or refreshes it (per [member reapply]), [method NodeCombat.tick_statuses]
-## fires [method _on_tick] and then decays it per its [member decay] slot, and
-## a heal cures it at [member cure_per_hp] power per hp (#875). Behaviour hooks
-## are overridable on a subclass script; the base does nothing on any of them.
+## fires [method _on_tick] and then decays it per its [member decay] slot.
+## Behaviour hooks are overridable on a subclass script; the base does nothing on any of them.
 ##
 ## Display identity ([member display_name] / [member icon] / [member tint]) is
 ## part of the plumbing on purpose (owner, 2026-09-14): [member tint] is THE
@@ -73,9 +72,6 @@ enum OnDealloc {
 ## survives (poison: 10).
 @export var display_max: float = 0.0
 @export var reapply: Reapply = Reapply.REFRESH
-## Power removed per hp healed on the node (#875): `0.25` means an 8-hp heal
-## dents a power-5 status by 2. `0.0` → heals never cure this status.
-@export var cure_per_hp: float = 0.0
 @export var on_dealloc: OnDealloc = OnDealloc.CLEAR
 
 
