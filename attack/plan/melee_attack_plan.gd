@@ -478,7 +478,6 @@ func max_blades() -> int:
 	return int(source.get_local_value(_BLADE_SIZE_ID))
 
 
-
 ## The per-swing cap of currency [param id]: `blade_size` is [method max_blades],
 ## any other (a `<concept>_aspect`) is the attacker's live stat, floored. A
 ## pooled budget — nothing is consumed, the cap is the most one swing carries.
@@ -509,6 +508,7 @@ func _temp_spent(id: StringName) -> int:
 			if a.is_temporary:
 				total += a.get_temp_costs().get(id, 0)
 	return total
+
 
 ## Budget left for blade-member selection AND temp upgrades — one shared
 ## pool, so both callers (get_node_role / _try_select_blade / temp-upgrade
