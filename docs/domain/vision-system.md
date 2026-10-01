@@ -146,7 +146,7 @@ target would never tick).
 - **Clock.** `TurnManager.real_turn_started(entity)` (the `@export
   turn_manager`, connected by name) — the **firer's** real turn start, never
   the host node's and never an adopted resync cursor — runs every mark keyed by that entity through
-  `scouted_def.decayed()` (`decay_per_tick 0.5`, halves) and drops it at 0.
+  `scouted_def.decayed()` (a `FractionDecay` of 0.5, halves) and drops it at 0.
   `scouted_def` is an `@export` defaulting to the preload so a level or a
   test can inject a variant; the `.tres` sets the tick count, code never does.
 - **Refresh.** Re-landing on a live mark takes `max(decayed, new)` — the def's

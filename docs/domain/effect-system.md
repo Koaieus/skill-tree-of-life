@@ -327,7 +327,7 @@ read is already correct.
   the bin that shipped is narrower than the speculative one this entry used to
   sketch — not a generic `EffectInstance` bin with its own `_on_*` dispatch, but
   a purpose-built **status slice**: `StatusDef` (`effects/status/status_def.gd`,
-  a `.tres`-authored resource — id, tags, `power_max`, `decay_per_tick`,
+  a `.tres`-authored resource — id, tags, `power_max`, a `decay` slot,
   `reapply` policy, `cure_per_hp`, `on_dealloc`, display identity) plus a
   per-node `NodeStatus{power}` row, held on `NodeCombat._statuses` (#872) beside
   `_tags`/`_board` — "on NodeCombat, like node HP" (owner). Application is a
@@ -403,7 +403,7 @@ unheals its own neighbourhood — `NodeCombat._withered_heal`.
 
 **Decay shapes.** Falloff and duration are per def, never stats (#1060):
 
-| Status | Shape | Total per stack applied once |
+| Status | Shape (`FractionDecay` / `FlatDecay`) | Total per stack applied once |
 |---|---|---|
 | Poison | FRACTION, retains 0.5 | 2 |
 | Corruption | FRACTION, retains 0.8 | 5 stack-ticks |
@@ -412,7 +412,7 @@ unheals its own neighbourhood — `NodeCombat._withered_heal`.
 | Blindness | FRACTION, removes 0.7, ACCUMULATE | see [node-subtypes.md](node-subtypes.md) decision 20 |
 | Armor break | FLAT | |
 
-Authoring gotcha: the `.tres` knob `decay_per_tick` is the fraction
+Authoring gotcha: the `.tres` knob `FractionDecay.fraction` (the `decay` sub-resource) is the fraction
 **removed**, so a row retaining *f* is authored as 1 − *f* (corruption 0.2,
 wither 0.25); blindness's 0.7 is the fraction removed (#1090). The shape law is
 `test/unit/effects/test_status_decay_shapes.gd`.
