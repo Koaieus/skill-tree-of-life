@@ -27,9 +27,10 @@ func on_tick(_field: StackField) -> Array[StackTransfer]:
 	return [] as Array[StackTransfer]
 
 
-## [param removed] just lost the status — the beat's whole removed union, judged
-## against [param field]'s state from before removal — for [param cause] (one of
-## [constant CAUSE_DEATH] / [constant CAUSE_DEALLOC]): the transfers to land, in
-## order.
+## [param removed] is the whole beat's union, judged against [param field]'s
+## state from before removal; a receiver must be outside it. [param cause] is
+## ONE of [constant CAUSE_DEATH] / [constant CAUSE_DEALLOC] — never a
+## combination; a rule gates it against its own trigger flags. The transfers
+## to land, in order.
 func on_removed(_field: StackField, _removed: Array[NodeCombat], _cause: int) -> Array[StackTransfer]:
 	return [] as Array[StackTransfer]
