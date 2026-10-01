@@ -295,3 +295,98 @@ func test_local_dealloc_damage_changes_only_that_nodes_chip() -> void:
 		chips[entry.node] = entry.chip / float(entry.allocation_level)
 	assert_eq(chips.get(nodes[1]), 1.0, "an ungranted node chips the entity baseline")
 	assert_eq(chips.get(nodes[2]), 4.0, "the granting node chips baseline + its local grant")
+
+
+# ── 8. One gate per body of the local door ───────────────────────────────────
+
+func test_local_modifier_on_pool_def_is_rejected() -> void:
+	var n := _make_node()
+	n.add_local_modifier(_mod(&"node_combat_health", 5.0))
+	assert_push_error("node_combat_health")
+	assert_null(n.node_board.get_stat(&"node_combat_health") if n.node_board != null else null,
+		"a pool def is minted from, never targeted")
+	assert_eq(StatRegistry.check_residency(), [] as Array[StringName],
+		"pool defs stay resident through the node board")
+
+
+## A shadow world and the unowned [param n]'s orphan slice in it (`host == null`).
+func _shadow_of(n: SkillNode) -> Array:
+	var shadow := _make_entity().get_combat().snapshot()
+	var slice := shadow.world().combat_for(n)
+	assert_null(slice.host, "an orphan shadow slice")
+	return [shadow, slice]
+
+
+func test_shadow_slice_rejects_non_local_leaf() -> void:
+	_def(LOCAL_NO, false, true)
+	var slice: NodeCombat = _shadow_of(_make_node())[1]
+	assert_false(slice.add_local_modifier(_mod(LOCAL_NO, 5.0)))
+	assert_push_error(String(LOCAL_NO))
+	assert_null(slice.board().get_stat(LOCAL_NO), "the shadow board never mints a rejected stat")
+
+
+func test_effect_context_grant_at_non_local_is_rejected_by_the_door() -> void:
+	_def(LOCAL_NO, false, true)
+	var n := _make_node()
+	var pair := _shadow_of(n)
+	var slice: NodeCombat = pair[1]
+	var instance := EffectInstance.new()
+	var ctx := EffectContext.new(pair[0], instance)
+	assert_null(ctx.grant_at(_mod(LOCAL_NO), PackedFloat32Array([5.0]), n))
+	assert_push_error(String(LOCAL_NO))
+	assert_null(slice.board().get_stat(LOCAL_NO))
+	assert_eq(instance.handles_for(n).size(), 0, "a rejected grant is never ledgered")
+
+
+# ── 9. The cascade reads every chip rate before the first strip ──────────────
+
+## Core N0, A = N1, B = N2 in a line; A entity-grants +3 dealloc_damage.
+## Returns {a, b, rate, level, entries} for a cascade in [param a_first] order.
+func _cascade(a_first: bool) -> Dictionary:
+	var graph: Graph = _GRAPH_SCENE.instantiate()
+	add_child_autofree(graph)
+	var nodes: Array[SkillNode] = []
+	for i in 3:
+		var sn := _NODE_SCENE.instantiate() as SkillNode
+		sn.name = "N%d" % i
+		graph.skill_nodes_container.add_child(sn)
+		nodes.append(sn)
+	for pair in [[0, 1], [1, 2]]:
+		var e := _EDGE_SCENE.instantiate() as Edge
+		e.from = nodes[pair[0]]
+		e.to = nodes[pair[1]]
+		graph.edges_container.add_child(e)
+	var alloc := AllocationSystem.new()
+	alloc.graph = graph
+	add_child_autofree(alloc)
+	var ent := _make_entity()
+	graph.add_child(ent)
+	await get_tree().process_frame
+	for n in nodes:
+		alloc.force_allocate(ent, n)
+	ent.core_location = nodes[0]
+	ent.stat_board.health.base_value = 1000.0
+	ent.stat_board.health.set_current(1000.0)
+	var a := nodes[1]
+	var b := nodes[2]
+	a.add_entity_modifier(_mod(&"dealloc_damage", 3.0))
+	var rate := float(b.get_combat().get_local_value(&"dealloc_damage"))
+	var level := maxi(b.get_combat().get_allocation_level(), 1)
+	var a_level := maxi(a.get_combat().get_allocation_level(), 1)
+	var cascade: Array[NodeCombat] = [a.get_combat(), b.get_combat()]
+	if not a_first:
+		cascade.reverse()
+	var entries := ent.get_combat().apply_cascade(cascade, alloc)
+	var chips := {}
+	for entry in entries:
+		chips[entry.node] = entry.chip
+	return {"a": chips.get(a), "b": chips.get(b), "rate": rate, "level": level, "a_level": a_level}
+
+
+func test_cascade_chip_is_independent_of_strip_order() -> void:
+	var a_first: Dictionary = await _cascade(true)
+	var b_first: Dictionary = await _cascade(false)
+	assert_gt(a_first["rate"], 0.0, "the arrange read a live rate")
+	assert_eq(a_first["b"], b_first["b"], "B's chip does not depend on whether A was stripped first")
+	assert_eq(a_first["b"], a_first["rate"] * a_first["level"], "B charges the pre-strip rate")
+	assert_eq(a_first["a"], a_first["rate"] * a_first["a_level"], "A's own chip includes its own grant")

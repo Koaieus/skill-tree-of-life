@@ -483,22 +483,23 @@ func has_tag(tag: StringName) -> bool:
 ## second half of the per-leaf step: `bind_modifier` alone registers the
 ## dependency and applies nothing, so the stat has to be ensured and the leaf
 ## attached to it, exactly as [method SkillNode.add_local_modifier] does.
-func add_local_modifier(m: StatModifier) -> void:
+func add_local_modifier(m: StatModifier) -> bool:
 	if m == null:
-		return
+		return false
 	if host != null:
 		host.add_local_modifier(m)
-		return
+		return true
 	var b := board()
 	if b == null:
-		return
+		return false
 	var cycle := b.cycle_from(m)
 	if not cycle.is_empty():
 		push_warning("NodeCombat.add_local_modifier: rejected a modifier that would close a formula dependency cycle: %s" % cycle)
-		return
+		return false
 	for leaf in m.flatten():
 		b.bind_modifier(leaf)
 		b._ensure_stat(leaf.stat_id).add_modifier(leaf, b)
+	return true
 
 
 ## State half of [method SkillNode.remove_local_modifier]. Removal is by object
