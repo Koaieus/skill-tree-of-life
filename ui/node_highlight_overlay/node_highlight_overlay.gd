@@ -60,10 +60,10 @@ const ROLE_COLORS: Dictionary[HighlightProvider.HighlightRole, Color] = {
 	HighlightProvider.HighlightRole.PROPAGATION:     Color(1.0, 0.25, 0.2, 0.85),
 	HighlightProvider.HighlightRole.ALLOCATABLE:    Color(1.0, 0.75, 0.3, 0.65),
 	HighlightProvider.HighlightRole.PENDING_REMAINDER: Color(1.0, 0.75, 0.3, 0.25),
-	# #782: a defender the previewed swing will lose a vertex (or an edge) to.
-	# Deliberately the hottest red on the board — it is the one role that says
-	# "this costs YOU something", not "this is a thing you may do".
-	HighlightProvider.HighlightRole.PREDICTED_THREAT: Color(1.0, 0.35, 0.15, 0.95),
+	# A defender the previewed swing will lose a vertex (or an edge) to. Amber:
+	# it costs the attacker's blade, so it warns without alarming; the marker's
+	# tier carries the glow.
+	HighlightProvider.HighlightRole.PREDICTED_THREAT: Color(1.0, 0.72, 0.2, 0.95),
 	# The aim-point HOSTILE_TARGET's red; the two split by scene (reticle vs
 	# dashed ring), not by tint.
 	HighlightProvider.HighlightRole.FORFEIT:          Color(1.0, 0.2, 0.2, 0.95),
