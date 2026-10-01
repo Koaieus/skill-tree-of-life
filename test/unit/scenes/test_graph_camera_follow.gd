@@ -86,3 +86,48 @@ func test_freeing_the_followed_node_holds_the_spring_at_its_last_aim() -> void:
 		_cam._follow(DT)
 	assert_almost_eq(_cam.global_position.x, 1000.0, 1.0,
 			"still converges on the last-known target — no crash, no jump")
+
+
+# --- the opening pan tracks the marker, never a snapshot of it ---------------
+#
+# The follow opens the instant a presenter hands over its marker, and nothing
+# guarantees the marker is already placed: a pan aimed at a snapshot of an
+# unplaced marker heads for wherever it was mounted — the map origin — and only
+# springs back once that tween is spent.
+
+func _open_from(at: Vector2, target: Node2D, duration: float) -> void:
+	_cam.end_directed_focus()
+	_cam.global_position = at
+	_cam.begin_directed_follow(target, 1.0, duration)
+
+
+func test_the_opening_pan_lands_where_the_marker_IS_not_where_it_was() -> void:
+	_target.global_position = Vector2.ZERO
+	_open_from(Vector2(500, 500), _target, 0.5)
+	# Placed a frame late, as a wind-up that runs after the handover would.
+	_target.global_position = Vector2(800, 200)
+	_cam._pan_tween.custom_step(1.0)
+	assert_almost_eq(_cam.global_position, Vector2(800, 200), Vector2.ONE,
+			"the pan ends on the marker's live position")
+
+
+func test_a_marker_moved_mid_pan_is_reaimed_not_jumped_to() -> void:
+	_target.global_position = Vector2(1000, 0)
+	_open_from(Vector2.ZERO, _target, 1.0)
+	_cam._pan_tween.custom_step(0.5)
+	_target.global_position = Vector2(1000, 5000)
+	var left := _cam.global_position.distance_to(_target.global_position)
+	var before := _cam.global_position
+	_cam._pan_tween.custom_step(DT)
+	assert_lt(_cam.global_position.distance_to(before), left * 0.15,
+			"one frame covers a share of what is left, never the whole way")
+	_cam._pan_tween.custom_step(1.0)
+	assert_almost_eq(_cam.global_position, Vector2(1000, 5000), Vector2.ONE,
+			"and the pan still ends on the moved marker")
+
+
+func test_a_null_marker_holds_the_camera_rather_than_panning_to_the_origin() -> void:
+	_open_from(Vector2(500, 500), null, 0.5)
+	if _cam._pan_tween != null and _cam._pan_tween.is_valid():
+		_cam._pan_tween.custom_step(1.0)
+	assert_eq(_cam.global_position, Vector2(500, 500), "nothing to follow is nowhere to go")

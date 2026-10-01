@@ -198,8 +198,7 @@ func _follow(delta: float) -> void:
 		return
 	if _pan_tween != null and _pan_tween.is_valid() and _pan_tween.is_running():
 		return
-	if _follow_node != null and is_instance_valid(_follow_node):
-		_follow_last_position = _follow_node.global_position
+	_follow_last_position = _follow_goal()
 	var tau := maxf(0.0001, follow_smoothing)
 	var omega := 1.0 / tau
 	var remaining := delta
@@ -227,13 +226,7 @@ func _follow(delta: float) -> void:
 ## RETARGETS rather than queueing — a multi-attack turn reads as one continuous
 ## follow instead of a stutter.
 func begin_directed_focus(target: Vector2, zoom_target: float, duration: float) -> void:
-	if not _directed:
-		_resync_target_zoom_if_idle()
-		_stored_target_zoom = _target_zoom
-		_directed = true
-	_apply_zoom_target(zoom_target)
-	if _pan_tween != null and _pan_tween.is_valid():
-		_pan_tween.kill()
+	_take_directed(zoom_target)
 	if duration <= 0.0:
 		global_position = target
 		_clamp_position()
@@ -241,6 +234,18 @@ func begin_directed_focus(target: Vector2, zoom_target: float, duration: float) 
 	_pan_tween = create_tween()
 	_pan_tween.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 	_pan_tween.tween_property(self, ^"global_position", target, duration)
+
+
+## Latch the directed state (stashing the player's zoom on first take), aim the
+## zoom, and kill any pan in flight — the shared opening of every directed shot.
+func _take_directed(zoom_target: float) -> void:
+	if not _directed:
+		_resync_target_zoom_if_idle()
+		_stored_target_zoom = _target_zoom
+		_directed = true
+	_apply_zoom_target(zoom_target)
+	if _pan_tween != null and _pan_tween.is_valid():
+		_pan_tween.kill()
 
 
 ## Hand the camera back. POSITION stays exactly where the action ended — there
@@ -260,9 +265,18 @@ func end_directed_focus() -> void:
 
 ## Start a HELD focus that keeps re-aiming (#866), as opposed to
 ## [method begin_directed_focus]'s one-shot target+duration. [param target] is
-## POLLED, not pushed: [method _follow] reads its `global_position` every
-## frame once the initial tween (started here, toward its position at this
-## instant) is spent.
+## POLLED, not pushed: the opening pan and then [method _follow] read its
+## `global_position` every frame.
+##
+## [b]The opening pan tracks the node, never a snapshot of it.[/b] A presenter
+## hands its marker over the moment it has one, and nothing guarantees the
+## marker is placed by then — a pan aimed at its position at this instant
+## heads for wherever it was mounted (the map origin) and only springs back
+## once spent. Each step instead covers the eased fraction of the REMAINING
+## distance to the live position ([method _step_opening_pan]): for a still
+## marker that is exactly the one-shot ease, and a marker placed late, moving,
+## or swapped by [method rebind_follow] re-aims what is left without a jump.
+## A null [param target] holds the camera where it is.
 ##
 ## [b]Convention, not a type guard (#931).[/b] `Node2D` rather than `Marker2D`
 ## on purpose — the versatile case (following a board `SkillNode` directly, no
@@ -270,13 +284,44 @@ func end_directed_focus() -> void:
 ## interest; a composite whose origin is not exposes its own `%FocusMarker`
 ## (`Marker2D`) for that — see [SkillBlade].
 func begin_directed_follow(target: Node2D, zoom_target: float, duration: float) -> void:
-	var at := target.global_position if target != null and is_instance_valid(target) \
-			else Vector2.ZERO
-	begin_directed_focus(at, zoom_target, duration)
+	_take_directed(zoom_target)
 	_follow_active = true
 	_follow_node = target
-	_follow_last_position = at
+	_follow_last_position = global_position
+	_follow_last_position = _follow_goal()
 	_follow_velocity = Vector2.ZERO
+	if duration <= 0.0:
+		global_position = _follow_last_position
+		_clamp_position()
+		return
+	_opening_progress = 0.0
+	_pan_tween = create_tween()
+	_pan_tween.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	_pan_tween.tween_method(_step_opening_pan, 0.0, 1.0, duration)
+
+
+## The eased progress [method _step_opening_pan] last reached, in [0, 1].
+var _opening_progress: float = 0.0
+
+
+## One step of the follow's opening pan, [param eased] already through the
+## tween's curve: move the fraction of what is left that this step's progress
+## is of what was left, so the pan reaches the live goal exactly at 1.0.
+func _step_opening_pan(eased: float) -> void:
+	var left := 1.0 - _opening_progress
+	var fraction := 1.0 if left <= 0.000001 else clampf((eased - _opening_progress) / left, 0.0, 1.0)
+	_opening_progress = eased
+	_follow_last_position = _follow_goal()
+	global_position += (_follow_last_position - global_position) * fraction
+
+
+## The followed node's live position, or the last one read once it is gone.
+## [method begin_directed_follow] seeds that with the camera's own position, so
+## a follow with nothing to read holds still rather than heading for the origin.
+func _follow_goal() -> Vector2:
+	if _follow_node != null and is_instance_valid(_follow_node):
+		return _follow_node.global_position
+	return _follow_last_position
 
 
 ## Change a live directed shot's ZOOM and nothing else (#928). A widen that

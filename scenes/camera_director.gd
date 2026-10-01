@@ -191,10 +191,10 @@ func request_focus(request: FocusRequest) -> FocusDecision:
 			# presenter exists, so the node to poll travels on
 			# [member _follow_node] instead, set by [method _on_attack_committed].
 			# Guarded rather than asserted: `_follow_node` cannot be null by
-			# construction today (both are set together), but a silent pan to
-			# world origin ([method GraphCamera.begin_directed_follow]'s null
-			# fallback) is the one failure a player would actually see, so a
-			# freed/absent node falls through to the plain one-shot focus below.
+			# construction today (both are set together), but a follow on a
+			# freed/absent node would only hold the camera still
+			# ([method GraphCamera.begin_directed_follow]), so it falls through
+			# to the plain one-shot focus below, which still frames the shot.
 			camera.begin_directed_follow(_follow_node, decision.zoom_target,
 					decision.duration)
 		else:
