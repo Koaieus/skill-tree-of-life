@@ -310,3 +310,55 @@ written from this charter alone.
 - `relief` law 5's drain wake currently names "the user"'s relief session;
   under Whip the relief names itself to the outgoing exactly as before —
   no change, but confirm on the first live handover.
+
+## Findings from the whipping fields
+
+Raw, dated, unsorted — field notes from live runs, to be parsed into laws,
+forks or follow-ups later. Not yet law; the skill does not derive from this
+section.
+
+### 2026-10-02 — first live run (run issue #1319, master `7d57a54`)
+
+- **Owner's count ≠ board.** Owner said "just 7 ready issues"; `start`
+  snapshotted 12, `trains` cut 5 trains. Whip trusts the board, but says so
+  in its first reply — the owner's mental model is the thing to correct.
+- **No verb to drop an issue from a train.** Owner pulled #1317 back to
+  Needs design at 01:25 while it sat in queued train e. Only `train split`
+  exists; the drop lives in a `note` and in Whip remembering to launch e as
+  `"1212 1291"`. That is "rely on remembering" — the thing the ledger exists
+  to forbid. Wants `train drop <train> <issue>` (and `done-check` treating a
+  dropped issue as accounted for, not `Still Ready`).
+- **Pure subscription = omit `message`, not `message: ""`.** Four
+  identical failures serialising an empty string (it reached the tool as
+  `"message": ,`), then a fallback to a one-line message — which itself
+  wakes the lead. Omitting the key entirely works. §2 should say *omit*.
+- **Subscribing to an already-idle lead fires instantly.** A lead idles for
+  long stretches *legitimately* — waiting on drones / `mp:e2e` / `refresh`.
+  A pure re-subscribe during that idle returned the same 01:27 idle at once:
+  a loop. Re-subscribing after every idle notice is wrong for a lead that is
+  waiting, not done.
+- **The "second idle → relieve" row would have killed a healthy lead.** The
+  first nudge *causes* a turn, so the second idle notice is the lead's own
+  reply to Whip. Harness summary said "nothing is blocking me; waiting on
+  drone-land #1307, drone-cure #1309"; `claude agents --json` said
+  `working`. Whip overrode the table. Candidate rule: a strike counts only
+  if `state: blocked`, the session is gone, or the idle summary is not
+  "waiting on <drones>"; an idle provoked by Whip's own nudge never counts.
+- **Idle notices are the wrong stall signal; the watchdog is the right
+  one.** Lead reports arrive as messages regardless of subscription, so
+  Whip stopped subscribing and leaned on the watchdog instead.
+- **`start` does not install the watchdog timer.** It was absent until Whip
+  noticed at 01:28 and ran `timer install` — the lead ran ~10 min with no
+  stall backstop. Install output then needs two owner actions Whip must not
+  take (`loginctl enable-linger`, `systemd-inhibit … sleep infinity`), so
+  they can only be done while the owner is still awake: `start` should
+  install the timer and print those two lines *first*, before any launch.
+- **One lead at a time vs. "split across ≥2 leads".** Owner asked for the
+  work split across at least two leads; the skill serialises trains, so
+  "split" here means sequential leads, not parallel ones. Whether two
+  disjoint trains may run concurrently is an open fork (cost: two leads'
+  windows burning at once, two `land`s racing master).
+- **Meta: Whip wants a board, not a file.** Findings like these want to be
+  posted where they are made, by whichever Whip makes them, and triaged
+  later — a comment stream per charter (or per run issue — #1319 already is
+  one) rather than an append-only section a session must remember to edit.
