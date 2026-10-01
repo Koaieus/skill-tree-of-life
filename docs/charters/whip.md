@@ -358,6 +358,16 @@ section.
   "split" here means sequential leads, not parallel ones. Whether two
   disjoint trains may run concurrently is an open fork (cost: two leads'
   windows burning at once, two `land`s racing master).
+- **The watchdog forked the owner-launched Whip.** `cmd_watchdog` finds
+  Whip by session *name* `whip`; the owner launched this one interactively
+  as "WHIP: Ready issues first run". At 01:28, seconds after `timer
+  install`, the watchdog saw no `whip`, `--bg --resume`d `whip_session` and
+  produced a second Whip (a2cf0157) carrying the same context. The owner
+  talked to that one at 01:33 ("go HAM") and it launched b–e in parallel, so
+  the owner-launched session stood down. Fix: match on `whip_session` ==
+  `sessionId` as well as the name, or have `start` rename the session to
+  `whip`. Corollary: never install the timer from a session the watchdog
+  cannot recognise.
 - **Meta: Whip wants a board, not a file.** Findings like these want to be
   posted where they are made, by whichever Whip makes them, and triaged
   later — a comment stream per charter (or per run issue — #1319 already is
