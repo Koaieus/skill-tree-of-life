@@ -1,10 +1,12 @@
 extends GutTest
 
-## Health is INT end to end (ADR 0017): each of the four HP doors floors its
-## incoming magnitude once, via [method HitPoints.land] — so the floater
+## Health is INT end to end (ADR 0017, 0033): each of the four HP doors rounds
+## its incoming magnitude UP once, at entry and before mitigation, via
+## [method HitPoints.whole] — so mitigation runs int-on-int and the floater
 ## (`effective_amount`), the bar (`hp_before`/`hp_after`) and the core → entity
 ## overflow all read the same whole number, live and shadow alike, and a DoT
-## tick or a regen ramp lands whole too.
+## tick or a regen ramp lands whole too. A magnitude of exactly 0 stays 0, and
+## an already-whole magnitude passes unchanged.
 ##
 ## Fixture: core(N0) - N1, both owned by one entity with armor and the damage
 ## floor zeroed so a fractional hit reaches the door unaltered.
@@ -79,37 +81,85 @@ func _assert_whole(v: float, what: String) -> void:
 
 # ── NodeCombat.take_damage ──────────────────────────────────────────────────
 
-func test_a_fractional_hit_lands_floored_on_a_node() -> void:
+func test_a_fractional_hit_lands_ceiled_on_a_node() -> void:
 	var before := _n1.get_current_hp()
-	var hit := _hit(7.9)
+	var hit := _hit(7.1)
 	_n1.take_damage(hit.amount, hit)
-	assert_eq(before - _n1.get_current_hp(), 7.0, "7.9 lands as 7")
-	assert_eq(hit.effective_amount, 7.0, "the floater reads the landed integer")
+	assert_eq(before - _n1.get_current_hp(), ceilf(7.1), "7.1 lands as 8")
+	assert_eq(hit.effective_amount, ceilf(7.1), "the floater reads the landed integer")
+	assert_eq(hit.amount, ceilf(7.1), "the recorded amount is the whole pre-mitigation number")
 	_assert_whole(hit.hp_before, "hp_before")
 	_assert_whole(hit.hp_after, "hp_after")
 
 
-func test_a_sub_one_hit_lands_zero_and_leaves_regen_ungated() -> void:
+func test_a_sub_one_hit_lands_one() -> void:
 	var before := _n1.get_current_hp()
-	var hit := _hit(0.9)
+	var hit := _hit(0.4)
 	_n1.take_damage(hit.amount, hit)
-	assert_eq(_n1.get_current_hp(), before, "0.9 floors to 0")
+	assert_eq(before - _n1.get_current_hp(), 1.0, "0.4 rounds up to 1")
+	assert_eq(hit.effective_amount, 1.0)
+
+
+func test_a_zero_hit_lands_zero_and_leaves_regen_ungated() -> void:
+	_entity.stat_board.min_damage_taken.base_value = 3.0
+	var before := _n1.get_current_hp()
+	var hit := _hit(0.0, DamageInstance.Type.PHYSICAL)
+	_n1.take_damage(hit.amount, hit)
+	assert_eq(_n1.get_current_hp(), before, "a 0 hit is never pushed to the floor")
 	assert_eq(hit.effective_amount, 0.0)
 	assert_false(_n1._damaged_since_upkeep, "a hit that landed nothing must not gate regen")
 
 
-func test_a_sub_one_underflow_still_reclassifies_as_heal_and_heals_zero() -> void:
+func test_a_sub_one_mitigated_hit_is_rounded_up_before_the_floor() -> void:
+	var floor_min := 3.0
+	_entity.stat_board.min_damage_taken.base_value = floor_min
+	var before := _n1.get_current_hp()
+	var hit := _hit(0.4, DamageInstance.Type.PHYSICAL)
+	_n1.take_damage(hit.amount, hit)
+	assert_eq(before - _n1.get_current_hp(), maxf(floor_min, ceilf(0.4)),
+		"max(floor, ⌈0.4⌉ − 0)")
+
+
+func test_a_mitigated_hit_is_rounded_up_before_armor() -> void:
+	var before := _n1.get_current_hp()
+	var hit := _hit(2.4, DamageInstance.Type.PHYSICAL)
+	_n1.take_damage(hit.amount, hit)
+	assert_eq(before - _n1.get_current_hp(), ceilf(2.4), "2.4 lands 3")
+
+
+func test_a_sub_one_hit_on_a_negative_floor_lands_zero_and_does_not_heal() -> void:
 	_n1.take_damage(5.0, null)
 	var before := _n1.get_current_hp()
-	# armor and the floor are INT stats, so the fraction rides the raw hit:
-	# max(-5, 0.6 − 1) = −0.4.
-	_entity.stat_board.armor.base_value = 1.0
+	var armor := 1.0
+	_entity.stat_board.armor.base_value = armor
 	_entity.stat_board.min_damage_taken.base_value = -5.0
-	var hit := _hit(0.6, DamageInstance.Type.PHYSICAL)
+	var hit := _hit(0.01, DamageInstance.Type.PHYSICAL)
 	_n1.take_damage(hit.amount, hit)
-	assert_eq(hit.kind, HitInstance.Kind.HEAL, "the flip tests the raw -0.4, before the floor")
-	assert_eq(_n1.get_current_hp(), before, "-0.4 floors to a 0 heal")
+	# max(-5, ⌈0.01⌉ − 1) = max(-5, 0) = 0: a real hit that soaked to nothing.
+	assert_eq(hit.kind, HitInstance.Kind.DAMAGE, "rounded up before armor, it never goes negative")
+	assert_eq(_n1.get_current_hp(), before)
 	assert_eq(hit.effective_amount, 0.0)
+
+
+func test_an_underflow_still_reclassifies_as_a_whole_heal() -> void:
+	_n1.take_damage(5.0, null)
+	var before := _n1.get_current_hp()
+	_entity.stat_board.armor.base_value = 2.0
+	_entity.stat_board.min_damage_taken.base_value = -5.0
+	var hit := _hit(0.5, DamageInstance.Type.PHYSICAL)
+	_n1.take_damage(hit.amount, hit)
+	# max(-5, ⌈0.5⌉ − 2) = −1: int-on-int, so the heal is whole without a
+	# second rounding.
+	assert_eq(hit.kind, HitInstance.Kind.HEAL, "a negative mitigation result is a heal")
+	assert_eq(_n1.get_current_hp() - before, 1.0)
+
+
+func test_a_noisy_whole_magnitude_is_not_rounded_up_past_itself() -> void:
+	var before := _n1.get_current_hp()
+	var amount := 0.1 * 30.0  # 3.0000000000000004
+	var hit := _hit(amount)
+	_n1.take_damage(hit.amount, hit)
+	assert_eq(before - _n1.get_current_hp(), 3.0, "float noise on a whole is not a fraction")
 
 
 func test_core_overflow_into_the_entity_pool_is_whole() -> void:
@@ -118,9 +168,9 @@ func test_core_overflow_into_the_entity_pool_is_whole() -> void:
 	var hit := _hit(core_hp + 3.7)
 	_n0.take_damage(hit.amount, hit)
 	var overflow := pool_before - _health().current
-	assert_eq(hit.effective_amount, floorf(core_hp + 3.7))
+	assert_eq(hit.effective_amount, ceilf(core_hp + 3.7))
 	assert_eq(overflow, hit.effective_amount - core_hp,
-		"overflow = floored effective − soaked")
+		"overflow = whole effective − soaked")
 	_assert_whole(overflow, "overflow")
 
 
@@ -135,7 +185,7 @@ func test_a_shadow_lands_the_same_integer_as_the_live_node() -> void:
 	var shadow_hit := _hit(8.5, DamageInstance.Type.PHYSICAL)
 	_n1.take_damage(live_hit.amount, live_hit)
 	sn.take_damage(shadow_hit.amount, shadow_hit)
-	assert_eq(live_before - _n1.get_current_hp(), 7.0, "8.5 − 1 armor = 7.5 lands as 7")
+	assert_eq(live_before - _n1.get_current_hp(), 8.0, "⌈8.5⌉ − 1 armor lands 8")
 	assert_eq(shadow_before - sn.get_current_hp(), live_before - _n1.get_current_hp(),
 		"shadow and live land the same integer")
 	assert_eq(shadow_hit.effective_amount, live_hit.effective_amount)
@@ -143,48 +193,63 @@ func test_a_shadow_lands_the_same_integer_as_the_live_node() -> void:
 
 # ── NodeCombat.heal_damage ──────────────────────────────────────────────────
 
-func test_a_fractional_heal_lands_floored_on_a_node() -> void:
+func test_a_fractional_heal_lands_ceiled_on_a_node() -> void:
 	_n1.take_damage(5.0, null)
 	var before := _n1.get_current_hp()
 	var heal := HealInstance.new()
-	heal.amount = 2.9
+	heal.amount = 2.1
 	_n1.heal_damage(heal.amount, heal)
-	assert_eq(_n1.get_current_hp() - before, 2.0, "2.9 heals 2")
-	assert_eq(heal.effective_amount, 2.0)
+	var received: float = _n1.get_local_value(&"healing_received")
+	assert_eq(_n1.get_current_hp() - before, ceilf(2.1 * received),
+		"rounded up after the healing_received multiply")
+	assert_eq(heal.effective_amount, ceilf(2.1 * received))
 	_assert_whole(heal.hp_after, "hp_after")
 
 
 # ── EntityCombat.take_pool_damage / heal ────────────────────────────────────
 
-func test_a_fractional_pool_drain_lands_floored() -> void:
+func test_a_fractional_pool_drain_lands_ceiled() -> void:
 	var before := _health().current
-	_entity.get_combat().take_pool_damage(7.9, null)
-	assert_eq(before - _health().current, 7.0)
+	_entity.get_combat().take_pool_damage(7.1, null)
+	assert_eq(before - _health().current, 8.0)
 
 
-func test_a_fractional_pool_heal_lands_floored() -> void:
+func test_a_fractional_pool_heal_lands_ceiled() -> void:
 	_entity.get_combat().take_pool_damage(6.0, null)
 	var before := _health().current
 	var heal := HealInstance.new()
-	heal.amount = 2.9
+	heal.amount = 2.1
 	_entity.get_combat().heal(heal.amount, heal)
-	assert_eq(_health().current - before, 2.0)
-	assert_eq(heal.effective_amount, 2.0)
+	assert_eq(_health().current - before, 3.0)
+	assert_eq(heal.effective_amount, 3.0)
 
 
 # ── DoT ticks land through the doors ────────────────────────────────────────
 
-func test_a_fractional_dot_tick_lands_floored_on_a_node() -> void:
+func test_a_fractional_dot_tick_lands_ceiled_on_a_node() -> void:
 	var before := _n1.get_current_hp()
 	DotTick.mint(_n1.get_combat(), 2.5 / _n1.get_max_hp(), HitInstance.AmountBasis.PERCENT_MAX)
-	assert_eq(before - _n1.get_current_hp(), 2.0, "a 2.5 HP tick lands 2")
+	assert_eq(before - _n1.get_current_hp(), 3.0, "a 2.5 HP tick lands 3")
 
 
-func test_a_fractional_dot_tick_lands_floored_on_the_entity_pool() -> void:
+func test_a_sub_one_dot_tick_lands_one() -> void:
+	var before := _n1.get_current_hp()
+	DotTick.mint(_n1.get_combat(), 0.4, HitInstance.AmountBasis.FLAT)
+	assert_eq(before - _n1.get_current_hp(), 1.0, "a TRUE 0.4 tick lands 1")
+
+
+func test_a_fractional_dot_tick_lands_ceiled_on_the_entity_pool() -> void:
 	var ec := _entity.get_combat()
 	var before := _health().current
 	DotTick.mint(ec, 2.5 / ec.get_max_hp(), HitInstance.AmountBasis.PERCENT_MAX)
-	assert_eq(before - _health().current, 2.0, "a 2.5 HP tick lands 2")
+	assert_eq(before - _health().current, 3.0, "a 2.5 HP tick lands 3")
+
+
+func test_a_sub_one_dot_tick_lands_one_on_the_entity_pool() -> void:
+	var ec := _entity.get_combat()
+	var before := _health().current
+	DotTick.mint(ec, 0.4, HitInstance.AmountBasis.FLAT)
+	assert_eq(before - _health().current, 1.0, "a TRUE 0.4 tick lands 1")
 
 
 # ── Regen ───────────────────────────────────────────────────────────────────
