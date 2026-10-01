@@ -137,6 +137,13 @@ const KEY_DEALLOC_CHIP := "d_chip"
 ## A peer that ignores both still ends in the identical world.
 const KEY_DEALLOC_LABEL_COUNT := "d_lblc"
 const KEY_DEALLOC_LABEL := "d_lbl"
+## Spill per dealloc entry ([member DeallocEntry.spill]): a count per entry,
+## then per transfer its receiver's stable_id (0 = burned), its def's
+## resource_path and its amount. `from` is the entry's own node.
+const KEY_SPILL_COUNT := "s_n"
+const KEY_SPILL_TO := "s_to"
+const KEY_SPILL_DEF := "s_def"
+const KEY_SPILL_AMOUNT := "s_amt"
 const KEY_EVENT_BEAT := "e_beat"
 const KEY_EVENT_VERB := "e_verb"
 const KEY_EVENT_ORIGIN := "e_org"
@@ -207,6 +214,13 @@ var dealloc_wounds := PackedInt32Array()
 var dealloc_chips := PackedFloat64Array()
 var dealloc_label_counts := PackedInt32Array()
 var dealloc_labels := PackedStringArray()
+## Flattened across all dealloc entries; `spill_counts` slices it back apart.
+var spill_counts := PackedInt32Array()
+var spill_to := PackedInt32Array()
+## The def as its resource_path — the same convention as [member status_defs]:
+## `StatusDef.id` has no registry a rebuild could resolve it through.
+var spill_defs := PackedStringArray()
+var spill_amounts := PackedFloat64Array()
 var beats := PackedInt32Array()
 var verbs := PackedByteArray()
 var event_origins := PackedInt32Array()
@@ -253,6 +267,10 @@ static func wire_fields() -> Array[WireFields.Field]:
 		WireFields.Field.new(&"dealloc_chips", TYPE_PACKED_FLOAT64_ARRAY).as_key(KEY_DEALLOC_CHIP),
 		WireFields.Field.new(&"dealloc_label_counts", TYPE_PACKED_INT32_ARRAY).as_key(KEY_DEALLOC_LABEL_COUNT),
 		WireFields.Field.new(&"dealloc_labels", TYPE_PACKED_STRING_ARRAY).as_key(KEY_DEALLOC_LABEL),
+		WireFields.Field.new(&"spill_counts", TYPE_PACKED_INT32_ARRAY).as_key(KEY_SPILL_COUNT),
+		WireFields.Field.new(&"spill_to", TYPE_PACKED_INT32_ARRAY).as_key(KEY_SPILL_TO),
+		WireFields.Field.new(&"spill_defs", TYPE_PACKED_STRING_ARRAY).as_key(KEY_SPILL_DEF),
+		WireFields.Field.new(&"spill_amounts", TYPE_PACKED_FLOAT64_ARRAY).as_key(KEY_SPILL_AMOUNT),
 		WireFields.Field.new(&"beats", TYPE_PACKED_INT32_ARRAY).as_key(KEY_EVENT_BEAT),
 		WireFields.Field.new(&"verbs", TYPE_PACKED_BYTE_ARRAY).as_key(KEY_EVENT_VERB),
 		WireFields.Field.new(&"event_origins", TYPE_PACKED_INT32_ARRAY).as_key(KEY_EVENT_ORIGIN),
@@ -323,6 +341,13 @@ static func capture(outcome: AttackOutcome, graph: Graph) -> Dictionary:
 			r.dealloc_chips.append(e.chip)
 			r.dealloc_label_counts.append(e.revoked_labels.size())
 			r.dealloc_labels.append_array(e.revoked_labels)
+			r.spill_counts.append(e.spill.size())
+			for k in e.spill.size():
+				var t := e.spill[k]
+				var def := e.spill_defs[k] if k < e.spill_defs.size() else null
+				r.spill_to.append(_id_of(t.to.real() if t != null and t.to != null else null, graph))
+				r.spill_defs.append(def.resource_path if def != null else "")
+				r.spill_amounts.append(t.amount if t != null else 0.0)
 		var flip := hit as GateFlipInstance
 		if flip != null:
 			r.gate_counts.append(flip.gates.size())
@@ -389,6 +414,8 @@ static func rebuild(d: Dictionary, graph: Graph, rate: float = -1.0) -> AttackOu
 	# own count. The counts array is what slices one flat run back into per-hit
 	# groups; without it the entries would all belong to hit 0.
 	var dealloc_at := 0
+	# Running offset over the flattened spill transfers, advanced per entry.
+	var spill_at := 0
 	# Running offsets for the gate-flip arrays: `flip_at` over flip hits,
 	# `gate_at` over their flattened pairs.
 	var flip_at := 0
@@ -483,6 +510,8 @@ static func rebuild(d: Dictionary, graph: Graph, rate: float = -1.0) -> AttackOu
 					var label_count := r.dealloc_label_counts[at]
 					entry.revoked_labels = r.dealloc_labels.slice(label_at, label_at + label_count)
 					label_at += label_count
+				if at < r.spill_counts.size():
+					spill_at = _rebuild_spill(r, entry, spill_at, r.spill_counts[at], graph)
 				entries.append(entry)
 			hit.deallocations = entries
 			dealloc_at += count
@@ -554,6 +583,25 @@ static func _id_of(node: SkillNode, graph: Graph) -> int:
 	if node == null or graph == null or not is_instance_valid(node):
 		return 0
 	return graph.get_stable_id(node)
+
+
+## Unpacks [param entry]'s recorded spill starting at [param at]; returns the
+## offset past it. Slices are the receiving machine's live ones — a replay
+## translates them into the world it lands in ([method CombatWorld.flush_removals]).
+static func _rebuild_spill(r: AttackRecord, entry: DeallocEntry, at: int, count: int,
+		graph: Graph) -> int:
+	var from: NodeCombat = entry.node.get_combat() if entry.node != null else null
+	for k in count:
+		var i := at + k
+		if i >= r.spill_amounts.size():
+			break
+		var to_node := _node_of(r.spill_to[i], graph)
+		var to: NodeCombat = to_node.get_combat() if to_node != null else null
+		var path := r.spill_defs[i]
+		var def: StatusDef = load(path) as StatusDef if not path.is_empty() else null
+		entry.spill.append(StackTransfer.new(from, to, r.spill_amounts[i]))
+		entry.spill_defs.append(def)
+	return at + count
 
 
 static func _node_of(id: int, graph: Graph) -> SkillNode:

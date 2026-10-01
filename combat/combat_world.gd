@@ -67,6 +67,13 @@ var _orphans: Array[NodeCombat] = []
 ## The removal collector: one [_Removal] per node stripped since the last
 ## [method flush_removals], in strip order.
 var _pending: Array[_Removal] = []
+## Entries a fresh landing produced since the last flush, by their real node:
+## the flush writes each computed transfer onto its `from`'s entry, which is
+## how an attack's spill gets into its [AttackRecord].
+var _tracked: Dictionary[SkillNode, DeallocEntry] = {}
+## Entries a rebuilt record handed in since the last flush. Non-empty makes the
+## beat a replay: the flush lands their recorded spill and computes nothing.
+var _fed: Array[DeallocEntry] = []
 
 
 ## One stripped node as it stood at its strip: per spreading def, the stacks
@@ -219,6 +226,8 @@ func free_shadow() -> void:
 	if not _shadow:
 		return
 	_pending.clear()
+	_tracked.clear()
+	_fed.clear()
 	# Taken and cleared FIRST: EntityCombat.free_shadow hands a world it minted
 	# itself back to this method, so re-entry has to find nothing left to do.
 	var entities: Array = _entities.values()
@@ -276,11 +285,37 @@ func note_removed(node: NodeCombat, rows: Array[NodeStatus], cause: int) -> void
 	_pending.append(r)
 
 
+## [param entries] were produced by a fresh landing on this world: the next
+## flush writes the spill it computes onto them ([member DeallocEntry.spill]).
+func track_entries(entries: Array[DeallocEntry]) -> void:
+	for e in entries:
+		if e != null and e.node != null:
+			_tracked[e.node] = e
+
+
+## [param entries] arrive from a rebuilt record: the next flush is a replay
+## beat and lands their recorded spill instead of computing any.
+func feed_recorded(entries: Array[DeallocEntry]) -> void:
+	_fed.append_array(entries)
+
+
 ## Run the spill rule over everything noted since the last flush: per cause,
 ## per def, one [method StatusSpread.on_removed] over the whole removed union,
 ## landed through [SpreadApplier] in this world. Loops until nothing new was
-## noted, should a landing itself strip a node.
+## noted, should a landing itself strip a node. Each computed transfer is also
+## written onto its `from`'s tracked [DeallocEntry] ([method track_entries]).
+##
+## A beat fed a record ([method feed_recorded]) RECEIVES instead: it lands
+## exactly the recorded transfers and computes nothing. Removals with no
+## [DeallocEntry] — a whole-entity death's strips, inside the beat whose chip
+## killed it — are never recorded. That is world-identical under the only
+## authored mask, Mine: the dying entity's whole territory is in the beat's
+## union, so every Mine transfer it could compute is burned. A rule with a
+## wider-than-Mine mask must get those strips recorded first.
 func flush_removals() -> void:
+	if not _fed.is_empty():
+		_land_recorded()
+		return
 	while not _pending.is_empty():
 		var batch := _pending
 		_pending = []
@@ -298,7 +333,51 @@ func flush_removals() -> void:
 				for r in batch:
 					if r.cause == cause and r.power.has(def.id):
 						field.snap(r.node, r.power[def.id], r.around[def.id])
-				SpreadApplier.apply(def, def.spread.on_removed(field, removed, cause), self)
+				var transfers := def.spread.on_removed(field, removed, cause)
+				_record_spill(def, transfers)
+				SpreadApplier.apply(def, transfers, self)
+	_tracked.clear()
+
+
+## Writes [param transfers] onto their `from`'s tracked entry, re-pointed at
+## the REAL nodes' live slices: an entry outlives its shadow (freed once the
+## record is captured), exactly as [member DeallocEntry.node]
+## is the real node.
+func _record_spill(def: StatusDef, transfers: Array[StackTransfer]) -> void:
+	if _tracked.is_empty():
+		return
+	for t in transfers:
+		if t == null or t.from == null:
+			continue
+		var from_real := t.from.real()
+		var e: DeallocEntry = _tracked.get(from_real)
+		if e == null:
+			continue
+		var to_real: SkillNode = t.to.real() if t.to != null else null
+		e.spill.append(StackTransfer.new(from_real.get_combat(),
+				to_real.get_combat() if to_real != null else null, t.amount))
+		e.spill_defs.append(def)
+
+
+## A replay beat: land every fed entry's recorded transfers, per def, in this
+## world's slices; the noted removals are dropped uncomputed.
+func _land_recorded() -> void:
+	var by_def := {}  # StatusDef -> Array[StackTransfer]
+	for e in _fed:
+		for k in e.spill.size():
+			var t := e.spill[k]
+			var def := e.spill_defs[k] if k < e.spill_defs.size() else null
+			if t == null or def == null:
+				continue
+			var from := combat_for(t.from.real()) if t.from != null else null
+			var to := combat_for(t.to.real()) if t.to != null else null
+			var list: Array = by_def.get_or_add(def, [] as Array[StackTransfer])
+			list.append(StackTransfer.new(from, to, t.amount))
+	_fed.clear()
+	_pending.clear()
+	_tracked.clear()
+	for def: StatusDef in by_def:
+		SpreadApplier.apply(def, by_def[def], self)
 
 
 ## [param node]'s graph neighbours as slices of this world — the topology is

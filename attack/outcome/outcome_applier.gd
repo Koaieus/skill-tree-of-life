@@ -96,10 +96,19 @@ static func land_one(hit: HitInstance, world: CombatWorld,
 		alloc: AllocationSystem = null) -> void:
 	if hit == null or hit.target == null:
 		return
+	# A rebuilt record arrives with its deallocations pre-populated (#518's
+	# contract); a fresh resolve never does. So this is the replay signal: a
+	# record feeds the beat its recorded spill, a fresh landing has the spill
+	# the flush computes written onto the entries it just produced.
+	var recorded := not hit.deallocations.is_empty()
+	if recorded:
+		world.feed_recorded(hit.deallocations)
 	# A fuse's gate flip (#1209) lands on the TOPOLOGY, not on a slice — and
 	# live it needs [param alloc], the one flip-and-cascade implementation.
 	if hit.kind == HitInstance.Kind.GATE_FLIP:
 		(hit as GateFlipInstance).land_flip(world, alloc)
+		if not recorded:
+			world.track_entries(hit.deallocations)
 		return
 	# Re-checked here rather than hoisted: an earlier beat's cascade can
 	# free a target between landings. `origin` is checked too (#503) — a
@@ -120,6 +129,8 @@ static func land_one(hit: HitInstance, world: CombatWorld,
 	if slice == null:
 		return
 	hit.land_on(slice, world)
+	if not recorded:
+		world.track_entries(hit.deallocations)
 	# The one recorded PRESENTATION cue (#536), announced on the mutation clock
 	# because this is the mutation clock. Guarded exactly like [NodeCombat]'s
 	# `host != null` branch: a shadow world has no audience, so the authority's
