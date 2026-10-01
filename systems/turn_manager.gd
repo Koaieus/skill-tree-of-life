@@ -21,6 +21,7 @@ signal turn_started(entity: Entity)
 ## decay), where [signal turn_started] would double-count a repaired mirror.
 signal real_turn_started(entity: Entity)
 signal turn_ended(entity: Entity)
+signal round_completed(round: int)
 
 ## Fires whenever [method forecast]'s answer could have changed: after
 ## `turn_started`, after `turn_ended`, and whenever any live entity's
@@ -68,6 +69,11 @@ var _current_entity: Entity = null
 ## Turns served since the level started — every [method start_turn], across all
 ## entities, not rounds. [RunOutcome.turn_count] reports it (#460).
 var turns_taken: int = 0
+var rounds_completed: int = 0
+
+
+func round_waiting() -> Array[Entity]:
+	return []
 
 
 ## [b]The handoff is a call sequence, not a subscription.[/b] [method start_turn]
@@ -241,7 +247,10 @@ func start_turn(entity: Entity) -> void:
 ## A no-op when the cursor already agrees, which is the ordinary case for a
 ## mid-run repair — and what keeps this idempotent, like every other step of a
 ## resync decode.
-func adopt_turn(entity: Entity, total_turns_taken: int) -> void:
+func adopt_turn(
+	entity: Entity, total_turns_taken: int, rounds: int = -1,
+	round_open: bool = false, waiting: Array[Entity] = []
+) -> void:
 	turns_taken = total_turns_taken
 	if current_entity == entity:
 		return

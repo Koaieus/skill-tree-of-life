@@ -24,6 +24,8 @@ var entities: Array[Entity] = []
 var graph: Graph = null
 ## Turns served so far ([member TurnManager.turns_taken]).
 var turn_count: int = 0
+## Initiative rounds completed so far ([member TurnManager.rounds_completed]).
+var rounds_completed: int = 0
 
 
 ## Camps with at least one living entity that [param contestants] admits to the

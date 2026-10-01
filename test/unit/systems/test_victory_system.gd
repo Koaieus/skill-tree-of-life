@@ -215,3 +215,30 @@ func test_the_lone_camp_of_a_half_built_world_is_ignored_then_judged() -> void:
 
 	assert_eq(_outcomes.size(), 1, "the same world is judged once it is ready")
 	assert_eq(_outcomes[0].winning_camp.id, &"player")
+
+
+## #1257: a condition that fires off the clock (the turn limit) needs a
+## trigger with no death in it — every [signal TurnManager.turn_ended] asks for
+## an evaluation, and the latch still announces once.
+class _AlwaysEnds:
+	extends VictoryCondition
+
+	func evaluate(ctx: VictoryContext) -> RunOutcome:
+		return _outcome(ctx, null)
+
+
+func test_a_turn_end_with_no_death_triggers_an_evaluation_once() -> void:
+	var turns := TurnManager.new()
+	add_child_autofree(turns)
+	_victory.turn_manager = turns
+	_victory.condition = _AlwaysEnds.new()
+	_spawn("Player", _PLAYER)
+	_spawn("Npc", _NPC)
+
+	turns.turn_ended.emit(null)
+	turns.turn_ended.emit(null)
+	await get_tree().process_frame
+	turns.turn_ended.emit(null)
+	await get_tree().process_frame
+
+	assert_eq(_outcomes.size(), 1, "a turn end evaluates, and the latch announces once")
