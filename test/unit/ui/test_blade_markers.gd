@@ -22,7 +22,7 @@ func _make(path: String) -> Node2D:
 
 func _peak_time(m: Node2D) -> float:
 	# Sample the brightness function over one period at 1 ms resolution.
-	var period: float = m.get("ripple_period_s")
+	var period: float = m.get("period_s")
 	var best_t := 0.0
 	var best := -INF
 	var t := 0.0
@@ -53,7 +53,7 @@ func test_members_peak_order_steps_apart() -> void:
 	a.set("order", 1)
 	b.set("order", 4)
 	var step: float = a.get("ripple_step_s")
-	var period: float = a.get("ripple_period_s")
+	var period: float = a.get("period_s")
 	var dt := fposmod(_peak_time(b) - _peak_time(a), period)
 	assert_almost_eq(dt, 3.0 * step, 0.002)
 
