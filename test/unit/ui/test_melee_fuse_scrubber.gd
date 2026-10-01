@@ -172,7 +172,7 @@ func test_a_stranding_fuse_shows_the_chip_and_the_highlight_and_clear_drops_both
 	assert_true(scrubber.get_node("%Chip").visible, "the chip shows")
 	var provider := _highlight.provider
 	assert_true(provider is GateCutHighlightProvider, "the fuse warning drives the gate-cut provider")
-	assert_eq(provider.get_node_role(_n["B3"]), HighlightProvider.HighlightRole.HOSTILE_TARGET,
+	assert_eq(provider.get_node_role(_n["B3"]), HighlightProvider.HighlightRole.FORFEIT,
 			"a stranded node lights")
 	assert_eq(provider.get_node_role(_n["B1"]), _plan().get_node_role(_n["B1"]),
 			"a kept node reads the plan's own role underneath")

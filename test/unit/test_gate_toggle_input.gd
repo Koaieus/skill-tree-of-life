@@ -144,7 +144,7 @@ func test_the_highlight_provider_reads_the_stranded_set() -> void:
 	var provider := GateCutHighlightProvider.new()
 	var stranded: Array[SkillNode] = [_n("D")]
 	provider.stranded = stranded
-	assert_eq(provider.get_node_role(_n("D")), HighlightProvider.HighlightRole.HOSTILE_TARGET)
+	assert_eq(provider.get_node_role(_n("D")), HighlightProvider.HighlightRole.FORFEIT)
 	assert_eq(provider.get_node_role(_n("B")), HighlightProvider.HighlightRole.NONE)
 
 

@@ -29,6 +29,7 @@ enum HighlightRole {
 	ALLOCATABLE,      ## Manage mode: unowned node the player can allocate (adjacent + SP gated).
 	PENDING_REMAINDER, ## Mass-allocate confirm: on the route but past the SP-affordable prefix.
 	PREDICTED_THREAT, ## Melee aim-time prediction (#782): this defender pops a vertex or shatters an edge.
+	FORFEIT,          ## Node the pending action removes from its owner: a deallocate cascade, a gate flip's stranded set.
 }
 
 ## Fires whenever the provider's internal state shifts (pivot picked, blade
