@@ -249,6 +249,7 @@ func test_a_temp_toxin_on_a_blade_node_poisons_in_the_same_resolve() -> void:
 	var plan := _plan()
 	# max_blades reads the wielder's blade_size; 2 members + a cost-2 toxin.
 	_attacker.stat_board.get_stat(&"blade_size").base_value = 4.0
+	_attacker.stat_board.poison_aspect.base_value = 1.0
 	assert_true(plan.apply_temp_upgrade(_tip, toxin_def), "budget admits the toxin")
 	await get_tree().process_frame
 	var outcome := plan.resolve_against(CombatWorld.live())
