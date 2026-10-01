@@ -41,10 +41,10 @@ blade too rigid to yield — driven a fixed distance into the plate — breaks**
 but per [ADR 0005](../adr/0005-blade-parts-and-counters-are-orthogonal.md) a
 bunker **destroys structure, never matter**: the contacting vertex survives,
 and the edge that carried the most load into the plate breaks instead. A
-driven grip particle (one of the wielder's own pivot-adjacent nodes) touching
-the plate instead **hard-stalls the swing's clock** — the swing bogs to a
-dead halt right there, mitigated hit still landing, nothing popped, while the
-rest of the blade keeps flailing on its own momentum.
+driven grip particle (one of the wielder's own pivot-adjacent nodes) is no
+exception — it is the most rigid case: jammed on the plate, its own edges
+break, and once its last edge to the pivot goes it coasts with the severed
+rest of the blade.
 
 **Stacks with:** Entity-level `armor` stat, exactly as before. `deflection`
 does not stack usefully with itself on one node (presence, not magnitude, is
@@ -70,12 +70,14 @@ cannot simply run over. Owner rulings that shaped the shipped behaviour:
   *"yes: bunkers destroy structure, never matter"* — matter is vertices,
   structure is edges (ADR 0005). This is why the contacting vertex is never
   the thing that breaks.
-- **The grip is a hard stall, not a break.** Owner, 2026-09-07: *"hard stall
-  works and is less punishing than a shatter; remainder of blade parts
-  continue simulating and can flail and whip."* This is what defeats the
-  handle-next-to-bunker exploit the owner named in the same comment
-  (*"picking handle directly next to enemy bunker so driven handle guarantees
-  to clip the bunker"*) — doing so now stalls your own swing immediately.
+- **The grip breaks too.** Owner, 2026-10-01 (#1295), superseding the
+  2026-09-07 grip hard-stall: *"earlier on i decided that these driven nodes
+  are exempt from breaking under this type strain, but actually, fuck that,
+  they should break too"* — its edges, not the vertex. The
+  handle-next-to-bunker exploit (*"picking handle directly next to enemy
+  bunker so driven handle guarantees to clip the bunker"*, #781) stays
+  self-punishing: the grip's edges fail, so the wielder dismembers their own
+  blade at the handle.
 - **No separate pop budget.** Owner, 2026-09-08: *"Plate integrity (or we
   would call it `tegridy` of course) is a great idea but i think we could at
   best hint at it in a comment while we pick option 2. Bunker nodes still
@@ -106,7 +108,7 @@ Implementation: `docs/domain/melee-blade-sim.md`, "Bunker deflection (#781)".
 
 **Stacks with:** Itself, cumulatively and by design. One fortified node is a nuisance; a wall of them stalls a sweep partway. That gradient is the point — **density is the melee analogue of the gaps that counter magic**.
 
-**Notes:** Drag slows the swing's clock, never a vertex's velocity, so it removes nothing: no severance, no cascade, no popped node. A stalled swing simply never sweeps the rest of its arc, which is how a wall **protects what is behind it** — the spatial, gradual, non-deleting counter melee has never had. Angular progress is monotonic: a swing can be slowed to a crawl but can never reverse, and never freezes outright (that hard stall belongs to Bunker). Composes with speed-scaled damage — drag cuts speed, which cuts the damage multiplier — so the two multiply and should be tuned together. Under ADR 0005 this is a **third** defensive effect: a spike destroys matter, a bunker destroys structure, a wall destroys neither and spends the swing's budget instead. Whether it wants a third modifier on top is open. Implementation: `docs/domain/melee-blade-sim.md`, "Fortification drag".
+**Notes:** Drag slows the swing's clock, never a vertex's velocity, so it removes nothing: no severance, no cascade, no popped node. A stalled swing simply never sweeps the rest of its arc, which is how a wall **protects what is behind it** — the spatial, gradual, non-deleting counter melee has never had. Angular progress is monotonic: a swing can be slowed to a crawl but can never reverse, and never freezes outright. Composes with speed-scaled damage — drag cuts speed, which cuts the damage multiplier — so the two multiply and should be tuned together. Under ADR 0005 this is a **third** defensive effect: a spike destroys matter, a bunker destroys structure, a wall destroys neither and spends the swing's budget instead. Whether it wants a third modifier on top is open. Implementation: `docs/domain/melee-blade-sim.md`, "Fortification drag".
 
 ---
 

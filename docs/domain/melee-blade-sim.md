@@ -891,8 +891,8 @@ shear the blade.
 **Monotonic by construction.** `1 / (1 + drag)` is strictly positive for every
 `drag >= 0` and at most 1, and `f` is clamped at 1, so `f` never decreases and
 never overruns. No configuration of fortified nodes can reverse a swing, and
-none can freeze one either — the *hard* stall is #781's bunker. What a wall does
-instead is spend the arc: five nodes at drag 1 leave the swing at a sixth of its
+none can freeze one either — nothing in the solver stalls a swing outright.
+What a wall does instead is spend the arc: five nodes at drag 1 leave the swing at a sixth of its
 nominal rate, so within the fixed swing duration it covers roughly a sixth of its
 sweep and everything further round is simply never reached. That is how a wall
 protects what is behind it — no deletion, no severance, no cascade.
@@ -963,7 +963,7 @@ every mutable accumulator; `BladeSwingClock` owns the banked drag.
 
 **Two zone kinds, asymmetric on purpose.** `deflection` is a BOOL stat (presence
 only); `swing_drag` is a magnitude. A plate is pushed out of, meters strain, arms
-a break and can stall the grip. A wall is **sensed and nothing more** —
+a break. A wall is **sensed and nothing more** —
 `project()` skips it in the pushout and banks its drag on the clock instead.
 A wall never enters the field's `_near` set, which is not a neutral "was sensed"
 set: it gates the strain accumulator, so a wall in it could shatter a blade,
@@ -1155,7 +1155,7 @@ default solver config — `BladeSim.DEFAULT_ITERATIONS` 16 over `DEFAULT_SUBSTEP
 
 At 32 iterations the same five rows read 0.84 / — / — / 37.94 / 71.62: more
 sweeps make a floppy blade resolve the pushout *more* completely (its number
-falls toward 0) and leave a rigid one exactly as stalled, so raising fidelity
+falls toward 0) and leave a rigid one exactly as jammed, so raising fidelity
 **sharpens the separation, never shifts the verdict** — this is what
 `SHATTER_DISTANCE`'s doc comment means by "bounded, not eliminated" (see
 "#790: substepped + length-scaled" above for the fidelity axis itself).
@@ -1192,19 +1192,34 @@ live edge banked against that zone breaks, ties going to the lowest index
 necessarily the edge nearest the contact vertex — whichever edge actually
 carried the load.
 
-### The grip: a hard stall, not a break
+### The grip: the most rigid case, not a special case
 
 A contact on a *driven* particle — a pivot neighbour, per `BladeArcDriver` —
-calls `BladeSwingClock.stall()` instead of accumulating strain: the clock
-freezes (`warp()` returns exactly 0 from then on, still monotonic — `_f` gains
-nothing, never loses it), the grip sits on the plate, nothing pops or breaks,
-and everything outboard keeps simulating on its own momentum. Owner,
-2026-09-07: *"hard stall works and is less punishing than a shatter; remainder
-of blade parts continue simulating and can flail and whip."* This is what
-dissolves the exploit the owner named — *"picking handle directly next to
-enemy bunker so driven handle guarantees to clip the bunker"* — because doing
-so stalls your own swing on the first substep and sweeps almost nothing.
-Self-punishing, no exemption, no third mechanic.
+is metered exactly like any other plate contact: its driver keeps advancing,
+the plate keeps pushing the grip out, the refused advance accumulates as the
+same driver-residual strain, its incident edges bank the same load share, and
+after `SHATTER_DISTANCE` the same `_pick_edge` arms the break. A driver is
+the stiffest thing in the solver, so a grip driven squarely into a plate
+breaks on any blade, floppy or not; a grip that only *grazes* a plate (a
+near-radial contact) is barely refused and does not. Repeated contacts strip
+the grip's edges in load order; once its last edge to the pivot goes,
+`SwingResolve._surviving_drivers` drops its driver and it coasts with the
+severed remainder. Nothing stalls the swing clock — progress advances every
+substep while a driver remains.
+
+Owner, 2026-10-01 (#1295), reversing #781's grip hard-stall: *"earlier on i
+decided that these driven nodes are exempt from breaking under this type
+strain, but actually, fuck that, they should break too"* — and "break" means
+its edges, not the vertex (ADR 0005 stands). The stall had a second, unplanned
+effect: a stalled clock froze the drivers' targets, so the requested advance
+went to 0 and the strain meter skipped every later substep — once a grip
+touched, *nothing* in the blade could break, which is why a clamped chain
+whose vertex 2 met the plate alongside the grip mostly failed to break.
+
+The exploit the stall dissolved — *"picking handle directly next to enemy
+bunker so driven handle guarantees to clip the bunker"* (#781) — stays
+self-punishing: the grip's edges fail, so the wielder dismembers their own
+blade at the handle. No exemption, no third mechanic.
 
 ### Sim state, rewind, and where the sever actually lands
 
@@ -1292,7 +1307,7 @@ and three controls on `addons/melee_sandbox/melee_sandbox_panel.tscn`:
 |---|---|
 | **Bunker paint** | While on, a left-click adds/strips a real `BunkerAddon` on the clicked node instead of selecting it. Paint the plates, then swing at them. |
 | **Rigidity** | `Floppy` / `Braced` — strips or welds a `ClampAddon` onto every node the wielder owns, so one control moves the whole board between the ends of the range without hand-clicking a dozen nodes. |
-| **strain readout** | Worst per-zone strain on the *ghost's* live field against `SHATTER_DISTANCE`, plus `GRIP STALLED` when a driven contact has frozen the swing clock. It reads the live `BladeObstacleField` off `MeleePreview.current_blade().state.obstacles` and the clock off `MeleePreview.last_clock` — never a mirror, so "no plate in reach" reports the structural zero above rather than printing `0.0` as though it had measured something. |
+| **strain readout** | Worst per-zone strain on the *ghost's* live field against `SHATTER_DISTANCE`, It reads the live `BladeObstacleField` off `MeleePreview.current_blade().state.obstacles` — never a mirror, so "no plate in reach" reports the structural zero above rather than printing `0.0` as though it had measured something. |
 
 **Do not tune against AI-built blades** (#771): they sit at the floppy end and
 will never trigger the break, so they report nothing about it.
@@ -1808,14 +1823,14 @@ simulated would diverge from the committed swing exactly when the interesting
 thing happened.
 
 Replaying the resolved trajectory makes them equal by construction — drag,
-stall, severance and all — and costs nothing per cycle, which is a straight
+break, severance and all — and costs nothing per cycle, which is a straight
 improvement on the sim it replaced.
 
 A consequence worth stating: the front-loaded warning that "a clock banks what
 it has touched, so the preview must build a fresh one per cycle" is not broken
 but **dissolved**. There is no per-cycle clock left to bank anything. The
 prediction's own clock and obstacle field, at their end state, are what the
-melee sandbox's stall/strain readout now reads.
+melee sandbox's strain readout now reads.
 
 ### What it shows, and when
 
