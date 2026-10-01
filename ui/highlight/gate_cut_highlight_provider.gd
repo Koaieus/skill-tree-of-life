@@ -30,7 +30,7 @@ var base: HighlightProvider = null:
 
 func get_node_role(node: SkillNode) -> HighlightRole:
 	if node != null and stranded.has(node):
-		return HighlightRole.HOSTILE_TARGET
+		return HighlightRole.FORFEIT
 	return base.get_node_role(node) if base != null else HighlightRole.NONE
 
 

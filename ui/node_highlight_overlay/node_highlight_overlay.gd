@@ -56,6 +56,9 @@ const ROLE_COLORS: Dictionary[HighlightProvider.HighlightRole, Color] = {
 	# Deliberately the hottest red on the board — it is the one role that says
 	# "this costs YOU something", not "this is a thing you may do".
 	HighlightProvider.HighlightRole.PREDICTED_THREAT: Color(1.0, 0.35, 0.15, 0.95),
+	# Deliberately the same red as the aim-point HOSTILE_TARGET — no look
+	# change in this unit (#1285); the roles split meaning, not pixels.
+	HighlightProvider.HighlightRole.FORFEIT:          Color(1.0, 0.2, 0.2, 0.95),
 }
 
 

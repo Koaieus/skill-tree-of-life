@@ -9,7 +9,7 @@ extends HighlightProvider
 ## remainder (if the path was budget-truncated) reads PENDING_REMAINDER —
 ## visible but visually demoted, per the "show what you're leaving on the
 ## table" design. The route itself is chained PATH edges.
-## DEALLOCATE: every node in the cascade reads HOSTILE_TARGET ("this goes
+## DEALLOCATE: every node in the cascade reads FORFEIT ("this goes
 ## away"); no route to draw.
 
 var request: MassActionRequest = null
@@ -25,7 +25,7 @@ func get_node_role(node: SkillNode) -> HighlightRole:
 	if request == null or node == null:
 		return HighlightRole.NONE
 	if request.verb == MassActionRequest.Verb.DEALLOCATE:
-		return HighlightRole.HOSTILE_TARGET if request.nodes.has(node) else HighlightRole.NONE
+		return HighlightRole.FORFEIT if request.nodes.has(node) else HighlightRole.NONE
 	var idx := request.nodes.find(node)
 	if idx <= 0:
 		return HighlightRole.NONE

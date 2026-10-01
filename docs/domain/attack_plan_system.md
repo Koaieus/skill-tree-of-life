@@ -27,10 +27,9 @@ re-deriving anything.
   A plan has no click grammar: what a click means lives in the
   `systems/armed/` levels (`MeleeMode` / `BladeMode`, `RangedMode` /
   `MagicMode` / `TargetMode`) — see `docs/domain/click-grammar.md`.
-- **`HighlightRole`** enum on `AttackPlan` — `NONE`, `ORIGIN`, `MEMBER`,
-  `HOSTILE_TARGET`, `FRIENDLY_TARGET`, `IN_RANGE`, `INVALID`. Semantic,
-  not literal — `ORIGIN` covers melee pivot, magic source, and ranged
-  firing position.
+- **`HighlightRole`** enum — see `ui/highlight/highlight_provider.gd` for
+  the members. Semantic, not literal — `ORIGIN` covers melee pivot, magic
+  source, and ranged firing position.
 - **`Targeting`** (abstract `Resource`) — encapsulates "what counts as a
   valid target." Abstract `is_valid_target(plan, source, candidate)`;
   default `valid_targets()` iterates the live graph and filters via the
