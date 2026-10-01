@@ -27,3 +27,9 @@ extends Resource
 ## Empty is legal and means "this option is the authored preset" — which is how
 ## a ladder offers a no-op entry without special-casing it in the picker.
 @export var patches: Array[ScenarioOverride] = []
+
+
+## What the dropdown shows: the authored [member label], else the description
+## of the resource the first patch writes.
+func display_label() -> String:
+	return label

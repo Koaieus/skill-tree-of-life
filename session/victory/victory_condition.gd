@@ -34,6 +34,13 @@ func evaluate(_ctx: VictoryContext) -> RunOutcome:
 	return null
 
 
+## Override. What a player reads for this condition — the lobby derives its
+## label from it ([method LobbyOption.display_label]), so a number authored on
+## the condition is authored once. Empty means "nothing to say".
+func describe() -> String:
+	return ""
+
+
 ## Fills the shared tail of every outcome, so a subclass only decides the
 ## winner. [param winner] null means nobody won (a mutual wipe → DRAW).
 func _outcome(ctx: VictoryContext, winner: Faction) -> RunOutcome:
