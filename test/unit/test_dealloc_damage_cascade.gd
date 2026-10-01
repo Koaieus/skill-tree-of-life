@@ -220,9 +220,9 @@ func test_death_strips_every_node_core_last_without_wounds_or_chip() -> void:
 			"death cleanup chips nothing")
 
 
-func test_death_cleanup_routes_through_apply_cascade() -> void:
-	# The one driver: apply_cascade re-checks `owner() != self` per node, so a
-	# node already stripped under it is skipped rather than re-stripped.
+func test_a_second_death_sweep_strips_nothing() -> void:
+	# Idempotent: a node already stripped is no longer owned, so a repeat
+	# sweep finds nothing and fires no further `force_deallocated`.
 	var count := [0]
 	var spy := func(_n: SkillNode, _prev: Entity) -> void: count[0] += 1
 	_alloc.force_deallocated.connect(spy)
