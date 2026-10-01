@@ -72,6 +72,20 @@ extends Node2D
 ## may sit on a carrier (enforced by SkillNode at child_entered_tree —
 ## a duplicate is rejected).
 @export var unique: bool = false
+## Whether a player may place this addon on a blade member as a temp upgrade
+## for one swing. Off by default: a map-only addon is never offered and never
+## applied, whatever its costs.
+@export var temp_placeable: bool = false
+## What one swing pays in `blade_size` to carry this addon as a temp, from the
+## same pool blade members spend 1 each from. Read when [member temp_placeable].
+@export_range(1, 8, 1, "or_greater") var temp_cost_blade_size: int = 1
+## Extra per-swing currencies this temp spends, keyed by a `<concept>_aspect`
+## stat (the `aspects` family); each is a pooled budget capped by the
+## attacker's live stat value. Every cost must be > 0.
+@export var temp_cost_aspects: Dictionary[StringName, int] = {}:
+	set(v):
+		temp_cost_aspects = v
+		update_configuration_warnings()
 ## The [TempUpgradeDef] this addon was placed by (#406) — the temp-upgrade
 ## spend rather than loot/procgen/editor authoring — or null for a permanent
 ## addon. Carries the kind's identity (for "already has this one" checks) and
@@ -103,6 +117,8 @@ var _kind_error_reported := false
 ## .claude/rules/rendering-performance.md.
 const BASE_Z := 1
 
+const _BLADE_SIZE := &"blade_size"
+
 
 ## The addon's kind: the scene it was instantiated from. Two scenes sharing
 ## one script are two kinds. Every "same addon?" question compares this.
@@ -113,6 +129,64 @@ func get_kind() -> String:
 		_kind_error_reported = true
 		push_error("Addon %s has no scene_file_path — addons are scenes; instantiate one." % name)
 	return scene_file_path
+
+
+## This addon's swing price as one cost vector: `blade_size` plus every
+## aspect cost. [MeleeAttackPlan] spends each entry against its own pool.
+func get_temp_costs() -> Dictionary[StringName, int]:
+	var out: Dictionary[StringName, int] = {_BLADE_SIZE: temp_cost_blade_size}
+	for id in temp_cost_aspects:
+		out[id] = temp_cost_aspects[id]
+	return out
+
+
+## [method get_temp_costs] of [param scene]'s addon, without a live instance
+## to hand: read once per scene path through [method _scene_record].
+static func temp_costs_of(scene: PackedScene) -> Dictionary[StringName, int]:
+	var costs: Dictionary[StringName, int] = _scene_record(scene).get(&"costs", {})
+	return costs.duplicate()
+
+
+## [member temp_placeable] of [param scene]'s addon, read like
+## [method temp_costs_of].
+static func temp_placeable_of(scene: PackedScene) -> bool:
+	return _scene_record(scene).get(&"placeable", false)
+
+
+## Per-scene facts read off a throwaway instance, cached by scene path: the
+## one cache every "what does this addon scene say" static reads, one field
+## per fact. Instantiated once, read, freed — never left as an orphan.
+static var _scene_records: Dictionary[String, Dictionary] = {}
+
+
+static func _scene_record(scene: PackedScene) -> Dictionary:
+	if scene == null:
+		return {}
+	var key := scene.resource_path
+	if _scene_records.has(key):
+		return _scene_records[key]
+	var addon := scene.instantiate() as SkillNodeAddon
+	if addon == null:
+		return {}
+	var record := {
+		&"costs": addon.get_temp_costs(),
+		&"placeable": addon.temp_placeable,
+	}
+	addon.free()
+	if not key.is_empty():
+		_scene_records[key] = record
+	return record
+
+
+func _get_configuration_warnings() -> PackedStringArray:
+	var out := PackedStringArray()
+	for id in temp_cost_aspects:
+		if temp_cost_aspects[id] <= 0:
+			out.append("Temp cost for %s is %d — an aspect cost must be > 0." \
+					% [id, temp_cost_aspects[id]])
+		if not StatRegistry.ancestors_of(id).has(&"aspects"):
+			out.append("Temp cost key %s is not an `aspects` family stat." % id)
+	return out
 
 
 func _ready() -> void:

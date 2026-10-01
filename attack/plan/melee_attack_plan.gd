@@ -478,6 +478,38 @@ func max_blades() -> int:
 	return int(source.get_local_value(_BLADE_SIZE_ID))
 
 
+
+## The per-swing cap of currency [param id]: `blade_size` is [method max_blades],
+## any other (a `<concept>_aspect`) is the attacker's live stat, floored. A
+## pooled budget — nothing is consumed, the cap is the most one swing carries.
+func currency_cap(id: StringName) -> int:
+	if id == _BLADE_SIZE_ID:
+		return max_blades()
+	if attacker == null or attacker.stat_board == null:
+		return 0
+	return maxi(0, floori(attacker.stat_board.get_value(id)))
+
+
+## What the swing spends of currency [param id]: 1 `blade_size` per member plus
+## every carried temp's cost vector entry for [param id].
+func currency_spent(id: StringName) -> int:
+	var total := blade_nodes.size() if id == _BLADE_SIZE_ID else 0
+	return total + _temp_spent(id)
+
+
+func currency_remaining(id: StringName) -> int:
+	return currency_cap(id) - currency_spent(id)
+
+
+## The carried temps' summed cost of currency [param id].
+func _temp_spent(id: StringName) -> int:
+	var total := 0
+	for node in _temp_upgrade_carriers():
+		for a in node.get_addons():
+			if a.is_temporary:
+				total += a.get_temp_costs().get(id, 0)
+	return total
+
 ## Budget left for blade-member selection AND temp upgrades — one shared
 ## pool, so both callers (get_node_role / _try_select_blade / temp-upgrade
 ## gating) read the same number instead of each recomputing it.
