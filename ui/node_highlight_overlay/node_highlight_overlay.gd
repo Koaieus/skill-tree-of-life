@@ -32,6 +32,12 @@ extends Node2D
 # ring_inner_offset convention.
 @export var range_ring_width: float = 1.5
 @export var range_ring_segments: int = 64
+## Dash periods around a range circle drawn below full fill (ranged: shots
+## left / max shots) — see [method RangeRing.draw_reach].
+@export_range(1, 64, 1) var range_ring_dash_periods: int = 12:
+	set(value):
+		range_ring_dash_periods = value
+		queue_redraw()
 @export var range_ring_alpha_idle: float = 0.10
 @export var range_ring_alpha_active: float = 0.30
 
@@ -144,7 +150,8 @@ func _draw() -> void:
 			var active := role == HighlightProvider.HighlightRole.ORIGIN
 			var alpha := range_ring_alpha_active if active else range_ring_alpha_idle
 			var tint := Color(base.r, base.g, base.b, alpha)
-			draw_arc(center, range_radius, 0.0, TAU, range_ring_segments, tint, range_ring_width)
+			RangeRing.draw_reach(self, center, range_radius, provider.get_node_range_fill(sn),
+					range_ring_dash_periods, tint, range_ring_width, range_ring_segments)
 		if role == HighlightProvider.HighlightRole.NONE or _indicator_scene(role) != null:
 			continue
 		var color: Color = ROLE_COLORS.get(role, Color.WHITE)

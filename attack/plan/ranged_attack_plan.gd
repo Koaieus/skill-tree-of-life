@@ -258,7 +258,9 @@ func get_node_role(node: SkillNode) -> HighlightRole:
 	if node.owned_by == attacker:
 		if get_firing_positions().has(node) and target != null:
 			var d := node.global_position.distance_to(target.global_position)
-			return HighlightRole.ORIGIN if d <= _leaf_range(node) else HighlightRole.NONE
+			# Gold means "will fire": a spent leaf never reads ORIGIN.
+			var fires := d <= _leaf_range(node) and node.shots_left() > 0
+			return HighlightRole.ORIGIN if fires else HighlightRole.NONE
 		return HighlightRole.NONE
 	if node.ownership_bit(attacker) == SkillNode.Ownership.HOSTILE:
 		return HighlightRole.IN_RANGE
@@ -271,6 +273,17 @@ func get_node_range(node: SkillNode) -> float:
 	if get_firing_positions().has(node):
 		return _leaf_range(node)
 	return 0.0
+
+
+## Shots left / max shots: the reach circle dashes down as the leaf fires and
+## vanishes when it is spent. [method get_node_range] stays the honest reach.
+func get_node_range_fill(node: SkillNode) -> float:
+	if node == null:
+		return 1.0
+	var max_shots := int(node.get_local_value(&"max_shots_per_leaf"))
+	if max_shots <= 0:
+		return 0.0
+	return clampf(float(node.shots_left()) / float(max_shots), 0.0, 1.0)
 
 
 func _leaf_range(node: SkillNode) -> float:

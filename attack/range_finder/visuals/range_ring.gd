@@ -27,10 +27,51 @@ extends Node2D
 		queue_redraw()
 
 
-## Lit arcs of a reach circle dashed by [param fill] over [param periods]
-## equal periods: x = start angle, y = end angle (radians).
-static func dash_spans(fill: float, periods: int) -> PackedVector2Array:
-	return PackedVector2Array()
+## Fraction of each dash period drawn lit: 1 = solid, 0 = nothing drawn.
+## Ranged reach circles carry shots left / max shots here.
+@export_range(0.0, 1.0, 0.01) var fill: float = 1.0:
+	set(value):
+		fill = value
+		queue_redraw()
+
+## Equal periods around the circle when [member fill] < 1.
+@export_range(1, 64, 1) var dash_periods: int = 12:
+	set(value):
+		dash_periods = value
+		queue_redraw()
+
+
+## Lit arcs of a reach circle dashed by [param p_fill] over [param periods]
+## equal periods: x = start angle, y = end angle (radians). fill >= 1 is one
+## full span, fill <= 0 is empty; otherwise each period starts TAU/periods
+## after the last and is lit for TAU*fill/periods.
+static func dash_spans(p_fill: float, periods: int) -> PackedVector2Array:
+	var spans := PackedVector2Array()
+	if p_fill >= 1.0:
+		spans.append(Vector2(0.0, TAU))
+		return spans
+	if p_fill <= 0.0 or periods <= 0:
+		return spans
+	var step := TAU / periods
+	var lit := step * p_fill
+	for i in periods:
+		var start := step * i
+		spans.append(Vector2(start, start + lit))
+	return spans
+
+
+## Draws the reach circle on [param canvas], dashed by [param p_fill]: one
+## [method CanvasItem.draw_arc] per lit span, each arc's points scaled from
+## [param p_segments] (a full circle's count) by its angle, minimum 2. The
+## single home of the dash rule — this node's [method _draw] and the
+## highlight overlay both call it.
+static func draw_reach(canvas: CanvasItem, center: Vector2, p_radius: float, p_fill: float,
+		periods: int, p_color: Color, width: float, p_segments: int) -> void:
+	if p_radius <= 0.0:
+		return
+	for span in dash_spans(p_fill, periods):
+		var points := maxi(2, ceili(p_segments * (span.y - span.x) / TAU))
+		canvas.draw_arc(center, p_radius, span.x, span.y, points, p_color, width)
 
 
 func configure(p_position: Vector2, p_radius: float) -> void:
@@ -39,6 +80,4 @@ func configure(p_position: Vector2, p_radius: float) -> void:
 
 
 func _draw() -> void:
-	if radius <= 0.0:
-		return
-	draw_arc(Vector2.ZERO, radius, 0.0, TAU, segments, color, line_width)
+	draw_reach(self, Vector2.ZERO, radius, fill, dash_periods, color, line_width, segments)

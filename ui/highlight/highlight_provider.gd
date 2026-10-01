@@ -55,7 +55,7 @@ func get_node_range(_node: SkillNode) -> float:
 ## in proportion — ranged: shots left / max shots, so a spent leaf draws none.
 ## Default 1.0 = solid. Never shrinks the reach itself.
 func get_node_range_fill(_node: SkillNode) -> float:
-	return 0.0
+	return 1.0
 
 
 ## Optional richer reach description — rings + edges. Returned [code]null[/code]
