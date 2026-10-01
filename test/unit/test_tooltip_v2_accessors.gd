@@ -8,6 +8,7 @@ const _BOARD := preload("res://entity/default_entity_board.tres")
 const _BUNKER_SCENE := preload("res://skill_node/addons/defs/bunker_addon.tscn")
 const _FORTIFICATION_SCENE := preload("res://skill_node/addons/defs/fortification_addon.tscn")
 const _SPIKE_RING_SCENE := preload("res://skill_node/addons/defs/spike_ring_addon.tscn")
+const _BARE_ADDON_SCENE := preload("res://test/fixtures/addons/bare_addon.tscn")
 const _SKILL_DUST_SCENE := preload("res://skill_node/addons/defs/skill_dust_addon.tscn")
 const _CLAMP_SCENE := preload("res://skill_node/addons/defs/clamp_addon.tscn")
 const _ID_CHIP_SCENE := preload("res://ui/tooltip_fan/panels/id_chip_panel.tscn")
@@ -242,7 +243,7 @@ func test_clamp_addon_default_title_and_description() -> void:
 
 
 func test_default_tooltip_modifiers_is_local_plus_entity_modifiers() -> void:
-	var addon := SkillNodeAddon.new()
+	var addon := _BARE_ADDON_SCENE.instantiate() as SkillNodeAddon
 	autofree(addon)
 	var local_mod := StatModifier.new()
 	local_mod.stat_id = &"armor"

@@ -4,16 +4,16 @@ extends Control
 ## Dev nicety: grid of SkillNodes, one per addon kind, labeled. Helps eyeball
 ## addon visuals side-by-side without spinning up a full level.
 ##
-## Add a new addon? Drop its script reference into [member addon_scripts] in
-## the editor. Each entry instantiates a fresh SkillNode + that addon and
-## drops it into the grid. Runs in @tool so the editor previews it too.
+## Add a new addon? Drop its scene into [member addon_scenes] in the editor.
+## Each entry instantiates a fresh SkillNode + that addon scene and drops it
+## into the grid. Runs in @tool so the editor previews it too.
 
 const ADDON_TILE_SCENE: PackedScene = preload("res://scenes/addon_tile.tscn")
 
 ## Addons to display. Order = grid order, left-to-right, top-to-bottom.
-@export var addon_scripts: Array[Script] = [
-	preload("res://skill_node/addons/clamp_addon.gd"),
-	preload("res://skill_node/addons/spike_ring_addon.gd"),
+@export var addon_scenes: Array[PackedScene] = [
+	preload("res://skill_node/addons/defs/clamp_addon.tscn"),
+	preload("res://skill_node/addons/defs/spike_ring_addon.tscn"),
 ]
 
 @export var columns: int = 4:
@@ -36,9 +36,9 @@ func _ready() -> void:
 func _rebuild() -> void:
 	for child in _grid.get_children():
 		child.queue_free()
-	for script in addon_scripts:
-		if script == null:
+	for scene in addon_scenes:
+		if scene == null:
 			continue
 		var tile: AddonTile = ADDON_TILE_SCENE.instantiate()
 		_grid.add_child(tile)
-		tile.configure(script, tile_size, node_radius)
+		tile.configure(scene, tile_size, node_radius)

@@ -5,6 +5,7 @@ extends GutTest
 
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _GRAPH_SCENE := preload("res://graph/graph.tscn")
+const _DUST_SCENE := preload("res://skill_node/addons/defs/skill_dust_addon.tscn")
 const InnerDiskScript = preload("res://skill_node/visuals/inner_disk.gd")
 
 var _graph: Graph
@@ -44,7 +45,7 @@ func test_default_node_carves_its_archetype_shape() -> void:
 
 
 func test_skill_dust_addon_carves_the_loot_gem() -> void:
-	var dust := SkillDustAddon.new()
+	var dust := _DUST_SCENE.instantiate() as SkillDustAddon
 	_node.add_child(dust)
 	await get_tree().process_frame
 	_node._sync_visuals()
@@ -56,7 +57,7 @@ func test_skill_dust_addon_carves_the_loot_gem() -> void:
 ## #369: once the dust is consumed (relic looted), the addon frees and the
 ## LOOT carve must go with it — the gem dent can't linger on a looted node.
 func test_consuming_the_dust_clears_the_loot_gem_carve() -> void:
-	var dust := SkillDustAddon.new()
+	var dust := _DUST_SCENE.instantiate() as SkillDustAddon
 	_node.add_child(dust)
 	await get_tree().process_frame
 	_node._sync_visuals()

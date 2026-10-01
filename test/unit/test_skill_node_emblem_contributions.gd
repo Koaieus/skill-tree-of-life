@@ -7,6 +7,7 @@ extends GutTest
 
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _GRAPH_SCENE := preload("res://graph/graph.tscn")
+const _DUST_SCENE := preload("res://skill_node/addons/defs/skill_dust_addon.tscn")
 @warning_ignore("shadowed_global_identifier")
 const EmblemSpec = preload("res://skill_node/visuals/emblem/emblem_spec.gd")
 @warning_ignore("shadowed_global_identifier")
@@ -70,7 +71,7 @@ func test_authored_spell_def_carve_shape_reaches_the_contribution() -> void:
 
 
 func test_addon_get_emblem_is_aggregated() -> void:
-	var dust := SkillDustAddon.new()
+	var dust := _DUST_SCENE.instantiate() as SkillDustAddon
 	_node.add_child(dust)
 	await get_tree().process_frame
 	var out := _node.get_emblem_contributions()

@@ -7,6 +7,7 @@ extends GutTest
 const _BOARD := preload("res://entity/default_entity_board.tres")
 const _NINJA := preload("res://entity/core/ninja_core.tres")
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
+const _DUST_SCENE := preload("res://skill_node/addons/defs/skill_dust_addon.tscn")
 
 
 func _leaf(id: StringName, op: int, value: float) -> StatModifier:
@@ -180,7 +181,7 @@ func test_looted_composite_applied_flattened_to_board() -> void:
 		_leaf(&"deallocation_points", StatModifier.Operation.ADD_BASE, 2.0),
 		_leaf(&"skill_points", StatModifier.Operation.ADD_BASE, -1.0),
 	]
-	var dust := SkillDustAddon.new()
+	var dust := _DUST_SCENE.instantiate() as SkillDustAddon
 	autofree(dust)
 	dust.grant_mod(collector, bundle)
 

@@ -14,9 +14,9 @@ const LABEL_HEIGHT := 24.0
 @onready var _label: Label = %NameLabel
 
 
-## Build the tile's content for [param addon_script]. [param tile_size] sizes the
+## Build the tile's content for [param addon_scene]. [param tile_size] sizes the
 ## tile; [param node_radius] sizes the previewed SkillNode.
-func configure(addon_script: Script, tile_size: Vector2, node_radius: float) -> void:
+func configure(addon_scene: PackedScene, tile_size: Vector2, node_radius: float) -> void:
 	custom_minimum_size = tile_size
 	_visual_host.custom_minimum_size = Vector2(tile_size.x, tile_size.y - LABEL_HEIGHT)
 	for child in _visual_host.get_children():
@@ -26,14 +26,12 @@ func configure(addon_script: Script, tile_size: Vector2, node_radius: float) -> 
 	# Visual-only — center the gameplay object inside the Control tile.
 	sn.position = _visual_host.custom_minimum_size * 0.5
 	_visual_host.add_child(sn)
-	if addon_script != null:
-		var addon := Node2D.new()
-		addon.set_script(addon_script)
-		sn.add_child(addon)
-	_label.text = _pretty_name(addon_script)
+	if addon_scene != null:
+		sn.add_child(addon_scene.instantiate())
+	_label.text = _pretty_name(addon_scene)
 
 
-func _pretty_name(script: Script) -> String:
-	if script == null:
+func _pretty_name(scene: PackedScene) -> String:
+	if scene == null:
 		return "—"
-	return script.resource_path.get_file().get_basename().capitalize()
+	return scene.resource_path.get_file().get_basename().capitalize()

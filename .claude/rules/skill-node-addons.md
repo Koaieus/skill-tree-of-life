@@ -11,6 +11,8 @@ paths:
 
 Concrete addon scenes live in `skill_node/addons/defs/`; a base or template scene never does.
 
+An addon is a scene: never `.new()` one or `set_script` onto a bare node — tests instantiate a shipped `defs/` scene or a `test/fixtures/addons/` fixture (guarded by `test/unit/skill_node/test_addons_are_scenes.gd`).
+
 ## Attaching an addon is `skill_node.add_child(addon)` — nothing else
 
 There is no anchor node to file into and no `attach_addon()` method to call.
@@ -101,8 +103,7 @@ costs no batching (see `rendering-performance.md`).
 presentation concern, and `SkillNode` has no business writing its children's z.
 
 **In the script, not per-scene.** There is no base addon scene — every concrete
-addon is its own standalone scene carrying its own script, and `addon_tile.gd`
-builds one in code. A scene-level value would have to be repeated in all of them
+addon is its own standalone scene carrying its own script. A scene-level value would have to be repeated in all of them
 and would be missed by the next addon anyone adds. (`skill_node_addon.tscn` used to exist as a one-node
 "template" — a bare `Node2D` + script that nothing inherited. Deleted: a base
 scene earns its keep by packaging internal children every instance needs, and

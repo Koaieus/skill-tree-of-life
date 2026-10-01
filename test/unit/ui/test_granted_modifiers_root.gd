@@ -11,6 +11,7 @@ extends GutTest
 const _ROOT_SCENE := preload("res://ui/tooltip_fan/panels/granted_modifiers_root.tscn")
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _GRAPH_SCENE := preload("res://graph/graph.tscn")
+const _BARE_ADDON_SCENE := preload("res://test/fixtures/addons/bare_addon.tscn")
 
 var _graph: Graph
 var _node: SkillNode
@@ -55,7 +56,7 @@ func test_bind_renders_one_mod_slab_row_per_flattened_leaf() -> void:
 
 
 func test_addon_granted_modifiers_are_included_via_node_modifiers() -> void:
-	var addon := SkillNodeAddon.new()
+	var addon := _BARE_ADDON_SCENE.instantiate() as SkillNodeAddon
 	var granted := _make_modifier(StatModifier.Operation.ADD_BONUS, 5.0, &"armor")
 	addon.entity_modifiers = [granted]
 	_node.add_child(addon)
