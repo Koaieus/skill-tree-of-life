@@ -64,7 +64,7 @@ const _DENIAL_TEXTS := {
 	"extract_denied": "CAN'T EXTRACT",
 	"temp_upgrade_denied_slot_full": "SLOT FULL",
 	"temp_upgrade_denied_budget": "NO BLADE BUDGET",
-	"temp_upgrade_denied_aspect": "ASPECT SPENT",
+	"temp_upgrade_denied_aspect": "NEEDS ASPECT",
 	"spell_denied_no_mana": "GEEN MANA MEER",
 	"spell_denied_no_caster": "GEEN CASTER",
 }
