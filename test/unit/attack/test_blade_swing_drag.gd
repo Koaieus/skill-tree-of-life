@@ -251,7 +251,7 @@ func test_the_warp_factor_falls_as_drag_rises_and_stays_in_zero_one() -> void:
 		clock.drag = amount
 		var w := clock.warp()
 		assert_lt(w, prev, "warp must fall as drag rises (drag=%s)" % amount)
-		assert_gt(w, 0.0, "warp must stay STRICTLY positive — no hard stall here")
+		assert_gt(w, 0.0, "warp must stay STRICTLY positive — nothing freezes a swing")
 		assert_lte(w, 1.0, "warp must never exceed nominal rate")
 		prev = w
 

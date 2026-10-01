@@ -253,7 +253,7 @@ func test_a_bunker_shatter_is_predicted_and_its_defender_is_marked() -> void:
 			"the previewed shatter is the resolved shatter")
 
 
-# ── acceptance 3: the previewed ARC is the resolved arc, stall included ──────
+# ── acceptance 3: the previewed ARC is the resolved arc, drag included ───────
 
 ## The blocker sits on the MID vertex's own orbit — the sole DRIVEN particle,
 ## which is the only one that tracks its nominal radius. A floppy tip curls

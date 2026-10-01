@@ -334,8 +334,7 @@ func test_a_floppy_blade_whose_grip_grazes_a_plate_never_breaks() -> void:
 		for z in b.strain.size():
 			peak = maxf(peak, b.strain[z])
 	gut.p("grip graze peak strain %.2f px (SHATTER_DISTANCE %.1f)" % [peak, BladeObstacleField.SHATTER_DISTANCE])
-	var square := _run(_arm(), 1, BladeSim.DEFAULT_ITERATIONS, _GRIP_TURNS)
-	gut.p("floppy grip square hit: peak %.2f px, broke=%s" % [square.drive_peak, square.broke])
+	assert_gt(peak, 0.0, "the grazing grip must actually have met the plate")
 	assert_false(field._break_edge >= 0, "a grazing grip on a floppy blade must not break")
 
 

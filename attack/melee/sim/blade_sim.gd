@@ -248,7 +248,7 @@ static func simulate_range(
 ## from 0 and would not have been for an offset.
 ##
 ## A `clock` and/or an `obstacles` field routes to `simulate_range_field`
-## instead (#813), with the clock's six mutable fields and the field's eight
+## instead (#813), with the clock's five mutable fields and the field's eight
 ## crossing as plain values and coming back advanced, plus one Bank-shaped
 ## Dictionary per sample for each. That is the alternative to a per-iteration
 ## constraint callback into GDScript, which would fire in the solver's

@@ -422,7 +422,7 @@ func _spawn_blade(plan: MeleeAttackPlan) -> void:
 ## and, since #801, wrong: the authoritative resolve REBAKES from each severance
 ## sample, so a plain sim could not reproduce an arc that loses a vertex partway
 ## through. Replaying [method MeleeAttackPlan.prediction]'s own trajectory makes
-## the ghost arc the resolved arc by construction, drag and stall included, and
+## the ghost arc the resolved arc by construction, drag and breaks included, and
 ## drops the per-cycle sim to nothing.
 ##
 ## The front-loading note that "a clock banks what it has touched, so the loop

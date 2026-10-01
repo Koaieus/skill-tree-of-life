@@ -187,7 +187,7 @@ unique_name_in_owner = true
 modulate = Color(0.725, 0.765, 0.863, 0.7)
 layout_mode = 2
 theme_override_font_sizes/font_size = 10
-tooltip_text = "The ghost's live BladeObstacleField: worst per-zone accumulated unresolved drive, against SHATTER_DISTANCE, plus whether a grip contact has stalled the swing clock. \"no plate in reach\" is the structural zero — no field is allocated at all."
+tooltip_text = "The ghost's live BladeObstacleField: worst per-zone accumulated unresolved drive, against SHATTER_DISTANCE. \"no plate in reach\" is the structural zero — no field is allocated at all."
 text = "strain —"
 
 [node name="TrayHost" type="MarginContainer" parent="VBox/Bar" unique_id=989767586]
