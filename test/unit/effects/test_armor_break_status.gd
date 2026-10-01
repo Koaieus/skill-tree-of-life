@@ -1,13 +1,12 @@
 extends GutTest
 
-## [ArmorBreakStatus] (#877, hub #868): a MULTIPLY on node-local `armor`,
-## value `1.0 - power`, `power` itself the fraction removed. `reapply =
-## ACCUMULATE` makes repeated hits additive on that fraction so five 20% hits
-## reach exactly ×0 armor (never a compounding `(1-0.2)^5`), and
-## a flat `decay` recovers it linearly. Same shape as Blindness (#873) on a
-## different stat — including the shadow-isolation rule: a static modifier is
-## SHARED between a live board and its clone, so a def must replace, never
-## mutate, the found modifier (run knowledge on hub #868, 2026-09-14).
+## [ArmorBreakStatus] (#877, flat since #1308): an additive `armor` modifier of
+## `-power` on the node, `power` a stack count (one stack = -1 armor), uncapped
+## and free to push armor below zero (Mitigation then raises the hit). `reapply
+## = ACCUMULATE` makes repeated hits add stacks and a flat `decay` recovers
+## them. Same shape as Blindness (#873) on a different stat — including the
+## shadow-isolation rule: a static modifier is SHARED between a live board and
+## its clone, so a def must replace, never mutate, the found modifier.
 
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _GRAPH_SCENE := preload("res://graph/graph.tscn")
@@ -43,12 +42,12 @@ func before_each() -> void:
 
 	_alloc.force_allocate(_entity, _nodes[0])
 	_entity.core_location = _nodes[0]
-	_entity.stat_board.get_stat(&"armor").base_value = 200.0
+	_entity.stat_board.get_stat(&"armor").base_value = 5.0
 
 	_def = ArmorBreakStatus.new()
 	_def.id = &"armor_break"
-	_def.power_max = 1.0
-	_def.decay = FlatDecay.new(0.25)
+	_def.power_max = 0.0
+	_def.decay = FlatDecay.new(1.0)
 	_def.reapply = StatusDef.Reapply.ACCUMULATE
 
 
@@ -70,7 +69,7 @@ func _armor_modifiers() -> Array[StatModifier]:
 	var s: Stat = _nodes[0].node_board.get_stat(&"armor") if _nodes[0].node_board != null else null
 	if s == null:
 		return out
-	for m in s.bins.multipliers:
+	for m in s._modifiers:
 		if m is ArmorBreakStatus.ArmorBreakModifier:
 			out.append(m)
 	return out
@@ -78,31 +77,23 @@ func _armor_modifiers() -> Array[StatModifier]:
 
 # ── Numbers ──────────────────────────────────────────────────────────────────
 
-func test_five_hits_of_0_2_break_armor_to_zero_then_caps() -> void:
-	assert_almost_eq(_armor(), 200.0, 0.001, "baseline: no break yet")
-	for _i in 5:
-		_combat().apply_status(_def, 0.2)
-	assert_almost_eq(_armor(), 0.0, 0.001, "5 x 20% removes all armor")
-	_combat().apply_status(_def, 0.2)  # a 6th hit
-	assert_almost_eq(_armor(), 0.0, 0.001, "capped at power_max, armor stays 0")
-	assert_almost_eq(_combat().get_status_power(&"armor_break"), 1.0, 0.001,
-			"power capped at power_max, never overshoots")
+func test_three_stacks_on_armor_five_leave_two() -> void:
+	assert_almost_eq(_armor(), 5.0, 0.001, "baseline: no break yet")
+	_combat().apply_status(_def, 3.0)
+	assert_almost_eq(_armor(), 2.0, 0.001, "-1 armor per stack")
+	assert_eq(_armor_modifiers().size(), 1)
 
 
-func test_accumulate_is_additive_on_the_fraction_not_compounding() -> void:
-	# The issue's own arithmetic: two 20% hits leave 60% armor (200*0.6=120),
-	# never (1-0.2)^2 = 64% (128) — ACCUMULATE adds fractions, it never
-	# multiplies remaining multipliers together.
-	_combat().apply_status(_def, 0.2)
-	_combat().apply_status(_def, 0.2)
-	assert_almost_eq(_armor(), 120.0, 0.001, "additive 40% removed, not compounded")
+func test_accumulate_adds_stacks_uncapped_and_armor_goes_negative() -> void:
+	for _i in 10:
+		_combat().apply_status(_def, 1.0)
+	assert_almost_eq(_armor(), -5.0, 0.001, "10 stacks on armor 5 -> -5, no floor at zero")
+	assert_almost_eq(_combat().get_status_power(&"armor_break"), 10.0, 0.001, "uncapped")
 
 
-func test_recovery_over_four_ticks_restores_armor_and_strips_the_modifier() -> void:
-	for _i in 5:
-		_combat().apply_status(_def, 0.2)
-	assert_almost_eq(_armor(), 0.0, 0.001)
-	var expected: Array[float] = [50.0, 100.0, 150.0, 200.0]
+func test_recovery_one_stack_per_tick_restores_armor_and_strips_the_modifier() -> void:
+	_combat().apply_status(_def, 3.0)
+	var expected: Array[float] = [3.0, 4.0, 5.0]
 	for step in expected.size():
 		_combat().tick_statuses()
 		assert_almost_eq(_armor(), expected[step], 0.001, "tick %d" % (step + 1))
@@ -111,32 +102,29 @@ func test_recovery_over_four_ticks_restores_armor_and_strips_the_modifier() -> v
 			"status gone after full recovery")
 
 
-func test_physical_damage_mitigates_less_as_armor_breaks() -> void:
-	var raw := DamageInstance.new()
-	raw.amount = 50.0
-	raw.type = DamageInstance.Type.PHYSICAL
-	var floor_min := float(_nodes[0].get_local_value(&"min_damage_taken"))
-	assert_almost_eq(Mitigation.apply(raw, _nodes[0]), floor_min, 0.001,
-			"full armor floors the hit at the board's min_damage_taken")
-	for _i in 5:
-		_combat().apply_status(_def, 0.2)
-	assert_almost_eq(_armor(), 0.0, 0.001)
-	assert_almost_eq(Mitigation.apply(raw, _nodes[0]), 50.0, 0.001,
-			"no armor left: the full raw hit lands")
-
-
-func test_power_max_above_one_is_rejected() -> void:
-	_def.power_max = 1.5
-	_combat().apply_status(_def, 0.2)
-	assert_push_error("ArmorBreakStatus: power_max must be <= 1.0")
-	assert_almost_eq(_armor(), 200.0, 0.001, "rejected def: no armor multiplier is planted")
+func test_removing_the_status_restores_armor() -> void:
+	_combat().apply_status(_def, 3.0)
+	_combat().remove_status(&"armor_break")
+	assert_almost_eq(_armor(), 5.0, 0.001)
 	assert_eq(_armor_modifiers().size(), 0)
+
+
+func test_negative_armor_raises_a_raw_one_hit_above_the_floor() -> void:
+	_entity.stat_board.get_stat(&"armor").base_value = 0.0
+	_entity.stat_board.get_stat(&"min_damage_taken").base_value = 3.0
+	var raw := DamageInstance.new()
+	raw.amount = 1.0
+	raw.type = DamageInstance.Type.PHYSICAL
+	assert_almost_eq(Mitigation.apply(raw, _nodes[0]), 3.0, 0.001, "unbroken: floored at min_damage_taken")
+	_combat().apply_status(_def, 10.0)
+	assert_almost_eq(_armor(), -10.0, 0.001)
+	assert_almost_eq(Mitigation.apply(raw, _nodes[0]), 11.0, 0.001, "raw 1 - (-10) = 11")
 
 
 # ── Shadow isolation (run knowledge from hub #868, same rule as Blindness) ───
 
 func test_shadow_apply_never_writes_the_live_modifier() -> void:
-	_combat().apply_status(_def, 0.2)
+	_combat().apply_status(_def, 1.0)
 	var live_mods := _armor_modifiers()
 	assert_eq(live_mods.size(), 1)
 	if live_mods.is_empty():
@@ -146,13 +134,13 @@ func test_shadow_apply_never_writes_the_live_modifier() -> void:
 	var shadow_world := _entity.get_combat().snapshot()
 	_shadows.append(shadow_world)
 	var shadow := shadow_world.shadow_for(_nodes[0])
-	shadow.apply_status(_def, 1.0)
+	shadow.apply_status(_def, 5.0)
 
-	assert_almost_eq(float(shadow.get_local_value(&"armor")), 0.0, 0.01,
-			"the shadow reads the fully-broken value")
+	assert_almost_eq(float(shadow.get_local_value(&"armor")), -1.0, 0.01,
+			"the shadow reads its own 6-stack value (1 live + 5)")
 	assert_almost_eq(live_mods[0].value, live_value, 0.001,
 			"the live modifier instance is untouched by the shadow resolve")
-	assert_almost_eq(_armor(), 160.0, 0.01, "live world unchanged (still one 20% hit)")
+	assert_almost_eq(_armor(), 4.0, 0.01, "live world unchanged (still one stack)")
 
 
 # ── Authored content loads and is wired (values are the owner's knobs) ──────
@@ -164,7 +152,7 @@ func test_authored_armor_break_and_sunder_load_and_are_in_the_debug_book() -> vo
 		return
 	assert_eq(a_break.id, &"armor_break")
 	assert_true(&"debuff" in a_break.tags, "tagged as a debuff")
-	assert_lte(a_break.power_max, 1.0, "power_max stays a legal fraction (<=1.0)")
+	assert_eq(a_break.power_max, 0.0, "uncapped (#962)")
 
 	var sunder := load("res://attack/spell/defs/sunder.tres") as SpellDef
 	assert_not_null(sunder, "sunder.tres is a SpellDef")

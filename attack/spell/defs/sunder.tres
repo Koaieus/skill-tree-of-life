@@ -21,7 +21,7 @@ script = ExtResource("3_dmg")
 [sub_resource type="Resource" id="break_sunder"]
 script = ExtResource("3_status")
 def = ExtResource("3_armor_break")
-power = 0.2
+power = 2.0
 
 [sub_resource type="Resource" id="filter_enemy"]
 script = ExtResource("5_filter")
@@ -41,8 +41,8 @@ range_finder = SubResource("range_3hop")
 script = ExtResource("1_spell")
 id = &"sunder"
 name = "Sunder"
-tagline = "A little damage that chips 20% of one enemy node's armor away."
-description = "Deal a little damage to a single enemy-occupied node within 3 hops and break its armor by 20% (stacks toward ×0, recovers over 4 turns)."
+tagline = "A little damage that chips 2 armor off one enemy node."
+description = "Deal a little damage to a single enemy-occupied node within 3 hops and break its armor by 2 (stacks, uncapped, stacks fade by a quarter each turn)."
 icon = ExtResource("1_icon")
 mana_cost = 1
 power = 0.4

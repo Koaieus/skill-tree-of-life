@@ -119,16 +119,16 @@ func test_entity_blindness_halves_every_nodes_combined_vision_range() -> void:
 
 # ── ArmorBreak ──────────────────────────────────────────────────────────────
 
-func test_entity_armor_break_multiplies_every_nodes_armor() -> void:
+func test_entity_armor_break_subtracts_flat_armor_from_every_node() -> void:
 	var def := ArmorBreakStatus.new()
 	def.id = &"armor_break"
-	def.power_max = 1.0
+	def.power_max = 0.0
 	def.decay = FractionDecay.new(0.5)
 	_entity.stat_board.get_stat(&"armor").base_value = 8.0
 	assert_almost_eq(float(_n1.get_local_value(&"armor")), 8.0, 0.001)
-	_combat().apply_status(def, 0.5)
-	assert_almost_eq(float(_n0.get_local_value(&"armor")), 4.0, 0.001, "core armor × (1 − 0.5)")
-	assert_almost_eq(float(_n1.get_local_value(&"armor")), 4.0, 0.001, "non-core armor × (1 − 0.5)")
+	_combat().apply_status(def, 3.0)
+	assert_almost_eq(float(_n0.get_local_value(&"armor")), 5.0, 0.001, "core armor - 3 stacks")
+	assert_almost_eq(float(_n1.get_local_value(&"armor")), 5.0, 0.001, "non-core armor - 3 stacks")
 	var live := _entity_mods(&"armor", ArmorBreakStatus.ArmorBreakModifier)
 	assert_eq(live.size(), 1)
 	if live.is_empty():
@@ -136,10 +136,10 @@ func test_entity_armor_break_multiplies_every_nodes_armor() -> void:
 	var live_value: float = live[0].value
 
 	var shadow := _shadow()
-	shadow.apply_status(def, 1.0)
-	assert_almost_eq(float(shadow.get_local_value(&"armor")), 0.0, 0.001, "the shadow reads its own full break")
+	shadow.apply_status(def, 8.0)
+	assert_almost_eq(float(shadow.get_local_value(&"armor")), 0.0, 0.001, "the shadow reads its own 8-stack break")
 	assert_almost_eq(live[0].value, live_value, 0.001, "the live modifier instance is untouched")
-	assert_almost_eq(float(_n1.get_local_value(&"armor")), 4.0, 0.001, "live world unchanged")
+	assert_almost_eq(float(_n1.get_local_value(&"armor")), 5.0, 0.001, "live world unchanged")
 
 
 # ── Curse ───────────────────────────────────────────────────────────────────

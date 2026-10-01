@@ -10,7 +10,7 @@ const _DIR := "res://effects/status/"
 ## Each authored family's tooltip text, pinned before the slot replaced the
 ## two decay exports.
 const _DESCRIPTIONS := {
-	&"armor_break": "The node's armor is chipped away, recovering over 4 turns.",
+	&"armor_break": "The node's armor is chipped away: -1 per stack, and stacks fade by a quarter each turn.",
 	&"blindness": "The node sees and senses less; the deeper the blindness, the slower its recovery starts.",
 	&"corruption": "Every stack eats 2% of the node's max health each turn, unmitigated; a fifth of the stacks fade each turn and they never cap.",
 	&"curse": "Every stack raises the least damage a hit can deal to this node by 1; stacks fall by 1 each turn and never cap.",

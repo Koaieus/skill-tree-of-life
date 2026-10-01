@@ -1,11 +1,10 @@
 class_name ArmorBreakStatus
 extends StatusDef
 
-## Armor Break (#877, hub #868 D3/D8 shape): each hit chips a tunable
-## FRACTION of node-local `armor` away. `power` IS the fraction removed —
-## `reapply = ACCUMULATE` in the authored def makes repeated hits additive on
-## that fraction (two 20% hits leave 60% armor, never (1-0.2)^2 = 64%), so a
-## fully broken node (`power == power_max == 1.0`) reaches exactly ×0 armor.
+## Armor Break (#877, flat since #1308): `power` is a STACK COUNT and one stack
+## is -1 node-local `armor`, uncapped — armor may go below zero, which
+## [Mitigation] turns into extra damage before the `min_damage_taken` floor.
+## `reapply = ACCUMULATE` in the authored def makes repeated hits add stacks.
 ## Recovery is its flat [member StatusDef.decay] per turn, same shape as everything else here.
 ##
 ## The def is shared and stateless (same rationale as [BlindnessStatus]): the
@@ -17,14 +16,10 @@ extends StatusDef
 ## replays (`.claude/rules/attack-timeline.md`). Remove + add lands on
 ## whichever board the [NodeCombat] owns and leaves the other alone.
 ##
-## `power_max` above `1.0` is nonsense authoring — a multiplier past ×0 would
-## mean armor BELOW zero, i.e. bonus damage taken. The owner's call
-## (2026-09-14): guard the def, not the formula — a defensive `max(0, …)`
-## would hide a misauthored def silently. So `_on_applied`/`_on_tick` push an
-## error and refuse to plant/update the modifier while `power_max > 1.0`;
-## the def is a no-op rather than a lie.
+## Like [CurseStatus], an additive handle has no public bin to walk, so
+## [method _find] reads the stat's applied list directly.
 
-## Own type so a found modifier can be told apart from any other MULTIPLY on
+## Own type so a found modifier can be told apart from any other ADD_BASE on
 ## `armor`, and UNSCALED so a broken node's armor loss is not laddered by
 ## allocation depth (#376 — same rationale as Blindness's BlindModifier).
 class ArmorBreakModifier:
@@ -35,8 +30,6 @@ class ArmorBreakModifier:
 
 
 func _on_applied(host, power: float) -> void:
-	if not _power_max_is_sane():
-		return
 	_set_break(host, power)
 
 
@@ -44,8 +37,6 @@ func _on_applied(host, power: float) -> void:
 ## hold. At `after == 0` the slice removes the status right after this, and
 ## [method _on_removed] strips the modifier.
 func _on_tick(host, _before: float, after: float) -> void:
-	if not _power_max_is_sane():
-		return
 	_set_break(host, after)
 
 
@@ -55,27 +46,16 @@ func _on_removed(host) -> void:
 		host.remove_local_modifier(m)
 
 
-## `false` (and a pushed error) iff this def is misauthored with
-## `power_max > 1.0` — a multiplier on `armor` above ×0 would mean bonus
-## damage taken, never intended by "chip armor away".
-func _power_max_is_sane() -> bool:
-	if power_max > 1.0:
-		push_error(
-			"ArmorBreakStatus: power_max must be <= 1.0 (got %s) — a multiplier above ×0 armor is nonsense authoring"
-			% power_max
-		)
-		return false
-	return true
-
-
 func _set_break(host, power: float) -> void:
 	var old := _find(host)
 	if old != null:
 		host.remove_local_modifier(old)
+	if power <= 0.0:
+		return
 	var m := ArmorBreakModifier.new()
 	m.stat_id = &"armor"
-	m.operation = StatModifier.Operation.MULTIPLY
-	m.value = 1.0 - clampf(power, 0.0, 1.0)
+	m.operation = StatModifier.Operation.ADD_BASE
+	m.value = -power
 	host.add_local_modifier(m)
 
 
@@ -87,7 +67,7 @@ func _find(host) -> StatModifier:
 	var s: Stat = b.get_stat(&"armor")
 	if s == null:
 		return null
-	for m in s.bins.multipliers:
+	for m in s._modifiers:
 		if m is ArmorBreakModifier:
 			return m
 	return null
