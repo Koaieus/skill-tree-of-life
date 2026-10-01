@@ -236,9 +236,10 @@ func test_a_turn_end_with_no_death_triggers_an_evaluation_once() -> void:
 	_spawn("Npc", _NPC)
 
 	turns.turn_ended.emit(null)
+	assert_eq(_outcomes.size(), 1, "a played-out turn's end is judged on the spot")
 	turns.turn_ended.emit(null)
 	await get_tree().process_frame
 	turns.turn_ended.emit(null)
 	await get_tree().process_frame
 
-	assert_eq(_outcomes.size(), 1, "a turn end evaluates, and the latch announces once")
+	assert_eq(_outcomes.size(), 1, "and the latch announces once")

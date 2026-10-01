@@ -331,8 +331,8 @@ func end_turn() -> void:
 	_current_entity = null
 	entity.resolve_turn_end()
 	entity.finish_turn()
-	turn_ended.emit(entity)
 	_note_turn_over(entity)
+	turn_ended.emit(entity)
 	forecast_changed.emit()
 	_tick_until_ready(entity)
 
@@ -377,12 +377,14 @@ func abandon_turn(entity: Entity) -> void:
 		return
 	_current_entity = null
 	entity.finish_turn()
-	turn_ended.emit(entity)
 	_note_turn_over(entity)
+	turn_ended.emit(entity)
 	forecast_changed.emit()
 
 
-## Round bookkeeping at a turn-end site: [param entity]'s turn is over, so it
+## Round bookkeeping at a turn-end site, run BEFORE [signal turn_ended] so a
+## listener judging the clock ([VictorySystem]) reads the round this turn
+## closed. [param entity]'s turn is over, so it
 ## leaves the waiting roster; corpses are pruned as a backstop to
 ## [method _on_entity_died_rebind]. The round closes when nobody living still
 ## waits — which also closes it at the end of the turn in which its last

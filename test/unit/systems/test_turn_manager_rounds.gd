@@ -45,10 +45,16 @@ func _build(speeds: Array) -> void:
 	add_child(_tm)
 	for i in speeds.size():
 		_spawn("E%d" % i, speeds[i])
-	_tm.turn_ended.connect(func(e: Entity) -> void: _since.append(e))
-	_tm.round_completed.connect(func(_r: int) -> void:
-		_rounds_log.append(_since.duplicate())
-		_since.clear())
+	# `round_completed` fires just before the closing turn's `turn_ended`, so
+	# the snapshot is taken once that ender has been appended.
+	var closing := [false]
+	_tm.round_completed.connect(func(_r: int) -> void: closing[0] = true)
+	_tm.turn_ended.connect(func(e: Entity) -> void:
+		_since.append(e)
+		if closing[0]:
+			closing[0] = false
+			_rounds_log.append(_since.duplicate())
+			_since.clear())
 
 
 ## What GameRoot's turn-loop pull does for a corpse: a bare fixture has nothing

@@ -151,9 +151,15 @@ rung 4's autoplay host picks it so every `mp:e2e` run is short.
   `EndTurnCommand` reaches on every peer at the same point; the resync
   (`EntitySnapshot`'s turn cursor → `TurnManager.adopt_turn`) carries
   `rounds_completed` and the open roster with `turns_taken`, adopted outright.
-- **Trigger:** `VictorySystem` also evaluates (deferred, latched) on
-  `TurnManager.turn_ended` — a clock condition has no death to wake it. The
-  condition reads `VictoryContext.rounds_completed`, never `TurnManager`.
+- **Trigger:** `VictorySystem` also evaluates on `TurnManager.turn_ended` — a
+  clock condition has no death to wake it. A played-out turn is judged **on the
+  spot**, not deferred: `end_turn` hands the clock on synchronously and the
+  host's AI may act in the same frame, so a deferred read saw a later turn on
+  the host than on the mirror (rung 4: host 32, client 31). A turn ended by
+  death (`abandon_turn`, mid-cascade) stays deferred like the death trigger.
+  The round bookkeeping runs just before `turn_ended`, so the judgement reads
+  the round that turn closed. The condition reads
+  `VictoryContext.rounds_completed`, never `TurnManager`.
 
 ## One definition of "the run ended"
 

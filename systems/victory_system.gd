@@ -88,10 +88,26 @@ func _on_entity_death_shown(_entity: Entity) -> void:
 
 ## The clock trigger (#1257): a condition that fires off elapsed rounds or
 ## turns ([TurnLimitCondition]) has no death to wake it.
-func _on_turn_ended(_entity: Entity) -> void:
+##
+## [b]A played-out turn is judged on the spot, not deferred.[/b]
+## [method TurnManager.end_turn] hands the clock on synchronously after this
+## signal, and the next actor (an AI) may act inside the same frame — on the
+## authority only, since a mirror waits for its commands. A deferred judgement
+## would then read a later turn count and world on the host than on a mirror
+## (rung 4 measured host 32 / client 31). Judged here, every peer reads the
+## world at the same point of the command stream: the turn that closed.
+##
+## [b]A turn ended by death stays deferred[/b] — that is
+## [method TurnManager.abandon_turn] inside the `entity_died` phase, where a
+## synchronous read could see half of a mutual wipe (the DRAW the death
+## trigger's coalescing exists for).
+func _on_turn_ended(entity: Entity) -> void:
 	if outcome != null:
 		return
-	_evaluate_deferred.request()
+	if entity != null and is_instance_valid(entity) and entity.is_dead:
+		_evaluate_deferred.request()
+		return
+	_evaluate()
 
 
 ## Build a snapshot and ask the condition. Public so a test (or a future
