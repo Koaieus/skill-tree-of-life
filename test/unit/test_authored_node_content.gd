@@ -9,8 +9,8 @@ extends GutTest
 
 const _BOARD := preload("res://entity/default_entity_board.tres")
 const _NODE_SCENE := preload("res://skill_node/skill_node.tscn")
-const _FARSIGHT := preload("res://entity/keystone/instances/farsight_node.tscn")
-const _WARD := preload("res://entity/keystone/instances/mythic_ward_node.tscn")
+const _FARSIGHT := preload("res://skill_node/keystone/instances/farsight_node.tscn")
+const _WARD := preload("res://skill_node/keystone/instances/mythic_ward_node.tscn")
 const _BUNKER := preload("res://skill_node/addons/defs/bunker_addon.tscn")
 const _FORTIFICATION := preload("res://skill_node/addons/defs/fortification_addon.tscn")
 

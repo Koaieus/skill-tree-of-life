@@ -285,7 +285,7 @@ than preserved.
 ## Rare content → hand-authored landmarks (D8)
 
 `rare.tres` is deleted. Its four headline rolls are now pre-authored
-`SkillNode` scenes under `entity/keystone/instances/` — each an inherited
+`SkillNode` scenes under `skill_node/keystone/instances/` — each an inherited
 `keystone_skill_node.tscn` carrying a `StatEffect` SubResource on
 `SkillNode.effects` that bakes the granted `StatModifier` (#929):
 

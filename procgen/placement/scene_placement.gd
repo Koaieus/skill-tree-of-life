@@ -4,7 +4,7 @@ extends GuaranteedPlacement
 
 ## Places [member min_count]..[member max_count] copies of a hand-authored
 ## [SkillNode] scene (a keystone — an inherited scene of
-## `entity/keystone/keystone_skill_node.tscn`) on generated positions, drawn
+## `skill_node/keystone/keystone_skill_node.tscn`) on generated positions, drawn
 ## without replacement and weighted by [member weight]. The placement writes
 ## the scene into [member PlacementContext.scenes]; the per-node loop then
 ## instantiates THAT scene as node `i` instead of the plain skill node, and

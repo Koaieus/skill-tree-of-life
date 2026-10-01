@@ -4,17 +4,17 @@ extends GutTest
 ## the .tscn). A pure stat bundle is not an effect: wrapped in a StatEffect it
 ## left the node's own modifiers empty, and the tooltip read an empty aura and
 ## "(no modifiers)".
-const _WARD    := preload("res://entity/keystone/instances/mythic_ward_node.tscn")
-const _FARSIGHT:= preload("res://entity/keystone/instances/farsight_node.tscn")
-const _TITAN   := preload("res://entity/keystone/instances/titan_node.tscn")
-const _ARCHMAGE:= preload("res://entity/keystone/instances/archmage_node.tscn")
-const _NATURAL_XP := preload("res://entity/keystone/instances/natural_xp_node.tscn")
-const _AP_KEYSTONE := preload("res://entity/keystone/instances/ap_keystone_node.tscn")
-const _WISDOM_KEYSTONE := preload("res://entity/keystone/instances/wisdom_keystone_node.tscn")
-const _INVERSION := preload("res://entity/keystone/instances/inversion_node.tscn")
-const _BASE := preload("res://entity/keystone/keystone_skill_node.tscn")
+const _WARD    := preload("res://skill_node/keystone/instances/mythic_ward_node.tscn")
+const _FARSIGHT:= preload("res://skill_node/keystone/instances/farsight_node.tscn")
+const _TITAN   := preload("res://skill_node/keystone/instances/titan_node.tscn")
+const _ARCHMAGE:= preload("res://skill_node/keystone/instances/archmage_node.tscn")
+const _NATURAL_XP := preload("res://skill_node/keystone/instances/natural_xp_node.tscn")
+const _AP_KEYSTONE := preload("res://skill_node/keystone/instances/ap_keystone_node.tscn")
+const _WISDOM_KEYSTONE := preload("res://skill_node/keystone/instances/wisdom_keystone_node.tscn")
+const _INVERSION := preload("res://skill_node/keystone/instances/inversion_node.tscn")
+const _BASE := preload("res://skill_node/keystone/keystone_skill_node.tscn")
 
-const _BASE_PATH := "res://entity/keystone/keystone_skill_node.tscn"
+const _BASE_PATH := "res://skill_node/keystone/keystone_skill_node.tscn"
 const _SKILL_NODE_PATH := "res://skill_node/skill_node.tscn"
 func _check(scene: PackedScene, stat_id: StringName, op: int, value: float, label: String, index: int = 0) -> void:
 	var n: SkillNode = autofree(scene.instantiate()) as SkillNode
@@ -203,13 +203,13 @@ func test_base_and_landmarks_share_the_authored_radius() -> void:
 		assert_eq(n.base_inner_radius, 32.0, "%s: base_inner_radius" % label)
 
 
-## The family rule: every scene under entity/keystone/ inherits the base —
+## The family rule: every scene under skill_node/keystone/ inherits the base —
 ## none instances skill_node.tscn directly. A sixth keystone authored off the
 ## wrong base is the original defect returning, so this walks the actual
 ## files on disk rather than the preloaded consts above.
 func test_keystone_family_scenes_all_inherit_the_base() -> void:
 	var offenders: PackedStringArray = []
-	for path in _find_tscn_files("res://entity/keystone"):
+	for path in _find_tscn_files("res://skill_node/keystone"):
 		if path == _BASE_PATH:
 			continue
 		var text := FileAccess.get_file_as_string(path)
@@ -218,7 +218,7 @@ func test_keystone_family_scenes_all_inherit_the_base() -> void:
 		if not references_base or references_skill_node:
 			offenders.append(path)
 	assert_eq(offenders, PackedStringArray(),
-		"every entity/keystone/ scene must ext_resource the keystone base, never skill_node.tscn directly")
+		"every skill_node/keystone/ scene must ext_resource the keystone base, never skill_node.tscn directly")
 
 
 ## #179: each landmark authors its own display_name directly on the node —

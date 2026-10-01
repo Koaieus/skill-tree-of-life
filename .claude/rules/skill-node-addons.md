@@ -3,7 +3,7 @@ description: How SkillNodeAddons attach to a carrier — direct-child contract, 
 paths:
   - "skill_node/**"
   - "procgen/graph_procgen.gd"
-  - "entity/keystone/**"
+  - "skill_node/keystone/**"
   - "systems/loot_system.gd"
 ---
 

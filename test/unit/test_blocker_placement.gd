@@ -7,7 +7,7 @@ extends GutTest
 ## placements never land on a starter core or a landmark (authored-scene) node, that no node is
 ## picked twice, and that placements are seed-deterministic.
 
-const _LANDMARK := preload("res://entity/keystone/instances/farsight_node.tscn")
+const _LANDMARK := preload("res://skill_node/keystone/instances/farsight_node.tscn")
 
 
 func _build_config(node_count: int, rng_seed: int) -> GraphProcgenConfig:

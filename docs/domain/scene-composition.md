@@ -30,9 +30,9 @@ there is no base scene to make; put the shared default in the script.
 **Or** it earns its keep by carrying shared defaults that every concrete
 inherits — no extra sub-nodes needed, just exported values every family member
 should start from. The guard is the same either way: **nothing in the family
-bypasses it.** `entity/keystone/keystone_skill_node.tscn` is this shape (#927):
+bypasses it.** `skill_node/keystone/keystone_skill_node.tscn` is this shape (#927):
 it authors `base_radius = 40.0` / `base_inner_radius = 32.0` on top of
-`skill_node.tscn`'s own defaults, and every scene under `entity/keystone/`
+`skill_node.tscn`'s own defaults, and every scene under `skill_node/keystone/`
 inherits it rather than `skill_node.tscn` directly — a sixth keystone authored
 off the wrong base is the defect returning, so it's pinned by a test that
 scans the actual files on disk (`test/unit/test_keystone_landmarks.gd`), not

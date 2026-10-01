@@ -88,7 +88,7 @@ func test_generate_stamps_ramped_radius_and_constant_ring() -> void:
 	var cfg := _build_config(60, 7831)
 	# One authored landmark scene with its own radius (the keystone base's
 	# 40/32): an authored scene bypasses the ramp (#330), so its radius stands.
-	const LANDMARK_PATH := "res://entity/keystone/keystone_skill_node.tscn"
+	const LANDMARK_PATH := "res://skill_node/keystone/keystone_skill_node.tscn"
 	var kp := ScenePlacement.new()
 	kp.node_scene = load(LANDMARK_PATH)
 	kp.exclude_starters = false

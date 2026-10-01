@@ -179,7 +179,7 @@ func test_round_trip_preserves_per_node_radius() -> void:
 ## 0013), so a client must RE-INSTANTIATE that scene on the create path or
 ## it draws a plain skill_node with the reconciled tier only.
 func test_round_trip_reinstantiates_an_authored_scene_node() -> void:
-	const TITAN_PATH := "res://entity/keystone/instances/titan_node.tscn"
+	const TITAN_PATH := "res://skill_node/keystone/instances/titan_node.tscn"
 	var source := await _procgen_graph(12, 330)
 	var titan: SkillNode = load(TITAN_PATH).instantiate()
 	titan.position = Vector2(9000.0, 9000.0)

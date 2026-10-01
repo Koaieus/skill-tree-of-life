@@ -4,7 +4,7 @@ extends GutTest
 ## [member PlacementContext.scenes] at min..max weighted positions, and
 ## [GraphProcgen] instantiates that scene as node `i`, pure.
 
-const _BASE := preload("res://entity/keystone/keystone_skill_node.tscn")
+const _BASE := preload("res://skill_node/keystone/keystone_skill_node.tscn")
 
 
 class _StepField extends ScalarField:

@@ -145,7 +145,7 @@ effect). Only a runtime `Entity.grant_effect` from a source with no carrier
 of its own has nowhere else to put one.
 
 A landmark ("keystone") is a hand-authored inherited scene of
-`entity/keystone/keystone_skill_node.tscn` whose stat payload is plain
+`skill_node/keystone/keystone_skill_node.tscn` whose stat payload is plain
 `SkillNode.modifiers` SubResources of the `.tscn` (#336; supersedes #929's
 placement on `SkillNode.effects`). Owner call, 2026-09-24: a pure stat bundle
 belongs in the node's `modifiers` array, not wrapped in a `StatEffect` — wrapped,
