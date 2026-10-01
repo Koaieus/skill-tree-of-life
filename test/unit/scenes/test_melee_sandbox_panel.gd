@@ -14,6 +14,11 @@ const _PANEL := preload("res://addons/melee_sandbox/melee_sandbox_panel.tscn")
 var _panel: PanelContainer
 
 
+## Bunker, fortification and watchtower share the base script — the scene is the kind.
+func _is_bunker(a: SkillNodeAddon) -> bool:
+	return a.scene_file_path == "res://skill_node/addons/defs/bunker_addon.tscn"
+
+
 func before_each() -> void:
 	_panel = _PANEL.instantiate() as PanelContainer
 	add_child_autofree(_panel)
@@ -170,17 +175,17 @@ func test_forced_de_lit_survives_a_preview_rebuild() -> void:
 
 func test_bunker_paint_plates_a_node_and_strips_it_again() -> void:
 	var target := _node("E_E")
-	assert_false(target.has_addon(BunkerAddon), "the authored board plates nothing")
+	assert_false(target.get_addons().any(_is_bunker), "the authored board plates nothing")
 	_panel._bunker_paint.button_pressed = true
 	_panel._toggle_bunker(target)
-	assert_true(target.has_addon(BunkerAddon), "paint must attach a real addon")
+	assert_true(target.get_addons().any(_is_bunker), "paint must attach a real addon")
 	assert_gt(float(target.get_local_value(&"deflection")), 0.0,
 			"and the addon's grant must reach the node board — a plate with no "
 			+ "deflection carries no collision bit and is invisible to the "
 			+ "defender query (#810/#811)")
 	_panel._toggle_bunker(target)
 	await get_tree().process_frame
-	assert_false(target.has_addon(BunkerAddon), "a second click strips it")
+	assert_false(target.get_addons().any(_is_bunker), "a second click strips it")
 
 
 func test_bunker_paint_swallows_the_selection_channel() -> void:
@@ -189,7 +194,7 @@ func test_bunker_paint_swallows_the_selection_channel() -> void:
 	_panel._bunker_paint.button_pressed = true
 	var plan: MeleeAttackPlan = _panel._battle.attack_plan as MeleeAttackPlan
 	_panel._on_world_gui_input(_left_click_at(_node("E_E")))
-	assert_true(_node("E_E").has_addon(BunkerAddon), "the click painted")
+	assert_true(_node("E_E").get_addons().any(_is_bunker), "the click painted")
 	assert_null(plan.source, "and did NOT reach the selection channel")
 
 
