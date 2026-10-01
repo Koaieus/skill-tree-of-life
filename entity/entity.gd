@@ -800,6 +800,7 @@ func begin_turn() -> void:
 func resolve_turn_end() -> void:
 	_combat.tick_statuses()
 	_tick_owned_node_statuses()
+	_spread_owned_node_statuses()
 
 
 ## The owned-node half of [method resolve_turn_end]'s tick.
@@ -812,6 +813,31 @@ func _tick_owned_node_statuses() -> void:
 	for n in navigator.get_mirrored_nodes():
 		if is_instance_valid(n) and n.owned_by == self:
 			n.get_combat().tick_statuses()
+
+
+## The spread half of [method resolve_turn_end]: AFTER every owned node's
+## damage and decay, one [method StatusSpread.on_tick] sweep per def carried
+## by an owned node whose [member StatusDef.spread] is set, senders = the
+## owned set, landed through [SpreadApplier] on the live world. Defs with a
+## null slot pay nothing. Reproduced on every peer like the tick itself.
+func _spread_owned_node_statuses() -> void:
+	if navigator == null or navigator.graph == null:
+		return
+	var owned: Array[SkillNode] = []
+	var defs := {}  # id -> StatusDef, first seen
+	for n in navigator.get_mirrored_nodes():
+		if not (is_instance_valid(n) and n.owned_by == self):
+			continue
+		owned.append(n)
+		for row in n.get_combat().get_statuses():
+			if row.def.spread != null and not defs.has(row.def.id):
+				defs[row.def.id] = row.def
+	if defs.is_empty():
+		return
+	var world := CombatWorld.live()
+	for def: StatusDef in defs.values():
+		var field := StackField.over_world(def, def.spread.ownership_mask, world, owned, navigator.graph)
+		SpreadApplier.apply(def, def.spread.on_tick(field), world)
 
 
 ## The per-turn upkeep of a turn that is not the entity's first: pools,
