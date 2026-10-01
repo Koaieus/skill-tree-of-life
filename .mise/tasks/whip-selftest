@@ -1,0 +1,212 @@
+#!/usr/bin/env python3
+#MISE description="Self-test for whip: a scratch handoffs dir and a zero-exec fake for gh/git/claude, asserts start/trains/note/done/done-check/report and the watchdog no-op paths. Never launches a session, never calls gh. `mise run whip-selftest`"
+import contextlib, importlib.machinery, importlib.util, io, json, os, sys, tempfile, time
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+spec = importlib.util.spec_from_loader("whip", importlib.machinery.SourceFileLoader("whip", os.path.join(HERE, "whip")))
+wh = importlib.util.module_from_spec(spec); spec.loader.exec_module(wh)
+
+failed = 0
+
+
+def check(label, ok):
+    global failed
+    print(("  ✓ " if ok else "  ✗ ") + label)
+    if not ok:
+        failed += 1
+
+
+# --- the fence: nothing below ever execs a process ------------------------
+# `sh` and `subprocess` are replaced by recorders that answer from canned
+# output; the board/agent helpers read the mutable fixture `fx`.
+calls = []
+SHA = "c0ffee0123456789abcdef0123456789abcdef01"
+fx = {"ready": [], "blocked_by": {}, "milestone": {}, "agents": [], "needs_design": []}
+CANNED = (
+    ("git rev-parse master", SHA + "\n"),
+    ("git worktree list --porcelain", "worktree /main\nHEAD x\n"),
+    ("gh-project -- hygiene", "hygiene: clean\n"),
+    ("git log --oneline", "aaaaaaa feat: thing (#10)\nbbbbbbb feat: other (#11)\n"),
+    ("git log", "commit aaaaaaa\n\n    feat: thing\n\n    Closes #10\n\ncommit bbbbbbb\n\n    Closes #11\n"),
+    ("list needs-design --json", None),
+    ("gh issue list", "#99 Filed overnight\n"),
+    ("agent-cost", "drone d10 · 80k\n"),
+    ("claude --version", "2.9.0 (Claude Code)\n"),
+)
+
+
+def fake_sh(cmd, check=False, **kw):
+    s = cmd if isinstance(cmd, str) else " ".join(cmd)
+    calls.append(s)
+    for key, out in CANNED:
+        if key in s:
+            return json.dumps([{"number": n} for n in fx["needs_design"]]) if out is None else out
+    return ""
+
+
+class FakeSubprocess:
+    DEVNULL = -3
+
+    class _R:
+        stdout = ""; stderr = ""; returncode = 0
+
+    def run(self, cmd, *a, **kw):
+        calls.append(" ".join(cmd) if not isinstance(cmd, str) else cmd); return self._R()
+
+    def Popen(self, cmd, *a, **kw):
+        calls.append(" ".join(cmd) if not isinstance(cmd, str) else cmd); return self._R()
+
+
+wh.sh = fake_sh
+wh.subprocess = FakeSubprocess()
+wh.ready_issues = lambda: [{"number": n, "title": f"issue {n}"} for n in fx["ready"]]
+wh.blocked_by = lambda n: fx["blocked_by"].get(n, [])
+wh.milestone_of = lambda n: fx["milestone"].get(n, "")
+wh.agents = lambda: fx["agents"]
+
+handoffs = tempfile.mkdtemp(prefix="whip-selftest-")
+wh.HDIR = handoffs
+wh.ROOT = tempfile.mkdtemp(prefix="whip-selftest-root-")  # no transcripts under ~/.claude/projects for this slug
+real = os.path.join(os.environ.get("MISE_PROJECT_ROOT") or os.getcwd(), "docs", "handoffs")
+real_before = {p: os.path.getmtime(os.path.join(real, p)) for p in os.listdir(real) if p.startswith("whip-")} if os.path.isdir(real) else {}
+
+
+def run(*argv):
+    """Drive whip's own argv parser; returns (exit code, stdout+stderr)."""
+    out, saved = io.StringIO(), sys.argv
+    sys.argv = ["whip", *argv]
+    code = 0
+    try:
+        with contextlib.redirect_stdout(out), contextlib.redirect_stderr(out):
+            try:
+                wh.main()
+            except SystemExit as e:
+                code = e.code if isinstance(e.code, int) else (0 if e.code is None else (print(e.code) or 1))
+    finally:
+        sys.argv = saved
+    return code, out.getvalue()
+
+
+def launches():
+    return [c for c in calls if c.startswith("claude") and "--version" not in c]
+
+
+today = time.strftime("%Y-%m-%d")
+jpath = os.path.join(handoffs, f"whip-{today}.json")
+
+
+def state():
+    with open(jpath) as f:
+        return json.load(f)
+
+
+def poke(**kv):
+    """Edit whip's own state file — the watchdog's inputs live there."""
+    st = state(); st.update(kv)
+    with open(jpath, "w") as f:
+        json.dump(st, f)
+
+
+# --- no run on disk --------------------------------------------------------
+code, out = run("watchdog")
+check("watchdog with no run is a silent no-op", code == 0 and not os.listdir(handoffs) and not calls)
+code, out = run("show")
+check("show with no run says so, exit 0", code == 0 and "no whip run" in out)
+
+# --- start --no-issue ------------------------------------------------------
+fx["ready"] = [10, 11, 12, 20, 21, 30]
+fx["blocked_by"] = {11: [10], 12: [11], 21: [999]}  # 999 is off the Ready set: ignored
+fx["milestone"] = {20: "M1", 21: "M1", 30: "M2"}
+code, out = run("start", "--no-issue", "--cap", "8")
+st = state()
+check("start writes whip-<today>.json + .md into the scratch dir", code == 0 and os.path.exists(jpath) and os.path.exists(jpath[:-5] + ".md"))
+check("start snapshots the Ready set, master sha and cap", st["ready"] == fx["ready"] and st["start_sha"] == SHA and st["cap_h"] == 8)
+check("start --no-issue files no run issue", "run_issue" not in st and not any(c.startswith("gh") for c in calls))
+check("start prints the rendered ledger", "# Whip " + today in out and "cap 8" in out)
+code, out = run("start", "--no-issue")
+check("a second start refuses: run already on disk", code == 0 and "already on disk" in out)
+
+# --- trains ----------------------------------------------------------------
+code, out = run("trains")
+names = {t["name"]: t["issues"] for t in state()["trains"]}
+check("a blocked-by chain is one train, topologically ordered", names.get("a") == [10, 11, 12])
+check("singletons group by milestone: M1 together, M2 apart", names.get("b") == [20, 21] and names.get("c") == [30])
+check("trains prints one line per train", code == 0 and "a: #10 #11 #12" in out and "c: #30" in out)
+fx["milestone"] = {}
+code, out = run("trains")
+check("trains without --redo keeps the existing split", {t["name"]: t["issues"] for t in state()["trains"]} == names)
+
+# --- note / done -----------------------------------------------------------
+code, out = run("note", "needs owner #20: cursor fork")
+check("note appends a timestamped note and an event", code == 0 and state()["notes"][-1].endswith("needs owner #20: cursor fork")
+      and any("note: needs owner" in e for e in state()["events"]))
+# `done` needs a lead row, which only `launch` writes — seed it in whip's own state.
+st = state(); st["leads"]["lead-a"] = {"session": "abcdef1234", "kind": "lead", "launched": "x", "state": "running", "issues": "10 11 12"}
+st["trains"][0].update(lead="lead-a", state="running"); poke(**st)
+code, out = run("done", "lead-a", SHA, "3/3")
+st = state()
+check("done marks the lead and its train done with sha7 + n/m",
+      code == 0 and st["leads"]["lead-a"]["state"] == "done" and st["trains"][0]["state"] == f"done {SHA[:7]} 3/3")
+check("done leaves other trains queued", st["trains"][1]["state"] == "queued")
+code, out = run("done", "lead-nobody", SHA, "0/0")
+check("done on an unknown lead refuses", code != 0 and "unknown lead" in out)
+md = open(jpath[:-5] + ".md").read()
+check("the rendered ledger shows trains, leads and notes", "| a | #10 #11 #12 | lead-a |" in md and "| lead-a | abcdef12 |" in md and "cursor fork" in md)
+
+# --- done-check ------------------------------------------------------------
+fx["ready"] = [21, 30]; fx["agents"] = [{"name": "lead-a", "status": "idle"}]
+code, out = run("done-check")
+check("done-check dirty: an unnoted still-Ready issue is named, exit 1", code == 1 and "#21 still Ready and not noted" in out and "#30" in out)
+check("done-check dirty: a lead still running is named", "lead-a still running" in out)
+run("note", "still-ready #21: blocked off-set"); run("note", "still-ready #30: no capacity")
+fx["agents"] = []
+code, out = run("done-check")
+check("done-check clean once every still-Ready is noted and no lead runs", code == 0 and "done-check: clean" in out)
+
+# --- report, no gh ---------------------------------------------------------
+fx["needs_design"] = [20]
+n_gh = len([c for c in calls if c.startswith("gh ")])
+code, out = run("report")
+rpath = os.path.join(handoffs, f"whip-report-{today}.md")
+rep = open(rpath).read() if os.path.exists(rpath) else ""
+check("report writes whip-report-<date>.md into the scratch dir", code == 0 and rpath in out and rep)
+check("report headline: landed 2/6, back 1, still Ready 2", "Landed 2/6" in rep and "back to Needs design 1" in rep and "still Ready 2" in rep)
+check("report lists landed by Closes, with titles", "- #10 issue 10" in rep and "- #11 issue 11" in rep)
+check("report carries the still-ready why from the note", "- #21 issue 21 — blocked off-set" in rep)
+check("report sections: needs owner, filed, incidents, cost", "cursor fork" in rep and "#99 Filed overnight" in rep and "## Incidents" in rep and "80k" in rep)
+check("report with no run issue posts no comment", not any("issue comment" in c for c in calls[n_gh:]))
+check("report marks the run done + writes the .done marker", state()["done"] is True and os.path.exists(jpath[:-5] + ".done"))
+
+# --- watchdog no-op paths --------------------------------------------------
+base = len(calls)
+code, out = run("watchdog")
+check("watchdog on a done run touches nothing", code == 0 and len(calls) == base)
+poke(done=False)
+code, out = run("watchdog")
+check("watchdog: the .done marker alone keeps it a no-op", len(calls) == base)
+os.remove(jpath[:-5] + ".done")
+poke(started_ts=time.time() - 48 * 3600, cap_h=1, whip_session="deadbeefcafe", relieve_whip=True)
+fx["agents"] = []
+run("watchdog")
+check("capped + whip missing: no --resume", not any("--resume" in c for c in launches()))
+fx["agents"] = [{"name": "whip", "status": "idle", "sessionId": "deadbeefcafe"}]
+run("watchdog")
+check("capped + relieve_whip + whip idle: no stop, no relaunch", not launches() and state().get("relieve_whip") is True)
+poke(started_ts=time.time(), cap_h=8, relieve_whip=False, cli_version="")
+fx["agents"] = [{"name": "whip", "status": "running", "sessionId": "deadbeefcafe"},
+                {"name": "lead-b", "status": "running", "state": "blocked"}]
+before = len(calls)
+run("watchdog")
+check("whip present and busy: no prompt, only the version probe", not launches() and calls[before:] == ["claude --version"])
+check("first busy pass records the CLI version", state().get("cli_version") == "2.9.0")
+run("watchdog")
+check("second busy pass with the same CLI is a no-op", not launches() and state().get("cli_version") == "2.9.0")
+
+# --- the fence held --------------------------------------------------------
+check("no Claude session was ever launched, stopped or prompted", not launches())
+check("the only gh calls were answered by the fake, never posting", all(c.startswith("gh issue list") for c in calls if c.startswith("gh ")))
+real_after = {p: os.path.getmtime(os.path.join(real, p)) for p in os.listdir(real) if p.startswith("whip-")} if os.path.isdir(real) else {}
+check("the real docs/handoffs/whip-* files are untouched", real_after == real_before)
+
+print("all checks passed" if not failed else f"{failed} FAILED")
+sys.exit(1 if failed else 0)
