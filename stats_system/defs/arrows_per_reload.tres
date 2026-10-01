@@ -10,3 +10,4 @@ description = "Base arrow yield per producing leaf on a ReloadCommand (Ranged2.0
 value_type = 0
 default_value = 2.0
 tint_color = Color(0.75, 0.55, 0.3, 1)
+local_grantable = true

@@ -10,3 +10,4 @@ description = "Per-turn shot budget for a single leaf node (Ranged2.0 C2/#956), 
 value_type = 0
 default_value = 5.0
 tint_color = Color(0.6, 0.5, 0.85, 1)
+local_grantable = true

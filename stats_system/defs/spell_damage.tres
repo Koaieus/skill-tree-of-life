@@ -12,3 +12,4 @@ value_type = 0
 default_value = 1.0
 tint_color = Color(0.55, 0.65, 1.0, 1)
 modifier_name = "Spell Damage"
+local_grantable = true

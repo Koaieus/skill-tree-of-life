@@ -10,3 +10,4 @@ description = "Whether a blade can pass through this node (#781) — Bunker's ch
 value_type = 2
 default_value = 0.0
 tint_color = Color(0.4, 0.44, 0.53, 1)
+local_grantable = true

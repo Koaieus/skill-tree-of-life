@@ -20,12 +20,18 @@ extends Node
 
 const STAT_LIST_DIR: String = "res://stats_system/defs"
 const ROSTER_PATH: String = "res://stats_system/stat_def_roster.tres"
+## Entity-board residency is a fact of this board's declared stats, never a
+## hand list — [method check_residency] reads it.
+const ENTITY_BOARD_PATH: String = "res://entity/default_entity_board.tres"
 
 var _defs: Dictionary[StringName, StatDef] = {}
 ## Parent graph over [member StatDef.parent_ids], built by [method _rebuild_graph]:
 ## id -> transitive ancestors nearest-first, and parent id -> direct children.
 var _ancestors: Dictionary = {}
 var _children: Dictionary = {}
+## Ids a SkillNode may not grant its entity: a non-grantable def plus every
+## transitive ancestor of one (a parent's bins fold into the vetoed child).
+var _entity_vetoed: Dictionary = {}
 
 
 func _ready() -> void:
@@ -37,6 +43,7 @@ func _ready() -> void:
 		if def != null:
 			_defs[def.id] = def
 	_rebuild_graph()
+	check_residency()
 
 
 func get_def(id: StringName) -> StatDef:
@@ -85,8 +92,7 @@ func has_parents() -> bool:
 ## is [member StatDef.entity_grantable] false. True for an unknown id — the
 ## board's own "no stat for id" drop answers that.
 func is_entity_grantable(id: StringName) -> bool:
-	var def: StatDef = _defs.get(id, null)
-	return def == null or def.entity_grantable
+	return not _entity_vetoed.has(id)
 
 
 ## May a SkillNode grant [param id] node-locally? The authored
@@ -101,7 +107,29 @@ func is_local_grantable(id: StringName) -> bool:
 ## [member StatDef.local_grantable]. Returns (and push_errors) the ids that
 ## live nowhere. Run once at load.
 func check_residency() -> Array[StringName]:
-	return []
+	var out: Array[StringName] = []
+	var board := load(ENTITY_BOARD_PATH) as StatBoard
+	var resident: Array[StringName] = board.get_stat_ids() if board != null else []
+	var ids: Array = _defs.keys()
+	ids.sort()
+	for id in ids:
+		if not _defs[id].local_grantable and not resident.has(id):
+			push_error("StatRegistry: stat '%s' lives nowhere — not on the entity board and not local_grantable" % id)
+			out.append(id)
+	return out
+
+
+## The first leaf of [param m] a SkillNode may not grant down this route
+## ([param local]: the node's own board, else the owner's), or `&""` when every
+## leaf passes. The one predicate both doors and [EffectContext] ask; a bundle
+## is judged whole by its callers.
+func illegal_leaf(m: StatModifier, local: bool) -> StringName:
+	if m == null:
+		return &""
+	for leaf in m.flatten():
+		if not (is_local_grantable(leaf.stat_id) if local else is_entity_grantable(leaf.stat_id)):
+			return leaf.stat_id
+	return &""
 
 
 ## [b]Test seam only[/b] — nothing outside `test/` calls this. Registers a
@@ -156,6 +184,12 @@ func _rebuild_graph() -> void:
 				next.append_array(parents.get(a, []))
 			frontier = next
 		_ancestors[id] = out
+	_entity_vetoed.clear()
+	for id in _defs:
+		if not _defs[id].entity_grantable:
+			_entity_vetoed[id] = true
+			for a in _ancestors.get(id, []):
+				_entity_vetoed[a] = true
 
 
 ## Whether [param target] is an ancestor of (or is) [param from] over [param parents].

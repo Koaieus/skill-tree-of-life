@@ -12,3 +12,4 @@ description = "Per-node allocation cap — the N in the M/N dial. PoolStat: cap 
 default_value = 1.0
 tint_color = Color(0.7, 0.5, 0.9, 1)
 modifier_name = "Stake Level"
+local_grantable = true

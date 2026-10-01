@@ -12,3 +12,4 @@ value_type = 1
 default_value = 0.0
 tint_color = Color(0.72, 0.8, 0.92, 1)
 modifier_name = "Wither Resistance"
+local_grantable = true

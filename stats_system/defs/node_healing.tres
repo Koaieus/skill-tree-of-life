@@ -10,3 +10,4 @@ description = "Base HP a node regenerates at its owner's turn start, gated: none
 value_type = 0
 default_value = 1.0
 tint_color = Color(0.5, 0.85, 0.55, 1)
+local_grantable = true

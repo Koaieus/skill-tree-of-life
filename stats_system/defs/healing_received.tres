@@ -11,3 +11,4 @@ value_type = 1
 default_value = 1.0
 tint_color = Color(0.55, 0.85, 0.6, 1)
 modifier_name = "Healing Received"
+local_grantable = true

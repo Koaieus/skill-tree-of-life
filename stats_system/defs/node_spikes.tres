@@ -12,3 +12,4 @@ value_type = 0
 default_value = 0.0
 tint_color = Color(0.95, 0.55, 0.4, 1)
 modifier_name = "Max Spikes"
+local_grantable = true

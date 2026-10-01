@@ -10,3 +10,4 @@ description = "Entity-board scalar baseline for the per-node spikes pop budget (
 value_type = 0
 default_value = 0.0
 tint_color = Color(0.95, 0.55, 0.4, 1)
+local_grantable = true

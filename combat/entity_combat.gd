@@ -696,12 +696,6 @@ func apply_cascade(nodes: Array[NodeCombat], alloc: AllocationSystem = null,
 	# node AFTER that would miss the delta (#695).
 	_materialize_all()
 	var b := board()
-	# Read once, applied per cascaded node. Older hand-authored boards lacking
-	# the stat fall back to the StatDef default (1).
-	var hp_per_node: float = 1.0
-	var dealloc_stat: Stat = b.get_stat(&"dealloc_damage") if b != null else null
-	if dealloc_stat != null:
-		hp_per_node = float(dealloc_stat.get_value())
 	# What was actually charged — a node skipped after its wound still counts.
 	var chip_sum := 0.0
 	var wound_sum := 0
@@ -720,11 +714,15 @@ func apply_cascade(nodes: Array[NodeCombat], alloc: AllocationSystem = null,
 		# #337 collapse this ordering exists to avoid.
 		entry.allocation_level = maxi(n.get_allocation_level(), 1)
 		entry.wound = entry.allocation_level
+		# Per node: a node may grant itself local `dealloc_damage`. The read
+		# falls back to the entity board, then to the StatDef default.
+		var hp_per_node := float(n.get_local_value(&"dealloc_damage"))
 		entry.chip = hp_per_node * float(entry.allocation_level) if hp_per_node > 0.0 else 0.0
 		entry.was_core = core() == n
 		entry.revoked_labels = _granted_labels(entry.node)
 		# Wound BEFORE the strip. Nothing a strip does moves `used` today —
-		# a node may never grant SP cap (SkillNode._grants_sp_cap) — so this is
+		# a node may never grant SP cap (`skill_points` is not
+		# StatDef.entity_grantable) — so this is
 		# the safe order, not a load-bearing one.
 		if b != null and charge:
 			var sp := b.get_stat(&"skill_points") as SkillPointStat

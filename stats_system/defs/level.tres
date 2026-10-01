@@ -10,3 +10,4 @@ description = "Entity level. Starts at 1, +1 per XP-pool fill (Entity._on_xp_rep
 value_type = 0
 default_value = 1.0
 tint_color = Color(0.8909, 0.7204, 0.2596, 1)
+entity_grantable = false

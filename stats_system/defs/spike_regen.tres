@@ -10,3 +10,4 @@ description = "Spikes recovered at the owning entity's turn start (#778), indepe
 value_type = 0
 default_value = 0.0
 tint_color = Color(0.95, 0.6, 0.45, 1)
+local_grantable = true

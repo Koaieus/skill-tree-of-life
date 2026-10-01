@@ -11,3 +11,4 @@ description = "Damage per shot in a ranged attack. Base 1, +1 per 20 DEX. Node-l
 value_type = 0
 default_value = 1.0
 tint_color = Color(0.3187, 0.7773, 0.4484, 1)
+local_grantable = true

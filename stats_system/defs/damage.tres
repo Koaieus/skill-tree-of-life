@@ -11,3 +11,4 @@ value_type = 1
 default_value = 0.0
 tint_color = Color(0.8, 0.75, 0.7, 1)
 modifier_name = "Damage"
+local_grantable = true
