@@ -99,9 +99,11 @@ var _shot_following: bool = false
 ## [code]focus_marker()[/code] at commit (the melee ghost's `%FocusMarker`, or
 ## the pivot [SkillNode] before the ghost exists), then whatever
 ## `focus_marker_changed` hands over while locked. Null means no follow is open
-## YET: ranged hands its marker over at first release and
-## [method _on_presenter_marker_ready] opens the follow then (#1048); a
-## presenter that never emits (magic today) keeps the span framed once. Read by
+## YET: ranged hands its marker over at first release, magic as its wind-up
+## parks it on the caster, and [method _on_presenter_marker_ready] opens the
+## follow then (#1048); a presenter that never emits keeps the span framed
+## once. A presenter answers null rather than a marker it has not placed — the
+## opening pan targets the marker's position at that instant. Read by
 ## [method request_focus] rather than carried on a [FocusRequest], so
 ## [method decide] stays a pure function of plain values.
 var _follow_node: Node2D = null
@@ -409,7 +411,9 @@ func _clamp_target(ideal: Vector2, at_zoom: float, ctx: CameraContext) -> Vector
 ## commit — nothing moves during its draw — so its widen is a plain one-shot
 ## pan+zoom (the drift, [method PresentationTempo.windup_drift] long) onto the
 ## firing centroid and the target, and the follow opens at first release via
-## [method _on_presenter_marker_ready].
+## [method _on_presenter_marker_ready]. Magic hands over nothing here either:
+## its marker is placed by the wind-up that runs after this signal, and the
+## park hands it over in the same frame, onto the pivot this opens on.
 ##
 ## The widen is a detached coroutine on a tree timer, never awaited by anyone —
 ## `_on_attack_committed` fires inside `BattleSystem._commit`, where an await

@@ -520,6 +520,31 @@ func test_begin_windup_parks_the_focus_marker_at_the_caster() -> void:
 				"during the wind-up the marker is the caster node, stationary")
 
 
+## The director reads [method MagicBounceCoordinator.focus_marker] inside
+## `attack_committed`, BEFORE `begin_windup` runs. A marker answered then sits
+## wherever the coordinator was mounted (the map origin), so the shot's opening
+## pan heads there. Null until parked is the contract ranged already keeps.
+func test_focus_marker_is_null_until_the_windup_parks_it() -> void:
+	var coord := _mount_coord(0.01, 0.005)
+	assert_null(coord.focus_marker(),
+			"a mounted coordinator has no placed marker for the director to follow yet")
+
+
+func test_begin_windup_hands_the_parked_marker_over() -> void:
+	var graph := _star_graph()
+	# Off the origin on purpose: an unparked marker sits at (0, 0) too.
+	var caster: SkillNode = graph.get_skill_nodes()[1]
+	var coord := _mount_coord(0.01, 0.005)
+	watch_signals(coord)
+	coord.begin_windup(_magic_plan(graph, 1), _windup_tempo(0.25, 0.6, 0.1))
+	var marker := coord.focus_marker()
+	assert_not_null(marker, "the wind-up placed a marker")
+	assert_signal_emitted_with_parameters(coord, "focus_marker_changed", [marker])
+	if marker != null:
+		assert_eq(marker.global_position, caster.global_position,
+				"handed over already parked on the caster")
+
+
 func _windup_fx_children(coord: MagicBounceCoordinator) -> int:
 	var n := 0
 	for child in coord.get_children():

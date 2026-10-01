@@ -264,7 +264,7 @@ func _open_focus_wave(wave: Array) -> void:
 		return
 	var to := _centroid(targets)
 	var from := _centroid(origins) if not origins.is_empty() else to
-	var focus := focus_marker() as SwarmFocus
+	var focus := _marker() as SwarmFocus
 	if focus != null:
 		focus.begin_wave(from, to)
 	wave_landing.emit(targets)
@@ -597,9 +597,21 @@ func begin_windup(plan: AttackPlan, tempo: PresentationTempo) -> float:
 
 ## The [Node2D] the director follows: the `%FocusMarker` child (a
 ## [SwarmFocus], parked at the caster for the whole wind-up — #1044 makes it
-## travel with the waves). A code-composed coordinator (tests, sandboxes)
-## has no scene child, so one is created on first ask.
+## travel with the waves). Null until [method begin_windup] has parked it: the
+## director asks inside `attack_committed`, before the wind-up runs, and an
+## unparked marker sits at the coordinator's mount origin — a pan there is a
+## yank to the map corner. The park hands it over via
+## [signal VFXCoordinator.focus_marker_changed], as ranged's first release does.
 func focus_marker() -> Node2D:
+	return _marker() if _marker_parked else null
+
+
+var _marker_parked: bool = false
+
+
+## The `%FocusMarker` child, parked or not. A code-composed coordinator (tests,
+## sandboxes) has no scene child, so one is created on first ask.
+func _marker() -> Node2D:
 	var marker := get_node_or_null(^"%FocusMarker") as Node2D
 	if marker == null:
 		marker = find_child("FocusMarker", false, false) as Node2D
@@ -611,7 +623,10 @@ func focus_marker() -> Node2D:
 
 
 func _park_marker(caster: SkillNode) -> void:
-	focus_marker().global_position = caster.global_position
+	var marker := _marker()
+	marker.global_position = caster.global_position
+	_marker_parked = true
+	focus_marker_changed.emit(marker)
 
 
 func _spawn_draw_streaks(attacker: Entity, caster: SkillNode,
