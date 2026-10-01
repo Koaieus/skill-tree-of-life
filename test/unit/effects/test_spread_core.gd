@@ -111,7 +111,7 @@ func test_applier_conserves_all_but_burned_stacks() -> void:
 		StackTransfer.new(b, e, 4.0),
 		StackTransfer.new(a, e, 1.0),
 	]
-	SpreadApplier.apply(transfers, CombatWorld.live())
+	SpreadApplier.apply(d, transfers, CombatWorld.live())
 	var total := 0.0
 	for n in [a, b, c, e]:
 		total += n.get_status_power(d.id)
@@ -125,9 +125,8 @@ func test_applier_conserves_all_but_burned_stacks() -> void:
 
 
 func test_applier_debits_before_crediting() -> void:
-	# b holds nothing; a → b then b → c only works if every debit lands first
-	# would be wrong — debits first means b's debit of an absent row is a no-op
-	# and its credit still lands: the list is not a chain.
+	# Simultaneous moves, not a chain: b's own 2 leave before a's 4 arrive, so
+	# b's row is removed and recreated rather than passed through.
 	var d := _def()
 	var a := _node(_me)
 	var b := _node(_me)
@@ -138,11 +137,22 @@ func test_applier_debits_before_crediting() -> void:
 		StackTransfer.new(a, b, 4.0),
 		StackTransfer.new(b, c, 2.0),
 	]
-	SpreadApplier.apply(transfers, CombatWorld.live())
+	SpreadApplier.apply(d, transfers, CombatWorld.live())
 	assert_eq(a.get_status_power(d.id), 0.0, "a emptied")
 	assert_eq(b.get_status_power(d.id), 4.0, "b emptied, then credited 4")
 	assert_eq(c.get_status_power(d.id), 2.0, "c credited 2")
 	assert_eq(d.removed.get(b, 0), 1, "b's row left before the credit recreated it")
+
+
+func test_a_credit_onto_an_unallocated_host_is_voided_for_a_clear_def() -> void:
+	var d := _def()
+	var a := _node(_me)
+	var loose := _node(null)
+	a.apply_status(d, 4.0)
+	var transfers: Array[StackTransfer] = [StackTransfer.new(a, loose, 3.0)]
+	SpreadApplier.apply(d, transfers, CombatWorld.live())
+	assert_eq(a.get_status_power(d.id), 1.0, "a debited")
+	assert_eq(loose.get_statuses().size(), 0, "CLEAR gate: no row on an unallocated host")
 
 
 # ── StackField ──────────────────────────────────────────────────────────────
@@ -182,6 +192,13 @@ func test_masked_neighbours_is_seen_by_the_host_nodes_owner() -> void:
 	var star := _star(_foe)
 	assert_eq(_masked(star, SkillNode.Ownership.MINE), ["foe"], "the foe's own node is Mine to it")
 	assert_eq(_masked(star, SkillNode.Ownership.HOSTILE), ["ally", "mine"], "ours are Hostile to it")
+
+
+func test_masked_neighbours_of_an_unowned_host() -> void:
+	var star := _star(null)
+	assert_eq(_masked(star, SkillNode.Ownership.MINE | SkillNode.Ownership.ALLY), [], "no one to be Mine or Ally to")
+	assert_eq(_masked(star, SkillNode.Ownership.NEUTRAL), ["neutral"], "Neutral")
+	assert_eq(_masked(star, SkillNode.Ownership.HOSTILE), ["ally", "foe", "mine"], "every owned node reads Hostile")
 
 
 func test_field_stacks_read_the_raw_row() -> void:

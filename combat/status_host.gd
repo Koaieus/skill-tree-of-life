@@ -56,35 +56,64 @@ func clone_into(other: StatusHost) -> void:
 func apply_status(def: StatusDef, power: float) -> void:
 	if def == null or power <= 0.0:
 		return
-	if def.on_dealloc == StatusDef.OnDealloc.CLEAR and not owner.is_allocated():
+	if not _may_host(def):
+		return
+	var current := get_status_power(def.id)
+	var next := power
+	if _statuses.has(def.id):
+		match def.reapply:
+			StatusDef.Reapply.ACCUMULATE:
+				next = current + power
+			_:
+				next = maxf(current, power)
+	_settle(def, next)
+
+
+## Move [param def]'s RAW row on this host by [param delta] stacks — the one
+## primitive [method apply_status], [method cure_debuffs] and [SpreadApplier]
+## land through ([method _settle]). `+n` on an absent row creates it; a
+## result `<= 0` removes it; `-n` on an absent row is a no-op. Not a landing:
+## no attacker fold, no reapply policy — moving stacks is not landing them.
+## Creation keeps [method apply_status]'s gate: a `CLEAR` def is never put on
+## an unallocated host, so a spread credit onto one is VOIDED, not banked.
+func adjust_power(def: StatusDef, delta: float) -> void:
+	if def == null or delta == 0.0:
+		return
+	if not _statuses.has(def.id) and (delta < 0.0 or not _may_host(def)):
+		return
+	_settle(def, get_status_power(def.id) + delta)
+
+
+## The shared tail: set [param def]'s row to [param target], clamped to
+## [member StatusDef.power_max] (`<= 0` uncapped, #962). `<= 0` goes through
+## [method remove_status]; otherwise the row is created if absent (the FIRST
+## row is the owner's [code]_on_first_status[/code] cue, #879), set, and
+## handed to [method StatusDef._on_applied] at its resisted count (ADR 0031).
+## [param notify] off lets a batch caller refresh once at its end (#880).
+## [method tick_statuses] is NOT a caller: tick keeps its own tail, because
+## its survivor path is [method StatusDef._on_tick]'s, not `_on_applied`'s.
+func _settle(def: StatusDef, target: float, notify: bool = true) -> void:
+	var next := target if def.power_max <= 0.0 else minf(target, def.power_max)
+	if next <= 0.0:
+		remove_status(def.id)
 		return
 	var had_status := not _statuses.is_empty()
 	var row: NodeStatus = _statuses.get(def.id)
-	var next: float
 	if row == null:
 		row = NodeStatus.new(def, 0.0)
 		_statuses[def.id] = row
-		next = power
-	else:
-		match def.reapply:
-			StatusDef.Reapply.ACCUMULATE:
-				next = row.power + power
-			_:
-				next = maxf(row.power, power)
-	# `power_max <= 0` is uncapped (#962: poison stacks without limit).
-	row.power = next if def.power_max <= 0.0 else minf(next, def.power_max)
-	# ADR 0031: the def sees the resisted count; the row keeps the raw one.
+	row.power = next
 	def._on_applied(owner, effective_power(def, row.power))
-	# Sparse tick subscription (#879): the FIRST status landing is the owner's
-	# cue to subscribe to the turn.
 	if not had_status:
 		owner._on_first_status()
-	# #880: the tint reads the strongest status; refresh on every apply.
-	owner._on_statuses_changed()
+	if notify:
+		owner._on_statuses_changed()
 
 
-func adjust_power(_def: StatusDef, _delta: float) -> void:
-	pass
+## No `CLEAR` def on an unallocated host (owner, 2026-09-14: nothing owns it,
+## nothing would tick it).
+func _may_host(def: StatusDef) -> bool:
+	return def.on_dealloc != StatusDef.OnDealloc.CLEAR or owner.is_allocated()
 
 
 ## One tick for every status on the host: [method StatusDef._on_tick] first
@@ -147,12 +176,7 @@ func cure_debuffs(heal_amount: float) -> void:
 		var id := row.def.id
 		if _statuses.get(id) != row:
 			continue  # vanished from an earlier row's hook this same call
-		var after := maxf(row.power - heal_amount * row.def.cure_per_hp, 0.0)
-		if after <= 0.0:
-			remove_status(id)
-		else:
-			row.power = after
-			row.def._on_applied(owner, effective_power(row.def, after))
+		_settle(row.def, maxf(row.power - heal_amount * row.def.cure_per_hp, 0.0), false)
 	# #880: a cure changes power on rows that survive too (same reasoning as
 	# tick_statuses' trailing refresh) — the zeroed-out ones already notified
 	# via remove_status.
