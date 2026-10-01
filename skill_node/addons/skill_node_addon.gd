@@ -64,6 +64,12 @@ extends Node2D
 ## default. Mirrors [member SpellDef.icon] — the icon lives on the addon, not
 ## in a lookup table.
 @export var icon: Texture2D
+## UI accent for this addon kind — the temp-upgrade card, the melee blip and the
+## armed-mode badge all paint it. A plain colour ≤ 1.0, never an emissive tier.
+## [constant Color.TRANSPARENT] (the default) means "nothing to say": consumers
+## fall back exactly as they do for an unmapped palette key. Read without an
+## instance through [method tint_of].
+@export var tint: Color = Color.TRANSPARENT
 ## Behavioural effects this addon grants to the carrier's owner while the
 ## carrier is allocated. Collected by [method SkillNode.get_node_effects].
 ## Sits alongside the modifier arrays — a pure stat bundle needs no effect.
@@ -153,6 +159,11 @@ static func temp_placeable_of(scene: PackedScene) -> bool:
 	return _scene_record(scene).get(&"placeable", false)
 
 
+## [member tint] of [param scene]'s addon, read like [method temp_costs_of].
+static func tint_of(scene: PackedScene) -> Color:
+	return _scene_record(scene).get(&"tint", Color.TRANSPARENT)
+
+
 ## Per-scene facts read off a throwaway instance, cached by scene path: the
 ## one cache every "what does this addon scene say" static reads, one field
 ## per fact. Instantiated once, read, freed — never left as an orphan.
@@ -171,6 +182,7 @@ static func _scene_record(scene: PackedScene) -> Dictionary:
 	var record := {
 		&"costs": addon.get_temp_costs(),
 		&"placeable": addon.temp_placeable,
+		&"tint": addon.tint,
 	}
 	addon.free()
 	if not key.is_empty():
