@@ -339,11 +339,11 @@ func test_z_and_x_arm_the_first_two_catalog_entries() -> void:
 	await _mount_body(2)
 
 	_press(&"ui_temp_upgrade_1")
-	assert_eq(_ctl.temp_upgrade_arm(), _catalog.kinds[0],
+	assert_eq(_ctl.temp_upgrade_arm(), _catalog.offered()[0],
 			"Z arms catalog slot 0 — by INDEX, never by name")
 
 	_press(&"ui_temp_upgrade_2")
-	assert_eq(_ctl.temp_upgrade_arm(), _catalog.kinds[1],
+	assert_eq(_ctl.temp_upgrade_arm(), _catalog.offered()[1],
 			"X arms catalog slot 1")
 
 
@@ -386,7 +386,7 @@ func test_an_index_past_the_catalog_is_a_silent_no_op() -> void:
 	# (or shrinking the catalog) must not crash — it just does nothing.
 	await _build_star(3)
 	await _mount_body(2)
-	assert_false(_ctl._arm_temp_upgrade_at(_catalog.kinds.size()),
+	assert_false(_ctl._arm_temp_upgrade_at(_catalog.offered().size()),
 			"an out-of-range slot is unconsumed, leaving the key free downstream")
 	assert_null(_ctl.temp_upgrade_arm())
 
@@ -397,7 +397,7 @@ func test_the_cards_print_the_key_that_arms_them() -> void:
 	await _build_star(3)
 	var body := await _mount_body(2)
 	var row: HBoxContainer = body.get_node("%UpgradeRow")
-	assert_eq(row.get_child_count(), _catalog.kinds.size(),
+	assert_eq(row.get_child_count(), _catalog.offered().size(),
 			"one card per catalog entry")
 	for i in row.get_child_count():
 		var card := row.get_child(i) as TempUpgradeButton

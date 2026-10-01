@@ -91,10 +91,8 @@ func _melee() -> MeleeAttackPlan:
 	return _bs.attack_plan as MeleeAttackPlan
 
 
-func _upgrade() -> TempUpgradeDef:
-	var def := TempUpgradeDef.new()
-	def.id = &"test_spike"
-	return def
+func _upgrade() -> PackedScene:
+	return preload("res://test/fixtures/addons/second_dot_addon.tscn")
 
 
 func _heal_spell() -> SpellDef:

@@ -161,7 +161,7 @@ func test_temp_upgrade_over_melee_still_reads_melee() -> void:
 	# off mid-combo.
 	_ctl.on_attack_mode_requested(BattleSystem.AttackMode.MELEE)
 	_ctl.route_left_click(_nodes[0])  # the pivot: a card arms only on a Blade
-	_ctl.arm_temp_upgrade(_catalog.kinds[0])
+	_ctl.arm_temp_upgrade(_catalog.offered()[0])
 	assert_true(_ctl.temp_upgrade_arm() != null,
 			"fixture check: the temp upgrade should be armed on top")
 	assert_eq(_ctl.get_armed_tint(), _expected(&"strength"),

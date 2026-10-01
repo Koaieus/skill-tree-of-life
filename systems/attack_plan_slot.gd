@@ -36,7 +36,7 @@ var selected_spell: SpellDef = null:
 ## The offerable temp-upgrade kinds (#406, #1008) — authored data, wired to
 ## `attack/melee/temp_upgrade_catalog.tres` by the composing scene. Optional:
 ## an unwired slot (headless fixtures that never toggle an upgrade)
-## simply offers none — [method temp_upgrade_by_id] answers null and
+## simply offers none — [method temp_upgrade_by_kind] answers null and
 ## [method temp_upgrade_kinds] is empty.
 @export var temp_upgrade_catalog: TempUpgradeCatalog
 
@@ -137,20 +137,19 @@ func request_attack_mode(mode: BattleSystem.AttackMode) -> void:
 		BattleSystem.AttackMode.RANGED:  attack_plan = _new_plan(RangedAttackPlan)
 		BattleSystem.AttackMode.MAGIC:   attack_plan = _new_plan(MagicAttackPlan)
 
-## The catalog kind named by [param id] — the door for a temp upgrade's wire
-## id — or null if unknown or no catalog is
-## wired. Returns the loaded def itself, so identity checks keep working.
-func temp_upgrade_by_id(id: StringName) -> TempUpgradeDef:
+## The catalog scene whose kind (scene path) is [param kind] — the door for a
+## temp upgrade's wire identity — or null if unknown or no catalog is wired.
+func temp_upgrade_by_kind(kind: String) -> PackedScene:
 	if temp_upgrade_catalog == null:
 		return null
-	return temp_upgrade_catalog.by_id(id)
+	return temp_upgrade_catalog.by_kind(kind)
 
 
-## The offerable kinds in tray order; empty when no catalog is wired.
-func temp_upgrade_kinds() -> Array[TempUpgradeDef]:
+## The offerable ([member SkillNodeAddon.temp_placeable]) kinds in tray order; empty when no catalog is wired.
+func temp_upgrade_kinds() -> Array[PackedScene]:
 	if temp_upgrade_catalog == null:
 		return []
-	return temp_upgrade_catalog.kinds
+	return temp_upgrade_catalog.offered()
 
 
 ## Mints through [method BattleSystem.mint_plan] — the one minter an

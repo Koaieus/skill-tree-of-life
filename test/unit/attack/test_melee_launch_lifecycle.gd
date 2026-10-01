@@ -129,7 +129,7 @@ func test_launch_attack_melee_with_temp_upgrade_frees_it_and_resets_is_launching
 	var plan := _bs.attack_plan as MeleeAttackPlan
 	plan.set_pivot(source)
 	plan.toggle_member(joint)
-	assert_true(plan.apply_temp_upgrade(joint, _catalog.by_id(&"clamp")))
+	assert_true(plan.apply_temp_upgrade(joint, preload("res://skill_node/addons/defs/clamp_addon.tscn")))
 	assert_true(plan.is_valid(), "fixture plan must be valid before launching")
 
 	_bs.launch_attack()

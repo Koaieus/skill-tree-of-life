@@ -188,7 +188,8 @@ func _notification(what: int) -> void:
 ## rebuilds them itself, and a peer that does not has no use for them.
 ##
 ## Temp upgrades ARE plan input, like the blade and the swing (ADR 0035): they
-## cross as `[stable id, TempUpgradeDef id]` pairs under `temps`, only when there
+## cross as `[stable id, kind]` pairs (the kind is the addon's scene path,
+## [method SkillNodeAddon.get_kind]) under `temps`, only when there
 ## are any, so an un-upgraded plan's dict is unchanged. Until launch the
 ## `is_temporary` addons they name exist only on the planning seat.
 func to_dict(graph: Graph) -> Dictionary:
@@ -216,8 +217,8 @@ func to_dict(graph: Graph) -> Dictionary:
 			if n == null:
 				continue
 			for a in n.get_addons():
-				if a.is_temporary and a.temp_upgrade_def != null:
-					temps.append([graph.get_stable_id(n), String(a.temp_upgrade_def.id)])
+				if a.is_temporary:
+					temps.append([graph.get_stable_id(n), a.get_kind()])
 		if not temps.is_empty():
 			d["temps"] = temps
 	return d
@@ -269,11 +270,11 @@ static func from_dict(d: Dictionary, graph: Graph,
 		return plan
 	for entry in temps:
 		var node := graph.get_by_stable_id(int(entry[0]))
-		var def := catalog.by_id(StringName(entry[1]))
-		if node == null or def == null or not plan.blade_nodes.has(node):
+		var scene := catalog.by_kind(String(entry[1]))
+		if node == null or scene == null or not plan.blade_nodes.has(node):
 			continue
-		if plan._existing_temp_upgrade(node, def) == null:
-			plan._attach_temp_addon(node, def)
+		if plan._existing_temp_upgrade(node, scene) == null:
+			plan._attach_temp_addon(node, scene)
 	return plan
 
 
@@ -523,32 +524,32 @@ func temp_upgrade_cost_total() -> int:
 	return _temp_spent(_BLADE_SIZE_ID)
 
 
-## The `blade_size` spent by carried temps of `def`'s kind specifically — the
+## The `blade_size` spent by carried temps of `scene`'s kind specifically — the
 ## per-kind breakdown of [method temp_upgrade_cost_total].
-func temp_upgrade_cost_for(def: TempUpgradeDef) -> int:
+func temp_upgrade_cost_for(scene: PackedScene) -> int:
 	var total := 0
 	for node in _temp_upgrade_carriers():
 		for a in node.get_addons():
-			if a.temp_upgrade_def == def:
+			if a.is_temporary and a.get_kind() == scene.resource_path:
 				total += a.get_temp_costs().get(_BLADE_SIZE_ID, 0)
 	return total
 
 
-## Can the swing pay `def`'s whole cost vector out of what is left in each
-## currency? `def`'s scene must also be [member SkillNodeAddon.temp_placeable].
-func _affords(def: TempUpgradeDef) -> bool:
-	if not SkillNodeAddon.temp_placeable_of(def.scene):
+## Can the swing pay `scene`'s whole cost vector out of what is left in each
+## currency? `scene`'s scene must also be [member SkillNodeAddon.temp_placeable].
+func _affords(scene: PackedScene) -> bool:
+	if not SkillNodeAddon.temp_placeable_of(scene):
 		return false
-	var costs := SkillNodeAddon.temp_costs_of(def.scene)
+	var costs := SkillNodeAddon.temp_costs_of(scene)
 	for id in costs:
 		if currency_remaining(id) < costs[id]:
 			return false
 	return true
 
 
-## Is some non-`blade_size` currency of `def`'s cost vector short?
-func _short_of_aspect(def: TempUpgradeDef) -> bool:
-	var costs := SkillNodeAddon.temp_costs_of(def.scene)
+## Is some non-`blade_size` currency of `scene`'s cost vector short?
+func _short_of_aspect(scene: PackedScene) -> bool:
+	var costs := SkillNodeAddon.temp_costs_of(scene)
 	for id in costs:
 		if id != _BLADE_SIZE_ID and currency_remaining(id) < costs[id]:
 			return true
@@ -623,39 +624,39 @@ func _temp_upgrade_carriers() -> Array[SkillNode]:
 
 ## True if `node` (a selected member — the pivot is never a valid target, it
 ## drives the swing and has no meaningful collision area) can receive
-## `def`: an open addon slot, no unique-collision, and the combined
+## `scene`: an open addon slot, no unique-collision, and the combined
 ## member + upgrade spend stays within max_blades(). Membership in the
-## catalog is not the plan's question — a typed def is one by construction.
-func can_apply_temp_upgrade(node: SkillNode, def: TempUpgradeDef) -> bool:
-	if def == null or node == null or node == source or not blade_nodes.has(node):
+## catalog is not the plan's question; [member SkillNodeAddon.temp_placeable] is.
+func can_apply_temp_upgrade(node: SkillNode, scene: PackedScene) -> bool:
+	if scene == null or node == null or node == source or not blade_nodes.has(node):
 		return false
-	if not node.can_attach_addon(def.scene.resource_path):
+	if not node.can_attach_addon(scene.resource_path):
 		return false
-	return _affords(def)
+	return _affords(scene)
 
 
 ## Whether ANY currently-eligible node could accept `upgrade` right now —
 ## cheap plan-level affordability check for UI button enablement, independent
 ## of which specific node gets clicked.
-func has_temp_upgrade_budget(def: TempUpgradeDef) -> bool:
-	return def != null and source != null and _affords(def)
+func has_temp_upgrade_budget(scene: PackedScene) -> bool:
+	return scene != null and source != null and _affords(scene)
 
 
-## Spend budget and attach a real `def` addon to `node`. Returns false
+## Spend budget and attach a real `scene` addon to `node`. Returns false
 ## (no-op) if can_apply_temp_upgrade() rejects it.
-func apply_temp_upgrade(node: SkillNode, def: TempUpgradeDef) -> bool:
-	if not can_apply_temp_upgrade(node, def):
+func apply_temp_upgrade(node: SkillNode, scene: PackedScene) -> bool:
+	if not can_apply_temp_upgrade(node, scene):
 		return false
-	_attach_temp_addon(node, def)
+	_attach_temp_addon(node, scene)
 	_notify_selection_changed()
 	return true
 
 
 ## The attach itself, ungated — [method apply_temp_upgrade] gates it for the
 ## planning seat, [method from_dict] trusts the wire and leaves cost to launch.
-func _attach_temp_addon(node: SkillNode, def: TempUpgradeDef) -> void:
-	var addon := def.scene.instantiate() as SkillNodeAddon
-	addon.temp_upgrade_def = def
+func _attach_temp_addon(node: SkillNode, scene: PackedScene) -> void:
+	var addon := scene.instantiate() as SkillNodeAddon
+	addon.is_temporary = true
 	node.add_child(addon)
 
 
@@ -689,22 +690,22 @@ func remove_temp_upgrade(node: SkillNode) -> void:
 		_notify_selection_changed()
 
 
-## `node`'s currently-attached temp addon of `def`'s kind, or null.
-func _existing_temp_upgrade(node: SkillNode, def: TempUpgradeDef) -> SkillNodeAddon:
-	if node == null or def == null:
+## `node`'s currently-attached temp addon of `scene`'s kind, or null.
+func _existing_temp_upgrade(node: SkillNode, scene: PackedScene) -> SkillNodeAddon:
+	if node == null or scene == null:
 		return null
 	for a in node.get_addons():
-		if a.temp_upgrade_def == def:
+		if a.is_temporary and a.get_kind() == scene.resource_path:
 			return a
 	return null
 
 
-## Why [param node] refuses [param def] — the `node_action_denied` reason the
+## Why [param node] refuses [param scene] — the `node_action_denied` reason the
 ## seat announces when [method can_toggle_temp_upgrade] says no.
-func temp_upgrade_denial_reason(node: SkillNode, def: TempUpgradeDef) -> String:
-	if not node.can_attach_addon(def.scene.resource_path):
+func temp_upgrade_denial_reason(node: SkillNode, scene: PackedScene) -> String:
+	if not node.can_attach_addon(scene.resource_path):
 		return "temp_upgrade_denied_slot_full"
-	if _short_of_aspect(def):
+	if _short_of_aspect(scene):
 		return "temp_upgrade_denied_aspect"
 	return "temp_upgrade_denied_budget"
 
@@ -713,22 +714,22 @@ func temp_upgrade_denial_reason(node: SkillNode, def: TempUpgradeDef) -> String:
 ## halves that method already branches on, never a third copy of either — a
 ## refund is always legal, so the only question a fresh apply has to answer is
 ## `can_apply_temp_upgrade`.
-func can_toggle_temp_upgrade(node: SkillNode, def: TempUpgradeDef) -> bool:
-	if node == null or def == null:
+func can_toggle_temp_upgrade(node: SkillNode, scene: PackedScene) -> bool:
+	if node == null or scene == null:
 		return false
-	if _existing_temp_upgrade(node, def) != null:
+	if _existing_temp_upgrade(node, scene) != null:
 		return true
-	return can_apply_temp_upgrade(node, def)
+	return can_apply_temp_upgrade(node, scene)
 
 
 ## Click-to-toggle entry point for the UI (#406): if `node` already carries
 ## this exact temp upgrade, refund it (same shape as a blade-member toggle);
 ## otherwise try to apply a new one. Returns true if anything changed.
-func toggle_temp_upgrade(node: SkillNode, def: TempUpgradeDef) -> bool:
-	if _existing_temp_upgrade(node, def) != null:
+func toggle_temp_upgrade(node: SkillNode, scene: PackedScene) -> bool:
+	if _existing_temp_upgrade(node, scene) != null:
 		remove_temp_upgrade(node)
 		return true
-	return apply_temp_upgrade(node, def)
+	return apply_temp_upgrade(node, scene)
 
 
 ## Frees every is_temporary addon on `node`. The one place temp-upgrade

@@ -253,8 +253,8 @@ const _CATALOG: TempUpgradeCatalog = preload("res://attack/melee/temp_upgrade_ca
 
 func test_a_temp_toxin_on_a_blade_node_poisons_in_the_same_resolve() -> void:
 	await _settle()
-	var toxin_def := _CATALOG.by_id(&"toxin")
-	assert_not_null(toxin_def, "toxin is a catalogued temp upgrade")
+	var toxin_def := preload("res://skill_node/addons/defs/toxin_addon.tscn")
+	assert_true(_CATALOG.offered().has(toxin_def), "toxin is a catalogued temp upgrade")
 	if toxin_def == null:
 		return
 	var plan := _plan()

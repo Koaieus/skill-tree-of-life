@@ -14,15 +14,15 @@ const _DEFS_DIR := "res://skill_node/addons/defs/"
 
 
 func test_every_catalog_kind_paints_the_addon_scenes_tint() -> void:
-	assert_gt(_catalog.kinds.size(), 0, "fixture check: the catalog has kinds")
-	for def: TempUpgradeDef in _catalog.kinds:
-		var expected := SkillNodeAddon.tint_of(def.scene)
-		assert_ne(expected, Color.TRANSPARENT, "%s has no authored tint" % def.id)
+	assert_gt(_catalog.offered().size(), 0, "fixture check: the catalog has kinds")
+	for def: PackedScene in _catalog.offered():
+		var expected := SkillNodeAddon.tint_of(def)
+		assert_ne(expected, Color.TRANSPARENT, "%s has no authored tint" % def.resource_path)
 		var mode := TempUpgradeMode.new(null, def)
 		assert_eq(mode.icon_tint(), expected,
-				"%s: the armed badge must paint the addon's own tint" % def.id)
+				"%s: the armed badge must paint the addon's own tint" % def.resource_path)
 		assert_eq(MeleeBody._upgrade_color(def), expected,
-				"%s: the melee blip must paint the addon's own tint" % def.id)
+				"%s: the melee blip must paint the addon's own tint" % def.resource_path)
 
 
 func test_the_palette_has_no_addon_category() -> void:

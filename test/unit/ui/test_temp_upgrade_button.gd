@@ -131,15 +131,15 @@ func _card(index: int) -> TempUpgradeButton:
 
 ## The addon's own authored icon, read the same way production reads it.
 func _authored_icon(index: int) -> Texture2D:
-	var entry: TempUpgradeDef = _catalog.kinds[index]
-	var tmp := entry.scene.instantiate() as SkillNodeAddon
+	var entry: PackedScene = _catalog.offered()[index]
+	var tmp := entry.instantiate() as SkillNodeAddon
 	var tex := tmp.icon
 	tmp.free()
 	return tex
 
 
 func test_one_scene_instance_per_catalog_entry() -> void:
-	var n := _catalog.kinds.size()
+	var n := _catalog.offered().size()
 	assert_eq(_row.get_child_count(), n,
 		"one card per catalog kind — a new kind should need no code here")
 	for i in n:
@@ -148,14 +148,14 @@ func test_one_scene_instance_per_catalog_entry() -> void:
 
 
 func test_card_glyph_and_accent_come_from_authored_data() -> void:
-	for i in _catalog.kinds.size():
-		var entry: TempUpgradeDef = _catalog.kinds[i]
+	for i in _catalog.offered().size():
+		var entry: PackedScene = _catalog.offered()[i]
 		var card := _card(i)
-		assert_not_null(card.icon_texture, "catalog entry %s has no authored addon icon" % entry.id)
+		assert_not_null(card.icon_texture, "catalog entry %s has no authored addon icon" % entry.resource_path)
 		assert_eq(card.icon_texture, _authored_icon(i),
-			"card %s must show the addon scene's own icon, not a parallel lookup" % entry.id)
-		assert_eq(card.accent, SkillNodeAddon.tint_of(entry.scene),
-			"card %s must paint the addon scene's own tint" % entry.id)
+			"card %s must show the addon scene's own icon, not a parallel lookup" % entry.resource_path)
+		assert_eq(card.accent, SkillNodeAddon.tint_of(entry),
+			"card %s must paint the addon scene's own tint" % entry.resource_path)
 
 
 func test_three_states_are_each_reachable_and_distinct() -> void:
@@ -170,7 +170,7 @@ func test_three_states_are_each_reachable_and_distinct() -> void:
 	seen.append(_card(0).state)
 
 	# Arm one → it is what the next graph click places.
-	_pic.arm_temp_upgrade(_catalog.kinds[0])
+	_pic.arm_temp_upgrade(_catalog.offered()[0])
 	seen.append(_card(0).state)
 
 	assert_eq(seen, [
@@ -192,8 +192,8 @@ func _uniq(values: Array) -> Array:
 
 func test_arming_swaps_exactly_one_card() -> void:
 	_arm_plan()
-	var clamp_entry: TempUpgradeDef = _catalog.by_id(&"clamp")
-	var spike_entry: TempUpgradeDef = _catalog.by_id(&"spike_ring")
+	var clamp_entry: PackedScene = preload("res://skill_node/addons/defs/clamp_addon.tscn")
+	var spike_entry: PackedScene = preload("res://skill_node/addons/defs/spike_ring_addon.tscn")
 
 	_pic.arm_temp_upgrade(clamp_entry)
 	assert_eq(_card(0).state, TempUpgradeButton.State.ARMED, "clamp armed")

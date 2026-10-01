@@ -245,7 +245,7 @@ func _arm_melee_with_clamp() -> void:
 	_ctl.route_left_click(_n("A"))
 	_ctl.route_left_click(_n("B"))
 	_ctl.route_left_click(_n("C"))
-	_ctl.arm_temp_upgrade(_catalog.by_id(&"clamp"))
+	_ctl.arm_temp_upgrade(preload("res://skill_node/addons/defs/clamp_addon.tscn"))
 
 
 func test_an_armed_temp_upgrade_is_a_local_plan_edit_with_no_command() -> void:

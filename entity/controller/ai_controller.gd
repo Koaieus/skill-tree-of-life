@@ -86,6 +86,8 @@ const KILL_MARGIN_ARROWS := 1
 ## specials first in roster `order`, base fills the rest — the AI has no
 ## composer, so this IS its composition policy.
 const _AMMO_TYPES: AmmoTypeRoster = preload("res://attack/ammo/ammo_type_roster.tres")
+## The temp upgrade a phantom clamp becomes at launch — a kind is its scene.
+const _CLAMP_ADDON: PackedScene = preload("res://skill_node/addons/defs/clamp_addon.tscn")
 
 ## Diagnostic only (#537's "count it before trusting the arithmetic" ask) —
 ## how many candidates PASS 1 validated (cheaply) before the two-tier gate
@@ -736,7 +738,7 @@ func _execute_candidate(candidate: AiCombatScorer.ScoredCandidate) -> bool:
 			# blade than the one that won. Attached on THIS plan, directly — no
 			# command (owner, 2026-08-21: AI is host-only, so direct calls are
 			# fine).
-			var clamp := bs.temp_upgrade_by_id(&"clamp")
+			var clamp := _CLAMP_ADDON
 			for node in candidate.clamp_nodes:
 				plan.toggle_temp_upgrade(node, clamp)
 		_:

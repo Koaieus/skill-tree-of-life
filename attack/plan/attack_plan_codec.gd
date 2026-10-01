@@ -15,7 +15,7 @@ extends RefCounted
 ## [param graph] is not optional anywhere here. A plan's wire form is nothing
 ## but ids, and only a [Graph] can turn those back into the live
 ## [SkillNode]s / [Entity] the rebuilt plan needs. [param catalog] resolves a
-## melee plan's temp-upgrade ids — pass the composing scene's.
+## melee plan's temp-upgrade kinds — pass the composing scene's.
 
 
 ## Rebuild a plan from its wire form. Returns null on an unknown or missing

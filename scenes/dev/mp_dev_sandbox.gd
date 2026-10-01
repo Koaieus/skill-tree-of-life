@@ -66,6 +66,8 @@ const PROBE_REPORT_PERIOD_SECONDS := 60.0
 ## no natural end — the sandbox has no victory condition wired — so an unbounded
 ## run is a stopwatch decision, not a scene one.
 const AUTOPILOT_TURNS_UNBOUNDED := -1
+## The temp upgrade the autopilot sweep toggles — a kind is its scene.
+const _CLAMP_ADDON: PackedScene = preload("res://skill_node/addons/defs/clamp_addon.tscn")
 
 @onready var _transport: NetworkTransport = $Transport
 @onready var _link: NetworkLink = $NetworkLink
@@ -700,9 +702,9 @@ func _sweep_melee() -> void:
 ## content (ADR 0035), a seat-local edit that crosses inside the launch, so it
 ## is placed here, before the swing it augments.
 func _sweep_toggle_temp_upgrade(plan: MeleeAttackPlan) -> void:
-	var upgrade := battle_system.temp_upgrade_by_id(&"clamp")
-	if upgrade == null or plan.source == null:
-		_write_log("autopilot: toggle_temp_upgrade SKIPPED — no catalog entry or pivot")
+	var upgrade := _CLAMP_ADDON
+	if plan.source == null:
+		_write_log("autopilot: toggle_temp_upgrade SKIPPED — no pivot")
 		return
 	if not plan.has_temp_upgrade_budget(upgrade):
 		_write_log("autopilot: toggle_temp_upgrade SKIPPED — no blade budget left")

@@ -6,15 +6,13 @@ extends ArmedMode
 ## toggles the upgrade onto a node; it stays armed either way. Popping the
 ## blade pops it too — the arm never outlives its blade.
 
-## One icon per addon scene; instancing the scene is the only way to read it.
-static var _icon_cache: Dictionary = {}
-
-var def: TempUpgradeDef
+## The armed addon scene — the kind ([method SkillNodeAddon.get_kind]).
+var scene: PackedScene
 
 
-func _init(p_ctl: PlayerInputController, p_def: TempUpgradeDef) -> void:
+func _init(p_ctl: PlayerInputController, p_scene: PackedScene) -> void:
 	ctl = p_ctl
-	def = p_def
+	scene = p_scene
 
 
 func handle_left_click(node: SkillNode) -> bool:
@@ -22,15 +20,8 @@ func handle_left_click(node: SkillNode) -> bool:
 
 
 func icon() -> Texture2D:
-	var scene: PackedScene = def.scene
-	if scene == null:
-		return null
-	if not _icon_cache.has(scene):
-		var tmp := scene.instantiate()
-		_icon_cache[scene] = (tmp as SkillNodeAddon).icon
-		tmp.free()
-	return _icon_cache[scene]
+	return SkillNodeAddon.icon_of(scene)
 
 
 func icon_tint() -> Color:
-	return SkillNodeAddon.tint_of(def.scene)
+	return SkillNodeAddon.tint_of(scene)

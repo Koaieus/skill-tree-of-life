@@ -71,7 +71,7 @@ func _temp_addon(entity_mods: Array[StatModifier], local_mods: Array[StatModifie
 	var addon := _CLAMP_SCENE.instantiate() as SkillNodeAddon
 	addon.entity_modifiers = entity_mods
 	addon.local_modifiers = local_mods
-	addon.temp_upgrade_def = _catalog.by_id(&"clamp")
+	addon.is_temporary = true
 	return addon
 
 
@@ -103,8 +103,8 @@ func test_a_temp_upgrade_leaves_every_board_unchanged() -> void:
 	var plan: MeleeAttackPlan = ctx.plan
 	_entity.stat_board.poison_aspect.base_value = 2.0
 	var before := _world_print(ctx)
-	assert_true(plan.apply_temp_upgrade(ctx.joint, _catalog.by_id(&"toxin")))
-	assert_true(plan.apply_temp_upgrade(ctx.tip, _catalog.by_id(&"spike_ring")))
+	assert_true(plan.apply_temp_upgrade(ctx.joint, preload("res://skill_node/addons/defs/toxin_addon.tscn")))
+	assert_true(plan.apply_temp_upgrade(ctx.tip, preload("res://skill_node/addons/defs/spike_ring_addon.tscn")))
 	assert_eq(_world_print(ctx), before,
 			"a temp's modifiers never reach the entity board or any node board")
 
@@ -119,7 +119,7 @@ func test_temp_spike_ring_raises_the_vertex_like_a_permanent_twin() -> void:
 	var permanent_dmg := float(outside.get_local_value(&"blade_damage"))
 	var permanent_blunt := float(outside.get_local_value(&"blunting"))
 	var bare := plan.build_blade_state()
-	assert_true(plan.apply_temp_upgrade(ctx.joint, _catalog.by_id(&"spike_ring")))
+	assert_true(plan.apply_temp_upgrade(ctx.joint, preload("res://skill_node/addons/defs/spike_ring_addon.tscn")))
 	var state := plan.build_blade_state()
 	assert_ne(state.vertex_damage[1], bare.vertex_damage[1], "the temp moves its vertex")
 	assert_almost_eq(state.vertex_damage[1], permanent_dmg, 0.001,
@@ -144,7 +144,7 @@ func test_temp_scales_with_its_carriers_stake() -> void:
 	await get_tree().process_frame
 	var permanent_dmg := float(outside.get_local_value(&"blade_damage"))
 	assert_ne(permanent_dmg, authored_dmg, "the stake-3 law is not the identity here")
-	assert_true(plan.apply_temp_upgrade(joint, _catalog.by_id(&"spike_ring")))
+	assert_true(plan.apply_temp_upgrade(joint, preload("res://skill_node/addons/defs/spike_ring_addon.tscn")))
 	var state := plan.build_blade_state()
 	assert_almost_eq(state.vertex_damage[1], permanent_dmg, 0.001,
 			"a temp on a stake-3 carrier contributes the permanent addon's stake-3 value")
@@ -193,7 +193,7 @@ func test_entity_wide_strength_temp_is_inert() -> void:
 func test_budget_reads_ignore_temps() -> void:
 	var ctx: Dictionary = await _setup()
 	var plan: MeleeAttackPlan = ctx.plan
-	var toxin := _catalog.by_id(&"toxin")
+	var toxin := preload("res://skill_node/addons/defs/toxin_addon.tscn")
 	_entity.stat_board.poison_aspect.base_value = 2.0
 	var blades_before := plan.max_blades()
 	var cap_before := plan.currency_cap(&"poison_aspect")
@@ -214,7 +214,7 @@ func test_temp_spike_ring_adds_no_spike_power() -> void:
 	var plan: MeleeAttackPlan = ctx.plan
 	var joint: SkillNode = ctx.joint
 	var before := joint.get_spike_power()
-	assert_true(plan.apply_temp_upgrade(joint, _catalog.by_id(&"spike_ring")))
+	assert_true(plan.apply_temp_upgrade(joint, preload("res://skill_node/addons/defs/spike_ring_addon.tscn")))
 	assert_eq(joint.get_spike_power(), before, "a temp is blade-local, never defensive")
 
 
@@ -233,7 +233,7 @@ func test_snapshot_round_trip_drops_temp_addons() -> void:
 	source.add_edge(a, b)
 	await get_tree().process_frame
 	var temp := _SPIKE_SCENE.instantiate() as SkillNodeAddon
-	temp.temp_upgrade_def = _catalog.by_id(&"spike_ring")
+	temp.is_temporary = true
 	a.add_child(temp)
 	b.add_child(_CLAMP_SCENE.instantiate())
 	GraphSnapshot.decode(GraphSnapshot.encode(source), target)

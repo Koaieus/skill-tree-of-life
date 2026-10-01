@@ -1,38 +1,36 @@
 extends GutTest
 
-## The two identifiers #509 had to invent so a command could name something
-## that is not a node or an entity: a temp-upgrade catalog entry, and a loot
-## pick request.
+## The identifiers a command uses to name something that is not a node or an
+## entity: a temp-upgrade kind (its addon scene path), and a loot pick request.
 
 const _MOD := preload("res://stats_system/stat_modifier.gd")
 ## A `var`, not a `const`: the parser constant-folds `CONST.kinds[i]`.
 var _catalog: TempUpgradeCatalog = preload("res://attack/melee/temp_upgrade_catalog.tres")
 
 
-func test_every_catalog_entry_has_a_nonempty_id() -> void:
-	for upgrade in _catalog.kinds:
-		assert_ne(upgrade.id, &"", "catalog entry carries a non-empty id")
+## A temp upgrade's wire identity is its kind — the addon's scene path.
+func test_every_catalog_kind_is_a_nonempty_scene_path() -> void:
+	for scene in _catalog.kinds():
+		assert_ne(scene.resource_path, "", "catalog kind carries a scene path")
 
 
-func test_catalog_ids_are_unique() -> void:
-	var seen: Array[StringName] = []
-	for upgrade in _catalog.kinds:
-		assert_false(seen.has(upgrade.id), "id %s is unique" % upgrade.id)
-		seen.append(upgrade.id)
+func test_catalog_kinds_are_unique() -> void:
+	var seen: Array[String] = []
+	for scene in _catalog.kinds():
+		assert_false(seen.has(scene.resource_path), "kind %s is unique" % scene.resource_path)
+		seen.append(scene.resource_path)
 
 
-## Load-bearing: consumers compare defs by reference (`kinds.has(def)`,
-## `addon.temp_upgrade_def == def`), so a lookup that rebuilt the def would
-## resolve to something the plan then rejects.
-func test_by_id_returns_the_catalog_entry_itself() -> void:
-	for upgrade in _catalog.kinds:
-		var found := _catalog.by_id(upgrade.id)
-		assert_true(found == upgrade, "round-tripped def is the catalog member itself")
+## Load-bearing: the lookup must hand back the very scene the catalog holds —
+## the same object a `preload` of that path is — never a rebuilt copy.
+func test_by_kind_returns_the_catalog_entry_itself() -> void:
+	for scene in _catalog.kinds():
+		var found := _catalog.by_kind(scene.resource_path)
+		assert_true(found == scene, "round-tripped kind is the catalog member itself")
 
 
-func test_by_id_on_an_unknown_id_is_null() -> void:
-	assert_null(_catalog.by_id(&"no_such_upgrade"))
-
+func test_by_kind_on_an_unknown_kind_is_null() -> void:
+	assert_null(_catalog.by_kind("res://no_such_upgrade_addon.tscn"))
 
 
 func _request() -> LootPickRequest:

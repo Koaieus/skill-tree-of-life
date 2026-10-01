@@ -62,13 +62,6 @@ func _setup_chain(budget: float, count: int, selected: int = -1) -> Dictionary:
 	return {"plan": plan, "source": source, "members": members}
 
 
-func _def(id: StringName, scene: PackedScene) -> TempUpgradeDef:
-	var def := TempUpgradeDef.new()
-	def.id = id
-	def.scene = scene
-	return def
-
-
 # 1 ────────────────────────────────────────────────────────────────────────
 
 func test_poison_aspect_admits_that_many_toxins_then_denies() -> void:
@@ -76,7 +69,7 @@ func test_poison_aspect_admits_that_many_toxins_then_denies() -> void:
 	var plan: MeleeAttackPlan = ctx.plan
 	var members: Array[SkillNode] = []
 	members.assign(ctx.members)
-	var toxin := _catalog.by_id(&"toxin")
+	var toxin := preload("res://skill_node/addons/defs/toxin_addon.tscn")
 	_entity.stat_board.poison_aspect.base_value = 3.0
 	var n := floori(_entity.stat_board.get_value(&"poison_aspect"))
 	assert_gt(n, 0, "the board grants some poison_aspect")
@@ -95,8 +88,8 @@ func test_two_kinds_sharing_an_aspect_draw_one_pool() -> void:
 	var plan: MeleeAttackPlan = ctx.plan
 	var members: Array[SkillNode] = []
 	members.assign(ctx.members)
-	var toxin := _catalog.by_id(&"toxin")
-	var second := _def(&"second_dot", _SECOND_DOT_SCENE)
+	var toxin := preload("res://skill_node/addons/defs/toxin_addon.tscn")
+	var second := _SECOND_DOT_SCENE
 	_entity.stat_board.poison_aspect.base_value = 2.0
 	assert_eq(SkillNodeAddon.temp_costs_of(_SECOND_DOT_SCENE).get(&"poison_aspect", 0), 1,
 			"the fixture DoT spends poison_aspect too")
@@ -115,11 +108,11 @@ func test_members_and_temp_blade_costs_share_one_budget() -> void:
 	var plan: MeleeAttackPlan = ctx.plan
 	var members: Array[SkillNode] = []
 	members.assign(ctx.members)
-	var clamp := _catalog.by_id(&"clamp")
+	var clamp := preload("res://skill_node/addons/defs/clamp_addon.tscn")
 	assert_eq(plan.max_blades(), 3)
 	assert_true(plan.apply_temp_upgrade(members[0], clamp), "the clamp fills the last unit")
 	assert_eq(plan.currency_spent(&"blade_size"),
-			plan.blade_nodes.size() + SkillNodeAddon.temp_costs_of(clamp.scene)[&"blade_size"])
+			plan.blade_nodes.size() + SkillNodeAddon.temp_costs_of(clamp)[&"blade_size"])
 	assert_eq(plan.currency_remaining(&"blade_size"), 0)
 	plan.toggle_member(members[2])
 	assert_false(plan.blade_nodes.has(members[2]), "a member past the shared budget is refused")
@@ -132,10 +125,10 @@ func test_an_aspect_cost_over_the_cap_is_denied_with_blade_budget_left() -> void
 	var ctx: Dictionary = await _setup_chain(40.0, 1)
 	var plan: MeleeAttackPlan = ctx.plan
 	var member: SkillNode = ctx.members[0]
-	var toxin := _catalog.by_id(&"toxin")
+	var toxin := preload("res://skill_node/addons/defs/toxin_addon.tscn")
 	_entity.stat_board.poison_aspect.base_value = 0.0
 	assert_gt(plan.currency_remaining(&"blade_size"),
-			SkillNodeAddon.temp_costs_of(toxin.scene)[&"blade_size"], "blade budget to spare")
+			SkillNodeAddon.temp_costs_of(toxin)[&"blade_size"], "blade budget to spare")
 	assert_false(plan.can_apply_temp_upgrade(member, toxin))
 	assert_false(plan.has_temp_upgrade_budget(toxin))
 	assert_eq(plan.temp_upgrade_denial_reason(member, toxin), "temp_upgrade_denied_aspect")
@@ -147,7 +140,7 @@ func test_a_scene_not_temp_placeable_is_refused() -> void:
 	var ctx: Dictionary = await _setup_chain(40.0, 1)
 	var plan: MeleeAttackPlan = ctx.plan
 	var member: SkillNode = ctx.members[0]
-	var bunker := _def(&"bunker", _BUNKER_SCENE)
+	var bunker := _BUNKER_SCENE
 	assert_false(SkillNodeAddon.temp_placeable_of(_BUNKER_SCENE))
 	assert_true(member.can_attach_addon(_BUNKER_SCENE.resource_path), "the slot is open")
 	assert_false(plan.can_apply_temp_upgrade(member, bunker))
@@ -157,10 +150,10 @@ func test_a_scene_not_temp_placeable_is_refused() -> void:
 # 6 ────────────────────────────────────────────────────────────────────────
 
 func test_the_scene_cache_reads_what_an_instance_says() -> void:
-	for def in _catalog.kinds:
-		var addon := def.scene.instantiate() as SkillNodeAddon
-		assert_eq(SkillNodeAddon.temp_costs_of(def.scene), addon.get_temp_costs(),
-				"%s: cached costs" % def.id)
-		assert_true(addon.temp_placeable, "%s is temp_placeable" % def.id)
-		assert_true(SkillNodeAddon.temp_placeable_of(def.scene), "%s: cached placeable" % def.id)
+	for def in _catalog.offered():
+		var addon := def.instantiate() as SkillNodeAddon
+		assert_eq(SkillNodeAddon.temp_costs_of(def), addon.get_temp_costs(),
+				"%s: cached costs" % def.resource_path)
+		assert_true(addon.temp_placeable, "%s is temp_placeable" % def.resource_path)
+		assert_true(SkillNodeAddon.temp_placeable_of(def), "%s: cached placeable" % def.resource_path)
 		addon.free()

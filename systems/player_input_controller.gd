@@ -67,8 +67,8 @@ signal node_pinned(node: SkillNode)
 ## Derived off the stack: fires when the [CoreMoveMode] source changes.
 ## Which temp upgrade is armed ([TempUpgradeMode] on the branch), or null (#406).
 ## Derived off the stack; fires once per transition.
-signal temp_upgrade_arm_changed(upgrade: TempUpgradeDef)
-var _last_temp_upgrade: TempUpgradeDef = null
+signal temp_upgrade_arm_changed(upgrade: PackedScene)
+var _last_temp_upgrade: PackedScene = null
 var _last_move_source: SkillNode = null
 
 ## The last melee blade each entity successfully launched (#466), keyed by
@@ -1091,12 +1091,12 @@ func _player_has_movement_points() -> bool:
 ## Arm or disarm [param upgrade] on the [BladeMode] (#406): re-arming the
 ## armed card pops it, another card replaces it. Refused (nothing pushed)
 ## while no blade stands — see [method can_arm_temp_upgrade].
-func arm_temp_upgrade(upgrade: TempUpgradeDef) -> void:
+func arm_temp_upgrade(upgrade: PackedScene) -> void:
 	var blade := armed_stack.find(BladeMode) as BladeMode if armed_stack != null else null
 	if blade == null:
 		return
 	var current := armed_stack.find(TempUpgradeMode) as TempUpgradeMode
-	if current != null and current.def == upgrade:
+	if current != null and current.scene == upgrade:
 		armed_stack.pop(current)
 	elif upgrade != null:
 		blade.arm_temp_upgrade(upgrade)
@@ -1110,9 +1110,9 @@ func can_arm_temp_upgrade() -> bool:
 	return armed_stack != null and armed_stack.find(BladeMode) != null
 
 
-func temp_upgrade_arm() -> TempUpgradeDef:
+func temp_upgrade_arm() -> PackedScene:
 	var level := armed_stack.find(TempUpgradeMode) as TempUpgradeMode if armed_stack != null else null
-	return level.def if level != null else null
+	return level.scene if level != null else null
 
 
 ## Arm a Manage verb card (#338): Deallocate / Stake / Extract switch to their

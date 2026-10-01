@@ -11,9 +11,9 @@ extends RefCounted
 ##
 ## Deliberately NOT an autoload registry either — a const list of authored
 ## things with an id lookup over it. Adding a spell is one line here and one
-## `id` in its `.tres`. ([TempUpgradeCatalog] is the same lookup as an
-## authored `.tres` reached through an `@export` — the inspector-composable
-## shape this const list should grow into; #1026.)
+## `id` in its `.tres`. ([TempUpgradeCatalog] is an authored `.tres` reached
+## through an `@export` that scans a folder rather than listing by hand — the
+## inspector-composable shape this const list should grow into; #1026.)
 
 const SPARK: SpellDef = preload("res://attack/spell/defs/spark.tres")
 const BRUISER: SpellDef = preload("res://attack/spell/defs/bruiser.tres")

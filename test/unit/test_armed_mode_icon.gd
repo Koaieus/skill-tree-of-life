@@ -193,7 +193,7 @@ func test_switching_the_armed_spell_moves_the_badge() -> void:
 ## the signal that click emits, so a hand-set field would test the branch while
 ## silently skipping the wiring this issue exists to fix.
 ## A card arms only on a Blade: pick the pivot first when none stands.
-func _arm_on_blade(def: TempUpgradeDef) -> void:
+func _arm_on_blade(def: PackedScene) -> void:
 	if _ctl.armed_stack.find(BladeMode) == null:
 		_ctl.route_left_click(_nodes[0])
 	_ctl.arm_temp_upgrade(def)
@@ -269,13 +269,13 @@ func test_clamp_over_melee_badges_the_clamp_while_the_glow_stays_red() -> void:
 	# tint walk does not. Both statements are true at once: the border says
 	# "you are wielding Melee", the badge says "this click places a clamp".
 	_ctl.on_attack_mode_requested(BattleSystem.AttackMode.MELEE)
-	_arm_on_blade(_catalog.kinds[0])
+	_arm_on_blade(_catalog.offered()[0])
 	assert_true(_ctl.temp_upgrade_arm() != null,
 			"fixture check: the temp upgrade should be armed on top")
 
 	assert_eq(_ctl.get_armed_icon(), _icon("addon_clamp"),
 			"the badge forwards the addon scene's own authored icon")
-	assert_eq(_ctl.get_armed_icon_tint(), SkillNodeAddon.tint_of(_catalog.kinds[0].scene))
+	assert_eq(_ctl.get_armed_icon_tint(), SkillNodeAddon.tint_of(_catalog.offered()[0]))
 	assert_eq(_ctl.get_armed_tint(), _stat_color(&"strength"),
 			"the glow still reads the BASE of the stack — the walks diverge")
 
@@ -283,16 +283,16 @@ func test_clamp_over_melee_badges_the_clamp_while_the_glow_stays_red() -> void:
 func test_the_badge_forwards_the_addon_scenes_own_icon() -> void:
 	# Not a second copy of the texture reference: the tray card the player
 	# pressed a second earlier renders this exact Texture2D off the same scene.
-	var upgrade: TempUpgradeDef = _catalog.kinds[1]
+	var upgrade: PackedScene = _catalog.offered()[1]
 	_ctl.on_attack_mode_requested(BattleSystem.AttackMode.MELEE)
 	_arm_on_blade(upgrade)
 
-	var probe := upgrade.scene.instantiate()
+	var probe := upgrade.instantiate()
 	var authored: Texture2D = (probe as SkillNodeAddon).icon
 	probe.free()
 
 	assert_eq(_ctl.get_armed_icon(), authored)
-	assert_eq(_ctl.get_armed_icon_tint(), SkillNodeAddon.tint_of(upgrade.scene))
+	assert_eq(_ctl.get_armed_icon_tint(), SkillNodeAddon.tint_of(upgrade))
 
 
 # --- 4. the dedup trap -------------------------------------------------------
@@ -306,14 +306,14 @@ func test_icon_signal_fires_when_the_tint_signal_does_not() -> void:
 	_pick_pivot(_nodes[0])
 
 	watch_signals(_ctl)
-	_arm_on_blade(_catalog.kinds[0])
+	_arm_on_blade(_catalog.offered()[0])
 
 	assert_signal_emit_count(_ctl, "armed_tint_changed", 0,
 			"the glow is unchanged — the base of the stack is still the plan")
 	assert_signal_emit_count(_ctl, "armed_icon_changed", 1,
 			"the badge MUST still fire; each channel dedupes against its own cache")
 	assert_signal_emitted_with_parameters(_ctl, "armed_icon_changed",
-			[_icon("addon_clamp"), SkillNodeAddon.tint_of(_catalog.kinds[0].scene)], 0)
+			[_icon("addon_clamp"), SkillNodeAddon.tint_of(_catalog.offered()[0])], 0)
 
 
 func test_a_refresh_that_changed_nothing_does_not_re_fire() -> void:
@@ -327,7 +327,7 @@ func test_a_refresh_that_changed_nothing_does_not_re_fire() -> void:
 
 func test_popping_the_clamp_restores_the_melee_badge() -> void:
 	_ctl.on_attack_mode_requested(BattleSystem.AttackMode.MELEE)
-	_arm_on_blade(_catalog.kinds[0])
+	_arm_on_blade(_catalog.offered()[0])
 
 	watch_signals(_ctl)
 	assert_true(_ctl.pop_armed_level(), "the temp upgrade is the top level")
@@ -405,10 +405,10 @@ func test_every_level_with_an_icon_also_names_a_colour() -> void:
 		func() -> void: _ctl.on_attack_mode_requested(BattleSystem.AttackMode.MAGIC),
 		func() -> void:
 			_ctl.on_attack_mode_requested(BattleSystem.AttackMode.MELEE)
-			_arm_on_blade(_catalog.kinds[0]),
+			_arm_on_blade(_catalog.offered()[0]),
 		func() -> void:
 			_ctl.on_attack_mode_requested(BattleSystem.AttackMode.MELEE)
-			_arm_on_blade(_catalog.kinds[1]),
+			_arm_on_blade(_catalog.offered()[1]),
 		func() -> void: _ctl.arm_verb(PlayerInputController.ManageVerb.DEALLOCATE),
 		func() -> void: _ctl.arm_verb(PlayerInputController.ManageVerb.STAKE),
 		func() -> void: _ctl.arm_verb(PlayerInputController.ManageVerb.EXTRACT),
@@ -488,9 +488,9 @@ func test_the_palette_does_not_restate_the_attribute_colours() -> void:
 				&"extract"]:
 			assert_ne(_PALETTE.color_for(key), attr,
 					"%s duplicates the %s identity colour" % [key, stat_id])
-		for upgrade in _catalog.kinds:
-			assert_ne(SkillNodeAddon.tint_of(upgrade.scene), attr,
-					"%s tint duplicates the %s identity colour" % [upgrade.id, stat_id])
+		for upgrade in _catalog.offered():
+			assert_ne(SkillNodeAddon.tint_of(upgrade), attr,
+					"%s tint duplicates the %s identity colour" % [upgrade.resource_path, stat_id])
 
 
 func test_an_unmapped_palette_key_falls_through_rather_than_blanking() -> void:

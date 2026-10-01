@@ -17,13 +17,13 @@ extends CommandTrayBodyBase
 @onready var _launch_button: LaunchAttackButton = %LaunchButton
 @onready var _fuse_scrubber: FuseScrubber = %FuseScrubber
 
-## Blip tint per [TempUpgradeDef] in the battle system's catalog — used for the
+## Blip tint per addon kind in the battle system's catalog — used for the
 ## upgrade-spend pips, the addon-outline decoration on blade-region pips and the
 ## card accent, so one colour means one addon kind everywhere in this panel.
 ## The colour is the addon scene's own authored [member SkillNodeAddon.tint]; the
 ## armed-mode badge reads the same field, so card and badge cannot drift apart.
-static func _upgrade_color(def: TempUpgradeDef) -> Color:
-	return SkillNodeAddon.tint_of(def.scene)
+static func _upgrade_color(scene: PackedScene) -> Color:
+	return SkillNodeAddon.tint_of(scene)
 
 ## Force-hover refcounts, keyed by SkillNode — owned exclusively here, so the
 ## panel is the only thing that can leave a node forced-hovered. Cleared at the
@@ -133,10 +133,10 @@ func _clear_hover() -> void:
 const _UPGRADE_BUTTON := preload("res://ui/hud/command_tray/bodies/temp_upgrade_button.tscn")
 
 
-## One button per [TempUpgradeDef] in [method BattleSystem.temp_upgrade_kinds]
+## One button per addon scene in [method BattleSystem.temp_upgrade_kinds]
 ## (#406) — a future catalog addition (e.g. the filed "edge sharpener") is a
-## def dragged into the `.tres`, zero changes here. Cost comes off the def;
-## label and glyph still come off a throwaway instance of the addon's own
+## `temp_placeable` scene dropped in the catalog's folder, zero changes here.
+## Cost comes off the scene; label and glyph come off a throwaway instance of the addon's own
 ## scene (#465), since the addon scene is the source of truth for its own
 ## art: the icon here and the one [TempUpgradeMode] puts on the cursor
 ## are the same authored [member SkillNodeAddon.icon], never two copies.
@@ -146,12 +146,12 @@ func _build_upgrade_buttons() -> void:
 	var kinds := _battle_system.temp_upgrade_kinds()
 	for i in kinds.size():
 		var upgrade := kinds[i]
-		var tmp := upgrade.scene.instantiate() as SkillNodeAddon
+		var tmp := upgrade.instantiate() as SkillNodeAddon
 		var btn := _UPGRADE_BUTTON.instantiate() as TempUpgradeButton
 		btn.label_text = tmp.get_tooltip_title()
 		btn.keycap = PlayerInputController.temp_upgrade_keycap(i)
 		btn.icon_texture = tmp.icon
-		btn.costs = SkillNodeAddon.temp_costs_of(upgrade.scene)
+		btn.costs = SkillNodeAddon.temp_costs_of(upgrade)
 		tmp.free()
 		btn.accent = _upgrade_color(upgrade)
 		if _input_ctl != null:
@@ -223,7 +223,7 @@ func _refresh() -> void:
 		for upgrade in _battle_system.temp_upgrade_kinds():
 			for node in nodes:
 				for a in node.get_addons():
-					if a.temp_upgrade_def == upgrade:
+					if a.is_temporary and a.get_kind() == upgrade.resource_path:
 						for _j in a.get_temp_costs().get(&"blade_size", 0):
 							upgrade_bound.append(node)
 							upgrade_colors.append(_upgrade_color(upgrade))
@@ -249,7 +249,7 @@ func _refresh() -> void:
 	# collapsed into `Button.disabled`: "out of blade budget", "not your turn"
 	# and "not selected" are three different sentences and the card paints them
 	# as three. Which of them wins visually is TempUpgradeButton.state's call.
-	var arm: TempUpgradeDef = _input_ctl.temp_upgrade_arm() if _input_ctl != null else null
+	var arm: PackedScene = _input_ctl.temp_upgrade_arm() if _input_ctl != null else null
 	var kinds := _battle_system.temp_upgrade_kinds()
 	for i in kinds.size():
 		var upgrade := kinds[i]
@@ -297,14 +297,13 @@ func _push_fuse_stranded(stranded: Array[SkillNode]) -> void:
 ## Outline colors (up to two, catalog order) for every catalog addon kind
 ## currently attached to `node` — permanent or temp both count, so the outline
 ## reflects what the node actually carries, not just player spend (that
-## distinction is the separate manual-marker rectangle). Hence a KIND match
-## (the addon's scene), not a def match: a permanent clamp carries no
-## [member SkillNodeAddon.temp_upgrade_def].
+## distinction is the separate manual-marker rectangle). Hence a bare KIND
+## match (the addon's scene), with no [member SkillNodeAddon.is_temporary] test.
 func _outline_colors_for(node: SkillNode) -> Array[Color]:
 	var colors: Array[Color] = []
 	for a in node.get_addons():
 		for upgrade in _battle_system.temp_upgrade_kinds():
-			if a.get_kind() == upgrade.scene.resource_path:
+			if a.get_kind() == upgrade.resource_path:
 				colors.append(_upgrade_color(upgrade))
 	return colors
 

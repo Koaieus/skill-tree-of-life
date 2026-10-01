@@ -15,8 +15,7 @@ extends Resource
 ## [b]Not `resource_path`[/b] (owner call 2026-08-21). This codebase uses
 ## `resource_path` only for warning strings and inspector labels, never as an
 ## identity key, and a rename or move of the `.tres` would break the wire form
-## silently with no error at the break. Follows the precedent
-## [member TempUpgradeDef.id] set one issue earlier.
+## silently with no error at the break.
 ##
 ## Must be unique across `attack/spell/defs/` — `test_spell_catalog.gd` pins it.
 @export var id: StringName = &""

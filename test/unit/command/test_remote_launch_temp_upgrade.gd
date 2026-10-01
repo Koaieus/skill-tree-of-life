@@ -87,14 +87,14 @@ func _set_local(node: SkillNode, stat_id: StringName, value: float) -> void:
 	node.add_local_modifier(m)
 
 
-func _clamp() -> TempUpgradeDef:
-	return _CATALOG.by_id(&"clamp")
+func _clamp() -> PackedScene:
+	return preload("res://skill_node/addons/defs/clamp_addon.tscn")
 
 
 ## The launch as it leaves a remote seat: built there, clamp placed there, then
 ## the preview addon freed — the host's live node never saw it. What arrives is
 ## the decoded command, with no local plan.
-func _remote_launch(def: TempUpgradeDef = null) -> LaunchAttackCommand:
+func _remote_launch(def: PackedScene = null) -> LaunchAttackCommand:
 	if def == null:
 		def = _clamp()
 	_bs.temp_upgrade_catalog = _CATALOG
@@ -128,7 +128,7 @@ func test_the_host_rebuilds_a_remote_seats_plan_with_its_temp_upgrade() -> void:
 	assert_false(command.record.is_empty(), "…and resolves it into a record")
 	var plan := command.local_plan as MeleeAttackPlan
 	assert_not_null(plan, "the decoded plan is the one the apply commits")
-	assert_eq(plan.temp_upgrade_cost_for(_clamp()), SkillNodeAddon.temp_costs_of(_clamp().scene)[&"blade_size"],
+	assert_eq(plan.temp_upgrade_cost_for(_clamp()), SkillNodeAddon.temp_costs_of(_clamp())[&"blade_size"],
 			"the upgrade is in the swing the host resolved")
 	assert_eq(_temp_addons(_nodes.leaf), 1, "mounted on the node the seat chose")
 
@@ -166,7 +166,7 @@ func test_a_launch_over_its_blade_budget_is_refused_whole() -> void:
 ## plan carrying more toxins than the attacker's poison_aspect is refused.
 func test_a_launch_over_its_poison_aspect_is_refused_whole() -> void:
 	_attacker.stat_board.poison_aspect.base_value = 1.0
-	var command := _remote_launch(_CATALOG.by_id(&"toxin"))
+	var command := _remote_launch(preload("res://skill_node/addons/defs/toxin_addon.tscn"))
 	# The seat planned against poison_aspect 1; the host's board says 0.
 	_attacker.stat_board.poison_aspect.base_value = 0.0
 	var applied: Array[bool] = []

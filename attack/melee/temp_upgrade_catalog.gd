@@ -17,17 +17,44 @@ extends Resource
 @export_dir var folder: String = "res://skill_node/addons/defs"
 
 
-## Every addon scene in [member folder], sorted by file name.
+## Scanned once, on first read; [member folder] is authoring-time data.
+var _kinds: Array[PackedScene] = []
+var _scanned := false
+
+
+## Every [SkillNodeAddon]-rooted scene in [member folder], sorted by file name.
+## Lists through [method ResourceLoader.list_directory], which resolves the
+## `.remap` an exported build leaves behind.
 func kinds() -> Array[PackedScene]:
-	return []
+	if not _scanned:
+		_scanned = true
+		var files: Array[String] = []
+		for f in ResourceLoader.list_directory(folder):
+			if f.get_extension() == "tscn":
+				files.append(f)
+		files.sort()
+		for f in files:
+			var scene := load(folder.path_join(f)) as PackedScene
+			if SkillNodeAddon.is_addon_scene(scene):
+				_kinds.append(scene)
+	return _kinds
 
 
 ## The [member SkillNodeAddon.temp_placeable] subset of [method kinds], in order.
 func offered() -> Array[PackedScene]:
-	return []
+	var out: Array[PackedScene] = []
+	for scene in kinds():
+		if SkillNodeAddon.temp_placeable_of(scene):
+			out.append(scene)
+	return out
 
 
 ## The kind whose scene path is [param kind] — the very [PackedScene]
 ## [method kinds] holds — or null if there is none.
-func by_kind(_kind: String) -> PackedScene:
+func by_kind(kind: String) -> PackedScene:
+	if kind.is_empty():
+		return null
+	for scene in kinds():
+		if scene.resource_path == kind:
+			return scene
 	return null

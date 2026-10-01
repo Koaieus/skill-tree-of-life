@@ -148,7 +148,7 @@ func test_toggles_a_temp_upgrade() -> void:
 	plan.set_pivot(_source)
 	plan.toggle_member(_joint)
 	plan.toggle_member(_tip)
-	var clamp := _slot.temp_upgrade_by_id(&"clamp")
+	var clamp := _slot.temp_upgrade_by_kind("res://skill_node/addons/defs/clamp_addon.tscn")
 	assert_not_null(clamp, "the wired catalog answers by id")
 	assert_true(_slot.temp_upgrade_kinds().has(clamp))
 	var before := _joint.get_addons().size()

@@ -1,9 +1,0 @@
-[gd_resource type="Resource" script_class="TempUpgradeDef" load_steps=3 format=3 uid="uid://tudefclamp0001"]
-
-[ext_resource type="Script" path="res://attack/melee/temp_upgrade_def.gd" id="1_def"]
-[ext_resource type="PackedScene" uid="uid://b1addon0clamp" path="res://skill_node/addons/defs/clamp_addon.tscn" id="2_scene"]
-
-[resource]
-script = ExtResource("1_def")
-id = &"clamp"
-scene = ExtResource("2_scene")

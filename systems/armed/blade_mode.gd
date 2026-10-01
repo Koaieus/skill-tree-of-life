@@ -27,9 +27,9 @@ func handle_left_click(node: SkillNode) -> bool:
 	return true
 
 
-## Arm [param def] on this blade, replacing any other armed card.
-func arm_temp_upgrade(def: TempUpgradeDef) -> bool:
-	return stack.switch_to(TempUpgradeMode.new(ctl, def), self)
+## Arm [param scene] on this blade, replacing any other armed card.
+func arm_temp_upgrade(scene: PackedScene) -> bool:
+	return stack.switch_to(TempUpgradeMode.new(ctl, scene), self)
 
 
 func _undo(p: AttackPlan) -> void:

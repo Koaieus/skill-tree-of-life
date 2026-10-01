@@ -92,18 +92,14 @@ extends Node2D
 	set(v):
 		temp_cost_aspects = v
 		update_configuration_warnings()
-## The [TempUpgradeDef] this addon was placed by (#406) — the temp-upgrade
-## spend rather than loot/procgen/editor authoring — or null for a permanent
-## addon. Carries the kind's identity (for "already has this one" checks); the
-## price is the addon's own [method get_temp_costs]. Never @export — only code instantiating a temp
-## upgrade sets this, after instantiate() and before add_child().
-var temp_upgrade_def: TempUpgradeDef = null
 
-## Swing-scoped: freed automatically at the end of the swing instead of by
-## explicit detach. Derived, never set — a temp addon is one that has a def.
-var is_temporary: bool:
-	get:
-		return temp_upgrade_def != null
+## Swing-scoped: placed by the temp-upgrade spend rather than
+## loot/procgen/editor authoring, and freed automatically at the end of the
+## swing instead of by explicit detach. Never @export — only
+## [method MeleeAttackPlan._attach_temp_addon] sets it, after instantiate() and
+## before add_child(). Its kind is [method get_kind]; its price is
+## [method get_temp_costs].
+var is_temporary: bool = false
 
 var carrier: SkillNode
 
@@ -164,6 +160,17 @@ static func tint_of(scene: PackedScene) -> Color:
 	return _scene_record(scene).get(&"tint", Color.TRANSPARENT)
 
 
+## [member icon] of [param scene]'s addon, read like [method temp_costs_of].
+static func icon_of(scene: PackedScene) -> Texture2D:
+	return _scene_record(scene).get(&"icon", null)
+
+
+## Whether [param scene]'s root is a [SkillNodeAddon] — what a folder scan
+## ([TempUpgradeCatalog]) keeps.
+static func is_addon_scene(scene: PackedScene) -> bool:
+	return not _scene_record(scene).is_empty()
+
+
 ## Per-scene facts read off a throwaway instance, cached by scene path: the
 ## one cache every "what does this addon scene say" static reads, one field
 ## per fact. Instantiated once, read, freed — never left as an orphan.
@@ -183,6 +190,7 @@ static func _scene_record(scene: PackedScene) -> Dictionary:
 		&"costs": addon.get_temp_costs(),
 		&"placeable": addon.temp_placeable,
 		&"tint": addon.tint,
+		&"icon": addon.icon,
 	}
 	addon.free()
 	if not key.is_empty():

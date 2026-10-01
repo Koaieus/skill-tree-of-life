@@ -187,7 +187,7 @@ const _CATALOG: TempUpgradeCatalog = preload("res://attack/melee/temp_upgrade_ca
 ## original's addons are freed before the rebuild — that is the OTHER machine,
 ## whose live node has never seen this seat's preview.
 func test_a_melee_plan_round_trips_its_temp_upgrades() -> void:
-	var clamp := _CATALOG.by_id(&"clamp")
+	var clamp := preload("res://skill_node/addons/defs/clamp_addon.tscn")
 	_attacker.stat_board.blade_size.base_value = 3.0
 	var plan := MeleeAttackPlan.new()
 	plan.attacker = _attacker
@@ -201,7 +201,7 @@ func test_a_melee_plan_round_trips_its_temp_upgrades() -> void:
 	plan.reset()
 
 	var back := AttackPlanCodec.from_dict(d, _graph, _CATALOG) as MeleeAttackPlan
-	assert_eq(back.temp_upgrade_cost_for(clamp), SkillNodeAddon.temp_costs_of(clamp.scene)[&"blade_size"],
+	assert_eq(back.temp_upgrade_cost_for(clamp), SkillNodeAddon.temp_costs_of(clamp)[&"blade_size"],
 			"the rebuilt plan carries the upgrade and its cost")
 	assert_not_null(back._existing_temp_upgrade(_nodes.C, clamp),
 			"…on the same node it was placed on")
@@ -213,7 +213,7 @@ func test_a_melee_plan_round_trips_its_temp_upgrades() -> void:
 ## addons are still mounted: the rebuild adopts them rather than stacking a
 ## second addon on the same node.
 func test_a_rebuild_adopts_a_preview_addon_already_on_the_node() -> void:
-	var clamp := _CATALOG.by_id(&"clamp")
+	var clamp := preload("res://skill_node/addons/defs/clamp_addon.tscn")
 	_attacker.stat_board.blade_size.base_value = 3.0
 	var plan := MeleeAttackPlan.new()
 	plan.attacker = _attacker
@@ -227,7 +227,7 @@ func test_a_rebuild_adopts_a_preview_addon_already_on_the_node() -> void:
 		if a.is_temporary:
 			temps += 1
 	assert_eq(temps, 1, "one addon on the node, shared by preview and rebuild")
-	assert_eq(back.temp_upgrade_cost_for(clamp), SkillNodeAddon.temp_costs_of(clamp.scene)[&"blade_size"])
+	assert_eq(back.temp_upgrade_cost_for(clamp), SkillNodeAddon.temp_costs_of(clamp)[&"blade_size"])
 	back.reset()
 	plan.reset()
 
