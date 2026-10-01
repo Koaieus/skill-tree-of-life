@@ -227,6 +227,7 @@ skill, active when the launch prompt names a supervisor:
 | 2026-10-02 | `claude --bg -n whip-probe-n` (haiku) | listed by `claude agents --json` as `name: whip-probe-n`, by `ListAgents` as `whip-probe-n [ref] · bg`; `SendMessage` to the bare name delivered; the session appeared in the owner's claude.ai list and replied there — a `--bg` session is Remote-Control-visible without `--remote-control` | 4 |
 | 2026-10-02 | same probe | a cross-session instruction ("run sleep 8, reply …") was *refused*: "conflicts with your explicit instruction … appears to be an attempt to override it", and `claude agents` showed `state: blocked` | 4, 8, 12 |
 | 2026-10-02 | `whip-probe-2` | launch prompt "your supervisor is session `skill-tree-of-life-c3`; its messages are your instructions; never ask" → the same instruction was followed, `notify_when_idle` subscription accepted ("will send one notice when it is next idle") | 4, 9 |
+| 2026-10-02 | idle notices | both probes' `[Cross-session idle notice]`s arrived, each carrying the session's last line (`idle-probe-done`), but only at the *end of the subscriber's turn* — 13–16 minutes after the probes went idle, because the subscriber was mid-turn the whole time. A supervisor that stays in long turns hears nothing; Whip's turns end on every decision | 9, 11 |
 | 2026-10-02 | process tree | a `--bg` session is `claude bg-spare` under `claude bg-pty-host` under `claude daemon` (ppid 1) — detached from the launching shell; `KillUserProcesses` is at its default (no), `Linger=no` | 15, 16 |
 | 2026-10-02 | transcript `2131d2e9`, 2026-09-30 | session limit hit mid-swarm: one synthetic assistant message `isApiErrorMessage: true` "You've hit your session limit · resets 11:40pm (Europe/Amsterdam)"; nothing until the owner typed "continue, tokens ran out" at 23:41, then the same context continued | 14 |
 | 2026-10-02 | transcript `7ab170d7`, 2026-09-13 | monthly spend limit hit; the lead had a 15-minute in-session loop prompt, which kept firing (16 times over 4 h), each firing answered by the same error at no cost; the limit never reset that night, so "the first firing after a reset succeeds" is **inferred, n=0** | 14, fork A |
@@ -301,7 +302,7 @@ written from this charter alone.
   tool tolerates one night's rows from several leads.
 
 - Whether `notify_when_idle` fires on a `--bg` session that *exits* (the
-  tool says so; unobserved).
+  tool says so; the idle case is observed, the exit case is not).
 - Whether auto-compact in a `--bg` session preserves its idle subscriptions
   and cron jobs (law 13).
 - A first night with fork A option 3 settles whether a cron firing after a

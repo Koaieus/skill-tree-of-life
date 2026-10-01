@@ -69,7 +69,8 @@ SendMessage(to: "lead-<train>", notify_when_idle: true)     # pure subscription,
 | owner typed | obey; `whip -- note "owner: <what>"` |
 
 Nothing else is a wake you act on. A lead's report is the only lead→you
-traffic; never acknowledge one.
+traffic; never acknowledge one. **End your turn after every decision** —
+idle notices and reports are delivered only between your turns.
 
 Your own ceiling is `swarm`'s per-model number. 50k below it:
 `mise run whip -- relieve-me`, then end your turn and do nothing more — the
