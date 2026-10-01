@@ -28,7 +28,7 @@ mutates it per-instance, last writer wins and every instance renders identically
 Symptom: "my per-instance tweak has no effect", no error.
 
 **Fix:** set `resource_local_to_scene = true` on the sub-resource (inspector:
-resource → Local To Scene). Concrete case: `skill_node/addons/*_addon.tscn`'s
+resource → Local To Scene). Concrete case: `skill_node/addons/defs/*_addon.tscn`'s
 granted `StatModifier`s all set this (#377) — without it, one carrier's
 value-mutation would leak into every other instantiation of that addon. That
 claim went false silently once (#406 added a second Spikes modifier without the
