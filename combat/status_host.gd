@@ -83,6 +83,10 @@ func apply_status(def: StatusDef, power: float) -> void:
 	owner._on_statuses_changed()
 
 
+func adjust_power(_def: StatusDef, _delta: float) -> void:
+	pass
+
+
 ## One tick for every status on the host: [method StatusDef._on_tick] first
 ## (damage, effects) — handed [method effective_power] of both `before` and
 ## `after` — then decay of the RAW row per [method StatusDef.decayed] (its

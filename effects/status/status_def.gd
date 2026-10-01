@@ -65,6 +65,9 @@ enum OnDealloc {
 ## sibling [StatusDecay] (#1258). Shared and stateless like this def. Defaults
 ## to a flat `1` per tick; `null` means the status never decays.
 @export var decay: StatusDecay = FlatDecay.new()
+## How stacks move between hosts — a [StatusSpread] signature, shared and
+## stateless like this def. `null` → the status never spreads.
+@export var spread: StatusSpread = null
 ## Display anchor for [method NodeStatus.normalised] (bar fill, node tint):
 ## `0` → use [member power_max]. An uncapped def authors one so the 0..1 scale
 ## survives (poison: 10).
