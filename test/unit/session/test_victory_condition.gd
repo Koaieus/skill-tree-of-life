@@ -294,6 +294,6 @@ func test_run_config_no_longer_exposes_a_mode_keyed_condition_default() -> void:
 func test_a_policy_that_does_not_unlock_the_slot_offers_no_victory_ladder() -> void:
 	var policy := LobbyPolicy.new()
 	assert_null(policy.victory_options,
-			"no shipped route unlocks the victory slot yet (#638)")
+			"a bare policy unlocks no victory slot (#638)")
 	assert_false(policy.offers_run_section(),
 			"an unauthored victory ladder must not conjure a run section")

@@ -1322,3 +1322,49 @@ func test_a_joining_lobby_is_told_nothing_about_its_own_addresses() -> void:
 
 func test_an_offline_lobby_says_nothing_about_the_wire_at_all() -> void:
 	assert_eq(_caption_of(_make_lobby(RunConfig.Mode.SINGLE)), "")
+
+
+# --- #1257: the victory ladder is real on every shipped policy ---------------
+
+const _TURN_LIMIT_PATH := "res://session/victory/turn_limit.tres"
+
+
+func _victory_lobbies() -> Array[LobbyScreen]:
+	return [
+		_policied_lobby(RunConfig.Mode.SINGLE, _POLICY_SINGLE),
+		_policied_lobby(RunConfig.Mode.COOP_HOTSEAT, _POLICY_HOTSEAT),
+		_policied_lobby(RunConfig.Mode.COOP_HOTSEAT, _POLICY_VERSUS, NetworkConfig.host()),
+	]
+
+
+func test_every_policy_shows_a_two_option_victory_row() -> void:
+	for lobby in _victory_lobbies():
+		assert_not_null(lobby._victory_row, "%s wires a victory row" % lobby._roster.policy.resource_path)
+		assert_true(lobby._victory_row.visible, "and it is visible")
+		assert_eq(lobby._roster.policy.victory_options.choices().size(), 2,
+				"last camp standing + turn limit")
+
+
+func test_picking_turn_limit_resolves_the_turn_limit_condition() -> void:
+	for lobby in _victory_lobbies():
+		var options: LobbyOptionSet = lobby._roster.policy.victory_options
+		var index := -1
+		for i in options.choices().size():
+			if options.choices()[i].label.begins_with("Turn limit"):
+				index = i
+		assert_gte(index, 0, "a Turn limit option exists")
+		lobby.pick_option(LobbyScreen.KNOB_VICTORY, index)
+		var resolved := lobby.build_run_config().resolved_victory_condition()
+		# `merge_onto` may hand back a duplicate, so the asset is matched by
+		# shape: the combinator carrying the authored turn-limit bonus.
+		var authored: CombinedVictoryCondition = load(_TURN_LIMIT_PATH)
+		var combined := resolved as CombinedVictoryCondition
+		var where: String = lobby._roster.policy.resource_path
+		assert_not_null(combined, "%s: the pick reaches RunConfig" % where)
+		if combined == null:
+			continue
+		assert_eq(combined.bonus_conditions.size(), authored.bonus_conditions.size())
+		var bonus := combined.bonus_conditions[0] as TurnLimitCondition
+		assert_not_null(bonus, "%s: the bonus is the turn limit" % where)
+		if bonus != null:
+			assert_eq(bonus.limit, (authored.bonus_conditions[0] as TurnLimitCondition).limit)

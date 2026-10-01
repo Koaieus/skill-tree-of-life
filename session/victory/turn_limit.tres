@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="CombinedVictoryCondition" format=3]
+
+[ext_resource type="Script" uid="uid://b777llwidpq3f" path="res://session/victory/combined_victory_condition.gd" id="1_comb"]
+[ext_resource type="Script" uid="uid://bti71t0uewwxd" path="res://session/victory/turn_limit_condition.gd" id="2_limit"]
+[ext_resource type="Script" path="res://session/victory/victory_condition.gd" id="3_vc"]
+
+[sub_resource type="Resource" id="limit_0"]
+script = ExtResource("2_limit")
+limit = 15
+unit = 0
+
+[resource]
+script = ExtResource("1_comb")
+bonus_conditions = Array[ExtResource("3_vc")]([SubResource("limit_0")])
