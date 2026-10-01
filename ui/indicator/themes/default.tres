@@ -2,10 +2,23 @@
 
 [ext_resource type="Script" path="res://ui/indicator/indicator_theme.gd" id="1_theme"]
 [ext_resource type="PackedScene" path="res://ui/indicator/target_reticle.tscn" id="2_reticle"]
+[ext_resource type="PackedScene" path="res://ui/indicator/plain_ring.tscn" id="3_plain"]
+[ext_resource type="PackedScene" path="res://ui/indicator/dashed_ring.tscn" id="4_dashed"]
 
 [resource]
 script = ExtResource("1_theme")
 scenes = Dictionary[int, PackedScene]({
+1: ExtResource("3_plain"),
+2: ExtResource("3_plain"),
 3: ExtResource("2_reticle"),
-4: ExtResource("2_reticle")
+4: ExtResource("2_reticle"),
+5: ExtResource("3_plain"),
+6: ExtResource("3_plain"),
+7: ExtResource("3_plain"),
+8: ExtResource("3_plain"),
+10: ExtResource("3_plain"),
+11: ExtResource("3_plain"),
+12: ExtResource("3_plain"),
+13: ExtResource("3_plain"),
+14: ExtResource("4_dashed")
 })

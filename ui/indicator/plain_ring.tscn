@@ -1,0 +1,13 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" path="res://ui/indicator/indicator_base.tscn" id="1_base"]
+[ext_resource type="Script" path="res://ui/indicator/plain_ring.gd" id="2_plain"]
+[ext_resource type="Script" path="res://ui/indicator/ring_band.gd" id="3_ring"]
+
+[node name="PlainRing" instance=ExtResource("1_base")]
+script = ExtResource("2_plain")
+tier = 0
+
+[node name="Ring" type="Node2D" parent="." index="0"]
+unique_name_in_owner = true
+script = ExtResource("3_ring")

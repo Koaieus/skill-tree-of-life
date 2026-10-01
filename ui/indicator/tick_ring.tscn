@@ -1,0 +1,13 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" path="res://ui/indicator/plain_ring.tscn" id="1_plain"]
+[ext_resource type="Script" path="res://ui/indicator/tick_ring.gd" id="2_tick"]
+[ext_resource type="Script" path="res://ui/indicator/crosshair_arms.gd" id="3_arms"]
+
+[node name="TickRing" instance=ExtResource("1_plain")]
+script = ExtResource("2_tick")
+ring_width = 2.0
+
+[node name="Ticks" type="Node2D" parent="." index="1"]
+unique_name_in_owner = true
+script = ExtResource("3_arms")

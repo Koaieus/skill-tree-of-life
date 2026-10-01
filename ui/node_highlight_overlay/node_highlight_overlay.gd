@@ -2,11 +2,12 @@
 class_name NodeHighlightOverlay
 extends Node2D
 
-## World-space overlay that paints a ring around every SkillNode tagged with a
-## non-NONE [enum HighlightProvider.HighlightRole] by the [b]active highlight
-## provider[/b] (see [HighlightController]). One overlay serves every provider —
-## attack plans, core-move, future hover — since they all speak the same role
-## vocabulary via [method HighlightProvider.get_node_role].
+## World-space overlay that marks every SkillNode tagged with a non-NONE
+## [enum HighlightProvider.HighlightRole] by the [b]active highlight provider[/b]
+## (see [HighlightController]): each such node mounts an [Indicator] scene as
+## this overlay's child. One overlay serves every provider — attack plans,
+## core-move, future hover — since they all speak the same role vocabulary via
+## [method HighlightProvider.get_node_role]. It draws only the range rings.
 ##
 ## Wired declaratively in `game_root.tscn`; a live sandbox tab gets the same
 ## overlay from `scenes/dev/sandbox_world.gd`'s `highlight` opt, which is why
@@ -15,27 +16,20 @@ extends Node2D
 @export var highlight_controller: HighlightController
 @export var graph: Graph
 
-# Plain role ring band (ring convention — see SkillNode.ring_centerline):
-# `ring_inner_offset` is the gap from the node boundary to the ring's INNER edge.
-# Drawn for every role with no indicator scene in `themes[key]` or `default_theme`.
-@export var ring_inner_offset: float = 4.5
-@export var ring_width: float = 3.0
-@export var ring_segments: int = 32
-
 ## Provider theme key ([method HighlightProvider.get_theme_key]) -> its
 ## [IndicatorTheme]. A node's scene is [code]themes[key][/code]'s for its role,
-## else [member default_theme]'s, else none (the plain ring).
+## else [member default_theme]'s, else none (the node is unmarked).
 @export var themes: Dictionary[StringName, IndicatorTheme] = {}
 
-## Role -> [Indicator] scene for every key [member themes] leaves unmapped. A
-## role with a scene mounts an instance as this overlay's child (and skips the
-## plain ring); every other role keeps the ring.
+## Role -> [Indicator] scene for every key [member themes] leaves unmapped.
+## The shipped [code]default.tres[/code] is the floor: it maps every node role,
+## so a keyed theme only overrides looks, never supplies a missing one.
 ## Shared resources — swap them, never mutate them in place.
 @export var default_theme: IndicatorTheme = preload("res://ui/indicator/themes/default.tres")
 
 # The range ring is a GAMEPLAY reach (world-space radius), not a decoration band,
 # so it draws AT `range_radius` (centerline) and is deliberately exempt from the
-# ring_inner_offset convention.
+# indicators' ring_inner_offset convention.
 @export var range_ring_width: float = 1.5
 @export var range_ring_segments: int = 64
 ## Dash periods around a range circle drawn below full fill (ranged: shots
@@ -70,8 +64,8 @@ const ROLE_COLORS: Dictionary[HighlightProvider.HighlightRole, Color] = {
 	# Deliberately the hottest red on the board — it is the one role that says
 	# "this costs YOU something", not "this is a thing you may do".
 	HighlightProvider.HighlightRole.PREDICTED_THREAT: Color(1.0, 0.35, 0.15, 0.95),
-	# Deliberately the same red as the aim-point HOSTILE_TARGET — no look
-	# change in this unit (#1285); the roles split meaning, not pixels.
+	# The aim-point HOSTILE_TARGET's red; the two split by scene (reticle vs
+	# dashed ring), not by tint.
 	HighlightProvider.HighlightRole.FORFEIT:          Color(1.0, 0.2, 0.2, 0.95),
 }
 
@@ -153,7 +147,6 @@ func _draw() -> void:
 	var provider := highlight_controller.provider
 	if provider == null:
 		return
-	var key := provider.get_theme_key()
 	for sn in graph.get_skill_nodes():
 		var role: int = provider.get_node_role(sn)
 		# `to_local`, not `global_position - global_position`: the difference of
@@ -170,8 +163,3 @@ func _draw() -> void:
 			var tint := Color(base.r, base.g, base.b, alpha)
 			RangeRing.draw_reach(self, center, range_radius, provider.get_node_range_fill(sn),
 					range_ring_dash_periods, tint, range_ring_width, range_ring_segments)
-		if role == HighlightProvider.HighlightRole.NONE or _indicator_scene(key, role) != null:
-			continue
-		var color: Color = ROLE_COLORS.get(role, Color.WHITE)
-		var ring_c := SkillNode.ring_centerline(sn.radius, ring_inner_offset, ring_width)
-		draw_arc(center, ring_c, 0.0, TAU, ring_segments, color, ring_width)

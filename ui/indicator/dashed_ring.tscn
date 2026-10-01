@@ -1,0 +1,11 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" path="res://ui/indicator/plain_ring.tscn" id="1_plain"]
+[ext_resource type="Script" path="res://ui/indicator/dashed_ring.gd" id="2_dashed"]
+[ext_resource type="Script" path="res://ui/indicator/dashed_band.gd" id="3_band"]
+
+[node name="DashedRing" instance=ExtResource("1_plain")]
+script = ExtResource("2_dashed")
+
+[node name="Ring" parent="." index="0"]
+script = ExtResource("3_band")
