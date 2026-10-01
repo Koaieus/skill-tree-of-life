@@ -63,6 +63,8 @@ extends RefCounted
 ## ~1/turn" doc) — so the risk term should read what the swing actually cost,
 ## not what it merely risked.
 
+## The clamp's addon kind ([method SkillNodeAddon.get_kind]) — its scene path.
+const _CLAMP_KIND := "res://skill_node/addons/defs/clamp_addon.tscn"
 ## Pivots kept after the free reach-bound rejection, nearest-to-an-enemy
 ## first — bounds proposal generation regardless of territory size.
 const _MAX_PIVOTS := 6
@@ -356,7 +358,7 @@ static func _build_archetype(
 		var particle_idx := i + 1 # pivot occupies index 0, path[k] -> k + 1
 		if BladeState.edges_form_triangle_at(edges, particle_idx) or node.has_addon(ClampAddon):
 			rigidified += 1 # free — costs nothing, still extends the RIGID handle
-		elif spent < max_size and node.can_attach_addon(ClampAddon):
+		elif spent < max_size and node.can_attach_addon(_CLAMP_KIND):
 			clamps.append(node)
 			spent += 1
 			rigidified += 1

@@ -85,7 +85,7 @@ func test_apply_temp_upgrade_within_budget_succeeds() -> void:
 	for a in joint.get_addons():
 		if a.is_temporary:
 			found_temp = true
-			assert_eq(a.get_script(), _catalog.by_id(&"clamp").addon_script,
+			assert_eq(a.get_kind(), _catalog.by_id(&"clamp").scene.resource_path,
 					"the attached temp addon must be the requested kind")
 	assert_true(found_temp, "apply_temp_upgrade must attach a REAL SkillNodeAddon")
 

@@ -305,13 +305,14 @@ func _push_fuse_stranded(stranded: Array[SkillNode]) -> void:
 ## Outline colors (up to two, catalog order) for every catalog addon kind
 ## currently attached to `node` — permanent or temp both count, so the outline
 ## reflects what the node actually carries, not just player spend (that
-## distinction is the separate manual-marker rectangle). Hence a SCRIPT match,
-## not a def match: a permanent clamp carries no [member SkillNodeAddon.temp_upgrade_def].
+## distinction is the separate manual-marker rectangle). Hence a KIND match
+## (the addon's scene), not a def match: a permanent clamp carries no
+## [member SkillNodeAddon.temp_upgrade_def].
 func _outline_colors_for(node: SkillNode) -> Array[Color]:
 	var colors: Array[Color] = []
 	for a in node.get_addons():
 		for upgrade in _battle_system.temp_upgrade_kinds():
-			if a.get_script() == upgrade.addon_script:
+			if a.get_kind() == upgrade.scene.resource_path:
 				colors.append(_upgrade_color(upgrade))
 	return colors
 

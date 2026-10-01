@@ -68,8 +68,9 @@ extends Node2D
 ## carrier is allocated. Collected by [method SkillNode.get_node_effects].
 ## Sits alongside the modifier arrays — a pure stat bundle needs no effect.
 @export var effects: Array[Effect] = []
-## When true, at most one of this exact script class may sit on a carrier
-## (enforced by SkillNode at child_entered_tree — duplicate is rejected).
+## When true, at most one addon of this kind ([method get_kind], the scene)
+## may sit on a carrier (enforced by SkillNode at child_entered_tree —
+## a duplicate is rejected).
 @export var unique: bool = false
 ## The [TempUpgradeDef] this addon was placed by (#406) — the temp-upgrade
 ## spend rather than loot/procgen/editor authoring — or null for a permanent
@@ -85,6 +86,8 @@ var is_temporary: bool:
 		return temp_upgrade_def != null
 
 var carrier: SkillNode
+
+var _kind_error_reported := false
 
 ## Relative z that lifts an addon above the carrier's whole `Visuals` subtree
 ## regardless of where it lands in child order, and below the health bars'
@@ -103,8 +106,13 @@ const BASE_Z := 1
 
 ## The addon's kind: the scene it was instantiated from. Two scenes sharing
 ## one script are two kinds. Every "same addon?" question compares this.
+## An empty path means an addon built in code rather than instantiated, which
+## is a bug (addons are scenes): it is reported once and reads as no kind.
 func get_kind() -> String:
-	return ""
+	if scene_file_path.is_empty() and not _kind_error_reported:
+		_kind_error_reported = true
+		push_error("Addon %s has no scene_file_path — addons are scenes; instantiate one." % name)
+	return scene_file_path
 
 
 func _ready() -> void:

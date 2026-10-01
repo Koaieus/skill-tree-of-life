@@ -76,6 +76,15 @@ func test_attach_refuses_a_second_instance_of_one_unique_scene() -> void:
 	assert_push_error("Duplicate unique addon")
 
 
+func test_can_attach_refuses_only_the_same_unique_scene() -> void:
+	_attach(_SECOND_DOT_SCENE)
+	await get_tree().process_frame
+	assert_false(_node.can_attach_addon(_SECOND_DOT_SCENE.resource_path),
+			"a second instance of the carried unique scene is refused")
+	assert_true(_node.can_attach_addon(_TOXIN_SCENE.resource_path),
+			"another scene on the same script is a different kind")
+
+
 # --- 5. the tray's outline colour follows the scene ---------------------------
 
 func test_permanent_fixture_dot_gets_no_toxin_outline() -> void:

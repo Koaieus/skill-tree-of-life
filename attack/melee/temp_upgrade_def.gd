@@ -11,15 +11,13 @@ extends Resource
 ## `addon.temp_upgrade_def == def`). That holds because a `.tres` loads once
 ## per process — never `duplicate()` one.
 
-## The wire identity — what a melee plan's wire form carries; `scene` and
-## `addon_script` are process-local references and the catalog's position is
-## not a contract.
+## The wire identity — what a melee plan's wire form carries; `scene` is a
+## process-local reference and the catalog's position is not a contract.
 @export var id: StringName = &""
-## The [SkillNodeAddon] scene to instance when the upgrade is applied.
+## The [SkillNodeAddon] scene to instance when the upgrade is applied. Its
+## `resource_path` is the addon's kind ([method SkillNodeAddon.get_kind]), so
+## [method SkillNode.can_attach_addon] can ask before an instance exists.
 @export var scene: PackedScene
-## The addon's script — [method SkillNode.can_attach_addon]'s uniqueness check
-## needs the Script identity before an instance exists.
-@export var addon_script: Script
 ## Spend against [method MeleeAttackPlan.max_blades]' budget.
 @export var cost: int = 1
 ## The entity stat capping how many of this kind one swing may carry (the

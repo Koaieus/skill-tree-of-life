@@ -1259,8 +1259,9 @@ func get_addons() -> Array[SkillNodeAddon]:
 ## same reasoning as `can_attach_addon` above: the accessor duplicates the
 ## whole ledger just to check membership, and this is meant to be cheap enough
 ## to call from `Edge`'s render-state push (#455). `get_script() == script`
-## matches `_attach_addon`'s own duplicate-unique comparison, not an `is`
-## check, so it generalizes to any addon script without a hardcoded type test.
+## rather than an `is` check, so it generalizes to any addon script without a
+## hardcoded type test. A script question, not a kind one — kind is
+## [method SkillNodeAddon.get_kind], the scene.
 func has_addon(script: Script) -> bool:
 	for a in _addons:
 		if a.get_script() == script:
@@ -1712,20 +1713,21 @@ func _on_addon_removed(c: Node) -> void:
 		_detach_addon(c)
 
 
-## Whether an addon instantiated from `addon_script` would legally attach
+## Whether an addon of `kind` (a scene path — [method SkillNodeAddon.get_kind])
+## would legally attach
 ## right now: an open slot AND no unique-collision (#406). Read-only —
 ## `_attach_addon` itself is UNCHANGED and still enforces only `unique`,
 ## never slots (slot enforcement stays locally scoped to the temp-upgrade
 ## gate per #406's acceptance spec; this is not #348's general-enforcement
 ## work). Callers that want slot enforcement call this instead of
 ## reimplementing it.
-func can_attach_addon(addon_script: Script) -> bool:
+func can_attach_addon(kind: String) -> bool:
 	# `_addons.size()`, not `get_addons().size()` — the accessor duplicates the
 	# whole ledger just to count it, and #406's UI calls this per candidate node.
 	if _addons.size() >= int(get_local_value(&"addon_slots")):
 		return false
 	for a in _addons:
-		if a.unique and a.get_script() == addon_script:
+		if a.unique and a.get_kind() == kind:
 			return false
 	return true
 
@@ -1738,8 +1740,8 @@ func _attach_addon(a: SkillNodeAddon) -> void:
 		return
 	if a.unique:
 		for existing in _addons:
-			if existing.get_script() == a.get_script():
-				push_error("Duplicate unique addon %s on %s; rejecting." % [a.get_script().resource_path, name])
+			if existing.get_kind() == a.get_kind():
+				push_error("Duplicate unique addon %s on %s; rejecting." % [a.get_kind(), name])
 				# Refuse it, but never FREE it under the editor — since #334 made
 				# scene authoring the blessed path, freeing here would silently
 				# delete an authored node out of the user's open scene on load.

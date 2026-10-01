@@ -409,7 +409,7 @@ func _toggle_bunker(node: SkillNode) -> void:
 			a.queue_free()
 			_refresh_status()
 			return
-	if not node.can_attach_addon(BunkerAddon):
+	if not node.can_attach_addon(_BUNKER_SCENE.resource_path):
 		return
 	node.add_child(_BUNKER_SCENE.instantiate())
 	_refresh_status()
@@ -431,7 +431,7 @@ func _on_rigidity_selected(index: int) -> void:
 			if a is ClampAddon:
 				clamp = a
 				break
-		if braced and clamp == null and n.can_attach_addon(ClampAddon):
+		if braced and clamp == null and n.can_attach_addon(_CLAMP_SCENE.resource_path):
 			n.add_child(_CLAMP_SCENE.instantiate())
 		elif not braced and clamp != null:
 			clamp.queue_free()

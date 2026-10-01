@@ -20,7 +20,6 @@ func test_every_kind_is_fully_authored() -> void:
 		assert_false(seen.has(def.id), "id %s is unique" % def.id)
 		seen.append(def.id)
 		assert_not_null(def.scene, "%s has a scene" % def.id)
-		assert_not_null(def.addon_script, "%s has an addon_script" % def.id)
 		assert_gt(def.cost, 0, "%s costs something" % def.id)
 
 

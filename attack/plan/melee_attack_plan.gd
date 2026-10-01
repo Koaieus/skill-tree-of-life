@@ -618,7 +618,7 @@ func _temp_upgrade_carriers() -> Array[SkillNode]:
 func can_apply_temp_upgrade(node: SkillNode, def: TempUpgradeDef) -> bool:
 	if def == null or node == null or node == source or not blade_nodes.has(node):
 		return false
-	if not node.can_attach_addon(def.addon_script):
+	if not node.can_attach_addon(def.scene.resource_path):
 		return false
 	return _within_aspect_cap(def) and _budget_remaining() >= def.cost
 
@@ -691,7 +691,7 @@ func _existing_temp_upgrade(node: SkillNode, def: TempUpgradeDef) -> SkillNodeAd
 ## Why [param node] refuses [param def] — the `node_action_denied` reason the
 ## seat announces when [method can_toggle_temp_upgrade] says no.
 func temp_upgrade_denial_reason(node: SkillNode, def: TempUpgradeDef) -> String:
-	if not node.can_attach_addon(def.addon_script):
+	if not node.can_attach_addon(def.scene.resource_path):
 		return "temp_upgrade_denied_slot_full"
 	if not _within_aspect_cap(def):
 		return "temp_upgrade_denied_aspect"
