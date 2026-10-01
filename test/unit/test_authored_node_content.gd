@@ -192,9 +192,9 @@ func _authored_modifiers(a: SkillNodeAddon) -> Array[StatModifier]:
 
 func _addon_scene_paths() -> PackedStringArray:
 	var out := PackedStringArray()
-	for f in DirAccess.get_files_at("res://skill_node/addons/"):
+	for f in DirAccess.get_files_at("res://skill_node/addons/defs/"):
 		if f.ends_with(".tscn"):
-			out.append("res://skill_node/addons/".path_join(f))
+			out.append("res://skill_node/addons/defs/".path_join(f))
 	assert_gt(out.size(), 0, "found no addon scenes to walk — did the directory move?")
 	return out
 
