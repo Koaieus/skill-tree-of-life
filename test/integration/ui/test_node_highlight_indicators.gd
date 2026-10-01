@@ -7,6 +7,9 @@ extends GutTest
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _THEME_SCRIPT_PATH := "res://ui/indicator/indicator_theme.gd"
+const _THEMES_DIR := "res://ui/indicator/themes/"
+const _PLAIN_RING_PATH := "res://ui/indicator/plain_ring.tscn"
+const _DASHED_RING_PATH := "res://ui/indicator/dashed_ring.tscn"
 
 
 class RoleMapProvider extends HighlightProvider:
@@ -101,13 +104,16 @@ func test_clearing_provider_gives_zero() -> void:
 	assert_eq(_indicators().size(), 0)
 
 
-func test_mass_deallocate_forfeit_gives_zero() -> void:
+func test_mass_deallocate_forfeit_mounts_dashed_rings_not_reticles() -> void:
 	var req := MassActionRequest.new(null, MassActionRequest.Verb.DEALLOCATE, _nodes)
 	var p := MassActionHighlightProvider.new()
 	p.configure(req, _graph)
 	_ctl.provider = p
 	assert_eq(p.get_node_role(_nodes[0]), HighlightProvider.HighlightRole.FORFEIT)
-	assert_eq(_indicators().size(), 0)
+	var found := _indicators()
+	assert_eq(found.size(), _nodes.size())
+	for ind in found:
+		assert_eq(ind.scene_file_path, _DASHED_RING_PATH)
 
 
 func test_empty_theme_gives_zero() -> void:
@@ -258,3 +264,59 @@ func test_gate_cut_reports_its_base_theme_key_facing_and_order() -> void:
 	assert_eq(gate.call("get_node_order", _nodes[1]), 3)
 	gate.base = null
 	assert_eq(gate.call("get_theme_key"), &"default")
+
+
+# --- every role mounts a scene (#1301) ----------------------------------------
+
+# Roles that never mount a node indicator: NONE is "no highlight", PATH is an
+# edge role.
+const _SCENELESS_ROLES: Array[HighlightProvider.HighlightRole] = [
+	HighlightProvider.HighlightRole.NONE,
+	HighlightProvider.HighlightRole.PATH,
+]
+
+
+func test_every_node_role_resolves_to_a_scene_through_the_shipped_themes() -> void:
+	var themes: Array[IndicatorTheme] = []
+	for f in DirAccess.get_files_at(_THEMES_DIR):
+		if f.ends_with(".tres"):
+			var t := load(_THEMES_DIR + f) as IndicatorTheme
+			if t != null:
+				themes.append(t)
+	assert_gt(themes.size(), 0)
+	for role in HighlightProvider.HighlightRole.values():
+		if role in _SCENELESS_ROLES:
+			continue
+		var found := false
+		for t in themes:
+			if t.scene_for(role) != null:
+				found = true
+				break
+		assert_true(found, "role %s has no indicator scene in any theme"
+				% HighlightProvider.HighlightRole.find_key(role))
+
+
+func test_allocatable_alone_mounts_one_plain_ring_and_no_inline_ring() -> void:
+	var p := RoleMapProvider.new()
+	p.roles[_nodes[3]] = HighlightProvider.HighlightRole.ALLOCATABLE
+	_ctl.provider = p
+	var found := _indicators()
+	assert_eq(found.size(), 1)
+	if found.size() == 1:
+		assert_eq(found[0].scene_file_path, _PLAIN_RING_PATH)
+		assert_eq(found[0].position, _overlay.to_local(_nodes[3].global_position))
+	# The inline role ring's knobs are gone with its draw_arc: the overlay draws
+	# range rings only, and no ring-band export is left to tune.
+	for prop in ["ring_inner_offset", "ring_width", "ring_segments"]:
+		assert_false(prop in _overlay, "overlay still carries %s" % prop)
+
+
+func test_core_move_theme_marks_origin_and_reachable() -> void:
+	var t := load(_THEMES_DIR + "core_move.tres") as IndicatorTheme
+	assert_not_null(t)
+	if t == null:
+		return
+	assert_eq(t.scene_for(HighlightProvider.HighlightRole.ORIGIN).resource_path,
+			"res://ui/indicator/core_move_origin.tscn")
+	assert_eq(t.scene_for(HighlightProvider.HighlightRole.REACHABLE).resource_path,
+			"res://ui/indicator/tick_ring.tscn")
