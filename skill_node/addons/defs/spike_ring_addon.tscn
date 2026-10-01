@@ -26,5 +26,6 @@ z_index = 1
 script = ExtResource("1_spike")
 local_modifiers = Array[ExtResource("2_2tu4f")]([SubResource("Resource_arix0"), SubResource("Resource_u38nb")])
 icon = ExtResource("2_spike")
+tint = Color(0.95, 0.6, 0.25, 1)
 temp_placeable = true
 temp_cost_blade_size = 2

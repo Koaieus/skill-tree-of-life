@@ -275,7 +275,7 @@ func test_clamp_over_melee_badges_the_clamp_while_the_glow_stays_red() -> void:
 
 	assert_eq(_ctl.get_armed_icon(), _icon("addon_clamp"),
 			"the badge forwards the addon scene's own authored icon")
-	assert_eq(_ctl.get_armed_icon_tint(), _PALETTE.color_for(&"clamp"))
+	assert_eq(_ctl.get_armed_icon_tint(), SkillNodeAddon.tint_of(_catalog.kinds[0].scene))
 	assert_eq(_ctl.get_armed_tint(), _stat_color(&"strength"),
 			"the glow still reads the BASE of the stack — the walks diverge")
 
@@ -292,7 +292,7 @@ func test_the_badge_forwards_the_addon_scenes_own_icon() -> void:
 	probe.free()
 
 	assert_eq(_ctl.get_armed_icon(), authored)
-	assert_eq(_ctl.get_armed_icon_tint(), _PALETTE.color_for(&"spike_ring"))
+	assert_eq(_ctl.get_armed_icon_tint(), SkillNodeAddon.tint_of(upgrade.scene))
 
 
 # --- 4. the dedup trap -------------------------------------------------------
@@ -313,7 +313,7 @@ func test_icon_signal_fires_when_the_tint_signal_does_not() -> void:
 	assert_signal_emit_count(_ctl, "armed_icon_changed", 1,
 			"the badge MUST still fire; each channel dedupes against its own cache")
 	assert_signal_emitted_with_parameters(_ctl, "armed_icon_changed",
-			[_icon("addon_clamp"), _PALETTE.color_for(&"clamp")], 0)
+			[_icon("addon_clamp"), SkillNodeAddon.tint_of(_catalog.kinds[0].scene)], 0)
 
 
 func test_a_refresh_that_changed_nothing_does_not_re_fire() -> void:
@@ -485,7 +485,7 @@ func test_the_palette_does_not_restate_the_attribute_colours() -> void:
 	for stat_id in [&"strength", &"dexterity", &"intelligence"]:
 		var attr := _stat_color(stat_id)
 		for key in [&"allocate", &"move_core", &"deallocate", &"stake",
-				&"extract", &"clamp", &"spike_ring"]:
+				&"extract"]:
 			assert_ne(_PALETTE.color_for(key), attr,
 					"%s duplicates the %s identity colour" % [key, stat_id])
 

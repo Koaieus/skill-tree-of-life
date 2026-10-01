@@ -17,21 +17,13 @@ extends CommandTrayBodyBase
 @onready var _launch_button: LaunchAttackButton = %LaunchButton
 @onready var _fuse_scrubber: FuseScrubber = %FuseScrubber
 
-## Blip tint per [TempUpgradeDef] in the battle system's catalog (#406) — reused
-## both for the upgrade-spend pips and as the addon-outline decoration on
-## blade-region pips, so one color means one addon kind everywhere in this
-## panel.
-##
-## Read off the shared [ActionPalette] rather than held as literals here
-## (#664): the armed-mode cursor badge shows the SAME addon in the SAME colour
-## seconds after the player presses one of these cards, and two hand-authored
-## copies of the pair is exactly how those drift apart. Keyed by the catalog
-## entry's `id`, so this no longer depends on catalog ORDER either.
-const _PALETTE := preload("res://ui/theme/action_palette.tres")
-
-
+## Blip tint per [TempUpgradeDef] in the battle system's catalog — used for the
+## upgrade-spend pips, the addon-outline decoration on blade-region pips and the
+## card accent, so one colour means one addon kind everywhere in this panel.
+## The colour is the addon scene's own authored [member SkillNodeAddon.tint]; the
+## armed-mode badge reads the same field, so card and badge cannot drift apart.
 static func _upgrade_color(def: TempUpgradeDef) -> Color:
-	return _PALETTE.color_for(def.id)
+	return SkillNodeAddon.tint_of(def.scene)
 
 ## Force-hover refcounts, keyed by SkillNode — owned exclusively here, so the
 ## panel is the only thing that can leave a node forced-hovered. Cleared at the

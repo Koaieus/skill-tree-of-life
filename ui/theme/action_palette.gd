@@ -2,14 +2,13 @@
 class_name ActionPalette
 extends Resource
 
-## The identity colour of each non-attack player ACTION — the Manage verbs, core
-## movement, and the temp-upgrade addon kinds (#664). Authored once as
+## The identity colour of each non-attack player ACTION — the Manage verbs and
+## core movement (#664). Authored once as
 ## `ui/theme/action_palette.tres`.
 ##
 ## [b]An extraction, not a new palette.[/b] Every value here was already
-## authored, in two different homes: five inline `title_color`s on
-## `manage_body.tscn`'s cards and `MeleeBody._UPGRADE_BLIP_COLORS`. #664 added a
-## third consumer — the armed-mode cursor badge — and an [ArmedMode] is a
+## authored inline, as `title_color`s on `manage_body.tscn`'s cards. #664 added a
+## second consumer — the armed-mode cursor badge — and an [ArmedMode] is a
 ## `RefCounted` in `systems/` that must not reach into `ui/` to read a `.tscn`
 ## export. So the values moved HERE and the tray reads them back. Carried over
 ## unchanged: this was a move, not a retune. The tray card a player just clicked
@@ -44,28 +43,18 @@ extends Resource
 ## Extract from a staked node.
 @export var extract: Color = Color(0.95, 0.55, 0.35, 1)
 
-## Clamp temp-upgrade addon — cool metal-brace blue.
-@export var clamp_addon: Color = Color(0.4, 0.7, 0.95, 1)
-
-## Spike-ring temp-upgrade addon — warm damage amber.
-@export var spike_ring: Color = Color(0.95, 0.6, 0.25, 1)
-## The toxin temp upgrade (#951) — poison green.
-@export var toxin: Color = Color(0.45, 0.85, 0.35, 1)
-
 ## The Manage tab itself (#669) — a SURFACE, not a verb. Distinct from
 ## `allocate`: branding the tab with one of the four verbs it contains would
 ## misread as "this tab is allocate". Carried over unchanged from the literal
 ## `attack_mode_bar.tscn` used to hold; not a retint.
 @export var manage: Color = Color(0.784, 0.824, 0.902, 1)
 
-## The ONE accessor. Every consumer — the tray cards, the melee blip strip, and
-## the armed-mode badge — goes through this, so there is a single contract to
+## The ONE accessor. Every consumer — the tray cards, the mode bar, and the
+## armed-mode badge — goes through this, so there is a single contract to
 ## keep rather than one shape per caller.
 ##
-## Keys fall into FOUR categories:
-## - catalogue ids: the temp-upgrade kinds, keyed by [member TempUpgradeDef.id]
-##   verbatim, so a caller holding a def never needs a second lookup table to
-##   get from it to a colour.
+## Keys fall into THREE categories (an addon kind's colour is not one of them:
+## it is the addon's own [member SkillNodeAddon.tint]):
 ## - verbs: the lower-cased [enum PlayerInputController.ManageVerb] names.
 ## - modes: `&"move_core"` for core-move targeting, which is a mode rather than
 ##   a verb.
@@ -84,8 +73,5 @@ func color_for(key: StringName) -> Color:
 		&"deallocate": return deallocate
 		&"stake": return stake
 		&"extract": return extract
-		&"clamp": return clamp_addon
-		&"spike_ring": return spike_ring
-		&"toxin": return toxin
 		&"manage": return manage
 	return Color.TRANSPARENT

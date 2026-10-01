@@ -12,7 +12,7 @@ var _catalog: TempUpgradeCatalog = preload("res://attack/melee/temp_upgrade_cata
 ##
 ## - the cards are real scene INSTANCES, so a slide back to `Button.new()` fails;
 ## - their glyph and colour come from data already authored elsewhere (the addon
-##   scene's `icon`, the shared `ActionPalette`) rather than from fresh literals;
+##   scene's `icon` and `tint`) rather than from fresh literals;
 ## - "armed", "available" and "unaffordable" are three distinguishable answers
 ##   rather than the one grey `Button.disabled` used to collapse them into;
 ## - the three attack tabs read their tint from `StatDef.tint_color` instead of
@@ -154,8 +154,8 @@ func test_card_glyph_and_accent_come_from_authored_data() -> void:
 		assert_not_null(card.icon_texture, "catalog entry %s has no authored addon icon" % entry.id)
 		assert_eq(card.icon_texture, _authored_icon(i),
 			"card %s must show the addon scene's own icon, not a parallel lookup" % entry.id)
-		assert_eq(card.accent, _PALETTE.color_for(entry.id),
-			"card %s must read its colour through ActionPalette.color_for()" % entry.id)
+		assert_eq(card.accent, SkillNodeAddon.tint_of(entry.scene),
+			"card %s must paint the addon scene's own tint" % entry.id)
 
 
 func test_three_states_are_each_reachable_and_distinct() -> void:

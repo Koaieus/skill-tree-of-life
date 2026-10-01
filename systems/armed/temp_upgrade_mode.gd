@@ -6,7 +6,6 @@ extends ArmedMode
 ## toggles the upgrade onto a node; it stays armed either way. Popping the
 ## blade pops it too — the arm never outlives its blade.
 
-const _PALETTE := preload("res://ui/theme/action_palette.tres")
 ## One icon per addon scene; instancing the scene is the only way to read it.
 static var _icon_cache: Dictionary = {}
 
@@ -34,4 +33,4 @@ func icon() -> Texture2D:
 
 
 func icon_tint() -> Color:
-	return _PALETTE.color_for(def.id)
+	return SkillNodeAddon.tint_of(def.scene)

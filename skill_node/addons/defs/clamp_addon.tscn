@@ -8,5 +8,6 @@ z_index = 1
 script = ExtResource("1_clamp")
 description = "Welds this joint rigid — two arms meeting here hold their angle under blade impact instead of hinging free."
 icon = ExtResource("2_clamp")
+tint = Color(0.4, 0.7, 0.95, 1)
 unique = true
 temp_placeable = true
