@@ -1,9 +1,9 @@
 extends GutTest
 
 ## #996 (hub #994): the ENTITY hosts statuses through the same [StatusHost]
-## the node composes. An entity-hosted DoT ticks the `health` pool on the
-## owner's turn start — AFTER `Entity.begin_turn`'s pool upkeep
-## (`core_healing`), through the one pool-damage door (#995) — and the rows
+## the node composes. An entity-hosted DoT ticks the `health` pool at the
+## owner's turn END (ADR 0040) — so BEFORE the next `Entity.begin_turn`'s pool
+## upkeep (`core_healing`), through the one pool-damage door (#995) — and the rows
 ## ride a core move for free because they are on the entity, not a node.
 ##
 ## Fixture: core(N0) - N1 - N2, one entity, a real [TurnManager] driving the
@@ -51,10 +51,10 @@ func before_each() -> void:
 	for n in [_n0, _n1, _n2]:
 		_alloc.force_allocate(_entity, n)
 	_entity.core_location = _n0
-	# Entity.begin_turn runs no upkeep on turns_taken == 1 — prime that
-	# throwaway turn so every turn below is a real upkeep turn.
+	# Entity.begin_turn runs no upkeep on turns_taken == 1 — the fixture
+	# leaves the entity INSIDE that throwaway turn; every `_turn()` below ends
+	# it (the status tick) and rolls into a real upkeep turn.
 	_tm.start_turn(_entity)
-	_tm.adopt_turn(null, _tm.turns_taken)  # bypass end_turn's auto-tick-to-ready
 
 
 func after_each() -> void:
@@ -81,40 +81,45 @@ func _combat() -> EntityCombat:
 	return _entity.get_combat()
 
 
+## One turn boundary: the current turn ends through the real `end_turn` (the
+## status tick), handing straight back to the lone entity's next turn start
+## (its upkeep). The ready set is forced, so no initiative clock runs.
 func _turn() -> void:
-	_tm.start_turn(_entity)
-	_tm.adopt_turn(null, _tm.turns_taken)
+	for e in get_tree().get_nodes_in_group(Entity.READY_GROUP):
+		e.remove_from_group(Entity.READY_GROUP)
+	_entity.add_to_group(Entity.READY_GROUP)
+	_tm.end_turn()
 
 
 func _dpp() -> float:
 	return (_POISON_DEF as PoisonStatus).damage_per_power
 
 
-# ── Acceptance 4: the tick hits the pool, after upkeep, node HP untouched ────
+# ── Acceptance 4: the tick hits the pool, before the next upkeep, node HP untouched
 
-func test_an_entity_hosted_poison_ticks_the_health_pool_after_core_healing() -> void:
+func test_an_entity_hosted_poison_ticks_the_health_pool_before_the_next_core_healing() -> void:
 	var pool := _health()
 	var max_hp: float = pool.value
-	pool.current = max_hp  # full: upkeep's core_healing is CLIPPED by the cap,
-	# so only an upkeep-then-tick order lands at max - power × dpp; a tick-then-
-	# upkeep order would leave max - power × dpp + core_healing.
+	pool.current = max_hp  # full: ADR 0040 ticks at turn END, so the drain
+	# lands first and the next turn start's core_healing refills it (clipped
+	# at the cap); the retired upkeep-then-tick order would leave max - power × dpp.
 	assert_gt(float(_entity.stat_board.get_value(&"core_healing")), 0.0,
 			"the ordering assert needs a non-zero core_healing (authored default)")
 	var node_hp := _n0.get_current_hp()
 	_combat().apply_status(_POISON_DEF, 2.0)
 	assert_almost_eq(_combat().get_status_power(&"poison"), 2.0, 0.001, "the entity hosts the row")
 
+	var healing := float(_entity.stat_board.get_value(&"core_healing"))
 	_turn()
-	assert_almost_eq(pool.current, max_hp - 2.0 * _dpp(), 0.001,
-			"turn 2: upkeep first (clipped at the cap), then the tick drains power × dpp")
+	assert_almost_eq(pool.current, minf(max_hp - 2.0 * _dpp() + healing, max_hp), 0.001,
+			"turn 1's end drains power × dpp, then turn 2's upkeep heals (clipped at the cap)")
 	assert_almost_eq(_n0.get_current_hp(), node_hp, 0.001, "the core NODE's HP is untouched")
 	assert_almost_eq(_combat().get_status_power(&"poison"), 1.0, 0.001, "halving decay, as on a node")
 
 	var before := pool.current
-	var healing := float(_entity.stat_board.get_value(&"core_healing"))
 	_turn()
-	assert_almost_eq(pool.current, before + healing - 1.0 * _dpp(), 0.001,
-			"turn 3: core_healing lands, then the 1-stack tick")
+	assert_almost_eq(pool.current, minf(before - 1.0 * _dpp() + healing, max_hp), 0.001,
+			"turn 2's end: the 1-stack tick, then turn 3's core_healing")
 	assert_almost_eq(_combat().get_status_power(&"poison"), 0.0, 0.001,
 			"0.5 is below the tail cut: the row is gone")
 	assert_eq(_entity.get_statuses().size(), 0)
@@ -153,8 +158,8 @@ func test_entity_rows_survive_a_core_move_and_node_rows_stay_on_the_vacated_node
 	var before := pool.current
 	var healing := float(_entity.stat_board.get_value(&"core_healing"))
 	_turn()
-	assert_almost_eq(pool.current, minf(before + healing, pool.value) - 4.0 * _dpp(), 0.001,
-			"and still ticks the pool after the move")
+	assert_almost_eq(pool.current, minf(before - 4.0 * _dpp() + healing, pool.value), 0.001,
+			"and still ticks the pool after the move (tick at turn end, then the next upkeep)")
 
 
 # ── The contract: shadow isolation + death clears ───────────────────────────
