@@ -5,4 +5,4 @@
 [node name="BladeMemberGhost" instance=ExtResource("1_member")]
 tier = 0
 ring_width = 2.0
-ripple_gain = 0.0
+peak_tier = 0

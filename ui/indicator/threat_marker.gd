@@ -4,7 +4,7 @@ extends Indicator
 
 ## A predicted threat to the blade: a band ring with a slow brightness pulse —
 ## a warning, not an alarm, so the default tier is LABEL and the pulse only
-## breathes within it ([member pulse_gain] EV stops at peak).
+## breathes up to [member peak_tier].
 
 @export var ring_inner_offset: float = 9.0:
 	set(value):
@@ -16,29 +16,30 @@ extends Indicator
 		_apply_geometry()
 ## One full pulse, seconds.
 @export_range(0.05, 10.0, 0.01) var pulse_period_s: float = 1.6
-## Peak brightness add, EV stops over the tier. 0 = static.
-@export_range(0.0, 4.0, 0.05) var pulse_gain: float = 0.5:
+## The crest's named tier; the pulse eases [member Indicator.tier] -> this
+## and back. Equal to [member Indicator.tier] = static.
+@export var peak_tier: Emissive.Tier = Emissive.Tier.VALUE:
 	set(value):
-		pulse_gain = value
+		peak_tier = value
 		_update_modulate()
 
 
-## The pulse's brightness add (EV stops) at wall time [param t_s].
+## The pulse phase 0..1 (0 = rest tier, 1 = peak tier) at wall time [param t_s].
 func brightness_at(t_s: float) -> float:
-	if pulse_gain <= 0.0 or pulse_period_s <= 0.0:
+	if peak_tier == tier or pulse_period_s <= 0.0:
 		return 0.0
-	return pulse_gain * (0.5 + 0.5 * cos(TAU * t_s / pulse_period_s))
+	return 0.5 + 0.5 * cos(TAU * t_s / pulse_period_s)
 
 
 func _process(delta: float) -> void:
 	super(delta)
-	if pulse_gain > 0.0:
+	if peak_tier != tier:
 		_update_modulate()
 
 
 func _update_modulate() -> void:
 	var now := Time.get_ticks_msec() / 1000.0
-	modulate = Emissive.at(tint, Emissive.stops(tier) + brightness_at(now))
+	modulate = Emissive.at(tint, lerpf(Emissive.stops(tier), Emissive.stops(peak_tier), brightness_at(now)))
 
 
 func _apply_geometry() -> void:

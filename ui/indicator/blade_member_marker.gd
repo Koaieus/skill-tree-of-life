@@ -5,8 +5,8 @@ extends Indicator
 ## A melee blade member: a band ring whose brightness pulses on a shared
 ## wall clock ([code]Time.get_ticks_msec()[/code]), delayed by
 ## [code]order * ripple_step_s[/code] — so the pulse runs out from the pivot
-## along the blade with no coordinator. The pulse adds EV stops on top of the
-## named [member Indicator.tier]; [member ripple_gain] 0 = static.
+## along the blade with no coordinator. The pulse eases between two NAMED
+## tiers, [member Indicator.tier] and [member peak_tier] (`.claude/rules/hdr-color.md`).
 
 @export var ring_inner_offset: float = 9.0:
 	set(value):
@@ -20,31 +20,31 @@ extends Indicator
 @export_range(0.05, 10.0, 0.01) var ripple_period_s: float = 1.2
 ## Delay per [member Indicator.order] step, seconds.
 @export_range(0.0, 2.0, 0.01) var ripple_step_s: float = 0.12
-## Peak brightness add, EV stops over the tier. 0 = no ripple.
-@export_range(0.0, 4.0, 0.05) var ripple_gain: float = 0.6:
+## The crest's named tier; the pulse eases [member Indicator.tier] -> this
+## and back. Equal to [member Indicator.tier] = static.
+@export var peak_tier: Emissive.Tier = Emissive.Tier.ALERT:
 	set(value):
-		ripple_gain = value
+		peak_tier = value
 		_update_modulate()
 
 
-## The ripple's brightness add (EV stops) at wall time [param t_s]: peaks
+## The ripple phase 0..1 (0 = rest tier, 1 = peak tier) at wall time [param t_s]: peaks
 ## when [code]t_s ≡ order * ripple_step_s[/code] (mod the period).
 func brightness_at(t_s: float) -> float:
-	if ripple_gain <= 0.0 or ripple_period_s <= 0.0:
+	if peak_tier == tier or ripple_period_s <= 0.0:
 		return 0.0
-	var phase := (t_s - float(maxi(order, 0)) * ripple_step_s) / ripple_period_s
-	return ripple_gain * (0.5 + 0.5 * cos(TAU * phase))
+	return 0.5 + 0.5 * cos(TAU * (t_s - float(maxi(order, 0)) * ripple_step_s) / ripple_period_s)
 
 
 func _process(delta: float) -> void:
 	super(delta)
-	if ripple_gain > 0.0:
+	if peak_tier != tier:
 		_update_modulate()
 
 
 func _update_modulate() -> void:
 	var now := Time.get_ticks_msec() / 1000.0
-	modulate = Emissive.at(tint, Emissive.stops(tier) + brightness_at(now))
+	modulate = Emissive.at(tint, lerpf(Emissive.stops(tier), Emissive.stops(peak_tier), brightness_at(now)))
 
 
 func _apply_geometry() -> void:
