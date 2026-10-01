@@ -186,11 +186,20 @@ func is_edge_removed(edge_idx: int) -> bool:
 ## [BladeDistanceConstraint], so a re-run of the sim no longer holds its
 ## endpoints together. Idempotent. Returns true if this call did the removing.
 ##
-## The constraint is matched on its (a, b) endpoint pair rather than by index:
-## [method build] seeds constraints one-per-edge in order, but addons append
-## further constraints afterwards (ClampAddon's phantom brace), so index parity
-## between `edges` and `constraints` is not a promise this class makes. A brace
-## is deliberately NOT dropped — it is not this edge.
+## The edge's own constraint is matched on its (a, b) endpoint pair among the
+## non-brace constraints rather than by index: [method build] seeds constraints
+## one-per-edge in order, but addons append further constraints afterwards
+## (ClampAddon's phantom brace), so index parity between `edges` and
+## `constraints` is not a promise this class makes.
+##
+## [b]Every weld brace spanning the dead edge goes with it[/b]: a brace whose
+## [member BladeDistanceConstraint.joint] is one endpoint and whose `a` or `b`
+## is the other held the angle between this edge and a sibling, and with this
+## edge gone there is no angle left. Kept, it would tie together particles the
+## edges say are apart, and [method BladePopResolver._reachable_from_pivot]'s
+## walk over `edges` would lie. A brace between the joint's two OTHER edges
+## stays (a degree-3 joint keeps holding what it still has), as does one
+## merely parallel to this edge (a triangulated joint's brace across it).
 ##
 ## A cached adjacency map does NOT need invalidating after this: `edges` is not
 ## spliced, so every edge index stays valid and
@@ -201,14 +210,27 @@ func remove_edge(edge_idx: int) -> bool:
 		return false
 	removed_edges[edge_idx] = true
 	var e := edges[edge_idx]
-	for i in constraints.size():
+	for i in range(constraints.size() - 1, -1, -1):
 		var dc := constraints[i] as BladeDistanceConstraint
 		if dc == null:
+			continue
+		if dc.is_brace():
+			if _brace_spans(dc, e.x, e.y) or _brace_spans(dc, e.y, e.x):
+				constraints.remove_at(i)
+	for i in constraints.size():
+		var dc := constraints[i] as BladeDistanceConstraint
+		if dc == null or dc.is_brace():
 			continue
 		if (dc.a == e.x and dc.b == e.y) or (dc.a == e.y and dc.b == e.x):
 			constraints.remove_at(i)
 			break
 	return true
+
+
+## True if [param brace] holds an angle at [param joint] that includes the
+## edge `joint–other`.
+static func _brace_spans(brace: BladeDistanceConstraint, joint: int, other: int) -> bool:
+	return brace.joint == joint and (brace.a == other or brace.b == other)
 
 
 ## Destroy vertex [param idx]: freeze it in place, drop every constraint
@@ -225,7 +247,9 @@ func remove_edge(edge_idx: int) -> bool:
 ##
 ## A phantom brace (ClampAddon's weld) incident to a dead vertex goes too: it is
 ## a constraint reaching a particle that no longer moves, so keeping it would
-## weld the survivors to a corpse.
+## weld the survivors to a corpse. So does every brace whose JOINT dies — the
+## same rule as [method remove_edge]'s: its two edges died with the joint, so
+## it holds no angle, only two survivors at a hidden fixed distance.
 func remove_vertex(idx: int) -> bool:
 	if idx < 0 or idx >= positions.size() or removed_vertices.has(idx):
 		return false
@@ -235,7 +259,7 @@ func remove_vertex(idx: int) -> bool:
 		var dc := constraints[i] as BladeDistanceConstraint
 		if dc == null:
 			continue
-		if dc.a == idx or dc.b == idx:
+		if dc.a == idx or dc.b == idx or dc.joint == idx:
 			constraints.remove_at(i)
 	return true
 

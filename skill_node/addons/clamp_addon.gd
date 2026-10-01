@@ -9,7 +9,11 @@ extends SkillNodeAddon
 ## Phantom-brace trick: a weld at joint J between two arms is
 ## mathematically equivalent to a distance constraint between the two
 ## arm-tip particles. We just add such a constraint per neighbor pair.
-## Reuses the existing PBD solver; no new constraint class needed.
+## Reuses the existing PBD solver; no new constraint class needed — the
+## brace records its joint ([member BladeDistanceConstraint.joint]) so that
+## [method BladeState.remove_edge] can drop it with either edge it spans: with
+## one of the two edges gone there is no angle left to hold, and a surviving
+## brace would be a hidden second edge.
 ##
 ## Crucially, this does NOT create a face: future area-damage code
 ## traverses `state.edges` (the explicit edge list), not `state.constraints`.
@@ -46,4 +50,4 @@ static func append_weld_braces(state: BladeState, particle_idx: int) -> void:
 			var a := neighbors[i]
 			var b := neighbors[j]
 			var rest := state.positions[a].distance_to(state.positions[b])
-			state.constraints.append(BladeDistanceConstraint.new(a, b, rest))
+			state.constraints.append(BladeDistanceConstraint.new(a, b, rest, 0.0, particle_idx))
