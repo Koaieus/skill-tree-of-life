@@ -6,7 +6,7 @@ class_name AddonGeometry
 ## Lives here rather than on [SkillNodeVisual] (which already carries
 ## `polar_point` / `polar_steps`) because addons are NOT part of the
 ## `node_visuals_composite` family: they hang off the [SkillNode] directly and
-## are driven by [method SkillNodeAddon.configure_visual], not by the
+## are sized by [member AddonVisual.radius], not by the
 ## composite's identity fan-out. Borrowing that base class's statics would
 ## imply a membership that doesn't exist.
 

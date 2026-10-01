@@ -55,6 +55,8 @@ EXEMPT_DIRS = {
     "ui/": "presentation. Drawing, easing and layout are per-peer by nature; a "
            "last-ulp difference moves a pixel, and no peer compares pixels.",
     "skill_node/visuals/": "presentation — see ui/.",
+    "skill_node/addons/visuals/": "presentation — see ui/. AddonVisual draw "
+                                  "scripts only; an addon's gameplay stays on its root.",
     "entity/core/sigil/": "presentation — sigil geometry is drawn, never compared.",
     "procgen/": "the generated graph is TRANSMITTED (#527's snapshot), not "
                 "re-derived per peer. If that ever changes — if a peer generates "
@@ -69,9 +71,6 @@ EXEMPT_FILES = {
         "loot pour), but its only banned call is the `sin` twinkle inside `_draw`. "
         "Exempt by file rather than by directory for exactly that reason — if a "
         "second one appears here, read it before extending this entry.",
-    "skill_node/addons/watchtower_addon.gd": "same shape as skill_dust: gameplay "
-        "file, but its only banned calls are the `cos`/`sin` of `_draw_ellipse`, "
-        "a `_draw` helper. Read before extending.",
     "graph/edge.gd": "presentation — `pow(2, stops)` is the HDR emissive lift.",
     "systems/vision_system.gd": "the one `exp` is a frame-rate-independent ease "
                                "in `_process` (`1 - exp(-rate * delta)`); it "
