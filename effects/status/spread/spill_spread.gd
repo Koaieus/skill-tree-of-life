@@ -9,7 +9,8 @@ extends StatusSpread
 ## the output multiset. No survivor → the stacks vanish (one burn transfer).
 
 ## Fraction of a removed node's raw stacks eligible to spill at all, before
-## the even split across survivors. Tentative default; easy to retune.
+## the even split across survivors. `1.0` = a removed node's whole row is
+## eligible; lower leaves the rest to vanish with the node.
 @export_range(0, 1) var spread_fraction: float = 1.0
 
 ## Which removal causes this rule fires for, as [constant StatusSpread.CAUSE_DEATH]
