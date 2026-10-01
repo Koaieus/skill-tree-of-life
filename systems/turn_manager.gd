@@ -21,6 +21,9 @@ signal turn_started(entity: Entity)
 ## decay), where [signal turn_started] would double-count a repaired mirror.
 signal real_turn_started(entity: Entity)
 signal turn_ended(entity: Entity)
+## A classic initiative round closed (#1257) — see [member rounds_completed].
+## [param round] is the new [member rounds_completed]. Never emitted by
+## [method adopt_turn]: a repair has no presentation semantics.
 signal round_completed(round: int)
 
 ## Fires whenever [method forecast]'s answer could have changed: after
@@ -69,11 +72,32 @@ var _current_entity: Entity = null
 ## Turns served since the level started — every [method start_turn], across all
 ## entities, not rounds. [RunOutcome.turn_count] reports it (#460).
 var turns_taken: int = 0
+## Initiative rounds completed (#1257). A round OPENS with a roster — every
+## living initiative carrier this clock serves — and COMPLETES when the turn of
+## the last roster member still waiting ends; the next opens at once with a
+## fresh roster. So a fast entity may act twice in one round, a mid-round joiner
+## waits for the next roster, and a member that dies leaves the current one.
+## Only turn ORDER matters: a uniform change to initiative gain changes no count.
+##
+## Bookkeeping lives at the [signal turn_ended] sites ([method end_turn],
+## [method abandon_turn]), which [EndTurnCommand] runs on every peer at the same
+## point of the command stream; the resync ([method adopt_turn]) adopts the
+## authority's round state outright, like [member turns_taken].
+##
+## Known edge, accepted by the owner: a near-zero-gain member holds its round
+## open. Gain is uniform today.
 var rounds_completed: int = 0
+## Whether a round is open. False until the first [method start_turn] (or an
+## adopted open round) — so a fixture arranging turns through
+## [method adopt_turn] alone never tallies phantom rounds.
+var _round_open: bool = false
+## The open round's roster members still waiting for their turn to end.
+var _round_waiting: Array[Entity] = []
 
 
+## The open round's roster members whose turn has not ended yet (a copy).
 func round_waiting() -> Array[Entity]:
-	return []
+	return _round_waiting.duplicate()
 
 
 ## [b]The handoff is a call sequence, not a subscription.[/b] [method start_turn]
@@ -133,7 +157,10 @@ func _on_tree_node_added(node: Node) -> void:
 		_request_forecast_rebind()
 
 
-func _on_entity_died_rebind(_entity: Entity) -> void:
+func _on_entity_died_rebind(entity: Entity) -> void:
+	# A member that dies leaves the open round's roster (#1257). Only
+	# [method _note_turn_over] closes a round.
+	_round_waiting.erase(entity)
 	if not is_inside_tree():
 		return
 	_request_forecast_rebind()
@@ -217,6 +244,8 @@ func start_turn(entity: Entity) -> void:
 	entity.remove_from_group(Entity.READY_GROUP)
 	_current_entity = entity
 	turns_taken += 1
+	if not _round_open:
+		_open_round()
 	entity.begin_turn()
 	turn_started.emit(entity)
 	real_turn_started.emit(entity)
@@ -247,11 +276,22 @@ func start_turn(entity: Entity) -> void:
 ## A no-op when the cursor already agrees, which is the ordinary case for a
 ## mid-run repair — and what keeps this idempotent, like every other step of a
 ## resync decode.
+##
+## [param rounds], [param round_open] and [param waiting] are the authority's
+## round state ([member rounds_completed], whether a round is open, and
+## [method round_waiting]), adopted outright for the same reason as the tally —
+## a mirror that counted its own would end a turn-limited run on a different
+## turn. [param rounds] `< 0` leaves the round state untouched (a caller with
+## only a cursor to set). Never emits [signal round_completed].
 func adopt_turn(
 	entity: Entity, total_turns_taken: int, rounds: int = -1,
 	round_open: bool = false, waiting: Array[Entity] = []
 ) -> void:
 	turns_taken = total_turns_taken
+	if rounds >= 0:
+		rounds_completed = rounds
+		_round_open = round_open
+		_round_waiting = waiting.duplicate()
 	if current_entity == entity:
 		return
 	# The displaced entity's turn is over in the authority's world; only its
@@ -287,6 +327,7 @@ func end_turn() -> void:
 	entity.resolve_turn_end()
 	entity.finish_turn()
 	turn_ended.emit(entity)
+	_note_turn_over(entity)
 	forecast_changed.emit()
 	_tick_until_ready(entity)
 
@@ -332,7 +373,33 @@ func abandon_turn(entity: Entity) -> void:
 	_current_entity = null
 	entity.finish_turn()
 	turn_ended.emit(entity)
+	_note_turn_over(entity)
 	forecast_changed.emit()
+
+
+## Round bookkeeping at a turn-end site: [param entity]'s turn is over, so it
+## leaves the waiting roster; corpses are pruned as a backstop to
+## [method _on_entity_died_rebind]. The round closes when nobody living still
+## waits — which also closes it at the end of the turn in which its last
+## waiting member died off-turn.
+func _note_turn_over(entity: Entity) -> void:
+	if not _round_open:
+		return
+	_round_waiting.erase(entity)
+	_round_waiting = _round_waiting.filter(
+		func(e: Entity) -> bool: return is_instance_valid(e) and not e.is_dead)
+	if not _round_waiting.is_empty():
+		return
+	rounds_completed += 1
+	_open_round()
+	round_completed.emit(rounds_completed)
+
+
+## A fresh roster: every living initiative carrier this clock serves.
+func _open_round() -> void:
+	_round_open = true
+	_round_waiting = _initiative_carriers().filter(
+		func(e: Entity) -> bool: return not e.is_dead)
 
 
 ## Tick the initiative clock by one unit. Replenishes every entity's `initiative`
