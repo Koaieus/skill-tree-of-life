@@ -42,56 +42,56 @@ func _formula_mod(target_id: StringName, source_id: StringName, coefficient: flo
 func test_formula_driven_local_modifier_computes_through_get_local_value() -> void:
 	var node := _node()
 	# Zero both bases so the expected value is just the formula contribution.
-	node._ensure_local_stat(&"strength").base_value = 0.0
-	node._ensure_local_stat(&"dexterity").base_value = 0.0
+	node._ensure_local_stat(&"armor").base_value = 0.0
+	node._ensure_local_stat(&"node_healing").base_value = 0.0
 
-	node.add_local_modifier(_static_mod(&"strength", StatModifier.Operation.ADD_BASE, 10.0))
-	node.add_local_modifier(_formula_mod(&"dexterity", &"strength", 2.0))
+	node.add_local_modifier(_static_mod(&"armor", StatModifier.Operation.ADD_BASE, 10.0))
+	node.add_local_modifier(_formula_mod(&"node_healing", &"armor", 2.0))
 
 	# Fails on master: add_local_modifier never binds, so the formula leaf's
 	# _board stays null and get_effective_value() falls back to the raw
-	# coefficient (2.0) instead of 2.0 * strength(10.0).
-	assert_almost_eq(float(node.get_local_value(&"dexterity")), 20.0, 0.001,
-			"formula-driven dexterity should read 2x the node-local strength")
+	# coefficient (2.0) instead of 2.0 * armor(10.0).
+	assert_almost_eq(float(node.get_local_value(&"node_healing")), 20.0, 0.001,
+			"formula-driven node_healing should read 2x the node-local armor")
 
 
 # --- 2. Reactivity: changing the source recomputes the dependent modifier --
 
 func test_source_change_recomputes_dependent_local_modifier() -> void:
 	var node := _node()
-	node._ensure_local_stat(&"strength").base_value = 0.0
-	node._ensure_local_stat(&"dexterity").base_value = 0.0
-	node.add_local_modifier(_static_mod(&"strength", StatModifier.Operation.ADD_BASE, 10.0))
-	node.add_local_modifier(_formula_mod(&"dexterity", &"strength", 2.0))
-	assert_almost_eq(float(node.get_local_value(&"dexterity")), 20.0, 0.001)
+	node._ensure_local_stat(&"armor").base_value = 0.0
+	node._ensure_local_stat(&"node_healing").base_value = 0.0
+	node.add_local_modifier(_static_mod(&"armor", StatModifier.Operation.ADD_BASE, 10.0))
+	node.add_local_modifier(_formula_mod(&"node_healing", &"armor", 2.0))
+	assert_almost_eq(float(node.get_local_value(&"node_healing")), 20.0, 0.001)
 
-	node.add_local_modifier(_static_mod(&"strength", StatModifier.Operation.ADD_BASE, 5.0))
+	node.add_local_modifier(_static_mod(&"armor", StatModifier.Operation.ADD_BASE, 5.0))
 
-	assert_almost_eq(float(node.get_local_value(&"dexterity")), 30.0, 0.001,
-			"the bind subscribes to strength, so dexterity must recompute reactively")
+	assert_almost_eq(float(node.get_local_value(&"node_healing")), 30.0, 0.001,
+			"the bind subscribes to armor, so node_healing must recompute reactively")
 
 
 # --- 3. Cycle rejection, atomic, board left untouched -----------------------
 
 func test_cycle_closing_local_modifier_is_rejected_and_board_untouched() -> void:
 	var node := _node()
-	# strength -> depends on dexterity
-	node.add_local_modifier(_formula_mod(&"strength", &"dexterity", 1.0))
-	var strength_before: float = float(node.get_local_value(&"strength"))
-	var dexterity_before: float = float(node.get_local_value(&"dexterity"))
+	# armor -> depends on node_healing
+	node.add_local_modifier(_formula_mod(&"armor", &"node_healing", 1.0))
+	var armor_before: float = float(node.get_local_value(&"armor"))
+	var node_healing_before: float = float(node.get_local_value(&"node_healing"))
 
-	# dexterity -> depends on strength closes strength -> dexterity -> strength.
-	var closing := _formula_mod(&"dexterity", &"strength", 1.0)
+	# node_healing -> depends on armor closes armor -> node_healing -> armor.
+	var closing := _formula_mod(&"node_healing", &"armor", 1.0)
 	node.add_local_modifier(closing)
 
-	assert_almost_eq(float(node.get_local_value(&"strength")), strength_before, 0.001,
-			"rejected candidate must not perturb strength")
-	assert_almost_eq(float(node.get_local_value(&"dexterity")), dexterity_before, 0.001,
-			"rejected candidate must not perturb dexterity")
+	assert_almost_eq(float(node.get_local_value(&"armor")), armor_before, 0.001,
+			"rejected candidate must not perturb armor")
+	assert_almost_eq(float(node.get_local_value(&"node_healing")), node_healing_before, 0.001,
+			"rejected candidate must not perturb node_healing")
 	# Sparseness: the rejection happens before _ensure_local_stat(leaf.stat_id),
-	# so dexterity (closing's target) was never allocated on node_board at all —
+	# so node_healing (closing's target) was never allocated on node_board at all —
 	# "board untouched" means nothing partially bound, not "bound then reverted".
-	assert_null(node.node_board.get_stat(&"dexterity"),
+	assert_null(node.node_board.get_stat(&"node_healing"),
 			"rejected candidate must not allocate its target stat on the node board")
 
 
@@ -99,18 +99,18 @@ func test_cycle_closing_local_modifier_is_rejected_and_board_untouched() -> void
 
 func test_remove_local_modifier_unbinds() -> void:
 	var node := _node()
-	node._ensure_local_stat(&"strength").base_value = 0.0
-	node._ensure_local_stat(&"dexterity").base_value = 0.0
-	node.add_local_modifier(_static_mod(&"strength", StatModifier.Operation.ADD_BASE, 10.0))
-	var dex_mod := _formula_mod(&"dexterity", &"strength", 2.0)
+	node._ensure_local_stat(&"armor").base_value = 0.0
+	node._ensure_local_stat(&"node_healing").base_value = 0.0
+	node.add_local_modifier(_static_mod(&"armor", StatModifier.Operation.ADD_BASE, 10.0))
+	var dex_mod := _formula_mod(&"node_healing", &"armor", 2.0)
 	node.add_local_modifier(dex_mod)
-	assert_almost_eq(float(node.get_local_value(&"dexterity")), 20.0, 0.001)
+	assert_almost_eq(float(node.get_local_value(&"node_healing")), 20.0, 0.001)
 
 	node.remove_local_modifier(dex_mod)
-	node.add_local_modifier(_static_mod(&"strength", StatModifier.Operation.ADD_BASE, 100.0))
+	node.add_local_modifier(_static_mod(&"armor", StatModifier.Operation.ADD_BASE, 100.0))
 
-	assert_almost_eq(float(node.get_local_value(&"dexterity")), 0.0, 0.001,
-			"removed modifier must no longer contribute, and must not recompute off strength")
+	assert_almost_eq(float(node.get_local_value(&"node_healing")), 0.0, 0.001,
+			"removed modifier must no longer contribute, and must not recompute off armor")
 
 
 # --- 5. Sparseness ------------------------------------------------------------
@@ -147,12 +147,12 @@ func test_entity_only_value_passes_through_without_allocating_node_board() -> vo
 	alloc.force_allocate(entity, node)
 
 	# node_board now exists (combat health pool from allocation), but no local
-	# modifier has targeted `strength` — reading it must pass through to the
+	# modifier has targeted `armor` — reading it must pass through to the
 	# entity board without minting a node-board stat for it.
 	assert_not_null(node.node_board, "allocation creates node_board for combat health")
-	assert_eq(node.node_board._extra_stats.has(&"strength"), false,
+	assert_eq(node.node_board._extra_stats.has(&"armor"), false,
 			"reading an entity-only stat must not allocate it on node_board")
-	assert_eq(node.get_local_value(&"strength"), entity.stat_board.get_stat(&"strength").get_value(),
+	assert_eq(node.get_local_value(&"armor"), entity.stat_board.get_stat(&"armor").get_value(),
 			"should pass through to the entity value")
 
 

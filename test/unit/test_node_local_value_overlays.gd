@@ -172,16 +172,23 @@ func _family_def(id: StringName, parents: Array[StringName] = []) -> StatDef:
 	d.id = id
 	d.value_type = StatDef.ValueType.FLOAT
 	d.parent_ids = parents
+	d.local_grantable = true
 	StatRegistry.register_def(d)
 	return d
 
 
 func before_each() -> void:
+	# The single-stat fixtures grant `_ID` node-locally, so it is declared so.
+	var d := StatDef.new()
+	d.id = _ID
+	d.local_grantable = true
+	StatRegistry.register_def(d)
 	_family_def(_FP)
 	_family_def(_FC, [_FP])
 
 
 func after_each() -> void:
+	StatRegistry.unregister_def(_ID)
 	StatRegistry.unregister_def(_FC)
 	StatRegistry.unregister_def(_FP)
 

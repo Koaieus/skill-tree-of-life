@@ -70,14 +70,14 @@ func _armor_mod(value: float, op: int = StatModifier.Operation.ADD_BONUS) -> Sta
 ## 6.67 rather than 6.
 func _crit_mod(value: float) -> StatModifier:
 	var m := StatModifier.new()
-	m.stat_id = &"crit_chance"
+	m.stat_id = &"healing_received"
 	m.operation = StatModifier.Operation.ADD_BONUS
 	m.value = value
 	return m
 
 
 func _crit(n: SkillNode) -> float:
-	return float(n.get_local_value(&"crit_chance"))
+	return float(n.get_local_value(&"healing_received"))
 
 
 func _expr(formula: String) -> ExpressionScale:
@@ -166,7 +166,7 @@ func test_library_scales_equal_their_formula_spellings(params = use_parameters([
 ## The LinearScale numbers spelled out, so a regression names itself.
 func test_linear_spelling_reproduces_ten_six_point_seven_three_point_three() -> void:
 	var ent: Entity = await _spawn_owning_whole_chain()
-	# crit_chance carries a non-zero board baseline, so assert the DELTA the
+	# healing_received carries a non-zero board baseline, so assert the DELTA the
 	# aura contributed rather than the absolute stat.
 	var base := _crit(_chain[0])
 	ent.grant_effect(_aura("v * (1 - d / max)", 3, [_crit_mod(10.0)]))
