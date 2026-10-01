@@ -504,7 +504,7 @@ func _serialize(case_name: StringName, w: Dictionary) -> String:
 	var clock: BladeSwingClock = w.clock
 	if clock != null:
 		sink.row("CLOCK", ["drag", clock.drag, "progress", clock.progress(),
-				"warping", clock.is_warping(), "stalled", clock.is_stalled(),
+				"warping", clock.is_warping(),
 				"banks", clock.history.size()])
 		for k in clock.history.size():
 			var b: BladeSwingClock.Bank = clock.history[k]
@@ -513,7 +513,7 @@ func _serialize(case_name: StringName, w: Dictionary) -> String:
 			var touched := PackedInt64Array()
 			for z in b.touched.keys():
 				touched.append(int(z))
-			sink.row("C %d" % k, [b.f, b.drag, b.last_t, b.warping, b.stalled, touched])
+			sink.row("C %d" % k, [b.f, b.drag, b.last_t, b.warping, touched])
 		sink.flush_digest("clock")
 	var field: BladeObstacleField = w.field
 	if field != null:
