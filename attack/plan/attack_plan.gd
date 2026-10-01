@@ -164,7 +164,7 @@ func resolve() -> AttackOutcome:
 ## of the span it frames. Melee and magic answer their source; ranged answers
 ## its reaching firing leaves. Empty means "nothing to pivot on": the span is
 ## then the targets alone.
-func windup_anchors() -> Array[SkillNode]:
+func windup_anchors(_outcome: AttackOutcome) -> Array[SkillNode]:
 	return []
 
 

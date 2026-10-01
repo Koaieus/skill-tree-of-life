@@ -88,7 +88,7 @@ var _preview_edges: Array[Edge] = []
 
 
 ## The wind-up hangs off the source (#1048) — empty until one is armed.
-func windup_anchors() -> Array[SkillNode]:
+func windup_anchors(_outcome: AttackOutcome) -> Array[SkillNode]:
 	var out: Array[SkillNode] = []
 	if source != null and is_instance_valid(source):
 		out.append(source)

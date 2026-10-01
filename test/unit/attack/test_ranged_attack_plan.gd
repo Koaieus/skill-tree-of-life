@@ -578,3 +578,48 @@ func test_facing_points_at_the_target_when_origin() -> void:
 	assert_almost_eq(p.get_node_facing(_leaf_near).normalized(), Vector2.DOWN, Vector2(1e-5, 1e-5))
 	assert_almost_eq(p.get_node_facing(_leaf_far).normalized(), Vector2.LEFT, Vector2(1e-5, 1e-5),
 			"an out-of-range caster keeps its outward facing")
+
+
+# ── Wind-up anchors ──────────────────────────────────────────────────────
+
+## The distinct non-status hit origins of [param outcome], as a set.
+func _origin_set(outcome: AttackOutcome) -> Dictionary:
+	var out := {}
+	for hit in outcome.hits:
+		if hit.origin != null and not (hit is StatusInstance):
+			out[hit.origin] = true
+	return out
+
+
+func _as_set(nodes: Array[SkillNode]) -> Dictionary:
+	var out := {}
+	for n in nodes:
+		out[n] = true
+	return out
+
+
+func _four_reaching_two_firing() -> RangedAttackPlan:
+	_set_range(_leaf_far, 500.0)  # distance 450 → reaches
+	_add_reaching_leaf(Vector2(450, 300))
+	_add_reaching_leaf(Vector2(450, -600))
+	var p := _plan()
+	p.set_target(_target)
+	p.ammo_counts = {AmmoTypeRoster.BASE_ID: 2}
+	return p
+
+
+func test_windup_anchors_are_the_leaves_the_outcome_fires_from() -> void:
+	var p := _four_reaching_two_firing()
+	assert_eq(p.get_reaching_firing_positions().size(), 4, "fixture: four leaves reach")
+	var outcome := p.resolve()
+	var origins := _origin_set(outcome)
+	assert_eq(origins.size(), 2, "fixture: N = 2, so only two leaves fire")
+	var anchors := p.windup_anchors(outcome)
+	assert_eq(anchors.size(), origins.size(), "one anchor per firing leaf, no duplicates")
+	assert_eq(_as_set(anchors), origins, "the anchors are the outcome's hit origins, not the reaching rim")
+
+
+func test_windup_anchors_without_an_outcome_are_the_reaching_leaves() -> void:
+	var p := _four_reaching_two_firing()
+	assert_eq(_as_set(p.windup_anchors(null)), _as_set(p.get_reaching_firing_positions()),
+			"an aim-time read falls back to every reaching leaf")

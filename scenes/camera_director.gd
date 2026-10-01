@@ -503,7 +503,7 @@ func _windup_focus(plan: AttackPlan) -> FocusRequest:
 func _lone_anchor(plan: AttackPlan) -> SkillNode:
 	if plan == null:
 		return null
-	var anchors := plan.windup_anchors()
+	var anchors := plan.windup_anchors(null)
 	if anchors.size() != 1 or not is_instance_valid(anchors[0]):
 		return null
 	return anchors[0]
@@ -513,7 +513,7 @@ func _lone_anchor(plan: AttackPlan) -> SkillNode:
 ## when none is visible — an empty set has no centroid to invent.
 func _append_anchor_centroid(points: PackedVector2Array, plan: AttackPlan) -> void:
 	var seen := PackedVector2Array()
-	for anchor in plan.windup_anchors():
+	for anchor in plan.windup_anchors(null):
 		_append_if_visible(seen, anchor)
 	if seen.is_empty():
 		return

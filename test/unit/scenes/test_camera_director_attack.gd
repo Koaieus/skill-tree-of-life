@@ -626,7 +626,7 @@ func test_wave_landing_refits_the_zoom_to_the_landing_cluster_only() -> void:
 class _AnchoredRangedPlan:
 	extends RangedAttackPlan
 	var anchors: Array[SkillNode] = []
-	func windup_anchors() -> Array[SkillNode]:
+	func windup_anchors(_outcome: AttackOutcome) -> Array[SkillNode]:
 		return anchors
 
 
