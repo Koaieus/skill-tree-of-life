@@ -12,8 +12,8 @@ extends VictoryCondition
 ## `level`, ties broken by the sum of their `xp` pool `current` — plain
 ## arithmetic, no level-curve math — then by the nodes they own (owner,
 ## 2026-10-02: "tiebreak owned territory sounds fitting tho"). An exact tie on
-## all three is a DRAW. The score
-## lives in ONE private method because it "may become a knob later" (owner).
+## all three is a DRAW. The score lives in ONE private method because it "may
+## become a knob later" (owner).
 ##
 ## Pure: reads only the [VictoryContext], never the [TurnManager].
 
