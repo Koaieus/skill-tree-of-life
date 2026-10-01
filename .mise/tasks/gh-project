@@ -17,41 +17,33 @@ FIELD_START="PVTF_lAHOAExWR84BcS99zhW82Cw"
 FIELD_TARGET="PVTF_lAHOAExWR84BcS99zhW82C0"
 
 # --- GraphQL budget hygiene --------------------------------------------------
-# GitHub bills GraphQL by the *requested* connection sizes, not rows returned.
-# `gh project item-list --format json` asks for items(first:100){ fieldValues
-# (first:100){…} } — that nested fieldValues expansion is what makes each page
-# cost ~100+ points. (`--limit 999` is a red herring: gh stops paginating at the
-# first short page, so a sub-100-item board fetches ONE page regardless.) A burst
-# of commands for one issue (add+status+size+priority) used to run four such
-# queries; bulk-wiring a dozen issues ran dozens and repeatedly exhausted the
-# 5000-pt budget.
+# GitHub bills GraphQL by the *requested* connection sizes, not rows returned,
+# against ONE 5000-pt hour shared by every session on the account. Never call
+# `gh project item-list`: it asks for items(first:100){ fieldValues(first:100)
+# } plus each issue's body — measured 2026-10-01 at ~607 pts for a ~575-item
+# board, so eight reads emptied the hour and every agent's `gh` died with "API
+# rate limit already exceeded". Read paths here use hand-written queries that
+# name each field via fieldValueByName (a scalar, not a connection):
+#  - `items_json` — the whole board, ~6 pts. For list/roadmap displays.
+#  - `issue_item_json <n>` — one issue through repository.issue.projectItems,
+#    ~1 pt. Every single-issue read (`status <n>`, `size <n>`, …) uses this.
+#  - `ids_json` — "<number> <item-id>" only, the hot path for field edits.
+# A field read here must be added to ITEM_FIELDS / ITEM_JQ, never fetched by
+# reaching for item-list again.
 #
-# Two fixes:
-#  1. `ids_json` — a LEAN custom query for the hot path (issue# → item-id, all a
-#     set-field call needs). It requests only id + content.number, no
-#     fieldValues, so each page costs ~1 point instead of ~100+, and --paginate
-#     makes it correct at any board size (no magic limit to guess).
-#  2. A short-lived tempfile cache on the ID MAP ONLY. A set-burst
-#     (add+status+size+priority for one issue) reuses one lean fetch instead of
-#     one-per-command. item-add invalidates it (membership changed); field edits
-#     don't (item-ids are stable), so id lookups stay correct.
+# Caches: ids for CACHE_TTL (item-add invalidates; ids are stable), the board
+# for ITEMS_TTL. Any WRITE through this script drops the board cache first
+# (dispatcher, bottom). Both refetches take a flock so N concurrent misses cost
+# one query. A failed fetch exits non-zero with gh's error — never an empty
+# board, which `hygiene` and `status` would report as a clean answer.
 #
-# The FULL item-list (field values) is cached for ITEMS_TTL (10 s) — long
-# enough that a swarm wave's `list`/`hygiene`/read calls share one fetch, short
-# enough that a `list` used to pick up work is never a wave stale. Any WRITE
-# through this script drops it first (dispatcher, bottom), so a read after a
-# write in the same or another process is live. Both refetches take a flock:
-# N concurrent cache misses used to fire N paginated queries (the 2026-09-30
-# swarm tripped GitHub's secondary limit that way); now the waiters reuse one.
-#
-# STILL EXHAUSTIBLE BY BULK WRITES. Restoring 297 items' Status (see the warning
-# in cmd_status) plus a handful of --paginate reads burned the full 5000-point
-# hour in one session. `updateProjectV2ItemFieldValue` is ~1 point but gh's own
-# request overhead is not, so batch aliased mutations into ONE query rather than
-# looping the CLI:
+# Measure with GraphQL's own counter — `gh api rate_limit` (REST) reported
+# graphql used:5 at the moment `{rateLimit{used}}` reported 1315:
+#   gh api graphql -f query='{rateLimit{used remaining resetAt}}'
+# Bulk writes: batch aliased mutations into ONE request rather than looping the
+# CLI (restoring 297 items' Status one call each burned a full hour once):
 #   gh api graphql -f query='mutation { m1: updateProjectV2ItemFieldValue(...){...}
 #                                       m2: ... }'   # ~40 per request is comfortable
-# Check before a bulk pass: gh api rate_limit --jq .resources.graphql
 CACHE_TTL=${GH_PROJECT_CACHE_TTL:-60}
 ITEMS_TTL=${GH_PROJECT_ITEMS_TTL:-10}
 ID_CACHE="${TMPDIR:-/tmp}/gh-project-${PROJECT}-ids.txt"
@@ -90,23 +82,62 @@ ids_json() {
   ) 9>"${ID_CACHE}.lock"
 }
 
-# Full item-list JSON (with field values) — read/list display paths. Cached
-# for ITEMS_TTL seconds under the same lock discipline (see the header note:
-# any write through this script drops it first, so a read after a write is
-# live; the stale window is only between processes, and shorter than a wave).
+# The per-item selection and its flattening, shared by both readers below. The
+# flattened shape keeps item-list's keys (`.content.number`, `.status`,
+# `."start date"`, …) so every jq consumer reads either reader unchanged.
+ITEM_FIELDS='id
+  content { __typename ... on Issue { number title url labels(first: 10) { nodes { name } } } }
+  status: fieldValueByName(name: "Status") { ... on ProjectV2ItemFieldSingleSelectValue { name } }
+  priority: fieldValueByName(name: "Priority") { ... on ProjectV2ItemFieldSingleSelectValue { name } }
+  size: fieldValueByName(name: "Size") { ... on ProjectV2ItemFieldSingleSelectValue { name } }
+  estimate: fieldValueByName(name: "Estimate") { ... on ProjectV2ItemFieldNumberValue { number } }
+  start: fieldValueByName(name: "Start date") { ... on ProjectV2ItemFieldDateValue { date } }
+  target: fieldValueByName(name: "Target date") { ... on ProjectV2ItemFieldDateValue { date } }'
+ITEM_JQ='{ id,
+    content: { type: .content.__typename, number: .content.number, title: .content.title, url: .content.url },
+    labels: [ .content.labels.nodes[]?.name ],
+    status: .status.name, priority: .priority.name, size: .size.name,
+    estimate: .estimate.number, "start date": .start.date, "target date": .target.date }
+  | with_entries(select(.value != null))'
+
+# Whole board as {"items":[…]} — list/roadmap display. Cached for ITEMS_TTL
+# under the ids_json lock discipline.
 items_json() {
   fresh "$ITEMS_CACHE" "$ITEMS_TTL" && { cat "$ITEMS_CACHE"; return 0; }
   (
   flock -w 120 9 || exit 1
   fresh "$ITEMS_CACHE" "$ITEMS_TTL" && { cat "$ITEMS_CACHE"; exit 0; }
   local tmp="${ITEMS_CACHE}.tmp.$$"
-  if gh project item-list "$PROJECT" --owner "$OWNER" --limit 999 --format json > "$tmp" && [ -s "$tmp" ]; then
-    mv -f "$tmp" "$ITEMS_CACHE"; cat "$ITEMS_CACHE"
+  if gh api graphql --paginate -f id="$PROJECT_ID" -f query="
+      query(\$id: ID!, \$endCursor: String) {
+        node(id: \$id) {
+          ... on ProjectV2 {
+            items(first: 100, after: \$endCursor) {
+              nodes { $ITEM_FIELDS }
+              pageInfo { hasNextPage endCursor }
+            }
+          }
+        }
+      }" --jq ".data.node.items.nodes[] | $ITEM_JQ" > "$tmp" \
+     && jq -s '{items: .}' "$tmp" > "$tmp.json"; then
+    mv -f "$tmp.json" "$ITEMS_CACHE"; rm -f "$tmp"; cat "$ITEMS_CACHE"
   else
-    rm -f "$tmp"
-    echo '{"items":[]}'   # query failed (e.g. rate-limited) → empty, not partial
+    rm -f "$tmp" "$tmp.json"
+    echo "✗ board fetch failed (see gh's error above) — not answering from an empty board" >&2
+    exit 1
   fi
   ) 9>"${ITEMS_CACHE}.lock"
+}
+
+# One issue's board item as {"items":[…]} (empty when it is not on the board),
+# live and uncached — the read path for every single-issue field read.
+issue_item_json() {
+  gh api graphql -f owner="${REPO%/*}" -f repo="${REPO#*/}" -F number="$1" -f query="
+      query(\$owner: String!, \$repo: String!, \$number: Int!) {
+        repository(owner: \$owner, name: \$repo) {
+          issue(number: \$number) { projectItems(first: 10) { nodes { project { id } $ITEM_FIELDS } } }
+        }
+      }" --jq "[ .data.repository.issue.projectItems.nodes[] | select(.project.id == \"$PROJECT_ID\") | $ITEM_JQ ] | {items: .}"
 }
 
 # Membership changed (item added) → drop the id map so the next lookup refetches.
@@ -186,8 +217,8 @@ cmd_status() {
       echo "✗ issue #$issue: not resolvable on project $PROJECT — item-add may have failed, or the issue doesn't exist" >&2
       exit 1
     fi
-    items_json \
-      | jq -r '.items[] | select(.content.number == '$issue') | .status // empty'
+    issue_item_json "$issue" \
+      | jq -r '.items[] | .status // empty'
     return
   fi
 
@@ -233,9 +264,8 @@ cmd_priority() {
   id=$(ensure_item "$issue") || exit 1
 
   if [ -z "$priority" ]; then
-    # gh emits custom single-select fields lowercased (`priority`, not `Priority`).
-    items_json \
-      | jq -r --arg i "$issue" '.items[] | select(.content.number == ($i|tonumber)) | .priority // .Priority // "—"'
+    issue_item_json "$issue" \
+      | jq -r '.items[] | .priority // "—"'
     return
   fi
 
@@ -255,8 +285,8 @@ cmd_size() {
   id=$(ensure_item "$issue") || exit 1
 
   if [ -z "$size" ]; then
-    items_json \
-      | jq -r --arg i "$issue" '.items[] | select(.content.number == ($i|tonumber)) | .size // .Size // "—"'
+    issue_item_json "$issue" \
+      | jq -r '.items[] | .size // "—"'
     return
   fi
 
@@ -334,8 +364,8 @@ cmd_list() {
               # program: it is single-quoted in bash.
               title:  .content.title,
               status: (.status // "—"),
-              priority: (.priority // .Priority // "—"),
-              size:   (.size // .Size // "—"),
+              priority: (.priority // "—"),
+              size:   (.size // "—"),
               labels: (.labels // []),
               url:    .content.url } ]
         | sort_by(.priority, .number)')
@@ -381,8 +411,7 @@ _set_date_field() {
 # Read a project field value by (lowercased) json key for one issue.
 _read_field() {
   local issue=$1 key=$2
-  items_json | jq -r --arg i "$issue" --arg k "$key" \
-    '.items[] | select(.content.number == ($i|tonumber)) | .[$k] // "—"'
+  issue_item_json "$issue" | jq -r --arg k "$key" '.items[] | .[$k] // "—"'
 }
 
 cmd_start()  { local i=$1 v=${2:-}; [ -z "$v" ] && { _read_field "$i" "start date";  return; }; _set_date_field "$i" "$FIELD_START"  "$v" "start date"; }
@@ -442,47 +471,57 @@ cmd_label() {
 }
 
 # --- Dependencies: native issue blocked-by/blocking, NOT the `blocked` label --
-# `gh issue view` prints these as `blocked-by:` / `blocking:`. #598 went looking
-# for how to WRITE them and initially found only the raw REST resource
-# (`repos/<repo>/issues/<n>/dependencies/blocked_by`), whose `issue_id` is the
-# API's internal numeric id, not the issue number — a real trap, verified
-# 2026-08-26 setting #349 blocked-by #597 by resolving `.id` first.
-#
-# `gh issue edit` (>=2.98, this repo's pinned version) turns out to have grown
-# first-class flags that take issue NUMBERS directly and error loudly on a bad
-# one — `--add-blocked-by`/`--remove-blocked-by`/`--add-blocking`/
-# `--remove-blocking` — which sidesteps the id trap entirely. Use those, not
-# the raw API. (Re-verified 2026-08-31 round-tripping #2 blocked-by #3.)
+# REST, deliberately: it draws on the core 5000/h pool, so relations still land
+# when the GraphQL hour is spent — which is when a swarmify tail needs them
+# (2026-10-01: the clerk's `--add-blocked-by` calls all died on the GraphQL
+# quota; the same links went through this resource first try). `gh issue edit
+# --add-blocked-by` is GraphQL and takes numbers; this resource takes the
+# blocker's internal numeric `.id`, NOT its number — passing a number silently
+# links whatever issue owns that id. `issue_db_id` is the one place that
+# resolves it, and errors loudly on a number that is not an issue.
+issue_db_id() {
+  gh api "repos/$REPO/issues/$1" --jq 'if .pull_request then error("#\(.number) is a pull request") else .id end'
+}
+
+_deps_numbers() {  # <issue> <blocked_by|blocking> → one number per line
+  gh api --paginate "repos/$REPO/issues/$1/dependencies/$2" --jq '.[].number'
+}
+
+_deps_show() {
+  local nums
+  nums=$(_deps_numbers "$1" "$2") || exit 1
+  [ -z "$nums" ] && { echo "—"; return; }
+  printf '%s\n' "$nums" | sed 's/^/#/' | paste -sd, - | sed 's/,/, /g'
+}
+
 cmd_blocked_by() {
   local issue=$1 blocker=${2:-}
-  if [ -z "$blocker" ]; then
-    gh issue view "$issue" --json blockedBy \
-      -q '[.blockedBy.nodes[].number] | if length == 0 then "—" else (map("#" + (.|tostring)) | join(", ")) end'
-    return
-  fi
+  if [ -z "$blocker" ]; then _deps_show "$issue" blocked_by; return; fi
   if [ "$blocker" = "clear" ]; then
     local nums n
-    nums=$(gh issue view "$issue" --json blockedBy -q '.blockedBy.nodes[].number')
+    nums=$(_deps_numbers "$issue" blocked_by) || exit 1
     if [ -z "$nums" ]; then
       echo "✓ issue #$issue blocked-by → (already clear)"; return
     fi
     for n in $nums; do
-      gh issue edit "$issue" --remove-blocked-by "$n" >/dev/null
+      gh api -X DELETE "repos/$REPO/issues/$issue/dependencies/blocked_by/$(issue_db_id "$n")" >/dev/null
     done
     echo "✓ issue #$issue blocked-by → (cleared)"
     return
   fi
-  gh issue edit "$issue" --add-blocked-by "$blocker" >/dev/null
+  blocker=${blocker#\#}
+  if _deps_numbers "$issue" blocked_by | grep -qx "$blocker"; then
+    echo "✓ issue #$issue blocked-by → #$blocker (already set)"; return
+  fi
+  local bid
+  bid=$(issue_db_id "$blocker") || exit 1
+  gh api -X POST "repos/$REPO/issues/$issue/dependencies/blocked_by" -F issue_id="$bid" >/dev/null
   echo "✓ issue #$issue blocked-by → +#$blocker"
 }
 
 # Read-only inverse — no native way to "set" what an issue blocks except by
 # setting blocked-by the other direction.
-cmd_blocking() {
-  local issue=$1
-  gh issue view "$issue" --json blocking \
-    -q '[.blocking.nodes[].number] | if length == 0 then "—" else (map("#" + (.|tostring)) | join(", ")) end'
-}
+cmd_blocking() { _deps_show "$1" blocking; }
 
 # --- hygiene: board invariants, reported not enforced -------------------------
 # Detection over prevention. GitHub's built-in project workflows are a fixed set
@@ -843,7 +882,8 @@ Board hygiene:
   sync-parent <n>              Derive <n>'s parent hub status from its children (land's hook)
 
 Dependencies (native GitHub issue links, distinct from the `blocked` label):
-  blocked-by <n> [<blocker>|clear]  Read or set what blocks issue <n>
+  blocked-by <n> [<blocker>|clear]  Read or set what blocks issue <n> (REST: works
+                                    when the GraphQL hour is spent)
   blocking <n>                      Read-only: what <n> blocks
 
 The design gate is the STATUS, not a label. `design`/`blocked` issue sits in

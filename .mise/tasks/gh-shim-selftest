@@ -5,14 +5,15 @@ root=$(cd "$(dirname "$0")/../.." && pwd)
 work=$(mktemp -d); trap 'rm -rf "$work"' EXIT
 mkdir -p "$work/fake"
 # The fake "real" gh: reads a script of per-call behaviours from $work/plan,
-# one line per attempt (`rl` = rate-limit failure, `err` = other failure,
+# one line per attempt (`rl` = secondary rate limit, `q` = hourly quota spent, `err` = other failure,
 # `ok` = success echoing its args and stdin), and counts calls in $work/n.
 cat >"$work/fake/gh" <<'EOF'
 #!/usr/bin/env bash
 n=$(( $(cat "$WORK/n" 2>/dev/null || echo 0) + 1 )); echo "$n" >"$WORK/n"
 mode=$(sed -n "${n}p" "$WORK/plan")
 case "$mode" in
-  rl)  echo "GraphQL: API rate limit already exceeded for user ID 1" >&2; exit 1 ;;
+  rl)  echo "gh: You have exceeded a secondary rate limit. (HTTP 403)" >&2; exit 1 ;;
+  q)   echo "GraphQL: API rate limit already exceeded for user ID 1" >&2; exit 1 ;;
   err) echo "GraphQL: Could not resolve to an Issue" >&2; exit 3 ;;
   ok)  echo "ok:$*"; [ -t 0 ] || cat; exit 0 ;;
   *)   echo "fake gh: no plan for call $n" >&2; exit 99 ;;
@@ -41,6 +42,12 @@ out=$(GH_SHIM_RETRIES=2 gh issue edit 7 </dev/null 2>"$work/err"); rc=$?
 check "gives up after GH_SHIM_RETRIES, rc kept" "$rc:$(cat "$work/n")" "1:2"
 check "  ...give-up message names the secondary limit" "$(grep -c 'SECONDARY' "$work/err")" "1"
 check "  ...and says the call may not have landed" "$(grep -c 'DID NOT LAND' "$work/err")" "1"
+
+reset q ok
+out=$(gh issue edit 7 </dev/null 2>"$work/err"); rc=$?
+check "hourly-quota failure is not retried, rc kept" "$rc:$(cat "$work/n")" "1:1"
+check "  ...message names the hourly quota" "$(grep -c 'HOURLY' "$work/err")" "1"
+check "  ...and points at the REST pool" "$(grep -c 'separate 5000/h pool' "$work/err")" "1"
 
 reset rl ok
 out=$(printf 'body text' | gh issue comment 7 --body-file - 2>/dev/null); rc=$?

@@ -6,10 +6,13 @@
 #   - Sits first on PATH via mise.toml `[env._] path`; finds the real gh by
 #     skipping itself. Interactive terminals (stdin AND stdout a tty) and
 #     GH_SHIM=off pass straight through — the shim exists for agents.
-#   - A failed call whose stderr names a rate limit is retried with linear
-#     backoff (GH_SHIM_BACKOFF s × attempt, default 60; GH_SHIM_RETRIES
-#     attempts, default 5). Any other failure, and every success, is passed
-#     through untouched with its exit code.
+#   - A failed call whose stderr names GitHub's SECONDARY (burst) limit is
+#     retried with linear backoff (GH_SHIM_BACKOFF s × attempt, default 15;
+#     GH_SHIM_RETRIES attempts, default 4 — 90 s of sleep, inside a 120 s tool
+#     timeout). The PRIMARY limit (the hourly quota: "API rate limit [already]
+#     exceeded" without "secondary") is never retried — it lasts until the
+#     hour resets, so sleeping only turns a failure into a hang. Any other
+#     failure, and every success, passes through untouched with its exit code.
 #   - stdout is buffered per attempt so a retry never double-prints. stdin is
 #     buffered only when an argument asks gh to read it (`-`, `--input -`,
 #     `=@-`), so an inherited open pipe never blocks the shim.
@@ -32,8 +35,8 @@ if { [ -t 0 ] && [ -t 1 ]; } || [ "${GH_SHIM:-}" = "off" ]; then
   exec "$real" "$@"
 fi
 
-max=${GH_SHIM_RETRIES:-5}
-backoff=${GH_SHIM_BACKOFF:-60}
+max=${GH_SHIM_RETRIES:-4}
+backoff=${GH_SHIM_BACKOFF:-15}
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
 
@@ -47,33 +50,45 @@ run() {
   else "$real" "$@"; fi
 }
 
-rate_limited() {
-  grep -qiE 'rate limit|RATE_LIMIT|secondary|abuse detection|HTTP 429' "$tmp/err"
-}
+secondary() { grep -qiE 'secondary rate limit|abuse detection' "$tmp/err"; }
+primary()   { grep -qiE 'rate limit|RATE_LIMIT|HTTP 429' "$tmp/err"; }
+
+passthrough() { cat "$tmp/out"; cat "$tmp/err" >&2; exit "$rc"; }
 
 attempt=1
 while :; do
   run "$@" >"$tmp/out" 2>"$tmp/err"; rc=$?
-  if [ "$rc" -eq 0 ] || ! rate_limited; then
-    cat "$tmp/out"; cat "$tmp/err" >&2; exit "$rc"
+  [ "$rc" -eq 0 ] && passthrough
+  if ! secondary; then
+    primary || passthrough
+    cat "$tmp/out"; cat "$tmp/err" >&2
+    cat >&2 <<EOF
+gh shim: HOURLY GraphQL quota spent (gh ${1:-} ${2:-}) — not retried.
+  It refills at the hour's reset, up to 60 min away; sleeping or re-running
+  only spends turns. Read the reset with GraphQL's own counter (REST
+  \`gh api rate_limit\` misreports it):
+    gh api graphql -f query='{rateLimit{remaining resetAt}}'
+  REST draws from a separate 5000/h pool and still works: \`gh api repos/...\`
+  for reads, comments, labels, milestones; \`mise gh-project -- blocked-by\`
+  and \`status\` fall back to it on their own. Assume THIS CALL DID NOT LAND
+  unless stdout above shows it.
+EOF
+    exit "$rc"
   fi
   if [ "$attempt" -ge "$max" ]; then
     cat "$tmp/out"; cat "$tmp/err" >&2
     cat >&2 <<EOF
-gh shim: gave up after $max attempts (gh ${1:-} ${2:-}) — GitHub rate limit.
-  Run \`gh api rate_limit --jq .resources.graphql\`. If "remaining" is far
-  from 0 this is the SECONDARY limit (burst / concurrency from a swarm or
-  other sessions), NOT the hourly quota: waiting for "reset" does nothing;
-  it clears when the concurrent gh traffic eases, usually within minutes.
-  Only when remaining≈0 is it the hourly quota — then wait for the reset.
-  Assume THIS CALL DID NOT LAND unless stdout above shows it. Verify with
-  REST (\`gh api repos/<owner>/<repo>/issues/<n>\`, throttled separately),
+gh shim: gave up after $max attempts (gh ${1:-} ${2:-}) — GitHub's SECONDARY
+  (burst / concurrency) limit: too many gh calls at once across sessions. It
+  clears as the concurrent traffic eases, usually within minutes; the hourly
+  reset is irrelevant to it. Assume THIS CALL DID NOT LAND unless stdout
+  above shows it. Verify with REST (\`gh api repos/<owner>/<repo>/issues/<n>\`),
   then re-run as-is. Do not hand-poll in a loop: every probe is a request.
 EOF
     exit "$rc"
   fi
   wait=$(( backoff * attempt ))
-  echo "gh shim: rate limit on attempt $attempt/$max (gh ${1:-} ${2:-}); retrying in ${wait}s" >&2
+  echo "gh shim: secondary rate limit on attempt $attempt/$max (gh ${1:-} ${2:-}); retrying in ${wait}s" >&2
   sleep "$wait"
   attempt=$(( attempt + 1 ))
 done

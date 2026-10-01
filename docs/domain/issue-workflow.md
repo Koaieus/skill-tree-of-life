@@ -132,20 +132,20 @@ like "the relation was never created". There is no `blockedByIssues` field on
 the GraphQL `Issue` type either; `--json blockedBy` is the supported route.
 
 **`mise gh-project -- blocked-by <n> [<blocker>|clear]` / `blocking <n>`**
-(#598) read or set native issue dependencies — read from `gh issue view --json
-blockedBy`/`blocking` as above, write via `gh issue edit --add-blocked-by
-<blocker>` / `--remove-blocked-by <blocker>` (both take issue **numbers**
-directly and error loudly — non-zero exit, a real "could not resolve" message
-— on a bad one). `clear` removes every current blocker in a loop.
+(#598) read or set native issue dependencies through the REST resource
+`repos/<repo>/issues/<n>/dependencies/blocked_by` — REST so the links still
+land when the GraphQL hour is spent (see Rate limits below; 2026-10-01 the
+clerk's `gh issue edit --add-blocked-by` calls all died on the quota and the
+same links went through REST first try). `clear` removes every current
+blocker. Setting an existing link is a no-op.
 
-**The trap this sidesteps:** the *raw* REST resource
-(`repos/<repo>/issues/<n>/dependencies/blocked_by`, `POST`/`DELETE`) takes an
-`issue_id` — the API's internal ~10-digit id, **not** the issue number — so a
-number passed there silently succeeds against an unrelated issue or fails
-opaquely with no "no such issue" error (verified 2026-08-26 setting #349
-blocked-by #597 by resolving `.id` first). `gh issue edit --add-blocked-by`
-(gh ≥ 2.98, this repo's pinned version) is the higher-level route and takes
-plain issue numbers — **use it, not the raw API**, and the trap doesn't apply.
+**The trap it holds:** that resource's `issue_id` is the API's internal
+~10-digit id, **not** the issue number — a number passed there silently
+succeeds against an unrelated issue or fails opaquely (verified 2026-08-26
+setting #349 blocked-by #597 by resolving `.id` first). The script's
+`issue_db_id` is the one place that resolves it and errors on a number that is
+not an issue. **Never call the raw resource by hand — call the script.**
+`gh issue edit --add-blocked-by <number>` also works, but rides GraphQL.
 
 ## Reading an issue is two `gh` calls
 
@@ -159,22 +159,38 @@ none gives empty output and exit 0, which is not a broken pager. `mise.toml`
 exports `GH_PAGER=cat` repo-wide, so `gh` never pages even under a pty; reaching
 for `--json` to dodge a suspected hang just makes you guess at field names.
 
-## Rate limits: "exceeded" with quota to spare is the secondary limit
+## Rate limits: the GraphQL hour is shared, and REST misreports it
 
-GitHub has two limits. The hourly quota (5000/h, `gh api rate_limit`) is
-almost never the one that bites. The **secondary** limit is per-user burst /
-concurrency, and a swarm — twenty drones, a lead, a clerk and a sibling
-session all shelling out to `gh` — trips it while `remaining` still reads
-~4900. Its error is the same text ("API rate limit already exceeded"), it
-ignores the `reset` timestamp, and it clears when the concurrent traffic
-eases, usually within minutes. The harness's built-in "sleep until reset"
-reminder is wrong for this case.
+Every `gh issue …` and `gh project …` command is GraphQL, drawing on one
+5000-point hour shared by every session on the account. GraphQL bills by the
+*requested* connection size, so one careless query can cost hundreds: a single
+`gh project item-list` on this board measured **~607 points** (2026-10-01), and
+`gh-project status <n>` used to run one per read. A clerk verifying six issues
+spent most of the hour, and every agent's `gh` then failed with "API rate limit
+already exceeded for user ID …" — the **primary** (hourly) limit. `gh-project`
+now reads the board with hand-written queries (~6 points the whole board, ~1 an
+issue); its header holds the cost model. **Never call `gh project item-list`.**
 
-Every `gh` call in this repo goes through `.mise/bin/gh` (first on PATH via
-`mise.toml`), which retries with backoff and, on giving up, prints the
-diagnosis at the moment it matters — no one reads this section mid-failure.
-What it says: a call that died on the limit did not land unless stdout shows
-it; verify via REST (throttled separately), re-run as-is, never hand-poll.
+**Read the counter from GraphQL itself**:
+`gh api graphql -f query='{rateLimit{used remaining resetAt}}'`. REST
+`gh api rate_limit` reported graphql `used: 5` at the moment GraphQL reported
+1315 — which is how an earlier pass misdiagnosed exhaustion as the burst limit.
+
+GitHub's two limits read differently and want opposite responses:
+
+- **Primary** — "API rate limit [already] exceeded". Lasts until `resetAt`, up
+  to an hour; sleeping and re-running only spend turns. REST (`gh api repos/…`)
+  is a separate 5000/h pool and still works: `gh-project blocked-by` is REST,
+  `status` writes fall back to REST on their own.
+- **Secondary** — "You have exceeded a secondary rate limit". Burst/concurrency
+  across sessions; clears within minutes as the traffic eases.
+
+`.mise/bin/gh` retries the secondary limit (15 s × attempt, 4 attempts, under
+the 120 s tool timeout), never retries the primary, and on giving up prints
+which one it was and what still works. It sits first on PATH via `mise.toml`,
+so it covers `mise run` tasks always, but a session's own shell only when the
+process that spawned it (`claude remote-control`, a terminal) was started after
+the change — a daemon started earlier keeps its old PATH until relaunched.
 `GH_SHIM=off` bypasses it; `GH_SHIM_RETRIES` / `GH_SHIM_BACKOFF` tune it.
 
 ## Never pass `gh --body "..."` with backticks
