@@ -61,7 +61,7 @@ func _def(power_max: float = 0.0) -> CountingDef:
 func test_adjust_power_creates_an_absent_row_and_runs_on_applied() -> void:
 	var d := _def(5.0)
 	var n := _node(_me)
-	n._status_host.adjust_power(d, 3.0)
+	n.adjust_status_power(d, 3.0)
 	assert_eq(n.get_status_power(d.id), 3.0, "row created at +3")
 	assert_eq(d.applied.get(n, 0), 1, "_on_applied ran once")
 
@@ -69,17 +69,17 @@ func test_adjust_power_creates_an_absent_row_and_runs_on_applied() -> void:
 func test_adjust_power_clamps_to_power_max() -> void:
 	var d := _def(5.0)
 	var n := _node(_me)
-	n._status_host.adjust_power(d, 3.0)
-	n._status_host.adjust_power(d, 10.0)
+	n.adjust_status_power(d, 3.0)
+	n.adjust_status_power(d, 10.0)
 	assert_eq(n.get_status_power(d.id), 5.0, "clamped to power_max")
 
 
 func test_adjust_power_down_to_zero_removes_the_row() -> void:
 	var d := _def(5.0)
 	var n := _node(_me)
-	n._status_host.adjust_power(d, 3.0)
+	n.adjust_status_power(d, 3.0)
 	d.reset()
-	n._status_host.adjust_power(d, -3.0)
+	n.adjust_status_power(d, -3.0)
 	assert_eq(n.get_statuses().size(), 0, "row removed")
 	assert_eq(d.removed.get(n, 0), 1, "_on_removed ran once")
 	assert_eq(d.applied.get(n, 0), 0, "no _on_applied on removal")
@@ -88,7 +88,7 @@ func test_adjust_power_down_to_zero_removes_the_row() -> void:
 func test_adjust_power_negative_on_absent_row_is_a_no_op() -> void:
 	var d := _def()
 	var n := _node(_me)
-	n._status_host.adjust_power(d, -2.0)
+	n.adjust_status_power(d, -2.0)
 	assert_eq(n.get_statuses().size(), 0, "nothing created")
 	assert_eq(d.removed.get(n, 0), 0, "nothing removed")
 

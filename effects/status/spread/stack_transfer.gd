@@ -4,7 +4,9 @@ extends RefCounted
 ## One move of raw stacks of a single [StatusDef] between two hosts — what a
 ## [StatusSpread] rule emits and [SpreadApplier] lands. [member to] null means
 ## the stacks are burned (voided), the only way a rule may dissipate; no
-## transfer ever creates stacks. Plain fields only, so a record can carry it.
+## transfer ever creates stacks. Holds live slices; a record maps `from` /
+## `to` onto the slices' `stable_id`s on the wire — the record's job, not this
+## class's.
 
 var from: NodeCombat
 ## Null = burned.

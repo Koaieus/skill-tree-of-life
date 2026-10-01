@@ -19,14 +19,8 @@ static func apply(def: StatusDef, transfers: Array[StackTransfer],
 		return
 	for t in transfers:
 		if t != null and t.from != null and t.amount > 0.0:
-			_host(t.from).adjust_power(def, -t.amount)
+			t.from.adjust_status_power(def, -t.amount)
 	for t in transfers:
 		if t != null and t.to != null and t.amount > 0.0:
-			_host(t.to).adjust_power(def, t.amount)
+			t.to.adjust_status_power(def, t.amount)
 
-
-## The slice's [StatusHost]. [NodeCombat] exposes no delegate for
-## [method StatusHost.adjust_power] yet (outside this unit's files), so this
-## is the one reach into its composition.
-static func _host(n: NodeCombat) -> StatusHost:
-	return n._status_host
