@@ -338,7 +338,10 @@ read is already correct.
   `Entity.resolve_turn_end` — its own step of `TurnManager.end_turn`, after
   the cursor is nulled and before `finish_turn` (ADR 0040, #1256): the
   entity-host tick first, then the owned nodes over a snapshot of the owned
-  set (the one regen already walks), skipping a node stripped mid-sweep. Every
+  set (the one regen already walks), skipping a node stripped mid-sweep, then
+  one `StatusSpread.on_tick` sweep per def carried by an owned node whose
+  `spread` slot is set — senders the owned set, landed through
+  `SpreadApplier` on the live world; defs with a null slot pay nothing. Every
   played-out turn, the first included; never on `abandon_turn` (a death, the
   status sandbox's `disarm`) nor an adopted resync cursor. A tick's damage
   suppresses the owner's next turn-start regen; a tick that kills the actor
