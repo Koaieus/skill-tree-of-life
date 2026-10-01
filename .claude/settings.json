@@ -17,7 +17,9 @@
       "Bash(gh api rate_limit)",
       "mcp__claude-code-remote__create_session",
       "mcp__claude-code-remote__send_message",
-      "mcp__claude-code-remote__get_session"
+      "mcp__claude-code-remote__get_session",
+      "mcp__claude-code-remote__archive_session",
+      "mcp__claude-code-remote__interrupt_session"
     ]
   },
   "hooks": {
