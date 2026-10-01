@@ -12,10 +12,12 @@ extends Resource
 ## [SpellDef] across a process boundary (#511). A [MagicAttackPlan] serializes
 ## `spell` as this id and [method SpellCatalog.by_id] resolves it back.
 ##
-## [b]Not `resource_path`[/b] (owner call 2026-08-21). This codebase uses
-## `resource_path` only for warning strings and inspector labels, never as an
-## identity key, and a rename or move of the `.tres` would break the wire form
-## silently with no error at the break.
+## [b]Not `resource_path`[/b] (owner call 2026-08-21). Path keying is taken
+## case by case, where the path is the clean key (a scene that [i]is[/i] the
+## kind, every peer running the same build: [Participant], [RunConfig],
+## [GraphSnapshot], the temp-upgrade addon kind). Nothing about a spell made a
+## path the clean key, and an authored id survives a rename or move of the
+## `.tres`, which a path key would break silently with no error at the break.
 ##
 ## Must be unique across `attack/spell/defs/` — `test_spell_catalog.gd` pins it.
 @export var id: StringName = &""

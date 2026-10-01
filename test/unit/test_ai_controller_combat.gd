@@ -1,6 +1,5 @@
 extends GutTest
 
-## A `var`, not a `const`: the parser constant-folds `CONST.kinds[i]`.
 var _catalog: TempUpgradeCatalog = preload("res://attack/melee/temp_upgrade_catalog.tres")
 
 ## Coverage for #378 slice B — [AIController]'s AP×2 attack loop: candidate

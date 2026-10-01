@@ -5,7 +5,6 @@ extends GutTest
 ## [member SkillNodeAddon.temp_cost_aspects]), each currency's cap is read
 ## live, and every carried temp spends its cost vector against it.
 
-## A `var`, not a `const`: the parser constant-folds `CONST.kinds[i]`.
 var _catalog: TempUpgradeCatalog = preload("res://attack/melee/temp_upgrade_catalog.tres")
 
 const _BOARD := preload("res://entity/default_entity_board.tres")

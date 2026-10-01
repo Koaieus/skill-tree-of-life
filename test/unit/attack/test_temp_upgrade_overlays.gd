@@ -5,7 +5,6 @@ extends GutTest
 ## swing folds them as overlays through [BladeVertexFill] instead, scaled to
 ## the carrier's stake like a permanent addon's.
 
-## A `var`, not a `const`: the parser constant-folds `CONST.kinds[i]`.
 var _catalog: TempUpgradeCatalog = preload("res://attack/melee/temp_upgrade_catalog.tres")
 
 const _BOARD := preload("res://entity/default_entity_board.tres")

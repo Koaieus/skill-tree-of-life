@@ -1,6 +1,5 @@
 extends GutTest
 
-## A `var`, not a `const`: the parser constant-folds `CONST.kinds[i]`.
 var _catalog: TempUpgradeCatalog = preload("res://attack/melee/temp_upgrade_catalog.tres")
 const _EDGE_SCENE := preload("res://graph/edge.tscn")
 

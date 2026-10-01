@@ -6,7 +6,6 @@ extends GutTest
 ## NO [BattleSystem] in the tree; the last two pin that a wired BattleSystem
 ## mints no slot of its own and a bare one forwards to a private slot.
 
-## A `var`, not a `const`: the parser constant-folds `CONST.kinds[i]`.
 var _catalog: TempUpgradeCatalog = preload("res://attack/melee/temp_upgrade_catalog.tres")
 
 const _BOARD := preload("res://entity/default_entity_board.tres")

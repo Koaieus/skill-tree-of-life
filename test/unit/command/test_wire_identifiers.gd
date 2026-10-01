@@ -4,7 +4,6 @@ extends GutTest
 ## entity: a temp-upgrade kind (its addon scene path), and a loot pick request.
 
 const _MOD := preload("res://stats_system/stat_modifier.gd")
-## A `var`, not a `const`: the parser constant-folds `CONST.kinds[i]`.
 var _catalog: TempUpgradeCatalog = preload("res://attack/melee/temp_upgrade_catalog.tres")
 
 

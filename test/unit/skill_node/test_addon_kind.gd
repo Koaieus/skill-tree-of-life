@@ -11,7 +11,6 @@ const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _BOARD := preload("res://entity/default_entity_board.tres")
 const _MELEE_BODY := preload("res://ui/hud/command_tray/bodies/melee_body.tscn")
 
-## A `var`, not a `const`: the parser constant-folds `CONST.kinds[i]`.
 var _catalog: TempUpgradeCatalog = preload("res://attack/melee/temp_upgrade_catalog.tres")
 
 var _graph: Graph

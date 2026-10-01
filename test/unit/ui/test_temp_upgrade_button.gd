@@ -1,6 +1,5 @@
 extends GutTest
 
-## A `var`, not a `const`: the parser constant-folds `CONST.kinds[i]`.
 var _catalog: TempUpgradeCatalog = preload("res://attack/melee/temp_upgrade_catalog.tres")
 
 ## #465 — the melee tab's temp-upgrade cards and the four mode tabs.

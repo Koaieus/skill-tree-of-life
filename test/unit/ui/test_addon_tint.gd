@@ -7,7 +7,6 @@ extends GutTest
 ## ([method MeleeBody._upgrade_color] feeds `btn.accent`); its own assert lives
 ## in test_temp_upgrade_button.
 
-## A `var`, not a `const`: the parser constant-folds `CONST.kinds[i]`.
 var _catalog: TempUpgradeCatalog = preload("res://attack/melee/temp_upgrade_catalog.tres")
 const _PALETTE := preload("res://ui/theme/action_palette.tres")
 const _DEFS_DIR := "res://skill_node/addons/defs/"
