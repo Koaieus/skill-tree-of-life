@@ -307,8 +307,10 @@ We almost called the enum members `PIVOT`/`BLADE`/`FIRING_POSITION`/
   *role* it plays in the active plan.
 - Pivot, magic source, and firing position all answer the same question
   ("where does the attack emanate from?") — that's one role.
-- Per-mode visuals can still differ — the overlay can branch on
-  `plan.mode` for theming without polluting the role enum.
+- Per-mode visuals can still differ without polluting the role enum — the
+  provider names its look via `HighlightProvider.get_theme_key()`
+  (`AttackPlan` maps `mode` to `&"melee"` / `&"ranged"` / `&"magic"`) and the
+  overlay looks it up in its `themes`; it never branches on `plan.mode`.
 
 Symmetric **`HOSTILE_TARGET`** + **`FRIENDLY_TARGET`** rather than one
 `TARGET` plus ownership-derivation: keeps the role pure semantic, lets

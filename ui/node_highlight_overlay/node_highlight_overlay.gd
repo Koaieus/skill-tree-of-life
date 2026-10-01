@@ -17,7 +17,7 @@ extends Node2D
 
 # Plain role ring band (ring convention — see SkillNode.ring_centerline):
 # `ring_inner_offset` is the gap from the node boundary to the ring's INNER edge.
-# Drawn for every role WITHOUT an indicator scene in `default_theme`.
+# Drawn for every role with no indicator scene in `themes[key]` or `default_theme`.
 @export var ring_inner_offset: float = 4.5
 @export var ring_width: float = 3.0
 @export var ring_segments: int = 32
