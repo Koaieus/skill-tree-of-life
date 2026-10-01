@@ -58,6 +58,14 @@ var chip: float = 0.0
 ## consumer counting "did this attack eliminate them" needs to tell the two
 ## apart.
 var was_core: bool = false
+## The status stacks this node's departure spilled, as the shadow's removal
+## flush computed them — one [StackTransfer] per move, `from` this node's slice,
+## a null `to` burned. [member spill_defs] is parallel: the [StatusDef] each
+## transfer moves ([StackTransfer] carries no def). A live replay lands exactly
+## these and never computes its own ([method CombatWorld.flush_removals]).
+var spill: Array[StackTransfer] = []
+## Parallel to [member spill] — the def each transfer moves.
+var spill_defs: Array[StatusDef] = []
 
 # ── Presentation: a peer may ignore all of this ────────────────────────────
 
