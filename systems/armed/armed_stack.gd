@@ -11,6 +11,7 @@ extends Node
 ## runs top-down, AFTER the level has left the branch.
 
 signal changed
+signal attack_plan_changed(plan: AttackPlan)
 
 var _branch: Array[ArmedMode] = []
 
@@ -20,6 +21,10 @@ var _branch: Array[ArmedMode] = []
 func set_root(mode: ArmedMode) -> void:
 	_branch = [mode]
 	mode.stack = self
+
+
+func attack_plan() -> AttackPlan:
+	return null
 
 
 func root() -> ArmedMode:
