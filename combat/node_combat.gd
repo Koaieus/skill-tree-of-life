@@ -628,14 +628,14 @@ func apply_status(def: StatusDef, power: float) -> void:
 
 
 ## See [method StatusHost.tick_statuses].
+func tick_statuses() -> void:
+	_status_host.tick_statuses()
+
+
 ## Move [param def]'s raw row by [param delta] stacks — see
 ## [method StatusHost.adjust_power] (the spread primitive, never a landing).
 func adjust_status_power(def: StatusDef, delta: float) -> void:
 	_status_host.adjust_power(def, delta)
-
-
-func tick_statuses() -> void:
-	_status_host.tick_statuses()
 
 
 ## See [method StatusHost.projected_status_damage] (#962, drawn by #953).
