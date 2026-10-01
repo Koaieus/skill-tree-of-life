@@ -42,5 +42,17 @@ func get_node_range_fill(node: SkillNode) -> float:
 	return base.get_node_range_fill(node) if base != null else 1.0
 
 
+func get_theme_key() -> StringName:
+	return base.get_theme_key() if base != null else super()
+
+
+func get_node_facing(node: SkillNode) -> Vector2:
+	return base.get_node_facing(node) if base != null else Vector2.ZERO
+
+
+func get_node_order(node: SkillNode) -> int:
+	return base.get_node_order(node) if base != null else -1
+
+
 func get_range_visual() -> RangeVisual:
 	return base.get_range_visual() if base != null else null

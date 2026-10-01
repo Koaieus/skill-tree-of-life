@@ -41,6 +41,10 @@
 [ext_resource type="Script" uid="uid://cnpcplecs7qgb" path="res://network/world_sync_channel.gd" id="24_worldsync"]
 [ext_resource type="Resource" uid="uid://tucatalog00001" path="res://attack/melee/temp_upgrade_catalog.tres" id="26_temp_upgrades"]
 [ext_resource type="PackedScene" path="res://skill_node/visuals/gimbal_3d/gimbal_world.tscn" id="30_gimbalworld"]
+[ext_resource type="Resource" path="res://ui/indicator/themes/melee.tres" id="31_theme_melee"]
+[ext_resource type="Resource" path="res://ui/indicator/themes/ranged.tres" id="31_theme_ranged"]
+[ext_resource type="Resource" path="res://ui/indicator/themes/magic.tres" id="31_theme_magic"]
+[ext_resource type="Resource" path="res://ui/indicator/themes/core_move.tres" id="31_theme_core_move"]
 
 [node name="GameRoot" type="Node2D" unique_id=599287172]
 script = ExtResource("1_root")
@@ -204,6 +208,12 @@ unique_name_in_owner = true
 script = ExtResource("14_x5456")
 highlight_controller = NodePath("../../Systems/HighlightController")
 graph = NodePath("..")
+themes = Dictionary[StringName, Resource]({
+&"core_move": ExtResource("31_theme_core_move"),
+&"magic": ExtResource("31_theme_magic"),
+&"melee": ExtResource("31_theme_melee"),
+&"ranged": ExtResource("31_theme_ranged")
+})
 metadata/_custom_type_script = "uid://c6mtnkcuktwte"
 
 [node name="AttackVFX" type="Node2D" parent="Graph" unique_id=1975896588]

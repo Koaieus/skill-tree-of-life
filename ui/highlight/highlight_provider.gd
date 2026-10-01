@@ -58,6 +58,25 @@ func get_node_range_fill(_node: SkillNode) -> float:
 	return 1.0
 
 
+## Which [IndicatorTheme] the overlay dresses this provider's roles in — a key
+## into [member NodeHighlightOverlay.themes]. An unmapped key (or role) falls
+## back to the overlay's default theme, then to the plain ring.
+func get_theme_key() -> StringName:
+	return &"default"
+
+
+## World-space direction an indicator on [param node] points along (a swing's
+## sweep, a shot's line). [code]Vector2.ZERO[/code] = no facing.
+func get_node_facing(_node: SkillNode) -> Vector2:
+	return Vector2.ZERO
+
+
+## [param node]'s position in a sequence along the provider's shape (blade
+## member, volley shot). -1 = not part of a sequence.
+func get_node_order(_node: SkillNode) -> int:
+	return -1
+
+
 ## Optional richer reach description — rings + edges. Returned [code]null[/code]
 ## (or empty) = nothing to paint. Magic plans hand back the active spell's
 ## range_finder visual; core-move hands back its reachable/route edges.

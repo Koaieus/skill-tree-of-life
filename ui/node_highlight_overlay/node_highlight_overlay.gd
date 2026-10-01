@@ -22,9 +22,15 @@ extends Node2D
 @export var ring_width: float = 3.0
 @export var ring_segments: int = 32
 
-## Role -> [Indicator] scene. A role with a scene mounts an instance as this
-## overlay's child (and skips the plain ring); every other role keeps the ring.
-## Shared resource — swap it, never mutate it in place.
+## Provider theme key ([method HighlightProvider.get_theme_key]) -> its
+## [IndicatorTheme]. A node's scene is [code]themes[key][/code]'s for its role,
+## else [member default_theme]'s, else none (the plain ring).
+@export var themes: Dictionary[StringName, IndicatorTheme] = {}
+
+## Role -> [Indicator] scene for every key [member themes] leaves unmapped. A
+## role with a scene mounts an instance as this overlay's child (and skips the
+## plain ring); every other role keeps the ring.
+## Shared resources — swap them, never mutate them in place.
 @export var default_theme: IndicatorTheme = preload("res://ui/indicator/themes/default.tres")
 
 # The range ring is a GAMEPLAY reach (world-space radius), not a decoration band,
@@ -79,9 +85,10 @@ func _ready() -> void:
 
 
 # Live indicator per node, diffed on every repaint signal so an unchanged
-# target keeps its instance (and its spinner's phase).
+# target keeps its instance (and its spinner's phase). `_indicator_looks` holds
+# the [theme key, role] each was mounted for; a change of either re-instances.
 var _indicators: Dictionary[SkillNode, Indicator] = {}
-var _indicator_roles: Dictionary[SkillNode, int] = {}
+var _indicator_looks: Dictionary[SkillNode, Array] = {}
 
 
 func _on_repaint_needed() -> void:
@@ -89,45 +96,55 @@ func _on_repaint_needed() -> void:
 	queue_redraw()
 
 
-func _indicator_scene(role: int) -> PackedScene:
-	if default_theme == null or role == HighlightProvider.HighlightRole.NONE:
+func _indicator_scene(key: StringName, role: int) -> PackedScene:
+	if role == HighlightProvider.HighlightRole.NONE:
 		return null
-	return default_theme.scene_for(role)
+	var theme: IndicatorTheme = themes.get(key)
+	var scene: PackedScene = theme.scene_for(role) if theme != null else null
+	if scene == null and default_theme != null:
+		scene = default_theme.scene_for(role)
+	return scene
 
 
 func _sync_indicators() -> void:
 	var provider: HighlightProvider = null
 	if highlight_controller != null and graph != null:
 		provider = highlight_controller.provider
-	var wanted: Dictionary[SkillNode, int] = {}
+	var key: StringName = provider.get_theme_key() if provider != null else &""
+	var wanted: Dictionary[SkillNode, PackedScene] = {}
+	var roles: Dictionary[SkillNode, int] = {}
 	if provider != null:
 		for sn in graph.get_skill_nodes():
 			var role: int = provider.get_node_role(sn)
-			if _indicator_scene(role) != null:
-				wanted[sn] = role
+			var scene := _indicator_scene(key, role)
+			if scene != null:
+				wanted[sn] = scene
+				roles[sn] = role
 	for sn in _indicators.keys():
 		var live: Indicator = _indicators[sn]
 		var keep := wanted.has(sn) and is_instance_valid(sn) and is_instance_valid(live) \
-				and _indicator_scene(wanted[sn]).resource_path == live.scene_file_path
+				and _indicator_looks[sn] == [key, roles[sn]] \
+				and wanted[sn].resource_path == live.scene_file_path
 		if not keep:
 			if is_instance_valid(live):
 				live.queue_free()
 				remove_child(live)
 			_indicators.erase(sn)
-			_indicator_roles.erase(sn)
+			_indicator_looks.erase(sn)
 	for sn in wanted:
-		var role: int = wanted[sn]
+		var role: int = roles[sn]
 		var ind: Indicator = _indicators.get(sn)
 		if ind == null:
-			ind = _indicator_scene(role).instantiate() as Indicator
+			ind = wanted[sn].instantiate() as Indicator
+			ind.tint = ROLE_COLORS.get(role, Color.WHITE)
 			add_child(ind)
 			_indicators[sn] = ind
-			_indicator_roles[sn] = -1
+			_indicator_looks[sn] = [key, role]
 		ind.position = to_local(sn.global_position)
 		ind.radius = sn.radius
-		if _indicator_roles[sn] != role:
-			ind.tint = ROLE_COLORS.get(role, Color.WHITE)
-			_indicator_roles[sn] = role
+		ind.facing = provider.get_node_facing(sn)
+		ind.order = provider.get_node_order(sn)
+		ind.charge = provider.get_node_range_fill(sn)
 
 
 func _draw() -> void:
@@ -136,6 +153,7 @@ func _draw() -> void:
 	var provider := highlight_controller.provider
 	if provider == null:
 		return
+	var key := provider.get_theme_key()
 	for sn in graph.get_skill_nodes():
 		var role: int = provider.get_node_role(sn)
 		# `to_local`, not `global_position - global_position`: the difference of
@@ -152,7 +170,7 @@ func _draw() -> void:
 			var tint := Color(base.r, base.g, base.b, alpha)
 			RangeRing.draw_reach(self, center, range_radius, provider.get_node_range_fill(sn),
 					range_ring_dash_periods, tint, range_ring_width, range_ring_segments)
-		if role == HighlightProvider.HighlightRole.NONE or _indicator_scene(role) != null:
+		if role == HighlightProvider.HighlightRole.NONE or _indicator_scene(key, role) != null:
 			continue
 		var color: Color = ROLE_COLORS.get(role, Color.WHITE)
 		var ring_c := SkillNode.ring_centerline(sn.radius, ring_inner_offset, ring_width)

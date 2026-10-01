@@ -39,6 +39,7 @@ extends Indicator
 
 
 func _process(delta: float) -> void:
+	super(delta)
 	if spin_degrees_per_second == 0.0:
 		return
 	var spinner := get_node_or_null(^"%Spinner") as Node2D
@@ -49,11 +50,12 @@ func _process(delta: float) -> void:
 func _apply_geometry() -> void:
 	var ring := get_node_or_null(^"%Ring") as IndicatorRingBand
 	if ring != null:
-		ring.width = ring_width
-		ring.centerline = SkillNode.ring_centerline(radius, ring_inner_offset, ring_width)
+		var w := stroke(ring_width)
+		ring.width = w
+		ring.centerline = SkillNode.ring_centerline(radius, ring_inner_offset, w)
 	var arms := get_node_or_null(^"%Spinner") as IndicatorCrosshairArms
 	if arms != null:
 		arms.arm_count = arm_count
 		arms.inner_radius = radius + arm_inner_offset
 		arms.arm_length = arm_length
-		arms.arm_width = arm_width
+		arms.arm_width = stroke(arm_width)

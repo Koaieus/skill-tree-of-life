@@ -50,6 +50,13 @@ var mode: BattleSystem.AttackMode
 var resolve_seed: int = 0
 
 
+## The plan's [member mode], lower-cased: [code]&"melee"[/code] /
+## [code]&"ranged"[/code] / [code]&"magic"[/code]. Theming branches on mode
+## here and nowhere else.
+func get_theme_key() -> StringName:
+	return StringName((BattleSystem.AttackMode.keys()[mode] as String).to_lower())
+
+
 ## The RNG [method resolve] should draw from, armed off [member resolve_seed].
 ## Concrete plans with a stochastic resolution call this; deterministic ones
 ## ignore it.

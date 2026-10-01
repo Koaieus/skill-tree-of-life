@@ -32,6 +32,10 @@ func set_target(p_target: SkillNode) -> void:
 	state_changed.emit()
 
 
+func get_theme_key() -> StringName:
+	return &"core_move"
+
+
 func get_node_role(node: SkillNode) -> HighlightRole:
 	if node == null:
 		return HighlightRole.NONE

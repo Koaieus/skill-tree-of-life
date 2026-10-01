@@ -1,0 +1,6 @@
+[gd_resource type="Resource" script_class="IndicatorTheme" format=3]
+
+[ext_resource type="Script" path="res://ui/indicator/indicator_theme.gd" id="1_theme"]
+
+[resource]
+script = ExtResource("1_theme")
