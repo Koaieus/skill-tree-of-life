@@ -49,7 +49,7 @@ extends SkillNodeAddon
 ## allocation-state render" option from #168, scoped to this addon's OWN disk
 ## instance so nothing needs to be faked on the carrier
 ## SkillNode/AllocationSystem. `skill_dust_scene` on LootSystem is required
-## (#1292) — there is no bare-script fallback; an unset scene skips the drop
+## — there is no bare-script fallback; an unset scene skips the drop
 ## instead of minting a script-only addon.
 
 ## The full drawn candidate pool (#323: all three provenance buckets, unfiltered
