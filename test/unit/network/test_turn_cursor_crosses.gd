@@ -319,3 +319,31 @@ func test_a_decoded_world_repairs_its_owner_mirrors() -> void:
 			src_p1.navigator.get_mirrored_nodes().size(),
 			"the decoded peer's owned-subgraph mirror must hold what it now owns — "
 			+ "a node it never mirrored simply never regens there (#756)")
+
+
+## #1257: the round state crosses with the tally. A repaired mirror counting
+## its own rounds would end a turn-limited run on a different turn than the
+## host — #756's `turns_taken` bug, repeated one counter over.
+func test_the_snapshot_carries_the_round_state() -> void:
+	var source := await _build_world("src")
+	var target := await _build_world("dst")
+	var src_tm: TurnManager = source["tm"]
+	var dst_tm: TurnManager = target["tm"]
+	src_tm.entity_root = source["graph"]
+	dst_tm.entity_root = target["graph"]
+
+	src_tm.start_turn(source["p1"])
+	for _i in 2:
+		src_tm.end_turn()
+	assert_gt(src_tm.rounds_completed, 0, "sanity: the source has rounds to carry")
+	assert_false(src_tm.round_waiting().is_empty(), "sanity: an open round with waiters")
+
+	var bytes := EntitySnapshot.encode(source["graph"])
+	EntitySnapshot.decode(bytes, target["graph"])
+	EntitySnapshot.resolve_graph_refs(bytes, target["graph"])
+	EntitySnapshot.restore_turn_cursor(bytes, target["graph"], dst_tm)
+
+	assert_eq(dst_tm.rounds_completed, src_tm.rounds_completed, "rounds adopted outright")
+	var ids := func(tm: TurnManager) -> Array:
+		return tm.round_waiting().map(func(e: Entity) -> int: return e.entity_id)
+	assert_eq(ids.call(dst_tm), ids.call(src_tm), "and so is the open round's roster")

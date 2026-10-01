@@ -244,8 +244,11 @@ static func _encode_spell_ids(
 	return ids
 
 
-## The level's [TurnManager] cursor — `[current_entity_id, turns_taken]`, with
-## 0 for "nobody is holding the turn". Payload-level rather than a row, because
+## The level's [TurnManager] cursor — `[current_entity_id, turns_taken,
+## rounds_completed, round_open, [waiting entity ids]]`, with 0 for "nobody is
+## holding the turn". The round state (#1257) rides with the tally for the same
+## reason the tally does: a mirror counting its own would end a turn-limited
+## run on a different turn. Payload-level rather than a row, because
 ## it is the LEVEL's state and not any one entity's.
 ##
 ## [b]Why it crosses at all (#756).[/b] Who holds the turn, and how many turns
@@ -264,7 +267,11 @@ static func _encode_turn_cursor(graph: Graph) -> Array:
 	var holder := 0
 	if tm.current_entity != null and is_instance_valid(tm.current_entity):
 		holder = tm.current_entity.entity_id
-	return [holder, tm.turns_taken]
+	var waiting: Array = []
+	for e in tm.round_waiting():
+		if is_instance_valid(e):
+			waiting.append(e.entity_id)
+	return [holder, tm.turns_taken, tm.rounds_completed, tm.is_round_open(), waiting]
 
 
 ## Adopt the authority's turn cursor. A FIFTH decode step, run last — after
@@ -294,7 +301,17 @@ static func restore_turn_cursor(
 			% holder_id
 		)
 		return
-	turn_manager.adopt_turn(holder, int(cursor[1]))
+	if cursor.size() < 5:
+		turn_manager.adopt_turn(holder, int(cursor[1]))
+		return
+	# The open round's roster, by id (#1257). A member this peer does not have
+	# is skipped: it cannot take a turn here to close the round anyway.
+	var waiting: Array[Entity] = []
+	for id in cursor[4]:
+		var e := graph.get_by_entity_id(int(id))
+		if e != null:
+			waiting.append(e)
+	turn_manager.adopt_turn(holder, int(cursor[1]), int(cursor[2]), bool(cursor[3]), waiting)
 
 
 ## The level's single [TurnManager], found the same way [Entity] finds it — by

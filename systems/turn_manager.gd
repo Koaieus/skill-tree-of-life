@@ -95,6 +95,11 @@ var _round_open: bool = false
 var _round_waiting: Array[Entity] = []
 
 
+## Whether a round is open — the resync carries it with [method round_waiting].
+func is_round_open() -> bool:
+	return _round_open
+
+
 ## The open round's roster members whose turn has not ended yet (a copy).
 func round_waiting() -> Array[Entity]:
 	return _round_waiting.duplicate()
