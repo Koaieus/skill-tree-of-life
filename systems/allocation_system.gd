@@ -82,10 +82,9 @@ func deallocate_all_owned(entity: Entity) -> void:
 	if entity == null or graph == null:
 		return
 	entity.get_combat().apply_cascade(_owned_core_last(entity), self, false)
-	# A death is its own beat for the spill: an off-beat one (a concede) must
-	# not leave its notes pending for some later attack to flush. Mid-hit it
-	# closes the beat early — the dead entity has no survivors to spill onto.
-	CombatWorld.live().flush_removals()
+	# No flush: every death is inside a beat that flushes (a hit's schedule
+	# group, the turn-end tick step, a gate-flip command), and flushing here
+	# would split that beat's removed union.
 
 
 ## [param entity]'s owned [NodeCombat]s in graph order, its core moved last.
