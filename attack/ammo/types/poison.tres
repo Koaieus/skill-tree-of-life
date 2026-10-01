@@ -11,4 +11,4 @@ order = 80
 damage_scale = 0.5
 status_def = ExtResource("2_poison_status")
 status_power = 1.0
-per_reload_stat_id = &"poison_arrows_per_reload"
+per_reload_stat_id = &"poison_aspect"

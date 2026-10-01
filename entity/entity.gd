@@ -713,7 +713,7 @@ func can_reload() -> bool:
 ## PRE-capacity ([method Quiver.add] clamps at reload time). The base arrow's
 ## `arrows_per_reload` is summed node-locally over the turn-start leaf set
 ## ∪ core (allocation level and Watchtower bonuses live on the node board,
-## see `default_node_board.tres`); each special's `<id>_arrows_per_reload`
+## see `default_node_board.tres`); each special's `<concept>_aspect`
 ## is flat off the entity board. The one implementation both [method reload]
 ## and the Quiver tray's reload row (#954) read, so the row never promises
 ## arrows the command will not mint.

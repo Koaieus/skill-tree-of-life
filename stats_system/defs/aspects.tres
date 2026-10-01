@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="StatDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://stats_system/stat_def.gd" id="1_stat_def"]
+
+[resource]
+script = ExtResource("1_stat_def")
+id = &"aspects"
+display_name = "Aspects"
+description = "Family parent of the eight <concept>_aspect stats (ADR 0029): +1 Aspects is +1 to each — one more special arrow of every type per reload, one more temp upgrade of every kind per swing. Its own number is meaningless and never read; only its bins fold into the children. Entity-scope only."
+value_type = 0
+default_value = 0.0
+tint_color = Color(0.85, 0.75, 0.95, 1)
+modifier_name = "Aspects"

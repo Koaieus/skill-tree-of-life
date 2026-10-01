@@ -13,7 +13,7 @@ extends Resource
 ## alongside the arrow's [DamageInstance] for the same landing. A scout type
 ## ([member reveal_fraction] > 0) takes neither path — see [RevealInstance].
 
-## Bin key on the [Quiver] and suffix of the minting stat (`<id>_arrows_per_reload`).
+## Bin key on the [Quiver]; the stat minting it is [member per_reload_stat_id].
 @export var id: StringName = &""
 @export var display_name: String = ""
 ## Position in a volley's fixed type order — lower fires (and lands) first.

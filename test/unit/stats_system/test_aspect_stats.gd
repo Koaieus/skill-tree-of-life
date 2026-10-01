@@ -46,6 +46,7 @@ func test_plus_one_aspects_raises_every_child_by_one() -> void:
 	var before := {}
 	for id in _ASPECTS:
 		before[id] = int(b.get_value(id)) if b.get_stat(id) != null else -999
+	assert_not_null(b.get_stat(&"aspects"), "the aspects parent is on the default board")
 	b.add_modifier(_mod(&"aspects", 1.0))
 	for id in _ASPECTS:
 		assert_eq(int(b.get_value(id)), int(before[id]) + 1, "+1 aspects reaches %s" % id)
@@ -61,11 +62,12 @@ func _poison_minted(grant: float) -> int:
 	return e.stat_board.arrows.stock_of(&"poison") - before
 
 
-func test_plus_two_poison_aspect_mints_two_more_poison_arrows_per_reload() -> void:
+func test_plus_two_poison_aspect_mints_two_more_poison_arrows_each_reload() -> void:
 	assert_eq(_poison_minted(2.0) - _poison_minted(0.0), 2,
 			"each reload mints poison_aspect poison arrows")
 
 
 func test_retired_mint_stats_are_gone() -> void:
-	assert_null(StatRegistry.get_def(&"poison_arrows_per_reload"), "poison mint stat retired")
-	assert_null(StatRegistry.get_def(&"scout_arrows_per_reload"), "scout mint stat retired")
+	for kind in ["poison", "scout"]:
+		var retired := StringName("%s_%s" % [kind, "arrows_per_reload"])
+		assert_null(StatRegistry.get_def(retired), "%s retired for %s_aspect" % [retired, kind])

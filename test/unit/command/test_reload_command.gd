@@ -60,7 +60,7 @@ func _build_world(poison_per_reload: float) -> World:
 	w.player = autofree(Entity.new())
 	w.player.display_name = "Archer"
 	w.player.stat_board = _BOARD.duplicate(true) as EntityStatBoard
-	w.player.stat_board.poison_arrows_per_reload.base_value = poison_per_reload
+	w.player.stat_board.poison_aspect.base_value = poison_per_reload
 	w.graph.entities_container.add_child(w.player)
 	await get_tree().process_frame
 

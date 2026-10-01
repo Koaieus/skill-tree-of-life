@@ -196,8 +196,17 @@ extends StatBoard
 ## `StatBoard._mint_stat`, which would mint a plain PoolStat with no bins.
 @export var arrows: Quiver
 @export var arrows_per_reload: ScalarStat	## Base arrow yield per producing leaf/core on a ReloadCommand. Node-local via get_local_value, scaled by allocation level (#955).
-@export var poison_arrows_per_reload: ScalarStat	## Flat poison-arrow yield per ReloadCommand. Entity-flat, never scaled by leaf allocation level (#955).
-@export var scout_arrows_per_reload: ScalarStat	## Flat scout-arrow yield per ReloadCommand. Entity-flat, rolled on the PER pack (#1035).
+@export var poison_aspect: ScalarStat	## Special poison arrows minted per ReloadCommand, entity-flat; the melee/magic reads are #1268/#1250. Parent: aspects. Default 0.
+@export var corruption_aspect: ScalarStat	## Special corruption arrows minted per ReloadCommand, entity-flat; the melee/magic reads are #1268/#1250. Parent: aspects. Default 0.
+@export var curse_aspect: ScalarStat	## Special curse arrows minted per ReloadCommand, entity-flat; the melee/magic reads are #1268/#1250. Parent: aspects. Default 0.
+@export var wither_aspect: ScalarStat	## Special wither arrows minted per ReloadCommand, entity-flat; the melee/magic reads are #1268/#1250. Parent: aspects. Default 0.
+@export var blindness_aspect: ScalarStat	## Special blindness arrows minted per ReloadCommand, entity-flat; the melee/magic reads are #1268/#1250. Parent: aspects. Default 0.
+@export var scout_aspect: ScalarStat	## Special scout arrows minted per ReloadCommand, entity-flat; the melee/magic reads are #1268/#1250. Parent: aspects. Default 0.
+@export var armor_break_aspect: ScalarStat	## Special armor-break arrows minted per ReloadCommand, entity-flat; the melee/magic reads are #1268/#1250. Parent: aspects. Default 0.
+@export var explosive_aspect: ScalarStat	## Special explosive arrows minted per ReloadCommand, entity-flat; the melee/magic reads are #1268/#1250. Parent: aspects. Default 0.
+## Family parent of the eight <concept>_aspect (ADR 0029): +1 here is +1 to
+## each. Its own value is never read. Default 0.
+@export var aspects: ScalarStat
 @export var max_shots_per_leaf: ScalarStat	## Per-turn shot budget for a single leaf node. Node-local via get_local_value, scaled by allocation level (#956).
 @export var volleys_per_turn: ScalarStat	## Per-turn cap on ranged volleys an entity may launch. Innate ADD_BONUS reads board max_shots_per_leaf (#956).
 

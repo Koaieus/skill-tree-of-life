@@ -181,19 +181,19 @@ func test_a_refused_contact_applies_no_status_and_pops_once() -> void:
 
 func test_allocating_a_toxin_node_grants_the_owner_poison_arrows() -> void:
 	var loose := _spawn("Loose", Vector2(0.0, _SPACING * 3.0))
-	var before: float = _attacker.stat_board.get_value(&"poison_arrows_per_reload")
+	var before: float = _attacker.stat_board.get_value(&"poison_aspect")
 	var toxin := _attach_toxin(loose)
 	await get_tree().process_frame
-	assert_eq(_attacker.stat_board.get_value(&"poison_arrows_per_reload"), before,
+	assert_eq(_attacker.stat_board.get_value(&"poison_aspect"), before,
 			"unallocated: the modifier waits on the node")
 
 	_alloc.force_allocate(_attacker, loose)
 	var granted: float = toxin.entity_modifiers[0].value
-	assert_eq(_attacker.stat_board.get_value(&"poison_arrows_per_reload"), before + granted,
+	assert_eq(_attacker.stat_board.get_value(&"poison_aspect"), before + granted,
 			"allocating applies the authored entity modifier")
 
 	_alloc.force_deallocate(loose)
-	assert_eq(_attacker.stat_board.get_value(&"poison_arrows_per_reload"), before,
+	assert_eq(_attacker.stat_board.get_value(&"poison_aspect"), before,
 			"deallocating removes it")
 
 

@@ -54,12 +54,10 @@
 [ext_resource type="Resource" path="res://stats_system/defs/node_health.tres" id="def_node_health"]
 [ext_resource type="Resource" path="res://stats_system/defs/node_health_scaling.tres" id="def_node_health_scaling"]
 [ext_resource type="Resource" uid="uid://dstlg0lrt8nvv" path="res://stats_system/defs/perception.tres" id="def_perception"]
-[ext_resource type="Resource" path="res://stats_system/defs/poison_arrows_per_reload.tres" id="def_poison_arrows_per_reload"]
 [ext_resource type="Resource" path="res://stats_system/defs/poison_resistance.tres" id="def_poison_resistance"]
 [ext_resource type="Resource" path="res://stats_system/defs/poison_stacks_per_hit.tres" id="def_poison_stacks_per_hit"]
 [ext_resource type="Resource" uid="uid://bo02uqmdhuhlb" path="res://stats_system/defs/range.tres" id="def_range"]
 [ext_resource type="Resource" path="res://stats_system/defs/ranged_damage.tres" id="def_ranged_damage"]
-[ext_resource type="Resource" path="res://stats_system/defs/scout_arrows_per_reload.tres" id="def_scout_arrows_per_reload"]
 [ext_resource type="Resource" path="res://stats_system/defs/sensor_range.tres" id="def_sensor_range"]
 [ext_resource type="Resource" uid="uid://b47g428wp5d4w" path="res://stats_system/defs/skill_points.tres" id="def_skill_points"]
 [ext_resource type="Resource" path="res://stats_system/defs/spell_damage.tres" id="def_spell_damage"]
@@ -82,6 +80,15 @@
 [ext_resource type="Script" uid="uid://dknxw63lhq13c" path="res://stats_system/formulas/ratio_formula.gd" id="script_ratio"]
 [ext_resource type="Script" uid="uid://cu48nr8jgyso" path="res://stats_system/formulas/sqrt_formula.gd" id="script_sqrt"]
 [ext_resource type="Script" uid="uid://tni13fhowqha" path="res://stats_system/formulas/threshold_formula.gd" id="script_threshold"]
+[ext_resource type="Resource" path="res://stats_system/defs/poison_aspect.tres" id="def_poison_aspect"]
+[ext_resource type="Resource" path="res://stats_system/defs/corruption_aspect.tres" id="def_corruption_aspect"]
+[ext_resource type="Resource" path="res://stats_system/defs/curse_aspect.tres" id="def_curse_aspect"]
+[ext_resource type="Resource" path="res://stats_system/defs/wither_aspect.tres" id="def_wither_aspect"]
+[ext_resource type="Resource" path="res://stats_system/defs/blindness_aspect.tres" id="def_blindness_aspect"]
+[ext_resource type="Resource" path="res://stats_system/defs/scout_aspect.tres" id="def_scout_aspect"]
+[ext_resource type="Resource" path="res://stats_system/defs/armor_break_aspect.tres" id="def_armor_break_aspect"]
+[ext_resource type="Resource" path="res://stats_system/defs/explosive_aspect.tres" id="def_explosive_aspect"]
+[ext_resource type="Resource" path="res://stats_system/defs/aspects.tres" id="def_aspects"]
 
 [sub_resource type="Resource" id="pool_ap"]
 resource_name = "action_points"
@@ -533,11 +540,6 @@ script = ExtResource("2_scalar")
 definition = ExtResource("def_perception")
 base_value = 10.0
 
-[sub_resource type="Resource" id="scalar_poison_arrows_per_reload"]
-resource_name = "poison_arrows_per_reload"
-script = ExtResource("2_scalar")
-definition = ExtResource("def_poison_arrows_per_reload")
-
 [sub_resource type="Resource" id="scalar_poison_resistance"]
 resource_name = "poison_resistance"
 script = ExtResource("2_scalar")
@@ -559,11 +561,6 @@ resource_name = "ranged_damage"
 script = ExtResource("2_scalar")
 definition = ExtResource("def_ranged_damage")
 base_value = 1.0
-
-[sub_resource type="Resource" id="scalar_scout_arrows_per_reload"]
-resource_name = "scout_arrows_per_reload"
-script = ExtResource("2_scalar")
-definition = ExtResource("def_scout_arrows_per_reload")
 
 [sub_resource type="Resource" id="scalar_sensor_range"]
 resource_name = "sensor_range"
@@ -657,6 +654,51 @@ resource_name = "xp_per_turn"
 script = ExtResource("2_scalar")
 definition = ExtResource("def_xp_per_turn")
 
+[sub_resource type="Resource" id="scalar_poison_aspect"]
+resource_name = "poison_aspect"
+script = ExtResource("2_scalar")
+definition = ExtResource("def_poison_aspect")
+
+[sub_resource type="Resource" id="scalar_corruption_aspect"]
+resource_name = "corruption_aspect"
+script = ExtResource("2_scalar")
+definition = ExtResource("def_corruption_aspect")
+
+[sub_resource type="Resource" id="scalar_curse_aspect"]
+resource_name = "curse_aspect"
+script = ExtResource("2_scalar")
+definition = ExtResource("def_curse_aspect")
+
+[sub_resource type="Resource" id="scalar_wither_aspect"]
+resource_name = "wither_aspect"
+script = ExtResource("2_scalar")
+definition = ExtResource("def_wither_aspect")
+
+[sub_resource type="Resource" id="scalar_blindness_aspect"]
+resource_name = "blindness_aspect"
+script = ExtResource("2_scalar")
+definition = ExtResource("def_blindness_aspect")
+
+[sub_resource type="Resource" id="scalar_scout_aspect"]
+resource_name = "scout_aspect"
+script = ExtResource("2_scalar")
+definition = ExtResource("def_scout_aspect")
+
+[sub_resource type="Resource" id="scalar_armor_break_aspect"]
+resource_name = "armor_break_aspect"
+script = ExtResource("2_scalar")
+definition = ExtResource("def_armor_break_aspect")
+
+[sub_resource type="Resource" id="scalar_explosive_aspect"]
+resource_name = "explosive_aspect"
+script = ExtResource("2_scalar")
+definition = ExtResource("def_explosive_aspect")
+
+[sub_resource type="Resource" id="scalar_aspects"]
+resource_name = "aspects"
+script = ExtResource("2_scalar")
+definition = ExtResource("def_aspects")
+
 [resource]
 script = ExtResource("1_board")
 strength = SubResource("scalar_strength")
@@ -712,8 +754,15 @@ range = SubResource("scalar_range")
 ranged_damage = SubResource("scalar_ranged_damage")
 arrows = SubResource("quiver_arrows")
 arrows_per_reload = SubResource("scalar_arrows_per_reload")
-poison_arrows_per_reload = SubResource("scalar_poison_arrows_per_reload")
-scout_arrows_per_reload = SubResource("scalar_scout_arrows_per_reload")
+poison_aspect = SubResource("scalar_poison_aspect")
+corruption_aspect = SubResource("scalar_corruption_aspect")
+curse_aspect = SubResource("scalar_curse_aspect")
+wither_aspect = SubResource("scalar_wither_aspect")
+blindness_aspect = SubResource("scalar_blindness_aspect")
+scout_aspect = SubResource("scalar_scout_aspect")
+armor_break_aspect = SubResource("scalar_armor_break_aspect")
+explosive_aspect = SubResource("scalar_explosive_aspect")
+aspects = SubResource("scalar_aspects")
 max_shots_per_leaf = SubResource("scalar_max_shots_per_leaf")
 volleys_per_turn = SubResource("scalar_volleys_per_turn")
 mana = SubResource("pool_mana")

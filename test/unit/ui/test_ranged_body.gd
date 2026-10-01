@@ -202,7 +202,7 @@ func test_cards_show_stock_and_gain_per_owned_type() -> void:
 	assert_eq(arrow.stock, 9)
 	assert_eq(arrow.gain, 4 * _per_leaf())
 	assert_eq(poison.stock, 2)
-	assert_eq(poison.gain, int(_attacker.stat_board.poison_arrows_per_reload.get_value()))
+	assert_eq(poison.gain, int(_attacker.stat_board.poison_aspect.get_value()))
 	assert_false(arrow.has_stepper(), "base arrows are not a control")
 	assert_true(poison.has_stepper(), "specials get a stepper")
 

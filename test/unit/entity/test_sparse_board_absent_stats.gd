@@ -19,8 +19,8 @@ func _modifier(stat_id: StringName) -> StatModifier:
 
 func test_a_blocker_board_drops_a_known_stat_it_does_not_carry_silently() -> void:
 	var board := _SMALL_BOARD.duplicate(true) as EntityStatBoard
-	assert_null(board.get_stat(&"poison_arrows_per_reload"), "precondition: the blocker lacks it")
-	board.add_modifier(_modifier(&"poison_arrows_per_reload"))
+	assert_null(board.get_stat(&"poison_aspect"), "precondition: the blocker lacks it")
+	board.add_modifier(_modifier(&"poison_aspect"))
 	assert_push_warning_count(0)
 
 

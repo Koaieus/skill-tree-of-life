@@ -123,7 +123,7 @@ func test_armor_curse_is_a_self_limiting_downside() -> void:
 ## arrows / shots (`Entity.reload` truncates with `int()`, so a fractional
 ## roll would silently vanish) and that its tags validate.
 const _AMMO_GRANT_IDS: Array[StringName] = [
-	&"poison_arrows_per_reload", &"arrows_per_reload", &"max_shots_per_leaf"]
+	&"poison_aspect", &"arrows_per_reload", &"max_shots_per_leaf"]
 
 func _pool_for(stat_id: StringName) -> StatPool:
 	var p: StatPack = _PACK.duplicate(true) as StatPack
@@ -158,13 +158,13 @@ const _BOARD := preload("res://entity/default_entity_board.tres")
 const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 
 ## Acceptance #1: a node rolled with the poison entry, once allocated, raises
-## the entity's `poison_arrows_per_reload` by the grant and a reload then adds
+## the entity's `poison_aspect` by the grant and a reload then adds
 ## that many poison arrows; deallocating takes the grant back. The node's
 ## `modifiers` is the exact seam `GraphProcgen._roll_modifiers_v4` writes.
 func test_rolled_poison_grant_lands_on_the_board_and_mints_on_reload() -> void:
-	var pp := _pool_for(&"poison_arrows_per_reload")
+	var pp := _pool_for(&"poison_aspect")
 	if pp == null:
-		fail_test("the dexterity pack must carry a poison_arrows_per_reload pool")
+		fail_test("the dexterity pack must carry a poison_aspect pool")
 		return
 	var rolled: StatModifier = pp.to_entries(&"dexterity")[0].roll(_rng(7))
 	var grant := int(rolled.value)
@@ -194,10 +194,10 @@ func test_rolled_poison_grant_lands_on_the_board_and_mints_on_reload() -> void:
 
 	player.core_location = a
 	alloc.force_allocate(player, a)
-	var before: float = player.stat_board.poison_arrows_per_reload.get_value()
+	var before: float = player.stat_board.poison_aspect.get_value()
 	alloc.force_allocate(player, b)
-	assert_almost_eq(player.stat_board.poison_arrows_per_reload.get_value(), before + float(grant), 0.001,
-			"allocating the grant node raises poison_arrows_per_reload by the rolled grant")
+	assert_almost_eq(player.stat_board.poison_aspect.get_value(), before + float(grant), 0.001,
+			"allocating the grant node raises poison_aspect by the rolled grant")
 
 	tm.start_turn(player)
 	player.stat_board.action_points.restore_to_full()
@@ -207,5 +207,5 @@ func test_rolled_poison_grant_lands_on_the_board_and_mints_on_reload() -> void:
 			"a reload mints the granted poison arrows, flat")
 
 	alloc.force_deallocate(b)
-	assert_almost_eq(player.stat_board.poison_arrows_per_reload.get_value(), before, 0.001,
+	assert_almost_eq(player.stat_board.poison_aspect.get_value(), before, 0.001,
 			"deallocating the grant node takes the grant back")

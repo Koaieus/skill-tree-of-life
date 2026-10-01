@@ -8,7 +8,7 @@ extends GutTest
 ## same leaf in landing order. Scouts sit last in the roster order so the disc
 ## lands once the damage arrows are done. A reveal burns its shot like any
 ## arrow; the record carries it to a peer as its own kind; reload mints the
-## `scout` bin flat off `scout_arrows_per_reload`.
+## `scout` bin flat off `scout_aspect`.
 
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _GRAPH_SCENE := preload("res://graph/graph.tscn")
@@ -128,7 +128,7 @@ func test_scout_is_rostered_last_with_the_authored_knobs() -> void:
 	assert_eq(sorted.back().id, &"scout", "scouts land after every damage arrow")
 	assert_gt(_SCOUT.reveal_fraction, 0.0, "reveal_fraction > 0 is what makes a type a scout")
 	assert_null(_SCOUT.status_def, "never a status_def: the mark is VisionSystem's, not a node status")
-	assert_eq(_SCOUT.per_reload_stat_id, &"scout_arrows_per_reload")
+	assert_eq(_SCOUT.per_reload_stat_id, &"scout_aspect")
 
 
 # ── The resolve ─────────────────────────────────────────────────────────────
@@ -205,6 +205,6 @@ func test_the_record_round_trips_the_reveals_with_their_amounts_and_attacker() -
 func test_reload_yield_mints_scout_arrows_flat_off_the_board_stat() -> void:
 	var ctx: Dictionary = await _build()
 	var attacker: Entity = ctx.attacker
-	attacker.stat_board.scout_arrows_per_reload.base_value = 2.0
+	attacker.stat_board.scout_aspect.base_value = 2.0
 	var y: Dictionary = attacker.reload_yield()
 	assert_eq(int(y.get(&"scout", 0)), 2, "entity-flat: 2, not 2 × leaves")

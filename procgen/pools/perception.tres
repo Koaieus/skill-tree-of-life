@@ -123,9 +123,9 @@ min_tier = 2
 script = ExtResource("3_sl04t")
 
 [sub_resource type="Resource" id="scout_arrows"]
-resource_name = "scout_arrows_per_reload +"
+resource_name = "scout_aspect +"
 script = ExtResource("2_pool")
-stat_id = &"scout_arrows_per_reload"
+stat_id = &"scout_aspect"
 tags = Array[StringName]([&"per", &"flat", &"vision", &"ammo"])
 pool_weight = 1.2
 tier_shape = SubResource("Resource_t74qe")

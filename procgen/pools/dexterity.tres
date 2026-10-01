@@ -134,9 +134,9 @@ metadata/_custom_type_script = "uid://csc1d4c2smgr7"
 script = ExtResource("3_5awml")
 
 [sub_resource type="Resource" id="poison_arrows"]
-resource_name = "poison_arrows_per_reload +"
+resource_name = "poison_aspect +"
 script = ExtResource("2_pool")
-stat_id = &"poison_arrows_per_reload"
+stat_id = &"poison_aspect"
 subtypes = Array[ExtResource("90_nsub")]([ExtResource("91_sreg"), ExtResource("92_sbli")])
 tags = Array[StringName]([&"dex", &"flat", &"attack", &"ammo"])
 pool_weight = 1.2

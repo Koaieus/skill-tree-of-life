@@ -48,7 +48,7 @@ func test_blighted_perception_gets_blindness_stacks_not_sensor_range() -> void:
 		if not e.stat_id in ids: ids.append(e.stat_id)
 	assert_true(&"blindness_stacks_per_hit" in ids, "blighted PER must roll blindness_stacks_per_hit")
 	assert_false(&"sensor_range" in ids, "blighted PER must NOT roll sensor_range (trades it away)")
-	assert_true(&"scout_arrows_per_reload" in ids, "scout arrows stay shared by all three poles")
+	assert_true(&"scout_aspect" in ids, "scout arrows stay shared by all three poles")
 
 func test_blessed_perception_gets_blindness_resistance_not_flat_vision() -> void:
 	var bless := NodeSubtype.new(); bless.id = &"bless"
@@ -61,7 +61,7 @@ func test_blessed_perception_gets_blindness_resistance_not_flat_vision() -> void
 	assert_true(&"blindness_resistance" in ids, "blessed PER must roll blindness_resistance")
 	assert_false(flat_vision, "blessed PER must NOT roll the flat vision_range + pool (trades it away)")
 	assert_true(&"vision_range" in ids, "blessed PER keeps vision_range +%")
-	assert_true(&"scout_arrows_per_reload" in ids, "scout arrows stay shared by all three poles")
+	assert_true(&"scout_aspect" in ids, "scout arrows stay shared by all three poles")
 
 func test_regular_perception_keeps_both_existing_pools_neither_new_one() -> void:
 	var regular := NodeSubtype.regular()
