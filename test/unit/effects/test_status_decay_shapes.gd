@@ -8,7 +8,7 @@ extends GutTest
 
 const _DIR := "res://effects/status/"
 
-const _SHAPES := {
+var _SHAPES := {
 	&"poison": FractionDecay,
 	&"corruption": FractionDecay,
 	&"wither": FractionDecay,

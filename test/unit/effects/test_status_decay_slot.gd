@@ -2,7 +2,7 @@ extends GutTest
 
 ## The decay slot (#1258): every authored family carries a [StatusDecay] on
 ## [member StatusDef.decay], and the two members reproduce the arithmetic the
-## retired `decay_mode` enum did — FLAT floors at 0, FRACTION cuts the tail
+## retired FLAT / FRACTION enum did — FLAT floors at 0, FRACTION cuts the tail
 ## below 1 — over a sweep of powers.
 
 const _DIR := "res://effects/status/"
