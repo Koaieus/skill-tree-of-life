@@ -75,8 +75,8 @@ var _ghost: SkillBlade
 
 ## The swing clock of the PREDICTION the preview is replaying, or null when the
 ## swing meets no fortified node. A HANDLE on the live object, never a copy —
-## read it for `is_stalled()` / `drag`, never write it. Exists because the melee
-## sandbox's stall readout (#780/#781) has nothing else to ask.
+## read it for `drag` / `progress()`, never write it. The one place a readout
+## of the predicted swing's clock can ask; nothing in the tree reads it today.
 ##
 ## [b]#782: this is the resolved swing's clock, at its END state[/b], not a
 ## per-cycle one being filled in as the ghost animates. (#821 qualifies that

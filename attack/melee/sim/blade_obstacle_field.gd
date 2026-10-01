@@ -4,7 +4,7 @@ extends BladeConstraint
 ## The defender field: the one object in the solver that tests the blade
 ## against a defender node, wrapping one immutable [BladeDefenderZones]. Two
 ## zone kinds, asymmetric on purpose — a [b]plate[/b] (`deflection`, presence
-## only) is pushed out of, meters strain, arms a break and can stall the grip;
+## only) is pushed out of, meters strain and arms a break;
 ## a [b]wall[/b] (`swing_drag`, a magnitude) is only SENSED: [method project]
 ## skips it and its drag is banked on the [BladeSwingClock]. A wall never
 ## enters [member _near] and never shatters a blade. A node carrying both stats
@@ -16,7 +16,8 @@ extends BladeConstraint
 ## constraints; strain is the DRIVER's unresolved advance, never a contact
 ## residual; what breaks is an EDGE (the most loaded incident one), recorded
 ## as a PENDING request and severed by the resolve loop, never by this class;
-## a contact on a driven particle stalls the clock instead of breaking;
+## a driven grip particle is no exception — its contact meters and breaks
+## exactly like any other, the most rigid case of the same rule;
 ## [method capture] / [method restore] make it rewindable exactly like
 ## [BladeSwingClock.Bank]; analytic and allocation-free per substep with no
 ## physics-server calls, so a worker-thread rollout may share one zone set.
@@ -39,7 +40,7 @@ const CONTACT_SLOP: float = 1.0
 ## [b]Pinned against the solver configuration[/b] — `BladeSim.DEFAULT_ITERATIONS`
 ## (16) split over `DEFAULT_SUBSTEPS` (4), the length axis on. More sweeps make
 ## a floppy blade resolve a contact MORE completely (its accumulator falls
-## toward 0) and leave a rigid one exactly as stalled, so raising fidelity
+## toward 0) and leave a rigid one exactly as jammed, so raising fidelity
 ## sharpens the separation rather than shifting the verdict — bounded, not
 ## eliminated. Re-read the classification test if that configuration changes.
 const SHATTER_DISTANCE: float = 8.0
@@ -147,7 +148,7 @@ var _contact_edges: Dictionary = {}
 var _contact_normals: Dictionary = {}
 ## zone -> true while some part is within CONTACT_HYSTERESIS of it this substep.
 ## PLATES only: a wall never enters this set, so it can never meter strain,
-## arm a break or stall a grip (#811 — see the class docstring).
+## arm a break (#811 — see the class docstring).
 var _near: Dictionary = {}
 ## particle -> Array[int] of incident live edge indices. A reference-type
 ## Array on purpose: a packed array read back out of a Dictionary is a copy,
@@ -296,7 +297,7 @@ func after_drivers(positions: PackedVector2Array) -> void:
 ##   [constant CONTACT_SLOP], and marks [member _near] so the strain meter runs;
 ## - a wall banks its drag on [member _clock] and is [b]skipped in the pushout
 ##   entirely[/b] — it never moves a vertex, never marks `_near`, and so can
-##   never arm a break or stall a grip. A wall spends the swing's budget; it
+##   never arm a break. A wall spends the swing's budget; it
 ##   does not stop the blade.
 ##
 ## A wall's contact test is the exact reach #780 used — `zone radius + particle
@@ -423,9 +424,8 @@ func project(positions: PackedVector2Array, inv_masses: PackedFloat32Array) -> v
 			_contact_edges[e_idx] = z
 
 
-## Close the substep: stall the clock on a grip contact, meter the strain, arm a
-## break, and roll the driver history.
-func end_substep(positions: PackedVector2Array, clock: BladeSwingClock) -> void:
+## Close the substep: meter the strain, arm a break, and roll the driver history.
+func end_substep(positions: PackedVector2Array) -> void:
 	if _near.is_empty():
 		# Nothing anywhere near a plate: every contact is over. Reset, don't bank.
 		for z in _strain.size():
@@ -434,16 +434,11 @@ func end_substep(positions: PackedVector2Array, clock: BladeSwingClock) -> void:
 				_edge_residual[z].clear()
 		_roll_driven(positions)
 		return
-	if clock != null:
-		for i in _contact_particles:
-			if _driven_set.has(i):
-				clock.stall()
-				break
 	# The unresolved drive: the most any grip particle fell short of the
 	# advance its DRIVER made this substep (target now minus target then),
 	# measured along that advance. A step that went BACKWARDS counts as fully
 	# refused (capped at the request — a jammed body thrown back is not "more
-	# stalled" than one held still); a step that caught up counts negative and
+	# jammed" than one held still); a step that caught up counts negative and
 	# bleeds the bank.
 	var unresolved := 0.0
 	var any := false

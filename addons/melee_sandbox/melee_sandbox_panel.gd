@@ -136,7 +136,7 @@ func _process(_delta: float) -> void:
 
 
 ## Worst per-zone strain on the PREDICTED swing's field, against the constant it
-## is measured for, plus the grip stall. Reads the live objects (#781) — never a
+## is measured for. Reads the live objects (#781) — never a
 ## mirror of them — so "no plate in reach" is reported as the structural zero it
 ## is: the defender query came back empty, so no field was allocated (#811).
 func _refresh_strain() -> void:
@@ -145,11 +145,9 @@ func _refresh_strain() -> void:
 	if field == null:
 		_strain_label.text = "strain — · no plate in reach"
 		return
-	var stalled: bool = _preview.last_clock != null and _preview.last_clock.is_stalled()
-	_strain_label.text = "strain %.1f / %.0f px%s" % [
+	_strain_label.text = "strain %.1f / %.0f px" % [
 		field.max_strain(),
 		BladeObstacleField.SHATTER_DISTANCE,
-		" · GRIP STALLED" if stalled else "",
 	]
 
 

@@ -73,7 +73,6 @@ struct FieldCtx {
 
     const int32_t *driven = nullptr;
     int64_t driven_count = 0;
-    Dictionary driven_set;
 
     // particle -> live incident edge indices, CSR. Flattened from the
     // Dictionary prepare() built, in its ascending-edge-index order — which is
@@ -95,7 +94,6 @@ struct FieldCtx {
     double clock_drag = 0.0;
     double clock_last_t = 0.0;
     bool clock_warping = false;
-    bool clock_stalled = false;
     Dictionary clock_touched;
 
     // ── BladeObstacleField.Bank ─────────────────────────────────────────────
@@ -122,13 +120,10 @@ struct FieldCtx {
 
 // BladeSwingClock.warp()
 double clock_warp(const FieldCtx &f) {
-    if (f.clock_stalled) {
-        return 0.0;
-    }
     return 1.0 / (1.0 + f.clock_drag);
 }
 
-// The first-contact seed shared by bank_drag() and stall(): the accumulator
+// The first-contact seed of bank_drag(): the accumulator
 // takes over from the nominal progress the drivers have been reading, so drag
 // slows the REST of the arc and never the approach to its own zone.
 void clock_seed(FieldCtx &f) {
@@ -159,15 +154,6 @@ void clock_bank_drag(FieldCtx &f, int64_t z, double amount) {
     }
 }
 
-void clock_stall(FieldCtx &f) {
-    if (f.clock_stalled) {
-        return;
-    }
-    f.clock_stalled = true;
-    if (!f.clock_warping) {
-        clock_seed(f);
-    }
-}
 
 // BladeSwingClock.progress() — -1.0 means "use your own t / duration".
 double clock_progress(const FieldCtx &f) {
@@ -370,8 +356,8 @@ void field_roll_driven(FieldCtx &f, const Vector2 *positions) {
     f.near_plates.clear();
 }
 
-// BladeObstacleField.end_substep() — stall the clock on a grip contact, meter
-// the driver residual, bank the load share, arm a break, roll the history.
+// BladeObstacleField.end_substep() — meter the driver residual, bank the load
+// share, arm a break, roll the history.
 void field_end_substep(FieldCtx &f, const Vector2 *positions) {
     const int64_t zn = f.strain.size();
     if (f.near_plates.is_empty()) {
@@ -384,15 +370,6 @@ void field_end_substep(FieldCtx &f, const Vector2 *positions) {
         }
         field_roll_driven(f, positions);
         return;
-    }
-    if (f.has_clock) {
-        const Array contacts = f.contact_particles.keys();
-        for (int64_t ci = 0; ci < contacts.size(); ci++) {
-            if (f.driven_set.has(contacts[ci])) {
-                clock_stall(f);
-                break;
-            }
-        }
     }
     // The unresolved drive: the most any grip particle fell short of the
     // advance its DRIVER made this substep, measured along that advance.
@@ -483,7 +460,6 @@ Dictionary capture_clock(const FieldCtx &f) {
     b["touched"] = f.clock_touched.duplicate();
     b["warping"] = f.clock_warping;
     b["last_t"] = f.clock_last_t;
-    b["stalled"] = f.clock_stalled;
     return b;
 }
 
@@ -929,13 +905,11 @@ Dictionary BladeSolverNative::simulate_range_field(
         BLADE_REQUIRE_KEY(clock_state, "touched");
         BLADE_REQUIRE_KEY(clock_state, "warping");
         BLADE_REQUIRE_KEY(clock_state, "last_t");
-        BLADE_REQUIRE_KEY(clock_state, "stalled");
         ctx.clock_f = clock_state["f"];
         ctx.clock_drag = clock_state["drag"];
         ctx.clock_touched = Dictionary(clock_state["touched"]).duplicate();
         ctx.clock_warping = clock_state["warping"];
         ctx.clock_last_t = clock_state["last_t"];
-        ctx.clock_stalled = clock_state["stalled"];
     }
 
     if (ctx.has_field) {
@@ -991,11 +965,6 @@ Dictionary BladeSolverNative::simulate_range_field(
         ctx.shatter_distance = p_field["shatter_distance"];
         ctx.edge_radius = p_field["edge_radius"];
 
-        // `_driven_set`, rebuilt from the same array `prepare()` deduplicated
-        // into — one definition of "which particles a driver prescribes".
-        for (int64_t k = 0; k < ctx.driven_count; k++) {
-            ctx.driven_set[(int64_t)ctx.driven[k]] = true;
-        }
         ctx.driven_targets.resize(ctx.driven_count);
 
         const Dictionary field_state = p_sim["field_state"];

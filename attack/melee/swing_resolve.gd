@@ -100,9 +100,9 @@ func _init(ctx: SwingContext) -> void:
 	_drivers = ctx.drivers
 	# The defender field (#811) carries both kinds; the clock is its
 	# accumulator half. Fortification drag (#780) bogs the swing's own clock
-	# down cumulatively from the moment the blade first touches a wall, and a
-	# bunker's grip stall (#781) is expressed on the same clock — so a swing
-	# with any defender in reach gets one, and a swing with none gets neither.
+	# down cumulatively from the moment the blade first touches a wall — so a
+	# swing with any defender in reach gets one, and a swing with none gets
+	# neither.
 	# ONE clock for the whole swing, carried across every chunk — see
 	# BladeSwingClock.Bank. An untouched clock is bit-inert
 	# (test_blade_swing_drag pins it) and the field already forces the GDScript

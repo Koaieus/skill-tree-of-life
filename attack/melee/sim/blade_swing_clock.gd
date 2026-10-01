@@ -26,7 +26,7 @@ extends RefCounted
 ## quantity added and is clamped at 1: the warp factor [method warp] is
 ## `1 / (1 + drag)` with `drag >= 0`, hence strictly positive and at most 1. No
 ## configuration of fortified nodes can reverse a swing, and none can freeze one
-## either — the hard stall is #781's bunker, not this. What a wall does instead
+## either — nothing in the solver stalls a swing outright. What a wall does instead
 ## is spend the arc: five nodes at drag 1 leave the swing running at a sixth of
 ## its nominal rate, so within the fixed swing duration it covers roughly a
 ## sixth of its sweep and everything further round the arc is simply never
@@ -88,14 +88,6 @@ var _warping: bool = false
 ## seeded from the exact pre-contact progress at the moment drag first lands.
 var _last_t: float = 0.0
 
-## The hard stall (#781): set once a DRIVEN grip particle touches a bunker, and
-## never cleared — [method warp] is then exactly 0, so [member _f] stops where
-## it is and every arc driver holds its particle on the plate for the rest of
-## the swing while everything outboard keeps simulating on its own momentum.
-## Still monotonic: `_f` gains 0, never loses. Deliberately not expressed as
-## `drag = INF`; a flag reads as the distinct mechanism it is.
-var _stalled: bool = false
-
 
 func _init(duration_: float = 1.2) -> void:
 	duration = duration_
@@ -131,7 +123,6 @@ class Bank extends RefCounted:
 	var touched: Dictionary
 	var warping: bool
 	var last_t: float
-	var stalled: bool
 
 
 ## Capture [Bank] — the mutable half of this clock. `touched` is duplicated, so
@@ -143,7 +134,6 @@ func capture() -> Bank:
 	b.touched = touched.duplicate()
 	b.warping = _warping
 	b.last_t = _last_t
-	b.stalled = _stalled
 	return b
 
 
@@ -156,32 +146,14 @@ func restore(b: Bank) -> void:
 	touched = b.touched.duplicate()
 	_warping = b.warping
 	_last_t = b.last_t
-	_stalled = b.stalled
 
 
 ## Time-warp factor in (0, 1]: the fraction of nominal angular rate the swing
 ## still advances at. Strictly positive for every `drag >= 0`, which is what
-## makes progress non-decreasing AND keeps a hard stall out of this issue.
+## makes progress advance every substep until it reaches 1: nothing freezes a
+## swing.
 func warp() -> float:
-	if _stalled:
-		return 0.0
 	return 1.0 / (1.0 + drag)
-
-
-## Freeze the swing where it is (#781's grip rule). Seeds the accumulator from
-## the nominal progress exactly as first contact in [method bank_drag] does, so the
-## drivers hold THIS substep's angle from here on. Idempotent.
-func stall() -> void:
-	if _stalled:
-		return
-	_stalled = true
-	if not _warping:
-		_warping = true
-		_f = clampf(_last_t / duration, 0.0, 1.0) if duration > 0.0 else 0.0
-
-
-func is_stalled() -> bool:
-	return _stalled
 
 
 ## Open one substep at nominal time [param t]: remember it, and — once the
@@ -246,7 +218,7 @@ func has_banked(z: int) -> bool:
 # together, because a field that stops crossing is not an error anywhere.
 
 
-## The mutable half as a plain Dictionary — the same six fields [Bank] carries.
+## The mutable half as a plain Dictionary — the same five fields [Bank] carries.
 func native_state() -> Dictionary:
 	return {
 		"f": _f,
@@ -254,7 +226,6 @@ func native_state() -> Dictionary:
 		"touched": touched.duplicate(),
 		"warping": _warping,
 		"last_t": _last_t,
-		"stalled": _stalled,
 	}
 
 
@@ -267,7 +238,6 @@ static func bank_from_native(d: Dictionary) -> Bank:
 	b.touched = d["touched"]
 	b.warping = d["warping"]
 	b.last_t = d["last_t"]
-	b.stalled = d["stalled"]
 	return b
 
 
@@ -279,4 +249,3 @@ func apply_native_state(d: Dictionary) -> void:
 	touched = d["touched"]
 	_warping = d["warping"]
 	_last_t = d["last_t"]
-	_stalled = d["stalled"]
