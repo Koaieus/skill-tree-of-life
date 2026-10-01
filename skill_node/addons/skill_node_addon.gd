@@ -149,7 +149,8 @@ func configure_visual(_radius: float) -> void:
 
 
 ## Called once per source SkillNode that carries this addon, by
-## SkillBlade.build_from_skill_nodes AFTER BladeState.build returns.
+## BladeVertexFill.fill (both blade build sites) AFTER the per-vertex stats
+## are filled.
 ## `particle_idx` is this carrier's index in state.positions.
 ## Transient — BladeState is rebuilt each simulate(), so this runs every swing.
 func apply_to_blade(_state: BladeState, _particle_idx: int) -> void:

@@ -1589,9 +1589,11 @@ Determinism holds under `.claude/rules/multiplayer-sync.md` unchanged.
 
 ### `SkillBlade` (visual + playback)
 
-`build_from_skill_nodes(skill_nodes, pivot, induced_edges, owner)`
+`build_from_skill_nodes(skill_nodes, pivot, induced_edges, owner, fill)`
 constructs `BladeState` and spawns BladeNode + BladeEdge visuals at
-their initial positions. `simulate(duration)` runs the sim (drivers
+their initial positions. `fill` is the plan's `vertex_fill`, a
+`BladeVertexFill` — the one owner of per-vertex stat reads and the addon
+dispatch, shared with `MeleeAttackPlan.build_blade_state`. `simulate(duration)` runs the sim (drivers
 auto-built from pivot-adjacent particles). `play(trajectory, hits,
 ghostly, playback_rate)` tweens visual positions through the trajectory
 and emits `hit` signals at scheduled times.
