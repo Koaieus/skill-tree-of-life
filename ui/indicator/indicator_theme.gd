@@ -1,8 +1,9 @@
 class_name IndicatorTheme
 extends Resource
 
-## Which [Indicator] scene a highlight role mounts. A role absent from
-## [member scenes] keeps the overlay's plain ring — the map is the only switch.
+## Which [Indicator] scene a highlight role mounts. A role absent from a keyed
+## theme falls to the overlay's [code]default_theme[/code] ([code]default.tres[/code],
+## which maps every node role); absent from both, the node is unmarked.
 
 @export var scenes: Dictionary[HighlightProvider.HighlightRole, PackedScene] = {}
 
