@@ -62,6 +62,7 @@ mise run adr-hygiene     # frontmatter, supersede links, index coverage, immutab
 | [0038](0038-int-is-the-runaway-attribute-and-every-int-transfer-is-thinned.md) | INT is the runaway attribute, and every transfer out of it is thinned — spell damage takes √INT, reach and mana take big divisors or saturating ladders; the linear damage payoff and the ×2 reach cap are retired | accepted | 2026-09-21 | stats, balance, int, spells, formulas, design |
 | [0039](0039-spell-power-is-gated-by-four-conditions-not-by-damage-tuning.md) | Spell power is gated by four independent conditions — knowing the spell, entity degree at the cast node, mana, range from the cast node — never by tuning damage down | accepted | 2026-08-03 | spells, balance, degree, mana, range, design |
 | [0040](0040-statuses-tick-at-the-end-of-the-afflicted-entitys-turn.md) | Statuses tick at the END of the afflicted entity's turn, both hosts in one beat — never at turn start, never per family; a last action before a DoT death is intended | accepted | 2026-09-30 | combat, status, dot, turn, design |
+| [0041](0041-special-arrows-bank-outside-the-quiver-capacity.md) | Special arrows bank outside the quiver's capacity, each type under its own `max_stock`; the `arrows` pool's current/max are the plain arrows only (supersedes 0019 in part) | accepted | 2026-10-01 | ranged, combat, stats, architecture |
 
 ## Pre-ADR log
 
