@@ -198,7 +198,7 @@ lands — **that vertex only**; vertex damage is untouched. A refused contact (a
 popped vertex) applies nothing and never re-pops through its status.
 
 **Acquisition:** procgen addon roll (non-unique, Watchtower's rarity), and a
-temp upgrade — `attack/melee/defs/toxin.tres` in the catalog, cost 2, third
+temp upgrade — `skill_node/addons/defs/toxin_addon.tscn` in the scanned folder, cost 2, third
 tray card (V). Loot: later.
 
 **Shape:** one `DotAddon` script (`status_def`, `status_power`), one `.tscn`
