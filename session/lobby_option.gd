@@ -20,7 +20,8 @@ extends Resource
 ## explosion #642 opens with from reappearing here one level down: XS..XXL is six
 ## small resources, not six copies of a whole Topology module.
 
-## What the dropdown shows. Never parsed — the patches carry the meaning.
+## What the dropdown shows. Never parsed — the patches carry the meaning. Leave
+## it empty to derive it from the patched value ([method display_label]).
 @export var label: String = ""
 
 ## The leaf patches picking this option contributes to [member RunConfig.overrides].
@@ -30,6 +31,15 @@ extends Resource
 
 
 ## What the dropdown shows: the authored [member label], else the description
-## of the resource the first patch writes.
+## of the resource the first patch writes, when that resource has a
+## `describe()` (duck-typed: this class stays generic over what it patches). A
+## missing or describe-less value displays as empty.
 func display_label() -> String:
-	return label
+	if not label.is_empty() or patches.is_empty() or patches[0] == null:
+		return label
+	var value: Variant = patches[0].value
+	if value is String and ResourceLoader.exists(value):
+		value = load(value)
+	if value is Object and value.has_method("describe"):
+		return value.describe()
+	return ""

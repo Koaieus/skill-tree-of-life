@@ -25,3 +25,7 @@ func evaluate(ctx: VictoryContext) -> RunOutcome:
 	if alive.size() == 1:
 		return _outcome(ctx, alive[0])
 	return _outcome(ctx, null)
+
+
+func describe() -> String:
+	return "Last camp standing"

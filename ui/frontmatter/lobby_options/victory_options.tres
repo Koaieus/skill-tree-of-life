@@ -12,7 +12,6 @@ metadata/_custom_type_script = ExtResource("3_ovr")
 
 [sub_resource type="Resource" id="o0"]
 script = ExtResource("2_opt")
-label = "Last camp standing"
 patches = Array[ExtResource("3_ovr")]([SubResource("p0_0")])
 metadata/_custom_type_script = ExtResource("2_opt")
 
@@ -24,7 +23,6 @@ metadata/_custom_type_script = ExtResource("3_ovr")
 
 [sub_resource type="Resource" id="o1"]
 script = ExtResource("2_opt")
-label = "Turn limit (15 rounds)"
 patches = Array[ExtResource("3_ovr")]([SubResource("p1_0")])
 metadata/_custom_type_script = ExtResource("2_opt")
 

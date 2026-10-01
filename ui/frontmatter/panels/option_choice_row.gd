@@ -44,7 +44,7 @@ func set_choices(title: String, option_set: LobbyOptionSet) -> void:
 		choices = option_set.choices()
 	visible = not choices.is_empty()
 	for c in choices:
-		_picker.add_item(c.label)
+		_picker.add_item(c.display_label())
 	# The host hasn't PICKED anything — #643 acceptance 5 still holds, an
 	# untouched row writes no override — but the widget shows the ladder's
 	# authored default rather than a blank dropdown. select() doesn't emit

@@ -131,15 +131,24 @@ signal and must be ignored.
 
 `TurnLimitCondition` (`session/victory/turn_limit_condition.gd`): after `limit`
 rounds (or entity-turns — the `unit` enum, `ROUNDS` by default) the camp with
-the highest score wins. Score = summed `level` of the camp's living
-contestants, ties broken by summed `xp.current`; an exact tie is a DRAW. The
-scoring is one private method (`_camp_score`) so it can become a knob later.
+the highest score wins. Score = `(summed level, summed xp.current, owned
+nodes)` over the camp's living contestants, compared lexicographically — owned
+territory breaks a level-and-XP tie (owner, 2026-10-02); an exact tie on all
+three is a DRAW. Territory is one walk of `ctx.graph` per evaluation, bucketed
+by camp, with the same valid/living/contestant filter as the entity sums. The
+scoring is one private method (`_camp_score`) so it can become a knob later —
+and where a total-XP number (#1312) would collapse the first two components.
 
 It ships as a **bonus** under `CombinedVictoryCondition`
 (`session/victory/turn_limit.tres`, `limit = 15`), so last-camp-standing still
 ends the run early. The lobby offers it on all three policies through
 `victory_options.tres` (a `target: "victory_condition"` override, #742), and
-rung 4's autoplay host picks it so every `mp:e2e` run is short.
+rung 4's autoplay host picks it so every `mp:e2e` run is short. The lobby
+label is **derived, not authored**: `VictoryCondition.describe()` says what a
+condition is (`"Turn limit (15 rounds)"` from `limit` + `unit`; a combinator
+reports its bonuses, else its floor), and `LobbyOption.display_label()` shows
+that whenever an option's `label` is empty — so the round count is authored
+once, in `turn_limit.tres`.
 
 - **A round is the classic initiative round**, owned by `TurnManager`: it opens
   with a roster of every living initiative carrier and completes when the last

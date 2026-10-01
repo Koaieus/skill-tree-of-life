@@ -65,3 +65,16 @@ func evaluate(ctx: VictoryContext) -> RunOutcome:
 		if result != null:
 			return result
 	return _FLOOR.evaluate(ctx)
+
+
+## The bonuses' descriptions, joined — the floor is implicit in every run, so it
+## is only named when no bonus says anything.
+func describe() -> String:
+	var parts: PackedStringArray = []
+	for bonus in bonus_conditions:
+		var text := bonus.describe() if bonus != null else ""
+		if not text.is_empty():
+			parts.append(text)
+	if parts.is_empty():
+		return _FLOOR.describe()
+	return " or ".join(parts)
