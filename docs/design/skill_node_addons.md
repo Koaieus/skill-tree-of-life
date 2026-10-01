@@ -155,6 +155,8 @@ Implementation: `docs/domain/melee-blade-sim.md`, "Bunker deflection (#781)".
 - **Partial whips** — clamp the base of a chain but leave the tip free, so only the outer segment whips (a controlled flail).
 - It does **not** create a face. Clamp gives **rigidity only**; **triangulation gives rigidity *and* a face (area damage)** — so the two stay distinct build verbs with distinct niches, and Clamp is no substitute for bracing when you want a pan.
 
+**A weld dies with its edges:** it holds the angle between two of the joint's edges, so when either edge breaks (a bunker break, a fuse, a pop) the weld holding it goes too and the far side flies free; the joint keeps welding the edges it still has.
+
 **Only matters at articulating joints:** a Clamp on a blade-leaf tip or an already-braced (triangulated) node does nothing extra — it pays off on a node that sits as a degree-2 hinge in the blade.
 
 **Notes:** A cheap, legible crafting lever. Because it's an addon (loot / class / Tech Seed), spending a slot on Clamp is a real tradeoff against triangulating the same shape with extra nodes/edges — a different cost curve to the same rigidity, minus the face.

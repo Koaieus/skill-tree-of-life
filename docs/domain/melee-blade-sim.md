@@ -1231,6 +1231,19 @@ Self-limiting by construction, same as any severance: once the edge is gone
 that region is floppy, so the next contact yields, and the blade flows past —
 one break, then through.
 
+That holds for a welded joint too, because **a weld brace dies with either
+edge it spans** (#1294). A `ClampAddon` brace records its joint
+(`BladeDistanceConstraint.joint`, `-1` on an edge's own constraint) and holds
+only the angle between `joint–a` and `joint–b`; `BladeState.remove_edge` drops
+every brace whose joint is one endpoint of the dead edge and whose `a`/`b` is
+the other, and `remove_vertex` drops every brace whose joint dies. A degree-3
+joint keeps the brace between its two surviving edges, and a triangulated
+joint's brace across a cut far edge stays. Before this a cut edge `1–2` under a
+weld at 1 left brace `0–2` holding 2 at a fixed distance from the pivot while
+`_reachable_from_pivot`, walking `state.edges`, recorded it severed — the
+book-keeping and the physics disagreed. Now no constraint can tie together two
+particles the edges say are apart, so that walk is truthful by construction.
+
 ### The zero-bunker structural guard
 
 `attach_defender_field` hangs a field off `BladeState.obstacles` only when the
@@ -1385,7 +1398,7 @@ driver list are all per-call inputs to the native backend):
    for free.
 2. every constraint **incident to it** dropped (`BladeState.remove_vertex`),
    including a `ClampAddon` phantom brace — a weld to a corpse is a weld to a
-   wall.
+   wall — and every brace whose *joint* it was, which holds no angle any more.
 3. its `BladeArcDriver` dropped, if it was one of the pivot's driven neighbours.
    `SwingResolve._surviving_drivers` (`attack/melee/swing_resolve.gd`) also drops the driver of a merely
    **coasting** vertex: alive, but no longer attached to the handle, so nothing
