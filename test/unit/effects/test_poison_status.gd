@@ -172,12 +172,12 @@ func test_projected_status_damage_sums_the_remaining_ticks() -> void:
 	assert_almost_eq(_combat().projected_status_damage(), 18.0, 0.001, "shrinks as it ticks")
 
 
-func test_poisoned_node_does_not_regen_the_same_upkeep() -> void:
+func test_poisoned_node_does_not_regen_the_next_turn_starts_regen() -> void:
 	_set_max_hp(20.0)
 	var d := _def(HitInstance.AmountBasis.FLAT, 1.0)
 	_combat().apply_status(d, 1.0)
 
-	_combat().tick_statuses()  # hub D4: fires before apply_turn_regen this same upkeep beat
+	_combat().tick_statuses()  # the turn-end tick, before the next turn start's regen
 	var after_tick := _nodes[0].get_current_hp()
 	_nodes[0].apply_turn_regen()
 	assert_almost_eq(_nodes[0].get_current_hp(), after_tick, 0.001,

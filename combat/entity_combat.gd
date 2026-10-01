@@ -789,8 +789,8 @@ func simulate_entity_death() -> Array[DeallocEntry]:
 # The duck-typed host contract [StatusHost] lists, on the ENTITY: the board is
 # the entity board with no node layer in front of it, "max hp" is the
 # `health` pool's cap, "allocated" is alive, and the tick needs no sparse
-# subscription because [method Entity._on_turn_started] already runs every
-# turn and calls [method tick_statuses] itself. A DoT on this host drains the
+# subscription because [method Entity.resolve_turn_end] already runs at the
+# end of every played turn and calls [method tick_statuses] itself. A DoT on this host drains the
 # pool through [method take_pool_damage] — see [method DotTick.mint].
 
 
@@ -835,7 +835,7 @@ func remove_local_modifier(m: StatModifier) -> void:
 
 
 ## Host contract: no sparse subscription (#879) on the entity — the tick is
-## wired unconditionally in [method Entity._on_turn_started].
+## wired unconditionally in [method Entity.resolve_turn_end].
 func _on_first_status() -> void:
 	pass
 

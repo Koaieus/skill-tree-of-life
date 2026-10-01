@@ -335,11 +335,15 @@ read is already correct.
   (#878), landed via `NodeCombat.apply_status`/`land_on` on whichever
   `CombatWorld` the applier hands in — same shadow/live split as every other
   hit. Ticking is an owned-set sweep in
-  `Entity.begin_turn` (#1137): after the entity's own upkeep and status tick,
-  before `turn_began` kicks the controller, over a snapshot of the owned set
-  (the one regen already walks), skipping a node stripped mid-sweep. Every
-  real turn, never on an adopted resync cursor. ADR 0040 moves this to the
-  end of the turn (#1256). All statuses void on any deallocation path
+  `Entity.resolve_turn_end` — its own step of `TurnManager.end_turn`, after
+  the cursor is nulled and before `finish_turn` (ADR 0040, #1256): the
+  entity-host tick first, then the owned nodes over a snapshot of the owned
+  set (the one regen already walks), skipping a node stripped mid-sweep. Every
+  played-out turn, the first included; never on `abandon_turn` (a death, the
+  status sandbox's `disarm`) nor an adopted resync cursor. A tick's damage
+  suppresses the owner's next turn-start regen; a tick that kills the actor
+  hits `abandon_turn` as a no-op and `end_turn` still hands on. Peers
+  reproduce it, since `EndTurnCommand` runs `end_turn` everywhere. All statuses void on any deallocation path
   (`AllocationSystem.clear_statuses()` on `deallocate`/`force_deallocate`/
   `deallocate_all_owned`) — `StatusDef.OnDealloc` reserves a `LINGER` door but
   only `CLEAR` is built. `network/graph_snapshot.gd` carries `(status id,

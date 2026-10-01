@@ -672,8 +672,9 @@ func get_statuses() -> Array[NodeStatus]:
 	return _status_host.get_statuses()
 
 
-## Host contract: nothing to subscribe — the owner's [method Entity.begin_turn]
-## sweeps its owned nodes' statuses every real turn.
+## Host contract: nothing to subscribe — the owner's
+## [method Entity.resolve_turn_end] sweeps its owned nodes' statuses at the end
+## of every played turn.
 func _on_first_status() -> void:
 	pass
 
