@@ -64,9 +64,11 @@ func test_charge_zero_is_muted_and_charge_above_zero_is_lit() -> void:
 	m.set("charge", 0.0)
 	assert_true(m.get("spent"), "charge 0 is spent")
 	assert_eq(m.modulate, Emissive.at(m.get("spent_tint"), Emissive.stops(Emissive.Tier.INERT)))
+	assert_true(m.get_node("%Chevrons").get("hollow"), "spent chevrons are hollow")
 	m.set("charge", 0.4)
 	assert_false(m.get("spent"))
 	assert_eq(m.modulate, Emissive.at(tint, Emissive.stops(m.get("tier"))))
+	assert_false(m.get_node("%Chevrons").get("hollow"), "lit chevrons are filled")
 
 
 func test_armed_variant_is_brighter() -> void:

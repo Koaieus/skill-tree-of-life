@@ -3,6 +3,7 @@
 [ext_resource type="PackedScene" path="res://ui/indicator/indicator_base.tscn" id="1_base"]
 [ext_resource type="Script" path="res://ui/indicator/squad_marker.gd" id="2_squad"]
 [ext_resource type="Script" path="res://ui/indicator/ring_band.gd" id="3_ring"]
+[ext_resource type="Script" path="res://ui/indicator/chevron_fan.gd" id="4_fan"]
 
 [node name="SquadMarker" instance=ExtResource("1_base")]
 script = ExtResource("2_squad")
@@ -14,3 +15,4 @@ script = ExtResource("3_ring")
 
 [node name="Chevrons" type="Node2D" parent="." index="1"]
 unique_name_in_owner = true
+script = ExtResource("4_fan")

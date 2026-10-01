@@ -1,10 +1,11 @@
 @tool
 extends Sprite2D
 
-## The shots-left pip row (#959, Ranged2.0 C8): `●●●○○` under a leaf while
+## The shots-left pip row (#959, Ranged2.0 C8): `●●●○○` over a leaf while
 ## the local attacker's plan is RANGED and this node is one of its leaves.
-## A readout register, not a shell/structure band — it sits BELOW the node,
-## outside the plan-view band budget (docs/domain/addon-visual-registers.md).
+## A readout register, not a shell/structure band — it sits ABOVE the node
+## ([member row_offset_r]), outside the plan-view band budget
+## (docs/domain/addon-visual-registers.md).
 ##
 ## Render budget (`.claude/rules/rendering-performance.md`): hundreds of
 ## nodes carry one of these, so it is ONE `Sprite2D` per node on ONE shared
@@ -26,12 +27,14 @@ const PIP_PX := 8
 ## Unlit dots keep this alpha so the *count* stays readable without competing
 ## with the lit ones.
 const UNLIT_ALPHA := 0.28
-## Row centre sits this many radii below the node centre — clear of the
-## SpikeRing band (`[1.00, 1.45]`) and every elevation piece (all above y=0).
-const ROW_OFFSET_R := 1.7
 ## Lit-dot modulate is kept strictly below 1.0 (`.claude/rules/hdr-color.md`):
 ## a readout is not a glow.
 const MAX_CHANNEL := 0.92
+
+## Row centre sits this many radii below the node centre; negative = above.
+## |1.7| clears the SpikeRing band (`[1.00, 1.45]`); takes effect at the next
+## [method configure].
+@export var row_offset_r: float = -1.7
 
 ## Lit pips currently shown (== `shots_left()` while shown).
 var lit: int = 0
@@ -70,7 +73,7 @@ func _ready() -> void:
 ## Positions the row for a node of [param radius] (SkillNode.radius, which
 ## stake level scales).
 func configure(radius: float) -> void:
-	position = Vector2(0.0, radius * ROW_OFFSET_R)
+	position = Vector2(0.0, radius * row_offset_r)
 
 
 ## [param lit_count] of [param total_count] pips, or hidden when

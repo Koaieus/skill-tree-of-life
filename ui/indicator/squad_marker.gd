@@ -9,9 +9,9 @@ extends Indicator
 ## at the INERT tier, hollow chevrons.
 ##
 ## The chevrons turn over [member aim_turn_seconds] (presentation only); the
-## first facing a marker receives snaps. %Chevrons is a plain Node2D this
-## script draws into through its [signal CanvasItem.draw] signal, so its
-## rotation IS the aim.
+## first facing a marker receives snaps — and the overlay re-instances a
+## marker on every role change, so a CASTER -> ORIGIN switch snaps rather than
+## swings. %Chevrons' rotation IS the aim.
 
 ## Gap from the wrapped boundary to the ring's INNER edge; matches the reticle.
 @export var ring_inner_offset: float = 9.0:
@@ -56,13 +56,6 @@ var _aim_to := 0.0
 var _aim_elapsed := 0.0
 
 
-func _ready() -> void:
-	var chevrons := get_node_or_null(^"%Chevrons") as Node2D
-	if chevrons != null and not chevrons.draw.is_connected(_draw_chevrons):
-		chevrons.draw.connect(_draw_chevrons)
-	super()
-
-
 func _process(delta: float) -> void:
 	super(delta)
 	if _aim_elapsed >= aim_turn_seconds:
@@ -87,10 +80,16 @@ func _apply_geometry() -> void:
 		var w := stroke(ring_width)
 		ring.width = w
 		ring.centerline = SkillNode.ring_centerline(radius, ring_inner_offset, w)
-	var chevrons := get_node_or_null(^"%Chevrons") as Node2D
-	if chevrons != null:
-		chevrons.visible = facing != Vector2.ZERO
-		chevrons.queue_redraw()
+	var fan := get_node_or_null(^"%Chevrons") as IndicatorChevronFan
+	if fan != null:
+		fan.visible = facing != Vector2.ZERO
+		fan.count = chevron_count
+		fan.spread_deg = chevron_spread_deg
+		fan.size = chevron_size
+		var w := stroke(ring_width)
+		fan.mid_radius = SkillNode.ring_centerline(radius, ring_inner_offset, w) + w * 0.5 + chevron_size * 0.6
+		fan.hollow = spent
+		fan.outline_width = stroke(ring_width * 0.4)
 
 
 # Starts a swing (or snaps) when the facing changed since the last call.
@@ -117,29 +116,3 @@ func _set_aim(angle: float) -> void:
 	var chevrons := get_node_or_null(^"%Chevrons") as Node2D
 	if chevrons != null:
 		chevrons.rotation = angle
-
-
-func _draw_chevrons() -> void:
-	var chevrons := get_node_or_null(^"%Chevrons") as Node2D
-	if chevrons == null or chevron_count <= 0 or chevron_size <= 0.0:
-		return
-	var w := stroke(ring_width)
-	var ring_outer := SkillNode.ring_centerline(radius, ring_inner_offset, w) + w * 0.5
-	var mid := ring_outer + chevron_size * 0.6
-	var half := chevron_size * 0.5
-	var spread := deg_to_rad(chevron_spread_deg)
-	for i in chevron_count:
-		var offset := 0.0
-		if chevron_count > 1:
-			offset = spread * (float(i) / float(chevron_count - 1) - 0.5)
-		var d := Vector2.from_angle(offset)
-		var side := d.orthogonal() * half
-		var tip := d * (mid + half)
-		var back := d * (mid - half)
-		var notch := d * (mid - half * 0.3)
-		var points := PackedVector2Array([tip, back + side, notch, back - side])
-		if spent:
-			points.append(tip)
-			chevrons.draw_polyline(points, Color.WHITE, stroke(ring_width * 0.4), true)
-		else:
-			chevrons.draw_colored_polygon(points, Color.WHITE)
