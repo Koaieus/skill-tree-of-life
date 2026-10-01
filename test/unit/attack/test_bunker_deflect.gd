@@ -11,6 +11,12 @@ const _DURATION := 1.2
 const _SPACING := 60.0
 const _RADIUS := 24.0
 const _BUNKER_RADIUS := 32.0
+## How deep a grazing grip disc dips into the plate's reach.
+const _GRAZE_DEPTH := 6.0
+## How many samples after first contact the owner's clamped jam must break by.
+const _BREAK_WITHIN_SAMPLES := 20
+## A plate on the grip's circle, clear of the start pose.
+const _GRIP_TURNS := 0.2
 
 
 ## Since #847 there is one backend, the native one; a checkout without the
@@ -271,37 +277,124 @@ func test_a_floppy_contact_leaves_the_accumulator_at_zero_once_released() -> voi
 			"once the blade has flopped past, the bank must read zero — not partial credit")
 
 
-# ── The grip: a hard stall, not a break ─────────────────────────────────────
+# ── The grip: the most rigid case, not a special case ──────────────────────
 
-func test_a_plate_on_the_grips_arc_stalls_the_swing_and_breaks_nothing() -> void:
+## The swing progress the drivers read at [param b]: the accumulator once the
+## clock is warping, nominal time before it.
+func _effective_progress(b: BladeSwingClock.Bank) -> float:
+	return b.f if b.warping else b.last_t / _DURATION
+
+
+func test_a_plate_on_the_grips_arc_breaks_an_edge_incident_to_the_grip() -> void:
+	var state := _clamped_arm()
+	var r := _run(state, 1, BladeSim.DEFAULT_ITERATIONS, _GRIP_TURNS)  # on the DRIVEN particle's circle
+	assert_gt(r.contact_samples, 0, "the grip must have touched the plate")
+	assert_true(r.broke, "a driven grip jammed on a plate breaks its edges (owner, 2026-10-01)")
+	if r.broke:
+		var e: Vector2i = state.edges[r.break_edge]
+		assert_true(e.x == 1 or e.y == 1, "the broken edge is incident to the grip, got %s" % e)
+	assert_eq(state.removed_vertices.size(), 0, "ADR 0005: a bunker never pops a vertex")
+
+
+func test_nothing_ever_stalls_the_swing_while_drivers_remain() -> void:
+	var cases := {
+		"bare spine": [_arm(), 1],
+		"clamped spine": [_clamped_arm(), 1],
+		"truss": [_truss(), 1],
+	}
+	for name: String in cases:
+		var state: BladeState = cases[name][0]
+		var r := _run(state, cases[name][1], BladeSim.DEFAULT_ITERATIONS, _GRIP_TURNS)
+		assert_gt(r.contact_samples, 0, "%s: must have touched" % name)
+		var hist: Array[BladeSwingClock.Bank] = r.clock.history
+		for k in range(1, hist.size()):
+			var before := _effective_progress(hist[k - 1])
+			var after := _effective_progress(hist[k])
+			if after <= before:
+				fail_test("%s: progress stopped at sample %d (%f -> %f)" % [name, k, before, after])
+				break
+		pass_test("%s checked" % name)
+
+
+## A floppy blade whose GRIP only grazes a plate — sitting just outboard of the
+## grip's circle, so the contact is near-radial and the grip's advance along
+## its arc is barely refused — still never breaks. A grip driven SQUARELY into
+## a plate does break, floppy or not: the driver is the most rigid case.
+func test_a_floppy_blade_whose_grip_grazes_a_plate_never_breaks() -> void:
 	var state := _arm()
-	var r := _run(state, 1, BladeSim.DEFAULT_ITERATIONS, 0.12)  # on the DRIVEN particle's circle
-	assert_true(r.clock.is_stalled(), "a driven grip vertex touching a plate stalls the clock")
-	assert_false(r.broke, "the grip stalls; it does not shatter (owner, 2026-09-07)")
-	var pivot: Vector2 = state.positions[0]
-	var last: PackedVector2Array = r.traj.samples[-1]
-	var mid: PackedVector2Array = r.traj.samples[r.traj.samples.size() / 2]
-	assert_almost_eq(last[1].distance_to(mid[1]), 0.0, 2.0 + BladeObstacleField.CONTACT_SLOP,
-			"the stalled grip holds its place on the plate")
-	assert_gt(last[3].distance_to(mid[3]), 5.0, "the free tip keeps flailing on its momentum")
-	assert_eq(pivot, last[0])
-
-
-func test_a_stalled_clock_never_advances_and_stays_monotonic() -> void:
+	var field := BladeObstacleField.new()
+	var graze_radius := _SPACING + _BUNKER_RADIUS + _RADIUS - _GRAZE_DEPTH
+	field.add_zone(Vector2.from_angle(_GRIP_TURNS * TAU) * graze_radius, _BUNKER_RADIUS)
+	state.obstacles = field
 	var clock := BladeSwingClock.new(_DURATION)
-	clock.tick(0.3, 1.0 / 480.0)
-	clock.stall()
-	assert_true(clock.is_stalled())
-	assert_eq(clock.warp(), 0.0)
-	var f := clock.progress()
-	assert_almost_eq(f, 0.25, 1e-6, "seeded from the nominal progress at the stall")
-	for i in 100:
-		clock.tick(0.3 + float(i) / 480.0, 1.0 / 480.0)
-		assert_eq(clock.progress(), f, "a stalled clock is frozen")
-	var bank := clock.capture()
-	var fresh := BladeSwingClock.new(_DURATION)
-	fresh.restore(bank)
-	assert_true(fresh.is_stalled(), "the stall is sim state and rides the Bank")
+	BladeSim.simulate(state, _drivers(state), _DURATION, BladeSim.DEFAULT_DT,
+			BladeSim.DEFAULT_ITERATIONS, 0.0, BladeSim.DEFAULT_SUBSTEPS, true, clock)
+	var peak := 0.0
+	for b: BladeObstacleField.Bank in field.history:
+		for z in b.strain.size():
+			peak = maxf(peak, b.strain[z])
+	gut.p("grip graze peak strain %.2f px (SHATTER_DISTANCE %.1f)" % [peak, BladeObstacleField.SHATTER_DISTANCE])
+	var square := _run(_arm(), 1, BladeSim.DEFAULT_ITERATIONS, _GRIP_TURNS)
+	gut.p("floppy grip square hit: peak %.2f px, broke=%s" % [square.drive_peak, square.broke])
+	assert_false(field._break_edge >= 0, "a grazing grip on a floppy blade must not break")
+
+
+## The owner's case: `(0 pivot)=(1 clamped grip)=(2)-(3)`, the plate placed so
+## the grip's disc AND vertex 2 both reach it (40-60% of a spacing inward from
+## 2's arc) — through the real resolve loop, so the armed break is consumed,
+## the edge severed and vertex 2 coasts free, within a bounded number of
+## samples of the first contact.
+func test_the_owners_clamped_chain_breaks_on_a_plate_both_grip_and_two_reach() -> void:
+	for inward in [0.4, 0.5, 0.6]:
+		_owners_case(inward)
+
+
+func _owners_case(inward: float) -> void:
+	var spacing := 100.0
+	var disc := 30.0  # big enough that both discs reach across the 40-60% band
+	var positions: Array[Vector2] = []
+	var edges: Array[Vector2i] = []
+	var radii: Array[float] = []
+	for i in 4:
+		positions.append(Vector2(float(i) * spacing, 0.0))
+		radii.append(disc)
+		if i > 0:
+			edges.append(Vector2i(i - 1, i))
+	var state := BladeState.build(positions, 0, edges, radii)
+	ClampAddon.append_weld_braces(state, 1)
+	var field := BladeObstacleField.new()
+	var center := Vector2.from_angle(0.15 * TAU) * (2.0 - inward) * spacing
+	field.add_zone(center, _BUNKER_RADIUS)
+	state.obstacles = field
+	var ctx := SwingContext.new()
+	ctx.state = state
+	ctx.drivers = [BladeArcDriver.new(1, Vector2.ZERO, spacing, 0.0, TAU, ctx.swing_duration)]
+	ctx.world = CombatWorld.shadow()
+	var run := SwingResolve.new(ctx)
+	run.advance(0)
+	var reach := _BUNKER_RADIUS + disc
+	var first_contact := -1
+	var samples: Array = run.result.trajectory.samples
+	for k in samples.size():
+		var pose: PackedVector2Array = samples[k]
+		if pose[1].distance_to(center) < reach or pose[2].distance_to(center) < reach:
+			first_contact = k
+			break
+	assert_gt(first_contact, 0, "inward %.1f: the blade must reach the plate" % inward)
+	var severances: Array = run.result.live_gate.result.severances
+	assert_false(severances.is_empty(), "inward %.1f: the jam must sever an edge" % inward)
+	var freed_at := -1.0
+	for sev in severances:
+		if Array(sev.vertices).has(2):
+			freed_at = sev.t
+			break
+	assert_gte(freed_at, 0.0, "inward %.1f: vertex 2 coasts free of the pivot after the break" % inward)
+	if freed_at >= 0.0 and first_contact > 0:
+		var after := int(round(freed_at / ctx.dt)) - first_contact
+		assert_lt(after, _BREAK_WITHIN_SAMPLES,
+				"inward %.1f: the break fires within the contact (%d samples after it)" % [inward, after])
+	assert_eq(state.removed_vertices.size(), 0, "ADR 0005: a bunker never pops a vertex")
+	ctx.world.free_shadow()
 
 
 # ── Acceptance 5: determinism, and the rewind contract ─────────────────────
