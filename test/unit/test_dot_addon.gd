@@ -209,7 +209,17 @@ func test_the_record_replays_the_toxic_status_at_the_landed_power() -> void:
 	more_stacks.operation = StatModifier.Operation.INCREASE
 	more_stacks.value = 50.0
 	_attacker.stat_board.add_modifier(more_stacks)
+	# The plate must outlive the swing in both worlds: a shadow cascade
+	# releases the stripped node's statuses, so a killed plate reads 0 there.
+	# The peer world snapshots the authority's landed row, so it is the DELTA
+	# that must match.
+	var sturdy := StatModifier.new()
+	sturdy.stat_id = &"node_health"
+	sturdy.operation = StatModifier.Operation.ADD_BASE
+	sturdy.value = 1000.0
+	_defender.stat_board.add_modifier(sturdy)
 	await _settle()
+	_plate.get_combat().refill(true)
 	var outcome := _plan().resolve_against(CombatWorld.live())
 	var landed := _status_hits(outcome)
 	assert_gt(landed.size(), 0, "fixture: a status landed")
@@ -229,8 +239,9 @@ func test_the_record_replays_the_toxic_status_at_the_landed_power() -> void:
 	assert_true(replayed[0].power_resolved, "rebuilt flat — the peer must not scale again")
 
 	var peer := CombatWorld.shadow()
+	var held := peer.combat_for(_plate).get_status_power(&"poison")
 	OutcomeApplier.apply(rebuilt, peer)
-	assert_almost_eq(peer.combat_for(_plate).get_status_power(&"poison"), authority_power, 0.0001,
+	assert_almost_eq(peer.combat_for(_plate).get_status_power(&"poison") - held, authority_power, 0.0001,
 			"the second world lands exactly what the authority landed")
 	peer.free_shadow()
 
