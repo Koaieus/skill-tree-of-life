@@ -42,8 +42,8 @@ const _MELEE_BODY_SCENE: PackedScene = preload("res://ui/hud/command_tray/bodies
 const _DEFAULT_STYLE: BladeStyle = preload("res://attack/melee/default_blade_style.tres")
 ## #781's tuning surface: the two addons that put a swing at either end of the
 ## rigidity range, painted onto the authored board at runtime.
-const _BUNKER_SCENE: PackedScene = preload("res://skill_node/addons/bunker_addon.tscn")
-const _CLAMP_SCENE: PackedScene = preload("res://skill_node/addons/clamp_addon.tscn")
+const _BUNKER_SCENE: PackedScene = preload("res://skill_node/addons/defs/bunker_addon.tscn")
+const _CLAMP_SCENE: PackedScene = preload("res://skill_node/addons/defs/clamp_addon.tscn")
 
 ## Room left around the authored layout when it is fitted to the panel.
 const _FIT_MARGIN: float = 40.0

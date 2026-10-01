@@ -13,7 +13,7 @@ extends GutTest
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _BOARD := preload("res://entity/default_entity_board.tres")
-const _BUNKER_SCENE := preload("res://skill_node/addons/bunker_addon.tscn")
+const _BUNKER_SCENE := preload("res://skill_node/addons/defs/bunker_addon.tscn")
 const _ADDON_SLOTS_DEF := preload("res://stats_system/defs/addon_slots.tres")
 
 var _node: SkillNode

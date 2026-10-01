@@ -464,7 +464,7 @@ func test_swing_drag_is_a_registered_stat_that_defaults_to_no_drag() -> void:
 func test_fortification_authors_a_swing_drag_modifier() -> void:
 	# The MAGNITUDE is the owner's to tune and is deliberately not pinned; that
 	# the addon carries the channel at all is the spec.
-	var addon := preload("res://skill_node/addons/fortification_addon.tscn") \
+	var addon := preload("res://skill_node/addons/defs/fortification_addon.tscn") \
 			.instantiate() as FortificationAddon
 	autofree(addon)
 	var ids: Array[StringName] = []

@@ -5,7 +5,7 @@
 [ext_resource type="PackedScene" uid="uid://dgog4rl3yb7mh" path="res://graph/edge.tscn" id="3_edge"]
 [ext_resource type="PackedScene" uid="uid://b8gxnt7y3a1pk" path="res://entity/entity.tscn" id="4_entity"]
 [ext_resource type="Script" uid="uid://ceaxdyhhuysdx" path="res://stats_system/pool_stat.gd" id="5_pyapj"]
-[ext_resource type="PackedScene" uid="uid://b1addon0spike" path="res://skill_node/addons/spike_ring_addon.tscn" id="5_spike"]
+[ext_resource type="PackedScene" uid="uid://b1addon0spike" path="res://skill_node/addons/defs/spike_ring_addon.tscn" id="5_spike"]
 [ext_resource type="Resource" path="res://entity/factions/player.tres" id="6_player_faction"]
 [ext_resource type="Script" uid="uid://drnlaxdudvq1t" path="res://stats_system/scalar_stat.gd" id="7_3tejr"]
 [ext_resource type="Script" uid="uid://che6xhl6srqh3" path="res://stats_system/stat_modifier.gd" id="24_54p5j"]

@@ -8,7 +8,7 @@ extends GutTest
 const _BOARD := preload("res://entity/default_entity_board.tres")
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _GRAPH_SCENE := preload("res://graph/graph.tscn")
-const _WATCHTOWER_SCENE := preload("res://skill_node/addons/watchtower_addon.tscn")
+const _WATCHTOWER_SCENE := preload("res://skill_node/addons/defs/watchtower_addon.tscn")
 
 
 func _spawn_node(graph: Node, nm: String) -> SkillNode:

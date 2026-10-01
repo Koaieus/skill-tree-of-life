@@ -5,11 +5,11 @@ extends GutTest
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _BOARD := preload("res://entity/default_entity_board.tres")
-const _BUNKER_SCENE := preload("res://skill_node/addons/bunker_addon.tscn")
-const _FORTIFICATION_SCENE := preload("res://skill_node/addons/fortification_addon.tscn")
-const _SPIKE_RING_SCENE := preload("res://skill_node/addons/spike_ring_addon.tscn")
-const _SKILL_DUST_SCENE := preload("res://skill_node/addons/skill_dust_addon.tscn")
-const _CLAMP_SCENE := preload("res://skill_node/addons/clamp_addon.tscn")
+const _BUNKER_SCENE := preload("res://skill_node/addons/defs/bunker_addon.tscn")
+const _FORTIFICATION_SCENE := preload("res://skill_node/addons/defs/fortification_addon.tscn")
+const _SPIKE_RING_SCENE := preload("res://skill_node/addons/defs/spike_ring_addon.tscn")
+const _SKILL_DUST_SCENE := preload("res://skill_node/addons/defs/skill_dust_addon.tscn")
+const _CLAMP_SCENE := preload("res://skill_node/addons/defs/clamp_addon.tscn")
 const _ID_CHIP_SCENE := preload("res://ui/tooltip_fan/panels/id_chip_panel.tscn")
 
 var _graph: Graph

@@ -208,7 +208,7 @@ func test_archetype_procgen_clamp_is_free_rigidity() -> void:
 	_ai_entity.core_location = pivot
 	_alloc.force_allocate(_ai_entity, c)
 	_alloc.force_allocate(_ai_entity, n1)
-	var clamp_scene := preload("res://skill_node/addons/clamp_addon.tscn")
+	var clamp_scene := preload("res://skill_node/addons/defs/clamp_addon.tscn")
 	var real_clamp := clamp_scene.instantiate() as ClampAddon
 	c.add_child(real_clamp)
 	await get_tree().process_frame
@@ -238,7 +238,7 @@ func test_archetype_never_proposes_a_clamp_on_a_full_slot_node() -> void:
 	# force_allocate gives allocation_level 1 -> addon_slots == 1; filling it
 	# with a DIFFERENT addon (not Clamp) leaves no slot AND no `has_addon`
 	# free-rigidity match, so this specifically exercises the slot gate.
-	var spike_scene := preload("res://skill_node/addons/spike_ring_addon.tscn")
+	var spike_scene := preload("res://skill_node/addons/defs/spike_ring_addon.tscn")
 	var spike := spike_scene.instantiate() as SpikeRingAddon
 	c.add_child(spike)
 	await get_tree().process_frame
@@ -262,7 +262,7 @@ func test_archetype_consecutive_gap_does_not_extend_the_handle() -> void:
 	_ai_entity.core_location = pivot
 	_alloc.force_allocate(_ai_entity, n1)
 	_alloc.force_allocate(_ai_entity, n2)
-	var spike_scene := preload("res://skill_node/addons/spike_ring_addon.tscn")
+	var spike_scene := preload("res://skill_node/addons/defs/spike_ring_addon.tscn")
 	var spike := spike_scene.instantiate() as SpikeRingAddon
 	n1.add_child(spike) # N1's one slot is spent -> can't be clamped
 	await get_tree().process_frame
@@ -416,7 +416,7 @@ func test_reach_prefers_a_spiked_node_over_a_farther_plain_one() -> void:
 	plain_far.global_position = Vector2(50.0, 50.0)
 	spiked_near.global_position = Vector2(50.0, -50.0)
 	var adjacency := {pivot: [plain_far, spiked_near], plain_far: [pivot], spiked_near: [pivot]}
-	var spike_scene := preload("res://skill_node/addons/spike_ring_addon.tscn")
+	var spike_scene := preload("res://skill_node/addons/defs/spike_ring_addon.tscn")
 	var spike := spike_scene.instantiate() as SpikeRingAddon
 	spiked_near.add_child(spike)
 	await get_tree().process_frame
@@ -468,7 +468,7 @@ func test_reach_continues_from_the_handle_tip() -> void:
 		pivot: [handle], handle: [pivot, branch_a, branch_b],
 		branch_a: [handle], branch_b: [handle],
 	}
-	var spike_scene := preload("res://skill_node/addons/spike_ring_addon.tscn")
+	var spike_scene := preload("res://skill_node/addons/defs/spike_ring_addon.tscn")
 	var spike := spike_scene.instantiate() as SpikeRingAddon
 	branch_b.add_child(spike)
 	await get_tree().process_frame
@@ -502,7 +502,7 @@ func test_phantom_clamp_matches_a_real_one_at_build_blade_state() -> void:
 	real_plan.source = source
 	var members: Array[SkillNode] = [joint, tip]
 	real_plan.blade_nodes = members
-	var clamp_scene := preload("res://skill_node/addons/clamp_addon.tscn")
+	var clamp_scene := preload("res://skill_node/addons/defs/clamp_addon.tscn")
 	var real_clamp := clamp_scene.instantiate() as ClampAddon
 	joint.add_child(real_clamp)
 	await get_tree().process_frame
@@ -568,7 +568,7 @@ func test_phantom_clamp_reaches_the_finalist_resolve() -> void:
 	real_plan.attacker = _ai_entity
 	real_plan.source = source
 	real_plan.blade_nodes = members
-	var clamp_scene := preload("res://skill_node/addons/clamp_addon.tscn")
+	var clamp_scene := preload("res://skill_node/addons/defs/clamp_addon.tscn")
 	var real_clamp := clamp_scene.instantiate() as ClampAddon
 	joint.add_child(real_clamp)
 	await get_tree().process_frame
@@ -720,7 +720,7 @@ func test_shape_risk_reflects_a_real_pop_and_is_tier_gated() -> void:
 
 	# Defensive spike on the target: whichever blade vertex sweeps into it
 	# pops (see BladePopResolver / test_spike_pop.gd's fixture pattern).
-	var spike_scene := preload("res://skill_node/addons/spike_ring_addon.tscn")
+	var spike_scene := preload("res://skill_node/addons/defs/spike_ring_addon.tscn")
 	var spike := spike_scene.instantiate() as SpikeRingAddon
 	var mod := StatModifier.new()
 	mod.stat_id = &"blade_damage"

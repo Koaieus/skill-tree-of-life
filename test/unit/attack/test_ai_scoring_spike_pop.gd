@@ -37,7 +37,7 @@ extends GutTest
 const _BOARD := preload("res://entity/default_entity_board.tres")
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _GRAPH_SCENE := preload("res://graph/graph.tscn")
-const _SPIKE_SCENE := preload("res://skill_node/addons/spike_ring_addon.tscn")
+const _SPIKE_SCENE := preload("res://skill_node/addons/defs/spike_ring_addon.tscn")
 
 const _SHORT := 150.0
 const _LONG := 400.0

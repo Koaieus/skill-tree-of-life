@@ -63,10 +63,10 @@ const _FACTION_BY_ID := {
 ## shipped addons — an "8-addon node" is a fixture one control away, not a
 ## procgen re-roll.
 const _ADDON_SCENES: Array[PackedScene] = [
-	preload("res://skill_node/addons/spike_ring_addon.tscn"),
-	preload("res://skill_node/addons/skill_dust_addon.tscn"),
-	preload("res://skill_node/addons/bunker_addon.tscn"),
-	preload("res://skill_node/addons/fortification_addon.tscn"),
+	preload("res://skill_node/addons/defs/spike_ring_addon.tscn"),
+	preload("res://skill_node/addons/defs/skill_dust_addon.tscn"),
+	preload("res://skill_node/addons/defs/bunker_addon.tscn"),
+	preload("res://skill_node/addons/defs/fortification_addon.tscn"),
 ]
 
 ## Per-index start delay when fanning in — matches [member TooltipFan.stagger_delay].

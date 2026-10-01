@@ -8,7 +8,7 @@ extends GutTest
 
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _GRAPH_SCENE := preload("res://graph/graph.tscn")
-const _SPIKE_SCENE := preload("res://skill_node/addons/spike_ring_addon.tscn")
+const _SPIKE_SCENE := preload("res://skill_node/addons/defs/spike_ring_addon.tscn")
 
 
 func _spawn_node(graph: Node, nm: String, stake: int) -> SkillNode:

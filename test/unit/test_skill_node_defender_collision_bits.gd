@@ -12,8 +12,8 @@ extends GutTest
 ## ui/frontmatter/menu_node_view.gd) depends on it.
 
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
-const _FORTIFICATION_SCENE := preload("res://skill_node/addons/fortification_addon.tscn")
-const _BUNKER_SCENE := preload("res://skill_node/addons/bunker_addon.tscn")
+const _FORTIFICATION_SCENE := preload("res://skill_node/addons/defs/fortification_addon.tscn")
+const _BUNKER_SCENE := preload("res://skill_node/addons/defs/bunker_addon.tscn")
 
 var _node: SkillNode
 

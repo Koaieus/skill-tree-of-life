@@ -6,8 +6,8 @@ extends GutTest
 ## tree re-entry, symmetric detach, and the direct-children-only scope.
 
 const SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
-const BUNKER_SCENE := preload("res://skill_node/addons/bunker_addon.tscn")
-const FORTIFICATION_SCENE := preload("res://skill_node/addons/fortification_addon.tscn")
+const BUNKER_SCENE := preload("res://skill_node/addons/defs/bunker_addon.tscn")
+const FORTIFICATION_SCENE := preload("res://skill_node/addons/defs/fortification_addon.tscn")
 const BOARD := preload("res://entity/default_entity_board.tres")
 
 var _node: SkillNode
@@ -132,12 +132,12 @@ func test_every_concrete_addon_scene_gets_the_base_z() -> void:
 	# each of these is a standalone scene carrying the base script, so there is
 	# no one .tscn a scene-level value could live in.
 	var scenes: Array[String] = [
-		"res://skill_node/addons/bunker_addon.tscn",
-		"res://skill_node/addons/fortification_addon.tscn",
-		"res://skill_node/addons/clamp_addon.tscn",
-		"res://skill_node/addons/spike_ring_addon.tscn",
-		"res://skill_node/addons/skill_dust_addon.tscn",
-		"res://skill_node/addons/watchtower_addon.tscn",
+		"res://skill_node/addons/defs/bunker_addon.tscn",
+		"res://skill_node/addons/defs/fortification_addon.tscn",
+		"res://skill_node/addons/defs/clamp_addon.tscn",
+		"res://skill_node/addons/defs/spike_ring_addon.tscn",
+		"res://skill_node/addons/defs/skill_dust_addon.tscn",
+		"res://skill_node/addons/defs/watchtower_addon.tscn",
 	]
 	add_child(_node)
 	await get_tree().process_frame

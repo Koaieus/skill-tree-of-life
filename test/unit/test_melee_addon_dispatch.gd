@@ -8,7 +8,7 @@ extends GutTest
 const _BOARD := preload("res://entity/default_entity_board.tres")
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _GRAPH_SCENE := preload("res://graph/graph.tscn")
-const _CLAMP_SCENE := preload("res://skill_node/addons/clamp_addon.tscn")
+const _CLAMP_SCENE := preload("res://skill_node/addons/defs/clamp_addon.tscn")
 
 var _graph: Graph
 var _alloc: AllocationSystem
@@ -85,7 +85,7 @@ func test_build_blade_state_dispatches_dot_addon_to_its_own_vertex_only() -> voi
 	_alloc.force_allocate(_entity, joint)
 	_alloc.force_allocate(_entity, tip)
 
-	var toxin := preload("res://skill_node/addons/toxin_addon.tscn").instantiate() as DotAddon
+	var toxin := preload("res://skill_node/addons/defs/toxin_addon.tscn").instantiate() as DotAddon
 	tip.add_child(toxin)
 	await get_tree().process_frame
 

@@ -39,7 +39,7 @@ extends GutTest
 const _BOARD := preload("res://entity/default_entity_board.tres")
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _GRAPH_SCENE := preload("res://graph/graph.tscn")
-const _FORTIFICATION_SCENE := preload("res://skill_node/addons/fortification_addon.tscn")
+const _FORTIFICATION_SCENE := preload("res://skill_node/addons/defs/fortification_addon.tscn")
 
 const _SPACING := 150.0
 

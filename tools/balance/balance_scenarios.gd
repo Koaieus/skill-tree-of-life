@@ -13,7 +13,7 @@ const _BALANCED := preload("res://entity/core/balanced_core.tres")
 const _BOARD := preload("res://entity/default_entity_board.tres")
 const _NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 ## The real authored armor addon (#332 invariants comment): +5 armor, node-local.
-const _BUNKER := preload("res://skill_node/addons/bunker_addon.tscn")
+const _BUNKER := preload("res://skill_node/addons/defs/bunker_addon.tscn")
 
 ## The full authored spell pool — the real `SpellDef` resources the magic
 ## readouts are computed against (#366; "full pool" per D-34). Preloaded so a

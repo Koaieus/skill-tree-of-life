@@ -12,11 +12,11 @@ extends GutTest
 const _BOARD := preload("res://entity/default_entity_board.tres")
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _GRAPH_SCENE := preload("res://graph/graph.tscn")
-const _TOXIN_SCENE := preload("res://skill_node/addons/toxin_addon.tscn")
+const _TOXIN_SCENE := preload("res://skill_node/addons/defs/toxin_addon.tscn")
 const _POISON := preload("res://effects/status/poison.tres")
 ## A rigid spine (mid welded) traces the nominal radius the plate sits on; a
 ## floppy one curls inward and misses — test_bunker_break_live.gd's finding.
-const _CLAMP_SCENE := preload("res://skill_node/addons/clamp_addon.tscn")
+const _CLAMP_SCENE := preload("res://skill_node/addons/defs/clamp_addon.tscn")
 
 const _SPACING := 150.0
 const _TURNS := 0.15

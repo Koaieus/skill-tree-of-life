@@ -2,7 +2,7 @@ extends GutTest
 
 ## AddonPoolEntry.mint() + AddonPool weighted pick.
 
-const _SPIKE_RING := preload("res://skill_node/addons/spike_ring_addon.tscn")
+const _SPIKE_RING := preload("res://skill_node/addons/defs/spike_ring_addon.tscn")
 
 
 func _rng(seed_value: int = 1) -> RandomNumberGenerator:

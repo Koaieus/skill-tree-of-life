@@ -14,7 +14,7 @@ extends GutTest
 
 const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _BOARD := preload("res://entity/default_entity_board.tres")
-const _CLAMP_ADDON := preload("res://skill_node/addons/clamp_addon.tscn")
+const _CLAMP_ADDON := preload("res://skill_node/addons/defs/clamp_addon.tscn")
 const _TEST_STATUS := preload("res://test/fixtures/status/test_status.tres")
 
 

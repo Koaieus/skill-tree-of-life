@@ -10,7 +10,7 @@ extends GutTest
 
 const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
-const _CLAMP_ADDON_SCENE := preload("res://skill_node/addons/clamp_addon.tscn")
+const _CLAMP_ADDON_SCENE := preload("res://skill_node/addons/defs/clamp_addon.tscn")
 
 var _graph: Graph
 var _nodes: Array[SkillNode]

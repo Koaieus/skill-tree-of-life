@@ -11,8 +11,8 @@ var _catalog: TempUpgradeCatalog = preload("res://attack/melee/temp_upgrade_cata
 const _BOARD := preload("res://entity/default_entity_board.tres")
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _GRAPH_SCENE := preload("res://graph/graph.tscn")
-const _CLAMP_SCENE := preload("res://skill_node/addons/clamp_addon.tscn")
-const _SPIKE_SCENE := preload("res://skill_node/addons/spike_ring_addon.tscn")
+const _CLAMP_SCENE := preload("res://skill_node/addons/defs/clamp_addon.tscn")
+const _SPIKE_SCENE := preload("res://skill_node/addons/defs/spike_ring_addon.tscn")
 
 var _graph: Graph
 var _alloc: AllocationSystem

@@ -186,7 +186,7 @@ func test_realloc_restores_spent_budget() -> void:
 
 # ── End-to-end: blunting reaches admit() through a real build_blade_state ────
 
-const _SPIKE_SCENE := preload("res://skill_node/addons/spike_ring_addon.tscn")
+const _SPIKE_SCENE := preload("res://skill_node/addons/defs/spike_ring_addon.tscn")
 
 
 ## Builds the ATTACKER's blade through the production path: pivot `source`

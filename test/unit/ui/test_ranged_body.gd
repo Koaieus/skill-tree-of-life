@@ -17,7 +17,7 @@ const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _BOARD := preload("res://entity/default_entity_board.tres")
 const _PLAYER_FACTION := preload("res://entity/factions/player.tres")
 const _NPC_FACTION := preload("res://entity/factions/npc.tres")
-const _WATCHTOWER_SCENE := preload("res://skill_node/addons/watchtower_addon.tscn")
+const _WATCHTOWER_SCENE := preload("res://skill_node/addons/defs/watchtower_addon.tscn")
 const _BODY_SCENE := preload("res://ui/hud/command_tray/bodies/ranged_body.tscn")
 
 const _POISON := &"poison"

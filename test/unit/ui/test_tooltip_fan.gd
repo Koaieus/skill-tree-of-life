@@ -24,8 +24,8 @@ extends GutTest
 const _FAN_SCENE := preload("res://ui/tooltip_fan/tooltip_fan.tscn")
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _BOARD := preload("res://entity/default_entity_board.tres")
-const _SPIKE_RING_ADDON := preload("res://skill_node/addons/spike_ring_addon.tscn")
-const _BUNKER_ADDON := preload("res://skill_node/addons/bunker_addon.tscn")
+const _SPIKE_RING_ADDON := preload("res://skill_node/addons/defs/spike_ring_addon.tscn")
+const _BUNKER_ADDON := preload("res://skill_node/addons/defs/bunker_addon.tscn")
 const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 
 const _MORE_INFO_ACTION := &"ui_more_info"
