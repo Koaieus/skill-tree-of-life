@@ -149,3 +149,90 @@ func test_health_chip_still_happens_when_skill_points_is_null() -> void:
 func test_cascade_always_wounds_one_sp_per_cascaded_node() -> void:
 	_nodes[1].take_damage(10000.0, null)  # cascade: N1 + N2
 	assert_eq(_wounded(), 2, "wound(1) fires once per cascaded node regardless of hp_per_node")
+
+
+# ── Wound before strip (#368) ────────────────────────────────────────────────
+
+## A fourth node, N3, hung off N1 — so depleting N1 islands N2 AND N3 and the
+## cascade is three nodes deep.
+func _add_leaf_off_n1() -> SkillNode:
+	var sn := _SKILL_NODE_SCENE.instantiate() as SkillNode
+	sn.name = "N3"
+	_graph.skill_nodes_container.add_child(sn)
+	_add_edge(_nodes[1], sn)
+	_alloc.force_allocate(_entity, sn)
+	return sn
+
+
+func _sp_max_mod() -> StatModifier:
+	var m := StatModifier.new()
+	m.stat_id = &"skill_points"
+	m.operation = StatModifier.Operation.ADD_BASE
+	m.value = 1.0
+	return m
+
+
+func test_bare_three_node_cascade_wounds_and_chips_each_node() -> void:
+	_add_leaf_off_n1()
+	_entity.stat_board.dealloc_damage.base_value = 2.0
+	var before := _entity.stat_board.health.current
+	_nodes[1].take_damage(10000.0, null)  # cascade: N1 + N2 + N3
+	assert_eq(_wounded(), 3, "one wound per cascaded node")
+	assert_almost_eq(before - _entity.stat_board.health.current, 6.0, 0.001,
+			"3 cascaded nodes x 2.0 dealloc_damage")
+	assert_false(_entity.is_dead, "headroom: the chip must not kill")
+
+
+func test_wound_lands_before_a_stripped_sp_max_modifier_shrinks_used() -> void:
+	# Each cascaded node grants +1 skill_points max; stripping it shrinks the
+	# max and so `used`, which `wound` clamps to. Wounding first keeps all 3.
+	var leaf := _add_leaf_off_n1()
+	for n: SkillNode in [_nodes[1], _nodes[2], leaf]:
+		_alloc.force_deallocate(n)
+		n.modifiers = [_sp_max_mod()]
+		_alloc.force_allocate(_entity, n)
+	# Pin `used` at exactly the cascade's 3 wounds, so every max-shrink a
+	# strip lands first eats a wound the clamp then drops.
+	var sp := _entity.stat_board.skill_points
+	sp.set_current(sp.current + float(sp.used - 3))
+	assert_eq(sp.used, 3, "arrange: used pinned at the cascade size")
+	_nodes[1].take_damage(10000.0, null)  # cascade: N1 + N2 + N3
+	assert_eq(_wounded(), 3, "wound before strip: no wound lost to the shrunk max")
+
+
+# ── Entity death through apply_cascade (#368) ────────────────────────────────
+
+func test_death_strips_every_node_core_last_without_wounds_or_chip() -> void:
+	var stripped: Array[SkillNode] = []
+	var spy := func(n: SkillNode, _prev: Entity) -> void: stripped.append(n)
+	_alloc.force_deallocated.connect(spy)
+	_entity.stat_board.dealloc_damage.base_value = 2.0
+	var hp_before := _entity.stat_board.health.current
+	var wounded_before := _wounded()
+	_alloc.deallocate_all_owned(_entity)
+	assert_eq(stripped.size(), 3, "force_deallocated once per owned node")
+	assert_eq(stripped.back(), _nodes[0], "the core goes last")
+	for n in _nodes:
+		assert_null(n.owned_by, "%s stripped" % n.name)
+	assert_eq(_wounded(), wounded_before, "death cleanup wounds nothing")
+	assert_almost_eq(_entity.stat_board.health.current, hp_before, 0.001,
+			"death cleanup chips nothing")
+
+
+func test_death_cleanup_routes_through_apply_cascade() -> void:
+	# The one driver: apply_cascade re-checks `owner() != self` per node, so a
+	# node already stripped under it is skipped rather than re-stripped.
+	var count := [0]
+	var spy := func(_n: SkillNode, _prev: Entity) -> void: count[0] += 1
+	_alloc.force_deallocated.connect(spy)
+	_alloc.deallocate_all_owned(_entity)
+	_alloc.deallocate_all_owned(_entity)
+	assert_eq(count[0], 3, "a second sweep finds nothing to strip")
+
+
+# ── SkillPointStat.wound tripwire (#368) ─────────────────────────────────────
+
+func test_wound_past_used_warns() -> void:
+	var sp := _entity.stat_board.skill_points
+	sp.wound(sp.used + 5)
+	assert_push_warning("wound")
