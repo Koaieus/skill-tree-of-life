@@ -64,4 +64,4 @@ func masked_neighbours(n: NodeCombat) -> Array[NodeCombat]:
 ## How many of [param n]'s neighbours are in [member mask] — the one owner of
 ## "degree inside a mask" (see docs/domain/degree.md).
 func masked_degree(n: NodeCombat) -> int:
-	return -1
+	return masked_neighbours(n).size()

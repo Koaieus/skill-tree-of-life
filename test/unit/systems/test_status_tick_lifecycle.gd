@@ -544,7 +544,7 @@ func test_a_spreading_def_ticks_decays_then_spreads_once_in_end_turn() -> void:
 	_alloc.force_allocate(a, n2)
 
 	var d := _def(&"seep", 0.0, 1.0)
-	d.spread = DiffusionSpread.new()
+	d.spread = FlatDiffusion.new()
 	n0.get_combat().apply_status(d, 4.0)
 
 	_tm.start_turn(a)

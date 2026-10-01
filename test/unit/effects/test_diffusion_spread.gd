@@ -1,6 +1,6 @@
 extends GutTest
 
-## #1260 — [DiffusionSpread]'s edge-local FLAT rule, unit-tier over a
+## #1260 — [FlatDiffusion]'s edge-local FLAT rule, unit-tier over a
 ## dictionary [StackField]: from the sweep's start snapshot, `u` moves 1 stack
 ## to a masked neighbour `v` iff `h_u − h_v ≥ max(min_diff, N_u + M_v)`.
 
@@ -62,7 +62,7 @@ func _field(heights: Array, edges: Array, order: Array = []) -> StackField:
 
 func _sweep(heights: Array, edges: Array) -> Array:
 	var f := _field(heights, edges)
-	SpreadApplier.apply(_def, DiffusionSpread.new().on_tick(f))
+	SpreadApplier.apply(_def, FlatDiffusion.new().on_tick(f))
 	return _heights(_pool.slice(0, heights.size()))
 
 
@@ -79,7 +79,7 @@ func _signature(transfers: Array[StackTransfer]) -> Array:
 func test_star_hub_zero_five_leaves_two_moves_nothing() -> void:
 	var edges := [[0, 1], [0, 2], [0, 3], [0, 4], [0, 5]]
 	var f := _field([0, 2, 2, 2, 2, 2], edges)
-	assert_eq(DiffusionSpread.new().on_tick(f).size(), 0, "M_hub = 5 > 2: no leaf feeds it")
+	assert_eq(FlatDiffusion.new().on_tick(f).size(), 0, "M_hub = 5 > 2: no leaf feeds it")
 
 
 func test_chain_three_one_levels_to_two_two() -> void:
@@ -92,7 +92,7 @@ func test_chain_five_three_zero_feeds_the_zero_not_the_shallow_three() -> void:
 
 func test_a_diff_below_min_diff_moves_nothing() -> void:
 	var f := _field([3, 2], [[0, 1]])
-	var rule := DiffusionSpread.new()
+	var rule := FlatDiffusion.new()
 	assert_eq(rule.on_tick(f).size(), 0, "diff 1 < min_diff 2")
 	f = _field([4, 1], [[0, 1]])
 	rule.min_diff = 4
@@ -139,7 +139,7 @@ func _sum(h: Array) -> int:
 func test_random_boards_conserve_descend_never_invert_never_revisit() -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = SEED
-	var rule := DiffusionSpread.new()
+	var rule := FlatDiffusion.new()
 	var failures := 0
 	for b in BOARDS:
 		var board := _random_board(rng)
@@ -174,7 +174,7 @@ func test_random_boards_conserve_descend_never_invert_never_revisit() -> void:
 func test_shuffled_iteration_order_yields_the_same_transfers() -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 4
-	var rule := DiffusionSpread.new()
+	var rule := FlatDiffusion.new()
 	for b in 100:
 		var board := _random_board(rng)
 		var h: Array = board[0]

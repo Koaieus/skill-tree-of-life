@@ -15,7 +15,7 @@ const _CURSE := preload("res://effects/status/curse.tres")
 ## Diffusion on the tick, spill on removal — one def that exercises both
 ## halves of the turn-end step, so the order between them is observable.
 class SpillingDiffusion:
-	extends DiffusionSpread
+	extends FlatDiffusion
 	var _spill := SpillSpread.new()
 
 	func on_removed(field: StackField, removed: Array[NodeCombat], cause: int) -> Array[StackTransfer]:
