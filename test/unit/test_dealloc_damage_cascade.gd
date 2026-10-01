@@ -191,11 +191,12 @@ func test_wound_lands_before_a_stripped_sp_max_modifier_shrinks_used() -> void:
 		_alloc.force_deallocate(n)
 		n.modifiers = [_sp_max_mod()]
 		_alloc.force_allocate(_entity, n)
-	# Pin `used` at exactly the cascade's 3 wounds, so every max-shrink a
-	# strip lands first eats a wound the clamp then drops.
+	# Each cascaded node costs `used` a wound AND a max-shrink. Pin `used` at
+	# 5 = 2*3 - 1: wound-first takes its 3rd wound before the 3rd shrink;
+	# strip-first has spent all 5 by then and the clamp drops that wound.
 	var sp := _entity.stat_board.skill_points
-	sp.set_current(sp.current + float(sp.used - 3))
-	assert_eq(sp.used, 3, "arrange: used pinned at the cascade size")
+	sp.set_current(sp.current + float(sp.used - 5))
+	assert_eq(sp.used, 5, "arrange: used pinned")
 	_nodes[1].take_damage(10000.0, null)  # cascade: N1 + N2 + N3
 	assert_eq(_wounded(), 3, "wound before strip: no wound lost to the shrunk max")
 

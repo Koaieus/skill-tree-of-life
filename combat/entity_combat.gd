@@ -678,11 +678,14 @@ func cascade_set(node: NodeCombat) -> Array[NodeCombat]:
 ## [AllocationVFX] draws from, and reimplementing those here is exactly the
 ## second implementation this method exists to delete.
 ##
-## [param charge] is the one knob, and it exists to MATCH the live path rather
-## than to add a mode: [method AllocationSystem.deallocate_all_owned] (death
-## cleanup) force-deallocates without wounding or chipping — an entity already
-## at 0 health is not further attrited — while the battle cascade does both.
-## [method simulate_entity_death] is the only caller that passes false.
+## [param charge] is the one knob: entity death strips without wounding or
+## chipping — an entity already at 0 health is not further attrited — while the
+## battle cascade does both. Death passes false in both worlds:
+## [method AllocationSystem.deallocate_all_owned] live, [method
+## simulate_entity_death] on a shadow.
+##
+## Per node: snapshot the entry, wound, strip, chip — in that order (see the
+## comments in the loop for why each pair is ordered).
 func apply_cascade(nodes: Array[NodeCombat], alloc: AllocationSystem = null,
 		charge: bool = true) -> Array[DeallocEntry]:
 	var entries: Array[DeallocEntry] = []
@@ -700,8 +703,7 @@ func apply_cascade(nodes: Array[NodeCombat], alloc: AllocationSystem = null,
 	if dealloc_stat != null:
 		hp_per_node = float(dealloc_stat.get_value())
 	for n in nodes:
-		# Re-checked per node, never hoisted — the live twin's
-		# `if n.owned_by != defender: continue` guard, kept. The chip below can
+		# Re-checked per node, never hoisted. The chip below can
 		# cross the owner's `health` 0 mid-loop, which fires `Events.entity_died`
 		# -> [method AllocationSystem.deallocate_all_owned] RE-ENTRANTLY and
 		# strips the rest of the set from under us. Without this, the nodes it
@@ -718,6 +720,12 @@ func apply_cascade(nodes: Array[NodeCombat], alloc: AllocationSystem = null,
 		entry.chip = hp_per_node * float(entry.allocation_level) if hp_per_node > 0.0 else 0.0
 		entry.was_core = core() == n
 		entry.revoked_labels = _granted_labels(entry.node)
+		# Wound BEFORE the strip: `wound` clamps to `used`, and a stripped
+		# node's modifier on `skill_points` max would shrink `used` first.
+		if b != null and charge:
+			var sp := b.get_stat(&"skill_points") as SkillPointStat
+			if sp != null:
+				sp.wound(entry.wound)
 		# ── The one branch: which strip verb. Everything else is shared. ──
 		if host != null:
 			if alloc == null:
@@ -732,16 +740,14 @@ func apply_cascade(nodes: Array[NodeCombat], alloc: AllocationSystem = null,
 			revoke_node(entry.node)
 			_strip_one(n)
 			dispatch(&"_on_node_deallocated", [entry.node, true])
-		if b != null and charge:
-			var sp := b.get_stat(&"skill_points") as SkillPointStat
-			if sp != null:
-				sp.wound(entry.wound)
-			if entry.chip > 0.0:
-				# #504: the core bar draws `health` directly and hears its
-				# `current_changed`, so the chip announces itself — nothing
-				# to record or patch for presentation. Through the one door
-				# (#995), never a bare deplete.
-				take_pool_damage(entry.chip, null)
+		if b != null and charge and entry.chip > 0.0:
+			# #504: the core bar draws `health` directly and hears its
+			# `current_changed`, so the chip announces itself — nothing to
+			# record or patch for presentation. Through the one door (#995),
+			# never a bare deplete. AFTER the strip: a chip that kills
+			# re-enters [method AllocationSystem.deallocate_all_owned], and the
+			# `owner() != self` guard above is written for that order.
+			take_pool_damage(entry.chip, null)
 		entries.append(entry)
 	return entries
 
@@ -759,8 +765,9 @@ func cascade_from(node: NodeCombat, alloc: AllocationSystem = null) -> Array[Dea
 ## Strip every node this entity owns — the whole-entity sweep, run on a SHADOW
 ## when its core `health` pool crosses 0 (see [method NodeCombat.take_damage]'s
 ## overflow branch). Goes through [method apply_cascade] like everything else,
-## so a simulated entity death charges its wounds and chips too; the live twin
-## is [method AllocationSystem.deallocate_all_owned].
+## with `charge` false — no wounds, no chip. Live death,
+## [method AllocationSystem.deallocate_all_owned], is the same call on the live
+## slice: one driver for both worlds.
 ##
 ## "Recursive" in the sense the acceptance criteria mean it: a core hit can
 ## chip `health` to 0, which strips the whole owned set in one sweep — there is

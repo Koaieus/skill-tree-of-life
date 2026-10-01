@@ -125,7 +125,12 @@ func refund(n: int) -> void:
 
 ## Forced-deallocation by attack: transfer N from used → wounded. Used drops
 ## (the node is gone), wounded climbs — SP doesn't return to current.
+##
+## [param n] past `used` is impossible by construction — the cascade wounds
+## before it strips — so it warns rather than clamping silently.
 func wound(n: int) -> void:
+	if n > used:
+		push_warning("SkillPointStat.wound(%d) exceeds used (%d); clamped" % [n, used])
 	var amount: int = min(n, used)
 	if amount <= 0:
 		return

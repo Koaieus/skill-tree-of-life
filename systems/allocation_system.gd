@@ -59,32 +59,41 @@ func _ready() -> void:
 
 
 ## Death cleanup (#18): strip a dead entity of every node it owns. Runs
-## SYNCHRONOUSLY even though death can fire mid-cascade — `health.deplete()`
-## inside BattleSystem's forced-dealloc loop (or SkillNode.take_damage) crosses
-## 0 → `depleted` → Entity.die() → this. That's safe: BattleSystem's loop guards
-## each step with `if n.owned_by != defender: continue`, so nodes we deallocate
-## here are simply skipped when control returns to it — the loop doesn't restart,
-## there's no re-entry. Synchronous is deliberately chosen over deferring: a
-## deferred `deallocate_all_owned(entity)` races GameRoot freeing the corpse, and
-## a deferred call whose Object arg is freed is dropped, orphaning the nodes
+## SYNCHRONOUSLY even though death can fire mid-cascade — a cascade chip inside
+## [method EntityCombat.apply_cascade] (or SkillNode.take_damage) crosses
+## `health` 0 → `depleted` → Entity.die() → this. That's safe: apply_cascade
+## re-checks `owner() != self` per node, so nodes stripped here are skipped when
+## control returns to the outer loop — no double strip, no restart.
+## Synchronous is deliberately chosen over deferring: a deferred
+## `deallocate_all_owned(entity)` races GameRoot freeing the corpse, and a
+## deferred call whose Object arg is freed is dropped, orphaning the nodes
 ## (owned_by a freed entity). See test_npc_death_via_bus_deallocates_before_free.
 func _on_entity_died(entity: Entity) -> void:
 	deallocate_all_owned(entity)
 
 
-## Force-deallocate every node the entity owns, via the same `force_deallocate`
-## primitive the battle cascade uses (so VFX shatter + `force_deallocated` fire
-## per node). The core node goes last — this is the only path that ever
-## force-deallocates a core. Public so concede / despawn flows can reuse it.
+## Strip every node the entity owns through the one cascade driver,
+## [method EntityCombat.apply_cascade] with `charge` false (no wounds, no chip),
+## exactly as a shadow's [method EntityCombat.simulate_entity_death] does — so
+## VFX shatter + `force_deallocated` fire per node via [method force_deallocate].
+## The core node goes last — this is the only path that ever force-deallocates a
+## core. Public so concede / despawn flows can reuse it.
 func deallocate_all_owned(entity: Entity) -> void:
 	if entity == null or graph == null:
 		return
+	entity.get_combat().apply_cascade(_owned_core_last(entity), self, false)
+
+
+## [param entity]'s owned [NodeCombat]s in graph order, its core moved last.
+func _owned_core_last(entity: Entity) -> Array[NodeCombat]:
+	var out: Array[NodeCombat] = []
 	var core := entity.core_location
 	for n in graph.get_skill_nodes():
 		if n != core and n.owned_by == entity:
-			force_deallocate(n)
+			out.append(n.get_combat())
 	if core != null and core.owned_by == entity:
-		force_deallocate(core)
+		out.append(core.get_combat())
+	return out
 
 
 ## Register scene-authored ownership with the SP accounting. Called by
