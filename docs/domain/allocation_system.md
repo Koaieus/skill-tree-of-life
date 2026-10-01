@@ -52,7 +52,7 @@ Per node, the order is fixed: **snapshot the entry → wound → strip → chip.
 - **Wound before strip.** `SkillPointStat.wound(n)` clamps to `used` (`max − current − wounded − staked`), and stripping a node whose modifier touches `skill_points` max shrinks `used` first — the wound would silently vanish. `wound` `push_warning`s when `n > used` as a tripwire.
 - **Chip after strip.** A chip that crosses `health` 0 kills synchronously → `deallocate_all_owned` → a nested `apply_cascade` strips the rest. The outer loop's per-node `n.owner() != self` re-check skips what the nested call took — that guard is written for strip-then-chip.
 
-`force_deallocate(node)` is the live **strip primitive** `apply_cascade` calls: it skips every guard above (no DP cost, no would-disconnect check, no core-protection), clears statuses, revokes the node's grants, nulls `owned_by`, dispatches `_on_node_deallocated`, and emits `force_deallocated`. It neither refunds nor wounds — the driver does that. Returns the previous owner.
+`force_deallocate(node)` is the live **strip primitive** `apply_cascade` calls: it skips every guard above (no DP cost, no would-disconnect check, no core-protection), releases statuses (a cascade has already released and noted them for the spill — see `effect-system.md`), revokes the node's grants, nulls `owned_by`, dispatches `_on_node_deallocated`, and emits `force_deallocated`. It neither refunds nor wounds — the driver does that. Returns the previous owner.
 
 ## Forced fill: `force_fill(node, level)`
 

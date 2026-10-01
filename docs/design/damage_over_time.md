@@ -14,7 +14,8 @@
 ## Cures still to build
 
 Fading (halving) and the topological cure (every deallocation path voids a
-node's statuses) ship. The owner called the topological cure *"not the most
+node's statuses — a spreading status such as Curse spills onto the node's
+owned neighbours first) ship. The owner called the topological cure *"not the most
 satisfying (bit hacky)"* — never the only cure. The choices still to come:
 
 1. **Connectedness cures** — follow-up issue. Decay scales with the node's

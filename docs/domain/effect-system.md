@@ -358,7 +358,8 @@ read is already correct.
   never receives. A beat: one `deallocate` / `deallocate_set`; one
   `schedule_index` group in `OutcomeApplier.apply`; one wave in
   `SpellResolver.resolve_against`; one turn-end tick step (flushed before its
-  diffusion sweep). A bare `force_deallocate` outside a cascade releases
+  diffusion sweep); a gate-flip command and an entity death
+  (`deallocate_all_owned`) each flush as their own beat. A bare `force_deallocate` outside a cascade releases
   without spilling. Curse is authored with `SpillSpread` (both triggers, 1.0,
   Mine). `network/graph_snapshot.gd` carries `(status id,
   power)` rows in resync, and `WorldFingerprint` folds them. Concrete defs:

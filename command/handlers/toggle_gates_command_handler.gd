@@ -33,6 +33,10 @@ func _apply(command: Command, actor: Entity, ctx: CommandContext) -> bool:
 		return false
 	ctx.allocation_system.apply_gate_flip_recorded(gates, actor,
 			ctx.resolve_nodes(cmd.stranded_ids))
+	# One command, one beat: the stranded set spills now. Here, not in
+	# apply_gate_flip_recorded — a fuse's flip lands inside an attack, whose
+	# schedule group is the beat (OutcomeApplier.apply flushes it).
+	CombatWorld.live().flush_removals()
 	return true
 
 
