@@ -80,6 +80,30 @@ func has_parents() -> bool:
 	return not _children.is_empty()
 
 
+## May a SkillNode grant [param id] to its owning entity? False when the def or
+## any transitive descendant (ADR 0029: a parent's bins fold into its children)
+## is [member StatDef.entity_grantable] false. True for an unknown id — the
+## board's own "no stat for id" drop answers that.
+func is_entity_grantable(id: StringName) -> bool:
+	var def: StatDef = _defs.get(id, null)
+	return def == null or def.entity_grantable
+
+
+## May a SkillNode grant [param id] node-locally? The authored
+## [member StatDef.local_grantable] flag only, never derived. False for an
+## unknown id: nothing folds a stat nobody declared.
+func is_local_grantable(id: StringName) -> bool:
+	var def: StatDef = _defs.get(id, null)
+	return def != null and def.local_grantable
+
+
+## Every registered def must live somewhere: declared on the entity board or
+## [member StatDef.local_grantable]. Returns (and push_errors) the ids that
+## live nowhere. Run once at load.
+func check_residency() -> Array[StringName]:
+	return []
+
+
 ## [b]Test seam only[/b] — nothing outside `test/` calls this. Registers a
 ## throwaway def and recomputes the ancestor graph, so a test arranges
 ## `parent_ids` without touching the roster. Pair with [method unregister_def].

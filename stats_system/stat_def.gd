@@ -44,6 +44,23 @@ enum ValueType { INT, FLOAT, BOOL }
 @export var lower_is_better: bool = false
 
 
+## May a SkillNode grant this stat [b]node-locally[/b] — an addon's
+## `local_modifiers`, an effect's node grant ([method EffectContext.grant])? True
+## iff production code folds it per node ([method SkillNode.get_local_value] and
+## kin). Default false: a local grant nobody folds is dead, so the local door
+## ([method SkillNode.add_local_modifier]) rejects it loudly. Governs a
+## SkillNode's routes only — loot and core classes write a board directly.
+@export var local_grantable: bool = false
+
+## May a SkillNode grant this stat [b]to its owning entity[/b] — a node's own
+## `modifiers`, an addon's `entity_modifiers`? False iff revoking the grant on a
+## strip corrupts a ledger (a node raising the `skill_points` cap left `used`
+## at -1 after a forced strip); a pool whose cap merely clamps stays true. A
+## parent is judged with its descendants ([method StatRegistry.is_entity_grantable]).
+## Governs a SkillNode's routes only — loot and core classes write a board directly.
+@export var entity_grantable: bool = true
+
+
 ## Short axis/inline label ("Strength" → "STR"). **Authored**, because
 ## truncation is not abbreviation: it only produces the right answer when the
 ## short form happens to be the first three letters, which is a coincidence of
