@@ -10,6 +10,7 @@ system decides the run is over, once, and says who won.
 | `VictorySystem` | `systems/victory_system.gd` | The **when** and the **once**. Reacts to death, latches, emits. |
 | `VictoryCondition` | `session/victory/victory_condition.gd` | The **what**. Pure `evaluate(ctx) -> RunOutcome?`. |
 | `LastCampStandingCondition` | `session/victory/last_camp_standing_condition.gd` | The first and default rule. |
+| `TurnLimitCondition` | `session/victory/turn_limit_condition.gd` | After N rounds, the highest-scoring camp wins (a bonus, below). |
 | `VictoryContext` | `session/victory_context.gd` | Everything a condition may read, snapshotted per evaluation. |
 | `RunOutcome` | `session/run_outcome.gd` | Pure data: `winning_camp`, `turn_count`. Point-of-view-free. |
 | `ContestantRule` | `session/victory/contestant_rule.gd` | The **who**. Pure `includes(ent) -> bool`, owned by the condition. |
@@ -125,6 +126,34 @@ world the mutation loop has already settled.
 
 `outcome` is the latch. Every death after the terminal one still fires the
 signal and must be ignored.
+
+## The turn limit — a bonus on the clock (#1257)
+
+`TurnLimitCondition` (`session/victory/turn_limit_condition.gd`): after `limit`
+rounds (or entity-turns — the `unit` enum, `ROUNDS` by default) the camp with
+the highest score wins. Score = summed `level` of the camp's living
+contestants, ties broken by summed `xp.current`; an exact tie is a DRAW. The
+scoring is one private method (`_camp_score`) so it can become a knob later.
+
+It ships as a **bonus** under `CombinedVictoryCondition`
+(`session/victory/turn_limit.tres`, `limit = 15`), so last-camp-standing still
+ends the run early. The lobby offers it on all three policies through
+`victory_options.tres` (a `target: "victory_condition"` override, #742), and
+rung 4's autoplay host picks it so every `mp:e2e` run is short.
+
+- **A round is the classic initiative round**, owned by `TurnManager`: it opens
+  with a roster of every living initiative carrier and completes when the last
+  member still waiting *ends* its turn (`rounds_completed`, `round_completed`).
+  A fast entity may act twice inside one; a mid-round joiner waits for the next
+  roster; a member that dies leaves it. Only turn order counts, so a uniform
+  change to initiative gain changes nothing.
+- **Sync:** the bookkeeping runs at the `turn_ended` sites, which
+  `EndTurnCommand` reaches on every peer at the same point; the resync
+  (`EntitySnapshot`'s turn cursor → `TurnManager.adopt_turn`) carries
+  `rounds_completed` and the open roster with `turns_taken`, adopted outright.
+- **Trigger:** `VictorySystem` also evaluates (deferred, latched) on
+  `TurnManager.turn_ended` — a clock condition has no death to wake it. The
+  condition reads `VictoryContext.rounds_completed`, never `TurnManager`.
 
 ## One definition of "the run ended"
 

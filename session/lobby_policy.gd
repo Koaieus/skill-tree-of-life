@@ -97,19 +97,11 @@ const MAX_CAMPS := 6
 ## The victory-condition ladder this route offers, or null for "no victory
 ## control" (#638 scope 3).
 ##
-## [b]The channel exists now (#742); a second CONDITION still does not.[/b]
-## #642's D15 rejected `TYPE_OBJECT` outright, so a lobby pick had no way to
-## reach [member Scenario.victory_condition] — #742 extended the override
-## channel to a Resource-typed leaf (a `target: "victory_condition"` override
-## whose `value` is a resource path), which is what makes this field wireable
-## at all. Authoring more than [LastCampStandingCondition] is still HARD out of
-## scope (#638's own call) — exactly one condition ships, so every policy that
-## "should offer a choice" authors this as an EMPTY [LobbyOptionSet] rather than
-## a one-entry one: [method OptionChoiceRow.set_choices] hides on an empty
-## ladder the same as on a null one, so the row lands wired (present in
-## [method _build_run_section], contributing overrides through
-## [constant LobbyScreen.KNOB_VICTORY]) but stays invisible until a second
-## condition exists elsewhere and a real option gets appended.
+## Each option writes a `target: "victory_condition"` override whose `value` is
+## a resource path (#742) — #642's D15 rejected `TYPE_OBJECT`, so a path is how
+## a lobby pick reaches [member Scenario.victory_condition]. Every shipped
+## policy wires `victory_options.tres`: last camp standing (the default) or the
+## turn limit (#1257), which rides as a bonus on the same floor.
 @export var victory_options: LobbyOptionSet = null
 
 ## The starter-arrangement ladder (#558), or null for "no arrangement control".

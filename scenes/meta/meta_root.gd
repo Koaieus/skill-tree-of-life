@@ -356,6 +356,14 @@ const _AUTOPLAY_MAP_SIZE_INDEX := 0
 ## SeatHandover.hand_seat_to_ai] — so a third camp of NPCs would only lengthen the
 ## run and blur which camp's victory is being agreed on.
 const _AUTOPLAY_AI_OPPONENTS := 0
+## The ladder index rung 4's autoplay host presses on the Victory row — "Turn
+## limit" in `ui/frontmatter/lobby_options/victory_options.tres`. A run that ends
+## by the turn limit is short and about the same length on every seed; ending by
+## last camp standing alone took 29–161 entity-turns, and that noise hid what
+## rung 4 measures. An index for the same reason as [constant
+## _AUTOPLAY_MAP_SIZE_INDEX]: which option is the turn limit is a fact about the
+## ladder.
+const _AUTOPLAY_VICTORY_INDEX := 1
 
 
 func _drive_lobby_from_cmdline() -> void:
@@ -451,4 +459,6 @@ func _apply_autoplay_preset() -> void:
 	var screen: LobbyScreen = lobby.screen
 	screen.set_ai_opponents(_AUTOPLAY_AI_OPPONENTS)
 	screen.pick_option(LobbyScreen.KNOB_MAP_SIZE, _AUTOPLAY_MAP_SIZE_INDEX)
-	print("[host] rung 4: autoplay preset — smallest map, %d AI opponents" % _AUTOPLAY_AI_OPPONENTS)
+	screen.pick_option(LobbyScreen.KNOB_VICTORY, _AUTOPLAY_VICTORY_INDEX)
+	print("[host] rung 4: autoplay preset — smallest map, turn-limit victory, %d AI opponents"
+			% _AUTOPLAY_AI_OPPONENTS)
