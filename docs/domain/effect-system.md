@@ -357,7 +357,8 @@ read is already correct.
   and `AllocationSystem._deallocate_unchecked` (cause DEALLOC) — and
   `CombatWorld.flush_removals()` runs each def's `spread.on_removed` once per
   beat over the beat's whole removed union, so a node stripped in that beat
-  never receives. A beat: one `deallocate` / `deallocate_set`; one
+  never receives. A beat fed a rebuilt record (a live replay) lands the
+  recorded transfers and computes nothing — spill is received, not reproduced. A beat: one `deallocate` / `deallocate_set`; one
   `schedule_index` group in `OutcomeApplier.apply`; one wave in
   `SpellResolver.resolve_against`; one turn-end tick step (flushed before its
   diffusion sweep); a gate-flip command flushes as its own beat; an
