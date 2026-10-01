@@ -250,21 +250,45 @@ func _ranks_before(a: SkillNode, b: SkillNode) -> bool:
 	return a.stable_id < b.stable_id
 
 
+## The firing squad: every firing position reads [code]CASTER[/code] from the
+## moment ranged mode is armed — spent ones too (a spent leaf still counts as
+## a reload contributor; its marker mutes on [method get_node_range_fill]
+## 0). [code]ORIGIN[/code] means "will fire": in range of the target with a
+## shot left, so a spent leaf never reads it.
 func get_node_role(node: SkillNode) -> HighlightRole:
 	if node == null or attacker == null:
 		return HighlightRole.NONE
 	if target != null and node == target:
 		return HighlightRole.HOSTILE_TARGET
 	if node.owned_by == attacker:
-		if get_firing_positions().has(node) and target != null:
-			var d := node.global_position.distance_to(target.global_position)
-			# Gold means "will fire": a spent leaf never reads ORIGIN.
-			var fires := d <= _leaf_range(node) and node.shots_left() > 0
-			return HighlightRole.ORIGIN if fires else HighlightRole.NONE
+		if get_firing_positions().has(node):
+			return HighlightRole.ORIGIN if _fires(node) else HighlightRole.CASTER
 		return HighlightRole.NONE
 	if node.ownership_bit(attacker) == SkillNode.Ownership.HOSTILE:
 		return HighlightRole.IN_RANGE
 	return HighlightRole.NONE
+
+
+## At the target when [param node] is an [code]ORIGIN[/code]; otherwise
+## outward, from a firing leaf's one owned neighbour to the leaf. ZERO for a
+## non-leaf or a lone node with no neighbour.
+func get_node_facing(node: SkillNode) -> Vector2:
+	if node == null or attacker == null or attacker.navigator == null:
+		return Vector2.ZERO
+	if not get_firing_positions().has(node):
+		return Vector2.ZERO
+	if _fires(node):
+		return (target.global_position - node.global_position).normalized()
+	var neighbours := attacker.navigator.neighbours_of(node)
+	if neighbours.size() != 1:
+		return Vector2.ZERO
+	return (node.global_position - neighbours[0].global_position).normalized()
+
+
+func _fires(leaf: SkillNode) -> bool:
+	if target == null or leaf.shots_left() <= 0:
+		return false
+	return leaf.global_position.distance_to(target.global_position) <= _leaf_range(leaf)
 
 
 func get_node_range(node: SkillNode) -> float:
