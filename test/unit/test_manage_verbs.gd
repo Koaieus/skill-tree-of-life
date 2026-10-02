@@ -329,11 +329,11 @@ func test_deallocate_cascade_offer_pushes_and_cancel_returns_to_deallocate() -> 
 func test_arming_stake_over_an_attack_switches_and_cancels_the_plan() -> void:
 	_wire_battle()
 	_ctl.on_attack_mode_requested(BattleSystem.AttackMode.MELEE)
-	assert_true(_battle.is_attacking, "precondition: melee armed")
+	assert_true((_ctl.armed_stack.attack_plan() != null), "precondition: melee armed")
 	watch_signals(_ctl.armed_stack)
 	_ctl.arm_verb(PlayerInputController.ManageVerb.STAKE)
 	assert_eq(_branch_types(), [ManageMode, StakeMode])
-	assert_false(_battle.is_attacking, "the switch cancelled the attack plan")
+	assert_false((_ctl.armed_stack.attack_plan() != null), "the switch cancelled the attack plan")
 	assert_signal_emit_count(_ctl.armed_stack, "changed", 1, "one arm, one change")
 
 

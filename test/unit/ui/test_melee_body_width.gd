@@ -107,7 +107,7 @@ func _build_star(leaf_count: int) -> void:
 ## The body, bound and laid out, with `blade` leaves picked into the blade.
 func _mount_body(blade: int) -> MeleeBody:
 	_ctl.arm_attack(BattleSystem.AttackMode.MELEE)
-	var plan := _battle.attack_plan as MeleeAttackPlan
+	var plan := _ctl.armed_stack.attack_plan() as MeleeAttackPlan
 	assert_not_null(plan, "fixture check: melee must be the active plan")
 	plan.attacker = _player
 	_ctl.route_left_click(_pivot)
@@ -359,7 +359,7 @@ func test_the_keys_are_dead_outside_melee() -> void:
 	await _build_star(3)
 	await _mount_body(2)
 	_ctl.arm_attack(BattleSystem.AttackMode.RANGED)
-	assert_eq(_battle.attack_mode, BattleSystem.AttackMode.RANGED,
+	assert_eq(_attack_mode(), BattleSystem.AttackMode.RANGED,
 			"fixture check: melee must actually be gone")
 
 	_press(&"ui_temp_upgrade_1")
@@ -451,3 +451,9 @@ func test_the_hotkeys_do_not_steal_the_debug_clipboard_key() -> void:
 		for ev in InputMap.action_get_events(action):
 			assert_ne((ev as InputEventKey).physical_keycode, KEY_C,
 					"%s must not take C from DebugClipboard" % action)
+
+
+## The armed attack level's mode, NONE with no attack level on the branch.
+func _attack_mode() -> BattleSystem.AttackMode:
+	var level := _ctl.armed_stack.find(AttackArmMode) as AttackArmMode
+	return level.mode if level != null else BattleSystem.AttackMode.NONE

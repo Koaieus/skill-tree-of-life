@@ -146,7 +146,7 @@ func test_reclick_active_tab_cancels_to_manage_without_double_lighting() -> void
 	_click(_by_mode(BattleSystem.AttackMode.RANGED))
 	_click(_by_mode(BattleSystem.AttackMode.RANGED))
 	assert_eq(_pressed_count(), 1, "cancel must not leave two lit")
-	assert_eq(BattleSystem.AttackMode.NONE, _battle.attack_mode)
+	assert_eq(BattleSystem.AttackMode.NONE, _attack_mode())
 	assert_eq(_lit_mode(), BattleSystem.AttackMode.NONE, "Manage reads as mode NONE")
 
 
@@ -156,7 +156,7 @@ func test_reclick_active_tab_cancels_to_manage_without_double_lighting() -> void
 ## the is_launching case below.
 func test_request_at_zero_ap_lands_and_lights_the_new_mode() -> void:
 	_click(_by_mode(BattleSystem.AttackMode.MELEE))
-	assert_eq(BattleSystem.AttackMode.MELEE, _battle.attack_mode)
+	assert_eq(BattleSystem.AttackMode.MELEE, _attack_mode())
 
 	_player.stat_board.action_points.base_value = 0.0
 	_ctl.player_can_act_changed.emit(_ctl.can_player_act())  # HudRoot's real gate path
@@ -164,14 +164,14 @@ func test_request_at_zero_ap_lands_and_lights_the_new_mode() -> void:
 	_click(_by_mode(BattleSystem.AttackMode.RANGED))
 
 	assert_eq(_pressed_count(), 1)
-	assert_eq(BattleSystem.AttackMode.RANGED, _battle.attack_mode,
+	assert_eq(BattleSystem.AttackMode.RANGED, _attack_mode(),
 			"0 AP does not drop a mode request — ranged is free")
 	assert_eq(_lit_mode(), BattleSystem.AttackMode.RANGED)
 
 
 func test_click_during_is_launching_does_not_desync_the_bar() -> void:
 	_click(_by_mode(BattleSystem.AttackMode.MELEE))
-	assert_eq(BattleSystem.AttackMode.MELEE, _battle.attack_mode)
+	assert_eq(BattleSystem.AttackMode.MELEE, _attack_mode())
 
 	# is_launching flips true with no signal of its own — the exact gap #464
 	# lives in — so the bar is deliberately left ENABLED here, same as
@@ -181,7 +181,13 @@ func test_click_during_is_launching_does_not_desync_the_bar() -> void:
 	_click(_by_mode(BattleSystem.AttackMode.RANGED))
 
 	assert_eq(_pressed_count(), 1)
-	assert_eq(BattleSystem.AttackMode.MELEE, _battle.attack_mode,
+	assert_eq(BattleSystem.AttackMode.MELEE, _attack_mode(),
 			"the request must have been silently dropped (is_launching)")
 	assert_eq(_lit_mode(), BattleSystem.AttackMode.MELEE,
 			"REGRESSION: the bar must not show Ranged lit while Melee is still armed")
+
+
+## The armed attack level's mode, NONE with no attack level on the branch.
+func _attack_mode() -> BattleSystem.AttackMode:
+	var level := _ctl.armed_stack.find(AttackArmMode) as AttackArmMode
+	return level.mode if level != null else BattleSystem.AttackMode.NONE

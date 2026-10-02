@@ -99,7 +99,7 @@ func before_each() -> void:
 
 ## The body bound to a melee plan whose blade is [param members].
 func _mount(members: Array[String]) -> MeleeBody:
-	_battle.request_attack_mode(BattleSystem.AttackMode.MELEE)
+	_ctl.arm_attack(BattleSystem.AttackMode.MELEE)
 	var plan := _plan()
 	assert_not_null(plan, "fixture: melee is the active plan")
 	plan.attacker = _attacker
@@ -118,7 +118,7 @@ func _mount(members: Array[String]) -> MeleeBody:
 
 
 func _plan() -> MeleeAttackPlan:
-	return _battle.attack_plan as MeleeAttackPlan
+	return _ctl.armed_stack.attack_plan() as MeleeAttackPlan
 
 
 func _scrubber(body: MeleeBody) -> FuseScrubber:

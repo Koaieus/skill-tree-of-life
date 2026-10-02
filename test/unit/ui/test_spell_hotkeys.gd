@@ -119,7 +119,7 @@ func test_tab_is_not_the_more_info_key() -> void:
 
 func test_a_digit_selects_the_spell_at_that_position() -> void:
 	var spells := _stock_book(4)
-	_battle.request_attack_mode(BattleSystem.AttackMode.MAGIC)
+	_ctl.arm_attack(BattleSystem.AttackMode.MAGIC)
 	_press(&"ui_select_spell_3")
 	assert_eq(_battle.selected_spell, spells[2], "the 3 key picks the THIRD spell")
 	_press(&"ui_select_spell_1")
@@ -128,7 +128,7 @@ func test_a_digit_selects_the_spell_at_that_position() -> void:
 
 func test_the_keypad_digit_does_the_same_thing() -> void:
 	var spells := _stock_book(4)
-	_battle.request_attack_mode(BattleSystem.AttackMode.MAGIC)
+	_ctl.arm_attack(BattleSystem.AttackMode.MAGIC)
 	_press(&"ui_select_spell_2", 1)
 	assert_eq(_battle.selected_spell, spells[1],
 			"KP 2 and 2 are one binding, not two that can drift")
@@ -136,7 +136,7 @@ func test_the_keypad_digit_does_the_same_thing() -> void:
 
 func test_a_digit_past_the_book_is_a_silent_no_op() -> void:
 	_stock_book(2)
-	_battle.request_attack_mode(BattleSystem.AttackMode.MAGIC)
+	_ctl.arm_attack(BattleSystem.AttackMode.MAGIC)
 	assert_false(_ctl._select_spell_at(7),
 			"unconsumed, so the key stays free for whatever wants it downstream")
 	assert_null(_battle.selected_spell)
@@ -144,8 +144,8 @@ func test_a_digit_past_the_book_is_a_silent_no_op() -> void:
 
 func test_the_digits_are_dead_outside_magic() -> void:
 	_stock_book(4)
-	_battle.request_attack_mode(BattleSystem.AttackMode.MELEE)
-	assert_eq(_battle.attack_mode, BattleSystem.AttackMode.MELEE,
+	_ctl.arm_attack(BattleSystem.AttackMode.MELEE)
+	assert_eq(_attack_mode(), BattleSystem.AttackMode.MELEE,
 			"fixture check: magic must actually be gone")
 	_press(&"ui_select_spell_1")
 	assert_null(_battle.selected_spell,
@@ -155,7 +155,7 @@ func test_the_digits_are_dead_outside_magic() -> void:
 
 func test_the_digits_are_dead_when_the_player_cannot_act() -> void:
 	_stock_book(4)
-	_battle.request_attack_mode(BattleSystem.AttackMode.MAGIC)
+	_ctl.arm_attack(BattleSystem.AttackMode.MAGIC)
 	_tm.adopt_turn(null, _tm.turns_taken)
 	assert_false(_ctl.can_player_act(), "fixture check: it is not the player's turn")
 	_press(&"ui_select_spell_1")
@@ -266,3 +266,9 @@ func test_the_mode_tabs_print_their_own_bound_keys() -> void:
 				"%s must print the key its shortcut actually uses" % node_name)
 		assert_eq((btn.get_node("%KeyChip") as KeyChip).text, expected[node_name],
 				"%s's chip must agree with its key_hint" % node_name)
+
+
+## The armed attack level's mode, NONE with no attack level on the branch.
+func _attack_mode() -> BattleSystem.AttackMode:
+	var level := _ctl.armed_stack.find(AttackArmMode) as AttackArmMode
+	return level.mode if level != null else BattleSystem.AttackMode.NONE
