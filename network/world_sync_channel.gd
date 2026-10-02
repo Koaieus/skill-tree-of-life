@@ -152,15 +152,15 @@ func send_run_setup(config: RunConfig, roster: ParticipantRoster) -> void:
 				[config.seed, roster.all().size() if roster != null else 0])
 
 
-## Host-side: the whole world, entities first — see [method _on_resync] for the
-## order it is applied in.
+## Host-side: the whole world as a [WorldImage], its two halves on two keys.
 func send_resync(reason: String, is_join_world: bool = false) -> void:
 	if graph == null or link == null:
 		return
+	var image := WorldImage.capture(graph)
 	if not link.send({
 		NetworkLink.KEY_KIND: KIND_RESYNC,
-		KEY_ENTITIES: EntitySnapshot.encode(graph),
-		KEY_SNAPSHOT: GraphSnapshot.encode(graph),
+		KEY_ENTITIES: image.entity_bytes,
+		KEY_SNAPSHOT: image.graph_bytes,
 		KEY_SUMMARY: reason,
 		KEY_JOIN: is_join_world,
 	}, NetworkConfig.Role.HOST):
@@ -208,17 +208,16 @@ func _on_resync_request(payload: Dictionary) -> void:
 	send_resync(reason, bool(payload.get(KEY_JOIN, false)))
 
 
-## Applied in dependency order: entities (spawn/remove), graph, the entities'
-## graph refs, HP (a pool clamps to a cap the owner's now-whole board decides),
-## then the turn cursor (its [signal TurnManager.turn_started] reaches the HUD,
-## so it must not fire over a half-restored world).
+## The world is put back by [method WorldImage.apply], which owns the order;
+## this method owns only the wire's flags around it.
 func _on_resync(payload: Dictionary) -> void:
 	if _role() != NetworkConfig.Role.CLIENT or graph == null:
 		return
-	var entity_bytes: PackedByteArray = payload.get(KEY_ENTITIES, PackedByteArray())
-	var graph_bytes: PackedByteArray = payload.get(KEY_SNAPSHOT, PackedByteArray())
+	var image := WorldImage.new(
+			payload.get(KEY_ENTITIES, PackedByteArray()),
+			payload.get(KEY_SNAPSHOT, PackedByteArray()))
 	var reason := String(payload.get(KEY_SUMMARY, ""))
-	if graph_bytes.is_empty():
+	if image.is_empty():
 		# `GraphSnapshot._unpack` reads a size header off the front, so an empty
 		# payload is a decode error, not a no-op.
 		_log("← resync with no graph half, dropped")
@@ -232,11 +231,7 @@ func _on_resync(payload: Dictionary) -> void:
 		# present" — a mid-run repair carries no flag and must always apply.
 		_log("← join world already applied, dropped — %s" % reason)
 		return
-	EntitySnapshot.decode(entity_bytes, graph, entity_spawner)
-	GraphSnapshot.decode(graph_bytes, graph)
-	EntitySnapshot.resolve_graph_refs(entity_bytes, graph, entity_spawner)
-	GraphSnapshot.restore_hp(graph_bytes, graph)
-	EntitySnapshot.restore_turn_cursor(entity_bytes, graph, turn_manager)
+	image.apply(graph, entity_spawner, turn_manager)
 	# The repair has landed: the next compare says whether it worked, and the
 	# world this peer was missing is now the host's, so the drop window is over.
 	_awaiting_resync = false
