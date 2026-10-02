@@ -9,12 +9,14 @@ var _catalog: TempUpgradeCatalog = preload("res://attack/melee/temp_upgrade_cata
 const _BOARD := preload("res://entity/default_entity_board.tres")
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _GRAPH_SCENE := preload("res://graph/graph.tscn")
+const _ArmingCtl := preload("res://test/fixtures/arming_ctl.gd")
 const _READOUT_SCENE := preload("res://ui/hud/combat_readout/combat_readout.tscn")
 
 var _graph: Graph
 var _alloc: AllocationSystem
 var _entity: Entity
 var _battle: BattleSystem
+var _ctl: PlayerInputController
 var _readout: CombatReadout
 
 
@@ -34,8 +36,15 @@ func before_each() -> void:
 	_entity = Entity.new()
 	_entity.stat_board = _BOARD.duplicate(true) as EntityStatBoard
 	_graph.add_child(_entity)
+	var tm: TurnManager = autofree(TurnManager.new())
+	add_child(tm)
+	tm.start_turn(_entity)
 	_battle = BattleSystem.new()
+	_battle.turn_manager = tm
+	_battle.allocation_system = _alloc
+	_battle.graph = _graph
 	add_child_autofree(_battle)
+	_ctl = _ArmingCtl.make(self, _graph, _alloc, _battle, tm, _entity)
 	_readout = _READOUT_SCENE.instantiate() as CombatReadout
 	add_child_autofree(_readout)
 	_readout.bind(_battle)
@@ -60,12 +69,18 @@ func _setup() -> Dictionary:
 	await get_tree().process_frame
 	for n in [source, joint, tip, outside]:
 		_alloc.force_allocate(_entity, n)
-	var plan := autofree(MeleeAttackPlan.new()) as MeleeAttackPlan
-	plan.attacker = _entity
-	plan.set_pivot(source)
-	plan.toggle_member(joint)
-	plan.toggle_member(tip)
-	return {"plan": plan, "joint": joint, "outside": outside}
+	return {"source": source, "joint": joint, "tip": tip, "outside": outside}
+
+
+## Arm melee through the seat's controller and select source - joint - tip on
+## the level's plan.
+func _arm_plan(ctx: Dictionary) -> MeleeAttackPlan:
+	_ctl.arm_attack(BattleSystem.AttackMode.MELEE)
+	var plan := _ctl.armed_stack.attack_plan() as MeleeAttackPlan
+	plan.set_pivot(ctx.source)
+	plan.toggle_member(ctx.joint)
+	plan.toggle_member(ctx.tip)
+	return plan
 
 
 func _damage_text() -> String:
@@ -78,9 +93,8 @@ func _render(v: Variant) -> String:
 
 func test_hovering_a_temp_spiked_member_shows_the_swing_value() -> void:
 	var ctx: Dictionary = await _setup()
-	var plan: MeleeAttackPlan = ctx.plan
 	var joint: SkillNode = ctx.joint
-	_battle.attack_plan = plan
+	var plan := _arm_plan(ctx)
 	assert_true(plan.apply_temp_upgrade(joint, preload("res://skill_node/addons/defs/spike_ring_addon.tscn")))
 	Events.skill_node_hovered.emit(joint)
 	var swing: Variant = plan.swing_value(joint, &"blade_damage")
@@ -92,11 +106,10 @@ func test_hovering_a_temp_spiked_member_shows_the_swing_value() -> void:
 
 func test_a_node_outside_the_plan_shows_what_it_shows_today() -> void:
 	var ctx: Dictionary = await _setup()
-	var plan: MeleeAttackPlan = ctx.plan
 	var outside: SkillNode = ctx.outside
 	Events.skill_node_hovered.emit(outside)
 	var before := _damage_text()
-	_battle.attack_plan = plan
+	var plan := _arm_plan(ctx)
 	assert_true(plan.apply_temp_upgrade(ctx.joint, preload("res://skill_node/addons/defs/spike_ring_addon.tscn")))
 	assert_null(plan.swing_value(outside, &"blade_damage"), "off the plan: no swing view")
 	Events.skill_node_hovered.emit(outside)
@@ -116,9 +129,8 @@ func test_no_melee_plan_shows_the_bare_local_value() -> void:
 
 func test_removing_the_temp_upgrade_updates_without_a_rehover() -> void:
 	var ctx: Dictionary = await _setup()
-	var plan: MeleeAttackPlan = ctx.plan
 	var joint: SkillNode = ctx.joint
-	_battle.attack_plan = plan
+	var plan := _arm_plan(ctx)
 	assert_true(plan.apply_temp_upgrade(joint, preload("res://skill_node/addons/defs/spike_ring_addon.tscn")))
 	Events.skill_node_hovered.emit(joint)
 	var spiked := _damage_text()

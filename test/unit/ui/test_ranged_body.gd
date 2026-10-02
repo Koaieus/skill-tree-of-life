@@ -18,6 +18,7 @@ const _BOARD := preload("res://entity/default_entity_board.tres")
 const _PLAYER_FACTION := preload("res://entity/factions/player.tres")
 const _NPC_FACTION := preload("res://entity/factions/npc.tres")
 const _WATCHTOWER_SCENE := preload("res://skill_node/addons/defs/watchtower_addon.tscn")
+const _ArmingCtl := preload("res://test/fixtures/arming_ctl.gd")
 const _BODY_SCENE := preload("res://ui/hud/command_tray/bodies/ranged_body.tscn")
 
 const _POISON := &"poison"
@@ -27,6 +28,7 @@ var _graph: Graph
 var _alloc: AllocationSystem
 var _tm: TurnManager
 var _battle: BattleSystem
+var _ctl: PlayerInputController
 var _attacker: Entity
 var _hostile: Entity
 var _mid: SkillNode
@@ -111,11 +113,13 @@ func before_each() -> void:
 	_attacker.stat_board.action_points.restore_to_full()
 
 	_battle = autofree(BattleSystem.new())
+	_battle.turn_manager = _tm
+	_battle.allocation_system = _alloc
+	_battle.graph = _graph
 	add_child(_battle)
-	_plan = RangedAttackPlan.new()
-	autofree(_plan)
-	_plan.attacker = _attacker
-	_battle.attack_plan = _plan
+	_ctl = _ArmingCtl.make(self, _graph, _alloc, _battle, _tm, _attacker)
+	_ctl.arm_attack(BattleSystem.AttackMode.RANGED)
+	_plan = _ctl.armed_stack.attack_plan() as RangedAttackPlan
 
 	_body = _BODY_SCENE.instantiate() as RangedBody
 	add_child_autofree(_body)
