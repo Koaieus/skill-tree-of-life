@@ -13,7 +13,7 @@ const _TEST_SLOT := "user://test_save_file.bin"
 ## without a version bump, and when a bump lands without its pin: bump the
 ## version, then add the new hash here.
 const _ROW_LAYOUT_PINS := {
-	1: "PIN_ME",
+	1: "8d2ad82f2df3252642749fab0700d38b3b7f3a4340a3344272186ebf0bc1bcb7",
 }
 
 
