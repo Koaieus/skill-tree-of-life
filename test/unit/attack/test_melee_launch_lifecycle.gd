@@ -12,6 +12,7 @@ var _catalog: TempUpgradeCatalog = preload("res://attack/melee/temp_upgrade_cata
 ## signal in command_tray.gd, never a fresh poll) doesn't stay disabled for
 ## the rest of the turn.
 
+const _ArmingCtl := preload("res://test/fixtures/arming_ctl.gd")
 const _BOARD := preload("res://entity/default_entity_board.tres")
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _GRAPH_SCENE := preload("res://graph/graph.tscn")
@@ -88,7 +89,9 @@ func test_launch_attack_melee_resets_is_launching_and_allows_a_second_attack() -
 	_alloc.force_allocate(_attacker, source)
 	_alloc.force_allocate(_attacker, joint)
 
-	var plan := _bs.new_plan(BattleSystem.AttackMode.MELEE, _bs.turn_manager.current_entity) as MeleeAttackPlan
+	var ctl := _ArmingCtl.make(self, _graph, _alloc, _bs, _tm, _attacker)
+	ctl.arm_attack(BattleSystem.AttackMode.MELEE)
+	var plan := ctl.armed_stack.attack_plan() as MeleeAttackPlan
 	plan.set_pivot(source)
 	plan.toggle_member(joint)
 	assert_true(plan.is_valid(), "fixture plan must be valid before launching")
@@ -102,7 +105,8 @@ func test_launch_attack_melee_resets_is_launching_and_allows_a_second_attack() -
 
 	# A second attack (spending the turn's remaining AP) must be arm-able —
 	# the exact flow that regressed: a fresh plan after the first swing.
-	var plan2 := _bs.new_plan(BattleSystem.AttackMode.MELEE, _attacker) as MeleeAttackPlan
+	ctl.arm_attack(BattleSystem.AttackMode.MELEE)
+	var plan2 := ctl.armed_stack.attack_plan() as MeleeAttackPlan
 	assert_not_null(plan2, "a second melee plan must be arm-able after the first swing")
 	plan2.set_pivot(source)
 	plan2.toggle_member(joint)

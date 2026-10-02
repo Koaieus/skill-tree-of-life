@@ -1,8 +1,8 @@
 extends GutTest
 ## #464: two CommandTray mode buttons could be lit at once / the wrong one lit.
 ##
-## Root cause (confirmed by repro, not just the original diagnosis): a request
-## `BattleSystem.request_attack_mode` silently drops — mid-swing,
+## Root cause (confirmed by repro, not just the original diagnosis): an arm request
+## (`PlayerInputController.arm_attack`) silently drops — mid-swing,
 ## since `is_launching` flips true with no signal of its own
 ## (`player_input_controller.gd:220-226`) — never fires `attack_plan_changed`,
 ## so `AttackModeBar.set_active_mode` never runs and the native click's own

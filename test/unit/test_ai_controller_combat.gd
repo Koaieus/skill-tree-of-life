@@ -361,7 +361,7 @@ func test_execute_candidate_arms_the_scored_clamp_as_a_real_addon() -> void:
 	_enemy.stat_board.blade_size.base_value = 3.0 # member (1) + clamp (1), with headroom
 	# Plain state, not `_tm.start_turn(_enemy)` — that would also fire the
 	# AI's own turn_started listener and race the manual _execute_candidate
-	# call below with a real independent take_turn(). request_attack_mode's
+	# call below with a real independent take_turn(). The AI's
 	# fresh plan only needs `turn_manager.current_entity` to stamp `attacker`.
 	_tm.start_turn(_enemy)
 	var candidate := AiCombatScorer.ScoredCandidate.new()
