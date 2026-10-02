@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-#MISE description="Skill feedback boards (GitHub Discussions): `mise run feedback -- post <charter> <kind> <file> | unanswered [<charter>] | reply <comment-id> <file>`"
+#MISE description="Skill feedback boards (GitHub Discussions): `mise run feedback -- post <charter> <kind> <file> | post --verbatim <charter> <file> | unanswered [<charter>] | reply <comment-id> <file>`"
 set -euo pipefail
 
 # Each charter's board is a Discussion titled `<charter> — skill feedback
@@ -80,16 +80,29 @@ add_comment() {
     | jq -r '.addDiscussionComment.comment.url'
 }
 
+# post [--verbatim] — --verbatim sends a file that already carries its header
+# (a post moved from another board) unchanged: no header, no kind.
 cmd_post() {
-  [ $# -eq 3 ] || usage
-  local charter=$1 kind=$2 file=$3
+  local verbatim="" charter kind="" file
+  [ "${1:-}" = --verbatim ] && { verbatim=1; shift; }
+  if [ -n "$verbatim" ]; then
+    [ $# -eq 2 ] || usage
+    charter=$1 file=$2
+  else
+    [ $# -eq 3 ] || usage
+    charter=$1 kind=$2 file=$3
+  fi
   [ "$charter" != README ] && [ -f "$root/docs/charters/$charter.md" ] \
     || die "no charter '$charter' (docs/charters/$charter.md)."
-  case " $KINDS " in *" $kind "*) ;; *) die "kind must be one of: $KINDS (got '$kind')." ;; esac
+  [ -n "$verbatim" ] || case " $KINDS " in *" $kind "*) ;; *) die "kind must be one of: $KINDS (got '$kind')." ;; esac
   [ -f "$file" ] || die "no such file: $file"
-  local id8=${CLAUDE_CODE_SESSION_ID:-}; id8=${id8:0:8}
-  { printf '**%s · %s · session %s**\n\n' "$(date +%F)" "$kind" "${id8:--}"
-    cat "$file"; } >"$tmp/body.md"
+  if [ -n "$verbatim" ]; then
+    cp "$file" "$tmp/body.md"
+  else
+    local id8=${CLAUDE_CODE_SESSION_ID:-}; id8=${id8:0:8}
+    { printf '**%s · %s · session %s**\n\n' "$(date +%F)" "$kind" "${id8:--}"
+      cat "$file"; } >"$tmp/body.md"
+  fi
   meta
   local id; id=$(board_id "$charter")
   if [ -z "$id" ]; then

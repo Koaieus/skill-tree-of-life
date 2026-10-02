@@ -55,6 +55,9 @@ small; a line that turns out to be noise is rejected in the fold, at no cost.
 header line `**<YYYY-MM-DD> · <kind> · session <id8>**` (id8 = the first
 eight characters of `$CLAUDE_CODE_SESSION_ID`) — do not type it; the file is
 just the finding, with what was observed kept apart from what is proposed.
+To move a post that already carries its header from one board to another,
+`mise run feedback -- post --verbatim <charter> <file>` sends the file
+unchanged — no header, no kind.
 
 **The fold pass** — whoever revises the charter (a rewrite, a `/handoff`
 sweep, a dedicated pass) works from
