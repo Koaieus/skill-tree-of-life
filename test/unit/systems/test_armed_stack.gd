@@ -212,3 +212,35 @@ func test_an_attack_level_refuses_to_push_mid_swing() -> void:
 	bs.is_launching = true
 	assert_false(ctl.arm_attack(BattleSystem.AttackMode.MELEE), "no arm while launching")
 	assert_null(ctl.armed_stack.attack_plan())
+
+
+func test_popping_the_attack_level_frees_the_plans_temp_upgrade_addons() -> void:
+	var f := _melee_fixture()
+	var ctl: PlayerInputController = f.ctl
+	var player: Entity = f.player
+	var graph: Graph = ctl.graph
+	player.stat_board.blade_size.base_value = 3.0
+	var nodes: Array[SkillNode] = []
+	for nm in ["Source", "Joint"]:
+		var sn := preload("res://skill_node/skill_node.tscn").instantiate() as SkillNode
+		sn.name = nm
+		graph.add_skill_node(sn)
+		nodes.append(sn)
+	graph.add_edge(nodes[0], nodes[1])
+	await get_tree().process_frame
+	for sn in nodes:
+		ctl.allocation_system.force_allocate(player, sn)
+
+	var melee := MeleeMode.new(ctl)
+	assert_true(ctl.armed_stack.push(melee), "fixture: melee arms")
+	var plan := ctl.armed_stack.attack_plan() as MeleeAttackPlan
+	plan.set_pivot(nodes[0])
+	plan.toggle_member(nodes[1])
+	var before := nodes[1].get_addons().size()
+	assert_true(plan.apply_temp_upgrade(nodes[1],
+			preload("res://skill_node/addons/defs/clamp_addon.tscn")), "fixture: upgrade staged")
+	assert_eq(nodes[1].get_addons().size(), before + 1)
+
+	ctl.armed_stack.pop(melee)
+	assert_eq(nodes[1].get_addons().size(), before, "popping the level frees the temp addon")
+	assert_true(plan.blade_nodes.is_empty(), "and resets the plan")
