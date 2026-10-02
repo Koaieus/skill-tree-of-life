@@ -121,33 +121,31 @@ func test_accumulate_stacks_and_clamps_at_power_max() -> void:
 const _AUTHORED: PoisonStatus = preload("res://effects/status/poison.tres")
 
 
-func test_authored_poison_shape_is_flat_uncapped_halving() -> void:
+func test_authored_poison_shape_is_flat_uncapped_one_stack_a_tick() -> void:
 	# Shape only — `damage_per_power` / the decay fraction are the model, not tuning.
 	assert_eq(_AUTHORED.basis, HitInstance.AmountBasis.FLAT)
 	assert_almost_eq(_AUTHORED.damage_per_power, 1.0, 0.0001, "flat 1 HP per stack per tick")
 	assert_true(_AUTHORED.power_max <= 0.0, "uncapped")
-	assert_true(_AUTHORED.decay is FractionDecay)
-	assert_almost_eq((_AUTHORED.decay as FractionDecay).fraction, 0.5, 0.0001, "halves")
+	assert_true(_AUTHORED.decay is FlatDecay)
+	assert_almost_eq((_AUTHORED.decay as FlatDecay).per_tick, 1.0, 0.0001, "loses one stack a tick")
 	assert_gt(_AUTHORED.display_max, 0.0, "an uncapped def authors its display anchor")
 	assert_eq(_AUTHORED.reapply, StatusDef.Reapply.ACCUMULATE)
 
 
-func test_twenty_stacks_of_authored_poison_deal_the_halving_series() -> void:
-	# 20, 10, 5, 2.5, 1.25 stacks over five ticks on a node of ANY max hp —
-	# stacks are floats, a tick mints stacks x damage_per_power, TRUE-typed
-	# (armor untouched and irrelevant), and the HP door rounds it up on landing
-	# (ADR 0033): 20 + 10 + 5 + 3 + 2 = 40.
-	_set_max_hp(100.0)
+func test_twenty_stacks_of_authored_poison_deal_the_one_a_tick_series() -> void:
+	# 20, 19, …, 1 whole stacks (ADR 0032) over twenty ticks on a node of ANY
+	# max hp — a tick mints stacks x damage_per_power, TRUE-typed (armor
+	# untouched and irrelevant): 20 + 19 + … + 1 = 210.
+	_set_max_hp(1000.0)
 	_combat().apply_status(_AUTHORED, 20.0)
-	var expected := [20.0, 10.0, 5.0, 2.5, 1.25]
-	var hp := 100.0
-	for dmg: float in expected:
+	var hp := 1000.0
+	for stacks in range(20, 0, -1):
 		_combat().tick_statuses()
-		hp -= ceilf(dmg)
-		assert_almost_eq(_nodes[0].get_current_hp(), hp, 0.001, "tick of %s lands %s" % [dmg, ceilf(dmg)])
-	assert_almost_eq(_nodes[0].get_current_hp(), 100.0 - 40.0, 0.001, "five ticks land 40")
+		hp -= float(stacks)
+		assert_almost_eq(_nodes[0].get_current_hp(), hp, 0.001, "tick of %d stacks lands %d" % [stacks, stacks])
+	assert_almost_eq(_nodes[0].get_current_hp(), 1000.0 - 210.0, 0.001, "twenty ticks land 210")
 	assert_almost_eq(_combat().get_status_power(&"poison"), 0.0, 0.001,
-			"0.625 < 1: cleared on the fifth tick")
+			"cleared on the twentieth tick")
 
 
 func test_authored_poison_is_not_clamped_on_a_big_apply() -> void:
@@ -166,10 +164,10 @@ func test_projected_status_damage_sums_the_remaining_ticks() -> void:
 	_set_max_hp(100.0)
 	assert_almost_eq(_combat().projected_status_damage(), 0.0, 0.0001, "no statuses")
 	_combat().apply_status(_AUTHORED, 20.0)
-	assert_almost_eq(_combat().projected_status_damage(), 40.0, 0.001,
-			"20 + 10 + 5 + 3 + 2: each tick rounded up as it lands; the 0.625 tail never ticks")
+	assert_almost_eq(_combat().projected_status_damage(), 210.0, 0.001,
+			"20 + 19 + … + 1: one stack lost a tick")
 	_combat().tick_statuses()
-	assert_almost_eq(_combat().projected_status_damage(), 20.0, 0.001, "shrinks as it ticks")
+	assert_almost_eq(_combat().projected_status_damage(), 190.0, 0.001, "shrinks as it ticks")
 
 
 func test_poisoned_node_does_not_regen_the_next_turn_starts_regen() -> void:

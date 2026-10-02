@@ -80,16 +80,17 @@ func _set_max_hp(hp: float) -> void:
 func test_ten_stacks_on_a_2000_hp_node_deal_the_halving_series() -> void:
 	_set_max_hp(2000.0)
 	_combat().apply_status(_def(), 10.0)
-	var expected := [400.0, 200.0, 100.0, 50.0]
+	# A halving test def on the int row keeps the floor: 10 → 5 → 2 → 1 → 0.
+	var expected := [400.0, 200.0, 80.0, 40.0]
 	var hp := 2000.0
 	for dmg: float in expected:
 		_combat().tick_statuses()
 		hp -= dmg
 		assert_almost_eq(_nodes[0].get_current_hp(), hp, 0.001, "tick deals %s" % dmg)
 	assert_almost_eq(_combat().get_status_power(&"corruption"), 0.0, 0.001,
-			"0.625 < 1: cleared on the fourth tick, the tail never lands")
+			"⌊1 × 0.5⌋ = 0: cleared on the fourth tick")
 	_combat().tick_statuses()
-	assert_almost_eq(_nodes[0].get_current_hp(), 1250.0, 0.001, "nothing left to tick")
+	assert_almost_eq(_nodes[0].get_current_hp(), 1280.0, 0.001, "nothing left to tick")
 
 
 func test_ten_stacks_on_a_20_hp_node_deal_four_first() -> void:
@@ -124,17 +125,17 @@ func test_projected_damage_sums_the_remaining_ticks_against_max_hp() -> void:
 	_set_max_hp(2000.0)
 	assert_almost_eq(_combat().projected_status_damage(), 0.0, 0.0001, "no statuses")
 	_combat().apply_status(_def(), 10.0)
-	assert_almost_eq(_combat().projected_status_damage(), 750.0, 0.001,
-			"400 + 200 + 100 + 50; the 0.625-stack tail never ticks")
+	assert_almost_eq(_combat().projected_status_damage(), 720.0, 0.001,
+			"10, 5, 2, 1 stacks: 400 + 200 + 80 + 40")
 	_combat().tick_statuses()
-	assert_almost_eq(_combat().projected_status_damage(), 350.0, 0.001, "shrinks as it ticks")
+	assert_almost_eq(_combat().projected_status_damage(), 320.0, 0.001, "shrinks as it ticks")
 
 
 func test_projected_damage_rounds_each_tick_up_as_it_lands() -> void:
-	# 1237 hp makes every term fractional: 247.4, 123.7, 61.85, 30.925.
+	# 1237 hp makes every term fractional: 10, 5, 2, 1 stacks → 247.4, 123.7, 49.48, 24.74.
 	_set_max_hp(1237.0)
 	_combat().apply_status(_def(), 10.0)
-	var expected := ceilf(247.4) + ceilf(123.7) + ceilf(61.85) + ceilf(30.925)
+	var expected := ceilf(247.4) + ceilf(123.7) + ceilf(49.48) + ceilf(24.74)
 	assert_almost_eq(_combat().projected_status_damage(), expected, 0.001,
 			"each tick rounded up through the landing rule, never the unrounded series")
 	var before := _nodes[0].get_current_hp()
@@ -201,9 +202,8 @@ func test_authored_corruption_loads_with_the_model_shape() -> void:
 	assert_eq(c.stacks_stat_id, &"corruption_stacks_per_hit")
 	assert_eq(c.resistance_stat_id, &"corruption_resistance")
 	assert_true(c.power_max <= 0.0, "uncapped")
-	# Decay shape is pinned by test_status_decay_shapes; the rate is the owner's
-	# knob (#1091: 0.2 — FractionDecay.fraction is REMOVED; the owner's
-	# table f is the fraction RETAINED), so no magnitude is pinned here.
+	# No decay for now (owner, 2026-10-01; interim until #1203).
+	assert_null(c.decay, "corruption does not decay")
 	assert_gt(c.display_max, 0.0, "an uncapped def authors its display anchor")
 	assert_eq(c.reapply, StatusDef.Reapply.ACCUMULATE)
 	assert_gt(c.damage_per_power, 0.0, "deals something per stack")
