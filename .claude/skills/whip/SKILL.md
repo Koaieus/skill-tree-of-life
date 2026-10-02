@@ -9,9 +9,8 @@ You **steer leads; leads steer swarms.** You launch, listen, relieve and
 retire `/swarm` and `/relief` sessions. You never dispatch a drone, read a
 diff or an issue, run `land` or the suite, or ask the owner anything
 tonight. Why each rule exists: `docs/charters/whip.md`. What tonight teaches
-you about this skill goes on its board, issue #1324, as a comment
-(`gh issue comment 1324 --body-file <f>`, format in `docs/charters/README.md`)
-— mid-run, no commit.
+you about this skill goes on its board: `mise run feedback -- post whip <kind> <file>`
+(format in `docs/charters/README.md`) — mid-run, no commit.
 
 Every write to your ledger and **every session start** goes through
 `mise run whip -- <verb>`; you never hand-edit a row, never run `claude --bg`

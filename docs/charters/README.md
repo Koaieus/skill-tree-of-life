@@ -37,10 +37,11 @@ Charters so far: [drone](drone.md), [swarmify](swarmify.md), [swarm](swarm.md), 
 A charter's incident corpus used to grow only when someone edited the
 charter — a commit on the shared master, impossible for a `--bg` session
 mid-run and forgotten by everyone else. So **each charter gets one GitHub
-issue as its board**, labelled `skill-feedback`, linked from the charter's
-header (`**Feedback board: #n**`), and its instruction file carries one line
-saying where the board is and when to post. Boards so far: whip (#1324);
-the rest are tracked in #1325.
+Discussion as its board**, in the `Skill feedback` category, titled
+`<charter> — skill feedback board` and created by the first post. Skills
+point at `mise run feedback`, never at a board number; one unscoped
+breadcrule (`.claude/rules/skill-feedback.md`) carries the "where to post"
+line for every skill.
 
 **When to post** — any session that, while *using* the skill, learns
 something the skill or charter does not say: a gotcha, a friction, a probe
@@ -48,17 +49,19 @@ result, a law candidate, an autopsy. Post it where you are, when you learn
 it; a finding that waits for a handoff is usually lost. Nothing is too
 small; a line that turns out to be noise is rejected in the fold, at no cost.
 
-**The post** — one comment, `gh issue comment <n> --body-file <f>` (never
-`--body "…"` with backticks). First line:
-`**<YYYY-MM-DD> · <kind> · session <id8>**` with the kind one of
-`gotcha | friction | probe | law-candidate | autopsy` and the id the first
-eight characters of `$CLAUDE_CODE_SESSION_ID`; then the finding, with what
-was observed kept apart from what is proposed.
+**The post** — write the finding to a file, then
+`mise run feedback -- post <charter> <kind> <file>` with the kind one of
+`gotcha | friction | probe | law-candidate | autopsy`. The verb prepends the
+header line `**<YYYY-MM-DD> · <kind> · session <id8>**` (id8 = the first
+eight characters of `$CLAUDE_CODE_SESSION_ID`) — do not type it; the file is
+just the finding, with what was observed kept apart from what is proposed.
 
 **The fold pass** — whoever revises the charter (a rewrite, a `/handoff`
-sweep, a dedicated pass) reads every post with no reply, folds each into the
+sweep, a dedicated pass) works from
+`mise run feedback -- unanswered [<charter>]`, folds each post into the
 charter — a law, a corpus row, a fork, a follow-up — and from there into the
-derived instruction file, commits, then replies on the post with
+derived instruction file, commits, then answers with
+`mise run feedback -- reply <comment-id> <file>`, the file reading
 `folded in <sha>` or `rejected: <why>`. **Unanswered = unprocessed.** The
 charter keeps a short *Fold digest* section (date · kind → what it became),
 so a repo grep still finds the substance without the board.

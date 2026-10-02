@@ -6,8 +6,8 @@ then re-derive the file. See [README](README.md) for the protocol. Sibling
 charters: [swarm](swarm.md) (the lead Whip steers), [relief](relief.md)
 (the fresh lead Whip launches when one dies or nears its ceiling),
 [swarmify](swarmify.md) (the day-time gate that fills the queue Whip drains).
-**Feedback board: [#1324](https://github.com/Koaieus/skill-tree-of-life/issues/1324)**
-— post there what a run teaches; the fold digest is at the end of this file.
+**Feedback board: `whip — skill feedback board`** (Discussions, `Skill feedback`)
+— post there what a run teaches (`mise run feedback -- post whip <kind> <file>`); the fold digest is at the end of this file.
 
 This charter was designed before the first night and **rewritten after it**
 (run #1319, 2026-10-02; the autopsy is the board's first post). Laws marked
@@ -334,7 +334,7 @@ knob waits on the first clean night's `tasks_peak`.
   not verified; what `done`/`report` do when a `gh` call fails mid-night is
   untraced; Whip's own self-relief has never fired.
 
-## Fold digest — board [#1324](https://github.com/Koaieus/skill-tree-of-life/issues/1324)
+## Fold digest — board `whip — skill feedback board` (Discussions, `Skill feedback`)
 
 What the board's processed posts became, so `grep` on the repo still finds
 the substance. One line per fold; the post holds the detail.
