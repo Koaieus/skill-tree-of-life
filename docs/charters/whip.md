@@ -105,7 +105,10 @@ Overnight the budget is **tokens per 5-hour window, twice over**, and
    watchdog finds Whip by `whip_session == sessionId`, never by name. Leads
    still `SendMessage(to: "whip")`, and the CLI auto-renames a second
    `whip`, so `start` refuses from a session not named `whip` (the fix is
-   `/rename whip`) **and from an interactive session**: an interactive Whip
+   `/rename whip`) **and from an interactive session**; `start` and the
+   watchdog's self-relief launch record the id, and `claim` is the fallback
+   when the ledger's id is not the running Whip's (an owner-started
+   relief); an interactive Whip
    sits in the terminal's cgroup, and a flagless resume of it carries no
    saved name/mode/model, so it would come back unaddressable while the
    watchdog's verify sees "present". Whip is launched `claude --bg -n whip
@@ -249,7 +252,7 @@ Overnight the budget is **tokens per 5-hour window, twice over**, and
 **The morning report**
 
 24. **The report is a diff against the start snapshot, not a narrative**
-    (*mined*: the first morning's report, corpus row 11).
+    (*mined*: the first morning's report, corpus row 12).
     `whip-report-<date>.md` (tracked) and a comment on the run issue, from
     the ledger plus the board plus `git log <start-sha>..master`: Landed,
     Back to Needs design, Still Ready (with the noted why), **Orphaned In
@@ -329,7 +332,7 @@ night; once the peak is on file, the knob and the alarm are one decision.
 - Whether env vars set on `claude --bg` reach the session at all (spares are
   pre-spawned by the daemon); the daemon unit's env carries
   `DISABLE_AUTOUPDATER=1` on that assumption.
-- **`report` still renders the first morning's shape** (corpus row 11, law
+- **`report` still renders the first morning's shape** (corpus row 12, law
   24 says the wanted one): no Orphaned-In-progress bucket, `Filed` filtered
   by local date, Incidents uncollapsed and un-stripped, the timer teardown
   unannounced. Tool work with a `whip-selftest` check first; a sibling unit.
@@ -370,7 +373,7 @@ the substance. One line per fold; the post holds the detail.
   laws 15, 21, 26, 27; open follow-ups.
 - 2026-10-02 · tool bug (`report`: orphaned In-progress bucket missing,
   `Filed` on a local date, 136-line Incidents, silent timer teardown) → law
-  24's bucket list, corpus row 11; the tool fix is an open follow-up.
+  24's bucket list, corpus row 12; the tool fix is an open follow-up.
 - 2026-10-02 · black swan (19:32 gh-shim fork bomb under a lead; `pkill`
   loses to the chain; spike alarm proposed) → corpus row 1's kill recipe;
   the alarm parked under fork D with the `TasksMax` knob.
