@@ -198,6 +198,9 @@ all: the client's number crept wrong and nothing will ever notice.
 2. **A desync verdict.** `WorldSyncChannel._report_sync` finds the two fingerprints
    disagree, and the authority pushes the same pair as one `KIND_RESYNC`.
 
+Both are one `WorldImage` (`network/world_image.gd`, ADR 0042): `capture` on the
+authority, `apply` on the peer — which owns the apply order; the channel keeps only the wire flags.
+
 **A green fingerprint is not a green join** (#715). The fold answers "do our two
 worlds agree", and it answered YES on a join where the client had decoded the
 host's 800 nodes perfectly and then sat there forever without ever taking a turn

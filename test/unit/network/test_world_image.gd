@@ -198,3 +198,4 @@ func test_the_disk_form_round_trips() -> void:
 	var reread := WorldImage.from_bytes(image.to_bytes())
 	assert_not_null(reread)
 	assert_eq(reread.to_bytes(), image.to_bytes(), "to_bytes ∘ from_bytes is the identity")
+

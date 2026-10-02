@@ -63,6 +63,7 @@ mise run adr-hygiene     # frontmatter, supersede links, index coverage, immutab
 | [0039](0039-spell-power-is-gated-by-four-conditions-not-by-damage-tuning.md) | Spell power is gated by four independent conditions — knowing the spell, entity degree at the cast node, mana, range from the cast node — never by tuning damage down | accepted | 2026-08-03 | spells, balance, degree, mana, range, design |
 | [0040](0040-statuses-tick-at-the-end-of-the-afflicted-entitys-turn.md) | Statuses tick at the END of the afflicted entity's turn, both hosts in one beat — never at turn start, never per family; a last action before a DoT death is intended | accepted | 2026-09-30 | combat, status, dot, turn, design |
 | [0041](0041-special-arrows-bank-outside-the-quiver-capacity.md) | Special arrows bank outside the quiver's capacity, each type under its own `max_stock`; the `arrows` pool's current/max are the plain arrows only (supersedes 0019 in part) | accepted | 2026-10-01 | ranged, combat, stats, architecture |
+| [0042](0042-a-save-is-the-join-world-written-to-disk.md) | A save is the join world written to disk; `WorldImage` is the one capture/apply owner, the wire and the disk its transports | accepted | 2026-10-02 | save, multiplayer, netcode, architecture |
 
 ## Pre-ADR log
 
