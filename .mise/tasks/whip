@@ -208,9 +208,14 @@ def prompt_session(st, sid, prompt, action):
 def cmd_start(a):
     me = os.environ.get("CLAUDE_CODE_SESSION_ID", "")
     mine = by_session(agents(), me) if me else None
+    if mine and mine.get("kind") != "background":
+        sys.exit("this is an interactive session: it lives in this terminal's cgroup and a watchdog resume of it would carry no "
+                 "saved name/mode/model. Launch Whip as a bg session under the fleet's daemon unit instead:\n"
+                 "  mise run whip -- daemon start && claude --bg -n whip --permission-mode bypassPermissions --model sonnet \"/whip\"\n"
+                 "then `claude attach whip` (or Remote Control) to watch it.")
     if mine and mine.get("name") != "whip":
         sys.exit(f"this session is named {mine.get('name')!r}; leads report to the session named 'whip' — "
-                 "`/rename whip` (or launch with `claude -n whip`), then start again")
+                 "`/rename whip`, then start again")
     linger = sh(f"loginctl show-user {os.environ.get('USER', '')} -p Linger").strip()
     print("OWNER, before you go to bed (Whip may not run these):")
     print(f"  {linger or 'Linger=?'} — if no: `loginctl enable-linger` so the timer and the fleet survive a logout")

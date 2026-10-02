@@ -31,8 +31,12 @@ train that has a lead. Continue at §3.
 
 ## 1. Start — the owner's last act awake, then the snapshot
 
-Your session must be named `whip` (`/rename whip` if not — `start` refuses
-otherwise, because leads report to that name).
+You must be a `--bg` session named `whip` — `start` refuses otherwise
+(leads report to that name; an interactive session cannot be resumed by the
+watchdog). The owner launches you as
+`mise run whip -- daemon start && claude --bg -n whip --permission-mode
+bypassPermissions --model sonnet "/whip"` and watches via `claude attach
+whip` or Remote Control.
 
 ```bash
 mise run whip -- start                       # prints the owner-only lines FIRST, brings the daemon unit

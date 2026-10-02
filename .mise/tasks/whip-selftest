@@ -152,7 +152,18 @@ fx["ready"] = [10, 11, 12, 20, 21, 30]
 fx["blocked_by"] = {11: [10], 12: [11], 21: [999]}  # 999 is off the Ready set: ignored
 fx["milestone"] = {20: "M1", 21: "M1", 30: "M2"}
 fx["daemon"] = "inactive"
+os.environ["CLAUDE_CODE_SESSION_ID"] = "feedface-0000"
+fx["agents"] = [{"kind": "interactive", "pid": 3, "name": "whip", "status": "busy", "sessionId": "feedface-0000"}]
+code, out = run("start", "--no-issue")
+check("start from an INTERACTIVE session named whip refuses with the bg launch recipe (its resume would carry no saved options; it lives in the terminal's cgroup)",
+      code != 0 and not os.path.exists(jpath) and "daemon start" in out and "claude --bg -n whip" in out)
+fx["agents"] = [{"kind": "background", "pid": 3, "name": "WHIP: first run", "status": "idle", "state": "done", "sessionId": "feedface-0000"}]
+code, out = run("start", "--no-issue")
+check("start from a bg session not named whip refuses and names /rename", code != 0 and not os.path.exists(jpath) and "/rename whip" in out)
+fx["agents"] = [{"kind": "background", "pid": 3, "name": "whip", "status": "idle", "state": "done", "sessionId": "feedface-0000"}]
 code, out = run("start", "--no-issue", "--cap", "8")
+check("start from a bg session named whip records it as whip_session", code == 0 and state()["whip_session"] == "feedface-0000")
+fx["agents"] = []; os.environ.pop("CLAUDE_CODE_SESSION_ID")
 st = state()
 check("start writes whip-<today>.json + .md into the scratch dir", code == 0 and os.path.exists(jpath) and os.path.exists(jpath[:-5] + ".md"))
 check("start snapshots the Ready set, master sha, cap and a lead ceiling of 1", st["ready"] == fx["ready"] and st["start_sha"] == SHA and st["cap_h"] == 8 and st["max_leads"] == 1)
