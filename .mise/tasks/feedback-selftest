@@ -1,0 +1,121 @@
+#!/usr/bin/env bash
+#MISE description="Self-test for `mise run feedback`: a fake gh first on PATH answers each GraphQL operation from a canned file. `mise run feedback-selftest`"
+set -u
+root=$(cd "$(dirname "$0")/../.." && pwd)
+work=$(mktemp -d); trap 'rm -rf "$work"' EXIT
+mkdir -p "$work/fake" "$work/resp"
+# The fake gh: logs every argv to $WORK/argv; for `api graphql --input F` it
+# copies F to $WORK/calls/<n>.json (the caller's tmpfile is gone by assert
+# time) and answers with $WORK/resp/<OperationName>.json, the name parsed from
+# the recorded query. An operation with no canned answer is exit 99.
+cat >"$work/fake/gh" <<'EOF'
+#!/usr/bin/env bash
+echo "$*" >>"$WORK/argv"
+[ "$1 $2" = "repo view" ] && { echo "Owner/repo"; exit 0; }
+input=""; prev=""
+for a in "$@"; do [ "$prev" = "--input" ] && input=$a; prev=$a; done
+[ -n "$input" ] || { echo "fake gh: no --input in: $*" >&2; exit 98; }
+mkdir -p "$WORK/calls"; n=$(( $(ls "$WORK/calls" | wc -l) + 1 ))
+cp "$input" "$WORK/calls/$n.json"
+op=$(jq -r .query "$input" | grep -oE '(query|mutation) [A-Za-z]+' | head -1 | cut -d' ' -f2)
+echo "$op" >>"$WORK/ops"
+[ -f "$WORK/resp/$op.json" ] || { echo "fake gh: no answer for $op" >&2; exit 99; }
+cat "$WORK/resp/$op.json"
+EOF
+chmod +x "$work/fake/gh"
+# The fake first, and the rate-limit shim off: it would buffer and replay calls.
+export WORK="$work" PATH="$work/fake:$PATH" GH_SHIM=off FEEDBACK_REPO=Owner/repo CLAUDE_CODE_SESSION_ID=abcdef1234567890
+fail=0
+check() { if [ "$2" = "$3" ]; then echo "  ok   $1"; else echo "  FAIL $1: expected [$3] got [$2]"; fail=1; fi; }
+reset() { rm -rf "$work/calls" "$work/argv" "$work/ops"; }
+resp() { cat >"$work/resp/$1.json"; }
+ops() { tr '\n' ' ' <"$work/ops" 2>/dev/null | sed 's/ $//'; }
+# The variables of the first recorded call to operation $1.
+vars_of() { local f; for f in $(ls "$work/calls" 2>/dev/null | sort -n); do
+  [ "$(jq -r .query "$work/calls/$f" | grep -oE '(query|mutation) [A-Za-z]+' | head -1 | cut -d' ' -f2)" = "$1" ] \
+    && { jq -c .variables "$work/calls/$f"; return; }; done; }
+fb() { "$root/.mise/tasks/feedback" "$@"; }
+
+printf 'the finding\nsecond line\n' >"$work/f"
+today=$(date +%F)
+meta_ok() { resp Meta <<'EOF'
+{"data":{"repository":{"id":"R_1","hasDiscussionsEnabled":true,"discussionCategories":{"nodes":[{"id":"CAT_x","name":"General"},{"id":"CAT_fb","name":"Skill feedback"}]}}}}
+EOF
+}
+boards_with_whip() { resp Boards <<'EOF'
+{"data":{"repository":{"discussions":{"nodes":[{"id":"D_whip","title":"whip — skill feedback board","url":"https://x/d/1"},{"id":"D_other","title":"whip — skill feedback board (old)","url":"https://x/d/2"}]}}}}
+EOF
+}
+boards_empty() { resp Boards <<<'{"data":{"repository":{"discussions":{"nodes":[]}}}}'; }
+resp CreateBoard <<<'{"data":{"createDiscussion":{"discussion":{"id":"D_new","url":"https://x/d/9"}}}}'
+resp AddComment <<<'{"data":{"addDiscussionComment":{"comment":{"id":"DC_9","url":"https://x/d/1#c9"}}}}'
+
+echo "feedback-selftest"
+
+echo "1. post: header then file"
+meta_ok; boards_with_whip; reset
+out=$(fb post whip probe "$work/f" 2>"$work/err"); rc=$?
+body=$(vars_of AddComment | jq -r .body)
+check "rc 0, prints the comment url" "$rc:$out" "0:https://x/d/1#c9"
+check "  ...body starts with the header" "$(printf '%s\n' "$body" | head -1)" "**$today · probe · session abcdef12**"
+check "  ...followed by the file" "$(printf '%s\n' "$body" | grep -c 'the finding\|second line')" "2"
+reset; out=$(CLAUDE_CODE_SESSION_ID= fb post whip probe "$work/f" 2>/dev/null)
+check "  ...no session id -> '-'" "$(vars_of AddComment | jq -r .body | head -1)" "**$today · probe · session -**"
+
+echo "2. post refuses bad charter/kind before any gh call"
+reset
+fb post nosuch probe "$work/f" >/dev/null 2>&1; rc=$?
+check "unknown charter -> non-zero, no gh call" "$([ $rc -ne 0 ] && echo nz):$( [ -f "$work/argv" ] && wc -l <"$work/argv" || echo 0)" "nz:0"
+fb post README probe "$work/f" >/dev/null 2>&1; rc=$?
+check "README is not a charter" "$([ $rc -ne 0 ] && echo nz):$( [ -f "$work/argv" ] && wc -l <"$work/argv" || echo 0)" "nz:0"
+fb post whip bogus "$work/f" >/dev/null 2>&1; rc=$?
+check "unknown kind -> non-zero, no gh call" "$([ $rc -ne 0 ] && echo nz):$( [ -f "$work/argv" ] && wc -l <"$work/argv" || echo 0)" "nz:0"
+
+echo "3. board creation"
+meta_ok; boards_empty; reset
+out=$(fb post whip gotcha "$work/f" 2>"$work/err"); rc=$?
+check "no board -> createDiscussion once, then comment" "$rc:$(ops)" "0:Meta Boards CreateBoard AddComment"
+check "  ...created with the board title in the category" "$(vars_of CreateBoard | jq -r '[.title,.categoryId,.repositoryId]|join("|")')" "whip — skill feedback board|CAT_fb|R_1"
+check "  ...body points at the charter and the README" "$(vars_of CreateBoard | jq -r .body | grep -c 'docs/charters/whip.md\|docs/charters/README.md')" "2"
+check "  ...comment targets the new id" "$(vars_of AddComment | jq -r .discussionId)" "D_new"
+boards_with_whip; reset
+out=$(fb post whip gotcha "$work/f" 2>/dev/null)
+check "board exists (exact title) -> no createDiscussion" "$(ops)" "Meta Boards AddComment"
+check "  ...comment targets it" "$(vars_of AddComment | jq -r .discussionId)" "D_whip"
+
+echo "4. unanswered"
+resp Comments <<'EOF'
+{"data":{"node":{"comments":{"pageInfo":{"hasNextPage":false,"endCursor":"x"},"nodes":[
+ {"id":"DC_1","url":"https://x/d/1#c1","body":"**2026-10-01 · gotcha · session aaaaaaaa**\nlong text","replies":{"totalCount":0}},
+ {"id":"DC_2","url":"https://x/d/1#c2","body":"**2026-10-01 · probe · session bbbbbbbb**\ntext","replies":{"totalCount":2}},
+ {"id":"DC_3","url":"https://x/d/1#c3","body":"**2026-10-02 · autopsy · session cccccccc**\ntext","replies":{"totalCount":0}}]}}}}
+EOF
+meta_ok; boards_with_whip; reset
+out=$(fb unanswered whip 2>"$work/err"); rc=$?
+check "prints exactly the two unreplied" "$rc:$out" "0:DC_1 https://x/d/1#c1 **2026-10-01 · gotcha · session aaaaaaaa**
+DC_3 https://x/d/1#c3 **2026-10-02 · autopsy · session cccccccc**"
+check "  ...asks for 100 comments a page" "$(vars_of Comments | jq -r .first)" "100"
+resp Boards <<<'{"data":{"repository":{"discussions":{"nodes":[{"id":"D_whip","title":"whip — skill feedback board","url":"u"}]}}}}'
+reset; out=$(fb unanswered 2>/dev/null)
+check "no charter -> every board in the category" "$(printf '%s\n' "$out" | wc -l)" "2"
+
+echo "5. reply"
+resp CommentDiscussion <<<'{"data":{"node":{"discussion":{"id":"D_whip"}}}}'
+reset
+out=$(fb reply DC_3 "$work/f" 2>"$work/err"); rc=$?
+check "reply sends replyToId on the comment's discussion" "$rc:$(vars_of AddComment | jq -r '[.replyToId,.discussionId]|join("|")')" "0:DC_3|D_whip"
+check "  ...body is the file verbatim" "$(vars_of AddComment | jq -r .body)" "$(cat "$work/f")"
+
+echo "6. discussions off / category missing"
+resp Meta <<<'{"data":{"repository":{"id":"R_1","hasDiscussionsEnabled":false,"discussionCategories":{"nodes":[]}}}}'
+reset
+fb post whip probe "$work/f" >/dev/null 2>"$work/err"; rc=$?
+check "disabled -> non-zero, names #1326" "$([ $rc -ne 0 ] && echo nz):$(grep -c '#1326' "$work/err")" "nz:1"
+check "  ...no write attempted" "$(ops)" "Meta"
+resp Meta <<<'{"data":{"repository":{"id":"R_1","hasDiscussionsEnabled":true,"discussionCategories":{"nodes":[{"id":"CAT_x","name":"General"}]}}}}'
+reset
+fb unanswered >/dev/null 2>"$work/err"; rc=$?
+check "category missing -> non-zero, names #1326" "$([ $rc -ne 0 ] && echo nz):$(grep -c '#1326' "$work/err")" "nz:1"
+check "  ...no raw GraphQL in the message" "$(grep -c 'GraphQL' "$work/err")" "0"
+
+[ "$fail" -eq 0 ] && echo "feedback-selftest: all green" || { echo "feedback-selftest: FAILED"; exit 1; }
