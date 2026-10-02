@@ -108,12 +108,6 @@ func _request() -> bool:
 	return true
 
 
-func _ours(p: AttackPlan) -> AttackPlan:
-	if p != null and p.mode == mode and p.attacker == ctl.player:
-		return p
-	return null
-
-
 func _set_plan(p: AttackPlan) -> void:
 	if _plan == p:
 		return
