@@ -58,4 +58,18 @@ reset ok
 out=$(GH_SHIM=off gh x </dev/null 2>/dev/null)
 check "GH_SHIM=off passes through" "$out" "ok:x"
 
+# A worktree carries its own copy of this shim and mise puts BOTH .mise/bin dirs on PATH.
+# Each copy must skip every shim, not just itself — or they call each other until the pids
+# budget is gone (the 2026-10-02 fleet crash). The call runs inside a task-capped scope so a
+# regression fails fast instead of forking the machine over.
+mkdir -p "$work/wt/.mise/bin"; cp "$root/.mise/bin/gh" "$work/wt/.mise/bin/gh"
+reset ok
+if command -v systemd-run >/dev/null; then
+  out=$(systemd-run --user --quiet --scope -p TasksMax=200 --setenv=PATH="$work/wt/.mise/bin:$root/.mise/bin:$work/fake:$PATH" \
+        --setenv=WORK="$work" --setenv=GH_SHIM_BACKOFF=0 timeout 10 gh issue view 9 </dev/null 2>"$work/err"); rc=$?
+  check "two shims on PATH (worktree + main) reach the real gh once, never each other" "$rc:$out:$(cat "$work/n" 2>/dev/null)" "0:ok:issue view 9:1"
+else
+  echo "  skip two-shims check: no systemd-run to cage a regression"
+fi
+
 [ "$fail" -eq 0 ] && echo "gh-shim-selftest: all green" || { echo "gh-shim-selftest: FAILED"; exit 1; }

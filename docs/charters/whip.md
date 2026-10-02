@@ -257,7 +257,7 @@ Overnight the budget is **tokens per 5-hour window, twice over**, and
 
 | Date | Where | What happened | Law |
 |---|---|---|---|
-| 2026-10-02 | run #1319, 01:46 | five concurrent leads (owner: "go HAM") × drones × sharded suites in the owner's kitty scope: `cgroup: fork rejected by pids controller`; 17 coredumps at 01:49 — owner's session, RC host, bg daemon, whip, lead-a, lead-c. Which family ate ~76k tasks is unverified; a GUT shard peaks at ~20 threads, so not the shards | 4, 11 |
+| 2026-10-02 | run #1319, 01:46 | five concurrent leads (owner: "go HAM") × drones × sharded suites in the owner's kitty scope: `cgroup: fork rejected by pids controller`; 17 coredumps at 01:49 — owner's session, RC host, bg daemon, whip, lead-a, lead-c. Which family ate ~76k tasks: **verified 2026-10-02 19:38, second night** — the `.mise/bin/gh` shim; a worktree carries its own copy and mise puts both `.mise/bin` dirs on PATH, each copy skipped only itself, so they called each other until the budget was gone (54k tasks, 30 GB, caught by law 27's counter inside the daemon unit, the terminal untouched). Fixed in the shim (marker scan + depth guard, `gh-shim-selftest` cages the regression in a TasksMax scope) | 4, 11, 27 |
 | 2026-10-02 | watchdog, 01:49→09:42 | 44 `--bg --resume` forks, each a fresh transient daemon in the oneshot's cgroup, dead in 0.5 s, each logged as success | 4, 5, 20 |
 | 2026-10-02 | watchdog, 01:28 | first tick finds no session *named* `whip` (owner's was titled otherwise) → forks a second whip with the same context; the owner talks to the copy | 6 |
 | 2026-10-02 | `cmd_watchdog` | `whip.get("status") == "idle"` never true for a `--bg` whip: the limit-resume and stuck-lead branches were dead code | 7 |
@@ -290,10 +290,10 @@ go up. Drones are also called drones despite often being full fledged Opus
 agents. It's just which hat they're wearing. And the whip has the
 responsibility to nuke sessions if things go really wrong and that's not a
 friendly move".
-**D. `TasksMax` on the daemon unit.** Unset = the user manager's per-unit
-default (76146 here), a separate pool from the terminal's. A lower knob
-(`WHIP_TASKS_MAX`) would make the fleet fail earlier and cleaner; the right
-number needs the culprit family measured first.
+**D. `TasksMax` on the daemon unit — culprit found, knob still open.** The
+culprit was the gh shim's mutual recursion through worktrees (corpus row 1),
+now fixed at the source; a healthy fleet's peak is still unmeasured, so the
+knob waits on the first clean night's `tasks_peak`.
 
 ## What the skill must not contain
 

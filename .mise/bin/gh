@@ -4,8 +4,13 @@
 #
 # Contract:
 #   - Sits first on PATH via mise.toml `[env._] path`; finds the real gh by
-#     skipping itself. Interactive terminals (stdin AND stdout a tty) and
-#     GH_SHIM=off pass straight through — the shim exists for agents.
+#     skipping EVERY copy of this shim (a worktree carries its own and mise
+#     puts both .mise/bin dirs on PATH — two copies skipping only themselves
+#     call each other until the pids budget is gone), recognised by the
+#     marker line below; GH_SHIM_DEPTH is a hard guard: a shim invoked by a
+#     shim refuses instead of recursing. Interactive terminals (stdin AND
+#     stdout a tty) and GH_SHIM=off pass straight through — the shim exists
+#     for agents.
 #   - A failed call whose stderr names GitHub's SECONDARY (burst) limit is
 #     retried with linear backoff (GH_SHIM_BACKOFF s × attempt, default 15;
 #     GH_SHIM_RETRIES attempts, default 4 — 90 s of sleep, inside a 120 s tool
@@ -19,14 +24,20 @@
 #   - The give-up message is the documentation: it fires exactly when an
 #     agent needs it. Long form: docs/domain/issue-workflow.md → Rate limits.
 set -u
+# gh-shim-marker: every copy of this file carries this line; the PATH scan skips any file that has it.
 
-self=$(realpath "${BASH_SOURCE[0]}")
+if [ "${GH_SHIM_DEPTH:-0}" -ge 1 ]; then
+  echo "gh shim: invoked by another gh shim ($0) — a copy on PATH predates the marker scan; refusing to recurse" >&2
+  exit 127
+fi
+export GH_SHIM_DEPTH=1
+
 real=""
 IFS=: read -ra dirs <<<"$PATH"
 for d in "${dirs[@]}"; do
   c="$d/gh"
   [ -x "$c" ] || continue
-  [ "$(realpath "$c" 2>/dev/null)" = "$self" ] && continue
+  head -c 4096 "$c" 2>/dev/null | grep -q 'gh-shim-marker' && continue
   real="$c"; break
 done
 [ -n "$real" ] || { echo "gh shim: no real gh found on PATH" >&2; exit 127; }
