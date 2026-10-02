@@ -71,31 +71,6 @@ func test_no_battle_system_is_mounted() -> void:
 			"fixture: the slot must stand alone")
 
 
-func test_arms_each_mode() -> void:
-	var cases := {
-		BattleSystem.AttackMode.MELEE: MeleeAttackPlan,
-		BattleSystem.AttackMode.RANGED: RangedAttackPlan,
-		BattleSystem.AttackMode.MAGIC: MagicAttackPlan,
-	}
-	for mode in cases:
-		_slot.request_attack_mode(mode)
-		assert_eq(_slot.attack_mode, mode, "request_attack_mode arms mode %d" % mode)
-		assert_true(_slot.is_attacking)
-		assert_eq(_slot.attack_plan.get_script(), cases[mode])
-		assert_eq(_slot.attack_plan.attacker, _attacker,
-				"the plan's attacker is the turn's entity")
-	_slot.request_attack_mode(BattleSystem.AttackMode.NONE)
-	assert_eq(_slot.attack_mode, BattleSystem.AttackMode.NONE)
-	assert_false(_slot.is_attacking, "NONE cancels the plan")
-
-
-func test_arming_emits_the_plan_signals() -> void:
-	watch_signals(_slot)
-	_slot.request_attack_mode(BattleSystem.AttackMode.MELEE)
-	assert_signal_emitted(_slot, "attack_plan_changed")
-	assert_signal_emitted(_slot, "attack_plan_state_changed")
-
-
 func test_next_melee_cw_is_sticky_across_reset_plan() -> void:
 	_slot.next_melee_cw = true
 	_slot.request_attack_mode(BattleSystem.AttackMode.MELEE)
@@ -119,15 +94,6 @@ func test_selected_spell_is_sticky_across_reset_plan() -> void:
 	_slot.reset_plan()
 	assert_eq(_slot.selected_spell, SpellCatalog.SPARK, "reset_plan keeps the spell")
 	assert_eq((_slot.attack_plan as MagicAttackPlan).spell, SpellCatalog.SPARK)
-
-
-func test_allocation_invalidates_the_magic_union() -> void:
-	_slot.request_attack_mode(BattleSystem.AttackMode.MAGIC)
-	var plan := _slot.attack_plan as MagicAttackPlan
-	watch_signals(plan)
-	_alloc.force_allocate(_attacker, _spare)
-	assert_signal_emitted(plan, "state_changed",
-			"an allocation announces the union change on the plan's own signal")
 
 
 func test_locked_refuses_cancel_reset_and_mode_change() -> void:

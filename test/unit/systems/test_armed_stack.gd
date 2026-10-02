@@ -150,3 +150,21 @@ func test_pushing_melee_makes_its_plan_the_stacks_and_popping_drops_it() -> void
 	assert_null(bs.attack_plan, "and BattleSystem's door shows the same nothing")
 	assert_eq(seen.size(), 2, "attack_plan_changed fires once for the pop")
 	assert_null(seen[1])
+
+
+func test_each_attack_level_arms_its_own_mode_plan_for_this_player() -> void:
+	var cases := {
+		BattleSystem.AttackMode.MELEE: MeleeAttackPlan,
+		BattleSystem.AttackMode.RANGED: RangedAttackPlan,
+		BattleSystem.AttackMode.MAGIC: MagicAttackPlan,
+	}
+	var f := _melee_fixture()
+	var ctl: PlayerInputController = f.ctl
+	for mode in cases:
+		assert_true(ctl.arm_attack(mode), "mode %d arms" % mode)
+		var plan := ctl.armed_stack.attack_plan()
+		assert_eq(plan.get_script(), cases[mode])
+		assert_eq(plan.mode, mode)
+		assert_eq(plan.attacker, f.player, "the plan's attacker is the turn's entity")
+	ctl.arm_attack(BattleSystem.AttackMode.NONE)
+	assert_null(ctl.armed_stack.attack_plan(), "NONE pops the attack level and its plan")
