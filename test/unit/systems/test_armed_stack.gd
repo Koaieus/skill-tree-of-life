@@ -99,6 +99,7 @@ func test_top_is_the_last_pushed_and_root_when_empty() -> void:
 
 const _BOARD := preload("res://entity/default_entity_board.tres")
 const _GRAPH_SCENE := preload("res://graph/graph.tscn")
+const _HEALING_BEAM: SpellDef = preload("res://attack/spell/defs/healing_beam.tres")
 
 
 func _melee_fixture() -> Dictionary:
@@ -131,7 +132,6 @@ func _melee_fixture() -> Dictionary:
 func test_pushing_melee_makes_its_plan_the_stacks_and_popping_drops_it() -> void:
 	var f := _melee_fixture()
 	var ctl: PlayerInputController = f.ctl
-	var bs: BattleSystem = f.bs
 	var stack := ctl.armed_stack
 	var seen: Array = []
 	stack.attack_plan_changed.connect(func(p: AttackPlan) -> void: seen.append(p))
@@ -141,13 +141,11 @@ func test_pushing_melee_makes_its_plan_the_stacks_and_popping_drops_it() -> void
 	var plan := stack.attack_plan()
 	assert_true(plan is MeleeAttackPlan, "pushing MeleeMode arms a melee plan")
 	assert_eq(plan.attacker, f.player, "the plan is this player's")
-	assert_same(bs.attack_plan, plan, "one plan, reachable through BattleSystem too")
 	assert_eq(seen.size(), 1, "attack_plan_changed fires once for the push")
 	assert_same(seen[0], plan, "it carries the plan itself")
 
 	stack.pop(melee)
 	assert_null(stack.attack_plan(), "popping the level drops its plan")
-	assert_null(bs.attack_plan, "and BattleSystem's door shows the same nothing")
 	assert_eq(seen.size(), 2, "attack_plan_changed fires once for the pop")
 	assert_null(seen[1])
 
@@ -168,3 +166,49 @@ func test_each_attack_level_arms_its_own_mode_plan_for_this_player() -> void:
 		assert_eq(plan.attacker, f.player, "the plan's attacker is the turn's entity")
 	ctl.arm_attack(BattleSystem.AttackMode.NONE)
 	assert_null(ctl.armed_stack.attack_plan(), "NONE pops the attack level and its plan")
+
+
+# ── What the seat keeps besides the plan ─────────────────────────────────────
+
+func test_next_melee_cw_is_sticky_across_reset_and_a_fresh_arm() -> void:
+	var f := _melee_fixture()
+	var ctl: PlayerInputController = f.ctl
+	var stack := ctl.armed_stack
+	stack.next_melee_cw = true
+	ctl.arm_attack(BattleSystem.AttackMode.MELEE)
+	var plan := stack.attack_plan() as MeleeAttackPlan
+	assert_true(plan.swing_cw, "the new melee plan takes the sticky direction")
+	stack.reset_plan()
+	assert_same(stack.attack_plan(), plan, "reset_plan keeps the plan itself")
+	assert_true(stack.next_melee_cw, "reset_plan keeps the sticky direction")
+	stack.cancel_attack()
+	ctl.arm_attack(BattleSystem.AttackMode.MELEE)
+	assert_true((stack.attack_plan() as MeleeAttackPlan).swing_cw,
+			"a fresh melee plan still takes it")
+
+
+func test_selected_spell_is_sticky_and_re_equips_the_armed_plan() -> void:
+	var f := _melee_fixture()
+	var ctl: PlayerInputController = f.ctl
+	var stack := ctl.armed_stack
+	watch_signals(stack)
+	stack.selected_spell = SpellCatalog.SPARK
+	assert_signal_emitted(stack, "selected_spell_changed")
+	ctl.arm_attack(BattleSystem.AttackMode.MAGIC)
+	assert_eq((stack.attack_plan() as MagicAttackPlan).spell, SpellCatalog.SPARK,
+			"the new magic plan takes the sticky spell")
+	stack.reset_plan()
+	assert_eq(stack.selected_spell, SpellCatalog.SPARK, "reset_plan keeps the spell")
+	assert_eq((stack.attack_plan() as MagicAttackPlan).spell, SpellCatalog.SPARK)
+	stack.selected_spell = _HEALING_BEAM
+	assert_eq((stack.attack_plan() as MagicAttackPlan).spell, _HEALING_BEAM,
+			"picking a spell re-equips the armed magic plan")
+
+
+func test_an_attack_level_refuses_to_push_mid_swing() -> void:
+	var f := _melee_fixture()
+	var ctl: PlayerInputController = f.ctl
+	var bs: BattleSystem = f.bs
+	bs.is_launching = true
+	assert_false(ctl.arm_attack(BattleSystem.AttackMode.MELEE), "no arm while launching")
+	assert_null(ctl.armed_stack.attack_plan())

@@ -23,6 +23,10 @@ signal attack_plan_state_changed
 ## armed step levels ([BladeMode], [TargetMode]) pop on.
 signal plan_reset
 
+signal selected_spell_changed(spell: SpellDef)
+var selected_spell: SpellDef = null
+var next_melee_cw: bool = false
+
 var _branch: Array[ArmedMode] = []
 var _last_plan: AttackPlan = null
 
