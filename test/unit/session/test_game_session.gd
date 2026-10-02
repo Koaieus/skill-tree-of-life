@@ -172,3 +172,23 @@ func test_a_config_with_no_participants_still_opens_an_empty_roster() -> void:
 	GameSession.start(_config(7))
 	assert_true(GameSession.roster.all().is_empty(),
 			"an empty roster is what tells a level there was no lobby")
+
+
+## #1333: the world a level builds from is a session fact, set by the entry.
+func test_start_generates_the_world() -> void:
+	GameSession.world_source = GameSession.WorldSource.ARRIVES
+	GameSession.start(_config(4242))
+	assert_eq(GameSession.world_source, GameSession.WorldSource.GENERATE)
+
+
+func test_apply_received_awaits_the_world() -> void:
+	GameSession.world_source = GameSession.WorldSource.GENERATE
+	GameSession.apply_received(_config(4242), ParticipantRoster.new())
+	assert_eq(GameSession.world_source, GameSession.WorldSource.ARRIVES,
+			"a joiner receives its world; it must not generate one")
+
+
+func test_end_restores_the_default_world_source() -> void:
+	GameSession.apply_received(_config(4242), ParticipantRoster.new())
+	GameSession.end()
+	assert_eq(GameSession.world_source, GameSession.WorldSource.GENERATE)
