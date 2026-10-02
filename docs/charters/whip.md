@@ -257,7 +257,12 @@ Opus, my reasoning: they barely read, they barely output, but if things go
 wrong they have the thinking capacity. They have more responsibility than a
 swarm agent, who is doing more serious coordination work". `WHIP_MODEL`
 overrides.
-**C. Name.** Whip or *Drover*; files are `whip` until the owner picks.
+**C. Name — settled: Whip.** Owner, 2026-10-02: "I indeed named it whip after a
+parliamentary whip, not a slave driver, though in some sense both meanings can
+go up. Drones are also called drones despite often being full fledged Opus
+agents. It's just which hat they're wearing. And the whip has the
+responsibility to nuke sessions if things go really wrong and that's not a
+friendly move".
 **D. `TasksMax` on the daemon unit.** Unset = the user manager's per-unit
 default (76146 here), a separate pool from the terminal's. A lower knob
 (`WHIP_TASKS_MAX`) would make the fleet fail earlier and cleaner; the right
