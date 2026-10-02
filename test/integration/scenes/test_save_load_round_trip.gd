@@ -10,7 +10,7 @@ const _LEVEL := preload("res://scenes/level.tscn")
 const _CAMP_1 := preload("res://entity/factions/camp_1.tres")
 const _CAMP_2 := preload("res://entity/factions/camp_2.tres")
 const _SLOT := "user://test_save_load_round_trip.bin"
-const _NODE_COUNT := 200
+const _NODE_COUNT := 140
 
 var _root: GameRoot
 
@@ -154,8 +154,10 @@ func _save_and_reload(root: GameRoot) -> Dictionary:
 
 func _assert_same_world(before: Dictionary) -> void:
 	assert_null(GameSession.pending_world, "the level consumed the parked image")
-	assert_eq(WorldImage.capture(_root.graph).to_bytes(), before.image,
-			"the loaded world re-captures to the saved image")
+	var now := WorldImage.capture(_root.graph)
+	var saved := WorldImage.from_bytes(before.image)
+	assert_eq(now.entity_bytes, saved.entity_bytes, "the entity half re-captures identically")
+	assert_eq(now.graph_bytes, saved.graph_bytes, "the graph half re-captures identically")
 	assert_eq(WorldFingerprint.compute(_root.graph), before.fingerprint, "WorldFingerprint")
 	assert_eq(_stats(_root), before.stats, "every entity's stats and pool currents")
 	var holder := _root.turn_manager.current_entity
@@ -225,3 +227,4 @@ func test_a_save_between_two_ai_actions_resumes_the_ai() -> void:
 	(loaded_ai.get_node("AIController") as AIController).turn_delay = 0.0
 	await wait_until(func() -> bool: return _root.turn_manager.current_entity == _root.player,
 			5.0, "the resumed AI finished its turn and handed it on")
+

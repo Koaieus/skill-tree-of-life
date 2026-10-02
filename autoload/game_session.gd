@@ -75,8 +75,8 @@ var network: NetworkConfig = null
 ## world is not this field's concern.
 enum WorldSource { GENERATE, ARRIVES }
 
-## [method start] sets [code]GENERATE[/code], [method apply_received] sets
-## [code]ARRIVES[/code], [method end] restores the default.
+## [method start] sets [code]GENERATE[/code], [method apply_received] and
+## [method open_saved] set [code]ARRIVES[/code], [method end] restores the default.
 var world_source: WorldSource = WorldSource.GENERATE
 
 ## The world a loaded save delivers, parked by [method open_saved] until the
@@ -130,6 +130,7 @@ func start(cfg: RunConfig) -> void:
 	for participant in config.participants:
 		roster.add(Participant.from_dict(participant.to_dict()))
 	world_source = WorldSource.GENERATE
+	pending_world = null
 	outcome = null
 	run_started.emit(config)
 
@@ -150,6 +151,7 @@ func apply_received(cfg: RunConfig, received_roster: ParticipantRoster) -> void:
 	config = cfg
 	roster = received_roster if received_roster != null else ParticipantRoster.new()
 	world_source = WorldSource.ARRIVES
+	pending_world = null
 	outcome = null
 	run_started.emit(config)
 
@@ -161,7 +163,17 @@ func apply_received(cfg: RunConfig, received_roster: ParticipantRoster) -> void:
 ## caller routes to [member SaveFile.level_scene_path] next. False, and the
 ## session untouched, for a save that did not load.
 func open_saved(save: SaveFile) -> bool:
-	return false
+	if save == null or save.load_result != SaveFile.LoadResult.OK:
+		return false
+	var cfg := RunConfig.from_dict(save.config)
+	assert(cfg.seed != 0, "GameSession.open_saved: a save carries an unresolved seed (0)")
+	config = cfg
+	roster = ParticipantRoster.from_dict(save.roster)
+	world_source = WorldSource.ARRIVES
+	pending_world = save.world
+	outcome = null
+	run_started.emit(config)
+	return true
 
 
 ## Start a default run if none is live, seeding it from `fallback_seed` (a
@@ -197,6 +209,7 @@ func end() -> void:
 	config = null
 	roster = null
 	world_source = WorldSource.GENERATE
+	pending_world = null
 	# The wire belonged to the run: a player who hosted once and then starts a
 	# solo game must not silently open a socket again.
 	network = null

@@ -257,10 +257,18 @@ func _ready() -> void:
 	# let `LastCampStandingCondition` read a partially-populated entity group
 	# and latch an outcome that can never be un-fired. Not a network concept:
 	# the same one line arms it for a solo sandbox.
+	# A loaded save's world lands where a joiner's does — after the HUD is
+	# composed, so the turn cursor it restores reaches a listening HUD.
+	var loaded := _apply_pending_world()
 	victory_system.world_ready = true
 
-	_stagger_initiative()
-	_open_first_turn()
+	if loaded:
+		# The saved board already carries its turn: no stagger (it would
+		# overwrite the restored clocks) and no opening turn.
+		_resume_loaded_turn()
+	else:
+		_stagger_initiative()
+		_open_first_turn()
 	_focus_camera_on_player()
 	# LAST. Everything above is what "presentable" means: the world generated,
 	# the HUD composed, the camera already on the player. Only now does the
@@ -268,6 +276,36 @@ func _ready() -> void:
 	_reveal_ready = true
 	if SceneTransition.is_curtain_up():
 		await SceneTransition.fade_in()
+
+
+## Apply the world a loaded save parked on [member GameSession.pending_world]
+## — the same [method WorldImage.apply] the wire uses; the disk is just the
+## other deliverer — and clear it. False when nothing was parked.
+func _apply_pending_world() -> bool:
+	var image: WorldImage = GameSession.pending_world
+	if image == null:
+		return false
+	GameSession.pending_world = null
+	image.apply(graph, entity_factory.spawn_snapshot_entity, turn_manager)
+	_apply_graph_bounds()
+	_on_world_ready("loaded")
+	return true
+
+
+## A loaded turn is ADOPTED, never begun: [method TurnManager.adopt_turn] runs
+## no upkeep (the save already carries it) and fires no `turn_began`, so an AI
+## holder's controller would sit idle. Kick its decision loop once, on the
+## authority only — it re-decides from the saved board. A human holder needs
+## nothing: the HUD follows the `turn_started` the adoption emitted.
+func _resume_loaded_turn() -> void:
+	if not network_session.is_authority():
+		return
+	var holder := turn_manager.current_entity
+	if holder == null:
+		return
+	var ai := ControllerFactory.find(holder) as AIController
+	if ai != null:
+		ai.take_turn()  # not awaited: the reveal must not wait out the AI's turn
 
 
 ## Whether this run staggers opening clocks is the run's call
