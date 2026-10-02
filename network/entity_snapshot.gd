@@ -29,6 +29,8 @@ const _R_SCENE := 9      ## `scene_file_path` interned into `res`, -1 for none �
 const _R_NAME := 10      ## Entity.display_name — carried only so a materialized row is not nameless
 const _R_SPELL_IDS := 11 ## Array of indices into `spells`, or null — see [method _encode_spell_ids]
 const _R_TURNS := 12     ## Entity.turns_taken — see [method restore_turn_cursor]
+const _R_VOLLEYS := 13   ## Entity.volleys_launched_this_turn — a mid-turn arrival keeps the budget spent
+const _R_TURN_LEAVES := 14 ## Entity.get_turn_start_leaves() as stable_ids — pass 2 only
 
 
 ## Build the payload for every [Entity] under `graph.entities_container`.
@@ -126,9 +128,25 @@ static func resolve_graph_refs(
 			var node := graph.get_by_stable_id(loc_id)
 			if node != null:
 				e.core_location = node
+		_restore_turn_start_leaves(e, graph, row as Array)
 		_grant_effects(e, graph, row as Array, res, true)
 		_restore_board(e, row as Array)
 		_restore_tags(e, row as Array)
+
+
+## The per-turn reload producer set, by stable_id. Replaced wholesale, so a
+## second pass is idempotent; a leaf the graph no longer has is dropped, as
+## [method Entity.reload_yield] would skip it anyway. Width-guarded like
+## [constant _R_TURNS].
+static func _restore_turn_start_leaves(e: Entity, graph: Graph, row: Array) -> void:
+	if row.size() <= _R_TURN_LEAVES:
+		return
+	var leaves: Array[SkillNode] = []
+	for id in (row[_R_TURN_LEAVES] as Array):
+		var node := graph.get_by_stable_id(int(id))
+		if node != null:
+			leaves.append(node)
+	e.restore_turn_start_leaves(leaves)
 
 
 ## Bytes-per-entity at the CURRENT roster size — the sibling of
@@ -179,8 +197,12 @@ static func _encode_entity(
 	var tags: Array = []
 	for t in e.get_active_tags():
 		tags.append([String(t), e.get_tag_count(t)])
+	var leaves: Array = []
+	for n in e.get_turn_start_leaves():
+		if is_instance_valid(n) and graph.get_stable_id(n) != 0:
+			leaves.append(graph.get_stable_id(n))
 	var row: Array
-	row.resize(13)
+	row.resize(15)
 	row[_R_SCENE] = table.intern(e.scene_file_path) if e.scene_file_path != "" else -1
 	row[_R_NAME] = e.display_name
 	row[_R_ENTITY_ID] = e.entity_id
@@ -194,6 +216,8 @@ static func _encode_entity(
 	row[_R_TAGS] = tags
 	row[_R_SPELL_IDS] = _encode_spell_ids(e.spellbook, spell_table)
 	row[_R_TURNS] = e.turns_taken
+	row[_R_VOLLEYS] = e.volleys_launched_this_turn
+	row[_R_TURN_LEAVES] = leaves
 	return row
 
 
@@ -410,6 +434,8 @@ static func _decode_identity(e: Entity, row: Array, res: Array, spells: Array) -
 	# slot decodes as "says nothing" rather than as 0.
 	if row.size() > _R_TURNS:
 		e.turns_taken = int(row[_R_TURNS])
+	if row.size() > _R_VOLLEYS:
+		e.volleys_launched_this_turn = int(row[_R_VOLLEYS])
 
 
 ## Rebuild the by-value book [method _encode_spell_ids] sent (#726).

@@ -426,7 +426,7 @@ func has_outstanding_loot() -> bool:
 ## relic claim chain open? The one question a save gate asks; it never reads
 ## the three flags one by one.
 func is_quiescent() -> bool:
-	return true
+	return not is_applying and not is_awaiting_confirmation and not has_outstanding_loot()
 
 
 ## "This command's payload is final and it is going to be applied" — announce it

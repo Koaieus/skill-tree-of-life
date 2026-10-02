@@ -28,7 +28,10 @@ missing `+5 CON` moved every health bar that entity owns at once — silently
   `PoolStat.current`, `SkillPointStat`'s `wounded` / `staked`,
   `SurplusPoolStat.surplus`, the granted `EffectInstance`s with their source
   node's `stable_id`, active tags, `Entity.entity_tier`, `Entity.core_location`
-  by `stable_id` — crosses BY VALUE.
+  by `stable_id`, and the two per-turn fields a mid-turn arrival (resync, load)
+  would otherwise lose — `Entity.volleys_launched_this_turn` (else the volley
+  budget refills) and the turn-start reload leaves (`get_turn_start_leaves`)
+  by `stable_id`, resolved in pass 2 like `core_location` — crosses BY VALUE.
 - **Derived** — board totals, `Stat.bins`, aura contributions, vision — NEVER
   crosses. The receiver recomputes.
 
@@ -63,8 +66,8 @@ cross:
 ## Two passes, and the order is load-bearing
 
 `decode` runs BEFORE the graph decodes — it needs no nodes.
-`resolve_graph_refs` runs AFTER, because `core_location` and an effect's
-`source_node` resolve entity → node, the opposite direction from
+`resolve_graph_refs` runs AFTER, because `core_location`, the turn-start
+leaves and an effect's `source_node` resolve entity → node, the opposite direction from
 `GraphSnapshot._decode_node`'s `owner_id`. Both passes are idempotent: effects
 are granted only if an equal grant is not already present, tags only if not
 already held, and `StatBoard.read_dict` reconciles rather than rebuilds. That
@@ -92,4 +95,6 @@ or an interned resource path.
 ## Row layout
 
 Rows are positional (`_R_*` consts), same convention as `GraphSnapshot` and for
-the same reason: string keys roughly double a naive payload.
+the same reason: string keys roughly double a naive payload. A slot added after the
+first release is width-guarded on decode (`row.size() > _R_X`), so a shorter
+hand-built fixture row reads as "says nothing" rather than as zero.
