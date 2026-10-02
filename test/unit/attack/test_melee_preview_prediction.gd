@@ -376,9 +376,9 @@ func test_the_shadow_resolve_runs_once_per_selection_not_once_per_cycle() -> voi
 			"20 further preview cycles on an unchanged selection resolve nothing")
 
 	# A repaint is not a selection change either: the overlay redraws through
-	# BattleSystem's own signal, which must not cost a resolve.
+	# the stack's own signal, which must not cost a resolve.
 	for _i in 10:
-		_bs.attack_plan_state_changed.emit()
+		_ctl.armed_stack.attack_plan_state_changed.emit()
 	assert_eq(plan.prediction_runs, armed, "repaints are free")
 
 

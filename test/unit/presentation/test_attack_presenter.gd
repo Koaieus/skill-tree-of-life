@@ -148,7 +148,6 @@ func _arm(ctx: Dictionary, mode: BattleSystem.AttackMode) -> void:
 			melee.toggle_member(ctx.nodes.leaf)
 			_armed = melee
 		BattleSystem.AttackMode.MAGIC:
-			bs.selected_spell = SpellCatalog.SPARK
 			var magic := bs.new_plan(mode, bs.turn_manager.current_entity) as MagicAttackPlan
 			magic.spell = SpellCatalog.SPARK
 			magic.set_target(ctx.nodes.leaf)

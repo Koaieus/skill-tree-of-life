@@ -54,8 +54,8 @@ func test_the_panel_composes_a_real_world_and_arms_it() -> void:
 			"arm() ran: the authored ownership is real ownership")
 	assert_eq(_panel._turn_manager.current_entity, _panel._builder.attacker,
 			"an attack is illegal without a current entity")
-	assert_null(_panel._battle.attack_plan,
-			"…and nothing is armed until Capture arms it")
+	assert_null(_panel._battle.in_flight_plan,
+			"…and nothing is in play until Capture arms it")
 
 
 func test_tempo_is_wired_and_inert() -> void:

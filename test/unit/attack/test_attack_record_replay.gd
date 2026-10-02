@@ -223,7 +223,6 @@ func _arm_melee(ctx: Dictionary) -> void:
 
 func _arm_magic(ctx: Dictionary) -> void:
 	var bs: BattleSystem = ctx.bs
-	bs.selected_spell = SpellCatalog.SPARK
 	var plan := bs.new_plan(BattleSystem.AttackMode.MAGIC, bs.turn_manager.current_entity) as MagicAttackPlan
 	plan.spell = SpellCatalog.SPARK
 	plan.set_target(ctx.nodes.leaf)

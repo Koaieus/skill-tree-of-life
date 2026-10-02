@@ -1,14 +1,15 @@
 extends GutTest
 
 ## "Launch takes the plan": the AI launches a plan it built itself, a mirror
-## replays a plan it decoded, and neither ever writes the local
-## [AttackPlanSlot] — the slot is the seated human's plan-in-progress and
-## nobody else's. See [method BattleSystem.launch_attack].
+## replays a plan it decoded, and neither ever touches the local seat's
+## [ArmedStack] — its attack level holds the seated human's plan-in-progress
+## and nobody else's. See [method BattleSystem.launch_attack].
 
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _PLAYER_FACTION := preload("res://entity/factions/player.tres")
 const _CATALOG := preload("res://attack/melee/temp_upgrade_catalog.tres")
+const _ArmingCtl := preload("res://test/fixtures/arming_ctl.gd")
 
 var _graph: Graph
 var _alloc: AllocationSystem
@@ -20,8 +21,10 @@ var _player: Entity
 var _enemy: Entity
 var _hostile: Entity
 var _ai: AIController
+## The seated human: [member _player]'s controller and its armed stack.
+var _ctl: PlayerInputController
 var _nodes: Array[SkillNode]
-## Every plan the slot was handed while a test watched it.
+## Every plan the seat's stack announced while a test watched it.
 var _slot_writes: Array = []
 
 
@@ -104,6 +107,7 @@ func before_each() -> void:
 	_nodes[0].global_position = Vector2.ZERO
 	_nodes[1].global_position = Vector2(100.0, 0.0)
 	_nodes[2].global_position = Vector2(300.0, 0.0)
+	_ctl = _ArmingCtl.make(self, _graph, _alloc, _bs, _tm, _player)
 	_tm.start_turn(_enemy)
 
 
@@ -125,16 +129,20 @@ func _launch(candidate: AiCombatScorer.ScoredCandidate) -> bool:
 	return launched
 
 
-## A plan the seated human has armed and is still building.
+## A plan the seated human has armed and is still building. The turn cursor is
+## adopted (silently) for the arm only: a level mints no plan off its turn.
 func _arm_human_plan() -> AttackPlan:
-	var plan := RangedAttackPlan.new()
-	plan.attacker = _player
-	_bs.plan_slot.attack_plan = plan
+	var current := _tm.current_entity
+	_tm.adopt_turn(_player, _tm.turns_taken)
+	_ctl.arm_attack(BattleSystem.AttackMode.RANGED)
+	_tm.adopt_turn(current, _tm.turns_taken)
+	var plan := _ctl.armed_stack.attack_plan()
+	assert_not_null(plan, "fixture: the human's ranged plan arms")
 	return plan
 
 
 func _watch_slot() -> void:
-	_bs.plan_slot.attack_plan_changed.connect(func(p: AttackPlan) -> void:
+	_ctl.armed_stack.attack_plan_changed.connect(func(p: AttackPlan) -> void:
 		_slot_writes.append(p))
 
 
@@ -144,8 +152,8 @@ func test_ai_launch_leaves_an_empty_slot_empty() -> void:
 	_watch_slot()
 	var launched: bool = await _launch(_melee_candidate(true))
 	assert_true(launched, "sanity: the melee candidate launches")
-	assert_null(_bs.plan_slot.attack_plan, "the AI never parks its plan in the slot")
-	assert_eq(_slot_writes.size(), 0, "the slot was never written during the AI's swing")
+	assert_null(_ctl.armed_stack.attack_plan(), "the AI never parks its plan on the seat")
+	assert_eq(_slot_writes.size(), 0, "the seat was never written during the AI's swing")
 
 
 func test_ai_launch_leaves_the_humans_armed_plan_armed() -> void:
@@ -153,8 +161,8 @@ func test_ai_launch_leaves_the_humans_armed_plan_armed() -> void:
 	_watch_slot()
 	var launched: bool = await _launch(_melee_candidate(true))
 	assert_true(launched, "sanity: the melee candidate launches")
-	assert_eq(_bs.plan_slot.attack_plan, human, "the human's armed plan survives the AI's swing")
-	assert_eq(_slot_writes.size(), 0, "the slot was never written during the AI's swing")
+	assert_eq(_ctl.armed_stack.attack_plan(), human, "the human's armed plan survives the AI's swing")
+	assert_eq(_slot_writes.size(), 0, "the seat was never written during the AI's swing")
 
 
 # (b) ------------------------------------------------------------------------
@@ -164,26 +172,24 @@ func test_mirror_replay_leaves_the_slot_untouched() -> void:
 	authored.attacker = _enemy
 	authored.source = _nodes[0]
 	authored.blade_nodes = [_nodes[1]] as Array[SkillNode]
-	_bs.plan_slot.attack_plan = authored
-	var cmd := _bs.build_launch_command()
+	var cmd := _bs.build_launch_command(authored)
 	assert_not_null(cmd, "sanity: the authored plan builds a command")
 	assert_true(_bs.prepare_launch_command(cmd), "sanity: the authority computes a record")
 	var replay := LaunchAttackCommand.from_dict(cmd.to_dict())
 	assert_false(replay.computed_here, "sanity: the wire copy is a replay")
-	_bs.plan_slot.attack_plan = null
 	var human := _arm_human_plan()
 	_watch_slot()
 	var applied: bool = await _bs.apply_launch_command(replay)
 	await get_tree().process_frame
 	assert_true(applied, "sanity: the replay applies")
-	assert_eq(_bs.plan_slot.attack_plan, human, "a replay never writes the slot")
-	assert_eq(_slot_writes.size(), 0, "the slot was never written during the replay")
+	assert_eq(_ctl.armed_stack.attack_plan(), human, "a replay never writes the seat")
+	assert_eq(_slot_writes.size(), 0, "the seat was never written during the replay")
 
 
 # (c) ------------------------------------------------------------------------
 
 func _confirmed_swing_cw(candidate_cw: bool, sticky_cw: bool) -> Array:
-	_bs.next_melee_cw = sticky_cw
+	_ctl.armed_stack.next_melee_cw = sticky_cw
 	var seen: Array = []
 	_applier.command_confirmed.connect(func(c: Command) -> void:
 		if c is LaunchAttackCommand:

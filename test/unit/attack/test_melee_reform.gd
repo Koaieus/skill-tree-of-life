@@ -167,14 +167,14 @@ func test_nothing_to_reform_before_the_first_launch() -> void:
 
 func test_swing_direction_is_restored_onto_the_sticky_preference() -> void:
 	var plan := _click_build([_joint])
-	_bs.next_melee_cw = true
+	_pic.armed_stack.next_melee_cw = true
 	plan.swing_cw = true
 	await _launch_and_settle()
 	# Flip the preference away, so a restore is observable rather than a no-op.
-	_bs.next_melee_cw = false
+	_pic.armed_stack.next_melee_cw = false
 	assert_true(_pic.reform_blade())
 	assert_true((_pic.armed_stack.attack_plan() as MeleeAttackPlan).swing_cw)
-	assert_true(_bs.next_melee_cw,
+	assert_true(_pic.armed_stack.next_melee_cw,
 			"the tray's swing toggle reads BattleSystem, so the restore has to land there too")
 
 
@@ -183,7 +183,7 @@ func test_reform_emits_plan_state_changed() -> void:
 	await _launch_and_settle()
 	# A lambda captures locals by value — count into a reference type.
 	var seen: Array[int] = []
-	_bs.attack_plan_state_changed.connect(func() -> void: seen.append(1))
+	_pic.armed_stack.attack_plan_state_changed.connect(func() -> void: seen.append(1))
 	assert_true(_pic.reform_blade())
 	assert_gt(seen.size(), 0,
 			"MeleeBody's blips and MeleePreview refresh off this signal")

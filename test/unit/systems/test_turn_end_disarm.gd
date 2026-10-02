@@ -124,7 +124,7 @@ func _cast_fixture() -> Dictionary:
 	await get_tree().physics_frame
 	await get_tree().physics_frame
 
-	_bs.selected_spell = SpellCatalog.SPARK
+	_ctl.armed_stack.selected_spell = SpellCatalog.SPARK
 	assert_true(_ctl.arm_attack(BattleSystem.AttackMode.MAGIC), "fixture: magic armed")
 	var plan: MagicAttackPlan = _ctl.armed_stack.attack_plan() as MagicAttackPlan
 	assert_not_null(plan, "fixture: a magic plan stands")

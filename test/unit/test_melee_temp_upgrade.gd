@@ -226,14 +226,12 @@ func test_cancel_attack_frees_attached_temp_addon() -> void:
 	assert_true(plan.apply_temp_upgrade(joint, preload("res://skill_node/addons/defs/clamp_addon.tscn")))
 	var addons_with_upgrade := joint.get_addons().size()
 
-	var battle := BattleSystem.new()
-	battle.temp_upgrade_catalog = _catalog
-	add_child_autofree(battle)
-	battle.attack_plan = plan
-	battle.cancel_attack()
+	# Dropping a plan (an attack level's pop, a launch's release) goes through
+	# reset(), the single teardown choke point.
+	plan.reset()
 
 	assert_eq(joint.get_addons().size(), addons_with_upgrade - 1,
-			"cancel_attack() must not leak an attached temp addon")
+			"dropping the plan must not leak an attached temp addon")
 
 
 # ── Preview / resolve parity ──────────────────────────────────────────────

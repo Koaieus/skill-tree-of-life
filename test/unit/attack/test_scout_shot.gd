@@ -101,11 +101,11 @@ func _build(scout_stock: int = 4) -> Dictionary:
 	bs.turn_manager = tm
 	bs.allocation_system = alloc
 	bs.graph = graph
-	bs.vision_system = vision
 	bs.instant_mutation = true
 	add_child_autofree(bs)
 
 	var ctl: PlayerInputController = _ArmingCtl.make(self, graph, alloc, bs, tm, attacker)
+	ctl.vision_system = vision
 
 	await get_tree().process_frame
 	await get_tree().physics_frame
@@ -175,7 +175,7 @@ func test_the_committed_record_carries_one_ap_and_the_entity_pays_it() -> void:
 	var bs: BattleSystem = ctx.bs
 	var ap: Stat = ctx.attacker.stat_board.action_points
 	var ap_before: float = ap.current
-	var command := bs.build_launch_command()
+	var command := bs.build_launch_command((ctx.ctl as PlayerInputController).armed_stack.attack_plan())
 	assert_not_null(command, "the fixture plan must be launchable")
 	assert_true(bs.prepare_launch_command(command), "the scout shot survives validation")
 	assert_eq(int(command.record.get(AttackRecord.KEY_AP, -1)), 1, "the record carries the AP write")
@@ -197,7 +197,7 @@ func test_pick_sensed_follows_the_armed_ranged_plan_with_scout_stock() -> void:
 	assert_false(vision.pick_sensed, "off after cancel")
 	_arm(ctx, ctx.nodes.target, {&"scout": 2})
 	assert_true(vision.pick_sensed, "on again for the re-armed plan")
-	var command := bs.build_launch_command()
+	var command := bs.build_launch_command((ctx.ctl as PlayerInputController).armed_stack.attack_plan())
 	assert_true(bs.prepare_launch_command(command))
 	@warning_ignore("redundant_await")
 	await bs.apply_launch_command(command)

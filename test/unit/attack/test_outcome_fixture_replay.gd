@@ -188,8 +188,8 @@ func test_the_replay_needs_no_link_and_no_live_plan() -> void:
 	# with no live plan") instead of landing anything.
 	var fixture: OutcomeFixture = await _fixture()
 	var ctx: Dictionary = await _build()
-	assert_null((ctx.battle as BattleSystem).attack_plan,
-			"no plan is armed before the replay")
+	assert_null((ctx.battle as BattleSystem).in_flight_plan,
+			"no plan is in play before the replay")
 	await _submit_and_settle(ctx.applier, fixture.to_command_over_the_wire())
 	assert_null((ctx.world as Variant).nodes["d_gate"].owned_by,
 			"the recorded kill landed: the gate is nobody's")
