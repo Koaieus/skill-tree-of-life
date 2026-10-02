@@ -146,7 +146,9 @@ func _arm() -> MeleeAttackPlan:
 	await get_tree().process_frame
 	await get_tree().physics_frame
 	await get_tree().physics_frame
-	var plan := _bs.new_plan(BattleSystem.AttackMode.MELEE, _bs.turn_manager.current_entity) as MeleeAttackPlan
+	_bs.request_attack_mode(BattleSystem.AttackMode.NONE)
+	_bs.request_attack_mode(BattleSystem.AttackMode.MELEE)
+	var plan := _bs.attack_plan as MeleeAttackPlan
 	plan.set_pivot(_pivot)
 	plan.toggle_member(_mid)
 	plan.toggle_member(_tip)

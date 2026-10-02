@@ -160,7 +160,8 @@ func test_player_can_act_changed_fires_after_swing_reenabling_attack_mode_bar() 
 	var emissions: Array[bool] = []
 	ctl.player_can_act_changed.connect(func(can_act: bool): emissions.append(can_act))
 
-	var plan := _bs.new_plan(BattleSystem.AttackMode.MELEE, _bs.turn_manager.current_entity) as MeleeAttackPlan
+	ctl.arm_attack(BattleSystem.AttackMode.MELEE)
+	var plan := ctl.armed_stack.attack_plan() as MeleeAttackPlan
 	plan.set_pivot(source)
 	plan.toggle_member(joint)
 	_bs.launch_attack(plan)

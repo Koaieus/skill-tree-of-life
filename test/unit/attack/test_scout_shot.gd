@@ -117,16 +117,12 @@ func _build(scout_stock: int = 4) -> Dictionary:
 			"defender": defender, "nodes": nodes}
 
 
-## The plan the last `_arm*` minted — what the launch-command builders take.
-var _armed: AttackPlan = null
-
-
 func _arm(ctx: Dictionary, target: SkillNode, counts: Dictionary) -> RangedAttackPlan:
 	var bs: BattleSystem = ctx.bs
-	var plan := bs.new_plan(BattleSystem.AttackMode.RANGED, bs.turn_manager.current_entity) as RangedAttackPlan
+	bs.request_attack_mode(BattleSystem.AttackMode.RANGED)
+	var plan := bs.attack_plan as RangedAttackPlan
 	plan.set_target(target)
 	plan.ammo_counts = counts
-	_armed = plan
 	return plan
 
 
@@ -176,7 +172,7 @@ func test_the_committed_record_carries_one_ap_and_the_entity_pays_it() -> void:
 	var bs: BattleSystem = ctx.bs
 	var ap: Stat = ctx.attacker.stat_board.action_points
 	var ap_before: float = ap.current
-	var command := bs.build_launch_command(_armed)
+	var command := bs.build_launch_command()
 	assert_not_null(command, "the fixture plan must be launchable")
 	assert_true(bs.prepare_launch_command(command), "the scout shot survives validation")
 	assert_eq(int(command.record.get(AttackRecord.KEY_AP, -1)), 1, "the record carries the AP write")
@@ -198,7 +194,7 @@ func test_pick_sensed_follows_the_armed_ranged_plan_with_scout_stock() -> void:
 	assert_false(vision.pick_sensed, "off after cancel")
 	_arm(ctx, ctx.nodes.target, {&"scout": 2})
 	assert_true(vision.pick_sensed, "on again for the re-armed plan")
-	var command := bs.build_launch_command(_armed)
+	var command := bs.build_launch_command()
 	assert_true(bs.prepare_launch_command(command))
 	@warning_ignore("redundant_await")
 	await bs.apply_launch_command(command)
