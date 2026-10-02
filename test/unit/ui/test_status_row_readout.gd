@@ -74,7 +74,7 @@ func test_poison_row_dmg_matches_next_tick_damage_and_the_real_tick() -> void:
 	for res in [0.0, 0.25]:
 		_combat().release_statuses()
 		_set_res(&"poison_resistance", res)
-		_combat().apply_status(_POISON, 12.7)
+		_combat().apply_status(_POISON, 13.0)
 		var status: NodeStatus = _combat().get_statuses()[0]
 		var expected: float = _POISON.next_tick_damage(_combat(), status.power)
 		var row := _row(status, _combat())
@@ -88,20 +88,20 @@ func test_poison_row_dmg_matches_next_tick_damage_and_the_real_tick() -> void:
 				"res %s: the row's number is what actually lands" % res)
 
 
-func test_poison_row_shows_the_floored_stacks() -> void:
-	_combat().apply_status(_POISON, 12.7)
+func test_poison_row_shows_the_whole_stacks() -> void:
+	_combat().apply_status(_POISON, 13.0)
 	var status: NodeStatus = _combat().get_statuses()[0]
 	var row := _row(status, _combat())
-	assert_true(row._label.text.begins_with("Poison 12 "), "the floored row, not 12.7 or 12.70")
-	assert_false(row._label.text.contains("12.7"), "never the raw float")
+	assert_true(row._label.text.begins_with("Poison 13 "), "the whole row, no decimals")
+	assert_false(row._label.text.contains("13.0"), "never a float rendering")
 
 
-func test_curse_row_shows_floored_power_and_no_dmg_clause() -> void:
-	_combat().apply_status(_CURSE, 5.4)
+func test_curse_row_shows_whole_power_and_no_dmg_clause() -> void:
+	_combat().apply_status(_CURSE, 5.0)
 	var status: NodeStatus = _combat().get_statuses()[0]
 	var row := _row(status, _combat())
-	assert_eq(row._label.text, "Curse 5", "floored power, no dmg clause")
-	assert_false(row._label.text.contains("5.4"), "never the raw float")
+	assert_eq(row._label.text, "Curse 5", "whole power, no dmg clause")
+	assert_false(row._label.text.contains("5.0"), "never a float rendering")
 
 
 func test_get_description_folds_stacks_per_hit_with_a_board_null_falls_back_to_authored() -> void:
@@ -115,7 +115,7 @@ func test_get_description_folds_stacks_per_hit_with_a_board_null_falls_back_to_a
 	var m := StatModifier.new()
 	m.stat_id = &"poison_stacks_per_hit"
 	m.operation = StatModifier.Operation.INCREASE
-	m.value = 49.0
+	m.value = 50.0
 	board.add_modifier(m)
-	assert_eq(effect.get_description(null, board), "Applies Poison (1.49 per hit).",
-			"+49% poison_stacks_per_hit folds the per-hit line")
+	assert_eq(effect.get_description(null, board), "Applies Poison (2 per hit).",
+			"+50% poison_stacks_per_hit folds the per-hit line, 1.5 rounding half-up")

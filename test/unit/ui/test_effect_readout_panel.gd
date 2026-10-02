@@ -393,21 +393,21 @@ func _status_def(display: String, power_max: float = 3.0, tint: Color = Color.WH
 func test_status_row_shows_display_name_and_the_floored_power() -> void:
 	var ent := _spawn_entity()
 	_node.owned_by = ent
-	_node.get_combat().apply_status(_status_def("Blinded", 3.0), 1.5)
+	_node.get_combat().apply_status(_status_def("Blinded", 3.0), 2.0)
 	var panel := _panel()
 	panel.bind(_node, _graph)
 	assert_true(panel.has_content())
 	var texts := _row_texts(panel)
 	assert_eq(texts.size(), 1)
 	assert_string_contains(texts[0], "Blinded")
-	assert_string_contains(texts[0], NumFmt.num(floorf(1.5)))
+	assert_string_contains(texts[0], NumFmt.num(2.0))
 	assert_false(texts[0].contains("dmg"), "a damageless def shows no dmg clause")
 
 
 func test_two_statuses_show_two_rows_with_the_floored_power() -> void:
 	var ent := _spawn_entity()
 	_node.owned_by = ent
-	_node.get_combat().apply_status(_status_def("Blinded", 3.0), 1.5)
+	_node.get_combat().apply_status(_status_def("Blinded", 3.0), 2.0)
 	_node.get_combat().apply_status(_status_def("Poisoned", 4.0), 4.0)
 	var panel := _panel()
 	panel.bind(_node, _graph)
@@ -415,9 +415,9 @@ func test_two_statuses_show_two_rows_with_the_floored_power() -> void:
 	assert_eq(texts.size(), 2)
 	var joined := "\n".join(texts)
 	assert_string_contains(joined, "Blinded")
-	assert_string_contains(joined, NumFmt.num(floorf(1.5)))
+	assert_string_contains(joined, NumFmt.num(2.0))
 	assert_string_contains(joined, "Poisoned")
-	assert_string_contains(joined, NumFmt.num(floorf(4.0)))
+	assert_string_contains(joined, NumFmt.num(4.0))
 	assert_false(joined.contains("dmg"), "a damageless def shows no dmg clause")
 
 
@@ -433,7 +433,7 @@ func test_no_statuses_has_no_status_section() -> void:
 func test_unbinding_removes_the_status_row() -> void:
 	var ent := _spawn_entity()
 	_node.owned_by = ent
-	_node.get_combat().apply_status(_status_def("Blinded"), 1.5)
+	_node.get_combat().apply_status(_status_def("Blinded"), 2.0)
 	var panel := _panel()
 	panel.bind(_node, _graph)
 	assert_true(panel.has_content())

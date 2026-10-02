@@ -227,7 +227,7 @@ func test_an_entity_hosted_poison_row_reads_the_entitys_resistance() -> void:
 # ── Projection parity: the bar equals reality ───────────────────────────────
 
 const _RESISTANCES: Array[float] = [0.0, 0.01, 0.25, 1.0]
-const _POWERS: Array[float] = [1.0, 12.7, 20.0]
+const _POWERS: Array[float] = [1.0, 13.0, 20.0]
 
 
 ## Ticks [param host] to empty, returning `[projected, landed, first_tick,

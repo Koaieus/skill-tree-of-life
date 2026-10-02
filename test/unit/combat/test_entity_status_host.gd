@@ -173,7 +173,7 @@ func test_a_shadow_tick_never_moves_the_live_row_or_pool() -> void:
 	shadow.tick_statuses()
 	assert_almost_eq(_combat().get_status_power(&"poison"), 4.0, 0.001, "the live row is untouched")
 	assert_almost_eq(_health().current, live_before, 0.001, "the live pool is untouched")
-	assert_almost_eq(shadow.get_status_power(&"poison"), 2.0, 0.001, "the shadow row decayed")
+	assert_almost_eq(shadow.get_status_power(&"poison"), 3.0, 0.001, "the shadow row lost its one stack")
 	assert_almost_eq((shadow.board().get_stat(&"health") as PoolStat).current,
 			live_before - 4.0 * _dpp(), 0.001, "the shadow pool drained")
 
