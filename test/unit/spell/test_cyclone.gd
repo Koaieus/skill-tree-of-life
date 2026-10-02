@@ -246,11 +246,12 @@ func test_a_tree_gets_nothing() -> void:
 	# edge stopped being dropped — both of which give a tree circulation it must
 	# never have.
 	var step := _CYCLONE.propagation.spread as CycloneSpread
-	var fan := 0.0
-	for c in step.rank_coefficients:
-		fan += c
 	var seed_damage := SpellResolver.impact_damage(_CYCLONE, _graph.get_skill_nodes()[7])
-	assert_almost_eq(_total(out), seed_damage * (1.0 + fan), 0.01,
+	# Each hit lands whole (ADR 0033), so the sum is per term, not seed x (1 + fan).
+	var expected := HitPoints.whole(seed_damage)
+	for c in step.rank_coefficients:
+		expected += HitPoints.whole(seed_damage * c)
+	assert_almost_eq(_total(out), expected, 0.01,
 			"seed + exactly one fan: a tree has no circulation to feed on")
 
 

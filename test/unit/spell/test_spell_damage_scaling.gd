@@ -75,8 +75,10 @@ func test_doubling_spell_damage_doubles_the_seed_for_every_progression() -> void
 
 func test_relative_progressions_double_every_hop_with_the_caster() -> void:
 	var h := H.new()
-	var multiply := _damage_by_hop(H.new(), h.multiply_progression(1.5), 2.0, 1.0)
-	var multiply_2x := _damage_by_hop(H.new(), h.multiply_progression(1.5), 2.0, 2.0)
+	# Factor 2 keeps every hop whole: each hit lands rounded up (ADR 0033), and
+	# 1.5's fractional hops would double before rounding, not after.
+	var multiply := _damage_by_hop(H.new(), h.multiply_progression(2.0), 2.0, 1.0)
+	var multiply_2x := _damage_by_hop(H.new(), h.multiply_progression(2.0), 2.0, 2.0)
 	var scaled := _damage_by_hop(H.new(), h.scaled_add_progression(0.5), 2.0, 1.0)
 	var scaled_2x := _damage_by_hop(H.new(), h.scaled_add_progression(0.5), 2.0, 2.0)
 	for i in multiply.size():

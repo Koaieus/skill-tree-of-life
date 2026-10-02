@@ -220,12 +220,12 @@ func test_aura_falloff_by_hop() -> void:
 	_entity.begin_turn()
 
 	# LinearScale-equivalent formula: base * (1 - d/max) = 10, 6.667, 3.333, 0
-	# for base 10 / max_hops 3 — floored once by the heal door, per ADR 0017
+	# for base 10 / max_hops 3 — rounded up once by the heal door, per ADR 0033
 	# (health is an INT quantity end to end), and the rim (hop == max_hops) computes
 	# exactly 0 and heals nothing.
 	assert_almost_eq(_hp_pool(core).current, 60.0, 0.001, "core's own node heals base (hop 0)")
-	assert_almost_eq(_hp_pool(chain[1]).current, 56.0, 0.001, "hop 1: 6.667 floors to 6")
-	assert_almost_eq(_hp_pool(chain[2]).current, 53.0, 0.001, "hop 2: 3.333 floors to 3")
+	assert_almost_eq(_hp_pool(chain[1]).current, 57.0, 0.001, "hop 1: 6.667 rounds up to 7")
+	assert_almost_eq(_hp_pool(chain[2]).current, 54.0, 0.001, "hop 2: 3.333 rounds up to 4")
 	assert_almost_eq(_hp_pool(chain[3]).current, 50.0, 0.001, "hop 3 (== max_hops) computes 0, heals nothing")
 
 
@@ -302,7 +302,7 @@ func test_aura_hop_distance_uses_owned_subgraph() -> void:
 
 	assert_almost_eq(_hp_pool(target).current, 50.0, 0.001,
 			"target is 4 owned-hops away (out of range); a global shortcut through unowned territory must not shrink that — no heal lands")
-	assert_almost_eq(_hp_pool(chain[1]).current, 56.0, 0.001, "sanity: owned hop-1 node still measured correctly")
+	assert_almost_eq(_hp_pool(chain[1]).current, 57.0, 0.001, "sanity: owned hop-1 node still measured correctly")
 
 
 func test_aura_heals_through_damage_gate_and_grants_no_ramp() -> void:
