@@ -77,7 +77,7 @@ func test_the_players_turn_ending_clears_the_armed_stack_to_its_root() -> void:
 	_tm.abandon_turn(_player)
 
 	assert_false(_ctl.has_armed_level(), "the stack is just the Manage root")
-	assert_null(_bs.attack_plan, "the arm's plan went with the arm")
+	assert_null(_ctl.armed_stack.attack_plan(), "the arm's plan went with the arm")
 
 
 func test_ending_a_turn_the_seat_is_not_holding_leaves_the_stack_armed() -> void:
@@ -126,7 +126,7 @@ func _cast_fixture() -> Dictionary:
 
 	_bs.selected_spell = SpellCatalog.SPARK
 	assert_true(_ctl.arm_attack(BattleSystem.AttackMode.MAGIC), "fixture: magic armed")
-	var plan: MagicAttackPlan = _bs.attack_plan as MagicAttackPlan
+	var plan: MagicAttackPlan = _ctl.armed_stack.attack_plan() as MagicAttackPlan
 	assert_not_null(plan, "fixture: a magic plan stands")
 	# Through the click grammar, so MagicMode pushes its TargetMode step.
 	_ctl.route_left_click(target)
@@ -147,13 +147,13 @@ func test_a_launched_spell_pops_target_and_returns_to_magic() -> void:
 	assert_eq(_ctl.armed_stack.branch().size(), 3, "fixture: Manage / Magic / Target")
 
 	_player.stat_board.mana.current = 20.0
-	await _bs.launch_attack(_bs.attack_plan)
+	await _bs.launch_attack(_ctl.armed_stack.attack_plan())
 	await get_tree().process_frame
 
 	# Magic alone on top of the root: TargetMode popped on the launch, and the
 	# re-arm minted a fresh plan for the same mode.
 	assert_eq(_ctl.armed_stack.branch().size(), 2,
 			"back to Magic mode (no Target level)")
-	assert_true(_bs.attack_plan is MagicAttackPlan, "the re-arm landed a magic plan")
-	assert_null((_bs.attack_plan as MagicAttackPlan).target,
+	assert_true(_ctl.armed_stack.attack_plan() is MagicAttackPlan, "the re-arm landed a magic plan")
+	assert_null((_ctl.armed_stack.attack_plan() as MagicAttackPlan).target,
 			"the fresh plan carries no target from the cast")

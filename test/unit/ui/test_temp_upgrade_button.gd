@@ -115,9 +115,9 @@ func before_each() -> void:
 func _arm_plan(members: Array[SkillNode] = []) -> MeleeAttackPlan:
 	# Reset first: re-requesting a mode already selected keeps the live plan, so
 	# without this a second call would grow the FIRST plan rather than start over.
-	_bs.reset_plan()
+	_pic.arm_attack(BattleSystem.AttackMode.NONE)
 	_pic.arm_attack(BattleSystem.AttackMode.MELEE)
-	var plan := _bs.attack_plan as MeleeAttackPlan
+	var plan := _pic.armed_stack.attack_plan() as MeleeAttackPlan
 	_pic.route_left_click(_pivot)
 	for m in members:
 		_pic.route_left_click(m)
@@ -211,7 +211,7 @@ func test_spending_the_blade_budget_flips_affordability_only() -> void:
 	# Two members eat 2 of 3 → spike (cost 2) no longer fits, clamp (cost 1) still does.
 	# Grown on the SAME plan, so this is genuinely "the budget was spent" rather
 	# than "a fresh plan happened to start smaller".
-	var plan := _bs.attack_plan as MeleeAttackPlan
+	var plan := _pic.armed_stack.attack_plan() as MeleeAttackPlan
 	plan.toggle_member(_a)
 	plan.toggle_member(_b)
 	assert_eq(_card(1).state, TempUpgradeButton.State.UNAFFORDABLE,

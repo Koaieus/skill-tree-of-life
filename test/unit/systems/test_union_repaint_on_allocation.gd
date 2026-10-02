@@ -29,6 +29,7 @@ const _PLAYER_FACTION := preload("res://entity/factions/player.tres")
 var _graph: Graph
 var _alloc: AllocationSystem
 var _battle: BattleSystem
+var _ctl: PlayerInputController
 var _attacker: Entity
 var _owned: SkillNode
 var _spare: SkillNode
@@ -64,10 +65,18 @@ func before_each() -> void:
 	_battle.graph = _graph
 	add_child_autofree(_battle)
 
+	_ctl = PlayerInputController.new()
+	_ctl.graph = _graph
+	_ctl.allocation_system = _alloc
+	_ctl.battle_system = _battle
+	_ctl.turn_manager = tm
+	add_child_autofree(_ctl)
+	_ctl.player = _attacker
+
 
 func _magic_plan() -> MagicAttackPlan:
-	_battle.request_attack_mode(BattleSystem.AttackMode.MAGIC)
-	return _battle.attack_plan as MagicAttackPlan
+	_ctl.arm_attack(BattleSystem.AttackMode.MAGIC)
+	return _ctl.armed_stack.attack_plan() as MagicAttackPlan
 
 
 func test_allocating_announces_the_union_change_on_the_plans_own_signal() -> void:

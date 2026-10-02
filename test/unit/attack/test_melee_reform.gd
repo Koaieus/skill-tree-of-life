@@ -112,8 +112,8 @@ func _make_entity(nm: String) -> Entity:
 ## Arm melee and click-build pivot → members through the REAL input path, so
 ## every gate a player passes is exercised before the capture.
 func _click_build(members: Array[SkillNode]) -> MeleeAttackPlan:
-	_bs.request_attack_mode(BattleSystem.AttackMode.MELEE)
-	var plan := _bs.attack_plan as MeleeAttackPlan
+	_pic.arm_attack(BattleSystem.AttackMode.MELEE)
+	var plan := _pic.armed_stack.attack_plan() as MeleeAttackPlan
 	plan.set_pivot(_pivot)
 	for m in members:
 		plan.toggle_member(m)
@@ -126,7 +126,7 @@ func _click_build(members: Array[SkillNode]) -> MeleeAttackPlan:
 ## (pause_leak_pre_run_hook.gd) and varies by an order of magnitude between
 ## machines — 900 ticks was 15 s on one box and 1.4 s on another.
 func _launch_and_settle(max_seconds: float = 15.0) -> float:
-	_bs.launch_attack(_bs.attack_plan)
+	_bs.launch_attack(_pic.armed_stack.attack_plan())
 	var started := Time.get_ticks_msec()
 	while _bs.is_launching and Time.get_ticks_msec() - started < max_seconds * 1000.0:
 		await get_tree().process_frame
@@ -155,8 +155,8 @@ func test_a_click_built_blade_can_always_be_reformed() -> void:
 	await _launch_and_settle()
 	assert_true(_pic.can_reform(), "the blade that just launched must be reformable")
 	assert_true(_pic.reform_blade())
-	assert_eq(_blade_names(_bs.attack_plan as MeleeAttackPlan), ["Joint", "Tip"])
-	assert_eq((_bs.attack_plan as MeleeAttackPlan).source, _pivot)
+	assert_eq(_blade_names(_pic.armed_stack.attack_plan() as MeleeAttackPlan), ["Joint", "Tip"])
+	assert_eq((_pic.armed_stack.attack_plan() as MeleeAttackPlan).source, _pivot)
 
 
 func test_nothing_to_reform_before_the_first_launch() -> void:
@@ -173,7 +173,7 @@ func test_swing_direction_is_restored_onto_the_sticky_preference() -> void:
 	# Flip the preference away, so a restore is observable rather than a no-op.
 	_bs.next_melee_cw = false
 	assert_true(_pic.reform_blade())
-	assert_true((_bs.attack_plan as MeleeAttackPlan).swing_cw)
+	assert_true((_pic.armed_stack.attack_plan() as MeleeAttackPlan).swing_cw)
 	assert_true(_bs.next_melee_cw,
 			"the tray's swing toggle reads BattleSystem, so the restore has to land there too")
 
@@ -197,8 +197,8 @@ func test_reform_is_refused_when_a_member_is_no_longer_owned() -> void:
 	_alloc.force_deallocate(_tip)
 	# A live (empty) melee plan, so the "left untouched" assertions below have
 	# something to observe — the launch cleared the previous one.
-	_bs.request_attack_mode(BattleSystem.AttackMode.MELEE)
-	var plan := _bs.attack_plan as MeleeAttackPlan
+	_pic.arm_attack(BattleSystem.AttackMode.MELEE)
+	var plan := _pic.armed_stack.attack_plan() as MeleeAttackPlan
 	assert_not_null(plan, "fixture: melee must be armed")
 
 	assert_false(_pic.can_reform(), "a blade missing a member is not reformable")
@@ -216,7 +216,7 @@ func test_reform_recovers_when_the_member_is_allocated_again() -> void:
 	_alloc.force_allocate(_attacker, _tip)
 	assert_true(_pic.can_reform(), "the blade is constructible again")
 	assert_true(_pic.reform_blade())
-	assert_eq(_blade_names(_bs.attack_plan as MeleeAttackPlan), ["Joint", "Tip"])
+	assert_eq(_blade_names(_pic.armed_stack.attack_plan() as MeleeAttackPlan), ["Joint", "Tip"])
 
 
 ## The case the topology hash was invented for. Territory GREW — a strict
@@ -230,7 +230,7 @@ func test_reform_still_works_after_territory_grows() -> void:
 
 	assert_true(_pic.can_reform(), "a superset of the old territory still fits the old blade")
 	assert_true(_pic.reform_blade())
-	assert_eq(_blade_names(_bs.attack_plan as MeleeAttackPlan), ["Joint", "Tip"],
+	assert_eq(_blade_names(_pic.armed_stack.attack_plan() as MeleeAttackPlan), ["Joint", "Tip"],
 			"the newly allocated node is not part of the remembered blade")
 
 
@@ -257,7 +257,7 @@ func test_a_refused_launch_does_not_overwrite_the_slot() -> void:
 
 	_attacker.stat_board.action_points.current = 4.0
 	assert_true(_pic.reform_blade())
-	assert_eq(_blade_names(_bs.attack_plan as MeleeAttackPlan), ["Joint", "Tip"],
+	assert_eq(_blade_names(_pic.armed_stack.attack_plan() as MeleeAttackPlan), ["Joint", "Tip"],
 			"a launch that never cleared the AP gate must not replace the remembered blade")
 
 
@@ -266,8 +266,8 @@ func test_a_refused_launch_does_not_overwrite_the_slot() -> void:
 ## `_try_select_path` would mass-select Pivot→Joint→Tip and report success with
 ## a bigger blade than asked for. try_reform must refuse outright.
 func test_reform_never_mass_selects_a_path_to_a_detached_member() -> void:
-	_bs.request_attack_mode(BattleSystem.AttackMode.MELEE)
-	var plan := _bs.attack_plan as MeleeAttackPlan
+	_pic.arm_attack(BattleSystem.AttackMode.MELEE)
+	var plan := _pic.armed_stack.attack_plan() as MeleeAttackPlan
 	var members: Array[SkillNode] = [_tip]  # two hops out; Joint is between
 
 	assert_false(MeleeAttackPlan.can_reform_selection(_attacker, _pivot, members))
@@ -281,8 +281,8 @@ func test_reform_never_mass_selects_a_path_to_a_detached_member() -> void:
 ## so a set that is only constructible in a different order is refused rather
 ## than reordered.
 func test_reform_walks_the_stored_order_and_does_not_search_for_another() -> void:
-	_bs.request_attack_mode(BattleSystem.AttackMode.MELEE)
-	var plan := _bs.attack_plan as MeleeAttackPlan
+	_pic.arm_attack(BattleSystem.AttackMode.MELEE)
+	var plan := _pic.armed_stack.attack_plan() as MeleeAttackPlan
 	var backwards: Array[SkillNode] = [_tip, _joint]
 	var forwards: Array[SkillNode] = [_joint, _tip]
 
@@ -316,7 +316,7 @@ func test_reform_is_gated_shut_until_the_launch_command_finishes_draining() -> v
 
 	_click_build([_joint, _tip])
 
-	_bs.attack_plan_changed.connect(_record_reform_gate_on_clear)
+	_pic.armed_stack.attack_plan_changed.connect(_record_reform_gate_on_clear)
 
 	await _launch_and_settle()
 	# The drain outlives is_launching by a hair; settle it too (wall clock, as above).
@@ -347,18 +347,18 @@ func test_each_entity_reforms_its_own_blade() -> void:
 	# The cursor changes hands mid-arrangement: adopt it, no turn upkeep.
 	_tm.adopt_turn(other, _tm.turns_taken)
 	_pic.player = other
-	_bs.request_attack_mode(BattleSystem.AttackMode.MELEE)
+	_pic.arm_attack(BattleSystem.AttackMode.MELEE)
 	assert_false(_pic.can_reform(), "the incoming player has no blade of their own yet")
 
-	var plan := _bs.attack_plan as MeleeAttackPlan
+	var plan := _pic.armed_stack.attack_plan() as MeleeAttackPlan
 	plan.set_pivot(_spur)
 	plan.toggle_member(other_leaf)
 	await _launch_and_settle()
 	assert_true(_pic.reform_blade())
-	assert_eq(_blade_names(_bs.attack_plan as MeleeAttackPlan), ["OtherLeaf"])
+	assert_eq(_blade_names(_pic.armed_stack.attack_plan() as MeleeAttackPlan), ["OtherLeaf"])
 
 	# Hand back: the first player's blade is still exactly where it was.
 	_tm.adopt_turn(_attacker, _tm.turns_taken)
 	_pic.player = _attacker
 	assert_true(_pic.reform_blade())
-	assert_eq(_blade_names(_bs.attack_plan as MeleeAttackPlan), ["Joint", "Tip"])
+	assert_eq(_blade_names(_pic.armed_stack.attack_plan() as MeleeAttackPlan), ["Joint", "Tip"])

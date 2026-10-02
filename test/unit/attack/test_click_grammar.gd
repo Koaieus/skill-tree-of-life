@@ -88,7 +88,7 @@ func _branch() -> Array:
 
 
 func _melee() -> MeleeAttackPlan:
-	return _bs.attack_plan as MeleeAttackPlan
+	return _ctl.armed_stack.attack_plan() as MeleeAttackPlan
 
 
 func _upgrade() -> PackedScene:
@@ -117,7 +117,7 @@ func test_melee_pivot_pushes_blade_and_two_pops_reach_the_root() -> void:
 	assert_null(_melee().source, "and Blade's pop clears the pivot")
 	assert_true(_ctl.pop_armed_level())
 	assert_eq(_branch(), [ManageMode], "pop 2 exits melee")
-	assert_false(_bs.is_attacking, "with no plan left")
+	assert_false((_ctl.armed_stack.attack_plan() != null), "with no plan left")
 	assert_false(_ctl.pop_armed_level(), "the root does not pop")
 
 
@@ -146,10 +146,10 @@ func test_a_launch_pops_blade_and_melee_stays_armed_then_reform_pushes_blade() -
 	_ctl.route_left_click(_pivot)
 	_ctl.route_left_click(_joint)
 	assert_true(_melee().is_valid(), "precondition: %s" % str(_melee().validate()))
-	_bs.launch_attack(_bs.attack_plan)
-	await wait_until(func() -> bool: return not _bs.is_launching and _bs.is_attacking, 5.0)
+	_bs.launch_attack(_ctl.armed_stack.attack_plan())
+	await wait_until(func() -> bool: return not _bs.is_launching and (_ctl.armed_stack.attack_plan() != null), 5.0)
 	assert_eq(_branch(), [ManageMode, MeleeMode], "Blade is gone, Melee stays armed")
-	assert_true(_bs.is_attacking, "with a fresh melee plan")
+	assert_true((_ctl.armed_stack.attack_plan() != null), "with a fresh melee plan")
 	assert_null(_melee().source if _melee() != null else null, "the fresh plan is empty")
 	assert_true(_ctl.reform_blade(), "precondition: the last blade reforms")
 	assert_eq(_branch(), [ManageMode, MeleeMode, BladeMode], "reform pushes Blade")
@@ -194,13 +194,13 @@ func test_ranged_target_pushes_target_retargets_in_place_and_two_pops_exit() -> 
 	assert_eq(_branch(), [ManageMode, RangedMode, TargetMode], "a target pushes Target")
 	_ctl.route_left_click(_far)
 	assert_eq(_branch(), [ManageMode, RangedMode, TargetMode], "retarget keeps the depth")
-	assert_eq((_bs.attack_plan as RangedAttackPlan).target, _far)
+	assert_eq((_ctl.armed_stack.attack_plan() as RangedAttackPlan).target, _far)
 	assert_true(_ctl.pop_armed_level())
 	assert_eq(_branch(), [ManageMode, RangedMode])
-	assert_null((_bs.attack_plan as RangedAttackPlan).target, "the pop clears the target")
+	assert_null((_ctl.armed_stack.attack_plan() as RangedAttackPlan).target, "the pop clears the target")
 	assert_true(_ctl.pop_armed_level())
 	assert_eq(_branch(), [ManageMode], "the next pop exits")
-	assert_false(_bs.is_attacking)
+	assert_false((_ctl.armed_stack.attack_plan() != null))
 
 
 func test_magic_target_pushes_target_retargets_in_place_and_two_pops_exit() -> void:
@@ -210,7 +210,7 @@ func test_magic_target_pushes_target_retargets_in_place_and_two_pops_exit() -> v
 	assert_eq(_branch(), [ManageMode, MagicMode, TargetMode], "a target pushes Target")
 	_ctl.route_left_click(_tip)
 	assert_eq(_branch(), [ManageMode, MagicMode, TargetMode], "retarget keeps the depth")
-	var plan := _bs.attack_plan as MagicAttackPlan
+	var plan := _ctl.armed_stack.attack_plan() as MagicAttackPlan
 	assert_eq(plan.target, _tip)
 	assert_true(_ctl.pop_armed_level())
 	assert_eq(_branch(), [ManageMode, MagicMode])
@@ -228,7 +228,7 @@ func test_a_spell_swap_that_drops_the_target_pops_target() -> void:
 	var hostile_only := _heal_spell()
 	(hostile_only.targeting as NodeTargeting).ownership_filter = SkillNode.Ownership.HOSTILE
 	_bs.selected_spell = hostile_only
-	assert_null((_bs.attack_plan as MagicAttackPlan).target, "precondition: the swap dropped it")
+	assert_null((_ctl.armed_stack.attack_plan() as MagicAttackPlan).target, "precondition: the swap dropped it")
 	assert_eq(_branch(), [ManageMode, MagicMode], "the spell swap is Target's pop event")
 
 
@@ -244,7 +244,7 @@ func test_esc_pops_one_level_same_as_right_click() -> void:
 	assert_eq(_branch(), [ManageMode, MeleeMode], "Esc pop 1 drops Blade")
 	_ctl._unhandled_key_input(esc)
 	assert_eq(_branch(), [ManageMode], "Esc pop 2 exits the mode")
-	assert_false(_bs.is_attacking)
+	assert_false((_ctl.armed_stack.attack_plan() != null))
 
 
 func test_d_gated_while_attack_plan_armed() -> void:

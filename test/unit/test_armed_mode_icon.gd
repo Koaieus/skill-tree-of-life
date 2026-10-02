@@ -415,7 +415,7 @@ func test_every_level_with_an_icon_also_names_a_colour() -> void:
 	]
 	for arm in arms:
 		_ctl.clear_transient_state()
-		_battle.cancel_attack()
+		_ctl.arm_attack(BattleSystem.AttackMode.NONE)
 		arm.call()
 		for mode in _ctl.armed_stack.branch():
 			if mode.icon() == null:

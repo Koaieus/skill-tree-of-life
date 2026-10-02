@@ -89,7 +89,7 @@ func _launch_blade_and_settle() -> void:
 	_pic.arm_attack(BattleSystem.AttackMode.MELEE)
 	_pic.route_left_click(_pivot)
 	_pic.route_left_click(_joint)
-	_bs.launch_attack(_bs.attack_plan)
+	_bs.launch_attack(_pic.armed_stack.attack_plan())
 	await wait_until(func() -> bool: return not _bs.is_launching and not _applier.is_applying, 5.0)
 	_submitted = []  # only what happens AFTER the launch is under test
 
@@ -98,7 +98,7 @@ func test_ranged_armed_reloads_the_quiver_and_never_arms_melee() -> void:
 	await _launch_blade_and_settle()
 	_pic.arm_attack(BattleSystem.AttackMode.RANGED)
 	assert_true(_pic.reload_in_hand(), "the ranged level consumes the action")
-	assert_true(_bs.attack_plan is RangedAttackPlan, "still ranged — the blade handler was not live")
+	assert_true(_pic.armed_stack.attack_plan() is RangedAttackPlan, "still ranged — the blade handler was not live")
 	await wait_until(func() -> bool: return not _applier.is_applying, 5.0)
 	assert_eq(_submitted.size(), 1)
 	assert_true(_submitted[0] is ReloadCommand)
@@ -110,7 +110,7 @@ func test_ranged_armed_with_nothing_to_reload_is_still_consumed() -> void:
 	_attacker.stat_board.action_points.set_current(0.0)
 	assert_false(_attacker.can_reload(), "fixture: no AP, no reload")
 	assert_true(_pic.reload_in_hand(), "the armed level owns the key even when it refuses")
-	assert_true(_bs.attack_plan is RangedAttackPlan, "a refused reload must not fall through into melee")
+	assert_true(_pic.armed_stack.attack_plan() is RangedAttackPlan, "a refused reload must not fall through into melee")
 	assert_eq(_submitted.size(), 0)
 
 
@@ -118,7 +118,7 @@ func test_melee_armed_reforms_the_blade_and_never_touches_the_quiver() -> void:
 	await _launch_blade_and_settle()
 	_pic.arm_attack(BattleSystem.AttackMode.MELEE)
 	assert_true(_pic.reload_in_hand())
-	var plan := _bs.attack_plan as MeleeAttackPlan
+	var plan := _pic.armed_stack.attack_plan() as MeleeAttackPlan
 	assert_not_null(plan)
 	assert_eq(plan.source, _pivot, "the last blade is back in hand")
 	assert_eq(_submitted.size(), 0, "no ReloadCommand — the quiver handler was not live")
@@ -127,11 +127,11 @@ func test_melee_armed_reforms_the_blade_and_never_touches_the_quiver() -> void:
 func test_unarmed_reforms_the_last_blade_as_the_global_accelerator() -> void:
 	await _launch_blade_and_settle()
 	_pic.arm_attack(BattleSystem.AttackMode.NONE)  # a launch leaves melee armed
-	assert_null(_bs.attack_plan, "fixture: nothing armed")
+	assert_null(_pic.armed_stack.attack_plan(), "fixture: nothing armed")
 	assert_true(_pic.reload_in_hand())
-	assert_true(_bs.attack_plan is MeleeAttackPlan, "#466: R from nowhere arms melee with the last blade")
+	assert_true(_pic.armed_stack.attack_plan() is MeleeAttackPlan, "#466: R from nowhere arms melee with the last blade")
 
 
 func test_unarmed_with_nothing_to_reform_leaves_the_key_unhandled() -> void:
 	assert_false(_pic.reload_in_hand())
-	assert_null(_bs.attack_plan)
+	assert_null(_pic.armed_stack.attack_plan())

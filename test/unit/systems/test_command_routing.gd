@@ -240,7 +240,7 @@ func _arm_melee_with_clamp() -> void:
 	_alloc.force_allocate(_player, _n("B"))
 	_alloc.force_allocate(_player, _n("C"))
 	_ctl.arm_attack(BattleSystem.AttackMode.MELEE)
-	var plan := _battle.attack_plan as MeleeAttackPlan
+	var plan := _ctl.armed_stack.attack_plan() as MeleeAttackPlan
 	_ctl.route_left_click(_n("A"))
 	_ctl.route_left_click(_n("B"))
 	_ctl.route_left_click(_n("C"))
