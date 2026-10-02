@@ -176,12 +176,6 @@ func arm_world() -> void:
 ## The reset itself, past the human-facing guard above — Capture and Replay run
 ## it while `_busy` is deliberately true, so the guard cannot live in here.
 func _arm() -> void:
-	# Guarded, not unconditional: `cancel_attack` push_warnings when there is no
-	# plan to cancel, which is the COMMON case here — every Reset click with
-	# nothing armed, and the first arm inside `_build_world`. An instrument that
-	# logs a warning as part of its resting state trains you to ignore its log.
-	if _battle.is_attacking:
-		_battle.cancel_attack()
 	_alloc_vfx.muted = true
 	_builder.arm(_alloc, _turn_manager)
 	_alloc_vfx.muted = false
@@ -218,9 +212,9 @@ func _on_capture_pressed() -> void:
 	_busy = true
 	_refresh_status()
 	_arm()
-	_builder.arm_magic(_battle, _selected_spell())
+	var plan := _builder.arm_magic(_battle, _selected_spell())
 	var before := WorldFingerprint.compute(_graph)
-	var command := _battle.build_launch_command()
+	var command := _battle.build_launch_command(plan) if plan != null else null
 	if command == null:
 		_verdict = "[color=#ff8f6b]nothing launchable — check the plan[/color]"
 		_busy = false

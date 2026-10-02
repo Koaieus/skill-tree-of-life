@@ -48,6 +48,9 @@ var turn_manager: TurnManager
 var loot_system: LootSystem
 var command_applier: CommandApplier
 var input_controller: PlayerInputController
+## The seat's armed-input stack, always built: the plan readers (melee preview,
+## highlights) read the armed plan off it, and the input controller arms onto it.
+var armed_stack: ArmedStack
 var melee_preview: MeleePreview
 var attack_vfx: AttackVFX
 ## The [BattleSystem]'s stage, mounted when `melee` or `attack_vfx` is asked
@@ -125,6 +128,9 @@ func build(p_graph: Graph, opts: Dictionary = {}) -> void:
 	battle_system.graph = graph
 	battle_system.turn_manager = turn_manager
 	add_child(battle_system)
+	armed_stack = ArmedStack.new()
+	armed_stack.name = "ArmedStack"
+	add_child(armed_stack)
 
 	if want_melee or want_attack_vfx:
 		presenter = AttackPresenter.ensure_on(battle_system)
@@ -136,6 +142,7 @@ func build(p_graph: Graph, opts: Dictionary = {}) -> void:
 		melee_preview = _MELEE_PREVIEW_SCRIPT.new()
 		melee_preview.name = "MeleePreview"
 		melee_preview.battle_system = battle_system
+		melee_preview.armed_stack = armed_stack
 		graph.add_child(melee_preview)
 		presenter.melee_preview = melee_preview
 
@@ -167,6 +174,7 @@ func build(p_graph: Graph, opts: Dictionary = {}) -> void:
 		input_controller.battle_system = battle_system
 		input_controller.turn_manager = turn_manager
 		input_controller.command_applier = command_applier
+		input_controller.armed_stack = armed_stack
 		add_child(input_controller)
 
 	if want_highlight:
@@ -184,6 +192,7 @@ func build(p_graph: Graph, opts: Dictionary = {}) -> void:
 		highlight_controller.allocation_system = allocation_system
 		highlight_controller.turn_manager = turn_manager
 		highlight_controller.input_ctl = input_controller
+		highlight_controller.armed_stack = armed_stack
 		add_child(highlight_controller)
 		edge_highlight = _EDGE_HIGHLIGHT_SCRIPT.new()
 		edge_highlight.name = "EdgeHighlightOverlay"

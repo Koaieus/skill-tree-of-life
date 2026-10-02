@@ -89,9 +89,9 @@ func _submit_and_settle(applier: CommandApplier, command: Command) -> void:
 func _regenerate() -> void:
 	var ctx: Dictionary = await _build()
 	var battle: BattleSystem = ctx.battle
-	(ctx.world as Variant).arm_magic(battle)
+	var plan: MagicAttackPlan = (ctx.world as Variant).arm_magic(battle)
 	var before := WorldFingerprint.compute(ctx.graph)
-	var command := battle.build_launch_command()
+	var command := battle.build_launch_command(plan)
 	assert_not_null(command, "the playground world must produce a launchable cast")
 	if command == null:
 		return

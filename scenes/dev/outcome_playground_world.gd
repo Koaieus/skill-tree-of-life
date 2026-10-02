@@ -158,17 +158,20 @@ func arm(alloc: AllocationSystem, turn_manager: TurnManager = null) -> void:
 		turn_manager.adopt_turn(attacker, turn_manager.turns_taken)
 
 
-## Arm a live Spark cast: `a_leaf` casts, `d_gate` is the seed. The same two
-## left-clicks the click grammar routes in game — [MagicAttackPlan] takes the
-## cast-from node first, then the target.
-func arm_magic(battle: BattleSystem, spell: SpellDef = SpellCatalog.SPARK) -> void:
+## Build a live Spark cast for [param battle] to launch: `a_leaf` casts,
+## `d_gate` is the seed. The same two left-clicks the click grammar routes in
+## game — [MagicAttackPlan] takes the cast-from node first, then the target.
+## The plan is this world's own, never armed anywhere; hand it to
+## [method BattleSystem.build_launch_command] / [method BattleSystem.launch_attack].
+func arm_magic(battle: BattleSystem, spell: SpellDef = SpellCatalog.SPARK) -> MagicAttackPlan:
 	battle.selected_spell = spell
-	battle.request_attack_mode(BattleSystem.AttackMode.MAGIC)
-	var plan := battle.attack_plan as MagicAttackPlan
+	var plan := battle.new_plan(BattleSystem.AttackMode.MAGIC, attacker) as MagicAttackPlan
 	if plan == null:
-		return
+		return null
+	plan.spell = spell
 	plan.set_target(nodes["a_leaf"])
 	plan.set_target(nodes["d_gate"])
+	return plan
 
 
 func _spawn(display_name: String, faction: Resource) -> Entity:

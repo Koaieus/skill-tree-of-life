@@ -625,7 +625,7 @@ func _sweep_magic() -> void:
 		return
 	battle_system.selected_spell = SpellCatalog.SPARK
 	input_ctl.arm_attack(BattleSystem.AttackMode.MAGIC)
-	var plan := battle_system.attack_plan as MagicAttackPlan
+	var plan := input_ctl.armed_stack.attack_plan() as MagicAttackPlan
 	plan.set_target(source)
 	for candidate in graph.get_skill_nodes():
 		if candidate.ownership_bit(_red) == SkillNode.Ownership.HOSTILE:
@@ -634,11 +634,11 @@ func _sweep_magic() -> void:
 				break
 	if not plan.is_valid():
 		_write_log("autopilot: magic SKIPPED — no castable target (%s)" % [plan.validate()])
-		battle_system.cancel_attack()
+		input_ctl.armed_stack.cancel_attack()
 		return
 	_write_log("autopilot: casting %s from %s at %s"
 			% [battle_system.selected_spell.name, plan.source.name, plan.target.name])
-	await battle_system.launch_attack(battle_system.attack_plan)
+	await battle_system.launch_attack(plan)
 	_write_log("autopilot: magic OK")
 
 
@@ -647,7 +647,7 @@ func _sweep_magic() -> void:
 ## visible hostile is enough — no scene authoring needed.
 func _sweep_ranged() -> void:
 	input_ctl.arm_attack(BattleSystem.AttackMode.RANGED)
-	var plan := battle_system.attack_plan as RangedAttackPlan
+	var plan := input_ctl.armed_stack.attack_plan() as RangedAttackPlan
 	var target: SkillNode = null
 	for candidate in graph.get_skill_nodes():
 		if candidate.ownership_bit(_red) != SkillNode.Ownership.HOSTILE:
@@ -658,10 +658,10 @@ func _sweep_ranged() -> void:
 			break
 	if target == null:
 		_write_log("autopilot: ranged SKIPPED — no reachable hostile target")
-		battle_system.cancel_attack()
+		input_ctl.armed_stack.cancel_attack()
 		return
 	_write_log("autopilot: firing a ranged volley at %s" % target.name)
-	await battle_system.launch_attack(battle_system.attack_plan)
+	await battle_system.launch_attack(plan)
 	_write_log("autopilot: ranged OK")
 
 
@@ -684,17 +684,17 @@ func _sweep_melee() -> void:
 		_write_log("autopilot: melee SKIPPED — no reachable blade")
 		return
 	input_ctl.arm_attack(BattleSystem.AttackMode.MELEE)
-	var plan := battle_system.attack_plan as MeleeAttackPlan
+	var plan := input_ctl.armed_stack.attack_plan() as MeleeAttackPlan
 	plan.source = best.source_node
 	plan.blade_nodes = best.blade_nodes
 	if not plan.is_valid():
 		_write_log("autopilot: melee SKIPPED — the rolled blade did not validate")
-		battle_system.cancel_attack()
+		input_ctl.armed_stack.cancel_attack()
 		return
 	_sweep_toggle_temp_upgrade(plan)
 	_write_log("autopilot: swinging a blade from %s (%d members)"
 			% [plan.source.name, plan.blade_nodes.size()])
-	await battle_system.launch_attack(battle_system.attack_plan)
+	await battle_system.launch_attack(plan)
 	_write_log("autopilot: melee OK")
 
 

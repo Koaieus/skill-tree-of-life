@@ -179,7 +179,7 @@ func _build_systems() -> void:
 	# Every ghost is rebuilt from scratch each preview cycle, so panel-applied
 	# decoration has to be re-applied per spawn, not once.
 	_preview.blade_spawned.connect(_on_blade_spawned)
-	_battle.attack_plan_changed.connect(_on_plan_changed)
+	_input_ctl.armed_stack.attack_plan_changed.connect(_on_plan_changed)
 	if _battle.command_applier != null:
 		_battle.command_applier.applying_changed.connect(_on_applying_changed)
 
@@ -598,7 +598,7 @@ func _flush_rearm() -> void:
 
 
 func _refresh_status() -> void:
-	var plan := _battle.attack_plan as MeleeAttackPlan
+	var plan := _input_ctl.armed_stack.attack_plan() as MeleeAttackPlan
 	var picked := 0 if plan == null or plan.source == null else 1 + plan.blade_nodes.size()
 	var ap: PoolStat = _wielder.stat_board.action_points if _wielder.stat_board != null else null
 	_status.text = "blade %d/%d · AP %d · %s" % [
