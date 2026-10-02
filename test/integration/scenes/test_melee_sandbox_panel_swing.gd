@@ -33,7 +33,7 @@ func _build_blade() -> MeleeAttackPlan:
 	_panel._blade_size.value = 8
 	for n in ["Hilt", "Guard", "B1", "B2", "B3"]:
 		_panel._input_ctl.route_left_click(_node(n))
-	return _panel._battle.attack_plan as MeleeAttackPlan
+	return _panel._input_ctl.armed_stack.attack_plan() as MeleeAttackPlan
 
 
 ## The panel's own right-click carrier, node-independent like the real one.
@@ -52,7 +52,7 @@ func test_a_right_click_mid_swing_is_refused_like_it_is_in_game() -> void:
 	var battle: BattleSystem = _panel._battle
 	var plan := _build_blade()
 	assert_true(plan.is_valid(), "the fixture must have a launchable blade")
-	battle.launch_attack(battle.attack_plan)  # deliberately un-awaited: we need the await window
+	battle.launch_attack(plan)  # deliberately un-awaited: we need the await window
 	await get_tree().process_frame
 	assert_true(battle.is_launching, "the swing must still be in flight to test this")
 	_right_click()

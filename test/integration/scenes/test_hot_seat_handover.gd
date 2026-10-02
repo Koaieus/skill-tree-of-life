@@ -219,16 +219,23 @@ func test_the_emblem_takes_the_active_heros_colour() -> void:
 # --- Seam 2: transient input state ---------------------------------------
 
 func test_handover_clears_a_half_built_swing() -> void:
+	# The attack level and an armed Manage verb share one branch, so each is
+	# armed and handed over in its own round.
 	_hand_turn_to(_p1)
-	_root.battle_system.request_attack_mode(BattleSystem.AttackMode.MELEE)
-	_root.input_ctl.arm_verb(PlayerInputController.ManageVerb.STAKE)
-	assert_true(_root.battle_system.is_attacking, "sanity: player 1 armed a swing")
+	_root.input_ctl.arm_attack(BattleSystem.AttackMode.MELEE)
+	assert_true((_root.input_ctl.armed_stack.attack_plan() != null), "sanity: player 1 armed a swing")
 
 	_hand_turn_to(_p2)
 	await wait_physics_frames(1)
 
-	assert_false(_root.battle_system.is_attacking,
+	assert_false((_root.input_ctl.armed_stack.attack_plan() != null),
 			"player 2 must not inherit player 1's attack plan")
+
+	_hand_turn_to(_p1)
+	_root.input_ctl.arm_verb(PlayerInputController.ManageVerb.STAKE)
+	_hand_turn_to(_p2)
+	await wait_physics_frames(1)
+
 	assert_eq(_root.input_ctl.armed_stack.branch().size(), 1,
 			"nor a leftover armed Manage verb")
 	assert_null(_root.input_ctl.move_targeting_source())
@@ -241,11 +248,11 @@ func test_rebinding_the_same_hero_leaves_a_live_arm_alone() -> void:
 	# calls it more than once during setup — re-asserting the CURRENT hero
 	# must not wipe the swing they are in the middle of building.
 	_hand_turn_to(_p1)
-	_root.battle_system.request_attack_mode(BattleSystem.AttackMode.MELEE)
+	_root.input_ctl.arm_attack(BattleSystem.AttackMode.MELEE)
 
 	_root.bind_player(_p1)
 
-	assert_true(_root.battle_system.is_attacking)
+	assert_true((_root.input_ctl.armed_stack.attack_plan() != null))
 
 
 # --- Seam 3: camp-wide vision --------------------------------------------

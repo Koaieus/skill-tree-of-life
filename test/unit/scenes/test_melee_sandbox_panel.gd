@@ -52,7 +52,7 @@ func test_authored_ownership_becomes_real_ownership() -> void:
 
 func test_a_melee_plan_is_armed_on_open() -> void:
 	var battle: BattleSystem = _panel._battle
-	assert_true(battle.attack_plan is MeleeAttackPlan,
+	assert_true(_panel._input_ctl.armed_stack.attack_plan() is MeleeAttackPlan,
 			"the tab opens ready to swing — no mode picking first")
 	assert_eq(battle.turn_manager.current_entity, _wielder(),
 			"an attack is illegal without a current entity")
@@ -78,7 +78,7 @@ func test_arm_world_mutes_vfx_so_teardown_and_rearm_stay_silent() -> void:
 
 func test_clicks_grow_a_blade_through_the_real_input_channel() -> void:
 	var battle: BattleSystem = _panel._battle
-	var plan := battle.attack_plan as MeleeAttackPlan
+	var plan := _panel._input_ctl.armed_stack.attack_plan() as MeleeAttackPlan
 	_panel._input_ctl.route_left_click(_node("Hilt"))
 	assert_eq(plan.source, _node("Hilt"), "first click sets the pivot")
 	_panel._input_ctl.route_left_click(_node("Guard"))
@@ -89,7 +89,7 @@ func test_clicks_grow_a_blade_through_the_real_input_channel() -> void:
 
 
 func test_blade_size_knob_raises_the_cap() -> void:
-	var plan: MeleeAttackPlan = _panel._battle.attack_plan as MeleeAttackPlan
+	var plan: MeleeAttackPlan = _panel._input_ctl.armed_stack.attack_plan() as MeleeAttackPlan
 	_panel._input_ctl.route_left_click(_node("Hilt"))
 	_panel._blade_size.value = 12
 	assert_eq(plan.max_blades(), 12,
@@ -107,13 +107,13 @@ func test_a_launched_swing_damages_the_quarry() -> void:
 	_panel._blade_size.value = 8
 	for n in ["Hilt", "Guard", "B1", "B2", "B3", "B4"]:
 		_panel._input_ctl.route_left_click(_node(n))
-	var plan := battle.attack_plan as MeleeAttackPlan
+	var plan := _panel._input_ctl.armed_stack.attack_plan() as MeleeAttackPlan
 	assert_true(plan.is_valid(), "six connected picks must form a swingable blade")
 
 	var before := 0.0
 	for n in _panel.graph.get_skill_nodes():
 		before += n.get_current_hp()
-	await battle.launch_attack(battle.attack_plan)
+	await battle.launch_attack(plan)
 	var after := 0.0
 	for n in _panel.graph.get_skill_nodes():
 		after += n.get_current_hp()
@@ -192,7 +192,7 @@ func test_bunker_paint_swallows_the_selection_channel() -> void:
 	# Painting and selecting on the same click would be two edits nobody asked
 	# for. The panel's click router must pick one.
 	_panel._bunker_paint.button_pressed = true
-	var plan: MeleeAttackPlan = _panel._battle.attack_plan as MeleeAttackPlan
+	var plan: MeleeAttackPlan = _panel._input_ctl.armed_stack.attack_plan() as MeleeAttackPlan
 	_panel._on_world_gui_input(_left_click_at(_node("E_E")))
 	assert_true(_node("E_E").get_addons().any(_is_bunker), "the click painted")
 	assert_null(plan.source, "and did NOT reach the selection channel")
@@ -263,7 +263,7 @@ func _build_blade() -> MeleeAttackPlan:
 	_panel._blade_size.value = 8
 	for n in ["Hilt", "Guard", "B1", "B2", "B3"]:
 		_panel._input_ctl.route_left_click(_node(n))
-	return _panel._battle.attack_plan as MeleeAttackPlan
+	return _panel._input_ctl.armed_stack.attack_plan() as MeleeAttackPlan
 
 
 ## The panel's own right-click carrier, node-independent like the real one.
@@ -279,6 +279,6 @@ func test_an_idle_right_click_pop_leaves_the_panel_clickable() -> void:
 	var plan := _build_blade()
 	_right_click()
 	assert_null(plan.source, "the pop clears the selection")
-	assert_eq(_panel._battle.attack_plan, plan, "but never the plan itself")
+	assert_eq(_panel._input_ctl.armed_stack.attack_plan(), plan, "but never the plan itself")
 	_panel._input_ctl.route_left_click(_node("Hilt"))
 	assert_eq(plan.source, _node("Hilt"), "and the next click re-picks a pivot")

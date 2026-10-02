@@ -43,7 +43,7 @@ func _body(cls: String) -> Control:
 
 
 func test_ranged_plan_is_free_and_the_others_are_not() -> void:
-	assert_eq((_root.battle_system.attack_plan as AttackPlan).ap_cost(), 0)
+	assert_eq((_root.input_ctl.armed_stack.attack_plan() as AttackPlan).ap_cost(), 0)
 	assert_eq(MeleeAttackPlan.new().ap_cost(), 1)
 	assert_eq(MagicAttackPlan.new().ap_cost(), 1)
 	assert_eq(AttackOutcome.new().ap_cost, 1, "the outcome default is the melee/magic price")
@@ -51,21 +51,21 @@ func test_ranged_plan_is_free_and_the_others_are_not() -> void:
 
 func test_flow_gate_stays_open_at_zero_ap() -> void:
 	assert_true(_pic.can_player_act(), "0 AP is not a flow condition")
-	assert_true(_pic.can_afford(_root.battle_system.attack_plan), "a volley is affordable at 0 AP")
+	assert_true(_pic.can_afford(_root.input_ctl.armed_stack.attack_plan()), "a volley is affordable at 0 AP")
 	var bar := _body("AttackModeBar")
 	for btn in bar._group.get_buttons():
 		assert_true(btn.enabled, "tab %s live at 0 AP" % btn.name)
 
 
 func test_ranged_launch_is_live_at_zero_ap_and_fires() -> void:
-	var plan := _root.battle_system.attack_plan as RangedAttackPlan
+	var plan := _root.input_ctl.armed_stack.attack_plan() as RangedAttackPlan
 	plan.set_target(_root.graph.get_node("Nodes/Enemy_Core"))
 	await wait_physics_frames(2)
 	var body := _body("RangedBody")
 	assert_true(body._launch_button.enabled, "ranged Launch live at 0 AP")
 	assert_eq(plan.resolve().ap_cost, plan.ap_cost(), "resolve stamps the plan's price")
 	var before := _root.player.stat_board.arrows.stock_of(&"arrow")
-	await _root.battle_system.launch_attack(_root.battle_system.attack_plan)
+	await _root.battle_system.launch_attack(_root.input_ctl.armed_stack.attack_plan())
 	while _root.command_applier.is_applying:
 		await _root.command_applier.applying_changed
 	assert_lt(_root.player.stat_board.arrows.stock_of(&"arrow"), before, "the volley consumed arrows at 0 AP")
@@ -74,7 +74,7 @@ func test_ranged_launch_is_live_at_zero_ap_and_fires() -> void:
 func test_melee_launch_is_dimmed_at_zero_ap() -> void:
 	_pic.on_attack_mode_requested(BattleSystem.AttackMode.MELEE)
 	await wait_physics_frames(2)
-	assert_false(_pic.can_afford(_root.battle_system.attack_plan), "melee costs 1")
+	assert_false(_pic.can_afford(_root.input_ctl.armed_stack.attack_plan()), "melee costs 1")
 	assert_false(_pic.can_reform())
 	var body := _body("MeleeBody")
 	assert_false(body._launch_button.enabled, "melee Launch dimmed at 0 AP")
