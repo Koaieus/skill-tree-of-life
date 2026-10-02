@@ -16,6 +16,8 @@
 # per-run ledger.
 docs/handoffs/swarm-*.md
 docs/handoffs/whip-2*
+docs/handoffs/archive/
+docs/handoffs/.whip.lock
 
 # Drone briefs and scratch bodies for `gh --body-file`. Never tracked in practice;
 # this just stops them showing up as permanent untracked noise in `git status`.

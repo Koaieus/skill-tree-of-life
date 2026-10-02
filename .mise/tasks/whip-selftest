@@ -21,7 +21,8 @@ def check(label, ok):
 # output; the board/agent helpers read the mutable fixture `fx`.
 calls = []
 SHA = "c0ffee0123456789abcdef0123456789abcdef01"
-fx = {"ready": [], "blocked_by": {}, "milestone": {}, "agents": [], "needs_design": [], "daemon": "active", "systemd_run_ok": True}
+fx = {"ready": [], "blocked_by": {}, "milestone": {}, "agents": [], "needs_design": [], "daemon": "active", "systemd_run_ok": True,
+      "linger": "yes", "tasks": ""}
 CANNED = (
     ("git rev-parse master", SHA + "\n"),
     ("git worktree list --porcelain", "worktree /main\nHEAD x\n"),
@@ -32,7 +33,6 @@ CANNED = (
     ("gh issue list", "#99 Filed overnight\n"),
     ("agent-cost", "drone d10 · 80k\n"),
     ("claude --version", "2.9.0 (Claude Code)\n"),
-    ("loginctl show-user", "Linger=no\n"),
     ("command -v mise", "/usr/bin/mise\n"),
 )
 
@@ -40,6 +40,10 @@ CANNED = (
 def fake_sh(cmd, check=False, **kw):
     s = cmd if isinstance(cmd, str) else " ".join(cmd)
     calls.append(s)
+    if "loginctl show-user" in s:
+        return f"Linger={fx['linger']}\n"
+    if "TasksCurrent" in s:
+        return f"TasksCurrent={fx['tasks']}\n"
     if "is-active" in s:
         return fx["daemon"] + "\n"
     if "claude daemon status" in s:
@@ -143,7 +147,7 @@ check("missing entry → gone", S(None) == "gone")
 
 # --- no run on disk --------------------------------------------------------
 code, out = run("watchdog")
-check("watchdog with no run is a silent no-op", code == 0 and not os.listdir(handoffs) and not calls)
+check("watchdog with no run is a silent no-op", code == 0 and not [p for p in os.listdir(handoffs) if not p.startswith(".")] and not calls)
 code, out = run("show")
 check("show with no run says so, exit 0", code == 0 and "no whip run" in out)
 
@@ -161,6 +165,11 @@ fx["agents"] = [{"kind": "background", "pid": 3, "name": "WHIP: first run", "sta
 code, out = run("start", "--no-issue")
 check("start from a bg session not named whip refuses and names /rename", code != 0 and not os.path.exists(jpath) and "/rename whip" in out)
 fx["agents"] = [{"kind": "background", "pid": 3, "name": "whip", "status": "idle", "state": "done", "sessionId": "feedface-0000"}]
+fx["linger"] = "no"
+code, out = run("start", "--no-issue", "--cap", "8")
+check("start with Linger=no refuses before touching anything, naming enable-linger and the override",
+      code != 0 and not os.path.exists(jpath) and "enable-linger" in out and "--linger-unchecked" in out and not any("systemd-run" in c for c in calls))
+fx["linger"] = "yes"
 code, out = run("start", "--no-issue", "--cap", "8")
 check("start from a bg session named whip records it as whip_session", code == 0 and state()["whip_session"] == "feedface-0000")
 fx["agents"] = []; os.environ.pop("CLAUDE_CODE_SESSION_ID")
@@ -174,7 +183,7 @@ check("start brings the daemon unit up via systemd-run before anything else", an
 check("start installs the watchdog timer into the unit dir", os.path.exists(os.path.join(wh.UNIT_DIR, "whip-watchdog.timer")) and any("enable --now whip-watchdog.timer" in c for c in calls))
 check("start prints the rendered ledger", "# Whip " + today in out and "cap 8" in out)
 code, out = run("start", "--no-issue")
-check("a second start refuses: run already on disk", code == 0 and "already on disk" in out)
+check("a second start on a LIVE ledger refuses (exit non-zero) and names `retire --force`", code != 0 and "retire --force" in out and state()["cap_h"] == 8)
 
 # --- trains ----------------------------------------------------------------
 code, out = run("trains")
@@ -340,6 +349,51 @@ fx["agents"] = [{"kind": "background", "pid": 9, "name": "whip", "status": "idle
 st = state(); st["leads"]["lead-b"]["state"] = "running"; st["pending"] = None; st["last_nudge_ts"] = 0; poke(**st)
 base = len(calls); run("watchdog")
 check("an idle lead is NOT a stall: whip idle + lead idle → nothing", not launches(base))
+
+# --- task accounting: the watchdog records the fleet's TasksCurrent as a field, never an event
+poke(started_ts=time.time(), cap_h=8, relieve_whip=False, done=False, gave_up=None, pending=None, failures=0, tasks_peak=0)
+fx["agents"] = [{"kind": "background", "pid": 9, "name": "whip", "status": "busy", "state": "working", "sessionId": "deadbeefcafe"}]
+fx["tasks"] = "1234"; run("watchdog")
+check("a tick records the daemon unit's TasksCurrent as last + peak", state().get("tasks_last") == 1234 and state().get("tasks_peak") == 1234)
+fx["tasks"] = "900"; ev = len(state()["events"]); run("watchdog")
+check("a lower reading moves last, keeps peak, and logs no event", state()["tasks_last"] == 900 and state()["tasks_peak"] == 1234 and len(state()["events"]) == ev)
+code, out = run("show")
+check("show's header carries tasks last/peak for the morning", "tasks 900 (peak 1234)" in out)
+fx["tasks"] = ""; run("watchdog")
+check("an unparsable reading changes nothing", state()["tasks_last"] == 900 and state()["tasks_peak"] == 1234)
+
+# --- a ledger that outlives its night: report collisions, retire, start-after
+rpath2 = os.path.join(handoffs, f"whip-report-{today}.md")
+open(rpath2, "w").write("# hand-annotated report from an earlier run today\n")
+poke(report_path=None)
+code, out = run("report")
+rep_files = sorted(p for p in os.listdir(handoffs) if p.startswith("whip-report-"))
+check("report never overwrites a report it did not write: a second file, suffixed with the start time",
+      code == 0 and open(rpath2).read().startswith("# hand-annotated") and len(rep_files) == 2 and state()["report_path"] in out)
+poke(done=False)
+code, out = run("retire")
+check("retire on a live ledger refuses and names --force", code != 0 and "--force" in out and os.path.exists(jpath))
+code, out = run("retire", "--force")
+arch = os.path.join(handoffs, "archive")
+archived = sorted(os.listdir(arch)) if os.path.isdir(arch) else []
+check("retire --force moves the ledger's json, md and markers into handoffs/archive/, suffixed with the start time",
+      code == 0 and not os.path.exists(jpath) and not os.path.exists(jpath[:-5] + ".md") and not os.path.exists(jpath[:-5] + ".done")
+      and len(archived) == 3 and all(p.startswith(f"whip-{today}-") for p in archived))
+check("retire leaves the tracked report alone", os.path.exists(rpath2) and len(rep_files) == 2)
+code, out = run("show")
+check("after retire there is no run on disk", code == 0 and "no whip run" in out)
+code, out = run("retire")
+check("retire with nothing on disk is a silent exit 0", code == 0)
+os.environ["CLAUDE_CODE_SESSION_ID"] = "feedface-0000"
+fx["agents"] = [{"kind": "background", "pid": 3, "name": "whip", "status": "idle", "state": "done", "sessionId": "feedface-0000"}]
+fx["linger"] = "no"
+code, out = run("start", "--no-issue", "--linger-unchecked")
+check("start after retire creates a fresh ledger for the same date; --linger-unchecked overrides the linger refusal", code == 0 and state()["events"][-1].startswith(now_prefix := time.strftime("%Y-%m-%d")) and "start:" in state()["events"][-1])
+poke(done=True)
+code, out = run("start", "--no-issue", "--linger-unchecked")
+archived2 = sorted(os.listdir(arch))
+check("start on a DONE ledger auto-retires it into archive/ and proceeds", code == 0 and len(archived2) == 5 and state()["done"] is False and "retired" in out)
+fx["agents"] = []; os.environ.pop("CLAUDE_CODE_SESSION_ID"); fx["linger"] = "yes"
 
 # --- the fence held --------------------------------------------------------
 check("the only gh calls were answered by the fake, never posting", all(c.startswith("gh issue list") for c in calls if c.startswith("gh ")))
