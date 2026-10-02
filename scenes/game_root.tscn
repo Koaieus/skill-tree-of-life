@@ -14,6 +14,7 @@
 [ext_resource type="Script" uid="uid://dbogeip2q3nu" path="res://systems/armed/armed_stack.gd" id="8_armed"]
 [ext_resource type="Script" uid="uid://dnlkufr5kwkn3" path="res://systems/vision_system.gd" id="9_vision"]
 [ext_resource type="Script" uid="uid://iab4mte1alr4" path="res://command/command_applier.gd" id="9_applier"]
+[ext_resource type="Script" uid="uid://dp8wpltcvkoxn" path="res://network/save_gate.gd" id="9_savegate"]
 [ext_resource type="Script" path="res://systems/victory_system.gd" id="9_victory"]
 [ext_resource type="Script" uid="uid://dkhgm4v74h1ya" path="res://systems/highlight_controller.gd" id="10_5dyip"]
 [ext_resource type="PackedScene" path="res://ui/hud/hud_root.tscn" id="18_hud"]
@@ -122,6 +123,12 @@ allocation_system = NodePath("../AllocationSystem")
 battle_system = NodePath("../BattleSystem")
 turn_manager = NodePath("../TurnManager")
 loot_pick_registry = NodePath("../LootPickRegistry")
+
+[node name="SaveGate" type="Node" parent="Systems" node_paths=PackedStringArray("command_applier", "graph")]
+unique_name_in_owner = true
+script = ExtResource("9_savegate")
+command_applier = NodePath("../CommandApplier")
+graph = NodePath("../../Graph")
 
 [node name="ArmedStack" type="Node" parent="Systems" unique_id=1222000001]
 unique_name_in_owner = true
