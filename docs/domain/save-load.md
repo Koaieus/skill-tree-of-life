@@ -45,8 +45,8 @@ anything presentation-side.
   quiescent boundary — the world captured then, never at the press. A
   half-replayed `AttackRecord` is never captured. `saved(error)` reports the
   write.
-- `blocked_reason()` is the tooltip: the online refusal, or "pick your loot
-  first" while a relic pick is open — the one held wait that is on a human.
+- `blocked_reason()` is the tooltip: the online refusal, or `REASON_LOOT` ("Pick your loot
+  first") while a relic pick is open — the one held wait that is on a human.
 - The gate reads `is_quiescent()` only, never the applier's flags one by one;
   quiescence is the applier's to define.
 
