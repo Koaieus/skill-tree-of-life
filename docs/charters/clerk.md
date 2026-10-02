@@ -16,7 +16,7 @@ the spec files and a manifest, spawns one Haiku clerk, and reads back one line
 per issue.
 
 The second win is that the swarmify session no longer has to *carry* the
-board mechanics — the `gh` flag traps, the `add`-before-`status` order, the
+board mechanics — the `gh` flag traps, the
 milestone rule — in its instructions or its output. The clerk holds them;
 swarmify only states intent.
 

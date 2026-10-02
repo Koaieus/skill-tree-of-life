@@ -349,7 +349,7 @@ branch of a multi-unit issue; on every branch of independent issues.
 **Before the gate, sweep `poison:` lines** out of the reports (`ledger --
 note <n> 'poison: …'` keeps them findable): apply
 the one-liners yourself in the main checkout as one docs commit; anything
-that is not a one-liner → `mise gh-project -- add`.
+that is not a one-liner → `gh issue create` (it joins the board by itself).
 
 **The authoritative suite runs once per train**, after every branch of the
 batch is fast-forwarded — and only when the batch is runtime-observable:

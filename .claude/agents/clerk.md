@@ -67,9 +67,8 @@ make it on a copy in the same directory (`<file>.resolved`), never the original.
 5. **Relations:** `mise gh-project -- blocked-by <n> <blocker>` (numbers, one
    per call; REST, so it works even when GraphQL is rate-limited). To re-parent
    an existing issue: `gh issue edit <n> --parent <p>`.
-6. **Board, per issue:** `mise gh-project -- add <n>` (idempotent — a new
-   issue is not on the board until added; `add` lands it in Backlog), then
-   `milestone <n> <m>`, `label <n> rm <l>` / `label <n> add <l>`, and
+6. **Board, per issue:** a new issue is already on the board in Backlog
+   (the repo auto-adds every issue — never `add` it); then `milestone <n> <m>`, `label <n> rm <l>` / `label <n> add <l>`, and
    `status <n> <s>` last.
 7. **Drift stamps:** `mise run issue-drift -- <n>` for each listed issue.
    Output `no stamp` is a failure to report; silence or a drift list is fine

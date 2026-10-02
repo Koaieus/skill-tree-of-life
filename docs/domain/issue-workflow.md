@@ -20,10 +20,13 @@ one; from `Needs design` on it is scheduled and carries its push.
 that's how an agent finds work to pick up; add `--json` (with `mise run
 --quiet`) for machine-readable output. See `.mise/tasks/gh-project`.
 
-`add` already lands the new issue in `Backlog` — no follow-up `status` call
-needed unless you actually want a different lane (e.g. straight to
-`needs-design` or `ready`). That's a built-in GitHub Projects workflow
-(`Item added to project`), not something this script does — see the
+**A new issue joins the board by itself** — every issue filed in the repo is
+auto-added to the project and lands in `Backlog`. Never `gh-project add` a
+fresh issue (owner, 2026-10-02: *"any issue filed here does NEVER have to be
+manually `gh-project add`ed"*); call `status` only for a different lane
+(e.g. `needs-design` or `ready`). `add` remains for an issue that somehow
+isn't on the board (`unboarded_child`). Both are built-in GitHub Projects
+workflows (auto-add, `Item added to project`), not something this script does — see the
 `cmd_status` comment in `.mise/tasks/gh-project` for how fragile those
 built-in workflows are (an option-list rewrite silently disables them).
 

@@ -285,7 +285,7 @@ disk at `scratchpad/land/land-<n>.log` (#920), so filling the ledger is a
 
 28. **The lead sweeps `poison:` lines before the gate** — greps them out of
     the ledger's reports, applies the one-liners itself in the main checkout
-    as one docs commit, `gh-project add`s the rest. No fix-drone, no manifest:
+    as one docs commit, files the rest with `gh issue create`. No fix-drone, no manifest:
     one report in eleven issues does not pay for a dispatch shape. Revisit at
     five or more lines in one swarm.
 

@@ -83,7 +83,7 @@ Spawning runtime entities: in `_setup_level()`, call `spawn_entity(name, color, 
 
 ## Issue tracking
 
-GitHub Issues via `gh` (repo `Koaieus/skill-tree-of-life`); board via `mise gh-project -- list|add|status|…`. **`add` already lands the issue in `Backlog`** — only call `status` after for a different lane.
+GitHub Issues via `gh` (repo `Koaieus/skill-tree-of-life`); board via `mise gh-project -- list|add|status|…`. **A new issue joins the board in `Backlog` by itself — never `add` it**; only call `status` for a different lane.
 
 **The status ladder is the pipeline** — `Backlog` → `Needs design` (the `/swarmify` inbox) → `Ready` → `In progress` → `In review` → `Done`. `Ready` *is* the swarm queue and **a drone never touches a non-`Ready` issue**; what to pull first is the live GitHub milestone, never a prose file — the board is authoritative for status, dependencies and what shipped.
 
