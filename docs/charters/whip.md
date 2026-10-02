@@ -129,7 +129,14 @@ Overnight the budget is **tokens per 5-hour window, twice over**, and
 9. **The launch prompt is the lead-contract delta, nothing more.** `/swarm
    #a #b … — supervised by whip` plus the supervised-mode clauses; `/relief —
    supervised by whip` plus the same. A slash command in a `--bg` launch
-   prompt expands the skill (probed).
+   prompt expands the skill (probed). A `/swarm` launch also says *fresh
+   lead for train `<t>`, never relief, append your rows*: a later train on
+   the same date finds the earlier train's `swarm-<date>.md`, and without
+   that clause the swarm skill's "ledger on disk = you are relief" rule
+   would orient it as relief of a done run — the date-keyed hijack of law
+   26, one layer down. The swarm skill's ledger rule carries the same
+   exception; `ledger -- dispatch` appends to a same-date file (verified by
+   reading its `resolve()`, not by running two leads).
 10. **Trains are split by the board's dependencies, never by Whip reading
     issues.** `blocked-by` relations from the board; issues with no recorded
     dependency are one train in milestone order. The owner's count can be
@@ -241,12 +248,21 @@ Overnight the budget is **tokens per 5-hour window, twice over**, and
 
 **The morning report**
 
-24. **The report is a diff against the start snapshot, not a narrative.**
+24. **The report is a diff against the start snapshot, not a narrative**
+    (*mined*: the first morning's report, corpus row 11).
     `whip-report-<date>.md` (tracked) and a comment on the run issue, from
     the ledger plus the board plus `git log <start-sha>..master`: Landed,
-    Back to Needs design, Still Ready (with the noted why), Dropped by the
-    owner, Filed, Needs the owner, Incidents (every watchdog event, stall,
-    refusal, give-up), Cost. Nothing the owner can get from `git log`.
+    Back to Needs design, Still Ready (with the noted why), **Orphaned In
+    progress** (start-set issues a dead lead left `In progress` with an
+    unmerged worktree — the bucket the first report lacked, so its headline
+    under-counted silently; every start-set issue lands in exactly one
+    bucket), Dropped by the owner, Filed (keyed on the start *timestamp in
+    UTC* — a local-date `created:>=` filter loses an issue filed after
+    midnight local time), Needs the owner, Incidents (every watchdog event,
+    stall, refusal, give-up — one line each, ANSI stripped at `event()`,
+    identical repeats collapsed to `×N, HH:MM–HH:MM`), Cost. The verb says
+    what it tore down (the timer unit files). Nothing the owner can get
+    from `git log`.
 25. **Done means the board and master agree.** The done-marker is written
     only when `Ready` is empty of the start set minus drops (or every
     remainder is noted), every lead is retired, every worktree is gone, and
@@ -257,7 +273,7 @@ Overnight the budget is **tokens per 5-hour window, twice over**, and
 
 | Date | Where | What happened | Law |
 |---|---|---|---|
-| 2026-10-02 | run #1319, 01:46 | five concurrent leads (owner: "go HAM") × drones × sharded suites in the owner's kitty scope: `cgroup: fork rejected by pids controller`; 17 coredumps at 01:49 — owner's session, RC host, bg daemon, whip, lead-a, lead-c. Which family ate ~76k tasks: **verified 2026-10-02 19:38, second night** — the `.mise/bin/gh` shim; a worktree carries its own copy and mise puts both `.mise/bin` dirs on PATH, each copy skipped only itself, so they called each other until the budget was gone (54k tasks, 30 GB, caught by law 27's counter inside the daemon unit, the terminal untouched). Fixed in the shim (marker scan + depth guard, `gh-shim-selftest` cages the regression in a TasksMax scope) | 4, 11, 27 |
+| 2026-10-02 | run #1319, 01:46 | five concurrent leads (owner: "go HAM") × drones × sharded suites in the owner's kitty scope: `cgroup: fork rejected by pids controller`; 17 coredumps at 01:49 — owner's session, RC host, bg daemon, whip, lead-a, lead-c. Which family ate ~76k tasks: **verified 2026-10-02 19:38, second night** — the `.mise/bin/gh` shim; a worktree carries its own copy and mise puts both `.mise/bin` dirs on PATH, each copy skipped only itself, so they called each other until the budget was gone (54k tasks, 30 GB, caught by law 27's counter inside the daemon unit, the terminal untouched). Fixed in the shim (marker scan + depth guard, `gh-shim-selftest` cages the regression in a TasksMax scope). Killing one by hand: `pkill` loses to a chain that forks faster than it dies — `chmod -x` the worktree's shim, then kill, then restore the mode | 4, 11, 27 |
 | 2026-10-02 | watchdog, 01:49→09:42 | 44 `--bg --resume` forks, each a fresh transient daemon in the oneshot's cgroup, dead in 0.5 s, each logged as success | 4, 5, 20 |
 | 2026-10-02 | watchdog, 01:28 | first tick finds no session *named* `whip` (owner's was titled otherwise) → forks a second whip with the same context; the owner talks to the copy | 6 |
 | 2026-10-02 | `cmd_watchdog` | `whip.get("status") == "idle"` never true for a `--bg` whip: the limit-resume and stuck-lead branches were dead code | 7 |
@@ -268,6 +284,7 @@ Overnight the budget is **tokens per 5-hour window, twice over**, and
 | 2026-10-02 | `whip-probe-*` | `-n <name>` is the `SendMessage` address; a bare-task bg session refused a cross-session instruction and went `blocked`; naming the supervisor as principal fixed it; `/relief` in a launch prompt expanded the skill | 8, 9 |
 | 2026-09-30 | transcript `2131d2e9` | session limit mid-swarm: one `isApiErrorMessage: true` message, nothing until the owner typed "continue" after the reset, same context continued | 22 |
 | 2026-10-02 | `CronCreate` | session-only, in-memory, gone on respawn — cannot be the recovery layer | 19 |
+| 2026-10-02 | `report`, 09:42 | the first morning's report, rendered by hand: three start-set issues left `In progress` by the dead lead (unmerged worktrees) fell in no bucket, so the headline under-counted; `Filed` missed #1323 (01:47 local = the previous UTC date, and the filter was a local date); Incidents ran 136 lines — 44 identical "whip missing" events with multi-line coloured `claude --bg` output pasted into each | 24 |
 
 ## Open forks — options with costs, owner decides
 
@@ -293,7 +310,10 @@ friendly move".
 **D. `TasksMax` on the daemon unit — culprit found, knob still open.** The
 culprit was the gh shim's mutual recursion through worktrees (corpus row 1),
 now fixed at the source; a healthy fleet's peak is still unmeasured, so the
-knob waits on the first clean night's `tasks_peak`.
+knob waits on the first clean night's `tasks_peak`. Parked with it: a
+watchdog alarm on a sudden spike in `tasks_last` (the board's 19:32 black
+swan proposed it) — without a healthy baseline it would fire on a good
+night; once the peak is on file, the knob and the alarm are one decision.
 
 ## What the skill must not contain
 
@@ -309,30 +329,29 @@ knob waits on the first clean night's `tasks_peak`.
 - Whether env vars set on `claude --bg` reach the session at all (spares are
   pre-spawned by the daemon); the daemon unit's env carries
   `DISABLE_AUTOUPDATER=1` on that assumption.
-- A fresh `/swarm` lead for a later train finds the earlier train's
-  `swarm-<date>.md`; the launch prompt says "fresh lead, never relief,
-  append your rows" — confirm the ledger tool tolerates several leads' rows.
+- **`report` still renders the first morning's shape** (corpus row 11, law
+  24 says the wanted one): no Orphaned-In-progress bucket, `Filed` filtered
+  by local date, Incidents uncollapsed and un-stripped, the timer teardown
+  unannounced. Tool work with a `whip-selftest` check first; a sibling unit.
 - Whether auto-compact in a `--bg` session keeps enough context that
   self-relief (law 18) gets rare.
 - The first night with the new watchdog settles whether a flagless resume
   after a window reset continues the context (n=0 for the reset case; the
   mechanism itself is probed).
-- Which process family exhausts pids under a multi-lead fleet; until
-  measured, fork D stays open and the ceiling stays 1. Law 27 puts the
-  per-tick count on file; the family split (claude / godot / git) is still
-  a `ps -eLo comm=` the morning after a high peak.
+- A healthy multi-lead fleet's task peak (fork D): the culprit family is
+  found and fixed; what a clean night peaks at is still the morning-after
+  number law 27 records.
 - **Black swans seen in the code, not yet in the field** (2026-10-02 evening
   pass; the board holds the long form): the flagless resume after a spent
   window is n=0 in anger; a CLI update mid-night changes the two parsed
   shapes (`claude agents --json`, the `backgrounded · <id>` line) — the
   version probe and the adopt-on-launch path degrade it, the daemon unit's
-  `DISABLE_AUTOUPDATER` is an assumption; a second train's `/swarm` lead
-  finds the first train's `swarm-<date>.md` and may orient as relief of a
-  done run (the same date-keyed shape law 26 fixed one layer up); a dirty
-  main checkout (owner WIP, untracked files) makes a lead's `land` refuse
-  and the lead "assume and note" around it; the sleep inhibit is printed
-  not verified; what `done`/`report` do when a `gh` call fails mid-night is
-  untraced; Whip's own self-relief has never fired.
+  `DISABLE_AUTOUPDATER` is an assumption; a dirty main checkout (owner WIP,
+  untracked files) makes a lead's `land` refuse and the lead "assume and
+  note" around it; the sleep inhibit is printed not verified; what
+  `done`/`report` do when a `gh` call fails mid-night is untraced; Whip's
+  own self-relief has never fired. (The second-train ledger hijack left
+  this list: law 9 and the swarm skill's ledger rule close it.)
 
 ## Fold digest — board `whip — skill feedback board` (Discussions, `Skill feedback`)
 
@@ -349,3 +368,12 @@ the substance. One line per fold; the post holds the detail.
 - 2026-10-02 · law-candidate (evening pre-flight: stale-ledger hijack, linger
   unverified, two ledger writers, pids culprit unmeasured, black swans) →
   laws 15, 21, 26, 27; open follow-ups.
+- 2026-10-02 · tool bug (`report`: orphaned In-progress bucket missing,
+  `Filed` on a local date, 136-line Incidents, silent timer teardown) → law
+  24's bucket list, corpus row 11; the tool fix is an open follow-up.
+- 2026-10-02 · black swan (19:32 gh-shim fork bomb under a lead; `pkill`
+  loses to the chain; spike alarm proposed) → corpus row 1's kill recipe;
+  the alarm parked under fork D with the `TasksMax` knob.
+- 2026-10-02 · autopsy (second night, 19:38: the pids culprit is the gh
+  shim; fixed at the source, `gh-shim-selftest`) → corpus row 1, fork D —
+  the charter held it from the fix commit; this line is the index entry.
