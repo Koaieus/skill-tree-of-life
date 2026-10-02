@@ -101,12 +101,11 @@ func test_the_launch_releases_a_beat_after_the_last_landing_not_after_the_drain(
 	var target: SkillNode = ctx.target
 	var hp_before: float = target.get_combat().get_current_hp()
 
-	bs.request_attack_mode(BattleSystem.AttackMode.RANGED)
-	var plan := bs.attack_plan as RangedAttackPlan
+	var plan := bs.new_plan(BattleSystem.AttackMode.RANGED, bs.turn_manager.current_entity) as RangedAttackPlan
 	plan.set_target(target)
 	assert_true(plan.is_valid(), "fixture plan must be valid before launching")
 
-	await bs.launch_attack(bs.attack_plan)
+	await bs.launch_attack(plan)
 
 	assert_false(bs.is_launching, "the launch is released by the time it returns")
 	assert_lt(target.get_combat().get_current_hp(), hp_before,

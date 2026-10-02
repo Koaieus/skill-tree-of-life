@@ -100,8 +100,7 @@ func before_each() -> void:
 ## Arms a valid two-node blade and returns the plan, WITHOUT launching — so a
 ## test can look at the preview ghost the player would be watching.
 func _arm_plan() -> MeleeAttackPlan:
-	_bs.request_attack_mode(BattleSystem.AttackMode.MELEE)
-	var plan := _bs.attack_plan as MeleeAttackPlan
+	var plan := _bs.new_plan(BattleSystem.AttackMode.MELEE, _bs.turn_manager.current_entity) as MeleeAttackPlan
 	plan.set_pivot(_pivot)
 	plan.toggle_member(_arm)
 	assert_true(plan.is_valid(), "fixture plan must be valid before launching")
@@ -221,7 +220,7 @@ func _assert_first_hit_lands_after_the_form_beat() -> void:
 	Events.skill_node_damaged.connect(on_hit)
 
 	_arm_plan()
-	_bs.launch_attack(_bs.attack_plan)
+	_bs.launch_attack(plan)
 	await _await_launch_settle()
 	# `Events` is an autoload that outlives this test; the bus hook must go.
 	Events.skill_node_damaged.disconnect(on_hit)
@@ -240,7 +239,7 @@ func test_a_committed_melee_opens_the_camera_on_the_pivot_alone() -> void:
 	add_child_autofree(director)
 	var plan := _arm_plan()
 
-	var pivot_focus := director._windup_focus(_bs.attack_plan)
+	var pivot_focus := director._windup_focus(plan)
 	assert_not_null(pivot_focus, "a committed melee opens on its pivot")
 	assert_eq(pivot_focus.points.size(), 1, "the pivot alone, not the span")
 	assert_eq(pivot_focus.points[0], _pivot.global_position, "and it is the plan's pivot")
@@ -261,9 +260,9 @@ func test_a_seated_actor_gets_the_same_pivot_focus_as_everyone_else() -> void:
 	director.graph = _graph
 	director.seat_policy = SeatPolicy.seat(_attacker.entity_id)
 	add_child_autofree(director)
-	_arm_plan()
+	var plan := _arm_plan()
 
-	var pivot_focus := director._windup_focus(_bs.attack_plan)
+	var pivot_focus := director._windup_focus(plan)
 	assert_not_null(pivot_focus, "a seated commit opens on its pivot too")
 	assert_eq(pivot_focus.points[0], _pivot.global_position)
 
@@ -292,7 +291,7 @@ func test_a_seated_commit_hands_the_ghost_off_without_re_predicting() -> void:
 	assert_not_null(ghost, "the preview must have a ghost mounted before the commit")
 	var runs_before := plan.prediction_runs
 
-	_bs.launch_attack(_bs.attack_plan)
+	_bs.launch_attack(plan)
 	assert_same(ghost, _preview.current_blade(),
 			"the live swing takes over the ghost the player was watching, "
 			+ "it does not spawn a second blade")
@@ -317,7 +316,7 @@ func test_the_swing_start_beat_fires_once_and_before_the_first_hit() -> void:
 	Events.skill_node_damaged.connect(func(_n: SkillNode, _amt: float, _src: Variant) -> void:
 		order.append(&"hit"), CONNECT_ONE_SHOT)
 	_arm_plan()
-	_bs.launch_attack(_bs.attack_plan)
+	_bs.launch_attack(plan)
 	await _await_launch_settle()
 	assert_eq(order, [&"swing", &"hit"] as Array[StringName],
 			"one swing beat, then the hit lands")
@@ -351,7 +350,7 @@ func test_the_swing_does_not_begin_while_the_record_ready_hook_is_unsatisfied() 
 	_bs.hold_record()
 	watch_signals(Events)
 	_arm_plan()
-	_bs.launch_attack(_bs.attack_plan)
+	_bs.launch_attack(plan)
 
 	# The wind-up is instant here, so `launch_attack()` returned already parked
 	# on the hook; a few frames prove the park is a hold, not a fixed clip.
@@ -378,7 +377,7 @@ func test_the_hook_is_awaited_on_the_seated_path_too() -> void:
 	_bs.hold_record()
 	watch_signals(Events)
 	_arm_plan()
-	_bs.launch_attack(_bs.attack_plan)
+	_bs.launch_attack(plan)
 
 	for _i in 10:
 		await get_tree().process_frame
@@ -402,7 +401,7 @@ func test_zeroed_windup_durations_stage_nothing_and_still_land_the_swing() -> vo
 
 	watch_signals(Events)
 	_arm_plan()
-	_bs.launch_attack(_bs.attack_plan)
+	_bs.launch_attack(plan)
 	await _await_launch_settle()
 
 	assert_signal_emit_count(Events, "skill_node_damaged", 1,

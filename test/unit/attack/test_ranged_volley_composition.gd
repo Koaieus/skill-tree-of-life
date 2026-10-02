@@ -229,13 +229,12 @@ func test_launch_consumes_bins_leaf_shots_and_a_volley_slot_but_no_ap() -> void:
 	_attacker.stat_board.action_points.base_value = 2.0
 	_attacker.stat_board.action_points.current = 2.0
 	var bs := _battle_system()
-	bs.request_attack_mode(BattleSystem.AttackMode.RANGED)
-	var plan := bs.attack_plan as RangedAttackPlan
+	var plan := bs.new_plan(BattleSystem.AttackMode.RANGED, bs.turn_manager.current_entity) as RangedAttackPlan
 	plan.set_target(_target)
 	plan.ammo_counts = {_POISON: 2, _ARROW: 5}
 	assert_true(plan.is_valid(), str(plan.validate()))
 
-	await bs.launch_attack(bs.attack_plan)
+	await bs.launch_attack(plan)
 
 	var quiver: Quiver = _attacker.stat_board.arrows
 	assert_eq(quiver.stock_of(_POISON), 3, "2 poison spent")
@@ -257,15 +256,13 @@ func test_volley_limit_reached_fails_validate_with_the_volleys_reason() -> void:
 	var limit := int(_attacker.stat_board.volleys_per_turn.value)
 	assert_gt(limit, 0, "precondition: the board grants volleys")
 	for i in limit:
-		bs.request_attack_mode(BattleSystem.AttackMode.RANGED)
-		var plan := bs.attack_plan as RangedAttackPlan
+		var plan := bs.new_plan(BattleSystem.AttackMode.RANGED, bs.turn_manager.current_entity) as RangedAttackPlan
 		plan.set_target(_target)
 		plan.ammo_counts = {_ARROW: 1}
 		assert_true(plan.is_valid(), "volley %d: %s" % [i, str(plan.validate())])
-		await bs.launch_attack(bs.attack_plan)
+		await bs.launch_attack(plan)
 	assert_eq(_attacker.volleys_launched_this_turn, limit)
-	bs.request_attack_mode(BattleSystem.AttackMode.RANGED)
-	var extra := bs.attack_plan as RangedAttackPlan
+	var extra := bs.new_plan(BattleSystem.AttackMode.RANGED, bs.turn_manager.current_entity) as RangedAttackPlan
 	extra.set_target(_target)
 	extra.ammo_counts = {_ARROW: 1}
 	assert_has(extra.validate(), RangedAttackPlan.ERR_VOLLEY_LIMIT)
@@ -275,13 +272,12 @@ func test_a_target_that_dies_mid_volley_still_consumes_every_arrow() -> void:
 	# 3 dmg/leaf into the default 10 node_health: the 4th shot kills, shots
 	# 5..7 are vetoed duds — and still paid for.
 	var bs := _battle_system()
-	bs.request_attack_mode(BattleSystem.AttackMode.RANGED)
-	var plan := bs.attack_plan as RangedAttackPlan
+	var plan := bs.new_plan(BattleSystem.AttackMode.RANGED, bs.turn_manager.current_entity) as RangedAttackPlan
 	plan.set_target(_target)
 	plan.ammo_counts = {_ARROW: 7}
 	assert_true(plan.is_valid(), str(plan.validate()))
 	var stock_before := roundi(_attacker.stat_board.arrows.current)
-	await bs.launch_attack(bs.attack_plan)
+	await bs.launch_attack(plan)
 	assert_ne(_target.owned_by, _hostile, "precondition: the target died")
 	assert_eq(roundi(_attacker.stat_board.arrows.current), stock_before - 7,
 			"duds consume — a shot fired is a shot fired")

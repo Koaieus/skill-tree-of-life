@@ -149,7 +149,7 @@ func _over_the_wire(command: LaunchAttackCommand) -> LaunchAttackCommand:
 ## Fire on [param host] and replay the resulting record on [param peer].
 func _fire_and_replay(host: Dictionary, peer: Dictionary) -> LaunchAttackCommand:
 	var bs: BattleSystem = host.bs
-	var command := bs.build_launch_command()
+	var command := bs.build_launch_command(_armed)
 	assert_not_null(command, "the fixture plan must be launchable")
 	await _fire(bs, command)
 	assert_false(command.record.is_empty(),
@@ -202,27 +202,33 @@ func _assert_worlds_agree(host: Dictionary, peer: Dictionary, what: String) -> v
 				0.0001, "%s: %s wounded SP must match" % [what, role])
 
 
+## The plan the last `_arm*` minted — what the launch-command builders take.
+var _armed: AttackPlan = null
+
+
 func _arm_ranged(ctx: Dictionary) -> void:
 	var bs: BattleSystem = ctx.bs
-	bs.request_attack_mode(BattleSystem.AttackMode.RANGED)
-	(bs.attack_plan as RangedAttackPlan).set_target(ctx.nodes.target)
+	var plan := bs.new_plan(BattleSystem.AttackMode.RANGED, bs.turn_manager.current_entity) as RangedAttackPlan
+	plan.set_target(ctx.nodes.target)
+	_armed = plan
 
 
 func _arm_melee(ctx: Dictionary) -> void:
 	var bs: BattleSystem = ctx.bs
-	bs.request_attack_mode(BattleSystem.AttackMode.MELEE)
-	var plan := bs.attack_plan as MeleeAttackPlan
+	var plan := bs.new_plan(BattleSystem.AttackMode.MELEE, bs.turn_manager.current_entity) as MeleeAttackPlan
 	plan.set_pivot(ctx.nodes.core)
 	plan.toggle_member(ctx.nodes.leaf)
+	_armed = plan
 
 
 func _arm_magic(ctx: Dictionary) -> void:
 	var bs: BattleSystem = ctx.bs
 	bs.selected_spell = SpellCatalog.SPARK
-	bs.request_attack_mode(BattleSystem.AttackMode.MAGIC)
-	var plan := bs.attack_plan as MagicAttackPlan
+	var plan := bs.new_plan(BattleSystem.AttackMode.MAGIC, bs.turn_manager.current_entity) as MagicAttackPlan
+	plan.spell = SpellCatalog.SPARK
 	plan.set_target(ctx.nodes.leaf)
 	plan.set_target(ctx.nodes.target)
+	_armed = plan
 
 
 # ── The three modes ─────────────────────────────────────────────────────────
@@ -283,7 +289,7 @@ func test_the_timeline_rebuilds_its_ALIASING_not_just_its_values() -> void:
 	var host: Dictionary = await _build()
 	_arm_magic(host)
 	var bs: BattleSystem = host.bs
-	var command := bs.build_launch_command()
+	var command := bs.build_launch_command(_armed)
 	await _fire(bs, command)
 
 	var rebuilt := AttackRecord.rebuild(command.record, host.graph)
@@ -301,7 +307,7 @@ func test_the_record_carries_the_seed_the_attack_resolved_under() -> void:
 	var host: Dictionary = await _build()
 	_arm_ranged(host)
 	var bs: BattleSystem = host.bs
-	var command := bs.build_launch_command()
+	var command := bs.build_launch_command(_armed)
 	assert_ne(command.resolve_seed, 0, "the authority mints a fresh seed per attack")
 	await _fire(bs, command)
 	var wired := _over_the_wire(command)
@@ -315,7 +321,7 @@ func test_no_live_reference_and_no_source_field_reaches_the_wire() -> void:
 	var host: Dictionary = await _build()
 	_arm_magic(host)
 	var bs: BattleSystem = host.bs
-	var command := bs.build_launch_command()
+	var command := bs.build_launch_command(_armed)
 	await _fire(bs, command)
 	var d := command.to_dict()
 	# Scoped to the RECORD half. A plan legitimately carries a `source` key —
@@ -393,7 +399,7 @@ func test_the_world_the_authority_computed_is_the_world_it_ends_up_in() -> void:
 	var host: Dictionary = await _build()
 	_arm_melee(host)
 	var bs: BattleSystem = host.bs
-	var command := bs.build_launch_command()
+	var command := bs.build_launch_command(_armed)
 	assert_not_null(command, "the fixture plan must be launchable")
 	await _fire(bs, command)
 

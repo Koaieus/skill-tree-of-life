@@ -57,14 +57,13 @@ func _run_cycle() -> void:
 	assert_true(alloc.allocate(_root.step1, _player), "allocate step 1 (gated)")
 	assert_true(alloc.allocate(_root.step2, _player), "allocate step 2 (gated)")
 	var bs: BattleSystem = _root.battle_system
-	bs.request_attack_mode(BattleSystem.AttackMode.MELEE)
-	var plan := bs.attack_plan as MeleeAttackPlan
+	var plan := bs.new_plan(BattleSystem.AttackMode.MELEE, bs.turn_manager.current_entity) as MeleeAttackPlan
 	assert_not_null(plan, "a melee plan is armed")
 	plan.source = _root.step1
 	plan.blade_nodes = [_root.step2]
 	plan.swing_cw = false
 	assert_true(plan.is_valid(), "the plan validates: %s" % [plan.validate()])
-	bs.launch_attack(bs.attack_plan)
+	bs.launch_attack(plan)
 	assert_true(await wait_until(func() -> bool: return not bs.is_launching, 15),
 			"the launch settles")
 

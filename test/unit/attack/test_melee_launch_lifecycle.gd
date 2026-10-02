@@ -88,25 +88,22 @@ func test_launch_attack_melee_resets_is_launching_and_allows_a_second_attack() -
 	_alloc.force_allocate(_attacker, source)
 	_alloc.force_allocate(_attacker, joint)
 
-	_bs.request_attack_mode(BattleSystem.AttackMode.MELEE)
-	var plan := _bs.attack_plan as MeleeAttackPlan
+	var plan := _bs.new_plan(BattleSystem.AttackMode.MELEE, _bs.turn_manager.current_entity) as MeleeAttackPlan
 	plan.set_pivot(source)
 	plan.toggle_member(joint)
 	assert_true(plan.is_valid(), "fixture plan must be valid before launching")
 
-	_bs.launch_attack(_bs.attack_plan)
+	_bs.launch_attack(plan)
 	assert_true(_bs.is_launching, "is_launching should be true immediately after calling launch_attack")
 
 	await _await_launch_settle()
 	assert_false(_bs.is_launching, "is_launching must reset to false after the melee swing completes")
-	assert_true(_bs.attack_plan == null, "plan should be cleared after the swing")
+	assert_null(_bs.in_flight_plan, "plan should be released after the swing")
 
 	# A second attack (spending the turn's remaining AP) must be arm-able —
-	# the exact flow that regressed: after the fix landed, request_attack_mode
-	# no longer silently no-ops here.
-	_bs.request_attack_mode(BattleSystem.AttackMode.MELEE)
-	assert_not_null(_bs.attack_plan, "a second melee plan must be arm-able after the first swing")
-	var plan2 := _bs.attack_plan as MeleeAttackPlan
+	# the exact flow that regressed: a fresh plan after the first swing.
+	var plan2 := _bs.new_plan(BattleSystem.AttackMode.MELEE, _attacker) as MeleeAttackPlan
+	assert_not_null(plan2, "a second melee plan must be arm-able after the first swing")
 	plan2.set_pivot(source)
 	plan2.toggle_member(joint)
 	assert_true(plan2.is_valid(), "second plan must be arm-able the same way as the first")
@@ -124,18 +121,17 @@ func test_launch_attack_melee_with_temp_upgrade_frees_it_and_resets_is_launching
 	_alloc.force_allocate(_attacker, joint)
 	_alloc.force_allocate(_attacker, tip)
 
-	_bs.request_attack_mode(BattleSystem.AttackMode.MELEE)
-	var plan := _bs.attack_plan as MeleeAttackPlan
+	var plan := _bs.new_plan(BattleSystem.AttackMode.MELEE, _bs.turn_manager.current_entity) as MeleeAttackPlan
 	plan.set_pivot(source)
 	plan.toggle_member(joint)
 	assert_true(plan.apply_temp_upgrade(joint, preload("res://skill_node/addons/defs/clamp_addon.tscn")))
 	assert_true(plan.is_valid(), "fixture plan must be valid before launching")
 
-	_bs.launch_attack(_bs.attack_plan)
+	_bs.launch_attack(plan)
 	await _await_launch_settle()
 
 	assert_false(_bs.is_launching, "is_launching must reset to false after a swing WITH a temp upgrade attached")
-	assert_true(_bs.attack_plan == null, "plan should be cleared after the swing")
+	assert_null(_bs.in_flight_plan, "plan should be released after the swing")
 	assert_eq(joint.get_addons().size(), 0, "the temp addon must be freed after the swing completes")
 
 
@@ -164,11 +160,10 @@ func test_player_can_act_changed_fires_after_swing_reenabling_attack_mode_bar() 
 	var emissions: Array[bool] = []
 	ctl.player_can_act_changed.connect(func(can_act: bool): emissions.append(can_act))
 
-	_bs.request_attack_mode(BattleSystem.AttackMode.MELEE)
-	var plan := _bs.attack_plan as MeleeAttackPlan
+	var plan := _bs.new_plan(BattleSystem.AttackMode.MELEE, _bs.turn_manager.current_entity) as MeleeAttackPlan
 	plan.set_pivot(source)
 	plan.toggle_member(joint)
-	_bs.launch_attack(_bs.attack_plan)
+	_bs.launch_attack(plan)
 
 	await _await_launch_settle()
 
@@ -220,13 +215,12 @@ func test_the_command_is_confirmed_before_the_swing_animation_finishes() -> void
 	applier.command_applied.connect(func(_cmd: Command, _ok: bool) -> void:
 		applied_at.append(Engine.get_process_frames()))
 
-	_bs.request_attack_mode(BattleSystem.AttackMode.MELEE)
-	var plan := _bs.attack_plan as MeleeAttackPlan
+	var plan := _bs.new_plan(BattleSystem.AttackMode.MELEE, _bs.turn_manager.current_entity) as MeleeAttackPlan
 	plan.set_pivot(source)
 	plan.toggle_member(joint)
 	assert_true(plan.is_valid(), "fixture plan must be valid before launching")
 
-	_bs.launch_attack(_bs.attack_plan)
+	_bs.launch_attack(plan)
 	await _await_launch_settle()
 
 	assert_eq(confirmed_at.size(), 1, "one confirmation")

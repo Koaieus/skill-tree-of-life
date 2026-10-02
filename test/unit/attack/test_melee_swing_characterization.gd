@@ -112,12 +112,11 @@ func _arm_spike(power: float) -> void:
 
 
 func _launch() -> void:
-	_bs.request_attack_mode(BattleSystem.AttackMode.MELEE)
-	var plan := _bs.attack_plan as MeleeAttackPlan
+	var plan := _bs.new_plan(BattleSystem.AttackMode.MELEE, _bs.turn_manager.current_entity) as MeleeAttackPlan
 	plan.set_pivot(_pivot)
 	plan.toggle_member(_arm)
 	assert_true(plan.is_valid(), "fixture plan must be valid before launching")
-	_bs.launch_attack(_bs.attack_plan)
+	_bs.launch_attack(plan)
 	await _await_launch_settle()
 
 
@@ -150,8 +149,7 @@ func test_live_swing_plain_hit_deals_damage() -> void:
 ## #502: every melee HitInstance carries its BladeHitEvent.t as arrival_time —
 ## it used to be hardcoded 0.0 for every mode but ranged.
 func test_last_hits_stamp_arrival_time_from_the_event() -> void:
-	_bs.request_attack_mode(BattleSystem.AttackMode.MELEE)
-	var plan := _bs.attack_plan as MeleeAttackPlan
+	var plan := _bs.new_plan(BattleSystem.AttackMode.MELEE, _bs.turn_manager.current_entity) as MeleeAttackPlan
 	plan.set_pivot(_pivot)
 	plan.toggle_member(_arm)
 	assert_true(plan.is_valid(), "fixture plan must be valid before resolving")
@@ -197,8 +195,7 @@ func test_live_swing_spike_pops_the_arm() -> void:
 ## the most work outside the applier, so it gets its own.
 func test_a_shadow_resolve_runs_the_whole_swing_and_mutates_nothing_real() -> void:
 	_arm_spike(5.0)
-	_bs.request_attack_mode(BattleSystem.AttackMode.MELEE)
-	var plan := _bs.attack_plan as MeleeAttackPlan
+	var plan := _bs.new_plan(BattleSystem.AttackMode.MELEE, _bs.turn_manager.current_entity) as MeleeAttackPlan
 	plan.set_pivot(_pivot)
 	plan.toggle_member(_arm)
 	assert_true(plan.is_valid(), "fixture plan must be valid before resolving")

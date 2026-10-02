@@ -79,8 +79,7 @@ func _arm() -> MeleeAttackPlan:
 	_alloc.force_allocate(_attacker, joint)
 	_alloc.force_allocate(_attacker, tip)
 
-	_bs.request_attack_mode(BattleSystem.AttackMode.MELEE)
-	var plan := _bs.attack_plan as MeleeAttackPlan
+	var plan := _bs.new_plan(BattleSystem.AttackMode.MELEE, _bs.turn_manager.current_entity) as MeleeAttackPlan
 	plan.set_pivot(source)
 	plan.toggle_member(joint)
 	plan.toggle_member(tip)

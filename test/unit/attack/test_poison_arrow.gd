@@ -105,12 +105,16 @@ func _poison_power(node: SkillNode) -> float:
 	return node.get_combat().get_status_power(&"poison")
 
 
+## The plan the last `_arm*` minted — what the launch-command builders take.
+var _armed: AttackPlan = null
+
+
 func _arm(ctx: Dictionary, counts: Dictionary) -> RangedAttackPlan:
 	var bs: BattleSystem = ctx.bs
-	bs.request_attack_mode(BattleSystem.AttackMode.RANGED)
-	var plan := bs.attack_plan as RangedAttackPlan
+	var plan := bs.new_plan(BattleSystem.AttackMode.RANGED, bs.turn_manager.current_entity) as RangedAttackPlan
 	plan.set_target(ctx.nodes.target)
 	plan.ammo_counts = counts
+	_armed = plan
 	return plan
 
 
@@ -228,7 +232,7 @@ func test_the_record_replays_the_same_poison_on_a_peer() -> void:
 	var peer: Dictionary = await _build(_PEER_ORIGIN, 3.0)
 	_arm(host, {&"poison": 3})
 	var bs: BattleSystem = host.bs
-	var command := bs.build_launch_command()
+	var command := bs.build_launch_command(_armed)
 	assert_not_null(command, "the fixture plan must be launchable")
 	assert_true(bs.prepare_launch_command(command), "the fixture attack must survive validation")
 	@warning_ignore("redundant_await")
@@ -257,7 +261,7 @@ func test_a_heal_flipped_arrow_still_burns_its_shot_and_its_status_never_does() 
 	_set_local(ctx.nodes.target, &"min_damage_taken", -5.0)
 	_arm(ctx, {&"poison": 1})
 	var bs: BattleSystem = ctx.bs
-	var command := bs.build_launch_command()
+	var command := bs.build_launch_command(_armed)
 	assert_true(bs.prepare_launch_command(command), "the fixture attack must survive validation")
 	@warning_ignore("redundant_await")
 	await bs.apply_launch_command(command)
@@ -278,7 +282,7 @@ func test_a_kill_mid_volley_gates_the_remaining_poison_and_replays_clean() -> vo
 		slice.take_damage(slice.get_current_hp() - 1.0, null)
 	_arm(host, {&"poison": 3})
 	var bs: BattleSystem = host.bs
-	var command := bs.build_launch_command()
+	var command := bs.build_launch_command(_armed)
 	assert_true(bs.prepare_launch_command(command), "the fixture attack must survive validation")
 	@warning_ignore("redundant_await")
 	await bs.apply_launch_command(command)
@@ -357,10 +361,9 @@ func test_a_status_only_hit_on_an_already_cracked_core_lands_on_the_entity() -> 
 func test_a_shadow_fall_through_never_writes_the_live_entity_until_the_record_replays() -> void:
 	var ctx: Dictionary = await _build()
 	_crack_shot(ctx)
-	_arm(ctx, {&"poison": 1})
-	(ctx.bs.attack_plan as RangedAttackPlan).set_target(_core_of(ctx))
+	_arm(ctx, {&"poison": 1}).set_target(_core_of(ctx))
 	var bs: BattleSystem = ctx.bs
-	var command := bs.build_launch_command()
+	var command := bs.build_launch_command(_armed)
 	assert_not_null(command, "the fixture plan must be launchable")
 	# prepare resolves on a throwaway shadow — the fall-through happens there.
 	assert_true(bs.prepare_launch_command(command), "the fixture attack must survive validation")

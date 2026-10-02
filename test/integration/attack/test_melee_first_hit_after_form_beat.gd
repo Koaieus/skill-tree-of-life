@@ -123,14 +123,13 @@ func test_the_first_hit_lands_strictly_after_the_form_beat_ends_on_the_real_cloc
 			first_hit_at[0] = float(Time.get_ticks_usec() - started_at[0]) / 1000000.0
 	Events.skill_node_damaged.connect(probe)
 
-	_bs.request_attack_mode(BattleSystem.AttackMode.MELEE)
-	var plan := _bs.attack_plan as MeleeAttackPlan
+	var plan := _bs.new_plan(BattleSystem.AttackMode.MELEE, _bs.turn_manager.current_entity) as MeleeAttackPlan
 	plan.set_pivot(_pivot)
 	plan.toggle_member(_arm)
 	assert_true(plan.is_valid(), "fixture plan must be valid before launching")
 
 	started_at[0] = Time.get_ticks_usec()
-	_bs.launch_attack(_bs.attack_plan)
+	_bs.launch_attack(plan)
 	# Generous: the whole action is ~2 s of wind-up + a 1.2 s swing + a fade.
 	await wait_until(func() -> bool: return not _bs.is_launching, 15.0)
 	# `Events` is an autoload that outlives this test; the bus hook must go.
@@ -210,13 +209,12 @@ func test_a_ranged_first_hit_lands_after_the_presenters_windup_on_the_real_clock
 	_bs.attack_committed.connect(func(o: AttackOutcome, _e: Entity) -> void:
 		committed.append(o))
 
-	_bs.request_attack_mode(BattleSystem.AttackMode.RANGED)
-	var plan := _bs.attack_plan as RangedAttackPlan
+	var plan := _bs.new_plan(BattleSystem.AttackMode.RANGED, _bs.turn_manager.current_entity) as RangedAttackPlan
 	plan.set_target(_target)
 	assert_true(plan.is_valid(), "fixture plan must be valid before launching")
 
 	started_at[0] = Time.get_ticks_usec()
-	_bs.launch_attack(_bs.attack_plan)
+	_bs.launch_attack(plan)
 	await wait_until(func() -> bool: return not _bs.is_launching, 15.0)
 	Events.skill_node_damaged.disconnect(probe)
 

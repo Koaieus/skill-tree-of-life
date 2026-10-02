@@ -122,15 +122,14 @@ func _build(with_live_vfx: bool) -> Dictionary:
 
 func _fire(ctx: Dictionary) -> void:
 	var bs: BattleSystem = ctx.bs
-	bs.request_attack_mode(BattleSystem.AttackMode.RANGED)
-	var plan := bs.attack_plan as RangedAttackPlan
+	var plan := bs.new_plan(BattleSystem.AttackMode.RANGED, bs.turn_manager.current_entity) as RangedAttackPlan
 	plan.set_target(ctx.target)
 	assert_true(plan.is_valid(), "fixture plan must be valid before launching")
 	# Not awaited, and with `instant_mutation` set that is enough: the applier
 	# never parks, so resolve() + the whole outcome + the cascade have all run
 	# by the time this returns. Without the flag the volley would still be
 	# mid-flight here — see the class docstring.
-	bs.launch_attack(bs.attack_plan)
+	bs.launch_attack(plan)
 
 
 func test_world_state_identical_with_null_and_live_attack_vfx() -> void:

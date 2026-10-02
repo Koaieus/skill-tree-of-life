@@ -136,9 +136,7 @@ const _TIP_IDX := 2
 func _plan() -> MeleeAttackPlan:
 	# Fresh plan every time: MELEE selection is a TOGGLE, so re-clicking the
 	# same nodes on a surviving plan would deselect them.
-	_bs.request_attack_mode(BattleSystem.AttackMode.NONE)
-	_bs.request_attack_mode(BattleSystem.AttackMode.MELEE)
-	var plan := _bs.attack_plan as MeleeAttackPlan
+	var plan := _bs.new_plan(BattleSystem.AttackMode.MELEE, _bs.turn_manager.current_entity) as MeleeAttackPlan
 	plan.set_pivot(_pivot)
 	plan.toggle_member(_mid)
 	plan.toggle_member(_tip)

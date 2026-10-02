@@ -131,23 +131,29 @@ func _build(presented: bool) -> Dictionary:
 			"defender": defender, "layers": layers, "presenter": result_presenter}
 
 
+## The plan the last `_arm` minted.
+var _armed: AttackPlan = null
+
+
 func _arm(ctx: Dictionary, mode: BattleSystem.AttackMode) -> void:
 	var bs: BattleSystem = ctx.bs
 	match mode:
 		BattleSystem.AttackMode.RANGED:
-			bs.request_attack_mode(mode)
-			(bs.attack_plan as RangedAttackPlan).set_target(ctx.nodes.target)
+			var ranged := bs.new_plan(mode, bs.turn_manager.current_entity) as RangedAttackPlan
+			ranged.set_target(ctx.nodes.target)
+			_armed = ranged
 		BattleSystem.AttackMode.MELEE:
-			bs.request_attack_mode(mode)
-			var melee := bs.attack_plan as MeleeAttackPlan
+			var melee := bs.new_plan(mode, bs.turn_manager.current_entity) as MeleeAttackPlan
 			melee.set_pivot(ctx.nodes.core)
 			melee.toggle_member(ctx.nodes.leaf)
+			_armed = melee
 		BattleSystem.AttackMode.MAGIC:
 			bs.selected_spell = SpellCatalog.SPARK
-			bs.request_attack_mode(mode)
-			var magic := bs.attack_plan as MagicAttackPlan
+			var magic := bs.new_plan(mode, bs.turn_manager.current_entity) as MagicAttackPlan
+			magic.spell = SpellCatalog.SPARK
 			magic.set_target(ctx.nodes.leaf)
 			magic.set_target(ctx.nodes.target)
+			_armed = magic
 
 
 ## Launch and wait for release, capped in seconds: melee's live swing is a real
@@ -155,9 +161,9 @@ func _arm(ctx: Dictionary, mode: BattleSystem.AttackMode) -> void:
 func _launch(ctx: Dictionary, mode: BattleSystem.AttackMode) -> bool:
 	_arm(ctx, mode)
 	var bs: BattleSystem = ctx.bs
-	assert_true(bs.attack_plan != null and bs.attack_plan.is_valid(),
+	assert_true(_armed != null and _armed.is_valid(),
 			"fixture plan for mode %d must be valid" % mode)
-	bs.launch_attack(bs.attack_plan)
+	bs.launch_attack(_armed)
 	await wait_until(func() -> bool: return not bs.is_launching, 5.0)
 	return not bs.is_launching
 

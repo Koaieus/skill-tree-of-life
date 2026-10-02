@@ -100,12 +100,16 @@ func _build(origin: Vector2 = Vector2.ZERO, leaf_shots: float = 5.0, core_shots:
 			"defender": defender, "nodes": nodes}
 
 
+## The plan the last `_arm*` minted — what the launch-command builders take.
+var _armed: AttackPlan = null
+
+
 func _arm(ctx: Dictionary, counts: Dictionary) -> RangedAttackPlan:
 	var bs: BattleSystem = ctx.bs
-	bs.request_attack_mode(BattleSystem.AttackMode.RANGED)
-	var plan := bs.attack_plan as RangedAttackPlan
+	var plan := bs.new_plan(BattleSystem.AttackMode.RANGED, bs.turn_manager.current_entity) as RangedAttackPlan
 	plan.set_target(ctx.nodes.target)
 	plan.ammo_counts = counts
+	_armed = plan
 	return plan
 
 
@@ -178,7 +182,7 @@ func test_a_reveal_burns_its_shot_and_its_scout_stock() -> void:
 	var bs: BattleSystem = ctx.bs
 	var quiver: Quiver = ctx.attacker.stat_board.arrows
 	var scouts_before: int = quiver.stock_of(&"scout")
-	var command := bs.build_launch_command()
+	var command := bs.build_launch_command(_armed)
 	assert_not_null(command, "the fixture plan must be launchable")
 	assert_true(bs.prepare_launch_command(command), "the fixture attack must survive validation")
 	@warning_ignore("redundant_await")

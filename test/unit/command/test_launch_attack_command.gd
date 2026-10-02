@@ -90,9 +90,13 @@ func _set_local(node: SkillNode, stat_id: StringName, value: float) -> void:
 	node.add_local_modifier(m)
 
 
+## The plan `_arm` minted.
+var _armed: AttackPlan = null
+
+
 func _arm() -> void:
-	_bs.request_attack_mode(BattleSystem.AttackMode.RANGED)
-	(_bs.attack_plan as RangedAttackPlan).set_target(_nodes.target)
+	_armed = _bs.new_plan(BattleSystem.AttackMode.RANGED, _bs.turn_manager.current_entity)
+	(_armed as RangedAttackPlan).set_target(_nodes.target)
 
 
 func test_the_applier_claims_the_battle_system_at_ready() -> void:
@@ -107,7 +111,7 @@ func test_launch_attack_routes_through_the_applier() -> void:
 		if ok:
 			applied.append(cmd))
 	_arm()
-	await _bs.launch_attack(_bs.attack_plan)
+	await _bs.launch_attack(_armed)
 	assert_eq(applied.size(), 1, "exactly one command was applied")
 	assert_true(applied[0] is LaunchAttackCommand)
 	assert_eq(applied[0].type_tag(), LaunchAttackCommand.TAG)
@@ -124,7 +128,7 @@ func test_the_confirmed_command_carries_the_record_out() -> void:
 		if cmd is LaunchAttackCommand:
 			seen.append(cmd as LaunchAttackCommand))
 	_arm()
-	await _bs.launch_attack(_bs.attack_plan)
+	await _bs.launch_attack(_armed)
 	assert_eq(seen.size(), 1)
 	assert_false(seen[0].record.is_empty(),
 			"the record must be stamped by the time command_confirmed fires")
@@ -148,7 +152,7 @@ func test_the_broadcast_goes_out_before_the_world_moves() -> void:
 			ap_at_confirm.append(_attacker.stat_board.action_points.current)
 			record_at_confirm.append((cmd as LaunchAttackCommand).record))
 	_arm()
-	await _bs.launch_attack(_bs.attack_plan)
+	await _bs.launch_attack(_armed)
 
 	assert_eq(record_at_confirm.size(), 1, "exactly one confirmation")
 	assert_false(record_at_confirm[0].is_empty(),
@@ -165,7 +169,7 @@ func test_an_unaffordable_launch_neither_confirms_nor_crosses_the_wire() -> void
 	# a ranged launch unaffordable — its currency is arrows, and an EMPTY
 	# quiver is what nobody can pay with. That refusal lands one layer earlier
 	# than the #545 applier gate this test was written for: `validate()` fails
-	# on `ERR_NO_AMMO`, so `build_launch_command()` returns null and no command
+	# on `ERR_NO_AMMO`, so `build_launch_command(_armed)` returns null and no command
 	# is ever submitted — refused before it is announced, still, only now
 	# there is nothing to report as applied either. (The applier's own
 	# live-board affordability gate keeps its AP premise for melee/magic.)
@@ -178,9 +182,9 @@ func test_an_unaffordable_launch_neither_confirms_nor_crosses_the_wire() -> void
 	_applier.command_applied.connect(func(_cmd: Command, ok: bool): outcomes.append(ok))
 	var hp_before: float = (_nodes.target as SkillNode).get_current_hp()
 	_arm()
-	assert_true(_bs.attack_plan.validate().has(RangedAttackPlan.ERR_NO_AMMO),
+	assert_true(_armed.validate().has(RangedAttackPlan.ERR_NO_AMMO),
 			"the plan itself names the refusal")
-	await _bs.launch_attack(_bs.attack_plan)
+	await _bs.launch_attack(_armed)
 
 	assert_eq(confirmed, [] as Array[Command],
 			"an unaffordable attack never confirms, so it never crosses the wire")
@@ -199,7 +203,7 @@ func test_a_launch_by_an_unresolvable_entity_never_confirms() -> void:
 	var outcomes: Array[bool] = []
 	_applier.command_applied.connect(func(_cmd: Command, ok: bool): outcomes.append(ok))
 	_arm()
-	var command := _bs.build_launch_command()
+	var command := _bs.build_launch_command(_armed)
 	assert_not_null(command, "the fixture plan must be launchable")
 	command.entity_id = 999999
 	_applier.submit(command)
@@ -217,9 +221,9 @@ func test_launch_attack_still_awaits_the_whole_action() -> void:
 	# and AiController's `await bs.launch_attack()`. Routing through a queue
 	# must not turn it into fire-and-forget.
 	_arm()
-	await _bs.launch_attack(_bs.attack_plan)
+	await _bs.launch_attack(_armed)
 	assert_false(_bs.is_launching, "is_launching is released by the time the await returns")
-	assert_null(_bs.attack_plan, "…and the plan is cleared, adjacent to that flip")
+	assert_null(_bs.in_flight_plan, "…and the plan is released, adjacent to that flip")
 	assert_false(_applier.is_applying, "the queue drained too")
 
 
@@ -231,7 +235,7 @@ func test_is_launching_is_true_while_the_attack_is_in_flight() -> void:
 	var seen: Array[bool] = []
 	_bs.attack_launched.connect(func(_mode, _spell): seen.append(_bs.is_launching))
 	_arm()
-	await _bs.launch_attack(_bs.attack_plan)
+	await _bs.launch_attack(_armed)
 	assert_eq(seen, [true] as Array[bool],
 			"is_launching spans the action, and attack_launched fires inside it")
 
@@ -254,7 +258,7 @@ func test_a_command_raised_during_an_attack_queues_rather_than_re_entering() -> 
 		_applier.submit(AllocateCommand.new(_attacker.entity_id,
 				_graph.get_stable_id(_nodes.spare))))
 	_arm()
-	await _bs.launch_attack(_bs.attack_plan)
+	await _bs.launch_attack(_armed)
 	assert_eq(order, ["launch_attack", "allocate"] as Array[String],
 			"the attack finished before the command it raised")
 	assert_eq(wire, ["launch_attack", "allocate"] as Array[String],
