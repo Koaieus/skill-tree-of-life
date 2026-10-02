@@ -308,7 +308,7 @@ func test_authored_blindness_and_dazzle_load_and_are_in_the_debug_book() -> void
 	assert_gt(blind.depth_k, 0.0)
 	# display_max keeps the bar / tint on a 0..1 scale for an uncapped def.
 	assert_gt(blind.display_max, 0.0, "an uncapped def authors a display anchor")
-	assert_almost_eq(NodeStatus.new(blind, blind.display_max * 0.5).normalised(), 0.5, 0.0001)
+	assert_almost_eq(NodeStatus.new(blind, 1).normalised(), 1.0 / blind.display_max, 0.0001, "a whole count over the anchor")
 	assert_almost_eq(NodeStatus.new(blind, blind.display_max * 10.0).normalised(), 1.0, 0.0001,
 		"depth past the anchor saturates the bar")
 

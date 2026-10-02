@@ -103,7 +103,7 @@ func test_the_live_replay_lands_the_recorded_amount_not_its_own() -> void:
 	for hit in rebuilt.hits:
 		for e in hit.deallocations:
 			for t in e.spill:
-				t.amount = 1.5
+				t.amount = 2.0
 				altered += 1
 	assert_eq(altered, 1, "precondition: the record carries 2's one transfer")
 
@@ -113,5 +113,5 @@ func test_the_live_replay_lands_the_recorded_amount_not_its_own() -> void:
 	add_child_autofree(battle)
 	OutcomeApplier.apply(rebuilt, CombatWorld.live(), null, _alloc)
 	assert_false(n[2].is_allocated(), "precondition: the replay stripped 2")
-	assert_almost_eq(n[1].get_combat().get_status_power(&"curse"), 1.5, 0.0001,
-			"1 holds the RECORDED 1.5, not a recomputed 4")
+	assert_almost_eq(n[1].get_combat().get_status_power(&"curse"), 2.0, 0.0001,
+			"1 holds the RECORDED 2, not a recomputed 4")

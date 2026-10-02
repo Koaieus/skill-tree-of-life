@@ -8,9 +8,10 @@ extends GutTest
 
 const _DIR := "res://effects/status/"
 
+## Corruption authors no slot: it does not decay (owner, 2026-10-01; interim
+## until #1203) — pinned separately below. Poison loses one whole stack a tick.
 var _SHAPES := {
-	&"poison": FractionDecay,
-	&"corruption": FractionDecay,
+	&"poison": FlatDecay,
 	&"wither": FractionDecay,
 	&"blindness": FractionDecay,
 	&"curse": FlatDecay,
@@ -33,6 +34,13 @@ func test_every_family_is_authored() -> void:
 	var defs := _authored()
 	for id in _SHAPES:
 		assert_true(defs.has(id), "%s.tres is authored under %s" % [id, _DIR])
+	assert_true(defs.has(&"corruption"), "corruption.tres is authored under %s" % _DIR)
+
+
+func test_corruption_does_not_decay() -> void:
+	var defs := _authored()
+	if defs.has(&"corruption"):
+		assert_null((defs[&"corruption"] as StatusDef).decay, "corruption: no decay slot")
 
 
 func test_each_family_decays_in_its_shape() -> void:
