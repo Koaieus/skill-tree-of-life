@@ -74,7 +74,9 @@ const _R_SCENE := 15 ## index into `res`, -1 for the plain skill_node.tscn — t
 
 ## Builds the payload for the WHOLE graph in one shot: `res` (the interned
 ## resource-path table), `nodes` (positional rows, see the `_R_*` consts), and
-## `edges` (`[from_stable_id, to_stable_id]` pairs). Callers that want to send
+## `edges` (`[low_stable_id, high_stable_id]` pairs, sorted — canonical because
+## [method decode] re-adds edges by unordered pair, so the live order and
+## direction would not survive a round trip and the bytes would drift). Callers that want to send
 ## progress in chunks should slice `graph.get_skill_nodes()` themselves and
 ## call [method encode_nodes] per slice, sharing one [_InternTable] across
 ## slices — this method exists for the common case (and every unit test).
@@ -85,7 +87,10 @@ static func encode(graph: Graph) -> PackedByteArray:
 		nodes.append(_encode_node(graph, node, table))
 	var edges: Array = []
 	for edge in graph.get_edges():
-		edges.append([graph.get_stable_id(edge.from), graph.get_stable_id(edge.to)])
+		var a := graph.get_stable_id(edge.from)
+		var b := graph.get_stable_id(edge.to)
+		edges.append([mini(a, b), maxi(a, b)])
+	edges.sort()
 	return _pack({"res": table.paths, "nodes": nodes, "edges": edges})
 
 
