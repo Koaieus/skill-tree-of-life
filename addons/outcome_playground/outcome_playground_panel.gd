@@ -212,7 +212,7 @@ func _on_capture_pressed() -> void:
 	_busy = true
 	_refresh_status()
 	_arm()
-	var plan := _builder.arm_magic(_battle, _selected_spell())
+	var plan: MagicAttackPlan = _builder.arm_magic(_battle, _selected_spell())
 	var before := WorldFingerprint.compute(_graph)
 	var command := _battle.build_launch_command(plan) if plan != null else null
 	if command == null:
