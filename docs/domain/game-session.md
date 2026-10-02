@@ -93,6 +93,28 @@ territory seeder in `scenes/procgen_play_sandbox.gd` uses `seed ^ 0x57AB02D`, a
 constant salt that keeps enemy seeding independent of the procgen content stream
 so adding a modifier roll upstream doesn't shift where enemies start.
 
+## World source: generate it, or await it
+
+`GameSession.world_source` (`WorldSource.GENERATE` / `ARRIVES`) answers one
+per-machine question: does this machine build the world from the seed, or is
+the world delivered to it? A level's `_setup_level` branches on it — **never on
+`network_session.is_client()`**, which keeps its other callers (wire roles, the
+restart gate). Owner call on #23 (2026-10-02): the run carries it.
+
+| Writer | Sets |
+|---|---|
+| `start()` (lobby START, `ensure_started`) | `GENERATE` |
+| `apply_received()` (the joiner's entry) | `ARRIVES` |
+| `end()` | back to the default, `GENERATE` |
+| `scenes/dev/mp_procgen_sandbox.gd` (`--role=client`, its own lobby) | `ARRIVES`, before its run arrives |
+
+It lives on the autoload, not on `RunConfig`: the config is the run's shape,
+crosses the wire and is identical on every peer, while this fact differs per
+machine (the host generates, a joiner awaits). The `ARRIVES` branch seats the
+roster, generates nothing and holds the curtain; **who delivers the world is
+not its concern** — the wire today, a save file as well. Pinned by
+`test/integration/session/test_world_source_arrives.gd` (no network at all).
+
 ## Gotchas when testing this
 
 - **An autoload outlives every test** in GUT's single process. Call

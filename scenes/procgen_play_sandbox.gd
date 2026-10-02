@@ -88,10 +88,11 @@ func _setup_level() -> void:
 				% name + "invent one — start the session first, from the lobby "
 				+ "or from a RunBootstrap child holding an authored RunConfig.")
 		return
-	# #715: and here the two shapes part company. Above this line everything is
-	# shared; below it is generation, which a joining client does not do.
-	if network_session.is_client():
-		await _setup_level_as_client()
+	# Here the two shapes part company. Above this line everything is shared;
+	# below it is generation, which a machine whose world ARRIVES does not do —
+	# a joiner today, a loaded save as well. Never keyed off the network role.
+	if GameSession.world_source == GameSession.WorldSource.ARRIVES:
+		await _setup_level_awaiting_world()
 		return
 	# #641 D6: the run's Scenario names the preset; `preset` (the scene export
 	# above) is the fallback for a run that opened with none.
@@ -230,30 +231,31 @@ func _setup_level() -> void:
 		e.level = achieved
 
 
-## The joining CLIENT's whole `_setup_level` (#715): no preset, no
-## [GraphProcgen], no territory seeding — an empty graph and the roster's
-## entities, standing by for [method GameRoot.pull_host_world] to fill the world
-## in around them.
+## The whole `_setup_level` of a machine whose world ARRIVES
+## ([member GameSession.world_source]): no preset, no [GraphProcgen], no
+## territory seeding — an empty graph and the roster's entities, standing by for
+## the world to be filled in around them. Who delivers it is not this method's
+## concern: on a joiner it is [method GameRoot.pull_host_world].
 ##
 ## [b]It still SPAWNS, and that is the one thing it may not skip.[/b]
 ## [EntitySnapshot] decorates by `entity_id` and never spawns (#560 D7), so the
-## entities have to be here before the host's state arrives or every row is
+## entities have to be here before the world's state arrives or every row is
 ## skipped with a warning. They are spawned in [method _camp_grouped_participants]
 ## order — the identical order the generating branch uses — because [Graph] mints
 ## `entity_id` by add-order (`graph/graph.gd::_mint_entity_id`), and one
 ## mis-ordered spawn slides every id past it. `core_location` is null: there are
 ## no nodes yet to allocate onto, and the snapshot's pass 2 resolves it.
 ##
-## [b]The loading bar covers the HOST's generate + ship, not this machine's
+## [b]The loading bar covers the world's delivery, not this machine's
 ## procgen.[/b] Same curtain, same progress widget, different wall-clock being
-## explained — this peer is waiting on somebody else's 5-10 seconds now. It is
-## indeterminate on purpose: the host reports no progress, and inventing a fake
-## ramp would be worse than a bar that simply says "working".
-func _setup_level_as_client() -> void:
+## explained — a host's generate + ship, or a read from disk. It is
+## indeterminate on purpose: the deliverer reports no progress, and inventing a
+## fake ramp would be worse than a bar that simply says "working".
+func _setup_level_awaiting_world() -> void:
 	if false: await get_tree().process_frame # keep this a coroutine, as the caller awaits it
 	var roster: ParticipantRoster = GameSession.roster
 	if roster == null or roster.all().is_empty():
-		push_error("%s: the host's run carries no participants — nothing to seat." % name)
+		push_error("%s: the run carries no participants — nothing to seat." % name)
 		return
 	SceneTransition.set_faded(true)
 	SceneTransition.progress_bar.show()

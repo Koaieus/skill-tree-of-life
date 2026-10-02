@@ -63,6 +63,11 @@ signal _snapshots_arrived
 
 func _ready() -> void:
 	_parse_cmdline()
+	# This sandbox is its own lobby: `--role=client` is its Join, so it declares
+	# the world ARRIVES here, before `_setup_level` reads it. The run itself
+	# (and `apply_received`'s matching write) only lands later, over the wire.
+	if _role == NetworkConfig.Role.CLIENT:
+		GameSession.world_source = GameSession.WorldSource.ARRIVES
 	# Set before `super()`, same reasoning as rung 1's own note: an
 	# AIController's authority gate must never read the library default while
 	# a role is still being adopted.
@@ -130,7 +135,7 @@ func _setup_level_as_host_or_solo() -> void:
 ## for BOTH the graph (#527) and the entity state (#560) to decode — the
 ## latter is what actually resolves `core_location` and rebuilds each board
 ## from what the host granted (see the class docstring).
-func _setup_level_as_client() -> void:
+func _setup_level_awaiting_world() -> void:
 	await GameSession.run_started
 	var roster := GameSession.roster
 	var participants := roster.all()
@@ -178,11 +183,10 @@ func _fixed_roster() -> ParticipantRoster:
 
 
 func _setup_level() -> void:
-	match _role:
-		NetworkConfig.Role.CLIENT:
-			await _setup_level_as_client()
-		_:
-			await _setup_level_as_host_or_solo()
+	if GameSession.world_source == GameSession.WorldSource.ARRIVES:
+		await _setup_level_awaiting_world()
+	else:
+		await _setup_level_as_host_or_solo()
 
 
 ## Replicates what `GameRoot._open_first_turn` does, targeting `_red` directly
@@ -287,7 +291,7 @@ func _start_link() -> void:
 ## the SAME untouched baseline. Here the graph and entity state DO cross: if
 ## the HOST's opening turn ran before the send, the snapshot would carry an
 ## ALREADY-healed world, and the CLIENT's own (also-necessary — see
-## `_setup_level_as_client`) `start_turn` call would heal it a SECOND time on
+## `_setup_level_awaiting_world`) `start_turn` call would heal it a SECOND time on
 ## top, unaccounted for by anything that crossed the wire. Sending first keeps
 ## both peers' upkeep applications starting from the identical pre-turn
 ## baseline, exactly like rung 1's.

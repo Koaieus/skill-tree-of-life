@@ -123,6 +123,7 @@ func start(cfg: RunConfig) -> void:
 	roster = ParticipantRoster.new()
 	for participant in config.participants:
 		roster.add(Participant.from_dict(participant.to_dict()))
+	world_source = WorldSource.GENERATE
 	outcome = null
 	run_started.emit(config)
 
@@ -142,6 +143,7 @@ func apply_received(cfg: RunConfig, received_roster: ParticipantRoster) -> void:
 	assert(cfg.seed != 0, "GameSession.apply_received: unresolved seed (0) crossed the wire")
 	config = cfg
 	roster = received_roster if received_roster != null else ParticipantRoster.new()
+	world_source = WorldSource.ARRIVES
 	outcome = null
 	run_started.emit(config)
 
@@ -178,6 +180,7 @@ func ensure_started(fallback_seed: int = 0) -> void:
 func end() -> void:
 	config = null
 	roster = null
+	world_source = WorldSource.GENERATE
 	# The wire belonged to the run: a player who hosted once and then starts a
 	# solo game must not silently open a socket again.
 	network = null
