@@ -18,7 +18,20 @@ const _FADE: float = 0.4
 
 @export var battle_system: BattleSystem
 ## The seat's armed-input stack: the armed plan is read off its attack level.
-@export var armed_stack: ArmedStack
+## Assignable at any time: the setter moves the signal hookup and repaints.
+@export var armed_stack: ArmedStack:
+	set(value):
+		if armed_stack == value:
+			return
+		if armed_stack != null:
+			armed_stack.attack_plan_changed.disconnect(_on_plan_changed)
+			armed_stack.attack_plan_state_changed.disconnect(_refresh)
+		armed_stack = value
+		if armed_stack != null:
+			armed_stack.attack_plan_changed.connect(_on_plan_changed)
+			armed_stack.attack_plan_state_changed.connect(_refresh)
+		if is_node_ready():
+			_refresh()
 
 ## Look profile stamped onto every blade this preview spawns (#256). Null keeps
 ## [SkillBlade]'s own default. Set here rather than on each blade because the
@@ -115,9 +128,6 @@ func _ready() -> void:
 	# Idle costs nothing: `_process` is the #821 slice pump and is armed only
 	# while a prediction is actually part-way resolved.
 	set_process(false)
-	if armed_stack != null:
-		armed_stack.attack_plan_changed.connect(_on_plan_changed)
-		armed_stack.attack_plan_state_changed.connect(_refresh)
 
 
 func _on_plan_changed(_plan: AttackPlan) -> void:

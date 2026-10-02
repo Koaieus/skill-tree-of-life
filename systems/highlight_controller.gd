@@ -35,7 +35,18 @@ signal provider_state_changed
 @export var battle_system: BattleSystem
 @export var input_ctl: PlayerInputController
 ## The seat's armed-input stack: the armed plan is read off its attack level.
-@export var armed_stack: ArmedStack
+## Assignable at any time: the setter moves the signal hookup and re-resolves.
+@export var armed_stack: ArmedStack:
+	set(value):
+		if armed_stack == value:
+			return
+		if armed_stack != null:
+			armed_stack.attack_plan_changed.disconnect(_on_attack_plan_changed)
+		armed_stack = value
+		if armed_stack != null:
+			armed_stack.attack_plan_changed.connect(_on_attack_plan_changed.unbind(1))
+		if is_node_ready():
+			_on_attack_plan_changed()
 @export var allocation_system: AllocationSystem
 @export var graph: Graph
 @export var turn_manager: TurnManager
@@ -86,8 +97,6 @@ func _enter_tree() -> void:
 ## initial provider. Deps are scene-injected via NodePath @exports, so they're
 ## populated by the time `_ready` runs.
 func _ready() -> void:
-	if armed_stack != null:
-		armed_stack.attack_plan_changed.connect(_on_attack_plan_changed.unbind(1))
 	if battle_system != null:
 		battle_system.in_flight_plan_changed.connect(_on_source_changed.unbind(1))
 	var ctl := _live_input_ctl()

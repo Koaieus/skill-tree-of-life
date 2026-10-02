@@ -57,7 +57,6 @@ func before_each() -> void:
 	# — order and authored slots survive, wall-clock waits do not.
 	_bs.instant_mutation = true
 	add_child(_bs)
-	_preview._ready()
 
 	_attacker = Entity.new()
 	_attacker.stat_board = _BOARD.duplicate(true) as EntityStatBoard
@@ -91,7 +90,6 @@ func test_launch_attack_melee_resets_is_launching_and_allows_a_second_attack() -
 
 	var ctl := _ArmingCtl.make(self, _graph, _alloc, _bs, _tm, _attacker)
 	_preview.armed_stack = ctl.armed_stack
-	_preview._ready()
 	ctl.arm_attack(BattleSystem.AttackMode.MELEE)
 	var plan := ctl.armed_stack.attack_plan() as MeleeAttackPlan
 	plan.set_pivot(source)

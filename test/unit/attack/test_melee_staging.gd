@@ -62,7 +62,6 @@ func before_each() -> void:
 	# — order and authored slots survive, wall-clock waits do not.
 	_bs.instant_mutation = true
 	add_child(_bs)
-	_preview._ready()
 
 	_attacker = Entity.new()
 	_attacker.stat_board = _BOARD.duplicate(true) as EntityStatBoard
@@ -106,7 +105,6 @@ func _arm_plan() -> MeleeAttackPlan:
 	assert_true(plan.is_valid(), "fixture plan must be valid before launching")
 	# The preview reads the armed plan off a stack; a bare one holds this plan.
 	_preview.armed_stack = autofree(preload("res://test/fixtures/stub_arm.gd").stack_holding(plan))
-	_preview._refresh()
 	return plan
 
 
@@ -141,6 +139,18 @@ func _zeroed_tempo() -> PresentationTempo:
 
 
 # --- Acceptance 1: the swing begins after the form beat -----------------------
+
+func test_a_stack_assigned_after_ready_still_drives_the_preview() -> void:
+	var plan := _bs.new_plan(BattleSystem.AttackMode.MELEE, _bs.turn_manager.current_entity) as MeleeAttackPlan
+	plan.set_pivot(_pivot)
+	plan.toggle_member(_arm)
+	var stack: ArmedStack = autofree(ArmedStack.new())
+	stack.set_root(ArmedMode.new())
+	_preview.armed_stack = stack  # late: the preview has long been in the tree
+	assert_null(_preview.current_blade(), "nothing armed yet")
+	stack.push(preload("res://test/fixtures/stub_arm.gd").new(plan))
+	assert_not_null(_preview.current_blade(), "a level pushed on a late-assigned stack paints the ghost")
+
 
 func test_the_first_hit_lands_strictly_after_the_form_beat_ends() -> void:
 	await _assert_first_hit_lands_after_the_form_beat()
