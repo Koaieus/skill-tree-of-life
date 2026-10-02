@@ -186,7 +186,9 @@ disk at `scratchpad/land/land-<n>.log` (#920), so filling the ledger is a
     claim, and `mise run issue-drift -- <n>`.** The ledger (`docs/handoffs/
     swarm-<date>.md`, gitignored, ≤1.5k tokens) is the at-most-once record
     and the relief briefing, and **its roster is written by commands, never
-    by the lead remembering**: `mise run ledger -- dispatch <n> <drone>
+    by the lead remembering** (a same-date file from an earlier train is
+    appended to, never a relief trigger — the launch prompt's *fresh lead*
+    clause decides, whip law 9): `mise run ledger -- dispatch <n> <drone>
     <tier>` in the dispatch call (creates the file for a new run, prints the
     roster back so the read is free), `mise run ledger -- report <n>
     --branch <slug> [--plan] [--stuck] [--pull]` in the collect call, and

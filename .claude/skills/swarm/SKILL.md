@@ -139,6 +139,9 @@ questions to resolve by reading.
 
 Active only when your launch prompt says *supervised by `<name>`*. The
 supervisor is a session, not a human; it reads three lines and nothing else.
+This section and the `CLAUSES` string in `.mise/tasks/whip` (pasted into
+your launch prompt) are one contract, two readers — a difference between
+them is a bug, not a nuance.
 
 - **Report by `SendMessage` to `<name>`, one line each**: `RELIEVE ME
   <ledger path>` where this skill says "request relief"; `DONE <train>
@@ -159,7 +162,11 @@ supervisor is a session, not a human; it reads three lines and nothing else.
 ### 1. Read the issues once, delegate the rest
 
 A ledger for this run already on disk (`docs/handoffs/swarm-<date>.md`)
-means you are relief — `.claude/skills/relief/SKILL.md` first, then here.
+means you are relief — `.claude/skills/relief/SKILL.md` first, then here —
+**unless your launch prompt calls you a fresh lead** (a supervisor's later
+train on the same date): then the file is an earlier train's, you never
+orient as its relief, `mise run ledger -- dispatch` appends your rows to it,
+and the earlier train's rows are not yours to touch.
 
 ```bash
 gh issue view <n>            # once per issue
@@ -212,8 +219,9 @@ mise run issue-drift -- <n>                             # silent = the Ready com
 
 - **The ledger** (`docs/handoffs/swarm-<date>.md`, gitignored — never
   commit it) is what relief reads. **Its roster is written by commands**:
-  `ledger -- dispatch` here (it creates the file on a new run and prints
-  the whole ledger, so you never `cat` it), `ledger -- report` at collect
+  `ledger -- dispatch` here (it creates the file on a new run — or appends
+  to a same-date file from an earlier train — and prints the whole ledger,
+  so you never `cat` it), `ledger -- report` at collect
   (step 4), and `mise run land --closes <n>` writes the `landed <sha>` row
   itself. A row is unit / drone / tier / state (`dispatched@HH:MM` →
   `reported@` | `pulled@` → `landed <sha>`; a re-dispatch says

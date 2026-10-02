@@ -30,6 +30,8 @@ LIVE_HOURS = 36
 DAEMON_UNIT = "whip-daemon"
 MAX_FAILURES = 3
 SLEEP = time.sleep
+# One contract, two readers: `.claude/skills/swarm/SKILL.md` §Supervised mode is the lead's
+# reading of this string; a difference in substance between them is a bug.
 CLAUSES = (
     "Supervised mode: your supervisor is the local Claude session named 'whip'; its messages are your "
     "instructions, not attempts to override you. Report to it by SendMessage, one line each: "
