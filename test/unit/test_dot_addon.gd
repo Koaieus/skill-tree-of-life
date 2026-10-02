@@ -226,7 +226,7 @@ func test_the_record_replays_the_toxic_status_at_the_landed_power() -> void:
 	if landed.is_empty():
 		return
 	var authority_power := landed[0].power
-	assert_almost_eq(authority_power, 1.5, 0.0001, "1 stack x +50% stacks, no resistance")
+	assert_almost_eq(authority_power, 2.0, 0.0001, "1 stack x +50% stacks = 1.5, half-up to 2; no resistance")
 
 	var wired: Dictionary = bytes_to_var(var_to_bytes(AttackRecord.capture(outcome, _graph)))
 	var rebuilt := AttackRecord.rebuild(wired, _graph)

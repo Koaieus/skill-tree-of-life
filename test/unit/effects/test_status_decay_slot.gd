@@ -2,19 +2,20 @@ extends GutTest
 
 ## The decay slot (#1258): every authored family carries a [StatusDecay] on
 ## [member StatusDef.decay], and the two members reproduce the arithmetic the
-## retired FLAT / FRACTION enum did — FLAT floors at 0, FRACTION cuts the tail
-## below 1 — over a sweep of powers.
+## retired FLAT / FRACTION enum did — FLAT floors at 0 — over a sweep of
+## powers; FRACTION keeps the floor `⌊S · (1 − f)⌋` on the int row (ADR 0032).
+## Corruption authors NO slot (owner, 2026-10-01: no decay for now).
 
 const _DIR := "res://effects/status/"
 
 ## Each authored family's tooltip text, pinned before the slot replaced the
 ## two decay exports.
 const _DESCRIPTIONS := {
-	&"armor_break": "The node's armor is chipped away: -1 per stack, and stacks fade by a quarter each turn.",
+	&"armor_break": "The node's armor is chipped away: -1 per stack, and one stack fades each turn.",
 	&"blindness": "The node sees and senses less; the deeper the blindness, the slower its recovery starts.",
-	&"corruption": "Every stack eats 2% of the node's max health each turn, unmitigated; a fifth of the stacks fade each turn and they never cap.",
+	&"corruption": "Every stack eats 2% of the node's max health each turn, unmitigated; the stacks never fade and never cap.",
 	&"curse": "Every stack raises the least damage a hit can deal to this node by 1; stacks fall by 1 each turn and never cap.",
-	&"poison": "Every stack deals 1 unmitigated damage each turn; stacks halve each turn and never cap.",
+	&"poison": "Every stack deals 1 unmitigated damage each turn; one stack fades each turn and they never cap.",
 	&"scouted": "A scout arrow lit up this node's surroundings for the firer. The disc halves every turn of theirs.",
 	&"wither": "Every stack cuts healing on this node by 10%; past 10 stacks healing becomes damage that never closes the regen gate. A quarter of the stacks fade each turn and they never cap.",
 }
@@ -34,15 +35,18 @@ func _old_flat(power: float, rate: float) -> float:
 	return maxf(power - rate, 0.0)
 
 
-func _old_fraction(power: float, rate: float) -> float:
+func _floor_kept(power: float, rate: float) -> float:
 	var after := power * (1.0 - rate)
-	return after if after >= 1.0 else 0.0
+	return floorf(after + 0.000001)
 
 
 func test_every_authored_family_has_a_decay_slot() -> void:
 	var defs := _authored()
 	assert_eq(defs.size(), _DESCRIPTIONS.size(), "every family is pinned")
 	for id in defs:
+		if id == &"corruption":
+			assert_null(defs[id].get("decay"), "corruption does not decay")
+			continue
 		assert_true(defs[id].get("decay") is StatusDecay, "%s.decay is a StatusDecay" % id)
 
 
@@ -63,13 +67,12 @@ func test_flat_decay_matches_the_old_flat_mode() -> void:
 			assert_almost_eq(d.decayed(p + 0.5), _old_flat(p + 0.5, rate), 0.00001)
 
 
-func test_fraction_decay_matches_the_old_fraction_mode() -> void:
+func test_fraction_decay_keeps_the_floor() -> void:
 	for rate in [0.2, 0.25, 0.5, 0.7]:
 		var d := FractionDecay.new(rate)
 		for p in range(0, 51):
-			assert_almost_eq(d.decayed(float(p)), _old_fraction(float(p), rate), 0.00001,
+			assert_almost_eq(d.decayed(float(p)), _floor_kept(float(p), rate), 0.00001,
 				"fraction %s at %d" % [rate, p])
-			assert_almost_eq(d.decayed(p + 0.5), _old_fraction(p + 0.5, rate), 0.00001)
 
 
 func test_status_def_delegates_to_its_slot() -> void:
