@@ -34,6 +34,8 @@ signal provider_state_changed
 # Scene-wired deps (NodePath @exports — see game_root.tscn).
 @export var battle_system: BattleSystem
 @export var input_ctl: PlayerInputController
+## The seat's armed-input stack: the armed plan is read off its attack level.
+@export var armed_stack: ArmedStack
 @export var allocation_system: AllocationSystem
 @export var graph: Graph
 @export var turn_manager: TurnManager
@@ -84,8 +86,9 @@ func _enter_tree() -> void:
 ## initial provider. Deps are scene-injected via NodePath @exports, so they're
 ## populated by the time `_ready` runs.
 func _ready() -> void:
+	if armed_stack != null:
+		armed_stack.attack_plan_changed.connect(_on_attack_plan_changed.unbind(1))
 	if battle_system != null:
-		battle_system.attack_plan_changed.connect(_on_attack_plan_changed.unbind(1))
 		battle_system.in_flight_plan_changed.connect(_on_source_changed.unbind(1))
 	var ctl := _live_input_ctl()
 	if ctl != null:
@@ -126,7 +129,7 @@ func _resolve() -> void:
 		var shown := _shown_plan()
 		# The fuse warning is PLAN-time: it overlays the armed plan only, never
 		# a launch in flight (whose flips are landing for real).
-		if not fuse_stranded.is_empty() and shown == battle_system.attack_plan:
+		if not fuse_stranded.is_empty() and shown == _armed_plan():
 			next = _build_gate_cut_provider(fuse_stranded, shown)
 		else:
 			next = shown
@@ -141,7 +144,7 @@ func _resolve() -> void:
 ## mirror's never sits in the slot), else the seat's armed plan.
 func _shown_plan() -> AttackPlan:
 	var in_flight := battle_system.in_flight_plan
-	return in_flight if in_flight != null else battle_system.attack_plan
+	return in_flight if in_flight != null else _armed_plan()
 
 
 ## [member input_ctl], or null when touching it would throw.
@@ -155,8 +158,8 @@ func _shown_plan() -> AttackPlan:
 ## The editor hint is the whole test because the only OTHER HighlightController
 ## alive in-editor is a sandbox's, and no sandbox mounts an input controller
 ## beside it — plan-driven highlights are all a tab wants. Attack plans are
-## unaffected either way: they arrive on [signal BattleSystem.attack_plan_changed],
-## and BattleSystem is `@tool`. Revisit this if a live tab ever wants core-move
+## unaffected either way: they arrive on [signal ArmedStack.attack_plan_changed],
+## and ArmedStack is `@tool`. Revisit this if a live tab ever wants core-move
 ## or manage-mode rings; that tab's controller is a real `.new()` instance and
 ## would be usable.
 func _live_input_ctl() -> PlayerInputController:
@@ -241,3 +244,8 @@ func _build_allocation_provider() -> ManagerHighlightProvider:
 		verb = ctl.manage_arm()
 	_allocation_provider.configure(player, allocation_system, graph, verb)
 	return _allocation_provider
+
+
+## The seat's armed plan ([method ArmedStack.attack_plan]), or null unwired.
+func _armed_plan() -> AttackPlan:
+	return armed_stack.attack_plan() if armed_stack != null else null

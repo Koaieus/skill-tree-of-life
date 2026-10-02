@@ -223,7 +223,7 @@ func bind_systems(
 	armed_mode_icon.bind(_input_ctl)
 	node_inspector_card.bind(_input_ctl)
 	turn_resources_panel.bind_input_ctl(_input_ctl)
-	combat_readout.bind(_battle_system)
+	combat_readout.bind(_battle_system, _input_ctl.armed_stack if _input_ctl != null else null)
 	action_cluster.bind(_turn_manager, _input_ctl, _vision_system)
 	command_tray.bind(_battle_system, _input_ctl)
 	announcement_layer.bind(_battle_system)

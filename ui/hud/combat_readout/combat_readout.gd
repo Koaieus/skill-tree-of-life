@@ -3,11 +3,11 @@ class_name CombatReadout
 extends VBoxContainer
 ## Right column shell (#111): 5-card vertical container (Melee/Ranged/Magic/
 ## Crit/Defense) with mode-highlight binding. The card matching
-## [member BattleSystem.attack_plan]'s mode gets the glow border; others dim.
+## [method ArmedStack.attack_plan]'s mode gets the glow border; others dim.
 ## Owns the transient "un-mute even if not selected" logic — child cards
 ## just render values and expose [method CombatReadoutCard.flash_unmute].
 ##
-## Mode selection is read off [BattleSystem.attack_plan_changed] (the same
+## Mode selection is read off [signal ArmedStack.attack_plan_changed] (the same
 ## source [AttackModeBar]/[PlayerInputController] already drive) — not a
 ## second mode-tracking source of truth.
 ##
@@ -24,6 +24,7 @@ extends VBoxContainer
 @onready var _defense_card: CombatCardDefense = %DefenseCard
 
 var _battle_system: BattleSystem
+var _armed_stack: ArmedStack
 var _player: Entity
 
 ## The unmute flashes wired to the CURRENT hero's board — released as a unit
@@ -35,16 +36,17 @@ var _binds := BindScope.new()
 ## from [method set_player] because "which attack mode is selected" and "which
 ## node is hovered" are facts about the level, not about whose turn it is —
 ## re-running them on every handover would double-connect (#459).
-func bind(battle_system: BattleSystem) -> void:
+func bind(battle_system: BattleSystem, armed_stack: ArmedStack = null) -> void:
 	_battle_system = battle_system
 	if _battle_system != null:
 		# Inject battle system prior to binding
 		_magic_card._battle_system = _battle_system
-
-		if not _battle_system.attack_plan_changed.is_connected(_on_plan_changed):
-			_battle_system.attack_plan_changed.connect(_on_plan_changed)
-			_battle_system.attack_plan_state_changed.connect(_push_plan)
-		_on_plan_changed(_battle_system.attack_plan)
+	_armed_stack = armed_stack
+	if _armed_stack != null:
+		if not _armed_stack.attack_plan_changed.is_connected(_on_plan_changed):
+			_armed_stack.attack_plan_changed.connect(_on_plan_changed)
+			_armed_stack.attack_plan_state_changed.connect(_push_plan)
+		_on_plan_changed(_armed_stack.attack_plan())
 
 	if not Events.skill_node_hovered.is_connected(_on_skill_node_hovered):
 		Events.skill_node_hovered.connect(_on_skill_node_hovered)
@@ -92,11 +94,11 @@ func _on_plan_changed(plan: AttackPlan) -> void:
 
 
 ## Hands the active plan to the hover cards — on a swap and on every
-## [signal BattleSystem.attack_plan_state_changed] (the plan's own
+## [signal ArmedStack.attack_plan_state_changed] (the plan's own
 ## state_changed, relayed), so a temp upgrade added or removed re-renders the
 ## hovered node's swing value without a re-hover.
 func _push_plan() -> void:
-	var plan: AttackPlan = _battle_system.attack_plan if _battle_system != null else null
+	var plan: AttackPlan = _armed_stack.attack_plan() if _armed_stack != null else null
 	for card in [_melee_card, _ranged_card, _crit_card, _defense_card]:
 		card.set_plan(plan)
 

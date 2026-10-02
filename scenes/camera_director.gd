@@ -31,6 +31,8 @@ extends Node
 ## The battle hook (#524): a non-local actor's committed attack frames its
 ## from->to span.
 @export var battle_system: BattleSystem
+## The seat's armed-input stack: the armed plan is read off its attack level.
+@export var armed_stack: ArmedStack
 ## The command hook (#525): every confirmed territory change frames itself.
 ## [signal CommandApplier.command_confirmed] rather than [AllocationSystem]'s
 ## signals, because a command carries THE ACTOR by construction
@@ -236,13 +238,13 @@ func is_focusing() -> bool:
 ## system. [member BattleSystem.in_flight_plan] is guaranteed live during a
 ## commit — `_commit` holds it through the whole launch (#406), whoever
 ## launched it. Mode-agnostic since ADR 0027: every mode takes the #866
-## treatment. Outside a launch it falls back to the armed slot plan — the
+## treatment. Outside a launch it falls back to the seat's armed plan — the
 ## aim-time picture a request built off-commit frames.
 func _live_plan() -> AttackPlan:
 	if battle_system == null:
 		return null
 	var in_flight := battle_system.in_flight_plan
-	return in_flight if in_flight != null else battle_system.attack_plan
+	return in_flight if in_flight != null else _armed_plan()
 
 
 func is_shot_locked() -> bool:
@@ -758,3 +760,8 @@ func _command_hold(command: Command) -> float:
 		var hops := maxi((command as MoveCoreCommand).path_ids.size() - 1, 0)
 		return hops * CommandApplier.CORE_HOP_SLIDE_DELAY + SkillNode.CORE_SLIDE_DURATION
 	return command_hold_seconds
+
+
+## The seat's armed plan ([method ArmedStack.attack_plan]), or null unwired.
+func _armed_plan() -> AttackPlan:
+	return armed_stack.attack_plan() if armed_stack != null else null

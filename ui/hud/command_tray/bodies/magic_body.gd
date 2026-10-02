@@ -62,9 +62,10 @@ func _on_bound() -> void:
 	_spell_bar.bind_spellbook(_player.spellbook)
 	_spell_bar.spell_selected.connect(_on_spell_selected)
 	_battle_system.selected_spell_changed.connect(_spell_bar.sync_selected)
-	_reset_button.pressed.connect(_battle_system.reset_plan)
+	_reset_button.pressed.connect(_reset_plan)
 	_launch_button.pressed.connect(_on_launch_pressed)
-	_battle_system.attack_plan_state_changed.connect(_refresh)
+	if _armed_stack != null:
+		_armed_stack.attack_plan_state_changed.connect(_refresh)
 	if _input_ctl != null:
 		_input_ctl.player_can_act_changed.connect(_on_can_act_changed)
 		_spell_bar.set_enabled(_input_ctl.can_player_act())
@@ -76,8 +77,8 @@ func _on_bound() -> void:
 func teardown() -> void:
 	if _battle_system.selected_spell_changed.is_connected(_spell_bar.sync_selected):
 		_battle_system.selected_spell_changed.disconnect(_spell_bar.sync_selected)
-	if _battle_system.attack_plan_state_changed.is_connected(_refresh):
-		_battle_system.attack_plan_state_changed.disconnect(_refresh)
+	if _armed_stack != null and _armed_stack.attack_plan_state_changed.is_connected(_refresh):
+		_armed_stack.attack_plan_state_changed.disconnect(_refresh)
 	if _input_ctl != null and _input_ctl.player_can_act_changed.is_connected(_on_can_act_changed):
 		_input_ctl.player_can_act_changed.disconnect(_on_can_act_changed)
 
@@ -92,7 +93,7 @@ func _on_can_act_changed(can_act: bool) -> void:
 
 
 func _refresh() -> void:
-	var plan := _battle_system.attack_plan as MagicAttackPlan
+	var plan := _armed_plan() as MagicAttackPlan
 	var board := _player.stat_board if _player != null else null
 	var mana: float = float(board.mana.current) if board != null and board.mana != null else 0.0
 	# Post-#728 there is no cast-from node until a target is clicked, so this
@@ -115,4 +116,4 @@ func _refresh() -> void:
 
 
 func _on_launch_pressed() -> void:
-	_battle_system.launch_attack(_battle_system.attack_plan)
+	_battle_system.launch_attack(_armed_plan())

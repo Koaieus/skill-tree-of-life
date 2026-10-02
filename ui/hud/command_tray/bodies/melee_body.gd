@@ -41,9 +41,10 @@ var _hover_counts: Dictionary = {}
 func _on_bound() -> void:
 	_swing_button.pressed.connect(_on_swing_pressed)
 	_reform_button.pressed.connect(_on_reform_pressed)
-	_reset_button.pressed.connect(_battle_system.reset_plan)
+	_reset_button.pressed.connect(_reset_plan)
 	_launch_button.pressed.connect(_on_launch_pressed)
-	_battle_system.attack_plan_state_changed.connect(_refresh)
+	if _armed_stack != null:
+		_armed_stack.attack_plan_state_changed.connect(_refresh)
 	if _input_ctl != null:
 		_input_ctl.player_can_act_changed.connect(_refresh.unbind(1))
 		_input_ctl.temp_upgrade_arm_changed.connect(_refresh.unbind(1))
@@ -61,8 +62,8 @@ func _on_bound() -> void:
 
 
 func teardown() -> void:
-	if _battle_system.attack_plan_state_changed.is_connected(_refresh):
-		_battle_system.attack_plan_state_changed.disconnect(_refresh)
+	if _armed_stack != null and _armed_stack.attack_plan_state_changed.is_connected(_refresh):
+		_armed_stack.attack_plan_state_changed.disconnect(_refresh)
 	if _input_ctl != null and _input_ctl.player_can_act_changed.is_connected(_refresh.unbind(1)):
 		_input_ctl.player_can_act_changed.disconnect(_refresh.unbind(1))
 	if _input_ctl != null and _input_ctl.temp_upgrade_arm_changed.is_connected(_refresh.unbind(1)):
@@ -169,7 +170,7 @@ func _on_reform_pressed() -> void:
 
 func _on_swing_pressed() -> void:
 	_battle_system.next_melee_cw = not _battle_system.next_melee_cw
-	var plan := _battle_system.attack_plan as MeleeAttackPlan
+	var plan := _armed_plan() as MeleeAttackPlan
 	if plan != null:
 		plan.swing_cw = _battle_system.next_melee_cw
 	_refresh()
@@ -177,7 +178,7 @@ func _on_swing_pressed() -> void:
 
 func _refresh() -> void:
 	_clear_hover()
-	var plan := _battle_system.attack_plan as MeleeAttackPlan
+	var plan := _armed_plan() as MeleeAttackPlan
 	var max_blades := plan.max_blades() if plan != null else 1
 	var count := plan.blade_nodes.size() if plan != null else 0
 	var temp_total := plan.temp_upgrade_cost_total() if plan != null else 0
@@ -316,4 +317,4 @@ func _has_manual_upgrade(node: SkillNode) -> bool:
 
 
 func _on_launch_pressed() -> void:
-	_battle_system.launch_attack(_battle_system.attack_plan)
+	_battle_system.launch_attack(_armed_plan())

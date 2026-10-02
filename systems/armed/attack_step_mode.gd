@@ -8,7 +8,7 @@ extends ArmedMode
 ## pops on the events that end the step outside input: this player's launch
 ## ([signal BattleSystem.attack_launched] — the launch's own teardown clears
 ## the plan, so [method _undo] is skipped while launching) and the RESET
-## button ([signal BattleSystem.plan_reset]).
+## button ([signal ArmedStack.plan_reset]).
 
 var parent: AttackArmMode
 
@@ -21,7 +21,8 @@ func _init(p_parent: AttackArmMode) -> void:
 func on_pushed() -> bool:
 	var bs := ctl.battle_system
 	bs.attack_launched.connect(_on_attack_launched)
-	bs.plan_reset.connect(_on_plan_reset)
+	if stack != null:
+		stack.plan_reset.connect(_on_plan_reset)
 	return true
 
 
@@ -29,8 +30,8 @@ func on_popped() -> void:
 	var bs := ctl.battle_system
 	if bs.attack_launched.is_connected(_on_attack_launched):
 		bs.attack_launched.disconnect(_on_attack_launched)
-	if bs.plan_reset.is_connected(_on_plan_reset):
-		bs.plan_reset.disconnect(_on_plan_reset)
+	if stack != null and stack.plan_reset.is_connected(_on_plan_reset):
+		stack.plan_reset.disconnect(_on_plan_reset)
 	if bs.is_launching:
 		return
 	var p := parent.plan()

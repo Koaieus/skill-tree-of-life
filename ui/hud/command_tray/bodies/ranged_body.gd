@@ -51,12 +51,13 @@ var _refreshing := false
 
 
 func _on_bound() -> void:
-	_reset_button.pressed.connect(_battle_system.reset_plan)
+	_reset_button.pressed.connect(_reset_plan)
 	_launch_button.pressed.connect(_on_launch_pressed)
 	_reload_button.pressed.connect(_on_reload_pressed)
 	_volley_bar.step_requested.connect(_on_bar_step)
 	_volley_bar.set_requested.connect(set_n)
-	_battle_system.attack_plan_state_changed.connect(_refresh)
+	if _armed_stack != null:
+		_armed_stack.attack_plan_state_changed.connect(_refresh)
 	Events.volley_arrow_placed.connect(_volley_bar.on_arrow_placed)
 	Events.volley_arrow_released.connect(_volley_bar.on_arrow_released)
 	if _input_ctl != null:
@@ -76,10 +77,10 @@ func teardown() -> void:
 	if Events.volley_arrow_released.is_connected(_volley_bar.on_arrow_released):
 		Events.volley_arrow_released.disconnect(_volley_bar.on_arrow_released)
 	if _battle_system != null:
-		if _battle_system.attack_plan_state_changed.is_connected(_refresh):
-			_battle_system.attack_plan_state_changed.disconnect(_refresh)
-		if _reset_button.pressed.is_connected(_battle_system.reset_plan):
-			_reset_button.pressed.disconnect(_battle_system.reset_plan)
+		if _armed_stack != null and _armed_stack.attack_plan_state_changed.is_connected(_refresh):
+			_armed_stack.attack_plan_state_changed.disconnect(_refresh)
+		if _reset_button.pressed.is_connected(_reset_plan):
+			_reset_button.pressed.disconnect(_reset_plan)
 		if _launch_button.pressed.is_connected(_on_launch_pressed):
 			_launch_button.pressed.disconnect(_on_launch_pressed)
 	if _input_ctl != null and _input_ctl.player_can_act_changed.is_connected(_refresh.unbind(1)):
@@ -101,7 +102,7 @@ func teardown() -> void:
 # --- composition controls -------------------------------------------------
 
 func _plan() -> RangedAttackPlan:
-	return _battle_system.attack_plan as RangedAttackPlan if _battle_system != null else null
+	return _armed_plan() as RangedAttackPlan
 
 
 func max_n() -> int:
@@ -394,9 +395,9 @@ func _unhandled_key_input(event: InputEvent) -> void:
 			get_viewport().set_input_as_handled()
 		KEY_ENTER, KEY_KP_ENTER:
 			if plan.is_valid() and (_input_ctl == null or (_input_ctl.can_player_act() and _input_ctl.can_afford(plan))):
-				_battle_system.launch_attack(_battle_system.attack_plan)
+				_battle_system.launch_attack(_armed_plan())
 				get_viewport().set_input_as_handled()
 
 
 func _on_launch_pressed() -> void:
-	_battle_system.launch_attack(_battle_system.attack_plan)
+	_battle_system.launch_attack(_armed_plan())

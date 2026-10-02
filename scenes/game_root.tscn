@@ -98,7 +98,7 @@ unique_name_in_owner = true
 attack_vfx = NodePath("../../Graph/AttackVFX")
 melee_preview = NodePath("../../Graph/MeleePreview")
 
-[node name="HighlightController" type="Node" parent="Systems" unique_id=39417906 node_paths=PackedStringArray("battle_system", "input_ctl", "allocation_system", "graph", "turn_manager")]
+[node name="HighlightController" type="Node" parent="Systems" unique_id=39417906 node_paths=PackedStringArray("battle_system", "input_ctl", "allocation_system", "graph", "turn_manager", "armed_stack")]
 unique_name_in_owner = true
 script = ExtResource("10_5dyip")
 battle_system = NodePath("../BattleSystem")
@@ -107,6 +107,7 @@ allocation_system = NodePath("../AllocationSystem")
 graph = NodePath("../../Graph")
 turn_manager = NodePath("../TurnManager")
 metadata/_custom_type_script = "uid://dkhgm4v74h1ya"
+armed_stack = NodePath("../ArmedStack")
 
 [node name="LootPickRegistry" type="Node" parent="Systems" unique_id=1000000522 node_paths=PackedStringArray("graph")]
 unique_name_in_owner = true
@@ -164,7 +165,7 @@ script = ExtResource("9_victory")
 graph = NodePath("../../Graph")
 turn_manager = NodePath("../TurnManager")
 
-[node name="CameraDirector" type="Node" parent="Systems" node_paths=PackedStringArray("camera", "vision_system", "battle_system", "command_applier", "graph")]
+[node name="CameraDirector" type="Node" parent="Systems" node_paths=PackedStringArray("camera", "vision_system", "battle_system", "command_applier", "graph", "armed_stack")]
 unique_name_in_owner = true
 script = ExtResource("21_camdir")
 camera = NodePath("../../Graph/GraphCamera")
@@ -172,6 +173,7 @@ vision_system = NodePath("../VisionSystem")
 battle_system = NodePath("../BattleSystem")
 command_applier = NodePath("../CommandApplier")
 graph = NodePath("../../Graph")
+armed_stack = NodePath("../ArmedStack")
 
 [node name="Graph" parent="." unique_id=1851662701 instance=ExtResource("2_graphscene")]
 
@@ -230,11 +232,12 @@ allocation_system = NodePath("../../Systems/AllocationSystem")
 battle_system = NodePath("../../Systems/BattleSystem")
 metadata/_custom_type_script = "uid://db27minejvsw1"
 
-[node name="MeleePreview" type="Node2D" parent="Graph" unique_id=813121593 node_paths=PackedStringArray("battle_system")]
+[node name="MeleePreview" type="Node2D" parent="Graph" unique_id=813121593 node_paths=PackedStringArray("battle_system", "armed_stack")]
 unique_name_in_owner = true
 script = ExtResource("17_x42w8")
 battle_system = NodePath("../../Systems/BattleSystem")
 metadata/_custom_type_script = "uid://bfj2swvcuavon"
+armed_stack = NodePath("../../Systems/ArmedStack")
 
 [node name="GimbalWorld" parent="." instance=ExtResource("30_gimbalworld")]
 

@@ -54,6 +54,7 @@ func on_pushed() -> bool:
 	var bs := ctl.battle_system
 	bs.attack_launched.connect(_on_attack_launched)
 	bs.attack_plan_changed.connect(_on_attack_plan_changed)
+	bs.plan_reset.connect(_on_slot_reset)
 	return true
 
 
@@ -65,10 +66,29 @@ func on_popped() -> void:
 		bs.attack_launched.disconnect(_on_attack_launched)
 	if bs.attack_plan_changed.is_connected(_on_attack_plan_changed):
 		bs.attack_plan_changed.disconnect(_on_attack_plan_changed)
+	if bs.plan_reset.is_connected(_on_slot_reset):
+		bs.plan_reset.disconnect(_on_slot_reset)
 	_launched = false
 	if _plan != null and bs.attack_plan == _plan and not bs.is_launching:
 		bs.cancel_attack()
 	_set_plan(null)
+
+
+## Clear this level's plan selection and announce [signal ArmedStack.plan_reset].
+## Refused with no plan or mid-swing ([member BattleSystem.is_launching]).
+func reset_plan() -> void:
+	if _plan == null or ctl.battle_system == null or ctl.battle_system.is_launching:
+		return
+	_plan.reset()
+	if stack != null:
+		stack.plan_reset.emit()
+
+
+## The slot's RESET door ([method BattleSystem.reset_plan]) relayed onto the
+## stack. Goes with the slot.
+func _on_slot_reset() -> void:
+	if stack != null:
+		stack.plan_reset.emit()
 
 
 ## Aim at [param node] — the ranged and magic arms' verb, which a

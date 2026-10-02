@@ -20,18 +20,33 @@ extends MarginContainer
 var _player: Entity
 var _battle_system: BattleSystem
 var _input_ctl: PlayerInputController
+## The seat's armed-input stack ([member PlayerInputController.armed_stack]):
+## the armed plan and its signals. Null when bound without a controller.
+var _armed_stack: ArmedStack
 
 
 func bind(player: Entity, battle_system: BattleSystem, input_ctl: PlayerInputController) -> void:
 	_player = player
 	_battle_system = battle_system
 	_input_ctl = input_ctl
+	_armed_stack = input_ctl.armed_stack if input_ctl != null else null
 	_on_bound()
 
 
 ## Virtual — subclasses wire their own signals off the deps captured above.
 func _on_bound() -> void:
 	pass
+
+
+## The seat's armed plan, or null.
+func _armed_plan() -> AttackPlan:
+	return _armed_stack.attack_plan() if _armed_stack != null else null
+
+
+## The RESET button: clear the armed plan's selection.
+func _reset_plan() -> void:
+	if _armed_stack != null:
+		_armed_stack.reset_plan()
 
 
 ## Called by [CommandTray] right before the body is freed on a mode switch.

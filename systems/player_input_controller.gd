@@ -215,8 +215,8 @@ func _ready() -> void:
 	Events.skill_node_unhovered.connect(_on_skill_node_unhovered)
 	Events.node_action_denied.connect(_on_node_action_denied)
 
+	armed_stack.attack_plan_changed.connect(_refresh_armed_state.unbind(1))
 	if battle_system != null:
-		battle_system.attack_plan_changed.connect(_refresh_armed_state.unbind(1))
 		# ...and plan *state*, not just plan lifecycle (#683). The melee badge
 		# now reads the pivot, which moves inside a plan that never changes
 		# identity — `attack_plan_changed` would never fire for it. This is the
@@ -224,14 +224,15 @@ func _ready() -> void:
 		# and it costs nothing: `_refresh_armed_state` emits only on a resolved
 		# icon/tint that actually differs, and `_update_cursor` above the dedup
 		# is an idempotent `Input.set_default_cursor_shape`.
-		battle_system.attack_plan_state_changed.connect(_refresh_armed_state)
+		armed_stack.attack_plan_state_changed.connect(_refresh_armed_state)
 		# can_player_act() now also reads battle_system.is_launching (#406),
 		# whose transitions have no signal of their own. attack_plan_changed
 		# fires when a swing's post-await _reset() clears the plan — the only
 		# observable moment is_launching flips back false — so AttackModeBar
 		# (gated purely off player_can_act_changed, command_tray.gd) doesn't
 		# stay disabled forever after the first swing of a turn.
-		battle_system.attack_plan_changed.connect(_emit_gate_changed.unbind(1))
+		armed_stack.attack_plan_changed.connect(_emit_gate_changed.unbind(1))
+		battle_system.in_flight_plan_changed.connect(_emit_gate_changed.unbind(1))
 		battle_system.attack_launched.connect(_on_attack_launched)
 	if command_applier != null:
 		# Outcomes arrive here instead of as a `bool` return (#510). The four
@@ -360,7 +361,7 @@ func request_end_turn() -> void:
 func request_reload() -> bool:
 	if player == null or battle_system == null:
 		return false
-	if not (battle_system.attack_plan is RangedAttackPlan):
+	if not (armed_stack.attack_plan() is RangedAttackPlan):
 		return false
 	if not can_player_act() or not player.can_reload():
 		return false
@@ -476,7 +477,7 @@ func request_temp_upgrade_at(skill_node: SkillNode) -> bool:
 func _on_attack_launched(mode: BattleSystem.AttackMode, _spell: SpellDef) -> void:
 	if mode != BattleSystem.AttackMode.MELEE or graph == null or player == null:
 		return
-	var plan := battle_system.attack_plan as MeleeAttackPlan
+	var plan := armed_stack.attack_plan() as MeleeAttackPlan
 	if plan == null or plan.source == null or plan.attacker != player:
 		return
 	_reform_slots[player.get_instance_id()] = plan.to_dict(graph)
@@ -518,7 +519,7 @@ func _reform_payload() -> Dictionary:
 func can_reform() -> bool:
 	if battle_system == null or not can_player_act():
 		return false
-	if battle_system.attack_plan != null and not can_afford(battle_system.attack_plan):
+	if armed_stack.attack_plan() != null and not can_afford(armed_stack.attack_plan()):
 		return false
 	var payload := _reform_payload()
 	if payload.is_empty():
@@ -548,13 +549,13 @@ func reload_in_hand() -> bool:
 ## tweaked (or a temp upgrade added) before it commits.
 ##
 ## Arms melee first when another mode (or none) is active: the keybind is a
-## global accelerator, and `request_attack_mode` early-returns when melee is
+## global accelerator, and `arm_attack` keeps the plan when melee is
 ## already up, so an in-progress selection is replaced rather than re-armed.
 func reform_blade() -> bool:
 	if not can_reform():
 		return false
 	arm_attack(BattleSystem.AttackMode.MELEE)
-	var plan := battle_system.attack_plan as MeleeAttackPlan
+	var plan := armed_stack.attack_plan() as MeleeAttackPlan
 	if plan == null:
 		return false
 	var payload := _reform_payload()
@@ -755,7 +756,7 @@ static func temp_upgrade_keycap(index: int) -> String:
 ## Re-press cancels, because it goes through the same [method arm_temp_upgrade]
 ## toggle the card click already uses — one door, not a parallel one.
 func _arm_temp_upgrade_at(index: int) -> bool:
-	if battle_system == null or battle_system.attack_mode != BattleSystem.AttackMode.MELEE:
+	if armed_stack == null or armed_stack.attack_mode() != BattleSystem.AttackMode.MELEE:
 		return false
 	if not can_player_act():
 		return false
@@ -778,7 +779,7 @@ func _arm_temp_upgrade_at(index: int) -> bool:
 ## Returns whether the key was consumed: an empty book, a digit past its size,
 ## or the wrong mode all leave the key unconsumed and free downstream.
 func _select_spell_at(index: int) -> bool:
-	if battle_system == null or battle_system.attack_mode != BattleSystem.AttackMode.MAGIC:
+	if armed_stack == null or armed_stack.attack_mode() != BattleSystem.AttackMode.MAGIC:
 		return false
 	if not can_player_act():
 		return false
@@ -836,9 +837,9 @@ func has_armed_level() -> bool:
 
 
 func _active_attack_plan() -> AttackPlan:
-	if battle_system == null or battle_system.attack_plan == null:
+	if armed_stack == null or armed_stack.attack_plan() == null:
 		return null
-	var plan := battle_system.attack_plan
+	var plan := armed_stack.attack_plan()
 	return plan if plan.attacker == player else null
 
 
@@ -1161,7 +1162,7 @@ func arm_attack(mode: BattleSystem.AttackMode) -> bool:
 	# Already armed AND still holding its plan: a repeat press keeps the plan.
 	# A level whose plan the slot tore down on its own (a launch with no
 	# applier to report it) is replaced, not trusted.
-	if current != null and current.mode == mode and battle_system.attack_mode == mode:
+	if current != null and current.mode == mode and current.plan() != null:
 		return true
 	if not can_player_act():
 		return false
@@ -1367,8 +1368,6 @@ func _set_player(value: Entity) -> void:
 func clear_transient_state() -> void:
 	if armed_stack != null and armed_stack.root() != null:
 		armed_stack.clear_to_root()
-	if battle_system != null and battle_system.is_attacking and not battle_system.is_launching:
-		battle_system.cancel_attack()
 	_disarm_gate_confirm()
 	_clear_core_drag()
 	_set_pinned(null)

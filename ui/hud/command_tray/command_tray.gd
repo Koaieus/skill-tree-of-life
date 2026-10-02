@@ -4,7 +4,7 @@ extends VBoxContainer
 ## Bottom-center command tray shell (#113/#114): the Cinzel mode-tab bar sits
 ## above a fixed-height content chrome that swaps in one of four bespoke
 ## per-mode body scenes (Manage/Melee/Ranged/Magic), keyed off
-## [BattleSystem]'s active attack mode via [signal BattleSystem.attack_plan_changed]
+## the seat's active attack mode via [signal ArmedStack.attack_plan_changed]
 ## — the same source [AttackModeBar]/[PlayerInputController] already drive.
 ##
 ## Deliberately NOT [ContextPanel]: that swapper's contexts (attack-plan
@@ -40,9 +40,10 @@ func bind(battle_system: BattleSystem, input_ctl: PlayerInputController) -> void
 	_battle_system = battle_system
 
 	attack_mode_bar.attack_mode_requested.connect(_on_mode_requested)
-	if _battle_system != null:
-		_battle_system.attack_plan_changed.connect(_on_attack_plan_changed)
-		_on_attack_plan_changed(_battle_system.attack_plan)
+	var stack := _armed_stack()
+	if stack != null:
+		stack.attack_plan_changed.connect(_on_attack_plan_changed)
+		_on_attack_plan_changed(stack.attack_plan())
 
 	if input_ctl != null:
 		input_ctl.player_can_act_changed.connect(attack_mode_bar.set_enabled)
@@ -58,8 +59,9 @@ func bind(battle_system: BattleSystem, input_ctl: PlayerInputController) -> void
 ## already ran off the signal by the time this line executes.
 func _on_mode_requested(mode: BattleSystem.AttackMode) -> void:
 	_input_ctl.on_attack_mode_requested(mode)
-	if _battle_system != null:
-		_on_attack_plan_changed(_battle_system.attack_plan)
+	var stack := _armed_stack()
+	if stack != null:
+		_on_attack_plan_changed(stack.attack_plan())
 
 
 ## Re-point the tray at [param player]. The live body reads `_player` at bind
@@ -113,3 +115,8 @@ func _scene_for(mode: BattleSystem.AttackMode) -> PackedScene:
 		BattleSystem.AttackMode.RANGED: return _RANGED_BODY
 		BattleSystem.AttackMode.MAGIC: return _MAGIC_BODY
 	return _MANAGE_BODY
+
+
+## The seat's armed-input stack, which holds the armed plan; null unbound.
+func _armed_stack() -> ArmedStack:
+	return _input_ctl.armed_stack if _input_ctl != null else null

@@ -17,6 +17,8 @@ extends Node2D
 const _FADE: float = 0.4
 
 @export var battle_system: BattleSystem
+## The seat's armed-input stack: the armed plan is read off its attack level.
+@export var armed_stack: ArmedStack
 
 ## Look profile stamped onto every blade this preview spawns (#256). Null keeps
 ## [SkillBlade]'s own default. Set here rather than on each blade because the
@@ -113,9 +115,9 @@ func _ready() -> void:
 	# Idle costs nothing: `_process` is the #821 slice pump and is armed only
 	# while a prediction is actually part-way resolved.
 	set_process(false)
-	if battle_system != null:
-		battle_system.attack_plan_changed.connect(_on_plan_changed)
-		battle_system.attack_plan_state_changed.connect(_refresh)
+	if armed_stack != null:
+		armed_stack.attack_plan_changed.connect(_on_plan_changed)
+		armed_stack.attack_plan_state_changed.connect(_refresh)
 
 
 func _on_plan_changed(_plan: AttackPlan) -> void:
@@ -137,7 +139,7 @@ func _on_plan_changed(_plan: AttackPlan) -> void:
 func _refresh() -> void:
 	if _live_swing:
 		return
-	var plan := battle_system.attack_plan
+	var plan := _armed_plan()
 	if preview_enabled and plan is MeleeAttackPlan and plan.is_valid():
 		var melee := plan as MeleeAttackPlan
 		# #782: the PUSH that keeps the prediction off the repaint path. This is
@@ -217,7 +219,7 @@ func _process(_delta: float) -> void:
 	if _live_swing or not preview_enabled:
 		set_process(false)
 		return
-	var plan := battle_system.attack_plan as MeleeAttackPlan
+	var plan := _armed_plan() as MeleeAttackPlan
 	if plan == null or not plan.is_valid():
 		set_process(false)
 		return
@@ -242,7 +244,7 @@ func focus_marker() -> Node2D:
 	if battle_system == null:
 		return null
 	var in_flight := battle_system.in_flight_plan
-	var plan := (in_flight if in_flight != null else battle_system.attack_plan) as MeleeAttackPlan
+	var plan := (in_flight if in_flight != null else _armed_plan()) as MeleeAttackPlan
 	if plan == null or plan.source == null or not is_instance_valid(plan.source):
 		return null
 	return plan.source
@@ -436,7 +438,7 @@ func _spawn_blade(plan: MeleeAttackPlan) -> void:
 func _run_preview_loop(gen: int) -> void:
 	while gen == _gen and _ghost != null and is_inside_tree():
 		var blade := _ghost
-		var live_plan := battle_system.attack_plan as MeleeAttackPlan
+		var live_plan := _armed_plan() as MeleeAttackPlan
 		if live_plan == null:
 			return
 		# Warm on the first cycle and a no-op on every later one — the loop
@@ -473,7 +475,7 @@ func _run_preview_loop(gen: int) -> void:
 		if gen != _gen or _ghost == null:
 			return
 		# Reset positions for the next cycle. Rebuild is cheap.
-		var plan := battle_system.attack_plan as MeleeAttackPlan
+		var plan := _armed_plan() as MeleeAttackPlan
 		if plan == null or not plan.is_valid():
 			return
 		_rebuild_blade(blade, plan)
@@ -488,3 +490,8 @@ func _teardown() -> void:
 		_ghost.stop()
 		_ghost.queue_free()
 		_ghost = null
+
+
+## The seat's armed plan ([method ArmedStack.attack_plan]), or null unwired.
+func _armed_plan() -> AttackPlan:
+	return armed_stack.attack_plan() if armed_stack != null else null

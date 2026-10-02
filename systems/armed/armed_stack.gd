@@ -1,3 +1,4 @@
+@tool
 class_name ArmedStack
 extends Node
 
@@ -15,6 +16,12 @@ signal changed
 ## Fires once per move, after the branch settled; the argument is the plan
 ## itself, or null.
 signal attack_plan_changed(plan: AttackPlan)
+## The plan moved ([signal attack_plan_changed]) or changed inside (its own
+## [signal HighlightProvider.state_changed]) — what a body repaints on.
+signal attack_plan_state_changed
+## RESET cleared the plan's selection ([method reset_plan]) — the event the
+## armed step levels ([BladeMode], [TargetMode]) pop on.
+signal plan_reset
 
 var _branch: Array[ArmedMode] = []
 var _last_plan: AttackPlan = null
@@ -40,8 +47,34 @@ func sync_attack_plan() -> void:
 	var p := attack_plan()
 	if p == _last_plan:
 		return
+	if _last_plan != null and _last_plan.state_changed.is_connected(attack_plan_state_changed.emit):
+		_last_plan.state_changed.disconnect(attack_plan_state_changed.emit)
 	_last_plan = p
+	if p != null:
+		p.state_changed.connect(attack_plan_state_changed.emit)
 	attack_plan_changed.emit(p)
+	attack_plan_state_changed.emit()
+
+
+## The armed plan's mode, or NONE when no attack level holds one.
+func attack_mode() -> BattleSystem.AttackMode:
+	var p := attack_plan()
+	return p.mode if p != null else BattleSystem.AttackMode.NONE
+
+
+## Clear the armed plan's selection and announce [signal plan_reset]. A no-op
+## with nothing armed or mid-swing.
+func reset_plan() -> void:
+	var level := find(AttackArmMode) as AttackArmMode
+	if level != null:
+		level.reset_plan()
+
+
+## Disarm: pop the attack level, which drops its plan.
+func cancel_attack() -> void:
+	var level := find(AttackArmMode)
+	if level != null:
+		pop(level)
 
 
 func root() -> ArmedMode:
