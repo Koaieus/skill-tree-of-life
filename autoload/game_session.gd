@@ -67,7 +67,7 @@ var outcome: RunOutcome = null
 ## routed the player to this lobby in the first place.
 var network: NetworkConfig = null
 
-## Where THIS MACHINE's world comes from (#1333): built here from the seed, or
+## Where THIS MACHINE's world comes from: built here from the seed, or
 ## delivered whole by someone else. A level's `_setup_level` branches on this,
 ## never on the network role — a joiner and a loaded save both receive a world
 ## they must not generate. Per-machine, so it lives here and not on
