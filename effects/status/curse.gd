@@ -4,8 +4,8 @@ extends StatusDef
 ## Curse (#965, hub #952): every stack raises the least damage a hit can land
 ## on the node — one node-local `ADD_BASE` on `min_damage_taken`, `value ==
 ## power`, so 10 stacks turn a 1-damage hit at armor 100 into 13 on a floor of
-## 3. Deals nothing itself (`projected_damage` stays the base's 0); halving
-## decay and no cap are the authored def's knobs (`curse.tres`). It is the
+## 3. Deals nothing itself (`projected_damage` stays the base's 0); a flat
+## one-stack decay and no cap are the authored def's knobs (`curse.tres`). It is the
 ## answer to the bunker: a negative Bulwark-style floor is pushed toward and
 ## past zero, so enough stacks take the heal flip away
 ## (`docs/domain/effect-system.md` § "Status effects — the DoT model").

@@ -38,8 +38,8 @@ func _on_tick(host, before: float, _after: float) -> void:
 
 
 ## Every remaining tick's damage as it will land — resisted and floored per
-## tick ([method DotTick.project]); 20 unresisted stacks halving project
-## 20 + 10 + 5 + 2 + 1 = 38.
+## tick ([method DotTick.project]); 20 unresisted authored stacks, losing one
+## a tick, project 20 + 19 + … + 1 = 210.
 func projected_damage(host, power: float) -> float:
 	return DotTick.project(self, host, power, damage_per_power, basis)
 

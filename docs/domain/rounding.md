@@ -24,7 +24,7 @@ second rounding downstream.
 | Resistance cancel | stacks, int | half-down: `⌈row × res − ½⌉` cancelled (ties to the attacker) | `StatusHost.effective_power` | ADR 0031 |
 | Landing fold `(authored + extras) × (1 + Σinc) × Πmore` | stacks, int | **half-up**, ties to the attacker (noise within `is_equal_approx` of a whole or a half snaps to it first); the `*_stacks_per_hit` stats stay FLOAT so the read never truncates first | `StatusDef.stacks_per_hit` (`round_half_up`), also on the null-board path | ADR 0032, #1310 (owner, 2026-10-01) |
 | FRACTION decay | stacks, int | **down**, floor kept: `⌊S · (1 − f)⌋`, always reaches 0 | `FractionDecay.decayed` | ADR 0032, #1310 (owner, 2026-10-01) |
-| Status row store | stacks, int | none — whole in, whole stored; a fraction reaching it is a minting site's bug (debug `assert`) | `StatusHost._settle`, `StatusHost.tick_statuses` | ADR 0032, #1310 |
+| Status row store | stacks, int | none — whole in, whole stored (a cap clamps to `⌊power_max⌋`); a fraction reaching it is a minting site's bug (debug `assert`) | `StatusHost._settle`, `StatusHost.tick_statuses` | ADR 0032, #1310 |
 
 ## Consequences worth knowing
 
