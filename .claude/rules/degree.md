@@ -1,1 +1,1 @@
-Never compute degree as `graph.get_neighbours(n).size()` — call `SkillNode.get_graph_degree(graph)` (whole board), `SkillNode.get_entity_degree(graph)` (inside the node's own territory, the default for gameplay rules), or `GraphMirror.get_degree(node)` (already inside a mirror). See docs/domain/degree.md
+Never compute degree as `graph.get_neighbours(n).size()` — use `SkillNode.get_entity_degree` (gameplay default), `get_graph_degree` (whole board) or `GraphMirror.get_degree`. See docs/domain/degree.md
