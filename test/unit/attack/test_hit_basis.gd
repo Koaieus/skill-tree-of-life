@@ -112,6 +112,20 @@ func test_percent_current_damage_chunks_the_targets_current_hp_and_is_never_leth
 	assert_gt(_node.get_current_hp(), 0.0, "a fraction of current hp never reaches zero on its own")
 
 
+
+func test_percent_current_damage_on_one_hp_lands_nothing() -> void:
+	# ADR 0033 rounds a chunk up, so the never-lethal shape is a clamp to
+	# current - 1 (owner, 2026-10-02), not the rounding direction.
+	_set_max_hp(40.0)
+	(_node.node_board.get_stat(&"node_health") as PoolStat).set_current(1.0)
+	var hit := DamageInstance.new()
+	hit.type = DamageInstance.Type.TRUE
+	hit.basis = HitInstance.AmountBasis.PERCENT_CURRENT
+	hit.amount = 0.5
+	hit.target = _node
+	OutcomeApplier.land_one(hit, CombatWorld.live())
+	assert_almost_eq(_node.get_current_hp(), 1.0, 0.001, "a chunk of a 1 hp node is 0")
+
 func test_a_rebuilt_record_never_rescales_an_already_resolved_hit() -> void:
 	# The authority resolves PERCENT_MAX once on its own land; the record
 	# carries the resulting number and the peer's rebuilt hit must land it as
