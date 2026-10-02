@@ -89,19 +89,33 @@ func get_description() -> String:
 ## ONE read of
 ## [member stacks_stat_id] with [param authored] as a `base_add` overlay, so
 ## the stat's flats add to it and its INCREASE / MORE scale it (ADR 0029).
-## Never floored — the status row is a float. A null board, a blank id or an
-## unknown stat answers [param authored]. The landing and the on-hit readout
+## Rounded HALF-UP, once, here — the row is a whole count (ADR 0032) and a tie
+## goes to the attacker; the `*_stacks_per_hit` stats stay FLOAT so their read
+## never truncates first. A null board, a blank id or an unknown stat answers
+## [param authored], rounded the same way. The landing and the on-hit readout
 ## both call this, so they cannot disagree.
 func stacks_per_hit(board: StatBoard, authored: float) -> float:
 	if board == null or stacks_stat_id.is_empty():
-		return authored
+		return round_half_up(authored)
 	var stat: Stat = board.get_stat(stacks_stat_id)
 	if stat == null:
-		return authored
+		return round_half_up(authored)
 	var bins := ModifierBins.new()
 	bins.base_add = authored
 	var overlays: Array[ModifierBins] = [bins]
-	return float(stat.get_value_with(overlays))
+	return round_half_up(float(stat.get_value_with(overlays)))
+
+
+## [param v] to the nearest whole, a half going UP. Float noise is snapped
+## first: a value within `is_equal_approx` of a whole or of a half counts as
+## it, so a true 2.5 computed as `2.4999…` still lands 3.
+static func round_half_up(v: float) -> float:
+	if is_equal_approx(v, roundf(v)):
+		return roundf(v)
+	var half := floorf(v) + 0.5
+	if is_equal_approx(v, half):
+		return floorf(v) + 1.0
+	return floorf(v + 0.5)
 
 
 ## The power this status would carry after one tick's decay, per its

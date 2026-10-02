@@ -1,11 +1,11 @@
 [gd_resource type="Resource" script_class="PoisonStatus" format=3 uid="uid://c7s5qybcqmll5"]
 
 [ext_resource type="Script" uid="uid://ben181axcppph" path="res://effects/status/poison.gd" id="1_poison"]
-[ext_resource type="Script" uid="uid://18mskbhypx7a" path="res://effects/status/decay/fraction_decay.gd" id="decay_script"]
+[ext_resource type="Script" uid="uid://h4ca876s2ht3" path="res://effects/status/decay/flat_decay.gd" id="decay_script"]
 
 [sub_resource type="Resource" id="Resource_decay"]
 script = ExtResource("decay_script")
-fraction = 0.5
+per_tick = 1.0
 
 [resource]
 script = ExtResource("1_poison")
@@ -13,7 +13,7 @@ basis = 0
 damage_per_power = 1.0
 id = &"poison"
 display_name = "Poison"
-description = "Every stack deals 1 unmitigated damage each turn; stacks halve each turn and never cap."
+description = "Every stack deals 1 unmitigated damage each turn; one stack fades each turn and they never cap."
 tint = Color(0.2, 0.85, 0.25, 1)
 tags = Array[StringName]([&"debuff"])
 resistance_stat_id = &"poison_resistance"

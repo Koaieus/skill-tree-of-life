@@ -5,13 +5,13 @@
 
 [sub_resource type="Resource" id="Resource_decay"]
 script = ExtResource("decay_script")
-per_tick = 0.25
+per_tick = 1.0
 
 [resource]
 script = ExtResource("1_break")
 id = &"armor_break"
 display_name = "Armor Break"
-description = "The node's armor is chipped away: -1 per stack, and stacks fade by a quarter each turn."
+description = "The node's armor is chipped away: -1 per stack, and one stack fades each turn."
 tint = Color(0.85, 0.45, 0.15, 1)
 tags = Array[StringName]([&"debuff"])
 power_max = 0.0

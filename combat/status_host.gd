@@ -93,16 +93,21 @@ func adjust_power(def: StatusDef, delta: float) -> void:
 ## [method tick_statuses] is NOT a caller: tick keeps its own tail, because
 ## its survivor path is [method StatusDef._on_tick]'s, not `_on_applied`'s.
 func _settle(def: StatusDef, target: float, notify: bool = true) -> void:
-	var next := target if def.power_max <= 0.0 else minf(target, def.power_max)
+	# ADR 0032: the row is whole. A fraction here is a minting site's bug
+	# (the fold, a decay, a spill) — never rounded silently at the store.
+	assert(is_equal_approx(target, roundf(target)),
+			"StatusHost: non-integer stack count %s for %s" % [target, def.id])
+	var whole := roundf(target)
+	var next := whole if def.power_max <= 0.0 else minf(whole, floorf(def.power_max))
 	if next <= 0.0:
 		remove_status(def.id)
 		return
 	var had_status := not _statuses.is_empty()
 	var row: NodeStatus = _statuses.get(def.id)
 	if row == null:
-		row = NodeStatus.new(def, 0.0)
+		row = NodeStatus.new(def, 0)
 		_statuses[def.id] = row
-	row.power = next
+	row.power = int(next)
 	def._on_applied(owner, effective_power(def, row.power))
 	if not had_status:
 		owner._on_first_status()
@@ -130,14 +135,16 @@ func tick_statuses() -> void:
 		var id := row.def.id
 		if _statuses.get(id) != row:
 			continue  # vanished mid-tick
-		var before := row.power
+		var before := float(row.power)
 		var after := row.def.decayed(before)  # per its decay slot; 0 means removed
+		assert(is_equal_approx(after, roundf(after)),
+				"StatusHost: %s decayed to a non-integer %s" % [id, after])
 		# ADR 0031: the hook sees both ends resisted; decay stays raw below.
 		row.def._on_tick(owner, effective_power(row.def, before), effective_power(row.def, after))
 		if _statuses.get(id) != row:
 			continue  # the hook removed it (or the host was cleared under us)
-		row.power = after
-		if after <= 0.0:
+		row.power = int(roundf(after))
+		if row.power <= 0:
 			remove_status(id)
 	# #880: decay changes the blend even on rows that survive (no removal, so
 	# no notify from inside the loop above) — one refresh per tick pass.
@@ -225,7 +232,7 @@ func _resistance(def: StatusDef) -> float:
 ## Current power of status [param id], `0.0` when absent.
 func get_status_power(id: StringName) -> float:
 	var row: NodeStatus = _statuses.get(id)
-	return row.power if row != null else 0.0
+	return float(row.power) if row != null else 0.0
 
 
 ## The rows a UI reads, in application order — the live rows, not copies:

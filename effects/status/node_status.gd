@@ -6,10 +6,12 @@ extends RefCounted
 ## one row: `(def.display_name, def.tint, def.icon, normalised())`.
 
 var def: StatusDef
-var power: float = 0.0
+## The stack count — always whole (ADR 0032). A fraction is rounded where it
+## is minted (the fold, a decay, a spill), never here.
+var power: int = 0
 
 
-func _init(p_def: StatusDef = null, p_power: float = 0.0) -> void:
+func _init(p_def: StatusDef = null, p_power: int = 0) -> void:
 	def = p_def
 	power = p_power
 
