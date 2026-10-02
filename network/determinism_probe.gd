@@ -182,7 +182,7 @@ const MAX_RECORDED_DIVERGENCES := 64
 ##
 ## Mutates nothing REAL: [method AttackPlan.resolve] lands its outcome in a
 ## throwaway shadow world (#536), the plan built here is local and never
-## assigned to [member BattleSystem.attack_plan], and the outcome is encoded
+## assigned to [method ArmedStack.attack_plan], and the outcome is encoded
 ## and thrown away.
 ## [param world_settled] is whether this peer's applier was IDLE when the
 ## command arrived. The WORLD compare has a guard for exactly this (a command

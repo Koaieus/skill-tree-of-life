@@ -1644,7 +1644,7 @@ Synchronous. Pure. Same call shape as `RangedAttackPlan.resolve` and
 ### `MeleePreview` (live ghost loop)
 
 Mounted in the level (same pattern as `AttackVFX`,
-`AttackHighlightOverlay`). Watches `BattleSystem.attack_plan_changed`
+`AttackHighlightOverlay`). Watches `ArmedStack.attack_plan_changed`
 and `attack_plan_state_changed`:
 
 - When the active plan is a valid `MeleeAttackPlan`: spawn a ghost

@@ -8,7 +8,7 @@ extends AttackPlan
 ## more — see [member source] for why choosing one was never really a choice,
 ## and docs/domain/click-grammar.md for the grammar this collapsed.
 ## The active spell comes from
-## [BattleSystem.selected_spell] when the plan is constructed by the system;
+## [member ArmedStack.selected_spell] when the plan is constructed by the system;
 ## hand-instantiated plans (tests, AI scoring) can assign [member spell]
 ## directly. Falls back to the bundled default if nothing is selected so the
 ## plan is never silently unarmed.

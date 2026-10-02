@@ -25,7 +25,7 @@ const ERR_NO_SHOTS := &'No firing leaf in range has shots left'
 const ERR_VOLLEY_LIMIT := &'Volley limit reached this turn'
 const ERR_SCOUT_ONLY := &'Only scout arrows can fire into fog'
 
-## The viewer's fog, set by [method BattleSystem._new_plan] from its own
+## The viewer's fog, set by [method BattleSystem.mint_plan] from the controller's
 ## `vision_system` export (null for an AI plan or a fog-less test: every
 ## target is then a plain hostile). Read, never written — the pickability
 ## lever is BattleSystem's to pull on VisionSystem, not this plan's.
