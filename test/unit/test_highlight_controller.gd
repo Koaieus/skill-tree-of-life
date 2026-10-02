@@ -94,7 +94,7 @@ func test_attack_plan_outranks_core_move() -> void:
 	ictl.armed_stack.push(CoreMoveMode.new(ictl, _nodes[0]))
 	_ctl.input_ctl = ictl
 	var bs: BattleSystem = autofree(BattleSystem.new())
-	bs.attack_plan = _make_plan()
+	_ctl.armed_stack = autofree(preload("res://test/fixtures/stub_arm.gd").stack_holding(_make_plan()))
 	_ctl.battle_system = bs
 	_ctl._resolve()
 	assert_true(_ctl.provider is MeleeAttackPlan,

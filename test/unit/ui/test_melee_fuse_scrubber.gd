@@ -94,6 +94,7 @@ func before_each() -> void:
 
 	_highlight = HighlightController.new()
 	_highlight.battle_system = _battle
+	_highlight.armed_stack = _ctl.armed_stack
 	add_child_autofree(_highlight)
 
 

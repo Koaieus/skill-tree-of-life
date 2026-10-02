@@ -104,6 +104,9 @@ func _arm_plan() -> MeleeAttackPlan:
 	plan.set_pivot(_pivot)
 	plan.toggle_member(_arm)
 	assert_true(plan.is_valid(), "fixture plan must be valid before launching")
+	# The preview reads the armed plan off a stack; a bare one holds this plan.
+	_preview.armed_stack = autofree(preload("res://test/fixtures/stub_arm.gd").stack_holding(plan))
+	_preview._refresh()
 	return plan
 
 

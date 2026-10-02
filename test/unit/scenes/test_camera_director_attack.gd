@@ -14,6 +14,8 @@ const _SKILL_NODE := preload("res://skill_node/skill_node.tscn")
 const VIEWPORT := Vector2(1440, 960)
 
 var _dir: CameraDirector
+
+const _StubArm := preload("res://test/fixtures/stub_arm.gd")
 var _vision: _StubVision
 var _holder: Node2D
 
@@ -189,7 +191,7 @@ func _melee_plan(pivot: SkillNode) -> MeleeAttackPlan:
 func _battle_system(plan: AttackPlan) -> BattleSystem:
 	var bs := BattleSystem.new()
 	_holder.add_child(bs)
-	bs.attack_plan = plan
+	_dir.armed_stack = _hold(plan)
 	return bs
 
 
@@ -499,7 +501,7 @@ class _StubBattleSystem:
 func _ranged_battle_system(presenter: Node) -> _StubBattleSystem:
 	var bs := _StubBattleSystem.new()
 	_holder.add_child(bs)
-	bs.attack_plan = RangedAttackPlan.new()
+	_dir.armed_stack = _hold(RangedAttackPlan.new())
 	bs.stub_presenter = presenter
 	return bs
 
@@ -636,7 +638,7 @@ func _anchored_ranged_bs(presenter: Node, anchors: Array[SkillNode],
 	_holder.add_child(bs)
 	var plan := _AnchoredRangedPlan.new()
 	plan.anchors = anchors
-	bs.attack_plan = plan
+	_dir.armed_stack = _hold(plan)
 	bs.stub_presenter = presenter
 	var tempo := PresentationTempo.new()
 	tempo.volley_draw_time = 1.5
@@ -660,7 +662,7 @@ func test_a_ranged_commit_pivots_on_the_firing_centroid_at_the_players_zoom() ->
 	var b := _node_at(Vector2(1000, 0))
 	var bs := _anchored_ranged_bs(_markerless_presenter(), [a, b])
 	_dir.battle_system = bs
-	var pivot := _dir._windup_focus(bs.attack_plan)
+	var pivot := _dir._windup_focus(_dir.armed_stack.attack_plan())
 	assert_not_null(pivot, "ranged opens on a pivot, like every mode")
 	if pivot == null:
 		return
@@ -695,7 +697,7 @@ func test_a_ranged_pivot_opens_on_the_leaves_that_fire_not_the_reaching_rim() ->
 	var bs := _anchored_ranged_bs(_markerless_presenter(), [])
 	var plan := _RimmedRangedPlan.new()
 	plan.rim = [a, b, far]
-	bs.attack_plan = plan
+	_dir.armed_stack = _hold(plan)
 	_dir.battle_system = bs
 	var hits: Array[HitInstance] = [_hit(a, target), _hit(b, target)]
 	var outcome := _outcome(hits)
@@ -829,3 +831,10 @@ func test_a_tiny_cluster_steps_in_no_further_than_asked() -> void:
 	tall.zoom_in_steps = 1
 	assert_almost_eq(_dir.decide(tall, ctx).zoom_target, 1.0, 0.0001,
 			"a step in that would no longer fit is not taken")
+
+
+## A bare stack whose attack level holds [param plan], freed with the holder.
+func _hold(plan: AttackPlan) -> ArmedStack:
+	var stack := _StubArm.stack_holding(plan)
+	_holder.add_child(stack)
+	return stack

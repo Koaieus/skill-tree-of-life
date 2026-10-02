@@ -219,10 +219,11 @@ func test_presenter_is_live_during_an_ai_melee_launch() -> void:
 ## mirror's plan never sits in the slot — and hand back to the human's armed
 ## plan at release.
 func test_highlights_follow_the_in_flight_plan_then_the_slot() -> void:
+	var human := _arm_human_plan()
 	var hc := HighlightController.new()
 	hc.battle_system = _bs
+	hc.armed_stack = autofree(preload("res://test/fixtures/stub_arm.gd").stack_holding(human))
 	add_child_autofree(hc)
-	var human := _arm_human_plan()
 	assert_eq(hc.provider, human, "sanity: the armed plan paints before the swing")
 	var during: Array = []
 	_bs.attack_committed.connect(func(_o: AttackOutcome, _e: Entity) -> void:
