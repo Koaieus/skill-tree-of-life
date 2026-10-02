@@ -57,6 +57,8 @@ const _EXPORT_DEPS: Array = [
 	["Systems/CommandApplier", "battle_system"],
 	["Systems/CommandApplier", "turn_manager"],
 	["Systems/CommandApplier", "loot_pick_registry"],
+	["Systems/SaveGate", "command_applier"],
+	["Systems/SaveGate", "graph"],
 	["Systems/PlayerInputController", "graph"],
 	["Systems/PlayerInputController", "allocation_system"],
 	["Systems/PlayerInputController", "battle_system"],
