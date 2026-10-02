@@ -1,11 +1,11 @@
 extends GutTest
 
-## The pick-spell-first union (#728) depends on OWNERSHIP, so [BattleSystem]
-## pushes an invalidation on every allocation. This pins the other half of that
+## The pick-spell-first union (#728) depends on OWNERSHIP, so the armed
+## [MagicMode] level pushes an invalidation on every allocation. This pins the other half of that
 ## — the invalidation has to be ANNOUNCED on the signal the highlight overlays
 ## actually listen to.
 ##
-## [signal BattleSystem.attack_plan_state_changed] is not it: it reaches the HUD
+## [signal ArmedStack.attack_plan_state_changed] is not it: it reaches the HUD
 ## command-tray bodies and [PlayerInputController], while
 ## [NodeHighlightOverlay] / [EdgeHighlightOverlay] repaint off
 ## [signal HighlightController.provider_state_changed], which is a straight
@@ -99,10 +99,10 @@ func test_deallocating_announces_it_too() -> void:
 
 func test_the_announcement_reaches_the_system_signal_as_well() -> void:
 	# Routing through the plan must not COST the HUD bodies their refresh —
-	# BattleSystem re-emits the plan's signal as its own.
+	# the seat's ArmedStack re-emits the plan's signal as its own.
 	var plan := _magic_plan()
-	watch_signals(_battle)
+	watch_signals(_ctl.armed_stack)
 	_alloc.force_allocate(_attacker, _spare)
-	assert_signal_emitted(_battle, "attack_plan_state_changed",
+	assert_signal_emitted(_ctl.armed_stack, "attack_plan_state_changed",
 			"the command-tray bodies still hear it")
 	assert_not_null(plan)
