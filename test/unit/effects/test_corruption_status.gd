@@ -130,16 +130,16 @@ func test_projected_damage_sums_the_remaining_ticks_against_max_hp() -> void:
 	assert_almost_eq(_combat().projected_status_damage(), 350.0, 0.001, "shrinks as it ticks")
 
 
-func test_projected_damage_floors_each_tick_as_it_lands() -> void:
+func test_projected_damage_rounds_each_tick_up_as_it_lands() -> void:
 	# 1237 hp makes every term fractional: 247.4, 123.7, 61.85, 30.925.
 	_set_max_hp(1237.0)
 	_combat().apply_status(_def(), 10.0)
-	var expected := floorf(247.4) + floorf(123.7) + floorf(61.85) + floorf(30.925)
+	var expected := ceilf(247.4) + ceilf(123.7) + ceilf(61.85) + ceilf(30.925)
 	assert_almost_eq(_combat().projected_status_damage(), expected, 0.001,
-			"each tick floored through the landing rule, never the unfloored series")
+			"each tick rounded up through the landing rule, never the unrounded series")
 	var before := _nodes[0].get_current_hp()
 	_combat().tick_statuses()
-	assert_almost_eq(before - _nodes[0].get_current_hp(), floorf(247.4), 0.001,
+	assert_almost_eq(before - _nodes[0].get_current_hp(), ceilf(247.4), 0.001,
 			"the first term is what the tick lands")
 
 

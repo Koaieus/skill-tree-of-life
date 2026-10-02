@@ -135,17 +135,17 @@ func test_authored_poison_shape_is_flat_uncapped_halving() -> void:
 func test_twenty_stacks_of_authored_poison_deal_the_halving_series() -> void:
 	# 20, 10, 5, 2.5, 1.25 stacks over five ticks on a node of ANY max hp —
 	# stacks are floats, a tick mints stacks x damage_per_power, TRUE-typed
-	# (armor untouched and irrelevant), and the HP door floors it on landing
-	# (ADR 0017): 20 + 10 + 5 + 2 + 1 = 38.
+	# (armor untouched and irrelevant), and the HP door rounds it up on landing
+	# (ADR 0033): 20 + 10 + 5 + 3 + 2 = 40.
 	_set_max_hp(100.0)
 	_combat().apply_status(_AUTHORED, 20.0)
 	var expected := [20.0, 10.0, 5.0, 2.5, 1.25]
 	var hp := 100.0
 	for dmg: float in expected:
 		_combat().tick_statuses()
-		hp -= floorf(dmg)
-		assert_almost_eq(_nodes[0].get_current_hp(), hp, 0.001, "tick of %s lands %s" % [dmg, floorf(dmg)])
-	assert_almost_eq(_nodes[0].get_current_hp(), 100.0 - 38.0, 0.001, "five ticks land 38")
+		hp -= ceilf(dmg)
+		assert_almost_eq(_nodes[0].get_current_hp(), hp, 0.001, "tick of %s lands %s" % [dmg, ceilf(dmg)])
+	assert_almost_eq(_nodes[0].get_current_hp(), 100.0 - 40.0, 0.001, "five ticks land 40")
 	assert_almost_eq(_combat().get_status_power(&"poison"), 0.0, 0.001,
 			"0.625 < 1: cleared on the fifth tick")
 
@@ -166,10 +166,10 @@ func test_projected_status_damage_sums_the_remaining_ticks() -> void:
 	_set_max_hp(100.0)
 	assert_almost_eq(_combat().projected_status_damage(), 0.0, 0.0001, "no statuses")
 	_combat().apply_status(_AUTHORED, 20.0)
-	assert_almost_eq(_combat().projected_status_damage(), 38.0, 0.001,
-			"20 + 10 + 5 + 2 + 1: each tick floored as it lands; the 0.625 tail never ticks")
+	assert_almost_eq(_combat().projected_status_damage(), 40.0, 0.001,
+			"20 + 10 + 5 + 3 + 2: each tick rounded up as it lands; the 0.625 tail never ticks")
 	_combat().tick_statuses()
-	assert_almost_eq(_combat().projected_status_damage(), 18.0, 0.001, "shrinks as it ticks")
+	assert_almost_eq(_combat().projected_status_damage(), 20.0, 0.001, "shrinks as it ticks")
 
 
 func test_poisoned_node_does_not_regen_the_next_turn_starts_regen() -> void:
