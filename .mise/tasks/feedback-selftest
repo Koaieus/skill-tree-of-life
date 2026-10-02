@@ -129,4 +129,15 @@ fb unanswered >/dev/null 2>"$work/err"; rc=$?
 check "category missing -> non-zero, names #1326" "$([ $rc -ne 0 ] && echo nz):$(grep -c '#1326' "$work/err")" "nz:1"
 check "  ...no raw GraphQL in the message" "$(grep -c 'GraphQL' "$work/err")" "0"
 
+echo "7. post --verbatim: the file unchanged, no header, no kind"
+meta_ok; boards_with_whip; reset
+printf '**2026-10-02 · kind: tool bug · session x**\n\nbody\n\n' >"$work/v"
+out=$(fb post --verbatim whip "$work/v" 2>"$work/err"); rc=$?
+vars_of AddComment | jq -j .body >"$work/sent"
+check "rc 0, prints the comment url" "$rc:$out" "0:https://x/d/1#c9"
+check "  ...body byte-identical to the file" "$(cmp -s "$work/v" "$work/sent" && echo same)" "same"
+reset
+fb post --verbatim nosuch "$work/v" >/dev/null 2>&1; rc=$?
+check "unknown charter -> non-zero, no gh call" "$([ $rc -ne 0 ] && echo nz):$( [ -f "$work/argv" ] && wc -l <"$work/argv" || echo 0)" "nz:0"
+
 [ "$fail" -eq 0 ] && echo "feedback-selftest: all green" || { echo "feedback-selftest: FAILED"; exit 1; }
