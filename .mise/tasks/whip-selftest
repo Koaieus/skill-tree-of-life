@@ -302,7 +302,9 @@ base = len(calls); run("watchdog")
 check("after give-up the watchdog is a no-op", not launches(base))
 code, out = run("show")
 check("show carries the give-up in its header for the morning", "GAVE UP" in out.splitlines()[1])
-os.remove(jpath[:-5] + ".gave-up"); poke(failures=0, pending=None, gave_up=None)
+code, out = run("timer", "install")
+check("timer install after a give-up clears the marker and counters so the watchdog resumes",
+      code == 0 and not os.path.exists(jpath[:-5] + ".gave-up") and state()["gave_up"] is None and state()["failures"] == 0)
 
 # --- watchdog: lead liveness from the ledger, whip or no whip --------------
 st = state(); st["leads"]["lead-b"]["state"] = "running"; st["trains"][1]["state"] = "running"; poke(**st)

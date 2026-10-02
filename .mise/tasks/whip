@@ -582,7 +582,15 @@ def timer_uninstall():
 
 
 def cmd_timer(a):
-    timer_install(a.every) if a.action == "install" else timer_uninstall()
+    if a.action != "install":
+        return timer_uninstall()
+    timer_install(a.every)
+    p = state_path()
+    if p and (load(p).get("gave_up") or os.path.exists(p[:-5] + ".gave-up")):  # the morning restart after a give-up
+        st = load(p); st["_path"] = p; st["gave_up"] = None; st["failures"] = 0; st["pending"] = None
+        try: os.remove(p[:-5] + ".gave-up")
+        except FileNotFoundError: pass
+        event(st, "timer reinstalled after a give-up — watchdog resumes")
 
 
 def cmd_daemon(a):
