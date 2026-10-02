@@ -79,6 +79,12 @@ enum WorldSource { GENERATE, ARRIVES }
 ## [code]ARRIVES[/code], [method end] restores the default.
 var world_source: WorldSource = WorldSource.GENERATE
 
+## The world a loaded save delivers, parked by [method open_saved] until the
+## level is up to receive it: [GameRoot] applies it after `_setup_level` and
+## clears it. Null on every other path — [method start], [method apply_received]
+## and [method end] all clear it, so a stale image never lands on a fresh run.
+var pending_world: WorldImage = null
+
 
 func _ready() -> void:
 	Events.run_ended.connect(_on_run_ended)
@@ -146,6 +152,16 @@ func apply_received(cfg: RunConfig, received_roster: ParticipantRoster) -> void:
 	world_source = WorldSource.ARRIVES
 	outcome = null
 	run_started.emit(config)
+
+
+## Open a run from disk — the third entry beside [method start] and
+## [method apply_received]. Shaped like the latter: [param save]'s seed is
+## already the resolved one, so it is not re-resolved, and the world ARRIVES —
+## parked in [member pending_world] for the level instead of over a wire. The
+## caller routes to [member SaveFile.level_scene_path] next. False, and the
+## session untouched, for a save that did not load.
+func open_saved(save: SaveFile) -> bool:
+	return false
 
 
 ## Start a default run if none is live, seeding it from `fallback_seed` (a
