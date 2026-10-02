@@ -105,8 +105,12 @@ Overnight the budget is **tokens per 5-hour window, twice over**, and
    watchdog finds Whip by `whip_session == sessionId`, never by name. Leads
    still `SendMessage(to: "whip")`, and the CLI auto-renames a second
    `whip`, so `start` refuses from a session not named `whip` (the fix is
-   `/rename whip`), and the self-relief path stops the old Whip before the
-   new one is named.
+   `/rename whip`) **and from an interactive session**: an interactive Whip
+   sits in the terminal's cgroup, and a flagless resume of it carries no
+   saved name/mode/model, so it would come back unaddressable while the
+   watchdog's verify sees "present". Whip is launched `claude --bg -n whip
+   … "/whip"` after `daemon start`, watched via `attach` or RC. The
+   self-relief path stops the old Whip before the new one is named.
 7. **`claude agents --json` speaks two vocabularies.** Interactive sessions
    carry `status` (busy/idle); background ones `state` (working/done/
    blocked) plus `status` once they have a pid; a dead bg record lingers as
