@@ -12,23 +12,14 @@ func _init(p_ctl: PlayerInputController) -> void:
 const _AMMO_ROSTER: AmmoTypeRoster = preload("res://attack/ammo/ammo_type_roster.tres")
 
 
-func on_pushed() -> bool:
-	if not super():
-		return false
-	_sync_pick_sensed()
-	return true
-
-
-func on_popped() -> void:
-	super()
-	if ctl.vision_system != null:
-		ctl.vision_system.pick_sensed = false
-
-
 ## The sensed-pickability lever (#1033) on the seat's fog: on while this
 ## level's plan is armed and the attacker's quiver holds scout stock — the
 ## scout shot's target set is the sensed nodes. VisionSystem owns the lever,
 ## this level owns the mode; the plan never writes another system's state.
+func _on_plan_set() -> void:
+	_sync_pick_sensed()
+
+
 func _sync_pick_sensed() -> void:
 	var vision := ctl.vision_system
 	if vision == null:

@@ -118,8 +118,14 @@ func _set_plan(p: AttackPlan) -> void:
 	if _plan == p:
 		return
 	_plan = p
+	_on_plan_set()
 	if stack != null:
 		stack.sync_attack_plan()
+
+
+## Hook: this level's plan just moved (minted, dropped, swapped on re-arm).
+func _on_plan_set() -> void:
+	pass
 
 
 func _on_attack_launched(_mode: BattleSystem.AttackMode, _spell: SpellDef) -> void:
