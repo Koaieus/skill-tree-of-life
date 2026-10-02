@@ -20,6 +20,7 @@ const _CLAMP_SCENE := preload("res://skill_node/addons/defs/clamp_addon.tscn")
 const _BUNKER_SCENE := preload("res://skill_node/addons/defs/bunker_addon.tscn")
 const _FORT_SCENE := preload("res://skill_node/addons/defs/fortification_addon.tscn")
 
+const _ArmingCtl := preload("res://test/fixtures/arming_ctl.gd")
 const _SPACING := 150.0
 ## Fraction of a full turn round the tip's own arc where a defender sits —
 ## `test_bunker_break_live.gd`'s convention, far enough in that the contact
@@ -35,6 +36,7 @@ var _graph: Graph
 var _alloc: AllocationSystem
 var _tm: TurnManager
 var _bs: BattleSystem
+var _ctl: PlayerInputController
 var _preview: MeleePreview
 var _attacker: Entity
 var _defender: Entity
@@ -107,6 +109,7 @@ func _setup(blocker_pos: Vector2) -> void:
 	_attacker.stat_board.action_points.base_value = 4.0
 	_attacker.stat_board.action_points.current = 4.0
 	_tm.start_turn(_attacker)
+	_ctl = _ArmingCtl.make(self, _graph, _alloc, _bs, _tm, _attacker)
 
 	_defender = _make_entity()
 	var enemy_camp := Faction.new()
@@ -146,9 +149,9 @@ func _arm() -> MeleeAttackPlan:
 	await get_tree().process_frame
 	await get_tree().physics_frame
 	await get_tree().physics_frame
-	_bs.request_attack_mode(BattleSystem.AttackMode.NONE)
-	_bs.request_attack_mode(BattleSystem.AttackMode.MELEE)
-	var plan := _bs.attack_plan as MeleeAttackPlan
+	_ctl.arm_attack(BattleSystem.AttackMode.NONE)
+	_ctl.arm_attack(BattleSystem.AttackMode.MELEE)
+	var plan := _ctl.armed_stack.attack_plan() as MeleeAttackPlan
 	plan.set_pivot(_pivot)
 	plan.toggle_member(_mid)
 	plan.toggle_member(_tip)

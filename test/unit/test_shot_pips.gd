@@ -7,6 +7,7 @@ extends GutTest
 ## reset) and off BattleSystem's plan signals — never per frame.
 
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
+const _ArmingCtl := preload("res://test/fixtures/arming_ctl.gd")
 const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _BOARD := preload("res://entity/default_entity_board.tres")
 const _PLAYER_FACTION := preload("res://entity/factions/player.tres")
@@ -14,6 +15,7 @@ const _PLAYER_FACTION := preload("res://entity/factions/player.tres")
 var _graph: Graph
 var _alloc: AllocationSystem
 var _battle: BattleSystem
+var _ctl: PlayerInputController
 var _attacker: Entity
 var _leaf: SkillNode
 var _other: SkillNode
@@ -55,6 +57,7 @@ func before_each() -> void:
 	var ctl := HighlightController.new()
 	ctl.battle_system = _battle
 	add_child_autofree(ctl)
+	_ctl = _ArmingCtl.make(self, _graph, _alloc, _battle, tm, _attacker)
 
 
 func _pips(n: SkillNode) -> Node:
@@ -62,7 +65,7 @@ func _pips(n: SkillNode) -> Node:
 
 
 func test_ranged_leaf_shows_shots_left_of_max() -> void:
-	_battle.request_attack_mode(BattleSystem.AttackMode.RANGED)
+	_ctl.arm_attack(BattleSystem.AttackMode.RANGED)
 	_leaf.mark_shot_fired(2)
 	var p := _pips(_leaf)
 	assert_true(p.visible, "ranged + my leaf: pips shown")
@@ -71,9 +74,9 @@ func test_ranged_leaf_shows_shots_left_of_max() -> void:
 
 
 func test_melee_mode_hides_pips() -> void:
-	_battle.request_attack_mode(BattleSystem.AttackMode.RANGED)
+	_ctl.arm_attack(BattleSystem.AttackMode.RANGED)
 	_leaf.mark_shot_fired(2)
-	_battle.request_attack_mode(BattleSystem.AttackMode.MELEE)
+	_ctl.arm_attack(BattleSystem.AttackMode.MELEE)
 	assert_false(_pips(_leaf).visible, "melee: no pips")
 
 
@@ -83,7 +86,7 @@ func test_no_plan_hides_pips() -> void:
 
 
 func test_firer_turn_end_reset_relights_all() -> void:
-	_battle.request_attack_mode(BattleSystem.AttackMode.RANGED)
+	_ctl.arm_attack(BattleSystem.AttackMode.RANGED)
 	_leaf.mark_shot_fired(5)
 	assert_eq(_pips(_leaf).lit, 0, "fixture: spent")
 	# The exact write Entity.finish_turn performs over its fired set.
@@ -97,7 +100,7 @@ func test_non_leaf_hides_pips() -> void:
 	_graph.add_skill_node(third)
 	_graph.add_edge(_leaf, third)
 	_alloc.force_allocate(_attacker, third)
-	_battle.request_attack_mode(BattleSystem.AttackMode.RANGED)
+	_ctl.arm_attack(BattleSystem.AttackMode.RANGED)
 	assert_false(_pips(_leaf).visible, "degree 2 inside my territory: not a leaf")
 	assert_true(_pips(third).visible, "the new degree-1 node is")
 
@@ -110,5 +113,5 @@ func test_other_entitys_leaf_hides_pips() -> void:
 	var theirs := _SKILL_NODE_SCENE.instantiate() as SkillNode
 	_graph.add_skill_node(theirs)
 	_alloc.force_allocate(foe, theirs)
-	_battle.request_attack_mode(BattleSystem.AttackMode.RANGED)
+	_ctl.arm_attack(BattleSystem.AttackMode.RANGED)
 	assert_false(_pips(theirs).visible, "not the attacker's node")

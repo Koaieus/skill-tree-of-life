@@ -15,6 +15,7 @@ const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _BOARD := preload("res://entity/default_entity_board.tres")
 const _PLAYER_FACTION := preload("res://entity/factions/player.tres")
 const _NPC_FACTION := preload("res://entity/factions/npc.tres")
+const _ArmingCtl := preload("res://test/fixtures/arming_ctl.gd")
 
 
 func _set_local(node: SkillNode, stat_id: StringName, value: float) -> void:
@@ -104,6 +105,8 @@ func _build(scout_stock: int = 4) -> Dictionary:
 	bs.instant_mutation = true
 	add_child_autofree(bs)
 
+	var ctl: PlayerInputController = _ArmingCtl.make(self, graph, alloc, bs, tm, attacker)
+
 	await get_tree().process_frame
 	await get_tree().physics_frame
 	await get_tree().physics_frame
@@ -114,13 +117,13 @@ func _build(scout_stock: int = 4) -> Dictionary:
 	assert_false(vision.is_sensed(nodes.neighbour) or vision.is_visible(nodes.neighbour), "fixture: neighbour is dark")
 
 	return {"graph": graph, "bs": bs, "vision": vision, "attacker": attacker,
-			"defender": defender, "nodes": nodes}
+			"defender": defender, "nodes": nodes, "ctl": ctl}
 
 
 func _arm(ctx: Dictionary, target: SkillNode, counts: Dictionary) -> RangedAttackPlan:
 	var bs: BattleSystem = ctx.bs
-	bs.request_attack_mode(BattleSystem.AttackMode.RANGED)
-	var plan := bs.attack_plan as RangedAttackPlan
+	(ctx.ctl as PlayerInputController).arm_attack(BattleSystem.AttackMode.RANGED)
+	var plan := (ctx.ctl as PlayerInputController).armed_stack.attack_plan() as RangedAttackPlan
 	plan.set_target(target)
 	plan.ammo_counts = counts
 	return plan
@@ -188,9 +191,9 @@ func test_pick_sensed_follows_the_armed_ranged_plan_with_scout_stock() -> void:
 	var bs: BattleSystem = ctx.bs
 	var vision: VisionSystem = ctx.vision
 	assert_false(vision.pick_sensed, "off before any plan")
-	bs.request_attack_mode(BattleSystem.AttackMode.RANGED)
+	(ctx.ctl as PlayerInputController).arm_attack(BattleSystem.AttackMode.RANGED)
 	assert_true(vision.pick_sensed, "on while a ranged plan is armed with scout stock")
-	bs.cancel_attack()
+	(ctx.ctl as PlayerInputController).arm_attack(BattleSystem.AttackMode.NONE)
 	assert_false(vision.pick_sensed, "off after cancel")
 	_arm(ctx, ctx.nodes.target, {&"scout": 2})
 	assert_true(vision.pick_sensed, "on again for the re-armed plan")
@@ -204,7 +207,7 @@ func test_pick_sensed_follows_the_armed_ranged_plan_with_scout_stock() -> void:
 func test_pick_sensed_stays_off_without_scout_stock() -> void:
 	var ctx: Dictionary = await _build(0)
 	var bs: BattleSystem = ctx.bs
-	bs.request_attack_mode(BattleSystem.AttackMode.RANGED)
+	(ctx.ctl as PlayerInputController).arm_attack(BattleSystem.AttackMode.RANGED)
 	assert_false((ctx.vision as VisionSystem).pick_sensed, "no scouts, no sensed picking")
-	bs.request_attack_mode(BattleSystem.AttackMode.MELEE)
+	(ctx.ctl as PlayerInputController).arm_attack(BattleSystem.AttackMode.MELEE)
 	assert_false((ctx.vision as VisionSystem).pick_sensed, "a melee plan never picks sensed")
