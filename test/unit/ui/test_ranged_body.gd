@@ -123,7 +123,7 @@ func before_each() -> void:
 
 	_body = _BODY_SCENE.instantiate() as RangedBody
 	add_child_autofree(_body)
-	_body.bind(_attacker, _battle, null)
+	_body.bind(_attacker, _battle, _ctl)
 	_plan.set_target(_target)
 
 
@@ -215,7 +215,7 @@ func test_hot_seat_rebind_swaps_the_roster() -> void:
 	var other := _entity(_PLAYER_FACTION)
 	other.stat_board.arrows.add(_ARROW, 3)
 	_body.teardown()
-	_body.bind(other, _battle, null)
+	_body.bind(other, _battle, _ctl)
 	var ids: Array = []
 	for c in _body.cards():
 		ids.append(c.type.id)

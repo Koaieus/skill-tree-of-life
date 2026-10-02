@@ -102,7 +102,6 @@ func _setup(blocker_pos: Vector2) -> void:
 	AttackPresenter.ensure_on(_bs).melee_preview = _preview
 	_preview.battle_system = _bs
 	add_child(_bs)
-	_preview._ready()
 
 	_attacker = _make_entity()
 	_attacker.stat_board.blade_size.base_value = 3.0
@@ -110,6 +109,8 @@ func _setup(blocker_pos: Vector2) -> void:
 	_attacker.stat_board.action_points.current = 4.0
 	_tm.start_turn(_attacker)
 	_ctl = _ArmingCtl.make(self, _graph, _alloc, _bs, _tm, _attacker)
+	_preview.armed_stack = _ctl.armed_stack
+	_preview._ready()
 
 	_defender = _make_entity()
 	var enemy_camp := Faction.new()

@@ -754,13 +754,16 @@ func _sync_visuals() -> void:
 ## The BattleSystem whose plan gates the pip row, once one has been found —
 ## also the guard against connecting to its signals twice.
 var _pips_battle_system: BattleSystem = null
+## The seat's [ArmedStack] whose armed plan gates the pip row, read off the
+## same [HighlightController]; the same connect-once guard.
+var _pips_armed_stack: ArmedStack = null
 
 
 ## Repaints ONLY the shots-left pip row (#959): shown iff the local
 ## attacker's plan is RANGED, this node is that attacker's, and it is a leaf
 ## of their territory (`GraphMirror.get_degree == 1` — the mirror is the
 ## right accessor inside a territory, `.claude/rules/degree.md`). Deliberately
-## narrow: it hangs off BattleSystem's plan signals, which fire on every
+## narrow: it hangs off the armed plan's signals, which fire on every
 ## allocation while a plan is armed, and a full `_sync_visuals` x hundreds of
 ## nodes per drag would be a real regression.
 ##
@@ -787,13 +790,15 @@ func _ranged_plan_of_owner() -> AttackPlan:
 		return null
 	if _pips_battle_system != ctl.battle_system:
 		_pips_battle_system = ctl.battle_system
-		_pips_battle_system.attack_plan_changed.connect(_sync_shot_pips.unbind(1))
-		_pips_battle_system.attack_plan_state_changed.connect(_sync_shot_pips)
 		_pips_battle_system.in_flight_plan_changed.connect(_sync_shot_pips.unbind(1))
-	# The volley in flight first — an AI's or a mirror's never sits in the slot.
+	if _pips_armed_stack != ctl.armed_stack and ctl.armed_stack != null:
+		_pips_armed_stack = ctl.armed_stack
+		_pips_armed_stack.attack_plan_changed.connect(_sync_shot_pips.unbind(1))
+		_pips_armed_stack.attack_plan_state_changed.connect(_sync_shot_pips)
+	# The volley in flight first — an AI's or a mirror's is never armed here.
 	var plan := _pips_battle_system.in_flight_plan
-	if plan == null:
-		plan = _pips_battle_system.attack_plan
+	if plan == null and _pips_armed_stack != null:
+		plan = _pips_armed_stack.attack_plan()
 	if plan == null or plan.mode != BattleSystem.AttackMode.RANGED or plan.attacker != owned_by:
 		return null
 	if owned_by.navigator == null or owned_by.navigator.get_degree(self) != 1:

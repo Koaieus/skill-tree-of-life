@@ -47,7 +47,7 @@ func before_each() -> void:
 	_ctl = _ArmingCtl.make(self, _graph, _alloc, _battle, tm, _entity)
 	_readout = _READOUT_SCENE.instantiate() as CombatReadout
 	add_child_autofree(_readout)
-	_readout.bind(_battle)
+	_readout.bind(_battle, _ctl.armed_stack)
 	_readout.set_player(_entity)
 
 

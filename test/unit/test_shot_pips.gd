@@ -54,10 +54,11 @@ func before_each() -> void:
 
 	# The node discovers BattleSystem the way PlayerInputController does — via
 	# the HighlightController group — so one must be in the tree.
+	_ctl = _ArmingCtl.make(self, _graph, _alloc, _battle, tm, _attacker)
 	var ctl := HighlightController.new()
 	ctl.battle_system = _battle
+	ctl.armed_stack = _ctl.armed_stack
 	add_child_autofree(ctl)
-	_ctl = _ArmingCtl.make(self, _graph, _alloc, _battle, tm, _attacker)
 
 
 func _pips(n: SkillNode) -> Node:

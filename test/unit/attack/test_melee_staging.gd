@@ -219,7 +219,7 @@ func _assert_first_hit_lands_after_the_form_beat() -> void:
 	_bs.attack_replay_started.connect(on_swing)
 	Events.skill_node_damaged.connect(on_hit)
 
-	_arm_plan()
+	var plan := _arm_plan()
 	_bs.launch_attack(plan)
 	await _await_launch_settle()
 	# `Events` is an autoload that outlives this test; the bus hook must go.
@@ -315,7 +315,7 @@ func test_the_swing_start_beat_fires_once_and_before_the_first_hit() -> void:
 		order.append(&"swing"))
 	Events.skill_node_damaged.connect(func(_n: SkillNode, _amt: float, _src: Variant) -> void:
 		order.append(&"hit"), CONNECT_ONE_SHOT)
-	_arm_plan()
+	var plan := _arm_plan()
 	_bs.launch_attack(plan)
 	await _await_launch_settle()
 	assert_eq(order, [&"swing", &"hit"] as Array[StringName],
@@ -349,7 +349,7 @@ func test_the_swing_does_not_begin_while_the_record_ready_hook_is_unsatisfied() 
 	# long the wind-up's own beats have been over for.
 	_bs.hold_record()
 	watch_signals(Events)
-	_arm_plan()
+	var plan := _arm_plan()
 	_bs.launch_attack(plan)
 
 	# The wind-up is instant here, so `launch_attack()` returned already parked
@@ -376,7 +376,7 @@ func test_the_hook_is_awaited_on_the_seated_path_too() -> void:
 	_bs.seat_policy = SeatPolicy.seat(_attacker.entity_id)
 	_bs.hold_record()
 	watch_signals(Events)
-	_arm_plan()
+	var plan := _arm_plan()
 	_bs.launch_attack(plan)
 
 	for _i in 10:
@@ -400,7 +400,7 @@ func test_zeroed_windup_durations_stage_nothing_and_still_land_the_swing() -> vo
 			"every beat authored to 0 is a zero-length wind-up, addons or not")
 
 	watch_signals(Events)
-	_arm_plan()
+	var plan := _arm_plan()
 	_bs.launch_attack(plan)
 	await _await_launch_settle()
 
