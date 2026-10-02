@@ -234,12 +234,20 @@ func land_on(_node: NodeCombat, _world: CombatWorld) -> void:
 ## each subclass's [method land_on] ahead of [method CritRoll.apply]; the two
 ## multiplies commute, the order just keeps "what did this hit ask for" and
 ## "how hard did it crit" as separate steps.
+##
+## A PERCENT_CURRENT damage chunk is rounded up here (ADR 0033) and clamped to
+## current hp − 1, so it is never itself lethal however the round-up falls — a
+## 1 hp node takes 0 (owner, 2026-10-02). Pre-crit, as before: a crit can still
+## push it over.
 func resolve_amount(node: NodeCombat) -> void:
 	match basis:
 		AmountBasis.PERCENT_MAX:
 			amount *= node.get_max_hp()
 		AmountBasis.PERCENT_CURRENT:
-			amount *= node.get_current_hp()
+			var current := node.get_current_hp()
+			amount *= current
+			if kind == Kind.DAMAGE:
+				amount = minf(HitPoints.whole(amount), maxf(0.0, current - 1.0))
 		_:
 			return
 	basis = AmountBasis.FLAT

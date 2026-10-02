@@ -13,6 +13,7 @@ second rounding downstream.
 | Quantity | Unit | Direction | Site | Source |
 |---|---|---|---|---|
 | Damage magnitude (any type: mitigated, TRUE, DoT tick, replay, core overflow, dealloc chip) | HP, int | **up** (`⌈\|x\|⌉`, sign kept); exactly 0 stays 0; float noise on a whole counts as the whole | `HitPoints.whole`, at entry to `NodeCombat.take_damage` / `EntityCombat.take_pool_damage`, **before** `Mitigation` | ADR 0033, #1307 |
+| PERCENT_CURRENT damage chunk (`amount × current_hp`) | HP, int | **up**, then clamped to `current − 1` — never itself lethal, a 1 hp node takes 0; pre-crit | `HitInstance.resolve_amount` | ADR 0033, #1307 (owner, 2026-10-02) |
 | Mitigated damage `max(min_damage_taken, raw − armor)` (a negative result is a heal) | HP, int | none — int-on-int (`armor`, `min_damage_taken` are INT) | `Mitigation.compute` | ADR 0017, ADR 0033 |
 | Heal magnitude (after `healing_received`) | HP, int | **up** | `HitPoints.whole`, in `NodeCombat.heal_damage` / `EntityCombat.heal`, after the `healing_received` multiply | ADR 0033, #1307 |
 | DoT tick, projected (`DotTick.tick_damage`, the #953 overlay) | HP, int | **up**, per tick — equals what lands | `DotTick.tick_damage` → `HitPoints.whole` | ADR 0033, #1307 |
