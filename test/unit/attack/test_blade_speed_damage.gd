@@ -196,6 +196,9 @@ func _melee_swing(radius: float, origin: Vector2 = Vector2.ZERO) -> Dictionary:
 	attacker.stat_board = _BOARD.duplicate(true) as EntityStatBoard
 	attacker.stat_board.blade_size.base_value = 2.0
 	attacker.stat_board.get_stat(&"crit_chance").base_value = 0.0
+	# Large enough that the speed bonus survives the door's whole-number
+	# round-up (ADR 0033): at a base of ~1 both swings ceil to the same 2.
+	attacker.stat_board.get_stat(&"blade_damage").base_value = 20.0
 	graph.add_child(attacker)
 	var defender := Entity.new()
 	defender.display_name = "D"
