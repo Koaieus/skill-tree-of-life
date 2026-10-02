@@ -425,17 +425,19 @@ var _fired_nodes_this_turn: Array[SkillNode] = []
 
 ## Volleys this entity has launched this turn, checked against the board's
 ## `volleys_per_turn` by the plan side (#956). Reset in
-## [method begin_turn]. Derived from commands, so mirrors reproduce it;
-## never snapshotted.
+## [method begin_turn]. Derived from commands, so mirrors reproduce it — and
+## also carried by [EntitySnapshot], so a resync or a load partway through a
+## turn does not refill the budget.
 var volleys_launched_this_turn: int = 0
 
 ## The leaf set this entity held when its turn STARTED (#955) — the producer
 ## set a [ReloadCommand] sums `arrows_per_reload` over (∪ the core). Captured
 ## once per turn in [method begin_turn], never re-derived at reload
 ## time: the fixed set is what closes the allocate-then-reload pump, while
-## the VALUES are read live so a stake raised mid-turn still counts. Runtime
-## only, never synced — a mirror captures its own copy from its own
-## `turn_started`, the same state the authority saw.
+## the VALUES are read live so a stake raised mid-turn still counts. A mirror
+## captures its own copy from its own `turn_started`; a world that arrives
+## partway through a turn (resync, load) gets it from [EntitySnapshot] instead,
+## through [method get_turn_start_leaves] / [method restore_turn_start_leaves].
 var _turn_start_leaves: Array[SkillNode] = []
 
 ## Has this entity's BRAIN concluded it is boxed in, this turn? Host-only,
@@ -756,6 +758,18 @@ func reload() -> int:
 		var t := _AMMO_TYPES.by_id(id)
 		added += quiver.add(id, int(mint[id]), t.max_stock if t != null else Quiver.DEFAULT_MAX_STOCK)
 	return added
+
+
+## The producer set captured at this turn's start — read by [EntitySnapshot].
+func get_turn_start_leaves() -> Array[SkillNode]:
+	return _turn_start_leaves
+
+
+## Replace the turn-start producer set wholesale — [EntitySnapshot]'s restore,
+## for a world that arrives partway through a turn. Replacing, never merging,
+## keeps a repeated decode idempotent.
+func restore_turn_start_leaves(leaves: Array[SkillNode]) -> void:
+	_turn_start_leaves = leaves.duplicate()
 
 
 ## The authority's cursor arrived as a RESULT ([method TurnManager.adopt_turn]):

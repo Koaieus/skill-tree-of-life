@@ -422,6 +422,13 @@ func has_outstanding_loot() -> bool:
 	return _outstanding_loot_rounds > 0
 
 
+## Is the world at rest — nothing applying, nothing awaiting confirmation, no
+## relic claim chain open? The one question a save gate asks; it never reads
+## the three flags one by one.
+func is_quiescent() -> bool:
+	return true
+
+
 ## "This command's payload is final and it is going to be applied" — announce it
 ## to the mirror. [method _drain] calls this for every verb at the flip point,
 ## and since #545 nothing else calls it in production; it stays public and

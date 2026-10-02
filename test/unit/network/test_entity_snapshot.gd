@@ -377,3 +377,44 @@ func test_decoding_twice_is_idempotent() -> void:
 
 	assert_eq(dst_owner.stat_board.get_value(&"constitution"), once,
 			"a second decode doubled the board's modifiers")
+
+
+# --- Per-turn fields (#1334) -----------------------------------------------
+
+## A world that arrives partway through a turn (resync, load) must not refill
+## the turn's volley budget: the count crosses by value.
+func test_volleys_launched_this_turn_round_trips() -> void:
+	var source := await _line_graph(1)
+	var target := await _line_graph(0)
+	var src_owner := _new_entity(source)
+	var dst_owner := _new_entity(target)
+	src_owner.volleys_launched_this_turn = 2
+
+	_transfer(source, target)
+	assert_eq(dst_owner.volleys_launched_this_turn, 2,
+			"the volley budget was refilled across the snapshot")
+
+
+## The turn-start producer set crosses by stable_id and resolves in pass 2,
+## like `core_location` — an end-of-turn reload after a resync/load reads the
+## same leaves the authority captured.
+func test_turn_start_leaves_resolve_in_the_second_pass() -> void:
+	var source := await _line_graph(3)
+	var target := await _line_graph(0)
+	var src_owner := _new_entity(source)
+	var dst_owner := _new_entity(target)
+	var src_nodes := source.get_skill_nodes()
+	src_owner.restore_turn_start_leaves([src_nodes[0], src_nodes[2]] as Array[SkillNode])
+
+	var entity_bytes := EntitySnapshot.encode(source)
+	EntitySnapshot.decode(entity_bytes, target)
+	GraphSnapshot.decode(GraphSnapshot.encode(source), target)
+	EntitySnapshot.resolve_graph_refs(entity_bytes, target)
+	EntitySnapshot.resolve_graph_refs(entity_bytes, target)
+
+	var want: Array[SkillNode] = [
+		target.get_by_stable_id(source.get_stable_id(src_nodes[0])),
+		target.get_by_stable_id(source.get_stable_id(src_nodes[2])),
+	]
+	assert_eq(dst_owner.get_turn_start_leaves(), want,
+			"turn-start leaves did not resolve by stable_id (or doubled on a second pass)")
