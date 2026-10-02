@@ -7,7 +7,8 @@ mkdir -p "$work/fake" "$work/resp"
 # The fake gh: logs every argv to $WORK/argv; for `api graphql --input F` it
 # copies F to $WORK/calls/<n>.json (the caller's tmpfile is gone by assert
 # time) and answers with $WORK/resp/<OperationName>.json, the name parsed from
-# the recorded query. An operation with no canned answer is exit 99.
+# the recorded query — or <OperationName>.<k>.json for its k-th call, when that
+# exists. An operation with no canned answer is exit 99.
 cat >"$work/fake/gh" <<'EOF'
 #!/usr/bin/env bash
 echo "$*" >>"$WORK/argv"
@@ -19,6 +20,8 @@ mkdir -p "$WORK/calls"; n=$(( $(ls "$WORK/calls" | wc -l) + 1 ))
 cp "$input" "$WORK/calls/$n.json"
 op=$(jq -r .query "$input" | grep -oE '(query|mutation) [A-Za-z]+' | head -1 | cut -d' ' -f2)
 echo "$op" >>"$WORK/ops"
+k=$(grep -cx "$op" "$WORK/ops")
+[ -f "$WORK/resp/$op.$k.json" ] && { cat "$WORK/resp/$op.$k.json"; exit 0; }
 [ -f "$WORK/resp/$op.json" ] || { echo "fake gh: no answer for $op" >&2; exit 99; }
 cat "$WORK/resp/$op.json"
 EOF
@@ -29,7 +32,7 @@ fail=0
 check() { if [ "$2" = "$3" ]; then echo "  ok   $1"; else echo "  FAIL $1: expected [$3] got [$2]"; fail=1; fi; }
 reset() { rm -rf "$work/calls" "$work/argv" "$work/ops"; }
 resp() { cat >"$work/resp/$1.json"; }
-ops() { tr '\n' ' ' <"$work/ops" 2>/dev/null | sed 's/ $//'; }
+ops() { tr '\n' ' ' 2>/dev/null <"$work/ops" | sed 's/ $//'; }
 # The variables of the first recorded call to operation $1.
 vars_of() { local f; for f in $(ls "$work/calls" 2>/dev/null | sort -n); do
   [ "$(jq -r .query "$work/calls/$f" | grep -oE '(query|mutation) [A-Za-z]+' | head -1 | cut -d' ' -f2)" = "$1" ] \
@@ -98,6 +101,14 @@ check "  ...asks for 100 comments a page" "$(vars_of Comments | jq -r .first)" "
 resp Boards <<<'{"data":{"repository":{"discussions":{"nodes":[{"id":"D_whip","title":"whip — skill feedback board","url":"u"}]}}}}'
 reset; out=$(fb unanswered 2>/dev/null)
 check "no charter -> every board in the category" "$(printf '%s\n' "$out" | wc -l)" "2"
+
+resp Comments.1 <<<'{"data":{"node":{"comments":{"pageInfo":{"hasNextPage":true,"endCursor":"CUR1"},"nodes":[{"id":"DC_1","url":"u1","body":"h1","replies":{"totalCount":0}}]}}}}'
+resp Comments.2 <<<'{"data":{"node":{"comments":{"pageInfo":{"hasNextPage":false,"endCursor":"CUR2"},"nodes":[{"id":"DC_5","url":"u5","body":"h5\nx","replies":{"totalCount":0}}]}}}}'
+reset; out=$(fb unanswered whip 2>/dev/null)
+check "pages until hasNextPage is false" "$out" "DC_1 u1 h1
+DC_5 u5 h5"
+check "  ...second page asks after the cursor" "$(jq -r .variables.after "$work/calls/4.json")" "CUR1"
+rm -f "$work/resp/Comments."*
 
 echo "5. reply"
 resp CommentDiscussion <<<'{"data":{"node":{"discussion":{"id":"D_whip"}}}}'

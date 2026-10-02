@@ -1,0 +1,156 @@
+#!/usr/bin/env bash
+#MISE description="Skill feedback boards (GitHub Discussions): `mise run feedback -- post <charter> <kind> <file> | unanswered [<charter>] | reply <comment-id> <file>`"
+set -euo pipefail
+
+# Each charter's board is a Discussion titled `<charter> — skill feedback
+# board` in the $FEEDBACK_CATEGORY category; the title is the lookup key and
+# the first post creates the board. Convention: docs/charters/README.md →
+# *Feedback boards*.
+#
+# GraphQL budget (see the note atop gh-project): every connection asks for a
+# small explicit size — categories 25, boards 50 per category, comments 100 a
+# page with a cursor loop. Every call is `gh api graphql --input <file>`, the
+# request body built by jq, so no text ever rides on the command line.
+CATEGORY=${FEEDBACK_CATEGORY:-Skill feedback}
+KINDS="gotcha friction probe law-candidate autopsy"
+OWNER_ACTION="the owner enables Discussions and creates the '$CATEGORY' category (#1326)"
+root=$(cd "$(dirname "$0")/../.." && pwd)
+tmp=$(mktemp -d); trap 'rm -rf "$tmp"' EXIT
+
+die() { echo "feedback: $*" >&2; exit 2; }
+usage() { sed -n 's/^#MISE description="\(.*\)"$/\1/p' "$0" >&2; exit 2; }
+board_title() { echo "$1 — skill feedback board"; }
+
+# gql <query> <variables-json> — one GraphQL call; prints `.data`, dies on errors.
+gql() {
+  jq -n --arg q "$1" --argjson v "$2" '{query: $q, variables: $v}' >"$tmp/req.json"
+  local out
+  if ! out=$(gh api graphql -X POST --input "$tmp/req.json" 2>"$tmp/err"); then
+    die "GitHub call failed: $(head -c 400 "$tmp/err") ${out:0:400}"
+  fi
+  if [ "$(jq '.errors // [] | length' <<<"$out")" -gt 0 ]; then
+    die "GitHub call failed: $(jq -c '.errors | map(.message)' <<<"$out")"
+  fi
+  jq '.data' <<<"$out"
+}
+
+repo() {
+  [ -n "${REPO:-}" ] && return 0
+  REPO=${FEEDBACK_REPO:-$(gh repo view --json nameWithOwner -q .nameWithOwner 2>/dev/null || echo "Koaieus/skill-tree-of-life")}
+}
+
+# Sets REPO_ID and CATEGORY_ID, or dies naming the owner action.
+meta() {
+  repo
+  local d
+  d=$(gql 'query Meta($owner: String!, $name: String!) {
+    repository(owner: $owner, name: $name) {
+      id hasDiscussionsEnabled
+      discussionCategories(first: 25) { nodes { id name } } } }' \
+    "$(jq -n --arg o "${REPO%%/*}" --arg n "${REPO#*/}" '{owner: $o, name: $n}')")
+  [ "$(jq -r '.repository.hasDiscussionsEnabled' <<<"$d")" = true ] \
+    || die "Discussions are disabled on $REPO — $OWNER_ACTION."
+  REPO_ID=$(jq -r '.repository.id' <<<"$d")
+  CATEGORY_ID=$(jq -r --arg c "$CATEGORY" '.repository.discussionCategories.nodes[] | select(.name == $c) | .id' <<<"$d" | head -1)
+  [ -n "$CATEGORY_ID" ] || die "no Discussion category '$CATEGORY' on $REPO — $OWNER_ACTION."
+}
+
+# Every board in the category, one `<id>\t<title>` line each.
+boards() {
+  gql 'query Boards($owner: String!, $name: String!, $cat: ID!) {
+    repository(owner: $owner, name: $name) {
+      discussions(first: 50, categoryId: $cat) { nodes { id title url } } } }' \
+    "$(jq -n --arg o "${REPO%%/*}" --arg n "${REPO#*/}" --arg c "$CATEGORY_ID" '{owner: $o, name: $n, cat: $c}')" \
+    | jq -r '.repository.discussions.nodes[] | "\(.id)\t\(.title)"'
+}
+
+# The id of the board titled exactly for charter $1, or empty.
+board_id() {
+  local t; t=$(board_title "$1")
+  boards | awk -F'\t' -v t="$t" '$2 == t { print $1; exit }'
+}
+
+# add_comment <discussion-id> <body-file> [<reply-to-id>] — prints the url.
+add_comment() {
+  gql 'mutation AddComment($discussionId: ID!, $body: String!, $replyToId: ID) {
+    addDiscussionComment(input: {discussionId: $discussionId, body: $body, replyToId: $replyToId}) {
+      comment { id url } } }' \
+    "$(jq -n --arg d "$1" --rawfile b "$2" --arg r "${3:-}" \
+        '{discussionId: $d, body: $b} + (if $r == "" then {} else {replyToId: $r} end)')" \
+    | jq -r '.addDiscussionComment.comment.url'
+}
+
+cmd_post() {
+  [ $# -eq 3 ] || usage
+  local charter=$1 kind=$2 file=$3
+  [ "$charter" != README ] && [ -f "$root/docs/charters/$charter.md" ] \
+    || die "no charter '$charter' (docs/charters/$charter.md)."
+  case " $KINDS " in *" $kind "*) ;; *) die "kind must be one of: $KINDS (got '$kind')." ;; esac
+  [ -f "$file" ] || die "no such file: $file"
+  local id8=${CLAUDE_CODE_SESSION_ID:-}; id8=${id8:0:8}
+  { printf '**%s · %s · session %s**\n\n' "$(date +%F)" "$kind" "${id8:--}"
+    cat "$file"; } >"$tmp/body.md"
+  meta
+  local id; id=$(board_id "$charter")
+  if [ -z "$id" ]; then
+    printf 'Skill feedback board for `docs/charters/%s.md`.\n\nPost and fold convention: `docs/charters/README.md` → *Feedback boards*. Post with `mise run feedback -- post %s <kind> <file>`; unanswered = unprocessed.\n' \
+      "$charter" "$charter" >"$tmp/board.md"
+    id=$(gql 'mutation CreateBoard($repositoryId: ID!, $categoryId: ID!, $title: String!, $body: String!) {
+      createDiscussion(input: {repositoryId: $repositoryId, categoryId: $categoryId, title: $title, body: $body}) {
+        discussion { id url } } }' \
+      "$(jq -n --arg r "$REPO_ID" --arg c "$CATEGORY_ID" --arg t "$(board_title "$charter")" --rawfile b "$tmp/board.md" \
+          '{repositoryId: $r, categoryId: $c, title: $t, body: $b}')" \
+      | jq -r '.createDiscussion.discussion.id')
+  fi
+  add_comment "$id" "$tmp/body.md"
+}
+
+# Top-level comments with no reply on board $1: `<id> <url> <header line>`.
+unanswered_on() {
+  local cursor="" d
+  while :; do
+    d=$(gql 'query Comments($id: ID!, $first: Int!, $after: String) {
+      node(id: $id) { ... on Discussion {
+        comments(first: $first, after: $after) {
+          pageInfo { hasNextPage endCursor }
+          nodes { id url body replies { totalCount } } } } } }' \
+      "$(jq -n --arg id "$1" --arg a "$cursor" '{id: $id, first: 100} + (if $a == "" then {} else {after: $a} end)')")
+    jq -r '.node.comments.nodes[] | select(.replies.totalCount == 0) | "\(.id) \(.url) \(.body | split("\n")[0])"' <<<"$d"
+    [ "$(jq -r '.node.comments.pageInfo.hasNextPage' <<<"$d")" = true ] || break
+    cursor=$(jq -r '.node.comments.pageInfo.endCursor' <<<"$d")
+  done
+}
+
+cmd_unanswered() {
+  [ $# -le 1 ] || usage
+  meta
+  if [ $# -eq 1 ]; then
+    local id; id=$(board_id "$1")
+    [ -n "$id" ] || { echo "feedback: no board for '$1' yet — nothing posted." >&2; return 0; }
+    unanswered_on "$id"
+  else
+    local id _
+    boards | while IFS=$'\t' read -r id _; do unanswered_on "$id"; done
+  fi
+}
+
+cmd_reply() {
+  [ $# -eq 2 ] || usage
+  [ -f "$2" ] || die "no such file: $2"
+  local d disc
+  d=$(gql 'query CommentDiscussion($id: ID!) {
+    node(id: $id) { ... on DiscussionComment { discussion { id } } } }' \
+    "$(jq -n --arg id "$1" '{id: $id}')")
+  disc=$(jq -r '.node.discussion.id // empty' <<<"$d")
+  [ -n "$disc" ] || die "'$1' is not a Discussion comment."
+  add_comment "$disc" "$2" "$1"
+}
+
+[ $# -ge 1 ] || usage
+verb=$1; shift
+case "$verb" in
+  post) cmd_post "$@" ;;
+  unanswered) cmd_unanswered "$@" ;;
+  reply) cmd_reply "$@" ;;
+  *) usage ;;
+esac
