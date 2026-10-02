@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-#MISE description="Self-test for whip: a scratch handoffs dir and a zero-exec fake for gh/git/claude, asserts start/trains/note/done/done-check/report and the watchdog no-op paths. Never launches a session, never calls gh. `mise run whip-selftest`"
+#MISE description="Self-test for whip: a scratch handoffs dir and a zero-exec fake for gh/git/claude/systemd, asserts the ledger verbs, the lead ceiling, the daemon gate, and every watchdog path (identity by id, verify-next-tick, give-up, lead liveness). Never launches a session, never calls gh. `mise run whip-selftest`"
 import contextlib, importlib.machinery, importlib.util, io, json, os, sys, tempfile, time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -21,7 +21,7 @@ def check(label, ok):
 # output; the board/agent helpers read the mutable fixture `fx`.
 calls = []
 SHA = "c0ffee0123456789abcdef0123456789abcdef01"
-fx = {"ready": [], "blocked_by": {}, "milestone": {}, "agents": [], "needs_design": []}
+fx = {"ready": [], "blocked_by": {}, "milestone": {}, "agents": [], "needs_design": [], "daemon": "active", "systemd_run_ok": True}
 CANNED = (
     ("git rev-parse master", SHA + "\n"),
     ("git worktree list --porcelain", "worktree /main\nHEAD x\n"),
@@ -32,12 +32,21 @@ CANNED = (
     ("gh issue list", "#99 Filed overnight\n"),
     ("agent-cost", "drone d10 · 80k\n"),
     ("claude --version", "2.9.0 (Claude Code)\n"),
+    ("loginctl show-user", "Linger=no\n"),
+    ("command -v mise", "/usr/bin/mise\n"),
 )
 
 
 def fake_sh(cmd, check=False, **kw):
     s = cmd if isinstance(cmd, str) else " ".join(cmd)
     calls.append(s)
+    if "is-active" in s:
+        return fx["daemon"] + "\n"
+    if "claude daemon status" in s:
+        return "pid: 1\nversion: x\n" if fx["daemon"] == "active" else "not running\n"
+    if "systemd-run" in s:
+        if fx["systemd_run_ok"]: fx["daemon"] = "active"
+        return ""
     for key, out in CANNED:
         if key in s:
             return json.dumps([{"number": n} for n in fx["needs_design"]]) if out is None else out
@@ -51,7 +60,12 @@ class FakeSubprocess:
         stdout = ""; stderr = ""; returncode = 0
 
     def run(self, cmd, *a, **kw):
-        calls.append(" ".join(cmd) if not isinstance(cmd, str) else cmd); return self._R()
+        s = " ".join(cmd) if not isinstance(cmd, str) else cmd
+        calls.append(s); r = self._R()
+        if "--bg" in s:  # a launch or a resume prints the backgrounded line
+            name = cmd[cmd.index("-n") + 1] if "-n" in cmd else "whip"
+            r = self._R(); r.stdout = f"backgrounded · \x1b[36mabcd1234\x1b[0m · {name}\n"
+        return r
 
     def Popen(self, cmd, *a, **kw):
         calls.append(" ".join(cmd) if not isinstance(cmd, str) else cmd); return self._R()
@@ -59,6 +73,7 @@ class FakeSubprocess:
 
 wh.sh = fake_sh
 wh.subprocess = FakeSubprocess()
+wh.SLEEP = lambda s: None
 wh.ready_issues = lambda: [{"number": n, "title": f"issue {n}"} for n in fx["ready"]]
 wh.blocked_by = lambda n: fx["blocked_by"].get(n, [])
 wh.milestone_of = lambda n: fx["milestone"].get(n, "")
@@ -66,9 +81,13 @@ wh.agents = lambda: fx["agents"]
 
 handoffs = tempfile.mkdtemp(prefix="whip-selftest-")
 wh.HDIR = handoffs
+wh.UNIT_DIR = tempfile.mkdtemp(prefix="whip-selftest-units-")
 wh.ROOT = tempfile.mkdtemp(prefix="whip-selftest-root-")  # no transcripts under ~/.claude/projects for this slug
+os.environ.pop("CLAUDE_CODE_SESSION_ID", None)
 real = os.path.join(os.environ.get("MISE_PROJECT_ROOT") or os.getcwd(), "docs", "handoffs")
 real_before = {p: os.path.getmtime(os.path.join(real, p)) for p in os.listdir(real) if p.startswith("whip-")} if os.path.isdir(real) else {}
+real_units = os.path.expanduser("~/.config/systemd/user")
+units_before = sorted(os.listdir(real_units)) if os.path.isdir(real_units) else []
 
 
 def run(*argv):
@@ -87,9 +106,9 @@ def run(*argv):
     return code, out.getvalue()
 
 
-def launches():
+def launches(since=0):
     """Every session start/stop/prompt, including the relieve path's re-exec of whip itself."""
-    return [c for c in calls if (c.startswith("claude") and "--version" not in c) or wh.__file__ in c]
+    return [c for c in calls[since:] if (c.startswith("claude") and "--version" not in c and "daemon status" not in c) or wh.__file__ in c]
 
 
 today = time.strftime("%Y-%m-%d")
@@ -108,6 +127,20 @@ def poke(**kv):
         json.dump(st, f)
 
 
+# --- session-state normaliser: the two vocabularies of `claude agents --json` --
+# Shapes observed verbatim 2026-10-02: interactive sessions carry `status`,
+# background ones `state`, a finished bg turn both, and a dead bg record
+# lingers as {state: blocked} with no pid.
+S = wh.session_state
+check("interactive busy → busy", S({"kind": "interactive", "pid": 1, "status": "busy"}) == "busy")
+check("interactive idle → idle", S({"kind": "interactive", "pid": 1, "status": "idle"}) == "idle")
+check("bg blocked with a pid → blocked", S({"kind": "background", "pid": 2, "status": "idle", "state": "blocked"}) == "blocked")
+check("bg finished turn {status idle, state done} → idle", S({"kind": "background", "pid": 2, "status": "idle", "state": "done"}) == "idle")
+check("bg {status idle, state working} → idle (status decides busy)", S({"kind": "background", "pid": 2, "status": "idle", "state": "working"}) == "idle")
+check("bg working with no status → busy", S({"kind": "background", "pid": 2, "state": "working"}) == "busy")
+check("dead bg record {state blocked}, no pid, no status → gone", S({"kind": "background", "state": "blocked"}) == "gone")
+check("missing entry → gone", S(None) == "gone")
+
 # --- no run on disk --------------------------------------------------------
 code, out = run("watchdog")
 check("watchdog with no run is a silent no-op", code == 0 and not os.listdir(handoffs) and not calls)
@@ -118,11 +151,16 @@ check("show with no run says so, exit 0", code == 0 and "no whip run" in out)
 fx["ready"] = [10, 11, 12, 20, 21, 30]
 fx["blocked_by"] = {11: [10], 12: [11], 21: [999]}  # 999 is off the Ready set: ignored
 fx["milestone"] = {20: "M1", 21: "M1", 30: "M2"}
+fx["daemon"] = "inactive"
 code, out = run("start", "--no-issue", "--cap", "8")
 st = state()
 check("start writes whip-<today>.json + .md into the scratch dir", code == 0 and os.path.exists(jpath) and os.path.exists(jpath[:-5] + ".md"))
-check("start snapshots the Ready set, master sha and cap", st["ready"] == fx["ready"] and st["start_sha"] == SHA and st["cap_h"] == 8)
+check("start snapshots the Ready set, master sha, cap and a lead ceiling of 1", st["ready"] == fx["ready"] and st["start_sha"] == SHA and st["cap_h"] == 8 and st["max_leads"] == 1)
 check("start --no-issue files no run issue", "run_issue" not in st and not any(c.startswith("gh") for c in calls))
+check("start prints the owner-only actions FIRST (linger, inhibit), before the ledger",
+      out.index("enable-linger") < out.index("# Whip ") and out.index("systemd-inhibit") < out.index("# Whip "))
+check("start brings the daemon unit up via systemd-run before anything else", any("systemd-run" in c and "daemon run" in c for c in calls) and fx["daemon"] == "active")
+check("start installs the watchdog timer into the unit dir", os.path.exists(os.path.join(wh.UNIT_DIR, "whip-watchdog.timer")) and any("enable --now whip-watchdog.timer" in c for c in calls))
 check("start prints the rendered ledger", "# Whip " + today in out and "cap 8" in out)
 code, out = run("start", "--no-issue")
 check("a second start refuses: run already on disk", code == 0 and "already on disk" in out)
@@ -137,29 +175,57 @@ fx["milestone"] = {}
 code, out = run("trains")
 check("trains without --redo keeps the existing split", {t["name"]: t["issues"] for t in state()["trains"]} == names)
 
+# --- train drop ------------------------------------------------------------
+code, out = run("train", "drop", "b", "21")
+st = state()
+check("train drop removes the issue from its train and records it as dropped", code == 0 and st["trains"][1]["issues"] == [20] and st["dropped"] == [21])
+code, out = run("train", "drop", "b", "77")
+check("train drop of an issue not in the train refuses", code != 0 and "not in train" in out)
+
+# --- launch: the daemon gate and the lead ceiling --------------------------
+calls.clear(); fx["agents"] = []
+fx["daemon"] = "inactive"; fx["systemd_run_ok"] = False
+code, out = run("launch", "lead-a", "10 11 12")
+check("launch refuses when the daemon unit cannot be made active — never a transient daemon", code == 2 and not any("--bg" in c for c in calls) and "daemon" in out)
+fx["systemd_run_ok"] = True
+code, out = run("launch", "lead-a", "10 11 12")
+st = state()
+check("launch brings the daemon up, then starts the lead as a --bg session", code == 0 and st["leads"]["lead-a"]["state"] == "running" and st["trains"][0]["lead"] == "lead-a")
+check("the launch command carries name, mode, model and the supervised clauses", any("--bg -n lead-a --permission-mode" in c and "supervised by whip" in c for c in calls))
+fx["agents"] = [{"kind": "background", "pid": 5, "name": "lead-a", "sessionId": "abcd1234", "state": "working"}]
+code, out = run("launch", "lead-b", "20")
+check("a second concurrent lead is refused at the default ceiling of 1", code == 2 and "ceiling" in out and "lead-b" not in state()["leads"])
+code, out = run("max-leads", "2")
+check("max-leads raises the ceiling and logs it as an owner action", code == 0 and state()["max_leads"] == 2 and any("owner" in e and "ceiling" in e for e in state()["events"]))
+code, out = run("launch", "lead-b", "20")
+check("with the ceiling raised the second lead launches", code == 0 and "lead-b" in state()["leads"])
+code, out = run("launch", "relief-a-1", "", "--relief")
+st = state()
+check("a relief does not count against the ceiling and takes over its train", code == 0 and st["trains"][0]["lead"] == "relief-a-1" and st["leads"]["lead-a"]["state"] == "relieved")
+check("the relief prompt names the outgoing lead", any("--relief" not in c and "relieve the session named 'lead-a'" in c for c in calls))
+
 # --- note / done -----------------------------------------------------------
 code, out = run("note", "needs owner #20: cursor fork")
 check("note appends a timestamped note and an event", code == 0 and state()["notes"][-1].endswith("needs owner #20: cursor fork")
       and any("note: needs owner" in e for e in state()["events"]))
-# `done` needs a lead row, which only `launch` writes — seed it in whip's own state.
-st = state(); st["leads"]["lead-a"] = {"session": "abcdef1234", "kind": "lead", "launched": "x", "state": "running", "issues": "10 11 12"}
-st["trains"][0].update(lead="lead-a", state="running"); poke(**st)
-code, out = run("done", "lead-a", SHA, "3/3")
+code, out = run("done", "relief-a-1", SHA, "3/3")
 st = state()
 check("done marks the lead and its train done with sha7 + n/m",
-      code == 0 and st["leads"]["lead-a"]["state"] == "done" and st["trains"][0]["state"] == f"done {SHA[:7]} 3/3")
-check("done leaves other trains queued", st["trains"][1]["state"] == "queued")
+      code == 0 and st["leads"]["relief-a-1"]["state"] == "done" and st["trains"][0]["state"] == f"done {SHA[:7]} 3/3")
+check("done leaves other trains as they were", st["trains"][2]["state"] == "queued")
 code, out = run("done", "lead-nobody", SHA, "0/0")
 check("done on an unknown lead refuses", code != 0 and "unknown lead" in out)
+run("done", "lead-b", SHA, "1/1")
 md = open(jpath[:-5] + ".md").read()
-check("the rendered ledger shows trains, leads and notes", "| a | #10 #11 #12 | lead-a |" in md and "| lead-a | abcdef12 |" in md and "cursor fork" in md)
+check("the rendered ledger shows trains, leads, ceiling and notes", "| a | #10 #11 #12 | relief-a-1 |" in md and "| lead-a | abcd1234 |" in md and "cursor fork" in md and "leads ≤ 2" in md)
 
 # --- done-check ------------------------------------------------------------
-fx["ready"] = [21, 30]; fx["agents"] = [{"name": "lead-a", "status": "idle"}]
+fx["ready"] = [21, 30]; fx["agents"] = [{"kind": "background", "pid": 5, "name": "lead-a", "sessionId": "abcd1234", "status": "idle", "state": "done"}]
+st = state(); st["leads"]["lead-a"]["state"] = "running"; poke(**st)
 code, out = run("done-check")
-check("done-check dirty: an unnoted still-Ready issue is named, exit 1", code == 1 and "#21 still Ready and not noted" in out and "#30" in out)
-check("done-check dirty: a lead still running is named", "lead-a still running" in out)
-run("note", "still-ready #21: blocked off-set"); run("note", "still-ready #30: no capacity")
+check("done-check dirty: an unnoted still-Ready issue is named, exit 1; a dropped one is not", code == 1 and "#30 still Ready and not noted" in out and "#21" not in out)
+check("done-check dirty: a lead still alive (by session id) is named", "lead-a still running" in out)
+run("note", "still-ready #30: no capacity")
 fx["agents"] = []
 code, out = run("done-check")
 check("done-check clean once every still-Ready is noted and no lead runs", code == 0 and "done-check: clean" in out)
@@ -171,12 +237,13 @@ code, out = run("report")
 rpath = os.path.join(handoffs, f"whip-report-{today}.md")
 rep = open(rpath).read() if os.path.exists(rpath) else ""
 check("report writes whip-report-<date>.md into the scratch dir", code == 0 and rpath in out and rep)
-check("report headline: landed 2/6, back 1, still Ready 2", "Landed 2/6" in rep and "back to Needs design 1" in rep and "still Ready 2" in rep)
+check("report headline: landed 2/6, back 1, dropped 1, still Ready 1", "Landed 2/6" in rep and "back to Needs design 1" in rep and "dropped 1" in rep and "still Ready 1" in rep)
 check("report lists landed by Closes, with titles", "- #10 issue 10" in rep and "- #11 issue 11" in rep)
-check("report carries the still-ready why from the note", "- #21 issue 21 — blocked off-set" in rep)
+check("report carries the still-ready why from the note and the dropped issue", "- #30 issue 30 — no capacity" in rep and "## Dropped by the owner" in rep and "- #21 issue 21" in rep)
 check("report sections: needs owner, filed, incidents, cost", "cursor fork" in rep and "#99 Filed overnight" in rep and "## Incidents" in rep and "80k" in rep)
 check("report with no run issue posts no comment", not any("issue comment" in c for c in calls[base:]))
-check("report marks the run done + writes the .done marker", state()["done"] is True and os.path.exists(jpath[:-5] + ".done"))
+check("report marks the run done, writes the .done marker and disables the timer",
+      state()["done"] is True and os.path.exists(jpath[:-5] + ".done") and any("disable --now whip-watchdog.timer" in c for c in calls[base:]))
 
 # --- watchdog no-op paths --------------------------------------------------
 base = len(calls)
@@ -188,26 +255,84 @@ check("watchdog: the .done marker alone keeps it a no-op", len(calls) == base)
 os.remove(jpath[:-5] + ".done")
 poke(started_ts=time.time() - 48 * 3600, cap_h=1, whip_session="deadbeefcafe", relieve_whip=True)
 fx["agents"] = []
-run("watchdog")
-check("capped + whip missing: no --resume", not any("--resume" in c for c in launches()))
-fx["agents"] = [{"name": "whip", "status": "idle", "sessionId": "deadbeefcafe"}]
-run("watchdog")
-check("capped + relieve_whip + whip idle: no stop, no relaunch", not launches() and state().get("relieve_whip") is True)
+base = len(calls); run("watchdog")
+check("capped + whip missing: no --resume", not any("--resume" in c for c in launches(base)))
+fx["agents"] = [{"kind": "background", "pid": 9, "name": "whip", "status": "idle", "state": "done", "sessionId": "deadbeefcafe"}]
+base = len(calls); run("watchdog")
+check("capped + relieve_whip + whip idle: no stop, no relaunch", not launches(base) and state().get("relieve_whip") is True)
 poke(started_ts=time.time(), cap_h=8, relieve_whip=False, cli_version="")
-fx["agents"] = [{"name": "whip", "status": "running", "sessionId": "deadbeefcafe"},
-                {"name": "lead-b", "status": "running", "state": "blocked"}]
-before = len(calls)
-run("watchdog")
-check("whip present and busy: no prompt, only the version probe", not launches() and calls[before:] == ["claude --version"])
+fx["agents"] = [{"kind": "background", "pid": 9, "name": "whip", "status": "busy", "state": "working", "sessionId": "deadbeefcafe"}]
+base = len(calls); run("watchdog")
+check("whip present and busy: no prompt, only the version probe", not launches(base))
 check("first busy pass records the CLI version", state().get("cli_version") == "2.9.0")
-run("watchdog")
-check("second busy pass with the same CLI is a no-op", not launches() and state().get("cli_version") == "2.9.0")
+base = len(calls); run("watchdog")
+check("second busy pass with the same CLI is a no-op", not launches(base) and state().get("cli_version") == "2.9.0")
+
+# --- watchdog: identity by session id, not by name -------------------------
+fx["agents"] = [{"kind": "interactive", "pid": 9, "name": "WHIP: Ready issues first run", "status": "busy", "sessionId": "deadbeefcafe"}]
+base = len(calls); run("watchdog")
+check("a whip under another name but the ledger's session id is recognised: no resume", not any("--resume" in c for c in launches(base)))
+fx["agents"] = [{"kind": "background", "pid": 9, "name": "whip", "status": "idle", "state": "done", "sessionId": "someoneelse"}]
+base = len(calls); run("watchdog")
+check("a session merely NAMED whip with a different id is not whip: the ledger's whip is resumed", any("--resume deadbeefcafe" in c for c in launches(base)))
+st = state(); st["pending"] = None; st["failures"] = 0; poke(**st)
+
+# --- watchdog: the resume is flagless and verified on the next tick --------
+fx["agents"] = []
+base = len(calls); run("watchdog")
+res = [c for c in launches(base) if "--resume" in c]
+check("whip gone → one `claude --bg --resume <id> <prompt>` with NO -n / --permission-mode (flags fork a copy)",
+      len(res) == 1 and res[0].startswith("claude --bg --resume deadbeefcafe ") and "-n " not in res[0] and "--permission-mode" not in res[0])
+check("the action is recorded as pending, to be verified next tick", state()["pending"]["action"].startswith("resume") and state()["failures"] == 0)
+check("the daemon unit was checked before the resume", any("is-active" in c for c in calls[base:]))
+fx["agents"] = [{"kind": "background", "pid": 9, "name": "whip", "status": "idle", "state": "done", "sessionId": "deadbeefcafe"}]
+base = len(calls); run("watchdog")
+check("next tick, whip is back: pending cleared, failures stay 0, no second resume", state()["pending"] is None and state()["failures"] == 0 and not any("--resume" in c for c in launches(base)))
+fx["agents"] = []
+for i in range(1, 4):
+    base = len(calls); run("watchdog")           # resume → pending
+    base2 = len(calls); run("watchdog")          # still gone → failure i, then (if under the limit) resume again
+    if i < 3:
+        check(f"failure {i}/3 counted and another resume tried", state()["failures"] == i and any("--resume" in c for c in launches(base2)))
+check("third consecutive failure: give-up marker written, timer stopped, no further resume",
+      state()["failures"] == 3 and os.path.exists(jpath[:-5] + ".gave-up") and any("stop whip-watchdog.timer" in c for c in calls[base2:])
+      and not any("--resume" in c for c in launches(base2)) and any("GAVE UP" in e for e in state()["events"]))
+base = len(calls); run("watchdog")
+check("after give-up the watchdog is a no-op", not launches(base))
+code, out = run("show")
+check("show carries the give-up in its header for the morning", "GAVE UP" in out.splitlines()[1])
+os.remove(jpath[:-5] + ".gave-up"); poke(failures=0, pending=None, gave_up=None)
+
+# --- watchdog: lead liveness from the ledger, whip or no whip --------------
+st = state(); st["leads"]["lead-b"]["state"] = "running"; st["trains"][1]["state"] = "running"; poke(**st)
+fx["agents"] = []  # whip gone AND lead-b gone
+base = len(calls); run("watchdog")
+res = [c for c in launches(base) if "--resume" in c]
+check("whip gone, lead gone: lead-b marked stalled in the ledger and the resume prompt names it",
+      state()["leads"]["lead-b"]["state"].startswith("stalled") and res and "lead-b" in res[0])
+poke(pending=None, failures=0)
+st = state(); st["leads"]["lead-b"]["state"] = "running"; poke(**st)
+fx["agents"] = [{"kind": "background", "pid": 9, "name": "whip", "status": "idle", "state": "done", "sessionId": "deadbeefcafe"},
+                {"kind": "background", "pid": 7, "name": "lead-b", "status": "idle", "state": "blocked", "sessionId": "abcd1234"}]
+base = len(calls); run("watchdog")
+ls = launches(base)
+check("whip idle, lead blocked: whip is stopped then resumed flagless with the lead's name",
+      len(ls) == 2 and ls[0] == "claude stop deadbeefcafe" and ls[1].startswith("claude --bg --resume deadbeefcafe ") and "lead-b" in ls[1]
+      and state()["leads"]["lead-b"]["state"] == "stalled (blocked)")
+base = len(calls); run("watchdog")
+check("a stalled lead is not re-prompted inside the nudge gap", not launches(base))
+fx["agents"] = [{"kind": "background", "pid": 9, "name": "whip", "status": "idle", "state": "done", "sessionId": "deadbeefcafe"},
+                {"kind": "background", "pid": 7, "name": "lead-b", "status": "idle", "state": "working", "sessionId": "abcd1234"}]
+st = state(); st["leads"]["lead-b"]["state"] = "running"; st["pending"] = None; st["last_nudge_ts"] = 0; poke(**st)
+base = len(calls); run("watchdog")
+check("an idle lead is NOT a stall: whip idle + lead idle → nothing", not launches(base))
 
 # --- the fence held --------------------------------------------------------
-check("no Claude session was ever launched, stopped or prompted", not launches())
 check("the only gh calls were answered by the fake, never posting", all(c.startswith("gh issue list") for c in calls if c.startswith("gh ")))
 real_after = {p: os.path.getmtime(os.path.join(real, p)) for p in os.listdir(real) if p.startswith("whip-")} if os.path.isdir(real) else {}
 check("the real docs/handoffs/whip-* files are untouched", real_after == real_before)
+units_after = sorted(os.listdir(real_units)) if os.path.isdir(real_units) else []
+check("the real ~/.config/systemd/user is untouched", units_after == units_before)
 
 print("all checks passed" if not failed else f"{failed} FAILED")
 sys.exit(1 if failed else 0)
