@@ -48,6 +48,10 @@ const CORE_DRAG_SNAP_RADIUS := 90.0
 ## (`%ArmedStack`). Left unwired (a bare fixture), the controller makes a
 ## private one in `_ready`.
 @export var armed_stack: ArmedStack
+## The viewing seat's fog: the attack levels mint their plans with it (the
+## plan's caller-side highlight filter) and the ranged level drives its
+## sensed-pickability lever. Optional — unwired, plans cast without fog.
+@export var vision_system: VisionSystem
 
 signal player_can_act_changed(can_act: bool)
 ## Core-move targeting state (#21). `source` is the player's core node while a
@@ -567,11 +571,11 @@ func reform_blade() -> bool:
 	var melee := armed_stack.find(MeleeMode) as MeleeMode
 	if melee != null:
 		melee.open_blade()
-	# The swing direction is BattleSystem's sticky preference, and that is what
+	# The swing direction is the seat's sticky preference, and that is what
 	# the tray's toggle label reads — setting only `plan.swing_cw` would restore
 	# the swing while the button kept advertising the old direction.
 	var cw: bool = payload.swing_cw
-	battle_system.next_melee_cw = cw
+	armed_stack.next_melee_cw = cw
 	plan.swing_cw = cw
 	return true
 
@@ -771,7 +775,7 @@ func _arm_temp_upgrade_at(index: int) -> bool:
 ## MAGIC is the live attack mode — the picker these mirror only exists in the
 ## magic tray, so the digits are modal exactly like the tray is.
 ##
-## Writes [member BattleSystem.selected_spell], the SAME terminal
+## Writes [member ArmedStack.selected_spell], the SAME terminal
 ## [SpellPickerBar] `spell_selected` reaches through [MagicBody] — so the
 ## picker's highlight (driven by `selected_spell_changed`) and the plan cannot
 ## disagree about what is armed.
@@ -788,7 +792,7 @@ func _select_spell_at(index: int) -> bool:
 	var spell := spell_at_slot(player.spellbook, index)
 	if spell == null:
 		return false
-	battle_system.selected_spell = spell
+	armed_stack.selected_spell = spell
 	return true
 
 
@@ -1160,8 +1164,8 @@ func arm_attack(mode: BattleSystem.AttackMode) -> bool:
 			armed_stack.pop(current)
 		return false
 	# Already armed AND still holding its plan: a repeat press keeps the plan.
-	# A level whose plan the slot tore down on its own (a launch with no
-	# applier to report it) is replaced, not trusted.
+	# A level left without a plan (armed on another entity's turn) is
+	# replaced, not trusted.
 	if current != null and current.mode == mode and current.plan() != null:
 		return true
 	if not can_player_act():

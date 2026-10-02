@@ -61,22 +61,22 @@ func _on_bar_layout_changed(row_count: int, button_px: float) -> void:
 func _on_bound() -> void:
 	_spell_bar.bind_spellbook(_player.spellbook)
 	_spell_bar.spell_selected.connect(_on_spell_selected)
-	_battle_system.selected_spell_changed.connect(_spell_bar.sync_selected)
 	_reset_button.pressed.connect(_reset_plan)
 	_launch_button.pressed.connect(_on_launch_pressed)
 	if _armed_stack != null:
 		_armed_stack.attack_plan_state_changed.connect(_refresh)
+		_armed_stack.selected_spell_changed.connect(_spell_bar.sync_selected)
 	if _input_ctl != null:
 		_input_ctl.player_can_act_changed.connect(_on_can_act_changed)
 		_spell_bar.set_enabled(_input_ctl.can_player_act())
-	if _battle_system.selected_spell != null:
-		_spell_bar.sync_selected(_battle_system.selected_spell)
+	if _armed_stack != null and _armed_stack.selected_spell != null:
+		_spell_bar.sync_selected(_armed_stack.selected_spell)
 	_refresh()
 
 
 func teardown() -> void:
-	if _battle_system.selected_spell_changed.is_connected(_spell_bar.sync_selected):
-		_battle_system.selected_spell_changed.disconnect(_spell_bar.sync_selected)
+	if _armed_stack != null and _armed_stack.selected_spell_changed.is_connected(_spell_bar.sync_selected):
+		_armed_stack.selected_spell_changed.disconnect(_spell_bar.sync_selected)
 	if _armed_stack != null and _armed_stack.attack_plan_state_changed.is_connected(_refresh):
 		_armed_stack.attack_plan_state_changed.disconnect(_refresh)
 	if _input_ctl != null and _input_ctl.player_can_act_changed.is_connected(_on_can_act_changed):
@@ -84,7 +84,8 @@ func teardown() -> void:
 
 
 func _on_spell_selected(spell: SpellDef) -> void:
-	_battle_system.selected_spell = spell
+	if _armed_stack != null:
+		_armed_stack.selected_spell = spell
 
 
 func _on_can_act_changed(can_act: bool) -> void:

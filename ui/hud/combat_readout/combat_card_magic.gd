@@ -3,7 +3,7 @@ class_name CombatCardMagic
 extends CombatReadoutCard
 ## Magic readout: selected spell's potency/instance + hop reach ("rare" tag
 ## when [member PropagationConfig.max_hops] is nonzero). Bound to whichever
-## spell [BattleSystem.selected_spell] currently points at — null-safe.
+## spell [member ArmedStack.selected_spell] currently points at — null-safe.
 ##
 ## The Reach row has two tiers. No spell selected: the row DESCRIBES the
 ## caster's `cast_range_hops` pipeline as text ("(X+3) × 1.5") via
@@ -20,7 +20,7 @@ extends CombatReadoutCard
 @onready var _potency_row: CombatValueRow = %PotencyRow
 @onready var _reach_row: CombatValueRow = %ReachRow
 
-var _battle_system: BattleSystem
+var _armed_stack: ArmedStack
 
 var _spell: SpellDef:
 	get = _get_spell, set = _set_spell 
@@ -33,13 +33,13 @@ func _bind(board: StatBoard, owner_entity: Entity = null) -> void:
 	var reach: Stat = board.get_stat(&"cast_range_hops")
 	if reach != null:
 		_binds.link(reach.value_changed, _refresh)
-	if _battle_system != null:
-		_binds.link(_battle_system.selected_spell_changed, _set_spell)
+	if _armed_stack != null:
+		_binds.link(_armed_stack.selected_spell_changed, _set_spell)
 
 func _get_spell() -> SpellDef:
 	if _spell != null:
 		return _spell
-	return _battle_system.selected_spell if _battle_system else null
+	return _armed_stack.selected_spell if _armed_stack else null
 	
 func _set_spell(spell: SpellDef = null):
 	if spell != null and spell == _spell: return

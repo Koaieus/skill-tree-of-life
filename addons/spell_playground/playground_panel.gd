@@ -244,15 +244,16 @@ func _capture_authored_world() -> void:
 ## committed one, plus the spell's reach. The panel used to state its whole
 ## targeting situation in one word of a status line.
 ##
-## No `commands` opt. [method BattleSystem.launch_attack] names the editor as a
-## first-class no-applier caller and runs the applier's own two halves in the
-## applier's own order; the command queue itself has its own harness in the
-## Outcome playground tab (#539).
+## `input` (which brings `commands`): the plan is armed the way the game arms
+## it — [method PlayerInputController.arm_attack] pushes a [MagicMode] onto the
+## seat's [ArmedStack], which owns the plan, and the [HighlightController]
+## paints the targeting rings off that stack. [BattleSystem] holds no plan to
+## arm, so a controller-less panel would show no rings at all.
 func _build_systems() -> void:
 	_systems = _SANDBOX_WORLD.new()
 	_systems.name = "Systems"
 	add_child(_systems)
-	_systems.build(graph, {turn_manager = true, attack_vfx = true, highlight = true})
+	_systems.build(graph, {input = true, attack_vfx = true, highlight = true})
 	_alloc = _systems.allocation_system
 	_battle = _systems.battle_system
 
@@ -295,6 +296,9 @@ func _arm_board() -> void:
 	# sandbox rule).
 	if _systems.turn_manager != null:
 		_systems.turn_manager.adopt_turn(caster_entity, _systems.turn_manager.turns_taken)
+	# The seat plays the caster: the attack level mints its plan for this entity.
+	if _systems.input_controller != null:
+		_systems.input_controller.player = caster_entity
 
 
 func _reset_board(entity: Entity) -> void:
@@ -439,23 +443,23 @@ func _on_target_clicked(node: SkillNode) -> void:
 ## to learn a seed was illegal was to be refused by it.
 ##
 ## Idempotent, and re-armed after everything that invalidates a plan: a spell
-## swap (reach changes), Reset (ownership changes), a cast ([method
-## BattleSystem._commit] drops the plan on its way out).
+## swap (reach changes), Reset (ownership changes), a cast (the [MagicMode]
+## level swaps in a fresh plan once its launched one is released).
 ##
 ## Returns the armed plan, or null when there is nothing to arm.
 func _arm_plan() -> MagicAttackPlan:
-	if _casting or _battle == null:
+	if _casting or _battle == null or _systems.input_controller == null:
 		return null
+	var stack: ArmedStack = _systems.armed_stack
 	if not is_instance_valid(_spell):
 		# No spell, no targeting to show — and a plan armed with a null spell
 		# would paint a stale reach. Drop it rather than leave it lying.
-		if _battle.is_attacking:
-			_battle.cancel_attack()
+		stack.cancel_attack()
 		return null
-	_battle.selected_spell = _spell
-	if _battle.attack_mode != BattleSystem.AttackMode.MAGIC:
-		_battle.request_attack_mode(BattleSystem.AttackMode.MAGIC)
-	var plan := _battle.attack_plan as MagicAttackPlan
+	stack.selected_spell = _spell
+	if stack.attack_plan() == null or stack.attack_mode() != BattleSystem.AttackMode.MAGIC:
+		_systems.input_controller.arm_attack(BattleSystem.AttackMode.MAGIC)
+	var plan := stack.attack_plan() as MagicAttackPlan
 	if plan == null:
 		push_warning("Spell Playground: no magic plan to arm")
 		return null
@@ -522,8 +526,8 @@ func _refresh_status() -> void:
 	# that would be a second copy of the targeting rules, and the in-range rings
 	# the overlay just painted answer it better than a sentence could.
 	var plan: MagicAttackPlan = null
-	if _battle != null:
-		plan = _battle.attack_plan as MagicAttackPlan
+	if _systems != null and _systems.armed_stack != null:
+		plan = _systems.armed_stack.attack_plan() as MagicAttackPlan
 	if plan != null and _selected_target != null and plan.target != _selected_target:
 		status_label.text += " · not a legal target (the green rings are)"
 	cast_button.disabled = (_selected_target == null) or _casting
@@ -766,7 +770,7 @@ func _cast() -> void:
 		return
 	_set_casting(true)
 	@warning_ignore("redundant_await")
-	await _battle.launch_attack(_battle.attack_plan)
+	await _battle.launch_attack(plan)
 	# The panel can be torn down mid-launch (plugin disabled, tab rebuilt); its
 	# buttons are gone by then and re-enabling them would crash.
 	if not is_inside_tree():
@@ -777,11 +781,11 @@ func _cast() -> void:
 	# status line with the ordinary "spell · seed →" text, and a refused cast
 	# becomes byte-identical to a cast that legitimately changed nothing (a heal
 	# on a full node). That is the exact shape of silence this panel just spent a
-	# release in. [method BattleSystem._commit] clears the plan on its way out, so
-	# a plan still armed here means nothing launched.
-	# Read BEFORE the re-arm below, which puts a plan back on the system and would
-	# make a launched cast look like a refused one.
-	var launched := not _battle.is_attacking
+	# release in. A launch's release makes the [MagicMode] level drop the plan
+	# it launched, so the same plan still armed here means nothing launched.
+	# Read BEFORE the re-arm below, which arms a fresh plan and would make a
+	# launched cast look like a refused one.
+	var launched: bool = _systems.armed_stack.attack_plan() != plan
 	_set_casting(false)
 	# The cast consumed the plan; re-arm so the board goes on showing what this
 	# spell can reach from the caster's hub — including how the cascade just

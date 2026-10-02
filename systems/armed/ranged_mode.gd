@@ -9,6 +9,44 @@ func _init(p_ctl: PlayerInputController) -> void:
 	super(p_ctl, BattleSystem.AttackMode.RANGED)
 
 
+const _AMMO_ROSTER: AmmoTypeRoster = preload("res://attack/ammo/ammo_type_roster.tres")
+
+
+func on_pushed() -> bool:
+	if not super():
+		return false
+	_sync_pick_sensed()
+	return true
+
+
+func on_popped() -> void:
+	super()
+	if ctl.vision_system != null:
+		ctl.vision_system.pick_sensed = false
+
+
+## The sensed-pickability lever (#1033) on the seat's fog: on while this
+## level's plan is armed and the attacker's quiver holds scout stock — the
+## scout shot's target set is the sensed nodes. VisionSystem owns the lever,
+## this level owns the mode; the plan never writes another system's state.
+func _sync_pick_sensed() -> void:
+	var vision := ctl.vision_system
+	if vision == null:
+		return
+	var want := false
+	var ranged := plan() as RangedAttackPlan
+	if ranged != null:
+		ranged.viewer_vision = vision
+		if ranged.attacker != null and ranged.attacker.stat_board != null:
+			var quiver: Quiver = ranged.attacker.stat_board.arrows
+			if quiver != null:
+				for t in _AMMO_ROSTER.sorted():
+					if t.reveal_fraction > 0.0 and quiver.stock_of(t.id) > 0:
+						want = true
+						break
+	vision.pick_sensed = want
+
+
 func handle_left_click(node: SkillNode) -> bool:
 	if plan() == null:
 		return false

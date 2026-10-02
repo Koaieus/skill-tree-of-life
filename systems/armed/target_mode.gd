@@ -5,7 +5,7 @@ extends AttackStepMode
 ## (a refused retarget is still consumed); popping clears the target.
 ##
 ## Beyond [AttackStepMode]'s events, a spell swap
-## ([signal BattleSystem.selected_spell_changed]) pops this level when the new
+## ([signal ArmedStack.selected_spell_changed]) pops this level when the new
 ## spell can no longer reach the target. Reading `plan.target` there is the
 ## plan's own fact read on the plan's own event — never a
 ## `state_changed` listener, never a poll.
@@ -17,14 +17,14 @@ func _init(p_parent: AttackArmMode) -> void:
 
 func on_pushed() -> bool:
 	super()
-	ctl.battle_system.selected_spell_changed.connect(_on_spell_changed)
+	ctl.armed_stack.selected_spell_changed.connect(_on_spell_changed)
 	return true
 
 
 func on_popped() -> void:
-	var bs := ctl.battle_system
-	if bs.selected_spell_changed.is_connected(_on_spell_changed):
-		bs.selected_spell_changed.disconnect(_on_spell_changed)
+	var seat := ctl.armed_stack
+	if seat != null and seat.selected_spell_changed.is_connected(_on_spell_changed):
+		seat.selected_spell_changed.disconnect(_on_spell_changed)
 	super()
 
 

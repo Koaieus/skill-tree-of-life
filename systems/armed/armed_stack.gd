@@ -23,8 +23,24 @@ signal attack_plan_state_changed
 ## armed step levels ([BladeMode], [TargetMode]) pop on.
 signal plan_reset
 
+
+## The seat's picked spell — a sticky preference that outlives every plan. The
+## next [MagicMode] plan is minted with it; picking one while a magic plan is
+## armed re-equips that plan ([method MagicAttackPlan.set_spell]). Null means
+## "the plan's bundled fallback".
 signal selected_spell_changed(spell: SpellDef)
-var selected_spell: SpellDef = null
+var selected_spell: SpellDef = null:
+	set(value):
+		if selected_spell == value:
+			return
+		selected_spell = value
+		var magic := attack_plan() as MagicAttackPlan
+		if magic != null:
+			magic.set_spell(value)
+		selected_spell_changed.emit(value)
+
+## The seat's sticky swing direction for the next [MeleeAttackPlan]
+## ([member MeleeAttackPlan.swing_cw]); survives resets and re-arms.
 var next_melee_cw: bool = false
 
 var _branch: Array[ArmedMode] = []

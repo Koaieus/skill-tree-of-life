@@ -705,8 +705,8 @@ func _gather_magic_candidates(visible_enemies: Array[SkillNode]) -> Array[AiComb
 ## Builds its OWN plan with [method BattleSystem.new_plan] and copies the scored
 ## candidate's target/source/spell onto it, rather than committing the throwaway
 ## plan [method _gather_ranged_candidates] / [method _gather_magic_candidates]
-## scored against — and never through the [AttackPlanSlot], which is the seated
-## human's plan-in-progress: the AI neither arms, cancels nor reads it.
+## scored against — and never through a seat's [ArmedStack], which holds the
+## seated human's plan-in-progress: the AI neither arms, cancels nor reads it.
 func _execute_candidate(candidate: AiCombatScorer.ScoredCandidate) -> bool:
 	var bs := battle_system
 	if bs == null or candidate == null:

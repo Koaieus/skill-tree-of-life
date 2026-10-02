@@ -55,16 +55,8 @@ signal cascade_started(layers: Array, defender: Entity)
 ## plumbing for [method await_record_ready] — park on that, never on this.
 signal record_ready
 
-@export var turn_manager: TurnManager:
-	set(value):
-		turn_manager = value
-		if _own_slot != null:
-			_own_slot.turn_manager = value
-@export var allocation_system: AllocationSystem:
-	set(value):
-		allocation_system = value
-		if _own_slot != null:
-			_own_slot.allocation_system = value
+@export var turn_manager: TurnManager
+@export var allocation_system: AllocationSystem
 @export var graph: Graph
 ## What draws a launch — the wind-up, the swing or volley, the camera's focus
 ## (#1196). Null, or the no-op [AttackStage] base, is a headless peer: nothing
@@ -142,127 +134,39 @@ var instant_mutation: bool = false
 
 
 ## True while resolve()..VFX-await..AP-deduction is in flight, independent
-## of whether attack_plan is still set (#406 — the plan now stays live
+## of whether the plan is still live (#406 — the plan now stays live
 ## through the melee await so its temp-upgrade addons render correctly).
 ## The one thing that blocks a second launch_attack() mid-swing.
-var is_launching := false:
-	set(value):
-		is_launching = value
-		plan_slot.locked = value
+var is_launching := false
 
 
-# ── The plan slot ────────────────────────────────────────────────────────────
-# Every member below forwards to [member plan_slot], which owns it; see
-# [AttackPlanSlot].
-
-signal attack_plan_changed(plan: AttackPlan)
-## Fires for both plan swap and plan-internal mutation. Re-emitted from
-## [signal AttackPlanSlot.attack_plan_state_changed].
-signal attack_plan_state_changed
-## The RESET button cleared the live plan's selection ([method reset_plan]) —
-## the event the armed step levels ([BladeMode], [TargetMode]) pop on.
-signal plan_reset
-## Re-emitted from [signal AttackPlanSlot.selected_spell_changed].
-signal selected_spell_changed(spell: SpellDef)
-
-## The local plan-in-progress. A composing scene wires its sibling slot here.
-## Left unwired (a fixture, a code-built world) the getter mints a private
-## child slot on first read, seeded with this system's [member turn_manager] and
-## [member allocation_system] — the one creation point, so there is never a
-## second live slot under one BattleSystem.
-@export var plan_slot: AttackPlanSlot:
-	get:
-		if _plan_slot == null:
-			var own := AttackPlanSlot.new()
-			own.name = "AttackPlanSlot"
-			own.turn_manager = turn_manager
-			own.allocation_system = allocation_system
-			_own_slot = own
-			_plan_slot = own
-			_adopt_slot(own)
-			add_child(own, false, Node.INTERNAL_MODE_FRONT)
-		return _plan_slot
-	set(value):
-		if _plan_slot == value:
-			return
-		if _plan_slot != null:
-			_release_slot(_plan_slot)
-		if _own_slot != null and _own_slot != value:
-			_own_slot.queue_free()
-			_own_slot = null
-		_plan_slot = value
-		if _plan_slot != null:
-			_adopt_slot(_plan_slot)
-
-var _plan_slot: AttackPlanSlot = null
-
-## The self-provisioned slot, or null when [member plan_slot] is scene-wired.
-## Only a self-owned slot takes [member turn_manager] / [member allocation_system]
-## pushes; a wired sibling keeps its scene-wired exports.
-var _own_slot: AttackPlanSlot = null
+## The offerable temp-upgrade kinds (#406, #1008) — authored data, wired to
+## `attack/melee/temp_upgrade_catalog.tres` by the composing scene. The launch
+## decode reads it to rebuild a plan's addons off the wire; the tray reads the
+## offer. Optional: unwired, [method temp_upgrade_by_kind] answers null and
+## [method temp_upgrade_kinds] is empty.
+@export var temp_upgrade_catalog: TempUpgradeCatalog
 
 
-func _adopt_slot(slot: AttackPlanSlot) -> void:
-	slot.attack_plan_changed.connect(attack_plan_changed.emit)
-	slot.attack_plan_state_changed.connect(attack_plan_state_changed.emit)
-	slot.selected_spell_changed.connect(selected_spell_changed.emit)
-	slot.locked = is_launching
+## The catalog scene whose kind (scene path) is [param kind] — the door for a
+## temp upgrade's wire identity — or null if unknown or no catalog is wired.
+func temp_upgrade_by_kind(kind: String) -> PackedScene:
+	if temp_upgrade_catalog == null:
+		return null
+	return temp_upgrade_catalog.by_kind(kind)
 
 
-func _release_slot(slot: AttackPlanSlot) -> void:
-	if slot.attack_plan_changed.is_connected(attack_plan_changed.emit):
-		slot.attack_plan_changed.disconnect(attack_plan_changed.emit)
-	if slot.attack_plan_state_changed.is_connected(attack_plan_state_changed.emit):
-		slot.attack_plan_state_changed.disconnect(attack_plan_state_changed.emit)
-	if slot.selected_spell_changed.is_connected(selected_spell_changed.emit):
-		slot.selected_spell_changed.disconnect(selected_spell_changed.emit)
-
-
-var attack_plan: AttackPlan:
-	get: return plan_slot.attack_plan
-	set(value): plan_slot.attack_plan = value
-
-var attack_mode: AttackMode:
-	get: return plan_slot.attack_mode
-
-var is_attacking: bool:
-	get: return plan_slot.is_attacking
-
-var selected_spell: SpellDef:
-	get: return plan_slot.selected_spell
-	set(value): plan_slot.selected_spell = value
-
-var next_melee_cw: bool:
-	get: return plan_slot.next_melee_cw
-	set(value): plan_slot.next_melee_cw = value
-
-var temp_upgrade_catalog: TempUpgradeCatalog:
-	get: return plan_slot.temp_upgrade_catalog
-	set(value): plan_slot.temp_upgrade_catalog = value
-
-var vision_system: VisionSystem:
-	get: return plan_slot.vision_system
-	set(value): plan_slot.vision_system = value
-
-func cancel_attack() -> void: plan_slot.cancel_attack()
-func reset_plan() -> void:
-	if attack_plan == null or plan_slot.locked:
-		return
-	plan_slot.reset_plan()
-	plan_reset.emit()
-func request_attack_mode(mode: AttackMode) -> void: plan_slot.request_attack_mode(mode)
-func temp_upgrade_by_kind(kind: String) -> PackedScene: return plan_slot.temp_upgrade_by_kind(kind)
-func temp_upgrade_kinds() -> Array[PackedScene]: return plan_slot.temp_upgrade_kinds()
-func _new_plan(plan_class: Script) -> AttackPlan: return plan_slot._new_plan(plan_class)
-func _sync_pick_sensed() -> void: plan_slot._sync_pick_sensed()
-func _invalidate_plan_union() -> void: plan_slot._invalidate_plan_union()
+## The offerable ([member SkillNodeAddon.temp_placeable]) kinds in tray order; empty when no catalog is wired.
+func temp_upgrade_kinds() -> Array[PackedScene]:
+	if temp_upgrade_catalog == null:
+		return []
+	return temp_upgrade_catalog.offered()
 
 
 ## The launch-side teardown, at [method _commit]'s release: drops
 ## the [member stage]'s mount, announces [signal in_flight_plan_changed] with null,
-## resets the plan that was in flight (freeing its
-## temp-upgrade addons), and clears the slot only when the slot holds that same
-## plan — an AI's or a replay's launch leaves the human's armed plan alone.
+## and resets the plan that was in flight (freeing its temp-upgrade addons). The
+## attack level that armed it hears the release and mints a fresh one.
 func _reset() -> void:
 	if stage != null:
 		stage.unmount()
@@ -271,41 +175,37 @@ func _reset() -> void:
 	if plan == null:
 		return
 	in_flight_plan_changed.emit(null)
-	if plan_slot.attack_plan == plan:
-		plan_slot._reset()
-	else:
-		plan.reset()
+	plan.reset()
 
 
 ## The plan being launched right now, from [method _commit]'s entry to its
 ## release; null between launches. Read-only outside: the launch path is its
 ## one writer. Every reader of "the plan on screen during a swing" —
 ## [method presenter], [MeleePreview]'s replay pump, [CameraDirector] — reads
-## this, never [member attack_plan], because an AI's or a mirror's launch never
-## passes through the slot.
+## this, never the seat's armed plan ([method ArmedStack.attack_plan]), because
+## an AI's or a mirror's launch never passes through the seat.
 var in_flight_plan: AttackPlan:
 	get: return _in_flight_plan
 var _in_flight_plan: AttackPlan = null
 
 ## [member in_flight_plan] was set ([method _commit] entry) or cleared (release,
-## with null — after [member is_launching] drops, before the slot clears). A
-## reader of "the plan on screen" resolves `in_flight_plan ?? attack_plan` and
-## listens to this beside [signal attack_plan_changed].
+## with null — after [member is_launching] drops, before the plan is reset). A
+## reader of "the plan on screen" resolves `in_flight_plan ?? armed plan` and
+## listens to this beside [signal ArmedStack.attack_plan_changed].
 signal in_flight_plan_changed(plan: AttackPlan)
 
 
-## Mint a fresh plan for [param mode], attacked by [param attacker], wired with
-## this system's defaults (the viewing seat's fog). Null for
-## [constant AttackMode.NONE]. Carries none of the human's sticky tray
-## preferences — [member next_melee_cw], [member selected_spell] — which the
-## [AttackPlanSlot] layers on for its own plans; an explicit attacker gets the
-## plan's own defaults.
+## Mint a fresh plan for [param mode], attacked by [param attacker], with no
+## viewer fog. Null for [constant AttackMode.NONE]. Carries none of a seat's
+## sticky tray preferences ([member ArmedStack.next_melee_cw],
+## [member ArmedStack.selected_spell]) — an [AttackArmMode] layers those on its
+## own plans; an explicit attacker gets the plan's own defaults.
 func new_plan(mode: AttackMode, attacker: Entity) -> AttackPlan:
-	return mint_plan(mode, attacker, plan_slot.vision_system)
+	return mint_plan(mode, attacker, null)
 
 
-## The one plan minter, shared by [method new_plan] and
-## [method AttackPlanSlot._new_plan] (which holds no [BattleSystem] reference).
+## The one plan minter, shared by [method new_plan] and the seat's attack
+## levels ([AttackArmMode], which pass the seat's fog as [param vision]).
 static func mint_plan(mode: AttackMode, attacker: Entity, vision: VisionSystem) -> AttackPlan:
 	var p: AttackPlan
 	match mode:
@@ -344,15 +244,11 @@ func _ready() -> void:
 	Events.skill_node_depleted.connect(_on_node_depleted)
 	Events.entity_dying.connect(_on_entity_dying)
 	_seed_source.randomize()
-	# A bare BattleSystem provisions its private slot here (the read mints it),
-	# so the slot's union invalidation subscribes before the first allocation.
-	plan_slot.locked = is_launching
 
 
 
-## Commit [param plan] — the HUD passes its armed plan, an [AIController] the
-## one it built with [method new_plan], so the slot is never written by anyone
-## but its human. Since #511
+## Commit [param plan] — the HUD passes the seat's armed plan, an
+## [AIController] the one it built with [method new_plan]. Since #511
 ## this is a thin front for a
 ## [LaunchAttackCommand]: build it, submit it, and wait out the queue. The
 ## work itself lives in [method apply_launch_command], which the
@@ -401,7 +297,7 @@ func launch_attack(plan: AttackPlan) -> void:
 	await apply_launch_command(command)
 
 
-## [param plan] (null: the slot's armed plan) as a [LaunchAttackCommand], or
+## [param plan] as a [LaunchAttackCommand], or
 ## null if there is nothing launchable. The plan rides the command as
 ## [member LaunchAttackCommand.local_plan]. Runs the checks that need the LIVE plan and are cheap to answer
 ## before anything is queued — is there a plan, is it valid, is somebody's turn
@@ -412,9 +308,7 @@ func launch_attack(plan: AttackPlan) -> void:
 ## self-describing: (plan + seed) is everything an authority needs to re-resolve
 ## and compare. `apply_launch_command` copies it onto the plan before calling
 ## [method AttackPlan.resolve], so "stamp before resolving" still holds.
-func build_launch_command(plan: AttackPlan = null) -> LaunchAttackCommand:
-	if plan == null:
-		plan = attack_plan
+func build_launch_command(plan: AttackPlan) -> LaunchAttackCommand:
 	if plan == null or is_launching:
 		push_warning("BattleSystem.launch_attack: no plan, or already launching")
 		return null
@@ -535,14 +429,14 @@ func apply_launch_command(command: LaunchAttackCommand) -> bool:
 	var plan: AttackPlan
 	if command.computed_here:
 		# Carried on the command from `build_launch_command`, never re-read off
-		# the slot — the plan this machine resolved is the plan it commits.
+		# the seat — the plan this machine resolved is the plan it commits.
 		plan = command.local_plan
 		if plan == null:
 			push_warning("BattleSystem: the prepared plan went away before apply")
 			return false
 	else:
-		# A replay decodes into the same local field and never writes the slot:
-		# the slot is this seat's plan-in-progress, not the attacker's.
+		# A replay decodes into the same local field and never touches the
+		# seat's armed plan: that is this seat's plan-in-progress, not the attacker's.
 		plan = AttackPlanCodec.from_dict(command.plan, graph, temp_upgrade_catalog)
 		if plan == null:
 			return false
@@ -669,7 +563,7 @@ func _can_afford(plan: AttackPlan, outcome: AttackOutcome) -> bool:
 ## Costs are deducted up front; the plan itself stays live through the whole
 ## await (#406 — a melee plan's attached temp-upgrade addons must keep
 ## rendering through the live swing) and is cleared in one place, after.
-## `is_launching` — not `attack_plan != null` — is what blocks a second
+## `is_launching` — not a live plan — is what blocks a second
 ## launch during the await window.
 ##
 ## [b]Phases overlap, and that is the point.[/b] The arrow is in the air while
@@ -767,9 +661,9 @@ func _commit(plan: AttackPlan, outcome: AttackOutcome) -> void:
 	if _stage_holds(plan):
 		await stage.finished
 	# is_launching flips false BEFORE _reset() (not after) — _reset()'s
-	# slot clear synchronously fires attack_plan_changed, and
-	# PlayerInputController's gate-refresh listener reads is_launching the
-	# instant that signal fires. Clearing it after would have that listener
+	# in_flight_plan_changed(null) re-arms the seat's attack level, whose
+	# push refuses mid-swing, and PlayerInputController's gate-refresh
+	# listener reads is_launching the instant the plan moves. Clearing it after would have that listener
 	# observe a stale "still launching" and never re-enable AttackModeBar.
 	# Keep these two adjacent: callers settle on `is_launching` and expect the
 	# plan to be cleared by the time it goes false.

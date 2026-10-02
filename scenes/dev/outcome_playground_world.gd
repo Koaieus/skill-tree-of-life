@@ -164,7 +164,6 @@ func arm(alloc: AllocationSystem, turn_manager: TurnManager = null) -> void:
 ## The plan is this world's own, never armed anywhere; hand it to
 ## [method BattleSystem.build_launch_command] / [method BattleSystem.launch_attack].
 func arm_magic(battle: BattleSystem, spell: SpellDef = SpellCatalog.SPARK) -> MagicAttackPlan:
-	battle.selected_spell = spell
 	var plan := battle.new_plan(BattleSystem.AttackMode.MAGIC, attacker) as MagicAttackPlan
 	if plan == null:
 		return null

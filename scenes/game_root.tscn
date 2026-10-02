@@ -9,7 +9,6 @@
 [ext_resource type="Script" path="res://network/seat_handover.gd" id="25_seathandover"]
 [ext_resource type="Script" path="res://network/mp_harness.gd" id="25_mpharness"]
 [ext_resource type="Script" uid="uid://c8h46d4u0rss3" path="res://systems/battle_system.gd" id="6_battle"]
-[ext_resource type="Script" uid="uid://d2qx35jtwie3y" path="res://systems/attack_plan_slot.gd" id="6_planslot"]
 [ext_resource type="Script" uid="uid://hhfetuy6hfu" path="res://systems/turn_manager.gd" id="7_turn"]
 [ext_resource type="Script" uid="uid://tmd2wsn34dny" path="res://systems/player_input_controller.gd" id="8_input"]
 [ext_resource type="Script" uid="uid://dbogeip2q3nu" path="res://systems/armed/armed_stack.gd" id="8_armed"]
@@ -76,22 +75,14 @@ command_applier = NodePath("../CommandApplier")
 battle_system = NodePath("../BattleSystem")
 loot_system = NodePath("../LootSystem")
 
-[node name="AttackPlanSlot" type="Node" parent="Systems" node_paths=PackedStringArray("turn_manager", "allocation_system", "vision_system")]
-unique_name_in_owner = true
-script = ExtResource("6_planslot")
-turn_manager = NodePath("../TurnManager")
-allocation_system = NodePath("../AllocationSystem")
-temp_upgrade_catalog = ExtResource("26_temp_upgrades")
-vision_system = NodePath("../VisionSystem")
-
-[node name="BattleSystem" type="Node" parent="Systems" unique_id=1847539356 node_paths=PackedStringArray("turn_manager", "allocation_system", "graph", "stage", "plan_slot")]
+[node name="BattleSystem" type="Node" parent="Systems" unique_id=1847539356 node_paths=PackedStringArray("turn_manager", "allocation_system", "graph", "stage")]
 unique_name_in_owner = true
 script = ExtResource("6_battle")
 turn_manager = NodePath("../TurnManager")
 allocation_system = NodePath("../AllocationSystem")
 graph = NodePath("../../Graph")
 stage = NodePath("../AttackPresenter")
-plan_slot = NodePath("../AttackPlanSlot")
+temp_upgrade_catalog = ExtResource("26_temp_upgrades")
 
 [node name="AttackPresenter" parent="Systems" unique_id=1196000001 node_paths=PackedStringArray("attack_vfx", "melee_preview") instance=ExtResource("17_presenter")]
 unique_name_in_owner = true
@@ -136,7 +127,7 @@ loot_pick_registry = NodePath("../LootPickRegistry")
 unique_name_in_owner = true
 script = ExtResource("8_armed")
 
-[node name="PlayerInputController" type="Node" parent="Systems" unique_id=2090560635 node_paths=PackedStringArray("graph", "allocation_system", "battle_system", "turn_manager", "command_applier", "armed_stack")]
+[node name="PlayerInputController" type="Node" parent="Systems" unique_id=2090560635 node_paths=PackedStringArray("graph", "allocation_system", "battle_system", "turn_manager", "command_applier", "armed_stack", "vision_system")]
 unique_name_in_owner = true
 script = ExtResource("8_input")
 graph = NodePath("../../Graph")
@@ -145,6 +136,7 @@ battle_system = NodePath("../BattleSystem")
 turn_manager = NodePath("../TurnManager")
 command_applier = NodePath("../CommandApplier")
 armed_stack = NodePath("../ArmedStack")
+vision_system = NodePath("../VisionSystem")
 
 [node name="TurnManager" type="Node" parent="Systems" unique_id=1421103909]
 unique_name_in_owner = true
