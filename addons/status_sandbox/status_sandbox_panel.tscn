@@ -60,9 +60,9 @@ tooltip_text = "Every effects/status/*.tres"
 unique_name_in_owner = true
 layout_mode = 2
 tooltip_text = "Stacks per hit, before resistance"
-min_value = 0.25
+min_value = 1.0
 max_value = 50.0
-step = 0.25
+step = 1.0
 value = 3.0
 prefix = "×"
 

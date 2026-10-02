@@ -376,8 +376,10 @@ read is already correct.
 
 The status slice above (`StatusDef` + a per-node `NodeStatus{power}` row) carries
 four damage-over-time families, one per defensive axis they answer. The *why* —
-one family per axis, uncapped halving stacks, the rejected timers — is
-[ADR 0022](../adr/0022-one-dot-per-defensive-axis-stacks-halve-uncapped.md);
+one family per axis, uncapped stacks, the rejected timers — is
+[ADR 0022](../adr/0022-one-dot-per-defensive-axis-stacks-halve-uncapped.md)
+(its halving decay is superseded by
+[ADR 0032](../adr/0032-status-stacks-are-integers-a-def-derives-any-fractional-effect-from-the-count.md)'s shapes);
 the hosts (node, or the entity once the row falls through a cracked core) are
 [ADR 0024](../adr/0024-status-effects-have-two-hosts-and-fall-through-a-cracked-core.md).
 What could still come (cures, contagion, the other families' arrows and spells)
