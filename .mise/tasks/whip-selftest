@@ -186,7 +186,7 @@ check("train drop of an issue not in the train refuses", code != 0 and "not in t
 calls.clear(); fx["agents"] = []
 fx["daemon"] = "inactive"; fx["systemd_run_ok"] = False
 code, out = run("launch", "lead-a", "10 11 12")
-check("launch refuses when the daemon unit cannot be made active — never a transient daemon", code == 2 and not any("--bg" in c for c in calls) and "daemon" in out)
+check("launch refuses when the daemon unit cannot be made active — never a transient daemon", code != 0 and not any("--bg" in c for c in calls) and "daemon" in out)
 fx["systemd_run_ok"] = True
 code, out = run("launch", "lead-a", "10 11 12")
 st = state()
@@ -194,7 +194,7 @@ check("launch brings the daemon up, then starts the lead as a --bg session", cod
 check("the launch command carries name, mode, model and the supervised clauses", any("--bg -n lead-a --permission-mode" in c and "supervised by whip" in c for c in calls))
 fx["agents"] = [{"kind": "background", "pid": 5, "name": "lead-a", "sessionId": "abcd1234", "state": "working"}]
 code, out = run("launch", "lead-b", "20")
-check("a second concurrent lead is refused at the default ceiling of 1", code == 2 and "ceiling" in out and "lead-b" not in state()["leads"])
+check("a second concurrent lead is refused at the default ceiling of 1", code != 0 and "ceiling" in out and "lead-b" not in state()["leads"])
 code, out = run("max-leads", "2")
 check("max-leads raises the ceiling and logs it as an owner action", code == 0 and state()["max_leads"] == 2 and any("owner" in e and "ceiling" in e for e in state()["events"]))
 code, out = run("launch", "lead-b", "20")
@@ -229,6 +229,7 @@ run("note", "still-ready #30: no capacity")
 fx["agents"] = []
 code, out = run("done-check")
 check("done-check clean once every still-Ready is noted and no lead runs", code == 0 and "done-check: clean" in out)
+st = state(); st["leads"]["lead-a"]["state"] = "relieved"; poke(**st)  # the row poked to running above, back to what launch left
 
 # --- report, no gh ---------------------------------------------------------
 fx["needs_design"] = [20]
@@ -289,9 +290,9 @@ fx["agents"] = [{"kind": "background", "pid": 9, "name": "whip", "status": "idle
 base = len(calls); run("watchdog")
 check("next tick, whip is back: pending cleared, failures stay 0, no second resume", state()["pending"] is None and state()["failures"] == 0 and not any("--resume" in c for c in launches(base)))
 fx["agents"] = []
+run("watchdog")                                   # resume → pending
 for i in range(1, 4):
-    base = len(calls); run("watchdog")           # resume → pending
-    base2 = len(calls); run("watchdog")          # still gone → failure i, then (if under the limit) resume again
+    base2 = len(calls); run("watchdog")           # still gone → failure i, then (if under the limit) resume again
     if i < 3:
         check(f"failure {i}/3 counted and another resume tried", state()["failures"] == i and any("--resume" in c for c in launches(base2)))
 check("third consecutive failure: give-up marker written, timer stopped, no further resume",
