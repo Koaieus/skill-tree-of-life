@@ -205,3 +205,28 @@ func test_round_trip_reinstantiates_an_authored_scene_node() -> void:
 	# Plain nodes stay plain: the slot is only set for a non-default scene.
 	var plain := target.get_by_stable_id(source.get_stable_id(source.get_skill_nodes()[0]))
 	assert_eq(plain.scene_file_path, "res://skill_node/skill_node.tscn")
+
+
+## Three nodes at fixed positions, edges added in [param pairs]' order and
+## direction (indices into the node list; equal indices make a self-loop).
+func _hand_graph(pairs: Array) -> Graph:
+	var graph := await _new_graph()
+	var nodes: Array[SkillNode] = []
+	for i in 3:
+		var n := preload("res://skill_node/skill_node.tscn").instantiate() as SkillNode
+		n.position = Vector2(200 * i, 0)
+		graph.add_skill_node(n)
+		nodes.append(n)
+	for p in pairs:
+		graph.add_edge(nodes[p[0]], nodes[p[1]])
+	return graph
+
+
+## The same topology built in a different edge order, with every edge
+## reversed, encodes to the same bytes — decode re-adds edges by unordered
+## pair, so a live-order encode would make capture → apply → capture drift.
+func test_encode_is_independent_of_edge_order_and_direction() -> void:
+	var a := await _hand_graph([[0, 1], [1, 2], [0, 0], [2, 2]])
+	var b := await _hand_graph([[2, 2], [2, 1], [0, 0], [1, 0]])
+	assert_eq(GraphSnapshot.encode(b), GraphSnapshot.encode(a),
+			"edge order and direction must not reach the bytes")
