@@ -171,7 +171,7 @@ func test_a_joined_level_waits_for_the_world_and_nothing_else() -> void:
 
 
 ## Acceptance 8, restated where it can regress: an OFFLINE run still generates.
-## The client branch sits behind `_is_network_client`, so a run with no
+## The client branch sits behind `GameSession.world_source == ARRIVES`, so a run with no
 ## [NetworkConfig] must take the untouched path.
 func test_an_offline_run_still_generates_locally() -> void:
 	var cfg := RunConfig.new()

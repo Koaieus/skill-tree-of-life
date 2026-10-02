@@ -48,7 +48,7 @@ A pool sitting **exactly at its cap from a raw write** (rather than having cross
 
 ## An entity's FIRST turn runs NO upkeep
 
-`Entity.begin_turn` counts into `Entity.turns_taken` (per-entity; the one on `TurnManager` is the global tally) and returns while it reads 1 — no pool upkeep, no node regen, no aura, no `on_turn_started`, no `_on_turn_start` dispatch. Pools are authored at cap, so what the gate really removes is one tick of `xp_per_turn`, which used to level a fresh entity before it had made a move. **How to apply:** anything constructing an *already-established* entity and then driving `begin_turn()` directly must set `turns_taken = 1` at build time — the `tools/balance/` fixtures do, or they under-report a turn of income. The counter is derived, never synced: each peer counts the same turns off its own TurnManager.
+`Entity.begin_turn` counts into `Entity.turns_taken` (per-entity; the one on `TurnManager` is the global tally) and returns while it reads 1 — no pool upkeep, no node regen, no aura, no `on_turn_started`, no `_on_turn_start` dispatch. Pools are authored at cap, so what the gate really removes is one tick of `xp_per_turn`, which used to level a fresh entity before it had made a move. **How to apply:** anything constructing an *already-established* entity and then driving `begin_turn()` directly must set `turns_taken = 1` at build time — the `tools/balance/` fixtures do, or they under-report a turn of income. Each peer counts the same turns off its own TurnManager, and `EntitySnapshot` also carries it (`_R_TURNS`) so a resync or a load lands on the right count.
 
 ## `start_turn()` fires upkeep — never open a turn before you snapshot
 
