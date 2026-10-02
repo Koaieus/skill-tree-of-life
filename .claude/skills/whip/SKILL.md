@@ -35,7 +35,7 @@ You must be a `--bg` session named `whip` — `start` refuses otherwise
 (leads report to that name; an interactive session cannot be resumed by the
 watchdog). The owner launches you as
 `mise run whip -- daemon start && claude --bg -n whip --permission-mode
-bypassPermissions --model sonnet "/whip"` and watches via `claude attach
+bypassPermissions --model opus "/whip"` and watches via `claude attach
 whip` or Remote Control.
 
 ```bash

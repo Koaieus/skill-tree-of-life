@@ -247,8 +247,16 @@ Overnight the budget is **tokens per 5-hour window, twice over**, and
 **A. Concurrent leads.** The ceiling is 1 and the verb exists; whether 2 on
 file-disjoint trains lands more per night when the window is not the limit
 is unmeasured. Cost: two `land`s racing master, two windows burning.
-**B. Whip's model.** Sonnet (every decision is table-driven; recommended)
-vs Opus (safer on a malformed report). `WHIP_MODEL`.
+Owner, 2026-10-02 (a lean, not a decision): "2 trains at once is an increased
+risk in both crashing as token limit is reached. Though if 1 would do only
+lots of tiny mechanical issues (or a mass rewrite or clenaup or idk) then it
+would consume little tokens (cheap agents, few turns) and could run alongside
+i guess?" — i.e. a second lead only for a cheap train, never two heavy ones.
+**B. Whip's model — settled: Opus.** Owner, 2026-10-02: "I ran this whip as
+Opus, my reasoning: they barely read, they barely output, but if things go
+wrong they have the thinking capacity. They have more responsibility than a
+swarm agent, who is doing more serious coordination work". `WHIP_MODEL`
+overrides.
 **C. Name.** Whip or *Drover*; files are `whip` until the owner picks.
 **D. `TasksMax` on the daemon unit.** Unset = the user manager's per-unit
 default (76146 here), a separate pool from the terminal's. A lower knob

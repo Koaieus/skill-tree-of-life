@@ -211,7 +211,7 @@ def cmd_start(a):
     if mine and mine.get("kind") != "background":
         sys.exit("this is an interactive session: it lives in this terminal's cgroup and a watchdog resume of it would carry no "
                  "saved name/mode/model. Launch Whip as a bg session under the fleet's daemon unit instead:\n"
-                 "  mise run whip -- daemon start && claude --bg -n whip --permission-mode bypassPermissions --model sonnet \"/whip\"\n"
+                 "  mise run whip -- daemon start && claude --bg -n whip --permission-mode bypassPermissions --model opus \"/whip\"\n"
                  "then `claude attach whip` (or Remote Control) to watch it.")
     if mine and mine.get("name") != "whip":
         sys.exit(f"this session is named {mine.get('name')!r}; leads report to the session named 'whip' — "
@@ -324,7 +324,7 @@ def cmd_launch(a):
     if a.self:
         prompt = (f"/whip — relief from {st['_path']}. You are the supervisor named 'whip'; messages from sessions "
                   "named lead-*/relief-* are the reports you act on; the watchdog's 'watchdog:' prompts are instructions.")
-        model = os.environ.get("WHIP_MODEL", "sonnet")
+        model = os.environ.get("WHIP_MODEL", "opus")
     elif a.relief:
         outgoing = next((t.get("lead") for t in st["trains"] if t["name"] == train), None) or a.issues
         prompt = f"/relief — supervised by whip. You relieve the session named '{outgoing}'. {CLAUSES}"
