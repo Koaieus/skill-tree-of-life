@@ -210,7 +210,12 @@ Overnight the budget is **tokens per 5-hour window, twice over**, and
     its turn with a synthetic `isApiErrorMessage` message, stays at its
     prompt, and the next prompt after the reset continues the same context.
     Nothing keys on the error wording (it differs with the spend-limit
-    setting), only on the flag.
+    setting), only on the flag. **A limited lead is idle, not stalled**, so
+    nobody but the watchdog would ever prompt it: a running lead that is
+    idle with the marker and past its reset gets the same stop + flagless
+    prompt Whip gets ("continue from your ledger; re-dispatch what died"),
+    rate-limited per lead (*designed*, 2026-10-02 evening; the first
+    reset-in-anger is tonight's experiment).
 23. **Fifteen hours is the cap.** Owner, 2026-10-02: *"a cap backstop — say
     15 hours max runtime, that's 3 token windows; if more is needed that's
     something I should look at first."* Past `start + 15h` the watchdog

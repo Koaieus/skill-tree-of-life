@@ -395,6 +395,25 @@ archived2 = sorted(os.listdir(arch))
 check("start on a DONE ledger auto-retires it into archive/ and proceeds", code == 0 and len(archived2) == 5 and state()["done"] is False and "retired" in out)
 fx["agents"] = []; os.environ.pop("CLAUDE_CODE_SESSION_ID"); fx["linger"] = "yes"
 
+# --- a lead at a spent window: prompted after the reset, like whip ------------
+fx["limited"] = {}
+wh.transcript_limited = lambda sid: fx["limited"].get(sid, (False, None))
+st = state(); st["leads"]["lead-b"] = {"session": "abcd1234", "kind": "lead", "launched": "x", "state": "running", "last": ""}; st["pending"] = None; st["whip_session"] = "deadbeefcafe"; poke(**st)
+fx["agents"] = [{"kind": "background", "pid": 9, "name": "whip", "status": "busy", "state": "working", "sessionId": "deadbeefcafe"},
+                {"kind": "background", "pid": 7, "name": "lead-b", "status": "idle", "state": "done", "sessionId": "abcd1234"}]
+fx["limited"] = {"abcd1234": (True, time.time() + 1800)}
+base = len(calls); run("watchdog")
+check("a limited lead before its reset is left alone", not launches(base))
+fx["limited"] = {"abcd1234": (True, time.time() - 60)}
+base = len(calls); run("watchdog")
+L = launches(base)
+check("a limited lead past its reset is stopped and resumed flagless with a continue-from-ledger prompt, pending for next tick",
+      any(c == "claude stop abcd1234" for c in L) and any(c.startswith("claude --bg --resume abcd1234 ") and "-n" not in c and "ledger" in c for c in L)
+      and state()["pending"]["session"] == "abcd1234" and state()["leads"]["lead-b"]["state"] == "running")
+base = len(calls); run("watchdog")
+check("the same lead is not prompted again inside the nudge gap", not any("abcd1234" in c for c in launches(base)))
+fx["limited"] = {}
+
 # --- the fence held --------------------------------------------------------
 check("the only gh calls were answered by the fake, never posting", all(c.startswith("gh issue list") for c in calls if c.startswith("gh ")))
 real_after = {p: os.path.getmtime(os.path.join(real, p)) for p in os.listdir(real) if p.startswith("whip-")} if os.path.isdir(real) else {}
