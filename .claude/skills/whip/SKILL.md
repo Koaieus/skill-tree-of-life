@@ -27,11 +27,16 @@ mise run whip -- show            # the ledger: snapshot, trains, leads, watchdog
 A lead whose row says `running` is yours; one marked `stalled (…)` is
 relieved (§3); `GAVE UP` in the header means the watchdog stopped itself —
 `mise run whip -- timer install` once you are oriented. Never re-launch a
-train that has a lead. Continue at §3.
+train that has a lead. Continue at §3. A header that says `DONE` is a
+finished run, not yours: `start` retires it by itself (§1); a live one the
+owner did not mean to continue is theirs to `mise run whip -- retire --force`
+— never yours.
 
 ## 1. Start — the owner's last act awake, then the snapshot
 
-You must be a `--bg` session named `whip` — `start` refuses otherwise
+`start` refuses from an interactive session, from a session not named `whip`,
+without `Linger=yes`, and on top of a live ledger (it names `retire --force`;
+that verb is the owner's). You must be a `--bg` session named `whip`
 (leads report to that name; an interactive session cannot be resumed by the
 watchdog). The owner launches you as
 `mise run whip -- daemon start && claude --bg -n whip --permission-mode

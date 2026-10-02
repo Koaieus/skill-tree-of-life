@@ -166,7 +166,11 @@ Overnight the budget is **tokens per 5-hour window, twice over**, and
 15. **Whip's ledger is written by commands and read by its own relief.**
     `docs/handoffs/whip-<date>.md` (gitignored): the start snapshot, the
     trains, per lead its name / session id / state, the event log, the
-    watchdog's pending action and failure count, the carried items.
+    watchdog's pending action and failure count, the carried items. Two
+    writers exist — Whip's verbs and the watchdog timer — so every verb
+    holds one `flock` for its lifetime (released around the self-relief
+    re-exec); last-writer-wins on `pending`/`failures`/`done` is the
+    alternative (*designed*, no incident yet).
 16. **Five decisions, one per wake.** On `DONE`: next train, or the report.
     On `RELIEVE ME`: launch `relief-<train>-<k>`; retire the outgoing when
     it goes idle after the drain. On `NEEDS OWNER`: log it. On a watchdog
@@ -196,11 +200,12 @@ Overnight the budget is **tokens per 5-hour window, twice over**, and
     the `.gave-up` marker, stops its own timer, comments the run issue, and
     `show` says `GAVE UP` in its header. No action is ever logged as
     success on its own say-so. (Mined from 44 silent forks over eight hours.)
-21. **`start` is the owner's last act awake.** It prints the two owner-only
-    actions FIRST (`loginctl enable-linger`; `systemd-inhibit
-    --what=idle:sleep`) and the kill switch, brings the daemon unit up,
-    installs the timer, and only then snapshots. A lead never runs without
-    the backstop; the owner never learns of linger at 09:00.
+21. **`start` is the owner's last act awake.** It **verifies** `Linger=yes`
+    (refuses otherwise; `--linger-unchecked` overrides), prints the sleep
+    inhibit it cannot verify (`systemd-inhibit --what=idle:sleep`) and the
+    kill switch, brings the daemon unit up, installs the timer, and only
+    then snapshots. A lead never runs without the backstop; the owner never
+    learns of linger at 09:00.
 22. **A spent window is waited out, never worked around.** The session ends
     its turn with a synthetic `isApiErrorMessage` message, stays at its
     prompt, and the next prompt after the reset continues the same context.
@@ -211,6 +216,23 @@ Overnight the budget is **tokens per 5-hour window, twice over**, and
     something I should look at first."* Past `start + 15h` the watchdog
     prompts nothing, `launch` refuses, a lead in flight finishes its train,
     the report's headline says `CAPPED`. `start --cap <hours>`.
+
+26. **A ledger that outlives its night never hijacks the next start**
+    (*mined*, 2026-10-02 evening: the unreported #1319 ledger would have been
+    tonight's). The ledger lookup returns today's file whether done or not,
+    and an unreported one for 36 h; so `start` refuses a live ledger by name
+    (`retire --force` is the owner's verb, never Whip's) and auto-retires a
+    done one. `retire` moves json/md/markers into `docs/handoffs/archive/`
+    suffixed with the start time, the tracked `whip-report-*` stays, and
+    `report` never overwrites a report it did not write (same-date runs get a
+    start-time suffix). Every artifact is date-keyed; two runs on one date
+    are the normal case after a bad night.
+27. **The fleet's task count is measured, not guessed** (*designed*; fork D
+    waits on it). Each watchdog tick records the daemon unit's
+    `TasksCurrent` as `tasks_last`/`tasks_peak` in the ledger — a field,
+    never an event — and the report headline carries the peak. Until a
+    night's peak is on file, `TasksMax` stays at the user manager's default
+    and the lead ceiling stays 1.
 
 **The morning report**
 
@@ -291,7 +313,21 @@ number needs the culprit family measured first.
   after a window reset continues the context (n=0 for the reset case; the
   mechanism itself is probed).
 - Which process family exhausts pids under a multi-lead fleet; until
-  measured, fork D stays open and the ceiling stays 1.
+  measured, fork D stays open and the ceiling stays 1. Law 27 puts the
+  per-tick count on file; the family split (claude / godot / git) is still
+  a `ps -eLo comm=` the morning after a high peak.
+- **Black swans seen in the code, not yet in the field** (2026-10-02 evening
+  pass; the board holds the long form): the flagless resume after a spent
+  window is n=0 in anger; a CLI update mid-night changes the two parsed
+  shapes (`claude agents --json`, the `backgrounded · <id>` line) — the
+  version probe and the adopt-on-launch path degrade it, the daemon unit's
+  `DISABLE_AUTOUPDATER` is an assumption; a second train's `/swarm` lead
+  finds the first train's `swarm-<date>.md` and may orient as relief of a
+  done run (the same date-keyed shape law 26 fixed one layer up); a dirty
+  main checkout (owner WIP, untracked files) makes a lead's `land` refuse
+  and the lead "assume and note" around it; the sleep inhibit is printed
+  not verified; what `done`/`report` do when a `gh` call fails mid-night is
+  untraced; Whip's own self-relief has never fired.
 
 ## Fold digest — board [#1324](https://github.com/Koaieus/skill-tree-of-life/issues/1324)
 
@@ -305,3 +341,6 @@ the substance. One line per fold; the post holds the detail.
   second-idle, idle is the wrong stall signal) → law 14, corpus row 6.
 - 2026-10-02 · law-candidate (concurrency; "Whip wants a board") → law 11,
   fork A, and this board.
+- 2026-10-02 · law-candidate (evening pre-flight: stale-ledger hijack, linger
+  unverified, two ledger writers, pids culprit unmeasured, black swans) →
+  laws 15, 21, 26, 27; open follow-ups.
