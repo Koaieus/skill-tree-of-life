@@ -22,8 +22,9 @@ second rounding downstream.
 | Spill on death, per neighbour | stacks, int | down: `⌊⌊S · f⌋ / k⌋`, remainder lost (no total increase) | `SpillSpread` | #1204, #1217 (owner, 2026-09-29/30) |
 | Diffusion, FRACTION mode, per edge | stacks, int | down: `⌊f · d / (1 + max(deg_u, deg_v))⌋` (floored Metropolis) | `FractionDiffusion` | #1264 |
 | Resistance cancel | stacks, int | half-down: `⌈row × res − ½⌉` cancelled (ties to the attacker) | `StatusHost.effective_power` | ADR 0031 |
-| Landing fold `(authored + extras) × (1 + Σinc) × Πmore` | stacks, int | *placeholder — #1310* | | #1217, #1310 |
-| FRACTION decay | stacks, int | *placeholder — #1310* | | #1217, #1310 |
+| Landing fold `(authored + extras) × (1 + Σinc) × Πmore` | stacks, int | **half-up**, ties to the attacker (noise within `is_equal_approx` of a whole or a half snaps to it first); the `*_stacks_per_hit` stats stay FLOAT so the read never truncates first | `StatusDef.stacks_per_hit` (`round_half_up`), also on the null-board path | ADR 0032, #1310 (owner, 2026-10-01) |
+| FRACTION decay | stacks, int | **down**, floor kept: `⌊S · (1 − f)⌋`, always reaches 0 | `FractionDecay.decayed` | ADR 0032, #1310 (owner, 2026-10-01) |
+| Status row store | stacks, int | none — whole in, whole stored; a fraction reaching it is a minting site's bug (debug `assert`) | `StatusHost._settle`, `StatusHost.tick_statuses` | ADR 0032, #1310 |
 
 ## Consequences worth knowing
 
@@ -35,6 +36,12 @@ second rounding downstream.
   `Mitigation.compute`'s `amount <= 0 → 0` gate keeps it off the floor.
 - **Replay is free.** The door's rounding is idempotent on wholes, so a
   recorded `DamageInstance.amount` (already whole) replays to the same number.
+- **Poison loses 1 stack a tick, corruption none.** Poison and curse ship
+  `FlatDecay 1` (integer-native, no rounding), corruption no decay slot, wither
+  `FractionDecay 0.25` (8 → 6 → 4 → 3 → 2 → 1 → 0). Interim knobs until #1203.
+- **Scouted rides `FractionDecay` on a float mark.** Floor-kept, a 120-unit
+  disc steps toward 0 faster than the old halving; integer scouting is its own
+  design.
 - **Floating-point noise.** `0.1 * 30` is `3.0000000000000004`; a bare `ceil`
   would land 4. `HitPoints.whole` snaps a magnitude within `is_equal_approx` of
   a whole to that whole before rounding up.
