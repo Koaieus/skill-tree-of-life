@@ -10,7 +10,7 @@ const _LEVEL := preload("res://scenes/level.tscn")
 const _CAMP_1 := preload("res://entity/factions/camp_1.tres")
 const _CAMP_2 := preload("res://entity/factions/camp_2.tres")
 const _SLOT := "user://test_save_load_round_trip.bin"
-const _NODE_COUNT := 80
+const _NODE_COUNT := 200
 
 var _root: GameRoot
 
@@ -97,6 +97,14 @@ func _stats(root: GameRoot) -> Dictionary:
 	return out
 
 
+func _territory_hp(root: GameRoot, who: Entity) -> float:
+	var total := 0.0
+	for n in root.graph.get_skill_nodes():
+		if n.owned_by == who:
+			total += n.get_current_hp()
+	return total
+
+
 func _allocate_frontier(root: GameRoot, who: Entity, count: int) -> void:
 	for _i in count:
 		var pick: SkillNode = null
@@ -108,6 +116,16 @@ func _allocate_frontier(root: GameRoot, who: Entity, count: int) -> void:
 			return
 		root.command_applier.submit(AllocateCommand.new(who.entity_id, root.graph.get_stable_id(pick)))
 		await _settle(root)
+
+
+## Fixture: claim the path from [param who]'s core up to [param rival]'s border,
+## so the rival core is in volley range. Not under test — a primitive suffices.
+func _march_to(root: GameRoot, who: Entity, rival: Entity) -> void:
+	for n in root.graph.navigator.path_between(who.core_location, rival.core_location):
+		if n.owned_by == rival:
+			return
+		if n.owned_by == null:
+			root.allocation_system.force_allocate(who, n)
 
 
 ## Save at a quiescent point, free the level, load it back from disk. Returns
@@ -154,14 +172,19 @@ func test_a_save_after_one_volley_resumes_the_same_turn() -> void:
 
 	var enemy := _ai(root)
 	assert_not_null(enemy, "fixture: an AI rival")
+	_march_to(root, _human(root), enemy)
 	root.input_ctl.on_attack_mode_requested(BattleSystem.AttackMode.RANGED)
+	root.input_ctl.request_reload()
+	await _settle(root)
 	var plan := root.input_ctl.armed_stack.attack_plan() as RangedAttackPlan
-	plan.set_target(enemy.core_location)
-	var enemy_hp_before: Dictionary = _stats(root)[enemy.entity_id].duplicate()
+	# Aim past the fog: which nodes this seat sees is not what is under test.
+	plan.viewer_vision = null
+	assert_true(plan.set_target(enemy.core_location), "fixture: the rival core is a target")
+	var enemy_hp_before := _territory_hp(root, enemy)
 	await root.battle_system.launch_attack(plan)
 	await _settle(root)
 	assert_eq(_human(root).volleys_launched_this_turn, 1, "fixture: one volley launched")
-	assert_ne(_stats(root)[enemy.entity_id], enemy_hp_before, "fixture: the volley did damage")
+	assert_lt(_territory_hp(root, enemy), enemy_hp_before, "fixture: the volley did damage")
 
 	var before := await _save_and_reload(root)
 	_assert_same_world(before)
