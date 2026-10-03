@@ -506,3 +506,6 @@ the substance. One line per fold; the post holds the detail.
 - 2026-10-03 · friction ("whip is just 1 step up, a chain of swarms.
   Estafette swarm") → the v2 shape: fork E, laws 12, 16, 18, 19, 28–32;
   laws 6, 16, 18 retired.
+- 2026-10-03 · autopsy (11:36, posted by the forked copy itself: a held
+  cross-session message read as `blocked`, the stop did not take, the
+  flagless resume forked) → laws 5 and 7 amended, corpus row 15.
