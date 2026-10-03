@@ -135,14 +135,18 @@ addon and spell column units.
   of the blade node carrying the addon, and that blade node (== the
   attacker's) therefore the stats, no readout on defensive nodes needed"*.
 - **No defensive face** (see "Defensive faces are rare").
-- **Look — open, two candidates:**
-  - **Tipped needles:** the owner's canonical favourite (*"they just look so
-    good if done right"*). Long thin needles with neon-green emissive tips,
-    kept distinct from SpikeRing's few big triangular spikes.
-  - **Froth into gas:** bubbling froth whose bubbles pop into green smoke.
-  - Shared: a neon green, noxious read, with the tip/glow on a named emissive
-    tier (`docs/domain/hdr-color.md`).
-  - Combining with other addons' looks on one node is its own issue.
+- **Addon look (owner, 2026-10-03):** *"froth popping into green gas, along
+  the rim or maybe innerdisk too idk, implementer's + advisor's design call --
+  can always tune or refine later"*. Neon green and noxious, with any glow on
+  a named emissive tier (`docs/domain/hdr-color.md`). Tipped needles stay the
+  owner's favourite in reserve. Combining with other addons' looks on one
+  node: #1368.
+- **Arrow look (owner, 2026-10-03):** *"neon green poison looking emissive
+  tip (fading to "regular"), leaving the occasional bubbly froth along
+  travel path (occasional as in, if i'd be shooting 20 of these arrows that
+  the game doesn't become all green bubbles and froth and gas"*. The froth
+  density is a knob, and it must stay sparse when a whole volley flies (the
+  owner's 20-arrow case). Lands with #1352.
 - **Spells:** `venom` stands. `bruiser` is not a poison spell; poison has one spell, room for a second.
 
 ## Contenders
