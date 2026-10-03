@@ -19,6 +19,36 @@ of the type on every reload** (*"i AM poison"*), melee caps that concept's
 temp upgrades per swing, magic's use is #1250. It is a count, not potency:
 `<family>_stacks_per_hit` stays separate.
 
+**One stat, every facet (owner, 2026-10-03).** *"one stack supporting
+`aspect` gets application source, in many aspects (as in facets) — arrow,
+addon (copied onto blade), spell, spell infusion"*. What each facet does by
+default:
+
+- **Arrow** — *"an arrow type likely applies 1 or more stacks (pending
+  balancing) of the status the type represents"*; a few do a special thing
+  *"still in line with its archetype"* (explosive: a euclidean AoE hitscan
+  besides the single-target hit). An arrow type is an arrow whose payload is
+  a list of on-hit effects (damage, status, other), plus its own look.
+- **Addon** — *"should provide something that fits it too, as local
+  modifiers or sometimes an entity wide modifier"* (SpikeRing: local
+  `blade_damage`, so only that blade node hits harder).
+- **Addon on the map** — an aspect-derived addon grants +1
+  `<concept>_aspect` to whoever allocates its node. *"this is not counted
+  for a temp upgrade (those mods never reach the entity's board!)"*.
+- **Addon on a blade** — *"should generally apply a stack of the aspect on
+  hit"*: the addon provides the on-hit rider; *"blade node itself doesn't
+  need to know, the addon provides"*.
+- **Spell** — *"should generally apply stacks of the status that goes with
+  the aspect, or do something that thematically matches it"*, with a twist
+  of its own.
+- **Infusion** — spending aspect budget to mutate the next cast; the gist is
+  on #1250.
+
+**Defensive faces are rare (owner, 2026-10-03).** *"if every thing has a
+defensive option (against just melee) swinging a blade is always just
+swinging it across a mine field"*. An addon's default job is offensive or
+utility; an anti-blade face (pop, deflect, drag) is a deliberate exception.
+
 **Addon column note:** "addon" and "temp addon" are one thing — a
 `SkillNodeAddon` scene (entity + node-local modifier lists, plus the
 overridable `apply_to_blade` hook). A map addon is placed by procgen and
@@ -70,12 +100,12 @@ addon and spell column units.
 | Concept | Stat | Ranged (arrow) | Addon (map / temp) | Magic (infusion) | Notes |
 |---|---|---|---|---|---|
 | Poison | `poison_aspect` | shipped (each reload mints `poison_aspect` poison arrows, #1248) | `toxin_addon.tscn` (on shared `dot_addon.gd`) — a stub, **redone in #1318** to the SpikeRing standard (look: #1271) | spells `venom`, `bruiser`; infusion #1250 | spread signature undecided (#1204) |
-| Corruption | `corruption_aspect` | shipped (#1349; look: #1351) | #1318 | #1250 | spreads as a sandpile by nature (#1202); health bar shows blips per stack, extra-mean when critical (#1092) |
-| Curse | `curse_aspect` | shipped (#1349; look: #1351) | #1318 (spell `hex` shipped) | #1250 | raises `min_damage_taken`; spills to surviving direct neighbours on death AND dealloc (#1204) |
-| Wither | `wither_aspect` | shipped (#1349; look: #1351) | #1318 | #1250 | drives healing received negative |
-| Blindness | `blindness_aspect` | shipped (#1349; look: #1351) | #1318 (spell `dazzle` shipped) | candidate: **Throw Sand** spell (owner, 2026-09-30) — row: #1253; infusion #1250 | count stacks, effect reads as a % via a saturating curve |
+| Corruption | `corruption_aspect` | scaffold (#1349; look: #1351) — design pass for feel and look open | #1318 | #1250 | spreads as a sandpile by nature (#1202); health bar shows blips per stack, extra-mean when critical (#1092) |
+| Curse | `curse_aspect` | scaffold (#1349; look: #1351) — design pass for feel and look open | #1318 (spell `hex` shipped) | #1250 | raises `min_damage_taken`; spills to surviving direct neighbours on death AND dealloc (#1204) |
+| Wither | `wither_aspect` | scaffold (#1349; look: #1351) — design pass for feel and look open | #1318 | #1250 | drives healing received negative |
+| Blindness | `blindness_aspect` | scaffold (#1349; look: #1351) — design pass for feel and look open | #1318 (spell `dazzle` shipped) | candidate: **Throw Sand** spell (owner, 2026-09-30) — row: #1253; infusion #1250 | count stacks, effect reads as a % via a saturating curve |
 | Scout (a reveal, #949) | `scout_aspect` | scouting arrow (shipped) | watchtower addon (shipped); temp: lit blade node pushing back fog (owner pitch, perf-sensitive: one moving mark per blade, never a second vision path) | TBD (#1254) | `effects/status/scouted.tres` is live (VisionSystem's decay rule); first-class concept (owner, 2026-09-30) |
-| Armor break | `armor_break_aspect` | shipped (#1349; look: #1351) | #1318 (spell `sunder` shipped) | #1250 (#395 holds the design) | flat −1 armor per stack, uncapped, can go below zero (#1203, owner 2026-09-30) |
+| Armor break | `armor_break_aspect` | scaffold (#1349; look: #1351) — design pass for feel and look open | #1318 (spell `sunder` shipped) | #1250 (#395 holds the design) | flat −1 armor per stack, uncapped, can go below zero (#1203, owner 2026-09-30) |
 | Explosive | `explosive_aspect` | explosive arrow (#1211) | explosive addon, procgen at low rate; detonation kills the blade node, reuses spike-pop plumbing (#1211) | stub (#1211) | euclidean hitscan radius from `SkillNode.radius`; barrels / friendly fire open (#1211) |
 
 ## Contenders
