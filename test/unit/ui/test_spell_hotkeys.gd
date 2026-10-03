@@ -63,7 +63,6 @@ func _stock_book(count: int) -> Array[SpellDef]:
 	for i in count:
 		var spell := SpellDef.new()
 		spell.name = "Spell %d" % i
-		spell.mana_cost = 0
 		spell.min_degree = 0
 		book.learn(spell)
 		made.append(spell)

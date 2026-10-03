@@ -57,12 +57,12 @@ func test_bind_pool_sets_preview_gain_from_per_turn_stat() -> void:
 	var per_turn := ScalarStat.new()
 	per_turn.base_value = 5.0
 
-	card._bind_pool(card._mana_gauge, card._mana_caption, pool, per_turn)
+	card._bind_pool(card._health_gauge, card._health_caption, pool, per_turn)
 	await get_tree().process_frame
 
-	assert_eq(card._mana_gauge.preview_gain, 5.0,
+	assert_eq(card._health_gauge.preview_gain, 5.0,
 		"_bind_pool must drive gauge.preview_gain from per_turn.value")
-	var mat := card._mana_gauge.material as ShaderMaterial
+	var mat := card._health_gauge.material as ShaderMaterial
 	assert_eq(mat.get_shader_parameter(&"preview_gain"), 5.0)
 
 

@@ -233,7 +233,7 @@ func test_the_chip_pops_where_it_rests_not_at_the_origin() -> void:
 
 
 ## Where the chip rises MATTERS: its first home (#317) put it inside the 110px
-## gauge on the card, so it rose in gold-on-gold across the mana row and read as
+## gauge on the card, so it rose in gold-on-gold across the row below and read as
 ## nothing at all. On the track it must clear the bar entirely.
 func test_the_chip_rises_clear_of_the_gauge() -> void:
 	var chip := _track.get_node("%XPDeltaChip") as XpDeltaChip

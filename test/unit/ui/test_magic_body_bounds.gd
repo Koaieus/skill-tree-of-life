@@ -40,7 +40,6 @@ func _book(count: int) -> SpellBook:
 	for i in count:
 		var spell := SpellDef.new()
 		spell.name = "Spell %d" % i
-		spell.mana_cost = 0
 		spell.min_degree = 0
 		book.learn(spell)
 	return book
@@ -118,9 +117,8 @@ func test_selection_survives_the_container_swap() -> void:
 		assert_eq(btn.button_group, group, "all buttons share one group")
 		# No gating attacker was ever set here, so `eligible_sources` is empty
 		# and every button sits at toggle_mode = false (#728's steal guard) —
-		# where `set_pressed_no_signal` is a no-op. Open the two clickable gates
+		# where `set_pressed_no_signal` is a no-op. Open the clickable caster gate
 		# by hand; the act gate and the group are what this test is about.
-		btn.set_affordable(true)
 		btn.set_has_caster(true)
 	_bar.sync_selected(buttons[3].spell)
 	assert_true(buttons[3].button_pressed, "sync_selected marks its button")

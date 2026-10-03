@@ -4,7 +4,7 @@ extends MarginContainer
 
 ## Top-center XP strip (#320): level, the XP gauge itself, the "+N XP" chip, and
 ## the running count. Lifted wholesale out of [HeroSigilCard], where XP was one
-## 110px gauge in a corner card stacked under health and mana — third billing for
+## 110px gauge in a corner card stacked under the other vitals — third billing for
 ## the currency the whole game is denominated in. Skill points buy nodes, nodes
 ## are the game, and levels mint skill points; the bar that tracks that belongs
 ## across the top of the screen, not in a vitals list.

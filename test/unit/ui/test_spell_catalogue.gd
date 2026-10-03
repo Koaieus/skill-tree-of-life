@@ -48,7 +48,6 @@ func test_each_entry_shows_its_spells_tagline_and_description_verbatim() -> void
 		assert_eq(entry.tagline_text(), spell.tagline, "%s: tagline" % spell.id)
 		assert_eq(entry.description_text(), spell.description, "%s: description" % spell.id)
 		assert_string_contains(entry.header_text(), spell.name.to_upper())
-		assert_string_contains(entry.mana_text(), str(spell.mana_cost))
 
 
 func test_each_entry_binds_the_same_four_sections_the_tooltip_derives() -> void:

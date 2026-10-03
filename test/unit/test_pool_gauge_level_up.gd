@@ -120,7 +120,7 @@ func test_the_clamps_keep_a_sliver_visible_and_a_sweep_finite() -> void:
 	assert_eq(_gauge._fill_duration(0.0, 10.0, 10.0), 0.5, "and a full sweep still ends")
 
 
-## Feedback bars (health, mana) deliberately stay on the flat duration.
+## Feedback bars (health) deliberately stay on the flat duration.
 func test_fill_speed_zero_keeps_the_flat_duration() -> void:
 	_gauge.fill_speed = 0.0
 	_gauge.level_up_fill_time = 0.35

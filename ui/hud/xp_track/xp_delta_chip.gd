@@ -14,7 +14,7 @@ extends Label
 ##
 ## [b]Its host must give it clear, dark space to rise into.[/b] Its first home
 ## (#317) anchored it inside the 110×12 XP gauge on the Hero Sigil card, where it
-## rose across the mana row in gold-on-gold at font 11 — firing correctly on
+## rose across the row below in gold-on-gold at font 11 — firing correctly on
 ## every grant and legible on none of them. It now lives on [XpTrack], where the
 ## rise crosses the track's own header band.
 

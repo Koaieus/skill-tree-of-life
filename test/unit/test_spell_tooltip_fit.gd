@@ -72,7 +72,6 @@ func test_tooltip_renders_its_content_through_scene_components() -> void:
 	var header: PanelHeader = tt.get_node("%Header")
 	assert_eq(header.header, spell.name.to_upper(), "header should carry the spell name")
 	assert_string_contains(header.subheader, str(spell.min_degree))
-	assert_string_contains(tt.get_node("%ManaLabel").text, str(spell.mana_cost))
 
 	# The four marked sections (#764) — each an instance of the SAME reusable
 	# scene, never code-composed Labels, and each row inside them a

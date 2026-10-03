@@ -1,7 +1,7 @@
 shader_type canvas_item;
 
 // Arcane Terminal pool gauge — one shader covers both the smooth vitals
-// bars (Health/Mana/XP) and the skewed "battery" cells (AP/DP/Move) via
+// bars (Health/XP) and the skewed "battery" cells (AP/DP/Move) via
 // cell_count: 0 = smooth continuous bar, N = N skewed parallelogram cells.
 // drain_from renders a fading ghost trail between the new (lower) value
 // and the previous one, so a stat/HP drop reads as felt power loss — smooth
@@ -38,7 +38,7 @@ uniform vec4 surplus_color : source_color = vec4(0.91, 0.67, 0.30, 0.85);
 // pool whose cap is SET to 0 (Pacifist) still wants cells — its whole budget is
 // the out-of-cap surplus. Without this, cell_count == 0 routes to the smooth
 // branch, which never reads `surplus`, so the boost renders as an empty bar.
-// Plain smooth bars (Health/Mana/XP) leave this 0.
+// Plain smooth bars (Health/XP) leave this 0.
 uniform float force_cells = 0.0;
 uniform float shine_speed = 0.6;
 uniform float cell_count = 0.0;

@@ -119,8 +119,8 @@ signal spell_unhovered
 ## decide what "denied" looks like (PlayerInputController's blink+shake today).
 signal node_action_denied(node: SkillNode, reason: String)
 
-## A HUD-widget-targeted verb was denied (#743's spell-picker mana gate is the
-## first case) — the [signal node_action_denied] sibling for a refusal that
+## A HUD-widget-targeted verb was denied (the spell picker's no-caster gate is
+## the first case) — the [signal node_action_denied] sibling for a refusal that
 ## has no [SkillNode] to anchor at and is not fog-gated (a HUD button is always
 ## visible to the machine showing it). [param anchor] is a Node2D the toast can
 ## place at directly — typically a widget's own `%FloatAnchor` marker — never a
