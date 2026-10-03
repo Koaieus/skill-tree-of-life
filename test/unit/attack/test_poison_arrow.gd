@@ -280,8 +280,8 @@ func test_a_kill_mid_volley_gates_the_remaining_poison_and_replays_clean() -> vo
 	var host: Dictionary = await _build(Vector2.ZERO, 3.0)
 	var peer: Dictionary = await _build(_PEER_ORIGIN, 3.0)
 	for ctx in [host, peer]:
-		# Down to 1 HP: the first arrow kills, so its own status (poison on a
-		# corpse is nothing) and both later arrows with theirs all dud.
+		# Down to 1 HP: the first arrow kills, so both later arrows and their
+		# riders dud.
 		var slice: NodeCombat = (ctx.nodes.target as SkillNode).get_combat()
 		slice.take_damage(slice.get_current_hp() - 1.0, null)
 	_arm(host, {&"poison": 3})
@@ -299,7 +299,10 @@ func test_a_kill_mid_volley_gates_the_remaining_poison_and_replays_clean() -> vo
 			assert_eq(defs[i], _POISON_DEF.resource_path, "a status hit crosses as its def path")
 			if (flags[i] & AttackRecord.FLAG_GATED) != 0:
 				gated_statuses += 1
-	assert_eq(gated_statuses, 3, "every status of a volley that killed on arrow one is a dud")
+	# A rider of a landed arrow is not a dud (StatusInstance.paired); arrow
+	# one's rider lands on the dead node, and that land is a no-op.
+	assert_eq(gated_statuses, 2, "both remaining arrows' statuses are duds after arrow one kills")
+	assert_almost_eq(_poison_power(host.nodes.target), 0.0, 0.001, "the corpse holds no poison")
 	var back := CommandCodec.from_dict(bytes_to_var(var_to_bytes(command.to_dict())) as Dictionary)
 	await (peer.bs as BattleSystem).apply_launch_command(back as LaunchAttackCommand)
 	assert_eq(WorldFingerprint.compute(host.graph), WorldFingerprint.compute(peer.graph))
