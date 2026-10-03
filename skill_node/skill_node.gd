@@ -358,7 +358,17 @@ var scouted: bool = false:
 		scouted = value
 		_apply_scouted_state()
 
-var status_viewers: Array[Entity] = []
+## The machine's local eyes, as [VisionSystem] pushes them on every recompute
+## (one shared array for every node, built fresh each time). Every reader of
+## this node's statuses gates a row's count through [StatusReadout] with it;
+## a change re-syncs the tint, so a hot-seat handover re-tints through the
+## same push. Not a stat — a render hint, like [member sensed].
+var status_viewers: Array[Entity] = []:
+	set(value):
+		if status_viewers == value:
+			return
+		status_viewers = value
+		_sync_status_tint()
 
 ## This node's [NodeStatBoard]. Authored here (the scene wires
 ## [constant DEFAULT_NODE_BOARD]) and DEEP-CLONED at init, exactly like
@@ -1466,7 +1476,9 @@ func notify_statuses_changed() -> void:
 
 ## [signal statuses_changed] handler — blends the strongest live status's
 ## [member StatusDef.tint] into [member NodeVisualsComposite.status_tint] by
-## its normalised power ("strongest" = highest [method NodeStatus.normalised];
+## its normalised power as [member status_viewers] may read it ("strongest" =
+## highest [method StatusReadout.shown_normalised] — a foreign presence row
+## counts as one stack;
 ## a tie keeps the first-applied row, i.e. [method NodeCombat.get_statuses]'s
 ## own application order). No statuses → WHITE (base modulate restored).
 ## Guarded like [method play_hit_flash] — a poison kill can re-enter this via
@@ -1477,7 +1489,7 @@ func _sync_status_tint() -> void:
 	var strongest: NodeStatus = null
 	var strongest_power := 0.0
 	for row in _combat.get_statuses():
-		var p := row.normalised()
+		var p := StatusReadout.shown_normalised(row, status_viewers)
 		if p > strongest_power:
 			strongest = row
 			strongest_power = p

@@ -353,6 +353,8 @@ func _recompute() -> void:
 	var nodes := graph.get_skill_nodes()
 	# Disabled: `is_visible` / `is_sensed` answer true off the flag, so the
 	# sets stay empty; only the circles and the edge frontier need clearing.
+	# Built fresh per recompute and never mutated in place: every node stores
+	# this same array as `status_viewers`, whose setter re-tints on a change.
 	var effective := _effective_viewers() if enabled else ([] as Array[Entity])
 
 	# Mark all existing circles as retreating; the active loop below
@@ -479,6 +481,7 @@ func _recompute() -> void:
 		n.sensed = _sensed.has(n)
 		n.revealed = _visible.has(n)
 		n.scouted = enabled and _scout_radius(n, effective) > 0.0
+		n.status_viewers = effective
 
 	# Edges follow the same logic as nodes but with stricter reveal: an
 	# edge is sensed iff BOTH endpoints are reached AND at least one is
