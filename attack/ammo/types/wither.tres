@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="AmmoType" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://attack/ammo/ammo_type.gd" id="1_ammo_type"]
+[ext_resource type="Resource" path="res://effects/status/wither.tres" id="2_status"]
+
+[resource]
+script = ExtResource("1_ammo_type")
+id = &"wither"
+display_name = "Wither Arrow"
+order = 60
+damage_scale = 0.5
+status_def = ExtResource("2_status")
+status_power = 1.0
+per_reload_stat_id = &"wither_aspect"
+max_stock = 999

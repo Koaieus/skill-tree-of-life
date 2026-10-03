@@ -35,7 +35,7 @@ class World:
 		return player.stat_board.arrows
 
 
-func _build_world(poison_per_reload: float) -> World:
+func _build_world(poison_per_reload: float, extra_aspects: Dictionary = {}) -> World:
 	var w := World.new()
 	w.graph = _GRAPH_SCENE.instantiate()
 	add_child_autofree(w.graph)
@@ -61,6 +61,8 @@ func _build_world(poison_per_reload: float) -> World:
 	w.player.display_name = "Archer"
 	w.player.stat_board = _BOARD.duplicate(true) as EntityStatBoard
 	w.player.stat_board.poison_aspect.base_value = poison_per_reload
+	for stat_id in extra_aspects:
+		(w.player.stat_board.get(stat_id) as ScalarStat).base_value = extra_aspects[stat_id]
 	w.graph.entities_container.add_child(w.player)
 	await get_tree().process_frame
 
@@ -147,3 +149,21 @@ func test_reload_replays_identically_on_a_mirror() -> void:
 	assert_eq(mirror.quiver().to_dict(), host.quiver().to_dict(),
 			"the same dict yields the same quiver on both peers")
 	assert_eq(mirror.ap(), host.ap())
+
+
+## The aspect arrows (#1349) ride the same flat-special path as poison.
+func test_aspect_arrows_yield_stock_and_replay_on_a_mirror() -> void:
+	var aspects := {&"corruption_aspect": 2.0, &"curse_aspect": 1.0}
+	var host: World = await _build_world(0.0, aspects)
+	host.tm.remove_from_group(TurnManager.GROUP)
+	var mirror: World = await _build_world(0.0, aspects)
+	var y: Dictionary = host.player.reload_yield()
+	assert_eq(int(y.get(&"corruption", 0)), 2)
+	assert_eq(int(y.get(&"curse", 0)), 1)
+	var cmd := _reload(host)
+	var wire := cmd.to_dict()
+	host.applier.submit(cmd)
+	mirror.applier.submit(CommandCodec.from_dict(wire))
+	assert_eq(host.quiver().stock_of(&"corruption"), 2)
+	assert_eq(host.quiver().stock_of(&"curse"), 1)
+	assert_eq(mirror.quiver().to_dict(), host.quiver().to_dict())

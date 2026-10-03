@@ -34,9 +34,9 @@ Each DoT gets an **arrow ammo type** (`attack/ammo/types/`), an **addon**
 (with a blade-copy face for melee, the #951 shape), and **one to two spells**
 — whichever creates build variety (*"oh you're stacking CORRUPTION, not
 POISON, well we got some spells in store for that too"*). Poison's arrow
-exists; the corruption, curse and wither arrows land together in #1317 (the
-matrix's ranged column, `aspect_matrix.md`); the per-family spells are
-designed in #1318.
+exists, and so do the corruption, curse, wither, armor-break and blindness
+arrows (#1349, the matrix's ranged column, `aspect_matrix.md`); the
+per-family spells are designed in #1318.
 
 ## Contagion (parked)
 
