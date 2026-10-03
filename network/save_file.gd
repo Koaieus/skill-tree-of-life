@@ -18,7 +18,9 @@ enum LoadResult { OK, MISSING, CORRUPT, VERSION_MISMATCH }
 ## [WorldImage] envelope changes; a file of another version is refused, never
 ## migrated. `test_save_file.gd` pins [method row_layout_hash] per version.
 ## 2: an `_R_STATUSES` entry is `[def_idx, power, key, camp_id, applier_id]`.
-const FORMAT_VERSION := 2
+## 3: the xp stat's dict carries `banked` ([GrowablePoolStat]); an older file
+##    would decode it as 0 and under-report lifetime XP.
+const FORMAT_VERSION := 3
 ## The single slot — mirrors [constant Settings.SAVE_PATH]'s `user://` home.
 const SLOT_PATH := "user://save.bin"
 const MAGIC := "STLS"

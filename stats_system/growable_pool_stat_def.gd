@@ -24,6 +24,9 @@ enum PostGrowMode {
 
 @export var post_grow_mode: PostGrowMode = PostGrowMode.RESET
 
+## One error per def, not one per level-up (see [method on_pool_filled]).
+var _warned_untracked := false
+
 
 func on_pool_filled(stat: PoolStat, excess: float) -> void:
 	var old_max := float(stat.get_value())
@@ -32,6 +35,13 @@ func on_pool_filled(stat: PoolStat, excess: float) -> void:
 	var delta := new_max - old_max
 	if delta <= 0.0:
 		return  # misconfigured (factor < 1 + tiny flat) or no-op
+	# Bank the cap this level consumed — the modified one — before minting the
+	# next, so a cascade banks each in turn.
+	if stat is GrowablePoolStat:
+		(stat as GrowablePoolStat).banked += old_max
+	elif not _warned_untracked:
+		_warned_untracked = true
+		push_error("GrowablePoolStatDef '%s' on a plain PoolStat: its lifetime total is not tracked — make the stat a GrowablePoolStat" % id)
 	# Mint: growth is this pool levelling ITSELF, not a cap that followed
 	# something else, so the def's cap-change policy must not fire (#555).
 	stat._set_base_minted(stat.base_value + delta)

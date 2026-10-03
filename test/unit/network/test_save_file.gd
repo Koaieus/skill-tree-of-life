@@ -18,6 +18,9 @@ const _ROW_LAYOUT_PINS := {
 	# key, camp_id, applier_id]` (status rows keyed by group_by). The indices
 	# did not move, so the hash is 1's; the bump is the entry shape.
 	2: "8d2ad82f2df3252642749fab0700d38b3b7f3a4340a3344272186ebf0bc1bcb7",
+	# 3: the xp stat's dict gained `banked` (lifetime XP). No row moved, so the
+	# hash is 2's; the bump is the stat dict's shape.
+	3: "8d2ad82f2df3252642749fab0700d38b3b7f3a4340a3344272186ebf0bc1bcb7",
 }
 
 

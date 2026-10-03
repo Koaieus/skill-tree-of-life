@@ -9,11 +9,11 @@ extends VictoryCondition
 ## **Owner, 2026-09-30:** "perhaps a new victorycondition: turn limit. after
 ## that, pick the one with highest total XP (or level + xp bar tiebreaker
 ## whichever's easier)". A camp's score is the sum of its living contestants'
-## `level`, ties broken by the sum of their `xp` pool `current` — plain
-## arithmetic, no level-curve math — then by the nodes they own (owner,
-## 2026-10-02: "tiebreak owned territory sounds fitting tho"). An exact tie on
-## all three is a DRAW. The score lives in ONE private method because it "may
-## become a knob later" (owner).
+## lifetime XP ([method GrowablePoolStat.total] — the owner's 2026-10-03 pick,
+## since level and bar don't add across several members), ties broken by the
+## nodes they own (owner, 2026-10-02: "tiebreak owned territory sounds fitting
+## tho"). An exact tie on both is a DRAW. The score lives in ONE private method
+## because it "may become a knob later" (owner).
 ##
 ## Pure: reads only the [VictoryContext], never the [TurnManager].
 
@@ -35,7 +35,7 @@ func evaluate(ctx: VictoryContext) -> RunOutcome:
 		return null
 	var territory := _territory_by_camp(ctx)
 	var best: Faction = null
-	var best_score := Vector3(-INF, -INF, -INF)
+	var best_score := Vector2(-INF, -INF)
 	var tied := false
 	for camp in ctx.living_camps(contestants):
 		var score := _camp_score(ctx, camp, territory)
@@ -54,22 +54,20 @@ func describe() -> String:
 	return "Turn limit (%d entity turns)" % limit
 
 
-## A camp's score as `(summed level, summed xp.current, owned nodes)`, compared
-## lexicographically — each later component breaks a tie in the ones before.
-## [param territory] is [method _territory_by_camp]'s one walk, shared by every
-## camp.
-func _camp_score(ctx: VictoryContext, camp: Faction, territory: Dictionary) -> Vector3:
-	var levels := 0.0
+## A camp's score as `(summed lifetime XP, owned nodes)`, compared
+## lexicographically — territory breaks a tie in XP. [param territory] is
+## [method _territory_by_camp]'s one walk, shared by every camp.
+func _camp_score(ctx: VictoryContext, camp: Faction, territory: Dictionary) -> Vector2:
 	var xp := 0.0
 	for ent in ctx.entities:
 		if not _scores(ent) or ent.faction.id != camp.id:
 			continue
 		if ent.stat_board == null:
 			continue
-		levels += ent.level
-		if ent.stat_board.xp != null:
-			xp += ent.stat_board.xp.current
-	return Vector3(levels, xp, territory.get(camp.id, 0))
+		var pool := ent.stat_board.xp as GrowablePoolStat
+		if pool != null:
+			xp += pool.total()
+	return Vector2(xp, territory.get(camp.id, 0))
 
 
 ## Owned nodes per camp id, in ONE walk of the graph (never one per camp). A
