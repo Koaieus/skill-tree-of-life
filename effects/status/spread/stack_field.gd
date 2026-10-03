@@ -12,27 +12,31 @@ var def: StatusDef
 ## [member StatusSpread.ownership_mask] — [enum SkillNode.Ownership] bits.
 var mask: int = SkillNode.Ownership.MINE
 var _adjacency: Dictionary = {}
+## Which row of [member def] the field reads — `(def.id, key)` (#1343);
+## `true` for a shared def. A rule stamps it on every transfer it emits.
+var key: Variant = true
 
 
 func _init(p_def: StatusDef = null, p_mask: int = SkillNode.Ownership.MINE,
-		p_adjacency: Dictionary = {}) -> void:
+		p_adjacency: Dictionary = {}, p_key: Variant = true) -> void:
 	def = p_def
 	mask = p_mask
 	_adjacency = p_adjacency
+	key = p_key
 
 
 ## The field over [param nodes] in [param world]: each node's slice, adjacent
 ## to the slices of its [method Graph.get_neighbours] (all of them — the mask
 ## filters at read time, so a neighbour outside [param nodes] still counts).
 static func over_world(p_def: StatusDef, p_mask: int, world: CombatWorld,
-		nodes: Array[SkillNode], graph: Graph) -> StackField:
+		nodes: Array[SkillNode], graph: Graph, p_key: Variant = true) -> StackField:
 	var adjacency := {}
 	for node in nodes:
 		var around: Array[NodeCombat] = []
 		for m in graph.get_neighbours(node):
 			around.append(world.combat_for(m))
 		adjacency[world.combat_for(node)] = around
-	return StackField.new(p_def, p_mask, adjacency)
+	return StackField.new(p_def, p_mask, adjacency, p_key)
 
 
 ## Every host in the field, in insertion order.
@@ -42,10 +46,10 @@ func nodes() -> Array[NodeCombat]:
 	return out
 
 
-## [param n]'s RAW row of [member def] (ADR 0032: spread moves the raw
+## [param n]'s RAW row `(def.id, key)` (ADR 0032: spread moves the raw
 ## integer row; resistance stays the live filter). `0` when absent.
 func stacks(n: NodeCombat) -> float:
-	return n.get_status_power(def.id) if n != null and def != null else 0.0
+	return n.get_status_power(def.id, key) if n != null and def != null else 0.0
 
 
 ## [param n]'s neighbours whose [method NodeCombat.ownership_bit] — seen by

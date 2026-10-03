@@ -875,8 +875,8 @@ func _on_statuses_changed() -> void:
 
 
 ## See [method StatusHost.apply_status].
-func apply_status(def: StatusDef, power: float) -> void:
-	_status_host.apply_status(def, power)
+func apply_status(def: StatusDef, power: float, camp_id: StringName = &"", applier_id: int = 0) -> void:
+	_status_host.apply_status(def, power, camp_id, applier_id)
 
 
 ## See [method StatusHost.tick_statuses].
@@ -889,14 +889,19 @@ func remove_status(id: StringName) -> void:
 	_status_host.remove_status(id)
 
 
+## See [method StatusHost.remove_row].
+func remove_row(id: StringName, key: Variant) -> void:
+	_status_host.remove_row(id, key)
+
+
 ## See [method StatusHost.release_statuses].
 func release_statuses() -> Array[NodeStatus]:
 	return _status_host.release_statuses()
 
 
 ## See [method StatusHost.get_status_power].
-func get_status_power(id: StringName) -> float:
-	return _status_host.get_status_power(id)
+func get_status_power(id: StringName, key: Variant = true) -> float:
+	return _status_host.get_status_power(id, key)
 
 
 ## See [method StatusHost.projected_status_damage].

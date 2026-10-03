@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="StatusDef" format=3]
+
+[ext_resource type="Script" path="res://effects/status/status_def.gd" id="1_stat"]
+[ext_resource type="Script" path="res://effects/status/spread/spill_spread.gd" id="2_spill"]
+
+[sub_resource type="Resource" id="Resource_spill"]
+script = ExtResource("2_spill")
+
+[resource]
+script = ExtResource("1_stat")
+id = &"test_camp_status"
+display_name = "Test Camp Status"
+power_max = 0.0
+reapply = 1
+decay = null
+spread = SubResource("Resource_spill")
+group_by = "camp_id"
+visible_if = "camp_id == viewer_camp_id"

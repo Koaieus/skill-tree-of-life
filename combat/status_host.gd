@@ -53,7 +53,7 @@ func clone_into(other: StatusHost) -> void:
 ## handed to [method StatusDef._on_applied].
 ## No-op on an unallocated host for a `CLEAR` def (owner, 2026-09-14: nothing
 ## owns it, nothing would tick it), on a null def, and on a non-positive power.
-func apply_status(def: StatusDef, power: float) -> void:
+func apply_status(def: StatusDef, power: float, _camp_id: StringName = &"", _applier_id: int = 0) -> void:
 	if def == null or power <= 0.0:
 		return
 	if not _may_host(def):
@@ -76,7 +76,7 @@ func apply_status(def: StatusDef, power: float) -> void:
 ## no attacker fold, no reapply policy — moving stacks is not landing them.
 ## Creation keeps [method apply_status]'s gate: a `CLEAR` def is never put on
 ## an unallocated host, so a spread credit onto one is VOIDED, not banked.
-func adjust_power(def: StatusDef, delta: float) -> void:
+func adjust_power(def: StatusDef, delta: float, _key: Variant = true) -> void:
 	if def == null or delta == 0.0:
 		return
 	if not _statuses.has(def.id) and (delta < 0.0 or not _may_host(def)):
@@ -179,6 +179,10 @@ func remove_status(id: StringName) -> void:
 	owner._on_statuses_changed()
 
 
+func remove_row(_id: StringName, _key: Variant) -> void:
+	pass
+
+
 ## Drop every status, each through [method remove_status], and hand back the
 ## rows as they stood — the caller that is stripping the node feeds them to
 ## [method CombatWorld.note_removed] so a spreading def can spill them.
@@ -230,7 +234,7 @@ func _resistance(def: StatusDef) -> float:
 
 
 ## Current power of status [param id], `0.0` when absent.
-func get_status_power(id: StringName) -> float:
+func get_status_power(id: StringName, _key: Variant = true) -> float:
 	var row: NodeStatus = _statuses.get(id)
 	return float(row.power) if row != null else 0.0
 

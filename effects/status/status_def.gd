@@ -1,3 +1,4 @@
+@tool
 class_name StatusDef
 extends Resource
 
@@ -73,6 +74,108 @@ enum OnDealloc {
 @export var display_max: float = 0.0
 @export var reapply: Reapply = Reapply.REFRESH
 @export var on_dealloc: OnDealloc = OnDealloc.CLEAR
+
+## The grouping key a landing's row is filed under (#1343): a GDScript
+## [Expression], parsed once against [constant GROUP_BY_INPUTS] and run per
+## apply ([method group_key]). Empty means `true` — every applier shares ONE
+## row, the shipped behaviour. `false` is refused (independent rows need a
+## deterministic application id, not built). The key must be a bool, int or
+## StringName — a row replays identically on every peer. Inputs:
+##   [b]camp_id[/b]    — StringName, the applier's [member Faction.id] (`&""` none)
+##   [b]applier_id[/b] — int, the applier's [member Entity.entity_id] (`0` none)
+## e.g. `camp_id` (one row per camp), `applier_id` (one per entity).
+@export_multiline var group_by: String = "":
+	set(v):
+		group_by = v
+		_warn_on_parse_error(v, GROUP_BY_INPUTS, "group_by")
+## Whether a viewer reads a row's count ([method count_visible]): a boolean
+## [Expression] over [constant VISIBLE_IF_INPUTS]. Empty means every viewer
+## reads it. Inputs: the row's [b]camp_id[/b] / [b]applier_id[/b] (as
+## [member group_by]'s), plus [b]viewer_camp_id[/b] (StringName) and
+## [b]viewer_id[/b] (int) — e.g. `camp_id == viewer_camp_id`.
+@export_multiline var visible_if: String = "":
+	set(v):
+		visible_if = v
+		_warn_on_parse_error(v, VISIBLE_IF_INPUTS, "visible_if")
+
+const GROUP_BY_INPUTS: PackedStringArray = ["camp_id", "applier_id"]
+const VISIBLE_IF_INPUTS: PackedStringArray = ["camp_id", "applier_id", "viewer_camp_id", "viewer_id"]
+
+var _group_expr: Expression = null
+var _group_text: String = ""
+var _visible_expr: Expression = null
+var _visible_text: String = ""
+
+
+## The key a landing by [param camp_id] / [param applier_id] files its row
+## under ([member group_by]). `true` for an empty expression. `null` means
+## REFUSED — a parse or run error, `false`, or a non-bool/int/StringName
+## result — after a `push_error`; the caller's apply is then a no-op.
+func group_key(camp_id: StringName, applier_id: int) -> Variant:
+	if group_by.strip_edges().is_empty():
+		return true
+	if _group_expr == null or _group_text != group_by:
+		_group_expr = _compile(group_by, GROUP_BY_INPUTS)
+		_group_text = group_by
+	if _group_expr == null:
+		push_error("StatusDef %s: group_by '%s' does not parse" % [id, group_by])
+		return null
+	var key: Variant = _group_expr.execute([camp_id, applier_id], null, false)
+	if _group_expr.has_execute_failed():
+		push_error("StatusDef %s: group_by '%s' failed: %s" % [id, group_by, _group_expr.get_error_text()])
+		return null
+	if typeof(key) == TYPE_STRING:
+		key = StringName(key)
+	if key is bool and key == false:
+		push_error("StatusDef %s: group_by evaluated to false — independent rows are not built" % id)
+		return null
+	if not (key is bool or key is int or key is StringName):
+		push_error("StatusDef %s: group_by key %s is not a bool/int/StringName" % [id, key])
+		return null
+	return key
+
+
+## Whether a viewer of camp [param viewer_camp_id] / entity [param viewer_id]
+## reads [param row]'s count ([member visible_if]). Empty → always; a parse or
+## run error → hidden, after a `push_error`.
+func count_visible(row: NodeStatus, viewer_camp_id: StringName, viewer_id: int) -> bool:
+	if visible_if.strip_edges().is_empty():
+		return true
+	if row == null:
+		return false
+	if _visible_expr == null or _visible_text != visible_if:
+		_visible_expr = _compile(visible_if, VISIBLE_IF_INPUTS)
+		_visible_text = visible_if
+	if _visible_expr == null:
+		push_error("StatusDef %s: visible_if '%s' does not parse" % [id, visible_if])
+		return false
+	var seen: Variant = _visible_expr.execute(
+			[row.camp_id, row.applier_id, viewer_camp_id, viewer_id], null, false)
+	if _visible_expr.has_execute_failed():
+		push_error("StatusDef %s: visible_if '%s' failed: %s" % [id, visible_if, _visible_expr.get_error_text()])
+		return false
+	return bool(seen)
+
+
+## The parse error of [param text] against [param inputs], `""` when it
+## parses (or is empty) — what the setters warn with and the disk sweep asserts.
+static func parse_error(text: String, inputs: PackedStringArray) -> String:
+	if text.strip_edges().is_empty():
+		return ""
+	var e := Expression.new()
+	return "" if e.parse(text, inputs) == OK else e.get_error_text()
+
+
+static func _compile(text: String, inputs: PackedStringArray) -> Expression:
+	var e := Expression.new()
+	return e if e.parse(text, inputs) == OK else null
+
+
+func _warn_on_parse_error(text: String, inputs: PackedStringArray, field: String) -> void:
+	var err := parse_error(text, inputs)
+	if not err.is_empty():
+		push_warning("StatusDef %s: %s '%s' does not parse against %s: %s"
+				% [resource_path, field, text, inputs, err])
 
 
 func get_description() -> String:
