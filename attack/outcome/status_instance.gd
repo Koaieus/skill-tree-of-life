@@ -23,7 +23,7 @@ extends HitInstance
 var def: StatusDef = null
 ## Stacks handed to [method NodeCombat.apply_status]. Until [method land_on]
 ## runs this is the applier's authored per-hit number ([member
-## ApplyStatusEffect.power], `AmmoType.status_power`); land folds the
+## ApplyStatusEffect.power], on a spell, an arrow or a blade); land folds the
 ## attacker's stacks stat into it exactly once (#963) — or zeroes it when the
 ## receiving host [method StatusHost.blocks] it — and the LANDED number is
 ## what [AttackRecord] ships. Resistance below 100% never touches it: the

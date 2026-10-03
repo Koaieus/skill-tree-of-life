@@ -18,7 +18,14 @@ var target: SkillNode = null
 ## one ([method to_dict]), so a mirror never re-derives a default.
 var ammo_counts: Dictionary = {}
 
-const _ROSTER: AmmoTypeRoster = preload("res://attack/ammo/ammo_type_roster.tres")
+const _ROSTER_PATH := "res://attack/ammo/ammo_type_roster.tres"
+
+
+## The roster, loaded on first use rather than preloaded: [AmmoType] reaches
+## this script back through its [OnHitEffect] riders (→ [SpellDef] → the plan
+## family), and a preload at compile time would load the roster mid-cycle.
+static func _roster() -> AmmoTypeRoster:
+	return load(_ROSTER_PATH) as AmmoTypeRoster
 
 const ERR_NO_AMMO := &'No arrows in the quiver'
 const ERR_NO_SHOTS := &'No firing leaf in range has shots left'
@@ -86,7 +93,7 @@ func n() -> int:
 func _ammo_sequence() -> Array[AmmoType]:
 	var seq: Array[AmmoType] = []
 	var counts := effective_ammo_counts()
-	for t in _ROSTER.sorted():
+	for t in _roster().sorted():
 		for _i in int(counts.get(t.id, 0)):
 			seq.append(t)
 	return seq
@@ -353,7 +360,7 @@ func validate() -> Array[String]:
 	var total := 0
 	for id in counts:
 		var count := int(counts[id])
-		if _ROSTER.by_id(id) == null:
+		if _roster().by_id(id) == null:
 			errors.append(&'Unknown ammo type: %s' % id)
 		elif count > quiver.stock_of(id):
 			errors.append(&'Not enough %s arrows (%d < %d)' % [id, quiver.stock_of(id), count])
@@ -395,7 +402,7 @@ func is_scout_shot() -> bool:
 
 
 static func _is_scout_type(id: StringName) -> bool:
-	var t := _ROSTER.by_id(id)
+	var t := _roster().by_id(id)
 	return t != null and t.reveal_fraction > 0.0
 
 
@@ -469,7 +476,7 @@ func resolve_against(world: CombatWorld) -> AttackOutcome:
 		var key: float = (float(shot.wave) + frac) / float(maxi(waves, 1))
 		if shot.ammo_type != null and shot.ammo_type.reveal_fraction > 0.0:
 			# A scout arrow: no damage, no status — one RevealInstance on the
-			# arrow's beat. Never routed through compute/status_for (hub #949:
+			# arrow's beat. Never routed through compute/riders_for (hub #949:
 			# the mark is VisionSystem's fact, not a node status).
 			var k: int = scouts_from.get(shot.firing_node, 0) + 1
 			scouts_from[shot.firing_node] = k
@@ -488,12 +495,10 @@ func resolve_against(world: CombatWorld) -> AttackOutcome:
 		hit.source = self
 		hit.structural_key = key
 		outcome.hits.append(hit)
-		# A typed arrow's status (#495) is a second hit for the same landing —
-		# same key, appended right after, so it lands on the arrow's beat and
-		# after the arrow (the schedule's original-index tiebreak).
-		var status := RangedDamageFormula.status_for(hit)
-		if status != null:
-			outcome.hits.append(status)
+		# A typed arrow's riders are further hits for the same landing — same
+		# key, appended right after, so they land on the arrow's beat and after
+		# the arrow (the schedule's original-index tiebreak).
+		outcome.hits.append_array(RangedDamageFormula.riders_for(hit))
 	# Seconds, once, before anything consumes an order: `decide_all` below
 	# draws its seeded stream in landing order, which is the schedule's.
 	outcome.schedule = OutcomeSchedule.compile(outcome)

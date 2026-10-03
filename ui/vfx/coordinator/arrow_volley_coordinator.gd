@@ -309,12 +309,11 @@ func _scene_for(type: AmmoType) -> PackedScene:
 	return type.visual_scene if type != null and type.visual_scene != null else visual_scene
 
 
-## The type's [member StatusDef.tint]; transparent when it carries no status.
+## The type's first status rider's [member StatusDef.tint] ([method
+## AmmoType.first_status_def]); transparent when it carries no status.
 func _status_tint_for(type: AmmoType) -> Color:
-	if type == null or type.status_def == null:
-		return Color(0, 0, 0, 0)
-	var v: Variant = type.status_def.get("tint")
-	return v if v is Color else Color(0, 0, 0, 0)
+	var def: StatusDef = type.first_status_def() if type != null else null
+	return def.tint if def != null else Color(0, 0, 0, 0)
 
 
 ## Σ|amount| of the landing's hits — the arrow's own plus the typed status
@@ -347,9 +346,9 @@ func play(payload: Variant) -> void:
 	# nothing leave the bow.
 	#
 	# The one thing skipped is skipped by CLASS, not kind: a typed arrow's
-	# status (#495, `RangedStatusInstance`) is a second hit for the SAME
-	# landing, sharing the arrow's origin and target — it never was an arrow,
-	# so drawing it would land two arrows on one beat.
+	# riders (`RangedDamageFormula.riders_for`, `StatusInstance`s) are further
+	# hits for the SAME landing, sharing the arrow's origin and target — they
+	# never were arrows, so drawing them would land several arrows on one beat.
 	var hits := outcome.hits
 	if hits.is_empty():
 		return

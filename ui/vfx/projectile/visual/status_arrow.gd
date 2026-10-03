@@ -8,7 +8,7 @@ extends LightArrow
 ## The base scene every per-type arrow inherits.
 ##
 ## [member status_tint] is stamped per shot by [ArrowVolleyCoordinator] from
-## the shot's [member AmmoType.status_def] `tint` — never authored per scene —
+## the shot's [method AmmoType.first_status_def] `tint` — never authored per scene —
 ## and lifted to a named [Emissive] tier here: VALUE for the tip, LABEL for the
 ## particles. A transparent tint (no status) hides all three, leaving exactly a
 ## [LightArrow].

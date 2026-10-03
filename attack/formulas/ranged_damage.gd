@@ -28,7 +28,7 @@ class_name RangedDamageFormula
 ## hit so the landing knows what it was, and (#495) scaling the loosed amount
 ## by [member AmmoType.damage_scale] BEFORE mitigation (owner 2026-09-18:
 ## "reduced raw damage + added poison status stacks"). Null is a plain base
-## shot. The type's status, if any, is a second hit — see [method status_for].
+## shot. The type's riders, if any, are further hits — see [method riders_for].
 static func compute(attacker: Entity, firing_node: SkillNode, target: SkillNode,
 		ammo_type: AmmoType = null) -> DamageInstance:
 	var hit := RangedHitInstance.new()
@@ -44,47 +44,44 @@ static func compute(attacker: Entity, firing_node: SkillNode, target: SkillNode,
 	return hit
 
 
-## The status a typed arrow applies on landing (#495), as a second hit for
-## the SAME landing as [param hit] — null when the arrow carries no
-## [member AmmoType.status_def]. Same construction as
-## [method ApplyStatusEffect.apply] (magic's on-hit), deliberately NOT routed
-## through the spell stub (owner 2026-09-18: "magic will most likely NOT have
-## anything to do with poison arrows"). The caller appends it right after its
-## arrow: [member HitInstance.structural_key] is copied so both land on one
-## beat, and the later original index keeps the arrow first
-## ([method OutcomeSchedule.compile]). A volley's many arrows on one node
-## therefore re-apply under the def's [member StatusDef.reapply] rule —
-## `ACCUMULATE` on poison is what makes ranged the poison specialist.
+## The riders pass of a typed arrow's landing: every one of the arrow's
+## [member AmmoType.on_hit_effects], in authored order, run against ONE
+## [HitLanding] built from [param hit] — empty for an untyped arrow or one with
+## no riders. The landing is paired to the arrow, so each emitted
+## [StatusInstance] is a dud iff the arrow is ([member StatusInstance.paired]);
+## each rider is stamped with the arrow's [member HitInstance.ammo_type_id].
+## The caller appends the riders right after their arrow: the copied
+## [member HitInstance.structural_key] puts them on its beat, and the later
+## original index keeps the arrow first ([method OutcomeSchedule.compile]). A
+## volley's many arrows on one node therefore re-apply under each def's
+## [member StatusDef.reapply] rule — `ACCUMULATE` on poison is what makes
+## ranged the poison specialist.
 ##
 ## Rides the wire for free: [AttackRecord] serialises any `Kind.STATUS` hit by
 ## its def's `resource_path`, and a gated dud replays as power 0, which
 ## [method NodeCombat.apply_status] ignores.
-static func riders_for(_hit: DamageInstance) -> Array[HitInstance]:
-	return []
-
-
-static func status_for(hit: DamageInstance) -> StatusInstance:
+static func riders_for(hit: DamageInstance) -> Array[HitInstance]:
 	var arrow := hit as RangedHitInstance
-	if arrow == null or arrow.ammo_type == null:
-		return null
-	var def := arrow.ammo_type.status_def as StatusDef
-	if def == null:
-		return null
-	var status := RangedStatusInstance.new()
-	status.def = def
-	status.power = arrow.ammo_type.status_power
-	status.attacker = arrow.attacker
-	status.ammo_type_id = arrow.ammo_type_id
-	status.source = arrow.source
-	status.target = arrow.target
-	status.origin = arrow.origin
-	status.structural_key = arrow.structural_key
-	return status
+	if arrow == null or arrow.ammo_type == null or arrow.ammo_type.on_hit_effects.is_empty():
+		return []
+	var landing := HitLanding.new()
+	landing.attacker = arrow.attacker
+	landing.source = arrow.source
+	landing.origin = arrow.origin
+	landing.target = arrow.target
+	landing.structural_key = arrow.structural_key
+	landing.paired = arrow
+	for effect in arrow.ammo_type.on_hit_effects:
+		if effect != null:
+			effect.apply(landing)
+	for rider in landing.hits:
+		rider.ammo_type_id = arrow.ammo_type_id
+	return landing.hits
 
 
-## Ranged's land-time GATE (#503), shared by the arrow and its status (#495)
-## so the two never disagree on whether a landing is a dud: false if the
-## target is no longer allocated/hostile to [param attacker], or the firing
+## Ranged's land-time GATE (#503) — the arrow's; its riders follow it through
+## [member StatusInstance.paired], so the two never disagree on whether a
+## landing is a dud: false if the target is no longer allocated/hostile to [param attacker], or the firing
 ## node's slice ([param origin_slice], looked up in the landing world) is
 ## gone. A veto is a veto, not a re-plan — callers mark
 ## [member HitInstance.gated] and mutate nothing.
@@ -164,18 +161,3 @@ class RangedHitInstance extends DamageInstance:
 			return
 		super.land_on(node, world)
 
-
-## The status half of a typed arrow's landing (#495), built by [method
-## RangedDamageFormula.status_for]. Same gate as [RangedHitInstance] — a dud
-## arrow applies no status — and a vetoed one lands as power 0 so the record
-## carries a zero that [method NodeCombat.apply_status] ignores on replay.
-class RangedStatusInstance extends StatusInstance:
-	func land_on(node: NodeCombat, world: CombatWorld) -> void:
-		if not RangedDamageFormula.passes_gate(attacker, node,
-				RangedDamageFormula._origin_slice_of(self, world)):
-			gated = true
-			power = 0.0
-			amount = 0.0
-			effective_amount = 0.0
-			return
-		super.land_on(node, world)

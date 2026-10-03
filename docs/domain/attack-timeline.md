@@ -93,9 +93,9 @@ hits all flipped to heals came back empty and the coordinator returned before
 spawning anything. The player spent the AP and no arrow left the bow. If you
 are about to narrow that iteration again, this paragraph is why you should not.
 
-The one entry it does skip is skipped **by class**: a typed arrow's status
-(#495) rides `outcome.hits` as a `RangedStatusInstance` right after its arrow —
-same origin, target and beat — and is not an arrow, so it draws nothing. A
+The one entry it does skip is skipped **by class**: a typed arrow's riders
+(`AmmoType.on_hit_effects`) ride `outcome.hits` as `StatusInstance`s right after
+its arrow — same origin, target and beat — and are not arrows, so they draw nothing. A
 hit whose `kind` changed post-mitigation is still an arrow; a status hit never
 was one. `BattleSystem._consume_volley` counts shots on the same distinction.
 

@@ -75,14 +75,12 @@ static func effect_line(t: AmmoType) -> String:
 		return "scouts ×%s sight" % NumFmt.num(t.reveal_fraction)
 	if not is_equal_approx(t.damage_scale, 1.0):
 		parts.append("×%s dmg" % NumFmt.num(t.damage_scale))
-	if t.status_def != null:
-		var status_name: String = ""
-		var v: Variant = t.status_def.get("display_name")
-		if v is String and not (v as String).is_empty():
-			status_name = v
-		else:
-			status_name = t.status_def.resource_name
-		parts.append("+%s per hit" % status_name if not status_name.is_empty() else "status per hit")
+	for effect in t.on_hit_effects:
+		if effect == null:
+			continue
+		var line := effect.get_description()
+		if not line.is_empty():
+			parts.append(line)
 	return " · ".join(parts) if not parts.is_empty() else "plain shot"
 
 
@@ -105,9 +103,10 @@ func _paint() -> void:
 
 ## The type's status mark: a swatch in [member StatusDef.tint] lifted to the
 ## LABEL tier, and its icon — or, with none, its first letter as
-## [SpellPickerButton] does. A type with no status shows none of it.
+## [SpellPickerButton] does — of its first status rider ([method
+## AmmoType.first_status_def]). A type with no status shows none of it.
 func _paint_status() -> void:
-	var def: StatusDef = type.status_def as StatusDef
+	var def: StatusDef = type.first_status_def()
 	_swatch.visible = def != null
 	_status_icon.visible = def != null and def.icon != null
 	_status_letter.visible = def != null and def.icon == null

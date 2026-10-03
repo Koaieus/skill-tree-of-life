@@ -8,10 +8,10 @@ extends Resource
 ##
 ## On hit (#495) the type is read by [RangedDamageFormula]: [method
 ## RangedDamageFormula.compute] scales the loosed amount by [member
-## damage_scale] before mitigation, and [method RangedDamageFormula.status_for]
-## emits a [StatusInstance] of [member status_def] at [member status_power]
-## alongside the arrow's [DamageInstance] for the same landing. A scout type
-## ([member reveal_fraction] > 0) takes neither path — see [RevealInstance].
+## damage_scale] before mitigation, and [method RangedDamageFormula.riders_for]
+## runs every one of [member on_hit_effects] for the same landing, so their
+## hits ride the arrow's beat. A scout type ([member reveal_fraction] > 0)
+## takes neither path — see [RevealInstance].
 
 ## Bin key on the [Quiver]; the stat minting it is [member per_reload_stat_id].
 @export var id: StringName = &""
@@ -21,14 +21,10 @@ extends Resource
 @export var order: int = 0
 ## Multiplier on the arrow's raw damage before mitigation. 1.0 for the base arrow.
 @export var damage_scale: float = 1.0
-## Status applied on a landing hit (a [StatusInstance] alongside the
-## [DamageInstance]), or null.
-@export var status_def: Resource = null
-## Power of that status per landing arrow; a volley re-applies it per arrow
-## under the def's `reapply` rule. Owner tunes.
-@export var status_power: float = 1.0
 ## What a landing arrow carries (ADR 0044), run in order by [method
-## RangedDamageFormula.riders_for] against one [HitLanding] paired to the arrow.
+## RangedDamageFormula.riders_for] against one [HitLanding] paired to the arrow
+## — a status rider is an [ApplyStatusEffect], whose power a volley re-applies
+## per arrow under the def's `reapply` rule (owner tunes).
 ## Spell-only riders ([SpellOnHitEffect]) are dropped at load with one
 ## `push_error` each; the stored array never holds one.
 @export var on_hit_effects: Array[OnHitEffect] = []:
@@ -43,7 +39,7 @@ extends Resource
 ## A SCOUT type (#1035): `> 0` makes the arrow deal no damage at all — the
 ## resolve emits one [RevealInstance] per arrow instead of a [DamageInstance]
 ## — with radius `firing leaf's local vision_range × reveal_fraction`. Never
-## pair this with a [member status_def]: the mark is [VisionSystem]'s fact,
+## pair this with an [ApplyStatusEffect] rider: the mark is [VisionSystem]'s fact,
 ## not a node status (hub #949).
 @export var reveal_fraction: float = 0.0
 ## `+%` of that radius per added scout arrow in one volley — the k-th lands
@@ -63,3 +59,13 @@ extends Resource
 ## (`ui/vfx/projectile/visual/`). Null → the volley coordinator's default
 ## [member ArrowVolleyCoordinator.visual_scene], today's plain [LightArrow].
 @export var visual_scene: PackedScene = null
+
+
+## The def of the first [ApplyStatusEffect] in [member on_hit_effects], or
+## null — tint only (card swatch, arrow hue); the riders pass runs every effect.
+func first_status_def() -> StatusDef:
+	for effect in on_hit_effects:
+		var apply := effect as ApplyStatusEffect
+		if apply != null and apply.def != null:
+			return apply.def
+	return null
