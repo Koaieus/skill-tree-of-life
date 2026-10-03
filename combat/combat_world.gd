@@ -82,9 +82,10 @@ var _fed: Array[DeallocEntry] = []
 class _Removal:
 	var node: NodeCombat
 	var cause: int
-	var defs: Dictionary = {}    # StringName -> StatusDef
-	var power: Dictionary = {}   # StringName -> float
-	var around: Dictionary = {}  # StringName -> Array[NodeCombat]
+	# Keyed by the row's identity `[def.id, key]` (#1343): a spill is per row.
+	var defs: Dictionary = {}    # [StringName, key] -> StatusDef
+	var power: Dictionary = {}   # [StringName, key] -> float
+	var around: Dictionary = {}  # [StringName, key] -> Array[NodeCombat]
 
 
 ## The field a flush hands [method StatusSpread.on_removed]: a removed node
@@ -279,9 +280,10 @@ func note_removed(node: NodeCombat, rows: Array[NodeStatus], cause: int) -> void
 			neighbours = _neighbours_of(node)
 			gathered = true
 		var probe := StackField.new(def, def.spread.ownership_mask, {node: neighbours})
-		r.defs[def.id] = def
-		r.power[def.id] = row.power
-		r.around[def.id] = probe.masked_neighbours(node)
+		var rid := [def.id, row.key]
+		r.defs[rid] = def
+		r.power[rid] = row.power
+		r.around[rid] = probe.masked_neighbours(node)
 	_pending.append(r)
 
 
@@ -300,7 +302,7 @@ func feed_recorded(entries: Array[DeallocEntry]) -> void:
 
 
 ## Run the spill rule over everything noted since the last flush: per cause,
-## per def, one [method StatusSpread.on_removed] over the whole removed union,
+## per row `(def.id, key)`, one [method StatusSpread.on_removed] over the whole removed union,
 ## landed through [SpreadApplier] in this world. Loops until nothing new was
 ## noted, should a landing itself strip a node. Each computed transfer is also
 ## written onto its `from`'s tracked [DeallocEntry] ([method track_entries]).
@@ -320,19 +322,21 @@ func flush_removals() -> void:
 		var batch := _pending
 		_pending = []
 		var removed: Array[NodeCombat] = []
-		var by_cause := {}  # cause -> {StringName -> StatusDef}, first seen
+		var by_cause := {}  # cause -> {[id, key] -> StatusDef}, first seen
 		for r in batch:
 			removed.append(r.node)
 			var defs: Dictionary = by_cause.get_or_add(r.cause, {})
-			for id: StringName in r.defs:
-				if not defs.has(id):
-					defs[id] = r.defs[id]
+			for rid: Array in r.defs:
+				if not defs.has(rid):
+					defs[rid] = r.defs[rid]
 		for cause: int in by_cause:
-			for def: StatusDef in (by_cause[cause] as Dictionary).values():
-				var field := _RemovalField.new(def, def.spread.ownership_mask)
+			var rows: Dictionary = by_cause[cause]
+			for rid: Array in rows:
+				var def: StatusDef = rows[rid]
+				var field := _RemovalField.new(def, def.spread.ownership_mask, {}, rid[1])
 				for r in batch:
-					if r.cause == cause and r.power.has(def.id):
-						field.snap(r.node, r.power[def.id], r.around[def.id])
+					if r.cause == cause and r.power.has(rid):
+						field.snap(r.node, r.power[rid], r.around[rid])
 				var transfers := def.spread.on_removed(field, removed, cause)
 				_record_spill(def, transfers)
 				SpreadApplier.apply(def, transfers, self)
@@ -355,7 +359,7 @@ func _record_spill(def: StatusDef, transfers: Array[StackTransfer]) -> void:
 			continue
 		var to_real: SkillNode = t.to.real() if t.to != null else null
 		e.spill.append(StackTransfer.new(from_real.get_combat(),
-				to_real.get_combat() if to_real != null else null, t.amount))
+				to_real.get_combat() if to_real != null else null, t.amount, t.key))
 		e.spill_defs.append(def)
 
 
@@ -372,7 +376,7 @@ func _land_recorded() -> void:
 			var from := combat_for(t.from.real()) if t.from != null else null
 			var to := combat_for(t.to.real()) if t.to != null else null
 			var list: Array = by_def.get_or_add(def, [] as Array[StackTransfer])
-			list.append(StackTransfer.new(from, to, t.amount))
+			list.append(StackTransfer.new(from, to, t.amount, t.key))
 	_fed.clear()
 	_pending.clear()
 	_tracked.clear()

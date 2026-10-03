@@ -38,8 +38,8 @@ func on_removed(field: StackField, removed: Array[NodeCombat], cause: int) -> Ar
 		var share: float = floor(spillable / k) if k > 0 else 0.0
 		if share > 0.0:
 			for survivor in survivors:
-				out.append(StackTransfer.new(r, survivor, share))
+				out.append(StackTransfer.new(r, survivor, share, field.key))
 		var remainder: float = stacks - share * k
 		if remainder > 0.0:
-			out.append(StackTransfer.new(r, null, remainder))
+			out.append(StackTransfer.new(r, null, remainder, field.key))
 	return out

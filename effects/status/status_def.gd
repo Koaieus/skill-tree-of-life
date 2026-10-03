@@ -157,13 +157,22 @@ func count_visible(row: NodeStatus, viewer_camp_id: StringName, viewer_id: int) 
 	return bool(seen)
 
 
-## The parse error of [param text] against [param inputs], `""` when it
-## parses (or is empty) — what the setters warn with and the disk sweep asserts.
+## The error of [param text] against [param inputs], `""` when it is clean
+## (or empty) — what the setters warn with and the disk sweep asserts. An
+## [Expression] parses an unknown identifier fine (it reads it off the base
+## instance at run time), so this also DRY-RUNS it on neutral inputs
+## (`&""` for a `*camp_id`, `0` otherwise) to catch a typo'd input.
 static func parse_error(text: String, inputs: PackedStringArray) -> String:
 	if text.strip_edges().is_empty():
 		return ""
 	var e := Expression.new()
-	return "" if e.parse(text, inputs) == OK else e.get_error_text()
+	if e.parse(text, inputs) != OK:
+		return e.get_error_text()
+	var dummy: Array = []
+	for n in inputs:
+		dummy.append(&"" if n.ends_with("camp_id") else 0)
+	e.execute(dummy, null, false)
+	return e.get_error_text() if e.has_execute_failed() else ""
 
 
 static func _compile(text: String, inputs: PackedStringArray) -> Expression:

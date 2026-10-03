@@ -657,6 +657,12 @@ func remove_status(id: StringName) -> void:
 	_status_host.remove_status(id)
 
 
+## See [method StatusHost.restore_row].
+func restore_status_row(def: StatusDef, power: float, key: Variant, camp_id: StringName = &"",
+		applier_id: int = 0) -> void:
+	_status_host.restore_row(def, power, key, camp_id, applier_id)
+
+
 ## See [method StatusHost.remove_row].
 func remove_row(id: StringName, key: Variant) -> void:
 	_status_host.remove_row(id, key)

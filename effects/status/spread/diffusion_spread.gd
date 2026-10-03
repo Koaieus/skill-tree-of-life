@@ -29,7 +29,7 @@ func on_tick(field: StackField) -> Array[StackTransfer]:
 				continue
 			var amount := _amount(field, u, v, h, memo)
 			if amount >= 1:
-				out.append(StackTransfer.new(u, v, float(amount)))
+				out.append(StackTransfer.new(u, v, float(amount), field.key))
 	return out
 
 

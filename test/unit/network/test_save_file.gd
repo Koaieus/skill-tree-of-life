@@ -14,6 +14,10 @@ const _TEST_SLOT := "user://test_save_file.bin"
 ## version, then add the new hash here.
 const _ROW_LAYOUT_PINS := {
 	1: "8d2ad82f2df3252642749fab0700d38b3b7f3a4340a3344272186ebf0bc1bcb7",
+	# 2: an `_R_STATUSES` entry grew `[def_idx, power]` → `[def_idx, power,
+	# key, camp_id, applier_id]` (status rows keyed by group_by). The indices
+	# did not move, so the hash is 1's; the bump is the entry shape.
+	2: "8d2ad82f2df3252642749fab0700d38b3b7f3a4340a3344272186ebf0bc1bcb7",
 }
 
 

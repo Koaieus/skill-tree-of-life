@@ -17,7 +17,8 @@ enum LoadResult { OK, MISSING, CORRUPT, VERSION_MISMATCH }
 ## Bumped whenever the body's shape, a snapshot's `_R_*` row layout or the
 ## [WorldImage] envelope changes; a file of another version is refused, never
 ## migrated. `test_save_file.gd` pins [method row_layout_hash] per version.
-const FORMAT_VERSION := 1
+## 2: an `_R_STATUSES` entry is `[def_idx, power, key, camp_id, applier_id]`.
+const FORMAT_VERSION := 2
 ## The single slot — mirrors [constant Settings.SAVE_PATH]'s `user://` home.
 const SLOT_PATH := "user://save.bin"
 const MAGIC := "STLS"

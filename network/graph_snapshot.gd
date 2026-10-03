@@ -66,7 +66,7 @@ const _R_HP := 8      ## roundi(current_hp * 100) — see WorldFingerprint's own
 const _R_MODS := 9    ## Array of StatModifierCodec dicts — the node's own residual (non-addon-sourced) modifiers
 const _R_ADDONS := 10 ## Array[int], indices into `res`, one per attached addon in child order
 const _R_EFFECTS := 11  ## Array[int], indices into `res` — SkillNode.effects that live in their own `.tres`; scene-embedded ones ride in _R_SCENE
-const _R_STATUSES := 12 ## Array of `[def_idx, power]` pairs (#879) — def_idx indexes into `res`, power is the raw float (not quantized — WorldFingerprint quantizes its own fold independently, same split as HP)
+const _R_STATUSES := 12 ## Array of `[def_idx, power, key, camp_id, applier_id]` rows (#879, #1343) — def_idx indexes into `res`, key is the row's [method StatusDef.group_key] (bool/int/StringName), camp_id/applier_id its latest applier; power is the raw float (not quantized — WorldFingerprint quantizes its own fold independently, same split as HP)
 const _R_BASE_RADIUS := 13       ## SkillNode.base_radius (#783) — procgen ramps it per node and only the host generates, so it is carried, not derived
 const _R_BASE_INNER_RADIUS := 14 ## SkillNode.base_inner_radius (#783) — same reason
 const _R_SCENE := 15 ## index into `res`, -1 for the plain skill_node.tscn — the node's own `scene_file_path` (#330): an authored keystone scene (or the blocker scene) is re-instantiated on the create path, since the scene IS its content (colour, name, effects, radius)
@@ -319,7 +319,7 @@ static func _encode_node(graph: Graph, node: SkillNode, table: _InternTable) -> 
 	var status_pairs: Array = []
 	for s in node.get_combat().get_statuses():
 		if s.def.resource_path != "":
-			status_pairs.append([table.intern(s.def.resource_path), s.power])
+			status_pairs.append([table.intern(s.def.resource_path), s.power, s.key, s.camp_id, s.applier_id])
 	var scene_idx := -1
 	if node.scene_file_path != "" and node.scene_file_path != _NODE_SCENE.resource_path:
 		scene_idx = table.intern(node.scene_file_path)
@@ -384,19 +384,21 @@ static func _decode_node(
 
 
 ## Statuses restore as "become exactly this" (#879), like HP: wipe the slice
-## and re-apply each decoded row. Reusing [method NodeCombat.apply_status]
-## rather than writing the dict directly means the 0→1 tick-subscription hook
-## still fires correctly, and a decoded power is never above `power_max` (the
-## source clamped it the same way), so REFRESH/ACCUMULATE both land on the
-## exact value the source held. Run AFTER `owned_by` is assigned above — a
+## and restore each decoded row `[def_idx, power, key, camp_id, applier_id]`
+## through [method NodeCombat.restore_status_row] — the key verbatim, never
+## recomputed through the def (#1343). Going through the host rather than
+## writing the dict means the 0→1 tick-subscription hook still fires, and the
+## clamp is the source's own. Run AFTER `owned_by` is assigned above — a
 ## `CLEAR` def's apply_status is a no-op on an unallocated node, same rule as
 ## a live apply.
 static func _reconcile_statuses(node: SkillNode, row: Array, res: Array) -> void:
 	node.get_combat().release_statuses()
 	for pair in (row[_R_STATUSES] as Array):
-		var def := _interned(res, int((pair as Array)[0])) as StatusDef
+		var entry := pair as Array
+		var def := _interned(res, int(entry[0])) as StatusDef
 		if def != null:
-			node.get_combat().apply_status(def, float((pair as Array)[1]))
+			node.get_combat().restore_status_row(def, float(entry[1]), entry[2],
+					StringName(entry[3]), int(entry[4]))
 
 
 ## The authored tier, assigned only where it actually differs — a redundant

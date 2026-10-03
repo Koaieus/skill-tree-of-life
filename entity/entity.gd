@@ -834,7 +834,8 @@ func _tick_owned_node_statuses() -> void:
 
 
 ## The spread half of [method resolve_turn_end]: AFTER every owned node's
-## damage and decay, one [method StatusSpread.on_tick] sweep per def carried
+## damage and decay, one [method StatusSpread.on_tick] sweep per ROW
+## `(def.id, key)` carried
 ## by an owned node whose [member StatusDef.spread] is set, senders = the
 ## owned set, landed through [SpreadApplier] on the live world. Defs with a
 ## null slot pay nothing. Reproduced on every peer like the tick itself.
@@ -842,19 +843,21 @@ func _spread_owned_node_statuses() -> void:
 	if navigator == null or navigator.graph == null:
 		return
 	var owned: Array[SkillNode] = []
-	var defs := {}  # id -> StatusDef, first seen
+	var rows := {}  # [id, key] -> StatusDef, first seen
 	for n in navigator.get_mirrored_nodes():
 		if not (is_instance_valid(n) and n.owned_by == self):
 			continue
 		owned.append(n)
 		for row in n.get_combat().get_statuses():
-			if row.def.spread != null and not defs.has(row.def.id):
-				defs[row.def.id] = row.def
-	if defs.is_empty():
+			var rid := [row.def.id, row.key]
+			if row.def.spread != null and not rows.has(rid):
+				rows[rid] = row.def
+	if rows.is_empty():
 		return
 	var world := CombatWorld.live()
-	for def: StatusDef in defs.values():
-		var field := StackField.over_world(def, def.spread.ownership_mask, world, owned, navigator.graph)
+	for rid: Array in rows:
+		var def: StatusDef = rows[rid]
+		var field := StackField.over_world(def, def.spread.ownership_mask, world, owned, navigator.graph, rid[1])
 		SpreadApplier.apply(def, def.spread.on_tick(field), world)
 
 

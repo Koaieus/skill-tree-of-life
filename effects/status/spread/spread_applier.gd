@@ -6,7 +6,7 @@ extends RefCounted
 ## `to`, each through [method StatusHost.adjust_power]: the list is a set of
 ## simultaneous moves, never a chain, so no credit can be re-spent by a later
 ## debit in the same list. A null `to` burns its amount. Moving is not
-## landing: no attacker fold, but `_on_applied` runs, so a def's planted
+## landing: each transfer moves its own row `(def.id, t.key)`, no attacker fold, but `_on_applied` runs, so a def's planted
 ## modifiers follow the stacks. Every transfer moves [param def] — a field,
 ## and so a rule's output, is one def's. Each transfer names its slices, so
 ## [param _world] is the world they belong to — carried for the call shape a
@@ -19,8 +19,8 @@ static func apply(def: StatusDef, transfers: Array[StackTransfer],
 		return
 	for t in transfers:
 		if t != null and t.from != null and t.amount > 0.0:
-			t.from.adjust_status_power(def, -t.amount)
+			t.from.adjust_status_power(def, -t.amount, t.key)
 	for t in transfers:
 		if t != null and t.to != null and t.amount > 0.0:
-			t.to.adjust_status_power(def, t.amount)
+			t.to.adjust_status_power(def, t.amount, t.key)
 

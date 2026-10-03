@@ -97,9 +97,19 @@ func land_on(node: NodeCombat, _world: CombatWorld) -> void:
 			if host.blocks_status(def):
 				power = 0.0
 		power_resolved = true
-	host.apply_status(def, power)
+	host.apply_status(def, power, _attacker_camp_id(), _attacker_id())
 	amount = power
 	effective_amount = power
+
+
+## The applier's camp for [method StatusDef.group_key]: its faction's id,
+## `&""` with no attacker or faction.
+func _attacker_camp_id() -> StringName:
+	return attacker.faction.id if attacker != null and attacker.faction != null else &""
+
+
+func _attacker_id() -> int:
+	return attacker.entity_id if attacker != null else 0
 
 
 func _attacker_board() -> StatBoard:
