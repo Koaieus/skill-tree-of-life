@@ -30,6 +30,11 @@ class Group extends RefCounted:
 
 
 var _groups: Dictionary[StringName, Group] = {}
+var _multiply_fuse_floor: float
+
+
+func _init(multiply_fuse_floor: float) -> void:
+	_multiply_fuse_floor = multiply_fuse_floor
 
 
 ## The fuse key: two modifiers merge iff their keys are equal.
@@ -94,7 +99,8 @@ static func merge_into(a: StatModifier, b: StatModifier) -> StatModifier:
 ## original draw) from `rng` and fuses them into `mod` IN PLACE, replacing its
 ## stale value. `rng` must be the same seeded stream the original draw used —
 ## this is what makes the retry deterministic across peers.
-static func reroll_into(mod: StatModifier, group: Array, rng: RandomNumberGenerator) -> void:
+static func reroll_into(mod: StatModifier, group: Array, rng: RandomNumberGenerator,
+		multiply_fuse_floor: float) -> void:
 	var fresh: StatModifier = null
 	for e in group:
 		var m: StatModifier = (e as ModifierPoolEntry).roll(rng)

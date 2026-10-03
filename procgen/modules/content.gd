@@ -27,6 +27,13 @@ const DEFAULT_UNIVERSAL_SHARE := 0.2
 ## [method GraphProcgen._v4_pick_distribution] and docs/domain/procgen-v4.md.
 @export_range(0.0, 1.0) var universal_share: float = DEFAULT_UNIVERSAL_SHARE
 
+const DEFAULT_MULTIPLY_FUSE_FLOOR := 0.1
+## Lowest value a node's fused MULTIPLY line can read: stacked reducers fuse by
+## delta sum (0.5 & 0.5 → 0.0), so the fused result is clamped here. Clamps
+## the whole fused line once, never each pairwise merge. See
+## [StatModifierAggregator] and docs/domain/procgen-v4.md.
+@export_range(0.0, 1.0) var multiply_fuse_floor: float = DEFAULT_MULTIPLY_FUSE_FLOOR
+
 ## Per-node budget knobs — the base range plus archetype / role / positional
 ## multipliers that decide each node's modifier budget. Unset = budget 0
 ## (nodes roll no modifiers). See [BudgetPolicy].

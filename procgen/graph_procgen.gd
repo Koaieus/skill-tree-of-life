@@ -341,7 +341,8 @@ static func generate(
 						config.content.modifier_pool_set, config.content.weight_profiles,
 						archetype_id, archetype_primary_stat, archetype_forbid,
 						positions[i], i, budget, rng, fp, node_subtype,
-						config.content.universal_share)
+						config.content.universal_share,
+						config.content.multiply_fuse_floor)
 			sn.set_meta("procgen_footprint", fp)
 			# Stamps NodeVisualsComposite's archetype_tint (persistent type
 			# identity, rim/sensed-outline colour). Owner colour stays free to
@@ -1222,6 +1223,7 @@ static func _roll_modifiers_v4(
 		# positionally, and a subtype-less caller is a node with no subtype.
 		subtype: NodeSubtype = null,
 		universal_share: float = GraphProcgenContent.DEFAULT_UNIVERSAL_SHARE,
+		multiply_fuse_floor: float = GraphProcgenContent.DEFAULT_MULTIPLY_FUSE_FLOOR,
 ) -> Array[StatModifier]:
 	var out: Array[StatModifier] = []
 	fp["phase"] = "v4"
@@ -1243,7 +1245,7 @@ static func _roll_modifiers_v4(
 	# already coerces the sampled value (INCREASE → int, ADD by stat value_type,
 	# MULTIPLY/SET raw float), so aggregating the coerced values keeps the
 	# snapping semantics of ModifierPoolEntry.coerce_to_stat_type.
-	var rolled := StatModifierAggregator.new()
+	var rolled := StatModifierAggregator.new(multiply_fuse_floor)
 	var draws := 0
 
 	while remaining > 0:
@@ -1282,7 +1284,7 @@ static func _roll_modifiers_v4(
 		var group: Array = rolled.entries_for(mod)
 		var attempt := 0
 		while _is_neutral_result(mod) and attempt < _NO_OP_RETRY_CAP:
-			StatModifierAggregator.reroll_into(mod, group, rng)
+			StatModifierAggregator.reroll_into(mod, group, rng, multiply_fuse_floor)
 			attempt += 1
 			no_op_retries += 1
 		if _is_neutral_result(mod):
