@@ -52,7 +52,7 @@ func test_per_reload_stats_are_distinct_and_aspects_exist() -> void:
 func test_statused_specials_order_below_base_and_scout_stays_last() -> void:
 	var base := _ROSTER.base_type()
 	for t in _ROSTER.types:
-		if t.id == AmmoTypeRoster.BASE_ID or t.first_status_def() == null:
+		if t.id == AmmoTypeRoster.BASE_ID or t.is_scout() or t.first_status_def() == null:
 			continue
 		assert_eq(t.first_status_def().id, t.id, "%s carries its own status" % t.id)
 		assert_lt(t.order, base.order, "%s volleys before the base arrow" % t.id)
