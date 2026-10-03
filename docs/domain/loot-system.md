@@ -376,7 +376,11 @@ only a real pickup fires), it runs one round per `rounds`, each as its own
 `Entity.absorb_core_modifier(m)` is what `SkillDustAddon._grant_mod` calls
 instead of `grant_core_modifier` directly. A `CompositeStatModifier` candidate
 **always appends whole** (never merges — a bundle's identity is the point of
-keeping it one atom). A plain candidate is matched by
+keeping it one atom). **Only a formula-bearing ADD_BASE / INCREASE / ADD_BONUS
+candidate may fuse** (ADR 0043): `v₁·f + v₂·f = (v₁+v₂)·f` is lossless, a
+formula MULTIPLY is not, and a SET has no composition — so a static modifier,
+every MULTIPLY and every SET append as their own bound instance. A fusible
+candidate is matched by
 `StatModifierCodec.merge_key(m)` — its wire form (`to_dict()`) with `"value"`
 erased, so "same stat, same op, same formula" without caring how much of it —
 against, **in order**:

@@ -361,8 +361,8 @@ func _weighted_sample(pool_indices: Array[int], count: int) -> Array[int]:
 
 ## Pour ONE mod onto the collector. Routes through [method
 ## Entity.absorb_core_modifier] (#775) rather than a raw `stat_board.add_modifier`
-## — an equivalent existing grant (same stat/op/formula) adds coefficients
-## instead of holding another copy; a genuinely new one still lands in
+## — an equivalent formula-bearing sum-op grant (same stat/op/formula) adds
+## coefficients instead of holding another copy; anything else still lands in
 ## [member Entity.core_modifiers] exactly like a class grant, which is what
 ## makes a `loots_as_unit` pack survive ANOTHER loot round-trip if this
 ## collector later dies (closes #185's re-lootability gap via the register).
