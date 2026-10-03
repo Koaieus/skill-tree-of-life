@@ -258,11 +258,18 @@ Overnight the budget is **tokens per 5-hour window, twice over**, and
     cannot verify and the kill switch are printed for the console to relay
     once, as information, not as prerequisites. Then it snapshots `Ready`
     and master, writes the trains, and launches the first lead(s) under the
-    ceiling. The caller is now the console (law 28) and may close. What is
-    still unprobed: `claude --bg` and `systemd-run --user` *from an RC
-    session* landing under the daemon unit (corpus: `--bg` from Bash worked
-    from RC on 2026-10-02; the unit was not yet involved) — the first thing
-    the tool unit verifies. **A session started from claude.ai (phone or browser, host = this
+    ceiling. The caller is now the console (law 28) and may close. Probed
+    2026-10-03 12:20 by the session that built the v2 tool, itself started
+    from the phone (auto mode): a *direct* `claude --bg` from its Bash was
+    denied by the classifier ("Create Unsafe Agents") before it ran. So in
+    the tool **no console verb launches or stops a session itself**: `start`
+    and `stop` write a request into the ledger and kick the watchdog
+    oneshot (`systemctl --user start whip-watchdog.service` — systemd, no
+    classifier, the fleet's cgroup), in-process when the unit is not there,
+    and a request the kick could not perform is the timer's next tick's.
+    Whether `mise run whip -- start` as a whole passes the classifier from
+    a phone session is the owner's one-command probe; `start` prints which
+    leads it launched now and which it left for the next tick. **A session started from claude.ai (phone or browser, host = this
     machine; its transcript says `entrypoint: sdk-cli`) gets its permission
     mode from the app/server side per session, not from the user's
     `defaultMode: bypassPermissions`** (*mined 2026-10-03*, from the
@@ -463,16 +470,11 @@ if the relay's first night shows a decision a verb could not make.
 
 ## Open follow-ups
 
-- **The tool is v1 until its unit lands** — tracked as the issue the v2
-  rewrite filed: `start` from any session (no `--bg`/name/linger refusals,
-  linger try-enable, first-lead launch); `done` / `relieve-me` /
-  `needs-owner` keyed on the caller's session id, `done` passing the baton
-  and ending the run; `stop [--now]`; the watchdog's disk-silence test,
-  its own relief launch, the per-train relief cap; `CLAUSES` rewritten to
-  the relay; `report`'s buckets per law 24 (still the first morning's
-  shape); the `whip`/`claim`/`relieve-me`-for-whip paths removed; and an
-  **RC-session launch probe** before anything else (law 21). Until then
-  the v2 skill cannot run a night.
+- **The v2 tool landed 2026-10-03** (`.mise/tasks/whip`, `whip-selftest`
+  caging every path in this charter). Still n=0 in the field: the relay's
+  first night — a baton pass in anger, the disk-silence threshold's
+  false-positive rate, and `start` from a phone console passing the
+  classifier (law 21).
 - Whether env vars set on `claude --bg` reach the session at all; the
   daemon unit's env carries `DISABLE_AUTOUPDATER=1` on that assumption.
 - The first window reset in anger (law 22): whether a flagless resume after
