@@ -32,6 +32,10 @@ default:
 - **Addon** — *"should provide something that fits it too, as local
   modifiers or sometimes an entity wide modifier"* (SpikeRing: local
   `blade_damage`, so only that blade node hits harder).
+  Local modifiers scale with **allocation level**, never stake. Owner: *"few
+  things scale with stake, e.g. node_radius. actual modifiers (from addons
+  or rolled) should by default only scale with allocation_level, spike ring
+  no exception"* (fix: #1369).
 - **Addon on the map** — an aspect-derived addon grants +1
   `<concept>_aspect` to whoever allocates its node. *"this is not counted
   for a temp upgrade (those mods never reach the entity's board!)"*.
@@ -99,7 +103,7 @@ addon and spell column units.
 
 | Concept | Stat | Ranged (arrow) | Addon (map / temp) | Magic (infusion) | Notes |
 |---|---|---|---|---|---|
-| Poison | `poison_aspect` | arrow applies poison stacks; feel + look: see "Rows designed in #1318" | `toxin_addon.tscn` redone in #1318 — see "Rows designed in #1318" | spells `venom`, `bruiser`; infusion #1250 | spread signature undecided (#1204) |
+| Poison | `poison_aspect` | arrow applies poison stacks; feel + look: see "Rows designed in #1318" | `toxin_addon.tscn` redone in #1318 — see "Rows designed in #1318" | spell `venom`; infusion #1250 | spread signature undecided (#1204) |
 | Corruption | `corruption_aspect` | scaffold (#1349; look: #1351) — design pass for feel and look open | #1318 | #1250 | spreads as a sandpile by nature (#1202); health bar shows blips per stack, extra-mean when critical (#1092) |
 | Curse | `curse_aspect` | scaffold (#1349; look: #1351) — design pass for feel and look open | #1318 (spell `hex` shipped) | #1250 | raises `min_damage_taken`; spills to surviving direct neighbours on death AND dealloc (#1204) |
 | Wither | `wither_aspect` | scaffold (#1349; look: #1351) — design pass for feel and look open | #1318 | #1250 | drives healing received negative |
@@ -126,9 +130,10 @@ addon and spell column units.
   allocation, a bonus to the node's poison landings. The owner wants *"~6
   stacks per hit"*. A flat +1 `poison_stacks_per_hit` gives only 4, because
   landing folds `stacks_per_hit` as `base_add` (`docs/domain/effect-system.md`
-  § Landing); ~6 needs the stat's INCREASE row (+100%). Also, landing reads
-  the **attacker's** board today, so a node-local bonus is a customization
-  item (recipe part 5). Both are open, for the addon unit's spec.
+  § Landing); ~6 needs the stat's INCREASE row (+100%) — open, for the addon
+  unit's spec. Where it reads, owner: *"landing reads attackers stats yes,
+  of the blade node carrying the addon, and that blade node (== the
+  attacker's) therefore the stats, no readout on defensive nodes needed"*.
 - **No defensive face** (see "Defensive faces are rare").
 - **Look — open, two candidates:**
   - **Tipped needles:** the owner's canonical favourite (*"they just look so
@@ -138,7 +143,7 @@ addon and spell column units.
   - Shared: a neon green, noxious read, with the tip/glow on a named emissive
     tier (`docs/domain/hdr-color.md`).
   - Combining with other addons' looks on one node is its own issue.
-- **Spells:** `venom` and `bruiser` stand.
+- **Spells:** `venom` stands. `bruiser` is not a poison spell; poison has one spell, room for a second.
 
 ## Contenders
 
