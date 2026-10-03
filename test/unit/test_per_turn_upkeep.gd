@@ -37,6 +37,23 @@ func test_add_pool_gains_companion_value() -> void:
 	assert_eq(_board.xp.current, 3.0, "xp should gain xp_per_turn (3) on upkeep")
 
 
+func test_add_pool_clamps_to_cap() -> void:
+	# The clamp is the pool's invariant, not xp's growth: a fixed-cap ADD pool
+	# built here, its companion borrowed from the board's xp_per_turn.
+	var def := StandardPoolStatDef.new()
+	def.id = &"test_add_pool"
+	def.per_turn_mode = PoolStatDef.PerTurnMode.ADD
+	def.per_turn_stat_id = &"xp_per_turn"
+	var pool := PoolStat.new()
+	pool.definition = def
+	pool.base_value = 10.0
+	pool.current = 0.0
+	_board.xp_per_turn.base_value = 9999.0
+	pool.run_turn_upkeep(_board)
+	assert_eq(pool.current, float(pool.get_value()),
+		"ADD should clamp at the cap, not overflow")
+
+
 func test_add_pool_with_zero_rate_is_noop() -> void:
 	_board.xp_per_turn.base_value = 0.0
 	_board.xp.deplete(_board.xp.current)
