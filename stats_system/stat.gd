@@ -7,7 +7,8 @@ extends Resource
 ## and a modifier list. See .claude/rules/stats-system.md.
 ##
 ## Modifier pipeline (PoE-style with a late additive):
-##   SET wins outright (highest priority, last-in breaks ties). Otherwise:
+##   SET wins outright (highest priority; an equal-priority tie is an authoring
+##   error, and obtain order — last-in — still breaks it). Otherwise:
 ##     result = (base + Σ ADD_BASE)
 ##           × (1 + Σ INCREASE / 100)
 ##           × Π MULTIPLY
@@ -300,6 +301,48 @@ func _reconcile_modifiers(dicts: Array, board: StatBoard) -> void:
 			board.add_modifier(m)
 		else:
 			add_modifier(m)
+	_resequence(dicts)
+
+
+## Put [member _modifiers] back in the payload's order — the sender's obtain
+## order — and rebuild the order-dependent bin state from it. Must run LAST in
+## [method _reconcile_modifiers]: [method _resync_bins_if_trivial] rebuilds the
+## bins on every add/remove below two entries.
+##
+## [b]List order is obtain order, and it is state.[/b] An equal-priority SET
+## tie goes to the later modifier, and [method to_dict] encodes the list as is,
+## so anything that rebuilds a stat's modifier list must preserve obtain order.
+## A load re-binds in stable_id order and re-grants effects before the board
+## reconcile runs, so this is where the order comes back.
+##
+## Handles are re-matched by wire form, newest-first, rather than tracked from
+## the minting above: [method StatBoard.add_modifier] localizes, so the bound
+## leaf need not be the object minted. Equal wire forms are interchangeable. A
+## handle no payload entry claims stays, at the tail, in its current order.
+func _resequence(dicts: Array) -> void:
+	var ordered: Array[StatModifier] = []
+	var claimed: Dictionary[StatModifier, bool] = {}
+	for md in dicts:
+		for i in range(_modifiers.size() - 1, -1, -1):
+			var m := _modifiers[i]
+			if not claimed.has(m) and m.to_dict() == md:
+				claimed[m] = true
+				ordered.append(m)
+				break
+	for m in _modifiers:
+		if not claimed.has(m):
+			ordered.append(m)
+	if ordered == _modifiers:
+		return
+	_modifiers = ordered
+	bins.multipliers.clear()
+	for m in _modifiers:
+		if m.operation == StatModifier.Operation.MULTIPLY:
+			bins.multipliers.append(m)
+	var winner := _find_winning_set()
+	if winner != bins.winning_set:
+		bins.winning_set = winner
+		_emit_value_changed()
 
 
 ## Take over [param src]'s applied-modifier list and its per-modifier

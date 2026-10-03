@@ -38,13 +38,27 @@ var board: StatBoard = null
 
 
 ## Place [param m] in its op's bin, reading its value against [param board].
-## SET contests [member winning_set] (ties go to the later add), MULTIPLY
-## joins [member multipliers], the sum ops add their effective value. Returns
-## the value summed in (0 for SET / MULTIPLY) so a caller tracking per-modifier
-## contributions can later move it by [method apply_delta]. Does no dedupe.
+## SET contests [member winning_set] (ties go to the later add — obtain order),
+## MULTIPLY joins [member multipliers], the sum ops add their effective value.
+## Returns the value summed in (0 for SET / MULTIPLY) so a caller tracking
+## per-modifier contributions can later move it by [method apply_delta]. Does
+## no dedupe.
+##
+## A SET meeting a winner of equal priority but a different wire form is an
+## authoring failure — [code]priority[/code] is the only intent tool, so two
+## SETs that disagree must not share one — and [code]push_error[/code]s naming
+## both; obtain order still decides. An identical wire form is no conflict.
 func add(m: StatModifier, mod_board: StatBoard) -> float:
 	match m.operation:
 		StatModifier.Operation.SET:
+			if winning_set != null and m.priority == winning_set.priority:
+				var held := winning_set.to_dict()
+				var incoming := m.to_dict()
+				if held != incoming:
+					push_error(
+						"%s: equal-priority SET conflict (priority %d) — %s then %s; the later wins, give one a distinct priority"
+						% [m.stat_id, m.priority, var_to_str(held), var_to_str(incoming)]
+					)
 			if winning_set == null or m.priority >= winning_set.priority:
 				winning_set = m
 		StatModifier.Operation.MULTIPLY:
