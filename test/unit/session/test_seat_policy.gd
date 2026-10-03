@@ -134,21 +134,23 @@ func test_versus_does_not_share_vision() -> void:
 			"a hot-seat rival's fog is their own, and swaps on handover")
 
 
-## The point of keying on `is_human_controlled` rather than camp alone: an AI
-## ally sitting on a human camp does not reveal for it.
-func test_an_ai_ally_on_my_camp_does_not_see_for_me() -> void:
+## Camp-mates share sight whether AI or human.
+func test_an_ai_ally_on_my_camp_sees_for_me() -> void:
 	var hero := _entity(1, true, _CAMP_1)
 	var ai_ally := _entity(2, false, _CAMP_1)
-	assert_eq(SeatPolicy.vision_group(hero, [hero, ai_ally]), [hero] as Array[Entity])
+	var group := SeatPolicy.vision_group(hero, [hero, ai_ally])
+	assert_eq(group.size(), 2)
+	assert_true(group.has(hero) and group.has(ai_ally))
 
 
-func test_ai_and_blockers_never_share_vision_with_each_other() -> void:
-	var ai_a := _entity(1, false, _NPC)
-	var ai_b := _entity(2, false, _NPC)
-	var blocker := _entity(3, false, _BLOCKER)
-	# Bound as the hero (a self-driven showcase), an AI still sees only itself.
-	assert_eq(SeatPolicy.vision_group(ai_a, [ai_a, ai_b, blocker]), [ai_a] as Array[Entity])
-	assert_eq(SeatPolicy.vision_group(blocker, [ai_a, ai_b, blocker]), [blocker] as Array[Entity])
+func test_other_camps_and_blockers_never_share_vision() -> void:
+	var hero := _entity(1, true, _CAMP_1)
+	var ai_other := _entity(2, false, _CAMP_2)
+	var ai_npc := _entity(3, false, _NPC)
+	var blocker := _entity(4, false, _BLOCKER)
+	var all: Array[Entity] = [hero, ai_other, ai_npc, blocker]
+	assert_eq(SeatPolicy.vision_group(hero, all), [hero] as Array[Entity])
+	assert_eq(SeatPolicy.vision_group(blocker, all), [blocker] as Array[Entity])
 
 
 ## A teammate on another machine is `is_human_controlled` on mine too

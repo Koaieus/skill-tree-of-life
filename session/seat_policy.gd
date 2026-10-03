@@ -135,8 +135,8 @@ func follows_active_turn() -> bool:
 ## entities to consider (pass them in group order — see the ordering note on
 ## [method GameRoot._apply_camp_vision]).
 ##
-## The rule is [b]allied humans[/b]: an entity that is human-controlled and
-## shares [param hero]'s camp. That single line covers every case the four run
+## The rule is [b]camp-mates[/b]: an entity, AI or human, that shares
+## [param hero]'s camp. That single line covers every case the four run
 ## shapes ask for, and the reason it does is worth stating, because the next
 ## reader will reach for [member Participant.peer_id] and not need it:
 ##
@@ -148,14 +148,12 @@ func follows_active_turn() -> bool:
 ## - [b]Versus does not.[/b] Rivals are on different camps by construction, so
 ##   each hero's group is itself. On a hot-seat couch the group swaps with the
 ##   handover, which is the point.
-## - [b]AI never shares[/b], with the player or with another AI. An AI ally
-##   sitting on a human camp does not reveal for it, and AI recon was never
-##   this system's business anyway — [AiRecon] builds its own per-entity
-##   circles. Faction-shared AI reveal stays the difficulty lever it is
-##   filed as (#394).
-## - [b]Blockers never share.[/b] Not human, and on their own dormant camp.
+## - [b]An AI ally reveals for its camp[/b], like a human one. [AiRecon] stays
+##   per-entity — it builds its own circles, and faction-shared AI reveal among
+##   AI is the difficulty lever filed as #394.
+## - [b]Blockers never share.[/b] They sit on their own dormant camp.
 ##
-## [param hero] is always included, even when it fails the filter (a level may
+## [param hero] is always included, even when it fails the camp match (a level may
 ## bind before the entity joins the group, and a showcase may bind an AI) —
 ## the local view must never end up drawing from nobody.
 static func vision_group(hero: Entity, candidates: Array[Entity]) -> Array[Entity]:
@@ -164,7 +162,7 @@ static func vision_group(hero: Entity, candidates: Array[Entity]) -> Array[Entit
 		return group
 	var camp: StringName = hero.faction.id if hero.faction != null else &""
 	for ent in candidates:
-		if ent == null or not ent.is_human_controlled or ent.faction == null:
+		if ent == null or ent.faction == null:
 			continue
 		# By `faction.id`, matching [method Entity.attitude_to] — camp fog and
 		# camp allegiance must not be two different answers to "same camp?", or

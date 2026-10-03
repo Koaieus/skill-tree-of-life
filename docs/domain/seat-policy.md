@@ -95,9 +95,8 @@ One line, four correct answers:
 - **Versus does not** — rivals are different camps by construction, so each
   group is a single hero. On a hot-seat couch the fog swaps with the handover,
   which is the point.
-- **AI never shares**, with a player or with another AI, even standing on the
-  human camp. AI recon was never this system's business — `AiRecon` builds its
-  own per-entity circles. Faction-shared AI reveal is #394.
+- **An AI ally reveals for its camp**, like a human one. `AiRecon` builds its
+  own per-entity circles; faction-shared reveal among AI is #394.
 - **Dormant Cores never share** (`blocker` in code) — not human, own dormant camp.
 
 ### The ordering trap

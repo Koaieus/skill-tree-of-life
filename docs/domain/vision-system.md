@@ -71,8 +71,8 @@ supplies the candidates in group order and writes the result
 coop it is both allied humans, so handing the turn over does not re-derive fog
 from a different owned subgraph and flash the map. In versus — local or online
 — rivals are on different camps, so each hero's group is itself and a hot-seat
-handover correctly *does* swap the fog. AI and blockers are never viewers,
-even sitting on the hero's own camp; faction-shared AI reveal is #394's
+handover correctly *does* swap the fog. Camp-mates, AI or human, are viewers; blockers sit on their own
+camp and never are; faction-shared AI reveal is #394's
 difficulty lever, not this. Note that assigning `viewers` unconditionally
 rebinds and recomputes, so the setter is only written when the set actually
 changed — and the equality that decides that is element-wise, so the candidate
