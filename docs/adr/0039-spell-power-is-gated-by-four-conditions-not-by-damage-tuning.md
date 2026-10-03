@@ -1,11 +1,11 @@
 ---
 id: 0039
 title: Spell power is gated by four independent conditions — knowing the spell, entity degree at the cast node, mana, range from the cast node — never by tuning damage down
-status: accepted
+status: superseded
 date: 2026-08-03
 deciders: owner+agent
 supersedes: []
-superseded-by: null
+superseded-by: 0045
 revisit-when: "A high-INT caster wins by casting alone, with every gate met, so the gates alone no longer hold it back"
 sources:
   - "#278"
