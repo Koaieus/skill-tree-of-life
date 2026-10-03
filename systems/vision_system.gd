@@ -347,8 +347,32 @@ func _scout_radius(node: SkillNode, effective: Array[Entity]) -> float:
 ## Every disc of sight [param viewers] hold, gathered fresh: no cached or
 ## eased state is read. This is the one gathering path — [method _recompute]
 ## builds both its visibility index and its fog targets from it.
+##
+## Order is load-bearing for nothing but determinism: OWNED first, viewer by
+## viewer in [param viewers] order, each in graph order; then SCOUT, one per
+## node carrying a mark any of [param viewers] holds (the max across them).
 func sources_for(viewers: Array[Entity]) -> Array[VisionSource]:
-	return []
+	var out: Array[VisionSource] = []
+	if graph == null or viewers.is_empty():
+		return out
+	var owned_per_viewer: Dictionary = {}
+	for n in graph.get_skill_nodes():
+		var node_owner: Entity = n.owned_by
+		if node_owner != null and node_owner in viewers:
+			if not owned_per_viewer.has(node_owner):
+				owned_per_viewer[node_owner] = []
+			owned_per_viewer[node_owner].append(n)
+	for viewer in viewers:
+		for own_node: SkillNode in owned_per_viewer.get(viewer, []):
+			out.append(VisionSource.new(own_node,
+					float(own_node.get_local_value(&"vision_range")), VisionSource.Kind.OWNED))
+	for node in _scout_marks:
+		if not is_instance_valid(node) or not graph.is_ancestor_of(node):
+			continue
+		var r := _scout_radius(node, viewers)
+		if r > 0.0:
+			out.append(VisionSource.new(node, r, VisionSource.Kind.SCOUT))
+	return out
 
 
 func _recompute() -> void:
@@ -379,57 +403,32 @@ func _recompute() -> void:
 			EmptyMode.DARKNESS, EmptyMode.ALL_ENTITIES:
 				pass
 	else:
-		var owned_per_viewer: Dictionary = {}
-		for n in nodes:
-			var node_owner: Entity = n.owned_by
-			if node_owner != null and node_owner in effective:
-				if not owned_per_viewer.has(node_owner):
-					owned_per_viewer[node_owner] = []
-				owned_per_viewer[node_owner].append(n)
-
 		# Logical visibility uses TARGET radii, not animated. Targeting and
 		# input gating snap on allocation; only the render fades.
-		var all_owned: Array = []
-		var targets: Array = []  # parallel to all_owned; the target radius for each
-		for viewer in effective:
-			for own_node in owned_per_viewer.get(viewer, []):
-				all_owned.append(own_node)
-				var r: float = float((own_node as SkillNode).get_local_value(&"vision_range"))
-				targets.append(r)
-				if not _circles.has(own_node):
-					_circles[own_node] = {"radius": 0.0, "target": r}
-				else:
-					_circles[own_node].target = r
-
-		# Scouted marks join here as circles keyed by their node, exactly like
-		# an owned source — same index for `_visible`, same `_circles` entry
-		# for `get_vision_sources()` and the `_process` ease, so the fog
-		# picture moves rather than just `input_pickable`. A mark on a node
-		# the group already owns is a max against the owned circle.
-		var scouted: Array = []  # SkillNode, parallel to `scout_targets`
-		var scout_targets: Array = []
-		for node in _scout_marks:
-			if not is_instance_valid(node) or not graph.is_ancestor_of(node):
-				continue
-			var r := _scout_radius(node, effective)
-			if r <= 0.0:
-				continue
-			scouted.append(node)
-			scout_targets.append(r)
-			if not _circles.has(node):
-				_circles[node] = {"radius": 0.0, "target": r}
-			else:
-				_circles[node].target = maxf(float(_circles[node].target), r)
-
-		# A spatial index, not a scan: this is ~2000 nodes x ~200 circles at
+		# Every source keys its `_circles` entry by its node, so a scouted
+		# mark eases in the fog exactly like an owned one. An owned source
+		# sets the target; a scout source max()es against it, so a mark on a
+		# node the group already owns never shrinks the owned circle.
+		# The spatial index, not a scan: this is ~2000 nodes x ~200 circles at
 		# the scale this project targets, and it measured as 70% of the whole
 		# recompute (13.3ms of 19.4ms) while it was a per-point linear scan.
 		# See [VisionCircles] for why its 3x3 cell lookup is exact.
+		var all_owned: Array = []  # the OWNED sources' nodes: sensor seeds + stat binds
 		var circles := VisionCircles.new()
-		for i in all_owned.size():
-			circles.add((all_owned[i] as SkillNode).global_position, targets[i])
-		for i in scouted.size():
-			circles.add((scouted[i] as SkillNode).global_position, scout_targets[i])
+		for src in sources_for(effective):
+			var r := src.radius
+			if src.kind == VisionSource.Kind.OWNED:
+				all_owned.append(src.node)
+				if not _circles.has(src.node):
+					_circles[src.node] = {"radius": 0.0, "target": r}
+				else:
+					_circles[src.node].target = r
+			else:
+				if not _circles.has(src.node):
+					_circles[src.node] = {"radius": 0.0, "target": r}
+				else:
+					_circles[src.node].target = maxf(float(_circles[src.node].target), r)
+			circles.add(src.center, r)
 		for n in nodes:
 			if circles.has_point(n.global_position):
 				_visible[n] = true
