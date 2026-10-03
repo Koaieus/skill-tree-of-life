@@ -78,6 +78,8 @@ func _toggle(on: bool) -> void:
 	get_tree().paused = on
 	if on:
 		_update_restart_button()
+		_show_status("")
+		_update_save_load_buttons()
 
 
 ## Reload the running level from scratch. `paused` is a SceneTree flag that
@@ -105,17 +107,80 @@ func _update_restart_button() -> void:
 	_restart_button.tooltip_text = "Restart is disabled in a networked run." if online else ""
 
 
+## SAVE copies RESTART's online gate, but asks [SaveGate] rather than restating
+## it: the gate's [method SaveGate.blocked_reason] is the tooltip, both when
+## SAVE is refused (online) and when a press would wait on the player (loot).
+## LOAD is refused online too, and when there is no slot to read.
+func _update_save_load_buttons() -> void:
+	var gate := _resolve_save_gate()
+	_save_button.disabled = gate == null or not gate.can_save()
+	_save_button.tooltip_text = "No level to save." if gate == null else gate.blocked_reason()
+	var online := GameSession.network != null and GameSession.network.is_online()
+	var has_slot := SavedRun.has_slot(_slot_path())
+	_load_button.disabled = online or not has_slot
+	_load_button.tooltip_text = "No loading in an online run." if online \
+			else SavedRun.describe(SaveFile.LoadResult.MISSING) if not has_slot else ""
+
+
+## [member save_gate], or the running level's — resolved on first open, never in
+## `_ready`: while this menu readies, [member SceneTree.current_scene] is not
+## its level yet (and mid-swap may still be the old one).
+func _resolve_save_gate() -> SaveGate:
+	if not is_instance_valid(save_gate):
+		save_gate = null
+	if save_gate == null and is_inside_tree() and get_tree().current_scene != null:
+		save_gate = get_tree().current_scene.get_node_or_null(^"%SaveGate") as SaveGate
+	if save_gate != null and not save_gate.saved.is_connected(_on_saved):
+		save_gate.saved.connect(_on_saved)
+		save_gate.save_held_changed.connect(_on_save_held_changed)
+	return save_gate
+
+
+## One slot, and SAVE and LOAD must agree on it: the gate's when there is one.
+func _slot_path() -> String:
+	var gate := _resolve_save_gate()
+	return gate.slot_path if gate != null else SaveFile.SLOT_PATH
+
+
 func _on_save_button_pressed() -> void:
-	pass
+	var gate := _resolve_save_gate()
+	if gate != null:
+		gate.request_save()
 
 
+func _on_saved(error: Error) -> void:
+	_show_status("Saved." if error == OK else "Save failed: %s." % error_string(error))
+	_update_save_load_buttons()
+
+
+func _on_save_held_changed(held: bool) -> void:
+	if held:
+		_show_status("Saving once this move settles…")
+
+
+## LOAD: open the slot, then leave for its level — unpausing first, for the
+## same reason [method leave_run] does. A refused file stays on this menu and
+## says why.
 func _on_load_button_pressed() -> void:
-	pass
+	var save := load_saved()
+	if save.load_result != SaveFile.LoadResult.OK:
+		return
+	active = false
+	SavedRun.route(save)
 
 
-## The testable half of LOAD: reads the slot and opens it on [GameSession].
+## The testable half of LOAD: reads the slot and opens it on [GameSession] via
+## [SavedRun], the path the frontmatter's LOAD GAME shares. A refused file
+## leaves the running run alone and shows its reason.
 func load_saved() -> SaveFile:
-	return SaveFile.new()
+	var save := SavedRun.open(_slot_path())
+	_show_status(SavedRun.describe(save.load_result))
+	return save
+
+
+func _show_status(text: String) -> void:
+	_save_status.text = text
+	_save_status.visible = not text.is_empty()
 
 
 func _on_restart_button_pressed() -> void:
