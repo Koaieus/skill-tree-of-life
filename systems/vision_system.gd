@@ -344,6 +344,13 @@ func _scout_radius(node: SkillNode, effective: Array[Entity]) -> float:
 	return best
 
 
+## Every disc of sight [param viewers] hold, gathered fresh: no cached or
+## eased state is read. This is the one gathering path — [method _recompute]
+## builds both its visibility index and its fog targets from it.
+func sources_for(viewers: Array[Entity]) -> Array[VisionSource]:
+	return []
+
+
 func _recompute() -> void:
 	if graph == null:
 		return
