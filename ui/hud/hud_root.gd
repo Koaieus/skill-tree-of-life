@@ -206,6 +206,9 @@ func bind_systems(
 	_turn_manager = turn_manager
 	_vision_system = vision_system
 	_allocation_system = allocation_system
+	# SAVE writes the level's world, so the gate is the level's — only the root has one.
+	if game_root != null:
+		pause_menu.save_gate = game_root.get_node("%SaveGate")
 	if _systems_bound or not enabled:
 		return
 	_systems_bound = true

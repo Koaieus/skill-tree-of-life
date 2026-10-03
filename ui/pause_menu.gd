@@ -17,10 +17,9 @@ signal spell_catalogue_requested
 		_toggle(active)
 
 
-## Where SAVE goes and whether it may. Left unset, the running level's
-## `%SaveGate` is looked up on first use — the menu is composed inside the HUD,
-## which is instanced by the level, so it cannot be wired from either scene.
-## No gate at all (a menu instanced bare) leaves SAVE disabled.
+## Where SAVE goes and whether it may — the level's `%SaveGate`, set by
+## [method HudRoot.bind_systems]. Unset (a menu instanced bare) leaves SAVE
+## disabled.
 @export var save_gate: SaveGate
 
 @onready var _build_footer: Label = %BuildFooter
@@ -122,14 +121,10 @@ func _update_save_load_buttons() -> void:
 			else SavedRun.describe(SaveFile.LoadResult.MISSING) if not has_slot else ""
 
 
-## [member save_gate], or the running level's — resolved on first open, never in
-## `_ready`: while this menu readies, [member SceneTree.current_scene] is not
-## its level yet (and mid-swap may still be the old one).
+## [member save_gate], with this menu's feedback hooked onto it on first use.
 func _resolve_save_gate() -> SaveGate:
 	if not is_instance_valid(save_gate):
 		save_gate = null
-	if save_gate == null and is_inside_tree() and get_tree().current_scene != null:
-		save_gate = get_tree().current_scene.get_node_or_null(^"%SaveGate") as SaveGate
 	if save_gate != null and not save_gate.saved.is_connected(_on_saved):
 		save_gate.saved.connect(_on_saved)
 		save_gate.save_held_changed.connect(_on_save_held_changed)
