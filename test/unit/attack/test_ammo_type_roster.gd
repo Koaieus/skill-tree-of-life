@@ -69,3 +69,21 @@ func test_riders_for_blindness_arrow_carries_the_def_at_authored_power() -> void
 	assert_not_null(status)
 	assert_eq(status.def.resource_path, "res://effects/status/blindness.tres")
 	assert_eq(status.power, (type.on_hit_effects[0] as ApplyStatusEffect).power)
+
+
+## Every statused type flies its own inherited scene of the base status arrow,
+## so a bespoke look lands on exactly one type.
+func test_statused_types_fly_their_own_status_arrow_scene() -> void:
+	const BASE_SCENE := "res://ui/vfx/projectile/visual/status_arrow.tscn"
+	var seen: Dictionary = {}
+	for t in _ROSTER.types:
+		if t.first_status_def() == null:
+			continue
+		var scene: PackedScene = t.visual_scene
+		assert_not_null(scene, "%s has a visual_scene" % t.id)
+		if scene == null:
+			continue
+		var base := scene.get_state().get_node_instance(0)
+		assert_eq(base.resource_path if base != null else "", BASE_SCENE, "%s inherits the status arrow" % t.id)
+		assert_false(seen.has(scene.resource_path), "%s shares %s" % [t.id, scene.resource_path])
+		seen[scene.resource_path] = true
