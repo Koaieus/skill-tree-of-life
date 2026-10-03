@@ -416,8 +416,8 @@ func test_player_tier_loots_at_full_value() -> void:
 
 
 func test_pickup_merges_equivalent_grants_instead_of_stacking_copies() -> void:
-	# Two relics offering the SAME rule (same stat/op/formula, one candidate
-	# each so the pick is deterministic) add coefficients into one modifier
+	# Two relics offering the SAME formula rule (same stat/op/formula, one
+	# candidate each so the pick is deterministic) add coefficients into one modifier
 	# on claim rather than holding two — the SkillDustAddon claim path routes
 	# through Entity.absorb_core_modifier (#775), not grant_core_modifier.
 	var relic_a := _SKILL_NODE_SCENE.instantiate() as SkillNode
@@ -425,7 +425,7 @@ func test_pickup_merges_equivalent_grants_instead_of_stacking_copies() -> void:
 	_graph.add_skill_node(relic_a)
 	_add_edge(_nodes[0], relic_a)
 	var dust_a := _DUST_SCENE.instantiate() as SkillDustAddon
-	dust_a.candidates = [_mk_mod(&"armor", 5.0)]
+	dust_a.candidates = [_mk_formula_mod(&"armor", 5.0)]
 	dust_a.weights = [1.0]
 	dust_a.rounds = 1
 	relic_a.add_child(dust_a)
@@ -436,7 +436,7 @@ func test_pickup_merges_equivalent_grants_instead_of_stacking_copies() -> void:
 	_graph.add_skill_node(relic_b)
 	_add_edge(_nodes[0], relic_b)
 	var dust_b := _DUST_SCENE.instantiate() as SkillDustAddon
-	dust_b.candidates = [_mk_mod(&"armor", 5.0)]
+	dust_b.candidates = [_mk_formula_mod(&"armor", 5.0)]
 	dust_b.weights = [1.0]
 	dust_b.rounds = 1
 	relic_b.add_child(dust_b)
@@ -754,6 +754,13 @@ func _mk_mod(id: StringName, v: float) -> StatModifier:
 	m.stat_id = id
 	m.operation = StatModifier.Operation.ADD_BASE
 	m.value = v
+	return m
+
+
+## Only a formula-bearing sum-op fuses on absorb (ADR 0043); a static one appends.
+func _mk_formula_mod(id: StringName, v: float) -> StatModifier:
+	var m := _mk_mod(id, v)
+	m.formula = preload("res://stats_system/formulas/level_scaling.tres")
 	return m
 
 
