@@ -32,8 +32,9 @@ enum OnDealloc {
 	## unallocated node — nothing owns it, nothing would tick it.
 	CLEAR,
 	## The row survives deallocation — a voluntary dealloc or a bare
-	## [method AllocationSystem.force_deallocate] — and may land on an
-	## unallocated node. While its node is unowned it ticks once per ANY
+	## [method AllocationSystem.force_deallocate] — and is never handed to
+	## spill (`release_statuses(true)` keeps it out of the returned rows); it
+	## may land on an unallocated node. While its node is unowned it ticks once per ANY
 	## entity's [method Entity.resolve_turn_end] (the lingering-host registry
 	## on [method CombatWorld.live]), so it decays N× faster in an N-entity
 	## game; re-allocated, it ticks on its new owner's turn end like every
@@ -83,6 +84,7 @@ enum OnDealloc {
 ## survives (poison: 10).
 @export var display_max: float = 0.0
 @export var reapply: Reapply = Reapply.REFRESH
+## What deallocation does to this def's rows — see [enum OnDealloc].
 @export var on_dealloc: OnDealloc = OnDealloc.CLEAR
 
 ## The grouping key a landing's row is filed under (#1343): a GDScript

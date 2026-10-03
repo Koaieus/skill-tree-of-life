@@ -358,9 +358,11 @@ read is already correct.
   status sandbox's `disarm`) nor an adopted resync cursor. A tick's damage
   suppresses the owner's next turn-start regen; a tick that kills the actor
   hits `abandon_turn` as a no-op and `end_turn` still hands on. Peers
-  reproduce it, since `EndTurnCommand` runs `end_turn` everywhere. All statuses void on any deallocation path
-  (`NodeCombat.release_statuses()`, which hands back the rows) —
-  `StatusDef.OnDealloc` reserves a `LINGER` door but only `CLEAR` is built.
+  reproduce it, since `EndTurnCommand` runs `end_turn` everywhere. On deallocation `CLEAR` rows release and spill
+  (`NodeCombat.release_statuses(true)`, which hands back only the released
+  rows); `LINGER` rows stay on the node, are never spilled, and while it is
+  unowned tick on every entity's turn end (`CombatWorld.tick_lingering`). A
+  combat or death strip (`EntityCombat.apply_cascade`) releases every row.
   The released rows can SPILL: exactly two feeders note them on the world's
   removal collector before the strip — `EntityCombat.apply_cascade`'s per-node
   body (cause DEATH, both worlds; every forced removal, entity death included)
@@ -373,7 +375,7 @@ read is already correct.
   `SpellResolver.resolve_against`; one turn-end tick step (flushed before its
   diffusion sweep); a gate-flip command flushes as its own beat; an
   entity death never flushes, it belongs to the beat that killed it. A bare `force_deallocate` outside a cascade releases
-  without spilling. Curse is authored with `SpillSpread` (both triggers, 1.0,
+  `CLEAR` rows without spilling; `LINGER` rows stay. Curse is authored with `SpillSpread` (both triggers, 1.0,
   Mine). `network/graph_snapshot.gd` carries `(status id,
   power)` rows in resync, and `WorldFingerprint` folds them. Concrete defs:
   `BlindnessStatus` (#873, MULTIPLY on vision/sensor range), `ArmorBreakStatus`
