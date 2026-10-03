@@ -45,6 +45,14 @@ default:
 - **Spell** — *"should generally apply stacks of the status that goes with
   the aspect, or do something that thematically matches it"*, with a twist
   of its own.
+  **A second spell is optional, never a default (owner, 2026-10-03):** one
+  closes a gap, never fills a slot. Owner: *"extra spell only needed if gaps
+  are to be closed or e.g. a spell that does "many hits low poison stacks"
+  might be complemented by a spell that does "low / heavy hits, but each hit
+  applies a bigger stack count". not all spells need this, sometimes 1 source
+  is enough -- given future infusions might fill gaps too, a spell is a lot of
+  maintenance and shouldn't be added willy nilly"*. A `Spell 2` cell's first
+  fork is therefore whether the gap exists at all.
 - **Infusion** — spending aspect budget to mutate the next cast; the gist is
   on #1250.
 
@@ -79,6 +87,14 @@ addon". Designing a concept's addon cell means filling in these parts:
    (`temp_placeable`), its `blade_size` cost (≥ 1), and any aspect costs
    (`temp_cost_aspects`, each > 0). Authored on the scene; every currency is
    a pooled per-swing budget capped by the attacker's live stat.
+
+**These recipes grow (owner, 2026-10-03).** The facet rules above and the
+addon recipe are a target to iterate on, not a finished checklist. When a
+cell's design pass learns something the next cell should know (a new rule,
+an extra spec part, a thing to take into account), it adds it here, dated
+and attributed, so the next session starts from it. A cell issue points at
+these sections and never copies them, so an addition reaches every open
+cell at once.
 
 **Magic infusion** is a fifth spell component (an `Infusion` resource adding
 an on-hit effect plus optional drawback on another component), not a patch
