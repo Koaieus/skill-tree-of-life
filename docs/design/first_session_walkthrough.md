@@ -116,9 +116,9 @@ You commit. Three of your leaves fire at the bridge. A line of light from each, 
 
 You stop, because you don't have a second action this turn and you have to think. You did **not** kill the bridge. You **dented** it. The enemy is about to take a turn, and when their turn begins, that dent is going to heal.
 
-> **Questionable.** Oh. So a single round of fire is the unit of survival. Not turns, not chip damage. *Burst, or nothing.*
+> **Questionable.** Oh. So a dent is a clock. Leave it and it closes, faster every turn it is left alone. *Finish it, or keep the pressure on.*
 
-You end your turn. The enemy moves. The bridge ticks back to 10/10 at the start of their turn, as if nothing happened. They expand somewhere irrelevant. They are still not visibly worried about you.
+You end your turn. The enemy moves. The bridge ticks back up to 5/10 at the start of their turn — and it will heal more next turn, and more the turn after, until it is whole. They expand somewhere irrelevant. They are still not visibly worried about you.
 
 ## Beat 10 — You set up the snipe.
 

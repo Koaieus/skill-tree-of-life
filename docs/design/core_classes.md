@@ -284,11 +284,11 @@ Mechanics sketch: White (W) nodes generate double or triple normal xp_per_turn. 
 
 ## Open Questions
 
-1. **Class discovery pacing:** Proposed: Allround, Predator, Bulwark always available; Ninja, Hive, Halo, Serpent unlock through run progression or meta-progression.
+1. **Class discovery pacing:** Every shipped class is available today (no unlock system). Proposed: Allround, Predator, Bulwark always available; Ninja, Hive, Halo, Serpent could unlock through run progression or meta-progression.
 2. **Class evolution / mutation:** Can a class shift mid-run through landmark (keystone) nodes? The Bulwark's floor reduction is one example of in-class progression. Inter-class mutation (e.g. a Ninja that gains a Halo aura shell) needs scoping.
 3. **Hive core concealment:** Is there an explicit UI mechanic to conceal which pod holds the real core, or is it inherent to fog of war?
 4. **Shell Shift balance:** No hard cap on shell_distance by design. Monitor in playtesting: does the self-limiting resource cost (ring coverage requires nodes at the new distance) actually prevent degenerate strategies, or does it need a soft cap?
-5. **Serpent Winch cap:** At what effective euclidean reduction per node does Winch trivialize the penalty? Needs a hard cap.
+5. **Serpent Winch cap** (only if the Winch addon is built): at what effective euclidean reduction per node would Winch trivialize the penalty? It would need a hard cap.
 6. **Frontier + Bleeding Edge:** Does the Frontier benefit from leaf nodes created by islands in the process of dissolving?
 7. **Halo anti-ranged / anti-magic reflect:** Thorns is melee-only for now. Does the shell aura eventually provide deflect or reflect against ranged and magic too? TBD after combat prototypes.
 8. **Halo UI for ring distortion:** Should the game show hop distance changes in real time as nodes are sniped? Accessibility concern — the topology insight may not be obvious without visual feedback.

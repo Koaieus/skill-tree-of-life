@@ -148,7 +148,7 @@ It follows that **severance is heresy.** Cutting an edge is a sin against the Lo
 
 The faithful's condemnation of severance-for-its-own-sake — edgy behavior with nothing to anchor it — is **"all edge, no point."** It lands as a triple: an edge with no endpoints is a degenerate, meaningless object (no vertices = nothing); *point* is the vertex; and *point* is purpose. It is what graph theology says about anyone who only cuts and never connects, and it is a standing warning to the kind of entity that fights *with* edges (see the Edgelord, `core_classes`): sever without anchoring and you are nothing the universe values.
 
-This doctrine has a literal in-game embodiment: the **`coolness`** attribute (a rare, procgen-sprinkled color carrying *no mechanical effect whatsoever* — pure style, tallied only at the end credits). It is the purest "all edge, no point" — flair with nothing structural beneath it. Winning a run on a coolness-maxed build is therefore the **cardinal aesthetic heresy**, the most flamboyant possible way to be all edge and no point — and the Fairy, herald of the biggest edgelord alive, should have *opinions* about a champion who conquered the cosmos on style alone. (Roughly the joke-CHA of the attribute set.)
+This doctrine has a literal in-game embodiment: a **`coolness`** attribute that could exist (unbuilt: a rare, procgen-sprinkled color carrying *no mechanical effect whatsoever* — pure style, tallied only at the end credits). It is the purest "all edge, no point" — flair with nothing structural beneath it. Winning a run on a coolness-maxed build is therefore the **cardinal aesthetic heresy**, the most flamboyant possible way to be all edge and no point — and the Fairy, herald of the biggest edgelord alive, should have *opinions* about a champion who conquered the cosmos on style alone. (Roughly the joke-CHA of the attribute set.)
 
 ### The Ophanim
 
@@ -315,7 +315,7 @@ Each level is harder: wider field, more enemy entities, stronger base node stats
 The risk-reward loop is positional and temporal simultaneously: **where you are on the field is also what your build is.** A strong outer position gives you access to better nodes but exposes your flanks. Retreating inward is safer but stunts growth.
 
 ### Run Failure
-If your core is destroyed, the run ends. No Breakout. No carry-forward at the level layer, and — at the meta layer — the pending allocation does not commit. The fractal is permanent; your attempt is not.
+If your entity dies — its `health` runs out (see The Core) — the run ends. No Breakout. No carry-forward at the level layer, and — at the meta layer — the pending allocation does not commit. The fractal is permanent; your attempt is not.
 
 Roguelikes work through the cycle of: fight to a rest area → upgrade → enter next stage → more powerful, more dangerous. This game's version of that cycle is: fight to the Tethers → Breakout → rest phase → next level. The "stage" and the "skill tree" are not separate things. They are the same thing. Fighting for territory IS building your character IS clearing the stage.
 
@@ -337,7 +337,7 @@ The **core** is the nucleus of a tree entity. It is not just a stat container �
 
 Mechanically:
 - The core occupies exactly one node at all times. That node is called the **core node.**
-- Losing the core node = death. Other nodes can be lost (damage, territory taken) and recovered (healing, reallocation). The core node cannot be freely surrendered.
+- Death is the entity's `health` running out, not the loss of the core node: a core node drained to 0 HP *cracks* and stays allocated, and further damage overflows into `health` (ADR 0024). Other nodes can be lost (damage, territory taken) and recovered (healing, reallocation). The core node cannot be freely surrendered.
 - **An entity is a connected subgraph, and the core is what keeps it one thing.** When an attack kills a cut vertex and splits the constellation, the piece containing the core remains the entity; any orphaned piece becomes an island (see Islands) and dissolves immediately. The core is why a cut entity doesn't split into two new beings — there is only one nucleus.
 
 Movement (two distinct kinds):
@@ -347,7 +347,7 @@ Movement (two distinct kinds):
 Structurally:
 - The core **radiates stats** outward. Nodes near the core (within range — by hops or euclidean radius, per the core's class) receive a bonus — a warmth gradient that falls off with distance.
 - This aura is the reason the core can't simply hide. You *could* tuck your core onto a far, safe filament and become hard to kill — but then your fighting nodes get no aura and underperform. The aura is the carrot that pulls the core toward the front. Different core classes shape this differently (see Core Classes) — and that shaping is most of where class identity lives.
-- The core is a **component** that can be upgraded. Core class parameters include: aura range, aura falloff curve, base health bonus to the core node, deallocation budget, and more. These upgrades persist across Breakouts as part of the core's carry-forward.
+- The core could be a **component** that can be upgraded (unbuilt). Core class parameters include: aura range, aura falloff curve, base health bonus to the core node, deallocation budget, and more. Such upgrades would persist across Breakouts as part of the core's carry-forward.
 
 ---
 
@@ -423,7 +423,7 @@ A **compact constellation** (dense cluster around the core) is defensible. Few e
 
 An **extended constellation** (long tendrils reaching out to high-value nodes at the edge) has access to better nodes but is structurally fragile. A single cut vertex cut by an enemy severs everything past it. The core may be exposed. The trade-off is power vs. survivability.
 
-Both are valid. Some core classes and rare nodes actively reward extended geometry — bonuses that scale with the length of the longest path, or with the number of leaf nodes. A tendril-specialist build leans into the risk. (And under the combat redesign, leaves are now firing ports — extended geometry is literally where your ranged guns live; see `combat_system.md`.)
+Both are valid. Core classes and rare nodes could actively reward extended geometry (unbuilt) — bonuses that scale with the length of the longest path, or with the number of leaf nodes. A tendril-specialist build leans into the risk. (And under the combat redesign, leaves are now firing ports — extended geometry is literally where your ranged guns live; see `combat_system.md`.)
 
 ### Rings are strong (and that's graph theory, not a buff)
 
@@ -437,9 +437,9 @@ An **island** is a sub-graph of owned nodes with no path back to the core. Islan
 
 There is no default grace period. The grace is an upgrade, not a right.
 
-**Lifeline** (see Addons): grants nodes within N hops a 1-turn reprieve if severed into an island, enabling a last-resort race to reconnect before dissolution. Countered by the attacker immediately occupying the cut vertex that caused the island.
+**Lifeline** (see Addons; unbuilt) would grant nodes within N hops a 1-turn reprieve if severed into an island, enabling a last-resort race to reconnect before dissolution. Countered by the attacker immediately occupying the cut vertex that caused the island.
 
-**Lifelink** (see Addons): a proxy core — a node that sustains an island indefinitely. The island lives as long as the Lifelink does. Very rare. Mid-to-late game only.
+**Lifelink** (see Addons; unbuilt): a proxy core — a node that would sustain an island indefinitely, for as long as the Lifelink lives. Very rare. Mid-to-late game only.
 
 Islands created by Uprooting follow the same immediate-death rule.
 
@@ -498,7 +498,7 @@ Note the open thread between this in-run summit and the **metagame Breakout** (`
 
 ## Level Design — Field Themes
 
-Every level takes place on a bounded circular field, but the *feel* of that field is not fixed. Each level runs a theme — a structural and visual identity borrowed from the long tradition of skill trees and talent systems. The circular boundary is always present; what fills it varies. Themes determine edge density, node type distribution, field width vs. depth, edge directionality, palette, and Tether placement/count. (Because topology now determines offense and defense, themes also carry an *offensive identity:* dense webs favor magic hubs, sparse maps favor ranged tendrils — see `combat_system.md`.)
+Every level takes place on a bounded circular field, but the *feel* of that field need not be fixed. Each level could run a theme (unbuilt — no theme system exists) — a structural and visual identity borrowed from the long tradition of skill trees and talent systems. The circular boundary is always present; what fills it varies. Themes determine edge density, node type distribution, field width vs. depth, edge directionality, palette, and Tether placement/count. (Because topology now determines offense and defense, themes also carry an *offensive identity:* dense webs favor magic hubs, sparse maps favor ranged tendrils — see `combat_system.md`.)
 
 **The Classic Talent Tree.** Tiered columns, wider at the top, narrowing down. Edges point downward — branching decisions, converging payoffs. Tall and narrow. Convergence points make natural hubs.
 

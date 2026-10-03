@@ -356,7 +356,7 @@ Self-loops add **+2 degree** and never make a leaf — shipped (`SkillNode.self_
 
 ### The glass cannon — triple magic damage
 
-How a propagating spell treats a self-loop today — two incidents returning in the next wave, collapsed by the spell's reducer and vetoed by its filters — is `../domain/spell-propagation.md`'s. The glass cannon is what that *could* add up to: a spell built to follow the loop and sum its returns would land on the node three times from one arrival:
+How a propagating spell treats a self-loop today is `../domain/spell-propagation.md`'s. The glass cannon is what that *could* add up to: a spell built to follow the loop and sum its returns would land on the node three times from one arrival:
 
 ```
 1. Spell arrives at node          → hit 1 (initial)

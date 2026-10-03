@@ -82,8 +82,9 @@ Gaps between profiles are where mechanics live:
 **Settled 2026-08-18 in #473** (the multiplayer sync-model session), because
 versus forced the question "does every opponent know the full stat board of
 every entity?". The answer is three rules, and they are gate-vector rows rather
-than a new system. Today they are a *display* rule; under the deferred
-fog-filtered sync model they become the delta filter, unchanged.
+than a new system. What they need beyond today's tooltips — a per-viewer stat estimate, the
+shift stat-radar panel — is unbuilt; built, they would be a *display* rule, and under the deferred
+fog-filtered sync model the delta filter, unchanged.
 
 **1. Node-local stats are public whenever the node is visible.** Current/max HP,
 `armor`, `min_damage_taken` — all open at the **Vision** profile, as the table
