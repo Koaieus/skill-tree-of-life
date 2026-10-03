@@ -53,6 +53,12 @@ default:
   is enough -- given future infusions might fill gaps too, a spell is a lot of
   maintenance and shouldn't be added willy nilly"*. A `Spell 2` cell's first
   fork is therefore whether the gap exists at all.
+  **Good splits (owner, 2026-10-03):** *"one that adds stacks or deals
+  damage, other that's more utility or spreads stuff or has a different
+  characteristic for spreading or targeting. and there could be many splits
+  like this, all bound to what would be fun elements without doing more of the
+  same"*. A pair of spells differs on an axis (payload vs utility, spread,
+  targeting shape, hit count vs stack size), never on numbers alone.
 - **Infusion** — spending aspect budget to mutate the next cast; the gist is
   on #1250.
 
