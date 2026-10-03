@@ -358,6 +358,8 @@ var scouted: bool = false:
 		scouted = value
 		_apply_scouted_state()
 
+var status_viewers: Array[Entity] = []
+
 ## This node's [NodeStatBoard]. Authored here (the scene wires
 ## [constant DEFAULT_NODE_BOARD]) and DEEP-CLONED at init, exactly like
 ## [member Entity.stat_board] — so a level, cluster or single node may compose
