@@ -262,18 +262,22 @@ Overnight the budget is **tokens per 5-hour window, twice over**, and
     still unprobed: `claude --bg` and `systemd-run --user` *from an RC
     session* landing under the daemon unit (corpus: `--bg` from Bash worked
     from RC on 2026-10-02; the unit was not yet involved) — the first thing
-    the tool unit verifies. **A session started from claude.ai (web, app,
-    phone — its process carries `--sdk-url …/code/sessions/…`) runs in
-    auto mode regardless of the user's `defaultMode: bypassPermissions`**
-    (*mined 2026-10-03*: every `skill-tree-of-life-xx` session on the
-    machine was one; the owner never set the mode). So the phone console
-    is an auto-mode session: a cross-session message between it and a
-    bypass-mode lead is held for approval and expires — one more reason
-    v2 sends none — and auto mode's classifier can deny a Bash call that
-    stops or launches sessions (it denied `claude stop` to the rewriting
-    session). The verbs a console runs (`start`, `stop`) must therefore be
-    probed from an auto-mode session too; the watchdog, under systemd,
-    has no classifier.
+    the tool unit verifies. **A session started from claude.ai (phone or browser, host = this
+    machine; its transcript says `entrypoint: sdk-cli`) gets its permission
+    mode from the app/server side per session, not from the user's
+    `defaultMode: bypassPermissions`** (*mined 2026-10-03*, from the
+    transcripts of the last three days: 57 such sessions came up bypass,
+    18 auto, in clusters — four of seven at one minute on 10-01 differed —
+    and every one from 04:37 on 10-03 was auto; every `entrypoint: cli`
+    session, terminal or `--bg`, was bypass. The owner never changes the
+    setting; the trigger is unknown — the app's per-session mode picker is
+    the suspect). So the phone console *may* be an auto-mode session: a
+    cross-session message between it and a bypass-mode lead is held for
+    approval and expires — one more reason v2 sends none — and auto mode's
+    classifier can deny a Bash call that stops or launches sessions (it
+    denied `claude stop` to the rewriting session). The verbs a console
+    runs (`start`, `stop`) must therefore be probed from an auto-mode
+    session too; the watchdog, under systemd, has no classifier.
 22. **A spent window is waited out, never worked around.** The session ends
     its turn with a synthetic `isApiErrorMessage` message, stays at its
     prompt, and the next prompt after the reset continues the same context.
