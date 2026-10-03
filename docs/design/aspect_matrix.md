@@ -103,7 +103,7 @@ addon and spell column units.
 
 | Concept | Stat | Ranged (arrow) | Addon (map / temp) | Magic (infusion) | Notes |
 |---|---|---|---|---|---|
-| Poison | `poison_aspect` | arrow applies poison stacks; feel + look: see "Rows designed in #1318" | `toxin_addon.tscn` redone in #1318 — see "Rows designed in #1318" | spell `venom`; infusion #1250 | spread signature undecided (#1204) |
+| Poison | `poison_aspect` | arrow applies poison stacks; feel + look: see "Rows designed in #1318" | `toxin_addon.tscn` redone in #1318 — see "Rows designed in #1318" | spell `venom`; infusion #1250 | spread signature deferred to an authoring pass (owner, #1204) |
 | Corruption | `corruption_aspect` | scaffold (#1349; look: #1351) — design pass for feel and look open | #1318 | #1250 | spreads as a sandpile by nature (#1202); health bar shows blips per stack, extra-mean when critical (#1092) |
 | Curse | `curse_aspect` | scaffold (#1349; look: #1351) — design pass for feel and look open | #1318 (spell `hex` shipped) | #1250 | raises `min_damage_taken`; spills to surviving direct neighbours on death AND dealloc (#1204) |
 | Wither | `wither_aspect` | scaffold (#1349; look: #1351) — design pass for feel and look open | #1318 | #1250 | drives healing received negative |
@@ -147,7 +147,7 @@ addon and spell column units.
   the game doesn't become all green bubbles and froth and gas"*. The froth
   density is a knob, and it must stay sparse when a whole volley flies (the
   owner's 20-arrow case). Lands with #1352.
-- **Spells:** `venom` stands. `bruiser` is not a poison spell; poison has one spell, room for a second.
+- **Spells:** `venom`; room for a second.
 
 ## Contenders
 
