@@ -142,11 +142,6 @@ child (no `game_root.tscn`) hits three gotchas together:
   HP in a fixture, pass a `DamageInstance` with `type = TRUE` as `source`
   (`Mitigation.apply` returns `raw.amount` unchanged for `TRUE`); the `amount`
   argument only matters for the `amount <= 0.0` early-out guard.
-- **Mana behaves like SP** (same shape as the SP-minting gotcha above):
-  turn-start upkeep ADDS `mana_per_turn` before `take_turn` runs, so a
-  pre-turn `mana.set_current(0.0)` doesn't stay 0 once the controller reads
-  it. To force "can't afford this spell," bump `SpellDef.mana_cost` on a
-  `duplicate(true)` of the spell instead of draining the pool.
 - **A fixture that exercises `graph.navigator` (the GLOBAL mirror) must build
   nodes/edges via `Graph.add_skill_node` / `Graph.add_edge`, not a raw
   `container.add_child`** — the raw form never emits `node_added`/`edge_added`,
