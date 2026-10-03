@@ -13,6 +13,7 @@ extends GutTest
 
 const _BOARD := preload("res://entity/default_entity_board.tres")
 const _BALANCED := preload("res://entity/core/balanced_core.tres")
+const _LEVEL := preload("res://stats_system/formulas/level_scaling.tres")
 
 var _entity: Entity
 
@@ -79,17 +80,50 @@ func test_absorb_with_a_mismatched_formula_divisor_appends_instead_of_merging() 
 	assert_eq(intrinsic.value, 1.0, "the intrinsic itself is untouched")
 
 
-func test_absorb_merges_a_static_modifier_too() -> void:
+func test_absorb_appends_a_static_modifier_never_merges() -> void:
+	var base: float = _entity.stat_board.get_value(&"armor")
 	var first := _mk_mod(&"armor", StatModifier.Operation.ADD_BASE, 5.0)
 	_entity.absorb_core_modifier(first)
-	assert_true(_entity.core_modifiers.has(first), "no match yet -> ordinary append")
-
 	var second := _mk_mod(&"armor", StatModifier.Operation.ADD_BASE, 5.0)
 	var before := _entity.core_modifiers.size()
 	_entity.absorb_core_modifier(second)
 
-	assert_eq(_entity.core_modifiers.size(), before, "merged, not appended")
-	assert_eq(first.value, 10.0, "+5 twice = +10 once, on the SAME instance")
+	assert_eq(_entity.core_modifiers.size(), before + 1, "a static appends, never merges")
+	assert_eq(first.value, 5.0, "the first instance is untouched")
+	var armor := _entity.stat_board.get_stat(&"armor")
+	assert_true(armor.has_modifier(first) and armor.has_modifier(second), "two bound instances")
+	assert_eq(float(_entity.stat_board.get_value(&"armor")), base + 10.0, "the pipeline sums them")
+
+
+func test_absorb_appends_a_formula_multiply() -> void:
+	var first := _mk_mod(&"xp_per_turn", StatModifier.Operation.MULTIPLY, 1.5)
+	first.formula = _LEVEL
+	_entity.absorb_core_modifier(first)
+	var second := _mk_mod(&"xp_per_turn", StatModifier.Operation.MULTIPLY, 1.5)
+	second.formula = _LEVEL
+	var before := _entity.core_modifiers.size()
+	_entity.absorb_core_modifier(second)
+
+	assert_eq(_entity.core_modifiers.size(), before + 1, "a MULTIPLY never fuses — v·f × v·f is not (2v)·f")
+	assert_eq(first.value, 1.5, "the first instance is untouched")
+
+
+func test_absorb_binds_an_identical_set_twice_silently() -> void:
+	var first := _mk_mod(&"movement_points", StatModifier.Operation.SET, 5.0)
+	_entity.absorb_core_modifier(first)
+	var second := _mk_mod(&"movement_points", StatModifier.Operation.SET, 5.0)
+	_entity.absorb_core_modifier(second)
+
+	var mp := _entity.stat_board.get_stat(&"movement_points")
+	assert_true(mp.has_modifier(first) and mp.has_modifier(second), "two bound SET instances")
+	assert_eq(first.value, 5.0, "never fused into SET 10")
+	assert_eq(float(_entity.stat_board.get_value(&"movement_points")), 5.0)
+	assert_push_error_count(0, "an identical wire form is not a conflict")
+
+	_entity.stat_board.remove_modifier(second)
+	_entity.core_modifiers.erase(second)
+	assert_eq(float(_entity.stat_board.get_value(&"movement_points")), 5.0,
+			"revoking one leaves the other in force")
 
 
 func test_absorb_never_merges_a_composite() -> void:
@@ -119,6 +153,7 @@ func test_no_match_appends_through_the_ordinary_grant() -> void:
 
 func test_merge_emits_stat_modifier_changed_once_with_the_merged_target() -> void:
 	var first := _mk_mod(&"armor", StatModifier.Operation.ADD_BASE, 5.0)
+	first.formula = _LEVEL
 	_entity.absorb_core_modifier(first)
 
 	var captured: Array = []
@@ -126,6 +161,7 @@ func test_merge_emits_stat_modifier_changed_once_with_the_merged_target() -> voi
 		captured.append([e, m, k, added])
 	Events.stat_modifier_changed.connect(handler)
 	var second := _mk_mod(&"armor", StatModifier.Operation.ADD_BASE, 5.0)
+	second.formula = _LEVEL
 	_entity.absorb_core_modifier(second)
 	Events.stat_modifier_changed.disconnect(handler)
 
@@ -141,30 +177,31 @@ func test_merge_emits_stat_modifier_changed_once_with_the_merged_target() -> voi
 
 func test_absorb_privatizes_a_file_backed_class_grant_before_merging() -> void:
 	# BalancedCore's core_class.apply() already granted the SAME shared
-	# +10 Wisdom .tres subresource (mod_wis) into core_modifiers — no
-	# per-entry duplication, per #377.
-	var shared_wis: StatModifier = null
+	# "+1 Strength per level" .tres subresource (mod_str_per_level) into
+	# core_modifiers — no per-entry duplication, per #377.
+	var shared_str: StatModifier = null
 	for m in _entity.core_modifiers:
-		if m.stat_id == &"wisdom" and m.operation == StatModifier.Operation.ADD_BASE and m.formula == null:
-			shared_wis = m
+		if m.stat_id == &"strength" and m.formula == _LEVEL:
+			shared_str = m
 			break
-	assert_not_null(shared_wis, "precondition: BalancedCore granted +10 Wisdom")
-	assert_false(shared_wis.resource_path.is_empty(), "precondition: it's the shared .tres instance")
+	assert_not_null(shared_str, "precondition: BalancedCore granted +1 Strength per level")
+	assert_false(shared_str.resource_path.is_empty(), "precondition: it's the shared .tres instance")
 
-	var loot := _mk_mod(&"wisdom", StatModifier.Operation.ADD_BASE, 10.0)
+	var loot := _mk_mod(&"strength", StatModifier.Operation.ADD_BASE, 1.0)
+	loot.formula = _LEVEL
 	_entity.absorb_core_modifier(loot)
 
-	assert_eq(shared_wis.value, 10.0, "the SHARED original is never mutated")
-	assert_eq(_entity.core_modifiers.find(shared_wis), -1,
+	assert_eq(shared_str.value, 1.0, "the SHARED original is never mutated")
+	assert_eq(_entity.core_modifiers.find(shared_str), -1,
 			"the shared instance is no longer in the register")
 	var merged: StatModifier = null
 	for m in _entity.core_modifiers:
-		if m.stat_id == &"wisdom" and m.operation == StatModifier.Operation.ADD_BASE and m.formula == null:
+		if m.stat_id == &"strength" and m.formula != null:
 			merged = m
 	assert_not_null(merged, "a private duplicate replaced it in the register")
-	assert_eq(merged.value, 20.0, "10 (class) + 10 (loot) = 20, on the duplicate")
+	assert_eq(merged.value, 2.0, "1 (class) + 1 (loot) = 2, on the duplicate")
 	assert_true(merged.resource_path.is_empty(), "the duplicate is unshared")
-	assert_eq(_entity.core_modifiers.size(), 1 + 5, "register size unchanged by the swap (still one +10 Wisdom slot)")
+	assert_eq(_entity.core_modifiers.size(), 1 + 5, "register size unchanged by the swap (still one per-level Strength slot)")
 
 
 # ── Late-join register re-point (#775 amendment) ─────────────────────────────
