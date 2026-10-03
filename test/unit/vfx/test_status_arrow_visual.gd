@@ -109,3 +109,19 @@ func test_finished_waits_for_the_trail_to_drain() -> void:
 	assert_almost_eq(arrow.drain_seconds(), maxf(trail.lifetime, burst.lifetime), 0.0001,
 			"the drain is the longest-lived emitter's lifetime")
 	assert_signal_not_emitted(arrow, "finished", "not finished while the trail drains")
+
+
+## The impact beats land just after arrival; on either the status burst is
+## withdrawn — a dud never landed, an absorbed shot is the defender's verdict.
+func test_a_dud_or_absorbed_arrow_shows_no_status_burst() -> void:
+	for beat in [&"dud", &"absorbed"]:
+		var arrow := _status_arrow()
+		var burst: GPUParticles2D = arrow.get_node(^"%Burst")
+		arrow._on_launch()
+		arrow._on_arrival()
+		assert_true(burst.visible and burst.emitting, "precondition: a landing arrow bursts")
+		if beat == &"dud":
+			arrow._on_dud()
+		else:
+			arrow._on_absorbed(false)
+		assert_false(burst.visible or burst.emitting, "no status burst on a %s" % beat)

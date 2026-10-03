@@ -175,7 +175,7 @@ func begin_windup(plan: AttackPlan, tempo: PresentationTempo) -> float:
 		var at: Vector2 = leaf.global_position + _park_offset(leaf, rank, int(per_leaf[leaf]))
 		var landing: Vector2 = target.global_position + _landing_offset(seed, shot.index, target)
 		var type: AmmoType = shot.ammo_type
-		var proj := _spawn_projectile(tint, _scene_for(type))
+		var proj := _spawn_projectile(_scene_for(type))
 		var path: ProjectilePath = proj.path
 		var tangent: Vector2 = path.evaluate(_TANGENT_EPS, at, landing) - path.evaluate(0.0, at, landing)
 		proj.place(at, tangent.angle() if tangent.length_squared() > 1e-9 else (landing - at).angle())
@@ -272,7 +272,7 @@ func _clear_parked() -> void:
 	_parked_landings.clear()
 
 
-func _spawn_projectile(_tint: Color, scene: PackedScene) -> Projectile:
+func _spawn_projectile(scene: PackedScene) -> Projectile:
 	var proj := Projectile.new()
 	proj.path = _resolved_path()
 	proj.visual_scene = scene
@@ -405,7 +405,7 @@ func play(payload: Variant) -> void:
 		var flight: float = _flight_for(entry)
 		var parked: Projectile = _parked[k] if k < parked_count and is_instance_valid(_parked[k]) else null
 		var type := _type_of(hit.ammo_type_id)
-		var proj: Projectile = parked if parked != null else _spawn_projectile(tint, _scene_for(type))
+		var proj: Projectile = parked if parked != null else _spawn_projectile(_scene_for(type))
 		proj.flight_time = flight
 		proj.context = entry
 		proj.focus_weight = _focus_weight(hits, i)

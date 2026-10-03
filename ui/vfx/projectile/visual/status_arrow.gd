@@ -73,15 +73,27 @@ func _on_launch() -> void:
 		trail.emitting = true
 
 
+## The impact beats arrive just AFTER [method _on_arrival] (the coordinator
+## dispatches them off the projectile's `arrived`), so they cancel a burst
+## already started: a dud never landed, and an absorbed shot is the defender's
+## verdict — a status-colour burst on either would claim the status landed.
 func _on_dud() -> void:
 	super._on_dud()
 	_stop_trail()
+	_cancel_burst()
 	_paint_status()
 
 
 func _on_absorbed(gained: bool) -> void:
 	super._on_absorbed(gained)
+	_cancel_burst()
 	_paint_status()
+
+
+func _cancel_burst() -> void:
+	var burst := _burst()
+	if burst != null:
+		burst.emitting = false
 
 
 func _on_arrival() -> void:
@@ -91,14 +103,16 @@ func _on_arrival() -> void:
 		return
 	_stop_trail()
 	var burst := _burst()
-	if burst != null and has_status() and not _dud:
+	if burst != null and has_status() and not _dud and not _absorbed:
 		burst.restart()
 		burst.emitting = true
 
 
 ## The shaft's fade is done; the particles may still be in the air. The fade
 ## itself ran `hold + fade` seconds after the emitters stopped at arrival, so
-## only the remainder of the drain is waited out.
+## only the remainder of the drain is waited out — with the shipped hold of
+## 2 s the drain has long elapsed by then, so `finished` is never delayed in
+## practice; the wait matters only for a short hold.
 func _on_faded() -> void:
 	var rest := drain_seconds() - (hold_seconds + fade_seconds) if has_status() else 0.0
 	if rest > 0.0 and is_inside_tree():
@@ -141,7 +155,7 @@ func _paint_status() -> void:
 	var glow := Emissive.at(Color(status_tint.r, status_tint.g, status_tint.b, 1.0), Emissive.LABEL)
 	trail.visible = shown
 	trail.modulate = glow
-	burst.visible = shown
+	burst.visible = shown and not _dud and not _absorbed
 	burst.modulate = glow
 	if trail.amount != trail_amount:
 		trail.amount = trail_amount
