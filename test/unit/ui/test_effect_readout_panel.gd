@@ -260,7 +260,11 @@ class ZeroFormula extends StatFormula:
 ## source, never summed"), which is what makes them `count` separate rows.
 func _grant_many(ent: Entity, count: int) -> void:
 	for i in count:
-		_grant(ent, "Aura %d" % i, _mod(&"armor", StatModifier.Operation.SET, float(i + 1)))
+		# Distinct priorities: equal-priority SETs that disagree are an
+		# authoring error (ADR 0043).
+		var m := _mod(&"armor", StatModifier.Operation.SET, float(i + 1))
+		m.priority = i
+		_grant(ent, "Aura %d" % i, m)
 
 
 # paginate() is the whole of the carousel a headless test can catch wrong.

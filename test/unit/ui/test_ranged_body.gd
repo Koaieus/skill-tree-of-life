@@ -255,11 +255,14 @@ func test_body_stays_inside_the_tray_budget() -> void:
 	assert_lt(min_size.y, 231.0, "min height inside the tray budget")
 
 
-func _set_local(node: SkillNode, id: StringName, value: float) -> void:
+## An override over an earlier SET needs a higher [param priority]: an
+## equal-priority SET conflict is an authoring error (ADR 0043).
+func _set_local(node: SkillNode, id: StringName, value: float, priority := 0) -> void:
 	var m := StatModifier.new()
 	m.stat_id = id
 	m.operation = StatModifier.Operation.SET
 	m.value = value
+	m.priority = priority
 	node.add_local_modifier(m)
 
 
@@ -272,7 +275,7 @@ func test_a_sensed_target_composes_scouts_only() -> void:
 	for n in [_mid, _near, _mid_leaf, _far]:
 		_set_local(n, &"vision_range", 10.0)
 		_set_local(n, &"sensor_range", 0.0)
-	_set_local(_near, &"sensor_range", 1.0)
+	_set_local(_near, &"sensor_range", 1.0, 1)
 	var vision := VisionSystem.new()
 	vision.graph = _graph
 	vision.viewers = [_attacker]
