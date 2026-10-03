@@ -29,9 +29,41 @@ layout_mode = 2
 theme_override_constants/separation = 2
 mouse_filter = 2
 
-[node name="NameLabel" type="Label" parent="Box"]
+[node name="Header" type="HBoxContainer" parent="Box"]
+layout_mode = 2
+theme_override_constants/separation = 5
+mouse_filter = 2
+
+[node name="Swatch" type="ColorRect" parent="Box/Header"]
+unique_name_in_owner = true
+visible = false
+custom_minimum_size = Vector2(8, 8)
+layout_mode = 2
+size_flags_vertical = 4
+mouse_filter = 2
+
+[node name="StatusIcon" type="TextureRect" parent="Box/Header"]
+unique_name_in_owner = true
+visible = false
+custom_minimum_size = Vector2(14, 14)
+layout_mode = 2
+size_flags_vertical = 4
+mouse_filter = 2
+expand_mode = 1
+stretch_mode = 5
+
+[node name="StatusLetter" type="Label" parent="Box/Header"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+theme_type_variation = &"ChakraData"
+theme_override_font_sizes/font_size = 10
+mouse_filter = 2
+
+[node name="NameLabel" type="Label" parent="Box/Header"]
 unique_name_in_owner = true
 layout_mode = 2
+size_flags_horizontal = 3
 theme_type_variation = &"CinzelHeader"
 theme_override_font_sizes/font_size = 11
 mouse_filter = 2
