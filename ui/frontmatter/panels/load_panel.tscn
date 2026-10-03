@@ -1,16 +1,23 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene load_steps=3 format=3]
 
 [ext_resource type="PackedScene" path="res://ui/frontmatter/panels/frontmatter_panel.tscn" id="1_base"]
+[ext_resource type="Script" path="res://ui/frontmatter/panels/load_panel.gd" id="2_load"]
 
 [node name="LoadPanel" instance=ExtResource("1_base")]
+script = ExtResource("2_load")
 panel_id = &"load"
 title = "LOAD GAME"
 
-[node name="Empty" type="Label" parent="OuterMargin/GlassPanel/InnerMargin/Column/Body" index="0"]
+[node name="Status" type="Label" parent="OuterMargin/GlassPanel/InnerMargin/Column/Body" index="0"]
+unique_name_in_owner = true
 layout_mode = 2
 theme_type_variation = &"TierInert"
-text = "No saved runs.
-
-Saving and loading is not implemented yet."
+text = "No saved run."
 horizontal_alignment = 0
 autowrap_mode = 3
+
+[node name="LoadButton" type="Button" parent="OuterMargin/GlassPanel/InnerMargin/Column/Body" index="1"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 0
+text = "LOAD"

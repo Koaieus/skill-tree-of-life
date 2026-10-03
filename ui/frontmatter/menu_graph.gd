@@ -99,10 +99,10 @@ class Item extends RefCounted:
 	## children navigates, it does not open anything.
 	var panel: StringName = &""
 	## Set on leaves that eventually author a run. Null on leaves that only open
-	## a panel (settings, exit confirm, the parked load screen).
+	## a panel (settings, exit confirm, the load screen).
 	var route: Route = null
-	## Reachable but not selectable — LOAD GAME, because #23 save/load is parked
-	## (#567's "LOAD GAME stays disabled/empty").
+	## Reachable but not selectable. No shipped leaf sets it today; the input
+	## and click paths still honour it.
 	var disabled: bool = false
 
 	func is_leaf() -> bool:
@@ -166,9 +166,9 @@ static func build() -> MenuGraph:
 	tree.add(_leaf(ID_NEW_GAME, ID_SINGLE_PLAYER, PANEL_LOBBY,
 			Route.new(RunConfig.Mode.SINGLE, NetworkConfig.Role.OFFLINE,
 					POLICY_SINGLE)))
-	var load_game := _leaf(ID_LOAD_GAME, ID_SINGLE_PLAYER, PANEL_LOAD)
-	load_game.disabled = true  # #23 save/load is parked.
-	tree.add(load_game)
+	# The panel offers the one save slot; whether there is one is read there, on
+	# reveal — this tree is topology and never touches the disk.
+	tree.add(_leaf(ID_LOAD_GAME, ID_SINGLE_PLAYER, PANEL_LOAD))
 
 	tree.add(_item(ID_MULTIPLAYER, ID_ROOT))
 	# The three answers #531 put between "Multiplayer" and the lobby. All three

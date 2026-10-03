@@ -141,3 +141,39 @@ func test_every_refusal_has_a_line_to_show() -> void:
 	for result in [SaveFile.LoadResult.MISSING, SaveFile.LoadResult.CORRUPT,
 			SaveFile.LoadResult.VERSION_MISMATCH]:
 		assert_ne(SavedRun.describe(result), "", "LoadResult %d says why" % result)
+
+
+# --- FRONTMATTER LOAD GAME ---------------------------------------------------
+
+const _LOAD_PANEL := preload("res://ui/frontmatter/panels/load_panel.tscn")
+
+
+func _load_panel() -> LoadPanel:
+	var panel: LoadPanel = _LOAD_PANEL.instantiate()
+	panel.slot_path = _TEST_SLOT
+	add_child_autofree(panel)
+	return panel
+
+
+func test_the_frontmatter_leaf_is_selectable() -> void:
+	assert_false(MenuGraph.build().get_item(MenuGraph.ID_LOAD_GAME).disabled)
+
+
+func test_the_load_panel_offers_nothing_without_a_slot() -> void:
+	var panel := _load_panel()
+	assert_true((panel.find_child("LoadButton", true, false) as Button).disabled)
+	assert_eq((panel.find_child("Status", true, false) as Label).text,
+			SavedRun.describe(SaveFile.LoadResult.MISSING))
+
+
+func test_the_load_panel_refuses_a_corrupt_slot_out_loud() -> void:
+	var file := FileAccess.open(_TEST_SLOT, FileAccess.WRITE)
+	file.store_buffer(PackedByteArray([1, 2, 3, 4]))
+	file.close()
+	var panel := _load_panel()
+	var button: Button = panel.find_child("LoadButton", true, false)
+	assert_false(button.disabled, "a slot exists, so the press may say why it fails")
+	button.pressed.emit()
+	assert_eq((panel.find_child("Status", true, false) as Label).text,
+			SavedRun.describe(SaveFile.LoadResult.CORRUPT))
+	assert_eq(GameSession.config.seed, 1234, "the session is untouched")
