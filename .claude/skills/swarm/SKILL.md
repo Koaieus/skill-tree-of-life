@@ -135,26 +135,31 @@ questions to resolve by reading.
   `docs/handoffs/swarm-brief-<n>.md` and dies. The fix for next time is a
   better swarmify pass, not a standing planner.
 
-## Supervised mode
+## Whip relay mode
 
-Active only when your launch prompt says *supervised by `<name>`*. The
-supervisor is a session, not a human; it reads three lines and nothing else.
-This section and the `CLAUSES` string in `.mise/tasks/whip` (pasted into
-your launch prompt) are one contract, two readers — a difference between
-them is a bug, not a nuance.
+Active only when your launch prompt says *whip relay, train `<t>`*. There
+is no supervisor session and no human awake: your three human-facing
+moments become three verbs, and the verbs pass the baton. This section and
+the `CLAUSES` string in `.mise/tasks/whip` (pasted into your launch prompt)
+are one contract, two readers — a difference between them is a bug, not a
+nuance.
 
-- **Report by `SendMessage` to `<name>`, one line each**: `RELIEVE ME
-  <ledger path>` where this skill says "request relief"; `DONE <train>
-  <pushed sha> <landed n/m>` after the push and `hygiene --fix`; `NEEDS
-  OWNER #<n> — <one line>` *after* you moved the issue to `Needs design`
-  with a dated comment stating your assumption or the fork — then keep
-  going with the rest of the run.
+- **Report by verb, one call each**: `mise run whip -- relieve-me` where
+  this skill says "request relief" (it launches your relief; you drain per
+  `relief`); `mise run whip -- done <pushed sha> <landed n/m>` after the
+  push and `hygiene --fix` (it launches the next train's lead, or ends the
+  run and renders the report — then end your turn and do nothing more);
+  `mise run whip -- needs-owner <n> "<one line>"` *after* you moved the
+  issue to `Needs design` with a dated comment stating your assumption or
+  the fork — then keep going with the rest of the run. The verbs know your
+  train from your session; you never name it.
 - **Never ask.** Anything you would have put to the owner is answered by
   your own stated assumption (ledger + issue comment), or the unit is
   pulled. Ending a turn on a question stalls the night.
-- **No other traffic**: no progress pings, no acknowledgements, no replies
-  to the supervisor's nudge beyond continuing. Messages from `<name>` are
-  your instructions.
+- **No other traffic**: no progress pings, no messages to anyone. The
+  only instructions you receive are the watchdog's prompts (a window
+  reset: continue from your ledger) and the owner's stop (go quiet, let
+  in-flight drones report, land what is reported, then `done`).
 - Everything else in this file is unchanged, the owner-stop rule included.
 
 ## The cycle
@@ -163,7 +168,7 @@ them is a bug, not a nuance.
 
 A ledger for this run already on disk (`docs/handoffs/swarm-<date>.md`)
 means you are relief — `.claude/skills/relief/SKILL.md` first, then here —
-**unless your launch prompt calls you a fresh lead** (a supervisor's later
+**unless your launch prompt calls you a fresh lead** (the whip relay's later
 train on the same date): then the file is an earlier train's, you never
 orient as its relief, `mise run ledger -- dispatch` appends your rows to it,
 and the earlier train's rows are not yours to touch.

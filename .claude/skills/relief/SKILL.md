@@ -1,6 +1,6 @@
 ---
 name: relief
-description: Continue a `swarm` as a fresh orchestrator session — the outgoing lead is dead (ran out of tokens, taking its subagents with it) or past its ceiling and alive, with worktrees open and branches pending. Orients from disk (ledger, board, worktrees — never the issues), reconciles and classifies every unit, then runs `swarm`. Use when the user says "relief", "take over the swarm", "relieve <session>", or a ledger for a run already exists on disk and your launch prompt does not call you a fresh lead (a supervisor's later train on the same date appends to that ledger; it is not relief).
+description: Continue a `swarm` as a fresh orchestrator session — the outgoing lead is dead (ran out of tokens, taking its subagents with it) or past its ceiling and alive, with worktrees open and branches pending. Orients from disk (ledger, board, worktrees — never the issues), reconciles and classifies every unit, then runs `swarm`. Use when the user says "relief", "take over the swarm", "relieve <session>", or a ledger for a run already exists on disk and your launch prompt does not call you a fresh lead (the whip relay's later train on the same date appends to that ledger; it is not relief).
 ---
 
 # Relief — re-entry protocol, then swarm
@@ -49,12 +49,13 @@ ping is the relay. Its Sage stays its own and answers its drones until they
 drain; spawn your own per `swarm` if the run calls for one. `APPROVED <sha>`
 lines already in the ledger stand.
 
-## 4. Supervised mode
+## 4. Whip relay mode
 
-If your launch prompt says *supervised by `<name>`*, you are `swarm`'s
-supervised mode from here on: its three report lines go to `<name>`, you
-never ask, and `<name>`'s messages are your instructions. State your own
-name to the outgoing exactly as above; the outgoing is in the same mode.
+If your launch prompt says *whip relay, train `<t>`*, you are `swarm`'s
+whip relay mode from here on: its three report lines are three verbs, you
+never ask, and only the watchdog's and the owner's prompts are
+instructions. State your own name to the outgoing exactly as above; the
+outgoing is in the same mode.
 
 ## 5. Now run `swarm`
 

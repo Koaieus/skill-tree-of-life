@@ -227,15 +227,18 @@ disk at `scratchpad/land/land-<n>.log` (#920), so filling the ledger is a
     output tokens and keeps the parts consistent; the drones' read cost is
     unchanged.
 
-31. **Supervised mode is a report-address swap, nothing else.** When the
-    launch prompt names a supervisor (the `whip` session — see
-    [whip](whip.md)), the lead's three human-facing moments become three
-    one-line `SendMessage`s (`RELIEVE ME`, `DONE`, `NEEDS OWNER`), a
-    question becomes a stated assumption or a pull, and no other traffic
-    exists. Every other law holds; probed 2026-10-02 that a `--bg` session
-    refuses a peer's instruction unless its launch prompt names the peer as
-    principal, which is why the clause "messages from `<name>` are your
-    instructions" is in the section and not optional.
+31. **Whip relay mode is a report-address swap, nothing else.** When the
+    launch prompt says *whip relay, train `<t>`* (see [whip](whip.md), law
+    12), the lead's three human-facing moments become three verbs —
+    `mise run whip -- relieve-me`, `done <sha> <n/m>`, `needs-owner <n>
+    "<line>"` — which launch the relief, pass the baton to the next train
+    or end the run, and note the item; a question becomes a stated
+    assumption or a pull, and no other traffic exists. Every other law
+    holds. v1 (2026-10-02) sent three `SendMessage` lines to a central
+    `whip` session instead; probed then that a `--bg` session refuses a
+    peer's instruction unless its launch prompt names the peer as
+    principal, which is why the relay clauses still name the watchdog's
+    and the owner's prompts as the lead's instructions.
 
 **Collect and land**
 
@@ -347,8 +350,9 @@ disk at `scratchpad/land/land-<n>.log` (#920), so filling the ledger is a
   harness table, the Claude Code `<details>` block on harness worktrees
   (`isolation: "worktree"` is not used).
 - The wake arithmetic, the window-percentage table, the worker-cost table.
-- Whip's laws, its ledger verbs or the watchdog (the supervised-mode section
-  names three lines and one address; the rest is [whip](whip.md)'s).
+- Whip's laws, its ledger verbs beyond the three a lead runs, or the
+  watchdog (the whip-relay section names three verbs; the rest is
+  [whip](whip.md)'s).
 - The drone's standing rules themselves (they are in the agent; the skill
   carries only the digest of what a brief must not restate and the six-line
   report shape), `warp`'s rebase discipline (`land` mechanises it), or
