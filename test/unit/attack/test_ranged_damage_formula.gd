@@ -186,12 +186,12 @@ func test_compute_scales_amount_by_the_ammo_types_damage_scale() -> void:
 	assert_eq(hit.ammo_type, ammo)
 
 
-func test_status_for_is_null_without_a_status_def() -> void:
+func test_riders_for_is_empty_without_on_hit_effects() -> void:
 	var firing := _owned_node()
 	await get_tree().process_frame
 	var target := _NODE_SCENE.instantiate() as SkillNode
 	autofree(target)
 	var ammo := AmmoType.new()
 	var hit := RangedDamageFormula.compute(null, firing, target, ammo)
-	assert_null(RangedDamageFormula.status_for(hit))
-	assert_null(RangedDamageFormula.status_for(RangedDamageFormula.compute(null, firing, target)))
+	assert_eq(RangedDamageFormula.riders_for(hit).size(), 0)
+	assert_eq(RangedDamageFormula.riders_for(RangedDamageFormula.compute(null, firing, target)).size(), 0)

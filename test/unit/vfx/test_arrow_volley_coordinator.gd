@@ -293,10 +293,11 @@ func test_a_typed_arrows_status_hit_draws_no_second_arrow() -> void:
 	var coord := _mount_coord()
 	var outcome := AttackOutcome.new()
 	var arrow := _hit(0.02)
-	var status := RangedDamageFormula.RangedStatusInstance.new()
+	var status := StatusInstance.new()
 	status.origin = _origin
 	status.target = _target
 	status.structural_key = 0.02
+	status.paired = arrow
 	outcome.hits.append(arrow)
 	outcome.hits.append(status)
 	coord.play(outcome)

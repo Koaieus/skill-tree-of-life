@@ -136,8 +136,8 @@ func test_a_poison_arrows_status_lands_with_power_one_beside_its_damage() -> voi
 	var ctx: Dictionary = await _build()
 	var target: SkillNode = ctx.nodes.target
 	var hit := RangedDamageFormula.compute(ctx.attacker, ctx.nodes.leaf, target, _POISON_ARROW)
-	var status := RangedDamageFormula.status_for(hit)
-	assert_not_null(status, "a typed arrow with a status_def emits a StatusInstance")
+	var status := RangedDamageFormula.riders_for(hit)[0] as StatusInstance
+	assert_not_null(status, "a typed arrow with a status rider emits a StatusInstance")
 	assert_eq(status.def, _POISON_DEF)
 	assert_eq(status.target, target)
 	assert_eq(status.origin, ctx.nodes.leaf)
@@ -170,17 +170,17 @@ func test_damage_scale_applies_before_mitigation() -> void:
 func test_a_base_arrow_emits_no_status() -> void:
 	var ctx: Dictionary = await _build()
 	var hit := RangedDamageFormula.compute(ctx.attacker, ctx.nodes.leaf, ctx.nodes.target, _BASE_ARROW)
-	assert_null(RangedDamageFormula.status_for(hit))
+	assert_eq(RangedDamageFormula.riders_for(hit).size(), 0)
 	assert_almost_eq(hit.amount, _BASE_DAMAGE, 0.001, "base arrow: full damage")
 	var untyped := RangedDamageFormula.compute(ctx.attacker, ctx.nodes.leaf, ctx.nodes.target)
-	assert_null(RangedDamageFormula.status_for(untyped), "no ammo type at all: nothing to apply")
+	assert_eq(RangedDamageFormula.riders_for(untyped).size(), 0, "no ammo type at all: nothing to apply")
 
 
 func test_a_gated_poison_arrow_applies_no_status() -> void:
 	var ctx: Dictionary = await _build()
 	var target: SkillNode = ctx.nodes.target
 	var hit := RangedDamageFormula.compute(ctx.attacker, ctx.nodes.leaf, target, _POISON_ARROW)
-	var status := RangedDamageFormula.status_for(hit)
+	var status := RangedDamageFormula.riders_for(hit)[0] as StatusInstance
 	# The target fell to an earlier arrow's kill cascade before this one lands.
 	target.owned_by = null
 	var world := CombatWorld.live()
@@ -208,12 +208,12 @@ func test_three_poison_arrows_in_one_volley_accumulate_to_power_three() -> void:
 
 func test_a_volley_is_never_capped() -> void:
 	# #962: poison stacks are uncapped — a 6-arrow volley lands 6 stacks (per
-	# arrow `status_power`, owner-tuned; asserted as a multiple, never a value).
+	# arrow rider `power`, owner-tuned; asserted as a multiple, never a value).
 	var ctx: Dictionary = await _build(Vector2.ZERO, 6.0)  # six shots on the leaf
 	# Keep the arrows' own damage from killing the target — the stacks are the
 	# point, and a kill clears the slice.
 	_set_local(ctx.nodes.leaf, &"ranged_damage", 0.1)
-	var per_arrow: float = _POISON_ARROW.status_power
+	var per_arrow: float = (_POISON_ARROW.on_hit_effects[0] as ApplyStatusEffect).power
 	var plan := _arm(ctx, {&"poison": 6})
 	assert_eq(plan.validate(), [] as Array[String], "the fixture volley must be launchable")
 	plan.resolve_against(CombatWorld.live())
@@ -329,7 +329,7 @@ func _crack_shot(ctx: Dictionary) -> void:
 func _land_poison_arrow(ctx: Dictionary, world: CombatWorld, with_damage: bool = true) -> StatusInstance:
 	var core := _core_of(ctx)
 	var hit := RangedDamageFormula.compute(ctx.attacker, ctx.nodes.leaf, core, _POISON_ARROW)
-	var status := RangedDamageFormula.status_for(hit)
+	var status := RangedDamageFormula.riders_for(hit)[0] as StatusInstance
 	if with_damage:
 		hit.land_on(world.combat_for(core), world)
 	status.land_on(world.combat_for(core), world)
@@ -387,7 +387,7 @@ func test_a_rebuilt_status_lands_on_the_shipped_host_without_rechecking_node_hp(
 	var outcome := AttackOutcome.new()
 	var hit := RangedDamageFormula.compute(ctx.attacker, ctx.nodes.leaf, core, _POISON_ARROW)
 	outcome.hits.append(hit)
-	outcome.hits.append(RangedDamageFormula.status_for(hit))
+	outcome.hits.append_array(RangedDamageFormula.riders_for(hit))
 	OutcomeApplier.apply(outcome, CombatWorld.live())
 	assert_almost_eq(_entity_poison(ctx), 1.0, 0.001, "sanity: the authority's landing fell through")
 

@@ -80,13 +80,13 @@ func test_a_rebuilt_record_picks_the_same_scenes() -> void:
 func _status_arrow() -> StatusArrow:
 	var arrow: StatusArrow = (load(_STATUS_ARROW) as PackedScene).instantiate()
 	add_child_autofree(arrow)
-	arrow.status_tint = _POISON.status_def.tint
+	arrow.status_tint = _POISON.first_status_def().tint
 	return arrow
 
 
 func test_tip_and_trail_carry_the_status_hue() -> void:
 	var arrow := _status_arrow()
-	var hue: float = _POISON.status_def.tint.h
+	var hue: float = _POISON.first_status_def().tint.h
 	var tip: Polygon2D = arrow.get_node(^"%Tip")
 	var trail: GPUParticles2D = arrow.get_node(^"%Trail")
 	assert_true(tip.visible, "a status arrow shows its tip")

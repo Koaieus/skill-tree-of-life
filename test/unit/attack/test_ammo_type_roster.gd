@@ -52,17 +52,20 @@ func test_per_reload_stats_are_distinct_and_aspects_exist() -> void:
 func test_statused_specials_order_below_base_and_scout_stays_last() -> void:
 	var base := _ROSTER.base_type()
 	for t in _ROSTER.types:
-		if t.id == AmmoTypeRoster.BASE_ID or t.status_def == null:
+		if t.id == AmmoTypeRoster.BASE_ID or t.first_status_def() == null:
 			continue
-		assert_eq((t.status_def as StatusDef).id, t.id, "%s carries its own status" % t.id)
+		assert_eq(t.first_status_def().id, t.id, "%s carries its own status" % t.id)
 		assert_lt(t.order, base.order, "%s volleys before the base arrow" % t.id)
 	assert_eq(_ROSTER.sorted().back().id, &"scout")
 
 
-func test_status_for_blindness_arrow_carries_the_def_at_authored_power() -> void:
+func test_riders_for_blindness_arrow_carries_the_def_at_authored_power() -> void:
 	var type := _ROSTER.by_id(&"blindness")
-	var hit := RangedDamageFormula.compute(null, null, null, type)
-	var status := RangedDamageFormula.status_for(hit)
+	var target: SkillNode = autofree(SkillNode.new())
+	var hit := RangedDamageFormula.compute(null, null, target, type)
+	var riders := RangedDamageFormula.riders_for(hit)
+	assert_eq(riders.size(), 1)
+	var status := riders[0] as StatusInstance
 	assert_not_null(status)
 	assert_eq(status.def.resource_path, "res://effects/status/blindness.tres")
-	assert_eq(status.power, type.status_power)
+	assert_eq(status.power, (type.on_hit_effects[0] as ApplyStatusEffect).power)

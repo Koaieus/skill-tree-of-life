@@ -23,7 +23,7 @@ func test_a_poison_card_shows_a_swatch_in_poisons_hue_and_a_glyph() -> void:
 	if swatch == null:
 		return
 	assert_true(swatch.is_visible_in_tree(), "a status type shows its swatch")
-	assert_almost_eq(swatch.color.h, _POISON.status_def.tint.h, 0.02, "the swatch is the status hue")
+	assert_almost_eq(swatch.color.h, _POISON.first_status_def().tint.h, 0.02, "the swatch is the status hue")
 	var icon: TextureRect = card.get_node(^"%StatusIcon")
 	var letter: Label = card.get_node(^"%StatusLetter")
 	var shows_icon := icon.is_visible_in_tree() and icon.texture != null

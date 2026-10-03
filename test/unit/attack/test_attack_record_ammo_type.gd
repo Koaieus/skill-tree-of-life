@@ -32,7 +32,7 @@ func _arrow(type_id: StringName) -> DamageInstance:
 
 func test_ammo_type_ids_round_trip() -> void:
 	var poison := _arrow(&"poison")
-	var status := RangedDamageFormula.status_for(poison)
+	var status := RangedDamageFormula.riders_for(poison)[0] as StatusInstance
 	var base := _arrow(&"arrow")
 	var spell := DamageInstance.new()
 	spell.target = _nodes[1]

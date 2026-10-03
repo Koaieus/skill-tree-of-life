@@ -131,7 +131,7 @@ func test_scout_is_rostered_last_with_the_authored_knobs() -> void:
 	var sorted := _ROSTER.sorted()
 	assert_eq(sorted.back().id, &"scout", "scouts land after every damage arrow")
 	assert_gt(_SCOUT.reveal_fraction, 0.0, "reveal_fraction > 0 is what makes a type a scout")
-	assert_null(_SCOUT.status_def, "never a status_def: the mark is VisionSystem's, not a node status")
+	assert_eq(_SCOUT.on_hit_effects.size(), 0, "never a status rider: the mark is VisionSystem's, not a node status")
 	assert_eq(_SCOUT.per_reload_stat_id, &"scout_aspect")
 
 
