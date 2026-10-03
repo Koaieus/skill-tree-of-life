@@ -14,6 +14,7 @@ const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _TOXIN_SCENE := preload("res://skill_node/addons/defs/toxin_addon.tscn")
 const _POISON := preload("res://effects/status/poison.tres")
+const _SECOND_DOT_SCENE := preload("res://test/fixtures/addons/second_dot_addon.tscn")
 ## A rigid spine (mid welded) traces the nominal radius the plate sits on; a
 ## floppy one curls inward and misses — test_bunker_break_live.gd's finding.
 const _CLAMP_SCENE := preload("res://skill_node/addons/defs/clamp_addon.tscn")
@@ -175,6 +176,40 @@ func test_a_refused_contact_applies_no_status_and_pops_once() -> void:
 		assert_eq(status.power, 0.0, "and lands nothing")
 	assert_eq(CombatWorld.live().combat_for(_plate).get_status_power(&"poison"), 0.0,
 			"no poison from a contact the gate refused")
+
+
+func test_two_dot_addons_on_one_carrier_both_ride_every_contact_in_addon_order() -> void:
+	var first := _attach_toxin(_tip)
+	var second := _SECOND_DOT_SCENE.instantiate() as DotAddon
+	_tip.add_child(second)
+	await _settle()
+	var outcome := _plan().resolve_against(CombatWorld.live())
+
+	var damage := outcome.damage_hits()
+	assert_gt(damage.size(), 0, "fixture: the tip must contact the plate")
+	assert_eq(_status_hits(outcome).size(), damage.size() * 2,
+			"every landed contact carries BOTH addons' statuses — none overwritten")
+	if damage.is_empty():
+		return
+	var at := outcome.hits.find(damage[0])
+	assert_lt(at + 2, outcome.hits.size(), "two riders follow the damage hit")
+	if at + 2 >= outcome.hits.size():
+		return
+	var riders: Array[HitInstance] = [outcome.hits[at + 1], outcome.hits[at + 2]]
+	for i in riders.size():
+		assert_true(riders[i] is StatusInstance, "rider %d is a status, after its damage" % i)
+		assert_eq(riders[i].structural_key, damage[0].structural_key, "rider %d: same beat" % i)
+		assert_eq(riders[i].target, damage[0].target, "rider %d: same node" % i)
+	assert_true(first.get_index() < second.get_index(), "fixture: toxin is the first addon")
+	assert_eq(riders[0].power_resolved, true, "landed on the authority's resolve")
+
+
+func test_a_vertex_built_from_a_carrier_without_a_dot_addon_emits_only_its_damage() -> void:
+	await _settle()
+	var outcome := _plan().resolve_against(CombatWorld.live())
+
+	assert_gt(outcome.damage_hits().size(), 0, "fixture: the tip contacts")
+	assert_eq(outcome.hits.size(), outcome.damage_hits().size(), "nothing rides a plain vertex")
 
 
 # ── ranged face ──────────────────────────────────────────────────────────────
