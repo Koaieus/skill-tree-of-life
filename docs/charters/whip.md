@@ -270,8 +270,9 @@ Overnight the budget is **tokens per 5-hour window, twice over**, and
     18 auto, in clusters — four of seven at one minute on 10-01 differed —
     and every one from 04:37 on 10-03 was auto; every `entrypoint: cli`
     session, terminal or `--bg`, was bypass. The owner never changes the
-    setting; the trigger is unknown — the app's per-session mode picker is
-    the suspect). So the phone console *may* be an auto-mode session: a
+    setting; the server-side session records split it: every session with
+    `origin: android` — the phone app — was auto, 6 of 6, and 1 of 18
+    `origin: web_claude_ai` sessions was; the owner's guess, confirmed). So the phone console *may* be an auto-mode session: a
     cross-session message between it and a bypass-mode lead is held for
     approval and expires — one more reason v2 sends none — and auto mode's
     classifier can deny a Bash call that stops or launches sessions (it
