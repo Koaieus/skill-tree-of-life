@@ -99,7 +99,7 @@ addon and spell column units.
 
 | Concept | Stat | Ranged (arrow) | Addon (map / temp) | Magic (infusion) | Notes |
 |---|---|---|---|---|---|
-| Poison | `poison_aspect` | shipped (each reload mints `poison_aspect` poison arrows, #1248) | `toxin_addon.tscn` (on shared `dot_addon.gd`) — a stub, **redone in #1318** to the SpikeRing standard (look: #1271) | spells `venom`, `bruiser`; infusion #1250 | spread signature undecided (#1204) |
+| Poison | `poison_aspect` | arrow applies poison stacks; feel + look: see "Rows designed in #1318" | `toxin_addon.tscn` redone in #1318 — see "Rows designed in #1318" | spells `venom`, `bruiser`; infusion #1250 | spread signature undecided (#1204) |
 | Corruption | `corruption_aspect` | scaffold (#1349; look: #1351) — design pass for feel and look open | #1318 | #1250 | spreads as a sandpile by nature (#1202); health bar shows blips per stack, extra-mean when critical (#1092) |
 | Curse | `curse_aspect` | scaffold (#1349; look: #1351) — design pass for feel and look open | #1318 (spell `hex` shipped) | #1250 | raises `min_damage_taken`; spills to surviving direct neighbours on death AND dealloc (#1204) |
 | Wither | `wither_aspect` | scaffold (#1349; look: #1351) — design pass for feel and look open | #1318 | #1250 | drives healing received negative |
@@ -107,6 +107,38 @@ addon and spell column units.
 | Scout (a reveal, #949) | `scout_aspect` | scouting arrow (shipped) | watchtower addon (shipped); temp: lit blade node pushing back fog (owner pitch, perf-sensitive: one moving mark per blade, never a second vision path) | TBD (#1254) | `effects/status/scouted.tres` is live (VisionSystem's decay rule); first-class concept (owner, 2026-09-30) |
 | Armor break | `armor_break_aspect` | scaffold (#1349; look: #1351) — design pass for feel and look open | #1318 (spell `sunder` shipped) | #1250 (#395 holds the design) | flat −1 armor per stack, uncapped, can go below zero (#1203, owner 2026-09-30) |
 | Explosive | `explosive_aspect` | explosive arrow (#1211) | explosive addon, procgen at low rate; detonation kills the blade node, reuses spike-pop plumbing (#1211) | stub (#1211) | euclidean hitscan radius from `SkillNode.radius`; barrels / friendly fire open (#1211) |
+
+## Rows designed in #1318
+
+### Poison (owner, 2026-10-03)
+
+- **Twist:** *"it remains the classic slow poison, the special twist is that
+  it's so consistent in dealing damage, and building up. so far most other
+  status effects don't deal damage each turn in most cases."* Decay is
+  linear, −1 stack per turn.
+- **Addon on the map:** +1 `poison_aspect` to whoever allocates the node.
+- **Addon on a blade:** a poison on-hit rider; its stacks multiply with the
+  node's **allocation level**, not its stake. Owner: *"most if not all local
+  modifiers by an addon multiply with allocation level (not stake level,
+  stake raises the max, allocation is the actual)"*. So 1/X → 1 stack,
+  2/X → 2, 3/X → 3.
+- **3/3 unlock (owner's PoC pitch, "possibly this is too strong"):** at full
+  allocation, a bonus to the node's poison landings. The owner wants *"~6
+  stacks per hit"*. A flat +1 `poison_stacks_per_hit` gives only 4, because
+  landing folds `stacks_per_hit` as `base_add` (`docs/domain/effect-system.md`
+  § Landing); ~6 needs the stat's INCREASE row (+100%). Also, landing reads
+  the **attacker's** board today, so a node-local bonus is a customization
+  item (recipe part 5). Both are open, for the addon unit's spec.
+- **No defensive face** (see "Defensive faces are rare").
+- **Look — open, two candidates:**
+  - **Tipped needles:** the owner's canonical favourite (*"they just look so
+    good if done right"*). Long thin needles with neon-green emissive tips,
+    kept distinct from SpikeRing's few big triangular spikes.
+  - **Froth into gas:** bubbling froth whose bubbles pop into green smoke.
+  - Shared: a neon green, noxious read, with the tip/glow on a named emissive
+    tier (`docs/domain/hdr-color.md`).
+  - Combining with other addons' looks on one node is its own issue.
+- **Spells:** `venom` and `bruiser` stand.
 
 ## Contenders
 
@@ -116,6 +148,7 @@ Not yet promoted into the Matrix proper — fill cells when a good idea shows up
 |---|---|---|---|---|---|
 | Spikes | `spike_aspect` (if promoted) | TBD | `spike_ring_addon.tscn` (×1.5 local `blade_damage` + stake-scaled `spikes`) | TBD | owner estimate ~×4.5 damage at 3/3 allocation, unmeasured |
 | Blunting | `blunting_aspect` (if promoted) | TBD | today only a spiked node's +1 | TBD | — |
+| Bleeding | `bleed_aspect` (if promoted) | TBD | look: tangential spikes rotating like a sawblade (owner, 2026-10-03) | TBD | owner: *"what would bleeding mean in a graph-based game? leaking "skill point" essence until deallocated..?"* |
 
 ## Personas
 
