@@ -27,6 +27,19 @@ extends Resource
 ## Power of that status per landing arrow; a volley re-applies it per arrow
 ## under the def's `reapply` rule. Owner tunes.
 @export var status_power: float = 1.0
+## What a landing arrow carries (ADR 0044), run in order by [method
+## RangedDamageFormula.riders_for] against one [HitLanding] paired to the arrow.
+## Spell-only riders ([SpellOnHitEffect]) are dropped at load with one
+## `push_error` each; the stored array never holds one.
+@export var on_hit_effects: Array[OnHitEffect] = []:
+	set(value):
+		var kept: Array[OnHitEffect] = []
+		for effect in value:
+			if effect is SpellOnHitEffect:
+				push_error("%s: %s is spell-only; refused from on_hit_effects" % [resource_path, str(effect.resource_path)])
+			else:
+				kept.append(effect)
+		on_hit_effects = kept
 ## A SCOUT type (#1035): `> 0` makes the arrow deal no damage at all — the
 ## resolve emits one [RevealInstance] per arrow instead of a [DamageInstance]
 ## — with radius `firing leaf's local vision_range × reveal_fraction`. Never
