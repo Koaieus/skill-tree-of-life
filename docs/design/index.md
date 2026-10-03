@@ -53,6 +53,7 @@ Implementation companions to the design docs — read when modifying systems, no
 | [../domain/click-grammar.md](../domain/click-grammar.md) | Shipped left/right click grammar for targeting and allocation |
 | [../domain/node-subtypes.md](../domain/node-subtypes.md) | Shipped subtype model — sidegrade law, authoring rows, the decision-number legend |
 | [../domain/effect-system.md](../domain/effect-system.md) | Effects, the tag grant channel, and the DoT model (§ Status effects) |
+| [../domain/defense-axes.md](../domain/defense-axes.md) | The six defensive axes, their code owners, and the DoT family that answers each (ADR 0022) |
 | [../domain/aspect-cell-authoring.md](../domain/aspect-cell-authoring.md) | What each aspect-matrix column actually touches |
 | [../domain/stat-knobs-and-bins.md](../domain/stat-knobs-and-bins.md) | House answers for tuning rates, extra pools and forced stat values |
 | [../domain/stat-board-classes.md](../domain/stat-board-classes.md) | The StatBoard classes and how they compose |
