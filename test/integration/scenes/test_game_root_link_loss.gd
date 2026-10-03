@@ -268,16 +268,16 @@ func test_a_handover_for_a_seat_this_peer_does_not_know_is_ignored() -> void:
 	assert_true(_remote.is_human_controlled)
 
 
-## The defect #755 actually fixes, and the only test that touches the fog: put
-## the two heroes on ONE camp so `SeatPolicy.vision_group` is a set of two, then
-## drop the peer. AI never shares, so the departed hero must leave the viewers —
-## and it only does because `GameRoot._on_seat_handed_over` re-runs `_apply_seat_vision`
-## by hand (the group is computed, not reactive).
+## The only test here that touches the fog: put the two heroes on ONE camp so
+## `SeatPolicy.vision_group` is a set of two, then drop the peer. `vision_group`
+## is camp-mates by faction, AI included, so the hero the seat became keeps
+## revealing for its camp — after `GameRoot._on_seat_handed_over` re-runs
+## `_apply_seat_vision` (the group is computed, not reactive).
 ##
 ## The other tests here run the shipped versus shape, where the two heroes are
 ## on different camps and `vision_group` never held both — so the recompute
 ## could be deleted outright and every one of them would still pass.
-func test_a_coop_allys_departure_stops_it_revealing_for_the_camp() -> void:
+func test_a_coop_allys_departure_keeps_its_ai_revealing_for_the_camp() -> void:
 	_remote.faction = _CAMP_1
 	_remote_seat.camp = _CAMP_1
 	_root._apply_seat_vision()
@@ -286,14 +286,14 @@ func test_a_coop_allys_departure_stops_it_revealing_for_the_camp() -> void:
 
 	_root.transport.peer_left.emit(_REMOTE_PEER)
 
-	assert_false(_root.vision_system.viewers.has(_remote),
-			"the AI it became does not")
+	assert_true(_root.vision_system.viewers.has(_remote),
+			"the AI it became still reveals for its camp")
 	assert_true(_root.vision_system.viewers.has(_local), "and this machine still sees")
 
 
 ## The same recompute, reached the mirror's way — the case the fix exists for,
 ## where the departed peer is a THIRD machine's coop ally.
-func test_a_mirror_drops_the_departed_ally_from_its_fog_too() -> void:
+func test_a_mirror_keeps_the_departed_allys_ai_in_its_fog_too() -> void:
 	GameSession.network = NetworkConfig.join("127.0.0.1")
 	_root.network_link.role = NetworkConfig.Role.CLIENT
 	_remote.faction = _CAMP_1
@@ -303,5 +303,5 @@ func test_a_mirror_drops_the_departed_ally_from_its_fog_too() -> void:
 
 	_root.seat_handover.receive(SeatHandover.KIND_SEAT_HANDOVER, {SeatHandover.KEY_PARTICIPANT: 2})
 
-	assert_false(_root.vision_system.viewers.has(_remote),
-			"the mirror's map agrees with the host's, which is the whole of #755")
+	assert_true(_root.vision_system.viewers.has(_remote),
+			"the mirror's map agrees with the host's: the AI camp-mate still reveals")
