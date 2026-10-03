@@ -92,6 +92,18 @@ subgraph). `Navigator`/`EntityNavigator` answers *which* nodes to test;
 `VisionCircles` answers whether a point is visible — never duplicate the
 geometry at a second call site.
 
+**Which discs, one answer: `VisionSystem.sources_for(viewers)`** (#1346).
+It returns `Array[VisionSource]` (`systems/vision_source.gd`, RefCounted:
+`node`, `center`, `radius`, `kind`), pure — it reads the graph and the scout
+marks, never the eased `_circles`. Kinds: `OWNED` (each node a viewer owns, at
+its local `vision_range`) and `SCOUT` (each node a viewer holds a scouted mark
+on, at that mark's radius). `_recompute()` builds its `VisionCircles` *and* its
+`_circles` fog targets from `sources_for(_effective_viewers())` — there is no
+second gathering path; `get_vision_sources()` stays the fog's eased, local-view
+render list built on those targets. A future kind of sight is one `Kind` value
+plus one gather branch in `sources_for`. `AiRecon` still gathers its own owned
+nodes; re-pointing it is a separate issue.
+
 **Why it's a class and not the `static is_within_circles(pos, positions, radii)`
 it replaced (2026-08-17, lane P):** every caller asks about *many* points
 against the *same* circles, so the static forced a per-point linear scan —
