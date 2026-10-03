@@ -84,6 +84,10 @@ var state := NodeState.new()
 	set(value):
 		if state.owned_by == value:
 			return
+		# Sampled BEFORE the owner leaves: an unowned node lends a scout disc
+		# the sight it had while owned ([ScoutStatus]).
+		if value == null and state.owned_by != null and state.board_ready:
+			state.last_owned_vision = float(get_local_value(&"vision_range"))
 		state.owned_by = value
 		owner_changed.emit()
 

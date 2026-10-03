@@ -20,7 +20,9 @@ enum LoadResult { OK, MISSING, CORRUPT, VERSION_MISMATCH }
 ## 2: an `_R_STATUSES` entry is `[def_idx, power, key, camp_id, applier_id]`.
 ## 3: the xp stat's dict carries `banked` ([GrowablePoolStat]); an older file
 ##    would decode it as 0 and under-report lifetime XP.
-const FORMAT_VERSION := 3
+## 4: a node row carries `_R_LAST_OWNED_VISION` (the sight a scout disc
+##    reads off an unowned node).
+const FORMAT_VERSION := 4
 ## The single slot — mirrors [constant Settings.SAVE_PATH]'s `user://` home.
 const SLOT_PATH := "user://save.bin"
 const MAGIC := "STLS"

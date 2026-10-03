@@ -70,6 +70,7 @@ const _R_STATUSES := 12 ## Array of `[def_idx, power, key, camp_id, applier_id]`
 const _R_BASE_RADIUS := 13       ## SkillNode.base_radius (#783) — procgen ramps it per node and only the host generates, so it is carried, not derived
 const _R_BASE_INNER_RADIUS := 14 ## SkillNode.base_inner_radius (#783) — same reason
 const _R_SCENE := 15 ## index into `res`, -1 for the plain skill_node.tscn — the node's own `scene_file_path` (#330): an authored keystone scene (or the blocker scene) is re-instantiated on the create path, since the scene IS its content (colour, name, effects, radius)
+const _R_LAST_OWNED_VISION := 16 ## SkillNode.last_owned_vision — the node-local sight it had when it last lost its owner, 0 = never owned; restored AFTER `owned_by` so the setter's own sample is overwritten
 
 
 ## Builds the payload for the WHOLE graph in one shot: `res` (the interned
@@ -324,7 +325,7 @@ static func _encode_node(graph: Graph, node: SkillNode, table: _InternTable) -> 
 	if node.scene_file_path != "" and node.scene_file_path != _NODE_SCENE.resource_path:
 		scene_idx = table.intern(node.scene_file_path)
 	var row: Array
-	row.resize(16)
+	row.resize(17)
 	row[_R_STABLE_ID] = graph.get_stable_id(node)
 	row[_R_ARCHETYPE] = archetype_idx
 	row[_R_OWNER_ID] = owner_id
@@ -341,6 +342,7 @@ static func _encode_node(graph: Graph, node: SkillNode, table: _InternTable) -> 
 	row[_R_BASE_RADIUS] = node.base_radius
 	row[_R_BASE_INNER_RADIUS] = node.base_inner_radius
 	row[_R_SCENE] = scene_idx
+	row[_R_LAST_OWNED_VISION] = node.last_owned_vision
 	return row
 
 
@@ -374,6 +376,7 @@ static func _decode_node(
 	# Assigned unconditionally, null included: on a resync the authority saying
 	# "unowned" has to be able to UNSET an owner this peer wrongly believes in.
 	node.owned_by = graph.get_by_entity_id(owner_id) if owner_id != 0 else null
+	node.last_owned_vision = float(row[_R_LAST_OWNED_VISION])
 	_reconcile_addons(node, row, res)
 	# Addons attach (and push their own modifiers) above — the node's OWN
 	# residual modifiers reconcile on top, reproducing the source's full list.
