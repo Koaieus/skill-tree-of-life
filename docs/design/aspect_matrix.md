@@ -95,22 +95,25 @@ concept; a column pass is one cell for every concept.
 column"*): each column has a different gate — arrows none, addons #1212,
 infusion #1250 — and every row appends to the same three registries (ammo
 roster, procgen content pools, spell catalog), so one branch per column
-beats five per row. #1317 is the arrow pass for every statused concept;
-#1318 is the per-concept addon + spell design pass that then files the
-addon and spell column units.
+beats five per row. #1317 is the arrow pass for every statused concept.
+The design passes now run **per cell** (owner, 2026-10-03, #1376: *"1 pass
+per cell, sometimes groupable"*): one issue per concept × facet, grouped
+under a row hub per concept; #1318's per-concept pass is superseded by them.
 
 ## The Matrix
 
-| Concept | Stat | Ranged (arrow) | Addon (map / temp) | Magic (infusion) | Notes |
-|---|---|---|---|---|---|
-| Poison | `poison_aspect` | arrow applies poison stacks; feel + look: see "Rows designed in #1318" | `toxin_addon.tscn` redone in #1318 — see "Rows designed in #1318" | spell `venom`; infusion #1250 | spread signature deferred to an authoring pass (owner, #1204) |
-| Corruption | `corruption_aspect` | scaffold (#1349; look: #1351) — design pass for feel and look open | #1318 | #1250 | spreads as a sandpile by nature (#1202); health bar shows blips per stack, extra-mean when critical (#1092) |
-| Curse | `curse_aspect` | scaffold (#1349; look: #1351) — design pass for feel and look open | #1318 (spell `hex` shipped) | #1250 | raises `min_damage_taken`; spills to surviving direct neighbours on death AND dealloc (#1204) |
-| Wither | `wither_aspect` | scaffold (#1349; look: #1351) — design pass for feel and look open | #1318 | #1250 | drives healing received negative |
-| Blindness | `blindness_aspect` | scaffold (#1349; look: #1351) — design pass for feel and look open | #1318 (spell `dazzle` shipped) | candidate: **Throw Sand** spell (owner, 2026-09-30) — row: #1253; infusion #1250 | count stacks, effect reads as a % via a saturating curve |
-| Scout (a reveal, #949) | `scout_aspect` | scouting arrow (shipped) | watchtower addon (shipped); temp: lit blade node pushing back fog (owner pitch, perf-sensitive: one moving mark per blade, never a second vision path) | TBD (#1254) | `effects/status/scouted.tres` is live (VisionSystem's decay rule); first-class concept (owner, 2026-09-30) |
-| Armor break | `armor_break_aspect` | scaffold (#1349; look: #1351) — design pass for feel and look open | #1318 (spell `sunder` shipped) | #1250 (#395 holds the design) | flat −1 armor per stack, uncapped, can go below zero (#1203, owner 2026-09-30) |
-| Explosive | `explosive_aspect` | explosive arrow (#1211) | explosive addon, procgen at low rate; detonation kills the blade node, reuses spike-pop plumbing (#1211) | stub (#1211) | euclidean hitscan radius from `SkillNode.radius`; barrels / friendly fire open (#1211) |
+Each cell links its cell issue (`<Concept> × <Facet>`, a child of the row hub in Notes), or says shipped. Infusion is one issue for the whole column, #1250.
+
+| Concept | Stat | Ranged (arrow) | Addon (map / temp) | Spell | Magic (infusion) | Notes |
+|---|---|---|---|---|---|---|
+| Poison | `poison_aspect` | shipped; look designed (see "Rows designed in #1318"), building in #1352 | #1271 — designed (see "Rows designed in #1318"), needs an acceptance spec | `venom` shipped; second spell #1381 | #1250 | row: #1377. Spread signature deferred to an authoring pass (owner, #1204) |
+| Corruption | `corruption_aspect` | #1382 — scaffold (#1349) | #1383 | #1384 | #1250 | row: #1378. Spreads as a sandpile by nature (#1202); health bar shows blips per stack, extra-mean when critical (#1092) |
+| Curse | `curse_aspect` | #1385 — scaffold (#1349) | #1386 | `hex` shipped; no second spell proposed | #1250 | row: #1379. Raises `min_damage_taken`; spills to surviving direct neighbours on death AND dealloc (#1204) |
+| Wither | `wither_aspect` | #1387 — scaffold (#1349) | #1388 | #1389 | #1250 | row: #1380. Drives healing received negative |
+| Blindness | `blindness_aspect` | #1390 — scaffold (#1349) | #1391 | `dazzle` shipped; **Throw Sand** #1392 (candidate, owner 2026-09-30) | #1250 | row: #1253. Count stacks, effect reads as a % via a saturating curve |
+| Scout (a reveal, #949) | `scout_aspect` | scouting arrow shipped (stacks: #1345, #1346) | watchtower shipped (map face); blade face + look #1393 | #1394 | #1250 | row: #1254. `effects/status/scouted.tres` is live (VisionSystem's decay rule); first-class concept (owner, 2026-09-30) |
+| Armor break | `armor_break_aspect` | #1395 — scaffold (#1349) | #1396 | `sunder` shipped; second spell #1397 | #1250 | row: #395 (child 0: penetration stat #1401). Flat −1 armor per stack, uncapped, can go below zero (#1203, owner 2026-09-30) |
+| Explosive | `explosive_aspect` | #1398 | #1399 — detonation kills the blade node, reuses spike-pop plumbing (owner, #1211) | #1400 (or none) | #1250 | row: #1211. Euclidean hitscan radius from `SkillNode.radius`; barrels / friendly fire open (#1399) |
 
 ## Rows designed in #1318
 
