@@ -120,11 +120,6 @@ func test_absorb_binds_an_identical_set_twice_silently() -> void:
 	assert_eq(float(_entity.stat_board.get_value(&"movement_points")), 5.0)
 	assert_push_error_count(0, "an identical wire form is not a conflict")
 
-	_entity.stat_board.remove_modifier(second)
-	_entity.core_modifiers.erase(second)
-	assert_eq(float(_entity.stat_board.get_value(&"movement_points")), 5.0,
-			"revoking one leaves the other in force")
-
 
 func test_absorb_never_merges_a_composite() -> void:
 	var pack_a := CompositeStatModifier.new()

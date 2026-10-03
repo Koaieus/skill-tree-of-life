@@ -11,8 +11,9 @@ extends GutTest
 ## `operation = ` line: a SET is never the default op, so it is always
 ## serialized there.
 
+# Third-party addons are skipped; our own addons/ panels are walked.
 const _SKIP_DIRS := [
-	"res://.godot", "res://test", "res://addons/gut",
+	"res://.godot", "res://test", "res://addons/gut", "res://addons/at-icons",
 	"res://addons/godot-git-plugin", "res://addons/godot-neovim",
 ]
 
