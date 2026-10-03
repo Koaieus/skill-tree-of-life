@@ -1,14 +1,13 @@
 extends GutTest
 
 ## Scouted marks on [VisionSystem] (#1033): a [signal Events.node_scouted]
-## seeds a vision circle for the viewer's group only, halves at the viewer's
-## turn start through `effects/status/scouted.tres`, is gone below the floor,
-## and a re-landing takes the max — never a sum.
+## seeds a vision circle for the viewer's group only, decays at the viewer's
+## turn start at whatever rate [member VisionSystem.scouted_def] authors, is
+## gone when the def clears it, and a re-landing takes the max — never a sum.
 ##
 ## Layout (world units): A owns N0 at x=0 with vision_range 100. N5 sits at
 ## x=600 (out of A's sight), N6 at x=750 (150 past N5), N7 at x=710 (110 past
-## N5). A 200 mark on N5 sees N6 and N7; halved to 100 it sees neither;
-## refreshed to 120 it sees N7 alone. N0–N5 is an edge so N5 can be sensed.
+## N5). A 200 mark on N5 sees N6 and N7; refreshed to 120 it sees N7 alone. N0–N5 is an edge so N5 can be sensed.
 ##
 ## Like `test_vision_system.gd`, the fixture leaves `allocation_system` unset
 ## and drives `_recompute()` explicitly so every assert reads a settled state.
@@ -120,11 +119,22 @@ func test_a_mark_reveals_the_radius_to_the_firers_group_only() -> void:
 	assert_false(other.is_visible(_n5), "B's group does not see A's mark")
 
 
-func test_the_mark_halves_at_the_firers_turn_start() -> void:
+## The disc radius [param viewer]'s mark on [param node] renders at, or 0.
+func _mark_radius(node: SkillNode) -> float:
+	_vision.ease_rate = 0.0
+	await get_tree().process_frame
+	var best := 0.0
+	for src in _vision.get_vision_sources():
+		if src.pos.is_equal_approx(node.global_position):
+			best = maxf(best, src.radius)
+	return best
+
+
+func test_the_mark_decays_by_the_defs_rate_at_the_firers_turn_start() -> void:
 	_scout(_n5, _a, 200.0)
 	_tick(_a)
-	assert_true(_vision.is_visible(_n5), "a 100 disc still covers its centre")
-	assert_false(_vision.is_visible(_n6), "N6 at 150 is outside the halved 100 disc")
+	var expected := _vision.scouted_def.decayed(200.0 / VisionSystem.SCOUT_FLOOR) * VisionSystem.SCOUT_FLOOR
+	assert_almost_eq(await _mark_radius(_n5), expected, 0.001, "one firer turn is one decay of the def")
 
 
 func test_another_viewers_turn_does_not_decay_the_mark() -> void:
@@ -141,20 +151,27 @@ func test_an_adopted_cursor_does_not_decay_the_mark() -> void:
 	assert_true(_vision.is_visible(_n6), "a resync cursor is not a real turn of the firer")
 
 
-func test_the_mark_is_gone_below_the_floor() -> void:
+func test_the_mark_is_gone_when_the_def_clears_it() -> void:
 	_scout(_n5, _a, 200.0)
-	# power 4 → 2 → 1 → below 1 clears (scouted.tres: FRACTION 0.5, floor 50).
-	for i in 3:
+	var power := 200.0 / VisionSystem.SCOUT_FLOOR
+	var ticks := 0
+	while power > 0.0 and ticks < 64:
+		power = _vision.scouted_def.decayed(power)
+		ticks += 1
+	for i in ticks - 1:
 		_tick(_a)
-	assert_false(_vision.is_visible(_n5), "three halvings of 200 sink below the 50 floor")
+	assert_true(_vision.is_visible(_n5), "the mark lives until the def's last tick")
+	_tick(_a)
+	assert_false(_vision.is_visible(_n5), "the def's last tick clears it")
 
 
 func test_relanding_takes_the_max_never_the_sum() -> void:
 	_scout(_n5, _a, 200.0)
-	_tick(_a)  # 100
+	_tick(_a)
+	var decayed := _vision.scouted_def.decayed(200.0 / VisionSystem.SCOUT_FLOOR) * VisionSystem.SCOUT_FLOOR
 	_scout(_n5, _a, 120.0)
-	assert_true(_vision.is_visible(_n7), "N7 at 110 is inside the refreshed 120 disc")
-	assert_false(_vision.is_visible(_n6), "N6 at 150 would only show under a summed 220")
+	assert_almost_eq(await _mark_radius(_n5), maxf(decayed, 120.0), 0.001,
+			"a re-landing keeps the larger disc, never the sum")
 
 
 func test_a_weaker_relanding_keeps_the_live_mark() -> void:

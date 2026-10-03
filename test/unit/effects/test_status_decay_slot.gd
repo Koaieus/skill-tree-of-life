@@ -16,7 +16,7 @@ const _DESCRIPTIONS := {
 	&"corruption": "Every stack eats 2% of the node's max health each turn, unmitigated; the stacks never fade and never cap.",
 	&"curse": "Every stack raises the least damage a hit can deal to this node by 1; stacks fall by 1 each turn and never cap.",
 	&"poison": "Every stack deals 1 unmitigated damage each turn; one stack fades each turn and they never cap.",
-	&"scouted": "A scout arrow lit up this node's surroundings for the firer. The disc halves every turn of theirs.",
+	&"scout": "Scout arrows lit up this node's surroundings for their camp: the disc grows with the root of the stacks, only your own camp's stacks count, and one stack fades each turn.",
 	&"wither": "Every stack cuts healing on this node by 10%; past 10 stacks healing becomes damage that never closes the regen gate. A quarter of the stacks fade each turn and they never cap.",
 }
 
