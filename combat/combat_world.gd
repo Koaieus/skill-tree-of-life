@@ -133,6 +133,10 @@ static func shadow() -> CombatWorld:
 	return w
 
 
+func is_lingering(_node: NodeCombat) -> bool:
+	return false
+
+
 func is_shadow() -> bool:
 	return _shadow
 

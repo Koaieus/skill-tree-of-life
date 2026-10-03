@@ -31,6 +31,7 @@ enum Reapply {
 ## deliberately not built — nothing owns or ticks an unallocated node.
 enum OnDealloc {
 	CLEAR,
+	LINGER,
 }
 
 ## Unique key — the status slice is a dictionary on this.
