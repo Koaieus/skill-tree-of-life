@@ -19,7 +19,10 @@ draw (primary → cost-capped off-attribute → defensive → rare) is replaced 
   budget always drains into T1 filler — budget is never wasted.
 - **Per-(stat,op) aggregation** — after the draw, rolled modifiers combine by
   `(stat_id, operation)`: ADD_BASE / ADD_BONUS / INCREASE **sum**;
-  MULTIPLY **products** (`×1.15 · ×1.15 = ×1.3225`, not `×2.30`); SET **max**.
+  MULTIPLY **delta sum** `1 + Σ(mᵢ − 1)` (`×1.15 & ×1.15 = ×1.30`, not
+  `×1.3225`), clamped once per line at `GraphProcgenContent.multiply_fuse_floor`
+  (owner, 2026-10-03, #1362: a variance call superseding D3's product; in game
+  MULTIPLY instances still multiply); SET **max**.
   Line count on a node is bounded by the number of distinct `(stat, op)` pairs
   it drew — not by the number of draws.
 - **Tier is auto-stamped, not authored.** `TierLadder.auto_tags(t)` stamps

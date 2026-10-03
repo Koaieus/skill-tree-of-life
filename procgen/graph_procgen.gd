@@ -1194,7 +1194,8 @@ static func _has_forbidden_tag(entry: ModifierPoolEntry, forbid: Array[StringNam
 ##      leftover budget always drains into T1 filler — budget is never
 ##      wasted (D3).
 ##   3. Aggregate the rolled modifiers per (stat_id, operation): ADD* and
-##      INCREASE sum, MULTIPLY products, SET max (D3). Line count on a node is
+##      INCREASE sum, MULTIPLY delta sum floored at `multiply_fuse_floor`,
+##      SET max (D3). Line count on a node is
 ##      now bounded by the number of distinct (stat, op) pairs it drew — not
 ##      by the number of draws.
 ##
@@ -1265,9 +1266,10 @@ static func _roll_modifiers_v4(
 	fp["remaining"] = remaining
 
 	# Aggregate per (stat_id, operation). ADD_BASE / ADD_BONUS / INCREASE sum
-	# (PoE-additive); MULTIPLY products (\times1.15 · \times1.15 = \times1.3225,
-	# NOT \times2.30); SET max. Emitted in descending aggregated-cost order, so
-	# tooltips read biggest-investment-first.
+	# (PoE-additive); MULTIPLY delta sum (\times1.15 & \times1.15 = \times1.30,
+	# not \times1.3225), floored once per line; SET max. Emitted in
+	# descending aggregated-cost order, so tooltips read
+	# biggest-investment-first.
 	#
 	# #629: a fused result can land exactly on its operation's neutral element
 	# (M can be negative — see docs/domain/procgen-v4.md) — a slot that does
