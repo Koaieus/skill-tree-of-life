@@ -125,6 +125,16 @@ If a hub with every child closed still has unshipped scope, the fix is a new
 child, not keeping the hub open by hand. The old `hollow_hub` exemption for "a
 `Ready` parent with its own scope" (#240) is retired with this.
 
+**Grids: rows parent, columns link (owner, 2026-10-03).** Where work is a
+grid (the aspect matrix: concept × facet), each cell is one issue whose
+parent is its **row** hub. A column-shaped issue (one unit or pass across a
+whole column, e.g. #1352's per-type arrow scenes) never parents cells: it
+lists them in a `## Cells` table, an administrative link only. Owner: *"rows
+own cells yes, as parent. the others idk either link to exising cells but
+only administrative, real parent remains row hub"*. A column is read by
+title (`<Concept> × <Facet>: …`, so `--search "× Arrow in:title"`).
+`blocked-by` is added only where a cell truly waits on the column unit.
+
 ## Sub-issues
 
 The repo uses the parent/sub-issue model. File a child under its epic with `gh
