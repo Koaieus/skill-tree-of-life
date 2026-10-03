@@ -2,7 +2,7 @@
 
 [ext_resource type="Script" path="res://attack/ammo/ammo_type.gd" id="1_ammo_type"]
 [ext_resource type="Resource" uid="uid://c7s5qybcqmll5" path="res://effects/status/poison.tres" id="2_poison_status"]
-[ext_resource type="PackedScene" path="res://ui/vfx/projectile/visual/status_arrow.tscn" id="3_visual"]
+[ext_resource type="PackedScene" path="res://ui/vfx/projectile/visual/arrows/poison_arrow.tscn" id="3_visual"]
 [ext_resource type="Script" uid="uid://dw3civ4fol21f" path="res://attack/spell/on_hit/on_hit_effect.gd" id="5_on_hit_effect"]
 [ext_resource type="Script" uid="uid://c2q50hhtuf7g7" path="res://attack/spell/on_hit/apply_status_effect.gd" id="4_apply_status"]
 
