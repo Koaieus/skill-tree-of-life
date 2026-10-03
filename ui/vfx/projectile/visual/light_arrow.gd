@@ -99,13 +99,23 @@ func _on_arrival() -> void:
 	var tween := create_tween()
 	tween.tween_interval(hold_seconds)
 	tween.tween_property(self, "_alpha", 0.0, fade_seconds)
-	tween.tween_callback(func() -> void:
-		if _done_emitted:
-			return
-		_done_emitted = true
-		finished.emit())
+	tween.tween_callback(_on_faded)
 	# Keep the redraw cadence going while alpha changes.
 	set_process(true)
+
+
+## The post-arrival fade has completed. Emits [signal finished] once; a
+## subclass with something still draining (a particle trail) overrides it to
+## wait that out first, then calls [method _emit_finished].
+func _on_faded() -> void:
+	_emit_finished()
+
+
+func _emit_finished() -> void:
+	if _done_emitted:
+		return
+	_done_emitted = true
+	finished.emit()
 
 
 func _process(_delta: float) -> void:

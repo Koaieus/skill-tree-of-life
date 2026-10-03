@@ -23,7 +23,11 @@ extends VFXCoordinator
 ## dropping every frame here leaves the applied world identical.
 ##
 ## Uses the [LightArrow] visual by default — oriented glowing arrow that
-## sticks into the target node and fades. Arrows are tinted by the
+## sticks into the target node and fades. A typed shot flies its own
+## [member AmmoType.visual_scene] instead (#1351), picked PER SHOT off
+## [member HitInstance.ammo_type_id] through [member ammo_roster] — so a
+## rebuilt record draws what the host drew — and is stamped the type's status
+## colour as `status_tint` beside the attacker `tint`. Arrows are tinted by the
 ## attacker's [member Entity.color], read off [member HitInstance.attacker]
 ## (promoted to the base class in #507; the record round-trip drops
 ## [member HitInstance.source], so tint must never read it).
@@ -35,6 +39,7 @@ extends VFXCoordinator
 ## see [method _on_arrow_arrived].
 
 const _DEFAULT_VISUAL: PackedScene = preload("res://ui/vfx/projectile/visual/light_arrow.tscn")
+const _ROSTER: AmmoTypeRoster = preload("res://attack/ammo/ammo_type_roster.tres")
 
 ## #950 — landing-point spread. Margin off [member SkillNode.radius] (the
 ## GROWN radius) so nothing lands right on the rim, and the gaussian's sigma
@@ -66,7 +71,10 @@ const _LEAF_DIM: float = 0.45
 const _TANGENT_EPS: float = 0.02
 
 @export var projectile_path: ProjectilePath
+## The visual for a shot whose type names none (the base arrow, a spell hit).
 @export var visual_scene: PackedScene = _DEFAULT_VISUAL
+## Where a hit's `ammo_type_id` resolves to its [AmmoType] (scene + status).
+@export var ammo_roster: AmmoTypeRoster = _ROSTER
 
 ## Fallback airtime, used ONLY for a shot whose [ScheduleEntry] reports a
 ## zero-length window (a hand-built outcome with no ramp). A scheduled shot
@@ -166,10 +174,14 @@ func begin_windup(plan: AttackPlan, tempo: PresentationTempo) -> float:
 		rank_in_leaf[leaf] = rank + 1
 		var at: Vector2 = leaf.global_position + _park_offset(leaf, rank, int(per_leaf[leaf]))
 		var landing: Vector2 = target.global_position + _landing_offset(seed, shot.index, target)
-		var proj := _spawn_projectile(tint)
+		var type: AmmoType = shot.ammo_type
+		var proj := _spawn_projectile(tint, _scene_for(type))
 		var path: ProjectilePath = proj.path
 		var tangent: Vector2 = path.evaluate(_TANGENT_EPS, at, landing) - path.evaluate(0.0, at, landing)
 		proj.place(at, tangent.angle() if tangent.length_squared() > 1e-9 else (landing - at).angle())
+		# Status colour only: the attacker tint is stamped at release, as it
+		# always was, so a parked plain arrow looks exactly as before.
+		_stamp_field(proj, &"status_tint", _status_tint_for(type))
 		_parked.append(proj)
 		_parked_landings.append(landing)
 		# Animate in: alpha is the fade channel, scale the pop; delayed by
@@ -198,7 +210,8 @@ func _shots(plan: AttackPlan) -> Array[Dictionary]:
 			var hit: HitInstance = outcome.hits[i]
 			if hit.origin == null or hit.target == null or hit is StatusInstance:
 				continue
-			out.append({origin = hit.origin, target = hit.target, index = i})
+			out.append({origin = hit.origin, target = hit.target, index = i,
+					ammo_type = _type_of(hit.ammo_type_id)})
 		return out
 	var ranged := plan as RangedAttackPlan
 	if ranged == null:
@@ -208,7 +221,8 @@ func _shots(plan: AttackPlan) -> Array[Dictionary]:
 		var shot: RangedAttackPlan.FiringShot = schedule[i]
 		if shot.firing_node == null or shot.target == null:
 			continue
-		out.append({origin = shot.firing_node, target = shot.target, index = i})
+		out.append({origin = shot.firing_node, target = shot.target, index = i,
+				ammo_type = shot.ammo_type})
 	return out
 
 
@@ -258,10 +272,10 @@ func _clear_parked() -> void:
 	_parked_landings.clear()
 
 
-func _spawn_projectile(tint: Color) -> Projectile:
+func _spawn_projectile(_tint: Color, scene: PackedScene) -> Projectile:
 	var proj := Projectile.new()
 	proj.path = _resolved_path()
-	proj.visual_scene = visual_scene
+	proj.visual_scene = scene
 	proj.face_velocity = face_velocity
 	add_child(proj)
 	return proj
@@ -270,12 +284,37 @@ func _spawn_projectile(tint: Color) -> Projectile:
 ## Tint hook: the visual is instantiated synchronously as the projectile's
 ## first child (at `place` or `launch`). Stamp tint right after so LightArrow
 ## reads the attacker colour on first draw. Visuals without a `tint` field
-## ignore the assignment.
-func _stamp_tint(proj: Projectile, tint: Color) -> void:
+## ignore the assignment; the same holds for `status_tint`.
+func _stamp_tint(proj: Projectile, tint: Color, status_tint: Color) -> void:
+	_stamp_field(proj, &"tint", tint)
+	_stamp_field(proj, &"status_tint", status_tint)
+
+
+func _stamp_field(proj: Projectile, field: StringName, value: Color) -> void:
 	if proj.get_child_count() > 0:
 		var v: Node = proj.get_child(0)
-		if "tint" in v:
-			v.set("tint", tint)
+		if field in v:
+			v.set(field, value)
+
+
+## The shot's [AmmoType], or null for an untyped hit (`&""`: a spell, an old
+## record) or an id the roster does not know — both fly the default.
+func _type_of(id: StringName) -> AmmoType:
+	if id == &"" or ammo_roster == null:
+		return null
+	return ammo_roster.by_id(id)
+
+
+func _scene_for(type: AmmoType) -> PackedScene:
+	return type.visual_scene if type != null and type.visual_scene != null else visual_scene
+
+
+## The type's [member StatusDef.tint]; transparent when it carries no status.
+func _status_tint_for(type: AmmoType) -> Color:
+	if type == null or type.status_def == null:
+		return Color(0, 0, 0, 0)
+	var v: Variant = type.status_def.get("tint")
+	return v if v is Color else Color(0, 0, 0, 0)
 
 
 ## Σ|amount| of the landing's hits — the arrow's own plus the typed status
@@ -365,7 +404,8 @@ func play(payload: Variant) -> void:
 		var launch_delay: float = maxf(0.0, entry.launch_at) if entry != null else 0.0
 		var flight: float = _flight_for(entry)
 		var parked: Projectile = _parked[k] if k < parked_count and is_instance_valid(_parked[k]) else null
-		var proj: Projectile = parked if parked != null else _spawn_projectile(tint)
+		var type := _type_of(hit.ammo_type_id)
+		var proj: Projectile = parked if parked != null else _spawn_projectile(tint, _scene_for(type))
 		proj.flight_time = flight
 		proj.context = entry
 		proj.focus_weight = _focus_weight(hits, i)
@@ -389,7 +429,7 @@ func play(payload: Variant) -> void:
 		var landing: Vector2 = _parked_landings[k] if parked != null \
 				else hit.target.global_position + _landing_offset(outcome.resolve_seed, i, hit.target)
 		proj.launch(origin, landing, launch_delay)
-		_stamp_tint(proj, tint)
+		_stamp_tint(proj, tint, _status_tint_for(type))
 		landing_points.append(landing)
 		leaves[hit.origin] = true
 	_parked.clear()
