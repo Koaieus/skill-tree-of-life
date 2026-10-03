@@ -308,7 +308,7 @@ func test_a_temp_toxin_on_a_blade_node_poisons_in_the_same_resolve() -> void:
 # ── authoring ────────────────────────────────────────────────────────────────
 
 func test_a_spell_only_rider_is_refused_from_on_hit_effects() -> void:
-	var dot := DotAddon.new()
+	var dot := _TOXIN_SCENE.instantiate() as DotAddon
 	autofree(dot)
 	var status := ApplyStatusEffect.new()
 	status.def = _POISON
