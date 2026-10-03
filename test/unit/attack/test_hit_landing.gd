@@ -37,3 +37,16 @@ func test_apply_status_on_a_bare_landing_emits_one_status_carrying_its_facts() -
 	assert_eq(status.attacker, attacker)
 	assert_eq(status.paired, primary, "the status rides the landing's primary hit")
 	assert_almost_eq(status.structural_key, 0.5, 0.0001)
+
+
+## A spell-context effect on a non-spell landing is an authoring error: it
+## emits nothing and says so, once.
+func test_a_spell_effect_on_a_bare_landing_reports_once_and_emits_nothing() -> void:
+	var landing := HitLanding.new()
+	landing.target = autofree(SkillNode.new())
+	var eff := DamageEffect.new()
+	eff.apply(landing)
+	eff.apply(landing)
+	assert_eq(landing.hits.size(), 0, "a spell effect emits nothing off a spell landing")
+	# Exactly one: a second push_error would fail the test as unexpected.
+	assert_push_error("needs a spell landing", "reported once per effect instance")

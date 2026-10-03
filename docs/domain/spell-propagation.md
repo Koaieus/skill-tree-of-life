@@ -281,7 +281,7 @@ departure (`PropagationFilter`, `PropagationSpread`).
 
 ```gdscript
 class_name LandingContext
-extends RefCounted
+extends HitLanding   # inherits attacker, source, origin, target, structural_key, paired, hits (ADR 0044)
 
 var cast: PropagationContext   # the per-cast ledger this landing belongs to
 var node: SkillNode            # the landed node — `from` on departure, `target` on arrival
@@ -292,6 +292,7 @@ func ownership_bit_of(n: SkillNode) -> int
 func is_allocated_in_world(n: SkillNode) -> bool
 func local_value_of(n: SkillNode, stat_id: StringName) -> Variant
 func visit_count(n: SkillNode) -> int
+func fill_landing() -> void    # sets the inherited HitLanding fields from cast + payload; hits = cast.outcome.hits by reference
 ```
 
 **Fields are fixed at construction, but `payload` is not immutable through
@@ -438,6 +439,7 @@ while wave not empty:
         if resolved == null:    # CANCEL — no effect, no propagation from here
             continue
         lctx_of[resolved] = LandingContext.new(cast=ctx, node=node, payload=resolved, incidents=incidents)
+        lctx_of[resolved].fill_landing()
         merged.append(resolved)
 
     # 3. apply effects to merged incidents, bump ctx.global_visit_count
