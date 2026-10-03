@@ -815,6 +815,8 @@ func begin_turn() -> void:
 func resolve_turn_end() -> void:
 	_combat.tick_statuses()
 	_tick_owned_node_statuses()
+	# Every unowned node's LINGER rows tick on ANY entity's turn end (#1344).
+	CombatWorld.live().tick_lingering()
 	# The tick step is one beat: a DoT kill's spill lands before the
 	# diffusion sweep reads the field.
 	CombatWorld.live().flush_removals()

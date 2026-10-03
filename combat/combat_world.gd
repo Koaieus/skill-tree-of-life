@@ -133,12 +133,51 @@ static func shadow() -> CombatWorld:
 	return w
 
 
-func is_lingering(_node: NodeCombat) -> bool:
-	return false
-
-
 func is_shadow() -> bool:
 	return _shadow
+
+
+# ── Lingering hosts (#1344) ──────────────────────────────────────────────────
+#
+# Every LIVE node slice holding a `StatusDef.OnDealloc.LINGER` row, kept in step
+# by the slice itself ([method NodeCombat._on_statuses_changed]) — nothing walks
+# the graph. An allocated member is carried but skipped: its owner's turn end
+# ticks it, and the entry is already in place for the dealloc that strands it
+# (the rows are kept BEFORE ownership clears). Live-only: a shadow world refuses.
+
+## Insertion-ordered set: [NodeCombat] -> true.
+var _lingering: Dictionary = {}
+
+
+## [param node] holds a `LINGER` row. No-op on a shadow world.
+func note_lingering(node: NodeCombat) -> void:
+	if not _shadow and node != null:
+		_lingering[node] = true
+
+
+## [param node] holds no `LINGER` row any more.
+func forget_lingering(node: NodeCombat) -> void:
+	_lingering.erase(node)
+
+
+## True iff [param node] is registered AND unallocated — the hosts
+## [method tick_lingering] ticks.
+func is_lingering(node: NodeCombat) -> bool:
+	return _lingering.has(node) and not node.is_allocated()
+
+
+## One tick of every unowned lingering host — run once per entity turn end by
+## [method Entity.resolve_turn_end], after its owned-node tick and before its
+## flush. Iterates a snapshot: a tick can release a host or add another. A
+## host whose node is gone is dropped.
+func tick_lingering() -> void:
+	for node: NodeCombat in _lingering.keys():
+		if not is_instance_valid(node.host):
+			_lingering.erase(node)
+			continue
+		if not _lingering.has(node) or node.is_allocated():
+			continue
+		node.tick_statuses()
 
 
 ## The [NodeCombat] that [param node]'s state lives in for this world.

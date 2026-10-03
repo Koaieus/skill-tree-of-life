@@ -669,8 +669,8 @@ func remove_row(id: StringName, key: Variant) -> void:
 
 
 ## See [method StatusHost.release_statuses].
-func release_statuses() -> Array[NodeStatus]:
-	return _status_host.release_statuses()
+func release_statuses(keep_lingering: bool = false) -> Array[NodeStatus]:
+	return _status_host.release_statuses(keep_lingering)
 
 
 ## See [method StatusHost.get_status_power].
@@ -705,7 +705,14 @@ func _on_last_status_removed() -> void:
 	pass
 
 
-## #880: the node tint reads the strongest LIVE status.
+## #880: the node tint reads the strongest LIVE status. Also (#1344) keeps
+## this slice's entry in the live lingering registry in step with whether it
+## holds a `LINGER` row — every apply / tick / remove / restore lands here.
+## The `host != null` guard is what keeps a shadow slice out of the registry.
 func _on_statuses_changed() -> void:
 	if host != null:
+		if _status_host.has_lingering():
+			CombatWorld.live().note_lingering(self)
+		else:
+			CombatWorld.live().forget_lingering(self)
 		host.notify_statuses_changed()

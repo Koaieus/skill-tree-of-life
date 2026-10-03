@@ -147,7 +147,8 @@ func _settle(def: StatusDef, target: float, key: Variant = true, notify: bool = 
 
 
 ## No `CLEAR` def on an unallocated host (owner, 2026-09-14: nothing owns it,
-## nothing would tick it).
+## nothing would tick it). A `LINGER` def is hostable there: the lingering
+## registry ticks it ([method CombatWorld.tick_lingering]).
 func _may_host(def: StatusDef) -> bool:
 	return def.on_dealloc != StatusDef.OnDealloc.CLEAR or owner.is_allocated()
 
@@ -222,14 +223,29 @@ func remove_row(id: StringName, key: Variant) -> void:
 ## Drop every status, each through [method remove_status], and hand back the
 ## rows as they stood — the caller that is stripping the node feeds them to
 ## [method CombatWorld.note_removed] so a spreading def can spill them.
-func release_statuses() -> Array[NodeStatus]:
+## [param keep_lingering] is the DEALLOC flavour: `LINGER` rows stay on the
+## host and are not handed back (so never spilled); a death strip and a
+## restore wipe pass false and release everything.
+func release_statuses(keep_lingering: bool = false) -> Array[NodeStatus]:
 	var out: Array[NodeStatus] = []
 	for row in get_statuses():
 		if _row(row.def.id, row.key) != row:
 			continue  # an earlier row's _on_removed took it
+		if keep_lingering and row.def.on_dealloc == StatusDef.OnDealloc.LINGER:
+			continue
 		out.append(row)
 		remove_row(row.def.id, row.key)
 	return out
+
+
+## True iff any row on the host is a `LINGER` def's.
+func has_lingering() -> bool:
+	for id in _statuses:
+		var rows: Dictionary = _statuses[id]
+		for key in rows:
+			if (rows[key] as NodeStatus).def.on_dealloc == StatusDef.OnDealloc.LINGER:
+				return true
+	return false
 
 
 ## The count [param power] stacks of [param def] act as on this host — what

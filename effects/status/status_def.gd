@@ -27,10 +27,19 @@ enum Reapply {
 }
 
 ## What happens to the status when its node is deallocated (#879 wires it).
-## Single value today; `LINGER` is the reserved door (owner, 2026-09-14),
-## deliberately not built — nothing owns or ticks an unallocated node.
 enum OnDealloc {
+	## The row is released on any ownership loss, and never lands on an
+	## unallocated node — nothing owns it, nothing would tick it.
 	CLEAR,
+	## The row survives deallocation — a voluntary dealloc or a bare
+	## [method AllocationSystem.force_deallocate] — and may land on an
+	## unallocated node. While its node is unowned it ticks once per ANY
+	## entity's [method Entity.resolve_turn_end] (the lingering-host registry
+	## on [method CombatWorld.live]), so it decays N× faster in an N-entity
+	## game; re-allocated, it ticks on its new owner's turn end like every
+	## owned row. A death strip — a node stripped by combat or by its owner's
+	## death ([method EntityCombat.apply_cascade]) — releases every row:
+	## LINGER survives deallocation only.
 	LINGER,
 }
 
