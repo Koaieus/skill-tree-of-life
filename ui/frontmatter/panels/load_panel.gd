@@ -28,6 +28,9 @@ func _ready() -> void:
 func refresh() -> void:
 	var has_slot := SavedRun.has_slot(slot_path)
 	_load_button.disabled = not has_slot
+	# A disabled button must not take the keyboard a panel hands its first
+	# focusable on reveal.
+	_load_button.focus_mode = Control.FOCUS_ALL if has_slot else Control.FOCUS_NONE
 	_status.text = "" if has_slot else SavedRun.describe(SaveFile.LoadResult.MISSING)
 	_status.visible = not has_slot
 
