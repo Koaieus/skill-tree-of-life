@@ -342,24 +342,39 @@ A `Backlog` issue named in `/swarmify` is picked up by being named: it goes
 straight to `Ready` (or `Needs design` if a fork stays open), with no
 intermediate move and no comment about leaving `Backlog`.
 
-You do not run the board calls. Write a manifest next to the spec files —
-its shape is in `.claude/agents/clerk.md`; the gist:
+You do not run the board calls. Write a manifest next to the spec files;
+this is its whole grammar (`.claude/agents/clerk.md` holds the same block —
+you need not open it):
 
 ```
-milestone: 3
+milestone: 3                           # default for every issue below
 
-issue #1130
-  comment: 1130-spec.md
-  labels-rm: design, blocked                 # a hub gets no status line
+issue #1130                            # an existing issue
+  comment: 1130-spec.md                # post as a new comment
+  body: 1130-body.md                   # or: replace the body
+  parent: #1120                        # optional: move it under another parent
+  status: ready                        # omit on a hub — hub status is derived
+  labels-rm: design, blocked
+  labels-add: ui
+  blocked-by: #1101, @state
+  milestone: 4                         # overrides the default
 
-new @state "Status tick: sparse schedule"
+new @state "Status tick: sparse schedule"   # a new issue; @state is its handle
   parent: #1130
   body: state.md
+  labels-add: ui
+  blocked-by: -
   status: ready
 
-drift: #1130 @state
-hygiene
+drift: #1130 @state                    # each must carry a parseable drift stamp
+refresh                                # optional: run `mise run refresh`, report its verdict
+hygiene                                # always last
 ```
+
+A `parent:` on an existing issue moves it. Moving the last open child out
+of a hub leaves that hub empty, and `land` / `hygiene --fix` then close it;
+the clerk's report line gives the old parent's open-child count, and you
+tell the owner when that count hit zero.
 
 Then spawn **one** `Agent(subagent_type: "clerk", prompt: "<manifest path>")`.
 It holds every flag trap and ordering rule; you state intent, never commands.

@@ -46,6 +46,13 @@ Haiku is priced a fifth of Opus and never carries the pass's context.
 2. **The only file edit is handle substitution**, on a `.resolved` copy.
    Handles (`@name`) let the Opus session write sibling references before the
    numbers exist; resolving them is mechanical, rewriting is not.
+   The manifest grammar is the clerk's whole interface, and it is
+   **duplicated verbatim in swarmify's step 10** so the pass writes a manifest
+   without opening the agent file — a change to the grammar block here is a
+   change to that copy in the same commit. `parent:` is a key on *existing*
+   issues as well as `new` ones: a pass that promotes a child into a hub under
+   a different parent, or files a sibling where a child was, re-parents
+   through the manifest, not by hand.
 3. **Every exit code is checked; nothing is piped through `tail`; nothing is
    retried blind.** The
    issue-workflow traps (`--add-parent` swallowed by a pipe, `blockedBy` as an
@@ -58,7 +65,11 @@ Haiku is priced a fifth of Opus and never carries the pass's context.
    that asks for one gets a `SKIPPED` line.
 5. **The report is the whole output.** One line per issue, then drift,
    `refresh` when the manifest lists it, hygiene, then `SKIPPED` / `FAILED`. The spawning session reads it
-   once; prose would be context it pays for.
+   once; prose would be context it pays for. A re-parent's line names the old
+   parent and how many open children it has left — a datum, not a warning:
+   `hygiene --fix` and `land` close a hub whose children are all closed, and
+   whether emptying one was intended is the pass's call, which it can only
+   make if the report says it happened.
 6. **Haiku.** The work is tool calls against a fixed recipe. If a manifest
    shape turns out to need judgement, the fix is a clearer manifest field, not
    a bigger model.
@@ -76,6 +87,12 @@ Haiku is priced a fifth of Opus and never carries the pass's context.
    would put the internal-id trap (parent links take ids too) in Haiku's
    hands.
 
+## Fold digest
+
+| Date | Kind | Became |
+|---|---|---|
+| 2026-10-03 | friction | `parent:` on existing issues (law 2); re-parent line reports the old parent's open-child count (law 5); grammar block mirrored in swarmify step 10 |
+
 ## What the agent file must not contain
 
 Any issue number from the corpus, the cost argument, or why a trap exists
@@ -88,4 +105,5 @@ beyond the one clause that makes it recognisable.
 | 2026-09-26 | owner | on the proposal to hand the swarmify tail to a Haiku agent: "Clerk does the mechanical stuff that's just tool calls. New agent file too perhaps? and a charter? supplying it with whatever any swarmifying agent would (use this and that tool this that caveat) so they don't even need to output *that*." | all |
 | 2026-09-26 | tail measurement (59 swarmify sessions; `.claude/skills/swarmify/corpus/2026-09-26-tail-measurement.md`) | numbers in the cost argument above. Failures inside tails, by kind: `gh` `--json` field names that had moved (`blockedByIssues`); relations set on a child not yet created, or a milestone typo, exiting 1; hygiene violations fixed by hand; ~15 identical re-runs after a failure. No backtick-mangled `--body` — `--body-file` already holds | 3 |
 | 2026-09-26 | first dry run (read-only manifest: two drift checks + hygiene) | 7 calls, ~35k Haiku tokens, report in the specified shape; `no stamp` on a `/warp`-made issue correctly reported as FAILED | 5, 6 |
+| 2026-10-03 | #1311 → hub under #1255 (was a child of #1217) | the manifest had `parent:` only on `new` issues, so the pass re-parented by hand (REST `sub_issue` DELETE + `sub_issues` POST) at full context, then had to open the agent file to learn the manifest keys; `hygiene --fix` then closed the emptied #1217 with nothing having said it would | 2, 5 |
 | 2026-10-01 | reticle pass (#1284, six children) | creates, comments and body edits landed; then every `--add-blocked-by`, `milestone` and `issue view` died on "API rate limit already exceeded" — the hourly GraphQL quota, spent by `gh-project status <n>` reads at ~607 points each (now ~1). The clerk tried `sleep 60`, a `rate_limit` poll loop and backgrounded `gh-project` calls hung in the shim's backoff; the parent session finished by hand, links via REST `dependencies/blocked_by`. Owner: "The clerk charter updating to direct using REST first might be good nonetheless" | 7 |

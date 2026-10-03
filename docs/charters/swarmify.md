@@ -388,13 +388,20 @@ Numbered so the skill can be checked against them law by law.
 **Handing off the tail**
 
 33. **The mechanical tail goes to a clerk.** Once every spec and child body
-    is written, the pass writes them as files plus a manifest (see
-    `.claude/agents/clerk.md` for the shape) and spawns **one**
-    `Agent(subagent_type: "clerk")` with the manifest path. The clerk posts,
-    creates, relates, sets status / labels / milestone, checks each drift
-    stamp parses, runs hygiene, and reports one line per issue; the pass
-    reads the report, handles any `SKIPPED` / `FAILED` itself, and tells the
-    owner what landed. Writing the spec stays in the pass — it is the
+    is written, the pass writes them as files plus a manifest and spawns
+    **one** `Agent(subagent_type: "clerk")` with the manifest path. The skill
+    carries the **full manifest grammar** — every key, including `labels-add`,
+    `blocked-by` on a new issue, a per-issue `milestone`, and `parent:` on an
+    existing issue to re-parent it — duplicated verbatim from
+    `.claude/agents/clerk.md`, so the pass never opens a second file to write
+    it (a change to the block there is a change here, same commit). The clerk
+    posts, creates, relates, re-parents, sets status / labels / milestone,
+    checks each drift stamp parses, runs hygiene, and reports one line per
+    issue; the pass reads the report, handles any `SKIPPED` / `FAILED` itself,
+    and tells the owner what landed — including that a re-parent emptied a
+    hub, which `land` / `hygiene --fix` then close: the clerk's report line
+    carries the old parent's open-child count, and whether that close is wanted
+    is the pass's to say, not the clerk's. Writing the spec stays in the pass — it is the
     compressed thinking (law 26) — and so do stubs, which are code. The tail
     is tool calls at the session's largest context, each re-sending all of
     it; the clerk runs them in a fresh Haiku context and also holds the
@@ -408,6 +415,7 @@ have to carry them.
 
 | Date | Where | What happened | Law |
 |---|---|---|---|
+| 2026-10-03 | #1311 (child of #1217 → hub under #1255) | the skill's step 10 showed a manifest *gist*, so the pass opened the clerk's agent file to learn the keys; the grammar had no `parent:` on existing issues, so the re-parent was done by hand through the REST sub-issue endpoints; `hygiene --fix` then closed the emptied #1217 — intended, but unannounced | 33 |
 | 2026-08-02 | #332 / #165 hubs | reading two comment threads in-session caught a comment retracting an earlier one's central claim; the same pass burned ~8 calls on pure lookup (is #322 closed, is #339 filed, does `keystone_placement.gd` carry `node_scene`) — the last exposed #330 sitting in `Ready` with an open fork in its body | 2, 3 |
 | 2026-08-02 | label collapse | the `swarmable` label retired; `Ready` became the queue; a `design` label left on a `Ready` issue is the drift the collapse was meant to end | 23 |
 | 2026-09-11 | #847 | a publish-a-Release pre-step lived in a post-review comment and rewrote acceptance 7 — fine, because it was on the issue, dated, the owner's | 1, 18 |

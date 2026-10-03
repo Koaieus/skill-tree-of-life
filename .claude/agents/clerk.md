@@ -27,6 +27,7 @@ milestone: 3                           # default for every issue below
 issue #1130                            # an existing issue
   comment: 1130-spec.md                # post as a new comment
   body: 1130-body.md                   # or: replace the body
+  parent: #1120                        # optional: move it under another parent
   status: ready                        # omit on a hub — hub status is derived
   labels-rm: design, blocked
   labels-add: ui
@@ -65,8 +66,13 @@ make it on a copy in the same directory (`<file>.resolved`), never the original.
 4. **Existing issues:** `gh issue comment <n> --body-file <resolved>` /
    `gh issue edit <n> --body-file <resolved>`.
 5. **Relations:** `mise gh-project -- blocked-by <n> <blocker>` (numbers, one
-   per call; REST, so it works even when GraphQL is rate-limited). To re-parent
-   an existing issue: `gh issue edit <n> --parent <p>`.
+   per call; REST, so it works even when GraphQL is rate-limited). A `parent:`
+   line on an existing issue is a re-parent: first read its current parent
+   (`gh issue view <n> --json parent --jq .parent.number`; empty means none),
+   then `gh issue edit <n> --parent <p>`. Afterwards count the old parent's
+   open children for the report (`gh issue view <old> --json subIssuesSummary
+   --jq '.subIssuesSummary.total - .subIssuesSummary.completed'`) — never
+   close it, never touch its status.
 6. **Board, per issue:** a new issue is already on the board in Backlog
    (the repo auto-adds every issue — never `add` it); then `milestone <n> <m>`, `label <n> rm <l>` / `label <n> add <l>`, and
    `status <n> <s>` last.
@@ -78,8 +84,8 @@ make it on a copy in the same directory (`<file>.resolved`), never the original.
 9. **`mise gh-project -- hygiene`** — report every violation verbatim. Run
    `hygiene --fix` only if the manifest line is `hygiene --fix`.
 10. **Verify:** `gh issue view <n> --json number,title,labels,milestone` and
-    `mise gh-project -- status <n>` for each touched issue; for a new child,
-    confirm its parent with
+    `mise gh-project -- status <n>` for each touched issue; for a new child
+    or a re-parented issue, confirm its parent with
     `gh api graphql -f query='{repository(owner:"Koaieus",name:"skill-tree-of-life"){issue(number:<p>){subIssues(first:50){nodes{number}}}}}'`.
 
 ## Traps
@@ -123,6 +129,7 @@ then the checks, then anything not done:
 #1130 comment posted · labels −design −blocked · hub (status left to derivation) · drift ok
 #1131 @state created · parent #1130 ✓ · Ready · M3 · drift ok
 #1132 @wiring created · parent #1130 ✓ · blocked-by #1131 · Ready · M3 · drift ok
+#1128 re-parented #1120 → #1130 ✓ · old parent #1120 has 0 open children · drift ok
 refresh: <verdict line>
 hygiene: clean
 SKIPPED: #1133 status — no milestone in manifest
