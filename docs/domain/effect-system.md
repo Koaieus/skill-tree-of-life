@@ -329,7 +329,9 @@ read is already correct.
   a purpose-built **status slice**: `StatusDef` (`effects/status/status_def.gd`,
   a `.tres`-authored resource — id, tags, `power_max`, a `decay` slot,
   `reapply` policy, `on_dealloc`, display identity) plus a
-  per-node `NodeStatus{power}` row, held on `NodeCombat._statuses` (#872) beside
+  `NodeStatus{power, key, camp_id, applier_id}` row per `(def.id, key)`, held
+  on the `StatusHost` slice NodeCombat composes (#872, keyed by #1343 — see
+  [Status rows](#status-rows-group_by-keys-them-visible_if-gates-the-count-1343)) beside
   `_tags`/`_board` — "on NodeCombat, like node HP" (owner). Application is a
   `StatusInstance : HitInstance` pushed by `ApplyStatusEffect : OnHitEffect`
   (#878), landed via `NodeCombat.apply_status`/`land_on` on whichever
@@ -374,7 +376,7 @@ read is already correct.
 
 ## Status effects — the DoT model
 
-The status slice above (`StatusDef` + a per-node `NodeStatus{power}` row) carries
+The status slice above (`StatusDef` + a `NodeStatus{power, key, …}` row per `(def.id, key)`) carries
 four damage-over-time families, one per defensive axis they answer. The *why* —
 one family per axis, uncapped stacks, the rejected timers — is
 [ADR 0022](../adr/0022-one-dot-per-defensive-axis-stacks-halve-uncapped.md)
