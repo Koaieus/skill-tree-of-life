@@ -17,8 +17,17 @@ signal spell_catalogue_requested
 		_toggle(active)
 
 
+## Where SAVE goes and whether it may. Left unset, the running level's
+## `%SaveGate` is looked up on first use — the menu is composed inside the HUD,
+## which is instanced by the level, so it cannot be wired from either scene.
+## No gate at all (a menu instanced bare) leaves SAVE disabled.
+@export var save_gate: SaveGate
+
 @onready var _build_footer: Label = %BuildFooter
 @onready var _restart_button: Button = %RestartButton
+@onready var _save_button: Button = %SaveButton
+@onready var _load_button: Button = %LoadButton
+@onready var _save_status: Label = %SaveStatus
 
 ## True while a picker modal (LootPicker/SpellLootPicker, #486) is up. Esc
 ## would otherwise fall through to here and open the pause menu on top of a
@@ -94,6 +103,19 @@ func _update_restart_button() -> void:
 	var online := GameSession.network != null and GameSession.network.is_online()
 	_restart_button.disabled = online
 	_restart_button.tooltip_text = "Restart is disabled in a networked run." if online else ""
+
+
+func _on_save_button_pressed() -> void:
+	pass
+
+
+func _on_load_button_pressed() -> void:
+	pass
+
+
+## The testable half of LOAD: reads the slot and opens it on [GameSession].
+func load_saved() -> SaveFile:
+	return SaveFile.new()
 
 
 func _on_restart_button_pressed() -> void:
