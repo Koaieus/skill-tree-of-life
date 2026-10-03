@@ -68,7 +68,6 @@ extends RefCounted
 ## be confused for one another.
 const KEY_SEED := "seed"
 const KEY_AP := "ap"
-const KEY_MANA := "mana"
 ## Which arithmetic turns [constant KEY_HIT_STRUCT] into seconds — one per
 ## outcome, because an outcome is one mode. See [enum ScheduleEntry.Cadence].
 const KEY_CADENCE := "cad"
@@ -192,7 +191,6 @@ const FLAG_CRIT := 2
 ## something a caller holds.
 var resolve_seed: int = 0
 var ap_cost: int = 0
-var mana_cost: int = 0
 var cadence: int = 0
 var tempo: String = ""
 var kinds := PackedByteArray()
@@ -248,7 +246,6 @@ static func wire_fields() -> Array[WireFields.Field]:
 	return [
 		WireFields.Field.new(&"resolve_seed", TYPE_INT).as_key(KEY_SEED),
 		WireFields.Field.new(&"ap_cost", TYPE_INT).as_key(KEY_AP),
-		WireFields.Field.new(&"mana_cost", TYPE_INT).as_key(KEY_MANA),
 		WireFields.Field.new(&"cadence", TYPE_INT).as_key(KEY_CADENCE),
 		WireFields.Field.new(&"tempo", TYPE_STRING).as_key(KEY_TEMPO),
 		WireFields.Field.new(&"kinds", TYPE_PACKED_BYTE_ARRAY).as_key(KEY_HIT_KIND),
@@ -305,7 +302,6 @@ static func capture(outcome: AttackOutcome, graph: Graph) -> Dictionary:
 	var r := AttackRecord.new()
 	r.resolve_seed = outcome.resolve_seed
 	r.ap_cost = outcome.ap_cost
-	r.mana_cost = outcome.mana_cost
 	r.cadence = int(outcome.cadence)
 	r.tempo = _tempo_path(outcome)
 	# Index of each hit in the flat list, so the timeline can reference it.
@@ -412,7 +408,6 @@ static func rebuild(d: Dictionary, graph: Graph, rate: float = -1.0) -> AttackOu
 	var r := WireFields.from_dict(AttackRecord, d) as AttackRecord
 	outcome.resolve_seed = r.resolve_seed
 	outcome.ap_cost = r.ap_cost
-	outcome.mana_cost = r.mana_cost
 	outcome.cadence = r.cadence as ScheduleEntry.Cadence
 	# Second running offset: labels are a flat run over ENTRIES, not over hits,
 	# so it advances independently of `dealloc_at`.

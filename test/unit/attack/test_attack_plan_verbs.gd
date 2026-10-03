@@ -214,7 +214,6 @@ func _magic() -> MagicAttackPlan:
 	var h: RefCounted = _SPELL_TEST_HELPER.new()
 	var spell := SpellDef.new()
 	spell.name = "TestBolt"
-	spell.mana_cost = 5
 	spell.min_degree = 0
 	spell.power = 1.0
 	spell.targeting = targeting

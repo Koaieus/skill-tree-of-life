@@ -20,7 +20,6 @@ func _record() -> Dictionary:
 	return {
 		AttackRecord.KEY_SEED: 12345,
 		AttackRecord.KEY_AP: 2,
-		AttackRecord.KEY_MANA: 7,
 		AttackRecord.KEY_HIT_KIND: PackedByteArray([0, 0]),
 		AttackRecord.KEY_HIT_AMOUNT: PackedFloat64Array([11.5, 3.25]),
 		AttackRecord.KEY_HIT_TARGET: PackedInt32Array([4, 9]),

@@ -547,12 +547,6 @@ func _can_afford(plan: AttackPlan, outcome: AttackOutcome) -> bool:
 		push_warning("BattleSystem.launch_attack: insufficient AP (%d < %d)" \
 				% [int(ap_pool.current), outcome.ap_cost])
 		return false
-	var mana_pool: PoolStat = board.mana if board != null else null
-	if outcome.mana_cost > 0 and mana_pool != null \
-			and mana_pool.available() < outcome.mana_cost:
-		push_warning("BattleSystem.launch_attack: insufficient mana (%d < %d)" \
-				% [int(mana_pool.current), outcome.mana_cost])
-		return false
 	return true
 
 
@@ -584,9 +578,6 @@ func _commit(plan: AttackPlan, outcome: AttackOutcome) -> void:
 	var ap_pool: PoolStat = board.action_points if board != null else null
 	if ap_pool != null:
 		ap_pool.deplete(float(outcome.ap_cost))
-	var mana_pool: PoolStat = board.mana if board != null else null
-	if outcome.mana_cost > 0 and mana_pool != null:
-		mana_pool.deplete(float(outcome.mana_cost))
 	if plan is RangedAttackPlan:
 		_consume_volley(plan as RangedAttackPlan, outcome)
 	var launched_spell: SpellDef = (plan as MagicAttackPlan).spell if plan is MagicAttackPlan else null

@@ -74,7 +74,6 @@ description = "Turns one way and never straightens: at every node the storm rank
 icon = ExtResource("1_icon")
 carve_shape = SubResource("carve_cyclone")
 min_degree = 4
-mana_cost = 5
 power = 2.0
 propagation = SubResource("prop")
 on_hit_effects = Array[ExtResource("2_effect")]([SubResource("dmg")])

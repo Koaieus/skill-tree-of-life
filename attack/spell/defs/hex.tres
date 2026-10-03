@@ -40,7 +40,6 @@ name = "Hex"
 tagline = "Curse one enemy node: every stack raises the least damage any hit deals it."
 description = "Curse a single enemy-occupied node within 3 hops with 5 stacks: each stack raises the floor on damage it takes by 1 (stacks halve each turn, never cap)."
 icon = ExtResource("1_icon")
-mana_cost = 1
 power = 0.4
 propagation = SubResource("prop_hex")
 on_hit_effects = Array[ExtResource("2_effect")]([SubResource("curse_hex")])

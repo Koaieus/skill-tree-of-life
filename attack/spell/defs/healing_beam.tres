@@ -65,7 +65,6 @@ description = "Heals your own nodes"
 icon = ExtResource("3_sdixp")
 carve_shape = SubResource("carve_healing_beam")
 min_degree = 3
-mana_cost = 5
 power = 2.0
 propagation = SubResource("Resource_hhwjj")
 on_hit_effects = Array[ExtResource("2_bsxsi")]([SubResource("heal_beam")])

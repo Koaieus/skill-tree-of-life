@@ -302,33 +302,6 @@ func test_magic_candidate_is_gathered_and_can_be_executed() -> void:
 	assert_ne(_tm.current_entity, _enemy, "turn should have ended normally")
 
 
-func test_magic_insufficient_mana_is_excluded_rather_than_stalling_the_turn() -> void:
-	# Ranged is unreachable and mana can't afford the only known spell —
-	# _gather_magic_candidates filters unaffordable spells out (mana isn't
-	# gated by MagicAttackPlan.validate(), and BattleSystem.launch_attack's
-	# mana bail doesn't deduct AP or clear the plan, which would otherwise
-	# stall the AP loop with AP left unspent — the 1-damage floor requires
-	# ending the turn cleanly, not hanging on an unaffordable pick).
-	#
-	# Cost set absurdly high rather than draining `mana` to 0: turn-start
-	# upkeep ADDS `mana_per_turn` before take_turn runs (same shape as the
-	# SP-minting gotcha in .claude/rules/turn-manager.md), so a pre-turn
-	# `mana.set_current(0.0)` doesn't stay 0 by the time the AP loop reads it.
-	_make_ranged_unreachable_but_magic_reachable()
-	var unaffordable_spark := _SPARK_SPELL.duplicate(true) as SpellDef
-	unaffordable_spark.mana_cost = 999
-	_enemy.get_spellbook().learn(unaffordable_spark)
-
-	_tm.start_turn(_enemy)
-	await _await_enemy_turn_end()
-
-	assert_ne(_tm.current_entity, _enemy, "turn must still end, not hang on an unaffordable cast")
-	assert_false(_launches.has(BattleSystem.AttackMode.MAGIC),
-			"the unaffordable spell must never be launched")
-	assert_true(_decisions.has("no reachable attack this turn"),
-			"with ranged unreachable and magic unaffordable, nothing was left to do: %s" % str(_decisions))
-
-
 # ---------------------------------------------------------------------------
 # Melee — the fourth candidate source (#378 slice C, AiBladeRollout)
 # ---------------------------------------------------------------------------
@@ -557,10 +530,7 @@ func test_capped_ai_prefers_the_door_over_an_equally_reachable_hostile() -> void
 func _legacy_magic_candidates(entity: Entity,
 		visible_enemies: Array[SkillNode]) -> Array[AiCombatScorer.ScoredCandidate]:
 	var out: Array[AiCombatScorer.ScoredCandidate] = []
-	var mana: PoolStat = entity.stat_board.mana
 	for spell in entity.spellbook.spells:
-		if mana != null and mana.current < float(spell.mana_cost):
-			continue
 		for source in entity.navigator.get_mirrored_nodes():
 			var probe := MagicAttackPlan.new()
 			probe.attacker = entity

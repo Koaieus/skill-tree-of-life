@@ -78,7 +78,6 @@ description = "Every landing on a junction (degree > 2) instantly slams for doub
 icon = ExtResource("1_x1qvp")
 carve_shape = SubResource("carve_trailblazer")
 min_degree = 3
-mana_cost = 3
 power = 1.0
 propagation = SubResource("prop")
 on_hit_effects = Array[ExtResource("1_p8d3l")]([SubResource("slam"), SubResource("dmg")])

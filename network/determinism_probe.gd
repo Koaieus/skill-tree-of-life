@@ -75,7 +75,6 @@ extends Node
 const RESOLVE_KEYS: Array[String] = [
 	AttackRecord.KEY_SEED,
 	AttackRecord.KEY_AP,
-	AttackRecord.KEY_MANA,
 	AttackRecord.KEY_HIT_TARGET,
 	AttackRecord.KEY_HIT_ORIGIN,
 	AttackRecord.KEY_HIT_ATTACKER,

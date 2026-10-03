@@ -44,7 +44,6 @@ name = "Dazzle"
 tagline = "A flash that blinds one nearby enemy node."
 description = "Deal a little damage to a single enemy-occupied node within 3 hops and blind it: the node sees and senses less, recovering over 3 turns."
 icon = ExtResource("1_icon")
-mana_cost = 1
 power = 0.4
 propagation = SubResource("prop_dazzle")
 on_hit_effects = Array[ExtResource("2_effect")]([SubResource("dmg_dazzle"), SubResource("blind_dazzle")])

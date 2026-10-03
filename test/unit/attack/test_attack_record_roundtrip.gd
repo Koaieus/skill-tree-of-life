@@ -72,7 +72,6 @@ func _build_outcome() -> AttackOutcome:
 	var o := AttackOutcome.new()
 	o.resolve_seed = 987654321
 	o.ap_cost = 2
-	o.mana_cost = 7
 	o.cadence = ScheduleEntry.Cadence.BEAT
 
 	var dmg := _fill(DamageInstance.new(), _nodes[1], _nodes[0], 12.5, 1.0, 2) as DamageInstance
@@ -130,7 +129,6 @@ func test_every_captured_hit_field_comes_back_on_the_rebuilt_hit() -> void:
 	var rebuilt := AttackRecord.rebuild(AttackRecord.capture(outcome, _graph), _graph)
 	assert_eq(rebuilt.resolve_seed, outcome.resolve_seed, "seed")
 	assert_eq(rebuilt.ap_cost, outcome.ap_cost, "ap")
-	assert_eq(rebuilt.mana_cost, outcome.mana_cost, "mana")
 	assert_eq(rebuilt.cadence, outcome.cadence, "cadence")
 	assert_eq(rebuilt.hits.size(), outcome.hits.size(), "hit count")
 	for i in mini(rebuilt.hits.size(), outcome.hits.size()):

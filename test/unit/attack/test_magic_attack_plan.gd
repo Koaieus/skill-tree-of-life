@@ -72,7 +72,6 @@ func before_each() -> void:
 	var h: RefCounted = _SPELL_TEST_HELPER.new()
 	_spell = SpellDef.new()
 	_spell.name = "TestBolt"
-	_spell.mana_cost = 5
 	_spell.min_degree = 0
 	_spell.power = 1.0
 	_spell.targeting = targeting
@@ -155,12 +154,12 @@ func test_validate_passes_with_source_and_reachable_target() -> void:
 
 # ── Cost + resolution ────────────────────────────────────────────────────
 
-func test_resolve_transfers_mana_cost_and_hits_the_target() -> void:
+func test_resolve_costs_one_ap_and_hits_the_target() -> void:
 	var p := _plan()
 	p.set_target(_source)
 	p.set_target(_in_range_target)
 	var outcome := p.resolve()
-	assert_eq(outcome.mana_cost, 5)
+	assert_eq(outcome.ap_cost, 1, "a spell pays the default 1 AP and nothing else")
 	assert_eq(outcome.hits.size(), 1)
 	assert_eq(outcome.hits[0].target, _in_range_target)
 
@@ -168,7 +167,6 @@ func test_resolve_transfers_mana_cost_and_hits_the_target() -> void:
 func test_resolve_on_invalid_plan_returns_default_outcome() -> void:
 	var p := _plan()
 	var outcome := p.resolve()
-	assert_eq(outcome.mana_cost, 0)
 	assert_true(outcome.hits.is_empty())
 
 

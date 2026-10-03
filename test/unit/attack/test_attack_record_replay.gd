@@ -263,18 +263,15 @@ func test_a_spells_record_replays_to_the_same_world_with_its_timeline() -> void:
 	var host: Dictionary = await _build()
 	var peer: Dictionary = await _build(_PEER_ORIGIN)
 	_arm_magic(host)
-	# Read AFTER the board settles: `mana`'s cap is base + INT//10 and its def's
-	# `on_cap_rise = FOLLOW` hands the delta to `current`, so the fixture's own
-	# 10.0 is not the starting value. Asserting a delta rather than an absolute
-	# keeps this about the record.
-	var mana_before: float = (host.attacker as Entity).stat_board.mana.current
+	# Read AFTER the board settles, and assert a delta rather than an absolute,
+	# so this stays about the record rather than the fixture's starting pool.
+	var ap_before: float = (host.attacker as Entity).stat_board.action_points.current
 	var command := await _fire_and_replay(host, peer)
 	assert_gt((command.record[AttackRecord.KEY_EVENT_BEAT] as PackedInt32Array).size(), 0,
 			"the fixture cast must produce a timeline — it is what magic VFX replays")
 	_assert_worlds_agree(host, peer, "magic")
-	assert_almost_eq((host.attacker as Entity).stat_board.mana.current,
-			mana_before - float(SpellCatalog.SPARK.mana_cost), 0.0001,
-			"the host paid mana, so the peer had something to match")
+	assert_almost_eq(ap_before - (host.attacker as Entity).stat_board.action_points.current,
+			1.0, 0.0001, "a spell with every gate met costs exactly 1 AP")
 
 
 # ── The record's own invariants ─────────────────────────────────────────────

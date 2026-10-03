@@ -77,7 +77,6 @@ description = "Climbs the HP gradient: each hop greedily picks the neighbour wit
 icon = ExtResource("1_bm58y")
 carve_shape = SubResource("Resource_u38nb")
 min_degree = 2
-mana_cost = 2
 power = 3.0
 propagation = SubResource("prop")
 on_hit_effects = Array[ExtResource("2_effect")]([SubResource("dmg")])

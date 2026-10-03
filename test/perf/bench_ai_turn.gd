@@ -331,10 +331,6 @@ func _build_large_fixture() -> Dictionary:
 	remote.stat_board.blade_size.base_value = _LARGE_BLADE_SIZE
 	remote.stat_board.vision_range.base_value = 4000.0
 	remote.get_spellbook().learn(_SPARK_SPELL)
-	# Unlike #797's own 4-node fixture (no spellbook at all, so the mana gate
-	# never fires), this one actually exercises magic — top up mana so the
-	# turn's very first cast isn't starved before upkeep would have minted any.
-	remote.stat_board.mana.set_current(9999.0)
 
 	var roster := ParticipantRoster.new()
 	var host_seat := Participant.new()

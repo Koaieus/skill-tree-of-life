@@ -97,22 +97,6 @@
 			"min": "TBD",
 			"max": "TBD",
 			"why": "D-31 (comment on #268, 2026-08-02): one DP buys `delta × owned_nodes` effective HP across the owned subgraph — SkillNode's re-sync (`_on_entity_node_health_changed` → `PoolStat.set_base_ratcheted`) fans an entity node_health rise to every owned node's current; payoff scales with territory while the cost stays flat. Measured at L1/L20/L100 in the con_node_ratchet row (all three readouts printed); watch it not outrun the forced-dealloc chip rate — same D-10 anti-camping failure mode as core_healing_vs_cascade_chip_rate"
-		},
-		{
-			"name": "casts_before_dry",
-			"scenario": "mirror_L20",
-			"readout": "casts_before_dry",
-			"min": "TBD",
-			"max": "TBD",
-			"why": "D-34 (Mana invariants comment on #268, 2026-08-03): count of the highest-cost SpellDef (full `_SPELL_POOL`, real mana_cost) a fresh FULL pool sustains from max to empty, ignoring regen. Computed per L5/L20/L50/L100 mirror from the real pool (`mana` = 10 + INT/10); INT comes from real level-up grants (mid-WIS build — D-15 monotone WIS-excluded grants, so INT tracks level). Must never read infinite; should grow meaningfully slower than damage"
-		},
-		{
-			"name": "sustain_rate",
-			"scenario": "mirror_L20",
-			"readout": "sustain_rate",
-			"min": "TBD",
-			"max": "TBD",
-			"why": "D-34 (same Mana invariants comment, 2026-08-03): `regen / cheapest_cost` — sustained casts/turn of the cheapest spell at steady state, regen from the real `mana_per_turn` formula (floor(log10(INT))). Proves log-regen actually binds at high INT: the rate is linear in regen but log in INT, and the curve biting is what the printed value shows. Same L5/L20/L50/L100 mirrors as casts_before_dry"
 		}
 	]
 }

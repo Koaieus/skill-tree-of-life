@@ -47,7 +47,6 @@ command = {
 "h_pop": PackedInt32Array(0),
 "h_sdef": PackedStringArray(""),
 "h_tgt": PackedInt32Array(3),
-"mana": 1,
 "seed": 314338813,
 "tempo": ""
 },

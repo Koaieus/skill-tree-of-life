@@ -73,9 +73,6 @@ extends Resource
 ## a high `min_degree` by lowering it or by widening `max_hops` to compensate.
 @export var min_degree: int = 1
 
-## Required mana to cast this spell
-@export var mana_cost: int = 0
-
 ## The spell's power coefficient — [b]the only absolute number a spell
 ## carries[/b] (D-32). The seed hit is
 ## [code]spell_damage(cast-from node) × power[/code]: the caster's board stat
@@ -139,4 +136,4 @@ func validate(_plan: MagicAttackPlan) -> Array[String]:
 
 
 func _to_string() -> String:
-	return "<SpellDef %s (%d mana)>" % [name, mana_cost]
+	return "<SpellDef %s>" % name

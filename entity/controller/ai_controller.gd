@@ -276,7 +276,7 @@ func take_turn() -> void:
 				_decide("no reachable attack this turn")
 				break
 			# BattleSystem.launch_attack() has bail-outs (insufficient AP for
-			# outcome.ap_cost, insufficient mana) that return WITHOUT deducting
+			# outcome.ap_cost) that return WITHOUT deducting
 			# anything or clearing the plan — _execute_candidate still reports
 			# true since it awaited the call. Without this guard the loop would
 			# re-enumerate, re-pick the same candidate, and spin forever
@@ -610,7 +610,6 @@ func _gather_magic_candidates(visible_enemies: Array[SkillNode]) -> Array[AiComb
 	var spells := entity.spellbook.spells
 	if spells.is_empty():
 		return out
-	var mana: PoolStat = entity.stat_board.mana if entity.stat_board != null else null
 	var graph := entity.navigator.graph
 	# Visible enemy -> its index in the fog list, built once for the whole
 	# gather. Doubles as the fog membership test and as the sort key that
@@ -627,14 +626,6 @@ func _gather_magic_candidates(visible_enemies: Array[SkillNode]) -> Array[AiComb
 	# target.
 	var pre: Array = []
 	for spell in spells:
-		# MagicAttackPlan.validate() deliberately doesn't gate on mana (a
-		# preview/UI concern, not a plan-shape one) — BattleSystem.launch_attack
-		# bails on insufficient mana WITHOUT deducting AP or clearing the plan,
-		# so an unaffordable spell must never win pick_best or the AP loop
-		# stalls with AP left unspent (violates the 1-damage floor). Filter
-		# here, the one place that actually knows the entity's current mana.
-		if mana != null and mana.current < float(spell.mana_cost):
-			continue
 		var union := SpellTargetUnion.build(spell, entity, graph)
 		# `sources` and not `per_source`: the latter is keyed in gather_multi's
 		# own order, while `sources` is a filtered subsequence of

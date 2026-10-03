@@ -85,7 +85,6 @@ description = "Fans to every enemy neighbour at or above the current node's terr
 icon = ExtResource("1_uku7o")
 carve_shape = SubResource("carve_reverberator")
 min_degree = 3
-mana_cost = 5
 power = 3.0
 propagation = SubResource("prop")
 on_hit_effects = Array[ExtResource("2_effect")]([SubResource("dmg")])

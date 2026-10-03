@@ -17,7 +17,7 @@ const _BUNKER := preload("res://skill_node/addons/defs/bunker_addon.tscn")
 
 ## The full authored spell pool — the real `SpellDef` resources the magic
 ## readouts are computed against (#366; "full pool" per D-34). Preloaded so a
-## retune of any spell's `power` / `mana_cost` shows up in the snapshot
+## retune of any spell's `power` shows up in the snapshot
 ## automatically, without touching this file.
 const _SPELL_POOL := [
 	preload("res://attack/spell/defs/spark.tres"),
@@ -63,15 +63,11 @@ static func run_all(root: Node) -> Array[Dictionary]:
 # ── Scenario builders ───────────────────────────────────────────────────────
 
 ## Both sides at the same level, both plain BalancedCore — the vanilla
-## channel-parity / TTK reading at that level band. Also the D-34 mana
-## readouts (`casts_before_dry` / `sustain_rate`), computed per level band
-## from the real pool + real SpellDef costs — the mirror_L5/L20/L50/L100
-## quartet is what those invariants are registered against.
+## channel-parity / TTK reading at that level band.
 static func _mirror(root: Node, name: String, level: int) -> Dictionary:
 	var attacker := await BalanceFixture.build(root, level, _BALANCED)
 	var defender := await BalanceFixture.build(root, level, _BALANCED)
 	var readouts := combat_readouts(attacker, defender)
-	readouts.merge(_mana_readouts(attacker.entity))
 	readouts.merge(await _territory_growth(root, level, _BALANCED))
 	free_fixture(attacker)
 	free_fixture(defender)
@@ -242,7 +238,6 @@ static func _magic_mirror(root: Node, name: String, level: int) -> Dictionary:
 	var attacker := await BalanceFixture.build(root, level, _BALANCED)
 	var defender := await BalanceFixture.build(root, level, _BALANCED)
 	var readouts := combat_readouts(attacker, defender)
-	readouts.merge(_mana_readouts(attacker.entity))
 
 	var atk_core := attacker.core_node()
 	var target: SkillNode = defender.nodes[1] if defender.nodes.size() > 1 else defender.core_node()
@@ -375,40 +370,6 @@ static func _sum_current_hp(nodes: Array[SkillNode]) -> float:
 	for n in nodes:
 		total += n.get_current_hp()
 	return total
-
-
-## D-34 (Mana invariants comment): the two mana readouts from the REAL pool
-## (`mana` = 10 + INT/10) and the REAL SpellDef costs in `_SPELL_POOL`.
-## `casts_before_dry` = count of the priciest SpellDef a fresh full pool
-## sustains from max to empty, ignoring regen. `sustain_rate` = regen /
-## cheapest cost — sustained casts/turn of the cheapest spell at steady state
-## (regen from the real `mana_per_turn` formula, floor(log10(INT))). INT comes
-## from real level-up grants — BalancedCore's INT tracks level (D-15 monotone
-## WIS-excluded grants), which is the "mid-WIS build" INT the comment asks for.
-static func _mana_readouts(entity: Entity) -> Dictionary:
-	var mana_max := 0.0
-	var regen := 0.0
-	if entity.stat_board != null:
-		if entity.stat_board.mana != null:
-			mana_max = float(entity.stat_board.mana.value)
-		if entity.stat_board.mana_per_turn != null:
-			regen = float(entity.stat_board.mana_per_turn.value)
-
-	var cheapest := 0
-	var priciest := 0
-	for spell in _SPELL_POOL:
-		if cheapest == 0 or spell.mana_cost < cheapest:
-			cheapest = spell.mana_cost
-		priciest = maxi(priciest, spell.mana_cost)
-
-	return {
-		"mana_max": mana_max,
-		"mana_regen_per_turn": regen,
-		"cheapest_cast_cost": cheapest,
-		"priciest_cast_cost": priciest,
-		"casts_before_dry": (floori(mana_max / priciest) if priciest > 0 else 0),
-		"sustain_rate": (regen / cheapest) if cheapest > 0 else 0.0,
-	}
 
 
 static func combat_readouts(attacker: BalanceFixture, defender: BalanceFixture) -> Dictionary:

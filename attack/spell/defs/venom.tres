@@ -44,7 +44,6 @@ name = "Venom"
 tagline = "A little damage that leaves a poison ticking on one enemy node."
 description = "Deal a little damage to a single enemy-occupied node within 3 hops and poison it (unmitigated damage each turn, recovers over 5 turns)."
 icon = ExtResource("1_icon")
-mana_cost = 1
 power = 0.4
 propagation = SubResource("prop_venom")
 on_hit_effects = Array[ExtResource("2_effect")]([SubResource("dmg_venom"), SubResource("poison_venom")])

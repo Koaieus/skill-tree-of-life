@@ -73,8 +73,8 @@ var _hover_target: SkillNode = null
 ## for the current preview target (see [method _preview_target]), rebuilt
 ## lazily off [signal state_changed] like [member _cached_valid_targets]
 ## above. Resolved against a THROWAWAY shadow world ([method SpellResolver.resolve],
-## never [method resolve_against]) so a hover can never mutate HP, ownership
-## or mana on the real board.
+## never [method resolve_against]) so a hover can never mutate HP or
+## ownership on the real board.
 ##
 ## Cost per rebuild (not per repaint — only on a preview-target CHANGE):
 ## one [method SpellResolver.resolve] walk (bounded by the spell's own hop
@@ -492,7 +492,6 @@ func resolve_against(world: CombatWorld) -> AttackOutcome:
 	# this line closes. See AttackPlan.resolve_seed.
 	var outcome := SpellResolver.resolve_against(
 		spell, target, source, attacker, graph, world, seeded_rng())
-	outcome.mana_cost = spell.mana_cost
 	outcome.resolve_seed = resolve_seed
 	return outcome
 
