@@ -1,8 +1,9 @@
 extends GutTest
 
 ## [TurnLimitCondition] (#1257): once the limit is reached, the camp with the
-## highest summed level wins, ties broken by summed `xp.current`, then by owned
-## territory; an exact tie on all three is a DRAW. Pure — every case is a hand-built [VictoryContext].
+## highest summed lifetime XP ([method GrowablePoolStat.total]) wins, ties broken
+## by owned territory; an exact tie on both is a DRAW. Pure — every case is a
+## hand-built [VictoryContext].
 
 const _PLAYER := preload("res://entity/factions/player.tres")
 const _NPC := preload("res://entity/factions/npc.tres")
@@ -19,12 +20,15 @@ class _StubGraph:
 		return nodes.duplicate()
 
 
-func _ent(faction: Faction, level: int = 1, xp: float = 0.0, dead: bool = false) -> Entity:
+## [param total] is the entity's lifetime XP, arranged as banked levels over an
+## empty bar — the banking arithmetic itself is test_growable_pool_stat_def's.
+func _ent(faction: Faction, level: int = 1, total: float = 0.0, dead: bool = false) -> Entity:
 	var e := Entity.new()
 	e.faction = faction
 	e.stat_board = _BOARD.duplicate(true) as EntityStatBoard
 	e.stat_board.level.base_value = level
-	e.stat_board.xp.current = xp
+	(e.stat_board.xp as GrowablePoolStat).banked = total
+	e.stat_board.xp.current = 0.0
 	e.is_dead = dead
 	return autofree(e) as Entity
 
@@ -66,19 +70,22 @@ func test_rounds_returns_null_before_the_limit_and_fires_on_it() -> void:
 			"ROUNDS never reads the entity-turn count")
 
 
-func test_the_higher_summed_level_wins() -> void:
+func test_the_higher_summed_total_xp_wins() -> void:
 	# NPC has the best single entity, the player camp the higher sum.
-	var ents := [_ent(_PLAYER, 3), _ent(_PLAYER, 3), _ent(_NPC, 5)]
+	var ents := [_ent(_PLAYER, 3, 10.0), _ent(_PLAYER, 3, 10.0), _ent(_NPC, 5, 15.0)]
 	var outcome := _condition().evaluate(_ctx(ents))
 	assert_not_null(outcome)
 	assert_eq(outcome.winning_camp.id, _PLAYER.id, "summed over the camp, not best entity")
 
 
-func test_equal_levels_break_on_summed_xp() -> void:
-	var ents := [_ent(_PLAYER, 2, 5.0), _ent(_NPC, 2, 3.0), _ent(_NPC, 0, 3.0)]
+## Level and bar don't add across members: three level-2s (Σlevel 6, total 15)
+## lose to one level-4 (Σlevel 4, total 30) on lifetime XP.
+func test_total_xp_beats_summed_level_across_members() -> void:
+	var ents := [_ent(_PLAYER, 2, 5.0), _ent(_PLAYER, 2, 5.0), _ent(_PLAYER, 2, 5.0),
+			_ent(_NPC, 4, 30.0)]
 	var outcome := _condition().evaluate(_ctx(ents))
 	assert_not_null(outcome)
-	assert_eq(outcome.winning_camp.id, _NPC.id, "6 xp beats 5 xp at equal level")
+	assert_eq(outcome.winning_camp.id, _NPC.id, "30 total XP beats 15, whatever the summed level")
 
 
 func test_a_full_tie_is_a_draw() -> void:
@@ -91,13 +98,13 @@ func test_a_full_tie_is_a_draw() -> void:
 func test_excluded_contestants_never_score() -> void:
 	var scenery := _ent(_NPC, 50, 50.0)
 	scenery.add_to_group(&"scenery")
-	var ents := [_ent(_PLAYER, 2), _ent(_NPC, 1), scenery]
+	var ents := [_ent(_PLAYER, 2, 5.0), _ent(_NPC, 1), scenery]
 	var outcome := _condition().evaluate(_ctx(ents))
-	assert_eq(outcome.winning_camp.id, _PLAYER.id, "scenery's levels never count for its camp")
+	assert_eq(outcome.winning_camp.id, _PLAYER.id, "scenery's XP never counts for its camp")
 
 
 func test_the_dead_never_score() -> void:
-	var ents := [_ent(_PLAYER, 2), _ent(_NPC, 1), _ent(_NPC, 9, 0.0, true)]
+	var ents := [_ent(_PLAYER, 2, 5.0), _ent(_NPC, 1), _ent(_NPC, 9, 50.0, true)]
 	var outcome := _condition().evaluate(_ctx(ents))
 	assert_eq(outcome.winning_camp.id, _PLAYER.id, "only living members are summed")
 
@@ -112,20 +119,20 @@ func test_entity_turns_fires_on_turn_count() -> void:
 	assert_eq(outcome.turn_count, _LIMIT)
 
 
-func test_equal_level_and_xp_break_on_owned_territory() -> void:
+func test_equal_total_xp_breaks_on_owned_territory() -> void:
 	var p := _ent(_PLAYER, 2, 4.0)
 	var n := _ent(_NPC, 2, 4.0)
 	var outcome := _condition().evaluate(_ctx([p, n], _LIMIT, 0, _graph([n, p, n])))
 	assert_not_null(outcome)
-	assert_eq(outcome.winning_camp.id, _NPC.id, "two nodes beat one at equal level and xp")
+	assert_eq(outcome.winning_camp.id, _NPC.id, "two nodes beat one at equal total XP")
 
 
-func test_a_tie_on_level_xp_and_territory_is_a_draw() -> void:
+func test_a_tie_on_total_xp_and_territory_is_a_draw() -> void:
 	var p := _ent(_PLAYER, 2, 4.0)
 	var n := _ent(_NPC, 2, 4.0)
 	var outcome := _condition().evaluate(_ctx([p, n], _LIMIT, 0, _graph([n, p, null])))
 	assert_not_null(outcome)
-	assert_null(outcome.winning_camp, "equal on all three is a DRAW")
+	assert_null(outcome.winning_camp, "equal on both is a DRAW")
 
 
 func test_territory_of_the_dead_and_of_non_contestants_never_counts() -> void:

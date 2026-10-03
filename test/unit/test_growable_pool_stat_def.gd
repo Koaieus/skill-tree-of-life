@@ -21,7 +21,7 @@ func _def(flat: float, factor: float, mode: int) -> GrowablePoolStatDef:
 
 
 func _pool(def: GrowablePoolStatDef, max_v: int, current: int) -> PoolStat:
-	var p := PoolStat.new()
+	var p := GrowablePoolStat.new()
 	p.definition = def
 	p.base_value = float(max_v)
 	p.current = float(current)
@@ -102,3 +102,52 @@ func test_misconfigured_growth_is_noop() -> void:
 	p.replenish(1)
 	assert_eq(int(p.value), 10, "misconfigured growth should not shrink the cap")
 	assert_eq(int(p.current), 10, "no level-up means current stays at cap")
+
+
+# --- Lifetime total: banked at level-up --------------------------------------
+
+## XP's curve: initial cap 5, +5 flat per level, OVERFLOW.
+func _xp_pool() -> GrowablePoolStat:
+	var p := GrowablePoolStat.new()
+	p.definition = _def(5.0, 1.0, GrowablePoolStatDef.PostGrowMode.OVERFLOW)
+	p.base_value = 5.0
+	p.current = 0.0
+	return p
+
+
+## Each level-up banks the cap it consumed, so `total = banked + current` is
+## everything ever replenished.
+func test_total_banks_each_consumed_cap() -> void:
+	var p := _xp_pool()
+	for amount in [5, 10, 15, 3]:
+		p.replenish(amount)
+	assert_eq(int(p.value), 20, "three level-ups: 5 → 10 → 15 → 20")
+	assert_eq(int(p.current), 3)
+	assert_eq(p.total(), 33.0, "5 + 10 + 15 banked, 3 on the bar")
+
+
+## One replenish cascading through three caps banks each in turn.
+func test_a_cascading_replenish_banks_every_level_it_crosses() -> void:
+	var p := _xp_pool()
+	p.replenish(33)
+	assert_eq(int(p.value), 20)
+	assert_eq(p.total(), 33.0, "one replenish through three caps banks all three")
+
+
+func test_total_equals_everything_replenished_for_a_sweep() -> void:
+	for amounts in [[1], [4, 1], [7], [26], [2, 2, 2, 2, 2, 2, 2], [40, 1, 60], [12, 31, 3]]:
+		var p := _xp_pool()
+		var sum := 0.0
+		for a in amounts:
+			p.replenish(a)
+			sum += a
+		assert_eq(p.total(), sum, "total after %s" % [amounts])
+
+
+func test_total_survives_a_dict_round_trip() -> void:
+	var p := _xp_pool()
+	p.replenish(33)
+	var q := _xp_pool()
+	q.read_dict(p.to_dict())
+	assert_eq(q.total(), 33.0, "banked rides to_dict / read_dict")
+	assert_eq(int(q.current), 3)

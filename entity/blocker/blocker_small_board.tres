@@ -4,6 +4,7 @@
 [ext_resource type="Script" uid="uid://drnlaxdudvq1t" path="res://stats_system/scalar_stat.gd" id="2_scalar"]
 [ext_resource type="Script" uid="uid://ceaxdyhhuysdx" path="res://stats_system/pool_stat.gd" id="3_pool"]
 [ext_resource type="Script" uid="uid://f73t1rkb44ye" path="res://stats_system/surplus_pool_stat.gd" id="3_surplus"]
+[ext_resource type="Script" path="res://stats_system/growable_pool_stat.gd" id="3_growable"]
 [ext_resource type="Script" uid="uid://cioeeste4m3t0" path="res://stats_system/skill_point_stat.gd" id="4_sp"]
 [ext_resource type="Script" uid="uid://che6xhl6srqh3" path="res://stats_system/stat_modifier.gd" id="12_3edt8"]
 [ext_resource type="Resource" uid="uid://ccpue5w27rur1" path="res://stats_system/defs/action_points.tres" id="def_ap"]
@@ -414,7 +415,7 @@ base_value = 1.0
 
 [sub_resource type="Resource" id="pool_xp"]
 resource_name = "xp"
-script = ExtResource("3_pool")
+script = ExtResource("3_growable")
 definition = ExtResource("def_xp")
 base_value = 5.0
 
