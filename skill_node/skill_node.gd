@@ -87,6 +87,14 @@ var state := NodeState.new()
 		state.owned_by = value
 		owner_changed.emit()
 
+## The node-local `vision_range` this node had the moment it last lost its
+## owner; `0` = never owned. Read by [ScoutStatus] as an unowned node's sight.
+var last_owned_vision: float:
+	get:
+		return state.last_owned_vision
+	set(value):
+		state.last_owned_vision = value
+
 ## The modifier offerings this node carries — pushed onto an allocating
 ## entity's stat board by AllocationSystem. Node-level data, no behaviour.
 @export var modifiers: Array[StatModifier] = []:

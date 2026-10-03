@@ -32,6 +32,9 @@ var last_allocation_level: int = 0
 var regen_stacks: int = 0
 var shots_fired_this_turn: int = 0
 var damaged_since_upkeep: bool = false
+## The node-local `vision_range` it last had while owned, sampled as it
+## loses its owner; `0` means never owned. Accumulated world state (saved).
+var last_owned_vision: float = 0.0
 ## Composition-swap ledgers of [LocalScaleMutator] (#376 decision 8): parent
 ## modifier / effect -> the scaled leaf-set applied in its place on its
 ## contribution board. Only populated while an override returns an Array.
@@ -73,6 +76,7 @@ func clone() -> NodeState:
 	c.regen_stacks = regen_stacks
 	c.shots_fired_this_turn = shots_fired_this_turn
 	c.damaged_since_upkeep = damaged_since_upkeep
+	c.last_owned_vision = last_owned_vision
 	# By reference: a shadow only ever reads the ledgers (it strips what they
 	# list from its own board), never writes them.
 	c.scaled_sets = scaled_sets
