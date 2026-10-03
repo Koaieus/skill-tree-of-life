@@ -4,7 +4,7 @@ extends GutTest
 ## state you spawned in, not one free tick of income richer.
 ##
 ## Every pool on `default_entity_board.tres` is authored at its cap, so the
-## skipped REFILLs and the health/mana ADDs were already no-ops on turn 1; what
+## skipped REFILLs and the health ADD were already no-ops on turn 1; what
 ## the gate actually removes is a turn of `xp_per_turn`, which used to level a
 ## fresh entity before it had made a single move. These tests pin both halves:
 ## turn 1 changes nothing, turn 2 is a completely ordinary upkeep.

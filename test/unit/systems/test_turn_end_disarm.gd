@@ -146,7 +146,6 @@ func test_a_launched_spell_pops_target_and_returns_to_magic() -> void:
 	await _cast_fixture()
 	assert_eq(_ctl.armed_stack.branch().size(), 3, "fixture: Manage / Magic / Target")
 
-	_player.stat_board.mana.current = 20.0
 	await _bs.launch_attack(_ctl.armed_stack.attack_plan())
 	await get_tree().process_frame
 

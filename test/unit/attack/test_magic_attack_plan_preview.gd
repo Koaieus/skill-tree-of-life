@@ -7,7 +7,7 @@ extends GutTest
 ## committed as [member MagicAttackPlan.target]. Three angles:
 ##
 ##   1. Mutation freedom — the load-bearing acceptance: HP, ownership and
-##      mana read identical before and after a preview runs.
+##      AP read identical before and after a preview runs.
 ##   2. Bruiser's HP-gradient climb is visible in the preview node/edge set
 ##      before commit — the acceptance that motivated #679.
 ##   3. Trail Blazer's string walk + terminal junction is visible in the
@@ -74,7 +74,7 @@ func _resync_navigator(graph: Graph) -> void:
 
 # ── 1. mutation freedom ─────────────────────────────────────────────────
 
-func test_preview_mutates_nothing_hp_ownership_or_mana() -> void:
+func test_preview_mutates_nothing_hp_ownership_or_ap() -> void:
 	var graph := h.make_graph([[0, 1]], self)
 	_resync_navigator(graph)
 	var attacker := h.make_entity(graph, "ATK", Color.RED)
@@ -98,7 +98,7 @@ func test_preview_mutates_nothing_hp_ownership_or_mana() -> void:
 
 	var hp_before := nodes[1].get_current_hp()
 	var owner_before := nodes[1].owned_by
-	var mana_before: float = attacker.stat_board.get_stat(&"mana").current
+	var ap_before: float = attacker.stat_board.action_points.current
 
 	plan.set_hover_target(nodes[1])
 	# Force the lazy preview to materialize, exactly as the overlays do on
@@ -108,8 +108,8 @@ func test_preview_mutates_nothing_hp_ownership_or_mana() -> void:
 
 	assert_eq(nodes[1].get_current_hp(), hp_before, "preview must not change HP")
 	assert_eq(nodes[1].owned_by, owner_before, "preview must not change ownership")
-	assert_eq(attacker.stat_board.get_stat(&"mana").current, mana_before,
-			"preview must not spend mana")
+	assert_eq(attacker.stat_board.action_points.current, ap_before,
+			"preview must not spend AP")
 	assert_eq(role, _PROPAGATION,
 			"the hovered candidate itself is the walk's seed landing")
 	assert_false(visual == null or visual.is_empty(),

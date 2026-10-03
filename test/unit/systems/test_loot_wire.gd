@@ -69,7 +69,7 @@ func test_a_linear_formula_round_trips() -> void:
 
 
 func test_a_ratio_formula_keeps_its_divisor() -> void:
-	var m := _mod(&"mana", StatModifier.Operation.ADD_BASE, 1.0)
+	var m := _mod(&"cast_range_hops", StatModifier.Operation.ADD_BASE, 1.0)
 	var f := RatioFormula.new()
 	f.source_stat_id = &"intelligence"
 	f.divisor = 10.0

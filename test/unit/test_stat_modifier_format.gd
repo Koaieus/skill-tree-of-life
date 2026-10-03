@@ -145,8 +145,8 @@ func test_add_base_modifier_name_substitution() -> void:
 
 func test_increase_modifier_name_substitution() -> void:
 	assert_eq(
-		_mod(&"mana", StatModifier.Operation.INCREASE, 18.0).format(),
-		"+18% increased Max Mana"
+		_mod(&"health", StatModifier.Operation.INCREASE, 18.0).format(),
+		"+18% increased Max Health"
 	)
 
 

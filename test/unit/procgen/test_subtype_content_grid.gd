@@ -136,7 +136,7 @@ const _GIVES_UP := {
 		&"bless": [&"poison_aspect", &"arrows_per_reload", &"max_shots_per_leaf"],
 	},
 	&"intelligence": {
-		&"blight": [&"mana", &"mana_per_turn"],
+		&"blight": [],
 		&"bless": [&"cast_range_distance", &"cast_range_hops"],
 	},
 	&"constitution": {

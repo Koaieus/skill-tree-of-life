@@ -23,6 +23,9 @@ const _ROW_LAYOUT_PINS := {
 	3: "8d2ad82f2df3252642749fab0700d38b3b7f3a4340a3344272186ebf0bc1bcb7",
 	# 4: GraphSnapshot gained `_R_LAST_OWNED_VISION` (a node's remembered sight).
 	4: "2f2af3cc83555396e3dd69b5864bec2d12f52dbcb125bbd81661ae3f353dbfa2",
+	# 5: the board lost two stat ids (ADR 0045). No row moved, so the hash is
+	# 4's; the bump is the stat set's shape.
+	5: "2f2af3cc83555396e3dd69b5864bec2d12f52dbcb125bbd81661ae3f353dbfa2",
 }
 
 

@@ -105,4 +105,3 @@ func test_a_bare_boards_upkeep_never_replenishes_health_itself() -> void:
 	assert_almost_eq(board.health.current, before, 0.001,
 			"the pool's own upkeep must not move health — Entity._apply_turn_upkeep routes "
 			+ "core_healing through EntityCombat.heal so healing_received is consulted")
-	assert_almost_eq(board.mana.current, board.mana.current, 0.001)

@@ -62,8 +62,6 @@ func _build(presented: bool) -> Dictionary:
 	attacker.stat_board.blade_size.base_value = 2.0
 	attacker.stat_board.action_points.base_value = 4.0
 	attacker.stat_board.action_points.current = 4.0
-	attacker.stat_board.mana.base_value = 10.0
-	attacker.stat_board.mana.current = 10.0
 	# Two independent launches are compared; zero crit so they cannot differ
 	# on a roll that has nothing to do with the stage.
 	attacker.stat_board.get_stat(&"crit_chance").base_value = 0.0
@@ -177,8 +175,7 @@ func _fingerprint(ctx: Dictionary) -> Dictionary:
 		var board: EntityStatBoard = (ctx[role] as Entity).stat_board
 		out[role] = [snappedf(board.health.current, 0.001),
 				snappedf(board.skill_points.wounded, 0.001),
-				snappedf(board.action_points.current, 0.001),
-				snappedf(board.mana.current, 0.001)]
+				snappedf(board.action_points.current, 0.001)]
 	return out
 
 

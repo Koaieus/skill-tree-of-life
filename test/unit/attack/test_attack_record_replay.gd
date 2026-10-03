@@ -76,8 +76,6 @@ func _build(origin: Vector2 = Vector2.ZERO) -> Dictionary:
 	attacker.stat_board.blade_size.base_value = 2.0
 	attacker.stat_board.action_points.base_value = 4.0
 	attacker.stat_board.action_points.current = 4.0
-	attacker.stat_board.mana.base_value = 10.0
-	attacker.stat_board.mana.current = 10.0
 	# entities_container, NOT the Graph itself — entity_id mints on entry to
 	# that container (#509), and a command naming an unminted id resolves to
 	# nothing.
@@ -194,8 +192,6 @@ func _assert_worlds_agree(host: Dictionary, peer: Dictionary, what: String) -> v
 		var peer_board: EntityStatBoard = (peer[role] as Entity).stat_board
 		assert_almost_eq(peer_board.action_points.current, host_board.action_points.current,
 				0.0001, "%s: %s AP must match" % [what, role])
-		assert_almost_eq(peer_board.mana.current, host_board.mana.current,
-				0.0001, "%s: %s mana must match" % [what, role])
 		assert_almost_eq(peer_board.health.current, host_board.health.current,
 				0.0001, "%s: %s health must match" % [what, role])
 		assert_almost_eq(peer_board.skill_points.wounded, host_board.skill_points.wounded,

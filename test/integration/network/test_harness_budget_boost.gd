@@ -4,10 +4,10 @@ extends GutTest
 ## true about its gate.
 ##
 ## `mp_dev_sandbox._boost_autopilot_budget` fattens Red to 30 SP / 12 AP / 10 DP
-## / 200 mana so ONE turn can pay for `--autopilot`'s whole verb sweep. It used
+## so ONE turn can pay for `--autopilot`'s whole verb sweep. It used
 ## to run unconditionally, so launching the pair from the sandbox host's
 ## Multiplayer tab to actually *play* it handed a human a Red with 24-odd
-## unspent skill points and 200-plus mana — which reads as a stat-system bug,
+## unspent skill points — which reads as a stat-system bug,
 ## not as a test fixture, because nothing on screen says a sweep flag exists.
 ##
 ## Gating it is only half the fix, and the other half is the one a future
@@ -23,13 +23,12 @@ extends GutTest
 const MP_SANDBOX := "res://scenes/dev/mp_dev_sandbox.tscn"
 const MP_PANEL := "res://addons/mp_sandbox/mp_sandbox_panel.tscn"
 
-## The four the boost writes. Duplicated from the scene on purpose: a test that
+## The three the boost writes. Duplicated from the scene on purpose: a test that
 ## read them back off the same method it is checking would pass no matter what
 ## that method did.
 const BOOSTED_SKILL_POINTS := 30.0
 const BOOSTED_ACTION_POINTS := 12.0
 const BOOSTED_DEALLOC_POINTS := 10.0
-const BOOSTED_MANA := 200.0
 
 ## The scene `mp_dev_sandbox` inherits, and the baseline it is measured against.
 ## Read from a live instance rather than hardcoded, because Red's opening board is
@@ -49,7 +48,7 @@ const DEV_SANDBOX := "res://scenes/dev_sandbox.tscn"
 
 ## The pools the boost writes.
 const BUDGET_POOLS: Array[StringName] = [
-	&"skill_points", &"action_points", &"deallocation_points", &"mana",
+	&"skill_points", &"action_points", &"deallocation_points",
 ]
 
 ## The subset whose `base_value` two live levels can be compared on. Everything
@@ -58,11 +57,11 @@ const BUDGET_POOLS: Array[StringName] = [
 ## skill points into `base_value` — and whether a given level's Red gets that
 ## upkeep depends on which level's TurnManager actually starts his turn (only
 ## the manager that calls [method Entity.begin_turn] on him runs it, and two
-## levels in one process do not both tick). The other three are REFILL/ADD pools
+## levels in one process do not both tick). The other two are REFILL pools
 ## whose `base_value` no amount of play moves. `skill_points` keeps its own
 ## assertion below, against the boost constant.
 const COMPARABLE_POOLS: Array[StringName] = [
-	&"action_points", &"deallocation_points", &"mana",
+	&"action_points", &"deallocation_points",
 ]
 
 
@@ -123,7 +122,6 @@ func test_the_boost_itself_still_does_what_the_sweep_needs() -> void:
 	assert_eq(board.skill_points.base_value, BOOSTED_SKILL_POINTS)
 	assert_eq(board.action_points.base_value, BOOSTED_ACTION_POINTS)
 	assert_eq(board.deallocation_points.base_value, BOOSTED_DEALLOC_POINTS)
-	assert_eq(board.mana.base_value, BOOSTED_MANA)
 
 
 # --- the half that has to reach both peers ----------------------------------

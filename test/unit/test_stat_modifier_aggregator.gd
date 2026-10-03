@@ -47,7 +47,7 @@ func test_same_stat_different_op_stays_apart() -> void:
 func test_different_stat_same_op_stays_apart() -> void:
 	var agg := StatModifierAggregator.new(_FLOOR)
 	agg.append(_mod(&"armor", _ADD, 2.0), 1, _entry(&"armor", _ADD, 1, 3))
-	agg.append(_mod(&"mana", _ADD, 2.0), 1, _entry(&"mana", _ADD, 1, 3))
+	agg.append(_mod(&"health", _ADD, 2.0), 1, _entry(&"health", _ADD, 1, 3))
 	assert_eq(agg.get_aggregate().size(), 2, "a different stat is never fused")
 
 
@@ -119,18 +119,18 @@ func test_entries_for_keeps_append_order() -> void:
 
 
 func test_aggregate_orders_by_descending_total_cost() -> void:
-	# armor's total (1+1+2 = 4) beats mana (3) only if costs are SUMMED — its
+	# armor's total (1+1+2 = 4) beats health (3) only if costs are SUMMED — its
 	# first (1) or last (2) contribution alone would lose.
 	var agg := StatModifierAggregator.new(_FLOOR)
 	agg.append(_mod(&"armor", _ADD, 1.0), 1, _entry(&"armor", _ADD, 1, 3))
-	agg.append(_mod(&"mana", _ADD, 1.0), 3, _entry(&"mana", _ADD, 1, 3))
+	agg.append(_mod(&"health", _ADD, 1.0), 3, _entry(&"health", _ADD, 1, 3))
 	agg.append(_mod(&"armor", _ADD, 1.0), 1, _entry(&"armor", _ADD, 1, 3))
 	agg.append(_mod(&"sensor_range", _ADD, 1.0), 2, _entry(&"sensor_range", _ADD, 1, 3))
 	agg.append(_mod(&"armor", _ADD, 1.0), 2, _entry(&"armor", _ADD, 1, 3))
 	var ids: Array[StringName] = []
 	for m in agg.get_aggregate():
 		ids.append(m.stat_id)
-	assert_eq(ids, [&"armor", &"mana", &"sensor_range"] as Array[StringName])
+	assert_eq(ids, [&"armor", &"health", &"sensor_range"] as Array[StringName])
 
 
 func test_reroll_into_is_seed_deterministic() -> void:

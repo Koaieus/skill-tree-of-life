@@ -132,7 +132,7 @@ func test_handover_releases_the_outgoing_heros_board() -> void:
 	# Player 2 has never been bound, so its counts are the unbound baseline.
 	# (An absolute "no connections" bar would never hold: a stat's
 	# `value_changed` also carries the board's own modifier-graph edges.)
-	var watched: Array[StringName] = [&"health", &"mana", &"action_points", &"xp", &"initiative"]
+	var watched: Array[StringName] = [&"health", &"action_points", &"xp", &"initiative"]
 	var baseline := {}
 	for stat_id in watched:
 		baseline[stat_id] = _connection_count(_p2, stat_id)

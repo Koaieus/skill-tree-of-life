@@ -154,7 +154,7 @@ func test_defender_node_local_spell_damage_does_not_buff_the_incoming_hit() -> v
 
 
 func test_casters_node_local_spell_damage_does_buff_the_outgoing_hit() -> void:
-	# The mirror of the test above — a "mana font" addon on the cast-from node
+	# The mirror of the test above — a spell-damage addon on the cast-from node
 	# is exactly what an absolute spell_damage stat is FOR (D-32 SETTLED 1).
 	var h := H.new()
 	var ctx := _setup(h)

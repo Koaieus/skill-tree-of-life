@@ -129,8 +129,8 @@ func test_ratio_get_input_ids_strips_accessor() -> void:
 
 
 func test_expression_get_input_ids_strips_each_input() -> void:
-	var f := _expr("mana__current + strength", [&"mana__current", &"strength"])
-	assert_eq(f.get_input_ids(), [&"mana", &"strength"] as Array[StringName])
+	var f := _expr("health__current + strength", [&"health__current", &"strength"])
+	assert_eq(f.get_input_ids(), [&"health", &"strength"] as Array[StringName])
 
 
 func test_split_helpers_round_trip() -> void:
