@@ -45,6 +45,14 @@ var power_resolved: bool = false
 enum HostKind { NODE, ENTITY }
 var host_kind: HostKind = HostKind.NODE
 
+## The primary hit this status rides on — an arrow's damage hit, a blade
+## contact — or null for one nothing gates (a spell's). The one rider gate
+## (ADR 0044): [method land_on] applies the status iff [method
+## HitInstance.landed] says the paired hit landed, else it lands as a power-0
+## dud flagged [member HitInstance.gated]. Never shipped by [AttackRecord]
+## and deliberately so: the authority already decided the gate, so a peer's
+## rebuilt status has [code]paired == null[/code] and lands its recorded
+## power (a dud's recorded 0, which [method NodeCombat.apply_status] ignores).
 var paired: HitInstance = null
 
 
@@ -80,6 +88,12 @@ func _init() -> void:
 ## non-positive gate makes a no-op. Resolved once: a rebuilt hit arrives
 ## [member power_resolved] and lands the recorded number as-is.
 func land_on(node: NodeCombat, _world: CombatWorld) -> void:
+	if paired != null and not paired.landed():
+		gated = true
+		power = 0.0
+		amount = 0.0
+		effective_amount = 0.0
+		return
 	if not power_resolved:
 		if node.is_core() and node.get_current_hp() <= 0.0:
 			host_kind = HostKind.ENTITY

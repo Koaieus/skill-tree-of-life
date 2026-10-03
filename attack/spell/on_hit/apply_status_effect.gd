@@ -10,28 +10,30 @@ extends OnHitEffect
 ## [DamageEffect] on the same [SpellDef] for a "little damage, applies a
 ## status" spell (owner's Blindness/Poison ask, #868).
 ##
-## Visual origin for the produced hit is [member CastSpell.predecessor] when
-## present (hops); falls back to [member CastSpell.source] for the seed —
-## same rule as every other on-hit effect, so the first projectile still
-## flies from the cast-from node.
+## Reads only the mode-agnostic [HitLanding] (ADR 0044), so it works on a
+## spell's landing, an arrow's and a blade contact's alike: the emitted
+## status copies the landing's attacker / source / origin / target /
+## structural key, and rides [member HitLanding.paired] — the status applies
+## iff that primary hit landed ([member StatusInstance.paired]).
 
 @export var def: StatusDef = null
 @export var power: float = 1.0
 
 
-func apply(lctx: LandingContext) -> void:
-	var state := lctx.payload
-	if state == null or state.current_node == null or def == null:
+func apply(landing: HitLanding) -> void:
+	if landing == null or landing.target == null or def == null:
 		return
 	var status := StatusInstance.new()
 	status.def = def
 	status.power = power
-	# The potency read at land (#963) is the caster's board.
-	status.attacker = lctx.cast.caster
-	status.source = state
-	status.target = state.current_node
-	status.origin = state.predecessor if state.predecessor != null else state.source
-	lctx.cast.outcome.hits.append(status)
+	# The potency read at land (#963) is the attacker's board.
+	status.attacker = landing.attacker
+	status.source = landing.source
+	status.target = landing.target
+	status.origin = landing.origin
+	status.structural_key = landing.structural_key
+	status.paired = landing.paired
+	landing.hits.append(status)
 
 
 ## Per #764's contract: a null [param spell] (no preview context) still

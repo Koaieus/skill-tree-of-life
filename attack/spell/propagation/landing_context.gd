@@ -1,6 +1,6 @@
 @tool
 class_name LandingContext
-extends RefCounted
+extends HitLanding
 
 ## One landing's fixed view, built by [SpellResolver] once per node a wave
 ## resolves onto (right after [IncidentReducer.reduce] returns) and reused for
@@ -18,6 +18,12 @@ extends RefCounted
 ## [DamageEffect] relies on exactly that, and this refactor does not change it.
 ## [member node], [member cast] and [member incidents] never change after
 ## construction.
+##
+## [b]A [HitLanding] plus spell context[/b] (ADR 0044): [method fill_landing]
+## sets the inherited mode-agnostic fields from the cast and payload — the
+## same facts the resolver stamps on every hit this landing emits — so an
+## [OnHitEffect] that reads only [HitLanding] ([ApplyStatusEffect]) works here
+## unchanged. A spell gates nothing, so [member HitLanding.paired] stays null.
 
 
 ## The per-cast ledger this landing belongs to — [member PropagationContext.outcome],
@@ -35,6 +41,24 @@ var payload: CastSpell = null
 ## What arrived here this wave, before the reducer merged them — provenance
 ## only; nothing downstream re-derives the merge from this.
 var incidents: Array[CastSpell] = []
+
+
+## Fill the inherited [HitLanding] fields from [member cast] and
+## [member payload]: attacker = the caster, source = the payload, target = its
+## node, origin = its predecessor (the seed falls back to its cast-from node,
+## so the first projectile flies from there), structural key = its hop
+## ordinal, and [member HitLanding.hits] = the cast outcome's own array, by
+## reference. Call once [member cast] and [member payload] are set.
+func fill_landing() -> void:
+	attacker = cast.caster if cast != null else null
+	if cast != null and cast.outcome != null:
+		hits = cast.outcome.hits
+	if payload == null:
+		return
+	source = payload
+	target = payload.current_node
+	origin = payload.predecessor if payload.predecessor != null else payload.source
+	structural_key = float(payload.hop_index)
 
 
 ## Forwarding accessor: a stage asks THIS, never [code]lctx.cast.ownership_bit_of[/code],
@@ -95,4 +119,5 @@ static func for_test(
 	lctx.node = node_
 	lctx.payload = payload_
 	lctx.incidents = incidents_
+	lctx.fill_landing()
 	return lctx

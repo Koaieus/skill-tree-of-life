@@ -1,6 +1,6 @@
 @tool
 class_name DamageEffect
-extends OnHitEffect
+extends SpellOnHitEffect
 
 ## Standard on-hit: contributes a MAGIC [DamageInstance] sized to the in-flight
 ## state's [member CastSpell.damage] (already scaled by propagation). The
@@ -28,7 +28,7 @@ extends OnHitEffect
 @export var basis: HitInstance.AmountBasis = HitInstance.AmountBasis.FLAT
 
 
-func apply(lctx: LandingContext) -> void:
+func _apply_spell(lctx: LandingContext) -> void:
 	var state := lctx.payload
 	if state.current_node == null or state.damage <= 0.0:
 		return

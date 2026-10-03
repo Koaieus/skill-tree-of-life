@@ -11,7 +11,7 @@ const H := preload("res://test/unit/spell/spell_test_helper.gd")
 class _RecordingEffect extends OnHitEffect:
 	var calls: Array[StringName] = []
 	var label: StringName = &""
-	func apply(_lctx: LandingContext) -> void:
+	func apply(_landing: HitLanding) -> void:
 		calls.append(label)
 
 

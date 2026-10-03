@@ -1,6 +1,6 @@
 @tool
 class_name ScaleDamageEffect
-extends OnHitEffect
+extends SpellOnHitEffect
 
 ## Scales [member CastSpell.damage] IN PLACE at a landing, optionally gated by
 ## a [LandingCondition]. Emits nothing itself — author it BEFORE [DamageEffect]
@@ -41,7 +41,7 @@ enum Mode {
 @export var factor: float = 2.0
 
 
-func apply(lctx: LandingContext) -> void:
+func _apply_spell(lctx: LandingContext) -> void:
 	var state := lctx.payload
 	if state == null or state.current_node == null:
 		return

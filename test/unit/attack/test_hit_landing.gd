@@ -23,9 +23,7 @@ func test_apply_status_on_a_bare_landing_emits_one_status_carrying_its_facts() -
 	var eff := ApplyStatusEffect.new()
 	eff.def = _TEST_DEF
 	eff.power = 3.0
-	# Untyped call: the test predates the contract it pins.
-	var any_eff: Variant = eff
-	any_eff.apply(landing)
+	eff.apply(landing)
 
 	assert_eq(landing.hits.size(), 1, "one status emitted into the landing's sink")
 	var status := landing.hits[0] as StatusInstance

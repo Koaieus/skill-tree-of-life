@@ -3,8 +3,10 @@
 class_name OnHitEffect
 extends Resource
 
-## What happens at every node the spell lands on. Multiple effects per spell
-## run in order — usually just [DamageEffect], but extras like "Mark for
+## What happens at every node an attack lands on — the one on-hit vocabulary
+## for spells, arrows and blades alike (ADR 0044): authoring a new on-hit
+## thing is an [OnHitEffect] on the carrier's [code]on_hit_effects[/code].
+## Multiple effects per carrier run in order — usually just [DamageEffect], but extras like "Mark for
 ## Detonate" or "Stun for one turn" stack alongside as their own subclasses.
 ##
 ## Effects don't apply damage directly — they push [DamageInstance]s onto
@@ -15,10 +17,10 @@ extends Resource
 ## [code]Engine.is_editor_hint()[/code] where appropriate.
 
 
-## [param lctx]'s [code]payload[/code] is what used to be [code]state[/code];
-## [code]lctx.cast.outcome[/code] is what used to be the [code]outcome[/code]
-## param (#356).
-@abstract func apply(lctx: LandingContext) -> void
+## Run this effect for one [param landing], appending whatever it emits to
+## [member HitLanding.hits]. Mode-agnostic: an effect that needs spell context
+## extends [SpellOnHitEffect], which narrows to [LandingContext].
+@abstract func apply(landing: HitLanding) -> void
 
 ## Player-facing line for this effect in [SpellTooltip]'s On-arrival section
 ## (#764). [param spell] supplies [member SpellDef.power] for an effect that

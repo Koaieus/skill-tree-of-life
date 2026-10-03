@@ -23,9 +23,9 @@ class _RecordingReducer extends IncidentReducer:
 
 ## Records every LandingContext it is handed. Also emits, so the fixture
 ## behaves like a normal spell rather than a silent no-op.
-class _RecordingEffect extends OnHitEffect:
+class _RecordingEffect extends SpellOnHitEffect:
 	var seen: Array[LandingContext] = []
-	func apply(lctx: LandingContext) -> void:
+	func _apply_spell(lctx: LandingContext) -> void:
 		seen.append(lctx)
 		if lctx.payload.current_node != null and lctx.payload.damage > 0.0:
 			var hit := DamageInstance.new()

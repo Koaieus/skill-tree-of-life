@@ -1,6 +1,6 @@
 @tool
 class_name HealEffect
-extends OnHitEffect
+extends SpellOnHitEffect
 
 ## Healing on-hit: contributes a [HealInstance] sized to the in-flight
 ## state's [member CastSpell.damage] (yes, `DAMAGE`!) already scaled by propagation.
@@ -17,7 +17,7 @@ extends OnHitEffect
 @export var basis: HitInstance.AmountBasis = HitInstance.AmountBasis.FLAT
 
 
-func apply(lctx: LandingContext) -> void:
+func _apply_spell(lctx: LandingContext) -> void:
 	var state := lctx.payload
 	if state.current_node == null or state.damage <= 0.0:
 		return

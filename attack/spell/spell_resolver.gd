@@ -171,6 +171,7 @@ static func resolve_against(
 			lctx.node = node
 			lctx.payload = resolved
 			lctx.incidents = incidents
+			lctx.fill_landing()
 			lctx_of[resolved] = lctx
 			var preds: Array[SkillNode] = []
 			var shares := PackedFloat32Array()

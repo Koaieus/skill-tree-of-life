@@ -211,6 +211,16 @@ var popped_vertex: SkillNode = null
 var gated: bool = false
 
 
+
+## Whether this hit actually landed — what a [StatusInstance] riding it
+## ([member StatusInstance.paired]) gates on. Base: not vetoed by its mode's
+## land-time gate ([member gated]). A mode whose refusal is not a dud
+## (melee's unadmitted contact) overrides it. Read after this hit's own
+## [method land_on]: a paired status lands after its primary hit.
+func landed() -> bool:
+	return not gated
+
+
 ## Land this hit on [param node]. Applying-the-world stays a SYSTEM's job
 ## (see [code]attack/outcome/outcome_applier.gd[/code]) — this virtual only
 ## names the verb each subclass performs, so the applier's loop stays
