@@ -99,8 +99,7 @@ func test_the_tree_is_the_one_in_the_issue() -> void:
 	assert_eq(_tree.children_of(MenuGraph.ID_MULTIPLAYER), _ids([
 		MenuGraph.ID_LOCAL, MenuGraph.ID_HOST, MenuGraph.ID_JOIN,
 	]))
-	assert_true(_tree.get_item(MenuGraph.ID_LOAD_GAME).disabled,
-			"LOAD GAME is reachable but parked — #23 save/load is not in this milestone")
+	assert_false(_tree.get_item(MenuGraph.ID_LOAD_GAME).disabled)
 	assert_false(_tree.get_item(MenuGraph.ID_NEW_GAME).disabled)
 
 

@@ -453,9 +453,9 @@ func test_a_route_hands_its_policy_to_the_lobby_it_opens() -> void:
 			"and so does JOIN")
 
 
-func test_the_parked_load_screen_starts_nothing() -> void:
+func test_the_load_screen_starts_nothing() -> void:
+	# LOAD GAME resumes a saved run through its panel; it never authors a new one.
 	var item := _tree.get_item(MenuGraph.ID_LOAD_GAME)
-	assert_true(item.disabled, "#23 save/load is parked; today's screen disables it too")
 	assert_null(item.route)
 	assert_eq(item.panel, MenuGraph.PANEL_LOAD)
 

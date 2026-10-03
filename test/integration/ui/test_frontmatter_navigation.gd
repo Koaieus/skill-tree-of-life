@@ -609,8 +609,9 @@ func test_clicking_a_view_navigates_to_it() -> void:
 
 
 func test_clicking_a_disabled_view_does_nothing() -> void:
-	# LOAD GAME, while #23 save/load is parked. Refusing is a better answer than
-	# navigating to a node the keyboard already refuses to commit to.
+	# No shipped leaf is disabled, so LOAD GAME is made one here. Refusing is a
+	# better answer than navigating to a node the keyboard refuses to commit to.
+	_root.tree.get_item(MenuGraph.ID_LOAD_GAME).disabled = true
 	_root.focus(MenuGraph.ID_SINGLE_PLAYER, true)
 	_root.view_for(MenuGraph.ID_LOAD_GAME).activated.emit()
 	assert_eq(_root.focus_id, MenuGraph.ID_SINGLE_PLAYER, "the click was refused")

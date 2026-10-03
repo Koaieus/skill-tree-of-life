@@ -68,14 +68,6 @@ func test_leaving_a_run_closes_the_session() -> void:
 	assert_null(GameSession.network, "a stale NetworkConfig would re-open a socket")
 
 
-func test_unimplemented_buttons_are_disabled_rather_than_warning() -> void:
-	for name in ["SaveButton", "LoadButton"]:
-		var button: Button = _menu.find_child(name, true, false)
-		assert_not_null(button, "%s went missing" % name)
-		if button != null:
-			assert_true(button.disabled, "%s must be disabled while unimplemented" % name)
-
-
 # --- FULLSCREEN --------------------------------------------------------------
 
 func test_fullscreen_action_is_bound_to_f() -> void:

@@ -172,8 +172,9 @@ func test_right_commits_too() -> void:
 
 
 func test_a_disabled_option_is_refused_rather_than_followed() -> void:
-	# LOAD GAME, while #23 is parked. The press is CONSUMED — letting it fall
-	# through would make a refused commit read as a back.
+	# No shipped leaf is disabled, so LOAD GAME is made one here. The press is
+	# CONSUMED — letting it fall through would make a refused commit read as a back.
+	_frontmatter.tree.get_item(MenuGraph.ID_LOAD_GAME).disabled = true
 	_send(_key(KEY_ENTER))  # into Single Player
 	_send(_key(KEY_DOWN))   # onto Load Game
 	assert_eq(_input.cursor, MenuGraph.ID_LOAD_GAME)
