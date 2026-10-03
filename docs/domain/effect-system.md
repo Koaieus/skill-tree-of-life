@@ -441,6 +441,38 @@ Authoring gotcha: the `.tres` knob `FractionDecay.fraction` (the `decay` sub-res
 wither 0.25); blindness's 0.7 is the fraction removed (#1090). The shape law is
 `test/unit/effects/test_status_decay_shapes.gd`.
 
+## Status rows: `group_by` keys them, `visible_if` gates the count (#1343)
+
+A status row's identity is `(def.id, key)`. The key comes from the def's
+`group_by` — a GDScript `Expression` over the **applier**, parsed once and
+cached (the `ExpressionFilter` precedent). `visible_if` is a second, boolean
+expression a reader asks through `StatusDef.count_visible(row, viewer_camp_id,
+viewer_id)`; nothing reads it with a viewer yet.
+
+| Expression | Inputs | Empty means |
+|---|---|---|
+| `group_by` | `camp_id` (applier's `faction.id`, `&""` none), `applier_id` (`entity_id`, `0` none) | `true`: one shared row — every shipped def |
+| `visible_if` | the row's `camp_id` / `applier_id` (its latest applier), `viewer_camp_id`, `viewer_id` | every viewer reads the count |
+
+- A key is a bool, int or StringName, never an Object, so a row replays alike
+  on every peer. `false` (independent rows) is **refused** with `push_error`
+  and the apply is a no-op — it needs a deterministic application id first.
+- `apply_status(def, power, camp_id, applier_id)` files the landing; the row
+  records the latest applier. `adjust_power` / `get_status_power` take the
+  key (default `true`); `remove_status(id)` drops every row of the def,
+  `remove_row(id, key)` one. A spread credit that creates a row carries no
+  applier (moving is not landing).
+- Spread and spill run per row: a `StackField` reads one `(def, key)`, its
+  rule stamps that key on each `StackTransfer`, `SpreadApplier` lands it there.
+  A recorded spill does not carry its key on the wire yet (the `AttackRecord`
+  spill columns): a replay lands under `true`, identical for every shared def.
+- A save stores each row as `[def_idx, power, key, camp_id, applier_id]`
+  (`SaveFile.FORMAT_VERSION` 2) and restores the key verbatim (`restore_row`),
+  never recomputed through the def.
+- An `Expression` parses an unknown identifier fine, so `StatusDef.parse_error`
+  also dry-runs it on neutral inputs; the setters warn with it and
+  `test_status_grouping.gd` sweeps every authored `.tres`.
+
 ## Known limits — file an issue to extend
 
 This is the boundary of what the effect system can express **today**. Hitting one
