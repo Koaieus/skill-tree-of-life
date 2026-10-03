@@ -46,7 +46,7 @@ only when a hook needs code. Lead-by example: `spike_ring_addon.tscn`.
 | facet | where | note |
 |---|---|---|
 | modifiers | `entity_modifiers`, `local_modifiers` | authored arrays; a subclass may synthesise stake-scaled ones via `get_local_modifiers()` / `get_entity_modifiers()`. On a blade, entity modifiers apply for the swing except currency (`aspects` family, `blade_size`) |
-| blade effect | `apply_to_blade(state, idx)` | optional — node-local stats are often enough (SpikeRing needs none); `DotAddon` writes the vertex status |
+| blade effect | `apply_to_blade(state, idx)` | optional — node-local stats are often enough (SpikeRing needs none); `DotAddon` appends its `on_hit_effects` (one `ApplyStatusEffect` per DoT scene; a `SpellOnHitEffect` is refused) to its own vertex's rider list, so two DoT addons on one carrier both apply |
 | looks | a `Visual` child on the `AddonVisual` base (#1212) and/or `get_emblem()`; `icon`, `tint`, `description` for the tooltip | an addon with no visual child is invisible outside its tooltip |
 | budget | `temp_placeable`, `temp_cost_blade_size` (≥ 1), `temp_cost_aspects` (`{&"<concept>_aspect": n}`, each > 0) | every currency is a pooled per-swing budget capped by the attacker's live stat; landed, guarded by `test_temp_upgrade_budget.gd` |
 | procgen | an entry in each content pool's `AddonPolicy` (`procgen/modules/*/content.tres`), `weight`, `unique` | optional, lower priority |
