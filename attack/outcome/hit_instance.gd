@@ -54,6 +54,10 @@ var amount: float = 0.0
 ## Routed back through the [signal Events.skill_node_damaged] payload so UI
 ## can attribute the number / decide on flash color.
 var source: Variant = null
+## The [AmmoType] id of the arrow this hit belongs to; `&""` = not an arrow.
+## Promoted to the base like [member attacker]: the [AttackRecord] round-trip
+## rebuilds plain hits, so the type must ride the base class to reach a peer.
+var ammo_type_id: StringName = &""
 ## The node this hit lands on.
 var target: SkillNode = null
 ## The node the hit originated from (firing position / source node).

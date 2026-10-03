@@ -117,6 +117,9 @@ const KEY_HIT_POP := "h_pop"
 ## `effective_amount`, and [method StatusInstance.land_on] writes `power`
 ## there at land time, so a status rides that array for free.
 const KEY_HIT_STATUS_DEF := "h_sdef"
+## [member HitInstance.ammo_type_id] per hit; the [AmmoType] resolves by id via
+## [AmmoTypeRoster] where needed, the record carries only the id.
+const KEY_HIT_AMMO_TYPE := "h_ammo"
 ## [member StatusInstance.host_kind] per hit (#996) — `0` (NODE) for every
 ## non-STATUS hit. The landed host is a resolved fact like `power_resolved`:
 ## a peer lands on the shipped host, never re-derives it from node HP.
@@ -197,6 +200,8 @@ var amounts := PackedFloat64Array()
 var targets := PackedInt32Array()
 var origins := PackedInt32Array()
 var attackers := PackedInt32Array()
+## [member HitInstance.ammo_type_id] per hit — `""` for a non-arrow.
+var ammo_types := PackedStringArray()
 var structural := PackedFloat64Array()
 var flags := PackedByteArray()
 var crit_tiers := PackedInt32Array()
@@ -259,6 +264,7 @@ static func wire_fields() -> Array[WireFields.Field]:
 		WireFields.Field.new(&"hp_max", TYPE_PACKED_FLOAT64_ARRAY).as_key(KEY_HIT_HP_MAX),
 		WireFields.Field.new(&"pops", TYPE_PACKED_INT32_ARRAY).as_key(KEY_HIT_POP),
 		WireFields.Field.new(&"status_defs", TYPE_PACKED_STRING_ARRAY).as_key(KEY_HIT_STATUS_DEF),
+		WireFields.Field.new(&"ammo_types", TYPE_PACKED_STRING_ARRAY).as_key(KEY_HIT_AMMO_TYPE),
 		WireFields.Field.new(&"status_hosts", TYPE_PACKED_INT32_ARRAY).as_key(KEY_HIT_STATUS_HOST),
 		WireFields.Field.new(&"dealloc_counts", TYPE_PACKED_INT32_ARRAY).as_key(KEY_DEALLOC_COUNT),
 		WireFields.Field.new(&"dealloc_nodes", TYPE_PACKED_INT32_ARRAY).as_key(KEY_DEALLOC_NODE),
@@ -314,6 +320,7 @@ static func capture(outcome: AttackOutcome, graph: Graph) -> Dictionary:
 		r.targets.append(_id_of(hit.target, graph))
 		r.origins.append(_id_of(hit.origin, graph))
 		r.attackers.append(hit.attacker.entity_id if hit.attacker != null else 0)
+		r.ammo_types.append(String(hit.ammo_type_id))
 		r.structural.append(hit.structural_key)
 		var f := 0
 		if hit.gated:
@@ -520,6 +527,8 @@ static func rebuild(d: Dictionary, graph: Graph, rate: float = -1.0) -> AttackOu
 		hit.target = _node_of(r.targets[i], graph)
 		hit.origin = _node_of(r.origins[i], graph)
 		hit.attacker = graph.get_by_entity_id(r.attackers[i]) if graph != null else null
+		if i < r.ammo_types.size():
+			hit.ammo_type_id = StringName(r.ammo_types[i])
 		outcome.hits.append(hit)
 	# Running offset into the flattened predecessor array, same shape as
 	# `dealloc_at` above — advanced by each event's own count.

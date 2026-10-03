@@ -34,6 +34,7 @@ static func compute(attacker: Entity, firing_node: SkillNode, target: SkillNode,
 	var hit := RangedHitInstance.new()
 	hit.attacker = attacker
 	hit.ammo_type = ammo_type
+	hit.ammo_type_id = ammo_type.id if ammo_type != null else &""
 	hit.type = DamageInstance.Type.PHYSICAL
 	hit.target = target
 	hit.origin = firing_node
@@ -69,6 +70,7 @@ static func status_for(hit: DamageInstance) -> StatusInstance:
 	status.def = def
 	status.power = arrow.ammo_type.status_power
 	status.attacker = arrow.attacker
+	status.ammo_type_id = arrow.ammo_type_id
 	status.source = arrow.source
 	status.target = arrow.target
 	status.origin = arrow.origin
