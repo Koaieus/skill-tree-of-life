@@ -46,3 +46,7 @@ extends Resource
 ## type"; ADR 0041). The base arrow ignores it — its cap is the `arrows` pool's
 ## max. Owner tunes.
 @export_range(1, 9999) var max_stock: int = Quiver.DEFAULT_MAX_STOCK
+## What this type's arrow looks like in flight — a [StatusArrow]-family scene
+## (`ui/vfx/projectile/visual/`). Null → the volley coordinator's default
+## [member ArrowVolleyCoordinator.visual_scene], today's plain [LightArrow].
+@export var visual_scene: PackedScene = null

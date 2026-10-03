@@ -1,7 +1,8 @@
-[gd_resource type="Resource" script_class="AmmoType" load_steps=3 format=3]
+[gd_resource type="Resource" script_class="AmmoType" load_steps=4 format=3]
 
 [ext_resource type="Script" path="res://attack/ammo/ammo_type.gd" id="1_ammo_type"]
 [ext_resource type="Resource" uid="uid://c7s5qybcqmll5" path="res://effects/status/poison.tres" id="2_poison_status"]
+[ext_resource type="PackedScene" path="res://ui/vfx/projectile/visual/status_arrow.tscn" id="3_visual"]
 
 [resource]
 script = ExtResource("1_ammo_type")
@@ -13,3 +14,4 @@ status_def = ExtResource("2_poison_status")
 status_power = 1.0
 per_reload_stat_id = &"poison_aspect"
 max_stock = 999
+visual_scene = ExtResource("3_visual")
