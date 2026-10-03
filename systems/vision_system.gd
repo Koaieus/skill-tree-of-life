@@ -80,7 +80,7 @@ signal vision_render_tick
 ## Lerp rate for circle radius animation. Higher = snappier. ~8 gives a
 ## ~90ms 90%-complete fade; 0 disables animation (instant snap).
 @export_range(0.0, 30.0, 0.1) var ease_rate: float = 8.0
-## The def whose rows draw scout discs (#1346): a node holding a row of it
+## The def whose rows draw scout discs: a node holding a row of it
 ## keyed by a viewer's camp lends that camp a disc of
 ## [method ScoutStatus.radius_for] at the row's power. Lifetime is the row's —
 ## it decays on the host's owner's turn end like any node status. Exported so
@@ -287,8 +287,11 @@ func _on_local_stat_created(id: StringName, stat: Stat) -> void:
 ## live and on a peer's replay alike) rather than a new bus fact. The handler
 ## filters, so a poison tick elsewhere never recomputes the fog.
 func _watch_statuses(node: SkillNode) -> void:
-	if node != null and not node.statuses_changed.is_connected(_on_node_statuses_changed):
-		node.statuses_changed.connect(_on_node_statuses_changed.bind(node))
+	if node == null:
+		return
+	var cb := _on_node_statuses_changed.bind(node)
+	if not node.statuses_changed.is_connected(cb):
+		node.statuses_changed.connect(cb)
 
 
 func _on_node_statuses_changed(node: SkillNode) -> void:

@@ -30,7 +30,7 @@ tray's ammo cards and `AIController._compose_volley` iterate the roster.
 | | `damage_scale` | raw-damage multiplier before mitigation |
 | | `max_stock` | the type's own bank cap, outside the shared quiver capacity (ADR 0041) |
 | | `per_reload_stat_id` | `<concept>_aspect` |
-| effect | `on_hit_effects` | `OnHitEffect` riders run in order on every landing arrow — usually one `ApplyStatusEffect` of the concept's `effects/status/<concept>.tres`, its `power` the stacks per landing arrow before potency × (1 − resistance). Spell-only effects (`SpellOnHitEffect`) are refused at load. A reveal type uses `reveal_fraction` / `reveal_stack_bonus` instead and never both |
+| effect | `on_hit_effects` | `OnHitEffect` riders run in order on every landing arrow — usually one `ApplyStatusEffect` of the concept's `effects/status/<concept>.tres`, its `power` the stacks per landing arrow before potency × (1 − resistance). Spell-only effects (`SpellOnHitEffect`) are refused at load. A scout type is one `ApplyStatusEffect(scouted.tres)` rider with `damage_scale` 0 (`AmmoType.is_scout()`) |
 | looks | — | **none per type today**: nothing in flight reads the `AmmoType`; the card text comes from `AmmoCard.effect_line`. A per-type look is an open fork (an `AmmoType` tint vs the volley coordinator reading `first_status_def().tint`) |
 
 Guards: `test/unit/attack/test_ammo_type_roster.gd` (roster vs disk, ids,

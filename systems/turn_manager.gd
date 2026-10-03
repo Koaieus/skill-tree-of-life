@@ -17,8 +17,7 @@ signal turn_started(entity: Entity)
 
 ## A REAL turn begin only — emitted by [method start_turn] right after
 ## [signal turn_started], never by [method adopt_turn]'s resync cursor. For a
-## listener whose state must advance once per turn actually served (scout-mark
-## decay), where [signal turn_started] would double-count a repaired mirror.
+## listener whose state must advance once per turn actually served, where [signal turn_started] would double-count a repaired mirror.
 signal real_turn_started(entity: Entity)
 signal turn_ended(entity: Entity)
 ## A classic initiative round closed (#1257) — see [member rounds_completed].

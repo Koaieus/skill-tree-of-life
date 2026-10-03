@@ -39,9 +39,8 @@ second rounding downstream.
 - **Poison loses 1 stack a tick, corruption none.** Poison and curse ship
   `FlatDecay 1` (integer-native, no rounding), corruption no decay slot, wither
   `FractionDecay 0.25` (8 → 6 → 4 → 3 → 2 → 1 → 0). Interim knobs until #1203.
-- **Scouted rides `FractionDecay` on a float mark.** Floor-kept, a 120-unit
-  disc steps toward 0 faster than the old halving; integer scouting is its own
-  design.
+- **Scouted is an integer row on `FlatDecay 1`** — one stack per host-owner
+  turn end; the disc is `ScoutStatus.radius_for` of the count.
 - **Floating-point noise.** `0.1 * 30` is `3.0000000000000004`; a bare `ceil`
   would land 4. `HitPoints.whole` snaps a magnitude within `is_equal_approx` of
   a whole to that whole before rounding up.
