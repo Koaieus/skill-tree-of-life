@@ -96,8 +96,7 @@ func test_build_blade_state_dispatches_dot_addon_to_its_own_vertex_only() -> voi
 	plan.blade_nodes = members
 	var state := plan.build_blade_state()
 
-	assert_eq(state.vertex_status_def.size(), 3, "one slot per vertex")
-	assert_null(state.vertex_status_def[0], "pivot: no status")
-	assert_null(state.vertex_status_def[1], "joint: no status")
-	assert_eq(state.vertex_status_def[2], toxin.status_def, "tip carries the toxin's status")
-	assert_eq(state.vertex_status_power[2], toxin.status_power)
+	assert_eq(state.vertex_on_hit.size(), 3, "one slot per vertex")
+	assert_eq(state.vertex_on_hit[0].size(), 0, "pivot: no rider")
+	assert_eq(state.vertex_on_hit[1].size(), 0, "joint: no rider")
+	assert_eq(state.vertex_on_hit[2], toxin.on_hit_effects, "tip carries the toxin's riders")

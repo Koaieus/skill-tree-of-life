@@ -201,7 +201,8 @@ func test_two_dot_addons_on_one_carrier_both_ride_every_contact_in_addon_order()
 		assert_eq(riders[i].structural_key, damage[0].structural_key, "rider %d: same beat" % i)
 		assert_eq(riders[i].target, damage[0].target, "rider %d: same node" % i)
 	assert_true(first.get_index() < second.get_index(), "fixture: toxin is the first addon")
-	assert_eq(riders[0].power_resolved, true, "landed on the authority's resolve")
+	assert_eq(riders[0].paired, damage[0], "first rider is the toxin's, riding its contact")
+	assert_eq(riders[1].paired, damage[0], "second rider is the second addon's, riding the same contact")
 
 
 func test_a_vertex_built_from_a_carrier_without_a_dot_addon_emits_only_its_damage() -> void:
@@ -236,7 +237,7 @@ func test_allocating_a_toxin_node_grants_the_owner_poison_arrows() -> void:
 
 ## The record ships the LANDED stacks; a second world rebuilds and lands them
 ## flat — no second potency pass (test_status_instance.gd's shape). A
-## BladeStatusInstance never crosses: the peer lands a plain StatusInstance.
+## paired status never crosses: the peer lands a plain StatusInstance.
 func test_the_record_replays_the_toxic_status_at_the_landed_power() -> void:
 	_attach_toxin(_tip)
 	var more_stacks := StatModifier.new()
@@ -260,6 +261,7 @@ func test_the_record_replays_the_toxic_status_at_the_landed_power() -> void:
 	assert_gt(landed.size(), 0, "fixture: a status landed")
 	if landed.is_empty():
 		return
+	assert_true(outcome.damage_hits().has(landed[0].paired), "the live rider is paired to its contact")
 	var authority_power := landed[0].power
 	assert_almost_eq(authority_power, 2.0, 0.0001, "1 stack x +50% stacks = 1.5, half-up to 2; no resistance")
 
@@ -269,7 +271,7 @@ func test_the_record_replays_the_toxic_status_at_the_landed_power() -> void:
 	assert_eq(replayed.size(), landed.size(), "every status rides the record")
 	if replayed.is_empty():
 		return
-	assert_false(replayed[0] is BladeStatusInstance, "a peer lands a plain StatusInstance")
+	assert_null(replayed[0].paired, "a peer lands a plain, unpaired StatusInstance")
 	assert_eq(replayed[0].def, _POISON)
 	assert_true(replayed[0].power_resolved, "rebuilt flat — the peer must not scale again")
 
@@ -301,3 +303,17 @@ func test_a_temp_toxin_on_a_blade_node_poisons_in_the_same_resolve() -> void:
 	var outcome := plan.resolve_against(CombatWorld.live())
 	assert_gt(_status_hits(outcome).size(), 0, "a temp toxin poisons like an authored one")
 	assert_gt(CombatWorld.live().combat_for(_plate).get_status_power(&"poison"), 0.0)
+
+
+# ── authoring ────────────────────────────────────────────────────────────────
+
+func test_a_spell_only_rider_is_refused_from_on_hit_effects() -> void:
+	var dot := DotAddon.new()
+	autofree(dot)
+	var status := ApplyStatusEffect.new()
+	status.def = _POISON
+	var effects: Array[OnHitEffect] = [DamageEffect.new(), status]
+	dot.on_hit_effects = effects
+	assert_push_error("is spell-only; refused from on_hit_effects")
+	assert_eq(dot.on_hit_effects.size(), 1, "the spell-only effect is dropped")
+	assert_eq(dot.on_hit_effects[0], status, "the mode-agnostic one is kept")

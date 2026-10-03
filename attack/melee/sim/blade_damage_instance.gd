@@ -13,8 +13,9 @@ extends DamageInstance
 
 var _event: BladeHitEvent
 var _gate: BladePopResolver.LiveGate
-## True once [method land_on] passed the gate — what a [BladeStatusInstance]
-## paired with this hit reads instead of re-asking the gate (#951).
+## True once [method land_on] passed the gate — what a status riding this
+## hit reads through [method landed] instead of re-asking the gate (#951): a
+## second `admit` of the same event can pop the vertex twice.
 var admitted: bool = false
 
 
@@ -54,3 +55,10 @@ func land_on(node: NodeCombat, world: CombatWorld) -> void:
 	var v_half := BladeState.stat_value(board, &"blade_speed_half", 0.0)
 	amount *= BladeState.speed_damage_multiplier(_event.speed, m, v_half)
 	super.land_on(node, world)
+
+
+## Melee's refusal is not a dud (#502 — [member HitInstance.gated] stays
+## false), so the paired gate is the admission itself: a refused contact
+## lands its riders as power-0 duds ([member StatusInstance.paired]).
+func landed() -> bool:
+	return admitted

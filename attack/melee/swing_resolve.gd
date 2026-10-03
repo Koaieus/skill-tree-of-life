@@ -413,19 +413,20 @@ func _land_batch(
 		# picture be stretched without re-simulating the blade.
 		di.structural_key = ev.t / maxf(0.001, _ctx.swing_duration)
 		sub.hits.append(di)
-		# #951: a toxic vertex pairs its damage with a status on the same beat
-		# (same key, later index) that lands iff the damage was admitted.
-		var status_def := state.vertex_status_def[ev.particle_idx]
-		if status_def != null:
-			var si := BladeStatusInstance.new(di)
-			si.def = status_def
-			si.power = state.vertex_status_power[ev.particle_idx]
-			si.target = di.target
-			si.origin = di.origin
-			si.source = di.source
-			si.attacker = di.attacker
-			si.structural_key = di.structural_key
-			sub.hits.append(si)
+		# #951: a toxic vertex's riders run on a landing paired to this
+		# contact — same beat, later index — and apply iff it was admitted.
+		var riders: Array = state.vertex_on_hit[ev.particle_idx]
+		if not riders.is_empty():
+			var landing := HitLanding.new()
+			landing.attacker = di.attacker
+			landing.source = di.source
+			landing.origin = di.origin
+			landing.target = di.target
+			landing.structural_key = di.structural_key
+			landing.paired = di
+			landing.hits = sub.hits
+			for effect in riders:
+				effect.apply(landing)
 	if sub.hits.is_empty():
 		return
 	sub.schedule = OutcomeSchedule.compile(sub)

@@ -907,7 +907,7 @@ var last_live_gate: BladePopResolver.LiveGate = null
 ## [method SkillNode.take_damage] when the real applier landed it) instead of
 ## re-deriving damage from a freshly rebuilt blade state, which drifts from
 ## what actually landed. Every [HitInstance] kind the swing produced — a
-## damage per vertex contact, and since #951 a [BladeStatusInstance] behind a
+## damage per vertex contact, and since #951 a rider [StatusInstance] behind a
 ## toxic vertex's; readers that want damage filter with `is DamageInstance`
 ## ([method AttackOutcome.damage_hits]'s shape).
 var last_hits: Array[HitInstance] = []
