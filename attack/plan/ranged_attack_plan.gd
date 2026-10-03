@@ -403,7 +403,7 @@ func is_scout_shot() -> bool:
 
 static func _is_scout_type(id: StringName) -> bool:
 	var t := _roster().by_id(id)
-	return t != null and t.reveal_fraction > 0.0
+	return t != null and t.is_scout()
 
 
 ## Owner (2026-09-18): "Firing costs 0 AP" — the volley economy is arrows
@@ -460,10 +460,6 @@ func resolve_against(world: CombatWorld) -> AttackOutcome:
 		d_max = maxf(d_max, shot.distance)
 		waves = maxi(waves, shot.wave + 1)
 	var span: float = (d_max - d_min) if shot_count > 0 else 0.0
-	# Scout arrows per firing leaf, in landing order (#1035): the k-th scout
-	# from one leaf lands `× (1 + reveal_stack_bonus·(k−1))` on that leaf's
-	# own vision_range — the radius is the leaf's, so the pile is too.
-	var scouts_from: Dictionary[SkillNode, int] = {}
 	for rank_i in shot_count:
 		var shot: FiringShot = schedule[rank_i]
 		# Exact `<= 0.0`, not is_equal_approx: this guards a DIVISION, and a
@@ -474,23 +470,6 @@ func resolve_against(world: CombatWorld) -> AttackOutcome:
 		# garbage, with no error.
 		var frac: float = 0.0 if span <= 0.0 else (shot.distance - d_min) / span
 		var key: float = (float(shot.wave) + frac) / float(maxi(waves, 1))
-		if shot.ammo_type != null and shot.ammo_type.reveal_fraction > 0.0:
-			# A scout arrow: no damage, no status — one RevealInstance on the
-			# arrow's beat. Never routed through compute/riders_for (hub #949:
-			# the mark is VisionSystem's fact, not a node status).
-			var k: int = scouts_from.get(shot.firing_node, 0) + 1
-			scouts_from[shot.firing_node] = k
-			var reveal := RevealInstance.new()
-			reveal.attacker = attacker
-			reveal.origin = shot.firing_node
-			reveal.target = shot.target
-			reveal.source = self
-			reveal.structural_key = key
-			var sight: float = float(shot.firing_node.get_local_value(&"vision_range"))
-			reveal.amount = sight * shot.ammo_type.reveal_fraction \
-					* (1.0 + shot.ammo_type.reveal_stack_bonus * float(k - 1))
-			outcome.hits.append(reveal)
-			continue
 		var hit := RangedDamageFormula.compute(attacker, shot.firing_node, shot.target, shot.ammo_type)
 		hit.source = self
 		hit.structural_key = key

@@ -149,12 +149,11 @@ vision_system = NodePath("../VisionSystem")
 unique_name_in_owner = true
 script = ExtResource("7_turn")
 
-[node name="VisionSystem" type="Node" parent="Systems" unique_id=872348382 node_paths=PackedStringArray("graph", "allocation_system", "turn_manager")]
+[node name="VisionSystem" type="Node" parent="Systems" unique_id=872348382 node_paths=PackedStringArray("graph", "allocation_system")]
 unique_name_in_owner = true
 script = ExtResource("9_vision")
 graph = NodePath("../../Graph")
 allocation_system = NodePath("../AllocationSystem")
-turn_manager = NodePath("../TurnManager")
 empty_mode = 2
 ease_rate = 2.5
 

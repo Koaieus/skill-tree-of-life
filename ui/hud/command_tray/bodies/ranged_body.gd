@@ -258,7 +258,7 @@ func _compose(plan: RangedAttackPlan) -> Dictionary:
 func _stock_for(t: AmmoType, scout_shot: bool) -> int:
 	if _quiver == null or t == null:
 		return 0
-	if scout_shot and t.reveal_fraction <= 0.0:
+	if scout_shot and not t.is_scout():
 		return 0
 	return _quiver.stock_of(t.id)
 

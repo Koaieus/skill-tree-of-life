@@ -32,7 +32,7 @@ func _sync_pick_sensed() -> void:
 			var quiver: Quiver = ranged.attacker.stat_board.arrows
 			if quiver != null:
 				for t in _AMMO_ROSTER.sorted():
-					if t.reveal_fraction > 0.0 and quiver.stock_of(t.id) > 0:
+					if t.is_scout() and quiver.stock_of(t.id) > 0:
 						want = true
 						break
 	vision.pick_sensed = want

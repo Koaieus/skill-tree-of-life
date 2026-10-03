@@ -10,8 +10,8 @@ extends Resource
 ## RangedDamageFormula.compute] scales the loosed amount by [member
 ## damage_scale] before mitigation, and [method RangedDamageFormula.riders_for]
 ## runs every one of [member on_hit_effects] for the same landing, so their
-## hits ride the arrow's beat. A scout type ([member reveal_fraction] > 0)
-## takes neither path — see [RevealInstance].
+## hits ride the arrow's beat. A scout type ([method is_scout]) is no
+## exception: its zero-damage arrow carries a `scout` stack like any rider.
 
 ## Bin key on the [Quiver]; the stat minting it is [member per_reload_stat_id].
 @export var id: StringName = &""
@@ -36,17 +36,6 @@ extends Resource
 			else:
 				kept.append(effect)
 		on_hit_effects = kept
-## A SCOUT type (#1035): `> 0` makes the arrow deal no damage at all — the
-## resolve emits one [RevealInstance] per arrow instead of a [DamageInstance]
-## — with radius `firing leaf's local vision_range × reveal_fraction`. Never
-## pair this with an [ApplyStatusEffect] rider: the mark is [VisionSystem]'s fact,
-## not a node status (hub #949).
-@export var reveal_fraction: float = 0.0
-## `+%` of that radius per added scout arrow in one volley — the k-th lands
-## `× (1 + reveal_stack_bonus·(k−1))`, where k counts scout arrows from the
-## SAME firing leaf in landing order (the radius is that leaf's; so is the
-## pile). Owner tunes.
-@export var reveal_stack_bonus: float = 0.0
 ## Entity-board stat id minting this type on reload. The base arrow's is
 ## `arrows_per_reload` (node-local, summed per leaf); specials are flat.
 @export var per_reload_stat_id: StringName = &""
@@ -69,3 +58,13 @@ func first_status_def() -> StatusDef:
 		if apply != null and apply.def != null:
 			return apply.def
 	return null
+
+
+## A scout type: one of its riders lands a [ScoutStatus] — the only kind that
+## may fly into fog at a sensed-only node.
+func is_scout() -> bool:
+	for effect in on_hit_effects:
+		var apply := effect as ApplyStatusEffect
+		if apply != null and apply.def is ScoutStatus:
+			return true
+	return false

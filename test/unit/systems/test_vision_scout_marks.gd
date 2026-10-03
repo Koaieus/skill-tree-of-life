@@ -162,6 +162,7 @@ func test_a_volley_of_four_lands_row_a_four_and_draws_its_disc() -> void:
 	assert_true(_vision.is_visible(_nodes.target), "the node itself")
 	assert_true(_vision.is_visible(_nodes.probe), "P at 190 is inside the 200 disc")
 	assert_false(_vision.is_visible(_nodes.neighbour), "the neighbour at 300 is not")
+	await get_tree().process_frame  # the recompute is deferred; the ease snaps on the next process
 	assert_almost_eq(_disc_at(_vision, _nodes.target), r4, 0.001, "the renderer draws it")
 	assert_true((_nodes.target as SkillNode).scouted, "the local camp's ring is on")
 

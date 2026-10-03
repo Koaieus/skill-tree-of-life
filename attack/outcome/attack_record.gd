@@ -445,11 +445,6 @@ static func rebuild(d: Dictionary, graph: Graph, rate: float = -1.0) -> AttackOu
 			if i < r.status_hosts.size():
 				si.host_kind = r.status_hosts[i] as StatusInstance.HostKind
 			hit = si
-		elif r.kinds[i] == int(HitInstance.Kind.REVEAL):
-			# A scout landing (#1033): the radius rides `amounts`, the firer
-			# `attackers`, the node `targets` — all assigned by the tail below.
-			hit = RevealInstance.new()
-			hit.amount = amount
 		elif r.kinds[i] == int(HitInstance.Kind.GATE_FLIP):
 			# The pairs back to [Gate]s by identity on THIS board; a pair the
 			# peer cannot resolve is dropped loudly rather than flipped blind.

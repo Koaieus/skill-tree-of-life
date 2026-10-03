@@ -1,6 +1,14 @@
-[gd_resource type="Resource" script_class="AmmoType" load_steps=2 format=3]
+[gd_resource type="Resource" script_class="AmmoType" load_steps=5 format=3]
 
 [ext_resource type="Script" path="res://attack/ammo/ammo_type.gd" id="1_ammo_type"]
+[ext_resource type="Resource" path="res://effects/status/scouted.tres" id="2_status"]
+[ext_resource type="Script" uid="uid://dw3civ4fol21f" path="res://attack/spell/on_hit/on_hit_effect.gd" id="5_on_hit_effect"]
+[ext_resource type="Script" uid="uid://c2q50hhtuf7g7" path="res://attack/spell/on_hit/apply_status_effect.gd" id="4_apply_status"]
+
+[sub_resource type="Resource" id="Resource_rider"]
+script = ExtResource("4_apply_status")
+def = ExtResource("2_status")
+power = 1.0
 
 [resource]
 script = ExtResource("1_ammo_type")
@@ -8,7 +16,6 @@ id = &"scout"
 display_name = "Scout Arrow"
 order = 120
 damage_scale = 0.0
-reveal_fraction = 0.5
-reveal_stack_bonus = 0.2
+on_hit_effects = Array[ExtResource("5_on_hit_effect")]([SubResource("Resource_rider")])
 per_reload_stat_id = &"scout_aspect"
 max_stock = 999

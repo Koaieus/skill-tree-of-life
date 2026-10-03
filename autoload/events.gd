@@ -92,14 +92,6 @@ signal blade_vertex_popped(defender: SkillNode, attacker: Entity, position: Vect
 ## nothing else. "Did *I* lose" is a fact about a MACHINE, not about the run, so
 ## [HudRoot] resolves it at display time from the local [SeatPolicy].
 signal run_ended(outcome: RunOutcome)
-
-## A scout landing revealed [param node]'s surroundings to [param viewer]'s
-## vision group: emitted by [method RevealInstance.land_on] on the LIVE world
-## only (a shadow land is a no-op — the preview shows no disc), so a peer
-## hears it from its own rebuilt [AttackRecord]. [param radius] is world
-## units. [VisionSystem] is the one consumer: it owns the resulting mark, its
-## per-viewer decay through `effects/status/scouted.tres`, and its circle.
-signal node_scouted(node: SkillNode, viewer: Entity, radius: float)
 #endregion
 
 #region UI feedback — presentation-only; nothing under systems/ or command/ connects here (revisit-when: it does)

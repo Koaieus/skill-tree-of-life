@@ -70,10 +70,9 @@ static func effect_line(t: AmmoType) -> String:
 	if t == null:
 		return ""
 	var parts: PackedStringArray = []
-	if t.reveal_fraction > 0.0:
-		# A scout deals nothing (#1035); its one fact is the sight fraction.
-		return "scouts ×%s sight" % NumFmt.num(t.reveal_fraction)
-	if not is_equal_approx(t.damage_scale, 1.0):
+	# A zero scale is no damage payload (ADR 0033), so no "×0 dmg": a scout
+	# reads as its rider alone.
+	if not is_equal_approx(t.damage_scale, 1.0) and not is_zero_approx(t.damage_scale):
 		parts.append("×%s dmg" % NumFmt.num(t.damage_scale))
 	for effect in t.on_hit_effects:
 		if effect == null:

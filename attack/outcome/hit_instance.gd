@@ -18,12 +18,11 @@ extends RefCounted
 ## (#878) adds a third value — never reclassified either, and deliberately
 ## excluded from [method AttackOutcome.damage_hits]'s filter, so an AI scorer
 ## or a "damage dealt" reader does not see a status application as a hit.
-## [RevealInstance] adds [constant Kind.REVEAL]: a scout arrow's landing, no
-## HP and no status — it carries a vision radius to [signal Events.node_scouted].
 ## [GateFlipInstance] adds [constant Kind.GATE_FLIP]: a melee fuse's timed gate
 ## flip, no HP — it carries gate pairs and the stranded set it cascaded.
-## Appended LAST: the wire carries `int(kind)`, so existing values never shift.
-enum Kind { DAMAGE, HEAL, STATUS, REVEAL, GATE_FLIP }
+## Appended LAST: the wire carries `int(kind)`, so existing values never shift —
+## 3 was a retired kind and stays unused.
+enum Kind { DAMAGE, HEAL, STATUS, GATE_FLIP = 4 }
 var kind: Kind = Kind.DAMAGE
 
 ## What [member amount] is denominated in. [constant AmountBasis.FLAT] is HP;
