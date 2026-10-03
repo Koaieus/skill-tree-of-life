@@ -1,7 +1,7 @@
 @tool
 extends StatusArrow
 
-## The poison arrow's look (owner, #1318's per-concept pass): a neon tip at
+## The owner's poison look: a neon tip at
 ## [constant Emissive.ALERT] fading back to the plain shaft along its length,
 ## and an occasional froth bubble left along the flight path.
 ##
@@ -48,6 +48,8 @@ func _paint_status() -> void:
 		tip.vertex_colors = PackedColorArray()
 	else:
 		var tail := Color(c.r, c.g, c.b, 0.0)
+		# The vertex colours alone author the tier; a non-white color would multiply in.
+		tip.color = Color.WHITE
 		tip.vertex_colors = PackedColorArray([Emissive.at(c, Emissive.ALERT), tail, tail])
 	froth.visible = has_status() and not _dud and not _absorbed
 	froth.modulate = Emissive.at(c, Emissive.LABEL)
