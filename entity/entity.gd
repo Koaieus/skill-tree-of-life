@@ -277,39 +277,34 @@ func grant_core_modifier(m: StatModifier) -> void:
 		stat_board.add_modifier(m)
 
 
-## The merge verb (#775) — SkillDust pickup routes an equivalent grant through
-## here instead of [method grant_core_modifier], so a 6th looted copy of the
-## same rule adds to one modifier's `value` rather than holding a 6th copy.
-## Class-template grants (`CoreClass.apply`) do NOT go through this — they
-## must keep appending the shared template untouched (decision 7); this is
-## purely the loot-side merge.
+## The merge verb — SkillDust pickup routes a looted grant through here
+## instead of [method grant_core_modifier]. A modifier FUSES into an existing
+## one (adds to its `value`, the coefficient) only if it carries a formula,
+## its op is ADD_BASE / INCREASE / ADD_BONUS, and its
+## [method StatModifierCodec.merge_key] (wire form minus `value`) matches.
+## That fuse is lossless: v₁·f + v₂·f = (v₁+v₂)·f. A formula MULTIPLY is not
+## (v·f × v·f ≠ 2v·f), SET has no composition, and a static modifier stays
+## discrete so it can be revoked and shown per item — each of those, and a
+## [CompositeStatModifier], is granted whole as its own bound instance.
+## Class-template grants (`CoreClass.apply`) never come through here: they
+## append the shared template untouched.
 ##
-## A [CompositeStatModifier] candidate never merges — it always appends whole
-## through [method grant_core_modifier], same as a no-match plain candidate.
-## A plain candidate is matched by [method StatModifier.merge_key] (same
-## stat_id/operation/formula, ignoring `value`) against, in order,
-## [member EntityStatBoard.intrinsic_modifiers] then [member core_modifiers] —
-## intrinsics first because the owner's own example merges a looted copy into
-## the default board rule. No match → the ordinary grant.
+## Targets are searched in [member EntityStatBoard.intrinsic_modifiers] first
+## (a looted copy merges into the default board rule), then
+## [member core_modifiers]. No match → the ordinary grant.
 ##
 ## A matched target in [member core_modifiers] with a non-empty
 ## [member Resource.resource_path] is a FILE-BACKED shared instance (a
 ## class-template grant — `CoreClass.apply` installs the same `.tres`
 ## modifier object on every entity of that class). Merging into it in place
-## would move every entity's stat and the file on disk. Privatised via
-## [method StatBoard.privatize_register_entry] first: swap the register slot
-## for an unshared `duplicate(true)`, rebind it on the board, merge into the
-## duplicate instead — the shared original is never touched. An intrinsic
-## should never be file-backed post-`duplicate(true)` (#775 spec, decision 6),
-## but as a guard a file-backed INTRINSIC match is skipped as a target
-## entirely (search continues into `core_modifiers`) rather than privatised —
-## intrinsics don't get the swap-the-slot treatment core_modifiers does.
+## would move every entity's stat and the file on disk, so it is privatised
+## via [method StatBoard.privatize_register_entry] first and the merge lands
+## on the unshared duplicate. A file-backed INTRINSIC is skipped as a target
+## (search continues into `core_modifiers`) rather than privatised.
 ##
-## Owns the WHOLE `stat_modifier_changed` emit for a SkillDust grant (#70: one
+## Owns the WHOLE `stat_modifier_changed` emit for a SkillDust grant: one
 ## event per leaf on an append, one event carrying the merged target on a
-## merge) — [SkillDustAddon._grant_mod] used to do this itself; folded in here
-## so the merge path and the append path cannot emit a different shape by
-## accident.
+## merge.
 func absorb_core_modifier(m: StatModifier) -> void:
 	if m == null:
 		return
@@ -317,6 +312,12 @@ func absorb_core_modifier(m: StatModifier) -> void:
 		grant_core_modifier(m)
 		for leaf in m.flatten():
 			Events.stat_modifier_changed.emit(self, leaf, ModifierBinding.Kind.CORE, true)
+		return
+	const FUSIBLE_OPS := [StatModifier.Operation.ADD_BASE, StatModifier.Operation.INCREASE,
+			StatModifier.Operation.ADD_BONUS]
+	if m.formula == null or not FUSIBLE_OPS.has(m.operation):
+		grant_core_modifier(m)
+		Events.stat_modifier_changed.emit(self, m, ModifierBinding.Kind.CORE, true)
 		return
 	var key := StatModifierCodec.merge_key(m)
 	# Intrinsics first (the owner's own example merges into the default board
