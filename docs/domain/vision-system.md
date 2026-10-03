@@ -63,8 +63,8 @@ Per-entity, derived from each allocated node:
 ### The vision RULE is one class, shared by every caller (#378)
 
 The scene carries exactly **one** `VisionSystem` instance, and its `viewers`
-is the **allied humans** — every *human-controlled* entity sharing the bound
-hero's `Faction`. The rule lives in `SeatPolicy.vision_group`
+is the **camp-mates** — every entity, AI or human, sharing the bound
+hero's `faction.id`. The rule lives in `SeatPolicy.vision_group`
 (`session/seat_policy.gd`, see [seat-policy.md](seat-policy.md)); `GameRoot`
 supplies the candidates in group order and writes the result
 (`_apply_seat_vision`, #459). In single player that is `[player]`; in hot-seat
