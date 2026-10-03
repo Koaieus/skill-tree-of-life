@@ -3,7 +3,7 @@ extends GutTest
 ## The formula dependency graph must be a DAG.
 ##
 ## A formula-bound modifier makes its `stat_id` depend on every id in
-## `formula.get_input_ids()` — "mana depends on intelligence". Those edges form
+## `formula.get_input_ids()` — "sensor_range depends on perception". Those edges form
 ## a graph, and that graph MUST be acyclic. Nothing enforced it before this file.
 ##
 ## `StatModifier._propagating` looks like it does, but it doesn't: it's a
@@ -122,7 +122,8 @@ func test_every_authored_core_class_is_acyclic_on_top_of_the_board() -> void:
 # The static checks above cover shipped content; this is the case they can't —
 # a modifier added at runtime (the #323 loot path) whose formula, once bound to
 # THIS board, closes a loop against something already live. The board's own
-# `mana` intrinsic (mana depends on intelligence, see default_entity_board.tres)
+# `sensor_range` intrinsic (sensor_range depends on perception, see
+# default_entity_board.tres)
 # is the real edge every case below closes a loop against.
 
 ## would_cycle reads what's actually APPLIED (Stat._modifiers via
@@ -136,14 +137,14 @@ func _board() -> EntityStatBoard:
 	return board
 
 
-## A candidate whose formula reads `mana` and targets `intelligence` closes
-## intelligence -> mana -> intelligence against the board's shipped
-## `mana` intrinsic (mana -> intelligence).
+## A candidate whose formula reads `sensor_range` and targets `perception`
+## closes perception -> sensor_range -> perception against the board's shipped
+## `sensor_range` intrinsic (sensor_range -> perception).
 func _cycle_closing_candidate() -> StatModifier:
 	var lin := LinearFormula.new()
-	lin.source_stat_id = &"mana"
+	lin.source_stat_id = &"sensor_range"
 	var m := StatModifier.new()
-	m.stat_id = &"intelligence"
+	m.stat_id = &"perception"
 	m.formula = lin
 	return m
 
@@ -152,7 +153,7 @@ func test_would_cycle_true_for_a_candidate_that_closes_a_loop_against_the_board(
 	var board := _board()
 	assert_true(
 		board.would_cycle(_cycle_closing_candidate()),
-		"intelligence <- mana closes a loop against the board's mana <- intelligence intrinsic"
+		"perception <- sensor_range closes a loop against the board's sensor_range <- perception intrinsic"
 	)
 
 
@@ -207,16 +208,16 @@ func test_would_cycle_false_for_a_formula_with_no_declared_inputs() -> void:
 
 func test_add_modifier_rejects_a_cycle_closing_modifier_and_leaves_the_board_unchanged() -> void:
 	var board := _board()
-	var mana_before: float = board.mana.value
-	var intelligence_before: float = board.intelligence.value
+	var sensor_before: float = board.sensor_range.value
+	var perception_before: float = board.perception.value
 	var candidate := _cycle_closing_candidate()
 
 	board.add_modifier(candidate)
 
-	assert_eq(board.mana.value, mana_before, "rejected modifier must not perturb mana")
-	assert_eq(board.intelligence.value, intelligence_before, "rejected modifier must not perturb intelligence")
+	assert_eq(board.sensor_range.value, sensor_before, "rejected modifier must not perturb sensor_range")
+	assert_eq(board.perception.value, perception_before, "rejected modifier must not perturb perception")
 	assert_false(
-		board.get_stat(&"intelligence").has_modifier(candidate),
+		board.get_stat(&"perception").has_modifier(candidate),
 		"rejected modifier must never be attached to its target stat"
 	)
 
@@ -225,15 +226,15 @@ func test_cycle_from_names_the_offending_path() -> void:
 	# The path is what add_modifier reports — m.stat_id can't do the job (it is
 	# empty on a composite, the case most worth diagnosing).
 	var cycle := _board().cycle_from(_cycle_closing_candidate())
-	assert_string_contains(cycle, "intelligence")
-	assert_string_contains(cycle, "mana")
+	assert_string_contains(cycle, "perception")
+	assert_string_contains(cycle, "sensor_range")
 
 
 func test_cycle_from_diagnoses_a_bundle_whose_stat_id_is_vestigial() -> void:
 	var bundle := CompositeStatModifier.new()
 	bundle.children = [_cycle_closing_candidate()]
 	assert_eq(bundle.stat_id, &"", "a composite's stat_id is inert — nothing to report from")
-	assert_string_contains(_board().cycle_from(bundle), "mana")
+	assert_string_contains(_board().cycle_from(bundle), "sensor_range")
 
 
 func test_a_pre_existing_cycle_elsewhere_does_not_condemn_an_unrelated_modifier() -> void:

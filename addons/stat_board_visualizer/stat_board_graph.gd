@@ -53,7 +53,7 @@ const _GROUP_LAYOUT := [
 		"x": 360.0,
 		"tint": Color(0.30, 0.45, 0.55, 0.35),
 		"stats": [
-			&"health", &"mana", &"xp", &"skill_points",
+			&"health", &"xp", &"skill_points",
 			&"action_points", &"deallocation_points", &"movement_points",
 		],
 	},
@@ -66,7 +66,7 @@ const _GROUP_LAYOUT := [
 		"stats": [
 			&"vision_range", &"sensor_range", &"node_health",
 			&"core_health_scaling", &"node_health_scaling",
-			&"xp_per_turn", &"mana_per_turn", &"initiative_speed",
+			&"xp_per_turn", &"initiative_speed",
 			&"blade_damage", &"blade_size",
 		],
 	},

@@ -281,7 +281,7 @@ func _reset_board(entity: Entity) -> void:
 		b.skill_points.staked = 0
 		b.skill_points.base_value = 60.0
 		b.skill_points.set_current(60.0)
-	for pool in [b.health, b.action_points, b.deallocation_points, b.mana]:
+	for pool in [b.health, b.action_points, b.deallocation_points]:
 		if pool != null:
 			pool.restore_to_full()
 

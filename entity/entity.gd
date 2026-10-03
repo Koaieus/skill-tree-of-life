@@ -687,7 +687,7 @@ func get_active_tags() -> Array[StringName]:
 ## NONE of it runs on the entity's FIRST turn: you open the game in the state
 ## you spawned in, not one free tick of income richer. Every pool is authored at
 ## its cap on `default_entity_board.tres`, so the skipped REFILLs and the
-## health/mana ADDs were no-ops anyway — what the skip actually removes is a
+## health ADD was a no-op anyway — what the skip actually removes is a
 ## turn of `xp_per_turn` that used to level a fresh entity before it had made a
 ## single move. See [member turns_taken].
 ## Registers [param node] on this entity's sparse spikes-spent set — called
@@ -867,7 +867,7 @@ func _spread_owned_node_statuses() -> void:
 ## node regen, class hook, spike regen, the `_on_turn_start` dispatch.
 func _apply_turn_upkeep() -> void:
 	# All pool upkeep is declarative — each pool replenishes per its def's
-	# per_turn_mode (AP/DP/movement REFILL, mana/xp ADD, skill_points CUSTOM
+	# per_turn_mode (AP/DP/movement REFILL, xp ADD, skill_points CUSTOM
 	# wound-heal, health HOST_ADD). New pools opt in via their def; nothing is
 	# wired here beyond the HOST_ADD hand-off below.
 	stat_board.apply_per_turn_upkeep()

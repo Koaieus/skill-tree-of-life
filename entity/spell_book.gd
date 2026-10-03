@@ -80,8 +80,8 @@ func source_count(spell: SpellDef) -> int:
 
 
 ## Spells whose source-side constraints are satisfied at [param source] for
-## [param attacker]. Mana check is NOT included here — that's per-cast and the
-## caller (MagicAttackPlan.validate / spell-picker enable state) layers it on.
+## [param attacker]. Per-cast gates (AP, range) are NOT included here — the
+## caller (MagicAttackPlan.validate / spell-picker enable state) layers them on.
 func castable_from(source: SkillNode, attacker: Entity) -> Array[SpellDef]:
 	var result: Array[SpellDef] = []
 	for spell in spells:
@@ -96,9 +96,9 @@ func castable_from(source: SkillNode, attacker: Entity) -> Array[SpellDef]:
 ##
 ## The one home for "can this node cast it": [SpellTargetUnion] and the
 ## spell-picker's no-caster gate both call THIS, rather than each re-deriving
-## min_degree against the owned subgraph. Mana is still not part of it, for the
-## same reason [method castable_from] leaves it out — it is per-cast, and the
-## picker layers it on as its own separate gate.
+## min_degree against the owned subgraph. Per-cast gates are still not part of
+## it, for the same reason [method castable_from] leaves them out — the picker
+## layers them on as their own separate gates.
 func eligible_sources(spell: SpellDef, attacker: Entity) -> Array[SkillNode]:
 	var out: Array[SkillNode] = []
 	if spell == null or attacker == null or attacker.navigator == null:

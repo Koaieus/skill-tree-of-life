@@ -22,7 +22,9 @@ enum LoadResult { OK, MISSING, CORRUPT, VERSION_MISMATCH }
 ##    would decode it as 0 and under-report lifetime XP.
 ## 4: a node row carries `_R_LAST_OWNED_VISION` (the sight a scout disc
 ##    reads off an unowned node).
-const FORMAT_VERSION := 4
+## 5: the board's stat set lost two ids (ADR 0045); an older file names stats
+##    this build no longer defines.
+const FORMAT_VERSION := 5
 ## The single slot — mirrors [constant Settings.SAVE_PATH]'s `user://` home.
 const SLOT_PATH := "user://save.bin"
 const MAGIC := "STLS"

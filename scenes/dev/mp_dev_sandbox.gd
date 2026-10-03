@@ -145,7 +145,7 @@ func _ready() -> void:
 	# promises the SAME graph with no seed on the wire — the opening actor is
 	# part of that same promise. Left wired to `player`, the CLIENT would open
 	# its OWN local turn on Blue while the host opens on Red, so Red's
-	# turn-start upkeep (AP/DP/mana refilled to cap) never fires on the
+	# turn-start upkeep (AP/DP refilled to cap) never fires on the
 	# client's own simulation — invisible until a verb spends deep enough into
 	# a budget for the missed refill to matter, which #532's sweep is the
 	# first thing to do. Disabled here; kicked off by hand on `_red` below,
@@ -199,7 +199,7 @@ func _setup_level() -> void:
 		seat_policy = SeatPolicy.seat(_blue.entity_id)
 	# Only for the sweep that needs it. Launched from the Multiplayer tab with
 	# the toggle off, this is an ordinary sandbox and Red is an ordinary level-1
-	# board — boosting there put 30 SP / 200 mana in front of a human who never
+	# board — boosting there put 30 SP / 12 AP in front of a human who never
 	# asked for a scripted run and read as a stat-system bug.
 	if _autopilot:
 		_boost_autopilot_budget()
@@ -230,8 +230,6 @@ func _boost_autopilot_budget() -> void:
 		board.action_points.base_value = 12.0
 	if board.deallocation_points != null:
 		board.deallocation_points.base_value = 10.0
-	if board.mana != null:
-		board.mana.base_value = 200.0
 
 
 func _parse_cmdline() -> void:

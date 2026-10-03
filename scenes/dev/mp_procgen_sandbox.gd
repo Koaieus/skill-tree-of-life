@@ -284,7 +284,7 @@ func _start_link() -> void:
 ##
 ## [b]The opening turn starts HERE, after sending, not in
 ## `_setup_level_as_host_or_solo`.[/b] `TurnManager.start_turn` unconditionally
-## fires `turn_started`, which is what runs turn-start upkeep (AP/DP/SP/mana/
+## fires `turn_started`, which is what runs turn-start upkeep (AP/DP/SP/
 ## wound-heal/node-refill — see `systems/turn_manager.gd`'s own class doc).
 ## Rung 1 gets away with calling it identically on both peers because its
 ## graph is hand-authored and never crosses the wire — both sides start from

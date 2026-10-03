@@ -82,7 +82,6 @@ const CAST_RANGE: float = 600.0
 ## same board rather than from whatever the last one left behind.
 const SKILL_POINTS: float = 60.0
 const ACTION_POINTS: float = 6.0
-const MANA: float = 10.0
 
 var graph: Graph
 var attacker: Entity
@@ -201,9 +200,6 @@ func _reset_board(entity: Entity) -> void:
 	if board.action_points != null:
 		board.action_points.base_value = ACTION_POINTS
 		board.action_points.current = ACTION_POINTS
-	if board.mana != null:
-		board.mana.base_value = MANA
-		board.mana.current = MANA
 	for pool in [board.health, board.deallocation_points]:
 		if pool != null:
 			pool.restore_to_full()

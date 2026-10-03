@@ -391,7 +391,7 @@ func report() -> String:
 			lines.append("      %s" % line)
 
 	lines.append("")
-	lines.append("  SCOPE — RESOLVE covers the seed, the AP/mana costs, and per landing its")
+	lines.append("  SCOPE — RESOLVE covers the seed, the AP cost, and per landing its")
 	lines.append("  target/origin/attacker/arrival/crit tier plus the whole propagation")
 	lines.append("  timeline: everything the plan and the seed determine. LAND covers the")
 	lines.append("  rest — what a peer computes by reading its OWN world as each landing")

@@ -43,7 +43,6 @@ const _WORLD_PADDING: float = 30.0
 ## Skill points have to cover all twenty authored claims.
 const SKILL_POINTS: float = 60.0
 const ACTION_POINTS: float = 6.0
-const MANA: float = 20.0
 
 ## `% increased cast_range_distance` granted to the cast-from node, folded over
 ## the spell's authored `max_distance` by [SpellRangeRules]. The playground
@@ -313,9 +312,6 @@ func _reset_board(entity: Entity) -> void:
 	if board.action_points != null:
 		board.action_points.base_value = ACTION_POINTS
 		board.action_points.current = ACTION_POINTS
-	if board.mana != null:
-		board.mana.base_value = MANA
-		board.mana.current = MANA
 	for pool in [board.health, board.deallocation_points]:
 		if pool != null:
 			pool.restore_to_full()
@@ -753,8 +749,8 @@ func _cast() -> void:
 		return
 	if not is_instance_valid(_spell) or _selected_target == null:
 		return
-	# The harness must never run dry: a spell costs mana and AP, and there is no
-	# turn loop here to give either back.
+	# The harness must never run dry: a spell costs AP, and there is no turn
+	# loop here to give it back.
 	_replenish_caster()
 	# The plan is already armed — it has been since the spell loaded, because it
 	# is what the rings are drawn from. Re-arming here is the same two clicks
@@ -846,5 +842,3 @@ func _replenish_caster() -> void:
 		return
 	if board.action_points != null:
 		board.action_points.restore_to_full()
-	if board.mana != null:
-		board.mana.restore_to_full()

@@ -18,7 +18,7 @@ extends StatFormula
 ## 100 → 10, 500 → 22, 1k → 32, 5k → 71, 20k → 141.
 ##
 ## [b]Only `sqrt` — never `log`/`exp`/`pow`.[/b] `log` was already tried and
-## reverted once (#547, mana-per-turn): every platform's libm rounds it
+## reverted once (#547, a per-turn regen ladder): every platform's libm rounds it
 ## differently in the last bits, and derived stats are recomputed on EVERY
 ## PEER rather than sent over the wire, so a Windows client and a Linux host
 ## would silently disagree. IEEE 754 requires `sqrt` to be correctly rounded,

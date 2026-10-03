@@ -11,7 +11,7 @@ correctly rounded, and `+ - * / sqrt` (plus fma) is the whole list it requires.
 Everything else is a libm approximation that differs in the last bits between
 platforms, and gameplay math routinely lands on the boundary where that matters:
 `floor(log(INT)/log(10))` was returning 2 at INT 1000 on glibc, one ulp short of
-3, for a whole missing point of mana regen.
+3, for a whole missing point of per-turn regen.
 
 Why it is a LINT and not just a fix: derived stats are recomputed locally on
 every peer rather than sent (host-authoritative intent-up / record-down, decided

@@ -51,35 +51,6 @@ pool_weight = 24.0
 tier_shape = SubResource("Resource_b0col")
 min_tier = 3
 
-[sub_resource type="Resource" id="Resource_fobbc"]
-script = ExtResource("3_7qv30")
-
-[sub_resource type="Resource" id="mana"]
-resource_name = "mana +"
-script = ExtResource("2_pool")
-stat_id = &"mana"
-subtypes = Array[ExtResource("90_nsub")]([ExtResource("91_sreg"), ExtResource("93_sble")])
-tags = Array[StringName]([&"int", &"flat", &"magic"])
-unit_value = 1.5
-range_floor = 0.5
-pool_weight = 45.0
-tier_shape = SubResource("Resource_fobbc")
-
-[sub_resource type="Resource" id="Resource_yqamp"]
-script = ExtResource("3_7qv30")
-
-[sub_resource type="Resource" id="mpt"]
-resource_name = "mana_per_turn +"
-script = ExtResource("2_pool")
-stat_id = &"mana_per_turn"
-subtypes = Array[ExtResource("90_nsub")]([ExtResource("91_sreg"), ExtResource("93_sble")])
-tags = Array[StringName]([&"int", &"flat", &"magic"])
-unit_value = 2.0
-range_floor = 1.0
-pool_weight = 4.5
-tier_shape = SubResource("Resource_yqamp")
-max_tier = 2
-
 [sub_resource type="Resource" id="Resource_yny3n"]
 script = ExtResource("3_7qv30")
 
@@ -169,4 +140,4 @@ min_tier = 2
 [resource]
 script = ExtResource("1_sp")
 archetype_stat = &"intelligence"
-pools = Array[ExtResource("2_pool")]([SubResource("ab"), SubResource("inc"), SubResource("mul"), SubResource("mana"), SubResource("mpt"), SubResource("Resource_0tuuk"), SubResource("mdt"), SubResource("Resource_u38nb"), SubResource("Resource_b5k8y"), SubResource("wither_pot"), SubResource("wither_res")])
+pools = Array[ExtResource("2_pool")]([SubResource("ab"), SubResource("inc"), SubResource("mul"), SubResource("Resource_0tuuk"), SubResource("mdt"), SubResource("Resource_u38nb"), SubResource("Resource_b5k8y"), SubResource("wither_pot"), SubResource("wither_res")])

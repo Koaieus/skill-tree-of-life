@@ -168,6 +168,6 @@ func apply(entity: Entity) -> void:
 
 ## Called from Entity.begin_turn after the entity's own upkeep.
 ## Default no-op; override for class-specific per-turn behavior
-## (mana regen for casters, rage decay for berserkers, etc.).
+## (a caster's focus tick, rage decay for berserkers, etc.).
 func on_turn_started(_entity: Entity) -> void:
 	pass

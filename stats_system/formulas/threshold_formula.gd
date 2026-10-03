@@ -8,7 +8,7 @@ extends StatFormula
 ## exactly as [RatioFormula]'s does.
 ##
 ## [b]This exists to keep transcendentals out of gameplay math[/b] (#547).
-## Mana-per-turn was authored as `floor(log(INT) / log(10.0))`, which is wrong
+## A per-turn regen stat was authored as `floor(log(INT) / log(10.0))`, which is wrong
 ## on glibc today — `log(1000.0)` lands one ulp below `3 * log(10.0)`, the
 ## ratio is `2.9999999999999996`, and `floor` turns that into a whole missing
 ## point of regen at INT 1000. It is also unfixable in principle: IEEE 754
@@ -27,7 +27,7 @@ extends StatFormula
 ## [b]It saturates.[/b] A finite list cannot climb forever, so the value tops
 ## out at `breakpoints.size()`. That is a deliberate authoring obligation, not
 ## a bug: extend the list past any value the stat can plausibly reach (the
-## shipped mana ladder runs to 1e6 INT), and pin the top of it in a test.
+## shipped sensor ladder runs to e^10 PER), and pin the top of it in a test.
 ## Use [RatioFormula] for the far more common ungated `source / N` line (the
 ## INT target floors its finished total once — #891).
 

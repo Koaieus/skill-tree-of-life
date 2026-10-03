@@ -127,7 +127,7 @@ theme_override_constants/separation = 16
 [node name="AutopilotToggle" type="CheckBox" parent="Margin/Box/Toggles"]
 unique_name_in_owner = true
 layout_mode = 2
-tooltip_text = "Drive every CommandApplier verb from Red's opening turn, so the pair is verifiable without clicking. Only the host sweeps, but the flag is sent to BOTH processes: it also fattens Red's budget (30 SP / 12 AP / 10 DP / 200 mana) so one turn can afford every verb, and that boost must match on both peers. Off, Red is an ordinary level-1 board."
+tooltip_text = "Drive every CommandApplier verb from Red's opening turn, so the pair is verifiable without clicking. Only the host sweeps, but the flag is sent to BOTH processes: it also fattens Red's budget (30 SP / 12 AP / 10 DP) so one turn can afford every verb, and that boost must match on both peers. Off, Red is an ordinary level-1 board."
 text = "Autopilot sweep"
 
 [node name="ProbeToggle" type="CheckBox" parent="Margin/Box/Toggles"]

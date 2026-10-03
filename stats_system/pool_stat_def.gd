@@ -7,7 +7,7 @@ extends StatDef
 ## the separate ephemeral game state.
 ##
 ## Concrete subclasses:
-##   - StandardPoolStatDef — fixed-cap pool (HP, mana, AP, …), optional
+##   - StandardPoolStatDef — fixed-cap pool (HP, AP, DP, …), optional
 ##     heal-on-cap-rise.
 ##   - GrowablePoolStatDef — gauge that grows when filled (XP), with a
 ##     post-grow mode (keep / reset / overflow).
@@ -23,7 +23,7 @@ extends StatDef
 ## .claude/rules/stats-system.md "Turn-start upkeep" for the verb model.
 ##   NONE   — no automatic upkeep (default).
 ##   REFILL — current restored to the cap. For reset-each-turn budgets (AP, DP, movement).
-##   ADD    — current += the value of the companion stat `&"<id>_per_turn"` (mana, xp),
+##   ADD    — current += the value of the companion stat `&"<id>_per_turn"` (xp),
 ##            or of [member per_turn_stat_id] when the rate stat is named
 ##            independently (health ← `core_healing`).
 ##   CUSTOM — dispatches to PoolStat._custom_turn_upkeep(board), a virtual the
@@ -45,8 +45,8 @@ enum PerTurnMode { NONE, REFILL, ADD, CUSTOM, HOST_ADD }
 @export var per_turn_mode: PerTurnMode = PerTurnMode.NONE
 
 ## ADD / HOST_ADD override: the id of the scalar carrying the per-turn amount. Empty
-## (the default) means the `<id>_per_turn` convention — mana reads
-## `mana_per_turn`, xp reads `xp_per_turn`. Set this only when the rate stat
+## (the default) means the `<id>_per_turn` convention — xp reads
+## `xp_per_turn`. Set this only when the rate stat
 ## has a name of its own: `health` replenishes by `core_healing` (D-25), which
 ## is named for the mechanic rather than for the pool it fills.
 @export var per_turn_stat_id: StringName = &""

@@ -10,8 +10,6 @@
 |---|---|
 | attacker_level | 5 |
 | attacker_owned_nodes | 12 |
-| casts_before_dry | 2 |
-| cheapest_cast_cost | 1 |
 | damage_per_ap_melee | 3.000 |
 | damage_per_ap_ranged | 3.000 |
 | defender_armor | 0.000 |
@@ -22,19 +20,15 @@
 | defender_node_max_hp | 44.000 |
 | defender_owned_nodes | 12 |
 | hits_to_drop_node | 15 |
-| mana_max | 10.000 |
-| mana_regen_per_turn | 1.000 |
 | melee_damage_raw | 2.000 |
 | melee_dpa_over_ranged_dpa | 1.000 |
 | mitigated_melee_damage | 3.000 |
 | mitigated_ranged_damage | 3.000 |
 | nodes_lost_before_death | 44.000 |
 | nodes_lost_before_death_fraction | 3.667 |
-| priciest_cast_cost | 5 |
 | ranged_damage_raw | 2.000 |
 | sp_income_at_level_marginal | 2.000 |
 | sp_income_at_level_max | 24.000 |
-| sustain_rate | 1.000 |
 | territory_growth_per_turn | 1.000 |
 | territory_growth_sp_per_level | 2.000 |
 | territory_growth_turns_per_level | 2 |
@@ -46,8 +40,6 @@
 |---|---|
 | attacker_level | 20 |
 | attacker_owned_nodes | 45 |
-| casts_before_dry | 2 |
-| cheapest_cast_cost | 1 |
 | damage_per_ap_melee | 3.000 |
 | damage_per_ap_ranged | 3.000 |
 | defender_armor | 0.000 |
@@ -58,19 +50,15 @@
 | defender_node_max_hp | 59.000 |
 | defender_owned_nodes | 45 |
 | hits_to_drop_node | 20 |
-| mana_max | 10.000 |
-| mana_regen_per_turn | 1.000 |
 | melee_damage_raw | 2.000 |
 | melee_dpa_over_ranged_dpa | 1.000 |
 | mitigated_melee_damage | 3.000 |
 | mitigated_ranged_damage | 3.000 |
 | nodes_lost_before_death | 59.000 |
 | nodes_lost_before_death_fraction | 1.311 |
-| priciest_cast_cost | 5 |
 | ranged_damage_raw | 2.000 |
 | sp_income_at_level_marginal | 2.000 |
 | sp_income_at_level_max | 90.000 |
-| sustain_rate | 1.000 |
 | territory_growth_per_turn | 1.000 |
 | territory_growth_sp_per_level | 2.000 |
 | territory_growth_turns_per_level | 2 |
@@ -82,8 +70,6 @@
 |---|---|
 | attacker_level | 50 |
 | attacker_owned_nodes | 111 |
-| casts_before_dry | 2 |
-| cheapest_cast_cost | 1 |
 | damage_per_ap_melee | 4.000 |
 | damage_per_ap_ranged | 4.000 |
 | defender_armor | 0.000 |
@@ -94,19 +80,15 @@
 | defender_node_max_hp | 89.000 |
 | defender_owned_nodes | 111 |
 | hits_to_drop_node | 23 |
-| mana_max | 10.000 |
-| mana_regen_per_turn | 1.000 |
 | melee_damage_raw | 4.000 |
 | melee_dpa_over_ranged_dpa | 1.000 |
 | mitigated_melee_damage | 4.000 |
 | mitigated_ranged_damage | 4.000 |
 | nodes_lost_before_death | 89.000 |
 | nodes_lost_before_death_fraction | 0.802 |
-| priciest_cast_cost | 5 |
 | ranged_damage_raw | 4.000 |
 | sp_income_at_level_marginal | 2.000 |
 | sp_income_at_level_max | 222.000 |
-| sustain_rate | 1.000 |
 | territory_growth_per_turn | 1.000 |
 | territory_growth_sp_per_level | 2.000 |
 | territory_growth_turns_per_level | 2 |
@@ -118,8 +100,6 @@
 |---|---|
 | attacker_level | 100 |
 | attacker_owned_nodes | 221 |
-| casts_before_dry | 2 |
-| cheapest_cast_cost | 1 |
 | damage_per_ap_melee | 6.000 |
 | damage_per_ap_ranged | 6.000 |
 | defender_armor | 0.000 |
@@ -130,19 +110,15 @@
 | defender_node_max_hp | 139.000 |
 | defender_owned_nodes | 221 |
 | hits_to_drop_node | 24 |
-| mana_max | 10.000 |
-| mana_regen_per_turn | 2.000 |
 | melee_damage_raw | 6.000 |
 | melee_dpa_over_ranged_dpa | 1.000 |
 | mitigated_melee_damage | 6.000 |
 | mitigated_ranged_damage | 6.000 |
 | nodes_lost_before_death | 139.000 |
 | nodes_lost_before_death_fraction | 0.629 |
-| priciest_cast_cost | 5 |
 | ranged_damage_raw | 6.000 |
 | sp_income_at_level_marginal | 2.000 |
 | sp_income_at_level_max | 442.000 |
-| sustain_rate | 2.000 |
 | territory_growth_per_turn | 1.000 |
 | territory_growth_sp_per_level | 2.000 |
 | territory_growth_turns_per_level | 2 |
@@ -226,8 +202,6 @@
 |---|---|
 | attacker_level | 20 |
 | attacker_owned_nodes | 45 |
-| casts_before_dry | 2 |
-| cheapest_cast_cost | 1 |
 | damage_per_ap_melee | 3.000 |
 | damage_per_ap_ranged | 3.000 |
 | defender_armor | 0.000 |
@@ -238,15 +212,12 @@
 | defender_node_max_hp | 59.000 |
 | defender_owned_nodes | 45 |
 | hits_to_drop_node | 20 |
-| mana_max | 10.000 |
-| mana_regen_per_turn | 1.000 |
 | melee_damage_raw | 2.000 |
 | melee_dpa_over_ranged_dpa | 1.000 |
 | mitigated_melee_damage | 3.000 |
 | mitigated_ranged_damage | 3.000 |
 | nodes_lost_before_death | 59.000 |
 | nodes_lost_before_death_fraction | 1.311 |
-| priciest_cast_cost | 5 |
 | ranged_damage_raw | 2.000 |
 | sp_income_at_level_marginal | 2.000 |
 | sp_income_at_level_max | 90.000 |
@@ -260,7 +231,6 @@
 | spell_dpa_The Trailblazer | 7.000 |
 | spell_dpa_best | 21.000 |
 | spell_dpa_over_melee_dpa | 7.000 |
-| sustain_rate | 1.000 |
 | turns_to_drop_core_naive | 20 |
 
 ## bunker_stack_L20
@@ -326,5 +296,3 @@ _fails this run._
 | armor_saturation_against_floor | TBD | 6.000 (range not yet pinned) | #332 invariants comment (2026-08-01, NOT the addendum): armor has a hard saturation point at `raw - min_damage_taken` — past it every further point of armor buys literally nothing (invisible wasted investment). Readout = armor − (raw_typical − min_damage_taken); positive means stacked authored armor sits past the floor. The fixture stacks the two real authored channels (bunker addon + node-content grant); note two bunker instances alone do NOT stack — instantiating the same addon .tscn twice shares one StatModifier sub-resource and the second is a no-op (`bunker_stack_armor` prints that reality). Addendum: magnitudes are a tuning knob, not a design problem, but the saturation shape is scale-invariant, so the guard stays meaningful after any retune |
 | min_damage_taken_nonpositive_immortality | TBD | 3.000 (range not yet pinned) | #332 invariants comment (2026-08-01): the `min_damage_taken <= 0` sign-flip half is NOT a number tweak — with a nonpositive min-clamp and armor >= raw, final <= 0, the node never depletes and D-10's cascade guarantee is undone. Asserted per scenario (`defender_min_damage_taken` is a readout in every row): a nonpositive reading means someone imported a negative min-clamp; positive means no immortality flip present |
 | node_hp_ratchet_per_dp | TBD | 225.000 (range not yet pinned) | D-31 (comment on #268, 2026-08-02): one DP buys `delta × owned_nodes` effective HP across the owned subgraph — SkillNode's re-sync (`_on_entity_node_health_changed` → `PoolStat.set_base_ratcheted`) fans an entity node_health rise to every owned node's current; payoff scales with territory while the cost stays flat. Measured at L1/L20/L100 in the con_node_ratchet row (all three readouts printed); watch it not outrun the forced-dealloc chip rate — same D-10 anti-camping failure mode as core_healing_vs_cascade_chip_rate |
-| casts_before_dry | TBD | 2 (range not yet pinned) | D-34 (Mana invariants comment on #268, 2026-08-03): count of the highest-cost SpellDef (full `_SPELL_POOL`, real mana_cost) a fresh FULL pool sustains from max to empty, ignoring regen. Computed per L5/L20/L50/L100 mirror from the real pool (`mana` = 10 + INT/10); INT comes from real level-up grants (mid-WIS build — D-15 monotone WIS-excluded grants, so INT tracks level). Must never read infinite; should grow meaningfully slower than damage |
-| sustain_rate | TBD | 1.000 (range not yet pinned) | D-34 (same Mana invariants comment, 2026-08-03): `regen / cheapest_cost` — sustained casts/turn of the cheapest spell at steady state, regen from the real `mana_per_turn` formula (floor(log10(INT))). Proves log-regen actually binds at high INT: the rate is linear in regen but log in INT, and the curve biting is what the printed value shows. Same L5/L20/L50/L100 mirrors as casts_before_dry |

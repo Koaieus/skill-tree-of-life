@@ -72,7 +72,7 @@ func _ready() -> void:
 	# `⟳ RESYNC pushed — … (fp N)` and the client's `⟳ resync applied — … (fp N)`
 	# sample the SAME world, whereas the two FIRST TURN lines are each taken at
 	# their own machine's turn start and so straddle whatever the turn start
-	# itself moves (regen, mana). See [method MpHarness._announce_first_turn_for_rung_3].
+	# itself moves (regen, refills). See [method MpHarness._announce_first_turn_for_rung_3].
 	#
 	# Printed on EVERY online run since 2026-09-06, not only under the rung-3
 	# flag: it goes to stdout and so to `user://logs/godot.log`, which is the

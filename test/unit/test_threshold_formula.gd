@@ -1,7 +1,7 @@
 extends GutTest
 
-## #547 — mana-per-turn was `floor(log(INT) / log(10.0))`, which returns 2 at
-## INT 1000 on glibc: `log(1000.0)` is one ulp below `3 * log(10.0)`, the ratio
+## #547 — a per-turn regen ladder was `floor(log(INT) / log(10.0))`, which
+## returns 2 at INT 1000 on glibc: `log(1000.0)` is one ulp below `3 * log(10.0)`, the ratio
 ## is 2.9999999999999996, and `floor` turns that into a whole missing point of
 ## regen. IEEE 754 specifies only `+ - * / sqrt` to be correctly rounded, so
 ## that is not a glibc bug to wait out — every libm approximates `log`
@@ -10,9 +10,8 @@ extends GutTest
 ## disagree for a whole run.
 ##
 ## Four things are pinned here:
-##   1. Mana-per-turn is exact at every power of ten and on both sides of it —
-##      the range the issue asked for, plus the top of the ladder, which the
-##      issue's range could not see.
+##   1. The shipped sensor ladder is exact at every rung and on both sides of
+##      it, up to the top of the ladder.
 ##   2. Sensor-range's replacement is EXACTLY `floor(ln(PER))` for every
 ##      integer PER in range. The #547 migration (log -> threshold) changed no
 ##      value; the source stat itself later moved from WIS to PER (owner call
@@ -48,46 +47,44 @@ func _shipped(stat_id: StringName) -> ThresholdFormula:
 	return null
 
 
-# --- 1. Mana per turn --------------------------------------------------------
+# --- 1. The shipped ladder is exact at every rung ----------------------------
 
-func test_shipped_mana_ladder_is_exact_at_every_rung() -> void:
-	# #766 moved the ladder (owner tunes the rungs; this reads them off the
-	# shipped formula rather than pinning the literals) — but the property
-	# from #547 survives the move unconditionally: glibc's `log` lands one
-	# ulp under at an exact decade, so a rung must be exact AT the boundary
-	# itself, not just nearby.
-	var f := _shipped(&"mana_per_turn")
-	assert_not_null(f, "default board grants mana_per_turn via a ThresholdFormula")
+func test_shipped_sensor_ladder_is_exact_at_every_rung() -> void:
+	# The property from #547, read off the shipped formula rather than pinned
+	# literals (the owner tunes the rungs): glibc's `log` lands one ulp under
+	# at an exact boundary, so a rung must be exact AT the boundary itself,
+	# not just nearby.
+	var f := _shipped(&"sensor_range")
+	assert_not_null(f, "default board grants sensor_range via a ThresholdFormula")
 	var rungs: Array[float] = f.breakpoints
 	assert_gt(rungs.size(), 0, "the shipped ladder has at least one rung")
 	for i in rungs.size():
 		var bp: float = rungs[i]
 		for pair in [[bp - 1.0, float(i)], [bp, float(i + 1)], [bp + 1.0, float(i + 1)]]:
-			_board.intelligence.base_value = pair[0]
+			_board.perception.base_value = pair[0]
 			assert_eq(f.compute(_board), pair[1],
-				"INT %s -> %s mana/turn (rung %d)" % [pair[0], pair[1], i])
+				"PER %s -> %s sensor range (rung %d)" % [pair[0], pair[1], i])
 
 
-func test_shipped_mana_ladder_saturates_rather_than_stopping_short() -> void:
+func test_shipped_sensor_ladder_saturates_rather_than_stopping_short() -> void:
 	# Below the first rung: nothing yet. Well past the last: saturates at
 	# the ladder's own length, never climbs further and never stops short.
-	var f := _shipped(&"mana_per_turn")
+	var f := _shipped(&"sensor_range")
 	var rungs: Array[float] = f.breakpoints
 	assert_gt(rungs.size(), 0, "the shipped ladder has at least one rung")
-	_board.intelligence.base_value = rungs[0] - 1.0
+	_board.perception.base_value = rungs[0] - 1.0
 	assert_eq(f.compute(_board), 0.0, "below the first rung grants nothing yet")
-	_board.intelligence.base_value = rungs[-1] * 5.0
+	_board.perception.base_value = rungs[-1] * 5.0
 	assert_eq(f.compute(_board), float(rungs.size()),
 		"well past the last rung saturates at the ladder's length")
 
 
-func test_mana_no_longer_goes_NEGATIVE_at_zero_intelligence() -> void:
-	# `floor(log(max(1e-5, float(0))) / log(10.0))` is floor(-5) = -5. A
-	# debuff that zeroed INT drained five mana a turn. Deliberate fix, not an
-	# accident of the migration.
-	var f := _shipped(&"mana_per_turn")
-	_board.intelligence.base_value = 0.0
-	assert_eq(f.compute(_board), 0.0, "INT 0 grants nothing, never negative")
+func test_sensor_ladder_never_goes_NEGATIVE_at_zero_perception() -> void:
+	# `floor(log(max(1e-5, float(0))))` is negative. A debuff that zeroed the
+	# source stat must grant nothing, never a negative amount.
+	var f := _shipped(&"sensor_range")
+	_board.perception.base_value = 0.0
+	assert_eq(f.compute(_board), 0.0, "PER 0 grants nothing, never negative")
 
 
 # --- 2. Sensor range is value-identical to floor(ln(WIS)) --------------------
@@ -160,10 +157,8 @@ func test_missing_source_stat_returns_zero() -> void:
 
 func test_geometric_ladder_generates_its_own_multiplier_phrase() -> void:
 	# Read off the same array compute() walks, so the shown number and the
-	# computed number cannot drift — the RatioFormula principle. Hand-built,
-	# not the shipped mana_per_turn: #766 moved that ladder's first rung off
-	# its common ratio (starts at 1000, steps by ×10), so it is no longer
-	# this shape — see test_a_ladder_not_starting_at_its_ratio_is_not_geometric.
+	# computed number cannot drift — the RatioFormula principle. Hand-built:
+	# no shipped ladder is geometric today.
 	assert_eq(_threshold(&"intelligence", [10.0, 100.0, 1000.0] as Array[float])
 		.describe_per(), "×10 INT")
 
@@ -187,8 +182,8 @@ func test_a_ladder_not_starting_at_its_ratio_is_not_geometric() -> void:
 # here, right next to the geometric clause it must stay unchanged for.
 
 func test_geometric_ladder_clause_is_unchanged() -> void:
-	# Hand-built, not the shipped mana_per_turn — see the comment on
-	# test_geometric_ladder_generates_its_own_multiplier_phrase (#766).
+	# Hand-built — see the comment on
+	# test_geometric_ladder_generates_its_own_multiplier_phrase.
 	assert_eq(_threshold(&"intelligence", [10.0, 100.0, 1000.0] as Array[float])
 		.describe_clause(), " per ×10 INT")
 

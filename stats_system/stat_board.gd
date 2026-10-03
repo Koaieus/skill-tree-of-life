@@ -329,7 +329,7 @@ func would_cycle(m: StatModifier) -> bool:
 
 
 ## The dependency cycle applying [param m] would close, as a printable path
-## ("intelligence -> mana -> intelligence"), or "" when it closes none (#322 —
+## ("perception -> sensor_range -> perception"), or "" when it closes none (#322 —
 ## the runtime half of test_stat_dependency_graph.gd's static DAG check; a
 ## looted formula modifier rebinding to a new board is the case that check
 ## can't cover).

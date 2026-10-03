@@ -806,7 +806,7 @@ func _new_beat_clock() -> BeatClock:
 ## depleted node and every node disconnected from the defender's core when
 ## it leaves are force-dealloc'd. Each cascaded node costs the defender:
 ##   * 1 wounded SP — currency exchange (invested SP → wounded, reserves a
-##     slot in the pool until healed, mirrors PoE mana reservation).
+##     slot in the pool until healed, mirrors PoE's reserved-pool slots).
 ##   * `dealloc_damage` HP off the entity's `health` pool — bypass-mitigation
 ##     chip damage tunable per class.
 ##

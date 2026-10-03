@@ -7,7 +7,7 @@ extends Node
 ##
 ## Per the GDD: initiative ticks until 100 → entity acts → end_turn deducts
 ## 100 initiative and the cycle resumes. A single implicit phase per turn:
-## all per-turn budgets (AP / DP / SP / XP / mana / wound-heal / node-refill)
+## all per-turn budgets (AP / DP / SP / XP / wound-heal / node-refill)
 ## replenish at `turn_started` and the entity spends them in any order until
 ## End Turn. Intent (allocate vs deallocate vs attack vs cast vs move-core) is
 ## disambiguated by INPUT CHANNEL, not by phase — see PlayerInputController.

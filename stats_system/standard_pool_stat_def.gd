@@ -2,7 +2,7 @@
 class_name StandardPoolStatDef
 extends PoolStatDef
 
-## A fixed-cap pool (HP, mana, action points, deallocation points, …) — one
+## A fixed-cap pool (HP, action points, deallocation points, …) — one
 ## whose cap moves only via the modifier pipeline and which has no behaviour of
 ## its own when it fills.
 ##

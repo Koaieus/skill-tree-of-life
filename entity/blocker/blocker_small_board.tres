@@ -24,8 +24,6 @@
 [ext_resource type="Resource" uid="uid://bqvqe5cem0wr0" path="res://stats_system/defs/health.tres" id="def_health"]
 [ext_resource type="Resource" uid="uid://cws6dhm8bjilt" path="res://stats_system/defs/intelligence.tres" id="def_intelligence"]
 [ext_resource type="Resource" path="res://stats_system/defs/level.tres" id="def_level"]
-[ext_resource type="Resource" uid="uid://bg6cwjkthl08d" path="res://stats_system/defs/mana.tres" id="def_mana"]
-[ext_resource type="Resource" path="res://stats_system/defs/mana_per_turn.tres" id="def_mana_per_turn"]
 [ext_resource type="Resource" path="res://stats_system/defs/min_damage_taken.tres" id="def_min_dmg_taken"]
 [ext_resource type="Resource" uid="uid://cuwrjp66o6bnx" path="res://stats_system/defs/movement_points.tres" id="def_movement_points"]
 [ext_resource type="Resource" path="res://stats_system/defs/node_healing.tres" id="def_node_healing"]
@@ -153,29 +151,6 @@ script = ExtResource("2_scalar")
 definition = ExtResource("def_intelligence")
 base_value = 10.0
 
-[sub_resource type="Resource" id="formula_int_to_mana"]
-script = ExtResource("script_ratio")
-source_stat_id = &"intelligence"
-divisor = 1000.0
-
-[sub_resource type="Resource" id="mod_int_to_mana"]
-resource_name = "+1 Max Mana per 1000 INT"
-script = ExtResource("12_3edt8")
-stat_id = &"mana"
-formula = SubResource("formula_int_to_mana")
-
-[sub_resource type="Resource" id="formula_int_to_mana_pt"]
-script = ExtResource("script_threshold")
-source_stat_id = &"intelligence"
-breakpoints = Array[float]([10.0, 100.0, 1000.0, 10000.0, 100000.0])
-per_phrase = "10-fold of INT"
-
-[sub_resource type="Resource" id="mod_int_to_mana_pt"]
-resource_name = "+1 Mana / Turn per 10-fold of INT"
-script = ExtResource("12_3edt8")
-stat_id = &"mana_per_turn"
-formula = SubResource("formula_int_to_mana_pt")
-
 [sub_resource type="Resource" id="formula_wis_to_xp_pt"]
 script = ExtResource("script_ratio")
 source_stat_id = &"wisdom"
@@ -288,18 +263,6 @@ resource_name = "level"
 script = ExtResource("2_scalar")
 definition = ExtResource("def_level")
 base_value = 1.0
-
-[sub_resource type="Resource" id="pool_mana"]
-resource_name = "mana"
-script = ExtResource("3_pool")
-current = 10.0
-definition = ExtResource("def_mana")
-base_value = 10.0
-
-[sub_resource type="Resource" id="scalar_mana_per_turn"]
-resource_name = "mana_per_turn"
-script = ExtResource("2_scalar")
-definition = ExtResource("def_mana_per_turn")
 
 [sub_resource type="Resource" id="scalar_min_dmg_taken"]
 resource_name = "min_damage_taken"
@@ -459,8 +422,6 @@ vision_range = SubResource("scalar_vision_range")
 sensor_range = SubResource("scalar_sensor_range")
 range = SubResource("scalar_range")
 ranged_damage = SubResource("scalar_ranged_damage")
-mana = SubResource("pool_mana")
-mana_per_turn = SubResource("scalar_mana_per_turn")
 cast_range_distance = SubResource("scalar_cast_range_distance")
 cast_range_hops = SubResource("scalar_cast_range_hops")
 spell_damage = SubResource("scalar_spell_damage")
@@ -468,4 +429,4 @@ blade_size = SubResource("scalar_blade_size")
 blade_damage = SubResource("scalar_blade_damage")
 crit_chance = SubResource("scalar_crit_chance")
 crit_multiplier = SubResource("scalar_crit_multiplier")
-intrinsic_modifiers = Array[ExtResource("12_3edt8")]([SubResource("mod_int_to_mana"), SubResource("mod_int_to_mana_pt"), SubResource("mod_wis_to_xp_pt"), SubResource("mod_str_to_blade_damage"), SubResource("mod_str_to_blade_size"), SubResource("mod_dex_to_range"), SubResource("mod_int_to_cast_range_distance"), SubResource("mod_int_to_cast_range_hops"), SubResource("mod_dex_to_ranged_damage"), SubResource("mod_int_to_spell_damage"), SubResource("mod_con_to_node_health"), SubResource("mod_level_to_con")])
+intrinsic_modifiers = Array[ExtResource("12_3edt8")]([SubResource("mod_wis_to_xp_pt"), SubResource("mod_str_to_blade_damage"), SubResource("mod_str_to_blade_size"), SubResource("mod_dex_to_range"), SubResource("mod_int_to_cast_range_distance"), SubResource("mod_int_to_cast_range_hops"), SubResource("mod_dex_to_ranged_damage"), SubResource("mod_int_to_spell_damage"), SubResource("mod_con_to_node_health"), SubResource("mod_level_to_con")])
