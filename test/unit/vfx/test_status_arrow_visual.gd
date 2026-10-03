@@ -10,6 +10,7 @@ const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _POISON: AmmoType = preload("res://attack/ammo/types/poison.tres")
 const _STATUS_ARROW := "res://ui/vfx/projectile/visual/status_arrow.tscn"
+const _POISON_ARROW := "res://ui/vfx/projectile/visual/arrows/poison_arrow.tscn"
 const _LIGHT_ARROW := "res://ui/vfx/projectile/visual/light_arrow.tscn"
 
 var _graph: Graph
@@ -65,7 +66,7 @@ func _spawned_scenes(outcome: AttackOutcome) -> Array[String]:
 
 func test_a_poison_shot_flies_the_status_arrow_and_a_base_shot_the_light_arrow() -> void:
 	var scenes := await _spawned_scenes(_outcome())
-	assert_eq(scenes, [_STATUS_ARROW, _LIGHT_ARROW] as Array[String],
+	assert_eq(scenes, [_POISON_ARROW, _LIGHT_ARROW] as Array[String],
 			"each shot's visual is its ammo type's scene; the base keeps the default")
 
 
@@ -73,7 +74,7 @@ func test_a_rebuilt_record_picks_the_same_scenes() -> void:
 	var wire: Dictionary = bytes_to_var(var_to_bytes(AttackRecord.capture(_outcome(), _graph)))
 	var rebuilt := AttackRecord.rebuild(wire, _graph)
 	var scenes := await _spawned_scenes(rebuilt)
-	assert_eq(scenes, [_STATUS_ARROW, _LIGHT_ARROW] as Array[String],
+	assert_eq(scenes, [_POISON_ARROW, _LIGHT_ARROW] as Array[String],
 			"a peer replaying the record draws the arrows the host drew")
 
 
