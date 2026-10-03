@@ -97,7 +97,7 @@ per target node:
     if attacking_node.health <= 0 → attacking_node severed → island check (immediate)
 ```
 
-**Defense once per target — the spine's intent, not what shipped.** The design summed a combined strike (a volley's leaves, a blade's contacts) into one `outgoing` per target and subtracted `armor`/`resist` **once**. Ranged shipped per arrow instead — armor applies per landing (#496) — and every hit rolls its own crit.
+**Defense once per target — the spine's intent, not what shipped.** The design summed a combined strike (a volley's leaves, a blade's contacts) into one `outgoing` per target and subtracted `armor`/`resist` **once**. What shipped applies `armor` per hit instead — per arrow landing and per blade contact alike, each hit rolling its own crit (`../domain/defense-axes.md`).
 
 **`min_damage_taken`** floors a hit after reductions, and below `0` a hit heals — shipped (`attack/formulas/mitigation.gd`). The unbuilt Bulwark class would start at `3` with a class path to reduce it.
 
@@ -142,7 +142,7 @@ The 4-color-theorem resonance (planar graphs are 4-colorable) is a **red herring
 
 **Dual-color nodes:** A R/B node picks which color it attacks with per swing. Open: free choice per attack, or inherited from source node?
 
-**Utility colors (White/Gold/Purple):** No attack, no triangle slot. **White (CON)** scales node/core HP and weights armor affixes; **Gold (WIS)** drives XP-gain and carries growth modifiers — the economic objective entities fight over; **Purple (PER)** drives vision/sensor range (information as weapon). See the roster table above.
+**Utility colors (White/Gold/Purple):** No attack, no triangle slot. **White (CON)** scales node/core HP (affixes roll from the node colour's pool — `../domain/procgen-v4.md`; armor is not a White affix); **Gold (WIS)** drives XP-gain and carries growth modifiers — the economic objective entities fight over; **Purple (PER)** drives vision/sensor range (information as weapon). See the roster table above.
 
 ---
 
@@ -296,7 +296,7 @@ Grid/mesh-owners earn giant cleavers; filament-owners get giant flails. A Godot 
 **Swing profile — the velocity pattern is the way forward, but as a *choice*, never analog input.** How the handle accelerates from A→B governs whether a whip snaps, resonates, or flops worse than it had to. This genre puts all skill in **build/decision, none in execution dexterity** ("not a Wii game"), so:
 
 - **Baseline:** the engine auto-drives a **canonical, deterministic, learnable** profile — predictable over theoretically-optimal (a hidden optimizer would feel opaque). Aim is the only live input.
-- **Depth:** the profile is a **discrete, pre-committed technique** (e.g. `smooth sweep`, `crack` = late-acceleration whip-snap, `follow-through`), optionally stat/class-gated — chosen before the swing like choosing an attack, not flicked in real time.
+- **Depth (unbuilt — `blade_trajectory.gd` has no presets):** the profile could be a **discrete, pre-committed technique** (e.g. `smooth sweep`, `crack` = late-acceleration whip-snap, `follow-through`), optionally stat/class-gated — chosen before the swing like choosing an attack, not flicked in real time.
 - **Depth lands where physics asks for it:** technique transforms a **whip** (snap/resonance) but does ~nothing to a **rigid pan** (it just sweeps). So profile-choice is automatically a whip-build's decision layer and a non-issue for cleavers.
 
 **Representation — a profile is an easing function.** Concretely a normalized angular curve `θ̂(t̂): [0,1]→[0,1]` (its derivative = angular velocity, so the curve shape *is* the snap/resonance behavior). Map cleanly to Godot:
@@ -356,7 +356,7 @@ Self-loops add **+2 degree** and never make a leaf — shipped (`SkillNode.self_
 
 ### The glass cannon — triple magic damage
 
-A propagating spell that arrives at a self-looped node follows **all** edges out — including the self-loop. A self-loop contributes +2 degree, meaning it presents **two half-edges** both returning to the same node. The spell follows both, landing back at the node twice:
+How a propagating spell treats a self-loop today — two incidents returning in the next wave, collapsed by the spell's reducer and vetoed by its filters — is `../domain/spell-propagation.md`'s. The glass cannon is what that *could* add up to: a spell built to follow the loop and sum its returns would land on the node three times from one arrival:
 
 ```
 1. Spell arrives at node          → hit 1 (initial)
@@ -364,9 +364,7 @@ A propagating spell that arrives at a self-looped node follows **all** edges out
 3. Propagation follows loop ×2    → arrives at same node → hit 3
 ```
 
-**Baseline: three hits from one spell's arrival.** This is pure math — no special casing required. The self-loop is two edges; the spell follows them both.
-
-**What happens after hits 2 and 3 is entirely spell-dependent** — no global constraint:
+**What happens after hits 2 and 3 would be entirely spell-dependent** — no global constraint:
 - A hop-limited spell decrements depth at each return; eventually bottoms out.
 - A spell with visited-node protection marks the node and stops further returns.
 - An amplifying spell could escalate further — the self-looped node is a resonance chamber.
@@ -513,7 +511,6 @@ After Breakout the new starting node arrives with **zero edges** (every Tether w
 
 ## Design Tensions (Unresolved)
 
-1. **Armor per-hit vs per-target.** The spine wants defense once per target; ranged shipped per landing (#496). Whether melee should sum contacts before armor is open — the shipped blade is `../domain/melee-blade-sim.md`.
 3. **Triangle: emergent resist vs hardcoded baseline.** Decide alongside armor.
 4. **Dual-color attack timing.** Free per attack, or source-node-inherited?
 5. **Lifeline + Lifelink combo.** Don't design around until seen in play.
