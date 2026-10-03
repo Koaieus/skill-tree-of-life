@@ -367,3 +367,26 @@ func test_the_record_round_trip_lands_the_status_live_on_a_second_world() -> voi
 	OutcomeApplier.apply(rebuilt, CombatWorld.live())
 	assert_almost_eq(peer_target.get_combat().get_status_power(&"test_status"), 2.0, 0.0001,
 			"replaying the record must land the status live")
+
+
+## [member StatusInstance.paired] is the one rider gate (ADR 0044): a status
+## whose primary hit did not land is a power-0 dud, flagged gated.
+func test_a_status_whose_paired_hit_was_gated_lands_as_a_dud() -> void:
+	var primary := DamageInstance.new()
+	primary.gated = true
+	var hit := _status_hit(2.0)
+	hit.paired = primary
+	hit.land_on(_node.get_combat(), CombatWorld.live())
+	assert_true(hit.gated, "a dud is flagged gated")
+	assert_almost_eq(hit.power, 0.0, 0.0001, "a dud carries power 0")
+	assert_almost_eq(hit.effective_amount, 0.0, 0.0001)
+	assert_almost_eq(_node.get_combat().get_status_power(&"test_status"), 0.0, 0.0001,
+		"a dud applies nothing")
+
+
+func test_a_status_with_no_paired_hit_lands_normally() -> void:
+	var hit := _status_hit(2.0)
+	hit.paired = null
+	hit.land_on(_node.get_combat(), CombatWorld.live())
+	assert_false(hit.gated)
+	assert_almost_eq(_node.get_combat().get_status_power(&"test_status"), 2.0, 0.0001)

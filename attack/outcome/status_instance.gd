@@ -45,6 +45,8 @@ var power_resolved: bool = false
 enum HostKind { NODE, ENTITY }
 var host_kind: HostKind = HostKind.NODE
 
+var paired: HitInstance = null
+
 
 func _init() -> void:
 	kind = Kind.STATUS
