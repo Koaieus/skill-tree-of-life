@@ -96,6 +96,48 @@ func test_set_equal_priority_last_in_wins() -> void:
 	s.add_modifier(_mod(StatModifier.Operation.SET, 10.0))
 	s.add_modifier(_mod(StatModifier.Operation.SET, 20.0))
 	assert_eq(s.get_value(), 20)
+	assert_push_error("strength")
+	assert_push_error_count(1)
+
+
+func test_set_equal_priority_identical_wire_form_is_silent() -> void:
+	var s := _stat(0.0)
+	s.add_modifier(_mod(StatModifier.Operation.SET, 10.0))
+	s.add_modifier(_mod(StatModifier.Operation.SET, 10.0))
+	assert_eq(s.get_value(), 10)
+	assert_push_error_count(0)
+
+
+func test_read_dict_restores_obtain_order() -> void:
+	var a := _stat(0.0)
+	a.add_modifier(_mod(StatModifier.Operation.SET, 10.0))
+	a.add_modifier(_mod(StatModifier.Operation.MULTIPLY, 2.0))
+	a.add_modifier(_mod(StatModifier.Operation.SET, 20.0))
+	var b := _stat(0.0)
+	b.add_modifier(_mod(StatModifier.Operation.SET, 20.0))
+	b.add_modifier(_mod(StatModifier.Operation.SET, 10.0))
+	b.add_modifier(_mod(StatModifier.Operation.MULTIPLY, 2.0))
+	assert_push_error_count(2, "each arrange binds one equal-priority conflict")
+	b.read_dict(a.to_dict())
+	assert_eq(b.to_dict(), a.to_dict())
+	assert_eq(b.get_value(), a.get_value())
+	assert_eq(b.get_value(), 20)
+	assert_eq(b.bins.winning_set.value, 20.0)
+	assert_push_error_count(2, "a re-sequence never re-reports the conflict")
+
+
+func test_board_read_dict_restores_obtain_order() -> void:
+	var a := _board()
+	var b := _board()
+	a.add_modifier(_mod(StatModifier.Operation.SET, 10.0))
+	a.add_modifier(_mod(StatModifier.Operation.SET, 20.0))
+	b.add_modifier(_mod(StatModifier.Operation.SET, 20.0))
+	b.add_modifier(_mod(StatModifier.Operation.SET, 10.0))
+	assert_push_error_count(2, "each arrange binds one equal-priority conflict")
+	b.read_dict(a.to_dict())
+	assert_eq(b.to_dict(), a.to_dict())
+	assert_eq(b.get_stat(&"strength").get_value(), 20)
+	assert_push_error_count(2, "a re-sequence never re-reports the conflict")
 
 
 func test_remove_reverts_value() -> void:
