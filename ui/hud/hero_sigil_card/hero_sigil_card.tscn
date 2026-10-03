@@ -64,33 +64,6 @@ shader_parameter/skew_degrees = 0.0
 shader_parameter/corner_radius = 4.0
 shader_parameter/cell_gap = 3.0
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_e1y6n"]
-resource_local_to_scene = true
-shader = ExtResource("5_whxag")
-shader_parameter/size = Vector2(110, 14)
-shader_parameter/current = 1.0
-shader_parameter/min_value = 0.0
-shader_parameter/max_value = 2.0
-shader_parameter/drain_from = 1.0
-shader_parameter/fill_color = Color(0, 0.72, 0.881, 1)
-shader_parameter/empty_color = Color(1, 1, 1, 0.08)
-shader_parameter/glow_color = Color(0, 0.72, 0.881, 0.6)
-shader_parameter/glow_stops = 0.75
-shader_parameter/spark_energy = 0.0
-shader_parameter/spark_out = 0.0
-shader_parameter/spark_stops = 2.5
-shader_parameter/drain_color = Color(0.9, 0.3, 0.3, 0.5)
-shader_parameter/preview_gain = 0.0
-shader_parameter/preview_color = Color(1, 1, 1, 0.25)
-shader_parameter/surplus = 0.0
-shader_parameter/surplus_color = Color(0.91, 0.67, 0.3, 0.85)
-shader_parameter/force_cells = 0.0
-shader_parameter/shine_speed = 0.25
-shader_parameter/cell_count = 0.0
-shader_parameter/skew_degrees = 0.0
-shader_parameter/corner_radius = 4.0
-shader_parameter/cell_gap = 3.0
-
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_lcuaq"]
 resource_local_to_scene = true
 shader = ExtResource("5_whxag")
@@ -229,28 +202,6 @@ glow_stops = 2.65
 shine_speed = 0.2
 
 [node name="HealthCaption" type="Label" parent="Padded/Content/Vitals/HealthRow" unique_id=1380640812]
-unique_name_in_owner = true
-modulate = Color(1, 1, 1, 0.6)
-custom_minimum_size = Vector2(58, 0)
-layout_mode = 2
-theme_override_font_sizes/font_size = 10
-text = "0/0"
-
-[node name="ManaRow" type="HBoxContainer" parent="Padded/Content/Vitals" unique_id=1409335352]
-layout_mode = 2
-
-[node name="ManaGauge" parent="Padded/Content/Vitals/ManaRow" unique_id=1913829611 instance=ExtResource("4_gauge")]
-unique_name_in_owner = true
-material = SubResource("ShaderMaterial_e1y6n")
-custom_minimum_size = Vector2(110, 12)
-layout_mode = 2
-size_flags_horizontal = 3
-fill_color = Color(0, 0.72, 0.881, 1)
-glow_color = Color(0, 0.72, 0.881, 0.6)
-glow_stops = 0.75
-shine_speed = 0.25
-
-[node name="ManaCaption" type="Label" parent="Padded/Content/Vitals/ManaRow" unique_id=1503455658]
 unique_name_in_owner = true
 modulate = Color(1, 1, 1, 0.6)
 custom_minimum_size = Vector2(58, 0)

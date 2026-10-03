@@ -2,7 +2,7 @@
 class_name PoolGauge
 extends ColorRect
 ## Reusable "Arcane Terminal" pool gauge. cell_count == 0 renders a smooth
-## continuous bar (Health/Mana/XP); cell_count > 0 renders N skewed
+## continuous bar (Health/XP); cell_count > 0 renders N skewed
 ## parallelogram "battery" cells (AP/DP/Move). Every exported value pushes
 ## to the shader immediately in its setter, so tuning is live (and
 ## animated — shine, drain-trail) in the Inspector, not just at runtime.
@@ -250,7 +250,7 @@ func _resolve_cells() -> void:
 ## and it's why the climb is worth animating at all.
 ##
 ## Feedback bars are the opposite case and deliberately stay at `0`: for health
-## and mana you need to know *that* you were hit before you know by how much, so
+## you need to know *that* you were hit before you know by how much, so
 ## a short front-loaded ease-out beats a legible one. Only the XP gauge opts in.
 @export_range(0.0, 4.0, 0.05) var fill_speed: float = 0.0
 
@@ -314,7 +314,7 @@ func _push_all() -> void:
 	_push(&"cell_gap", cell_gap)
 
 ## Animate the bar to a settled `(current, max)` — the everyday move, used for
-## XP between level-ups and for health/mana alike (#317; before it, every
+## XP between level-ups and for health alike (#317; before it, every
 ## non-level-up change hard-cut).
 ##
 ## [b]Increases tween; decreases don't.[/b] A drop assigns `current` straight
@@ -430,7 +430,7 @@ func _fill_duration(from_value: float, to_value: float, span_max: float) -> floa
 
 ## A constant-rate climb wants a curve that is near-linear through the middle and
 ## only softens at the ends — cubic's swoosh would put the speed back in. Fixed
-## duration keeps its original cubic, so health and mana are untouched.
+## duration keeps its original cubic, so health is untouched.
 func _fill_trans() -> Tween.TransitionType:
 	return Tween.TRANS_SINE if fill_speed > 0.0 else Tween.TRANS_CUBIC
 

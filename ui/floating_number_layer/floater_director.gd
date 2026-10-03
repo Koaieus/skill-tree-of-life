@@ -65,7 +65,6 @@ const _DENIAL_TEXTS := {
 	"temp_upgrade_denied_slot_full": "SLOT FULL",
 	"temp_upgrade_denied_budget": "NO BLADE BUDGET",
 	"temp_upgrade_denied_aspect": "NEEDS ASPECT",
-	"spell_denied_no_mana": "GEEN MANA MEER",
 	"spell_denied_no_caster": "GEEN CASTER",
 }
 

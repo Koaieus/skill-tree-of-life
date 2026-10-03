@@ -19,7 +19,6 @@ extends MarginContainer
 ## in.
 
 @onready var _header: PanelHeader = %Header
-@onready var _mana_label: Label = %ManaLabel
 @onready var _tagline_label: Label = %TaglineLabel
 @onready var _cast_section: SpellTooltipSection = %CastSection
 @onready var _on_arrival_section: SpellTooltipSection = %OnArrivalSection
@@ -34,7 +33,6 @@ func _ready() -> void:
 	hide()
 	# Pin the width before anything is ever measured — see [method _fit].
 	size = Vector2(maxf(custom_minimum_size.x, 1.0), 0.0)
-	_tint_mana_label()
 	Events.spell_hovered.connect(_on_spell_hovered)
 	Events.spell_unhovered.connect(_on_spell_unhovered)
 
@@ -99,7 +97,6 @@ func _populate() -> void:
 		return
 
 	_header.bind(_spell.name, "Requires degree ≥ %d" % _spell.min_degree)
-	_mana_label.text = "◈ %d" % _spell.mana_cost
 
 	if _spell.tagline != "":
 		_tagline_label.text = _spell.tagline
@@ -121,18 +118,6 @@ func _populate_sections() -> void:
 	_on_arrival_section.bind(sections.on_arrival.lines, sections.on_arrival.dynamic)
 	_then_section.bind(sections.then.lines, sections.then.dynamic)
 	_crits_section.bind(sections.crits.lines, sections.crits.dynamic)
-
-
-## The mana chip wears the Mana stat's own palette colour — [StatDef.tint_color]
-## is the single source of truth for it (`.claude/rules/ui-palette.md`), so the
-## scene authors the size and this authors the hue, once.
-func _tint_mana_label() -> void:
-	var def: StatDef = StatRegistry.get_def(&"mana")
-	if def == null:
-		return
-	_mana_label.add_theme_color_override(
-		&"font_color", Emissive.at(def.tint_color, Emissive.LABEL)
-	)
 
 
 ## The hovered caster's board, or null — what [SpellSections] asks each

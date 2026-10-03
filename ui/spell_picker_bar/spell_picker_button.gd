@@ -6,7 +6,7 @@ extends Button
 ## the bar's ButtonGroup) that renders a spell card:
 ##   * top inset — one tick per [member SpellDef.min_degree]
 ##   * icon (or letter glyph fallback)
-##   * name + mana cost label
+##   * name label
 ##
 ## Same shader scaffolding as [AttackModeButton] — the bg shader handles
 ## rounded-rect rendering, mouse-proximity glow, rim, breathing pulse when
@@ -19,17 +19,16 @@ extends Button
 ## so the floating [SpellTooltip] (mounted in HudRoot) shows a formatted scene
 ## with dynamic-value highlighting instead of a plain-text Godot tooltip.
 ##
-## [b]Three independent gates (#743, #728).[/b] All three grey the same shader
-## term, but only one flips the engine [member Button.disabled]:
+## [b]Two independent gates (#728).[/b] Both grey the same shader term, but
+## only one flips the engine [member Button.disabled]:
 ##
 ## - [method set_actionable] — the bar-wide "your turn, AP left" gate. Genuinely
 ##   disabled: there is nothing to explain, the whole bar is already dimmed.
-## - [method set_affordable] — mana (#743). Grey but CLICKABLE.
 ## - [method set_has_caster] — does any owned node clear the spell's min_degree
 ##   (#728). Grey but CLICKABLE.
 ##
-## The last two stay clickable so a press can explain itself; a disabled Button
-## swallows the very click their denial toast needs. [method set_actionable]
+## The caster gate stays clickable so a press can explain itself; a disabled
+## Button swallows the very click its denial toast needs. [method set_actionable]
 ## replaced a `set_castable` that also carried min_degree — that term moved out
 ## when #728 removed the pre-picked source it was measured against, and became
 ## the bar-wide [method SpellBook.eligible_sources] question instead of a
@@ -42,8 +41,8 @@ extends Button
 ## a denial.
 
 ## Emitted on press when every clickable gate is met — the pick
-## [SpellPickerBar] acts on. A press blocked by mana or by "no eligible caster"
-## instead floats the matching denial (see [method _on_pressed]) and this does
+## [SpellPickerBar] acts on. A press blocked by "no eligible caster" instead
+## floats its denial (see [method _on_pressed]) and this does
 ## not fire.
 signal spell_picked(spell: SpellDef)
 
@@ -94,12 +93,11 @@ var _materials: Array[ShaderMaterial] = []
 ## floating tooltip. Written only through [method set_caster].
 var _caster: Entity = null
 
-## Backing state for the three independent gates — see [method set_actionable]
-## / [method set_affordable] / [method set_has_caster]. All start true so a
+## Backing state for the two independent gates — see [method set_actionable]
+## / [method set_has_caster]. Both start true so a
 ## freshly-instantiated button (before its bar's first gating pass) reads as
 ## pickable rather than flashing grey for a frame.
 var _actionable: bool = true
-var _affordable: bool = true
 var _has_caster: bool = true
 
 var _hover_tweener: Tween
@@ -168,25 +166,11 @@ func set_actionable(actionable: bool) -> void:
 	_refresh_grey()
 
 
-## Toggle affordability (mana, #743) — greys the SAME shader term as
-## [method set_castable] but leaves [member Button.disabled] alone, so a press
-## still lands: [method _on_pressed] reads [member _affordable] to decide
-## between forwarding [signal spell_picked] and floating the "can't afford"
-## denial. Deliberately NOT folded into `disabled` — see this file's top
-## docstring and #743's acceptance spec (a disabled Button swallows the click
-## the denial toast needs).
-func set_affordable(affordable: bool) -> void:
-	_affordable = affordable
-	_refresh_grey()
-	_refresh_toggle_mode()
-
-
 ## Toggle "some owned node can cast this at all" (#728) — min_degree against the
 ## attacker's whole territory rather than against one pre-picked source, since
-## there is no longer a source to pick. Grey but clickable, exactly like
-## [method set_affordable]: the press is what earns the `spell_denied_no_caster`
-## toast, and the two dead ends are deliberately different words — no caster is
-## fixed by growing territory, no mana by waiting.
+## there is no longer a source to pick. Grey but clickable: the press is what
+## earns the `spell_denied_no_caster` toast, which tells the player the fix is
+## growing territory.
 ##
 ## Its sibling dead end — casters exist but nothing is in reach — gets NO toast
 ## by the owner's 2026-09-03 ruling: that is the ordinary ranged-attack read
@@ -207,45 +191,43 @@ func set_selected(selected: bool) -> void:
 	_refresh_toggle_mode()
 
 
-## The greyed presentation is one shader term shared by all three gates —
+## The greyed presentation is one shader term shared by both gates —
 ## greyed iff ANY is unmet. Only [method set_actionable] touches `disabled`.
 func _refresh_grey() -> void:
-	_tween_disabled(0.0 if (_actionable and _affordable and _has_caster) else 1.0)
+	_tween_disabled(0.0 if (_actionable and _has_caster) else 1.0)
 
 
 ## Godot's [ButtonGroup] exclusivity (un-press the sibling, commit
 ## `button_pressed` on the clicked one) runs synchronously as part of native
 ## click processing, BEFORE any `pressed`/`toggled` handler gets a chance to
-## veto it — so an unaffordable-but-toggle_mode-true button would steal the
+## veto it — so an uncastable-but-toggle_mode-true button would steal the
 ## highlight from the real selection on click, with nothing to hand it back
 ## to (nothing re-drives [SpellPickerBar.sync_selected] unless the selected
-## spell itself actually changes, which an unaffordable press deliberately
-## does not do).
+## spell itself actually changes, which a denied press deliberately does not
+## do).
 ##
-## Fix: while unaffordable (or, #728, with no eligible caster — same shape,
-## same reason), turn [member toggle_mode] off instead. A
+## Fix: with no eligible caster (#728), turn [member toggle_mode] off instead. A
 ## non-toggle Button still emits [signal BaseButton.pressed] on click (so
 ## [method _on_pressed] still runs and the denial still floats) but never
 ## touches `button_pressed` or the group — nothing to steal, nothing to
 ## revert.
 ##
 ## The `button_pressed` term keeps the CURRENTLY SELECTED button toggle-capable
-## even while unaffordable (mana drops on OTHER casts below this spell's cost
-## while it's still the active selection): its highlight must survive, and
-## re-clicking an already-selected-but-unaffordable spell is a legitimate
-## "why can't I recast this" moment that should re-float the denial, not
-## silently no-op. Called after every affordability change AND every toggled
+## even while its gate is unmet (territory shrinks under it while it's still
+## the active selection): its highlight must survive, and re-clicking an
+## already-selected-but-uncastable spell is a legitimate "why can't I recast
+## this" moment that should re-float the denial, not silently no-op. Called
+## after every gate change AND every toggled
 ## transition (native group-driven unpress included) — see [method _on_toggled]
 ## and [method set_selected] — so a stale `true` can't survive a deselect.
 func _refresh_toggle_mode() -> void:
-	toggle_mode = button_pressed or (_affordable and _has_caster)
+	toggle_mode = button_pressed or _has_caster
 
 
 ## Tell the button which entity is hovering-as-caster, so [SpellTooltip] can
 ## read that board for the values the caster's stats move off the printed base.
 ## Purely presentational — it never gates the button, which
-## [method set_actionable] / [method set_affordable] / [method set_has_caster]
-## own.
+## [method set_actionable] / [method set_has_caster] own.
 func set_caster(caster: Entity) -> void:
 	_caster = caster
 
@@ -264,7 +246,7 @@ func _apply_spell() -> void:
 		if not Engine.is_editor_hint():
 			_clear_ticks()
 		return
-	_name_label.text = "%s (%d)" % [spell.name, spell.mana_cost]
+	_name_label.text = spell.name
 	if spell.icon != null:
 		_icon_rect.texture = spell.icon
 		_letter_label.visible = false
@@ -314,24 +296,18 @@ func _on_toggled(toggled_on: bool) -> void:
 	_tween_active(1.0 if toggled_on else 0.0)
 	# Catches the native-unpress case: the ButtonGroup just cleared
 	# button_pressed on this button (another spell got picked), which by
-	# itself leaves `toggle_mode` stale-true if this one is unaffordable —
+	# itself leaves `toggle_mode` stale-true if this one is uncastable —
 	# see [method _refresh_toggle_mode]'s docstring.
 	_refresh_toggle_mode()
 
 
-## The single affordability gate (#743). Connected to the native
+## The clickable caster gate (#728). Connected to the native
 ## [signal BaseButton.pressed] in the scene — every click "lands" here first,
-## whether the mana gate lets it through or not; see this file's top
+## whether the gate lets it through or not; see this file's top
 ## docstring for why [SpellPickerBar] cannot do this check by itself.
 func _on_pressed() -> void:
-	# Structural before resource: "no node of yours can cast this" outranks
-	# "you can't afford it right now", because it's the one the player cannot
-	# fix by waiting a turn.
 	if not _has_caster:
 		Events.ui_action_denied.emit(_float_anchor, "spell_denied_no_caster")
-		return
-	if not _affordable:
-		Events.ui_action_denied.emit(_float_anchor, "spell_denied_no_mana")
 		return
 	spell_picked.emit(spell)
 

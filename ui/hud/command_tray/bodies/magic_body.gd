@@ -2,7 +2,7 @@
 class_name MagicBody
 extends CommandTrayBodyBase
 ## Magic tab content (#114): reuses [SpellPickerBar]/[SpellPickerButton]
-## verbatim (mana-cost/lock-state logic already lives there — see #114's
+## verbatim (gating/lock-state logic already lives there — see #114's
 ## explicit "don't rebuild the spell bar from scratch") + a Launch button
 ## whose label mirrors the currently-equipped spell.
 ##
@@ -95,8 +95,6 @@ func _on_can_act_changed(can_act: bool) -> void:
 
 func _refresh() -> void:
 	var plan := _armed_plan() as MagicAttackPlan
-	var board := _player.stat_board if _player != null else null
-	var mana: float = float(board.mana.current) if board != null and board.mana != null else 0.0
 	# Post-#728 there is no cast-from node until a target is clicked, so this
 	# reads 0 until one is auto-picked. Deliberately NOT "the best degree the
 	# territory offers": _refresh runs on attack_plan_state_changed, which
@@ -107,7 +105,7 @@ func _refresh() -> void:
 	var degree := 0
 	if plan != null and plan.source != null and _player.navigator != null:
 		degree = _player.navigator.get_degree(plan.source)
-	_context_label.text = "source degree %d · mana %d" % [degree, int(mana)]
+	_context_label.text = "source degree %d" % degree
 	if plan != null:
 		_spell_bar.update_gating_context(plan.attacker)
 	var spell_name := plan.spell.name if plan != null and plan.spell != null else "Spell"

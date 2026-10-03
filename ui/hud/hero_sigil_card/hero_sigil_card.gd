@@ -3,8 +3,8 @@ class_name HeroSigilCard
 extends MarginContainer
 
 ## Left column, top card (#108): class emblem (spinning ring + glyph), level
-## badge, entity name + class subtitle, Health/Mana as [PoolGauge]s with
-## dimmed "+N/t" regen captions. Also the floater-anchor origin for
+## badge, entity name + class subtitle, Health as a [PoolGauge] with a
+## dimmed "+N/t" regen caption. Also the floater-anchor origin for
 ## entity/core stat-change toasts (closes #91) — see [member float_anchor]
 ## and [method GameRoot]'s wiring of [FloaterDirector.player_anchor].
 ##
@@ -34,8 +34,6 @@ extends MarginContainer
 @onready var _class_label: Label = %ClassLabel
 @onready var _health_gauge: PoolGauge = %HealthGauge
 @onready var _health_caption: Label = %HealthCaption
-@onready var _mana_gauge: PoolGauge = %ManaGauge
-@onready var _mana_caption: Label = %ManaCaption
 
 ## World/UI-space anchor floaters rise from (stat gains, wounds, level-ups).
 ## A plain [Node2D] child works as a [FloaterRequest.target] unmodified —
@@ -90,10 +88,9 @@ func bind(entity: Entity) -> void:
 	if board == null:
 		return
 	# `core_healing` is health's per-turn companion (D-25) — same "incoming next
-	# turn" band mana and XP already render, which is exactly why D-25 chose an
+	# turn" band XP already renders, which is exactly why D-25 chose an
 	# integer heal over a sub-1 sliver: zero new UI.
 	_bind_pool(_health_gauge, _health_caption, board.health, board.core_healing)
-	_bind_pool(_mana_gauge, _mana_caption, board.mana, board.mana_per_turn)
 
 
 ## Paint the whole portrait — ring, sigil, fallback glyph — in the bound hero's
@@ -129,7 +126,7 @@ func show_level(level: int) -> void:
 ## #504: every gauge follows its pool directly. The `health` pool used to need
 ## an [Entity] alongside it, to read a `shown_health` view field that lagged the
 ## model; under design B the pool itself moves on the beat clock, so one path
-## serves health and mana alike.
+## serves every pool gauge alike.
 func _bind_pool(gauge: PoolGauge, caption: Label, pool: PoolStat, per_turn: ScalarStat) -> void:
 	if gauge == null or pool == null:
 		return

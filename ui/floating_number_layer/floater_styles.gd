@@ -195,7 +195,7 @@ static func gallery() -> Array[Dictionary]:
 		{"name": "Entity wound",    "text": "+1 W",        "style": entity_wound()},
 		{"name": "Entity heal",     "text": "-1 WOUNDS",   "style": entity_heal()},
 		{"name": "Denied",          "text": "TOO FAR FROM CORE", "style": denied()},
-		{"name": "Denied (alert)",  "text": "GEEN MANA MEER",   "style": denied_alert()},
+		{"name": "Denied (alert)",  "text": "GEEN CASTER",      "style": denied_alert()},
 		{"name": "Modifier (node)", "text": "+10 Strength","style": modifier_node(Color(0.9, 0.5, 0.4))},
 		{"name": "Modifier (core)", "text": "+10 Strength","style": modifier_core(mythic_tint)},
 		{"name": "Modifier removed","text": "+10 STR",     "style": modifier_removed(Color(0.9, 0.5, 0.4))},
