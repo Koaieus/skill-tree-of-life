@@ -63,8 +63,8 @@ it.
 **Pass it to both peers, unlike every other flag here.** Only the authority ever
 sweeps (`_start_sweep_if_due` gates on `CommandApplier.is_authority`, so the
 client's copy boosts and then sits still), but the flag *also* gates the budget
-boost `_boost_autopilot_budget` puts on Red — 30 SP / 12 AP / 10 DP / 200 mana,
-because one turn on a level-1 board (3 SP / 2 AP / 3 DP / 10 mana) cannot pay
+boost `_boost_autopilot_budget` puts on Red — 30 SP / 12 AP / 10 DP,
+because one turn on a level-1 board (3 SP / 2 AP / 3 DP) cannot pay
 for the whole sweep. That boost must be identical on every peer:
 `CommandApplier._apply_mass_allocate` re-derives affordability from the
 *receiving* peer's own board (#458), so a host-only boost desyncs the first
@@ -72,7 +72,7 @@ budget-gated verb that crosses.
 
 **And the flag is the whole gate — no flag, no boost.** It used to run
 unconditionally, so a plain launch from the Multiplayer tab handed a human a
-Red with 30 skill points and 200 mana and read as a stat-system bug. If you are
+Red with 30 skill points and a fat budget and read as a stat-system bug. If you are
 launching the pair to *play* it, leave the toggle off and Red is an ordinary
 level-1 board.
 
@@ -264,12 +264,12 @@ scored via `AiBladeRollout` — the same rollout `AIController` uses, so it neve
 needs arc geometry hand-authored into the scene). **Read every `✓` carefully:**
 as of #527 the fingerprint folds ownership + topology + accumulated per-node
 state (HP included, quantized), so a cast that damages without killing DOES
-move it now — but never derived `StatBoard` totals (AP, mana, aura
+move it now — but never derived `StatBoard` totals (AP, aura
 contributions), which stay outside the fold on purpose. What the
 `← launch_attack` line proves is that the command decoded and applied on the
 client at all; the *effects* are pinned by
-`test/unit/attack/test_attack_record_replay.gd`, which compares node HP, AP and
-mana across two real worlds through the same wire encoding.
+`test/unit/attack/test_attack_record_replay.gd`, which compares node HP and AP
+across two real worlds through the same wire encoding.
 
 **Also does:** loot, since #522. Each round of a relic's claim rides down as a
 `LootRoundCommand` carrying what was granted BY VALUE — the same
@@ -675,7 +675,7 @@ from the host.
 
 **The opening turn starts AFTER the send, not before — a double-heal trap
 this rung's own test caught.** `TurnManager.start_turn` unconditionally fires
-`turn_started`, which runs turn-start upkeep (AP/DP/SP/mana/wound-heal/
+`turn_started`, which runs turn-start upkeep (AP/DP/SP/wound-heal/
 node-refill). Rung 1 calls it identically on both peers because its graph is
 hand-authored and never crosses the wire — both sides start from the SAME
 untouched baseline. Here the graph and entity state DO cross: starting the

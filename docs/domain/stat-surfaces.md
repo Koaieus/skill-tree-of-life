@@ -58,8 +58,6 @@ below unless noted otherwise.
 | `wound_heal_per_turn` | `ui/hud/turn_resources_panel/turn_resources_panel.gd` |
 | `health` | `ui/hud/hero_sigil_card/hero_sigil_card.gd`; also the live pool at `skill_node/core_health_bar.gd` |
 | `core_healing` | `ui/hud/hero_sigil_card/hero_sigil_card.gd` |
-| `mana` | `ui/hud/hero_sigil_card/hero_sigil_card.gd` |
-| `mana_per_turn` | `ui/hud/hero_sigil_card/hero_sigil_card.gd` |
 | `level` | `ui/hud/hero_sigil_card/hero_sigil_card.gd` |
 | `xp` | `ui/hud/xp_track/xp_track.gd` |
 | `xp_per_turn` | `ui/hud/xp_track/xp_track.gd` |

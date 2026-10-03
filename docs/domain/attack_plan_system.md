@@ -42,9 +42,9 @@ re-deriving anything.
   `in_range(plan, source, candidate)`. Composed by Targeting subclasses.
   Concrete: `EuclideanRangeFinder` (max_distance), `HopRangeFinder`
   (max_hops via the global Navigator's AStar).
-- **`SpellDef`** — Resource holding name / description / mana_cost /
+- **`SpellDef`** — Resource holding name / description /
   damage / `targeting: Targeting`. Spell instances live as `.tres` files
-  under `attack/spell/defs/`. First spell: `spark.tres` — 5 damage, 1 mana,
+  under `attack/spell/defs/`. First spell: `spark.tres` — 5 damage,
   hostile-node targeting + 3-hop range.
 
 ### Mode plans
@@ -603,7 +603,7 @@ Per-mode HUD:
 
 - Melee: blade count `(X / max_blades)`, max_blades reading live from
   the stat board.
-- Magic: spell name + mana cost + damage; later, spell picker.
+- Magic: spell name + damage; later, spell picker.
 - Ranged: firing-position count `(reaching / total)`.
 
 Listens to `attack_plan_changed` (to mount the right sub-widget) and
@@ -658,7 +658,7 @@ The plan abstraction is AI-friendly: AI builds the same plan types the
 player does, calls `plan.resolve()` to score (it's pure!), picks the
 highest-EV plan, calls `battle_system.launch_attack`. A
 `MinimaxAttackPlanner` could score plans by damage dealt × territory
-captured / mana spent. MVP: random valid plan, just to test the cycle.
+captured / AP spent. MVP: random valid plan, just to test the cycle.
 
 ---
 

@@ -108,7 +108,7 @@ since been retired, is
 ## The determinism obligation
 
 **This model does not buy freedom from determinism; it bounds it.** Derived
-stats are recomputed **locally on every peer** — nothing about `max_hp`, mana
+stats are recomputed **locally on every peer** — nothing about `max_hp`, AP
 regen, or any board total rides a record. So the stat pipeline must produce
 identical results on every machine, and that obligation is real today.
 

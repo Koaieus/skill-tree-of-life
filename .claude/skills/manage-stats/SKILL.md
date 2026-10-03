@@ -55,7 +55,7 @@ Each step: the file the artefact lands in → what catches forgetting it.
 Steps 1–6 above, with:
 
 - **1.** The def is a `PoolStatDef` subclass — `StandardPoolStatDef`
-  (fixed cap: health, mana, AP), `GrowablePoolStatDef` (fill-and-level:
+  (fixed cap: health, AP), `GrowablePoolStatDef` (fill-and-level:
   XP), `CyclicPoolStatDef` (recurring threshold: initiative). Copy the
   matching neighbour (`stats_system/defs/action_points.tres` is a standard
   pool). Set `per_turn_mode` (`NONE` / `REFILL` / `ADD` / `CUSTOM` /

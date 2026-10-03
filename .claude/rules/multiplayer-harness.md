@@ -80,7 +80,7 @@ is never compared. Don't "fix" a fingerprint mismatch by moving the compare back
 after the apply; that reports every command as diverged.
 
 **`--autopilot` is the only flag that goes to BOTH peers, and it is what fattens
-Red's budget** (30 SP / 12 AP / 10 DP / 200 mana, so one turn can pay for the
+Red's budget** (30 SP / 12 AP / 10 DP, so one turn can pay for the
 whole sweep). Only the authority sweeps, but the boost must match on every peer
 or `_apply_mass_allocate`'s receiving-side affordability re-derivation disagrees
 with what the host applied. Without the flag Red is an ordinary level-1 board —

@@ -26,7 +26,6 @@ Canonical colors from `docs/design/design_handoff_game_ui/README.md`, converted 
 | PER (Purple) | `oklch(0.66 0.21 305)` | `Color(0.6935, 0.4045, 0.9676, 1)` | `stats_system/defs/perception.tres` |
 | CON (White) | `oklch(0.92 0.02 250)` | `Color(0.8586, 0.9018, 0.9482, 1)` | `stats_system/defs/constitution.tres` — **live since #269**; also the `ap_white` archetype color in `procgen/presets/first_level/first_level.tres` |
 | Health (crimson) | `oklch(0.60 0.21 25)` | `Color(0.8878, 0.203, 0.2233, 1)` | `stats_system/defs/health.tres` |
-| Mana (cyan) | `oklch(0.72 0.14 220)` | `Color(0.0, 0.72, 0.881, 1)` | `stats_system/defs/mana.tres` — was previously the same blue as INT; now differentiated |
 | XP/gold | `oklch(0.80 0.14 88)` | `Color(0.8909, 0.7204, 0.2596, 1)` | `stats_system/defs/xp.tres` |
 | SP to-spend | `oklch(0.70 0.16 250)` | `Color(0.2606, 0.6387, 0.9922, 1)` | Skill Points gauge component `@export` default |
 | SP wounded | `oklch(0.60 0.20 25)` | `Color(0.8725, 0.2322, 0.2404, 1)` | Skill Points gauge component `@export` default |

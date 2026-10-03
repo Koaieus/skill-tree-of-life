@@ -133,7 +133,7 @@ three ways — pick the one that matches:
 |---|---|---|
 | **Formula input** | in an `ExpressionFormula`'s `inputs`, recomputes reactively | `core_health_scaling`, `node_health_scaling` |
 | **Imperative** | plain GDScript read at the point of use | `ap_transfer_rate`, `dealloc_damage`, `crit_multiplier`, `initiative_speed` |
-| **Pool rate pointer** | named on a `PoolStatDef` via `per_turn_stat_id`, consumed by `run_turn_upkeep` | `core_healing`, `mana_per_turn`, `wound_heal_per_turn` |
+| **Pool rate pointer** | named on a `PoolStatDef` via `per_turn_stat_id`, consumed by `run_turn_upkeep` | `core_healing`, `wound_heal_per_turn`, `xp_per_turn` |
 
 All three are board stats because something targets them (a class, a relic, a
 readout), so all three stay class-tunable. Only reach for a formula input when
@@ -281,7 +281,7 @@ than being implemented:
   driven to the floor by pure stat loss survives and dies to the next real hit.
 
 `node_combat_health` is the only def on this side today. Entity-board pools
-(`health`, `mana`, `action_points`, …) have a fan-out of 1 and stay
+(`health`, `action_points`, …) have a fan-out of 1 and stay
 stored-current.
 
 **How this bit us (#346).** Back when the raw write was the *silent-bypass* door,
@@ -346,7 +346,7 @@ the override.
 a `ThresholdFormula` — an ascending `breakpoints` array compared with `>=` — not
 `floor(log(x) / log(b))`.
 
-`floor(log(INT) / log(10.0))` shipped as mana-per-turn and returned **2 at INT
+`floor(log(INT) / log(10.0))` shipped as a per-turn regen rate and returned **2 at INT
 1000** on glibc: `log(1000.0)` is `6.907755278982137`, one ulp below
 `3 * log(10.0)`, the ratio is `2.9999999999999996`, and `floor` turns a last-bit
 difference into a whole missing point of regen.

@@ -382,7 +382,7 @@ hop n = f(hop n-1)     f = the spell's HopDamageProgression
 
 - `spell_damage` is an ordinary board stat (base 1, +1 per 10 INT — the same
   shape as `blade_damage`/STR and `ranged_damage`/DEX), so node-local addons
-  ("mana font") stack on it per-node.
+  (a "spell font") stack on it per-node.
 - It is read from **`state.source`** — the node cast FROM — via
   `SkillNode.get_local_value`, which merges the node board with its **owner's**
   board. Reading `state.current_node` would let the defender buff the spell

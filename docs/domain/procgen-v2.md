@@ -156,7 +156,7 @@ Two consequences worth pinning:
 
 - **Crazy-numbers stats fit naturally.** A `tier_5` INT entry can carry
   `value_range = (1000, 10000)` because INT is log10-compressed downstream
-  (e.g. `mana_per_turn = floor(log10(INT))`). The pool doesn't know or care
+  (e.g. a `floor(log10(INT))` ladder). The pool doesn't know or care
   — it just rolls a scalar. **Invariant:** *if a stat is meant to scale via
   log/sqrt downstream, its pool entries may carry orders-of-magnitude larger
   value ranges than linear stats.* Spell this out wherever crazy-INT ranges

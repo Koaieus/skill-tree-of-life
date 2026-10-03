@@ -326,8 +326,6 @@ ADD_BONUS magnitude = `unit · V[t]`; MULTIPLY = `1 + unit · V[t]`.
 | attribute .mul | 0.05 | — | 1 | 3 | 4 | ×1.35 ×1.75 |
 | `armor` .addb (universal) | 1.5 | — | 2.5 | 1 | 3 | +1.5 +4.5 +10.5 |
 | `node_health` .inc (universal) | 6.5 | — | 1 | 1 | 2 | +6.5% +19.5% |
-| `mana` .addb | 1.5 | — | 4 | 1 | 4 | +1.5 +4.5 +10.5 +22.5 |
-| `mana_per_turn` .addb | 1 | — | 2 | 1 | 2 | +1 +3 |
 | `crit_chance` .inc | 5 | `{3:50, 4:100}` | 1.5 | 1 | 4 | +5% +15% +50% +100% |
 | `crit_multiplier` .inc | 17.5 | — | 1.5 | 1 | 3 | +17.5% +52.5% +122.5% |
 | `sensor_range` .addb | 1 | — | 2 | 1 | 2 | +1 +3 |
@@ -355,7 +353,7 @@ ADD_BONUS magnitude = `unit · V[t]`; MULTIPLY = `1 + unit · V[t]`.
 
 Per-pack homes (the pack is the gate, ADR 0028): str/dex/int/wis/per/con each
 carry their attribute's addb+inc+mul; dex adds crit_chance+crit_multiplier; int
-adds mana+mana_per_turn; wis adds xp_per_turn (addb+inc, `[regular]` since
+adds nothing of its own (its old pool entries were retired, ADR 0045); wis adds xp_per_turn (addb+inc, `[regular]` since
 #1093/#1094 split its subtypes — see below); per adds vision_range
 (inc+addn, the flat `+b` now `[regular, blight]`)+sensor_range (now
 `[regular, bless]`); con adds the `dexterity -%` curse (#718).

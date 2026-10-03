@@ -201,7 +201,7 @@ popped vertex) applies nothing and never re-pops through its status.
 temp upgrade — `skill_node/addons/defs/toxin_addon.tscn` in the scanned folder, cost 2, third
 tray card (V). Loot: later.
 
-**Shape:** one `DotAddon` script (`status_def`, `status_power`), one `.tscn`
+**Shape:** one `DotAddon` script (`on_hit_effects`), one `.tscn`
 per status — corruption / curse / wither (#971-973) are scenes and a pool
 entry each, no code (ADR 0023).
 

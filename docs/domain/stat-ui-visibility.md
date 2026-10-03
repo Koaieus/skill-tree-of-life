@@ -12,7 +12,7 @@ duplication.
 |---|---|---|---|---|---|
 | `strength` | | value + radar | → blade_size, blade_damage | MeleeCard (→blip/dmg) | |
 | `dexterity` | | value + radar | → sensor_range, range | RangedCard (→dmg/leaf) | RangedBody → dmg/leaf |
-| `intelligence` | | value + radar | → mana, mana_per_turn | | |
+| `intelligence` | | value + radar | → cast_range, spell_damage | | |
 | `wisdom` | | value + radar | → xp_per_turn | | |
 | `perception` | | value + radar | → vision_range | | |
 
@@ -37,7 +37,7 @@ duplication.
 
 > **XP left the Hero Sigil card in #320.** It now lives on `XpTrack`
 > (`ui/hud/xp_track/`), the top-center strip — XP is the currency the game is
-> denominated in, and it was reading as third billing under health and mana. The
+> denominated in, and it was reading as third billing under health. The
 > card's `XPRow` survives as **hidden, unbound scenery** while the placement
 > settles; do not re-bind it, a second binder on the `xp` pool double-narrates
 > every level-up. The card keeps the level badge only.
@@ -53,7 +53,7 @@ duplication.
 
 | Stat | TurnResourcesPanel | ActionCluster | Other |
 |---|---|---|---|
-| `action_points` | PoolGauge | battery + N/M label | CommandTray (mana cost checks) |
+| `action_points` | PoolGauge | battery + N/M label | CommandTray (AP cost checks) |
 | `deallocation_points` | SurplusPoolGauge | | |
 | `movement_points` | SurplusPoolGauge | | |
 | `ap_transfer_rate` | | conversion preview text | |
@@ -82,8 +82,6 @@ duplication.
 
 | Stat | HeroSigil | MagicBody | SpellTooltip | Other |
 |---|---|---|---|---|
-| `mana` | PoolGauge | "mana N" | | |
-| `mana_per_turn` | gauge preview_gain | | | |
 | `cast_range_distance` | | | (→effective euclidean range, "Range" row) | |
 | `cast_range_hops` | | | (→effective hops, "Range" row for hop-ranged spells) | |
 
@@ -121,7 +119,6 @@ but listed for triage awareness.
 | `strength` | AttrPanel (+radar), MeleeCard (→blade), NodeTooltip (if mod present) | Attributes show raw; combat shows effective; tooltip shows mods. Clear separation. |
 | `dexterity` | AttrPanel (+radar), RangedCard (→dmg/leaf), RangedBody, NodeTooltip | Same pattern. |
 | `health` | HeroSigilCard (entity gauge), NodeTooltip (core HP) | Entity-level vs. node-level — different contexts. |
-| `mana` | HeroSigilCard (gauge), MagicBody (spending context) | Budget vs. spend. |
 | `armor` | DefenseCard (combat readout), NodeTooltip (if mod present) | Effective vs. mod breakdown. |
 | `range` | RangedCard, RangedBody | Both combat-context, but RangedBody is in the tray while planning a shot — acceptable duplication. |
 | `node_combat_health` | NodeTooltip (hover), NodeInspectorCard (selected node) | Hover vs. persistent selection — different interaction modes. |

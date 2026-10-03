@@ -136,7 +136,7 @@ unmeasured, which is how a real desync passes clean.
 
 | RESOLVE — what the plan and seed determine | LAND — what the peer's OWN world determines |
 |---|---|
-| `seed`, `ap`, `mana` | `h_amt` — post-`Mitigation` effective damage |
+| `seed`, `ap` | `h_amt` — post-`Mitigation` effective damage |
 | `h_tgt`, `h_org`, `h_atk` | `h_kind` — reclassified to HEAL on a `min_damage_taken` underflow |
 | `h_at` (arrival clock) | `h_hp0` / `h_hp1` / `h_hpm` — the HP bars |
 | `h_crit` + the `FLAG_CRIT` bit | the `FLAG_GATED` bit (#503, decided at land) |

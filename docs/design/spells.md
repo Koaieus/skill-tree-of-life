@@ -2,7 +2,7 @@
 
 > **The roster is code.** A spell exists if and only if it has a `SpellDef` in [`attack/spell/defs/`](../../attack/spell/defs/). Its `.tres` holds the numbers and the player-facing `description`; the propagation pipeline is [`docs/domain/spell-propagation.md`](../domain/spell-propagation.md); a shipped spell's *why* is a docstring on the filter / spread / reducer that implements it. This doc holds only what is **not built**: the design lens below, the issue-backed spells, and a fenced **idea pool** of spells that do **not** exist. Never cite an idea-pool entry as a game mechanic.
 >
-> Settled calls on cast range, degree gating, mana and spell damage are ADRs — see the [ADR index](../adr/index.md).
+> Settled calls on cast range, degree gating, spell cost gates and spell damage are ADRs — see the [ADR index](../adr/index.md).
 
 ## How a spell dies
 
@@ -57,7 +57,7 @@ These have an issue; the issue is the design's home, not this doc.
 - **range:** short/medium
 - **mechanics/propagation:** damage targeted node for 1/4 of rated damage, then propagate to all neighbours, `2` (?) hops total, each hop applies (previous damage × 2)
 - **notes:** no friendly fire (or?); rampup TBD/tweakable. Inverse of Lightning Bolt — starts small, escalates. Best aimed at nodes deep inside enemy territory rather than the perimeter.
-- review: Just some basic hops based damage ramping spell, needs tweaking for range or mana cost to balance
+- review: Just some basic hops based damage ramping spell, needs tweaking for range to balance
 
 ---
 

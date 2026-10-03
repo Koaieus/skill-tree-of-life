@@ -101,7 +101,7 @@ The node's health is a `PoolStat` on `node_board` with **id `node_health`** — 
 
 ## Pool stats
 
-`PoolStat extends ScalarStat`. The stat IS the cap — `get_value()` / `.value` returns the modifier-computed maximum. `.current` is the ephemeral game state (damage/heal, not the modifier system). Modifiers always target the pool id directly (e.g. `"health"`, `"mana"`); there are no `*_max` sibling stats or IDs.
+`PoolStat extends ScalarStat`. The stat IS the cap — `get_value()` / `.value` returns the modifier-computed maximum. `.current` is the ephemeral game state (damage/heal, not the modifier system). Modifiers always target the pool id directly (e.g. `"health"`, `"action_points"`); there are no `*_max` sibling stats or IDs.
 
 ### One door onto the cap, and a private mint (#555, supersedes D-31's two doors)
 
@@ -146,7 +146,7 @@ the cap-change policy must never touch. Those two facts coexist; don't "fix"
 either by letting `current` exceed the cap.
 
 Authored today: `on_cap_rise = FOLLOW` on `health`, `node_combat_health`,
-`skill_points`, `movement_points`, `mana`, `action_points`, `tempo`; `PIN` on
+`skill_points`, `movement_points`, `action_points`, `tempo`; `PIN` on
 `deallocation_points`, `stake_level`, `xp`, `initiative`. `on_cap_fall = FOLLOW`
 on `node_combat_health` alone; every other pool CLAMPs. **FOLLOW on both axes is
 not just two policies** — it is the discriminator `PoolStat.stores_missing()`
@@ -172,7 +172,7 @@ The base also carries `per_turn_mode: PerTurnMode {NONE, REFILL, ADD, CUSTOM}` �
 
 | Def class | When to use | Adds |
 |---|---|---|
-| `StandardPoolStatDef` | Fixed-cap pool (HP, mana, AP, DP, SP, movement) | **nothing** — cap-change policy moved up to `PoolStatDef` in #555 |
+| `StandardPoolStatDef` | Fixed-cap pool (HP, AP, DP, SP, movement) | **nothing** — cap-change policy moved up to `PoolStatDef` in #555 |
 | `GrowablePoolStatDef` | Gauge that grows when filled (XP today; any future "fill-and-level" pool) | `growth_flat: float`, `growth_factor: float`, `post_grow_mode: PostGrowMode` |
 | `CyclicPoolStatDef` | Recurring threshold that resets on fill, carrying overshoot forward (`initiative` today) | nothing — `on_pool_filled` just does `set_current(min + excess)` (no growth) |
 
@@ -227,7 +227,7 @@ Contract: **overwritten each turn, never accumulated** — write it with `set_su
 
 **Gates and budgets must read `available()`, not `.current`.** `PoolStat.available()` (base) returns `roundi(current)`; `SurplusPoolStat` overrides it to add the bin. `AllocationSystem` (every gate, including the AP one), `HighlightController._movement_budget` and `PlayerInputController`'s movement budget read `available()` and honour surplus polymorphically without knowing the subclass. A gate reading `.current` would grant cells the player can't spend.
 
-Only `deallocation_points` and `movement_points` are `SurplusPoolStat` today; `action_points` and `mana` are plain pools, where the two forms agree. That is exactly why the AP/mana gates in `PlayerInputController.can_player_act`, `BattleSystem.launch_attack` and `ActionCluster` sat on `.current` unnoticed until the 2026-08-14 audit — and why this paragraph named them as compliant examples while they weren't. They read `available()` now. **The point of the rule is that the call site must not have to know which subclass it holds**, so don't "optimise" one back to `.current` on the grounds that its pool has no surplus bin *yet*: giving AP a surplus bin is a design the surplus section above explicitly contemplates ("an entity whose entire DP/MP budget is bought with unspent AP").
+Only `deallocation_points` and `movement_points` are `SurplusPoolStat` today; `action_points` is a plain pool, where the two forms agree. That is exactly why the AP gates in `PlayerInputController.can_player_act`, `BattleSystem.launch_attack` and `ActionCluster` sat on `.current` unnoticed until the 2026-08-14 audit — and why this paragraph named them as compliant examples while they weren't. They read `available()` now. **The point of the rule is that the call site must not have to know which subclass it holds**, so don't "optimise" one back to `.current` on the grounds that its pool has no surplus bin *yet*: giving AP a surplus bin is a design the surplus section above explicitly contemplates ("an entity whose entire DP/MP budget is bought with unspent AP").
 
 **Negative caps are undefined — don't reach for them.** `PoolStat.set_current` does `clamp(v, _min_value(), cap)`; with `cap = -1` the range inverts and `clamp` returns the cap, so `current` lands at `-1` (below floor) and `depleted` fires on *every* write, including every turn-start `restore_to_full()`. Harmless for DP/MP (nothing listens), fatal for `health` (`depleted` → `die()`). Express a penalty as a debt bin with real semantics, or clamp caps at zero — a real `min_value` change is its own issue.
 
@@ -244,11 +244,11 @@ Scene-authored ownership (e.g. dev_sandbox `owned_by = NodePath(...)`) doesn't g
 | Verb | `PerTurnMode` | Operation | Pools |
 |---|---|---|---|
 | Reset-to-cap | `REFILL` | `restore_to_full()` | `action_points`, `deallocation_points`, `movement_points`, `tempo` |
-| Top-up by a rate | `ADD` | `current += <rate stat>.value` (clamped) | `mana` (+`mana_per_turn`), `xp` (+`xp_per_turn`) |
+| Top-up by a rate | `ADD` | `current += <rate stat>.value` (clamped) | `xp` (+`xp_per_turn`) |
 | Top-up through the host's heal door | `HOST_ADD` | the pool does nothing; `Entity._apply_turn_upkeep` reads `PoolStat.host_upkeep_amount` and calls `EntityCombat.heal(amount, rate_id)` | `health` (+`core_healing`, #997) |
 | Bespoke | `CUSTOM` | `PoolStat._custom_turn_upkeep(board)` override | `skill_points` (heals `wound_heal_per_turn` wounds) |
 
-`PoolStatDef.per_turn_mode` (base-class field, default `NONE`) declares the verb. `StatBoard.apply_per_turn_upkeep()` enumerates every `PoolStat` field by introspection (`get_pool_stats()`) and calls `pool.run_turn_upkeep(self)`; the per-pool behaviour lives on `PoolStat`, the board is just the sweep. So **a new pool opts into upkeep by setting `per_turn_mode` on its def, not by editing `begin_turn`** (that was the footgun: `movement_points` was never restored and `mana_per_turn` was never consumed because nobody remembered to wire them). ADD resolves its rate stat through `PoolStatDef.resolved_per_turn_stat_id()` and `push_warning`s if it's missing.
+`PoolStatDef.per_turn_mode` (base-class field, default `NONE`) declares the verb. `StatBoard.apply_per_turn_upkeep()` enumerates every `PoolStat` field by introspection (`get_pool_stats()`) and calls `pool.run_turn_upkeep(self)`; the per-pool behaviour lives on `PoolStat`, the board is just the sweep. So **a new pool opts into upkeep by setting `per_turn_mode` on its def, not by editing `begin_turn`** (that was the footgun: `movement_points` was never restored and a regen-rate stat was never consumed because nobody remembered to wire them). ADD resolves its rate stat through `PoolStatDef.resolved_per_turn_stat_id()` and `push_warning`s if it's missing.
 
 **ADD's rate stat is `<id>_per_turn` by convention, overridable by name (#277).** `per_turn_stat_id` on `PoolStatDef` (empty = the convention) exists because `health`'s rate is **`core_healing`**, named for the mechanic rather than for the pool it fills — D-25 names it, and #268 registers a balance invariant using that name, so renaming it to `health_per_turn` to fit the convention would break the traceability the design is written against. Set the override only for that reason; a rate stat with no independent identity should keep the convention. A `CoreClass.on_turn_started` hook is *not* the place for this — pool upkeep stays declarative (see the footgun above). **Every heal enters through one door per host (#997, owner: "All heals must consult it"):** `NodeCombat.heal_damage` for `node_health`, `EntityCombat.heal` for `health` — each multiplies by `healing_received` once, `raw := true` is the only bypass, and `test/unit/test_heal_door_drift.gd` scans the tree for a `replenish`/`set_current`/`.current +=` on either pool outside the two door bodies. That is why `health` is `HOST_ADD` rather than `ADD`: the def still names the rate and the route, but the pool hands the amount to the host instead of replenishing itself, so an entity-hosted Wither inverts the core's own trickle exactly as it inverts node heals.
 
@@ -258,7 +258,7 @@ Scene-authored ownership (e.g. dev_sandbox `owned_by = NodePath(...)`) doesn't g
 
 **Fractional rates accumulate, they don't truncate.** `SkillPointStat.wound_heal_progress` (0..1, runtime-only) banks `wound_heal_per_turn` every turn upkeep; once it crosses 1.0 *and* `wounded > 0` it heals 1 SP and drains by 1.0. A rate below 1 (e.g. 0.5 — two turns per healed SP) would silently heal nothing forever under a naive `int(rate)` per-turn call, which is what this replaced. While `wounded == 0` the progress holds at a capped 1.0 instead of wrapping — nothing to spend it on yet — so it reads "full" until the entity is wounded again, at which point the *very next* turn upkeep immediately heals and drains it. `wound_heal_progress_changed(progress)` is what `turn_resources_panel.gd` binds its sliver to; the label showing the rate itself is always visible (not gated on `wounded > 0`) since the rate is a stat a player wants to see even unwounded.
 
-`health` is `HOST_ADD` with `core_healing` as its rate (D-25, #277; the door since #997): an **integer** heal, placeholder `1`/turn, **ungated and unramped**. No damage gate — a gate only exists to make a ramp meaningful, and a ramping out-of-combat heal would reward exactly the camping D-10's forced-dealloc cascade is engineered to punish. (Node regen *does* ramp and *is* gated — D-9 — because a held node recovering is territory you are defending. Don't unify the two.) Integer rather than a sub-1 sliver because the gauges already render an "incoming next turn" band: `hero_sigil_card.gd` binds `health` ← `core_healing` the same way it binds mana (and the way `xp_track.gd` binds `xp` ← `xp_per_turn` since XP moved out of the card in #320), so the UI cost was zero. `test_core_healing.gd` pins the no-gate and no-ramp contracts.
+`health` is `HOST_ADD` with `core_healing` as its rate (D-25, #277; the door since #997): an **integer** heal, placeholder `1`/turn, **ungated and unramped**. No damage gate — a gate only exists to make a ramp meaningful, and a ramping out-of-combat heal would reward exactly the camping D-10's forced-dealloc cascade is engineered to punish. (Node regen *does* ramp and *is* gated — D-9 — because a held node recovering is territory you are defending. Don't unify the two.) Integer rather than a sub-1 sliver because the gauges already render an "incoming next turn" band: `hero_sigil_card.gd` binds `health` ← `core_healing` (the same way `xp_track.gd` binds `xp` ← `xp_per_turn` since XP moved out of the card in #320), so the UI cost was zero. `test_core_healing.gd` pins the no-gate and no-ramp contracts.
 
 **#268 invariant, named not implemented:** if `core_healing >= dealloc_damage × nodes_lost_per_turn`, camping is viable again and D-10's structural guarantee is silently undone. `1` is the break-even against a 1-node-per-turn chip — a placeholder per D-13, not a blessed value.
 
@@ -271,7 +271,7 @@ Scene-authored ownership (e.g. dev_sandbox `owned_by = NodePath(...)`) doesn't g
 ### Then: node refill + class hook
 
 - (for each node owned by the entity) `SkillNode.refill()` — node combat HP back to max.
-- `core_class.on_turn_started(self)` — the wired class runs its own per-turn effects (caster mana flourishes, rage decay, etc.). Default hook is a no-op.
+- `core_class.on_turn_started(self)` — the wired class runs its own per-turn effects (caster flourishes, rage decay, etc.). Default hook is a no-op.
 
 ## Dependency-cycle rejection (#322)
 
@@ -486,6 +486,8 @@ Per-entity class bonuses live on `Entity.core_class: CoreClass` (`entity/core/`)
 
 ## Stat IDs
 
+Mana and mana regen were retired 2026-10-03 (ADR 0045); restore from tag `retired/mana`, never re-add ad hoc.
+
 Run to list all current stat IDs:
 ```
 grep -h "^id = " stats_system/defs/*.tres | sort
@@ -579,8 +581,6 @@ These are `StatModifier` sub-resources with a `formula`, wired as `intrinsic_mod
 |---|---|---|---|---|
 | `perception` | `vision_range` | INCREASE | 2 | LinearFormula(perception) — at PER=3 → +6% |
 | `perception` | `sensor_range` | ADD_BASE | 1 | ThresholdFormula(perception, [3, 8, 21, 55, 149, 404, 1097, 2981, 8104, 22027]) — exactly `floor(ln PER)`, `ceil(e^n)` per rung (#547, moved from WIS to PER — owner call 2026-09-11: PER has two jobs, vision + sensor range; WIS has one, XP/turn) |
-| `intelligence` | `mana` | ADD_BASE | 1 | RatioFormula(intelligence, **1000**) — #766, deliberately conservative: the board (`mana +` grants) is the mana source, INT a rounding error |
-| `intelligence` | `mana_per_turn` | ADD_BASE | 1 | ThresholdFormula(intelligence, [1000, 1e4, 1e5, 1e6]) — #766, ladder starts three decades later than #547's; `mana_per_turn +` grants are the real source |
 | `wisdom` | `xp_per_turn` | ADD_BASE | 1 | RatioFormula(wisdom, **5**) — #776 divisor pass, starting value |
 | `dexterity` | `range` | INCREASE | 1 | LinearFormula(dexterity) — at DEX=30 → +30% |
 | `dexterity` | `ranged_damage` | ADD_BASE | 1 | RatioFormula(dexterity, **20**) — #776 divisor pass, starting value |
