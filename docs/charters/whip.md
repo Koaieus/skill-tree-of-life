@@ -524,3 +524,7 @@ the substance. One line per fold; the post holds the detail.
 - 2026-10-03 · autopsy (11:36, posted by the forked copy itself: a held
   cross-session message read as `blocked`, the stop did not take, the
   flagless resume forked) → laws 5 and 7 amended, corpus row 15.
+- 2026-10-03 · autopsy (11:41, the forked copy: a resumed whip loses the
+  name `whip` so v1 leads had no recipient; cross-mode messages expire
+  unattended) → already the v2 shape — law 12 (leads report by verb, never
+  to a name), law 21 (no session-to-session message in the relay).
