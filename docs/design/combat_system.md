@@ -471,7 +471,7 @@ Each modifier can be:
 - **Rarity-scaled efficiency:** proliferation works **less effectively on rarer modifiers** — duplicating something like the ultra-rare `+1 bonus_hop_count` succeeds but yields fewer copies / costs more. The rarest, most build-defining mods stay valid targets without letting you trivially mint a board-nuke.
 - **Discipline preserved (Slay the Spire "stay lean"):** the restraint moved from *which cards to draft* to *how much to commit to the field.* Greedy players over-proliferate into territory they can't hold and eat the punish.
 
-The `proliferation_power` stat now reads as the **N** (copy count, rarity-scaled), not an RNG radius. See `entity_stat_board_prototype.md`.
+A `proliferation_power` stat (unbuilt) would read as the **N** (copy count, rarity-scaled), not an RNG radius.
 
 ---
 

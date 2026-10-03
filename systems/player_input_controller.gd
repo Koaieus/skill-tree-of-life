@@ -848,7 +848,7 @@ func _active_attack_plan() -> AttackPlan:
 
 
 ## Node-independent pop shared by right-click and Esc (#404): right-click
-## "ignores which node was clicked" (docs/design/click_grammar.md) and Esc has
+## "ignores which node was clicked" (docs/domain/click-grammar.md) and Esc has
 ## no node at all. The top level first retreats inside itself
 ## ([method ArmedMode.pop_within]); otherwise it pops. False at the root, so
 ## the caller falls through to pin-toggle / the pause menu. Mid-swing the
