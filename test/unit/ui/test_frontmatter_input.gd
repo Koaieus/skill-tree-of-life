@@ -253,11 +253,14 @@ func test_the_panel_takes_the_keyboard_when_it_is_raised() -> void:
 
 
 func test_a_panel_with_nothing_focusable_grabs_nothing() -> void:
-	# The parked load screen is one Label — nothing to hand the keyboard to.
-	# Must not crash (the null branch of _first_focusable).
-	_frontmatter.focus(MenuGraph.ID_LOAD_GAME, true)
+	# The load screen with no slot offers a disabled LOAD that takes no focus —
+	# nothing to hand the keyboard to. Must not crash (the null branch of
+	# _first_focusable). Pinned to a missing slot so a real save on this machine
+	# cannot change the answer.
 	var found := _frontmatter.find_children("*", "FrontmatterPanels", true, false)
 	var panels := found[0] as FrontmatterPanels
+	(panels.get_panel(MenuGraph.PANEL_LOAD) as LoadPanel).slot_path = "user://no_such_slot.bin"
+	_frontmatter.focus(MenuGraph.ID_LOAD_GAME, true)
 	assert_eq(panels.shown_panel, MenuGraph.PANEL_LOAD)
 	var panel := panels.get_panel(MenuGraph.PANEL_LOAD)
 	var focused := panel.get_viewport().gui_get_focus_owner()
