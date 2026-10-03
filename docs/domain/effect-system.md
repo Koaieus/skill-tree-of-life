@@ -12,9 +12,17 @@ Two different things that both end in "Effect". They are siblings, not a hierarc
 
 | | `Effect` (`effects/effect.gd`) | `OnHitEffect` (`attack/spell/on_hit/`) |
 |---|---|---|
-| Lifetime | granted → lives → revoked | fires once, per spell hit |
+| Lifetime | granted → lives → revoked | fires once, per landing |
 | State | grant ledger on `EffectInstance` | none |
-| Dispatch | `Entity.dispatch(hook)` | `SpellResolver` per landed node |
+| Dispatch | `Entity.dispatch(hook)` | each mode's resolver, per `HitLanding` |
+
+**The payload seam (ADR 0044):** authoring a new on-hit thing = an
+`OnHitEffect` on the carrier's `on_hit_effects`. It reads a mode-agnostic
+`HitLanding` (attacker, source, origin, target, structural key, `paired`, the
+`hits` sink), so the same effect works on a spell, an arrow and a blade. An
+effect that needs spell context extends `SpellOnHitEffect` (narrows to
+`LandingContext`). A status rides `HitLanding.paired`, and
+`StatusInstance.paired` gates it: no landed paired hit, no status.
 
 ## Composition, not a subclass zoo
 

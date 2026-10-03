@@ -65,6 +65,7 @@ mise run adr-hygiene     # frontmatter, supersede links, index coverage, immutab
 | [0041](0041-special-arrows-bank-outside-the-quiver-capacity.md) | Special arrows bank outside the quiver's capacity, each type under its own `max_stock`; the `arrows` pool's current/max are the plain arrows only (supersedes 0019 in part) | accepted | 2026-10-01 | ranged, combat, stats, architecture |
 | [0042](0042-a-save-is-the-join-world-written-to-disk.md) | A save is the join world written to disk; `WorldImage` is the one capture/apply owner, the wire and the disk its transports | accepted | 2026-10-02 | save, multiplayer, netcode, architecture |
 | [0043](0043-a-stats-modifiers-are-discrete-obtain-ordered-instances.md) | A stat's modifiers are discrete instances in obtain order: an equal-priority SET clash is an authoring error (last-in wins), a load restores the order, and in game only a formula sum-op fuses | accepted | 2026-10-03 | stats, save-load, multiplayer, loot, architecture |
+| [0044](0044-one-on-hit-vocabulary-for-every-attack-mode.md) | One on-hit vocabulary for every attack mode: an `OnHitEffect` reads a mode-agnostic `HitLanding`, and a rider status is gated by the hit it is `paired` with | accepted | 2026-10-03 | combat, on-hit, status, architecture |
 
 ## Pre-ADR log
 
