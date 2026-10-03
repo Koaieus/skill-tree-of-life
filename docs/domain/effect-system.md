@@ -377,7 +377,8 @@ read is already correct.
 ## Status effects — the DoT model
 
 The status slice above (`StatusDef` + a `NodeStatus{power, key, …}` row per `(def.id, key)`) carries
-four damage-over-time families, one per defensive axis they answer. The *why* —
+four damage-over-time families, one per defensive axis they answer (the axes:
+[defense-axes.md](defense-axes.md)). The *why* —
 one family per axis, uncapped stacks, the rejected timers — is
 [ADR 0022](../adr/0022-one-dot-per-defensive-axis-stacks-halve-uncapped.md)
 (its halving decay is refined by
