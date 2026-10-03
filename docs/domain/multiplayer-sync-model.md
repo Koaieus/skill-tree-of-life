@@ -433,9 +433,11 @@ entirely host-local. It is now split, and the split is the interesting part:
 | Shared | **every** peer, `SeatHandover._adopt` | `Participant.kind = AI`, `Entity.is_human_controlled = false`, emit `seat_handed_over` — the level re-runs `_apply_seat_vision()` and raises the banner |
 | Authority | host only, `hand_seat_to_ai` | broadcast `KIND_SEAT_HANDOVER`, swap `PlayerController` → `AIController` (`ControllerFactory.replace_with_ai`), kick the turn if it is this hero's |
 
-**The argument is fog, not the banner.** `SeatPolicy.vision_group` is an
-*allied-humans* reveal keyed on `Entity.is_human_controlled`, and AI never
-shares. With the flip host-local, a coop ally on a **third** machine kept
+**The argument is fog, not the banner.** When this was settled,
+`SeatPolicy.vision_group` was an *allied-humans* reveal keyed on
+`Entity.is_human_controlled` (it is now camp-mates by `faction.id`, AI
+included — `seat-policy.md`; the rule below still binds any per-machine view
+fed by seat state). With the flip host-local, a coop ally on a **third** machine kept
 revealing through a hero the host had already stopped revealing through — two
 machines drawing different maps of the same authoritative world. No fingerprint
 can see it: `is_human_controlled` is carried by neither `WorldFingerprint` nor
