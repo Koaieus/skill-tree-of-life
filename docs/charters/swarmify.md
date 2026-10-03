@@ -392,7 +392,7 @@ Numbered so the skill can be checked against them law by law.
     **one** `Agent(subagent_type: "clerk")` with the manifest path. The skill
     carries the **full manifest grammar** — every key, including `labels-add`,
     `blocked-by` on a new issue, a per-issue `milestone`, and `parent:` on an
-    existing issue to re-parent it — duplicated verbatim from
+    existing issue to re-parent it (`-` detaches) — duplicated verbatim from
     `.claude/agents/clerk.md`, so the pass never opens a second file to write
     it (a change to the block there is a change here, same commit). The clerk
     posts, creates, relates, re-parents, sets status / labels / milestone,

@@ -352,7 +352,7 @@ milestone: 3                           # default for every issue below
 issue #1130                            # an existing issue
   comment: 1130-spec.md                # post as a new comment
   body: 1130-body.md                   # or: replace the body
-  parent: #1120                        # optional: move it under another parent
+  parent: #1120                        # optional: move it under another parent; `-` detaches
   status: ready                        # omit on a hub — hub status is derived
   labels-rm: design, blocked
   labels-add: ui
@@ -371,7 +371,7 @@ refresh                                # optional: run `mise run refresh`, repor
 hygiene                                # always last
 ```
 
-A `parent:` on an existing issue moves it. Moving the last open child out
+A `parent:` on an existing issue moves it, `parent: -` detaches it. Moving the last open child out
 of a hub leaves that hub empty, and `land` / `hygiene --fix` then close it;
 the clerk's report line gives the old parent's open-child count, and you
 tell the owner when that count hit zero.

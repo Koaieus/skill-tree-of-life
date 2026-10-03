@@ -52,7 +52,10 @@ Haiku is priced a fifth of Opus and never carries the pass's context.
    change to that copy in the same commit. `parent:` is a key on *existing*
    issues as well as `new` ones: a pass that promotes a child into a hub under
    a different parent, or files a sibling where a child was, re-parents
-   through the manifest, not by hand.
+   through the manifest, not by hand; `parent: -` detaches it. The clerk's
+   reach is bounded by the board rules (law 4), not by caution about
+   relations: a relation the clerk refuses is one the Opus session then sets
+   by hand at full context, which is the cost the clerk exists to remove.
 3. **Every exit code is checked; nothing is piped through `tail`; nothing is
    retried blind.** The
    issue-workflow traps (`--add-parent` swallowed by a pipe, `blockedBy` as an
@@ -91,7 +94,7 @@ Haiku is priced a fifth of Opus and never carries the pass's context.
 
 | Date | Kind | Became |
 |---|---|---|
-| 2026-10-03 | friction | `parent:` on existing issues (law 2); re-parent line reports the old parent's open-child count (law 5); grammar block mirrored in swarmify step 10 |
+| 2026-10-03 | friction | `parent:` / `parent: -` on existing issues (law 2); re-parent line reports the old parent's open-child count (law 5); grammar block mirrored in swarmify step 10 |
 
 ## What the agent file must not contain
 
@@ -106,4 +109,5 @@ beyond the one clause that makes it recognisable.
 | 2026-09-26 | tail measurement (59 swarmify sessions; `.claude/skills/swarmify/corpus/2026-09-26-tail-measurement.md`) | numbers in the cost argument above. Failures inside tails, by kind: `gh` `--json` field names that had moved (`blockedByIssues`); relations set on a child not yet created, or a milestone typo, exiting 1; hygiene violations fixed by hand; ~15 identical re-runs after a failure. No backtick-mangled `--body` — `--body-file` already holds | 3 |
 | 2026-09-26 | first dry run (read-only manifest: two drift checks + hygiene) | 7 calls, ~35k Haiku tokens, report in the specified shape; `no stamp` on a `/warp`-made issue correctly reported as FAILED | 5, 6 |
 | 2026-10-03 | #1311 → hub under #1255 (was a child of #1217) | the manifest had `parent:` only on `new` issues, so the pass re-parented by hand (REST `sub_issue` DELETE + `sub_issues` POST) at full context, then had to open the agent file to learn the manifest keys; `hygiene --fix` then closed the emptied #1217 with nothing having said it would | 2, 5 |
+| 2026-10-03 | owner | on leaving `--remove-parent` out of the clerk: "if the clerk doesn't do it then a more costly agent must" | 2 |
 | 2026-10-01 | reticle pass (#1284, six children) | creates, comments and body edits landed; then every `--add-blocked-by`, `milestone` and `issue view` died on "API rate limit already exceeded" — the hourly GraphQL quota, spent by `gh-project status <n>` reads at ~607 points each (now ~1). The clerk tried `sleep 60`, a `rate_limit` poll loop and backgrounded `gh-project` calls hung in the shim's backoff; the parent session finished by hand, links via REST `dependencies/blocked_by`. Owner: "The clerk charter updating to direct using REST first might be good nonetheless" | 7 |

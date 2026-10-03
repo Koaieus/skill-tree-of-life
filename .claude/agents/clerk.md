@@ -27,7 +27,7 @@ milestone: 3                           # default for every issue below
 issue #1130                            # an existing issue
   comment: 1130-spec.md                # post as a new comment
   body: 1130-body.md                   # or: replace the body
-  parent: #1120                        # optional: move it under another parent
+  parent: #1120                        # optional: move it under another parent; `-` detaches
   status: ready                        # omit on a hub — hub status is derived
   labels-rm: design, blocked
   labels-add: ui
@@ -69,7 +69,8 @@ make it on a copy in the same directory (`<file>.resolved`), never the original.
    per call; REST, so it works even when GraphQL is rate-limited). A `parent:`
    line on an existing issue is a re-parent: first read its current parent
    (`gh issue view <n> --json parent --jq .parent.number`; empty means none),
-   then `gh issue edit <n> --parent <p>`. Afterwards count the old parent's
+   then `gh issue edit <n> --parent <p>` (`parent: -` is
+   `gh issue edit <n> --remove-parent`). Afterwards count the old parent's
    open children for the report (`gh issue view <old> --json subIssuesSummary
    --jq '.subIssuesSummary.total - .subIssuesSummary.completed'`) — never
    close it, never touch its status.
@@ -130,6 +131,7 @@ then the checks, then anything not done:
 #1131 @state created · parent #1130 ✓ · Ready · M3 · drift ok
 #1132 @wiring created · parent #1130 ✓ · blocked-by #1131 · Ready · M3 · drift ok
 #1128 re-parented #1120 → #1130 ✓ · old parent #1120 has 0 open children · drift ok
+#1129 detached from #1120 ✓ · old parent #1120 has 2 open children
 refresh: <verdict line>
 hygiene: clean
 SKIPPED: #1133 status — no milestone in manifest
