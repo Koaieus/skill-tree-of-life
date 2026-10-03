@@ -24,7 +24,11 @@ func _set_ranged_damage(node: SkillNode, value: float) -> void:
 	m.stat_id = &"ranged_damage"
 	m.operation = StatModifier.Operation.SET
 	m.value = value
+	var key := &"_fixture_set_ranged_damage"
+	if node.has_meta(key):
+		node.remove_local_modifier(node.get_meta(key))
 	node.add_local_modifier(m)
+	node.set_meta(key, m)
 
 
 func test_every_arrow_launches_before_the_first_one_lands() -> void:

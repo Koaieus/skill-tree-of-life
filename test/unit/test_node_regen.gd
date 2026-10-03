@@ -18,6 +18,7 @@ const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 var _graph: Graph
 var _alloc: AllocationSystem
 var _entity: Entity
+var _con_set: StatModifier  # last SET from _set_con, replaced on the next call
 
 
 func before_each() -> void:
@@ -29,6 +30,7 @@ func before_each() -> void:
 	_alloc.graph = _graph
 	add_child_autofree(_alloc)
 
+	_con_set = null
 	_entity = Entity.new()
 	autofree(_entity)
 	_entity.display_name = "Regenerator"
@@ -192,7 +194,10 @@ func _set_con(value: float) -> void:
 	mod.stat_id = &"constitution"
 	mod.operation = StatModifier.Operation.SET
 	mod.value = value
+	if _con_set != null:
+		_entity.stat_board.remove_modifier(_con_set)
 	_entity.stat_board.add_modifier(mod)
+	_con_set = mod
 
 
 ## +[param delta] max node HP via an entity-board modifier — headroom so a

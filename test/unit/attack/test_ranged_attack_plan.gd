@@ -35,7 +35,11 @@ func _set_range(node: SkillNode, value: float) -> void:
 		m.stat_id = id_value[0]
 		m.operation = StatModifier.Operation.SET
 		m.value = id_value[1]
+		var key := StringName("_fixture_set_" + str(id_value[0]))
+		if node.has_meta(key):
+			node.remove_local_modifier(node.get_meta(key))
 		node.add_local_modifier(m)
+		node.set_meta(key, m)
 
 
 ## A volley needs arrows (#957): the default board's quiver starts empty.
@@ -48,7 +52,11 @@ func _set_ranged_damage(node: SkillNode, value: float) -> void:
 	m.stat_id = &"ranged_damage"
 	m.operation = StatModifier.Operation.SET
 	m.value = value
+	var key := &"_fixture_set_ranged_damage"
+	if node.has_meta(key):
+		node.remove_local_modifier(node.get_meta(key))
 	node.add_local_modifier(m)
+	node.set_meta(key, m)
 
 
 func before_each() -> void:
@@ -496,7 +504,11 @@ func _set_max_shots(node: SkillNode, value: float) -> void:
 	m.stat_id = &"max_shots_per_leaf"
 	m.operation = StatModifier.Operation.SET
 	m.value = value
+	var key := &"_fixture_set_max_shots_per_leaf"
+	if node.has_meta(key):
+		node.remove_local_modifier(node.get_meta(key))
 	node.add_local_modifier(m)
+	node.set_meta(key, m)
 
 
 func test_range_fill_is_full_for_a_fresh_leaf() -> void:

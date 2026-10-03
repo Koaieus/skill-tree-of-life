@@ -23,7 +23,11 @@ func _set_local(node: SkillNode, stat_id: StringName, value: float) -> void:
 	m.stat_id = stat_id
 	m.operation = StatModifier.Operation.SET
 	m.value = value
+	var key := StringName("_fixture_set_" + str(stat_id))
+	if node.has_meta(key):
+		node.remove_local_modifier(node.get_meta(key))
 	node.add_local_modifier(m)
+	node.set_meta(key, m)
 
 
 ## Attacker owns core–leaf; the leaf sees 50 px and senses 1 hop, so `target`
