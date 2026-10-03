@@ -1,14 +1,12 @@
 extends GutTest
 
-## #1035 — the scout arrow. A scout type (`attack/ammo/types/scout.tres`,
-## `reveal_fraction > 0`) never deals damage: the resolve emits one
-## [RevealInstance] per scout arrow, no [DamageInstance], no [StatusInstance],
-## with radius = its own firing leaf's local `vision_range × reveal_fraction ×
-## (1 + reveal_stack_bonus·(k−1))`, k counted over the scout arrows from that
-## same leaf in landing order. Scouts sit last in the roster order so the disc
-## lands once the damage arrows are done. A reveal burns its shot like any
-## arrow; the record carries it to a peer as its own kind; reload mints the
-## `scout` bin flat off `scout_aspect`.
+## The scout arrow (`attack/ammo/types/scout.tres`, #1346). A scout type
+## ([method AmmoType.is_scout]) deals no damage: `damage_scale` 0 makes each
+## arrow a zero carrier, and its one rider lands one `scout` stack
+## ([ScoutStatus], power 1) paired to it — the common compute + riders path,
+## no branch of its own. Scouts sit last in the roster order so the disc lands
+## once the damage arrows are done. A scout burns its shot like any arrow;
+## reload mints the `scout` bin flat off `scout_aspect`.
 
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _GRAPH_SCENE := preload("res://graph/graph.tscn")
@@ -17,6 +15,7 @@ const _PLAYER_FACTION := preload("res://entity/factions/player.tres")
 const _NPC_FACTION := preload("res://entity/factions/npc.tres")
 const _SCOUT: AmmoType = preload("res://attack/ammo/types/scout.tres")
 const _ROSTER: AmmoTypeRoster = preload("res://attack/ammo/ammo_type_roster.tres")
+const _SCOUTED: ScoutStatus = preload("res://effects/status/scouted.tres")
 
 
 func _set_local(node: SkillNode, stat_id: StringName, value: float) -> void:
@@ -130,53 +129,60 @@ func _of(outcome: AttackOutcome, cls: Variant) -> Array:
 func test_scout_is_rostered_last_with_the_authored_knobs() -> void:
 	var sorted := _ROSTER.sorted()
 	assert_eq(sorted.back().id, &"scout", "scouts land after every damage arrow")
-	assert_gt(_SCOUT.reveal_fraction, 0.0, "reveal_fraction > 0 is what makes a type a scout")
-	assert_eq(_SCOUT.on_hit_effects.size(), 0, "never a status rider: the mark is VisionSystem's, not a node status")
+	assert_true(_SCOUT.is_scout(), "a scouted rider is what makes a type a scout")
+	assert_eq(_SCOUT.damage_scale, 0.0, "no damage payload (ADR 0033)")
+	assert_eq(_SCOUT.on_hit_effects.size(), 1, "one rider")
+	var rider := _SCOUT.on_hit_effects[0] as ApplyStatusEffect
+	assert_not_null(rider, "the rider is a status application")
+	if rider != null:
+		assert_eq(rider.def, _SCOUTED)
+		assert_eq(rider.power, 1.0, "1 stack per arrow")
 	assert_eq(_SCOUT.per_reload_stat_id, &"scout_aspect")
+	for t in sorted:
+		if t.id != &"scout":
+			assert_false(t.is_scout(), "%s is no scout" % t.id)
 
 
 # ── The resolve ─────────────────────────────────────────────────────────────
 
-func test_a_volley_of_two_base_and_three_scouts_yields_two_damage_and_three_reveals() -> void:
+func _scout_carriers(outcome: AttackOutcome) -> Array:
+	return _of(outcome, DamageInstance).filter(func(h: HitInstance) -> bool:
+		return h is RangedDamageFormula.RangedHitInstance and h.ammo_type == _SCOUT)
+
+
+func test_a_scout_arrow_emits_one_scout_status_and_no_damage() -> void:
+	var ctx: Dictionary = await _build()
+	var outcome := _resolve(ctx, {&"scout": 1})
+	var statuses: Array = _of(outcome, StatusInstance)
+	assert_eq(statuses.size(), 1, "exactly one StatusInstance")
+	if statuses.size() == 1:
+		assert_eq(statuses[0].def, _SCOUTED)
+		assert_eq(statuses[0].power, 1.0, "scout, power 1")
+		assert_eq(statuses[0].target, ctx.nodes.target)
+	for h in _of(outcome, DamageInstance):
+		assert_eq(h.amount, 0.0, "the carrier deals nothing")
+		assert_eq(h.effective_amount, 0.0)
+		assert_true(h.landed(), "a zero carrier that reaches the node lands, so its rider does")
+
+
+func test_two_base_and_three_scouts_land_two_damage_hits_and_three_stacks() -> void:
 	var ctx: Dictionary = await _build()
 	var outcome := _resolve(ctx, {&"arrow": 2, &"scout": 3})
-	assert_eq(outcome.hits.size(), 5, "one hit per arrow, nothing else")
-	assert_eq(_of(outcome, DamageInstance).size(), 2)
-	assert_eq(_of(outcome, StatusInstance).size(), 0, "a scout arrow leaves no status")
-	var reveals: Array = _of(outcome, RevealInstance)
-	assert_eq(reveals.size(), 3)
-	if reveals.size() != 3:
-		return
-	var amounts: Array = reveals.map(func(h: HitInstance) -> float: return h.amount)
-	assert_almost_eq(amounts[0], 200.0, 0.001, "400 × 0.5 (k=1)")
-	assert_almost_eq(amounts[1], 240.0, 0.001, "400 × 0.5 × 1.2 (k=2)")
-	assert_almost_eq(amounts[2], 280.0, 0.001, "400 × 0.5 × 1.4 (k=3)")
-	for h in reveals:
-		assert_eq(h.attacker, ctx.attacker)
-		assert_eq(h.origin, ctx.nodes.leaf)
-		assert_eq(h.target, ctx.nodes.target)
-		assert_eq(h.kind, HitInstance.Kind.REVEAL)
-	var last_damage_key: float = _of(outcome, DamageInstance).map(func(h: HitInstance) -> float: return h.structural_key).max()
-	for h in reveals:
+	var carriers := _scout_carriers(outcome)
+	assert_eq(carriers.size(), 3, "one zero carrier per scout arrow")
+	var damage := _of(outcome, DamageInstance).filter(func(h: HitInstance) -> bool: return h.amount > 0.0)
+	assert_eq(damage.size(), 2, "the base arrows still hit")
+	var statuses: Array = _of(outcome, StatusInstance)
+	assert_eq(statuses.size(), 3, "one stack per scout arrow")
+	for st in statuses:
+		assert_eq(st.def, _SCOUTED)
+		assert_true(carriers.has(st.paired), "each stack rides its own arrow")
+	var last_damage_key: float = damage.map(func(h: HitInstance) -> float: return h.structural_key).max()
+	for h in carriers:
 		assert_true(h.structural_key >= last_damage_key, "scouts are keyed after the damage arrows")
 
 
-func test_two_leaves_firing_one_scout_each_read_their_own_vision_range() -> void:
-	var ctx: Dictionary = await _build(Vector2.ZERO, 1.0, 1.0)
-	var outcome := _resolve(ctx, {&"scout": 2})
-	var reveals: Array = _of(outcome, RevealInstance)
-	assert_eq(reveals.size(), 2)
-	if reveals.size() != 2:
-		return
-	var by_origin: Dictionary = {}
-	for h in reveals:
-		by_origin[h.origin] = h.amount
-	assert_almost_eq(float(by_origin.get(ctx.nodes.leaf, -1.0)), 200.0, 0.001, "the leaf's 400 × 0.5")
-	assert_almost_eq(float(by_origin.get(ctx.nodes.core, -1.0)), 350.0, 0.001,
-			"the core's 700 × 0.5 — k counts per firing leaf, so no stack bonus")
-
-
-func test_a_reveal_burns_its_shot_and_its_scout_stock() -> void:
+func test_a_scout_burns_its_shot_and_its_scout_stock() -> void:
 	var ctx: Dictionary = await _build()
 	_arm(ctx, {&"arrow": 2, &"scout": 3})
 	var bs: BattleSystem = ctx.bs
@@ -187,21 +193,8 @@ func test_a_reveal_burns_its_shot_and_its_scout_stock() -> void:
 	assert_true(bs.prepare_launch_command(command), "the fixture attack must survive validation")
 	@warning_ignore("redundant_await")
 	await bs.apply_launch_command(command)
-	assert_eq((ctx.nodes.leaf as SkillNode).shots_fired_this_turn, 5, "five arrows, five shots — a reveal is a shot")
+	assert_eq((ctx.nodes.leaf as SkillNode).shots_fired_this_turn, 5, "five arrows, five shots — a scout is a shot")
 	assert_eq(quiver.stock_of(&"scout"), scouts_before - 3, "three from the scout bin")
-
-
-func test_the_record_round_trips_the_reveals_with_their_amounts_and_attacker() -> void:
-	var ctx: Dictionary = await _build()
-	var outcome := _resolve(ctx, {&"arrow": 2, &"scout": 3})
-	var wired: Dictionary = bytes_to_var(var_to_bytes(AttackRecord.capture(outcome, ctx.graph)))
-	var rebuilt := AttackRecord.rebuild(wired, ctx.graph)
-	var reveals: Array = _of(rebuilt, RevealInstance)
-	assert_eq(reveals.size(), 3, "three reveals come back as their own kind")
-	var amounts: Array = reveals.map(func(h: HitInstance) -> float: return h.amount)
-	assert_eq(amounts, [200.0, 240.0, 280.0])
-	for h in reveals:
-		assert_eq(h.attacker, ctx.attacker)
 
 
 # ── The supply ──────────────────────────────────────────────────────────────
