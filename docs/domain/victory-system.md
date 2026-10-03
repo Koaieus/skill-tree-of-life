@@ -131,13 +131,14 @@ signal and must be ignored.
 
 `TurnLimitCondition` (`session/victory/turn_limit_condition.gd`): after `limit`
 rounds (or entity-turns — the `unit` enum, `ROUNDS` by default) the camp with
-the highest score wins. Score = `(summed level, summed xp.current, owned
-nodes)` over the camp's living contestants, compared lexicographically — owned
-territory breaks a level-and-XP tie (owner, 2026-10-02); an exact tie on all
-three is a DRAW. Territory is one walk of `ctx.graph` per evaluation, bucketed
-by camp, with the same valid/living/contestant filter as the entity sums. The
-scoring is one private method (`_camp_score`) so it can become a knob later —
-and where a total-XP number (#1312) would collapse the first two components.
+the highest score wins. Score = `(Σ lifetime XP via GrowablePoolStat.total(),
+owned nodes)` over the camp's living contestants, compared lexicographically —
+owned territory breaks an XP tie (owner, 2026-10-02); a tie on both is a DRAW.
+Lifetime XP rather than level + bar because those don't add across several
+members (owner pick, 2026-10-03, #1312). Territory is one walk of `ctx.graph`
+per evaluation, bucketed by camp, with the same valid/living/contestant filter
+as the XP sum. The scoring is one private method (`_camp_score`) so it can
+become a knob later.
 
 It ships as a **bonus** under `CombinedVictoryCondition`
 (`session/victory/turn_limit.tres`, `limit = 15`), so last-camp-standing still
