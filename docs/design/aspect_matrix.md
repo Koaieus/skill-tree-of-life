@@ -122,20 +122,26 @@ The design passes now run **per cell** (owner, 2026-10-03, #1376: *"1 pass
 per cell, sometimes groupable"*): one issue per concept × facet, grouped
 under a row hub per concept; #1318's per-concept pass is superseded by them.
 
+**The Tag column (owner, 2026-10-05).** *"a 1-3 word sharp summary of
+what it is or what kind of jargon could capture it perfectly"*. The owner's
+examples: poison → DoT; explosive → AoE; corruption → buildup, %dmg, spread;
+curse → fragility *("cuz raises damage floor?")*, spill. Tags marked
+*(proposed)* were filled in by the same pass and await the owner's word.
+
 ## The Matrix
 
 Each cell links its cell issue (`<Concept> × <Facet>`, a child of the row hub in Notes), or says shipped. Infusion is one issue for the whole column, #1250.
 
-| Concept | Stat | Ranged (arrow) | Addon (map / temp) | Spell | Magic (infusion) | Notes |
-|---|---|---|---|---|---|---|
-| Poison | `poison_aspect` | shipped; look designed (see "Rows designed in #1318"), building in #1352 | #1271 — designed (see "Rows designed in #1318"), needs an acceptance spec | `venom` shipped; second spell #1381 | #1250 | row: #1377. Spread signature deferred to an authoring pass (owner, #1204) |
-| Corruption | `corruption_aspect` | #1382 — scaffold (#1349) | #1383 | #1384 | #1250 | row: #1378. Spreads as a sandpile by nature (#1202); health bar shows blips per stack, extra-mean when critical (#1092) |
-| Curse | `curse_aspect` | #1385 — scaffold (#1349) | #1386 | `hex` shipped; no second spell proposed | #1250 | row: #1379. Raises `min_damage_taken`; spills to surviving direct neighbours on death AND dealloc (#1204) |
-| Wither | `wither_aspect` | #1387 — scaffold (#1349) | #1388 | #1389 | #1250 | row: #1380. Drives healing received negative |
-| Blindness | `blindness_aspect` | #1390 — scaffold (#1349) | #1391 | `dazzle` shipped; **Throw Sand** #1392 (candidate, owner 2026-09-30) | #1250 | row: #1253. Count stacks, effect reads as a % via a saturating curve |
-| Scout (a status whose rows draw vision, #949) | `scout_aspect` | scouting arrow shipped (stacks: #1345, #1346) | watchtower shipped (map face); blade face + look #1393 | #1394 | #1250 | row: #1254. `effects/status/scouted.tres` is live: the arrow lands camp-keyed stacks, VisionSystem draws `radius_for` discs from the rows (#1346); first-class concept (owner, 2026-09-30) |
-| Armor break | `armor_break_aspect` | #1395 — scaffold (#1349) | #1396 | `sunder` shipped; second spell #1397 | #1250 | row: #395 (child 0: penetration stat #1401). Flat −1 armor per stack, uncapped, can go below zero (#1203, owner 2026-09-30) |
-| Explosive | `explosive_aspect` | #1398 | #1399 — detonation kills the blade node, reuses spike-pop plumbing (owner, #1211) | #1400 (or none) | #1250 | row: #1211. Euclidean hitscan radius from `SkillNode.radius`; barrels / friendly fire open (#1399) |
+| Concept | Tag | Stat | Ranged (arrow) | Addon (map / temp) | Spell | Magic (infusion) | Notes |
+|---|---|---|---|---|---|---|---|
+| Poison | DoT | `poison_aspect` | shipped; look designed (see "Rows designed in #1318"), building in #1352 | #1271 — designed (see "Rows designed in #1318"), needs an acceptance spec | `venom` shipped; second spell #1381 | #1250 | row: #1377. Spread signature deferred to an authoring pass (owner, #1204) |
+| Corruption | buildup, %dmg, spread | `corruption_aspect` | #1382 — scaffold (#1349) | #1383 | #1384 | #1250 | row: #1378. Spreads as a sandpile by nature (#1202); health bar shows blips per stack, extra-mean when critical (#1092) |
+| Curse | fragility, spill | `curse_aspect` | #1385 — scaffold (#1349) | #1386 | `hex` shipped; no second spell proposed | #1250 | row: #1379. Raises `min_damage_taken`; spills to surviving direct neighbours on death AND dealloc (#1204) |
+| Wither | anti-heal *(proposed)* | `wither_aspect` | #1387 — scaffold (#1349) | #1388 | #1389 | #1250 | row: #1380. Drives healing received negative |
+| Blindness | vision debuff *(proposed)* | `blindness_aspect` | #1390 — scaffold (#1349) | #1391 | `dazzle` shipped; **Throw Sand** #1392 (candidate, owner 2026-09-30) | #1250 | row: #1253. Count stacks, effect reads as a % via a saturating curve |
+| Scout (a status whose rows draw vision, #949) | reveal *(proposed)* | `scout_aspect` | scouting arrow shipped (stacks: #1345, #1346) | watchtower shipped (map face); blade face + look #1393 | #1394 | #1250 | row: #1254. `effects/status/scouted.tres` is live: the arrow lands camp-keyed stacks, VisionSystem draws `radius_for` discs from the rows (#1346); first-class concept (owner, 2026-09-30) |
+| Armor break | armor debuff *(proposed)* | `armor_break_aspect` | #1395 — scaffold (#1349) | #1396 | `sunder` shipped; second spell #1397 | #1250 | row: #395 (child 0: penetration stat #1401). Flat −1 armor per stack, uncapped, can go below zero (#1203, owner 2026-09-30) |
+| Explosive | AoE | `explosive_aspect` | #1398 | #1399 — detonation kills the blade node, reuses spike-pop plumbing (owner, #1211) | #1400 (or none) | #1250 | row: #1211. Euclidean hitscan radius from `SkillNode.radius`; barrels / friendly fire open (#1399). The concept names the content, never the reverse (owner, 2026-10-05): *"an explosive barrel blast would at best do an *explosive* (as a concept) blast, not an \"explosive arrow blast\" literally cuz it's not like *arrows* determine the concept but the concept determines arrows+addons+spells etc."* — so the addon is an `ExplosiveBarrelAddon` doing the explosive blast. A detonated blade node is *damaged*, and today that means popped: *"so far we put their HP on 1 so they pop after taking 1 dmg"* (owner, 2026-10-05) |
 
 ## Rows designed in #1318
 
@@ -174,15 +180,74 @@ Each cell links its cell issue (`<Concept> × <Facet>`, a child of the row hub i
   owner's 20-arrow case). Lands with #1352.
 - **Spells:** `venom`; room for a second.
 
-## Contenders
+## Contenders — sparse rows
 
-Not yet promoted into the Matrix proper — fill cells when a good idea shows up.
+Pure design, no concrete thing going for it yet, and struck freely. Owner,
+2026-10-05: *"adding sparse rows in the \"to be considered\" rows of the
+Matrix, as in pure design that has no concrete things going for it and might
+be struck later. Or later we find (as we keep plopping ideas down) that 2
+sparse rows could complement one another and best be merged into 1 complete
+row, reducing rows that way to consolidated fleshed out rows. Just to throw
+many things at a wall so we have an exhaustive list of things we do or don't
+want to include in the game"*. A row is promoted when every facet has an
+honest face (the rule above); a row with a face in one mode only stays here
+or is struck (the ADR 0045 "dead for two of three attack modes" test).
 
-| Concept | Stat | Ranged (arrow) | Addon | Magic (infusion) | Notes |
-|---|---|---|---|---|---|
-| Spikes | `spike_aspect` (if promoted) | TBD | `spike_ring_addon.tscn` (×1.5 local `blade_damage` + stake-scaled `spikes`) | TBD | owner estimate ~×4.5 damage at 3/3 allocation, unmeasured |
-| Blunting | `blunting_aspect` (if promoted) | TBD | today only a spiked node's +1 | TBD | — |
-| Bleeding | `bleed_aspect` (if promoted) | TBD | look: tangential spikes rotating like a sawblade (owner, 2026-10-03) | TBD | owner: *"what would bleeding mean in a graph-based game? leaking "skill point" essence until deallocated..?"* |
+| Concept | Tag | Attributes (vibe) | Ranged (arrow) | Addon | Spell | Notes |
+|---|---|---|---|---|---|---|
+| Bleeding | DoT | DEX+STR? | TBD | spikes? (see Spikes) — look: tangential spikes rotating like a sawblade (owner, 2026-10-03) | TBD | Owner, 2026-10-05: *"Bleeding is an excellent game concept maybe too classic to pass up. And it's one that could naturally be a DoT. Would need a different profile, character (damage & mechanics, decay, tick trigger, spread mechanics if any) than poison"*. Earlier: *"what would bleeding mean in a graph-based game? leaking "skill point" essence until deallocated..?"* (2026-10-03) |
+| Fatigue / Slow | debuff, movement | TBD | TBD | TBD | TBD | Owner, 2026-10-05: *"fatigue OR slow (or both): slows movement stat, possibly deallocation point stat too"* |
+| Paralysis | debuff, AP | TBD | TBD | TBD | TBD | Owner, 2026-10-05: *"lowers action points cap?"* |
+| Petrified | debuff, initiative | TBD | TBD | TBD | TBD | Owner, 2026-10-05: *"lowers initiative gain? (Iff we ever want to flesh out initiative some more, this would be one issue part of that"* |
+| Thorns | retribution | TBD | TBD | TBD | TBD | Owner, 2026-10-05: *"canonically more for retribution dmg of incoming attacks back to attacker"*. Not built; today *"blade swings don't deal dmg to own nodes, no thorn dmg or anything (yet?)"* (owner, 2026-10-05). OQ32 in combat_system.md asks whether thorns and spikes share a stat |
+| Spikes | offense | STR? | — | `spike_ring_addon.tscn`: local `blade_damage` (×1.5, +3), allocation-scaled per #1369 | — | **Not an aspect**: its defensive face (pop a blade vertex) has no ranged or spell meaning. Owner, 2026-10-05: *"spikes addon just adds blade damage. Switch to bleed stacks instead? (Or keep some blade dmg mods why not). Spikes do fit bleeding thematically. Though they also fit poison"*. The pop budget (`spikes`, `node_spikes`, `spike_regen`) is the #1369 fork; the owner leans to moving the anti-blade face to Explosive (2026-10-04: *"I think the explosive one thematically fits best"*), which would delete those stats |
+| Blunting | — | — | — | today only a spiked node's +1 | — | Struck candidate: a counter to a counter, meaningless to an arrow or a spell. Dies with the pop budget if #1369 takes the explosive pivot (and #794 with it) |
+| Frailty / Fragile | fragility | — | — | — | — | Struck: owner, 2026-10-05, *"likely what curse does so no"* |
+
+## Attributes and pairs
+
+Owner, 2026-10-05: *"Maybe we stick to 6 primary attrs, each with matching
+aspect/concept, and then for each pair of those attrs we also have a matching
+concept/aspect row, like "CON+STR = armor (breaking) aspect" or "DEX+STR =
+bleed aspect" or "WIS+INT=..." or "PER+WIS = blindness aspect" (just examples,
+to show the idea, and by "=" i mean "has a row concerning")"*.
+
+The attributes join the table *"to also track what's already designed for
+them, just by association or vibe most likely i guess given addons dont give
+primary attrs"*. Watchtower is PER+DEX *"no doubt about that"*; *"A pure DEX
+addon we don't have yet. Not saying we need one"*.
+
+| Attribute(s) | Row(s) today | Source |
+|---|---|---|
+| DEX | Poison | 2026-09-22 grid (#1249 open) |
+| STR | Corruption; armor break / pierce | grid + owner 2026-09-29 |
+| INT | Wither (grid) or Curse (2026-09-29) | #1249 open |
+| CON | Curse (grid) or Wither (2026-09-29) | #1249 open |
+| PER | Blindness, Scout | grid |
+| WIS | none | #1252 open |
+| PER+DEX | Scout's watchtower addon | owner 2026-10-05 |
+| CON+STR | Armor break? | owner example, 2026-10-05 |
+| DEX+STR | Bleeding? | owner example, 2026-10-05 |
+| PER+WIS | Blindness? | owner example, 2026-10-05 |
+
+Six singles plus fifteen pairs is twenty-one rows; the sparse-row discipline
+above (merge, strike) is what keeps that from being a slot-filling exercise.
+
+## Combos and hybrids
+
+Owner, 2026-10-05: *"for each concrete aspect we put out, we'd have content
+for that aspect (content = arrow, addon, spell, spell infusion), and sometimes
+more than 1 (maybe 2 spells or addons). Then it hit me: combos, or hybrid
+mechanics. Think of: Hades' Duo boons: Each god has a few mechanics and Duo's
+combine mechanics of 2 gods. Or Astral Ascent also clearly has a few
+mechanics for each element, then layered with modifiers that target 2 of
+these mechanics to gain interesting coverage and variety/content. Like i want
+to explore these things."*
+
+Open: whether a pair row (above) *is* the combo, or a combo is a separate
+layer of content that reads two existing rows (a duo spell, an addon whose
+rider needs two aspects on the board). #1251 (one hit, two aspects) is the
+nearest existing fork.
 
 ## Personas
 
@@ -200,6 +265,8 @@ this table's rows.
   unresolved (#1249).
 - Can one hit carry two aspects (#1251).
 - WIS status family (#1252).
+- Which row holds the anti-blade face: Explosive (owner lean, 2026-10-04) — barrels / friendly fire on #1399, the pop budget's fate on #1369; ADR 0005 would be superseded, not edited.
+- Combos / hybrids and the attribute-pair rows (above): an exploration, no issue yet.
 
 Related: #1199 (the hub), #1317 (arrows), #1318 (addon + spell design), #1255 (status model: decay / spread / timing, #1256), #1211, #1212 (addons become scenes),
 #1202, #1204, #1203, #1217, #971–#973, #395, #1200.
