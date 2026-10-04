@@ -249,6 +249,27 @@ layer of content that reads two existing rows (a duo spell, an addon whose
 rider needs two aspects on the board). #1251 (one hit, two aspects) is the
 nearest existing fork.
 
+**Candidate combo grammars (owner + advisor, 2026-10-05).** Owner: *"Primary
+attrs as combo elements could be 1 option, other could be to declare e.g.
+4-5 aspects as parent aspects to which any other aspects are childed. Sounds
+less intuitive tho unless we find that perfect split. Or maybe theres other
+layers i haven't considered yet"*. Layers on the table, none exclusive:
+
+1. **Attributes** — the pair table above; vibe-only since addons grant no
+   attributes.
+2. **Parent aspects** — ADR 0022's "one DoT per defensive axis" (HP flat,
+   bulk, floor, healing) is an existing non-arbitrary split for the DoTs; a
+   new DoT childs under the axis it attacks or justifies a fifth. Covers DoTs
+   only.
+3. **Tags** — the Tag column as mechanic vocabulary; a combo is content that
+   reads two mechanics (DoT × AoE, spread × retribution, reveal × DoT), the
+   Hades duo / Astral Ascent shape. Pairs enumerate themselves; a tag that
+   never pairs marks a weak concept.
+4. **Facet** — concept × {arrow, addon, spell, infusion} is already a combo
+   table.
+5. **Trigger** — on-hit, on-tick, on-death / dealloc (curse spill),
+   on-contact (detonation). Trigger × tag may be the smallest grammar.
+
 ## Personas
 
 Each aspect's personified character lives in
