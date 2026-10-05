@@ -6,6 +6,13 @@ identity, the registry that makes it exist, and the test that notices when
 it is missing. A **full row** is simply every cell for one concept; a
 **column pass** is one cell for every concept. The same list either way.
 
+**Every cell ends on the Aspect.** A concept's row is
+`aspects/defs/<concept>.tres` (an `Aspect`, listed on
+`aspects/aspect_roster.tres`): a cell that lands a facet sets it there —
+`stat`, `status`, `ammo`, `addon_scene`, or an entry in `spells`. The facet
+carries the concept's `Identity`, never the Aspect.
+Guard: `test/unit/aspects/test_aspect_roster.gd`.
+
 ## Stat (prerequisite for every other cell)
 
 - `stats_system/defs/<concept>_aspect.tres`, a child of the `aspects`

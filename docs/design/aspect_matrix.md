@@ -123,6 +123,13 @@ What each cell touches — files, fields, registry, guarding test — is
 `docs/domain/aspect-cell-authoring.md`. A full row is every cell for one
 concept; a column pass is one cell for every concept.
 
+The row's data twin is `aspects/defs/<concept>.tres` — one `Aspect`
+(identity, `<concept>_aspect` stat, status, arrow, addon scene, spells) on
+`aspects/aspect_roster.tres`. A landed cell sets its facet there; an empty
+facet is a cell not yet landed. `test_aspect_roster.gd` pins that every
+facet carries the row's `Identity` and that the `aspects` stat family and
+the roster list the same concepts.
+
 **The passes run transposed** (owner, 2026-10-02: *"Transpose by
 column"*): each column has a different gate — arrows none, addons #1212,
 infusion #1250 — and every row appends to the same three registries (ammo
