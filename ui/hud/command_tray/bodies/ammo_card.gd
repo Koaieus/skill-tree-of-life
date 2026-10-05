@@ -14,7 +14,11 @@ signal step_requested(type_id: StringName, delta: int)
 signal set_requested(type_id: StringName, count: int)
 
 ## Edge length of the status badge.
-@export_range(12, 64) var badge_px: int = 20
+@export_range(12, 64) var badge_px: int = 20:
+	set(value):
+		badge_px = value
+		if _status_badge != null:
+			_status_badge.size_px = value
 
 var type: AmmoType = null
 var stock: int = 0
@@ -24,9 +28,7 @@ var count: int = 0
 var cap: int = 0
 
 @onready var _name_label: Label = %NameLabel
-@onready var _swatch: ColorRect = %Swatch
-@onready var _status_icon: TextureRect = %StatusIcon
-@onready var _status_letter: Label = %StatusLetter
+@onready var _status_badge: IdentityBadge = %StatusBadge
 @onready var _stock_label: Label = %StockLabel
 @onready var _effect_label: Label = %EffectLabel
 @onready var _stepper: HBoxContainer = %Stepper
@@ -41,6 +43,7 @@ func _ready() -> void:
 	_minus.gui_input.connect(_on_step_button_input.bind(-1))
 	_plus.gui_input.connect(_on_step_button_input.bind(1))
 	gui_input.connect(_on_gui_input)
+	_status_badge.size_px = badge_px
 	_paint()
 
 
@@ -103,23 +106,12 @@ func _paint() -> void:
 	tooltip_text = "%s — %s" % [type.display_name, _effect_label.text]
 
 
-## The type's status mark: a swatch in [member StatusDef.tint] lifted to the
-## LABEL tier, and its icon — or, with none, its first letter as
-## [SpellPickerButton] does — of its first status rider ([method
-## AmmoType.first_status_def]). A type with no status shows none of it.
+## The type's status mark: the [IdentityBadge] of its first status rider
+## ([method AmmoType.first_status_def]). A type with no status shows none.
 func _paint_status() -> void:
 	var def: StatusDef = type.first_status_def()
-	_swatch.visible = def != null
-	_status_icon.visible = def != null and def.icon != null
-	_status_letter.visible = def != null and def.icon == null
-	if def == null:
-		return
-	var hue := Emissive.at(Color(def.tint.r, def.tint.g, def.tint.b, 1.0), Emissive.LABEL)
-	_swatch.color = hue
-	_status_icon.texture = def.icon
-	var label := def.display_name if not def.display_name.is_empty() else String(def.id)
-	_status_letter.text = label.substr(0, 1).to_upper() if not label.is_empty() else "?"
-	_status_letter.add_theme_color_override(&"font_color", hue)
+	_status_badge.identity = def.identity if def else null
+	_status_badge.visible = _status_badge.identity != null
 
 
 func _on_minus() -> void:
