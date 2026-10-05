@@ -23,6 +23,13 @@ const PATH := "res://ui/identity_badge/badge_frames.tres"
 		icon_inset = value
 		emit_changed()
 
+## Letter-fallback weight ([member FontVariation.variation_embolden]) so a
+## thin body-font capital holds its own beside the frame stroke.
+@export_range(0.0, 2.0, 0.05) var letter_embolden: float = 0.8:
+	set(value):
+		letter_embolden = value
+		emit_changed()
+
 
 static func shared() -> BadgeFrames:
 	return load(PATH) as BadgeFrames
