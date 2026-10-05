@@ -304,6 +304,37 @@ blindness, WIS generic DoT + growth; procgen-v4.md) — so the question may
 be whether to embrace that, against the defence-attacked axis as a
 mechanical alternative.
 
+**Settled: a school never scales its aspects (owner, 2026-09-28, #1199).**
+*"aspects seem coupled to (archetypes of) primary stats! Yet we surely don't
+want to scale these effects innately with those stats for free"*. A school
+couples by geography (procgen places an aspect's nodes in its attribute's
+territory) and by vibe (colour, persona), never by a fold.
+
+**Leaning toward attributes as the schools (2026-10-05 pass).** The pantheon
+in `lore.md` (attributes are Titans, aspects their lesser gods), the board
+(a node's colour is its attribute) and procgen already agree on this. The
+other three grammars fall short: the defence axis orphans Scout and Explosive
+and works better as a per-school health check; parent aspects split only
+the DoTs; no schools at all loses the pair/duo grammar. Picking attributes
+also settles Elemental as "keep away": freeze's lock, burn's edge spread and
+lightning's hops become mechanics that existing rows can use.
+
+- **Corruption → WIS (owner lean, 2026-10-05):** *"it fits so well!"* — Gold
+  is growth and economy; Corruption is growth gone malignant (compound
+  buildup, the dealmaker persona). Procgen still rolls it on STR.
+- **WIS has three claimants.** The first is patience: growth plus time, i.e.
+  Corruption and a tempo row (working name *Stasis*: stacks summed over the
+  afflicted nodes slow the entity, and a threshold locks a node). The second
+  is mind: the owner's 2026-09-29 *"the silence/confusion isn't that bad of
+  an idea tbh"* and *"enlightenment"* (#1199). The third is the procgen
+  status quo: generic DoT plus growth. The tempo row could equally sit on
+  INT's *bind* verb (MTG puts tempo in blue; tempo and ramp meet only in
+  Simic).
+- **Coolness / swagger** (lore: a procgen-sprinkled colour with no
+  mechanical effect, tallied at the credits) is the seventh colour that is
+  deliberately **not** a school. Open: a node colour (it would take
+  allocation slots) or a flag on the node.
+
 ## Combos and hybrids
 
 Owner, 2026-10-05: *"for each concrete aspect we put out, we'd have content
