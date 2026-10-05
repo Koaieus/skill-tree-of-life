@@ -94,7 +94,7 @@ Implementation: `docs/domain/melee-blade-sim.md`, "Bunker deflection (#781)".
 
 ### Reinforcement
 
-> **Undecided (owner, 2026-10-05):** *"hmm idk"*.
+> **Folds into Fortification (owner, 2026-10-05).** This older entry and Fortification both buff node health; there is one addon. Owner: *"in my mind there is just the one, Fortress, which adds node health and applies drag (currently)"*. "Fortress" is the owner's name for `fortification_addon.tscn`.
 
 **Effect:** Increases this node's `node_health_max`. The node has more HP before being severed.
 
@@ -105,6 +105,8 @@ Implementation: `docs/domain/melee-blade-sim.md`, "Bunker deflection (#781)".
 ---
 
 ### Fortification
+> **Drag is leaving (owner, 2026-10-05).** `swing_drag` was attached here for convenience, because Spike Ring and Bunker already had blade-defensive faces, not because a fortress slows anything. A swing slowing down is a *slow*, so drag moves to the tempo row in `aspect_matrix.md` once that row is promoted (owner: *"exactly"*). Fortress keeps node health. Until then drag stays here, unseen in play; a one-click sandbox setup is what tells whether it earns its keep.
+
 
 **Effect:** Two modifiers. `node_health` — more wall to chew through. And `swing_drag`, its characteristic second effect: a melee swing that sweeps across this node bogs down for the **rest of its arc**.
 

@@ -132,6 +132,18 @@ The design passes now run **per cell** (owner, 2026-10-03, #1376: *"1 pass
 per cell, sometimes groupable"*): one issue per concept × facet, grouped
 under a row hub per concept; #1318's per-concept pass is superseded by them.
 
+**A mechanic lives on the row whose concept it expresses (owner,
+2026-10-05).** Reading the tables, a mechanic sitting on a row that does not
+name it must stick out — *"should be the first thing that comes to mind,
+and should stick out, be jarring, be thorn in the eye"*. The worked case:
+Fortress (node health) carries swing drag, which is a *slow*, while the slow
+concept has no row to hold it. Moving drag over fixes both rows at once:
+*"moving drag slow out of a "node hp buffing" addon and onto a slow-related
+row ... is what takes 2 rows that both have 1 thematic or gameplay-wise
+faults or misplacements and solves both by moving one mechanic over from 1
+row to the other"*. The owner wants this sharp look taken at every aspect,
+stat and addon, shipped or planned.
+
 **The Tag column (owner, 2026-10-05).** *"a 1-3 word sharp summary of
 what it is or what kind of jargon could capture it perfectly"*. The owner's
 examples: poison → DoT; explosive → AoE; corruption → buildup, %dmg, spread;
@@ -206,7 +218,7 @@ or is struck (the ADR 0045 "dead for two of three attack modes" test).
 | Concept | Tag | Attributes (vibe) | Ranged (arrow) | Addon | Spell | Notes |
 |---|---|---|---|---|---|---|
 | Bleeding | DoT | DEX+STR? | TBD | spikes? (see Spikes) — look: tangential spikes rotating like a sawblade (owner, 2026-10-03) | TBD | Owner, 2026-10-05: *"Bleeding is an excellent game concept maybe too classic to pass up. And it's one that could naturally be a DoT. Would need a different profile, character (damage & mechanics, decay, tick trigger, spread mechanics if any) than poison"*. Earlier: *"what would bleeding mean in a graph-based game? leaking "skill point" essence until deallocated..?"* (2026-10-03) |
-| Fatigue / Slow | debuff, movement | TBD | TBD | TBD | TBD | Owner, 2026-10-05: *"fatigue OR slow (or both): slows movement stat, possibly deallocation point stat too"* |
+| Fatigue / Slow | debuff, movement | TBD | TBD | Fortress's swing drag moves here (owner, 2026-10-05) | TBD | Owner, 2026-10-05: *"fatigue OR slow (or both): slows movement stat, possibly deallocation point stat too"*. Tempo is a defensive axis: *"running away is a valid (but last resort) defensive option, and hence slow effects or things that reduce `movement`, `deallocation_points`, or even `action_points` (neutering an enemy's attack output IS the ultimate defense i reckon)"* (owner, 2026-10-05). Paralysis and Petrified may join this as one tempo row |
 | Paralysis | debuff, AP | TBD | TBD | TBD | TBD | Owner, 2026-10-05: *"lowers action points cap?"* |
 | Petrified | debuff, initiative | TBD | TBD | TBD | TBD | Owner, 2026-10-05: *"lowers initiative gain? (Iff we ever want to flesh out initiative some more, this would be one issue part of that"* |
 | Thorns | retribution | TBD | TBD | TBD | TBD | Owner, 2026-10-05: *"canonically more for retribution dmg of incoming attacks back to attacker"*. Not built; today *"blade swings don't deal dmg to own nodes, no thorn dmg or anything (yet?)"* (owner, 2026-10-05). OQ32 in combat_system.md asks whether thorns and spikes share a stat |
@@ -295,7 +307,7 @@ proposal, 2026-10-05; the per-addon calls live in
 
 | Family (proposed) | Addons | State |
 |---|---|---|
-| Fortify | Bunker (deflect), Fortification (drag), Reinforcement | Bunker, Fortification shipped; Reinforcement undecided |
+| Fortify | Bunker (armor, floor, deflect), Fortress (`fortification_addon`: node health; drag leaving for the tempo row) | both shipped; Reinforcement folded into Fortress |
 | Survival | Lifeline, Lifelink, Fountain (heal / cleanse) | Lifeline may merge into Fountain; Lifelink keystone / core-class only |
 | Topology | Gate, Winch, Clamp | Clamp shipped; Gate landing; Winch has a determinism fork |
 | Spell routing | Anti-Magic, Conduit, Void? | needs design |
