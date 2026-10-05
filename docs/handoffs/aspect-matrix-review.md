@@ -16,7 +16,7 @@ re-sweep.
 
 ## Open forks, best first
 
-1. **The twelve, rounds 5–6 (done 2026-10-06):** Silence = stacks as
+1. **The twelve, rounds 5–6 (2026-10-06):** Silence UNSETTLED (owner sleeping on it — the boolean saturates; see round 6), was stacks as
    duration (INT); Greed closed (×2 per hit, one stack spent post-hit, WIS);
    Fatigue / Slow / Paralysis struck; CON keeps one open slot; school spread
    within one. Left: **Fortress** may be struck and drag may have no home —
