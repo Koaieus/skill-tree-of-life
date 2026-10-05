@@ -1,0 +1,34 @@
+[gd_resource type="Resource" script_class="BadgeFrames" format=3]
+
+[ext_resource type="Script" path="res://ui/identity_badge/badge_frame.gd" id="1_lbe58"]
+[ext_resource type="Script" path="res://ui/identity_badge/badge_frames.gd" id="2_5kl13"]
+
+[sub_resource type="Resource" id="Resource_uty5m"]
+script = ExtResource("1_lbe58")
+
+[sub_resource type="Resource" id="Resource_qw4co"]
+script = ExtResource("1_lbe58")
+sides = 4
+rotation_deg = 45.0
+
+[sub_resource type="Resource" id="Resource_puxjb"]
+script = ExtResource("1_lbe58")
+sides = 24
+
+[sub_resource type="Resource" id="Resource_qd7ft"]
+script = ExtResource("1_lbe58")
+sides = 3
+
+[sub_resource type="Resource" id="Resource_67pn4"]
+script = ExtResource("1_lbe58")
+sides = 4
+
+[resource]
+script = ExtResource("2_5kl13")
+frames = Dictionary[int, ExtResource("1_lbe58")]({
+0: SubResource("Resource_uty5m"),
+1: SubResource("Resource_qw4co"),
+2: SubResource("Resource_puxjb"),
+3: SubResource("Resource_qd7ft"),
+4: SubResource("Resource_67pn4")
+})
