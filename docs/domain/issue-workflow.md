@@ -54,11 +54,15 @@ taken; being in the live milestone means it *should*. Same for `Needs design` â€
 that column means "forks are open", not "work on this next".
 
 **A spin-off takes the live milestone and leaves `Backlog` (owner,
-2026-10-05).** An issue filed off current work gets the milestone being
-worked, unless it won't matter in the next 24 months. Owner: *"truly backlog
--> backlog. related to current work, better be picked up sooner rather than
-later -> needs design; related to current focus milestone -> not backlog"*.
-`Backlog` is where a new issue lands, so set both fields by hand at filing.
+2026-10-05).** The lanes move at different speeds: `Ready` is actively
+implemented, `Needs design` is actively ground down into `Ready` issues or
+hubs, and `Backlog` can sit untouched for a long time. So an issue filed off
+current work gets the milestone being worked and goes to `Needs design`;
+only work that truly isn't near-term stays in `Backlog`. Owner: *"truly
+backlog -> backlog. related to current work, better be picked up sooner
+rather than later -> needs design; related to current focus milestone -> not
+backlog"*. `Backlog` is where a new issue lands, so set both fields by hand
+at filing.
 
 There is deliberately no prose priority file. `docs/FOCUS.md` held that role and
 was rewritten twice (2026-08-18, 2026-08-31) for the same rot â€” per-issue prose
