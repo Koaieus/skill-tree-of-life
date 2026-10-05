@@ -37,6 +37,7 @@ mouse_filter = 2
 
 [node name="StatusBadge" parent="Box/Header" instance=ExtResource("2_badge")]
 unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 0)
 visible = false
 layout_mode = 2
 size_flags_vertical = 4

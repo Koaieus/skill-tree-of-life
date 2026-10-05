@@ -132,6 +132,8 @@ func test_poison_row_prefixes_poisons_badge_in_its_label_tier_tint() -> void:
 	var badge := badges[0] as IdentityBadge
 	assert_eq(badge.identity, _POISON.identity, "bound to the status identity")
 	assert_eq(badge.size_px, row.badge_px, "sized by the row's knob")
+	assert_eq(badge.get_combined_minimum_size(), Vector2(row.badge_px, row.badge_px),
+			"the knob is the real footprint")
 	await get_tree().process_frame
 	assert_eq(badge.last_draw_color, Emissive.at(_POISON.identity.tint, Emissive.LABEL),
 			"drawn in Emissive.at(identity.tint, LABEL)")

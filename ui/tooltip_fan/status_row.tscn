@@ -9,6 +9,7 @@ script = ExtResource("1_script")
 
 [node name="StatusBadge" parent="MarginContainer" instance=ExtResource("3_badge")]
 unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 0)
 layout_mode = 2
 size_flags_horizontal = 0
 size_flags_vertical = 4
