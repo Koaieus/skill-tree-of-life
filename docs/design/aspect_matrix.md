@@ -447,6 +447,14 @@ lightning's hops become mechanics that existing rows can use.
   into it; the AP is there so a player can't stake 1/1 → 3/3 right before an
   attack and undo it next turn — staking is a long-term investment. Revisit B
   if staking gets cheaper.
+- **Statuses can land on a core** (owner, 2026-10-06): *"status effects can
+  also land on a core if the applying hit hits the core sitting on a depleted
+  node (the node it sits on takes the brunt of damage and statuses, but when
+  depleted it will prevent nor damage nor status from landing on the core
+  itself"*. Every row's status needs a core reading. Open for Silence: no
+  effect on a core, the core's own origins only, or the whole entity (the
+  last is the AP-neuter the tardy rows were struck for). Greed and Hoard
+  read the same on a core, with Hoard paying on the kill.
 
 ## Combos and hybrids
 
