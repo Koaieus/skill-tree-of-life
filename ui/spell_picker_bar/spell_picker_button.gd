@@ -5,13 +5,13 @@ extends Button
 ## A single spell pick in [SpellPickerBar]. Toggle button (radio-managed by
 ## the bar's ButtonGroup) that renders a spell card:
 ##   * top inset — one tick per [member SpellDef.min_degree]
-##   * icon (or letter glyph fallback)
+##   * the spell [IdentityBadge] (its icon, or its noun letter)
 ##   * name label
 ##
 ## Same shader scaffolding as [AttackModeButton] — the bg shader handles
 ## rounded-rect rendering, mouse-proximity glow, rim, breathing pulse when
 ## active, and a desaturated/dimmed disabled state; the text shader gives
-## the name + letter labels a soft halo + tint blend. State plumbing routes
+## the name label a soft halo + tint blend. State plumbing routes
 ## hover / pressed (toggle) / disabled into shader strength uniforms via
 ## tweens so transitions are smooth.
 ##
@@ -75,9 +75,8 @@ const _LETTER_FONT_SIZE: int = 28
 
 @onready var _bg: ColorRect = $Bg
 @onready var _ticks: HBoxContainer = %Ticks
-@onready var _icon_rect: TextureRect = %Icon
+@onready var _badge: IdentityBadge = %Badge
 @onready var _name_label: Label = %NameLabel
-@onready var _letter_label: Label = %LetterLabel
 @onready var _float_anchor: Node2D = %FloatAnchor
 ## Anchored (layout_mode = 1), so it is POSITIONED and never measured — a tile
 ## that has to stay inside MagicBody's min-size budget cannot afford a chip in
@@ -147,7 +146,6 @@ func _install_materials() -> void:
 	_text_mat = ShaderMaterial.new()
 	_text_mat.shader = TEXT_SHADER
 	_name_label.material = _text_mat
-	_letter_label.material = _text_mat
 	_materials = [_bg_mat, _text_mat]
 
 
@@ -241,19 +239,12 @@ func _apply_spell() -> void:
 		return
 	if spell == null:
 		_name_label.text = ""
-		_icon_rect.texture = null
-		_letter_label.text = ""
+		_badge.identity = null
 		if not Engine.is_editor_hint():
 			_clear_ticks()
 		return
 	_name_label.text = spell.name
-	if spell.icon != null:
-		_icon_rect.texture = spell.icon
-		_letter_label.visible = false
-	else:
-		_icon_rect.texture = null
-		_letter_label.visible = true
-		_letter_label.text = spell.name.substr(0, 1).to_upper() if spell.name != "" else "?"
+	_badge.identity = spell.identity
 	_rebuild_ticks(spell.min_degree)
 
 
