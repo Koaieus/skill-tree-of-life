@@ -6,6 +6,32 @@
 > status). An empty cell is a deliberate call written into the table, never
 > a gap.
 
+## Glossary — the shared vocabulary (pinned, owner 2026-10-05)
+
+Owner: *"clean language use leads to clean development"* — use these words,
+and correct a loose one when you see it (the owner asked to be corrected too).
+
+| Term | Means | Not to be confused with |
+|---|---|---|
+| **Aspect** | One row: a theme with its content and status (Poison as a whole) | "concept" — the same thing; prefer *aspect* |
+| **Aspect stat** | `<aspect>_aspect`, the count an entity holds | the aspect itself |
+| **Mechanic** / **keyword** | A reusable rule: DoT, spill, sandpile topple, AoE, reveal. The Tag column is the keyword list | an aspect, which *uses* mechanics |
+| **Facet** / **slot** | A delivery channel: arrow, addon, spell, infusion (Hades: boon slots) | "attack mode" (melee / ranged / magic), which facets serve |
+| **Face** | One aspect in one facet — a single cell (Poison's arrow) | — |
+| **Status** | The runtime effect on a node (poison stacks) | the aspect |
+| **Axis** | A classification dimension: the defence an aspect attacks, or how it travels | — |
+| **School** | The top tier grouping aspects (Astral Ascent's elements, Hades' gods). **We have none yet — open** | an attribute, unless we decide they are |
+| **Variant** | One aspect, a different delivery shape (poison DoT / cloud / projectile) — horizontal, never numbers | a second face in another facet |
+| **Duo** / **cross-synergy** | Content reading two aspects or mechanics (Hades Duo boons, Astral Ascent auras) | a pair row |
+| **Color pie** | Which aspect owns which mechanic (MTG). "A mechanic lives on the row it expresses" is our pie | — |
+| **Pie break** / **bleed** | A mechanic on a row that doesn't express it (Fortress drag) | — |
+| **Parasitic** | A mechanic that only works with its own kind (MTG). `spikes` × `blunting` was: each existed only for the other, melee-only | — |
+| **Horizontal vs vertical** | Variation by shape vs by numbers. Our variants must be horizontal | — |
+
+Further reading: Mark Rosewater's *Making Magic* columns (color pie,
+parasitic, linear vs modular); *Characteristics of Games* (Elias, Garfield,
+Gutschera); *Game Mechanics: Advanced Game Design* (Adams, Dormans).
+
 ## The rule (owner, 2026-09-30)
 
 Every concept gets a stat, an arrow, an addon, and a magic infusion. Naming:
@@ -263,6 +289,21 @@ addon we don't have yet. Not saying we need one"*.
 Six singles plus fifteen pairs is twenty-one rows; the sparse-row discipline
 above (merge, strike) is what keeps that from being a slot-filling exercise.
 
+## Schools — open (2026-10-05)
+
+Candidates the owner raised: the six attributes (STR DEX INT WIS PER CON),
+just STR/DEX/INT, or the attack modes. The attack modes are **facets, not
+schools** — melee copies nodes and their addons, ranged mints ammo types,
+magic applies statuses, and infusion likely reads every aspect (owner,
+doubting it for exactly that reason). STR/DEX/INT is the classic
+warrior/rogue/mage trio, which collapses into the same three attack modes.
+Advisor note: procgen already ships attributes as de-facto schools — each
+aspect's `_stacks_per_hit` (blight) and `_resistance` (bless) roll on one
+attribute (DEX poison, STR corruption, CON curse, INT wither, PER
+blindness, WIS generic DoT + growth; procgen-v4.md) — so the question may
+be whether to embrace that, against the defence-attacked axis as a
+mechanical alternative.
+
 ## Combos and hybrids
 
 Owner, 2026-10-05: *"for each concrete aspect we put out, we'd have content
@@ -356,9 +397,24 @@ lines move into the rows they touch.
    it with the entity board, and sum over every owned node. A non-leaf
    turret still produces. Owner's own fork: an entity-wide +1 then makes
    *every* node a producer; leaf +2 / non-leaf +0 keeps leaves well ahead
-   (+3 vs +1). Gotcha for whoever specs it: the turn-start capture exists to
-   close the allocate-then-reload pump, so the degree must be read as of
-   turn start, never live.
+   (+3 vs +1). Two snapshots, never conflated: the **reload producer set**
+   (turn-start leaves, `entity.gd` `_turn_start_leaves`) closes the
+   allocate-then-reload pump, so a degree term must read turn-start degree;
+   the **firing budget** (`SkillNode.shots_fired_this_turn`, capped by
+   `max_shots_per_leaf`) stays with the firer through a mid-turn
+   de/reallocation (`_fired_nodes_this_turn`). Owner, 2026-10-05: `degree`
+   and `graph_degree` should both be valid formula variables, recalculated
+   through the existing stat plumbing on a clean degree-changed notification.
+
+   **Production split from firing (owner direction, 2026-10-05: "2 (+ 3 in
+   some way)").** Firing stays leaf-only (hard line); production becomes a
+   formula. Leaves get a higher innate production, so they stay the better
+   producers, and an entity-wide `+1 arrows_per_reload` lands on *every*
+   node — *"a very coveted stat"*, needing a balance rework. A non-leaf
+   factory (name pending) may out-produce a leaf. Open, *"needs a big
+   think"*: aspect arrows are entity-global (topology only decides which
+   nodes granted the aspect stat), and production driven only by addons
+   isn't *really* topological the way leaf vs non-leaf is.
 3. **Anti-Magic is drag's spell-side twin** — +1 hop cost slows a spell's
    travel the way drag slows a blade. Candidate spell-terrain face of the
    tempo row.
