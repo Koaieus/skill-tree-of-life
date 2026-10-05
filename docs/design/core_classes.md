@@ -67,6 +67,27 @@ Always available. Designed to be legible to new players.
 
 **Balancing notes:** The XP bonus must be meaningful enough to *choose* the Allround. Too small → invisible. Too large → undercuts other classes' identity through SP advantage.
 
+**What a core class tunes (owner, 2026-10-05).** *"coreclasses should tweak
+the feel and behavior of a class when playing with it, often by adjusting
+stats that are rarely touched by procgen due to being very hard to balance
+(AP, XP gain, tempo, `SET` modifiers, ...)"*. The `tempo` stat is the
+once-per-turn on-kill AP gain cap (`stats_system/defs/tempo.tres`).
+
+**Tempo notes per class (owner, 2026-10-05, ideas, not pins):**
+
+- **Pacifist** (`entity/core/pacifist_core.tres`) — no movement or dealloc,
+  but earns both by not spending AP; a pacifist that spends AP cannot move.
+  *"a pro and a con that fit a theme and balance each other out"*. Maybe
+  `tempo = 0` too, *"so they won't even get AP from killing enemies"*.
+- **Ninja** (`entity/core/ninja_core.tres`) — high mobility; nodes far from
+  its core are penalised on combat stats, offensively, defensively or both
+  (still tuning). Maybe a tempo boost, *"to prioritize killing"*.
+- **Predator** — separate from Ninja or mixed, unsure. Gets most of its XP
+  from kills. Could trade max AP for max tempo, or run *"a ridiculous tempo
+  of like 10 or so at 1 AP so if they kill using their one AP, they can keep
+  landing killing blows until they run out of targets or killed 10 (which is
+  already a LOT) [or fail to kill -> no tempo gain -> out of AP]"*.
+
 ---
 
 ### The Predator — *The Hunter*

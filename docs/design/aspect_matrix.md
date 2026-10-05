@@ -330,16 +330,35 @@ lines move into the rows they touch.
 
 ### Move a mechanic (one move, two rows fixed)
 
-1. **Pacifist core is the tempo row's whole mechanic** — `movement_points`
-   and `deallocation_points` forced to 0, AP converted
-   (`entity/core/pacifist_core.tres`). Ninja and Predator buff the same
-   axis. The tempo row gets a shared vocabulary the classes cite.
+1. ~~**Pacifist core is the tempo row's whole mechanic**~~ — **not a
+   misplacement (owner, 2026-10-05).** A core class tunes the hard-to-balance
+   stats procgen rarely touches (AP, XP gain, tempo, `SET`); Pacifist's
+   no-move-unless-you-save-AP is a self-balancing class identity, not a
+   status. Per-class tempo notes: `core_classes.md`.
 2. **Watchtower carries three offence stats on a vision addon** —
    `range` +150 / ×1.25, `arrows_per_reload` +1, `max_shots_per_leaf` +2
-   beside `vision_range` (`watchtower_addon.tscn`). Either it is the
-   honest PER+DEX hybrid row, or the volley stats leave for a ranged/DEX
-   addon. It also grants no `scout_aspect`, which the map-addon rule says
-   it should.
+   beside `vision_range` (`watchtower_addon.tscn`). Owner, 2026-10-05:
+   vision and range stay (*"it is a high ground thematically"*);
+   `arrows_per_reload` *"maybe overkill, was done before the concept of
+   aspects was conceived. might need to be replaced with `+1 scout
+   aspect`"*; `max_shots_per_leaf` *"might still be fitting but it's also a
+   lot of different buffs put in one place"*. Volley and reload stats would
+   suit a future **turret** addon — or a **factory** that multiplies local
+   production, or trades direct combat stats (range, damage) for utility
+   (more arrows).
+
+   **Reload by degree (owner idea, 2026-10-05).** Today a reload sums the
+   node-local `arrows_per_reload` over a *producer set* — the turn-start
+   leaves ∪ core (`Entity.reload_yield`, `entity/entity.gd`) — so a
+   Watchtower's +1 off a leaf mints nothing. The idea: drop the set, give
+   every node board a local innate `+N BASE arrows_per_reload` per
+   `Formula(degree == 1)` (entity degree; graph degree another option), fold
+   it with the entity board, and sum over every owned node. A non-leaf
+   turret still produces. Owner's own fork: an entity-wide +1 then makes
+   *every* node a producer; leaf +2 / non-leaf +0 keeps leaves well ahead
+   (+3 vs +1). Gotcha for whoever specs it: the turn-start capture exists to
+   close the allocate-then-reload pump, so the degree must be read as of
+   turn start, never live.
 3. **Anti-Magic is drag's spell-side twin** — +1 hop cost slows a spell's
    travel the way drag slows a blade. Candidate spell-terrain face of the
    tempo row.
