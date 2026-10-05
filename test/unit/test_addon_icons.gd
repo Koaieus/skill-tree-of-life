@@ -2,8 +2,8 @@ extends GutTest
 
 ## #281 Phase 2 — every addon scene carries a non-null tooltip icon.
 ##
-## The icon is authored on each addon scene (`@export var icon` on
-## SkillNodeAddon, pointing at an assets/icons/addons/ sprite rasterized by
+## The icon is read through each addon scene's `SkillNodeAddon.identity`
+## (`identity/defs/<id>.tres`, whose `icon` points at a sprite rasterized by
 ## `mise run icons:update`). A missing row in addons/mapping.txt does NOT fail
 ## the task — it prints `✗ missing: … → skipping` and the run succeeds — so a
 ## bad source path silently ships a placeholder. This test is the lint that
