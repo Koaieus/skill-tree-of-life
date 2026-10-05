@@ -12,10 +12,11 @@ extends Resource
 ## fires [method _on_tick] and then decays it per its [member decay] slot.
 ## Behaviour hooks are overridable on a subclass script; the base does nothing on any of them.
 ##
-## Display identity ([member display_name] / [member icon] / [member tint]) is
-## part of the plumbing on purpose (owner, 2026-09-14): [member tint] is THE
-## canonical colour of this status everywhere it is mentioned — tooltip row,
-## readout, node tint, floaters — so a consumer never picks one of its own.
+## Display identity is the concept's [Identity] ([member identity]): [member tint]
+## and [member icon] read it, so the status, its aspect, resistance and stacks
+## stats share one hue and glyph and a consumer never picks one of its own
+## (docs/adr/0046-identity-is-the-one-display-atom.md). [member display_name]
+## stays here — the status noun and the concept noun may differ.
 
 ## Reapplication policy when the status is already on the node.
 enum Reapply {
@@ -47,14 +48,20 @@ enum OnDealloc {
 ## Unique key — the status slice is a dictionary on this.
 @export var id: StringName = &""
 @export var display_name: String = ""
+## The concept this status expresses (`identity/defs/<id>.tres`).
 @export var identity: Identity = null
 ## Prose for tooltips. Blank → [method get_description] derives one.
 @export_multiline var description: String = ""
-## Optional iconography. Consumers fall back to a letter glyph when null, as
-## [SpellPickerButton] does.
-@export var icon: Texture2D = null
-## The canonical colour of this status wherever UI mentions it (poison = green).
-@export var tint: Color = Color.WHITE
+## The concept's glyph, read from [member identity]. Consumers fall back to a
+## letter glyph when null, as [SpellPickerButton] does.
+var icon: Texture2D:
+	get:
+		return identity.icon if identity != null else null
+## The canonical colour of this status wherever UI mentions it (poison = green),
+## read from [member identity]; white when none is set.
+var tint: Color:
+	get:
+		return identity.tint if identity != null else Color.WHITE
 ## Classification tags a consumer may filter on (`&"debuff"`, `&"dot"`, …).
 ## Metadata only — NOT granted to the node as [method NodeCombat.add_tag] tags.
 @export var tags: Array[StringName] = []

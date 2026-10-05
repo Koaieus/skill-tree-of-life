@@ -2,6 +2,7 @@
 
 [ext_resource type="Script" uid="uid://b514fe22ash5i" path="res://effects/status/scout_status.gd" id="1_scout_status"]
 [ext_resource type="Script" uid="uid://h4ca876s2ht3" path="res://effects/status/decay/flat_decay.gd" id="decay_script"]
+[ext_resource type="Resource" path="res://identity/defs/scout.tres" id="identity_scout"]
 
 [sub_resource type="Resource" id="Resource_decay"]
 script = ExtResource("decay_script")
@@ -11,10 +12,10 @@ per_tick = 1.0
 script = ExtResource("1_scout_status")
 radius_scale = 0.5
 fallback_radius_factor = 10.0
+identity = ExtResource("identity_scout")
 id = &"scout"
 display_name = "Scouted"
 description = "Scout arrows lit up this node's surroundings for their camp: the disc grows with the root of the stacks, only your own camp's stacks count, and one stack fades each turn."
-tint = Color(0.55, 0.9, 1, 1)
 tags = Array[StringName]([&"vision"])
 power_max = 0.0
 display_max = 8.0

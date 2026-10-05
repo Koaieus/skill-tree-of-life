@@ -2,6 +2,7 @@
 
 [ext_resource type="Script" path="res://effects/status/wither.gd" id="1_wither"]
 [ext_resource type="Script" uid="uid://18mskbhypx7a" path="res://effects/status/decay/fraction_decay.gd" id="decay_script"]
+[ext_resource type="Resource" path="res://identity/defs/wither.tres" id="identity_wither"]
 
 [sub_resource type="Resource" id="Resource_decay"]
 script = ExtResource("decay_script")
@@ -10,10 +11,10 @@ fraction = 0.25
 [resource]
 script = ExtResource("1_wither")
 factor_per_stack = 0.1
+identity = ExtResource("identity_wither")
 id = &"wither"
 display_name = "Wither"
 description = "Every stack cuts healing on this node by 10%; past 10 stacks healing becomes damage that never closes the regen gate. A quarter of the stacks fade each turn and they never cap."
-tint = Color(0.7, 0.55, 0.25, 1)
 tags = Array[StringName]([&"debuff"])
 resistance_stat_id = &"wither_resistance"
 power_max = 0.0

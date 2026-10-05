@@ -1,14 +1,15 @@
 [gd_resource type="Resource" script_class="CorruptionStatus" format=3]
 
 [ext_resource type="Script" uid="uid://o5i87vxhsioj" path="res://effects/status/corruption.gd" id="1_corruption"]
+[ext_resource type="Resource" path="res://identity/defs/corruption.tres" id="identity_corruption"]
 
 [resource]
 script = ExtResource("1_corruption")
 damage_per_power = 0.02
+identity = ExtResource("identity_corruption")
 id = &"corruption"
 display_name = "Corruption"
 description = "Every stack eats 2% of the node's max health each turn, unmitigated; the stacks never fade and never cap."
-tint = Color(0.6, 0.25, 0.85, 1)
 tags = Array[StringName]([&"debuff", &"dot"])
 resistance_stat_id = &"corruption_resistance"
 power_max = 0.0
