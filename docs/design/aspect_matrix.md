@@ -348,6 +348,34 @@ lightning's hops become mechanics that existing rows can use.
   all being tempo. *"so "tempo" to me sounds like a very broad concept that
   doesn't apply to a single school"*.
 
+**Owner calls, 2026-10-05 (round 3).**
+- **Bleeding → STR:** *"STR -> bleeding sounds better in my head. more
+  "physical", whereas DEX -> assassins -> poisons"*.
+- **Armor break: STR or CON, undecided** (*"conventionally melee warrior stuff
+  which is STR; but also literally a purely defensive stat for any entity
+  which suggests CON"*).
+- **Silence is not a row yet:** it lacks melee and ranged faces. Its school
+  would be INT (it regulates casting) or DEX (the assassin's garotte
+  counters casters).
+- **`tempo` → `momentum`** (the kill-AP refund): *"might be a good call"*.
+- **Spells keep status payloads alongside infusions.** *"spells do provide
+  something that pure infusion couldn't, and or something that even without
+  fusion does interesting stuff"*. The coverage the owner wants per status
+  is: many small hits (+1 stack each); few big hits (+10 each); a utility
+  hit (no damage, doubles the stacks on the node it hits); a boon (no
+  damage, cleanses the stacks and leaves something beneficial per stack
+  cleared). An infusion extends a spell; it never replaces it.
+- **Halo is not a design basis:** *"its design is not what we base our
+  designs on, rather we will reskin or redesign that class"*.
+- **Thorns fails the facet rule (owner, 2026-10-05).** Retribution has no
+  sensible target against a blade (the pivot? the blade node?), a forking
+  spell or an arrow volley — *"shooting 100 arrows into someone won't make an
+  archer die that's just not sensible"*.
+- **Ideas, unplaced:** a spell that trades 1 AP for single-turn movement or
+  dealloc surplus (a mid-turn `ap_transfer_rate`); buffs as statuses, with
+  the owner wary of a flurry: *"settling into something we don't want to be at
+  is worse than taking some more time and settling into somewhere likeable"*.
+
 ## Combos and hybrids
 
 Owner, 2026-10-05: *"for each concrete aspect we put out, we'd have content
