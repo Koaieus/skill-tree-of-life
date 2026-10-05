@@ -56,6 +56,26 @@ Findings, so the next session starts from them:
   and redirects #1252; the tempo row is a new hub; the anti-blade ruling
   gates #1369/#1399; ~30 per-face cells untouched.
 
+## Round 3–4 state (2026-10-05) — open with this
+
+Schools settled, placement rule accepted (see § Schools and the round 3/4
+blocks in `aspect_matrix.md`). The twelve as they stand:
+
+| School | Row 1 | Row 2 |
+|---|---|---|
+| STR | Bleeding | Armor break |
+| DEX | Poison | Explosive |
+| INT | Curse | Silence/Paralysis? (needs faces: "node can't originate any attack") |
+| CON | Wither | Fatigue (movement + dealloc; inherits Fortress drag) — or INT |
+| PER | Scout | Blindness |
+| WIS | Corruption | Greed? (negative resistance to every status) |
+
+Struck: Thorns, Debt, Petrified, Frailty. Open: Fatigue's school, Greed's
+name/shape, movement+dealloc together vs separate, Silence's faces, buffs
+only as faces inside rows (pass proposal). Then: write the school onto each
+row hub, file the Bleeding/Fatigue/Greed contender rows, procgen content
+fix (corruption → WIS pool), and only then the per-face cells.
+
 ## Ready to dispatch
 
 - #1414 — stale-fact fixes, no call needed.

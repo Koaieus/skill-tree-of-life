@@ -376,6 +376,33 @@ lightning's hops become mechanics that existing rows can use.
   the owner wary of a flurry: *"settling into something we don't want to be at
   is worse than taking some more time and settling into somewhere likeable"*.
 
+**Owner calls, 2026-10-05 (round 4).**
+- **The placement rule is accepted.** An aspect sits in the school whose verb
+  it performs (Poison: the assassin's DEX; Bleeding: STR's force) or whose
+  own strength it turns bad (Corruption: WIS's growth gone malignant;
+  Wither: CON's health). By that rule Armor break is STR: it breaks, and the
+  armor it attacks is CON's.
+- **Explosive → DEX** (the saboteur beside the poisoner).
+- **Petrified is struck** until the initiative system is expanded. Owner:
+  more initiative means more turns, and so more XP, more level-ups and more
+  ticks suffered, which may make it *"one of the most influential tempo stats
+  in the game"*. Every entity holds the same value today, and node-local
+  initiative changes are illegal.
+- **Debt is struck.** Losing even one skill point *"would be insanely
+  overpowered"*. The owner also recalls that skill points per level are a
+  formula, not snapshotted, so changing them mid-game moves the pool's cap
+  (unverified).
+- **Fatigue: CON, but INT is arguable.** The rule reads it as CON (stamina
+  turned bad); a mental fatigue would sit closer to Silence/Paralysis.
+- **WIS's second row candidate is Greed** (owner idea): *"a status attracting
+  status — increases stacks gained of negative statuses"*. Pass note: it is
+  negative resistance against every status, which is the parent
+  `dot_resistance` that already exists. That makes WIS the affliction
+  amplifier on the victim side, mirroring WIS's procgen
+  `dot_stacks_per_hit` on the attacker side.
+- **Open:** whether movement and dealloc debuffs hit both points together
+  at one rate (pass recommendation: together, as one engine) or separately.
+
 ## Combos and hybrids
 
 Owner, 2026-10-05: *"for each concrete aspect we put out, we'd have content
