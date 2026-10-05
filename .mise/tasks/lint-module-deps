@@ -30,8 +30,8 @@ import tempfile
 # Owner's order of 2026-09-27 (#1134).
 LAYERS = [
     # sim — `settings` is the player's GameSettings resource, read by the rules.
-    "settings", "archetypes", "stats_system", "skill_node", "graph",
-    "entity", "effects", "combat", "attack", "systems",
+    "identity", "settings", "archetypes", "stats_system", "skill_node", "graph",
+    "entity", "effects", "combat", "attack", "aspects", "systems",
     # the controllers decide for an entity and drive attacks and systems.
     "entity/controller",
     # spine — `procgen` sits just above `session`: it may read sim and session.
