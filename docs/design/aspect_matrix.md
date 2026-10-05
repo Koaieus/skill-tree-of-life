@@ -93,6 +93,12 @@ defensive option (against just melee) swinging a blade is always just
 swinging it across a mine field"*. An addon's default job is offensive or
 utility; an anti-blade face (pop, deflect, drag) is a deliberate exception.
 
+**A status should not saturate at 1–2 stacks (owner, 2026-10-06).** *"I
+think generally if a status takes full effect at 1 or 2 stacks already it'd
+be hard to get right on all facets"* — an infusion adding a stack per spell
+hit, or a volley of arrows adding one each, blankets a whole entity. Stacks
+should grade the effect.
+
 **Blade-intrusive faces are budgeted, plain defensive stats are not (owner,
 2026-10-05).** *"addons should be mindful of adding blade node affecting
 defensive mechanics that e.g. require more hit scans or otherwise interact with
@@ -275,7 +281,7 @@ addon we don't have yet. Not saying we need one"*.
 |---|---|---|
 | STR | Bleeding, Armor break | Bleeding: owner 2026-10-05. Armor break: by the accepted placement rule, not an explicit pick |
 | DEX | Poison, Explosive | owner 2026-10-05 |
-| INT | Curse; Silence (contender) | Curse: owner 2026-09-29. Silence: stacks are duration, a silenced node can't originate an attack (owner, round 5) |
+| INT | Curse; Silence (contender) | Curse: owner 2026-09-29. Silence: unsettled, owner sleeping on it (round 5) |
 | CON | Wither; one open slot | Wither: owner 2026-10-05. Fatigue struck; the slot waits for an idea that fits (owner, 2026-10-06) |
 | PER | Scout, Blindness | owner |
 | WIS | Corruption; Greed (contender) | Corruption: owner 2026-10-05. Greed: designed rounds 5–6 (owner) |
@@ -387,14 +393,17 @@ lightning's hops become mechanics that existing rows can use.
   resistance behaves for non-damage statuses.
 
 **Owner calls, 2026-10-05 (round 5).**
-- **Silence: stacks are duration.** A node is silenced (can't originate an
-  attack: fire, pivot a blade, source a spell) while it holds ≥ 1 stack,
-  −1 per turn. Owner: *"A sounds good. B might also be good but depends on if
-  we could find the perfect node-local value to pick as the threshold, most
-  fitting thematically and gameplay-wise"* — B being "silenced once stacks
-  pass a node-local threshold". No origin gate exists in code today: arrows
-  fire from the leaf list, a blade's pivot is validated on pick, a spell's
-  source is auto-picked.
+- **Silence: unsettled, the owner is sleeping on it (2026-10-06).** The
+  shape on the table: a node can't originate an attack (fire, pivot a blade,
+  source a spell) while it holds ≥ 1 stack, −1 per turn (*"stacks is
+  duration" sounds already better yet not enough"*); a node-local threshold
+  instead is degenerate on allocation level (below). The worry is the boolean:
+  *"when e.g. spells infusions were to add "+1 silence for each spell hit" and
+  an entire entity gets blanketed; or silence arrows were to add +1 silence
+  per hit ... I think generally if a status takes full effect at 1 or 2 stacks
+  already it'd be hard to get right on all facets"*. No origin gate exists in
+  code today: arrows fire from the leaf list, a blade's pivot is validated on
+  pick, a spell's source is auto-picked.
 - **Fatigue as a per-node pass-through cost is rejected.** Movement (1 per
   hop) and dealloc (1 per node) are entity pools with no node-local meaning,
   the Petrified problem. The pass proposed a per-node cost raised by stacks;
@@ -451,10 +460,11 @@ lightning's hops become mechanics that existing rows can use.
   also land on a core if the applying hit hits the core sitting on a depleted
   node (the node it sits on takes the brunt of damage and statuses, but when
   depleted it will prevent nor damage nor status from landing on the core
-  itself"*. Every row's status needs a core reading. Open for Silence: no
-  effect on a core, the core's own origins only, or the whole entity (the
-  last is the AP-neuter the tardy rows were struck for). Greed and Hoard
-  read the same on a core, with Hoard paying on the kill.
+  itself"*. As a general rule a status on a core reads entity-wide (owner,
+  2026-10-06: *"Generally reading C should hold as general rule"*, C being
+  "the whole entity"). Greed and Hoard read the same on a core, with Hoard
+  paying on the kill. For Silence that reading is the AP-neuter the tardy rows
+  were struck for, which is part of why Silence is unsettled.
 
 ## Combos and hybrids
 
