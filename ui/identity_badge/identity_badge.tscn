@@ -3,7 +3,6 @@
 [ext_resource type="Script" path="res://ui/identity_badge/identity_badge.gd" id="1_badge"]
 
 [node name="IdentityBadge" type="Control"]
-custom_minimum_size = Vector2(24, 24)
 layout_mode = 3
 anchors_preset = 0
 offset_right = 24.0
