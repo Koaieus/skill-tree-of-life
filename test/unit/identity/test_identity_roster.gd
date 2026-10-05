@@ -15,6 +15,8 @@ const GOLD_OWNERS: Array[StringName] = [&"xp", &"wisdom"]
 const _DEFS_DIR := "res://identity/defs"
 const _STAT_DEFS_DIR := "res://stats_system/defs"
 const _STATUS_DIR := "res://effects/status"
+const _SPELL_DIR := "res://attack/spell/defs"
+const _ADDON_DIR := "res://skill_node/addons/defs"
 ## The per-concept stat suffixes that make a stat a facet of an aspect.
 const _ASPECT_SUFFIXES: Array[String] = ["_aspect", "_resistance", "_stacks_per_hit"]
 
@@ -54,7 +56,8 @@ func test_same_kind_hues_are_separated() -> void:
 		for j in range(i + 1, all.size()):
 			var a: Identity = all[i]
 			var b: Identity = all[j]
-			if a.kind != b.kind:
+			# Spells carry no hue (all NEUTRAL): motion and heat, never hue.
+			if a.kind != b.kind or a.kind == Identity.Kind.SPELL:
 				continue
 			var d := _delta_e_ok(a.tint, b.tint)
 			assert_gte(d, MIN_SEPARATION,
@@ -119,6 +122,70 @@ func test_every_status_def_references_its_concept() -> void:
 			assert_eq(def.identity.id, def.id, "%s's identity" % file)
 		checked += 1
 	assert_gt(checked, 0, "expected to check some StatusDefs")
+
+
+func test_every_spell_def_references_a_spell_identity() -> void:
+	var roster := IdentityRoster.shared()
+	var checked := 0
+	for file in DirAccess.get_files_at(_SPELL_DIR):
+		if not file.ends_with(".tres"):
+			continue
+		var def := load("%s/%s" % [_SPELL_DIR, file]) as SpellDef
+		if def == null:
+			continue
+		checked += 1
+		assert_not_null(def.identity, "%s has no identity" % file)
+		if def.identity == null:
+			continue
+		assert_eq(def.identity.kind, Identity.Kind.SPELL, "%s's identity kind" % file)
+		assert_true(roster.identities.has(def.identity), "%s's identity is rostered" % file)
+		assert_eq(def.icon, def.identity.icon, "%s reads its icon through the identity" % file)
+	assert_gt(checked, 0, "expected to check some SpellDefs")
+
+
+func test_every_addon_scene_references_an_identity() -> void:
+	var roster := IdentityRoster.shared()
+	var checked := 0
+	for addon in _addon_roots():
+		checked += 1
+		assert_not_null(addon.identity, "%s has no identity" % addon.scene_file_path)
+		if addon.identity == null:
+			continue
+		assert_true(roster.identities.has(addon.identity),
+				"%s's identity is rostered" % addon.scene_file_path)
+		assert_eq(addon.icon, addon.identity.icon, "%s icon via identity" % addon.scene_file_path)
+		assert_eq(addon.tint, addon.identity.tint, "%s tint via identity" % addon.scene_file_path)
+	assert_gt(checked, 0, "expected to check some addon scenes")
+
+
+func test_dot_addon_shares_its_status_identity() -> void:
+	var checked := 0
+	for addon in _addon_roots():
+		var dot := addon as DotAddon
+		if dot == null:
+			continue
+		for effect in dot.on_hit_effects:
+			var status := effect as ApplyStatusEffect
+			if status == null or status.def == null:
+				continue
+			assert_not_null(dot.identity, "%s has no identity" % dot.scene_file_path)
+			assert_eq(dot.identity, status.def.identity,
+					"%s shares %s's identity" % [dot.scene_file_path, status.def.id])
+			checked += 1
+	assert_gt(checked, 0, "expected to check some DotAddons")
+
+
+func _addon_roots() -> Array[SkillNodeAddon]:
+	var out: Array[SkillNodeAddon] = []
+	for file in DirAccess.get_files_at(_ADDON_DIR):
+		if not file.ends_with(".tscn"):
+			continue
+		var addon := (load("%s/%s" % [_ADDON_DIR, file]) as PackedScene).instantiate() as SkillNodeAddon
+		if addon == null:
+			continue
+		autofree(addon)
+		out.append(addon)
+	return out
 
 
 # Copied from test/unit/session/test_lobby_roster.gd.

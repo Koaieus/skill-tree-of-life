@@ -66,6 +66,8 @@ extends Node2D
 ## default; [method SkillNode.get_addon_tooltip_sections] surfaces a section
 ## whenever either this or [method get_tooltip_modifiers] is non-empty.
 @export_multiline var description: String = ""
+## This addon kind's display atom — the source of [member icon] and [member tint].
+@export var identity: Identity = null
 ## Tooltip icon for this addon's AddonItem — a game-icons.net sprite rasterized
 ## by `mise run icons:update` (assets/icons/addons/). Null falls back to the
 ## AddonItem's built-in placeholder, so an unassigned icon ships the same way

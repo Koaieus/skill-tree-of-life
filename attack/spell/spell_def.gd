@@ -35,6 +35,8 @@ extends Resource
 ## four derived sections replace it there. Kept for the spell catalogue
 ## (#853), which shows it as-is.
 @export_multiline var description: String
+## The spell's display atom (kind SPELL) — its noun, NEUTRAL tint and glyph.
+@export var identity: Identity = null
 ## Spell-card iconography. Rendered in the spell picker (top, large) and in
 ## tooltips. Optional — falls back to a glyph derived from the spell name.
 @export var icon: Texture2D = null
