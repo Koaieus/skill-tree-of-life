@@ -30,3 +30,7 @@ func _assert_glyphs(kinds: Array[Identity.Kind], folder: String) -> void:
 
 func test_every_aspect_has_a_glyph_from_aspects_folder() -> void:
 	_assert_glyphs([Identity.Kind.ASPECT], "res://assets/icons/aspects/")
+
+
+func test_every_attribute_and_vital_has_a_glyph_from_attributes_folder() -> void:
+	_assert_glyphs([Identity.Kind.ATTRIBUTE, Identity.Kind.VITAL], "res://assets/icons/attributes/")
