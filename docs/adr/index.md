@@ -67,6 +67,7 @@ mise run adr-hygiene     # frontmatter, supersede links, index coverage, immutab
 | [0043](0043-a-stats-modifiers-are-discrete-obtain-ordered-instances.md) | A stat's modifiers are discrete instances in obtain order: an equal-priority SET clash is an authoring error (last-in wins), a load restores the order, and in game only a formula sum-op fuses | accepted | 2026-10-03 | stats, save-load, multiplayer, loot, architecture |
 | [0044](0044-one-on-hit-vocabulary-for-every-attack-mode.md) | One on-hit vocabulary for every attack mode: an `OnHitEffect` reads a mode-agnostic `HitLanding`, and a rider status is gated by the hit it is `paired` with | accepted | 2026-10-03 | combat, on-hit, status, architecture |
 | [0045](0045-mana-is-retired-spells-are-gated-by-three-conditions.md) | Mana is retired — pool, regen, spell mana cost and every mana modifier deleted (restore from tag `retired/mana`); spell power is gated by three conditions | accepted | 2026-10-03 | spells, balance, mana, stats, design |
+| [0046](0046-identity-is-the-one-display-atom.md) | A concept's display identity (noun, kind, hue, glyph) is one `Identity` resource every facet references; `StatusDef.tint`/`icon` and a concept stat's `tint_color` derive from it — supersedes the 2026-09-14 "StatusDef.tint is canonical" comment call | accepted | 2026-10-04 | ui, identity, palette, stats, status, architecture |
 
 ## Pre-ADR log
 
