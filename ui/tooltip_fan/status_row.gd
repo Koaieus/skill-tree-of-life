@@ -2,6 +2,9 @@
 class_name StatusRow
 extends SlabRow
 
+## Edge length of the status badge.
+@export_range(12, 64) var badge_px: int = 14
+
 ## One [NodeStatus] rendered as its own mini slab — display name, the
 ## floored whole stacks, and (for a damage-dealing def) what the next tick
 ## will actually land — tinted by the status def's own [member StatusDef.tint].

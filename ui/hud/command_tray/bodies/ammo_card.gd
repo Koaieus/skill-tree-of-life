@@ -13,6 +13,9 @@ extends PanelContainer
 signal step_requested(type_id: StringName, delta: int)
 signal set_requested(type_id: StringName, count: int)
 
+## Edge length of the status badge.
+@export_range(12, 64) var badge_px: int = 20
+
 var type: AmmoType = null
 var stock: int = 0
 var gain: int = 0

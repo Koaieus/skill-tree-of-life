@@ -1,8 +1,8 @@
 extends GutTest
 
-## #1353 — an ammo card wears its type's status colour as a swatch plus the
-## status icon (letter glyph when none), so the cards read apart at a glance.
-## Everything derives from the [AmmoType]; a status-less type shows no swatch.
+## An ammo card wears its type's first status as one [IdentityBadge], so the
+## cards read apart at a glance. Everything derives from the [AmmoType]; a
+## status-less type shows no badge.
 
 const _CARD_SCENE := preload("res://ui/hud/command_tray/bodies/ammo_card.tscn")
 const _ROSTER: AmmoTypeRoster = preload("res://attack/ammo/ammo_type_roster.tres")
@@ -16,25 +16,32 @@ func _card(type: AmmoType) -> AmmoCard:
 	return card
 
 
-func test_a_poison_card_shows_a_swatch_in_poisons_hue_and_a_glyph() -> void:
+func _visible_badges(card: AmmoCard) -> Array[IdentityBadge]:
+	var out: Array[IdentityBadge] = []
+	for n in card.find_children("*", "IdentityBadge", true, false):
+		if (n as IdentityBadge).is_visible_in_tree():
+			out.append(n)
+	return out
+
+
+func test_a_poison_card_shows_exactly_one_badge_bound_to_poisons_identity() -> void:
 	var card := _card(_POISON)
-	var swatch: ColorRect = card.get_node_or_null(^"%Swatch")
-	assert_not_null(swatch, "the card has a swatch")
-	if swatch == null:
+	var badges := _visible_badges(card)
+	assert_eq(badges.size(), 1, "exactly one visible identity badge")
+	if badges.is_empty():
 		return
-	assert_true(swatch.is_visible_in_tree(), "a status type shows its swatch")
-	assert_almost_eq(swatch.color.h, _POISON.first_status_def().tint.h, 0.02, "the swatch is the status hue")
-	var icon: TextureRect = card.get_node(^"%StatusIcon")
-	var letter: Label = card.get_node(^"%StatusLetter")
-	var shows_icon := icon.is_visible_in_tree() and icon.texture != null
-	var shows_letter := letter.is_visible_in_tree() and not letter.text.is_empty()
-	assert_true(shows_icon or shows_letter, "an icon or a letter glyph names the status")
+	assert_not_null(badges[0].identity, "the badge is bound")
+	if badges[0].identity == null:
+		return
+	assert_eq(badges[0].identity.id, _POISON.first_status_def().identity.id, "bound to the status identity")
+	assert_eq(badges[0].size_px, card.badge_px, "sized by the card's knob")
 
 
-func test_the_base_arrow_card_shows_no_swatch() -> void:
+func test_the_base_arrow_card_shows_no_badge() -> void:
 	var card := _card(_ROSTER.base_type())
-	var swatch: ColorRect = card.get_node_or_null(^"%Swatch")
-	assert_not_null(swatch, "the card has a swatch node")
-	if swatch == null:
-		return
-	assert_false(swatch.is_visible_in_tree(), "a status-less type shows no swatch")
+	assert_eq(_visible_badges(card).size(), 0, "a status-less type shows no badge")
+
+
+func test_the_letter_fallback_is_gone() -> void:
+	var card := _card(_POISON)
+	assert_null(card.find_child("StatusLetter", true, false), "no StatusLetter node remains")

@@ -13,6 +13,9 @@ const MAX_GLOW_VALUE := 60.0
 signal row_hovered(attr_id: StringName)
 signal row_unhovered(attr_id: StringName)
 
+## Edge length of the attribute badge.
+@export_range(12, 64) var badge_px: int = 16
+
 ## Which StatBoard field this row reads — set per-instance in the composing
 ## scene (AttributesPanel.tscn), mirroring the DI-in-the-scene convention.
 @export var attr_id: StringName = &""

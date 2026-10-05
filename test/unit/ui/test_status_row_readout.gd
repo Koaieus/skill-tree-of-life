@@ -119,3 +119,20 @@ func test_get_description_folds_stacks_per_hit_with_a_board_null_falls_back_to_a
 	board.add_modifier(m)
 	assert_eq(effect.get_description(null, board), "Applies Poison (2 per hit).",
 			"+50% poison_stacks_per_hit folds the per-hit line, 1.5 rounding half-up")
+
+
+func test_poison_row_prefixes_poisons_badge_in_its_label_tier_tint() -> void:
+	_combat().apply_status(_POISON, 13.0)
+	var status: NodeStatus = _combat().get_statuses()[0]
+	var row := _row(status, _combat())
+	var badges := row.find_children("*", "IdentityBadge", true, false)
+	assert_eq(badges.size(), 1, "one identity badge on the row")
+	if badges.is_empty():
+		return
+	var badge := badges[0] as IdentityBadge
+	assert_eq(badge.identity, _POISON.identity, "bound to the status identity")
+	assert_eq(badge.size_px, row.badge_px, "sized by the row's knob")
+	await get_tree().process_frame
+	assert_eq(badge.last_draw_color, Emissive.at(_POISON.identity.tint, Emissive.LABEL),
+			"drawn in Emissive.at(identity.tint, LABEL)")
+	assert_true(row._label.text.begins_with("Poison 13 "), "the text is unchanged")
