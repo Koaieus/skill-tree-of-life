@@ -53,6 +53,13 @@ the live one. `Ready` is a superset, not the queue: anything in it *could* be
 taken; being in the live milestone means it *should*. Same for `Needs design` —
 that column means "forks are open", not "work on this next".
 
+**A spin-off takes the live milestone and leaves `Backlog` (owner,
+2026-10-05).** An issue filed off current work gets the milestone being
+worked, unless it won't matter in the next 24 months. Owner: *"truly backlog
+-> backlog. related to current work, better be picked up sooner rather than
+later -> needs design; related to current focus milestone -> not backlog"*.
+`Backlog` is where a new issue lands, so set both fields by hand at filing.
+
 There is deliberately no prose priority file. `docs/FOCUS.md` held that role and
 was rewritten twice (2026-08-18, 2026-08-31) for the same rot — per-issue prose
 is irresistible to append to and invisible to prune; at its worst it referenced
