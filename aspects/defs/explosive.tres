@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="Aspect" load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://aspects/aspect.gd" id="1_aspect"]
+[ext_resource type="Script" path="res://attack/spell/spell_def.gd" id="1_spell_def"]
+[ext_resource type="Resource" path="res://identity/defs/explosive.tres" id="2_identity"]
+[ext_resource type="Resource" path="res://stats_system/defs/explosive_aspect.tres" id="3_stat"]
+
+[resource]
+script = ExtResource("1_aspect")
+identity = ExtResource("2_identity")
+stat = ExtResource("3_stat")
+spells = Array[ExtResource("1_spell_def")]([])

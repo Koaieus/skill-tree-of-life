@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="AspectRoster" load_steps=11 format=3]
+
+[ext_resource type="Script" path="res://aspects/aspect_roster.gd" id="1"]
+[ext_resource type="Script" path="res://aspects/aspect.gd" id="1_aspect"]
+[ext_resource type="Resource" path="res://aspects/defs/poison.tres" id="2_poison"]
+[ext_resource type="Resource" path="res://aspects/defs/corruption.tres" id="3_corruption"]
+[ext_resource type="Resource" path="res://aspects/defs/curse.tres" id="4_curse"]
+[ext_resource type="Resource" path="res://aspects/defs/wither.tres" id="5_wither"]
+[ext_resource type="Resource" path="res://aspects/defs/armor_break.tres" id="6_armor_break"]
+[ext_resource type="Resource" path="res://aspects/defs/blindness.tres" id="7_blindness"]
+[ext_resource type="Resource" path="res://aspects/defs/scout.tres" id="8_scout"]
+[ext_resource type="Resource" path="res://aspects/defs/explosive.tres" id="9_explosive"]
+
+[resource]
+script = ExtResource("1")
+aspects = Array[ExtResource("1_aspect")]([ExtResource("2_poison"), ExtResource("3_corruption"), ExtResource("4_curse"), ExtResource("5_wither"), ExtResource("6_armor_break"), ExtResource("7_blindness"), ExtResource("8_scout"), ExtResource("9_explosive")])
