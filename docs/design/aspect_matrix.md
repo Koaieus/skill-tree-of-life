@@ -285,9 +285,6 @@ corruption → STR); it moves to this table as a content fix (#1249). Pairs
 are a content layer (duo content reading two aspects), not rows: pass
 proposal, 2026-10-05.
 
-Six singles plus fifteen pairs is twenty-one rows; the sparse-row discipline
-above (merge, strike) is what keeps that from being a slot-filling exercise.
-
 ## Schools
 
 **Settled: a school never scales its aspects (owner, 2026-09-28, #1199).**
@@ -384,11 +381,14 @@ lightning's hops become mechanics that existing rows can use.
 - **Fatigue: CON, but INT is arguable.** The rule reads it as CON (stamina
   turned bad); a mental fatigue would sit closer to Silence/Paralysis.
 - **WIS's second row candidate is Greed** (owner idea): *"a status attracting
-  status — increases stacks gained of negative statuses"*. Pass note: it is
-  negative resistance against every status, which is the parent
-  `dot_resistance` that already exists. That makes WIS the affliction
-  amplifier on the victim side, mirroring WIS's procgen
-  `dot_stacks_per_hit` on the attacker side.
+  status — increases stacks gained of negative statuses"*. This is **not**
+  negative `dot_resistance`. Owner, 2026-10-05: resistance *"works for poison
+  at the tick moment (reduces that damage); other statuses idk yet how it
+  works"* (ADR 0031 filters at effect time, not at landing), and
+  `<family>_stacks_per_hit` is the attacker's. Greed needs a new
+  defender-side landing term (e.g. a susceptibility on the host) that landing
+  folds with the attacker's stacks per hit, and a readout that overlays the
+  two. Open: that seam, and how resistance behaves for non-damage statuses.
 - **Open:** whether movement and dealloc debuffs hit both points together
   at one rate (pass recommendation: together, as one engine) or separately.
 
