@@ -1,0 +1,20 @@
+# Icon mapping for game-icons.net -> aspect identities (identity/defs/<aspect>.tres `icon`).
+# Format: output_name<TAB>author/source.svg
+# WARNING: TAB SPACED
+# Run `mise run icons:update` to reprocess all (see .claude/rules/icon-assets.md
+# before you do — hand-run the sed + rsvg-convert against this folder instead).
+#
+# Baked WHITE: the hue is the Identity's tint, applied by modulate — icons are
+# tinted, never recoloured at the source.
+#fg #ffffff
+#
+# Picked at the 24 px they ship at: bold closed silhouettes, persona as flavour
+# (docs/design/aspect_personas.md). Every .png.import sets mipmaps/generate=true.
+poison	lorc/droplets.svg
+corruption	delapouite/devil-mask.svg
+curse	skoll/pentacle.svg
+wither	lorc/falling-leaf.svg
+armor_break	lorc/cracked-shield.svg
+blindness	delapouite/blindfold.svg
+scout	delapouite/binoculars.svg
+explosive	lorc/spiky-explosion.svg
