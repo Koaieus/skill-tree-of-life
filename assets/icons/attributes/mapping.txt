@@ -1,0 +1,21 @@
+# Icon mapping for game-icons.net -> attribute + vital identities
+# (identity/defs/<id>.tres `icon`).
+# Format: output_name<TAB>author/source.svg
+# WARNING: TAB SPACED
+# Run `mise run icons:update` to reprocess all (see .claude/rules/icon-assets.md
+# before you do — hand-run the sed + rsvg-convert against this folder instead).
+#
+# Baked WHITE: the hue is the Identity's tint, applied by modulate.
+#fg #ffffff
+#
+# Attributes are the Titan-class gods (docs/design/aspect_personas.md): heavier,
+# more abstract silhouettes than the aspects'. Picked at 24 px; every .png.import
+# sets mipmaps/generate=true.
+strength	lorc/fist.svg
+dexterity	lorc/wingfoot.svg
+intelligence	lorc/brain.svg
+wisdom	lorc/sunrise.svg
+perception	delapouite/eye-target.svg
+constitution	lorc/stone-tower.svg
+health	skoll/hearts.svg
+xp	delapouite/upgrade.svg

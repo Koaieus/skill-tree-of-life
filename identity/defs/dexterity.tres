@@ -1,6 +1,7 @@
-[gd_resource type="Resource" script_class="Identity" load_steps=2 format=3]
+[gd_resource type="Resource" script_class="Identity" load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://identity/identity.gd" id="1_identity"]
+[ext_resource type="Texture2D" uid="uid://cicuqy6d46ev8" path="res://assets/icons/attributes/dexterity.png" id="2_icon"]
 
 [resource]
 script = ExtResource("1_identity")
@@ -8,3 +9,4 @@ id = &"dexterity"
 noun = "Dexterity"
 kind = 1
 tint = Color(0.31764707, 0.7764706, 0.44705883, 1)
+icon = ExtResource("2_icon")
