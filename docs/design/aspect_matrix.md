@@ -310,18 +310,25 @@ want to scale these effects innately with those stats for free"*. A school
 couples by geography (procgen places an aspect's nodes in its attribute's
 territory) and by vibe (colour, persona), never by a fold.
 
-**Leaning toward attributes as the schools (2026-10-05 pass).** The pantheon
-in `lore.md` (attributes are Titans, aspects their lesser gods), the board
-(a node's colour is its attribute) and procgen already agree on this. The
-other three grammars fall short: the defence axis orphans Scout and Explosive
-and works better as a per-school health check; parent aspects split only
-the DoTs; no schools at all loses the pair/duo grammar. Picking attributes
-also settles Elemental as "keep away": freeze's lock, burn's edge spread and
+**Settled: the six primary attributes are the schools (owner, 2026-10-05).**
+*"i think the 6 primary attributes serving as schools is the way to go about
+this"*. The rules for the primaries:
+- *"generally never scale via other primaries (unless a real customization
+  via a coreclass or keystone is done along the lines of "STR now counts for
+  INT" ... which we have no plans for yet)"*.
+- They *"may be used as scaling base for other stats, not the other way
+  around (e.g. blade_size gets a STR-dependent addition but blade_size value
+  won't affect how much STR you have"*. Read together with the 2026-09-28
+  sentence above: a primary scales its own native stats (`blade_size`,
+  `xp_per_turn`), never an aspect's.
+Elemental is therefore "keep away": freeze's lock, burn's edge spread and
 lightning's hops become mechanics that existing rows can use.
 
-- **Corruption → WIS (owner lean, 2026-10-05):** *"it fits so well!"* — Gold
-  is growth and economy; Corruption is growth gone malignant (compound
-  buildup, the dealmaker persona). Procgen still rolls it on STR.
+- **WIS is the skill-point economy; Corruption → WIS (owner, 2026-10-05).**
+  *"WIS deals with "skillpoint economic" gains (XP gain) first and foremost.
+  wisdom -> reads as experience -> manages XP/turn. corruption fits here due
+  to the slow buildup, economic/political corruption but then for
+  skillnodes"*. Procgen still rolls corruption on STR (a content fix).
 - **WIS has three claimants.** The first is patience: growth plus time, i.e.
   Corruption and a tempo row (working name *Stasis*: stacks summed over the
   afflicted nodes slow the entity, and a threshold locks a node). The second
@@ -330,10 +337,16 @@ lightning's hops become mechanics that existing rows can use.
   status quo: generic DoT plus growth. The tempo row could equally sit on
   INT's *bind* verb (MTG puts tempo in blue; tempo and ramp meet only in
   Simic).
-- **Coolness / swagger** (lore: a procgen-sprinkled colour with no
-  mechanical effect, tallied at the credits) is the seventh colour that is
-  deliberately **not** a school. Open: a node colour (it would take
-  allocation slots) or a flag on the node.
+- **Coolness / swagger is not a school (owner, 2026-10-05: *"2cool4skool
+  does fit"*).** *"it just sits on a generic procgen pool and could roll onto
+  any archetype, not sure if they also get one of their own ("pure
+  coolness") or it's just a side roll of other nodes"* — the pure-coolness
+  node is open.
+- **Tempo is broad, not one school (owner, 2026-10-05):** the owner lists
+  the kill-AP refund (`tempo`), `sp_per_levelup`, `xp_per_turn` (turns per
+  level-up), `movement_points`, `deallocation_points` and `action_points` as
+  all being tempo. *"so "tempo" to me sounds like a very broad concept that
+  doesn't apply to a single school"*.
 
 ## Combos and hybrids
 
