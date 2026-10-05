@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="Identity" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://identity/identity.gd" id="1_identity"]
+
+[resource]
+script = ExtResource("1_identity")
+id = &"strength"
+noun = "Strength"
+kind = 1
+tint = Color(0.94509804, 0.27058825, 0.24705882, 1)

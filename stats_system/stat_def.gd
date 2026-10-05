@@ -13,6 +13,10 @@ enum ValueType { INT, FLOAT, BOOL }
 @export_multiline var description: String = ""
 @export var value_type: ValueType = ValueType.INT
 @export var default_value: float = 0.0
+## The concept this stat expresses ([code]identity/defs/<id>.tres[/code]); when
+## set, its hue wins over [member tint_color]. Null for a stat that belongs to no
+## concept. See docs/adr/0046-identity-is-the-one-display-atom.md.
+@export var identity: Identity = null
 @export var tint_color: Color = Color.WHITE
 
 ## Ids of the stats this one folds under (ADR 0029): a child's read is

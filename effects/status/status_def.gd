@@ -47,6 +47,7 @@ enum OnDealloc {
 ## Unique key — the status slice is a dictionary on this.
 @export var id: StringName = &""
 @export var display_name: String = ""
+@export var identity: Identity = null
 ## Prose for tooltips. Blank → [method get_description] derives one.
 @export_multiline var description: String = ""
 ## Optional iconography. Consumers fall back to a letter glyph when null, as
