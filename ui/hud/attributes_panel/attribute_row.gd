@@ -1,7 +1,7 @@
 @tool
 class_name AttributeRow
 extends HBoxContainer
-## One numeric attribute row (colored dot + label + big glowing value) in the
+## One numeric attribute row (identity badge + label + big glowing value) in the
 ## Attributes Panel (#109). Glow scales with magnitude (shadow-outline halo,
 ## since Godot has no native text blur); values >= EMBER_THRESHOLD gain a
 ## slow brightness flicker. Hover drives [signal row_hovered] so the panel
@@ -14,11 +14,19 @@ signal row_hovered(attr_id: StringName)
 signal row_unhovered(attr_id: StringName)
 
 ## Edge length of the attribute badge.
-@export_range(12, 64) var badge_px: int = 16
+@export_range(12, 64) var badge_px: int = 16:
+	set(value):
+		badge_px = value
+		if _badge != null:
+			_badge.size_px = value
 
 ## Which StatBoard field this row reads — set per-instance in the composing
 ## scene (AttributesPanel.tscn), mirroring the DI-in-the-scene convention.
-@export var attr_id: StringName = &""
+## The badge before the label shows this stat's [member StatDef.identity].
+@export var attr_id: StringName = &"":
+	set(v):
+		attr_id = v
+		_bind_badge()
 @export var attr_label: String = "":
 	set(v):
 		attr_label = v
@@ -32,14 +40,12 @@ signal row_unhovered(attr_id: StringName)
 @export var tint_color: Color = Color.WHITE:
 	set(v):
 		tint_color = v
-		if _dot != null:
-			_dot.color = v
 		if _value != null:
 			var glow := Emissive.at(v, Emissive.VALUE)
 			_value.add_theme_color_override(&"font_color", glow)
 			_value.add_theme_color_override(&"font_shadow_color", Color(glow.r, glow.g, glow.b, 0.7))
 
-@onready var _dot: ColorRect = %Dot
+@onready var _badge: IdentityBadge = %Badge
 @onready var _label: Label = %Label
 @onready var _value: Label = %Value
 @onready var _chip: DeltaChip = %DeltaChip
@@ -56,10 +62,18 @@ func _ready() -> void:
 	mouse_exited.connect(func(): row_unhovered.emit(attr_id))
 	if _label != null:
 		_label.text = attr_label
-	if _dot != null:
-		_dot.color = tint_color
+	_badge.size_px = badge_px
+	_bind_badge()
 	if _value != null:
 		_value.add_theme_color_override(&"font_color", Emissive.at(tint_color, Emissive.VALUE))
+
+
+func _bind_badge() -> void:
+	# StatRegistry is a runtime autoload; the editor preview stays unbound.
+	if _badge == null or Engine.is_editor_hint():
+		return
+	var def := StatRegistry.get_def(attr_id) if attr_id != &"" else null
+	_badge.identity = def.identity if def != null else null
 
 
 func set_value(v: float) -> void:

@@ -39,5 +39,6 @@ func test_no_swatch_dot_remains() -> void:
 func test_an_unknown_attr_id_leaves_the_badge_unbound() -> void:
 	var row := _row(&"no_such_stat")
 	var badges := _badges(row)
+	assert_eq(badges.size(), 1, "the badge node is still there")
 	if not badges.is_empty():
 		assert_null((badges[0] as IdentityBadge).identity, "no def, no identity")
