@@ -1,13 +1,14 @@
-[gd_resource type="Resource" script_class="StatDef" load_steps=2 format=3]
+[gd_resource type="Resource" script_class="StatDef" load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://stats_system/stat_def.gd" id="1_stat_def"]
+[ext_resource type="Resource" path="res://identity/defs/blindness.tres" id="identity_blindness"]
 
 [resource]
 script = ExtResource("1_stat_def")
+identity = ExtResource("identity_blindness")
 id = &"blindness_stacks_per_hit"
 display_name = "Blindness Stacks per Hit"
 description = "The blindness this entity's hits land. The authored per-hit blindness is a base_add overlay on this stat, so its flats add to it and its INCREASE / MORE scale it: landed = fold(per-hit) x (1 - target's Blindness Resistance), resolved once at land, never floored. No parent: blindness is not a DoT, so DoT Stacks per Hit never reaches it. Procgen rolls it as INCREASE on blighted PER nodes. Default 0; entity-scope only."
 value_type = 1
 default_value = 0.0
-tint_color = Color(0.55, 0.85, 0.45, 1)
 modifier_name = "Blindness Stacks per Hit"

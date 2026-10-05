@@ -1,13 +1,14 @@
 [gd_resource type="Resource" script_class="StatDef" format=3 uid="uid://dstlg0lrt8nvv"]
 
 [ext_resource type="Script" uid="uid://0rq8abv83bkj" path="res://stats_system/stat_def.gd" id="1_stat_def"]
+[ext_resource type="Resource" path="res://identity/defs/perception.tres" id="identity_perception"]
 
 [resource]
 script = ExtResource("1_stat_def")
+identity = ExtResource("identity_perception")
 id = &"perception"
 parent_ids = Array[StringName]([&"attributes"])
 display_name = "Perception"
 description = "Sensing attribute (Purple). +1 sense_range / 10 PER, +2% vision_range / PER."
 default_value = 10.0
-tint_color = Color(0.69411767, 0.40392157, 0.96862745, 1)
 abbrev = "PER"

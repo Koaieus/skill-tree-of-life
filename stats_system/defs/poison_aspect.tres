@@ -1,14 +1,15 @@
-[gd_resource type="Resource" script_class="StatDef" load_steps=2 format=3]
+[gd_resource type="Resource" script_class="StatDef" load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://stats_system/stat_def.gd" id="1_stat_def"]
+[ext_resource type="Resource" path="res://identity/defs/poison.tres" id="identity_poison"]
 
 [resource]
 script = ExtResource("1_stat_def")
+identity = ExtResource("identity_poison")
 id = &"poison_aspect"
 parent_ids = Array[StringName]([&"aspects"])
 display_name = "Poison Aspect"
 description = "How much of the poison aspect this entity carries — one number each combat mode reads its own way (#1248). Ranged: every reload mints this many poison arrows, entity-flat, never scaled by leaf allocation level (the AmmoType's per_reload_stat_id). Melee: the per-swing cap on poison temp upgrades. Magic: designed on #1250. Aspects is its family parent and folds into this read. A count, never potency (that is <family>_stacks_per_hit). Default 0; entity-scope only."
 value_type = 0
 default_value = 0.0
-tint_color = Color(0.55, 0.85, 0.45, 1)
 modifier_name = "Poison Aspect"

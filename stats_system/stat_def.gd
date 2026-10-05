@@ -14,10 +14,15 @@ enum ValueType { INT, FLOAT, BOOL }
 @export var value_type: ValueType = ValueType.INT
 @export var default_value: float = 0.0
 ## The concept this stat expresses ([code]identity/defs/<id>.tres[/code]); when
-## set, its hue wins over [member tint_color]. Null for a stat that belongs to no
+## set, [member tint_color] reads its hue. Null for a stat that belongs to no
 ## concept. See docs/adr/0046-identity-is-the-one-display-atom.md.
 @export var identity: Identity = null
-@export var tint_color: Color = Color.WHITE
+## The stat's hue. Derived from [member identity] when one is set — the
+## authored value is then ignored, so a concept's stats never drift apart;
+## authored directly only on a stat that belongs to no concept.
+@export var tint_color: Color = Color.WHITE:
+	get:
+		return identity.tint if identity != null else tint_color
 
 ## Ids of the stats this one folds under (ADR 0029): a child's read is
 ## `compute(child.base_value, [ancestors' bins farthest-first…, own bins])` —

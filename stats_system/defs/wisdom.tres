@@ -1,13 +1,14 @@
 [gd_resource type="Resource" script_class="StatDef" format=3 uid="uid://dvpjmk8e3m08k"]
 
 [ext_resource type="Script" uid="uid://0rq8abv83bkj" path="res://stats_system/stat_def.gd" id="1_stat_def"]
+[ext_resource type="Resource" path="res://identity/defs/wisdom.tres" id="identity_wisdom"]
 
 [resource]
 script = ExtResource("1_stat_def")
+identity = ExtResource("identity_wisdom")
 id = &"wisdom"
 parent_ids = Array[StringName]([&"attributes"])
 display_name = "Wisdom"
 description = "Economic attribute (Gold). XP-gain rate; carries growth modifiers."
 default_value = 10.0
-tint_color = Color(0.9019608, 0.73333335, 0.27450982, 1)
 abbrev = "WIS"

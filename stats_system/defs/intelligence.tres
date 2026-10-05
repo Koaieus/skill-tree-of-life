@@ -1,13 +1,14 @@
 [gd_resource type="Resource" script_class="StatDef" format=3 uid="uid://cws6dhm8bjilt"]
 
 [ext_resource type="Script" uid="uid://0rq8abv83bkj" path="res://stats_system/stat_def.gd" id="1_stat_def"]
+[ext_resource type="Resource" path="res://identity/defs/intelligence.tres" id="identity_intelligence"]
 
 [resource]
 script = ExtResource("1_stat_def")
+identity = ExtResource("identity_intelligence")
 id = &"intelligence"
 parent_ids = Array[StringName]([&"attributes"])
 display_name = "Intelligence"
 description = "Magic attribute (B/Blue). INT//10 per damage instance — potency, and it drives cast reach (cast_range_hops / cast_range_distance)."
 default_value = 10.0
-tint_color = Color(0.2901961, 0.5882353, 1, 1)
 abbrev = "INT"

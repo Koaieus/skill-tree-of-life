@@ -1,13 +1,14 @@
 [gd_resource type="Resource" script_class="StatDef" format=3 uid="uid://vtw8ktmktkgq"]
 
 [ext_resource type="Script" uid="uid://0rq8abv83bkj" path="res://stats_system/stat_def.gd" id="1_stat_def"]
+[ext_resource type="Resource" path="res://identity/defs/strength.tres" id="identity_strength"]
 
 [resource]
 script = ExtResource("1_stat_def")
+identity = ExtResource("identity_strength")
 id = &"strength"
 parent_ids = Array[StringName]([&"attributes"])
 display_name = "Strength"
 description = "Melee attribute (R/Red). Scales phantom-blade damage; +1 damage per 20 STR, +1 blade size per 40 STR."
 default_value = 10.0
-tint_color = Color(0.94509804, 0.27058825, 0.24705882, 1)
 abbrev = "STR"
