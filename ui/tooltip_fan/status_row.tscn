@@ -1,7 +1,14 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene load_steps=4 format=3]
 
 [ext_resource type="Script" path="res://ui/tooltip_fan/status_row.gd" id="1_script"]
 [ext_resource type="PackedScene" uid="uid://cq8lbrs0slbr0" path="res://ui/tooltip_fan/slab_row.tscn" id="2_base"]
+[ext_resource type="PackedScene" path="res://ui/identity_badge/identity_badge.tscn" id="3_badge"]
 
 [node name="StatusRow" instance=ExtResource("2_base")]
 script = ExtResource("1_script")
+
+[node name="StatusBadge" parent="MarginContainer" instance=ExtResource("3_badge")]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 0
+size_flags_vertical = 4
