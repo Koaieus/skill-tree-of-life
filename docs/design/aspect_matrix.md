@@ -67,6 +67,16 @@ defensive option (against just melee) swinging a blade is always just
 swinging it across a mine field"*. An addon's default job is offensive or
 utility; an anti-blade face (pop, deflect, drag) is a deliberate exception.
 
+**Blade-intrusive faces are budgeted, plain defensive stats are not (owner,
+2026-10-05).** *"addons should be mindful of adding blade node affecting
+defensive mechanics that e.g. require more hit scans or otherwise interact with
+blade nodes. Spike nodes currently POP blade nodes, bunkers deflect them and
+fortress slows them. Each of these is intrusive and should be balanced and
+intuitive and not every aspect should grow one most likely. But other defensive
+modifiers on addons like boosting some health or other defensive stat is mostly
+fine"*. Pop (Spike Ring), deflect (Bunker) and drag (Fortification) are taken;
+a new blade interaction needs a reason none of the three covers.
+
 **Addon column note:** "addon" and "temp addon" are one thing — a
 `SkillNodeAddon` scene (entity + node-local modifier lists, plus the
 overridable `apply_to_blade` hook). A map addon is placed by procgen and
@@ -202,6 +212,7 @@ or is struck (the ADR 0045 "dead for two of three attack modes" test).
 | Thorns | retribution | TBD | TBD | TBD | TBD | Owner, 2026-10-05: *"canonically more for retribution dmg of incoming attacks back to attacker"*. Not built; today *"blade swings don't deal dmg to own nodes, no thorn dmg or anything (yet?)"* (owner, 2026-10-05). OQ32 in combat_system.md asks whether thorns and spikes share a stat |
 | Spikes | offense | STR? | — | `spike_ring_addon.tscn`: local `blade_damage` (×1.5, +3), allocation-scaled per #1369 | — | **Not an aspect**: its defensive face (pop a blade vertex) has no ranged or spell meaning. Owner, 2026-10-05: *"spikes addon just adds blade damage. Switch to bleed stacks instead? (Or keep some blade dmg mods why not). Spikes do fit bleeding thematically. Though they also fit poison"*. The pop budget (`spikes`, `node_spikes`, `spike_regen`) is the #1369 fork; the owner leans to moving the anti-blade face to Explosive (2026-10-04: *"I think the explosive one thematically fits best"*), which would delete those stats |
 | Blunting | — | — | — | today only a spiked node's +1 | — | Struck candidate: a counter to a counter, meaningless to an arrow or a spell. Dies with the pop budget if #1369 takes the explosive pivot (and #794 with it) |
+| Elemental (family) | — | — | — | — | — | Owner, 2026-10-05: *"Chill or burn sound like pure elemental, which is also a real mechanic family we haven't touched on yet. And if we start adding it, shouldn't half-ass it"*. A family, not a row: which elements, what each does on a graph, and whether elements share a resistance layer are one design pass. Chill would absorb the tempo debuffs above (Fatigue/Slow, Paralysis, Petrified) |
 | Frailty / Fragile | fragility | — | — | — | — | Struck: owner, 2026-10-05, *"likely what curse does so no"* |
 
 ## Attributes and pairs
@@ -260,7 +271,9 @@ layers i haven't considered yet"*. Layers on the table, none exclusive:
 2. **Parent aspects** — ADR 0022's "one DoT per defensive axis" (HP flat,
    bulk, floor, healing) is an existing non-arbitrary split for the DoTs; a
    new DoT childs under the axis it attacks or justifies a fifth. Covers DoTs
-   only.
+   only. Advisor proposal, 2026-10-05: **Affliction** as that parent (a
+   `affliction_aspect` composing into the four DoT aspects, ADR 0029) — an
+   umbrella in genre vocabulary, too generic to be its own row.
 3. **Tags** — the Tag column as mechanic vocabulary; a combo is content that
    reads two mechanics (DoT × AoE, spread × retribution, reveal × DoT), the
    Hades duo / Astral Ascent shape. Pairs enumerate themselves; a tag that
@@ -269,6 +282,25 @@ layers i haven't considered yet"*. Layers on the table, none exclusive:
    table.
 5. **Trigger** — on-hit, on-tick, on-death / dealloc (curse spill),
    on-contact (detonation). Trigger × tag may be the smallest grammar.
+
+## Addons outside the Matrix
+
+The Matrix runs concept → facet; these addons run the other way — board
+structure first, no status — so they have no row. Whether the Matrix splits
+(afflictions vs. structures), keeps one table with per-kind facet rules, or
+grows parent categories over both is **open** (owner, 2026-10-05: *"may need
+a split. But I'm not sure which"*). Family grouping below is an advisor
+proposal, 2026-10-05; the per-addon calls live in
+[skill_node_addons.md](skill_node_addons.md).
+
+| Family (proposed) | Addons | State |
+|---|---|---|
+| Fortify | Bunker (deflect), Fortification (drag), Reinforcement | Bunker, Fortification shipped; Reinforcement undecided |
+| Survival | Lifeline, Lifelink, Fountain (heal / cleanse) | Lifeline may merge into Fountain; Lifelink keystone / core-class only |
+| Topology | Gate, Winch, Clamp | Clamp shipped; Gate landing; Winch has a determinism fork |
+| Spell routing | Anti-Magic, Conduit, Void? | needs design |
+| Growth | Skill Dust | shipped; technical — consumed on allocation, never persistent. Owner: WIS-related (*"permanent growth"*), so a WIS row candidate (#1252) |
+| — | Buffer | discontinued indefinitely (owner, 2026-10-05) |
 
 ## Personas
 

@@ -94,6 +94,8 @@ Implementation: `docs/domain/melee-blade-sim.md`, "Bunker deflection (#781)".
 
 ### Reinforcement
 
+> **Undecided (owner, 2026-10-05):** *"hmm idk"*.
+
 **Effect:** Increases this node's `node_health_max`. The node has more HP before being severed.
 
 **Stacks with:** Entity-level `node_health_max`. Per-node HP is seeded from the entity total plus Reinforcement bonus.
@@ -114,6 +116,9 @@ Implementation: `docs/domain/melee-blade-sim.md`, "Bunker deflection (#781)".
 
 ### Buffer
 
+> **Discontinued indefinitely (owner, 2026-10-05).**
+>
+
 > **Rewritten.** The old inhale/exhale charge-holding model is gone (melee no longer runs on charged Buffer nodes — it is the phantom blade, sized `STR//10+1`; see `combat_system.md`). Buffer is now a **utility** addon: the key that unlocks **temporary reach** for an attack.
 >
 > **Speculative — not built.** The temp-allocation hook this describes does not exist in the live code; this is a parked design. When it's built, its lifetime is bounded by the attack it serves, not by a turn phase (phases were removed in #60).
@@ -131,6 +136,8 @@ Implementation: `docs/domain/melee-blade-sim.md`, "Bunker deflection (#781)".
 ---
 
 ### Winch
+
+> **Determinism fork (owner, 2026-10-05):** *"cool but how are we gonna ensure that after pulling, the entirety of the graph (here as one giant spring system) has settled to pixel identical values for each peer? While also this settling ideally is just physics engine doing its thing"*. Note the Effect below is already math-only: if gameplay reads a deterministic effective distance and the spring settle is presentation, no peer needs a pixel-identical layout. Open.
 
 **Effect:** Exerts a pull force on adjacent nodes, reducing effective euclidean distance between this node and its neighbors, as an ability that targets one selected neighbor per turn (reeling in 1 edge). Does not create or delete edges — purely a math adjustment to the distance calculation.
 
@@ -239,6 +246,8 @@ entry each, no code (ADR 0023).
 
 ### Lifeline
 
+> **Strong; merge candidate (owner, 2026-10-05):** *"great but strong. Could merge it with proposed (healing and or cleansing) Fountain addon perhaps"* (the Fountain is `damage_over_time.md` § Cures).
+
 **Effect:** If any sub-graph containing nodes within N hops of this Lifeline node becomes an island (no path to the entity's core), those nodes receive a **1-turn grace period** before dissolving. During this grace period, the entity may re-establish a connection to the core — if they succeed, the island is saved and the timer cancels. If the grace period expires without reconnection, the island dissolves normally (SP Reservation fires for all nodes).
 
 **Counter-play:** After the snipe that created the island, the chokepoint node (where the bridge used to be) is now neutral. The attacker can immediately try to allocate it — spending 1 SP to claim the chokepoint. If they succeed, the defender has no path to reconnect even within the grace period. If the defender can bridge through a different route before the attacker blocks — the island survives.
@@ -250,6 +259,8 @@ entry each, no code (ADR 0023).
 ---
 
 ### Lifelink
+
+> **Never procgen-rolled (owner, 2026-10-05):** *"great but VERY strong, maybe too strong. If we add it it's likely not a procgen randomly rolled one, exclusively for keystone or some mechanics for a future coreclass"*.
 
 **Effect:** This node acts as a **proxy core for disconnection purposes only.** An island containing a Lifelink does not dissolve — the Lifelink sustains it indefinitely, as if that sub-graph had its own core for connectivity checking. The island persists as long as the Lifelink exists.
 
@@ -295,6 +306,8 @@ Concepts that appeared in design discussion but have not been formally designed.
 ---
 
 ### Anti-Magic *(concept — TBD)*
+
+> Owner, 2026-10-05: *"Anti magic or conduit or void: needs more design"* — one open fork for this, Conduit, and a possible Void.
 
 **Proposed concept:** A node carrying Anti-Magic adds +1 to the effective hop cost of any spell passing through it. A spell with N hops remaining that would normally propagate to neighbors with N−1 hops exits with N−2 instead — consuming one extra hop at the anti-magic node, reducing propagation depth and spread.
 
