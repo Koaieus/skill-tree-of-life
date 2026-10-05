@@ -251,8 +251,8 @@ or is struck (the ADR 0045 "dead for two of three attack modes" test).
 | Concept | Tag | Attributes (vibe) | Ranged (arrow) | Addon | Spell | Notes |
 |---|---|---|---|---|---|---|
 | Bleeding | DoT | STR (owner, 2026-10-05) | TBD | spikes? (see Spikes) — look: tangential spikes rotating like a sawblade (owner, 2026-10-03) | TBD | Owner, 2026-10-05: *"Bleeding is an excellent game concept maybe too classic to pass up. And it's one that could naturally be a DoT. Would need a different profile, character (damage & mechanics, decay, tick trigger, spread mechanics if any) than poison"*. Earlier: *"what would bleeding mean in a graph-based game? leaking "skill point" essence until deallocated..?"* (2026-10-03) |
-| Fatigue / Slow | debuff, movement | TBD | TBD | Fortress's swing drag moves here (owner, 2026-10-05) | TBD | Owner, 2026-10-05: *"fatigue OR slow (or both): slows movement stat, possibly deallocation point stat too"*. Tempo is a defensive axis: *"running away is a valid (but last resort) defensive option, and hence slow effects or things that reduce `movement`, `deallocation_points`, or even `action_points` (neutering an enemy's attack output IS the ultimate defense i reckon)"* (owner, 2026-10-05). Paralysis and Petrified may join this as one tempo row |
-| Paralysis | debuff, AP | TBD | TBD | TBD | TBD | Owner, 2026-10-05: *"lowers action points cap?"* |
+| Fatigue / Slow | — | — | — | — | — | **Struck (owner, 2026-10-06)** with Paralysis, *"the whole tardy bunch"*: movement and dealloc are entity pools with no node-local meaning, and a per-node cost deadlocks chokepoints while the nodes worth slowing sit out of reach (round 5) |
+| Paralysis | — | — | — | — | — | **Struck (owner, 2026-10-06)** with Fatigue / Slow. An AP-cap cut also sits on core-class territory (the Pacifist ruling) |
 | Spikes | offense | STR? | — | `spike_ring_addon.tscn`: local `blade_damage` (×1.5, +3), allocation-scaled per #1369 | — | **Not an aspect**: its defensive face (pop a blade vertex) has no ranged or spell meaning. Owner, 2026-10-05: *"spikes addon just adds blade damage. Switch to bleed stacks instead? (Or keep some blade dmg mods why not). Spikes do fit bleeding thematically. Though they also fit poison"*. The pop budget (`spikes`, `node_spikes`, `spike_regen`) is the #1369 fork; the owner leans to moving the anti-blade face to Explosive (2026-10-04: *"I think the explosive one thematically fits best"*), which would delete those stats |
 | Blunting | — | — | — | today only a spiked node's +1 | — | Struck candidate: a counter to a counter, meaningless to an arrow or a spell. Dies with the pop budget if #1369 takes the explosive pivot (and #794 with it) |
 | Elemental (family) | — | — | — | — | — | **Keep away (settled with Schools, 2026-10-05):** each pro is harvested as a mechanic for existing rows. Owner, 2026-10-05: *"Chill or burn sound like pure elemental, which is also a real mechanic family we haven't touched on yet. And if we start adding it, shouldn't half-ass it"*. A family, not a row: which elements, what each does on a graph, and whether elements share a resistance layer are one design pass. Chill would absorb the tempo debuffs above (Fatigue/Slow, Paralysis, Petrified). All or nothing (owner, 2026-10-05): *"either fully flesh it out or keep it away"*. Owner's pros: burning is a canonical DoT; burning could spread to neighbours; freeze may lock a node (can't act, can't be deallocated), chill a lesser or building version (*"enough chill turns into freeze idk"*); lightning *"might do hops based shenanigans"*. Against: the settled aspects (Corruption, Curse, Wither, Poison, Armor break) fit none of fire/cold/lightning, nor a fourth element. Advisor read: burn collides with Poison's axis unless edge-spread sets it apart, freeze is the tempo row's name, lightning is a targeting shape — so elements may be flavour, not a school |
@@ -275,10 +275,10 @@ addon we don't have yet. Not saying we need one"*.
 |---|---|---|
 | STR | Bleeding, Armor break | Bleeding: owner 2026-10-05. Armor break: by the accepted placement rule, not an explicit pick |
 | DEX | Poison, Explosive | owner 2026-10-05 |
-| INT | Curse; Silence/Paralysis? | Curse: owner 2026-09-29. Silence needs melee and ranged faces ("node can't originate any attack" is the pass proposal) |
-| CON | Wither; Fatigue? | Wither: owner 2026-10-05. Fatigue is CON or INT, open |
+| INT | Curse; Silence (contender) | Curse: owner 2026-09-29. Silence: stacks are duration, a silenced node can't originate an attack (owner, round 5) |
+| CON | Wither; one open slot | Wither: owner 2026-10-05. Fatigue struck; the slot waits for an idea that fits (owner, 2026-10-06) |
 | PER | Scout, Blindness | owner |
-| WIS | Corruption; Greed? | Corruption: owner 2026-10-05. Greed is a candidate |
+| WIS | Corruption; Greed (contender) | Corruption: owner 2026-10-05. Greed: designed rounds 5–6 (owner) |
 
 Procgen still ships the 2026-09-22 grid (curse → CON, wither → INT,
 corruption → STR); it moves to this table as a content fix (#1249). Pairs
@@ -426,6 +426,34 @@ lightning's hops become mechanics that existing rows can use.
   landed by the infusion plumbing, with a per-spell rate as the balancing
   knob. Posted to #1250.
 
+**Owner calls, 2026-10-06 (round 6).**
+- **Greed, closed.** One Greed stack per hit: if the node holds one when a
+  hit lands, every negative status that hit lands is doubled, Greed itself
+  included, and one Greed stack is spent directly after the hit. Owner:
+  *"exactly that yes! And post hit directly a stack is consumed"*. Greed is
+  read before the hit lands, so a hit carrying Greed onto a clean node doesn't
+  double its own riders. Self-compounding equals no compounding for a 1-stack
+  landing (1→2→3); an *n*-stack Greed landing gains 2n−1 (1→4→7).
+- **Struck: Fatigue / Slow and Paralysis**, *"the whole tardy bunch"*. No
+  status attacks the tempo axis; tempo stays core-class and addon territory.
+- **Fortress may be struck** *"until we can give it a better meaning or
+  modifier content"*, and swing drag may leave it for no home at all: *"Possibly
+  none, or something if we find it. I need to see it in action first"*.
+  The pie-break reading above (drag as Fortress's misplaced slow) has no slow
+  row to move to now.
+- **School balance: 1 row per school is fine, 2 is ideal**, and the spread
+  stays within one. Owner: *"ideally min and max differ by at most 1, keeping
+  them in lockstep. If each school got N rows, then N±1 would still be
+  acceptable"*. CON holding only Wither is fine: *"we won't force something
+  that doesn't fit, and its one open spot now that at some point will get
+  filled with an idea that's just too perfect"*.
+- **Silence's threshold B on allocation level is degenerate today.** Owner:
+  at most ~1% of nodes have stake > 1, so 1 stack would silence a node 99% of
+  the time. Staking costs 1 AP + 1 SP (N/M → N/(M+1)), then 1 SP to allocate
+  into it; the AP is there so a player can't stake 1/1 → 3/3 right before an
+  attack and undo it next turn — staking is a long-term investment. Revisit B
+  if staking gets cheaper.
+
 ## Combos and hybrids
 
 Owner, 2026-10-05: *"for each concrete aspect we put out, we'd have content
@@ -477,7 +505,7 @@ proposal, 2026-10-05; the per-addon calls live in
 
 | Family (proposed) | Addons | State |
 |---|---|---|
-| Fortify | Bunker (armor, floor, deflect), Fortress (`fortification_addon`: node health; drag leaving for the tempo row) | both shipped; Reinforcement folded into Fortress |
+| Fortify | Bunker (armor, floor, deflect), Fortress (`fortification_addon`: node health + swing drag; may be struck, see round 6) | both shipped; Reinforcement folded into Fortress |
 | Survival | Lifeline, Lifelink, Fountain (heal / cleanse) | Lifeline may merge into Fountain; Lifelink keystone / core-class only |
 | Topology | Gate, Winch, Clamp | Clamp shipped; Gate landing; Winch has a determinism fork |
 | Spell routing | Anti-Magic, Conduit, Void? | needs design |
@@ -591,7 +619,7 @@ their own:
 | armor | Armor break | Bunker (`armor` +5) |
 | healing | Wither | Lifeline / Fountain, `healing_beam` (enemy-targetable — its twist) |
 | vision | Blindness | nothing |
-| tempo | Fatigue / Slow (contender) | nothing |
+| tempo | nothing — no status attacks tempo (round 6) | nothing |
 
 Whether bare axes stay bare on purpose is a call ("defensive faces are
 rare"). Resistances exist only as blessed rolls; Scout, Explosive and Armor
