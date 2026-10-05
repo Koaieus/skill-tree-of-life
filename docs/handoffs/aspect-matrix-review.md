@@ -1,84 +1,55 @@
-# Handoff — aspect-matrix misplacement review
+# Handoff — aspect-matrix design round
 
-**State:** written against the commit that adds this file. Authoritative:
-`docs/design/aspect_matrix.md` (Glossary, Schools, Addons outside the
-Matrix, **Misplacements — the 2026-10-05 sweep**), `skill_node_addons.md`,
-`core_classes.md`. This file only orders the open forks.
+**State:** written against the commit that updates this file. Authoritative:
+`docs/design/aspect_matrix.md` (Glossary, § Attributes and pairs = the
+twelve, § Schools with the round 3/4 owner blocks, Contenders,
+Misplacements), `skill_node_addons.md`, `core_classes.md`, and #1249 / #1252
+/ #1414 comments. This file only orders the work. Speak the pinned Glossary.
 
-Speak the pinned Glossary (top of `aspect_matrix.md`); the owner asked to be
-corrected on loose terms.
+Settled 2026-10-05: the six attributes are the schools; primaries never
+scale via primaries or aspects; the placement rule (verb or own strength
+turned bad); Corruption → WIS; Bleeding → STR; Explosive → DEX; Elemental
+kept away; tempo is an axis, not a school; coolness is not a school; struck:
+Thorns, Petrified, Debt, Frailty. Explorer sweeps (reference games, attribute
+dossier, tempo plumbing, issue trail, ADRs) are done and folded in — don't
+re-sweep.
 
 ## Open forks, best first
 
-1. **Schools** (`aspect_matrix.md` § Schools) — attributes vs defence-axis vs
-   none. Couples to everything below: settling it decides where pie breaks
-   get moved *to*. Procgen already treats attributes as de-facto schools.
-2. **Tempo row** — Fortress drag lands here (owner); candidates to join:
-   Anti-Magic as its spell-terrain face (item 3), the `tempo` stat name
-   collision (Twins), Paralysis/Petrified/Fatigue merge, Freeze naming
-   (Elemental row). Pacifist is ruled *not* a misplacement.
-3. **Misplacements items 3–8** — Anti-Magic, Halo thorns/spikes (couples to
-   #1369 / #1399), spells.md pool ideas, Corrupted Node, Bleeding Edge.
-   Items 1–2 have owner rulings.
-4. **Twins/duplicates** — travel as one axis (Contagion as infusion), the
-   four one-template spells (couples to #1381, #1397), Scout vs Blindness,
-   Anchor Node, `dealloc_damage`.
-5. **Defender map** — whether bulk %HP, vision, tempo stay bare on purpose.
-6. **Orphans** — WIS content (couples to #1252, Affliction parent), six
-   unsupplied aspect stats (#1248), armor-break stats (#1401), eight
-   conceptless damage spells, Relay, Skill Dust, Clamp.
-7. **Elemental** — all or nothing; contender row holds the owner's pros.
-8. **Production vs firing** — #1413 (design), "needs a big think".
+1. **The twelve's open cells** — Fatigue CON vs INT (rule reads CON);
+   movement + dealloc hit together at one rate (pass rec) or separately;
+   Silence/Paralysis faces ("node can't originate any attack" proposal);
+   Greed's defender-side landing term (see the round-4 block, #1252).
+   Couples: Fatigue's row inherits Fortress drag; Silence and Paralysis may
+   be one row.
+2. **Spell facet rule** — reconcile § "The rule"'s Spell bullet with the
+   owner's four-shape coverage (many small / few big / utility / boon) and
+   "spells diverge by topology". Couples to #1381, #1384, #1389, #1392,
+   #1394, #1397, #1400, and #1250 (infusion).
+3. **Misplacements migration** — items 3–8 and the Twins/Orphans/Defender
+   lists are now mostly answerable by the rule; move each ruled line into
+   its row and delete it. Ruled but not migrated: Pacifist (not a
+   misplacement), Watchtower (item 2 → #1413), Thorns (struck).
+4. **Buffs** — pass proposal: only as a face inside an existing row, never a
+   buff row. Not ruled.
+5. **Pure-coolness node** — its own procgen node, or only a side roll.
+6. **Production vs firing** — #1413, "needs a big think".
 
-## 2026-10-05 pass 2 — explorers done, don't re-sweep
+## Deferred, next session
 
-Findings, so the next session starts from them:
-- Schools: owner's "1" read as *attributes are schools* — confirm in one
-  line. No free scaling is owner-settled (2026-09-28); written into
-  § Schools. Corruption → WIS is an owner lean. WIS three-way (patience /
-  mind / status quo) is the live sub-fork; tempo row may be WIS or INT.
-- Tempo-row cost: no sum-over-nodes aggregation, no dealloc lock, no per-node
-  spell hop cost exists today (nothing blocks them; `skill_node_
-  specializations.md` "Crystallized Node" already proposes the lock). Three
-  new mechanics — a build, not a move. Levers are real: `initiative_speed`
-  (TurnManager replenish), `movement_points`, `deallocation_points`,
-  `action_points`; `swing_drag` is read in `attack/melee/sim/blade_defender_zones.gd`.
-- `tempo` stat (kill-AP refund) is a self-speed buff; the slow row attacks
-  tempo without being named it — rename is a knob.
-- ADR contradictions (librarian) → route to #1414: 0023's per-type
-  `<id>_arrows_per_reload` vs 0044/0041's `<concept>_aspect` minting; 0022's
-  potency clause overturned by 0029; R/G/B as live colours vs legacy D-5's
-  deferred damage-type triangle.
-- Issue-trail sweep was Haiku: #1358 persona quotes ("Tithe", corruption
-  raising `min_damage_taken`) look misattributed — read #1358 yourself
-  before citing. Reference-game research ran from recall, no web.
-- Milestone 23: Schools adds a school to the eight row hubs, answers #1249
-  and redirects #1252; the tempo row is a new hub; the anti-blade ruling
-  gates #1369/#1399; ~30 per-face cells untouched.
+- ADR candidate: *attributes are schools; primaries never scale via other
+  primaries* — a stat-system invariant (`.claude/rules/stats-system.md`).
+- Thorns OQs in `combat_system.md` (OQ13/32) and `core_classes.md`
+  (OQ7/9/11) to delete under the design-docs rule; Halo is not a design
+  basis (owner).
+- Write the school onto each row hub; file the Bleeding / Fatigue / Greed
+  contender rows once their forks close.
 
-## Round 3–4 state (2026-10-05) — open with this
+## Ready / filed
 
-Schools settled, placement rule accepted (see § Schools and the round 3/4
-blocks in `aspect_matrix.md`). The twelve as they stand:
+- #1414 — stale-fact fixes (now incl. three ADR contradictions).
+- #1249 — remaining: `node_subtypes.md` + procgen pool swap.
+- #1415 — `tempo` → `momentum` rename (Backlog).
 
-| School | Row 1 | Row 2 |
-|---|---|---|
-| STR | Bleeding | Armor break |
-| DEX | Poison | Explosive |
-| INT | Curse | Silence/Paralysis? (needs faces: "node can't originate any attack") |
-| CON | Wither | Fatigue (movement + dealloc; inherits Fortress drag) — or INT |
-| PER | Scout | Blindness |
-| WIS | Corruption | Greed? (negative resistance to every status) |
-
-Struck: Thorns, Debt, Petrified, Frailty. Open: Fatigue's school, Greed's
-name/shape, movement+dealloc together vs separate, Silence's faces, buffs
-only as faces inside rows (pass proposal). Then: write the school onto each
-row hub, file the Bleeding/Fatigue/Greed contender rows, procgen content
-fix (corruption → WIS pool), and only then the per-face cells.
-
-## Ready to dispatch
-
-- #1414 — stale-fact fixes, no call needed.
-
-Delete this file once the Misplacements section is empty (every line ruled
-and moved into its row) and #1413 has a spec.
+Delete this file once the Misplacements section is empty and the twelve has
+no `?` cells.
