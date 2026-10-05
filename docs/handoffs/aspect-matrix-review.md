@@ -16,15 +16,15 @@ re-sweep.
 
 ## Open forks, best first
 
-1. **The twelve's open cells** — Fatigue CON vs INT (rule reads CON);
-   movement + dealloc hit together at one rate (pass rec) or separately;
-   Silence/Paralysis faces ("node can't originate any attack" proposal);
-   Greed's defender-side landing term (see the round-4 block, #1252).
-   Couples: Fatigue's row inherits Fortress drag; Silence and Paralysis may
-   be one row.
+1. **The twelve, rounds 5–6 (done 2026-10-06):** Silence = stacks as
+   duration (INT); Greed closed (×2 per hit, one stack spent post-hit, WIS);
+   Fatigue / Slow / Paralysis struck; CON keeps one open slot; school spread
+   within one. Left: **Fortress** may be struck and drag may have no home —
+   owner wants to see it in action first. Next code-side step: Greed's and
+   Silence's seams (landing term; no attack-origin gate exists today).
 2. **Spell facet rule** — reconcile § "The rule"'s Spell bullet with the
    owner's four-shape coverage (many small / few big / utility / boon) and
-   "spells diverge by topology". Couples to #1381, #1384, #1389, #1392,
+   "spells diverge by topology". Spell affinity (owner idea) is on #1250. Couples to #1381, #1384, #1389, #1392,
    #1394, #1397, #1400, and #1250 (infusion).
 3. **Misplacements migration** — items 3–8 and the Twins/Orphans/Defender
    lists are now mostly answerable by the rule; move each ruled line into

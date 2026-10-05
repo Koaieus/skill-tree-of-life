@@ -337,9 +337,6 @@ lightning's hops become mechanics that existing rows can use.
 - **Armor break: STR or CON, undecided** (*"conventionally melee warrior stuff
   which is STR; but also literally a purely defensive stat for any entity
   which suggests CON"*).
-- **Silence is not a row yet:** it lacks melee and ranged faces. Its school
-  would be INT (it regulates casting) or DEX (the assassin's garotte
-  counters casters).
 - **`tempo` → `momentum`** (the kill-AP refund): *"might be a good call"*.
 - **Spells keep status payloads alongside infusions.** *"spells do provide
   something that pure infusion couldn't, and or something that even without
@@ -378,8 +375,6 @@ lightning's hops become mechanics that existing rows can use.
 - **Debt is struck.** Losing even one skill point *"would be insanely
   overpowered"*. In code, skill points are minted at each level-up from
   the live `sp_gain_on_levelup` (`Entity.sp_minted_for_level`).
-- **Fatigue: CON, but INT is arguable.** The rule reads it as CON (stamina
-  turned bad); a mental fatigue would sit closer to Silence/Paralysis.
 - **WIS's second row candidate is Greed** (owner idea): *"a status attracting
   status — increases stacks gained of negative statuses"*. This is **not**
   negative `dot_resistance`. Owner, 2026-10-05: resistance *"works for poison
@@ -388,9 +383,8 @@ lightning's hops become mechanics that existing rows can use.
   `<family>_stacks_per_hit` is the attacker's. Greed needs a new
   defender-side landing term (e.g. a susceptibility on the host) that landing
   folds with the attacker's stacks per hit, and a readout that overlays the
-  two. Open: that seam, and how resistance behaves for non-damage statuses.
-- **Open:** whether movement and dealloc debuffs hit both points together
-  at one rate (pass recommendation: together, as one engine) or separately.
+  two. The term is round 6's "does the node hold a Greed stack"; open: how
+  resistance behaves for non-damage statuses.
 
 **Owner calls, 2026-10-05 (round 5).**
 - **Silence: stacks are duration.** A node is silenced (can't originate an
