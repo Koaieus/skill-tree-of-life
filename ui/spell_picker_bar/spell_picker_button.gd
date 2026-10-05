@@ -51,7 +51,6 @@ const TEXT_SHADER := preload("res://ui/attack_mode_bar/attack_mode_button_text.g
 const TICK_SCENE := preload("res://ui/spell_picker_bar/spell_picker_button_tick.tscn")
 
 const ANIMATION_TIME: float = 0.2
-const _LETTER_FONT_SIZE: int = 28
 
 @export_color_no_alpha var tint: Color = Color(0.55, 0.85, 1.0)
 @export_range(0.0, 1.0, 0.01) var glow_radius: float = 0.36

@@ -2,6 +2,18 @@
 class_name StatusRow
 extends SlabRow
 
+## One [NodeStatus] rendered as its own mini slab — display name, the
+## floored whole stacks, and (for a damage-dealing def) what the next tick
+## will actually land — prefixed by the status [IdentityBadge] and tinted by
+## the status def's own [member StatusDef.tint].
+## Tooltip-fan Effects panel row for #876 (child of #868); the node's own
+## visual tint from the same [member StatusDef.tint] is a separate consumer
+## (#880), out of scope here.
+##
+## [b]Everything visual lives on [SlabRow][/b] (#588) — this is an inherited
+## scene of `slab_row.tscn`, same shape as [ModSlabRow]: resolve the
+## (text, tint) pair from the domain object, the base renders it.
+
 ## Edge length of the status badge that prefixes the text.
 @export_range(12, 64) var badge_px: int = 14:
 	set(value):
@@ -29,17 +41,6 @@ func _apply_badge_px() -> void:
 	pad.content_margin_left = badge_px + _BADGE_GAP
 	_label.add_theme_stylebox_override(&"normal", pad)
 
-## One [NodeStatus] rendered as its own mini slab — display name, the
-## floored whole stacks, and (for a damage-dealing def) what the next tick
-## will actually land — prefixed by the status [IdentityBadge] and tinted by
-## the status def's own [member StatusDef.tint].
-## Tooltip-fan Effects panel row for #876 (child of #868); the node's own
-## visual tint from the same [member StatusDef.tint] is a separate consumer
-## (#880), out of scope here.
-##
-## [b]Everything visual lives on [SlabRow][/b] (#588) — this is an inherited
-## scene of `slab_row.tscn`, same shape as [ModSlabRow]: resolve the
-## (text, tint) pair from the domain object, the base renders it.
 
 ## Renders "<display_name> <⌊power⌋> — <dmg> dmg next tick" for a status that
 ## deals damage — e.g. "Poison 12 — 9 dmg next tick" for a 12.7 row at 25%
