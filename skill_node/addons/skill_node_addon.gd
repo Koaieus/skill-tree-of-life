@@ -66,21 +66,26 @@ extends Node2D
 ## default; [method SkillNode.get_addon_tooltip_sections] surfaces a section
 ## whenever either this or [method get_tooltip_modifiers] is non-empty.
 @export_multiline var description: String = ""
-## This addon kind's display atom — the source of [member icon] and [member tint].
+## This addon kind's display atom — noun, hue and glyph.
 @export var identity: Identity = null
-## Tooltip icon for this addon's AddonItem — a game-icons.net sprite rasterized
-## by `mise run icons:update` (assets/icons/addons/). Null falls back to the
-## AddonItem's built-in placeholder, so an unassigned icon ships the same way
-## an unassigned description does: nothing breaks, the slot just shows the
-## default. Mirrors [member SpellDef.icon] — the icon lives on the addon, not
-## in a lookup table.
-@export var icon: Texture2D
-## UI accent for this addon kind — the temp-upgrade card, the melee blip and the
-## armed-mode badge all paint it. A plain colour ≤ 1.0, never an emissive tier.
-## [constant Color.TRANSPARENT] (the default) means "nothing to say": consumers
+## Tooltip icon for this addon's AddonItem, read through [member identity] — a
+## game-icons.net sprite rasterized by `mise run icons:update`. Null falls back
+## to the AddonItem's built-in placeholder, so an unassigned icon ships the same
+## way an unassigned description does: nothing breaks, the slot just shows the
+## default.
+var icon: Texture2D:
+	get:
+		return identity.icon if identity else null
+## UI accent for this addon kind, read through [member identity] — the
+## temp-upgrade card, the melee blip and the armed-mode badge all paint it. A
+## plain colour ≤ 1.0, never an emissive tier. An addon whose status is an
+## aspect shares the aspect's identity, so addon, arrow and status agree.
+## [constant Color.TRANSPARENT] (no identity) means "nothing to say": consumers
 ## fall back exactly as they do for an unmapped palette key. Read without an
 ## instance through [method tint_of].
-@export var tint: Color = Color.TRANSPARENT
+var tint: Color:
+	get:
+		return identity.tint if identity else Color.TRANSPARENT
 ## Behavioural effects this addon grants to the carrier's owner while the
 ## carrier is allocated. Collected by [method SkillNode.get_node_effects].
 ## Sits alongside the modifier arrays — a pure stat bundle needs no effect.

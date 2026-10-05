@@ -18,6 +18,7 @@
 [ext_resource type="Script" uid="uid://br4akul8rvteg" path="res://attack/range_finder/hop_range_finder.gd" id="9_range"]
 [ext_resource type="PackedScene" path="res://attack/range_finder/visuals/range_ring.tscn" id="9_uku7o"]
 [ext_resource type="PackedScene" path="res://ui/vfx/coordinator/spells/resonator_coordinator.tscn" id="12_ww832"]
+[ext_resource type="Resource" path="res://identity/defs/spell_resonator.tres" id="identity_ref"]
 
 [sub_resource type="Resource" id="carve_resonator"]
 script = ExtResource("1_tcs")
@@ -60,11 +61,11 @@ range_finder = SubResource("range")
 
 [resource]
 script = ExtResource("1_spell")
+identity = ExtResource("identity_ref")
 id = &"resonator"
 name = "Resonator"
 tagline = "Fans out; converging branches add and crit hard."
 description = "Constructive interference — branches fan to every enemy neighbour, adding +2 damage each hop. When two branches converge on the same node in the same wave, they ADD and the landing crits (×2). Diamonds, hexagons, and chained-diamond topologies detonate on the convergence node; straight lines and the first hit don't crit. The longer the diamond chain, the harder the last crit — build the run around a graph that feeds it."
-icon = ExtResource("1_uku7o")
 carve_shape = SubResource("carve_resonator")
 min_degree = 2
 power = 1.0

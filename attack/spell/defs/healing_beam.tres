@@ -16,6 +16,7 @@
 [ext_resource type="PackedScene" path="res://attack/range_finder/visuals/range_ring.tscn" id="11_55cfo"]
 [ext_resource type="PackedScene" path="res://ui/vfx/coordinator/spells/healing_beam_coordinator.tscn" id="11_lbkbe"]
 [ext_resource type="Script" uid="uid://duy3yt7dr5o8t" path="res://attack/range_finder/euclidean_range_finder.gd" id="12_k06ak"]
+[ext_resource type="Resource" path="res://identity/defs/spell_healing_beam.tres" id="identity_ref"]
 
 [sub_resource type="Resource" id="carve_healing_beam"]
 script = ExtResource("3_tcs")
@@ -58,11 +59,11 @@ metadata/_custom_type_script = "uid://btpnit4nenasw"
 
 [resource]
 script = ExtResource("3_u10h5")
+identity = ExtResource("identity_ref")
 id = &"healing_beam"
 name = "Healing Beam"
 tagline = "Beams healing into any node nearby, ally or enemy."
 description = "Heals your own nodes"
-icon = ExtResource("3_sdixp")
 carve_shape = SubResource("carve_healing_beam")
 min_degree = 3
 power = 2.0

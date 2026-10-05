@@ -20,6 +20,7 @@
 [ext_resource type="PackedScene" path="res://attack/range_finder/visuals/range_ring.tscn" id="10_bm58y"]
 [ext_resource type="Script" uid="uid://br4akul8rvteg" path="res://attack/range_finder/hop_range_finder.gd" id="10_range"]
 [ext_resource type="PackedScene" path="res://ui/vfx/coordinator/spells/bruiser_coordinator.tscn" id="13_ihn2u"]
+[ext_resource type="Resource" path="res://identity/defs/spell_bruiser.tres" id="identity_ref"]
 
 [sub_resource type="Resource" id="Resource_u38nb"]
 script = ExtResource("2_k4o3t")
@@ -70,11 +71,11 @@ range_finder = SubResource("range")
 
 [resource]
 script = ExtResource("1_spell")
+identity = ExtResource("identity_ref")
 id = &"bruiser"
 name = "Bruiser"
 tagline = "Chips the toughest neighbour each hop; never kills alone."
 description = "Climbs the HP gradient: each hop greedily picks the neighbour with the highest current node_health and nicks it for low damage. Cannot kill on its own — softens the toughest nodes for a follow-up. Pairs with wound mechanics: damage that doesn't kill stays as wounds, slowly bracketing fat enemies."
-icon = ExtResource("1_bm58y")
 carve_shape = SubResource("Resource_u38nb")
 min_degree = 2
 power = 3.0

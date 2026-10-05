@@ -14,6 +14,7 @@
 [ext_resource type="PackedScene" path="res://attack/range_finder/visuals/range_ring.tscn" id="7_6qevb"]
 [ext_resource type="Script" uid="uid://br4akul8rvteg" path="res://attack/range_finder/hop_range_finder.gd" id="7_range"]
 [ext_resource type="PackedScene" path="res://ui/vfx/coordinator/spells/spark_coordinator.tscn" id="10_ds1j3"]
+[ext_resource type="Resource" path="res://identity/defs/spell_spark.tres" id="identity_ref"]
 
 [sub_resource type="Resource" id="carve_spark"]
 script = ExtResource("1_tcs")
@@ -39,11 +40,11 @@ range_finder = SubResource("range_3hop")
 
 [resource]
 script = ExtResource("1_spell")
+identity = ExtResource("identity_ref")
 id = &"spark"
 name = "Spark"
 tagline = "Cheap poke at one nearby enemy node."
 description = "Deal 5 damage to a single enemy-occupied node within 3 hops of the source via the live graph (allocation status irrelevant — hops route through whatever's connected)."
-icon = ExtResource("1_6qevb")
 carve_shape = SubResource("carve_spark")
 power = 1.0
 propagation = SubResource("prop_spark")

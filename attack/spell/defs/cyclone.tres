@@ -20,6 +20,7 @@
 [ext_resource type="PackedScene" path="res://ui/vfx/coordinator/spells/cyclone_coordinator.tscn" id="12_vfx"]
 [ext_resource type="PackedScene" path="res://attack/range_finder/visuals/range_edge.tscn" id="17_d7ays"]
 [ext_resource type="PackedScene" path="res://attack/range_finder/visuals/range_ring.tscn" id="18_53rww"]
+[ext_resource type="Resource" path="res://identity/defs/spell_cyclone.tres" id="identity_ref"]
 
 [sub_resource type="Resource" id="carve_cyclone"]
 script = ExtResource("1_tcs")
@@ -67,11 +68,11 @@ range_finder = SubResource("range")
 
 [resource]
 script = ExtResource("1_spell")
+identity = ExtResource("identity_ref")
 id = &"cyclone"
 name = "Cyclone"
 tagline = "Turns hardest each hop; closing a loop crits and feeds it."
 description = "Turns one way and never straightens: at every node the storm ranks the turns it could make and splits its power across them, hardest into the sharpest turn. No single thread survives the split — but converging threads ADD, so anything that folds back onto itself feeds itself while offshoots bleed out. Closing a loop crits (x2) and boosts the storm feeding that loop. It does not care whether a ring is odd or even, or how long it is; it cares whether the ground is two-dimensional. A tree gets literally nothing. A lone triangle gets demolished. A field of joined triangles becomes an epicentre."
-icon = ExtResource("1_icon")
 carve_shape = SubResource("carve_cyclone")
 min_degree = 4
 power = 2.0

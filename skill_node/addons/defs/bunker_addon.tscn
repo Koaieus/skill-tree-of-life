@@ -2,8 +2,8 @@
 
 [ext_resource type="Script" uid="uid://bkf87fqtgkm7a" path="res://skill_node/addons/skill_node_addon.gd" id="1_83r5f"]
 [ext_resource type="Script" uid="uid://che6xhl6srqh3" path="res://stats_system/stat_modifier.gd" id="2_efkvd"]
-[ext_resource type="Texture2D" uid="uid://uc3n7j5e5c1c" path="res://assets/icons/addons/addon_bunker.png" id="3_icon"]
 [ext_resource type="Script" uid="uid://skthvgs1li3x" path="res://skill_node/addons/visuals/bunker_visual.gd" id="9_visual"]
+[ext_resource type="Resource" path="res://identity/defs/addon_bunker.tres" id="identity_ref"]
 
 [sub_resource type="Resource" id="Resource_vxeh7"]
 resource_local_to_scene = true
@@ -35,9 +35,9 @@ metadata/_custom_type_script = "uid://che6xhl6srqh3"
 [node name="BunkerAddon" type="Node2D" unique_id=631414463]
 z_index = 1
 script = ExtResource("1_83r5f")
+identity = ExtResource("identity_ref")
 local_modifiers = Array[ExtResource("2_efkvd")]([SubResource("Resource_vxeh7"), SubResource("Resource_u38nb"), SubResource("Resource_dflct")])
 description = "Casemate plating — heavy chamfered plates hug this node's rim, blunting every hit that lands on it. A blade cannot pass through it: a floppy one flops around, a rigid one breaks against it."
-icon = ExtResource("3_icon")
 
 [node name="Visual" type="Node2D" parent="." unique_id=1796419251]
 script = ExtResource("9_visual")

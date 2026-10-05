@@ -37,9 +37,12 @@ extends Resource
 @export_multiline var description: String
 ## The spell's display atom (kind SPELL) — its noun, NEUTRAL tint and glyph.
 @export var identity: Identity = null
-## Spell-card iconography. Rendered in the spell picker (top, large) and in
-## tooltips. Optional — falls back to a glyph derived from the spell name.
-@export var icon: Texture2D = null
+## Spell-card iconography, read through [member identity]. Rendered in the
+## spell picker (top, large) and in tooltips. Null (no identity, or an identity
+## without a glyph) falls back to a glyph derived from the spell name.
+var icon: Texture2D:
+	get:
+		return identity.icon if identity else null
 
 ## The shape a node granting this spell carves into its dome (#315) — a
 ## SPELL-priority [EmblemSpec], outranking the archetype fallback. Typed as the

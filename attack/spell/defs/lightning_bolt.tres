@@ -17,6 +17,7 @@
 [ext_resource type="PackedScene" path="res://attack/range_finder/visuals/range_ring.tscn" id="9_vajd0"]
 [ext_resource type="Script" uid="uid://yfb61eex5i67" path="res://attack/spell/propagation/progression/multiply_progression.gd" id="13_prog"]
 [ext_resource type="PackedScene" uid="uid://j8dyliqjpe74" path="res://ui/vfx/coordinator/spells/lightning_bolt_coordinator.tscn" id="14_vfx"]
+[ext_resource type="Resource" path="res://identity/defs/spell_lightning_bolt.tres" id="identity_ref"]
 
 [sub_resource type="Resource" id="carve_lightning"]
 script = ExtResource("1_tcs")
@@ -56,11 +57,11 @@ range_finder = SubResource("range_lightning")
 
 [resource]
 script = ExtResource("1_spell")
+identity = ExtResource("identity_ref")
 id = &"lightning_bolt"
 name = "Lightning Bolt"
 tagline = "Full hit, then chains outward, halving each hop."
 description = "Deal full damage to the target, then chain to every enemy neighbour up to 3 hops away — damage halves each hop. Overlapping branches resolve to the strongest incident (no compounding). No friendly fire."
-icon = ExtResource("1_vajd0")
 carve_shape = SubResource("carve_lightning")
 min_degree = 2
 power = 3.0

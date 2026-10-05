@@ -2,8 +2,8 @@
 
 [ext_resource type="Script" uid="uid://bkf87fqtgkm7a" path="res://skill_node/addons/skill_node_addon.gd" id="1_wtwr"]
 [ext_resource type="Script" uid="uid://che6xhl6srqh3" path="res://stats_system/stat_modifier.gd" id="2_wtwr"]
-[ext_resource type="Texture2D" uid="uid://7e2ivrgyep5c" path="res://assets/icons/addons/addon_watchtower.png" id="4_icon"]
 [ext_resource type="Script" uid="uid://bexewgt16aia1" path="res://skill_node/addons/visuals/watchtower_visual.gd" id="9_visual"]
+[ext_resource type="Resource" path="res://identity/defs/scout.tres" id="identity_ref"]
 
 [sub_resource type="Resource" id="Resource_wtwr"]
 resource_local_to_scene = true
@@ -52,9 +52,9 @@ metadata/_custom_type_script = "uid://che6xhl6srqh3"
 [node name="WatchtowerAddon" type="Node2D" unique_id=1780589357]
 z_index = 1
 script = ExtResource("1_wtwr")
+identity = ExtResource("identity_ref")
 local_modifiers = Array[ExtResource("2_wtwr")]([SubResource("Resource_wtwr"), SubResource("Resource_rtvrv"), SubResource("Resource_cjnh8"), SubResource("Resource_wtwr_arrows"), SubResource("Resource_wtwr_shots")])
 description = "A raised lookout post — extends this node's sight radius, no matter who holds it."
-icon = ExtResource("4_icon")
 
 [node name="Visual" type="Node2D" parent="." unique_id=744162610]
 script = ExtResource("9_visual")

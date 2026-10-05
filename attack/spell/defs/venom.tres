@@ -1,7 +1,6 @@
 [gd_resource type="Resource" script_class="SpellDef" format=3 uid="uid://c7h6c41tpggfa"]
 
 [ext_resource type="Script" uid="uid://cx52yu8u4qipj" path="res://attack/spell/condition/landing_condition.gd" id="1_fp5eg"]
-[ext_resource type="Texture2D" uid="uid://cjxpymcwqo3rd" path="res://assets/icons/spells/elderberry.png" id="1_icon"]
 [ext_resource type="Script" uid="uid://ber34us1t16kb" path="res://attack/spell/spell_def.gd" id="1_spell"]
 [ext_resource type="Script" uid="uid://dw3civ4fol21f" path="res://attack/spell/on_hit/on_hit_effect.gd" id="2_effect"]
 [ext_resource type="Script" uid="uid://cymqlf1js3ra8" path="res://attack/spell/on_hit/damage_effect.gd" id="3_dmg"]
@@ -14,6 +13,7 @@
 [ext_resource type="PackedScene" path="res://attack/range_finder/visuals/range_edge.tscn" id="10_u052u"]
 [ext_resource type="PackedScene" path="res://ui/vfx/coordinator/spells/spark_coordinator.tscn" id="10_vfx"]
 [ext_resource type="PackedScene" path="res://attack/range_finder/visuals/range_ring.tscn" id="11_34unc"]
+[ext_resource type="Resource" path="res://identity/defs/spell_venom.tres" id="identity_ref"]
 
 [sub_resource type="Resource" id="dmg_venom"]
 script = ExtResource("3_dmg")
@@ -39,11 +39,11 @@ range_finder = SubResource("range_3hop")
 
 [resource]
 script = ExtResource("1_spell")
+identity = ExtResource("identity_ref")
 id = &"venom"
 name = "Venom"
 tagline = "A little damage that leaves a poison ticking on one enemy node."
 description = "Deal a little damage to a single enemy-occupied node within 3 hops and poison it (unmitigated damage each turn, recovers over 5 turns)."
-icon = ExtResource("1_icon")
 power = 0.4
 propagation = SubResource("prop_venom")
 on_hit_effects = Array[ExtResource("2_effect")]([SubResource("dmg_venom"), SubResource("poison_venom")])
