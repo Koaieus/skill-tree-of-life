@@ -314,6 +314,122 @@ proposal, 2026-10-05; the per-addon calls live in
 | Growth | Skill Dust | shipped; technical — consumed on allocation, never persistent. Owner: WIS-related (*"permanent growth"*), so a WIS row candidate (#1252) |
 | — | Buffer | discontinued indefinitely (owner, 2026-10-05) |
 
+## Misplacements — the 2026-10-05 sweep
+
+Four read-only agent sweeps (stats, addons, offence, classes/combat/nodes)
+read every mechanic against the rule above. **Every line is a proposal
+awaiting the owner's call**, ranked by how jarring it is; struck or settled
+lines move into the rows they touch.
+
+### Move a mechanic (one move, two rows fixed)
+
+1. **Pacifist core is the tempo row's whole mechanic** — `movement_points`
+   and `deallocation_points` forced to 0, AP converted
+   (`entity/core/pacifist_core.tres`). Ninja and Predator buff the same
+   axis. The tempo row gets a shared vocabulary the classes cite.
+2. **Watchtower carries three offence stats on a vision addon** —
+   `range` +150 / ×1.25, `arrows_per_reload` +1, `max_shots_per_leaf` +2
+   beside `vision_range` (`watchtower_addon.tscn`). Either it is the
+   honest PER+DEX hybrid row, or the volley stats leave for a ranged/DEX
+   addon. It also grants no `scout_aspect`, which the map-addon rule says
+   it should.
+3. **Anti-Magic is drag's spell-side twin** — +1 hop cost slows a spell's
+   travel the way drag slows a blade. Candidate spell-terrain face of the
+   tempo row.
+4. **Halo's thorns and shell spikes** (core_classes.md, combat_system.md
+   OQ13/OQ32) carry the Thorns contender's mechanic and the anti-blade pop
+   face. Core-classes OQ7/9/11 and combat OQ13/32 are one question: which
+   row owns retribution against an incoming blade (Thorns, Explosive).
+5. **Spell-pool ideas restate owned rows** (`spells.md`): Aftershock is
+   Curse's spill; Detonate/Supernova are Explosive's spell (#1400); Flood
+   wants Wither's anti-heal (#1389); Heavy/Piercing Bolt (seek max/min
+   armor) are Armor break's second spell (#1397).
+6. **Corrupted Node** (`skill_node_specializations.md`) collides with the
+   Corruption row, and its penalties (double damage, floor −1) are Curse's
+   and the floor axis's content.
+7. **Bleeding Edge** (Edgelord, combat_system.md) is a topology weapon
+   named like the Bleeding DoT contender.
+
+### Twins and duplicates
+
+- **The `tempo` stat name collides with the tempo axis** —
+  `stats_system/defs/tempo.tres` is the once-per-turn kill-AP refund. It is
+  the tempo axis's buff face, or it is renamed (`kill_refund`).
+- **Travel is claimed three ways and wired once.** Curse's spill is the
+  only authored spread (`curse.tres`, `spill_spread.gd`); Corruption's
+  sandpile has no `spread` authored (the diffusion classes are test-only);
+  parked Contagion restates spill. Proposal: travel is one axis any row
+  picks from (in place / sandpile / spill / edge spread / hop), Contagion
+  an infusion on it, never a row.
+- **Four spells are one template** — `venom`, `hex`, `dazzle`, `sunder`:
+  3-hop single target, 0.4 power, one status, differing in stack count
+  only. No first spell has its own twist yet, which leaves the second-spell
+  forks (#1381, #1397) nothing to complement. Arrows are likewise numbers
+  and look only (armor break's 0.75 damage scale has no stated reason).
+- **Scout and Blindness are one vision axis with opposite signs** — one
+  Vision row with two faces, or two rows with a stated reason.
+- **Anchor Node** (specializations) is "a built-in Lifeline" — Lifeline's
+  intrinsic variant, or struck.
+- **`dealloc_damage`** (flat HP per force-deallocated node) sits on the
+  dealloc trigger Curse's spill uses, and on Bleeding's "leaking on
+  dealloc" — owned by neither.
+
+### Defence faces, and the axes left bare
+
+Bunker and Fortress are the defender side of the DoT axes, not a family of
+their own:
+
+| Axis | Attacked by | Defended by |
+|---|---|---|
+| flat HP | Poison | Fortress (`node_health`) |
+| bulk %HP | Corruption | nothing |
+| damage floor | Curse | Bunker (`min_damage_taken` −5), Bulwark class |
+| armor | Armor break | Bunker (`armor` +5) |
+| healing | Wither | Lifeline / Fountain, `healing_beam` (enemy-targetable — its twist) |
+| vision | Blindness | nothing |
+| tempo | Fatigue / Slow (contender) | nothing |
+
+Whether bare axes stay bare on purpose is a call ("defensive faces are
+rare"). Resistances exist only as blessed rolls; Scout, Explosive and Armor
+break have none.
+
+### Orphans
+
+- **WIS already has content, and it is the Affliction parent** —
+  `dot_stacks_per_hit` on WIS blight, `wound_heal_per_turn` and
+  `xp_per_turn` on WIS bless (`procgen/pools/wisdom.tres`, procgen-v4.md).
+  WIS = generic DoT + growth + healing, beside Skill Dust's growth.
+- **Six aspect stats have no node or pool supplier** — `corruption`,
+  `curse`, `wither`, `blindness`, `armor_break`, `explosive` `_aspect` live
+  on the default board, used by arrows; only Poison (DEX pool, Toxin) and
+  Scout are supplied, against "sourced mostly from nodes" (#1248).
+- **Armor break has no `_stacks_per_hit` / `_resistance`**, while the DEX
+  pool rolls a raw `armor` −% bane that bypasses the aspect.
+- **Eight damage spells have no concept** (`spark`, `bruiser`, `cyclone`,
+  `leafblower`, `lightning_bolt`, `resonator`, `reverberator`,
+  `trail_blazer`) — the propagation-shape library, i.e. the travel
+  vocabulary; a "Spells outside the Matrix" table, or a direct-damage row.
+- **Relay** is missing from the spell-routing family; its damage bonus is
+  spell power riding a routing addon.
+- **Skill Dust** is a loot window (`begin_claim` / `offers_for`), not an
+  addon in the "the node has to come that way" sense.
+- **Clamp** is blade-build crafting, not board topology; **Winch's**
+  Serpent relief is a class concern.
+
+### Stale facts (no call needed — fixes)
+
+- The attribute table above is stale: procgen ships curse → CON, wither →
+  INT, poison → DEX, corruption → STR, blindness → PER for stacks (blight)
+  and resistance (bless) (procgen-v4.md). #1249 may be answered in content.
+- `poison.tres` lacks the `dot` tag Corruption carries.
+- Spell descriptions contradict the authored decay: `hex` says "halve",
+  `sunder` "fade by a quarter", `venom` "recovers over 5 turns" — all are
+  flat −1. Corruption ships `decay = null`, so damage_over_time.md's "bold
+  alternative" is the live state and ADR 0022's halving wording is stale.
+- `docs/design/status-tags.md` is the LifeLine grace doc.
+- Spike Ring grants `spikes` / `spike_regen` / `blunting` in code
+  (`spike_ring_addon.gd`), not in its scene.
+
 ## Personas
 
 Each aspect's personified character lives in
