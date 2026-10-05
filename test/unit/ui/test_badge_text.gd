@@ -13,7 +13,9 @@ func before_each() -> void:
 	add_child_autofree(_label)
 
 
-## What one `add_image` item contributes to `get_parsed_text()` on this engine.
+## What one `add_image` item contributes to `get_parsed_text()` on this engine
+## (a single space in 4.7) — probed, so the exact-equality asserts below pin
+## exactly one image: a second would add a second placeholder.
 func _image_placeholder() -> String:
 	var probe := RichTextLabel.new()
 	add_child_autofree(probe)
@@ -24,9 +26,8 @@ func _image_placeholder() -> String:
 func test_token_renders_badge_then_noun() -> void:
 	BadgeText.render(_label, "applies 2 {poison} stacks")
 	var glyph := _image_placeholder()
-	assert_eq(_label.get_parsed_text(), "applies 2 " + glyph + " Poison stacks")
-	if not glyph.is_empty():
-		assert_eq(_label.get_parsed_text().count(glyph), 1, "exactly one image")
+	assert_eq(glyph.length(), 1, "an image is one placeholder character")
+	assert_eq(_label.get_parsed_text(), "applies 2 " + glyph + "\u00A0Poison stacks")
 
 
 func test_unknown_token_verbatim_and_warns_once() -> void:
@@ -47,4 +48,4 @@ func test_token_inside_bbcode_is_rendered_inside_the_tag() -> void:
 	var parsed := _label.get_parsed_text()
 	assert_false(parsed.contains("[b]") or parsed.contains("[/b]"), "tags parsed, not literal")
 	assert_false(parsed.contains("{poison}"), "token resolved")
-	assert_eq(parsed, _image_placeholder() + " Poison")
+	assert_eq(parsed, _image_placeholder() + "\u00A0Poison")
