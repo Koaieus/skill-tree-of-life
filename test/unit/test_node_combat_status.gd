@@ -246,7 +246,7 @@ func test_release_statuses_removes_all_with_hooks() -> void:
 
 func test_get_statuses_rows_carry_display_identity_and_normalised_power() -> void:
 	var d := _def(&"poison", 4.0)
-	d.tint = Color.GREEN
+	d.identity = IdentityFixture.of(Color.GREEN)
 	_combat().apply_status(d, 1.0)
 	var rows := _combat().get_statuses()
 	assert_eq(rows.size(), 1)

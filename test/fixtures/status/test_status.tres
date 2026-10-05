@@ -2,6 +2,12 @@
 
 [ext_resource type="Script" path="res://effects/status/status_def.gd" id="1_stat"]
 [ext_resource type="Script" uid="uid://h4ca876s2ht3" path="res://effects/status/decay/flat_decay.gd" id="decay_script"]
+[ext_resource type="Script" path="res://identity/identity.gd" id="identity_script"]
+
+[sub_resource type="Resource" id="Resource_identity"]
+script = ExtResource("identity_script")
+id = &"fixture"
+tint = Color(0, 1, 0, 1)
 
 [sub_resource type="Resource" id="Resource_decay"]
 script = ExtResource("decay_script")
@@ -11,7 +17,7 @@ per_tick = 1.0
 script = ExtResource("1_stat")
 id = &"test_status"
 display_name = "Test Status"
-tint = Color(0, 1, 0, 1)
+identity = SubResource("Resource_identity")
 power_max = 5.0
 reapply = 0
 on_dealloc = 0

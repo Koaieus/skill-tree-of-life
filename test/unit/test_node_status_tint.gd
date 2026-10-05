@@ -48,7 +48,7 @@ func _def(id: StringName, power_max: float, decay: float = 1.0,
 	d.power_max = power_max
 	d.decay = FlatDecay.new(decay)
 	d.reapply = reapply
-	d.tint = Color(0.2, 0.85, 0.25, 1.0)
+	d.identity = IdentityFixture.of(Color(0.2, 0.85, 0.25, 1.0))
 	return d
 
 
@@ -79,18 +79,18 @@ func test_remove_restores_base_modulate() -> void:
 
 func test_strongest_status_wins_and_ties_take_the_first_applied() -> void:
 	var weak := _def(&"blind", 4.0)
-	weak.tint = Color(0.85, 0.85, 0.35, 1.0)
+	weak.identity = IdentityFixture.of(Color(0.85, 0.85, 0.35, 1.0))
 	var strong := _def(&"poison", 4.0)
-	strong.tint = Color(0.2, 0.85, 0.25, 1.0)
+	strong.identity = IdentityFixture.of(Color(0.2, 0.85, 0.25, 1.0))
 
 	_node.get_combat().apply_status(weak, 1.0)
 	_node.get_combat().apply_status(strong, 4.0)
 	assert_true(_composite().modulate.is_equal_approx(strong.tint), "the strongest normalised power wins")
 
 	var tie_a := _def(&"a_tie", 4.0)
-	tie_a.tint = Color(1.0, 0.0, 0.0, 1.0)
+	tie_a.identity = IdentityFixture.of(Color(1.0, 0.0, 0.0, 1.0))
 	var tie_b := _def(&"b_tie", 4.0)
-	tie_b.tint = Color(0.0, 0.0, 1.0, 1.0)
+	tie_b.identity = IdentityFixture.of(Color(0.0, 0.0, 1.0, 1.0))
 	_node.get_combat().release_statuses()
 	_node.get_combat().apply_status(tie_a, 2.0)
 	_node.get_combat().apply_status(tie_b, 2.0)

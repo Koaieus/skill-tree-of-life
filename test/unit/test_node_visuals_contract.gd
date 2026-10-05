@@ -332,7 +332,7 @@ func test_core_look_routes_through_the_chain() -> void:
 func test_status_tint_blends_by_normalised_power() -> void:
 	var comp = add_child_autofree(CompositeScene.instantiate())
 	await get_tree().process_frame
-	var green := Color(0.2, 0.85, 0.25, 1.0)
+	var green: Color = IdentityRoster.shared().by_id(&"poison").tint
 
 	comp.set_status_tint(green, 4.0 / 4.0)
 	assert_true(comp.modulate.is_equal_approx(green), "power 4 of 4 (normalised 1.0) is a full blend")
@@ -348,7 +348,7 @@ func test_status_tint_blends_by_normalised_power() -> void:
 func test_status_tint_composes_with_feedback_tint() -> void:
 	var comp = add_child_autofree(CompositeScene.instantiate())
 	await get_tree().process_frame
-	var green := Color(0.2, 0.85, 0.25, 1.0)
+	var green: Color = IdentityRoster.shared().by_id(&"poison").tint
 
 	comp.set_status_tint(green, 1.0)
 	comp.feedback_tint = Color(1.0, 0.3, 0.3)
@@ -367,7 +367,7 @@ func test_status_tint_composes_with_feedback_tint() -> void:
 func test_subtype_tint_composes_with_the_other_two_channels() -> void:
 	var comp = add_child_autofree(CompositeScene.instantiate())
 	await get_tree().process_frame
-	var status_green := Color(0.2, 0.85, 0.25, 1.0)
+	var status_green: Color = IdentityRoster.shared().by_id(&"poison").tint
 	var feedback_red := Color(1.0, 0.3, 0.3)
 	var subtype_purple := Color(0.6, 0.1, 0.9, 1.0)
 

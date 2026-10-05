@@ -384,7 +384,7 @@ func _status_def(display: String, power_max: float = 3.0, tint: Color = Color.WH
 	var def := StatusDef.new()
 	def.id = StringName(display.to_lower())
 	def.display_name = display
-	def.tint = tint
+	def.identity = IdentityFixture.of(tint)
 	def.power_max = power_max
 	return def
 

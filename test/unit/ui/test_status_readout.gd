@@ -21,7 +21,7 @@ func before_each() -> void:
 	_def = StatusDef.new()
 	_def.id = &"test_scout"
 	_def.display_name = "Scouted"
-	_def.tint = Color(0.2, 0.9, 0.3)
+	_def.identity = IdentityFixture.of(Color(0.2, 0.9, 0.3))
 	_def.power_max = 10.0
 	_def.group_by = "camp_id"
 	_def.visible_if = "camp_id == viewer_camp_id"

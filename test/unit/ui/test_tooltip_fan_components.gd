@@ -14,7 +14,7 @@ func _stat_def(id: StringName, display: String, tint: Color) -> StatDef:
 	var d := StatDef.new()
 	d.id = id
 	d.display_name = display
-	d.tint_color = tint
+	d.identity = IdentityFixture.of(tint)
 	return d
 
 
