@@ -19,8 +19,8 @@ and correct a loose one when you see it (the owner asked to be corrected too).
 | **Facet** / **slot** | A delivery channel: arrow, addon, spell, infusion (Hades: boon slots) | "attack mode" (melee / ranged / magic), which facets serve |
 | **Face** | One aspect in one facet — a single cell (Poison's arrow) | — |
 | **Status** | The runtime effect on a node (poison stacks) | the aspect |
-| **Axis** | A classification dimension: the defence an aspect attacks, or how it travels | — |
-| **School** | The top tier grouping aspects (Astral Ascent's elements, Hades' gods). **We have none yet — open** | an attribute, unless we decide they are |
+| **Axis** | A classification dimension: the defence an aspect attacks, how it travels, or which tempo lever it hits (tempo is an axis, not a school) | — |
+| **School** | The top tier grouping aspects: the six primary attributes (owner, 2026-10-05). An aspect's school is the one whose verb it performs or whose own strength it turns bad | a facet (attack modes are facets) |
 | **Variant** | One aspect, a different delivery shape (poison DoT / cloud / projectile) — horizontal, never numbers | a second face in another facet |
 | **Duo** / **cross-synergy** | Content reading two aspects or mechanics (Hades Duo boons, Astral Ascent auras) | a pair row |
 | **Color pie** | Which aspect owns which mechanic (MTG). "A mechanic lives on the row it expresses" is our pie | — |
@@ -250,14 +250,12 @@ or is struck (the ADR 0045 "dead for two of three attack modes" test).
 
 | Concept | Tag | Attributes (vibe) | Ranged (arrow) | Addon | Spell | Notes |
 |---|---|---|---|---|---|---|
-| Bleeding | DoT | DEX+STR? | TBD | spikes? (see Spikes) — look: tangential spikes rotating like a sawblade (owner, 2026-10-03) | TBD | Owner, 2026-10-05: *"Bleeding is an excellent game concept maybe too classic to pass up. And it's one that could naturally be a DoT. Would need a different profile, character (damage & mechanics, decay, tick trigger, spread mechanics if any) than poison"*. Earlier: *"what would bleeding mean in a graph-based game? leaking "skill point" essence until deallocated..?"* (2026-10-03) |
+| Bleeding | DoT | STR (owner, 2026-10-05) | TBD | spikes? (see Spikes) — look: tangential spikes rotating like a sawblade (owner, 2026-10-03) | TBD | Owner, 2026-10-05: *"Bleeding is an excellent game concept maybe too classic to pass up. And it's one that could naturally be a DoT. Would need a different profile, character (damage & mechanics, decay, tick trigger, spread mechanics if any) than poison"*. Earlier: *"what would bleeding mean in a graph-based game? leaking "skill point" essence until deallocated..?"* (2026-10-03) |
 | Fatigue / Slow | debuff, movement | TBD | TBD | Fortress's swing drag moves here (owner, 2026-10-05) | TBD | Owner, 2026-10-05: *"fatigue OR slow (or both): slows movement stat, possibly deallocation point stat too"*. Tempo is a defensive axis: *"running away is a valid (but last resort) defensive option, and hence slow effects or things that reduce `movement`, `deallocation_points`, or even `action_points` (neutering an enemy's attack output IS the ultimate defense i reckon)"* (owner, 2026-10-05). Paralysis and Petrified may join this as one tempo row |
 | Paralysis | debuff, AP | TBD | TBD | TBD | TBD | Owner, 2026-10-05: *"lowers action points cap?"* |
-| Petrified | debuff, initiative | TBD | TBD | TBD | TBD | Owner, 2026-10-05: *"lowers initiative gain? (Iff we ever want to flesh out initiative some more, this would be one issue part of that"* |
-| Thorns | retribution | TBD | TBD | TBD | TBD | Owner, 2026-10-05: *"canonically more for retribution dmg of incoming attacks back to attacker"*. Not built; today *"blade swings don't deal dmg to own nodes, no thorn dmg or anything (yet?)"* (owner, 2026-10-05). OQ32 in combat_system.md asks whether thorns and spikes share a stat |
 | Spikes | offense | STR? | — | `spike_ring_addon.tscn`: local `blade_damage` (×1.5, +3), allocation-scaled per #1369 | — | **Not an aspect**: its defensive face (pop a blade vertex) has no ranged or spell meaning. Owner, 2026-10-05: *"spikes addon just adds blade damage. Switch to bleed stacks instead? (Or keep some blade dmg mods why not). Spikes do fit bleeding thematically. Though they also fit poison"*. The pop budget (`spikes`, `node_spikes`, `spike_regen`) is the #1369 fork; the owner leans to moving the anti-blade face to Explosive (2026-10-04: *"I think the explosive one thematically fits best"*), which would delete those stats |
 | Blunting | — | — | — | today only a spiked node's +1 | — | Struck candidate: a counter to a counter, meaningless to an arrow or a spell. Dies with the pop budget if #1369 takes the explosive pivot (and #794 with it) |
-| Elemental (family) | — | — | — | — | — | Owner, 2026-10-05: *"Chill or burn sound like pure elemental, which is also a real mechanic family we haven't touched on yet. And if we start adding it, shouldn't half-ass it"*. A family, not a row: which elements, what each does on a graph, and whether elements share a resistance layer are one design pass. Chill would absorb the tempo debuffs above (Fatigue/Slow, Paralysis, Petrified). All or nothing (owner, 2026-10-05): *"either fully flesh it out or keep it away"*. Owner's pros: burning is a canonical DoT; burning could spread to neighbours; freeze may lock a node (can't act, can't be deallocated), chill a lesser or building version (*"enough chill turns into freeze idk"*); lightning *"might do hops based shenanigans"*. Against: the settled aspects (Corruption, Curse, Wither, Poison, Armor break) fit none of fire/cold/lightning, nor a fourth element. Advisor read: burn collides with Poison's axis unless edge-spread sets it apart, freeze is the tempo row's name, lightning is a targeting shape — so elements may be flavour, not a school |
+| Elemental (family) | — | — | — | — | — | **Keep away (settled with Schools, 2026-10-05):** each pro is harvested as a mechanic for existing rows. Owner, 2026-10-05: *"Chill or burn sound like pure elemental, which is also a real mechanic family we haven't touched on yet. And if we start adding it, shouldn't half-ass it"*. A family, not a row: which elements, what each does on a graph, and whether elements share a resistance layer are one design pass. Chill would absorb the tempo debuffs above (Fatigue/Slow, Paralysis, Petrified). All or nothing (owner, 2026-10-05): *"either fully flesh it out or keep it away"*. Owner's pros: burning is a canonical DoT; burning could spread to neighbours; freeze may lock a node (can't act, can't be deallocated), chill a lesser or building version (*"enough chill turns into freeze idk"*); lightning *"might do hops based shenanigans"*. Against: the settled aspects (Corruption, Curse, Wither, Poison, Armor break) fit none of fire/cold/lightning, nor a fourth element. Advisor read: burn collides with Poison's axis unless edge-spread sets it apart, freeze is the tempo row's name, lightning is a targeting shape — so elements may be flavour, not a school |
 | Frailty / Fragile | fragility | — | — | — | — | Struck: owner, 2026-10-05, *"likely what curse does so no"* |
 
 ## Attributes and pairs
@@ -273,36 +271,24 @@ them, just by association or vibe most likely i guess given addons dont give
 primary attrs"*. Watchtower is PER+DEX *"no doubt about that"*; *"A pure DEX
 addon we don't have yet. Not saying we need one"*.
 
-| Attribute(s) | Row(s) today | Source |
+| School | Aspects | State |
 |---|---|---|
-| DEX | Poison | 2026-09-22 grid (#1249 open) |
-| STR | Corruption; armor break / pierce | grid + owner 2026-09-29 |
-| INT | Wither (grid) or Curse (2026-09-29) | #1249 open |
-| CON | Curse (grid) or Wither (2026-09-29) | #1249 open |
-| PER | Blindness, Scout | grid |
-| WIS | none | #1252 open |
-| PER+DEX | Scout's watchtower addon | owner 2026-10-05 |
-| CON+STR | Armor break? | owner example, 2026-10-05 |
-| DEX+STR | Bleeding? | owner example, 2026-10-05 |
-| PER+WIS | Blindness? | owner example, 2026-10-05 |
+| STR | Bleeding, Armor break | Bleeding: owner 2026-10-05. Armor break: by the accepted placement rule, not an explicit pick |
+| DEX | Poison, Explosive | owner 2026-10-05 |
+| INT | Curse; Silence/Paralysis? | Curse: owner 2026-09-29. Silence needs melee and ranged faces ("node can't originate any attack" is the pass proposal) |
+| CON | Wither; Fatigue? | Wither: owner 2026-10-05. Fatigue is CON or INT, open |
+| PER | Scout, Blindness | owner |
+| WIS | Corruption; Greed? | Corruption: owner 2026-10-05. Greed is a candidate |
+
+Procgen still ships the 2026-09-22 grid (curse → CON, wither → INT,
+corruption → STR); it moves to this table as a content fix (#1249). Pairs
+are a content layer (duo content reading two aspects), not rows: pass
+proposal, 2026-10-05.
 
 Six singles plus fifteen pairs is twenty-one rows; the sparse-row discipline
 above (merge, strike) is what keeps that from being a slot-filling exercise.
 
-## Schools — open (2026-10-05)
-
-Candidates the owner raised: the six attributes (STR DEX INT WIS PER CON),
-just STR/DEX/INT, or the attack modes. The attack modes are **facets, not
-schools** — melee copies nodes and their addons, ranged mints ammo types,
-magic applies statuses, and infusion likely reads every aspect (owner,
-doubting it for exactly that reason). STR/DEX/INT is the classic
-warrior/rogue/mage trio, which collapses into the same three attack modes.
-Advisor note: procgen already ships attributes as de-facto schools — each
-aspect's `_stacks_per_hit` (blight) and `_resistance` (bless) roll on one
-attribute (DEX poison, STR corruption, CON curse, INT wither, PER
-blindness, WIS generic DoT + growth; procgen-v4.md) — so the question may
-be whether to embrace that, against the defence-attacked axis as a
-mechanical alternative.
+## Schools
 
 **Settled: a school never scales its aspects (owner, 2026-09-28, #1199).**
 *"aspects seem coupled to (archetypes of) primary stats! Yet we surely don't
@@ -365,6 +351,10 @@ lightning's hops become mechanics that existing rows can use.
   hit (no damage, doubles the stacks on the node it hits); a boon (no
   damage, cleanses the stacks and leaves something beneficial per stack
   cleared). An infusion extends a spell; it never replaces it.
+  Spells otherwise diverge by topological targeting (owner, 2026-10-05:
+  Reverberator on self-loops, Trail Blazer on 2-degree strings, Leafblower
+  on leaves), so the eight conceptless damage spells are the spell library,
+  not orphans.
 - **Halo is not a design basis:** *"its design is not what we base our
   designs on, rather we will reskin or redesign that class"*.
 - **Thorns fails the facet rule (owner, 2026-10-05).** Retribution has no
@@ -389,9 +379,8 @@ lightning's hops become mechanics that existing rows can use.
   in the game"*. Every entity holds the same value today, and node-local
   initiative changes are illegal.
 - **Debt is struck.** Losing even one skill point *"would be insanely
-  overpowered"*. The owner also recalls that skill points per level are a
-  formula, not snapshotted, so changing them mid-game moves the pool's cap
-  (unverified).
+  overpowered"*. In code, skill points are minted at each level-up from
+  the live `sp_gain_on_levelup` (`Entity.sp_minted_for_level`).
 - **Fatigue: CON, but INT is arguable.** The rule reads it as CON (stamina
   turned bad); a mental fatigue would sit closer to Silence/Paralysis.
 - **WIS's second row candidate is Greed** (owner idea): *"a status attracting
