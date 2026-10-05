@@ -392,6 +392,40 @@ lightning's hops become mechanics that existing rows can use.
 - **Open:** whether movement and dealloc debuffs hit both points together
   at one rate (pass recommendation: together, as one engine) or separately.
 
+**Owner calls, 2026-10-05 (round 5).**
+- **Silence: stacks are duration.** A node is silenced (can't originate an
+  attack: fire, pivot a blade, source a spell) while it holds ≥ 1 stack,
+  −1 per turn. Owner: *"A sounds good. B might also be good but depends on if
+  we could find the perfect node-local value to pick as the threshold, most
+  fitting thematically and gameplay-wise"* — B being "silenced once stacks
+  pass a node-local threshold". No origin gate exists in code today: arrows
+  fire from the leaf list, a blade's pivot is validated on pick, a spell's
+  source is auto-picked.
+- **Fatigue as a per-node pass-through cost is rejected.** Movement (1 per
+  hop) and dealloc (1 per node) are entity pools with no node-local meaning,
+  the Petrified problem. The pass proposed a per-node cost raised by stacks;
+  owner: *"3+ stacks on a chokepoint would deadlock most players. and also:
+  applying it to frontline nodes which an enemy doesn't think about
+  deallocating anytime soon will do absolutely nothing. the nodes you'd want
+  to apply it to are wayyy back, hence impossible to reliably target"*. A
+  spell-hop cost *"might be worth something, but thematically doesn't feel
+  like "fatigue" and could be put elsewhere maybe"*.
+- **Greed doubles the final landed count** of every negative status, spending
+  one Greed stack. Owner: *"all negative statuses should count"*; *"final
+  landed count doubling sounds good. then the only defender stat we need to
+  finalize the computation of "how many stacks are added" is whether there is
+  a greed stack"*. The owner's worked example: 3 Greed stacks, four 1-stack
+  poison landings → +2 +2 +2 +1. Doubling the final count makes the
+  attacker's `stacks_per_hit` BASE/BONUS split irrelevant to Greed. Greed
+  favours big hits: a +10 landing gains 10 for one Greed stack.
+- **Hoard rides Greed** (owner: *"could also be added in here as extra
+  bonus, sounds excellent"*): bonus XP per Greed stack still on a node when an
+  attack removes it, on top of the per-node kill XP the loot system already
+  pays.
+- **Spell affinity** (owner idea): a spell carries innate aspect budget,
+  landed by the infusion plumbing, with a per-spell rate as the balancing
+  knob. Posted to #1250.
+
 ## Combos and hybrids
 
 Owner, 2026-10-05: *"for each concrete aspect we put out, we'd have content
