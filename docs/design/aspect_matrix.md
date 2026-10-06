@@ -427,8 +427,11 @@ lightning's hops become mechanics that existing rows can use.
   `<family>_stacks_per_hit` is the attacker's. Greed needs a new
   defender-side landing term (e.g. a susceptibility on the host) that landing
   folds with the attacker's stacks per hit, and a readout that overlays the
-  two. The term is round 6's "does the node hold a Greed stack"; open: how
-  resistance behaves for non-damage statuses.
+  two. The term is round 6's "does the node hold a Greed stack". How
+  resistance behaves for non-damage statuses is closed by mechanism
+  (2026-10-06): `StatusHost` hands `effective_power` to every def's apply and
+  tick, so any def naming a `resistance_stat_id` is filtered the same way —
+  but Greed itself takes no % resistance (owner, 2026-10-06, § Axes).
 
 **Owner calls, 2026-10-05 (round 5).**
 - **Silence: unsettled, the owner is sleeping on it (2026-10-06).** The
@@ -661,7 +664,8 @@ lightning's hops become mechanics that existing rows can use.
   split**: afflictions here, structures in `skill_node_addons.md`, no parent
   categories. **No new `_resistance` stats**; where one exists or a blessed
   roll adds one, it scales the read effect by (1 − res) at effect time (ADR
-  0031's shape). **Fortress / drag** stays on notice.
+  0031's shape). Refined 2026-10-06 into the rule in § Axes. **Fortress /
+  drag** stays on notice.
 - **Codex** (owner): a uniform status tooltip, and *"a second page for effects
   in the spell catalog UI (making it about more than just spells, could be the
   main help with a page per game concept (`Manage` actions, each attack type,
@@ -815,16 +819,41 @@ not a family of their own:
 | damage floor | Curse | Bunker (`min_damage_taken` −5), Bulwark class |
 | armor | Armor break | Bunker (`armor` +5) |
 | healing | Wither | Lifeline / Fountain, `healing_beam` (enemy-targetable — its twist) |
-| vision | Blindness | nothing |
+| vision | Blindness | `blindness_resistance` (parentless, a blessed PER roll) |
 | damage dealt | Weakness | nothing |
 | exertion (HP on use) | Bleeding | nothing — rest is the cure |
 | crit taken | Hex | nothing; attacker-side crit stats are DEX's own |
-| status landing | Greed (more land) | `<family>_resistance` filters at effect time, not landing (ADR 0031) |
+| status landing | Greed (more land) | nothing — a % resistance makes no sense on a consumed stack (owner, 2026-10-06); its counter is open on #1419 |
 | tempo | nothing — no status attacks tempo (round 6) | nothing |
 
-Whether bare axes stay bare on purpose is a call ("defensive faces are
-rare"). Resistances exist only as blessed rolls; Scout, Explosive and Armor
-break have none.
+**The resistance rule (owner, 2026-10-06, refining round 5's "no new
+`_resistance` stats").** Asked whether N aspects should bring N resistances,
+a few grouped ones, or a resistance composed into the aspect, the owner kept
+none-new: *"none new, with a rule of adding one where damage is involved or
+when it just makes sense or no other counterplay is available (e.g. for
+blindness)"*. So a row ships with a blank `resistance_stat_id` unless its axis
+deals damage or has no other defence; the new rows (Weakness, Greed,
+Bleeding, Hex) all ship without one. The pass's lens, which the table above
+already encodes: an axis with a native stat to defend with (armor, damage,
+`min_damage_taken`, rest) needs no second dial. Hex (crit taken, nothing
+native) is the one later candidate, its own pass if ever.
+
+What exists: five per-aspect resistances, read on the host as a live filter
+at effect time (ADR 0031). `dot_resistance` is the family parent of the four
+original DoT-family stats — poison, corruption, curse, wither — of which
+only Poison and Corruption tick damage today; `blindness_resistance` stands
+alone. Grouping is therefore already the shape (an ADR 0029 parent), and
+composing a resistance into `Aspect` needs no subclass: `Aspect` composes
+`stat` + `status`, and `StatusDef.resistance_stat_id` is already the edge.
+Procgen: a resistance rolls on **blessed** nodes only, in its school pack,
+ADD_BASE unit 0.05 at T2–T4 (+15 / +35 / +75 %); under ADR 0031's half-down
+a lone stack needs > 50 % to lose anything, two stacks > 25 %, five > 10 %.
+
+**Greed takes no % resistance** (owner, 2026-10-06): *"greed cannot have a %
+based resistance, wouldn't make sense "1 greed stack consumed to get you 1.99
+stacks instead of 2 cuz of your 1% resistance". needs something else for
+decay. what is the opposite of greed? sharing freely? hmm"* — its counter is
+open on #1419. Scout, Explosive and Armor break have none by the rule.
 
 ## Personas
 

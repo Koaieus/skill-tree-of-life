@@ -9,7 +9,7 @@ identity = ExtResource("identity_curse")
 id = &"curse_resistance"
 parent_ids = Array[StringName]([&"dot_resistance"])
 display_name = "Curse Resistance"
-description = "Fraction of incoming curse stacks this node shrugs off: stacks landed = per-hit x attacker's Curse Potency x (1 - Curse Resistance), resolved once at land (#963). Read node-locally like Armor, so a node-scoped modifier reaches it. Reduces stacks incurred, never the decay rate. Default 0."
+description = "Fraction of the curse row this node shrugs off, a live filter at effect time (ADR 0031): every apply and tick hands the def row - ceil(row x res - 1/2), the row itself decays raw, and at 100% stacks do not land. Read node-locally like Armor, so a node-scoped modifier reaches it; DoT Resistance is its family parent and folds into this read. Default 0."
 value_type = 1
 default_value = 0.0
 modifier_name = "Curse Resistance"

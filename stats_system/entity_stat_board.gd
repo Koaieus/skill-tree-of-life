@@ -69,33 +69,37 @@ extends StatBoard
 ## Floor on post-armor damage. A landed hit always deals at least this much
 ## unless TRUE-typed. Default 3; defensive classes (Bulwark) may push lower.
 @export var min_damage_taken: ScalarStat
-## Fraction of incoming poison stacks a node shrugs off (#963). Read node-locally
-## via get_local_value like armor. Reduces stacks incurred, never decay. Default 0.
+## Fraction of the poison row a node shrugs off: a live filter at every apply and
+## tick (ADR 0031), the row decays raw. Read node-locally via get_local_value
+## like armor; dot_resistance folds in as its parent. Default 0.
 @export var poison_resistance: ScalarStat
-## Fraction of incoming corruption stacks a node shrugs off (#963). Read node-locally
-## via get_local_value like armor. Reduces stacks incurred, never decay. Default 0.
+## Fraction of the corruption row a node shrugs off: a live filter at every apply and
+## tick (ADR 0031), the row decays raw. Read node-locally via get_local_value
+## like armor; dot_resistance folds in as its parent. Default 0.
 @export var corruption_resistance: ScalarStat
-## Fraction of incoming curse stacks a node shrugs off (#963). Read node-locally
-## via get_local_value like armor. Reduces stacks incurred, never decay. Default 0.
+## Fraction of the curse row a node shrugs off: a live filter at every apply and
+## tick (ADR 0031), the row decays raw. Read node-locally via get_local_value
+## like armor; dot_resistance folds in as its parent. Default 0.
 @export var curse_resistance: ScalarStat
-## Fraction of incoming wither stacks a node shrugs off (#963). Read node-locally
-## via get_local_value like armor. Reduces stacks incurred, never decay. Default 0.
+## Fraction of the wither row a node shrugs off: a live filter at every apply and
+## tick (ADR 0031), the row decays raw. Read node-locally via get_local_value
+## like armor; dot_resistance folds in as its parent. Default 0.
 @export var wither_resistance: ScalarStat
 ## The poison stacks this entity's hits land: the authored per-hit amount is a
 ## base_add overlay on this stat (StatusDef.stacks_per_hit), dot_stacks_per_hit
-## folds in as its parent, then x (1 - resistance). Default 0.
+## folds in as its parent; resistance never scales it (ADR 0031). Default 0.
 @export var poison_stacks_per_hit: ScalarStat
 ## The corruption stacks this entity's hits land: the authored per-hit amount is a
 ## base_add overlay on this stat (StatusDef.stacks_per_hit), dot_stacks_per_hit
-## folds in as its parent, then x (1 - resistance). Default 0.
+## folds in as its parent; resistance never scales it (ADR 0031). Default 0.
 @export var corruption_stacks_per_hit: ScalarStat
 ## The curse stacks this entity's hits land: the authored per-hit amount is a
 ## base_add overlay on this stat (StatusDef.stacks_per_hit), dot_stacks_per_hit
-## folds in as its parent, then x (1 - resistance). Default 0.
+## folds in as its parent; resistance never scales it (ADR 0031). Default 0.
 @export var curse_stacks_per_hit: ScalarStat
 ## The wither stacks this entity's hits land: the authored per-hit amount is a
 ## base_add overlay on this stat (StatusDef.stacks_per_hit), dot_stacks_per_hit
-## folds in as its parent, then x (1 - resistance). Default 0.
+## folds in as its parent; resistance never scales it (ADR 0031). Default 0.
 @export var wither_stacks_per_hit: ScalarStat
 ## Family parent of the four <family>_stacks_per_hit (ADR 0029): its bins fold
 ## into each family stat's read, never summed separately; never blindness/
@@ -113,7 +117,8 @@ extends StatBoard
 ## The blindness this entity's hits land, folded as poison_stacks_per_hit is but
 ## with no parent (blindness is not a DoT). Default 0.
 @export var blindness_stacks_per_hit: ScalarStat
-## Fraction of incoming blindness a node shrugs off, read node-locally. Default 0.
+## Fraction of the blindness row a node shrugs off, a live filter at effect time
+## (ADR 0031), read node-locally. No parent. Default 0.
 @export var blindness_resistance: ScalarStat
 ## Flat HP damage dealt to this entity per node forced-deallocated in a battle
 ## cascade. Bypasses mitigation (currency-exchange semantics — the cascade also
