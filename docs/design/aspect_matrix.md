@@ -223,7 +223,7 @@ Each cell links its cell issue (`<Concept> × <Facet>`, a child of the row hub i
 | Weakness | damage debuff | `weakness_aspect` | #1427 (Sap?) | #1428 | #1429 (Enfeeble?) | #1250 | row: #1425 (child 0: the status, #1426, Ready). Stacks cut damage dealt by attacks originating from the node, % on a saturating curve (round 7) |
 | Greed | status magnet | `greed_aspect` | #1422 | #1423 | #1424 | #1250 | row: #1419 (child 0: the landing term, #1420, Ready; Hoard #1421, Ready). One Greed stack on the node doubles every negative status the next hit lands, Greed included, then one stack is spent; Hoard pays bonus XP per stack left when an attack removes the node (rounds 5–6) |
 | Explosive | AoE | `explosive_aspect` | #1398 | #1399 — detonation kills the blade node, reuses spike-pop plumbing (owner, #1211) | #1400 (or none) | #1250 | row: #1211. Euclidean hitscan radius from `SkillNode.radius`; barrels / friendly fire open (#1399). The concept names the content, never the reverse (owner, 2026-10-05): *"an explosive barrel blast would at best do an *explosive* (as a concept) blast, not an "explosive arrow blast" literally cuz it's not like *arrows* determine the concept but the concept determines arrows+addons+spells etc."* — so the addon is an `ExplosiveBarrelAddon` doing the explosive blast. A detonated blade node is *damaged*, and today that means popped: *"so far we put their HP on 1 so they pop after taking 1 dmg"* (owner, 2026-10-05). `spells.md`'s Detonate / Supernova are its spell (#1400) |
-| Bleeding | wound, exertion | `bleeding_aspect` | #1436 | #1437 — Spike Ring refit, with #1369 | #1438 | #1250 | row: #1434 (child 0: the status + origin set, #1435). Promoted 2026-10-06. Stacks sit idle; a node that *exerted* this turn (in an attack's origin set) pays `stacks` flat HP at turn end and its stacks ×2; every bleeding node then decays −1. STR: the price of exertion. Edgelord's **Bleeding Edge** jab takes a new name (#1449) |
+| Bleeding | wound, exertion | `bleeding_aspect` | #1436 | #1437 — Spike Ring refit, with #1369 | #1438 | #1250 | row: #1434 (child 0: the status + origin set, #1435). Promoted 2026-10-06. **Round 10 (owner, 2026-10-06) replaces round 9's conditional tick:** a node in an attack's origin set has its stacks ×`exert_growth` (2) **at launch**; every turn end the row pays ⌈stacks × `bleed_rate` (½)⌉ flat HP, then decays on a ramp (−1, −2, −3 … while not exerting; exertion resets it). A core exerts by *moving*, once per turn, never by attacking. Dealloc or death spills ⌊S/(N+M)⌋ to each owned neighbour, the unallocated shares soak away. STR: the price of exertion. Edgelord's **Bleeding Edge** jab takes a new name (#1449) |
 | Hex | jinx, crit taken | `hex_aspect` | #1441 | #1442 | #1443 — the shipped spell `hex` (Curse payload) is renamed or repointed | #1250 | row: #1439 (child 0: the status, #1440). INT's slot (owner, 2026-10-06, round 9). The defender side of crit: per stack, hits *against* the node crit more often, a % on the saturating curve (Blindness / Weakness shape); attacker-side `crit_chance` / `crit_multiplier` stay DEX's native stats, never an aspect. The crit roll must open for a hexed target even when the attacker's board holds no crit investment (#1280's stream note) |
 
 ## Rows designed in #1318
@@ -667,6 +667,58 @@ lightning's hops become mechanics that existing rows can use.
   main help with a page per game concept (`Manage` actions, each attack type,
   spells, statuses, addons, arrow types, the whole shebang)"* — a UI unit,
   #1447, not a Matrix decision.
+
+**Owner calls, 2026-10-06 (round 10 — Bleeding reshaped in its `/swarmify` pass).**
+Round 9's "pay `stacks` at turn end only if the node exerted" needed a per-node
+flag carried to turn end; the owner moved the exertion effect to launch and the
+damage to every turn, and the flag died.
+- **Exertion doubles at launch, damage lands every turn end at a rate.** A node
+  in an attack's origin set has its bleeding ×`exert_growth` (2) the moment the
+  attack lands its first beat (the node is still alive then — owner: *"might be
+  tricky with the attacking node possibly dying right as it fires"*); at turn end
+  every bleeding row pays ⌈stacks × `bleed_rate`⌉ flat HP (½), then decays. The
+  pass's table (5 stacks: launch 10, pay 5, →9; 18, pay 9, →17; 34, pay 17, →33)
+  reproduces round 9's 5, 9, 17, 33, 65 exactly; resting pays 3, 2, 2, 1, 1 (≈
+  half a Poison); a 1-stack scratch exerted every turn stays at 1 forever, a
+  2-stack wound compounds. Owner: *"option 1. is good"*; the ⅓×allocation-level
+  rate *"mechanics are.. for another status, not this one"*.
+- **Ranged exerts by firing, never by reloading.** Owner: *"leaning just firing,
+  leaving reloading alone (which is done by leaf nodes so far but possibly other
+  nodes could later start producing arrows as well which might be problematic
+  like "all your nodes" shouldn't trigger bleeding at once)"*. The origin set per
+  mode stands as round 9 wrote it; the per-hit read node is the same attribution
+  — owner: *"a magic cast has 1 source node doing the attack … easily
+  attributable to that source node. a ranged volley has N leaf nodes partaking …
+  each arrow fired has a clear source leaf node it got launched from. a melee
+  attack is a pivot + a bunch of copied nodes. a copied node could hold a
+  reference to the original for attribution."*
+- **A core exerts by moving, once per turn, never by attacking.** Round 9's
+  "pays on any turn it attacked" is withdrawn — owner: *"a stack of N means you
+  gotta wait N turns before it's gone and you can start attacking again. that's
+  crazy talk."* Movement: *"moving sounds good, once per turn could be
+  manageable, more than that could get out of hand quickly."* A still core
+  trickles at the rate; a fleeing core compounds — Bleeding is the anti-kite row.
+  Per-hop ticking along the path was floated and set aside (*"maybe too
+  convoluted"*).
+- **Decay ramps while resting: −1, −2, −3 …, reset by exertion.** Owner chose
+  the ramp over flat −1 and fractional; the row stores its *current decay step*,
+  not turns rested — *"we track the current decay value and calculate the next
+  from it, easy peasy"*. Reset (pass's call, owner asked *"reset to -1 on exert,
+  or to 0?"*): exertion zeroes the step, so the exerting turn's own end tick
+  decays −1 again. 33 stacks clear in 8 still turns for ≈90 HP.
+- **Cauterizing spills with dissipation.** Owner's twist: *"spill everywhere,
+  include unowned neighbors, but dissipate on arrival there … L and K are
+  ignored, each of N gets floor(S/(N+M)) stacks"* — N owned, M unallocated,
+  L enemy, K friendly-camp neighbours; the M shares soak into the ground, and
+  a wound smaller than N+M vanishes (*"maybe we should allow vanishing;
+  cauterizing hard to clear i guess"*). Including K was rejected as *"more a
+  consideration for a viral or plague spreading type of status"*. **On a kill
+  too, at half the share** (pass's call on the owner's *"different spill rates
+  for graceful vs forced deallocation?"*, an exported fraction) — 1000 stacks on
+  one node is a crisis to offload, not a guaranteed kill.
+- **Open, parked:** Poison's own dealloc question (owner: *"whether we should let
+  it stick on deallocation or clear it, and if not clearing, then the default
+  unowned node ticking"*) — Poison row, not here.
 
 ## Twist library
 
