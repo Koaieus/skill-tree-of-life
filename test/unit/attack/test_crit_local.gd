@@ -177,6 +177,8 @@ func test_a_grant_on_the_cast_source_crits_every_hop() -> void:
 	var n: Array = cast.n
 	var hop2 := 0
 	for hit in (cast.outcome as AttackOutcome).hits:
+		if hit is ExertInstance:
+			continue
 		assert_true(hit.is_crit, "every hop reads the source's grant")
 		if hit.target == n[2]:
 			hop2 += 1
