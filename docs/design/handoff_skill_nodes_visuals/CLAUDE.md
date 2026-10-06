@@ -1,3 +1,7 @@
+---
+status: exploring
+---
+
 # Skill Tree of Life — node design program
 
 ## Canonical snippet

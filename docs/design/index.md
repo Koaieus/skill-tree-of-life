@@ -6,29 +6,31 @@ A Godot 4.7 game where the skill tree *is* the game. Entities live on a graph of
 
 The high-level **[GDD](../GDD.md)** is the entry point — vision, core loop, and a map into the per-system docs below.
 
-> 📍 **This folder is what *could* be.** What *is* lives in `docs/domain/` and in code — the spell and core-class rosters are `attack/spell/defs/` and `entity/core/core_class_roster.tres`, and a design doc naming something absent there is describing an idea. What *was* decided lives in [`docs/adr/`](../adr/index.md), including the pre-ADR D-1…D-34 log. Design docs carry no history: a passage the code or a later call has overtaken is deleted, not annotated.
+> 📍 **This folder is what *could* be.** What *is* lives in `docs/domain/` and in code — the spell and core-class rosters are `attack/spell/defs/` and `entity/core/core_class_roster.tres`, and a design doc naming something absent there is describing an idea. What *was* decided lives in [`docs/adr/`](../adr/index.md), including the pre-ADR D-1…D-34 log. Design docs carry no history: within a live doc, a passage the code or a later call has overtaken is deleted, not annotated; a doc that is wholly *built* is archived to [`archive/`](archive/README.md), not deleted.
 
 ## Documents
 
-| File | What it covers |
-|---|---|
-| [../ROADMAP.md](../ROADMAP.md) | **Roadmap** — done / in-progress / todo across all milestones |
-| [../GDD.md](../GDD.md) | **Master GDD** — pitch, core loop, the supergraph, entities, combat summary, classes, progression, open questions, roadmap |
-| [lore.md](lore.md) | Narrative, acts, the Fairy, graph theology, the Field/Tethers/Breakout, the Fractal, tone, visual language |
-| [first_session_walkthrough.md](first_session_walkthrough.md) | Spoiler-free, second-person walkthrough of a player's first session — boot screen → first cut-vertex snipe and dismemberment. Funny/Questionable beats called out |
-| [combat_system.md](combat_system.md) | Damage pipeline (//10 spine), six-color triangle, ranged/magic/melee (phantom blade), degree → offense, self-loops, single-phase turn (intent by input channel), islands, Breakout, loot/proliferation |
-| [click_grammar.md](click_grammar.md) | Open threads on the click grammar — moving core-move onto the generic pop, replacing idle right-click pin/unpin. The shipped grammar is [`../domain/click-grammar.md`](../domain/click-grammar.md) |
-| [core_classes.md](core_classes.md) | Core-class design intent. **Shipped:** Balanced, Ninja, Serpent, Pacifist, Wise Cheater (roster: `entity/core/core_class_roster.tres`). Halo has an issue (#786); Allround, Predator, Bulwark, Hive, Frontier, Harvester are ideas only |
-| [metagame.md](metagame.md) | Hub between runs, meta skill tree, commit-on-completion, The Way Out |
-| [skill_node_addons.md](skill_node_addons.md) | Node addons (Armor Ring, Buffer, Gate, Relay, Anti-Magic, etc.), Tech Seeds |
-| [skill_node_specializations.md](skill_node_specializations.md) | Node specializations (Corrupted, Crystallized, Anchor) — **early spitball, nothing built or scheduled**; inspiration only |
-| [node_subtypes.md](node_subtypes.md) | Node subtypes — open threads only (clustered placement, territory conversion, more families). Shipped model: [`../domain/node-subtypes.md`](../domain/node-subtypes.md) |
-| [aspect_matrix.md](aspect_matrix.md) | **The Matrix** — every status/concept × ranged/melee/magic, living home of the concept-to-delivery table (#1199) |
-| [aspect_personas.md](aspect_personas.md) | **Aspect Personas** — each aspect as a lesser god with a character (Ivy, Cuss, …); lore, parked; built on the matrix's rows |
-| [spells.md](spells.md) | Spell identities for the 13 shipped spells (roster: `attack/spell/defs/`), the issue-backed ones, and a fenced idea pool of spells that do **not** exist |
-| [damage_over_time.md](damage_over_time.md) | The DoT family's unbuilt half — cures, per-type content, contagion, the defensive-axis matrix. The shipped model is `../domain/effect-system.md` § Status effects |
-| [status-tags.md](status-tags.md) | Status tags as a second grant channel — the shipped channel lives in `../domain/effect-system.md`; what remains here is the LifeLine grace-period design (#240) |
-| [info_gating.md](info_gating.md) | Info-gating dimensions (existence/archetype/owner/modifiers/addons/…) — why vision is a vector not a boolean, and how sensor/recon/anti-recon mechanics share one surface |
+Status is each doc's `status:` frontmatter — `exploring` → `settling` → `built`; a built doc names its `docs/domain/` twin and is then archived to [`archive/`](archive/README.md). See [`../domain/design-doc-lifecycle.md`](../domain/design-doc-lifecycle.md).
+
+| File | Status | What it covers |
+|---|---|---|
+| [../ROADMAP.md](../ROADMAP.md) | — | **Roadmap** — done / in-progress / todo across all milestones |
+| [../GDD.md](../GDD.md) | — | **Master GDD** — pitch, core loop, the supergraph, entities, combat summary, classes, progression, open questions, roadmap |
+| [lore.md](lore.md) | `exploring` | Narrative, acts, the Fairy, graph theology, the Field/Tethers/Breakout, the Fractal, tone, visual language |
+| [first_session_walkthrough.md](first_session_walkthrough.md) | `exploring` | Spoiler-free, second-person walkthrough of a player's first session — boot screen → first cut-vertex snipe and dismemberment. Funny/Questionable beats called out |
+| [combat_system.md](combat_system.md) | `exploring` | Damage pipeline (//10 spine), six-color triangle, ranged/magic/melee (phantom blade), degree → offense, self-loops, single-phase turn (intent by input channel), islands, Breakout, loot/proliferation |
+| [click_grammar.md](click_grammar.md) | `exploring` | Open threads on the click grammar — moving core-move onto the generic pop, replacing idle right-click pin/unpin. The shipped grammar is [`../domain/click-grammar.md`](../domain/click-grammar.md) |
+| [core_classes.md](core_classes.md) | `exploring` | Core-class design intent. **Shipped:** Balanced, Ninja, Serpent, Pacifist, Wise Cheater (roster: `entity/core/core_class_roster.tres`). Halo has an issue (#786); Allround, Predator, Bulwark, Hive, Frontier, Harvester are ideas only |
+| [metagame.md](metagame.md) | `exploring` | Hub between runs, meta skill tree, commit-on-completion, The Way Out |
+| [skill_node_addons.md](skill_node_addons.md) | `settling` | Node addons (Armor Ring, Buffer, Gate, Relay, Anti-Magic, etc.), Tech Seeds |
+| [skill_node_specializations.md](skill_node_specializations.md) | `exploring` | Node specializations (Corrupted, Crystallized, Anchor) — **early spitball, nothing built or scheduled**; inspiration only |
+| [node_subtypes.md](node_subtypes.md) | `exploring` | Node subtypes — open threads only (clustered placement, territory conversion, more families). Shipped model: [`../domain/node-subtypes.md`](../domain/node-subtypes.md) |
+| [aspect_matrix.md](aspect_matrix.md) | `settling` | **The Matrix** — every status/concept × ranged/melee/magic, living home of the concept-to-delivery table (#1199) |
+| [aspect_personas.md](aspect_personas.md) | `exploring` | **Aspect Personas** — each aspect as a lesser god with a character (Ivy, Cuss, …); lore, parked; built on the matrix's rows |
+| [spells.md](spells.md) | `exploring` | Spell identities for the 13 shipped spells (roster: `attack/spell/defs/`), the issue-backed ones, and a fenced idea pool of spells that do **not** exist |
+| [damage_over_time.md](damage_over_time.md) | `exploring` | The DoT family's unbuilt half — cures, per-type content, contagion, the defensive-axis matrix. The shipped model is `../domain/effect-system.md` § Status effects |
+| [status-tags.md](status-tags.md) | `exploring` | Status tags as a second grant channel — the shipped channel lives in `../domain/effect-system.md`; what remains here is the LifeLine grace-period design (#240) |
+| [info_gating.md](info_gating.md) | `exploring` | Info-gating dimensions (existence/archetype/owner/modifiers/addons/…) — why vision is a vector not a boolean, and how sensor/recon/anti-recon mechanics share one surface |
 
 ## Reading order
 

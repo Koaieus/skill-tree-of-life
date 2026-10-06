@@ -1,3 +1,7 @@
+---
+status: exploring
+---
+
 # First Session Walkthrough — From Boot to First Snipe
 
 > A spoiler-free, second-person narrative of what a player actually goes through, from the first frame of the game to the first time they dismember an enemy entity by sniping a cut vertex. Sister doc to `lore.md` and `combat_system.md`, but written from the *player's* seat, not the designer's.

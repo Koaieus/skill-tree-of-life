@@ -1,3 +1,7 @@
+---
+status: exploring
+---
+
 # Combat System Design — Skill Tree of Life
 
 > ⚠️ **Design intent, not a description of the game.** Current behaviour is code + `docs/domain/`; settled calls are [ADRs](../adr/index.md). What stays here is the philosophy, the //10 spine, and mechanics that are **not built**: the face/cycle damage model, the R/G/B triangle + resists, thorns, the degree-tier cast table, the loot draft, Breakout. The classes named here (Predator, Bulwark, Halo, Frontier, Edgelord, Hive) are not built — `core_classes.md`'s status table says which are.

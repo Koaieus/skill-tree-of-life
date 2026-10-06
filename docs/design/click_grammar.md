@@ -1,3 +1,7 @@
+---
+status: exploring
+---
+
 # Click grammar — open threads
 
 The shipped grammar (left pushes, right pops one level) is

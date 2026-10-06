@@ -1,3 +1,7 @@
+---
+status: exploring
+---
+
 # Node Specializations — Skill Tree of Life
 
 > **Status: early spitball, not a design commitment.** Owner, 2026-09-22:

@@ -1,3 +1,7 @@
+---
+status: exploring
+---
+
 # LifeLine grace — surviving disconnection (design, unbuilt: #240)
 
 > The marker half of LifeLine has shipped: the refcounted tag channel

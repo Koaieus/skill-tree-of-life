@@ -1,3 +1,7 @@
+---
+status: settling
+---
+
 # The Aspect Matrix — every concept × every attack mode
 
 > Design doc: the living table. Every status/concept must fill every column —

@@ -1,3 +1,7 @@
+---
+status: exploring
+---
+
 # Core Classes — Skill Tree of Life
 
 A **core class** defines an entity's fundamental identity — starting stat weights, core aura shape and reach, unique mechanics, and the constellation geometry it is rewarded for maintaining. Two entities with identical allocations but different core classes play completely differently.

@@ -1,3 +1,7 @@
+---
+status: exploring
+---
+
 # Node subtypes — open threads
 
 The shipped subtype axis (`regular` / `blight` / `bless`, archetype picks the

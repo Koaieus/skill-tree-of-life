@@ -1,3 +1,7 @@
+---
+status: exploring
+---
+
 # Metagame & Meta-Progression — Skill Tree of Life
 
 ---

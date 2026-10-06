@@ -1,3 +1,7 @@
+---
+status: exploring
+---
+
 # Spells — Skill Tree of Life
 
 > **The roster is code.** A spell exists if and only if it has a `SpellDef` in [`attack/spell/defs/`](../../attack/spell/defs/). Its `.tres` holds the numbers and the player-facing `description`; the propagation pipeline is [`docs/domain/spell-propagation.md`](../domain/spell-propagation.md); a shipped spell's *why* is a docstring on the filter / spread / reducer that implements it. This doc holds only what is **not built**: the design lens below, the issue-backed spells, and a fenced **idea pool** of spells that do **not** exist. Never cite an idea-pool entry as a game mechanic.

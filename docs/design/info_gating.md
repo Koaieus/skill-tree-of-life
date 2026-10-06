@@ -1,3 +1,7 @@
+---
+status: exploring
+---
+
 # Info Gating — Skill Tree of Life
 
 ---

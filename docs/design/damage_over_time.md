@@ -1,3 +1,7 @@
+---
+status: exploring
+---
+
 # Damage over time — what the DoT family could still grow
 
 > Design doc: the *unbuilt* part of the DoT family. The shipped model — the

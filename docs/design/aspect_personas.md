@@ -1,3 +1,7 @@
+---
+status: exploring
+---
+
 # Aspect Personas — the lesser gods who talk
 
 > Design doc, lore side. Each persona belongs to an aspect in
