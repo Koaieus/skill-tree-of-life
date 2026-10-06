@@ -19,6 +19,7 @@ const _DESCRIPTIONS := {
 	&"scout": "Scout arrows lit up this node's surroundings for their camp: the disc grows with the root of the stacks, only your own camp's stacks count, and one stack fades each turn.",
 	&"wither": "Every stack cuts healing on this node by 10%; past 10 stacks healing becomes damage that never closes the regen gate. A quarter of the stacks fade each turn and they never cap.",
 	&"weakness": "Attacks from the node deal less damage; deep weakness needs steady reapplication to hold.",
+	&"greed": "The node's next hit lands its negative statuses doubled, and each such hit spends one stack. Greed never fades on its own.",
 }
 
 
@@ -45,8 +46,8 @@ func test_every_authored_family_has_a_decay_slot() -> void:
 	var defs := _authored()
 	assert_eq(defs.size(), _DESCRIPTIONS.size(), "every family is pinned")
 	for id in defs:
-		if id == &"corruption":
-			assert_null(defs[id].get("decay"), "corruption does not decay")
+		if id in [&"corruption", &"greed"]:
+			assert_null(defs[id].get("decay"), "%s does not decay" % id)
 			continue
 		assert_true(defs[id].get("decay") is StatusDecay, "%s.decay is a StatusDecay" % id)
 

@@ -29,7 +29,7 @@ func test_roster_lists_every_def_in_the_directory() -> void:
 		assert_not_null(aspect)
 		listed[aspect.resource_path] = true
 	var on_disk := _tres_in(DEFS_DIR)
-	assert_eq(on_disk.size(), 9, "nine concept aspects authored")
+	assert_eq(on_disk.size(), 10, "ten concept aspects authored")
 	for path in on_disk:
 		assert_true(listed.has(path), "%s is on the roster" % path)
 	assert_eq(roster.aspects.size(), on_disk.size(), "roster lists nothing else")
