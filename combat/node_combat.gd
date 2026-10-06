@@ -647,6 +647,11 @@ func adjust_status_power(def: StatusDef, delta: float, key: Variant = true) -> v
 	_status_host.adjust_power(def, delta, key)
 
 
+## See [method StatusHost.exert].
+func exert() -> void:
+	_status_host.exert()
+
+
 ## See [method StatusHost.projected_status_damage] (#962, drawn by #953).
 func projected_status_damage() -> float:
 	return _status_host.projected_status_damage()

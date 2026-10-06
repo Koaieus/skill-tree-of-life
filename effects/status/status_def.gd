@@ -298,6 +298,14 @@ func _on_tick(_host, _before: float, _after: float) -> void:
 	pass
 
 
+## [param host] exerted: it is in a launching attack's origin set (one call per
+## attack, at its first beat), or it is the entity host of a core that moved
+## this turn (once per turn). Called for every row on the host; a row the hook
+## removes is not resurrected, a sibling it removes is skipped.
+func _on_exerted(_host) -> void:
+	pass
+
+
 ## The status left [param host] — decayed out, cured, cleared or removed.
 ## Fires exactly once per removal.
 func _on_removed(_host) -> void:

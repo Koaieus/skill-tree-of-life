@@ -181,6 +181,16 @@ func tick_statuses() -> void:
 	owner._on_statuses_changed()
 
 
+## The host exerted: [method StatusDef._on_exerted] for every row on it.
+## Iterates a COPY and re-checks presence like [method tick_statuses] — a hook
+## may remove its own row or a sibling's, and a vanished row is skipped.
+func exert() -> void:
+	for row in get_statuses():
+		if _row(row.def.id, row.key) != row:
+			continue
+		row.def._on_exerted(owner)
+
+
 ## Damage the statuses on the host still have in them (#962): the sum of
 ## [method StatusDef.projected_damage] over every row — each remaining tick
 ## as it would land (resisted, floored), so the bar equals reality; a

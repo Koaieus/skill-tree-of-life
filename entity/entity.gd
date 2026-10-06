@@ -431,6 +431,12 @@ var _fired_nodes_this_turn: Array[SkillNode] = []
 ## turn does not refill the budget.
 var volleys_launched_this_turn: int = 0
 
+## Whether this entity's core has moved this turn — the once-per-turn guard on
+## the core's exertion ([method exert_core_move]). Reset in [method begin_turn].
+## Derived from commands, so a mirror replaying the move reproduces it; NOT in
+## [EntitySnapshot] (turn-transient).
+var core_moved_this_turn: bool = false
+
 ## The leaf set this entity held when its turn STARTED (#955) — the producer
 ## set a [ReloadCommand] sums `arrows_per_reload` over (∪ the core). Captured
 ## once per turn in [method begin_turn], never re-derived at reload
@@ -799,9 +805,18 @@ func begin_turn() -> void:
 	# #956: the volley budget is per turn, first turn included — above the
 	# turns_taken == 1 upkeep skip on purpose.
 	volleys_launched_this_turn = 0
+	core_moved_this_turn = false
 	if turns_taken > 1:
 		_apply_turn_upkeep()
 	turn_began.emit()
+
+
+## The core moved: the first move of a turn exerts this entity's OWN host — where
+## a core's status rows live — never the node the core left or reached. Later
+## moves the same turn are no-ops. Called by [MoveCoreCommandHandler] after
+## each successful hop, so a peer's replay of the command reproduces it.
+func exert_core_move() -> void:
+	pass
 
 
 ## This entity's played-out turn is over: its statuses tick, the entity host

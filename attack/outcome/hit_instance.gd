@@ -20,9 +20,11 @@ extends RefCounted
 ## or a "damage dealt" reader does not see a status application as a hit.
 ## [GateFlipInstance] adds [constant Kind.GATE_FLIP]: a melee fuse's timed gate
 ## flip, no HP — it carries gate pairs and the stranded set it cascaded.
+## [ExertInstance] adds [constant Kind.EXERT]: an origin-set node exerting at
+## launch, no HP — it runs [method StatusDef._on_exerted] on the node's rows.
 ## Appended LAST: the wire carries `int(kind)`, so existing values never shift —
 ## 3 was a retired kind and stays unused.
-enum Kind { DAMAGE, HEAL, STATUS, GATE_FLIP = 4 }
+enum Kind { DAMAGE, HEAL, STATUS, GATE_FLIP = 4, EXERT = 5 }
 var kind: Kind = Kind.DAMAGE
 
 ## What [member amount] is denominated in. [constant AmountBasis.FLAT] is HP;

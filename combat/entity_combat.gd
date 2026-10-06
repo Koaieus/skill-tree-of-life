@@ -884,6 +884,11 @@ func tick_statuses() -> void:
 	_status_host.tick_statuses()
 
 
+## See [method StatusHost.exert].
+func exert() -> void:
+	_status_host.exert()
+
+
 ## See [method StatusHost.remove_status].
 func remove_status(id: StringName) -> void:
 	_status_host.remove_status(id)
