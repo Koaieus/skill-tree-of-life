@@ -216,8 +216,8 @@ Each cell links its cell issue (`<Concept> × <Facet>`, a child of the row hub i
 | Blindness | vision debuff *(proposed)* | `blindness_aspect` | #1390 — scaffold (#1349) | #1391 | `dazzle` shipped; **Throw Sand** #1392 (candidate, owner 2026-09-30) | #1250 | row: #1253. Count stacks, effect reads as a % via a saturating curve |
 | Scout (a status whose rows draw vision, #949) | reveal *(proposed)* | `scout_aspect` | scouting arrow shipped (stacks: #1345, #1346) | watchtower shipped (map face); blade face + look #1393 | #1394 | #1250 | row: #1254. `effects/status/scouted.tres` is live: the arrow lands camp-keyed stacks, VisionSystem draws `radius_for` discs from the rows (#1346); first-class concept (owner, 2026-09-30). Scout and Blindness are two PER rows by the owner's table, not one vision axis. Watchtower's offence stats and production-vs-firing: #1413 |
 | Armor break | armor debuff *(proposed)* | `armor_break_aspect` | #1395 — scaffold (#1349) | #1396 | `sunder` shipped; second spell #1397 | #1250 | row: #395 (child 0: penetration stat #1401). Flat −1 armor per stack, uncapped, can go below zero (#1203, owner 2026-09-30). School CON (round 7). Has no `_stacks_per_hit` / `_resistance` while the DEX pool rolls a raw `armor` −% bane that bypasses the aspect. `spells.md`'s Heavy / Piercing Bolt (seek max / min armor) are its second spell (#1397) |
-| Weakness | damage debuff | `weakness_aspect` | cell unfiled | cell unfiled | cell unfiled | #1250 | row: #@weak. Stacks cut damage dealt by attacks originating from the node, % on a saturating curve (round 7) |
-| Greed | status magnet | `greed_aspect` | cell unfiled | cell unfiled | cell unfiled | #1250 | row: #@greed (child 0: the landing term, #@greed-land). One Greed stack on the node doubles every negative status the next hit lands, Greed included, then one stack is spent; Hoard pays bonus XP per stack left when an attack removes the node (rounds 5–6) |
+| Weakness | damage debuff | `weakness_aspect` | cell unfiled | cell unfiled | cell unfiled | #1250 | row: #1425. Stacks cut damage dealt by attacks originating from the node, % on a saturating curve (round 7) |
+| Greed | status magnet | `greed_aspect` | cell unfiled | cell unfiled | cell unfiled | #1250 | row: #1419 (child 0: the landing term, #1420). One Greed stack on the node doubles every negative status the next hit lands, Greed included, then one stack is spent; Hoard pays bonus XP per stack left when an attack removes the node (rounds 5–6) |
 | Explosive | AoE | `explosive_aspect` | #1398 | #1399 — detonation kills the blade node, reuses spike-pop plumbing (owner, #1211) | #1400 (or none) | #1250 | row: #1211. Euclidean hitscan radius from `SkillNode.radius`; barrels / friendly fire open (#1399). The concept names the content, never the reverse (owner, 2026-10-05): *"an explosive barrel blast would at best do an *explosive* (as a concept) blast, not an \"explosive arrow blast\" literally cuz it's not like *arrows* determine the concept but the concept determines arrows+addons+spells etc."* — so the addon is an `ExplosiveBarrelAddon` doing the explosive blast. A detonated blade node is *damaged*, and today that means popped: *"so far we put their HP on 1 so they pop after taking 1 dmg"* (owner, 2026-10-05). `spells.md`'s Detonate / Supernova are its spell (#1400) |
 
 ## Rows designed in #1318
@@ -302,7 +302,7 @@ addon we don't have yet. Not saying we need one"*.
 | INT | Curse; one open slot | Curse: owner 2026-09-29. Silence went back to Contenders (owner, 2026-10-06, round 7); the slot waits, like CON's did, for an idea that fits |
 | CON | Wither, Armor break | Wither: owner 2026-10-05. Armor break: owner 2026-10-06 (round 7), *"it straddled STR+CON thematically anyway"* |
 | PER | Scout, Blindness | owner |
-| WIS | Corruption, Greed | Corruption: owner 2026-10-05. Greed: closed round 6 (owner); row #@greed |
+| WIS | Corruption, Greed | Corruption: owner 2026-10-05. Greed: closed round 6 (owner); row #1419 |
 
 Procgen still ships the 2026-09-22 grid (curse → CON, wither → INT,
 corruption → STR); it moves to this table as a content fix (#1249). Pairs
@@ -513,7 +513,7 @@ lightning's hops become mechanics that existing rows can use.
   its AP. Name: **Weakness** is the pass's tentative pick from the owner's list
   (*"weakness, or weakening? enfeeble also sounds good. `sap` also comes to
   mind as snappy"*); Sap and Enfeeble are face names waiting for a spell or
-  arrow cell. Stat `weakness_aspect`, status *weakened*. Row #@weak.
+  arrow cell. Stat `weakness_aspect`, status *weakened*. Row #1425.
 - **Armor break → CON, Weakness → STR.** Owner: *"how about this: armor break
   -> CON (it straddled STR+CON thematically anyway?); weakness -> STR"*. Spread
   2/2/1/2/2/2, INT now holding the open slot.
@@ -527,7 +527,7 @@ lightning's hops become mechanics that existing rows can use.
 - **Coolness gets its own archetype (owner, 2026-10-06):** *"a new archetype
   (low weight, few per 100 nodes) that rolls just coolness and draws itself
   with the fanciest morphing rainbow shaders on the rim does sound cool"*.
-  Not a school: it still has no verb and no row. Filed as #@cool.
+  Not a school: it still has no verb and no row. Filed as #1430.
 - **Hex may become a concept later** (owner: *"which does sound enticing"*);
   the shipped spell `hex` keeps its name until then. The pass's association,
   for the Contenders table: a hex is a *jinx*, the misfortune lever — chance
@@ -601,7 +601,7 @@ proposal, 2026-10-05; the per-addon calls live in
 | Spell routing | Anti-Magic, Conduit, Relay, Void? | needs design. Anti-Magic (+1 hop cost through the node) is an addon, not a status, and never Silence's twin (owner, round 7). Owner shapes, 2026-10-06: a hop-nabbing "black hole, but less intense", a node that mangles its local `degree` to confuse degree-targeting spells, a projectile-eater (struck by the owner as unbalanced). Relay's damage bonus is spell power riding a routing addon |
 | Growth | Skill Dust | shipped; technical — consumed on allocation, never persistent; a loot window (`begin_claim` / `offers_for`), not a placed addon. Owner: WIS-related (*"permanent growth"*) |
 | — | Buffer | discontinued indefinitely (owner, 2026-10-05) |
-| Coolness | the pure-coolness archetype | owner, 2026-10-06: its own low-weight procgen archetype rolling only coolness, rainbow-rim look; #@cool. Not a school |
+| Coolness | the pure-coolness archetype | owner, 2026-10-06: its own low-weight procgen archetype rolling only coolness, rainbow-rim look; #1430. Not a school |
 
 ## Axes: attacked and defended
 
