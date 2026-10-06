@@ -6,11 +6,11 @@ Licensed under [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/). Recolo
 
 | Output file | Identity | Source | Author |
 |---|---|---|---|
-| strength.png | strength | fist.svg | Lorc |
-| dexterity.png | dexterity | wingfoot.svg | Lorc |
+| strength.png | strength | biceps.svg | Delapouite |
+| dexterity.png | dexterity | bullseye.svg | Skoll |
 | intelligence.png | intelligence | brain.svg | Lorc |
-| wisdom.png | wisdom | sunrise.svg | Lorc |
+| wisdom.png | wisdom | open-book.svg | Lorc |
 | perception.png | perception | eye-target.svg | Delapouite |
-| constitution.png | constitution | stone-tower.svg | Lorc |
+| constitution.png | constitution | heart-tower.svg | Lorc |
 | health.png | health | hearts.svg | Skoll |
 | xp.png | xp | upgrade.svg | Delapouite |

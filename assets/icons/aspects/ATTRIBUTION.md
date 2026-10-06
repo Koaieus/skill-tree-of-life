@@ -7,10 +7,10 @@ Licensed under [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/). Recolo
 | Output file | Identity | Source | Author |
 |---|---|---|---|
 | poison.png | poison | droplets.svg | Lorc |
-| corruption.png | corruption | devil-mask.svg | Delapouite |
+| corruption.png | corruption | gooey-molecule.svg | Lorc |
 | curse.png | curse | pentacle.svg | Skoll |
-| wither.png | wither | falling-leaf.svg | Lorc |
+| wither.png | wither | dead-wood.svg | Lorc |
 | armor_break.png | armor_break | cracked-shield.svg | Lorc |
-| blindness.png | blindness | blindfold.svg | Delapouite |
+| blindness.png | blindness | sight-disabled.svg | Skoll |
 | scout.png | scout | binoculars.svg | Delapouite |
 | explosive.png | explosive | spiky-explosion.svg | Lorc |

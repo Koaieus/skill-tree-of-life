@@ -11,10 +11,10 @@
 # Picked at the 24 px they ship at: bold closed silhouettes, persona as flavour
 # (docs/design/aspect_personas.md). Every .png.import sets mipmaps/generate=true.
 poison	lorc/droplets.svg
-corruption	delapouite/devil-mask.svg
+corruption	lorc/gooey-molecule.svg
 curse	skoll/pentacle.svg
-wither	lorc/falling-leaf.svg
+wither	lorc/dead-wood.svg
 armor_break	lorc/cracked-shield.svg
-blindness	delapouite/blindfold.svg
+blindness	skoll/sight-disabled.svg
 scout	delapouite/binoculars.svg
 explosive	lorc/spiky-explosion.svg

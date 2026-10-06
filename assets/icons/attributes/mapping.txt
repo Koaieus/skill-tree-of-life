@@ -11,11 +11,11 @@
 # Attributes are the Titan-class gods (docs/design/aspect_personas.md): heavier,
 # more abstract silhouettes than the aspects'. Picked at 24 px; every .png.import
 # sets mipmaps/generate=true.
-strength	lorc/fist.svg
-dexterity	lorc/wingfoot.svg
+strength	delapouite/biceps.svg
+dexterity	skoll/bullseye.svg
 intelligence	lorc/brain.svg
-wisdom	lorc/sunrise.svg
+wisdom	lorc/open-book.svg
 perception	delapouite/eye-target.svg
-constitution	lorc/stone-tower.svg
+constitution	lorc/heart-tower.svg
 health	skoll/hearts.svg
 xp	delapouite/upgrade.svg
