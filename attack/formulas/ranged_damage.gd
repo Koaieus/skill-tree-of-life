@@ -38,6 +38,7 @@ static func compute(attacker: Entity, firing_node: SkillNode, target: SkillNode,
 	hit.type = DamageInstance.Type.PHYSICAL
 	hit.target = target
 	hit.origin = firing_node
+	hit.read_node = firing_node
 	hit.amount = _read_offense(firing_node.get_combat() if firing_node != null else null)
 	if ammo_type != null:
 		hit.amount *= ammo_type.damage_scale
@@ -68,6 +69,7 @@ static func riders_for(hit: DamageInstance) -> Array[HitInstance]:
 	landing.attacker = arrow.attacker
 	landing.source = arrow.source
 	landing.origin = arrow.origin
+	landing.read_node = arrow.read_node
 	landing.target = arrow.target
 	landing.structural_key = arrow.structural_key
 	landing.paired = arrow

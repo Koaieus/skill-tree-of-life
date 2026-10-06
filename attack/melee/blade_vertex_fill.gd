@@ -36,6 +36,7 @@ func fill(state: BladeState, nodes: Array[SkillNode]) -> void:
 		for i in nodes.size():
 			column[i] = _read(nodes[i], VERTEX_STATS[k])
 		state.set(STATE_ARRAYS[k], column)
+	state.vertex_node.assign(nodes)
 	for i in nodes.size():
 		for addon in nodes[i].get_addons():
 			addon.apply_to_blade(state, i)

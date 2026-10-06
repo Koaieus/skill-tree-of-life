@@ -27,6 +27,7 @@ func _apply_spell(lctx: LandingContext) -> void:
 	heal.source = state
 	heal.target = state.current_node
 	heal.origin = state.predecessor if state.predecessor != null else state.source
+	heal.read_node = state.source
 	lctx.cast.outcome.hits.append(heal)
 
 ## Same D-32 number as [method DamageEffect.get_description] — heal amount

@@ -12,7 +12,7 @@ extends OnHitEffect
 ##
 ## Reads only the mode-agnostic [HitLanding] (ADR 0044), so it works on a
 ## spell's landing, an arrow's and a blade contact's alike: the emitted
-## status copies the landing's attacker / source / origin / target /
+## status copies the landing's attacker / source / origin / read node / target /
 ## structural key, and rides [member HitLanding.paired] — the status applies
 ## iff that primary hit landed ([member StatusInstance.paired]).
 
@@ -31,6 +31,7 @@ func apply(landing: HitLanding) -> void:
 	status.source = landing.source
 	status.target = landing.target
 	status.origin = landing.origin
+	status.read_node = landing.read_node
 	status.structural_key = landing.structural_key
 	status.paired = landing.paired
 	landing.hits.append(status)

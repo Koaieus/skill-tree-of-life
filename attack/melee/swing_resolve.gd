@@ -404,6 +404,9 @@ func _land_batch(
 		di.type = DamageInstance.Type.PHYSICAL
 		di.target = ev.target as SkillNode
 		di.origin = _ctx.origin
+		# The pivot is the VFX origin; the stats this contact reads are its
+		# own vertex's, copied from that node.
+		di.read_node = state.vertex_node[ev.particle_idx]
 		di.source = _ctx.hit_source
 		di.attacker = _ctx.attacker
 		# Melee is #543's honest caveat: its structural parameter IS continuous
@@ -421,6 +424,7 @@ func _land_batch(
 			landing.attacker = di.attacker
 			landing.source = di.source
 			landing.origin = di.origin
+			landing.read_node = di.read_node
 			landing.target = di.target
 			landing.structural_key = di.structural_key
 			landing.paired = di

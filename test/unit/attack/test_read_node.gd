@@ -104,9 +104,11 @@ func test_a_resolved_volleys_hits_read_their_firing_leaf() -> void:
 	var ctx: Dictionary = await _build()
 	var outcome := _ranged_plan(ctx).resolve()
 	assert_gt(outcome.hits.size(), 0, "the fixture volley must resolve hits")
+	# Every attacker node in range fires — core and leaf both — so each hit is
+	# checked against its own firing node, which ranged's origin names.
 	for hit in outcome.hits:
-		assert_eq(hit.read_node, ctx.nodes.leaf, "an arrow reads its firing leaf")
-		assert_eq(hit.read_node, hit.origin, "ranged: read node == origin")
+		assert_not_null(hit.read_node, "an arrow reads its firing leaf")
+		assert_eq(hit.read_node, hit.origin, "ranged: read node == origin == firing leaf")
 
 
 func test_a_typed_arrows_riders_carry_its_read_node() -> void:

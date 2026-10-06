@@ -46,7 +46,8 @@ var incidents: Array[CastSpell] = []
 ## Fill the inherited [HitLanding] fields from [member cast] and
 ## [member payload]: attacker = the caster, source = the payload, target = its
 ## node, origin = its predecessor (the seed falls back to its cast-from node,
-## so the first projectile flies from there), structural key = its hop
+## so the first projectile flies from there), read node = the cast source on
+## every hop, structural key = its hop
 ## ordinal, and [member HitLanding.hits] = the cast outcome's own array, by
 ## reference. Call once [member cast] and [member payload] are set.
 func fill_landing() -> void:
@@ -58,6 +59,7 @@ func fill_landing() -> void:
 	source = payload
 	target = payload.current_node
 	origin = payload.predecessor if payload.predecessor != null else payload.source
+	read_node = payload.source
 	structural_key = float(payload.hop_index)
 
 

@@ -39,6 +39,7 @@ func _apply_spell(lctx: LandingContext) -> void:
 	hit.source = state
 	hit.target = state.current_node
 	hit.origin = state.predecessor if state.predecessor != null else state.source
+	hit.read_node = state.source
 	lctx.cast.outcome.hits.append(hit)
 
 ## No [param spell] (no preview context) reads as the generic fragment;
