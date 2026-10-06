@@ -479,7 +479,7 @@ viewer_id)`; nothing reads it with a viewer yet.
   rule stamps that key on each `StackTransfer`, `SpreadApplier` lands it there.
   A recorded spill does not carry its key on the wire yet (the `AttackRecord`
   spill columns): a replay lands under `true`, identical for every shared def.
-- A save stores each row as `[def_idx, power, key, camp_id, applier_id]`
+- A save stores each row as `[def_idx, power, key, camp_id, applier_id, decay_step]`
   (`SaveFile.FORMAT_VERSION` 2) and restores the key verbatim (`restore_row`),
   never recomputed through the def.
 - An `Expression` parses an unknown identifier fine, so `StatusDef.parse_error`
