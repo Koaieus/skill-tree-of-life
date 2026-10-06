@@ -846,8 +846,11 @@ alone. Grouping is therefore already the shape (an ADR 0029 parent), and
 composing a resistance into `Aspect` needs no subclass: `Aspect` composes
 `stat` + `status`, and `StatusDef.resistance_stat_id` is already the edge.
 Procgen: a resistance rolls on **blessed** nodes only, in its school pack,
-ADD_BASE unit 0.05 at T2–T4 (+15 / +35 / +75 %); under ADR 0031's half-down
-a lone stack needs > 50 % to lose anything, two stacks > 25 %, five > 10 %.
+ADD_BASE unit 0.05 at T2–T4, the value rung indexed from the pool's
+`min_tier` (`StatPool._tier_magnitude_bounds`): up to +5 % at T2, +5–15 % at
+T3, +15–35 % at T4. Under ADR 0031's half-down a lone stack needs > 50 % to
+lose anything, two stacks > 25 %, five > 10 % — so a T3 node bites from four
+or five stacks and a T4 from two or three; no single roll touches a lone stack.
 
 **Greed takes no % resistance** (owner, 2026-10-06): *"greed cannot have a %
 based resistance, wouldn't make sense "1 greed stack consumed to get you 1.99
