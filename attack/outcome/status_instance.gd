@@ -55,7 +55,10 @@ var host_kind: HostKind = HostKind.NODE
 ## power (a dud's recorded 0, which [method NodeCombat.apply_status] ignores).
 var paired: HitInstance = null
 
-## The landing this status rode in on ([member HitLanding.hit_key]).
+## The hit this status rode in on ([member HitLanding.hit_key]) — what
+## [method StatusHost.greed_arm] answers once per hit. Shipped by
+## [AttackRecord] so a replay spends on the same hit the shadow did; `0` (a
+## hand-built instance, no landing) is a fresh hit every time.
 var hit_key: int = 0
 
 
@@ -90,6 +93,13 @@ func _init() -> void:
 ## the hit resolves to 0, which [method StatusHost.apply_status]'s
 ## non-positive gate makes a no-op. Resolved once: a rebuilt hit arrives
 ## [member power_resolved] and lands the recorded number as-is.
+##
+## Greed (the defender-side term): a landed, positive, `debuff`-tagged power
+## doubles iff the receiving host [method StatusHost.greed_arm]s this hit —
+## after the stacks fold and the block gate, so a blocked rider never spends.
+## A rebuilt hit's recorded power is already doubled, but it still arms, so
+## the live host spends the stack the shadow spent. The host is the landing
+## host: entity Greed is read only on a fall-through, node Greed otherwise.
 func land_on(node: NodeCombat, _world: CombatWorld) -> void:
 	if paired != null and not paired.landed():
 		gated = true
@@ -115,10 +125,20 @@ func land_on(node: NodeCombat, _world: CombatWorld) -> void:
 			power = def.stacks_per_hit(_attacker_board(), power)
 			if host.blocks_status(def):
 				power = 0.0
+			if _greed_arms(host):
+				power *= 2.0
 		power_resolved = true
+	else:
+		_greed_arms(host)
 	host.apply_status(def, power, _attacker_camp_id(), _attacker_id())
 	amount = power
 	effective_amount = power
+
+
+## Whether this landing is a debuff with stacks AND [param host] arms Greed
+## for its hit — spending one stack the first time it sees [member hit_key].
+func _greed_arms(host) -> bool:
+	return def != null and power > 0.0 and def.tags.has(&"debuff") and host.greed_arm(hit_key)
 
 
 ## The applier's camp for [method StatusDef.group_key]: its faction's id,

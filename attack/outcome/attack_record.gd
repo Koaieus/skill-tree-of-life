@@ -124,6 +124,10 @@ const KEY_HIT_AMMO_TYPE := "h_ammo"
 ## non-STATUS hit. The landed host is a resolved fact like `power_resolved`:
 ## a peer lands on the shipped host, never re-derives it from node HP.
 const KEY_HIT_STATUS_HOST := "h_shost"
+## [member StatusInstance.hit_key] per hit (#1420) — `0` for every non-STATUS
+## hit. The replay arms Greed on the same hit the shadow did, so the live
+## host spends exactly what the shadow spent, once per hit.
+const KEY_HIT_STATUS_KEY := "h_skey"
 ## Forced deallocations, flattened across ALL hits (#518) — one entry per
 ## cascaded node, plus [constant KEY_DEALLOC_COUNT] giving how many belong to
 ## each hit, in hit order. Same parallel-scalars discipline as the hit arrays:
@@ -210,6 +214,7 @@ var hp_max := PackedFloat64Array()
 var pops := PackedInt32Array()
 var status_defs := PackedStringArray()
 var status_hosts := PackedInt32Array()
+var status_keys := PackedInt32Array()
 ## Flattened across all hits; `dealloc_counts` slices the run back apart.
 var dealloc_counts := PackedInt32Array()
 var dealloc_nodes := PackedInt32Array()
@@ -264,6 +269,7 @@ static func wire_fields() -> Array[WireFields.Field]:
 		WireFields.Field.new(&"status_defs", TYPE_PACKED_STRING_ARRAY).as_key(KEY_HIT_STATUS_DEF),
 		WireFields.Field.new(&"ammo_types", TYPE_PACKED_STRING_ARRAY).as_key(KEY_HIT_AMMO_TYPE),
 		WireFields.Field.new(&"status_hosts", TYPE_PACKED_INT32_ARRAY).as_key(KEY_HIT_STATUS_HOST),
+		WireFields.Field.new(&"status_keys", TYPE_PACKED_INT32_ARRAY).as_key(KEY_HIT_STATUS_KEY),
 		WireFields.Field.new(&"dealloc_counts", TYPE_PACKED_INT32_ARRAY).as_key(KEY_DEALLOC_COUNT),
 		WireFields.Field.new(&"dealloc_nodes", TYPE_PACKED_INT32_ARRAY).as_key(KEY_DEALLOC_NODE),
 		WireFields.Field.new(&"dealloc_levels", TYPE_PACKED_INT32_ARRAY).as_key(KEY_DEALLOC_LEVEL),
@@ -333,6 +339,7 @@ static func capture(outcome: AttackOutcome, graph: Graph) -> Dictionary:
 		var status_hit := hit as StatusInstance
 		r.status_defs.append(status_hit.def.resource_path if status_hit != null and status_hit.def != null else "")
 		r.status_hosts.append(int(status_hit.host_kind) if status_hit != null else 0)
+		r.status_keys.append(status_hit.hit_key if status_hit != null else 0)
 		r.dealloc_counts.append(hit.deallocations.size())
 		for e in hit.deallocations:
 			# The id, never the reference (`.claude/rules/multiplayer-sync.md`).
@@ -445,6 +452,8 @@ static func rebuild(d: Dictionary, graph: Graph, rate: float = -1.0) -> AttackOu
 			# the shipped host, never re-derives it from its own node HP.
 			if i < r.status_hosts.size():
 				si.host_kind = r.status_hosts[i] as StatusInstance.HostKind
+			if i < r.status_keys.size():
+				si.hit_key = r.status_keys[i]
 			hit = si
 		elif r.kinds[i] == int(HitInstance.Kind.EXERT):
 			hit = ExertInstance.new()

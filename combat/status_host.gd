@@ -32,6 +32,10 @@ var _statuses: Dictionary[StringName, Dictionary] = {}
 ## strong back-reference would be a RefCounted cycle — a shadow slice would
 ## never free (`test_snapshot_and_free_shadow_leaks_nothing`).
 var _owner_ref: WeakRef
+## The hits [method greed_arm] already answered on this host, `hit_key -> true`.
+var _greed_armed: Dictionary[int, bool] = {}
+## Greed's status id — the one row [method greed_arm] spends.
+const GREED_ID := &"greed"
 ## The composing slice — the `host` every def hook sees. Untyped on purpose:
 ## the contract above is duck-typed. Null once the slice is gone.
 var owner:
@@ -300,9 +304,24 @@ func _resistance(def: StatusDef) -> float:
 	return float(v) if v != null else 0.0
 
 
-## Greed's defender-side term for the hit [param hit_key].
-func greed_arm(_hit_key: int) -> bool:
-	return false
+## Greed's defender-side term (#1420): does the hit [param hit_key] land its
+## debuffs doubled on this host? True if this host already armed that hit (a
+## second rider of one hit); else, with a whole Greed stack on the host, spend
+## one ([method adjust_power]: settle + notify), remember the hit, true; else
+## false. One spend per HIT however many riders it carries, in any landing
+## order. [param hit_key] `0` (no landing behind it) is never remembered, so
+## each such call is a fresh hit. The memo is per host object: a shadow clone
+## starts empty and nothing saves it — hits are not replayed across a load.
+func greed_arm(hit_key: int) -> bool:
+	if hit_key != 0 and _greed_armed.has(hit_key):
+		return true
+	var row := _row(GREED_ID, true)
+	if row == null or row.power < 1:
+		return false
+	adjust_power(row.def, -1.0)
+	if hit_key != 0:
+		_greed_armed[hit_key] = true
+	return true
 
 
 ## Current power of the row `([param id], [param key])`, `0.0` when absent.

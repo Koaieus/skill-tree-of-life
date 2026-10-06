@@ -34,6 +34,7 @@ func apply(landing: HitLanding) -> void:
 	status.read_node = landing.read_node
 	status.structural_key = landing.structural_key
 	status.paired = landing.paired
+	status.hit_key = landing.hit_key
 	landing.hits.append(status)
 
 

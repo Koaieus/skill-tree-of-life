@@ -31,6 +31,16 @@ var paired: HitInstance = null
 ## The sink: every [HitInstance] an effect emits is appended here, in order.
 ## Usually the outcome's own [member AttackOutcome.hits], by reference.
 var hits: Array[HitInstance] = []
-## Which hit this is: unique per landing. Every rider a landing emits
-## carries it as [member StatusInstance.hit_key].
+## Which hit this is — unique per landing, process-wide monotonic from 1;
+## equality is the only thing anyone reads, never order. Every rider the
+## landing emits carries it as [member StatusInstance.hit_key], so a host can
+## tell "another rider of a hit I already answered" from "a new hit" (Greed's
+## one spend per hit, [method StatusHost.greed_arm]).
 var hit_key: int = 0
+
+static var _next_hit_key: int = 1
+
+
+func _init() -> void:
+	hit_key = _next_hit_key
+	_next_hit_key += 1
