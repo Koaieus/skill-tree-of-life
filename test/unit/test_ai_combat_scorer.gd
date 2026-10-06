@@ -106,11 +106,11 @@ func test_expected_damage_matches_mitigation_of_each_hit() -> void:
 	var outcome := _resolve_ranged_at(_nodes[2])
 
 	var expected := 0.0
-	for hit in outcome.hits:
+	for hit in _combat_hits(outcome):
 		expected += Mitigation.apply(hit, hit.target)
 
 	assert_almost_eq(AiCombatScorer.expected_damage(outcome), expected, 0.001)
-	assert_gt(outcome.hits.size(), 0, "fixture leaf should land at least one hit")
+	assert_gt(_combat_hits(outcome).size(), 0, "fixture leaf should land at least one hit")
 
 
 func test_expected_damage_ignores_hits_on_blocker_owned_nodes() -> void:
@@ -457,7 +457,7 @@ func test_arrows_to_kill_counts_landing_order_hits_until_hp_is_met() -> void:
 	plan.target = _nodes[3]
 	assert_true(plan.is_valid(), str(plan.validate()))
 	var outcome := plan.resolve()
-	var per_arrow: float = outcome.hits[0].effective_amount
+	var per_arrow: float = _combat_hits(outcome)[0].effective_amount
 	assert_gt(per_arrow, 0.0)
 	_true_damage(_nodes[3], _nodes[3].get_current_hp() - per_arrow * 2.5)
 
@@ -472,7 +472,7 @@ func test_arrows_to_kill_ignores_status_riders_behind_the_arrows() -> void:
 	plan.attacker = _ai
 	plan.target = _nodes[3]
 	var outcome := plan.resolve()
-	var per_arrow: float = outcome.hits[0].effective_amount
+	var per_arrow: float = _combat_hits(outcome)[0].effective_amount
 	_true_damage(_nodes[3], _nodes[3].get_current_hp() - per_arrow * 2.5)
 	var bare := AiCombatScorer.arrows_to_kill(outcome, _nodes[3])
 	assert_eq(bare, 3)
@@ -508,13 +508,22 @@ func test_arrows_to_kill_on_a_core_reaches_through_the_owners_health() -> void:
 	plan.attacker = _ai
 	plan.target = _nodes[2]
 	var outcome := plan.resolve()
-	var per_arrow: float = outcome.hits[0].effective_amount
+	var per_arrow: float = _combat_hits(outcome)[0].effective_amount
 	var reach: float = _nodes[2].get_current_hp() + _hostile.stat_board.health.current
 	var expected := ceili(reach / per_arrow)
 	assert_gt(expected, ceili(_nodes[2].get_current_hp() / per_arrow), "fixture: health adds arrows")
 
 	var got := AiCombatScorer.arrows_to_kill(outcome, _nodes[2])
-	if expected <= outcome.hits.size():
+	if expected <= _combat_hits(outcome).size():
 		assert_eq(got, expected)
 	else:
 		assert_eq(got, -1, "five arrows do not reach through the health pool")
+
+
+## The attack's combat landings — every hit but the origin set's exertions.
+func _combat_hits(outcome: AttackOutcome) -> Array[HitInstance]:
+	var out: Array[HitInstance] = []
+	for hit in outcome.hits:
+		if not hit is ExertInstance:
+			out.append(hit)
+	return out

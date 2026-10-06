@@ -210,7 +210,8 @@ func test_a_vertex_built_from_a_carrier_without_a_dot_addon_emits_only_its_damag
 	var outcome := _plan().resolve_against(CombatWorld.live())
 
 	assert_gt(outcome.damage_hits().size(), 0, "fixture: the tip contacts")
-	assert_eq(outcome.hits.size(), outcome.damage_hits().size(), "nothing rides a plain vertex")
+	assert_eq(outcome.hits.filter(func(h: HitInstance) -> bool: return not h is ExertInstance).size(),
+			outcome.damage_hits().size(), "nothing rides a plain vertex")
 
 
 # ── ranged face ──────────────────────────────────────────────────────────────

@@ -735,8 +735,9 @@ func _effective_per_arrow(target: SkillNode = _nodes[2]) -> float:
 	plan.target = target
 	plan.ammo_counts = {AmmoTypeRoster.BASE_ID: 1}
 	var outcome := plan.resolve()
-	assert_eq(outcome.hits.size(), 1, "fixture: one arrow resolves: %s / reach=%s / hostile=%s" % [str(plan.validate()), plan.get_reaching_firing_positions().size(), target.ownership_bit(_enemy)])
-	return outcome.hits[0].effective_amount
+	var arrows := outcome.hits.filter(func(h: HitInstance) -> bool: return not h is ExertInstance)
+	assert_eq(arrows.size(), 1, "fixture: one arrow resolves: %s / reach=%s / hostile=%s" % [str(plan.validate()), plan.get_reaching_firing_positions().size(), target.ownership_bit(_enemy)])
+	return (arrows[0] as HitInstance).effective_amount
 
 
 func test_one_volley_sized_to_the_kill_plus_margin_never_four_single_shots() -> void:

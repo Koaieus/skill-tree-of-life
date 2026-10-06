@@ -80,9 +80,10 @@ func test_resolver_produces_monotonic_hop_indices() -> void:
 	# this line graph. Pinned so a resolver regression doesn't silently
 	# turn the timing tests into nonsense assertions.
 	var outcome := _build_4hop_outcome()
-	assert_eq(outcome.hits.size(), 4)
+	var landings := outcome.hits.filter(func(h: HitInstance) -> bool: return not h is ExertInstance)
+	assert_eq(landings.size(), 4)
 	for i in 4:
-		var src: Variant = outcome.hits[i].source
+		var src: Variant = (landings[i] as HitInstance).source
 		assert_true(src is CastSpell, "hit %d source should be CastSpell" % i)
 		assert_eq((src as CastSpell).hop_index, i,
 				"hit %d should be hop %d" % [i, i])
