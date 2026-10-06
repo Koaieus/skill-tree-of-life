@@ -311,8 +311,8 @@ Mechanics sketch: White (W) nodes generate double or triple normal xp_per_turn. 
 4. **Shell Shift balance:** No hard cap on shell_distance by design. Monitor in playtesting: does the self-limiting resource cost (ring coverage requires nodes at the new distance) actually prevent degenerate strategies, or does it need a soft cap?
 5. **Serpent Winch cap** (only if the Winch addon is built): at what effective euclidean reduction per node would Winch trivialize the penalty? It would need a hard cap.
 6. **Frontier + Bleeding Edge:** Does the Frontier benefit from leaf nodes created by islands in the process of dissolving?
-7. **Halo anti-ranged / anti-magic reflect:** Thorns is melee-only for now. Does the shell aura eventually provide deflect or reflect against ranged and magic too? TBD after combat prototypes.
+7. ~~Halo anti-ranged / anti-magic reflect~~ — struck: Thorns fails the facet rule and Halo is not a design basis (owner, 2026-10-05, `aspect_matrix.md` § Schools round 3).
 8. **Halo UI for ring distortion:** Should the game show hop distance changes in real time as nodes are sniped? Accessibility concern — the topology insight may not be obvious without visual feedback.
-9. **`thorns_base` upgrade path:** What's the ceiling? At what value does the shell deter all melee, removing a damage type from viable counterplay?
+9. ~~`thorns_base` upgrade path~~ — struck with Thorns (owner, 2026-10-05).
 10. **Relay addon:** Referenced in earlier docs as established. It is not confirmed. TBD pending magic propagation design. See `skill_node_addons.md`.
-11. **Halo spike-ring collision model:** does the shell's spikes use the *structural* model (de-rigidify incoming blades) or only flat counter-damage? And does the aura spike **enemy-owned** nodes that allocate onto the ring (positional self-harm)? Both gated on the global Spikes collision-model pass. See `combat_system.md` OQ32 and `skill_node_addons.md` (Spikes).
+11. ~~Halo spike-ring collision model~~ — superseded: the anti-blade pop face's fate is #1369 (owner lean: Explosive); Halo will be reskinned or redesigned, not built on (owner, 2026-10-05).

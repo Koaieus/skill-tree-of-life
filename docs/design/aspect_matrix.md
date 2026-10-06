@@ -71,6 +71,20 @@ default:
 - **Spell** — *"should generally apply stacks of the status that goes with
   the aspect, or do something that thematically matches it"*, with a twist
   of its own.
+  **A status's coverage is four shapes (owner, 2026-10-05; merged into the
+  rule 2026-10-06):** many small hits (+1 stack each), few big hits (+10
+  each), a utility hit (no damage, doubles the stacks on the node it hits),
+  and a boon (no damage, cleanses the stacks and leaves a benefit per stack
+  cleared — the only buff face there is; buffs are never a row). A status's
+  first spell takes one shape; the other three are the gaps a second spell,
+  an infusion or an arrow may close, and a shape an infusion fills needs no
+  spell. Spells differ from each other by topology (Reverberator on
+  self-loops, Trail Blazer on 2-degree strings, Leafblower on leaves) — that
+  is the twist — so the eight conceptless damage spells are the spell library,
+  not orphans. Today `venom`, `hex`, `dazzle` and `sunder` are one template
+  (3-hop single target, 0.4 power, one status, differing in stack count
+  only): no first spell has its shape yet, so a second-spell fork (#1381,
+  #1397) starts by giving the first one its shape.
   **A second spell is optional, never a default (owner, 2026-10-03):** one
   closes a gap, never fills a slot. Owner: *"extra spell only needed if gaps
   are to be closed or e.g. a spell that does "many hits low poison stacks"
@@ -196,13 +210,15 @@ Each cell links its cell issue (`<Concept> × <Facet>`, a child of the row hub i
 | Concept | Tag | Stat | Ranged (arrow) | Addon (map / temp) | Spell | Magic (infusion) | Notes |
 |---|---|---|---|---|---|---|---|
 | Poison | DoT | `poison_aspect` | shipped; look designed (see "Rows designed in #1318"), building in #1352 | #1271 — designed (see "Rows designed in #1318"), needs an acceptance spec | `venom` shipped; second spell #1381 | #1250 | row: #1377. Spread signature deferred to an authoring pass (owner, #1204) |
-| Corruption | buildup, %dmg, spread | `corruption_aspect` | #1382 — scaffold (#1349) | #1383 | #1384 | #1250 | row: #1378. Spreads as a sandpile by nature (#1202); health bar shows blips per stack, extra-mean when critical (#1092) |
-| Curse | fragility, spill | `curse_aspect` | #1385 — scaffold (#1349) | #1386 | `hex` shipped; no second spell proposed | #1250 | row: #1379. Raises `min_damage_taken`; spills to surviving direct neighbours on death AND dealloc (#1204) |
-| Wither | anti-heal *(proposed)* | `wither_aspect` | #1387 — scaffold (#1349) | #1388 | #1389 | #1250 | row: #1380. Drives healing received negative |
+| Corruption | buildup, %dmg, spread | `corruption_aspect` | #1382 — scaffold (#1349) | #1383 | #1384 | #1250 | row: #1378. Spreads as a sandpile by nature (#1202) — no `spread` authored yet, the diffusion classes are test-only; health bar shows blips per stack, extra-mean when critical (#1092). `skill_node_specializations.md`'s Corrupted Node is this row's content under another name; its penalties (double damage, floor −1) are Curse's and the floor axis's |
+| Curse | fragility, spill | `curse_aspect` | #1385 — scaffold (#1349) | #1386 | `hex` shipped; no second spell proposed | #1250 | row: #1379. Raises `min_damage_taken`; spills to surviving direct neighbours on death AND dealloc (#1204) — the only authored spread today (`spill_spread.gd`). `spells.md`'s Aftershock restates this spill |
+| Wither | anti-heal *(proposed)* | `wither_aspect` | #1387 — scaffold (#1349) | #1388 | #1389 | #1250 | row: #1380. Drives healing received negative. `spells.md`'s Flood wants this anti-heal (#1389) |
 | Blindness | vision debuff *(proposed)* | `blindness_aspect` | #1390 — scaffold (#1349) | #1391 | `dazzle` shipped; **Throw Sand** #1392 (candidate, owner 2026-09-30) | #1250 | row: #1253. Count stacks, effect reads as a % via a saturating curve |
-| Scout (a status whose rows draw vision, #949) | reveal *(proposed)* | `scout_aspect` | scouting arrow shipped (stacks: #1345, #1346) | watchtower shipped (map face); blade face + look #1393 | #1394 | #1250 | row: #1254. `effects/status/scouted.tres` is live: the arrow lands camp-keyed stacks, VisionSystem draws `radius_for` discs from the rows (#1346); first-class concept (owner, 2026-09-30) |
-| Armor break | armor debuff *(proposed)* | `armor_break_aspect` | #1395 — scaffold (#1349) | #1396 | `sunder` shipped; second spell #1397 | #1250 | row: #395 (child 0: penetration stat #1401). Flat −1 armor per stack, uncapped, can go below zero (#1203, owner 2026-09-30) |
-| Explosive | AoE | `explosive_aspect` | #1398 | #1399 — detonation kills the blade node, reuses spike-pop plumbing (owner, #1211) | #1400 (or none) | #1250 | row: #1211. Euclidean hitscan radius from `SkillNode.radius`; barrels / friendly fire open (#1399). The concept names the content, never the reverse (owner, 2026-10-05): *"an explosive barrel blast would at best do an *explosive* (as a concept) blast, not an \"explosive arrow blast\" literally cuz it's not like *arrows* determine the concept but the concept determines arrows+addons+spells etc."* — so the addon is an `ExplosiveBarrelAddon` doing the explosive blast. A detonated blade node is *damaged*, and today that means popped: *"so far we put their HP on 1 so they pop after taking 1 dmg"* (owner, 2026-10-05) |
+| Scout (a status whose rows draw vision, #949) | reveal *(proposed)* | `scout_aspect` | scouting arrow shipped (stacks: #1345, #1346) | watchtower shipped (map face); blade face + look #1393 | #1394 | #1250 | row: #1254. `effects/status/scouted.tres` is live: the arrow lands camp-keyed stacks, VisionSystem draws `radius_for` discs from the rows (#1346); first-class concept (owner, 2026-09-30). Scout and Blindness are two PER rows by the owner's table, not one vision axis. Watchtower's offence stats and production-vs-firing: #1413 |
+| Armor break | armor debuff *(proposed)* | `armor_break_aspect` | #1395 — scaffold (#1349) | #1396 | `sunder` shipped; second spell #1397 | #1250 | row: #395 (child 0: penetration stat #1401). Flat −1 armor per stack, uncapped, can go below zero (#1203, owner 2026-09-30). School CON (round 7). Has no `_stacks_per_hit` / `_resistance` while the DEX pool rolls a raw `armor` −% bane that bypasses the aspect. `spells.md`'s Heavy / Piercing Bolt (seek max / min armor) are its second spell (#1397) |
+| Weakness | damage debuff | `weakness_aspect` | cell unfiled | cell unfiled | cell unfiled | #1250 | row: #@weak. Stacks cut damage dealt by attacks originating from the node, % on a saturating curve (round 7) |
+| Greed | status magnet | `greed_aspect` | cell unfiled | cell unfiled | cell unfiled | #1250 | row: #@greed (child 0: the landing term, #@greed-land). One Greed stack on the node doubles every negative status the next hit lands, Greed included, then one stack is spent; Hoard pays bonus XP per stack left when an attack removes the node (rounds 5–6) |
+| Explosive | AoE | `explosive_aspect` | #1398 | #1399 — detonation kills the blade node, reuses spike-pop plumbing (owner, #1211) | #1400 (or none) | #1250 | row: #1211. Euclidean hitscan radius from `SkillNode.radius`; barrels / friendly fire open (#1399). The concept names the content, never the reverse (owner, 2026-10-05): *"an explosive barrel blast would at best do an *explosive* (as a concept) blast, not an \"explosive arrow blast\" literally cuz it's not like *arrows* determine the concept but the concept determines arrows+addons+spells etc."* — so the addon is an `ExplosiveBarrelAddon` doing the explosive blast. A detonated blade node is *damaged*, and today that means popped: *"so far we put their HP on 1 so they pop after taking 1 dmg"* (owner, 2026-10-05). `spells.md`'s Detonate / Supernova are its spell (#1400) |
 
 ## Rows designed in #1318
 
@@ -256,7 +272,9 @@ or is struck (the ADR 0045 "dead for two of three attack modes" test).
 
 | Concept | Tag | Attributes (vibe) | Ranged (arrow) | Addon | Spell | Notes |
 |---|---|---|---|---|---|---|
-| Bleeding | DoT | STR (owner, 2026-10-05) | TBD | spikes? (see Spikes) — look: tangential spikes rotating like a sawblade (owner, 2026-10-03) | TBD | Owner, 2026-10-05: *"Bleeding is an excellent game concept maybe too classic to pass up. And it's one that could naturally be a DoT. Would need a different profile, character (damage & mechanics, decay, tick trigger, spread mechanics if any) than poison"*. Earlier: *"what would bleeding mean in a graph-based game? leaking "skill point" essence until deallocated..?"* (2026-10-03) |
+| Bleeding | DoT | STR (owner, 2026-10-05) | TBD | spikes? (see Spikes) — look: tangential spikes rotating like a sawblade (owner, 2026-10-03) | TBD | Owner, 2026-10-05: *"Bleeding is an excellent game concept maybe too classic to pass up. And it's one that could naturally be a DoT. Would need a different profile, character (damage & mechanics, decay, tick trigger, spread mechanics if any) than poison"*. Earlier: *"what would bleeding mean in a graph-based game? leaking "skill point" essence until deallocated..?"* (2026-10-03). Edgelord's **Bleeding Edge** (combat_system.md) is a topology weapon sharing the name — one of the two renames when this row is filed. `dealloc_damage` (flat HP per force-deallocated node) sits on the dealloc trigger this row's "leak on dealloc" would use, owned by nobody yet |
+| Silence | mute | INT | stacks of the status | stacks of the status | stacks of the status | **Back to contender (owner, 2026-10-06, round 7).** A node that can't originate an attack is a boolean at 1 stack; a flat −1 per stack on shots / pivot blade size / spell hops dies on `blade_size`'s 2-to-100+ range and on spells with under 5 hops (round 7). Returns when a graded mute shape turns up; the `min_degree` gate variant is parked with a smell note |
+| Hex (jinx) | misfortune | — | — | — | — | Pass association, 2026-10-06, after the owner floated `hex` as a future concept: a chance per stack that a hit from the node misfires, or that crits roll against the holder — the variance debuff nobody holds; partner for the Crits milestone. The shipped spell `hex` keeps its name until this is a row |
 | Fatigue / Slow | — | — | — | — | — | **Struck (owner, 2026-10-06)** with Paralysis, *"the whole tardy bunch"*: movement and dealloc are entity pools with no node-local meaning, and a per-node cost deadlocks chokepoints while the nodes worth slowing sit out of reach (round 5) |
 | Paralysis | — | — | — | — | — | **Struck (owner, 2026-10-06)** with Fatigue / Slow. An AP-cap cut also sits on core-class territory (the Pacifist ruling) |
 | Spikes | offense | STR? | — | `spike_ring_addon.tscn`: local `blade_damage` (×1.5, +3), allocation-scaled per #1369 | — | **Not an aspect**: its defensive face (pop a blade vertex) has no ranged or spell meaning. Owner, 2026-10-05: *"spikes addon just adds blade damage. Switch to bleed stacks instead? (Or keep some blade dmg mods why not). Spikes do fit bleeding thematically. Though they also fit poison"*. The pop budget (`spikes`, `node_spikes`, `spike_regen`) is the #1369 fork; the owner leans to moving the anti-blade face to Explosive (2026-10-04: *"I think the explosive one thematically fits best"*), which would delete those stats |
@@ -279,12 +297,12 @@ addon we don't have yet. Not saying we need one"*.
 
 | School | Aspects | State |
 |---|---|---|
-| STR | Bleeding, Armor break | Bleeding: owner 2026-10-05. Armor break: by the accepted placement rule, not an explicit pick |
+| STR | Bleeding, Weakness | Bleeding: owner 2026-10-05. Weakness: owner 2026-10-06 (round 7) |
 | DEX | Poison, Explosive | owner 2026-10-05 |
-| INT | Curse; Silence (contender) | Curse: owner 2026-09-29. Silence: unsettled, owner sleeping on it (round 5) |
-| CON | Wither; one open slot | Wither: owner 2026-10-05. Fatigue struck; the slot waits for an idea that fits (owner, 2026-10-06) |
+| INT | Curse; one open slot | Curse: owner 2026-09-29. Silence went back to Contenders (owner, 2026-10-06, round 7); the slot waits, like CON's did, for an idea that fits |
+| CON | Wither, Armor break | Wither: owner 2026-10-05. Armor break: owner 2026-10-06 (round 7), *"it straddled STR+CON thematically anyway"* |
 | PER | Scout, Blindness | owner |
-| WIS | Corruption; Greed (contender) | Corruption: owner 2026-10-05. Greed: designed rounds 5–6 (owner) |
+| WIS | Corruption, Greed | Corruption: owner 2026-10-05. Greed: closed round 6 (owner); row #@greed |
 
 Procgen still ships the 2026-09-22 grid (curse → CON, wither → INT,
 corruption → STR); it moves to this table as a content fix (#1249). Pairs
@@ -335,14 +353,16 @@ lightning's hops become mechanics that existing rows can use.
   the kill-AP refund (`tempo`), `sp_per_levelup`, `xp_per_turn` (turns per
   level-up), `movement_points`, `deallocation_points` and `action_points` as
   all being tempo. *"so "tempo" to me sounds like a very broad concept that
-  doesn't apply to a single school"*.
+  doesn't apply to a single school"*. The `tempo` stat (the kill-AP refund)
+  is renamed `momentum` so the name stops colliding with the axis (#1415).
+  Pacifist's no-move-unless-you-save-AP is class identity, not a status (owner,
+  2026-10-05): a core class tunes the hard-to-balance stats procgen rarely
+  touches (AP, XP gain, tempo, `SET`); per-class tempo notes in
+  `core_classes.md`.
 
 **Owner calls, 2026-10-05 (round 3).**
 - **Bleeding → STR:** *"STR -> bleeding sounds better in my head. more
   "physical", whereas DEX -> assassins -> poisons"*.
-- **Armor break: STR or CON, undecided** (*"conventionally melee warrior stuff
-  which is STR; but also literally a purely defensive stat for any entity
-  which suggests CON"*).
 - **`tempo` → `momentum`** (the kill-AP refund): *"might be a good call"*.
 - **Spells keep status payloads alongside infusions.** *"spells do provide
   something that pure infusion couldn't, and or something that even without
@@ -370,8 +390,8 @@ lightning's hops become mechanics that existing rows can use.
 - **The placement rule is accepted.** An aspect sits in the school whose verb
   it performs (Poison: the assassin's DEX; Bleeding: STR's force) or whose
   own strength it turns bad (Corruption: WIS's growth gone malignant;
-  Wither: CON's health). By that rule Armor break is STR: it breaks, and the
-  armor it attacks is CON's.
+  Wither: CON's health). By that rule Armor break first read as STR; the owner
+  moved it to CON in round 7 (below).
 - **Explosive → DEX** (the saboteur beside the poisoner).
 - **Petrified is struck** until the initiative system is expanded. Owner:
   more initiative means more turns, and so more XP, more level-ups and more
@@ -466,6 +486,64 @@ lightning's hops become mechanics that existing rows can use.
   paying on the kill. For Silence that reading is the AP-neuter the tardy rows
   were struck for, which is part of why Silence is unsettled.
 
+**Owner calls, 2026-10-06 (round 7).**
+- **Weakness is the new row; Silence goes back to Contenders.** Owner on the
+  graded mute (−1 per stack on a node's shots / pivot blade size / spell
+  hops): *"A sounds promising but also hard to really balance. and i'm not
+  married to the name `silence` yet, we could maybe pick a mechanic first and
+  then name it"*. The objections, each fatal to a flat −1: `blade_size` *"is
+  anywhere between 2 (for level 1 low STR entity) and 100+ ... would we need
+  100+ stacks to prevent a high STR entity from using a node as pivot?"*;
+  spells: *"most spells have less than 5 hops in total -> would that mean the
+  spells would drop dead after initial hit? also: aren't we confusing attacker
+  and defender here?"*; and the house problem *"of things costing 1 and then
+  adding +1 on there doubles it; skill points, movement, deallocation, there's
+  a LONG list"*. The owner's own candidate: *"a simple damage nerf, a
+  weakening hex that nerfs local damage dealt, is also something we haven't
+  got yet"*.
+- **Weakness, the mechanic.** Stacks cut the damage of every attack that
+  *originates from* the afflicted node — the leaf that fires, the blade node
+  that sweeps, the source that casts — as a percentage on a saturating curve
+  (Blindness's shape: one `MULTIPLY` on the node-local `ranged_damage`,
+  `blade_damage` and `spell_damage`, all three already read from the origin
+  node). Percent, so it grades at level 1 and level 100 alike; shot counts,
+  blade size and hops are untouched, so a few-hops spell and a many-hops spell
+  suffer the same cut. Full mute is a knob (the curve's floor), never a
+  threshold. Core reading, per the general rule: the entity's damage, never
+  its AP. Name: **Weakness** is the pass's tentative pick from the owner's list
+  (*"weakness, or weakening? enfeeble also sounds good. `sap` also comes to
+  mind as snappy"*); Sap and Enfeeble are face names waiting for a spell or
+  arrow cell. Stat `weakness_aspect`, status *weakened*. Row #@weak.
+- **Armor break → CON, Weakness → STR.** Owner: *"how about this: armor break
+  -> CON (it straddled STR+CON thematically anyway?); weakness -> STR"*. Spread
+  2/2/1/2/2/2, INT now holding the open slot.
+- **Silence, the contender it is now:** a mute wants a graded shape and has
+  none yet. Parked variants: the owner's `min_degree` gate (*"we take the
+  max(min_degree, silence stacks)"*) — the pass's smell: a status that lies
+  about degree fights `docs/domain/degree.md` and every degree-reading spell.
+- **Buffs are never a row (owner, 2026-10-06).** The boon shape (no damage,
+  cleanse, a benefit per stack cleared) is the one buff face, and it lives on
+  the status it cleanses.
+- **Coolness gets its own archetype (owner, 2026-10-06):** *"a new archetype
+  (low weight, few per 100 nodes) that rolls just coolness and draws itself
+  with the fanciest morphing rainbow shaders on the rim does sound cool"*.
+  Not a school: it still has no verb and no row. Filed as #@cool.
+- **Hex may become a concept later** (owner: *"which does sound enticing"*);
+  the shipped spell `hex` keeps its name until then. The pass's association,
+  for the Contenders table: a hex is a *jinx*, the misfortune lever — chance
+  per stack that a hit from the node misfires or that crits roll against the
+  holder — the one debuff family nobody holds, and a partner for the Crits
+  milestone.
+- **Single-node spell-terrain stays addon territory**, not a status. The
+  owner's shapes: *"some anti-magic design, that consumes more hops, or one
+  that mangles the node local `degree` ... like a black hole (but less intense
+  than that, a BH is a bit extreme) that nabs hops when spells pass through it
+  (or lets them consume +1 extra hop on landing or smth) or eat (a limited
+  amount of?) projectiles outright (potentially very unbalanced so i struck
+  that in my mind too)"*. Recorded on the Spell routing family below.
+- **Fortress / drag stays on notice** until seen in action (round 6); nothing
+  new to rule.
+
 ## Combos and hybrids
 
 Owner, 2026-10-05: *"for each concrete aspect we put out, we'd have content
@@ -518,110 +596,20 @@ proposal, 2026-10-05; the per-addon calls live in
 | Family (proposed) | Addons | State |
 |---|---|---|
 | Fortify | Bunker (armor, floor, deflect), Fortress (`fortification_addon`: node health + swing drag; may be struck, see round 6) | both shipped; Reinforcement folded into Fortress |
-| Survival | Lifeline, Lifelink, Fountain (heal / cleanse) | Lifeline may merge into Fountain; Lifelink keystone / core-class only |
-| Topology | Gate, Winch, Clamp | Clamp shipped; Gate landing; Winch has a determinism fork |
-| Spell routing | Anti-Magic, Conduit, Void? | needs design |
-| Growth | Skill Dust | shipped; technical — consumed on allocation, never persistent. Owner: WIS-related (*"permanent growth"*), so a WIS row candidate (#1252) |
+| Survival | Lifeline, Lifelink, Fountain (heal / cleanse) | Lifeline may merge into Fountain; Lifelink keystone / core-class only. Anchor Node (`skill_node_specializations.md`, "a built-in Lifeline") is Lifeline's intrinsic variant or struck — unruled |
+| Topology | Gate, Winch, Clamp | Clamp shipped; Gate landing; Winch has a determinism fork. Clamp is blade-build crafting more than board topology; Winch's Serpent relief is a class concern |
+| Spell routing | Anti-Magic, Conduit, Relay, Void? | needs design. Anti-Magic (+1 hop cost through the node) is an addon, not a status, and never Silence's twin (owner, round 7). Owner shapes, 2026-10-06: a hop-nabbing "black hole, but less intense", a node that mangles its local `degree` to confuse degree-targeting spells, a projectile-eater (struck by the owner as unbalanced). Relay's damage bonus is spell power riding a routing addon |
+| Growth | Skill Dust | shipped; technical — consumed on allocation, never persistent; a loot window (`begin_claim` / `offers_for`), not a placed addon. Owner: WIS-related (*"permanent growth"*) |
 | — | Buffer | discontinued indefinitely (owner, 2026-10-05) |
+| Coolness | the pure-coolness archetype | owner, 2026-10-06: its own low-weight procgen archetype rolling only coolness, rainbow-rim look; #@cool. Not a school |
 
-## Misplacements — the 2026-10-05 sweep
+## Axes: attacked and defended
 
-Four read-only agent sweeps (stats, addons, offence, classes/combat/nodes)
-read every mechanic against the rule above. **Every line is a proposal
-awaiting the owner's call**, ranked by how jarring it is; struck or settled
-lines move into the rows they touch.
-
-### Move a mechanic (one move, two rows fixed)
-
-1. ~~**Pacifist core is the tempo row's whole mechanic**~~ — **not a
-   misplacement (owner, 2026-10-05).** A core class tunes the hard-to-balance
-   stats procgen rarely touches (AP, XP gain, tempo, `SET`); Pacifist's
-   no-move-unless-you-save-AP is a self-balancing class identity, not a
-   status. Per-class tempo notes: `core_classes.md`.
-2. **Watchtower carries three offence stats on a vision addon** —
-   `range` +150 / ×1.25, `arrows_per_reload` +1, `max_shots_per_leaf` +2
-   beside `vision_range` (`watchtower_addon.tscn`). Owner, 2026-10-05:
-   vision and range stay (*"it is a high ground thematically"*);
-   `arrows_per_reload` *"maybe overkill, was done before the concept of
-   aspects was conceived. might need to be replaced with `+1 scout
-   aspect`"*; `max_shots_per_leaf` *"might still be fitting but it's also a
-   lot of different buffs put in one place"*. Volley and reload stats would
-   suit a future **turret** addon — or a **factory** that multiplies local
-   production, or trades direct combat stats (range, damage) for utility
-   (more arrows).
-
-   **Reload by degree (owner idea, 2026-10-05).** Today a reload sums the
-   node-local `arrows_per_reload` over a *producer set* — the turn-start
-   leaves ∪ core (`Entity.reload_yield`, `entity/entity.gd`) — so a
-   Watchtower's +1 off a leaf mints nothing. The idea: drop the set, give
-   every node board a local innate `+N BASE arrows_per_reload` per
-   `Formula(degree == 1)` (entity degree; graph degree another option), fold
-   it with the entity board, and sum over every owned node. A non-leaf
-   turret still produces. Owner's own fork: an entity-wide +1 then makes
-   *every* node a producer; leaf +2 / non-leaf +0 keeps leaves well ahead
-   (+3 vs +1). Two snapshots, never conflated: the **reload producer set**
-   (turn-start leaves, `entity.gd` `_turn_start_leaves`) closes the
-   allocate-then-reload pump, so a degree term must read turn-start degree;
-   the **firing budget** (`SkillNode.shots_fired_this_turn`, capped by
-   `max_shots_per_leaf`) stays with the firer through a mid-turn
-   de/reallocation (`_fired_nodes_this_turn`). Owner, 2026-10-05: `degree`
-   and `graph_degree` should both be valid formula variables, recalculated
-   through the existing stat plumbing on a clean degree-changed notification.
-
-   **Production split from firing (owner direction, 2026-10-05: "2 (+ 3 in
-   some way)").** Firing stays leaf-only (hard line); production becomes a
-   formula. Leaves get a higher innate production, so they stay the better
-   producers, and an entity-wide `+1 arrows_per_reload` lands on *every*
-   node — *"a very coveted stat"*, needing a balance rework. A non-leaf
-   factory (name pending) may out-produce a leaf. Open, *"needs a big
-   think"*: aspect arrows are entity-global (topology only decides which
-   nodes granted the aspect stat), and production driven only by addons
-   isn't *really* topological the way leaf vs non-leaf is.
-3. **Anti-Magic is drag's spell-side twin** — +1 hop cost slows a spell's
-   travel the way drag slows a blade. Candidate spell-terrain face of the
-   tempo row.
-4. **Halo's thorns and shell spikes** (core_classes.md, combat_system.md
-   OQ13/OQ32) carry the Thorns contender's mechanic and the anti-blade pop
-   face. Core-classes OQ7/9/11 and combat OQ13/32 are one question: which
-   row owns retribution against an incoming blade (Thorns, Explosive).
-5. **Spell-pool ideas restate owned rows** (`spells.md`): Aftershock is
-   Curse's spill; Detonate/Supernova are Explosive's spell (#1400); Flood
-   wants Wither's anti-heal (#1389); Heavy/Piercing Bolt (seek max/min
-   armor) are Armor break's second spell (#1397).
-6. **Corrupted Node** (`skill_node_specializations.md`) collides with the
-   Corruption row, and its penalties (double damage, floor −1) are Curse's
-   and the floor axis's content.
-7. **Bleeding Edge** (Edgelord, combat_system.md) is a topology weapon
-   named like the Bleeding DoT contender.
-
-### Twins and duplicates
-
-- **The `tempo` stat name collides with the tempo axis** —
-  `stats_system/defs/tempo.tres` is the once-per-turn kill-AP refund. It is
-  the tempo axis's buff face, or it is renamed (`kill_refund`).
-- **Travel is claimed three ways and wired once.** Curse's spill is the
-  only authored spread (`curse.tres`, `spill_spread.gd`); Corruption's
-  sandpile has no `spread` authored (the diffusion classes are test-only);
-  parked Contagion restates spill. Proposal: travel is one axis any row
-  picks from (in place / sandpile / spill / edge spread / hop), Contagion
-  an infusion on it, never a row.
-- **Four spells are one template** — `venom`, `hex`, `dazzle`, `sunder`:
-  3-hop single target, 0.4 power, one status, differing in stack count
-  only. No first spell has its own twist yet, which leaves the second-spell
-  forks (#1381, #1397) nothing to complement. Arrows are likewise numbers
-  and look only (armor break's 0.75 damage scale has no stated reason).
-- **Scout and Blindness are one vision axis with opposite signs** — one
-  Vision row with two faces, or two rows with a stated reason.
-- **Anchor Node** (specializations) is "a built-in Lifeline" — Lifeline's
-  intrinsic variant, or struck.
-- **`dealloc_damage`** (flat HP per force-deallocated node) sits on the
-  dealloc trigger Curse's spill uses, and on Bleeding's "leaking on
-  dealloc" — owned by neither.
-
-### Defence faces, and the axes left bare
-
-Bunker and Fortress are the defender side of the DoT axes, not a family of
-their own:
+The 2026-10-05 misplacement sweep (four read-only agent passes reading every
+mechanic against the rule) is folded in: each ruled line sits in its row's
+Notes, the unruled ones in § Open, the stale facts on #1414. What remains is
+its one table — Bunker and Fortress are the defender side of the status axes,
+not a family of their own:
 
 | Axis | Attacked by | Defended by |
 |---|---|---|
@@ -631,48 +619,13 @@ their own:
 | armor | Armor break | Bunker (`armor` +5) |
 | healing | Wither | Lifeline / Fountain, `healing_beam` (enemy-targetable — its twist) |
 | vision | Blindness | nothing |
+| damage dealt | Weakness | nothing |
+| status landing | Greed (more land) | `<family>_resistance` filters at effect time, not landing (ADR 0031) |
 | tempo | nothing — no status attacks tempo (round 6) | nothing |
 
 Whether bare axes stay bare on purpose is a call ("defensive faces are
 rare"). Resistances exist only as blessed rolls; Scout, Explosive and Armor
 break have none.
-
-### Orphans
-
-- **WIS already has content, and it is the Affliction parent** —
-  `dot_stacks_per_hit` on WIS blight, `wound_heal_per_turn` and
-  `xp_per_turn` on WIS bless (`procgen/pools/wisdom.tres`, procgen-v4.md).
-  WIS = generic DoT + growth + healing, beside Skill Dust's growth.
-- **Six aspect stats have no node or pool supplier** — `corruption`,
-  `curse`, `wither`, `blindness`, `armor_break`, `explosive` `_aspect` live
-  on the default board, used by arrows; only Poison (DEX pool, Toxin) and
-  Scout are supplied, against "sourced mostly from nodes" (#1248).
-- **Armor break has no `_stacks_per_hit` / `_resistance`**, while the DEX
-  pool rolls a raw `armor` −% bane that bypasses the aspect.
-- **Eight damage spells have no concept** (`spark`, `bruiser`, `cyclone`,
-  `leafblower`, `lightning_bolt`, `resonator`, `reverberator`,
-  `trail_blazer`) — the propagation-shape library, i.e. the travel
-  vocabulary; a "Spells outside the Matrix" table, or a direct-damage row.
-- **Relay** is missing from the spell-routing family; its damage bonus is
-  spell power riding a routing addon.
-- **Skill Dust** is a loot window (`begin_claim` / `offers_for`), not an
-  addon in the "the node has to come that way" sense.
-- **Clamp** is blade-build crafting, not board topology; **Winch's**
-  Serpent relief is a class concern.
-
-### Stale facts (no call needed — fixes)
-
-- The attribute table above is stale: procgen ships curse → CON, wither →
-  INT, poison → DEX, corruption → STR, blindness → PER for stacks (blight)
-  and resistance (bless) (procgen-v4.md). #1249 may be answered in content.
-- `poison.tres` lacks the `dot` tag Corruption carries.
-- Spell descriptions contradict the authored decay: `hex` says "halve",
-  `sunder` "fade by a quarter", `venom` "recovers over 5 turns" — all are
-  flat −1. Corruption ships `decay = null`, so damage_over_time.md's "bold
-  alternative" is the live state and ADR 0022's halving wording is stale.
-- `docs/design/status-tags.md` is the LifeLine grace doc.
-- Spike Ring grants `spikes` / `spike_regen` / `blunting` in code
-  (`spike_ring_addon.gd`), not in its scene.
 
 ## Personas
 
@@ -683,13 +636,16 @@ this table's rows.
 ## Open
 
 - Supply model: settled (#1248, closed).
-- Attribute archetype per concept: the 2026-09-22 grid in
-  [node_subtypes.md](node_subtypes.md) (DEX poison, STR corruption, INT
-  wither, CON curse, PER blindness/scout, WIS none) vs. the owner's
-  2026-09-29 mapping (INT curse, CON wither, STR also armor break) —
-  unresolved (#1249).
+- Attribute per concept: settled in § Attributes and pairs; #1249 keeps the
+  content work (write it into [node_subtypes.md](node_subtypes.md), swap the
+  procgen pools, and supply the six aspect stats that have no node source yet
+  — `corruption`, `curse`, `wither`, `blindness`, `armor_break`, `explosive`).
 - Can one hit carry two aspects (#1251).
-- WIS status family (#1252).
+- WIS status family: answered — Corruption and Greed (#1252 closes).
+- Travel is an axis (Glossary) any row picks from — in place, sandpile, spill,
+  edge spread, hop; Contagion would be an infusion on it, never a row. Pass
+  proposal, unruled.
+- `dealloc_damage` has no row (see Bleeding's note); stale facts: #1414.
 - Which row holds the anti-blade face: Explosive (owner lean, 2026-10-04) — barrels / friendly fire on #1399, the pop budget's fate on #1369; ADR 0005 would be superseded, not edited.
 - Combos / hybrids and the attribute-pair rows (above): an exploration, no issue yet.
 
