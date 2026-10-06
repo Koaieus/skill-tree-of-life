@@ -678,8 +678,8 @@ damage to every turn, and the flag died.
   tricky with the attacking node possibly dying right as it fires"*); at turn end
   every bleeding row pays ⌈stacks × `bleed_rate`⌉ flat HP (½), then decays. The
   pass's table (5 stacks: launch 10, pay 5, →9; 18, pay 9, →17; 34, pay 17, →33)
-  reproduces round 9's 5, 9, 17, 33, 65 exactly; resting pays 3, 2, 2, 1, 1 (≈
-  half a Poison); a 1-stack scratch exerted every turn stays at 1 forever, a
+  reproduces round 9's 5, 9, 17, 33, 65 exactly; resting pays 3, 2, 1 under the ramp
+  (gone in three turns, ≈ a third of a Poison); a 1-stack scratch exerted every turn stays at 1 forever, a
   2-stack wound compounds. Owner: *"option 1. is good"*; the ⅓×allocation-level
   rate *"mechanics are.. for another status, not this one"*.
 - **Ranged exerts by firing, never by reloading.** Owner: *"leaning just firing,
