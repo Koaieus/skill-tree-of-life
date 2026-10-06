@@ -682,6 +682,10 @@ damage to every turn, and the flag died.
   (gone in three turns, ≈ a third of a Poison); a 1-stack scratch exerted every turn stays at 1 forever, a
   2-stack wound compounds. Owner: *"option 1. is good"*; the ⅓×allocation-level
   rate *"mechanics are.. for another status, not this one"*.
+- **Each volley exerts again.** Round 9's "a node exerts at most once per turn
+  however many volleys it fired" is withdrawn — owner, 2026-10-06: *"each
+  volley exerts again"*. With exertion acting at launch there is no per-turn
+  flag; two volleys from one leaf double it twice.
 - **Ranged exerts by firing, never by reloading.** Owner: *"leaning just firing,
   leaving reloading alone (which is done by leaf nodes so far but possibly other
   nodes could later start producing arrows as well which might be problematic
