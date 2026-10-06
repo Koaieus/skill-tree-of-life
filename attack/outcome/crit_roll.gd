@@ -116,8 +116,8 @@ static func decide(hit: HitInstance, rng: RandomNumberGenerator,
 ## [member HitInstance.read_node]'s slice — the owner's entity value with that
 ## node's own grants folded in — so a node-local grant crits that node's hits
 ## only. The slice is looked up in [param world] when given, else the node's
-## live slice. No read node, or one with no owner to fold (a fixture, a gate
-## flip), falls back to the attacker's entity board; no attacker reads 0.
+## live slice. No read node, or one with no owner board to fold (a fixture, a
+## gate flip), falls back to the attacker's entity board; no attacker reads 0.
 static func chance_for(hit: HitInstance, world: CombatWorld = null) -> float:
 	return _attacker_term(hit, world) + defender_term(hit, world)
 
@@ -133,7 +133,9 @@ static func _attacker_term(hit: HitInstance, world: CombatWorld) -> float:
 	if hit.read_node != null:
 		var slice: NodeCombat = world.combat_for(hit.read_node) if world != null \
 				else hit.read_node.get_combat()
-		if slice != null and slice.owner() != null:
+		# A boardless owner would read the def default (5 %) rather than its
+		# absent stat, so it takes the entity fallback, which reads 0.
+		if slice != null and slice.owner() != null and slice.owner().board() != null:
 			return float(slice.get_local_value(&"crit_chance"))
 	if hit.attacker == null or hit.attacker.stat_board == null:
 		return 0.0
