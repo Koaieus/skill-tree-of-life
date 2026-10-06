@@ -592,6 +592,12 @@ lightning's hops become mechanics that existing rows can use.
   go for the option 2 here but with a MULTIPLY (PoE "More") modifier"*. That
   lands `(3 + N) × 2`, doubling the attacker's rolled stacks too. A lean, not
   final: #1271.
+- **The ×2 is local only.** Owner: *"the poison ×2 should be local only -- so
+  if *that* node is the attacking node ... holding e.g. 3 of these 3/3 nodes
+  shouldn't make it ×8 altogether"*. So it sits in the addon's local
+  modifiers, and landing must fold `stacks_per_hit` from the origin node; today
+  it folds the attacker's entity board only, so this is a prerequisite unit
+  (#1271).
 
 ## Combos and hybrids
 
