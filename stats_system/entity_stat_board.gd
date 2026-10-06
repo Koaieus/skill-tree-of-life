@@ -120,6 +120,9 @@ extends StatBoard
 ## Fraction of the blindness row a node shrugs off, a live filter at effect time
 ## (ADR 0031), read node-locally. No parent. Default 0.
 @export var blindness_resistance: ScalarStat
+## The weakness this entity's hits land, folded as blindness_stacks_per_hit is;
+## no parent, no resistance. Default 1.
+@export var weakness_stacks_per_hit: ScalarStat
 ## Flat HP damage dealt to this entity per node forced-deallocated in a battle
 ## cascade. Bypasses mitigation (currency-exchange semantics — the cascade also
 ## wounds 1 SP per node, separately). Default 1; fragile-core classes raise it.
@@ -206,6 +209,7 @@ extends StatBoard
 @export var curse_aspect: ScalarStat	## Special curse arrows minted per ReloadCommand, entity-flat; the melee/magic reads are #1268/#1250. Parent: aspects. Default 0.
 @export var wither_aspect: ScalarStat	## Special wither arrows minted per ReloadCommand, entity-flat; the melee/magic reads are #1268/#1250. Parent: aspects. Default 0.
 @export var blindness_aspect: ScalarStat	## Special blindness arrows minted per ReloadCommand, entity-flat; the melee/magic reads are #1268/#1250. Parent: aspects. Default 0.
+@export var weakness_aspect: ScalarStat	## Weakness aspect count; each combat mode reads it in its own cell. Parent: aspects. Default 0.
 @export var scout_aspect: ScalarStat	## Special scout arrows minted per ReloadCommand, entity-flat; the melee/magic reads are #1268/#1250. Parent: aspects. Default 0.
 @export var armor_break_aspect: ScalarStat	## Special armor-break arrows minted per ReloadCommand, entity-flat; the melee/magic reads are #1268/#1250. Parent: aspects. Default 0.
 @export var explosive_aspect: ScalarStat	## Special explosive arrows minted per ReloadCommand, entity-flat; the melee/magic reads are #1268/#1250. Parent: aspects. Default 0.

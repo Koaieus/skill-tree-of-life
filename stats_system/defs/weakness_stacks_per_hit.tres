@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="StatDef" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://stats_system/stat_def.gd" id="1_stat_def"]
+[ext_resource type="Resource" path="res://identity/defs/weakness.tres" id="identity_weakness"]
+
+[resource]
+script = ExtResource("1_stat_def")
+identity = ExtResource("identity_weakness")
+id = &"weakness_stacks_per_hit"
+display_name = "Weakness Stacks per Hit"
+description = "The weakness this entity's hits land. The authored per-hit weakness is a base_add overlay on this stat, so its flats add to it and its INCREASE / MORE scale it: landed = fold(per-hit), never floored. No resistance filters it (owner: weakness cuts damage dealt, which the damage family already defends). No parent: weakness is not a DoT. Default 1; entity-scope only."
+value_type = 1
+default_value = 1.0
+modifier_name = "Weakness Stacks per Hit"

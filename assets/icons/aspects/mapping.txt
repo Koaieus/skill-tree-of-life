@@ -18,3 +18,4 @@ armor_break	lorc/cracked-shield.svg
 blindness	skoll/sight-disabled.svg
 scout	delapouite/binoculars.svg
 explosive	lorc/spiky-explosion.svg
+weakness	skoll/drop-weapon.svg

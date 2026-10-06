@@ -18,6 +18,7 @@ const _DESCRIPTIONS := {
 	&"poison": "Every stack deals 1 unmitigated damage each turn; one stack fades each turn and they never cap.",
 	&"scout": "Scout arrows lit up this node's surroundings for their camp: the disc grows with the root of the stacks, only your own camp's stacks count, and one stack fades each turn.",
 	&"wither": "Every stack cuts healing on this node by 10%; past 10 stacks healing becomes damage that never closes the regen gate. A quarter of the stacks fade each turn and they never cap.",
+	&"weakness": "Attacks from the node deal less damage; deep weakness needs steady reapplication to hold.",
 }
 
 

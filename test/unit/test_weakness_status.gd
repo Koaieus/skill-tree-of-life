@@ -56,7 +56,7 @@ func before_each() -> void:
 	_entity.core_location = _nodes[0]
 
 	_def = WeaknessStatus.new()
-	_def.id = &"weakened"
+	_def.id = &"weakness"
 	_def.power_max = 0.0
 	_def.decay = FractionDecay.new(0.25)
 	_def.reapply = StatusDef.Reapply.ACCUMULATE
@@ -163,8 +163,8 @@ func test_node_and_entity_stacks_multiply() -> void:
 func test_remove_restores_the_three_reads_exactly() -> void:
 	_nodes[0].get_combat().apply_status(_def, 7.0)
 	_entity.get_combat().apply_status(_def, 3.0)
-	_nodes[0].get_combat().remove_status(&"weakened")
-	_entity.get_combat().remove_status(&"weakened")
+	_nodes[0].get_combat().remove_status(&"weakness")
+	_entity.get_combat().remove_status(&"weakness")
 	for stat_id in _STATS:
 		assert_almost_eq(_read(0, stat_id), _BASE, 0.001, "%s restored" % stat_id)
 		assert_eq(_weak_mods_on(_nodes[0].node_board, stat_id), 0, "%s: no node leftover" % stat_id)
@@ -175,7 +175,7 @@ func test_decay_to_zero_restores_the_three_reads_exactly() -> void:
 	var c := _nodes[0].get_combat()
 	c.apply_status(_def, 10.0)
 	var guard := 0
-	while c.get_status_power(&"weakened") > 0.0 and guard < 50:
+	while c.get_status_power(&"weakness") > 0.0 and guard < 50:
 		c.tick_statuses()
 		guard += 1
 	assert_lt(guard, 50, "fractional decay reaches zero")
@@ -192,7 +192,7 @@ func test_authored_def_is_uncapped_accumulating_and_unresisted() -> void:
 	assert_not_null(w, "weakened.tres is a WeaknessStatus")
 	if w == null:
 		return
-	assert_eq(w.id, &"weakened")
+	assert_eq(w.id, &"weakness", "id is the concept identity")
 	assert_eq(w.power_max, 0.0, "uncapped")
 	assert_eq(w.reapply, StatusDef.Reapply.ACCUMULATE)
 	assert_true(w.decay is FractionDecay, "fractional decay")
