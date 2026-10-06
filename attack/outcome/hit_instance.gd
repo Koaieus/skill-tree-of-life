@@ -62,6 +62,14 @@ var target: SkillNode = null
 ## The node the hit originated from (firing position / source node).
 ## Optional; used by VFX (tracer spawn point) and future range-falloff math.
 var origin: SkillNode = null
+## The attacker-side node whose local stats this hit reads — the firing leaf
+## for an arrow, the node a contacting blade vertex was copied from, the cast
+## source on every spell hop. Never a VFX fact (that is [member origin], which
+## melee pins to the pivot and magic to the previous hop), and never on the
+## wire: like [member source] it is resolve-local, so an [AttackRecord]
+## rebuild leaves it null — what it feeds is resolved on the authority and
+## shipped as numbers.
+var read_node: SkillNode = null
 ## The [Entity] that produced this hit — the one whose stat board the crit
 ## roll reads (#507), and whose hostility a mode's land-time gate re-checks.
 ## Promoted here from three private copies (ranged's `_attacker`, melee's

@@ -38,6 +38,11 @@ var inner_radii: PackedFloat32Array
 ## contacting vertex's own contact-time speed — no base added on top, but a
 ## curve now sits between this value and what lands.
 var vertex_damage: PackedFloat32Array
+## Per-particle source node — the [SkillNode] each vertex was copied from,
+## one entry per particle, index for index with [member positions]. Null-filled
+## in build(); [BladeVertexFill] fills it beside [member vertex_damage]. A
+## contact reads it as its hit's [member HitInstance.read_node].
+var vertex_node: Array[SkillNode] = []
 ## Per-particle contact speed (px/s), one entry per trajectory sample —
 ## `speed_history[k]` parallels what `BladeTrajectory.samples[k]` would be,
 ## index for index. Reset to a single all-zero entry (for the pre-step pose,
@@ -160,6 +165,7 @@ static func build(
 	s.inner_radii = PackedFloat32Array(inner_radii_ if not inner_radii_.is_empty() else radii_)
 	s.vertex_damage = PackedFloat32Array()
 	s.vertex_damage.resize(positions_.size())  # zero-init; caller fills per-vertex
+	s.vertex_node.resize(positions_.size())  # null-init; caller fills per-vertex
 	s.vertex_blunting = PackedFloat32Array()
 	s.vertex_blunting.resize(positions_.size())  # zero-init == unfilled; see the member
 	s.vertex_on_hit = []

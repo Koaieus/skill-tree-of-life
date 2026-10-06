@@ -15,6 +15,9 @@ var attacker: Entity = null
 var source: Variant = null
 ## Where the landing came from — VFX spawn point ([member HitInstance.origin]).
 var origin: SkillNode = null
+## The attacker-side node the landing reads its local stats from
+## ([member HitInstance.read_node]) — resolve-local, never on the wire.
+var read_node: SkillNode = null
 ## The landed node ([member HitInstance.target]).
 var target: SkillNode = null
 ## The landing's structural position, in its outcome's cadence units
