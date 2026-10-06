@@ -264,7 +264,7 @@ static func arrows_to_kill(outcome: AttackOutcome, target: SkillNode, attacker: 
 		# By CLASS, not kind: a typed arrow's status rider (#495) is a
 		# separate StatusInstance behind the arrow, never an arrow — while a
 		# gated or heal-flipped arrow is still an arrow the quiver paid for.
-		if hit is StatusInstance:
+		if hit is StatusInstance or hit is ExertInstance:
 			continue
 		count += 1
 		if hit.target != target:

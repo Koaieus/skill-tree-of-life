@@ -141,10 +141,32 @@ func _init(ctx: SwingContext) -> void:
 	# which is why an unsevered swing rolls the identical crits it did before
 	# the interleave. #186's per-round salt is gone with the rounds.
 	_rng = CritRoll.stream_for(resolve_seed)
+	_exert_blade()
 	# Published now, not at the end: these three ARE the partial picture.
 	result.trajectory = _trajectory
 	result.events = _events
 	result.hits = _hits
+
+
+## The origin set: every node copied onto the blade, pivot included, exerts
+## once at the swing's first beat — landed before any sample, appended to the
+## outcome only (never [member SwingResult.hits], the blade's contacts).
+## Amount 0, so the crit stream is untouched.
+func _exert_blade() -> void:
+	var sub := AttackOutcome.new()
+	sub.cadence = ScheduleEntry.Cadence.SWING
+	sub.resolve_seed = _ctx.resolve_seed
+	var seen: Array[SkillNode] = []
+	for node in _state.vertex_node:
+		if node == null or seen.has(node):
+			continue
+		seen.append(node)
+		sub.hits.append(ExertInstance.at(node, _ctx.attacker, _ctx.hit_source))
+	if sub.hits.is_empty():
+		return
+	sub.schedule = OutcomeSchedule.compile(sub)
+	OutcomeApplier.apply(sub, _world)
+	_outcome.hits.append_array(sub.hits)
 
 
 ## Arm [param gate] to flip at [param frac] of the swing (#1209), cutting blade

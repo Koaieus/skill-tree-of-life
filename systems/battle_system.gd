@@ -517,7 +517,7 @@ func _consume_volley(plan: RangedAttackPlan, outcome: AttackOutcome) -> void:
 		# arrow's origin and must not burn a second shot. Skipped by CLASS,
 		# never by `kind` — a heal-flipped arrow (ADR 0012) is still a shot
 		# fired; a status never was one.
-		if hit is StatusInstance:
+		if hit is StatusInstance or hit is ExertInstance:
 			continue
 		var leaf := hit.origin
 		if leaf == null or not is_instance_valid(leaf):

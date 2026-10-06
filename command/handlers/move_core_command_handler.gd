@@ -29,6 +29,7 @@ func _apply(command: Command, actor: Entity, ctx: CommandContext) -> bool:
 	for i in hops.size():
 		if not ctx.allocation_system.move_core(actor, hops[i]):
 			return false
+		actor.exert_core_move()
 		if i < hops.size() - 1:
 			await ctx.tree.create_timer(CORE_HOP_SLIDE_DELAY).timeout
 	return true

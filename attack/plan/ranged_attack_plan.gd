@@ -460,6 +460,13 @@ func resolve_against(world: CombatWorld) -> AttackOutcome:
 		d_max = maxf(d_max, shot.distance)
 		waves = maxi(waves, shot.wave + 1)
 	var span: float = (d_max - d_min) if shot_count > 0 else 0.0
+	# The origin set: every leaf that fires this volley exerts once, on the
+	# first beat, however many arrows it looses (reloading never exerts).
+	var firers: Array[SkillNode] = []
+	for shot in schedule:
+		if shot.firing_node != null and not firers.has(shot.firing_node):
+			firers.append(shot.firing_node)
+			outcome.hits.append(ExertInstance.at(shot.firing_node, attacker, self))
 	for rank_i in shot_count:
 		var shot: FiringShot = schedule[rank_i]
 		# Exact `<= 0.0`, not is_equal_approx: this guards a DIVISION, and a

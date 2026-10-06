@@ -816,7 +816,12 @@ func begin_turn() -> void:
 ## moves the same turn are no-ops. Called by [MoveCoreCommandHandler] after
 ## each successful hop, so a peer's replay of the command reproduces it.
 func exert_core_move() -> void:
-	pass
+	if core_moved_this_turn:
+		return
+	core_moved_this_turn = true
+	var host := CombatWorld.live().combat_for_entity(self)
+	if host != null:
+		host.exert()
 
 
 ## This entity's played-out turn is over: its statuses tick, the entity host

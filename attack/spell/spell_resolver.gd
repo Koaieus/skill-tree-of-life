@@ -76,6 +76,23 @@ static func resolve(
 	return outcome
 
 
+## The origin set: the cast source plus its owned neighbours (the degree the
+## castability gate counts) each exert once, landed before the first wave.
+## Kept off the timeline — no event, no VFX — so their unassigned
+## `schedule_index` sorts them first on a replay too.
+static func _exert_origin_set(source: SkillNode, caster: Entity, world: CombatWorld,
+		outcome: AttackOutcome, spell: SpellDef) -> void:
+	if source == null:
+		return
+	var origin_set: Array[SkillNode] = [source]
+	if caster != null and caster.navigator != null:
+		origin_set.append_array(caster.navigator.neighbours_of(source))
+	for node in origin_set:
+		var exert := ExertInstance.at(node, caster, spell)
+		outcome.hits.append(exert)
+		OutcomeApplier.land_one(exert, world)
+
+
 static func resolve_against(
 		spell: SpellDef,
 		target: SkillNode,
@@ -122,6 +139,7 @@ static func resolve_against(
 	# below. See the decide/land block for why the roll moved out of the old
 	# single `decide_all` at the end.
 	var crit_rng := ctx.rng_for_crits()
+	_exert_origin_set(source, caster, world, outcome, spell)
 	var wave: Array[CastSpell] = [seed_state]
 	while not wave.is_empty():
 		# 1. Group incidents by target node.
