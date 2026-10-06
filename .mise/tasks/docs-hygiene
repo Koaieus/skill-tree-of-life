@@ -1,0 +1,122 @@
+#!/usr/bin/env python3
+#MISE description="Report design-doc lifecycle violations: `mise run docs-hygiene [-- --verbose]`"
+"""
+Design-doc lifecycle hygiene. Reports; fixes nothing — same contract as
+`rules-hygiene` and `adr-hygiene`. See docs/domain/design-doc-lifecycle.md.
+
+Exits 1 on any violation (one line each); warnings never fail.
+"""
+import glob
+import os
+import re
+import sys
+
+DESIGN = "docs/design"
+ARCHIVE = f"{DESIGN}/archive"
+INDEX = f"{DESIGN}/index.md"
+DOMAIN = "docs/domain"
+STATUSES = ("exploring", "settling", "built")
+HEADER_1 = "> **Archived "
+HEADER_2 = "> Decisions:"
+# A domain line that cites a design doc on purpose says so.
+CITE_PHRASES = ("design record:", "history:")
+# Domain pages that talk about docs/design as a subject, not as a source.
+LINK_EXEMPT = {"design-doc-lifecycle.md", "adr.md", "breadcrules.md"}
+DESIGN_LINK = re.compile(r"(?:\.\./design/|docs/design/)([^\s)\]`'\"#]*)")
+
+
+def front_matter(path):
+    """Return (dict, body_lines) or (None, lines). No YAML dep in this repo."""
+    lines = open(path, encoding="utf-8").read().split("\n")
+    if not lines or lines[0] != "---":
+        return None, lines
+    try:
+        end = lines.index("---", 1)
+    except ValueError:
+        return None, lines
+    fm = {}
+    for line in lines[1:end]:
+        line = line.split("#", 1)[0].rstrip()
+        if ":" in line:
+            k, v = line.split(":", 1)
+            fm[k.strip()] = v.strip()
+    return fm, lines[end + 1:]
+
+
+def main():
+    verbose = "--verbose" in sys.argv
+    errors, warnings, soft = [], [], []
+
+    docs = sorted(p for p in glob.glob(f"{DESIGN}/*.md") if p != INDEX)
+    for p in docs:
+        fm, _ = front_matter(p)
+        if fm is None:
+            errors.append(f"{p}: no frontmatter (want `status: {' | '.join(STATUSES)}`)")
+            continue
+        st = fm.get("status")
+        if st not in STATUSES:
+            errors.append(f"{p}: status {st!r} not one of {', '.join(STATUSES)}")
+            continue
+        dom = fm.get("domain")
+        if st == "built":
+            if not dom:
+                errors.append(f"{p}: built but no `domain:`")
+            elif not os.path.isfile(dom):
+                errors.append(f"{p}: domain {dom} does not exist")
+        elif dom and not os.path.isfile(dom):
+            errors.append(f"{p}: domain {dom} does not exist")
+
+    for p in sorted(glob.glob(f"{ARCHIVE}/*.md")):
+        if os.path.basename(p) == "README.md":
+            continue
+        if not re.match(r"\d{4}-\d{2}-\d{2}-", os.path.basename(p)):
+            errors.append(f"{p}: archived name is not <yyyy-mm-dd>-<name>.md")
+        _, body = front_matter(p)
+        body = [l for l in body if l.strip()][:2]
+        if len(body) < 2 or not body[0].startswith(HEADER_1) or not body[1].startswith(HEADER_2):
+            errors.append(f"{p}: missing the two-line archive header ('{HEADER_1}…' / '{HEADER_2}…')")
+            continue
+        m = re.search(r"\]\(([^)]*domain/[^)]+\.md)\)", body[0])
+        if not m:
+            errors.append(f"{p}: archive header names no docs/domain link")
+        elif not os.path.isfile(os.path.normpath(os.path.join(os.path.dirname(p), m.group(1)))):
+            errors.append(f"{p}: archive header's domain link {m.group(1)} does not exist")
+
+    index = open(INDEX, encoding="utf-8").read()
+    for p in docs:
+        name = os.path.basename(p)
+        if f"]({name})" not in index:
+            errors.append(f"{INDEX}: does not list {name}")
+
+    for p in sorted(glob.glob(f"{DOMAIN}/*.md")):
+        if os.path.basename(p) in LINK_EXEMPT:
+            continue
+        for n, line in enumerate(open(p, encoding="utf-8"), 1):
+            for m in DESIGN_LINK.finditer(line):
+                target = m.group(1).rstrip(".,;:")
+                cited = any(c in line.lower() for c in CITE_PHRASES)
+                where = f"{p}:{n}: links docs/design/{target}"
+                if target and not os.path.exists(os.path.join(DESIGN, target)):
+                    errors.append(f"{where} — no such path (archived? link the domain twin)")
+                elif target.startswith("archive/") and not cited:
+                    errors.append(f"{where} — archived doc cited without 'design record:' / 'history:'")
+                elif not cited:
+                    soft.append(f"{where} without 'design record:' / 'history:'")
+
+    if soft:
+        warnings.append(f"{len(soft)} docs/domain line(s) link a live design doc without a citing phrase"
+                        + ("" if verbose else " (-- --verbose to list)"))
+        if verbose:
+            warnings.extend("  " + s for s in soft)
+
+    for e in errors:
+        print(f"FAIL {e}")
+    for w in warnings:
+        print(f"warn {w}")
+    print(f"docs-hygiene: {len(docs)} design docs, {len(errors)} violation(s), "
+          f"{len(soft)} warning(s) — {'RED' if errors else 'GREEN'}")
+    return 1 if errors else 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
