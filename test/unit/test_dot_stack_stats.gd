@@ -15,6 +15,7 @@ const _DEFAULTS := {
 	&"dot_stacks_per_hit": 0.0,
 	&"blindness_stacks_per_hit": 0.0,
 	&"blindness_resistance": 0.0,
+	&"weakness_stacks_per_hit": 1.0,
 }
 
 
@@ -40,8 +41,8 @@ func test_every_status_def_names_its_familys_stacks_stat() -> void:
 			continue
 		seen += 1
 		var expected := &""
-		if def.id in _DOT_FAMILIES or def.id == &"blindness":
-			# The umbrella folds into each DoT family stat as its parent (ADR 0029); blindness has none.
+		if def.id in _DOT_FAMILIES or def.id in [&"blindness", &"weakness"]:
+			# The umbrella folds into each DoT family stat as its parent (ADR 0029); blindness and weakness have none.
 			expected = StringName("%s_stacks_per_hit" % def.id)
 		assert_eq(def.stacks_stat_id, expected, "%s stacks_stat_id" % def.id)
 	assert_gt(seen, 5, "the sweep found the authored defs")
