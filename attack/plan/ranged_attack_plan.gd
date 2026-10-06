@@ -493,8 +493,9 @@ func resolve_against(world: CombatWorld) -> AttackOutcome:
 	# times against one node; that is more chances for more shots, which is
 	# what a hit-based crit model means, and it was settled as intended rather
 	# than a problem to design around.
-	CritRoll.decide_all(outcome, CritRoll.stream_for(resolve_seed))
-	# Ranged selects on pure geometry, so nothing above read `world` at all —
+	CritRoll.decide_all(outcome, CritRoll.stream_for(resolve_seed), world)
+	# Ranged selects on pure geometry, so nothing above read `world` but the
+	# crit roll's read-node slice —
 	# every live read it makes is inside `RangedHitInstance.land_on`, which is
 	# what this pass runs. Un-awaited on purpose: the default clock is
 	# [method BeatClock.instant_clock], which never parks, so `apply` runs to

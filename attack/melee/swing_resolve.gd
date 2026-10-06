@@ -456,8 +456,9 @@ func _land_batch(
 	if sub.hits.is_empty():
 		return
 	sub.schedule = OutcomeSchedule.compile(sub)
-	CritRoll.decide_all(sub, rng)
-	# Melee selects on physics, so nothing above read `world`: every live read
+	CritRoll.decide_all(sub, rng, world)
+	# Melee selects on physics, so nothing above read `world` but the crit
+	# roll's read-node slice: every live read
 	# it makes is inside `BladeDamageInstance.land_on` -> `LiveGate.admit`,
 	# which is what this pass runs. Un-awaited — see the same call in
 	# [method RangedAttackPlan.resolve_against] for why that is safe.

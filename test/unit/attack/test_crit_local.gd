@@ -191,3 +191,26 @@ func test_a_grant_on_the_hop_1_node_crits_nothing() -> void:
 	assert_gt(hits.size(), 0)
 	for hit in hits:
 		assert_false(hit.is_crit, "a hop node is not a read node")
+
+
+# ── The resolve world, not the live slice ──────────────────────────────────
+
+func test_the_crit_read_follows_the_resolve_world_not_the_live_slice() -> void:
+	var ctx: Dictionary = await _build()
+	var world := CombatWorld.shadow()
+	var m := StatModifier.new()
+	m.stat_id = &"crit_chance"
+	m.operation = StatModifier.Operation.SET
+	m.value = 1.0
+	assert_true(world.combat_for(ctx.nodes.leaf).add_local_modifier(m),
+			"precondition: the shadow slice takes the grant")
+	assert_almost_eq(float(ctx.nodes.leaf.get_local_value(&"crit_chance")), 0.0, 0.0001,
+			"precondition: the live leaf holds no grant")
+	var outcome := _ranged_plan(ctx).resolve_against(world)
+	world.free_shadow()
+	var leaf_hits := 0
+	for hit in outcome.hits:
+		if hit.read_node == ctx.nodes.leaf:
+			leaf_hits += 1
+			assert_true(hit.is_crit, "the resolve world's grant crits the leaf's arrows")
+	assert_gt(leaf_hits, 0, "the leaf must fire")

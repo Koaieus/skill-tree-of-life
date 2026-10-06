@@ -275,7 +275,7 @@ static func resolve_against(
 		# `CritRoll.apply` multiplies at land time and cannot multiply by a
 		# decision that has not been made yet.
 		for i in range(wave_first, outcome.hits.size()):
-			CritRoll.decide(outcome.hits[i], crit_rng)
+			CritRoll.decide(outcome.hits[i], crit_rng, world)
 		for i in range(wave_first, outcome.hits.size()):
 			OutcomeApplier.land_one(outcome.hits[i], world)
 		# One wave, one beat: its strips spill over their union before step
