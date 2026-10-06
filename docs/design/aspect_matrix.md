@@ -317,6 +317,18 @@ want to scale these effects innately with those stats for free"*. A school
 couples by geography (procgen places an aspect's nodes in its attribute's
 territory) and by vibe (colour, persona), never by a fold.
 
+**Settled: an aspect's hue is its own, not its school's family (owner,
+2026-10-06, #1410/#1411 review).** Asked whether aspects should take their
+attribute's colour family or stay separate *"(and ignore most collisions like
+purple-purple)"*, the owner picked separate: *"option 1 sounds good"*. Each
+identity keeps a semantic tint (poison green, explosive orange); a school match
+like Poison under DEX green is incidental, and cross-kind collisions
+(Corruption and Perception both purple) are accepted. "Vibe (colour)" above
+therefore means an occasional coincidence, not a rule. If school recognition
+proves to matter in play, the reserve option is a second channel (a ring or
+backplate in the school's colour) behind the glyph — never a retint of the
+aspect.
+
 **Settled: the six primary attributes are the schools (owner, 2026-10-05).**
 *"i think the 6 primary attributes serving as schools is the way to go about
 this"*. The rules for the primaries:
