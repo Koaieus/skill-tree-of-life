@@ -103,7 +103,7 @@ extends StatBoard
 @export var wither_stacks_per_hit: ScalarStat
 ## Family parent of the four <family>_stacks_per_hit (ADR 0029): its bins fold
 ## into each family stat's read, never summed separately; never blindness/
-## armor-break. Its own value is never read. Default 0.
+## weakness/armor-break. Its own value is never read. Default 0.
 @export var dot_stacks_per_hit: ScalarStat
 ## Family parent of blade/spell/ranged_damage (ADR 0029): its bins fold into
 ## each child's read; its own value is never read. Default 0.
