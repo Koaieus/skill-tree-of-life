@@ -17,6 +17,15 @@ extends StatusSpread
 ## / [constant StatusSpread.CAUSE_DEALLOC] bits. Default: both.
 @export_flags("Death", "Dealloc") var triggers: int = 3
 
+## Neighbours (as [method SkillNode.ownership_bit] bits, same flag set as
+## [member StatusSpread.ownership_mask]) that count in the divisor and absorb
+## their share without receiving a transfer — the dissipating spill. `0` = none.
+@export_flags("Neutral:1", "Mine:2", "Ally:4", "Hostile:8") var sink_mask: int = 0
+
+## Extra multiplier on [member spread_fraction] when the cause is a death strip;
+## `1.0` = a kill spills as much as a dealloc.
+@export_range(0, 1) var death_fraction: float = 1.0
+
 
 func on_removed(field: StackField, removed: Array[NodeCombat], cause: int) -> Array[StackTransfer]:
 	var out: Array[StackTransfer] = []
@@ -34,8 +43,10 @@ func on_removed(field: StackField, removed: Array[NodeCombat], cause: int) -> Ar
 			if not removed_set.has(m):
 				survivors.append(m)
 		var k := survivors.size()
-		var spillable: float = floor(stacks * spread_fraction)
-		var share: float = floor(spillable / k) if k > 0 else 0.0
+		var sinks := _sink_count(field, r, removed_set, survivors)
+		var fraction: float = spread_fraction * death_fraction if cause == CAUSE_DEATH else spread_fraction
+		var spillable: float = floor(stacks * fraction)
+		var share: float = floor(spillable / (k + sinks)) if k > 0 else 0.0
 		if share > 0.0:
 			for survivor in survivors:
 				out.append(StackTransfer.new(r, survivor, share, field.key))
@@ -43,3 +54,18 @@ func on_removed(field: StackField, removed: Array[NodeCombat], cause: int) -> Ar
 		if remainder > 0.0:
 			out.append(StackTransfer.new(r, null, remainder, field.key))
 	return out
+
+
+## Surviving neighbours of [param r] in [member sink_mask] that are not
+## already receivers. Reads through the field's own mask filter, restored.
+func _sink_count(field: StackField, r: NodeCombat, removed_set: Dictionary, receivers: Array[NodeCombat]) -> int:
+	if sink_mask == 0:
+		return 0
+	var saved := field.mask
+	field.mask = sink_mask
+	var n := 0
+	for m in field.masked_neighbours(r):
+		if not removed_set.has(m) and not receivers.has(m):
+			n += 1
+	field.mask = saved
+	return n

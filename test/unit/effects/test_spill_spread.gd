@@ -234,3 +234,55 @@ func test_dealloc_only_spill_returns_empty_for_death_cause() -> void:
 
 	var ok_transfers := rule.on_removed(field, [r] as Array[NodeCombat], StatusSpread.CAUSE_DEALLOC)
 	assert_gt(ok_transfers.size(), 0, "Dealloc cause passes the gate")
+
+
+# ── sink neighbours + death share (#1453) ────────────────────────────────────
+
+## X(owned, 7 stacks) beside one owned receiver, two neutral sinks, one hostile.
+func _sink_setup(stacks: float = 7.0) -> Dictionary:
+	var d := _def()
+	var x := _node(_me)
+	var recv := _node(_me)
+	var s1 := _node(null)
+	var s2 := _node(null)
+	var foe := _node(_foe)
+	x.apply_status(d, stacks)
+	var removed: Array[NodeCombat] = [x]
+	return {"field": _field(d, {x: [recv, s1, s2, foe]}), "x": x, "recv": recv, "removed": removed}
+
+
+func _sink_rule(death_fraction: float = 1.0) -> SpillSpread:
+	var rule := SpillSpread.new()
+	rule.sink_mask = SkillNode.Ownership.NEUTRAL
+	rule.death_fraction = death_fraction
+	return rule
+
+
+func test_sinks_dilute_dealloc_share() -> void:
+	var s := _sink_setup()
+	var out := _sink_rule().on_removed(s.field, s.removed, StatusSpread.CAUSE_DEALLOC)
+	var t := _find(out, s.x, s.recv)
+	assert_not_null(t)
+	assert_eq(t.amount, 2.0, "floor(7 / (1 + 2))")
+	var landed := 0.0
+	for tr in out:
+		if tr.to != null:
+			landed += tr.amount
+	assert_eq(landed, 2.0, "nothing reaches a sink or the hostile")
+
+
+func test_wound_smaller_than_divisor_vanishes() -> void:
+	var s := _sink_setup(2.0)
+	var out := _sink_rule().on_removed(s.field, s.removed, StatusSpread.CAUSE_DEALLOC)
+	for tr in out:
+		assert_null(tr.to, "S=2, divisor 3: all burns")
+
+
+func test_death_fraction_scales_kill_share() -> void:
+	var s := _sink_setup()
+	var out := _sink_rule(0.5).on_removed(s.field, s.removed, StatusSpread.CAUSE_DEATH)
+	var t := _find(out, s.x, s.recv)
+	assert_not_null(t)
+	assert_eq(t.amount, 1.0, "floor(7 * 0.5 / 3)")
+	var d_out := _sink_rule(0.5).on_removed(s.field, s.removed, StatusSpread.CAUSE_DEALLOC)
+	assert_eq(_find(d_out, s.x, s.recv).amount, 2.0, "dealloc keeps spread_fraction")
