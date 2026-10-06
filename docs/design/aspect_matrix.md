@@ -556,6 +556,23 @@ lightning's hops become mechanics that existing rows can use.
 - **Fortress / drag stays on notice** until seen in action (round 6); nothing
   new to rule.
 
+**Owner calls, 2026-10-06 (round 8 — details of settled rows).**
+- **Weakness half-depth is 5** (`cut = n / (n + 5)`: 1 stack 17%, 5 stacks
+  50%, 10 stacks 67%). Owner: *"k = 5 table looks best for now. a -5% per
+  stack also sounds intuitive, but would mean a cap of 20 stacks"*.
+- **Weakness decays by a fraction**, not −1. Owner: *"fractional sounds best
+  here, some more sensible recovery, and keeping someone at near-0 power
+  requires consistent application of these stacks"*. The fraction is open.
+- **Weakness on a core: yes**, the entity-wide reading. Owner: *"core statuses
+  are always very strong"*. Open: how a node's N stacks and its owner's M
+  stacks compose on one attack.
+- **Weakness cuts raw damage only.** Owner: *"allows counterplay in the shape
+  of poisons etc"*. A status build is Weakness's counter.
+- **Greed on a core stays dormant unless the core itself takes a status.**
+  Owner: *"greed stacks on the entity core only trigger if the core itself
+  takes >0 status effects from a hit, otherwise dormant"*. Hits that land
+  only on nodes never spend the entity host's Greed.
+
 ## Combos and hybrids
 
 Owner, 2026-10-05: *"for each concrete aspect we put out, we'd have content
