@@ -635,6 +635,8 @@ func _build_attack_request(outcome: AttackOutcome, _attacker: Entity) -> FocusRe
 	if plan != null:
 		_append_anchor_centroid(points, plan, outcome)
 	for hit in outcome.hits:
+		if hit is ExertInstance:
+			continue  # the origin set exerting is not a landing to frame
 		if plan == null:
 			_append_if_visible(points, hit.origin)
 		_append_if_visible(points, hit.target)
