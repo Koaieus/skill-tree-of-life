@@ -82,31 +82,63 @@ static func stream_for(resolve_seed: int) -> RandomNumberGenerator:
 ## Any condition-path tier already stamped on a hit (magic's
 ## [member SpellDef.crit_conditions], see [method SpellResolver._stamp_crit_conditions])
 ## is carried in — this only ADDS the universal stat path on top.
-static func decide_all(outcome: AttackOutcome, rng: RandomNumberGenerator) -> void:
+static func decide_all(outcome: AttackOutcome, rng: RandomNumberGenerator,
+		world: CombatWorld = null) -> void:
 	if outcome == null:
 		return
 	for hit in OutcomeApplier.in_arrival_order(outcome.hits):
-		decide(hit, rng)
+		decide(hit, rng, world)
 
 
 ## Roll one hit's universal `crit_chance` and settle its crit fields.
 ##
-## Consumes exactly one draw from [param rng], and only when the attacker
-## actually has a non-zero `crit_chance` — a board with no crit investment
-## must not shift the stream for everyone else. A zero/negative-amount hit is
-## skipped entirely (nothing to multiply).
-static func decide(hit: HitInstance, rng: RandomNumberGenerator) -> void:
+## Consumes exactly one draw from [param rng], and only when the hit's folded
+## chance ([method chance_for]) is non-zero — a hit with no crit investment
+## behind it must not shift the stream for everyone else. A
+## zero/negative-amount hit is skipped entirely (nothing to multiply).
+## `crit_multiplier` stays an entity read.
+static func decide(hit: HitInstance, rng: RandomNumberGenerator,
+		world: CombatWorld = null) -> void:
 	if hit == null or hit.amount <= 0.0:
 		return
 	var board: StatBoard = hit.attacker.stat_board if hit.attacker != null else null
-	if board != null and rng != null:
-		var cc_stat: Stat = board.get_stat(&"crit_chance")
-		var cc_val: float = cc_stat.get_value() if cc_stat != null else 0.0
+	if rng != null:
+		var cc_val := chance_for(hit, world)
 		if cc_val > 0.0 and rng.randf() < cc_val:
 			hit.crit_tier += 1
 	if hit.crit_tier > 0:
 		hit.is_crit = true
 		hit.crit_multiplier = multiplier_for(board)
+
+
+## The hit's folded crit chance: the attacker-side term plus
+## [method defender_term]. The attacker term is `crit_chance` read LOCALLY off
+## [member HitInstance.read_node]'s slice — the owner's entity value with that
+## node's own grants folded in — so a node-local grant crits that node's hits
+## only. The slice is looked up in [param world] when given, else the node's
+## live slice. No read node, or one with no owner to fold (a fixture, a gate
+## flip), falls back to the attacker's entity board; no attacker reads 0.
+static func chance_for(hit: HitInstance, world: CombatWorld = null) -> float:
+	return _attacker_term(hit, world) + defender_term(hit, world)
+
+
+## The defender-side addend of [method chance_for] — 0 today; the hook a
+## target-side crit term (a hexed target) fills, which is why the draw gate
+## reads the folded sum rather than the attacker's stat alone.
+static func defender_term(_hit: HitInstance, _world: CombatWorld = null) -> float:
+	return 0.0
+
+
+static func _attacker_term(hit: HitInstance, world: CombatWorld) -> float:
+	if hit.read_node != null:
+		var slice: NodeCombat = world.combat_for(hit.read_node) if world != null \
+				else hit.read_node.get_combat()
+		if slice != null and slice.owner() != null:
+			return float(slice.get_local_value(&"crit_chance"))
+	if hit.attacker == null or hit.attacker.stat_board == null:
+		return 0.0
+	var cc_stat: Stat = hit.attacker.stat_board.get_stat(&"crit_chance")
+	return cc_stat.get_value() if cc_stat != null else 0.0
 
 
 ## The tail-end arithmetic, called once per hit from [method HitInstance.land_on]

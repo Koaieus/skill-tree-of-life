@@ -11,3 +11,4 @@ value_type = 1
 default_value = 0.05
 tint_color = Color(0.3, 0.8, 0.25, 1)
 display_as_percent = true
+local_grantable = true
