@@ -287,6 +287,7 @@ or is struck (the ADR 0045 "dead for two of three attack modes" test).
 | Blunting | — | — | — | today only a spiked node's +1 | — | Struck candidate: a counter to a counter, meaningless to an arrow or a spell. Dies with the pop budget if #1369 takes the explosive pivot (and #794 with it) |
 | Elemental (family) | — | — | — | — | — | **Keep away (settled with Schools, 2026-10-05):** each pro is harvested as a mechanic for existing rows. Owner, 2026-10-05: *"Chill or burn sound like pure elemental, which is also a real mechanic family we haven't touched on yet. And if we start adding it, shouldn't half-ass it"*. A family, not a row: which elements, what each does on a graph, and whether elements share a resistance layer are one design pass. Chill would absorb the tempo debuffs above (Fatigue/Slow, Paralysis, Petrified). All or nothing (owner, 2026-10-05): *"either fully flesh it out or keep it away"*. Owner's pros: burning is a canonical DoT; burning could spread to neighbours; freeze may lock a node (can't act, can't be deallocated), chill a lesser or building version (*"enough chill turns into freeze idk"*); lightning *"might do hops based shenanigans"*. Against: the settled aspects (Corruption, Curse, Wither, Poison, Armor break) fit none of fire/cold/lightning, nor a fourth element. Advisor read: burn collides with Poison's axis unless edge-spread sets it apart, freeze is the tempo row's name, lightning is a targeting shape — so elements may be flavour, not a school |
 | Frailty / Fragile | fragility | — | — | — | — | Struck: owner, 2026-10-05, *"likely what curse does so no"* |
+| Healing | heal, regen | CON? | — | — | — | Owner, 2026-10-07, while ruling on Wither's resistance: *"`healing_aspect` sounds like something we might want to look into, maybe a contender? could scale healing power and regen effects. but generally sounds like an odd duck compared to the others"*. A positive aspect among debuffs; whether an arrow or an addon has an honest healing face is the promotion test |
 
 ## Attributes and pairs
 
@@ -421,7 +422,7 @@ lightning's hops become mechanics that existing rows can use.
   the live `sp_gain_on_levelup` (`Entity.sp_minted_for_level`).
 - **WIS's second row candidate is Greed** (owner idea): *"a status attracting
   status — increases stacks gained of negative statuses"*. This is **not**
-  negative `dot_resistance`. Owner, 2026-10-05: resistance *"works for poison
+  negative `status_resistance`. Owner, 2026-10-05: resistance *"works for poison
   at the tick moment (reduces that damage); other statuses idk yet how it
   works"* (ADR 0031 filters at effect time, not at landing), and
   `<family>_stacks_per_hit` is the attacker's. Greed needs a new
@@ -818,10 +819,10 @@ not a family of their own:
 | bulk %HP | Corruption | nothing |
 | damage floor | Curse | Bunker (`min_damage_taken` −5), Bulwark class |
 | armor | Armor break | Bunker (`armor` +5) |
-| healing | Wither | Lifeline / Fountain, `healing_beam` (enemy-targetable — its twist) |
+| healing | Wither | Lifeline / Fountain, `healing_beam` (enemy-targetable — its twist); `wither_resistance` dropped (owner, 2026-10-07) |
 | vision | Blindness | `blindness_resistance` (parentless, a blessed PER roll) |
 | damage dealt | Weakness | nothing |
-| exertion (HP on use) | Bleeding | nothing — rest is the cure |
+| exertion (HP on use) | Bleeding | rest is the cure, plus `bleeding_resistance` — damage is involved (owner, 2026-10-07; lands in #1435) |
 | crit taken | Hex | nothing; attacker-side crit stats are DEX's own |
 | status landing | Greed (more land) | nothing — a % resistance makes no sense on a consumed stack (owner, 2026-10-06); its counter is open on #1419 |
 | tempo | nothing — no status attacks tempo (round 6) | nothing |
@@ -838,19 +839,41 @@ already encodes: an axis with a native stat to defend with (armor, damage,
 `min_damage_taken`, rest) needs no second dial. Hex (crit taken, nothing
 native) is the one later candidate, its own pass if ever.
 
-What exists: five per-aspect resistances, read on the host as a live filter
-at effect time (ADR 0031). `dot_resistance` is the family parent of the four
-original DoT-family stats — poison, corruption, curse, wither — of which
-only Poison and Corruption tick damage today; `blindness_resistance` stands
-alone. Grouping is therefore already the shape (an ADR 0029 parent), and
-composing a resistance into `Aspect` needs no subclass: `Aspect` composes
-`stat` + `status`, and `StatusDef.resistance_stat_id` is already the edge.
-Procgen: a resistance rolls on **blessed** nodes only, in its school pack,
-ADD_BASE unit 0.05 at T2–T4, the value rung indexed from the pool's
-`min_tier` (`StatPool._tier_magnitude_bounds`): up to +5 % at T2, +5–15 % at
-T3, +15–35 % at T4. Under ADR 0031's half-down a lone stack needs > 50 % to
-lose anything, two stacks > 25 %, five > 10 % — so a T3 node bites from four
-or five stacks and a T4 from two or three; no single roll touches a lone stack.
+**Round 11 (owner, 2026-10-07): the five judged fresh, not by shipped state.**
+Owner: *"beware "history" is not really a thing, i last booted the game few
+hundred commits ago. we in pure design phase soo don't let "history" guide
+this"*. Applied to what the code holds:
+- **Poison, Corruption** keep theirs: damage is involved.
+- **Blindness** keeps: no other counterplay (the owner's own example).
+- **Curse** keeps, tentatively: *"damage is involved but it's not directly
+  linked, it raises damage floor but this damage floor would then be
+  increased only partially by curse? might be OK"*.
+- **Wither** is dropped: *"drop maybe. hmmm would have no counterplay against
+  counter-heal, but idk how deep we would want to counter"* → the pass's
+  "drop now, nothing is booted so nothing is lost; readmitted under *it just
+  makes sense* the day anti-heal needs an answer", owner took it.
+- **Bleeding** gets `bleeding_resistance`: *"bleed also deals damage"* — the
+  rule as worded earns it one (owner picked "Yes, bleeding_resistance" over
+  "rest is the cure"). A blessed STR roll, in #1435.
+- **One parent over every resistance, `status_resistance`**, replacing
+  `dot_resistance`. The membership question ("does Curse count as damage?
+  Bleeding? Creep?") was the tell — owner: *"maybe all resistances? or just
+  all that damage, hard time deciding"* — and the all-resistances cut asks
+  nothing per row and is one family roll to tune, which was the tuning worry
+  that opened the pass. Price: a node rolled against Blindness also shrugs
+  off Poison; accepted. The rename and the Wither drop are one unit, #1456.
+
+Mechanics, unchanged: a resistance is read on the host as a live filter at
+effect time (ADR 0031). Grouping is an ADR 0029 parent, and composing a
+resistance into `Aspect` needs no subclass: `Aspect` composes `stat` +
+`status`, and `StatusDef.resistance_stat_id` is already the edge. Procgen: a
+resistance rolls on **blessed** nodes only, in its school pack, ADD_BASE unit
+0.05 at T2–T4, the value rung indexed from the pool's `min_tier`
+(`StatPool._tier_magnitude_bounds`): up to +5 % at T2, +5–15 % at T3,
++15–35 % at T4. Under ADR 0031's half-down a lone stack needs > 50 % to lose
+anything, two stacks > 25 %, five > 10 % — so a T3 node bites from four or
+five stacks and a T4 from two or three; no single roll touches a lone stack.
+A roll on the parent itself is a later procgen pass, not authored yet.
 
 **Greed takes no % resistance** (owner, 2026-10-06): *"greed cannot have a %
 based resistance, wouldn't make sense "1 greed stack consumed to get you 1.99
