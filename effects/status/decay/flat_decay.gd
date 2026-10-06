@@ -12,7 +12,7 @@ func _init(p_per_tick: float = 1.0) -> void:
 	per_tick = p_per_tick
 
 
-func decayed(power: float) -> float:
+func decayed(power: float, _row: NodeStatus = null) -> float:
 	return maxf(power - per_tick, 0.0)
 
 

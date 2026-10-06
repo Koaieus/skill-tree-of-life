@@ -17,6 +17,10 @@ var key: Variant = true
 ## [member Entity.entity_id] (`0` none) — [member StatusDef.visible_if] reads them.
 var camp_id: StringName = &""
 var applier_id: int = 0
+## Rest ticks since the row last decayed from a fresh start — read by a
+## ramping [StatusDecay] ([RampDecay]). [method StatusHost.tick_statuses]
+## advances it after each decay; an exertion resets it to `0`.
+var decay_step: int = 0
 
 
 func _init(p_def: StatusDef = null, p_power: int = 0, p_key: Variant = true) -> void:
@@ -42,4 +46,5 @@ func clone() -> NodeStatus:
 	var c := NodeStatus.new(def, power, key)
 	c.camp_id = camp_id
 	c.applier_id = applier_id
+	c.decay_step = decay_step
 	return c

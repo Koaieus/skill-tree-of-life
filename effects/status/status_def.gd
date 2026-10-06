@@ -254,8 +254,8 @@ static func round_half_up(v: float) -> float:
 ## [member decay] slot; [method NodeCombat.tick_statuses] and
 ## [method projected_damage] both read it. `0` means "removed". A null slot
 ## answers [param power] unchanged.
-func decayed(power: float) -> float:
-	return power if decay == null else decay.decayed(power)
+func decayed(power: float, row: NodeStatus = null) -> float:
+	return power if decay == null else decay.decayed(power, row)
 
 
 ## Total damage this status still has in it on [param host] at [param power],

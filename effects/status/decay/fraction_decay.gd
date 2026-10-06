@@ -14,7 +14,7 @@ func _init(p_fraction: float = 0.5) -> void:
 	fraction = p_fraction
 
 
-func decayed(power: float) -> float:
+func decayed(power: float, _row: NodeStatus = null) -> float:
 	var after := power * (1.0 - fraction)
 	var kept := roundf(after) if is_equal_approx(after, roundf(after)) else floorf(after)
 	return kept if kept >= 1.0 else 0.0
