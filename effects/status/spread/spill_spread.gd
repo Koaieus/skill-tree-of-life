@@ -22,7 +22,8 @@ extends StatusSpread
 ## their share without receiving a transfer — the dissipating spill. `0` = none.
 @export_flags("Neutral:1", "Mine:2", "Ally:4", "Hostile:8") var sink_mask: int = 0
 
-## The share on a death strip; [member spread_fraction] is the dealloc share.
+## Extra multiplier on [member spread_fraction] when the cause is a death strip;
+## `1.0` = a kill spills as much as a dealloc.
 @export_range(0, 1) var death_fraction: float = 1.0
 
 
@@ -43,7 +44,7 @@ func on_removed(field: StackField, removed: Array[NodeCombat], cause: int) -> Ar
 				survivors.append(m)
 		var k := survivors.size()
 		var sinks := _sink_count(field, r, removed_set, survivors)
-		var fraction: float = death_fraction if cause == CAUSE_DEATH else spread_fraction
+		var fraction: float = spread_fraction * death_fraction if cause == CAUSE_DEATH else spread_fraction
 		var spillable: float = floor(stacks * fraction)
 		var share: float = floor(spillable / (k + sinks)) if k > 0 else 0.0
 		if share > 0.0:
