@@ -889,6 +889,11 @@ func exert() -> void:
 	_status_host.exert()
 
 
+## See [method StatusHost.greed_arm].
+func greed_arm(hit_key: int) -> bool:
+	return _status_host.greed_arm(hit_key)
+
+
 ## See [method StatusHost.remove_status].
 func remove_status(id: StringName) -> void:
 	_status_host.remove_status(id)

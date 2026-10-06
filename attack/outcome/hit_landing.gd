@@ -31,3 +31,6 @@ var paired: HitInstance = null
 ## The sink: every [HitInstance] an effect emits is appended here, in order.
 ## Usually the outcome's own [member AttackOutcome.hits], by reference.
 var hits: Array[HitInstance] = []
+## Which hit this is: unique per landing. Every rider a landing emits
+## carries it as [member StatusInstance.hit_key].
+var hit_key: int = 0

@@ -300,6 +300,11 @@ func _resistance(def: StatusDef) -> float:
 	return float(v) if v != null else 0.0
 
 
+## Greed's defender-side term for the hit [param hit_key].
+func greed_arm(_hit_key: int) -> bool:
+	return false
+
+
 ## Current power of the row `([param id], [param key])`, `0.0` when absent.
 func get_status_power(id: StringName, key: Variant = true) -> float:
 	var row := _row(id, key)

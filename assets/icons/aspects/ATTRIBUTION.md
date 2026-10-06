@@ -15,3 +15,4 @@ Licensed under [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/). Recolo
 | scout.png | scout | binoculars.svg | Delapouite |
 | explosive.png | explosive | spiky-explosion.svg | Lorc |
 | weakness.png | weakness | drop-weapon.svg | Skoll |
+| greed.png | greed | coins-pile.svg | Delapouite |

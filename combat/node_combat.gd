@@ -652,6 +652,11 @@ func exert() -> void:
 	_status_host.exert()
 
 
+## See [method StatusHost.greed_arm].
+func greed_arm(hit_key: int) -> bool:
+	return _status_host.greed_arm(hit_key)
+
+
 ## See [method StatusHost.projected_status_damage] (#962, drawn by #953).
 func projected_status_damage() -> float:
 	return _status_host.projected_status_damage()

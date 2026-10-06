@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="StatusDef" format=3]
+
+[ext_resource type="Script" uid="uid://df26qxsm3sm24" path="res://effects/status/status_def.gd" id="1_def"]
+[ext_resource type="Resource" path="res://identity/defs/greed.tres" id="identity_greed"]
+
+[resource]
+script = ExtResource("1_def")
+identity = ExtResource("identity_greed")
+id = &"greed"
+display_name = "Greed"
+description = "The node's next hit lands its negative statuses doubled, and each such hit spends one stack. Greed never fades on its own."
+tags = Array[StringName]([&"debuff"])
+power_max = 0.0
+display_max = 10.0
+reapply = 1
+stacks_stat_id = &"greed_stacks_per_hit"
+decay = null

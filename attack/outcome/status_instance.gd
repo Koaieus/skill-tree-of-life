@@ -55,6 +55,9 @@ var host_kind: HostKind = HostKind.NODE
 ## power (a dud's recorded 0, which [method NodeCombat.apply_status] ignores).
 var paired: HitInstance = null
 
+## The landing this status rode in on ([member HitLanding.hit_key]).
+var hit_key: int = 0
+
 
 func _init() -> void:
 	kind = Kind.STATUS
