@@ -572,6 +572,26 @@ lightning's hops become mechanics that existing rows can use.
   Owner: *"greed stacks on the entity core only trigger if the core itself
   takes >0 status effects from a hit, otherwise dormant"*. Hits that land
   only on nodes never spend the entity host's Greed.
+- **Weakness knobs closed (owner picks from the pass's options):** floor
+  10% per host (reached at 45 stacks), fractional decay 0.25 (10 → 7 → 5 →
+  3 → 2 → 1 → 0), and a node's N stacks and its owner's M **multiply** —
+  cut(N) × cut(M), worst case 1% — which is how two `MULTIPLY` modifiers fold
+  anyway. Spec: #1426.
+- **Greed never decays, for now.** Owner: *"Greed no decay for now; while we
+  keeping door open to let greed start decaying out of combat just like nodes
+  start healing after being out of combat for a few turns"*.
+- **Hoard pays a percent: +10% per Greed stack** of what the removed node
+  pays. Owner: *"option 1 @ +10% per stack. possibly doable via an `overlay`
+  readout?"* It is: a victim-side `bounty` stat (tentative name) read with the
+  loot rate as an overlay `base_add`, Greed planting `INCREASE` on it. Core
+  Greed then scales the whole kill payout, every removed node plus the core
+  bonus. Spec: #1421.
+- **Poison's 3/3 unlock leans `MULTIPLY` ×2, never +100% INCREASE.** Owner:
+  *"never 100% increase, IFF we want to achieve that it's a `2.0` multiplier
+  instead. because INCREASE can also be scaled separately. and i think we might
+  go for the option 2 here but with a MULTIPLY (PoE "More") modifier"*. That
+  lands `(3 + N) × 2`, doubling the attacker's rolled stacks too. A lean, not
+  final: #1271.
 
 ## Combos and hybrids
 
