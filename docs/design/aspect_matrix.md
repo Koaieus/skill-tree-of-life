@@ -597,7 +597,7 @@ lightning's hops become mechanics that existing rows can use.
   shouldn't make it ×8 altogether"*. So it sits in the addon's local
   modifiers, and landing must fold `stacks_per_hit` from the origin node; today
   it folds the attacker's entity board only, so this is a prerequisite unit
-  (#1271).
+  (#1433, blocking #1271).
 
 ## Combos and hybrids
 
