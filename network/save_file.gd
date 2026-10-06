@@ -24,7 +24,8 @@ enum LoadResult { OK, MISSING, CORRUPT, VERSION_MISMATCH }
 ##    reads off an unowned node).
 ## 5: the board's stat set lost two ids (ADR 0045); an older file names stats
 ##    this build no longer defines.
-const FORMAT_VERSION := 5
+## 6: an `_R_STATUSES` entry grew `decay_step` (a ramping decay's position).
+const FORMAT_VERSION := 6
 ## The single slot — mirrors [constant Settings.SAVE_PATH]'s `user://` home.
 const SLOT_PATH := "user://save.bin"
 const MAGIC := "STLS"

@@ -26,6 +26,9 @@ const _ROW_LAYOUT_PINS := {
 	# 5: the board lost two stat ids (ADR 0045). No row moved, so the hash is
 	# 4's; the bump is the stat set's shape.
 	5: "2f2af3cc83555396e3dd69b5864bec2d12f52dbcb125bbd81661ae3f353dbfa2",
+	# 6: an `_R_STATUSES` entry grew `decay_step`. No row moved, so the hash
+	# is 5's; the bump is the entry shape.
+	6: "2f2af3cc83555396e3dd69b5864bec2d12f52dbcb125bbd81661ae3f353dbfa2",
 }
 
 

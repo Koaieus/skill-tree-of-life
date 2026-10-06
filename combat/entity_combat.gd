@@ -896,8 +896,8 @@ func remove_status(id: StringName) -> void:
 
 ## See [method StatusHost.restore_row].
 func restore_status_row(def: StatusDef, power: float, key: Variant, camp_id: StringName = &"",
-		applier_id: int = 0) -> void:
-	_status_host.restore_row(def, power, key, camp_id, applier_id)
+		applier_id: int = 0, decay_step: int = 0) -> void:
+	_status_host.restore_row(def, power, key, camp_id, applier_id, decay_step)
 
 
 ## See [method StatusHost.remove_row].

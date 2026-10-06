@@ -230,3 +230,27 @@ func test_encode_is_independent_of_edge_order_and_direction() -> void:
 	var b := await _hand_graph([[2, 2], [2, 1], [0, 0], [1, 0]])
 	assert_eq(GraphSnapshot.encode(b), GraphSnapshot.encode(a),
 			"edge order and direction must not reach the bytes")
+
+
+## #1452: a row's ramp position ([member NodeStatus.decay_step]) crosses the
+## round trip, so a ramping decay resumes where the source left it.
+func test_status_decay_step_survives_the_round_trip() -> void:
+	var source := await _procgen_graph(12, 20260914)
+	var target := await _new_graph()
+	var source_owner := _new_owner(source)
+	_new_owner(target)
+	var node: SkillNode = source.get_skill_nodes()[0]
+	node.owned_by = source_owner
+	node.get_combat().apply_status(_TEST_STATUS, 3.0)
+	node.get_combat().tick_statuses()
+	node.get_combat().tick_statuses()
+	var src_row: NodeStatus = node.get_combat().get_statuses()[0]
+	assert_eq(src_row.decay_step, 2, "two rest ticks advanced the step")
+
+	GraphSnapshot.decode(GraphSnapshot.encode(source), target)
+
+	var decoded := target.get_by_stable_id(source.get_stable_id(node))
+	var rows := decoded.get_combat().get_statuses()
+	assert_eq(rows.size(), 1)
+	if rows.size() == 1:
+		assert_eq(rows[0].decay_step, 2, "decay_step restored through restore_status_row")

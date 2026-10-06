@@ -67,15 +67,19 @@ static func tick_damage(def: StatusDef, host, power: float, damage_per_power: fl
 ## count (ADR 0032): 20 stacks losing 1 a tick at 1 damage a stack, no
 ## resistance, project 20 + 19 + … + 1 = 210; halving floor-kept, 20 + 10 + 5
 ## + 2 + 1 = 38. Max hp is read as of now. A def that never decays is capped
-## at one tick so the loop terminates.
+## at one tick so the loop terminates. The walk advances a SCRATCH
+## [NodeStatus] ([param row] cloned, else fresh at step 0) as the host's tick
+## does, so a ramping decay ramps here too; the live row is never touched.
 static func project(def: StatusDef, host, power: float, damage_per_power: float,
-		basis: HitInstance.AmountBasis) -> float:
+		basis: HitInstance.AmountBasis, row: NodeStatus = null) -> float:
+	var scratch := row.clone() if row != null else NodeStatus.new(def, int(power))
 	var total := 0.0
 	var p := power
 	var guard := 0
 	while p > 0.0 and guard < 1000:
 		total += tick_damage(def, host, p, damage_per_power, basis)
-		var next := def.decayed(p)
+		var next := def.decayed(p, scratch)
+		scratch.decay_step += 1
 		if next >= p:
 			break  # non-decaying def: one tick is all we can honestly project
 		p = next

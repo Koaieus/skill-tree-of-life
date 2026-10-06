@@ -84,14 +84,18 @@ func apply_status(def: StatusDef, power: float, camp_id: StringName = &"", appli
 
 
 ## Put the row `(def.id, [param key])` back at exactly [param power] with its
-## applier fields — the snapshot restore's writer. Never recomputes the key
+## applier fields and ramp position ([member NodeStatus.decay_step]) — the
+## snapshot restore's writer. Never recomputes the key
 ## through the def (a decoded row keeps the key it was saved under); keeps
 ## [method apply_status]'s `CLEAR` gate and [method _settle]'s clamp.
 func restore_row(def: StatusDef, power: float, key: Variant, camp_id: StringName = &"",
-		applier_id: int = 0) -> void:
+		applier_id: int = 0, decay_step: int = 0) -> void:
 	if def == null or power <= 0.0 or key == null or not _may_host(def):
 		return
 	_settle(def, power, key, true, [camp_id, applier_id])
+	var row := _row(def.id, key)
+	if row != null:
+		row.decay_step = decay_step
 
 
 ## Move [param def]'s RAW row `(def.id, [param key])` on this host by [param delta] stacks — the one
@@ -166,7 +170,7 @@ func tick_statuses() -> void:
 		if _row(id, row.key) != row:
 			continue  # vanished mid-tick
 		var before := float(row.power)
-		var after := row.def.decayed(before)  # per its decay slot; 0 means removed
+		var after := row.def.decayed(before, row)  # per its decay slot; 0 means removed
 		assert(is_equal_approx(after, roundf(after)),
 				"StatusHost: %s decayed to a non-integer %s" % [id, after])
 		# ADR 0031: the hook sees both ends resisted; decay stays raw below.
@@ -174,6 +178,7 @@ func tick_statuses() -> void:
 		if _row(id, row.key) != row:
 			continue  # the hook removed it (or the host was cleared under us)
 		row.power = int(roundf(after))
+		row.decay_step += 1
 		if row.power <= 0:
 			remove_row(id, row.key)
 	# #880: decay changes the blend even on rows that survive (no removal, so
@@ -188,6 +193,7 @@ func exert() -> void:
 	for row in get_statuses():
 		if _row(row.def.id, row.key) != row:
 			continue
+		row.decay_step = 0
 		row.def._on_exerted(owner)
 
 
