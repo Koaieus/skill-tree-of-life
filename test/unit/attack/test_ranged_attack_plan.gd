@@ -167,8 +167,8 @@ func test_resolve_produces_one_hit_per_reaching_firing_position() -> void:
 	var p := _plan()
 	p.set_target(_target)
 	var outcome := p.resolve()
-	assert_eq(outcome.hits.size(), 1)
-	var hit := outcome.hits[0]
+	assert_eq(_combat_hits(outcome).size(), 1)
+	var hit := _combat_hits(outcome)[0]
 	assert_eq(hit.target, _target)
 	assert_eq(hit.origin, _leaf_near)
 	assert_almost_eq(hit.amount, 12.0, 0.001)
@@ -194,9 +194,9 @@ func test_resolve_stamps_the_authored_ramp_onto_arrival_time() -> void:
 	var p := _plan()
 	p.set_target(_target)
 	var outcome := p.resolve()
-	assert_eq(outcome.hits.size(), 2)
-	var near_hit: DamageInstance = outcome.hits[0]
-	var far_hit: DamageInstance = outcome.hits[1]
+	assert_eq(_combat_hits(outcome).size(), 2)
+	var near_hit: DamageInstance = _combat_hits(outcome)[0]
+	var far_hit: DamageInstance = _combat_hits(outcome)[1]
 	assert_eq(near_hit.origin, _leaf_near, "nearest leaf fires (and is listed) first")
 	assert_eq(far_hit.origin, _leaf_far)
 	assert_almost_eq(near_hit.arrival_time,
@@ -231,14 +231,14 @@ func test_middle_shot_launches_at_its_distance_fraction_not_its_rank() -> void:
 	var p := _plan()
 	p.set_target(_target)
 	var outcome := p.resolve()
-	assert_eq(outcome.hits.size(), 3)
+	assert_eq(_combat_hits(outcome).size(), 3)
 	var base: float = tempo.volley_flight_time
-	assert_almost_eq(outcome.hits[0].arrival_time, base, 0.0001,
+	assert_almost_eq(_combat_hits(outcome)[0].arrival_time, base, 0.0001,
 			"nearest leaf pins frac 0")
-	assert_almost_eq(outcome.hits[1].arrival_time,
+	assert_almost_eq(_combat_hits(outcome)[1].arrival_time,
 			base + 0.25 * tempo.volley_stagger_span, 0.0001,
 			"a leaf a quarter of the way across the span launches a quarter into it")
-	assert_almost_eq(outcome.hits[2].arrival_time,
+	assert_almost_eq(_combat_hits(outcome)[2].arrival_time,
 			base + tempo.volley_stagger_span, 0.0001,
 			"furthest leaf pins frac 1")
 
@@ -252,8 +252,8 @@ func test_near_identical_distances_launch_together() -> void:
 	var p := _plan()
 	p.set_target(_target)
 	var outcome := p.resolve()
-	assert_eq(outcome.hits.size(), 4)
-	assert_almost_eq(outcome.hits[1].arrival_time, outcome.hits[2].arrival_time,
+	assert_eq(_combat_hits(outcome).size(), 4)
+	assert_almost_eq(_combat_hits(outcome)[1].arrival_time, _combat_hits(outcome)[2].arrival_time,
 			0.001, "0.1px apart out of a 400px span is a shared beat")
 
 
@@ -266,10 +266,10 @@ func test_equidistant_leaves_all_launch_on_the_same_beat() -> void:
 	var p := _plan()
 	p.set_target(_target)
 	var outcome := p.resolve()
-	assert_eq(outcome.hits.size(), 2)
+	assert_eq(_combat_hits(outcome).size(), 2)
 	var tempo := PresentationTempo.shared_default()
 	var expected: float = tempo.volley_flight_time
-	for hit in outcome.hits:
+	for hit in _combat_hits(outcome):
 		assert_almost_eq(hit.arrival_time, expected, 0.0001,
 				"an equidistant volley has no ramp to spread across")
 
@@ -280,8 +280,8 @@ func test_single_shot_volley_launches_at_draw_time() -> void:
 	var p := _plan()
 	p.set_target(_target)
 	var outcome := p.resolve()
-	assert_eq(outcome.hits.size(), 1)
-	assert_almost_eq(outcome.hits[0].arrival_time,
+	assert_eq(_combat_hits(outcome).size(), 1)
+	assert_almost_eq(_combat_hits(outcome)[0].arrival_time,
 			tempo.volley_flight_time, 0.0001)
 
 
@@ -305,10 +305,10 @@ func test_launch_span_equals_arrival_span_at_any_shot_count() -> void:
 	var p := _plan()
 	p.set_target(_target)
 	var outcome := p.resolve()
-	assert_eq(outcome.hits.size(), 2)
-	var launch_span: float = (outcome.hits[1].arrival_time - tempo.volley_flight_time) \
-			- (outcome.hits[0].arrival_time - tempo.volley_flight_time)
-	var arrival_span: float = outcome.hits[1].arrival_time - outcome.hits[0].arrival_time
+	assert_eq(_combat_hits(outcome).size(), 2)
+	var launch_span: float = (_combat_hits(outcome)[1].arrival_time - tempo.volley_flight_time) \
+			- (_combat_hits(outcome)[0].arrival_time - tempo.volley_flight_time)
+	var arrival_span: float = _combat_hits(outcome)[1].arrival_time - _combat_hits(outcome)[0].arrival_time
 	assert_almost_eq(launch_span, arrival_span, 0.0001)
 	assert_almost_eq(arrival_span, tempo.volley_stagger_span, 0.0001,
 			"span between the only two ranks is the full volley_stagger_span")
@@ -321,8 +321,8 @@ func test_wall_time_is_constant_across_shot_counts() -> void:
 	var two_shot := _plan()
 	two_shot.set_target(_target)
 	var outcome_two := two_shot.resolve()
-	assert_eq(outcome_two.hits.size(), 2)
-	var span_two := outcome_two.hits[-1].arrival_time - outcome_two.hits[0].arrival_time
+	assert_eq(_combat_hits(outcome_two).size(), 2)
+	var span_two := _combat_hits(outcome_two)[-1].arrival_time - _combat_hits(outcome_two)[0].arrival_time
 
 	var mid_leaf := _SKILL_NODE_SCENE.instantiate() as SkillNode
 	mid_leaf.position = Vector2(500, 100)
@@ -333,8 +333,8 @@ func test_wall_time_is_constant_across_shot_counts() -> void:
 	var three_shot := _plan()
 	three_shot.set_target(_target)
 	var outcome_three := three_shot.resolve()
-	assert_eq(outcome_three.hits.size(), 3)
-	var span_three := outcome_three.hits[-1].arrival_time - outcome_three.hits[0].arrival_time
+	assert_eq(_combat_hits(outcome_three).size(), 3)
+	var span_three := _combat_hits(outcome_three)[-1].arrival_time - _combat_hits(outcome_three)[0].arrival_time
 
 	var tempo := PresentationTempo.shared_default()
 	assert_almost_eq(span_two, tempo.volley_stagger_span, 0.0001)
@@ -362,7 +362,7 @@ func test_reordering_allocation_does_not_change_the_firing_schedule() -> void:
 	var outcome_a: AttackOutcome = forward["plan"].resolve()
 	var outcome_b: AttackOutcome = reversed["plan"].resolve()
 	for i in 3:
-		assert_almost_eq(outcome_a.hits[i].arrival_time, outcome_b.hits[i].arrival_time, 0.0001)
+		assert_almost_eq(_combat_hits(outcome_a)[i].arrival_time, _combat_hits(outcome_b)[i].arrival_time, 0.0001)
 
 
 ## Builds a fresh core+3-leaf star (leaves at distinct distances from a
@@ -451,7 +451,7 @@ func test_gate_vetoes_shots_after_the_target_dies_mid_volley() -> void:
 	var p := _plan()
 	p.set_target(_target)
 	var outcome := p.resolve()
-	assert_eq(outcome.hits.size(), 4, "precondition: all four leaves reach")
+	assert_eq(_combat_hits(outcome).size(), 4, "precondition: all four leaves reach")
 
 	var handler := func(node: SkillNode, _source: Variant) -> void:
 		if node == _target:
@@ -462,13 +462,13 @@ func test_gate_vetoes_shots_after_the_target_dies_mid_volley() -> void:
 
 	assert_almost_eq(_target.get_current_hp(), 0.0, 0.001,
 			"the target must have been depleted by the 3rd shot")
-	assert_false(outcome.hits[0].gated, "shot 1 lands normally")
-	assert_false(outcome.hits[1].gated, "shot 2 lands normally")
-	assert_false(outcome.hits[2].gated, "shot 3 lands normally and kills")
-	assert_true(outcome.hits[3].gated, "shot 4 must be vetoed — the target is already dead")
-	assert_almost_eq(outcome.hits[3].effective_amount, 0.0, 0.001,
+	assert_false(_combat_hits(outcome)[0].gated, "shot 1 lands normally")
+	assert_false(_combat_hits(outcome)[1].gated, "shot 2 lands normally")
+	assert_false(_combat_hits(outcome)[2].gated, "shot 3 lands normally and kills")
+	assert_true(_combat_hits(outcome)[3].gated, "shot 4 must be vetoed — the target is already dead")
+	assert_almost_eq(_combat_hits(outcome)[3].effective_amount, 0.0, 0.001,
 			"a vetoed shot applies no damage")
-	assert_eq(outcome.hits[3].target, _target, "a vetoed shot is not re-aimed at another target")
+	assert_eq(_combat_hits(outcome)[3].target, _target, "a vetoed shot is not re-aimed at another target")
 
 
 ## #536, acceptance 3 for RANGED: `resolve_against` lands the volley in the
@@ -485,8 +485,8 @@ func test_a_shadow_resolve_lands_the_volley_without_touching_the_real_world() ->
 	var world := CombatWorld.shadow()
 	var outcome := p.resolve_against(world)
 
-	assert_eq(outcome.hits.size(), 1, "the volley must fire or this proves nothing")
-	assert_gt(outcome.hits[0].effective_amount, 0.0,
+	assert_eq(_combat_hits(outcome).size(), 1, "the volley must fire or this proves nothing")
+	assert_gt(_combat_hits(outcome)[0].effective_amount, 0.0,
 			"and it must have LANDED — an unapplied hit would report 0")
 	assert_lt(world.combat_for(_target).get_current_hp(), hp_before,
 			"the shadow's copy of the target took the damage")
@@ -597,7 +597,7 @@ func test_facing_points_at_the_target_when_origin() -> void:
 ## The distinct non-status hit origins of [param outcome], as a set.
 func _origin_set(outcome: AttackOutcome) -> Dictionary:
 	var out := {}
-	for hit in outcome.hits:
+	for hit in _combat_hits(outcome):
 		if hit.origin != null and not (hit is StatusInstance):
 			out[hit.origin] = true
 	return out
@@ -635,3 +635,12 @@ func test_windup_anchors_without_an_outcome_are_the_reaching_leaves() -> void:
 	var p := _four_reaching_two_firing()
 	assert_eq(_as_set(p.windup_anchors(null)), _as_set(p.get_reaching_firing_positions()),
 			"an aim-time read falls back to every reaching leaf")
+
+
+## The attack's combat landings — every hit but the origin set's exertions.
+func _combat_hits(outcome: AttackOutcome) -> Array[HitInstance]:
+	var out: Array[HitInstance] = []
+	for hit in outcome.hits:
+		if not hit is ExertInstance:
+			out.append(hit)
+	return out

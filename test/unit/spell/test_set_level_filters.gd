@@ -238,6 +238,8 @@ func test_visit_cap_runs_before_the_filter_so_a_spent_node_cannot_win_a_tie() ->
 	var outcome := SpellResolver.resolve(spell, n[2], n[0], atk, graph)
 	var targets: Array[String] = []
 	for hit in outcome.hits:
+		if hit is ExertInstance:
+			continue
 		targets.append((hit.target as SkillNode).name)
 	assert_eq(targets, ["N2", "N0", "N1"] as Array[String],
 			"the spent node never enters the tie, so the live joint-lowest wins")

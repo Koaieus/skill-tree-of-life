@@ -151,8 +151,8 @@ func test_stat_path_no_crit_when_chance_zero() -> void:
 	var spell := helper.make_spell(config, [DamageEffect.new()], 10.0)
 	var n := graph.get_skill_nodes()
 	var outcome := SpellResolver.resolve(spell, n[1], n[0], atk, graph)
-	assert_eq(outcome.hits.size(), 1)
-	assert_false(outcome.hits[0].is_crit, "no crit when chance is 0")
+	assert_eq(_combat_hits(outcome).size(), 1)
+	assert_false(_combat_hits(outcome)[0].is_crit, "no crit when chance is 0")
 	assert_eq(outcome.timeline[0].max_crit_tier(), 0)
 
 
@@ -169,14 +169,14 @@ func test_stat_path_crits_when_chance_one() -> void:
 	var spell := helper.make_spell(config, [DamageEffect.new()], 10.0)
 	var n := graph.get_skill_nodes()
 	var outcome := SpellResolver.resolve(spell, n[1], n[0], atk, graph)
-	assert_eq(outcome.hits.size(), 1)
-	assert_true(outcome.hits[0].is_crit, "crit when chance is 1.0")
+	assert_eq(_combat_hits(outcome).size(), 1)
+	assert_true(_combat_hits(outcome)[0].is_crit, "crit when chance is 1.0")
 	assert_eq(outcome.timeline[0].max_crit_tier(), 1)
 
 
 func test_heal_can_crit() -> void:
 	# #381 part 3: crit fields moved onto the base HitInstance specifically so
-	# heals can crit too — pre-#381 only outcome.hits[pre] (damage) was ever
+	# heals can crit too — pre-#381 only _combat_hits(outcome)[pre] (damage) was ever
 	# passed to the crit resolver.
 	var helper := H.new()
 	var graph := helper.make_graph([[0, 1]], self)
@@ -191,10 +191,10 @@ func test_heal_can_crit() -> void:
 	var spell := helper.make_spell(config, [HealEffect.new()], 10.0)
 	var n := graph.get_skill_nodes()
 	var outcome := SpellResolver.resolve(spell, n[1], n[0], atk, graph)
-	assert_eq(outcome.hits.size(), 1)
-	assert_eq(outcome.hits[0].kind, HitInstance.Kind.HEAL)
-	assert_true(outcome.hits[0].is_crit, "a heal rolls the same crit path as damage")
-	assert_eq(outcome.hits[0].crit_multiplier, 2.0)
+	assert_eq(_combat_hits(outcome).size(), 1)
+	assert_eq(_combat_hits(outcome)[0].kind, HitInstance.Kind.HEAL)
+	assert_true(_combat_hits(outcome)[0].is_crit, "a heal rolls the same crit path as damage")
+	assert_eq(_combat_hits(outcome)[0].crit_multiplier, 2.0)
 
 
 func test_stat_path_multiplies_damage_on_crit() -> void:
@@ -211,8 +211,8 @@ func test_stat_path_multiplies_damage_on_crit() -> void:
 	var spell := helper.make_spell(config, [DamageEffect.new()], 10.0)
 	var n := graph.get_skill_nodes()
 	var outcome := SpellResolver.resolve(spell, n[1], n[0], atk, graph)
-	assert_eq(outcome.hits.size(), 1)
-	var hit := outcome.hits[0]
+	assert_eq(_combat_hits(outcome).size(), 1)
+	var hit := _combat_hits(outcome)[0]
 	assert_true(hit.is_crit)
 	assert_eq(hit.crit_multiplier, 3.0)
 	var seed_dmg: float = helper.seed_multiplier(n[0]) * spell.power
@@ -247,9 +247,9 @@ func test_stat_path_reproduces_crits_under_seed() -> void:
 	rng2.seed = 42
 	var outcome2 := SpellResolver.resolve(spell, n[1], n[0], atk, graph, rng2)
 
-	assert_eq(outcome1.hits[0].is_crit, outcome2.hits[0].is_crit, "same seed → same crit flag")
+	assert_eq(_combat_hits(outcome1)[0].is_crit, _combat_hits(outcome2)[0].is_crit, "same seed → same crit flag")
 	assert_eq(outcome1.timeline[0].max_crit_tier(), outcome2.timeline[0].max_crit_tier(), "same seed → same crit_tier")
-	assert_eq(outcome1.hits[0].amount, outcome2.hits[0].amount, "same seed → same damage")
+	assert_eq(_combat_hits(outcome1)[0].amount, _combat_hits(outcome2)[0].amount, "same seed → same damage")
 
 
 # ── Condition-path crit via SpellResolver ───────────────────────────────────
@@ -377,7 +377,7 @@ func test_zero_damage_landing_never_crits() -> void:
 	spell.crit_conditions = [SelfLoopCondition.new()]
 	var n := graph.get_skill_nodes()
 	var outcome := SpellResolver.resolve(spell, n[1], n[0], atk, graph)
-	assert_eq(outcome.hits.size(), 0)
+	assert_eq(_combat_hits(outcome).size(), 0)
 	assert_eq(outcome.timeline[0].max_crit_tier(), 0)
 
 
@@ -413,3 +413,12 @@ func test_entity_without_board_still_supports_condition_path() -> void:
 	assert_false(hits_on_1[0].is_crit, "seed never crits")
 	assert_true(hits_on_1[1].is_crit, "self-loop traversal crits without a stat board")
 	assert_eq(hits_on_1[1].crit_multiplier, 2.0, "fallback multiplier 2.0")
+
+
+## The cast's combat landings — every hit but the origin set's exertions.
+func _combat_hits(outcome: AttackOutcome) -> Array[HitInstance]:
+	var out: Array[HitInstance] = []
+	for hit in outcome.hits:
+		if not hit is ExertInstance:
+			out.append(hit)
+	return out

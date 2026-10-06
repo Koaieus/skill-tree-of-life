@@ -41,7 +41,7 @@ func test_max_hops_zero_yields_seed_only() -> void:
 	var spell := helper.make_spell(config, [DamageEffect.new()], 10.0)
 	var n := graph.get_skill_nodes()
 	var outcome := SpellResolver.resolve(spell, n[1], n[0], atk, graph)
-	assert_eq(outcome.hits.size(), 1)
+	assert_eq(_combat_hits(outcome).size(), 1)
 
 
 func test_one_hop_fans_to_all_enemy_neighbours() -> void:
@@ -55,7 +55,7 @@ func test_one_hop_fans_to_all_enemy_neighbours() -> void:
 	var n := graph.get_skill_nodes()
 	var outcome := SpellResolver.resolve(spell, n[1], n[0], atk, graph)
 	var by_node := helper.hits_by_node(outcome)
-	assert_eq(outcome.hits.size(), 3)
+	assert_eq(_combat_hits(outcome).size(), 3)
 	assert_true(by_node.has(n[1]) and by_node.has(n[2]) and by_node.has(n[3]))
 
 
@@ -70,8 +70,8 @@ func test_only_enemy_filter_excludes_caster_nodes() -> void:
 	var n := graph.get_skill_nodes()
 	var outcome := SpellResolver.resolve(spell, n[1], n[0], atk, graph)
 	# Only the seed lands — both neighbours are caster-owned.
-	assert_eq(outcome.hits.size(), 1)
-	assert_eq(outcome.hits[0].target, n[1])
+	assert_eq(_combat_hits(outcome).size(), 1)
+	assert_eq(_combat_hits(outcome)[0].target, n[1])
 
 
 func test_damage_falls_off_per_hop() -> void:
@@ -165,7 +165,7 @@ func test_default_visit_cap_blocks_node_revisits() -> void:
 	var spell := helper.make_spell(config, [DamageEffect.new()], 10.0)
 	var n := graph.get_skill_nodes()
 	var outcome := SpellResolver.resolve(spell, n[0], n[0], atk, graph)
-	assert_eq(outcome.hits.size(), 4, "each of 4 nodes hit exactly once")
+	assert_eq(_combat_hits(outcome).size(), 4, "each of 4 nodes hit exactly once")
 
 
 func test_max_visits_cap_allows_bounded_revisits() -> void:
@@ -242,7 +242,7 @@ func test_degree_filter_strict_less_routes_downhill() -> void:
 	var n := graph.get_skill_nodes()
 	var outcome := SpellResolver.resolve(spell, n[1], n[0], atk, graph)
 	# Seed + 3 leaves = 4 hits.
-	assert_eq(outcome.hits.size(), 4)
+	assert_eq(_combat_hits(outcome).size(), 4)
 
 
 # ── First-wins reducer ──────────────────────────────────────────────────────
@@ -357,13 +357,13 @@ func test_random_pick_spread_seeded_picks_one_deterministically() -> void:
 	rng1.seed = 42
 	var outcome1 := SpellResolver.resolve(spell, n[1], n[0], atk, graph, rng1)
 	# Seed hit + exactly one randomly-picked neighbour — never all three.
-	assert_eq(outcome1.hits.size(), 2, "seed hit + exactly one random pick")
-	var picked := outcome1.hits[1].target
+	assert_eq(_combat_hits(outcome1).size(), 2, "seed hit + exactly one random pick")
+	var picked := _combat_hits(outcome1)[1].target
 	assert_true(picked in [n[2], n[3], n[4]], "picked one of the three eligible neighbours")
 	var rng2 := RandomNumberGenerator.new()
 	rng2.seed = 42
 	var outcome2 := SpellResolver.resolve(spell, n[1], n[0], atk, graph, rng2)
-	assert_eq(outcome2.hits[1].target, picked, "same seed reproduces the same pick")
+	assert_eq(_combat_hits(outcome2)[1].target, picked, "same seed reproduces the same pick")
 
 
 # ── Edge case ──────────────────────────────────────────────────────────────
@@ -386,7 +386,7 @@ func test_disconnected_island_unreachable() -> void:
 	var spell := helper.make_spell(config, [DamageEffect.new()], 10.0)
 	var n := graph.get_skill_nodes()
 	var outcome := SpellResolver.resolve(spell, n[1], n[0], atk, graph)
-	for hit in outcome.hits:
+	for hit in _combat_hits(outcome):
 		assert_ne(hit.target, n[3], "orphan node never reached")
 
 
@@ -417,7 +417,7 @@ func test_enemy_scope_does_not_chain_into_an_allied_camp() -> void:
 	var outcome := SpellResolver.resolve(spell, n[1], n[0], atk, graph)
 
 	var hit_nodes: Array = []
-	for h in outcome.hits:
+	for h in _combat_hits(outcome):
 		hit_nodes.append(h.target)
 	assert_true(n[1] in hit_nodes, "the hostile seed is hit")
 	assert_true(n[2] in hit_nodes, "the hostile neighbour is hit")
@@ -446,7 +446,7 @@ func test_enemy_scope_still_chains_through_a_third_hostile_camp() -> void:
 	var outcome := SpellResolver.resolve(spell, n[1], n[0], atk, graph)
 
 	var hit_nodes: Array = []
-	for h in outcome.hits:
+	for h in _combat_hits(outcome):
 		hit_nodes.append(h.target)
 	assert_true(n[3] in hit_nodes, "a different hostile camp is still fair game")
 
@@ -477,7 +477,7 @@ func test_friendly_scope_reaches_own_and_allied_ground_but_not_the_enemy() -> vo
 	var outcome := SpellResolver.resolve(spell, n[1], n[0], atk, graph)
 
 	var hit_nodes: Array = []
-	for h in outcome.hits:
+	for h in _combat_hits(outcome):
 		hit_nodes.append(h.target)
 	assert_true(n[1] in hit_nodes, "the caster's own node, seeded")
 	assert_true(n[2] in hit_nodes, "the partner's node, a hop away — unreachable before")
@@ -507,7 +507,7 @@ func test_ally_alone_excludes_the_casters_own_nodes() -> void:
 	var outcome := SpellResolver.resolve(spell, n[2], n[0], atk, graph)
 
 	var hit_nodes: Array = []
-	for h in outcome.hits:
+	for h in _combat_hits(outcome):
 		hit_nodes.append(h.target)
 	assert_true(n[2] in hit_nodes, "the partner's node, seeded")
 	assert_false(n[1] in hit_nodes, "the caster's own node is NOT 'ally'")
@@ -522,3 +522,12 @@ func test_description_composes_arbitrary_bit_combinations() -> void:
 			"enemy or unallocated-owned only.", "a combo the old match had no arm for")
 	assert_eq(h.owner(15).get_description(), "", "everything — nothing worth saying")
 	assert_eq(h.owner(0).get_description(), "Nothing (no ownership bits set).")
+
+
+## The attack's combat landings — every hit but the origin set's exertions.
+func _combat_hits(outcome: AttackOutcome) -> Array[HitInstance]:
+	var out: Array[HitInstance] = []
+	for hit in outcome.hits:
+		if not hit is ExertInstance:
+			out.append(hit)
+	return out

@@ -44,7 +44,7 @@ static func fingerprint(outcome: AttackOutcome) -> Array[String]:
 	var out: Array[String] = []
 	if outcome == null:
 		return out
-	for hit: HitInstance in outcome.hits:
+	for hit: HitInstance in _combat_hits(outcome):
 		var kind_label := "DAMAGE"
 		if hit.kind == HitInstance.Kind.HEAL:
 			kind_label = "HEAL"
@@ -287,7 +287,7 @@ func _melee_plan(crit_chance: float) -> MeleeAttackPlan:
 
 func _crit_flags(outcome: AttackOutcome) -> Array[bool]:
 	var out: Array[bool] = []
-	for hit in OutcomeApplier.in_arrival_order(outcome.hits):
+	for hit in OutcomeApplier.in_arrival_order(_combat_hits(outcome)):
 		out.append(hit.is_crit)
 	return out
 
@@ -299,8 +299,8 @@ func test_ranged_rolls_crits_at_all() -> void:
 	var plan := _ranged_plan(1.0)
 	plan.resolve_seed = 0xA11CE
 	var outcome := plan.resolve()
-	assert_gt(outcome.hits.size(), 0, "fixture produced no shots")
-	for hit in outcome.hits:
+	assert_gt(_combat_hits(outcome).size(), 0, "fixture produced no shots")
+	for hit in _combat_hits(outcome):
 		assert_true(hit.is_crit, "crit_chance 1.0 must crit every arrow")
 		assert_eq(hit.crit_multiplier, 2.0, "and carry the board's multiplier")
 		assert_eq(hit.crit_tier, 1, "stat path only — conditions stay magic-only")
@@ -339,8 +339,8 @@ func test_melee_rolls_crits_at_all() -> void:
 	var plan: MeleeAttackPlan = await _melee_plan(1.0)
 	plan.resolve_seed = 0xA11CE
 	var outcome := plan.resolve()
-	assert_gt(outcome.hits.size(), 0, "fixture produced no blade contacts")
-	for hit in outcome.hits:
+	assert_gt(_combat_hits(outcome).size(), 0, "fixture produced no blade contacts")
+	for hit in _combat_hits(outcome):
 		assert_true(hit.is_crit, "crit_chance 1.0 must crit every blade landing")
 	assert_eq(outcome.resolve_seed, 0xA11CE, "the outcome carries its own seed")
 
@@ -400,12 +400,12 @@ func test_the_crit_multiplier_is_applied_at_land_not_at_resolve() -> void:
 	var world := CombatWorld.shadow()
 	var outcome := plan.resolve_against(world)
 	var offense: float = RangedDamageFormula._read_offense(
-			world.combat_for(outcome.hits[0].origin))
+			world.combat_for(_combat_hits(outcome)[0].origin))
 	assert_gt(offense, 0.0, "fixture must deal real damage or this proves nothing")
 
 	var landed: Array[HitInstance] = []
 	var duds: Array[HitInstance] = []
-	for hit in outcome.hits:
+	for hit in _combat_hits(outcome):
 		assert_true(hit.is_crit, "decided before the landing, for the VFX to read")
 		if hit.gated:
 			duds.append(hit)
@@ -542,3 +542,12 @@ func test_gap_melee_hit_detection_truncates_a_physics_query() -> void:
 	assert_string_contains(src, "intersect_shape",
 		"melee hit detection is still a physics query and cannot be replayed " +
 		"from intent alone")
+
+
+## The attack's combat landings — every hit but the origin set's exertions.
+static func _combat_hits(outcome: AttackOutcome) -> Array[HitInstance]:
+	var out: Array[HitInstance] = []
+	for hit in outcome.hits:
+		if not hit is ExertInstance:
+			out.append(hit)
+	return out

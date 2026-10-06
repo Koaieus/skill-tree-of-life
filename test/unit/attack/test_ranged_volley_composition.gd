@@ -149,10 +149,10 @@ func test_resolve_lands_poison_first_in_structural_key_order_and_costs_no_ap() -
 	p.ammo_counts = {_POISON: 2, _ARROW: 5}
 	var outcome := p.resolve()
 	# One DAMAGE hit per arrow; a poison arrow also emits its status hit (#495).
-	var arrows: Array = outcome.hits.filter(func(h: HitInstance) -> bool:
+	var arrows: Array = _combat_hits(outcome).filter(func(h: HitInstance) -> bool:
 		return h.kind == HitInstance.Kind.DAMAGE)
 	assert_eq(arrows.size(), 7)
-	assert_eq(outcome.hits.size(), 9, "2 poison arrows carry 2 status hits alongside")
+	assert_eq(_combat_hits(outcome).size(), 9, "2 poison arrows carry 2 status hits alongside")
 	assert_eq(outcome.ap_cost, 0, "firing costs 0 AP")
 	var ordered: Array = arrows.duplicate()
 	ordered.sort_custom(func(a: HitInstance, b: HitInstance) -> bool:
@@ -161,7 +161,7 @@ func test_resolve_lands_poison_first_in_structural_key_order_and_costs_no_ap() -
 	assert_eq(ordered[1].ammo_type.id, _POISON)
 	assert_eq(ordered[0].origin, _near, "wave 0's nearest leaf lands first")
 	assert_eq(ordered[6].origin, _near, "wave 2's lone shot lands last")
-	for h in outcome.hits:
+	for h in _combat_hits(outcome):
 		assert_between(h.structural_key, 0.0, 1.0, "RAMP keys stay in [0, 1]")
 	# Same key across a wave boundary is broken by original index, so a later
 	# wave never lands BEFORE an earlier one.
@@ -283,3 +283,12 @@ func test_a_target_that_dies_mid_volley_still_consumes_every_arrow() -> void:
 			"duds consume — a shot fired is a shot fired")
 	assert_eq(_near.shots_fired_this_turn + _mid_leaf.shots_fired_this_turn
 			+ (_far.shots_fired_this_turn - 1), 7)
+
+
+## The attack's combat landings — every hit but the origin set's exertions.
+func _combat_hits(outcome: AttackOutcome) -> Array[HitInstance]:
+	var out: Array[HitInstance] = []
+	for hit in outcome.hits:
+		if not hit is ExertInstance:
+			out.append(hit)
+	return out

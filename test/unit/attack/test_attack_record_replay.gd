@@ -403,7 +403,7 @@ func test_the_world_the_authority_computed_is_the_world_it_ends_up_in() -> void:
 	var freed: Dictionary = {}      # SkillNode -> true
 	var landed := 0
 	for hit in record.hits:
-		if hit.target == null or hit.gated:
+		if hit.target == null or hit.gated or hit is ExertInstance:
 			continue
 		landed += 1
 		ended_at[hit.target] = hit.hp_after

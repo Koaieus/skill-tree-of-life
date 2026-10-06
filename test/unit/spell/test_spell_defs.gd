@@ -91,12 +91,12 @@ func test_spark_cast_produces_single_seed_hit() -> void:
 	helper.assign_owner(graph, atk, [0])
 	var n := graph.get_skill_nodes()
 	var outcome := SpellResolver.resolve(_SPARK, n[1], n[0], atk, graph)
-	assert_eq(outcome.hits.size(), 1, "Spark is single-target")
-	assert_eq(outcome.hits[0].target, n[1])
+	assert_eq(_combat_hits(outcome).size(), 1, "Spark is single-target")
+	assert_eq(_combat_hits(outcome)[0].target, n[1])
 	# seed = spell_damage(cast-from node) × power (D-32) — read the multiplier
 	# off the fixture board so an INT-coefficient retune (#278) doesn't move it.
 	var seed_dmg: float = helper.seed_multiplier(n[0]) * _SPARK.power
-	assert_almost_eq(outcome.hits[0].amount, seed_dmg, 0.001)
+	assert_almost_eq(_combat_hits(outcome)[0].amount, seed_dmg, 0.001)
 
 
 func test_lightning_cast_chains_with_halving_falloff() -> void:
@@ -182,3 +182,12 @@ func test_every_shipped_spell_authors_hops_and_spread_together() -> void:
 			("%s: max_hops=%d but spread=%s — a spell either propagates "
 			+ "(hops > 0 AND a real spread) or it does not.")
 			% [spell.name, p.max_hops, p.spread])
+
+
+## The cast's combat landings — every hit but the origin set's exertions.
+func _combat_hits(outcome: AttackOutcome) -> Array[HitInstance]:
+	var out: Array[HitInstance] = []
+	for hit in outcome.hits:
+		if not hit is ExertInstance:
+			out.append(hit)
+	return out

@@ -18,7 +18,7 @@ class _RecordingEffect extends OnHitEffect:
 func test_null_spell_returns_empty_outcome() -> void:
 	var out := SpellResolver.resolve(null, null, null, null, null)
 	assert_not_null(out)
-	assert_eq(out.hits.size(), 0)
+	assert_eq(_combat_hits(out).size(), 0)
 
 
 func test_null_propagation_returns_empty_outcome() -> void:
@@ -28,7 +28,7 @@ func test_null_propagation_returns_empty_outcome() -> void:
 	var spell := SpellDef.new()
 	spell.propagation = null
 	var out := SpellResolver.resolve(spell, n[0], n[0], null, graph)
-	assert_eq(out.hits.size(), 0)
+	assert_eq(_combat_hits(out).size(), 0)
 
 
 func test_hop_index_is_monotonic() -> void:
@@ -47,7 +47,7 @@ func test_hop_index_is_monotonic() -> void:
 	var n := graph.get_skill_nodes()
 	var outcome := SpellResolver.resolve(spell, n[1], n[0], atk, graph)
 	var hop_indices: Array[int] = []
-	for hit in outcome.hits:
+	for hit in _combat_hits(outcome):
 		var cs := hit.source as CastSpell
 		hop_indices.append(cs.hop_index)
 	for i in hop_indices.size() - 1:
@@ -94,16 +94,16 @@ func _line_outcome() -> Array:
 
 func test_timeline_mirrors_hits_and_shares_damage_refs() -> void:
 	# Every damage-bearing landing gets exactly one event; the event's
-	# `hits` entry is the SAME HitInstance object that's in `outcome.hits`
+	# `hits` entry is the SAME HitInstance object that's in `_combat_hits(outcome)`
 	# (shared, not copied) — that identity is what keeps the additive
 	# timeline in sync.
 	var res := _line_outcome()
 	var outcome: AttackOutcome = res[0]
-	assert_eq(outcome.timeline.size(), outcome.hits.size(),
+	assert_eq(outcome.timeline.size(), _combat_hits(outcome).size(),
 			"one event per hit on a no-cancel line graph")
 	for ev in outcome.timeline:
 		assert_eq(ev.hits.size(), 1)
-		assert_true(outcome.hits.has(ev.hits[0]),
+		assert_true(_combat_hits(outcome).has(ev.hits[0]),
 				"event.hits[0] is a shared ref into hits, not a copy")
 
 
@@ -160,9 +160,9 @@ func test_landing_with_both_damage_and_heal_effects_lands_both() -> void:
 	var spell := helper.make_spell(config, [DamageEffect.new(), HealEffect.new()], 10.0)
 	var n := graph.get_skill_nodes()
 	var outcome := SpellResolver.resolve(spell, n[1], n[0], atk, graph)
-	assert_eq(outcome.hits.size(), 2, "one damage hit AND one heal hit from the single landing")
-	assert_eq(outcome.hits[0].kind, HitInstance.Kind.DAMAGE)
-	assert_eq(outcome.hits[1].kind, HitInstance.Kind.HEAL)
+	assert_eq(_combat_hits(outcome).size(), 2, "one damage hit AND one heal hit from the single landing")
+	assert_eq(_combat_hits(outcome)[0].kind, HitInstance.Kind.DAMAGE)
+	assert_eq(_combat_hits(outcome)[1].kind, HitInstance.Kind.HEAL)
 	assert_eq(outcome.timeline.size(), 1, "one event for the one landing")
 	assert_eq(outcome.timeline[0].hits.size(), 2, "the event carries both hits")
 
@@ -187,15 +187,15 @@ func test_landing_with_a_status_effect_resolves_on_a_shadow_only() -> void:
 	var spell := helper.make_spell(config, [DamageEffect.new(), status_effect], 10.0)
 	var n := graph.get_skill_nodes()
 	var outcome := SpellResolver.resolve(spell, n[1], n[0], atk, graph)
-	assert_eq(outcome.hits.size(), 2, "one damage hit AND one status hit from the single landing")
-	assert_eq(outcome.hits[1].kind, HitInstance.Kind.STATUS)
-	assert_eq(outcome.hits[1].attacker, atk, "the resolver stamps the caster onto every hit it appends")
+	assert_eq(_combat_hits(outcome).size(), 2, "one damage hit AND one status hit from the single landing")
+	assert_eq(_combat_hits(outcome)[1].kind, HitInstance.Kind.STATUS)
+	assert_eq(_combat_hits(outcome)[1].attacker, atk, "the resolver stamps the caster onto every hit it appends")
 	# A status hit's `amount` is 0.0 until `land_on` sets it to `power`, and
 	# `CritRoll.decide` runs BEFORE the land pass and skips any hit with
 	# `amount <= 0.0` — so this hit never consumes the seeded crit stream. A
 	# future refactor that sets `amount` at construction would silently shift
 	# every crit roll after it; that is what this assert guards.
-	assert_false(outcome.hits[1].is_crit,
+	assert_false(_combat_hits(outcome)[1].is_crit,
 			"a status hit must not consume the seeded crit roll")
 	assert_almost_eq(n[1].get_combat().get_status_power(&"test_status"), 0.0, 0.0001,
 			"resolved on a shadow: the live node must not carry the status")
@@ -215,6 +215,15 @@ func test_zero_damage_utility_landing_still_emits_event() -> void:
 	var spell := helper.make_spell(config, [DamageEffect.new()], 0.0)
 	var n := graph.get_skill_nodes()
 	var outcome := SpellResolver.resolve(spell, n[1], n[0], atk, graph)
-	assert_eq(outcome.hits.size(), 0, "zero-damage landing appends no hit")
+	assert_eq(_combat_hits(outcome).size(), 0, "zero-damage landing appends no hit")
 	assert_eq(outcome.timeline.size(), 1, "but still emits a probe event")
 	assert_true(outcome.timeline[0].hits.is_empty(), "event carries no hits")
+
+
+## The attack's combat landings — every hit but the origin set's exertions.
+func _combat_hits(outcome: AttackOutcome) -> Array[HitInstance]:
+	var out: Array[HitInstance] = []
+	for hit in outcome.hits:
+		if not hit is ExertInstance:
+			out.append(hit)
+	return out

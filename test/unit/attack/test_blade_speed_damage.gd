@@ -233,7 +233,10 @@ func _melee_swing(radius: float, origin: Vector2 = Vector2.ZERO) -> Dictionary:
 ## melee_attack_plan.gd) — so every hit this fixture's outcome holds is
 ## already a particle hit; the first one is enough.
 func _first_hit(outcome: AttackOutcome) -> HitInstance:
-	return outcome.hits[0] if not outcome.hits.is_empty() else null
+	for hit in outcome.hits:
+		if not hit is ExertInstance:
+			return hit
+	return null
 
 
 func test_a_faster_swing_lands_more_damage_than_an_identical_slower_one() -> void:

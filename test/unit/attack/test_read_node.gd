@@ -103,10 +103,10 @@ func _melee_plan(ctx: Dictionary) -> MeleeAttackPlan:
 func test_a_resolved_volleys_hits_read_their_firing_leaf() -> void:
 	var ctx: Dictionary = await _build()
 	var outcome := _ranged_plan(ctx).resolve()
-	assert_gt(outcome.hits.size(), 0, "the fixture volley must resolve hits")
+	assert_gt(_combat_hits(outcome).size(), 0, "the fixture volley must resolve hits")
 	# Every attacker node in range fires — core and leaf both — so each hit is
 	# checked against its own firing node, which ranged's origin names.
-	for hit in outcome.hits:
+	for hit in _combat_hits(outcome):
 		assert_not_null(hit.read_node, "an arrow reads its firing leaf")
 		assert_eq(hit.read_node, hit.origin, "ranged: read node == origin == firing leaf")
 
@@ -134,7 +134,7 @@ func test_a_blade_contact_reads_the_vertex_node_while_origin_stays_the_pivot() -
 	var ctx: Dictionary = await _build()
 	var outcome := _melee_plan(ctx).resolve()
 	var from_leaf := 0
-	for hit in outcome.hits:
+	for hit in _combat_hits(outcome):
 		if not (hit is DamageInstance):
 			continue
 		assert_eq(hit.origin, ctx.nodes.core, "melee origin stays the pivot")
@@ -172,7 +172,7 @@ func test_every_hop_reads_the_cast_source_while_origin_is_the_predecessor() -> v
 	var n := graph.get_skill_nodes()
 	var outcome := SpellResolver.resolve(spell, n[1], n[0], atk, graph)
 	var hop2 := 0
-	for hit in outcome.hits:
+	for hit in _combat_hits(outcome):
 		assert_eq(hit.read_node, n[0], "every spell hit reads the cast source")
 		if hit.target == n[2]:
 			hop2 += 1
@@ -185,9 +185,18 @@ func test_every_hop_reads_the_cast_source_while_origin_is_the_predecessor() -> v
 func test_a_record_round_trip_leaves_read_node_null() -> void:
 	var ctx: Dictionary = await _build()
 	var outcome := _ranged_plan(ctx).resolve()
-	assert_not_null(outcome.hits[0].read_node, "precondition: the resolve stamped it")
+	assert_not_null(_combat_hits(outcome)[0].read_node, "precondition: the resolve stamped it")
 	var wired: Dictionary = bytes_to_var(var_to_bytes(AttackRecord.capture(outcome, ctx.graph)))
 	var rebuilt := AttackRecord.rebuild(wired, ctx.graph)
-	assert_gt(rebuilt.hits.size(), 0, "the record must rebuild hits")
-	for hit in rebuilt.hits:
+	assert_gt(_combat_hits(rebuilt).size(), 0, "the record must rebuild hits")
+	for hit in _combat_hits(rebuilt):
 		assert_null(hit.read_node, "read_node never rides the wire")
+
+
+## The attack's combat landings — every hit but the origin set's exertions.
+func _combat_hits(outcome: AttackOutcome) -> Array[HitInstance]:
+	var out: Array[HitInstance] = []
+	for hit in outcome.hits:
+		if not hit is ExertInstance:
+			out.append(hit)
+	return out

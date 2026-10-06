@@ -26,7 +26,6 @@ func _init() -> void:
 static func at(node: SkillNode, by: Entity, src: Variant = null) -> ExertInstance:
 	var e := ExertInstance.new()
 	e.target = node
-	e.read_node = node
 	e.attacker = by
 	e.source = src
 	e.structural_key = 0.0

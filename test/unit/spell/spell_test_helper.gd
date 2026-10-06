@@ -310,6 +310,8 @@ func set_spell_damage(entity: Entity, value: float) -> void:
 func hits_by_node(outcome: AttackOutcome) -> Dictionary:
 	var out: Dictionary = {}
 	for hit in outcome.hits:
+		if hit is ExertInstance:
+			continue  # the origin set's exertions are not landings
 		if not out.has(hit.target):
 			out[hit.target] = []
 		out[hit.target].append(hit)

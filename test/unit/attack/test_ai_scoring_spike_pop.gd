@@ -140,10 +140,10 @@ func _swing(arm: SkillNode) -> AttackOutcome:
 func test_a_popped_vertex_banks_no_expected_damage() -> void:
 	var outcome := _swing(_long_arm)
 
-	assert_gt(outcome.hits.size(), 0,
+	assert_gt(_combat_hits(outcome).size(), 0,
 			"the swing must produce a contact or this proves nothing")
 	assert_eq(outcome.popped_nodes, 1, "the spike popped exactly one vertex")
-	for hit in outcome.hits:
+	for hit in _combat_hits(outcome):
 		assert_eq(hit.effective_amount, 0.0,
 				"the gate refused every contact, so nothing was ever applied")
 
@@ -177,8 +177,8 @@ func test_shadow_effective_amount_agrees_with_live_mitigation() -> void:
 
 	var outcome := _swing(_short_arm)
 
-	assert_gt(outcome.hits.size(), 0, "the far arm must connect")
-	for hit in outcome.hits:
+	assert_gt(_combat_hits(outcome).size(), 0, "the far arm must connect")
+	for hit in _combat_hits(outcome):
 		assert_almost_eq(hit.effective_amount, Mitigation.apply(hit, hit.target), 0.001,
 				"shadow-resolved mitigation matches the live node's formula")
 
@@ -280,7 +280,7 @@ func test_a_fully_popped_swing_anchors_on_nothing() -> void:
 	var outcome := _swing(_long_arm)
 	var visible: Array[SkillNode] = [_spiked, _plain]
 
-	assert_gt(outcome.hits.size(), 0, "there were contacts — they just all popped")
+	assert_gt(_combat_hits(outcome).size(), 0, "there were contacts — they just all popped")
 	assert_null(AiBladeRollout._primary_target(outcome, visible),
 			"no damaged node means no candidate")
 
@@ -393,3 +393,12 @@ func test_a_severed_vertex_that_meets_nothing_costs_only_the_struck_arm() -> voi
 func test_a_spike_that_destroys_an_unsteered_vertex_still_costs_it() -> void:
 	assert_eq((await _severed_swing(true)).popped_nodes, 2,
 			"the severed vertex met a spike of its own — one constraint fewer, still a loss")
+
+
+## The attack's combat landings — every hit but the origin set's exertions.
+func _combat_hits(outcome: AttackOutcome) -> Array[HitInstance]:
+	var out: Array[HitInstance] = []
+	for hit in outcome.hits:
+		if not hit is ExertInstance:
+			out.append(hit)
+	return out

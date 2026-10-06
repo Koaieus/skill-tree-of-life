@@ -122,7 +122,8 @@ func test_zero_power_deals_no_damage_but_still_emits_the_timeline() -> void:
 	var spell := h.make_spell(config, [DamageEffect.new()], 0.0)
 	var n := graph.get_skill_nodes()
 	var outcome := SpellResolver.resolve(spell, n[1], n[0], atk, graph)
-	assert_eq(outcome.hits.size(), 0, "zero power lands no damage")
+	assert_eq(outcome.hits.filter(func(h: HitInstance) -> bool: return not h is ExertInstance).size(), 0,
+			"zero power lands no damage")
 	assert_eq(outcome.timeline.size(), 3, "seed + 2 hops still emit events (utility path)")
 
 

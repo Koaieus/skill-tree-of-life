@@ -160,14 +160,14 @@ func test_resolve_costs_one_ap_and_hits_the_target() -> void:
 	p.set_target(_in_range_target)
 	var outcome := p.resolve()
 	assert_eq(outcome.ap_cost, 1, "a spell pays the default 1 AP and nothing else")
-	assert_eq(outcome.hits.size(), 1)
-	assert_eq(outcome.hits[0].target, _in_range_target)
+	assert_eq(_combat_hits(outcome).size(), 1)
+	assert_eq(_combat_hits(outcome)[0].target, _in_range_target)
 
 
 func test_resolve_on_invalid_plan_returns_default_outcome() -> void:
 	var p := _plan()
 	var outcome := p.resolve()
-	assert_true(outcome.hits.is_empty())
+	assert_true(_combat_hits(outcome).is_empty())
 
 
 # ── Caster highlighting: the sources the reach is measured FROM ────────────
@@ -212,3 +212,12 @@ func test_a_node_that_is_both_caster_and_legal_target_paints_as_the_target() -> 
 	assert_true(p.union().is_source(_source), "precondition: it is still a caster")
 	assert_eq(p.get_node_role(_source), HighlightProvider.HighlightRole.IN_RANGE,
 			"targetable wins over castable-from")
+
+
+## The attack's combat landings — every hit but the origin set's exertions.
+func _combat_hits(outcome: AttackOutcome) -> Array[HitInstance]:
+	var out: Array[HitInstance] = []
+	for hit in outcome.hits:
+		if not hit is ExertInstance:
+			out.append(hit)
+	return out
