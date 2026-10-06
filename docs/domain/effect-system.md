@@ -18,7 +18,7 @@ Two different things that both end in "Effect". They are siblings, not a hierarc
 
 **The payload seam (ADR 0044):** authoring a new on-hit thing = an
 `OnHitEffect` on the carrier's `on_hit_effects`. It reads a mode-agnostic
-`HitLanding` (attacker, source, origin, target, structural key, `paired`, the
+`HitLanding` (attacker, source, origin, read_node, target, structural key, `paired`, the
 `hits` sink), so the same effect works on a spell, an arrow and a blade. An
 effect that needs spell context extends `SpellOnHitEffect` (narrows to
 `LandingContext`). A status rides `HitLanding.paired`, and

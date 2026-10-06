@@ -130,7 +130,9 @@ The plans plan; this layer commits.
   preview-on-hover (future tooltip UI) and commit-on-launch.
 - **`DamageInstance`** — `amount` + `type` (PHYSICAL / MAGIC / TRUE) +
   `source` (the plan or spell) + `target` (the SkillNode being hit) +
-  `origin` (firing position, for VFX routing).
+  `origin` (firing position, for VFX routing) + `read_node` (the
+  attacker-side node whose local stats the hit reads; resolve-local, never on
+  the wire).
 - **`attack/formulas/`** — pure-function damage modules. One per
   offense profile (`RangedDamageFormula` is the only one wired so far:
   `floor(DEX / 10) + 1` PHYSICAL per shot), one for the universal

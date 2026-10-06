@@ -50,7 +50,8 @@ extends RefCounted
 ##   * `HitInstance.source` — a [Variant] whose one real reader
 ##     ([ArrowVolleyCoordinator]) immediately dereferences `.attacker`, which
 ##     #507 already promoted to a typed base-class field. The wire carries
-##     `attacker` as an `entity_id`; `source` is resolve-local residue.
+##     `attacker` as an `entity_id`; `source` and `read_node` are resolve-local
+##     residue.
 ##   * `AttackOutcome.cancellations` — written by `spell_resolver.gd`, read
 ##     only by tests. Cancel VFX rides the timeline's `Verb.CANCEL`.
 ##   * `AttackOutcome.popped_nodes` — read only by [AiCombatScorer], which is
