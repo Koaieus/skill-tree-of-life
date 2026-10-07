@@ -166,8 +166,8 @@ nuance.
 
 ### 1. Read the issues once, delegate the rest
 
-A ledger for this run already on disk (`docs/handoffs/swarm-<date>.md`)
-means you are relief — `.claude/skills/relief/SKILL.md` first, then here —
+A live ledger (`mise run ledger -- show` prints one — never look for
+today's date, a run spans midnight) means you are relief — `.claude/skills/relief/SKILL.md` first, then here —
 **unless your launch prompt calls you a fresh lead** (the whip relay's later
 train on the same date): then the file is an earlier train's, you never
 orient as its relief, `mise run ledger -- dispatch` appends your rows to it,
@@ -222,8 +222,8 @@ mise gh-project -- status <n> in-progress               # claim on the persisten
 mise run issue-drift -- <n>                             # silent = the Ready comment still holds
 ```
 
-- **The ledger** (`docs/handoffs/swarm-<date>.md`, gitignored — never
-  commit it) is what relief reads. **Its roster is written by commands**:
+- **The ledger** (`docs/handoffs/swarm-<start-date>.md`, gitignored — never
+  commit it; `mise run ledger -- show` finds it) is what relief reads. **Its roster is written by commands**:
   `ledger -- dispatch` here (it creates the file on a new run — or appends
   to a same-date file from an earlier train — and prints the whole ledger,
   so you never `cat` it), `ledger -- report` at collect

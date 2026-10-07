@@ -184,7 +184,8 @@ disk at `scratchpad/land/land-<n>.log` (#920), so filling the ledger is a
     fallback shape; log the idle in the ledger.
 14. **Before every dispatch, in one Bash call: the ledger row, the kanban
     claim, and `mise run issue-drift -- <n>`.** The ledger (`docs/handoffs/
-    swarm-<date>.md`, gitignored, ≤1.5k tokens) is the at-most-once record
+    swarm-<start-date>.md`, gitignored, ≤1.5k tokens, read with `mise run
+    ledger -- show` — never a path built from today's date) is the at-most-once record
     and the relief briefing, and **its roster is written by commands, never
     by the lead remembering** (a same-date file from an earlier train is
     appended to, never a relief trigger — the launch prompt's *fresh lead*

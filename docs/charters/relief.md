@@ -59,8 +59,9 @@ live outgoing — never by reading issues to compensate.
 
 ## Laws
 
-1. **Orient from disk only.** The ledger `docs/handoffs/swarm-<date>.md`,
-   `mise gh-project -- list in-progress`, `git worktree list`, and per
+1. **Orient from disk only.** The ledger, found by `mise run ledger --
+   show` and never by a path built from today's date (a run spans midnight;
+   the tool resolves the live one), `mise gh-project -- list in-progress`, `git worktree list`, and per
    worktree `git log master.. --oneline` + `git status --short`. Never the
    issues. A gap between ledger and git is a stale ledger: fix the ledger
    from git (dead outgoing) or ask the outgoing one question (alive).
@@ -110,6 +111,7 @@ live outgoing — never by reading issues to compensate.
 | 2026-09-10 | spend limit | two drones killed in one minute; one had committed nothing and was saved only by the lead committing its worktree by hand — the worktree is the state | 3 |
 | 2026-09-19 | `f9` → `b6` | an Opus relief at the 200k ceiling; one in-flight drone was drained by redirecting it to the new session's address — the last run of the old shape, and the case for the N-wakes contract over a redirect | 1, 5 |
 | 2026-09-21 | owner | "continuing swarm runs that crashed mid-run (including taking down all subagents) due to running out of tokens" and "have an active swarm but main orchestrator needs replacement … let its drones finish the work (better hard-stopping them and restarting in the relief session) and could bring the relief session's main agent up to speed via SendMessage"; on the drain answer: "yes"; on N wakes and nothing else: "yes"; on redirecting drones to relief: "the final message would always end up back at their original main" | 4, 5 |
+| 2026-10-07 | owner | "sometimes i call `/relief` to let a new session take over a swarm run … but it happens that the exact date has changed like pas midnight and they can't find "the" ledger of "today" to continue" — the skill told relief to `cat swarm-<date>.md`; the `ledger` tool already resolved past midnight, the prose bypassed it | 1 |
 
 ## What the skill must not contain
 

@@ -12,7 +12,7 @@ this is the entry half. Nothing below restates `swarm` — once oriented, you
 ## 1. Orient from disk — never the issues
 
 ```bash
-cat docs/handoffs/swarm-<date>.md          # the ledger: roster, states, queue order
+mise run ledger -- show                     # the ledger: roster, states, queue order — never cat a dated path, a run spans midnight
 mise gh-project -- list in-progress         # the board's view of the same run
 git worktree list
 for wt in .worktrees/*/; do echo "== $wt"; git -C "$wt" log master.. --oneline; git -C "$wt" status --short; done

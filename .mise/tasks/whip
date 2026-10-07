@@ -881,7 +881,7 @@ def tick():
         if limited:
             if (reset is None or time.time() >= reset) and not capped(st) and time.time() - l.get("last_nudge_ts", 0) > nudge_gap:
                 l["last_nudge_ts"] = time.time()
-                prompt_session(st, name, l["session"], "the window reset — read your ledger (docs/handoffs/swarm-<date>.md) and continue your "
+                prompt_session(st, name, l["session"], "the window reset — read your ledger (`mise run ledger -- show`) and continue your "
                                f"swarm; drones that died with the window are re-dispatched from the ledger. Whip relay, train {l.get('train')}, unchanged.",
                                f"window reset for {name}")
             continue
