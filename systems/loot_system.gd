@@ -286,8 +286,7 @@ func _resolve_killer(victim: Entity) -> Entity:
 ## it cannot see per-node `bounty`, so it omits Avarice. A real payout prices
 ## each node through [method _node_payout] and the bonus through
 ## [method _entity_payout] — a known mirror of this arithmetic. Never duplicate
-## it anywhere else — a third copy is exactly the parallel-mirrors shape
-## `.claude/rules/no-parallel-mirrors` forbids.
+## it anywhere else — a third copy is a parallel mirror.
 func _kill_xp_total(removed_node_count: int, kills_entity: bool, victim: Entity) -> float:
 	var total := xp_per_node_killed * float(removed_node_count)
 	if kills_entity:
@@ -330,9 +329,7 @@ func _award_kill_xp(victim: Entity, killer: Entity) -> void:
 	# never scales it. The core never sits in the ledger (a live cascade islands
 	# nodes FROM the core; the death wave's trickle bails on `is_dead`), so the
 	# bonus is never pre-paid.
-	var total := 0.0
-	if victim.core_location != null:
-		total += _entity_payout(victim, victim.stat_board.core_kill_xp.value)
+	var total := _entity_payout(victim, victim.stat_board.core_kill_xp.value)
 	for n in unpaid:
 		total += _node_payout(n, xp_per_node_killed)
 	_grant_xp(killer, total)
