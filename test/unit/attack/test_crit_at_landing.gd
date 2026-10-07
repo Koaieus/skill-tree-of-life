@@ -105,21 +105,27 @@ func test_an_arrow_behind_the_hex_rider_crits_and_one_in_front_does_not() -> voi
 	assert_false(outcome.hits[0].is_crit, "the arrow landing before the riders never saw the hex")
 	assert_true(outcome.hits[2].is_crit, "the arrow landing after the riders reads the hex overlay")
 	assert_eq(outcome.hits[2].crit_tier, 1, "one draw, stat path only")
+	world.free_shadow()
 
 
 # ── 2. Determinism ──────────────────────────────────────────────────────────
 
 func test_the_same_seed_lands_the_same_crits() -> void:
+	var worlds := [CombatWorld.shadow(), CombatWorld.shadow()]
 	var a := _volley()
-	OutcomeApplier.apply(a, CombatWorld.shadow())
+	OutcomeApplier.apply(a, worlds[0])
 	var b := _volley()
-	OutcomeApplier.apply(b, CombatWorld.shadow())
+	OutcomeApplier.apply(b, worlds[1])
 	assert_eq(_crits(a), _crits(b))
+	for w in worlds:
+		w.free_shadow()
 
 
 func test_a_rebuilt_record_lands_its_recorded_crits_without_drawing() -> void:
 	var resolved := _volley()
-	OutcomeApplier.apply(resolved, CombatWorld.shadow())
+	var shadow := CombatWorld.shadow()
+	OutcomeApplier.apply(resolved, shadow)
+	shadow.free_shadow()
 	assert_true(resolved.hits[2].is_crit, "fixture: the resolve crit the trailing arrow")
 	var wired: Dictionary = bytes_to_var(var_to_bytes(AttackRecord.capture(resolved, _graph)))
 	var rebuilt := AttackRecord.rebuild(wired, _graph)

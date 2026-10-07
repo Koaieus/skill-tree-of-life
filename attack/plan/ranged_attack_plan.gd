@@ -485,21 +485,22 @@ func resolve_against(world: CombatWorld) -> AttackOutcome:
 		# key, appended right after, so they land on the arrow's beat and after
 		# the arrow (the schedule's original-index tiebreak).
 		outcome.hits.append_array(RangedDamageFormula.riders_for(hit))
-	# Seconds, once, before anything consumes an order: `decide_all` below
-	# draws its seeded stream in landing order, which is the schedule's.
+	# Seconds, once, before anything consumes an order: the landing below
+	# draws the seeded crit stream in landing order, which is the schedule's.
 	outcome.schedule = OutcomeSchedule.compile(outcome)
-	# Every arrow rolls its own crit (#507 — owner call: "a hit can crit"), off
-	# the stamped seed, never `randf()`. A 40-leaf empire therefore rolls 40
-	# times against one node; that is more chances for more shots, which is
-	# what a hit-based crit model means, and it was settled as intended rather
-	# than a problem to design around.
-	CritRoll.decide_all(outcome, CritRoll.stream_for(resolve_seed), world)
-	# Ranged selects on pure geometry, so nothing above read `world` but the
-	# crit roll's read-node slice —
-	# every live read it makes is inside `RangedHitInstance.land_on`, which is
-	# what this pass runs. Un-awaited on purpose: the default clock is
+	# Every arrow rolls its own crit as it lands (owner call: "a hit can
+	# crit"), off the stamped seed, never `randf()` — so a hex a rider landed
+	# earlier in this volley reaches the arrows behind it. A 40-leaf empire
+	# therefore rolls 40 times against one node, as intended.
+	outcome.crit_stream = CritRoll.stream_for(resolve_seed)
+	# Ranged selects on pure geometry, so nothing above read `world`: every
+	# live read it makes — the crit draw included — is inside the landing,
+	# which is what this pass runs. Un-awaited on purpose: the default clock is
 	# [method BeatClock.instant_clock], which never parks, so `apply` runs to
 	# completion synchronously and `resolve_against` stays a plain function.
 	# (Awaiting would make every `resolve()` caller a coroutine.)
 	OutcomeApplier.apply(outcome, world)
+	# Resolved: the outcome is an artifact now, and re-applying it must land
+	# the crits it holds rather than draw a second time.
+	outcome.crit_stream = null
 	return outcome

@@ -134,12 +134,10 @@ func _init(ctx: SwingContext) -> void:
 	var zero_speeds := PackedFloat32Array()
 	zero_speeds.resize(_state.positions.size())
 	_speed_history = [zero_speeds]
-	# ONE crit stream for the whole swing, handed to every batch's `decide_all`
-	# in turn (#507). Batches run in `t` order and `OutcomeSchedule._sorted` is
-	# stable on insertion, so the stream is consumed in exactly the order a
-	# single `decide_all` over the finished hit list would have consumed it —
-	# which is why an unsevered swing rolls the identical crits it did before
-	# the interleave. #186's per-round salt is gone with the rounds.
+	# ONE crit stream for the whole swing, handed to every batch's landing in
+	# turn. Batches run in `t` order and `OutcomeSchedule._sorted` is stable on
+	# insertion, so the stream is consumed in exactly the order one landing
+	# pass over the finished hit list would consume it.
 	_rng = CritRoll.stream_for(resolve_seed)
 	_exert_blade()
 	# Published now, not at the end: these three ARE the partial picture.
@@ -456,11 +454,12 @@ func _land_batch(
 	if sub.hits.is_empty():
 		return
 	sub.schedule = OutcomeSchedule.compile(sub)
-	CritRoll.decide_all(sub, rng, world)
-	# Melee selects on physics, so nothing above read `world` but the crit
-	# roll's read-node slice: every live read
-	# it makes is inside `BladeDamageInstance.land_on` -> `LiveGate.admit`,
-	# which is what this pass runs. Un-awaited — see the same call in
+	# The swing's one crit stream, drawn per hit as the applier lands it.
+	sub.crit_stream = rng
+	# Melee selects on physics, so nothing above read `world`: every live read
+	# it makes — the crit draw included — is inside the landing
+	# (`BladeDamageInstance.land_on` -> `LiveGate.admit`), which is what this
+	# pass runs. Un-awaited — see the same call in
 	# [method RangedAttackPlan.resolve_against] for why that is safe.
 	OutcomeApplier.apply(sub, world)
 	for hit in sub.hits:

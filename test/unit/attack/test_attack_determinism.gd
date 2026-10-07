@@ -369,15 +369,36 @@ func test_the_live_melee_and_ranged_paths_resolve_under_the_stamped_seed() -> vo
 			"%s's outcome must carry the seed it resolved under" % path)
 
 
+func test_a_ranged_resolve_reproduces_its_landing_crits_under_one_seed() -> void:
+	# Through the real plan, so this also proves ranged arms the landing's
+	# crit stream: at 0.5 a broken stream deals no crits at all.
+	var plan := _ranged_plan(0.5)
+	plan.resolve_seed = 0x1473
+	var runs: Array = []
+	for _i in 2:
+		var world := CombatWorld.shadow()
+		var crits: Array = []
+		for hit in _combat_hits(plan.resolve_against(world)):
+			crits.append([hit.is_crit, hit.crit_tier, hit.crit_multiplier])
+		world.free_shadow()
+		runs.append(crits)
+	assert_false(runs[0].is_empty(), "fixture: the volley must land arrows")
+	assert_true(runs[0].any(func(c: Array) -> bool: return c[0]),
+		"fixture: the stream must crit something, or the stream was never armed")
+	assert_eq(runs[0], runs[1], "same seed, same world → the same crit per hit")
+
+
 func test_crit_draws_are_consumed_in_arrival_order() -> void:
 	# The cross-mode constraint: one stream serves a whole attack, so if two
 	# modes consumed it in different orders the same seed would stop
 	# reproducing the same crits. CritRoll reuses OutcomeApplier's own sort
 	# rather than re-deriving one, which is what makes them unable to disagree.
-	var src := FileAccess.get_file_as_string("res://attack/outcome/crit_roll.gd")
-	assert_false(src.is_empty(), "could not read crit_roll.gd")
-	assert_string_contains(src, "OutcomeApplier.in_arrival_order",
-		"the crit stream must be consumed in the order the applier lands hits")
+	# The draw lives inside the landing itself, so the stream is consumed in
+	# the order the applier lands hits by construction.
+	var src := FileAccess.get_file_as_string("res://attack/outcome/outcome_applier.gd")
+	assert_false(src.is_empty(), "could not read outcome_applier.gd")
+	assert_string_contains(src, "CritRoll.decide(hit, crit_rng, world)",
+		"the crit stream must be drawn by the landing, in the order the applier lands hits")
 
 
 func test_the_crit_multiplier_is_applied_at_land_not_at_resolve() -> void:
@@ -406,7 +427,7 @@ func test_the_crit_multiplier_is_applied_at_land_not_at_resolve() -> void:
 	var landed: Array[HitInstance] = []
 	var duds: Array[HitInstance] = []
 	for hit in _combat_hits(outcome):
-		assert_true(hit.is_crit, "decided before the landing, for the VFX to read")
+		assert_true(hit.is_crit, "decided at the (shadow) landing, before the record ships")
 		if hit.gated:
 			duds.append(hit)
 		else:

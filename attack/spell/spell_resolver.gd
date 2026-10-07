@@ -140,9 +140,8 @@ static func resolve_against(
 	seed_state.graph = graph
 	seed_state.rng = rng
 
-	# Hoisted: ONE crit stream serves the whole cast, consumed wave by wave
-	# below. See the decide/land block for why the roll moved out of the old
-	# single `decide_all` at the end.
+	# Hoisted: ONE crit stream serves the whole cast, drawn per hit as each
+	# wave lands below.
 	var crit_rng := ctx.rng_for_crits()
 	_exert_origin_set(source, caster, world, outcome, spell)
 	var wave: Array[CastSpell] = [seed_state]
@@ -270,21 +269,12 @@ static func resolve_against(
 		# filter reading `ownership_bit` on the next line now sees a node this
 		# wave killed as dead.
 		#
-		# Two passes, not one interleaved pass, so the crit stream is consumed
-		# exactly as the old single `CritRoll.decide_all` at the end of the walk
-		# consumed it: that call iterated `in_arrival_order`, which for magic is
-		# the hop ordinal ascending with an index-stable tiebreak -- i.e. wave by
-		# wave, append order within a wave, which is exactly this. #543 made
-		# that key structural rather than a float, which leaves this identity
-		# TRUE BY CONSTRUCTION instead of true by an arithmetic argument about
-		# a uniform offset. The draw sequence is bit-identical; only its position
-		# relative to the landings moved, and it had to, because
-		# `CritRoll.apply` multiplies at land time and cannot multiply by a
-		# decision that has not been made yet.
+		# Each hit draws its crit as it lands (the stream rides into
+		# `land_one`), wave by wave, append order within a wave -- the order
+		# `OutcomeApplier.in_arrival_order` would land them, since magic's key
+		# is the hop ordinal with an index-stable tiebreak.
 		for i in range(wave_first, outcome.hits.size()):
-			CritRoll.decide(outcome.hits[i], crit_rng, world)
-		for i in range(wave_first, outcome.hits.size()):
-			OutcomeApplier.land_one(outcome.hits[i], world)
+			OutcomeApplier.land_one(outcome.hits[i], world, null, crit_rng)
 		# One wave, one beat: its strips spill over their union before step
 		# 4's filter reads the world.
 		world.flush_removals()
@@ -379,13 +369,9 @@ static func impact_damage(spell: SpellDef, source: SkillNode, board: StatBoard =
 ##
 ## Stamps a starting [member HitInstance.crit_tier] of 1 when any condition
 ## fires. The UNIVERSAL stat roll is then layered on top by
-## [method CritRoll.decide], per hit, at the end of the wave that produced it
-## (step 3b of [method resolve_against]) — NOT by a single
-## [method CritRoll.decide_all] at the end of the cast, which is what this said
-## until #536 made each wave land before the next one departs. The draw
-## sequence is bit-identical either way (see the argument at step 3b); only its
-## position relative to the landings moved. Ranged and melee still call
-## `decide_all`. Tier 2 ("both paths fired") means what it always did, and
+## [method CritRoll.decide] as each hit lands ([method OutcomeApplier.land_one],
+## step 3b of [method resolve_against]) — the same landing-time draw ranged
+## and melee make. Tier 2 ("both paths fired") means what it always did, and
 ## there is still exactly one implementation of the stat roll for all three
 ## modes.
 ##

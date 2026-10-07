@@ -74,7 +74,7 @@ static func apply(outcome: AttackOutcome, world: CombatWorld,
 		# dropping the await would land the whole volley on frame one.
 		@warning_ignore("redundant_await")
 		await beat.advance_to(hit.arrival_time)
-		land_one(hit, world, alloc)
+		land_one(hit, world, alloc, outcome.crit_stream)
 	world.flush_removals()
 
 
@@ -92,8 +92,17 @@ static func apply(outcome: AttackOutcome, world: CombatWorld,
 ## Never [code]await[/code]s, deliberately: the clock is [method apply]'s
 ## concern, so a mid-walk caller pays no coroutine and cannot accidentally
 ## stagger a wave it meant to land at once.
+##
+## [b]The crit is a landing fact.[/b] Given [param crit_rng] — a fresh
+## resolve's [member AttackOutcome.crit_stream] — the hit draws its crit
+## ([method CritRoll.decide]) right before it lands, reading [param world] as
+## the landings before it left it, so a status landed earlier in the same
+## attack reaches its chance. Null on a replay (a rebuilt record carries no
+## stream): the recorded crit lands as-is. Never key that off a per-hit field
+## — a recorded hit with no dealloc would read as fresh and re-draw. A hit
+## that does not reach its landing (freed target or origin) draws nothing.
 static func land_one(hit: HitInstance, world: CombatWorld,
-		alloc: AllocationSystem = null) -> void:
+		alloc: AllocationSystem = null, crit_rng: RandomNumberGenerator = null) -> void:
 	if hit == null or hit.target == null:
 		return
 	# A rebuilt record arrives with its deallocations pre-populated (the
@@ -129,6 +138,8 @@ static func land_one(hit: HitInstance, world: CombatWorld,
 	var slice := world.combat_for(hit.target)
 	if slice == null:
 		return
+	if crit_rng != null:
+		CritRoll.decide(hit, crit_rng, world)
 	hit.land_on(slice, world)
 	if not recorded:
 		world.track_entries(hit.deallocations)
@@ -142,11 +153,10 @@ static func land_one(hit: HitInstance, world: CombatWorld,
 				hit.popped_vertex, hit.attacker, hit.popped_vertex.global_position)
 
 
-## Decorate-sort-undecorate on `(schedule_index, original_index)`. Public
-## because [method CritRoll.decide_all] must consume its seeded stream in the
-## exact order this lands hits (#507) — a second sort written to match would
-## be free to drift out of step with this one, and the symptom would be crits
-## that stop reproducing under a replayed seed.
+## Decorate-sort-undecorate on `(schedule_index, original_index)`. This is
+## also the order the crit stream is consumed in — [method land_one] draws as
+## each hit lands — so a replayed seed reproduces the same crits only while
+## this order is the one every peer agrees on.
 ##
 ## [b]The key is the structural entry index, never seconds[/b] (#543 D2, and
 ## the one decision on that issue whose violation produces a green suite and a

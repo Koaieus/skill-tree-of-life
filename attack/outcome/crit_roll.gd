@@ -8,37 +8,28 @@ class_name CritRoll
 ## "add a roll to melee and one to ranged": that is three implementations of
 ## one rule, and they drift. It is this file, called from one place per clock.
 ##
-## [b]Two clocks, deliberately.[/b] The owner call of 2026-08-21 settled that a
-## crit is decided per HIT (not per swing / per volley) and that landing is the
-## tail end of resolution, so:
+## [b]Both halves at landing.[/b] The owner call of 2026-08-21 settled that a
+## crit is decided per HIT; the owner call of 2026-10-07 (#1473) moved the
+## decision from resolve to the landing itself:
 ##
 ## [codeblock]
-## Resolve   CritRoll.decide_all(outcome, rng)   draw + conditions -> is_crit,
-##                                               crit_multiplier, crit_tier
-##                                               (amount is NOT touched)
-## Land      CritRoll.apply(hit)                 amount *= crit_multiplier
+## Land   CritRoll.decide(hit, rng, world)   draw + conditions -> is_crit,
+##                                           crit_multiplier, crit_tier
+##        CritRoll.apply(hit)                amount *= crit_multiplier
 ## [/codeblock]
 ##
-## Why the split rather than doing both at either end:
+## [method OutcomeApplier.land_one] draws right before the hit lands, in
+## landing order, off the outcome's [member AttackOutcome.crit_stream], reading
+## the landing world (the shadow during resolve) — so a status landed earlier
+## in the same attack (a hex rider) reaches the chance of the hits behind it.
+## A replay never draws: a rebuilt [AttackRecord] carries no stream and lands
+## the recorded crit. Every crit reader that runs before a landing (the VFX
+## stamping [member Projectile.crit_tier], the floaters) reads a REBUILT
+## record on the live replay, i.e. after the shadow resolve settled it.
 ##
-## - The DECISION cannot wait for land. [MagicBounceCoordinator] stamps
-##   [member Projectile.crit_tier] when it spawns the bolt and [Projectile]
-##   fires `_on_crit` at flight start — both strictly BEFORE the applier lands
-##   that wave. A land-time decision makes every magic projectile read tier 0.
-##   Magic's [member SpellDef.crit_conditions] are resolve-bound anyway: they
-##   read [CastSpell] propagation state that only exists inside
-##   [SpellResolver]'s wave loop.
-## - The MULTIPLY cannot happen at resolve. [RangedDamageFormula]'s
-##   `RangedHitInstance.land_on` overwrites `amount` with a LIVE
-##   `ranged_damage` read (#503), so anything resolve multiplied in is thrown
-##   away. Putting the multiply at the tail is also what
-##   `docs/domain/attack-timeline.md` asks for — "set frozen, all arithmetic
-##   live".
-##
-## The residual: `crit_chance` / `crit_multiplier` are read at resolve, so a
-## mid-attack change to either is not seen by hits already in flight. That is
-## the whole delta, and it is smaller than the VFX regression the alternative
-## buys.
+## The multiply stays at the tail of [method HitInstance.land_on], after
+## ranged's offense read and melee's spike-pop gate, so whatever number those
+## settled on is the number that gets multiplied.
 
 ## Salt mixed into [member AttackPlan.resolve_seed] to derive the crit stream.
 ## Crits must NOT consume the propagation stream (#213) — magic's random hop
@@ -59,38 +50,14 @@ static func stream_for(resolve_seed: int) -> RandomNumberGenerator:
 	return rng
 
 
-## Decide the crit for every hit in [param outcome], drawing from [param rng]
-## in LANDING order — [member HitInstance.schedule_index], the structural entry
-## index, never seconds (#543 D2).
-##
-## [b]The order is load-bearing.[/b] One stream serves the whole attack, so if
-## two modes consumed it in different orders the same `resolve_seed` would stop
-## reproducing the same crits and the determinism contract
-## (`docs/domain/multiplayer-sync-model.md`) would be lost. Arrival order is
-## the order landings apply (#499/#503), so it is the one order every mode
-## already agrees on. Reuses [method OutcomeApplier.in_arrival_order] rather
-## than re-sorting, so the two can never disagree.
-##
-## [b]That order had to stop being a float[/b] the moment #543 made seconds
-## tempo-dependent and tempo a per-peer [member GameSettings.combat_time_scale]:
-## two players at different combat speeds hold different `arrival_time`s for the
-## same landing, so a stream drawn in seconds order would deal different crits
-## on each machine off the same seed — a desync no test sorting on the same
-## wrong key could see. The structural index is identical on every peer by
-## construction.
-##
-## Any condition-path tier already stamped on a hit (magic's
-## [member SpellDef.crit_conditions], see [method SpellResolver._stamp_crit_conditions])
-## is carried in — this only ADDS the universal stat path on top.
-static func decide_all(outcome: AttackOutcome, rng: RandomNumberGenerator,
-		world: CombatWorld = null) -> void:
-	if outcome == null:
-		return
-	for hit in OutcomeApplier.in_arrival_order(outcome.hits):
-		decide(hit, rng, world)
-
-
 ## Roll one hit's universal `crit_chance` and settle its crit fields.
+##
+## Called by [method OutcomeApplier.land_one] as the hit lands; [param world]
+## is the landing world. Any condition-path tier already stamped on the hit
+## (magic's [member SpellDef.crit_conditions]) is carried in — this only ADDS
+## the universal stat path on top. The draw order is the landing order
+## ([method OutcomeApplier.in_arrival_order], the structural index, never
+## seconds), which is what keeps one seed reproducing one set of crits.
 ##
 ## Consumes exactly one draw from [param rng], and only when the hit's folded
 ## chance ([method chance_for]) is non-zero — a hit with no crit investment

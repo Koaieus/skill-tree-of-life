@@ -315,19 +315,17 @@ func test_a_second_pop_in_the_remainder_kills_only_that_vertex() -> void:
 
 # ---------------------------------------------------------------- determinism
 
-## The crit stream survives the interleave (#801, and #507's one-stream rule).
+## The crit stream survives the interleave (#801, and the one-stream rule).
 ##
-## `resolve_against` no longer builds every DamageInstance and rolls every crit
-## up front — it mints, rolls and LANDS one sample at a time, because a pop
-## decision needs the world as the earlier landings left it. One RNG object
-## handed to every batch's `decide_all` in turn must therefore consume the
-## stream in exactly the order a single `decide_all` over the finished hit list
-## would have: batches run in `t` order, and `OutcomeSchedule._sorted` breaks a
-## same-`t` tie on insertion index, so per-batch order is the global order's
-## blocks. If that ever stops holding, the same `resolve_seed` deals different
-## crits on the authority than a peer reproduces from the record — a desync no
-## test of the sim itself would see. #186's per-round crit salt is gone with the
-## rounds it existed for.
+## `resolve_against` mints, lands and draws one sample at a time, because a pop
+## decision needs the world as the earlier landings left it — and each hit
+## draws its crit as it lands. One RNG object handed to every batch's landing
+## in turn must therefore consume the stream in exactly the order one landing
+## pass over the finished hit list would: batches run in `t` order, and
+## `OutcomeSchedule._sorted` breaks a same-`t` tie on insertion index, so
+## per-batch order is the global order's blocks. If that ever stops holding,
+## the same `resolve_seed` deals different crits on the authority than a peer
+## reproduces from the record — a desync no test of the sim itself would see.
 func test_batched_crit_rolls_equal_one_global_roll() -> void:
 	var ctx: Dictionary = await _setup(1.0)
 	var attacker: Entity = ctx.attacker
@@ -340,22 +338,25 @@ func test_batched_crit_rolls_equal_one_global_roll() -> void:
 	whole.cadence = ScheduleEntry.Cadence.SWING
 	for batch in batches:
 		for key in batch:
-			whole.hits.append(_crit_hit(attacker, key))
+			whole.hits.append(_crit_hit(attacker, key, ctx.spiked))
 	whole.schedule = OutcomeSchedule.compile(whole)
-	CritRoll.decide_all(whole, CritRoll.stream_for(_SEED))
+	whole.crit_stream = CritRoll.stream_for(_SEED)
+	OutcomeApplier.apply(whole, CombatWorld.shadow())
 	var expected: Array[int] = []
 	for hit in whole.hits:
 		expected.append(hit.crit_tier)
 
 	var rng := CritRoll.stream_for(_SEED)
+	var batched_world := CombatWorld.shadow()
 	var batched: Array[int] = []
 	for batch in batches:
 		var sub := AttackOutcome.new()
 		sub.cadence = ScheduleEntry.Cadence.SWING
 		for key in batch:
-			sub.hits.append(_crit_hit(attacker, key))
+			sub.hits.append(_crit_hit(attacker, key, ctx.spiked))
 		sub.schedule = OutcomeSchedule.compile(sub)
-		CritRoll.decide_all(sub, rng)
+		sub.crit_stream = rng
+		OutcomeApplier.apply(sub, batched_world)
 		for hit in sub.hits:
 			batched.append(hit.crit_tier)
 
@@ -365,8 +366,9 @@ func test_batched_crit_rolls_equal_one_global_roll() -> void:
 			"one stream, consumed batch by batch, deals the identical crits")
 
 
-func _crit_hit(attacker: Entity, structural_key: float) -> DamageInstance:
+func _crit_hit(attacker: Entity, structural_key: float, target: SkillNode) -> DamageInstance:
 	var di := DamageInstance.new()
+	di.target = target
 	di.amount = 5.0
 	di.type = DamageInstance.Type.PHYSICAL
 	di.attacker = attacker
