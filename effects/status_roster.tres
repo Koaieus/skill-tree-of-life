@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="StatusRoster" load_steps=14 format=3]
+
+[ext_resource type="Script" path="res://effects/status_roster.gd" id="1_roster"]
+[ext_resource type="Script" path="res://effects/status/status_def.gd" id="1_status_def"]
+[ext_resource type="Resource" path="res://effects/status/armor_break.tres" id="2_armor_break"]
+[ext_resource type="Resource" path="res://effects/status/bleeding.tres" id="3_bleeding"]
+[ext_resource type="Resource" path="res://effects/status/blindness.tres" id="4_blindness"]
+[ext_resource type="Resource" path="res://effects/status/corruption.tres" id="5_corruption"]
+[ext_resource type="Resource" path="res://effects/status/curse.tres" id="6_curse"]
+[ext_resource type="Resource" path="res://effects/status/greed.tres" id="7_greed"]
+[ext_resource type="Resource" path="res://effects/status/hexed.tres" id="8_hexed"]
+[ext_resource type="Resource" path="res://effects/status/poison.tres" id="9_poison"]
+[ext_resource type="Resource" path="res://effects/status/scouted.tres" id="10_scouted"]
+[ext_resource type="Resource" path="res://effects/status/weakened.tres" id="11_weakened"]
+[ext_resource type="Resource" path="res://effects/status/wither.tres" id="12_wither"]
+
+[resource]
+script = ExtResource("1_roster")
+statuses = Array[ExtResource("1_status_def")]([ExtResource("2_armor_break"), ExtResource("3_bleeding"), ExtResource("4_blindness"), ExtResource("5_corruption"), ExtResource("6_curse"), ExtResource("7_greed"), ExtResource("8_hexed"), ExtResource("9_poison"), ExtResource("10_scouted"), ExtResource("11_weakened"), ExtResource("12_wither")])

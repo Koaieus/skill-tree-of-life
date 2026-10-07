@@ -28,6 +28,8 @@ const _FALLBACK_SPELL: SpellDef = preload("res://attack/spell/defs/spark.tres")
 var source: SkillNode = null
 var spell: SpellDef = null
 var target: SkillNode = null
+## The points this cast spends on aspects — never null; innate-only on a
+## fresh plan and after [method set_spell]. Set through [method set_infusion].
 var infusion: Infusion = Infusion.new()
 
 ## The viewing seat's fog, for caller-side vision filtering — set by
@@ -85,6 +87,7 @@ var _hover_target: SkillNode = null
 ## O(hops × edges), which matters for Trail Blazer's now-unbounded string walk.
 var _preview_dirty: bool = true
 var _preview_hit_nodes: Dictionary[SkillNode, bool] = {}
+var _preview_outcome: AttackOutcome = null
 var _preview_edges: Array[Edge] = []
 
 
@@ -110,6 +113,11 @@ func to_dict(graph: Graph) -> Dictionary:
 	d["source"] = graph.get_stable_id(source) if graph != null and source != null else 0
 	d["target"] = graph.get_stable_id(target) if graph != null and target != null else 0
 	d["spell"] = spell.id if spell != null else &""
+	if infusion.total_points() > 0:
+		var pts := {}
+		for id in infusion.points:
+			pts[String(id)] = infusion.points[id]
+		d["infusion"] = pts
 	return d
 
 
@@ -122,6 +130,9 @@ static func from_dict(d: Dictionary, graph: Graph) -> MagicAttackPlan:
 	# spell lands before the target so no re-adjudication can run against a
 	# stale one.
 	plan.spell = SpellCatalog.by_id(StringName(d.get("spell", &"")))
+	# Read ungated (ADR 0035): the host's only check is affordability, via
+	# aspect_overrun at launch.
+	plan.infusion = Infusion.for_cast(plan.spell, d.get("infusion", {}) as Dictionary)
 	plan.source = graph.get_by_stable_id(int(d.get("source", 0))) if graph != null else null
 	plan.target = graph.get_by_stable_id(int(d.get("target", 0))) if graph != null else null
 	return plan
@@ -412,6 +423,7 @@ func _rebuild_preview() -> void:
 	_preview_dirty = false
 	_preview_hit_nodes.clear()
 	_preview_edges.clear()
+	_preview_outcome = null
 	var preview_target := _preview_target()
 	if preview_target == null or spell == null or attacker == null:
 		return
@@ -425,7 +437,9 @@ func _rebuild_preview() -> void:
 	var graph := _graph_of(caster)
 	if graph == null:
 		return
-	var outcome := SpellResolver.resolve(spell, preview_target, caster, attacker, graph)
+	var outcome := SpellResolver.resolve(spell, preview_target, caster, attacker, graph,
+			null, infusion)
+	_preview_outcome = outcome
 	if outcome.timeline.is_empty():
 		return
 	var lookup := _edge_lookup(graph)
@@ -492,17 +506,52 @@ func resolve_against(world: CombatWorld) -> AttackOutcome:
 	# like this, NOT from the global RNG, or they reintroduce the exact hole
 	# this line closes. See AttackPlan.resolve_seed.
 	var outcome := SpellResolver.resolve_against(
-		spell, target, source, attacker, graph, world, seeded_rng())
+		spell, target, source, attacker, graph, world, seeded_rng(), infusion)
 	outcome.resolve_seed = resolve_seed
 	return outcome
 
 
-func set_infusion(_aspect_id: StringName, _points: int) -> void:
-	pass
+## Spend [param points] of concept [param aspect_id] on this cast (0 clears
+## it). Not gated — what the caster can afford is [method aspect_overrun]'s.
+func set_infusion(aspect_id: StringName, points: int) -> void:
+	var current := infusion.points.duplicate()
+	if points > 0:
+		current[aspect_id] = points
+	else:
+		current.erase(aspect_id)
+	if current == infusion.points:
+		return
+	infusion = Infusion.for_cast(spell, current)
+	state_changed.emit()
 
 
+## How far the infusion runs past what the caster may spend on one cast (the
+## host's launch check, ADR 0035): points above each `<concept>_aspect`, aspects
+## above `infusion_slots`, the total above
+## `min(infusion_points, SpellDef.infusion_capacity)`, and every point on a
+## concept the spell refuses (rate 0).
+func aspect_overrun() -> int:
+	var over := 0
+	for id in infusion.points:
+		var pts: int = infusion.points[id]
+		if Infusion.rate_of(spell, id) <= 0.0:
+			over += pts
+			continue
+		over += maxi(0, pts - AspectCurrency.cap_of(attacker, AspectCurrency.stat_of(id)))
+	over += maxi(0, infusion.slots_used() - AspectCurrency.cap_of(attacker, &"infusion_slots"))
+	var depth := float(AspectCurrency.cap_of(attacker, &"infusion_points"))
+	if spell != null:
+		depth = minf(depth, floorf(spell.infusion_capacity))
+	over += maxi(0, infusion.total_points() - int(depth))
+	return over
+
+
+## The aim-time preview's resolved outcome (null with nothing to preview) —
+## the same [method SpellResolver.resolve] walk the cast makes, infusion and all.
 func preview_outcome() -> AttackOutcome:
-	return null
+	if _preview_dirty:
+		_rebuild_preview()
+	return _preview_outcome
 
 
 ## Swap the equipped spell mid-plan. Post-#728 the pick is re-adjudicated
@@ -515,6 +564,7 @@ func set_spell(new_spell: SpellDef) -> void:
 	if spell == new_spell:
 		return
 	spell = new_spell
+	infusion = Infusion.innate(new_spell)
 	invalidate_union()
 	if target != null:
 		var picked := union().source_for(target)

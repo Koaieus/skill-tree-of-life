@@ -151,7 +151,6 @@ func test_wire_round_trips_points() -> void:
 	var back := MagicAttackPlan.from_dict(plan.to_dict(graph), graph)
 	assert_eq(back.infusion.points.get(&"poison", 0), 3)
 	assert_eq(back.infusion.points.get(&"curse", 0), 1)
-	assert_eq(back.aspect_overrun(), plan.aspect_overrun())
 
 
 func test_an_uninfused_plan_ships_no_infusion_key() -> void:

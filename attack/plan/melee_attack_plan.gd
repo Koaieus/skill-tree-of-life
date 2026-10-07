@@ -485,9 +485,7 @@ func max_blades() -> int:
 func currency_cap(id: StringName) -> int:
 	if id == _BLADE_SIZE_ID:
 		return max_blades()
-	if attacker == null or attacker.stat_board == null:
-		return 0
-	return maxi(0, floori(attacker.stat_board.get_value(id)))
+	return AspectCurrency.cap_of(attacker, id)
 
 
 ## What the swing spends of currency [param id]: 1 `blade_size` per member plus
