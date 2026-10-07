@@ -37,7 +37,7 @@ markers, the flare, every arrow's look — is `docs/design/aspect_matrix.md`
 | facet | field | note |
 |---|---|---|
 | stats | `order` | volley position: lower fires and lands first, the base arrow sits at 100, scout last (120). A **marker** flies early (curse 40, hex 30, greed 5) |
-| | `damage_scale` | raw-damage multiplier before mitigation; markers 0.3, plain stacks 0.5, blindness and scout 0 |
+| | `damage_scale` | raw-damage multiplier before mitigation; markers 0.3, plain stacks 0.5 unless the row says otherwise (armor break 0.75), blindness and scout 0 |
 | | `max_stock` | the type's own bank cap, outside the shared quiver capacity (ADR 0041); 999 unless tuned (curse and corruption 6, tentative) |
 | | `per_reload_stat_id` | `<concept>_aspect` |
 | effect | `on_hit_effects` | `OnHitEffect` riders run in order on every landing arrow ([On-hit shelf](#on-hit-shelf)) — usually one `ApplyStatusEffect` of the concept's `effects/status/<concept>.tres`, its `power` the stacks per landing arrow before potency × (1 − resistance). A scout type is one `ApplyStatusEffect(scouted.tres)` rider with `damage_scale` 0 (`AmmoType.is_scout()`) |
@@ -45,7 +45,7 @@ markers, the flare, every arrow's look — is `docs/design/aspect_matrix.md`
 
 Guards: `test/unit/attack/test_ammo_type_roster.gd` (roster vs disk, ids,
 distinct mint stats, order invariants, own scene per statused type),
-`test_reload_command.gd`, `test/unit/vfx/test_arrow_parts.gd` (the parts),
+`test/unit/command/test_reload_command.gd`, `test/unit/vfx/test_arrow_parts.gd` (the parts),
 `test_status_arrow_visual.gd` (the lifecycle).
 
 ### On-hit shelf
@@ -88,8 +88,10 @@ The lifecycle, the same for every part (`arrow_part.gd`):
 `arrive(ctx)` — only a landing that *counted* (not a dud, not absorbed),
 with the `ArrowImpactContext` the coordinator built; `drain_seconds()` —
 how long the part outlives its stop. Shared exports: `show_on_dud`,
-`show_on_absorbed` (both off by default; a status part steps aside for the
-defender's absorb), `fades_with_shaft`. A part reads only its arguments and
+`show_on_absorbed`, `fades_with_shaft` — off on `ArrowPart` and the impact
+parts, but `ArrowTip` defaults to `show_on_dud` + `fades_with_shaft` and
+`ArrowShedEmitter` to both `show_on_*` (the plain trail keeps flying for the
+defender's absorb). A part reads only its arguments and
 its exports — never the arrow or a `SkillNode`.
 
 | part | knobs a look sets | used by |
