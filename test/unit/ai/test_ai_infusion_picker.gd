@@ -49,3 +49,38 @@ func test_capacity_bounds_the_cast() -> void:
 
 func test_no_slots_picks_nothing() -> void:
 	assert_true(AiInfusionPicker.pick(_caster(0, 3, 5), _VENOM).is_empty())
+
+
+# ── the launched plan carries the pick ──────────────────────────────────
+
+class _ValidPlan extends MagicAttackPlan:
+	func is_valid() -> bool:
+		return true
+
+
+class _CapturingBattle extends BattleSystem:
+	var launched: AttackPlan = null
+
+	func new_plan(_mode: AttackMode, attacker: Entity) -> AttackPlan:
+		var p := _ValidPlan.new()
+		p.attacker = attacker
+		return p
+
+	func launch_attack(plan: AttackPlan) -> void:
+		launched = plan
+
+
+func test_launched_ai_plan_carries_the_pick() -> void:
+	var atk := _caster(100, 3, 5)
+	var battle := _CapturingBattle.new()
+	add_child_autofree(battle)
+	var ai := AIController.new()
+	ai.battle_system = battle
+	atk.add_child(ai)
+	var c := AiCombatScorer.ScoredCandidate.new()
+	c.mode = BattleSystem.AttackMode.MAGIC
+	c.spell = _VENOM
+	var ok: bool = await ai._execute_candidate(c)
+	assert_true(ok, "the stub plan launches")
+	var sent := (battle.launched as MagicAttackPlan).to_dict(null)
+	assert_eq(sent.get("infusion"), {"poison": 3}, "to_dict carries the picked infusion")
