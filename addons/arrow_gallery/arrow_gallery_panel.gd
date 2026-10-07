@@ -28,7 +28,8 @@ extends PanelContainer
 ## Board: the attacker's core with [constant LEAF_COUNT] reaching leaves (each
 ## fires up to [constant SHOTS_PER_LEAF] a turn, so 20 arrows fit), and a
 ## hostile cluster — the dummy, two neighbours, the defender's core — for the
-## splash/flare looks. Target picks the dummy or a cluster neighbour.
+## splash/flare looks. Target picks the dummy or a cluster neighbour; the
+## Held / Gained presets arm whichever is picked.
 
 signal reload_requested
 
@@ -153,8 +154,9 @@ func fire(type_index: int, preset: Preset, n: int, target_name: String = "d_targ
 	if ammo == null or _busy:
 		return null
 	_busy = true
+	_refresh_status()
 	_last_outcome = null
-	_build_board(preset)
+	_build_board(preset, target_name)
 	var quiver := _attacker.stat_board.arrows
 	var stocked := quiver.add(ammo.id, clampi(n, 1, MAX_VOLLEY), ammo.max_stock)
 	var plan := _battle.new_plan(BattleSystem.AttackMode.RANGED, _attacker) as RangedAttackPlan
@@ -181,7 +183,7 @@ func _on_fire_pressed() -> void:
 ## A fresh board per fire: statuses, stocks, shot budgets and a dead defender
 ## from the last volley never leak into the next. The old one is detached
 ## before the new one is named, so the two never collide.
-func _build_board(preset: Preset) -> void:
+func _build_board(preset: Preset, target_name: String = _TARGETS[0]) -> void:
 	for old in [_sandbox, _graph]:
 		if old != null and is_instance_valid(old):
 			old.get_parent().remove_child(old)
@@ -209,7 +211,7 @@ func _build_board(preset: Preset) -> void:
 		_defender.stat_board.add_modifier(_set_mod(&"node_health", frail_hp))
 	if preset == Preset.CRIT:
 		_attacker.stat_board.add_modifier(_set_mod(&"crit_chance", 1.0))
-	var target := _nodes["d_target"]
+	var target := _nodes[target_name]
 	if preset == Preset.HELD:
 		_set_local(target, &"armor", held_armor)
 		_set_local(target, &"min_damage_taken", 0.0)
@@ -277,7 +279,7 @@ func _on_attack_committed(outcome: AttackOutcome, _attacker_: Entity) -> void:
 ## An exported knob moved in the Inspector: show the new board at once.
 func _rebuild_from_knob() -> void:
 	if is_node_ready() and not _busy:
-		_build_board(_preset_list.selected as Preset)
+		_build_board(_preset_list.selected as Preset, _TARGETS[maxi(0, _target_list.selected)])
 
 
 func _layout_world() -> void:

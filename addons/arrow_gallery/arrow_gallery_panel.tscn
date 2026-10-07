@@ -90,7 +90,7 @@ text = "Target"
 [node name="TargetList" type="OptionButton" parent="VBox/Bar"]
 unique_name_in_owner = true
 layout_mode = 2
-tooltip_text = "The dummy, or a neighbour inside the hostile cluster (for splash / flare looks). Presets arm the dummy only."
+tooltip_text = "The dummy, or a neighbour inside the hostile cluster (for splash / flare looks)."
 
 [node name="StatusLabel" type="RichTextLabel" parent="VBox"]
 unique_name_in_owner = true
