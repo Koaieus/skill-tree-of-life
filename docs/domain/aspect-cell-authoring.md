@@ -73,7 +73,8 @@ A spell is many facets, each its own design call:
 | identity | `id`, `name`, `tagline`, `description`, `icon` |
 | cast gate | `min_degree`, `carve_shape` |
 | reach | `targeting` (a `Targeting` with a range finder), `propagation` (`PropagationConfig` + filter) |
-| payload | `power`, `on_hit_effects` (`DamageEffect`, `HealEffect`, `ApplyStatusEffect(def, power)` …; the one on-hit vocabulary for every mode, see `docs/domain/effect-system.md` and ADR 0044) |
+| payload | `power`, `on_hit_effects` (`DamageEffect`, `HealEffect` …; the one on-hit vocabulary for every mode, see `docs/domain/effect-system.md` and ADR 0044) |
+| status | `affinities` (`SpellAffinity{status, innate, rate}`) + `default_rate` — never an `ApplyStatusEffect` in `on_hit_effects` (§ Infusion, ADR 0047) |
 | crit | `crit_conditions` (`LandingCondition`s) |
 | presentation | `vfx_coordinator_scene`, `windup_vfx_scene`, `tempo` (`.claude/rules/spell-vfx.md`) |
 
