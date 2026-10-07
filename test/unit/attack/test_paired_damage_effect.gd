@@ -5,6 +5,8 @@ extends GutTest
 ## carrying the arrow's crit rather than drawing its own. Wrapped in a
 ## [SplashEffect] it is the Explosive arrow's blast.
 
+## Pinned on every leaf; the arrow's compiled amount is what the blast's
+## share is OF, read off the arrow rather than assumed.
 const RAW := 10.0
 const SEED := 4242
 
@@ -12,13 +14,16 @@ var _f: VolleyBoardFixture
 
 
 func before_each() -> void:
-	_f = await VolleyBoardFixture.build(self)
+	_f = await VolleyBoardFixture.build(self, true)
 	for leaf in _f.leaves:
 		VolleyBoardFixture.set_stat(leaf, &"ranged_damage", RAW)
 	# Each hostile node its own armour, so "mitigated once, by its own" shows.
 	VolleyBoardFixture.set_stat(_f.target, &"armor", 1.0)
 	VolleyBoardFixture.set_stat(_f.cluster[0], &"armor", 2.0)
 	VolleyBoardFixture.set_stat(_f.cluster[1], &"armor", 3.0)
+	# No damage floor, so the armour difference is what the numbers show.
+	for n in [_f.target, _f.cluster[0], _f.cluster[1]]:
+		VolleyBoardFixture.set_stat(n, &"min_damage_taken", 0.0)
 	await get_tree().process_frame
 
 
@@ -54,6 +59,13 @@ func _land(hits: Array[HitInstance]) -> AttackOutcome:
 	return outcome
 
 
+## [param raw] through [param node]'s own armour, once — rounded up at entry
+## like every hit ([method NodeCombat.take_damage]).
+func _mitigated(node: SkillNode, raw: float) -> float:
+	return Mitigation.compute(HitPoints.whole(raw), float(node.get_local_value(&"armor")),
+			float(node.get_local_value(&"min_damage_taken")))
+
+
 func _blast_hits(hits: Array[HitInstance]) -> Array[HitInstance]:
 	var out: Array[HitInstance] = []
 	for i in range(1, hits.size()):
@@ -85,14 +97,13 @@ func test_the_blast_deals_its_fraction_of_raw_to_every_hostile_node_in_reach_eac
 				if n != _f.target and n.ownership_bit(_f.attacker) & SkillNode.Ownership.HOSTILE != 0:
 					reach.append(n)
 			var hits := _volley(ammo)
+			var raw := hits[0].amount
 			_land(hits)
 			var blasts := _blast_hits(hits)
 			var landed: Array[SkillNode] = []
 			for hit in blasts:
 				landed.append(hit.target)
-				var armor := float(hit.target.get_local_value(&"armor"))
-				assert_almost_eq(hit.effective_amount,
-						Mitigation.compute(fraction * RAW, armor, 0.0), 0.001,
+				assert_almost_eq(hit.effective_amount, _mitigated(hit.target, fraction * raw), 0.001,
 						"f=%s r=%s on %s" % [fraction, r, hit.target.name])
 			assert_eq(landed.size(), reach.size(), "f=%s r=%s: one blast per hostile node in reach" % [fraction, r])
 			for n in reach:
@@ -117,15 +128,15 @@ func test_a_gated_arrow_duds_every_blast_hit() -> void:
 func test_a_crit_arrows_blast_hits_are_crits_with_its_multiplier() -> void:
 	VolleyBoardFixture.set_stat(_f.leaves[0], &"crit_chance", 1.0)
 	var hits := _volley(_blast(0.5, 400.0))
+	var raw := hits[0].amount
 	_land(hits)
 	assert_true(hits[0].is_crit, "the arrow crit")
 	for hit in _blast_hits(hits):
 		assert_true(hit.is_crit, "%s inherits the crit" % hit.target.name)
 		assert_eq(hit.crit_multiplier, hits[0].crit_multiplier)
 		assert_eq(hit.crit_tier, hits[0].crit_tier)
-		var armor := float(hit.target.get_local_value(&"armor"))
 		assert_almost_eq(hit.effective_amount,
-				Mitigation.compute(0.5 * RAW * hits[0].crit_multiplier, armor, 0.0), 0.001)
+				_mitigated(hit.target, 0.5 * raw * hits[0].crit_multiplier), 0.001)
 
 
 func test_the_blast_draws_nothing_from_the_crit_stream() -> void:
