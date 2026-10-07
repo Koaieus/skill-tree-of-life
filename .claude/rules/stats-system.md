@@ -587,6 +587,8 @@ These are `StatModifier` sub-resources with a `formula`, wired as `intrinsic_mod
 | `intelligence` | `cast_range_distance` | INCREASE | 1 | RatioFormula(intelligence, **50**) — a line, +1% increased euclidean reach per 50 INT, over the spell's authored `max_distance` (folded as an overlay, stat base 0 by contract — #912) |
 | `intelligence` | `cast_range_hops` | ADD_BASE | 1 | ThresholdFormula(intelligence, [50, 150, 500, 1000, 5000]) — flat +1..+5 hops over the spell's authored `max_hops` (overlay, base 0 by contract — #912), feeds `HopRangeFinder` only, never `PropagationConfig.max_hops`; breakpoints retune post-LAN |
 | `intelligence` | `spell_damage` | ADD_BASE | 1 | SqrtFormula(intelligence, divisor=1) — pure sqrt transfer, no knee (#776 amendment, superseding #760's KneeSqrtFormula); `divisor` a drone starting value, not the owner's |
+| `intelligence` | `infusion_slots` | ADD_BASE | 1 | ThresholdFormula(intelligence, [100, 1000, 10000]) — slots a cast can fill, one concept per slot (owner ladder, #1462) |
+| `intelligence` | `infusion_points` | ADD_BASE | 1 | SqrtFormula(intelligence, divisor=1) — points per slot (owner, #1462) |
 | `strength` | `blade_size` | ADD_BASE | 1 | RatioFormula(strength, **40**) — #776 divisor pass, starting value |
 | `strength` | `blade_damage` | ADD_BASE | 1 | RatioFormula(strength, **20**) — #776 divisor pass, starting value |
 | `constitution` + `node_health_scaling` | `node_health` | ADD_BASE | 1 | `node_health_scaling * constitution` (D-26 precedent, #298) — the rate is the **stat**, not the coefficient (see below) |
