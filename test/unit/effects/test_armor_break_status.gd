@@ -158,18 +158,18 @@ func test_authored_armor_break_and_sunder_load_and_are_in_the_debug_book() -> vo
 	assert_not_null(sunder, "sunder.tres is a SpellDef")
 	if sunder == null:
 		return
-	var applier: ApplyStatusEffect = null
+	var applier: SpellAffinity = null
+	for aff in sunder.affinities:
+		applier = aff
 	var has_damage := false
 	for fx in sunder.on_hit_effects:
-		if fx is ApplyStatusEffect:
-			applier = fx
-		elif fx is DamageEffect:
+		if fx is DamageEffect:
 			has_damage = true
 	assert_true(has_damage, "sunder also deals a little damage")
-	assert_not_null(applier, "sunder composes an ApplyStatusEffect")
+	assert_not_null(applier, "sunder carries an innate affinity")
 	if applier != null:
-		assert_eq(applier.def, a_break, "…that applies the authored Armor Break def")
-		assert_gt(applier.power, 0.0)
+		assert_eq(applier.status, a_break, "…that applies the authored Armor Break def")
+		assert_gt(applier.innate, 0)
 
 	var book := load("res://entity/spellbook_debug.tres") as SpellBook
 	assert_true(sunder in book.spells, "sunder is in the debug spellbook")

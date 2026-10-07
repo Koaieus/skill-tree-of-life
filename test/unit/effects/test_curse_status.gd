@@ -192,14 +192,13 @@ func test_authored_curse_and_hex_load_and_are_in_the_debug_book() -> void:
 	assert_not_null(hex, "hex.tres is a SpellDef")
 	if hex == null:
 		return
-	var applier: ApplyStatusEffect = null
-	for fx in hex.on_hit_effects:
-		if fx is ApplyStatusEffect:
-			applier = fx
-	assert_not_null(applier, "hex composes an ApplyStatusEffect")
+	var applier: SpellAffinity = null
+	for aff in hex.affinities:
+		applier = aff
+	assert_not_null(applier, "hex carries an innate affinity")
 	if applier != null:
-		assert_eq(applier.def, curse, "…that applies the authored Curse def")
-		assert_gt(applier.power, 0.0)
+		assert_eq(applier.status, curse, "…that applies the authored Curse def")
+		assert_gt(applier.innate, 0)
 
 	var book := load("res://entity/spellbook_debug.tres") as SpellBook
 	assert_true(hex in book.spells, "hex is in the debug spellbook")
