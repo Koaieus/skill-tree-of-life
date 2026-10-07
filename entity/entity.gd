@@ -1040,10 +1040,6 @@ func die() -> void:
 	# `cascade_started` signal, and only this ordering makes "already true by
 	# the time the death wave's own entity_dying handler runs" hold.
 	is_dead = true
-	# The entity-hosted rows die with it (#996) — the live twin of
-	# `simulate_entity_death`'s release; `is_allocated()` (alive) gates any
-	# later apply. Before `died` so no listener sees a corpse still ticking.
-	_combat.release_statuses()
 	died.emit()
 	# Before the bus phases: effects see the corpse fully intact (nodes still
 	# owned, modifiers still applied), same pre-strip world LootSystem relies on.
@@ -1054,6 +1050,13 @@ func die() -> void:
 	# synchronous, so every dying-handler finishes before any died-handler —
 	# the phases sequence themselves, no tree-order dependency. See Events.
 	Events.entity_dying.emit(self)
+	# The entity-hosted status rows survive the dying phase so its readers see
+	# them (LootSystem's kill-XP read folds entity Greed's `bounty`), and are
+	# released before the `entity_died` strip. A corpse never ticks them in
+	# between: `is_dead` is already latched, `is_allocated()` (alive) gates any
+	# later apply, and `TurnManager.abandon_turn` — the dying-phase turn pull —
+	# never ticks.
+	_combat.release_statuses()
 	Events.entity_died.emit(self)
 	# #504: the death is drawn at the moment the model dies, so this fires here
 	# rather than out of a replayed timeline. LAST, after `entity_died`, because
