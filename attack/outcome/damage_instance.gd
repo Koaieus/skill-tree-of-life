@@ -33,7 +33,16 @@ func _init() -> void:
 ## (`BladeDamageInstance.land_on`) — both of which run before this `super`
 ## call. A normal hit multiplies by 1.0, so there is no `if is_crit` to forget.
 ## A DAMAGE crit then spends crit-taken statuses ([method NodeCombat.on_crit_taken]).
+## A damage RIDER (ADR 0049) gates first, like a status: [method
+## HitInstance.rider_gated] makes it a power-0 dud flagged [member
+## HitInstance.gated] and nothing lands. A primary hit has no [member
+## HitInstance.paired] and no [member HitInstance.land_mask], so never gates here.
 func land_on(node: NodeCombat, _world: CombatWorld) -> void:
+	if rider_gated(node):
+		gated = true
+		amount = 0.0
+		effective_amount = 0.0
+		return
 	resolve_amount(node)
 	CritRoll.apply(self)
 	# Read before the hit: a crit that kills strips the node's owner, yet its

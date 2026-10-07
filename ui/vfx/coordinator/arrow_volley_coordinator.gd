@@ -323,19 +323,24 @@ func _status_tint_for(type: AmmoType) -> Color:
 ## only riders on the hit's own target (a splash spreads to neighbours).
 static func riders_of(hits: Array[HitInstance], i: int, same_target: bool) -> Array[HitInstance]:
 	var out: Array[HitInstance] = []
+	var key := hits[i].hit_key
+	if key == 0:
+		return out
+	for j in range(i + 1, hits.size()):
+		var rider := hits[j]
+		if rider.hit_key == key and (not same_target or rider.target == hits[i].target):
+			out.append(rider)
 	return out
 
 
-## Σ|amount| of the landing's hits — the arrow's own plus the typed status
-## riding it (the [StatusInstance]s appended right after it, same target).
+## Σ|amount| of the landing's hits — the arrow's own plus its riders on the
+## same target ([method riders_of]).
 ## Authored `amount`, never `effective_amount` (written at apply time).
 func _focus_weight(hits: Array[HitInstance], i: int) -> float:
 	var hit: HitInstance = hits[i]
 	var weight: float = absf(hit.amount)
-	var j := i + 1
-	while j < hits.size() and hits[j] is StatusInstance and hits[j].target == hit.target:
-		weight += absf(hits[j].amount)
-		j += 1
+	for rider in riders_of(hits, i, true):
+		weight += absf(rider.amount)
 	return maxf(weight, SwarmFocus.STATUS_FLOOR)
 
 
@@ -520,8 +525,8 @@ func _on_arrow_arrived(proj: Projectile, hits: Array[HitInstance], i: int) -> vo
 
 
 ## The [ArrowImpactContext] for the arrow at [param i]: its target's centre
-## and grown radius, and the targets of its non-dud riders — the
-## [StatusInstance]s appended right after it ([method RangedDamageFormula.riders_for]).
+## and grown radius, and the targets of its non-dud riders ([method riders_of],
+## every target — a splashed rider included).
 ## Read at arrival, like [member HitInstance.gated] on the arrow itself.
 func impact_context_for(hits: Array[HitInstance], i: int) -> ArrowImpactContext:
 	var ctx := ArrowImpactContext.new()
@@ -529,12 +534,9 @@ func impact_context_for(hits: Array[HitInstance], i: int) -> ArrowImpactContext:
 	if target != null:
 		ctx.position = target.global_position
 		ctx.radius = target.radius
-	var j := i + 1
-	while j < hits.size() and hits[j] is StatusInstance:
-		var rider: HitInstance = hits[j]
+	for rider in riders_of(hits, i, false):
 		if not rider.gated and rider.target != null:
 			ctx.rider_positions.append(rider.target.global_position)
-		j += 1
 	return ctx
 
 

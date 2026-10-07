@@ -124,9 +124,10 @@ const KEY_HIT_AMMO_TYPE := "h_ammo"
 ## non-STATUS hit. The landed host is a resolved fact like `power_resolved`:
 ## a peer lands on the shipped host, never re-derives it from node HP.
 const KEY_HIT_STATUS_HOST := "h_shost"
-## [member StatusInstance.hit_key] per hit (#1420) — `0` for every non-STATUS
-## hit. The replay arms Greed on the same hit the shadow did, so the live
-## host spends exactly what the shadow spent, once per hit.
+## [member HitInstance.hit_key] per hit, every kind — `0` for a keyless one
+## (a bare arrow). The replay arms Greed on the same hit the shadow did, so
+## the live host spends exactly what the shadow spent, once per hit, and a
+## peer's coordinator finds an arrow's riders by it. Named for its first use.
 const KEY_HIT_STATUS_KEY := "h_skey"
 ## Forced deallocations, flattened across ALL hits (#518) — one entry per
 ## cascaded node, plus [constant KEY_DEALLOC_COUNT] giving how many belong to
@@ -339,7 +340,7 @@ static func capture(outcome: AttackOutcome, graph: Graph) -> Dictionary:
 		var status_hit := hit as StatusInstance
 		r.status_defs.append(status_hit.def.resource_path if status_hit != null and status_hit.def != null else "")
 		r.status_hosts.append(int(status_hit.host_kind) if status_hit != null else 0)
-		r.status_keys.append(status_hit.hit_key if status_hit != null else 0)
+		r.status_keys.append(hit.hit_key)
 		r.dealloc_counts.append(hit.deallocations.size())
 		for e in hit.deallocations:
 			# The id, never the reference (`.claude/rules/multiplayer-sync.md`).
@@ -452,8 +453,6 @@ static func rebuild(d: Dictionary, graph: Graph, rate: float = -1.0) -> AttackOu
 			# the shipped host, never re-derives it from its own node HP.
 			if i < r.status_hosts.size():
 				si.host_kind = r.status_hosts[i] as StatusInstance.HostKind
-			if i < r.status_keys.size():
-				si.hit_key = r.status_keys[i]
 			hit = si
 		elif r.kinds[i] == int(HitInstance.Kind.EXERT):
 			hit = ExertInstance.new()
@@ -485,6 +484,13 @@ static func rebuild(d: Dictionary, graph: Graph, rate: float = -1.0) -> AttackOu
 		# `land_on` already resolved a PERCENT_MAX coefficient into this number
 		# (HitInstance.resolve_amount), and a peer must land it, not re-scale it.
 		hit.amount = amount
+		# The landing key, on every hit: a peer's coordinator finds an arrow's
+		# riders by it, a peer's host spends Greed once per landing by it.
+		if i < r.status_keys.size():
+			hit.hit_key = r.status_keys[i]
+		# The authority already decided every land-time gate; a replay never
+		# re-reads ownership for a mask ([method HitInstance.rider_gated]).
+		hit.land_resolved = true
 		# Carried even when the replay lands nothing (gated, or mitigated to
 		# zero on the host), so a VFX reader sees the host's number rather
 		# than an empty one.

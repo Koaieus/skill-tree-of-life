@@ -14,7 +14,7 @@ extends OnHitEffect
 ## spell's landing, an arrow's and a blade contact's alike: the emitted
 ## status copies the landing's attacker / source / origin / read node / target /
 ## structural key, and rides [member HitLanding.paired] — the status applies
-## iff that primary hit landed ([member StatusInstance.paired]).
+## iff that primary hit landed ([member HitInstance.paired]).
 
 @export var def: StatusDef = null
 @export var power: float = 1.0

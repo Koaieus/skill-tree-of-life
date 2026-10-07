@@ -48,9 +48,12 @@ static func compute(attacker: Entity, firing_node: SkillNode, target: SkillNode,
 ## The riders pass of a typed arrow's landing: every one of the arrow's
 ## [member AmmoType.on_hit_effects], in authored order, run against ONE
 ## [HitLanding] built from [param hit] — empty for an untyped arrow or one with
-## no riders. The landing is paired to the arrow, so each emitted
-## [StatusInstance] is a dud iff the arrow is ([member StatusInstance.paired]);
-## each rider is stamped with the arrow's [member HitInstance.ammo_type_id].
+## no riders. The landing is paired to the arrow, so each emitted rider is a
+## dud iff the arrow is ([member HitInstance.paired]); each rider is stamped
+## with the arrow's [member HitInstance.ammo_type_id], and the arrow takes the
+## landing's [member HitInstance.hit_key] — its riders are the later hits
+## sharing it. An untyped arrow returns before minting a landing, so it stays
+## keyless (`0`).
 ## The caller appends the riders right after their arrow: the copied
 ## [member HitInstance.structural_key] puts them on its beat, and the later
 ## original index keeps the arrow first ([method OutcomeSchedule.compile]). A
@@ -73,6 +76,7 @@ static func riders_for(hit: DamageInstance) -> Array[HitInstance]:
 	landing.target = arrow.target
 	landing.structural_key = arrow.structural_key
 	landing.paired = arrow
+	arrow.hit_key = landing.hit_key
 	for effect in arrow.ammo_type.on_hit_effects:
 		if effect != null:
 			effect.apply(landing)
@@ -82,7 +86,7 @@ static func riders_for(hit: DamageInstance) -> Array[HitInstance]:
 
 
 ## Ranged's land-time GATE (#503) — the arrow's; its riders follow it through
-## [member StatusInstance.paired], so the two never disagree on whether a
+## [member HitInstance.paired], so the two never disagree on whether a
 ## landing is a dud: false if the target is no longer allocated/hostile to [param attacker], or the firing
 ## node's slice ([param origin_slice], looked up in the landing world) is
 ## gone. A veto is a veto, not a re-plan — callers mark

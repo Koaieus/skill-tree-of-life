@@ -14,8 +14,8 @@ extends OnHitEffect
 ## structural key, and the same [member HitLanding.hits] sink by reference.
 ## The reach is read from topology when the effect runs (plan compile, for an
 ## arrow); whether each neighbour is STILL hostile is decided at land — every
-## [StatusInstance] a splash copy emits carries
-## [member StatusInstance.require_hostile].
+## [StatusInstance] a splash copy emits carries a HOSTILE
+## [member HitInstance.land_mask].
 
 enum Reach {
 	## The landed node plus its direct graph neighbours whose
@@ -38,7 +38,7 @@ func apply(landing: HitLanding) -> void:
 		for i in range(before, landing.hits.size()):
 			var status := landing.hits[i] as StatusInstance
 			if status != null:
-				status.require_hostile = true
+				status.land_mask = SkillNode.Ownership.HOSTILE
 
 
 func status_def() -> StatusDef:

@@ -262,11 +262,11 @@ func rider_gated(node: NodeCombat) -> bool:
 			and (node.ownership_bit(attacker) & land_mask) == 0
 
 
-## Whether this hit actually landed — what a [StatusInstance] riding it
-## ([member StatusInstance.paired]) gates on. Base: not vetoed by its mode's
+## Whether this hit actually landed — what a rider of any kind
+## ([member paired]) gates on. Base: not vetoed by its mode's
 ## land-time gate ([member gated]). A mode whose refusal is not a dud
 ## (melee's unadmitted contact) overrides it. Read after this hit's own
-## [method land_on]: a paired status lands after its primary hit.
+## [method land_on]: a rider lands after its primary hit.
 func landed() -> bool:
 	return not gated
 
