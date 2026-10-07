@@ -135,7 +135,11 @@ func test_a_gated_arrow_duds_every_blast_hit() -> void:
 
 func test_a_crit_arrows_blast_hits_are_crits_with_its_multiplier() -> void:
 	VolleyBoardFixture.set_stat(_f.leaves[0], &"crit_chance", 1.0)
+	VolleyBoardFixture.set_stat(_f.leaves[1], &"crit_chance", 0.0)
 	var hits := _volley(_blast(0.5, 400.0))
+	# The blast reads a no-crit leaf: a crit on it can only be the arrow's copy.
+	for hit in _blast_hits(hits):
+		hit.read_node = _f.leaves[1]
 	var raw := hits[0].amount
 	_land(hits)
 	assert_true(hits[0].is_crit, "the arrow crit")

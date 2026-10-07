@@ -9,9 +9,14 @@ extends DamageInstance
 ##
 ## It carries the paired hit's crit rather than rolling its own: the arrow
 ## lands first on the shared beat, and [method land_on] copies its
-## `is_crit` / `crit_multiplier` / `crit_tier` before the multiplier goes on.
+## `is_crit` / `crit_multiplier` / `crit_tier` before the multiplier goes on,
+## and [method draws_own_crit] keeps it off the outcome's crit stream.
 ## A rebuilt record never sees this class — a peer lands a plain
 ## [DamageInstance] with the authority's number and crit flags.
+
+
+func draws_own_crit() -> bool:
+	return false
 
 
 func land_on(node: NodeCombat, world: CombatWorld) -> void:

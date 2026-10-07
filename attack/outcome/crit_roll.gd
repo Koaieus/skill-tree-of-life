@@ -62,11 +62,13 @@ static func stream_for(resolve_seed: int) -> RandomNumberGenerator:
 ## Consumes exactly one draw from [param rng], and only when the hit's folded
 ## chance ([method chance_for]) is non-zero — a hit with no crit investment
 ## behind it must not shift the stream for everyone else. A
-## zero/negative-amount hit is skipped entirely (nothing to multiply).
+## zero/negative-amount hit is skipped entirely (nothing to multiply), and so
+## is one that carries another hit's crit ([method HitInstance.draws_own_crit]
+## false) — it draws nothing, so the stream never shifts for it.
 ## `crit_multiplier` stays an entity read.
 static func decide(hit: HitInstance, rng: RandomNumberGenerator,
 		world: CombatWorld = null) -> void:
-	if hit == null or hit.amount <= 0.0:
+	if hit == null or hit.amount <= 0.0 or not hit.draws_own_crit():
 		return
 	var board: StatBoard = hit.attacker.stat_board if hit.attacker != null else null
 	if rng != null:

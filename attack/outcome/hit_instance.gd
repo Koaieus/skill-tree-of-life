@@ -262,6 +262,14 @@ func rider_gated(node: NodeCombat) -> bool:
 			and (node.ownership_bit(attacker) & land_mask) == 0
 
 
+## Whether [method CritRoll.decide] rolls this hit's crit off the outcome's
+## stream. False for a hit that inherits its crit from [member paired]
+## ([PairedDamageInstance]) — it must draw nothing, or every later hit's
+## crit shifts.
+func draws_own_crit() -> bool:
+	return true
+
+
 ## Whether this hit actually landed — what a rider of any kind
 ## ([member paired]) gates on. Base: not vetoed by its mode's
 ## land-time gate ([member gated]). A mode whose refusal is not a dud
