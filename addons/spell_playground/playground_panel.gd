@@ -72,6 +72,12 @@ const CASTER_SPELL_HOPS_BONUS: int = 50
 ## back underneath them.
 const LOOP_GAP_SECONDS: float = 0.35
 
+## Every rostered aspect's `<concept>_aspect` is SET to this on the caster, so
+## the infusion row offers a stepper for each concept (the row shows one iff the
+## caster holds the aspect). Deep enough that the points / slots overrides, not
+## the aspect, are what stop a stepper by default. Tentative.
+@export_range(0, 1000, 1, "or_greater") var aspect_grant: int = 100
+
 @onready var cast_button: Button = %CastButton
 @onready var loop_button: CheckButton = %LoopButton
 @onready var reset_button: Button = %ResetButton
@@ -91,9 +97,22 @@ const LOOP_GAP_SECONDS: float = 0.35
 @onready var spell_damage_label: Label = %SpellDamageLabel
 @onready var node_health_slider: HSlider = %NodeHealthSlider
 @onready var node_health_label: Label = %NodeHealthLabel
+@onready var infusion_row: InfusionRow = %InfusionRow
+@onready var infusion_slots_box: SpinBox = %InfusionSlotsBox
+@onready var infusion_points_box: SpinBox = %InfusionPointsBox
+@onready var affinity_label: Label = %AffinityLabel
 @onready var _world_container: SubViewportContainer = $HBox/WorldContainer
 
 var _spell: SpellDef = null
+## The SET modifiers behind the slots / points spin boxes, mutated in place.
+var _infusion_slots_set: StatModifier = null
+var _infusion_points_set: StatModifier = null
+## The armed plan's infusion, remembered across the fresh plan every Cast arms.
+var _infusion: Dictionary[StringName, int] = {}
+## True while [method _arm_plan] rebuilds a plan, so its transient state
+## changes are not mistaken for the user editing the infusion.
+var _arming: bool = false
+var _watched_plan: MagicAttackPlan = null
 var _selected_target: SkillNode = null
 ## True from Cast until the launch returns. A re-arm (or a second cast) inside
 ## that window would interleave with a mutation loop still walking its beats, so
@@ -169,6 +188,9 @@ func _ready() -> void:
 	_refresh_spell_damage_label()
 	_install_node_health_sets()
 	node_health_slider.value_changed.connect(_on_node_health_changed)
+	_install_infusion_sets()
+	infusion_slots_box.value_changed.connect(_on_infusion_limit_changed)
+	infusion_points_box.value_changed.connect(_on_infusion_limit_changed)
 	world.size_changed.connect(_layout_world)
 	_populate_spell_list()
 	spell_list.item_selected.connect(_on_spell_list_selected)
@@ -345,6 +367,7 @@ func load_spell(spell: SpellDef) -> void:
 		_refresh_status()
 		return
 	_spell = spell
+	_infusion.clear()
 	_sync_spell_list_selection()
 	# Re-arm before the status read: a new spell is new reach and possibly a new
 	# ownership filter, so the rings and "is this seed legal" both change.
@@ -451,14 +474,22 @@ func _arm_plan() -> MagicAttackPlan:
 		# No spell, no targeting to show — and a plan armed with a null spell
 		# would paint a stale reach. Drop it rather than leave it lying.
 		stack.cancel_attack()
+		_watch_plan(null)
 		return null
+	_arming = true
 	stack.selected_spell = _spell
 	if stack.attack_plan() == null or stack.attack_mode() != BattleSystem.AttackMode.MAGIC:
 		_systems.input_controller.arm_attack(BattleSystem.AttackMode.MAGIC)
 	var plan := stack.attack_plan() as MagicAttackPlan
 	if plan == null:
 		push_warning("Spell Playground: no magic plan to arm")
+		_arming = false
+		_watch_plan(null)
 		return null
+	_watch_plan(plan)
+	if plan.infusion.points.is_empty():
+		for id in _infusion:
+			plan.set_infusion(id, _infusion[id])
 	plan.reset()
 	plan.set_target(caster_node)
 	if _selected_target != null:
@@ -469,7 +500,79 @@ func _arm_plan() -> MagicAttackPlan:
 		# put it back; the seed simply stays unaccepted.
 		if plan.source == null:
 			plan.set_target(caster_node)
+	_arming = false
+	infusion_row.bind(plan)
+	_refresh_affinity()
 	return plan
+
+
+## Follow [param plan]'s infusion: remember it for the next plan and reprint the
+## affinity readout. One connection at a time.
+func _watch_plan(plan: MagicAttackPlan) -> void:
+	if plan == _watched_plan:
+		return
+	if is_instance_valid(_watched_plan) and _watched_plan.state_changed.is_connected(_on_plan_changed):
+		_watched_plan.state_changed.disconnect(_on_plan_changed)
+	_watched_plan = plan
+	if plan != null:
+		plan.state_changed.connect(_on_plan_changed)
+	else:
+		infusion_row.bind(null)
+		_refresh_affinity()
+
+
+func _on_plan_changed() -> void:
+	if _arming or not is_instance_valid(_watched_plan):
+		return
+	_infusion = _watched_plan.infusion.points.duplicate()
+	_refresh_affinity()
+
+
+## `Poison 2 · Curse 0` from [method Infusion.affinity_of] for the armed plan —
+## the ingest result of the spell's [SpellAffinity] resources and the strip's
+## points, readable without launching the game.
+func _refresh_affinity() -> void:
+	var plan := _watched_plan
+	if not is_instance_valid(plan) or plan.spell == null:
+		affinity_label.text = ""
+		return
+	var counts := plan.infusion.affinity_of(plan.spell)
+	var parts: PackedStringArray = []
+	for id in counts:
+		parts.append("%s %d" % [String(id).capitalize(), counts[id]])
+	affinity_label.text = "Affinity: " + (" · ".join(parts) if not parts.is_empty() else "none")
+
+
+## SET modifiers on the caster's board — the slots / points the spin boxes drive
+## and one `<concept>_aspect` per rostered aspect — so the infusion row has
+## something to spend. Same mechanism as [method _install_node_health_sets].
+func _install_infusion_sets() -> void:
+	var board: EntityStatBoard = caster_entity.stat_board
+	if board == null:
+		return
+	_infusion_slots_set = _add_set(board, &"infusion_slots", infusion_slots_box.value)
+	_infusion_points_set = _add_set(board, &"infusion_points", infusion_points_box.value)
+	for aspect in AspectRoster.shared().aspects:
+		if aspect != null and aspect.stat != null:
+			_add_set(board, aspect.stat.id, aspect_grant)
+
+
+func _add_set(board: EntityStatBoard, stat_id: StringName, value: float) -> StatModifier:
+	var mod := StatModifier.new()
+	mod.stat_id = stat_id
+	mod.operation = StatModifier.Operation.SET
+	mod.value = value
+	board.add_modifier(mod)
+	return mod
+
+
+func _on_infusion_limit_changed(_value: float) -> void:
+	if _infusion_slots_set != null:
+		_infusion_slots_set.value = infusion_slots_box.value
+	if _infusion_points_set != null:
+		_infusion_points_set.value = infusion_points_box.value
+	if is_instance_valid(_watched_plan):
+		_watched_plan.state_changed.emit()
 
 
 func _on_world_gui_input(event: InputEvent) -> void:

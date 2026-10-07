@@ -278,11 +278,11 @@ func test_poison_points_on_cyclone_land_two_poison_per_landing() -> void:
 		assert_eq(power, 2.0, "4 points at 1:2 is 2 poison per landing")
 
 
-## The infusion survives the panel's re-arm (every Cast and Reset re-arms a plan).
-func test_the_infusion_survives_a_rearm() -> void:
+## The infusion survives a Cast, which swaps in a fresh plan.
+func test_the_infusion_survives_a_cast() -> void:
 	var plan := _armed_cyclone()
 	plan.set_infusion(&"poison", 4)
-	_panel._reset_state()
+	await _panel._cast()
 	var again: MagicAttackPlan = _panel._arm_plan()
 	assert_eq(again.infusion.points.get(&"poison", 0), 4)
 
