@@ -1,16 +1,20 @@
 #!/usr/bin/env python3
-#MISE description="The swarm ledger, written by commands not memory: `mise run ledger -- show | dispatch <n> <drone> <tier> | report <n> [--branch <slug>] [--plan] [--stuck] [--pull] | land <n> <sha> [--branch <slug>] | note <n> '…'` (+ `--note '…'` on any write)"
+#MISE description="The swarm ledger, written by commands not memory: `mise run ledger -- show | adopt [--from <sid8> | <path>] | close | dispatch <n> <drone> <tier> | report <n> [--branch <slug>] [--plan] [--stuck] [--pull] | land <n> <sha> [--branch <slug>] | note <n> '…'` (+ `--note '…'` on any write)"
 """
-Owns the Roster table of the swarm ledger, `docs/handoffs/swarm-<date>.md`
+Owns the Roster table of the swarm ledger, `docs/handoffs/swarm-<date>-<HHMM>.md`
 (gitignored — relief reads it, nobody commits it). The lead's dispatch and
 collect steps and `mise run land` call this; the lead never hand-edits a
 roster row again, so a ledger exists whenever a drone was dispatched through
 the skill. The prose under the roster (Queue, Carried, Open owner calls) is
 the lead's and is never touched.
 
-    show                       print the ledger; "no ledger" is a normal answer
-    dispatch <n> <drone> <tier>   create the ledger if this run has none; add
-                               the row (or re-dispatch an existing one)
+    show                       print this session's ledger; with none, say so
+                               and list every live ledger (path · lineage · age)
+    adopt [--from <sid8> | <path>]   join a live ledger's lead lineage (relief);
+                               bare: the only live ledger, else list and refuse
+    close                      end the run: move the ledger to archive/<basename>
+    dispatch <n> <drone> <tier>   create this session's ledger if it has none;
+                               add the row (or re-dispatch an existing one)
     report <n> [--branch <slug>] [--plan] [--stuck] [--pull]
                                state → reported@ (pulled@ with --pull); ticks
                                the advisor-moment columns; with --branch fills
@@ -20,11 +24,18 @@ the lead's and is never touched.
                                untouched (an idle, a poison line, an owner call)
     --note '…'                 on any write: appended to the notes cell
 
-Which file: $SWARM_LEDGER if set; else today's `swarm-YYYY-MM-DD.md`; else the
-newest `swarm-YYYY-MM-DD.md` modified within LIVE_HOURS (a run spans
-midnight); else none — `dispatch` creates today's, everything else no-ops
-and says so. A roster whose header is not this tool's schema is refused,
-never rewritten: that file is a hand-kept run, move it aside.
+Which file: $SWARM_LEDGER if set; else the top-level `swarm-*.md` (never a
+`swarm-brief-*.md`, never archive/) whose `Lead sessions:` line holds this
+session's $CLAUDE_CODE_SESSION_ID[:8]; else none — `dispatch` creates
+`swarm-<date>-<HHMM>.md` (`-2`… on a same-minute collision) with the lineage
+[this session], everything else no-ops and says so. The run's handle is the
+lead lineage, never the date or an mtime: a second `/swarm` on the same night
+gets its own ledger, and only `adopt` (relief) joins an existing one — it
+appends to the lineage, so a draining outgoing lead keeps writing. With no
+session id and no $SWARM_LEDGER nothing is implicit: every verb says so. A
+live ledger is any top-level `swarm-*.md` that is not a brief; `close` is
+what makes one not live. A roster whose header is not this tool's schema is
+refused, never rewritten: that file is a hand-kept run, move it aside.
 
 Exit 0 on every no-op/refusal (the `land` hook is `|| true` anyway); non-zero
 only on a usage error.
@@ -38,7 +49,7 @@ import re
 import sys
 import time
 
-LIVE_HOURS = 36
+LINEAGE = re.compile(r"^Lead sessions: (.*)$", re.M)
 HEADER = "| unit | drone | tier | state | PLAN | STUCK | PULL | adv | ctx | calls | priced | notes |"
 COLS = [c.strip() for c in HEADER.strip().strip("|").split("|")]
 SEP = "|" + "|".join("---" for _ in COLS) + "|"
@@ -53,28 +64,63 @@ def ledger_dir():
     return os.path.join(root, "docs", "handoffs")
 
 
-def resolve(create=False):
-    """The live run's ledger path, or None (today's path when `create`)."""
-    override = os.environ.get("SWARM_LEDGER")
-    if override:
-        return override
-    d = ledger_dir()
-    today = os.path.join(d, f"swarm-{time.strftime('%Y-%m-%d')}.md")
-    if os.path.exists(today):
-        return today
-    live = [p for p in glob.glob(os.path.join(d, "swarm-[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9].md"))
-            if time.time() - os.path.getmtime(p) <= LIVE_HOURS * 3600]
-    if live:
-        return max(live, key=os.path.getmtime)
-    return today if create else None
+def sid8():
+    return os.environ.get("CLAUDE_CODE_SESSION_ID", "")[:8]
 
 
-def new_ledger(date):
-    sid = os.environ.get("CLAUDE_CODE_SESSION_ID", "")
-    lead = f" Lead session: {sid[:8]}." if sid else ""
+def _read(path):
+    try:
+        with open(path, encoding="utf-8") as fh:
+            return fh.read()
+    except OSError:
+        return ""
+
+
+def lineage(path):
+    """The ledger's lead sessions, oldest first; [] for an old-format or foreign file."""
+    m = LINEAGE.search(_read(path))
+    return [s.strip() for s in m.group(1).split(",") if s.strip()] if m else []
+
+
+def live_ledgers():
+    """Every top-level swarm ledger not yet closed — a brief is never one."""
+    return sorted(p for p in glob.glob(os.path.join(ledger_dir(), "swarm-*.md"))
+                  if not os.path.basename(p).startswith("swarm-brief-") and os.path.isfile(p))
+
+
+def own_ledger(sid):
+    mine = [p for p in live_ledgers() if sid and sid in lineage(p)]
+    return max(mine, key=os.path.getmtime) if mine else None
+
+
+def resolve():
+    """This session's ledger path ($SWARM_LEDGER wins), or None."""
+    return os.environ.get("SWARM_LEDGER") or own_ledger(sid8())
+
+
+def new_path():
+    base = os.path.join(ledger_dir(), f"swarm-{time.strftime('%Y-%m-%d-%H%M')}")
+    path, n = f"{base}.md", 2
+    while os.path.exists(path):
+        path, n = f"{base}-{n}.md", n + 1
+    return path
+
+
+def listing(exclude=None):
+    rows = []
+    for p in live_ledgers():
+        if p == exclude:
+            continue
+        age = int((time.time() - os.path.getmtime(p)) / 60)
+        rows.append(f"  {p} · lead sessions: {', '.join(lineage(p)) or '(none — old format)'} · {age // 60}h{age % 60:02d}m ago")
+    return "\n".join(rows) or "  (no live ledger)"
+
+
+def new_ledger(date, sid=""):
     return (
         f"# Swarm {date} — ledger (gitignored; relief reads this)\n"
-        f"Roster rows are written by `mise run ledger` (dispatch / report / `land`); the sections below are the lead's prose.{lead}\n\n"
+        f"Lead sessions: {sid}\n"
+        f"Roster rows are written by `mise run ledger` (dispatch / report / `land`); the sections below are the lead's prose.\n\n"
         f"## Roster\n{HEADER}\n{SEP}\n\n"
         "## Queue\n\n## Open owner calls\n"
     )
@@ -170,10 +216,47 @@ def _note(row, note):
         row["notes"] = note if row.get("notes", "-") in ("", "-") else f"{row['notes']}; {note}"
 
 
+def adopt(args):
+    sid = sid8()
+    if not sid:
+        print("ledger: no session id ($CLAUDE_CODE_SESSION_ID unset) — adopt needs a session to add to a lineage; nothing written")
+        return 0
+    if args.path:
+        p = args.path if os.path.exists(args.path) else os.path.join(ledger_dir(), args.path)
+        cands = [p] if os.path.isfile(p) else []
+    elif args.frm:
+        cands = [p for p in live_ledgers() if args.frm[:8] in lineage(p)]
+    else:
+        cands = live_ledgers()
+    if len(cands) != 1:
+        what = "no live ledger matches" if not cands else f"{len(cands)} live ledgers match"
+        print(f"ledger: {what} — name one (`adopt --from <sid8>` or `adopt <path>`); nothing written. Live ledgers:\n{listing()}")
+        return 0
+    target, mine = cands[0], own_ledger(sid)
+    if mine and os.path.abspath(mine) != os.path.abspath(target):
+        print(f"ledger: this session already leads {mine} — `close` it before adopting {target}; nothing written")
+        return 0
+    if sid in lineage(target):
+        print(f"ledger: {target} already lists {sid} as a lead session")
+        return 0
+    text = _read(target)
+    if LINEAGE.search(text):
+        text = LINEAGE.sub(lambda m: f"Lead sessions: {', '.join(lineage(target) + [sid])}", text, count=1)
+    else:
+        first, _, rest = text.partition("\n")
+        text = f"{first}\nLead sessions: {sid}\n{rest}"
+    with open(target, "w", encoding="utf-8") as fh:
+        fh.write(text)
+    print(f"ledger: adopted {target} — lead sessions: {', '.join(lineage(target))}")
+    return 0
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="cmd", required=True)
     sub.add_parser("show")
+    sub.add_parser("close")
+    p = sub.add_parser("adopt"); p.add_argument("path", nargs="?", default=""); p.add_argument("--from", dest="frm", default="")
     p = sub.add_parser("dispatch"); p.add_argument("unit"); p.add_argument("drone"); p.add_argument("tier"); p.add_argument("--note", default="")
     p = sub.add_parser("report"); p.add_argument("unit"); p.add_argument("--branch", default="")
     for flag in ("plan", "stuck", "pull"):
@@ -183,14 +266,29 @@ def main(argv=None):
     p = sub.add_parser("note"); p.add_argument("unit"); p.add_argument("note")
     args = ap.parse_args(argv)
 
-    path = resolve(create=args.cmd == "dispatch")
+    if args.cmd == "adopt":
+        return adopt(args)
+    if not os.environ.get("SWARM_LEDGER") and not sid8():
+        print("ledger: no session id ($CLAUDE_CODE_SESSION_ID unset) and no $SWARM_LEDGER — no implicit ledger; nothing written")
+        return 0
+    path = resolve()
+    if path is None and args.cmd == "dispatch":
+        path = new_path()
     if path is None or (args.cmd != "dispatch" and not os.path.exists(path)):
-        print(f"ledger: no ledger for a live run under {ledger_dir()} (dispatch creates one)")
+        print(f"ledger: no ledger for this session ({sid8() or '$SWARM_LEDGER'}) under {ledger_dir()} — dispatch creates one, "
+              f"`adopt` joins one. Live ledgers:\n{listing()}")
         return 0
     if args.cmd == "dispatch" and not os.path.exists(path):
+        os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
         with open(path, "w", encoding="utf-8") as fh:
-            fh.write(new_ledger(re.sub(r".*swarm-|\.md$", "", os.path.basename(path)) or time.strftime("%Y-%m-%d")))
+            fh.write(new_ledger(time.strftime("%Y-%m-%d"), sid8()))
         print(f"ledger: created {path}")
+    if args.cmd == "close":
+        archive = os.path.join(os.path.dirname(path), "archive")
+        os.makedirs(archive, exist_ok=True)
+        os.replace(path, os.path.join(archive, os.path.basename(path)))
+        print(f"ledger: closed — {path} → {archive}/")
+        return 0
 
     roster = Roster(path)
     if not roster.ok:
