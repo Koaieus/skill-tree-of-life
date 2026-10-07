@@ -18,7 +18,8 @@ We have several module-testing surfaces, each set up differently:
 | Allocation / dealloc / death VFX | `addons/sandbox_host/tabs/40_allocation_tab.tscn` (live tab) | **live-edit** |
 | Melee blade | `addons/melee_sandbox/` (live tab, #256) | **live-edit** |
 | Status effects (one-node bench: apply / tick / log) | `addons/status_sandbox/` via `tabs/55_status_tab.tscn` (live tab, #1114) | **live-edit** |
-| Ranged | — (none yet) | played |
+| Ranged — arrow looks (every `ammo_type_roster.tres` type, volley 1–20, dud / held / gained / crit board presets, fired through `BattleSystem.launch_attack` on a fresh `SandboxWorld` board per fire) | `addons/arrow_gallery/` via `tabs/77_arrow_gallery_tab.tscn` (live tab, #1479) — owns the arrow looks; `20_vfx_tab`'s primitive gallery stays the spell-coordinator parts catalogue, and `75_outcome_tab` stays a recorded-replay proof for spells | **live-edit** |
+| Ranged — played turn flow | — (none yet) | played |
 | Loot | — (foreseen) | played |
 
 Each re-derives graph + nodes + edges + entities + systems its own way, so they
