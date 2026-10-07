@@ -108,7 +108,9 @@ instead of racing on connection order:
 
 ```
 Events.entity_dying  → LootSystem: draw core mods + attach SkillDust, award kill
-                        XP (territory-scaled)  (corpse STILL owns its nodes)
+                        XP (territory-scaled)  (corpse STILL owns its nodes,
+                        its entity-hosted status rows still applied)
+(Entity.die)         → release the entity-hosted status rows
 Events.entity_died   → AllocationSystem: force-deallocate every owned node
                         (incl. core → neutral relic)
                      → GameRoot: player game-over / NPC despawn
@@ -143,6 +145,12 @@ died. One rate, no multiplier, no rate-switching (#774):
 XP = xp_per_node_killed(5) × |nodes this attack removed, core included|
      + victim.stat_board.core_kill_xp.value           (only if the core died)
 ```
+
+Every term is read through the `bounty` stat with its rate as an overlay
+`base_add`: each node's `xp_per_node_killed` through the node's local read
+(node + entity modifiers, `_node_payout`), the core bonus through the entity
+board's read alone (`_entity_payout`). At zero `bounty` modifiers that is the
+formula above; Greed's Avarice face plants `INCREASE` on it (+10% per stack).
 
 The core node is simply one of the counted nodes — there is no folded-in "+1"
 for it anywhere in the arithmetic (#774 decision 1, owner, 2026-09-07: "no

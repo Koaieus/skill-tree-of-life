@@ -29,7 +29,8 @@ Don't wire death to a core-node `depleted` signal; it never fires.
 
 `Entity.die()` latches `is_dead` (idempotent — death can re-fire mid-cascade)
 and announces death in **two phases** — `Events.entity_dying(self)` then
-`Events.entity_died(self)` — doing nothing else itself (**not even killer
+`Events.entity_died(self)`, releasing its entity-hosted status rows between
+the two — doing nothing else itself (**not even killer
 attribution** — that lives in LootSystem). The two-phase split sequences
 consumers by **phase, not connection order**: `emit()` is synchronous, so every
 `entity_dying` handler finishes before any `entity_died` handler runs. Don't
@@ -37,7 +38,9 @@ reintroduce a tree-order dependency — the editor freely reorders `Systems`
 children, which is exactly what the phases immunise against.
 
 1. **`entity_dying` → LootSystem** (#68/#69) — runs while the corpse still owns
-   its nodes; it needs that pre-strip world to snapshot loot + reward the killer.
+   its nodes and its entity-hosted status rows (`Entity.die` releases them only
+   after this phase); it needs that pre-strip world to snapshot loot + reward
+   the killer (kill XP reads entity Greed's `bounty`).
    The mechanics (the loot draw, killer attribution) are LootSystem's own concern
    — see `loot_system.gd` / `docs/domain/loot-system.md`, not duplicated here.
 2. **`entity_died` → AllocationSystem** strips every owned node (core last)

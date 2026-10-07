@@ -67,12 +67,14 @@ signal stat_modifier_changed(entity: Entity, modifier: StatModifier, binding: Mo
 ## `entity_dying` handler finishes before ANY `entity_died` handler runs —
 ## ordering is by phase, not by tree position.
 ##
-## `entity_dying` — PRE-cleanup: the corpse still owns its nodes / subgraph.
+## `entity_dying` — PRE-cleanup: the corpse still owns its nodes / subgraph and
+## its entity-hosted status rows are still applied (released right after).
 ## Readers that must snapshot the live world subscribe here (LootSystem's loot
 ## draw + kill XP). Killer attribution is NOT carried on either signal —
 ## LootSystem resolves it from its injected TurnManager, keeping Entity dumb.
 signal entity_dying(entity: Entity)
-## `entity_died` — CLEANUP phase: AllocationSystem strips the corpse's owned
+## `entity_died` — CLEANUP phase: the entity-hosted status rows are already
+## released; AllocationSystem strips the corpse's owned
 ## nodes, GameRoot handles the player-vs-NPC consequence (game-over / despawn).
 ## GameRoot rides the child-before-parent ready order to fire after
 ## AllocationSystem, so the despawn never races the node strip.
