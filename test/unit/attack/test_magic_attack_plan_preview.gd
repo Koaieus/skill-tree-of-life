@@ -324,3 +324,49 @@ func _has_edge(edges: Array[Edge], a: SkillNode, b: SkillNode) -> bool:
 		if (e.from == a and e.to == b) or (e.from == b and e.to == a):
 			return true
 	return false
+
+
+# ── 4. the infusion reaches the preview ──────────────────────────────────
+
+func _status_power(outcome: AttackOutcome) -> Dictionary:
+	var out := {}
+	if outcome == null:
+		return out
+	for hit in outcome.hits:
+		var s := hit as StatusInstance
+		if s != null:
+			out[s.target] = out.get(s.target, 0.0) + s.power
+	return out
+
+
+func test_preview_status_hits_equal_the_launched_cast() -> void:
+	var graph := h.make_graph([[0, 1]], self)
+	_resync_navigator(graph)
+	var attacker := h.make_entity(graph, "ATK", Color.RED)
+	var defender := h.make_entity(graph, "DEF", Color.BLUE)
+	h.give_big_hp(defender)
+	h.assign_owner(graph, attacker, [0])
+	h.assign_owner(graph, defender, [1])
+	var nodes := graph.get_skill_nodes()
+
+	var config := h.make_config(h.fan_all(), h.owner_enemy(), h.max_reducer(), {max_hops = 1})
+	var spell := h.make_spell(config, [DamageEffect.new()] as Array[OnHitEffect], 10.0)
+	spell.targeting = _hostile_targeting()
+	spell.min_degree = 0
+	var poison := SpellAffinity.new()
+	poison.status = load("res://effects/status/poison.tres") as StatusDef
+	poison.rate = 1.0
+	spell.affinities = [poison] as Array[SpellAffinity]
+
+	var plan := MagicAttackPlan.new()
+	plan.attacker = attacker
+	plan.spell = spell
+	assert_true(plan.set_target(nodes[1]), "the defender's node is in reach")
+	plan.set_infusion(&"poison", 3)
+
+	var previewed := _status_power(plan.preview_outcome())
+	var world := CombatWorld.shadow()
+	var launched := _status_power(plan.resolve_against(world))
+	world.free_shadow()
+	assert_false(launched.is_empty(), "the infused cast lands poison")
+	assert_eq(previewed, launched, "the preview lands the stacks the cast will")

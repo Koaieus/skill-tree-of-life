@@ -10,6 +10,17 @@ extends RefCounted
 ## with nothing spent resolves with.
 
 
+var points: Dictionary[StringName, int] = {}
+
+
+static func for_cast(spell: SpellDef, _points: Dictionary) -> Infusion:
+	return innate(spell)
+
+
+func slots_used() -> int:
+	return 0
+
+
 ## The spell's innate infusion — no points spent.
 static func innate(_spell: SpellDef) -> Infusion:
 	return Infusion.new()

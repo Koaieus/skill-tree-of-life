@@ -241,6 +241,8 @@ extends StatBoard
 @export_group("Magic")
 @export var cast_range_distance: ScalarStat	## EUCLIDEAN spell reach, in pixels. Base 0 by contract — the spell's authored max_distance folds in as an overlay (SpellRangeRules.reach), so +N adds pixels, % increased scales the authored reach, SET replaces it. INT contributes % increased via intrinsic. Node-local.
 @export var cast_range_hops: ScalarStat		## HOP-ranged spell reach, in hops — HopRangeFinder.max_hops only, NEVER PropagationConfig.max_hops. Base 0 by contract — the authored max_hops folds in as an overlay (SpellRangeRules.reach); the total floors once. INT contributes a flat threshold ladder via intrinsic. Node-local.
+@export var infusion_slots: ScalarStat	## How many different aspects one cast may be infused with (breadth). Base 0; INT threshold ladder 100 / 1000 / 10000 via intrinsic. Entity-scope.
+@export var infusion_points: ScalarStat	## Total aspect points one cast may be infused with (depth), capped further by SpellDef.infusion_capacity. Base 0; floor(√INT) via intrinsic. Entity-scope.
 @export var spell_damage: ScalarStat	## Damage behind one spell seed, × the spell's own `power`. Base 1, scales with √INT (sqrt transfer, #776). Node-local addons add on top per-node via node_board.
 
 @export_group("Melee")

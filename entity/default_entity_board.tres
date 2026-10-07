@@ -22,6 +22,8 @@
 [ext_resource type="Resource" path="res://stats_system/defs/blunting.tres" id="def_blunting"]
 [ext_resource type="Resource" path="res://stats_system/defs/cast_range_distance.tres" id="def_cast_range_distance"]
 [ext_resource type="Resource" path="res://stats_system/defs/cast_range_hops.tres" id="def_cast_range_hops"]
+[ext_resource type="Resource" path="res://stats_system/defs/infusion_slots.tres" id="def_infusion_slots"]
+[ext_resource type="Resource" path="res://stats_system/defs/infusion_points.tres" id="def_infusion_points"]
 [ext_resource type="Resource" uid="uid://cj6e6uijkdjrc" path="res://stats_system/defs/constitution.tres" id="def_constitution"]
 [ext_resource type="Resource" path="res://stats_system/defs/core_healing.tres" id="def_core_healing"]
 [ext_resource type="Resource" path="res://stats_system/defs/core_health_scaling.tres" id="def_core_health_scaling"]
@@ -196,6 +198,16 @@ definition = ExtResource("def_cast_range_distance")
 resource_name = "cast_range_hops"
 script = ExtResource("2_scalar")
 definition = ExtResource("def_cast_range_hops")
+
+[sub_resource type="Resource" id="scalar_infusion_slots"]
+resource_name = "infusion_slots"
+script = ExtResource("2_scalar")
+definition = ExtResource("def_infusion_slots")
+
+[sub_resource type="Resource" id="scalar_infusion_points"]
+resource_name = "infusion_points"
+script = ExtResource("2_scalar")
+definition = ExtResource("def_infusion_points")
 
 [sub_resource type="Resource" id="scalar_constitution"]
 resource_name = "constitution"
@@ -412,6 +424,28 @@ resource_name = "+1 Cast Range Hops at 50 / 150 / 500 / 1000 / 5000 INT"
 script = ExtResource("12_3edt8")
 stat_id = &"cast_range_hops"
 formula = SubResource("formula_int_to_cast_range_hops")
+
+[sub_resource type="Resource" id="formula_int_to_infusion_slots"]
+script = ExtResource("script_threshold")
+source_stat_id = &"intelligence"
+breakpoints = Array[float]([100.0, 1000.0, 10000.0])
+
+[sub_resource type="Resource" id="mod_int_to_infusion_slots"]
+resource_name = "+1 Infusion Slot at 100 / 1000 / 10000 INT"
+script = ExtResource("12_3edt8")
+stat_id = &"infusion_slots"
+formula = SubResource("formula_int_to_infusion_slots")
+
+[sub_resource type="Resource" id="formula_int_to_infusion_points"]
+script = ExtResource("script_sqrt")
+source_stat_id = &"intelligence"
+divisor = 1.0
+
+[sub_resource type="Resource" id="mod_int_to_infusion_points"]
+resource_name = "+1 Infusion Point per √INT"
+script = ExtResource("12_3edt8")
+stat_id = &"infusion_points"
+formula = SubResource("formula_int_to_infusion_points")
 
 [sub_resource type="Resource" id="formula_dex_to_ranged_damage"]
 script = ExtResource("script_ratio")
@@ -794,6 +828,8 @@ max_shots_per_leaf = SubResource("scalar_max_shots_per_leaf")
 volleys_per_turn = SubResource("scalar_volleys_per_turn")
 cast_range_distance = SubResource("scalar_cast_range_distance")
 cast_range_hops = SubResource("scalar_cast_range_hops")
+infusion_slots = SubResource("scalar_infusion_slots")
+infusion_points = SubResource("scalar_infusion_points")
 spell_damage = SubResource("scalar_spell_damage")
 blade_size = SubResource("scalar_blade_size")
 blade_damage = SubResource("scalar_blade_damage")
@@ -802,7 +838,7 @@ blade_speed_multiplier_max = SubResource("scalar_blade_speed_multiplier_max")
 blade_speed_half = SubResource("scalar_blade_speed_half")
 crit_chance = SubResource("scalar_crit_chance")
 crit_multiplier = SubResource("scalar_crit_multiplier")
-intrinsic_modifiers = Array[ExtResource("12_3edt8")]([SubResource("mod_per_to_vision"), SubResource("mod_per_to_sensor"), SubResource("mod_wis_to_xp_pt"), SubResource("mod_str_to_blade_damage"), SubResource("mod_str_to_blade_size"), SubResource("mod_dex_to_range"), SubResource("mod_int_to_cast_range_distance"), SubResource("mod_int_to_cast_range_hops"), SubResource("mod_dex_to_ranged_damage"), SubResource("mod_int_to_spell_damage"), SubResource("mod_con_to_node_health"), SubResource("mod_con_to_health"), SubResource("mod_level_to_con"), SubResource("mod_max_shots_to_volleys")])
+intrinsic_modifiers = Array[ExtResource("12_3edt8")]([SubResource("mod_per_to_vision"), SubResource("mod_per_to_sensor"), SubResource("mod_wis_to_xp_pt"), SubResource("mod_str_to_blade_damage"), SubResource("mod_str_to_blade_size"), SubResource("mod_dex_to_range"), SubResource("mod_int_to_cast_range_distance"), SubResource("mod_int_to_cast_range_hops"), SubResource("mod_int_to_infusion_slots"), SubResource("mod_int_to_infusion_points"), SubResource("mod_dex_to_ranged_damage"), SubResource("mod_int_to_spell_damage"), SubResource("mod_con_to_node_health"), SubResource("mod_con_to_health"), SubResource("mod_level_to_con"), SubResource("mod_max_shots_to_volleys")])
 bleeding_aspect = SubResource("scalar_bleeding_aspect")
 bleeding_stacks_per_hit = SubResource("scalar_bleeding_stacks_per_hit")
 bleeding_resistance = SubResource("scalar_bleeding_resistance")

@@ -28,6 +28,7 @@ const _FALLBACK_SPELL: SpellDef = preload("res://attack/spell/defs/spark.tres")
 var source: SkillNode = null
 var spell: SpellDef = null
 var target: SkillNode = null
+var infusion: Infusion = Infusion.new()
 
 ## The viewing seat's fog, for caller-side vision filtering — set by
 ## [BattleSystem], null on the AI's probe plans (they carry their own recon).
@@ -494,6 +495,14 @@ func resolve_against(world: CombatWorld) -> AttackOutcome:
 		spell, target, source, attacker, graph, world, seeded_rng())
 	outcome.resolve_seed = resolve_seed
 	return outcome
+
+
+func set_infusion(_aspect_id: StringName, _points: int) -> void:
+	pass
+
+
+func preview_outcome() -> AttackOutcome:
+	return null
 
 
 ## Swap the equipped spell mid-plan. Post-#728 the pick is re-adjudicated
