@@ -88,18 +88,19 @@ func _status_arrow() -> StatusArrow:
 func test_tip_and_trail_carry_the_status_hue() -> void:
 	var arrow := _status_arrow()
 	var hue: float = _POISON.first_status_def().tint.h
-	var tip: Polygon2D = arrow.get_node(^"%Tip")
-	var trail: GPUParticles2D = arrow.get_node(^"%Trail")
+	var tip: ArrowTip = arrow.get_node(^"Tip")
+	var trail: GPUParticles2D = (arrow.get_node(^"Trail") as ArrowShedEmitter).particles()
 	assert_true(tip.visible, "a status arrow shows its tip")
-	assert_almost_eq(tip.color.h, hue, 0.02, "the tip is the status colour")
+	assert_almost_eq(ArrowPart.lit(arrow.status_tint, tip.tier).h, hue, 0.02, "the tip is the status colour")
 	assert_almost_eq(trail.modulate.h, hue, 0.02, "the trail is the status colour")
 	assert_true(trail.modulate.s > 0.3, "the trail is coloured, not white")
 
 
 func test_finished_waits_for_the_trail_to_drain() -> void:
 	var arrow := _status_arrow()
-	var trail: GPUParticles2D = arrow.get_node(^"%Trail")
-	var burst: GPUParticles2D = arrow.get_node(^"%Burst")
+	var shed: ArrowShedEmitter = arrow.get_node(^"Trail")
+	var trail := shed.particles()
+	var burst: ArrowImpactEmitter = arrow.get_node(^"Burst")
 	arrow.hold_seconds = 0.0
 	arrow.fade_seconds = 0.0
 	watch_signals(arrow)
@@ -107,22 +108,37 @@ func test_finished_waits_for_the_trail_to_drain() -> void:
 	assert_true(trail.emitting, "the trail streams while the arrow flies")
 	arrow._on_arrival()
 	assert_false(trail.emitting, "the trail stops emitting at the impact")
-	assert_almost_eq(arrow.drain_seconds(), maxf(trail.lifetime, burst.lifetime), 0.0001,
-			"the drain is the longest-lived emitter's lifetime")
+	assert_almost_eq(arrow.drain_seconds(), maxf(shed.lifetime, burst.lifetime), 0.0001,
+			"the drain is the longest-lived part's lifetime")
 	assert_signal_not_emitted(arrow, "finished", "not finished while the trail drains")
 
 
-## The impact beats land just after arrival; on either the status burst is
-## withdrawn — a dud never landed, an absorbed shot is the defender's verdict.
+## The verdict lands before the impact; a dud or absorbed shot never starts
+## the status burst — a dud never landed, an absorbed shot is the defender's.
 func test_a_dud_or_absorbed_arrow_shows_no_status_burst() -> void:
-	for beat in [&"dud", &"absorbed"]:
+	for beat in [&"landed", &"dud", &"absorbed"]:
 		var arrow := _status_arrow()
-		var burst: GPUParticles2D = arrow.get_node(^"%Burst")
+		var burst: GPUParticles2D = (arrow.get_node(^"Burst") as ArrowImpactEmitter).particles()
 		arrow._on_launch()
 		arrow._on_arrival()
-		assert_true(burst.visible and burst.emitting, "precondition: a landing arrow bursts")
 		if beat == &"dud":
 			arrow._on_dud()
-		else:
+		elif beat == &"absorbed":
 			arrow._on_absorbed(false)
-		assert_false(burst.visible or burst.emitting, "no status burst on a %s" % beat)
+		arrow._on_impact(ArrowImpactContext.new())
+		var shown := burst.is_visible_in_tree() and burst.emitting
+		assert_eq(shown, beat == &"landed", "status burst on a %s: %s" % [beat, beat == &"landed"])
+
+
+## The poison look is parts only: a sparse world-space froth beside the trail
+## and a neon tip fading to the shaft — and the froth steps aside on a dud.
+func test_poison_froth_is_a_sparse_shed_part() -> void:
+	var arrow: StatusArrow = (load(_POISON_ARROW) as PackedScene).instantiate()
+	add_child_autofree(arrow)
+	arrow.status_tint = _POISON.first_status_def().tint
+	var froth: ArrowShedEmitter = arrow.get_node(^"Froth")
+	assert_lt(froth.particles().amount_ratio, 0.5, "froth stays sparse in a full volley")
+	assert_false(froth.particles().local_coords, "froth is left behind in world space")
+	assert_true((arrow.get_node(^"Tip") as ArrowTip).fade_to_shaft, "the neon tip fades to the shaft")
+	arrow._on_dud()
+	assert_false(froth.visible, "a dud drops the froth")

@@ -1,8 +1,7 @@
 [gd_scene format=3]
 
 [ext_resource type="PackedScene" path="res://ui/vfx/projectile/visual/status_arrow.tscn" id="1_base"]
-[ext_resource type="Script" path="res://ui/vfx/projectile/visual/arrows/poison_arrow.gd" id="2_script"]
-[ext_resource type="Texture2D" uid="uid://d3ihoubtsairp" path="res://ui/vfx/projectile/visual/bolt_head_texture.tres" id="3_tex"]
+[ext_resource type="PackedScene" path="res://ui/vfx/projectile/visual/arrow_parts/arrow_shed_emitter.tscn" id="2_shed"]
 
 [sub_resource type="Gradient" id="Gradient_froth"]
 offsets = PackedFloat32Array(0, 0.2, 1)
@@ -31,15 +30,15 @@ scale_curve = SubResource("CurveTexture_froth_swell")
 color_ramp = SubResource("GradientTexture1D_froth")
 
 [node name="PoisonArrow" instance=ExtResource("1_base")]
-script = ExtResource("2_script")
-froth_density = 0.35
 
-[node name="Froth" type="GPUParticles2D" parent="." index="1"]
-unique_name_in_owner = true
-show_behind_parent = true
-emitting = false
+[node name="Froth" parent="." index="1" instance=ExtResource("2_shed")]
+show_on_dud = false
+show_on_absorbed = false
+process_material = SubResource("ParticleProcessMaterial_froth")
 amount = 6
 lifetime = 0.9
-local_coords = false
-texture = ExtResource("3_tex")
-process_material = SubResource("ParticleProcessMaterial_froth")
+density = 0.35
+
+[node name="Tip" parent="."]
+tier = 3
+fade_to_shaft = true

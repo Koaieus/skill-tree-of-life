@@ -423,7 +423,7 @@ func play(payload: Variant) -> void:
 		# model at the moment its own visual needs the answer — same
 		# discipline as the tint read below, never a second gate computed
 		# independently.
-		proj.arrived.connect(_on_arrow_arrived.bind(proj, hit))
+		proj.arrived.connect(_on_arrow_arrived.bind(proj, hits, i))
 		var origin: Vector2 = proj.global_position if parked != null else hit.origin.global_position
 		var landing: Vector2 = _parked_landings[k] if parked != null \
 				else hit.target.global_position + _landing_offset(outcome.resolve_seed, i, hit.target)
@@ -488,10 +488,15 @@ func _on_last_release(landing_points: PackedVector2Array, target: SkillNode) -> 
 ## The gate is checked first: a gated hit never reached mitigation, and its
 ## `effective_amount` is 0.0 by construction, so it must never read as "held".
 ## Only the impact beat differs — the flight never anticipates the outcome.
-func _on_arrow_arrived(proj: Projectile, hit: HitInstance) -> void:
+##
+## Every landing that was not a dud then gets `_on_impact(ctx)` with its
+## [method impact_context_for] — after the absorb beat, so the visual decides
+## with the whole verdict in hand ([StatusArrow] plays its impact parts).
+func _on_arrow_arrived(proj: Projectile, hits: Array[HitInstance], i: int) -> void:
 	if proj.get_child_count() == 0:
 		return
 	var v: Node = proj.get_child(0)
+	var hit: HitInstance = hits[i]
 	if hit.gated:
 		if v.has_method(&"_on_dud"):
 			v.call(&"_on_dud")
@@ -500,6 +505,27 @@ func _on_arrow_arrived(proj: Projectile, hit: HitInstance) -> void:
 	var held := hit.kind == HitInstance.Kind.DAMAGE and is_zero_approx(hit.effective_amount)
 	if (healed or held) and v.has_method(&"_on_absorbed"):
 		v.call(&"_on_absorbed", healed)
+	if v.has_method(&"_on_impact"):
+		v.call(&"_on_impact", impact_context_for(hits, i))
+
+
+## The [ArrowImpactContext] for the arrow at [param i]: its target's centre
+## and grown radius, and the targets of its non-dud riders — the
+## [StatusInstance]s appended right after it ([method RangedDamageFormula.riders_for]).
+## Read at arrival, like [member HitInstance.gated] on the arrow itself.
+func impact_context_for(hits: Array[HitInstance], i: int) -> ArrowImpactContext:
+	var ctx := ArrowImpactContext.new()
+	var target: SkillNode = hits[i].target
+	if target != null:
+		ctx.position = target.global_position
+		ctx.radius = target.radius
+	var j := i + 1
+	while j < hits.size() and hits[j] is StatusInstance:
+		var rider: HitInstance = hits[j]
+		if not rider.gated and rider.target != null:
+			ctx.rider_positions.append(rider.target.global_position)
+		j += 1
+	return ctx
 
 
 ## How long shot [param entry]'s arrow is in the air —

@@ -1,0 +1,41 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://ui/vfx/projectile/visual/arrow_parts/arrow_impact_emitter.gd" id="1_script"]
+[ext_resource type="Texture2D" uid="uid://d3ihoubtsairp" path="res://ui/vfx/projectile/visual/bolt_head_texture.tres" id="2_tex"]
+
+[sub_resource type="Gradient" id="Gradient_fade"]
+offsets = PackedFloat32Array(0, 1)
+colors = PackedColorArray(1, 1, 1, 0.9, 1, 1, 1, 0)
+
+[sub_resource type="GradientTexture1D" id="GradientTexture1D_fade"]
+gradient = SubResource("Gradient_fade")
+
+[sub_resource type="ParticleProcessMaterial" id="ParticleProcessMaterial_burst"]
+particle_flag_disable_z = true
+spread = 180.0
+initial_velocity_min = 40.0
+initial_velocity_max = 110.0
+gravity = Vector3(0, 0, 0)
+damping_min = 120.0
+damping_max = 200.0
+scale_min = 0.15
+scale_max = 0.3
+color_ramp = SubResource("GradientTexture1D_fade")
+
+[node name="ArrowImpactEmitter" type="Node2D"]
+script = ExtResource("1_script")
+process_material = SubResource("ParticleProcessMaterial_burst")
+texture = ExtResource("2_tex")
+amount = 16
+lifetime = 0.35
+
+[node name="Particles" type="GPUParticles2D" parent="."]
+unique_name_in_owner = true
+emitting = false
+amount = 16
+lifetime = 0.35
+one_shot = true
+explosiveness = 1.0
+local_coords = false
+texture = ExtResource("2_tex")
+process_material = SubResource("ParticleProcessMaterial_burst")

@@ -1,37 +1,9 @@
-[gd_scene load_steps=8 format=3]
+[gd_scene format=3]
 
 [ext_resource type="Script" path="res://ui/vfx/projectile/visual/status_arrow.gd" id="1_script"]
-[ext_resource type="Texture2D" uid="uid://d3ihoubtsairp" path="res://ui/vfx/projectile/visual/bolt_head_texture.tres" id="2_tex"]
-
-[sub_resource type="Gradient" id="Gradient_fade"]
-offsets = PackedFloat32Array(0, 1)
-colors = PackedColorArray(1, 1, 1, 0.9, 1, 1, 1, 0)
-
-[sub_resource type="GradientTexture1D" id="GradientTexture1D_fade"]
-gradient = SubResource("Gradient_fade")
-
-[sub_resource type="ParticleProcessMaterial" id="ParticleProcessMaterial_trail"]
-particle_flag_disable_z = true
-direction = Vector3(-1, 0, 0)
-spread = 12.0
-initial_velocity_min = 4.0
-initial_velocity_max = 12.0
-gravity = Vector3(0, 0, 0)
-scale_min = 0.12
-scale_max = 0.22
-color_ramp = SubResource("GradientTexture1D_fade")
-
-[sub_resource type="ParticleProcessMaterial" id="ParticleProcessMaterial_burst"]
-particle_flag_disable_z = true
-spread = 180.0
-initial_velocity_min = 40.0
-initial_velocity_max = 110.0
-gravity = Vector3(0, 0, 0)
-damping_min = 120.0
-damping_max = 200.0
-scale_min = 0.15
-scale_max = 0.3
-color_ramp = SubResource("GradientTexture1D_fade")
+[ext_resource type="PackedScene" path="res://ui/vfx/projectile/visual/arrow_parts/arrow_shed_emitter.tscn" id="2_shed"]
+[ext_resource type="PackedScene" path="res://ui/vfx/projectile/visual/arrow_parts/arrow_tip.tscn" id="3_tip"]
+[ext_resource type="PackedScene" path="res://ui/vfx/projectile/visual/arrow_parts/arrow_impact_emitter.tscn" id="4_impact"]
 
 [node name="StatusArrow" type="Node2D"]
 z_index = 3000
@@ -41,27 +13,8 @@ head_length = 12.0
 head_width = 10.0
 hold_seconds = 2.0
 
-[node name="Trail" type="GPUParticles2D" parent="."]
-unique_name_in_owner = true
-show_behind_parent = true
-emitting = false
-amount = 24
-lifetime = 0.25
-local_coords = false
-texture = ExtResource("2_tex")
-process_material = SubResource("ParticleProcessMaterial_trail")
+[node name="Trail" parent="." instance=ExtResource("2_shed")]
 
-[node name="Tip" type="Polygon2D" parent="."]
-unique_name_in_owner = true
-visible = false
-polygon = PackedVector2Array(0, 0, -12, 5, -12, -5)
+[node name="Tip" parent="." instance=ExtResource("3_tip")]
 
-[node name="Burst" type="GPUParticles2D" parent="."]
-unique_name_in_owner = true
-emitting = false
-amount = 16
-lifetime = 0.35
-one_shot = true
-explosiveness = 1.0
-texture = ExtResource("2_tex")
-process_material = SubResource("ParticleProcessMaterial_burst")
+[node name="Burst" parent="." instance=ExtResource("4_impact")]

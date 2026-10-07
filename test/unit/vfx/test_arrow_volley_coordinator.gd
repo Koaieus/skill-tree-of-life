@@ -465,7 +465,7 @@ func _arrive(kind: HitInstance.Kind, effective: float, gated: bool) -> Array:
 	hit.kind = kind
 	hit.effective_amount = effective
 	hit.gated = gated
-	coord._on_arrow_arrived(proj, hit)
+	coord._on_arrow_arrived(proj, [hit] as Array[HitInstance], 0)
 	return spy.calls
 
 

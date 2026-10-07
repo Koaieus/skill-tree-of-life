@@ -1,0 +1,6 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://ui/vfx/projectile/visual/arrow_parts/arrow_tip.gd" id="1_script"]
+
+[node name="ArrowTip" type="Node2D"]
+script = ExtResource("1_script")
