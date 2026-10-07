@@ -89,6 +89,7 @@
 [ext_resource type="Resource" path="res://stats_system/defs/greed_stacks_per_hit.tres" id="def_greed_stacks_per_hit"]
 [ext_resource type="Resource" path="res://stats_system/defs/hex_aspect.tres" id="def_hex_aspect"]
 [ext_resource type="Resource" path="res://stats_system/defs/hex_stacks_per_hit.tres" id="def_hex_stacks_per_hit"]
+[ext_resource type="Resource" path="res://stats_system/defs/bounty.tres" id="def_bounty"]
 [ext_resource type="Resource" path="res://stats_system/defs/scout_aspect.tres" id="def_scout_aspect"]
 [ext_resource type="Resource" path="res://stats_system/defs/armor_break_aspect.tres" id="def_armor_break_aspect"]
 [ext_resource type="Resource" path="res://stats_system/defs/explosive_aspect.tres" id="def_explosive_aspect"]
@@ -715,6 +716,11 @@ resource_name = "bleeding_resistance"
 script = ExtResource("2_scalar")
 definition = ExtResource("def_bleeding_resistance")
 
+[sub_resource type="Resource" id="scalar_bounty"]
+resource_name = "bounty"
+script = ExtResource("2_scalar")
+definition = ExtResource("def_bounty")
+
 [resource]
 script = ExtResource("1_board")
 strength = SubResource("scalar_strength")
@@ -800,3 +806,4 @@ intrinsic_modifiers = Array[ExtResource("12_3edt8")]([SubResource("mod_per_to_vi
 bleeding_aspect = SubResource("scalar_bleeding_aspect")
 bleeding_stacks_per_hit = SubResource("scalar_bleeding_stacks_per_hit")
 bleeding_resistance = SubResource("scalar_bleeding_resistance")
+bounty = SubResource("scalar_bounty")

@@ -93,6 +93,10 @@ extends Node
 ##   XP = xp_per_node_killed × |nodes this attack removed, core included|
 ##        + (victim.stat_board.core_kill_xp.value, only if the core died)
 ##
+## — each node's share then scaled by the victim-side `bounty` stat (Hoard,
+## #1421): [method _node_payout] is the fold, and at zero `bounty` modifiers
+## it is exactly the line above.
+##
 ## #774 (owner, 2026-09-07): "no more killing entity that has many nodes makes
 ## those nodes count for more XP, it just muddies the calculations" — a node is
 ## worth the same whether it fell mid-cascade, in the islanding sweep, or in the
@@ -277,9 +281,9 @@ func _resolve_killer(victim: Entity) -> Entity:
 ## core died — there is no folded-in "+1" here; the caller decides what counts
 ## (#774 decision 1: "the core node IS one of the N nodes"). `kills_entity`
 ## gates ONLY the core bonus, read live off `victim.stat_board.core_kill_xp` so
-## a modifier can move it. Never duplicate this arithmetic anywhere else — a
-## second copy is exactly the parallel-mirrors shape
-## `.claude/rules/no-parallel-mirrors` forbids.
+## a modifier can move it. The count-only form, for [method preview_kill_xp]:
+## it cannot see per-node `bounty`, so it omits Hoard. A real payout prices
+## each node through [method _node_payout] — the one home of the fold.
 func _kill_xp_total(removed_node_count: int, kills_entity: bool, victim: Entity) -> float:
 	var total := xp_per_node_killed * float(removed_node_count)
 	if kills_entity:
@@ -317,7 +321,27 @@ func _award_kill_xp(victim: Entity, killer: Entity) -> void:
 	if award_xp_on_node_kill:
 		for n in ledger:
 			unpaid.erase(n)
-	_grant_xp(killer, _kill_xp_total(unpaid.size(), true, victim))
+	var total := 0.0
+	for n in unpaid:
+		var base := xp_per_node_killed
+		if n == victim.core_location:
+			base += victim.stat_board.core_kill_xp.value
+		total += _node_payout(n, base)
+	_grant_xp(killer, total)
+
+
+## What removing [param node] pays: [param base] (the per-node rate, plus the
+## core bonus on the core) as an overlay `base_add` on the node's local
+## `bounty` read, so every `bounty` modifier — a node's own Greed, or its
+## owner's entity-wide one — scales it. Read pre-strip: the node must still be
+## owned for its owner's board to fold in. Never null: with no `bounty` on
+## either board the authored base stands.
+func _node_payout(node: SkillNode, base: float) -> float:
+	var o := ModifierBins.new()
+	o.base_add = base
+	var overlays: Array[ModifierBins] = [o]
+	var v: Variant = node.get_local_value_with(&"bounty", overlays)
+	return base if v == null else float(v)
 
 
 # ── #888: Tempo award ─────────────────────────────────────────────────────────
@@ -393,15 +417,15 @@ func _on_cascade_started(layers: Array, defender: Entity) -> void:
 	if defender == null or defender.is_dead:
 		return
 	var ledger: Dictionary = _removed_this_attack.get(defender, {})
-	var newly := 0
+	var newly: Array[SkillNode] = []
 	for layer in layers:
 		for n in (layer as Array):
 			if n == null or ledger.has(n):
 				continue
 			ledger[n] = true
-			newly += 1
+			newly.append(n)
 	_removed_this_attack[defender] = ledger
-	if newly <= 0 or not award_xp_on_node_kill:
+	if newly.is_empty() or not award_xp_on_node_kill:
 		return
 	var killer := _resolve_killer(defender)
 	if killer == null or killer.is_dead:
@@ -409,7 +433,10 @@ func _on_cascade_started(layers: Array, defender: Entity) -> void:
 	# #384/#386: same HOSTILE gate as the kill bonus — see `_award_kill_xp`.
 	if killer.attitude_to(defender) != Entity.Attitude.HOSTILE:
 		return
-	_grant_xp(killer, xp_per_node_killed * float(newly))
+	var total := 0.0
+	for n in newly:
+		total += _node_payout(n, xp_per_node_killed)
+	_grant_xp(killer, total)
 
 
 ## Pour `amount` XP onto `entity`'s pool. Always through `replenish` — a raw

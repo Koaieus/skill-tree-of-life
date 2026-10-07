@@ -1,6 +1,6 @@
-[gd_resource type="Resource" script_class="StatusDef" format=3]
+[gd_resource type="Resource" script_class="GreedStatus" format=3]
 
-[ext_resource type="Script" uid="uid://df26qxsm3sm24" path="res://effects/status/status_def.gd" id="1_def"]
+[ext_resource type="Script" path="res://effects/status/greed.gd" id="1_def"]
 [ext_resource type="Resource" path="res://identity/defs/greed.tres" id="identity_greed"]
 
 [resource]
@@ -15,3 +15,4 @@ display_max = 10.0
 reapply = 1
 stacks_stat_id = &"greed_stacks_per_hit"
 decay = null
+hoard_increase_per_stack = 10.0

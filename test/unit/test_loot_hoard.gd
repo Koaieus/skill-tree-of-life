@@ -164,10 +164,10 @@ func test_greed_spent_to_zero_leaves_no_bounty_behind() -> void:
 	assert_almost_eq(float(_nodes[2].get_local_value_with(&"bounty", overlays)),
 			_PER_NODE * (1.0 + 2.0 * _step()), 0.001, "two stacks raise the bounty")
 	var combat := _nodes[2].get_combat()
-	combat.adjust_power(_GREED, -1.0)
+	combat.adjust_status_power(_GREED, -1.0)
 	assert_almost_eq(float(_nodes[2].get_local_value_with(&"bounty", overlays)),
 			_PER_NODE * (1.0 + _step()), 0.001, "a spend follows the stack count")
-	combat.adjust_power(_GREED, -1.0)
+	combat.adjust_status_power(_GREED, -1.0)
 	assert_eq(combat.get_status_power(&"greed"), 0.0, "greed spent")
 	assert_almost_eq(float(_nodes[2].get_local_value_with(&"bounty", overlays)),
 			_PER_NODE, 0.001, "no bounty modifier left behind")

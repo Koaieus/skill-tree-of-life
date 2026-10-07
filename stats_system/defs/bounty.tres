@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="StatDef" load_steps=2 format=3]
+
+[ext_resource type="Script" uid="uid://0rq8abv83bkj" path="res://stats_system/stat_def.gd" id="1_stat_def"]
+
+[resource]
+script = ExtResource("1_stat_def")
+id = &"bounty"
+display_name = "Bounty"
+description = "What a node pays its killer when an attack removes it: LootSystem's per-node rate (and, on the core, the core kill bonus) enters as an overlay base and this stat's modifiers scale it — Greed's Hoard plants an INCREASE here. Base 0; never rolled by procgen."
+value_type = 1
+default_value = 0.0
+tint_color = Color(0.95, 0.8, 0.2, 1)
+local_grantable = true
