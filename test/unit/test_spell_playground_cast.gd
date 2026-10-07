@@ -283,6 +283,7 @@ func test_the_infusion_survives_a_cast() -> void:
 	var plan := _armed_cyclone()
 	plan.set_infusion(&"poison", 4)
 	await _panel._cast()
+	assert_false(_panel.status_label.text.contains("refused"), "got: %s" % _panel.status_label.text)
 	var again: MagicAttackPlan = _panel._arm_plan()
 	assert_eq(again.infusion.points.get(&"poison", 0), 4)
 

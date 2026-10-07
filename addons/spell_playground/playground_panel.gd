@@ -107,11 +107,6 @@ var _spell: SpellDef = null
 ## The SET modifiers behind the slots / points spin boxes, mutated in place.
 var _infusion_slots_set: StatModifier = null
 var _infusion_points_set: StatModifier = null
-## The armed plan's infusion, remembered across the fresh plan every Cast arms.
-var _infusion: Dictionary[StringName, int] = {}
-## True while [method _arm_plan] rebuilds a plan, so its transient state
-## changes are not mistaken for the user editing the infusion.
-var _arming: bool = false
 var _watched_plan: MagicAttackPlan = null
 var _selected_target: SkillNode = null
 ## True from Cast until the launch returns. A re-arm (or a second cast) inside
@@ -367,7 +362,6 @@ func load_spell(spell: SpellDef) -> void:
 		_refresh_status()
 		return
 	_spell = spell
-	_infusion.clear()
 	_sync_spell_list_selection()
 	# Re-arm before the status read: a new spell is new reach and possibly a new
 	# ownership filter, so the rings and "is this seed legal" both change.
@@ -476,20 +470,15 @@ func _arm_plan() -> MagicAttackPlan:
 		stack.cancel_attack()
 		_watch_plan(null)
 		return null
-	_arming = true
 	stack.selected_spell = _spell
 	if stack.attack_plan() == null or stack.attack_mode() != BattleSystem.AttackMode.MAGIC:
 		_systems.input_controller.arm_attack(BattleSystem.AttackMode.MAGIC)
 	var plan := stack.attack_plan() as MagicAttackPlan
 	if plan == null:
 		push_warning("Spell Playground: no magic plan to arm")
-		_arming = false
 		_watch_plan(null)
 		return null
 	_watch_plan(plan)
-	if plan.infusion.points.is_empty():
-		for id in _infusion:
-			plan.set_infusion(id, _infusion[id])
 	plan.reset()
 	plan.set_target(caster_node)
 	if _selected_target != null:
@@ -500,14 +489,12 @@ func _arm_plan() -> MagicAttackPlan:
 		# put it back; the seed simply stays unaccepted.
 		if plan.source == null:
 			plan.set_target(caster_node)
-	_arming = false
 	infusion_row.bind(plan)
 	_refresh_affinity()
 	return plan
 
 
-## Follow [param plan]'s infusion: remember it for the next plan and reprint the
-## affinity readout. One connection at a time.
+## Follow [param plan]'s infusion and reprint the affinity readout. One connection at a time.
 func _watch_plan(plan: MagicAttackPlan) -> void:
 	if plan == _watched_plan:
 		return
@@ -522,9 +509,6 @@ func _watch_plan(plan: MagicAttackPlan) -> void:
 
 
 func _on_plan_changed() -> void:
-	if _arming or not is_instance_valid(_watched_plan):
-		return
-	_infusion = _watched_plan.infusion.points.duplicate()
 	_refresh_affinity()
 
 
