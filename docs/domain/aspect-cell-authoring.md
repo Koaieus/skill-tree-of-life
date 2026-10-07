@@ -59,12 +59,13 @@ appended right after the arrow in the outcome; the arrow takes the landing's
 |---|---|---|
 | `ApplyStatusEffect` | `def` + `power` stacks on the landed node, folded through the read node's `<family>_stacks_per_hit` | every statused arrow |
 | `SplashEffect` | wraps one `inner` effect and re-runs it on every other node its `range_finder` gathers around the target (over the global `Navigator`, unscaled) whose ownership bit matches `ownership_filter` — `NodeTargeting`'s mask + finder pair, the caller sets the radius on the finder; each copy keeps the arrow's hit key and pairing, and every hit a copy emits re-checks the same mask at land (`land_mask = ownership_filter`, ADR 0049) | blindness's flare: `HopRangeFinder(max_hops = 1)` + Hostile |
+| `PairedDamageEffect` | a `PairedDamageInstance` on the landed node worth `fraction` × the arrow's raw amount, fixed at compile (pre-crit, pre-mitigation, so each node mitigates it once by its own armour); it duds with the arrow and copies the arrow's crit at land. No `paired` (a spell's landing) emits nothing | Explosive's blast: `SplashEffect(EuclideanRangeFinder, Hostile, PairedDamageEffect)` |
 | `OnHitEffect.status_def()` | the seam a wrapper answers through, so `AmmoType.first_status_def()` (tint, card swatch, scout check) never type-switches; a new wrapper overrides it | `SplashEffect` |
 
 **Not on the shelf:** `DamageEffect`, `HealEffect` and `ScaleDamageEffect`
 extend `SpellOnHitEffect`, which the `on_hit_effects` setter refuses at load
 (`attack/ammo/ammo_type.gd`). An arrow's damage is the arrow itself
-(`damage_scale`); a damage-dealing rider does not exist yet.
+(`damage_scale`); a damage-dealing rider is `PairedDamageEffect`.
 
 **Markers need no plumbing.** A volley lands in `order`, and every landing
 reads the target's live slice, so a status an early arrow landed is already
@@ -72,7 +73,7 @@ there when the arrows behind it hit: curse lifts their damage floor, hex their
 crit chance. Crit rolls *at landing* (one draw per hit, in landing order, off
 `AttackOutcome.crit_stream` — local, never on the wire, null on a rebuilt
 `AttackRecord`, which lands its recorded crits); `docs/domain/attack-timeline.md`.
-Guards: `test_marker_arrows.gd`, `test_crit_at_landing.gd`, `test_splash_effect.gd`, `test_splash_reach.gd` — all on `test/support/volley_board_fixture.gd`.
+Guards: `test_marker_arrows.gd`, `test_crit_at_landing.gd`, `test_splash_effect.gd`, `test_splash_reach.gd`, `test_paired_damage_effect.gd` — all on `test/support/volley_board_fixture.gd`.
 
 ### Look shelf
 

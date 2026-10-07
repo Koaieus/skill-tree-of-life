@@ -91,6 +91,9 @@ func test_the_blast_deals_its_fraction_of_raw_to_every_hostile_node_in_reach_eac
 	VolleyBoardFixture.set_stat(_f.leaves[0], &"crit_chance", 0.0)
 	for fraction in [0.25, 0.5, 1.5]:
 		for r in [60.0, 200.0, 400.0]:
+			# Fresh HP each pass: the sweep must not kill what it measures.
+			for n in [_f.target, _f.cluster[0], _f.cluster[1]]:
+				n.restore_current_hp(n.get_max_hp())
 			var ammo := _blast(fraction, r)
 			var reach: Array[SkillNode] = [_f.target]
 			for n in (ammo.on_hit_effects[0] as SplashEffect).range_finder.gather(_f.target, _f.graph.navigator):
