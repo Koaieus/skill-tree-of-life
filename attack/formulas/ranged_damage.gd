@@ -64,7 +64,7 @@ static func compute(attacker: Entity, firing_node: SkillNode, target: SkillNode,
 ## Rides the wire for free: [AttackRecord] serialises any `Kind.STATUS` hit by
 ## its def's `resource_path`, and a gated dud replays as power 0, which
 ## [method NodeCombat.apply_status] ignores.
-static func riders_for(hit: DamageInstance) -> Array[HitInstance]:
+static func riders_for(hit: DamageInstance, gather_cache: Dictionary = {}) -> Array[HitInstance]:
 	var arrow := hit as RangedHitInstance
 	if arrow == null or arrow.ammo_type == null or arrow.ammo_type.on_hit_effects.is_empty():
 		return []
@@ -76,6 +76,7 @@ static func riders_for(hit: DamageInstance) -> Array[HitInstance]:
 	landing.target = arrow.target
 	landing.structural_key = arrow.structural_key
 	landing.paired = arrow
+	landing.gather_cache = gather_cache
 	arrow.hit_key = landing.hit_key
 	for effect in arrow.ammo_type.on_hit_effects:
 		if effect != null:

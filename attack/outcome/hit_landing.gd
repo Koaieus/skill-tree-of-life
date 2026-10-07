@@ -37,6 +37,13 @@ var hits: Array[HitInstance] = []
 ## tell "another rider of a hit I already answered" from "a new hit" (Greed's
 ## one spend per hit, [method StatusHost.greed_arm]).
 var hit_key: int = 0
+## Finder gathers already swept for this landing's compile, keyed
+## `[target, finder, reach]` to the gather result BEFORE any ownership mask —
+## so one cache serves every mask ([method SplashEffect._reach_of]). A volley
+## shares one across all its arrows ([RangedAttackPlan]); a landing that is
+## handed none keeps its own empty one and sweeps every time. Dies with the
+## compile, so nothing in it goes stale.
+var gather_cache: Dictionary = {}
 
 static var _next_hit_key: int = 1
 
