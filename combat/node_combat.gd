@@ -693,8 +693,39 @@ func effective_status_power(def: StatusDef, power: float) -> float:
 	return _status_host.effective_power(def, power)
 
 
-func incoming_overlays(_stat_id: StringName) -> Array[ModifierBins]:
-	return []
+## What an attacker's read of [param stat_id] against this node gains from its
+## statuses' [member StatusDef.incoming_modifiers]: per def, the EFFECTIVE power
+## summed over this node's rows and its [method owner]'s (a core's status reads
+## entity-wide), so one curve-free `value × (N + M)` per entry lands in ONE
+## [ModifierBins] through [method ModifierBins.apply_delta] — nothing is
+## planted on a board. `[]` when no row names [param stat_id], allocating
+## nothing. Reads [method owner] / [method get_statuses], so a shadow slice
+## answers its own world. Callers pass it as overlays to their read
+## (docs/domain/stat-knobs-and-bins.md §5).
+func incoming_overlays(stat_id: StringName) -> Array[ModifierBins]:
+	var power: Dictionary = {}
+	var defs: Dictionary = {}
+	for pass_i in 2:
+		var host = self if pass_i == 0 else owner()
+		if host == null:
+			continue
+		for row: NodeStatus in host.get_statuses():
+			if row.def == null or not row.def.has_incoming(stat_id):
+				continue
+			power[row.def.id] = power.get(row.def.id, 0.0) \
+					+ host.effective_status_power(row.def, row.power)
+			defs[row.def.id] = row.def
+	var out: Array[ModifierBins] = []
+	if power.is_empty():
+		return out
+	var bins := ModifierBins.new()
+	for def_id in power:
+		var def: StatusDef = defs[def_id]
+		for m in def.incoming_modifiers:
+			if m != null and m.stat_id == stat_id:
+				bins.apply_delta(m.operation, 0.0, m.value * float(power[def_id]))
+	out.append(bins)
+	return out
 
 
 ## See [method StatusHost.blocks].

@@ -111,36 +111,44 @@ static func decide(hit: HitInstance, rng: RandomNumberGenerator,
 		hit.crit_multiplier = multiplier_for(board)
 
 
-## The hit's folded crit chance: the attacker-side term plus
-## [method defender_term]. The attacker term is `crit_chance` read LOCALLY off
+## The hit's folded crit chance: `crit_chance` read LOCALLY off
 ## [member HitInstance.read_node]'s slice — the owner's entity value with that
 ## node's own grants folded in — so a node-local grant crits that node's hits
 ## only. The slice is looked up in [param world] when given, else the node's
 ## live slice. No read node, or one with no owner board to fold (a fixture, a
-## gate flip), falls back to the attacker's entity board; no attacker reads 0.
+## gate flip), falls back to the attacker's entity board; no attacker folds 0.
+##
+## Every branch also folds the damage target's
+## [method NodeCombat.incoming_overlays] (a hexed target's ADD_BONUS lands after
+## the attacker's INCREASE / MORE), which is why the draw gate reads this fold
+## rather than the attacker's stat alone. A heal gets no overlays.
 static func chance_for(hit: HitInstance, world: CombatWorld = null) -> float:
-	return _attacker_term(hit, world) + defender_term(hit, world)
-
-
-## The defender-side addend of [method chance_for] — 0 today; the hook a
-## target-side crit term (a hexed target) fills, which is why the draw gate
-## reads the folded sum rather than the attacker's stat alone.
-static func defender_term(_hit: HitInstance, _world: CombatWorld = null) -> float:
-	return 0.0
-
-
-static func _attacker_term(hit: HitInstance, world: CombatWorld) -> float:
+	var overlays := _target_overlays(hit, world)
 	if hit.read_node != null:
 		var slice: NodeCombat = world.combat_for(hit.read_node) if world != null \
 				else hit.read_node.get_combat()
 		# A boardless owner would read the def default (5 %) rather than its
 		# absent stat, so it takes the entity fallback, which reads 0.
 		if slice != null and slice.owner() != null and slice.owner().board() != null:
-			return float(slice.get_local_value(&"crit_chance"))
-	if hit.attacker == null or hit.attacker.stat_board == null:
-		return 0.0
-	var cc_stat: Stat = hit.attacker.stat_board.get_stat(&"crit_chance")
-	return cc_stat.get_value() if cc_stat != null else 0.0
+			var local: Variant = slice.get_local_value_with(&"crit_chance", overlays)
+			if local != null:
+				return float(local)
+	var cc_stat: Stat = hit.attacker.stat_board.get_stat(&"crit_chance") \
+			if hit.attacker != null and hit.attacker.stat_board != null else null
+	if cc_stat != null:
+		return float(cc_stat.get_value_with(overlays))
+	return ModifierBins.compute(0.0, overlays)
+
+
+## The damage target's incoming `crit_chance` overlays, looked up in
+## [param world] when given; `[]` for a heal or a targetless hit.
+static func _target_overlays(hit: HitInstance, world: CombatWorld) -> Array[ModifierBins]:
+	var none: Array[ModifierBins] = []
+	if not (hit is DamageInstance) or hit.target == null:
+		return none
+	var slice: NodeCombat = world.combat_for(hit.target) if world != null \
+			else hit.target.get_combat()
+	return slice.incoming_overlays(&"crit_chance") if slice != null else none
 
 
 ## The tail-end arithmetic, called once per hit from [method HitInstance.land_on]

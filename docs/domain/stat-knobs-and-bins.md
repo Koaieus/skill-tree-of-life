@@ -446,6 +446,14 @@ and a `SET 5` yields `5` for a 3-hop and a 10-hop spell alike. INT's own
 contribution is authored on the boards as intrinsics on those stats — a flat
 ladder on hops, a `% increased` line on distance — and lands in the same fold.
 
+**Incoming overlays — the defender's side (#1440).** `StatusDef.incoming_modifiers`
+→ `NodeCombat.incoming_overlays(stat_id)`: the attacker-side read of a stat
+against a statused host. Each authored sum-op entry adds `value × power` (power
+summed over the node's and its owner's rows) to one `ModifierBins` via
+`apply_delta`, which the reader passes as overlays — Hexed's `crit_chance
+ADD_BONUS` lands after the attacker's INCREASE / MORE in `CritRoll.chance_for`.
+Nothing is planted on a board; SET / MULTIPLY entries are refused at load.
+
 ### The criterion: overlay-base stat or rate stat?
 
 **The authored number is the stat's base when a flat in the stat's own unit is

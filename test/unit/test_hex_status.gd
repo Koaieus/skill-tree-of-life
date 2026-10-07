@@ -96,8 +96,13 @@ func test_node_and_owner_stacks_sum_into_one_bonus() -> void:
 
 
 func test_unowned_node_reads_its_own_stacks_only() -> void:
+	# Hexed is CLEAR (never lands unowned); a LINGER copy is the row a node
+	# keeps past losing its owner.
+	var lingering := _HEXED.duplicate() as StatusDef
+	lingering.on_dealloc = StatusDef.OnDealloc.LINGER
 	_defender.get_combat().apply_status(_HEXED, 4.0)
-	_n.x.get_combat().apply_status(_HEXED, 2.0)
+	_n.x.get_combat().apply_status(lingering, 2.0)
+	assert_eq(_n.x.get_combat().get_status_power(&"hex"), 2.0, "fixture: the row landed")
 	var overlays: Array[ModifierBins] = _n.x.get_combat().incoming_overlays(&"crit_chance")
 	assert_almost_eq(_bonus(overlays), _rate() * 2.0, 0.0001)
 

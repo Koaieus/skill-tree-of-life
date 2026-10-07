@@ -83,7 +83,9 @@ var tint: Color:
 ## only (ADD_BASE / INCREASE / ADD_BONUS): `value × power` means nothing for a
 ## SET or a MULTIPLY, so one is refused here with a `push_error` and ignored.
 ## Planted on no board: the door folds it into a [ModifierBins] per read.
-@export var incoming_modifiers: Array[StatModifier] = []
+@export var incoming_modifiers: Array[StatModifier] = []:
+	set(v):
+		incoming_modifiers = _sum_ops_only(v)
 ## Power is clamped to this on apply and on accumulate. `<= 0` → uncapped
 ## (#962): [method NodeCombat.apply_status] skips the clamp entirely.
 @export var power_max: float = 1.0
@@ -244,6 +246,29 @@ func stacks_per_hit(board: StatBoard, authored: float) -> float:
 	bins.base_add = authored
 	var overlays: Array[ModifierBins] = [bins]
 	return round_half_up(float(stat.get_value_with(overlays)))
+
+
+## True when an [member incoming_modifiers] entry names [param stat_id].
+func has_incoming(stat_id: StringName) -> bool:
+	for m in incoming_modifiers:
+		if m != null and m.stat_id == stat_id:
+			return true
+	return false
+
+
+## [param mods] without its SET / MULTIPLY entries, each refused with a
+## `push_error` — the [member incoming_modifiers] load check. A null entry (an
+## inspector slot not yet filled) is kept and skipped by every reader.
+func _sum_ops_only(mods: Array[StatModifier]) -> Array[StatModifier]:
+	var kept: Array[StatModifier] = []
+	for m in mods:
+		if m != null and (m.operation == StatModifier.Operation.SET
+				or m.operation == StatModifier.Operation.MULTIPLY):
+			push_error("StatusDef %s: incoming modifier on %s is %s — only ADD_BASE / INCREASE / ADD_BONUS scale by power; entry ignored"
+					% [id, m.stat_id, StatModifier.Operation.keys()[m.operation]])
+			continue
+		kept.append(m)
+	return kept
 
 
 ## [param v] to the nearest whole, a half going UP. Float noise is snapped
