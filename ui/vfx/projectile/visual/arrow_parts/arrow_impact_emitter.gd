@@ -23,9 +23,34 @@ enum Spread {
 @export_range(1, 32) var rim_spots: int = 6
 ## Particles per spot for a spread burst.
 @export_range(1, 32) var per_spot: int = 4
+## Seconds after the landing before the burst plays — a mark that lingers, then
+## bursts. 0 = at the strike. Added to [method drain_seconds].
+@export_range(0.0, 3.0, 0.05) var delay: float = 0.0
+
+var _pending: int = 0
 
 
 func arrive(ctx: ArrowImpactContext) -> void:
+	if delay <= 0.0 or not is_inside_tree():
+		_burst(ctx)
+		return
+	_pending += 1
+	var ticket := _pending
+	await get_tree().create_timer(delay).timeout
+	if ticket == _pending:
+		_burst(ctx)
+
+
+func drain_seconds() -> float:
+	return delay + super.drain_seconds()
+
+
+## Cancels a burst still waiting out its [member delay].
+func stop() -> void:
+	_pending += 1
+
+
+func _burst(ctx: ArrowImpactContext) -> void:
 	var p := particles()
 	if p == null:
 		return
