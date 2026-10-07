@@ -178,6 +178,8 @@ func test_blindness_stats_are_perception_only() -> void:
 			else:
 				assert_false(&"blindness_resistance" in reachable,
 					"a %s/%s node must NOT roll blindness_resistance" % [String(primary), String(pole.id)])
+			assert_false(&"wither_resistance" in reachable,
+				"a %s/%s node must NOT roll wither_resistance (dropped)" % [String(primary), String(pole.id)])
 
 
 func test_no_configuration_warnings() -> void:

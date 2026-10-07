@@ -1,7 +1,7 @@
 extends GutTest
 
 ## The shipped stat families (ADR 0029): a modifier on a parent — `damage`,
-## `attributes`, `dot_resistance` — reaches every child through the child's own
+## `attributes`, `status_resistance` — reaches every child through the child's own
 ## read, on the real default entity board. The Ninja's Phantom Strike is the
 ## node-local absent-child path: the aura grants `damage` on the node board,
 ## which carries no `blade_damage` of its own.
@@ -14,7 +14,7 @@ const _DAMAGE_CHILDREN: Array[StringName] = [&"blade_damage", &"spell_damage", &
 const _ATTRIBUTE_CHILDREN: Array[StringName] = [
 	&"strength", &"dexterity", &"intelligence", &"wisdom", &"constitution", &"perception"]
 const _RESISTANCE_CHILDREN: Array[StringName] = [
-	&"poison_resistance", &"corruption_resistance", &"curse_resistance", &"wither_resistance"]
+	&"poison_resistance", &"corruption_resistance", &"curse_resistance", &"blindness_resistance"]
 
 var _graph: Graph
 
@@ -67,15 +67,12 @@ func test_flat_attributes_add_to_each_of_the_six() -> void:
 		assert_almost_eq(float(b.get_value(id)), before[id] + 1.0, 0.0001, "%s +1" % id)
 
 
-func test_dot_resistance_reaches_the_four_dots_and_not_blindness() -> void:
+func test_status_resistance_reaches_every_resistance() -> void:
 	var b := _entity().stat_board
 	var before := _values(b, _RESISTANCE_CHILDREN)
-	var blind_before := float(b.get_value(&"blindness_resistance"))
-	b.add_modifier(_mod(&"dot_resistance", StatModifier.Operation.ADD_BASE, 0.05))
+	b.add_modifier(_mod(&"status_resistance", StatModifier.Operation.ADD_BASE, 0.05))
 	for id in _RESISTANCE_CHILDREN:
 		assert_almost_eq(float(b.get_value(id)), before[id] + 0.05, 0.0001, "%s +0.05" % id)
-	assert_almost_eq(float(b.get_value(&"blindness_resistance")), blind_before, 0.0001,
-			"blindness stays out of the DoT family")
 
 
 func test_ninja_phantom_strike_is_one_family_flat() -> void:
