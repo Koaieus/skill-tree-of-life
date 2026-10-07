@@ -80,11 +80,12 @@ var read_node: SkillNode = null
 var attacker: Entity = null
 
 ## Whether this hit was elevated to a critical strike/heal. Decided at
-## RESOLVE by [method CritRoll.decide_all] (stat roll + magic's condition
-## check) — the VFX layer reads it for emphasis visuals before the hit lands,
-## so it cannot wait for [method land_on]. The multiplier it implies is
-## applied at land, by [method CritRoll.apply]; see [CritRoll] for why the
-## two halves sit on different clocks.
+## LANDING by [method CritRoll.decide] (stat roll + magic's condition tier),
+## called from [method OutcomeApplier.land_one] off
+## [member AttackOutcome.crit_stream] right before [method land_on]; on a
+## replay the recorded value lands as-is, and the VFX layer reads it off that
+## rebuilt record. The multiplier it implies is applied in [method land_on],
+## by [method CritRoll.apply]; see [CritRoll].
 var is_crit: bool = false
 ## The effective multiplier applied on a crit (default 1.0 = normal hit).
 var crit_multiplier: float = 1.0

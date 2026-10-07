@@ -1507,8 +1507,8 @@ merge, which #186's free-flight round already demonstrated.
    `BladeSim.simulate_range` call — exactly today's call, so a swing that severs
    nothing pays **nothing**.
 2. Walk it sample by sample. Per sample: `BladeHitScan.Sweep.scan_sample` →
-   mint `BladeDamageInstance`s → compile → `CritRoll.decide_all` on the swing's
-   **one** rng → `OutcomeApplier.apply`.
+   mint `BladeDamageInstance`s → compile → `OutcomeApplier.apply` with
+   `sub.crit_stream` = the swing's **one** rng (each hit draws as it lands).
 3. If that batch produced a `Pop`, **stop the walk**, rewind, mutate the state
    at that sample, and re-bake from it. Continue.
 4. One `OutcomeSchedule.compile` over the merged outcome at the end.

@@ -244,10 +244,13 @@ is stated plainly: `crit_chance` / `crit_multiplier` are read at resolve, so a
 mid-attack change to either is not seen by hits already in flight.
 
 One further constraint falls out of a single seeded stream serving a whole
-attack: **draws are consumed in `arrival_time` order.** `CritRoll.decide_all`
-reuses `OutcomeApplier.in_arrival_order` rather than sorting again, so the two
-cannot drift apart — and the symptom if they did would be crits that stop
-reproducing under a replayed seed, not a visible break.
+attack: **draws are consumed in landing order** (the structural
+`schedule_index`, never seconds). The draw lives inside the landing itself —
+`OutcomeApplier.land_one` calls `CritRoll.decide` off the outcome's
+`crit_stream` right before the hit lands, reading the landing world (#1473) —
+so the two orders cannot drift apart; the symptom if they did would be crits
+that stop reproducing under a replayed seed, not a visible break. A rebuilt
+record carries no stream and lands its recorded crits.
 
 ## Per-mode contract
 
@@ -563,11 +566,9 @@ Two things had to move together, and only the first is obvious:
    `OwnerFilter` and `ExpressionFilter` are the two callers. Landing without
    this changes nothing observable — that was the bug behind the bug.
 
-Magic's crit roll moved with it, from one `CritRoll.decide_all` after the walk
-to a per-wave `decide` before each wave lands. The draw sequence is unchanged
-(`decide_all` iterated arrival order, which for magic *is* wave order with an
-index-stable tiebreak); it had to move because `CritRoll.apply` multiplies at
-land time and cannot multiply by a decision not yet made.
+Magic's crit roll moved with it: each hit draws as `land_one` lands it, wave by
+wave, which for magic *is* landing order (wave order with an index-stable
+tiebreak) — the same landing-time draw ranged and melee make (#1473).
 
 **`resolve_against(world)` returns an outcome already landed in `world`.** That
 is the contract for all three modes. `resolve()` is the convenience that mints a

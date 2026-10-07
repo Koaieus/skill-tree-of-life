@@ -462,6 +462,8 @@ func _land_batch(
 	# pass runs. Un-awaited — see the same call in
 	# [method RangedAttackPlan.resolve_against] for why that is safe.
 	OutcomeApplier.apply(sub, world)
+	# Landed: a re-applied sub-outcome must land its crits, never draw again.
+	sub.crit_stream = null
 	for hit in sub.hits:
 		outcome.hits.append(hit)
 		hits.append(hit)

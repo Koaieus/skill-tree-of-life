@@ -519,7 +519,7 @@ func _resolve_micro_split(probe: ProbeAI, ent: Entity) -> void:
 	gut.p("    %-28s : %8.3f ms" % ["plan.resolve() WHOLE", full_ms])
 	gut.p("    %-28s : %8.3f ms" % ["LiveGate.new", gate_ms])
 	# Whatever `resolve_against` costs on top of the stages above: the
-	# DamageInstance loop, OutcomeSchedule.compile, CritRoll.decide_all and
+	# DamageInstance loop, OutcomeSchedule.compile and
 	# OutcomeApplier.apply (which is where BladeDamageInstance.land_on and its
 	# StatBoard reads live — #797's third named suspect).
 	gut.p("    %-28s : %8.3f ms" % ["  ...remainder (build+apply)",
