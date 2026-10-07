@@ -6,7 +6,6 @@
 [ext_resource type="Script" uid="uid://dmbbf2cvwsufo" path="res://procgen/subtypes/node_subtype.gd" id="90_nsub"]
 [ext_resource type="Resource" path="res://procgen/subtypes/regular.tres" id="91_sreg"]
 [ext_resource type="Resource" path="res://procgen/subtypes/blight.tres" id="92_sbli"]
-[ext_resource type="Resource" path="res://procgen/subtypes/bless.tres" id="93_sble"]
 
 [sub_resource type="Resource" id="Resource_5xakx"]
 script = ExtResource("3_7qv30")
@@ -123,21 +122,7 @@ pool_weight = 3.5
 tier_shape = SubResource("Resource_kjhc8")
 max_tier = 3
 
-[sub_resource type="Resource" id="Resource_1uw1v"]
-script = ExtResource("3_7qv30")
-
-[sub_resource type="Resource" id="wither_res"]
-resource_name = "wither_resistance +"
-script = ExtResource("2_pool")
-stat_id = &"wither_resistance"
-subtypes = Array[ExtResource("90_nsub")]([ExtResource("93_sble")])
-tags = Array[StringName]([&"defense", &"dot", &"flat"])
-unit_value = 0.05
-pool_weight = 3.5
-tier_shape = SubResource("Resource_1uw1v")
-min_tier = 2
-
 [resource]
 script = ExtResource("1_sp")
 archetype_stat = &"intelligence"
-pools = Array[ExtResource("2_pool")]([SubResource("ab"), SubResource("inc"), SubResource("mul"), SubResource("Resource_0tuuk"), SubResource("mdt"), SubResource("Resource_u38nb"), SubResource("Resource_b5k8y"), SubResource("wither_pot"), SubResource("wither_res")])
+pools = Array[ExtResource("2_pool")]([SubResource("ab"), SubResource("inc"), SubResource("mul"), SubResource("Resource_0tuuk"), SubResource("mdt"), SubResource("Resource_u38nb"), SubResource("Resource_b5k8y"), SubResource("wither_pot")])

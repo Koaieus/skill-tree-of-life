@@ -7,9 +7,9 @@
 script = ExtResource("1_stat_def")
 identity = ExtResource("identity_corruption")
 id = &"corruption_resistance"
-parent_ids = Array[StringName]([&"dot_resistance"])
+parent_ids = Array[StringName]([&"status_resistance"])
 display_name = "Corruption Resistance"
-description = "Fraction of the corruption row this node shrugs off, a live filter at effect time (ADR 0031): every apply and tick hands the def row - ceil(row x res - 1/2), the row itself decays raw, and at 100% stacks do not land. Read node-locally like Armor, so a node-scoped modifier reaches it; DoT Resistance is its family parent and folds into this read. Default 0."
+description = "Fraction of the corruption row this node shrugs off, a live filter at effect time (ADR 0031): every apply and tick hands the def row - ceil(row x res - 1/2), the row itself decays raw, and at 100% stacks do not land. Read node-locally like Armor, so a node-scoped modifier reaches it; Status Resistance is its family parent and folds into this read. Default 0."
 value_type = 1
 default_value = 0.0
 modifier_name = "Corruption Resistance"

@@ -71,20 +71,16 @@ extends StatBoard
 @export var min_damage_taken: ScalarStat
 ## Fraction of the poison row a node shrugs off: a live filter at every apply and
 ## tick (ADR 0031), the row decays raw. Read node-locally via get_local_value
-## like armor; dot_resistance folds in as its parent. Default 0.
+## like armor; status_resistance folds in as its parent. Default 0.
 @export var poison_resistance: ScalarStat
 ## Fraction of the corruption row a node shrugs off: a live filter at every apply and
 ## tick (ADR 0031), the row decays raw. Read node-locally via get_local_value
-## like armor; dot_resistance folds in as its parent. Default 0.
+## like armor; status_resistance folds in as its parent. Default 0.
 @export var corruption_resistance: ScalarStat
 ## Fraction of the curse row a node shrugs off: a live filter at every apply and
 ## tick (ADR 0031), the row decays raw. Read node-locally via get_local_value
-## like armor; dot_resistance folds in as its parent. Default 0.
+## like armor; status_resistance folds in as its parent. Default 0.
 @export var curse_resistance: ScalarStat
-## Fraction of the wither row a node shrugs off: a live filter at every apply and
-## tick (ADR 0031), the row decays raw. Read node-locally via get_local_value
-## like armor; dot_resistance folds in as its parent. Default 0.
-@export var wither_resistance: ScalarStat
 ## The poison stacks this entity's hits land: the authored per-hit amount is a
 ## base_add overlay on this stat (StatusDef.stacks_per_hit), dot_stacks_per_hit
 ## folds in as its parent; resistance never scales it (ADR 0031). Default 0.
@@ -111,14 +107,14 @@ extends StatBoard
 ## Family parent of the six attributes (ADR 0029): +1 here is +1 to each.
 ## Its own value is never read. Default 0.
 @export var attributes: ScalarStat
-## Family parent of the four DoT resistances (not blindness_resistance) —
-## folds into their node-local reads (ADR 0029). Its own value is never read.
-@export var dot_resistance: ScalarStat
+## Family parent of every <aspect>_resistance — folds into their node-local
+## reads (ADR 0029). Its own value is never read.
+@export var status_resistance: ScalarStat
 ## The blindness this entity's hits land, folded as poison_stacks_per_hit is but
 ## with no parent (blindness is not a DoT). Default 0.
 @export var blindness_stacks_per_hit: ScalarStat
 ## Fraction of the blindness row a node shrugs off, a live filter at effect time
-## (ADR 0031), read node-locally. No parent. Default 0.
+## (ADR 0031), read node-locally; status_resistance folds in as its parent. Default 0.
 @export var blindness_resistance: ScalarStat
 ## The weakness this entity's hits land, folded as blindness_stacks_per_hit is;
 ## no parent, no resistance. Default 1.
