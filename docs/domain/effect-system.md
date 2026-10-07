@@ -388,7 +388,7 @@ read is already correct.
 ## Status effects — the DoT model
 
 The status slice above (`StatusDef` + a `NodeStatus{power, key, …}` row per `(def.id, key)`) carries
-four damage-over-time families, each named by the defensive axis it bypasses (the axes:
+five damage-over-time families, each named by the defensive axis it bypasses (the axes:
 [defense-axes.md](defense-axes.md)). Each def authors its own decay
 (`StatusDef.decay`, a `StatusDecay` strategy or `null`). The *why* — per-def
 decay, uncapped stacks, no clamp, rows that differ in character rather than in
@@ -407,22 +407,27 @@ is `docs/design/damage_over_time.md`.
 | **Corruption** | % of max HP per stack per tick, unmitigated | bulk (the CON stacker) | rarity and cure only |
 | **Curse** | raises `min_damage_taken` by its stacks | armor: every hit lands again | deals nothing alone |
 | **Wither** | multiplies `healing_received` down, below zero | the heal aura and regen | nodes nobody heals |
+| **Bleeding** | ⌈stacks × `bleed_rate`⌉ flat HP per tick, unmitigated; the row ×`exert_growth` when its host exerts (`BleedingStatus`) | the kiting core and the node that keeps attacking | a host that rests: `RampDecay` closes the wound faster each still turn |
 
 There is **no per-tick clamp**: every family is lethal in sufficient amount.
 
-**Stacks.** A row is one float, `power`. Each tick `_on_tick` spends the
+**Stacks.** A row is one whole count, `NodeStatus.power: int` (ADR 0032);
+a fraction is rounded where it is minted — the landing fold, a decay, a spill —
+never on the row. Each tick `_on_tick` spends the
 pre-decay stacks, then the row decays by its def's shape (the table below); a
-`FractionDecay` row clears below 1. Stacks are uncapped.
+`FractionDecay` row floors each step and clears below 1. Stacks are uncapped.
 
 **Landing.** `landed = fold(<family>_stacks_per_hit(attacker), base_add = per_hit)`
 — `StatusDef.stacks_per_hit`: the per-hit amount authored on the applier (ammo
 type, on-hit effect, blade vertex) is the `base_add` of the attacker's stacks
 stat, whose INCREASE/MORE scale the total ([ADR 0029](../adr/0029-related-stats-compose-through-parents-folded-at-read-and-every-stat-takes-every-bin.md)
-— no separate potency stat). Computed once at land on the landing world, never
-floored (1 × +49% lands 1.49). Hit size never scales stacks. The four families'
+— no separate potency stat). Computed once at land on the landing world and rounded
+half-up to a whole count (`StatusDef.round_half_up`: 1 × +49% lands 1, 1 × +50%
+lands 2). Hit size never scales stacks. Poison, corruption, curse and wither's
 stacks stats share one parent umbrella, `dot_stacks_per_hit`, which lands more
-stacks and never scales damage; blindness (`blindness_stacks_per_hit`) and
-armor break (`StatusDef.stacks_stat_id`) sit outside it.
+stacks and never scales damage; bleeding (`bleeding_stacks_per_hit`),
+blindness (`blindness_stacks_per_hit`) and armor break
+(`StatusDef.stacks_stat_id`) sit outside it.
 
 **Resistance** (`poison_resistance`, …, default 0, a fraction) is read on the
 **host** and filters the accumulated row at effect time, never the incoming hit

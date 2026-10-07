@@ -5,7 +5,7 @@ status: exploring
 # Damage over time — what the DoT family could still grow
 
 > Design doc: the *unbuilt* part of the DoT family. The shipped model — the
-> four families, per-def decay, landing, resistance, wither below zero,
+> five families, per-def decay, landing, resistance, wither below zero,
 > the decay shapes — is `docs/domain/effect-system.md` § "Status effects —
 > the DoT model". The *why* is in the ADRs: per-def decay, uncapped stacks and
 > rows that differ in character ([0048](../adr/0048-status-decay-is-authored-per-def-rows-differ-in-character-not-numbers.md)),
