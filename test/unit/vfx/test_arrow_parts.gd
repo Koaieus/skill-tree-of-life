@@ -140,3 +140,25 @@ func test_the_coordinator_hands_only_this_arrows_non_dud_rider_targets() -> void
 	var bare := coord.impact_context_for(hits, 3)
 	assert_eq(bare.rider_positions, PackedVector2Array([nodes[3].global_position]),
 			"the next arrow's riders are its own")
+
+
+func test_impact_emitter_delay_holds_the_burst_and_grows_the_drain() -> void:
+	var burst: ArrowImpactEmitter = autofree(load("res://ui/vfx/projectile/visual/arrow_parts/arrow_impact_emitter.tscn").instantiate())
+	add_child(burst)
+	var base := burst.drain_seconds()
+	burst.set("delay", 0.2)
+	assert_almost_eq(burst.drain_seconds(), base + 0.2, 0.001, "drain grows by the delay")
+	burst.arrive(ArrowImpactContext.new())
+	assert_false(burst.particles().emitting, "held until the delay elapses")
+	await get_tree().create_timer(0.5).timeout
+	assert_true(burst.particles().emitting, "bursts once the delay elapsed")
+
+
+func test_impact_emitter_stop_cancels_a_pending_burst() -> void:
+	var burst: ArrowImpactEmitter = autofree(load("res://ui/vfx/projectile/visual/arrow_parts/arrow_impact_emitter.tscn").instantiate())
+	add_child(burst)
+	burst.set("delay", 0.2)
+	burst.arrive(ArrowImpactContext.new())
+	burst.stop()
+	await get_tree().create_timer(0.5).timeout
+	assert_false(burst.particles().emitting, "stop cancelled the pending burst")
