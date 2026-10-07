@@ -2,4 +2,57 @@
 
 [ext_resource type="PackedScene" path="res://ui/vfx/projectile/visual/status_arrow.tscn" id="1_base"]
 
+[sub_resource type="Gradient" id="Gradient_shard"]
+offsets = PackedFloat32Array(0, 0.1, 1)
+colors = PackedColorArray(1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0)
+
+[sub_resource type="GradientTexture1D" id="GradientTexture1D_shard"]
+gradient = SubResource("Gradient_shard")
+
+[sub_resource type="ParticleProcessMaterial" id="ParticleProcessMaterial_spark"]
+particle_flag_disable_z = true
+direction = Vector3(-1, 0, 0)
+spread = 35.0
+initial_velocity_min = 15.0
+initial_velocity_max = 45.0
+gravity = Vector3(0, 0, 0)
+damping_min = 40.0
+damping_max = 80.0
+scale_min = 0.05
+scale_max = 0.12
+color_ramp = SubResource("GradientTexture1D_shard")
+
+[sub_resource type="ParticleProcessMaterial" id="ParticleProcessMaterial_fragments"]
+particle_flag_disable_z = true
+spread = 180.0
+initial_velocity_min = 90.0
+initial_velocity_max = 220.0
+gravity = Vector3(0, 220, 0)
+damping_min = 30.0
+damping_max = 80.0
+angle_min = -180.0
+angle_max = 180.0
+scale_min = 0.12
+scale_max = 0.3
+color_ramp = SubResource("GradientTexture1D_shard")
+
 [node name="ArmorBreakArrow" instance=ExtResource("1_base")]
+
+[node name="Trail" parent="." index="0"]
+show_on_dud = false
+show_on_absorbed = false
+process_material = SubResource("ParticleProcessMaterial_spark")
+amount = 10
+lifetime = 0.4
+density = 0.5
+
+[node name="Tip" parent="." index="1"]
+shape = 1
+width = 14.0
+tier = 3
+
+[node name="Burst" parent="." index="2"]
+process_material = SubResource("ParticleProcessMaterial_fragments")
+amount = 12
+lifetime = 0.6
+tier = 3
