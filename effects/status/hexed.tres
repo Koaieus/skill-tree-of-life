@@ -1,6 +1,6 @@
-[gd_resource type="Resource" script_class="StatusDef" load_steps=6 format=3]
+[gd_resource type="Resource" script_class="HexStatus" load_steps=6 format=3]
 
-[ext_resource type="Script" uid="uid://df26qxsm3sm24" path="res://effects/status/status_def.gd" id="1_def"]
+[ext_resource type="Script" uid="uid://b5t5a183rjbqs" path="res://effects/status/hex.gd" id="1_def"]
 [ext_resource type="Script" uid="uid://h4ca876s2ht3" path="res://effects/status/decay/flat_decay.gd" id="decay_script"]
 [ext_resource type="Script" uid="uid://che6xhl6srqh3" path="res://stats_system/stat_modifier.gd" id="mod_script"]
 [ext_resource type="Resource" path="res://identity/defs/hex.tres" id="identity_hex"]

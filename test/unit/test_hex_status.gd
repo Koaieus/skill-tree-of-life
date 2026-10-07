@@ -214,3 +214,67 @@ func test_a_shadow_world_reads_its_own_hex() -> void:
 		"a shadow landing moves the shadow read")
 	assert_almost_eq(CritRoll.chance_for(_hit(_n.t)), _rate() * 5.0, 0.0001,
 		"and never the live one")
+
+
+# ── 7. The jinx goes off: a crit taken spends the hex ───────────────────────
+
+func _crit(target: SkillNode, crit := true) -> DamageInstance:
+	var hit := _hit(target) as DamageInstance
+	hit.is_crit = crit
+	return hit
+
+
+func _land(hit: HitInstance, world: CombatWorld = null) -> void:
+	OutcomeApplier.land_one(hit, world if world != null else CombatWorld.live())
+
+
+func _hex(node: SkillNode) -> float:
+	return node.get_combat().get_status_power(&"hex")
+
+
+func test_a_crit_taken_spends_the_hex_and_a_plain_hit_does_not() -> void:
+	_n.t.get_combat().apply_status(_HEXED, 4.0)
+	_land(_crit(_n.t, false))
+	assert_eq(_hex(_n.t), 4.0, "a non-crit hit leaves the hex")
+	_land(_crit(_n.t))
+	assert_eq(_hex(_n.t), floorf(4.0 * _HEXED.spend_factor), "a crit keeps floor(P × factor)")
+
+
+func test_a_crit_on_any_node_spends_the_entitys_hex_not_a_siblings() -> void:
+	_defender.get_combat().apply_status(_HEXED, 5.0)
+	_n.u.get_combat().apply_status(_HEXED, 4.0)
+	_land(_crit(_n.t))
+	assert_eq(_defender.get_combat().get_status_power(&"hex"),
+		floorf(5.0 * _HEXED.spend_factor), "the core's entity-wide hex spends")
+	assert_eq(_hex(_n.u), 4.0, "node B's own rows are untouched")
+
+
+func test_spend_factor_one_is_the_identity() -> void:
+	var def := _HEXED.duplicate() as HexStatus
+	def.spend_factor = 1.0
+	_n.t.get_combat().apply_status(def, 4.0)
+	_land(_crit(_n.t))
+	assert_eq(_hex(_n.t), 4.0)
+
+
+func test_a_crit_heal_spends_nothing() -> void:
+	_n.t.get_combat().apply_status(_HEXED, 4.0)
+	var heal := _hit(_n.t, null, true)
+	heal.is_crit = true
+	_land(heal)
+	assert_eq(_hex(_n.t), 4.0)
+
+
+func test_a_shadow_landing_and_a_live_landing_spend_alike() -> void:
+	_n.t.get_combat().apply_status(_HEXED, 4.0)
+	_defender.get_combat().apply_status(_HEXED, 3.0)
+	var world := CombatWorld.shadow()
+	_land(_crit(_n.t), world)
+	var shadow_node: float = world.combat_for(_n.t).get_status_power(&"hex")
+	var shadow_entity: float = world.combat_for_entity(_defender).get_status_power(&"hex")
+	assert_eq(shadow_node, floorf(4.0 * _HEXED.spend_factor), "the shadow spends")
+	assert_eq(_hex(_n.t), 4.0, "and the live world is untouched by it")
+	_land(_crit(_n.t))
+	assert_eq(_hex(_n.t), shadow_node, "the live landing reproduces the node's spend")
+	assert_eq(_defender.get_combat().get_status_power(&"hex"), shadow_entity,
+		"and the entity's")

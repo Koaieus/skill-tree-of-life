@@ -357,6 +357,15 @@ func _on_exerted(_host) -> void:
 	pass
 
 
+## [param host] took a critical DAMAGE hit (any crit path; a heal never
+## calls this): return the power the row KEEPS. [param power] is the RAW row
+## count, not the resisted one the sibling hooks see — the caller moves the raw
+## row by `kept − power` through [method StatusHost.adjust_power] (moving
+## stacks, not landing them). The default keeps everything.
+func _on_crit_taken(_host, power: float) -> float:
+	return power
+
+
 ## The status left [param host] — decayed out, cured, cleared or removed.
 ## Fires exactly once per removal.
 func _on_removed(_host) -> void:

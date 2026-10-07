@@ -657,6 +657,18 @@ func greed_arm(hit_key: int) -> bool:
 	return _status_host.greed_arm(hit_key)
 
 
+## This node took a critical DAMAGE hit: every row on this slice and on
+## [param entity] (default [method owner] — a core's status reads entity-wide,
+## so a crit on any of its nodes reaches it) asks its def
+## [method StatusDef._on_crit_taken] what it keeps, and a row that keeps less
+## is moved down through [method adjust_status_power] — moving stacks, not
+## landing them. [param entity] is passed by a caller that read the owner
+## BEFORE the hit, so a node the crit killed (rows released, owner stripped)
+## still spends its entity's rows.
+func on_crit_taken(entity: EntityCombat = null) -> void:
+	pass
+
+
 ## See [method StatusHost.projected_status_damage] (#962, drawn by #953).
 func projected_status_damage() -> float:
 	return _status_host.projected_status_damage()
