@@ -60,6 +60,9 @@ prompt itself, however rough — into one bin:
   owner stated is both: their value is the default, still exported.
 - **Genuinely open** → step 5.
 
+**The owner has read the title at most** — maybe not even that. Open your
+first message with two or three lines of what the issue is and why it exists.
+
 Then ask what is actually open: **how to build it**, or **what would be
 fun**? If the second, step 2 comes before anything technical — every fork
 enumerated now would be a fork on the wrong thing. If the first, skip to
@@ -155,6 +158,9 @@ variation → `modulate`/`INSTANCE_CUSTOM`, never a per-node uniform.
 Mechanics and examples: `docs/domain/tunables.md`.
 
 List them numbered — `AskUserQuestion` for clean choices, prose for the rest.
+Each fork restates its problem in a line; each option is described by what
+it *is*, never by the issue's label for it ("option B", "the A/B/C split",
+"the approach in comment 2").
 
 ### 6. Score the options, cleanest first
 
@@ -205,6 +211,10 @@ that redirects the premise is a normal outcome, not a failed question.
 Ask only what step 1 left genuinely open or whose review found something.
 No confirm-everything closer ("OK?", "settle both?") on picks already
 made — state them and move on; the owner redirects when they disagree.
+
+**Gloss or drop every term the issue coined** — a handle, a nickname for a
+mechanism, a sibling's number. Check: read the message as someone who has
+seen only the title.
 
 Every fork gets a pinned answer in the owner's words. An unsettleable fork
 (needs a spike, needs another issue) keeps the issue in `Needs design`:
