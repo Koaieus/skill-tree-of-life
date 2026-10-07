@@ -1,6 +1,7 @@
-[gd_resource type="Resource" script_class="Identity" load_steps=2 format=3]
+[gd_resource type="Resource" script_class="Identity" load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://identity/identity.gd" id="1_identity"]
+[ext_resource type="Texture2D" uid="uid://b7eb62365y823" path="res://assets/icons/aspects/bleeding.png" id="2_icon"]
 
 [resource]
 script = ExtResource("1_identity")
@@ -8,3 +9,4 @@ id = &"bleeding"
 noun = "Bleeding"
 kind = 0
 tint = Color(0.5, 0.02, 0.08, 1)
+icon = ExtResource("2_icon")
