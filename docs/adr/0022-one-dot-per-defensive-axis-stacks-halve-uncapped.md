@@ -1,11 +1,11 @@
 ---
 id: 0022
 title: One DoT per defensive axis; a status is uncapped stacks that halve; no per-tick clamp
-status: accepted
+status: superseded
 date: 2026-09-20
 deciders: owner
 supersedes: []
-superseded-by: null
+superseded-by: 0048
 sources:
   - "#952"
   - "docs/design/damage_over_time.md"

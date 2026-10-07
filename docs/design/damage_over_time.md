@@ -5,10 +5,10 @@ status: exploring
 # Damage over time — what the DoT family could still grow
 
 > Design doc: the *unbuilt* part of the DoT family. The shipped model — the
-> four families, stacks that halve, landing, resistance, wither below zero,
+> four families, per-def decay, landing, resistance, wither below zero,
 > the decay shapes — is `docs/domain/effect-system.md` § "Status effects —
-> the DoT model". The *why* is in the ADRs: one DoT per defensive axis with
-> uncapped halving stacks ([0022](../adr/0022-one-dot-per-defensive-axis-stacks-halve-uncapped.md)),
+> the DoT model". The *why* is in the ADRs: per-def decay, uncapped stacks and
+> rows that differ in character ([0048](../adr/0048-status-decay-is-authored-per-def-rows-differ-in-character-not-numbers.md)),
 > every notable stat gets an addon and an arrow ([0023](../adr/0023-every-notable-stat-gets-an-addon-and-an-arrow.md)),
 > the two hosts ([0024](../adr/0024-status-effects-have-two-hosts-and-fall-through-a-cracked-core.md)),
 > stacks stats composed through parents ([0029](../adr/0029-related-stats-compose-through-parents-folded-at-read-and-every-stat-takes-every-bin.md))
@@ -17,7 +17,7 @@ status: exploring
 
 ## Cures still to build
 
-Fading (halving) and the topological cure (every deallocation path voids a
+Fading (each def's own decay) and the topological cure (every deallocation path voids a
 node's statuses — a spreading status such as Curse spills onto the node's
 owned neighbours first) ship. The owner called the topological cure *"not the most
 satisfying (bit hacky)"* — never the only cure. The choices still to come:
@@ -53,7 +53,10 @@ spreads faster. Own issue.
 
 Reference: an arrow is `1 + DEX/20` (1–3 early, ~11 at DEX 200); the floor of
 3 dominates early; armor 15 already floors a late hit. A 20-arrow poison volley
-= 20 stacks = 38.75 HP over five turns (20, 10, 5, 2.5, 1.25 — the row is a float; damage lands whole (#1156)); sustained every turn ≈ 40/turn.
+= 20 stacks = 210 HP over twenty turns (20, 19, 18 … 1 — Poison decays −1 flat).
+**The table below was computed under the retired halving decay** (38.75 HP over five
+turns per volley, ≈ 40/turn sustained); its verdicts are stale under −1 flat
+decay and await a re-read.
 
 | Node HP | Poison (one 20-arrow volley / sustained) | Direct arrows, armor 0 / 15 / 100 | Verdict |
 |---|---|---|---|
@@ -66,10 +69,10 @@ Corruption at 2% per stack: 10 stacks on a 2000-HP node is 400/tick; on a
 20-HP node 0.4/tick. Curse +10 turns a 50-node 1-damage flood from 150 into
 650 against any armor.
 
-## Decay alternatives kept open
+## Decay knobs kept open
 
-- Corruption with **no decay, cure-only** was floated as the bold alternative;
-  revisit when the cleanse lane exists.
+- Corruption ships with **no decay** (`corruption.tres`, `decay = null`):
+  cure-only until the cleanse lane exists.
 - A defender-side "this ground sheds rot" knob (node-local decay bonus) stays
   available for the connectedness cure.
 - Faster decay as a **class** identity, instead of resistance.

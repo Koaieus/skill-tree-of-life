@@ -388,12 +388,14 @@ read is already correct.
 ## Status effects — the DoT model
 
 The status slice above (`StatusDef` + a `NodeStatus{power, key, …}` row per `(def.id, key)`) carries
-four damage-over-time families, one per defensive axis they answer (the axes:
-[defense-axes.md](defense-axes.md)). The *why* —
-one family per axis, uncapped stacks, the rejected timers — is
-[ADR 0022](../adr/0022-one-dot-per-defensive-axis-stacks-halve-uncapped.md)
-(its halving decay is refined by
-[ADR 0032](../adr/0032-status-stacks-are-integers-a-def-derives-any-fractional-effect-from-the-count.md)'s shapes);
+four damage-over-time families, each named by the defensive axis it bypasses (the axes:
+[defense-axes.md](defense-axes.md)). Each def authors its own decay
+(`StatusDef.decay`, a `StatusDecay` strategy or `null`). The *why* — per-def
+decay, uncapped stacks, no clamp, rows that differ in character rather than in
+numbers — is
+[ADR 0048](../adr/0048-status-decay-is-authored-per-def-rows-differ-in-character-not-numbers.md);
+the row is an integer count
+([ADR 0032](../adr/0032-status-stacks-are-integers-a-def-derives-any-fractional-effect-from-the-count.md));
 the hosts (node, or the entity once the row falls through a cracked core) are
 [ADR 0024](../adr/0024-status-effects-have-two-hosts-and-fall-through-a-cracked-core.md).
 What could still come (cures, contagion, the other families' arrows and spells)
@@ -410,7 +412,7 @@ There is **no per-tick clamp**: every family is lethal in sufficient amount.
 
 **Stacks.** A row is one float, `power`. Each tick `_on_tick` spends the
 pre-decay stacks, then the row decays by its def's shape (the table below); a
-FRACTION row clears below 1. Stacks are uncapped.
+`FractionDecay` row clears below 1. Stacks are uncapped.
 
 **Landing.** `landed = fold(<family>_stacks_per_hit(attacker), base_add = per_hit)`
 — `StatusDef.stacks_per_hit`: the per-hit amount authored on the applier (ammo
@@ -436,23 +438,25 @@ projection, which walks the raw row down tick by tick, resisted then floored.
 **The regen gate.** A DoT tick is damage and closes the node's regen gate
 (`node-hp.md`). The one exception is wither: a heal inverted by
 `healing_received < 0` is damage that leaves the gate open, so a withered node
-left alone ramps its regen up and heals itself to death, and the core aura
-unheals its own neighbourhood — `NodeCombat._withered_heal`.
+left alone ramps its regen up and heals itself toward death, and the core aura
+unheals its own neighbourhood — `NodeCombat._withered_heal`. It lasts only
+while Wither holds `healing_received` below zero: as the stacks decay the
+multiplier climbs back through zero, nulling healing, then restoring it.
 
-**Decay shapes.** Falloff and duration are per def, never stats (#1060):
+**Decay shapes.** Falloff and duration are per def, never stats (#1060) — the
+`StatusDef.decay` slot, one shared stateless `StatusDecay` per def:
 
-| Status | Shape (`FractionDecay` / `FlatDecay`) | Total per stack applied once |
-|---|---|---|
-| Poison | FRACTION, retains 0.5 | 2 |
-| Corruption | FRACTION, retains 0.8 | 5 stack-ticks |
-| Curse | FLAT 1/turn | a window of N turns |
-| Wither | FRACTION, retains 0.75 | 4 |
-| Blindness | FRACTION, removes 0.7, ACCUMULATE | see [node-subtypes.md](node-subtypes.md) decision 20 |
-| Armor break | FLAT | |
+| Status | Shape (`effects/status/*.tres`) |
+|---|---|
+| Poison, Curse, Armor break, Hexed, Scouted | `FlatDecay`, `per_tick` 1 |
+| Wither, Weakened | `FractionDecay`, `fraction` 0.25 removed |
+| Blindness | `FractionDecay`, `fraction` 0.7 removed, ACCUMULATE — see [node-subtypes.md](node-subtypes.md) decision 20 |
+| Bleeding | `RampDecay` — `start` 1, `step` 1 while resting; the ramp position is `NodeStatus.decay_step`, reset by exertion |
+| Corruption, Greed | `null` — never decays |
 
-Authoring gotcha: the `.tres` knob `FractionDecay.fraction` (the `decay` sub-resource) is the fraction
-**removed**, so a row retaining *f* is authored as 1 − *f* (corruption 0.2,
-wither 0.25); blindness's 0.7 is the fraction removed (#1090). The shape law is
+Authoring gotcha: the `.tres` knob `FractionDecay.fraction` is the fraction
+**removed**, so a row retaining *f* is authored as 1 − *f* (wither 0.25 keeps
+0.75); blindness's 0.7 is the fraction removed (#1090). The shape law is
 `test/unit/effects/test_status_decay_shapes.gd`.
 
 ## Status rows: `group_by` keys them, `visible_if` gates the count (#1343)

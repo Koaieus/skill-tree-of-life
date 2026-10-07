@@ -233,7 +233,7 @@ Each cell links its cell issue (`<Concept> × <Facet>`, a child of the row hub i
 | Poison | DoT | `poison_aspect` | shipped; look designed (see "Rows designed in #1318"), building in #1352 | #1271 — designed (see "Rows designed in #1318"), needs an acceptance spec | `venom` shipped; second spell #1381 | #1250 | row: #1377. Spread signature deferred to an authoring pass (owner, #1204) |
 | Corruption | buildup, %dmg, spread | `corruption_aspect` | #1382 — scaffold (#1349) | #1383 | #1384 | #1250 | row: #1378. Spreads as a sandpile by nature (#1202) — no `spread` authored yet, the diffusion classes are test-only; health bar shows blips per stack, extra-mean when critical (#1092). `skill_node_specializations.md`'s Corrupted Node is this row's content under another name; its penalties (double damage, floor −1) are Curse's and the floor axis's |
 | Curse | fragility, spill | `curse_aspect` | #1385 — scaffold (#1349) | #1386 | `hex` shipped; no second spell proposed | #1250 | row: #1379. Raises `min_damage_taken`; spills to surviving direct neighbours on death AND dealloc (#1204) — the only authored spread today (`spill_spread.gd`). `spells.md`'s Aftershock restates this spill |
-| Wither | anti-heal | `wither_aspect` | #1387 — scaffold (#1349) | #1388 | #1389 | #1250 | row: #1380. Drives healing received negative. `spells.md`'s Flood wants this anti-heal (#1389) |
+| Wither | anti-heal | `wither_aspect` | #1387 — scaffold (#1349) | #1388 | #1389 | #1250 | row: #1380. Drives healing received negative: while it does, a negative heal deals damage that does not close the regen gate, so the regen ramp keeps climbing and the node heals itself toward death — temporary, never permanent: as Wither decays the multiplier climbs back through zero, nulling healing, then restoring it (owner, 2026-10-07, moved here from the superseded ADR 0022 d5). Owner, 2026-09-20: *"it ruins your healing to making you effectively undead"*. `spells.md`'s Flood wants this anti-heal (#1389) |
 | Blindness | vision debuff | `blindness_aspect` | #1390 — scaffold (#1349) | #1391 | `dazzle` shipped; **Throw Sand** #1392 (candidate, owner 2026-09-30) | #1250 | row: #1253. Count stacks, effect reads as a % via a saturating curve |
 | Scout (a status whose rows draw vision, #949) | reveal | `scout_aspect` | scouting arrow shipped (stacks: #1345, #1346) | watchtower shipped (map face); blade face + look #1393 | #1394 | #1250 | row: #1254. `effects/status/scouted.tres` is live: the arrow lands camp-keyed stacks, VisionSystem draws `radius_for` discs from the rows (#1346); first-class concept (owner, 2026-09-30). Scout and Blindness are two PER rows by the owner's table, not one vision axis. Watchtower's offence stats and production-vs-firing: #1413 |
 | Armor break | armor debuff | `armor_break_aspect` | #1395 — scaffold (#1349) | #1396 | `sunder` shipped; second spell #1397 | #1250 | row: #395 (child 0: penetration stat #1401). Flat −1 armor per stack, uncapped, can go below zero (#1203, owner 2026-09-30). School CON (round 7). Has no `_stacks_per_hit` / `_resistance` while the DEX pool rolls a raw `armor` −% bane that bypasses the aspect. `spells.md`'s Heavy / Piercing Bolt (seek max / min armor) are its second spell (#1397) |
@@ -679,7 +679,7 @@ lightning's hops become mechanics that existing rows can use.
   stacks). Arithmetic the owner saw: 5 stacks used five turns straight pay
   5, 9, 17, 33, 65 (Poison's 5 pay 15) — a two-or-three-turns-then-rest status,
   and a big wound is permanent until cleansed. Why not a per-turn flat DoT: a
-  second flat-HP DoT beside Poison was ADR 0022's smell; Bleeding's character
+  second flat-HP DoT beside Poison was ADR 0022's smell (superseded by ADR 0048); Bleeding's character
   is the conditional tick. Core reading: an entity whose core bleeds pays at
   turn end on any turn it attacked at all.
 - **The origin set is one fact per attack mode**, read by Bleeding, Weakness,
@@ -707,11 +707,11 @@ lightning's hops become mechanics that existing rows can use.
   these design sessions since it have brought a lot of good designs we are
   now working out"*). Survives: uncapped stacks; no per-tick clamp. Replaced:
   "stacks halve" → decay is authored per status on its def (Poison −1 flat,
-  Weakness ×0.75, Greed none, Bleeding ×2-on-use then −1); "one DoT per
+  Weakness ×0.75, Greed none, Bleeding the round-10 ramp); "one DoT per
   defensive axis" → the placement rule plus *rows differ in character
   (trigger, decay, spread), never in numbers* — two flat-HP DoTs may coexist
-  when their character differs (Exposed beside Poison). The ADR is written by
-  the `adr` skill from these sentences (#1448).
+  when their character differs (Exposed beside Poison). Written as
+  [ADR 0048](../adr/0048-status-decay-is-authored-per-def-rows-differ-in-character-not-numbers.md) (#1448).
 - **Tags closed**, all four as proposed.
 - **Pairs: a school's third row is its pair row** (pass lens, owner took it):
   two pure rows per school, a third that leans on a neighbour (Exposed =
@@ -846,7 +846,7 @@ layers i haven't considered yet"*. Layers on the table, none exclusive:
 
 1. **Attributes** — the pair table above; vibe-only since addons grant no
    attributes.
-2. **Parent aspects** — ADR 0022's "one DoT per defensive axis" (HP flat,
+2. **Parent aspects** — ADR 0022's "one DoT per defensive axis" (superseded by ADR 0048; HP flat,
    bulk, floor, healing) is an existing non-arbitrary split for the DoTs; a
    new DoT childs under the axis it attacks or justifies a fifth. Covers DoTs
    only. Advisor proposal, 2026-10-05: **Affliction** as that parent (a
@@ -975,7 +975,7 @@ this table's rows.
 - Travel is an axis (Glossary) any row picks from — in place, sandpile, spill,
   edge spread, hop; Contagion would be an infusion on it, never a row. Pass
   proposal, unruled.
-- `dealloc_damage` has no row; Creep (Contenders) is its candidate home; stale facts: #1414 (incl. `damage_over_time.md` still tabulating halving decay).
+- `dealloc_damage` has no row; Creep (Contenders) is its candidate home; stale facts: #1414 (`damage_over_time.md`'s halving decay closed with #1448).
 - Which row holds the anti-blade face: Explosive (owner lean, 2026-10-04) — barrels / friendly fire on #1399, the pop budget's fate on #1369; ADR 0005 would be superseded, not edited.
 - Combos / hybrids: #1446; third row = pair row is the lens.
 - The shipped spell `hex` applies Curse; it is renamed or repointed now that Hex is a row (Hex × Spell, #1443).
