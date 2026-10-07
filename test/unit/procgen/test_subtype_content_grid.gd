@@ -76,6 +76,8 @@ func test_blessed_draws_the_family_resistance_and_regular_does_not() -> void:
 	var bless := _subtype(&"bless")
 	var regular := NodeSubtype.regular()
 	for primary: StringName in _FAMILY:
+		if _FAMILY[primary] == &"wither":
+			continue  # wither takes no resistance — the bless pole rolls status_resistance's children only
 		var res: StringName = StringName("%s_resistance" % _FAMILY[primary])
 		assert_true(res in _reachable(primary, bless),
 			"a blessed %s node must be able to roll %s" % [primary, res])
