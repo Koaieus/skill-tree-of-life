@@ -385,6 +385,28 @@ Numbered so the skill can be checked against them law by law.
     live one (`mise gh-project -- roadmap`) or the parent's, stated in the
     Ready comment, never asked.
 
+**Talking to an owner who has not read the issue**
+
+34. **The owner's context is the prompt, not the issue.** A pass opened
+    with `/swarmify #1234` usually means the owner has read the issue's
+    title and nothing more — sometimes not even that. The issue body and
+    comments are the pass's reading, not the owner's: it may have been
+    written by an agent, weeks ago, against a design the owner no longer
+    holds in mind. So everything the pass shows the owner stands on its
+    own. Open with two or three lines of what the issue is and why it
+    exists, before the first fork. Every fork restates its problem in a
+    line; every option is described by what it *is*, never by the issue's
+    label for it — "option B from the body", "the A/B/C split", "the
+    approach in the second comment" each assume a read that did not happen.
+    Terms the issue coined (a handle, a nickname for a mechanism, a
+    sibling's number) are glossed in a few words or dropped. This is the
+    asking-side twin of law 31: law 31 says what the owner *wrote* is an
+    answer; law 34 says what the owner did *not* write is not something
+    they know — an option the issue enumerates is still news to them, and
+    a question that leans on it is answered blind or bounced back. The
+    test is the cold-drone test of law 18 turned around: read the message
+    as someone who has seen only the title.
+
 **Handing off the tail**
 
 33. **The mechanical tail goes to a clerk.** Once every spec and child body
@@ -415,6 +437,7 @@ have to carry them.
 
 | Date | Where | What happened | Law |
 |---|---|---|---|
+| 2026-10-08 | owner, `/swarmify` prompt | "owner often has only read the title of an issue if e.g. user starts a session with \"/swarmify #1234\", and sometimes not even the title. So if e.g. an issue mentions an A B C don't assume the user knows these options, stuff like that" | 34 |
 | 2026-10-03 | #1311 (child of #1217 → hub under #1255) | the skill's step 10 showed a manifest *gist*, so the pass opened the clerk's agent file to learn the keys; the grammar had no `parent:` on existing issues, so the re-parent was done by hand through the REST sub-issue endpoints; `hygiene --fix` then closed the emptied #1217 — intended, but unannounced | 33 |
 | 2026-08-02 | #332 / #165 hubs | reading two comment threads in-session caught a comment retracting an earlier one's central claim; the same pass burned ~8 calls on pure lookup (is #322 closed, is #339 filed, does `keystone_placement.gd` carry `node_scene`) — the last exposed #330 sitting in `Ready` with an open fork in its body | 2, 3 |
 | 2026-08-02 | label collapse | the `swarmable` label retired; `Ready` became the queue; a `design` label left on a `Ready` issue is the drift the collapse was meant to end | 23 |
