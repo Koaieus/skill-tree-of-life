@@ -85,10 +85,11 @@ default:
   spell. Spells differ from each other by topology (Reverberator on
   self-loops, Trail Blazer on 2-degree strings, Leafblower on leaves) — that
   is the twist — so the eight conceptless damage spells are the spell library,
-  not orphans. Today `venom`, `hex`, `dazzle` and `sunder` are one template
+  not orphans. Today `venom`, `hex` and `sunder` are one template
   (3-hop single target, 0.4 power, one status, differing in stack count
-  only): no first spell has its shape yet, so a second-spell fork (#1381,
-  #1397) starts by giving the first one its shape.
+  only) and have no shape yet, so a second-spell fork (#1381, #1397) starts
+  by giving the first one its shape; `dazzle` takes its shape in #1491
+  (§ Spell faces).
   **A second spell is optional, never a default (owner, 2026-10-03):** one
   closes a gap, never fills a slot. Owner: *"extra spell only needed if gaps
   are to be closed or e.g. a spell that does "many hits low poison stacks"
