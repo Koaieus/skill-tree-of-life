@@ -78,6 +78,7 @@ min_degree = 4
 power = 2.0
 propagation = SubResource("prop")
 on_hit_effects = Array[ExtResource("2_effect")]([SubResource("dmg")])
+default_rate = 0.5
 crit_conditions = Array[ExtResource("2_crit_base")]([SubResource("crit_cycle")])
 vfx_coordinator_scene = ExtResource("12_vfx")
 targeting = SubResource("targeting")

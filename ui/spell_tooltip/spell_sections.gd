@@ -80,14 +80,19 @@ static func _cast(def: SpellDef, board: StatBoard) -> Lines:
 
 
 ## Section 2 — one line per [OnHitEffect] in authored order (each carries the
-## D-32 impact number, gold when the board moved it), then the reducer's line
-## when the spell propagates.
+## D-32 impact number, gold when the board moved it), then one per
+## [SpellAffinity] (its riders land after the effects), then the reducer's
+## line when the spell propagates.
 static func _on_arrival(def: SpellDef, board: StatBoard) -> Lines:
 	var out := Lines.new()
 	for effect in def.on_hit_effects:
 		if effect == null:
 			continue
 		out.add_scaled(effect.get_description(def, null), effect.get_description(def, board))
+	for affinity in def.affinities:
+		if affinity == null:
+			continue
+		out.add_scaled(affinity.get_description(null), affinity.get_description(board))
 	var prop := def.propagation
 	if prop != null and prop.max_hops > 0 and prop.reducer != null:
 		out.add(prop.reducer.get_description())

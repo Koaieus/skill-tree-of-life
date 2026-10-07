@@ -82,5 +82,6 @@ min_degree = 3
 power = 1.0
 propagation = SubResource("prop")
 on_hit_effects = Array[ExtResource("1_p8d3l")]([SubResource("slam"), SubResource("dmg")])
+default_rate = 0.5
 vfx_coordinator_scene = ExtResource("14_1jkab")
 targeting = SubResource("targeting")

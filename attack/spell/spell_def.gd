@@ -147,7 +147,8 @@ func validate(_plan: MagicAttackPlan) -> Array[String]:
 		errors.append(&"Spell has no targeting set")
 	if propagation == null:
 		errors.append(&"Spell has no propagation set")
-	if on_hit_effects.is_empty():
+	# A status-only spell (Hex) lands nothing but its affinity riders.
+	if on_hit_effects.is_empty() and affinities.is_empty():
 		errors.append(&"Spell has no on-hit effects")
 	return errors
 

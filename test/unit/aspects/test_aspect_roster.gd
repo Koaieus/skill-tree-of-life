@@ -74,12 +74,14 @@ func test_every_facet_carries_the_aspect_identity() -> void:
 			assert_not_null(spell, "%s: spell slot filled" % id)
 			if spell == null:
 				continue
-			for effect in spell.on_hit_effects:
-				var apply := effect as ApplyStatusEffect
-				if apply == null or apply.def == null:
-					continue
-				assert_eq(apply.def.identity, identity,
-					"%s: spell %s applies %s" % [id, spell.id, apply.def.resource_path])
+			# A spell's status is its affinity's: the spell lists one for
+			# this concept, and every status it lands is some row's.
+			var carries := false
+			for affinity in spell.affinities:
+				assert_not_null(affinity.status, "%s: spell %s affinity has a status" % [id, spell.id])
+				if affinity.status != null and affinity.status.identity == identity:
+					carries = true
+			assert_true(carries, "%s: spell %s carries an affinity for it" % [id, spell.id])
 
 
 func test_aspects_family_children_are_exactly_the_rostered_stats() -> void:

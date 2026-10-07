@@ -5,7 +5,7 @@
 [ext_resource type="Script" uid="uid://dw3civ4fol21f" path="res://attack/spell/on_hit/on_hit_effect.gd" id="2_effect"]
 [ext_resource type="Resource" path="res://effects/status/armor_break.tres" id="3_armor_break"]
 [ext_resource type="Script" uid="uid://cymqlf1js3ra8" path="res://attack/spell/on_hit/damage_effect.gd" id="3_dmg"]
-[ext_resource type="Script" uid="uid://c2q50hhtuf7g7" path="res://attack/spell/on_hit/apply_status_effect.gd" id="3_status"]
+[ext_resource type="Script" uid="uid://c1371mypr70e1" path="res://attack/spell/spell_affinity.gd" id="3_affinity"]
 [ext_resource type="Script" uid="uid://o0v6inqs5wk6" path="res://attack/spell/propagation/propagation_config.gd" id="4_config"]
 [ext_resource type="Script" uid="uid://dsyv0dkxki366" path="res://attack/spell/propagation/filter/owner_filter.gd" id="5_filter"]
 [ext_resource type="Script" uid="uid://btpnit4nenasw" path="res://attack/targeting/node_targeting.gd" id="6_targeting"]
@@ -19,9 +19,9 @@
 script = ExtResource("3_dmg")
 
 [sub_resource type="Resource" id="break_sunder"]
-script = ExtResource("3_status")
-def = ExtResource("3_armor_break")
-power = 2.0
+script = ExtResource("3_affinity")
+status = ExtResource("3_armor_break")
+innate = 2
 
 [sub_resource type="Resource" id="filter_enemy"]
 script = ExtResource("5_filter")
@@ -46,6 +46,7 @@ tagline = "A little damage that chips 2 armor off one enemy node."
 description = "Deal a little damage to a single enemy-occupied node within 3 hops and break its armor by 2 (stacks, uncapped, stacks fade by a quarter each turn)."
 power = 0.4
 propagation = SubResource("prop_sunder")
-on_hit_effects = Array[ExtResource("2_effect")]([SubResource("dmg_sunder"), SubResource("break_sunder")])
+on_hit_effects = Array[ExtResource("2_effect")]([SubResource("dmg_sunder")])
+affinities = Array[ExtResource("3_affinity")]([SubResource("break_sunder")])
 vfx_coordinator_scene = ExtResource("10_vfx")
 targeting = SubResource("targeting_hostile_3hop")

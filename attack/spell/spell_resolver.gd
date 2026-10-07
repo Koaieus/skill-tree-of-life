@@ -69,9 +69,10 @@ static func resolve(
 		source: SkillNode,
 		caster: Entity,
 		graph: Graph,
-		rng: RandomNumberGenerator = null) -> AttackOutcome:
+		rng: RandomNumberGenerator = null,
+		infusion: Infusion = null) -> AttackOutcome:
 	var world := CombatWorld.shadow()
-	var outcome := resolve_against(spell, target, source, caster, graph, world, rng)
+	var outcome := resolve_against(spell, target, source, caster, graph, world, rng, infusion)
 	world.free_shadow()
 	return outcome
 
@@ -100,12 +101,16 @@ static func resolve_against(
 		caster: Entity,
 		graph: Graph,
 		world: CombatWorld,
-		rng: RandomNumberGenerator = null) -> AttackOutcome:
+		rng: RandomNumberGenerator = null,
+		infusion: Infusion = null) -> AttackOutcome:
 	var outcome := AttackOutcome.new()
 	outcome.cadence = ScheduleEntry.Cadence.BEAT
 	if spell == null or spell.propagation == null or target == null or graph == null:
 		return outcome
 	var config: PropagationConfig = spell.propagation
+	# The cast's affinity riders (null = the spell as authored), run after the
+	# spell's own effects at every landing.
+	var riders := (infusion if infusion != null else Infusion.innate(spell)).riders(spell)
 
 	var ctx := PropagationContext.new()
 	ctx.graph = graph
@@ -217,6 +222,8 @@ static func resolve_against(
 			for eff in spell.on_hit_effects:
 				if eff != null:
 					eff.apply(lctx)
+			for rider in riders:
+				rider.apply(lctx)
 			var ev := PropagationEvent.new()
 			ev.beat = state.hop_index
 			ev.predecessor = state.predecessor
