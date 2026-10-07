@@ -62,6 +62,15 @@ var paired: HitInstance = null
 var hit_key: int = 0
 
 
+## Set on a rider a [SplashEffect] spread onto a neighbour: at land the
+## receiving node must still be HOSTILE to [member HitInstance.attacker] in the
+## landing world, else the rider is a power-0 dud flagged
+## [member HitInstance.gated] (the ranged gate's hostility clause,
+## per target). Decided once, on the authority's resolve; never shipped — a
+## rebuilt rider lands its recorded power, a dud's 0 being a no-op.
+var require_hostile: bool = false
+
+
 func _init() -> void:
 	kind = Kind.STATUS
 
@@ -105,7 +114,8 @@ func _init() -> void:
 ## the live host spends the stack the shadow spent. The host is the landing
 ## host: entity Greed is read only on a fall-through, node Greed otherwise.
 func land_on(node: NodeCombat, world: CombatWorld) -> void:
-	if paired != null and not paired.landed():
+	if (paired != null and not paired.landed()) or (require_hostile and not power_resolved \
+			and node.ownership_bit(attacker) != SkillNode.Ownership.HOSTILE):
 		gated = true
 		power = 0.0
 		amount = 0.0
