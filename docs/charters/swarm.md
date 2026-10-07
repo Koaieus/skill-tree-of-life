@@ -184,12 +184,16 @@ disk at `scratchpad/land/land-<n>.log` (#920), so filling the ledger is a
     fallback shape; log the idle in the ledger.
 14. **Before every dispatch, in one Bash call: the ledger row, the kanban
     claim, and `mise run issue-drift -- <n>`.** The ledger (`docs/handoffs/
-    swarm-<start-date>.md`, gitignored, ≤1.5k tokens, read with `mise run
-    ledger -- show` — never a path built from today's date) is the at-most-once record
+    swarm-<date>-<HHMM>.md`, gitignored, ≤1.5k tokens, read with `mise run
+    ledger -- show` — never a path built from a date) is the at-most-once record
     and the relief briefing, and **its roster is written by commands, never
-    by the lead remembering** (a same-date file from an earlier train is
-    appended to, never a relief trigger — the launch prompt's *fresh lead*
-    clause decides, whip law 9): `mise run ledger -- dispatch <n> <drone>
+    by the lead remembering**. Its handle is the lead-session lineage in its
+    header, never the date or an mtime: every `ledger` verb resolves to the
+    file whose lineage holds the caller's session, so `/swarm` always starts
+    its own run and another live ledger on disk is never a relief trigger —
+    **the verb decides relief** (`/relief` runs `ledger -- adopt`, which
+    appends to the lineage), and the run ends with `ledger -- close`, which
+    archives it: `mise run ledger -- dispatch <n> <drone>
     <tier>` in the dispatch call (creates the file for a new run, prints the
     roster back so the read is free), `mise run ledger -- report <n>
     --branch <slug> [--plan] [--stuck] [--pull]` in the collect call, and

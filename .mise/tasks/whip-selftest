@@ -223,7 +223,7 @@ check("start launches the first lead under the ceiling: lead-a is a --bg session
       and any(c.startswith("claude --bg -n lead-a --permission-mode") and "--model" in c for c in calls))
 lp = next((c for c in calls if c.startswith("claude --bg -n lead-a")), "")
 check("the launch prompt is /swarm <issues> — whip relay, train a — plus the relay clauses, and never a relief clause (the verb decides relief)",
-      "/swarm #10 #11 #12" in lp and "whip relay, train a" in lp and "FRESH lead" not in lp and "never relief" not in lp
+      "/swarm #10 #11 #12" in lp and "whip relay, train a" in lp and "fresh" not in lp.lower() and "never relief" not in lp
       and "relieve-me" in lp and "whip -- done" in lp
       and "SendMessage" not in lp and "supervised by whip" not in lp)
 check("only one lead launched at the default ceiling", sum(1 for c in calls if c.startswith("claude --bg -n")) == 1 and train("b").get("state") == "queued")

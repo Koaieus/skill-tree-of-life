@@ -5,7 +5,7 @@ The design behind `.claude/skills/whip/SKILL.md`, the relay contract that
 watchdog in `.mise/tasks/whip`. The skill is derived from this; change the
 wish here, then re-derive the file. See [README](README.md) for the
 protocol. Sibling charters: [swarm](swarm.md) (the lead that runs each
-train), [relief](relief.md) (the fresh lead that takes a train over),
+train), [relief](relief.md) (the lead that takes a train over),
 [swarmify](swarmify.md) (the day-time gate that fills the queue Whip drains).
 **Feedback board: `whip — skill feedback board`** (Discussions, `Skill feedback`)
 — post there what a run teaches (`mise run feedback -- post whip <kind> <file>`);
@@ -151,14 +151,15 @@ Overnight the budget is **tokens per 5-hour window, twice over**, and
    `lead-<train>`, `relief-<train>-<k>`.
 9. **The launch prompt is the lead-contract delta, nothing more.** `/swarm
    #a #b … — whip relay, train <t>` plus the relay clauses (law 12); `/relief
-   — whip relay, train <t>, relieving <name>` plus the same. A slash command
-   in a `--bg` launch prompt expands the skill (probed). A `/swarm` launch
-   also says *fresh lead for train `<t>`, never relief, append your rows*:
-   a later train on the same date finds the earlier train's `swarm-<date>.md`,
-   and without that clause the swarm skill's "ledger on disk = you are
-   relief" rule would orient it as relief of a done run — the date-keyed
-   hijack of law 26, one layer down. The swarm skill's ledger rule carries
-   the same exception. **The relay clauses and swarm's *whip relay* section
+   — whip relay, train <t>, relieving <name>; join its ledger with `mise run
+   ledger -- adopt --from <sid8>`` (the outgoing lead's session) plus the
+   same. A slash command in a `--bg` launch prompt expands the skill
+   (probed). The verb decides relief, never the disk: a swarm ledger is keyed
+   by its lead-session lineage (swarm law 14), so a later train's `/swarm`
+   gets its own ledger even with an earlier train's on disk — one ledger per
+   lead lineage, each lead closing its own — and a relief joins the outgoing
+   one only through `adopt`. This is what retired the date-keyed hijack of
+   law 26 one layer down. **The relay clauses and swarm's *whip relay* section
    are one contract, two readers** — a difference between them is a bug.
 10. **Trains are split by the board's dependencies, never by reading
     issues.** `blocked-by` relations from the board; issues with no recorded

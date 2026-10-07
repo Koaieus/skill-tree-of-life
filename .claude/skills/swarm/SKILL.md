@@ -166,12 +166,12 @@ nuance.
 
 ### 1. Read the issues once, delegate the rest
 
-A live ledger (`mise run ledger -- show` prints one — never look for
-today's date, a run spans midnight) means you are relief — `.claude/skills/relief/SKILL.md` first, then here —
-**unless your launch prompt calls you a fresh lead** (the whip relay's later
-train on the same date): then the file is an earlier train's, you never
-orient as its relief, `mise run ledger -- dispatch` appends your rows to it,
-and the earlier train's rows are not yours to touch.
+`/swarm` always starts its own run: the verb decides relief, never the
+disk. A ledger is keyed by its lead sessions, so `mise run ledger -- show`
+prints yours or says you have none — another lead's live ledger in its list
+is not yours to orient from or touch, and your first `ledger -- dispatch`
+creates your own. Relief is only `/relief` (`.claude/skills/relief/SKILL.md`),
+which joins a ledger with `ledger -- adopt`.
 
 ```bash
 gh issue view <n>            # once per issue
@@ -222,10 +222,10 @@ mise gh-project -- status <n> in-progress               # claim on the persisten
 mise run issue-drift -- <n>                             # silent = the Ready comment still holds
 ```
 
-- **The ledger** (`docs/handoffs/swarm-<start-date>.md`, gitignored — never
-  commit it; `mise run ledger -- show` finds it) is what relief reads. **Its roster is written by commands**:
-  `ledger -- dispatch` here (it creates the file on a new run — or appends
-  to a same-date file from an earlier train — and prints the whole ledger,
+- **The ledger** (`docs/handoffs/swarm-<date>-<HHMM>.md`, gitignored — never
+  commit it; `mise run ledger -- show` finds yours by your session id) is what relief reads. **Its roster is written by commands**:
+  `ledger -- dispatch` here (it creates your ledger on your first dispatch,
+  its header's `Lead sessions:` line naming you, and prints the whole ledger,
   so you never `cat` it), `ledger -- report` at collect
   (step 4), and `mise run land --closes <n>` writes the `landed <sha>` row
   itself. A row is unit / drone / tier / state (`dispatched@HH:MM` →
@@ -233,8 +233,8 @@ mise run issue-drift -- <n>                             # silent = the Ready com
   `redispatched@`) / PLAN / STUCK / PULL (the advisor's three moments) /
   adv / ctx / calls / priced (from `agent-cost`) / notes (`--note '…'` on
   any write, or `ledger -- note <n> '…'` alone, state untouched). Below the roster, the queue order, carried items and open
-  owner calls are your prose: ≤ ~1.5k tokens total. Delete the file at
-  teardown; anything that must outlive the run goes to the issue.
+  owner calls are your prose: ≤ ~1.5k tokens total. `ledger -- close` at
+  teardown archives it; anything that must outlive the run goes to the issue.
 - **`issue-drift`** prints nothing when the issue's stamped reading list and
   seam map still hold on `master`; prints the drifted entries otherwise —
   then one `Explore(model: "haiku")` re-verifies *those entries* before you
@@ -394,7 +394,8 @@ git branch -d <slug>          # -d: refuses if unmerged, which means you dropped
 A stray worktree (`.claude/worktrees/` too) whose branch is merged, or that
 holds nothing worth mining, is deleted on sight — never an owner question.
 
-Delete the ledger. Relay reports to the user in your own words — never paste
+`mise run ledger -- close` — it moves your ledger to `docs/handoffs/archive/`;
+whip never closes it for you. Relay reports to the user in your own words — never paste
 a diff.
 
 ## Standing gotchas

@@ -60,8 +60,10 @@ live outgoing — never by reading issues to compensate.
 ## Laws
 
 1. **Orient from disk only.** The ledger, found by `mise run ledger --
-   show` and never by a path built from today's date (a run spans midnight;
-   the tool resolves the live one), `mise gh-project -- list in-progress`, `git worktree list`, and per
+   show` and never by a path built from a date, then joined with `mise run
+   ledger -- adopt [--from <outgoing sid8>]` — the ledger is keyed by its
+   lead-session lineage, so until relief adopts it `show` only lists it;
+   adopting appends, so a draining outgoing keeps writing its rows. Then `mise gh-project -- list in-progress`, `git worktree list`, and per
    worktree `git log master.. --oneline` + `git status --short`. Never the
    issues. A gap between ledger and git is a stale ledger: fix the ledger
    from git (dead outgoing) or ask the outgoing one question (alive).

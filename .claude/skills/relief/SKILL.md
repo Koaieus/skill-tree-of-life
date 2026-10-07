@@ -1,6 +1,6 @@
 ---
 name: relief
-description: Continue a `swarm` as a fresh orchestrator session — the outgoing lead is dead (ran out of tokens, taking its subagents with it) or past its ceiling and alive, with worktrees open and branches pending. Orients from disk (ledger, board, worktrees — never the issues), reconciles and classifies every unit, then runs `swarm`. Use when the user says "relief", "take over the swarm", "relieve <session>", or a ledger for a run already exists on disk and your launch prompt does not call you a fresh lead (the whip relay's later train on the same date appends to that ledger; it is not relief).
+description: Continue a `swarm` as a fresh orchestrator session — the outgoing lead is dead (ran out of tokens, taking its subagents with it) or past its ceiling and alive, with worktrees open and branches pending. Orients from disk (ledger, board, worktrees — never the issues), reconciles and classifies every unit, then runs `swarm`. Use when the user says "relief", "take over the swarm", "relieve <session>", or a whip launch prompt opens with `/relief`. Never because a ledger exists on disk — a `/swarm` lead with another run's ledger in view is not relief.
 ---
 
 # Relief — re-entry protocol, then swarm
@@ -12,7 +12,9 @@ this is the entry half. Nothing below restates `swarm` — once oriented, you
 ## 1. Orient from disk — never the issues
 
 ```bash
-mise run ledger -- show                     # the ledger: roster, states, queue order — never cat a dated path, a run spans midnight
+mise run ledger -- show                     # no ledger yet for your session: it lists the live ones (path · lead sessions · age)
+mise run ledger -- adopt --from <sid8>      # join the outgoing lead's ledger (the whip prompt names it; bare `adopt` = the only live one)
+mise run ledger -- show                     # now yours: roster, states, queue order — never cat a dated path
 mise gh-project -- list in-progress         # the board's view of the same run
 git worktree list
 for wt in .worktrees/*/; do echo "== $wt"; git -C "$wt" log master.. --oneline; git -C "$wt" status --short; done
