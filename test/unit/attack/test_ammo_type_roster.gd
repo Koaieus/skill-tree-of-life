@@ -59,8 +59,13 @@ func test_statused_specials_order_below_base_and_scout_stays_last() -> void:
 	assert_eq(_ROSTER.sorted().back().id, &"scout")
 
 
+## The flare: the rider is splashed. A lone node has no neighbours to reach,
+## so the target's own rider is the whole set here (the reach is
+## test_splash_effect.gd's).
 func test_riders_for_blindness_arrow_carries_the_def_at_authored_power() -> void:
 	var type := _ROSTER.by_id(&"blindness")
+	var splash: Variant = type.on_hit_effects[0]
+	assert_true(splash is SplashEffect, "blindness flares (#1390)")
 	var target: SkillNode = autofree(SkillNode.new())
 	var hit := RangedDamageFormula.compute(null, null, target, type)
 	var riders := RangedDamageFormula.riders_for(hit)
@@ -68,7 +73,7 @@ func test_riders_for_blindness_arrow_carries_the_def_at_authored_power() -> void
 	var status := riders[0] as StatusInstance
 	assert_not_null(status)
 	assert_eq(status.def.resource_path, "res://effects/status/blindness.tres")
-	assert_eq(status.power, (type.on_hit_effects[0] as ApplyStatusEffect).power)
+	assert_eq(status.power, (splash.inner as ApplyStatusEffect).power)
 
 
 ## Every statused type flies its own inherited scene of the base status arrow,

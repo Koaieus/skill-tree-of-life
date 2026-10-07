@@ -22,6 +22,13 @@ extends Resource
 ## extends [SpellOnHitEffect], which narrows to [LandingContext].
 @abstract func apply(landing: HitLanding) -> void
 
+## The status this effect lands, if any — null for one that lands none; a
+## wrapper delegates to what it wraps. What [method AmmoType.first_status_def]
+## reads for a type's tint and scout check, so it never type-switches.
+func status_def() -> StatusDef:
+	return null
+
+
 ## Player-facing line for this effect in [SpellTooltip]'s On-arrival section
 ## (#764). [param spell] supplies [member SpellDef.power] for an effect that
 ## quotes a number, through [method SpellResolver.impact_damage] (D-32 — the

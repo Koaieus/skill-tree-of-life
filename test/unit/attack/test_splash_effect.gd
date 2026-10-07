@@ -95,6 +95,12 @@ func test_a_blindness_arrow_blinds_the_target_and_its_hostile_neighbours_only() 
 	assert_false(targets.has(ctx.nodes.neutral), "never a neutral node")
 
 
+func test_the_wrapped_status_still_names_the_type() -> void:
+	assert_eq(_BLINDNESS_ARROW.first_status_def().resource_path, _BLINDNESS_DEF_PATH,
+			"tint, card badge and roster checks read the status through the wrapper")
+	assert_false(_BLINDNESS_ARROW.is_scout(), "zero damage is never a scout")
+
+
 func test_a_neighbour_no_longer_hostile_at_land_takes_a_dud() -> void:
 	var ctx: Dictionary = await _build()
 	var r := _riders(ctx)

@@ -38,6 +38,10 @@ func apply(landing: HitLanding) -> void:
 	landing.hits.append(status)
 
 
+func status_def() -> StatusDef:
+	return def
+
+
 ## Per #764's contract: a null [param spell] (no preview context) still
 ## returns a description, just without needing one — [member power] is
 ## already this effect's own authored number, not a formula input. The

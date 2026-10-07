@@ -41,6 +41,10 @@ func apply(landing: HitLanding) -> void:
 				status.require_hostile = true
 
 
+func status_def() -> StatusDef:
+	return inner.status_def() if inner != null else null
+
+
 func get_description(spell: SpellDef = null, board: StatBoard = null) -> String:
 	var line := inner.get_description(spell, board) if inner != null else ""
 	match reach:

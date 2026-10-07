@@ -50,13 +50,14 @@ extends Resource
 @export var visual_scene: PackedScene = null
 
 
-## The def of the first [ApplyStatusEffect] in [member on_hit_effects], or
-## null — tint only (card swatch, arrow hue); the riders pass runs every effect.
+## The first non-null [method OnHitEffect.status_def] in [member on_hit_effects]
+## (a wrapper answers for what it wraps), or null — tint only (card swatch,
+## arrow hue); the riders pass runs every effect.
 func first_status_def() -> StatusDef:
 	for effect in on_hit_effects:
-		var apply := effect as ApplyStatusEffect
-		if apply != null and apply.def != null:
-			return apply.def
+		var def := effect.status_def() if effect != null else null
+		if def != null:
+			return def
 	return null
 
 
@@ -64,7 +65,6 @@ func first_status_def() -> StatusDef:
 ## may fly into fog at a sensed-only node.
 func is_scout() -> bool:
 	for effect in on_hit_effects:
-		var apply := effect as ApplyStatusEffect
-		if apply != null and apply.def is ScoutStatus:
+		if effect != null and effect.status_def() is ScoutStatus:
 			return true
 	return false
