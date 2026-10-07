@@ -93,6 +93,9 @@
 [ext_resource type="Resource" path="res://stats_system/defs/armor_break_aspect.tres" id="def_armor_break_aspect"]
 [ext_resource type="Resource" path="res://stats_system/defs/explosive_aspect.tres" id="def_explosive_aspect"]
 [ext_resource type="Resource" path="res://stats_system/defs/aspects.tres" id="def_aspects"]
+[ext_resource type="Resource" path="res://stats_system/defs/bleeding_aspect.tres" id="def_bleeding_aspect"]
+[ext_resource type="Resource" path="res://stats_system/defs/bleeding_stacks_per_hit.tres" id="def_bleeding_stacks_per_hit"]
+[ext_resource type="Resource" path="res://stats_system/defs/bleeding_resistance.tres" id="def_bleeding_resistance"]
 
 [sub_resource type="Resource" id="pool_ap"]
 resource_name = "action_points"
@@ -696,6 +699,22 @@ resource_name = "aspects"
 script = ExtResource("2_scalar")
 definition = ExtResource("def_aspects")
 
+[sub_resource type="Resource" id="scalar_bleeding_aspect"]
+resource_name = "bleeding_aspect"
+script = ExtResource("2_scalar")
+definition = ExtResource("def_bleeding_aspect")
+
+[sub_resource type="Resource" id="scalar_bleeding_stacks_per_hit"]
+resource_name = "bleeding_stacks_per_hit"
+script = ExtResource("2_scalar")
+definition = ExtResource("def_bleeding_stacks_per_hit")
+base_value = 1.0
+
+[sub_resource type="Resource" id="scalar_bleeding_resistance"]
+resource_name = "bleeding_resistance"
+script = ExtResource("2_scalar")
+definition = ExtResource("def_bleeding_resistance")
+
 [resource]
 script = ExtResource("1_board")
 strength = SubResource("scalar_strength")
@@ -778,3 +797,6 @@ blade_speed_half = SubResource("scalar_blade_speed_half")
 crit_chance = SubResource("scalar_crit_chance")
 crit_multiplier = SubResource("scalar_crit_multiplier")
 intrinsic_modifiers = Array[ExtResource("12_3edt8")]([SubResource("mod_per_to_vision"), SubResource("mod_per_to_sensor"), SubResource("mod_wis_to_xp_pt"), SubResource("mod_str_to_blade_damage"), SubResource("mod_str_to_blade_size"), SubResource("mod_dex_to_range"), SubResource("mod_int_to_cast_range_distance"), SubResource("mod_int_to_cast_range_hops"), SubResource("mod_dex_to_ranged_damage"), SubResource("mod_int_to_spell_damage"), SubResource("mod_con_to_node_health"), SubResource("mod_con_to_health"), SubResource("mod_level_to_con"), SubResource("mod_max_shots_to_volleys")])
+bleeding_aspect = SubResource("scalar_bleeding_aspect")
+bleeding_stacks_per_hit = SubResource("scalar_bleeding_stacks_per_hit")
+bleeding_resistance = SubResource("scalar_bleeding_resistance")

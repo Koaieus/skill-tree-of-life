@@ -13,7 +13,8 @@
 [ext_resource type="Resource" path="res://aspects/defs/weakness.tres" id="10_weakness"]
 [ext_resource type="Resource" path="res://aspects/defs/greed.tres" id="11_greed"]
 [ext_resource type="Resource" path="res://aspects/defs/hex.tres" id="12_hex"]
+[ext_resource type="Resource" path="res://aspects/defs/bleeding.tres" id="bleeding"]
 
 [resource]
 script = ExtResource("1")
-aspects = Array[ExtResource("1_aspect")]([ExtResource("2_poison"), ExtResource("3_corruption"), ExtResource("4_curse"), ExtResource("5_wither"), ExtResource("6_armor_break"), ExtResource("7_blindness"), ExtResource("8_scout"), ExtResource("9_explosive"), ExtResource("10_weakness"), ExtResource("11_greed"), ExtResource("12_hex")])
+aspects = Array[ExtResource("1_aspect")]([ExtResource("2_poison"), ExtResource("3_corruption"), ExtResource("4_curse"), ExtResource("5_wither"), ExtResource("6_armor_break"), ExtResource("7_blindness"), ExtResource("8_scout"), ExtResource("9_explosive"), ExtResource("10_weakness"), ExtResource("11_greed"), ExtResource("12_hex"), ExtResource("bleeding")])

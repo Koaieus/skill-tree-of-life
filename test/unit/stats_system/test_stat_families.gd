@@ -14,7 +14,7 @@ const _DAMAGE_CHILDREN: Array[StringName] = [&"blade_damage", &"spell_damage", &
 const _ATTRIBUTE_CHILDREN: Array[StringName] = [
 	&"strength", &"dexterity", &"intelligence", &"wisdom", &"constitution", &"perception"]
 const _RESISTANCE_CHILDREN: Array[StringName] = [
-	&"poison_resistance", &"corruption_resistance", &"curse_resistance", &"blindness_resistance"]
+	&"poison_resistance", &"corruption_resistance", &"curse_resistance", &"blindness_resistance", &"bleeding_resistance"]
 
 var _graph: Graph
 

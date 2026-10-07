@@ -21,6 +21,7 @@ const _DESCRIPTIONS := {
 	&"weakness": "Attacks from the node deal less damage; deep weakness needs steady reapplication to hold.",
 	&"greed": "The node's next hit lands its negative statuses doubled, and each such hit spends one stack. Greed never fades on its own.",
 	&"hex": "Every stack adds a flat bonus to the crit chance of any hit landing on this node, after the attacker's own increases; a core's hex counts for every node its owner holds. Stacks fall by 1 each turn.",
+	&"bleeding": "Each turn the wound pays half its stacks as damage, rounded up. Using the node doubles the stacks; resting closes the wound faster every turn.",
 }
 
 

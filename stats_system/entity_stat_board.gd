@@ -125,6 +125,13 @@ extends StatBoard
 ## The hex this entity's hits land, folded as greed_stacks_per_hit is;
 ## no parent, no resistance. Default 1.
 @export var hex_stacks_per_hit: ScalarStat
+## The bleeding this entity's hits land, folded as greed_stacks_per_hit is;
+## no parent. Default 1.
+@export var bleeding_stacks_per_hit: ScalarStat
+## Fraction of the bleeding row a node shrugs off: a live filter at every apply and
+## tick (ADR 0031), the row decays raw. Read node-locally via get_local_value
+## like armor; status_resistance folds in as its parent. Default 0.
+@export var bleeding_resistance: ScalarStat
 ## Flat HP damage dealt to this entity per node forced-deallocated in a battle
 ## cascade. Bypasses mitigation (currency-exchange semantics — the cascade also
 ## wounds 1 SP per node, separately). Default 1; fragile-core classes raise it.
@@ -214,6 +221,7 @@ extends StatBoard
 @export var weakness_aspect: ScalarStat	## Weakness aspect count; each combat mode reads it in its own cell. Parent: aspects. Default 0.
 @export var greed_aspect: ScalarStat	## Greed aspect count; each combat mode reads it in its own cell. Parent: aspects. Default 0.
 @export var hex_aspect: ScalarStat	## Hex aspect count; each combat mode reads it in its own cell. Parent: aspects. Default 0.
+@export var bleeding_aspect: ScalarStat	## Bleeding aspect count; each combat mode reads it in its own cell. Parent: aspects. Default 0.
 @export var scout_aspect: ScalarStat	## Special scout arrows minted per ReloadCommand, entity-flat; the melee/magic reads are #1268/#1250. Parent: aspects. Default 0.
 @export var armor_break_aspect: ScalarStat	## Special armor-break arrows minted per ReloadCommand, entity-flat; the melee/magic reads are #1268/#1250. Parent: aspects. Default 0.
 @export var explosive_aspect: ScalarStat	## Special explosive arrows minted per ReloadCommand, entity-flat; the melee/magic reads are #1268/#1250. Parent: aspects. Default 0.

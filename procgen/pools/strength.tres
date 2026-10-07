@@ -121,7 +121,18 @@ pool_weight = 3.5
 tier_shape = SubResource("Resource_wikp0")
 min_tier = 2
 
+[sub_resource type="Resource" id="bleeding_res"]
+resource_name = "bleeding_resistance +"
+script = ExtResource("2_pool")
+stat_id = &"bleeding_resistance"
+subtypes = Array[ExtResource("90_nsub")]([ExtResource("93_sble")])
+tags = Array[StringName]([&"defense", &"flat"])
+unit_value = 0.05
+pool_weight = 3.5
+tier_shape = SubResource("Resource_wikp0")
+min_tier = 2
+
 [resource]
 script = ExtResource("1_sp")
 archetype_stat = &"strength"
-pools = Array[ExtResource("2_pool")]([SubResource("ab"), SubResource("inc"), SubResource("mul"), SubResource("ar"), SubResource("ar_pct"), SubResource("Resource_u38nb"), SubResource("corruption_pot"), SubResource("corruption_res")])
+pools = Array[ExtResource("2_pool")]([SubResource("ab"), SubResource("inc"), SubResource("mul"), SubResource("ar"), SubResource("ar_pct"), SubResource("Resource_u38nb"), SubResource("corruption_pot"), SubResource("corruption_res"), SubResource("bleeding_res")])

@@ -182,6 +182,23 @@ func test_blindness_stats_are_perception_only() -> void:
 				"a %s/%s node must NOT roll wither_resistance (dropped)" % [String(primary), String(pole.id)])
 
 
+## #1435 — bleeding_resistance is blessed strength's own roll; no other
+## archetype/pole may roll it.
+func test_bleeding_resistance_is_blessed_strength_only() -> void:
+	var blight := NodeSubtype.new(); blight.id = &"blight"
+	var bless := NodeSubtype.new(); bless.id = &"bless"
+	var poles: Array[NodeSubtype] = [NodeSubtype.regular(), blight, bless]
+	for primary in _ALL_ARCHETYPES:
+		for pole in poles:
+			var reachable := _reachable_stat_ids(primary, pole)
+			if primary == &"strength" and pole.id == &"bless":
+				assert_true(&"bleeding_resistance" in reachable,
+					"blessed strength must be able to roll bleeding_resistance")
+			else:
+				assert_false(&"bleeding_resistance" in reachable,
+					"a %s/%s node must NOT roll bleeding_resistance" % [String(primary), String(pole.id)])
+
+
 func test_no_configuration_warnings() -> void:
 	# The headless half of the `@tool`-only inspector check. Sweeps every pack
 	# AND every pool reachable from the shipped pool set.

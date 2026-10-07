@@ -1,0 +1,36 @@
+[gd_resource type="Resource" script_class="BleedingStatus" format=3]
+
+[ext_resource type="Script" path="res://effects/status/bleeding.gd" id="1_bleeding"]
+[ext_resource type="Script" path="res://effects/status/decay/ramp_decay.gd" id="decay_script"]
+[ext_resource type="Script" path="res://effects/status/spread/spill_spread.gd" id="spread_script"]
+[ext_resource type="Resource" path="res://identity/defs/bleeding.tres" id="identity_bleeding"]
+
+[sub_resource type="Resource" id="Resource_decay"]
+script = ExtResource("decay_script")
+start = 1.0
+step = 1.0
+
+[sub_resource type="Resource" id="Resource_spread"]
+script = ExtResource("spread_script")
+spread_fraction = 1.0
+triggers = 3
+sink_mask = 1
+death_fraction = 0.5
+ownership_mask = 2
+
+[resource]
+script = ExtResource("1_bleeding")
+exert_growth = 2.0
+bleed_rate = 0.5
+identity = ExtResource("identity_bleeding")
+id = &"bleeding"
+display_name = "Bleeding"
+description = "Each turn the wound pays half its stacks as damage, rounded up. Using the node doubles the stacks; resting closes the wound faster every turn."
+tags = Array[StringName]([&"debuff"])
+resistance_stat_id = &"bleeding_resistance"
+power_max = 0.0
+display_max = 10.0
+reapply = 1
+stacks_stat_id = &"bleeding_stacks_per_hit"
+decay = SubResource("Resource_decay")
+spread = SubResource("Resource_spread")
