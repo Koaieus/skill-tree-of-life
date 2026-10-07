@@ -894,6 +894,11 @@ func greed_arm(hit_key: int) -> bool:
 	return _status_host.greed_arm(hit_key)
 
 
+## See [method StatusHost.adjust_power].
+func adjust_status_power(def: StatusDef, delta: float, key: Variant = true) -> void:
+	_status_host.adjust_power(def, delta, key)
+
+
 ## See [method StatusHost.remove_status].
 func remove_status(id: StringName) -> void:
 	_status_host.remove_status(id)

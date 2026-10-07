@@ -52,15 +52,20 @@ func stacks(n: NodeCombat) -> float:
 	return n.get_status_power(def.id, key) if n != null and def != null else 0.0
 
 
-## [param n]'s neighbours whose [method NodeCombat.ownership_bit] — seen by
-## [param n]'s OWNER — is in [member mask]. An unowned host has no one to be
-## Mine or Ally to: a neutral neighbour reads Neutral, an owned one Hostile.
+## [param n]'s neighbours in [member mask] — [method neighbours_in] with the field's own mask.
 func masked_neighbours(n: NodeCombat) -> Array[NodeCombat]:
+	return neighbours_in(n, mask)
+
+
+## [param n]'s neighbours whose [method NodeCombat.ownership_bit] — seen by
+## [param n]'s OWNER — is in [param p_mask]. An unowned host has no one to be
+## Mine or Ally to: a neutral neighbour reads Neutral, an owned one Hostile.
+func neighbours_in(n: NodeCombat, p_mask: int) -> Array[NodeCombat]:
 	var out: Array[NodeCombat] = []
 	var owner_slice := n.owner() if n != null else null
 	var viewer: Entity = owner_slice.real_entity() if owner_slice != null else null
 	for m: NodeCombat in _adjacency.get(n, []):
-		if m.ownership_bit(viewer) & mask != 0:
+		if m.ownership_bit(viewer) & p_mask != 0:
 			out.append(m)
 	return out
 

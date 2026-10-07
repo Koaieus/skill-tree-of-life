@@ -57,15 +57,12 @@ func on_removed(field: StackField, removed: Array[NodeCombat], cause: int) -> Ar
 
 
 ## Surviving neighbours of [param r] in [member sink_mask] that are not
-## already receivers. Reads through the field's own mask filter, restored.
+## already receivers.
 func _sink_count(field: StackField, r: NodeCombat, removed_set: Dictionary, receivers: Array[NodeCombat]) -> int:
 	if sink_mask == 0:
 		return 0
-	var saved := field.mask
-	field.mask = sink_mask
 	var n := 0
-	for m in field.masked_neighbours(r):
+	for m in field.neighbours_in(r, sink_mask):
 		if not removed_set.has(m) and not receivers.has(m):
 			n += 1
-	field.mask = saved
 	return n
