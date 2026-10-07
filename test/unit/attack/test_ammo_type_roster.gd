@@ -77,8 +77,7 @@ func test_statused_types_fly_their_own_status_arrow_scene() -> void:
 	const BASE_SCENE := "res://ui/vfx/projectile/visual/status_arrow.tscn"
 	var seen: Dictionary = {}
 	for t in _ROSTER.types:
-		# The scout keeps the plain arrow until it gets its own inherited scene.
-		if t.first_status_def() == null or t.is_scout():
+		if t.first_status_def() == null:
 			continue
 		var scene: PackedScene = t.visual_scene
 		assert_not_null(scene, "%s has a visual_scene" % t.id)
