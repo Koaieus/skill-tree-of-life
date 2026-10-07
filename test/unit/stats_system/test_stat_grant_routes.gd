@@ -243,6 +243,9 @@ func test_shipped_content_passes_both_predicates() -> void:
 		if sd != null and sd.resistance_stat_id != &"" \
 				and not StatRegistry.is_local_grantable(sd.resistance_stat_id):
 			_violations.append("%s: resistance '%s' is read per node" % [f, sd.resistance_stat_id])
+		if sd != null and sd.stacks_stat_id != &"" \
+				and not StatRegistry.is_local_grantable(sd.stacks_stat_id):
+			_violations.append("%s: stacks '%s' is read per node" % [f, sd.stacks_stat_id])
 	var pools := 0
 	for f in DirAccess.get_files_at("res://procgen/pools"):
 		if not f.ends_with(".tres"):

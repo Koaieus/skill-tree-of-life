@@ -9,7 +9,8 @@ identity = ExtResource("identity_wither")
 id = &"wither_stacks_per_hit"
 parent_ids = Array[StringName]([&"dot_stacks_per_hit"])
 display_name = "Wither Stacks per Hit"
-description = "Flat wither stacks added to every wither application this entity lands, a base_add overlay on the authored per-hit power: landed = fold(per-hit + Wither Stacks per Hit), never floored (ADR 0029); the target's Wither Resistance filters the row later, at effect time, never here (ADR 0031). DoT Stacks per Hit is its family parent and folds into this read — one number, never a separate sum. Flat, so it doubles a 0.5-stack dart and barely touches an 8-stack cast. Only boosts a wither application that already happens — never applies wither on its own. Default 0; entity-scope only."
+description = "Flat wither stacks added to every wither application this entity lands, a base_add overlay on the authored per-hit power: landed = fold(per-hit + Wither Stacks per Hit), never floored (ADR 0029); the target's Wither Resistance filters the row later, at effect time, never here (ADR 0031). DoT Stacks per Hit is its family parent and folds into this read — one number, never a separate sum. Flat, so it doubles a 0.5-stack dart and barely touches an 8-stack cast. Only boosts a wither application that already happens — never applies wither on its own. Default 0; read at the attacking node — an entity grant reaches every hit, a node-local grant only the hits that node lands."
 value_type = 1
 default_value = 0.0
 modifier_name = "Wither Stacks per Hit"
+local_grantable = true

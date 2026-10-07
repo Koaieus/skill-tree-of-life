@@ -6,8 +6,9 @@
 script = ExtResource("1_stat_def")
 id = &"dot_stacks_per_hit"
 display_name = "DoT Stacks per Hit"
-description = "Family parent of Poison, Corruption, Curse and Wither Stacks per Hit (ADR 0029): a modifier here folds into each family stat's own read, so +1 DoT Stacks per Hit lands one more stack of whatever DoT you already apply — never scales damage, never applies a DoT on its own. Not blindness or armor-break. Its own number is never read; only its bins reach the children. Entity-scope only."
+description = "Family parent of Poison, Corruption, Curse and Wither Stacks per Hit (ADR 0029): a modifier here folds into each family stat's own read, so +1 DoT Stacks per Hit lands one more stack of whatever DoT you already apply — never scales damage, never applies a DoT on its own. Not blindness or armor-break. Its own number is never read; only its bins reach the children. Read at the attacking node — an entity grant reaches every hit, a node-local grant only the hits that node lands."
 value_type = 1
 default_value = 0.0
 tint_color = Color(0.55, 0.85, 0.45, 1)
 modifier_name = "DoT Stacks per Hit"
+local_grantable = true
