@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="StatDef" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://stats_system/stat_def.gd" id="1_stat_def"]
+[ext_resource type="Resource" path="res://identity/defs/hex.tres" id="identity_hex"]
+
+[resource]
+script = ExtResource("1_stat_def")
+identity = ExtResource("identity_hex")
+id = &"hex_aspect"
+parent_ids = Array[StringName]([&"aspects"])
+display_name = "Hex Aspect"
+description = "How much of the hex aspect this entity carries — one number each combat mode reads its own way (#1248). Read per combat mode by its own cell (arrow, blade, spell). Aspects is its family parent and folds into this read. A count, never potency (that is <family>_stacks_per_hit). Default 0; entity-scope only."
+value_type = 0
+default_value = 0.0
+modifier_name = "Hex Aspect"

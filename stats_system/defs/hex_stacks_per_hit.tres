@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="StatDef" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://stats_system/stat_def.gd" id="1_stat_def"]
+[ext_resource type="Resource" path="res://identity/defs/hex.tres" id="identity_hex"]
+
+[resource]
+script = ExtResource("1_stat_def")
+identity = ExtResource("identity_hex")
+id = &"hex_stacks_per_hit"
+display_name = "Hex Stacks per Hit"
+description = "The hex this entity's hits land. The authored per-hit hex is a base_add overlay on this stat, so its flats add to it and its INCREASE / MORE scale it: landed = fold(per-hit), rounded half-up. No resistance filters it (no new _resistance stats). No parent: hex is not a DoT. Default 1; entity-scope only."
+value_type = 1
+default_value = 1.0
+modifier_name = "Hex Stacks per Hit"

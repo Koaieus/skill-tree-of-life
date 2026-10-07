@@ -87,6 +87,8 @@
 [ext_resource type="Resource" path="res://stats_system/defs/weakness_stacks_per_hit.tres" id="def_weakness_stacks_per_hit"]
 [ext_resource type="Resource" path="res://stats_system/defs/greed_aspect.tres" id="def_greed_aspect"]
 [ext_resource type="Resource" path="res://stats_system/defs/greed_stacks_per_hit.tres" id="def_greed_stacks_per_hit"]
+[ext_resource type="Resource" path="res://stats_system/defs/hex_aspect.tres" id="def_hex_aspect"]
+[ext_resource type="Resource" path="res://stats_system/defs/hex_stacks_per_hit.tres" id="def_hex_stacks_per_hit"]
 [ext_resource type="Resource" path="res://stats_system/defs/scout_aspect.tres" id="def_scout_aspect"]
 [ext_resource type="Resource" path="res://stats_system/defs/armor_break_aspect.tres" id="def_armor_break_aspect"]
 [ext_resource type="Resource" path="res://stats_system/defs/explosive_aspect.tres" id="def_explosive_aspect"]
@@ -162,6 +164,12 @@ base_value = 1.0
 resource_name = "greed_stacks_per_hit"
 script = ExtResource("2_scalar")
 definition = ExtResource("def_greed_stacks_per_hit")
+base_value = 1.0
+
+[sub_resource type="Resource" id="scalar_hex_stacks_per_hit"]
+resource_name = "hex_stacks_per_hit"
+script = ExtResource("2_scalar")
+definition = ExtResource("def_hex_stacks_per_hit")
 base_value = 1.0
 
 [sub_resource type="Resource" id="scalar_blindness_resistance"]
@@ -663,6 +671,11 @@ resource_name = "greed_aspect"
 script = ExtResource("2_scalar")
 definition = ExtResource("def_greed_aspect")
 
+[sub_resource type="Resource" id="scalar_hex_aspect"]
+resource_name = "hex_aspect"
+script = ExtResource("2_scalar")
+definition = ExtResource("def_hex_aspect")
+
 [sub_resource type="Resource" id="scalar_scout_aspect"]
 resource_name = "scout_aspect"
 script = ExtResource("2_scalar")
@@ -715,6 +728,7 @@ status_resistance = SubResource("scalar_status_resistance")
 blindness_stacks_per_hit = SubResource("scalar_blindness_stacks_per_hit")
 weakness_stacks_per_hit = SubResource("scalar_weakness_stacks_per_hit")
 greed_stacks_per_hit = SubResource("scalar_greed_stacks_per_hit")
+hex_stacks_per_hit = SubResource("scalar_hex_stacks_per_hit")
 blindness_resistance = SubResource("scalar_blindness_resistance")
 dealloc_damage = SubResource("scalar_dealloc_damage")
 spikes = SubResource("scalar_spikes")
@@ -746,6 +760,7 @@ wither_aspect = SubResource("scalar_wither_aspect")
 blindness_aspect = SubResource("scalar_blindness_aspect")
 weakness_aspect = SubResource("scalar_weakness_aspect")
 greed_aspect = SubResource("scalar_greed_aspect")
+hex_aspect = SubResource("scalar_hex_aspect")
 scout_aspect = SubResource("scalar_scout_aspect")
 armor_break_aspect = SubResource("scalar_armor_break_aspect")
 explosive_aspect = SubResource("scalar_explosive_aspect")
