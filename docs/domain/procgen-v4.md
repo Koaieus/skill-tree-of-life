@@ -349,7 +349,6 @@ ADD_BONUS magnitude = `unit · V[t]`; MULTIPLY = `1 + unit · V[t]`.
 | `poison_resistance` .addb (dex, bless) | 0.05 | — | 0.25 | 2 | 4 | +0.05 +0.15 +0.35 |
 | `corruption_resistance` .addb (str, bless) | 0.05 | — | 0.25 | 2 | 4 | +0.05 +0.15 +0.35 |
 | `curse_resistance` .addb (con, bless) | 0.05 | — | 0.25 | 2 | 4 | +0.05 +0.15 +0.35 |
-| `wither_resistance` .addb (int, bless) | 0.05 | — | 0.25 | 2 | 4 | +0.05 +0.15 +0.35 |
 
 Per-pack homes (the pack is the gate, ADR 0028): str/dex/int/wis/per/con each
 carry their attribute's addb+inc+mul; dex adds crit_chance+crit_multiplier; int

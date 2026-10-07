@@ -837,7 +837,7 @@ not a family of their own:
 | damage floor | Curse | Bunker (`min_damage_taken` −5), Bulwark class |
 | armor | Armor break | Bunker (`armor` +5) |
 | healing | Wither | Lifeline / Fountain, `healing_beam` (enemy-targetable — its twist); `wither_resistance` dropped (owner, 2026-10-07) |
-| vision | Blindness | `blindness_resistance` (parentless, a blessed PER roll) |
+| vision | Blindness | `blindness_resistance` (under `status_resistance`, a blessed PER roll) |
 | damage dealt | Weakness | nothing |
 | exertion (HP on use) | Bleeding | rest is the cure, plus `bleeding_resistance` — damage is involved (owner, 2026-10-07; lands in #1435) |
 | crit taken | Hex | nothing; attacker-side crit stats are DEX's own |
@@ -851,7 +851,7 @@ none-new: *"none new, with a rule of adding one where damage is involved or
 when it just makes sense or no other counterplay is available (e.g. for
 blindness)"*. So a row ships with a blank `resistance_stat_id` unless its axis
 deals damage or has no other defence; the new rows (Weakness, Greed,
-Bleeding, Hex) all ship without one. The pass's lens, which the table above
+Hex) ship without one; Bleeding's is round 11's call below. The pass's lens, which the table above
 already encodes: an axis with a native stat to defend with (armor, damage,
 `min_damage_taken`, rest) needs no second dial. Hex (crit taken, nothing
 native) is the one later candidate, its own pass if ever.
