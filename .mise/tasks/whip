@@ -343,10 +343,11 @@ def lead_prompt(st, name, train, relief):
     t = train_of(st, train) or {"issues": []}
     if relief:
         outgoing = t.get("outgoing") or "the previous lead"
-        return f"/relief — whip relay, train {train}, relieving {outgoing}. {CLAUSES}"
+        sid = (st.get("leads", {}).get(t.get("outgoing")) or {}).get("session", "")[:8]
+        adopt = f"`mise run ledger -- adopt --from {sid}`" if sid else "`mise run ledger -- adopt`"
+        return f"/relief — whip relay, train {train}, relieving {outgoing}; join its ledger with {adopt}. {CLAUSES}"
     nums = " ".join(f"#{n}" for n in t["issues"])
-    return (f"/swarm {nums} — whip relay, train {train}. You are a FRESH lead for train {train}, never relief, even if a "
-            f"swarm ledger from an earlier train tonight is on disk; append your rows to it. {CLAUSES}")
+    return f"/swarm {nums} — whip relay, train {train}. {CLAUSES}"
 
 
 def perform_launch(st, req):

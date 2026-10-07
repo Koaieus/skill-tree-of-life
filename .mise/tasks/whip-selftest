@@ -222,8 +222,9 @@ check("start launches the first lead under the ceiling: lead-a is a --bg session
       lead("lead-a").get("state") == "running" and train("a").get("lead") == "lead-a" and train("a").get("state") == "running"
       and any(c.startswith("claude --bg -n lead-a --permission-mode") and "--model" in c for c in calls))
 lp = next((c for c in calls if c.startswith("claude --bg -n lead-a")), "")
-check("the launch prompt is /swarm <issues> — whip relay, train a — plus the fresh-lead clause and the relay clauses",
-      "/swarm #10 #11 #12" in lp and "whip relay, train a" in lp and "FRESH lead" in lp and "relieve-me" in lp and "whip -- done" in lp
+check("the launch prompt is /swarm <issues> — whip relay, train a — plus the relay clauses, and never a relief clause (the verb decides relief)",
+      "/swarm #10 #11 #12" in lp and "whip relay, train a" in lp and "FRESH lead" not in lp and "never relief" not in lp
+      and "relieve-me" in lp and "whip -- done" in lp
       and "SendMessage" not in lp and "supervised by whip" not in lp)
 check("only one lead launched at the default ceiling", sum(1 for c in calls if c.startswith("claude --bg -n")) == 1 and train("b").get("state") == "queued")
 check("start prints the information lines (kill switch, inhibit, linger warning) and the ledger with the lead row",
@@ -270,7 +271,8 @@ check("relieve-me from lead-a launches relief-a-1, marks lead-a relieved, train 
       code == 0 and lead("relief-a-1").get("state") == "running" and lead("lead-a").get("state") == "relieved" and train("a")["lead"] == "relief-a-1"
       and train("a")["reliefs"] == 1 and any(c.startswith("claude --bg -n relief-a-1") for c in calls[base:]))
 rp = next(c for c in calls[base:] if c.startswith("claude --bg -n relief-a-1"))
-check("the relief prompt is /relief — whip relay, train a, relieving lead-a — plus the relay clauses", "/relief" in rp and "whip relay, train a" in rp and "relieving lead-a" in rp and "whip -- done" in rp)
+check("the relief prompt is /relief — whip relay, train a, relieving lead-a — adopts lead-a's ledger by session, plus the relay clauses",
+      "/relief" in rp and "whip relay, train a" in rp and "relieving lead-a" in rp and f"ledger -- adopt --from {a_sid[:8]}" in rp and "whip -- done" in rp)
 check("a relief counts against its train, not the ceiling: train b and the relieved train a both run at ceiling 2", sum(1 for l in state()["leads"].values() if l["state"] == "running") == 2 and train("b")["state"] == "running")
 run("watchdog")
 r1 = sid_of("relief-a-1")
