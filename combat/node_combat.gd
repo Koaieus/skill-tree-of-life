@@ -693,6 +693,10 @@ func effective_status_power(def: StatusDef, power: float) -> float:
 	return _status_host.effective_power(def, power)
 
 
+func incoming_overlays(_stat_id: StringName) -> Array[ModifierBins]:
+	return []
+
+
 ## See [method StatusHost.blocks].
 func blocks_status(def: StatusDef) -> bool:
 	return _status_host.blocks(def)

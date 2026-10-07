@@ -1,0 +1,28 @@
+[gd_resource type="Resource" script_class="StatusDef" load_steps=5 format=3]
+
+[ext_resource type="Script" uid="uid://df26qxsm3sm24" path="res://effects/status/status_def.gd" id="1_def"]
+[ext_resource type="Script" uid="uid://h4ca876s2ht3" path="res://effects/status/decay/flat_decay.gd" id="decay_script"]
+[ext_resource type="Script" uid="uid://che6xhl6srqh3" path="res://stats_system/stat_modifier.gd" id="mod_script"]
+
+[sub_resource type="Resource" id="Resource_decay"]
+script = ExtResource("decay_script")
+per_tick = 1.0
+
+[sub_resource type="Resource" id="Resource_crit_taken"]
+script = ExtResource("mod_script")
+stat_id = &"crit_chance"
+operation = 3
+value = 0.05
+
+[resource]
+script = ExtResource("1_def")
+id = &"hex"
+display_name = "Hexed"
+description = "Every stack adds a flat bonus to the crit chance of any hit landing on this node, after the attacker's own increases; a core's hex counts for every node its owner holds. Stacks fall by 1 each turn."
+tags = Array[StringName]([&"debuff"])
+power_max = 0.0
+display_max = 10.0
+reapply = 1
+stacks_stat_id = &"hex_stacks_per_hit"
+decay = SubResource("Resource_decay")
+incoming_modifiers = Array[ExtResource("mod_script")]([SubResource("Resource_crit_taken")])

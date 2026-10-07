@@ -76,6 +76,14 @@ var tint: Color:
 ## `dot_stacks_per_hit` parent folds in the same read, or blindness's own
 ## parentless stat. Blank → the authored power lands as-is.
 @export var stacks_stat_id: StringName = &""
+## What an attacker reads differently against this status's host: each entry
+## says "an attacker's read of `stat_id` against my host gets `operation` with
+## `value × power`", power being the host's EFFECTIVE power summed over the
+## node's and its owner's rows ([method NodeCombat.incoming_overlays]). Sum ops
+## only (ADD_BASE / INCREASE / ADD_BONUS): `value × power` means nothing for a
+## SET or a MULTIPLY, so one is refused here with a `push_error` and ignored.
+## Planted on no board: the door folds it into a [ModifierBins] per read.
+@export var incoming_modifiers: Array[StatModifier] = []
 ## Power is clamped to this on apply and on accumulate. `<= 0` → uncapped
 ## (#962): [method NodeCombat.apply_status] skips the clamp entirely.
 @export var power_max: float = 1.0
