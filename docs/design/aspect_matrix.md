@@ -231,11 +231,11 @@ Each cell links its cell issue (`<Concept> × <Facet>`, a child of the row hub i
 | Concept | Tag | Stat | Ranged (arrow) | Addon (map / temp) | Spell | Magic (infusion) | Notes |
 |---|---|---|---|---|---|---|---|
 | Poison | DoT | `poison_aspect` | shipped; look designed (see "Rows designed in #1318"), building in #1352 | #1271 — designed (see "Rows designed in #1318"), needs an acceptance spec | `venom` shipped; second spell #1381 | #1250 | row: #1377. Spread signature deferred to an authoring pass (owner, #1204) |
-| Corruption | buildup, %dmg, spread | `corruption_aspect` | #1382 — scaffold (#1349) | #1383 | #1384 | #1250 | row: #1378. Spreads as a sandpile by nature (#1202) — no `spread` authored yet, the diffusion classes are test-only; health bar shows blips per stack, extra-mean when critical (#1092). `skill_node_specializations.md`'s Corrupted Node is this row's content under another name; its penalties (double damage, floor −1) are Curse's and the floor axis's |
+| Corruption | buildup, %dmg, spread | `corruption_aspect` | #1382 — scaffold (#1349) | #1383 | #1384 — **Defile** (see "Spell faces") | #1250 | row: #1378. Spreads as a sandpile by nature (#1202) — no `spread` authored yet, the diffusion classes are test-only; health bar shows blips per stack, extra-mean when critical (#1092). `skill_node_specializations.md`'s Corrupted Node is this row's content under another name; its penalties (double damage, floor −1) are Curse's and the floor axis's |
 | Curse | fragility, spill | `curse_aspect` | #1385 — scaffold (#1349) | #1386 | `hex` shipped; no second spell proposed | #1250 | row: #1379. Raises `min_damage_taken`; spills to surviving direct neighbours on death AND dealloc (#1204) — the only authored spread today (`spill_spread.gd`). `spells.md`'s Aftershock restates this spill |
-| Wither | anti-heal | `wither_aspect` | #1387 — scaffold (#1349) | #1388 | #1389 | #1250 | row: #1380. Drives healing received negative: while it does, a negative heal deals damage that does not close the regen gate, so the regen ramp keeps climbing and the node heals itself toward death — temporary, never permanent: as Wither decays the multiplier climbs back through zero, nulling healing, then restoring it (owner, 2026-10-07, moved here from the superseded ADR 0022 d5). Owner, 2026-09-20: *"it ruins your healing to making you effectively undead"*. `spells.md`'s Flood wants this anti-heal (#1389) |
-| Blindness | vision debuff | `blindness_aspect` | #1390 — scaffold (#1349) | #1391 | `dazzle` shipped; **Throw Sand** #1392 (candidate, owner 2026-09-30) | #1250 | row: #1253. Count stacks, effect reads as a % via a saturating curve |
-| Scout (a status whose rows draw vision, #949) | reveal | `scout_aspect` | scouting arrow shipped (stacks: #1345, #1346) | watchtower shipped (map face); blade face + look #1393 | #1394 | #1250 | row: #1254. `effects/status/scouted.tres` is live: the arrow lands camp-keyed stacks, VisionSystem draws `radius_for` discs from the rows (#1346); first-class concept (owner, 2026-09-30). Scout and Blindness are two PER rows by the owner's table, not one vision axis. Watchtower's offence stats and production-vs-firing: #1413 |
+| Wither | anti-heal | `wither_aspect` | #1387 — scaffold (#1349) | #1388 | #1389 — **Girdle** (see "Spell faces") | #1250 | row: #1380. Drives healing received negative: while it does, a negative heal deals damage that does not close the regen gate, so the regen ramp keeps climbing and the node heals itself toward death — temporary, never permanent: as Wither decays the multiplier climbs back through zero, nulling healing, then restoring it (owner, 2026-10-07, moved here from the superseded ADR 0022 d5). Owner, 2026-09-20: *"it ruins your healing to making you effectively undead"*. `spells.md`'s Flood wants this anti-heal (#1389) |
+| Blindness | vision debuff | `blindness_aspect` | #1390 — scaffold (#1349) | #1391 | `dazzle` shipped, reshaped to climb vision (see "Spell faces"); **Throw Sand** #1392, waits on aimed targeting | #1250 | row: #1253. Count stacks, effect reads as a % via a saturating curve |
+| Scout (a status whose rows draw vision, #949) | reveal | `scout_aspect` | scouting arrow shipped (stacks: #1345, #1346) | watchtower shipped (map face); blade face + look #1393 | #1394 — **Eagle Eye**; a scout line (aimed) beside it (see "Spell faces") | #1250 | row: #1254. `effects/status/scouted.tres` is live: the arrow lands camp-keyed stacks, VisionSystem draws `radius_for` discs from the rows (#1346); first-class concept (owner, 2026-09-30). Scout and Blindness are two PER rows by the owner's table, not one vision axis. Watchtower's offence stats and production-vs-firing: #1413 |
 | Armor break | armor debuff | `armor_break_aspect` | #1395 — scaffold (#1349) | #1396 | `sunder` shipped; second spell #1397 | #1250 | row: #395 (child 0: penetration stat #1401). Flat −1 armor per stack, uncapped, can go below zero (#1203, owner 2026-09-30). School CON (round 7). Has no `_stacks_per_hit` / `_resistance` while the DEX pool rolls a raw `armor` −% bane that bypasses the aspect. `spells.md`'s Heavy / Piercing Bolt (seek max / min armor) are its second spell (#1397) |
 | Weakness | damage debuff | `weakness_aspect` | #1427 (Sap?) | #1428 | #1429 (Enfeeble?) | #1250 | row: #1425 (child 0: the status, #1426, Ready). Stacks cut damage dealt by attacks originating from the node, % on a saturating curve (round 7) |
 | Greed | status magnet | `greed_aspect` | #1422 | #1423 | #1424 | #1250 | row: #1419 (child 0: the landing term, #1420, Ready; Avarice #1421, Ready). One Greed stack on the node doubles every negative status the next hit lands, Greed included, then one stack is spent; its Avarice face pays bonus XP per stack left when an attack removes the node (rounds 5–6) |
@@ -316,6 +316,40 @@ Hue stays `Identity.tint`.
   authored `order` stays the rule.
 - **Creep and Exposed** (contenders, #1444 / #1445) get arrows on this
   template once their rows settle.
+
+## Spell faces (owner, 2026-10-08)
+
+The spell column's first `/swarmify` pass covered four cells: Corruption,
+Wither, Blindness and Scout. **A spell's twist reads the board.** Each spell
+here picks its targets by a board fact that belongs to its aspect: how much
+content a node holds, chokepoints, who has vision on you, the fog.
+
+| Spell | Aspect | Shape | Reach | Twist |
+|---|---|---|---|---|
+| **Defile** (name tentative) | Corruption | few big, graded per node | fan 2 hops from the target | Stacks per node = the node's **content**: 1 per rolled modifier, 2 per spell grant, 2 per addon (an addon counts whole and its own modifiers are not counted again). A blank node gains nothing, so the area's richness *is* the payload. Owner: *"apply 1 stack per rolled modifier on the node. Nodes with no modifiers gain no stacks. And spell grants might count for 2, and include addon count too"*; addons count (owner took the pass's case: fortified nodes are rich and tanky, and bulk %HP is defended by nothing). Theme, owner: *"corruption doesn't need to be financially themed ... it's also *corruption at heart* almost literally. PoE2 has a nice "corruption" theme running through its story. That's the kind of lingering damage. Money speak is secondary"* |
+| **Girdle** | Wither | stacks + crit | target, then fan **outward only** (farther from the owner's core) | Crits on a **chokepoint**, a cut vertex of the owner's territory, and a crit lands more stacks. Ring the bark and the limb beyond it withers. Owner: *"something fancy, using topology that signifies wither. Or like crits on chokepoints (and adds more stacks)"*; *"healing gradient ascent is good but most nodes will sit at 0"* (struck) |
+| **Dazzle** (reshaped) | Blindness | few big, decent stacks | climb the `vision_range` gradient, forking on ties | Owner: *"gradient ascend (forking on ties) upward of vision range of the candidate nodes? And apply decent stacks. Will find watchtowers and absolutely ✨dazzl✨ them"* |
+| **Throw Sand** (fancier name open) | Blindness | many small | **aimed cone** from the source, then hops along the enemy front line | The front line is the nodes most likely to have vision on you. Owner: *"Throw Sand (or some fancier D&D / fantasy speak that tries to sound fancy but comes down to throwing sand) would be the main spell we'd design for blind ... try hopping along the enemy front line like the ones that are most likely to have vision on you"*. Waits on aimed targeting |
+| **Eagle Eye** | Scout | few big | long euclidean reach, one node | One big `scouted` stack, so one big disc (radius ∝ √stacks) |
+| **Scout line** (name open) | Scout | reveal | **aimed line hitscan** from the source | Owner: *"a line hitscan. Point it in a direction from the source node and fire. Small width hitscan lights up all along the way, up to some finite distance that scales with spell cast range euclidean"*. Waits on aimed targeting |
+
+- **Infusion covers some shapes, so they need no spell.** Owner: *"Pathfinder
+  is just Trailblazer infused with 1 or more scouting aspect"*. A shape you get
+  by infusing an existing library spell never gets a spell of its own.
+- **Aimed targeting is new architecture.** You aim a line or cone in a
+  direction instead of picking a node. Owner: *"If we canonicalize this, we
+  need a good pass for this new architecture"*. It gets its own design pass,
+  and Throw Sand and the scout line wait on it. Because an aimed cast never
+  names a node, it can reach into fog: today a cast can only target nodes the
+  caster's camp can see.
+- **Effects riding a projectile meet the reducer.** When N projectiles reach
+  one node in the same beat, each may carry 1, 2 or 0 stacks, or a different
+  status. How the reducer folds them into one hit is open. Owner: *"it's
+  going to determine for a good part how effects proliferate and we want to
+  provide spell authors the tools to make clear intuitive resolution"*. It
+  gets its own issue.
+- **No spell shape takes a stack doubler or a cleanse yet**, so neither needs a
+  kit part this pass.
 
 ## Contenders — sparse rows
 
