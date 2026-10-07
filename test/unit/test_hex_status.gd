@@ -199,3 +199,18 @@ func test_multiply_entry_is_refused() -> void:
 	if overlays.size() == 1:
 		assert_eq(overlays[0].multipliers.size(), 0, "the MULTIPLY entry is ignored")
 		assert_almost_eq(overlays[0].bonus_add, 0.2, 0.0001, "the sum entry still lands")
+
+
+# ── 6. Shadow ───────────────────────────────────────────────────────────────
+
+func test_a_shadow_world_reads_its_own_hex() -> void:
+	_n.t.get_combat().apply_status(_HEXED, 3.0)
+	_defender.get_combat().apply_status(_HEXED, 2.0)
+	var world := CombatWorld.shadow()
+	assert_almost_eq(CritRoll.chance_for(_hit(_n.t), world), _rate() * 5.0, 0.0001,
+		"the snapshot carries node and owner rows")
+	world.combat_for(_n.t).apply_status(_HEXED, 2.0)
+	assert_almost_eq(CritRoll.chance_for(_hit(_n.t), world), _rate() * 7.0, 0.0001,
+		"a shadow landing moves the shadow read")
+	assert_almost_eq(CritRoll.chance_for(_hit(_n.t)), _rate() * 5.0, 0.0001,
+		"and never the live one")
