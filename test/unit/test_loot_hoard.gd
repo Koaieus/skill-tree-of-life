@@ -128,6 +128,11 @@ func test_each_node_pays_its_own_stacks() -> void:
 func test_entity_greed_scales_the_whole_kill_and_the_core_bonus() -> void:
 	_victim.get_combat().apply_status(_GREED, 2.0)
 	var f := 1.0 + 2.0 * _step()
+	var o := ModifierBins.new()
+	o.base_add = _PER_NODE
+	var overlays: Array[ModifierBins] = [o]
+	assert_almost_eq(float(_nodes[2].get_local_value_with(&"bounty", overlays)), _PER_NODE * f, 0.001,
+			"the entity Hoard is planted and folds under a node's read before the kill")
 	assert_almost_eq(_kill(), ((_PER_NODE + _CORE_BONUS) + 3.0 * _PER_NODE) * f, 0.001,
 			"every removed node and the core bonus pay ×(1 + 2·step)")
 
