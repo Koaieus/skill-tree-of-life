@@ -240,3 +240,61 @@ func test_slider_memory_does_not_leak_between_headless_panels() -> void:
 	assert_eq(fresh.spell_damage_slider.value, 1.0, "spell damage starts from the authored value")
 	assert_eq(fresh.caster_entity.stat_board.spell_damage.base_value, 1.0,
 			"and the board it armed agrees with the slider")
+
+
+# ── infusion strip (#1465) ──────────────────────────────────────────────
+
+const _CYCLONE: SpellDef = preload("res://attack/spell/defs/cyclone.tres")
+
+
+func _poison_powers(plan: MagicAttackPlan) -> Array[float]:
+	var total: Array[float] = []
+	for hit in plan.preview_outcome().hits:
+		var status := hit as StatusInstance
+		if status != null and status.def != null and status.def.identity != null \
+				and status.def.identity.id == &"poison":
+			total.append(status.power)
+	return total
+
+
+func _armed_cyclone() -> MagicAttackPlan:
+	_panel.load_spell(_CYCLONE)
+	_panel._on_target_clicked(_node("d_hub"))
+	return _panel._arm_plan()
+
+
+## The strip feeds the panel's cast: poison points 4 on Cyclone (1:2) land 2
+## poison per landing, and the caster can actually afford them — the playground
+## grants the aspect and the caps, it does not merely let an unaffordable
+## infusion preview.
+func test_poison_points_on_cyclone_land_two_poison_per_landing() -> void:
+	var plan := _armed_cyclone()
+	assert_true(_poison_powers(plan).is_empty(), "strip at zero: innate only")
+	plan.set_infusion(&"poison", 4)
+	assert_eq(plan.aspect_overrun(), 0, "the playground caster can afford what the strip offers")
+	var powers := _poison_powers(plan)
+	assert_false(powers.is_empty(), "poison lands")
+	for power in powers:
+		assert_eq(power, 2.0, "4 points at 1:2 is 2 poison per landing")
+
+
+## The infusion survives the panel's re-arm (every Cast and Reset re-arms a plan).
+func test_the_infusion_survives_a_rearm() -> void:
+	var plan := _armed_cyclone()
+	plan.set_infusion(&"poison", 4)
+	_panel._reset_state()
+	var again: MagicAttackPlan = _panel._arm_plan()
+	assert_eq(again.infusion.points.get(&"poison", 0), 4)
+
+
+## The strip is the shipped InfusionRow, and its steppers stop at the
+## `infusion_points` override even with a 100-point aspect.
+func test_the_row_stops_at_the_points_override() -> void:
+	var plan := _armed_cyclone()
+	_panel.infusion_points_box.value = 10
+	var row := _panel.find_child("InfusionRow", true, false) as InfusionRow
+	assert_not_null(row, "the panel hosts an InfusionRow")
+	assert_true(row.stepper_ids().has(&"poison"), "the caster holds poison")
+	for i in 30:
+		row.plus_button(&"poison").pressed.emit()
+	assert_eq(plan.infusion.points.get(&"poison", 0), 10)
