@@ -23,6 +23,7 @@ Two different things that both end in "Effect". They are siblings, not a hierarc
 effect that needs spell context extends `SpellOnHitEffect` (narrows to
 `LandingContext`). A status rides `HitLanding.paired`, and
 `StatusInstance.paired` gates it: no landed paired hit, no status.
+A spell's status is not authored here but emitted by its `SpellAffinity` list via `Infusion.riders` (ADR 0047).
 
 ## Composition, not a subclass zoo
 

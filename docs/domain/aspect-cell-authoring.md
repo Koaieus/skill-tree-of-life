@@ -77,14 +77,19 @@ A spell is many facets, each its own design call:
 | crit | `crit_conditions` (`LandingCondition`s) |
 | presentation | `vfx_coordinator_scene`, `windup_vfx_scene`, `tempo` (`.claude/rules/spell-vfx.md`) |
 
-The concept's spell uses `ApplyStatusEffect` with its def; the design work
+The concept's spell lists a `SpellAffinity` for its def (§ Infusion); the design work
 is what else the spell does, so it is not "damage plus status" again.
 
-## Infusion (magic column, provisional — #1250)
+## Infusion (magic column — ADR 0047, #1250)
 
-Nothing concrete beyond the rule: an `X`-infused spell spends `X_aspect`
-budget to add or alter spell behaviour or on-hit effects. The leaning is a
-fifth `SpellDef` component (an `Infusion` resource: an on-hit effect plus
-an optional drawback on another component), scaled by charges, never an
-on/off flag. Author nothing here until #1250 lands; then this section
-lists its files.
+A spell's status is its **affinity**, not an authored rider:
+
+- `attack/spell/spell_affinity.gd`: `SpellAffinity{status, innate, rate}`. Its `get_description` gives the tooltip's on-arrival line.
+- `attack/spell/spell_def.gd`: `affinities: Array[SpellAffinity]` and `default_rate` (for concepts the list leaves out; 0 refuses them).
+- `attack/spell/infusion.gd`: `Infusion.innate(spell)`, `affinity_of`, `riders`. Riders are one `ApplyStatusEffect` per concept with affinity above 0.
+- `attack/spell/spell_resolver.gd`: `resolve_against(…, infusion = null)` runs the riders after `on_hit_effects` at every landing.
+
+A status cell's spell lists one `SpellAffinity` for the concept's
+`StatusDef`. It never authors an `ApplyStatusEffect` in `on_hit_effects`.
+`test_aspect_roster.gd` pins this. Cast-time points, `infusion_slots` and
+the wire are #1462.
