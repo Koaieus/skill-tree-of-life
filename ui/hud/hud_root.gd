@@ -53,6 +53,7 @@ extends Control
 @onready var tooltip_fan: TooltipFan = %TooltipFan
 @onready var gained_modifier_toast: GainedModifierToast = %GainedModifierToast
 @onready var minimap_panel: MinimapPanel = %MinimapPanel
+@onready var gates_menu: GatesMenu = %GatesMenu
 
 var _player: Entity
 ## The composition root, kept only to read [member GameRoot.seat_policy] when a
@@ -131,7 +132,7 @@ const USABLE_RECT_INSET := 4.0
 ## (the [TooltipFan]'s, which lives beside it): the HUD's rect with each side
 ## pulled in past the furthest-reaching VISIBLE chrome docked on it — left
 ## column; top strip (XP track, initiative bar, forecast); combat readout on
-## the right; command tray, action cluster and minimap along the bottom — plus
+## the right; command tray, action cluster, minimap and gates menu along the bottom — plus
 ## [constant USABLE_RECT_INSET]. One inset per side, so it is conservative: a
 ## corner the chrome leaves open is not handed out.
 ##
@@ -153,7 +154,7 @@ func usable_rect() -> Rect2:
 	for c: Control in [combat_readout]:
 		if c.is_visible_in_tree():
 			right = minf(right, c.get_global_rect().position.x)
-	for c: Control in [command_tray, action_cluster, minimap_panel]:
+	for c: Control in [command_tray, action_cluster, minimap_panel, gates_menu]:
 		if c.is_visible_in_tree():
 			bottom = minf(bottom, c.get_global_rect().position.y)
 	var usable := Rect2(left, top, right - left, bottom - top).grow(-USABLE_RECT_INSET)
@@ -230,6 +231,7 @@ func bind_systems(
 	turn_resources_panel.bind_input_ctl(_input_ctl)
 	combat_readout.bind(_battle_system, _input_ctl.armed_stack if _input_ctl != null else null)
 	action_cluster.bind(_turn_manager, _input_ctl, _vision_system)
+	gates_menu.bind(_input_ctl, _turn_manager)
 	command_tray.bind(_battle_system, _input_ctl)
 	announcement_layer.bind(_battle_system)
 	loot_picker.bind(_input_ctl)
@@ -297,6 +299,7 @@ func rebind_player(player: Entity) -> void:
 	turn_resources_panel.bind(board)
 	combat_readout.set_player(_player)
 	action_cluster.set_player(_player)
+	gates_menu.refresh()
 	command_tray.set_player(_player)
 	# Re-read the badge on every hot-seat handover (#459, #664). The controller
 	# object survives a handover, so this is not about re-wiring a signal — it

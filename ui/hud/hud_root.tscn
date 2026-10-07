@@ -25,6 +25,7 @@
 [ext_resource type="PackedScene" uid="uid://c26eoebnjw1lg" path="res://ui/mass_action_confirm/mass_action_confirm_panel.tscn" id="22_mass_action"]
 [ext_resource type="PackedScene" path="res://ui/spell_catalogue/spell_catalogue_modal.tscn" id="23_spell_catalogue"]
 [ext_resource type="PackedScene" path="res://ui/hud/turn_forecast/turn_forecast_strip.tscn" id="24_forecast"]
+[ext_resource type="PackedScene" path="res://ui/hud/gates_menu/gates_menu.tscn" id="25_gates"]
 
 [node name="HudRoot" type="Control" unique_id=1012524231]
 process_mode = 1
@@ -136,10 +137,20 @@ size_flags_vertical = 8
 mouse_filter = 2
 theme_override_constants/separation = 16
 
-[node name="MinimapPanel" parent="MarginContainer/BottomRow" unique_id=1706063918 instance=ExtResource("21_minimap")]
-unique_name_in_owner = true
+[node name="MinimapColumn" type="VBoxContainer" parent="MarginContainer/BottomRow" unique_id=21296951]
 layout_mode = 2
 size_flags_vertical = 8
+mouse_filter = 2
+theme_override_constants/separation = 8
+alignment = 2
+
+[node name="GatesMenu" parent="MarginContainer/BottomRow/MinimapColumn" instance=ExtResource("25_gates")]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="MinimapPanel" parent="MarginContainer/BottomRow/MinimapColumn" unique_id=1706063918 instance=ExtResource("21_minimap")]
+unique_name_in_owner = true
+layout_mode = 2
 
 [node name="CommandTray" parent="MarginContainer/BottomRow" unique_id=444879786 instance=ExtResource("8_tray")]
 unique_name_in_owner = true

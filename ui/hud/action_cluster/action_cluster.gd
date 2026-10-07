@@ -8,8 +8,8 @@ extends Control
 ##
 ## The root is a glass dock (a MarginContainer) and the last cell of HudRoot's
 ## BottomRow HBox; its fixed `custom_minimum_size.x` keeps the row from
-## breathing as the warning / conversion / gate-confirm text changes — the
-## widest of those must fit inside it, or the command tray beside it shifts.
+## breathing as the warning / conversion text changes — the widest of those
+## must fit inside it, or the command tray beside it shifts.
 
 ## Gate End Turn behind a confirm bubble while the unspent-AP warning shows.
 ## Off: a click ends the turn (Ctrl+click always does); the warning still shows.
@@ -20,10 +20,6 @@ extends Control
 @onready var _warning_label: Label = %WarningLabel
 @onready var _conversion_label: RichTextLabel = %ConversionLabel
 @onready var _end_turn_button: EndTurnButton = %EndTurnButton
-## Gates popover (#1206): the five bulk gate actions, item id = the
-## [enum PlayerInputController.GateAction] value.
-@onready var _gates_button: MenuButton = %GatesButton
-@onready var _gate_confirm_label: Label = %GateConfirmLabel
 
 var _player: Entity
 var _turn_manager: TurnManager
@@ -50,10 +46,6 @@ func bind(turn_manager: TurnManager, input_ctl: PlayerInputController, vision_sy
 
 	if _input_ctl != null:
 		_input_ctl.player_can_act_changed.connect(_refresh_end_turn_button.unbind(1))
-		_input_ctl.player_can_act_changed.connect(_refresh_gates_button.unbind(1))
-		_input_ctl.gate_locks_changed.connect(_refresh_gates_button)
-		_input_ctl.gate_confirm_changed.connect(_on_gate_confirm_changed)
-		_gates_button.get_popup().id_pressed.connect(_on_gate_action_picked)
 	if _turn_manager != null:
 		_turn_manager.turn_started.connect(_on_turn_started)
 		_turn_manager.turn_ended.connect(_on_turn_ended)
@@ -82,7 +74,6 @@ func set_player(player: Entity) -> void:
 		_binds.link(ap.value_changed, sync)
 		sync.call()
 	_refresh_end_turn_button()
-	_refresh_gates_button()
 
 
 func _on_turn_started(entity: Entity) -> void:
@@ -90,7 +81,6 @@ func _on_turn_started(entity: Entity) -> void:
 		return
 	_end_turn_button.hide_confirm()
 	_refresh_end_turn_button()
-	_refresh_gates_button()
 	_refresh_warning()
 	_refresh_conversion()
 
@@ -100,7 +90,6 @@ func _on_turn_ended(entity: Entity) -> void:
 		return
 	_end_turn_button.hide_confirm()
 	_refresh_end_turn_button()
-	_refresh_gates_button()
 
 
 func _refresh_end_turn_button() -> void:
@@ -157,37 +146,6 @@ func _stat_tint(stat: Stat) -> String:
 	if stat != null and stat.definition != null:
 		return stat.definition.tint_color.to_html(false)
 	return "ffffff"
-
-
-## Same one-warning shape as End Turn's unspent-AP confirm: the first pick of a
-## stranding action arms (this label says what it costs), the same pick again
-## goes through. The arm itself lives on the input controller, so G and the
-## popover share it.
-func _on_gate_confirm_changed(stranded: Array[SkillNode]) -> void:
-	if _gate_confirm_label == null:
-		return
-	var n := stranded.size()
-	_gate_confirm_label.modulate.a = 1.0 if n > 0 else 0.0
-	_gate_confirm_label.text = "Strands %d node%s: repeat to confirm" % [n, "" if n == 1 else "s"]
-
-
-func _on_gate_action_picked(id: int) -> void:
-	if _input_ctl != null:
-		_input_ctl.request_gate_action(id as PlayerInputController.GateAction)
-
-
-## A level with no gates never shows the button (fixed per level, so nothing
-## shoves); otherwise it fades via alpha, like the warning label, when the
-## player has no gate to toggle right now.
-func _refresh_gates_button() -> void:
-	if _gates_button == null or _input_ctl == null or _input_ctl.graph == null:
-		return
-	_gates_button.visible = not _input_ctl.graph.get_gates().is_empty()
-	var usable := _turn_manager != null and _turn_manager.current_entity == _player \
-			and not _input_ctl.toggleable_gates().is_empty()
-	_gates_button.modulate.a = 1.0 if usable else 0.0
-	_gates_button.disabled = not usable
-	_gates_button.mouse_filter = Control.MOUSE_FILTER_STOP if usable else Control.MOUSE_FILTER_IGNORE
 
 
 func _warning_showing() -> bool:
