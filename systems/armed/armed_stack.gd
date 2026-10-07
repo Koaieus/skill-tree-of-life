@@ -36,8 +36,18 @@ var selected_spell: SpellDef = null:
 		selected_spell = value
 		var magic := attack_plan() as MagicAttackPlan
 		if magic != null:
+			remember_infusion(magic)
 			magic.set_spell(value)
+			restore_infusion(magic)
 		selected_spell_changed.emit(value)
+
+## The seat's last infusion per spell, `{spell id: {concept id: points}}`. Taken
+## when a magic plan leaves a spell (re-equip, disarm, launch) — never off
+## [signal AttackPlan.state_changed], since [method MagicAttackPlan.set_spell]
+## resets the infusion before it emits — and put back, clamped to the caster's
+## caps of the moment, when a plan equips that spell again: a repeat cast needs
+## no clicks. Spells with an empty [member SpellDef.id] are not remembered.
+var last_infusion: Dictionary[StringName, Dictionary] = {}
 
 ## The seat's sticky swing direction for the next [MeleeAttackPlan]
 ## ([member MeleeAttackPlan.swing_cw]); survives resets and re-arms.
@@ -67,6 +77,10 @@ func sync_attack_plan() -> void:
 	var p := attack_plan()
 	if p == _last_plan:
 		return
+	if _last_plan is MagicAttackPlan:
+		remember_infusion(_last_plan)
+	if p is MagicAttackPlan:
+		restore_infusion(p)
 	if _last_plan != null and _last_plan.state_changed.is_connected(attack_plan_state_changed.emit):
 		_last_plan.state_changed.disconnect(attack_plan_state_changed.emit)
 	_last_plan = p
@@ -74,6 +88,53 @@ func sync_attack_plan() -> void:
 		p.state_changed.connect(attack_plan_state_changed.emit)
 	attack_plan_changed.emit(p)
 	attack_plan_state_changed.emit()
+
+
+## Record [param plan]'s infusion as its spell's [member last_infusion].
+func remember_infusion(plan: MagicAttackPlan) -> void:
+	if plan.spell == null or plan.spell.id.is_empty():
+		return
+	last_infusion[plan.spell.id] = plan.infusion.points.duplicate()
+
+
+## Put back the remembered infusion of [param plan]'s spell, clamped by
+## [method clamp_infusion]. Nothing remembered leaves the plan as it is.
+func restore_infusion(plan: MagicAttackPlan) -> void:
+	if plan.spell == null or not last_infusion.has(plan.spell.id):
+		return
+	var kept := clamp_infusion(plan.spell, plan.attacker, last_infusion[plan.spell.id])
+	for id in plan.infusion.points.keys():
+		if not kept.has(id):
+			plan.set_infusion(id, 0)
+	for id in kept:
+		plan.set_infusion(id, kept[id])
+
+
+## [param points] (`{concept id: points}`) cut to what [param attacker] may
+## spend on one cast of [param spell] today, in entry order: refused concepts
+## dropped, each entry capped by its `<concept>_aspect`, then by what is left of
+## `min(infusion_points, infusion_capacity)`, and no more entries than
+## `infusion_slots`. Its [method MagicAttackPlan.aspect_overrun] is 0.
+static func clamp_infusion(spell: SpellDef, attacker: Entity,
+		points: Dictionary) -> Dictionary[StringName, int]:
+	var out: Dictionary[StringName, int] = {}
+	var slots := AspectCurrency.cap_of(attacker, &"infusion_slots")
+	var depth := AspectCurrency.cap_of(attacker, &"infusion_points")
+	if spell != null and not is_inf(spell.infusion_capacity):
+		depth = mini(depth, maxi(0, floori(spell.infusion_capacity)))
+	for key in points:
+		var id := StringName(key)
+		if out.size() >= slots or depth <= 0:
+			break
+		if Infusion.rate_of(spell, id) <= 0.0:
+			continue
+		var pts := mini(int(points[key]), AspectCurrency.cap_of(attacker, AspectCurrency.stat_of(id)))
+		pts = mini(pts, depth)
+		if pts <= 0:
+			continue
+		out[id] = pts
+		depth -= pts
+	return out
 
 
 ## The armed plan's mode, or NONE when no attack level holds one.
