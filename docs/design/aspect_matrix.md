@@ -224,7 +224,7 @@ Each cell links its cell issue (`<Concept> × <Facet>`, a child of the row hub i
 | Greed | status magnet | `greed_aspect` | #1422 | #1423 | #1424 | #1250 | row: #1419 (child 0: the landing term, #1420, Ready; Hoard #1421, Ready). One Greed stack on the node doubles every negative status the next hit lands, Greed included, then one stack is spent; Hoard pays bonus XP per stack left when an attack removes the node (rounds 5–6) |
 | Explosive | AoE | `explosive_aspect` | #1398 | #1399 — detonation kills the blade node, reuses spike-pop plumbing (owner, #1211) | #1400 (or none) | #1250 | row: #1211. Euclidean hitscan radius from `SkillNode.radius`; barrels / friendly fire open (#1399). The concept names the content, never the reverse (owner, 2026-10-05): *"an explosive barrel blast would at best do an *explosive* (as a concept) blast, not an "explosive arrow blast" literally cuz it's not like *arrows* determine the concept but the concept determines arrows+addons+spells etc."* — so the addon is an `ExplosiveBarrelAddon` doing the explosive blast. A detonated blade node is *damaged*, and today that means popped: *"so far we put their HP on 1 so they pop after taking 1 dmg"* (owner, 2026-10-05). `spells.md`'s Detonate / Supernova are its spell (#1400) |
 | Bleeding | wound, exertion | `bleeding_aspect` | #1436 | #1437 — Spike Ring refit, with #1369 | #1438 | #1250 | row: #1434 (child 0: the status + origin set, #1435). Promoted 2026-10-06. **Round 10 (owner, 2026-10-06) replaces round 9's conditional tick:** a node in an attack's origin set has its stacks ×`exert_growth` (2) **at launch**; every turn end the row pays ⌈stacks × `bleed_rate` (½)⌉ flat HP, then decays on a ramp (−1, −2, −3 … while not exerting; exertion resets it). A core exerts by *moving*, once per turn, never by attacking. Dealloc or death spills ⌊S/(N+M)⌋ to each owned neighbour, the unallocated shares soak away. STR: the price of exertion. Edgelord's **Bleeding Edge** jab takes a new name (#1449) |
-| Hex | jinx, crit taken | `hex_aspect` | #1441 | #1442 | #1443 — the shipped spell `hex` (Curse payload) is renamed or repointed | #1250 | row: #1439 (child 0: the status, #1440). INT's slot (owner, 2026-10-06, round 9). The defender side of crit: per stack, hits *against* the node crit more often, a % on the saturating curve (Blindness / Weakness shape); attacker-side `crit_chance` / `crit_multiplier` stay DEX's native stats, never an aspect. The crit roll must open for a hexed target even when the attacker's board holds no crit investment (#1280's stream note) |
+| Hex | jinx, crit taken | `hex_aspect` | #1441 | #1442 | #1443 — the shipped spell `hex` (Curse payload) is renamed or repointed | #1250 | row: #1439 (child 0: the status, #1440). INT's slot (owner, 2026-10-06, round 9). The defender side of crit: per stack, hits *against* the node crit more often, a % on the saturating curve (Blindness / Weakness shape) — **Hex pass (owner, 2026-10-07): flat +5% per stack for now, past 100% is #197; authored as `incoming_modifiers` on the status**; attacker-side `crit_chance` / `crit_multiplier` stay DEX's native stats, never an aspect. The crit roll must open for a hexed target even when the attacker's board holds no crit investment (#1280's stream note) |
 
 ## Rows designed in #1318
 
@@ -728,6 +728,23 @@ damage to every turn, and the flag died.
 - **Open, parked:** Poison's own dealloc question (owner: *"whether we should let
   it stick on deallocation or clear it, and if not clearing, then the default
   unowned node ticking"*) — Poison row, not here.
+
+**Owner calls, 2026-10-07 (Hex in its `/swarmify` pass, #1440).**
+- **Flat, not a curve, for now.** Owner: *"I think a flat increase in crit% would
+  be best for now. Like 5% or so. At 21 stacks would be 105%, which in current
+  system is a guaranteed crit"*. This replaces round 9's saturating curve for Hex;
+  what past 100% means (a chance of a double crit) is #197, pulled into this
+  milestone.
+- **The term is an overlay, authored on the status.** Owner: *"the readout could
+  simply use an `overlay` … set up to include a ADD BONUS … mod based on the
+  defender's stacks"*; node and entity stacks sum. A status declares
+  `incoming_modifiers` (a stat an attacker reads differently against its host),
+  so nothing in the attack code names Hex. Chance only; no `crit_multiplier`
+  term. A `crit_chance_taken` stat is the later path (*"if we ever want to tune
+  more of this it warrants a new stat for sure"*).
+- **Decay: flat −1, and a crit taken spends the hex** (×½, a knob). Owner:
+  *"stacks doing crit-buildups then reducing … on trigger is a game-sense
+  classic"* (#1454). Greed's landing term gets its own rethink (#1459).
 
 ## Twist library
 
