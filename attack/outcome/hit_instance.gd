@@ -240,7 +240,7 @@ var hit_key: int = 0
 ## Land-time ownership recheck, a mask over [enum SkillNode.Ownership]: at
 ## land the receiving node's [method NodeCombat.ownership_bit] to
 ## [member attacker] must intersect it, else [method rider_gated] duds the
-## hit. `0` = no recheck. A [SplashEffect] copy sets HOSTILE. Never shipped:
+## hit. `0` = no recheck. A [SplashEffect] copy sets its [member SplashEffect.ownership_filter]. Never shipped:
 ## decided once, on the authority's resolve.
 var land_mask: int = 0
 
