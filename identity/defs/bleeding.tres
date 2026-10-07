@@ -7,4 +7,4 @@ script = ExtResource("1_identity")
 id = &"bleeding"
 noun = "Bleeding"
 kind = 0
-tint = Color(0.78, 0.06, 0.12, 1)
+tint = Color(0.5, 0.02, 0.08, 1)
