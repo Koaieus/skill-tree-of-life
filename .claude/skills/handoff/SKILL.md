@@ -151,7 +151,7 @@ And the two rules that keep the file honest:
   a one-shot continuation file per §5. Picking up a swarm that is still
   *running* — drones in flight, worktrees open, merges pending — is
   `relief`'s job (`.claude/skills/relief/SKILL.md`). Relief reads a
-  *continuous* briefing kept live at `docs/handoffs/swarm-<start-date>.md`,
+  *continuous* briefing kept live at `docs/handoffs/swarm-<date>-<HHMM>.md` (found by `mise run ledger -- show`),
   updated by `swarm` on every dispatch/report/merge — not a one-shot file
   written at the end. Same directory as §5, but gitignored and deleted at
   the run's teardown — a different cadence and a different lifecycle.
