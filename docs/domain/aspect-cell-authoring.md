@@ -52,13 +52,13 @@ distinct mint stats, order invariants, own scene per statused type),
 
 `RangedDamageFormula.riders_for` builds one `HitLanding` per arrow (paired to
 it, so a gated arrow duds every rider) and runs each effect; the riders are
-appended right after the arrow in the outcome (the coordinator reads them by
-that adjacency). What an arrow may carry:
+appended right after the arrow in the outcome; the arrow takes the landing's
+`hit_key`, and the coordinator finds its riders by that key (`riders_of`). What an arrow may carry:
 
 | effect | what it gives an arrow | example |
 |---|---|---|
 | `ApplyStatusEffect` | `def` + `power` stacks on the landed node, folded through the read node's `<family>_stacks_per_hit` | every statused arrow |
-| `SplashEffect` | wraps one `inner` effect and re-runs it on every node in its `reach` (today only `TARGET_AND_HOSTILE_NEIGHBOURS`); each copy keeps the arrow's hit key and pairing, and a splashed status re-checks hostility at land (`require_hostile`) | blindness's flare |
+| `SplashEffect` | wraps one `inner` effect and re-runs it on every node in its `reach` (today only `TARGET_AND_HOSTILE_NEIGHBOURS`); each copy keeps the arrow's hit key and pairing, and a splashed status re-checks hostility at land (`land_mask = HOSTILE`, ADR 0049) | blindness's flare |
 | `OnHitEffect.status_def()` | the seam a wrapper answers through, so `AmmoType.first_status_def()` (tint, card swatch, scout check) never type-switches; a new wrapper overrides it | `SplashEffect` |
 
 **Not on the shelf:** `DamageEffect`, `HealEffect` and `ScaleDamageEffect`

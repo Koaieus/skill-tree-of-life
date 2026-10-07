@@ -1,11 +1,11 @@
 ---
 id: 0044
 title: One on-hit vocabulary for every attack mode — an OnHitEffect reads a mode-agnostic HitLanding, and a rider status is gated by the hit it is paired with
-status: accepted
+status: superseded
 date: 2026-10-03
 deciders: owner+agent
 supersedes: []
-superseded-by: null
+superseded-by: 0049
 revisit-when: "A mode needs an on-hit fact HitLanding cannot carry without a mode flag, or a rider must gate on something other than its paired hit landing"
 sources:
   - "#1251"
