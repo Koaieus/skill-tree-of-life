@@ -222,6 +222,46 @@ var gated: bool = false
 
 
 
+## The primary hit this one rides on — an arrow's damage hit, a blade
+## contact — or null for a hit nothing gates (a spell's, a primary's own). A
+## rider of any kind: [method rider_gated] duds it iff [method landed] says
+## the paired hit did not land (ADR 0049). Never shipped by [AttackRecord]:
+## the authority already decided the gate, so a rebuilt hit has
+## [code]paired == null[/code] and lands its recorded number.
+var paired: HitInstance = null
+
+## The landing this hit belongs to ([member HitLanding.hit_key]): an arrow
+## and every rider it emitted share one key, so "the riders of arrow i" are
+## the later hits sharing its key, and [method StatusHost.greed_arm] spends
+## once per landing. Shipped by [AttackRecord] on every hit. `0` is "no
+## landing behind it" (a bare arrow, a hand-built hit) and never matches.
+var hit_key: int = 0
+
+## Land-time ownership recheck, a mask over [enum SkillNode.Ownership]: at
+## land the receiving node's [method NodeCombat.ownership_bit] to
+## [member attacker] must intersect it, else [method rider_gated] duds the
+## hit. `0` = no recheck. A [SplashEffect] copy sets HOSTILE. Never shipped:
+## decided once, on the authority's resolve.
+var land_mask: int = 0
+
+## Set by [method AttackRecord.rebuild] on every hit: the authority already
+## decided this hit's land-time gate, so [method rider_gated]'s mask clause
+## never re-reads ownership on a replay.
+var land_resolved: bool = false
+
+
+## The one rider gate both [method StatusInstance.land_on] and
+## [method DamageInstance.land_on] consult first: true iff [member paired]
+## did not land, or [member land_mask] is set, the hit is not
+## [member land_resolved], and [param node]'s ownership bit to
+## [member attacker] misses the mask. Reports only — each caller duds itself.
+func rider_gated(node: NodeCombat) -> bool:
+	if paired != null and not paired.landed():
+		return true
+	return land_mask != 0 and not land_resolved \
+			and (node.ownership_bit(attacker) & land_mask) == 0
+
+
 ## Whether this hit actually landed — what a [StatusInstance] riding it
 ## ([member StatusInstance.paired]) gates on. Base: not vetoed by its mode's
 ## land-time gate ([member gated]). A mode whose refusal is not a dud

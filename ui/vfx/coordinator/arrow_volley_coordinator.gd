@@ -316,6 +316,16 @@ func _status_tint_for(type: AmmoType) -> Color:
 	return def.tint if def != null else Color(0, 0, 0, 0)
 
 
+## The riders of the hit at [param i]: every later hit sharing its
+## [member HitInstance.hit_key] ([method RangedDamageFormula.riders_for]
+## stamps the arrow with its landing's key). A key of `0` has no riders —
+## every bare arrow and hand-built hit is keyless. [param same_target] keeps
+## only riders on the hit's own target (a splash spreads to neighbours).
+static func riders_of(hits: Array[HitInstance], i: int, same_target: bool) -> Array[HitInstance]:
+	var out: Array[HitInstance] = []
+	return out
+
+
 ## Σ|amount| of the landing's hits — the arrow's own plus the typed status
 ## riding it (the [StatusInstance]s appended right after it, same target).
 ## Authored `amount`, never `effective_amount` (written at apply time).

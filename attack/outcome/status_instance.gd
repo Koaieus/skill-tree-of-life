@@ -45,23 +45,6 @@ var power_resolved: bool = false
 enum HostKind { NODE, ENTITY }
 var host_kind: HostKind = HostKind.NODE
 
-## The primary hit this status rides on — an arrow's damage hit, a blade
-## contact — or null for one nothing gates (a spell's). The one rider gate
-## (ADR 0044): [method land_on] applies the status iff [method
-## HitInstance.landed] says the paired hit landed, else it lands as a power-0
-## dud flagged [member HitInstance.gated]. Never shipped by [AttackRecord]
-## and deliberately so: the authority already decided the gate, so a peer's
-## rebuilt status has [code]paired == null[/code] and lands its recorded
-## power (a dud's recorded 0, which [method NodeCombat.apply_status] ignores).
-var paired: HitInstance = null
-
-## The hit this status rode in on ([member HitLanding.hit_key]) — what
-## [method StatusHost.greed_arm] answers once per hit. Shipped by
-## [AttackRecord] so a replay spends on the same hit the shadow did; `0` (a
-## hand-built instance, no landing) is a fresh hit every time.
-var hit_key: int = 0
-
-
 ## Set on a rider a [SplashEffect] spread onto a neighbour: at land the
 ## receiving node must still be HOSTILE to [member HitInstance.attacker] in the
 ## landing world, else the rider is a power-0 dud flagged
