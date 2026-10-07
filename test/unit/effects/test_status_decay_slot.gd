@@ -20,6 +20,7 @@ const _DESCRIPTIONS := {
 	&"wither": "Every stack cuts healing on this node by 10%; past 10 stacks healing becomes damage that never closes the regen gate. A quarter of the stacks fade each turn and they never cap.",
 	&"weakness": "Attacks from the node deal less damage; deep weakness needs steady reapplication to hold.",
 	&"greed": "The node's next hit lands its negative statuses doubled, and each such hit spends one stack. Greed never fades on its own.",
+	&"hex": "Every stack adds a flat bonus to the crit chance of any hit landing on this node, after the attacker's own increases; a core's hex counts for every node its owner holds. Stacks fall by 1 each turn.",
 }
 
 

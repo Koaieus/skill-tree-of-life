@@ -8,5 +8,5 @@ script = ExtResource("1_identity")
 id = &"hex"
 noun = "Hex"
 kind = 0
-tint = Color(0.95, 0.15, 0.2, 1)
+tint = Color(1, 0.4, 1, 1)
 icon = ExtResource("2_icon")
