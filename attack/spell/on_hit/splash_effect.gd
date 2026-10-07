@@ -25,6 +25,8 @@ enum Reach {
 
 @export var inner: OnHitEffect = null
 @export var reach: Reach = Reach.TARGET_AND_HOSTILE_NEIGHBOURS
+@export_flags("Neutral:1", "Mine:2", "Ally:4", "Hostile:8", "Friendly:6", "Allocated:14", "Any:15") var ownership_filter: int = 8
+@export var range_finder: RangeFinder
 
 
 func apply(landing: HitLanding) -> void:
