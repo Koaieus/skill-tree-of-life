@@ -25,7 +25,7 @@ var target: SkillNode = null
 var structural_key: float = 0.0
 ## The primary hit this landing rides on — the arrow's damage hit, the blade
 ## contact — or null when nothing gates it (a spell). An emitted
-## [StatusInstance] carries it as [member StatusInstance.paired], which
+## [StatusInstance] carries it as [member HitInstance.paired], which
 ## gates whether it applies.
 var paired: HitInstance = null
 ## The sink: every [HitInstance] an effect emits is appended here, in order.
@@ -33,7 +33,7 @@ var paired: HitInstance = null
 var hits: Array[HitInstance] = []
 ## Which hit this is — unique per landing, process-wide monotonic from 1;
 ## equality is the only thing anyone reads, never order. Every rider the
-## landing emits carries it as [member StatusInstance.hit_key], so a host can
+## landing emits carries it as [member HitInstance.hit_key], so a host can
 ## tell "another rider of a hit I already answered" from "a new hit" (Greed's
 ## one spend per hit, [method StatusHost.greed_arm]).
 var hit_key: int = 0

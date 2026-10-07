@@ -59,6 +59,6 @@ func land_on(node: NodeCombat, world: CombatWorld) -> void:
 
 ## Melee's refusal is not a dud (#502 — [member HitInstance.gated] stays
 ## false), so the paired gate is the admission itself: a refused contact
-## lands its riders as power-0 duds ([member StatusInstance.paired]).
+## lands its riders as power-0 duds ([member HitInstance.paired]).
 func landed() -> bool:
 	return admitted

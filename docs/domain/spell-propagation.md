@@ -281,7 +281,7 @@ departure (`PropagationFilter`, `PropagationSpread`).
 
 ```gdscript
 class_name LandingContext
-extends HitLanding   # inherits attacker, source, origin, target, structural_key, paired, hits (ADR 0044)
+extends HitLanding   # inherits attacker, source, origin, target, structural_key, paired, hits (ADR 0049)
 
 var cast: PropagationContext   # the per-cast ledger this landing belongs to
 var node: SkillNode            # the landed node — `from` on departure, `target` on arrival

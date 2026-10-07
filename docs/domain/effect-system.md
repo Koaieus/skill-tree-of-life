@@ -22,7 +22,7 @@ Two different things that both end in "Effect". They are siblings, not a hierarc
 `hits` sink), so the same effect works on a spell, an arrow and a blade. An
 effect that needs spell context extends `SpellOnHitEffect` (narrows to
 `LandingContext`). A status rides `HitLanding.paired`, and
-`StatusInstance.paired` gates it: no landed paired hit, no status.
+`HitInstance.paired` gates it (`rider_gated`): no landed paired hit, no status.
 A spell's status is not authored here but emitted by its `SpellAffinity` list via `Infusion.riders` (ADR 0047).
 
 ## Composition, not a subclass zoo
