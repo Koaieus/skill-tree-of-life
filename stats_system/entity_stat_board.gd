@@ -165,9 +165,11 @@ extends StatBoard
 ## it is uncopyable by construction (see docs/domain/loot-system.md).
 @export var core_kill_xp: ScalarStat
 ## The victim-side scale on what a removed node pays its killer. Base 0: the
-## per-node rate (plus the core bonus on the core) enters as an overlay
-## `base_add` at [method LootSystem._node_payout]; Greed's Avarice plants an
-## INCREASE here, on a node (that node) or on the entity (every node's read).
+## per-node rate enters as an overlay `base_add` on a node's read
+## ([method LootSystem._node_payout]), the core kill bonus on this board's read
+## alone ([method LootSystem._entity_payout]); Greed's Avarice plants an
+## INCREASE here, on a node (that node) or on the entity (every node's read,
+## and the bonus).
 @export var bounty: ScalarStat
 
 @export_group( "Allocation")

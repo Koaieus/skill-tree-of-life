@@ -93,9 +93,10 @@ extends Node
 ##   XP = xp_per_node_killed × |nodes this attack removed, core included|
 ##        + (victim.stat_board.core_kill_xp.value, only if the core died)
 ##
-## — each node's share then scaled by the victim-side `bounty` stat (Avarice,
-## #1421): [method _node_payout] is the fold, and at zero `bounty` modifiers
-## it is exactly the line above.
+## — each node's share then scaled by its local `bounty` read (node + entity
+## modifiers, [method _node_payout]) and the core bonus by the entity board's
+## `bounty` alone ([method _entity_payout]); at zero `bounty` modifiers it is
+## exactly the line above. Greed's Avarice face plants those modifiers.
 ##
 ## #774 (owner, 2026-09-07): "no more killing entity that has many nodes makes
 ## those nodes count for more XP, it just muddies the calculations" — a node is
@@ -283,7 +284,10 @@ func _resolve_killer(victim: Entity) -> Entity:
 ## gates ONLY the core bonus, read live off `victim.stat_board.core_kill_xp` so
 ## a modifier can move it. The count-only form, for [method preview_kill_xp]:
 ## it cannot see per-node `bounty`, so it omits Avarice. A real payout prices
-## each node through [method _node_payout] — the one home of the fold.
+## each node through [method _node_payout] and the bonus through
+## [method _entity_payout] — a known mirror of this arithmetic. Never duplicate
+## it anywhere else — a third copy is exactly the parallel-mirrors shape
+## `.claude/rules/no-parallel-mirrors` forbids.
 func _kill_xp_total(removed_node_count: int, kills_entity: bool, victim: Entity) -> float:
 	var total := xp_per_node_killed * float(removed_node_count)
 	if kills_entity:
@@ -321,27 +325,43 @@ func _award_kill_xp(victim: Entity, killer: Entity) -> void:
 	if award_xp_on_node_kill:
 		for n in ledger:
 			unpaid.erase(n)
-	var total := 0.0
+	# The core node is a node: it pays the per-node rate through its own read.
+	# The kill bonus is the ENTITY's, read at entity scope — a node's Greed
+	# never scales it. The core never sits in the ledger (a live cascade islands
+	# nodes FROM the core; the death wave's trickle bails on `is_dead`), so the
+	# bonus is never pre-paid.
+	var total := _entity_payout(victim, victim.stat_board.core_kill_xp.value)
 	for n in unpaid:
-		var base := xp_per_node_killed
-		if n == victim.core_location:
-			base += victim.stat_board.core_kill_xp.value
-		total += _node_payout(n, base)
+		total += _node_payout(n, xp_per_node_killed)
 	_grant_xp(killer, total)
 
 
-## What removing [param node] pays: [param base] (the per-node rate, plus the
-## core bonus on the core) as an overlay `base_add` on the node's local
-## `bounty` read, so every `bounty` modifier — a node's own Greed, or its
-## owner's entity-wide one — scales it. Read pre-strip: the node must still be
-## owned for its owner's board to fold in. Never null: with no `bounty` on
-## either board the authored base stands.
+## What removing [param node] pays: [param base] (the per-node rate) as an
+## overlay `base_add` on the node's local `bounty` read, so every `bounty`
+## modifier — a node's own Greed, or its owner's entity-wide one — scales it.
+## Read pre-strip: the node must still be owned for its owner's board to fold
+## in. Never null: with no `bounty` on either board the authored base stands.
+## A known mirror of [method _kill_xp_total]'s count-only arithmetic — change
+## the two together.
 func _node_payout(node: SkillNode, base: float) -> float:
+	var v: Variant = node.get_local_value_with(&"bounty", _base_overlay(base))
+	return base if v == null else float(v)
+
+
+## The entity-scope twin of [method _node_payout]: what the kill itself pays
+## ([param base], the core bonus) as an overlay `base_add` on the ENTITY
+## board's `bounty` alone — only entity-hosted modifiers scale it, never a
+## node's. Read in the dying phase, before the entity's status rows release.
+func _entity_payout(victim: Entity, base: float) -> float:
+	var s: Stat = victim.stat_board.get_stat(&"bounty")
+	return base if s == null else float(s.get_value_with(_base_overlay(base)))
+
+
+func _base_overlay(base: float) -> Array[ModifierBins]:
 	var o := ModifierBins.new()
 	o.base_add = base
 	var overlays: Array[ModifierBins] = [o]
-	var v: Variant = node.get_local_value_with(&"bounty", overlays)
-	return base if v == null else float(v)
+	return overlays
 
 
 # ── #888: Tempo award ─────────────────────────────────────────────────────────
