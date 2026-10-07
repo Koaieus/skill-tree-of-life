@@ -38,7 +38,7 @@ tray's ammo cards and `AIController._compose_volley` iterate the roster.
 | | `max_stock` | the type's own bank cap, outside the shared quiver capacity (ADR 0041) |
 | | `per_reload_stat_id` | `<concept>_aspect` |
 | effect | `on_hit_effects` | `OnHitEffect` riders run in order on every landing arrow — usually one `ApplyStatusEffect` of the concept's `effects/status/<concept>.tres`, its `power` the stacks per landing arrow before potency × (1 − resistance). Spell-only effects (`SpellOnHitEffect`) are refused at load. A scout type is one `ApplyStatusEffect(scouted.tres)` rider with `damage_scale` 0 (`AmmoType.is_scout()`) |
-| looks | — | **none per type today**: nothing in flight reads the `AmmoType`; the card text comes from `AmmoCard.effect_line`. A per-type look is an open fork (an `AmmoType` tint vs the volley coordinator reading `first_status_def().tint`) |
+| looks | `visual_scene` | the type's own inherited scene of `ui/vfx/projectile/visual/status_arrow.tscn` under `ui/vfx/projectile/visual/arrows/<concept>_arrow.tscn`, picked per shot by `ArrowVolleyCoordinator` (#1351, #1352). A bespoke look adds a `.gd` extending `StatusArrow` (`poison_arrow.gd` is the example); every arrow's look is in `docs/design/aspect_matrix.md` § Arrow faces. `test_ammo_type_roster.gd` requires a statused type to fly its own scene |
 
 Guards: `test/unit/attack/test_ammo_type_roster.gd` (roster vs disk, ids,
 distinct mint stats, order invariants) and `test_reload_command.gd`.
