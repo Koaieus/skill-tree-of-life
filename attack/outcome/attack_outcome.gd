@@ -81,6 +81,13 @@ var schedule: OutcomeSchedule = null
 ## [member SkillNode.stable_id]. Serializing this type is its own unit.
 var resolve_seed: int = 0
 
+## The crit stream a FRESH resolve lands under ([method CritRoll.stream_for]
+## of [member resolve_seed]): [method OutcomeApplier.land_one] draws each hit's
+## crit from it as that hit lands, reading the landing world. Null on a rebuilt
+## [AttackRecord] — a replay lands the recorded crit and never draws. Local,
+## never on the wire.
+var crit_stream: RandomNumberGenerator = null
+
 
 ## [member hits] filtered to [constant HitInstance.Kind.DAMAGE] and cast —
 ## the "accepted cost" of unifying hits/heals into one list (#381). Reads
