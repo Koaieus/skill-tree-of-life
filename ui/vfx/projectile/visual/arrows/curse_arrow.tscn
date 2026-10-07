@@ -1,5 +1,30 @@
 [gd_scene format=3]
 
 [ext_resource type="PackedScene" path="res://ui/vfx/projectile/visual/status_arrow.tscn" id="1_base"]
+[ext_resource type="PackedScene" path="res://ui/vfx/projectile/visual/arrow_parts/arrow_impact_sprite.tscn" id="2_sprite"]
+
+[sub_resource type="Curve" id="Curve_contract"]
+_data = [Vector2(0, 1), 0.0, -0.4, 0, 0, Vector2(1, 0.08), -2.2, 0.0, 0, 0]
+point_count = 2
+
+[sub_resource type="Curve" id="Curve_contract_alpha"]
+_data = [Vector2(0, 0), 0.0, 0.0, 0, 0, Vector2(0.15, 0.9), 0.0, 0.0, 0, 0, Vector2(1, 0), 0.0, 0.0, 0, 0]
+point_count = 3
 
 [node name="CurseArrow" instance=ExtResource("1_base")]
+
+[node name="Trail" parent="."]
+tier = 0
+density = 0.5
+
+[node name="Tip" parent="."]
+tier = 0
+
+[node name="Contract" parent="." instance=ExtResource("2_sprite")]
+anchor = 1
+lifetime = 0.7
+size = 28.0
+ring_width = 2.0
+scale_curve = SubResource("Curve_contract")
+alpha_curve = SubResource("Curve_contract_alpha")
+tier = 0
