@@ -15,13 +15,37 @@ enum Anchor {
 	NODE,
 }
 
+## What is drawn when there is no [member texture].
+enum Shape {
+	## A circle of [member ring_width]; [member scale_curve] is its radius.
+	RING,
+	## An almond eye with a pupil, [member size] its half-width;
+	## [member scale_curve] is the lid opening (0 shut, 1 wide) — a blink.
+	EYE,
+}
+
 @export var texture: Texture2D
+@export var shape: Shape = Shape.RING:
+	set(v):
+		shape = v
+		queue_redraw()
+## [constant Shape.EYE]: lid height at full opening, as a fraction of [member size].
+@export_range(0.1, 1.0, 0.01) var lid_ratio: float = 0.55:
+	set(v):
+		lid_ratio = v
+		queue_redraw()
+## [constant Shape.EYE]: pupil radius, as a fraction of [member size]; hidden
+## while the lids are narrower than half of it.
+@export_range(0.05, 0.6, 0.01) var pupil_ratio: float = 0.22:
+	set(v):
+		pupil_ratio = v
+		queue_redraw()
 @export var anchor: Anchor = Anchor.TIP
 ## Seconds the mark lives — also this part's drain.
 @export_range(0.05, 6.0, 0.01) var lifetime: float = 1.0
 ## Size in world pixels at curve value 1 (the ring's radius, the texture's long side).
 @export_range(1.0, 256.0, 0.5) var size: float = 16.0
-## Ring stroke, world pixels, when there is no texture.
+## Ring / eye-outline stroke, world pixels, when there is no texture.
 @export_range(0.5, 12.0, 0.1) var ring_width: float = 1.5
 ## Scale over normalised lifetime; none = 1 throughout.
 @export var scale_curve: Curve
@@ -74,9 +98,34 @@ func _draw() -> void:
 	var col := ArrowPart.lit(_tint, tier)
 	col.a = a
 	if texture == null:
-		draw_arc(Vector2.ZERO, size * s, 0.0, TAU, 32, col, ring_width, true)
+		if shape == Shape.EYE:
+			_draw_eye(clampf(s, 0.0, 1.0), col)
+		else:
+			draw_arc(Vector2.ZERO, size * s, 0.0, TAU, 32, col, ring_width, true)
 		return
 	var tex_size := texture.get_size()
 	var fit := size * s / maxf(tex_size.x, tex_size.y)
 	var extent := tex_size * fit
 	draw_texture_rect(texture, Rect2(-extent * 0.5, extent), false, col)
+
+
+const _LID_SEGMENTS := 12
+
+
+func _draw_eye(open: float, col: Color) -> void:
+	var lid := size * lid_ratio * open
+	var outline := PackedVector2Array()
+	for i in _LID_SEGMENTS + 1:
+		outline.append(_lid_point(float(i) / _LID_SEGMENTS, -lid))
+	for i in range(_LID_SEGMENTS - 1, -1, -1):
+		outline.append(_lid_point(float(i) / _LID_SEGMENTS, lid))
+	draw_polyline(outline, col, ring_width, true)
+	var pupil := size * pupil_ratio
+	if lid > pupil * 0.5:
+		draw_circle(Vector2.ZERO, minf(pupil, lid), col, true, -1.0, true)
+
+
+## A point on a quadratic lid from the left corner to the right; [param bulge]
+## is the peak offset at the middle (negative = the upper lid).
+func _lid_point(u: float, bulge: float) -> Vector2:
+	return Vector2(lerpf(-size, size, u), bulge * 4.0 * u * (1.0 - u))
