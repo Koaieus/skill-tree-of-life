@@ -83,9 +83,13 @@ func _init() -> void:
 ## node-hosted row on the core stays node-hosted: the hosts never merge.
 ##
 ## Scaling (`docs/domain/effect-system.md` § "Status effects — the DoT model"):
-## `StatusDef.stacks_per_hit(attacker board, power)` — one fold of the
-## attacker's stacks stat with the authored power as its `base_add`; a null
-## attacker, blank id or unknown stat leaves it at the authored power.
+## `StatusDef.stacks_per_hit_at(read slice, power)` — one fold of the stacks
+## stat through [member HitInstance.read_node]'s slice in [param world] (entity
+## bins, that node's local bins, the authored power as `base_add`), so a shadow
+## resolve reads the shadow and a node-local modifier scales only that node's
+## hits. No read node (a hand-built hit) falls back to
+## `StatusDef.stacks_per_hit(attacker board, power)`; a null attacker, blank id
+## or unknown stat leaves it at the authored power.
 ## Resistance is NOT folded here (ADR 0031): the host filters the row at each
 ## apply and tick. The one thing decided at land is the 100% gate — the
 ## RECEIVING host (the landing slice, so a shadow resolve reads the shadow,
@@ -100,7 +104,7 @@ func _init() -> void:
 ## A rebuilt hit's recorded power is already doubled, but it still arms, so
 ## the live host spends the stack the shadow spent. The host is the landing
 ## host: entity Greed is read only on a fall-through, node Greed otherwise.
-func land_on(node: NodeCombat, _world: CombatWorld) -> void:
+func land_on(node: NodeCombat, world: CombatWorld) -> void:
 	if paired != null and not paired.landed():
 		gated = true
 		power = 0.0
@@ -122,7 +126,9 @@ func land_on(node: NodeCombat, _world: CombatWorld) -> void:
 			return
 	if not power_resolved:
 		if def != null:
-			power = def.stacks_per_hit(_attacker_board(), power)
+			var rn: NodeCombat = world.combat_for(read_node) if world != null else null
+			power = def.stacks_per_hit_at(rn, power) if rn != null \
+				else def.stacks_per_hit(_attacker_board(), power)
 			if host.blocks_status(def):
 				power = 0.0
 			if _greed_arms(host):
