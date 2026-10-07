@@ -87,10 +87,14 @@ A spell's status is its **affinity**, not an authored rider:
 
 - `attack/spell/spell_affinity.gd`: `SpellAffinity{status, innate, rate}`. Its `get_description` gives the tooltip's on-arrival line.
 - `attack/spell/spell_def.gd`: `affinities: Array[SpellAffinity]` and `default_rate` (for concepts the list leaves out; 0 refuses them).
-- `attack/spell/infusion.gd`: `Infusion.innate(spell)`, `affinity_of`, `riders`. Riders are one `ApplyStatusEffect` per concept with affinity above 0.
+- `attack/spell/spell_def.gd`: `infusion_capacity` (most points one cast of this spell takes; `INF` = the pool alone caps).
+- `attack/spell/infusion.gd`: `Infusion.innate(spell)` / `for_cast(spell, points)`, `points` (concept id → points), `rate_of`, `affinity_of` = innate + ⌊points × rate⌋, `riders`. Riders are one `ApplyStatusEffect` per concept with affinity above 0; a concept the spell does not list finds its status through `effects/status_roster.gd` (`StatusRoster.by_concept`). `AspectRoster` ranks above `attack`, so it can't serve that lookup. A new `effects/status/*.tres` joins `effects/status_roster.tres` (`test_status_roster.gd` pins it).
+- `attack/aspect_currency.gd`: `AspectCurrency.cap_of(attacker, stat_id)`, the one floored board read behind melee's `currency_cap` and magic's caps; `stat_of(concept)` = `<concept>_aspect`.
+- `attack/plan/magic_attack_plan.gd`: `infusion` (never null; innate after `set_spell`), `set_infusion(id, points)`, `aspect_overrun()` (per-aspect stat + `infusion_slots` + `min(infusion_points, infusion_capacity)` + refused points), the `"infusion"` wire key (only when points are spent; `from_dict` ungated, ADR 0035), and the preview and launch resolves both carry it.
+- `stats_system/defs/infusion_slots.tres` / `infusion_points.tres`: derived on `entity/default_entity_board.tres` from INT. Slots: a threshold ladder at 100 / 1000 / 10000. Points: ⌊√INT⌋.
 - `attack/spell/spell_resolver.gd`: `resolve_against(…, infusion = null)` runs the riders after `on_hit_effects` at every landing.
 
 A status cell's spell lists one `SpellAffinity` for the concept's
 `StatusDef`. It never authors an `ApplyStatusEffect` in `on_hit_effects`.
-`test_aspect_roster.gd` pins this. Cast-time points, `infusion_slots` and
-the wire are #1462.
+`test_aspect_roster.gd` pins this. `test_infusion.gd` pins the cast-time
+arithmetic and the overrun.
