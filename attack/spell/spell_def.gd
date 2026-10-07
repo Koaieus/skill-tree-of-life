@@ -97,6 +97,18 @@ var icon: Texture2D:
 ## the standard first entry via [DamageEffect].
 @export var on_hit_effects: Array[OnHitEffect] = []
 
+## The spell's element list (#1250): per concept, the stacks it lands per hit
+## with no infusion ([member SpellAffinity.innate]) and how it ingests one
+## ([member SpellAffinity.rate]). [Infusion] turns it into one
+## [ApplyStatusEffect] rider per concept, run after [member on_hit_effects] at
+## every landing — a status spell authors its stacks here, never as an
+## [ApplyStatusEffect] in [member on_hit_effects].
+@export var affinities: Array[SpellAffinity] = []
+
+## Ingest ratio for a concept [member affinities] does not list; 0 refuses
+## every unlisted concept.
+@export_range(0.0, 10.0, 0.05, "or_greater") var default_rate: float = 1.0
+
 ## Spell-specific crit conditions. Evaluated per landing in addition to
 ## the universal [code]crit_chance[/code] stat roll. Multiple conditions
 ## run as OR — if ANY returns true, the hit crits. Follows the same
