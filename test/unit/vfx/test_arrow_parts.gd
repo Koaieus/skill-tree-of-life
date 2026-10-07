@@ -126,6 +126,13 @@ func test_the_coordinator_hands_only_this_arrows_non_dud_rider_targets() -> void
 	next_arrow.target = target
 	var next_rider := StatusInstance.new()
 	next_rider.target = nodes[3]
+	# One landing key per arrow: riders are the later hits sharing it.
+	var key := HitLanding.new().hit_key
+	for h in [arrow, landed, dud]:
+		h.hit_key = key
+	var next_key := HitLanding.new().hit_key
+	for h in [next_arrow, next_rider]:
+		h.hit_key = next_key
 	var hits: Array[HitInstance] = [arrow, landed, dud, next_arrow, next_rider]
 	var coord := ArrowVolleyCoordinator.new()
 	add_child_autofree(coord)
