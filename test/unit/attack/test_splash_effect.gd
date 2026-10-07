@@ -1,9 +1,10 @@
 extends GutTest
 
-## The flare (#1390): a [SplashEffect] runs its inner effect on the landed node
-## and once more per direct graph neighbour HOSTILE to the attacker, each copy
-## sharing the arrow's hit key and paired gate. A splashed rider whose node is
-## no longer hostile at land is a dud.
+## The flare: a [SplashEffect] runs its inner effect on the landed node and
+## once more per node its finder gathers whose relation passes its mask —
+## blindness's is one hop, Hostile — each copy sharing the arrow's hit key and
+## paired gate. A splashed rider whose node no longer passes the mask at land
+## is a dud.
 
 const _BLINDNESS_ARROW: AmmoType = preload("res://attack/ammo/types/blindness.tres")
 const _BLINDNESS_DEF_PATH := "res://effects/status/blindness.tres"
@@ -61,6 +62,9 @@ func test_the_wrapped_status_still_names_the_type() -> void:
 	assert_eq(_BLINDNESS_ARROW.first_status_def().resource_path, _BLINDNESS_DEF_PATH,
 			"tint, card badge and roster checks read the status through the wrapper")
 	assert_false(_BLINDNESS_ARROW.is_scout(), "zero damage is never a scout")
+	var text: String = _BLINDNESS_ARROW.on_hit_effects[0].get_description()
+	assert_string_contains(text, "hostile")
+	assert_string_contains(text, "1 hop", "the finder's own description")
 
 
 func test_a_neighbour_no_longer_hostile_at_land_takes_a_dud() -> void:
