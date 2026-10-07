@@ -1,0 +1,31 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" path="res://ui/vfx/projectile/visual/status_arrow.tscn" id="1_base"]
+[ext_resource type="PackedScene" path="res://ui/vfx/projectile/visual/arrow_parts/arrow_impact_sprite.tscn" id="2_sprite"]
+[ext_resource type="Script" path="res://ui/vfx/projectile/visual/arrows/hex_arrow.gd" id="3_eye"]
+
+[sub_resource type="Curve" id="Curve_blink"]
+_data = [Vector2(0, 0), 0.0, 6.0, 0, 0, Vector2(0.2, 1), 0.0, 0.0, 0, 0, Vector2(1, 0.85), 0.0, 0.0, 0, 0]
+point_count = 3
+
+[sub_resource type="Curve" id="Curve_fade"]
+_data = [Vector2(0, 0.6), 0.0, 0.0, 0, 0, Vector2(0.2, 1), 0.0, 0.0, 0, 0, Vector2(0.55, 1), 0.0, 0.0, 0, 0, Vector2(1, 0), 0.0, 0.0, 0, 0]
+point_count = 4
+
+[node name="HexArrow" instance=ExtResource("1_base")]
+
+[node name="Trail" parent="."]
+density = 0.4
+
+[node name="Tip" parent="."]
+pulse_hz = 2.0
+pulse_depth = 0.35
+
+[node name="EyeSigil" parent="." index="3" instance=ExtResource("2_sprite")]
+script = ExtResource("3_eye")
+anchor = 1
+lifetime = 0.9
+size = 16.0
+ring_width = 2.0
+scale_curve = SubResource("Curve_blink")
+alpha_curve = SubResource("Curve_fade")
