@@ -467,6 +467,9 @@ func resolve_against(world: CombatWorld) -> AttackOutcome:
 		if shot.firing_node != null and not firers.has(shot.firing_node):
 			firers.append(shot.firing_node)
 			outcome.hits.append(ExertInstance.at(shot.firing_node, attacker, self))
+	# One gather cache per volley: every splash arrow on one node sweeps the
+	# board once ([member HitLanding.gather_cache]). Dies with this compile.
+	var gather_cache: Dictionary = {}
 	for rank_i in shot_count:
 		var shot: FiringShot = schedule[rank_i]
 		# Exact `<= 0.0`, not is_equal_approx: this guards a DIVISION, and a
@@ -484,7 +487,7 @@ func resolve_against(world: CombatWorld) -> AttackOutcome:
 		# A typed arrow's riders are further hits for the same landing — same
 		# key, appended right after, so they land on the arrow's beat and after
 		# the arrow (the schedule's original-index tiebreak).
-		outcome.hits.append_array(RangedDamageFormula.riders_for(hit))
+		outcome.hits.append_array(RangedDamageFormula.riders_for(hit, gather_cache))
 	# Seconds, once, before anything consumes an order: the landing below
 	# draws the seeded crit stream in landing order, which is the schedule's.
 	outcome.schedule = OutcomeSchedule.compile(outcome)

@@ -13,7 +13,8 @@ extends OnHitEffect
 ## Each extra landing is a copy of the original retargeted at the gathered
 ## node: same [member HitLanding.hit_key] (one hit, so Greed spends once),
 ## same [member HitLanding.paired] (a gated arrow duds every splash), same
-## structural key, and the same [member HitLanding.hits] sink by reference.
+## structural key, and the same [member HitLanding.hits] sink and
+## [member HitLanding.gather_cache] by reference.
 ## The reach is read when the effect runs (plan compile, for an arrow);
 ## whether each node STILL matches the mask is decided at land — every hit a
 ## copy emits carries [member ownership_filter] as its
@@ -70,6 +71,10 @@ func _filter_word() -> String:
 ## attacker's own [EntityNavigator]: an owned-subgraph mirror holds no hostile
 ## node, so a HOSTILE splash would reach nothing. `attacker = null` keeps the
 ## gather unscaled. Empty with no finder or no graph.
+##
+## The gather goes through [member HitLanding.gather_cache], keyed
+## `[target, finder, reach]` and holding the result BEFORE the mask, so a
+## volley's arrows on one node sweep the board once whatever their masks.
 func _reach_of(landing: HitLanding) -> Array[SkillNode]:
 	var out: Array[SkillNode] = []
 	var attacker := landing.attacker
@@ -77,7 +82,12 @@ func _reach_of(landing: HitLanding) -> Array[SkillNode]:
 			or attacker.navigator == null or attacker.navigator.graph == null:
 		return out
 	var mirror: GraphMirror = attacker.navigator.graph.navigator
-	for n in range_finder.gather(landing.target, mirror):
+	var key := [landing.target, range_finder, range_finder.max_reach()]
+	var gathered: Dictionary = landing.gather_cache.get(key, {})
+	if not landing.gather_cache.has(key):
+		gathered = range_finder.gather(landing.target, mirror)
+		landing.gather_cache[key] = gathered
+	for n in gathered:
 		if n != landing.target and n.ownership_bit(attacker) & ownership_filter != 0:
 			out.append(n)
 	return out
@@ -95,5 +105,6 @@ static func _retargeted(landing: HitLanding, node: SkillNode) -> HitLanding:
 	copy.structural_key = landing.structural_key
 	copy.paired = landing.paired
 	copy.hits = landing.hits
+	copy.gather_cache = landing.gather_cache
 	copy.hit_key = landing.hit_key
 	return copy

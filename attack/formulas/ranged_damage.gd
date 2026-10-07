@@ -61,6 +61,10 @@ static func compute(attacker: Entity, firing_node: SkillNode, target: SkillNode,
 ## [member StatusDef.reapply] rule — `ACCUMULATE` on poison is what makes
 ## ranged the poison specialist.
 ##
+## [param gather_cache] becomes the landing's [member HitLanding.gather_cache]:
+## a volley passes one dict to every arrow so splashes on one node sweep once;
+## the default is a fresh dict per call — no sharing.
+##
 ## Rides the wire for free: [AttackRecord] serialises any `Kind.STATUS` hit by
 ## its def's `resource_path`, and a gated dud replays as power 0, which
 ## [method NodeCombat.apply_status] ignores.
