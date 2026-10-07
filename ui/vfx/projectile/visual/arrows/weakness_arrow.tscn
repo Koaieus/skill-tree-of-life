@@ -1,0 +1,26 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" path="res://ui/vfx/projectile/visual/status_arrow.tscn" id="1_base"]
+[ext_resource type="PackedScene" path="res://ui/vfx/projectile/visual/arrow_parts/arrow_impact_sprite.tscn" id="2_thud"]
+
+[sub_resource type="Curve" id="Curve_thud_scale"]
+_data = [Vector2(0, 0.3), 0.0, 0.0, 0, 0, Vector2(1, 1), 0.0, 0.0, 0, 0]
+point_count = 2
+
+[sub_resource type="Curve" id="Curve_thud_alpha"]
+_data = [Vector2(0, 0.9), 0.0, 0.0, 0, 0, Vector2(1, 0), 0.0, 0.0, 0, 0]
+point_count = 2
+
+[node name="WeaknessArrow" instance=ExtResource("1_base")]
+
+[node name="Tip" parent="."]
+shape = 2
+length = 10.0
+width = 12.0
+
+[node name="Thud" parent="." index="3" instance=ExtResource("2_thud")]
+lifetime = 0.4
+size = 22.0
+ring_width = 4.0
+scale_curve = SubResource("Curve_thud_scale")
+alpha_curve = SubResource("Curve_thud_alpha")

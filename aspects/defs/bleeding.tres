@@ -1,12 +1,14 @@
-[gd_resource type="Resource" script_class="Aspect" load_steps=4 format=3]
+[gd_resource type="Resource" script_class="Aspect" load_steps=5 format=3]
 
 [ext_resource type="Script" path="res://aspects/aspect.gd" id="1_aspect"]
 [ext_resource type="Resource" path="res://identity/defs/bleeding.tres" id="2_identity"]
 [ext_resource type="Resource" path="res://stats_system/defs/bleeding_aspect.tres" id="3_stat"]
 [ext_resource type="Resource" path="res://effects/status/bleeding.tres" id="4_status"]
+[ext_resource type="Resource" path="res://attack/ammo/types/bleeding.tres" id="5_ammo"]
 
 [resource]
 script = ExtResource("1_aspect")
 identity = ExtResource("2_identity")
 stat = ExtResource("3_stat")
 status = ExtResource("4_status")
+ammo = ExtResource("5_ammo")

@@ -1,0 +1,42 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" path="res://ui/vfx/projectile/visual/status_arrow.tscn" id="1_base"]
+[ext_resource type="PackedScene" path="res://ui/vfx/projectile/visual/arrow_parts/arrow_impact_sprite.tscn" id="2_gild"]
+
+[sub_resource type="Gradient" id="Gradient_coin"]
+offsets = PackedFloat32Array(0, 0.15, 1)
+colors = PackedColorArray(1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0)
+
+[sub_resource type="GradientTexture1D" id="GradientTexture1D_coin"]
+gradient = SubResource("Gradient_coin")
+
+[sub_resource type="ParticleProcessMaterial" id="ParticleProcessMaterial_coin"]
+particle_flag_disable_z = true
+direction = Vector3(0, 1, 0)
+spread = 60.0
+initial_velocity_min = 6.0
+initial_velocity_max = 16.0
+angular_velocity_min = -360.0
+angular_velocity_max = 360.0
+gravity = Vector3(0, 40, 0)
+scale_min = 0.12
+scale_max = 0.22
+color_ramp = SubResource("GradientTexture1D_coin")
+
+[node name="GreedArrow" instance=ExtResource("1_base")]
+
+[node name="Trail" parent="."]
+process_material = SubResource("ParticleProcessMaterial_coin")
+amount = 5
+lifetime = 0.8
+density = 0.3
+
+[node name="Tip" parent="."]
+tier = 3
+pulse_hz = 3.0
+pulse_depth = 0.3
+
+[node name="Gilding" parent="." index="3" instance=ExtResource("2_gild")]
+lifetime = 0.7
+size = 18.0
+ring_width = 3.0

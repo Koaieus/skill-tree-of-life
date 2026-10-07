@@ -8,7 +8,7 @@ const _ROSTER := preload("res://attack/ammo/ammo_type_roster.tres")
 const _STATS := preload("res://stats_system/stat_def_roster.tres")
 const _DIR := "res://attack/ammo/types"
 const _IDS: Array[StringName] = [&"arrow", &"poison", &"scout", &"corruption",
-		&"curse", &"wither", &"armor_break", &"blindness", &"greed"]
+		&"curse", &"wither", &"armor_break", &"blindness", &"greed", &"weakness", &"bleeding"]
 
 
 func test_roster_covers_every_type_on_disk() -> void:
