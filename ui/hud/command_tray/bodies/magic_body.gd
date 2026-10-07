@@ -39,6 +39,7 @@ const MAX_VISIBLE_ROWS: int = 2
 @onready var _spell_scroll: ScrollContainer = %SpellScroll
 @onready var _reset_button: Button = %ResetButton
 @onready var _launch_button: LaunchAttackButton = %LaunchButton
+@onready var _infusion_row: InfusionRow = %InfusionRow
 
 
 ## Wired here rather than in [method _on_bound] because it is pure layout —
@@ -75,6 +76,7 @@ func _on_bound() -> void:
 
 
 func teardown() -> void:
+	_infusion_row.bind(null)
 	if _armed_stack != null and _armed_stack.selected_spell_changed.is_connected(_spell_bar.sync_selected):
 		_armed_stack.selected_spell_changed.disconnect(_spell_bar.sync_selected)
 	if _armed_stack != null and _armed_stack.attack_plan_state_changed.is_connected(_refresh):
@@ -95,6 +97,7 @@ func _on_can_act_changed(can_act: bool) -> void:
 
 func _refresh() -> void:
 	var plan := _armed_plan() as MagicAttackPlan
+	_infusion_row.bind(plan)
 	# Post-#728 there is no cast-from node until a target is clicked, so this
 	# reads 0 until one is auto-picked. Deliberately NOT "the best degree the
 	# territory offers": _refresh runs on attack_plan_state_changed, which

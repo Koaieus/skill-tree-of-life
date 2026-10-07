@@ -4,6 +4,7 @@
 [ext_resource type="Script" uid="uid://blwjte35hv0dj" path="res://ui/hud/command_tray/bodies/magic_body.gd" id="2_script"]
 [ext_resource type="PackedScene" uid="uid://b5lvy7n8p4qbk" path="res://ui/launch_attack_button/launch_attack_button.tscn" id="3_launch"]
 [ext_resource type="PackedScene" uid="uid://dqlt773tgviy7" path="res://ui/spell_picker_bar/spell_picker_bar.tscn" id="4_spellbar"]
+[ext_resource type="PackedScene" path="res://ui/hud/command_tray/bodies/infusion_row.tscn" id="5_infusion"]
 
 [node name="MagicBody" instance=ExtResource("1_base")]
 script = ExtResource("2_script")
@@ -61,6 +62,10 @@ layout_mode = 2
 size_flags_vertical = 4
 text = "Cast"
 tint = Color(0.291, 0.5892, 1, 1)
+
+[node name="InfusionRow" parent="BodyContent/Content" instance=ExtResource("5_infusion")]
+unique_name_in_owner = true
+layout_mode = 2
 
 [node name="Footer" type="Label" parent="BodyContent/Content" unique_id=2037564272]
 modulate = Color(0.667, 0.714, 0.824, 0.5)
