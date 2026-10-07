@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-#MISE description="Self-test for ledger: a scratch ledger dir, asserts dispatch creates the roster, report/land update the row, a foreign roster header is refused, file resolution picks the live run. `mise run ledger-selftest`"
-import contextlib, importlib.machinery, importlib.util, io, os, sys, tempfile, time
+#MISE description="Self-test for ledger: a scratch ledger dir, asserts dispatch creates the roster, report/land update the row, a foreign roster header is refused, file resolution follows the lead-session lineage (adopt / close). `mise run ledger-selftest`"
+import contextlib, importlib.machinery, importlib.util, io, os, re, sys, tempfile, time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 spec = importlib.util.spec_from_loader("ledger", importlib.machinery.SourceFileLoader("ledger", os.path.join(HERE, "ledger")))
@@ -16,10 +16,18 @@ def check(label, ok):
         failed += 1
 
 
-def run(argv):
+def run(argv, sid=None):
+    """One verb as session `sid` (None: no session id at all)."""
+    if sid is None:
+        os.environ.pop("CLAUDE_CODE_SESSION_ID", None)
+    else:
+        os.environ["CLAUDE_CODE_SESSION_ID"] = sid
     out, err = io.StringIO(), io.StringIO()
     with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
-        code = ld.main(argv)
+        try:
+            code = ld.main(argv)
+        except SystemExit as e:  # argparse on an unknown verb: one red case, not an aborted selftest
+            code = e.code
     return code, out.getvalue() + err.getvalue()
 
 
@@ -28,95 +36,154 @@ def _cell(row, col):
     return [c.strip() for c in row.strip().strip("|").split("|")][hdr.index(col)]
 
 
+def _read(path):
+    """A file's text, "" when it is missing (a red case must fail on its assert, not crash the run)."""
+    return open(path, encoding="utf-8").read() if os.path.isfile(path) else ""
+
+
 def roster_row(path, unit):
-    with open(path) as fh:
-        return next((l for l in fh if l.startswith(f"| {unit} |")), "")
+    return next((l for l in _read(path).split("\n") if l.startswith(f"| {unit} |")), "")
 
 
 handoffs = tempfile.mkdtemp(prefix="ledger-selftest-")
 os.environ["SWARM_LEDGER_DIR"] = handoffs
 os.environ.pop("SWARM_LEDGER", None)
 os.environ["AGENT_COST_PROJECTS_DIR"] = tempfile.mkdtemp(prefix="ledger-selftest-projects-")  # no transcripts: cost cells stay blank
+A, B, C, D = "aaaa1111-full-session", "bbbb2222-full-session", "cccc3333-full-session", "dddd4444-full-session"
+today = time.strftime("%Y-%m-%d")
+
+
+def snapshot():
+    """Every file under the ledger dir (archive/ included) with its content — 'writes nothing' is this unchanged."""
+    snap = {}
+    for root, _, files in os.walk(handoffs):
+        for f in files:
+            p = os.path.join(root, f)
+            snap[os.path.relpath(p, handoffs)] = open(p, encoding="utf-8").read()
+    return snap
+
+
+def ledgers():
+    return sorted(f for f in os.listdir(handoffs) if f.startswith("swarm-") and not f.startswith("swarm-brief-") and f.endswith(".md"))
+
+
+brief = os.path.join(handoffs, f"swarm-brief-{today}.md")
+with open(brief, "w") as fh:
+    fh.write("not a ledger\n")
 
 # --- no ledger yet ---------------------------------------------------------
-code, out = run(["show"])
+code, out = run(["show"], A)
 check("show with no ledger says so and exits 0", code == 0 and "no ledger" in out)
-code, out = run(["report", "1223"])
+code, out = run(["report", "1223"], A)
 check("report with no ledger is a no-op, exit 0", code == 0 and "no ledger" in out)
 
-# --- dispatch creates today's ledger + the row ----------------------------
-code, out = run(["dispatch", "1223", "d1223", "opus"])
-today = time.strftime("%Y-%m-%d")
-path = os.path.join(handoffs, f"swarm-{today}.md")
-check("dispatch creates docs/handoffs/swarm-<today>.md", code == 0 and os.path.exists(path))
+# --- 7. no session id and no $SWARM_LEDGER: nothing is implicit ------------
+before = snapshot()
+code, out = run(["dispatch", "1223", "d1223", "opus"], None)
+check("7. dispatch with no session id writes nothing, exits 0 and says why",
+      code == 0 and snapshot() == before and "session" in out)
+
+# --- 1. A and B dispatch on the same date: two ledgers, one roster each -----
+code, out = run(["dispatch", "1223", "d1223", "opus"], A)
+pa = os.path.join(handoffs, (ledgers() or [""])[0])
+check("1. dispatch as A creates swarm-<today>-<HHMM>.md", code == 0 and len(ledgers()) == 1
+      and re.fullmatch(rf"swarm-{today}-\d{{4}}(-\d+)?\.md", os.path.basename(pa)) is not None)
+check("1. A's ledger header records A's session as its lineage", os.path.exists(pa) and "Lead sessions: aaaa1111" in _read(pa))
+code, out = run(["dispatch", "1500", "d1500", "sonnet"], B)
+pb = os.path.join(handoffs, next((f for f in ledgers() if os.path.join(handoffs, f) != pa), ""))
+check("1. dispatch as B on the same date creates a second, distinct ledger", code == 0 and len(ledgers()) == 2 and os.path.isfile(pb))
+check("1. each roster holds only its own unit",
+      os.path.isfile(pb) and roster_row(pa, "1223") and not roster_row(pa, "1500") and roster_row(pb, "1500") and not roster_row(pb, "1223"))
+
+# --- report / land / note state semantics, as A on A's ledger --------------
+path = pa
 row = roster_row(path, "1223")
 check("dispatch writes the row: drone, tier, dispatched@HH:MM", "| d1223 |" in row and "| opus |" in row and "dispatched@" in row)
-check("dispatch prints the roster after writing (the read is free)", "| 1223 |" in out and ld.HEADER.split("|")[1].strip() in out)
-with open(path) as fh:
-    text = fh.read()
+text = _read(path)
 check("the roster header carries PLAN / STUCK / PULL", all(c in text for c in ("PLAN", "STUCK", "PULL")))
 check("the file keeps a prose section the tool never owns", "## Queue" in text)
-
-# --- a second unit, then report / land update rows in place --------------
-run(["dispatch", "1240", "d1240", "opus", "--note", "fence excludes systems/armed/"])
+code, out = run(["dispatch", "1240", "d1240", "opus", "--note", "fence excludes systems/armed/"], A)
+check("dispatch prints the roster after writing (the read is free)", "| 1240 |" in out and ld.HEADER.split("|")[1].strip() in out)
 check("a note lands in the notes cell", "fence excludes systems/armed/" in roster_row(path, "1240"))
-code, out = run(["report", "1223", "--plan", "--stuck"])
+code, out = run(["report", "1223", "--plan", "--stuck"], A)
 row = roster_row(path, "1223")
 check("report flips state to reported@HH:MM", code == 0 and "reported@" in row and "dispatched@" not in row)
-cells = [c.strip() for c in row.strip().strip("|").split("|")]
-hdr = [c.strip() for c in ld.HEADER.strip().strip("|").split("|")]
 check("report --plan --stuck ticks PLAN and STUCK, leaves PULL blank",
-      cells[hdr.index("PLAN")] == "✓" and cells[hdr.index("STUCK")] == "✓" and cells[hdr.index("PULL")] == "-")
-code, out = run(["land", "1223", "abcdef0123456789"])
+      _cell(row, "PLAN") == "✓" and _cell(row, "STUCK") == "✓" and _cell(row, "PULL") == "-")
+code, out = run(["land", "1223", "abcdef0123456789"], A)
 row = roster_row(path, "1223")
 check("land writes `landed <sha7>`", code == 0 and "landed abcdef0" in row)
 check("the other row is untouched by land", "dispatched@" in roster_row(path, "1240"))
-code, out = run(["report", "1240", "--pull", "--note", "fork: who owns the cursor"])
+code, out = run(["report", "1240", "--pull", "--note", "fork: who owns the cursor"], A)
 row = roster_row(path, "1240")
-check("report --pull ticks PULL and states pulled@", "pulled@" in row and cells is not None and "fork: who owns the cursor" in row)
-code, out = run(["dispatch", "1240", "d1240b", "sonnet"])
+check("report --pull ticks PULL and states pulled@", "pulled@" in row and _cell(row, "PULL") == "✓" and "fork: who owns the cursor" in row)
+code, out = run(["dispatch", "1240", "d1240b", "sonnet"], A)
 row = roster_row(path, "1240")
 check("re-dispatch keeps the row, updates drone/tier, states redispatched@", "| d1240b |" in row and "| sonnet |" in row and "redispatched@" in row)
 check("re-dispatch keeps the earlier note", "fork: who owns the cursor" in row)
 before = roster_row(path, "1240")
-code, out = run(["note", "1240", "idle once"])
+code, out = run(["note", "1240", "idle once"], A)
 row = roster_row(path, "1240")
 check("note appends to the notes cell and leaves the state untouched",
       code == 0 and "idle once" in row and _cell(row, "state") == _cell(before, "state"))
-code, out = run(["report", "9999"])
-check("report on a unit never dispatched is a no-op that says so", code == 0 and "no row" in out and "| 9999 |" not in open(path).read())
-check("unit count stays two", open(path).read().count("\n| 1") == 2)
+code, out = run(["report", "9999"], A)
+check("report on a unit never dispatched is a no-op that says so", code == 0 and "no row" in out and "| 9999 |" not in _read(path))
+check("unit count stays two", _read(path).count("\n| 1") == 2)
 
-# --- file resolution: a run spanning midnight, an old run ignored ---------
-for f in os.listdir(handoffs):
-    os.remove(os.path.join(handoffs, f))
-yesterday = time.strftime("%Y-%m-%d", time.localtime(time.time() - 86400))
-recent = os.path.join(handoffs, f"swarm-{yesterday}.md")
-with open(recent, "w") as fh:
-    fh.write(ld.new_ledger(yesterday))
-stale = os.path.join(handoffs, "swarm-2026-01-01.md")
-with open(stale, "w") as fh:
-    fh.write(ld.new_ledger("2026-01-01"))
-os.utime(stale, (time.time() - 10 * 86400, time.time() - 10 * 86400))
-brief = os.path.join(handoffs, f"swarm-brief-{today}.md")
-with open(brief, "w") as fh:
-    fh.write("not a ledger\n")
-check("resolve picks yesterday's live run over creating a new file", ld.resolve(create=False) == recent)
-run(["dispatch", "1301", "d1301", "opus"])
-check("dispatch appends to the live run, not a new file", "| 1301 |" in open(recent).read() and not os.path.exists(os.path.join(handoffs, f"swarm-{today}.md")))
-os.utime(recent, (time.time() - 3 * 86400, time.time() - 3 * 86400))
-check("a run last touched 3 days ago is not live: resolve returns None", ld.resolve(create=False) is None)
-check("a swarm-brief-*.md is never mistaken for a ledger", ld.resolve(create=False) is None)
+# --- 2. show is per session -------------------------------------------------
+code, out = run(["show"], A)
+check("2. show as A prints A's rows and none of B's", code == 0 and "| 1223 |" in out and "| 1500 |" not in out)
+
+# --- 3. show as a session with no ledger lists the live ones ---------------
+before = snapshot()
+code, out = run(["show"], C)
+check("3. show as C says no ledger for this session, exits 0", code == 0 and "no ledger for this session" in out)
+check("3. ... and lists both live ledgers with their lineage",
+      os.path.basename(pa) in out and os.path.basename(pb) in out and "aaaa1111" in out and "bbbb2222" in out)
+check("3. ... never lists a swarm-brief-*.md, and writes nothing", os.path.basename(brief) not in out and snapshot() == before)
+
+# --- 4. adopt --from: C joins A's lineage, both write there -----------------
+code, out = run(["adopt", "--from", "aaaa1111"], C)
+check("4. adopt --from A puts C in A's lineage (A kept)", code == 0 and re.search(r"Lead sessions: aaaa1111, cccc3333", _read(pa)) is not None)
+run(["report", "1240", "--note", "relief collected"], C)
+run(["land", "1240", "1234567abcdef"], C)
+check("4. C's report/land edit A's file", "landed 1234567" in roster_row(pa, "1240") and "relief collected" in roster_row(pa, "1240"))
+run(["note", "1223", "outgoing still draining"], A)
+check("4. A's note still lands in the same file", "outgoing still draining" in roster_row(pa, "1223"))
+check("4. B's file is untouched by C", "| 1240 |" not in _read(pb))
+
+# --- 5. bare adopt with two live ledgers refuses ----------------------------
+before = snapshot()
+code, out = run(["adopt"], D)
+check("5. bare adopt as D with two live ledgers refuses: exit 0, lists both, nothing changed",
+      code == 0 and os.path.basename(pa) in out and os.path.basename(pb) in out and snapshot() == before)
+
+# --- 6. close archives under the same basename ------------------------------
+pb_text = _read(pb)
+code, out = run(["close"], A)
+archived = os.path.join(handoffs, "archive", os.path.basename(pa))
+check("6. close as A moves the ledger to archive/<same basename>", code == 0 and not os.path.exists(pa) and os.path.isfile(archived))
+code, out = run(["show"], A)
+check("6. show as A then says no ledger for this session", code == 0 and "no ledger for this session" in out)
+check("6. B's ledger is untouched by A's close", _read(pb) == pb_text)
+check("6. an archived ledger is not live: show as C no longer resolves to it", "no ledger for this session" in run(["show"], C)[1])
+
+# --- 5b. bare adopt with exactly one live ledger takes it -------------------
+code, out = run(["adopt"], D)
+check("5. bare adopt as D with exactly one live ledger adopts it", code == 0 and "dddd4444" in _read(pb))
+code, out = run(["show"], D)
+check("5. ... and D now resolves to B's ledger", "| 1500 |" in out)
 
 # --- SWARM_LEDGER override + a foreign header is refused, not mangled -----
 foreign = os.path.join(handoffs, "swarm-foreign.md")
 with open(foreign, "w") as fh:
     fh.write("# old run\n\n## Roster\n| unit | drone | tier | state | notes |\n|---|---|---|---|---|\n| 1222 | x | opus | landed | |\n")
 os.environ["SWARM_LEDGER"] = foreign
-code, out = run(["dispatch", "1223", "d", "opus"])
-check("a roster whose header is not the schema is refused (exit 0, says so, file untouched)",
-      code == 0 and "header" in out and "| 1223 |" not in open(foreign).read())
+code, out = run(["dispatch", "1223", "d", "opus"], None)
+check("$SWARM_LEDGER wins even with no session id; a roster whose header is not the schema is refused (exit 0, says so, file untouched)",
+      code == 0 and "header" in out and "| 1223 |" not in _read(foreign))
 del os.environ["SWARM_LEDGER"]
+check("an old-format ledger is never resolved implicitly", "no ledger for this session" in run(["show"], "eeee5555")[1])
 
 print("all checks passed" if not failed else f"{failed} FAILED")
 sys.exit(1 if failed else 0)
