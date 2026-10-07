@@ -190,6 +190,17 @@ The design passes now run **per cell** (owner, 2026-10-03, #1376: *"1 pass
 per cell, sometimes groupable"*): one issue per concept × facet, grouped
 under a row hub per concept; #1318's per-concept pass is superseded by them.
 
+**Every column builds on a kit (owner, 2026-10-07).** *"kits are the way
+to go. spells are basically an extensive kit. addons are too. spell
+infusions likely need a kit of their own too"*. A column's cells compose
+shared parts instead of each one reinventing them. When three or more cells
+share a pattern not yet in code, a bed unit builds it first and the cells
+are blocked on it; the arrow looks' bed is #1474. After the column lands, a
+retrospective harvests what the cells added, indexes it and fit-checks the
+planned rows (the arrows' is #1475). Kits: arrows → the arrow-look kit plus
+`OnHitEffect`s; spells → `SpellDef` composition; addons → `SkillNodeAddon`
+scenes; infusion → its kit is still to find (#1250).
+
 **A mechanic lives on the row whose concept it expresses (owner,
 2026-10-05).** Reading the tables, a mechanic sitting on a row that does not
 name it must stick out — *"should be the first thing that comes to mind,
