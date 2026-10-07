@@ -166,7 +166,7 @@ extends StatBoard
 @export var core_kill_xp: ScalarStat
 ## The victim-side scale on what a removed node pays its killer. Base 0: the
 ## per-node rate (plus the core bonus on the core) enters as an overlay
-## `base_add` at [method LootSystem._node_payout]; Greed's Hoard plants an
+## `base_add` at [method LootSystem._node_payout]; Greed's Avarice plants an
 ## INCREASE here, on a node (that node) or on the entity (every node's read).
 @export var bounty: ScalarStat
 

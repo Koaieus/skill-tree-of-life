@@ -221,7 +221,7 @@ Each cell links its cell issue (`<Concept> × <Facet>`, a child of the row hub i
 | Scout (a status whose rows draw vision, #949) | reveal | `scout_aspect` | scouting arrow shipped (stacks: #1345, #1346) | watchtower shipped (map face); blade face + look #1393 | #1394 | #1250 | row: #1254. `effects/status/scouted.tres` is live: the arrow lands camp-keyed stacks, VisionSystem draws `radius_for` discs from the rows (#1346); first-class concept (owner, 2026-09-30). Scout and Blindness are two PER rows by the owner's table, not one vision axis. Watchtower's offence stats and production-vs-firing: #1413 |
 | Armor break | armor debuff | `armor_break_aspect` | #1395 — scaffold (#1349) | #1396 | `sunder` shipped; second spell #1397 | #1250 | row: #395 (child 0: penetration stat #1401). Flat −1 armor per stack, uncapped, can go below zero (#1203, owner 2026-09-30). School CON (round 7). Has no `_stacks_per_hit` / `_resistance` while the DEX pool rolls a raw `armor` −% bane that bypasses the aspect. `spells.md`'s Heavy / Piercing Bolt (seek max / min armor) are its second spell (#1397) |
 | Weakness | damage debuff | `weakness_aspect` | #1427 (Sap?) | #1428 | #1429 (Enfeeble?) | #1250 | row: #1425 (child 0: the status, #1426, Ready). Stacks cut damage dealt by attacks originating from the node, % on a saturating curve (round 7) |
-| Greed | status magnet | `greed_aspect` | #1422 | #1423 | #1424 | #1250 | row: #1419 (child 0: the landing term, #1420, Ready; Hoard #1421, Ready). One Greed stack on the node doubles every negative status the next hit lands, Greed included, then one stack is spent; Hoard pays bonus XP per stack left when an attack removes the node (rounds 5–6) |
+| Greed | status magnet | `greed_aspect` | #1422 | #1423 | #1424 | #1250 | row: #1419 (child 0: the landing term, #1420, Ready; Avarice #1421, Ready). One Greed stack on the node doubles every negative status the next hit lands, Greed included, then one stack is spent; its Avarice face pays bonus XP per stack left when an attack removes the node (rounds 5–6) |
 | Explosive | AoE | `explosive_aspect` | #1398 | #1399 — detonation kills the blade node, reuses spike-pop plumbing (owner, #1211) | #1400 (or none) | #1250 | row: #1211. Euclidean hitscan radius from `SkillNode.radius`; barrels / friendly fire open (#1399). The concept names the content, never the reverse (owner, 2026-10-05): *"an explosive barrel blast would at best do an *explosive* (as a concept) blast, not an "explosive arrow blast" literally cuz it's not like *arrows* determine the concept but the concept determines arrows+addons+spells etc."* — so the addon is an `ExplosiveBarrelAddon` doing the explosive blast. A detonated blade node is *damaged*, and today that means popped: *"so far we put their HP on 1 so they pop after taking 1 dmg"* (owner, 2026-10-05). `spells.md`'s Detonate / Supernova are its spell (#1400) |
 | Bleeding | wound, exertion | `bleeding_aspect` | #1436 | #1437 — Spike Ring refit, with #1369 | #1438 | #1250 | row: #1434 (child 0: the status + origin set, #1435). Promoted 2026-10-06. **Round 10 (owner, 2026-10-06) replaces round 9's conditional tick:** a node in an attack's origin set has its stacks ×`exert_growth` (2) **at launch**; every turn end the row pays ⌈stacks × `bleed_rate` (½)⌉ flat HP, then decays on a ramp (−1, −2, −3 … while not exerting; exertion resets it). A core exerts by *moving*, once per turn, never by attacking. Dealloc or death spills ⌊S/(N+M)⌋ to each owned neighbour, the unallocated shares soak away. STR: the price of exertion. Edgelord's **Bleeding Edge** jab takes a new name (#1449) |
 | Hex | jinx, crit taken | `hex_aspect` | #1441 | #1442 | #1443 — the shipped spell `hex` (Curse payload) is renamed or repointed | #1250 | row: #1439 (child 0: the status, #1440). INT's slot (owner, 2026-10-06, round 9). The defender side of crit: per stack, hits *against* the node crit more often, a % on the saturating curve (Blindness / Weakness shape) — **Hex pass (owner, 2026-10-07): flat +5% per stack for now, past 100% is #197; authored as `incoming_modifiers` on the status**; attacker-side `crit_chance` / `crit_multiplier` stay DEX's native stats, never an aspect. The crit roll must open for a hexed target even when the attacker's board holds no crit investment (#1280's stream note) |
@@ -463,10 +463,14 @@ lightning's hops become mechanics that existing rows can use.
   poison landings → +2 +2 +2 +1. Doubling the final count makes the
   attacker's `stacks_per_hit` BASE/BONUS split irrelevant to Greed. Greed
   favours big hits: a +10 landing gains 10 for one Greed stack.
-- **Hoard rides Greed** (owner: *"could also be added in here as extra
+- **Avarice rides Greed** (owner: *"could also be added in here as extra
   bonus, sounds excellent"*): bonus XP per Greed stack still on a node when an
   attack removes it, on top of the per-node kill XP the loot system already
-  pays.
+  pays. It is a face of the Greed status, not its own status or cell (owner,
+  2026-10-07: *"Hoard is a decent name but it's actually still greed but just
+  a different face of it. Avarice would be a better name tbh, for the XP gain
+  part, but we wouldn't want to serve them separately anyway (the status
+  incurring and the xp boost)."*).
 - **Spell affinity** (owner idea): a spell carries innate aspect budget,
   landed by the infusion plumbing, with a per-spell rate as the balancing
   knob. Posted to #1250.
@@ -504,8 +508,8 @@ lightning's hops become mechanics that existing rows can use.
   depleted it will prevent nor damage nor status from landing on the core
   itself"*. As a general rule a status on a core reads entity-wide (owner,
   2026-10-06: *"Generally reading C should hold as general rule"*, C being
-  "the whole entity"). Greed and Hoard read the same on a core, with Hoard
-  paying on the kill. For Silence that reading is the AP-neuter the tardy rows
+  "the whole entity"). Greed and Avarice read the same on a core, with
+  Avarice paying on the kill. For Silence that reading is the AP-neuter the tardy rows
   were struck for, which is part of why Silence is unsettled.
 
 **Owner calls, 2026-10-06 (round 7).**
@@ -590,12 +594,13 @@ lightning's hops become mechanics that existing rows can use.
 - **Greed never decays, for now.** Owner: *"Greed no decay for now; while we
   keeping door open to let greed start decaying out of combat just like nodes
   start healing after being out of combat for a few turns"*.
-- **Hoard pays a percent: +10% per Greed stack** of what the removed node
+- **Avarice pays a percent: +10% per Greed stack** of what the removed node
   pays. Owner: *"option 1 @ +10% per stack. possibly doable via an `overlay`
   readout?"* It is: a victim-side `bounty` stat (tentative name) read with the
-  loot rate as an overlay `base_add`, Greed planting `INCREASE` on it. Core
-  Greed then scales the whole kill payout, every removed node plus the core
-  bonus. Spec: #1421.
+  loot rate as an overlay `base_add`, Greed planting `INCREASE` on it. Node and
+  entity Greed add on a node's read, so core Greed scales every removed node;
+  the entity's own kill bonus (`core_kill_xp`) reads the entity's stacks only
+  (owner, 2026-10-07). Spec: #1421.
 - **Poison's 3/3 unlock leans `MULTIPLY` ×2, never +100% INCREASE.** Owner:
   *"never 100% increase, IFF we want to achieve that it's a `2.0` multiplier
   instead. because INCREASE can also be scaled separately. and i think we might

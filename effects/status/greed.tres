@@ -15,4 +15,4 @@ display_max = 10.0
 reapply = 1
 stacks_stat_id = &"greed_stacks_per_hit"
 decay = null
-hoard_increase_per_stack = 10.0
+avarice_increase_per_stack = 10.0

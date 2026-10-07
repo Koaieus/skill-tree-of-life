@@ -1,8 +1,8 @@
 extends GutTest
 
-## Hoard (Greed × kill XP): every Greed stack still on a node when an attack
+## Avarice (Greed × kill XP): every Greed stack still on a node when an attack
 ## removes it raises what that node pays its killer by the def's
-## `hoard_increase_per_stack` percent. The payout reads the `bounty` stat with
+## `avarice_increase_per_stack` percent. The payout reads the `bounty` stat with
 ## LootSystem's per-node rate as an overlay `base_add`; Greed plants an
 ## `INCREASE` on `bounty`. Greed on the entity host folds under every node's
 ## read, so it scales the whole kill — the core bonus included.
@@ -79,7 +79,7 @@ func before_each() -> void:
 
 ## The percent one stack plants, as a factor step (10% → 0.1).
 func _step() -> float:
-	return float(_GREED.get(&"hoard_increase_per_stack")) / 100.0
+	return float(_GREED.get(&"avarice_increase_per_stack")) / 100.0
 
 
 func _greed(n: SkillNode, stacks: float) -> void:
@@ -104,7 +104,7 @@ func _kill() -> float:
 
 # --- 1 ------------------------------------------------------------------------
 
-func test_a_node_with_two_greed_pays_its_hoard_on_the_kill() -> void:
+func test_a_node_with_two_greed_pays_its_avarice_on_the_kill() -> void:
 	_greed(_nodes[2], 2.0)
 	var plain := (_PER_NODE + _CORE_BONUS) + 2.0 * _PER_NODE
 	assert_almost_eq(_kill(), plain + _PER_NODE * (1.0 + 2.0 * _step()), 0.001,
@@ -132,14 +132,14 @@ func test_entity_greed_scales_the_whole_kill_and_the_core_bonus() -> void:
 	o.base_add = _PER_NODE
 	var overlays: Array[ModifierBins] = [o]
 	assert_almost_eq(float(_nodes[2].get_local_value_with(&"bounty", overlays)), _PER_NODE * f, 0.001,
-			"the entity Hoard is planted and folds under a node's read before the kill")
+			"the entity Avarice is planted and folds under a node's read before the kill")
 	assert_almost_eq(_kill(), ((_PER_NODE + _CORE_BONUS) + 3.0 * _PER_NODE) * f, 0.001,
 			"every removed node and the core bonus pay ×(1 + 2·step)")
 
 
 # --- 4 ------------------------------------------------------------------------
 
-func test_a_trickle_removal_pays_its_hoard() -> void:
+func test_a_trickle_removal_pays_its_avarice() -> void:
 	_greed(_nodes[2], 1.0)
 	var got := _gained(func() -> void: _battle.cascade_started.emit([[_nodes[2]]], _victim))
 	assert_false(_victim.is_dead, "a trickle, not a kill")
@@ -156,7 +156,7 @@ func test_an_ally_kill_pays_nothing_even_with_greed() -> void:
 
 func test_without_greed_the_kill_pays_the_plain_rate() -> void:
 	assert_almost_eq(_kill(), (_PER_NODE + _CORE_BONUS) + 3.0 * _PER_NODE, 0.001,
-			"characterization: the pre-Hoard arithmetic at zero Greed")
+			"characterization: the pre-Avarice arithmetic at zero Greed")
 
 
 # --- 6 ------------------------------------------------------------------------

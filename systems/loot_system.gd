@@ -93,7 +93,7 @@ extends Node
 ##   XP = xp_per_node_killed × |nodes this attack removed, core included|
 ##        + (victim.stat_board.core_kill_xp.value, only if the core died)
 ##
-## — each node's share then scaled by the victim-side `bounty` stat (Hoard,
+## — each node's share then scaled by the victim-side `bounty` stat (Avarice,
 ## #1421): [method _node_payout] is the fold, and at zero `bounty` modifiers
 ## it is exactly the line above.
 ##
@@ -282,7 +282,7 @@ func _resolve_killer(victim: Entity) -> Entity:
 ## (#774 decision 1: "the core node IS one of the N nodes"). `kills_entity`
 ## gates ONLY the core bonus, read live off `victim.stat_board.core_kill_xp` so
 ## a modifier can move it. The count-only form, for [method preview_kill_xp]:
-## it cannot see per-node `bounty`, so it omits Hoard. A real payout prices
+## it cannot see per-node `bounty`, so it omits Avarice. A real payout prices
 ## each node through [method _node_payout] — the one home of the fold.
 func _kill_xp_total(removed_node_count: int, kills_entity: bool, victim: Entity) -> float:
 	var total := xp_per_node_killed * float(removed_node_count)
