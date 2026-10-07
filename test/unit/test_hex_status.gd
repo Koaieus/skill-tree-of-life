@@ -15,6 +15,7 @@ const _HEXED := preload("res://effects/status/hexed.tres")
 
 var _attacker: Entity
 var _defender: Entity
+var _graph: Graph
 ## a0, a1: attacker's. t (hexed in most cases), u (defender core): defender's.
 ## x: unowned.
 var _n: Dictionary = {}
@@ -23,6 +24,7 @@ var _n: Dictionary = {}
 func before_each() -> void:
 	var graph: Graph = _GRAPH_SCENE.instantiate()
 	add_child_autofree(graph)
+	_graph = graph
 	for i in 5:
 		var node := _SKILL_NODE_SCENE.instantiate() as SkillNode
 		node.name = ["a0", "a1", "t", "u", "x"][i]
@@ -265,6 +267,8 @@ func test_a_crit_heal_spends_nothing() -> void:
 	assert_eq(_hex(_n.t), 4.0)
 
 
+## The same fresh hit on both worlds — the slice translation, not the wire;
+## the record round-trip is the next test.
 func test_a_shadow_landing_and_a_live_landing_spend_alike() -> void:
 	_n.t.get_combat().apply_status(_HEXED, 4.0)
 	_defender.get_combat().apply_status(_HEXED, 3.0)
@@ -289,3 +293,21 @@ func test_a_crit_that_kills_the_node_still_spends_the_entitys_hex() -> void:
 	assert_null(world.combat_for(_n.t).owner(), "precondition: the kill stripped the node")
 	assert_eq(world.combat_for_entity(_defender).get_status_power(&"hex"),
 		floorf(4.0 * _HEXED.spend_factor))
+
+
+func test_a_recorded_crit_replays_its_spend_on_the_live_world() -> void:
+	_n.t.get_combat().apply_status(_HEXED, 4.0)
+	_defender.get_combat().apply_status(_HEXED, 3.0)
+	var world := CombatWorld.shadow()
+	var hit := _crit(_n.t)
+	_land(hit, world)
+	var outcome := AttackOutcome.new()
+	outcome.hits.append(hit)
+	var rebuilt := AttackRecord.rebuild(AttackRecord.capture(outcome, _graph), _graph)
+	assert_true(rebuilt.hits[0].is_crit, "the crit flag crosses the wire")
+	_land(rebuilt.hits[0])
+	assert_eq(_hex(_n.t), world.combat_for(_n.t).get_status_power(&"hex"),
+		"the replay spends the node's hex as the resolve did")
+	assert_eq(_defender.get_combat().get_status_power(&"hex"),
+		world.combat_for_entity(_defender).get_status_power(&"hex"), "and the entity's")
+	assert_eq(_hex(_n.t), floorf(4.0 * _HEXED.spend_factor))
