@@ -200,6 +200,11 @@ retrospective harvests what the cells added, indexes it and fit-checks the
 planned rows (the arrows' is #1475). Kits: arrows → the arrow-look kit plus
 `OnHitEffect`s; spells → `SpellDef` composition; addons → `SkillNodeAddon`
 scenes; infusion → its kit is still to find (#1250).
+The kit follows the design, never the reverse (owner, 2026-10-07): *"for
+design rounds the kit may be unknown, only when we know what we sorta want
+the designs to be doing we'd know the demands, and what kit would fit it.
+but never hurts to ask"*. A design round asks "what kit?" once the cells'
+designs converge, as a question rather than a gate.
 
 **A mechanic lives on the row whose concept it expresses (owner,
 2026-10-05).** Reading the tables, a mechanic sitting on a row that does not
