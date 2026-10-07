@@ -12,3 +12,7 @@ extends StatusDef
 ## `floor(power × spend_factor)`, so a single stack pops entirely. 1.0 disables
 ## the spend; 0.0 wipes the row on the first crit.
 @export_range(0.0, 1.0, 0.05) var spend_factor: float = 0.5
+
+
+func _on_crit_taken(_host, power: float) -> float:
+	return floorf(power * spend_factor)

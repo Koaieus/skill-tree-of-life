@@ -666,7 +666,18 @@ func greed_arm(hit_key: int) -> bool:
 ## BEFORE the hit, so a node the crit killed (rows released, owner stripped)
 ## still spends its entity's rows.
 func on_crit_taken(entity: EntityCombat = null) -> void:
-	pass
+	if entity == null:
+		entity = owner()
+	for host in [self, entity]:
+		if host == null:
+			continue
+		for row: NodeStatus in host.get_statuses():
+			if row.def == null:
+				continue
+			var power := float(row.power)
+			var kept := clampf(row.def._on_crit_taken(host, power), 0.0, power)
+			if kept < power:
+				host.adjust_status_power(row.def, kept - power, row.key)
 
 
 ## See [method StatusHost.projected_status_damage] (#962, drawn by #953).

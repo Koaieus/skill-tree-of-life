@@ -278,3 +278,14 @@ func test_a_shadow_landing_and_a_live_landing_spend_alike() -> void:
 	assert_eq(_hex(_n.t), shadow_node, "the live landing reproduces the node's spend")
 	assert_eq(_defender.get_combat().get_status_power(&"hex"), shadow_entity,
 		"and the entity's")
+
+
+func test_a_crit_that_kills_the_node_still_spends_the_entitys_hex() -> void:
+	_defender.get_combat().apply_status(_HEXED, 4.0)
+	var world := CombatWorld.shadow()
+	var hit := _crit(_n.t)
+	hit.amount = 1.0e6
+	_land(hit, world)
+	assert_null(world.combat_for(_n.t).owner(), "precondition: the kill stripped the node")
+	assert_eq(world.combat_for_entity(_defender).get_status_power(&"hex"),
+		floorf(4.0 * _HEXED.spend_factor))

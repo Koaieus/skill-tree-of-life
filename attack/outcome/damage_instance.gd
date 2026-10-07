@@ -32,10 +32,18 @@ func _init() -> void:
 ## live read (`RangedHitInstance.land_on`) or vetoed the landing entirely
 ## (`BladeDamageInstance.land_on`) — both of which run before this `super`
 ## call. A normal hit multiplies by 1.0, so there is no `if is_crit` to forget.
+## A DAMAGE crit then spends crit-taken statuses ([method NodeCombat.on_crit_taken]).
 func land_on(node: NodeCombat, _world: CombatWorld) -> void:
 	resolve_amount(node)
 	CritRoll.apply(self)
+	# Read before the hit: a crit that kills strips the node's owner, yet its
+	# entity's rows still spend ([method NodeCombat.on_crit_taken]).
+	var entity := node.owner()
 	node.take_damage(amount, self)
+	# A crit taken spends after its damage; a hit mitigation flipped to a heal
+	# is a heal, and a heal never spends.
+	if is_crit and kind == Kind.DAMAGE:
+		node.on_crit_taken(entity)
 
 
 func _to_string() -> String:
