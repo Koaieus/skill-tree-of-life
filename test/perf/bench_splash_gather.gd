@@ -15,7 +15,7 @@ extends GutTest
 ## The mask is HOSTILE on an unowned board: the blast emits on the target only,
 ## so the numbers are the gather, not the damage hits.
 ##
-## Measured 2026-10-08 (RX 7900 XTX box, load 0.74), riders pass, off → on:
+## Measured 2026-10-08 (dev desktop CPU, load 0.74; a CPU cost — the GPU plays no part), riders pass, off → on:
 ## 20 arrows one radius 76.9 → 4.2 ms; 10+10 two radii 77.0 → 8.1 ms;
 ## 100 arrows 383.7 → 5.6 ms; 50+50 388.5 → 9.7 ms. One sweep ≈ 3.8 ms at 3k
 ## nodes, far above the ~1 ms bar: the cache earns its place.
