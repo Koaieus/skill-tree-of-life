@@ -103,8 +103,8 @@ default:
   like this, all bound to what would be fun elements without doing more of the
   same"*. A pair of spells differs on an axis (payload vs utility, spread,
   targeting shape, hit count vs stack size), never on numbers alone.
-- **Infusion** — spending aspect budget to mutate the next cast; the gist is
-  on #1250.
+- **Infusion** — spending aspect budget on a cast; a spell's innate affinity
+  is the same plumbing (ADR 0047).
 
 **Defensive faces are rare (owner, 2026-10-03).** *"if every thing has a
 defensive option (against just melee) swinging a blade is always just
@@ -162,10 +162,11 @@ and attributed, so the next session starts from it. A cell issue points at
 these sections and never copies them, so an addition reaches every open
 cell at once.
 
-**Magic infusion** is a fifth spell component (an `Infusion` resource adding
-an on-hit effect plus optional drawback on another component), not a patch
-onto the existing four — keeps #1200 (composable spells) open. Mechanics
-TBD on #1250.
+**Magic infusion** is a per-cast fifth spell component, settled in ADR 0047.
+INT-derived slots cap how many concepts a cast infuses. Each spell sets its own
+ingest rate per concept. A spell's innate affinity replaces the authored status
+rider (`SpellDef.affinities`, `Infusion`). Its files are listed in
+`docs/domain/aspect-cell-authoring.md` § Infusion.
 
 ## Authoring a row, and why the passes run by column
 
