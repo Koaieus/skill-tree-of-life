@@ -674,9 +674,14 @@ func _gather_magic_candidates(visible_enemies: Array[SkillNode]) -> Array[AiComb
 	last_magic_candidate_count = pre.size()
 	last_magic_promoted_count = order.size()
 	order.sort()
+	# The infusion is per (spell, entity), so it is picked once per spell here
+	# and never per target.
+	var infusions: Dictionary[SpellDef, Dictionary] = {}
 	for i in order:
 		var entry: Array = pre[i]
 		var spell: SpellDef = entry[0]
+		if not infusions.has(spell):
+			infusions[spell] = AiInfusionPicker.pick(entity, spell)
 		var source: SkillNode = entry[1]
 		var target: SkillNode = entry[2]
 		var probe := MagicAttackPlan.new()
@@ -684,6 +689,7 @@ func _gather_magic_candidates(visible_enemies: Array[SkillNode]) -> Array[AiComb
 		probe.spell = spell
 		probe.source = source
 		probe.target = target
+		_apply_infusion(probe, infusions[spell])
 		var outcome := probe.resolve()
 		var c := AiCombatScorer.score(BattleSystem.AttackMode.MAGIC, outcome, target, entity, ai_tier,
 				0, loot_system)
@@ -691,6 +697,12 @@ func _gather_magic_candidates(visible_enemies: Array[SkillNode]) -> Array[AiComb
 		c.spell = spell
 		out.append(c)
 	return out
+
+
+## Spend [param picked] (`{concept id: points}`) on [param plan]'s cast.
+func _apply_infusion(plan: MagicAttackPlan, picked: Dictionary) -> void:
+	for id in picked:
+		plan.set_infusion(id, picked[id])
 
 
 ## Builds its OWN plan with [method BattleSystem.new_plan] and copies the scored
@@ -714,6 +726,7 @@ func _execute_candidate(candidate: AiCombatScorer.ScoredCandidate) -> bool:
 			plan.source = candidate.source_node
 			plan.spell = candidate.spell
 			plan.target = candidate.target
+			_apply_infusion(plan, AiInfusionPicker.pick(entity, candidate.spell))
 		BattleSystem.AttackMode.MELEE:
 			var plan := attack as MeleeAttackPlan
 			plan.source = candidate.source_node
