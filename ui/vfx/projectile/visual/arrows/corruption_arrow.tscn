@@ -1,5 +1,61 @@
 [gd_scene format=3]
 
 [ext_resource type="PackedScene" path="res://ui/vfx/projectile/visual/status_arrow.tscn" id="1_base"]
+[ext_resource type="PackedScene" path="res://ui/vfx/projectile/visual/arrow_parts/arrow_impact_sprite.tscn" id="2_sprite"]
+
+[sub_resource type="Gradient" id="Gradient_blip"]
+offsets = PackedFloat32Array(0, 0.15, 0.85, 1)
+colors = PackedColorArray(1, 1, 1, 0, 1, 1, 1, 0.85, 1, 1, 1, 0.85, 1, 1, 1, 0)
+
+[sub_resource type="GradientTexture1D" id="GradientTexture1D_blip"]
+gradient = SubResource("Gradient_blip")
+
+[sub_resource type="Curve" id="Curve_blip_swell_pop"]
+_data = [Vector2(0, 0.2), 0.0, 0.0, 0, 0, Vector2(0.8, 1.0), 0.0, 0.0, 0, 0, Vector2(1, 1.5), 0.0, 0.0, 0, 0]
+point_count = 3
+
+[sub_resource type="CurveTexture" id="CurveTexture_blip"]
+curve = SubResource("Curve_blip_swell_pop")
+
+[sub_resource type="ParticleProcessMaterial" id="ParticleProcessMaterial_blip"]
+particle_flag_disable_z = true
+direction = Vector3(0, -1, 0)
+spread = 180.0
+initial_velocity_min = 1.0
+initial_velocity_max = 4.0
+gravity = Vector3(0, 0, 0)
+scale_min = 0.12
+scale_max = 0.26
+scale_curve = SubResource("CurveTexture_blip")
+color_ramp = SubResource("GradientTexture1D_blip")
+
+[sub_resource type="Curve" id="Curve_pustule_scale"]
+_data = [Vector2(0, 0.2), 0.0, 0.0, 0, 0, Vector2(0.75, 1.0), 0.0, 0.0, 0, 0, Vector2(0.8, 1.0), 0.0, 0.0, 0, 0, Vector2(1, 1.8), 0.0, 0.0, 0, 0]
+point_count = 4
+
+[sub_resource type="Curve" id="Curve_pustule_alpha"]
+_data = [Vector2(0, 0.0), 0.0, 0.0, 0, 0, Vector2(0.15, 0.9), 0.0, 0.0, 0, 0, Vector2(0.78, 0.9), 0.0, 0.0, 0, 0, Vector2(1, 0.0), 0.0, 0.0, 0, 0]
+point_count = 4
 
 [node name="CorruptionArrow" instance=ExtResource("1_base")]
+
+[node name="Trail" parent="." index="0"]
+show_on_dud = false
+show_on_absorbed = false
+process_material = SubResource("ParticleProcessMaterial_blip")
+amount = 8
+lifetime = 0.7
+density = 0.4
+
+[node name="Tip" parent="." index="1"]
+shape = 2
+tier = 3
+pulse_hz = 3.0
+pulse_depth = 0.45
+
+[node name="Pustule" parent="." index="3" instance=ExtResource("2_sprite")]
+lifetime = 0.9
+size = 9.0
+ring_width = 3.0
+scale_curve = SubResource("Curve_pustule_scale")
+alpha_curve = SubResource("Curve_pustule_alpha")

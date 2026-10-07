@@ -19,5 +19,5 @@ order = 70
 damage_scale = 0.5
 on_hit_effects = Array[ExtResource("5_on_hit_effect")]([SubResource("Resource_rider")])
 per_reload_stat_id = &"corruption_aspect"
-max_stock = 999
+max_stock = 6
 visual_scene = ExtResource("9_visual")
