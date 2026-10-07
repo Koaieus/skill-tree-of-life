@@ -25,8 +25,10 @@ extends Control
 @onready var turn_tracker_slot: Control = %TurnTrackerSlot
 @onready var left_column_slot: Control = %LeftColumnSlot
 @onready var right_column_slot: Control = %RightColumnSlot
-@onready var command_tray_slot: Control = %CommandTraySlot
-@onready var ap_end_turn_slot: Control = %APEndTurnSlot
+## Minimap | command tray | action cluster, left to right — one HBox, so the
+## tray takes exactly the width the other two leave and can never run under
+## End Turn.
+@onready var bottom_row: HBoxContainer = %BottomRow
 
 @onready var hero_sigil_card: HeroSigilCard = %HeroSigilCard
 @onready var attributes_panel: AttributesPanel = %AttributesPanel

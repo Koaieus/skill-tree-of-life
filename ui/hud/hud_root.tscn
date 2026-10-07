@@ -129,63 +129,28 @@ offset_top = 490.0
 offset_bottom = 600.0
 grow_horizontal = 2
 
-[node name="CommandTraySlot" type="Control" parent="MarginContainer" unique_id=1568469518]
+[node name="BottomRow" type="HBoxContainer" parent="MarginContainer" unique_id=1568469518]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_vertical = 8
 mouse_filter = 2
+theme_override_constants/separation = 16
 
-[node name="CommandTray" parent="MarginContainer/CommandTraySlot" unique_id=444879786 instance=ExtResource("8_tray")]
-unique_name_in_owner = true
-layout_mode = 1
-anchors_preset = 12
-anchor_top = 1.0
-anchor_right = 1.0
-anchor_bottom = 1.0
-offset_left = 318.0
-offset_top = -244.0
-offset_right = -152.0
-offset_bottom = 0.0
-grow_horizontal = 0
-grow_vertical = 0
-
-[node name="APEndTurnSlot" type="Control" parent="MarginContainer" unique_id=1011505414]
-unique_name_in_owner = true
-layout_mode = 2
-size_flags_horizontal = 8
-size_flags_vertical = 8
-mouse_filter = 2
-
-[node name="ActionCluster" parent="MarginContainer/APEndTurnSlot" unique_id=1864315621 instance=ExtResource("7_cluster")]
-unique_name_in_owner = true
-layout_mode = 1
-anchors_preset = 3
-anchor_left = 1.0
-anchor_top = 1.0
-anchor_right = 1.0
-anchor_bottom = 1.0
-offset_left = -128.0
-offset_top = -115.0
-offset_right = 0.0
-offset_bottom = 0.0
-grow_horizontal = 0
-grow_vertical = 0
-
-[node name="MinimapSlot" type="Control" parent="MarginContainer" unique_id=21296951]
+[node name="MinimapPanel" parent="MarginContainer/BottomRow" unique_id=1706063918 instance=ExtResource("21_minimap")]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_vertical = 8
-mouse_filter = 2
 
-[node name="MinimapPanel" parent="MarginContainer/MinimapSlot" unique_id=1706063918 instance=ExtResource("21_minimap")]
+[node name="CommandTray" parent="MarginContainer/BottomRow" unique_id=444879786 instance=ExtResource("8_tray")]
 unique_name_in_owner = true
-layout_mode = 1
-anchors_preset = 2
-anchor_top = 1.0
-anchor_bottom = 1.0
-offset_top = -220.0
-offset_bottom = 0.0
-grow_vertical = 0
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 8
+
+[node name="ActionCluster" parent="MarginContainer/BottomRow" unique_id=1864315621 instance=ExtResource("7_cluster")]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 8
 
 [node name="ArmedModeGlow" parent="." unique_id=771708188 instance=ExtResource("21_armed_glow")]
 unique_name_in_owner = true

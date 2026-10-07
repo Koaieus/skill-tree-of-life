@@ -6,10 +6,10 @@ extends Control
 ## [EndTurnButton] reused as-is (it already carries its own shader-driven
 ## chunky/gold-seal look — see ui/end_turn_button/, nothing to restyle).
 ##
-## Root stays a plain Control; HudRoot's APEndTurnSlot positions this with
-## a fixed bottom-right anchor (not inside a Container), so no min-size
-## forwarding is needed here (see attributes_panel.gd for that pattern
-## where one IS needed).
+## The root is a glass dock (a MarginContainer) and the last cell of HudRoot's
+## BottomRow HBox; its fixed `custom_minimum_size.x` keeps the row from
+## breathing as the warning / conversion / gate-confirm text changes — the
+## widest of those must fit inside it, or the command tray beside it shifts.
 
 ## Gate End Turn behind a confirm bubble while the unspent-AP warning shows.
 ## Off: a click ends the turn (Ctrl+click always does); the warning still shows.
