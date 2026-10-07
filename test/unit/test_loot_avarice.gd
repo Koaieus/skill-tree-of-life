@@ -176,3 +176,40 @@ func test_greed_spent_to_zero_leaves_no_bounty_behind() -> void:
 	assert_eq(combat.get_status_power(&"greed"), 0.0, "greed spent")
 	assert_almost_eq(float(_nodes[2].get_local_value_with(&"bounty", overlays)),
 			_PER_NODE, 0.001, "no bounty modifier left behind")
+
+
+# --- 7: the owner's worked example (2026-10-07) ---------------------------------
+# 10 node-hosted Greed on A, B and the core node, 10 entity-hosted Greed.
+
+func _owners_board() -> void:
+	for n in [_nodes[1], _nodes[2], _nodes[3]]:
+		_greed(n, 10.0)
+	_victim.get_combat().apply_status(_GREED, 10.0)
+
+
+func test_worked_example_a_one_node_killed_mid_fight_pays_node_plus_entity() -> void:
+	_owners_board()
+	var got := _gained(func() -> void: _battle.cascade_started.emit([[_nodes[2]]], _victim))
+	assert_almost_eq(got, _PER_NODE * (1.0 + 10.0 * _step() + 10.0 * _step()), 0.001,
+			"5 × (1 + 1.0 + 1.0) = 15 at the owner's rates")
+
+
+func test_worked_example_b_the_kill_bonus_reads_entity_stacks_only() -> void:
+	_owners_board()
+	# The killing hit lands on the (uncracked) core node and spends one of ITS
+	# node-hosted stacks before any read.
+	_nodes[1].get_combat().adjust_status_power(_GREED, -1.0)
+	var e := 10.0 * _step()
+	var expected := _PER_NODE * (1.0 + 10.0 * _step() + e) * 2.0 \
+			+ _PER_NODE * (1.0 + e) \
+			+ _PER_NODE * (1.0 + 9.0 * _step() + e) \
+			+ _CORE_BONUS * (1.0 + e)
+	assert_almost_eq(_kill(), expected, 0.001,
+			"A, B at node+entity; C at entity; the core node at its 9 + entity; the bonus at entity only")
+
+
+func test_node_greed_on_the_core_leaves_the_kill_bonus_unchanged() -> void:
+	_greed(_nodes[1], 3.0)
+	var expected := _PER_NODE * (1.0 + 3.0 * _step()) + 3.0 * _PER_NODE + _CORE_BONUS
+	assert_almost_eq(_kill(), expected, 0.001,
+			"the core node pays its own Greed; the entity's bonus stays plain")
