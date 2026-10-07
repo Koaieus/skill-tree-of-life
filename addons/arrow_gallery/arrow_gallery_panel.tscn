@@ -1,0 +1,101 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://addons/arrow_gallery/arrow_gallery_panel.gd" id="1_panel"]
+[ext_resource type="PackedScene" path="res://ui/theme/bloom_viewport.tscn" id="2_vp"]
+
+[node name="ArrowGalleryPanel" type="PanelContainer"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_panel")
+
+[node name="VBox" type="VBoxContainer" parent="."]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="WorldContainer" type="SubViewportContainer" parent="VBox"]
+layout_mode = 2
+size_flags_vertical = 3
+stretch = true
+
+[node name="World" parent="VBox/WorldContainer" instance=ExtResource("2_vp")]
+unique_name_in_owner = true
+handle_input_locally = false
+size = Vector2i(1200, 620)
+render_target_update_mode = 4
+
+[node name="Background" type="ColorRect" parent="VBox/WorldContainer/World"]
+z_index = -100
+z_as_relative = false
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.05, 0.06, 0.08, 1)
+
+[node name="WorldHost" type="Node2D" parent="VBox/WorldContainer/World"]
+unique_name_in_owner = true
+
+[node name="Bar" type="HBoxContainer" parent="VBox"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="FireBtn" type="Button" parent="VBox/Bar"]
+unique_name_in_owner = true
+layout_mode = 2
+tooltip_text = "Rebuild the board under the preset and launch a real volley through BattleSystem.launch_attack."
+text = "▶  Fire"
+
+[node name="TypeLabel" type="Label" parent="VBox/Bar"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 11
+text = "Type"
+
+[node name="TypeList" type="OptionButton" parent="VBox/Bar"]
+unique_name_in_owner = true
+layout_mode = 2
+tooltip_text = "Every type in attack/ammo/ammo_type_roster.tres, in roster order."
+
+[node name="CountLabel" type="Label" parent="VBox/Bar"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 11
+text = "Volley"
+
+[node name="Count" type="SpinBox" parent="VBox/Bar"]
+unique_name_in_owner = true
+layout_mode = 2
+tooltip_text = "Arrows in the volley — the quiver is stocked with this many of the picked type."
+min_value = 1.0
+max_value = 20.0
+value = 5.0
+
+[node name="PresetLabel" type="Label" parent="VBox/Bar"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 11
+text = "Verdict"
+
+[node name="PresetList" type="OptionButton" parent="VBox/Bar"]
+unique_name_in_owner = true
+layout_mode = 2
+tooltip_text = "Board preset: Dud (frail target, later waves gated), Held (armour to exactly 0), Gained (negative floor heals), Crit (crit_chance 1.0)."
+
+[node name="TargetLabel" type="Label" parent="VBox/Bar"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 11
+text = "Target"
+
+[node name="TargetList" type="OptionButton" parent="VBox/Bar"]
+unique_name_in_owner = true
+layout_mode = 2
+tooltip_text = "The dummy, or a neighbour inside the hostile cluster (for splash / flare looks). Presets arm the dummy only."
+
+[node name="StatusLabel" type="RichTextLabel" parent="VBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 40)
+layout_mode = 2
+bbcode_enabled = true
+fit_content = true
+scroll_active = false

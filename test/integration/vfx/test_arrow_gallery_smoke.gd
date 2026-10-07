@@ -55,7 +55,7 @@ func test_every_type_fires_under_every_preset() -> void:
 ## multiplier, so the damage presets read nothing off it.
 func _assert_preset_beat(outcome: AttackOutcome, preset: int, ammo: AmmoType, label: String) -> void:
 	var deals := not is_zero_approx(ammo.damage_scale)
-	var arrows := outcome.damage_hits()
+	var arrows: Array[HitInstance] = _panel.arrows_of(outcome)
 	assert_eq(arrows.size(), 4, "%s: four arrows" % label)
 	var gated := 0
 	var healed := 0
