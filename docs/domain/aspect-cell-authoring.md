@@ -58,7 +58,7 @@ appended right after the arrow in the outcome; the arrow takes the landing's
 | effect | what it gives an arrow | example |
 |---|---|---|
 | `ApplyStatusEffect` | `def` + `power` stacks on the landed node, folded through the read node's `<family>_stacks_per_hit` | every statused arrow |
-| `SplashEffect` | wraps one `inner` effect and re-runs it on every node in its `reach` (today only `TARGET_AND_HOSTILE_NEIGHBOURS`); each copy keeps the arrow's hit key and pairing, and a splashed status re-checks hostility at land (`land_mask = HOSTILE`, ADR 0049) | blindness's flare |
+| `SplashEffect` | wraps one `inner` effect and re-runs it on every other node its `range_finder` gathers around the target (over the global `Navigator`, unscaled) whose ownership bit matches `ownership_filter` — `NodeTargeting`'s mask + finder pair, the caller sets the radius on the finder; each copy keeps the arrow's hit key and pairing, and every hit a copy emits re-checks the same mask at land (`land_mask = ownership_filter`, ADR 0049) | blindness's flare: `HopRangeFinder(max_hops = 1)` + Hostile |
 | `OnHitEffect.status_def()` | the seam a wrapper answers through, so `AmmoType.first_status_def()` (tint, card swatch, scout check) never type-switches; a new wrapper overrides it | `SplashEffect` |
 
 **Not on the shelf:** `DamageEffect`, `HealEffect` and `ScaleDamageEffect`
@@ -72,7 +72,7 @@ there when the arrows behind it hit: curse lifts their damage floor, hex their
 crit chance. Crit rolls *at landing* (one draw per hit, in landing order, off
 `AttackOutcome.crit_stream` — local, never on the wire, null on a rebuilt
 `AttackRecord`, which lands its recorded crits); `docs/domain/attack-timeline.md`.
-Guards: `test_marker_arrows.gd`, `test_crit_at_landing.gd`, `test_splash_effect.gd`.
+Guards: `test_marker_arrows.gd`, `test_crit_at_landing.gd`, `test_splash_effect.gd`, `test_splash_reach.gd` — all on `test/support/volley_board_fixture.gd`.
 
 ### Look shelf
 
