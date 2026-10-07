@@ -87,33 +87,38 @@ func test_a_spell_landing_with_no_paired_hit_emits_nothing() -> void:
 	assert_eq(landing.hits.size(), 0, "a spell uses DamageEffect")
 
 
-func test_the_blast_deals_its_fraction_of_raw_to_every_hostile_node_in_reach_each_mitigated_by_its_own_armour() -> void:
+## Each (fraction, radius) on a fresh board, so no pass kills what the next
+## one measures.
+const _SWEEP := [[0.25, 60.0], [0.25, 200.0], [0.25, 400.0], [0.5, 60.0],
+		[0.5, 200.0], [0.5, 400.0], [1.5, 60.0], [1.5, 200.0], [1.5, 400.0]]
+
+
+func test_the_blast_deals_its_fraction_of_raw_to_every_hostile_node_in_reach_each_mitigated_by_its_own_armour(
+		p = use_parameters(_SWEEP)) -> void:
 	VolleyBoardFixture.set_stat(_f.leaves[0], &"crit_chance", 0.0)
-	for fraction in [0.25, 0.5, 1.5]:
-		for r in [60.0, 200.0, 400.0]:
-			# Fresh HP each pass: the sweep must not kill what it measures.
-			for n in [_f.target, _f.cluster[0], _f.cluster[1]]:
-				n.restore_current_hp(n.get_max_hp())
-			var ammo := _blast(fraction, r)
-			var reach: Array[SkillNode] = [_f.target]
-			for n in (ammo.on_hit_effects[0] as SplashEffect).range_finder.gather(_f.target, _f.graph.navigator):
-				if n != _f.target and n.ownership_bit(_f.attacker) & SkillNode.Ownership.HOSTILE != 0:
-					reach.append(n)
-			var hits := _volley(ammo)
-			var raw := hits[0].amount
-			_land(hits)
-			var blasts := _blast_hits(hits)
-			var landed: Array[SkillNode] = []
-			for hit in blasts:
-				landed.append(hit.target)
-				assert_almost_eq(hit.effective_amount, _mitigated(hit.target, fraction * raw), 0.001,
-						"f=%s r=%s on %s" % [fraction, r, hit.target.name])
-			assert_eq(landed.size(), reach.size(), "f=%s r=%s: one blast per hostile node in reach" % [fraction, r])
-			for n in reach:
-				assert_has(landed, n, "f=%s r=%s" % [fraction, r])
-	# The widest radius reaches the whole hostile cluster.
-	var wide := _volley(_blast(0.5, 400.0))
-	assert_eq(_blast_hits(wide).size(), 3)
+	var fraction: float = p[0]
+	var r: float = p[1]
+	var ammo := _blast(fraction, r)
+	var reach: Array[SkillNode] = [_f.target]
+	for n in (ammo.on_hit_effects[0] as SplashEffect).range_finder.gather(_f.target, _f.graph.navigator):
+		if n != _f.target and n.ownership_bit(_f.attacker) & SkillNode.Ownership.HOSTILE != 0:
+			reach.append(n)
+	var hits := _volley(ammo)
+	var raw := hits[0].amount
+	_land(hits)
+	var blasts := _blast_hits(hits)
+	var landed: Array[SkillNode] = []
+	for hit in blasts:
+		landed.append(hit.target)
+		assert_almost_eq(hit.effective_amount, _mitigated(hit.target, fraction * raw), 0.001,
+				"f=%s r=%s on %s" % [fraction, r, hit.target.name])
+	assert_eq(landed.size(), reach.size(), "f=%s r=%s: one blast per hostile node in reach" % [fraction, r])
+	for n in reach:
+		assert_has(landed, n, "f=%s r=%s" % [fraction, r])
+
+
+func test_the_widest_blast_reaches_the_whole_hostile_cluster() -> void:
+	assert_eq(_blast_hits(_volley(_blast(0.5, 400.0))).size(), 3)
 
 
 func test_a_gated_arrow_duds_every_blast_hit() -> void:
