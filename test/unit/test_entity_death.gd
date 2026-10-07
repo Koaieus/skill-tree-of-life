@@ -264,3 +264,30 @@ func test_gameroot_npc_despawn_fires_on_the_death_shown_signal() -> void:
 			"the NPC corpse should be freed once the death is shown")
 	Events.entity_death_shown.disconnect(gr._on_entity_death_shown)
 	await get_tree().process_frame
+
+
+# ── Death order: entity-hosted rows survive the dying phase ─────────────────
+
+## An `entity_dying` reader (LootSystem's kill-XP read of `bounty`) sees the
+## corpse's entity-hosted status rows still applied; they are released before
+## `entity_died`'s strip, so no row outlives the death.
+func test_entity_hosted_rows_are_readable_while_dying_and_gone_after_died() -> void:
+	var greed := preload("res://effects/status/greed.tres")
+	_entity.get_combat().apply_status(greed, 2.0)
+	var seen := {"dying": -1.0, "died": -1.0}
+	var on_dying := func(e: Entity) -> void:
+		seen["dying"] = e.get_combat().get_status_power(&"greed")
+	var on_died := func(e: Entity) -> void:
+		seen["died"] = e.get_combat().get_status_power(&"greed")
+	Events.entity_dying.connect(on_dying)
+	Events.entity_died.connect(on_died)
+	_entity.stat_board.health.set_current(1.0)
+	_nodes[0].take_damage(10000.0, null)
+	Events.entity_dying.disconnect(on_dying)
+	Events.entity_died.disconnect(on_died)
+	assert_true(_entity.is_dead, "fixture: the core overflow killed the entity")
+	assert_almost_eq(float(seen["dying"]), 2.0, 0.001,
+			"entity rows are still readable during entity_dying")
+	assert_almost_eq(float(seen["died"]), 0.0, 0.001,
+			"entity rows are released before entity_died")
+	assert_eq(_entity.get_statuses().size(), 0, "nothing survives the death")
