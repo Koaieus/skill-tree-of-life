@@ -5,59 +5,21 @@ extends GutTest
 ## sharing the arrow's hit key and paired gate. A splashed rider whose node is
 ## no longer hostile at land is a dud.
 
-const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
-const _BOARD := preload("res://entity/default_entity_board.tres")
-const _PLAYER_FACTION := preload("res://entity/factions/player.tres")
-const _NPC_FACTION := preload("res://entity/factions/npc.tres")
 const _BLINDNESS_ARROW: AmmoType = preload("res://attack/ammo/types/blindness.tres")
 const _BLINDNESS_DEF_PATH := "res://effects/status/blindness.tres"
 
 
-## Attacker owns core–leaf; the defender owns target + hostile_a + hostile_b;
-## the target also touches the attacker's own `mine` node and an unallocated
-## `neutral` one.
+## The volley board, plus the attacker's own `mine` node and an unallocated
+## `neutral` one, both touching the target beside its hostile cluster.
 func _build() -> Dictionary:
-	var graph: Graph = _GRAPH_SCENE.instantiate()
-	add_child_autofree(graph)
-	var nodes: Dictionary = {}
-	var names := ["core", "leaf", "target", "hostile_a", "hostile_b", "mine", "neutral"]
-	for i in names.size():
-		var node := _SKILL_NODE_SCENE.instantiate() as SkillNode
-		node.name = str(names[i])
-		graph.add_skill_node(node)
-		node.global_position = Vector2(150 * i, 0)
-		nodes[names[i]] = node
-	graph.add_edge(nodes.core, nodes.leaf)
-	graph.add_edge(nodes.leaf, nodes.mine)
-	graph.add_edge(nodes.mine, nodes.target)
-	graph.add_edge(nodes.target, nodes.hostile_a)
-	graph.add_edge(nodes.target, nodes.hostile_b)
-	graph.add_edge(nodes.target, nodes.neutral)
-
-	var attacker := Entity.new()
-	attacker.display_name = "Attacker"
-	attacker.faction = _PLAYER_FACTION
-	attacker.stat_board = _BOARD.duplicate(true) as EntityStatBoard
-	graph.entities_container.add_child(attacker)
-	var defender := Entity.new()
-	defender.display_name = "Defender"
-	defender.faction = _NPC_FACTION
-	defender.stat_board = _BOARD.duplicate(true) as EntityStatBoard
-	graph.entities_container.add_child(defender)
+	var f := await VolleyBoardFixture.build(self)
+	f.add_node(&"mine", Vector2(300, 100), f.attacker, [f.hub, f.target] as Array[SkillNode])
+	f.add_node(&"neutral", Vector2(450, 100), null, [f.target] as Array[SkillNode])
 	await get_tree().process_frame
-
-	var alloc := AllocationSystem.new()
-	alloc.graph = graph
-	add_child_autofree(alloc)
-	for n in ["core", "leaf", "mine"]:
-		alloc.force_allocate(attacker, nodes[n])
-	attacker.core_location = nodes.core
-	for n in ["hostile_a", "target", "hostile_b"]:
-		alloc.force_allocate(defender, nodes[n])
-	defender.core_location = nodes.hostile_a
-	await get_tree().process_frame
-	return {"graph": graph, "attacker": attacker, "defender": defender, "nodes": nodes}
+	var nodes: Dictionary = {"leaf": f.leaves[0]}
+	for id in f.nodes:
+		nodes[String(id)] = f.nodes[id]
+	return {"graph": f.graph, "attacker": f.attacker, "defender": f.hostile, "nodes": nodes}
 
 
 func _riders(ctx: Dictionary) -> Dictionary:

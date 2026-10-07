@@ -10,14 +10,9 @@ extends GutTest
 ## without the marker, through the shared fixture and [method _base_hits].
 ## The tests pin the payoff as behaviour, never a type's tuning numbers.
 ##
-## Fixture: hub `_mid`(200,0) with three reaching leaves around a hostile
-## target (450,0); raw damage far under the target's armor, so every base arrow
+## Fixture: [VolleyBoardFixture] (hub `_mid`, three reaching leaves, hostile
+## target); raw damage far under the target's armor, so every base arrow
 ## lands on the floor `min_damage_taken`.
-
-const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
-const _PLAYER_FACTION := preload("res://entity/factions/player.tres")
-const _NPC_FACTION := preload("res://entity/factions/npc.tres")
 
 const _ARROW := &"arrow"
 const _CURSE := &"curse"
@@ -37,60 +32,18 @@ var _mid: SkillNode
 var _target: SkillNode
 
 
-func _set_stat(node: SkillNode, id: StringName, value: float,
-		op: StatModifier.Operation = StatModifier.Operation.SET) -> void:
-	var m := StatModifier.new()
-	m.stat_id = id
-	m.operation = op
-	m.value = value
-	node.add_local_modifier(m)
-
-
-func _leaf(pos: Vector2) -> SkillNode:
-	var leaf := _SKILL_NODE_SCENE.instantiate() as SkillNode
-	leaf.position = pos
-	_graph.add_skill_node(leaf)
-	_graph.add_edge(leaf, _mid)
-	return leaf
-
-
 func before_each() -> void:
-	_graph = _GRAPH_SCENE.instantiate()
-	add_child_autofree(_graph)
-	_mid = _SKILL_NODE_SCENE.instantiate() as SkillNode
-	_mid.position = Vector2(200, 0)
-	_graph.add_skill_node(_mid)
-	var leaves: Array[SkillNode] = [
-		_leaf(Vector2(400, 0)), _leaf(Vector2(450, 150)), _leaf(Vector2(450, -300))]
-	_target = _SKILL_NODE_SCENE.instantiate() as SkillNode
-	_target.position = Vector2(450, 0)
-	_graph.add_skill_node(_target)
-
-	_attacker = Entity.new()
-	_attacker.faction = _PLAYER_FACTION
-	_attacker.stat_board = TestBoards.flat_entity_board()
-	_graph.entities_container.add_child(_attacker)
-	_hostile = Entity.new()
-	_hostile.faction = _NPC_FACTION
-	_hostile.stat_board = TestBoards.flat_entity_board()
-	_graph.entities_container.add_child(_hostile)
-	await get_tree().process_frame
-
-	_alloc = AllocationSystem.new()
-	_alloc.graph = _graph
-	add_child_autofree(_alloc)
-	_alloc.force_allocate(_attacker, _mid)
-	for leaf in leaves:
-		_alloc.force_allocate(_attacker, leaf)
-	_alloc.force_allocate(_hostile, _target)
-	autofree(_attacker)
-	autofree(_hostile)
-
-	for leaf in leaves:
-		_set_stat(leaf, &"range", 1000.0)
-		_set_stat(leaf, &"ranged_damage", 3.0)
-	_set_stat(_target, &"armor", 100.0)
-	_set_stat(_target, &"min_damage_taken",
+	var f := await VolleyBoardFixture.build(self, true)
+	_graph = f.graph
+	_alloc = f.alloc
+	_attacker = f.attacker
+	_hostile = f.hostile
+	_mid = f.hub
+	_target = f.target
+	for leaf in f.leaves:
+		VolleyBoardFixture.set_stat(leaf, &"ranged_damage", 3.0)
+	VolleyBoardFixture.set_stat(_target, &"armor", 100.0)
+	VolleyBoardFixture.set_stat(_target, &"min_damage_taken",
 			_FLOOR - _target.get_local_value(&"min_damage_taken"), StatModifier.Operation.ADD_BASE)
 
 

@@ -6,9 +6,6 @@ extends GutTest
 ## hits behind it, and never the ones in front. A rebuilt record carries no
 ## stream and lands its recorded crits without drawing.
 
-const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
-const _BOARD := preload("res://entity/default_entity_board.tres")
 const _HEXED := preload("res://effects/status/hexed.tres")
 const _SEED := 0x1473
 
@@ -19,37 +16,12 @@ var _n: Dictionary = {}
 
 
 func before_each() -> void:
-	var graph: Graph = _GRAPH_SCENE.instantiate()
-	add_child_autofree(graph)
-	_graph = graph
-	for i in 4:
-		var node := _SKILL_NODE_SCENE.instantiate() as SkillNode
-		node.name = ["a0", "a1", "t", "u"][i]
-		graph.add_skill_node(node)
-		node.global_position = Vector2(i * 300.0, 0.0)
-		_n[node.name] = node
-	graph.add_edge(_n.a0, _n.a1)
-	graph.add_edge(_n.a1, _n.t)
-	graph.add_edge(_n.t, _n.u)
-
-	_attacker = Entity.new()
-	_attacker.stat_board = _BOARD.duplicate(true) as EntityStatBoard
+	var f := await VolleyBoardFixture.build(self)
+	_graph = f.graph
+	_attacker = f.attacker
+	_defender = f.hostile
+	_n = {"a0": f.hub, "a1": f.leaves[0], "t": f.target, "u": f.cluster[0]}
 	_attacker.stat_board.get_stat(&"crit_chance").base_value = 0.0
-	graph.entities_container.add_child(_attacker)
-	_defender = Entity.new()
-	_defender.stat_board = _BOARD.duplicate(true) as EntityStatBoard
-	graph.entities_container.add_child(_defender)
-	await get_tree().process_frame
-
-	var alloc := AllocationSystem.new()
-	alloc.graph = graph
-	add_child_autofree(alloc)
-	alloc.force_allocate(_attacker, _n.a0)
-	alloc.force_allocate(_attacker, _n.a1)
-	_attacker.core_location = _n.a0
-	alloc.force_allocate(_defender, _n.t)
-	alloc.force_allocate(_defender, _n.u)
-	_defender.core_location = _n.u
 
 
 func _arrow(key: float) -> DamageInstance:

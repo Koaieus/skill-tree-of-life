@@ -2,30 +2,28 @@
 class_name SplashEffect
 extends OnHitEffect
 
-## Runs [member inner] on the landed node and again on every node in its
-## [member reach] — *who* the effect lands on, split from *what* it does (the
-## blindness flare; a later reach is another [enum Reach] value, a bigger dose
-## on the main target is a second entry). Mode-agnostic: an arrow, a blade
+## Runs [member inner] on the landed node and again on every other node its
+## [member range_finder] gathers around it whose relation to the attacker
+## matches [member ownership_filter] — *who* the effect lands on, split from
+## *what* it does (the blindness flare; a bigger dose on the main target is a
+## second entry). The finder answers geometry, the mask answers relation: the
+## same pair [NodeTargeting] composes. Mode-agnostic: an arrow, a blade
 ## contact or a spell may carry one.
 ##
-## Each extra landing is a copy of the original retargeted at the neighbour:
-## same [member HitLanding.hit_key] (one hit, so Greed spends once), same
-## [member HitLanding.paired] (a gated arrow duds every splash), same
+## Each extra landing is a copy of the original retargeted at the gathered
+## node: same [member HitLanding.hit_key] (one hit, so Greed spends once),
+## same [member HitLanding.paired] (a gated arrow duds every splash), same
 ## structural key, and the same [member HitLanding.hits] sink by reference.
-## The reach is read from topology when the effect runs (plan compile, for an
-## arrow); whether each neighbour is STILL hostile is decided at land — every
-## [StatusInstance] a splash copy emits carries a HOSTILE
+## The reach is read when the effect runs (plan compile, for an arrow);
+## whether each node STILL matches the mask is decided at land — every hit a
+## copy emits carries [member ownership_filter] as its
 ## [member HitInstance.land_mask].
 
-enum Reach {
-	## The landed node plus its direct graph neighbours whose
-	## [method SkillNode.ownership_bit] to the attacker is HOSTILE.
-	TARGET_AND_HOSTILE_NEIGHBOURS,
-}
-
 @export var inner: OnHitEffect = null
-@export var reach: Reach = Reach.TARGET_AND_HOSTILE_NEIGHBOURS
+## Who a splash may land on, beyond the target — [NodeTargeting]'s flag set.
 @export_flags("Neutral:1", "Mine:2", "Ally:4", "Hostile:8", "Friendly:6", "Allocated:14", "Any:15") var ownership_filter: int = 8
+## Where it reaches. The radius is the finder's own export, unscaled by any
+## cast-range stat. No finder: no splash.
 @export var range_finder: RangeFinder
 
 
@@ -38,9 +36,7 @@ func apply(landing: HitLanding) -> void:
 		var before := landing.hits.size()
 		inner.apply(copy)
 		for i in range(before, landing.hits.size()):
-			var status := landing.hits[i] as StatusInstance
-			if status != null:
-				status.land_mask = SkillNode.Ownership.HOSTILE
+			landing.hits[i].land_mask = ownership_filter
 
 
 func status_def() -> StatusDef:
@@ -49,23 +45,40 @@ func status_def() -> StatusDef:
 
 func get_description(spell: SpellDef = null, board: StatBoard = null) -> String:
 	var line := inner.get_description(spell, board) if inner != null else ""
-	match reach:
-		Reach.TARGET_AND_HOSTILE_NEIGHBOURS:
-			return "%s Splashes onto adjacent hostile nodes." % line if not line.is_empty() \
-				else "Splashes onto adjacent hostile nodes."
-	return line
+	if range_finder == null:
+		return line
+	# The finder's own text, with no board: the reach is unscaled (see
+	# [method _reach_of]), so a stat-scaled number would lie.
+	var reach := "Splashes onto %s nodes %s." % [_filter_word(),
+			range_finder.get_description(null).to_lower()]
+	return "%s %s" % [line, reach] if not line.is_empty() else reach
 
 
-## The extra nodes this landing splashes onto, beyond its own target. Walks
-## (never counts) the attacker's graph; empty with no graph to walk.
+func _filter_word() -> String:
+	match ownership_filter:
+		SkillNode.Ownership.HOSTILE: return "hostile"
+		SkillNode.Ownership.NEUTRAL: return "neutral"
+		6: return "friendly"
+		14: return "allocated"
+		15: return "all"
+	return "matching"
+
+
+## The extra nodes this landing splashes onto, beyond its own target: the
+## finder's gather around the target over the GLOBAL [Navigator] (the whole
+## board, every owner — the scope the old neighbour walk had). Never the
+## attacker's own [EntityNavigator]: an owned-subgraph mirror holds no hostile
+## node, so a HOSTILE splash would reach nothing. `attacker = null` keeps the
+## gather unscaled. Empty with no finder or no graph.
 func _reach_of(landing: HitLanding) -> Array[SkillNode]:
 	var out: Array[SkillNode] = []
 	var attacker := landing.attacker
-	if landing.target == null or attacker == null or attacker.navigator == null \
-			or attacker.navigator.graph == null:
+	if range_finder == null or landing.target == null or attacker == null \
+			or attacker.navigator == null or attacker.navigator.graph == null:
 		return out
-	for n in attacker.navigator.graph.get_neighbours(landing.target):
-		if n != landing.target and n.ownership_bit(attacker) == SkillNode.Ownership.HOSTILE:
+	var mirror: GraphMirror = attacker.navigator.graph.navigator
+	for n in range_finder.gather(landing.target, mirror):
+		if n != landing.target and n.ownership_bit(attacker) & ownership_filter != 0:
 			out.append(n)
 	return out
 

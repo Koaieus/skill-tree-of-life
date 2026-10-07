@@ -10,7 +10,8 @@ extends RefCounted
 ## Firing positions are the attacker's degree-1 nodes, so a node a test adds
 ## to the attacker with [method add_node] must link at least twice inside the
 ## territory or it becomes one more shooter — [method assert_firing_positions]
-## is the guard (`.claude/rules/ranged-attack-fixtures.md`).
+## is the guard (`.claude/rules/ranged-attack-fixtures.md`); [method build]
+## runs it on the bare board.
 
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _GRAPH_SCENE := preload("res://graph/graph.tscn")
@@ -72,6 +73,7 @@ static func build(gut: GutTest, flat := false) -> VolleyBoardFixture:
 	for leaf in f.leaves:
 		set_stat(leaf, &"range", LEAF_RANGE)
 	await gut.get_tree().process_frame
+	f.assert_firing_positions(f.leaves.size())
 	return f
 
 
