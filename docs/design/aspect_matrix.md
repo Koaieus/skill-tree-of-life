@@ -264,6 +264,43 @@ Each cell links its cell issue (`<Concept> × <Facet>`, a child of the row hub i
   owner's 20-arrow case). Lands with #1352.
 - **Spells:** `venom`; room for a second.
 
+## Arrow faces (owner, 2026-10-07)
+
+One `/swarmify` pass over the arrow column: the five #1349 scaffolds plus the
+four rows promoted since. **The volley is the design space.** Arrows land in
+`order`, so a *marker* arrow flying early changes how every arrow behind it
+lands. That is the arrow column's archetype-true special, and it needs no
+new plumbing. Every arrow gets its own look, in its status's own tint.
+Hue stays `Identity.tint`.
+
+| Arrow | On hit | Volley | Look |
+|---|---|---|---|
+| Corruption | plain stacks | — | beating tip; clotted blips in the trail swell and pop; a pustule lingers on impact, then bursts |
+| Curse | **marker**: owner *"early in volley, low damage value like .3 of original"* | early | dim "anti-glow" tip; an inward-contracting ring on impact |
+| Wither | plain stacks | — | dry ash flakes drifting down off the trail; the rim crumbles on impact |
+| Blindness | **flare**: owner *"target + its direct hostile neighbors. Some more reach. Then we make the damage 0 to really offset the increased reach"*; same stacks on all (*"Possibly: 1 stack for neighbors and more on the main target? Maybe later"*) | — | grit-shedding tip bursting into a grey-lavender smoke/sand cloud over target and neighbours; owner: *"with a flashbang pop on impact? Or just option 1, depends on the final looks"*. Never a light flare: that is Scout's (owner: *"It's literally a fog of war clearing flare"*) |
+| Armor break | plain, generous (#395) | first | heavy blunt tip, spark-shard trail, fragments fly off on impact |
+| Greed | plain stacks, owner: *"it'd be up for the situation to determine when it should be put in the volley, i think early better than later"* | early | Midas touch: owner *"I think a Midas touch vibe is warranted here"* — gold glint, coins tumbling off the trail |
+| Weakness | plain stacks | — | blunt concussive tip, a dull thud ring on impact |
+| Bleeding | plain stacks | — | dark wound-red drips off the trail, sparse like poison's froth |
+| Hex | **marker**, early, low damage: Curse lifts the floor, Hex lifts the crit chance of the arrows behind it | early | a magenta eye-sigil blinks open over the node on impact, then fades |
+
+- **No "fully absorbed" special.** Owner: *"There is little to no "fully
+  absorbed" in this game, i.e. curse may lift the damage floor anyway"*:
+  the floor axis rules out armor-gated arrow specials (shatter on bounce,
+  infect on a wound).
+- **Corruption damages only on topple (owner recollection, 2026-10-07):**
+  *"corruption iirc has shifted away from dealing damage each turn into
+  dealing damage only when sandpile-toppling. else toppling would actually
+  reduce the next dmg taken by that node (as it goes back to 0 stacks)"*.
+  It is the status's fact (#1202), never the arrow's: the arrow feeds the
+  pile, and its stacks-per-hit is retuned when #1202 lands.
+- **Situational volley order** (Greed's *"up for the situation to
+  determine"*) means a player-chosen order. That is its own feature, parked;
+  authored `order` stays the rule.
+- **Creep and Exposed** (contenders, #1444 / #1445) get arrows on this
+  template once their rows settle.
+
 ## Contenders — sparse rows
 
 Pure design, no concrete thing going for it yet, and struck freely. Owner,
