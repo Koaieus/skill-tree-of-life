@@ -21,11 +21,8 @@ const STAT_ID := &"bounty"
 
 ## The bounty raise Greed plants — its own type so a stateless def can find it
 ## again, and UNSCALED so the Avarice does not ladder with allocation level.
-class AvariceModifier:
-	extends StatModifier
-
-	func _local_scale_override(_old_al: int, _new_al: int) -> Variant:
-		return StatModifier.UNSCALED
+const AvariceModifier := preload("res://effects/status/modifiers/avarice_modifier.gd")
+const _MODIFIER_TEMPLATE := preload("res://effects/status/modifiers/avarice_modifier.tres")
 
 
 func _on_applied(host, power: float) -> void:
@@ -48,9 +45,7 @@ func _set_avarice(host, power: float) -> void:
 		host.remove_local_modifier(old)
 	if power <= 0.0 or avarice_increase_per_stack == 0.0:
 		return
-	var m := AvariceModifier.new()
-	m.stat_id = STAT_ID
-	m.operation = StatModifier.Operation.INCREASE
+	var m: StatModifier = _MODIFIER_TEMPLATE.duplicate()
 	m.value = avarice_increase_per_stack * power
 	host.add_local_modifier(m)
 
