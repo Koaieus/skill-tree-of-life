@@ -97,6 +97,13 @@ var _preview_edges: Array[Edge] = []
 ## How many times the preview has re-resolved — an aimed drag re-resolves
 ## only when the crossed set changes. Read-only outside the plan.
 var preview_resolves: int = 0
+## An aimed preview's key: the (source, crossed set) its resolve was built
+## from. A drag moves the angle every motion event, but the resolve reruns only
+## when this key changes; anything else that moves the outcome (ownership,
+## turn, spell, infusion, reset) drops it via [member _preview_key_valid].
+var _preview_key_valid: bool = false
+var _preview_key_source: SkillNode = null
+var _preview_key_seeds: Array[SkillNode] = []
 
 
 ## The wind-up hangs off the source (#1048) — empty until one is armed.
@@ -202,6 +209,7 @@ func reset() -> void:
 	source = null
 	target = null
 	aim_angle = NAN
+	_preview_key_valid = false
 	state_changed.emit()
 
 
@@ -212,7 +220,9 @@ func get_node_role(node: SkillNode) -> HighlightRole:
 		return HighlightRole.ORIGIN
 	if target != null and node == target:
 		return HighlightRole.HOSTILE_TARGET
-	if _preview_hit_set().has(node):
+	# Fog-gated like IN_RANGE below: a predicted hit on a node the viewer
+	# cannot see would leak what is there.
+	if _preview_hit_set().has(node) and _is_seen(node):
 		return HighlightRole.PROPAGATION
 	if spell != null and spell.targeting != null and _is_seen(node):
 		# Before a source is stamped this paints the UNION — every node any
@@ -367,6 +377,7 @@ func invalidate_union() -> void:
 	_union_dirty = true
 	_target_cache_dirty = true
 	_preview_dirty = true
+	_preview_key_valid = false
 
 
 func _rebuild_union() -> void:
@@ -463,9 +474,10 @@ func _preview_edge_list() -> Array[Edge]:
 ## events contribute an edge.
 func _rebuild_preview() -> void:
 	_preview_dirty = false
-	_preview_hit_nodes.clear()
-	_preview_edges.clear()
-	_preview_outcome = null
+	if is_aimed():
+		_rebuild_aimed_preview()
+		return
+	_clear_preview()
 	var preview_target := _preview_target()
 	if preview_target == null or spell == null or attacker == null:
 		return
@@ -481,6 +493,44 @@ func _rebuild_preview() -> void:
 		return
 	var outcome := SpellResolver.resolve(spell, preview_target, caster, attacker, graph,
 			null, infusion)
+	preview_resolves += 1
+	_record_preview(outcome, graph)
+
+
+func _clear_preview() -> void:
+	_preview_hit_nodes.clear()
+	_preview_edges.clear()
+	_preview_outcome = null
+
+
+## The aimed preview: every node the shape crosses from [member source] at
+## [member aim_angle] seeds a shadow resolve ([method SpellResolver.resolve_seeds]),
+## rerun only when the crossed set differs from the last one — see
+## [member _preview_key_valid]. The kept outcome's [member AttackOutcome.aim]
+## is the angle it was resolved at, not necessarily the live one.
+func _rebuild_aimed_preview() -> void:
+	var seeds: Array[SkillNode] = []
+	var graph := _graph_of(source) if source != null else null
+	if graph != null and attacker != null and not is_nan(aim_angle):
+		seeds = (spell.targeting as AimedTargeting).seeds(attacker, source, aim_angle, graph)
+	if _preview_key_valid and _preview_key_source == source and _preview_key_seeds == seeds:
+		return
+	_preview_key_valid = true
+	_preview_key_source = source
+	_preview_key_seeds = seeds
+	_clear_preview()
+	if seeds.is_empty():
+		return
+	var world := CombatWorld.shadow()
+	var outcome := SpellResolver.resolve_seeds(spell, seeds, source, attacker, graph,
+			world, null, infusion, aim_angle)
+	world.free_shadow()
+	preview_resolves += 1
+	_record_preview(outcome, graph)
+
+
+## Reads [param outcome]'s timeline into the preview's hit set and edge list.
+func _record_preview(outcome: AttackOutcome, graph: Graph) -> void:
 	_preview_outcome = outcome
 	if outcome.timeline.is_empty():
 		return
@@ -572,6 +622,7 @@ func set_infusion(aspect_id: StringName, points: int) -> void:
 	if current == infusion.points:
 		return
 	infusion = Infusion.for_cast(spell, current)
+	_preview_key_valid = false
 	state_changed.emit()
 
 

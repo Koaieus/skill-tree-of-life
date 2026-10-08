@@ -630,12 +630,20 @@ func _unhandled_input(event: InputEvent) -> void:
 	if _input_frozen:
 		return
 	if event is InputEventMouseMotion:
-		if move_targeting_source() != null and Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
+		var mm := event as InputEventMouseMotion
+		var aiming := _aiming_magic_level()
+		if aiming != null and mm.button_mask & MOUSE_BUTTON_MASK_LEFT:
+			aiming.update_aim(graph.to_global(graph.make_input_local(mm).position))
+		elif move_targeting_source() != null and Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
 			_update_core_drag()
 		return
 	if event is InputEventMouseButton:
 		var mb := event as InputEventMouseButton
 		if mb.button_index == MOUSE_BUTTON_LEFT and not mb.pressed:
+			var aiming := _aiming_magic_level()
+			if aiming != null:
+				aiming.release_aim()
+				return
 			_on_core_drag_released()
 			return
 		if mb.button_index == MOUSE_BUTTON_RIGHT and mb.pressed:
@@ -962,6 +970,15 @@ func _refresh_armed_state() -> void:
 		_armed_icon = next_icon
 		_armed_icon_tint = next_icon_tint
 		armed_icon_changed.emit(next_icon, next_icon_tint)
+
+
+## The armed [MagicMode] level with an aimed drag in progress, else null —
+## the aimed-spell counterpart of [method move_targeting_source].
+func _aiming_magic_level() -> MagicMode:
+	if armed_stack == null or graph == null:
+		return null
+	var level := armed_stack.find(MagicMode) as MagicMode
+	return level if level != null and level.is_aiming() else null
 
 
 func move_targeting_source() -> SkillNode:
