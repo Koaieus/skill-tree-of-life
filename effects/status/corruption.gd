@@ -5,7 +5,7 @@ extends StatusDef
 ## of the node's MAX hp as unmitigated [constant DamageInstance.Type.TRUE]
 ## damage — the answer to bulk (owner, 2026-09-20: *"a fully corrupted lv1
 ## enemy would die too basically. the harsh reality of % damage"*). No decay
-## and no cap are authored on the `.tres`; rarity comes from its
+## (owner, 2026-10-01) and no cap are authored on the `.tres`; rarity comes from its
 ## sources and small stacks per hit, never from a clamp.
 ##
 ## Its own [StatusDef] subclass rather than a [PoisonStatus] with a basis

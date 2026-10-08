@@ -1,11 +1,11 @@
 ---
 id: 0023
 title: Every notable stat or stat combo gets a dedicated NodeAddon and an arrow ammo type; every DoT gets both plus spells
-status: accepted
+status: superseded
 date: 2026-09-20
 deciders: owner
 supersedes: []
-superseded-by: null
+superseded-by: 0050
 sources:
   - "#952"
   - "#951"

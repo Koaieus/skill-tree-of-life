@@ -1,7 +1,7 @@
 # Spell propagation — filter / spread / mint / merger
 
 Engineering-side architecture doc for the spell propagation pipeline. The
-design-side (spells ship; see `docs/design/spells.md`) lives in `docs/design/spells.md`;
+design side is `docs/design/spells.md`;
 this doc covers the code shape that has to support it.
 
 Session-handoff format: where we are, where we're going, why, and the

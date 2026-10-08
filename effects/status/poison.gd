@@ -4,7 +4,8 @@ extends StatusDef
 ## Poison: each turn tick deals unmitigated
 ## `DamageInstance.Type.TRUE` damage through [method NodeCombat.take_damage] —
 ## the same door attacks use, so `damaged` / regen-suppression / a killing
-## `notify_depleted` all fire naturally. `reapply = ACCUMULATE` in the authored
+## `notify_depleted` all fire naturally (owner: *"Yes — ride notify_depleted
+## now"*). `reapply = ACCUMULATE` in the authored
 ## def lets a volley build power.
 ##
 ## [member basis] is a per-def knob (owner, 2026-09-14: *"doubt between %
