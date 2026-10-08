@@ -60,6 +60,12 @@ extends Node2D
 ## always show.
 @export var unit_filter: Array[StringName] = []
 
+## Subscribe to the global `Events.skill_node_hovered/unhovered`. Off for a
+## host that drives the fan itself through [method show_for] / [method
+## hide_fan] — a sandbox tab, where Events is shared by every tab's world and a
+## hover in one would pop a fan in all of them.
+@export var listen_to_events := true
+
 const _GROUP := &"fan_unit"
 
 ## The "more info" input action (project.godot: Shift). Held while hovering
@@ -117,8 +123,20 @@ func _ready() -> void:
 	if VfxEditorScene.is_edited(self):
 		return
 	visible = false
-	Events.skill_node_hovered.connect(_on_hovered)
-	Events.skill_node_unhovered.connect(_on_unhovered)
+	if listen_to_events:
+		Events.skill_node_hovered.connect(_on_hovered)
+		Events.skill_node_unhovered.connect(_on_unhovered)
+
+
+## Fans out around [param node] exactly as a hover would — the entry point for a
+## host with [member listen_to_events] off.
+func show_for(node: SkillNode) -> void:
+	_on_hovered(node)
+
+
+## Retires the current fan exactly as an unhover would.
+func hide_fan() -> void:
+	_on_unhovered()
 
 
 func _process(_delta: float) -> void:
