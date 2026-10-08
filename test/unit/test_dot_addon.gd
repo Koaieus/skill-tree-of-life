@@ -154,6 +154,27 @@ func test_the_toxic_vertex_lands_damage_and_poison_on_the_same_contact() -> void
 			"the plate carries poison after the swing")
 
 
+func test_a_plain_addon_authored_with_a_status_lands_it_on_its_vertex_contact() -> void:
+	var status := ApplyStatusEffect.new()
+	status.def = _POISON
+	status.power = 1.0
+	var plain := SkillNodeAddon.new()
+	plain.set(&"on_hit_effects", [status] as Array[OnHitEffect])
+	_tip.add_child(plain)
+	await _settle()
+	var outcome := _plan().resolve_against(CombatWorld.live())
+
+	var damage := outcome.damage_hits()
+	assert_gt(damage.size(), 0, "fixture: the tip must contact the plate")
+	var statuses := _status_hits(outcome)
+	assert_eq(statuses.size(), damage.size(),
+			"a base SkillNodeAddon's on_hit_effects ride every landed contact of its vertex")
+	if statuses.is_empty():
+		return
+	assert_eq(statuses[0].def, _POISON, "the authored status")
+	assert_eq(statuses[0].paired, damage[0], "riding its contact")
+
+
 func test_a_toxin_elsewhere_on_the_blade_leaves_the_contacting_vertex_clean() -> void:
 	_attach_toxin(_mid)  # mid never reaches the plate; only the tip does
 	await _settle()
