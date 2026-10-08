@@ -177,14 +177,14 @@ const KEY_EVENT_HITS := "e_hits"
 ## A melee fuse's gate flips (#1209): one count per [constant HitInstance.Kind.GATE_FLIP]
 ## hit, in hit order, slicing the flat pair arrays. Omitted when empty, so a
 ## fuse-less record is dict-identical to one captured before fuses existed.
+const KEY_GATE_COUNT := "g_n"
+const KEY_GATE_FROM := "g_from"
+const KEY_GATE_TO := "g_to"
 ## [member AttackOutcome.aim]: the cast-from node's stable id, and
 ## `[angle, length]` as float64 — empty on a node cast, which is how the far
 ## side tells "no aim" from an aim at angle 0. Both omitted at default.
 const KEY_AIM_ORIGIN := "a_org"
 const KEY_AIM_GEOM := "a_geom"
-const KEY_GATE_COUNT := "g_n"
-const KEY_GATE_FROM := "g_from"
-const KEY_GATE_TO := "g_to"
 
 ## [constant KEY_HIT_FLAGS] bits.
 const FLAG_GATED := 1
