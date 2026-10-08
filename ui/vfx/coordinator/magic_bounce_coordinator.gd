@@ -54,6 +54,7 @@ extends VFXCoordinator
 const _DEFAULT_VISUAL: PackedScene = preload("res://ui/vfx/projectile/visual/glowing_dot.tscn")
 const _DEFAULT_CANCEL: PackedScene = preload("res://ui/vfx/projectile/visual/cancel_dissipate.tscn")
 const _DEFAULT_STREAK: PackedScene = preload("res://ui/vfx/projectile/visual/draw_streak.tscn")
+const _DEFAULT_AIM_STREAK: PackedScene = preload("res://ui/vfx/coordinator/hitscan_streak.tscn")
 
 ## Fired immediately at each beat — the impact moment for projectiles that
 ## were spawned early. Tests assert the emission cadence here; gameplay can
@@ -124,6 +125,12 @@ signal wave_started(hop_index: int, events_in_wave: int)
 ## layered on top of the draw is [member SpellDef.windup_vfx_scene].
 @export var draw_streak_visual: PackedScene = _DEFAULT_STREAK
 
+## The hitscan line an aimed cast ([member AttackOutcome.aim]) draws from its
+## origin to full length inside the lead-in, before beat 0 (#1498). A spell
+## picks its look by pointing this at its own [HitscanStreak] scene; null =
+## no streak.
+@export var aim_streak_visual: PackedScene = _DEFAULT_AIM_STREAK
+
 ## The caster's glow at the top of the draw ramp — the tier the streaks feed
 ## it up to before the [constant Emissive.PEAK] flare. A tier, never a float
 ## (`.claude/rules/hdr-color.md`).
@@ -161,14 +168,23 @@ func play(payload: Variant) -> void:
 
 
 func _play_cast(outcome: AttackOutcome) -> void:
+	if outcome == null:
+		return
+	# An aimed cast's streak plays even when the aim crossed nothing: it draws
+	# to the aim's full length, which no hit list can say.
+	if outcome.aim != null and aim_streak_visual != null:
+		_ensure_schedule(outcome)
+		var streak_pending: Array[int] = [0]
+		_play_aim_streak(outcome.aim, outcome.schedule.lead_in(), streak_pending)
+		if outcome.timeline.is_empty():
+			while streak_pending[0] > 0:
+				await get_tree().process_frame
+			return
 	# Guard on the timeline, not `hits`: a pure-utility spell (power 0)
 	# lands zero-damage events that carry no hit — it must still render its path.
-	if outcome == null or outcome.timeline.is_empty():
+	if outcome.timeline.is_empty():
 		return
-	# Whoever resolved this already compiled one; compiling here covers a
-	# hand-built outcome and is idempotent either way.
-	if outcome.schedule == null:
-		outcome.schedule = OutcomeSchedule.compile(outcome, tempo)
+	_ensure_schedule(outcome)
 	var schedule: OutcomeSchedule = outcome.schedule
 	# Resolved ONCE per cast, not per event: a spell has exactly one caster,
 	# and a CANCEL / pure-utility event carries no hit to read an attacker off
@@ -203,6 +219,30 @@ func _play_cast(outcome: AttackOutcome) -> void:
 	await _play_three_clocks(schedule, entry_of, waves, beats, pending)
 	while pending[0] > 0:
 		await get_tree().process_frame
+
+
+## Whoever resolved this already compiled one; compiling here covers a
+## hand-built outcome and is idempotent either way.
+func _ensure_schedule(outcome: AttackOutcome) -> void:
+	if outcome.schedule == null:
+		outcome.schedule = OutcomeSchedule.compile(outcome, tempo)
+
+
+## The hitscan streak (#1498): spawned at play() time, i.e. wave 0's launch,
+## and drawn to full length over [param lead_in] — the same seconds wave 0's
+## bolts fly — so it is done at beat 0 and never moves a landing. Counted in
+## [param pending] so the coordinator outlives its fade.
+func _play_aim_streak(aim: AttackOutcome.Aim, lead_in: float, pending: Array[int]) -> void:
+	if aim.origin == null or not is_instance_valid(aim.origin):
+		return
+	var streak := aim_streak_visual.instantiate() as HitscanStreak
+	if streak == null:
+		return
+	add_child(streak)
+	pending[0] += 1
+	streak.tree_exiting.connect(func() -> void:
+		pending[0] -= 1)
+	streak.play(aim.origin.global_position, aim.angle, aim.length, lead_in)
 
 
 ## Three-clocks playback on [member clock]: wave [code]k[/code] launches at

@@ -1,0 +1,8 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://ui/vfx/coordinator/hitscan_streak.gd" id="1"]
+
+[node name="HitscanStreak" type="Line2D"]
+begin_cap_mode = 2
+end_cap_mode = 2
+script = ExtResource("1")
