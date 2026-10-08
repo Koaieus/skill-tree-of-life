@@ -46,11 +46,17 @@ func test_multiply_is_absent_below_the_gate_and_round_trips() -> void:
 	for unlock in [2, 4]:
 		await _fresh_node()
 		_node.allocation_level = 1
+		var flat := StatModifier.new()
+		flat.stat_id = &"armor"
+		flat.value = 10.0
+		flat.operation = StatModifier.Operation.ADD_BASE
+		_node.add_local_modifier(flat)
 		_node.add_local_modifier(_gated(StatModifier.Operation.MULTIPLY, 2.0, unlock))
 		var base: float = _read_at(1)
+		assert_gt(base, 0.0, "nonzero base so the multiply has teeth")
 		for pass_n in 2:
 			for lvl in range(1, 7):
-				var expect: float = base * (2.0 if lvl >= unlock else 1.0)
+				var expect: float = base * lvl * (2.0 if lvl >= unlock else 1.0)
 				assert_almost_eq(_read_at(lvl), expect, 0.001, "unlock %d level %d pass %d" % [unlock, lvl, pass_n])
 			_read_at(1)
 
