@@ -15,6 +15,7 @@ const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _TOXIN_SCENE := preload("res://skill_node/addons/defs/toxin_addon.tscn")
 const _POISON := preload("res://effects/status/poison.tres")
 const _SECOND_DOT_SCENE := preload("res://test/fixtures/addons/second_dot_addon.tscn")
+const _BARE_SCENE := preload("res://test/fixtures/addons/bare_addon.tscn")
 ## A rigid spine (mid welded) traces the nominal radius the plate sits on; a
 ## floppy one curls inward and misses — test_bunker_break_live.gd's finding.
 const _CLAMP_SCENE := preload("res://skill_node/addons/defs/clamp_addon.tscn")
@@ -158,7 +159,7 @@ func test_a_plain_addon_authored_with_a_status_lands_it_on_its_vertex_contact() 
 	var status := ApplyStatusEffect.new()
 	status.def = _POISON
 	status.power = 1.0
-	var plain := SkillNodeAddon.new()
+	var plain := _BARE_SCENE.instantiate() as SkillNodeAddon  # base script, no subclass
 	plain.on_hit_effects = [status] as Array[OnHitEffect]
 	_tip.add_child(plain)
 	await _settle()
