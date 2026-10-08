@@ -14,7 +14,9 @@ extends OnHitEffect
 ## spell's landing, an arrow's and a blade contact's alike: the emitted
 ## status copies the landing's attacker / source / origin / read node / target /
 ## structural key, and rides [member HitLanding.paired] — the status applies
-## iff that primary hit landed ([member HitInstance.paired]).
+## iff that primary hit landed ([member HitInstance.paired]). Its one
+## spell-only read, [member LandingContext.stack_scale], degrades to 1.0 on an
+## arrow's or a blade's landing.
 
 @export var def: StatusDef = null
 @export var power: float = 1.0
@@ -35,6 +37,8 @@ func apply(landing: HitLanding) -> void:
 	status.structural_key = landing.structural_key
 	status.paired = landing.paired
 	status.hit_key = landing.hit_key
+	var lctx := landing as LandingContext
+	status.stack_scale = lctx.stack_scale if lctx != null else 1.0
 	landing.hits.append(status)
 
 
