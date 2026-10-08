@@ -53,14 +53,6 @@ var _bound_node: SkillNode = null
 var _row_setters: Array[Callable] = []
 
 
-func _ready() -> void:
-	super._ready()
-	# See owner_panel.gd's _ready for why this skips in-editor entirely.
-	if Engine.is_editor_hint():
-		return
-	_header.bind("Node Stats")
-
-
 ## Public entry point (#230). `_graph` is unused here — this panel only ever
 ## reads node-local data.
 func bind(node: SkillNode, _graph: Graph) -> void:

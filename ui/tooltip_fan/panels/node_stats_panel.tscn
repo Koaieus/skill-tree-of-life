@@ -20,7 +20,7 @@ custom_minimum_size = Vector2(170, 200)
 glow = 0.55
 
 [node name="Header" parent="PanelContainer/MarginContainer/Content" parent_id_path=PackedInt32Array(1269983304) index="0" unique_id=1164856017]
-header = "LOCAL STATS"
+header = "NODE STATS"
 subheader = "Even nodes get stats these days"
 
 [node name="Rows" parent="PanelContainer/MarginContainer/Content" parent_id_path=PackedInt32Array(1269983304) index="1" unique_id=580212173]
