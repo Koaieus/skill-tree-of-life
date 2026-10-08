@@ -172,17 +172,15 @@ func _play_cast(outcome: AttackOutcome) -> void:
 		return
 	# An aimed cast's streak plays even when the aim crossed nothing: it draws
 	# to the aim's full length, which no hit list can say.
+	var pending: Array[int] = [0]
 	if outcome.aim != null and aim_streak_visual != null:
 		_ensure_schedule(outcome)
-		var streak_pending: Array[int] = [0]
-		_play_aim_streak(outcome.aim, outcome.schedule.lead_in(), streak_pending)
-		if outcome.timeline.is_empty():
-			while streak_pending[0] > 0:
-				await get_tree().process_frame
-			return
+		_play_aim_streak(outcome.aim, outcome.schedule.lead_in(), pending)
 	# Guard on the timeline, not `hits`: a pure-utility spell (power 0)
 	# lands zero-damage events that carry no hit — it must still render its path.
 	if outcome.timeline.is_empty():
+		while pending[0] > 0:
+			await get_tree().process_frame
 		return
 	_ensure_schedule(outcome)
 	var schedule: OutcomeSchedule = outcome.schedule
@@ -200,7 +198,6 @@ func _play_cast(outcome: AttackOutcome) -> void:
 	var waves := _group_by_beat(outcome.timeline)
 	var beats: Array = waves.keys()
 	beats.sort()
-	var pending: Array[int] = [0]
 	# AWAIT the timeline before draining. `_play_three_clocks` is a coroutine,
 	# so an un-awaited call returns at its first timer with only wave 0 spawned
 	# — and then the drain below exits as soon as wave 0's pending count hits
