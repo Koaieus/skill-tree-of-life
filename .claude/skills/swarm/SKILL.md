@@ -358,6 +358,8 @@ serial by `flock`, rebases inside the drone's worktree, runs `check` +
 `in-review`, derives the hub. Non-zero → hand the printed reason to the
 drone once; a second failure is a stop. `--closes` only on the *final*
 branch of a multi-unit issue; on every branch of independent issues.
+Filter its output with `grep -E 'LANDED|✗|ERROR'` — a red land prints `✗`
+and `ERROR`, and a success-only filter shows it as silence.
 
 **Before the gate, sweep `poison:` lines** out of the reports (`ledger --
 note <n> 'poison: …'` keeps them findable): apply

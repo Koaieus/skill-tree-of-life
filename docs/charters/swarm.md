@@ -259,7 +259,9 @@ disk at `scratchpad/land/land-<n>.log` (#920), so filling the ledger is a
 20. **`mise run land -- <branch> [--closes <n>]` is the only way onto
     master.** Serial by `flock`; rebases in the worktree; `check` +
     `test:dir`; `--closes` only on the final branch of a multi-unit issue.
-    A non-zero is handed back to the drone once; twice is a stop.
+    A non-zero is handed back to the drone once; twice is a stop. Its
+    verdict is the exit code or a `LANDED` / `✗` line — a filter on its
+    output must match both (`grep -E 'LANDED|✗|ERROR'`), never success alone.
 21. **The full suite runs once per train**, after every branch of the batch
     is fast-forwarded, and only when the batch is runtime-observable
     (`.gd`/`.tscn` changed) — `check` for a scripts-only batch, nothing for
@@ -348,6 +350,7 @@ disk at `scratchpad/land/land-<n>.log` (#920), so filling the ledger is a
 | 2026-09-30 | #1222 | ≥4 deliverables dispatched as one opus unit against law 3: 4.21M priced (23% of the run), did not land in its drone's budget; the relief lead finished it by hand → sizing moved to swarmify (law 27 there) with the lead's size net here | 3 |
 | 2026-09-30 | lead cost | the swarm lead and a concurrent Fable session each blamed the other for the window; `agent-cost` could only see subagents (18.1M priced) — `--main` prices a main transcript | cost model |
 | 2026-09-30 | owner | advisor law redrawn: "we shouldn't underestimate the power of the Advisor tool … so long Sonnet gets the plan right at the right time (and doesn't try 100 failed attempts first) that should help a lot"; a loop is not a count — the target is "i'm throwing things at a wall now", where drones "should raise their finger and be like 'help pls sensei, shed some light'"; with no Sage "a final advisor call might still be cheaper than bloating lead's context; though lead may have more of an overview"; an advisor answering a fork says stop and flag the lead, and the issue is "pulled from the swarm, sent back to the drawing board; possibly issues it blocks removed too" | 8, 9 |
+| 2026-10-08 | 9 units | the lead filtered every `land` with `grep -E 'LANDED\|FAIL\|rror\|board'`; a red `test:dir` prints `✗ … is red` and `[land] ERROR`, neither matched, so the #1490 land failed silently — caught only because `LANDED` was missing | 20 |
 
 ## What the skill must not contain
 
