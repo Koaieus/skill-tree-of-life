@@ -61,8 +61,9 @@ def posted_texts(args, stdin_file):
 	return out
 
 
-def offences(text):
-	prose = _SPAN.sub("", _FENCE.sub("", text))
+def offences(text, strip_code=True):
+	"""strip_code=False for text GitHub does not render as Markdown (commit messages)."""
+	prose = _SPAN.sub("", _FENCE.sub("", text)) if strip_code else text.replace("`", " ")
 	return _MENTION.findall(prose), _HANDLE.findall(prose)
 
 

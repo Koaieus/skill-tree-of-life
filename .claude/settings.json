@@ -42,6 +42,11 @@
             "type": "command",
             "command": "\"$CLAUDE_PROJECT_DIR/.mise/tasks/godot-kill-guard\"",
             "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR/.mise/tasks/commit-mention-guard\"",
+            "timeout": 5
           }
         ]
       },

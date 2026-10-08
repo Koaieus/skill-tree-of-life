@@ -1,0 +1,84 @@
+#!/usr/bin/env python3
+#MISE description="PreToolUse guard: refuse a git commit whose message holds a live @mention or an unresolved #{handle}"
+"""
+The commit-message half of the gh shim's mention scan (.mise/bin/gh). A pushed
+commit message is plain text on GitHub, not Markdown, so an `@name` in it is a
+mention even inside backticks — unlike an issue body, nothing is stripped here.
+
+What is scanned: the whole command string of any Bash call that runs
+`git ... commit` (this catches `-m "..."`, a `-F -` heredoc, and a message file
+written earlier in the same command), plus any `-F <path>` / `--file=<path>`
+already on disk. An `@` after a word char (mail@host, HEAD@{1}) is no mention.
+
+GH_MENTION_OK=1 written in the command is the deliberate-mention escape hatch,
+the same knob as the shim's. Covers agents only: a human's terminal commit is
+not a tool call. Contract as godot-kill-guard: silence + exit 0 is "no
+opinion", and unparseable input never blocks.
+"""
+import json
+import os
+import re
+import shlex
+import sys
+
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "lib"))
+from gh_mention_scan import offences  # noqa: E402
+
+_COMMIT = re.compile(r"(?:^|[;&|(\n]|\s)git(?:\s+-[Cc]\s+\S+)*\s+commit\b")
+
+
+def _message_files(command):
+	try:
+		words = shlex.split(command, comments=False, posix=True)
+	except ValueError:
+		return []
+	out = []
+	for i, w in enumerate(words):
+		if w in ("-F", "--file") and i + 1 < len(words):
+			out.append(words[i + 1])
+		elif w.startswith("--file="):
+			out.append(w.split("=", 1)[1])
+	return [p for p in out if p != "-" and os.path.isfile(p)]
+
+
+def main() -> int:
+	try:
+		payload = json.load(sys.stdin)
+		command = payload.get("tool_input", {}).get("command", "")
+	except Exception:
+		return 0
+	if payload.get("tool_name") != "Bash" or not isinstance(command, str):
+		return 0
+	if not _COMMIT.search(command) or "GH_MENTION_OK=1" in command:
+		return 0
+	texts = [command]
+	for path in _message_files(command):
+		try:
+			texts.append(open(path, encoding="utf-8", errors="replace").read())
+		except OSError:
+			pass
+	mentions, handles = set(), set()
+	for t in texts:
+		m, h = offences(t, strip_code=False)
+		mentions.update(m)
+		handles.update(h)
+	if not (mentions or handles):
+		return 0
+	reason = ["Refused: this commit message would ping someone once pushed."]
+	if mentions:
+		reason.append(f"Live mention(s): {', '.join(sorted(mentions))}. A commit message is plain "
+			"text on GitHub — backticks do not protect an @name there. Name a Godot annotation "
+			"in words instead (\"the export annotation\", \"a tool script\").")
+	if handles:
+		reason.append(f"Unresolved swarmify handle(s): {', '.join(sorted(handles))} — write the issue number.")
+	reason.append("A deliberate ping of a collaborator: put GH_MENTION_OK=1 in the command.")
+	print(json.dumps({"hookSpecificOutput": {
+		"hookEventName": "PreToolUse",
+		"permissionDecision": "deny",
+		"permissionDecisionReason": "\n\n".join(reason),
+	}}))
+	return 0
+
+
+if __name__ == "__main__":
+	sys.exit(main())
