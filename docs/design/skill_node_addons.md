@@ -201,7 +201,7 @@ Implementation: `docs/domain/melee-blade-sim.md`, "Bunker deflection (#781)".
 
 ---
 
-### Toxin — shipped as **DotAddon** (`skill_node/addons/dot_addon.gd`, `toxin_addon.tscn`)
+### Toxin — shipped as `toxin_addon.tscn` (base `SkillNodeAddon`, no subclass)
 
 **Effect:** One item, two faces. *Ranged:* `+1 poison_aspect` to the
 carrier's owner, authored as `entity_modifiers` on the scene (the first shipped
@@ -214,9 +214,9 @@ popped vertex) applies nothing and never re-pops through its status.
 temp upgrade — `skill_node/addons/defs/toxin_addon.tscn` in the scanned folder, cost 2, third
 tray card (V). Loot: later.
 
-**Shape:** one `DotAddon` script (`on_hit_effects`), one `.tscn`
-per status — corruption / curse / wither (#971-973) are scenes and a pool
-entry each, no code (ADR 0023).
+**Shape:** a scene on the base `SkillNodeAddon`, its poison authored in
+`on_hit_effects` — a field every addon carries, so a later status addon is a
+scene and a pool entry, no code (ADR 0023).
 
 ---
 

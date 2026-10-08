@@ -1,7 +1,7 @@
 extends GutTest
 
 ## An addon's kind is its scene, not its script: `toxin_addon.tscn` and the
-## fixture `second_dot_addon.tscn` both run `dot_addon.gd`, yet they are two
+## fixture `second_dot_addon.tscn` both run the base `skill_node_addon.gd`, yet they are two
 ## kinds — for uniqueness on a carrier and for the melee tray's outline colour.
 
 const _TOXIN_SCENE := preload("res://skill_node/addons/defs/toxin_addon.tscn")

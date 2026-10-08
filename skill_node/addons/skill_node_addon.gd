@@ -3,8 +3,8 @@ class_name SkillNodeAddon
 extends Node2D
 
 ## [b]An addon is a scene, not a script.[/b] Read [code]<name>_addon.tscn[/code]
-## first: its root names the script it runs (possibly a shared one,
-## [code]toxin_addon.tscn[/code] runs [code]dot_addon.gd[/code]) and holds the
+## first: its root names the script it runs (often this base one —
+## [code]toxin_addon.tscn[/code] runs [code]skill_node_addon.gd[/code]) and holds the
 ## authored modifiers, icon and visuals. A new addon is a scene on this class
 ## or a shared one; subclass only for behaviour a scene can't author.
 ##
@@ -61,6 +61,23 @@ extends Node2D
 
 @export var entity_modifiers: Array[StatModifier] = []
 @export var local_modifiers: Array[StatModifier] = []
+## What this addon's carrier vertex does on every contact it lands when the
+## carrier is copied onto a blade — that vertex only, never the whole blade;
+## the one on-hit vocabulary blades share with spells and arrows (ADR 0044),
+## usually one [ApplyStatusEffect]. Run in order, after the contact's damage
+## hit, riding it ([member HitLanding.paired]); potency and resistance fold in
+## at land time exactly as an arrow's do. Spell-only riders
+## ([SpellOnHitEffect]) are dropped at load with one push_error; the stored
+## array never holds one.
+@export var on_hit_effects: Array[OnHitEffect] = []:
+	set(value):
+		var kept: Array[OnHitEffect] = []
+		for effect in value:
+			if effect is SpellOnHitEffect:
+				push_error("%s: %s is spell-only; refused from on_hit_effects" % [scene_file_path, str(effect.resource_path)])
+			else:
+				kept.append(effect)
+		on_hit_effects = kept
 ## Free-text tooltip description — lets a behaviour-only addon (no modifiers,
 ## e.g. Clamp) still describe itself on the carrier's hover tooltip. Empty by
 ## default; [method SkillNode.get_addon_tooltip_sections] surfaces a section
@@ -268,8 +285,14 @@ func configure_visual(radius: float) -> void:
 ## are filled.
 ## `particle_idx` is this carrier's index in state.positions.
 ## Transient — BladeState is rebuilt each simulate(), so this runs every swing.
-func apply_to_blade(_state: BladeState, _particle_idx: int) -> void:
-	pass
+## The base appends [member on_hit_effects] to this carrier's vertex riders —
+## never overwrites, so two addons on one carrier both ride its contacts, in
+## child order. An override must call [code]super[/code].
+func apply_to_blade(state: BladeState, particle_idx: int) -> void:
+	var riders: Array = state.vertex_on_hit[particle_idx]
+	for effect in on_hit_effects:
+		if effect != null:
+			riders.append(effect)
 
 
 # ─── Tooltip content contract ──────────────────────────────────────────────

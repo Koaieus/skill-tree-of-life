@@ -1,6 +1,6 @@
 extends GutTest
 
-## #951 — DotAddon's melee face: the blade vertex built from a carrier of
+## #951 — an addon's on-hit melee face: the blade vertex built from a carrier of
 ## `toxin_addon.tscn` applies `poison` on every contact it LANDS — that vertex
 ## only, and only when the vertex's own damage hit was admitted by the live
 ## gate (a popped vertex never re-pops through its status). The ranged face
@@ -115,8 +115,8 @@ func _plan() -> MeleeAttackPlan:
 	return plan
 
 
-func _attach_toxin(node: SkillNode) -> DotAddon:
-	var toxin := _TOXIN_SCENE.instantiate() as DotAddon
+func _attach_toxin(node: SkillNode) -> SkillNodeAddon:
+	var toxin := _TOXIN_SCENE.instantiate() as SkillNodeAddon
 	node.add_child(toxin)
 	return toxin
 
@@ -159,7 +159,7 @@ func test_a_plain_addon_authored_with_a_status_lands_it_on_its_vertex_contact() 
 	status.def = _POISON
 	status.power = 1.0
 	var plain := SkillNodeAddon.new()
-	plain.set(&"on_hit_effects", [status] as Array[OnHitEffect])
+	plain.on_hit_effects = [status] as Array[OnHitEffect]
 	_tip.add_child(plain)
 	await _settle()
 	var outcome := _plan().resolve_against(CombatWorld.live())
@@ -201,7 +201,7 @@ func test_a_refused_contact_applies_no_status_and_pops_once() -> void:
 
 func test_two_dot_addons_on_one_carrier_both_ride_every_contact_in_addon_order() -> void:
 	var first := _attach_toxin(_tip)
-	var second := _SECOND_DOT_SCENE.instantiate() as DotAddon
+	var second := _SECOND_DOT_SCENE.instantiate() as SkillNodeAddon
 	_tip.add_child(second)
 	await _settle()
 	var outcome := _plan().resolve_against(CombatWorld.live())
@@ -330,7 +330,7 @@ func test_a_temp_toxin_on_a_blade_node_poisons_in_the_same_resolve() -> void:
 # ── authoring ────────────────────────────────────────────────────────────────
 
 func test_a_spell_only_rider_is_refused_from_on_hit_effects() -> void:
-	var dot := _TOXIN_SCENE.instantiate() as DotAddon
+	var dot := _TOXIN_SCENE.instantiate() as SkillNodeAddon
 	autofree(dot)
 	var status := ApplyStatusEffect.new()
 	status.def = _POISON

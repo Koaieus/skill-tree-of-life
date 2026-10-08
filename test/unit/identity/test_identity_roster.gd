@@ -158,11 +158,11 @@ func test_every_addon_scene_references_an_identity() -> void:
 	assert_gt(checked, 0, "expected to check some addon scenes")
 
 
-func test_dot_addon_shares_its_status_identity() -> void:
+func test_an_on_hit_addon_shares_its_status_identity() -> void:
 	var checked := 0
 	for addon in _addon_roots():
-		var dot := addon as DotAddon
-		if dot == null:
+		var dot := addon
+		if dot.on_hit_effects.is_empty():
 			continue
 		for effect in dot.on_hit_effects:
 			var status := effect as ApplyStatusEffect
@@ -172,7 +172,7 @@ func test_dot_addon_shares_its_status_identity() -> void:
 			assert_eq(dot.identity, status.def.identity,
 					"%s shares %s's identity" % [dot.scene_file_path, status.def.id])
 			checked += 1
-	assert_gt(checked, 0, "expected to check some DotAddons")
+	assert_gt(checked, 0, "expected to check some on-hit addons")
 
 
 func _addon_roots() -> Array[SkillNodeAddon]:

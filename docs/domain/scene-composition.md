@@ -55,7 +55,7 @@ in `skill_node/addons/` itself, never `defs/`): the
 root node names the script it runs, and the scene holds the authored
 `local_modifiers` / `entity_modifiers`, icon and visuals. The script is only
 the behaviour a scene can't author — `toxin_addon.tscn` has no script of its
-own (it runs the shared `dot_addon.gd`), and `spike_ring_addon.gd` computes
+own (it runs the base `skill_node_addon.gd`, its `on_hit_effects` authored in the scene), and `spike_ring_addon.gd` computes
 only its stake-scaled grants while its `×1.5 blade_damage` sits in the scene.
 
 **The recurring mistake:** reading `<name>_addon.gd`, seeing no modifiers,

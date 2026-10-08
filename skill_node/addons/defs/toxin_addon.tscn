@@ -1,7 +1,7 @@
 [gd_scene load_steps=8 format=3 uid="uid://b1addon0toxin"]
 [ext_resource type="Script" uid="uid://dw3civ4fol21f" path="res://attack/spell/on_hit/on_hit_effect.gd" id="6_effect"]
 
-[ext_resource type="Script" path="res://skill_node/addons/dot_addon.gd" id="1_dot"]
+[ext_resource type="Script" uid="uid://bkf87fqtgkm7a" path="res://skill_node/addons/skill_node_addon.gd" id="1_addon"]
 [ext_resource type="Script" uid="uid://che6xhl6srqh3" path="res://stats_system/stat_modifier.gd" id="2_mod"]
 [ext_resource type="Resource" uid="uid://c7s5qybcqmll5" path="res://effects/status/poison.tres" id="3_poison"]
 [ext_resource type="Script" uid="uid://c2q50hhtuf7g7" path="res://attack/spell/on_hit/apply_status_effect.gd" id="5_status"]
@@ -22,7 +22,7 @@ power = 1.0
 
 [node name="ToxinAddon" type="Node2D" unique_id=1193177971]
 z_index = 1
-script = ExtResource("1_dot")
+script = ExtResource("1_addon")
 identity = ExtResource("identity_ref")
 on_hit_effects = Array[ExtResource("6_effect")]([SubResource("Resource_toxin_poison")])
 entity_modifiers = Array[ExtResource("2_mod")]([SubResource("Resource_toxin_arrows")])

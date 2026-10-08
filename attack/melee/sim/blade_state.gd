@@ -73,7 +73,7 @@ var vertex_blunting: PackedFloat32Array
 ## Per-particle on-hit riders (#951, ADR 0044) — one Array of [OnHitEffect]
 ## per vertex, empty meaning none. Untyped on purpose: naming the type here
 ## closes a class-load cycle through the spell module (`check` fails). Sized in build(), then appended to by each
-## [DotAddon]'s [method SkillNodeAddon.apply_to_blade] for its own carrier's
+## [SkillNodeAddon]'s [method SkillNodeAddon.apply_to_blade] for its own carrier's
 ## index only: a toxic node poisons what IT sweeps into, never the whole
 ## blade, and two addons on one carrier both apply. Read by [SwingResolve],
 ## which runs a vertex's riders on a [HitLanding] paired to each contact's

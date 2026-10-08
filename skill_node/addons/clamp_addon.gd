@@ -31,6 +31,7 @@ extends SkillNodeAddon
 
 
 func apply_to_blade(state: BladeState, particle_idx: int) -> void:
+	super.apply_to_blade(state, particle_idx)
 	append_weld_braces(state, particle_idx)
 
 

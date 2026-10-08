@@ -155,14 +155,14 @@ only when a hook needs code. Lead-by example: `spike_ring_addon.tscn`.
 | facet | where | note |
 |---|---|---|
 | modifiers | `entity_modifiers`, `local_modifiers` | authored arrays; a subclass may synthesise stake-scaled ones via `get_local_modifiers()` / `get_entity_modifiers()`. On a blade, entity modifiers apply for the swing except currency (`aspects` family, `blade_size`) |
-| blade effect | `apply_to_blade(state, idx)` | optional — node-local stats are often enough (SpikeRing needs none); `DotAddon` appends its `on_hit_effects` (one `ApplyStatusEffect` per DoT scene; a `SpellOnHitEffect` is refused) to its own vertex's rider list, so two DoT addons on one carrier both apply |
+| blade effect | `on_hit_effects`; `apply_to_blade(state, idx)` for code | optional — node-local stats are often enough (SpikeRing needs none). Any addon's authored `on_hit_effects` (usually one `ApplyStatusEffect`; a `SpellOnHitEffect` is refused) ride every contact its carrier's vertex lands — no subclass; the base `apply_to_blade` appends them to that vertex's rider list, so two addons on one carrier both apply. An override must call `super` |
 | looks | a `Visual` child on the `AddonVisual` base (#1212) and/or `get_emblem()`; `icon`, `tint`, `description` for the tooltip | an addon with no visual child is invisible outside its tooltip |
 | budget | `temp_placeable`, `temp_cost_blade_size` (≥ 1), `temp_cost_aspects` (`{&"<concept>_aspect": n}`, each > 0) | every currency is a pooled per-swing budget capped by the attacker's live stat; landed, guarded by `test_temp_upgrade_budget.gd` |
 | procgen | an entry in each content pool's `AddonPolicy` (`procgen/modules/*/content.tres`), `weight`, `unique` | optional, lower priority |
 | customization | anything the contract lacks | a new hook, extra hitscans, perf work — named in the cell so it becomes its own unit |
 
 Guards: `test_addons_are_scenes.gd`, `test_addon_kind.gd`,
-`test_addon_defs_folder.gd`, `test_dot_addon.gd`, `test_melee_temp_upgrade.gd`.
+`test_addon_defs_folder.gd`, `test_addon_on_hit.gd`, `test_melee_temp_upgrade.gd`.
 
 ## Spells (magic column, today)
 

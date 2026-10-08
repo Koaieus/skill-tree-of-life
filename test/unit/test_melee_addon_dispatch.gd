@@ -71,7 +71,7 @@ func test_build_blade_state_dispatches_clamp_addon() -> void:
 			"build_blade_state must dispatch Clamp's apply_to_blade and append the weld brace between the joint's neighbors")
 
 
-## #951 — the same dispatch carries a DotAddon's per-vertex status write:
+## #951 — the same dispatch carries an addon's per-vertex status write:
 ## the carrier's own index and no other.
 func test_build_blade_state_dispatches_dot_addon_to_its_own_vertex_only() -> void:
 	var source := _spawn("Source")
@@ -85,7 +85,7 @@ func test_build_blade_state_dispatches_dot_addon_to_its_own_vertex_only() -> voi
 	_alloc.force_allocate(_entity, joint)
 	_alloc.force_allocate(_entity, tip)
 
-	var toxin := preload("res://skill_node/addons/defs/toxin_addon.tscn").instantiate() as DotAddon
+	var toxin := preload("res://skill_node/addons/defs/toxin_addon.tscn").instantiate() as SkillNodeAddon
 	tip.add_child(toxin)
 	await get_tree().process_frame
 
