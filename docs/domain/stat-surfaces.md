@@ -45,7 +45,7 @@ below unless noted otherwise.
 | `range` | `ui/hud/combat_readout/combat_card_ranged.tscn` (`stat_id = &"range"`) |
 | `crit_chance` | `ui/hud/combat_readout/combat_card_crit.tscn` (`stat_id = &"crit_chance"`) |
 | `crit_multiplier` | `ui/hud/combat_readout/combat_card_crit.tscn` (`stat_id = &"crit_multiplier"`) |
-| `spell_damage` | `ui/hud/combat_readout/combat_card_magic.gd` — indirect: the potency row reads `SpellResolver.impact_damage()`, not the raw stat value |
+| `spell_damage` | `ui/hud/combat_readout/combat_card_magic.tscn` (`stat_id = &"spell_damage"`) — the potency row, the caster's bare stat |
 
 ## Turn resources / hero sigil / XP
 
@@ -95,7 +95,7 @@ above).
 
 | id | status |
 |---|---|
-| `cast_range_hops` | No surface drawn yet. Base 0 by contract — the spell's authored reach folds in as an overlay, so a bare board read prints the bonus alone; the magic card's rows are #793's (display), don't guess a row ahead of that |
+| `cast_range_hops` | `ui/hud/combat_readout/combat_card_magic.gd` — the Hop reach row, always the describe tier (`resolve_with([]).describe()`, e.g. "(X+3) × 1.5"). Base 0 by contract — the spell's authored reach folds in as an overlay, so the card never prints a bare number |
 | `cast_range_distance` | Same as cast_range_hops, pending #793 |
 
 ## Hidden — owner-confirmed 2026-09-16

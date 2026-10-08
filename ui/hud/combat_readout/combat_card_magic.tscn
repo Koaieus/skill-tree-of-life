@@ -35,6 +35,7 @@ text = "Magic"
 unique_name_in_owner = true
 layout_mode = 2
 row_label = "Potency / instance"
+stat_id = &"spell_damage"
 override_color = Color(1.6466165, 1.3793468, 0.7557179, 1)
 
 [node name="ReachRow" parent="Padded/TitleAndBody/Body" parent_id_path=PackedInt32Array(257738747) index="1" unique_id=2032314071 instance=ExtResource("3_row")]
