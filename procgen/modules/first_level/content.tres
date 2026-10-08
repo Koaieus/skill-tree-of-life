@@ -8,6 +8,7 @@
 [ext_resource type="PackedScene" uid="uid://b1addon0watch" path="res://skill_node/addons/defs/watchtower_addon.tscn" id="6_6prhp"]
 [ext_resource type="PackedScene" uid="uid://b1addon0toxin" path="res://skill_node/addons/defs/toxin_addon.tscn" id="6_toxin"]
 [ext_resource type="PackedScene" uid="uid://b1addon0compr" path="res://skill_node/addons/defs/compromiser_addon.tscn" id="6_compromiser"]
+[ext_resource type="PackedScene" uid="uid://b1addon0egate" path="res://skill_node/addons/defs/eldritch_gate_addon.tscn" id="6_eldritch_gate"]
 [ext_resource type="Script" uid="uid://c4jsrfudhqhuk" path="res://procgen/pools/addon_pool.gd" id="7_mkfxt"]
 [ext_resource type="Script" uid="uid://bi20g047mnsv6" path="res://procgen/pools/addon_policy.gd" id="8_cotot"]
 [ext_resource type="Script" uid="uid://0rdv1h0ycc3p" path="res://procgen/archetypes/archetype_stamp.gd" id="9_jdf0g"]
@@ -103,9 +104,17 @@ cost = 4
 weight = 10.0
 metadata/_custom_type_script = "uid://b3fhyx2c2bvat"
 
+[sub_resource type="Resource" id="Resource_eldritch_gate"]
+script = ExtResource("1_x1tax")
+id = &"eldritch_gate"
+addon_scene = ExtResource("6_eldritch_gate")
+cost = 5
+weight = 5.0
+metadata/_custom_type_script = "uid://b3fhyx2c2bvat"
+
 [sub_resource type="Resource" id="Resource_3kv1o"]
 script = ExtResource("7_mkfxt")
-entries = Array[ExtResource("1_x1tax")]([SubResource("Resource_68xts"), SubResource("Resource_2jawg"), SubResource("Resource_qrpdt"), SubResource("Resource_eyb1c"), SubResource("Resource_watch"), SubResource("Resource_toxin"), SubResource("Resource_compromiser")])
+entries = Array[ExtResource("1_x1tax")]([SubResource("Resource_68xts"), SubResource("Resource_2jawg"), SubResource("Resource_qrpdt"), SubResource("Resource_eyb1c"), SubResource("Resource_watch"), SubResource("Resource_toxin"), SubResource("Resource_compromiser"), SubResource("Resource_eldritch_gate")])
 metadata/_custom_type_script = "uid://c4jsrfudhqhuk"
 
 [sub_resource type="Resource" id="Resource_c6pvu"]
