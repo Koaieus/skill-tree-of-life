@@ -239,15 +239,39 @@ extends Resource
 Stock subclasses:
 
 - `SumDamageReducer` — sum damages, MAX hops_left, union visited
-- `MaxDamageReducer` / `MinDamageReducer` / `FirstReducer`
+- `MaxDamageReducer` / `FirstReducer`
 - `CancelIfMultiReducer` — null if `incidents.size() > 1`
-- `CancelIfEvenReducer` — null if `incidents.size() % 2 == 0`
+- `CycloneReducer` — Cyclone's converging fronts add their power
 - `ExpressionReducer` — one-off escape hatch
 
 `visited` union and `hops_left = max(...)` are baked-in defaults the
 stock reducers all use — *not* author-facing knobs. The reducer's only
 *real* responsibility is the damage decision; everything else has one
 sane default.
+
+#### The stack fold (#1489)
+
+Status riders are spell-wide, so every arrival carries the same status set;
+what differs per arrival is its **stack weight**, `CastSpell.stack_weight`
+(seeded 1.0, copied by `mint`, shaped per hop by `PropagationConfig.hop_stacks`
+— a `HopDamageProgression` applied as `apply(weight, 1.0, hop_index)`, null =
+unchanged). The reducer's `stack_fold` (MAX / SUM / MIN / FIRST, default MAX —
+attacker-favoured, the owner's call) folds the incidents' weights via
+`fold_stacks(incidents)` into the landing's starting `LandingContext.stack_scale`;
+no reducer folds MAX. `ScaleStacksEffect` and the crit multiply onto it, and
+`StatusInstance.land_on` rounds the row once, half-up, after crit × scale
+(stacks are integer rows, ADR 0032).
+
+- **The fold is per-landing, never carried.** The merged payload carries the
+  MAX of its incidents' weights, so a SUM spell lands one share per converging
+  branch — bounded by degree × visits, never by path count (a double diamond
+  lands 2× at each convergence, not 4× at the second).
+- **Across beats and casts** the status row's own `reapply` still governs.
+- **Author-facing text:** `fold_description()` names a non-default fold
+  ("Stacks add where branches meet."); `PropagationConfig.get_description`
+  appends it, since every stock reducer overrides `get_description`.
+- Parked: per-arrival *different* statuses (no author yet); stack
+  progressions beyond the stock progression classes.
 
 ### `PropagationContext`
 
