@@ -15,6 +15,7 @@ extends Node2D
 
 const _DEFAULT_EDGE_SCENE: PackedScene = preload("res://attack/range_finder/visuals/range_edge.tscn")
 const _DEFAULT_RING_SCENE: PackedScene = preload("res://attack/range_finder/visuals/range_ring.tscn")
+const _AIM_SHAPE_SCENE: PackedScene = preload("res://attack/range_finder/visuals/aim_shape.tscn")
 
 ## Role → edge colour. Absent role (incl. NONE) → leave the edge scene's own
 ## default colour untouched (the finder's golden range tint).
@@ -68,6 +69,10 @@ func _rebuild() -> void:
 		# difference of global points is a screen-space delta, and the ring is
 		# positioned in this overlay's local space.
 		ring.configure(to_local(ring_data.position), ring_data.radius)
+	for shape_data in visual.shapes:
+		var sv := _AIM_SHAPE_SCENE.instantiate() as AimShapeVisual
+		add_child(sv)
+		sv.configure(to_local(shape_data.origin), shape_data.angle, shape_data.length, shape_data.shape)
 	for edge_data in visual.edges:
 		if edge_scene == null:
 			continue

@@ -331,7 +331,9 @@ func get_range_visual() -> RangeVisual:
 	if spell != null and spell.targeting != null:
 		var finder: RangeFinder = spell.targeting.range_finder
 		if finder != null:
-			if source != null:
+			if source != null and is_aimed():
+				visual = (spell.targeting as AimedTargeting).get_visual(attacker, source, aim_angle)
+			elif source != null:
 				visual = finder.get_visual(attacker, source)
 			else:
 				visual = finder.get_union_visual(attacker, union())

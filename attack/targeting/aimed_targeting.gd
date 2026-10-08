@@ -43,6 +43,19 @@ func length(attacker: Entity, source: SkillNode) -> float:
 	return range_finder.effective_distance(attacker, source)
 
 
+## What the aim looks like from [param source] at [param angle]: the finder's
+## reach ring plus the shape itself, drawn to its full length. No aim yet
+## (NAN) → the ring alone.
+func get_visual(attacker: Entity, source: SkillNode, angle: float) -> RangeVisual:
+	var visual: RangeVisual = range_finder.get_visual(attacker, source) if range_finder != null else null
+	if visual == null:
+		visual = RangeVisual.new()
+	if shape != null and source != null and not is_nan(angle):
+		visual.shapes.append(RangeVisual.AimEntry.new(
+				source.global_position, angle, length(attacker, source), shape))
+	return visual
+
+
 ## Every node the shape crosses aimed at [param angle] from [param source],
 ## nearest-first, that passes [member ownership_filter]. The source itself is
 ## never a seed: its disc contains the origin, so every shape would cross it.

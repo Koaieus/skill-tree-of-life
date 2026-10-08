@@ -130,6 +130,10 @@ func test_press_drag_release_commits_the_aim() -> void:
 	assert_almost_eq(plan.aim_angle, PI / 4.0, 0.001, "the aim follows the drag vector")
 	assert_eq(plan.validate(), [] as Array[String], "the committed aim validates")
 	assert_true(_ctl.armed_stack.top() is TargetMode, "release commits like a clicked target")
+	var visual := plan.get_range_visual()
+	assert_eq(visual.shapes.size(), 1, "the reach visual carries the aimed shape")
+	assert_eq(visual.shapes[0].length, (_spark.targeting as AimedTargeting).length(_attacker, _source),
+			"drawn to the full reach length")
 
 
 func test_press_on_a_non_source_sets_no_aim() -> void:
