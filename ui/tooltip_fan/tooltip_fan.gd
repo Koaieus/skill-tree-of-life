@@ -137,11 +137,15 @@ func _process(_delta: float) -> void:
 ## in or out exactly as if their content had changed, with the same stagger.
 ## A no-op when the gate state didn't move, which is the common frame.
 func _poll_more_info() -> void:
-	var held := Input.is_action_pressed(_MORE_INFO_ACTION)
+	var held := _more_info_pressed()
 	if held == _more_info_held:
 		return
 	_more_info_held = held
 	_refresh_content()
+
+
+func _more_info_pressed() -> bool:
+	return force_more_info or Input.is_action_pressed(_MORE_INFO_ACTION)
 
 
 func _on_hovered(node: SkillNode) -> void:
@@ -178,7 +182,7 @@ func _on_hovered(node: SkillNode) -> void:
 	# Capture the gate state NOW, not on the next `_process` poll: a hover that
 	# lands on a Shift already in flight must show the full fan from the first
 	# `_play_in_all`, or the units would arrive a frame late as a flicker.
-	_more_info_held = Input.is_action_pressed(_MORE_INFO_ACTION)
+	_more_info_held = _more_info_pressed()
 	_bind_content(instance, node)
 	_watch_node(node)
 	_play_in_all(instance)
@@ -237,7 +241,8 @@ func _bind_content(fan_instance: Node, node: SkillNode) -> void:
 		if n is FanUnit:
 			var unit := n as FanUnit
 			unit.bind(node, graph)
-			unit.participating = unit.has_content()
+			unit.participating = unit.has_content() \
+					and (unit_filter.is_empty() or unit.name in unit_filter)
 		elif n is GrantedModifiersRoot:
 			(n as GrantedModifiersRoot).bind(node)
 
