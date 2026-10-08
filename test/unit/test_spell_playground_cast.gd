@@ -247,13 +247,15 @@ func test_slider_memory_does_not_leak_between_headless_panels() -> void:
 const _CYCLONE: SpellDef = preload("res://attack/spell/defs/cyclone.tres")
 
 
+## Each poison landing's power before its condition crit: a crit lands
+## folded stacks × |crit_multiplier|, a non-crit ×1.
 func _poison_powers(plan: MagicAttackPlan) -> Array[float]:
 	var total: Array[float] = []
 	for hit in plan.preview_outcome().hits:
 		var status := hit as StatusInstance
 		if status != null and status.def != null and status.def.identity != null \
 				and status.def.identity.id == &"poison":
-			total.append(status.power)
+			total.append(status.power / absf(status.crit_multiplier))
 	return total
 
 
