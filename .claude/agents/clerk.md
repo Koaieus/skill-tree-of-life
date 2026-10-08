@@ -31,25 +31,29 @@ issue #1130                            # an existing issue
   status: ready                        # omit on a hub — hub status is derived
   labels-rm: design, blocked
   labels-add: ui
-  blocked-by: #1101, @state
+  blocked-by: #1101, {state}
   milestone: 4                         # overrides the default
 
-new @state "Status tick: sparse schedule"   # a new issue; @state is its handle
+new {state} "Status tick: sparse schedule"   # a new issue; {state} is its handle
   parent: #1130
   body: state.md
   labels-add: ui
   blocked-by: -
   status: ready
 
-drift: #1130 @state                    # each must carry a parseable drift stamp
+drift: #1130 {state}                    # each must carry a parseable drift stamp
 refresh                                # optional: run `mise run refresh`, report its verdict
 hygiene                                # always last
 ```
 
-A **handle** (`@name`) stands for an issue number that does not exist yet.
-Inside any body or comment file, `#@name` is replaced by `#<number>` before
-posting — that substitution is the only edit you ever make to a file, and you
+A **handle** (`{name}`) stands for an issue number that does not exist yet.
+Inside any body or comment file, `#{name}` is replaced by `#<number>` before
+posting. Never `@name` — on GitHub that is a live mention of a stranger; the
+gh shim refuses any post holding a bare `@name` or a leftover `#{name}` — that substitution is the only edit you ever make to a file, and you
 make it on a copy in the same directory (`<file>.resolved`), never the original.
+Substitute with plain `sed` (BRE, where braces are literal) —
+`sed 's/#{state}/#1131/g' state.md > state.md.resolved` — never `sed -E`,
+where `{` is a regex operator and the command errors.
 
 ## Order
 
@@ -57,12 +61,11 @@ make it on a copy in the same directory (`<file>.resolved`), never the original.
    a handle never declared is skipped whole; `status: ready` with no
    milestone from the issue or the default skips that status. Report each;
    the rest still runs.
-2. **Create every `new` issue**, in manifest order:
-   `gh issue create --title "<title>" --body-file <resolved> [--parent <n>] [--label <l>]`.
-   Capture the number from the URL it prints. A body that references a handle
-   not yet created is posted as-is and re-posted in step 3.
-3. **Re-resolve and re-post** every body that held a forward handle:
-   `gh issue edit <n> --body-file <resolved>`.
+2. **Create every `new` issue**, in manifest order, with a stub body:
+   `gh issue create --title "<title>" --body "Spec follows." [--parent <n>] [--label <l>]`.
+   Capture the number from the URL it prints.
+3. **Resolve and post** every new issue's body, now that every handle has a
+   number: `gh issue edit <n> --body-file <resolved>`.
 4. **Existing issues:** `gh issue comment <n> --body-file <resolved>` /
    `gh issue edit <n> --body-file <resolved>`.
 5. **Relations:** `mise gh-project -- blocked-by <n> <blocker>` (numbers, one
@@ -128,8 +131,8 @@ then the checks, then anything not done:
 
 ```
 #1130 comment posted · labels −design −blocked · hub (status left to derivation) · drift ok
-#1131 @state created · parent #1130 ✓ · Ready · M3 · drift ok
-#1132 @wiring created · parent #1130 ✓ · blocked-by #1131 · Ready · M3 · drift ok
+#1131 {state} created · parent #1130 ✓ · Ready · M3 · drift ok
+#1132 {wiring} created · parent #1130 ✓ · blocked-by #1131 · Ready · M3 · drift ok
 #1128 re-parented #1120 → #1130 ✓ · old parent #1120 has 0 open children · drift ok
 #1129 detached from #1120 ✓ · old parent #1120 has 2 open children
 refresh: <verdict line>

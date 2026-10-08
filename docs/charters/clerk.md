@@ -44,8 +44,14 @@ Haiku is priced a fifth of Opus and never carries the pass's context.
    failure this agent exists to not have — a Haiku judgement call in the one
    place the owner's words are being published.
 2. **The only file edit is handle substitution**, on a `.resolved` copy.
-   Handles (`@name`) let the Opus session write sibling references before the
-   numbers exist; resolving them is mechanical, rewriting is not.
+   Handles (`{name}`) let the Opus session write sibling references before the
+   numbers exist; resolving them is mechanical, rewriting is not. The sigil was
+   `@name` until a leftover `#@`-handle in #1383 pinged a stranger (owner,
+   2026-10-08: *'"@"s were a really bad pick for handles, fixing that
+   forever'*): a handle must be inert when it leaks, and the gh shim refuses
+   both a bare `@name` and an unresolved `#{name}`. New issues are created
+   with a stub body and filled once every number exists, so no forward
+   handle is ever posted, even transiently.
    The manifest grammar is the clerk's whole interface, and it is
    **duplicated verbatim in swarmify's step 10** so the pass writes a manifest
    without opening the agent file — a change to the grammar block here is a

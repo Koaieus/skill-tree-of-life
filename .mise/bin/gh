@@ -9,8 +9,11 @@
 #     call each other until the pids budget is gone), recognised by the
 #     marker line below; GH_SHIM_DEPTH is a hard guard: a shim invoked by a
 #     shim refuses instead of recursing. Interactive terminals (stdin AND
-#     stdout a tty) and GH_SHIM=off pass straight through — the shim exists
-#     for agents.
+#     stdout a tty) pass straight through — the shim exists for agents;
+#     GH_SHIM=off skips only the retries.
+#   - Posted text (bodies, titles, `gh api` fields) is refused, exit 64,
+#     when it holds a live @mention or an unresolved swarmify #{handle} —
+#     .mise/tasks/lib/gh_mention_scan.py.
 #   - A failed call whose stderr names GitHub's SECONDARY (burst) limit is
 #     retried with linear backoff (GH_SHIM_BACKOFF s × attempt, default 15;
 #     GH_SHIM_RETRIES attempts, default 4 — 90 s of sleep, inside a 120 s tool
@@ -42,7 +45,7 @@ for d in "${dirs[@]}"; do
 done
 [ -n "$real" ] || { echo "gh shim: no real gh found on PATH" >&2; exit 127; }
 
-if { [ -t 0 ] && [ -t 1 ]; } || [ "${GH_SHIM:-}" = "off" ]; then
+if [ -t 0 ] && [ -t 1 ]; then
   exec "$real" "$@"
 fi
 
@@ -54,6 +57,20 @@ trap 'rm -rf "$tmp"' EXIT
 stdin_file=""
 if printf '%s\n' "$@" | grep -qxE -- '-|--input=-|.*=@-'; then
   stdin_file="$tmp/in"; cat >"$stdin_file"
+fi
+
+# Posted text is scanned for live @mentions and unresolved #{handle}s before
+# anything leaves — GH_SHIM=off skips the retries, never this. The refusal
+# message is the documentation; the rules live in the scanner's docstring.
+# Only its verdict (64) blocks: a scanner that is absent or crashes is no
+# grounds to stop a call.
+scan="$(dirname "$(readlink -f "$0")")/../tasks/lib/gh_mention_scan.py"
+if [ -f "$scan" ]; then
+  python3 "$scan" "$stdin_file" "$@"; [ $? -eq 64 ] && exit 64
+fi
+
+if [ "${GH_SHIM:-}" = "off" ]; then
+  if [ -n "$stdin_file" ]; then exec "$real" "$@" <"$stdin_file"; else exec "$real" "$@"; fi
 fi
 
 run() {

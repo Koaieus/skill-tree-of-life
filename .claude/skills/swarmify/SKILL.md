@@ -338,8 +338,10 @@ by hand — `land` and `hygiene --fix` derive it.
 - Shared-file work every child touches (one `.tres`, a registry append) is
   the orchestrator's pre-step in the main checkout, not parcelled out.
 - Each child gets its own full `## Acceptance spec` (step 8), as its own
-  body file. Refer to a sibling not yet filed by handle — `#@wiring` — and
-  the clerk substitutes the number.
+  body file. Refer to a sibling not yet filed by handle — `#{wiring}` — and
+  the clerk substitutes the number. Never `@wiring`: that is a live mention
+  of whoever owns the login, and the gh shim refuses it. Every handle you
+  write is declared in the manifest, or the post is refused.
 
 ### 10. Promote — hand the tail to the clerk
 
@@ -366,17 +368,17 @@ issue #1130                            # an existing issue
   status: ready                        # omit on a hub — hub status is derived
   labels-rm: design, blocked
   labels-add: ui
-  blocked-by: #1101, @state
+  blocked-by: #1101, {state}
   milestone: 4                         # overrides the default
 
-new @state "Status tick: sparse schedule"   # a new issue; @state is its handle
+new {state} "Status tick: sparse schedule"   # a new issue; {state} is its handle
   parent: #1130
   body: state.md
   labels-add: ui
   blocked-by: -
   status: ready
 
-drift: #1130 @state                    # each must carry a parseable drift stamp
+drift: #1130 {state}                    # each must carry a parseable drift stamp
 refresh                                # optional: run `mise run refresh`, report its verdict
 hygiene                                # always last
 ```

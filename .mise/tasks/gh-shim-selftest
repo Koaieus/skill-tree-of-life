@@ -58,6 +58,48 @@ reset ok
 out=$(GH_SHIM=off gh x </dev/null 2>/dev/null)
 check "GH_SHIM=off passes through" "$out" "ok:x"
 
+# Anything posted to GitHub is scanned before it leaves: a bare `@name` outside code is a live
+# mention (it pinged a stranger from #1383), and a `#{name}` left in the text is a swarmify
+# handle the clerk never resolved. Refused calls never reach the real gh.
+posted() { reset ok; printf '%s\n' "$1" >"$work/body.md"; }
+refused() { check "$1 -> refused before gh" "$rc:$(cat "$work/n" 2>/dev/null):$(grep -c "$3" "$work/err")" "64::1"; }
+posted 'see #@sibling for the bargain'
+out=$(gh issue comment 7 --body-file "$work/body.md" </dev/null 2>"$work/err"); rc=$?
+refused "an old-style #@handle in a body file" x 'mention'
+posted 'thanks @someone'
+out=$(gh issue edit 7 -F "$work/body.md" </dev/null 2>"$work/err"); rc=$?
+refused "a bare @name via -F" x 'mention'
+posted 'the bargain addon: #{sibling}'
+out=$(gh issue create --title t --body-file "$work/body.md" </dev/null 2>"$work/err"); rc=$?
+refused "an unresolved #{handle}" x 'handle'
+reset ok
+out=$(gh issue comment 7 --body "cc @Koaieus" </dev/null 2>"$work/err"); rc=$?
+refused "a mention in --body text" x 'mention'
+reset ok
+out=$(printf 'hi @someone' | gh issue comment 7 --body-file - 2>"$work/err"); rc=$?
+refused "a mention on stdin" x 'mention'
+posted 'ping @someone'
+out=$(gh api repos/o/r/issues/7/comments -F "body=@$work/body.md" </dev/null 2>"$work/err"); rc=$?
+refused "gh api -F body=@file" x 'mention'
+reset ok
+out=$(gh api repos/o/r/issues/7/comments -f 'body=hey @someone' </dev/null 2>"$work/err"); rc=$?
+refused "gh api -f body=text" x 'mention'
+reset ok
+out=$(GH_SHIM=off gh issue comment 7 --body "cc @someone" </dev/null 2>"$work/err"); rc=$?
+refused "GH_SHIM=off is no way around the scan" x 'mention'
+posted 'an `@export var x` and a `` @tool `` span, mail a@b.com
+```gdscript
+@onready var y
+```'
+out=$(gh issue comment 7 --body-file "$work/body.md" </dev/null 2>"$work/err"); rc=$?
+check "@ inside code spans, fences and an email -> posted" "$rc:$(cat "$work/n")" "0:1"
+reset ok
+out=$(GH_MENTION_OK=1 gh issue comment 7 --body "cc @Koaieus" </dev/null 2>"$work/err"); rc=$?
+check "GH_MENTION_OK=1 posts a deliberate mention" "$rc:$(cat "$work/n")" "0:1"
+reset ok
+out=$(gh issue view 7 --json body </dev/null 2>"$work/err"); rc=$?
+check "a read is never scanned" "$rc:$(cat "$work/n")" "0:1"
+
 # A worktree carries its own copy of this shim and mise puts BOTH .mise/bin dirs on PATH.
 # Each copy must skip every shim, not just itself — or they call each other until the pids
 # budget is gone (the 2026-10-02 fleet crash). The call runs inside a task-capped scope so a
