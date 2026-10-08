@@ -4,6 +4,7 @@
 [ext_resource type="PackedScene" path="res://ui/theme/bloom_viewport.tscn" id="2_vp"]
 [ext_resource type="PackedScene" path="res://scenes/dev/melee_sandbox_graph.tscn" id="3_world"]
 [ext_resource type="PackedScene" uid="uid://c8n2r5m6qhq3f" path="res://ui/theme/bloom_reference_swatch.tscn" id="5_swatch"]
+[ext_resource type="PackedScene" path="res://addons/sandbox_host/components/tooltip_fan_mount.tscn" id="tfm_mount"]
 
 [node name="MeleeSandboxPanel" type="PanelContainer" unique_id=178947704]
 anchors_preset = 15
@@ -204,3 +205,6 @@ unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 2
+
+[node name="TooltipFanMount" parent="." instance=ExtResource("tfm_mount")]
+unique_name_in_owner = true

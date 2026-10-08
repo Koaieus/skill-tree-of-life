@@ -282,3 +282,10 @@ func test_an_idle_right_click_pop_leaves_the_panel_clickable() -> void:
 	assert_eq(_panel._input_ctl.armed_stack.attack_plan(), plan, "but never the plan itself")
 	_panel._input_ctl.route_left_click(_node("Hilt"))
 	assert_eq(plan.source, _node("Hilt"), "and the next click re-picks a pivot")
+
+
+func test_the_tooltip_mount_is_bound_to_the_live_graph() -> void:
+	var mount: SandboxTooltipFanMount = _panel.tooltip_mount
+	assert_not_null(mount.fan, "the hover tooltip is mounted")
+	assert_eq(mount.fan.graph, _panel.graph, "bound to the panel's world graph")
+	assert_eq(mount.fan.get_viewport(), _panel.graph.get_viewport(), "inside the world viewport")

@@ -67,6 +67,8 @@ const _KNOBS: Array[Array] = [
 @onready var _world: SubViewport = %World
 @onready var _world_container: SubViewportContainer = %WorldContainer
 @onready var graph: Graph = %Graph            ## The authored world (test hook).
+## The real hover tooltip (EFFECTS + NODE STATS) over the world (test hook).
+@onready var tooltip_mount: SandboxTooltipFanMount = %TooltipFanMount
 @onready var _tray_host: Control = %TrayHost
 @onready var _blade_size: SpinBox = %BladeSizeSpin
 @onready var _delit_spin: SpinBox = %DelitSpin
@@ -120,6 +122,9 @@ func _ready() -> void:
 	_mount_tray()
 	arm_world()
 	_layout_world()
+	tooltip_mount.mount(_world, graph)
+	tooltip_mount.attach_motion(_world_container, func(pos: Vector2) -> SkillNode:
+		return _pick_node_at(graph.to_local(pos)))
 	_world.size_changed.connect(_layout_world)
 	visibility_changed.connect(_on_visibility_changed)
 	_on_visibility_changed()
