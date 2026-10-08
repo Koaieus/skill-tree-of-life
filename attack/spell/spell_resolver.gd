@@ -77,18 +77,6 @@ static func resolve(
 	return outcome
 
 
-static func resolve_seeds(
-		spell: SpellDef,
-		seeds: Array[SkillNode],
-		source: SkillNode,
-		caster: Entity,
-		graph: Graph,
-		world: CombatWorld,
-		rng: RandomNumberGenerator = null,
-		infusion: Infusion = null,
-		aim_angle: float = NAN) -> AttackOutcome:
-	return AttackOutcome.new()
-
 ## The origin set: the cast source plus its owned neighbours (the degree the
 ## castability gate counts) each exert once, landed before the first wave.
 ## Kept off the timeline — no event, no VFX — so their unassigned
@@ -106,6 +94,8 @@ static func _exert_origin_set(source: SkillNode, caster: Entity, world: CombatWo
 		OutcomeApplier.land_one(exert, world)
 
 
+## The single-target cast: one seed, [param target], which is also the cast's
+## named target ([member PropagationContext.seed_node]).
 static func resolve_against(
 		spell: SpellDef,
 		target: SkillNode,
@@ -115,10 +105,69 @@ static func resolve_against(
 		world: CombatWorld,
 		rng: RandomNumberGenerator = null,
 		infusion: Infusion = null) -> AttackOutcome:
+	var seeds: Array[SkillNode] = []
+	if target != null:
+		seeds.append(target)
+	return _resolve(spell, seeds, target, source, caster, graph, world, rng, infusion, NAN)
+
+
+## The multi-seed cast (#1495): every node in [param seeds] lands in wave 0 as
+## its own [CastSpell] — its own seed, no predecessor, heading
+## [param source] → itself — and each then propagates through the spell's
+## [PropagationConfig] as a single-target seed would. Seeds meet only where
+## their fronts later converge, at the reducer. Each seed carries the full
+## [method impact_damage]; more seeds means more hits, not a split.
+##
+## There is no named target: [member PropagationContext.seed_node] is null.
+## Pass [param aim_angle] (radians) on an aimed cast and the outcome records
+## it as [member AttackOutcome.aim], its length read from the spell's
+## targeting's range finder; NAN (the default) leaves [code]aim[/code] null.
+static func resolve_seeds(
+		spell: SpellDef,
+		seeds: Array[SkillNode],
+		source: SkillNode,
+		caster: Entity,
+		graph: Graph,
+		world: CombatWorld,
+		rng: RandomNumberGenerator = null,
+		infusion: Infusion = null,
+		aim_angle: float = NAN) -> AttackOutcome:
+	return _resolve(spell, seeds, null, source, caster, graph, world, rng, infusion, aim_angle)
+
+
+## The aim an aimed cast was resolved under: the cast-from node, the angle and
+## the length the spell's euclidean finder reaches from there (0 without one).
+static func _aim_of(spell: SpellDef, source: SkillNode, caster: Entity, angle: float) -> AttackOutcome.Aim:
+	var aim := AttackOutcome.Aim.new()
+	aim.origin = source
+	aim.angle = angle
+	var finder: EuclideanRangeFinder = null
+	if spell.targeting != null:
+		finder = spell.targeting.get_range_finder() as EuclideanRangeFinder
+	aim.length = finder.effective_distance(caster, source) if finder != null else 0.0
+	return aim
+
+
+## One seed per entry of [param seeds], all in wave 0. [param named_target] is
+## the single-target path's target (null on a multi-seed cast); only it keeps
+## the seed's [member CastSpell.arrival_bearing] unset, exactly as before.
+static func _resolve(
+		spell: SpellDef,
+		seeds: Array[SkillNode],
+		named_target: SkillNode,
+		source: SkillNode,
+		caster: Entity,
+		graph: Graph,
+		world: CombatWorld,
+		rng: RandomNumberGenerator,
+		infusion: Infusion,
+		aim_angle: float) -> AttackOutcome:
 	var outcome := AttackOutcome.new()
 	outcome.cadence = ScheduleEntry.Cadence.BEAT
-	if spell == null or spell.propagation == null or target == null or graph == null:
+	if spell == null or spell.propagation == null or seeds.is_empty() or graph == null:
 		return outcome
+	if not is_nan(aim_angle):
+		outcome.aim = _aim_of(spell, source, caster, aim_angle)
 	var config: PropagationConfig = spell.propagation
 	# The cast's affinity riders (null = the spell as authored), run after the
 	# spell's own effects at every landing.
@@ -127,7 +176,7 @@ static func resolve_against(
 	var ctx := PropagationContext.new()
 	ctx.graph = graph
 	ctx.caster = caster
-	ctx.seed_node = target
+	ctx.seed_node = named_target
 	ctx.rng = rng
 	# The half of the gating fix the wave loop cannot do on its own: landing a
 	# wave changes the world, and this is what makes the next wave's filter
@@ -138,25 +187,36 @@ static func resolve_against(
 	# crit path used to.
 	ctx.outcome = outcome
 
-	var seed_state := CastSpell.new()
-	seed_state.seed_node = target
-	seed_state.current_node = target
-	seed_state.predecessor = null
-	seed_state.source = source
-	seed_state.damage = impact_damage(spell, source)
-	seed_state.seed_damage = seed_state.damage
-	seed_state.hops_remaining = config.max_hops
-	seed_state.hop_index = 0
-	seed_state.visited = [target]
-	seed_state.caster = caster
-	seed_state.graph = graph
-	seed_state.rng = rng
+	# Wave 0: one seed per node. Two seeds never share a node, so the reducer
+	# first meets them where their fronts converge later on.
+	var wave: Array[CastSpell] = []
+	var seeded: Dictionary = {}  ## SkillNode -> true
+	var damage := impact_damage(spell, source)
+	for node in seeds:
+		if node == null or seeded.has(node):
+			continue
+		seeded[node] = true
+		var seed_state := CastSpell.new()
+		seed_state.seed_node = node
+		seed_state.current_node = node
+		seed_state.predecessor = null
+		seed_state.source = source
+		if named_target == null and source != null:
+			seed_state.arrival_bearing = (node.global_position - source.global_position).normalized()
+		seed_state.damage = damage
+		seed_state.seed_damage = seed_state.damage
+		seed_state.hops_remaining = config.max_hops
+		seed_state.hop_index = 0
+		seed_state.visited = [node]
+		seed_state.caster = caster
+		seed_state.graph = graph
+		seed_state.rng = rng
+		wave.append(seed_state)
 
 	# Hoisted: ONE crit stream serves the whole cast, drawn per hit as each
 	# wave lands below.
 	var crit_rng := ctx.rng_for_crits()
 	_exert_origin_set(source, caster, world, outcome, spell)
-	var wave: Array[CastSpell] = [seed_state]
 	while not wave.is_empty():
 		# 1. Group incidents by target node.
 		var groups: Dictionary = {}  ## SkillNode -> Array[CastSpell]

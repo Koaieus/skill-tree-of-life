@@ -20,9 +20,10 @@ var graph: Graph = null
 ## Caster of the spell. Read by [OwnerFilter] and similar owner-relative
 ## predicates.
 var caster: Entity = null
-## The seed node the cast started from. Useful for predicates like "must
-## reach within N hops of seed" or "always step toward the seed's owner's
-## core."
+## The cast's named target — the node a single-target cast was aimed at.
+## Null on an aimed cast ([method SpellResolver.resolve_seeds]), which has
+## many seeds and no one target: a per-landing question about "my seed" reads
+## [member CastSpell.seed_node] on the landing's payload instead.
 var seed_node: SkillNode = null
 ## Optional RNG, threaded into every minted [CastSpell] so stochastic
 ## propagation reproduces under a known seed. Null = fresh RNG per call.

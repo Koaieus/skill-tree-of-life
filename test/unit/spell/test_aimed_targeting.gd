@@ -195,6 +195,9 @@ func test_resolve_seeds_stamps_aim_and_node_cast_does_not() -> void:
 	if aimed.aim != null:
 		assert_eq(aimed.aim.origin, n[0])
 		assert_almost_eq(aimed.aim.angle, 0.5, 0.0001)
-		assert_almost_eq(aimed.aim.length, 321.0, 0.0001)
+		# The finder's reach as scaled from N0, not the raw authored 321.
+		var t := spell.targeting as AimedTargeting
+		assert_almost_eq(aimed.aim.length, t.length(fx[1], n[0]), 0.0001)
+		assert_gt(aimed.aim.length, 0.0)
 	var node_cast := SpellResolver.resolve(spell, n[1], n[0], fx[1], graph)
 	assert_null(node_cast.aim)

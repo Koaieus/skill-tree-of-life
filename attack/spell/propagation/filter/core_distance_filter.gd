@@ -9,8 +9,10 @@ extends PropagationFilter
 ## test `.tres` references [CoreDistanceFilter]. Kept for the two named
 ## spells it's designed for; delete if they don't materialize.
 ##
-## Target entity = seed_node's owner (when non-caster and non-null). If
-## the seed isn't owned by a non-caster entity, the filter degrades to
+## Target entity = the owner of the landing's own seed
+## ([member CastSpell.seed_node]) when non-caster and non-null — per landing, so
+## each seed of an aimed cast homes on its own owner's core. If the seed isn't
+## owned by a non-caster entity, the filter degrades to
 ## allow-all — Homing on an unowned target has no semantic meaning, so
 ## skipping the filter is more useful than blocking everything.
 
@@ -24,7 +26,7 @@ func allows(to: SkillNode, lctx: LandingContext) -> bool:
 	var from := lctx.node
 	if ctx.graph == null or from == null or to == null:
 		return false
-	var core := _resolve_target_core(ctx)
+	var core := _resolve_target_core(ctx, lctx.payload)
 	if core == null:
 		return true
 	var d_from := _bfs_distance(ctx.graph, from, core)
@@ -44,10 +46,13 @@ func get_description() -> String:
 	return ""
 
 
-func _resolve_target_core(ctx: PropagationContext) -> SkillNode:
-	if ctx.seed_node == null or ctx.seed_node.owned_by == null:
+## The landing's own seed; a hand-built context with no payload (a filter
+## asked outside a resolve) falls back to the cast's named target.
+func _resolve_target_core(ctx: PropagationContext, payload: CastSpell) -> SkillNode:
+	var named: SkillNode = payload.seed_node if payload != null else ctx.seed_node
+	if named == null or named.owned_by == null:
 		return null
-	var owner: Entity = ctx.seed_node.owned_by
+	var owner: Entity = named.owned_by
 	if owner == ctx.caster:
 		return null
 	return owner.core_location
