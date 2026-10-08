@@ -295,11 +295,22 @@ disk at `scratchpad/land/land-<n>.log` (#920), so filling the ledger is a
     drone's background command finished; relay reports in your own words,
     never paste diffs.
 
-28. **The lead sweeps `poison:` lines before the gate** — greps them out of
-    the ledger's reports, applies the one-liners itself in the main checkout
-    as one docs commit, files the rest with `gh issue create`. No fix-drone, no manifest:
-    one report in eleven issues does not pay for a dispatch shape. Revisit at
-    five or more lines in one swarm.
+28. **The lead sweeps `poison:` lines and NOTES follow-ups before the gate,
+    and the board is the last resort, not the first.** One-liners it applies
+    itself in the main checkout as one docs commit. Anything bounded and
+    mechanical — a doc row, a rename, a prune, a missing twin test, a stale
+    comment, a `.tres` that should exist: no design question, a drone-unit
+    or less — goes to ONE sweep drone appended to the train, on the same
+    branch discipline as any unit. Only a genuine fork, an owner call, or
+    work past a drone-unit earns `gh issue create`, and then with the
+    milestone set and the fork named in the first line. Never a "follow-ups
+    from swarm <date>" grab-bag issue: each line in one is a unit the lead
+    declined to dispatch. **Why:** on 2026-10-08 the owner found 100+
+    `Needs design`/`Backlog` issues filed by swarm leads, a large share of
+    them "also do <this obvious small thing>" — filing is cheap for the lead
+    and the owner pays it back in triage, which is the one thing a swarm
+    exists to spare them. Revisit if a sweep drone blows its budget twice in
+    a row — that is the sign the bar drifted up, not that filing is right.
 
 29. **A genuinely hard unit gets a trap list before its drone starts.** For a
     bit-exact transliteration, a solver port, anything where a green suite

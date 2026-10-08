@@ -361,10 +361,15 @@ branch of a multi-unit issue; on every branch of independent issues.
 Filter its output with `grep -E 'LANDED|✗|ERROR'` — a red land prints `✗`
 and `ERROR`, and a success-only filter shows it as silence.
 
-**Before the gate, sweep `poison:` lines** out of the reports (`ledger --
-note <n> 'poison: …'` keeps them findable): apply
-the one-liners yourself in the main checkout as one docs commit; anything
-that is not a one-liner → `gh issue create` (it joins the board by itself).
+**Before the gate, sweep `poison:` lines and NOTES follow-ups** out of the
+reports (`ledger -- note <n> 'poison: …'` keeps them findable): apply the
+one-liners yourself in the main checkout as one docs commit; anything
+bounded and mechanical (a doc row, a rename, a prune, a missing twin test,
+a stale comment — no design question, a drone-unit or less) is **one sweep
+drone appended to the train**, never an issue. Only a genuine fork, an owner
+call, or work past a drone-unit → `gh issue create` (it joins the board by
+itself), milestone set, fork named in the first line. Never a "follow-ups
+from swarm <date>" grab-bag issue.
 
 **The authoritative suite runs once per train**, after every branch of the
 batch is fast-forwarded — and only when the batch is runtime-observable:
