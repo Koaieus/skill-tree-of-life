@@ -1,0 +1,7 @@
+[gd_resource type="Resource" script_class="StatModifier" format=3]
+
+[ext_resource type="Script" path="res://effects/status/modifiers/weakness_modifier.gd" id="1_mod"]
+
+[resource]
+script = ExtResource("1_mod")
+operation = 2

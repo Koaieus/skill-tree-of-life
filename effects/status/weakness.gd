@@ -25,11 +25,8 @@ const STAT_IDS: Array[StringName] = [&"ranged_damage", &"blade_damage", &"spell_
 
 ## The local multiplier Weakness plants — its own type so a stateless def can
 ## find it again, and UNSCALED so the cut does not ladder with allocation level.
-class WeaknessModifier:
-	extends StatModifier
-
-	func _local_scale_override(_old_al: int, _new_al: int) -> Variant:
-		return StatModifier.UNSCALED
+const WeaknessModifier := preload("res://effects/status/modifiers/weakness_modifier.gd")
+const _MODIFIER_TEMPLATE := preload("res://effects/status/modifiers/weakness_modifier.tres")
 
 
 func _on_applied(host, power: float) -> void:
@@ -65,9 +62,8 @@ func _set_factor(host, power: float) -> void:
 		var old := _find(host, stat_id)
 		if old != null:
 			host.remove_local_modifier(old)
-		var m := WeaknessModifier.new()
+		var m: StatModifier = _MODIFIER_TEMPLATE.duplicate()
 		m.stat_id = stat_id
-		m.operation = StatModifier.Operation.MULTIPLY
 		m.value = f
 		host.add_local_modifier(m)
 
