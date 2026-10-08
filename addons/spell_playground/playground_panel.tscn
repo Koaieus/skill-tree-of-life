@@ -12,6 +12,7 @@
 [ext_resource type="Resource" path="res://entity/factions/player.tres" id="10_player"]
 [ext_resource type="Resource" path="res://entity/factions/npc.tres" id="11_npc"]
 [ext_resource type="PackedScene" path="res://ui/hud/command_tray/bodies/infusion_row.tscn" id="12_infusion"]
+[ext_resource type="PackedScene" path="res://addons/spell_playground/aspect_slots_row.tscn" id="13_aspects"]
 
 [node name="SpellPlaygroundPanel" type="PanelContainer" unique_id=962694820]
 custom_minimum_size = Vector2(0, 380)
@@ -118,6 +119,10 @@ unique_name_in_owner = true
 layout_mode = 2
 size_flags_vertical = 3
 bbcode_enabled = true
+
+[node name="AspectSlotsRow" parent="HBox/ControlsColumn" instance=ExtResource("13_aspects")]
+unique_name_in_owner = true
+layout_mode = 2
 
 [node name="HintLabel" type="Label" parent="HBox/ControlsColumn" unique_id=1856713664]
 modulate = Color(1, 1, 1, 0.55)

@@ -72,12 +72,6 @@ const CASTER_SPELL_HOPS_BONUS: int = 50
 ## back underneath them.
 const LOOP_GAP_SECONDS: float = 0.35
 
-## Every rostered aspect's `<concept>_aspect` is SET to this on the caster, so
-## the infusion row offers a stepper for each concept (the row shows one iff the
-## caster holds the aspect). Deep enough that the points / slots overrides, not
-## the aspect, are what stop a stepper by default. Tentative.
-@export_range(0, 1000, 1, "or_greater") var aspect_grant: int = 100
-
 @onready var cast_button: Button = %CastButton
 @onready var loop_button: CheckButton = %LoopButton
 @onready var reset_button: Button = %ResetButton
@@ -99,6 +93,7 @@ const LOOP_GAP_SECONDS: float = 0.35
 @onready var node_health_slider: HSlider = %NodeHealthSlider
 @onready var node_health_label: Label = %NodeHealthLabel
 @onready var infusion_row: InfusionRow = %InfusionRow
+@onready var aspect_slots_row: AspectSlotsRow = %AspectSlotsRow
 @onready var infusion_slots_box: SpinBox = %InfusionSlotsBox
 @onready var infusion_points_box: SpinBox = %InfusionPointsBox
 @onready var affinity_label: Label = %AffinityLabel
@@ -108,6 +103,9 @@ var _spell: SpellDef = null
 ## The SET modifiers behind the slots / points spin boxes, mutated in place.
 var _infusion_slots_set: StatModifier = null
 var _infusion_points_set: StatModifier = null
+## One SET per rostered aspect's `<concept>_aspect`, keyed by stat id: the
+## [AspectSlotsRow] amount when slotted, 0 otherwise.
+var _aspect_sets: Dictionary[StringName, StatModifier] = {}
 var _watched_plan: MagicAttackPlan = null
 var _selected_target: SkillNode = null
 ## True from Cast until the launch returns. A re-arm (or a second cast) inside
@@ -188,6 +186,7 @@ func _ready() -> void:
 	_install_infusion_sets()
 	infusion_slots_box.value_changed.connect(_on_infusion_limit_changed)
 	infusion_points_box.value_changed.connect(_on_infusion_limit_changed)
+	aspect_slots_row.changed.connect(_on_aspect_slots_changed)
 	world.size_changed.connect(_layout_world)
 	_populate_spell_list()
 	spell_list.item_selected.connect(_on_spell_list_selected)
@@ -539,8 +538,9 @@ func _refresh_affinity() -> void:
 
 
 ## SET modifiers on the caster's board — the slots / points the spin boxes drive
-## and one `<concept>_aspect` per rostered aspect — so the infusion row has
-## something to spend. Same mechanism as [method _install_node_health_sets].
+## and one `<concept>_aspect` per rostered aspect, driven by the
+## [AspectSlotsRow] — so the infusion row has something to spend, and a stepper
+## for exactly the slotted aspects. Same mechanism as [method _install_node_health_sets].
 func _install_infusion_sets() -> void:
 	var board: EntityStatBoard = caster_entity.stat_board
 	if board == null:
@@ -549,7 +549,8 @@ func _install_infusion_sets() -> void:
 	_infusion_points_set = _add_set(board, &"infusion_points", infusion_points_box.value)
 	for aspect in AspectRoster.shared().aspects:
 		if aspect != null and aspect.stat != null:
-			_add_set(board, aspect.stat.id, aspect_grant)
+			_aspect_sets[aspect.stat.id] = _add_set(board, aspect.stat.id, 0.0)
+	_apply_aspect_slots()
 
 
 func _add_set(board: EntityStatBoard, stat_id: StringName, value: float) -> StatModifier:
@@ -568,6 +569,18 @@ func _on_infusion_limit_changed(_value: float) -> void:
 		_infusion_points_set.value = infusion_points_box.value
 	if is_instance_valid(_watched_plan):
 		_watched_plan.state_changed.emit()
+
+
+func _on_aspect_slots_changed() -> void:
+	_apply_aspect_slots()
+	if is_instance_valid(_watched_plan):
+		_watched_plan.state_changed.emit()
+
+
+func _apply_aspect_slots() -> void:
+	var granted := aspect_slots_row.slotted()
+	for id in _aspect_sets:
+		_aspect_sets[id].value = granted.get(id, 0)
 
 
 func _on_world_gui_input(event: InputEvent) -> void:
