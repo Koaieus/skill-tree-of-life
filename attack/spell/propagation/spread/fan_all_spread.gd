@@ -15,4 +15,4 @@ func select(eligible: Array[SkillNode], _lctx: LandingContext) -> Array[Propagat
 
 
 func get_description() -> String:
-	return "Fans to every eligible neighbour."
+	return "Offers every eligible neighbour; the filters shape the walk."
