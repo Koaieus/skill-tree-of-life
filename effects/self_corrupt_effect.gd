@@ -19,8 +19,16 @@ extends Effect
 @export_range(1, 10, 1) var stacks_per_turn: int = 1
 
 
-func _on_turn_start(_ctx: EffectContext) -> void:
-	pass
+func _on_turn_start(ctx: EffectContext) -> void:
+	if def == null or ctx.source_node == null:
+		return
+	var host: NodeCombat = ctx.world.combat_for(ctx.source_node)
+	if host == null or host.blocks_status(def):
+		return
+	var holder := ctx.entity
+	var camp_id: StringName = holder.faction.id if holder != null and holder.faction != null else &""
+	var applier_id: int = holder.entity_id if holder != null else 0
+	host.apply_status(def, float(stacks_per_turn), camp_id, applier_id)
 
 
 func get_description() -> String:
