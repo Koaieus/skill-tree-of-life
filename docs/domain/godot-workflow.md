@@ -196,6 +196,19 @@ was fine, so this failure must be real". **Re-run the failing thing before
 concluding anything**; the ordering that misleads is refresh-says-nothing →
 assume-cache-was-fine → go hunting a phantom regression in someone's commit.
 
+## A landed branch that ADDS an asset leaves the main checkout unable to load it until `mise run refresh`*
+
+`mise run land` runs `check` + `test:dir` inside the branch's own (warmed)
+worktree, so a new `.png`/`.svg` gets imported there and the tests pass.
+The MAIN checkout never imported it: every test that loads a resource
+chain reaching the new file then fails with `Parse Error: [ext_resource]
+referenced non-existent resource` (seen 2026-10-08 with
+`assets/icons/aspects/hex.png` — `test_manage_verbs.gd` went red through
+`identity/defs/hex.tres`). It looks like a broken commit; it is a missing
+import. **How to apply:** after landing (or pulling) a branch that adds an
+importable asset, run `mise run refresh` in the main checkout before any
+test there; a worktree created before that landing needs its own warm.
+
 ## The look-alike that is NOT a stale cache: `mise run check` can miss a parse error*
 
 **Symptom:** at runtime, *"Invalid call. Nonexistent function 'x' in base
