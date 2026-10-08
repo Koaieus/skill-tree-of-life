@@ -220,19 +220,19 @@ extends StatBoard
 ## `StatBoard._mint_stat`, which would mint a plain PoolStat with no bins.
 @export var arrows: Quiver
 @export var arrows_per_reload: ScalarStat	## Base arrow yield per producing leaf/core on a ReloadCommand. Node-local via get_local_value, scaled by allocation level (#955).
-@export var poison_aspect: ScalarStat	## Special poison arrows minted per ReloadCommand, entity-flat; the melee/magic reads are #1268/#1250. Parent: aspects. Default 0.
-@export var corruption_aspect: ScalarStat	## Special corruption arrows minted per ReloadCommand, entity-flat; the melee/magic reads are #1268/#1250. Parent: aspects. Default 0.
-@export var curse_aspect: ScalarStat	## Special curse arrows minted per ReloadCommand, entity-flat; the melee/magic reads are #1268/#1250. Parent: aspects. Default 0.
-@export var wither_aspect: ScalarStat	## Special wither arrows minted per ReloadCommand, entity-flat; the melee/magic reads are #1268/#1250. Parent: aspects. Default 0.
-@export var blindness_aspect: ScalarStat	## Special blindness arrows minted per ReloadCommand, entity-flat; the melee/magic reads are #1268/#1250. Parent: aspects. Default 0.
+@export var poison_aspect: ScalarStat	## Special poison arrows minted per ReloadCommand, entity-flat; this is the ranged read, the magic read is #1250. Parent: aspects. Default 0.
+@export var corruption_aspect: ScalarStat	## Special corruption arrows minted per ReloadCommand, entity-flat; this is the ranged read, the magic read is #1250. Parent: aspects. Default 0.
+@export var curse_aspect: ScalarStat	## Special curse arrows minted per ReloadCommand, entity-flat; this is the ranged read, the magic read is #1250. Parent: aspects. Default 0.
+@export var wither_aspect: ScalarStat	## Special wither arrows minted per ReloadCommand, entity-flat; this is the ranged read, the magic read is #1250. Parent: aspects. Default 0.
+@export var blindness_aspect: ScalarStat	## Special blindness arrows minted per ReloadCommand, entity-flat; this is the ranged read, the magic read is #1250. Parent: aspects. Default 0.
 @export var weakness_aspect: ScalarStat	## Weakness aspect count; each combat mode reads it in its own cell. Parent: aspects. Default 0.
 @export var greed_aspect: ScalarStat	## Greed aspect count; each combat mode reads it in its own cell. Parent: aspects. Default 0.
 @export var hex_aspect: ScalarStat	## Hex aspect count; each combat mode reads it in its own cell. Parent: aspects. Default 0.
 @export var bleeding_aspect: ScalarStat	## Bleeding aspect count; each combat mode reads it in its own cell. Parent: aspects. Default 0.
-@export var scout_aspect: ScalarStat	## Special scout arrows minted per ReloadCommand, entity-flat; the melee/magic reads are #1268/#1250. Parent: aspects. Default 0.
-@export var armor_break_aspect: ScalarStat	## Special armor-break arrows minted per ReloadCommand, entity-flat; the melee/magic reads are #1268/#1250. Parent: aspects. Default 0.
-@export var explosive_aspect: ScalarStat	## Special explosive arrows minted per ReloadCommand, entity-flat; the melee/magic reads are #1268/#1250. Parent: aspects. Default 0.
-## Family parent of the eight <concept>_aspect (ADR 0029): +1 here is +1 to
+@export var scout_aspect: ScalarStat	## Special scout arrows minted per ReloadCommand, entity-flat; this is the ranged read, the magic read is #1250. Parent: aspects. Default 0.
+@export var armor_break_aspect: ScalarStat	## Special armor-break arrows minted per ReloadCommand, entity-flat; this is the ranged read, the magic read is #1250. Parent: aspects. Default 0.
+@export var explosive_aspect: ScalarStat	## Special explosive arrows minted per ReloadCommand, entity-flat; this is the ranged read, the magic read is #1250. Parent: aspects. Default 0.
+## Family parent of the twelve <concept>_aspect (ADR 0029): +1 here is +1 to
 ## each. Its own value is never read. Default 0.
 @export var aspects: ScalarStat
 @export var max_shots_per_leaf: ScalarStat	## Per-turn shot budget for a single leaf node. Node-local via get_local_value, scaled by allocation level (#956).

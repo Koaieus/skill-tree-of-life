@@ -1,12 +1,11 @@
 class_name PoisonStatus
 extends StatusDef
 
-## Poison (#874, hub #868 D3/D5): each turn tick deals unmitigated
+## Poison: each turn tick deals unmitigated
 ## `DamageInstance.Type.TRUE` damage through [method NodeCombat.take_damage] —
 ## the same door attacks use, so `damaged` / regen-suppression / a killing
-## `notify_depleted` all fire naturally (hub D6: *"Yes — ride notify_depleted
-## now"*). `reapply = ACCUMULATE` in the authored def lets a volley build power
-## (#495 is the arrow-borne follow-up, not this issue).
+## `notify_depleted` all fire naturally. `reapply = ACCUMULATE` in the authored
+## def lets a volley build power.
 ##
 ## [member basis] is a per-def knob (owner, 2026-09-14: *"doubt between %
 ## max node HP … and 'flat' … either way: not mitigated"*), and it is
@@ -21,7 +20,7 @@ extends StatusDef
 ## Damage lands on the PRE-decay power (`_on_tick`'s `before`, never `after`) —
 ## a status about to drop to 0 this tick still deals its last hit; decay
 ## happens after this hook returns ([method NodeCombat.tick_statuses]). The
-## tick body itself is the shared [method DotTick.mint] (#964): poison and
+## tick body itself is the shared [method DotTick.mint]: poison and
 ## [CorruptionStatus] are two defs over one implementation.
 ##
 ## Unlike [ArmorBreakStatus] / `BlindnessStatus`, poison plants no modifier —

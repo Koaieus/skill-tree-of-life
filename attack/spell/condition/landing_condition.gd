@@ -9,7 +9,7 @@ extends Resource
 ## and mutates nothing.
 ##
 ## It has two consumers, which is why it is named for the question and not for
-## an answer (it was `CritCondition` until #851, when the second one arrived):
+## an answer:
 ##
 ## - [b]Crits[/b] — authored as [member SpellDef.crit_conditions] and OR-ed per
 ##   landing by [method SpellResolver._stamp_crit_conditions]. That slot keeps
@@ -32,6 +32,6 @@ extends Resource
 
 
 ## Player-facing fragment naming the shape this fires on — "on a leaf", "at a
-## junction". Composed into spell copy; draft wording until #764.
+## junction". Composed into spell copy.
 func get_description() -> String:
 	return ""

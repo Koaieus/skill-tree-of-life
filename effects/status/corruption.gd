@@ -1,11 +1,11 @@
 class_name CorruptionStatus
 extends StatusDef
 
-## Corruption (#964, hub #952): each turn tick deals `power × damage_per_power`
+## Corruption: each turn tick deals `power × damage_per_power`
 ## of the node's MAX hp as unmitigated [constant DamageInstance.Type.TRUE]
 ## damage — the answer to bulk (owner, 2026-09-20: *"a fully corrupted lv1
 ## enemy would die too basically. the harsh reality of % damage"*). No decay
-## (owner, 2026-10-01, interim) and no cap are authored on the `.tres`; rarity comes from its
+## and no cap are authored on the `.tres`; rarity comes from its
 ## sources and small stacks per hit, never from a clamp.
 ##
 ## Its own [StatusDef] subclass rather than a [PoisonStatus] with a basis

@@ -2,7 +2,7 @@ class_name PairedDamageInstance
 extends DamageInstance
 
 ## A damage RIDER worth a share of its [member HitInstance.paired] hit's raw
-## amount — [PairedDamageEffect]'s hit, the Explosive arrow's blast. Its
+## amount — [PairedDamageEffect]'s hit, a future Explosive arrow's blast. Its
 ## [member HitInstance.amount] is fixed when the effect runs (plan compile),
 ## before the paired arrow's own crit multiplies the arrow's amount at land,
 ## so the share is of the RAW number and each landed node mitigates it once.
