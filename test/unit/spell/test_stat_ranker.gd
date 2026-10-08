@@ -215,3 +215,32 @@ func test_live_world_reads_identically_to_the_node() -> void:
 		"on a live world combat_for returns the node's own slice — same answer, one path")
 	assert_almost_eq(r.score(node, null), 4.0, 0.001,
 		"and a null ctx falls back to the same read")
+
+
+func test_a_shadow_slice_the_cast_has_not_touched_reads_its_real_current() -> void:
+	# A fresh shadow slice's pool has its cap provider cleared on snapshot and
+	# reinstalled on first `_hp_pool` read. A ranker read that bypassed it scored
+	# an untouched node's `current` against the pool's stored base rather than
+	# the owner's baseline — so every node this cast had NOT yet hit ranked low,
+	# and Bruiser kept re-picking the ones it had.
+	var ctx: Dictionary = await _setup(2)
+	var a: SkillNode = ctx.nodes[0]
+	var b: SkillNode = ctx.nodes[1]
+	var entity: Entity = ctx.entity
+	entity.stat_board.node_health.base_value = 40.0
+	a.get_combat().take_damage(3.0, null)
+	b.get_combat().take_damage(1.0, null)
+	assert_almost_eq(_hp(a).current, 37.0, 0.001, "fixture: the live read already sees the raised baseline")
+
+	var world := CombatWorld.shadow()
+	var pctx := PropagationContext.new()
+	pctx.graph = ctx.graph
+	pctx.world = world
+	var r := _ranker(&"node_health__current")
+	world.combat_for(b).take_damage(10.0, null)  # `b` touched by an earlier wave
+
+	assert_almost_eq(r.score(a, LandingContext.for_test(null, null, pctx)), 37.0, 0.001,
+		"an untouched shadow slice reads the same current as the live node")
+	assert_gt(r.score(a, LandingContext.for_test(null, null, pctx)), r.score(b, LandingContext.for_test(null, null, pctx)),
+		"so the healthier, un-hit node ranks above the one this cast already wounded")
+	world.free_shadow()

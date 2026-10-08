@@ -251,9 +251,18 @@ func is_local_volatile(stat_id: StringName) -> bool:
 ## one contract, one policy — and degrading is the right answer for a ranker
 ## anyway, since a `0.0` would silently invert the ranking. Typos are caught at
 ## load time by the authored-content test, not per-read here.
+##
+## `node_health` resolves through [method _hp_pool], never a raw board read: a
+## shadow slice's pool has its cap provider cleared on snapshot, and reading
+## `current` before it is reinstalled derives it off the stored base instead
+## of the owner's baseline.
 func _read_accessor(token: StringName) -> Variant:
 	var base := StatFormula.base_of(token)
-	var s: Stat = board().get_stat(base) if board() != null else null
+	var s: Stat
+	if base == &"node_health":
+		s = _hp_pool()
+	else:
+		s = board().get_stat(base) if board() != null else null
 	if s == null:
 		var o := owner()
 		if o != null and o.board() != null:
