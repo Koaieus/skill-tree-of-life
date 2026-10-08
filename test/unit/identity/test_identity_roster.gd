@@ -72,6 +72,17 @@ func test_gold_is_reserved() -> void:
 		assert_gte(d, GOLD_EXCLUSION, "%s sits in gold territory (dE %.3f)" % [identity.id, d])
 
 
+## XP/turn is a facet of the XP concept: one concept, one hue (ADR 0046). The
+## other near-gold stat defs (level, bounty, core_kill_xp, ap_transfer_rate)
+## are reward/value registers, not concept identities.
+func test_xp_per_turn_reads_the_xp_identity() -> void:
+	var def := load("%s/xp_per_turn.tres" % _STAT_DEFS_DIR) as StatDef
+	assert_not_null(def.identity, "xp_per_turn hand-authors its gold")
+	if def.identity != null:
+		assert_true(def.identity.id in GOLD_OWNERS, "xp_per_turn's identity is a gold owner")
+		assert_eq(def.identity.id, &"xp", "xp_per_turn references xp.tres")
+
+
 func test_tints_are_unlifted() -> void:
 	for identity in IdentityRoster.shared().identities:
 		var c := identity.tint
