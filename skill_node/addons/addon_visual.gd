@@ -4,9 +4,10 @@ extends Node2D
 
 ## The drawing half of an addon: a plain child [Node2D] of a
 ## [SkillNodeAddon] scene that owns the draw code and its look knobs, so an
-## addon subclass exists only for behaviour. Subclasses override [method _draw]
-## only, sizing everything off [member radius]; their knobs redraw from their
-## setters so they tune live in the editor.
+## addon subclass exists only for behaviour. Subclasses override [method _draw],
+## plus a throttled [method _process] when the look animates, sizing everything
+## off [member radius]; their knobs redraw from their setters so they tune live
+## in the editor.
 ##
 ## The radius arrives from the parent addon — seeded once in
 ## [method SkillNodeAddon._ready], then forwarded by
