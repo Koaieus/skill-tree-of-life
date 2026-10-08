@@ -263,8 +263,8 @@ Each cell links its cell issue (`<Concept> × <Facet>`, a child of the row hub i
   stacks per hit"*. Shipped (#1271) as a node-local `LevelGatedModifier`
   `MULTIPLY` 2.0 at `unlock_level` 3 on `poison_stacks_per_hit` — local, so
   three 3/X toxins never fold ×8 (owner, round 8): a 3/X blade node lands
-  (3 + N) × 2, with N the attacker's other stacks. Where it reads, owner: *"landing reads attackers stats yes,
-  of the blade node carrying the addon, and that blade node (== the
+  (3 + N) × 2, with N the attacker's other stacks. Where it reads, owner:
+  *"landing reads attackers stats yes, of the blade node carrying the addon, and that blade node (== the
   attacker's) therefore the stats, no readout on defensive nodes needed"*.
 - **No defensive face** (see "Defensive faces are rare").
 - **Addon look (owner, 2026-10-03):** *"froth popping into green gas, along
