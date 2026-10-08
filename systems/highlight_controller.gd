@@ -255,11 +255,9 @@ func _build_allocation_provider() -> ManagerHighlightProvider:
 	if _allocation_provider == null:
 		_allocation_provider = ManagerHighlightProvider.new()
 	var verb := PlayerInputController.ManageVerb.ALLOCATE
-	# The Manage verb levels live on the input controller's own stack; this
-	# controller's [member armed_stack] export may be unwired (it only needs the plan).
-	var ctl := _live_input_ctl()
-	var stack: ArmedStack = ctl.armed_stack if ctl != null and ctl.armed_stack != null else armed_stack
-	var level := stack.find(ManageVerbMode) as ManageVerbMode if stack != null else null
+	# One stack, the [member armed_stack] export — the same object the input
+	# controller arms on; a fixture that wires `input_ctl` wires this too.
+	var level := armed_stack.find(ManageVerbMode) as ManageVerbMode if armed_stack != null else null
 	if level != null and level.verb != PlayerInputController.ManageVerb.NONE:
 		verb = level.verb
 	_allocation_provider.configure(player, allocation_system, graph, verb)

@@ -103,6 +103,7 @@ func before_each() -> void:
 	_hl.graph = _graph
 	_hl.player = _player
 	_hl.input_ctl = _ctl
+	_hl.armed_stack = _ctl.armed_stack
 	_hl.turn_manager = _tm
 	# _ready's signal wiring never runs (HighlightController isn't added to the
 	# tree here) — tests call _hl._resolve() directly, same pattern as
