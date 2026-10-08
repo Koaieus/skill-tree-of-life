@@ -36,7 +36,7 @@ func _spell_with_hops(hops: float) -> SpellDef:
 
 ## Arranges the acceptance board: `cast_range_hops` carrying +3 ADD_BASE and
 ## +50% INCREASE, bound to a fresh magic card. Returns [card, reach value label].
-func _bound_card(stack: ArmedStack = null) -> Array:
+func _bound_card(_stack: ArmedStack = null) -> Array:
 	var graph: Graph = _GRAPH_SCENE.instantiate()
 	add_child_autofree(graph)
 	var entity := _spawn_entity(graph)
@@ -45,7 +45,6 @@ func _bound_card(stack: ArmedStack = null) -> Array:
 	reach.add_modifier(_mod(&"cast_range_hops", StatModifier.Operation.INCREASE, 50.0))
 	var card: CombatCardMagic = _MAGIC_SCENE.instantiate()
 	add_child_autofree(card)
-	card._armed_stack = stack
 	card.bind(entity)
 	return [card, card.get_node("%ReachRow").get_node("%Value"), entity]
 
