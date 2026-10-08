@@ -1,7 +1,7 @@
 # Spell propagation — filter / spread / mint / merger
 
 Engineering-side architecture doc for the spell propagation pipeline. The
-design-side (spells not built yet) lives in `docs/design/spells.md`;
+design-side (spells ship; see `docs/design/spells.md`) lives in `docs/design/spells.md`;
 this doc covers the code shape that has to support it.
 
 Session-handoff format: where we are, where we're going, why, and the
@@ -28,33 +28,16 @@ departure (filter, spread) alike. `IncidentReducer` is the one exception: it
 
 ## Where we are
 
-`attack/spell/spell_resolver.gd` runs a single BFS queue: pop one
-`CastSpell`, apply each `OnHitEffect` to it, then ask
-`spell.propagation.next_hops(state)` for the children and append them.
-Each `CastSpell` carries its **own** `visited: Array` and gets duplicated
-on every fan-out in `SpellPropagation._propagate_to()`.
-
-Existing `SpellPropagation` subclasses (`AllNeighboursPropagation`,
-`HighestDegreePropagation`, `LowerDegreePropagation`,
-`RankedStatPropagation`, `RandomWalkPropagation`, `NoPropagation`) all
-share the same shape: filter neighbours, mint one `CastSpell` per pick.
-The filter logic is duplicated across them (every subclass repeats the
-`revisit_visited` / `only_enemy` checks).
-
-Two consequences fall out of this design:
-
-1. **No global visit ledger.** A diamond `A → {B,C} → D` hits D twice
-   because each branch's `visited` only saw one shoulder. Worse, a Spark
-   with `max_hops=3` over a moderately-connected graph procs ~28 hits
-   because every fan-out forks the visited set. This is captured by
-   `test/unit/spell/test_propagation.gd::test_diamond_double_hits_via_parallel_branches`
-   with a TODO flagging the model as wrong.
-2. **No merger.** When N branches converge on the same node in the same
-   BFS wave, the resolver produces N independent hits — no way to express
-   "add the incoming damage", "take the max", "cancel if overlapping".
-
-This refactor fixes both, and in the process makes self-loops a
-first-class mechanic (see `attack/spell/defs/resonator.tres`).
+Shipped (hub #849): `attack/spell/spell_resolver.gd` runs a wave-based BFS over
+`CastSpell`s with a **global visit ledger** (`PropagationContext.visit_count`)
+and a per-landing **reducer** that merges converging branches. The filter,
+spread, config and reducer stages above are the code shape; the stock classes
+live under `attack/spell/propagation/{filter,spread,reducer,ranker,progression}/`
+(spreads: `FanAllSpread`, `TakeTopNSpread`, `RandomPickSpread`, `NoSpread`,
+`TrailBlazerSpread`, `CycloneSpread`). `max_visits_per_node` is enforced inline
+by the resolver, not by a filter. Eighteen spells ship in `attack/spell/defs/`;
+the design side is `docs/design/spells.md`, and infusion (a per-cast fifth
+component) is [ADR 0047](../adr/0047-infusion-is-a-per-cast-fifth-spell-component.md).
 
 ---
 
@@ -92,8 +75,8 @@ Stock subclasses (slot into one or more `PropagationConfig`s):
 
 - `OwnerFilter` — `enemy` / `ally` / `unallocated` / `any` (drops the
   duplicated `only_enemy` logic from every existing propagator)
-- `MaxVisitsFilter` — reads `ctx.global_visit_count[to_node]` against
-  `PropagationConfig.max_visits_per_node`; this is what subsumes both
+- Max visits — not a filter: the resolver reads `ctx.visit_count(to_node)`
+  against `PropagationConfig.max_visits_per_node`, which subsumes both
   the old `revisit_visited` boolean and a future per-node hit cap
 - `RankThresholdFilter` — a `NodeRanker` score compared against the CURRENT
   node's: strict-less / less-or-equal / strict-greater / greater-or-equal.
@@ -165,7 +148,7 @@ Stock subclasses (`propagation/spread/`):
 
 **A spread never transforms damage on arrival, and never decides that the
 walk is over** (#851, hub #849 Seam C). Both used to happen inside
-`TrailBlazerStep`, decided at departure time from the *previous* node — which
+the old `TrailBlazerStep` (now `TrailBlazerSpread`), decided at departure time from the *previous* node — which
 is why a cast seeded straight onto a junction was never slammed. They are now:
 
 - the **slam** — a `ScaleDamageEffect` gated on a `JunctionCondition`, authored
@@ -292,7 +275,7 @@ var outcome: AttackOutcome    # one per resolve_against (#356) — a cast fact
 
 Branches read & mutate it freely. The resolver bumps
 `global_visit_count[node]` after each successful merger application.
-`MaxVisitsFilter` reads it before allowing onward copies. `outcome` is set once,
+The resolver reads it (against `max_visits_per_node`) before allowing onward copies. `outcome` is set once,
 up front in `resolve_against`, and is what retires the `outcome` positional
 parameter `LandingCondition.evaluate` used to take (and the `null` the crit
 path passed for it).
