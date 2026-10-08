@@ -2,13 +2,13 @@ extends GutTest
 
 ## The magic tray's infusion steppers: one per aspect the caster holds, capped
 ## by the aspect stat, the caster's `infusion_slots` / `infusion_points` and the
-## spell's `infusion_capacity`; the magic card reads the resulting affinity; the
+## spell's `infusion_capacity`; the affinity line reads the resulting affinity; the
 ## seat remembers the last infusion per spell, clamped to today's caps.
 
 const _VENOM: SpellDef = preload("res://attack/spell/defs/venom.tres")
 const _SPARK: SpellDef = preload("res://attack/spell/defs/spark.tres")
 const _ROW_SCENE := preload("res://ui/hud/command_tray/bodies/infusion_row.tscn")
-const _CARD_SCENE := preload("res://ui/hud/combat_readout/combat_card_magic.tscn")
+const _LINE_SCENE := preload("res://ui/hud/command_tray/bodies/affinity_line.tscn")
 const _BODY_SCENE := preload("res://ui/hud/command_tray/bodies/magic_body.tscn")
 const _POISON_STATUS: StatusDef = preload("res://effects/status/poison.tres")
 const _STUB_ARM := preload("res://test/fixtures/stub_arm.gd")
@@ -89,22 +89,19 @@ func test_the_spells_capacity_caps_below_the_pool() -> void:
 	assert_eq(row.header_text(), "slots 1/1 · points 4/4")
 
 
-func test_the_card_reads_the_infused_affinity() -> void:
+func test_the_affinity_line_reads_the_infused_affinity() -> void:
 	var caster := _caster(2.0)
 	var plan := _plan(caster)
 	var row := _row(plan)
-	var card: CombatCardMagic = _CARD_SCENE.instantiate()
-	add_child_autofree(card)
-	card.bind(caster)
-	card.set_plan(plan)
-	plan.state_changed.connect(card.set_plan.bind(plan))
+	var line: AffinityLine = _LINE_SCENE.instantiate()
+	add_child_autofree(line)
+	line.bind(plan)
 	row.plus_button(&"poison").pressed.emit()
 	row.plus_button(&"poison").pressed.emit()
 	# venom: innate 5 + floor(2 points × rate 2) = 9, through the landing's fold.
 	var stacks := _POISON_STATUS.stacks_per_hit(caster.stat_board, 9.0)
-	var line := card.find_child("AffinityRow", true, false) as CombatValueRow
-	assert_not_null(line, "the card carries an affinity row")
-	assert_eq((line.get_node("%Value") as Label).text, "Poison %s/hit" % NumFmt.num(stacks))
+	assert_true(line.visible, "venom lands poison, so the line shows")
+	assert_eq(line.text(), "Poison %s/hit" % NumFmt.num(stacks))
 
 
 func test_the_seat_remembers_the_infusion_per_spell_clamped_to_todays_caps() -> void:

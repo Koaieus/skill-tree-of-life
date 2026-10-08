@@ -1,0 +1,21 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://ui/hud/command_tray/bodies/affinity_line.gd" id="1_script"]
+
+[node name="AffinityLine" type="HBoxContainer"]
+theme_override_constants/separation = 8
+script = ExtResource("1_script")
+
+[node name="Label" type="Label" parent="."]
+modulate = Color(1, 1, 1, 0.65)
+layout_mode = 2
+size_flags_vertical = 0
+theme_override_font_sizes/font_size = 11
+text = "Affinity"
+
+[node name="Value" type="Label" parent="."]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 11
+autowrap_mode = 3

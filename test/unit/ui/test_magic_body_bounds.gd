@@ -130,3 +130,114 @@ func test_selection_survives_the_container_swap() -> void:
 	_bar.sync_selected(buttons[3].spell)
 	assert_true(buttons[3].button_pressed, "sync_selected marks its button")
 	assert_false(buttons[0].button_pressed, "and unmarks the others")
+
+
+# --- The configure view (#1486): sections, infusion row, affinity line ------
+
+const _GIRDLE: SpellDef = preload("res://attack/spell/defs/girdle.tres")
+const _VENOM: SpellDef = preload("res://attack/spell/defs/venom.tres")
+const _STUB_ARM := preload("res://test/fixtures/stub_arm.gd")
+
+var _ctl: PlayerInputController
+var _plan: MagicAttackPlan
+
+
+func after_each() -> void:
+	if is_instance_valid(_body) and _ctl != null:
+		_body.teardown()
+	_ctl = null
+	_plan = null
+
+
+## Bind [member _body] over a real controller whose stack holds a magic plan
+## casting [param spell] for a caster holding every rostered aspect, INT high
+## enough for slots and points to spare.
+func _configure(spell: SpellDef) -> void:
+	var h := SpellTestHelper.new()
+	var graph := h.make_graph([[0, 1]], self)
+	var caster := h.make_entity(graph, "ATK", Color.RED)
+	var board := caster.stat_board
+	board.intelligence.base_value = 400.0
+	for aspect in AspectRoster.shared().aspects:
+		if aspect.stat != null and board.get_stat(aspect.stat.id) != null:
+			board.get_stat(aspect.stat.id).base_value = 5.0
+	var tm := TurnManager.new()
+	add_child_autofree(tm)
+	tm.start_turn(caster)
+	var bs := BattleSystem.new()
+	bs.turn_manager = tm
+	bs.graph = graph
+	add_child_autofree(bs)
+	_ctl = PlayerInputController.new()
+	_ctl.graph = graph
+	_ctl.turn_manager = tm
+	_ctl.battle_system = bs
+	_ctl.player = caster
+	add_child_autofree(_ctl)
+	_body.bind(caster, bs, _ctl)
+	_plan = MagicAttackPlan.new()
+	_plan.attacker = caster
+	_plan.set_spell(spell)
+	_ctl.armed_stack.push(_STUB_ARM.new(_plan))
+	_panel.visible = false
+	_body.size = Vector2(TRAY_WIDTH, _body.get_combined_minimum_size().y)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	_body.size = Vector2(TRAY_WIDTH, _body.get_combined_minimum_size().y)
+	await get_tree().process_frame
+
+
+func _sections() -> Array[SpellTooltipSection]:
+	var out: Array[SpellTooltipSection] = []
+	for child in _body.get_node("%Sections").get_children():
+		if child is SpellTooltipSection:
+			out.append(child as SpellTooltipSection)
+	return out
+
+
+func _first_rows() -> Array[Node]:
+	var out: Array[Node] = []
+	for section in _sections():
+		var rows := section.get_node("%Rows")
+		out.append(rows.get_child(0) if rows.get_child_count() > 0 else null)
+	return out
+
+
+func test_a_twelve_aspect_configure_view_stays_inside_the_budget() -> void:
+	assert_eq(AspectRoster.shared().aspects.size(), 12, "guard: the roster holds 12 aspects")
+	var built := SpellSections.build(_GIRDLE)
+	for lines in [built.cast, built.on_arrival, built.then, built.crits]:
+		assert_false(lines.is_empty(), "guard: girdle fills all four sections")
+	await _configure(_GIRDLE)
+	var row := _body.get_node("%InfusionRow") as InfusionRow
+	assert_true(row.visible, "the infusion row shows")
+	assert_eq(row.stepper_ids().size(), 12, "one stepper per held aspect")
+	var min_size := _body.get_combined_minimum_size()
+	gut.p("12-aspect configure view min size = %s" % min_size)
+	assert_lt(min_size.x, MAX_BODY_MIN_WIDTH + 1.0, "min width must stay inside the tray slot")
+	assert_lt(min_size.y, MAX_BODY_MIN_HEIGHT + 1.0, "min height must stay inside the tray budget")
+
+
+func test_the_sections_are_the_builders_lines_and_rebuild_only_on_a_new_spell() -> void:
+	await _configure(_GIRDLE)
+	var sections := _sections()
+	assert_eq(sections.size(), 4, "four section columns")
+	var built := SpellSections.build(_GIRDLE, _plan.attacker.stat_board)
+	var expected := [built.cast, built.on_arrival, built.then, built.crits]
+	for i in mini(sections.size(), 4):
+		assert_eq(sections[i].line_texts(), (expected[i] as SpellSections.Lines).lines,
+				"section %d is the builder's" % i)
+	var before := _first_rows()
+	_plan.state_changed.emit()
+	_plan.state_changed.emit()
+	var after := _first_rows()
+	for i in before.size():
+		assert_same(after[i], before[i], "an unchanged spell keeps section %d's rows" % i)
+		assert_false(before[i] == null or before[i].is_queued_for_deletion(),
+				"section %d was not rebuilt" % i)
+	_ctl.armed_stack.selected_spell = _VENOM
+	assert_eq(_plan.spell, _VENOM, "guard: the stack's pick reaches the plan")
+	assert_true(before[0].is_queued_for_deletion(), "a new spell rebuilds the sections")
+	await get_tree().process_frame
+	var venom := SpellSections.build(_VENOM, _plan.attacker.stat_board)
+	assert_eq(_sections()[1].line_texts(), venom.on_arrival.lines, "rebuilt to the new spell")
