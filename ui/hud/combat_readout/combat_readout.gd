@@ -39,8 +39,6 @@ var _binds := BindScope.new()
 func bind(battle_system: BattleSystem, armed_stack: ArmedStack = null) -> void:
 	_battle_system = battle_system
 	_armed_stack = armed_stack
-	# The magic card reads the seat's picked spell; inject before binding.
-	_magic_card._armed_stack = armed_stack
 	if _armed_stack != null:
 		if not _armed_stack.attack_plan_changed.is_connected(_on_plan_changed):
 			_armed_stack.attack_plan_changed.connect(_on_plan_changed)

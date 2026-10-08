@@ -12,9 +12,6 @@ extends CombatReadoutCard
 
 @onready var _reach_row: CombatValueRow = %ReachRow
 
-## Written by [CombatReadout]; the card itself no longer reads the stack.
-var _armed_stack: ArmedStack
-
 
 @warning_ignore("unused_parameter")
 func _bind(board: StatBoard, owner_entity: Entity = null) -> void:

@@ -33,7 +33,7 @@ extends HBoxContainer
 
 ## Which board stat this row displays (#729) — resolves a [StatDef] for the
 ## chip's polarity colouring. Empty for a row that isn't a real stat (a
-## derived value like Combat Card Magic's potency/reach, driven via
+## derived value like Combat Card Magic's reach, driven via
 ## [method set_value] / [method set_text]), which leaves the chip on its old
 ## sign-only colouring.
 @export var stat_id: StringName = &""
@@ -108,7 +108,7 @@ func _ready() -> void:
 ## current baseline plus, if [param hover_node] is an owned node whose local
 ## value for [member stat_id] differs from that baseline, the override. A row
 ## with no [member stat_id] (a derived value the card computes itself, e.g.
-## Magic's potency/reach) is a no-op — the card still drives those directly
+## Magic's reach) is a no-op — the card still drives those directly
 ## via [method set_value].
 func refresh(board: StatBoard, hover_node: SkillNode, plan: AttackPlan = null) -> void:
 	if stat_id == &"":
