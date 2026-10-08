@@ -58,6 +58,7 @@ in `skill_node/addons/visuals/` — never in an addon subclass:
 | Bunker | `[0.90, 1.12]` (overlaps the rim) | 4 chamfered plates | dark cool body, bright bevel |
 | Fortification | `[1.14, 1.36]` | 12 merlons over a dark curtain | cool chrome |
 | SpikeRing | `[1.00, 1.45]` | 12 radial spikes | owner colour |
+| Toxin | rim, drifting outward (no fixed band) | `bubble_count` froth bubbles popping into gas puffs, one `_draw` pass | green (identity tint), gas on a named `Emissive` tier |
 
 **Separate neighbours by tone as well as by geometry.** Element count is
 unreadable at zoom; two mid-grey bands at adjacent radii read as one crust
