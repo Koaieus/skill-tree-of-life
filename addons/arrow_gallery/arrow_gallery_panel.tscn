@@ -2,6 +2,7 @@
 
 [ext_resource type="Script" path="res://addons/arrow_gallery/arrow_gallery_panel.gd" id="1_panel"]
 [ext_resource type="PackedScene" path="res://ui/theme/bloom_viewport.tscn" id="2_vp"]
+[ext_resource type="PackedScene" path="res://addons/sandbox_host/components/tooltip_fan_mount.tscn" id="tfm_mount"]
 
 [node name="ArrowGalleryPanel" type="PanelContainer"]
 anchors_preset = 15
@@ -16,6 +17,7 @@ layout_mode = 2
 theme_override_constants/separation = 6
 
 [node name="WorldContainer" type="SubViewportContainer" parent="VBox"]
+unique_name_in_owner = true
 layout_mode = 2
 size_flags_vertical = 3
 stretch = true
@@ -99,3 +101,6 @@ layout_mode = 2
 bbcode_enabled = true
 fit_content = true
 scroll_active = false
+
+[node name="TooltipFanMount" parent="." instance=ExtResource("tfm_mount")]
+unique_name_in_owner = true

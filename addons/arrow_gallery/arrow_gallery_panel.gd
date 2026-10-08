@@ -90,6 +90,10 @@ const _FIT_MARGIN := 70.0
 
 @onready var _world: SubViewport = %World
 @onready var _world_host: Node2D = %WorldHost
+@onready var _world_container: SubViewportContainer = %WorldContainer
+## The real hover tooltip (EFFECTS + NODE STATS) over the world, re-mounted on
+## every board rebuild (test hook).
+@onready var tooltip_mount: SandboxTooltipFanMount = %TooltipFanMount
 @onready var _type_list: OptionButton = %TypeList
 @onready var _count: SpinBox = %Count
 @onready var _preset_list: OptionButton = %PresetList
@@ -126,6 +130,7 @@ func _ready() -> void:
 	_count.max_value = MAX_VOLLEY
 	_fire_button.pressed.connect(_on_fire_pressed)
 	_world.size_changed.connect(_layout_world)
+	tooltip_mount.attach_motion(_world_container, _pick_node_at)
 	_build_board(Preset.NORMAL)
 	_refresh_status()
 
@@ -237,6 +242,23 @@ func _build_board(preset: Preset, target_name: String = _TARGETS[0]) -> void:
 	_defender.core_location = _nodes["d_core"]
 	_sandbox.turn_manager.adopt_turn(_attacker, _sandbox.turn_manager.turns_taken)
 	_layout_world()
+	tooltip_mount.mount(_world, _graph)
+
+
+## The node whose disc covers [param viewport_pos] (the container is 1:1 with
+## the viewport), back through the board's fit transform; null for empty space.
+func _pick_node_at(viewport_pos: Vector2) -> SkillNode:
+	if _graph == null or not is_instance_valid(_graph):
+		return null
+	var local := _graph.to_local(viewport_pos)
+	var best: SkillNode = null
+	var best_d := INF
+	for n in _graph.get_skill_nodes():
+		var d := n.position.distance_to(local)
+		if d <= n.radius and d < best_d:
+			best = n
+			best_d = d
+	return best
 
 
 func _add_node(node_name: String, pos: Vector2) -> SkillNode:

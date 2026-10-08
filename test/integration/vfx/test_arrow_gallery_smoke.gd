@@ -81,3 +81,13 @@ func _assert_preset_beat(outcome: AttackOutcome, preset: int, ammo: AmmoType, la
 	elif preset == _panel.Preset.CRIT:
 		if deals:
 			assert_eq(crits, arrows.size(), "%s: every arrow crits" % label)
+
+
+func test_the_tooltip_mount_follows_the_rebuilt_graph() -> void:
+	if _panel == null:
+		return
+	var mount: SandboxTooltipFanMount = _panel.tooltip_mount
+	assert_eq(mount.fan.graph, _panel._graph, "bound to the board on open")
+	await _panel.fire(0, _panel.Preset.NORMAL, 1)
+	assert_eq(mount.fan.graph, _panel._graph, "re-bound to the board Fire rebuilt")
+	assert_eq(mount.fan.get_viewport(), _panel._graph.get_viewport(), "inside the world viewport")
