@@ -1,0 +1,34 @@
+[gd_scene format=3 uid="uid://b1addon0egate"]
+
+[ext_resource type="Script" uid="uid://bkf87fqtgkm7a" path="res://skill_node/addons/skill_node_addon.gd" id="1_addon"]
+[ext_resource type="Script" uid="uid://che6xhl6srqh3" path="res://stats_system/stat_modifier.gd" id="2_mod"]
+[ext_resource type="Resource" path="res://effects/status/corruption.tres" id="3_corruption"]
+[ext_resource type="Script" path="res://effects/self_corrupt_effect.gd" id="4_self_corrupt"]
+[ext_resource type="Script" uid="uid://dg4m4os0d6e5f" path="res://effects/effect.gd" id="5_effect"]
+[ext_resource type="Script" uid="uid://d0hgvosm3t3a1" path="res://skill_node/addons/visuals/compromiser_visual.gd" id="9_visual"]
+[ext_resource type="Resource" path="res://identity/defs/addon_eldritch_gate.tres" id="identity_ref"]
+
+[sub_resource type="Resource" id="Resource_gate_aspect"]
+resource_local_to_scene = true
+resource_name = "+3 Corruption Aspect"
+script = ExtResource("2_mod")
+stat_id = &"corruption_aspect"
+value = 3.0
+metadata/_custom_type_script = "uid://che6xhl6srqh3"
+
+[sub_resource type="Resource" id="Resource_gate_self_corrupt"]
+script = ExtResource("4_self_corrupt")
+def = ExtResource("3_corruption")
+
+[node name="EldritchGateAddon" type="Node2D"]
+z_index = 1
+script = ExtResource("1_addon")
+identity = ExtResource("identity_ref")
+entity_modifiers = Array[ExtResource("2_mod")]([SubResource("Resource_gate_aspect")])
+effects = Array[ExtResource("5_effect")]([SubResource("Resource_gate_self_corrupt")])
+description = "The Eldritch Gate — a portal held open for power. Its owner gains three corruption arrows, and every turn the gate grows one corruption on its own node: manage it, or cut the node away."
+unique = true
+
+[node name="Visual" type="Node2D" parent="."]
+script = ExtResource("9_visual")
+pustule_size = 0.32
