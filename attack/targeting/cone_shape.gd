@@ -19,8 +19,10 @@ func _touches(origin: Vector2, dir: Vector2, length: float, node: SkillNode) -> 
 	# A disc that contains the origin covers every heading.
 	if d <= node.radius:
 		return true
-	# Vector math only (no asin, see `lint-transcendentals`): the centre lies
-	# inside the wedge, or the disc reaches across one of its two edges.
+	# The centre lies inside the wedge, or the disc reaches across one of its
+	# two edges. The one trig step is `from_angle` of the authored knob, as
+	# [method AimShape.crossed] takes `from_angle` of the aim: the crossed set
+	# rides the AttackRecord, so a peer receives it rather than recomputing it.
 	var edge := Vector2.from_angle(deg_to_rad(half_angle_deg))
 	if rel.dot(dir) >= d * edge.x:
 		return true
