@@ -31,4 +31,8 @@ unique = true
 
 [node name="Visual" type="Node2D" parent="."]
 script = ExtResource("9_visual")
-pustule_size = 0.32
+pustule_size = 0.3
+beat_depth = 0.45
+blip_count = 7
+swell_per_stack = 0.08
+swell_max = 2.0

@@ -59,6 +59,18 @@ const _SWELL_SHARE := 0.75
 	set(value):
 		glow_tier = value
 		queue_redraw()
+## Pustule growth per corruption stack on the carrier's own node, as a
+## fraction of [member pustule_size]. 0 = a fixed pustule (the compromiser);
+## a sibling that feeds on its own row (the eldritch gate) swells with it.
+@export_range(0.0, 0.5, 0.01) var swell_per_stack: float = 0.0:
+	set(value):
+		swell_per_stack = value
+		queue_redraw()
+## Ceiling on that growth, × [member pustule_size].
+@export_range(1.0, 4.0, 0.1) var swell_max: float = 2.0:
+	set(value):
+		swell_max = value
+		queue_redraw()
 ## Redraw rate cap, in Hz.
 @export_range(5.0, 60.0, 1.0) var redraw_hz: float = 20.0
 
@@ -104,6 +116,19 @@ func _draw() -> void:
 	_draw_pustule(tint, glow, dark, seed)
 
 
+## The pustule's growth from the carrier's own corruption row, read live —
+## 1.0 with [member swell_per_stack] at 0 or no node behind the addon.
+func _swell() -> float:
+	if swell_per_stack <= 0.0:
+		return 1.0
+	var addon := get_parent()
+	var node := addon.get_parent() as SkillNode if addon != null else null
+	var host: NodeCombat = node.get_combat() if node != null else null
+	if host == null:
+		return 1.0
+	return minf(1.0 + swell_per_stack * host.get_status_power(&"corruption"), swell_max)
+
+
 ## A lub-dub: a sharp swell, a smaller echo, then rest.
 func _beat(phase: float) -> float:
 	var lub := exp(-pow((phase - 0.08) * 14.0, 2.0))
@@ -117,7 +142,7 @@ func _draw_pustule(tint: Color, glow: Color, dark: Color, seed: float) -> void:
 	var theta := TAU * seed
 	var center := Vector2.from_angle(theta) * radius
 	var phase := fposmod(_time * beat_hz + seed, 1.0)
-	var r := radius * pustule_size * (1.0 + beat_depth * _beat(phase))
+	var r := radius * pustule_size * _swell() * (1.0 + beat_depth * _beat(phase))
 	draw_circle(center, r, dark)
 	draw_circle(center, r * 0.72, Color(tint, 0.9))
 	draw_circle(center + Vector2(-r, -r) * 0.18, r * 0.38, glow)
