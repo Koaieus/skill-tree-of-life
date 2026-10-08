@@ -81,6 +81,11 @@ func _init() -> void:
 ## non-positive gate makes a no-op. Resolved once: a rebuilt hit arrives
 ## [member power_resolved] and lands the recorded number as-is.
 ##
+## Crit: a spell's condition-tier crit ([CritRoll], never `crit_chance`)
+## lands the folded stacks × `abs(crit_multiplier)` — a separate factor right
+## after the fold; a non-crit is ×1. A rebuilt hit arrives resolved, so the
+## peer never multiplies twice.
+##
 ## Greed (the defender-side term): a landed, positive, `debuff`-tagged power
 ## doubles iff the receiving host [method StatusHost.greed_arm]s this hit —
 ## after the stacks fold and the block gate, so a blocked rider never spends.
@@ -112,6 +117,7 @@ func land_on(node: NodeCombat, world: CombatWorld) -> void:
 			var rn: NodeCombat = world.combat_for(read_node) if world != null else null
 			power = def.stacks_per_hit_at(rn, power) if rn != null \
 				else def.stacks_per_hit(_attacker_board(), power)
+			power *= absf(crit_multiplier)
 			if host.blocks_status(def):
 				power = 0.0
 			if _greed_arms(host):

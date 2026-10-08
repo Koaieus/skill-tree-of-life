@@ -128,16 +128,55 @@ func entity_degree_of(node: SkillNode) -> int:
 	return count
 
 
-func is_cut_vertex(_node: SkillNode) -> bool:
-	return false
+## True when [param node] is a CUT VERTEX of its owner's territory as read in
+## [member world]: removing it would island some other node that owner holds
+## from the owner's core. Same answer [method GraphMirror.would_disconnect_from]
+## gives with the core as anchor — so the core itself is a cut vertex whenever
+## its owner holds anything else — but asked of THIS cast's world, so a node
+## an earlier wave killed no longer holds the territory together, and one it
+## left as the last link now does. A node no one owns in the world, or whose
+## owner's core is no longer theirs, is never one.
+##
+## Two floods over the owner's nodes from the core, with and without
+## [param node]: O(V+E) per call, asked per landing, never per frame. A
+## fragment the territory had already lost does not count — only nodes still
+## reachable from the core can be islanded.
+func is_cut_vertex(node: SkillNode) -> bool:
+	if node == null or graph == null:
+		return false
+	var owner_entity := _owner_in_world(node)
+	if owner_entity == null:
+		return false
+	var core := owner_entity.core_location
+	if core == null or _owner_in_world(core) != owner_entity:
+		return false
+	var held := _territory_reach(core, owner_entity, null)
+	return _territory_reach(core, owner_entity, node) < held - 1
+
+
+## How many of [param owner_entity]'s nodes (in [member world]) a flood from
+## [param start] reaches without stepping on [param excluded].
+func _territory_reach(start: SkillNode, owner_entity: Entity, excluded: SkillNode) -> int:
+	if start == excluded:
+		return 0
+	var seen: Dictionary[SkillNode, bool] = {start: true}
+	var queue: Array[SkillNode] = [start]
+	while not queue.is_empty():
+		var cur: SkillNode = queue.pop_back()
+		for nb in graph.get_neighbours(cur):
+			if nb == excluded or seen.has(nb) or _owner_in_world(nb) != owner_entity:
+				continue
+			seen[nb] = true
+			queue.append(nb)
+	return seen.size()
 
 
 ## [param node]'s owner as read in [member world] — [member world.combat_for]
 ## then [method NodeCombat.owner] then [method EntityCombat.real_entity], the
 ## same three-call chain [method ownership_bit_of] already climbs, just
 ## returning the [Entity] itself rather than a bit relative to [member caster].
-## Private: [method entity_degree_of] is the one caller, and this must not grow
-## into a second [method ownership_bit_of].
+## Private: [method entity_degree_of] and [method is_cut_vertex] are its
+## callers, and this must not grow into a second [method ownership_bit_of].
 func _owner_in_world(node: SkillNode) -> Entity:
 	var slice := world.combat_for(node)
 	var o := slice.owner() if slice != null else null

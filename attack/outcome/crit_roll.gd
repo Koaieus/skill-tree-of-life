@@ -62,20 +62,35 @@ static func stream_for(resolve_seed: int) -> RandomNumberGenerator:
 ## Consumes exactly one draw from [param rng], and only when the hit's folded
 ## chance ([method chance_for]) is non-zero — a hit with no crit investment
 ## behind it must not shift the stream for everyone else. A
-## zero/negative-amount hit is skipped entirely (nothing to multiply), and so
+## zero/negative-amount hit is skipped entirely (nothing to multiply) — save a
+## [StatusInstance], which settles a stamped condition tier without drawing — and so
 ## is one that carries another hit's crit ([method HitInstance.draws_own_crit]
 ## false) — it draws nothing, so the stream never shifts for it.
 ## `crit_multiplier` stays an entity read.
 static func decide(hit: HitInstance, rng: RandomNumberGenerator,
 		world: CombatWorld = null) -> void:
-	if hit == null or hit.amount <= 0.0 or not hit.draws_own_crit():
+	if hit == null or not hit.draws_own_crit():
 		return
-	var board: StatBoard = hit.attacker.stat_board if hit.attacker != null else null
+	# A status hit crits on its spell's CONDITION tier only (stamped at
+	# resolve) and never rolls `crit_chance`: no draw, so no later hit's crit
+	# shifts, and an arrow's or a blade's rider (no tier) never crits. Settled
+	# ahead of the amount gate — a status hit's amount is 0 until it lands.
+	if hit is StatusInstance:
+		_settle(hit)
+		return
+	if hit.amount <= 0.0:
+		return
 	if rng != null:
 		var cc_val := chance_for(hit, world)
 		if cc_val > 0.0 and rng.randf() < cc_val:
 			hit.crit_tier += 1
+	_settle(hit)
+
+
+## A hit with any crit tier is a crit, at the attacker's `crit_multiplier`.
+static func _settle(hit: HitInstance) -> void:
 	if hit.crit_tier > 0:
+		var board: StatBoard = hit.attacker.stat_board if hit.attacker != null else null
 		hit.is_crit = true
 		hit.crit_multiplier = multiplier_for(board)
 
