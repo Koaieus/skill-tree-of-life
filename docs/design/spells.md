@@ -92,7 +92,6 @@ These have an issue; the issue is the design's home, not this doc.
 |---|---|
 | Chromatic Cascade — colour-rule variant of Resonator | #355 |
 | One cleanse spell per DoT family + a rare cure-all | #969 |
-| Corruption / Curse / Wither spells | #971 / #972 / #973 |
 | Mining the graph-automata field for new spells | #1201 |
 | Composable / bred spells | #1200 |
 
