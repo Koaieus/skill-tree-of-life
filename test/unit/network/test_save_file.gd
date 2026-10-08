@@ -29,6 +29,8 @@ const _ROW_LAYOUT_PINS := {
 	# 6: an `_R_STATUSES` entry grew `decay_step`. No row moved, so the hash
 	# is 5's; the bump is the entry shape.
 	6: "2f2af3cc83555396e3dd69b5864bec2d12f52dbcb125bbd81661ae3f353dbfa2",
+	# 7: EntitySnapshot gained `_R_CORE_MOVED` (the core-move exert latch).
+	7: "a947145a33c12afa7ccdfedb81a1605126696059aefda1a137a470768664152a",
 }
 
 

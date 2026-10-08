@@ -30,6 +30,7 @@ const _R_NAME := 10      ## Entity.display_name — carried only so a materializ
 const _R_SPELL_IDS := 11 ## Array of indices into `spells`, or null — see [method _encode_spell_ids]
 const _R_TURNS := 12     ## Entity.turns_taken — see [method restore_turn_cursor]
 const _R_VOLLEYS := 13   ## Entity.volleys_launched_this_turn — a mid-turn arrival keeps the budget spent
+const _R_CORE_MOVED := 15 ## Entity.core_moved_this_turn — a mid-turn arrival must not exert a second time
 const _R_TURN_LEAVES := 14 ## Entity.get_turn_start_leaves() as stable_ids — pass 2 only
 
 
@@ -202,7 +203,7 @@ static func _encode_entity(
 		if is_instance_valid(n) and graph.get_stable_id(n) != 0:
 			leaves.append(graph.get_stable_id(n))
 	var row: Array
-	row.resize(15)
+	row.resize(16)
 	row[_R_SCENE] = table.intern(e.scene_file_path) if e.scene_file_path != "" else -1
 	row[_R_NAME] = e.display_name
 	row[_R_ENTITY_ID] = e.entity_id
@@ -218,6 +219,7 @@ static func _encode_entity(
 	row[_R_TURNS] = e.turns_taken
 	row[_R_VOLLEYS] = e.volleys_launched_this_turn
 	row[_R_TURN_LEAVES] = leaves
+	row[_R_CORE_MOVED] = e.core_moved_this_turn
 	return row
 
 
@@ -436,6 +438,8 @@ static func _decode_identity(e: Entity, row: Array, res: Array, spells: Array) -
 		e.turns_taken = int(row[_R_TURNS])
 	if row.size() > _R_VOLLEYS:
 		e.volleys_launched_this_turn = int(row[_R_VOLLEYS])
+	if row.size() > _R_CORE_MOVED:
+		e.core_moved_this_turn = bool(row[_R_CORE_MOVED])
 
 
 ## Rebuild the by-value book [method _encode_spell_ids] sent (#726).

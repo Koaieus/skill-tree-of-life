@@ -84,7 +84,7 @@ static func _accumulated_rows(graph: Graph) -> Array:
 
 ## One row per node holding ≥ 1 status (#879 — omitted entirely otherwise, so
 ## the common case adds nothing to fold): `[stable_id, id_hash_0, power_0,
-## id_hash_1, power_1, …]`, PAIRS SORTED BY STATUS ID first — so two peers
+## key_hash_0, decay_step_0, id_hash_1, power_1, …]`, GROUPS SORTED BY STATUS ID then row key first — so two peers
 ## holding the same statuses in different application order still fold equal
 ## (this is what makes it safe to fold as one variable-length row instead of
 ## one row per status, unlike the fixed-shape rows above). `power` quantizes
@@ -95,14 +95,19 @@ static func _status_rows(graph: Graph) -> Array:
 	for node in graph.get_skill_nodes():
 		var pairs: Array = []
 		for s in node.get_combat().get_statuses():
-			pairs.append([String(s.def.id), roundi(s.power * 100.0)])
+			pairs.append([String(s.def.id), roundi(s.power * 100.0), var_to_str(s.key), s.decay_step])
 		if pairs.is_empty():
 			continue
-		pairs.sort_custom(func(a: Array, b: Array) -> bool: return a[0] < b[0])
+		pairs.sort_custom(func(a: Array, b: Array) -> bool:
+			if a[0] != b[0]:
+				return a[0] < b[0]
+			return a[2] < b[2])
 		var row: Array = [graph.get_stable_id(node)]
 		for pair in pairs:
 			row.append(String(pair[0]).hash())
 			row.append(pair[1])
+			row.append(String(pair[2]).hash())
+			row.append(pair[3])
 		rows.append(row)
 	return rows
 

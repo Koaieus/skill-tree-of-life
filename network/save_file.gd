@@ -25,7 +25,8 @@ enum LoadResult { OK, MISSING, CORRUPT, VERSION_MISMATCH }
 ## 5: the board's stat set lost two ids (ADR 0045); an older file names stats
 ##    this build no longer defines.
 ## 6: an `_R_STATUSES` entry grew `decay_step` (a ramping decay's position).
-const FORMAT_VERSION := 6
+## 7: an entity row carries `_R_CORE_MOVED` (the mid-turn core-move exert latch).
+const FORMAT_VERSION := 7
 ## The single slot — mirrors [constant Settings.SAVE_PATH]'s `user://` home.
 const SLOT_PATH := "user://save.bin"
 const MAGIC := "STLS"

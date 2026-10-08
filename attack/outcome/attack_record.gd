@@ -152,6 +152,9 @@ const KEY_SPILL_COUNT := "s_n"
 const KEY_SPILL_TO := "s_to"
 const KEY_SPILL_DEF := "s_def"
 const KEY_SPILL_AMOUNT := "s_amt"
+## Per transfer, the row key ([member StackTransfer.key]) as `var_to_str` — a
+## camp-keyed def spills onto its own row, not the shared one.
+const KEY_SPILL_KEY := "s_key"
 const KEY_EVENT_BEAT := "e_beat"
 const KEY_EVENT_VERB := "e_verb"
 const KEY_EVENT_ORIGIN := "e_org"
@@ -236,6 +239,7 @@ var spill_to := PackedInt32Array()
 ## `StatusDef.id` has no registry a rebuild could resolve it through.
 var spill_defs := PackedStringArray()
 var spill_amounts := PackedFloat64Array()
+var spill_keys := PackedStringArray()
 var beats := PackedInt32Array()
 var verbs := PackedByteArray()
 var event_origins := PackedInt32Array()
@@ -291,6 +295,7 @@ static func wire_fields() -> Array[WireFields.Field]:
 		WireFields.Field.new(&"spill_to", TYPE_PACKED_INT32_ARRAY).as_key(KEY_SPILL_TO),
 		WireFields.Field.new(&"spill_defs", TYPE_PACKED_STRING_ARRAY).as_key(KEY_SPILL_DEF),
 		WireFields.Field.new(&"spill_amounts", TYPE_PACKED_FLOAT64_ARRAY).as_key(KEY_SPILL_AMOUNT),
+		WireFields.Field.new(&"spill_keys", TYPE_PACKED_STRING_ARRAY).as_key(KEY_SPILL_KEY),
 		WireFields.Field.new(&"beats", TYPE_PACKED_INT32_ARRAY).as_key(KEY_EVENT_BEAT),
 		WireFields.Field.new(&"verbs", TYPE_PACKED_BYTE_ARRAY).as_key(KEY_EVENT_VERB),
 		WireFields.Field.new(&"event_origins", TYPE_PACKED_INT32_ARRAY).as_key(KEY_EVENT_ORIGIN),
@@ -372,6 +377,7 @@ static func capture(outcome: AttackOutcome, graph: Graph) -> Dictionary:
 				r.spill_to.append(_id_of(t.to.real() if t != null and t.to != null else null, graph))
 				r.spill_defs.append(def.resource_path if def != null else "")
 				r.spill_amounts.append(t.amount if t != null else 0.0)
+				r.spill_keys.append(var_to_str(t.key if t != null else true))
 		var flip := hit as GateFlipInstance
 		if flip != null:
 			r.gate_counts.append(flip.gates.size())
@@ -637,7 +643,8 @@ static func _rebuild_spill(r: AttackRecord, entry: DeallocEntry, at: int, count:
 		var to: NodeCombat = to_node.get_combat() if to_node != null else null
 		var path := r.spill_defs[i]
 		var def: StatusDef = load(path) as StatusDef if not path.is_empty() else null
-		entry.spill.append(StackTransfer.new(from, to, r.spill_amounts[i]))
+		var key: Variant = str_to_var(r.spill_keys[i]) if i < r.spill_keys.size() else true
+		entry.spill.append(StackTransfer.new(from, to, r.spill_amounts[i], key))
 		entry.spill_defs.append(def)
 	return at + count
 
