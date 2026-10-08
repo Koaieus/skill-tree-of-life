@@ -14,13 +14,14 @@ extends Resource
 ## predicate — the right answer only when the predicate is cheap and reach is
 ## unbounded (a [NodeTargeting] with no range finder). A ranged NODE targeting
 ## overrides it with one [method RangeFinder.gather] sweep instead of N per-pair
-## reach queries (#942, see [method NodeTargeting.valid_targets]); EDGE /
-## POSITION subclasses override it entirely.
+## reach queries (#942, see [method NodeTargeting.valid_targets]); an EDGE
+## subclass would override it entirely.
 
 
-## Kinds of input the targeting consumes. PlayerInputController routes
-## node-clicks for NODE/EDGE, world-clicks for POSITION, and skips
-## targeting input entirely for SELF (the source IS the target).
+## Kinds of input the targeting consumes: a node pick for NODE, an edge for
+## EDGE, an aim angle dragged from the cast-from node for AIM
+## ([AimedTargeting]), nothing for SELF (the source IS the target). No input
+## path routes on this yet.
 enum TargetingKind {
 	NODE,
 	EDGE,

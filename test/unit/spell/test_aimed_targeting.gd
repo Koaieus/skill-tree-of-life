@@ -131,7 +131,7 @@ func test_aimed_kind_and_validity() -> void:
 	var fx := _ownership_board()
 	var graph: Graph = fx[0]
 	var n := _nodes(graph)
-	var t := _aimed(8, 250.0)
+	var t := _aimed(8, 320.0)
 	assert_eq(t.get_kind(), Targeting.TargetingKind.AIM)
 	assert_eq(t.get_range_finder(), t.range_finder)
 	var plan := MagicAttackPlan.new()
