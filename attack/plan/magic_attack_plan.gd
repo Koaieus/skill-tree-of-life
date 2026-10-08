@@ -118,6 +118,9 @@ func to_dict(graph: Graph) -> Dictionary:
 	d["source"] = graph.get_stable_id(source) if graph != null and source != null else 0
 	d["target"] = graph.get_stable_id(target) if graph != null and target != null else 0
 	d["spell"] = spell.id if spell != null else &""
+	# Only an aimed spell's, and only a set one: NAN never rides the wire.
+	if is_aimed() and not is_nan(aim_angle):
+		d["aim"] = aim_angle
 	if infusion.total_points() > 0:
 		var pts := {}
 		for id in infusion.points:
@@ -140,6 +143,7 @@ static func from_dict(d: Dictionary, graph: Graph) -> MagicAttackPlan:
 	plan.infusion = Infusion.for_cast(plan.spell, d.get("infusion", {}) as Dictionary)
 	plan.source = graph.get_by_stable_id(int(d.get("source", 0))) if graph != null else null
 	plan.target = graph.get_by_stable_id(int(d.get("target", 0))) if graph != null else null
+	plan.aim_angle = float(d.get("aim", NAN))
 	return plan
 
 
@@ -151,6 +155,10 @@ func set_target(node: SkillNode) -> bool:
 	if attacker == null or node == null:
 		return false
 	if spell == null or spell.targeting == null:
+		return false
+	# An aimed spell is dragged from its source, never clicked: a click on the
+	# scout line would otherwise commit a target and skip the drag.
+	if is_aimed():
 		return false
 	var picked := union().source_for(node)
 	if picked == null:
@@ -167,7 +175,16 @@ func set_target(node: SkillNode) -> bool:
 ## not aimed, or a [param src] outside the union's eligible casters — the plan
 ## is then left unchanged.
 func set_aim(src: SkillNode, angle: float) -> bool:
-	return false
+	if attacker == null or src == null or not is_aimed():
+		return false
+	if not union().sources.has(src):
+		return false
+	if source == src and aim_angle == angle:
+		return false
+	source = src
+	aim_angle = angle
+	state_changed.emit()
+	return true
 
 
 ## True when the spell is aimed in a direction rather than at a node.
@@ -177,10 +194,11 @@ func is_aimed() -> bool:
 
 
 func reset() -> void:
-	if source == null and target == null:
+	if source == null and target == null and is_nan(aim_angle):
 		return
 	source = null
 	target = null
+	aim_angle = NAN
 	state_changed.emit()
 
 
@@ -262,7 +280,10 @@ func validate() -> Array[String]:
 	elif spell != null and attacker != null \
 			and not _source_meets_min_degree(spell, source):
 		errors.append(&'Source node degree too low for spell')
-	if target == null:
+	if is_aimed():
+		if is_nan(aim_angle):
+			errors.append(&'No aim selected')
+	elif target == null:
 		errors.append(&'No target selected')
 	return errors
 
@@ -503,7 +524,9 @@ func _graph_of(node: SkillNode) -> Graph:
 
 
 func resolve_against(world: CombatWorld) -> AttackOutcome:
-	if spell == null or source == null or target == null:
+	if spell == null or source == null:
+		return AttackOutcome.new()
+	if is_nan(aim_angle) if is_aimed() else target == null:
 		return AttackOutcome.new()
 	var graph := _graph_of(source)
 	if graph == null:
@@ -523,8 +546,14 @@ func resolve_against(world: CombatWorld) -> AttackOutcome:
 	# When crits reach melee and ranged they must draw from `seeded_rng()`
 	# like this, NOT from the global RNG, or they reintroduce the exact hole
 	# this line closes. See AttackPlan.resolve_seed.
-	var outcome := SpellResolver.resolve_against(
-		spell, target, source, attacker, graph, world, seeded_rng(), infusion)
+	var outcome: AttackOutcome
+	if is_aimed():
+		var seeds := (spell.targeting as AimedTargeting).seeds(attacker, source, aim_angle, graph)
+		outcome = SpellResolver.resolve_seeds(
+			spell, seeds, source, attacker, graph, world, seeded_rng(), infusion, aim_angle)
+	else:
+		outcome = SpellResolver.resolve_against(
+			spell, target, source, attacker, graph, world, seeded_rng(), infusion)
 	outcome.resolve_seed = resolve_seed
 	return outcome
 
@@ -584,6 +613,14 @@ func set_spell(new_spell: SpellDef) -> void:
 	spell = new_spell
 	infusion = Infusion.innate(new_spell)
 	invalidate_union()
+	# An aim is only meaningful for an aimed spell from a caster it still
+	# allows; a committed target never survives into an aimed spell.
+	if not is_nan(aim_angle) and (not is_aimed() or not union().sources.has(source)):
+		source = null
+		aim_angle = NAN
+	if target != null and is_aimed():
+		source = null
+		target = null
 	if target != null:
 		var picked := union().source_for(target)
 		if picked == null:

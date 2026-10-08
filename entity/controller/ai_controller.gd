@@ -626,7 +626,13 @@ func _gather_magic_candidates(visible_enemies: Array[SkillNode]) -> Array[AiComb
 	# target.
 	var pre: Array = []
 	for spell in spells:
-		var union := SpellTargetUnion.build(spell, entity, graph)
+		# The plan rides along for a non-NodeTargeting spell (an aimed one),
+		# whose union walks Targeting.valid_targets and needs the attacker
+		# from it; the NodeTargeting path never reads it.
+		var asker := MagicAttackPlan.new()
+		asker.attacker = entity
+		asker.spell = spell
+		var union := SpellTargetUnion.build(spell, entity, graph, asker)
 		# `sources` and not `per_source`: the latter is keyed in gather_multi's
 		# own order, while `sources` is a filtered subsequence of
 		# get_mirrored_nodes() — the order the pre-#745 loop walked. It is also
@@ -653,12 +659,20 @@ func _gather_magic_candidates(visible_enemies: Array[SkillNode]) -> Array[AiComb
 			probe.attacker = entity
 			probe.spell = spell
 			probe.source = source
+			var aimed := probe.is_aimed()
 			for at in picked:
 				var target := visible_enemies[at]
-				probe.target = target
+				# An aimed spell is aimed straight at the reachable node; the
+				# node stays the candidate's scored target, never the plan's.
+				var angle := _aim_at(source, target) if aimed else NAN
+				if aimed:
+					probe.aim_angle = angle
+				else:
+					probe.target = target
 				if probe.is_valid():
-					pre.append([spell, source, target, raw_damage])
+					pre.append([spell, source, target, raw_damage, angle])
 				probe.target = null
+				probe.aim_angle = NAN
 
 	# PASS 2 — cheap-rank the WHOLE turn's magic candidates (across every
 	# spell/source) and promote only the top K to a real resolve.
@@ -688,15 +702,25 @@ func _gather_magic_candidates(visible_enemies: Array[SkillNode]) -> Array[AiComb
 		probe.attacker = entity
 		probe.spell = spell
 		probe.source = source
-		probe.target = target
+		if probe.is_aimed():
+			probe.aim_angle = entry[4]
+		else:
+			probe.target = target
 		_apply_infusion(probe, infusions[spell])
 		var outcome := probe.resolve()
 		var c := AiCombatScorer.score(BattleSystem.AttackMode.MAGIC, outcome, target, entity, ai_tier,
 				0, loot_system)
 		c.source_node = source
 		c.spell = spell
+		c.aim_angle = entry[4]
 		out.append(c)
 	return out
+
+
+## The angle (radians) aiming from [param source] through [param node]'s
+## centre — world positions, as [method AimedTargeting.seeds] crosses them.
+static func _aim_at(source: SkillNode, node: SkillNode) -> float:
+	return (node.global_position - source.global_position).angle()
 
 
 ## Spend [param picked] (`{concept id: points}`) on [param plan]'s cast.
