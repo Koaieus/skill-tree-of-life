@@ -42,8 +42,9 @@ var payload: CastSpell = null
 ## only; nothing downstream re-derives the merge from this.
 var incidents: Array[CastSpell] = []
 
-## The status-stack scale this landing's [StatusInstance]s land with — written
-## by [ScaleStacksEffect], read by [ApplyStatusEffect] when it mints. A
+## The status-stack scale this landing's [StatusInstance]s land with — seeded
+## by the reducer's [method IncidentReducer.fold_stacks] (MAX with no reducer),
+## multiplied by [ScaleStacksEffect], read by [ApplyStatusEffect] when it mints. A
 ## per-LANDING fact, never on [member payload]: the payload is what the next
 ## hop inherits, and a content scale must not compound. A fresh context per
 ## landing is the reset; 1.0 is "unscaled", 0.0 lands nothing.
