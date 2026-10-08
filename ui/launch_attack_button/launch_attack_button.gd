@@ -67,6 +67,9 @@ func set_enabled(value: bool) -> void:
 
 
 func _ready() -> void:
+	# The editor's InputMap lacks project actions; an action-less Shortcut logs an error there.
+	if not InputMap.has_action(&"ui_launch_attack"):
+		shortcut = null
 	update_label_text()
 
 	_text_mat.shader = TEXT_SHADER
