@@ -26,8 +26,8 @@ extends StatusDef
 ## The authored modifier, duplicated per application. A script-class
 ## [code]is[/code] check on it tells a found modifier apart from any other
 ## MULTIPLY on `healing_received`.
-const WitherModifier := preload("res://effects/status/wither_modifier.gd")
-const _MODIFIER_TEMPLATE := preload("res://effects/status/wither_modifier.tres")
+const WitherModifier := preload("res://effects/status/modifiers/wither_modifier.gd")
+const _MODIFIER_TEMPLATE := preload("res://effects/status/modifiers/wither_modifier.tres")
 
 
 func _on_applied(host, power: float) -> void:
