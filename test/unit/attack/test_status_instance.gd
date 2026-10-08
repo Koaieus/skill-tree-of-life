@@ -390,3 +390,57 @@ func test_a_status_with_no_paired_hit_lands_normally() -> void:
 	hit.land_on(_node.get_combat(), CombatWorld.live())
 	assert_false(hit.gated)
 	assert_almost_eq(_node.get_combat().get_status_power(&"test_status"), 2.0, 0.0001)
+
+
+# ── A spell's condition crit lands more stacks (#1389) ──────────────────────
+
+func _crit_status_hit(power: float, multiplier: float) -> StatusInstance:
+	var hit := _status_hit(power)
+	hit.crit_tier = 1
+	hit.is_crit = true
+	hit.crit_multiplier = multiplier
+	return hit
+
+
+func test_a_condition_crit_lands_folded_stacks_times_the_multiplier() -> void:
+	var hit := _crit_status_hit(2.0, 3.0)
+	OutcomeApplier.land_one(hit, _shadow())
+	assert_almost_eq(hit.power, 6.0, 0.0001, "2 stacks × 3")
+	assert_almost_eq(hit.effective_amount, 6.0, 0.0001)
+
+
+func test_a_non_crit_status_hit_is_unchanged() -> void:
+	var hit := _status_hit(2.0)
+	OutcomeApplier.land_one(hit, _shadow())
+	assert_almost_eq(hit.power, 2.0, 0.0001)
+
+
+func test_a_negative_multiplier_lands_the_same_count_as_the_positive_one() -> void:
+	var hit := _crit_status_hit(2.0, -3.0)
+	OutcomeApplier.land_one(hit, _shadow())
+	assert_almost_eq(hit.power, 6.0, 0.0001, "abs(crit_multiplier)")
+
+
+func test_a_status_hit_never_rolls_crit_chance_and_never_draws() -> void:
+	_attacker.stat_board.get_stat(&"crit_chance").base_value = 1.0
+	var hit := _status_hit(2.0)
+	hit.attacker = _attacker
+	var rng := CritRoll.stream_for(1234)
+	var before := rng.state
+	CritRoll.decide(hit, rng, _shadow())
+	assert_false(hit.is_crit, "no condition tier: a status hit is never a crit")
+	assert_eq(rng.state, before, "the stream is untouched, so no later hit's crit shifts")
+
+
+func test_a_stamped_condition_tier_settles_into_a_crit_without_a_draw() -> void:
+	_attacker.stat_board.get_stat(&"crit_chance").base_value = 1.0
+	var hit := _status_hit(2.0)
+	hit.attacker = _attacker
+	hit.crit_tier = 1
+	var rng := CritRoll.stream_for(1234)
+	var before := rng.state
+	CritRoll.decide(hit, rng, _shadow())
+	assert_true(hit.is_crit, "the spell's condition tier makes it a crit")
+	assert_eq(hit.crit_tier, 1, "the stat path never adds a tier")
+	assert_almost_eq(hit.crit_multiplier, CritRoll.multiplier_for(_attacker.stat_board), 0.0001)
+	assert_eq(rng.state, before, "settling a condition crit draws nothing")

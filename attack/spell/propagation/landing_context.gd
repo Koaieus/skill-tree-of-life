@@ -90,6 +90,11 @@ func entity_degree_of(n: SkillNode) -> int:
 	return cast.entity_degree_of(n)
 
 
+## See [method PropagationContext.is_cut_vertex].
+func is_cut_vertex(n: SkillNode) -> bool:
+	return cast.is_cut_vertex(n)
+
+
 ## Test/fixture convenience: build a [LandingContext] from the pieces a unit
 ## test already has lying around, without wiring a whole cast. [param cast_]
 ## defaults to a fresh [PropagationContext] rather than null, so a condition or

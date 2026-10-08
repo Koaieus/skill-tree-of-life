@@ -128,6 +128,10 @@ func entity_degree_of(node: SkillNode) -> int:
 	return count
 
 
+func is_cut_vertex(_node: SkillNode) -> bool:
+	return false
+
+
 ## [param node]'s owner as read in [member world] — [member world.combat_for]
 ## then [method NodeCombat.owner] then [method EntityCombat.real_entity], the
 ## same three-call chain [method ownership_bit_of] already climbs, just
