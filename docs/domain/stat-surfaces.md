@@ -96,7 +96,7 @@ above).
 | id | status |
 |---|---|
 | `cast_range_hops` | `ui/hud/combat_readout/combat_card_magic.gd` — the Hop reach row, always the describe tier (`resolve_with([]).describe()`, e.g. "(X+3) × 1.5"). Base 0 by contract — the spell's authored reach folds in as an overlay, so the card never prints a bare number |
-| `cast_range_distance` | Same as cast_range_hops, pending #793 |
+| `cast_range_distance` | No surface drawn yet; base 0 by contract like `cast_range_hops` |
 
 ## Hidden — owner-confirmed 2026-09-16
 
