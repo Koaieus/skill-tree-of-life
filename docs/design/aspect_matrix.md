@@ -231,7 +231,7 @@ Each cell links its cell issue (`<Concept> × <Facet>`, a child of the row hub i
 
 | Concept | Tag | Stat | Ranged (arrow) | Addon (map / temp) | Spell | Magic (infusion) | Notes |
 |---|---|---|---|---|---|---|---|
-| Poison | DoT | `poison_aspect` | shipped; look designed (see "Rows designed in #1318"), building in #1352 | #1271 — designed (see "Rows designed in #1318"), needs an acceptance spec | `venom` shipped; second spell #1381 | #1250 | row: #1377. Spread signature deferred to an authoring pass (owner, #1204) |
+| Poison | DoT | `poison_aspect` | shipped; look designed (see "Rows designed in #1318"), building in #1352 | shipped (#1271): `toxin_addon.tscn` — +1 `poison_aspect` on the map; local +1 `poison_stacks_per_hit` laddered by allocation, ×2 `MULTIPLY` at 3/X; froth-into-gas rim look | `venom` shipped; second spell #1381 | #1250 | row: #1377. Spread signature deferred to an authoring pass (owner, #1204) |
 | Corruption | buildup, %dmg, spread | `corruption_aspect` | #1382 — scaffold (#1349) | #1383 | #1384 — **Defile** (see "Spell faces") | #1250 | row: #1378. Spreads as a sandpile by nature (#1202) — no `spread` authored yet, the diffusion classes are test-only; health bar shows blips per stack, extra-mean when critical (#1092). `skill_node_specializations.md`'s Corrupted Node is this row's content under another name; its penalties (double damage, floor −1) are Curse's and the floor axis's |
 | Curse | fragility, spill | `curse_aspect` | #1385 — scaffold (#1349) | #1386 | `hex` shipped; no second spell proposed | #1250 | row: #1379. Raises `min_damage_taken`; spills to surviving direct neighbours on death AND dealloc (#1204) — the only authored spread today (`spill_spread.gd`). `spells.md`'s Aftershock restates this spill |
 | Wither | anti-heal | `wither_aspect` | #1387 — scaffold (#1349) | #1388 | #1389 — **Girdle** (see "Spell faces") | #1250 | row: #1380. Drives healing received negative: while it does, a negative heal deals damage that does not close the regen gate, so the regen ramp keeps climbing and the node heals itself toward death — temporary, never permanent: as Wither decays the multiplier climbs back through zero, nulling healing, then restoring it (owner, 2026-10-07, moved here from the superseded ADR 0022 d5). Owner, 2026-09-20: *"it ruins your healing to making you effectively undead"*. `spells.md`'s Flood wants this anti-heal (#1389) |
@@ -260,10 +260,10 @@ Each cell links its cell issue (`<Concept> × <Facet>`, a child of the row hub i
   2/X → 2, 3/X → 3.
 - **3/3 unlock (owner's PoC pitch, "possibly this is too strong"):** at full
   allocation, a bonus to the node's poison landings. The owner wants *"~6
-  stacks per hit"*. A flat +1 `poison_stacks_per_hit` gives only 4, because
-  landing folds `stacks_per_hit` as `base_add` (`docs/domain/effect-system.md`
-  § Landing); ~6 needs the stat's INCREASE row (+100%) — open, for the addon
-  unit's spec. Where it reads, owner: *"landing reads attackers stats yes,
+  stacks per hit"*. Shipped (#1271) as a node-local `LevelGatedModifier`
+  `MULTIPLY` 2.0 at `unlock_level` 3 on `poison_stacks_per_hit` — local, so
+  three 3/X toxins never fold ×8 (owner, round 8): a 3/X blade node lands
+  (3 + N) × 2, with N the attacker's other stacks. Where it reads, owner: *"landing reads attackers stats yes,
   of the blade node carrying the addon, and that blade node (== the
   attacker's) therefore the stats, no readout on defensive nodes needed"*.
 - **No defensive face** (see "Defensive faces are rare").

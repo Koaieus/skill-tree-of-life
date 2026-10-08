@@ -26,6 +26,7 @@
 [ext_resource type="Resource" uid="uid://co2ltnos0a12l" path="res://entity/spellbook_debug.tres" id="50_spellbook_debug"]
 [ext_resource type="Resource" uid="uid://dr6op7u70t3y" path="res://entity/core/basic_enemy_core.tres" id="58_enemy_core"]
 [ext_resource type="Resource" uid="uid://ccs1cqdf8r6qt" path="res://entity/default_entity_board.tres" id="99_default_board"]
+[ext_resource type="PackedScene" uid="uid://b1addon0toxin" path="res://skill_node/addons/defs/toxin_addon.tscn" id="51_toxin"]
 
 [sub_resource type="Resource" id="Resource_5smxi"]
 resource_name = "addon_slots"
@@ -692,6 +693,8 @@ position = Vector2(-150, -23)
 modifiers = Array[ExtResource("2_mod")]([SubResource("mod_int_2")])
 archetype = ExtResource("44_arch_int")
 base_type_color = Color(0.2901961, 0.5882353, 1, 1)
+
+[node name="ToxinAddon" parent="Graph/Nodes/Left" index="3" instance=ExtResource("51_toxin")]
 
 [node name="NE" parent="Graph/Nodes" parent_id_path=PackedInt32Array(1851662701, 1428063024) index="5" unique_id=1041223297 instance=ExtResource("9_skill")]
 z_index = 1001
