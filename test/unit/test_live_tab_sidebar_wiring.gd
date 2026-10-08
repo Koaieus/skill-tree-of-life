@@ -20,7 +20,7 @@ func _card_list(tab: SandboxLiveTab) -> DirectoryCardList:
 
 
 func test_spell_tab_shows_sidebar_wired_to_loader() -> void:
-	var tab := _load("res://addons/sandbox_host/tabs/10_spell_tab.tscn")
+	var tab := _load("res://addons/sandbox_host/tabs/12_spell_tab.tscn")
 	await get_tree().process_frame
 	assert_true(tab.get_node(^"%Sidebar").visible, "spell tab sidebar should be visible")
 	var list := _card_list(tab)

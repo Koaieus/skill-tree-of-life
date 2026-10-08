@@ -25,6 +25,11 @@ func test_tabs_dir_is_non_empty() -> void:
 	assert_gt(_tab_files().size(), 0, "expected tab scenes under %s" % _TABS_DIR)
 
 
+func test_first_three_tabs_are_melee_ranged_spell() -> void:
+	var files := _tab_files()
+	assert_eq(files.slice(0, 3), ["10_melee_tab.tscn", "11_ranged_tab.tscn", "12_spell_tab.tscn"])
+
+
 func test_tab_scene_exports_resolve(p = use_parameters(_params)) -> void:
 	var scene: PackedScene = load(_TABS_DIR + p)
 	assert_not_null(scene, "%s failed to load" % p)

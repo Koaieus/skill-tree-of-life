@@ -24,7 +24,7 @@ func before_each() -> void:
 	var tabs := TabContainer.new()
 	tabs.name = "Tabs"
 	_host.add_child(tabs)
-	var scene: PackedScene = load("res://addons/sandbox_host/tabs/10_spell_tab.tscn")
+	var scene: PackedScene = load("res://addons/sandbox_host/tabs/12_spell_tab.tscn")
 	tabs.add_child(scene.instantiate())
 	add_child(_host)
 	await get_tree().process_frame

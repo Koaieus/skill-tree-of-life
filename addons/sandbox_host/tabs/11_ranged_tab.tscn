@@ -4,12 +4,12 @@
 [ext_resource type="PackedScene" path="res://addons/arrow_gallery/arrow_gallery_panel.tscn" id="2_panel"]
 
 [node name="ArrowGallery" instance=ExtResource("1_base")]
-tab_title = "Arrows"
+tab_title = "Ranged"
 tab_id = &"arrow_gallery"
 loader_method = &"load_object"
 
 [node name="TitleLabel" parent="Layout/Toolbar" index="0"]
-text = "Arrow gallery"
+text = "Ranged"
 
 [node name="Split" parent="Layout" index="1"]
 split_offsets = PackedInt32Array(220)
