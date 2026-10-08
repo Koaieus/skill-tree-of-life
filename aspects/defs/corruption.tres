@@ -1,4 +1,4 @@
-[gd_resource type="Resource" script_class="Aspect" load_steps=8 format=3]
+[gd_resource type="Resource" script_class="Aspect" load_steps=9 format=3]
 
 [ext_resource type="Script" path="res://aspects/aspect.gd" id="1_aspect"]
 [ext_resource type="Script" path="res://attack/spell/spell_def.gd" id="1_spell_def"]
@@ -7,6 +7,7 @@
 [ext_resource type="Resource" path="res://effects/status/corruption.tres" id="4_status"]
 [ext_resource type="Resource" path="res://attack/ammo/types/corruption.tres" id="5_ammo"]
 [ext_resource type="Resource" path="res://attack/spell/defs/defile.tres" id="6_defile"]
+[ext_resource type="PackedScene" path="res://skill_node/addons/defs/compromiser_addon.tscn" id="7_addon"]
 
 [resource]
 script = ExtResource("1_aspect")
@@ -14,4 +15,5 @@ identity = ExtResource("2_identity")
 stat = ExtResource("3_stat")
 status = ExtResource("4_status")
 ammo = ExtResource("5_ammo")
+addon_scene = ExtResource("7_addon")
 spells = Array[ExtResource("1_spell_def")]([ExtResource("6_defile")])
