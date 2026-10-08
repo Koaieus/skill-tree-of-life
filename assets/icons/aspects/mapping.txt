@@ -21,3 +21,4 @@ explosive	lorc/spiky-explosion.svg
 weakness	skoll/drop-weapon.svg
 greed	delapouite/coins-pile.svg
 bleeding	lorc/bleeding-wound.svg
+hex	skoll/hexes.svg

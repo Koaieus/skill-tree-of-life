@@ -17,3 +17,4 @@ Licensed under [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/). Recolo
 | weakness.png | weakness | drop-weapon.svg | Skoll |
 | greed.png | greed | coins-pile.svg | Delapouite |
 | bleeding.png | bleeding | bleeding-wound.svg | Lorc |
+| hex.png | hex | hexes.svg | Skoll |
