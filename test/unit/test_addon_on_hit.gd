@@ -256,6 +256,65 @@ func test_allocating_a_toxin_node_grants_the_owner_poison_arrows() -> void:
 			"deallocating removes it")
 
 
+# ── allocation-scaled stacks ────────────────────────────────────────────────
+
+## Stakes [param node] to [param level] and fills it there through the
+## AllocationSystem — the real allocation path, never a written level.
+func _fill(node: SkillNode, level: int) -> void:
+	node.stake_level = level
+	_alloc.force_fill(node, level)
+
+
+## The poison stacks the tip's first landed contact carried.
+func _tip_poison(outcome: AttackOutcome) -> float:
+	var statuses := _status_hits(outcome)
+	assert_gt(statuses.size(), 0, "fixture: the toxic tip lands poison")
+	return statuses[0].power if not statuses.is_empty() else -1.0
+
+
+func test_a_toxin_on_a_1_of_x_blade_node_lands_1_stack() -> void:
+	_attach_toxin(_tip)
+	await _settle()
+	assert_eq(_tip_poison(_plan().resolve_against(CombatWorld.live())), 1.0)
+
+
+func test_a_toxin_on_a_2_of_x_blade_node_lands_2_stacks() -> void:
+	_fill(_tip, 2)
+	_attach_toxin(_tip)
+	await _settle()
+	assert_eq(_tip_poison(_plan().resolve_against(CombatWorld.live())), 2.0)
+
+
+func test_a_toxin_on_a_3_of_x_blade_node_lands_6_stacks() -> void:
+	_fill(_tip, 3)
+	_attach_toxin(_tip)
+	await _settle()
+	assert_eq(_tip_poison(_plan().resolve_against(CombatWorld.live())), 6.0,
+			"(0 + 3) × 2: the 3/X unlock doubles the node's fold")
+
+
+func test_the_3_of_x_doubling_is_local_to_its_own_node() -> void:
+	_attacker.stat_board.poison_stacks_per_hit.base_value = 10.0
+	_fill(_tip, 3)
+	_attach_toxin(_tip)
+	_fill(_mid, 3)
+	_attach_toxin(_mid)  # a second 3/X toxin on the same blade, never contacting
+	await _settle()
+	assert_eq(_tip_poison(_plan().resolve_against(CombatWorld.live())), 26.0,
+			"(10 + 3) × 2 — the mid toxin's ×2 stays on the mid node")
+
+
+func test_a_temp_toxin_on_a_3_of_x_blade_node_lands_like_a_map_one() -> void:
+	_fill(_tip, 3)
+	await _settle()
+	var plan := _plan()
+	_attacker.stat_board.get_stat(&"blade_size").base_value = 4.0
+	_attacker.stat_board.poison_aspect.base_value = 1.0
+	assert_true(plan.apply_temp_upgrade(_tip, _TOXIN_SCENE), "budget admits the toxin")
+	await get_tree().process_frame
+	assert_eq(_tip_poison(plan.resolve_against(CombatWorld.live())), 6.0)
+
+
 # ── the wire ─────────────────────────────────────────────────────────────────
 
 ## The record ships the LANDED stacks; a second world rebuilds and lands them
