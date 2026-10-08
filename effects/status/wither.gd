@@ -23,14 +23,11 @@ extends StatusDef
 @export var factor_per_stack: float = 0.1
 
 
-## Own type so a found modifier can be told apart from any other MULTIPLY on
-## `healing_received`, and UNSCALED so the loss is not laddered by
-## allocation depth (#376 — same rationale as Blindness's / ArmorBreak's).
-class WitherModifier:
-	extends StatModifier
-
-	func _local_scale_override(_old_al: int, _new_al: int) -> Variant:
-		return StatModifier.UNSCALED
+## The authored modifier, duplicated per application. A script-class
+## [code]is[/code] check on it tells a found modifier apart from any other
+## MULTIPLY on `healing_received`.
+const WitherModifier := preload("res://effects/status/wither_modifier.gd")
+const _MODIFIER_TEMPLATE := preload("res://effects/status/wither_modifier.tres")
 
 
 func _on_applied(host, power: float) -> void:
@@ -54,9 +51,7 @@ func _set_wither(host, power: float) -> void:
 	var old := _find(host)
 	if old != null:
 		host.remove_local_modifier(old)
-	var m := WitherModifier.new()
-	m.stat_id = &"healing_received"
-	m.operation = StatModifier.Operation.MULTIPLY
+	var m: StatModifier = _MODIFIER_TEMPLATE.duplicate()
 	m.value = 1.0 - factor_per_stack * maxf(power, 0.0)
 	host.add_local_modifier(m)
 

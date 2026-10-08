@@ -1,0 +1,8 @@
+[gd_resource type="Resource" script_class="StatModifier" format=3]
+
+[ext_resource type="Script" path="res://effects/status/wither_modifier.gd" id="1_mod"]
+
+[resource]
+script = ExtResource("1_mod")
+stat_id = &"healing_received"
+operation = 2
