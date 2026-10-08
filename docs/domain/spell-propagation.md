@@ -147,6 +147,7 @@ Stock subclasses (`propagation/spread/`):
 
 - `FanAllSpread` — one full-share pick per eligible node
   (covers Lightning / Crunch / Flood / Resonator)
+- The Trailblazer walk lives in its filter + slam, not a spread: the `ExpressionFilter` clause `from_entity_degree <= 2 and to_entity_degree >= 2` (`trail_blazer.tres`) and the `ScaleDamageEffect` + `JunctionCondition` pair. Design prose: `docs/design/spells.md` § Trailblazer.
 - `TakeTopNSpread` — sort by a ranker, take top N (collapses
   `HighestDegreePropagation` + `RankedStatPropagation` into one configurable
   shape: the ranker is composable too). Sorting and picking ONLY — narrowing

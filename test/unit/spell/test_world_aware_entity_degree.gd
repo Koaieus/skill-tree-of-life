@@ -74,7 +74,7 @@ func test_junction_condition_reads_the_post_kill_world_not_the_live_node() -> vo
 func test_junction_condition_without_a_kill_matches_the_live_node() -> void:
 	# Sanity: on an untouched shadow (and on a live world) this must read
 	# identically to the pre-#860 direct-node read, everywhere no cast has
-	# killed anything yet — the trail_blazer_spread.gd goldens depend on this.
+	# killed anything yet — the test_trail_blazer_walk.gd goldens depend on this.
 	var graph := h.make_graph([[0, 1], [0, 2], [0, 3]], self)
 	var defender := h.make_entity(graph, "DEF", Color.BLUE)
 	h.assign_owner(graph, defender, [0, 1, 2, 3])
