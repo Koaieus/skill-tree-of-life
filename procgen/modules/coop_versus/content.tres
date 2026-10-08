@@ -7,7 +7,7 @@
 [ext_resource type="PackedScene" uid="uid://cmkt6tybpv38p" path="res://skill_node/addons/defs/bunker_addon.tscn" id="5_bpg7m"]
 [ext_resource type="PackedScene" uid="uid://b1addon0watch" path="res://skill_node/addons/defs/watchtower_addon.tscn" id="6_eqvd6"]
 [ext_resource type="PackedScene" uid="uid://b1addon0toxin" path="res://skill_node/addons/defs/toxin_addon.tscn" id="6_toxin"]
-[ext_resource type="PackedScene" uid="uid://b1addon0compro" path="res://skill_node/addons/defs/compromiser_addon.tscn" id="6_compromiser"]
+[ext_resource type="PackedScene" uid="uid://b1addon0compr" path="res://skill_node/addons/defs/compromiser_addon.tscn" id="6_compromiser"]
 [ext_resource type="Script" uid="uid://c4jsrfudhqhuk" path="res://procgen/pools/addon_pool.gd" id="7_nfi6m"]
 [ext_resource type="Script" uid="uid://bi20g047mnsv6" path="res://procgen/pools/addon_policy.gd" id="8_0ok6c"]
 [ext_resource type="Script" uid="uid://0rdv1h0ycc3p" path="res://procgen/archetypes/archetype_stamp.gd" id="9_678ts"]

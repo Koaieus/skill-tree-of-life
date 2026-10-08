@@ -27,7 +27,7 @@
 [ext_resource type="Resource" uid="uid://dr6op7u70t3y" path="res://entity/core/basic_enemy_core.tres" id="58_enemy_core"]
 [ext_resource type="Resource" uid="uid://ccs1cqdf8r6qt" path="res://entity/default_entity_board.tres" id="99_default_board"]
 [ext_resource type="PackedScene" uid="uid://b1addon0toxin" path="res://skill_node/addons/defs/toxin_addon.tscn" id="51_toxin"]
-[ext_resource type="PackedScene" uid="uid://b1addon0compro" path="res://skill_node/addons/defs/compromiser_addon.tscn" id="52_compromiser"]
+[ext_resource type="PackedScene" uid="uid://b1addon0compr" path="res://skill_node/addons/defs/compromiser_addon.tscn" id="52_compromiser"]
 
 [sub_resource type="Resource" id="Resource_5smxi"]
 resource_name = "addon_slots"
