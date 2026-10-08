@@ -177,6 +177,11 @@ const KEY_EVENT_HITS := "e_hits"
 ## A melee fuse's gate flips (#1209): one count per [constant HitInstance.Kind.GATE_FLIP]
 ## hit, in hit order, slicing the flat pair arrays. Omitted when empty, so a
 ## fuse-less record is dict-identical to one captured before fuses existed.
+## [member AttackOutcome.aim]: the cast-from node's stable id, and
+## `[angle, length]` as float64 — empty on a node cast, which is how the far
+## side tells "no aim" from an aim at angle 0. Both omitted at default.
+const KEY_AIM_ORIGIN := "a_org"
+const KEY_AIM_GEOM := "a_geom"
 const KEY_GATE_COUNT := "g_n"
 const KEY_GATE_FROM := "g_from"
 const KEY_GATE_TO := "g_to"
@@ -247,6 +252,8 @@ var event_hits: Array[PackedInt32Array] = []
 var gate_counts := PackedInt32Array()
 var gate_from := PackedInt32Array()
 var gate_to := PackedInt32Array()
+var aim_origin: int = 0
+var aim_geom := PackedFloat64Array()
 
 
 static func wire_fields() -> Array[WireFields.Field]:
@@ -255,6 +262,8 @@ static func wire_fields() -> Array[WireFields.Field]:
 		WireFields.Field.new(&"ap_cost", TYPE_INT).as_key(KEY_AP),
 		WireFields.Field.new(&"cadence", TYPE_INT).as_key(KEY_CADENCE),
 		WireFields.Field.new(&"tempo", TYPE_STRING).as_key(KEY_TEMPO),
+		WireFields.Field.new(&"aim_origin", TYPE_INT).as_key(KEY_AIM_ORIGIN).omitted_at_default(),
+		WireFields.Field.new(&"aim_geom", TYPE_PACKED_FLOAT64_ARRAY).as_key(KEY_AIM_GEOM).omitted_at_default(),
 		WireFields.Field.new(&"kinds", TYPE_PACKED_BYTE_ARRAY).as_key(KEY_HIT_KIND),
 		WireFields.Field.new(&"amounts", TYPE_PACKED_FLOAT64_ARRAY).as_key(KEY_HIT_AMOUNT),
 		WireFields.Field.new(&"targets", TYPE_PACKED_INT32_ARRAY).as_key(KEY_HIT_TARGET),
@@ -312,6 +321,9 @@ static func capture(outcome: AttackOutcome, graph: Graph) -> Dictionary:
 	r.ap_cost = outcome.ap_cost
 	r.cadence = int(outcome.cadence)
 	r.tempo = _tempo_path(outcome)
+	if outcome.aim != null:
+		r.aim_origin = _id_of(outcome.aim.origin, graph)
+		r.aim_geom = PackedFloat64Array([outcome.aim.angle, outcome.aim.length])
 	# Index of each hit in the flat list, so the timeline can reference it.
 	# Identity-keyed, because two landings on one node in one beat are
 	# genuinely distinct hits with equal field values.
@@ -418,6 +430,12 @@ static func rebuild(d: Dictionary, graph: Graph, rate: float = -1.0) -> AttackOu
 	outcome.resolve_seed = r.resolve_seed
 	outcome.ap_cost = r.ap_cost
 	outcome.cadence = r.cadence as ScheduleEntry.Cadence
+	if r.aim_geom.size() == 2:
+		var aim := AttackOutcome.Aim.new()
+		aim.origin = _node_of(r.aim_origin, graph)
+		aim.angle = r.aim_geom[0]
+		aim.length = r.aim_geom[1]
+		outcome.aim = aim
 	# Second running offset: labels are a flat run over ENTRIES, not over hits,
 	# so it advances independently of `dealloc_at`.
 	var label_at := 0
