@@ -171,4 +171,3 @@ class RangedHitInstance extends DamageInstance:
 			gated = true
 			return
 		super.land_on(node, world)
-
