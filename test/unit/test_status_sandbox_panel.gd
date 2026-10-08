@@ -130,3 +130,32 @@ func test_reset_rearms_a_fresh_bench_that_still_ticks() -> void:
 	var turns_before: int = _bearer().turns_taken
 	_panel.tick_turn()
 	assert_eq(_bearer().turns_taken, turns_before + 1, "the new bench's clock is bound too")
+
+
+## The bench's pinned fan unit by name (EffectReadout / NodeStats / Core).
+func _fan_unit(unit_name: StringName) -> FanUnit:
+	for n in _panel.bench.find_child("Fan", true, false).find_children("*", "FanUnit", true, false):
+		if n.name == unit_name:
+			return n as FanUnit
+	return null
+
+
+func _status_rows(unit: FanUnit) -> int:
+	return unit.find_children("*", "StatusRow", true, false).size()
+
+
+## The drained-core setup is left out: its status falls through to the Bearer
+## entity host, and EFFECTS lists only the node's own status state by design —
+## the entity's rows belong to the Core panel.
+func test_an_applied_status_shows_in_the_pinned_effects_panel() -> void:
+	if _panel == null:
+		return
+	for i in [SETUP_NODE, SETUP_CORE]:
+		_panel.select_setup(i)
+		var unit := _fan_unit(&"EffectReadout")
+		assert_not_null(unit, "setup %d: the bench pins an EffectReadout unit" % i)
+		if unit == null:
+			continue
+		_panel.apply_status(_POISON, 2.0)
+		assert_true(unit.participating, "setup %d: a landed status makes EFFECTS participate" % i)
+		assert_eq(_status_rows(unit), 1, "setup %d: EFFECTS lists the one landed status" % i)

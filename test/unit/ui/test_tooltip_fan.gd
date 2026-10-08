@@ -530,3 +530,31 @@ func _any_member_active() -> bool:
 		elif m.visible:
 			return true
 	return false
+
+
+# --- host overrides (sandbox tabs) --------------------------------------------
+
+func test_force_more_info_fans_the_units_in_without_the_action() -> void:
+	_fan.force_more_info = true
+	Events.skill_node_hovered.emit(_node)
+	var frames := 0
+	while _unit("IdChip").state == FanUnit.State.HIDDEN and frames < 120:
+		await get_tree().process_frame
+		frames += 1
+	assert_false(Input.is_action_pressed(_MORE_INFO_ACTION), "precondition: the action is not held")
+	assert_ne(_unit("IdChip").state, FanUnit.State.HIDDEN,
+		"the override opens the gate a host has no key for")
+
+
+func test_unit_filter_keeps_other_units_out_across_a_rebind() -> void:
+	_give_the_node_every_units_content()
+	_fan.unit_filter = [&"NodeStats", &"Owner"]
+	Events.skill_node_hovered.emit(_node)
+	var names: Array[StringName] = []
+	for u in _participating_units():
+		names.append(u.name)
+	assert_eq(names.size(), 2, "only the filtered units participate: %s" % [names])
+	assert_true(&"NodeStats" in names and &"Owner" in names)
+
+	_node.damaged.emit(1.0, null)
+	assert_eq(_participating_units().size(), 2, "a live rebind keeps the filter")

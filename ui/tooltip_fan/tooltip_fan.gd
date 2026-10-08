@@ -49,6 +49,17 @@ extends Node2D
 ## coordinator's only timing knob — see the class doc.
 @export var stagger_delay: float = 0.05
 
+## Holds the [member _MORE_INFO_ACTION] gate open without the action — for a
+## host with no keyboard intent to read (an editor-embedded sandbox tab, where
+## the action may not even be in the InputMap). Hover then shows the full fan.
+@export var force_more_info := false
+
+## The [FanUnit]s (by node name) allowed to participate; empty = every unit.
+## Applied where `participating` is written ([method _bind_content]), so a live
+## rebind can never resurrect a filtered-out unit. Roots are not FanUnits and
+## always show.
+@export var unit_filter: Array[StringName] = []
+
 const _GROUP := &"fan_unit"
 
 ## The "more info" input action (project.godot: Shift). Held while hovering
