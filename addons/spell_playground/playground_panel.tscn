@@ -90,6 +90,12 @@ layout_mode = 2
 tooltip_text = "Restore the authored board — ownership, fills, health and the caster's pools"
 text = "Reset"
 
+[node name="EndTurnButton" type="Button" parent="HBox/ControlsColumn/HeaderRow" unique_id=2100000020]
+unique_name_in_owner = true
+layout_mode = 2
+tooltip_text = "End the current turn through the real TurnManager — the ending entity's statuses tick (poison on the defender's nodes ticks when the DEFENDER's turn ends), then the next ready entity takes the turn."
+text = "End turn"
+
 [node name="ReloadButton" type="Button" parent="HBox/ControlsColumn/HeaderRow" unique_id=1031300535]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(80, 36)

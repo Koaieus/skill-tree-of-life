@@ -82,6 +82,7 @@ const LOOP_GAP_SECONDS: float = 0.35
 @onready var loop_button: CheckButton = %LoopButton
 @onready var reset_button: Button = %ResetButton
 @onready var reload_button: Button = %ReloadButton
+@onready var end_turn_button: Button = %EndTurnButton
 @onready var status_label: Label = %StatusLabel
 @onready var values_label: RichTextLabel = %ValuesLabel
 @onready var world: SubViewport = %World
@@ -179,6 +180,7 @@ func _ready() -> void:
 	loop_button.toggled.connect(_on_loop_toggled)
 	reset_button.pressed.connect(_reset_state)
 	reload_button.pressed.connect(reload_requested.emit)
+	end_turn_button.pressed.connect(_end_turn)
 	spell_damage_slider.value_changed.connect(_on_spell_damage_changed)
 	_refresh_spell_damage_label()
 	_install_node_health_sets()
@@ -272,6 +274,10 @@ func _build_systems() -> void:
 	_systems.build(graph, {input = true, attack_vfx = true, highlight = true})
 	_alloc = _systems.allocation_system
 	_battle = _systems.battle_system
+	# Every sandbox tab shares one tree: unscoped, End turn's tick-until-ready
+	# would hand the turn to another tab's entities.
+	if _systems.turn_manager != null:
+		_systems.turn_manager.entity_root = graph
 
 
 ## Restore the authored starting state through the REAL primitives: strip every
@@ -618,7 +624,11 @@ func _refresh_status() -> void:
 		plan = _systems.armed_stack.attack_plan() as MagicAttackPlan
 	if plan != null and _selected_target != null and plan.target != _selected_target:
 		status_label.text += " · not a legal target (the green rings are)"
-	cast_button.disabled = (_selected_target == null) or _casting
+	var holder := _turn_holder()
+	if holder != null and holder != caster_entity:
+		status_label.text += " · %s's turn — End turn to hand it back" % holder.name
+	cast_button.disabled = (_selected_target == null) or _casting \
+			or (holder != null and holder != caster_entity)
 	values_label.text = _build_values_text(_spell)
 
 
@@ -926,6 +936,26 @@ func _run_loop() -> void:
 			break
 		await get_tree().create_timer(LOOP_GAP_SECONDS).timeout
 	_looping = false
+
+
+## One [method TurnManager.end_turn] per click — never from a loop or timer
+## (docs/domain/sandbox-framework.md). The ending entity resolves its turn end
+## (its own and its owned nodes' statuses tick), then the next ready entity
+## starts. Neither entity has a controller, so a turn handed to the defender
+## sits there until End turn is pressed again.
+func _end_turn() -> void:
+	if _casting or _systems == null or _systems.turn_manager == null:
+		return
+	_systems.turn_manager.end_turn()
+	if _turn_holder() == caster_entity:
+		_arm_plan()
+	_refresh_status()
+
+
+func _turn_holder() -> Entity:
+	if _systems == null or _systems.turn_manager == null:
+		return null
+	return _systems.turn_manager.current_entity
 
 
 func _replenish_caster() -> void:
