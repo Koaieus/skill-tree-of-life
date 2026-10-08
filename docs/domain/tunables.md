@@ -52,3 +52,12 @@ still a knob: their value is the default.
 - **A value several consumers must agree on** (a router and the thing that
   rebuilds its params by hand) → one owner exports it and the others read it
   from there; a second copy is the drift, not the knob.
+- **A status def's numbers** → an `@export` on the `StatusDef` subclass,
+  authored in its `effects/status/<id>.tres`; all tentative, each tests the
+  ratio not the literal:
+  - `BleedingStatus.exert_growth` (1–4, default 2.0) — row multiplier per
+    exertion; `bleed_rate` (0–2, default 0.5) — flat HP per stack per tick.
+  - `HexStatus.spend_factor` (0–1, default 0.5) — share of the row a crit
+    taken spends (`floor(power × spend_factor)`; 1.0 disables).
+  - `GreedStatus.avarice_increase_per_stack` (default 10.0) — `bounty`
+    INCREASE % per stack. (No `hoard_increase_per_stack` exists; this is it.)
