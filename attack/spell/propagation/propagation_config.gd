@@ -51,6 +51,13 @@ extends Resource
 ## The class states whether the spell scales with the caster; see #274 / D-32.
 @export var hop_damage: HopDamageProgression = null
 
+## How the status-stack weight ([member CastSpell.stack_weight]) evolves per
+## hop, applied by [method mint] as [code]apply(weight, 1.0, hop_index)[/code]
+## — the same classes as [member hop_damage], with a seed of 1, so
+## [code]ScaledAddProgression(-1/3)[/code] lands 1, 2/3, 1/3 down a walk.
+## Null = the weight is carried unchanged.
+@export var hop_stacks: HopDamageProgression = null
+
 
 ## Build the child [CastSpell] for one [PropagationPick] — the hop IS a
 ## re-cast, and this is the only constructor of one. Damage is shaped by
@@ -73,6 +80,7 @@ func mint(payload: CastSpell, pick: PropagationPick) -> CastSpell:
 	if hop_damage != null:
 		progressed = hop_damage.apply(payload.damage, payload.seed_damage, payload.hop_index)
 	next.damage = progressed * pick.share
+	next.stack_weight = payload.stack_weight
 	next.hops_remaining = payload.hops_remaining - 1
 	next.hop_index = payload.hop_index + 1
 	if pick.lineage_override.is_empty():

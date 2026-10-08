@@ -50,6 +50,13 @@ var arrival_bearing: Vector2 = Vector2.ZERO
 ## Default 1.0 = "full strength, undivided", which is what every spell that does
 ## not split its damage across a fan means.
 var arrival_share: float = 1.0
+## The status-stack weight this arrival carries — the stack counterpart of
+## [member damage]. Seeded 1.0; [method PropagationConfig.mint] copies it and
+## shapes it by [member PropagationConfig.hop_stacks]; a merge carries the MAX
+## of its incidents (never the fold, so a SUM spell cannot compound). The
+## landing's starting [member LandingContext.stack_scale] is
+## [method IncidentReducer.fold_stacks] over the incidents' weights.
+var stack_weight: float = 1.0
 ## Which way the storm turned to get here: +1 clockwise, -1 counter-clockwise,
 ## 0 for "no handedness" (the seed, and every non-curl spell).
 ##

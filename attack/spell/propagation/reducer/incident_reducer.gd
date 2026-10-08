@@ -13,6 +13,19 @@ extends Resource
 ## Stock reducers operate on damage; visited-union + hops_left=max are
 ## baked-in defaults via [method _merge_payload_defaults] — not author-facing
 ## knobs.
+##
+## The stack fold: [member stack_fold] folds the incidents'
+## [member CastSpell.stack_weight]s into the landing's starting
+## [member LandingContext.stack_scale] via [method fold_stacks] — a per-LANDING
+## fact, never carried (the merged payload carries the MAX weight).
+
+## How converging arrivals' status stacks fold into the one landing. MAX
+## (default, attacker-favoured) lands the strongest arrival's stacks; SUM adds
+## one share per converging branch; MIN the weakest present; FIRST the first.
+enum StackFold { MAX, SUM, MIN, FIRST }
+
+## See [enum StackFold]. Named by [method fold_description] when not MAX.
+@export var stack_fold: StackFold = StackFold.MAX
 
 
 ## [b]Deliberately NOT a [LandingContext][/b] (#356): the reducer MAKES the
@@ -25,6 +38,24 @@ extends Resource
 
 
 func get_description() -> String:
+	return fold_description()
+
+
+## This reducer's [member stack_fold] over [param incidents]' stack weights.
+func fold_stacks(incidents: Array[CastSpell]) -> float:
+	return 1.0
+
+
+## [param fold] over [param incidents]' [member CastSpell.stack_weight]s —
+## static so the resolver's null-reducer path folds MAX without an instance.
+static func fold_of(incidents: Array[CastSpell], fold: StackFold) -> float:
+	return 1.0
+
+
+## The player-facing line for a non-default [member stack_fold]; "" at MAX.
+## Stock reducers override [method get_description], so composers
+## ([method PropagationConfig.get_description]) append this themselves.
+func fold_description() -> String:
 	return ""
 
 
