@@ -1,10 +1,12 @@
-[gd_scene load_steps=8 format=3 uid="uid://b1addon0toxin"]
+[gd_scene format=3 uid="uid://b1addon0toxin"]
 [ext_resource type="Script" uid="uid://dw3civ4fol21f" path="res://attack/spell/on_hit/on_hit_effect.gd" id="6_effect"]
 
 [ext_resource type="Script" uid="uid://bkf87fqtgkm7a" path="res://skill_node/addons/skill_node_addon.gd" id="1_addon"]
 [ext_resource type="Script" uid="uid://che6xhl6srqh3" path="res://stats_system/stat_modifier.gd" id="2_mod"]
 [ext_resource type="Resource" uid="uid://c7s5qybcqmll5" path="res://effects/status/poison.tres" id="3_poison"]
 [ext_resource type="Script" uid="uid://c2q50hhtuf7g7" path="res://attack/spell/on_hit/apply_status_effect.gd" id="5_status"]
+[ext_resource type="Script" uid="uid://bnawtc8ic78fp" path="res://stats_system/level_gated_modifier.gd" id="7_gated"]
+[ext_resource type="Script" uid="uid://jduy2pht20rx" path="res://skill_node/addons/visuals/toxin_visual.gd" id="9_visual"]
 [ext_resource type="Resource" path="res://identity/defs/poison.tres" id="identity_ref"]
 
 [sub_resource type="Resource" id="Resource_toxin_arrows"]
@@ -18,7 +20,24 @@ metadata/_custom_type_script = "uid://che6xhl6srqh3"
 [sub_resource type="Resource" id="Resource_toxin_poison"]
 script = ExtResource("5_status")
 def = ExtResource("3_poison")
-power = 1.0
+power = 0.0
+
+[sub_resource type="Resource" id="Resource_toxin_stacks"]
+resource_local_to_scene = true
+resource_name = "+1 Poison Stacks per Hit"
+script = ExtResource("2_mod")
+stat_id = &"poison_stacks_per_hit"
+value = 1.0
+metadata/_custom_type_script = "uid://che6xhl6srqh3"
+
+[sub_resource type="Resource" id="Resource_toxin_unlock"]
+resource_local_to_scene = true
+resource_name = "×2 Poison Stacks per Hit at 3/X"
+script = ExtResource("7_gated")
+unlock_level = 3
+stat_id = &"poison_stacks_per_hit"
+operation = 2
+value = 2.0
 
 [node name="ToxinAddon" type="Node2D" unique_id=1193177971]
 z_index = 1
@@ -26,9 +45,13 @@ script = ExtResource("1_addon")
 identity = ExtResource("identity_ref")
 on_hit_effects = Array[ExtResource("6_effect")]([SubResource("Resource_toxin_poison")])
 entity_modifiers = Array[ExtResource("2_mod")]([SubResource("Resource_toxin_arrows")])
+local_modifiers = Array[ExtResource("2_mod")]([SubResource("Resource_toxin_stacks"), SubResource("Resource_toxin_unlock")])
 description = "A venom reservoir — its owner's quiver gains poison arrows, and a blade swung through this node leaves poison in every contact it makes."
 temp_placeable = true
 temp_cost_blade_size = 2
 temp_cost_aspects = Dictionary[StringName, int]({
 &"poison_aspect": 1
 })
+
+[node name="Visual" type="Node2D" parent="."]
+script = ExtResource("9_visual")
