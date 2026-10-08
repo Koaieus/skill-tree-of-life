@@ -17,7 +17,8 @@
 [ext_resource type="Resource" path="res://attack/spell/defs/girdle.tres" id="14_girdle"]
 [ext_resource type="Resource" path="res://attack/spell/defs/defile.tres" id="15_defile"]
 [ext_resource type="Resource" path="res://attack/spell/defs/eagle_eye.tres" id="16_eagle_eye"]
+[ext_resource type="Resource" path="res://attack/spell/defs/scout_line.tres" id="17_scout_line"]
 
 [resource]
 script = ExtResource("1_book")
-spells = Array[ExtResource("1_spell_def")]([ExtResource("2_spark"), ExtResource("3_lightning"), ExtResource("4_bruiser"), ExtResource("5_leafblower"), ExtResource("6_resonator"), ExtResource("7_trail_blazer"), ExtResource("8_reverberator"), ExtResource("9_healing_beam"), ExtResource("10_dazzle"), ExtResource("11_sunder"), ExtResource("12_venom"), ExtResource("13_hex"), ExtResource("14_girdle"), ExtResource("15_defile"), ExtResource("16_eagle_eye")])
+spells = Array[ExtResource("1_spell_def")]([ExtResource("2_spark"), ExtResource("3_lightning"), ExtResource("4_bruiser"), ExtResource("5_leafblower"), ExtResource("6_resonator"), ExtResource("7_trail_blazer"), ExtResource("8_reverberator"), ExtResource("9_healing_beam"), ExtResource("10_dazzle"), ExtResource("11_sunder"), ExtResource("12_venom"), ExtResource("13_hex"), ExtResource("14_girdle"), ExtResource("15_defile"), ExtResource("16_eagle_eye"), ExtResource("17_scout_line")])
