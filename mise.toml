@@ -573,6 +573,11 @@ else
 fi
 
 branch=$(git -C "$target" branch --show-current)
+# git refuses to remove a worktree holding initialised submodules (native/godot-cpp
+# after a native:build) — deinit them first.
+if [ -n "$(git -C "$target" submodule status 2>/dev/null | grep -v '^-' || true)" ]; then
+  git -C "$target" submodule deinit --all -f
+fi
 git worktree remove "$target"
 echo "✓ removed worktree $target"
 
