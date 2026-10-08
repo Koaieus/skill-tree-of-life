@@ -7,9 +7,9 @@ extends GutTest
 
 const H := preload("res://test/unit/spell/spell_test_helper.gd")
 
-## The catalog holds no aimed spell yet, and [method MagicAttackPlan.from_dict]
-## looks the spell up there — so the round trip borrows SPARK and aims it,
-## restored after every test.
+## [method MagicAttackPlan.from_dict] looks the spell up in the catalog; the
+## round trip borrows SPARK and aims it, restored after every test, so it does
+## not track SCOUT_LINE's tuning.
 var _spark_targeting: Targeting
 ## Through a var: GDScript refuses a property write on a const's resource.
 var _spark: SpellDef = SpellCatalog.SPARK
