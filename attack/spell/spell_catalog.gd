@@ -32,6 +32,7 @@ const EAGLE_EYE: SpellDef = preload("res://attack/spell/defs/eagle_eye.tres")
 const GIRDLE: SpellDef = preload("res://attack/spell/defs/girdle.tres")
 const DEFILE: SpellDef = preload("res://attack/spell/defs/defile.tres")
 const MIASMA: SpellDef = preload("res://attack/spell/defs/miasma.tres")
+const PESTILENCE: SpellDef = preload("res://attack/spell/defs/pestilence.tres")
 const SCOUT_LINE: SpellDef = preload("res://attack/spell/defs/scout_line.tres")
 
 ## Every authored spell. Order is not a contract — [member SpellDef.id] is.
@@ -39,7 +40,7 @@ const ALL: Array[SpellDef] = [
 	SPARK, BRUISER, RESONATOR, LEAFBLOWER,
 	REVERBERATOR, HEALING_BEAM, TRAIL_BLAZER, LIGHTNING_BOLT,
 	CYCLONE, DAZZLE, SUNDER, VENOM_BURST, HEX, EAGLE_EYE,
-	GIRDLE, DEFILE, SCOUT_LINE, MIASMA,
+	GIRDLE, DEFILE, SCOUT_LINE, MIASMA, PESTILENCE,
 ]
 
 

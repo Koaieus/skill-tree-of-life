@@ -9,6 +9,7 @@
 [ext_resource type="PackedScene" path="res://skill_node/addons/defs/toxin_addon.tscn" id="6_addon"]
 [ext_resource type="Resource" path="res://attack/spell/defs/venom_burst.tres" id="7_venom"]
 [ext_resource type="Resource" path="res://attack/spell/defs/miasma.tres" id="8_miasma"]
+[ext_resource type="Resource" path="res://attack/spell/defs/pestilence.tres" id="9_pestilence"]
 
 [resource]
 script = ExtResource("1_aspect")
@@ -17,4 +18,4 @@ stat = ExtResource("3_stat")
 status = ExtResource("4_status")
 ammo = ExtResource("5_ammo")
 addon_scene = ExtResource("6_addon")
-spells = Array[ExtResource("1_spell_def")]([ExtResource("7_venom"), ExtResource("8_miasma")])
+spells = Array[ExtResource("1_spell_def")]([ExtResource("7_venom"), ExtResource("8_miasma"), ExtResource("9_pestilence")])

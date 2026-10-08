@@ -1,0 +1,60 @@
+[gd_resource type="Resource" script_class="SpellDef" format=3]
+
+[ext_resource type="Script" uid="uid://ber34us1t16kb" path="res://attack/spell/spell_def.gd" id="1_spell"]
+[ext_resource type="Script" uid="uid://dw3civ4fol21f" path="res://attack/spell/on_hit/on_hit_effect.gd" id="2_effect"]
+[ext_resource type="Resource" uid="uid://c7s5qybcqmll5" path="res://effects/status/poison.tres" id="3_poison"]
+[ext_resource type="Script" uid="uid://c1371mypr70e1" path="res://attack/spell/spell_affinity.gd" id="3_affinity"]
+[ext_resource type="Script" uid="uid://o0v6inqs5wk6" path="res://attack/spell/propagation/propagation_config.gd" id="4_config"]
+[ext_resource type="Script" uid="uid://dsyv0dkxki366" path="res://attack/spell/propagation/filter/owner_filter.gd" id="5_filter"]
+[ext_resource type="Script" uid="uid://bqrga3k1hmfut" path="res://attack/spell/propagation/spread/fan_all_spread.gd" id="6_fan"]
+[ext_resource type="Script" uid="uid://swy0lo6vcopg" path="res://attack/spell/propagation/reducer/sum_damage_reducer.gd" id="6_reducer"]
+[ext_resource type="Script" uid="uid://btpnit4nenasw" path="res://attack/targeting/node_targeting.gd" id="6_targeting"]
+[ext_resource type="Script" uid="uid://br4akul8rvteg" path="res://attack/range_finder/hop_range_finder.gd" id="7_range"]
+[ext_resource type="PackedScene" path="res://ui/vfx/coordinator/spells/spark_coordinator.tscn" id="10_vfx"]
+[ext_resource type="Resource" path="res://identity/defs/spell_pestilence.tres" id="identity_ref"]
+
+[sub_resource type="Resource" id="poison_pestilence"]
+script = ExtResource("3_affinity")
+status = ExtResource("3_poison")
+innate = 1
+rate = 0.1
+
+[sub_resource type="Resource" id="filter_enemy"]
+script = ExtResource("5_filter")
+
+[sub_resource type="Resource" id="spread_fan"]
+script = ExtResource("6_fan")
+
+[sub_resource type="Resource" id="reducer_sum"]
+script = ExtResource("6_reducer")
+stack_fold = 1
+
+[sub_resource type="Resource" id="prop_pestilence"]
+script = ExtResource("4_config")
+filter = SubResource("filter_enemy")
+spread = SubResource("spread_fan")
+reducer = SubResource("reducer_sum")
+max_hops = 6.0
+max_visits_per_node = 2
+
+[sub_resource type="Resource" id="range_3hop"]
+script = ExtResource("7_range")
+
+[sub_resource type="Resource" id="targeting_hostile_3hop"]
+script = ExtResource("6_targeting")
+range_finder = SubResource("range_3hop")
+
+[resource]
+script = ExtResource("1_spell")
+identity = ExtResource("identity_ref")
+id = &"pestilence"
+name = "Pestilence"
+tagline = "A creeping plague: poison stacks add up wherever its branches meet."
+description = "Poison an enemy-occupied node within 3 hops with 1 stack, then spread up to 6 hops through enemy territory, twice over any node. Where branches meet in one wave their stacks add — a well-connected hub takes one stack per converging branch. Deals no damage itself. Poison infusions are diluted 10:1."
+power = 0.4
+propagation = SubResource("prop_pestilence")
+on_hit_effects = Array[ExtResource("2_effect")]([])
+affinities = Array[ExtResource("3_affinity")]([SubResource("poison_pestilence")])
+default_rate = 1.0
+vfx_coordinator_scene = ExtResource("10_vfx")
+targeting = SubResource("targeting_hostile_3hop")

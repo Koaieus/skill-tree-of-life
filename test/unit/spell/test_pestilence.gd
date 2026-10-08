@@ -23,7 +23,7 @@ var _def: SpellDef
 
 func before_each() -> void:
 	_h = SpellTestHelper.new()
-	_def = load(_DEF_PATH) as SpellDef if ResourceLoader.exists(_DEF_PATH) else null
+	_def = load(_DEF_PATH) as SpellDef
 
 
 func _innate() -> float:
