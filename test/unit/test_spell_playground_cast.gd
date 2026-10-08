@@ -259,7 +259,9 @@ func _poison_powers(plan: MagicAttackPlan) -> Array[float]:
 	return total
 
 
+## Poison slotted at 4 — the caster's `poison_aspect` cap the strip spends against.
 func _armed_cyclone() -> MagicAttackPlan:
+	_panel.aspect_slots_row.set_slot(0, &"poison_aspect", 4)
 	_panel.load_spell(_CYCLONE)
 	_panel._on_target_clicked(_node("d_hub"))
 	return _panel._arm_plan()
@@ -291,13 +293,13 @@ func test_the_infusion_survives_a_cast() -> void:
 
 
 ## The strip is the shipped InfusionRow, and its steppers stop at the
-## `infusion_points` override even with a 100-point aspect.
+## `infusion_points` override (2) below the slotted aspect's ceiling (4).
 func test_the_row_stops_at_the_points_override() -> void:
 	var plan := _armed_cyclone()
-	_panel.infusion_points_box.value = 10
+	_panel.infusion_points_box.value = 2
 	var row := _panel.find_child("InfusionRow", true, false) as InfusionRow
 	assert_not_null(row, "the panel hosts an InfusionRow")
 	assert_true(row.stepper_ids().has(&"poison"), "the caster holds poison")
 	for i in 30:
 		row.plus_button(&"poison").pressed.emit()
-	assert_eq(plan.infusion.points.get(&"poison", 0), 10)
+	assert_eq(plan.infusion.points.get(&"poison", 0), 2)
