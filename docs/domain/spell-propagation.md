@@ -34,7 +34,7 @@ and a per-landing **reducer** that merges converging branches. The filter,
 spread, config and reducer stages above are the code shape; the stock classes
 live under `attack/spell/propagation/{filter,spread,reducer,ranker,progression}/`
 (spreads: `FanAllSpread`, `TakeTopNSpread`, `RandomPickSpread`, `NoSpread`,
-`TrailBlazerSpread`, `CycloneSpread`). `max_visits_per_node` is enforced inline
+`CycloneSpread`). `max_visits_per_node` is enforced inline
 by the resolver, not by a filter. Eighteen spells ship in `attack/spell/defs/`;
 the design side is `docs/design/spells.md`, and infusion (a per-cast fifth
 component) is [ADR 0047](../adr/0047-infusion-is-a-per-cast-fifth-spell-component.md).
@@ -148,7 +148,7 @@ Stock subclasses (`propagation/spread/`):
 
 **A spread never transforms damage on arrival, and never decides that the
 walk is over** (#851, hub #849 Seam C). Both used to happen inside
-the old `TrailBlazerStep` (now `TrailBlazerSpread`), decided at departure time from the *previous* node — which
+the old `TrailBlazerStep` (later `TrailBlazerSpread`, since retired into `FanAllSpread`), decided at departure time from the *previous* node — which
 is why a cast seeded straight onto a junction was never slammed. They are now:
 
 - the **slam** — a `ScaleDamageEffect` gated on a `JunctionCondition`, authored
