@@ -134,7 +134,7 @@ node within its own land", and it reads 0 for an unallocated node.
 
 ## History
 
-`DegreeFilter`, `DegreeRanker`, `TrailBlazerSpread`, `ExpressionFilter` and
+`DegreeFilter`, `DegreeRanker`, `TrailBlazerSpread` (since retired, #858), `ExpressionFilter` and
 `LeafCritCondition` all hand-rolled graph degree while the cast gate
 (`SpellBook._node_meets_source_requirements`, `MagicAttackPlan`) used entity
 degree via the navigator mirror. Leafblower therefore gated on entity degree

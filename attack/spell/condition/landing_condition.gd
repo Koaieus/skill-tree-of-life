@@ -16,7 +16,7 @@ extends Resource
 ##   its name: the SLOT is the crit consumer, the predicate is not.
 ## - [b]Conditional on-hit effects[/b] — [member ScaleDamageEffect.when]. The
 ##   Trailblazer's junction slam is exactly this: a [JunctionCondition] gating
-##   a damage scale, where it used to be an `if` inside [TrailBlazerSpread].
+##   a damage scale, where it used to be an `if` inside the old Trail Blazer spread.
 ##
 ## Subclass for concrete predicates (self-loop, leaf, junction, …) or use as a
 ## virtual hook for truly bespoke logic.

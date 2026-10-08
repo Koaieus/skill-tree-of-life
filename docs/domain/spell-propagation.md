@@ -155,8 +155,8 @@ Stock subclasses (`propagation/spread/`):
   `spread/`, because filter and spread both consume them (#850).
 - `RandomPickSpread` — `RandomWalkPropagation` equivalent, RNG-threaded
 - `NoSpread` — empty array (single-target spells)
-- `TrailBlazerSpread` — walks one path along a chain. Pure selection since
-  #851: every surviving candidate at full share and nothing else.
+- (`TrailBlazerSpread` retired into `FanAllSpread` — #858; the Trail Blazer walk is its filter. Pure selection since
+  #851: every surviving candidate at full share and nothing else.)
 - `CycloneSpread` — ranks the eligible nodes by turn (`Curl.rank`) and picks
   one per authored rank; the rank coefficient (× `closing_gain` on a closing
   hop) is the pick's `share`. **The damage split happens in `mint`, nowhere

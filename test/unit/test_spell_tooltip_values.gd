@@ -143,7 +143,7 @@ func test_the_range_row_is_whatever_the_finder_says() -> void:
 ## An unbounded walk says so in words — never a hop count, never "inf".
 func test_inf_hop_budget_describes_as_no_hop_limit() -> void:
 	var config := PropagationConfig.new()
-	config.spread = TrailBlazerSpread.new()
+	config.spread = FanAllSpread.new()
 	config.max_hops = INF
 	var text := config.get_description()
 	assert_string_contains(text, "No hop limit.")

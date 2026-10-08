@@ -1,6 +1,6 @@
 extends GutTest
 
-## TrailBlazerSpread: the "string walker". Three layers of coverage —
+## FanAllSpread: the "string walker". Three layers of coverage —
 ##   1. select() + the config's mint in isolation (`_expand`) — since #851 the
 ##      spread is PURE SELECTION and since #852 the child is built by
 ##      `PropagationConfig.mint`, so the only branch left to assert is that
@@ -31,7 +31,7 @@ func _ctx(graph: Graph) -> PropagationContext:
 
 ## Give EVERY node in the graph one owner and return it.
 ##
-## Load-bearing, not boilerplate: `TrailBlazerSpread` reads
+## Load-bearing, not boilerplate: `FanAllSpread` reads
 ## [method SkillNode.get_entity_degree], which is degree within the OWNER's
 ## induced subgraph. An unowned node has no owner to induce a subgraph from, so
 ## the accessor's null guard returns 0 — and a 0 never trips the `> 2` junction
@@ -89,7 +89,7 @@ func _trail_blazer_config(opts: Dictionary = {}) -> PropagationConfig:
 	# (never revisit), not by a hop budget.
 	var o := {max_hops = INF, hop_damage = h.flat_add_progression(2.0)}
 	o.merge(opts)
-	return h.make_config(TrailBlazerSpread.new(), h.composite_filter(children), null, o)
+	return h.make_config(FanAllSpread.new(), h.composite_filter(children), null, o)
 
 
 ## The stock Trailblazer slam, now an on-hit effect authored before the damage
@@ -113,7 +113,7 @@ func test_continue_hop_adds_increment_and_keeps_walking() -> void:
 	var graph := h.make_graph([[0, 1], [1, 2]], self)
 	_own_all(graph)
 	var nodes := graph.get_skill_nodes()
-	var step := TrailBlazerSpread.new()
+	var step := FanAllSpread.new()
 	var config := h.make_config(step, null, null, {max_hops = 5, hop_damage = h.flat_add_progression(2.0)})
 	var out := _expand(step, config, nodes[0], _payload(3.0, nodes[0]), [nodes[1]] as Array[SkillNode], _ctx(graph))
 	assert_eq(out.size(), 1, "one branch minted")
@@ -132,7 +132,7 @@ func test_junction_candidate_mints_exactly_like_a_chain_candidate() -> void:
 	var graph := h.make_graph([[0, 1], [0, 2], [0, 3]], self)
 	_own_all(graph)
 	var nodes := graph.get_skill_nodes()
-	var step := TrailBlazerSpread.new()
+	var step := FanAllSpread.new()
 	var config := h.make_config(step, null, null,
 			{max_hops = 5, hop_damage = h.flat_add_progression(2.0)})
 	var out := _expand(step, config, nodes[1], _payload(9.0, nodes[1]),
@@ -147,8 +147,8 @@ func test_junction_candidate_mints_exactly_like_a_chain_candidate() -> void:
 func test_empty_candidates_ends_walk() -> void:
 	var graph := h.make_graph([[0, 1]], self)
 	var nodes := graph.get_skill_nodes()
-	var config := h.make_config(TrailBlazerSpread.new(), null, null, {max_hops = 5, hop_damage = h.flat_add_progression(2.0)})
-	var out := _expand(TrailBlazerSpread.new(), config, nodes[0], _payload(3.0, nodes[0]), [] as Array[SkillNode], _ctx(graph))
+	var config := h.make_config(FanAllSpread.new(), null, null, {max_hops = 5, hop_damage = h.flat_add_progression(2.0)})
+	var out := _expand(FanAllSpread.new(), config, nodes[0], _payload(3.0, nodes[0]), [] as Array[SkillNode], _ctx(graph))
 	assert_eq(out.size(), 0, "no candidate → no branch")
 
 
@@ -163,7 +163,7 @@ func test_branch_mints_every_surviving_candidate_not_a_random_one() -> void:
 	var graph := h.make_graph([[0, 1], [1, 3], [0, 2], [2, 4]], self)
 	_own_all(graph)
 	var nodes := graph.get_skill_nodes()
-	var step := TrailBlazerSpread.new()
+	var step := FanAllSpread.new()
 	var config := h.make_config(step, null, null, {max_hops = 5, hop_damage = h.flat_add_progression(2.0)})
 	var candidates := [nodes[1], nodes[2]] as Array[SkillNode]
 
@@ -185,7 +185,7 @@ func test_branch_mints_junction_and_chain_candidates_in_parallel() -> void:
 		[[0, 1], [1, 3], [0, 2], [2, 4], [2, 5], [2, 6]], self)
 	_own_all(graph)
 	var nodes := graph.get_skill_nodes()
-	var step := TrailBlazerSpread.new()
+	var step := FanAllSpread.new()
 	var config := h.make_config(step, null, null, {max_hops = 5, hop_damage = h.flat_add_progression(2.0)})
 	var candidates := [nodes[1], nodes[2]] as Array[SkillNode]
 

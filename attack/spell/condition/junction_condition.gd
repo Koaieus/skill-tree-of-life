@@ -11,7 +11,7 @@ extends LandingCondition
 ## than an implementation detail: the Trailblazer is about the DEFENDER's
 ## constellation shape, so an unrelated enemy node brushing past the string
 ## must not read as a junction. This is the identical read
-## [TrailBlazerSpread] made inline until #851 — see `docs/domain/degree.md`.
+## the old Trail Blazer spread made inline until #851 — see `docs/domain/degree.md`.
 ##
 ## And it must be the world's count, not the node's: a Trailblazer whose own
 ## earlier hop deallocated a neighbour must not still count that neighbour
