@@ -36,11 +36,8 @@ const STAT_IDS: Array[StringName] = [&"vision_range", &"sensor_range"]
 ## found again on a stateless def, and UNSCALED so a blinded node is not more
 ## or less blind for being allocated deeper (the universal local-scale law
 ## would otherwise ladder a MULTIPLY with allocation level, #376).
-class BlindModifier:
-	extends StatModifier
-
-	func _local_scale_override(_old_al: int, _new_al: int) -> Variant:
-		return StatModifier.UNSCALED
+const BlindModifier := preload("res://effects/status/modifiers/blind_modifier.gd")
+const _MODIFIER_TEMPLATE := preload("res://effects/status/modifiers/blind_modifier.tres")
 
 
 func _on_applied(host, power: float) -> void:
@@ -77,9 +74,8 @@ func _set_factor(host, power: float) -> void:
 		var old := _find(host, stat_id)
 		if old != null:
 			host.remove_local_modifier(old)
-		var m := BlindModifier.new()
+		var m: StatModifier = _MODIFIER_TEMPLATE.duplicate()
 		m.stat_id = stat_id
-		m.operation = StatModifier.Operation.MULTIPLY
 		m.value = f
 		host.add_local_modifier(m)
 
