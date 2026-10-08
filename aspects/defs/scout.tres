@@ -7,10 +7,12 @@
 [ext_resource type="Resource" path="res://effects/status/scouted.tres" id="4_status"]
 [ext_resource type="Resource" path="res://attack/ammo/types/scout.tres" id="5_ammo"]
 
+[ext_resource type="Resource" path="res://attack/spell/defs/eagle_eye.tres" id="7_eagle"]
+
 [resource]
 script = ExtResource("1_aspect")
 identity = ExtResource("2_identity")
 stat = ExtResource("3_stat")
 status = ExtResource("4_status")
 ammo = ExtResource("5_ammo")
-spells = Array[ExtResource("1_spell_def")]([])
+spells = Array[ExtResource("1_spell_def")]([ExtResource("7_eagle")])

@@ -1,0 +1,47 @@
+[gd_resource type="Resource" script_class="SpellDef" format=3]
+
+[ext_resource type="Script" path="res://attack/spell/spell_def.gd" id="1_spell"]
+[ext_resource type="Script" path="res://attack/spell/on_hit/on_hit_effect.gd" id="2_effect"]
+[ext_resource type="Script" path="res://attack/spell/spell_affinity.gd" id="3_affinity"]
+[ext_resource type="Resource" path="res://effects/status/scouted.tres" id="4_scouted"]
+[ext_resource type="Script" path="res://attack/targeting/node_targeting.gd" id="5_targeting"]
+[ext_resource type="Script" path="res://attack/range_finder/euclidean_range_finder.gd" id="6_range"]
+[ext_resource type="Script" path="res://attack/spell/propagation/propagation_config.gd" id="8_config"]
+[ext_resource type="Script" path="res://attack/spell/propagation/filter/owner_filter.gd" id="9_owner"]
+[ext_resource type="PackedScene" path="res://ui/vfx/coordinator/spells/spark_coordinator.tscn" id="7_vfx"]
+
+[ext_resource type="Resource" path="res://identity/defs/spell_eagle_eye.tres" id="identity_ref"]
+
+[sub_resource type="Resource" id="scout_eagle"]
+script = ExtResource("3_affinity")
+status = ExtResource("4_scouted")
+innate = 8
+
+[sub_resource type="Resource" id="filter_enemy"]
+script = ExtResource("9_owner")
+
+[sub_resource type="Resource" id="prop_single"]
+script = ExtResource("8_config")
+filter = SubResource("filter_enemy")
+
+[sub_resource type="Resource" id="range_long"]
+script = ExtResource("6_range")
+max_distance = 400.0
+
+[sub_resource type="Resource" id="targeting_long"]
+script = ExtResource("5_targeting")
+range_finder = SubResource("range_long")
+
+[resource]
+script = ExtResource("1_spell")
+identity = ExtResource("identity_ref")
+id = &"eagle_eye"
+name = "Eagle Eye"
+tagline = "One far glance that lights a wide disc."
+description = "Reach a long way to one node and light up its surroundings for your camp: a single large scouted stack, so a big disc, fading over 8 turns. Deals no damage."
+power = 0.0
+propagation = SubResource("prop_single")
+on_hit_effects = Array[ExtResource("2_effect")]([])
+affinities = Array[ExtResource("3_affinity")]([SubResource("scout_eagle")])
+vfx_coordinator_scene = ExtResource("7_vfx")
+targeting = SubResource("targeting_long")
