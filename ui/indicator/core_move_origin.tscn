@@ -4,3 +4,4 @@
 
 [node name="CoreMoveOrigin" instance=ExtResource("1_hilt")]
 tier = 2
+ring_width = 5.0

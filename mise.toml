@@ -149,6 +149,11 @@ cd "$MISE_PROJECT_ROOT/native"
 if [ ! -f godot-cpp/SConstruct ]; then
   echo "native/godot-cpp is empty. Fetch the submodule first:" >&2
   echo "    git submodule update --init --recursive" >&2
+  main_co="$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")"
+  if [ "$main_co" != "$MISE_PROJECT_ROOT" ] && [ -f "$main_co/native/godot-cpp/SConstruct" ]; then
+    echo "In a worktree, borrow the main checkout's objects instead of re-cloning:" >&2
+    echo "    git submodule update --init --reference $main_co/native/godot-cpp native/godot-cpp" >&2
+  fi
   exit 1
 fi
 # template_debug is what the editor AND a headless `godot --script` / GUT run
