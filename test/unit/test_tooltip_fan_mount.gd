@@ -57,13 +57,15 @@ func after_each() -> void:
 		_entity.core_location = null
 
 
-func _participating() -> Array[StringName]:
-	var out: Array[StringName] = []
+## Names as Strings: StringName's `<` compares pointers, so sorting a
+## StringName array is run-order dependent and the assert would flake.
+func _participating() -> Array[String]:
+	var out: Array[String] = []
 	if _mount.fan == null or _mount.fan._current_fan == null:
 		return out
 	for n in _mount.fan._current_fan.find_children("*", "FanUnit", true, false):
 		if (n as FanUnit).participating:
-			out.append(n.name)
+			out.append(String(n.name))
 	out.sort()
 	return out
 
@@ -81,7 +83,7 @@ func test_hover_fans_out_exactly_the_pinned_units() -> void:
 	if _mount == null:
 		return
 	_mount.hover(_rich)
-	assert_eq(_participating(), [&"EffectReadout", &"NodeStats"] as Array[StringName])
+	assert_eq(_participating(), ["EffectReadout", "NodeStats"] as Array[String])
 	var stats: FanUnit = _mount.fan._current_fan.find_child("NodeStats", true, false)
 	var frames := 0
 	while stats.state == FanUnit.State.HIDDEN and frames < 120:
