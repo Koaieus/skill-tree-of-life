@@ -6,6 +6,17 @@ extends CommandTrayBodyBase
 ## explicit "don't rebuild the spell bar from scratch") + a Launch button
 ## whose label mirrors the currently-equipped spell.
 ##
+## [b]The picker floats (#1485).[/b] The body shows the equipped spell as one
+## collapsed %SpellButton; pressing it toggles [SpellPickMode] on the seat's
+## [ArmedStack] ([method MagicMode.toggle_picker]). The spell bar lives in
+## %PickerPanel, a `top_level` panel whose bottom edge sits
+## [member picker_gap_px] above the body's top edge and which grows upward over
+## the graph. It is outside the body's layout, so it adds nothing to the body's
+## combined minimum size, shown or hidden. The STACK decides its visibility —
+## shown iff a [SpellPickMode] is on the branch — so the body keeps no
+## open/closed state of its own, and every close (a pick, a hotkey, a graph
+## click, right-click, a launch) hides it for free.
+##
 ## [b]The spell bar is bounded, not merely wide (#753).[/b] A [Control] is
 ## clamped UP to its combined minimum size, so a row of N fixed 96px buttons
 ## used to set this body's min width — and the spellbook grows through loot
@@ -34,9 +45,25 @@ extends CommandTrayBodyBase
 ## [constant SpellPickerBar.COMPACT_BUTTON_PX] once a second row exists.
 const MAX_VISIBLE_ROWS: int = 2
 
+## Gap between %PickerPanel's bottom edge and the body's top edge.
+@export_range(0, 32, 1, "suffix:px") var picker_gap_px: int = 4:
+	set(v):
+		picker_gap_px = v
+		_place_picker()
+
+## %PickerPanel's width. Not the body's full width: the bar's row count is a
+## function of its width, and at ~880px a 20-spell book packs into exactly
+## [constant MAX_VISIBLE_ROWS] compact rows and stops scrolling.
+@export_range(200, 900, 1, "suffix:px") var picker_width_px: int = 640:
+	set(v):
+		picker_width_px = v
+		_place_picker()
+
 @onready var _context_label: Label = %ContextLabel
 @onready var _spell_bar: SpellPickerBar = %SpellPickerBar
 @onready var _spell_scroll: ScrollContainer = %SpellScroll
+@onready var _picker_panel: PanelContainer = %PickerPanel
+@onready var _spell_button: SpellPickerButton = %SpellButton
 @onready var _reset_button: Button = %ResetButton
 @onready var _launch_button: LaunchAttackButton = %LaunchButton
 @onready var _infusion_row: InfusionRow = %InfusionRow
@@ -47,6 +74,22 @@ const MAX_VISIBLE_ROWS: int = 2
 func _ready() -> void:
 	_spell_bar.layout_changed.connect(_on_bar_layout_changed)
 	_on_bar_layout_changed(_spell_bar.get_row_count(), _spell_bar.get_button_px())
+	_picker_panel.minimum_size_changed.connect(_place_picker)
+	item_rect_changed.connect(_place_picker)
+	# The collapsed button's press always opens the picker, castable or not:
+	# the caster gate's denial toast belongs to the bar's tiles.
+	_spell_button.set_has_caster(true)
+	_place_picker()
+
+
+## Bottom edge [member picker_gap_px] above the body's top edge, growing up.
+## `top_level`, so the position is canvas-global.
+func _place_picker() -> void:
+	if _picker_panel == null:
+		return
+	_picker_panel.size = Vector2(picker_width_px, 0.0)
+	_picker_panel.global_position = global_position \
+			- Vector2(0.0, _picker_panel.size.y + picker_gap_px)
 
 
 ## Size the scroll viewport to the rows we actually show, capped at
@@ -64,14 +107,18 @@ func _on_bound() -> void:
 	_spell_bar.spell_selected.connect(_on_spell_selected)
 	_reset_button.pressed.connect(_reset_plan)
 	_launch_button.pressed.connect(_on_launch_pressed)
+	_spell_button.pressed.connect(_on_spell_button_pressed)
 	if _armed_stack != null:
 		_armed_stack.attack_plan_state_changed.connect(_refresh)
+		_armed_stack.changed.connect(_repaint_picker)
 		_armed_stack.selected_spell_changed.connect(_spell_bar.sync_selected)
 	if _input_ctl != null:
 		_input_ctl.player_can_act_changed.connect(_on_can_act_changed)
 		_spell_bar.set_enabled(_input_ctl.can_player_act())
+		_spell_button.set_actionable(_input_ctl.can_player_act())
 	if _armed_stack != null and _armed_stack.selected_spell != null:
 		_spell_bar.sync_selected(_armed_stack.selected_spell)
+	_repaint_picker()
 	_refresh()
 
 
@@ -81,17 +128,43 @@ func teardown() -> void:
 		_armed_stack.selected_spell_changed.disconnect(_spell_bar.sync_selected)
 	if _armed_stack != null and _armed_stack.attack_plan_state_changed.is_connected(_refresh):
 		_armed_stack.attack_plan_state_changed.disconnect(_refresh)
+	if _armed_stack != null and _armed_stack.changed.is_connected(_repaint_picker):
+		_armed_stack.changed.disconnect(_repaint_picker)
+	if _spell_button.pressed.is_connected(_on_spell_button_pressed):
+		_spell_button.pressed.disconnect(_on_spell_button_pressed)
 	if _input_ctl != null and _input_ctl.player_can_act_changed.is_connected(_on_can_act_changed):
 		_input_ctl.player_can_act_changed.disconnect(_on_can_act_changed)
 
 
+## A tile press is the open picker's pick — it writes the sticky spell and
+## closes. No picker on the branch, nothing to pick for.
 func _on_spell_selected(spell: SpellDef) -> void:
-	if _armed_stack != null:
-		_armed_stack.selected_spell = spell
+	var picker := _armed_stack.find(SpellPickMode) as SpellPickMode if _armed_stack != null else null
+	if picker != null:
+		picker.pick(spell)
+
+
+func _on_spell_button_pressed() -> void:
+	var magic := _armed_stack.find(MagicMode) as MagicMode if _armed_stack != null else null
+	if magic != null:
+		magic.toggle_picker()
+	_repaint_picker()
+
+
+## Shown iff the stack holds a [SpellPickMode]. On [signal ArmedStack.changed]
+## only — never on `attack_plan_state_changed`, which every hover emits. The
+## collapsed button reads pressed while the picker is open.
+func _repaint_picker() -> void:
+	var open := _armed_stack != null and _armed_stack.find(SpellPickMode) != null
+	_picker_panel.visible = open
+	_spell_button.set_selected(open)
+	if open:
+		_place_picker()
 
 
 func _on_can_act_changed(can_act: bool) -> void:
 	_spell_bar.set_enabled(can_act)
+	_spell_button.set_actionable(can_act)
 	_refresh()
 
 
@@ -111,6 +184,8 @@ func _refresh() -> void:
 	_context_label.text = "source degree %d" % degree
 	if plan != null:
 		_spell_bar.update_gating_context(plan.attacker)
+	if plan != null and plan.spell != null and _spell_button.spell != plan.spell:
+		_spell_button.spell = plan.spell
 	var spell_name := plan.spell.name if plan != null and plan.spell != null else "Spell"
 	_launch_button.text = "Cast %s" % spell_name
 	var can_act := _input_ctl == null or (_input_ctl.can_player_act() and _input_ctl.can_afford(plan))

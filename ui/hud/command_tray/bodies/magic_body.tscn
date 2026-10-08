@@ -5,6 +5,7 @@
 [ext_resource type="PackedScene" uid="uid://b5lvy7n8p4qbk" path="res://ui/launch_attack_button/launch_attack_button.tscn" id="3_launch"]
 [ext_resource type="PackedScene" uid="uid://dqlt773tgviy7" path="res://ui/spell_picker_bar/spell_picker_bar.tscn" id="4_spellbar"]
 [ext_resource type="PackedScene" path="res://ui/hud/command_tray/bodies/infusion_row.tscn" id="5_infusion"]
+[ext_resource type="PackedScene" uid="uid://w2m6rt1jv4vs" path="res://ui/spell_picker_bar/spell_picker_button.tscn" id="6_spellbtn"]
 
 [node name="MagicBody" instance=ExtResource("1_base")]
 script = ExtResource("2_script")
@@ -35,19 +36,15 @@ text = "source degree 0"
 layout_mode = 2
 theme_override_constants/separation = 8
 
-[node name="SpellScroll" type="ScrollContainer" parent="BodyContent/Content/SpellRow" unique_id=364794999]
+[node name="SpellButton" parent="BodyContent/Content/SpellRow" instance=ExtResource("6_spellbtn")]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 96)
 layout_mode = 2
-size_flags_horizontal = 3
 size_flags_vertical = 4
-horizontal_scroll_mode = 0
-vertical_scroll_mode = 4
 
-[node name="SpellPickerBar" parent="BodyContent/Content/SpellRow/SpellScroll" unique_id=364794123 instance=ExtResource("4_spellbar")]
-unique_name_in_owner = true
+[node name="SpellRowSpacer" type="Control" parent="BodyContent/Content/SpellRow"]
 layout_mode = 2
 size_flags_horizontal = 3
+mouse_filter = 2
 
 [node name="ResetButton" type="Button" parent="BodyContent/Content/SpellRow" unique_id=1850223647]
 unique_name_in_owner = true
@@ -74,3 +71,25 @@ theme_override_font_sizes/font_size = 9
 autowrap_mode = 2
 clip_text = true
 text = "degree icon = min. source-node degree · then click an enemy node"
+
+[node name="PickerPanel" type="PanelContainer" parent="."]
+unique_name_in_owner = true
+visible = false
+top_level = true
+layout_mode = 0
+offset_right = 640.0
+offset_bottom = 104.0
+
+[node name="SpellScroll" type="ScrollContainer" parent="PickerPanel" unique_id=364794999]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 96)
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 4
+horizontal_scroll_mode = 0
+vertical_scroll_mode = 4
+
+[node name="SpellPickerBar" parent="PickerPanel/SpellScroll" unique_id=364794123 instance=ExtResource("4_spellbar")]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3

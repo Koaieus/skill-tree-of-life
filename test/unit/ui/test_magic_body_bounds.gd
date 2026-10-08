@@ -25,12 +25,14 @@ const _MAGIC_BODY_SCENE := preload("res://ui/hud/command_tray/bodies/magic_body.
 
 var _body: MagicBody
 var _bar: SpellPickerBar
+var _panel: Control
 
 
 func before_each() -> void:
 	_body = _MAGIC_BODY_SCENE.instantiate() as MagicBody
 	add_child_autofree(_body)
 	_bar = _body.get_node("%SpellPickerBar") as SpellPickerBar
+	_panel = _body.get_node("%PickerPanel") as Control
 
 
 ## Deliberately synthetic spells: the shipped catalog's costs are owner tuning,
@@ -46,14 +48,19 @@ func _book(count: int) -> SpellBook:
 
 
 ## Bind the book, give the body the tray's real width, and let the container
-## sort + the bar's resize-driven relayout settle.
+## sort + the bar's resize-driven relayout settle. The bar lives in the floating
+## %PickerPanel (#1485), shown here by hand: a hidden container never sorts, so
+## the bar would sit at zero width. The body's min size is read with the panel
+## UP, which is the stronger claim — it is outside the body's layout.
 func _settle(count: int) -> void:
+	_panel.visible = true
 	_bar.bind_spellbook(_book(count))
 	_body.size = Vector2(TRAY_WIDTH, _body.get_combined_minimum_size().y)
 	await get_tree().process_frame
 	await get_tree().process_frame
 	_body.size = Vector2(TRAY_WIDTH, _body.get_combined_minimum_size().y)
 	await get_tree().process_frame
+	gut.p("%d spells: bar width = %f, rows = %d" % [count, _bar.size.x, _bar.get_row_count()])
 
 
 func test_a_twenty_spell_book_never_widens_or_heightens_the_tray() -> void:
