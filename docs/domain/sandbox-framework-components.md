@@ -97,6 +97,35 @@ toggle-ordering from #252 — no current panel exposes tab-level controls to
 arrange, so building them now is speculative. Revisit when a panel externalizes
 its controls.
 
+### E. `SandboxTooltipFanMount` — the real hover tooltip in a tab's world
+
+`addons/sandbox_host/components/tooltip_fan_mount.{gd,tscn}`. A tab whose world
+is a graph in a SubViewport instances the mount in its panel scene, calls
+`mount(<any node inside the world SubViewport>, graph)` once the world exists
+(again after every rebuild — it retires the old fan), and
+`attach_motion(<the SubViewportContainer>, <the panel's own hit-test>)`. The
+hit-test is `func(local_pos: Vector2) -> SkillNode` (null = empty space), the
+same one the tab already uses for clicks.
+
+Three things differ from the HUD's fan, all set by the mount:
+
+- **Screen-space layer.** The fan anchors at the node's canvas position, so it
+  sits in a `CanvasLayer` inside the world viewport — the nodes' viewport, not
+  their camera.
+- **Driven, not subscribed.** `TooltipFan.listen_to_events = false`; the mount
+  calls `show_for` / `hide_fan`. `Events.skill_node_hovered` is global, and
+  every live tab shares the tree: a subscribed fan would pop in every tab.
+  Editor-embedded tabs also never get `mouse_entered` (physics picking is off,
+  and `SkillNode` only emits hover at runtime), so the motion hit-test is the
+  only hover source anyway.
+- **Gate open, units pinned.** `force_more_info` holds the Shift gate open (an
+  editor tab has no key intent, and may not have the action in its InputMap);
+  `unit_filter = pinned_units` (default `NodeStats` + `EffectReadout`) keeps the
+  rest down across every live rebind. Roots (the mod-slab stack) always show.
+
+The Status tab does NOT use it: it pins one node's fan open permanently
+(`status_bench.gd`) rather than following the pointer.
+
 ## Swarm decomposition (the payoff)
 
 **All base edits are the orchestrator's, done before dispatch — not a worker

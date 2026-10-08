@@ -132,4 +132,4 @@ func test_remount_replaces_the_fan() -> void:
 	_mount.hover(_rich)
 	_mount.mount(_viewport, _graph)
 	assert_ne(_mount.fan, old, "a rebuild mounts a fresh fan")
-	assert_false(is_instance_valid(old) and not old.is_queued_for_deletion(), "the old one is retired")
+	assert_true(old.get_parent().is_queued_for_deletion(), "the old fan's layer is retired")
