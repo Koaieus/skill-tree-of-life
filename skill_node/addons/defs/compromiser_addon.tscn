@@ -1,0 +1,13 @@
+[gd_scene format=3 uid="uid://b1addon0compro"]
+
+[ext_resource type="Script" uid="uid://bkf87fqtgkm7a" path="res://skill_node/addons/skill_node_addon.gd" id="1_addon"]
+[ext_resource type="Script" uid="uid://d0hgvosm3t3a1" path="res://skill_node/addons/visuals/compromiser_visual.gd" id="9_visual"]
+[ext_resource type="Resource" path="res://identity/defs/corruption.tres" id="identity_ref"]
+
+[node name="CompromiserAddon" type="Node2D"]
+z_index = 1
+script = ExtResource("1_addon")
+identity = ExtResource("identity_ref")
+
+[node name="Visual" type="Node2D" parent="."]
+script = ExtResource("9_visual")
