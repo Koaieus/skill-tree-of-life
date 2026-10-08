@@ -31,7 +31,8 @@ cases = [
     ("--amend --no-edit -> allow", bash("git commit --amend --no-edit"), False),
     ("not a commit: git log --author=@x -> allow", bash("git log --author=@someone"), False),
     ("not a commit: grep for @export -> allow", bash("grep -rn '@export' src"), False),
-    ("GH_MENTION_OK=1 -> allow", bash('GH_MENTION_OK=1 git commit -m "cc @Koaieus"'), False),
+    ("GH_MENTION_OK=1 -> allow", bash('GH_MENTION_OK=1 git commit -m "cc @someone"'), False),
+    ("the repo owner's own login -> allow", bash('git commit -m "fix: per @Koaieus"'), False),
     ("non-Bash tool -> allow", {"tool_name": "Read", "tool_input": {"file_path": dirty}}, False),
     ("garbage stdin -> silent exit 0", "garbage", False),
 ]

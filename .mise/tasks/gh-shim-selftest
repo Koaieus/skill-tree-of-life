@@ -73,7 +73,7 @@ posted 'the bargain addon: #{sibling}'
 out=$(gh issue create --title t --body-file "$work/body.md" </dev/null 2>"$work/err"); rc=$?
 refused "an unresolved #{handle}" x 'handle'
 reset ok
-out=$(gh issue comment 7 --body "cc @Koaieus" </dev/null 2>"$work/err"); rc=$?
+out=$(gh issue comment 7 --body "cc @someone" </dev/null 2>"$work/err"); rc=$?
 refused "a mention in --body text" x 'mention'
 reset ok
 out=$(printf 'hi @someone' | gh issue comment 7 --body-file - 2>"$work/err"); rc=$?
@@ -94,8 +94,11 @@ posted 'an `@export var x` and a `` @tool `` span, mail a@b.com
 out=$(gh issue comment 7 --body-file "$work/body.md" </dev/null 2>"$work/err"); rc=$?
 check "@ inside code spans, fences and an email -> posted" "$rc:$(cat "$work/n")" "0:1"
 reset ok
-out=$(GH_MENTION_OK=1 gh issue comment 7 --body "cc @Koaieus" </dev/null 2>"$work/err"); rc=$?
+out=$(GH_MENTION_OK=1 gh issue comment 7 --body "cc @someone" </dev/null 2>"$work/err"); rc=$?
 check "GH_MENTION_OK=1 posts a deliberate mention" "$rc:$(cat "$work/n")" "0:1"
+reset ok
+out=$(gh issue comment 7 --body "over to @Koaieus, and @koaieus" </dev/null 2>"$work/err"); rc=$?
+check "the repo owner's own login -> posted" "$rc:$(cat "$work/n")" "0:1"
 reset ok
 out=$(gh issue view 7 --json body </dev/null 2>"$work/err"); rc=$?
 check "a read is never scanned" "$rc:$(cat "$work/n")" "0:1"

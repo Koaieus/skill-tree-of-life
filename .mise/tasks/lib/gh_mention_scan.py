@@ -12,7 +12,9 @@ What is refused, once fenced blocks and inline code spans are stripped (GitHub
 links no mention inside code, so `@export` in backticks is fine):
   - a bare `@name` — a live mention that notifies whoever owns that login;
   - a `#{name}` — a swarmify handle the clerk never resolved to a number.
-GH_MENTION_OK=1 on the call is the deliberate-mention escape hatch.
+The repo owner's own login is always allowed (owner, 2026-10-08: "my own name
+should be free to mention"). GH_MENTION_OK=1 on the call is the escape hatch for
+any other deliberate mention.
 """
 import os
 import re
@@ -23,6 +25,7 @@ _SPAN = re.compile(r"(`+)(?!`).+?(?<!`)\1(?!`)", re.S)
 # GitHub's own boundary: an `@` after a word char (mail@host) or `/` is no mention.
 _MENTION = re.compile(r"(?<![\w/`@.])@[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?(?:/[\w.-]+)?")
 _HANDLE = re.compile(r"#\{[\w-]+\}")
+_ALLOWED = {"@koaieus"}  # lower-case; GitHub logins are case-insensitive
 _TAKES_VALUE = {"--body", "-b", "--title", "-t", "--body-file", "-F", "--input",
 	"-f", "--raw-field", "--field"}
 
@@ -64,7 +67,8 @@ def posted_texts(args, stdin_file):
 def offences(text, strip_code=True):
 	"""strip_code=False for text GitHub does not render as Markdown (commit messages)."""
 	prose = _SPAN.sub("", _FENCE.sub("", text)) if strip_code else text.replace("`", " ")
-	return _MENTION.findall(prose), _HANDLE.findall(prose)
+	mentions = [m for m in _MENTION.findall(prose) if m.lower() not in _ALLOWED]
+	return mentions, _HANDLE.findall(prose)
 
 
 def main():
