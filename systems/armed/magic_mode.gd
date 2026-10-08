@@ -69,6 +69,10 @@ func handle_left_click(node: SkillNode) -> bool:
 	return true
 
 
+func toggle_picker() -> bool:
+	return false
+
+
 func set_target(node: SkillNode) -> bool:
 	var p := plan() as MagicAttackPlan
 	return p != null and p.set_target(node)
