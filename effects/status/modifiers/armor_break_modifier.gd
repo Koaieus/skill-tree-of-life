@@ -1,3 +1,4 @@
+@tool
 extends StatModifier
 
 ## The ADD_BASE on `armor` an armor-broken node carries. Authored as `armor_break_modifier.tres` and duplicated per application, the status

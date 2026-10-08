@@ -1,3 +1,4 @@
+@tool
 extends StatModifier
 
 ## The ADD_BASE on `min_damage_taken` a cursed node carries. Authored as `curse_modifier.tres` and duplicated per application, the status

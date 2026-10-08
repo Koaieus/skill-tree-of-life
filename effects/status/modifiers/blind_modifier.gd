@@ -1,3 +1,4 @@
+@tool
 extends StatModifier
 
 ## The MULTIPLY a blinded node carries on each of [BlindnessStatus]'s stats (`stat_id` set per stat). Authored as `blind_modifier.tres` and duplicated per application, the status

@@ -133,6 +133,7 @@ a window resize or refocus makes come and go.
   **everything reachable from a `.tres` an editor panel loads must be `@tool`**:
   exports read back fine, so the panel shows the resource in full and throws on
   the first question it asks. `check` catches only the node case; GUT neither.
+  The static gate is `test/unit/test_tres_scripts_are_tool.gd` (extend its `DIRS`).
   Guard in the **method**, not just `_ready()`: `@export` setters fire during
   deserialization, first.
 - **Declare an exported bound ABOVE the value that clamps against it** — exports

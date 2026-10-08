@@ -1,3 +1,4 @@
+@tool
 extends StatModifier
 
 ## The INCREASE on `bounty` a greedy node carries. Authored as `avarice_modifier.tres` and duplicated per application, the status

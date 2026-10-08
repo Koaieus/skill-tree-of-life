@@ -1,3 +1,4 @@
+@tool
 class_name HitscanStreak
 extends Line2D
 

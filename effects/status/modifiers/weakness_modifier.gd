@@ -1,3 +1,4 @@
+@tool
 extends StatModifier
 
 ## The MULTIPLY a weakened node carries per stat (`stat_id` set per stat). Authored as `weakness_modifier.tres` and duplicated per application, the status

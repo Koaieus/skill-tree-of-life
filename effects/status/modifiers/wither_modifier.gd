@@ -1,3 +1,4 @@
+@tool
 extends StatModifier
 
 ## The node-local `healing_received` MULTIPLY [WitherStatus] plants. Authored

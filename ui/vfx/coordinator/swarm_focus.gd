@@ -1,3 +1,4 @@
+@tool
 class_name SwarmFocus
 extends Node2D
 ## The follow marker of a projectile coordinator: the damage-weighted centre of
