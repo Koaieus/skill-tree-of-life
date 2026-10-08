@@ -94,6 +94,9 @@ var _preview_dirty: bool = true
 var _preview_hit_nodes: Dictionary[SkillNode, bool] = {}
 var _preview_outcome: AttackOutcome = null
 var _preview_edges: Array[Edge] = []
+## How many times the preview has re-resolved — an aimed drag re-resolves
+## only when the crossed set changes. Read-only outside the plan.
+var preview_resolves: int = 0
 
 
 ## The wind-up hangs off the source (#1048) — empty until one is armed.
