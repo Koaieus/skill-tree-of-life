@@ -67,7 +67,7 @@ const LENGTH_ITER_SCALE: float = 0.08
 static var _native: Object = _acquire_native()
 
 ## The one-line cure, spelled the same way in every error this file raises.
-const _FETCH_HINT := "run `mise run native:build`, then `mise run refresh`"
+const _FETCH_HINT := "run `mise run native:build`, then `mise run refresh` (or restart the editor if the binary is newer than this editor session)"
 
 
 static func _acquire_native() -> Object:
