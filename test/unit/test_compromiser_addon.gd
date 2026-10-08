@@ -188,17 +188,25 @@ func test_a_temp_compromiser_costs_2_blade_size_and_1_corruption_aspect() -> voi
 
 func test_corruption_aspect_caps_temp_compromisers_per_swing() -> void:
 	_attacker.stat_board.corruption_aspect.base_value = 1.0
-	_attacker.stat_board.blade_size.base_value = 20.0
-	await _settle()
+	_attacker.stat_board.blade_size.base_value = 40.0
+	# A bare chain (test_temp_upgrade_budget.gd's shape): no clamp, free slots.
+	var source := _spawn("Source", Vector2(0.0, -_SPACING * 3.0))
+	var first := _spawn("First", Vector2(_SPACING, -_SPACING * 3.0))
+	var second := _spawn("Second", Vector2(_SPACING * 2.0, -_SPACING * 3.0))
+	_graph.add_edge(source, first)
+	_graph.add_edge(first, second)
+	await get_tree().process_frame
+	for n in [source, first, second]:
+		_alloc.force_allocate(_attacker, n)
 	var plan := autofree(MeleeAttackPlan.new()) as MeleeAttackPlan
 	plan.attacker = _attacker
-	plan.set_pivot(_pivot)
-	plan.toggle_member(_mid)
-	plan.toggle_member(_tip)
-	assert_true(plan.apply_temp_upgrade(_mid, _COMPROMISER_SCENE), "the first fits")
+	plan.set_pivot(source)
+	plan.toggle_member(first)
+	plan.toggle_member(second)
+	assert_true(plan.apply_temp_upgrade(first, _COMPROMISER_SCENE), "the first fits")
 	assert_eq(plan.currency_remaining(&"corruption_aspect"), 0)
-	assert_false(plan.can_apply_temp_upgrade(_tip, _COMPROMISER_SCENE), "one past the aspect")
-	assert_eq(plan.temp_upgrade_denial_reason(_tip, _COMPROMISER_SCENE),
+	assert_false(plan.can_apply_temp_upgrade(second, _COMPROMISER_SCENE), "one past the aspect")
+	assert_eq(plan.temp_upgrade_denial_reason(second, _COMPROMISER_SCENE),
 			"temp_upgrade_denied_aspect")
 
 
