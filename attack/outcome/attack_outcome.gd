@@ -89,6 +89,19 @@ var resolve_seed: int = 0
 var crit_stream: RandomNumberGenerator = null
 
 
+## Where an aimed cast was pointed (#1495): the cast-from node, the aim angle
+## in radians and the shape's length in pixels. Null on a node cast — only
+## [method SpellResolver.resolve_seeds] with an angle stamps it.
+var aim: Aim = null
+
+
+## The aim an [AttackOutcome] was resolved under. A value, never mutated after
+## the resolver builds it.
+class Aim extends RefCounted:
+	var origin: SkillNode = null
+	var angle: float = 0.0
+	var length: float = 0.0
+
 ## [member hits] filtered to [constant HitInstance.Kind.DAMAGE] and cast —
 ## the "accepted cost" of unifying hits/heals into one list (#381). Reads
 ## [member HitInstance.kind], not `is DamageInstance`, so a hit

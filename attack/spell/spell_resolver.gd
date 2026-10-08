@@ -77,6 +77,18 @@ static func resolve(
 	return outcome
 
 
+static func resolve_seeds(
+		spell: SpellDef,
+		seeds: Array[SkillNode],
+		source: SkillNode,
+		caster: Entity,
+		graph: Graph,
+		world: CombatWorld,
+		rng: RandomNumberGenerator = null,
+		infusion: Infusion = null,
+		aim_angle: float = NAN) -> AttackOutcome:
+	return AttackOutcome.new()
+
 ## The origin set: the cast source plus its owned neighbours (the degree the
 ## castability gate counts) each exert once, landed before the first wave.
 ## Kept off the timeline — no event, no VFX — so their unassigned
