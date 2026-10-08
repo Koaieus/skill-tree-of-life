@@ -45,6 +45,7 @@ func test_a_catalog_on_the_fixture_folder_lists_its_addons_and_nothing_else() ->
 func test_offered_is_the_temp_placeable_subset_in_order() -> void:
 	assert_eq(_paths(CATALOG.offered()), [
 		"res://skill_node/addons/defs/clamp_addon.tscn",
+		"res://skill_node/addons/defs/compromiser_addon.tscn",
 		"res://skill_node/addons/defs/spike_ring_addon.tscn",
 		"res://skill_node/addons/defs/toxin_addon.tscn",
 	] as Array[String])
