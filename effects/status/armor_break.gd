@@ -22,11 +22,8 @@ extends StatusDef
 ## Own type so a found modifier can be told apart from any other ADD_BASE on
 ## `armor`, and UNSCALED so a broken node's armor loss is not laddered by
 ## allocation depth (#376 — same rationale as Blindness's BlindModifier).
-class ArmorBreakModifier:
-	extends StatModifier
-
-	func _local_scale_override(_old_al: int, _new_al: int) -> Variant:
-		return StatModifier.UNSCALED
+const ArmorBreakModifier := preload("res://effects/status/modifiers/armor_break_modifier.gd")
+const _MODIFIER_TEMPLATE := preload("res://effects/status/modifiers/armor_break_modifier.tres")
 
 
 func _on_applied(host, power: float) -> void:
@@ -52,9 +49,7 @@ func _set_break(host, power: float) -> void:
 		host.remove_local_modifier(old)
 	if power <= 0.0:
 		return
-	var m := ArmorBreakModifier.new()
-	m.stat_id = &"armor"
-	m.operation = StatModifier.Operation.ADD_BASE
+	var m: StatModifier = _MODIFIER_TEMPLATE.duplicate()
 	m.value = -power
 	host.add_local_modifier(m)
 
