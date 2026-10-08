@@ -115,3 +115,20 @@ func test_the_live_replay_lands_the_recorded_amount_not_its_own() -> void:
 	assert_false(n[2].is_allocated(), "precondition: the replay stripped 2")
 	assert_almost_eq(n[1].get_combat().get_status_power(&"curse"), 2.0, 0.0001,
 			"1 holds the RECORDED 2, not a recomputed 4")
+
+
+## #1367: a camp-keyed spill lands on its own row on the replay, not the shared one.
+func test_spill_key_round_trips_through_the_record() -> void:
+	var n := await _chain(4)
+	var outcome := _computed(n)
+	for hit in outcome.hits:
+		for e in hit.deallocations:
+			for t in e.spill:
+				t.key = &"camp_a"
+	var rebuilt := AttackRecord.rebuild(_wired(outcome), _graph)
+	var keys := []
+	for hit in rebuilt.hits:
+		for e in hit.deallocations:
+			for t in e.spill:
+				keys.append(t.key)
+	assert_eq(keys, [&"camp_a"], "the recorded spill key survives the wire")

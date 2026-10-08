@@ -418,3 +418,16 @@ func test_turn_start_leaves_resolve_in_the_second_pass() -> void:
 	]
 	assert_eq(dst_owner.get_turn_start_leaves(), want,
 			"turn-start leaves did not resolve by stable_id (or doubled on a second pass)")
+
+
+## #1455: a core that already exerted by moving this turn must not exert a
+## second time after a mid-turn resync/load.
+func test_core_moved_this_turn_round_trips() -> void:
+	var source := await _line_graph(1)
+	var target := await _line_graph(0)
+	var src_owner := _new_entity(source)
+	var dst_owner := _new_entity(target)
+	src_owner.core_moved_this_turn = true
+
+	_transfer(source, target)
+	assert_true(dst_owner.core_moved_this_turn, "the exert latch was reset across the snapshot")

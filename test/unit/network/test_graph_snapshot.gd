@@ -254,3 +254,33 @@ func test_status_decay_step_survives_the_round_trip() -> void:
 	assert_eq(rows.size(), 1)
 	if rows.size() == 1:
 		assert_eq(rows[0].decay_step, 2, "decay_step restored through restore_status_row")
+
+
+## #1457: a row's ramp position is world state, so two peers whose steps differ
+## must not fingerprint equal.
+func test_fingerprint_differs_by_status_decay_step() -> void:
+	var a := await _procgen_graph(12, 20260914)
+	var b := await _procgen_graph(12, 20260914)
+	for g in [a, b]:
+		var node: SkillNode = g.get_skill_nodes()[0]
+		node.owned_by = _new_owner(g)
+		node.get_combat().restore_status_row(_TEST_STATUS, 3.0, true, &"", 0, 0 if g == a else 2)
+	assert_ne(WorldFingerprint.compute(a), WorldFingerprint.compute(b),
+			"decay_step must fold into the status rows")
+
+
+## #1367: two rows of one def on one node fold in a deterministic order and
+## carry their key — insertion order is invisible, a different key is not.
+func test_fingerprint_status_rows_fold_the_key_deterministically() -> void:
+	var worlds: Array[Graph] = []
+	for keys in [[1, 2], [2, 1], [1, 3]]:
+		var g := await _procgen_graph(12, 20260914)
+		var node: SkillNode = g.get_skill_nodes()[0]
+		node.owned_by = _new_owner(g)
+		for k in keys:
+			node.get_combat().restore_status_row(_TEST_STATUS, 3.0, k)
+		worlds.append(g)
+	assert_eq(WorldFingerprint.compute(worlds[0]), WorldFingerprint.compute(worlds[1]),
+			"application order of keyed rows must not reach the fold")
+	assert_ne(WorldFingerprint.compute(worlds[0]), WorldFingerprint.compute(worlds[2]),
+			"a different row key must fingerprint differently")
