@@ -133,6 +133,8 @@ func land_on(node: NodeCombat, world: CombatWorld) -> void:
 				else def.stacks_per_hit(_attacker_board(), power)
 			power *= absf(crit_multiplier)
 			power *= stack_scale
+			# The row is integer (ADR 0032): round once, half-up, after crit × scale.
+			power = StatusDef.round_half_up(power)
 			if host.blocks_status(def):
 				power = 0.0
 			if _greed_arms(host):

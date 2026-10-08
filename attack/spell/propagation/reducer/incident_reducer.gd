@@ -43,19 +43,40 @@ func get_description() -> String:
 
 ## This reducer's [member stack_fold] over [param incidents]' stack weights.
 func fold_stacks(incidents: Array[CastSpell]) -> float:
-	return 1.0
+	return fold_of(incidents, stack_fold)
 
 
 ## [param fold] over [param incidents]' [member CastSpell.stack_weight]s —
 ## static so the resolver's null-reducer path folds MAX without an instance.
 static func fold_of(incidents: Array[CastSpell], fold: StackFold) -> float:
-	return 1.0
+	if incidents.is_empty():
+		return 1.0
+	var out: float = incidents[0].stack_weight
+	if fold == StackFold.FIRST:
+		return out
+	for i in range(1, incidents.size()):
+		var w: float = incidents[i].stack_weight
+		match fold:
+			StackFold.SUM:
+				out += w
+			StackFold.MIN:
+				out = minf(out, w)
+			_:
+				out = maxf(out, w)
+	return out
 
 
 ## The player-facing line for a non-default [member stack_fold]; "" at MAX.
 ## Stock reducers override [method get_description], so composers
 ## ([method PropagationConfig.get_description]) append this themselves.
 func fold_description() -> String:
+	match stack_fold:
+		StackFold.SUM:
+			return "Stacks add where branches meet."
+		StackFold.MIN:
+			return "Stacks take the weakest where branches meet."
+		StackFold.FIRST:
+			return "Stacks take the first arrival where branches meet."
 	return ""
 
 
@@ -110,5 +131,9 @@ static func _merge_payload_defaults(incidents: Array[CastSpell]) -> CastSpell:
 				seen[v] = true
 				union.append(v)
 	merged.hops_remaining = hops_max
+	# The carried stack weight is MAX of the incidents — never the fold, which
+	# is a per-landing fact: a SUM spell lands one share per converging branch
+	# without compounding down the walk.
+	merged.stack_weight = fold_of(incidents, StackFold.MAX)
 	merged.visited = union
 	return merged

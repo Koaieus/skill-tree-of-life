@@ -259,12 +259,20 @@ static func _resolve(
 				_record_cancel(outcome, node, ctx.wave_index, incidents)
 				continue
 			resolved.incident_count = incidents.size()
+			# The null reducer's first-wins short-circuit returns incidents[0]
+			# raw; the carried weight is still MAX of the incidents.
+			resolved.stack_weight = IncidentReducer.fold_of(incidents, IncidentReducer.StackFold.MAX)
 			merged.append(resolved)
 			var lctx := LandingContext.new()
 			lctx.cast = ctx
 			lctx.node = node
 			lctx.payload = resolved
 			lctx.incidents = incidents
+			# The landing's starting stack scale is the reducer's fold over the
+			# arrivals' weights (MAX with no reducer); ScaleStacksEffect and the
+			# crit multiply onto it.
+			lctx.stack_scale = config.reducer.fold_stacks(incidents) if config.reducer != null \
+					else IncidentReducer.fold_of(incidents, IncidentReducer.StackFold.MAX)
 			lctx.fill_landing()
 			lctx_of[resolved] = lctx
 			var preds: Array[SkillNode] = []

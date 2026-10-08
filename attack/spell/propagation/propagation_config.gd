@@ -81,6 +81,8 @@ func mint(payload: CastSpell, pick: PropagationPick) -> CastSpell:
 		progressed = hop_damage.apply(payload.damage, payload.seed_damage, payload.hop_index)
 	next.damage = progressed * pick.share
 	next.stack_weight = payload.stack_weight
+	if hop_stacks != null:
+		next.stack_weight = hop_stacks.apply(payload.stack_weight, 1.0, payload.hop_index)
 	next.hops_remaining = payload.hops_remaining - 1
 	next.hop_index = payload.hop_index + 1
 	if pick.lineage_override.is_empty():
@@ -119,6 +121,9 @@ func get_description() -> String:
 		var rd := reducer.get_description()
 		if rd != "":
 			parts.append(rd)
+		var fd := reducer.fold_description()
+		if fd != "" and not rd.contains(fd):
+			parts.append(fd)
 	if is_inf(max_hops):
 		parts.append("No hop limit.")
 	else:
