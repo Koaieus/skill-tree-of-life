@@ -448,6 +448,11 @@ func _land_batch(
 			landing.target = di.target
 			landing.structural_key = di.structural_key
 			landing.paired = di
+			if _ctx.overlays_for.is_valid():
+				var carrier: SkillNode = di.read_node
+				var lookup: Callable = _ctx.overlays_for
+				landing.read_overlays = func(sid: StringName) -> Array[ModifierBins]:
+					return lookup.call(carrier, sid)
 			landing.hits = sub.hits
 			for effect in riders:
 				effect.apply(landing)

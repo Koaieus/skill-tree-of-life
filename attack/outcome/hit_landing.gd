@@ -18,6 +18,11 @@ var origin: SkillNode = null
 ## The attacker-side node the landing reads its local stats from
 ## ([member HitInstance.read_node]) — resolve-local, never on the wire.
 var read_node: SkillNode = null
+## The swing-time overlays on [member read_node]'s read of a stat, as
+## `(stat_id) -> Array[ModifierBins]` — what a status's stacks fold reads so a
+## one-swing temp addon counts like a placed one. Only a blade contact sets it;
+## unset means no overlays. Resolve-local, never on the wire.
+var read_overlays: Callable = Callable()
 ## The landed node ([member HitInstance.target]).
 var target: SkillNode = null
 ## The landing's structural position, in its outcome's cadence units

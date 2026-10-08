@@ -250,16 +250,19 @@ func stacks_per_hit(board: StatBoard, authored: float) -> float:
 
 ## [method stacks_per_hit] read through the attacking node's [param slice]:
 ## [method NodeCombat.get_local_value_with] folds the owner's entity bins, then
-## the node's local bins, then [param authored] as the `base_add` overlay — so a
-## modifier local to that node scales only the hits it reads for. Rounded
+## the node's local bins, then [param authored] as the `base_add` overlay, then
+## [param extra] (a swing's temp overlays, [member HitLanding.read_overlays]) —
+## so a modifier local to that node scales only the hits it reads for. Rounded
 ## HALF-UP like the board form. A null slice, a blank id or a stat on neither
 ## board answers [param authored], rounded the same way.
-func stacks_per_hit_at(slice: NodeCombat, authored: float) -> float:
+func stacks_per_hit_at(slice: NodeCombat, authored: float,
+		extra: Array[ModifierBins] = []) -> float:
 	if slice == null or stacks_stat_id.is_empty():
 		return round_half_up(authored)
 	var bins := ModifierBins.new()
 	bins.base_add = authored
 	var overlays: Array[ModifierBins] = [bins]
+	overlays.append_array(extra)
 	var v: Variant = slice.get_local_value_with(stacks_stat_id, overlays)
 	if v == null:
 		return round_half_up(authored)

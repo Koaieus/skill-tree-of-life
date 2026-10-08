@@ -1208,6 +1208,7 @@ func swing_context(world: CombatWorld,
 	ctx.attacker = attacker
 	ctx.origin = source
 	ctx.hit_source = self
+	ctx.overlays_for = overlays_for
 	return ctx
 
 

@@ -34,6 +34,11 @@ var power: float = 0.0
 ## reconstructs the hit flat so a peer's replay lands it rather than scaling
 ## it a second time (the [member HitInstance.basis] `PERCENT_MAX` precedent).
 var power_resolved: bool = false
+## The landing's swing-time overlay lookup ([member HitLanding.read_overlays]),
+## folded into the stacks read at [method land_on]. Unset for every landing but
+## a blade contact's. Resolve-local, like [member HitInstance.read_node]: the
+## record ships the landed [member power], so a peer never reads it.
+var read_overlays: Callable = Callable()
 ## Multiplies the FOLDED stacks at [method land_on] — after the stacks stat,
 ## beside the crit factor — so a 0 lands 0 however much `stacks_per_hit` is
 ## invested. Stamped by [ApplyStatusEffect] from a spell landing's
@@ -121,7 +126,10 @@ func land_on(node: NodeCombat, world: CombatWorld) -> void:
 	if not power_resolved:
 		if def != null:
 			var rn: NodeCombat = world.combat_for(read_node) if world != null else null
-			power = def.stacks_per_hit_at(rn, power) if rn != null \
+			var extra: Array[ModifierBins] = []
+			if read_overlays.is_valid():
+				extra = read_overlays.call(def.stacks_stat_id)
+			power = def.stacks_per_hit_at(rn, power, extra) if rn != null \
 				else def.stacks_per_hit(_attacker_board(), power)
 			power *= absf(crit_multiplier)
 			power *= stack_scale

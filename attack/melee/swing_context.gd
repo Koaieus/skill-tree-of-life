@@ -39,6 +39,10 @@ var origin: SkillNode = null
 ## What every hit names as its [member HitInstance.source] — the plan, when
 ## there is one. Typed as the field it fills.
 var hit_source: Variant = null
+## The swing's temp-overlay lookup, `(node, stat_id) -> Array[ModifierBins]` —
+## [method MeleeAttackPlan.overlays_for]. Unset when no plan built the context;
+## the resolver then binds no overlays to its rider landings.
+var overlays_for: Callable = Callable()
 ## The stamped crit seed ([member AttackPlan.resolve_seed]); 0 for an
 ## unstamped preview.
 var resolve_seed: int = 0

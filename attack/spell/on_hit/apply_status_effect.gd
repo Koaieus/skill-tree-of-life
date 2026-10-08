@@ -34,6 +34,7 @@ func apply(landing: HitLanding) -> void:
 	status.target = landing.target
 	status.origin = landing.origin
 	status.read_node = landing.read_node
+	status.read_overlays = landing.read_overlays
 	status.structural_key = landing.structural_key
 	status.paired = landing.paired
 	status.hit_key = landing.hit_key

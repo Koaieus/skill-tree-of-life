@@ -101,6 +101,7 @@ static func _retargeted(landing: HitLanding, node: SkillNode) -> HitLanding:
 	copy.source = landing.source
 	copy.origin = landing.origin
 	copy.read_node = landing.read_node
+	copy.read_overlays = landing.read_overlays
 	copy.target = node
 	copy.structural_key = landing.structural_key
 	copy.paired = landing.paired
