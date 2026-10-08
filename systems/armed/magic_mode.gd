@@ -94,13 +94,14 @@ func _begin_aim(p: MagicAttackPlan, node: SkillNode) -> bool:
 
 
 ## Point the armed drag at [param world] (global canvas position). A cursor
-## still on the caster's centre names no direction and is ignored.
+## still inside the caster's own disc is a click, not a drag, and names no
+## direction — ignored, so a plain click on a caster commits nothing.
 func update_aim(world: Vector2) -> void:
 	var p := plan() as MagicAttackPlan
 	if p == null or _aim_source == null or not is_instance_valid(_aim_source):
 		return
 	var delta := world - _aim_source.global_position
-	if delta.is_zero_approx():
+	if delta.length() <= maxf(_aim_source.radius, 1.0):
 		return
 	p.set_aim(_aim_source, delta.angle())
 

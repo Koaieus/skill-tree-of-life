@@ -136,6 +136,15 @@ func test_press_drag_release_commits_the_aim() -> void:
 			"drawn to the full reach length")
 
 
+func test_a_click_inside_the_caster_commits_nothing() -> void:
+	var plan := _arm()
+	_ctl.route_left_click(_source)
+	_move(Vector2(2, 1))
+	_release()
+	assert_true(is_nan(plan.aim_angle), "jitter inside the caster's disc sets no aim")
+	assert_false(_ctl.armed_stack.top() is TargetMode, "nothing committed")
+
+
 func test_press_on_a_non_source_sets_no_aim() -> void:
 	var plan := _arm()
 	_ctl.route_left_click(_east1)
