@@ -13,7 +13,9 @@ extends HBoxContainer
 ## Binds to a bare [MagicAttackPlan] — the caster is [member AttackPlan.attacker]
 ## — and repaints on the plan's own [signal AttackPlan.state_changed], so any
 ## host (the tray, a spell playground) only calls [method bind]. Steppers are
-## [code]duplicate()[/code]s of the hidden %StepperTemplate.
+## [code]duplicate()[/code]s of the hidden %StepperTemplate, laid out in the
+## wrapping %Steppers [HFlowContainer]: a caster may hold every rostered aspect,
+## and a row of a dozen steppers must wrap rather than widen its host (#753).
 
 ## Points one click adds or takes.
 @export_range(1, 10, 1, "or_greater") var step: int = 1
@@ -23,7 +25,7 @@ extends HBoxContainer
 @export_range(0.0, 1.0, 0.05) var dimmed_alpha: float = 0.4
 
 @onready var _header: Label = %Header
-@onready var _steppers_box: HBoxContainer = %Steppers
+@onready var _steppers_box: HFlowContainer = %Steppers
 @onready var _template: HBoxContainer = %StepperTemplate
 
 var _plan: MagicAttackPlan = null

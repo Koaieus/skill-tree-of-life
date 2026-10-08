@@ -16,6 +16,7 @@ text = "Affinity"
 [node name="Value" type="Label" parent="."]
 unique_name_in_owner = true
 layout_mode = 2
+custom_minimum_size = Vector2(160, 0)
 size_flags_horizontal = 3
 theme_override_font_sizes/font_size = 11
 autowrap_mode = 3

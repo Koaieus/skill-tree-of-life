@@ -59,6 +59,13 @@ const MAX_VISIBLE_ROWS: int = 2
 		picker_width_px = v
 		_place_picker()
 
+## Minimum width of each of the four %Sections columns (Cast / On arrival /
+## Then / Crits); the lines wrap inside it.
+@export_range(80, 400, 1, "suffix:px") var section_min_width: int = 180:
+	set(v):
+		section_min_width = v
+		_size_sections()
+
 @onready var _context_label: Label = %ContextLabel
 @onready var _spell_bar: SpellPickerBar = %SpellPickerBar
 @onready var _spell_scroll: ScrollContainer = %SpellScroll
@@ -67,6 +74,13 @@ const MAX_VISIBLE_ROWS: int = 2
 @onready var _reset_button: Button = %ResetButton
 @onready var _launch_button: LaunchAttackButton = %LaunchButton
 @onready var _infusion_row: InfusionRow = %InfusionRow
+@onready var _affinity_line: AffinityLine = %AffinityLine
+@onready var _sections: Array[SpellTooltipSection] = [%CastSection, %OnArrivalSection,
+		%ThenSection, %CritsSection]
+
+## The (plan, spell) the %Sections were last built for — see [method _show_sections].
+var _sections_plan: MagicAttackPlan = null
+var _sections_spell: SpellDef = null
 
 
 ## Wired here rather than in [method _on_bound] because it is pure layout —
@@ -79,7 +93,16 @@ func _ready() -> void:
 	# The collapsed button's press always opens the picker, castable or not:
 	# the caster gate's denial toast belongs to the bar's tiles.
 	_spell_button.set_has_caster(true)
+	# The configure view shares the body's height budget with the sections and
+	# the infusion row, so the collapsed tile is the bar's compact edge.
+	_spell_button.custom_minimum_size = Vector2.ONE * SpellPickerBar.COMPACT_BUTTON_PX
 	_place_picker()
+	_size_sections()
+
+
+func _size_sections() -> void:
+	for section in _sections:
+		section.custom_minimum_size.x = section_min_width
 
 
 ## Bottom edge [member picker_gap_px] above the body's top edge, growing up.
@@ -124,6 +147,8 @@ func _on_bound() -> void:
 
 func teardown() -> void:
 	_infusion_row.bind(null)
+	_affinity_line.bind(null)
+	_show_sections(null)
 	if _armed_stack != null and _armed_stack.selected_spell_changed.is_connected(_spell_bar.sync_selected):
 		_armed_stack.selected_spell_changed.disconnect(_spell_bar.sync_selected)
 	if _armed_stack != null and _armed_stack.attack_plan_state_changed.is_connected(_refresh):
@@ -171,6 +196,8 @@ func _on_can_act_changed(can_act: bool) -> void:
 func _refresh() -> void:
 	var plan := _armed_plan() as MagicAttackPlan
 	_infusion_row.bind(plan)
+	_affinity_line.bind(plan)
+	_show_sections(plan)
 	# Post-#728 there is no cast-from node until a target is clicked, so this
 	# reads 0 until one is auto-picked. Deliberately NOT "the best degree the
 	# territory offers": _refresh runs on attack_plan_state_changed, which
@@ -190,6 +217,24 @@ func _refresh() -> void:
 	_launch_button.text = "Cast %s" % spell_name
 	var can_act := _input_ctl == null or (_input_ctl.can_player_act() and _input_ctl.can_afford(plan))
 	_launch_button.set_enabled(plan != null and plan.is_valid() and can_act)
+
+
+## The four marked sections of [param plan]'s spell, from [method SpellSections.build]
+## with the caster's board — the tooltip's own derivation; nothing about a spell
+## is derived here. [method _refresh] runs on every hover, so the build happens
+## only when (plan, spell) moved since the last one. A caster stat moving
+## mid-arm shows on the next spell or plan change.
+func _show_sections(plan: MagicAttackPlan) -> void:
+	var spell := plan.spell if plan != null else null
+	if plan == _sections_plan and spell == _sections_spell:
+		return
+	_sections_plan = plan
+	_sections_spell = spell
+	var board := plan.attacker.stat_board if plan != null and plan.attacker != null else null
+	var built := SpellSections.build(spell, board)
+	var lines: Array[SpellSections.Lines] = [built.cast, built.on_arrival, built.then, built.crits]
+	for i in _sections.size():
+		_sections[i].bind(lines[i].lines, lines[i].dynamic)
 
 
 func _on_launch_pressed() -> void:

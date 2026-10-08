@@ -6,31 +6,15 @@
 [ext_resource type="PackedScene" uid="uid://dqlt773tgviy7" path="res://ui/spell_picker_bar/spell_picker_bar.tscn" id="4_spellbar"]
 [ext_resource type="PackedScene" path="res://ui/hud/command_tray/bodies/infusion_row.tscn" id="5_infusion"]
 [ext_resource type="PackedScene" uid="uid://w2m6rt1jv4vs" path="res://ui/spell_picker_bar/spell_picker_button.tscn" id="6_spellbtn"]
+[ext_resource type="PackedScene" path="res://ui/spell_tooltip/spell_tooltip_section.tscn" id="7_section"]
+[ext_resource type="PackedScene" path="res://ui/hud/command_tray/bodies/affinity_line.tscn" id="8_affinity"]
 
 [node name="MagicBody" instance=ExtResource("1_base")]
 script = ExtResource("2_script")
 
 [node name="Content" type="VBoxContainer" parent="BodyContent" unique_id=333665761]
 layout_mode = 2
-theme_override_constants/separation = 6
-
-[node name="Header" type="HBoxContainer" parent="BodyContent/Content" unique_id=266619087]
-layout_mode = 2
-
-[node name="Title" type="Label" parent="BodyContent/Content/Header" unique_id=1144342937]
-modulate = Color(0.291, 0.5892, 1, 1)
-layout_mode = 2
-size_flags_horizontal = 3
-theme_type_variation = &"CinzelHeader"
-theme_override_font_sizes/font_size = 12
-text = "✴ Spells"
-
-[node name="ContextLabel" type="Label" parent="BodyContent/Content/Header" unique_id=1069517415]
-unique_name_in_owner = true
-modulate = Color(0.784, 0.824, 0.902, 0.75)
-layout_mode = 2
-theme_override_font_sizes/font_size = 11
-text = "source degree 0"
+theme_override_constants/separation = 4
 
 [node name="SpellRow" type="HBoxContainer" parent="BodyContent/Content" unique_id=13126492]
 layout_mode = 2
@@ -40,6 +24,25 @@ theme_override_constants/separation = 8
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_vertical = 4
+
+[node name="Header" type="VBoxContainer" parent="BodyContent/Content/SpellRow" unique_id=266619087]
+layout_mode = 2
+size_flags_vertical = 4
+theme_override_constants/separation = 2
+
+[node name="Title" type="Label" parent="BodyContent/Content/SpellRow/Header" unique_id=1144342937]
+modulate = Color(0.291, 0.5892, 1, 1)
+layout_mode = 2
+theme_type_variation = &"CinzelHeader"
+theme_override_font_sizes/font_size = 12
+text = "✴ Spells"
+
+[node name="ContextLabel" type="Label" parent="BodyContent/Content/SpellRow/Header" unique_id=1069517415]
+unique_name_in_owner = true
+modulate = Color(0.784, 0.824, 0.902, 0.75)
+layout_mode = 2
+theme_override_font_sizes/font_size = 11
+text = "source degree 0"
 
 [node name="SpellRowSpacer" type="Control" parent="BodyContent/Content/SpellRow"]
 layout_mode = 2
@@ -60,17 +63,52 @@ size_flags_vertical = 4
 text = "Cast"
 tint = Color(0.291, 0.5892, 1, 1)
 
-[node name="InfusionRow" parent="BodyContent/Content" instance=ExtResource("5_infusion")]
+[node name="Sections" type="HBoxContainer" parent="BodyContent/Content"]
 unique_name_in_owner = true
 layout_mode = 2
+theme_override_constants/separation = 12
 
-[node name="Footer" type="Label" parent="BodyContent/Content" unique_id=2037564272]
-modulate = Color(0.667, 0.714, 0.824, 0.5)
+[node name="CastSection" parent="BodyContent/Content/Sections" instance=ExtResource("7_section")]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(180, 0)
 layout_mode = 2
-theme_override_font_sizes/font_size = 9
-autowrap_mode = 2
-clip_text = true
-text = "degree icon = min. source-node degree · then click an enemy node"
+size_flags_horizontal = 3
+header_text = "CAST"
+
+[node name="OnArrivalSection" parent="BodyContent/Content/Sections" instance=ExtResource("7_section")]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(180, 0)
+layout_mode = 2
+size_flags_horizontal = 3
+header_text = "ON ARRIVAL"
+
+[node name="ThenSection" parent="BodyContent/Content/Sections" instance=ExtResource("7_section")]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(180, 0)
+layout_mode = 2
+size_flags_horizontal = 3
+header_text = "THEN"
+
+[node name="CritsSection" parent="BodyContent/Content/Sections" instance=ExtResource("7_section")]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(180, 0)
+layout_mode = 2
+size_flags_horizontal = 3
+header_text = "CRITS"
+
+[node name="BottomRow" type="HBoxContainer" parent="BodyContent/Content"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="InfusionRow" parent="BodyContent/Content/BottomRow" instance=ExtResource("5_infusion")]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="AffinityLine" parent="BodyContent/Content/BottomRow" instance=ExtResource("8_affinity")]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 0
 
 [node name="PickerPanel" type="PanelContainer" parent="."]
 unique_name_in_owner = true
