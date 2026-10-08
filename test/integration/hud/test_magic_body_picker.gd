@@ -145,6 +145,7 @@ func test_the_spell_button_toggles_the_picker_and_the_panel() -> void:
 	_button().pressed.emit()
 	assert_true(_picker_up(), "the press pushes the picker")
 	assert_true(_panel().visible, "and shows the panel")
+	assert_eq(_panel().mouse_filter, Control.MOUSE_FILTER_STOP, "a click on the panel never reaches the graph")
 	_button().pressed.emit()
 	assert_false(_picker_up(), "a second press pops it")
 	assert_false(_panel().visible, "and hides the panel")
