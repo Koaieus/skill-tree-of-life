@@ -124,8 +124,18 @@ func _arm_plan(members: Array[SkillNode] = []) -> MeleeAttackPlan:
 	return plan
 
 
+const _CLAMP: PackedScene = preload("res://skill_node/addons/defs/clamp_addon.tscn")
+const _SPIKE: PackedScene = preload("res://skill_node/addons/defs/spike_ring_addon.tscn")
+
+
 func _card(index: int) -> TempUpgradeButton:
 	return _row.get_child(index) as TempUpgradeButton
+
+
+## The card for [param entry] — by catalog position, never a literal index, so
+## a new temp-placeable addon sorting in between does not shift the subject.
+func _card_of(entry: PackedScene) -> TempUpgradeButton:
+	return _card(_catalog.offered().find(entry))
 
 
 ## The addon's own authored icon, read the same way production reads it.
@@ -191,22 +201,20 @@ func _uniq(values: Array) -> Array:
 
 func test_arming_swaps_exactly_one_card() -> void:
 	_arm_plan()
-	var clamp_entry: PackedScene = preload("res://skill_node/addons/defs/clamp_addon.tscn")
-	var spike_entry: PackedScene = preload("res://skill_node/addons/defs/spike_ring_addon.tscn")
 
-	_pic.arm_temp_upgrade(clamp_entry)
-	assert_eq(_card(0).state, TempUpgradeButton.State.ARMED, "clamp armed")
-	assert_eq(_card(1).state, TempUpgradeButton.State.AVAILABLE, "spike must not also read as armed")
+	_pic.arm_temp_upgrade(_CLAMP)
+	assert_eq(_card_of(_CLAMP).state, TempUpgradeButton.State.ARMED, "clamp armed")
+	assert_eq(_card_of(_SPIKE).state, TempUpgradeButton.State.AVAILABLE, "spike must not also read as armed")
 
-	_pic.arm_temp_upgrade(spike_entry)
-	assert_eq(_card(0).state, TempUpgradeButton.State.AVAILABLE, "clamp must have dropped its arm")
-	assert_eq(_card(1).state, TempUpgradeButton.State.ARMED, "spike armed")
+	_pic.arm_temp_upgrade(_SPIKE)
+	assert_eq(_card_of(_CLAMP).state, TempUpgradeButton.State.AVAILABLE, "clamp must have dropped its arm")
+	assert_eq(_card_of(_SPIKE).state, TempUpgradeButton.State.ARMED, "spike armed")
 
 
 func test_spending_the_blade_budget_flips_affordability_only() -> void:
 	# blade_size 3, spike costs 2, clamp costs 1.
 	_arm_plan()
-	assert_true(_card(1).affordable, "spike is affordable with the full 3-node budget")
+	assert_true(_card_of(_SPIKE).affordable, "spike is affordable with the full 3-node budget")
 
 	# Two members eat 2 of 3 → spike (cost 2) no longer fits, clamp (cost 1) still does.
 	# Grown on the SAME plan, so this is genuinely "the budget was spent" rather
@@ -214,15 +222,15 @@ func test_spending_the_blade_budget_flips_affordability_only() -> void:
 	var plan := _pic.armed_stack.attack_plan() as MeleeAttackPlan
 	plan.toggle_member(_a)
 	plan.toggle_member(_b)
-	assert_eq(_card(1).state, TempUpgradeButton.State.UNAFFORDABLE,
+	assert_eq(_card_of(_SPIKE).state, TempUpgradeButton.State.UNAFFORDABLE,
 		"spending the shared budget must read as UNAFFORDABLE, not as Godot's disabled grey")
-	assert_false(_card(1).armed, "affordability must not silently clear the arm flag")
-	assert_eq(_card(0).state, TempUpgradeButton.State.AVAILABLE,
+	assert_false(_card_of(_SPIKE).armed, "affordability must not silently clear the arm flag")
+	assert_eq(_card_of(_CLAMP).state, TempUpgradeButton.State.AVAILABLE,
 		"clamp still fits in the remaining budget and must stay at rest")
 
 	# The last member exhausts it entirely.
 	plan.toggle_member(_c)
-	assert_eq(_card(0).state, TempUpgradeButton.State.UNAFFORDABLE, "no budget left for clamp either")
+	assert_eq(_card_of(_CLAMP).state, TempUpgradeButton.State.UNAFFORDABLE, "no budget left for clamp either")
 
 
 ## Decision 6's regression guard. `attack_mode_bar.tscn` used to carry three
