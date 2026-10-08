@@ -62,6 +62,10 @@ func _build(origin: Vector2 = Vector2.ZERO, shots: float = 1.0) -> Dictionary:
 	attacker.stat_board.arrows.add(AmmoTypeRoster.BASE_ID, 8)
 	attacker.stat_board.action_points.base_value = 4.0
 	attacker.stat_board.action_points.current = 4.0
+	# `_crack_shot` sizes a hit to EXACTLY the core's max HP; the board's
+	# baseline 5% crit would overflow it, kill the defender and leave the
+	# replayed poison no live entity to land on (a ~3% flake). Pin it.
+	attacker.stat_board.crit_chance.base_value = 0.0
 	graph.entities_container.add_child(attacker)
 
 	var defender := Entity.new()
