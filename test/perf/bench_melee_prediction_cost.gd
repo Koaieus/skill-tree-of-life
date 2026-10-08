@@ -98,14 +98,14 @@ extends GutTest
 ## `build_swing_clock` / `build_obstacle_field` (#808) and the sim/scan/land
 ## interleave still dominate.
 ##
-## [b]The 192x term, made visible (`test_coarse_pass_cost_at_192_proposals`).[/b]
+## [b]The proposal-count term, made visible (`test_coarse_pass_cost_at_worst_case_proposals`).[/b]
 ## Neither this bench's own per-call attribution nor `bench_ai_turn.gd` (a
 ## 4-node fixture, where this is free) shows what [method
 ## AiBladeRollout._coarse_rank_and_select] actually pays on the shipped
 ## 800-node map: it calls [method MeleeAttackPlan.build_blade_state] + [method
 ## MeleeAttackPlan.build_drivers] on the CALLING thread, once per surviving
-## proposal, up to `_MAX_PIVOTS (6) x _MAX_BLADE_SIZE_SAFETY (16) x 2
-## directions` = 192 times, before any [WorkerThreadPool] task starts. At
+## proposal, up to `_MAX_PIVOTS (6) x 4 proposals per pivot` = 24 times
+## since #823 (192 = 6 x 16 x 2 before it; the figures below are from then), before any [WorkerThreadPool] task starts. At
 ## blade size 4, 192 repetitions measured 338495 us total — ~1763 us/proposal,
 ## ~49 frames @144Hz. That whole figure moves with #809's `build_blade_state`
 ## fix (the `get_induced_edges` share collapsed the same way per call above),
@@ -152,7 +152,7 @@ extends GutTest
 ## recomputed from the current pose every iteration, so it needs no safety
 ## margin — brings it back to noise. Keep that reject if you touch `project`.
 ##
-## [b]The 192x term after #811.[/b] The coarse pass now issues ONE defender
+## [b]The proposal-count term after #811 (measured at the then-192 count; the shipped bound is now _MAX_PIVOTS x 4 = 24, #833).[/b] The coarse pass now issues ONE defender
 ## query per PIVOT and shares the immutable zone set across that pivot's
 ## proposals. Measured at 192 proposals, blade size 4: 12682 us shared vs
 ## 18447 us if every proposal queried for itself (the shape #811 refused) —
@@ -462,22 +462,25 @@ func test_prediction_cost_attribution() -> void:
 
 ## #809: [method AiBladeRollout._coarse_rank_and_select] builds a
 ## [BladeState] + driver set on the CALLING thread for every surviving
-## proposal — up to `_MAX_PIVOTS (6) x _MAX_BLADE_SIZE_SAFETY (16) x 2
-## directions` = 192 — before any [WorkerThreadPool] task starts. Neither
+## proposal — up to `_MAX_PIVOTS x 4 proposals per pivot` (#823's bound,
+## both swing directions included) = 24 — before any [WorkerThreadPool] task starts. Neither
 ## `bench_ai_turn.gd` (a 4-node fixture, where this walk is free) nor the
-## per-call attribution above (one call, not 192) makes that multiplier
+## per-call attribution above (one call, not 24) makes that multiplier
 ## visible; this does, on the same 800-node level.
 ##
 ## Same two calls `_coarse_rank_and_select` makes per proposal
 ## ([method MeleeAttackPlan.build_blade_state], [method
-## MeleeAttackPlan.build_drivers]), repeated 192 times at the largest blade
+## MeleeAttackPlan.build_drivers]), repeated that many times at the largest blade
 ## size the ramp above measures — a stand-in for "worst pivot/size/direction
 ## count survives free rejection", not a claim that every AI turn hits it.
-func test_coarse_pass_cost_at_192_proposals() -> void:
+func test_coarse_pass_cost_at_worst_case_proposals() -> void:
 	await _ensure_fixture()
 	if _frontline == null:
 		return
-	const _PROPOSAL_COUNT := 6 * 16 * 2  # _MAX_PIVOTS x _MAX_BLADE_SIZE_SAFETY x 2
+	# #823's generator emits at most 4 proposals per pivot (archetype + one
+	# shorter variant, x 2 swing directions), whatever the blade size.
+	const _PROPOSALS_PER_PIVOT := 4
+	var proposal_count: int = AiBladeRollout._MAX_PIVOTS * _PROPOSALS_PER_PIVOT
 	var size: int = _BLADE_SIZES[-1]
 	var probe := _plan_of_size(size)
 	if probe.blade_nodes.size() < size:
@@ -488,17 +491,17 @@ func test_coarse_pass_cost_at_192_proposals() -> void:
 	var t := Time.get_ticks_usec()
 	var shared := _plan_of_size(size).build_defender_zones(_plan_of_size(size).build_blade_state(
 			BladeDefenderZones.new()))
-	for _i in _PROPOSAL_COUNT:
+	for _i in proposal_count:
 		var plan := _plan_of_size(size)
 		var state := plan.build_blade_state(shared)
 		plan.build_drivers(state)
 	var total := Time.get_ticks_usec() - t
 
 	# (b) the same loop letting every proposal query for itself — the shape
-	#     #811 explicitly refused ("do not issue 192 queries"). Kept measured
+	#     #811 explicitly refused ("do not issue a query per proposal"). Kept measured
 	#     so the sharing has a number attached rather than an argument.
 	var t2 := Time.get_ticks_usec()
-	for _i in _PROPOSAL_COUNT:
+	for _i in proposal_count:
 		var plan := _plan_of_size(size)
 		var state := plan.build_blade_state()
 		plan.build_drivers(state)
@@ -506,9 +509,9 @@ func test_coarse_pass_cost_at_192_proposals() -> void:
 
 	gut.p("")
 	gut.p("coarse-pass calling-thread cost at %d proposals, blade size %d:"
-			% [_PROPOSAL_COUNT, size])
+			% [proposal_count, size])
 	gut.p("  %-56s %7.0f us" % ["total, ONE shared query (what #811 ships)", total])
-	gut.p("  %-56s %7.2f us" % ["per proposal", float(total) / float(_PROPOSAL_COUNT)])
+	gut.p("  %-56s %7.2f us" % ["per proposal", float(total) / float(proposal_count)])
 	gut.p("  %-56s %7.2f" % ["frames @144Hz", float(total) / _FRAME_BUDGET_USEC])
 	gut.p("  %-56s %7.0f us" % ["total, a query PER proposal (refused)", unshared])
 	assert_gt(total, 0, "the coarse-pass run must have measured something")
