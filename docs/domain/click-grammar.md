@@ -64,6 +64,7 @@ release (`attack_plan_changed` with null) re-requests its mode, so
 | Level | Sits on | Armed while | Pop clears |
 |---|---|---|---|
 | `MassActionMode` | whatever is top | a distant-allocate / would-island-deallocate click awaits confirmation | the pending request |
+| `SpellPickMode` | `MagicMode` / `TargetMode` | the spell picker is open | nothing on the plan |
 | `TempUpgradeMode` | `BladeMode` | a temp-upgrade card (Clamp, Spikes…) is armed — only ever with a blade up (owner, 2026-09-30) | just the arm — never the pivot/members under it |
 | `BladeMode` | `MeleeMode` | a pivot is set | the pivot and every member |
 | `TargetMode` | `RangedMode` / `MagicMode` | a target is set | the target (magic: and its auto-picked caster) |
@@ -85,7 +86,10 @@ Opposite ends, on purpose.
 | Magic | *(none — the cast-from node is auto-picked from the spell's reach union)* | the spell target, directly | source + target |
 
 Ranged and Magic are two-level: their only step is the **target**, since a
-null source is their resting state. See `MagicAttackPlan` and
+null source is their resting state. Magic's spell picker, `SpellPickMode`, is a leaf
+over either: the first arm with no sticky spell opens it, the spell button
+toggles it, and a pick, a hotkey spell, a launch or a pop closes it; a graph
+click closes it and goes through to the level below (target or retarget). See `MagicAttackPlan` and
 `SpellTargetUnion` for the source pick.
 
 ## Core-move

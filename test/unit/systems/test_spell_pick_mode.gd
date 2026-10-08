@@ -224,21 +224,26 @@ func test_the_picker_badge_is_the_magic_levels() -> void:
 
 
 func test_after_a_launch_the_rearmed_plan_stands_with_no_picker() -> void:
-	_arm_with_picker(_heal_spell())
-	_ctl.route_left_click(_joint)
+	_arm_with_picker(SpellCatalog.SPARK)
+	_ctl.route_left_click(_enemy)
 	assert_true(_magic().is_valid(), "precondition: %s" % str(_magic().validate()))
-	_bs.launch_attack(_magic())
-	await wait_until(func() -> bool: return not _bs.is_launching and _magic() != null and _magic().target == null, 5.0)
+	await _bs.launch_attack(_magic())
+	await get_tree().process_frame
 	assert_eq(_branch(), [ManageMode, MagicMode], "Magic stays armed, no picker")
 	assert_not_null(_magic(), "with a fresh magic plan")
+	assert_null(_magic().target if _magic() != null else null, "the fresh plan is empty")
 
 
 func test_a_launch_with_the_picker_open_pops_it() -> void:
-	_ctl.armed_stack.selected_spell = _heal_spell()
+	_ctl.armed_stack.selected_spell = SpellCatalog.SPARK
 	_ctl.arm_attack(BattleSystem.AttackMode.MAGIC)
-	_ctl.route_left_click(_joint)
+	# Aimed without the click, so no TargetMode stands between: a TargetMode
+	# would pop on the launch and take the picker with it.
+	assert_true(_magic_level().set_target(_enemy), "precondition")
 	assert_true(_magic_level().toggle_picker(), "precondition")
-	_bs.launch_attack(_magic())
-	await wait_until(func() -> bool: return not _bs.is_launching and _magic() != null and _magic().target == null, 5.0)
+	assert_eq(_branch(), [ManageMode, MagicMode, SpellPickMode], "precondition")
+	assert_true(_magic().is_valid(), "precondition: %s" % str(_magic().validate()))
+	await _bs.launch_attack(_magic())
+	await get_tree().process_frame
 	assert_null(_picker(), "the launch popped the picker")
 	assert_eq(_branch(), [ManageMode, MagicMode])

@@ -1170,7 +1170,16 @@ func arm_attack(mode: BattleSystem.AttackMode) -> bool:
 		return true
 	if not can_player_act():
 		return false
-	return armed_stack.switch_to(_attack_level(mode))
+	var level := _attack_level(mode)
+	if not armed_stack.switch_to(level):
+		return false
+	# The first magic arm, with no sticky spell, opens the picker. Pushed here
+	# rather than from MagicMode.on_pushed, which runs before the level lands;
+	# a refused arm returns above, so it never leaves a picker behind, and the
+	# post-launch re-arm never comes through here.
+	if level is MagicMode and armed_stack.selected_spell == null:
+		(level as MagicMode).toggle_picker()
+	return true
 
 
 func _attack_level(mode: BattleSystem.AttackMode) -> AttackArmMode:

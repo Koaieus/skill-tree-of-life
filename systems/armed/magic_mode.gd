@@ -69,8 +69,17 @@ func handle_left_click(node: SkillNode) -> bool:
 	return true
 
 
+## Open the spell picker ([SpellPickMode]) on top, or close the one on the
+## branch. True iff the picker is open afterwards. The one entry point the
+## magic body's spell button calls.
 func toggle_picker() -> bool:
-	return false
+	if stack == null:
+		return false
+	var picker := stack.find(SpellPickMode) as SpellPickMode
+	if picker != null and picker.magic == self:
+		picker.pop_self()
+		return false
+	return stack.push(SpellPickMode.new(self))
 
 
 func set_target(node: SkillNode) -> bool:
