@@ -5,9 +5,6 @@ extends GutTest
 ## cast's world ([method PropagationContext.is_cut_vertex]).
 
 const _WITHER := preload("res://effects/status/wither.tres")
-## True until `SpellResolver._stamp_crit_conditions` stamps a status hit's
-## condition tier (its `amount <= 0` gate skips a StatusInstance today).
-const _STATUS_STAMP_GATED := true
 
 var h: SpellTestHelper
 
@@ -105,9 +102,6 @@ func test_girdle_fans_outward_only_and_crits_every_landed_chokepoint() -> void:
 
 
 func test_girdle_lands_more_wither_on_a_chokepoint_than_on_a_leaf() -> void:
-	if _STATUS_STAMP_GATED:
-		pending("waits on the resolver stamping a status hit's condition tier")
-		return
 	var r := _girdle_cast()
 	var n: Array = r[0]
 	var outcome: AttackOutcome = r[1]

@@ -16,6 +16,7 @@
 [ext_resource type="Script" uid="uid://btpnit4nenasw" path="res://attack/targeting/node_targeting.gd" id="6_targeting"]
 [ext_resource type="Script" uid="uid://br4akul8rvteg" path="res://attack/range_finder/hop_range_finder.gd" id="7_range"]
 [ext_resource type="PackedScene" path="res://ui/vfx/coordinator/spells/spark_coordinator.tscn" id="10_vfx"]
+[ext_resource type="Resource" path="res://identity/defs/spell_girdle.tres" id="identity_ref"]
 
 [sub_resource type="Resource" id="dmg_girdle"]
 script = ExtResource("3_dmg")
@@ -57,6 +58,7 @@ range_finder = SubResource("range_3hop")
 
 [resource]
 script = ExtResource("1_spell")
+identity = ExtResource("identity_ref")
 id = &"girdle"
 name = "Girdle"
 tagline = "Ring the bark: the limb beyond it withers."

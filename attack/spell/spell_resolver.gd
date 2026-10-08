@@ -382,7 +382,7 @@ static func _stamp_crit_conditions(
 		spell: SpellDef,
 		lctx: LandingContext,
 		hit: HitInstance) -> void:
-	if hit == null or hit.amount <= 0.0:
+	if hit == null or (hit.amount <= 0.0 and not hit is StatusInstance):
 		return
 	for cond in spell.crit_conditions:
 		if cond != null and cond.evaluate(lctx):
