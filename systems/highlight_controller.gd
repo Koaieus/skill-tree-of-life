@@ -42,9 +42,11 @@ signal provider_state_changed
 			return
 		if armed_stack != null:
 			armed_stack.attack_plan_changed.disconnect(_on_attack_plan_changed)
+			armed_stack.changed.disconnect(_on_armed_branch_changed)
 		armed_stack = value
 		if armed_stack != null:
 			armed_stack.attack_plan_changed.connect(_on_attack_plan_changed.unbind(1))
+			armed_stack.changed.connect(_on_armed_branch_changed)
 		if is_node_ready():
 			_on_attack_plan_changed()
 @export var allocation_system: AllocationSystem
@@ -102,7 +104,6 @@ func _ready() -> void:
 	var ctl := _live_input_ctl()
 	if ctl != null:
 		ctl.core_move_targeting_changed.connect(_on_source_changed.unbind(1))
-		ctl.manage_arm_changed.connect(_on_source_changed.unbind(1))
 		ctl.mass_action_pending_changed.connect(_on_source_changed.unbind(1))
 		ctl.gate_confirm_changed.connect(_on_source_changed.unbind(1))
 		ctl.core_drag_target_changed.connect(_on_core_drag_target_changed)
@@ -115,6 +116,12 @@ func _ready() -> void:
 
 func _on_source_changed() -> void:
 	_resolve()
+
+
+## The armed branch moved — the Manage verb level lives on it.
+func _on_armed_branch_changed() -> void:
+	if is_node_ready():
+		_resolve()
 
 
 ## A new (or cleared) plan never inherits the last one's fuse warning.
@@ -248,9 +255,9 @@ func _build_allocation_provider() -> ManagerHighlightProvider:
 	if _allocation_provider == null:
 		_allocation_provider = ManagerHighlightProvider.new()
 	var verb := PlayerInputController.ManageVerb.ALLOCATE
-	var ctl := _live_input_ctl()
-	if ctl != null and ctl.manage_arm() != PlayerInputController.ManageVerb.NONE:
-		verb = ctl.manage_arm()
+	var level := armed_stack.find(ManageVerbMode) as ManageVerbMode if armed_stack != null else null
+	if level != null and level.verb != PlayerInputController.ManageVerb.NONE:
+		verb = level.verb
 	_allocation_provider.configure(player, allocation_system, graph, verb)
 	return _allocation_provider
 

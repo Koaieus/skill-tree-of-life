@@ -98,11 +98,6 @@ var _reform_slots: Dictionary[int, Dictionary] = {}
 ## key. NOT arm state: that is the [ArmedStack] branch, where Deallocate,
 ## Stake and Extract are [ManageVerbMode] levels on the [ManageMode] root.
 enum ManageVerb { NONE, ALLOCATE, DEALLOCATE, STAKE, EXTRACT }
-## Compat for [HighlightController], which still reads the verb: derived off
-## the stack, fires once per transition. New readers use [member armed_stack].
-signal manage_arm_changed(verb: ManageVerb)
-var _last_manage_verb: ManageVerb = ManageVerb.NONE
-
 ## A distant-allocate-path or would-island-deallocate click is pending
 ## confirmation ([MassActionMode] on the branch). Derived off the stack; fires
 ## once per transition.
@@ -1162,13 +1157,6 @@ func _verb_level(verb: ManageVerb) -> ManageVerbMode:
 		_: return ExtractMode.new(self)
 
 
-## The armed Manage verb, derived off the branch — compat for
-## [HighlightController]; see [signal manage_arm_changed].
-func manage_arm() -> ManageVerb:
-	var level := armed_stack.find(ManageVerbMode) as ManageVerbMode if armed_stack != null else null
-	return level.verb if level != null else ManageVerb.NONE
-
-
 ## Arm an attack mode — the HUD's attack buttons, the melee hotkey, reform.
 ## Switches (pop to root, then push); the mode already armed is a no-op, not a
 ## rebuilt plan. A refused request (mid-swing) pushes nothing. Returns whether
@@ -1272,10 +1260,6 @@ func _on_armed_stack_changed() -> void:
 	if request != _last_mass_request:
 		_last_mass_request = request
 		mass_action_pending_changed.emit(request)
-	var verb := manage_arm()
-	if verb != _last_manage_verb:
-		_last_manage_verb = verb
-		manage_arm_changed.emit(verb)
 	_refresh_armed_state()
 
 
