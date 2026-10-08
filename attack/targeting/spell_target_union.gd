@@ -164,8 +164,8 @@ static func build_for(spell: SpellDef, attacker: Entity, graph: Graph,
 	var targeting := spell.targeting
 	if not (targeting is NodeTargeting):
 		# No reach model to invert against — fall back to the O(N) walk per
-		# source. Nothing ships a non-NodeTargeting spell; this exists so the
-		# union stays total rather than silently empty if one ever does.
+		# source. An [AimedTargeting] spell takes this path: O(N) per source,
+		# a cost on a full-size board.
 		for source in union.sources:
 			var found: Dictionary[SkillNode, bool] = {}
 			var reach: Dictionary[SkillNode, float] = {}
