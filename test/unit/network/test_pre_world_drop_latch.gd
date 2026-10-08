@@ -234,3 +234,40 @@ func test_a_loot_offer_during_the_window_is_dropped() -> void:
 	host_offer_channel.send_loot_offer(offer, client_peer)
 	await get_tree().process_frame
 	assert_eq(offers.size(), 1, "and it is the window that gates it, not the kind")
+
+
+## [constant SeatHandover.KIND_SEAT_HANDOVER] names a seat by participant id
+## and flips the roster + entity facts on the receiver — against a world that
+## does not exist yet it would find no roster row or entity and a resync is
+## about to carry the truth anyway. Same latch as the loot offer (#1179), pinned
+## for the second deferred channel (#1187).
+func test_a_seat_handover_during_the_window_is_dropped() -> void:
+	var saved_roster := GameSession.roster
+	var roster := ParticipantRoster.new()
+	var seat := Participant.new()
+	seat.id = 1
+	seat.kind = Participant.Kind.HUMAN
+	roster.add(seat)
+	GameSession.roster = roster
+	var client_player := _client["player"] as Entity
+	client_player.participant_id = 1
+	client_player.is_human_controlled = true
+	var client_handover := SeatHandover.new()
+	add_child_autofree(client_handover)
+	_client_link.register(client_handover)
+	var host_handover := SeatHandover.new()
+	add_child_autofree(host_handover)
+	_host_link.register(host_handover)
+
+	_client_link.defer_until_world = true
+	host_handover.send_seat_handover(1)
+	await get_tree().process_frame
+	assert_eq(seat.kind, Participant.Kind.HUMAN, "the roster is untouched inside the window")
+	assert_true(client_player.is_human_controlled, "and so is the entity")
+
+	_client_link.defer_until_world = false
+	host_handover.send_seat_handover(1)
+	await get_tree().process_frame
+	assert_eq(seat.kind, Participant.Kind.AI, "the window gates it, not the kind")
+	assert_false(client_player.is_human_controlled)
+	GameSession.roster = saved_roster
