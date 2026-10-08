@@ -201,3 +201,20 @@ func test_entity_greed_is_dormant_for_a_hit_on_its_nodes() -> void:
 	_hit(_node, [[_POISON, 1.0]])
 	assert_almost_eq(_power(_node, &"poison"), 1.0, 0.001, "not doubled")
 	assert_almost_eq(_entity.get_combat().get_status_power(&"greed"), 1.0, 0.001, "dormant")
+
+
+# 7 — the memo is bounded: it remembers the latest armed hit only, so a host
+# that takes many hits does not accrete one key per hit.
+func test_the_arm_memo_forgets_a_hit_once_a_later_hit_arms() -> void:
+	_greed_on(_node, 5.0)
+	var host := _node.get_combat()
+	var a := HitLanding.new().hit_key
+	var b := HitLanding.new().hit_key
+	assert_true(host.greed_arm(a))
+	assert_true(host.greed_arm(a), "same hit: remembered, no second spend")
+	assert_almost_eq(_power(_node, &"greed"), 4.0, 0.001)
+	assert_true(host.greed_arm(b))
+	assert_almost_eq(_power(_node, &"greed"), 3.0, 0.001)
+	assert_true(host.greed_arm(a))
+	assert_almost_eq(_power(_node, &"greed"), 2.0, 0.001,
+			"hit a was forgotten when b armed, so it spends afresh")
