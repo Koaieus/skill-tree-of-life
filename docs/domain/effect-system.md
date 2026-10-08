@@ -265,8 +265,8 @@ show (that shape lives on as `test_aura_effect.gd`'s generic direction-agnostic
 `ProportionalScale` demo, not as the class) — the design doc calls for an
 *intense, very-short-range buff*, and an unbounded `ProportionalScale` can't
 express "bounded": pairing it with a bounded reach is the trap the scale's own
-docstring warns about. `NinjaCore`/`ninja_core.tres` and `SerpentCore`/
-`serpent_core.tres` (#39) are the reference implementations for this table now.
+docstring warns about. `entity/core/ninja_core.tres` and `serpent_core.tres` (#39; plain `CoreClass`
+resources, no dedicated script) are the reference implementations for this table now.
 
 Serpent's two components land on the same stat as `ADD_BONUS` and sum through one
 `ModifierBins.compute` — `Array[Effect]` *is* the composite.
@@ -379,8 +379,10 @@ read is already correct.
   `CLEAR` rows without spilling; `LINGER` rows stay. Curse is authored with `SpillSpread` (both triggers, 1.0,
   Mine). `network/graph_snapshot.gd` carries `(status id,
   power)` rows in resync, and `WorldFingerprint` folds them. Concrete defs:
-  `BlindnessStatus` (#873, MULTIPLY on vision/sensor range), `ArmorBreakStatus`
-  (#877, MULTIPLY on armor), `PoisonStatus` (#874, unmitigated
+  the roster is `effects/status/*.gd` (poison, corruption, curse, wither,
+  bleeding, blindness, armor break, weakness, greed, hex, scout), among them
+  `BlindnessStatus` (MULTIPLY on vision/sensor range), `ArmorBreakStatus`
+  (MULTIPLY on armor), `PoisonStatus` (unmitigated
   `DamageInstance.Type.TRUE` damage on `_on_tick`, flat or `%`-of-max-hp per
   `basis` — `HitInstance.AmountBasis` (flat, % max, % current), resolved in `DamageInstance.land_on`,
   not a poison-local enum — can kill through the ordinary `notify_depleted` cascade).
@@ -425,9 +427,9 @@ stat, whose INCREASE/MORE scale the total ([ADR 0029](../adr/0029-related-stats-
 half-up to a whole count (`StatusDef.round_half_up`: 1 × +49% lands 1, 1 × +50%
 lands 2). Hit size never scales stacks. Poison, corruption, curse and wither's
 stacks stats share one parent umbrella, `dot_stacks_per_hit`, which lands more
-stacks and never scales damage; bleeding (`bleeding_stacks_per_hit`),
-blindness (`blindness_stacks_per_hit`) and armor break
-(`StatusDef.stacks_stat_id`) sit outside it.
+stacks and never scales damage; bleeding, blindness, greed, hex (`hex_stacks_per_hit`)
+and weakness each carry a parentless `<id>_stacks_per_hit` and sit outside it.
+Armor break and scout author no `StatusDef.stacks_stat_id` (a flat landing count).
 
 **Resistance** (`poison_resistance`, …, default 0, a fraction) is read on the
 **host** and filters the accumulated row at effect time, never the incoming hit
