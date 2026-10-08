@@ -98,3 +98,10 @@ func test_no_core_presence_on_the_playground_board() -> void:
 	var gimbals := get_tree().get_nodes_in_group(GimbalWorld.GROUP).filter(
 			func(n: Node) -> bool: return _panel.is_ancestor_of(n))
 	assert_eq(gimbals.size(), 0, "no GimbalWorld spawned under the panel")
+
+
+func test_the_tooltip_mount_is_bound_to_the_live_graph() -> void:
+	var mount: SandboxTooltipFanMount = _panel.tooltip_mount
+	assert_not_null(mount.fan, "the hover tooltip is mounted")
+	assert_eq(mount.fan.graph, _panel.graph, "bound to the panel's world graph")
+	assert_eq(mount.fan.get_viewport(), _panel.graph.get_viewport(), "inside the world viewport")

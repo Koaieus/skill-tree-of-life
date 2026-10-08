@@ -13,6 +13,7 @@
 [ext_resource type="Resource" path="res://entity/factions/npc.tres" id="11_npc"]
 [ext_resource type="PackedScene" path="res://ui/hud/command_tray/bodies/infusion_row.tscn" id="12_infusion"]
 [ext_resource type="PackedScene" path="res://addons/spell_playground/aspect_slots_row.tscn" id="13_aspects"]
+[ext_resource type="PackedScene" path="res://addons/sandbox_host/components/tooltip_fan_mount.tscn" id="tfm_mount"]
 
 [node name="SpellPlaygroundPanel" type="PanelContainer" unique_id=962694820]
 custom_minimum_size = Vector2(0, 380)
@@ -428,3 +429,6 @@ from = NodePath("../../Nodes/C_hub")
 to = NodePath("../../Nodes/C_ne")
 
 [editable path="HBox/WorldContainer/World/Graph"]
+
+[node name="TooltipFanMount" parent="." instance=ExtResource("tfm_mount")]
+unique_name_in_owner = true

@@ -98,6 +98,8 @@ const LOOP_GAP_SECONDS: float = 0.35
 @onready var infusion_points_box: SpinBox = %InfusionPointsBox
 @onready var affinity_label: Label = %AffinityLabel
 @onready var _world_container: SubViewportContainer = $HBox/WorldContainer
+## The real hover tooltip (EFFECTS + NODE STATS) over the world (test hook).
+@onready var tooltip_mount: SandboxTooltipFanMount = %TooltipFanMount
 
 var _spell: SpellDef = null
 ## The SET modifiers behind the slots / points spin boxes, mutated in place.
@@ -202,6 +204,8 @@ func _ready() -> void:
 	# camera), so `event.position` is viewport space; `graph.to_local` takes it
 	# the rest of the way through the fit transform below.
 	_world_container.gui_input.connect(_on_world_gui_input)
+	tooltip_mount.mount(world, graph)
+	tooltip_mount.attach_motion(_world_container, _pick_node_at)
 	# Default seed: the defender's hub. Interior enough that a 3-hop spell fans
 	# out through the loop and down the chain, and hostile, so it passes the
 	# targeting gate the way a corner of the caster's own territory would not.
