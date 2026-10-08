@@ -228,8 +228,11 @@ func test_the_sections_are_the_builders_lines_and_rebuild_only_on_a_new_spell() 
 		assert_eq(sections[i].line_texts(), (expected[i] as SpellSections.Lines).lines,
 				"section %d is the builder's" % i)
 	var before := _first_rows()
+	watch_signals(_ctl.armed_stack)
 	_plan.state_changed.emit()
 	_plan.state_changed.emit()
+	assert_signal_emitted(_ctl.armed_stack, "attack_plan_state_changed",
+			"guard: the hover path reached the body")
 	var after := _first_rows()
 	for i in before.size():
 		assert_same(after[i], before[i], "an unchanged spell keeps section %d's rows" % i)
