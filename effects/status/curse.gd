@@ -30,11 +30,8 @@ extends StatusDef
 ## `min_damage_taken`, and UNSCALED so a stack is +1 floor at any allocation
 ## depth (#376 — the universal law would ladder an ADD_BASE with level, and
 ## would do so by mutating the shared instance).
-class CurseModifier:
-	extends StatModifier
-
-	func _local_scale_override(_old_al: int, _new_al: int) -> Variant:
-		return StatModifier.UNSCALED
+const CurseModifier := preload("res://effects/status/modifiers/curse_modifier.gd")
+const _MODIFIER_TEMPLATE := preload("res://effects/status/modifiers/curse_modifier.tres")
 
 
 func _on_applied(host, power: float) -> void:
@@ -60,9 +57,7 @@ func _set_curse(host, power: float) -> void:
 		host.remove_local_modifier(old)
 	if power <= 0.0:
 		return
-	var m := CurseModifier.new()
-	m.stat_id = &"min_damage_taken"
-	m.operation = StatModifier.Operation.ADD_BASE
+	var m: StatModifier = _MODIFIER_TEMPLATE.duplicate()
 	m.value = power
 	host.add_local_modifier(m)
 
