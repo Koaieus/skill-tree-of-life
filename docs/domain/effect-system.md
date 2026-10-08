@@ -327,7 +327,7 @@ read is already correct.
   `nodes_islanded_by_removing_set` / the cascade, not a fire-and-forget notification
   and not a modifier grant. Different hook shape; its own issue (#240). The tag
   channel it rides on has shipped (Known limits below); the grace mechanic
-  itself is a design sketch in [status-tags.md](../design/status-tags.md).
+  itself is a design sketch in [lifeline-grace.md](../design/lifeline-grace.md).
 - **Presentation** — icon + `get_description()` rendering in the HUD.
 - **Node-local effect bin — SHIPPED (#868 hub, #872/#878/#879).** This cell used
   to describe a coherent-but-empty sibling to `node_board`, waiting on "the first

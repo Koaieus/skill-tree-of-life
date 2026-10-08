@@ -413,7 +413,7 @@ Uprooting severs **all** edges of a target node. No longer a universal core powe
 
 ## Island Rule
 
-Islanded nodes dissolve immediately (shipped). **Lifeline** (1-turn grace, #240 — `status-tags.md`) and **Lifelink** (indefinite proxy core) are unbuilt; see `skill_node_addons.md`.
+Islanded nodes dissolve immediately (shipped). **Lifeline** (1-turn grace, #240 — `lifeline-grace.md`) and **Lifelink** (indefinite proxy core) are unbuilt; see `skill_node_addons.md`.
 
 **Lifeline + Lifelink combo:** concerning but undesigned. Flag, don't balance against until seen in play.
 

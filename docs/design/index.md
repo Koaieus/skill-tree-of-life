@@ -29,7 +29,7 @@ Status is each doc's `status:` frontmatter — `exploring` → `settling` → `b
 | [aspect_personas.md](aspect_personas.md) | `exploring` | **Aspect Personas** — each aspect as a lesser god with a character (Ivy, Cuss, …); lore, parked; built on the matrix's rows |
 | [spells.md](spells.md) | `exploring` | Spell identities for the 13 shipped spells (roster: `attack/spell/defs/`), the issue-backed ones, and a fenced idea pool of spells that do **not** exist |
 | [damage_over_time.md](damage_over_time.md) | `exploring` | The DoT family's unbuilt half — cures, per-type content, contagion, the defensive-axis matrix. The shipped model is `../domain/effect-system.md` § Status effects |
-| [status-tags.md](status-tags.md) | `exploring` | Status tags as a second grant channel — the shipped channel lives in `../domain/effect-system.md`; what remains here is the LifeLine grace-period design (#240) |
+| [lifeline-grace.md](lifeline-grace.md) | `exploring` | LifeLine grace — surviving disconnection for a turn (#240); the shipped tag channel lives in `../domain/effect-system.md` |
 | [info_gating.md](info_gating.md) | `exploring` | Info-gating dimensions (existence/archetype/owner/modifiers/addons/…) — why vision is a vector not a boolean, and how sensor/recon/anti-recon mechanics share one surface |
 
 ## Reading order
