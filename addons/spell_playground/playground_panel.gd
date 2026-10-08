@@ -304,6 +304,11 @@ func _arm_board() -> void:
 		_alloc.force_allocate(_authored_owners[sn], sn)
 	for entity in _authored_cores:
 		entity.core_location = _authored_cores[entity]
+	# The board is fit-scaled into the panel, and a core look's full-viewport
+	# composite does not follow that transform — it lands shrunk mid-view, off
+	# any node. Both cores stay cores for every rule; only the dressing goes.
+	for sn in graph.get_skill_nodes():
+		sn.core_presence_visible = false
 	if vfx != null:
 		vfx.muted = false
 	# Whose turn it is is part of the pre-state, not a per-cast step: the plan
