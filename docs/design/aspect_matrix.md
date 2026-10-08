@@ -85,7 +85,7 @@ default:
   spell. Spells differ from each other by topology (Reverberator on
   self-loops, Trail Blazer on 2-degree strings, Leafblower on leaves) — that
   is the twist — so the eight conceptless damage spells are the spell library,
-  not orphans. Today `venom`, `hex` and `sunder` are one template
+  not orphans. Today `hex` and `sunder` are one template
   (3-hop single target, 0.4 power, one status, differing in stack count
   only) and have no shape yet, so a second-spell fork (#1381, #1397) starts
   by giving the first one its shape; `dazzle` takes its shape in #1491
@@ -231,7 +231,7 @@ Each cell links its cell issue (`<Concept> × <Facet>`, a child of the row hub i
 
 | Concept | Tag | Stat | Ranged (arrow) | Addon (map / temp) | Spell | Magic (infusion) | Notes |
 |---|---|---|---|---|---|---|---|
-| Poison | DoT | `poison_aspect` | shipped; look designed (see "Rows designed in #1318"), building in #1352 | shipped (#1271): `toxin_addon.tscn` — +1 `poison_aspect` on the map; local +1 `poison_stacks_per_hit` laddered by allocation, ×2 `MULTIPLY` at 3/X; froth-into-gas rim look | `venom` shipped; **Miasma** (name tentative, #1503): 3 stacks, fan 4 hops, visits 2, no damage | #1250 | row: #1377. Spread signature deferred to an authoring pass (owner, #1204) |
+| Poison | DoT | `poison_aspect` | shipped; look designed (see "Rows designed in #1318"), building in #1352 | shipped (#1271): `toxin_addon.tscn` — +1 `poison_aspect` on the map; local +1 `poison_stacks_per_hit` laddered by allocation, ×2 `MULTIPLY` at 3/X; froth-into-gas rim look | **Venom Burst** (name tentative, #1502): the dose — 15 stacks, 2-hop fan tapering 15/10/5 (`hop_stacks`), visits 1, keeps a little damage, poison infused 2:1; **Miasma** (name tentative, #1503): 3 stacks, fan 4 hops, visits 2, no damage | #1250 | row: #1377. Spread signature deferred to an authoring pass (owner, #1204) |
 | Corruption | buildup, %dmg, spread | `corruption_aspect` | #1382 — scaffold (#1349) | shipped (#1383): `compromiser_addon.tscn` (**Compromiser**, owner 2026-10-08) — +1 `corruption_aspect` on the map; a flat 1-stack corruption rider per contact at every allocation level (no ladder, no 3/X multiplier — the budget is the degree); temp 2 blade size + 1 `corruption_aspect`; pustule-beating rim look | #1384 — **Defile** (see "Spell faces") | #1250 | row: #1378. Spreads as a sandpile by nature (#1202) — no `spread` authored yet, the diffusion classes are test-only; health bar shows blips per stack, extra-mean when critical (#1092). `skill_node_specializations.md`'s Corrupted Node is this row's content under another name; its penalties (double damage, floor −1) are Curse's and the floor axis's |
 | Curse | fragility, spill | `curse_aspect` | #1385 — scaffold (#1349) | #1386 | `hex` shipped; no second spell proposed | #1250 | row: #1379. Raises `min_damage_taken`; spills to surviving direct neighbours on death AND dealloc (#1204) — the only authored spread today (`spill_spread.gd`). `spells.md`'s Aftershock restates this spill |
 | Wither | anti-heal | `wither_aspect` | #1387 — scaffold (#1349) | #1388 | #1389 — **Girdle** (see "Spell faces") | #1250 | row: #1380. Drives healing received negative: while it does, a negative heal deals damage that does not close the regen gate, so the regen ramp keeps climbing and the node heals itself toward death — temporary, never permanent: as Wither decays the multiplier climbs back through zero, nulling healing, then restoring it (owner, 2026-10-07, moved here from the superseded ADR 0022 d5). Owner, 2026-09-20: *"it ruins your healing to making you effectively undead"*. `spells.md`'s Flood wants this anti-heal (#1389) |
@@ -279,7 +279,7 @@ Each cell links its cell issue (`<Concept> × <Facet>`, a child of the row hub i
   the game doesn't become all green bubbles and froth and gas"*. The froth
   density is a knob, and it must stay sparse when a whole volley flies (the
   owner's 20-arrow case). Lands with #1352.
-- **Spells:** `venom`; room for a second.
+- **Spells:** **Venom Burst** (#1502, replaces `venom`) — the dose, 15/10/5 over two hops; **Miasma** (#1503) — the cloud.
 
 ## Arrow faces (owner, 2026-10-07)
 

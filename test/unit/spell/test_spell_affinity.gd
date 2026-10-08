@@ -6,7 +6,7 @@ extends GutTest
 ## own [member SpellDef.on_hit_effects], at every landing.
 
 const H := preload("res://test/unit/spell/spell_test_helper.gd")
-const _VENOM := preload("res://attack/spell/defs/venom.tres")
+const _VENOM := preload("res://attack/spell/defs/venom_burst.tres")
 const _POISON := preload("res://effects/status/poison.tres")
 const _CURSE := preload("res://effects/status/curse.tres")
 
@@ -44,7 +44,7 @@ func _statuses(outcome: AttackOutcome) -> Array[StatusInstance]:
 	return out
 
 
-func test_venom_lands_one_poison_of_power_5_per_landing_with_no_infusion() -> void:
+func test_venom_burst_lands_one_poison_of_its_innate_per_landing_with_no_infusion() -> void:
 	var helper := H.new()
 	var graph := helper.make_graph([[0, 1]], self)
 	var atk := helper.make_entity(graph, "A")
@@ -58,14 +58,15 @@ func test_venom_lands_one_poison_of_power_5_per_landing_with_no_infusion() -> vo
 	assert_eq(statuses.size(), 1, "one poison per landing")
 	if statuses.size() == 1:
 		assert_eq(statuses[0].def, _POISON, "the rider is poison")
-		assert_eq(statuses[0].power, 5.0, "innate 5")
+		assert_eq(statuses[0].power, float(_VENOM.affinities[0].innate), "the innate")
 		assert_eq(statuses[0].target, n[1], "on the landing's node")
 
 
 func test_venom_tres_holds_no_apply_status_effect() -> void:
 	for effect in _VENOM.on_hit_effects:
 		assert_false(effect is ApplyStatusEffect, "venom's poison is its affinity, not an authored rider")
-	assert_eq(Infusion.innate(_VENOM).affinity_of(_VENOM), {&"poison": 5} as Dictionary[StringName, int])
+	assert_eq(Infusion.innate(_VENOM).affinity_of(_VENOM),
+			{&"poison": _VENOM.affinities[0].innate} as Dictionary[StringName, int])
 
 
 func test_two_affinities_land_two_riders_per_landing() -> void:

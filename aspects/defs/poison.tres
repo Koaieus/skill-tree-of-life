@@ -7,7 +7,7 @@
 [ext_resource type="Resource" path="res://effects/status/poison.tres" id="4_status"]
 [ext_resource type="Resource" path="res://attack/ammo/types/poison.tres" id="5_ammo"]
 [ext_resource type="PackedScene" path="res://skill_node/addons/defs/toxin_addon.tscn" id="6_addon"]
-[ext_resource type="Resource" path="res://attack/spell/defs/venom.tres" id="7_venom"]
+[ext_resource type="Resource" path="res://attack/spell/defs/venom_burst.tres" id="7_venom"]
 [ext_resource type="Resource" path="res://attack/spell/defs/miasma.tres" id="8_miasma"]
 
 [resource]

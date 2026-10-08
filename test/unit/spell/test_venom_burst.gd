@@ -4,7 +4,7 @@ extends GutTest
 ## then a 2-hop enemy fan whose per-hop stack weight follows the def's
 ## `hop_stacks` progression; `max_visits_per_node` 1 keeps it purely outward.
 
-const _DEF_PATH := "res://attack/spell/defs/venom.tres"
+const _DEF_PATH := "res://attack/spell/defs/venom_burst.tres"
 
 var _h: SpellTestHelper
 var _def: SpellDef

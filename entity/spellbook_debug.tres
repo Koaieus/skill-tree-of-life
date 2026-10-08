@@ -12,7 +12,7 @@
 [ext_resource type="Resource" uid="uid://dm5qgrlia6ne6" path="res://attack/spell/defs/healing_beam.tres" id="9_healing_beam"]
 [ext_resource type="Resource" uid="uid://div18hhpgwui8" path="res://attack/spell/defs/dazzle.tres" id="10_dazzle"]
 [ext_resource type="Resource" uid="uid://3pgjjxrovagd" path="res://attack/spell/defs/sunder.tres" id="11_sunder"]
-[ext_resource type="Resource" uid="uid://c7h6c41tpggfa" path="res://attack/spell/defs/venom.tres" id="12_venom"]
+[ext_resource type="Resource" uid="uid://c7h6c41tpggfa" path="res://attack/spell/defs/venom_burst.tres" id="12_venom"]
 [ext_resource type="Resource" path="res://attack/spell/defs/hex.tres" id="13_hex"]
 [ext_resource type="Resource" path="res://attack/spell/defs/girdle.tres" id="14_girdle"]
 [ext_resource type="Resource" path="res://attack/spell/defs/defile.tres" id="15_defile"]

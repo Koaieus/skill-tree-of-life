@@ -4,7 +4,7 @@ extends GutTest
 ## descending, ties by roster order, each bounded by its aspect stat and the
 ## per-cast pool.
 
-const _VENOM: SpellDef = preload("res://attack/spell/defs/venom.tres")
+const _VENOM: SpellDef = preload("res://attack/spell/defs/venom_burst.tres")
 
 var h: SpellTestHelper
 

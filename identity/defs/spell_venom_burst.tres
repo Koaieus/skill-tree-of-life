@@ -5,8 +5,8 @@
 
 [resource]
 script = ExtResource("1_identity")
-id = &"spell_venom"
-noun = "Venom"
+id = &"spell_venom_burst"
+noun = "Venom Burst"
 kind = 3
 tint = Color(0.8586, 0.9018, 0.9482, 1)
 icon = ExtResource("2_icon")

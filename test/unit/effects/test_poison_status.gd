@@ -243,7 +243,7 @@ func test_authored_poison_and_venom_load_and_are_in_the_debug_book() -> void:
 	assert_eq(poison.id, &"poison")
 	assert_true(&"debuff" in poison.tags, "tagged as a debuff")
 
-	var venom := load("res://attack/spell/defs/venom.tres") as SpellDef
+	var venom := load("res://attack/spell/defs/venom_burst.tres") as SpellDef
 	assert_not_null(venom, "venom.tres is a SpellDef")
 	if venom == null:
 		return

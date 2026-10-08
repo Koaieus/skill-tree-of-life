@@ -5,7 +5,7 @@ extends GutTest
 ## [SpellAffinity] — a status spell's "Applies X (N per hit" line is its
 ## affinity's now, read through the same stacks fold the landing uses.
 
-const _VENOM := preload("res://attack/spell/defs/venom.tres")
+const _VENOM := preload("res://attack/spell/defs/venom_burst.tres")
 const _HEX := preload("res://attack/spell/defs/hex.tres")
 const _DAZZLE := preload("res://attack/spell/defs/dazzle.tres")
 const _SUNDER := preload("res://attack/spell/defs/sunder.tres")
@@ -22,10 +22,11 @@ func _has_prefix(lines: Array, prefix: String) -> bool:
 	return false
 
 
-func test_venom_still_reads_applies_poison_5_per_hit() -> void:
+func test_venom_burst_reads_applies_poison_innate_per_hit() -> void:
 	var lines := _arrival(_VENOM)
-	assert_true(_has_prefix(lines, "Applies Poison (5 per hit"), "venom's line survives: %s" % str(lines))
-	assert_true(lines.has("Applies Poison (5 per hit; +2 per poison infused)."), str(lines))
+	var innate: int = _VENOM.affinities[0].innate
+	assert_true(_has_prefix(lines, "Applies Poison (%d per hit" % innate), "the dose's line: %s" % str(lines))
+	assert_true(lines.has("Applies Poison (%d per hit; +2 per poison infused)." % innate), str(lines))
 
 
 func test_the_affinity_line_follows_the_damage_line() -> void:

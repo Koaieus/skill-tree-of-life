@@ -7,7 +7,7 @@ extends GutTest
 ## (depth) and the spell's refusals.
 
 const _CYCLONE: SpellDef = preload("res://attack/spell/defs/cyclone.tres")
-const _VENOM: SpellDef = preload("res://attack/spell/defs/venom.tres")
+const _VENOM: SpellDef = preload("res://attack/spell/defs/venom_burst.tres")
 const _SPARK: SpellDef = preload("res://attack/spell/defs/spark.tres")
 
 var h: SpellTestHelper
@@ -43,15 +43,18 @@ func test_cyclone_ingests_at_half_rate_and_floors() -> void:
 
 func test_venom_ingests_at_double_rate_on_top_of_innate() -> void:
 	var inf := _infused(_VENOM, {&"poison": 3})
-	assert_eq(inf.affinity_of(_VENOM).get(&"poison", 0), 11, "innate 5 + floor(3 x 2)")
-	assert_eq(_rider_power(inf, _VENOM, &"poison"), 11.0)
+	var aff: SpellAffinity = _VENOM.affinities[0]
+	var expected := aff.innate + int(floor(3 * aff.rate))
+	assert_eq(aff.rate, 2.0, "fixture: the dose ingests poison at 2:1")
+	assert_eq(inf.affinity_of(_VENOM).get(&"poison", 0), expected, "innate + floor(3 x 2)")
+	assert_eq(_rider_power(inf, _VENOM, &"poison"), float(expected))
 
 
 func test_innate_infusion_spends_nothing() -> void:
 	var inf := Infusion.innate(_VENOM)
 	assert_true(inf.points.is_empty())
 	assert_eq(inf.slots_used(), 0)
-	assert_eq(inf.affinity_of(_VENOM).get(&"poison", 0), 5)
+	assert_eq(inf.affinity_of(_VENOM).get(&"poison", 0), _VENOM.affinities[0].innate)
 
 
 func test_slots_used_counts_aspects_with_points() -> void:

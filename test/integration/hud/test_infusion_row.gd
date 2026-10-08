@@ -5,7 +5,7 @@ extends GutTest
 ## spell's `infusion_capacity`; the affinity line reads the resulting affinity; the
 ## seat remembers the last infusion per spell, clamped to today's caps.
 
-const _VENOM: SpellDef = preload("res://attack/spell/defs/venom.tres")
+const _VENOM: SpellDef = preload("res://attack/spell/defs/venom_burst.tres")
 const _SPARK: SpellDef = preload("res://attack/spell/defs/spark.tres")
 const _ROW_SCENE := preload("res://ui/hud/command_tray/bodies/infusion_row.tscn")
 const _LINE_SCENE := preload("res://ui/hud/command_tray/bodies/affinity_line.tscn")
@@ -98,8 +98,9 @@ func test_the_affinity_line_reads_the_infused_affinity() -> void:
 	line.bind(plan)
 	row.plus_button(&"poison").pressed.emit()
 	row.plus_button(&"poison").pressed.emit()
-	# venom: innate 5 + floor(2 points × rate 2) = 9, through the landing's fold.
-	var stacks := _POISON_STATUS.stacks_per_hit(caster.stat_board, 9.0)
+	# venom burst: innate + floor(2 points × rate 2), through the landing's fold.
+	var aff: SpellAffinity = _VENOM.affinities[0]
+	var stacks := _POISON_STATUS.stacks_per_hit(caster.stat_board, aff.innate + floorf(2 * aff.rate))
 	assert_true(line.visible, "venom lands poison, so the line shows")
 	assert_eq(line.text(), "Poison %s/hit" % NumFmt.num(stacks))
 
