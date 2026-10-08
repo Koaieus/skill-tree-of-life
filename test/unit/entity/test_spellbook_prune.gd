@@ -19,7 +19,7 @@ const _LARGE_BOOK := preload("res://entity/blocker/blocker_spellbook_large.tres"
 ## A spell listed here is deliberately NOT lootable, and the coverage test at
 ## the bottom is what stops a newly authored spell from silently landing in
 ## no book at all.
-const _NOT_LOOTABLE := ["spark", "lightning_bolt", "dazzle", "sunder", "venom", "hex", "girdle", "defile", "eagle_eye"]  # aspect spells from dazzle on: debug-book appliers (#873/#877/#874/#965/#1389/#1384/#1394); loot placement is the owner's (#868)
+const _NOT_LOOTABLE := ["spark", "lightning_bolt", "dazzle", "sunder", "venom", "hex", "girdle", "defile", "eagle_eye", "scout_line"]  # aspect spells from dazzle on: debug-book appliers (#873/#877/#874/#965/#1389/#1384/#1394/#1490); loot placement is the owner's (#868)
 
 const _SPELL_DEF_DIR := "res://attack/spell/defs"
 
