@@ -481,3 +481,5 @@ stat, leave it.
 `PoolStat.base_provider` is the same idea aimed at a *cap* (a pool whose base is
 computed elsewhere, then coerced); it is not folded onto this door.
 
+
+A modifier that appears at allocation level K (absent at K-1, e.g. "x2 at 3/X")? Use `LevelGatedModifier` (`stats_system/level_gated_modifier.gd`), not a plain local modifier, which only ladders.
