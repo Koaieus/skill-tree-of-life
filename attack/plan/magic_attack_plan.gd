@@ -28,6 +28,11 @@ const _FALLBACK_SPELL: SpellDef = preload("res://attack/spell/defs/spark.tres")
 var source: SkillNode = null
 var spell: SpellDef = null
 var target: SkillNode = null
+## The aim direction in radians from [member source], meaningful iff the
+## spell's targeting is [constant Targeting.TargetingKind.AIM] — an aimed
+## spell never sets [member target]. NAN means "not aimed yet". Written by
+## [method set_aim].
+var aim_angle: float = NAN
 ## The points this cast spends on aspects — never null; innate-only on a
 ## fresh plan and after [method set_spell]. Set through [method set_infusion].
 var infusion: Infusion = Infusion.new()
@@ -156,6 +161,19 @@ func set_target(node: SkillNode) -> bool:
 	target = node
 	state_changed.emit()
 	return true
+
+
+## Aim from [param src] at [param angle] (radians). Refused on a spell that is
+## not aimed, or a [param src] outside the union's eligible casters — the plan
+## is then left unchanged.
+func set_aim(src: SkillNode, angle: float) -> bool:
+	return false
+
+
+## True when the spell is aimed in a direction rather than at a node.
+func is_aimed() -> bool:
+	return spell != null and spell.targeting != null \
+			and spell.targeting.get_kind() == Targeting.TargetingKind.AIM
 
 
 func reset() -> void:

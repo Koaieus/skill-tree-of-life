@@ -705,6 +705,19 @@ func _apply_infusion(plan: MagicAttackPlan, picked: Dictionary) -> void:
 		plan.set_infusion(id, picked[id])
 
 
+## Arm [param plan] with the MAGIC [param candidate] exactly as it was scored:
+## source, spell and infusion, then the aim on an aimed spell or the target
+## otherwise. Assigned directly — the candidate came out of the union already.
+func _arm_magic_plan(plan: MagicAttackPlan, candidate: AiCombatScorer.ScoredCandidate) -> void:
+	plan.source = candidate.source_node
+	plan.spell = candidate.spell
+	if plan.is_aimed():
+		plan.aim_angle = candidate.aim_angle
+	else:
+		plan.target = candidate.target
+	_apply_infusion(plan, AiInfusionPicker.pick(entity, candidate.spell))
+
+
 ## Builds its OWN plan with [method BattleSystem.new_plan] and copies the scored
 ## candidate's target/source/spell onto it, rather than committing the throwaway
 ## plan [method _gather_ranged_candidates] / [method _gather_magic_candidates]
@@ -722,11 +735,7 @@ func _execute_candidate(candidate: AiCombatScorer.ScoredCandidate) -> bool:
 			# The N that was scored is the N that fires (#958).
 			plan.ammo_counts = candidate.ammo_counts.duplicate()
 		BattleSystem.AttackMode.MAGIC:
-			var plan := attack as MagicAttackPlan
-			plan.source = candidate.source_node
-			plan.spell = candidate.spell
-			plan.target = candidate.target
-			_apply_infusion(plan, AiInfusionPicker.pick(entity, candidate.spell))
+			_arm_magic_plan(attack as MagicAttackPlan, candidate)
 		BattleSystem.AttackMode.MELEE:
 			var plan := attack as MeleeAttackPlan
 			plan.source = candidate.source_node

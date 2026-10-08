@@ -61,6 +61,8 @@ class ScoredCandidate:
 	var source_node: SkillNode = null
 	## Spell for MAGIC candidates; unused (null) for RANGED.
 	var spell: SpellDef = null
+	## Aim angle (radians) for a MAGIC candidate on an aimed spell; NAN otherwise.
+	var aim_angle: float = NAN
 	## Blade member selection for MELEE candidates; empty for RANGED/MAGIC.
 	var blade_nodes: Array[SkillNode] = []
 	## #823: handle members this MELEE candidate was scored with a phantom
