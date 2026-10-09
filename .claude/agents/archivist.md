@@ -32,8 +32,9 @@ the question. `--help` on any verb.
 Write one python script in your scratchpad, stdlib only, streaming line by
 line. The layout, so you never rediscover it:
 
-- `~/.claude/projects/-home-bramh-skill-tree-of-life/<session>.jsonl` — one
-  file per top-level session, hundreds of MB in total. Subagents:
+- `~/.claude/projects/<slug>/<session>.jsonl` — the slug is the repo's
+  absolute path with slashes as dashes (`-home-bramh-skill-tree-of-life`);
+  one file per top-level session, hundreds of MB in total. Subagents:
   `<session>/subagents/agent-<id>.jsonl` with an `agent-<id>.meta.json` beside it.
 - A record's `type` is `user` | `assistant` | `queue-operation` |
   `attachment` | `last-prompt` | …; `message.content` is a string or a list

@@ -12,7 +12,7 @@ words of prose with bold-lead bullets, 5 % had headers, 12 % a table, and
 the one thing nearly every ending carried was *what landed + SHA + test
 verdict*. What was **not** done appeared in ~40 %, follow-ups in 30 %, and
 questions for the owner in under 10 % — the three things the owner most
-needs and most often had to ask for.
+needs, and the three least often present.
 
 ## The shape
 

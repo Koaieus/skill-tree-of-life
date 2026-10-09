@@ -8,7 +8,8 @@ tr = importlib.util.module_from_spec(spec); spec.loader.exec_module(tr)
 
 
 def rec(kind, content, ts):
-    return {"type": kind, "timestamp": ts, "message": {"role": kind, "content": content}}
+    # top-level "type" deliberately after a long field: real records carry a dozen leading keys
+    return {"parentUuid": "x" * 240, "type": kind, "timestamp": ts, "message": {"role": kind, "content": content}}
 
 
 def write(path, rows):

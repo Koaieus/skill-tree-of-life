@@ -51,8 +51,9 @@ def records(path, kinds=("user", "assistant")):
         for line in fh:
             if not line.startswith("{"):
                 continue
-            m = re.search(r'"type":\s*"(\w[\w-]*)"', line[:200])
-            if not m or m.group(1) not in kinds:
+            # top-level "type" can sit past a dozen leading fields; a cheap
+            # substring test anywhere on the line gates the json.loads
+            if not any(f'"type":"{k}"' in line or f'"type": "{k}"' in line for k in kinds):
                 continue
             try:
                 r = json.loads(line)
@@ -67,7 +68,7 @@ def launch_skill(first):
     m = re.search(r"<command-name>/?([\w-]+)</command-name>", first)
     if m:
         return m.group(1)
-    m = re.match(r"\s*(%s)\b" % "|".join(SKILLS), first, re.I)
+    m = re.match(r"\s*(%s)\s+#?\d" % "|".join(SKILLS), first, re.I)
     return m.group(1).lower() if m else "-"
 
 

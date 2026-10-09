@@ -19,10 +19,10 @@ never read a transcript yourself.
    `scan` when the result should back a charter law, a rule or a
    retrospective: it then writes `docs/corpus/<date>-<slug>.md` + rows.
    Say `answer only` for a one-off question.
-3. **Relay the reply in the session-report shape** (`docs/domain/session-report.md`):
-   the table or list, what recurs, exclusions; the corpus path under
-   `Touched` when one was written. Ratios are directional, quotes exact —
-   keep the agent's caveats.
+3. **Relay the reply as it came**: the table or list, what recurs,
+   exclusions, the corpus path when one was written. Ratios are
+   directional, quotes exact — keep the agent's caveats. (The run you are
+   in still ends with its own session report; a scan is a `Touched` row in it.)
 4. **Act on it where you are.** A finding that changes a charter is folded
    in by *this* session (charter first, then the derived file) or posted
    with `mise run feedback -- post <charter> probe <file>`; never left in
