@@ -16,7 +16,7 @@ extends Resource
 ##
 ## The stack fold: [member stack_fold] folds the incidents'
 ## [member CastSpell.stack_weight]s into the landing's starting
-## [member LandingContext.stack_scale] via [method fold_stacks] — a per-LANDING
+## [member HitLanding.stack_scale] via [method fold_stacks] — a per-LANDING
 ## fact, never carried (the merged payload carries the MAX weight).
 
 ## How converging arrivals' status stacks fold into the one landing. MAX

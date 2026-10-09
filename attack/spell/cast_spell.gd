@@ -54,7 +54,7 @@ var arrival_share: float = 1.0
 ## [member damage]. Seeded 1.0; [method PropagationConfig.mint] copies it and
 ## shapes it by [member PropagationConfig.hop_stacks]; a merge carries the MAX
 ## of its incidents (never the fold, so a SUM spell cannot compound). The
-## landing's starting [member LandingContext.stack_scale] is
+## landing's starting [member HitLanding.stack_scale] is
 ## [method IncidentReducer.fold_stacks] over the incidents' weights.
 var stack_weight: float = 1.0
 ## Which way the storm turned to get here: +1 clockwise, -1 counter-clockwise,

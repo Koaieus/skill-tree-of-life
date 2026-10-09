@@ -42,7 +42,7 @@ var read_overlays: Callable = Callable()
 ## Multiplies the FOLDED stacks at [method land_on] — after the stacks stat,
 ## beside the crit factor — so a 0 lands 0 however much `stacks_per_hit` is
 ## invested. Stamped by [ApplyStatusEffect] from a spell landing's
-## [member LandingContext.stack_scale]; never shipped, because the landed
+## [member HitLanding.stack_scale]; never shipped, because the landed
 ## [member power] is (a rebuilt hit is [member power_resolved]).
 var stack_scale: float = 1.0
 

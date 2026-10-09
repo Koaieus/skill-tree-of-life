@@ -222,7 +222,7 @@ what differs per arrival is its **stack weight**, `CastSpell.stack_weight`
 — a `HopDamageProgression` applied as `apply(weight, 1.0, hop_index)`, null =
 unchanged). The reducer's `stack_fold` (MAX / SUM / MIN / FIRST, default MAX —
 attacker-favoured, the owner's call) folds the incidents' weights via
-`fold_stacks(incidents)` into the landing's starting `LandingContext.stack_scale`;
+`fold_stacks(incidents)` into the landing's starting `HitLanding.stack_scale`;
 no reducer folds MAX. `ScaleStacksEffect` and the crit multiply onto it, and
 `StatusInstance.land_on` rounds the row once, half-up, after crit × scale
 (stacks are integer rows, ADR 0032).
