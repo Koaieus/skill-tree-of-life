@@ -29,6 +29,18 @@ func status_def() -> StatusDef:
 	return null
 
 
+## STUB.
+static func run_all(effects: Array, landing: HitLanding) -> void:
+	pass
+
+
+## STUB.
+static func keep_mode_agnostic(value: Array, where: String) -> Array[OnHitEffect]:
+	var out: Array[OnHitEffect] = []
+	out.assign(value)
+	return out
+
+
 ## Player-facing line for this effect in [SpellTooltip]'s On-arrival section
 ## (#764). [param spell] supplies [member SpellDef.power] for an effect that
 ## quotes a number, through [method SpellResolver.impact_damage] (D-32 — the

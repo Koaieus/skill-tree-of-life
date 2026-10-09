@@ -155,6 +155,31 @@ func test_the_toxic_vertex_lands_damage_and_poison_on_the_same_contact() -> void
 			"the plate carries poison after the swing")
 
 
+## A landed contact carrying riders shares its key with them, exactly as an
+## arrow does; a contact with no riders mints no landing and stays keyless.
+func test_a_toxic_contact_shares_its_key_with_its_rider() -> void:
+	_attach_toxin(_tip)
+	await _settle()
+	var outcome := _plan().resolve_against(CombatWorld.live())
+	var damage := outcome.damage_hits()
+	var statuses := _status_hits(outcome)
+	assert_gt(damage.size(), 0, "fixture: the tip must contact the plate")
+	assert_eq(statuses.size(), damage.size(), "fixture: one rider per toxic contact")
+	if statuses.is_empty() or damage.is_empty():
+		return
+	assert_ne(damage[0].hit_key, 0, "the toxic contact carries a key")
+	assert_eq(statuses[0].hit_key, damage[0].hit_key, "its rider shares it")
+
+
+func test_a_clean_contact_stays_keyless() -> void:
+	await _settle()
+	var outcome := _plan().resolve_against(CombatWorld.live())
+	var damage := outcome.damage_hits()
+	assert_gt(damage.size(), 0, "fixture: the tip must contact the plate")
+	for hit in damage:
+		assert_eq(hit.hit_key, 0, "a contact with no riders mints no key")
+
+
 func test_a_plain_addon_authored_with_a_status_lands_it_on_its_vertex_contact() -> void:
 	var status := ApplyStatusEffect.new()
 	status.def = _POISON

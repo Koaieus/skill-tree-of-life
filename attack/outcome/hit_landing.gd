@@ -49,8 +49,19 @@ var hit_key: int = 0
 ## handed none keeps its own empty one and sweeps every time. Dies with the
 ## compile, so nothing in it goes stale.
 var gather_cache: Dictionary = {}
+## The multiplier this landing's [StatusInstance]s land their folded stacks
+## with — 1.0 is "unscaled", 0.0 lands nothing. Any mode may read it
+## ([ApplyStatusEffect] copies it onto every status it mints); today only
+## spell context writes it (the reducer's seed in [SpellResolver],
+## [ScaleStacksEffect]). Per landing, so it never compounds across hops.
+var stack_scale: float = 1.0
 
 static var _next_hit_key: int = 1
+
+
+## A landing riding [param primary] — STUB.
+static func riding(primary: HitInstance, hits: Array[HitInstance], gather_cache: Dictionary = {}) -> HitLanding:
+	return HitLanding.new()
 
 
 func _init() -> void:

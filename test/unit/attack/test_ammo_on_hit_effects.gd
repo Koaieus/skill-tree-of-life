@@ -163,3 +163,19 @@ func test_a_spell_only_effect_is_refused_from_the_slot() -> void:
 	t.on_hit_effects = [_SpellOnly.new(), kept] as Array[OnHitEffect]
 	assert_push_error("spell-only")
 	assert_eq(t.on_hit_effects, [kept] as Array[OnHitEffect], "the spell effect is dropped, the rest kept")
+
+
+func test_a_spell_only_effect_is_refused_from_an_addon_too() -> void:
+	var addon := SkillNodeAddon.new()
+	var kept := _rider(_POISON_DEF)
+	addon.on_hit_effects = [_SpellOnly.new(), kept] as Array[OnHitEffect]
+	assert_push_error("spell-only")
+	assert_eq(addon.on_hit_effects, [kept] as Array[OnHitEffect], "the addon keeps only the mode-agnostic effect")
+	addon.free()
+
+
+func test_keep_mode_agnostic_drops_spell_only_effects() -> void:
+	var plain := _rider(_POISON_DEF)
+	var kept := OnHitEffect.keep_mode_agnostic([_SpellOnly.new(), plain], "x")
+	assert_push_error("spell-only")
+	assert_eq(kept, [plain] as Array[OnHitEffect])
