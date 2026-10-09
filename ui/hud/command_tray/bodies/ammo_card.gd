@@ -1,17 +1,19 @@
 @tool
 class_name AmmoCard
 extends PanelContainer
-## One row of the Quiver roster (#954): an [AmmoType]'s name, stock,
-## `+N on reload`, its one-line effect, and — for a special — a stepper on
-## its count in the volley. The base arrow is NOT a control (owner,
-## 2026-09-19: base is the remainder `N − Σ specials`), so its card has no
-## stepper. Pure view: it asks for changes through its signals.
+## One tall card of the ranged inventory: an [AmmoType]'s count in this
+## volley, a [SendBar] over a [SheafPile] of its stock, `stock +gain`, and its
+## name; the effect line is the hover tooltip. Pure view: fed numbers, it asks
+## for changes through its signals and never sets its own count.
 ##
-## Stepper grammar: click ± = ±1, scroll on the card = ±1, Shift-click ± =
-## all / none.
+## Grammar: drag / click / scroll the bar = that count (via
+## [signal set_requested]); left-click the count label = all, right-click =
+## none. The base card also carries the fill toggle ([member has_fill_toggle]).
 
-signal step_requested(type_id: StringName, delta: int)
 signal set_requested(type_id: StringName, count: int)
+signal all_requested(type_id: StringName)
+signal none_requested(type_id: StringName)
+signal fill_toggled(on: bool)
 
 ## Edge length of the status badge.
 @export_range(12, 64) var badge_px: int = 20:
@@ -19,31 +21,55 @@ signal set_requested(type_id: StringName, count: int)
 		badge_px = value
 		if _status_badge != null:
 			_status_badge.size_px = value
+## Share of the pile's width the send bar covers; the rest peeks out beside it.
+@export_range(0.2, 1.0) var pile_cover: float = 0.66:
+	set(value):
+		pile_cover = value
+		_layout_stack()
+## The card's minimum width, px; its minimum height is this × [member aspect].
+@export_range(40, 160) var min_width: int = 68:
+	set(value):
+		min_width = value
+		_apply_min_size()
+## Height over width — above 1 keeps the card taller than wide.
+@export_range(1.0, 3.0) var aspect: float = 1.65:
+	set(value):
+		aspect = value
+		_apply_min_size()
+## Shows the fill toggle (the base card's, baked into the body's scene).
+@export var has_fill_toggle: bool = false:
+	set(value):
+		has_fill_toggle = value
+		if is_node_ready():
+			_fill_toggle.visible = value
 
 var type: AmmoType = null
 var stock: int = 0
 var gain: int = 0
 var count: int = 0
-## The most this card may take: min(bin, what N can still hold).
+## The most "all" gives: min(bin, what the volley still holds).
 var cap: int = 0
+var fill: bool = true
 
 @onready var _name_label: Label = %NameLabel
 @onready var _status_badge: IdentityBadge = %StatusBadge
 @onready var _stock_label: Label = %StockLabel
-@onready var _effect_label: Label = %EffectLabel
-@onready var _stepper: HBoxContainer = %Stepper
 @onready var _count_label: Label = %CountLabel
-@onready var _minus: Button = %Minus
-@onready var _plus: Button = %Plus
+@onready var _fill_toggle: Button = %FillToggle
+@onready var _stack: Control = %Stack
+@onready var _send_bar: SendBar = %SendBar
+@onready var _pile: SheafPile = %SheafPile
 
 
 func _ready() -> void:
-	_minus.pressed.connect(_on_minus)
-	_plus.pressed.connect(_on_plus)
-	_minus.gui_input.connect(_on_step_button_input.bind(-1))
-	_plus.gui_input.connect(_on_step_button_input.bind(1))
-	gui_input.connect(_on_gui_input)
+	_count_label.gui_input.connect(_on_count_input)
+	_send_bar.value_requested.connect(_on_bar_requested)
+	_fill_toggle.toggled.connect(_on_fill_toggled)
+	_stack.resized.connect(_layout_stack)
 	_status_badge.size_px = badge_px
+	_fill_toggle.visible = has_fill_toggle
+	_apply_min_size()
+	_layout_stack()
 	_paint()
 
 
@@ -51,10 +77,6 @@ func setup(p_type: AmmoType) -> void:
 	type = p_type
 	if is_node_ready():
 		_paint()
-
-
-func has_stepper() -> bool:
-	return type != null and type.id != AmmoTypeRoster.BASE_ID
 
 
 func set_stock(p_stock: int, p_gain: int) -> void:
@@ -69,6 +91,12 @@ func set_count(p_count: int, p_cap: int) -> void:
 	cap = p_cap
 	if is_node_ready():
 		_paint()
+
+
+func set_fill(on: bool) -> void:
+	fill = on
+	if is_node_ready():
+		_fill_toggle.set_pressed_no_signal(on)
 
 
 ## One line for what the type does on hit, from the authored [AmmoType].
@@ -89,21 +117,37 @@ static func effect_line(t: AmmoType) -> String:
 	return " · ".join(parts) if not parts.is_empty() else "plain shot"
 
 
+func _apply_min_size() -> void:
+	custom_minimum_size = Vector2(min_width, roundf(min_width * aspect))
+
+
+## The pile spans the stack; the bar covers its leading [member pile_cover].
+func _layout_stack() -> void:
+	if _stack == null:
+		return
+	var s := _stack.size
+	_pile.position = Vector2.ZERO
+	_pile.size = s
+	_send_bar.position = Vector2.ZERO
+	_send_bar.size = Vector2(roundf(s.x * pile_cover), s.y)
+
+
 func _paint() -> void:
 	if type == null:
 		return
 	_name_label.text = type.display_name
 	_paint_status()
-	var stock_text := "stock %d" % stock
-	if gain > 0:
-		stock_text += " · +%d on reload" % gain
-	_stock_label.text = stock_text
-	_effect_label.text = effect_line(type)
-	_stepper.visible = has_stepper()
+	_stock_label.text = ("%d  +%d" % [stock, gain]) if gain > 0 else "%d" % stock
 	_count_label.text = "%d" % count
-	_minus.disabled = count <= 0
-	_plus.disabled = count >= cap
-	tooltip_text = "%s — %s" % [type.display_name, _effect_label.text]
+	# The volley bar's tint for this type, so a card reads as its bar segment.
+	var tint: Color = VolleyBar.TYPE_TINTS.get(type.id, VolleyBar.FALLBACK_TINT)
+	_send_bar.stock = stock
+	_send_bar.value = count
+	_send_bar.tint = tint
+	_pile.count = stock
+	_pile.tint = tint
+	_fill_toggle.set_pressed_no_signal(fill)
+	tooltip_text = "%s — %s" % [type.display_name, effect_line(type)]
 
 
 ## The type's status mark: the [IdentityBadge] of its first status rider
@@ -114,34 +158,23 @@ func _paint_status() -> void:
 	_status_badge.visible = _status_badge.identity != null
 
 
-func _on_minus() -> void:
-	if Input.is_key_pressed(KEY_SHIFT):
-		set_requested.emit(type.id, 0)
-	else:
-		step_requested.emit(type.id, -1)
+func _on_bar_requested(n: int) -> void:
+	if type != null:
+		set_requested.emit(type.id, n)
 
 
-func _on_plus() -> void:
-	if Input.is_key_pressed(KEY_SHIFT):
-		set_requested.emit(type.id, cap)
-	else:
-		step_requested.emit(type.id, 1)
+func _on_fill_toggled(on: bool) -> void:
+	fill_toggled.emit(on)
 
 
-## Scrolling over a ± button steps too, so the wheel works anywhere on the card.
-func _on_step_button_input(event: InputEvent, _sign: int) -> void:
-	_on_gui_input(event)
-
-
-func _on_gui_input(event: InputEvent) -> void:
-	if not has_stepper() or not (event is InputEventMouseButton):
-		return
+func _on_count_input(event: InputEvent) -> void:
 	var mb := event as InputEventMouseButton
-	if not mb.pressed:
+	if type == null or mb == null or not mb.pressed:
 		return
-	if mb.button_index == MOUSE_BUTTON_WHEEL_UP:
-		step_requested.emit(type.id, 1)
-		accept_event()
-	elif mb.button_index == MOUSE_BUTTON_WHEEL_DOWN:
-		step_requested.emit(type.id, -1)
-		accept_event()
+	if mb.button_index == MOUSE_BUTTON_LEFT:
+		all_requested.emit(type.id)
+	elif mb.button_index == MOUSE_BUTTON_RIGHT:
+		none_requested.emit(type.id)
+	else:
+		return
+	_count_label.accept_event()

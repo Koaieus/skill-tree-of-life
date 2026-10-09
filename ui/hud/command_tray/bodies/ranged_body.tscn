@@ -5,81 +5,39 @@
 [ext_resource type="PackedScene" uid="uid://b5lvy7n8p4qbk" path="res://ui/launch_attack_button/launch_attack_button.tscn" id="3_launch"]
 [ext_resource type="PackedScene" path="res://ui/hud/command_tray/bodies/volley_bar.tscn" id="4_bar"]
 [ext_resource type="PackedScene" path="res://ui/common/key_chip.tscn" id="5_keychip"]
+[ext_resource type="PackedScene" path="res://ui/hud/command_tray/bodies/ammo_card.tscn" id="6_card"]
 
 [node name="RangedBody" instance=ExtResource("1_base")]
 script = ExtResource("2_script")
 
-[node name="Row" type="HBoxContainer" parent="BodyContent"]
+[node name="Stack" type="VBoxContainer" parent="BodyContent"]
 layout_mode = 2
-theme_override_constants/separation = 14
+theme_override_constants/separation = 4
 
-[node name="Volley" type="VBoxContainer" parent="BodyContent/Row"]
-custom_minimum_size = Vector2(260, 0)
+[node name="VolleyRow" type="HBoxContainer" parent="BodyContent/Stack"]
 layout_mode = 2
-size_flags_horizontal = 3
-size_flags_vertical = 4
-theme_override_constants/separation = 5
+theme_override_constants/separation = 10
 
-[node name="Title" type="Label" parent="BodyContent/Row/Volley"]
-layout_mode = 2
-theme_type_variation = &"CinzelHeader"
-theme_override_font_sizes/font_size = 12
-modulate = Color(0.3187, 0.7773, 0.4484, 1)
-text = "➵ Volley"
-
-[node name="Hint" type="Label" parent="BodyContent/Row/Volley"]
-unique_name_in_owner = true
-layout_mode = 2
-theme_override_font_sizes/font_size = 11
-modulate = Color(0.784, 0.824, 0.902, 0.75)
-autowrap_mode = 2
-text = "Click an enemy node to target. Every leaf in range fires, wave after wave."
-
-[node name="VolleyBar" parent="BodyContent/Row/Volley" instance=ExtResource("4_bar")]
-unique_name_in_owner = true
-layout_mode = 2
-
-[node name="LeavesLabel" type="Label" parent="BodyContent/Row/Volley"]
-unique_name_in_owner = true
-layout_mode = 2
-theme_override_font_sizes/font_size = 10
-modulate = Color(0.725, 0.765, 0.863, 0.7)
-autowrap_mode = 2
-text = "—"
-
-[node name="Keys" type="Label" parent="BodyContent/Row/Volley"]
-layout_mode = 2
-theme_override_font_sizes/font_size = 9
-modulate = Color(0.667, 0.714, 0.824, 0.45)
-text = "scroll ±1 · Shift ±wave · M max · Enter launch · R reload"
-
-[node name="RosterScroll" type="ScrollContainer" parent="BodyContent/Row"]
-layout_mode = 2
-size_flags_horizontal = 3
-vertical_scroll_mode = 0
-horizontal_scroll_mode = 3
-
-[node name="Roster" type="HBoxContainer" parent="BodyContent/Row/RosterScroll"]
+[node name="VolleyBar" parent="BodyContent/Stack/VolleyRow" instance=ExtResource("4_bar")]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 4
-theme_override_constants/separation = 8
 
-[node name="Actions" type="VBoxContainer" parent="BodyContent/Row"]
+[node name="Actions" type="HBoxContainer" parent="BodyContent/Stack/VolleyRow"]
 layout_mode = 2
 size_flags_vertical = 4
 theme_override_constants/separation = 6
 
-[node name="ReloadButton" type="Button" parent="BodyContent/Row/Actions"]
+[node name="ReloadButton" type="Button" parent="BodyContent/Stack/VolleyRow/Actions"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(190, 0)
+custom_minimum_size = Vector2(170, 0)
 layout_mode = 2
 tooltip_text = "Reload the quiver."
 text = "⟳ Reload  +0  −1 AP"
 alignment = 0
 
-[node name="KeyChip" parent="BodyContent/Row/Actions/ReloadButton" instance=ExtResource("5_keychip")]
+[node name="KeyChip" parent="BodyContent/Stack/VolleyRow/Actions/ReloadButton" instance=ExtResource("5_keychip")]
 layout_mode = 1
 anchors_preset = 6
 anchor_left = 1.0
@@ -97,14 +55,75 @@ h_padding = 4
 v_padding = 0
 action = &"ui_reload"
 
-[node name="ResetButton" type="Button" parent="BodyContent/Row/Actions"]
+[node name="ResetButton" type="Button" parent="BodyContent/Stack/VolleyRow/Actions"]
 unique_name_in_owner = true
 layout_mode = 2
 text = "⟲ Reset"
 
-[node name="LaunchButton" parent="BodyContent/Row/Actions" instance=ExtResource("3_launch")]
+[node name="LaunchButton" parent="BodyContent/Stack/VolleyRow/Actions" instance=ExtResource("3_launch")]
 unique_name_in_owner = true
 layout_mode = 2
-custom_minimum_size = Vector2(150, 44)
+custom_minimum_size = Vector2(130, 34)
 tint = Color(0.3187, 0.7773, 0.4484, 1)
 text = "➵ Launch"
+
+[node name="InfoRow" type="HBoxContainer" parent="BodyContent/Stack"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="Title" type="Label" parent="BodyContent/Stack/InfoRow"]
+layout_mode = 2
+theme_type_variation = &"CinzelHeader"
+theme_override_font_sizes/font_size = 12
+modulate = Color(0.3187, 0.7773, 0.4484, 1)
+text = "➵ Volley"
+
+[node name="Hint" type="Label" parent="BodyContent/Stack/InfoRow"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 11
+modulate = Color(0.784, 0.824, 0.902, 0.75)
+text = "Click an enemy node to target."
+
+[node name="LeavesLabel" type="Label" parent="BodyContent/Stack/InfoRow"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 10
+modulate = Color(0.725, 0.765, 0.863, 0.7)
+text = "—"
+
+[node name="CapacityHint" type="Label" parent="BodyContent/Stack/InfoRow"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+theme_override_font_sizes/font_size = 10
+modulate = Color(0.725, 0.765, 0.863, 0.55)
+text = "room for 0 more"
+
+[node name="Keys" type="Label" parent="BodyContent/Stack/InfoRow"]
+layout_mode = 2
+size_flags_horizontal = 10
+theme_override_font_sizes/font_size = 9
+modulate = Color(0.667, 0.714, 0.824, 0.45)
+text = "scroll ±1 · Shift ±wave · M max · L fill · Enter launch · R reload"
+
+[node name="RosterScroll" type="ScrollContainer" parent="BodyContent/Stack"]
+layout_mode = 2
+size_flags_vertical = 3
+vertical_scroll_mode = 0
+horizontal_scroll_mode = 3
+
+[node name="Roster" type="HBoxContainer" parent="BodyContent/Stack/RosterScroll"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="BaseCard" parent="BodyContent/Stack/RosterScroll/Roster" instance=ExtResource("6_card")]
+unique_name_in_owner = true
+layout_mode = 2
+has_fill_toggle = true
+
+[node name="Specials" type="HBoxContainer" parent="BodyContent/Stack/RosterScroll/Roster"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 8

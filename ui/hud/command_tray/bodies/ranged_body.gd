@@ -2,51 +2,53 @@
 class_name RangedBody
 extends CommandTrayBodyBase
 ## Ranged tab content — the Quiver's view (#954), as the magic body is the
-## [SpellBook]'s: an ammo card per owned type, one notched [VolleyBar] for
-## the whole volley, the reload row with its projected yield, and Launch.
+## [SpellBook]'s: the volley bar full width on top with Reload / Reset /
+## Launch at its end, and below it the inventory — one tall [AmmoCard] per
+## type with stock or reload gain. The base card is baked into the scene and
+## carries the fill toggle; special cards are instanced in preference order.
 ##
-## Composition rule (owner, 2026-09-19): the player sets N and each
-## SPECIAL's count; **base arrows are the remainder** `N − Σ specials`. N
-## defaults to max on every target pick and is not kill-snapped; special
-## counts are STICKY for the run ([VolleyPreference]), clamped to their bin
-## (and to N) on every rebuild — in the plan only, never written back into
-## the preference. If the specials exceed N, N grows to fit. The body writes
-## exactly one thing into the plan — [member RangedAttackPlan.ammo], listed
-## in the preference's card order — and submits one command,
-## [ReloadCommand] via [method PlayerInputController.request_reload].
+## Composition rule: the player sets each SPECIAL's count; base arrows either
+## FILL the remaining room (fill ON — the volley sits at max) or hold an
+## explicit count (fill OFF — the bar and the base card move it). Every choice
+## is sticky for the run in the entity's [VolleyPreference] (fill, the
+## per-type counts) and survives a new target; the body owns no sticky state.
+## The clamp to the bins and to max lives in the plan only, never written back.
+## The body writes exactly one thing into the plan — [member
+## RangedAttackPlan.ammo], listed in the preference's card order — and submits
+## one command, [ReloadCommand] via [method PlayerInputController.request_reload].
 ##
-## Readouts, all of them: `N / max` on the bar with the typed segments,
-## notches at the wave boundaries, the per-leaf contribution ("2+2+1") with
-## each leaf's range / damage read from the PLAN (node-local, so a
-## Watchtower on one leaf moves that leaf's readout only — never the entity
-## board), each card's stock / `+N on reload` / effect, and the reload
-## button's `⟳ Reload +yield −1 AP`. No kills text anywhere (owner: "TMI").
+## Readouts: `N / max` on the bar with the typed segments, notches at the wave
+## boundaries, the per-leaf contribution ("2+2+1") read from the PLAN, each
+## card's count / stock / `+gain`, a gentle "room for k more" while the volley
+## is below max, and the reload button's `⟳ Reload +yield −1 AP`. No kills
+## text anywhere (owner: "TMI").
 ##
-## Input: scroll on the bar ±1 (Shift = ±wave), `M` back to max, steppers on
-## each special card, `Enter` launches; `R` (`ui_reload`) reloads via the input controller.
+## Input: scroll on the bar ±1 (Shift = ±wave), `M` back to max (fill ON),
+## `ui_volley_fill` toggles fill, `Enter` launches; `R` (`ui_reload`) reloads.
 ## No per-frame work: one rebuild per plan state change / adjustment.
 
 const _AMMO_CARD_SCENE := preload("res://ui/hud/command_tray/bodies/ammo_card.tscn")
 const _ROSTER: AmmoTypeRoster = preload("res://attack/ammo/ammo_type_roster.tres")
+const _BASE := AmmoTypeRoster.BASE_ID
 
 @onready var _hint: Label = %Hint
 @onready var _leaves_label: Label = %LeavesLabel
+@onready var _capacity_hint: Label = %CapacityHint
 @onready var _volley_bar: VolleyBar = %VolleyBar
-@onready var _roster: HBoxContainer = %Roster
+@onready var _base_card: AmmoCard = %BaseCard
+@onready var _specials: HBoxContainer = %Specials
 @onready var _reload_button: Button = %ReloadButton
 @onready var _reset_button: Button = %ResetButton
 @onready var _launch_button: LaunchAttackButton = %LaunchButton
 
-## N while the player has moved it off max; ignored while [member _n_at_max].
-var _n: int = 0
-## Owner: "default N : max" — true until the player adjusts N, reset on a
-## new target, restored by `M` / [method reset_n_to_max].
-var _n_at_max: bool = true
-var _last_target: SkillNode = null
-var _cards: Array[AmmoCard] = []
+var _special_cards: Array[AmmoCard] = []
 var _quiver: Quiver = null
 var _refreshing := false
 var _orphan_pref: VolleyPreference = null
+
+
+func _ready() -> void:
+	_base_card.setup(_ROSTER.base_type())
 
 
 func _on_bound() -> void:
@@ -55,17 +57,16 @@ func _on_bound() -> void:
 	_reload_button.pressed.connect(_on_reload_pressed)
 	_volley_bar.step_requested.connect(_on_bar_step)
 	_volley_bar.set_requested.connect(set_n)
+	_connect_card(_base_card)
 	if _armed_stack != null:
 		_armed_stack.attack_plan_state_changed.connect(_refresh)
 	Events.volley_arrow_placed.connect(_volley_bar.on_arrow_placed)
 	Events.volley_arrow_released.connect(_volley_bar.on_arrow_released)
 	if _input_ctl != null:
-		_input_ctl.player_can_act_changed.connect(_refresh.unbind(1))
+		_input_ctl.player_can_act_changed.connect(_on_can_act_changed)
 	_quiver = _player.stat_board.arrows as Quiver if _player != null and _player.stat_board != null else null
 	if _quiver != null:
-		_quiver.bin_changed.connect(_refresh.unbind(1))
-	_n_at_max = true
-	_last_target = null
+		_quiver.bin_changed.connect(_on_bin_changed)
 	_refresh()
 
 
@@ -85,17 +86,16 @@ func teardown() -> void:
 		Events.volley_arrow_placed.disconnect(_volley_bar.on_arrow_placed)
 	if Events.volley_arrow_released.is_connected(_volley_bar.on_arrow_released):
 		Events.volley_arrow_released.disconnect(_volley_bar.on_arrow_released)
-	if _battle_system != null:
-		if _armed_stack != null and _armed_stack.attack_plan_state_changed.is_connected(_refresh):
-			_armed_stack.attack_plan_state_changed.disconnect(_refresh)
-		if _reset_button.pressed.is_connected(_reset_plan):
-			_reset_button.pressed.disconnect(_reset_plan)
-		if _launch_button.pressed.is_connected(_on_launch_pressed):
-			_launch_button.pressed.disconnect(_on_launch_pressed)
-	if _input_ctl != null and _input_ctl.player_can_act_changed.is_connected(_refresh.unbind(1)):
-		_input_ctl.player_can_act_changed.disconnect(_refresh.unbind(1))
-	if _quiver != null and _quiver.bin_changed.is_connected(_refresh.unbind(1)):
-		_quiver.bin_changed.disconnect(_refresh.unbind(1))
+	if _armed_stack != null and _armed_stack.attack_plan_state_changed.is_connected(_refresh):
+		_armed_stack.attack_plan_state_changed.disconnect(_refresh)
+	if _reset_button.pressed.is_connected(_reset_plan):
+		_reset_button.pressed.disconnect(_reset_plan)
+	if _launch_button.pressed.is_connected(_on_launch_pressed):
+		_launch_button.pressed.disconnect(_on_launch_pressed)
+	if _input_ctl != null and _input_ctl.player_can_act_changed.is_connected(_on_can_act_changed):
+		_input_ctl.player_can_act_changed.disconnect(_on_can_act_changed)
+	if _quiver != null and _quiver.bin_changed.is_connected(_on_bin_changed):
+		_quiver.bin_changed.disconnect(_on_bin_changed)
 	_quiver = null
 	if _reload_button.pressed.is_connected(_on_reload_pressed):
 		_reload_button.pressed.disconnect(_on_reload_pressed)
@@ -103,9 +103,34 @@ func teardown() -> void:
 		_volley_bar.step_requested.disconnect(_on_bar_step)
 	if _volley_bar.set_requested.is_connected(set_n):
 		_volley_bar.set_requested.disconnect(set_n)
-	for card in _cards:
+	_disconnect_card(_base_card)
+	for card in _special_cards:
+		_specials.remove_child(card)
 		card.queue_free()
-	_cards.clear()
+	_special_cards.clear()
+
+
+func _on_can_act_changed(_can: bool) -> void:
+	_refresh()
+
+
+func _on_bin_changed(_type_id: StringName) -> void:
+	_refresh()
+
+
+func _connect_card(card: AmmoCard) -> void:
+	card.set_requested.connect(_on_card_set)
+	card.all_requested.connect(set_all)
+	card.none_requested.connect(set_none)
+	card.fill_toggled.connect(set_fill)
+
+
+func _disconnect_card(card: AmmoCard) -> void:
+	if card.set_requested.is_connected(_on_card_set):
+		card.set_requested.disconnect(_on_card_set)
+		card.all_requested.disconnect(set_all)
+		card.none_requested.disconnect(set_none)
+		card.fill_toggled.disconnect(set_fill)
 
 
 # --- composition controls -------------------------------------------------
@@ -114,65 +139,82 @@ func _plan() -> RangedAttackPlan:
 	return _armed_plan() as RangedAttackPlan
 
 
-func max_n() -> int:
+func _aimed() -> RangedAttackPlan:
 	var plan := _plan()
-	return plan.max_n() if plan != null and plan.target != null else 0
+	return plan if plan != null and plan.target != null else null
+
+
+func max_n() -> int:
+	var plan := _aimed()
+	return plan.max_n() if plan != null else 0
 
 
 ## Arrows in the volley as currently composed (Σ of the plan's counts).
 func n() -> int:
-	var plan := _plan()
-	return plan.n() if plan != null and plan.target != null else 0
+	var plan := _aimed()
+	return plan.n() if plan != null else 0
 
 
-func set_n(value: int) -> void:
-	_n = value
-	_n_at_max = false
-	_refresh()
+func fill() -> bool:
+	return _pref().fill
+
+
+## STUB
+func set_n(_value: int) -> void:
+	pass
 
 
 func adjust_n(delta: int) -> void:
 	set_n(n() + delta)
 
 
+## STUB
 func reset_n_to_max() -> void:
-	_n_at_max = true
-	_refresh()
+	pass
 
 
-## Lowering a special by more than the base bin can absorb lowers N with it:
-## base is the remainder and never a control, and at N = max every arrow in
-## the quiver fires, so the only way to fire fewer specials there is a
-## smaller volley.
+## STUB
+func set_fill(_on: bool) -> void:
+	pass
+
+
+func toggle_fill() -> void:
+	set_fill(not _pref().fill)
+
+
+## STUB
+func set_base(_value: int) -> void:
+	pass
+
+
+## STUB
 func set_special(type_id: StringName, value: int) -> void:
-	if type_id == AmmoTypeRoster.BASE_ID:
-		return
-	value = maxi(0, value)
-	var plan := _plan()
-	if plan != null and plan.target != null:
-		var before := plan.count_of(type_id)
-		if value < before:
-			var base_now := plan.count_of(AmmoTypeRoster.BASE_ID)
-			var base_bin := _quiver.stock_of(AmmoTypeRoster.BASE_ID) if _quiver != null else 0
-			var drop := (before - value) - maxi(0, base_bin - base_now)
-			if drop > 0:
-				_n = n() - drop
-				_n_at_max = false
-	_pref().special_counts[type_id] = value
+	_pref().special_counts[type_id] = maxi(0, value)
 	_refresh()
 
 
-## Steps from the count the plan FIRES (the bin-clamped one) while aimed, so
-## a preference above its bin never makes the stepper feel stuck.
-func step_special(type_id: StringName, delta: int) -> void:
-	var plan := _plan()
-	var now: int = plan.count_of(type_id) if plan != null and plan.target != null \
-			else int(_pref().special_counts.get(type_id, 0))
-	set_special(type_id, now + delta)
+## STUB
+func set_all(_type_id: StringName) -> void:
+	pass
 
 
+## STUB
+func set_none(_type_id: StringName) -> void:
+	pass
+
+
+func _on_card_set(type_id: StringName, value: int) -> void:
+	if type_id == _BASE:
+		set_base(value)
+	else:
+		set_special(type_id, value)
+
+
+## The base card first, then the special cards in card order.
 func cards() -> Array[AmmoCard]:
-	return _cards
+	var out: Array[AmmoCard] = [_base_card]
+	out.append_array(_special_cards)
+	return out
 
 
 ## Per reaching leaf, in firing rank: `{node, shots, range, damage}`, the
@@ -239,51 +281,12 @@ func _type_order() -> Array[AmmoType]:
 	return out
 
 
-## Clamp the sticky specials, derive base as the remainder, and return the
-## explicit composition as the plan's ordered list, in card order. Earlier
-## cards win the clamp and the base-shortfall top-up. Reads the preference,
-## never writes it: the clamp lives in the plan only.
+## STUB
 func _compose(plan: RangedAttackPlan) -> Array[Dictionary]:
-	var cap := plan.max_n()
-	# A scout shot (#1036, a sensed-only target): only scout arrows fly into
-	# fog, so every other bin reads as empty here and the default composition
-	# validates instead of opening on the mix error.
-	var scout_shot := plan.is_scout_shot()
-	var counts: Dictionary = {}
-	var sum_special := 0
-	var special_counts := _pref().special_counts
-	var order := _type_order()
-	for t in order:
-		if t.id == AmmoTypeRoster.BASE_ID:
-			continue
-		var c := clampi(special_counts.get(t.id, 0), 0, mini(_stock_for(t, scout_shot), cap - sum_special))
-		if c > 0:
-			counts[t.id] = c
-		sum_special += c
-	var target_n := cap if _n_at_max else clampi(_n, 0, cap)
-	target_n = maxi(target_n, sum_special)
-	_n = target_n  # N grew to fit the specials: remember the grown value
-	var base := mini(target_n - sum_special, _stock_for(_ROSTER.base_type(), scout_shot))
-	# The base bin cannot fill N: top up the specials in card order (at
-	# N = max = stock this is simply "every arrow fires").
-	var shortfall := target_n - sum_special - base
-	if shortfall > 0 and _quiver != null:
-		for t in order:
-			if shortfall <= 0:
-				break
-			if t.id == AmmoTypeRoster.BASE_ID:
-				continue
-			var have := int(counts.get(t.id, 0))
-			var extra := mini(shortfall, _stock_for(t, scout_shot) - have)
-			if extra > 0:
-				counts[t.id] = have + extra
-				shortfall -= extra
-	if base > 0:
-		counts[AmmoTypeRoster.BASE_ID] = base
 	var list: Array[Dictionary] = []
-	for t in order:
-		if counts.has(t.id):
-			list.append({"type": t.id, "count": int(counts[t.id])})
+	var base := mini(plan.max_n(), _stock_for(_ROSTER.base_type(), plan.is_scout_shot()))
+	if base > 0:
+		list.append({"type": _BASE, "count": base})
 	return list
 
 
@@ -301,19 +304,13 @@ func _refresh() -> void:
 	if _refreshing:
 		return
 	_refreshing = true
-	var plan := _plan()
-	var has_target := plan != null and plan.target != null
-	if has_target:
-		if plan.target != _last_target:
-			_last_target = plan.target
-			_n_at_max = true
+	var plan := _aimed()
+	if plan != null:
 		var list := _compose(plan)
 		if list != plan.ammo:
 			plan.ammo = list
 			plan.state_changed.emit()
-	else:
-		_last_target = null
-	_paint(plan, has_target)
+	_paint(_plan(), plan != null)
 	_refreshing = false
 
 
@@ -362,41 +359,47 @@ func _paint(plan: RangedAttackPlan, has_target: bool) -> void:
 	_launch_button.set_enabled(has_target and plan.is_valid() and can_act and affordable)
 
 
-## One card per type with stock or reload gain, in roster order; cards are
-## reused across rebuilds and only rebuilt when the owned set changes.
+## The base card always; a special card per type with stock or reload gain,
+## in card order. Special cards are reused across rebuilds and only rebuilt
+## when that set changes.
 func _sync_cards(yield_by_type: Dictionary, counts: Dictionary, cap: int, n_now: int) -> void:
 	var wanted: Array[AmmoType] = []
-	for t in _ROSTER.sorted():
-		var stock := _quiver.stock_of(t.id) if _quiver != null else 0
-		if stock > 0 or int(yield_by_type.get(t.id, 0)) > 0:
+	for t in _type_order():
+		if t.id == _BASE:
+			continue
+		if _bin(t.id) > 0 or int(yield_by_type.get(t.id, 0)) > 0:
 			wanted.append(t)
-	var same := wanted.size() == _cards.size()
+	var same := wanted.size() == _special_cards.size()
 	if same:
 		for i in wanted.size():
-			if _cards[i].type != wanted[i]:
+			if _special_cards[i].type != wanted[i]:
 				same = false
 				break
 	if not same:
-		for card in _cards:
-			_roster.remove_child(card)
+		for card in _special_cards:
+			_specials.remove_child(card)
 			card.queue_free()
-		_cards.clear()
+		_special_cards.clear()
 		for t in wanted:
 			var card := _AMMO_CARD_SCENE.instantiate() as AmmoCard
 			card.setup(t)
-			card.step_requested.connect(step_special)
-			card.set_requested.connect(set_special)
-			_roster.add_child(card)
-			_cards.append(card)
-	for card in _cards:
+			_connect_card(card)
+			_specials.add_child(card)
+			_special_cards.append(card)
+	_base_card.set_fill(_pref().fill)
+	for card in cards():
 		var id := card.type.id
-		card.set_stock(_quiver.stock_of(id) if _quiver != null else 0, int(yield_by_type.get(id, 0)))
-		var c := int(counts.get(id, 0))
-		# A special may grow by what N can still absorb past the other
-		# specials — and past N itself, since N grows to fit.
-		var others := n_now - c - int(counts.get(AmmoTypeRoster.BASE_ID, 0))
-		var room := (cap - others) if cap > 0 else 0
-		card.set_count(c, mini(_quiver.stock_of(id) if _quiver != null else 0, maxi(room, 0)))
+		card.set_stock(_bin(id), int(yield_by_type.get(id, 0)))
+		card.set_count(int(counts.get(id, 0)), mini(_bin(id), _room_for(id, counts, cap)))
+
+
+func _bin(type_id: StringName) -> int:
+	return _quiver.stock_of(type_id) if _quiver != null else 0
+
+
+## STUB
+func _room_for(_type_id: StringName, _counts: Dictionary, cap: int) -> int:
+	return cap
 
 
 # --- input ------------------------------------------------------------------
@@ -421,6 +424,10 @@ func _unhandled_key_input(event: InputEvent) -> void:
 		return
 	var key := event as InputEventKey
 	if not key.pressed or key.echo:
+		return
+	if key.is_action_pressed(&"ui_volley_fill"):
+		toggle_fill()
+		get_viewport().set_input_as_handled()
 		return
 	var plan := _plan()
 	if plan == null or plan.target == null:

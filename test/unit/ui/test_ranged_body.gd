@@ -1,10 +1,10 @@
 extends GutTest
 
 ## #954 — the ranged command-tray body is the Quiver's view: one notched
-## volley bar (N / max, wave boundaries as notches, typed segments), an ammo
-## card per owned type with a stepper on each special, base arrows as the
-## remainder, sticky special counts across target picks, and the reload row
-## showing the projected yield. No kills text anywhere (owner: "TMI").
+## volley bar (N / max, wave boundaries as notches, typed segments), a tall
+## ammo card per owned type driven through its signals, base arrows filling
+## the room or held at a count (the sticky fill toggle), sticky counts across
+## target picks, and the reload row showing the projected yield. No kills text anywhere (owner: "TMI").
 ##
 ## Fixture (test_ranged_volley_composition's world): core `_mid`(200,0) with
 ## three reaching leaves around target T(450,0) — near (400,0), mid_leaf
@@ -18,6 +18,7 @@ const _BOARD := preload("res://entity/default_entity_board.tres")
 const _PLAYER_FACTION := preload("res://entity/factions/player.tres")
 const _NPC_FACTION := preload("res://entity/factions/npc.tres")
 const _WATCHTOWER_SCENE := preload("res://skill_node/addons/defs/watchtower_addon.tscn")
+const _ROSTER: AmmoTypeRoster = preload("res://attack/ammo/ammo_type_roster.tres")
 const _ArmingCtl := preload("res://test/fixtures/arming_ctl.gd")
 const _BODY_SCENE := preload("res://ui/hud/command_tray/bodies/ranged_body.tscn")
 
@@ -165,39 +166,39 @@ func test_bar_max_and_default_n_and_wave_notches() -> void:
 
 
 ## N = max = stock (11) means every arrow fires, so the default already reads
-## {arrow 9, poison 2}. Lowering a special the base bin cannot absorb lowers
-## N with it (owner: base is the remainder, never a control); raising one at
-## a fixed N carves it out of the base; scrolling N re-derives the base.
-func test_stepping_poison_and_scrolling_n_down_re_derives_base() -> void:
+## {arrow 9, poison 2}. Lowering a special the base bin cannot absorb turns
+## fill off at the current base; with fill off the base count is the control
+## (the bar moves it), and `M` turns fill back on.
+func test_lowering_a_special_and_scrolling_the_bar_move_the_base() -> void:
 	_body.set_special(_POISON, 1)
-	assert_eq(_counts(), {_ARROW: 9, _POISON: 1}, "base is bin-capped at 9 → N follows down to 10")
+	assert_eq(_counts(), {_ARROW: 9, _POISON: 1}, "base is bin-capped at 9 → fill turns off at 9")
+	assert_false(_body.fill())
 	assert_eq(_body.n(), 10)
-	_body.step_special(_POISON, 1)
-	assert_eq(_counts(), {_POISON: 2, _ARROW: 8}, "at fixed N 10 the extra poison carves out of base")
+	_card(_POISON).set_requested.emit(_POISON, 2)
+	assert_eq(_counts(), {_POISON: 2, _ARROW: 9}, "the poison bar raises poison; the held base stays")
 	_body.reset_n_to_max()
+	assert_true(_body.fill(), "M is fill on")
 	assert_eq(_body.n(), 11)
 	assert_eq(_counts(), {_POISON: 2, _ARROW: 9})
 	_body.set_n(4)
-	assert_eq(_counts(), {_POISON: 2, _ARROW: 2}, "N 4 with 2 poison → 2 base")
+	assert_eq(_counts(), {_POISON: 2, _ARROW: 2}, "N 4 with 2 poison → base held at 2")
 	assert_eq(_body.n(), 4)
 	_body.set_n(1)
 	assert_eq(_body.n(), 2, "specials exceed N → N grows to fit")
 	assert_eq(_counts(), {_POISON: 2})
-	_body.set_special(_POISON, 0)
-	assert_eq(_counts(), {_ARROW: 2}, "no poison at N 2 → 2 base")
 	_body.reset_n_to_max()
 	assert_eq(_counts(), {_POISON: 2, _ARROW: 9}, "max fires everything again")
 
 
-func test_special_count_is_sticky_across_target_picks_and_clamps_to_bin() -> void:
+func test_counts_and_fill_are_sticky_across_target_picks_and_clamp_to_bin() -> void:
 	_body.set_special(_POISON, 2)
 	_body.set_n(4)
 	_plan.set_target(_target2)
-	assert_eq(_body.n(), 11, "a new target rebuilds at N = max")
-	assert_eq(_counts(), {_POISON: 2, _ARROW: 9}, "poison stays 2 while the bin has 2")
+	assert_false(_body.fill(), "a new target keeps fill off")
+	assert_eq(_counts(), {_POISON: 2, _ARROW: 2}, "and the held base")
 	_attacker.stat_board.arrows.take(_POISON, 1)
 	_plan.set_target(_target)
-	assert_eq(_counts(), {_POISON: 1, _ARROW: 9}, "clamped to the bin once it has 1")
+	assert_eq(_counts(), {_POISON: 1, _ARROW: 2}, "clamped to the bin once it has 1")
 
 
 func test_reload_row_shows_projected_yield_and_ap() -> void:
@@ -216,8 +217,8 @@ func test_cards_show_stock_and_gain_per_owned_type() -> void:
 	assert_eq(arrow.gain, 4 * _per_leaf())
 	assert_eq(poison.stock, 2)
 	assert_eq(poison.gain, int(_attacker.stat_board.poison_aspect.get_value()))
-	assert_false(arrow.has_stepper(), "base arrows are not a control")
-	assert_true(poison.has_stepper(), "specials get a stepper")
+	assert_true(arrow.has_fill_toggle, "the base card carries the fill toggle")
+	assert_false(poison.has_fill_toggle, "specials do not")
 
 
 func test_hot_seat_rebind_swaps_the_roster() -> void:
@@ -292,7 +293,7 @@ func test_a_sensed_target_composes_scouts_only() -> void:
 	await get_tree().process_frame
 	vision._recompute()
 	assert_true(vision.is_sensed(_target) and not vision.is_visible(_target), "fixture: target is sensed-only")
-	_body.set_special(_POISON, 1)
+	_body.set_special(_POISON, 2)
 	assert_true(_counts().has(_POISON) and _counts().has(_ARROW), "control: without the viewer fog poison and base fire")
 	_plan.viewer_vision = vision
 	_plan.reset()
@@ -300,7 +301,7 @@ func test_a_sensed_target_composes_scouts_only() -> void:
 	assert_true(_plan.is_scout_shot(), "fixture: the plan sees a scout shot")
 	assert_eq(_counts(), {&"scout": 2}, "scouts only, poison and base forced to 0")
 	assert_eq(_plan.validate(), [] as Array[String], "the default composition validates")
-	_body.step_special(_POISON, 1)
+	_card(_POISON).set_requested.emit(_POISON, 1)
 	assert_eq(_counts(), {&"scout": 2}, "a poison step is clamped back to 0 into fog")
 
 
@@ -354,3 +355,85 @@ func test_the_bar_segments_follow_the_plan_list_order() -> void:
 		seg_ids.append(s.type_id)
 	assert_eq(_plan.types(), [_ARROW, _POISON] as Array[StringName], "control: the plan lists arrows first")
 	assert_eq(seg_ids, _plan.types(), "the bar reads in firing order")
+
+
+# --- #1515: fill toggle, count label, card set, capacity hint ---------------
+
+## Acceptance 1, on this fixture's max (14 shots): fill ON gives base the
+## room; fill OFF and a bar scroll −1 moves base only; a new target keeps
+## fill OFF and the base, clamped to stock.
+func test_fill_on_fills_the_room_and_fill_off_holds_the_base_across_targets() -> void:
+	_attacker.stat_board.arrows.add(_ARROW, 20)
+	_attacker.stat_board.arrows.add(_POISON, 1)
+	_attacker.stat_board.arrows.add(&"curse", 2)
+	_body.set_special(_POISON, 3)
+	_body.set_special(&"curse", 2)
+	var cap := _body.max_n()
+	assert_eq(cap, 14, "fixture: shots 5+5+4 bound max")
+	assert_true(_body.fill())
+	assert_eq(_plan.count_of(_ARROW), cap - 5, "fill on: base = remaining room")
+	_card(_ARROW).fill_toggled.emit(false)
+	assert_false(_body.fill(), "the base card's toggle turns fill off")
+	_bar().step_requested.emit(-1, false)
+	assert_eq(_plan.count_of(_ARROW), cap - 6, "scroll −1 moves the base")
+	assert_eq(_plan.count_of(_POISON), 3, "specials unchanged")
+	assert_eq(_plan.count_of(&"curse"), 2, "specials unchanged")
+	_plan.set_target(_target2)
+	assert_false(_body.fill(), "a new target keeps fill off")
+	assert_eq(_plan.count_of(_ARROW), cap - 6, "and the base")
+	_attacker.stat_board.arrows.take(_ARROW, _attacker.stat_board.arrows.stock_of(_ARROW) - 5)
+	assert_eq(_plan.count_of(_ARROW), 5, "clamped to stock")
+
+
+## Acceptance 2.
+func test_dragging_the_base_bar_turns_fill_off() -> void:
+	assert_true(_body.fill())
+	_card(_ARROW).set_requested.emit(_ARROW, 5)
+	assert_false(_body.fill(), "a base bar drag turns fill off")
+	assert_eq(_plan.count_of(_ARROW), 5)
+
+
+## Acceptance 3: left = min(stock, room), right = 0.
+func test_count_label_all_and_none() -> void:
+	_attacker.stat_board.arrows.add(_ARROW, 20)
+	_body.set_special(_POISON, 2)
+	_body.set_n(4)
+	assert_eq(_counts(), {_POISON: 2, _ARROW: 2}, "fixture")
+	_card(_ARROW).all_requested.emit(_ARROW)
+	assert_eq(_plan.count_of(_ARROW), _body.max_n() - 2, "all = the room past the specials, under stock 29")
+	_card(_POISON).none_requested.emit(_POISON)
+	assert_eq(_plan.count_of(_POISON), 0, "none")
+	_card(_POISON).all_requested.emit(_POISON)
+	assert_eq(_plan.count_of(_POISON), 2, "all = the bin when the room is larger")
+	_card(_ARROW).none_requested.emit(_ARROW)
+	assert_eq(_plan.count_of(_ARROW), 0, "none on base")
+	assert_false(_body.fill())
+
+
+## Acceptance 4: a card per type with stock or gain; the base card always.
+func test_cards_exist_for_stock_or_gain_and_the_base_card_always() -> void:
+	var quiver := _attacker.stat_board.arrows
+	quiver.take(_ARROW, quiver.stock_of(_ARROW))
+	quiver.take(_POISON, quiver.stock_of(_POISON))
+	quiver.add(&"curse", 1)
+	var yields: Dictionary = _attacker.reload_yield()
+	var expected: Array = [_ARROW]
+	for t in _ROSTER.sorted():
+		if t.id != _ARROW and (quiver.stock_of(t.id) > 0 or int(yields.get(t.id, 0)) > 0):
+			expected.append(t.id)
+	var ids: Array = []
+	for c in _body.cards():
+		ids.append(c.type.id)
+	assert_true(ids.has(&"curse"), "a stocked special")
+	assert_eq(ids, expected, "exactly stock-or-gain, base first")
+
+
+## Acceptance 5: a gentle hint while under max, hidden at max.
+func test_capacity_hint_shows_only_below_max() -> void:
+	var hint := _body.get_node("%CapacityHint") as Label
+	assert_eq(_body.n(), _body.max_n(), "fixture: at max")
+	assert_false(hint.visible, "hidden at max")
+	_body.set_n(4)
+	assert_true(hint.visible, "shown below max")
+	_body.reset_n_to_max()
+	assert_false(hint.visible, "hidden again at max")
