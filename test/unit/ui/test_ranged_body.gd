@@ -313,3 +313,25 @@ func test_special_counts_survive_a_rebuild_and_a_fresh_plan() -> void:
 	assert_eq(_plan.ammo_counts, {_POISON: 1, _ARROW: 3}, "the rebuilt body composes the kept count")
 	assert_eq(_ctl.armed_stack.memory_for(_attacker).ranged.special_counts.get(_POISON, 0), 1,
 			"held on the entity's seat memory")
+
+
+func test_the_composed_list_follows_the_preference_order_else_the_roster() -> void:
+	_attacker.stat_board.arrows.add(&"curse", 1)
+	_attacker.stat_board.arrows.add(&"armor_break", 1)
+	var pref: VolleyPreference = _ctl.armed_stack.memory_for(_attacker).ranged
+	pref.order = [&"curse", &"armor_break"] as Array[StringName]
+	_body.set_special(&"armor_break", 1)
+	_body.set_special(&"curse", 1)
+	assert_eq(_plan.types().slice(0, 2), [&"curse", &"armor_break"] as Array[StringName],
+			"card order is firing order")
+	pref.order = [] as Array[StringName]
+	_body.set_n(4)
+	assert_eq(_plan.types(), [&"armor_break", &"curse", _POISON, _ARROW] as Array[StringName],
+			"an empty preference falls back to the roster's authored order")
+
+
+func test_a_bin_clamp_never_writes_back_into_the_preference() -> void:
+	_body.set_special(_POISON, 5)
+	assert_eq(_plan.count_of(_POISON), 2, "the plan holds the bin-clamped count")
+	assert_eq(_ctl.armed_stack.memory_for(_attacker).ranged.special_counts.get(_POISON, 0), 5,
+			"the preference keeps what the player chose")

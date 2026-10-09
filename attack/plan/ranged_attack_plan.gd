@@ -17,6 +17,7 @@ var target: SkillNode = null
 ## tray (#954) writes an explicit dict; the wire always carries the explicit
 ## one ([method to_dict]), so a mirror never re-derives a default.
 var ammo_counts: Dictionary = {}
+var ammo: Array[Dictionary] = []
 
 const _ROSTER_PATH := "res://attack/ammo/ammo_type_roster.tres"
 
@@ -76,6 +77,14 @@ func effective_ammo_counts() -> Dictionary:
 		return {}
 	var base_n := mini(max_n(), quiver.stock_of(AmmoTypeRoster.BASE_ID))
 	return {AmmoTypeRoster.BASE_ID: base_n} if base_n > 0 else {}
+
+
+func types() -> Array[StringName]:
+	return []
+
+
+func count_of(_id: StringName) -> int:
+	return 0
 
 
 ## Arrows in this volley — the sum of [method effective_ammo_counts].

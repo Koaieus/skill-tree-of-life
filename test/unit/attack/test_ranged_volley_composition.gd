@@ -292,3 +292,36 @@ func _combat_hits(outcome: AttackOutcome) -> Array[HitInstance]:
 		if not hit is ExertInstance:
 			out.append(hit)
 	return out
+
+
+func _seq_ids(p: RangedAttackPlan) -> Array[StringName]:
+	var out: Array[StringName] = []
+	for t in p._ammo_sequence():
+		out.append(t.id)
+	return out
+
+
+func test_the_ammo_list_order_is_the_firing_order() -> void:
+	var p := _plan()
+	p.ammo = [{"type": _POISON, "count": 2}, {"type": _ARROW, "count": 3}]
+	assert_eq(_seq_ids(p), [_POISON, _POISON, _ARROW, _ARROW, _ARROW] as Array[StringName])
+	p.ammo = [{"type": _ARROW, "count": 3}, {"type": _POISON, "count": 2}]
+	assert_eq(_seq_ids(p), [_ARROW, _ARROW, _ARROW, _POISON, _POISON] as Array[StringName],
+			"reversed, arrows fly first: the list wins over the roster's order")
+
+
+func test_the_wire_round_trip_keeps_the_list_order() -> void:
+	var p := _plan()
+	p.ammo = [{"type": _ARROW, "count": 3}, {"type": _POISON, "count": 2}]
+	var mirror := RangedAttackPlan.from_dict(p.to_dict(_graph), _graph)
+	autofree(mirror)
+	assert_eq(mirror.types(), [_ARROW, _POISON] as Array[StringName])
+	assert_eq(_seq_ids(mirror), _seq_ids(p))
+
+
+func test_validate_refuses_a_duplicate_type() -> void:
+	var p := _plan()
+	p.ammo = [{"type": _ARROW, "count": 1}]
+	assert_eq(p.validate(), [] as Array[String], "control: one arrow is a valid volley")
+	p.ammo = [{"type": _ARROW, "count": 1}, {"type": _ARROW, "count": 1}]
+	assert_false(p.validate().is_empty(), "one position per type")
