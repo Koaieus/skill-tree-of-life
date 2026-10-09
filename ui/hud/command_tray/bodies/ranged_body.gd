@@ -4,8 +4,10 @@ extends CommandTrayBodyBase
 ## Ranged tab content — the Quiver's view (#954), as the magic body is the
 ## [SpellBook]'s: the volley bar full width on top with Reload / Reset /
 ## Launch at its end, and below it the inventory — one tall [AmmoCard] per
-## type with stock or reload gain. The base card is baked into the scene and
-## carries the fill toggle; special cards are instanced in preference order.
+## type with stock or reload gain, in a [ReorderRow]: dragging a card sets the
+## volley's FIRING order ([member VolleyPreference.order]); "Default order"
+## empties it. The base card is baked into the scene and carries the fill
+## toggle, but reorders like any other; special cards are instanced.
 ##
 ## Composition rule: the player sets each SPECIAL's count; base arrows either
 ## FILL the remaining room (fill ON — the volley sits at max) or hold an
@@ -36,7 +38,8 @@ const _BASE := AmmoTypeRoster.BASE_ID
 @onready var _capacity_hint: Label = %CapacityHint
 @onready var _volley_bar: VolleyBar = %VolleyBar
 @onready var _base_card: AmmoCard = %BaseCard
-@onready var _specials: HBoxContainer = %Specials
+@onready var _row: ReorderRow = %Roster
+@onready var _default_order_button: Button = %DefaultOrderButton
 @onready var _reload_button: Button = %ReloadButton
 @onready var _reset_button: Button = %ResetButton
 @onready var _launch_button: LaunchAttackButton = %LaunchButton
@@ -49,12 +52,15 @@ var _orphan_pref: VolleyPreference = null
 
 func _ready() -> void:
 	_base_card.setup(_ROSTER.base_type())
+	_base_card.set_meta(&"reorder_key", _BASE)
 
 
 func _on_bound() -> void:
 	_reset_button.pressed.connect(_reset_plan)
 	_launch_button.pressed.connect(_on_launch_pressed)
 	_reload_button.pressed.connect(_on_reload_pressed)
+	_default_order_button.pressed.connect(restore_default_order)
+	_row.order_changed.connect(_on_order_changed)
 	_volley_bar.step_requested.connect(_on_bar_step)
 	_volley_bar.set_requested.connect(set_n)
 	_connect_card(_base_card)
@@ -103,9 +109,13 @@ func teardown() -> void:
 		_volley_bar.step_requested.disconnect(_on_bar_step)
 	if _volley_bar.set_requested.is_connected(set_n):
 		_volley_bar.set_requested.disconnect(set_n)
+	if _default_order_button.pressed.is_connected(restore_default_order):
+		_default_order_button.pressed.disconnect(restore_default_order)
+	if _row.order_changed.is_connected(_on_order_changed):
+		_row.order_changed.disconnect(_on_order_changed)
 	_disconnect_card(_base_card)
 	for card in _special_cards:
-		_specials.remove_child(card)
+		_row.remove_child(card)
 		card.queue_free()
 	_special_cards.clear()
 
@@ -250,10 +260,12 @@ func _on_card_set(type_id: StringName, value: int) -> void:
 		set_special(type_id, value)
 
 
-## The base card first, then the special cards in card order.
+## The cards in row (card) order, the base card among them.
 func cards() -> Array[AmmoCard]:
-	var out: Array[AmmoCard] = [_base_card]
-	out.append_array(_special_cards)
+	var out: Array[AmmoCard] = []
+	for c in _row.items():
+		if c is AmmoCard:
+			out.append(c)
 	return out
 
 
@@ -463,38 +475,57 @@ func _paint(plan: RangedAttackPlan, has_target: bool) -> void:
 	_launch_button.set_enabled(has_target and plan.is_valid() and can_act and affordable)
 
 
-## The base card always; a special card per type with stock or reload gain,
-## in card order. Special cards are reused across rebuilds and only rebuilt
-## when that set changes.
+## The base card always; a special card per type with stock or reload gain.
+## Cards are diffed by type — a gone type's card is freed, a new type's
+## instanced — and the row is put in card order without a glide (a restore
+## glides through [method restore_default_order] first).
 func _sync_cards(yield_by_type: Dictionary, counts: Dictionary, cap: int) -> void:
+	var order_ids: Array[StringName] = []
 	var wanted: Array[AmmoType] = []
 	for t in _type_order():
 		if t.id == _BASE:
-			continue
-		if _bin(t.id) > 0 or int(yield_by_type.get(t.id, 0)) > 0:
+			order_ids.append(t.id)
+		elif _bin(t.id) > 0 or int(yield_by_type.get(t.id, 0)) > 0:
 			wanted.append(t)
-	var same := wanted.size() == _special_cards.size()
-	if same:
-		for i in wanted.size():
-			if _special_cards[i].type != wanted[i]:
-				same = false
-				break
-	if not same:
-		for card in _special_cards:
-			_specials.remove_child(card)
+			order_ids.append(t.id)
+	for card in _special_cards.duplicate():
+		if not wanted.has(card.type):
+			_special_cards.erase(card)
+			_disconnect_card(card)
+			_row.remove_child(card)
 			card.queue_free()
-		_special_cards.clear()
-		for t in wanted:
-			var card := _AMMO_CARD_SCENE.instantiate() as AmmoCard
-			card.setup(t)
-			_connect_card(card)
-			_specials.add_child(card)
-			_special_cards.append(card)
+	for t in wanted:
+		if _special_cards.any(func(c: AmmoCard) -> bool: return c.type == t):
+			continue
+		var card := _AMMO_CARD_SCENE.instantiate() as AmmoCard
+		card.setup(t)
+		card.set_meta(&"reorder_key", t.id)
+		_connect_card(card)
+		_row.add_child(card)
+		_special_cards.append(card)
+	_row.set_order(order_ids, false)
 	_base_card.set_fill(_pref().fill)
 	for card in cards():
 		var id := card.type.id
 		card.set_stock(_bin(id), int(yield_by_type.get(id, 0)))
 		card.set_count(int(counts.get(id, 0)), mini(_bin(id), _room_for(id, counts, cap)))
+
+
+## The row's drop: its order is the firing order. Types not on the row follow
+## in roster order through [method _type_order].
+func _on_order_changed(ids: Array[StringName]) -> void:
+	_pref().order = ids.duplicate()
+	_refresh()
+
+
+## Back to the roster's order: an empty preference, the cards gliding home.
+func restore_default_order() -> void:
+	_pref().order = [] as Array[StringName]
+	var ids: Array[StringName] = []
+	for t in _type_order():
+		ids.append(t.id)
+	_row.set_order(ids, true)
+	_refresh()
 
 
 func _bin(type_id: StringName) -> int:

@@ -418,15 +418,15 @@ func test_cards_exist_for_stock_or_gain_and_the_base_card_always() -> void:
 	quiver.take(_POISON, quiver.stock_of(_POISON))
 	quiver.add(&"curse", 1)
 	var yields: Dictionary = _attacker.reload_yield()
-	var expected: Array = [_ARROW]
+	var expected: Array = []
 	for t in _ROSTER.sorted():
-		if t.id != _ARROW and (quiver.stock_of(t.id) > 0 or int(yields.get(t.id, 0)) > 0):
+		if t.id == _ARROW or quiver.stock_of(t.id) > 0 or int(yields.get(t.id, 0)) > 0:
 			expected.append(t.id)
 	var ids: Array = []
 	for c in _body.cards():
 		ids.append(c.type.id)
 	assert_true(ids.has(&"curse"), "a stocked special")
-	assert_eq(ids, expected, "exactly stock-or-gain, base first")
+	assert_eq(ids, expected, "exactly stock-or-gain, the base card always, in card (roster) order")
 
 
 ## Acceptance 5: a gentle hint while under max, hidden at max.

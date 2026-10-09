@@ -6,6 +6,7 @@
 [ext_resource type="PackedScene" path="res://ui/hud/command_tray/bodies/volley_bar.tscn" id="4_bar"]
 [ext_resource type="PackedScene" path="res://ui/common/key_chip.tscn" id="5_keychip"]
 [ext_resource type="PackedScene" path="res://ui/hud/command_tray/bodies/ammo_card.tscn" id="6_card"]
+[ext_resource type="PackedScene" path="res://ui/hud/command_tray/bodies/reorder_row.tscn" id="7_row"]
 
 [node name="RangedBody" instance=ExtResource("1_base")]
 script = ExtResource("2_script")
@@ -107,23 +108,24 @@ theme_override_font_sizes/font_size = 9
 modulate = Color(0.667, 0.714, 0.824, 0.45)
 text = "scroll ±1 · Shift ±wave · M max · L fill · Enter launch · R reload"
 
+[node name="DefaultOrderButton" type="Button" parent="BodyContent/Stack/InfoRow"]
+unique_name_in_owner = true
+layout_mode = 2
+tooltip_text = "Drag the cards to set the firing order; this puts them back in the default order."
+theme_override_font_sizes/font_size = 10
+text = "⇆ Default order"
+
 [node name="RosterScroll" type="ScrollContainer" parent="BodyContent/Stack"]
 layout_mode = 2
 size_flags_vertical = 3
 vertical_scroll_mode = 0
 horizontal_scroll_mode = 3
 
-[node name="Roster" type="HBoxContainer" parent="BodyContent/Stack/RosterScroll"]
+[node name="Roster" parent="BodyContent/Stack/RosterScroll" instance=ExtResource("7_row")]
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_constants/separation = 8
 
 [node name="BaseCard" parent="BodyContent/Stack/RosterScroll/Roster" instance=ExtResource("6_card")]
 unique_name_in_owner = true
 layout_mode = 2
 has_fill_toggle = true
-
-[node name="Specials" type="HBoxContainer" parent="BodyContent/Stack/RosterScroll/Roster"]
-unique_name_in_owner = true
-layout_mode = 2
-theme_override_constants/separation = 8
