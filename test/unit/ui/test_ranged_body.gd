@@ -438,3 +438,63 @@ func test_capacity_hint_shows_only_below_max() -> void:
 	assert_true(hint.visible, "shown below max")
 	_body.reset_n_to_max()
 	assert_false(hint.visible, "hidden again at max")
+
+
+func _four_types() -> void:
+	_attacker.stat_board.arrows.add(&"curse", 1)
+	_attacker.stat_board.arrows.add(&"armor_break", 1)
+	_body.set_special(&"armor_break", 1)
+	_body.set_special(&"curse", 1)
+	_body.set_special(_POISON, 1)
+
+
+func _card_ids() -> Array[StringName]:
+	var out: Array[StringName] = []
+	for c in _body.cards():
+		out.append(c.type.id)
+	return out
+
+
+## #1516 acceptance 1: dragging card 3 to slot 1 commits that permutation,
+## and the plan's list follows it (the base card moves like any other).
+func test_dragging_card_three_to_slot_one_reorders_the_plan() -> void:
+	_four_types()
+	var row := _body.get_node_or_null("%Roster") as ReorderRow
+	assert_not_null(row, "the roster is a ReorderRow")
+	if row == null:
+		return
+	await get_tree().process_frame
+	var before := _card_ids()
+	assert_eq(before.size(), 4, "four cards")
+	var expected: Array[StringName] = [before[2], before[0], before[1], before[3]]
+	watch_signals(row)
+	var third := row.items()[2]
+	row.begin_drag(third, third.position.x + 5.0)
+	row.drag_to(-20.0 + 5.0)
+	row.end_drag()
+	assert_signal_emitted_with_parameters(row, "order_changed", [expected])
+	assert_eq(_card_ids(), expected, "the cards read in the new order")
+	assert_eq(_ctl.armed_stack.memory_for(_attacker).ranged.order, expected, "the preference holds it")
+	assert_eq(_plan.types(), expected, "the plan fires in card order")
+
+
+## #1516 acceptance 2: restore-default empties the preference and the plan is
+## back in roster order.
+func test_restore_default_order_empties_the_preference() -> void:
+	_four_types()
+	var pref: VolleyPreference = _ctl.armed_stack.memory_for(_attacker).ranged
+	pref.order = [_ARROW, _POISON, &"curse", &"armor_break"] as Array[StringName]
+	_body.set_n(_body.max_n())
+	assert_eq(_plan.types()[0], _ARROW, "control: the custom order applies")
+	var button := _body.get_node_or_null("%DefaultOrderButton") as Button
+	assert_not_null(button, "a restore-default button")
+	if button == null:
+		return
+	button.pressed.emit()
+	assert_eq(pref.order, [] as Array[StringName], "restore writes an empty order")
+	var roster: Array[StringName] = []
+	for t in _ROSTER.sorted():
+		if _plan.types().has(t.id):
+			roster.append(t.id)
+	assert_eq(_plan.types(), roster, "the plan is back in roster order")
+	assert_eq(_card_ids(), roster, "and so are the cards")
