@@ -498,3 +498,44 @@ func test_restore_default_order_empties_the_preference() -> void:
 			roster.append(t.id)
 	assert_eq(_plan.types(), roster, "the plan is back in roster order")
 	assert_eq(_card_ids(), roster, "and so are the cards")
+
+
+# --- #1517 arrow flights ------------------------------------------------------
+
+func _flights() -> ArrowFlightLayer:
+	return _body.get_node("%ArrowFlightLayer") as ArrowFlightLayer
+
+
+func _requested(type_id: StringName, kind: StringName) -> int:
+	return _flights().requested.filter(func(r: Dictionary) -> bool: return r.type == type_id and r.kind == kind).size()
+
+
+func test_raising_a_special_flies_arrows_up_and_the_plan_is_final_at_once() -> void:
+	_attacker.stat_board.arrows.add(_POISON, 3)
+	_body.set_special(_POISON, 2)
+	_flights().requested.clear()
+	_body.set_special(_POISON, 5)
+	assert_eq(_counts()[_POISON], 5, "the plan list is the target before any flight lands")
+	assert_gt(_flights().in_flight(), 0, "flights are still in the air")
+	assert_eq(_requested(_POISON, ArrowFlightLayer.TO_BAR), 3)
+	_flights().requested.clear()
+	_body.set_special(_POISON, 2)
+	assert_eq(_counts()[_POISON], 2)
+	assert_eq(_requested(_POISON, ArrowFlightLayer.TO_PILE), 3)
+
+
+func test_a_stock_gain_flies_onto_its_card_capped() -> void:
+	_flights().requested.clear()
+	_attacker.stat_board.arrows.add(_POISON, 3)
+	assert_eq(_requested(_POISON, ArrowFlightLayer.RELOAD), 3)
+	_flights().requested.clear()
+	_attacker.stat_board.arrows.add(_POISON, 300)
+	assert_eq(_requested(_POISON, ArrowFlightLayer.RELOAD), _flights().max_flights_per_change)
+
+
+func test_a_rebind_flies_no_phantom_reload() -> void:
+	_body.teardown()
+	_flights().requested.clear()
+	_body.bind(_attacker, _battle, _ctl)
+	assert_eq(_requested(_POISON, ArrowFlightLayer.RELOAD), 0)
+	assert_eq(_requested(_ARROW, ArrowFlightLayer.RELOAD), 0)
