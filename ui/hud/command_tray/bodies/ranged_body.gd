@@ -159,48 +159,88 @@ func fill() -> bool:
 	return _pref().fill
 
 
-## STUB
-func set_n(_value: int) -> void:
-	pass
+## Bar set / scroll: N as a volley size. Turns fill off and holds the base
+## at `N − Σ specials` (never below 0 — specials past N grow N to fit).
+func set_n(value: int) -> void:
+	var pref := _pref()
+	pref.fill = false
+	var plan := _aimed()
+	var specials := 0
+	if plan != null:
+		for c in _clamped_specials(plan.max_n(), plan.is_scout_shot()).values():
+			specials += int(c)
+	pref.special_counts[_BASE] = maxi(0, value - specials)
+	_refresh()
 
 
 func adjust_n(delta: int) -> void:
 	set_n(n() + delta)
 
 
-## STUB
+## `M`: back to max, which is fill on.
 func reset_n_to_max() -> void:
-	pass
+	set_fill(true)
 
 
-## STUB
-func set_fill(_on: bool) -> void:
-	pass
+## Turning fill off holds the base at what it fires now, so the volley does
+## not jump on the toggle.
+func set_fill(on: bool) -> void:
+	var pref := _pref()
+	if pref.fill != on:
+		var plan := _aimed()
+		if not on and plan != null:
+			pref.special_counts[_BASE] = plan.count_of(_BASE)
+		pref.fill = on
+	_refresh()
 
 
 func toggle_fill() -> void:
 	set_fill(not _pref().fill)
 
 
-## STUB
-func set_base(_value: int) -> void:
-	pass
-
-
-## STUB
-func set_special(type_id: StringName, value: int) -> void:
-	_pref().special_counts[type_id] = maxi(0, value)
+## The base card's bar: an explicit base count, so fill turns off.
+func set_base(value: int) -> void:
+	var pref := _pref()
+	pref.fill = false
+	pref.special_counts[_BASE] = maxi(0, value)
 	_refresh()
 
 
-## STUB
-func set_all(_type_id: StringName) -> void:
-	pass
+## Under fill, lowering a special by more than the base bin can absorb would
+## be topped straight back up, so fill turns off with the base held where it
+## is: the volley then shrinks instead.
+func set_special(type_id: StringName, value: int) -> void:
+	if type_id == _BASE:
+		set_base(value)
+		return
+	value = maxi(0, value)
+	var pref := _pref()
+	var plan := _aimed()
+	if plan != null and pref.fill:
+		var before := plan.count_of(type_id)
+		var base_now := plan.count_of(_BASE)
+		var base_room := _stock_for(_ROSTER.base_type(), plan.is_scout_shot()) - base_now
+		if before - value > base_room:
+			pref.fill = false
+			pref.special_counts[_BASE] = base_now
+	pref.special_counts[type_id] = value
+	_refresh()
 
 
-## STUB
-func set_none(_type_id: StringName) -> void:
-	pass
+## The count label's left click: min(bin, room).
+func set_all(type_id: StringName) -> void:
+	var plan := _aimed()
+	if plan == null:
+		return
+	var t := _ROSTER.by_id(type_id)
+	var counts := _counts_of(plan)
+	var v := mini(_stock_for(t, plan.is_scout_shot()), _room_for(type_id, counts, plan.max_n()))
+	set_special(type_id, maxi(v, 0))
+
+
+## The count label's right click.
+func set_none(type_id: StringName) -> void:
+	set_special(type_id, 0)
 
 
 func _on_card_set(type_id: StringName, value: int) -> void:
@@ -281,13 +321,72 @@ func _type_order() -> Array[AmmoType]:
 	return out
 
 
-## STUB
+## Each special's sticky count clamped, in card order, to its bin and to what
+## [param cap] still holds — earlier cards win. Specials only, `{id: n > 0}`.
+func _clamped_specials(cap: int, scout_shot: bool) -> Dictionary:
+	var counts: Dictionary = {}
+	var sum_special := 0
+	var special_counts := _pref().special_counts
+	for t in _type_order():
+		if t.id == _BASE:
+			continue
+		var c := clampi(special_counts.get(t.id, 0), 0, mini(_stock_for(t, scout_shot), cap - sum_special))
+		if c > 0:
+			counts[t.id] = c
+		sum_special += c
+	return counts
+
+
+## The explicit composition as the plan's ordered list, in card order. Reads
+## the preference, never writes it: every clamp lives in the plan only.
+## Fill ON: base takes the room the specials leave. Fill OFF: base is the
+## held count in `special_counts[BASE_ID]` (read only while fill is off),
+## clamped to its bin and to the room — specials win the room.
 func _compose(plan: RangedAttackPlan) -> Array[Dictionary]:
-	var list: Array[Dictionary] = []
-	var base := mini(plan.max_n(), _stock_for(_ROSTER.base_type(), plan.is_scout_shot()))
+	var cap := plan.max_n()
+	# A scout shot (#1036, a sensed-only target): only scout arrows fly into
+	# fog, so every other bin reads as empty here.
+	var scout_shot := plan.is_scout_shot()
+	var pref := _pref()
+	var order := _type_order()
+	var counts := _clamped_specials(cap, scout_shot)
+	var sum_special := 0
+	for c in counts.values():
+		sum_special += int(c)
+	var base_stock := _stock_for(_ROSTER.base_type(), scout_shot)
+	var base := 0
+	if pref.fill:
+		base = mini(cap - sum_special, base_stock)
+		# The base bin cannot fill the room: top up the specials in card order
+		# (at max = stock this is "every arrow fires"). Keeps a scout shot's
+		# default composition all scouts, where base reads 0 in fog.
+		var shortfall := cap - sum_special - base
+		for t in order:
+			if shortfall <= 0:
+				break
+			if t.id == _BASE:
+				continue
+			var have := int(counts.get(t.id, 0))
+			var extra := mini(shortfall, _stock_for(t, scout_shot) - have)
+			if extra > 0:
+				counts[t.id] = have + extra
+				shortfall -= extra
+	else:
+		base = clampi(int(pref.special_counts.get(_BASE, 0)), 0, mini(base_stock, cap - sum_special))
 	if base > 0:
-		list.append({"type": _BASE, "count": base})
+		counts[_BASE] = base
+	var list: Array[Dictionary] = []
+	for t in order:
+		if counts.has(t.id):
+			list.append({"type": t.id, "count": int(counts[t.id])})
 	return list
+
+
+func _counts_of(plan: RangedAttackPlan) -> Dictionary:
+	var out: Dictionary = {}
+	for entry in plan.ammo:
+		out[StringName(entry.type)] = int(entry.count)
+	return out
 
 
 ## The bin the composer may draw on: the quiver's stock, or 0 for a non-scout
@@ -323,7 +422,7 @@ func _paint(plan: RangedAttackPlan, has_target: bool) -> void:
 		for entry in plan.ammo:
 			counts[StringName(entry.type)] = int(entry.count)
 			n_now += int(entry.count)
-	_sync_cards(yield_by_type, counts, cap, n_now)
+	_sync_cards(yield_by_type, counts, cap)
 
 	var segments: Array[Dictionary] = []
 	var notches := PackedInt32Array()
@@ -346,6 +445,9 @@ func _paint(plan: RangedAttackPlan, has_target: bool) -> void:
 		parts.append("%d" % int(r.shots))
 	_leaves_label.text = ("%s · %d leaves in range" % [" + ".join(parts), parts.size()]) if has_target else "—"
 	_hint.visible = not has_target
+	# Informative only (owner: "0 pressure"): no colour, no blocking.
+	_capacity_hint.visible = has_target and n_now < cap
+	_capacity_hint.text = "room for %d more" % maxi(cap - n_now, 0)
 
 	var total_yield := 0
 	for v in yield_by_type.values():
@@ -362,7 +464,7 @@ func _paint(plan: RangedAttackPlan, has_target: bool) -> void:
 ## The base card always; a special card per type with stock or reload gain,
 ## in card order. Special cards are reused across rebuilds and only rebuilt
 ## when that set changes.
-func _sync_cards(yield_by_type: Dictionary, counts: Dictionary, cap: int, n_now: int) -> void:
+func _sync_cards(yield_by_type: Dictionary, counts: Dictionary, cap: int) -> void:
 	var wanted: Array[AmmoType] = []
 	for t in _type_order():
 		if t.id == _BASE:
@@ -397,9 +499,14 @@ func _bin(type_id: StringName) -> int:
 	return _quiver.stock_of(type_id) if _quiver != null else 0
 
 
-## STUB
-func _room_for(_type_id: StringName, _counts: Dictionary, cap: int) -> int:
-	return cap
+## What "all" may give a type: the base takes the room past every special; a
+## special the room past the OTHER specials (the base yields to it).
+func _room_for(type_id: StringName, counts: Dictionary, cap: int) -> int:
+	var others := 0
+	for id in counts:
+		if id != _BASE and id != type_id:
+			others += int(counts[id])
+	return maxi(cap - others, 0)
 
 
 # --- input ------------------------------------------------------------------
