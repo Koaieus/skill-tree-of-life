@@ -12,7 +12,7 @@ extends SkillNodeVisual
 ## [method CanvasItem.set_instance_shader_parameter], so many disks on
 ## screen still batch into a single draw call instead of costing one
 ## draw call each (which a per-node `resource_local_to_scene` duplicate
-## material would). See docs/domain/skill-node-visuals-shaders.md.
+## material would). See docs/domain/skillnode-visuals.md.
 ##
 ## Composes the carve glyph directly as a height-field dent in its own shader
 ## (see inner_disk.gdshader's carve_kind/carve_* uniforms and

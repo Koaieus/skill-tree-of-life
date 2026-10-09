@@ -5,8 +5,8 @@ A node carries two identities: its **archetype** (one of the six) and its
 (`procgen/subtypes/node_subtype.gd`, carried on `SkillNode.subtype`).
 **Archetype picks the status family, subtype picks the pole**: blighted is the
 family's offence, blessed its defence. Which pools each archetype × subtype
-cell holds is authored in `procgen/pools/*.tres` and tabulated in
-[procgen-v4.md](procgen-v4.md) § Seed table; open threads are in
+cell holds is authored in `procgen/pools/*.tres` and summarised in
+[procgen-v4.md](procgen-v4.md) § Pack homes; open threads are in
 [../design/node_subtypes.md](../design/node_subtypes.md). Opened from #1025,
 built in #1056 and #1059–#1061, #1093–#1095.
 

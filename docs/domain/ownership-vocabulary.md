@@ -38,27 +38,15 @@ The tell is the word in the comment. If it says *enemy*, *hostile*, *friendly*,
 
 ## Why this keeps breaking
 
-The identity form was correct for the whole life of the codebase before factions
-existed (#384, 2026-08-07): with two entities and no camps, "not me" and "my
-enemy" were the same set. #384 introduced `Faction` and migrated the consumers it
-found, but every site it missed kept compiling, kept passing its tests, and kept
-being subtly wrong in a way that only shows up once a board has **three or more
-parties** — an ally, or a third camp.
-
-That is why the failures all arrived at once, months later, when hot-seat coop
-(#459) and the blocker camp (#460) put a third party on the board on the same
-day. Nothing regressed; the latent bugs simply became reachable.
-
-Fixed in that pass:
-
-| Site | Was | Meant |
-|---|---|---|
-| `MeleeAttackPlan.collect_target_excludes` | `sn.owned_by == attacker` | `MINE\|ALLY` — a blade swept a partner's territory |
-| `OwnerFilter.Scope.ENEMY` | `to.owned_by != caster` | `HOSTILE` — chains hopped into a partner's nodes |
-| `AiCombatScorer.expected_damage` | summed every hit | only hits the AI should value (see below) |
-
-Already correct, because #384 migrated them: `RangedAttackPlan` (at both
-target-validate and land time) and `NodeTargeting`.
+The identity form was correct before factions existed: with two entities and no
+camps, "not me" and "my enemy" were the same set. A site that still compares
+`owned_by` compiles, passes two-party tests, and is wrong only once a board has
+**three or more parties** — an ally, or a third camp. Hot-seat coop and the
+blocker camp both put a third party on the board, which is when the latent bugs
+became reachable. Past offenders: a melee blade sweeping a partner's territory
+(`owned_by == attacker` where `MINE|ALLY` was meant), and `OwnerFilter` chains
+hopping into a partner's nodes (`!= caster` where `HOSTILE` was meant). `RangedAttackPlan`
+and `NodeTargeting` ask the bit correctly.
 
 ## The flag vocabulary is shared, deliberately
 
@@ -70,9 +58,6 @@ Two `@export_flags` surfaces let a designer pick a bucket set in the inspector:
 
 They take the **same flag set**, including the composites: `Friendly` (6) is
 `MINE|ALLY`, `Allocated` (14) is any owned node, `Any` is 15. Keep them in step.
-`OwnerFilter` used to carry its own `Scope` enum instead; it could not express
-"me *and* my camp" at all, and its `ENEMY`/`ALLY` members meant `!= caster` /
-`== caster` — identity wearing a relation's name.
 
 Note `ALLY` (4) alone is the camp **without** the caster's own nodes. That is
 kept reachable on purpose ("buff every ally but yourself"); a heal almost always
@@ -90,21 +75,18 @@ A relation answers *may I*, not *should I*. `Faction.targeted_by_ai` — should 
 NPC brain spend AP on this camp? — deliberately sits beside `attitude_to` rather
 than inside it. It is false only on `blocker.tres`.
 
-("Does this camp's survival decide the run?" used to be its sibling
-`counts_for_victory`. It left `Faction` entirely in #517 because it needed a
-per-*entity* answer: it is now a `ContestantRule` the victory condition owns,
-reading a `scenery` group off the entity's scene. See
-`docs/domain/victory-system.md`.)
+("Does this camp's survival decide the run?" is not a `Faction` flag: it is a
+`ContestantRule` the victory condition owns, reading a `scenery` group off the
+entity's scene — see `docs/domain/victory-system.md`.)
 
-Neither belongs in `attitude_to`: a
-dormant core must stay `HOSTILE` so the **player** can clear it, and so damage,
-the forced-dealloc cascade and XP gating treat that as a real kill. `targeted_by_ai`
-is filtered in `AiRecon.is_ai_target`, which is the single predicate both the AI's
-target *list* and its EV *sum* go through — filtering only the list would leave
-an AoE banking value for scenery it clipped, and the AI would still steer into it.
 
-See [victory-system.md](victory-system.md) for why those two flags are kept
-separate from each other.
+Neither flag belongs in `attitude_to`: a dormant core must stay `HOSTILE` so the
+**player** can clear it, and so damage, the forced-dealloc cascade and XP gating
+treat that as a real kill. `targeted_by_ai` is filtered in `AiRecon.is_ai_target`,
+which is the single predicate both the AI's target *list* and its EV *sum* go
+through — filtering only the list would leave an AoE banking value for scenery it
+clipped, and the AI would still steer into it. See
+[victory-system.md](victory-system.md) for the contest-membership flag.
 
 ## Checklist for a new ownership gate
 

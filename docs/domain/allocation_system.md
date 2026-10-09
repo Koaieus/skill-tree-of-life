@@ -19,10 +19,12 @@ These four are exposed as the **`force_allocate(entity, node)`** primitive. It's
 
 | Guard | Where | Condition |
 |---|---|---|
-| Target empty | `can_allocate` | `node.owned_by == null` |
-| Has SP | `can_allocate` | `entity.stat_board.skill_points.current >= 1` |
+| Target empty, or a refill | `can_allocate` | `node.owned_by == null`, **or** `owned_by == entity` and `allocation_level < stake_level` (a refill needs no adjacency) |
+| Has SP | `can_allocate` | `entity.stat_board.skill_points.available() >= 1` |
 | Adjacency | `can_allocate` | Target is adjacent to a node already owned by entity, **unless** entity owns nothing yet (the "first allocation is free of adjacency" core-placement rule) |
-| Your turn | (caller) | The entity must hold the current turn — `turn_manager.current_entity == entity`. There are no turn phases; `PlayerInputController` routes the **allocate input channel** here: a bare left-click on an unowned node (`_on_skill_node_left_clicked`). |
+| Your turn | (caller) | The entity must hold the current turn — `turn_manager.current_entity == entity`. There are no turn phases; `PlayerInputController` (`systems/player_input_controller.gd`) routes the **allocate input channel** here: a bare left-click on an unowned node (`_on_skill_node_left_clicked`). |
+
+The sibling gated verbs follow the same `can_*` / verb shape: `can_stake` / `stake`, `can_extract` / `extract`, `can_move_core` / `move_core`, and `can_deallocate_set` / `deallocate_set` (a set that must stay connected). Read their `can_*` for the guards.
 
 On success: `skill_points.spend(1)` runs (transfers current → used), then steps 1–3 of the side-effects, then `allocated.emit(node, entity)`. Note: `allocate()` does **not** call `force_allocate()` — that would double-bump `used` (once via spend, once via claim). The side-effects are inlined.
 
@@ -52,7 +54,7 @@ Per node, the order is fixed: **snapshot the entry → wound → strip → chip.
 - **Wound before strip.** `SkillPointStat.wound(n)` clamps to `used` (`max − current − wounded − staked`), and stripping a node whose modifier touches `skill_points` max shrinks `used` first — the wound would silently vanish. `wound` `push_warning`s when `n > used` as a tripwire.
 - **Chip after strip.** A chip that crosses `health` 0 kills synchronously → `deallocate_all_owned` → a nested `apply_cascade` strips the rest. The outer loop's per-node `n.owner() != self` re-check skips what the nested call took — that guard is written for strip-then-chip.
 
-`force_deallocate(node)` is the live **strip primitive** `apply_cascade` calls: it skips every guard above (no DP cost, no would-disconnect check, no core-protection), releases statuses (a cascade has already released and noted them for the spill — see `effect-system.md`), revokes the node's grants, nulls `owned_by`, dispatches `_on_node_deallocated`, and emits `force_deallocated`. It neither refunds nor wounds — the driver does that. Returns the previous owner.
+`force_deallocate(node)` is the live **strip primitive** `apply_cascade` calls: it skips every guard above (no DP cost, no would-disconnect check, no core-protection), releases statuses (a cascade has already released and noted them for the spill — see `status-effects.md`), revokes the node's grants, nulls `owned_by`, dispatches `_on_node_deallocated`, and emits `force_deallocated`. It neither refunds nor wounds — the driver does that. Returns the previous owner.
 
 ## Forced fill: `force_fill(node, level)`
 

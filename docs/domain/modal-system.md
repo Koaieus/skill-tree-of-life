@@ -4,9 +4,8 @@ Every full-screen "answer this before you carry on" surface in the game is one
 [`ModalBase`](../../ui/modal/modal_base.gd) inherited scene plus one
 [`ModalBodyBase`](../../ui/modal/modal_body_base.gd) body scene, serialized
 through HudRoot's modal queue. Four exist today —
-`LootPicker`, `SpellLootPicker`, `MassActionConfirmPanel`, `SpellCatalogueModal` (#853,
-raised from the pause menu, `PROCESS_MODE_ALWAYS` so it works over the pause) — and #199's
-level-up bonus picker is the next one.
+`LootPicker`, `SpellLootPicker`, `MassActionConfirmPanel`, `SpellCatalogueModal`
+(raised from the pause menu, `PROCESS_MODE_ALWAYS` so it works over the pause).
 
 ## The three pieces
 
@@ -37,8 +36,7 @@ level-up bonus picker is the next one.
 
 ## Why the base never calls `request.resolve()`
 
-It used to, duck-typed on a `Variant`. The two request families genuinely
-differ: a `LootPickRequest`/`SpellLootRequest` carries its own resolve callback
+The two request families genuinely differ: a `LootPickRequest`/`SpellLootRequest` carries its own resolve callback
 (one-shot, fire-and-forget), while a `MassActionRequest` is **live state on
 `PlayerInputController`** — confirm and cancel both route back through the
 controller, and it can be revoked from outside the modal entirely. Forcing a
@@ -68,8 +66,8 @@ failure than the missed unpause it replaced. Miss `closed` on any of them and
 
 Pausing the tree stalls confirmed-command RPC dispatch under the LAN sync model
 ([multiplayer-sync-model.md](multiplayer-sync-model.md)), and a `Tween`-driven
-`AnnouncementLayer` band keeps animating through a pause anyway — which is how
-a banner used to render on top of a frozen, dimmed modal. Instead:
+`AnnouncementLayer` band keeps animating through a pause anyway, rendering over a
+frozen, dimmed modal. Instead:
 
 - `PlayerInputController.set_input_frozen(true)` blocks every player input
   channel (`_unhandled_input`, `_unhandled_key_input`, click routing).

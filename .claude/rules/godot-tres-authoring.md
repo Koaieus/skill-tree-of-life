@@ -1,5 +1,5 @@
 ---
-description: Hand-authoring a .tres — UID mismatch nulls the field; array-literal parser rules
+description: Hand-authoring a .tres — UID mismatch nulls the field; array-literal parser rules; script-line order; @tool placeholder instances
 paths:
   - "**/*.tres"
 ---
@@ -38,3 +38,18 @@ An editor pass re-serializes `.tres` files it touches. Nearly always that's
 default-elision (semantically identical); occasionally a non-default value goes
 missing. It's all in `git diff` — glance, restore if needed, move on. See
 **`docs/domain/godot-workflow.md`**.
+
+## A property authored ABOVE `script = ExtResource(...)` is silently dropped
+
+It lands on a bare `Resource` with no such property; the field reads as its
+default. Hand-editing a `[resource]` block, insert *after* the script line.
+`.tres` has no comment syntax (a `;` trailer is a parse error).
+
+## A non-`@tool` script on a `.tres` an editor panel loads is a placeholder instance
+
+Only `@export`s read back; any method/signal touch throws *"placeholder
+instance"*, so the panel shows the resource and fails on the first question.
+`check` and GUT both miss it. Everything reachable from such a `.tres` must be
+`@tool`; the gate is `test/unit/test_tres_scripts_are_tool.gd` (extend its
+`DIRS`). Guard in the **method**: `@export` setters fire during deserialization.
+Detail: `docs/domain/godot-workflow.md`.

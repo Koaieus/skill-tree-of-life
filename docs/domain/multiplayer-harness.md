@@ -1,12 +1,6 @@
 # The multiplayer harness
 
-**Wave 0 of the LAN work made runnable.** A sandbox-host tab that launches two
-OS processes of the same scene — one host, one client — over ENet on
-127.0.0.1, so the command layer that landed in #509/#510 can be *watched*
-crossing a wire instead of reasoned about.
-
-It is a harness, not the sync layer. The architecture it serves is
-[multiplayer-sync-model.md](multiplayer-sync-model.md); read that first.
+A sandbox-host tab launches two OS processes of the same scene — one host, one client — over ENet on 127.0.0.1, so the command layer can be *watched* crossing a wire instead of reasoned about. It is a harness, not the sync layer; the architecture it serves is [multiplayer-sync-model.md](multiplayer-sync-model.md) — read that first.
 
 ## What it is
 
@@ -14,16 +8,19 @@ It is a harness, not the sync layer. The architecture it serves is
 |---|---|
 | **Multiplayer** tab | `addons/sandbox_host/tabs/80_multiplayer_tab.tscn` |
 | Launcher panel | `addons/mp_sandbox/mp_sandbox_panel.tscn` |
-| The scene both processes run — rung 1 | `scenes/dev/mp_dev_sandbox.tscn` (inherits `dev_sandbox.tscn`) |
-| The scene both processes run — rung 2 (#533) | `scenes/dev/mp_procgen_sandbox.tscn` (instances `game_root.tscn`) |
-| Rung 3 (#715) — no scene at all, the REAL menu | `MetaRoot._drive_lobby_from_cmdline`, `--lobby=host\|client` |
-| Where the wire is MOUNTED | `scenes/game_root.tscn` → `Transport` + `NetworkLink` and its channels (#531, #1133) |
+| Rung 1 scene (both processes) | `scenes/dev/mp_dev_sandbox.tscn` (inherits `dev_sandbox.tscn`) |
+| Rung 2 scene | `scenes/dev/mp_procgen_sandbox.tscn` (instances `game_root.tscn`) |
+| Rung 3 — no scene, the real menu | `MetaRoot._drive_lobby_from_cmdline`, `--lobby=host\|client` |
+| Rung 4 — rung 3 played to a verdict | `mise run mp:e2e` (`.mise/tasks/mp/e2e`) |
+| Argv vocabulary | `network/harness_flags.gd` (`HarnessFlags`) |
+| Per-level mount of the wire seam | `scenes/game_root.tscn` → `Transport` + `NetworkLink` and its channels |
+| Socket + the single `@rpc` | `autoload/wire.gd`, `/root/Wire` |
 | Transport seam | `network/network_transport.gd` + `enet_transport.gd` / `loopback_transport.gd` |
 | Link core (role, build gate, pre-world latch, dispatch) | `network/network_link.gd` |
-| Applier ↔ link bridge (command / intent / refusal) | `network/command_channel.gd` |
+| Applier ↔ link bridge (command down, intent up, refusal down) | `network/command_channel.gd` |
 | World sync (snapshot / setup / entities / resync) | `network/world_sync_channel.gd` |
 | Divergence detector | `command/world_fingerprint.gd` |
-| Determinism probe (#529) | `network/determinism_probe.gd` |
+| Determinism probe | `network/determinism_probe.gd` |
 
 From a terminal, no editor needed:
 
@@ -32,919 +29,180 @@ godot --headless --path . scenes/dev/mp_dev_sandbox.tscn -- --role=host --port=9
 godot --headless --path . scenes/dev/mp_dev_sandbox.tscn -- --role=client --address=127.0.0.1 --port=9099 --autopilot
 ```
 
-**`--autopilot` goes on BOTH lines even though only the host sweeps** — see
-below. Drop it from either and Red's boosted budget stops matching across the
-wire; drop it from both and you get a plain hand-driven sandbox, which is the
-right thing to launch when you want to *play* the pair.
+Everything after `--` lands in `OS.get_cmdline_user_args()`; put it before and the engine tries to interpret it.
 
-`--turns=N` (host only, #529) sweeps N of Red's turns instead of one, hooked on
-`TurnManager.turn_started` — Blue's AI takes a real turn in between, so the
-signal is what knows when the loop comes back around. One sweep is ~17
-commands, which is a demo; the probe needs a few hundred before "0 diverged"
-means anything. Bare `--turns` runs until the process is killed. The default
-stays one, so #532's single-pass proof is unchanged.
+- **`--autopilot` goes on BOTH lines.** It drives every verb `CommandApplier` handles from Red's opening turn — allocate, mass_allocate, stake/extract, deallocate, deallocate_set, move_core, all three attack modes (melee scored via `AiBladeRollout`, the rollout `AIController` uses), a temp-upgrade toggle, a loot claim when there is one, then end_turn — one log line per verb per side. A verb that cannot legally fire logs `SKIPPED` with the reason. Only the authority sweeps (`_start_sweep_if_due` gates on `CommandApplier.is_authority`), but the flag also gates `_boost_autopilot_budget` (Red gets 30 SP / 12 AP / 10 DP, since a level-1 board can't pay for the sweep), and that boost must be identical on every peer: `CommandApplier._apply_mass_allocate` re-derives affordability from the receiving peer's own board, so a host-only boost desyncs the first budget-gated verb. **No flag, no boost** — to *play* the pair, leave the toggle off and Red is an ordinary level-1 board.
+- **`--turns=N`** (host only) sweeps N of Red's turns, hooked on `TurnManager.turn_started` (Blue's AI takes a real turn in between); bare `--turns` runs until killed. One sweep is ~17 commands; the probe needs a few hundred.
+- **`--probe`** (client only) arms the determinism probe: the mirroring peer re-resolves each received `launch_attack` locally and tallies whether it could have derived what the host sent. It mutates nothing. Scope and why `skipped` is a finding: [determinism-probe.md](determinism-probe.md).
 
-`--probe` (client only, #529) arms the determinism probe: the mirroring peer
-additionally re-resolves each received `launch_attack` locally and tallies, per
-command type, whether it could have *derived* what the host sent. It mutates
-nothing and changes nothing about what the client applies. Full scope — what it
-compares, what it deliberately does not, and why `skipped` is a finding rather
-than a pass — in [determinism-probe.md](determinism-probe.md).
+## The mount, and why a level may only SWAP it
 
-`--autopilot` (#532) drives every verb `CommandApplier` handles from Red's
-opening turn — allocate, mass_allocate, stake/extract, deallocate,
-deallocate_set, move_core, all three attack modes, a temp-upgrade toggle, a
-loot claim (when there is one to claim), then end_turn — one line of log per
-verb on each side. A verb that cannot legally fire this turn logs SKIPPED with
-the reason rather than being silently dropped. Everything after `--` lands in
-`OS.get_cmdline_user_args()`; put it before and the engine tries to interpret
-it.
+`Transport` and `NetworkLink` (with its channels) are direct children of `GameRoot`, so every level inherits them at the same node paths. Godot resolves an RPC by node path, so two peers running different scenes only reach each other if the transport sits in the same place in both; mounting it in the composition root makes that true by construction.
 
-**Pass it to both peers, unlike every other flag here.** Only the authority ever
-sweeps (`_start_sweep_if_due` gates on `CommandApplier.is_authority`, so the
-client's copy boosts and then sits still), but the flag *also* gates the budget
-boost `_boost_autopilot_budget` puts on Red — 30 SP / 12 AP / 10 DP,
-because one turn on a level-1 board (3 SP / 2 AP / 3 DP) cannot pay
-for the whole sweep. That boost must be identical on every peer:
-`CommandApplier._apply_mass_allocate` re-derives affordability from the
-*receiving* peer's own board (#458), so a host-only boost desyncs the first
-budget-gated verb that crosses.
+- **The default is `LoopbackTransport`, and the link is mounted `Role.OFFLINE`**: mounted and inert, so single-player is unchanged. A role raises it; the mount never does.
+- **A level that wants a real socket overrides that node's script** — an inherited-node property override in the `.tscn` (`[node name="Transport" parent="."]` / `script = ExtResource("3_transport")` pointing at `enet_transport.gd`). `mp_dev_sandbox.tscn` and `level.tscn` do this; `first_level_sandbox.tscn` inherits it from the latter.
+- **Never author a second pair.** Inheriting plus authoring gives colliding sibling names and `$Transport` resolves to whichever Godot renamed last — a dead link with no error. `test/integration/network/test_link_mount.gd` asserts the count, not just the type.
 
-**And the flag is the whole gate — no flag, no boost.** It used to run
-unconditionally, so a plain launch from the Multiplayer tab handed a human a
-Red with 30 skill points and a fat budget and read as a stat-system bug. If you are
-launching the pair to *play* it, leave the toggle off and Red is an ordinary
-level-1 board.
+Which role this machine takes is `NetworkConfig` on `GameSession` — the per-machine half of a run's setup, alongside `SeatPolicy`, deliberately not on `RunConfig`, which crosses the wire by value (`docs/domain/seat-policy.md`). `GameRoot` adopts the role at the top of `_ready` (before anything can act and diverge) and opens the socket after `_setup_level` (so an arriving command finds a world).
 
-## The mount, and why a level may only SWAP it (#531)
+## The socket outlives the scene
 
-> **Superseded in its load-bearing half by #713, 2026-09-01.** The RPC no longer
-> lives under `GameRoot` at all — it moved to the `Wire` autoload, `/root/Wire`.
-> Read *"The socket outlives the scene (#713)"* below first; what survives here
-> is the SEAM's mount, which is still per-level and still swappable, and the
-> "never author a second pair" rule, which is still absolute.
+**`Wire` (`autoload/wire.gd`, `/root/Wire`) owns the socket and the repo's only `@rpc`** (`_receive`). Its path is identical on every peer and survives `SceneDirector.goto`. `multiplayer.multiplayer_peer` belongs to the `SceneTree`, so an open socket already survives a scene change; what died with a freed `GameRoot` was the RPC target, the signal connections and the peer list — `Wire` keeps those. `EnetTransport` is a facade over it and holds no peer; the per-level `Transport` mount, the `LoopbackTransport` default and every two-worlds-in-one-process fixture keep working (a process-wide transport could not serve two worlds; a process-wide socket always did).
 
-`Transport` and `NetworkLink` (with its channels) are direct children of
-`GameRoot`, so every level inherits them at the same node paths. That is not tidiness: Godot's
-high-level multiplayer resolves an RPC **by node path**, so two peers running
-different scenes only reach each other if the transport sits in the same place
-in both. Mounting it in the composition root is what makes that true by
-construction instead of by convention.
+**A level adopts a link it did not open.** `start_host` / `start_client` bring the socket up only when there is not one; when the lobby already opened it they bind and **replay `peer_joined` for the peers already on it**, so an adopting host still stamps roster seats and ships run setup. `Wire.start_host` opens with a `stop()`, so a level that blindly re-started would tear down the link it was handed. `test_wire_outlives_the_level.gd` pins the mechanism.
 
-Three consequences, in the order they bite:
+**Exactly one facade may be bound at a time.** The lobby and the level each mount an `EnetTransport` over this one socket; two bound at once each re-emit `Wire.message_received`, so every packet is handled twice with no error. `Wire` hands out a single binder token (`claim_binder` / `release_binder` / `has_binder`), `EnetTransport._bind` answers `ERR_ALREADY_IN_USE` when refused (a `push_warning`, never a `push_error`, which GUT counts as unexpected), and both lobby roles hand their link back before routing (`LobbyScreen.release_link`, off `GameSession.run_started`).
 
-- **The default is `LoopbackTransport`, and the link is mounted `Role.OFFLINE`.**
-  Mounted and inert — nothing is serialized, nothing is sent, so single-player
-  is unchanged. A role raises it; the mount never does.
-- **A level that wants a real socket overrides that node's SCRIPT.** An
-  inherited-node property override in the `.tscn`, exactly like any other:
-  ```
-  [node name="Transport" parent="."]
-  script = ExtResource("3_transport")   # enet_transport.gd
-  ```
-  `mp_dev_sandbox.tscn` does this, and so does `level.tscn` — the level the menu
-  routes to, which would otherwise be asked to host over a loopback and link to
-  nobody. `first_level_sandbox.tscn` inherits it from there (#584).
-- **Never author a SECOND pair.** Before #531 the harness authored its own
-  `Transport` / link pair; once the pair is inherited, doing that gives you
-  colliding sibling names and `$Transport` resolves to whichever one Godot
-  renamed last — a dead link with no error anywhere.
-  `test/integration/network/test_link_mount.gd` asserts the *count*, not just the
-  type, for exactly this reason.
+**The run's shape crosses at START, not on JOIN.** `LobbyScreen` broadcasts `run_setup`, and **a joining client never runs `GraphProcgen`**: it seats the roster, builds an empty graph, and `NetworkSession.pull_host_world` brings the authority's serialized world. A joined level with an empty graph is the normal shape, and the `_pending_entities` park in `WorldSyncChannel` is the primary path. Procgen spawns entities the roster never names (one per removable blocker, ~120 on the shipped preset); `EntitySnapshot` asks `WorldSyncChannel.entity_spawner` (`EntityFactory.spawn_snapshot_entity`) to rebuild any row it cannot resolve, at the authority's `entity_id` — without it their nodes decode as *unowned* and the first compare disagrees in a way that looks exactly like a procgen desync.
 
-Which role this machine takes is `NetworkConfig` on `GameSession` — the
-per-machine half of a run's setup, alongside `SeatPolicy` and deliberately not
-on `RunConfig`, which crosses the wire by value (`docs/domain/seat-policy.md`
-has the same argument for the same reason). `GameRoot` reads it once: the role
-is adopted at the top of `_ready` (before anything can act and diverge), the
-socket opens after `_setup_level` (so an arriving command finds a world).
+**The world is pushed AND pulled, and applied once.** The host pushes on `peer_joined` and also answers the client's `request_resync`, because either leg alone can be dropped in silence (the client's level is up in milliseconds while the host spends 5-10 s generating). Both legs carry `WorldSyncChannel.KEY_JOIN`; the client's `_join_world_arrived` latch drops the loser. The latch is keyed off the message flag, not a fingerprint compare, because the fold covers neither tags nor effects, so a mid-run repair must still apply when the fingerprints already agree. While waiting, the joiner re-asks every `GameRoot.JOIN_PULL_RETRY_SEC` (3 s) via `WorldSyncChannel.renew_join_pull`. `test_join_world_applies_once.gd` pins both halves. A joining client's `_ready` awaits `resync_applied` before arming `VictorySystem`, starting a turn or lifting the curtain — unbounded on purpose, with `SceneDirector`'s 30 s reveal timeout as the backstop.
 
-## The socket outlives the scene (#713)
-
-The mount above made the wire correct and made it **unable to exist before a
-level did**. Two machines could not talk until both were already inside one, so
-the lobby was local on every machine, a joining client generated a world nobody
-was playing, and #463's join handshake had to happen at level `_ready`. #712 is
-the hub that undoes that; this is its foundation.
-
-**`Wire` (`autoload/wire.gd`, `/root/Wire`) owns the socket and the repo's only
-`@rpc`.** That path is identical on every peer *and* survives
-`SceneDirector.goto`, which is the same fixed-path argument #531 made, taken one
-step further.
-
-Two facts made this a small change rather than a rewrite:
-
-- **There was only ever one production `@rpc`** — `_receive`. `NetworkLink` is
-  not an RPC target; it speaks to the transport over plain signals. So exactly
-  one function had to move.
-- **The peer was always tree-scoped.** `multiplayer.multiplayer_peer` belongs to
-  the `SceneTree`, not to a node, so an open socket already survived a scene
-  change. What died with the freed `GameRoot` was the RPC *target*, the signal
-  connections, and the peer list. `Wire` is those three things, kept somewhere
-  that does not get freed.
-
-**`EnetTransport` is now a facade over it and holds no peer.** The seam keeps
-its per-level mount, its `LoopbackTransport` default, and every
-two-worlds-in-one-process fixture that needs a transport per `GameRoot` — a
-single process-wide *transport* could not serve two worlds, while a single
-process-wide *socket* always did.
-
-**A level ADOPTS a link it did not open.** `start_host` / `start_client` bring
-the socket up only when there is not one; when the lobby already opened it they
-bind and **replay `peer_joined` for the peers already on it**, so a host that
-adopts still stamps roster seats and ships run setup. The replay is not a
-nicety: `Wire.start_host` opens with a `stop()`, so a level that blindly
-re-started would tear down the link it was handed, and every host-side
-consequence of a join hangs off a signal that fired while the menu was up.
-
-`test/integration/network/test_wire_outlives_the_level.gd` pins the mechanism; the two
-rungs below are the live proof, since one process holds one link and a real pair
-needs two.
-
-**Exactly one facade may be bound at a time (#715).** Since #714 there are two
-places that mount an `EnetTransport` over this one socket — the lobby and the
-level — and the level adopts what the lobby opened. Two bound at once each
-re-emit `Wire.message_received`, so **every packet is handled twice** and
-nothing errors: a command applied twice, a resync decoded twice. `Wire`
-therefore hands out a single binder token (`claim_binder` / `release_binder` /
-`has_binder`), `EnetTransport._bind` answers `ERR_ALREADY_IN_USE` when it is
-refused, and **both** lobby roles hand their link back before routing
-(`LobbyScreen.release_link`, off `GameSession.run_started`). Before #715 only
-the host released; a client relied on the menu scene being freed first, which is
-not something the route guarantees.
-
-**The run's shape crosses at START, not on JOIN (#715).** `run_setup` used to be
-pushed by `NetworkSession._on_peer_joined`, which a pre-established link never fires
-again — so with the socket outliving the scene, a level would have waited out
-`SceneDirector.REVEAL_TIMEOUT_S` for it. `LobbyScreen` broadcasts it instead,
-and **the joining client no longer runs `GraphProcgen` at all**: it seats the
-roster, builds an empty graph, and `NetworkSession.pull_host_world` brings the
-authority's serialized world. So a joined level with an empty graph is the
-NORMAL shape now, and the `_pending_entities` park in `WorldSyncChannel` — long the
-harness's odd case — is the primary path.
-
-**One consequence worth knowing before you debug a fingerprint:** procgen spawns
-entities the roster never names (one per removable blocker, ~120 on the shipped
-preset). A peer that ran no procgen has none of them, so `EntitySnapshot` asks
-`WorldSyncChannel.entity_spawner` (`EntityFactory.spawn_snapshot_entity`) to rebuild any
-row it cannot resolve, at the authority's `entity_id`. Without that their nodes
-decode as *unowned* and the ownership fold disagrees on the very first compare —
-which looks exactly like a procgen desync and is not one.
-
-## The three decisions, and why
+## The decisions, and why
 
 ### Two OS processes, not two viewports in one
 
-`autoload/events.gd` is a **process-global** bus, its ~25 signals carry live
-`SkillNode` / `Entity` **references**, and every listener — `LootSystem`,
-`VictorySystem`, `AllocationSystem`, `BattleSystem`, `HudRoot` — connects
-unconditionally, scoped to nothing. Two worlds in one process means world B's
-`VictorySystem` latches on world A's death. That is not something a placeholder
-can work around; it is a refactor of the event bus.
-
-Two processes give two sets of autoloads for free. This is also why the tab is a
-`SandboxLiveTab` and not a `SandboxPlayedTab`: the latter's Run button calls
-`EditorInterface.play_custom_scene`, which gives you exactly one instance.
-
-The one place two worlds *do* share a process is `test/unit/network/test_command_channel.gd`
-— legitimate only because nothing in that file kills anything, so none of the
-cross-wiring listeners ever fire. A test that kills an entity does not belong there.
+`autoload/events.gd` is a process-global bus whose ~25 signals carry live `SkillNode` / `Entity` references, and every listener (`LootSystem`, `VictorySystem`, `AllocationSystem`, `BattleSystem`, `HudRoot`) connects unconditionally. Two worlds in one process means world B's `VictorySystem` latches on world A's death. Two processes give two sets of autoloads for free — also why the tab is a `SandboxLiveTab`, not a `SandboxPlayedTab` (whose Run button gives exactly one instance). The one place two worlds share a process is `test/unit/network/test_command_channel.gd`, legitimate only because nothing there kills anything.
 
 ### An inherited scene of `dev_sandbox.tscn`, not a copy
 
-The harness needs the **same graph on both peers with no seed on the wire**,
-which is what picks hand-authored topology over procgen. A duplicated `.tscn`
-delivers that until the first edit to the original; an inherited scene cannot
-drift.
+The harness needs the same graph on both peers with no seed on the wire, which picks hand-authored topology over procgen; an inherited scene cannot drift. `mp_dev_sandbox.gd` changes two things: the **client binds Blue and freezes input** via `set_input_frozen`, and the **client drops the hot-seat handover** (on a networked peer the view is fixed to the local hero).
 
-`mp_dev_sandbox.gd` changes two things about the base scene:
+**Blue stays the AI opponent.** `AIController` emits commands through `CommandApplier` like everything else, so the AI keeps every mutation on the mirrored path. `ControllerFactory.ensure_all` attaches an `AIController` to Blue on BOTH peers, and each resolves its own peer's applier — so a mirror's copy would decide independently the instant a mirrored `EndTurnCommand` hands Blue the turn. `AIController.take_turn` is therefore gated on `CommandApplier.is_authority` (`NetworkLink.role`'s setter, through `CommandChannel`, is the only writer). The host hot-seats Red and Blue; the client stays on Blue.
 
-1. **The client binds Blue and freezes input** via `set_input_frozen` (#486) —
-   the existing "every channel off" seam, no controller change needed.
-2. **The client drops the hot-seat handover.** On a networked peer the local
-   view is fixed to the local hero; leaving it connected would swing the
-   client's HUD onto Red.
+### Both directions
 
-**Blue stays the AI opponent (#532).** The old justification for making it
-human — "the AI still calls `AllocationSystem` / `BattleSystem` directly" — is
-stale: #512 landed, and `AIController` emits commands through `CommandApplier`
-like everything else, so restoring the AI keeps every mutation on the mirrored
-path just as well, and turns the harness into a player-against-an-opponent
-rather than two humans hot-seated. Restoring it exposes a real trap:
-`ControllerFactory.ensure_all` attaches an `AIController` to Blue on BOTH
-peers, and that controller resolves *its own peer's* `CommandApplier` — so a
-MIRROR peer's copy would decide and submit independently of the host's AI the
-instant a mirrored `EndTurnCommand` hands Blue the turn locally. Closed by
-gating `AIController.take_turn` on `CommandApplier.is_authority`
-(`NetworkLink.role`'s setter, through `CommandChannel`, is the only writer) — the same "a
-non-authority peer does not originate mutations" invariant `SkillDustAddon`'s
-claim flow already relies on. The host hot-seats between Red and Blue; the
-client stays bound to Blue.
+The command channel runs both ways. **Down:** the host broadcasts each confirmed command (refused ones changed nothing) with a world fingerprint; the client decodes via `CommandCodec`, applies through its own applier and compares. **Up:** a client's input is emitted as `KIND_INTENT`; the host runs it through its applier and either confirms it down as a command or answers `KIND_REFUSAL` naming the intent id the client minted. A mirror never opens its own turn or originates a mutation; the harness scenes freeze the client's input so the autopilot and AI are the only drivers (`.claude/rules/multiplayer-sync.md`, ADR 0002). `CommandChannel._applying_remote` keeps a peer that both mirrors and broadcasts from echoing itself.
 
-### One direction: host down to client
+## What mirrors
 
-The client is a **spectator with a real applier**. Routing its own input upward
-means it must stop applying locally and wait to be told — surgery on
-`PlayerInputController`'s submit path and on `BattleSystem`. That is #463, which
-Gated behind #511 and #512. Wave 0 stops short on purpose.
+Every verb `CommandApplier` handles: allocate, deallocate, deallocate_set, mass_allocate, stake, extract, move_core, end_turn, toggle_temp_upgrade, launch_attack, and loot.
 
-## What mirrors, and what does not
-
-**Mirrors:** every verb `CommandApplier` handles — allocate, deallocate,
-deallocate_set, mass_allocate, stake, extract, move_core, end_turn,
-toggle_temp_upgrade, and (since #511) launch_attack. The host broadcasts each
-*confirmed* command (refused ones changed nothing, so there is nothing to
-mirror) with a world fingerprint attached; the client decodes via
-`CommandCodec`, applies through its own applier, and compares.
-
-**Attacks cross as of #511.** The command carries `AttackRecord` — a post-apply
-record of what each landing actually did — and the client replays it rather
-than re-resolving. `--autopilot` fires all three modes (#532: melee included,
-scored via `AiBladeRollout` — the same rollout `AIController` uses, so it never
-needs arc geometry hand-authored into the scene). **Read every `✓` carefully:**
-as of #527 the fingerprint folds ownership + topology + accumulated per-node
-state (HP included, quantized), so a cast that damages without killing DOES
-move it now — but never derived `StatBoard` totals (AP, aura
-contributions), which stay outside the fold on purpose. What the
-`← launch_attack` line proves is that the command decoded and applied on the
-client at all; the *effects* are pinned by
-`test/unit/attack/test_attack_record_replay.gd`, which compares node HP and AP
-across two real worlds through the same wire encoding.
-
-**Also does:** loot, since #522. Each round of a relic's claim rides down as a
-`LootRoundCommand` carrying what was granted BY VALUE — the same
-two-states-one-type shape as the attack, so a peer grants what is recorded
-rather than rolling its own. The ROUND is the wire unit rather than the pick
-because two of `SkillDustAddon`'s grant paths (the single-survivor auto-grant
-and the NPC auto-resolve) never raise a pick at all; a `PickLootCommand`-shaped
-vocabulary would have left every NPC claim diverging while the human-pick case
-looked fine. A grant that moves node HP or ownership now moves the fold too (#527); one
-that only touches a stat total (e.g. a pure damage-formula modifier) still
-does not — `test/unit/systems/test_loot_wire.gd` is what pins the grants
-directly, the same division of labour as the attack path above.
-`--autopilot`'s loot step only has something to claim if the turn's three
-attacks actually killed Blue — this hand-authored graph seeds no relic, and a
-default-balanced opponent surviving three hits is the expected, honestly
-logged (`SKIPPED`) outcome, not a bug.
-
-**Does not:** anything travelling UPWARD. `PickLootCommand` is the one verb
-built for that direction — a remote human's answer to a parked offer — and it is
-dormant rather than unrouted: `CommandApplier` answers it for real against
-`LootPickRegistry`, but a client never sent it and the client's input is frozen.
-#463 owns the channel and the roster that says which peer seats which entity.
+- **Attacks** carry `AttackRecord` — a post-apply record of what each landing did — and the client replays it rather than re-resolving. The fingerprint folds ownership + topology + accumulated per-node state (HP quantized), so a cast that damages without killing moves it, but derived `StatBoard` totals (AP, aura contributions) stay outside the fold on purpose. The `← launch_attack` line proves the command decoded and applied; the *effects* are pinned by `test/unit/attack/test_attack_record_replay.gd`, which compares node HP and AP across two real worlds through the same wire encoding.
+- **Loot** rides as `LootRoundCommand` carrying what was granted by value, so a peer grants what is recorded rather than rolling its own. The round, not the pick, is the wire unit because two of `SkillDustAddon`'s grant paths (single-survivor auto-grant, NPC auto-resolve) never raise a pick. `test/unit/systems/test_loot_wire.gd` pins the grants. `--autopilot`'s loot step only has something to claim if the turn's attacks killed Blue; a surviving opponent logs `SKIPPED`, which is expected.
+- **`PickLootCommand`** is a remote human's answer to a parked offer, the one verb built for the upward direction: the applier answers it through `PickLootCommandHandler.apply` against `LootPickRegistry`, not its queue, so it never confirms, is never broadcast back down, and is not watched for refusal.
 
 ## The fingerprint
 
-`WorldFingerprint.compute(graph)` folds three sorted tiers (#527): ownership
-(`stable_id` → owner `entity_id`), topology (edges, endpoints normalized), and
-accumulated per-node state (stake level, allocation level, regen stacks, HP
-quantized to int). Not derived `StatBoard` totals: a fingerprint that moves
-for reasons the sync layer cannot cause is one nobody reads. `describe()`
-breaks the fold down per-tier for diagnostics, but `compute()` — the number
-peers actually compare — is one fold, not three.
+`WorldFingerprint.compute(graph)` folds three sorted tiers: ownership (`stable_id` → owner `entity_id`), topology (edges, endpoints normalized), and accumulated per-node state (stake level, allocation level, regen stacks, HP quantized to int) — never derived `StatBoard` totals, since a fingerprint that moves for reasons the sync layer cannot cause is one nobody reads. `describe()` breaks it down per tier; `compute()` — the number peers compare — is one fold. Two load-bearing properties:
 
-Two properties are load-bearing:
+- **It reads every id through `Graph.get_stable_id`,** which forces the lazy mint. Hand-authored nodes read `0` until a topology rebuild, and a command carrying `0` resolves to nothing silently (`.claude/rules/multiplayer-sync.md`); comparing at link-up makes that a visible mismatch.
+- **It is folded by hand (FNV-1a), not `Array.hash()`,** because it is compared across processes.
 
-- **It reads every id through `Graph.get_stable_id`,** which forces the lazy
-  mint. Every node in a hand-authored scene reads `0` until a topology rebuild,
-  and a command carrying `0` resolves to nothing *silently*
-  (`.claude/rules/multiplayer-sync.md`). Comparing fingerprints at link-up turns
-  that silent failure into a visible mismatch before a single command crosses.
-- **It is folded by hand (FNV-1a), not `Array.hash()`.** The number is compared
-  across processes, so it must not depend on engine hashing internals.
+## Two ways to measure the wrong process
 
-## Two ways to measure the wrong process (#546)
+A run that looks clean against the wrong peer has no in-band signal: the banner says connected, the probe prints, the totals look plausible. (An orphaned host from a finished session once held port 9099; the fresh host failed to bind, logged it and kept running, and the fresh client reached the orphan.) Two gates close it.
 
-The harness exists to produce numbers that settle arguments — #529's probe
-decides a sync model *by measurement instead of argument*. So the one failure
-mode that matters more than a crash is a run that looks clean and is measured
-against the wrong peer. There is no in-band signal for it: the banner says
-connected, the probe prints, the totals look plausible.
+**1. A `--role=host` that cannot bind exits non-zero**, headless and in-editor alike; `--role=solo` is the offline option and `solo`/`client` are untouched. The message names the port and the check (`ps aux | grep mp_dev_sandbox`). **ENet is UDP**, so `ss -ltn` shows nothing for a healthy host; to check the socket rather than the process use `ss -lunp`. Auto-picking a free port is rejected: it masks the conflict and breaks the two-terminal flow where the operator types the client's `--port` by hand.
 
-It happened on 2026-08-23, during #534's acceptance sweep. An orphaned host
-from a finished session — hours old, running `dc5ef29`-era code — still held
-port 9099. The fresh host failed to bind, **logged it and kept running**, and
-the fresh client dialled 9099 and reached the *orphan*, which happily accepted
-it and began sweeping. The run compared a months-old host against a
-current-master client. It was caught only because the stale process's
-backtraces named line numbers `command_applier.gd` no longer has.
+**2. Peers on different builds refuse to link.** `WorldSyncChannel.send_hello` and the lobby's `NetworkLink.announce_self` carry a `BuildInfo` stamp; a mismatch hangs the link up with both builds printed on both ends. Covered by `test/unit/network/test_link_build_check.gd`; easy to get wrong:
 
-Two independent gates now close that:
+- **The gate runs in the lobby, host-side, per peer.** The client announces its stamp (`KIND_HELLO` with `KEY_BUILD` + `KEY_PEER`) the instant its dial completes and the host answers `peer_cleared` or `peer_refused`. `LobbyScreen` seats on `peer_cleared` and never on bare `peer_joined`, so a refused peer never appears in anyone's roster by wiring, not by memory.
+- **After START the door is shut, and the refusal says so.** Joining happens in the lobby before START; there is no drop-in. `NetworkSession._on_peer_joined`'s host branch checks the new peer's id against `GameSession.roster` first and turns a seatless peer away through `NetworkLink.refuse_peer`, ahead of `LobbyScreen.stamp_pending_remote` and the join-world push. Refusing the peer rather than the socket keeps the message truthful (a sealed socket makes ENet reset silently and the joiner sit out its connect timeout).
+- **Refusing a peer is not refusing the socket.** `_refuse_peer` sends the reject, then `transport.drop_peer`s that one peer — no latch, no `transport.stop()`, so other seated players keep their link. A refused *client* latches and loses its link. `test_link_lifecycle.gd` states both halves.
+- **The stamp rides the hello, never a `Command`.** A per-checkout sha in `Command.to_dict()` would re-capture every `test/fixtures/outcome/` fixture on every commit.
+- **An absent stamp is a mismatch; present-but-empty compares equal** (an exported build has no `res://.git`).
+- **Only the sha is compared**, strict and right for a LAN pulling one commit; it also refuses over an unrelated uncommitted edit — a loud, diagnosable false positive. Branch and worktree ride along for the message only.
+- **Refusal is its own latch, not `role = Role.OFFLINE`**: the role setter writes `is_authority = role != Role.CLIENT`, so parking a refused client at OFFLINE would hand it authority (the hole `mp_dev_sandbox._ready` documents).
+- **The stamp catches different commits, not different working trees.** Godot loads scripts at startup, so edit-launch-edit-launch yields a green handshake over divergent code. For a measurement that matters, commit first or launch both at once (the tab's *Launch both* is safe by construction).
+- **The reject payload goes out before the hang-up** (`transport.stop()` on a client, `drop_peer()` on a host), because a transport drops a send once the recipient is gone. A host receiving one only reports; it never stops its listener over one bad client.
 
-**1. A `--role=host` that cannot bind exits non-zero.** Binding *is* the job of
-`--role=host`; without a socket it is a solo sandbox nobody asked for, and
-`--role=solo` already exists for that. Identical headless and in-editor — the
-in-editor path is the one that otherwise keeps running in the exact shape that
-caused the incident. `solo` and `client` are untouched. The message is the
-deliverable, not the exit code, so it names the port and the check:
+## The socket stops on every leave
 
-```
-[host] host: FAILED to listen on 9099 (Can't create)
-[host] port 9099 is already in use (Can't create) — another harness may still be running:
-[host]          ps aux | grep mp_dev_sandbox
-[host] a host with no socket is not a host — exiting. (--role=solo runs offline.)
-```
-
-Finding the culprit is `ps aux | grep mp_dev_sandbox`, and that is deliberate:
-**ENet is UDP**, so `ss -ltn` (TCP) shows nothing for a perfectly healthy host.
-A sweep script that checked TCP produced a false "host did not bind" abort on
-2026-08-24. If you must check the socket rather than the process, it is
-`ss -lunp`.
-
-Rejected: **auto-picking a free port.** It masks the conflict, and it breaks the
-documented two-terminal flow outright — the operator types the client's `--port`
-by hand and would land on the stale host anyway. The false-positive cost of
-fail-fast is a two-second relaunch; the false-negative cost is a clean-looking
-table posted to an issue as fact.
-
-**2. Peers on different builds refuse to link.** The fatal bind closes one route
-to a wrong-host link; a stale process on another machine, a mistyped IP, or
-someone else's session on the same LAN are others. `WorldSyncChannel.send_hello`
-carries a `BuildInfo` stamp, the receiver compares it, and a mismatch hangs the
-link up with both builds printed on both ends:
-
-```
-[client] link REFUSED — build mismatch
-[client]   peer:   4174f36 (master)
-[client]   mine:   54cfcd7 (master @ issue-546-…)
-[client] The peers are not running the same code.
-```
-
-Details that are easy to get wrong, all covered by
-`test/unit/network/test_link_build_check.gd`:
-
-- **The gate runs in the LOBBY, host-side, per peer (#716).** It used to ride
-  the host's hello alone, which a lobby cannot send — it has no world — so a
-  joiner on the wrong commit was already seated by the time anything compared.
-  The client now announces its own stamp (`NetworkLink.announce_self`, a
-  `KIND_HELLO` carrying `KEY_BUILD` + `KEY_PEER`) the instant its dial
-  completes, and the host answers with `peer_cleared` or `peer_refused`.
-  `LobbyScreen` seats on `peer_cleared` and never on the bare `peer_joined`, so
-  "a refused peer never appears in anyone's roster" is a property of the wiring
-  rather than of a check somebody has to remember. The move is what the old note
-  here predicted (`KIND_SNAPSHOT` / `KIND_SETUP` are handled regardless of a
-  prior hello, so a lobby exchanging anything first wants the gate ahead of it);
-  it is done.
-- **After START the door is shut, and the refusal says so (#733).** The build
-  gate above is the LOBBY's door; a peer that dials in once a level is up never
-  gets that far. Owner call: "joining only happens to the lobby before the host
-  presses START, there's no drop-in mid-game." `Wire` keeps the socket open
-  across the level mount by design (#713), so the door has to be shut on
-  purpose rather than left to close itself — `NetworkSession._on_peer_joined`'s host
-  branch checks the new peer's id against `GameSession.roster` (some seat's
-  `peer_id` must already match) before it does anything else, and a peer with
-  no seat is turned away through the same `NetworkLink.refuse_peer` the build
-  gate uses, ahead of `LobbyScreen.stamp_pending_remote` and ahead of the
-  join-world push. Not a socket seal: refusing the SOCKET rather than the peer
-  would have ENet reset the connect silently, so the joiner would sit out its
-  own connect timeout and land on "could not reach the host" — a lie about a
-  host that is running. Accepting the connection and refusing with a reason is
-  what keeps the message truthful.
-- **Refusing a PEER is not refusing the socket (#716).** `_refuse_peer` sends
-  the reject to that one peer and then `transport.drop_peer`s it — no latch, no
-  `transport.stop()`. The old `_refuse` did stop the socket, which was tolerable
-  with exactly one client and took the listener down for every seated player the
-  moment there were two. A *client* told it was refused still latches and still
-  loses its link; that side owns nothing else. `test_link_lifecycle.gd` states
-  both halves against one host and two clients.
-- **The stamp rides the hello, never a `Command`.** The hello is what brings a
-  link up in either direction, so nothing in the harness can link without the
-  check running. A per-checkout sha inside `Command.to_dict()` would re-capture
-  every fixture at `test/fixtures/outcome/` on every commit.
-- **An absent stamp is a mismatch, not a pass.** The orphan predates the check
-  and sends no build key at all — treating that as agreement would sail past the
-  one run this was written for. *Present-but-empty* is different and does
-  compare equal: an exported build has no `res://.git` and so no sha.
-- **Only the sha is compared.** Strictest, and correct for a LAN where everyone
-  pulls the same commit. It also refuses when one side has an unrelated
-  uncommitted edit — a loud, instantly diagnosable false positive, which is the
-  opposite of the failure being killed. Branch and worktree ride along for the
-  message only.
-- **Refusal is its own latch, not `role = Role.OFFLINE`.** The role writes
-  `is_authority = role != Role.CLIENT`, so parking a refused *client* at OFFLINE
-  hands it authority — the silent-divergence hole `mp_dev_sandbox._ready`
-  documents. A refused link goes quiet; it does not become an authority.
-- **The stamp catches different commits, not different working trees.** Godot
-  loads scripts at startup, so the staggered terminal flow — edit, launch host,
-  edit, launch client — gets a green handshake over genuinely divergent code,
-  both processes reporting the same sha. That is this same failure class
-  arriving through the front door, and a dirty-tree marker would not close it
-  (dirty-vs-dirty is an equally silent pass). **For a measurement that matters,
-  commit first, or launch both at once.** The Multiplayer tab's *Launch both* is
-  safe by construction; the two-terminal path is the exposed one.
-- **The reject payload goes out before the hang-up** — `transport.stop()` on a
-  client, `transport.drop_peer()` on a host. A transport drops a send once the
-  recipient is no longer linked, so that order is what makes the *other* end
-  print anything. A HOST receiving one still only *reports*: it does not stop or
-  latch, or it would close its listening socket over one bad client and the
-  operator would relaunch the fixed client into nothing.
-
-## The socket stops on every leave (#716)
-
-`Wire` outlives the level (#713), so nothing dies with a scene any more and
-every exit has to say so out loud:
-
-- `GameSession.end()` calls `Wire.stop()` — both level exits already route
-  through it (`GameRoot.route_to_meta_now`, `PauseMenu.leave_run`);
-- `meta_root._leave_lobby()` nulls `GameSession.network` and stops the wire, and
-  hangs off *both* ways out of a lobby: `FrontmatterPanels.panel_dismissed` and
-  any `focus_started` onto something that is not a lobby leaf.
-
-Because every route in now passes through a teardown, `_open_wire_for` always
-(re)opens on the endpoint that was typed. It used to skip when an open link's
-ROLE matched, which made re-hosting on a different port a silent no-op.
-
-Client-side loss surfaces on the lobby's own status line, off
-`NetworkTransport.link_lost` (a failed dial, a host that quit, a host that
-dropped us) — emitted *after* the transport is already OFFLINE. `Wire` tears
-down before it announces for exactly that reason: announcing first handed
-`EnetTransport._on_wire_status` a role that was about to be wrong, and nothing
-above the seam ever learned the link had died.
+`GameSession.end()` calls `Wire.stop()` (both level exits route through it: `GameRoot.route_to_meta_now`, `PauseMenu.leave_run`); `meta_root._leave_lobby()` nulls `GameSession.network` and stops the wire on both ways out of a lobby (`FrontmatterPanels.panel_dismissed`, a `focus_started` onto a non-lobby leaf). Every route in passes through a teardown, so `_open_wire_for` always (re)opens on the typed endpoint. Client-side loss surfaces on the lobby's status line off `NetworkTransport.link_lost`; `Wire` tears down *before* announcing, so `EnetTransport._on_wire_status` never sees a role about to be wrong.
 
 ## A link that ends mid-run
 
-Everything in the section above is the *lobby's* handling of `link_lost` /
-`peer_left`. The level never listened to either until 2026-09-04 — it
-connected `peer_joined` and `link_changed` and nothing else — so both ends of
-a dropped link mid-run hung in silence. `NetworkSession.open_link` now connects both,
-and the two cases are deliberately different:
+`NetworkSession.open_link` connects `link_lost` and `peer_left`, and the two cases differ:
 
-- **This machine's link died** (`link_lost`: the host quit, the socket dropped).
-  There is no rejoin — "no drop-in mid-game" (#733) cuts both ways — so the run
-  is over *here*. `NetworkSession._on_link_lost` does two things. It abandons the
-  intent parked in `CommandApplier` (`abandon_pending_intent`): a mirror's
-  `is_awaiting_confirmation` is derived from that pending intent, and with the
-  authority gone the confirm never comes, so without this every click stays
-  gated closed with nothing on screen. Then it raises the run-end overlay with
-  its `LINK_LOST` reading (`HudRoot.present_link_lost`) — not a `RunOutcome`,
-  `VictorySystem` never fired — because that overlay already carries the one
-  way out, `route_to_meta_now`.
-- **A seated peer left the host** (`peer_left`, host only — a client ignores a
-  sibling leaving). The run goes on for everyone still here.
-  `SeatHandover.hand_seat_to_ai` flips the seat's `Participant.kind` to AI on the
-  host's roster copy *first* — `LootPickRegistry.is_remote_collector` reads it,
-  and a HUMAN seat with a dead peer would park every relic that hero claims on a
-  pick nobody sends (#646) — then swaps its `PlayerController` for an
-  `AIController`, and kicks `take_turn()` by hand if it is that hero's turn
-  right now (the new controller missed `turn_started`). The host is the
-  authority, so the AI's turns cross the wire as ordinary confirmed commands and
-  every mirror watches the hero play on; the mirrors' roster copies still say
-  HUMAN, which only makes their `is_local_collector` answer false, as it should.
+- **This machine's link died** (`link_lost`): there is no rejoin, so the run is over here. `NetworkSession._on_link_lost` abandons the intent parked in `CommandApplier` (`abandon_pending_intent` — a mirror's `is_awaiting_confirmation` derives from it, and with the authority gone every click would stay gated closed), then raises the run-end overlay with its `LINK_LOST` reading (`HudRoot.present_link_lost`), which already carries the one way out, `route_to_meta_now`. It is not a `RunOutcome`.
+- **A seated peer left the host** (`peer_left`, host only): the run goes on. `SeatHandover.hand_seat_to_ai` flips the seat's `Participant.kind` to AI on the host's roster copy first (`LootPickRegistry.is_remote_collector` reads it, and a HUMAN seat with a dead peer would park every relic on a pick nobody sends), swaps its `PlayerController` for an `AIController`, and kicks `take_turn()` by hand if it is that hero's turn. The AI's turns cross the wire as ordinary confirmed commands; mirrors' roster copies still say HUMAN, which only makes their `is_local_collector` answer false.
 
-`test/integration/scenes/test_game_root_link_loss.gd` pins both, on a real
-`game_root.tscn` over its mounted loopback transport.
+`test/integration/scenes/test_game_root_link_loss.gd` pins both.
 
-## Two machines: a dial that never answers (#752)
+## Two machines
 
-Everything above runs on `127.0.0.1`, where a dial either connects or errors
-synchronously. A real LAN has a third outcome that loopback never shows —
-**silence**: a wrong IP, a host that is not up yet, or a firewall eating the
-UDP all look identical to "still dialling". `create_client` returns `OK` the
-instant a socket exists, and ENet's own `connection_failed` only fires once
-its connect retries are exhausted (15–30 s). Three things close that gap:
+Loopback either connects or errors synchronously; a real LAN adds **silence** (wrong IP, host not up, firewall eating UDP), and ENet's own `connection_failed` takes 15–30 s.
 
-- **`Wire.DIAL_TIMEOUT_SEC` (8 s).** `Wire.start_client` arms a one-shot
-  `Timer`; if nobody is on the line when it fires, the dial is torn down and
-  reported through the same `link_lost` a dropped link uses, with the endpoint
-  in the reason — *"no answer from 192.168.1.7:9099"* — so a typo is visible in
-  the sentence. The lobby's status line renders it and START stays refused;
-  the route out is Back, and the join panel still holds what was typed.
-  `test_dial_watchdog.gd` pins it, including in real time: a closed loopback
-  port produces silence, not a refusal, even on Linux — ENet swallows the ICMP.
-- **The join panel's address box starts blank, and blank is refused on the
-  panel** (`NetworkConfig.join_address_problem`) rather than falling back to
-  `NetworkConfig.DEFAULT_ADDRESS`. The default was loopback, so a joiner who
-  left the box alone dialled itself. Loopback typed *on purpose* is still
-  dialled — two windows on one machine stays a legitimate test — and the
-  command-line rungs above keep the default, since they run on one box by
-  construction.
-- **The port has to be open on the host.** ENet is UDP; the harness's port is
-  `NetworkConfig.DEFAULT_PORT` (**UDP 9099**), and a joiner on another machine
-  that gets "no answer" from a host that *is* up is almost always this. On
-  **Windows** the first `Host` pops a Defender "allow this app on private
-  networks?" prompt; dismissed, every dial times out exactly as above. Allow
-  it there, or after the fact from an elevated prompt:
-
-  ```
-  netsh advfirewall firewall add rule name="Skill Tree of Life" dir=in action=allow protocol=UDP localport=9099
-  ```
-
-  Linux with a firewall is the same shape (`sudo ufw allow 9099/udp`, or
-  `firewall-cmd --add-port=9099/udp`). The client side needs nothing: replies
-  come back on the socket it dialled from.
-
-## A LAN playtest that ended on a black screen (2026-09-06)
-
-Two Linux machines, the shipped lobby: host opens, peer joins, host presses
-START, the host generates and plays — and the joiner fades to the loading
-screen, bar at 0%, and stays there. Loopback (`mise run mp:e2e`, and the same
-pair by hand on the default 800-node map) never reproduced it, so what follows
-is what the code allowed and what changed, not a traced packet.
-
-- **The one human-only path found: the AI-count slider after a join.**
-  `LobbyScreen._rebuild_participants` rebuilt every remote seat back on the
-  pending id and carried nothing across, so a host that touched the slider
-  once a friend was seated pressed START on a roster that no longer named
-  them. The joiner's level found no seat with its own id, and the host's level
-  refused it as a drop-in the moment it adopted the link — a refusal the joiner
-  could not see (next bullet). The rebuild now keeps every stamped `peer_id`
-  and broadcasts the new shape; `test_lobby_replication.gd` pins it.
-- **A link that ends under the curtain was invisible.** The joiner's `_ready`
-  awaited `resync_applied` bare, and the run-end overlay is a layer-100 canvas
-  under `SceneTransition`'s 101 — so a refusal or a lost link while waiting
-  showed black and 0% until the 30s reveal timeout. `NetworkSession.join_world`
-  now ends on `link_lost` / `link_refused` too, lifts the curtain and leaves the
-  overlay's reason on screen (`test_game_root_join_wait.gd`).
-- **The pull is renewed.** While it waits, the joiner re-asks every
-  `GameRoot.JOIN_PULL_RETRY_SEC` (3s) via `WorldSyncChannel.renew_join_pull`; the
-  `_join_world_arrived` latch makes every extra answer a drop. Insurance
-  against whatever a real wire does to the first ask that loopback cannot show.
-- **The slow-joiner order works, and the harness could not tell.** With the
-  client's link held for 20s (past the host's push), the pull was answered and
-  the world applied — but no `FIRST TURN` line printed, because the host's
-  first turn arrives *inside* that resync (`adopt_turn` fires `turn_started`
-  from within `_on_resync`) and the rung-3 hook was connected after the await.
-  It is connected before `_open_link` now. The resync itself is ~40 KB on the
-  shipped preset (entities 8 KB, graph 30 KB), so size is not a suspect.
-- **The wire trace now prints on every online run**, lobby and level, not only
-  under `--lobby=`. On Linux it lands in
-  `~/.local/share/godot/app_userdata/Skill Tree of Life/logs/godot.log`; the
-  next report from another machine should come with both machines' files.
+- **`Wire.DIAL_TIMEOUT_SEC` (8 s).** `Wire.start_client` arms a one-shot `Timer`; if nobody answers it tears the dial down and reports `link_lost` with the endpoint in the reason ("no answer from 192.168.1.7:9099"). The lobby shows it and START stays refused. `test_dial_watchdog.gd` pins it, including real time — a closed loopback port produces silence, not a refusal, even on Linux.
+- **The join panel's address box starts blank, and blank is refused** (`NetworkConfig.join_address_problem`) rather than falling back to `NetworkConfig.DEFAULT_ADDRESS` (loopback — a joiner who left it alone dialled itself). Loopback typed on purpose still dials; the command-line rungs keep the default.
+- **The host's port must be open.** ENet is UDP on `NetworkConfig.DEFAULT_PORT` (**UDP 9099**); a joiner getting "no answer" from a host that is up is almost always this. On Windows the first Host pops a Defender prompt; dismissed, every dial times out. Allow it, or `netsh advfirewall firewall add rule name="Skill Tree of Life" dir=in action=allow protocol=UDP localport=9099`; on Linux `sudo ufw allow 9099/udp` or `firewall-cmd --add-port=9099/udp`. The client side needs nothing.
+- **A joiner never sits on a black screen.** `NetworkSession.join_world` ends on `link_lost` / `link_refused` as well as `resync_applied`, lifts the curtain and leaves the run-end overlay's reason on screen (`test_game_root_join_wait.gd`). Re-hosting the lobby's AI-opponent count after a join keeps every stamped `peer_id` and rebroadcasts the shape (`LobbyScreen._rebuild_participants`; `test_lobby_replication.gd`).
+- **The wire trace prints on every online run.** On Linux: `~/.local/share/godot/app_userdata/Skill Tree of Life/logs/godot.log`; a report from another machine comes with both machines' files. The rung-3 `FIRST TURN` hook is connected before `_open_link`, since the host's first turn arrives inside the resync (`adopt_turn` fires `turn_started` from within `_on_resync`).
 
 ## Extending it
 
-- **A different transport** — subclass `NetworkTransport`. Nothing above it
-  knows about ENet. Note `EnetTransport` claims the SceneTree's `MultiplayerAPI`
-  and resolves its one RPC **by node path**, so both peers must run a scene
-  where the transport sits at the same path (they do — same `.tscn`).
-- **A different world** — point the panel's Scene field at any scene whose root
-  handles the same `--role` / `--port` / `--address` args.
-- **The intent channel upward** — that is #463, and it starts by making
-  `PlayerInputController` submit to a *link* rather than to the applier
-  directly. `CommandChannel._applying_remote` already exists so a peer that both
-  mirrors and broadcasts cannot echo itself into a loop.
+- **A different transport** — subclass `NetworkTransport`; nothing above it knows ENet. `EnetTransport` claims the SceneTree's `MultiplayerAPI` and resolves its one RPC by node path, so both peers need the transport at the same path.
+- **A different world** — point the panel's Scene field at any scene whose root handles the same `--role` / `--port` / `--address` args.
 
-## Rung 2: the graph and run settings actually cross the wire (#533)
+## Rung 2: the graph and run settings actually cross the wire
 
-Rung 1's whole value is that NO state crosses — the two peers share the same
-hand-authored `dev_sandbox.tscn`, so any divergence there is a *messaging* bug
-by construction, never a serialization one. Rung 2 (`scenes/dev/mp_procgen_sandbox.tscn`
-+ `.gd`) is the first harness scene where that stops being true: the HOST
-procgens a small level from a fixed `RunConfig`, and the CLIENT receives it —
-run settings first (#528, `WorldSyncChannel.send_run_setup`), then the graph
-(#527, `WorldSyncChannel.send_graph_snapshot`), then every entity's accumulated
-state (#560, `WorldSyncChannel.send_entity_snapshot`) — rather than re-deriving any
-of it locally. Launch it the same way as rung 1, over `--role` / `--port` /
-`--address`:
+Rung 1 shares one hand-authored scene so no state crosses; any divergence is a messaging bug by construction. Rung 2 (`mp_procgen_sandbox.tscn`) is the first scene where state does cross: the host procgens a small level from a fixed `RunConfig` and the client receives run settings (`WorldSyncChannel.send_run_setup`), then the graph (`send_graph_snapshot`), then every entity's accumulated state (`send_entity_snapshot`).
 
 ```
 godot --headless --path . scenes/dev/mp_procgen_sandbox.tscn -- --role=host --port=9100
 godot --headless --path . scenes/dev/mp_procgen_sandbox.tscn -- --role=client --address=127.0.0.1 --port=9100
 ```
 
-`--rounds=N` (host only; bare `--rounds` is unbounded) sweeps N of Red's turns,
-each an allocate-if-legal followed by `end_turn` — a much smaller sweep than
-rung 1's `--autopilot`, because this rung's job is proving the JOIN, not
-re-proving every verb crosses (rung 1 already does that). The default is 3.
+`--rounds=N` (host only; default 3, bare is unbounded) sweeps N of Red's turns (allocate-if-legal then `end_turn`) — this rung proves the JOIN, not every verb.
 
-**Why this is now a correctness requirement, not only a harness milestone
-(#547).** `procgen/` leans on `pow` / `exp` / `sin` / `cos` for continuous
-placement math — draw weights, a Poisson roll, a Gaussian bump, points on a
-circle — real math that would be wrong to rewrite, but whose last bit is not
-IEEE-754-portable across platforms' `libm`. Two peers "typing the same seed"
-(#531's retired lobby hint) can silently generate DIFFERENT maps,
-and every command after that lands on a node that isn't there — not subtle
-drift, the run failing to start coherently. Sending the graph rather than
-regenerating it retires that hazard permanently; `mise run lint-transcendentals`'s
-`procgen/` exemption says so explicitly and self-voids if a peer ever goes back
-to generating its own map from the seed.
+**Why this is a correctness requirement.** `procgen/` uses `pow` / `exp` / `sin` / `cos` for continuous placement math whose last bit is not IEEE-754-portable across `libm`s. Two peers "typing the same seed" could generate different maps, and every later command lands on a node that isn't there. Sending the graph rather than regenerating it retires that hazard; `mise run lint-transcendentals`'s `procgen/` exemption says so and self-voids if a peer ever generates from the seed again.
 
-**No hot-seat, unlike rung 1.** Rung 1's HOST hot-seats a human Red against an
-AI Blue (`COUCH`); here BOTH peers are pinned with `SeatPolicy.seat()` to their
-own participant — host → Red, client → Blue — and never swing, per the owner's
-framing (2026-08-22): a client staying bound to Blue through every handover is
-a WANTED difference between the two instances, not a divergence to chase. Blue
-is still AI-driven and the run still needs no upward intent channel (#463,
-unfiled rung 3) — only the authority's `AIController` ever decides, gated by
-`CommandApplier.is_authority` exactly as rung 1 documents at length.
+- **No hot-seat, unlike rung 1.** Both peers are pinned with `SeatPolicy.seat()` to their own participant (host → Red, client → Blue) and never swing — a client staying on Blue is a wanted difference, not a divergence. Only the authority's `AIController` decides Blue, gated by `CommandApplier.is_authority`.
+- **The client never calls `GraphProcgen`.** It spawns bare placeholder `Entity` nodes (no `core_location`) in the same order as the host, so `Graph`'s per-entry `entity_id` minting lands on identical numbers. It waits for `GameSession.run_started` (fired by `GameSession.apply_received`, called from `WorldSyncChannel._on_run_setup`) to learn the participant count; `GraphSnapshot.decode` resolves ownership through the receiving graph's entities, so the placeholders must already exist and be correctly ID'd.
+- **`core_location` and the receiving board ride `EntitySnapshot`.** `GraphSnapshot` carries which entity owns each node but rebuilds nothing on the owner's side; a client whose board never got the starting node's grants shows wrong HP/stats from its first frame. `send_entity_snapshot` decorates the entities the roster spawned (and, for blockers no roster names, rebuilds them via `entity_spawner`); its two-pass decode resolves `core_location` (pass 1 needs no graph, pass 2 runs once a graph exists). Snapshot order does not matter; both passes are idempotent.
+- **Send order: run_setup, graph snapshot, entity snapshot, THEN hello** — reversed from rung 1. `send_hello` produces the "✓ in sync at link-up" verdict by comparing `WorldFingerprint`, and the client's graph is empty until the snapshots decode; hello first would report a false structural DIVERGED. ENet's reliable channel is ordered, so everything sent before hello arrives before it. Accepted consequence: `KIND_SETUP` / `KIND_SNAPSHOT` / `KIND_ENTITIES` are handled regardless of a prior hello, so a build mismatch is not caught until after they apply.
+- **This harness is its own composer**, one of two exceptions to "a level consumes a run, it never invents one": it opens the session itself (`GameSession.ensure_started`) and writes the roster because the run it builds is what it SENDS. The other exception is the client half, which receives its run from the host.
+- **The opening turn starts AFTER the send.** `TurnManager.start_turn` fires `turn_started` and runs turn-start upkeep (AP/DP/SP/wound-heal/node-refill). Starting the host's opening turn before sending bakes an already-healed world into the snapshot, and the client's own `start_turn` (load-bearing: it sets `current_entity` so a mirrored `EndTurnCommand` isn't a no-op) heals it a second time. `mp_procgen_sandbox.gd` defers the host's `_start_opening_turn()` to `_greet_if_linked_and_ready`, after every send.
+- **Automated coverage stops at the protocol.** `test/integration/network/test_mp_procgen_join.gd` drives two real `game_root.tscn` instances in one process over their mounted loopback transport. It pins ownership + topology + HP after the handshake, `core_location` via `EntitySnapshot`, distinct participant binding per instance, and fingerprint parity across a scripted sequence of mirrored commands. It deliberately does not exercise `EndTurnCommand`: `TurnManager.end_turn` and `_tick_until_ready` read `Entity.GROUP` / `Entity.READY_GROUP` tree-wide, so two worlds in one SceneTree see each other's entities. A real multi-turn run is manual (the Multiplayer tab).
 
-**The CLIENT never calls `GraphProcgen`.** It spawns bare placeholder
-`Entity` nodes — no `core_location`, so no graph is needed yet — in the SAME
-order the host does, so `Graph`'s per-entry `entity_id` minting lands on the
-identical numbers. It waits for `GameSession.run_started` (fired by
-`GameSession.apply_received`, which `WorldSyncChannel._on_run_setup` calls) before
-it knows how many participants there are; only once the graph snapshot itself
-arrives can ownership resolve — `GraphSnapshot.decode`'s own contract is that
-ownership resolves through the RECEIVING graph's entities, so the placeholders
-must already exist and be correctly ID'd first.
+## Rung 3: the REAL lobby, driven from the command line
 
-**`core_location` and the receiving board ride `EntitySnapshot` (#560), which
-landed alongside this rung.** `GraphSnapshot` carries which `Entity` owns each
-`SkillNode` (by `entity_id`) but rebuilds nothing on the OWNER's side —
-#560's own framing: a client whose board never got the starting node's grants
-shows the wrong HP/stats from its first frame, silently. `WorldSyncChannel
-.send_entity_snapshot` is the sibling send this rung also makes: it DECORATES
-the entities the roster already spawned (#560 D7 — relaxed by #715 for the
-blockers no roster names; see multiplayer-sync-model.md), and its
-own two-pass decode is what resolves `core_location` — pass 1 needs no graph,
-pass 2 (entity → node) runs once a graph exists to resolve against. Order
-between the graph and entity snapshots does not matter (both passes are
-idempotent).
-
-**Send order: run_setup, graph snapshot, entity snapshot, THEN hello —
-reversed (and extended) from rung 1.** `WorldSyncChannel.send_hello` is what
-produces the "✓ in sync at link-up" verdict, comparing `WorldFingerprint` on
-both sides, and the CLIENT's graph is empty until the snapshots decode.
-Sending hello first (rung 1's order, safe there because both peers already
-share a graph) would report a structural, false DIVERGED before any real
-state could differ. Sending it last makes "at link-up" mean what it says —
-ENet's reliable channel is ordered, so every send before hello arrives before
-it does. One accepted consequence, already called out in the old command link's
-own #546 note: `KIND_SETUP` / `KIND_SNAPSHOT` / `KIND_ENTITIES` are all
-handled regardless of a prior hello, so a build mismatch is not caught until
-after every one of them has already been applied. That gap is pre-existing
-future work, not something this rung closes.
-
-**This harness is its own composer, deliberately** — one of the two exceptions
-to "a level consumes a run, it never invents one" (#584). It opens the session
-itself (`GameSession.ensure_started`) and writes the roster, because the run it
-builds is the thing it then SENDS to a peer: there is no lobby upstream of it,
-and a `RunBootstrap` could only author a run this scene must instead vary per
-harness case. The other exception is the client half, which receives its run
-from the host.
-
-**The opening turn starts AFTER the send, not before — a double-heal trap
-this rung's own test caught.** `TurnManager.start_turn` unconditionally fires
-`turn_started`, which runs turn-start upkeep (AP/DP/SP/wound-heal/
-node-refill). Rung 1 calls it identically on both peers because its graph is
-hand-authored and never crosses the wire — both sides start from the SAME
-untouched baseline. Here the graph and entity state DO cross: starting the
-HOST's opening turn before sending bakes an ALREADY-healed world into the
-snapshot, and the CLIENT's own `start_turn` call — load-bearing on its own,
-since it's what sets `current_entity` so a later mirrored `EndTurnCommand`
-isn't a silent no-op — then heals it a SECOND time on top, unaccounted for by
-anything that actually crossed the wire. `mp_procgen_sandbox.gd` defers the
-HOST's `_start_opening_turn()` call to `_greet_if_linked_and_ready`, after
-every send, so both peers' upkeep applies exactly once, from the identical
-pre-turn baseline — the fingerprint mismatch this produced (accumulated HP
-off by the wound-heal amount, ownership and topology both fine) is what
-surfaced it while writing `test_mp_procgen_join.gd`.
-
-**Automated coverage stops at the protocol, not the scene.** Two full OS
-processes can't share a `LoopbackTransport` (the earlier reasoning still
-holds: `EnetTransport` claims the SceneTree's one `MultiplayerAPI`), so
-`test/integration/network/test_mp_procgen_join.gd` drives two real `game_root.tscn`
-instances in one process instead, paired through their own mounted default
-transport — the same two-worlds-in-one-process technique
-`test_command_channel.gd` already established, extended to also exercise
-`send_run_setup` / `send_graph_snapshot` / `send_entity_snapshot`. It pins:
-ownership + topology + HP match once the join handshake completes,
-`core_location` resolves via `EntitySnapshot`, each instance ends up bound to
-a different participant (asserted as correct), and fingerprint parity
-survives a short scripted SEQUENCE of mirrored commands — the last of those
-is what caught the opening-turn double-heal above; it started out red for
-exactly the reason described there. It deliberately does NOT exercise `EndTurnCommand` — both
-`TurnManager.end_turn` and `_tick_until_ready` read `Entity.GROUP` /
-`Entity.READY_GROUP` tree-wide, so with two worlds sharing one SceneTree they
-see BOTH worlds' entities regardless of which `TurnManager` is ticking; a real
-multi-turn run is exercised manually via the Multiplayer tab, same division of
-labour as rung 1's own test coverage (`test_harness_budget_boost.gd` tests
-`build_args`, not a spawned process).
-
-## Rung 3: the REAL lobby, driven from the command line (#715)
-
-Rungs 1 and 2 are dev scenes. Rung 3 is not a scene at all — it drives the
-shipped menu, so what it proves is the product's own route rather than a
-harness's imitation of it:
+Rung 3 is not a scene: it drives the shipped menu, so what it proves is the product's own route.
 
 ```
 godot --headless --path . -- --lobby=host --port=9300
 godot --headless --path . -- --lobby=client --address=127.0.0.1 --port=9300
 ```
 
-**There is no scene argument, and that is the point.** `run/main_scene` is
-`scenes/meta/meta_root.tscn`, so both processes boot the frontmatter menu
-exactly as an exported build does; nothing is stubbed. `MetaRoot
-._drive_lobby_from_cmdline` reads the flags (`--lobby=host|client`,
-`--address`, `--port`) and presses the same buttons a human would: the host
-walks its own HOST leaf, waits for a peer to arrive in the lobby, and presses
-START (`MetaRoot._press_start_when_seated` → `LobbyScreen._on_start_button_pressed`);
-the client walks JOIN and is routed to the level by the broadcast that follows.
-One deferred hop before START, so `LobbyScreen._on_link_peer_joined` has stamped
-the waiting seat before START reads the roster off it.
+`run/main_scene` is `scenes/meta/meta_root.tscn`, so both processes boot the frontmatter menu as an exported build does; nothing is stubbed. `MetaRoot._drive_lobby_from_cmdline` reads `--lobby=host|client`, `--address`, `--port` and presses the same buttons a human would: the host walks its HOST leaf, waits for a peer, and presses START (`MetaRoot._press_start_when_seated` → `LobbyScreen._on_start_button_pressed`, after one deferred hop so `_on_link_peer_joined` has stamped the waiting seat); the client walks JOIN and is routed by the broadcast that follows.
 
-**What it proves that rung 2 cannot.** #714's lobby replication was pinned
-headlessly only — two `LobbyScreen`s over a `LoopbackTransport` pair, in one
-process, with no socket. Rung 3 is the first live two-process proof of the
-menu-opened socket, of the level ADOPTING that socket rather than re-opening
-one (#713), and of the whole join happening without any peer running procgen.
+**What it proves that rung 2 cannot:** the live two-process behaviour of the menu-opened socket, of the level adopting that socket, and of a join with no peer running procgen.
 
-**The verdict line is `MpHarness._announce_first_turn_for_rung_3`.** It prints
-once per process, on `turn_started` rather than on the resync, because "the
-first turn starts" *is* #715's acceptance 1 — a client that decoded a world and
-then never got a turn has not proved the thing. Beside it goes
-`WorldFingerprint.describe`, which is what makes the two logs comparable: the
-run is green when both print the same `fp` at their first turn.
+**The verdict line is `MpHarness._announce_first_turn_for_rung_3`**, printed once per process on `turn_started` (a client that decoded a world and never got a turn has not proved the thing), beside `WorldFingerprint.describe`. Green means both print the same `fp` at their first turn.
 
-**Both halves are behind an explicit flag and read nothing by default.**
-`MetaRoot._RUNG3_FLAG` and `MpHarness._rung_3_role` scan
-`OS.get_cmdline_user_args()` and return immediately when the flag is absent, so
-an ordinary launch, an exported build and every test parse no arguments at all.
+**Both halves read nothing by default.** The flags are scanned through `HarnessFlags` (`network/harness_flags.gd`: `LOBBY`, `ADDRESS`, `PORT`, `AUTOPLAY`, `LETHAL`, `MAX_TURNS`, `AI_DELAY`); `MetaRoot` and `MpHarness` return immediately when `--lobby` is absent, so an ordinary launch, an exported build and every test parse no arguments.
 
-**A joining peer runs no procgen whatsoever** (#715), so its level's graph is
-empty until the host's world lands, and its loading bar is covering the *host's*
-generate-and-ship rather than its own generation. Its `_ready` awaits
-`WorldSyncChannel.resync_applied` before arming `VictorySystem`, starting a turn or
-lifting the curtain — unbounded on purpose, with `SceneDirector`'s 30s reveal
-timeout as the backstop and `_reveal_ready` staying false as the honest report.
+## Rung 4: the run plays itself, and the two processes are compared
 
-**The world is pushed AND pulled, and applied once.** The host pushes on
-`peer_joined` and also answers the client's `request_resync`, because either leg
-alone can be dropped in silence (the client's level is up in milliseconds while
-the host spends 5-10s generating, so a pull can arrive before the host's level
-has adopted the link and reach nobody). Both legs carry `WorldSyncChannel.KEY_JOIN`
-and the client's `_join_world_arrived` latch drops the loser. That latch is keyed
-off the message flag rather than off a fingerprint compare on purpose: the fold
-covers neither tags nor effects, so a mid-run repair (#521/#560/#561) must still
-apply even when the two fingerprints already agree.
-`test_join_world_applies_once.gd` pins both halves.
-
-**`Wire` admits exactly ONE bound facade** (`Wire.claim_binder` /
-`release_binder`, #715). Two `EnetTransport`s bound at once would each re-emit
-`message_received` and every packet would be handled twice, silently — which is
-reachable the moment a lobby's pair and a level's pair overlap, so the lobby
-hands its link back at START. Refusal is a `push_warning` plus an
-`ERR_ALREADY_IN_USE` return, never a `push_error`: GUT counts a `push_error` as
-an unexpected error.
-
-## Rung 4: the run plays itself, and the two processes are compared (#754)
-
-Rung 3 stops at the first turn. Rung 4 keeps the same two processes going to a
-**verdict**, and is the first automated coverage the wire has ever had past
-turn one:
+Rung 4 keeps rung 3's two processes going to a **verdict** — the wire's automated coverage past turn one:
 
 ```
-mise run mp:e2e                     # the whole thing: spawn, play, compare
+mise run mp:e2e                     # spawn, play, compare
 mise run mp:e2e -- --max-turns 80   # entity-turns, not rounds
 mise run mp:e2e -- --no-lethal      # normal stats: a long game, may outrun --timeout
 ```
 
-**Lethal by default.** Both processes get `--lethal`, which puts four `SET`
-modifiers on every entity (`MpHarness._LETHAL_SETS`): `node_health` 1,
-`health` 3, `dealloc_damage` 1, `core_healing` 0, so each entity survives at
-most about three node losses. Owner, 2026-09-30: "if AI can't manage *that*
-then battle is truly broken". A run on normal stats lasts as long as its seed
-decides (about 3 s per launch) and can outrun the 180 s default, which is a
-game length, not a failure. `--no-lethal` plays that game.
-
-which is `.mise/tasks/mp/e2e` spawning rung 3's own command line plus
-`--autoplay`:
+`.mise/tasks/mp/e2e` spawns rung 3's command line plus `--autoplay`:
 
 ```
 godot --headless --path . -- --lobby=host   --port=9412 --autoplay
 godot --headless --path . -- --lobby=client --address=127.0.0.1 --port=9412 --autoplay
 ```
 
-**`--autoplay` is the host handing every human seat to the AI.** At the first
-`turn_started`, `MpHarness._autoplay_every_human_seat` walks the roster and calls
-`SeatHandover.hand_seat_to_ai` on every `Participant.Kind.HUMAN` — the peer-left path's own
-primitive (#753/#755), unchanged, so the handover is BROADCAST and the mirror's
-roster learns the seat is the AI's rather than believing a human still holds it.
-The flag suppresses exactly one thing (via `SeatHandover.quiet`, riding
-`seat_handed_over`) on both peers: the "somebody left" announcement. Nobody left, and a HUD saying otherwise
-would be the harness lying about the run it is checking.
-**The client acts on nothing**: it
-is a mirror, its hero is driven by the host's confirmed commands, and a second
-AI deciding locally is exactly the divergence this run exists to detect. The
-flag reaches the client anyway, for the zero AI turn delay and its own verdict
-line.
+- **Lethal by default.** Both processes get `--lethal`: four `SET` modifiers on every entity (`MpHarness._LETHAL_SETS`: `node_health` 1, `health` 3, `dealloc_damage` 1, `core_healing` 0), so each entity survives about three node losses. A normal-stats run lasts as long as its seed decides and can outrun the 180 s default — a game length, not a failure; `--no-lethal` plays that game.
+- **`--autoplay` is the host handing every human seat to the AI.** At the first `turn_started`, `MpHarness._autoplay_every_human_seat` calls `SeatHandover.hand_seat_to_ai` on every `Participant.Kind.HUMAN` (the peer-left primitive, so the handover is broadcast and the mirror's roster learns the seat is the AI's). It suppresses exactly one thing on both peers (`SeatHandover.quiet`, riding `seat_handed_over`): the "somebody left" announcement. The client acts on nothing — a second AI deciding locally is the divergence this run exists to detect; the flag reaches it for the zero AI turn delay and its verdict line.
+- **The small preset is pressed on the same rows a human would.** `MetaRoot._apply_autoplay_preset` picks the smallest Map size rung and sets AI opponents to zero through `LobbyScreen.pick_option` / `set_ai_opponents` (public doors that move the widget and record the pick, so `build_run_config` sees a real override). It is applied **before anybody joins**, because changing the AI count rebuilds the roster and every rebuilt remote seat is born back on `_PENDING_PEER_ID`, discarding the peer id the host waited for. It is the first lobby override to cross a real socket.
+- **Both ends print one greppable line and quit:** `RUNG4 VERDICT — winner=<camp id> | turns=<n> | <fingerprint>` on `Events.run_ended`, synchronously (routing tears the graph down after `run_end_route_delay`, so a later fingerprint would describe a vanished world). A run that cannot end spends its `--max-turns` budget (default 400 *entity*-turns; `TurnManager.turns_taken` counts each entity's turn) and prints `RUNG4 TIMEOUT`, exit **2**, so the task tells "never ended" from "fell over".
 
-**The small preset is pressed on the same rows a human would.**
-`MetaRoot._apply_autoplay_preset` picks the smallest rung of the Map size ladder
-and sets the AI-opponent count to zero, through `LobbyScreen.pick_option` /
-`set_ai_opponents` — public doors that move the widget *and* record the pick, so
-`build_run_config` sees a real override. Two consequences worth knowing:
+**What `mp:e2e` asserts** — six lines, not one fingerprint compare: both processes exit 0 · both printed a verdict · same winner and turn count · same first-turn fingerprint · **no mid-run divergence** · same run-end fingerprint. The fifth is the one a naive compare misses: the host force-overwrites the mirror with a whole snapshot whenever it finds divergence, so two peers that disagree every turn still end up holding similar worlds. **A repaired run is not a synced run**; the count of `✗ DIVERGED` lines in the client log says so (the one at link-up is excluded — a joining client holds no world). It does not cover the platform: same binary, same libm, one machine (#665).
 
-- it is applied **before anybody joins**, because changing the AI count rebuilds
-  the roster and every rebuilt remote seat is born back on `_PENDING_PEER_ID` —
-  the same call made after the join would discard the peer id the host just
-  spent ten seconds waiting for;
-- it is the **first lobby override ever to cross a real socket**. Rung 3 touches
-  no row, and #643 acceptance 5 means an untouched row writes nothing, so until
-  rung 4 no `ScenarioOverride` had been over the wire at all.
+**Two rules the mirror lives by**, both found when the first run reported 15–40 force-repairs per run:
 
-**Both ends print one greppable line and quit.** `RUNG4 VERDICT — winner=<camp
-id> | turns=<n> | <fingerprint>` on `Events.run_ended`, synchronously and
-before anything is awaited: `GameRoot._on_run_ended` routes to the meta-shell
-after `run_end_route_delay`, and routing tears the graph down, so a fingerprint
-sampled a moment later would describe a world that no longer exists. A run that
-cannot end instead spends its `--max-turns` budget (default 400 **entity**-turns
-— `TurnManager.turns_taken` counts each entity's turn, not rounds) and prints
-`RUNG4 TIMEOUT`, quitting **2** so the task can tell "never ended" from "fell
-over".
+- **The mirror never starts a turn on its own; the cursor is received** — first as a `StartTurnCommand`, then inside every resync. `GameRoot._ready` must not open the first turn on the local seated hero on every peer, or each later `EndTurnCommand` reproduces `_tick_until_ready` from a different cursor and turn-start upkeep runs for the wrong entity.
+- **A peer that decoded a world reconciles what the decode bypassed.** `GraphSnapshot._decode_node` assigns `owned_by` directly (a snapshot is a world, not a sequence of moves), the write `EntityNavigator`'s mutation contract says drifts the mirror; `Entity.begin_turn` runs the D-9 regen sweep over `navigator.get_mirrored_nodes()`, so a node missing from the mirror never heals there.
 
-**What `mise run mp:e2e` asserts, and why it is six lines rather than one
-fingerprint compare.** Both processes exit 0 · both printed a verdict · same
-winner and turn count · same first-turn fingerprint · **no mid-run divergence**
-· same run-end fingerprint. The fifth is the one that matters and the one a
-naive fingerprint compare misses entirely: the host *watches* for divergence and
-force-overwrites the mirror with a whole snapshot whenever it finds any, so two
-peers that disagree every single turn still end up holding similar worlds.
-**A repaired run is not a synced run**, and the count of `✗ DIVERGED` lines in
-the client's log is what says so. (The one at link-up is excluded — a joining
-client holds no world, so its fold cannot match.)
+**The divergence check runs on the mirror's own stamp.** The host's stamp travels as the transient `Command.host_fingerprint` (never in `to_dict` — see `Command.pre_fingerprint` for why the outcome fixtures forbid it) and is compared at the mirror's `pre_fingerprint` stamp inside `CommandApplier._drain`, where no world is unsettled. Nothing is skipped, and the first `✗` names the first command that actually disagreed.
 
-**It does not close #665.** Same binary, same libm, one machine — it covers the
-wire, not the platform.
+## The other harness
 
-**Its first run was RED, and that was the finding (#756).** Nobody had ever
-played a networked run past turn one, which is exactly the blind spot rung 4 was
-built to look into — and the very first run that reached a verdict reported the
-mirror being force-repaired 15-40 times, with a run-end fingerprint whose
-ownership and topology tiers matched while the **accumulated** tier (stake /
-allocation level, regen stacks, node HP) did not. `--ai-delay 0.4` ruled out the
-pre-command check misfiring on back-to-back commands: at a human pace the mirror
-still diverged 25 times a run. Two independent causes, both in the replay path:
-
-- **the turn cursor was never transmitted.** `GameRoot._ready` opened the run's
-  first turn on *this machine's* seated hero, on every peer — so the host opened
-  on Player 1 and the client on Player 2. Every later `EndTurnCommand` then
-  reproduced `_tick_until_ready` from a different starting cursor, and turn-start
-  upkeep ran for the wrong entity on the wrong turn.
-- **a decoded world left its owner mirrors stale.** `GraphSnapshot._decode_node`
-  assigns `owned_by` directly (a snapshot is a world, not a sequence of moves),
-  which is exactly the write `EntityNavigator`'s mutation contract says will
-  drift the mirror — and nothing repaired it. `Entity.begin_turn` runs the
-  D-9 regen sweep over `navigator.get_mirrored_nodes()`, so a node missing from a
-  joining peer's mirror never healed there while it healed on the authority. The
-  first missing node is the client's own core.
-
-The rule both produced: **the mirror never starts a turn on its own; the cursor
-is received, first as a `StartTurnCommand`, then inside every resync** — and a
-peer that decoded a world reconciles what the decode bypassed. It is green as of
-`fa9c462`, at both paces, and the assertion that made the bug *findable* is the
-divergence count rather than the end-state compare.
-
-**The divergence check moved onto the mirror's own stamp.** It used to run in
-`CommandChannel._on_remote_command`, on arrival, behind a "is the applier idle"
-guard — so every command that landed mid-drain was tallied `skipped` rather than
-compared, and one AI turn arriving as a burst of nine commands was compared
-exactly once. Honest, and useless: it could not name the command that diverged
-first. The host's stamp now travels on the command as the transient
-`Command.host_fingerprint` (never in `to_dict` — see `Command.pre_fingerprint`
-for why the outcome fixtures forbid it) and is compared at the mirror's own
-`pre_fingerprint` stamp inside `CommandApplier._drain`, where there is no such
-thing as an unsettled world. Nothing is skipped, and the first `✗` names the
-first command that actually disagreed.
-
-## The other harness: replaying an outcome with no network (#539)
-
-The two-process harness proves *host acts → client mirrors*, which means every
-failure it reports has two candidate causes: the replay path, or the messaging.
-The **Outcome playground** tab (`addons/outcome_playground/`) removes the second
-one. It replays a recorded attack against a local `CommandApplier` with **no
-`CommandChannel` attached** — byte-for-byte the peer path, minus the wire. If a
-recorded outcome plays back correctly there, anything still broken over ENet is
-a messaging bug and cannot be a replay bug.
-
-The unit of replay is one serialized `LaunchAttackCommand` — `plan` + `record` +
-`seed`, exactly what crosses. An `OutcomeFixture`
-(`attack/outcome/outcome_fixture.gd`) is that dictionary on disk, plus the
-`WorldFingerprint` before and after, plus a note. Fixtures are **captured, never
-authored**: a captured one proves the applier reproduces what the game did,
-while an authored one would only prove it applies what somebody typed.
-
-**The world is not in the fixture — it is rebuilt from code.** A record names
-nodes by `stable_id` and its attacker by `entity_id`, and both mint from
-per-`Graph` counters walking container child order, so a fixture only replays
-into a world reproduced identically. `scenes/dev/outcome_playground_world.gd` is
-that one builder, called by both the tab and the headless test; the alternative
-(a `.tscn` plus a copy of "now arm it" on each side) is exactly where the two
-drift apart. `test_outcome_fixture_replay.gd` pins the assumption directly: two
-builds must mint the same ids.
-
-**A red fixture says which half broke.** A mismatched
-`world_fingerprint_at_capture` means the *builder* drifted — regenerate. A
-matching pre-state with a diverged `expected_fingerprint` means the *replay path*
-changed, which is the failure worth waking up for. Regenerate — never hand-edit —
-with:
-
-```
-REGEN_OUTCOME_FIXTURE=1 mise run test:one -- \
-    res://test/unit/attack/test_outcome_fixture_replay.gd
-```
-
-That captures a live attack in the same headless context and rewrites the
-`.tres` the tab's Save button writes, so the two authoring paths cannot become
-two formats. Read the diff before committing it. **A missing fixture is a
-failure, never a silent re-capture** — a test that captured its own golden when
-it could not find one would pass on every machine forever while asserting
-nothing.
-
-One thing the current fixture does not exercise: every amount in
-`spark_cascade.tres` is integral (`h_amt: 9999`, `h_hp0: 10`, `d_chip: 1`), so
-whether a text resource round-trips `AttackRecord`'s `PackedFloat64Array`
-amounts exactly is **untested**. Those are float64 precisely because a peer's HP
-must land on the host's number, so the first fixture whose amount comes back
-mitigated or crit-multiplied is where a formatting loss would surface. If one
-does, the fix is a binary `.res`, not a change of format.
+Replaying a recorded attack with no network, to separate replay bugs from messaging bugs: `docs/domain/outcome-fixtures.md`.

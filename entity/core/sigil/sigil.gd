@@ -8,7 +8,7 @@ extends Resource
 ## card ([HeroSigilCard]) is the only consumer today; a [SkillNode] inner-disk
 ## cutout is a plausible future one, not wired here (its shared batched
 ## material can't take a per-instance arbitrary shape without breaking
-## batching — see `.claude/rules/skill-node-visuals.md`).
+## batching — see `docs/domain/skillnode-visuals.md`).
 ##
 ## [b]Not a Texture.[/b] Parametric so the same resource redraws crisply at
 ## any radius the consumer picks, and so color/stroke stay the caller's

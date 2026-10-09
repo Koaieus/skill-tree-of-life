@@ -12,7 +12,7 @@ baseline.
 **A piece of accumulated world state saves itself iff its snapshot row carries
 it.** Add it to `GraphSnapshot` / `EntitySnapshot` (which also fixes a resync
 gap — sync and save are one path) and bump `SaveFile.FORMAT_VERSION`; never a
-second serializer. `test_save_file.gd` pins a hash of every `_R_*` row index
+second serializer. `test/unit/network/test_save_file.gd` pins a hash of every `_R_*` row index
 (plus the `WorldImage` envelope version) per format version, so a row change
 without a bump goes red — the failing assert prints the new hash to pin.
 

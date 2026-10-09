@@ -18,9 +18,9 @@ consults a seat is a desync; camp count comes off `roster.camps()`.
 `SeatPolicy` answers `seats(entity)`, `follows_active_turn()`, and
 `vision_group(hero, candidates)`. One axis: `COUCH` (every local human, view
 follows the turn) or `SEAT` (one hero, pinned). Coop vs. versus is
-`Participant.camp` and never enters seating. Fog is **allied humans** — AI and
-blockers never share, and a remote teammate does without the rule consulting
-`peer_id`.
+`Participant.camp` and never enters seating. Fog is **camp-mates** (same
+`faction.id`, human or AI); blockers never share, and a remote teammate does
+without the rule consulting `peer_id`.
 
 **How to apply:** need a per-machine answer, add it to `SeatPolicy`; need one
 every machine agrees on, it belongs on the roster. Never un-wire a signal to

@@ -1,1 +1,1 @@
-A settled architectural call is recorded in `docs/adr/` — immutable, superseded rather than edited, its rejected-alternatives section marking which grounds are already dead. Check the index before re-arguing one; `mise run adr-hygiene` after adding one. See docs/domain/adr.md
+A settled architectural call is an ADR in `docs/adr/` — immutable, superseded never edited, its rejected-alternatives marking dead grounds. Check the index before re-arguing one; `mise run adr-hygiene` after adding one. See docs/domain/adr.md

@@ -46,29 +46,19 @@ which is why local versus costs a lobby toggle rather than a mode branch.
 `RunConfig.Mode` exists for menu presentation and defaults; deriving seating
 from it would be a second source of truth against the roster.
 
-### Hero colour is NOT on this axis — owner call, 2026-08-26 (#563)
+### Hero colour is NOT on this axis
 
-The seat decides *who I play* and *whose eyes I draw with*. It does **not**
-decide what colour anyone is. Verbatim, the owner:
+The seat decides *who I play* and *whose eyes I draw with*, never what colour
+anyone is. Owner call, 2026-08-26 (#563), verbatim:
 
 > "The roster is authoritative for hero colour. `Participant.color` is real run
 > shape, it crosses the wire, and every peer draws every hero in the colour its
 > lobby slot chose."
 
-This **reverses** the closing Note #563 opened with, which claimed colour was
-"a per-machine presentation choice, not run shape ... that is `SeatPolicy`'s
-half of the split ... so this must not be authored into `RunConfig` or
-replicated." That is no longer the rule. The reversal is deliberate: it is what
-makes the lobby's per-slot colour picker (#616) meaningful — a picker whose
-value the run discards is not a picker.
-
-`Participant.color` already crossed the wire before #563
-(`session/participant.gd:58` / `:69`), so no transport work was involved. What
-changed is only the spawn site: `scenes/procgen_play_sandbox.gd` reads
-`participant.color` for **every** entity, human and AI alike. Its
-`player_color` / `enemy_colors` exports survive as **fallbacks only**, for the
-authored-sandbox path where no lobby ever set a colour. Making distinct slots
-pick distinct colours is the lobby's job (#616), not the spawn site's.
+`scenes/procgen_play_sandbox.gd` reads `participant.color` for **every** entity,
+human and AI alike; its `player_color` / `enemy_colors` exports are fallbacks
+for the authored-sandbox path where no lobby set a colour. Distinct colours per
+slot are the lobby's job (#616), not the spawn site's.
 
 Constructors: `SeatPolicy.couch()` (the default a roster-less hand-authored
 scene or a GUT fixture gets), `SeatPolicy.seat(entity_id)`, and
@@ -84,20 +74,21 @@ the entity enters `entities_container`, and `0` is also the spectator seat, so
 
 ## The vision rule, and why it needs no `peer_id`
 
-**Allied humans:** human-controlled, and sharing the bound hero's `faction.id`.
-One line, four correct answers:
+**Camp-mates:** every candidate sharing the bound hero's `faction.id` — human or
+AI (`SeatPolicy.vision_group` filters by `faction.id`, matching
+`Entity.attitude_to`, so fog and allegiance answer "same camp?" identically).
+`peer_id` is never consulted:
 
-- **Coop shares** — couch *or* wire. `apply_roster` sets
-  `is_human_controlled` from `Participant.kind`, which says `HUMAN` wherever
-  that human is sitting, so a teammate on another machine reads human on mine
-  and reveals for me exactly as a couch partner does. This is the non-obvious part; the instinct
-  to thread `peer_id` through the vision rule is wrong.
+- **Coop shares** — couch *or* wire. Teammates share a `faction.id` wherever
+  they sit, so a teammate on another machine reveals for me exactly as a couch
+  partner does.
 - **Versus does not** — rivals are different camps by construction, so each
-  group is a single hero. On a hot-seat couch the fog swaps with the handover,
-  which is the point.
-- **An AI ally reveals for its camp**, like a human one. `AiRecon` builds its
-  own per-entity circles; faction-shared reveal among AI is #394.
-- **Dormant Cores never share** (`blocker` in code) — not human, own dormant camp.
+  group is a single hero. On a hot-seat couch the fog swaps with the handover.
+- **An AI camp-mate reveals for its camp**, like a human one. `AiRecon` stays
+  per-entity; faction-shared AI reveal is #394.
+- **Blockers never share** — they sit on their own dormant camp.
+
+The bound hero is always in its own group, even when it fails the camp match.
 
 ### The ordering trap
 
@@ -122,37 +113,28 @@ why the candidate walk stays in `GameRoot`, in `Entity.GROUP` order, and why
   opinion about it.
 - **Per-machine state fidelity under fog** (#519) — what a peer is *told*, as
   opposed to what it draws.
-- **How a run-end reads on this screen** — *closed by #517, and it landed on
-  the seat.* `victory_system.local_camp` is gone: `RunOutcome` is
-  point-of-view-free, and `HudRoot` gates the loss overlay on `seating`
-  (COUCH → winner banner only; SEAT → overlay iff the seated hero's camp lost).
-  That is what makes the couch answer independent of turn order, which the old
-  `bind_player` assignment never was. See `docs/domain/victory-system.md`.
+- **How a run-end reads on this screen** — `RunOutcome` is point-of-view-free,
+  and `HudRoot` gates the loss overlay on `seating` (COUCH → winner banner only;
+  SEAT → overlay iff the seated hero's camp lost). See
+  `docs/domain/victory-system.md`.
 
 ## Callers
 
-`GameRoot.seat_policy` defaults to `SeatPolicy.couch()`. Live constructors
-today: `scenes/procgen_play_sandbox.gd` (`from_roster`) and
-`scenes/dev/mp_dev_sandbox.gd` (`seat()` on the client).
+`GameRoot.seat_policy` defaults to `SeatPolicy.couch()`. Live constructors:
+`scenes/procgen_play_sandbox.gd` (`from_roster`), `scenes/dev/mp_dev_sandbox.gd`
+and `scenes/dev/mp_procgen_sandbox.gd` (`seat()` on the client).
 
-**The menu path does reach here** — corrected 2026-08-24 (#553); the older note
-claiming otherwise was stale from the moment #457 landed. `scenes/meta/meta_root.gd`
-calls `GameSession.start(run_config)` and routes to a level, and since #553 that
-level *consumes* `GameSession.roster` rather than building its own and
-overwriting the session's with it.
+The menu path reaches here: `scenes/meta/meta_root.gd` calls
+`GameSession.start(run_config)` and routes to a level, which *consumes*
+`GameSession.roster` and passes `GameSession.local_peer_id` to `from_roster`.
+`from_roster` returns a seat only when some participant's `peer_id` differs from
+this machine's, and `couch()` otherwise — so a lobby whose participants all
+share one `peer_id` resolves to `couch()` by construction.
 
-What is still missing is not the path but the **roster**. Every participant a
-lobby builds today shares one `peer_id`, and `from_roster` only returns a seat
-when some participant's `peer_id` differs from this machine's — so it resolves
-to `couch()` by construction, correctly. #553 added `GameSession.local_peer_id`
-and passes it; **#554** is what puts a human with a real, foreign `peer_id` in
-the roster, and `from_roster` needs no change when it does.
-
-**`Participant.Kind` is `{ HUMAN, AI }` and nothing else (#562).** There is no
-local/remote flavour of `HUMAN`, because locality is a relation between a
-participant and the machine reading the roster — and the roster crosses the
-wire, so the same row is correctly local on one peer and remote on the other.
+**`Participant.Kind` is `{ HUMAN, AI }` and nothing else.** Locality is a
+relation between a participant and the machine reading the roster — the roster
+crosses the wire, so the same row is local on one peer and remote on the other.
 Ask `Participant.is_local(local_peer_id)`; it is the one named home for the
-question, and it is what `from_roster` calls. This is the same rule
+question and what `from_roster` calls. Same rule as
 `.claude/rules/ownership-vocabulary.md` draws for `owned_by` vs
 `SkillNode.ownership_bit`, one layer up.

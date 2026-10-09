@@ -47,7 +47,7 @@ Each step: the file the artefact lands in → what catches forgetting it.
    → `test/integration/test_authored_entity_boards.gd` —
    `test_no_scene_carries_an_inline_entity_board`.
 6. **Value type.** Pick `StatDef.value_type` deliberately; `BOOL` is
-   presence, not magnitude (`stats-system.md` → `StatDef.ValueType.BOOL`).
+   presence, not magnitude (`stats-system.md` → "BOOL stats").
    Say nothing about rounding: the rule owns coercion semantics.
 
 ## Checklist: pool stat
@@ -81,7 +81,7 @@ Then decide where the modifier hangs, and only there:
   `ExpressionFormula`); a cycle is rejected at load, see
   "Dependency-cycle rejection".
 - **Class identity** (this class only): the `CoreClass` resource under
-  `entity/core/`; `stats-system.md` → "Class identity modifiers".
+  `entity/core/`; `stats-system.md` → "Class identity and level".
 - **Node-local** (varies per skill node): the node's sparse
   `NodeStatBoard`; `stats-system.md` → "Local stats".
 - **Granted at runtime** (an effect, a scene, a relic): `grant_core_modifier`
@@ -103,9 +103,8 @@ each; "no" is an answer, record it in the def's `description`:
   `specimen_pool_set.tres`. Mechanics and template: `docs/domain/procgen-v4.md`
   and the neighbouring pack. → unpinned; the checkpoint is the catch.
 - **HUD visibility** — should the player see it, where, and when?
-  `docs/domain/stat-ui-visibility.md`; the panel wires stats by id, there
-  is no metadata-driven panel (`stats-system.md` → "No metadata-driven
-  stat panel").
+  `docs/domain/stat-surfaces.md`; the panel wires stats by id, there
+  is no metadata-driven panel (`.claude/rules/stats-system.md` → Gotchas).
 - **Node board: borrow or own** — should this stat vary per node, or is it
   entity-scope only? `docs/domain/stat-board-classes.md`; an entity-only
   stat stays out of every procgen pool and says so in its description.

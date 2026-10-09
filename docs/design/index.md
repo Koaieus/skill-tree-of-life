@@ -14,7 +14,7 @@ Status is each doc's `status:` frontmatter — `exploring` → `settling` → `b
 
 | File | Status | What it covers |
 |---|---|---|
-| [../ROADMAP.md](../ROADMAP.md) | — | **Roadmap** — done / in-progress / todo across all milestones |
+| [../ROADMAP.md](../ROADMAP.md) | — | **Roadmap** — pointer to the GitHub board and milestones (authoritative for status) |
 | [../GDD.md](../GDD.md) | — | **Master GDD** — pitch, core loop, the supergraph, entities, combat summary, classes, progression, open questions, roadmap |
 | [lore.md](lore.md) | `exploring` | Narrative, acts, the Fairy, graph theology, the Field/Tethers/Breakout, the Fractal, tone, visual language |
 | [first_session_walkthrough.md](first_session_walkthrough.md) | `exploring` | Spoiler-free, second-person walkthrough of a player's first session — boot screen → first cut-vertex snipe and dismemberment. Funny/Questionable beats called out |
@@ -27,8 +27,8 @@ Status is each doc's `status:` frontmatter — `exploring` → `settling` → `b
 | [node_subtypes.md](node_subtypes.md) | `exploring` | Node subtypes — open threads only (clustered placement, territory conversion, more families). Shipped model: [`../domain/node-subtypes.md`](../domain/node-subtypes.md) |
 | [aspect_matrix.md](aspect_matrix.md) | `settling` | **The Matrix** — every status/concept × ranged/melee/magic, living home of the concept-to-delivery table (#1199) |
 | [aspect_personas.md](aspect_personas.md) | `exploring` | **Aspect Personas** — each aspect as a lesser god with a character (Ivy, Cuss, …); lore, parked; built on the matrix's rows |
-| [spells.md](spells.md) | `exploring` | Spell identities for the 13 shipped spells (roster: `attack/spell/defs/`), the issue-backed ones, and a fenced idea pool of spells that do **not** exist |
-| [damage_over_time.md](damage_over_time.md) | `exploring` | The DoT family's unbuilt half — cures, per-type content, contagion, the defensive-axis matrix. The shipped model is `../domain/effect-system.md` § Status effects |
+| [spells.md](spells.md) | `exploring` | Spell identities for the shipped spells (roster: `attack/spell/defs/`), the issue-backed ones, and a fenced idea pool of spells that do **not** exist |
+| [damage_over_time.md](damage_over_time.md) | `exploring` | The DoT family's unbuilt half — cures, per-type content, contagion, the defensive-axis matrix. The shipped model is `../domain/status-effects.md` |
 | [lifeline-grace.md](lifeline-grace.md) | `exploring` | LifeLine grace — surviving disconnection for a turn (#240); the shipped tag channel lives in `../domain/effect-system.md` |
 | [info_gating.md](info_gating.md) | `exploring` | Info-gating dimensions (existence/archetype/owner/modifiers/addons/…) — why vision is a vector not a boolean, and how sensor/recon/anti-recon mechanics share one surface |
 
@@ -55,7 +55,8 @@ Implementation companions to the design docs — read when modifying systems, no
 | [../domain/vision-system.md](../domain/vision-system.md) | Fog of war, Euclidean/sensor visibility, shader, animation |
 | [../domain/click-grammar.md](../domain/click-grammar.md) | Shipped left/right click grammar for targeting and allocation |
 | [../domain/node-subtypes.md](../domain/node-subtypes.md) | Shipped subtype model — sidegrade law, authoring rows, the decision-number legend |
-| [../domain/effect-system.md](../domain/effect-system.md) | Effects, the tag grant channel, and the DoT model (§ Status effects) |
+| [../domain/effect-system.md](../domain/effect-system.md) | Effects, hooks, auras and the tag grant channel |
+| [../domain/status-effects.md](../domain/status-effects.md) | Status effects — the status slice, the DoT model, status rows |
 | [../domain/defense-axes.md](../domain/defense-axes.md) | The six defensive axes, their code owners, and the DoT row that bypasses each |
 | [../domain/aspect-cell-authoring.md](../domain/aspect-cell-authoring.md) | What each aspect-matrix column actually touches |
 | [../domain/stat-knobs-and-bins.md](../domain/stat-knobs-and-bins.md) | House answers for tuning rates, extra pools and forced stat values |

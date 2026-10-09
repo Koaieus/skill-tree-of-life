@@ -1,9 +1,8 @@
 # Presentation clock — engineering reference
 
 Code: `attack/outcome/beat_clock.gd`, `attack/outcome/outcome_applier.gd`,
-`systems/battle_system.gd`. Design decision: #488. Implementation: #504
-(merged `2f08a56`). This is design **B** — see `presentation/README.md` for
-design A, which it replaced.
+`systems/battle_system.gd`. See `presentation/README.md` for the parked view-store
+design this replaced.
 
 For the ordering rules within a single attack (`arrival_time`, the
 resolve/land clocks, the "candidate set frozen, arithmetic live" contract),
@@ -18,7 +17,7 @@ The world mutates on a fixed logical clock owned by the mutation loop:
 lands at its own `arrival_time`. What is drawn is the model, at every beat.
 There is no view state, no `shown_*` field, and no second source of truth —
 every painter reads live world state, full stop. See `beat_clock.gd`'s class
-docstring (lines 4-19) for the clock's own statement of this; it is the
+docstring for the clock's own statement of this; it is the
 long-form version of everything in this section.
 
 The clock carries one beat that is **not** a mutation: `BattleSystem`'s
@@ -31,29 +30,22 @@ clock's two properties — instant under `instant_mutation`, and cut short by
 swing, because its plan (and the temp-upgrade addons mounted on it) must stay
 live until the blade is done.
 
-## Why this is not the disease #474 cured
+## Why the await is not frame-ordered mutation
 
-`await attack_vfx.play(...)` used to order mutation by *animation
-completion* — a lag spike, a muted animation, or a dropped frame changed
-gameplay. #474 killed that. Design B reintroduces an `await` into the
-mutation path (`OutcomeApplier.apply` awaits `BeatClock.advance_to`), and on
-its face that looks like backsliding. It isn't, because it's a different
-mechanism:
+`OutcomeApplier.apply` awaits `BeatClock.advance_to` between landings, which
+looks like ordering mutation by animation completion. It isn't:
 
 - The interval is **fixed and logical** — authored `arrival_time`, not wall
   time to an animation's completion.
 - The game is turn-based and `BattleSystem.is_launching` guards reentrancy —
   nothing else can act inside the window.
 - Nothing times *itself* off the wait. VFX runs unawaited, alongside the
-  mutation loop, timing itself off the same `arrival_time` values
-  (`battle_system.gd:226-238`) rather than off the loop's progress.
+  mutation loop, timing itself off the same `arrival_time` values (see the
+  `_seed_source` / VFX timing comments in `battle_system.gd`) rather than off the
+  loop's progress.
 
-So only *order* is observable inside the window, and order is code-order —
-the same order the plan authored before launch. The rule in its accurate
-form is **never frame-ordered mutation** — not "never mutate inside an
-await." The over-broad phrasing is the doc bug that drove five rounds of
-latches (#479/#481/#482/#483/#485/#487), and undoing it is what this whole
-hub existed for.
+So only *order* is observable inside the window, and order is code-order. The
+rule is **never frame-ordered mutation** — not "never mutate inside an await."
 
 ## The intermediate state is valid, not torn
 
@@ -70,12 +62,11 @@ attack as has actually landed.
 If the applying loop is interrupted mid-window — a scene change, most
 realistically — the hits still in flight never land: a world that is valid
 but permanently wrong, not a crash. `BeatClock.drain()` (synchronous,
-idempotent, `beat_clock.gd:92-96`) is the whole mitigation: it releases any
+idempotent) is the whole mitigation: it releases any
 parked wait and makes every remaining `advance_to` a no-op, so the rest of
 the outcome lands immediately. `BattleSystem.drain_pending_mutations()`
-holds the in-flight clock and is called from `GameRoot._exit_tree`
-(`game_root.gd:154-160`) — the drain runs synchronously inside teardown,
-while the nodes it mutates are still alive.
+holds the in-flight clock and is called from `GameRoot._exit_tree` — the drain
+runs synchronously inside teardown, while the nodes it mutates are still alive.
 
 The same flag doubles as test mode: `BattleSystem.instant_mutation` builds
 an instant clock up front (`BeatClock.instant_clock()`) rather than draining
@@ -97,12 +88,11 @@ Read this before "fixing" the applier to make hits self-contained — the
 purity it would be restoring never existed.
 
 `AttackOutcome` is a *plan* of hits, not a result. `DamageInstance` carries
-raw, unmitigated damage; `Mitigation.apply` runs inside `SkillNode.take_damage`
-at land time (`damage_instance.gd:4-9`, `skill_node.gd:1281`) and can
-reclassify a hit from DAMAGE to HEAL there; `HitInstance.effective_amount`
-is `0.0` until a hit is actually applied. `AllocationSystem.force_deallocate`
-revokes a dead node's granted modifiers synchronously
-(`allocation_system.gd:267-269`). So a later hit in a volley already
+raw, unmitigated damage; `Mitigation.apply` runs inside `NodeCombat.take_damage`
+(`combat/node_combat.gd`) at land time and can reclassify a hit from DAMAGE to
+HEAL there; `HitInstance.effective_amount` is `0.0` until a hit is actually
+applied. `AllocationSystem.force_deallocate` revokes a dead node's granted
+modifiers synchronously (via `EntityCombat.revoke_node`).
 mitigates against a board an earlier hit's cascade stripped — **before**
 design B, and after it. B changes *when* those reads happen (spread across
 real time instead of collapsed at t=0); it never changes *what* they read or
@@ -110,78 +100,34 @@ in what order. There is no purity to restore, because resolve producing a
 plan and land-time producing the actual numbers was always the contract —
 see `docs/domain/attack-timeline.md`'s clock table.
 
-## Why there is no view store
+## No view store
 
-Design A needed one because `force_deallocate` revokes modifiers
-*immediately* and synchronously. A shown-value-per-pool (three fields:
-`shown_hp`, `shown_owner`, `shown_health`) can't represent that — the moment
-a node dies, every stat it was granting is gone from the model, so a
-painter reading three shown fields would already be wrong about everything
-those modifiers touched. The honest fix was a shown-value *per stat*, not
-three. Three fields was never a resting point on the way to correct; it was
-a design that could not finish. B sidesteps the question entirely: nothing
-is shown-anything, so there's no read-path to keep in sync.
+Nothing is shown-anything: every painter reads live world state, so there is no
+read-path to keep in sync. A shown-value store cannot represent
+`force_deallocate`'s synchronous modifier revocation (every stat a dead node
+granted is gone at once). The old store (`PresentationPlayer`, `RevealRecorder`,
+`RevealEvent`, `RevealTimeline`) is parked in `presentation/`, not deleted; what
+it was, why it was replaced and what would revive it:
+`presentation/README.md`. Consequences:
 
-## What this replaced
+- The damage number rides `Events.skill_node_damaged` directly, the same live
+  signal every other painter reads (there is no `damage_shown` / `heal_shown`).
+- The melee spike pop is announced once at the model event
+  (`BladePopResolver.LiveGate._kill` emits `Events.blade_vertex_popped`, reached
+  from `admit` inside `land_on` inside the applier's beat); `MeleePreview` holds no
+  per-swing state.
+- **The cascade ripple is presentation-owned.** `AllocationVFX.CASCADE_STEP`
+  staggers only the *shatter spawn* off `cascade_started`'s BFS layers; the
+  mutation stays synchronous, because `cascade_started` fires from inside
+  `take_damage` and an awaiting handler does not block its emitter.
 
-Two clocks were deleted, not one:
+## Two invariants of concurrent VFX and mutation
 
-- The **view store** — `PresentationPlayer`, `RevealRecorder`,
-  `RevealEvent`, `RevealTimeline` — parked, not deleted; see
-  `presentation/README.md` for what they were and why they're kept on disk.
-- **`Events.damage_shown` / `heal_shown`** went with it. Three separate
-  coordinators emitted them on their own timers while the model mutated on
-  a different one — the same disease as the view store, one layer down, and
-  it's why killing the store alone wouldn't have been enough. The damage
-  number now rides `Events.skill_node_damaged` directly (`events.gd:9`),
-  the same live signal every other painter reads.
-
-Two smaller pieces of design-A machinery went with the same cut:
-
-- **The melee spike pop** used to be re-announced by `MeleePreview` during
-  the animation replay — which only worked because design A applied the
-  whole outcome before the replay began, so `BladePopResolver.Result.pops`
-  was already complete by the time `MeleePreview` walked it. Under B the
-  swing animates *concurrently* with the mutation, so that snapshot would
-  be empty partway through. The pop is now announced once, at the model
-  event itself: `BladePopResolver.LiveGate._kill` emits
-  `Events.blade_vertex_popped` inline (`blade_pop_resolver.gd:170-191`),
-  reached from `admit` inside `land_on` inside the applier's beat — the same
-  clock the damage, health bar, and shatter are on. `MeleePreview` holds no
-  per-swing state of its own anymore.
-- **The cascade ripple is presentation-owned**, not model-owned.
-  `AllocationVFX.CASCADE_STEP` (`ui/vfx/allocation_vfx.gd:82`) staggers only
-  the *shatter spawn* off `cascade_started`'s BFS layers — a purely visual
-  stagger layered on top of a mutation that stays synchronous. It has to
-  stay synchronous: `cascade_started` fires from inside `take_damage`, and
-  an awaiting handler does not block its emitter, so there is no clock to
-  put the actual dealloc on even if one were wanted.
-
-## `presentation/` is parked, not deleted
-
-`presentation/README.md` covers this in full — what the four classes were,
-why B replaced them, and what would revive them (an authoritative or
-fog-gated multiplayer mode, per the current-information decision in
-`docs/domain/multiplayer-sync-model.md`). Don't restate it here; read that
-file if you're about to touch anything in `presentation/`.
-
-## Two hangs found building this, both structural to concurrency
-
-Both are consequences of VFX and mutation overlapping in time — design A,
-where mutation finished before any replay began, could not have hit either
-of these.
-
-1. **A committed swing must not be refreshable.** The cascade can now fire
-   *mid-swing* instead of after the whole outcome lands, and
-   `MeleePreview._refresh` used to tear down the blade that `launch()` was
-   still awaiting. A coroutine awaiting a freed object is silently dropped
-   in Godot — `_vfx_finished` never fires, `_reset()` never runs, and the
-   plan stays armed forever: a permanent hang, not a cosmetic glitch.
-   `MeleePreview._live_swing` guards it — see `battle_system.gd`'s
-   `_vfx_running` docstring for the general form of this invariant (nothing
-   may free the animating node mid-play) and its audit of the ranged/magic
-   path.
-2. **`BattleSystem.is_launching` must stay adjacent to `_reset()`.** Callers
-   settle on it as "is a swing resolving" and expect a cleared plan once it
-   flips false; moving the reset away from the flag reopens the same class
-   of stuck-plan bug from a different angle.
+1. **A committed swing must not be refreshable.** The cascade can fire *mid-swing*,
+   and a refresh that tears down the blade `launch()` is awaiting drops the
+   coroutine silently in Godot — the plan stays armed forever, a permanent hang.
+   `MeleePreview._live_swing` guards it (see its docstring and `launch`'s for the
+   general invariant: nothing may free the animating node mid-play); the
+   ranged/magic path is covered by `BattleSystem.is_launching`'s docstring.
+2. **`BattleSystem.is_launching` must stay adjacent to `_reset()`.** Callers settle
+   on it as "is a swing resolving" and expect a cleared plan once it flips false.

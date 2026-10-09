@@ -30,3 +30,13 @@ command with nothing after it.
 A reverted cwd once turned a `git checkout --` into a discard of a peer's
 unstaged WIP in the main checkout; unstaged is unrecoverable. Explicit-path
 `git add`, never `-A`.
+
+## `git worktree remove` fails on any worktree that inited the submodule
+
+With `native/godot-cpp` present, git refuses with *"working trees containing
+submodules cannot be moved or removed"*, and `--force` does not help. It bites
+teardown, so it surfaces with the branch already merged. Verify the merge first (a
+worktree directory is unrecoverable, and unstaged work inside it doubly so):
+`git -C <repo> log --oneline master..<branch>` prints nothing, or you hold a
+diffstat showing its content landed rebased. Then `rm -rf <worktree-dir> && git -C
+<repo> worktree prune && git -C <repo> branch -d <branch>`.

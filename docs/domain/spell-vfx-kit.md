@@ -3,7 +3,7 @@
 Five composable primitives that every per-spell VFX unit (#671-#678) assembles
 from, so eight spells share one vocabulary instead of authoring eight. The
 always-on pointer lives in [`.claude/rules/spell-vfx.md`](../../.claude/rules/spell-vfx.md);
-this is the catalogue and the reasoning.
+this is the catalogue, the coordinator/clock contract and the reasoning.
 
 Everything here is previewable from the sandbox host's **VFX tab**, left column
 (`addons/sandbox_host/tabs/20_vfx_primitives.gd`): body x path x ease x crit
@@ -23,17 +23,12 @@ primitive is not in them, a per-spell unit will not find it.
 | `Curve2DPath` | `ui/vfx/projectile/path/curve2d_path.gd` | Authored `Curve2D` sampled and mapped. Used by AllocationVFX. |
 | `WavePath` | `ui/vfx/projectile/path/wave_path.gd` | Lerp + transverse sine (#670 P3). "This propagates" rather than "this was thrown". Reverberator / Resonator. |
 | `JitterPath` | `ui/vfx/projectile/path/jitter_path.gd` | Lerp + perpendicular hash noise (#670 P4). Unstable arcing electricity. Spark / the lightning family. |
-| **Bounce** | `ui/vfx/projectile/path/bounce_path.tres` | The pre-#663 house look, as an authored `.tres` rather than a class (#684). A `BezierArcPath` at `apex_height = 420` — a high lob **over** the edge rather than a traversal along it. Reverberator. |
+| **Bounce** | `ui/vfx/projectile/path/bounce_path.tres` | A `BezierArcPath` at `apex_height = 420` — a high lob **over** the edge rather than a traversal along it, authored as a `.tres`. Reverberator. |
 
-**Bounce is the catalogue's one authored entry, and that is the point.** Every
-other row is a shape you get by `new()`-ing a script; Bounce is a *tuning* of
-`BezierArcPath` — no new geometry, so a `BouncePath extends BezierArcPath`
-would be a second name for one shape. Before #684 that tuning lived as an
-anonymous `SubResource` inside `magic_bounce_coordinator.tscn`'s legacy
-`projectile_path` slot: it was the fallback every spell fell through to, and
-when #663 gave all eight their own coordinators it stopped being rendered by
-anything. A named `.tres` is composable into any per-verb slot on any
-coordinator; a `SubResource` is reachable only from the scene that owns it.
+**Bounce is the catalogue's one authored entry:** a *tuning* of `BezierArcPath`,
+not new geometry, so a `BouncePath` subclass would be a second name for one
+shape. A named `.tres` is composable into any per-verb slot on any coordinator;
+a `SubResource` is reachable only from the scene that owns it.
 
 It is a **shared, live** resource — the shared coordinator's fallback slot and
 Reverberator's `jump_path`/`edge_path` all reference the same instance. That is
@@ -43,10 +38,8 @@ sandbox gallery does, for exactly this reason).
 
 | Primitive | Files | What it is |
 |---|---|---|
-| `BoltBody` | `ui/vfx/projectile/visual/bolt_body.tscn` + five inherited configs (`bolt_small` / `_blunt` / `_streak` / `_packet` / `_soft`) | The workhorse body. Supersedes `GlowingDot` **for spell use** — `GlowingDot` is not deleted, it has non-spell callers. `MAX_TRAIL_SEGMENTS` is **8** (#663, was 4); `_TAPER_SPAN` stays pinned at 4 so raising the cap re-spread nothing, and segments past the fourth extend the tail at tail values. |
+| `BoltBody` | `ui/vfx/projectile/visual/bolt_body.tscn` + five inherited configs (`bolt_small` / `_blunt` / `_streak` / `_packet` / `_soft`) | The workhorse body. Supersedes `GlowingDot` **for spell use** — `GlowingDot` is not deleted, it has non-spell callers. `MAX_TRAIL_SEGMENTS` is **8**; `_TAPER_SPAN` stays pinned at 4 so raising the cap re-spreads nothing, and segments past the fourth extend the tail at tail values. |
 | `ImpactRing` | `ui/vfx/projectile/visual/impact_ring.tscn`, `impact_ring_absorb.tscn` | Punctuation, and the **sole home of the crit grammar**. `OUT` = impact, `IN` = absorb/gather. |
-| `WavePath` | `ui/vfx/projectile/path/wave_path.gd` | Lerp + transverse sine. "This propagates" rather than "this was thrown". Reverberator / Resonator. |
-| `JitterPath` | `ui/vfx/projectile/path/jitter_path.gd` | Lerp + perpendicular hash noise. Unstable arcing electricity. Spark / the lightning family. |
 | `EdgeEnergize` | `ui/vfx/projectile/visual/edge_energize.tscn` + `edge_energize.gdshader` | A travelling front of light **painted on top of** an edge. **Self-derives its own endpoints** (#687): `_on_context(entry)` reads `origin`/`target` off the entry and sets `edge_origin`/`edge_target`/`top_level` itself — a composing spell forwards `_on_context`, it does not stamp the endpoints. Composed one-per-bolt by Resonator (`resonator_edge_visual.tscn`, #678) and N-per-closure by Cyclone (`cyclone_ring_flash.tscn`, #710 — one front laps the whole closed ring in walk order over a fixed `lap_seconds`, wraparound edge included). Both are spell-specific compositions deliberately **not** catalogued here; `CycloneRingFlash` takes a plain polyline, so promoting it to a kit `RingFlash` when a second spell has a ring to light is a rename plus a gallery entry. |
 | `GhostLoopBody` | `ui/vfx/projectile/visual/ghost_loop_body.tscn` | A body wearing TWO heads — a lead plus a `ghost_alpha`-dimmed twin sampled `GHOST_T_OFFSET` behind it, off the lead's own recorded `(t, position)` history rather than a second copy of the path. "An echo chasing itself." Drop-in for any `body_scene` slot; worn by Reverberator (#677) and Resonator (#678). |
 
@@ -80,11 +73,7 @@ projectile's visual right after `launch`, mirroring `ArrowVolleyCoordinator`.
 Once per cast, not per event, because a spell has one caster and a
 CANCEL/pure-utility event carries no hit to read an attacker off.
 
-This did not exist until #671/#672: ranged had stamped since #507, magic never
-had, and **this document already described the stamp as though it were
-there.** Nothing caught it because no magic body read `tint` (`GlowingDot`
-ignores it) and no test asserted the colour arrives. Every spell rendered
-neutral-white. Pinned now by `test/unit/vfx/test_caster_tint_stamp.gd`.
+Pinned by `test/unit/vfx/test_caster_tint_stamp.gd`.
 
 The wrapper sits BETWEEN the projectile and the body, so it must forward the
 stamp down — a stamp that stops at the wrapper is invisible in exactly the
@@ -104,9 +93,7 @@ ring" (#709 was written to the wrong one first). A spell gets its crit look by
 *configuring that scene*, never by writing a second one — that is what keeps
 "where it fired" reading as placement rather than as three different effects.
 
-**Identity is motion and heat, never hue** (#663 D3). The body colour is the
-**caster's** tint, stamped by the coordinator after `proj.launch()` (the same
-stamp `ArrowVolleyCoordinator` already makes on `LightArrow`).
+**Identity is motion and heat, never hue** — see Design decisions below.
 
 #### Per-arc weight: `BoltBody.arc_weight` (#708)
 
@@ -193,29 +180,81 @@ nothing.
    goes in `modulate`, transform, UV offset or `INSTANCE_CUSTOM` — nowhere else.
    `test_bolt_body.gd` and `test_edge_energize.gd` pin this at 60 instances.
 2. **`EdgeEnergize` paints on top; it never touches `Edge`, `Graph` or the edge
-   MultiMesh** (#670, settled — do not "optimize" it in there). All 8 per-instance
-   floats of `edge_mesh.gdshader` are spoken for, and going that route would make
-   the VFX layer a third writer into a two-writer buffer *and* need
-   interrupt-restore semantics, which is the stuck-state bug class the
-   presentation-clock arc spent five issues killing. Its width comes from the
-   `edge_camera_zoom` global the edge itself reads, plus a one-time push of the
-   edge material's own `width` — no CPU mirror. Concurrency is bounded by
-   **linger, not hop count**: `EdgeEnergize.max_live_overlays(linger, beat)`.
-   (Trail Blazer's `max_hops` is `inf`, so any "at most 20" reasoning is
-   wrong.)
+   MultiMesh** — do not "optimize" it in there (reasons: "Why `EdgeEnergize`
+   paints on top" below). Concurrency is bounded by **linger, not hop count**:
+   `EdgeEnergize.max_live_overlays(linger, beat)`; Trail Blazer's `max_hops` is
+   `inf`, so any "at most 20" reasoning is wrong.
 
 Opt-in needs no new knob: the coordinator's per-verb `edge_visual` / `jump_visual`
 / … slots already express it. A bool on the def or the tempo resource would be a
 second parallel opt-in channel for something the slot system already says.
 
-> `docs/domain/spell-propagation.md` was checked against this and needs **no**
-> #670 change: the rule cross-references it for the *verb vocabulary*, and #670
-> adds no verb — it only widens the vocabulary of paths and visuals the existing
-> verbs resolve to.
-`docs/domain/spell-propagation.md` was checked against #670 and needs **no**
-change: `.claude/rules/spell-vfx.md` cross-references it for the *verb
-vocabulary*, and #670 adds no verb — it only widens the vocabulary of paths and
-visuals the existing verbs resolve to.
+## Coordinators and clocks
+
+### Coordinator zoo
+
+One per "shape" of action — see [attack_plan_system.md](attack_plan_system.md) for how `BattleSystem.launch_attack` picks them.
+
+| Coordinator | Used by | Visual | Cadence knob |
+|---|---|---|---|
+| `MagicBounceCoordinator` (`ui/vfx/coordinator/magic_bounce_coordinator.gd`) | All magic spells (`SpellDef.vfx_coordinator_scene`) | `GlowingDot` is the built-in *fallback*; every spell selects from the kit above | `beat_interval` |
+| `ArrowVolleyCoordinator` (`ui/vfx/coordinator/arrow_volley_coordinator.gd`) | Ranged attacks (`AttackVFX.RANGED_VOLLEY_COORDINATOR`, mounted at commit) | `LightArrow` (oriented, sticks + fades); a typed shot flies its `AmmoType.visual_scene` (`StatusArrow` family), picked per shot off `HitInstance.ammo_type_id` | `PresentationTempo.volley_flight_time` — each shot's own `ScheduleEntry.window` carries its airtime; the reveal rides `DamageInstance.arrival_time` |
+
+### The cadence clock (load-bearing)
+
+`MagicBounceCoordinator` runs a **fixed cadence clock**: beat N fires at `t = N * beat_interval` regardless of what any visual is doing. Animations are given a normalized window and render into it; they may NOT gate the next wave. A slow fork of a fork-lightning spell must not hold up the propagation, and several in-flight visuals stacking is the intended look for branchy spells.
+
+- Per-beat emission is `wave_started(hop_index, events_in_wave)`. Tests assert on this signal, not on projectile-finished timing.
+- No `await previous-projectile-finished` coupling between waves; `test/unit/vfx/test_magic_bounce_coordinator.gd::test_hung_visual_does_not_delay_subsequent_waves` pins it.
+- `launch_to_impact` defaults to slightly less than `beat_interval` so the projectile lands as the beat fires.
+- The coordinator waits for all projectiles to drain before `play()` returns, so it does not `queue_free` mid-trail. That is a teardown-safety drain, not a wave gate.
+
+### Three clocks
+
+Impact is pinned to the **beat**, not to launch — each projectile is spawned one lead-in early so it arrives AT the beat:
+
+- **Beat clock**: `wave_started` fires at `lead_in + N * beat_interval` (the ground truth).
+- **Travel clock**: the projectile flies origin→target over `lead_in` seconds.
+- **Visual clock**: the visual's own windup/linger, free to start before launch and outlive impact. Complex visuals author it in the Animation dock with an Impact marker; lightweight ones use the duck-typed `_on_progress(t)` path.
+
+All three read one authored source. `beat_interval` and `beat_lead_in` live on a `PresentationTempo` resource (`attack/outcome/`), referenced from `SpellDef.tempo` with **one shared default `.tres`**. `MagicBounceCoordinator` exports neither: it reads `outcome.schedule.beat_interval()` / `.lead_in()` off the compiled `OutcomeSchedule`, and its own `tempo` export is a **fallback for a hand-built outcome only**. Retune a spell by editing its `.tres` — never a constant in code, never a coordinator export. The compiler clamps the lead-in to the interval: a longer one would launch wave N+1 before wave N landed. The player-facing **rate** (`GameSettings.combat_time_scale`) is a separate multiplier folded in after every shape term; it is per-peer and may legally differ between two machines.
+
+### The mutation clock
+
+`OutcomeApplier` lands each hit at its own `HitInstance.arrival_time`, so the world changes on a clock the coordinator does not own: **`arrival_time` is "when the hit lands", absolutely, not "which wave it belongs to".** The resolver records only the hop **ordinal**; `OutcomeSchedule.compile` is the sole writer of seconds, and the coordinator reads the schedule it wrote, so the picture and the model cannot disagree.
+
+The lead-in exists so damage number, HP bar and node tint move when the projectile arrives, not a bolt-flight earlier (most visibly on the seed). **Seconds are presentation; ORDER is structure**: landing order and `CritRoll`'s seeded stream key off `HitInstance.schedule_index`, never off `arrival_time`, which is tempo-dependent and so per-peer. Sorting on the float is a desync that reports a green suite; `test_outcome_schedule.gd` scans for it.
+
+### Verb → path and visual
+
+Each `PropagationEvent.Verb` resolves to its own path and visual, through per-verb `@export` slots on the coordinator:
+
+| Verb | Path export | Visual export | Default path shape |
+|---|---|---|---|
+| `JUMP` (seed) | `jump_path` | `jump_visual` | BezierArc (ignores edges) |
+| `EDGE` (along edge) | `edge_path` | `edge_visual` | LinearPath (straight lerp) |
+| `SELF_LOOP` | `self_loop_path` | `self_loop_visual` | SelfLoopPath (cubic teardrop) |
+| `CANCEL` | (none — no projectile) | `cancel_visual` | CancelDissipate (in-place pop) |
+
+Unset per-verb slots fall back to `projectile_path` / `visual_scene`, then to built-in defaults (`BezierArcPath` / `GlowingDot`). Three further visual slots sit beside them: `ring_visual` (once per event whose `closed_ring` is non-empty), `draw_streak_visual` (the neighbour streaks into the caster during the wind-up) and `aim_streak_visual` (the hitscan line of an aimed cast, before beat 0; null = none).
+
+### CANCEL dissipate
+
+A `CANCEL` event spawns a one-shot dissolve at `ev.target`; the default is `CancelDissipate` (`ui/vfx/projectile/visual/cancel_dissipate.tscn`): spawned in place, scales up and fades over `duration` (0.35 s), emits `finished`, then `queue_free`s. Override via `cancel_visual`; `null` disables it.
+
+### The visual contract (duck-typed)
+
+Spawned by `Projectile`. Inbound methods (any subset, all optional): `_on_launch()` once after the delay clears; `_on_progress(t)` each frame, `t ∈ [0, 1]`; `_on_arrival()` once at impact. Outbound: the `finished` signal — "I'm fully drained, safe to free"; missing, `Projectile.linger_seconds` is the fallback.
+
+Tint hook: `ArrowVolleyCoordinator` stamps `tint: Color` on the visual right after `proj.launch()` (when `_visual` is already a child), as `MagicBounceCoordinator` does; visuals without a `tint` field ignore it. Pinned by `test/unit/vfx/test_caster_tint_stamp.gd`.
+
+### The coordinator reads `outcome.timeline`, not `outcome.hits`
+
+`MagicBounceCoordinator` walks `AttackOutcome.timeline: Array[PropagationEvent]` grouped by `beat`. Each event carries a movement `verb`, its `origin`/`target` nodes, and `hits: Array[HitInstance]` (shared refs into `outcome.hits`; empty for `CANCEL` and zero-damage landings). Crit tier lives on each hit; read `event.max_crit_tier()` for the per-event emphasis value.
+
+The guard is `timeline.is_empty()`, not `hits.is_empty()`: a pure-utility spell (`power` 0) produces events with no hits and must still render its path.
+
+`outcome.hits` is the universal flat list every attack type appends to; the timeline is **additive spell structure over the same `HitInstance` objects**. Branch per-hit on `HitInstance.kind` (`DAMAGE`/`HEAL`) to route the reveal — `_show_presentation` in the coordinator is the reference. The verb table and rationale are in [spell-propagation.md](spell-propagation.md).
 
 ## The ease knob on `ProjectilePath`
 
@@ -239,15 +278,15 @@ desync. So `.claude/rules/multiplayer-sync.md`'s unseeded-roll prohibition does
 not reach it. Once resolved the seed is fixed, so `evaluate` stays a pure
 function of `t` and a shared path resource cannot drift between two visuals.
 
-## Design decisions behind it (settled on #663/#670 — do not re-open)
+## Design decisions (settled — do not re-open)
 
 - **Identity is motion and heat, never hue** (#663 D3). Do not add colours to
   tell two spells apart; change the silhouette, the trail, the size ramp, the
   path.
-- **The baseline body is the caster's identity tint** (#663 D4), stamped by the
+- **The baseline body is the caster's identity tint**, stamped by the
   coordinator after `proj.launch()` — the same stamp `ArrowVolleyCoordinator`
-  already makes on `LightArrow`. `GlowingDot`'s old gold default is in the
-  reserved band and does not carry forward.
+  makes on `LightArrow`. `GlowingDot`'s gold default is in the reserved band and
+  does not carry forward.
 - **`GlowingDot` is not deleted.** It has non-spell callers; `BoltBody`
   supersedes it *for spell use* only. Retiring it is separate cleanup.
 - **`_on_context(entry)` takes a `Variant`**, not a `ScheduleEntry`. The visual
@@ -307,8 +346,7 @@ the reader role #413 designed that file for.
 
 ## Tuning knobs, and where they live
 
-The kit ships with authored defaults that have **not** been verified in a real
-frame. The named constants an owner is most likely to want to move:
+The named constants an owner is most likely to want to move:
 
 | Knob | Home | What it does |
 |---|---|---|
@@ -318,7 +356,7 @@ frame. The named constants an owner is most likely to want to move:
 | `front_width` (0.28) | same | Fraction of the quad the hot front occupies. |
 | `linger_seconds` (2.5) | `edge_energize.tscn` / per-spell override | The burn-in fade — **and the thing that sets peak overlay count**, via `EdgeEnergize.max_live_overlays(linger, beat)`. Read #663's load table before raising it. |
 | `head_size`, `trail_length`, `hop_scale_start/end` | the five `bolt_*.tscn` configs | Per-config silhouette and the #663 D3 size ramp. `head_size` is also the ONLY cross-spell loudness lever — see the magnitude section above for why nothing derives it. |
-| `trail_alpha_head` (0.7) / `trail_alpha_tail` (0.05) | the `bolt_*.tscn` configs | Trail alpha ramp, previously hardcoded. Lifting the tail is what turns the segments past `_TAPER_SPAN` into a *flurry* (several arcs of comparable weight) rather than a fade. |
+| `trail_alpha_head` (0.7) / `trail_alpha_tail` (0.05) | the `bolt_*.tscn` configs | Trail alpha ramp. Lifting the tail is what turns the segments past `_TAPER_SPAN` into a *flurry* (several arcs of comparable weight) rather than a fade. |
 | `stretch_along_velocity` (0.0) | the `bolt_*.tscn` configs | Squash-and-stretch along travel — the disc-to-arc knob. Needs a stable facing; on a jagged path pair it with `facing_smoothing_seconds`. |
 | `magnitude_influence` (0.0) | the `bolt_*.tscn` configs | Opt-in per-landing sizing. See above. |
 | `facing_smoothing_seconds` (0.0) | `MagicBounceCoordinator`, forwarded to every `Projectile` | Low-passes `face_velocity`. `JitterPath`'s hard corners throw the snapped facing ~24 degrees off the travel line for one frame at each noise boundary — invisible on a symmetric disc, a wobble on a stretched one. 0.0 snaps, as before. |

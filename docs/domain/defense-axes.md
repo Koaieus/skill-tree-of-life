@@ -5,7 +5,7 @@ shape of damage: bulk, armour, floor, regen, aura, topology. The table names
 the shipped damage-over-time row that bypasses each. The axes are a vocabulary
 for what a row answers, not slots: two rows may answer one axis when they
 differ in character ([ADR 0048](../adr/0048-status-decay-is-authored-per-def-rows-differ-in-character-not-numbers.md)).
-The status rows themselves are `effect-system.md` § "Status effects — the DoT model".
+The status rows themselves are [status-effects.md](status-effects.md) § "The DoT model".
 
 | Axis | Owner in code | What it answers | DoT that bypasses it |
 |---|---|---|---|

@@ -15,13 +15,13 @@ The house vocabulary is swarmify's: done is **"a failing test to make green, or
 an exact behavioural spec."** The second half is not a consolation prize — it is
 the correct answer for a real share of the work.
 
-Three worked examples, from drones in the corpus, cheapest first:
+Three shapes, cheapest first:
 
-| Drone run | Shape | Verification |
-|---|---|---|
-| `6743ce24` | visual / shader fix, no runtime-testable behaviour | `mise run check` only — **no test, correctly** |
-| `e96e4971` | behaviour change under existing coverage | `check` → `test:dir` on the touched dir |
-| `c0f9d75f` | new behaviour | new test, red first → green → suite once |
+| Shape | Verification |
+|---|---|
+| visual / shader fix, no runtime-testable behaviour | `mise run check` only — **no test, correctly** |
+| behaviour change under existing coverage | `check` → `test:dir` on the touched dir |
+| new behaviour | new test, red first → green → suite once |
 
 Earns a test-first cycle:
 
@@ -69,9 +69,8 @@ So the red step has a shape:
 1. **Stub the surface first.** Empty class, method returning a default, signal
    declared. Just enough that the test file *parses*. This is not cheating —
    it is the design step TDD is actually for: you are deciding the seam.
-2. **New or renamed `class_name`? `mise run refresh`.** A fresh worktree has no
-   class cache, and a new type is invisible to the parser until it does — the
-   same failure wearing a different hat.
+2. **New or renamed `class_name`?** `test:one` refreshes the class cache itself;
+   if the type is still unknown, check the `run health:` line.
 3. **Run `mise run test:one -- res://test/unit/test_<yours>.gd` and read the
    verdict, not the exit code.** Two things must be true:
    - **Your test ran.** The script count is non-zero and no `Ignoring script`
@@ -102,14 +101,14 @@ mise run test:dir -- res://test/unit/<subsystem>/    # once you believe you're g
 mise run test                                        # full suite — ONCE, at final green
 ```
 
-The full suite (~45–48 s wall, sharded over half the cores at `cb99152`;
+The full suite (~45–48 s wall, sharded over half the cores;
 ~380 s single-process) is a gate, not a feedback loop. TDD does not buy you more
 full runs — it buys you a `test:one` that means something.
 
 ## Where this is enforced
 
 - `warp` — step 3a, before implementing.
-- `drone` — the `## Red-green` section; the orchestrator's brief names the test.
+- `drone` — the `## Fence, spec, tests` section; the orchestrator's brief names the test.
 - `swarmify` — writes the acceptance test into the issue in the first place.
 - `swarm` — Gate #3: a unit isn't dispatchable without a failing test or an
   exact spec.

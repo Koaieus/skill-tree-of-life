@@ -1,15 +1,14 @@
 # Procgen v4 — flat StatPool + spend-until-broke draw
 
-Successor to [procgen-v3.md](procgen-v3.md). v3's phased `TierPool`+`TierDef`
-draw (primary → cost-capped off-attribute → defensive → rare) is replaced by:
+The content model: flat `StatPool`s drawn spend-until-broke. It replaces the deleted
+`TierPool`/`TierDef` phased draw.
 
 - **One flat authoring resource** — `StatPool` (`procgen/pools/stat_pool.gd`)
   replaces the `TierPool` + `TierDef` pair. ~8 fields per pool, no per-tier
   sub-resources.
 - **One shared ladder** — `TierLadder` (`procgen/pools/tier_ladder.gd`):
   `cost[t] = 2^(t-1)` → `[1,2,4,8]`; `value = 2·cost − 1` → `V = [1,3,7,15]`.
-  Retuning the game's cost curve is now a one-file edit (the original ask of
-  #321). Per-pool authoring carries only `unit_value` (the T1 magnitude) and an
+  Retuning the game's cost curve is a one-file edit. Per-pool authoring carries only `unit_value` (the T1 magnitude) and an
   optional sparse `value_overrides` escape hatch (D11; seed budget ≤ 6
   repo-wide, pinned by `test_specimen_pool_set.gd`).
 - **Spend-until-broke draw** — `_roll_modifiers_v4` (`graph_procgen.gd`):
@@ -21,43 +20,27 @@ draw (primary → cost-capped off-attribute → defensive → rare) is replaced 
   `(stat_id, operation)`: ADD_BASE / ADD_BONUS / INCREASE **sum**;
   MULTIPLY **delta sum** `1 + Σ(mᵢ − 1)` (`×1.15 & ×1.15 = ×1.30`, not
   `×1.3225`), clamped once per line at `GraphProcgenContent.multiply_fuse_floor`
-  (owner, 2026-10-03, #1362: a variance call superseding D3's product; in game
-  MULTIPLY instances still multiply); SET **max**.
+  (a variance call; in game MULTIPLY instances still multiply); SET **max**.
   Line count on a node is bounded by the number of distinct `(stat, op)` pairs
   it drew — not by the number of draws.
 - **Tier is auto-stamped, not authored.** `TierLadder.auto_tags(t)` stamps
   `tier_1..tier_4` always. `StatPool.tags` holds only the pool's flavour tags;
-  a `WeightProfile` can key on the auto-stamped `tier_N` directly. `#552`
-  deleted the `common`/`rare`/`mythic` rarity tag and `RadialBandProfile`,
-  the profile that keyed on it — rarity was a lossier alias for tier (`T1`
-  and `T2` both read `common`) and, because `value(t) = 2·cost(t) − 1`,
-  composing chunkier tiers is itself a power lever (up to ~1.875x at a fixed
-  budget) — so the band profile was a second, hidden power gradient stacked
-  on top of the budget-field gradient, not a flavour/texture one. Budget is
-  now the sole radial power lever.
+  a `WeightProfile` can key on the auto-stamped `tier_N` directly. There is no
+  rarity tag and no radial-band profile: **budget is the sole radial power lever**
+  (tier composition is itself a power lever, `value(t) = 2·cost(t) − 1`).
 
-## What v4 deleted (vs v3)
+## Consequences of the flat model
 
-- `TierPool` + `TierDef` classes — replaced by `StatPool`.
-- `TierPool.Role` (PRIMARY / DEFENSIVE / RARE) — only `RARE` had staying power
-  and it's gone (D8: rare content becomes hand-authored keystone SkillNode
-  scenes; see "Rare content → landmarks" below).
-- `ModifierPoolSet.slot_count_weights`, `primary_share_ratio`,
-  `off_cost_cap_offset/factor`, `flatten_for_phase` — replaced by
-  `flatten_for_node(primary_stat)` (pools where `archetype_stat == primary_stat`
-  OR `== &""`).
-- `StatPack.off_phase_op_weights` + `off_weight_for` — D7 removed the
-  off-archetype phase entirely. All budget goes to the node's primary
-  archetype; **universal** pools (`archetype_stat == &""` — armor,
-  node_health, movement_points, deallocation_points) — no CURSE is universal
-  as of #718, see "The curse law" below
-  are the shared defensive/mobility content, drawn by every node.
-- `CollisionProfile` and `WeightContext.already_rolled` — deleted (#424). Its
-  "zero duplicate `(stat,op)`" rule contradicts aggregation, which *wants*
-  duplicates to fuse, and the channel it read was never fed by the v4 draw.
-  A future soft-bias profile ("no two vision mods on one node") reads the
-  **fused** modifiers, not raw per-pick rolls — a different channel with its
-  own owner. `test_weight_profiles.gd` pins that duplicate picks fuse.
+- Pools reach a node through `ModifierPoolSet.flatten_for_node(primary_stat)`:
+  pools where `archetype_stat == primary_stat` or `== &""`.
+- All budget goes to the node's primary archetype; **universal** pools
+  (`archetype_stat == &""` — armor, node_health, movement_points,
+  deallocation_points; no curse is universal, see "The curse law") are the
+  shared defensive/mobility content, drawn by every node.
+- There is no collision profile: a "zero duplicate `(stat,op)`" rule would
+  contradict aggregation, which wants duplicates to fuse. A soft-bias profile
+  ("no two vision mods on one node") would read the **fused** modifiers, not raw
+  picks. `test_weight_profiles.gd` pins that duplicate picks fuse.
 
 ## The renormalized draw (#1079)
 
@@ -92,11 +75,6 @@ Entries carry what the draw needs: `ModifierPoolEntry.pool_key` (id minus
 the `flatten_for_node` output, so peers reproduce the distribution; one
 `randf()` per pick.
 
-- Replaces the #975 flatten-time universal slice on `ModifierPoolSet`, which
-  was exact only before the affordability filter.
-- `pool_weight`s were migrated once as `new = old × Σ_{t=min..max} w_t`
-  (unrounded), keeping every within-group share of the old flat pick; the
-  only intended balance change was the flat 20 % universal share.
 - Tests assert the distribution exactly (`test_renormalized_draw.gd`,
   `test_specimen_pool_set.gd`) — no Monte Carlo on the shares.
 - The live per-pool roster is `ModifierPoolSet.format_tables()` /
@@ -137,22 +115,15 @@ Anchors for authors:
 
 **Default `M = unit_value`** (sentinel: `StatPool.range_floor ==
 StatPool.FLOOR_UNSET`, unset). This is always valid (`M <= unit_value` holds
-as equality), yields a zero-width `min_tier` (a fixed point, same as
-pre-#628), and leaves every already-authored pool's high bounds untouched —
+as equality), yields a zero-width `min_tier` (a fixed point), and leaves every already-authored pool's high bounds untouched —
 no existing pool rebalances. Authors opt into variance by lowering
 `range_floor` below `unit_value`.
 
-**Debuff pools (`unit_value < 0`, D9) are exempt.** `range_floor` doesn't
-apply to them — they keep the pre-#628 fixed point (`L == H`) unconditionally.
-The recurrence assumes `H` grows in the direction `M` points; a debuff's `H`
-trends *more* negative per tier, so applying it verbatim would swap which end
-is numerically smaller without meaning anything. This is deliberate, not an
-oversight: "Negative M replaces debuff pools" is a separate, not-yet-filed
-migration, and #628 only needs to not obstruct it, not make the two compose.
+**Negative pools are not exempt** — the recurrence applies with a magnitude-based validation; see "Negative pools".
 
 **`value_overrides` is keyed on *absolute* tier while the ladder indexes
 *relative*.** An overridden tier is itself always a fixed point — `L(T) =
-H(T) = override` — never chain-computed (#629's decision: overrides "pin a
+H(T) = override` — never chain-computed (overrides "pin a
 tier to an exact value, bypassing the roll entirely"), so it can never
 invert on its own. But its `H` still feeds `L(T+1) = H(T) + M` for the
 *next* tier, which is NOT exempt: a large enough override can inflate that
@@ -168,9 +139,8 @@ validation safe.
 ## Uniform roll within L..H (#629)
 
 `ModifierPoolEntry.roll(rng)` already samples `value_range` with
-`rng.randf_range` — #628 widening `value_range` to a real `[L, H]` is what
-activates uniform rolling; #629 didn't need to touch the sampling call at
-all. Its own content is the fused-no-op re-roll: procgen's spend-until-broke
+`rng.randf_range`, so a real `[L, H]` `value_range` is uniform rolling. The
+fused-no-op re-roll is the rest of the roll: procgen's spend-until-broke
 draw fuses same-`(stat, op)` picks (see "Per-(stat,op) aggregation" above),
 and with negative `M` legal, a fused result can land exactly on its
 operation's neutral element (`0` for ADD*/INCREASE, `1` for MULTIPLY — `SET`
@@ -208,9 +178,7 @@ negative pools:  sign(M) == sign(unit_value)  and  abs(M) <= abs(unit_value)
 positive pools:  M <= unit_value              # unchanged; negative M stays legal (#628)
 ```
 
-Two of the authored entries, both in `constitution.tres` (`intelligence +%` was
-re-pointed to `dexterity` in `1aa8f29` and scoped to CON in #718; the shape is
-unchanged):
+Two authored entries, both in `constitution.tres`:
 
 | Entry | Authoring | Flattens to |
 |---|---|---|
@@ -233,18 +201,12 @@ archetypes taxes what:
 Stated as one line: *the two solid archetypes tax the two quick/clever
 attributes; the two quick/clever archetypes tax the two defensive stats.*
 
-Three properties are load-bearing, and none of them is a tuning knob:
-
 - **The pack is the gate.** A pool rolls where its `.tres` says: a CON curse
-  lives in `constitution.tres` and rolls on CON nodes only (ADR 0028, #751).
-  Before #751 each pool carried its own `archetype_stat` defaulting to `&""`
-  (universal), and `1aa8f29` shipped the CON curse on all six archetypes by
-  editing `stat_id` alone; the only `&""` left is `universal.tres`'s, pinned
-  to its file name by a test.
-- **Empty `tags`.** Tags feed `ArchetypeWeightProfile` (multiplied across every
-  matched tag) *and* `ArchetypePolicy.forbid_tags` (a brick wall). The same
-  curse kept `tags = [&"int", …]` after re-pointing, which handed it a 3x boost
-  on INT nodes and a hard ban on gold/purple.
+  lives in `constitution.tres` and rolls on CON nodes only (ADR 0028;
+  `.claude/rules/procgen-pool-scoping.md`).
+- **Empty `tags`.** Tags feed `ArchetypeWeightProfile` and
+  `ArchetypePolicy.forbid_tags` (a brick wall); a curse that keeps stale tags
+  gets boosted or banned per archetype.
 - **`armor -%` is INCREASE, not ADD_BASE.** `armor`'s base is 0 and procgen
   writes `SkillNode.modifiers`, which is *entity*-scoped — a flat curse would
   mint unbounded negative armor across the whole territory, and
@@ -258,151 +220,63 @@ WIS/PER being curse-free is a stated asymmetry, not an omission — they are 5% 
 
 `test/unit/test_pool_scoping.gd` pins all of this structurally, plus a headless
 sweep of `_get_configuration_warnings()` across every pack and pool — that
-warning is `@tool`-only, so before #718 nothing outside the editor read it.
+warning is `@tool`-only, so nothing outside the editor would otherwise read it.
 
-### The refund economics are retired — owner call, 2026-08-30
+### No refunds
 
-**This supersedes the 2026-08-07 decision** recorded in earlier revisions of
-this section, which gave a debuff pool `cost = -T` (so picking one *refunded*
-budget) and capped it at `max_refunds = 1` per node. Constant, counter,
-pick-filter branch and covering test are all deleted. **Cost is always `+T`;
-budget spend is monotonic and no draw increases `remaining`.**
+Cost is always `+T`; budget spend is monotonic and no draw increases `remaining`.
+Several negative rolls on one node are acceptable (there is no one-curse cap).
+Negative rolls are flavour, not the bulk of authored content.
 
-The owner's reason, verbatim (#637, 2026-08-30):
+## Rare content → hand-authored landmarks
 
-> "the budget refund lever disappears. given that modifiers now roll ranges,
-> they generally are lower (before: they picked the new [max] of the range,
-> now there's a [min] too) in value and can hence tweak budget ranges instead.
-> so having no refund concept is fine — besides, negative rolls are more added
-> flavor, they don't make up the bulk of what we author by a long margin."
+Rare content is hand-authored keystone `SkillNode` scenes under
+`skill_node/keystone/instances/` (inherited `keystone_skill_node.tscn`, a
+`StatEffect` on `SkillNode.effects` baking the granted `StatModifier`): titan,
+archmage, farsight, mythic_ward, ap_keystone, natural_xp, wisdom, inversion.
+`procgen/modules/first_level/content.tres` places each through a `ScenePlacement`
+in `guaranteed_placements` (see [procgen.md](procgen.md)).
+`test_keystone_landmarks.gd` pins the grants.
 
-The **one-curse-per-node cap is knowingly given up** with it (same call):
-several negative rolls on one node is acceptable. Note this cap *was* real —
-it was implemented as `_MAX_DEBUFF_REFUNDS`, not under the `max_refunds` name
-the old docs used, which is why an earlier audit wrongly reported it missing.
+## Pack homes
 
-Negative pools now consume RNG draws they previously did not, so **the seed
-stream changed deliberately** and the golden fixtures were regenerated rather
-than preserved.
+Authored values live in `procgen/pools/*.tres`; read them with the "Print tier
+table" inspector button on a `StatPool` (or the set-level button on
+`ModifierPoolSet`), never from a doc table. The pack is the gate (ADR 0028).
 
-## Rare content → hand-authored landmarks (D8)
+- **str / dex / int / con / wis / per** — each carries its attribute's addb+inc+mul.
+- **str** — `intelligence -%` curse; blighted `corruption_stacks_per_hit`, blessed
+  `corruption_resistance` and `bleeding_resistance`.
+- **dex** — crit chance/multiplier (`[regular, bless]`), `armor -%` curse, poison
+  aspect / arrows / shots-per-leaf (`[regular, blight]`), blighted
+  `poison_stacks_per_hit`, blessed `poison_resistance`.
+- **int** — `node_health -%` curse; cast range (`[regular, blight]`); blighted
+  `wither_stacks_per_hit`.
+- **con** — `dexterity -%` curse, `min_damage_taken` (`[regular, bless]`); blighted
+  `curse_stacks_per_hit`, blessed `curse_resistance`.
+- **wis** — regular `xp_per_turn`; blighted `dot_stacks_per_hit` (the archive
+  umbrella, WIS-only); blessed `wound_heal_per_turn` plus a fatter `xp_per_turn`
+  pair — the XP engine plus recovery, not a DoT pole.
+- **per** — vision_range inc (all) and flat (`[regular, blight]`), `sensor_range`
+  (`[regular, bless]`); blighted `blindness_stacks_per_hit`, blessed
+  `blindness_resistance`; `scout_aspect` is shared by all three poles.
+- **universal.tres** — node_health, armor, movement_points, deallocation_points.
 
-`rare.tres` is deleted. Its four headline rolls are now pre-authored
-`SkillNode` scenes under `skill_node/keystone/instances/` — each an inherited
-`keystone_skill_node.tscn` carrying a `StatEffect` SubResource on
-`SkillNode.effects` that bakes the granted `StatModifier` (#929):
+Each DoT family has one attribute home holding both poles, gated by subtype:
+potency (the family `_stacks_per_hit` INCREASE row) rolls only on blighted nodes,
+resistance only on blessed ones. WIS and PER carry no family INCREASE row.
+Hybrids are the deal — poison on a melee blade means allocating blighted DEX
+nodes. Resistances are T2+, so they never crowd a T1 draw. Subtype rules:
+[node-subtypes.md](node-subtypes.md).
 
-| scene | grant | op |
-|---|---|---|
-| `mythic_ward_node.tscn`  | `min_damage_taken = −1` | ADD_BASE |
-| `farsight_node.tscn`    | `vision_range = +100` | ADD_BASE |
-| `titan_node.tscn`       | `strength ×2.0` | MULTIPLY |
-| `archmage_node.tscn`    | `intelligence ×2.0` | MULTIPLY |
+## Budget envelope
 
-`test_keystone_landmarks.gd` pins the grant on each. **Placement wiring
-(stitching these N-per-map into procgen) is a separate open issue** — the
-scenes exist and load; they are not yet placed by `first_level.tres`.
-
-## Seed table (settled in #321)
-
-> **This is the #321 SEED, not current content.** The owner re-tunes these
-> between balance passes (`b3975d8` alone moved attribute `.addb` to unit 3,
-> `crit_multiplier .inc` to unit 5, and authored `range_floor` on twelve
-> pools). The live values are in `procgen/pools/*.tres` — read them with the
-> "Print tier table" inspector button on a `StatPool`, or the set-level button
-> on `ModifierPoolSet`. This table stays as the shape the ladder was designed
-> around; do not treat a divergence from it as a bug.
-
-`unit` = `unit_value` (T1 magnitude; negative = debuff). `pool_w` =
-`pool_weight` in the pre-#1079 unit (tier mass baked into the draw); today's
-`pool_weight` is that value × Σ `tier_weight(t)` over `min_T..max_T` (the #1079
-migration). Default `jitter = 0.25`, `tier_shape` = `power 0, ratio 2`. ADD*/INCREASE/
-ADD_BONUS magnitude = `unit · V[t]`; MULTIPLY = `1 + unit · V[t]`.
-
-| pool | unit | overrides | pool_w | min_T | max_T | resulting T1..T4 |
-|---|---|---|---|---|---|---|
-| `{str,dex,int,con,per,wis}` .addb | 2 | — | 10 | 1 | 4 | +2 +6 +14 +30 |
-| attribute .inc | 7 | — | 3 | 1 | 3 | +7% +21% +49% |
-| attribute .mul | 0.05 | — | 1 | 3 | 4 | ×1.35 ×1.75 |
-| `armor` .addb (universal) | 1.5 | — | 2.5 | 1 | 3 | +1.5 +4.5 +10.5 |
-| `node_health` .inc (universal) | 6.5 | — | 1 | 1 | 2 | +6.5% +19.5% |
-| `crit_chance` .inc | 5 | `{3:50, 4:100}` | 1.5 | 1 | 4 | +5% +15% +50% +100% |
-| `crit_multiplier` .inc | 17.5 | — | 1.5 | 1 | 3 | +17.5% +52.5% +122.5% |
-| `sensor_range` .addb | 1 | — | 2 | 1 | 2 | +1 +3 |
-| `vision_range` .addn | 10 | — | 1 | 1 | 2 | +10 +30 |
-| `vision_range` .inc | 7.5 | — | 2.5 | 1 | 3 | +7.5% +22.5% +52.5% |
-| `xp_per_turn` .addb | 10 | — | 2 | 1 | 3 | +10 +30 +70 |
-| `xp_per_turn` .inc | 7.5 | — | 0.5 | 1 | 2 | +7.5% +22.5% |
-| `dot_stacks_per_hit` .addb (wis, blight) | 1 | — | 1 | 2 | 4 | +1 (t2) +2 (t3) +4 (t4) |
-| `wound_heal_per_turn` .addb (wis, bless) | 1 | — | 2 | 1 | 2 | +1 +3 |
-| `xp_per_turn` .addb (wis, bless) | 12 | — | 2 | 1 | 3 | +12 +36 +84 |
-| `xp_per_turn` .inc (wis, bless) | 4 | — | 2 | 1 | 3 | +4% +12% +28% |
-| `movement_points` .addb (universal) | 1 | — | 0.6 | 1 | 2 | +1 +3 |
-| `deallocation_points` .addb (universal) | 1 | — | 0.8 | 1 | 2 | +1 +3 |
-| `intelligence` .inc **debuff** (str) | −5 | — | 0.5 | 1 | 1 | −5% (cost −1) |
-| `poison_stacks_per_hit` .inc (dex, blight) | 7 | — | 0.5 | 1 | 3 | +7% +21% +49% |
-| `corruption_stacks_per_hit` .inc (str, blight) | 7 | — | 0.5 | 1 | 3 | +7% +21% +49% |
-| `curse_stacks_per_hit` .inc (con, blight) | 7 | — | 0.5 | 1 | 3 | +7% +21% +49% |
-| `wither_stacks_per_hit` .inc (int, blight) | 7 | — | 0.5 | 1 | 3 | +7% +21% +49% |
-| `blindness_stacks_per_hit` .inc (per, blight) | 7 | — | 0.5 | 1 | 3 | +7% +21% +49% |
-| `blindness_resistance` .addb (per, bless) | 0.05 | — | 0.25 | 2 | 4 | +0.05 +0.15 +0.35 |
-| `poison_resistance` .addb (dex, bless) | 0.05 | — | 0.25 | 2 | 4 | +0.05 +0.15 +0.35 |
-| `corruption_resistance` .addb (str, bless) | 0.05 | — | 0.25 | 2 | 4 | +0.05 +0.15 +0.35 |
-| `curse_resistance` .addb (con, bless) | 0.05 | — | 0.25 | 2 | 4 | +0.05 +0.15 +0.35 |
-
-Per-pack homes (the pack is the gate, ADR 0028): str/dex/int/wis/per/con each
-carry their attribute's addb+inc+mul; dex adds crit_chance+crit_multiplier; int
-adds nothing of its own (its old pool entries were retired, ADR 0045); wis adds xp_per_turn (addb+inc, `[regular]` since
-#1093/#1094 split its subtypes — see below); per adds vision_range
-(inc+addn, the flat `+b` now `[regular, blight]`)+sensor_range (now
-`[regular, bless]`); con adds the `dexterity -%` curse (#718).
-`universal.tres` (the one universal pack) carries node_health+armor and
-movement_points+deallocation_points.
-
-**PER's cells (#1095) mirror the DoT shape, one stat per pole**:
-`blindness_stacks_per_hit` .inc `[blight]` trades `sensor_range` (now `[regular,
-bless]`); `blindness_resistance` .addb `[bless]` trades the flat `vision_range
-+b` pool (now `[regular, blight]`). `scout_aspect` is untouched —
-shared by all three poles (decision 5).
-
-**Blessed WIS is the XP engine plus recovery (#1093), not a DoT pole**: it
-adds `wound_heal_per_turn` .addb and a fatter `xp_per_turn` pair
-(addb+inc, both `[bless]`), replacing rather than stacking onto the small
-`xp_per_turn` .inc pool — that pool's `subtypes` lost `bless` so a blessed
-node draws the fat pair instead (decision 11/18, `docs/domain/node-subtypes.md`).
-
-**Blighted WIS is the archive umbrella (#1094)**: `dot_stacks_per_hit` .addb,
-`[blight]`-gated, WIS-only (`test_pool_scoping.gd::test_dot_stacks_per_hit_is_blighted_wisdom_only`)
-— *"knows every plague"*, whatever rot is already dealt lands harder. It also
-gives up the small `xp_per_turn` .inc pool, which after both #1093 and #1094
-land carries `subtypes = [regular]` only (decision 17).
-
-The four DoT families each have one attribute home holding both poles, gated
-by subtype (#1059): the **potency** — the family `_stacks_per_hit` stat's
-INCREASE row, since potency retired into it (ADR 0029) — rolls only on blighted nodes, the
-**resistance** only on blessed ones — corruption → str, poison → dex,
-wither → int, curse → con. WIS and PER carry none of the four family INCREASE rows —
-the archive umbrella above is a different (fifth, cross-family) stat, homed on
-blighted WIS instead. A build that wants poison
-on a melee blade finds `poison_stacks_per_hit` +% only on blighted DEX nodes — hybrids
-are the deal (owner, #974): combining two concepts means allocating related
-nodes on both sides. Resistances are T2+, so they never crowd a T1 draw.
-
-## Budget envelope (first_level.tres)
-
-`base 2..4 × RadialGradientField 1.0→4.0 × anomalous 1.75` → range 2..16,
-mean ~10, anomalous to ~28. Floor of 2 = no budget-1 dead nodes. The
-budget field's authored 4x is the *entire* rim power ratio (#552): before,
-the deleted `RadialBandProfile` (`rbp_main`) additionally biased the rim
-toward `mythic`-tagged (T4) content, and because `value(t) = 2·cost(t) − 1`
-composition is itself a power lever, the real swing was closer to ~7.5x —
-a hidden second gradient stacked on the budget one. Retuning from these
-seeds is #268's job once the balance harness exists.
+Budget is `BudgetPolicy.compute_budget` = `max(1, round(lerp(base_min, base_max) × budget_field × role bonus))`.
+`first_level/content.tres`: `base_min 1 .. base_max 4`, a `RadialGradientField`
+1.0 → 4.0 over r = 200..2500, `anomalous` ×1.75. Floor of 1 = no budget-0 dead nodes;
+the field's authored 4x is the entire rim power ratio. Live numbers: the preset's `content.tres`.
 
 ## Tuning a pool: what goes red, and what to run
-
-Settled in #719, after two investigation cycles (#717 and the earlier
-`ef67e82` INT-pool case) burned on the same confusion.
 
 **Only the procgen goldens should go red on a content tune.** Editing
 `unit_value` / `range_floor` / `pool_weight` / `min_tier` / `max_tier`, or
@@ -425,31 +299,22 @@ The three layers, and what each is allowed to know:
   the mirror would reproduce any bug in `_tier_magnitude_bounds` and the
   assertion would be vacuous.
 - **Shipped content** is only ever swept for *conformance* to that formula. The
-  `.tres` is the input, never the expectation. (This sweep used to skip any
-  pool authoring an explicit `range_floor` — which meant `b3975d8` silently
-  dropped twelve pools, including all four of `strength.tres`, out of coverage
-  at the same moment it broke the value pins. Removed in #719.)
+  `.tres` is the input, never the expectation.  The sweep covers pools that author an explicit `range_floor` too.
 - A pack's **stat allowlist** is derived from the pack, not hand-listed. A
   literal list goes stale the moment a pool is added and then blames the roll
   for a fact about the fixture.
 
 **A pool re-tune reshuffles both goldens wholesale — a value-only diff is the
-exception, not the rule.** Pool *selection* is weighted, so changing a
-`pool_weight`, adding a pool, or dropping a `max_tier` cap changes how much RNG
-the draw consumes at the first node of that archetype; everything downstream
-then differs by *position*, not just by magnitude. #717 predicted a one-line
-golden diff from a single spell grant and got a full reshuffle, because a pool
-tune had landed in between. Don't try to reconcile such a diff line by line —
-it is unattributable by construction. Check it in aggregate instead: the
-line-tag census (counts per `MOD`/`ADDON`/`SPELL` kind) should be unchanged
-*in kind*, and spot-check that any new extreme value is reachable under the
-new authoring.
+exception.** Pool *selection* is weighted, so changing a `pool_weight`, adding a
+pool, or dropping a `max_tier` cap changes how much RNG the draw consumes at the
+first node of that archetype; everything downstream differs by *position*. Don't
+reconcile such a diff line by line — check it in aggregate: the line-tag census
+(counts per `MOD`/`ADDON`/`SPELL` kind) should be unchanged *in kind*, and spot-check
+that any new extreme value is reachable under the new authoring.
 
-The fix for a red golden is deliberate: flip `_REGENERATE` at the top of
-`test/unit/procgen/test_preset_generation_golden.gd`, run that script alone
-(`mise run test:one -- res://test/unit/procgen/test_preset_generation_golden.gd`,
-which `fail_test()`s on purpose after writing), flip the flag back. Commit the
-fixtures with a message saying *why* generation was supposed to change.
+The fix for a red golden is deliberate: `mise run procgen-golden-regenerate`, then
+re-verify with `mise run test:one -- res://test/unit/procgen/test_preset_generation_golden.gd`.
+Commit the fixtures with a message saying *why* generation was supposed to change.
 
 **One test is meant to be tune-sensitive:**
 `test_specimen_pool_set.gd::test_value_overrides_stay_under_repo_budget` caps

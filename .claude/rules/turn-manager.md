@@ -26,8 +26,6 @@ Intent is disambiguated **by input channel**, each gated only by "is it your tur
 
 Click dispatch lives in `PlayerInputController._on_skill_node_left_clicked` (battle plan → core-move → allocate) and `_unhandled_input` (the `D` deallocate channel). `can_player_act()` = your turn + AP > 0.
 
-> The polished AoE2-style contextual **Action Bar** (issue #60 Q2/A2: out-of-viewport square action icons with shortcut labels) is **deferred to a follow-up** — for now the `AttackModeBar` + `D`-hotkey + click-core-to-move cover the channels.
-
 ## Initiative
 
 Initiative is the **`initiative` PoolStat** on each entity's stat board (a `CyclicPoolStatDef` — see `.claude/rules/stats-system.md`). The cap is that entity's action threshold (default 100, tweakable per entity via modifiers); `current` is the clock.
@@ -143,10 +141,8 @@ child (no `game_root.tscn`) hits three gotchas together:
   (`Mitigation.apply` returns `raw.amount` unchanged for `TRUE`); the `amount`
   argument only matters for the `amount <= 0.0` early-out guard.
 - **A fixture that exercises `graph.navigator` (the GLOBAL mirror) must build
-  nodes/edges via `Graph.add_skill_node` / `Graph.add_edge`, not a raw
-  `container.add_child`** — the raw form never emits `node_added`/`edge_added`,
-  so the global mirror stays empty (see `.claude/rules/graph.md`). Bit
-  `MagicAttackPlan`'s `HopRangeFinder` targeting specifically: it traverses
-  `graph.navigator`, not the entity's own owned-subgraph mirror, so a fixture
-  that only ever populated the latter (fine for ranged/frontier tests) silently
-  produced zero valid magic targets.
+  nodes/edges via `Graph.add_skill_node` / `Graph.add_edge`, never a raw
+  `container.add_child`** — the raw form emits no `node_added`/`edge_added`, so
+  the global mirror stays empty (see `.claude/rules/graph.md`). `MagicAttackPlan`'s
+  `HopRangeFinder` traverses `graph.navigator`, not the entity's owned-subgraph
+  mirror, so a fixture that only populated the latter yields zero magic targets.

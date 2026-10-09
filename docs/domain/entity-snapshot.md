@@ -73,8 +73,8 @@ are granted only if an equal grant is not already present, tags only if not
 already held, and `StatBoard.read_dict` reconciles rather than rebuilds. That
 is what lets pass 2 re-run the board restore to absorb the node-sourced
 effects it just granted. Order between the graph and entity snapshots
-therefore does not matter; hello still has to be last (see
-`docs/domain/multiplayer-harness.md`, "Rung 2").
+therefore does not matter; hello still has to be last (send order: see
+`docs/domain/multiplayer-harness.md`, "THEN hello").
 
 ## Effects are granted BEFORE the board is restored, in each pass
 

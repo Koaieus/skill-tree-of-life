@@ -1,6 +1,6 @@
 /* Native blade PBD solver — the C++ half of #798.
  *
- * See docs/domain/melee-blade-sim.md ("Backends") and attack/melee/sim/blade_sim.gd.
+ * See docs/domain/blade-native.md ("One backend") and attack/melee/sim/blade_sim.gd.
  * This file mirrors BladeSim.simulate_range + BladeSim._step +
  * BladeDistanceConstraint.project ONLY (simulate() is the whole-swing
  * reduction of simulate_range, on both sides). BladeHitScan is deliberately not here:

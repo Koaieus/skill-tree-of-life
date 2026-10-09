@@ -28,7 +28,7 @@ default, quietly changing level generation.
 the node `name` (the node name carries Godot's `@2` uniquifier). Don't "fix" a
 `blocker` identifier you see in code.
 
-**The prune knob only goes down.** `GraphProcgenConfig.blocker_spell_prune_m` is
+**The prune knob only goes down.** `GraphProcgenBlockers.blocker_spell_prune_m` (`procgen/modules/blockers.gd`) is
 the `m` in a `n/(n+m)` pop chain over the tier's loot book; `m == 1` makes every
 outcome in `{0..n}` equally likely. Raising `m` keeps MORE spells, so kills offer
 nothing less often and spells spread FASTER — the opposite of the knob's purpose.

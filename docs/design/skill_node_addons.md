@@ -92,7 +92,7 @@ cannot simply run over. Owner rulings that shaped the shipped behaviour:
   them. Unlike Spikes' `spikes` pool (#778), which meters a *dual-use*
   addon's defensive half, Bunker is purely defensive and pays no second cost.
 
-Implementation: `docs/domain/melee-blade-sim.md`, "Bunker deflection (#781)".
+Implementation: `docs/domain/melee-blade-sim.md`, "Bunker deflection".
 
 ---
 

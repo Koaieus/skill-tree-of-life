@@ -1,1 +1,1 @@
-A sandbox-host (`addons/sandbox_host/`) live tab is an inherited scene of `sandbox_live_tab.tscn` instancing its panel under `%PanelHost` (copy `tabs/70_bloom_tab.tscn`) — never code-composed nor the legacy `panel_scene` export. See docs/domain/sandbox-framework.md
+A sandbox-host (`addons/sandbox_host/`) live tab is an inherited scene of `sandbox_live_tab.tscn` with its panel under `%PanelHost` (copy `tabs/70_bloom_tab.tscn`) — never code-composed nor the legacy `panel_scene` export. See docs/domain/sandbox-framework.md

@@ -1,10 +1,10 @@
 ---
-description: Godot project workflow — class cache refresh, scene round-trip safety
+description: Godot project workflow and engine gotchas — .tscn/.tres authoring order, class-cache refresh, uid sidecars, shaders, headless-vs-rendered verification, worktrees
 ---
 
 # Godot workflow
 
-> "*" at end of header: No need to inform user on any of this.
+> A `*` at the end of a heading marks a silent-failure gotcha: apply the fix, no need to tell the user.
 
 ## `.tscn` root node: `script = ExtResource(...)` MUST come before any `@export` override*
 
@@ -30,20 +30,35 @@ Children inside the same scene are unaffected — this only bites the root node
 of the `.tscn` itself. A test that instantiates the scene and asserts the
 property catches regressions immediately.
 
-## `@tool` scripts must guard `_ready()` with `Engine.is_editor_hint()` when they write to node properties*
+## `@tool` scripts must guard editor-time writes in `_ready()` with `Engine.is_editor_hint()`*
 
 `@tool` scripts that modify `modulate`, child-instanced `@export` vars, or
-shader parameters during `_ready()` dirty the scene on every editor load.
-Godot serialises those writes back into the `.tscn` as property overrides,
-which can accumulate cruft and lose intentional values over save/reload cycles.
-Guard anything that isn't pure visual setup:
+shader parameters during `_ready()` dirty the scene on every editor load; Godot
+serialises those writes back into the `.tscn` as property overrides. Guard the
+**writes**:
 
 ```gdscript
 func _ready() -> void:
-    if Engine.is_editor_hint():
-        return   # don't modify the scene during editor load
-    _apply_active(false)
+    if not Engine.is_editor_hint():
+        _apply_active(false)   # don't modify the scene during editor load
 ```
+
+A bare `if Engine.is_editor_hint(): return` at the top is safe only for a script
+that does nothing but visual setup. A script a live sandbox tab instantiates runs
+`_ready` with the hint TRUE, so an early return strands every subscription below
+it (GUT has hint false and never sees it). Gate the OS-facing lines individually
+— `PlayerInputController._ready` is the worked case, and
+`docs/domain/sandbox-framework.md` the rule.
+
+## A non-`@tool` script behind a `.tres`/`.tscn` an editor panel loads is a placeholder instance*
+
+Only its `@export`s read back; every method or signal touch throws *"Invalid
+access to property or key"* (naming the **node**, the wrong file) or *"placeholder
+instance"* (naming the resource). `Foo.new()` from a `@tool` caller is exempt.
+So everything reachable from a `.tres` an editor panel loads must be `@tool`;
+`check` catches only the node case, GUT neither. The gate is
+`test/unit/test_tres_scripts_are_tool.gd`. Guard in the **method**, not just
+`_ready()`: `@export` setters fire during deserialization, first.
 
 ## In a `@tool` script, never write a DERIVED value back into an `@export`*
 
@@ -138,8 +153,7 @@ uid **inline** in the `[gd_scene uid="…"]` header, so deleting a scene leaves 
 sidecar — this bites `.gd` (and imported assets), not scenes.
 
 The inverse bite, on **create**: a new `.gd` mints its `.uid` sidecar on first
-load — a headless test run counts — and the repo tracks them (392 under
-`test/unit/` alone). A branch that adds scripts must commit their sidecars too,
+load — a headless test run counts — and the repo tracks them. A branch that adds scripts must commit their sidecars too,
 or the worktree is left with untracked strays that the next checkout regenerates
 as churn (#716's two test scripts landed sidecar-less and needed a pinning chore
 commit). Sweep for `?? *.uid` in `git status` at branch-finish time.
@@ -150,64 +164,38 @@ diverge from a vendored addon over it.
 
 ## Refreshing a stale class cache — rename, rebase, or fresh worktree*
 
-The project's `.godot/global_script_class_cache.cfg` goes stale whenever the set
-of `class_name`s moves under it. Three triggers, one fix:
+`.godot/global_script_class_cache.cfg` goes stale whenever the set of
+`class_name`s moves under it: you added or renamed one, you rebased / pulled /
+ff-merged a branch whose commit did (nothing in your own tree changed — the
+surprising one), or you are in a **fresh worktree** (own gitignored `.godot/`,
+so no cache at all). Symptoms: *"Could not find type X"* on correct source, or
+**a green GUT run with a lower `Scripts`/`Tests` total**, because a script that
+cannot resolve a type is skipped silently (`.claude/rules/testing.md`). Refresh
+first; don't audit the test file.
 
-- You renamed or added a `class_name`.
-- You **rebased, pulled, or ff-merged a branch** and *someone else's* commit did.
-  Nothing in your own working tree changed, which is what makes this one
-  surprising. The swarm case: ff-merging a reviewed drone branch that added a
-  `class_name`, then running the authoritative suite in the main checkout — it
-  comes back red with hundreds of failures and it is the cache, every time.
-- You're in a **fresh worktree** — it has its own gitignored `.godot/` (see the
-  worktrees section below), so it starts with *no* cache at all.
+**`mise run test` / `test:one` / `test:dir` refresh for you** (#919): before GUT
+starts, `.mise/tasks/test` diffs the tree's `class_name` set against the cache
+(~50 ms) and, only on drift, prints `class cache stale (N new / M gone):
+refreshing…` and runs `refresh` (~12 s once per fresh worktree). Hand-run
+`mise run refresh` (or `godot --headless --editor --quit`) only for a non-test
+launch — a sandbox scene, `godot --script` — and never before `check`, which is
+itself an editor pass. Pure script edits and new files WITHOUT a `class_name`
+need no refresh. A `.gd` with a parse error and a `class_name` never enters the
+cache, so every `test` refreshes and prints the `SCRIPT ERROR` — the noise is
+the diagnosis.
 
-Two symptoms, and only the first is loud. Runtime parse fails with *"Could not
-find type X"* even though the source is correct — or **GUT reports a green run
-with a lower `Scripts`/`Tests` total**, because a script that can't resolve a
-type fails to parse and GUT skips the whole file silently
-(`.claude/rules/testing.md`). Don't go auditing the test file; refresh first.
+Two things `refresh` does not say:
 
-The cache only rebuilds when the editor enumerates the project — and **`mise
-run test` / `test:one` / `test:dir` do that for you** (#919): before GUT
-starts, `.mise/tasks/test` diffs the `class_name` set declared in the tree
-against the cache (`class_cache_drift`, ~50ms) and, only when they differ,
-prints `class cache stale (N new / M gone): refreshing…` and runs `refresh`
-itself. All three triggers above are exactly that predicate firing, so a test
-run never reads red for this reason any more; a fresh worktree's first `test`
-pays the one ~12s refresh, and a current cache pays nothing. Hand-run
-`refresh` only for a non-test launch — a sandbox scene, `godot --script` —
-and never for `check`, which is itself an editor pass:
-
-```bash
-mise run refresh      # or: godot --headless --editor --quit
-```
-
-One case keeps firing: a `.gd` with a parse error and a `class_name` never
-enters the cache, so every `test` run refreshes (12s) and prints the `SCRIPT
-ERROR` — fix the script; the noise is the diagnosis.
-
-**`refresh` reporting "nothing changed" does NOT mean the cache was already
-current.** That verdict describes *file churn* — which scenes and resources the
-editor pass re-serialized — and a cache rebuild moves no tracked file, so a run
-that just fixed your build reports exactly the same "nothing changed" as a
-no-op. Read it as "nothing for you to review or restore", never as "the cache
-was fine, so this failure must be real". **Re-run the failing thing before
-concluding anything**; the ordering that misleads is refresh-says-nothing →
-assume-cache-was-fine → go hunting a phantom regression in someone's commit.
-
-## A landed branch that ADDS an asset leaves the main checkout unable to load it until `mise run refresh`*
-
-`mise run land` runs `check` + `test:dir` inside the branch's own (warmed)
-worktree, so a new `.png`/`.svg` gets imported there and the tests pass.
-The MAIN checkout never imported it: every test that loads a resource
-chain reaching the new file then fails with `Parse Error: [ext_resource]
-referenced non-existent resource` (seen 2026-10-08 with
-`assets/icons/aspects/hex.png` — `test_manage_verbs.gd` went red through
-`identity/defs/hex.tres`). It looks like a broken commit; it is a missing
-import. **How to apply:** after landing (or pulling) a branch that adds an
-importable asset, run `mise run refresh` in the main checkout before any
-test there; a worktree created before that landing needs its own warm.
+- **"Nothing changed" describes file churn** (which scenes/resources the editor
+  re-serialized), not the cache — a rebuild moves no tracked file. It never means
+  "the cache was fine"; re-run the failing thing before concluding anything.
+- **A landed branch that ADDS an importable asset** leaves the MAIN checkout
+  unable to load it: `land` tests in the branch's own warmed worktree, the main
+  checkout never imported the `.png`/`.svg`, and tests reaching it fail with
+  `Parse Error: [ext_resource] referenced non-existent resource`
+  (`assets/icons/aspects/hex.png`, 2026-10-08). Run `mise run refresh` in the
+  main checkout after landing or pulling such a branch; an older worktree needs
+  its own warm.
 
 ## The look-alike that is NOT a stale cache: `mise run check` can miss a parse error*
 
@@ -223,7 +211,7 @@ runtime. Chasing the cache gets you nowhere, twice.
 Get the real error out of the file itself:
 
 ```bash
-godot --headless --path . --check-only --script command/world_fingerprint.gd
+mise run check-script -- command/world_fingerprint.gd
 ```
 
 That prints the parse error with a line number. Ignore any *"Identifier not
@@ -239,83 +227,35 @@ never.
 
 ## Always git status after a refresh*
 
-**Calibrate before you read the list: the expected outcome is nothing, or
-cosmetic noise.** Every possible effect below is a text diff in a git-tracked
-file — you can *see* all of it, revert it in one command, and the worst case on
-record is a handful of lines restored in under a minute. The entire protocol is
-`git diff` after the pass.
+**The expected outcome is nothing, or cosmetic noise.** Every effect is a text
+diff in a git-tracked file you can see and revert in one command. Refresh when
+you need to — also while the user has the editor open (worst case it writes
+`.uid`/import metadata the editor would have produced anyway; pause only if they
+are mid-save on the very files you touch). Don't stall, work around it, `md5sum`
+anything, or ask permission; glance at the diff and go on.
 
-So: refresh when you need to. Do not stall waiting for a safe moment, do not
-build a workaround, do not `md5sum` anything, do not ask the user for
-permission, and do not spend turns investigating a diff you can simply read.
-Attention spent here is attention taken from the implementation you're actually
-doing. Glance at the diff, check any *non-default* value that vanished against its
-script default, and get back to work.
+The editor pass re-serializes any scene or `.tres` it touches. Every effect on
+record is benign:
 
-The editor pass re-serializes any scene or `.tres` it briefly touches. Every
-git-visible effect on record has been cosmetic or benign:
-
-- **Default-elision** — a pass over `procgen/pools/*.tres` dropped
-  `operation = 0`, `archetype_stat = &""`, `unit_value = 1.0`, `min_tier = 1`
-  and added `uid=` to ext_resources: 95 deletions across 8 files, alarming at a
-  glance. Every dropped line equalled its class default, and non-default values
-  (`max_tier = 2`) were **kept**. Godot omits defaults on re-serialize —
-  semantically identical.
-- **A shifted default does this on its own, with no editor pass involved** —
-  `e521ac2` dropped `max_hops = 3` from `spark.tres` because
-  `hop_range_finder.gd` declares `@export var max_hops: int = 3`. The stored
-  value met the default, so the line stopped being written; runtime unchanged.
-  The mirror case *adds* a line when a default moves away from a stored value.
-- **Regenerated sub_resource ids** — `Resource_umwfs` → `Resource_qrijo`, with
-  the consumer reference updated in lockstep (cosmetic, but noise).
-- **Position normalisation** — node positions tweaked by a few pixels if the
-  editor briefly re-laid out something.
+- **Default-elision** — properties equal to their script's *current* default
+  are dropped (`operation = 0`, `unit_value = 1.0`, …) and `uid=` is added to
+  ext_resources; non-default values are kept. **A shifted default does this
+  with no editor pass at all** (`e521ac2` dropped `max_hops = 3` from
+  `spark.tres` once the script declared that default); the mirror case adds a line.
+- **Regenerated sub_resource ids** (`Resource_umwfs` → `Resource_qrijo`, consumer
+  updated in lockstep) and **node positions** nudged by a few pixels.
 
 **No committed instance of the editor destroying a non-default value has ever
-been found.** This section asserted two; both were audited out 2026-08-29 —
-`ed73af65` ("…stripped by editor") is a no-op against its parent `00a3f442`,
-and `UIRoot` is present unchanged in `1d3ca92`. Neither loss reached git.
+been found** (the two once-cited cases were audited out, 2026-08-29). If one
+seems to have vanished, check its `@export` default **at that sha**
+(`git show <sha>:script.gd`): equal → elision, safe; different → the first
+evidenced case, record the sha. Don't commit these in an unrelated change —
+revert them or commit them alone as normalization.
 
-So if a non-default value vanished, check its `@export` default **at that sha**
-(`git show <sha>:script.gd`) before concluding anything: equal → elision, safe;
-different → you have the first evidenced case, record the sha. Nobody ran that
-command for two and a half months, and "restore it" is what produced
-`ed73af65` — a no-op written up as a witnessed incident.
-
-These re-appear on every editor pass, so don't fold them into an unrelated
-commit: either revert them, or commit them alone as normalization.
-
-The whole protocol:
-
-```bash
-mise run refresh
-```
-
-It runs the pass, excludes pre-existing dirt, and hands back a verdict —
-`✓ refresh done — nothing changed`, or a grouped report separating benign
-sidecar/`.import` churn from authored files, listing **only the non-trivial
-lines removed**. That list is the entire judgement call; everything else it
-already classified for you. Don't hand-diff unless it points you somewhere.
-
-## Refreshing while the user has the editor open — just do it
-
-Don't stall work waiting for the user to close the editor. A refresh pass
-alongside an open editor is normal: worst case it regenerates `.uid` files
-and import metadata, which are git-tracked and need committing anyway, and
-which the open editor would have produced itself on its next start.
-
-The round-trip diff the section above documents is the same whether or not an
-editor is open, and `git diff` covers both. So: run it, then diff.
-
-Only pause for confirmation if the user is mid-save on the very files you're
-about to touch.
-
-### When the refresh is safe to skip
-
-Pure script changes (function body edits, new methods, new files
-WITHOUT a new `class_name`) don't need a refresh — the runtime parses
-those fresh. Only `class_name` introduction / rename / removal requires
-the cache to be rebuilt.
+`mise run refresh` runs the pass, excludes pre-existing dirt, and prints either
+`✓ refresh done — nothing changed` or a grouped report separating benign
+sidecar/`.import` churn from authored files, listing only the non-trivial lines
+removed. That list is the whole judgement call.
 
 ## Verifying `.gdshader` changes — headless import does NOT compile GLSL*
 
@@ -332,28 +272,16 @@ ERROR: ... Fragment shader compilation failed / no matching function ...
   compile_stages() servers/rendering/renderer_rd/shader_rd.cpp
 ```
 
-The node just renders its untextured fallback (a white quad). To actually
-compile shaders headlessly, drive a real backend under a virtual display:
+The node just renders its untextured fallback (a white quad). To compile
+shaders for real, run the scene under the xvfb + opengl3 recipe in "Capturing a
+real rendered frame" below and `grep -iE 'compilation failed|no matching'` the
+output (empty = clean). The bug is in Godot's shader codegen, so it reproduces
+on opengl3/llvmpipe even though production uses RD/Vulkan.
 
-```bash
-xvfb-run -a godot --path . --rendering-driver opengl3 --quit-after 30 \
-  res://path/to/scene_using_the_shader.tscn 2>&1 | grep -iE 'compilation failed|no matching'
-```
-
-opengl3 (mesa/llvmpipe) needs no GPU and surfaces the codegen error even though
-production uses the RD/Vulkan backend — the bug is in Godot's shader codegen, so
-it reproduces on either backend. Empty grep = compiles clean.
-
-`mise run check-shaders` (#682) walks every `.gdshader`/`.gdshaderinc` in the
-repo and is a real gate — worth running before reaching for the manual
-`xvfb-run` recipe above. But it stays on the plain `--headless` dummy
-renderer for speed, so it only proves the tier this file's own examples
-distinguish: GDSL parse/type errors (an undefined function call, a name
-collision) surface there too, confirmed by injection. The **silent codegen
-miscompile** this section opened with — valid-looking GDSL whose generated
-GLSL is broken only at the backend compile step — is a different tier, and a
-green `check-shaders` says nothing about it. That bug class still needs this
-section's `xvfb-run … --rendering-driver opengl3` recipe.
+`mise run check-shaders` (#682) walks every `.gdshader`/`.gdshaderinc` and gates
+GDSL parse/type errors (undefined function, name collision) on the dummy
+renderer. It says nothing about the silent codegen miscompile above, which
+needs the rendered recipe.
 
 ## Hand-authoring `.tres` — UID mismatch silently nulls the field*
 
@@ -399,17 +327,17 @@ Three knobs, and only one of them is scoped:
 - **`multichannel_signed_distance_field`** is scale-free and was the obvious
   answer, but Cinzel's space glyph renders a visible stray dash under MSDF at
   every `msdf_size` / `msdf_pixel_range` combination tried (48–64 / 2–8).
-- **Per-Label supersampling** is the scoped version of the first: set
-  `font_size * N`, `scale = 1/N`, and lay the box out in raster units — a
+- **Per-Label supersampling** is the scoped version of the first (the answer):
+  set `font_size * N`, `scale = 1/N`, and lay the box out in raster units — a
   `Control` scales about its own `position`, so centring must still use the DRAWN
-  width. `MenuNodeView._supersample_caption` is the worked example.
+  width.
 
 **`generate_mipmaps` is inert on its own.** Godot's default canvas filter has no
 mipmap stage, so the mipmaps are never sampled until a CanvasItem sets
 `texture_filter = 4` (`LINEAR_WITH_MIPMAPS`). That pair is what fixes the
 *minified* case; supersampling only fixes the magnified one.
 
-Judge all of this by screenshot (below) — the headless suite cannot see it.
+Judge all of this by screenshot ("Capturing a real rendered frame") — the headless suite cannot see it.
 
 ## Hand-authoring `.tres` — two parser gotchas
 
@@ -443,7 +371,7 @@ keyed on an object that might be freed the same frame, either do the work
 synchronously or guarantee the free is ordered after it. See
 [entity-death.md](../../.claude/rules/entity-death.md).
 
-### Typed variable + freed dict entry = crash before is_instance_valid*
+## Typed variable + freed dict entry = crash before is_instance_valid*
 
 `var t: FloaterToaster = dict.get(key)` — if the dict holds a freed instance,
 the typed assignment crashes before `is_instance_valid` gets a chance to run.
@@ -454,47 +382,16 @@ var stored = dict.get(key)
 var t: MyType = stored if is_instance_valid(stored) else null
 ```
 
-### Git
-## `gh --body "..."` with backticks corrupts the comment — always use `--body-file`
-A double-quoted shell string runs command substitution on backticks. Posting a
-comment containing `` `NodeStatBoard extends StatBoard` `` silently deleted that
-span (zsh ran it as a command, it failed, the empty result was substituted) and
-published the mangled text. No error from `gh` — the corruption is only visible
-by reading the posted comment back. Since issue bodies and comments here are full
-of `` `code` `` spans, write a heredoc to the scratchpad and pass `--body-file`.
-Recoverable with `gh issue comment <n> --edit-last --body-file`.
+## Worktrees
 
-## Closing an issue?
-Mention "Closes #{id}" in the commit message. Only fires on push — users already know this.
-## Worktrees (#86)
-Use `mise run worktree:new -- <issue|name>` / `worktree:ls` / `worktree:rm -- <fuzzy>`
-(see `mise.toml`) to get an isolated checkout under `.worktrees/<slug>/`
-instead of editing the main checkout directly. The `warp` skill
-(`.claude/skills/warp/SKILL.md`) drives the full issue → worktree →
-implement → approval → merge → close → teardown cycle on top of these tasks.
-
-For a pre-planned issue that splits into file-disjoint units, the `swarm` skill
-(`.claude/skills/swarm/SKILL.md`) fans that cycle out across parallel subagents —
-Opus orchestrates, Sonnet/Haiku execute, each spawned as the `drone`
-agent (`.claude/agents/drone.md`). Those workers make their own worktree with
-`mise run worktree:new` as their first action — they are dispatched without
-harness isolation, into the shared main checkout.
-
-Each worktree has its own gitignored `.godot/` — confirmed empirically (#86
-spike) that a fresh worktree's cold `godot --headless --editor` import
-neither touches nor corrupts the main checkout's `.godot/`, and is fully
-independent (own import cache, own class cache).
-
-`worktree:new` pays that cold import itself, right after seeding the native
-binary: it runs `refresh` then `check` inside the new worktree (never the
-main checkout, so it can't write there), printing a compact verdict —
-`✓ check green on <sha>` or `✗ check failed — <first failing line> · full
-log: <path>` — instead of either task's raw output, so the worktree lands
-ready to edit with no follow-up command. `--no-warm` (or `NO_WARM=1`,
-anywhere after the issue/name arg) skips both, and a failed warm-up or check
-only warns rather than failing worktree creation — either way a worktree
-without a warm, checked cache still pays the same cold import on its first
-real `check`/`test`, just later and less predictably labeled.
+`mise run worktree:new -- <issue|name>` / `worktree:ls` / `worktree:rm -- <fuzzy>`
+give an isolated checkout under `.worktrees/<slug>/`; the `warp` and `swarm`
+skills drive the cycle on top (swarm drones make their own worktree as their
+first action). Each worktree has its own gitignored `.godot/` (own import and
+class cache; its cold import never touches the main checkout's), and
+`worktree:new` pays it up front — `refresh` then `check` inside the new
+worktree, one verdict line; `--no-warm` / `NO_WARM=1` skips both. Closing
+keywords and `gh --body-file`: `docs/domain/issue-workflow.md`.
 
 ## `godot --script` does not boot autoloads — use a GUT test to inspect scene state
 
@@ -520,33 +417,21 @@ inspecting once it is usually worth pinning, so the test is rarely wasted work.
 `--script` remains fine for anything that touches no game code: probing an engine
 API, sampling a `Curve`, checking `Image` formats.
 
-## Screenshotting the running game (for anything the headless suite can't judge)
+## A hairline in `_draw` must snap to the VIEWPORT's screen grid*
 
-Glow, z-order, fog, and shader output are invisible to GUT — the dummy renderer
-no-ops MultiMesh instance writes and never compiles GLSL. To get a real frame:
+Godot's 2D canvas does not antialias filled geometry — a pixel is covered iff its
+**centre** is inside the span — so a 1px line landing between two centres draws
+nothing. Snapping to whole pixels only helps on the *screen* grid, and under
+`canvas_items` stretch (1440x960 base) a differently-sized window rescales the
+canvas on the way out. Only `get_viewport().get_screen_transform()` carries that
+rescale; `get_global_transform_with_canvas()` and the [CanvasLayer]'s own
+`get_screen_transform()` both report identity (probed 2026-08-24).
 
-```bash
-Xvfb :99 -screen 0 1600x1000x24 & sleep 3
-DISPLAY=:99 godot --path . --rendering-driver opengl3 res://scenes/dev_sandbox.tscn &
-sleep 25                       # let the scene settle
-DISPLAY=:99 import -window root shot.png
-```
-
-`--quit-after N` counts *frames*, not seconds, and will often quit before the
-scene has settled — prefer `sleep` + an explicit `kill`.
-
-For a before/after on a visual change, shoot both, then compare numerically
-rather than by eye — ImageMagick over a small crop makes it objective:
-
-```bash
-magick shot.png -crop 60x35+765+760 +repage -format "mean=%[fx:mean] max=%[fx:maxima]" info:
-```
-
-This is how the self-loop HDR lift was verified: `max` went 0.592 → 1.000
-(i.e. it now crosses `glow_hdr_threshold` at all) and the regional `mean`
-roughly doubled, which is the bloom halo bleeding into neighbouring pixels.
-A `max` below 1.0 is proof that nothing can bloom, whatever the CPU-side colour
-function returns.
+**How to apply:** compose by hand — `get_viewport().get_screen_transform() *
+get_global_transform_with_canvas()` — `round()` the rect in that space, draw
+filled spans, transform back (`MinimapViewportRectLayer`). **Symptom:** a 1px
+edge vanishing at certain coordinates on one axis only, that a window resize or
+refocus makes come and go.
 
 ## `Rect2.has_point` is half-open; a zero-size `Rect2` contains nothing*
 
@@ -582,19 +467,17 @@ pushed. The assert therefore passes when the code under test wrote an all-zero
 transform, wrote nothing at all, or wrote the right thing — it cannot tell the
 three apart, in either direction.
 
-This is not hypothetical. It is exactly the blind spot that let **#413 ship
-invisible edges** past every headless probe: the whole batched-edge render path
-was verified by a suite that could not see it.
+This blind spot let **#413 ship invisible edges** past every headless probe.
 
 **Instead, expose the computation as a pure function and assert that.**
 `ui/frontmatter/menu_edge_view.gd` is the pattern — `segment_transform(from, to)`
-and `instance_transform()` are static/pure, fully testable, and the
+and `segment_instance_transform(index)` are static/pure, fully testable, and the
 `set_instance_transform_2d` call site shrinks to a one-liner with nothing left
 to get wrong:
 
 ```gdscript
-func _push_transform() -> void:
-	multimesh.set_instance_transform_2d(0, instance_transform())
+for i in curve_segments:
+    multimesh.set_instance_transform_2d(i, segment_instance_transform(i))
 ```
 
 Instance **colours and custom data do** round-trip today. Do not lean on it —
@@ -602,8 +485,7 @@ the same driver owns them, and nothing guarantees the asymmetry survives an
 engine bump.
 
 Anything that must be verified as *actually drawn* needs a real frame — see
-"Screenshotting the running game" above. Headless can verify the arithmetic that
-feeds the GPU; it cannot verify that the GPU did anything with it.
+"Capturing a real rendered frame".
 
 ## `add_child` fails SILENTLY on a busy parent — and a directly-run scene has `root` busy*
 
@@ -616,13 +498,9 @@ DIRECTLY: F6 in the editor, or `run/main_scene`. So any `_ready()` in that scene
 which reaches for `get_tree().root.add_child(...)` is doing it inside the one
 window where it cannot succeed.
 
-This shipped as a real crash (#589/C1): `MenuFanHarness.measure()` parents itself
-to `root` for one synchronous call, because `Container.fit_child_in_rect()`
-early-returns on anything not `is_visible_in_tree()` and a detached Control
-measures every rect as `0x0`. On a direct run it never parented — and the first
-symptom was a null `get_parent()` three calls later, then a missing dictionary
-key, then an assertion naming an unrelated thing. **None of the three errors
-named the cause.**
+Real crash (#589/C1): `MenuFanHarness.measure()` parented itself to `root` (a
+detached Control measures every rect as `0x0`); on a direct run it never
+parented, and the errors that followed named an unrelated thing.
 
 **How to apply.** If you need a temporary in-tree host during `_ready`:
 
@@ -639,36 +517,42 @@ Deferring the work (`build.call_deferred()`) also fixes the direct run, and was
 rejected here: it breaks every test that rightly expects the scene to be usable
 once `_ready()` returns.
 
-## Capturing a real rendered frame headlessly — xvfb + opengl3 + x11*
+## Capturing a real rendered frame — xvfb + opengl3 + x11*
 
-`--headless` renders nothing (dummy driver), so it cannot answer "does this look
-right". To get real pixels without opening a window on the user's desktop:
+`--headless` uses the dummy renderer, which never compiles GLSL and no-ops
+MultiMesh writes — glow, z-order, fog and shader output are invisible to GUT.
+For real pixels (or real shader compilation) without a window on the user's
+desktop:
 
 ```
 timeout 60 xvfb-run -a -s "-screen 0 1440x960x24" godot --path . <scene.tscn> \
     --rendering-driver opengl3 --display-driver x11 --quit-after 180
 ```
 
-Both flags are load-bearing. **Vulkan does not work under Xvfb** — it fails with
-*"None of the devices supports both graphics and present queues"* — and without
-`--display-driver x11` Godot tries Wayland first and dies on
-*"Can't connect to a Wayland display"*.
+Both flags are load-bearing. **Vulkan does not work under Xvfb** (*"None of the
+devices supports both graphics and present queues"*) and without
+`--display-driver x11` Godot tries Wayland and dies (*"Can't connect to a
+Wayland display"*). `--quit-after N` counts *frames*, not seconds; for a
+long-settling scene start `Xvfb :99` by hand, `sleep`, `import -window root
+shot.png` and `kill`.
 
-To screenshot rather than just check for errors, run a throwaway scene that
-instantiates the target, `await RenderingServer.frame_post_draw`, then
-`get_viewport().get_texture().get_image().save_png(...)`. Two gotchas:
+To screenshot from code, run a throwaway scene that instantiates the target,
+`await RenderingServer.frame_post_draw`, then
+`get_viewport().get_texture().get_image().save_png(...)`; delete it afterwards.
 
-- **`add_child` the target deferred** (`add_child.call_deferred`) — see the
-  section above; doing it inline reproduces the busy-parent failure.
-- **`Input.action_press()` does not drive `_input`/`_unhandled_input`.** A splash
-  or menu waiting on a real event will not advance. Use
-  `Input.parse_input_event()` with an actual `InputEventKey`, pressed then
-  released.
+- **`add_child` the target deferred** (`add_child.call_deferred`) — inline
+  reproduces the busy-parent failure above.
+- **`Input.action_press()` does not drive `_input`/`_unhandled_input`**; use
+  `Input.parse_input_event()` with a real `InputEventKey`, pressed then released.
 
-**Why it matters.** A green suite proves the mechanism, not the picture. The
-#589 swarm shipped six units with the suite green throughout while the menu
-crashed on every direct run, and while one unit's headline visual change was
-invisible on screen. Delete the throwaway scene + script afterwards.
+For a before/after, compare numerically over a small crop:
+
+```bash
+magick shot.png -crop 60x35+765+760 +repage -format "mean=%[fx:mean] max=%[fx:maxima]" info:
+```
+
+A `max` below 1.0 is proof nothing can bloom, whatever the CPU-side colour
+function returns. A green suite proves the mechanism, not the picture (#589).
 
 ## A `:=`-inferred var fed by `Dictionary.keys()`/`.values()` compiles under `check` but fails under GUT*
 

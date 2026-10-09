@@ -73,33 +73,28 @@ momentary ignition-flash overshoot that relaxes back down, never a resting
 state. Reach for a hand-picked float above `alert` and you're re-deriving this
 tier; name it instead.
 
-### `glow_intensity` defaults to 0.3 — budget for it before tiering harder
+### `glow_intensity` sets how much of the excess shows — budget for it before tiering harder
 
-Confirmed 2026-08-08 (#391 third follow-up): `Environment.glow_intensity`'s
-class default is `0.3`, and `ui/theme/default_game_env.tres` didn't override it
-until this fix. At that intensity, a tier that is genuinely above threshold
-still reads as *faint-to-invisible* — which is easy to misdiagnose as "this
-element still isn't blooming" and "fix" by cranking the element's own EV stops
-past `alert`, one surface at a time, forever.
+`Environment.glow_intensity` scales how much of a tier's over-threshold excess
+reaches the screen. Too low, a tier that is genuinely above threshold reads
+*faint-to-invisible*, which is easy to misdiagnose as "this element isn't
+blooming" and "fix" by cranking the element's own EV stops past `alert`, one
+surface at a time, forever.
 
 The concrete trap: `Emissive.at(base, ALERT)` on a **non-white, mid-saturation
 base** (an archetype tint, not `Color.WHITE`) is nowhere near as bright as the
-stop table above implies — sRGB decode is steep at midtones. A channel encoded
-at `0.78` (a typical mid-tint archetype green) decodes to linear `~0.57`; at
-`alert` (×4) that's linear `~2.26` — genuinely over the `1.0` threshold, but at
-`glow_intensity = 0.3` the excess (`~1.26 × 0.3 ≈ 0.38`) barely registers.
-Bumping to `+3`/`+4` stops (linear `~4.5`/`~9.1`) pushes the *same* weak
-intensity into visible range — which is exactly the "nothing at ALERT, medium
-at +3, great at +4" ladder that first surfaces this bug. **The fix is
+stop table above implies, because sRGB decode is steep at midtones. A channel
+encoded at `0.78` (a typical mid-tint archetype green) decodes to linear `~0.57`;
+at `alert` (x4) that is linear `~2.26`, over the `1.0` threshold, but at a low
+intensity the excess barely registers. Bumping to `+3`/`+4` stops (linear
+`~4.5`/`~9.1`) pushes the same weak intensity into visible range: the "nothing at
+ALERT, medium at +3, great at +4" ladder is this bug. **The fix is
 `glow_intensity`, not another stop.**
 
-`default_game_env.tres`'s current value is an owner tuning call and has moved
-more than once — **read the file, don't trust a number quoted here.** If it
-omits `glow_intensity` entirely that is not a lost setting: Godot omits any
-property equal to its default, and `0.3` *is* the default, so "the line is
-gone" and "the owner chose 0.3" look identical in a diff. Do not reconstruct a
-deletion from `git log` and call it a regression — that misread cost a session
-on 2026-09-01.
+`ui/theme/default_game_env.tres` sets the shipped value (read the file, not a
+number quoted here). Godot omits any property equal to its script's default, so a
+missing `glow_intensity` line and a deliberately chosen default look identical in
+a diff; do not reconstruct a deletion from `git log` and call it a regression.
 
 ### A thin/small element needs real pixel coverage, not just a hot colour
 
@@ -107,17 +102,16 @@ Bloom's wider mips (`glow_levels/4..7`) are built by repeatedly *downsampling*
 the frame — a feature smaller than a handful of pixels is gone before it
 reaches them, no matter how far over threshold its colour is. A `FanTrace` pad
 sprite at an 8px texture × `0.4` scale (a ~3px dot) or a 2px `Line2D` hairline
-both under-supply coverage for a "big" glow read; #391's fix widened the line
-to 3px and grew the pad's resting scale to `0.65` (~5px) once `glow_intensity`
-was no longer the confound. Judge sprite/stroke size against the *rendered*
+both under-supply coverage for a "big" glow read; the shipped trace uses a 3px
+line and a pad at resting scale `0.65` (~5px). Judge sprite/stroke size against the *rendered*
 pixel footprint at the scale it's actually shown, not the source texture size.
 
 ### Coverage is on-screen pixels — a world-space element's zoom level counts
 
 The pixel-coverage floor above is about screen pixels, not world/texture
 units, so anything drawn in world space (`Graph`'s `Edge`, not a screen-space
-`Control`) changes its own coverage as the camera zooms. Confirmed empirically
-(2026-08-08, `graph/edge.gd`'s `lit_glow_stops`) on a 2.5px-wide lit `Line2D`:
+`Control`) changes its own coverage as the camera zooms. Observed
+on `graph/edge.gd`'s `lit_glow_stops` (a 2.5px-wide lit `Line2D`):
 at `ALERT` (`2.0` stops) it only blooms near max camera zoom (~×2.0) — zoomed
 out to 1× or less, the same line covers too few screen pixels and reads
 inert. At `PEAK` (`3.0`) it blooms across most zoom levels but blows out at
@@ -127,8 +121,7 @@ error with the sandbox as the feedback loop — is the empirical middle ground
 for *this* line width; it isn't derived from anything reasoned and doesn't
 generalize to a different width without retesting.
 
-**#399 answered the first of two open questions this raised**: `Edge.width` is
-now authored in screen pixels and held constant across camera zoom —
+`Edge.width` is authored in screen pixels and held constant across camera zoom —
 the global `edge_camera_zoom` shader parameter (written once per zoom step
 by `GraphCamera`, not per frame) divides the
 authored width by the current zoom so the rendered `Line2D`/self-loop
@@ -154,9 +147,8 @@ runtime.**
 
 ### The editor's 2D canvas zoom reintroduces the same problem for a `Control`
 
-Confirmed 2026-08-08, tuning `ModSlabRow`/`SlabPanel`'s border glow: at 100%
-editor zoom a value read as barely-lit; at 500% the same scene went solid
-white. The claim above ("a screen-space Control's coverage is zoom-invariant")
+At 100% editor zoom a `SlabPanel` border-glow value reads as barely lit; at 500%
+the same scene goes solid white. The claim above ("a screen-space Control's coverage is zoom-invariant")
 is only true of the *game window* — the Godot 2D editor's zoom tool scales how
 many actual framebuffer pixels a node's geometry rasterizes to within the
 editor viewport's fixed resolution, exactly like a world-space camera zoom.
@@ -223,13 +215,12 @@ it does **not** equalize how bright different hues read at the same stop
 count. Bloom thresholds per channel, and Rec.709 luma weights blue ten times
 lower than green (`0.0722` vs `0.7152`), so a blue-dominant tint can sit at
 its own max channel value and still contribute far less to the glow pass than
-an evenly-spread or green/red-dominant tint at the same `stops`. Confirmed
-empirically 2026-08-08 tuning `SlabPanel`'s stroke against real `StatDef`
-archetype tints (not a placeholder grey — see the pixel-coverage section
-above for that separate confound): STR's red (`Color(0.9451, 0.2689,
+an evenly-spread or green/red-dominant tint at the same `stops`. Against real
+`StatDef` archetype tints (not a placeholder grey — see the pixel-coverage
+section above for that separate confound), STR's red (`Color(0.9451, 0.2689,
 0.2453)`, linear luminance ≈0.23) and INT's blue (`Color(0.291, 0.5892,
-1.0)`, linear luminance ≈0.31) needed visibly different raw `glow_energy` to
-"properly bloom" even at the same nominal tier.
+1.0)`, linear luminance ≈0.31) need visibly different raw `glow_energy` to
+"properly bloom" at the same nominal tier.
 
 `Emissive.tint(base, stops)` fixes this for a **single-tint** element: it
 rescales `base` to Rec.709 luminance 1.0 (keeping hue/chroma, discarding how
@@ -257,24 +248,25 @@ scales every channel by ~17x:
 Green and blue at ~1.0 are **full display white on their own**, before the
 element is composited at all. On a thin stroke nobody notices. On a wide area —
 and especially under `blend_add`, where the background is added on top of that —
-the result reads as a *white* frame with a coloured bloom halo. This is what
-sank #412's first cut of the armed-mode viewport glow at `band_px = 140`; owner
-verdict: "WAY TOO MUCH WHITE", and the only tuning that helped was collapsing
-the band to ~13px, i.e. shrinking the white rather than fixing it.
+the result reads as a *white* frame with a coloured bloom halo (the armed-mode
+viewport glow at `band_px = 140` read as "way too much white"; only collapsing the
+band to ~13px helped, which shrinks the white rather than fixing it).
 
 `tint_peak()` normalizes by the **peak channel**, so the dominant channel lands
-on the tier and the others stay proportional — a 4x cut to the off-hue channels
-for red, and the glow reads red. Adopted 2026-08-21; it was a documented
-candidate awaiting exactly this live comparison.
+on the tier and the others stay proportional: a 4x cut to the off-hue channels
+for red, and the glow reads red. `tint_peak` is the large-area/additive choice.
+
+`tint_damped()` is the midpoint between `at()` (no correction) and `tint()` (full
+luminance correction): it applies the luminance correction at half strength,
+`factor = 2^stops / sqrt(luminance)`. It is used where a per-entity hue must lift
+without over-blooming (the aura overlays).
 
 **Rule of thumb:** thin stroke or single widget → `tint()`. Large area, or
 additive blending → `tint_peak()`. Neither is a substitute for looking at it.
 
-**The tier is the VIEW's to pick, not the model's.** #412 first put the
-`Emissive` call in the attack level (then `AttackPlanArmedMode`, now `AttackPlanMode`) alongside the hue lookup, which left
-no knob to turn when the result was too hot — the owner's first ask on seeing it
-was for a brightness slider. The armed stack now returns the authored
-`StatDef.tint_color` unlifted and `ArmedModeGlow` applies the tier, exposed as
+**The tier is the VIEW's to pick, not the model's.** The armed stack returns the
+authored `StatDef.tint_color` unlifted and `ArmedModeGlow` applies the tier,
+exposed as
 `@export_range(0.0, 3.0) var glow_stops` in **stops**, with the named tiers as
 its landmarks. Do the same anywhere a tier needs tuning: a slider in stops is
 still the sanctioned unit, and it exists so you can find out *which tier*, not
@@ -289,7 +281,7 @@ without desaturating the palette entry itself.
 **`Edge`'s lit-line glow cannot take this fix.** A lit edge can connect two
 *different*-archetype endpoints (the gradient's whole point), but
 `Emissive.tint()`'s normalization factor is per-hue — it would need to live
-per-vertex in the `Gradient` stops, and #391 already established that HDR
+per-vertex in the `Gradient` stops, and HDR
 `Gradient` stops don't reach the bloom pass correctly on a `Line2D` (that's
 *why* the lift lives in `self_modulate` — one value for the whole node —
 instead of the gradient in the first place). `self_modulate` can't carry two
@@ -299,7 +291,7 @@ line width, not equalized across the hues it might carry — the same
 "probe, don't derive" caveat the pixel-coverage section above already gives
 it.
 
-## Where the pass is mounted (landed 2026-08-07)
+## Where the pass is mounted
 
 **Bloom is one full-screen pass per *viewport*.** The `Environment` lives in
 `ui/theme/default_game_env.tres` — one file, one dial, shared by every surface.
@@ -360,15 +352,12 @@ All seven fail with no error and no warning. In diagnosis order:
    with nothing on screen saying so. At that threshold the `VALUE` tier (linear
    ≈1.42) is *below* the floor, so every surface in the project up to `ALERT`
    goes inert — and with almost nothing lit, dragging Intensity or Strength then
-   appears to do nothing either, because there is nothing to amplify. Observed
-   2026-08-07; it is what the Bloom tab's "the sliders are inert" report turned
-   out to be. **Check `git diff ui/theme/default_game_env.tres` first**, before
+   appears to do nothing either, because there is nothing to amplify. **Check `git diff ui/theme/default_game_env.tres` first**, before
    believing a scene or a viewport is at fault.
 
-   Related, and the reason the failure is easy to walk into: the file omits
-   `glow_intensity`, so it runs at Godot's default `0.3` — low. Intensity is the
-   knob for *bloom present but weak*; threshold is the knob that makes it
-   **absent**. Reaching for the wrong one is how a threshold ends up at 1.53.
+   Intensity is the knob for *bloom present but weak*; threshold is the knob that
+   makes it **absent**. Reaching for the wrong one is how a threshold ends up at
+   1.53.
 5. **Porting `Emissive.at()`'s sRGB round trip into a shader, where the base is
    a `source_color` uniform that is ALREADY LINEAR.** The renderer decodes
    `source_color` uniforms on upload, so in GLSL the whole lift is
@@ -387,8 +376,7 @@ All seven fail with no error and no warning. In diagnosis order:
    #389 fix), `ui/tooltip_fan/slab_panel.gdshader:33`, and
    `ui/attack_mode_bar/attack_mode_button_text.gdshader` (`fd91d18`).
    **`ui/theme/fused_panel.gdshader` still carries the round trip** — it is the
-   one wrong exemplar in the tree, and copying it is how this was reintroduced
-   on 2026-09-01. Correcting it needs its authored `glow_energy` values
+   one wrong exemplar in the tree, and copying it reintroduces the bug. Correcting it needs its authored `glow_energy` values
    re-tuned down, so it is a look call, not a drop-in fix.
 6. **A SubViewport in an editor dock inherits the editor's "environments
    disabled".** A viewport's environment mode defaults to `INHERIT` — it takes
@@ -406,16 +394,10 @@ All seven fail with no error and no warning. In diagnosis order:
    )
    ```
 
-   **History, because this line was removed once and cost a second session.**
-   6014649 added it while the Bloom panel was still `add_child`ed from an
-   `@export` — non-scenic composition in place — and the tab bloomed. 9dcc89c
-   then baked the panel into its tab scene, observed bloom (with the forcing
-   still live), concluded baking was the cause, and reverted the forcing as "a
-   guess carrying a wrong rationale". The tab went inert again; restoring the
-   forcing fixed it, verified 2026-08-08. **Scenic baking is not what makes the
-   glow pass run.** Keep baking anyway — `.claude/rules/sandbox-host.md` wants it
-   for its own reasons (`%PanelHost` adoption, reload-as-cold-open) — but never
-   credit it with this.
+   Baking the panel into its tab scene is not what makes the glow pass run;
+   removing this forcing leaves the tab inert. Keep baking anyway
+   (`.claude/rules/sandbox-host.md` wants it for `%PanelHost` adoption and
+   reload-as-cold-open), but never credit it with this.
 
    It is the most expensive of them to diagnose because **every reading you
    can take is green**: `use_hdr_2d`, `own_world_3d`, `render_target_update_mode`,
@@ -468,12 +450,15 @@ resource. (General `.tres` hazards: `.claude/rules/godot-tres-authoring.md`.)
 ### Glow levels are the shape knob, not intensity
 
 `glow_levels/1..7` are mip weights: level 1 is the tightest radius, 7 the widest.
-With only 1–4 enabled (the obvious-looking default) glow pools **inside letter
-counters and at stroke intersections** — it only accumulates where lit pixels are
-already dense, which reads as grime rather than as light. Weighting outward
-(`0.5 / 0.9 / 1.0 / 1.0 / 0.7 / 0.3`) gives a rim instead.
+Enabled low levels alone make glow pool **inside letter counters and at stroke
+intersections** (it only accumulates where lit pixels are already dense), which
+reads as grime rather than light; weighting outward gives a rim. The shipped
+`ui/theme/default_game_env.tres` sets levels 1-4 to `0.7 / 0.5 / 0.05 / 0.0` and
+`glow_intensity = 0.4`; read the file for the current values. Keep the principle:
+levels shape the glow, intensity scales it, and the threshold decides whether it
+exists at all.
 
-Judge that against **thin strokes**, not solid swatches. A 100×40 filled rect at
+Judge that against **thin strokes**, not solid swatches. A 100x40 filled rect at
 +3 blows out into a blob under settings that look right on text and rim arcs.
 
 ### Alpha is the fade channel; colour value is the dimmer

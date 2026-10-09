@@ -6,7 +6,7 @@ extends Node2D
 ## UNDER the crisp role/selection rings (NodeHighlightOverlay), which carry
 ## mechanical meaning (ORIGIN / TARGET / IN_RANGE / reachable). Two registers,
 ## two meanings, no clash — and hover composes with ANY role instead of needing
-## a merged state per combination. See `.claude/rules/skill-node-visuals.md`.
+## a merged state per combination. See `docs/domain/skillnode-visuals.md`.
 ##
 ## The glow shape lives in a shared [GlowStyle] resource (one `@export`, not a
 ## setter per knob): editing the style in the inspector auto-emits `changed`,

@@ -1,35 +1,36 @@
 # Node HP
 
 Per-node combat HP is a `PoolStat` (id `node_health`, def `node_combat_health`)
-on `SkillNode.node_board` — see `.claude/rules/stats-system.md` → "Local
+on `SkillNode.node_board` — see `docs/domain/stats-system.md` → "Pool
 stats" → "Node combat health" for the board-level mechanics. This document
 covers the parts that live outside the stat pipeline: `regen_stacks` and how
 turn-start regen (D-9) and the CoreClass aura (D-10) apply on top of it.
 
 ## Current shape
 
-- `SkillNode.get_max_hp()` / `get_current_hp()` — thin reads of the
-  `node_health` PoolStat's `.value` / `.current`.
-- `SkillNode.refill()` — restores the pool to full. Fires **only** on
-  allocation (`_refresh_hp_binding`, silent) now — see "Turn-start regen"
-  below for why the turn-start call was removed.
-- `SkillNode.take_damage(amount, source)` — applies `Mitigation.apply`, soaks
-  against the pool, routes overflow to `owned_by.stat_board.health` iff this
-  is a core node, emits `damaged` + `Events.skill_node_damaged`, emits
-  `depleted` + `Events.skill_node_depleted` on zero. Also sets
-  `_damaged_since_upkeep = true` whenever a hit actually reduces HP (soaked
-  > 0) — this is what gates the next turn's regen.
-- `SkillNode.heal_damage(amount, source)` — restores HP, clamped at max,
-  emits `healed` + `Events.skill_node_healed`.
+The logic lives in `NodeCombat` (`combat/node_combat.gd`); `SkillNode` delegates
+and keeps the notification halves (`notify_damaged`, `notify_healed`) that emit
+its signals and `Events`.
+
+- `get_max_hp()` / `get_current_hp()` — reads of the `node_health` PoolStat's
+  `.value` / `.current` (`NodeCombat.get_max_hp` / `get_current_hp`).
+- `refill()` (`NodeCombat.refill`) — restores the pool to full. Fires **only** on
+  allocation (`_refresh_hp_binding`, silent); the turn-start regen does not call it.
+- `NodeCombat.take_damage(amount, source)` — rounds the amount up once at entry
+  (ADR 0033), applies `Mitigation.apply`, soaks against the pool, routes
+  overflow to `owned_by.stat_board.health` iff this is a core node, notifies
+  `damaged` + `Events.skill_node_damaged`, and `depleted` +
+  `Events.skill_node_depleted` on zero. Sets `_damaged_since_upkeep = true`
+  whenever a hit actually reduces HP — this gates the next turn's regen.
+- `NodeCombat.heal_damage(amount, source)` — restores HP, clamped at max, notifies
+  `healed` + `Events.skill_node_healed`.
 
 ## Turn-start regen (D-9) — replaces refill-to-full
 
-`Entity.begin_turn` no longer refills owned nodes to full. Why the refill
-could go — owner, 2026-09-30, verbatim: *"the major shift that allowed this:
-node-local stat boards + node-local stat queries/readouts × {combined/transposed
-StatBins readout} × {stat readout including `overlay`}"* — a node's damage state
-is legible on the node itself, so it no longer needs wiping every round to stay
-readable. Instead, per owned node, `SkillNode.apply_turn_regen()` runs:
+`Entity.begin_turn` does not refill owned nodes to full (owner, 2026-09-30): node-local
+stat boards and readouts make a node's damage state legible on the node itself,
+so it needs no wiping every round. Instead, per owned node,
+`SkillNode.apply_turn_regen()` runs:
 
 - took damage since the last upkeep → `regen_stacks = 0`, no base heal;
 - else if HP < max → heal `node_healing + regen_stacks × node_healing_ramp`,
@@ -37,14 +38,13 @@ readable. Instead, per owned node, `SkillNode.apply_turn_regen()` runs:
 - else (already at max) → `regen_stacks = 0`.
 
 `node_healing` and `node_healing_ramp` are ordinary node-local stats (same
-mechanism as `range` — see `.claude/rules/stats-system.md` → "Local stats"),
+mechanism as `range` — see `docs/domain/stats-system.md` → "Local stats"),
 read via `get_local_value`. There is deliberately **no cap stat**: the ramp
 self-limits because it stops the moment the node reaches max HP and resets.
 
 ### `regen_stacks` is runtime state, not a stat
 
-`SkillNode.regen_stacks: int` — same reasoning as node HP's own promotion
-history below: it's per-node ephemeral game state (how many consecutive
+`SkillNode.regen_stacks: int` — per-node ephemeral game state (how many consecutive
 undamaged turns this node has regenerated), not something the modifier
 pipeline needs to derive or that other systems scale. It resets to 0 on
 damage and on reaching full HP, and increments by exactly 1 each turn
@@ -67,8 +67,8 @@ see D-9 in `docs/adr/legacy-mvp-decisions.md`.
 A `CoreClass` may carry a `HealAuraEffect` (`effects/heal_aura_effect.gd`) —
 an `AuraEffect` subclass authored on `CoreClass.effects` like any other class
 effect, radiating from the entity's `core_location` (there is no separate
-`CoreClass.aura` field, and no standalone `CoreAura`/`HealAura` pair — #720
-ported the channel onto `AuraEffect`). `Entity.begin_turn` dispatches
+`CoreClass.aura` field, and no standalone `CoreAura`/`HealAura` pair).
+`Entity.begin_turn` dispatches
 `_on_turn_start`, where `HealAuraEffect` walks the **owned** subgraph via the
 shared `AuraEffect._distances` (`reach`/`metric`, never `graph.navigator` —
 see `.claude/rules/graph.md` "Reach queries") and calls `node.heal_damage`
@@ -76,25 +76,23 @@ for every node it reaches.
 
 This runs **outside** `apply_turn_regen`'s gate: the aura heals through
 combat (applies even to a node that took damage this turn) and grants no
-ramp (never touches `regen_stacks`). `base` and `con_coefficient` (#896:
-`v = base + con_coefficient × sqrt(CON)`, CON read live off the board every
+ramp (never touches `regen_stacks`). `base` and `con_coefficient`
+(`v = base + con_coefficient × sqrt(CON)`, CON read live off the board every
 turn) are authored directly on the `HealAuraEffect` resource, not board
 stats — see D-10 in `docs/adr/legacy-mvp-decisions.md` for the rationale (why
-flat-not-percent, why the aura doesn't need to bribe the core forward; its
-"Impl status" line is current, some of its `Shape`/`Scaling` prose predates
-#900/#896 and may not match the code).
+flat-not-percent, why the aura doesn't need to bribe the core forward). Its
+`Shape`/`Scaling` prose may not match the code; the `HealAuraEffect` source is
+authoritative.
 
-## Promotion history (why the pool, not a bare field)
+## Why a pool, not a bare field
 
-Node HP used to be a plain `current_hp: float` field with no modifier
-pipeline underneath it, for a `DerivedStatModifier`-era reason that no longer
-applies (see git history around #149/#171 for the original writeup). It was
-promoted to the `node_combat_health` `PoolStat` on `node_board` once
-node-local stats existed as infrastructure (addons, keystones). The
-`get_max_hp()` / `get_current_hp()` boundary is still the seam: any future
-change to how the cap or current are derived should stay confined to those
-two methods (plus `_refresh_hp_binding`) without rippling into `take_damage`
-/ `heal_damage` / `apply_turn_regen` callers.
+Node HP is the `node_combat_health` `PoolStat` on `node_board`, so addons and
+keystones modify it through the ordinary pipeline. The
+`get_max_hp()` / `get_current_hp()` boundary is the seam: a change to how the cap
+or current are derived stays confined to those two methods (plus
+`_refresh_hp_binding`) without rippling into `take_damage` / `heal_damage` /
+`apply_turn_regen` callers.
+
 
 ## Test entities without stat boards
 

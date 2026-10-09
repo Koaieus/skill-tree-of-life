@@ -1,8 +1,7 @@
 # Long-running commands: launch once, then go quiet
 
-The full GUT suite is ~45s wall (sharded; ~380s with `GUT_SHARDS=1`). `mise run
-refresh` and the perf benches are the other repeat offenders. All three have the same correct shape and the same
-expensive wrong one.
+The full GUT suite (~45s wall sharded, ~380s with `GUT_SHARDS=1`), `mise run
+refresh` and the perf benches share one correct shape and one expensive wrong one.
 
 ## The rule
 
@@ -78,27 +77,12 @@ obedient worker from replacing polling with a string of one-word idle turns.
 
 ## Incident record
 
-- **#710 warp drone, 2026-09-03** — backgrounded the suite, then polled it
-  "madly" (`tail` / `ls` / `sleep`) until the owner intervened.
-- **#756 fix agent, 2026-09-04** — obeyed a mid-run "stop polling" order, then
-  emitted a string of one-word `idle` / `waiting` turns instead of stopping. The
-  owner had to intervene a second time. This is why "end your turn" is its own
-  clause.
-- **The `tail`-buffering blindness, 2026-09-04** — found on the very run that
-  fixed it in `.mise/tasks/test`.
-- **Lead session, 2026-09-08 (#779)** — ~12 backgrounded `sleep; cat` polls
-  against one suite run. The orchestrator, not a drone.
-- **BRIEF 1 / edges-structural, 2026-09-08** — brief carried the
-  `run_in_background` clause *and* the end-your-turn clause but not the
-  no-polling clause; the worker polled ~a dozen times and the owner killed it
-  mid-run. Its work was already committed, so only the drone's remaining context
-  was lost — but the merge gate had to be re-run by the lead.
-- **`pgrep -f` self-match, 5×, 2026-08-30 → 2026-09-28** — `while pgrep -f
-  "gut_cmdln.gd"` (4×, one with no `sleep`: a CPU spin) and, on #1179's drone,
-  `until ! pgrep -f "mise run mp:e2e"` after hand-backgrounding the e2e with
-  `&`. Each loop matched itself and outlived its target (mp:e2e was done in 4
-  min; the loop ran 30 more; another was killed after 63). ~54 min lost across
-  the five.
+Polling a backgrounded run is the recurring failure, by drones (#710, #756) and
+by orchestrators (#779): `tail` / `ls` / `sleep` loops, then one-word `idle`
+turns after a "stop polling" order (hence "end your turn" is its own clause).
+`while pgrep -f …` loops self-match and outlive their target (5 sightings, ~54
+min lost; #1179): never `pgrep -f` a command you can name by task, and never
+hand-background with `&` what `run_in_background` covers.
 
 Correcting a worker mid-run is itself expensive (it re-derives its whole
 context), so the clause belongs in the brief at dispatch, not in a follow-up.

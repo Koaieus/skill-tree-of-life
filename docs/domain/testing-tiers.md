@@ -110,11 +110,9 @@ it creates every tween through a public `var clock := TweenClock.new()`, and a
 test sets `clock.manual = true` before the first tween and steps
 `clock.advance(dt)` — never a `custom_step` reach-into `x._some_tween`.
 
-Not every controller is there yet. `LevelUpFlourish.release()` still arms a
-`create_timer(min_dwell)` and `_play_exit` awaits two more — that seam is what
-#981 opens; until it lands, the flourish's dwell tests are integration-tier by
-necessity, not by design. `MeleePreview` / `BattleSystem` are already
-steppable through the instant clock (#982 moves those tests onto it).
+`LevelUpFlourish.advance(delta)` (`ui/hud/xp_track/level_up_flourish.gd`) is the
+house example of a steppable controller; `MeleePreview` / `BattleSystem` step
+through the instant clock.
 
 **A unit that cannot be stepped by hand has found a seam, not a fixture.**
 That is the same rule `.claude/rules/testing.md` states for cross-unit
@@ -154,34 +152,14 @@ or a `Time.get_ticks_msec()` deadline when you need the elapsed time back
 is waiting for the real clock, and §1 decides whether that test is the
 feature's one integration keeper or a unit test that wants §2/§3 instead.
 
-## 5. Worked examples — the four seed scripts of #976
+## 5. Worked examples — what landed
 
-Verified at `cb99152`. "Keeper" is the single real-clock test the feature
-retains in `test/integration/`.
+The seed scripts of #976 were split along §2/§3: the pure half in the unit
+tier, one real-clock keeper per feature in `test/integration/`.
 
-| Script | What the file does today | What the unit actually promises | Where each assert goes |
-|---|---|---|---|
-| `test/unit/ui/test_level_up_flourish.gd` | `_settle()` sleeps 60 × (frame + 10 ms) then `min_dwell + 0.2 s`; `_time_cascade` stopwatches a 2-level vs 4-level cascade with `Time.get_ticks_msec()` | a **schedule**: for N levels and a tempo, the sequence of dwell durations and the SP total narrated at each step | see the per-function table below |
-| `test/integration/scenes/test_act_gate_across_turns.gd` | `wait_physics_frames(1)` / `(3)` to hand the turn around and let `player_can_act_changed` fire | the gate's open/closed state as a **function of the AP pool and the turn cursor** | `test_gate_reopens_after_a_turn_that_spent_all_ap` / `_spent_no_ap` → unit: build `PlayerInputController` + a hand-built `TurnManager`, end the turn synchronously, assert `can_player_act()`; `test_pic_listens_to_the_live_ap_pool_not_a_discarded_board` is a wiring fact → the keeper, integration (#983) |
-| `test/unit/attack/test_melee_staging.gd` | `Time.get_ticks_usec()` stopwatch on "first hit lands after the form beat"; `_await_launch_settle` pumps frames with a 15 s cap | the staged beat **order and durations** the tempo resolves to (`OutcomeSchedule`) | order/duration asserts → unit on `BeatClock.instant_clock()` (`BattleSystem.instant_mutation = true`); *one* "the real clock serves the form beat before the first hit" → integration (#982) |
-| `test/unit/ui/test_xp_track_level_sequence.gd` | `wait_seconds(0.01)` between ticks to let the track animate; `wait_seconds(0.03)` to land mid-replay | **which segment fills at which XP value** — a table | already extracted: `PoolLevelSequencer` + `test_pool_level_sequencer.gd` is the unit half; the gauge-consumer tests collapse to reads of `pending()`/`peek()` on the sequencer the gauge holds, plus one keeper (#981) |
-
-### `test_level_up_flourish.gd`, per function
-
-The class under test is `LevelUpFlourish` (`ui/hud/xp_track/level_up_flourish.gd`):
-`stamp(level, sp_total, stack)`, `release()`, `cut()`, `is_open()`, signal
-`closed`. Until #981 adds the delta seam, "unit" below means "unit once the
-controller advances on delta; integration by necessity today".
-
-| Function | Sleep it uses | Tier | The pure assert that replaces the sleep |
-|---|---|---|---|
-| `test_a_four_level_cascade_counts_up_on_one_flourish` | `_settle()` | unit | after four `stamp()` calls (or one 4-level `replenish` on a hand-built board), `_stamps == ["L E V E L   U P", "×2", "×3", "×4"]` — the stamp sequence is synchronous; no dwell needed to read it |
-| `test_the_sp_total_accumulates_the_levels_actually_narrated` | `_settle()` | unit | the SP total passed to the k-th `stamp()` equals the running sum of the k levels — a table over the stamp arguments |
-| `test_the_flourish_is_held_until_the_queue_drains` | `wait_seconds(0.12)` | unit (step by hand) | `stamp()` twice, `release()`, `advance(min_dwell + ε)`: still `is_open()` while the sequencer has pending segments; `advance` past the last drain → closed |
-| `test_a_level_landing_during_the_dwell_keeps_counting` | `process_frame` poll on `_stamps.size()` | unit (step by hand) | `stamp()`, `release()`, `advance(min_dwell / 2)`, `stamp()` again → `is_open()` and the count reads ×2; the release timer was cancelled (`_cancel_release` is the seam, `is_open()` the observable) |
-| `test_a_single_level_still_dwells` | `wait_seconds(0.25)` against the shipped `min_dwell` | unit (step by hand) | `stamp()` once, `release()`, `advance(min_dwell - ε)` → open; `advance(2ε)` → closed. `min_dwell` is an **input** set on the hand-built flourish, never the `.tres`/`@export` default (§1 q1) |
-| `test_rebinding_cuts_a_live_flourish` | `wait_seconds(0.12)` | unit (step by hand) | `stamp()`, `advance(small)`, `cut()` → `not is_open()`, `closed` emitted once, no exit tween scheduled |
-| `test_the_per_level_pace_does_not_depend_on_how_many_levels_land` | `_time_cascade` stopwatch, 12 s cap | **split**: unit + the keeper | unit: the schedule for N=2 and N=4 returns the same per-level dwell (`schedule(n, tempo)[k]` constant in n) — instant. Keeper, `test/integration/`: one cascade on the real clock, `wait_until(closed, 15.0)`, asserting only that it closed and narrated N levels — never the pace |
+- XP track / level-up flourish: `PoolLevelSequencer` (`test_pool_level_sequencer.gd`) and `LevelUpFlourish.advance(delta)` carry the unit asserts; the keepers are `test/integration/ui/test_xp_track_real_clock.gd` and `test_pool_gauge_spark_real_clock.gd`.
+- Act gate: the pure half is `test/unit/systems/test_act_gate_pure.gd`.
+- Melee staging: order and durations assert on `BeatClock.instant_clock()` (`BattleSystem.instant_mutation = true`); one integration test pins that the real clock serves the form beat before the first hit.
 
 ## 6. Smell list — for a sweep
 
@@ -243,19 +221,9 @@ write, in order of legitimacy:
 In a test: any arrange-step write into an object *other than the class under
 test*, outside shapes 1 and 2, is the cross-unit gotcha from
 `.claude/rules/testing.md` — **make the owner expose the fact or the entry**,
-and test against that. Worked example: `test_melee_replay_resolve.gd::
-test_the_pump_keeps_stepping_while_live_swing_is_true` writes
-`_preview._live_swing = true` to arrange "a swing is live". That is shape 3:
-`_live_swing` is set by `MeleePreview.launch()` (line 266) as a consequence of
-a committed swing, and the test has forged the consequence without the cause.
-The owner should expose the *cause* — drive `launch(plan)` with an instant
-schedule — or, if the fact must be arrangeable on its own, a named entry
-(`begin_live_swing()` / a `swing_live` marker the preview validates) that
-production code also goes through, so the test and the mirror share one door.
-
-#984 is the production-side design pass (guards on multi-writer facts, the
-`Events` bus boundary); this doc states the rule and does not pre-empt its
-forks.
+and test against that: drive the real cause (`MeleePreview.launch(plan)` with an
+instant schedule), or go through a named entry that production code also uses,
+so the test and the mirror share one door.
 
 ## See also
 
@@ -265,5 +233,4 @@ forks.
 - `docs/domain/red-green.md` — whether a change earns a test, and RED first.
 - `docs/domain/presentation-clock.md` — the fixed logical clock the mutation
   loop owns; why a controller advances on delta.
-- #976 (hub), #360 (the tier), #978 (the sweep), #981/#982/#983 (the seams
-  the seed scripts need), #984 (ownership, production side).
+- #360 (the tier; provenance).

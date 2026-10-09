@@ -1,50 +1,32 @@
-# Circuit-fan node tooltip (V2)
+# Circuit-fan node tooltip
 
-Epic #159: replace the old single-card `SkillNodeTooltip` with panels that
-sprout from a hovered `SkillNode` along circuit-trace lines. This doc records
-the design decisions from the #215 prune session — they only lived in GitHub
-issue comments before this — plus the components built so far.
+Hovering a `SkillNode` sprouts panels from it along circuit-trace lines (the
+`ui/tooltip_fan/` fan). This doc records the design and the current components.
 
-## The #215 prune session (2026-07-18)
+## Design surface
 
-The original brainstorm (issue #159) sketched a large tunable surface (a
-`TooltipFanConfig` resource with ~28 exported knobs: `fanRadius`, `fanSpread`,
-per-unit sync modes, four entry-anim styles, three trace styles, ...). #215
-pruned that down. **Locked decisions:**
+- **Hand-authored scenes, not programmatic fan geometry.** Panel positions, line
+  attach points and line targets are authored in `fan.tscn` with `@tool` live
+  preview; there is no config resource (`TooltipFanConfig` does not exist).
+- **One trace style:** PCB / 45-degree elbow. `FanTrace` exports `trunk_dir`,
+  `bend_start`, `trunk_length`, `shoulder`, `ignite_fraction` and the look knobs.
+- **Sequential reveal:** line draws in, the glowing tip arrives, the card unfurls
+  at the tip; OUT is the reverse read.
+- **Idle-while-open is a `FanAnimation` resource** on the element (`null` = steady
+  lit).
+- **HP is just a panel** in the fan with keep-open-when-damaged retraction logic.
+- **Skin and mod-row are "which packed scene to instantiate"** (glass vs. holo),
+  not an enum baked into one scene.
 
-1. **Hand-authored variant scenes, not programmatic fan geometry.** Panel
-   positions, line attach points, and line targets are authored in-scene with
-   `@tool` live preview, not computed from `fanRadius`/`fanSpread` math.
-2. **Build one variant now** (tree-sprout, parallel-start), clone for a radial
-   variant later. Shared contract across variants: `line in → card in → card
-   out → line out`, plus idle-while-open.
-3. **Trace: one style only** — PCB / 45°-elbow family (`straight` dropped;
-   `elbow == tree`). `corner`/`bend`/`bend_start` are exports on the line scene
-   (`FanTrace`, #222). Idle-while-open is a [FanAnimation] resource (#234):
-   assigned → the settled element idles, `null` → it stays steady-lit.
-4. **`sync_in`/`sync_out` baked to sequential** — line draws in → glowing tip
-   arrives → card unfurls at the tip (the "sprout" read). The 3-way
-   sequential/simultaneous/reverse enum from #224 is dropped.
-5. **HP is just a panel** placed in the fan with keep-open-when-damaged
-   retraction logic — no dedicated geometry system.
-6. **Skin / mod-row = "which packed scene to instantiate"** (glass vs. holo;
-   mod-row variants). Keep swappable while ≥2 options exist — not a
-   monolithic enum baked into one scene.
-7. **`TooltipFanConfig` (#216) deferred.** Don't build the 28-prop resource
-   now; let it emerge from authoring the first variant.
-
-**Knob reclassification** (from #215's raw brainstorm comment, pruned):
-
-| Bucket | Knobs |
+| Knob | Lives on |
 |---|---|
-| Hand-authored in-scene | panel positions, line attach/target, per-unit stagger |
-| Exports on the line scene (`FanTrace`) | `corner`, `bend`, `bend_start`, `idle_anim` (a [FanAnimation] resource, `null` = off) |
-| "Which packed scene" | `panelSkin` (glass/holo), `modRowStyle` |
-| Owned by the animation setup — the [FanAnimation] resource (#234) | `idleAnim` realized; `entryAnim`/`leaveAnim`/`loopAnim` still TBD but the same resource type can carry phase knobs later |
-| A concrete panel's own job | `statChart`, `coreDetail` |
-| Dropped entirely | `fanRadius`/`fanSpread`, `simpleCore`, `playMode`, `sprout`, `straight` trace style, the sync enum |
+| panel positions, per-unit rest | `FanUnit.position` in `fan.tscn` |
+| trace shape and look | exports on `FanTrace` (`bend_start`, `trunk_length`, ...) |
+| idle loop | `idle_anim` (a `FanAnimation` resource) on `FanTrace` / `FanPanel` |
+| panel skin, mod-row style | which packed scene is instanced |
+| stagger | `TooltipFan.stagger_delay` |
 
-## Three tiers of composition (settled #226, #303)
+## Three tiers of composition
 
 The fan is **components composed into a unit, composed into a coordinator**.
 Each tier does exactly one job, and each tier is a scene you can open and watch
@@ -63,12 +45,8 @@ panel's own reveal tween. Rest state is `t = 0`, set at bind — never as a side
 effect of an entry call.
 
 **There is no fan-wide clock.** Independent components with a variable start
-delay are the simple form of exactly the choreography wanted, and they keep the
-sequence readable as a chain of completions rather than as arithmetic on a
-normalized `t`. An earlier phrasing here ("one fixed clock … never a
-per-component Tween chain") was read as mandating a single fan-wide timeline and
-got #224's `FanUnit` flagged as violating it. That reading was wrong, and the
-rule that produced it is gone.
+delay keep the sequence readable as a chain of completions rather than as
+arithmetic on a normalized `t`.
 
 **Interrupt = kill and reverse.** A hover→unhover mid-reveal kills the running
 tweens; each component then plays OUT **from its own current progress**. A
@@ -83,16 +61,9 @@ yields a frame.
 `FanUnit._generation` stays: a tween that finishes on the same frame as the
 interrupt would otherwise resume a stale continuation.
 
-### Why `FanPanel` gained `play_in`/`play_out` (#303)
-
-It shipped (#223) as a pure sink — `set_progress(t)` and no getter — while
-`FanTrace` shipped self-animating. That asymmetry meant `FanUnit` sequenced one
-component and *puppeted* the other, holding a tween on the panel's behalf and
-caching `_panel_progress` so it could compute the reverse. The cache existed only
-because the panel could not answer "how far in am I?". Making the panel a peer
-deletes the cache, the puppet tween, and the duration arithmetic from `FanUnit`
-in one move. `set_progress(t)` survives as the content-row contract, where a
-pure sink is the right shape.
+`FanPanel` is a peer of `FanTrace`: it owns a readable `progress` and its own
+`play_in()` / `play_out()`, so `FanUnit` holds no panel tween or cached progress.
+`set_progress(t)` is the content-row contract, where a pure sink is the right shape.
 
 `fan_live_sandbox.gd`'s scrub slider writes each participating member's
 component `progress` directly. That is a **preview scrubber**, not the shipped
@@ -103,11 +74,10 @@ presets, participation toggles, play-in/erase/loop/hover — goes through the re
 
 ## Components so far
 
-- **`FanTrace`** (`ui/tooltip_fan/fan_trace.gd`, #222) — one circuit-trace
+- **`FanTrace`** (`ui/tooltip_fan/fan_trace.gd`) — one circuit-trace
   connector: `Line2D` + glowing `Sprite2D` tip, geometry from `TraceRouter`
   (PCB-elbow only, per decision 3). `progress` (0..1) truncates the drawn
-  arc-length. `play_in()`/`play_out()` return a `Tween` to `await` (named
-  `play_draw_in`/`play_erase` until #303 unified the component contract).
+  arc-length. `play_in()`/`play_out()` return a `Tween` to `await`.
 
   **Ignition.** A trace doesn't start, it ignites. The first `ignite_fraction`
   (default 0.22) of `progress` is a lead-in where the line is still zero-length
@@ -133,15 +103,14 @@ presets, participation toggles, play-in/erase/loop/hover — goes through the re
   inferred from a `progress` delta, so the sandbox scrubber still shows the tip
   in both directions — deliberately, since it is an authoring surface, not the
   shipped read.
-- **`FanPanel`** (`ui/tooltip_fan/fan_panel.gd`, #223 + #303) — thin wrapper
+- **`FanPanel`** (`ui/tooltip_fan/fan_panel.gd`) — thin wrapper
   around a hand-placed skin child (`GlassPanel` or `HoloPanel`, swapped by
-  editing which scene is instanced under it — decision 6, not a runtime enum).
-  Forwards a single `glow` (0..1) to whichever skin is present. Since #303 it is
-  a **peer of `FanTrace`**: owns a readable `progress`, and `play_in()` /
-  `play_out()` returning a `Tween` — the scale+fade reveal (cubic ease-out) it
-  already had, now self-driven. Drives its content rows' `set_progress` from
-  inside its own tween.
-- **`fan_live_sandbox.gd`** + **`fan_live_panel.tscn`** (#309) — the LIVE fan
+  editing which scene is instanced under it, not a runtime enum). Forwards a
+  single `glow` (0..1) to whichever skin is present. A **peer of `FanTrace`**:
+  owns a readable `progress` and `play_in()` / `play_out()` returning a `Tween`
+  (scale+fade reveal, cubic ease-out). Drives its content rows' `set_progress`
+  from inside its own tween.
+- **`fan_live_sandbox.gd`** + **`fan_live_panel.tscn`** — the LIVE fan
   bench, reachable from the sandbox host's "Tooltip Fan" tab. Hosts the REAL
   `fan.tscn` (the same scene `TooltipFan` mounts) over a real `SkillNode` +
   `Entity` fixture and drives its actual inputs: whole-situation presets
@@ -150,19 +119,18 @@ presets, participation toggles, play-in/erase/loop/hover — goes through the re
   knobs (`node_radius`, `pin_step_degrees`, `max_arc_degrees`, `pin_factor`,
   `pin_slide_rate`), the drive modes (manual / loop / hover / reset), a scrub
   slider, and pointer-drag on the real units (FanAnchorDriver re-routes live).
-  Replaced the mock `fan_trace_sandbox` (a second implementation of the fan's
-  layout that nothing kept in sync). The panel also carries the outbound half
+  The panel also carries the outbound half
   of the editor round-trip ("✎ Open fan.tscn" → 2D editor); `fan.tscn` itself
   carries the return half ("◈ Open in Sandbox").
 
-- **`FanUnit`** (`ui/tooltip_fan/fan_unit.gd`, #224) — pairs one `FanTrace` +
+- **`FanUnit`** (`ui/tooltip_fan/fan_unit.gd`) — pairs one `FanTrace` +
   one `FanPanel` under a `HIDDEN → IN → LOOP → OUT → HIDDEN` state machine;
-  trace→panel ordering is baked sequential per decision 4. Owns **no** Tween
-  since #303 — it sequences its two components and holds state. Forwards
+  trace→panel ordering is sequential. Owns **no** Tween — it sequences its two
+  components and holds state. Forwards
   `trace_idle_anim` / `panel_idle_anim` ([FanAnimation] resources) to its two
   components; both default `null`.
 - **`FanAnimation`** (`ui/tooltip_fan/fan_animation.gd` + example presets in
-  `ui/tooltip_fan/idle/`, #234) — the self-contained idle-loop settings object,
+  `ui/tooltip_fan/idle/`) — the self-contained idle-loop settings object,
   one per element rather than one for the whole fan: [FanTrace] reads `period` +
   `pulse_scale`, [FanPanel] reads `period` + `float_amplitude` +
   `glow_amplitude`, the other element's knobs are ignored. It is a settings
@@ -172,68 +140,42 @@ presets, participation toggles, play-in/erase/loop/hover — goes through the re
   **The resource is the unit of swap and of removal**: assign a different
   `.tres` to change the idle, set the export to `null` to turn it off. Shipped
   off by default, opt-in per unit; the components floor `period` (≥ ~0.05s) so
-  a stray 0 can never spin a looped tween per-frame (the original `panel_idle`
-  bug class — `core_panel.tscn` shipped `idle_period = 0.0`).
-- **Shared rows** (`panel_header`, `stat_value_row`, `addon_item`, #293) —
+  a stray 0 can never spin a looped tween per-frame.
+- **Shared rows** (`panel_header`, `stat_value_row`, `addon_item`) —
   content rows on the `set_progress(t)` contract, driven by their panel. `AddonItem.bind()` takes an
   optional `icon` override and carries a real `GradientTexture2D` placeholder
   (never `PlaceholderTexture2D`, per `.claude/rules/godot-workflow.md`).
 
-## One fan scene, gated per unit (#314 — reverses #226 Decision 2)
+## One fan scene, gated per unit
 
-#226 shipped **three occupancy-class variant scenes** — `unowned.tscn`,
-`owned.tscn` (adds Owner), `owned_core.tscn` (adds Core), an inheritance chain —
-selected on hover by `TooltipFan._pick_variant` branching on `is_allocated()` /
-`is_core()`. #314 collapsed them into one `fan.tscn` carrying every unit.
+There are no occupancy-class variant scenes: `fan.tscn` carries every unit
+(`owner`, `core`, `node_stats`, `addons`, `effect_readout`, `id_chip`,
+`procgen_debug`, ...) and mounts all of them on every hover. `owner_changed` flips
+`is_allocated()`, so allocating the node you are already hovering must not
+invalidate the mounted scene; gating per unit lets open panels stay open while
+newly eligible ones sprout alongside them.
 
-**What forced it.** `owner_changed` — the signal V1's tooltip used to keep its
-owner line live — *flips `is_allocated()`*, which is the very predicate the
-variant was chosen by. So the single most ordinary live-update case, **allocating
-the node you are already hovering**, invalidated the whole mounted scene rather
-than one panel's contents. Under a variant design the only available response is
-to tear the fan down and re-fan, which is exactly the visual the fan exists to
-avoid. Gating per unit means the panels already open stay open and the
-newly-eligible ones sprout alongside them.
+- **`FanPanel.has_content()` is the only gate**, re-answered on every live update
+  (allocation, damage, core HP) rather than once per hover, and cached per unit in
+  `FanUnit.participating` (written by `TooltipFan._bind_content` in the same pass
+  that binds the panel, so the flag never lags the content by a frame).
+  `OwnerPanel` and `CorePanel` override it; being mounted is no longer their gate.
+- **Pins redistribute over the participating units only.** A fan with a hole in it
+  reads as a panel that failed to load, so a suppressed panel gives up its pin.
+  Stagger indexes over the same participating set.
+- **Panel positions are fixed per panel**, authored once for the six-member layout,
+  so a panel is always in the same place and retuning is a single-scene job. An
+  unowned node's three panels sit where that layout puts them.
+- **Authored per-panel clock pins** (a panel arriving from an arbitrary angle
+  instead of the next auto-flowed slot) are deferred; nothing authors an angle.
 
-**What replaced the variant branch.** `FanPanel.has_content()` is now the fan's
-only gate, re-answered on every live update rather than once per hover, and
-cached per unit in `FanUnit.participating` (written by `TooltipFan._bind_content`
-in the same pass that binds the panel, so the flag can never lag the content by a
-frame). `OwnerPanel` and `CorePanel` gained the overrides they had never needed —
-their old docstrings said outright that being mounted in the right variant *was*
-their gate.
+## Two-tier gate: hover shows Roots, Shift fans the ring
 
-**The pin rule reversed with it.** Pre-#314 a suppressed panel kept its clock pin,
-on the theory that a present panel's trace should land in the same place
-regardless of its neighbours — "absence leaves the fan balanced, never
-gap-toothed". That is now inverted: pins redistribute over the participating units
-only. A fan with a hole in it reads as *a panel failed to load*, not as a
-deliberate omission, and positional constancy isn't worth buying with that.
-Stagger indexes over the same participating set, because the sweep would otherwise
-visibly skip positions the fan isn't using.
-
-**Deferred, deliberately:** authored per-panel clock pins, which would let a panel
-arrive from an arbitrary angle (the #292 procgen debug panel entering from 3
-o'clock, say) instead of taking the next auto-flowed slot. Revisit only if the
-auto-flow proves insufficient; until then panels flow neatly and nobody authors an
-angle.
-
-**One consequence worth knowing:** panel *positions* are now fixed per panel
-rather than re-authored per occupancy class. `owned_core`'s layout was adopted
-wholesale, since it was the only one that had to accommodate all six members. An
-unowned node's three panels therefore sit where the six-member layout put them —
-further out than `unowned.tscn` placed them. That is a real trade (the common case
-pays for the crowded case) bought for a real gain: a panel is always in the same
-place, so you learn where Addons lives. Retuning is now a single-scene job.
-
-## Two-tier gate: hover shows Roots, Shift fans the ring (#415)
-
-The fan is the fan's own worst enemy when the mouse is moving: every hover
-erupts traces, panels *and* the mod-slab stack, then retracts them on exit. #415
-splits the fan into two independently-animated groups:
+Hover alone would erupt traces, panels *and* the mod-slab stack on every pass of
+the mouse, so the fan is two independently animated groups:
 
 - **Always on hover — the Roots.** `GrantedModifiersRoot`'s slab stack is the
-  node's primary readout (it was never panel-shaped, never clock-pinned, never
+  node's primary readout (never panel-shaped, never clock-pinned, never
   `has_content`-gated — the common hover's content by design), and that is now
   *all* a plain hover shows.
 - **Held `ui_more_info` (Shift) — the FanUnit ring.** Traces + panels are bonus
@@ -252,21 +194,21 @@ showing — this is also why the pins are already in their slots the instant Shi
 lands). The gate is applied in one place, `TooltipFan._should_up(unit) =
 participating and _more_info_held`, and every play decision (`_play_in_all`,
 `_reconcile`, `_play_in_one`'s re-check) goes through it. Two questions ("has
-content", "may show") stay as separate as #314 kept binding and classifying.
+content", "may show") stay separate.
 
 **Shift is polled, not evented.** `TooltipFan._process` re-reads the action every
 frame while hovering; on a change it runs the same `_refresh_content → _reconcile`
 path a live owner flip uses, so a mid-hover Shift press fans the whole ring in
 with one sweep and a release retracts it in parallel — the panels already open
-stay open, the same idempotent reconcile contract as #314. `_on_hovered` captures
+stay open (the same idempotent reconcile contract as the content gate). `_on_hovered` captures
 the action *synchronously* before the first `_play_in_all`, so a hover that lands
 on an already-held Shift shows the full fan from frame one instead of a
 roots-only flash.
 
-**Deferred:** the visual affordance telling the player Shift exists (#416) —
-the gate works silently in the meantime.
+**Deferred:** the visual affordance telling the player Shift exists (#416); the
+gate works silently meanwhile.
 
-## Fan geometry: what is derived vs. what is authored (#307)
+## Fan geometry: what is derived vs. what is authored
 
 **Exactly one quantity is authored per unit: where its panel wants to sit.**
 That is the `FanUnit`'s own `position` in `fan.tscn` — its panel's **rest** —
@@ -290,7 +232,7 @@ them to cross. `TooltipFan` staggers on the same sort key, so the fan sweeps
 across the arc instead of popping in scene order.
 
 **Slots are shared out among the PARTICIPATING units only, and slot changes are
-eased (#314).** `n` in `pin_angle(i, n, …)` is how many panels currently have
+eased.** `n` in `pin_angle(i, n, …)` is how many panels currently have
 content, not how many are authored — so an unowned node's three live panels sit
 at 11/12/1 rather than at three of five wider slots with holes between them. When
 a panel becomes eligible mid-hover, every neighbour's target slot moves and each
@@ -324,8 +266,7 @@ smooth, and dismissing would read as twitchy.
 
 ### How the fan reacts to the viewport
 
-**Walls at the HUD's usable rect; the camera never moves on hover** (owner,
-2026-09-25). `HudRoot.usable_rect()` is the HUD's rect with each side pulled in
+**Walls at the HUD's usable rect; the camera never moves on hover.** `HudRoot.usable_rect()` is the HUD's rect with each side pulled in
 past the furthest visible chrome docked there (left column; XP track /
 initiative bar / forecast on top; combat readout on the right; command tray,
 action cluster and minimap along the bottom) plus a 4 px gap — one inset per
@@ -349,8 +290,7 @@ being *angularly* nearer to vertical, because it also sits much higher: Owner at
 `(-320,-340)` is 43° west of vertical, NodeStats at `(-195,-150)` is 52°.
 NodeStats is the NWW one and must take the outer pin, but x-order hands it to
 Owner — so the two outermost traces start on each other's side and have to cross
-to reach their panels. Switching to angular order removed both structural
-crossings (3 → 1).
+to reach their panels. Angular order avoids both structural crossings.
 
 What remains is placement, not structure: IdChip's panel sits ~17px right of
 centre while its pin is at 12 o'clock, so its closing diagonal clips Core's
@@ -369,9 +309,8 @@ of the route `TraceRouter` would actually draw (see the self-consistency note in
 **perpendicular** to the border it meets — a horizontal leg running alongside a
 panel's bottom edge and simply stopping is the failure mode it prevents.
 
-**Where** along that edge is derived too (#1119, owner 2026-09-25: "The
-connector wire exact position where it touches the panel should likely become
-secondary to where the panel is"). Per candidate edge the anchor is the **trunk
+**Where** along that edge is derived too: the connector's touch point is secondary
+to where the panel is. Per candidate edge the anchor is the **trunk
 top** — `pin + trunk_dir × trunk_length`, the point every wire in the fan
 diverges from — projected onto the edge's line, clamped to [0.1, 0.9] of the
 edge so the closing leg never grazes a corner (a corner belongs to two edges,
@@ -380,10 +319,9 @@ one fan-wide `FanAnchorDriver.trunk_length` export, not a per-unit knob, so the
 wires leave the node as an equal-length bundle; `FanAnchorDriver.trunk_top_of(unit)`
 exposes the point for the bloom origin.
 
-The per-unit `anchor_slide` / `arrival_axis` / `trunk_length` knobs and the
-forced-axis solver behind them are gone: the panel position is the only thing
-an author places, and a panel that sits on the tie diagonal is moved, not
-constrained.
+There are no per-unit slide, arrival-axis or trunk-length knobs: the panel
+position is the only thing an author places, and a panel that sits on the tie
+diagonal is moved, not constrained.
 
 ### Router: the 45°-only invariant
 
@@ -408,7 +346,7 @@ gable with no change of its own. The trunk's own column (`|perp| < 2 px`
 behind the top) is outside the family; the route still spans `from` → `to` and
 the layout keeps panels out of it.
 
-### Rest vs solved: the layout solver (#1120)
+### Rest vs solved: the layout solver
 
 `FanAnchorDriver` runs `FanLayout` (`ui/tooltip_fan/fan_layout.gd`): one body
 per **participating** unit, keyed by instance id. A body's `rest` is the
@@ -433,8 +371,7 @@ written onto the unit's `%Panel`. Pin order (`units_in_fan_order`) and the
   ~11 px apart, and a panel caught in that slot bounced between them.
 - **`keep_in`** is an export defaulting to effectively unbounded; the
   window-aware owner feeds the real one.
-- **Bloom is a visual leg, not a solver state** (spike on #1120, owner-confirmed
-  2026-09-25). Starting bodies at one point settles into a history-dependent
+- **Bloom is a visual leg, not a solver state.** Starting bodies at one point settles into a history-dependent
   equilibrium — measured 75 px (Owner) to 130 px (EffectReadout) off the
   warm layout, depending on stagger — so the screen would show a layout no
   `refresh()` produces. Instead the bodies are always solved warm, and on a
@@ -445,8 +382,8 @@ written onto the unit's `%Panel`. Pin order (`units_in_fan_order`) and the
   `draw_in_duration / BLOOM_TIME_CONSTANTS_PER_DRAW` so it lands as the trace
   tip arrives, then the leg is dropped. The trace follows the flying panel's
   live rect. Centre rather than the literal "body position = trunk top" of
-  the acceptance, and the lone-rest check against the authored rect origin
-  rather than the unit's `position` (the panel is offset inside its unit),
+  the original acceptance, and the lone-rest check against the authored rect
+  origin rather than the unit's `position` (the panel is offset inside its unit),
   are accepted deviations.
 
 ### The serialization invariant
@@ -460,8 +397,7 @@ but for format churn.
 
 The same cover protects the solved layout: the driver writes each panel's solved
 position onto the unit's `%Panel`, also a non-editable descendant of the
-instanced unit, so it never reaches `fan.tscn` (verified at #1120 by the spike:
-a `%Panel.position` write does not survive `PackedScene.pack`). The one thing
+instanced unit, so it never reaches `fan.tscn` (a `%Panel.position` write does not survive `PackedScene.pack`). The one thing
 that would break it is an `[editable path="<Unit>"]` line in `fan.tscn`.
 
 A unit's `position` has no such cover: it is a direct, editable child property of
@@ -469,44 +405,38 @@ A unit's `position` has no such cover: it is a direct, editable child property o
 quantity has to land on the non-editable side of that line, or be split into an
 authored `@export` plus a getter-only `var` per the workflow rule.
 
-The same rule is why `FanUnit.participating` and `FanUnit.pin_angle` (#314) are
+The same rule is why `FanUnit.participating` and `FanUnit.pin_angle` are
 plain runtime `var`s and not `@export`s: both are derived per hover. Storing the
 eased angle on the unit rather than in a driver-side Dictionary also means it dies
 with the instance — fans are created and freed on every hover, and a keyed cache
 would either leak entries or hold freed references.
 
-## What's still open
+## Scene composition
 
-- `TooltipFan` coordinator (#226) — the real node-anchored fan, driving
-  `FanUnit`s from a hovered `SkillNode`; this is where the tree-sprout variant
-  actually gets authored (decision 2), and where `TooltipFanConfig` (#216)
-  should be revisited once real knobs emerge.
-- The **z-sandwich** (HoloPanel `z=-1` / content `z=0` / ScanlineOverlay `z=+1`)
-  is pinned but has never been verified to render as intended. #226 confirms it
-  in the sandbox and reports back either way.
-- Entry-anim *style* — which reveal a panel plays is still the "owned by the
-  animation setup" bucket of decision 7. *Who owns the Tween* is no longer open.
-- **Panel/unit scene duplication — resolved (#380).** Both tiers are now
-  inherited scenes. `ui/tooltip_fan/panels/panel_base.tscn` carries the shared
-  chrome (`PanelSkin` → `Content` → `Header` + `Rows`); each concrete panel
-  inherits it, overriding the root's `script`, `PanelSkin`'s
-  `min_size`/`glow`/`hug_down`, `Content`'s `padding`/`separation`, and adding
-  only its own rows under `Rows`. `id_chip_panel`/`procgen_debug_panel`
-  suppress `Header` with a plain `visible = false` override — containers skip
-  hidden children, so no new export was needed. `ui/tooltip_fan/fan_unit.tscn`
-  is now the literal base every concrete unit inherits: it carries `Trace`
-  (non-editable, unchanged) but no `Panel` — Godot inherited scenes can
-  override a descendant's properties at any depth, or add a brand-new
-  instanced child, but **cannot swap which `PackedScene` an inherited child
-  instances**. That's why `Panel` couldn't be baked into the base with a
-  swappable skin the way `Trace` is: each concrete unit instead adds its own
-  `Panel` (unique-named) as a new child, same as before, just via inheritance
-  rather than hand composition. Verified against the same pattern already in
-  use for `addons/sandbox_host/sandbox_live_tab.tscn` +
-  `tabs/70_bloom_tab.tscn`. `bend_start`/`trunk_dir` stay authored directly on
-  the (now-inherited) `Trace` child rather than promoted to `FanUnit` exports
-  — `fan.tscn`'s unit-instance overrides
-  (unit `position` only, since #1119) remain the only knobs meant
-  to be tuned from that scene. The serialization invariant is unaffected:
-  `fan.tscn` still instances each concrete unit without editable children, so
-  the driver's per-frame writes to `%Trace` stay off-disk exactly as before.
+Both tiers are inherited scenes. `ui/tooltip_fan/panels/panel_base.tscn` carries
+the shared chrome (`PanelSkin` -> `Content` -> `Header` + `Rows`); each concrete
+panel inherits it, overriding the root's `script`, `PanelSkin`'s
+`min_size`/`glow`/`hug_down`, `Content`'s `padding`/`separation`, and adding only
+its own rows under `Rows`. `id_chip_panel` / `procgen_debug_panel` suppress
+`Header` with a plain `visible = false` override. `ui/tooltip_fan/fan_unit.tscn`
+is the base every concrete unit (`ui/tooltip_fan/units/*.tscn`) inherits: it
+carries `Trace` (non-editable) but no `Panel`, because an inherited scene can
+override descendant properties or add a new instanced child but **cannot swap
+which `PackedScene` an inherited child instances**. Each concrete unit therefore
+adds its own `Panel` (unique-named) as a new child. The same pattern backs
+`addons/sandbox_host/sandbox_live_tab.tscn` +
+`addons/sandbox_host/tabs/70_bloom_tab.tscn`.
+
+`bend_start` / `trunk_dir` are authored directly on the inherited `Trace` child,
+not promoted to `FanUnit` exports; the unit `position` in `fan.tscn` is the only
+knob meant to be tuned from that scene. `fan.tscn` instances each concrete unit
+without editable children, so the driver's per-frame writes to `%Trace` stay
+off-disk (the serialization invariant above).
+
+The skin's z-sandwich (`HoloPanel` `z = -1` / content `z = 0` / `ScanlineOverlay`
+`z = +1`) is asserted by `test/unit/ui/test_fan_scene.gd`.
+
+## Open
+
+- Entry-animation *style*: which reveal a panel plays is not yet chosen; the
+  `FanAnimation` resource type can carry phase knobs later.

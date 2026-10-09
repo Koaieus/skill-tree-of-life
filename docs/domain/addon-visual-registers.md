@@ -15,14 +15,14 @@ spell node and the bunker disappears. BLOOM is available (additive, no
 contention) but is an entity-tinted *glow*, which suits presence and payload,
 not armour.
 
-So addons draw their own geometry outboard of the emblem. That is what SpikeRing
-always did, and as of 2026-09-01 what Bunker, Fortification and Watchtower do.
+So addons draw their own geometry outboard of the emblem. That is what SpikeRing,
+Bunker, Fortification and Watchtower do.
 
 ## Why the sprite keeps coming back
 
 The tooltip icon is right there on the addon (`SkillNodeAddon.icon`), so pasting
-it into a `Sprite2D` at the origin looks like the cheap correct move — all three
-of the above shipped that way. Two faults, not one:
+it into a `Sprite2D` at the origin looks like the cheap correct move. Two faults,
+not one:
 
 1. **Register clash** — it sits on the busiest, most contended pixels on the node.
 2. **Projection clash** — the icons (`mapping.txt`: `bunker-assault`,
@@ -48,7 +48,7 @@ tracks the mechanics (local defensive stats vs. outward projection).
 
 ## The plan-view band budget
 
-Bands stack — a node can carry all of these at once — so each claims a radius
+Bands stack — a node can carry several of these at once — so each claims a radius
 range as a fraction of `SkillNode.radius` and documents it. The drawing (and
 its band) lives in the addon scene's `Visual` child — an `AddonVisual` script
 in `skill_node/addons/visuals/` — never in an addon subclass:
@@ -59,6 +59,7 @@ in `skill_node/addons/visuals/` — never in an addon subclass:
 | Fortification | `[1.14, 1.36]` | 12 merlons over a dark curtain | cool chrome |
 | SpikeRing | `[1.00, 1.45]` | 12 radial spikes | owner colour |
 | Toxin | rim, drifting outward (no fixed band) | `bubble_count` froth bubbles popping into gas puffs, one `_draw` pass | green (identity tint), gas on a named `Emissive` tier |
+| Compromiser (`compromiser_visual.gd`) | rim, in place (no fixed band) | one beating pustule + `blip_count` blips that swell and pop into a fading ring, one `_draw` pass | the addon's identity tint; pustule core and pops on a named `Emissive` tier |
 
 **Separate neighbours by tone as well as by geometry.** Element count is
 unreadable at zoom; two mid-grey bands at adjacent radii read as one crust
@@ -67,12 +68,12 @@ by *value* — dark plate bodies over the rim, bright teeth outboard of it.
 
 **A band that overlaps the rim must be judged against BOTH rim states.**
 `rim_ring.gd` blends a bronze `BASE_COLOR` toward `archetype_tint` when the node
-is allocated and dims to silver when it isn't. Bunker's first cut was warm
-gunmetal: it separated cleanly from the dim silver rim in every preview shot and
-then vanished into the bronze one. Since procgen puts addons on content nodes
-and players fortify their own territory, **allocated is the primary case**, and
-an unallocated-only preview cannot show the failure. The fix is hue or radius,
-never brightness — brightening re-breaks the non-emissive intent below.
+is allocated and dims to silver when it isn't. A warm gunmetal separates cleanly
+from the dim silver rim and vanishes into the bronze one. Procgen puts addons on
+content nodes and players fortify their own territory, so **allocated is the
+primary case**, and an unallocated-only preview cannot show the failure. Separate
+by hue or radius, never brightness: brightening breaks the non-emissive intent
+below.
 
 Shared polygon builders (`annular_sector` with an outer chamfer, the shadow
 translate, the house light direction) live in `skill_node/addons/addon_geometry.gd`.
@@ -82,15 +83,14 @@ the `SkillNode` directly and are driven by `configure_visual`, not by the
 composite's identity fan-out, so borrowing that base class's statics would imply
 a membership that doesn't exist.
 
-## Readouts: below the node
+## Readouts: above the node
 
-A third register, for a *number the player checks* rather than a thing the
-node is or carries: a row under the disk, outside every band and every
-elevation piece (which all stand above y=0). One occupant so far:
+A third register, for a *number the player checks* rather than a thing the node is
+or carries: a row of pips outside every band. One occupant:
 
 | Readout | Where | Elements | Shown when |
 |---|---|---|---|
-| ShotsPips (`skill_node/shots_pips.gd`, #959) | y = `1.7 * radius`, centred | `shots_left()` lit of `max_shots_per_leaf` dots | the local attacker's plan is RANGED and the node is a leaf of *their* territory |
+| ShotsPips (`skill_node/shots_pips.gd`) | `row_offset_r = -1.7`: y = `-1.7 * radius` (negative is above the node), centred | `shots_left()` lit of `max_shots_per_leaf` dots | the local attacker's plan is RANGED and the node is a leaf of *their* territory |
 
 ShotsPips is the render-budget template for any per-node readout that
 hundreds of nodes carry at once: **one `Sprite2D`, one shared strip texture
@@ -108,12 +108,14 @@ The node has no injected BattleSystem; it discovers one lazily through the
 `HighlightController` group (the `PlayerInputController` precedent), which is
 what a test must put in the tree (`test/unit/test_shot_pips.gd`).
 
-## Elevation: straight up is taken
+## Elevation: straight up is shared
 
-`skill_node.tscn` parks `HealthBar` at y −59..−46 and `CoreHealthBar` at
-y −44..−28, both spanning x ±35, and `FloatAnchor` at (0, −50). Watchtower's
-default `stand_bearing_deg = 45` puts its whole silhouette below y ≈ −21. Check
-this before moving a structure upward.
+`skill_node.tscn` parks `HealthBar` at y -59..-46 and `CoreHealthBar` at y
+-44..-28, both spanning x about +-35, and `FloatAnchor` at (0, -50). The
+`WatchtowerVisual` script default is `stand_bearing_deg = 45`, which puts its
+silhouette below y of about -21; the shipped `defs/watchtower_addon.tscn` sets
+`stand_bearing_deg = -90` (straight up). Check the bars and `FloatAnchor` before
+moving a structure's bearing.
 
 An elevation piece needs a **contact shadow** at its footing, and should plant
 just inside the rim (`_STAND_RADIUS = 0.94`) — without both it reads as pasted
@@ -124,13 +126,11 @@ identity. The bearing offset is baked into the drawn geometry, not into the root
 
 ## Judge it at three zooms, on a dark unallocated node
 
-Both defensive addons passed at 3x and failed at distance on the first cut:
-
-- Bunker at `[1.00, 1.10]` was a ~3px band of dark steel abutting the node's own
-  dark rim — it rendered as very nearly nothing. Fixed by widening it *over* the
-  rim and warming/brightening the lit end.
-- Fortification at 16 merlons collapsed into a dotted line. Fixed with 12 chunkier
-  merlons and a much darker curtain, so the teeth have something to contrast with.
+A thin band of dark steel abutting the node's own dark rim renders as very nearly
+nothing at distance, and many small parts (16 merlons) collapse into a dotted line.
+Bunker therefore widens over the rim and warms/brightens its lit end;
+Fortification uses 12 chunkier merlons over a much darker curtain, so the teeth
+have something to contrast with.
 
 Bold closed fills survive minification; thin many-part detail fragments (the same
 point `.claude/rules/icon-assets.md` makes about baked icons). Build the shape out

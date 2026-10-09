@@ -30,7 +30,7 @@ there is no base scene to make; put the shared default in the script.
 **Or** it earns its keep by carrying shared defaults that every concrete
 inherits — no extra sub-nodes needed, just exported values every family member
 should start from. The guard is the same either way: **nothing in the family
-bypasses it.** `skill_node/keystone/keystone_skill_node.tscn` is this shape (#927):
+bypasses it.** `skill_node/keystone/keystone_skill_node.tscn` is this shape:
 it authors `base_radius = 40.0` / `base_inner_radius = 32.0` on top of
 `skill_node.tscn`'s own defaults, and every scene under `skill_node/keystone/`
 inherits it rather than `skill_node.tscn` directly — a sixth keystone authored
@@ -38,14 +38,8 @@ off the wrong base is the defect returning, so it's pinned by a test that
 scans the actual files on disk (`test/unit/test_keystone_landmarks.gd`), not
 just the known five.
 
-`skill_node/addons/skill_node_addon.tscn` is the counter-example, and was
-deleted (#334 follow-up): a bare `Node2D` + `SkillNodeAddon` script that
-nothing inherited, while bunker/fortification/clamp/spike_ring/skill_dust were
-each standalone scenes attaching the same script. A `z_index` authored into
-the "template" reached none of them. It belonged in `SkillNodeAddon._ready`.
-The difference from the keystone base above: nothing ever inherited the addon
-template, so its defaults were dead on arrival — the keystone base earns its
-keep because the whole family actually does inherit it.
+A bare template scene nothing inherits is dead weight; the keystone base earns its
+keep because the whole family actually inherits it.
 
 ## A `SkillNodeAddon` is its scene — read the `.tscn` before the script
 
@@ -54,25 +48,23 @@ A `SkillNodeAddon` is authored as `skill_node/addons/defs/<name>_addon.tscn`
 in `skill_node/addons/` itself, never `defs/`): the
 root node names the script it runs, and the scene holds the authored
 `local_modifiers` / `entity_modifiers`, icon and visuals. The script is only
-the behaviour a scene can't author — `toxin_addon.tscn` has no script of its
-own (it runs the base `skill_node_addon.gd`, its `on_hit_effects` authored in the scene), and `spike_ring_addon.gd` computes
-only its stake-scaled grants while its `×1.5 blade_damage` sits in the scene.
+the behaviour a scene can't author — `toxin_addon.tscn` has no script of its own
+(it runs the base `skill_node_addon.gd`, its `on_hit_effects` authored in the
+scene), and `spike_ring_addon.gd` computes only its stake-scaled grants while its
+`×1.5 blade_damage` sits in the scene.
 
-**The recurring mistake:** reading `<name>_addon.gd`, seeing no modifiers,
-and minting `StatModifier.new()` in an apply hook — a duplicate of what the
-scene already grants, so the stat double-counts (`4165473` minted spike ring's
-`blade_damage` in `get_local_modifiers`; `f3b5b24` moved it back to the scene).
-The owner caught it twice more before anything landed: 2026-09-16, an agent
-placed `BunkerAddon` as a bare script node instead of instancing its scene;
-2026-09-24, an agent surveyed addon modifiers from the scripts alone ("you
-should be looking at the *scenes*"). **How to apply:** open the
-`.tscn` first; add a modifier there (a `resource_local_to_scene` sub-resource,
-as the existing scenes do); code-mint one only when it's computed (scales with
-`stake_level`, reads another stat). A new addon is a scene on the base or a
-shared script; subclass only for a hook (`apply_to_blade`) the base can't
-express. Drawing is never a reason to subclass: it goes in a `Visual` child
-running an `AddonVisual` script (`skill_node/addons/visuals/`), which the base
-addon hands the carrier radius — `bunker_addon.tscn` is the shape to copy.
+**The recurring mistake:** reading `<name>_addon.gd`, seeing no modifiers, and
+minting `StatModifier.new()` in an apply hook — a duplicate of what the scene
+already grants, so the stat double-counts. Likewise, placing an addon as a bare
+script node instead of instancing its scene.
+**How to apply:** open the `.tscn` first; add a modifier there (a
+`resource_local_to_scene` sub-resource, as the existing scenes do); code-mint one
+only when it's computed (scales with `stake_level`, reads another stat). A new
+addon is a scene on the base or a shared script; subclass only for a hook
+(`apply_to_blade`) the base can't express. Drawing is never a reason to subclass:
+it goes in a `Visual` child running an `AddonVisual` script
+(`skill_node/addons/visuals/`), which the base addon hands the carrier radius —
+`bunker_addon.tscn` is the shape to copy.
 
 ## What an inherited scene CAN and CANNOT change
 
@@ -87,7 +79,7 @@ So "inherit the scene and swap its guts for a subclass" is not a move Godot
 offers. The three things that are:
 
 1. **Add a sibling** alongside the instanced child and put the new behaviour
-   there. Cheapest, and usually enough — this is what #734's splash charge glow
+   there. Cheapest, and usually enough — this is what the splash charge glow
    does: `splash_root_view.tscn` inherits `menu_node_view.tscn` and *adds* a
    `ChargeGlow` next to the composite it cannot replace.
 2. **Export the scene** (`@export var visuals_scene: PackedScene`) on the base
@@ -116,22 +108,17 @@ not `Foo.new()` + manual child wiring. Same contract, same payoff.
 ## A scene-wired NodePath export resolves BEFORE the target's `_ready`
 
 So a setter that *subscribes* to something the target replaces during its own
-`_ready` ends up holding the discarded object. The live case (gone since #1031:
-the `stat_board` setter takes the private copy at assignment outside the
-editor, and `initialize()` duplicates only under `Engine.is_editor_hint()`):
-`Entity._ready` did `stat_board = stat_board.duplicate(true)`, and `dev_sandbox.tscn` wired
-`PlayerInputController.player` as a NodePath — so `_set_player`'s
-`action_points.current_changed` connection landed on a board the entity threw
-away one frame later. Nothing errors; the signal simply never arrives.
+`_ready` ends up holding the discarded object, and nothing errors — the signal
+simply never arrives. (`Entity.stat_board` used to be such a case; its setter now
+takes the private `duplicate(true)` at assignment, so a subscription to the board
+is safe.)
 
 **How to apply:** an export setter may cache the *node*, but must re-assert any
 subscription to that node's *resources* from a later, idempotent bind call
-(`GameRoot.bind_player` is the one here). Which means **a same-value early
-return in such a setter is load-bearing in the wrong direction** — scope it to
-the state that genuinely must not be clobbered, never to the re-subscription.
-That regression is what 2fa1d9e fixed; `test/integration/scenes/test_act_gate_across_turns.gd`
-pins it, and a procgen sandbox cannot reproduce it because it spawns its player
-in `_setup_level`, after the swap.
+(`GameRoot.bind_player` is the one here). A same-value early return in such a
+setter is load-bearing in the wrong direction — scope it to the state that
+genuinely must not be clobbered, never to the re-subscription.
+`test/integration/scenes/test_act_gate_across_turns.gd` pins it.
 
 ## Where a dependency points decides where a node lives
 
@@ -149,8 +136,7 @@ in `_setup_level`, after the swap.
 
 A sandbox that wants to poke at an instance's internals can mark it
 **editable children** in the editor — but the base instance still ships
-complete. Don't fork a divergent hand-composed copy (the dev_sandbox lesson:
-it was a standalone tree that drifted from game_root.tscn; now it's an
+it was a standalone tree that drifted from game_root.tscn; now it is an
 **inherited scene**, so structural changes to game_root propagate for free).
 
 See also [godot-workflow.md](godot-workflow.md) for the scene-node `_ready`
@@ -172,89 +158,46 @@ cheap signal stays green: the suite passes, `godot --path .` is right, F5 is
 right, and only the shipped build is missing a subtree — with no error printed
 in it either.
 
-That is #711. `frontmatter_root.tscn` instanced `FrontmatterPanels` at
-`PanelLayer/FrontmatterColumns/Remainder`, one level below the
-`FrontmatterColumns` instance root, so **every export shipped a menu with no
-panels at all**: navigating to Single Player raised nothing, and the same click
-raised the lobby from source.
-
-Established by A/B export, not by reading engine source:
-
-- with the `[editable]` line, the converted `.godot/exported/…-frontmatter_root.scn`
-  contains `FrontmatterPanels`; without it, zero occurrences;
-- the same file perturbed by whitespace alone (new content hash, so a fresh
-  conversion, ruling out a stale export cache) still drops the node;
-- a plain `PackedScene` → `ResourceSaver.save()` → reload round-trip **keeps**
-  it, so this is the editor's export conversion, not binary serialisation;
-- plain `type=`-declared children in the same position survive
-  (`frontmatter_panel.tscn`'s own `Column`/`Title`/`Body` render in the export),
-  which is why the rule is scoped to *instances*.
+The failure: `frontmatter_root.tscn` instanced `FrontmatterPanels` one level below
+the `FrontmatterColumns` instance root, so every export shipped a menu with no
+panels. Only instances are exposed — plain `type=`-declared children in the same
+position survive — and it is the editor's export conversion, not binary
+serialisation (a `PackedScene` save/reload round-trip keeps the node).
 
 `mise run lint-scene-instance-depth` (wired into `mise run check`) fails on the
-shape. Editor-only trees — `addons/*`, `*_live_sandbox.tscn`, sandbox panels —
-are exempt, because the export strips them anyway.
+shape. Editor-only trees — `addons/*`, `*_live_sandbox.tscn`, sandbox panels — are
+exempt, because the export strips them anyway.
 
-**How to apply.** Either add the `[editable path=…]` line for the instance you
-are reaching into, or — better — give the sub-scene a real slot and instance
-into it from a scene that owns the slot. The second is the shape the rest of
-this doc argues for; the first is the one-line fix when the slot already exists
-and the reach is honest.
+**How to apply.** Either add the `[editable path=…]` line for the instance you are
+reaching into, or — better — give the sub-scene a real slot and instance into it
+from a scene that owns the slot. The second is the shape the rest of this doc
+argues for; the first is the one-line fix when the slot already exists and the
+reach is honest.
 
-## An instance that re-anchors must author its own `anchors_preset` (2026-09-01)
+## An instance that re-anchors must author its own `anchors_preset`
 
-Sibling of the rule above, same signature — correct from source, wrong only in
-an exported build — but a different mechanism, so `lint-scene-instance-depth`
-was clean while the bug shipped.
+Sibling of the rule above — correct from source, wrong only in an exported build —
+but a different mechanism, so `lint-scene-instance-depth` does not catch it.
 
-Exporting re-saves every scene as binary, and that re-save writes the editor
-helper `anchors_preset` onto each node **whether or not the text scene had
-one**. Its setter assigns all four anchors. What survives that is only the
-subset of `anchor_*` values the instance actually stores — and an instance
-stores only what DIFFERS from its base scene's root, so an override that
-happens to *match* the base is dropped as redundant and nothing restores it.
+Exporting re-saves every scene as binary and writes the editor helper
+`anchors_preset` onto each node **whether or not the text scene had one**; its
+setter assigns all four anchors. An instance stores only what DIFFERS from its base
+scene's root, so a re-anchor that happens to *match* the base is dropped as
+redundant and nothing restores it. The synthesized preset is not computed from the
+node's anchors (an unauthored node gets `0`, `PRESET_TOP_LEFT`), so do not reason
+about which one it will be given; author one.
 
-`title_band.tscn` re-anchored two `banner.tscn` instances to (0, 0.5, 1, 0.5)
-and authored no preset. The export synthesized `0` (`PRESET_TOP_LEFT`), which
-zeroed all four; `anchor_top`/`anchor_bottom` came back because 0.5 differs
-from `banner.tscn`'s own root, while `anchor_right = 1.0` — identical to that
-root — had already been dropped. The band loaded with correct height and
-**zero width**: "YOUR TURN" slid around x=0, roughly 80% off the left edge,
-and its backdrop (anchored 0..1 *inside* the band) had no width to draw, so it
-read as missing entirely.
-
-Established by reading the exported `PackedScene`'s own `SceneState` at runtime
-from the shipped build:
-
-- the exported scene lists `anchors_preset = 0` on a node whose `.tscn` never
-  contained the property, and lists **no** `anchor_left` / `anchor_right`;
-- a `ResourceSaver.save()` → reload round-trip in-editor **keeps** all four
-  anchors, so this is the export conversion, not binary serialisation — the
-  same split as #711;
-- the parent (`TitleBand`, a plain `type=` node) was a healthy 1440x960
-  throughout, because its anchors are stored against the CLASS default and so
-  nothing is dropped as redundant;
-- `callout_band.tscn` — same layer, same shape, plain children — is unaffected
-  for that reason. **Only instances are exposed.**
-
-The synthesized value is **not computed from the node's anchors**: `TitleBand`
-is anchored (0, 0, 1, 1) — `FULL_RECT`, 15 — and the export writes `0` for it
-too. It survives regardless, being a plain node whose stored `anchor_right`
-re-applies afterwards. So do not reason about which preset an unauthored node
-will be given; author one.
-
-The fix is verified the same way, by reading the converted scene the export
-leaves at `.godot/exported/<n>/export-<hash>-title_band.scn`: with
-`anchors_preset = 14` authored, the converted binary carries `14`, and
-instantiating it straight from that file yields anchors (0, 0.5, 1, 0.5) and
-offsets (0, -132, 0, 8) — correct before any code runs.
+**Symptom:** an instanced banner/band loads with correct height and zero width
+(e.g. `title_band.tscn`'s `banner.tscn` instances), anchored at x=0 and mostly off
+screen, its backdrop invisible. Plain `type=` nodes are unaffected, because their
+anchors are stored against the class default — **only instances are exposed.**
 
 `mise run lint-instanced-anchors` (wired into `mise run check`) fails on an
 instanced node that sets any `anchor_*` without an `anchors_preset` line.
 
-**How to apply.** Author the preset that matches the intent — `anchors_preset =
-14` is `HCENTER_WIDE`, i.e. exactly left 0 / right 1 / top 0.5 / bottom 0.5.
-A preset the author chose is written back unchanged and applied harmlessly. A
-widget with a geometric contract of its own can also re-assert it in `_ready()`
-(`Banner._assert_full_width()`), which is belt-and-braces rather than the fix:
-prefer the authored preset, since the code guard only covers the sides that
-one widget happens to know about.
+**How to apply.** Author the preset that matches the intent — `anchors_preset = 14`
+is `HCENTER_WIDE` (left 0 / right 1 / top 0.5 / bottom 0.5). A preset the author
+chose is written back unchanged. A widget with a geometric contract can also
+re-assert it in `_ready()` (`Banner._assert_full_width()`), which is
+belt-and-braces: prefer the authored preset, since the code guard only covers the
+sides that one widget knows about.

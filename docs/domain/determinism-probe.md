@@ -1,22 +1,14 @@
-# The determinism probe (#529)
+# The determinism probe
 
-**This produced a number, not a feature — and the question it was built for is
-now closed.** It existed to settle #463's open question (confirm-down versus
-lockstep + snapshot recovery) by measurement instead of another round of
-argument. That question is settled — the verdict, the grounds and what this
-probe did and did not contribute to it are recorded in
-[ADR 0002](../adr/0002-host-authoritative-sync-not-lockstep.md);
-`docs/domain/multiplayer-sync-model.md` is the architecture it serves.
+A permanent **desync canary**, not a feature: the cheapest signal that a peer and the
+authority have stopped agreeing. The sync model it serves is settled in
+[ADR 0002](../adr/0002-host-authoritative-sync-not-lockstep.md) (architecture:
+`docs/domain/multiplayer-sync-model.md`); because the probe asks whether a peer
+*could* have derived what it received, it also keeps the lockstep door open at
+near-zero cost without the wire depending on it.
 
-**The probe stays, as a permanent desync canary.** It is the cheapest signal
-that a peer and the authority have stopped agreeing, and — because it asks
-whether a peer *could* have derived what it received — it also keeps the
-lockstep door open at near-zero cost without the wire depending on it.
-
-**Read the scope section before quoting a clean run.** Both closing sweeps ran
-on one machine, one binary, one libm. They measure *pipeline order*, not
-floating-point portability, and the ground that actually decided the model
-(cross-platform `libm` in the blade sim) is invisible to them.
+**Read the scope before quoting a clean run.** A clean run on one machine, one
+binary, one libm measures *pipeline order*, not floating-point portability.
 
 | Piece | Where |
 |---|---|
@@ -34,10 +26,9 @@ godot --headless --path . scenes/dev/mp_dev_sandbox.tscn -- --role=host   --port
 godot --headless --path . scenes/dev/mp_dev_sandbox.tscn -- --role=client --address=127.0.0.1 --port=9109 --autopilot --probe
 ```
 
-**9099, the default, works too** — a host that cannot bind now exits non-zero
-and says which port is taken (#546), so the stale-host link that once made a
-whole run measure the wrong process fails loudly instead. Different ports are
-still convenient for running two measurements at once. **Launch both processes
+**9099, the default, works too** — a host that cannot bind exits non-zero and says
+which port is taken. Different ports are convenient for running two measurements at
+once. **Launch both processes
 from the same checkout at the same commit**: peers on different shas refuse to
 link, but the stamp cannot see uncommitted edits — see
 [multiplayer-harness.md](multiplayer-harness.md).
@@ -48,8 +39,8 @@ first budget-gated verb desyncs — see
 [multiplayer-harness.md](multiplayer-harness.md). `--turns` stays host-only.
 
 **`--turns` is not optional for a measurement.** One sweep is ~17 commands and
-then the loop stalls on Red waiting for input that never comes in headless. The
-issue asks for a few hundred, so ask for the turns.
+then the loop stalls on Red waiting for input that never comes in headless. Ask for a
+few hundred turns.
 
 Or tick both boxes on the sandbox host's **Multiplayer** tab and Launch both.
 **The breakdown prints in the CLIENT window**, not the launcher's log —
@@ -57,12 +48,10 @@ Or tick both boxes on the sandbox host's **Multiplayer** tab and Launch both.
 to re-derive.
 
 The readout fires on a `PROBE_REPORT_PERIOD_SECONDS` heartbeat **and** after
-`PROBE_REPORT_QUIET_SECONDS` of silence on the wire. Quiet alone was the
-original design and it silently failed: under `--turns` the sweeps run back to
-back, the wire never goes quiet, and a ten-minute measured run printed its last
-table two minutes in. The heartbeat means the table is never more than a period
-stale and killing the process costs at most one period. Quiet stays because it
-prints *promptly* when a sweep — or a human clicking — stops.
+`PROBE_REPORT_QUIET_SECONDS` of silence on the wire. The heartbeat is required: under
+`--turns` the sweeps run back to back and the wire never goes quiet. It bounds the
+table's staleness to one period; quiet prints *promptly* when a sweep — or a human
+clicking — stops.
 
 ## Three questions, tallied apart
 
@@ -70,12 +59,11 @@ prints *promptly* when a sweep — or a human clicking — stops.
 `WorldSyncChannel` already compared; the probe only attributes each verdict to the
 command type that produced it. Columns: `ok / DIVERGED / skipped / exempt`.
 
-Since #540 the comparison is **pre-state against pre-state**, not post-apply:
+The comparison is **pre-state against pre-state**, not post-apply:
 the host stamps `Command.pre_fingerprint` when the command leaves its queue and
-ships that, and the peer compares against its own world at
-`_on_remote_command` entry, *before* it submits. It had to move — once the
-authority confirms *before* it applies, there is no post-mutation world to
-sample at confirm time. The honest cost is that a divergence is attributed to
+ships that, and the peer compares against its own world at `_on_remote_command`
+entry, *before* it submits (the authority confirms before it applies, so there is no
+post-mutation world to sample). The cost is that a divergence is attributed to
 the command *after* the one that caused it, and a run's final command is never
 compared at all; if you need the last one, compare once explicitly at
 end of sweep.
@@ -95,19 +83,17 @@ trivially. An attack that produced no landings agrees for free and proves
 nothing, so the hit count is reported beside the verdict rather than left for
 the reader to assume.
 
-**LAND — could this peer have derived the host's LAND-TIME arithmetic?** Added
-2026-08-24, because RESOLVE answers the half a confirmed record was never needed
-for, while the half lockstep would have stood on was excluded. Covers
+**LAND — could this peer have derived the host's LAND-TIME arithmetic?** RESOLVE
+covers the half of a record a plan+seed determines; LAND covers the half lockstep
+would have stood on. It covers
 post-mitigation damage, the reclassified hit kind, the HP bars (`h_hp0`/`h_hp1`/
 `h_hpm`), the blade-pop cue, every forced-dealloc field, and the `FLAG_GATED`
 bit. Columns: `ok / DIVERGED / ok(uns) / div(uns) / unavailable / landings`.
 
 `h_hpm` is the load-bearing one: a peer that recomputed a node's derived max
 health differently after a cascade — or clamped `current` in a different order —
-lands its damage against a different bar. Since derived stats are recomputed per
-peer under the chosen model, that is a live failure mode rather than a
-hypothetical, which is what makes this column worth keeping now that it can no
-longer change anyone's mind about the model.
+lands its damage against a different bar. Derived stats are recomputed per
+peer, so that is a live failure mode, not a hypothetical.
 
 **LAND buckets by settledness rather than annotating it.** Land-time arithmetic
 reads the peer's LIVE world, so a re-derivation taken while an earlier command
@@ -122,9 +108,8 @@ the deferred fog-filtered model the inputs are withheld on purpose, so a clean
 LAND column says lockstep COULD have carried these numbers — never that the
 record is unnecessary.
 
-Nothing mutates. `BattleSystem._resolve_for_launch` documents that "nothing
-below `resolve()` mutates"; the plan built here is local and is never assigned
-to `battle_system.attack_plan`. One re-derivation answers both RESOLVE and LAND,
+Nothing real mutates: `AttackPlan.resolve` lands its outcome in its own shadow world,
+and the plan built here is local, never assigned to `battle_system.attack_plan`. One re-derivation answers both RESOLVE and LAND,
 so the two columns can never be reported against different worlds.
 
 ## The partition, and why it is the whole design
@@ -139,7 +124,7 @@ unmeasured, which is how a real desync passes clean.
 | `seed`, `ap` | `h_amt` — post-`Mitigation` effective damage |
 | `h_tgt`, `h_org`, `h_atk` | `h_kind` — reclassified to HEAL on a `min_damage_taken` underflow |
 | `h_at` (arrival clock) | `h_hp0` / `h_hp1` / `h_hpm` — the HP bars |
-| `h_crit` + the `FLAG_CRIT` bit | the `FLAG_GATED` bit (#503, decided at land) |
+| `h_crit` + the `FLAG_CRIT` bit | the `FLAG_GATED` bit (decided at land) |
 | the whole timeline (`e_*`) | `h_pop`, and every `d_*` — the forced-dealloc sets |
 
 `h_flags` is the one field **split between** the columns: the crit bit is a
@@ -148,10 +133,9 @@ is decided at land time. `DeterminismProbe._crit_bits` and `_bits` mask
 accordingly, and neither column may compare the byte whole.
 
 **Why they are tallied apart rather than summed.** They answer different
-questions about different inputs, and RESOLVE's number has been reported to the
-owner twice — a column that changed meaning between runs would not be a
-measurement. A clean RESOLVE says the hit **set**, **order** and **timeline**
-are reproducible (the half #530's stable hitscan sort was a prerequisite for). A
+questions about different inputs, and a column that changed meaning between runs
+would not be a measurement. A clean RESOLVE says the hit **set**, **order** and **timeline**
+are reproducible (which depends on the stable hitscan sort). A
 clean LAND says the derived recompute and the intra-beat pipeline order agree.
 Neither, on one machine, says anything about `libm`.
 
@@ -167,14 +151,10 @@ But it means a share of commands is **never compared**, and "0 diverged of 412"
 handed to the owner while only 280 were looked at is a false clean read. They are
 counted as `skipped`.
 
-**#540 cut this substantially by moving the compare ahead of the mutation.** The
-old post-apply compare had to survive its own `await`, so it also lost to any
-command that arrived meanwhile (a `_recv_seq` supersede check, now deleted) —
-which hit the long-running verbs hardest. Measured over the same autopilot sweep,
-`launch_attack` went from 17 skipped of 31 to **3 of 31**. Note the totals move
-less than that suggests: the compare shifted from the *last* command of a burst
-to the *first*, which redistributes skips between verbs rather than only removing
-them (`allocate` went 4 → 9 over the same run).
+The compare runs ahead of the mutation, so it does not have to survive its own
+`await` and lose to a command that arrives meanwhile. Skips redistribute between verbs
+(the compare sits on the *first* command of a burst, not the last); the readout's
+`skipped` column is the honest denominator.
 
 ## `exempt` is the model working
 

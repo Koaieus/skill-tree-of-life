@@ -1,8 +1,11 @@
 # GameSession + the seed determinism contract
 
-`GameSession` (`autoload/game_session.gd`) owns the **live run**: the
 `RunConfig` that describes it, the `ParticipantRoster` playing it, and the
-`RunOutcome` it ended with. Landed in #457.
+`RunOutcome` it ended with. Per-machine fields sit beside them: `network`
+(`NetworkConfig`, how this machine reaches the other one), `local_peer_id` (which
+roster peer is this machine), `world_source` and `pending_world`. Signals:
+`run_started(config)` once the config is settled and the seed resolved, and
+`run_recorded(outcome)` once the terminal state is stored.
 
 It has no `class_name` on purpose — a `class_name GameSession` alongside an
 autoload of the same name is a hard parse error ("class hides an autoload
@@ -31,6 +34,8 @@ resolution site #457 existed to delete.
 | `GameSession.start(cfg)` | Opens a run. Resolves the seed once, here, before any level builds. The lobby's START calls it, then routes. |
 | `GameSession.ensure_started(fallback_seed)` | What a directly-launched level calls from `_setup_level` (dev sandbox, `godot --path .`, a headless test). Opens a run seeded from the scene's authored preset seed — and **leaves a live run alone**. |
 | `GameSession.end()` | Drops the run so the next `ensure_started` resolves fresh. Called when routing away from a finished run. |
+| `GameSession.apply_received(cfg, roster)` | A joiner's entry: takes the host's already-resolved config and roster (never re-resolves the seed), sets `world_source = ARRIVES`. |
+| `GameSession.open_saved(save)` | Opens a run from a `SaveFile`: same shape as `apply_received`, the saved world parked in `pending_world` for the level. False, session untouched, for a save that did not load. |
 
 `GraphProcgen.generate` **asserts** its config's seed is already resolved. It is
 deliberately not a resolution site: a seed nobody recorded is a run nobody can
@@ -50,13 +55,15 @@ which calls `start()` afresh. Pinned by
 
 ### The outcome outlives `end()`
 
-`end()` clears `config` and `roster` but **not** `outcome`. A run ends and is
-routed away from in the same breath (`GameRoot._on_run_ended` records off the
-bus, waits out the delay, then ends and routes), so clearing the terminal state
-there would delete it at the exact moment a results screen would want to read
-it. `start()` is what clears it — the moment a stale outcome could actually
-mislead. `is_active()` keys off `config`, so a surviving outcome never makes a
-dead run look live.
+`end()` clears `config`, `roster`, `network` and `pending_world`, resets
+`world_source` to `GENERATE`, and calls `Wire.stop()` (the socket outlives the
+level, so a listener left behind would hold the port the next Host click needs) —
+but **not** `outcome`. Recording is `GameSession._on_run_ended` (off
+`Events.run_ended`, emitting `run_recorded`); `GameRoot` then waits out the delay
+and routes via `route_to_meta_now`, which calls `GameSession.end()`. Clearing the
+terminal state there would delete it at the moment a results screen would want to
+read it. `start()` is what clears it. `is_active()` keys off `config`, so a
+surviving outcome never makes a dead run look live.
 
 ## The seed is for procgen. Nothing else.
 
@@ -68,20 +75,21 @@ procgen using it, for now. possibly forever."*
 crits. That is the normal roguelike bargain — seed the world, let combat vary —
 and it is an explicit choice, not an oversight.
 
-An earlier pass at #457 assumed the contract had to cover combat and loot too.
-Both halves got answered elsewhere first:
+The seed is a replay input, never a cross-peer determinism contract: a joining
+client runs no procgen — it receives the host's serialized world.
 
-- **Combat RNG** — solved by `8dc6f77`. `BattleSystem.launch_attack` stamps a
-  per-attack `AttackPlan.resolve_seed`, `MagicAttackPlan` arms its RNG off it,
-  and `AttackOutcome` carries the seed back out. Reproducibility comes from the
-  **per-attack stamp**, not a run-level stream — strictly better for sync,
-  because a global stream couples every peer's result to having consumed prior
-  draws *in the same order*, which is the ordering fragility that sank lockstep
-  in #473.
-- **Loot RNG** — per #473, loot rolls stay **host-only**; only the chosen
-  modifier crosses the wire. Seeding it would solve a problem the authority
-  model already deletes. `test/unit/attack/test_attack_determinism.gd` pins the
-  unseeded shuffle on purpose, with an explicit warning not to "fix" it.
+Reproducibility of fights comes from elsewhere:
+
+- **Combat RNG** — `BattleSystem.launch_attack` stamps a per-attack
+  `AttackPlan.resolve_seed`, `MagicAttackPlan` arms its RNG off it, and
+  `AttackOutcome` carries the seed back out. Reproducibility comes from the
+  **per-attack stamp**, not a run-level stream — a global stream would couple every
+  peer's result to having consumed prior draws *in the same order*, the ordering
+  fragility that sank lockstep.
+- **Loot RNG** — loot rolls stay **host-only**; only the chosen modifier crosses
+  the wire, so seeding it would solve a problem the authority model already
+  deletes. `test/unit/attack/test_attack_determinism.gd` pins the unseeded shuffle
+  on purpose, with an explicit warning not to "fix" it.
 
 **So: never thread `GameSession.config.seed` into `BattleSystem`,
 `SpellResolver`, `LootSystem`, or `SkillDustAddon`.** If exact run replay is

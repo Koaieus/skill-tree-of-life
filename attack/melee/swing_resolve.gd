@@ -169,7 +169,7 @@ func _exert_blade() -> void:
 
 ## Arm [param gate] to flip at [param frac] of the swing (#1209), cutting blade
 ## edge [param edge_idx] at the same sample. Quantises to a trajectory sample —
-## the determinism contract (`melee-blade-sim.md` "Golden trajectories") has
+## the determinism contract (`blade-native.md` "Golden trajectories") has
 ## no between-samples. Call before the first [method advance]; the caller owns
 ## which gates are legal (see [method MeleeAttackPlan.fusable_gates]).
 ##

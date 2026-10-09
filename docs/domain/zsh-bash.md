@@ -1,8 +1,6 @@
 # The Bash tool runs zsh — quote globs, never lead a word with `=`
 
-**The two trips**, measured over 317 session transcripts (2026-08-23 → 09-21,
-16,791 Bash calls): 393 failures, 216 transcripts affected, ~1 in every 42
-calls — every one of them a round-trip bought for nothing.
+Two trips (~1 in 42 Bash calls across 317 transcripts), each a wasted round-trip:
 
 | Signature | Count | Cause | Fix |
 |---|---|---|---|
@@ -18,8 +16,7 @@ The Bash tool's zsh is a snapshot of the owner's interactive shell, aliases
 included: `ls` → `eza`, `cat` → `bat --paging=never --style=plain`. Two
 consequences seen in transcripts:
 
-- **Bare `ls` hung forever** (a live session, 2026-09-28, and likely a 23.8 h
-  orphan earlier): with no path argument and a non-tty stdin, `eza` reads paths
+- **Bare `ls` hung forever** (seen live, 2026-09-28): with no path argument and a non-tty stdin, `eza` reads paths
   from stdin until EOF, and the tool's stdin is a socket that never closes.
   Fixed in the owner's dotfiles (the aliases now close stdin), but a session
   whose snapshot predates the fix still carries the old alias.

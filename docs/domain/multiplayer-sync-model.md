@@ -6,9 +6,9 @@ the grounds it actually rests on, and every alternative with its dead arguments
 marked as dead. **Read it before re-arguing this**: the call has already been
 made three times, and three of the grounds it originally rested on are retired.
 
-This is the architecture every networked and hot-seat feature hangs off. It
-also rewrites what #458 (`CommandBus`) and #463 (versus) are for. Read this before touching input routing, `BattleSystem`'s
-launch path, or the AI controller.
+This is the architecture every networked and hot-seat feature hangs off. Read
+this before touching input routing, `BattleSystem`'s launch path, or the AI
+controller.
 
 The game-design side of what a player is *allowed to know* lives in
 [../design/info_gating.md](../design/info_gating.md); this doc covers the code
@@ -23,9 +23,9 @@ shape.
 One peer — the host — is the only thing that decides anything. A client sends an
 *intent*. The host validates it, broadcasts the *confirmed command* plus a
 resolved payload for anything the client cannot recompute, and **then** applies
-it. Every peer, the host included, applies world changes through one applier —
-and since #540 through the same *post-confirmation* half of it, so the authority
-is not structurally a mutation window ahead of everyone it is telling (#534).
+it. Every peer, the host included, applies world changes through one applier,
+through the same *post-confirmation* half of it, so the authority is not
+structurally a mutation window ahead of everyone it is telling.
 
 Single-player and hot-seat are not a special case: they run the same path
 through a loopback transport. That is the whole point — if offline play works,
@@ -54,9 +54,8 @@ click / AI decision
 ```
 
 The confirm sits **between** validate and apply, for every verb without
-exception — that is #540, finished by #545. `validate → apply → broadcast` is
-what this diagram used to say and is the shape #534 was filed to delete: it put
-the host a full mutation window ahead of everyone it was telling.
+exception: `validate → apply → broadcast` would put the host a full mutation
+window ahead of everyone it is telling.
 
 ---
 
@@ -76,34 +75,25 @@ since been retired, is
    `AllocationSystem` entry point is synchronous, gated, `-> bool`, and takes
    `(node, entity)` — already wire-shaped once `SkillNode` becomes `stable_id`.
 
-2. **Mutation is not entangled with animation (#504).** Damage used to land
-   *inside* `await attack_vfx.play(...)` / `await melee_preview.launch(...)`, so
-   the authoritative world change happened at animation time, ordered by frames.
-   Since #504 the VFX call is un-awaited and mutation runs on its own
-   `OutcomeApplier`/`BeatClock` loop, paced by authored `arrival_time` — see
-   [presentation-clock.md](presentation-clock.md). VFX is a pure observer in fact,
-   not just in intent. `BattleSystem.is_launching` is the reentrancy guard #458
-   asked for.
+2. **Mutation is not entangled with animation.** The VFX call is un-awaited
+   and mutation runs on its own `OutcomeApplier`/`BeatClock` loop, paced by
+   authored `arrival_time` — see [presentation-clock.md](presentation-clock.md).
+   VFX is a pure observer. `BattleSystem.is_launching` is the reentrancy guard.
 
 3. **Combat is nearly RNG-free — but not entirely.** Initiative, allocation
-   gating, mitigation, blade hit-scan and AI scoring are pure arithmetic. Three
+   gating, mitigation, blade hit-scan and AI scoring are pure arithmetic. Two
    real exceptions:
-   - `attack/spell/propagation/propagation_context.gd:47-55` — crit RNG falls
-     back to `crit_rng.randomize()` when none is injected.
-   - `systems/loot_system.gd:335,449,461` and
-     `skill_node/addons/skill_dust_addon.gd:173` — global unseeded
-     `Array.shuffle()`. **Not a hazard here:** the roll is host-only and its
-     *result* is what crosses the wire, so there is nothing for a peer to
-     reproduce — see
+   - `PropagationContext`'s crit RNG falls back to `crit_rng.randomize()` when
+     none is injected.
+   - `SkillDustAddon`'s global unseeded `Array.shuffle()`. **Not a hazard
+     here:** the roll is host-only and its *result* is what crosses the wire, so
+     there is nothing for a peer to reproduce — see
      [ADR 0013](../adr/0013-host-only-rolls-and-the-seed-is-a-procgen-input.md).
-   - `attack/spell/propagation/spread/random_pick_spread.gd:22-25` — same null-RNG
-     fallback.
 
-4. **AI is frame-shaped and calls systems directly.**
-   `entity/controller/ai_controller.gd:70,85,124` awaits
-   `create_timer(turn_delay)` between decisions, then calls
-   `allocation_system.allocate()` / `battle_system.launch_attack()` straight.
-   Its *decisions* are deterministic; its *timing* is not.
+4. **AI is frame-shaped, but its mutations are commands.** `AIController` awaits
+   `create_timer(turn_delay)` between decisions and submits every mutation
+   through `_submit_and_wait`. Its *decisions* are deterministic; its *timing*
+   is not, and that timing is host-local pacing with no sync meaning.
 
 ## The determinism obligation
 
@@ -115,13 +105,7 @@ identical results on every machine, and that obligation is real today.
 **The obligation reaches exactly one subsystem: the stat pipeline** — which is
 what makes it auditable with a grep.
 
-As of 2026-08-24 that audit returns exactly one live hit: **#547**,
-`floor(log(INT)/log(10.0))` in `entity/default_entity_board.tres:179`, which is
-already wrong at INT 1000 on glibc (returns 2, should be 3) and libm-dependent
-at every power of ten.
-
-Two rules follow, and they are the stat-pipeline analogue of #530's stable
-hitscan sort:
+Two rules follow, the stat-pipeline analogue of the stable hitscan sort:
 
 - **No transcendentals in a value a peer recomputes.** `sqrt` is fine (IEEE
   requires it correctly rounded). `log` / `exp` / `pow` / `sin` / `cos` /
@@ -136,10 +120,7 @@ hitscan sort:
   math that would be wrong to rewrite). Presentation is likewise exempt —
   `vision_system.gd`'s `exp` is a frame-rate ease inside `_process`, and every
   `skill_node/visuals/`, `entity/core/sigil/` and `graph/edge.gd` use is
-  drawing. (Narrowed 2026-09-03, #706: the old wording said "gameplay code
-  path", which was broader than its own rationale — Cyclone's angular sort
-  keeps its cross-product pseudo-angle because it is *cheaper* than `atan2`,
-  not because a rule forbids the alternative.)
+  drawing.
 
   `mise run lint-transcendentals` enforces this and is deliberately coarser
   than the rule — it is path-based, so a new transcendental in a
@@ -154,35 +135,24 @@ hitscan sort:
   follows replicated command order, so this holds today — but it breaks silently
   the moment a bin is sorted by a float or moved into an unordered container.
 
-`MeleeAttackPlan.resolve()` itself is **not** the blocker it looks like, and
-this was true under either model. `attack/melee/sim/blade_sim.gd:28-31` is a
-pure fixed-dt XPBD loop (`steps = ceil(duration/dt)`, `t = float(step)*dt`) with
-no frame delta and no RNG; `blade_hit_scan.gd:35` walks
-`trajectory.sample_dt`; every call site passes constants; `ai_blade_rollout.gd:37`
-already documents `simulate()` as pure so it can run on `WorkerThreadPool`.
-The pop question is no longer part of the scan at all: since #536 a defensive
-spike is decided per landing inside `BladeDamageInstance.land_on`, off
-`BladePopResolver.LiveGate`, and rides the record as `h_pop`. It is therefore
-**land-time**, not resolve-stage, and #529's LAND column is where it is measured.
-(The old batch `BladePopResolver.resolve` answered it in one call during the
-scan; text describing that arrangement is stale.) Either way, order-dependence
-*inside* a deterministic function was never the divergence risk it was written up
-as — given the same inputs every peer produces the same order and the same set. The portability of the *inputs* is the
-separate problem, and it is the one that bites — it is ground A of
+`MeleeAttackPlan.resolve_against` is not a divergence risk:
+`attack/melee/sim/blade_sim.gd` is a pure fixed-dt XPBD loop (no frame delta,
+no RNG), `BladeHitScan` walks `trajectory.sample_dt`, and `ai_blade_rollout.gd`
+runs `simulate()` on `WorkerThreadPool` because it is pure. A defensive spike pop
+is decided per landing inside `BladeDamageInstance.land_on`, off
+`BladePopResolver.LiveGate`, and rides the record as `h_pop` — **land-time**,
+not resolve-stage. Order-dependence *inside* a deterministic function is not a
+divergence source: given the same inputs every peer produces the same order and
+set. The portability of the *inputs* is the separate problem — ground A of
 [ADR 0002](../adr/0002-host-authoritative-sync-not-lockstep.md)'s lockstep
 rejection, and the reason the blade is re-simulated only to draw it.
 
-**Current information decision: every client gets full world state; hiding
-is a UI concern.** No fog gating exists anywhere in planning today, so this
-matches what the code already assumes, and it's acceptable on a LAN. If that
-ever needs to change, it's a payload swap (ship less than full state) on top
-of this model, not a rewrite of it — `RevealEvent`'s `from_value`/`to_value`
-in the parked `presentation/` classes is already the shape a fog-gated or
-authoritative-reveal payload would want; see `presentation/README.md`.
+**Information decision: every client gets full world state; hiding is a UI
+concern.** See [ADR 0015](../adr/0015-hidden-information-is-trusted-friends-until-a-competitive-release.md).
 
 ## The resync backstop
 
-**Settled #521 (2026-08-24), built in #560 + #561. Additive under
+**Settled #521, built in #560 + #561. Additive under
 [ADR 0002](../adr/0002-host-authoritative-sync-not-lockstep.md) — it reopens
 nothing.** `AttackRecord` remains the only thing that mutates
 a peer's live world during combat (`.claude/rules/attack-timeline.md`), and a
@@ -202,13 +172,10 @@ Both are one `WorldImage` (`network/world_image.gd`, ADR 0042): `capture` on the
 authority, `apply` on the peer — which owns the apply order; the channel keeps only the wire flags.
 
 **A green fingerprint is not a green join** (#715). The fold answers "do our two
-worlds agree", and it answered YES on a join where the client had decoded the
-host's 800 nodes perfectly and then sat there forever without ever taking a turn
-— its roster row still carried `LobbyScreen._PENDING_PEER_ID`, so no hero was
-seated and nothing drove the turn. That is the second time on this path that
-fingerprint agreement was not evidence of correctness; the first is the
-applied-once guard, where the fold covers neither tags nor effects. So a join is
-proved by the peer reaching its FIRST TURN — which is what
+worlds agree"; it can say YES for a client that decoded every node and never
+takes a turn (its roster row still carries `LobbyScreen._PENDING_PEER_ID`, so no
+hero is seated), and it covers neither tags nor effects. A join is proved by the
+peer reaching its FIRST TURN — which is what
 `MpHarness._announce_first_turn_for_rung_3` prints and what harness rung 3 reads
 — never by the fingerprints matching at link-up.
 
@@ -261,31 +228,20 @@ merely to its name set, for the same reason: a marker applied twice and removed
 once is still active, and a repair that restored names only would be the thing
 that broke it.
 
-**#560 D7 — "`EntitySnapshot` DECORATES; it never spawns and never mints an
-`entity_id`" — is superseded by #715 because the client no longer runs procgen
-(agent decision, 2026-09-02).** D7 was settled by the owner in #560's
-"Decisions (settled, do not re-open)" list, and its premise was stated there:
-"#528 and #553 both shipped, so a joining client's entities exist by the time
-state arrives" — i.e. the roster spawns exactly the named set. That held only
-while both peers ran procgen. Since #715 the client runs none, and procgen
-spawns ~120 entities the roster never names (one per removable blocker, #477);
-without them the client decodes their nodes as unowned and the ownership fold
-disagrees on the first compare. So a row whose entity is absent now asks an
-optional `spawner` callback (`WorldSyncChannel.entity_spawner` →
-`EntityFactory.spawn_snapshot_entity`, which refuses anything that is not a blocker)
-before it is skipped. **The prohibition D7 was really protecting still holds:**
-this is not a second minting path, because the `entity_id` is the AUTHORITY's,
-read off the row and stamped before the entity enters `entities_container`
-(`Graph._mint_entity_id` assigns only where the id is still `0`). It is the
-exact mirror of `_prune_entities`, which already removes an entity the payload
-does not name — the payload is the authority's entity SET, and both directions
-of that set now cross. A **callback** rather than an `instantiate()` inside the
-snapshot: a blocker's `EntityStatBoard` is assigned per tier in code, and
-`EntityStatBoard` refuses to mint a stat it has no field for, so a bare
-instantiate yields a blocker with no health. See `EntitySnapshot._materialize`.
+**An entity the payload names but the peer lacks is spawned by a callback.** A
+row whose entity is absent asks the optional `spawner`
+(`WorldSyncChannel.entity_spawner` → `EntityFactory.spawn_snapshot_entity`,
+which refuses anything that is not a blocker): the client runs no procgen, and
+procgen spawns ~120 entities the roster never names (one per removable blocker).
+The `entity_id` is the AUTHORITY's, read off the row and stamped before the
+entity enters `entities_container` (`Graph._mint_entity_id` assigns only where
+the id is still `0`), so this is not a second minting path; it is the mirror of
+`_prune_entities`. A callback rather than an `instantiate()` inside the
+snapshot because a blocker's `EntityStatBoard` is assigned per tier in code and
+refuses a stat it has no field for. See `EntitySnapshot._materialize`.
 
-A materialized blocker's **spellbook crosses by value** (#726). The host's is a
-#586 `SpellBook.duplicate_pruned` slice — a `SpellBook.new()` with no
+A materialized blocker's **spellbook crosses by value**. The host's is a
+`SpellBook.duplicate_pruned` slice — a `SpellBook.new()` with no
 `resource_path`, so the intern table has nothing to carry, and the client that
 runs no procgen cannot re-derive which slice was kept. The row therefore also
 carries the kept `SpellDef.id`s (`EntitySnapshot._encode_spell_ids`), `null` for
@@ -311,11 +267,9 @@ for a blocker's loot pool and wrong for a hero on the second application — pas
 does not put the sources back, because `_grant_effects` skips a `SpellGrant`
 whose `EffectInstance` is already in the ledger, so the spell would sit in
 `spells` with nothing behind it and the next `revoke_effects_from` would find no
-source to drop. Twice now the join path has needed the same property; treat
-"is this step idempotent?" as a standing question for anything added to either
-decode pass — the companion to *"a green fingerprint is not a green join"*
-above, and for the same reason: neither the fold nor a passing round-trip can
-see a step that quietly did its work twice.
+source to drop. "Is this step idempotent?" is a standing question for anything added to either
+decode pass: neither the fold nor a passing round-trip can see a step that
+quietly did its work twice.
 
 **A resync carries the turn cursor** (#756): `TurnManager.current_entity` (as an
 `entity_id`, 0 for none), `TurnManager.turns_taken`, and each
@@ -338,7 +292,7 @@ transmits.
 | Action | Up (intent) | Down (confirmed) | Why |
 |---|---|---|---|
 | allocate / deallocate / deallocate_set / stake / extract / move_core | the command | the same command, nothing more | Fully deterministic, no RNG — every peer re-applies it identically |
-| launch attack | the plan: mode, pivot + blade member `stable_id`s, or target + spell (`AttackPlan.to_dict`) | the same command **plus `AttackRecord`**, a post-apply record of what each landing actually did, stamped by `BattleSystem` during application (#511) | `resolve()` is already pure and side-effect free, but the swing sim is order-dependent and crits roll. Clients reconstruct the recorded effects and replay VFX; they never re-simulate and never re-derive a number |
+| launch attack | the plan: mode, pivot + blade member `stable_id`s, or target + spell (`AttackPlan.to_dict`) | the same command **plus `AttackRecord`**, a post-apply record of what each landing actually did, stamped by `BattleSystem` during application (#511) | Resolution runs on a shadow, but the swing sim is order-dependent and crits roll. Clients reconstruct the recorded effects and replay VFX; they never re-simulate and never re-derive a number |
 | loot pick / relic roll | the pick intent | the resolved result | The host rolls; the shuffles stay host-only |
 | end turn | the command | the command | The host's `TurnManager` is the clock, so `_tick_until_ready`'s group-order tiebreak stops being a hazard |
 | **start turn** (the run's first, and only the first) | — (the authority raises it) | `StartTurnCommand` — the actor, nothing else | The bookend to `end turn`, and it exists for the same reason (#756). Who the clock opens on is a host DECISION; until this command every peer opened on *its own* seated hero, and every later `end_turn` reproduced `_tick_until_ready` from a different cursor. Later turns are handed on by `end_turn` and never by this — the applier refuses one while `current_entity` is non-null |
@@ -386,12 +340,10 @@ already resolved and **opens a run**. A lobby's seed is still the `0` sentinel
 until START. Relaxing that assertion to save a constant would trade a
 load-bearing gate for nothing; `KIND_LOBBY` touches `GameSession` not at all.
 
-**START is where `KIND_SETUP` finally goes out (#715), from the lobby.** It used
-to be pushed on JOIN, by `GameRoot._on_peer_joined`, off a
-`NetworkTransport.peer_joined` — which a *pre-established* link never fires
-again. Once #713/#714 let the socket outlive the menu, a level built on an
-adopted link would have waited out `SceneDirector.REVEAL_TIMEOUT_S` for a
-message nobody would send. So `LobbyScreen._on_run_started` broadcasts the
+**START is where `KIND_SETUP` goes out, from the lobby.** A *pre-established*
+link never fires `NetworkTransport.peer_joined` again, so setup cannot hang off
+join (the level would wait out `SceneDirector.REVEAL_TIMEOUT_S`).
+`LobbyScreen._on_run_started` broadcasts the
 settled `RunConfig` + `ParticipantRoster` off `GameSession.run_started`: the
 HOST reaches that signal because the shell called `GameSession.start` on what
 START emitted (which is also what resolved the seed the sentinel gate above
@@ -399,7 +351,6 @@ demands), and the JOINER reaches it because `apply_received` re-emitted it. One
 signal, both machines, and each releases its lobby link there before routing —
 `Wire` admits exactly one bound `EnetTransport` facade (`Wire.claim_binder`),
 because two would re-emit every packet and the world would silently drift.
-`GameRoot.await_host_run` is deleted, not deprecated.
 
 **Who may edit what.** A human seat is editable by the machine it sits at
 (`Participant.is_local`, #562's one home for "which of these is me"); an AI seat
@@ -409,12 +360,12 @@ enforced twice on purpose: in the UI (`ParticipantRow.set_editable`) so a player
 sees it, and on the host against the *roster* (`LobbyScreen.may_edit_remotely`)
 so a payload cannot claim it.
 
-**The lobby mounts its own `NetworkTransport` + `NetworkLink` pair (with a `LobbyChannel`), and never
-opens the socket.** `meta_root._push_lobby` is the one place that decides a
+**The lobby mounts its own `NetworkTransport` + `NetworkLink` pair (with a
+`LobbyChannel`), and never opens the socket.** `meta_root._push_lobby` is the one place that decides a
 route opens a link — the same file that already decides which `NetworkConfig` a
 route leaves on `GameSession` — so a lobby with no live `Wire` behind it mounts
 nothing and is byte-for-byte the offline lobby. The screen hands its link back
-at START (`_release_link`), leaving the socket up for the level to adopt (#713).
+at START (`release_link`), leaving the socket up for the level to adopt (#713).
 
 **Mass actions are one atomic command, never N.** `deallocate_set` and
 mass-allocate paths serialize as a single command with a node list — splitting
@@ -465,11 +416,9 @@ announces something that happened before that peer was in the room.
 
 ## Where each subsystem sits
 
-**AI runs on the host only and emits commands into the same queue.** That
-deletes the frame-shaped problem outright: `turn_delay` becomes host-local
-pacing with no sync meaning, and clients see an AI turn as an ordinary
-confirmed-command stream. `ai_controller.gd` must stop calling
-`allocation_system` / `battle_system` directly.
+**AI runs on the host only and emits commands into the same queue** (via
+`AIController._submit_and_wait`). `turn_delay` is host-local pacing with no sync
+meaning, and clients see an AI turn as an ordinary confirmed-command stream.
 
 **Fog is a view concern**, computed per-client from state that client already
 holds. The authority does not own fog. #459's camp-wide `VisionSystem.viewers`
@@ -493,28 +442,16 @@ cascade-offer path — queues rather than re-entering; `applying_changed` fires
 **`command_confirmed(cmd)` is the mirror seam, and it is not `command_applied`.**
 Application spans more than mutation: `BattleSystem._commit` keeps awaiting
 `_vfx_finished` after the world has settled, because `is_launching` owns the
-plan's lifetime through the swing (#406). Mirroring off `command_applied`
-therefore made a peer wait out the *host's animation* before it could start its
-own — lag proportional to spell length, for a payload that was final much
-earlier. `_drain` confirms at the flip point instead, and `CommandChannel`
-broadcasts off that. (Until #545 the attack called `applier.confirm(cmd)` itself,
-at its own mid-apply settle point; the signal outlived that arrangement because
-the animation tail it exists for is still there.)
+plan's lifetime through the swing. Mirroring off `command_applied` would
+make a peer wait out the *host's animation* before starting its own. `_drain`
+confirms at the flip point instead, and `CommandChannel` broadcasts off that.
 
-**#540 flipped when the drain confirms, and #545 made it universal.** `_drain`
-is `validate → confirm → apply` for every verb without exception:
+**`_drain` is `validate → confirm → apply` for every verb without exception.**
 `CommandApplier._validate` forwards to the same `can_*` queries the mutating
 verbs ask themselves, so "validated" already means "will apply" and the host
-never has to finish mutating before it can tell anyone.
-
-`LaunchAttackCommand` was the last hold-out, behind a
-`Command.confirms_before_apply()` opt-out hook, because its `AttackRecord` was
-computed *inside* the apply and confirming first would have broadcast an empty
-record that a peer reads as an initiate it cannot run. #545 moved that compute up
-into `BattleSystem.prepare_launch_command()`, which `_validate` calls — legal
-since #536 made resolution shadow-only, and free of consequence since #540
-decision 4 stopped the confirm being a fingerprint sampling point. The hook is
-deleted rather than left standing with no callers.
+never has to finish mutating before it can tell anyone. `LaunchAttackCommand`'s
+`AttackRecord` is computed in `BattleSystem.prepare_launch_command()`, which
+`_validate` calls — legal because resolution is shadow-only.
 
 **One consequence worth naming: `_validate` is not side-effect-free.** For the
 attack it *produces the payload it is gating on* — the gate is "resolve, then
@@ -526,9 +463,8 @@ command is final and legal, or it is refused", not as a pure query.
 reason to delete it (#541).** `submit` drains synchronously down to `_validate`,
 so on a peer that *decides*, `is_awaiting_confirmation` is true for a stack
 frame; it becomes the round trip only once #463 routes a client's intent upward.
-The attack used to be the exception and the long one — it confirmed late, so the
-flag spanned its whole apply — but since #545 its resolve happens inside the
-validate the flag closes on, so its window is a stack frame too. It is derived —
+The attack's resolve happens inside the validate the flag closes on, so its
+window is a stack frame too. It is derived —
 "queued, or popped and not yet confirmed" — rather than assigned, because a
 `command_applied` handler that submits opens a fresh window one line before the
 outgoing command closes one. The flag is raised in `submit` *ahead of* the
@@ -540,18 +476,16 @@ which is where "a refused command changed nothing, so mirror nothing" now lives.
 Ordering across commands is untouched: the queue is serial, so a mid-apply
 confirm still lands between its neighbours'.
 
-Routed so far: every `PlayerInputController` mutation (#510),
-`battle_system.launch_attack` (#511 — it builds a `LaunchAttackCommand`,
-submits it, and parks on `applying_changed`, so every existing caller still
-awaits the whole action), and loot (#522, reshaped by #646 — a
-`LootRoundCommand` per round of a relic's claim, minted only once that round's
-outcome is known; see "The loot round is the deliberate exception" below).
-Still direct, by plan: `ai_controller` (child D).
+Every `PlayerInputController` mutation, `battle_system.launch_attack` (builds a
+`LaunchAttackCommand`, submits it, and parks on `applying_changed`, so every
+caller awaits the whole action), loot (a `LootRoundCommand` per round of a
+relic's claim, minted only once that round's outcome is known; see "The loot
+round is the deliberate exception" below) and the AI (`_submit_and_wait`) go
+through the applier.
 
-`PickLootCommand` is now answered for real, against `LootPickRegistry` — which
-also took over minting `request_id`, replacing the per-process static counter
-that would have handed the same id to different requests on two peers. It stays
-dormant only because nothing sends upward yet (#463).
+`PickLootCommand` is answered against `LootPickRegistry`, which mints
+`request_id` (a per-process counter would hand the same id to different requests
+on two peers).
 
 **Why loot's wire unit is the ROUND, not the pick.** Two of `SkillDustAddon`'s
 grant paths never raise a pick — the single-cycle-safe-survivor auto-grant and
@@ -578,7 +512,7 @@ Under host authority that means *the host's* `Graph` decides; if peers assign
 their own, two clients disagree about which entity a command targets.
 
 **Transport.** A `NetworkTransport` seam with `LoopbackTransport` (the default —
-single-player and hot-seat) and `ENetTransport`. ENet is chosen because it is
+single-player and hot-seat) and `EnetTransport`. ENet is chosen because it is
 built into Godot and zero-config on a LAN, **not** because it is the only
 option: `WebSocketMultiplayerPeer`, `WebRTCMultiplayerPeer`, and raw
 `PacketPeerUDP` / `StreamPeerTCP` all exist. The transport choice is close to
@@ -594,81 +528,52 @@ local has moved. A POPULATED `record` means *replay*: rebuild the plan (for the
 animation only) and the recorded deltas (for the world), and land them through
 the same `OutcomeApplier` on the same `BeatClock`. Two types would need the
 receiver to know its own role to refuse the wrong one; one type whose payload
-says which half of the work is already done needs no role at all — and when #463
-adds the intent channel upward, a client's intent IS this command with an empty
-record.
+says which half of the work is already done needs no role at all — and a client's
+intent IS this command with an empty record.
 
-Since #545 the authority *also* reaches the apply with a populated record — it
-replays its own, exactly as a peer does — so `record.is_empty()` no longer
-distinguishes "did I compute this". The transient `computed_here` field does, and
+The authority *also* reaches the apply with a populated record — it replays its
+own, exactly as a peer does — so `record.is_empty()` does not distinguish "did I
+compute this". The transient `computed_here` field does, and
 it is deliberately absent from the wire: a received command is by definition one
 this machine did not compute.
 
-**The loot round is the deliberate exception to "one type, two states" (#646)
-— and it still honours the same underlying invariant.** The rule #545 actually
-establishes is not "compute in `_validate`"; it is **the command must be
-complete before it reaches the confirm flip point**. #545 satisfies that by
-computing *earlier, inside* the pipeline (`BattleSystem.prepare_launch_command`
-resolves on a shadow world from within `_validate`). #646 satisfies the SAME
-invariant by minting the command *later, outside* the pipeline — the
-offer/pick/roll sequence runs to completion first, and `LootRoundCommand` is
-constructed only once it has. Two routes to one rule, not an exception to it.
+**The loot round is the deliberate exception to "one type, two states" — and it
+honours the same underlying invariant: the command must be complete before it
+reaches the confirm flip point.** `LaunchAttackCommand` satisfies that by
+computing *earlier, inside* the pipeline (`prepare_launch_command` resolves on a
+shadow from within `_validate`). `LootRoundCommand` satisfies it by being minted
+*later, outside* the pipeline: the offer/pick/roll sequence runs to completion
+first, and the command's constructor takes the outcome, so one cannot exist
+before it is decided. A round stamped inside `_apply` would broadcast an EMPTY
+`resolved` (a peer reads that as an unstamped initiate and rolls its own
+divergent loot), and the validate-lift is unavailable because a round with a
+human collector can *await a pick* and would freeze the host's serial queue on a
+remote click. The next verb with a human in the middle gets this treatment;
+`Command.confirms_before_apply()` does not exist and is not coming back.
 
-The validate-lift route was tried first and does not transfer. `LootRoundCommand`
-had the same empty/populated pun as `LaunchAttackCommand` until #646, and broke
-the same way: `_drain` confirms before it applies, so a round whose outcome was
-stamped *inside* `_apply` (deep in `SkillDustAddon`'s `_run_round` chain)
-broadcast an EMPTY `resolved` — a peer read that as an unstamped INITIATE and
-rolled its own divergent loot, empirically confirmed (host granted a modifier,
-client granted none). Unlike the attack, though, a loot round with a human
-collector can *await a pick* — resolving it inside `_validate`,
-`LaunchAttackCommand`-style, would freeze the host's whole serial command queue
-on a remote player's click, unacceptable on a LAN where a relic's claim can run
-several rounds deep. So neither of the two prior fixes was available here: not
-the `confirms_before_apply()` hook (#545 deleted it, and issue #646's
-acceptance 4 forbids reintroducing it), not the validate-lift (blocked by the
-human in the loop). The offer/pick/roll split is the third route to the same
-invariant, achieved by construction rather than by exemption — which is the
-answer for the next verb that reaches for "one type, two states" with a human
-in the middle of it: check whether the validate-lift can actually apply before
-assuming it can.
-
-So #646 split the two things one `LootRoundCommand` used to carry into two
-downward messages instead of two states of one type:
+Two downward messages carry what one command would otherwise:
 
 * A `LootPickOffer` — NOT a `Command` — carries "show this collector a pick
   screen, here is the draw" when a round needs a REMOTE human. It mutates
-  nothing and never touches `CommandApplier._drain`; `LootOfferChannel` sends it off
-  `LootPickRegistry.offer_parked` as its own additive, opt-in wire kind
-  (`KIND_LOOT_OFFER`), the same shape as `KIND_SNAPSHOT` / `KIND_SETUP`.
-* `LootRoundCommand` is minted only once a round's outcome is fully known — its
-  constructor takes the outcome, so there is no way to construct one before
-  deciding it. It is therefore ALWAYS a replay, on every peer including the
-  authority: `_drain` needs no opt-out, because by construction there is
-  nothing left to compute by the time one exists. The grant itself moves out of
-  resolution and into the shared apply/replay path (`LootRoundCommandHandler._land`),
-  so the authority does not double-grant (once resolving, once applying).
+  nothing and never touches `CommandApplier._drain`; `LootOfferChannel` sends it
+  off `LootPickRegistry.offer_parked` as its own additive wire kind
+  (`KIND_LOOT_OFFER`), the shape of `KIND_SNAPSHOT` / `KIND_SETUP`.
+* `LootRoundCommand` is ALWAYS a replay, on every peer including the authority:
+  the grant lives in the shared apply/replay path
+  (`LootRoundCommandHandler._land`), so the authority does not double-grant.
+  `PickLootCommand` remains the upward intent, answering a `LootPickOffer`.
 
-The explicit cost, accepted rather than hidden: this gives up the symmetry
-`LaunchAttackCommand` has. The loot round arguably never fit that shape in the
-first place — it is the one verb with a human in the middle, and the
-empty/populated state pun is exactly what produced the #646 bug. `PickLootCommand`
-is untouched by any of this; it remains the upward intent, now answering a
-`LootPickOffer` instead of a bare invitation to guess that one exists.
-
-One consequence: the offer/pick/roll sequence now runs entirely OUTSIDE the
-command queue, between rounds, so `CommandApplier.is_applying` no longer
-implies "a pick is outstanding" the way it used to (the whole chain used to run
-inside one command's `_apply`). `CommandApplier.has_outstanding_loot()` is the
-explicit gate that replaces what `is_applying` used to give for free — see
-`PlayerInputController.can_player_act()`.
+The offer/pick/roll sequence runs OUTSIDE the command queue, between rounds, so
+`CommandApplier.is_applying` does not imply "a pick is outstanding";
+`CommandApplier.has_outstanding_loot()` is the explicit gate (see
+`PlayerInputController.can_player_act()`).
 
 **A peer re-simulates to DRAW, never to derive.** Melee reforms a bit-identical
 blade from the plan (`blade_sim.gd` is a pure fixed-dt XPBD loop, no frame
 delta, no RNG) so the swing animates; the damage it shows comes off the record.
 That is not the re-simulation this model forbids — nothing is mutated and no
 number is computed. `docs/domain/attack-timeline.md`'s land-time re-read
-contract is host-side only, and now says so.
+contract is host-side only.
 
 **Payload size.** Most commands are a few dozen bytes. **The attack record is
 the outlier and magic is its worst case:** a propagating spell authors its own
@@ -687,8 +592,9 @@ the same encoding the obvious one.
 ## Explicitly out of scope
 
 - Fog-filtered state deltas and any `StatBoard` wire format.
-- Save/load (#23).
-- Reconnect and desync recovery. LAN, one room: a desync is a restart.
+- Reconnect of a dropped seat: the host hands it to the AI (`SeatHandover`).
+  Save/load and desync repair are the join image and the resync backstop above
+  ([ADR 0042](../adr/0042-a-save-is-the-join-world-written-to-disk.md)).
 
 ---
 
@@ -712,28 +618,17 @@ the same encoding the obvious one.
   one, not as a hardening pass.
 - **Combat reproducibility is the per-attack seed stamp, not a run-level
   stream.** `launch_attack` stamps `attack_plan.resolve_seed` before resolving
-  and `outcome.resolve_seed` carries it back out (`8dc6f77`); that stamp rides
-  down with the outcome so a peer can verify by re-resolving. Loot rolls are
+  and `outcome.resolve_seed` carries it back out ; that stamp rides
+  down with the outcome. Loot rolls are
   **host-only** and need no determinism guarantee at all — their unseeded
   `Array.shuffle()` calls are not a hazard under this model.
 
-  **The same seed reproduces the same map, not the same fights.** #457's
-  `GameSession` seed is a procgen input; it is not a determinism contract over
-  combat or loot, and it never was one for anything a peer merely receives — see
-  [ADR 0013](../adr/0013-host-only-rolls-and-the-seed-is-a-procgen-input.md) for
-  the seeded-sub-stream rule it replaced.
-
-  **And since #715 it is not a CROSS-PEER contract at all.** The seed reproduces
-  a map *on one machine* — a replay input, so a run can be re-rolled from what
-  was recorded. It is no longer how a second machine gets the same world: only
-  the host generates, and a joining client receives the authority's serialized
-  graph and never runs `GraphProcgen`. Anywhere this document, or
-  `.claude/rules/game-session.md`, reads *"the map is reproduced by each peer
-  from the seed"*, read instead: **the map is SHIPPED**. That is what takes
-  `procgen/`'s transcendentals (#547, #689, #706 — `pow()` in the seeded draw,
-  whose last bit is not portable across two platforms' libm) off the LAN
-  critical path entirely: nothing on the joining side re-derives them, so
-  nothing about them can desync.
+  **The seed is a procgen input, not a cross-peer or combat contract**
+  ([ADR 0013](../adr/0013-host-only-rolls-and-the-seed-is-a-procgen-input.md)).
+  Only the host generates; a joining client receives the authority's serialized
+  graph and never runs `GraphProcgen`. Where `.claude/rules/game-session.md`
+  reads "the map is reproduced by each peer from the seed", read: **the map is
+  SHIPPED** — which takes `procgen/`'s transcendentals off the cross-peer path.
 
 - **Still never roll from a null RNG on anything a peer must reproduce.** The
   narrower rule that survives: if a result crosses the wire as something a peer

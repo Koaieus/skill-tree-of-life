@@ -38,7 +38,7 @@ markers, the flare, every arrow's look — is `docs/design/aspect_matrix.md`
 |---|---|---|
 | stats | `order` | volley position: lower fires and lands first, the base arrow sits at 100, scout last (120). A **marker** flies early (curse 40, hex 30, greed 5) |
 | | `damage_scale` | raw-damage multiplier before mitigation; markers 0.3, plain stacks 0.5 unless the row says otherwise (armor break 0.75), blindness and scout 0 |
-| | `max_stock` | the type's own bank cap, outside the shared quiver capacity (ADR 0041); 999 unless tuned (curse and corruption 6, tentative) |
+| | `max_stock` | the type's own bank cap, outside the shared quiver capacity (ADR 0041); 999 unless tuned (curse and corruption 6) |
 | | `per_reload_stat_id` | `<concept>_aspect` |
 | effect | `on_hit_effects` | `OnHitEffect` riders run in order on every landing arrow ([On-hit shelf](#on-hit-shelf)) — usually one `ApplyStatusEffect` of the concept's `effects/status/<concept>.tres`, its `power` the stacks per landing arrow before potency × (1 − resistance). A scout type is one `ApplyStatusEffect(scouted.tres)` rider with `damage_scale` 0 (`AmmoType.is_scout()`) |
 | looks | `visual_scene` | the type's own inherited scene of `ui/vfx/projectile/visual/status_arrow.tscn` under `ui/vfx/projectile/visual/arrows/<concept>_arrow.tscn`, picked per shot by `ArrowVolleyCoordinator` (#1351, #1352). A look is parts, not code ([Look shelf](#look-shelf)). `test_ammo_type_roster.gd` requires a statused type to fly its own scene |
@@ -128,9 +128,8 @@ Gotchas:
   when one needed a behaviour the kit lacked, the part grew an export
   (`ArrowImpactEmitter.delay`, `ArrowImpactSprite.shape`). A new part class
   only for genuine behaviour two looks share.
-- **No look has been seen rendered** as of the column's landing (all checked
-  headless); `StatusArrow.finished` waits on a timer, not
-  `GPUParticles2D.finished`, because a headless run never processes particles.
+- `StatusArrow.finished` waits on a timer, not `GPUParticles2D.finished`,
+  because a headless run never processes particles.
 
 | arrow | parts it touches |
 |---|---|
@@ -165,7 +164,7 @@ only when a hook needs code. Lead-by example: `spike_ring_addon.tscn`.
 Guards: `test_addons_are_scenes.gd`, `test_addon_kind.gd`,
 `test_addon_defs_folder.gd`, `test_addon_on_hit.gd`, `test_melee_temp_upgrade.gd`.
 
-## Spells (magic column, today)
+## Spells (magic column)
 
 One `SpellDef` per spell, `attack/spell/defs/<id>.tres`, plus a `const` and
 an `ALL` entry in `attack/spell/spell_catalog.gd`
@@ -178,12 +177,11 @@ A spell is many facets, each its own design call:
 | cast gate | `min_degree`, `carve_shape` |
 | reach | `targeting` (a `Targeting` with a range finder), `propagation` (`PropagationConfig` + filter) |
 | payload | `power`, `on_hit_effects` (`DamageEffect`, `HealEffect` …; the one on-hit vocabulary for every mode, see `docs/domain/effect-system.md` and ADR 0044) |
-| status | `affinities` (`SpellAffinity{status, innate, rate}`) + `default_rate` — never an `ApplyStatusEffect` in `on_hit_effects` (§ Infusion, ADR 0047) |
+| status | `affinities` (`SpellAffinity{status, innate, rate}`) + `default_rate` (§ Infusion, ADR 0047) |
 | crit | `crit_conditions` (`LandingCondition`s) |
 | presentation | `vfx_coordinator_scene`, `windup_vfx_scene`, `tempo` (`.claude/rules/spell-vfx.md`) |
 
-The concept's spell lists a `SpellAffinity` for its def (§ Infusion); the design work
-is what else the spell does, so it is not "damage plus status" again.
+The design work is what else the spell does, so it is not "damage plus status" again.
 
 ## Infusion (magic column — ADR 0047, #1250)
 

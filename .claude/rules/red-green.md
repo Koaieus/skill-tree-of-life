@@ -1,1 +1,1 @@
-When a change is testable the test goes FIRST and must be seen RED — and a test file with a parse error is silently skipped while the suite reports green, so confirm the test ran and failed on your assert. Visual/tuning work earns no test. See docs/domain/red-green.md
+A testable change gets its test FIRST, seen RED — a test file with a parse error is silently skipped while the suite reports green, so confirm it ran and failed on your assert. Visual/tuning work earns no test. See docs/domain/red-green.md

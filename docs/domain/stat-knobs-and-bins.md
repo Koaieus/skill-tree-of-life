@@ -12,18 +12,19 @@ Two authoring questions that keep getting re-derived from scratch, answered once
 - **"A spell/relic/aura authors its own number and the stat should modify
   *that*. Whose base is it?"** → §5 (an overlay bin when a flat in the stat's
   unit is meaningless; a rate stat keeps base 1 and multiplies it)
+- **"A modifier should only appear at allocation level K."** → §6
 - **"Which way does this number round, and where?"** → not here:
   `docs/domain/rounding.md` (one table, quantity → unit → direction → site)
 
-`.claude/rules/stats-system.md` is the *reference* — what exists, and how the
-pipeline computes. This doc is the *decision procedure* for adding something new.
+`docs/domain/stats-system.md` is the *reference* — what exists, and how the
+pipeline computes; `.claude/rules/stats-system.md` holds its gotchas. This doc is
+the *decision procedure* for adding something new.
 
 ---
 
 ## 1. A stat is a target; a rate nothing targets is a modifier's `value`
 
-**Decision (owner, 2026-09-21, #1016).** Supersedes #298's preliminary "add a
-board scalar per coefficient and leave `StatModifier.value` at 1.0".
+**Decision (owner, #1016).**
 
 - **A stat is a target.** Something *else* — a procgen roll, a loot drop, a node
   addon, a status, a readout row, the wire — wants to land a modifier on it or
@@ -33,13 +34,11 @@ board scalar per coefficient and leave `StatModifier.value` at 1.0".
   modifier's `.tres` (inspector-tunable) and mutated — if ever — through the live
   modifier, riding the existing recompute + `value_changed` chain. It earns a
   stat the day something targets it, not before.
-- **No migration of existing knobs.** `core_health_scaling` and
-  `node_health_scaling` stay stats: sunk cost, harmless, and
-  `node_health_scaling` is the named plausible future roll target (a `+0.1`
-  `ADD_BASE` on it is a valid procgen affix — nothing rolls it yet). They are
-  the worked example of "becomes a stat when a roll wants it", already there.
-  The criterion governs new knobs and any existing one touched for another
-  reason.
+- **Existing knobs stay as they are.** `core_health_scaling` and
+  `node_health_scaling` are stats (`node_health_scaling` is the plausible roll
+  target: a `+0.1` `ADD_BASE` on it is a valid procgen affix, though nothing
+  rolls it yet). The criterion governs new knobs and any existing one touched
+  for another reason.
 
 Owner's framing, verbatim: *"some stats are actually just 1 modifier to 1 bin of
 another stat, which makes me question if that former stat should exist
@@ -104,7 +103,7 @@ promotion is additive, nothing migrates:
 1. `stats_system/defs/<knob>.tres` — a `StatDef`, `value_type = 1` (FLOAT),
    `default_value = 1.0`, with a `modifier_name` that reads well in a tooltip
    ("Health per CON"). Copy `core_health_scaling.tres`.
-2. `stats_system/stat_board.gd` — one `@export var <knob>: ScalarStat` in the
+2. `stats_system/entity_stat_board.gd` — one `@export var <knob>: ScalarStat` in the
    matching group. **The field name must equal the stat id** (`get_stat` is
    `Object.get(id)`).
 3. `entity/default_entity_board.tres` — the `ScalarStat` instance
@@ -208,7 +207,7 @@ Four rules, each of which has already cost something:
 **Behaviour lives where its data lives.**
 
 - Cap-*shape* behaviour varies by pool archetype → put it on the **def**
-  (`PoolStatDef.on_pool_filled` / `on_max_increased`).
+  (`PoolStatDef.on_pool_filled`).
 - Behaviour touching the stat's own extra bins → put it on the **stat**
   (`PoolStat._custom_turn_upkeep`, which is why `skill_points` is `CUSTOM`:
   wound-healing is a bin transfer, not a top-up, so REFILL/ADD cannot express
@@ -218,14 +217,9 @@ Four rules, each of which has already cost something:
 
 ## 3. One `base_value` door, and the policy is authored data
 
-**Decision 2026-08-24 (#555), extended 2026-08-29 (#660).** There is exactly one
-door onto a pool's cap — `pool.base_value = v` — and the def decides what happens
-to `current` when it moves. Owner, verbatim on the old second door:
-
-> *"`set_base_ratcheted` in my view has never had a right to exist, was pure
-> smell. because ratcheting behavior (follow on rise) imo is a knob we should set
-> on the pool, which changes the behavior of the setter (setters can be
-> overridden in subclasses too if needed)"*
+**Decision (#555, #660).** There is exactly one door onto a pool's cap —
+`pool.base_value = v` — and the def decides what happens to `current` when it
+moves. Ratcheting is a knob set on the pool, not a second setter.
 
 `Stat` declares `base_value` with `set = _set_base_value` **precisely so
 `PoolStat` can override it** — the `set = _method` property form is
@@ -284,12 +278,10 @@ than being implemented:
 (`health`, `action_points`, …) have a fan-out of 1 and stay
 stored-current.
 
-**How this bit us (#346).** Back when the raw write was the *silent-bypass* door,
-`SkillNode._sync_combat_health_base()` used it to follow the owner's `node_health`
-baseline. Every allocated node's cap rose with CON while `current` stayed frozen,
-and node regen (~1/turn) could not close a widening gap — nodes drifted toward
-reading near-empty. #555 inverted the default so the ordinary write is the safe
-one; #660 deleted the sync entirely.
+**Why the ordinary write is the safe one.** A write that bypassed the policy let
+a node's cap rise with CON while `current` stayed frozen, so nodes drifted toward
+reading near-empty; the default write now runs the policy and the node cap is
+derived on read (`PoolStat.base_provider`).
 
 **How to apply:** move a cap with `pool.base_value = v` and author the policy on
 the def. If you find yourself wanting `_set_base_minted`, you need a reason you
@@ -297,8 +289,6 @@ can name in a comment, as `claim()` does — and you need to be inside
 `stats_system/`.
 
 ### The door is onto a POOL's cap — a DERIVED baseline wants a SET modifier
-
-Found 2026-09-01 wiring the spell playground's node-HP slider (`9b1287f`).
 
 The rule above is about a pool whose base *is* the number. It does not transfer
 to a stat that §1 made **derived** — `node_health` on the entity board is
@@ -312,7 +302,7 @@ bypasses the pipeline, intrinsic included, so the modifier's `value` **is** the
 stat's value. Add it once through `board.add_modifier(m)`, keep the reference,
 and drive it by assigning `m.value`: the setter emits `Resource.changed`, which
 every `Stat` holding the modifier already subscribes to
-(`stats_system/stat.gd:370`), so the recompute and the whole `value_changed`
+(`Stat`'s modifier subscription), so the recompute and the whole `value_changed`
 fan-out follow from the assignment. There is no re-add and no board poke, and a
 `SET` that arrives after yours simply wins on `priority` — which is the right
 outcome for a debug override.
@@ -342,7 +332,7 @@ the override.
 
 ## 4. A step function is a ladder of integers, never a logarithm
 
-**Decision 2026-08-24 (#547).** A gameplay rule that steps up at round numbers is
+**Decision (#547).** A gameplay rule that steps up at round numbers is
 a `ThresholdFormula` — an ascending `breakpoints` array compared with `>=` — not
 `floor(log(x) / log(b))`.
 
@@ -378,7 +368,7 @@ ever express decades.
   stat can plausibly reach, and pin the top rung in a test — a range that stops
   below the top of the array cannot see the saturation.
 - Everything else stays a `RatioFormula` (`source / N` — a line; the INT stat floors once, #891) or a
-  `LinearFormula`. See `.claude/rules/stats-system.md` → *Formula classes*.
+  `LinearFormula`. See `docs/domain/stats-system.md` → *Formula classes*.
 - `mise run lint-transcendentals` fails on a new `log`/`exp`/`pow`/trig in a
   gameplay formula string or gameplay code path. Its allowlist is the record of
   which paths are presentation or transmitted-result, and **each entry states
@@ -389,7 +379,7 @@ ever express decades.
 
 ## 5. An authored number is an overlay bin when a flat in the stat's unit is meaningless
 
-**Decision 2026-09-21 (#912, owner).** A content resource — a spell's authored
+**Decision (owner, #912).** A content resource — a spell's authored
 range, a relic's flat bonus, anything a `.tres` says about *itself* — that wants
 the stat pipeline to modify it is **not** a stat's base. It contributes its
 number as one `ModifierBins` with `base_add = X` (`board = null`, no multipliers,
@@ -462,16 +452,13 @@ meaningless without it** — `+1` to a range *multiplier* is not a hop, so
 **A rate stat keeps identity base `1.0`, and an `ADD_BASE +X` on it is a rate
 bonus** — the authored number stays with its consumer, which multiplies it by
 the composed rate. The premise that a flat bonus on spell damage "has nowhere to
-go" only holds if the flat is measured in damage points; owner (2026-09-21,
-#1016): it is measured in multiples of the authored number (`+1 spell_damage`
-at INT 9 is +25% relative), and *"`power` sounds like a StatModifier (with
-MULTIPLY operator) to be used as overlay for spell damage"* — the arithmetic the
-code already runs. Audit verdict, 2026-09-21: none of these converts.
+go" only holds if the flat is measured in damage points; owner (#1016): it is measured in multiples of the authored number (`+1 spell_damage`
+at INT 9 is +25% relative) — the arithmetic the code already runs. None of the
+rate stats below converts to an overlay base.
 
 | Rate stat (base 1.0) | × authored number | Consumer |
 |---|---|---|
 | `spell_damage` (√INT intrinsic on the board) | `SpellDef.power` | `SpellResolver.impact_damage` — `get_local_value(&"spell_damage") × power` |
-| ~~`*_potency` (four)~~ — overturned by [ADR 0029](../adr/0029-related-stats-compose-through-parents-folded-at-read-and-every-stat-takes-every-bin.md): folds into the stacks stat | `StatusDef.per_hit` | `StatusInstance` — `per_hit × potency × (1 − resistance)` |
 | `healing_received` | the heal amount | `NodeCombat.heal_damage` — every heal passes through it |
 
 One-line test for the next audit: *would `+1` on this stat, in the stat's own
@@ -481,5 +468,6 @@ stat, leave it.
 `PoolStat.base_provider` is the same idea aimed at a *cap* (a pool whose base is
 computed elsewhere, then coerced); it is not folded onto this door.
 
+## 6. A modifier that appears at allocation level K
 
 A modifier that appears at allocation level K (absent at K-1, e.g. "x2 at 3/X")? Use `LevelGatedModifier` (`stats_system/level_gated_modifier.gd`), not a plain local modifier, which only ladders.

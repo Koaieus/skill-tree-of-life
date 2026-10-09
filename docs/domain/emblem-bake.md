@@ -1,23 +1,20 @@
 # Emblem offline bake: icon art → CARVE LUT
 
 Offline-bake pipeline that turns an icon's silhouette into the same
-height+gradient LUT encoding InnerDisk's gem carve already uses (see
-`.claude/rules/skill-node-visuals.md`'s "diamond crown" section for why a
-LUT bake, not a per-pixel analytic formula, is the right tool once a shape
-stops being a fixed regular polygon).
+height+gradient LUT encoding InnerDisk's gem carve uses (the gem crown section
+below explains why a LUT bake, not a per-pixel analytic formula, is the right
+tool once a shape stops being a fixed regular polygon).
 
 **Two bakers feed the same encoding.** The production pipeline
-(`tools/bake_svg_sdf.py`, driven by `mise run icons:update`) computes the
-LUT from the icon's **SVG source** via msdfgen's true signed distance field
-— no pixel rasterization anywhere in the path. `TextureCarveShape.bake_lut()`
-(`skill_node/visuals/emblem/texture_carve_shape.gd`) is the retained fallback
-for authored raster icons outside the SVG pipeline (editor "Bake" button).
+(`tools/bake_svg_sdf.py`, driven by `mise run icons:update`) computes the LUT from
+the icon's **SVG source** via msdfgen's true signed distance field — no pixel
+rasterization anywhere in the path. `TextureCarveShape.bake_lut()`
+(`skill_node/visuals/emblem/texture_carve_shape.gd`) is the retained fallback for
+authored raster icons outside the SVG pipeline (editor "Bake" button).
 
-**#246 was offline-bake only** — the baked LUT asset + the shape resource that
-carries it, touching no render code. The display half (the atlas packing, the
-`lighting.gdshaderinc` decode, the instance-uniform slice index, and the
-`icons:update` extension that emits it all) landed in **#247**; see
-"Packing + decode" below.
+The per-icon bake produces the LUT asset and the shape resource that carries it;
+the display half (atlas packing, the `lighting.gdshaderinc` decode, the
+instance-uniform slice index) is "Packing + decode" below.
 
 ## Derivation
 
@@ -43,9 +40,9 @@ carries no interior height.
    boundary ramping to `DEPTH` at the shape's medial axis.
 4. **Gradient.** `np.gradient` of the drop field, scaled by
    `TEXELS_PER_UNIT_P` (drop-per-unit-p, matching the shader's `-p / z_dome`
-   disk space — see #318).
+   disk space).
 5. **Mask.** The A channel is the **signed distance itself** (1px-linear,
-   clamped): `a = clamp(sdf_px * 0.5 + 0.5, 0, 1)`. Antialiased — the #247
+   clamped): `a = clamp(sdf_px * 0.5 + 0.5, 0, 1)`. Antialiased — the
    decode treats alpha as a blend weight, so the outline smooths with no
    shader involvement.
 
@@ -76,9 +73,8 @@ The venv's `numpy.gradient` border handling (one-sided) matches
 
 ## Encoding contract
 
-Mirrors `InnerDisk._build_gem_lut` / `sn_gem_bump` **exactly** — this is the
-interface #247's shader decode consumes, so the two halves must stay in
-lock-step:
+Mirrors `InnerDisk._build_gem_lut` / `sn_gem_bump` **exactly**; the shader decode
+consumes it, so the two halves stay in lock-step:
 
 - `FORMAT_RGBA8`, square, `LUT_SIZE = 256` (the SVG baker and
   `TextureCarveShape.LUT_SIZE` are in lock-step; the gem LUT on InnerDisk is
@@ -90,11 +86,11 @@ lock-step:
   ramp from the signed distance — see above).
 
 `LUT_SIZE` / `DEPTH` / `GRAD_SCALE` / `ALPHA_THRESHOLD` are `const`s on
-`TextureCarveShape`. **If #247's decode constants (the `sn_*_bump` family's
-`SN_TEXTURE_DEPTH_SCALE` / `SN_TEXTURE_GRAD_SCALE` equivalents in
-`lighting.gdshaderinc`) ever drift from these, the bake and the decode
-disagree silently** — same failure mode `inner_disk.gd`'s class doc already
-warns about for the gem LUT. Keep them numerically identical.
+`TextureCarveShape` (`DEPTH` 0.35, `GRAD_SCALE` 3.0). **The decode constants
+`SN_TEXTURE_DEPTH_SCALE` (0.35) / `SN_TEXTURE_GRAD_SCALE` (3.0) in
+`lighting.gdshaderinc`'s `sn_texture_bump` must stay numerically identical**, or
+the bake and the decode disagree silently. They are separate from the `SN_GEM_*`
+pair so the two glyph families tune independently.
 
 ## Usage
 
@@ -103,21 +99,18 @@ var shape := TextureCarveShape.new()
 shape.source_texture = preload("res://assets/icons/spells/lightning_bolt.png")
 # Editor: click the "Bake" tool button. Headless / CLI: call directly —
 shape.baked_lut = TextureCarveShape.bake_lut(shape.source_texture)
-var spec := shape.carve(EmblemSpec.PRIORITY_SPELL, &"spell")  # carries baked_lut, not the raw icon
+var spec := shape.carve(EmblemSpec.Priority.SPELL, &"spell")  # carries baked_lut, not the raw icon
 ```
 
-The bake writes a committed asset per source (deterministic — baking the
-same source twice yields byte-identical images, see
-`test/unit/test_texture_carve_bake.gd`), git-reviewable and zero runtime
-cost. `assets/emblem_luts/lightning_bolt.png` (+ `.import`) is the first
-committed proof, baked from `assets/icons/spells/lightning_bolt.png`.
+The bake writes a committed asset per source (deterministic — baking the same
+source twice yields byte-identical images, see
+`test/unit/test_texture_carve_bake.gd`), git-reviewable and zero runtime cost,
+e.g. `assets/emblem_luts/lightning_bolt.png` (+ `.import`).
 
-**Why a tool button, not an `EditorPlugin`:** an `EditorPlugin` registration
-edits `project.godot`, a file shared across every parallel unit of this
-issue's swarm — avoided for file-disjointness. The bake logic itself lives in
-the headless-callable `static func bake_lut()`; the tool button
-(`@export_tool_button`) is a thin wrapper over it, which is also what lets
-the acceptance test drive the bake without the editor.
+The bake is a `@export_tool_button` rather than an `EditorPlugin` (a plugin edits
+`project.godot`, which every parallel unit shares); it is a thin wrapper over the
+headless-callable `static func bake_lut()`, which is also what lets a test drive
+the bake without the editor.
 
 **The button refuses to clobber a committed LUT.** The spell defs point
 `baked_lut` at the pipeline-baked assets in `assets/emblem_luts/`; if the
@@ -126,21 +119,22 @@ the degraded raster chamfer. When `baked_lut` already resolves to a committed
 asset (non-empty `resource_path`), the button warns and does nothing — clear
 `baked_lut` first to re-bake an authored icon from `source_texture`.
 
-## Packing + decode (#247)
+## Packing + decode
 
 The bake above produces one LUT per icon. The display side has to let *many*
 distinct baked shapes coexist on screen without breaking InnerDisk's shared
 `ShaderMaterial` — the thing that batches every node in the level into one draw
 call. A sampler **cannot be an `instance uniform`**, so "one `sampler2D` per
 shape" would force either a per-node duplicate material (batching gone) or one
-plain uniform per shape (and #172's instance-uniform slot ceiling is exactly
-what that spends). So:
+plain uniform per shape (which spends the instance-uniform slot ceiling). So:
 
-- Every baked LUT is stacked into **one** `sampler2DArray` bound as a plain
-  uniform on the shared material.
-- The only per-node value is an **int slice index** — which an `instance
-  uniform` carries fine. Adding the 50th baked shape adds a *slice*, not a
-  *slot*; that's what makes this scale past #172.
+- Every baked LUT is stacked into **one** `sampler2DArray` (`carve_atlas`) bound
+  as a plain uniform on the shared material.
+- The only per-node value is an **int slice index** (`carve_slice`, plus
+  `carve_slice_b` for ties) — which an `instance uniform` carries fine. Adding the
+  50th baked shape adds a *slice*, not a *slot*; that is what scales past the
+  instance-uniform slot ceiling. The payoff is that ceiling, authorability and
+  arbitrary art, not fps (node shaders already batch to ~1-2 draw calls).
 
 Concretely:
 
@@ -156,9 +150,8 @@ baked LUT's own `resource_path`, so **no shape carries a hand-authored index**
 that could drift out of step with the packing. A LUT the atlas doesn't carry
 warns and falls back to the empty dome rather than rendering the wrong glyph.
 
-Regenerate with `mise run icons:update` — the bake/pack is the last stage of
-that task rather than a separate one, because an atlas that can go stale
-against the art it's baked from eventually will.
+Regenerate with `mise run icons:update`; the bake/pack is the last stage of that
+task so the atlas cannot go stale against its art.
 
 ### Two gotchas worth not rediscovering
 
@@ -174,8 +167,43 @@ against the art it's baked from eventually will.
   returns null under the dummy renderer, so this can't be asserted from GUT —
   `test/unit/test_carve_atlas.gd` checks the committed PNG instead).
 
-## Parked for later
+## Gem crown LUT
 
-- **WIS "exudes wealth" motif:** new archetype art authoring, not this
-  pipeline. This bake proves against an existing spell icon; bespoke art is a
-  separate future content issue.
+`InnerDisk`'s gem-cut glyph (the `SkillDustAddon` relic's, `carve_shape =
+GemCarveShape.SHARED`) is the same height-field glyph family as the polygon carve
+but baked, because the shape is identical on every relic: no per-instance
+parameter varies it, so recomputing its `atan2`/`mod`/facet math per pixel buys
+nothing. The polygon varies per node (`sides`/`radius`), so it stays an analytic
+per-pixel formula (`sn_polygon_facet`/`sn_bowl_drop`).
+
+- **Bake.** `InnerDisk._build_gem_lut()` (lazy `static var _gem_lut`) bakes a
+  128 px side-view cut once (flat table, tapering crown shoulders to the girdle, a
+  pavilion to the culet; proportions are the `GEM_*_RATIO` consts); `sn_gem_bump()`
+  decodes it per pixel. Baked with mipmaps and sampled `filter_linear_mipmap`: the
+  LUT is minified (~2x) against the on-screen disk, and mips box-filter the facet
+  creases instead of aliasing them.
+- **Batching survives.** The LUT is identical for every InnerDisk, so it is a plain
+  `uniform sampler2D gem_lut` on the one shared `ShaderMaterial`, set once in
+  `_ready()`. Only a per-instance-varying sampler forces the duplicate-material
+  path.
+- **One implementation, not a CPU twin.** The GDScript bake is the single source of
+  the geometry; the shader only decodes the texel, so there is nothing to drift.
+- **Encoding.** R = `drop / SN_GEM_DEPTH_SCALE`, GB = `grad / SN_GEM_GRAD_SCALE`
+  remapped -1..1 -> 0..1, A = the silhouette's antialiased coverage (1 well inside,
+  ramping to 0 over `GEM_EDGE_AA_TEXELS`). The shader uses A as a blend weight,
+  never a `> 0.5` cutoff (a hard alpha plus a hard branch stair-steps the outline;
+  `test_carve_shape.gd` `test_gem_edge_coverage_is_antialiased`). The bake's
+  `GEM_*` consts and the decode's `SN_GEM_*` consts are two halves of one encoding.
+- **Raster fallback alpha is hard.** `TextureCarveShape.bake_lut()` writes a hard
+  `1.0`/`0.0` alpha (same R/GB encoding); the decode treats alpha as a blend
+  weight, so a hand-baked raster outline stair-steps until its bake gets the same
+  coverage ramp (a one-sided change, no shader edit). The SVG pipeline already
+  emits the smooth ramp.
+- **When to use a LUT.** Only when the shape is fixed across every instance that
+  shows it; per-instance variation (archetype, sides, depth) has to stay analytic,
+  or ride the atlas slice index.
+
+## Parked
+
+- **WIS "exudes wealth" motif:** new archetype art authoring, a separate content
+  issue, not this pipeline.

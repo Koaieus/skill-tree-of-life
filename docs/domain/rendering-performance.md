@@ -70,7 +70,7 @@ Two consequences that have already shaped the code:
   deleted the RimRing2-4 stake placeholders.
 - **Per-node visual variation belongs in `instance uniform`s on one shared
   material**, never in a duplicated material. `InnerDisk` and `RimRing` both
-  follow this; see [`.claude/rules/skill-node-visuals.md`](../../.claude/rules/skill-node-visuals.md)
+  follow this; see [`skillnode-visuals.md`](skillnode-visuals.md)
   for the full contract, including the `is_visible_in_tree()` gate that keeps a
   fogged or sensed node at zero slots.
 
@@ -162,70 +162,47 @@ recognize them:
    and vendor to vendor. A real glitch-art technique; never usable for anything
    that must look the same twice.
 
-## Self-shading beats z-order occlusion for fog-of-war-style visibility (#413)
+## Self-shading beats z-order occlusion for fog-of-war-style visibility
 
-`FogOverlay` used to be the only thing that knew how dark a point in the
-world is: it painted an opaque-alpha quad over the whole graph, and anything
-that needed a DIFFERENT treatment (a visible node dimmed by distance instead
-of fully blacked out, a sensed node/edge at a fixed low alpha regardless of
-distance) had to *escape* that quad via z-index promotion, then have its own
-darkness re-computed on the CPU to match what the quad would have painted —
-`FogOverlay._apply_per_element_dimming`, an O(elements) walk (deleted by #414,
-see below) that also forced
-a per-instance `z_index`/`modulate.a` write, which is exactly what blocks
-batching something into a single `MultiMeshInstance2D` (one CanvasItem, one
-`z_index`, no per-instance property writes at all).
-
-The fix for `Edge` (nodes are an explicitly out-of-scope follow-up — see the
-issue): make the circle-union darkness field itself a **shared, global**
-GPU resource instead of one material's private uniforms, so any shader can
-sample it and compute its own alpha per-fragment, with no CPU-side z dance
-and no per-element CPU darkness sampling at all:
+The rule: **an element shades itself per fragment against a shared, global field;
+no CPU darkness sample and no per-instance `z_index` / `modulate.a` write.** An
+opaque overlay quad would force anything needing a different treatment (a visible
+node dimmed by distance, a sensed node at a fixed low alpha) to escape it via
+z-index promotion and recompute its own darkness on the CPU, and per-instance
+property writes block batching into a single `MultiMeshInstance2D`.
 
 - `ui/vision_field.gdshaderinc` declares the field data (`vision_circles_tex`,
-  `vision_tile_index_tex`, `vision_grid_origin`, `vision_falloff`, …) as
-  **`global uniform`**, registered in `project.godot`'s `[shader_globals]`
-  section. `FogOverlay` is the sole writer
-  (`RenderingServer.global_shader_parameter_set`); any other shader that
-  includes the file is a reader. `vision_field_enabled` (also global) carries
-  the one bit a raw darkness value can't: "zero circles because nobody has
-  vision right now" (should read fully dark) vs. "zero circles because no fog
-  system exists in this scene at all" (should read fully lit) — the two are
-  indistinguishable from `circle_count` alone.
-- `graph/edge_mesh.gdshader` includes that file and computes its own alpha
-  per-fragment: hidden → 0, visible → the shared darkness ramp, sensed →
-  ignore the ramp entirely (a fixed alpha baked in CPU-side already).
-- The three-way hidden/visible/sensed classification itself still comes from
-  the CPU (`VisionSystem`'s hop/reachability logic isn't the same computation
-  as the raw circle field, and can't be — see `Edge.vision_visible`) but it's
-  now a single bit written once per vision tick, packed into the otherwise-
-  redundant alpha of the MultiMesh's spare colour channel, not a per-element
-  darkness *computation*.
+  `vision_tile_index_tex`, `vision_grid_origin`, `vision_falloff`, ...) as
+  **`global uniform`**, registered in `project.godot`'s `[shader_globals]`.
+  `FogOverlay` is the sole writer (`RenderingServer.global_shader_parameter_set`);
+  any shader that includes the file is a reader. `vision_field_enabled` (also
+  global) carries the bit a raw darkness value can't: "zero circles because nobody
+  has vision right now" (fully dark) vs. "no fog system in this scene" (fully lit).
+- `graph/edge_mesh.gdshader` computes its own alpha per fragment: hidden -> 0,
+  visible -> the shared darkness ramp, sensed -> ignore the ramp (a fixed alpha
+  baked CPU-side). The hidden/visible/sensed classification still comes from the
+  CPU (`VisionSystem`'s reachability is not the raw circle field; see
+  `Edge.vision_visible`) as one bit written per vision tick, packed into the
+  otherwise-redundant alpha of the MultiMesh's spare colour channel.
+- `inner_disk.gdshader` and `rim_ring.gdshader` each `#include
+  "res://ui/vision_field.gdshaderinc"`, carry a `varying vec2 world_pos` set in
+  `vertex()` as `(MODEL_MATRIX * vec4(VERTEX, 0.0, 1.0)).xy` (`MODEL_MATRIX` is
+  vertex-stage-only in canvas_item shaders), and multiply their final **alpha** by
+  `vision_field_dim(world_pos)`. That helper folds in the
+  `VISION_VISIBLE_DIM_FLOOR` clamp and the `vision_field_enabled` gate, so a
+  consumer needs to know nothing else about the fog. Alpha, not RGB: scaling RGB
+  would push HDR emissive tiers (RimRing's fill glow) below the 1.0 bloom
+  threshold.
 
-**The SkillNode follow-up landed (#414), and it is the same three lines.**
-`inner_disk.gdshader` and `rim_ring.gdshader` each `#include
-"res://ui/vision_field.gdshaderinc"`, carry a `varying vec2 world_pos` set in
-`vertex()` as `(MODEL_MATRIX * vec4(VERTEX, 0.0, 1.0)).xy` (`MODEL_MATRIX` is
-vertex-stage-only in canvas_item shaders, so it has to ride a varying), and
-multiply their final **alpha** by `vision_field_dim(world_pos)`. That helper is
-the whole contract: it folds in both the `VISION_VISIBLE_DIM_FLOOR` clamp and
-the `vision_field_enabled` gate, so a consumer needs to know nothing else about
-the fog. Alpha rather than RGB, deliberately — it matches what `modulate.a` was
-reaching for, and scaling RGB would push HDR emissive tiers (RimRing's fill
-glow, #389) below the 1.0 bloom threshold.
-
-**What that bought, and the shape of it.** The per-frame fog tick went from
-78.7 ms to 0.2 ms at 200 owned nodes on a 2000-node map — the sustained
-framerate collapse reported from playtesting. Most of the win is not the
-per-fragment sampling itself but what it *unblocked*: with nothing needing a
-CPU darkness value, the surviving O(elements) pass has only a z band and a
-boolean to write, and could move off `vision_render_tick` (every frame while a
-circle animates) onto `visibility_changed` (once per allocation). **Deleting a
-per-frame pass beats optimising it** — #133 optimised this same walk and it came
-back one layer up. `test/perf/bench_fog_refresh_cost.gd` guards the number;
-`test/unit/ui/test_fog_overlay_classification.gd` guards which signal owns the
-walk, because the bench alone can't tell "deleted" from "moved somewhere
-untimed."
+**What that bought.** The per-frame fog tick went from 78.7 ms to 0.2 ms at 200
+owned nodes on a 2000-node map. Most of the win is what it unblocked: with no CPU
+darkness value needed, the surviving O(elements) pass,
+`FogOverlay._apply_visibility_classification`, writes only a z band and a boolean,
+and runs on `visibility_changed` (once per allocation) instead of
+`vision_render_tick` (every frame while a circle animates). **Deleting a per-frame
+pass beats optimising it.** `test/perf/bench_fog_refresh_cost.gd` guards the number;
+`test/unit/ui/test_fog_overlay_classification.gd` guards which signal owns the walk,
+because the bench alone can't tell "deleted" from "moved somewhere untimed."
 
 ## Godot's headless dummy renderer does not implement `MultiMesh` instance-data readback
 

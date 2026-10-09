@@ -85,10 +85,7 @@ advisor request, and the corrected formula leaves 4, each a genuine large tool
 result. `_context_of()` therefore takes the last `message` iteration; the
 top-level sum is only the fallback for a record with no `iterations` at all.
 
-The corrected reading matches `/context` to the k (owner read 174k off
-`/context` on 2026-08-28; the hook's record at that moment: 174k). The "~15%
-under-report" noted earlier on #652 was six minutes of growth between the
-150k crossing and the `/context` read, not a gap in what is counted.
+The corrected reading matches `/context`.
 
 ### The window widens when, and only when, 64KB came up empty
 
@@ -98,11 +95,10 @@ record — the one carrying `usage` — sits **behind** that result in the file.
 single tool result larger than the window therefore pushes the usage record out
 of view, and a naive 64KB-only read reports nothing.
 
-That is not an edge case for this hook's target population. #649 measures
-whole-file `Read`s at **62.2% of tool-result volume** in the blown-context
-transcripts — so the sessions most in need of the warning are precisely the
-ones most likely to suppress it, and the suppression is silent. Verified during
-review: a 200KB trailing tool result made a genuine 260k crossing vanish.
+Whole-file `Read`s are the bulk of tool-result volume in blown-context
+transcripts (#649), so the sessions most in need of the warning are the ones most
+likely to suppress it, silently (a 200KB trailing result made a genuine 260k
+crossing vanish).
 
 So `_read_last_usage_total()` walks `_TAIL_WINDOWS` — 64KB, 512KB, 4MB, 32MB —
 and stops at the first window holding an assistant record, or as soon as the
@@ -162,7 +158,7 @@ Path override: `CTX_HOOK_LEDGER` replaces the default
 `~/.claude/ctx-hook-ledger.csv`. It exists so the selftest can write its
 synthetic rows to a temp file — without it, every selftest run appends junk to
 the production ledger and corrupts the dataset #649's follow-up measurement
-reads. (Found in review: 41 synthetic rows had already landed there.) Anything
+reads. Anything
 that invokes the hook outside a real session must set it.
 
 Every fire also best-effort-appends one CSV line
@@ -171,4 +167,4 @@ so a future measurement pass over "did warned drones actually see fewer
 runaway sessions" is a `sort | uniq -c` rather than transcript archaeology.
 This append can never affect the hook's exit code or stdout — see
 `_append_ledger`.
-See also `.mise/tasks/drone-budget-guard` (2026-09-14): the PreToolUse sibling that *denies* for subagents (Explore exempt from the Read rule) — whole-file Reads of >400-line files, and everything but commit-and-report past 350k (300k until the #922 auto-compact window landed) — reusing this hook's tail-read.
+Related: `.mise/tasks/drone-budget-guard` is the PreToolUse sibling that *denies* for subagents (whole-file Reads of >400-line files; everything but commit-and-report past 350k), reusing this hook's tail-read.

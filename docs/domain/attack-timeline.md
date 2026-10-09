@@ -17,40 +17,32 @@ Read this before changing `resolve()` on any `AttackPlan`, before touching
 `OutcomeApplier`, and before adding anything that happens "during" an attack.
 
 ---
-
 ## The invariant
 
 > **Resolution emits candidate landings in time order. One applier walks them
 > in that order and re-evaluates each landing's gate against live state before
 > applying it.**
 
-**This is the AUTHORITY's timeline** (#511). Under
-[multiplayer-sync-model.md](multiplayer-sync-model.md) the host runs exactly
-what is written here — resolve, then `OutcomeApplier`, with every mode's
-land-time gate live against the real world. A *peer* does not: it receives
-`AttackRecord`, a post-apply record of what each landing actually did, and
-replays those deltas through the same applier loop. It re-runs no gate,
-re-reads no live offense, and computes no combat number, because it cannot —
-mitigation is node-local, an earlier beat's cascade changes what a later beat
-lands on, and a target may sit under fog it knows nothing about. Every
-"re-read at land time" sentence below describes host-side behaviour. Nothing
-about the host contract changes; the qualifier exists so a peer path is never
-built by reading this as universal.
+**This is the AUTHORITY's timeline.** Under
+[multiplayer-sync-model.md](multiplayer-sync-model.md) the host resolves on a
+shadow, records an `AttackRecord`, and replays that record through
+`OutcomeApplier` like any peer. A *peer* receives the record and replays its
+deltas through the same applier loop; it re-runs no gate, re-reads no live
+offense and computes no combat number, because mitigation is node-local, an
+earlier beat's cascade changes what a later beat lands on, and a target may sit
+under fog it knows nothing about. Every "re-read at land time" sentence below
+describes the resolving machine.
 
 Two halves, both load-bearing:
 
-- **Resolution is still up-front, and since #536 it is no longer *pure*.** It
-  produces an `AttackOutcome` that has **already landed** in the `CombatWorld`
-  it was handed — a result, not a plan of landings. What makes it safe as a
-  preview, as AI scoring input and as #458's wire payload is not that it
-  mutates nothing, but that the thing it mutates is a throwaway shadow (see
-  "The world is ALWAYS a shadow" below). Read that section before writing code
-  against `resolve()`; the rest of this page describes the timeline the
-  landings run on either way.
+- **Resolution is up-front and lands on a shadow.** It produces an
+  `AttackOutcome` that has **already landed** in the `CombatWorld` it was
+  handed — a result, not a plan of landings. That is safe as a preview, as AI
+  scoring input and as the wire payload because the world it mutates is a
+  throwaway shadow (see "The world is ALWAYS a shadow").
 - **Application is staged and live.** Each landing's *gate* — "is this target
   still allocated? still hostile? is this blade vertex still alive?" — is
-  re-checked at the moment the landing applies, not at the moment it was
-  planned.
+  re-checked at the moment the landing applies, not when it was planned.
 
 The gate is a **veto, not a re-plan.** A landing that fails its gate is
 dropped. Application never *discovers new targets*; that would make resolution
@@ -78,30 +70,24 @@ failure *shape*:
 
 ### Ranged renders EVERY arrow, whatever the arrow did
 
-The rule above widens past the gate: the dud beat is one *outcome* an arrow can
-have, not the only non-standard one
-([ADR 0012](../adr/0012-every-arrow-renders-whatever-it-did.md)).
-A landing may also mitigate to exactly zero, or — where the defender's net
-`min_damage_taken` is negative, which `bunker_addon.tscn` authors deliberately
-— mitigate *below* zero and be reclassified to `Kind.HEAL` by
-`NodeCombat.take_damage`. All of these still get an arrow.
+The dud beat is one *outcome* an arrow can have, not the only non-standard one
+([ADR 0012](../adr/0012-every-arrow-renders-whatever-it-did.md)). A landing may
+also mitigate to exactly zero, or — where the defender's net `min_damage_taken`
+is negative, which `bunker_addon.tscn` authors deliberately — mitigate *below*
+zero and be reclassified to `Kind.HEAL` by `NodeCombat.take_damage`. All of
+these still get an arrow.
 
 `ArrowVolleyCoordinator.play` therefore iterates `outcome.hits` directly and
-**must never filter on `HitInstance.kind`.** It used to call
-`AttackOutcome.damage_hits()`, which keeps only `Kind.DAMAGE`; a volley whose
-hits all flipped to heals came back empty and the coordinator returned before
-spawning anything. The player spent the AP and no arrow left the bow. If you
-are about to narrow that iteration again, this paragraph is why you should not.
+**must never filter on `HitInstance.kind`** — a volley whose hits all flipped to
+heals would spawn nothing while the player had spent the AP.
 
-The one entry it does skip is skipped **by class**: a typed arrow's riders
+The one entry it skips is skipped **by class**: a typed arrow's riders
 (`AmmoType.on_hit_effects`) ride `outcome.hits` as `StatusInstance`s right after
-its arrow — same origin, target and beat — and are not arrows, so they draw nothing. A
-hit whose `kind` changed post-mitigation is still an arrow; a status hit never
-was one. `BattleSystem._consume_volley` counts shots on the same distinction.
-
-`damage_hits()` itself is fine and stays — its remaining callers
-(`AiCombatScorer`, `AiBladeRollout`) are *scoring* passes that genuinely want
-damage only. Filter at the call site that means it, never in a render pass.
+its arrow — same origin, target and beat — and are not arrows, so they draw
+nothing. `BattleSystem._consume_volley` counts shots on the same distinction.
+`AttackOutcome.damage_hits()` stays for the *scoring* passes (`AiCombatScorer`,
+`AiBladeRollout`) that want damage only; filter at the call site that means it,
+never in a render pass.
 
 ## Why: the fiction has to hold
 
@@ -133,33 +119,28 @@ every expansion from wave N onward.**
 | Clock | When | What it is |
 |---|---|---|
 | **Plan** | while the player is arming | Live, continuously re-read. Highlighting, range rings, validity. Nothing is committed. |
-| **Resolve** | `AttackPlan.resolve()`, once, at launch | Pure. Snapshots the *candidate set* and the attacker-side arithmetic. Emits `AttackOutcome`. |
+| **Commit** | at launch | The attacker's offense is snapshotted (damage per shot, blade vertex damage, spell damage). |
+| **Resolve** | `AttackPlan.resolve_against(world)`, once, at launch | Runs on a shadow. Snapshots the *candidate set*, stamps the order, emits an `AttackOutcome` already landed in that shadow. |
 | **Land** | per landing, in `arrival_time` order | Live. Gate re-check, then mitigation, then mutation, then any cascade — all synchronous within the beat. |
 
 ## What is read at which clock
 
-The target state. Where this differs from what the code does today, the
-"today" column says so — those gaps are the work.
+| Input | Clock |
+|---|---|
+| Candidate landing set (which nodes *could* be hit) | **Resolve** |
+| Ordering of landings (authored into `arrival_time`; `OutcomeApplier` sorts on it) | **Resolve** |
+| Landing gate (target still allocated / still hostile / vertex still alive) | **Land** |
+| Attacker offense (`ranged_damage`, blade vertex damage, spell damage) | **Commit** |
+| Crit *decision* (`crit_chance` roll, `SpellDef.crit_conditions`) | **Resolve** — one shared `CritRoll`, see below |
+| Crit *multiplier* (`amount ×= crit_multiplier`) | **Land** — base `DamageInstance`/`HealInstance.land_on` |
+| Amount *basis* (`HitInstance.basis` — FLAT HP, `PERCENT_MAX` of the target's max hp, or `PERCENT_CURRENT` of its current hp) | **Land** — `HitInstance.resolve_amount`, ahead of the crit multiply; resolves once and flips itself to FLAT, so a rebuilt record never re-scales. Sizes the number *before* `Mitigation` — bypass is `Type.TRUE`'s axis, not this one |
+| Defender mitigation (`armor`, `min_damage_taken`) | **Land** — `Mitigation.apply` inside `SkillNode.take_damage` |
+| Cascade / dealloc / entity death | **Land**, synchronous |
 
-| Input | Clock | Today |
-|---|---|---|
-| Candidate landing set (which nodes *could* be hit) | **Resolve** | ✅ all three modes |
-| Ordering of landings | **Resolve** (authored into `arrival_time`) | ✅ all three modes stamp a real `arrival_time`; `OutcomeApplier` sorts on it (#499) |
-| Landing gate (target still allocated / still hostile / vertex still alive) | **Land** | ✅ all three modes (#501 / #502 / #503) |
-| Attacker offense (`ranged_damage`, blade vertex damage, spell damage) | **Commit** | ✅ all three modes — snapshotted, see below |
-| Crit *decision* (`crit_chance` roll, `SpellDef.crit_conditions`) | **Resolve** | ✅ all three modes, one shared `CritRoll` (#507) — see below |
-| Crit *multiplier* (`amount ×= crit_multiplier`) | **Land** | ✅ all three modes, in base `DamageInstance`/`HealInstance.land_on` |
-| Amount *basis* (`HitInstance.basis` — FLAT HP, `PERCENT_MAX` of the target's max hp, or `PERCENT_CURRENT` of its current hp) | **Land** | ✅ `HitInstance.resolve_amount`, called from base `DamageInstance`/`HealInstance.land_on` ahead of the crit multiply; resolves once and flips itself to FLAT, so a rebuilt record (already FLAT) never re-scales. Sizes the number *before* `Mitigation` — bypass is `Type.TRUE`'s axis, not this one |
-| Defender mitigation (`armor`, `min_damage_taken`) | **Land** | ✅ already live — `Mitigation.apply` runs inside `SkillNode.take_damage` |
-| Cascade / dealloc / entity death | **Land** | ✅ already live and synchronous |
+### Offense is snapshotted at commit time
 
-### Offense is snapshotted at commit time — settled 2026-08-23
-
-This doc used to say the split was **defence live, offence frozen**, that it had
-"no principle behind it", and that the fix was to read offense at land time in
-all three modes. **That was wrong, and #503 shipped the wrong half of it.** The
-owner ruled the other way, and the three modes turn out to have been telling the
-same story all along:
+The split is **set frozen, offense frozen, defence live**. Owner ruling,
+@Koaieus, 2026-08-23:
 
 > **ranged** — *"snapshot damage at launch… recalculating while arrows are
 > mid-flight makes no sense. If the first 2 arrows kill the target, 1) iff we
@@ -177,8 +158,6 @@ same story all along:
 >
 > — @Koaieus, 2026-08-23
 
-So the contract is **set frozen, offense frozen, defence live**:
-
 | | Clock | Because |
 |---|---|---|
 | Candidate set | Commit | resolution must not discover targets |
@@ -186,178 +165,125 @@ So the contract is **set frozen, offense frozen, defence live**:
 | Landing gate | Land | the world it arrives in decides whether it arrives at all |
 | Defender mitigation, cascade | Land | that is the defender's live state, not the attacker's |
 
-**Nothing is lost by freezing offense, and that is the load-bearing half of the
-argument.** The case that motivated a live read — a volley whose early arrows
-already killed the target, so the late ones "should" recompute — is handled by
-the **gate**, which vetoes them entirely. A stale number on an arrow that never
-lands is not an error. Where the gate lets a hit through, the target is still
-there and the attacker's own launch-time strength is the honest number.
+**Nothing is lost by freezing offense.** A volley whose early arrows already
+killed the target is handled by the **gate**, which vetoes the late ones
+entirely; a stale number on an arrow that never lands is not an error. Where the
+gate lets a hit through, the target is still there and the attacker's own
+launch-time strength is the honest number.
 
-Each mode's snapshot point, concretely:
+Each mode's snapshot point:
 
 - **Ranged** — `RangedDamageFormula.compute`, once per scheduled shot, all of
-  them before any landing. Its `_read_offense` is the only read; #503's
-  land-time re-read in `RangedHitInstance.land_on` was deleted.
-- **Melee** — `MeleeAttackPlan.build_blade_state()` stamps
-  `vertex_damage[i]` from each source node's `blade_damage`. Forge, then swing.
+  them before any landing. `_read_offense` is the only read.
+- **Melee** — `MeleeAttackPlan.build_blade_state()` stamps `vertex_damage[i]`
+  from each source node's `blade_damage`. Forge, then swing.
 - **Magic** — `SpellResolver.impact_damage`, once at cast. It has a second,
-  independent reason to freeze, stated at that function: a per-hop re-read would
-  compound INT (INT² by hop 2).
+  independent reason to freeze: a per-hop re-read would compound INT (INT² by
+  hop 2).
 
-**Ranged's freeze rests on a relationship between two authored numbers**, and
-it is pinned rather than commented (`test_ranged_damage_formula.gd`):
-`PresentationTempo.volley_flight_time` **must stay greater than**
-`volley_stagger_span`, so the last arrow launches before the first one lands.
-Retune `volley_stagger_span` above `volley_flight_time` on the authored
-`.tres` and an arrow would be loosed *after* an earlier arrow had already
-cascaded the board — at which point "snapshot at launch" and "snapshot at
-resolve" stop being the same thing, silently, with no test failing and damage
-merely going stale. (Since #543 these two live on `PresentationTempo`, not as
-`const`s on `RangedDamageFormula` — see "The ranged volley ramp" below.)
+**Ranged's freeze rests on a relationship between two authored numbers**, pinned
+by `test_ranged_damage_formula.gd`: `PresentationTempo.volley_flight_time`
+**must stay greater than** `volley_stagger_span`, so the last arrow launches
+before the first lands. Otherwise an arrow would be loosed *after* an earlier
+one had cascaded the board, "snapshot at launch" and "snapshot at resolve"
+would silently diverge, and damage would merely go stale with no test failing.
 
 ### The crit split — the one input that spans two clocks
-
-Crit (#507) is the only row above that appears twice, and the reason is worth
-recording because the obvious "just do it at land, like mitigation" is wrong
-in a way that is invisible until you look at the VFX layer.
 
 - **The decision cannot wait for land.** `MagicBounceCoordinator` stamps
   `Projectile.crit_tier` when it *spawns* a bolt, and `Projectile` fires
   `_on_crit` at flight start — both strictly before the applier lands that
-  wave. Deciding at land makes every magic projectile read tier 0. Magic's
-  `SpellDef.crit_conditions` are resolve-bound anyway: they read `CastSpell`
-  propagation state (predecessor, incident count) that exists nowhere else.
-- **The multiply still happens at land**, in base
-  `DamageInstance`/`HealInstance.land_on`. The original reason was that
-  `RangedHitInstance.land_on` overwrote `amount` with a live `ranged_damage`
-  read, discarding anything resolve had multiplied in — that read is gone as of
-  2026-08-23 (above), so the surviving reason is narrower and worth stating:
-  **a gated hit must not carry a multiplied amount.** A veto returns before
-  `super.land_on`, so a dud's `amount` stays exactly what was loosed rather
-  than a crit-inflated number no one ever took. That is also how the property
-  is now pinned, since with offense frozen the two clocks are otherwise
-  indistinguishable on a hit that lands.
+  wave. Magic's `SpellDef.crit_conditions` are resolve-bound anyway: they read
+  `CastSpell` propagation state (predecessor, incident count) that exists
+  nowhere else.
+- **The multiply happens at land**, in base `DamageInstance`/`HealInstance.land_on`,
+  because **a gated hit must not carry a multiplied amount**: a veto returns
+  before `super.land_on`, so a dud's `amount` stays exactly what was loosed.
 
-So the decision is frozen with the candidate set and the multiply is applied
-at land. The residual cost
-is stated plainly: `crit_chance` / `crit_multiplier` are read at resolve, so a
-mid-attack change to either is not seen by hits already in flight.
+`crit_chance` / `crit_multiplier` are read at resolve, so a mid-attack change to
+either is not seen by hits already in flight.
 
-One further constraint falls out of a single seeded stream serving a whole
-attack: **draws are consumed in landing order** (the structural
-`schedule_index`, never seconds). The draw lives inside the landing itself —
-`OutcomeApplier.land_one` calls `CritRoll.decide` off the outcome's
-`crit_stream` right before the hit lands, reading the landing world (#1473) —
-so the two orders cannot drift apart; the symptom if they did would be crits
-that stop reproducing under a replayed seed, not a visible break. A rebuilt
-record carries no stream and lands its recorded crits.
+A single seeded stream serves a whole attack, so **draws are consumed in
+landing order** (the structural `schedule_index`, never seconds). The draw lives
+inside the landing itself — `OutcomeApplier.land_one` calls `CritRoll.decide`
+off the outcome's `crit_stream` right before the hit lands, reading the landing
+world — so the two orders cannot drift apart; if they did, crits would stop
+reproducing under a replayed seed. A rebuilt record carries no stream and lands
+its recorded crits.
 
 ## Per-mode contract
 
-Every mode must satisfy all four. The *mechanism* differs; the contract does
-not.
+Every mode satisfies all four. The *mechanism* differs; the contract does not.
 
 1. **Emit candidates in time order**, each stamped with a real
    `HitInstance.arrival_time` in seconds from launch.
 2. **Re-evaluate ownership and liveness at land time**, per landing.
-3. **Snapshot attacker offense at commit time**, and never re-read it at land
-   (see "Offense is snapshotted at commit time" above — this item said the
-   opposite until 2026-08-23).
-4. **Resolve against a substrate** (below), so AI and preview never mutate the
+3. **Snapshot attacker offense at commit time**, and never re-read it at land.
+4. **Resolve against a shadow** (below), so AI and preview never mutate the
    real world.
 
 ### Magic
 
-The seam already exists. `SpellResolver`'s `while not wave.is_empty()` loop is
-literally the wave model above. The change is to move application *inside* it:
+`SpellResolver`'s `while not wave.is_empty()` loop is the wave model above, with
+application inside it:
 
 ```
-reduce incidents  →  on-hit effects  →  APPLY  →  expand next wave
+reduce incidents  →  on-hit effects  →  LAND  →  expand next wave
 ```
 
-so `config.filter.allows` and `max_visits_per_node` see post-apply ownership.
-This is the smallest of the three changes and it delivers the fireball story
-directly.
-
-`PropagationEvent.beat` × a per-wave interval is where magic's `arrival_time`
-comes from.
+so `config.filter.allows` and `max_visits_per_node` see post-land ownership: the
+fireball story holds. `PropagationEvent.beat` × a per-wave interval is magic's
+`arrival_time`. Details under "The candidate-set half" below.
 
 ### Melee
 
-**The scan stays pure, and the interleave sits one level up (#801).**
-`BladeHitScan` never touches the applier: its
-`PhysicsShapeQueryParameters2D.exclude` is built once per resolve, and its
-purity is load-bearing because `ai_blade_rollout.gd` runs it on
-`WorkerThreadPool`. What `MeleeAttackPlan.resolve_against` does instead is hold
-a `BladeHitScan.Sweep` open across samples and drive **sim → scan → land** one
-sample at a time — the query params and the dedup dictionaries live on the
-Sweep, so nothing is rebuilt per sample.
+**The scan stays pure, and the interleave sits one level up.** `BladeHitScan`
+never touches the applier: its `PhysicsShapeQueryParameters2D.exclude` is built
+once per resolve, and its purity is load-bearing because `ai_blade_rollout.gd`
+runs it on `WorkerThreadPool`. `MeleeAttackPlan.resolve_against` holds a
+`BladeHitScan.Sweep` open across samples and drives **sim → scan → land** one
+sample at a time.
 
 The **ownership filter runs at consumption time**, not query time:
+`MeleeAttackPlan.collect_target_excludes()` excludes only the attacker's own
+nodes and the blade members — never `not sn.is_allocated()` — and
+`BladeDamageInstance.land_on` re-checks `is_allocated()` / `owned_by` /
+spike-pop per event, live, as `OutcomeApplier` lands it. `BladeHitEvent.t` is
+melee's `arrival_time`.
 
-- `MeleeAttackPlan.collect_target_excludes()` excludes only the attacker's own
-  nodes and the blade members — never `not sn.is_allocated()`.
-- `BladeDamageInstance.land_on` re-checks `is_allocated()` / `owned_by` /
-  spike-pop per event, live, as `OutcomeApplier` lands it.
+**The preview resolves too, on its own shadow.** Melee's aim-time preview is a
+**real** `_resolve_swing` against a `CombatWorld.shadow()`, run once per
+selection change and replayed by `MeleePreview` — the same shadow path
+`AiCombatScorer` uses and `BattleSystem._compute_record` runs at commit.
 
-`BladePopResolver.LiveGate`'s predicates are written as live-state checks and
-this is what makes them do the job they were written for.
-
-`BladeHitEvent.t` is melee's `arrival_time`.
-
-#### The preview resolves too, on its own shadow (#782)
-
-Melee's aim-time preview is a **real** `_resolve_swing` against a
-`CombatWorld.shadow()`, run once per selection change and replayed by
-`MeleePreview` — the same shadow path `AiCombatScorer` has used since #498 step
-3, and the same one `BattleSystem._compute_record` runs at commit. Three
-consequences for this contract:
-
-- **It publishes nothing.** `_resolve_swing` returns a `SwingResult` bundle (`attack/melee/swing_result.gd`);
-  only `resolve_against` writes it onto the plan's `last_*` fields. So a
-  prediction can never overwrite the artifacts `MeleePreview.launch` replays for
-  the swing the authority actually landed.
-- **It announces nothing**, for the reason a shadow never does
-  (`CombatWorld.is_shadow`) — the pop cue rides the mutation clock, and racing
-  two timers at the same `t` is the disease.
+- **It publishes nothing.** `_resolve_swing` returns a `SwingResult` bundle
+  (`attack/melee/swing_result.gd`); only `resolve_against` writes it onto the
+  plan's `last_*` fields, so a prediction never overwrites the artifacts
+  `MeleePreview.launch` replays for the swing the authority landed.
+- **It announces nothing**, as no shadow does (`CombatWorld.is_shadow`) — the
+  pop cue rides the mutation clock.
 - **It is a prediction, not an authority.** It may differ from the host's
-  resolve: by a last-ulp float difference across platforms (`#547`), and — a
-  second, smaller source #782 adds — because the preview runs on the unstamped
-  (0) crit stream while the committed swing stamps a fresh one, so a crit-driven
-  kill that cascades can change a later defender's board. Both are **accepted
-  mispredicts**. Neither lets a peer re-decide a landing from its own sim; that
-  rule is unchanged.
+  resolve by last-ulp float differences across platforms, and because the
+  preview runs on the unstamped (0) crit stream while the committed swing
+  stamps a fresh one. Both are accepted mispredicts; neither lets a peer
+  re-decide a landing from its own sim.
 
-See `docs/domain/melee-blade-sim.md`, "The preview is a real resolve, replayed".
-
-#### Severance is INTERLEAVED, and the gate is fed by the applier (#801)
-
-A spike pop is decided at land time, so *what a swing severed* is not known
-until the batch containing that contact has been applied. The gate is reached
-from `BladeDamageInstance.land_on` **inside** `OutcomeApplier.apply`'s walk —
-never from the scan — so the loop is sim / scan / **land**, and only *applying*
-produces the world the next pop decision reads.
-
-`resolve_against` therefore bakes the swing **optimistically**, walks it sample
-by sample landing each sample's contacts as their own sub-`AttackOutcome`
+**Severance is interleaved, and the gate is fed by the applier.** A spike pop is
+decided at land time, so *what a swing severed* is not known until the batch
+containing that contact has been applied. The gate is reached from
+`BladeDamageInstance.land_on` **inside** `OutcomeApplier.apply`'s walk — never
+from the scan. `resolve_against` bakes the swing **optimistically**, walks it
+sample by sample landing each sample's contacts as their own sub-`AttackOutcome`
 (compile → same crit rng → `apply` → merge), and on a pop **re-bakes from that
 sample** with the dead vertex frozen, its constraints and driver gone, and drag
-written onto whatever it orphaned. See `docs/domain/melee-blade-sim.md`.
-
-**No suspendable `OutcomeApplier` is needed** — that was the objection #186
-recorded, and the per-batch idiom answers it. The contract's four items hold:
-every event carries real swing-time `t`, is gated at land time against the world
-`resolve_against` was handed, off the same commit-time offense snapshot.
-
-**#186's ordering residue is gone.** Landings are no longer split into a driven
-pass and a fragment pass — everything lands in true `t` order on the shadow, so
-two landings on the same node see each other's mitigation in the order they
-actually happened. One deliberate order change replaces it: crits are rolled per
-batch, after earlier landings applied, rather than all up front. The stream is
-provably identical (`test_batched_crit_rolls_equal_one_global_roll`); the residue
-is that a swing that friendly-fires a node whose depletion changes the
-**attacker's own** `crit_chance` can crit differently late in the swing. Recorded
-so it is not filed as a bug.
+written onto whatever it orphaned. Everything lands in true `t` order on the
+shadow, so two landings on the same node see each other's mitigation in the
+order they happened. Crits are rolled per batch, after earlier landings applied
+(`test_batched_crit_rolls_equal_one_global_roll` pins the stream); a swing that
+friendly-fires a node whose depletion changes the **attacker's own**
+`crit_chance` can therefore crit differently late in the swing — by design.
+Detail: `docs/domain/melee-blade-sim.md` ("The preview is a real resolve,
+replayed").
 
 ### Ranged
 
@@ -367,365 +293,127 @@ below.
 
 ---
 
-## The substrate seam
+## The world is ALWAYS a shadow
 
-> **Settled by #536: every resolution runs on a shadow, for every mode.** The
-> asymmetry below is still the reason magic *forced* the issue, and worth
-> reading for that — but the answer it reaches ("live slice for the cast, shadow
-> for the tooltip") was superseded by the owner on 2026-08-23 in favour of
-> *shadow always*. See "The world is ALWAYS a shadow" below for why that deletes
-> the double-apply problem instead of managing it.
+Magic gates during candidate selection (wave N+1's filter must see wave N's
+kill), so resolution itself mutates; melee and ranged gate at *consumption*.
+One rule covers all three: **every resolution runs on a `CombatWorld.shadow()`,
+and the real world is mutated only by `OutcomeApplier` landing a rebuilt record**
+(owner call, 2026-08-23: "shadow always"). Nothing needs suppressing, no
+"simulation" flag exists, and no preview caller is a special case. How the
+shadow's state is split from its notifications and what it copies:
+`docs/domain/entity-combat.md`.
 
-**A real melee or ranged attack does not need a substrate. A real magic attack
-does.** The original framing of #498 — substrate first, it gates everything —
-was wrong; the correction that replaced it ("nothing needs a substrate") then
-over-generalised from melee to all three modes. The truth is an asymmetry, and
-it turns on **where each mode's gate lives**.
-
-- **Melee and ranged gate at *consumption* time.** The applier walks landings in
-  order and re-reads `is_allocated()` / `owned_by` per landing. That is an
-  ordinary read of the live world at the right moment; nothing is copied, and
-  both moves are unblocked today.
-- **Magic gates in *candidate selection*, which lives inside
-  `SpellResolver.resolve()`.** For wave N+1's filter to see wave N's kill,
-  `resolve()` itself must mutate. Two things then break: `OutcomeApplier.apply`
-  (called once, `systems/battle_system.gd:256`) lands every hit a **second**
-  time on a real cast, and `resolve()`'s dozen preview callers — spell tooltip,
-  balance harness, the AI's magic candidates, tests — would mutate the live world
-  just by being asked what a spell *would* do.
-
-  A resolve-scoped ledger of "nodes this cast already killed", consulted ahead of
-  real `owned_by`, is not an escape: that is a second implementation of
-  ownership, and it is ruled out for the same reason as everything else here.
-
-  So magic's wave-loop move is the first real consumer of `resolve_against`.
-  Found while executing #501; see its comment of 2026-08-20. **Both breakages
-  above are gone under shadow-always** — the second apply cannot happen because
-  resolution never touches the world `OutcomeApplier` lands in, and the preview
-  callers were never the special case, they were the general one.
-
-What the substrate is for is narrower:
-
-> **AI scoring and previews must not mutate.** Today `resolve()` already gates
-> (`BladePopResolver`, propagation filters) against live state at resolve time,
-> for free, because nothing has mutated yet. Once gating moves to *apply* time,
-> the AI loses that accuracy unless it can run the applier — and it cannot run
-> the applier against the real world.
-
-So the substrate is a **follow-on that restores AI/preview accuracy**, not a
-prerequisite. #536 delivered exactly that, and for free: since `resolve_against`
-lands its outcome, an AI candidate's `popped_nodes`, kill list and
-post-mitigation numbers now come out of the real applier run against a detached
-copy, not out of a parallel estimate. Melee's `BladePopResolver.resolve` — the
-up-front batch pass that *was* that parallel estimate, and disagreed with the
-live gate about a vertex that disintegrates before it pops — was deleted.
-
-### How wrong is an un-simulated estimate? Badly, and non-uniformly
-
-The tempting cheap answer is "the gate only ever *vetoes* landings, so an
-ungated estimate is a strict upper bound — directional, bounded, discountable."
-**It is not discountable.**
-
-A propagating spell with escalating per-hop damage, seeded at a local degree
-maximum, estimates `1 + 2 + 4 + … + 1024` while the real cast stops after ~20
-damage, because the nodes it needed to bounce through are dead and no longer
-valid candidates. The error scales with hop count and degree — *exactly where
-the AI thinks the value is* — so it generates rank inversions rather than a
-uniform offset. An AI using it reliably picks the worst spell target on the
-board and scores it highest.
-
-### The design: split state from notification
-
-Split every mutation site into **state change** (moves to a plain `RefCounted`)
-and **notification** (stays on the Node). Simulation runs the state half
-against a throwaway copy. One implementation of the logic, so sim/real
-agreement is a fact rather than a discipline.
-
-```
-SkillNode (Area2D)                    NodeCombat (RefCounted)
-├── visuals, collision, addons        ├── board: NodeStatBoard   ← Resource, duplicated
-├── signals, Events, presentation     ├── owner: EntityCombat
-└── _combat ──────────────────────────┤ host: SkillNode  (null on a shadow)
-                                      └── take_damage / heal / is_allocated
-```
-
-`SkillNode` *composes* its `NodeCombat` — it does not copy one, it owns the
-live one. A shadow has `host == null`, so the notification branch does not
-exist for it. **There is no "simulation in progress" mute flag**, and there
-should not be: a flag is something you can fail to set; a null host is
-something that cannot be reached.
-
-Two facts make this small. `StatBoard` / `NodeStatBoard` already extend
-`Resource` and are deep-duplicable — `NodeState.ensure_board()` does
-`source.duplicate(true)` — so the stat system does not move at all. And
-`_node_board_ready` is lazy, driven from every write path rather than
-`_ready()`, so a detached slice initialises correctly with no scene tree.
-
-Full architecture, the `host` invariant, and the migration order are in #498.
-
-### Why cloning SkillNodes was the wrong answer
-
-Worth recording, because it is the obvious first idea. `duplicate()`-ing nodes
-and running the real `take_damage` against the copies leaks through the global
-broadcast surface: `Events.skill_node_damaged.emit(…)`, and
-`owned_by.dispatch(…)` — a duplicated node's `owned_by` still points at the
-**real** `Entity`. `AllocationSystem.force_deallocate` is the same, via
-`_revoke_node_effects(node, previous)` and
-`previous.navigator.mirror_remove(node)`.
-
-Cloning the *Entity* as well closes the `owned_by` half. What it cannot close
-is the bus: `LootSystem` connects to global `Events.entity_dying`
-(`loot_system.gd:170`) and resolves the killer as
-`turn_manager.current_entity`, so a simulated kill grants **real XP** and
-spawns a real `SkillDustAddon` no matter whose clone died. Cloning entity
-subtrees remains a viable cheaper fallback — bounded failure mode, a wrong
-score rather than a broken world — but its cost is Node duplication per
-rollout, which scales badly against exactly the many-rollout spell AI that
-motivates the work.
-
-This is also the honest answer to *"how do games like Monster Train do it?"* —
-card battlers clone their battle state freely because that state is **plain
-data with no engine objects and no global emit surface**. The reason cloning is
-cheap there and not here is not object size; it is that their mutation path has
-no reach outside the state object.
-
-### The landing half shipped as `CombatWorld` (#498 step 3, #520)
-
-`resolve_against(slice)` turned out to name two separable things, and the
-second one is already done.
-
-Because #501/#502/#503 had **already moved every gate and all arithmetic to
-land time**, "resolve against a slice" for the *landing* half is just: run the
-same `OutcomeApplier` loop, the same per-mode gates, the same mitigation, but
-look each target's state up somewhere else. That lookup is `CombatWorld`
-(`combat/combat_world.gd`):
+### Landing against a world: `CombatWorld`
 
 ```
 record replay (every machine): OutcomeApplier.apply(outcome, CombatWorld.live(),  clock)
 resolution, always:            OutcomeApplier.apply(outcome, CombatWorld.shadow(), clock)
 ```
 
-**The world is a required parameter, never a defaulted one** (owner call
-2026-08-23). A `world = null` meaning "live" would put an implicit live branch
-back inside `OutcomeApplier` — the exact shape #498 exists to delete, and the
-thing that turns *"the sim and the real path agree by construction"* back into
-*"by discipline"*. Same rule on `BladePopResolver.LiveGate.admit`. Naming the
-world at the call site costs eleven lines repo-wide.
+`combat/combat_world.gd` looks each target's state up somewhere else; the same
+`OutcomeApplier` loop, per-mode gates and mitigation run in both. **The world is
+a required parameter, never a defaulted one** (owner call 2026-08-23): a
+`world = null` meaning "live" would put an implicit live branch back inside
+`OutcomeApplier` and turn "the sim and the real path agree by construction" back
+into "by discipline". Same rule on `BladePopResolver.LiveGate.admit`.
 
-`HitInstance.land_on(node: NodeCombat, world: CombatWorld)` — the hit's
-`target` stays a real `SkillNode`, because that is its **identity** (what a
-record serializes, what a fogged peer resolves by `stable_id`, what every VFX
-observer reads). Only the **state** it mutates is swappable, and the swap is
-one dictionary lookup. There is no preview flag anywhere in the chain.
+`HitInstance.land_on(node: NodeCombat, world: CombatWorld)` — the hit's `target`
+stays a real `SkillNode` because that is its **identity** (what a record
+serializes, what a fogged peer resolves by `stable_id`, what every VFX observer
+reads). Only the **state** it mutates is swappable, by one dictionary lookup;
+there is no preview flag anywhere in the chain.
 
-A shadow world grows on demand, at two grains (#695). The first hit on a node
-whose owner is not yet snapshotted snapshots that owner's *entity* — its stat
-board, effect twins, owned-set mirror and core board; each further owned
-node's board is cloned only when the world is first asked about that node
-(`EntityCombat.shadow_for`). Late is the same as up front, because a shadow
-resolve never writes to the real world — so the real world is frozen for its
-whole duration — and it means only the entities *and nodes* an attack actually
-touches are paid for: a preview walk over 2-8 nodes of a 200-node territory no
-longer clones 200 boards (#681's 8-24 ms per hover). The per-node grain ends
-the moment anything entity-wide runs — `cascade_set` / `apply_cascade`,
-`simulate_entity_death`, a shadow `dispatch()`, `owned()` — where
+A shadow world grows on demand, at two grains. The first hit on a node whose
+owner is not yet snapshotted snapshots that owner's *entity* (stat board, effect
+twins, owned-set mirror, core board); each further owned node's board is cloned
+only when the world is first asked about that node (`EntityCombat.shadow_for`).
+Late is the same as up front because a shadow resolve never writes the real
+world, and only the entities and nodes an attack touches are paid for. The
+per-node grain ends the moment anything entity-wide runs (`cascade_set` /
+`apply_cascade`, `simulate_entity_death`, a shadow `dispatch()`, `owned()`):
 `_materialize_all` mints the rest first, so a cascade set is computed over the
-whole subgraph exactly as before. #498's "do not reach-bound the owned
-subgraph" is a *reachability* guarantee, not an eagerness mandate (owner call
-on #695, 2026-08-31): a node fifty hops away is still in the cascade set,
-because it is materialized before any cascade set is asked for.
+whole subgraph — a node fifty hops away is still in it.
 
-**No shared shadow `GraphMirror` is needed, and that rests on one assumption.**
-Topology never changes mid-attack, so islanding and propagation keep walking the
-*real* graph; only ownership and stats route through the slice. That assumption
-is now pinned by test (`test_a_full_shadow_resolve_changes_no_topology`) rather
-than by comment: a future displacement or terraform mechanic that severs or adds
-an edge mid-cascade would otherwise corrupt shadow propagation silently, with
-nothing else in the suite positioned to notice. It is the same standing
-assumption melee's physics exemption already relies on.
+**No shared shadow `GraphMirror` is needed, and that rests on one assumption:**
+topology never changes mid-attack, so islanding and propagation walk the *real*
+graph while only ownership and stats route through the shadow. It is pinned by
+`test_a_full_shadow_resolve_changes_no_topology`; a displacement or terraform
+mechanic that severs or adds an edge mid-cascade would break it.
 
-### The candidate-set half shipped as `resolve_against(world)` (#536)
+### The candidate-set half: `resolve_against(world)`
 
-The other half was magic's alone, and it closed the same way it was predicted
-to: `SpellResolver` **lands each wave before expanding the next one**, so
+`SpellResolver` **lands each wave before expanding the next**, so
 `config.filter.narrow(...)` on wave N+1 selects against a world in which wave
-N's kills have already happened. Melee and ranged needed nothing structural —
-their candidate sets were always allowed to freeze at resolve, and their gates
-already ran at land time against whichever world they were handed.
-
-Two things had to move together, and only the first is obvious:
+N's kills have happened. Two things move together:
 
 1. **The wave loop lands.** Between "reduce incidents" and "expand next wave",
    the wave's hits go through `OutcomeApplier.land_one` — the *same* landing
-   every other path uses, extracted from `apply`'s loop so there is exactly one
-   implementation of "land a hit".
+   every other path uses, so there is exactly one implementation of "land a hit".
 2. **The filters ask the world, not the node.** A hit's target stays the real
-   `SkillNode` (it is identity), so `to.ownership_bit(caster)` reads a node that
-   is *still alive* no matter what the resolver did. `PropagationContext.world`
-   is where the question goes now, via `ownership_bit_of` / `is_allocated_in_world`;
-   `OwnerFilter` and `ExpressionFilter` are the two callers. Landing without
-   this changes nothing observable — that was the bug behind the bug.
+   `SkillNode`, so `to.ownership_bit(caster)` reads a node that is *still alive*
+   whatever the resolver did. `PropagationContext.world` is where the question
+   goes, via `ownership_bit_of` / `is_allocated_in_world`; `OwnerFilter` and
+   `ExpressionFilter` are the two callers.
 
-Magic's crit roll moved with it: each hit draws as `land_one` lands it, wave by
-wave, which for magic *is* landing order (wave order with an index-stable
-tiebreak) — the same landing-time draw ranged and melee make (#1473).
+Magic's crit roll draws as `land_one` lands each hit, wave by wave — the same
+landing-time draw ranged and melee make.
 
-**`resolve_against(world)` returns an outcome already landed in `world`.** That
-is the contract for all three modes. `resolve()` is the convenience that mints a
-throwaway shadow, resolves, and frees it — which is what every preview, tooltip
-and AI rollout calls.
+**`resolve_against(world)` returns an outcome already landed in `world`** — the
+contract for all three modes. `resolve()` mints a throwaway shadow, resolves,
+and frees it; every preview, tooltip and AI rollout calls it.
 
-### The world is ALWAYS a shadow, and the host replays itself (#536)
-
-Owner call, 2026-08-23: *"shadow always."*
+### The authority replays its own record
 
 ```
 authority: resolve on a shadow -> capture the AttackRecord -> confirm/broadcast
 every machine, authority included: rebuild that record -> land it on the BeatClock
 ```
 
-`BattleSystem` has one launch path. The payload still decides which half runs —
-an empty record means "nobody has computed this yet" — but there is no longer a
-version of the apply step for the machine that computed it. Per #498: *the host
-becomes a peer of itself; it is the only one that computes, not the only one
-that replays.*
+`BattleSystem` has one launch path (`apply_launch_command`). The payload decides
+which half runs — an empty record means "nobody has computed this yet" — but
+there is no apply step for the machine that computed it: the host is a peer of
+itself; it is the only one that computes, not the only one that replays.
 
-**Why shadow-always rather than "live for a real cast".** Magic gates during
-candidate selection, so `resolve` must mutate. If it mutated the real world,
-`OutcomeApplier` would then land every hit a second time and the special case
-would have to be detected and suppressed — the shape #501's correction warned
-about. With shadow-always there is nothing to suppress: `OutcomeApplier`
-against `CombatWorld.live()` remains the sole mutator of the real world, and the
-only thing it ever lands there is a rebuilt record.
-
-**The capture → rebuild round trip is load-bearing, not waste.** Every land-time
-write is one-shot: `CritRoll.apply` multiplies `amount` in place, `hp_before` /
+**The capture → rebuild round trip is load-bearing.** Every land-time write is
+one-shot: `CritRoll.apply` multiplies `amount` in place, `hp_before` /
 `hp_after` get overwritten, and a `HitInstance.deallocations` left over from the
-shadow would make `BattleSystem._on_node_depleted` take its *recorded* branch and
-re-apply a stale cascade set. Rebuilding mints fresh hits, so none of that is
-possible by construction. Do not optimise it away.
+shadow would make `BattleSystem._on_node_depleted` take its *recorded* branch
+and re-apply a stale cascade set. Rebuilding mints fresh hits. Do not optimise
+it away.
 
-**One consequence worth naming: an announcement made during resolution has no
-audience.** The melee spike-pop cue used to be emitted by
-`BladePopResolver.LiveGate` as it popped; the gate now runs on the authority's
-shadow, so it *records* the pop on `HitInstance.popped_vertex` instead, the
-record carries it, and `OutcomeApplier.land_one` emits it as the hit lands. Same
-beat as before (#504's requirement), and a peer now gets the cue too — the
-animation-replay emitter this descends from could only ever fire on the machine
-that swung. Any future in-resolution announcement needs the same treatment.
+**An announcement made during resolution has no audience.** The melee spike-pop
+cue is therefore *recorded* on `HitInstance.popped_vertex` by the gate running on
+the shadow, carried by the record, and emitted by `OutcomeApplier.land_one` as
+the hit lands — on every machine. Any future in-resolution announcement needs the
+same treatment.
 
 ### `AttackOutcome` is the result, not a plan
 
-Under this model `resolve()` becomes `resolve_against(world)` — a throwaway
-shadow for a preview, the authority's own shadow for a launch. Same function,
-same code path, and never the real world.
+`resolve_against(world)` — a throwaway shadow for a preview, the authority's own
+shadow for a launch — is one code path, never the real world.
 
 - **`AttackPlan` holds the inputs.** Change one and the outcome is recomputable.
-- **`AttackOutcome` is *the* deterministic result** of those inputs, computable
-  at any time.
+- **`AttackOutcome` is *the* deterministic result** of those inputs.
 
-`HitInstance.effective_amount`'s *"0.0 until applied"* caveat disappears — it
-is always filled, because resolving **is** applying, to a world you may throw
-away. Totals, per-node damage, kill lists and the enemy/friendly healing split
-are then accessors over `outcome.hits`, not new machinery. XP is the one
-exception: it lives in `LootSystem`, which gains a pure `preview_kill_xp` query
-that its own granting path also calls.
-
-### What the shadow must copy
-
-A revocation ledger is **not sufficient**, and this is the trap (closed in
-#520 — a shadow now re-runs `recompute`; see below):
-
-`AuraEffect._on_node_deallocated` calls `recompute(ctx)`, which does
-`ctx.revoke_all()` and then **re-derives every modifier from the current
-world** (`effects/aura_effect.gd:59-74`). It is a full rebuild, not a revoke.
-The net effect during an attack is still monotone-shrinking in practice (nodes
-only ever leave ownership mid-attack), but a ledger that only records
-revocations cannot reproduce a rebuild, and any distance-scaled aura recomputes
-its *values*, not merely its membership.
-
-So the shadow is a real copy of:
-
-- **every affected entity's complete owned subgraph** — HP and ownership per
-  node
-- those entities' stat boards
-- **magic only:** unallocated nodes within the spell's hop reach, which exist
-  purely as propagation conduits for spells whose filter admits them
-
-with the effect hooks able to run against it. Far cheaper than a world clone —
-no scene tree, no addons-as-children, no physics — but not free, and not a
-ledger.
-
-**How the hooks run against it (#520).** `EffectContext` is addressed at an
-`EntityCombat`, not an `Entity` — its public API is unchanged, so no `Effect`
-implementer knows the difference, and the same `AuraEffect.recompute` rebuilds
-against a shadow board when handed a shadow slice. `EntityCombat` therefore
-carries the shadow's stand-ins for everything the live `Entity` owned: the
-effect ledger (`EffectInstance.clone_for` — rows copied, live handles kept,
-because `StatBoard._localized` translates them), the tag store, and the mirror
-an aura measures over. `apply_cascade`'s shadow branch does what
-`force_deallocate` does, in its order: revoke sweep, ownership, then dispatch
-`_on_node_deallocated` — and it is that last step which makes wave N+1 read
-post-cascade armour.
-
-Two rules that fall out, and both are load-bearing:
-
-- **A shadow reads the pure halves, never the mutating helpers.**
-  `SkillNode.remove_entity_modifiers_from` erases `_scaled_sets` on the *real*
-  node while it works. So the question ("what does this node grant") is split
-  from the verb ("un-grant it"): `granted_entity_modifiers()` /
-  `scaled_effect_leaves()` are pure, both worlds share them, and the erase
-  stays on the live path.
-- **A shadow slice never falls back to the live world for a node lookup.**
-  That fallback is precisely how an aura recomputing on a shadow would grant
-  node-local modifiers to real nodes. A bare `EntityCombat.snapshot()` mints a
-  private `CombatWorld` and frees it with itself.
-
-**Do not reach-bound the owned subgraph.** The obvious optimisation — copy only
-nodes the attack can physically touch — computes the wrong cascade.
-`BattleSystem._on_node_depleted` calls
-`defender.navigator.nodes_islanded_by_removing(node, defender.core_location)`,
-which walks the defender's *entire* territory to find what islands when a node
-leaves. A node fifty hops from the impact can be part of the cascade. Unowned
-nodes are the ones that can be skipped, and only because their sole gameplay
-function is to be a spell conduit.
-
-### The one thing a shadow cannot hold
-
-Melee's hit detection is a **physics query against the real world**
-(`space_state.intersect_shape`). A shadow cannot hold collision shapes.
-
-This is fine, because **nothing moves nodes mid-attack**: scan once against the
-real world for geometry, and shadow only the gate re-evaluation. If a future
-mechanic ever displaces a node during a swing, this assumption breaks and the
-melee substrate story needs revisiting.
+`HitInstance.effective_amount` is filled on every landed hit (0.0 only for a
+gated hit, which never reached mitigation — what `gated` distinguishes from
+"their armour held"). Totals, per-node damage, kill lists and the enemy/friendly
+healing split are accessors over `outcome.hits`. XP is the exception: it lives
+in `LootSystem`, via its `preview_kill_xp` query.
 
 ---
 
 ## Ordering and `arrival_time`
 
-### `arrival_time` is not optional
-
-`HitInstance.arrival_time` is currently set **only** by
-`RangedDamageFormula` — every melee and magic hit carries `0.0`, documented as
-"0.0 for hit types that don't yet compute one."
-
-That is a semantic lie (they do not land at t=0) and under a design where the
-world mutates on the reveal clock it is worse than cosmetic: with
-`arrival_time == 0`, every melee hit and every spell hop mutates
-simultaneously, and the whole staged model degenerates to today's behaviour for
-two of three modes. #488 lists stamping it uniformly as *"optional, last"*;
-under this contract it is a **prerequisite**, not a nicety.
+Every hit carries a real `arrival_time`, stamped by `OutcomeSchedule` from the
+structure its resolver records: with the world mutating on the reveal clock, an
+unstamped hit would mutate simultaneously with every other.
 
 ### The ranged volley ramp
 
-Allocation order must never influence a combat outcome. Today it does: the
-firing order is `GraphMirror._node_ids` insertion order, which is allocation
-order. It is *deterministic across peers* (same command replay → same
-allocation order), so it is not a desync — it is a design bug, and a worse one
-than randomness, because a player could learn to exploit it.
-
-**Author the schedule; derive nothing from iteration order.**
+Allocation order never influences a combat outcome: firing order is authored
+from geometry, nothing derives from `GraphMirror._node_ids` iteration order.
 
 ```
 rank reaching leaves by euclidean distance to target, ascending
@@ -745,8 +433,15 @@ seconds. One volley is ONE ramp: waves sit back-to-back inside it and
 in `[0, 1]` (the `RAMP` branch's assumption). The last shot of wave *k* and the
 first of wave *k+1* share a key; the `(structural_key, original_index)` sort
 keeps them in wave order, they merely land on one beat. Turning a key into a
-clock is `OutcomeSchedule.compile`'s job, in its `Cadence.RAMP` branch, off
-the authored `PresentationTempo`:
+
+The resolver records only structure about timing: `key_i` is stamped onto
+`HitInstance.structural_key` — the resolver emits structure, never seconds. One
+volley is ONE ramp: waves sit back-to-back inside it and `volley_draw_time` is
+paid once, so the key divides by the wave count to stay in `[0, 1]`. The last
+shot of wave *k* and the first of wave *k+1* share a key; the
+`(structural_key, original_index)` sort keeps them in wave order. Turning a key
+into a clock is `OutcomeSchedule.compile`'s job, in its `Cadence.RAMP` branch,
+off the authored `PresentationTempo`:
 
 ```
 launch_time_i  = volley_draw_time + key_i * volley_stagger_span
@@ -756,28 +451,19 @@ arrival_time_i = launch_time_i + volley_flight_time   # constant, NOT distance/s
 so a slow-motion replay (a lower `combat_time_scale`) stretches the compiled
 schedule instead of the resolver re-authoring one.
 
-**The ramp is metric, not ordinal.** Settled 2026-08-21. It used to lerp on
-`rank_i / (n - 1)`, which spaced every shot evenly no matter where the leaves
-actually stood: two leaves 0.1px apart launched a full `1/(n-1)` slice apart,
-and a lone far outlier was just "the last rank". Normalizing on *distance*
-instead means a clustered firing line looses as one salvo and an outlier owns
-the whole tail of the window — the volley's rhythm now reads the shape of your
-territory. `d_max = d_min` (n == 1, or perfectly equidistant leaves) is a
-degenerate span, guarded exactly, not approximately: everyone fires on the
-same beat.
-
-This is not a retreat from the rule above — distance is pure geometry off
-`global_position`, so allocation order still cannot touch it, and ties are
-still broken by `stable_id` in the ranking, which `OutcomeApplier`'s stable
-`(arrival_time, original_index)` sort then preserves through equal
+**The ramp is metric, not ordinal.** Normalizing on *distance* means a clustered
+firing line looses as one salvo and an outlier owns the tail of the window; the
+volley's rhythm reads the shape of your territory. `d_max = d_min` (n == 1, or
+perfectly equidistant leaves) is a degenerate span, guarded exactly: everyone
+fires on the same beat. Distance is pure geometry off `global_position`, ties
+break by `stable_id` in the ranking, and `OutcomeApplier`'s stable
+`(arrival_time, original_index)` sort preserves them through equal
 `arrival_time`s.
 
-**Flight time is a constant, not `distance / PROJECTILE_SPEED`.** Settled
-2026-08-20. The fiction is the arc: a point-blank shot is lobbed nearly
+**Flight time is a constant, not `distance / PROJECTILE_SPEED`** (owner call,
+2026-08-20). The fiction is the arc: a point-blank shot is lobbed nearly
 straight up, a distant one goes nearly flat, and both take about the same time
-to come down. Arrows are *aimed*, not fired on a rail.
-
-Mechanically this is the stronger choice, which is why it wins:
+to come down. Mechanically:
 
 - **The launch span and the arrival span are identical** (both
   `volley_stagger_span`). With a constant projectile *speed* the arrival span
@@ -791,7 +477,6 @@ Mechanically this is the stronger choice, which is why it wins:
   animation still needs one — it is now *derived* per shot
   (`distance / volley_flight_time`) rather than the input the schedule is
   built from.
-
 - **Nearest fires first and arrives first.** Note ranged is single-target —
   every reaching leaf shoots the *same* node — so what ripples outward is the
   **firing**, across the attacker's territory from nearest leaf to furthest;
@@ -813,78 +498,26 @@ Mechanically this is the stronger choice, which is why it wins:
 - **`t = 0` is the start of the draw**, not the first arrival. Every
   `arrival_time` is measured from the moment the action begins.
 
+
 **`ArrowVolleyCoordinator._flight_for` reads the shot's own compiled window
-directly**, rather than recovering a launch delay by subtracting a constant
-from `arrival_time` — the compiler (`OutcomeSchedule`) already assigns both
-`launch_at` and `arrive_at` per entry, so there is no second number here that
-could drift from it (#543). Before that, the coordinator's `shot_flight_time`
-export re-derived a launch delay from `arrival_time`, and a mistuned export
-desynced the arrow's touchdown from its own damage — biting in the shipped
-scene (`flight_time = 2.0` → a 0.8s floor against a 0.35s airtime, every arrow
-landing 0.45s after its damage) while `test_arrow_volley_coordinator.gd`
-stayed green by constructing the coordinator in code and reading the code
-default instead of the scene's.
+directly** (`OutcomeSchedule` assigns both `launch_at` and `arrive_at` per
+entry), never recovering a launch delay by subtracting a constant from
+`arrival_time` — a second number there could drift from the schedule and desync
+an arrow's touchdown from its own damage. Any test pinning a VFX/domain timing
+relationship must instantiate the `.tscn`: an export mistuned in a scene is
+invisible to a subject built with `.new()`.
 
-**Watch:** that is exactly the drift class #479/#481 cost five rounds of
-latches, so the replacement test instantiates the `.tscn`. Any test pinning a
-VFX/domain timing relationship must do the same — an export mistuned in a
-scene is invisible to a subject built with `.new()`.
-
-### Explicit firing list
-
-`RangedAttackPlan` should produce `[(firing_node, target)]` explicitly, today,
-with no firing-group UI. It costs nothing, removes a live-topology read from
-the command path, makes the volley self-describing on the wire, and **subsumes
-the ordering fix** — the order is authored into the list rather than emergent.
-
-Firing groups (#495/#496's volley composer) are then a UI on top of a payload
-that already exists.
+`RangedAttackPlan.get_firing_schedule()` produces the explicit firing list
+`[(firing_node, target)]`: the order is authored into the list, no live-topology
+read sits in the command path, and the volley is self-describing on the wire.
 
 ---
-
-## What this corrects
-
-**`melee_attack_plan.gd:380-386` and `melee_preview.gd`'s `launch()` docstring**
-argue that a post-cascade rescan "would exclude nodes the cascade just
-deallocated, silently dropping hits/pops the pre-cascade `resolve()` correctly
-saw." That is **valid for what it rejected and invalid as a principle.**
-
-What it rejected: `MeleePreview` re-scanning to *animate an outcome that had
-already fully landed*. Dropping hits there desyncs the animation from applied
-damage — a real bug about replaying a finished mutation.
-
-What it does not license: freezing the gate. Under this contract the deallocated
-arm *should* drop out, because the damage has not landed yet when the gate is
-checked. The comments need rewording when melee moves over, or the next agent
-will read them as forbidding the thing we are building.
-
-**`docs/domain/multiplayer-sync-model.md`** says
-`MeleeAttackPlan.resolve()` "is not safely re-simulable" because
-`BladePopResolver` resolves pops during the scan. #488's decision comment
-establishes this is wrong — `BladeSim` is a pure fixed-dt loop and
-order-dependence *inside* a deterministic function is not a divergence risk.
-That doc needs the correction independently of this one.
 
 ## Open forks
 
 - `PresentationTempo.volley_stagger_span` and `volley_flight_time` values —
   feel, needs the real game; tuned on the authored `.tres`
   (`shared_default()`'s backing resource), never as a code constant. The one
-  fixed constraint is `volley_flight_time > volley_stagger_span` (see "Offense
-  is snapshotted at commit time" above) — a house rule on the resource, not a
-  pinned pair of numbers.
+  fixed constraint is `volley_flight_time > volley_stagger_span` — a house rule
+  on the resource, not a pinned pair of numbers.
 - `volley_draw_time` values, and the melee analogue of a preparatory phase.
-- ~~Whether the combat slice (#498) is worth its size~~ — **settled.** The owner
-  call of 2026-08-21 made it a networking requirement, not an optimisation: a
-  fogged client cannot walk the nodes a spell bounces through, so propagation
-  has to arrive as data. The landing half shipped as `CombatWorld` (#498 step
-  3), the revocation half as #520, and the candidate-set half — magic's wave
-  loop, plus the collapse of the two launch paths — as #536. Step 3 is closed;
-  see the two sections above.
-- **Where the notification half sends its presentation call.** Master runs
-  design A (`RevealRecorder` live, `shown_hp`/`shown_owner` on `SkillNode`)
-  while #488's decision comment specifies design B (the world mutates on the
-  reveal clock, no view store). #494 owns resolving that. The state/notification
-  split is **orthogonal** to it — under A the notification half calls
-  `RevealRecorder`, under B it just emits — so #498 must not be written as
-  though either has won.

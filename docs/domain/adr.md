@@ -43,7 +43,7 @@ A `docs/domain/` page describes **current behaviour only**. Every "we decided X 
 date D, and here is why not Y" passage belongs in an ADR that the page links.
 
 That was a real migration of seven pages, finished on #769, and
-`mise run adr-hygiene` still counts it — the counter reads **0**, and anything
+`mise run adr-hygiene` still counts it — the counter should read **0**, and anything
 that puts it back above zero is a page growing a decision layer again. **When you
 add a decision, do not half-migrate a page:** the dated verdict and its rejected
 options move together, or the page reads as authoritative while half the reasoning
@@ -173,11 +173,10 @@ vocabulary, supersede links resolving both ways, the index having exactly one ro
 per record and no orphans. Advisory checks — an `accepted` ADR that received
 substantive commits after its acceptance date (an immutability breach), domain
 docs still carrying decision prose (the migration counter), records over the
-60-line budget, and an `accepted` record (id ≥ 0026) missing `revisit-when`.
+60-line budget (advisory — a record may run over when the rejected alternatives earn it), and an `accepted` record (id ≥ 0026) missing `revisit-when`.
 
-**Mechanical beats aspirational.** `docs/FOCUS.md` has been rewritten twice for
-rot that a checker would have caught on day three; this tier gets its checker on
-day one.
+**Mechanical beats aspirational:** this tier gets its checker on day one (see
+*Why immutable* below).
 
 ---
 

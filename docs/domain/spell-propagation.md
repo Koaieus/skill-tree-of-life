@@ -1,23 +1,28 @@
 # Spell propagation — filter / spread / mint / merger
 
 Engineering-side architecture doc for the spell propagation pipeline. The
-design side is `docs/design/spells.md`;
-this doc covers the code shape that has to support it.
+design side is `docs/design/spells.md`; this doc covers the code shape that
+supports it. Infusion (a per-cast fifth component) is
+[ADR 0047](../adr/0047-infusion-is-a-per-cast-fifth-spell-component.md).
 
-Session-handoff format: where we are, where we're going, why, and the
-migration queue.
-
-**The pipeline in one line (hub #849, settled 2026-09-10 → #850 / #851 / #852):**
+**The pipeline in one line:**
 per landing, on **departure** the filter *narrows* → the spread *selects* → the
 config *mints*; on **arrival** the reducer *merges* → the effects
 *transform / emit* → the conditions *elevate*. Every stage has exactly one
 role and no class does another's job — a spell's tooltip is generated from
-the stages (#764) because of that.
+the stages because of that.
+
+`attack/spell/spell_resolver.gd` runs a wave-based BFS over `CastSpell`s with a
+**global visit ledger** (`PropagationContext.visit_count`) and a per-landing
+**reducer** that merges converging branches. The stock classes live under
+`attack/spell/propagation/{filter,spread,reducer,ranker,progression}/`;
+`max_visits_per_node` is enforced inline by the resolver, not by a filter. The
+spells are the `.tres` files in `attack/spell/defs/`.
 
 **Every stage but the reducer takes a `LandingContext`, not a decomposed arg
-list (#356).** Lifetime decides the home: per-cast facts (`outcome`, the
+list.** Lifetime decides the home: per-cast facts (`outcome`, the
 world, the crit RNG) live on `PropagationContext`; per-landing facts (the
-landed node, the resolved payload, the incidents that fed it) live on the new
+landed node, the resolved payload, the incidents that fed it) live on
 `LandingContext`, built once per landing right after the reducer returns and
 reused for that landing's whole life — arrival (effects, crit conditions) and
 departure (filter, spread) alike. `IncidentReducer` is the one exception: it
@@ -26,22 +31,8 @@ departure (filter, spread) alike. `IncidentReducer` is the one exception: it
 
 ---
 
-## Where we are
 
-Shipped (hub #849): `attack/spell/spell_resolver.gd` runs a wave-based BFS over
-`CastSpell`s with a **global visit ledger** (`PropagationContext.visit_count`)
-and a per-landing **reducer** that merges converging branches. The filter,
-spread, config and reducer stages above are the code shape; the stock classes
-live under `attack/spell/propagation/{filter,spread,reducer,ranker,progression}/`
-(spreads: `FanAllSpread`, `TakeTopNSpread`, `RandomPickSpread`, `NoSpread`,
-`CycloneSpread`). `max_visits_per_node` is enforced inline
-by the resolver, not by a filter. Eighteen spells ship in `attack/spell/defs/`;
-the design side is `docs/design/spells.md`, and infusion (a per-cast fifth
-component) is [ADR 0047](../adr/0047-infusion-is-a-per-cast-fifth-spell-component.md).
-
----
-
-## Where we're going
+## Pipeline stages
 
 Three small interfaces, plus a shared per-cast context, plus a
 wave-based resolver. Each interface is intentionally **as scoped as
@@ -65,19 +56,15 @@ extends Resource
 func narrow(candidates: Array[SkillNode], lctx: LandingContext) -> Array[SkillNode]
 ```
 
-**Set-level narrowing lives here and nowhere else** (#850, hub #849 Seam A).
-It used to have a second home: a `RankPass` chain (`CurrentThresholdPass`,
-`TopTiesPass`) inside `TakeTopNStep`, which was filtering by another name and
-which no `.tres` ever composed. Those three classes and `DegreeFilter` are
-deleted; `TakeTopNStep` is now purely "sort by ranker, take N".
+**Set-level narrowing lives here and nowhere else.** A spread is purely
+"sort by ranker, take N" — it never narrows.
 
 Stock subclasses (slot into one or more `PropagationConfig`s):
 
 - `OwnerFilter` — `enemy` / `ally` / `unallocated` / `any` (drops the
   duplicated `only_enemy` logic from every existing propagator)
 - Max visits — not a filter: the resolver reads `ctx.visit_count(to_node)`
-  against `PropagationConfig.max_visits_per_node`, which subsumes both
-  the old `revisit_visited` boolean and a future per-node hit cap
+  against `PropagationConfig.max_visits_per_node`
 - `RankThresholdFilter` — a `NodeRanker` score compared against the CURRENT
   node's: strict-less / less-or-equal / strict-greater / greater-or-equal.
   With `DegreeRanker` that is degree measured inside each node's own
@@ -88,8 +75,13 @@ Stock subclasses (slot into one or more `PropagationConfig`s):
 - `TopTiesFilter` — set-level: keeps the candidates tying for highest (or
   lowest) `NodeRanker` score. Overrides `narrow`.
 - `NoSelfLoopFilter` — vetoes `to == from`. Self-loops are first-class here,
-  so a spell that refuses them has to say so; leaving it to emerge from
-  another rule is what shipped Cyclone with the opposite behaviour (#699).
+  so a spell that refuses them has to say so; no other rule covers them
+  (`BacktrackFilter` does not).
+- `BacktrackFilter` — vetoes travel back into any node in the payload's
+  `came_from` set (the set, not `predecessor`, so a merged payload refuses every
+  direction its fronts arrived from). An empty set allows everything, so a
+  cycle-closing child minted with an empty `came_from` needs no branch.
+  `attack/spell/propagation/filter/backtrack_filter.gd`.
 - `CoreDistanceFilter` — closer-to-Core / farther-from-Core (Homing
   Decoring, Corifugal Bolt)
 - `CompositeFilter` — AND/OR-combine children (matches `RangeFinder`'s
@@ -101,7 +93,7 @@ Stock subclasses (slot into one or more `PropagationConfig`s):
 - `ExpressionFilter` — `Expression`-backed escape hatch for one-offs,
   modeled on `StatFormula`'s expression layer
 
-### `PropagationSpread` (was `PropagationStep` until #852)
+### `PropagationSpread`
 
 ```gdscript
 @tool
@@ -131,25 +123,19 @@ Stock subclasses (`propagation/spread/`):
 - `FanAllSpread` — one full-share pick per eligible node
   (covers Lightning / Crunch / Flood / Resonator)
 - The Trailblazer walk lives in its filter + slam, not a spread: the `ExpressionFilter` clause `from_entity_degree <= 2 and to_entity_degree >= 2` (`trail_blazer.tres`) and the `ScaleDamageEffect` + `JunctionCondition` pair. Design prose: `docs/design/spells.md` § Trailblazer.
-- `TakeTopNSpread` — sort by a ranker, take top N (collapses
-  `HighestDegreePropagation` + `RankedStatPropagation` into one configurable
-  shape: the ranker is composable too). Sorting and picking ONLY — narrowing
-  the set first is `RankThresholdFilter` / `TopTiesFilter` on the filter side.
-  `NodeRanker` and its subclasses live in `propagation/ranker/`, not under
-  `spread/`, because filter and spread both consume them (#850).
-- `RandomPickSpread` — `RandomWalkPropagation` equivalent, RNG-threaded
+- `TakeTopNSpread` — sort by a ranker, take top N. Sorting and picking ONLY —
+  narrowing the set first is `RankThresholdFilter` / `TopTiesFilter` on the
+  filter side. `NodeRanker` and its subclasses live in `propagation/ranker/`,
+  not under `spread/`, because filter and spread both consume them.
+- `RandomPickSpread` — random pick, RNG-threaded
 - `NoSpread` — empty array (single-target spells)
-- (`TrailBlazerSpread` retired into `FanAllSpread` — #858; the Trail Blazer walk is its filter. Pure selection since
-  #851: every surviving candidate at full share and nothing else.)
 - `CycloneSpread` — ranks the eligible nodes by turn (`Curl.rank`) and picks
   one per authored rank; the rank coefficient (× `closing_gain` on a closing
   hop) is the pick's `share`. **The damage split happens in `mint`, nowhere
   else** — the spread only decides the number.
 
 **A spread never transforms damage on arrival, and never decides that the
-walk is over** (#851, hub #849 Seam C). Both used to happen inside
-the old `TrailBlazerStep` (later `TrailBlazerSpread`, since retired into `FanAllSpread`), decided at departure time from the *previous* node — which
-is why a cast seeded straight onto a junction was never slammed. They are now:
+walk is over.** Both are authored elsewhere:
 
 - the **slam** — a `ScaleDamageEffect` gated on a `JunctionCondition`, authored
   before `DamageEffect` in `SpellDef.on_hit_effects`;
@@ -166,17 +152,16 @@ class_name LandingCondition
 extends Resource
 
 ## `state` is `lctx.payload`; `target` is `lctx.node`; `outcome` is
-## `lctx.cast.outcome` — no longer a positional `null` the crit path had to pass.
+## `lctx.cast.outcome`.
 @abstract func evaluate(lctx: LandingContext) -> bool
 ```
 
-A pure, read-only predicate over ONE landing — `CritCondition` until #851, when
-it acquired a second consumer and was named for the question instead of for an
-answer. Two consumers today:
+A pure, read-only predicate over ONE landing, named for the question rather
+than an answer. Two consumers:
 
 - **crits** — `SpellDef.crit_conditions`, OR-ed per landing by
-  `SpellResolver._stamp_crit_conditions`. That export keeps its name: the
-  *slot* is the crit consumer, the predicate is not.
+  `SpellResolver._stamp_crit_conditions`. The *slot* is the crit consumer, the
+  predicate is not.
 - **conditional on-hit effects** — `ScaleDamageEffect.when`.
 
 Stock subclasses: `LeafCondition`, `SelfLoopCondition`, `CycleCondition`,
@@ -196,12 +181,10 @@ Two consequences worth stating rather than rediscovering:
 - **Effects run before departure**, so a scaled arrival is what the next hop
   inherits. A mid-walk scale therefore compounds; a one-shot spike wants a
   condition that also ends the walk.
-- **It scales the MERGED arrival**, after the `IncidentReducer`, where the old
-  in-step slam scaled each branch before the merge. Under `MULTIPLY` the two
-  agree by distributivity (and under max / first-wins outright), which is why
-  the Trailblazer's goldens did not move; under `SQUARE` with a summing
-  reducer they genuinely differ, and scaling the merged arrival is the
-  intended reading.
+- **It scales the MERGED arrival**, after the `IncidentReducer`. Under
+  `MULTIPLY` that agrees with scaling each branch before the merge
+  (distributivity; max / first-wins outright); under `SQUARE` with a summing
+  reducer it differs, and scaling the merged arrival is the intended reading.
 
 ### `IncidentReducer`
 
@@ -213,10 +196,8 @@ extends Resource
 
 ## Returns the resolved incident, or null to CANCEL (no effect lands,
 ## no further propagation from this node in this wave). Takes the CAST
-## ledger, not a LandingContext (#356) — the reducer MAKES the landing, so
-## none exists yet when it runs. `node` was dropped as a parameter: the
-## resolver groups incidents by `current_node`, so it was always
-## `incidents[0].current_node`.
+## ledger, not a LandingContext — the reducer MAKES the landing, so
+## none exists yet when it runs.
 @abstract func reduce(incidents: Array[CastSpell], cast: PropagationContext) -> CastSpell
 ```
 
@@ -274,13 +255,11 @@ var outcome: AttackOutcome    # one per resolve_against (#356) — a cast fact
 ```
 
 Branches read & mutate it freely. The resolver bumps
-`global_visit_count[node]` after each successful merger application.
-The resolver reads it (against `max_visits_per_node`) before allowing onward copies. `outcome` is set once,
-up front in `resolve_against`, and is what retires the `outcome` positional
-parameter `LandingCondition.evaluate` used to take (and the `null` the crit
-path passed for it).
+`global_visit_count[node]` after each successful merger application and reads it
+(against `max_visits_per_node`) before allowing onward copies. `outcome` is set
+once, up front in `resolve_against`, and is what `LandingCondition.evaluate` reads.
 
-### `LandingContext` (#356)
+### `LandingContext`
 
 Per-landing state, built by the resolver once per node a wave resolves onto —
 right after `IncidentReducer.reduce` returns — and reused for that landing's
@@ -306,7 +285,7 @@ func fill_landing() -> void    # sets the inherited HitLanding fields from cast 
 **Fields are fixed at construction, but `payload` is not immutable through
 them.** It is the one mutable `CastSpell` that on-hit effects mutate in
 order — `ScaleDamageEffect` running before `DamageEffect` relies on exactly
-that, and this did not change. The four forwarding accessors exist so a
+that. The four forwarding accessors exist so a
 stage never reaches through `.cast` for the questions the world contract
 answers — `ExpressionFilter` and `StatRanker` go through `lctx.*`, never
 `lctx.cast.*`.
@@ -333,9 +312,8 @@ the scalar knobs that don't deserve their own class:
 func mint(payload: CastSpell, pick: PropagationPick) -> CastSpell
 ```
 
-**`mint` is the one place a child `CastSpell` is built** (#852, hub #849
-Seam B — *owner: "Step returns picks; config mints."*). It absorbed the old
-`PropagationStep._propagate_to`: `damage = (hop_damage.apply(parent, seed,
+**`mint` is the one place a child `CastSpell` is built** (*owner: "Step returns
+picks; config mints."*): `damage = (hop_damage.apply(parent, seed,
 hop_index) if hop_damage else parent) × pick.share`; `hops_remaining - 1`;
 `hop_index + 1`; `visited` = parent trail + destination (or the pick's
 `lineage_override`); caster / graph / rng threaded; then the pick's stamps
@@ -344,8 +322,7 @@ copied verbatim (`arrival_share = share`, `arrival_bearing`, `turn_sign`,
 `mint` once per pick. Progression first, share second, so an authored ramp
 composes with a spread's split.
 
-This replaces `SpellPropagation` entirely. `SpellDef.propagation` retypes
-to `PropagationConfig`.
+`SpellDef.propagation` is a `PropagationConfig`.
 
 #### `max_hops` takes NO stat scaling — owner ruling, 2026-09-02
 
@@ -362,10 +339,9 @@ There are two different "spell hops" and they must never share a modifier:
 > proper way to tune it — adding max hops to a spell dramatically alters its
 > performance" — owner, 2026-09-02
 
-Runtime already honours this: `spell_resolver.gd` sets
-`seed_state.hops_remaining = config.max_hops` **raw**. The only thing that ever
-scaled it was the tooltip, which lied about the depth it printed — fixed
-2026-09-02 (`b51c66f`).
+Runtime honours this: `spell_resolver.gd` sets
+`seed_state.hops_remaining = config.max_hops` **raw**, and the tooltip prints the
+same raw depth.
 
 **Why it cannot take a global modifier at all**, independent of tuning taste:
 `max_hops` means two different things depending on whether the walk
@@ -400,12 +376,9 @@ hop n = f(hop n-1)     f = the spell's HopDamageProgression
   would compound INT — INT² by hop 2. The formula itself lives in
   `SpellResolver.impact_damage()` — the number the primary target takes;
   `CastSpell.seed_damage` is the same float carried forward for hop
-  progressions to fraction themselves against (#396).
-- `PropagationConfig.seed_damage_fraction` was deleted (`1.0` in every spell;
-  its "¼ power then ramp" case is a lower `power`).
+  progressions to fraction themselves against.
 
-`HopDamageProgression` (the old `HopDamage`, renamed to kill the
-`…Damage`/`Propagation` collision) owns the *shape*, and **each class declares
+`HopDamageProgression` owns the *shape*, and **each class declares
 whether the spell scales with the caster**:
 
 | Class | Behaviour | Math | Scales with caster |
@@ -430,9 +403,8 @@ and fails to parse with "Expected '('". Same collision that named
 
 ## Resolver flow (wave-based)
 
-Today's resolver pops one state at a time. The new resolver processes
-**waves** (BFS frontiers) so the merger can reduce simultaneous arrivals
-before effects fire.
+The resolver processes **waves** (BFS frontiers) so the reducer can merge
+simultaneous arrivals before effects fire.
 
 ```
 seed_wave = [initial CastSpell at seed_node]
@@ -440,7 +412,7 @@ while wave not empty:
     # 1. group by target node
     incidents_by_node = group(wave, key=current_node)
 
-    # 2. merge per node, then build this landing's LandingContext (#356)
+    # 2. merge per node, then build this landing's LandingContext
     merged = []
     for node, incidents in incidents_by_node:
         resolved = config.reducer.reduce(incidents, ctx)
@@ -500,70 +472,26 @@ Notes:
   propagating to itself produces 2 incidents in the next wave; SUM
   reducer collapses them into a doubled hit. That's Resonator's whole
   identity. The current model literally cannot express it.
-- **Diamond double-hits stop being implicit.** They happen iff the
-  spell's reducer is SUM and visit cap allows it. The existing
-  `test_diamond_double_hits_via_parallel_branches` becomes a `SumDamageReducer`
-  test instead of a captured quirk.
+- **Diamond double-hits are explicit.** They happen iff the spell's reducer is
+  SUM and the visit cap allows it (`SumDamageReducer` sums the converging
+  damages; `MaxDamageReducer` yields one hit).
 - **Configuration replaces subclassing for 95% of spells.** Authors
   ship a new `.tres`, not a new script. The Expression escape hatches
   cover the final 5% without going to a custom subclass.
 
 ### Alternatives ruled out
 
-- **Per-branch shared visited via reference-counting** — keeps the
-  current per-branch payload model but mutates a shared set. Same
-  semantics as `PropagationContext.global_visit_count` but uglier and
-  harder to test. Rejected for plain shared context.
-- **`ONCE_PER_BRANCH` visit policy** as an authored option — produces
-  asymmetric, incoherent damage distributions (tic-tac-toe center hit
-  1x, corners 2x, edges 4x). Nobody would design a spell *intending*
-  this. The current behaviour is implementation artifact, not feature.
-  Rejected.
-- **Cross-wave merger (buffer all arrivals across the whole cast)** —
-  would let a late-arriving incident via a long cycle merge with an
-  earlier one. Breaks the per-tick feel, requires buffering the full
-  resolution, and unclear UX. Merger is wave-local; late arrivals are
-  just additional independent hits gated by `max_visits_per_node`.
-- **Putting damage scaling on the Step subclass exclusively** — would
-  force every spell to use a Step variant just to change falloff.
-  Keeping the progression on `PropagationConfig` (`hop_damage`) covers 90%
-  of cases without subclass proliferation. #852 took this to its end: the
-  spread does *no* damage math at all — a spread that wants a split hands
-  over a `share` and `PropagationConfig.mint` multiplies.
+- **Cross-wave merger (buffer all arrivals across the whole cast)** — would let
+  a late-arriving incident via a long cycle merge with an earlier one, breaking
+  the per-tick feel. The merger is wave-local; late arrivals are additional
+  independent hits gated by `max_visits_per_node`.
+- **Putting damage scaling on the spread exclusively** — would force every
+  spell to use a spread variant just to change falloff. The progression lives on
+  `PropagationConfig` (`hop_damage`); the spread does *no* damage math — a spread
+  that wants a split hands over a `share` and `PropagationConfig.mint` multiplies.
 
 ---
 
-## Migration plan
-
-The codebase has 2 spell `.tres` files (`spark.tres`, `lightning.tres`)
-and a dev-only spell playground — migration is cheap.
-
-1. Write the new types (`PropagationConfig`, `PropagationContext`,
-   `PropagationFilter` + stock subclasses, `PropagationStep` + stock
-   subclasses, `IncidentReducer` + stock subclasses).
-2. Rewrite `SpellResolver.resolve()` to wave-based. Keep its signature.
-3. Update `SpellDef.propagation` to type `PropagationConfig`.
-4. Port `spark.tres` and `lightning.tres` to the new config shape.
-5. Update `test/unit/spell/test_propagation.gd`:
-   - Remove the TODO.
-   - `test_diamond_double_hits_via_parallel_branches` → becomes a
-     `SumDamageReducer` assertion (sum of damages on D, not 2 separate
-     hits), and a sibling test asserting `MaxDamageReducer` produces 1 hit.
-6. Add tests covering: filter dispatch, max_visits_per_node enforcement,
-   reducer CANCEL kills onward propagation, cross-wave revisit when
-   max_visits > 1.
-7. Author 2–3 new spell `.tres` from `spells.md` (Leafblower, Bruiser,
-   Resonator are the obvious early shippers — Resonator needs self-loop
-   procgen + edge rendering before it's playable, but the spell itself
-   is just a `.tres`).
-8. **Delete** the old `SpellPropagation` hierarchy. No need to keep both
-   alive — there's no third-party content to break.
-
-Refresh the class cache (`godot --headless --editor --quit`) after step 1
-and after step 8; `git diff` the editor-touched scenes/.tres as per
-`.claude/rules/godot-workflow.md`.
-
----
 
 ## The outcome → VFX seam: the `PropagationEvent` timeline (#46)
 
@@ -578,22 +506,22 @@ tooltips. The question #46 answers is *what shape* that outcome hands to VFX.
   *Every* attack type appends to it: spell `DamageEffect`/`HealEffect`,
   `RangedAttackPlan`, `MeleeAttackPlan`. It is **not** derived from anything;
   it is producer-populated. `DamageInstance` and `HealInstance` both extend
-  `HitInstance` (#381 unified the old parallel `hits`/`heals` lists) — a
+  `HitInstance` — a
   `HitInstance.kind` field (`DAMAGE`/`HEAL`) tells a consumer which.
 - **`timeline: Array[PropagationEvent]`** — **additive, spell-only** structure.
   The `SpellResolver` builds it; melee/ranged leave it empty. Each event
   *references* the same `HitInstance` object(s) already in `hits` (shared, not
-  copied) via `event.hits`, which is empty (not null — #381 made this a list)
+  copied) via `event.hits`, which is empty (not null)
   for a zero-damage / utility landing that still gets a probe event so it
   animates.
 - **`cancellations: Array[SpellCancellation]`** — kept as a replay projection
   *alongside* the new `Verb.CANCEL` events. Additive, not replaced.
 
-The old path had `MagicBounceCoordinator._group_by_hop()` **re-derive** wave
-structure by grouping `hits` on `hop_index` — throwing away the predecessor
-chain and never reading `cancellations`. The timeline promotes what the resolver
-already knew at emission time. `hits` stays as the compatibility surface so the
-~15 existing readers (battle_system, both coordinators, tests) don't churn.
+The timeline carries the wave structure the resolver already knew at emission
+time, so the coordinator never re-derives it by grouping `hits` on `hop_index`.
+`hits` stays as the compatibility surface for the ~15 existing readers
+(battle_system, both coordinators, tests).
+
 
 ### `PropagationEvent`
 
@@ -616,12 +544,11 @@ var hits: Array[HitInstance] = []    # shared refs into `hits`; empty for CANCEL
 # the per-event emphasis value across `hits`.
 ```
 
-> The five fields above `hits` were added after #46 and this block used to omit
-> them. `predecessors`, `visit_index` and `is_terminal` arrived with #542/#543;
-> `incident_shares` and `turn_sign` with #707; `closed_ring` with #710. Each was added for exactly one
-> spell that could not otherwise be drawn — which is the pattern, not an
-> exception: the seam widens when the picture provably cannot re-derive
-> something, and never merely because it would be convenient.
+The seam widens only when the picture provably cannot re-derive something
+(`predecessors`, `visit_index`, `is_terminal`, `incident_shares`, `turn_sign`,
+`closed_ring` each exist for exactly one spell that could not otherwise be
+drawn), never merely because it would be convenient.
+
 
 ### `incident_shares` — why rank had to cross the seam (#707)
 
@@ -660,9 +587,9 @@ one arc's mint, and once the fronts have summed the merged payload has no share.
 
 ### `closed_ring` — the ring, because a ring cannot be re-derived (#710)
 
-Cyclone's closing hop is the payoff of the whole #703 redesign (the crit, plus
-`closing_gain` feeding forward as sustain) and it used to light at most **one
-node**. Lighting the ring *as* a ring needs the ring, and it lives in
+Cyclone's closing hop is the payoff of its design (the crit, plus
+`closing_gain` feeding forward as sustain). Lighting the ring *as* a ring needs
+the ring, and it lives in
 `CastSpell.visited` — a resolver-local the event never carried.
 
 - **The resolver stamps it where the crit is stamped.** `CycloneSpread.closed_ring()`
@@ -700,26 +627,21 @@ phase* every non-`CANCEL` event performs — it maps to the visual contract's
 existing `_on_arrival()`, not to a distinct event kind. Reserve a `HIT` verb only
 if a genuine no-travel case (aura / in-place application) ever needs it.
 
-`SELF_LOOP` is defined but **untestable until self-loops are procgen-seeded and
-rendered** (see Open Question #4 below). Don't claim it
-verified this pass.
 
 ### What the coordinator does with it
 
-`MagicBounceCoordinator` walks the timeline grouped by `beat` instead of
-`_group_by_hop`. Its `is_empty()` guard flips from `hits` to `timeline` — a net
-improvement: a **pure-utility spell (`power` 0) now renders its path**
-instead of no-op'ing on an empty `hits`. The fixed wave clock is untouched:
+`MagicBounceCoordinator` walks the timeline grouped by `beat`. Its
+`is_empty()` guard reads `timeline`, not `hits`, so a **pure-utility spell
+(`power` 0) renders its path** instead of no-op'ing. The fixed wave clock is
+untouched:
 `wave_started(beat, count)` still fires per beat regardless of lingering visuals
 (the load-bearing contract in `.claude/rules/spell-vfx.md`).
 
-The **movement verb → `ProjectilePath`** mapping and the impact-pinned
-three-clocks lifetime (windup / linger past 1) are **follow-on work**, not this
-cut. This issue lands the *shape*; the VFX-timing rework builds on it.
+The movement verb → `ProjectilePath` mapping and the impact-pinned three-clocks lifetime are in `docs/domain/spell-vfx-kit.md`.
+
 
 ---
 
----
 
 ## Per-branch payload state and the merge trap (#696)
 
@@ -760,32 +682,22 @@ place that can:
    `ConvergenceCondition` documents, and the reason `CycleCondition` is
    a one-line predicate rather than a re-derivation.
 
-The payoff for getting (1) right is not just correctness — but Cyclone is also
-the cautionary tale. Its veto-union made the spell a **parity detector**
-(counter-rotating fronts extinguished on even rings and lapped home on odd
-ones), nothing in it was authored to do that, and at #703 the parity was
-**removed as unwanted**: it was never a designed property, only the residue of a
-rotation-blind fan. Merge semantics are where emergent behaviour lives, which
-cuts both ways — emergent is not the same as intended, and a merge rule can
-manufacture a whole mechanic nobody asked for. Cyclone now sums (see
-`CycloneReducer`) and gets its identity from a curl instead.
+Merge semantics are where emergent behaviour lives, and emergent is not
+intended: Cyclone's veto-union once made it a parity detector (counter-rotating
+fronts extinguished on even rings) that nothing authored. Cyclone now sums
+(see `CycloneReducer`) and gets its identity from a curl instead.
+
 
 ---
 
-## Open questions / queue
+## Open questions
 
-1. ~~Should `seed_damage_fraction` move into the Step?~~ **Closed** — the knob
-   was deleted outright in #274 (D-32): `1.0` in all seven spells, and its
-   motivating case is expressible as a lower `SpellDef.power`.
-2. **Multi-seed targeting.** When RangeFinder eventually returns N
+1. **Multi-seed targeting.** When RangeFinder eventually returns N
    seeds (AoE / chain-of-N spells), do they share a merger pool (one
    BFS with N starts, merger fires on overlaps) or run as N independent
    casts? Leaning shared, but the call can wait until a multi-seed
    spell actually wants implementing.
-3. **CANCEL telemetry.** A `CancelIfMultiReducer` firing is a *real
-   game event* — the spell visibly fizzles where it overlaps itself.
-   Probably wants a VFX hook (one-time "pop" at the cancelled node) and
-   maybe an entry in `AttackOutcome`. Out of scope for the first cut.
-4. **Self-loop rendering & procgen seeding.** Not propagation code, but
-   the propagation refactor surfaces it: without rendered self-loops
-   the player can't see Resonator setups.
+2. **CANCEL telemetry.** Whether a fizzle should surface in
+   `AttackOutcome` beyond the `cancellations` projection. Out of scope until
+   something consumes it.
+

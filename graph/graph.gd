@@ -239,7 +239,7 @@ func _unregister_edge_slot(edge: Edge) -> void:
 ## headless probe and `mise run test` while silently zeroing out every
 ## edge's transform except the most recently added one — the actual cause of
 ## edges rendering invisible after #413, not the shader math a prior
-## diagnosis pass suspected (see docs/handoffs/edge-mesh-invisible.md).
+## diagnosis pass suspected.
 ##
 ## Fix: `instance_count` (buffer capacity) is grown by doubling here, rare
 ## enough to afford repopulating every already-registered edge's slot from

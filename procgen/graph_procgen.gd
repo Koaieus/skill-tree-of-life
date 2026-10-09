@@ -9,7 +9,7 @@ extends RefCounted
 ##   3. Prune to MST + a `connectivity`-controlled share of shortest extras.
 ##   4. Cluster-assign an [ArchetypePolicy] per node (target-driven BFS-grow).
 ##   5. Per node, roll a budget ([BudgetPolicy]) and draw modifiers from the
-##      archetype-sliced [ModifierPoolSet] (phased v3 draw).
+##      node's archetype + universal [StatPool]s (spend-until-broke v4 draw).
 ##   6. Instantiate SkillNodes + Edges under the [Graph].
 ##
 ## Returns a Dictionary `{nodes: Array[SkillNode], starting_nodes:
@@ -19,9 +19,9 @@ extends RefCounted
 ## `config.starting.starting_points[i]`, for the caller to wire as entity cores, and
 ## each `blockers` entry is `{"node": SkillNode, "size": int, "prune_seed":
 ## int, "footprint": Array[SkillNode], "stake_level": int}` (`size` being a
-## [EntityFactory.BlockerSize] int, `prune_seed` the #586 loot-book prune's seed,
-## `footprint` the #777 bonus nodes the blocker also owns, `stake_level` the
-## #916 pre-stake in 1..3) for the caller to hand to `spawn_blocker`.
+## [EntityFactory.BlockerSize] int, `prune_seed` the loot-book prune's seed,
+## `footprint` the bonus nodes the blocker also owns, `stake_level` the
+## pre-stake in 1..3) for the caller to hand to `spawn_blocker`.
 
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _BLOCKER_NODE_SCENE := preload("res://skill_node/blocker_node.tscn")

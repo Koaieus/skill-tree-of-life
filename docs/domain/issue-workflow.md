@@ -41,9 +41,7 @@ forks *with the user*, write acceptance, split hubs into file-disjoint children)
 → `status <n> ready` → `swarm`/`warp` executes.
 
 **A drone never touches a non-`Ready` issue.** `Ready` *is* the swarm queue —
-there is no `swarmable` label (retired 2026-08-02: a second source of truth for
-what the status already said, and it rotted both ways). Standing hub queue:
-issue **#261**.
+there is no `swarmable` label.
 
 ## `Ready` and `Needs design` are prioritised by milestone
 
@@ -64,11 +62,8 @@ rather than later -> needs design; related to current focus milestone -> not
 backlog"*. `Backlog` is where a new issue lands, so set both fields by hand
 at filing.
 
-There is deliberately no prose priority file. `docs/FOCUS.md` held that role and
-was rewritten twice (2026-08-18, 2026-08-31) for the same rot — per-issue prose
-is irresistible to append to and invisible to prune; at its worst it referenced
-134 issues, 89 closed, 81 of those still reading as live. It was retired
-2026-09-21 in favour of the milestone, which the board keeps live. A sentence
+There is deliberately no prose priority file (the milestone is the live
+priority; `docs/FOCUS.md` rotted twice, story in `adr.md`). A sentence
 about an issue goes **on** the issue.
 
 ## Roadmap + hygiene
@@ -78,16 +73,11 @@ about an issue goes **on** the issue.
 add|rm <name>` flips a label. `hygiene [--json]` reports board invariant
 violations and fixes nothing — run it whenever you look at the board.
 
-The headline invariant used to be *"`Backlog` means no live parent"* — retired
-2026-09-15 with the hub rules below: it policed a hub's status as hand-set
-intent, and a derived status carries none. A child's status is its own; the
-hub's is a summary of the children.
+A child's status is its own; the hub's is a summary of the children.
 
 ## Hubs: a parent never carries work
 
-**Owner call, 2026-09-15** (option A of three, after the mix of "hub that is
-also a bug" and "hub that is only a container" kept tripping agents, `hygiene`
-and the owner alike — see the #729/#901 session):
+**Owner call, 2026-09-15:**
 
 1. **A parent never carries work.** If swarmify splits an issue, *all* of its
    work moves into children — including the defect the hub itself describes,
@@ -133,8 +123,7 @@ status — then re-read its state: GitHub can process the push's close *after*
 an immediate reopen, closing it again.
 
 If a hub with every child closed still has unshipped scope, the fix is a new
-child, not keeping the hub open by hand. The old `hollow_hub` exemption for "a
-`Ready` parent with its own scope" (#240) is retired with this.
+child, not keeping the hub open by hand.
 
 **Grids: rows parent, columns link (owner, 2026-10-03).** Where work is a
 grid (the aspect matrix: concept × facet), each cell is one issue whose
@@ -198,40 +187,26 @@ for `--json` to dodge a suspected hang just makes you guess at field names.
 ## Rate limits: the GraphQL hour is shared, and REST misreports it
 
 Every `gh issue …` and `gh project …` command is GraphQL, drawing on one
-5000-point hour shared by every session on the account. GraphQL bills by the
-*requested* connection size, so one careless query can cost hundreds: a single
-`gh project item-list` on this board measured **~607 points** (2026-10-01), and
-`gh-project status <n>` used to run one per read. A clerk verifying six issues
-spent most of the hour, and every agent's `gh` then failed with "API rate limit
-already exceeded for user ID …" — the **primary** (hourly) limit. `gh-project`
-now reads the board with hand-written queries (~6 points the whole board, ~1 an
-issue); its header holds the cost model. **Never call `gh project item-list`.**
+5000-point hour shared by every session. **Never call `gh project item-list`**
+(~607 points per call on this board, 2026-10-01); `gh-project` reads the board
+with hand-written queries (~6 points the whole board, ~1 an issue).
 
-**Read the counter from GraphQL itself**:
-`gh api graphql -f query='{rateLimit{used remaining resetAt}}'`. REST
-`gh api rate_limit` reported graphql `used: 5` at the moment GraphQL reported
-1315 — which is how an earlier pass misdiagnosed exhaustion as the burst limit.
+**Read the counter from GraphQL itself** —
+`gh api graphql -f query='{rateLimit{used remaining resetAt}}'`; REST
+`gh api rate_limit` reports a different, stale `used`.
 
-GitHub's two limits read differently and want opposite responses:
+Two limits, opposite responses:
 
-- **Primary** — "API rate limit [already] exceeded". Lasts until `resetAt`, up
-  to an hour; sleeping and re-running only spend turns. REST (`gh api repos/…`)
-  is a separate 5000/h pool and still works: `gh-project blocked-by` is REST,
-  `status` writes fall back to REST on their own.
-- **Secondary** — "You have exceeded a secondary rate limit" (or HTTP 429).
-  Per-minute limits that no `rate_limit` endpoint reports — roughly 100
-  concurrent requests, ~2000 GraphQL points/min (~900 for REST), ~80
-  content-creating requests/min and 500/h (creates, comments, edits — a
-  clerk pass's shape), ~90 s server CPU per minute. Clears within minutes as
-  the traffic eases. Four concurrent 607-point board reads alone used to cross
-  the per-minute point cap.
+- **Primary** ("API rate limit [already] exceeded"): lasts until `resetAt`, up to
+  an hour; sleeping only spends turns. REST (`gh api repos/…`) is a separate pool
+  and still works (`blocked-by` is REST; `status` writes fall back to it).
+- **Secondary** ("secondary rate limit" / HTTP 429): per-minute caps no endpoint
+  reports (concurrency, ~2000 GraphQL points, ~80 content creates/min); clears
+  in minutes.
 
-`.mise/bin/gh` retries the secondary limit (15 s × attempt, 4 attempts, under
-the 120 s tool timeout), never retries the primary, and on giving up prints
-which one it was and what still works. It sits first on PATH via `mise.toml`,
-so it covers `mise run` tasks always, but a session's own shell only when the
-process that spawned it (`claude remote-control`, a terminal) was started after
-the change — a daemon started earlier keeps its old PATH until relaunched.
+`.mise/bin/gh` retries the secondary limit (4 attempts), never the primary, and
+prints which one it hit. It is first on PATH for `mise run` tasks; a session's
+own shell gets it only if its parent process started after the change.
 `GH_SHIM=off` bypasses it; `GH_SHIM_RETRIES` / `GH_SHIM_BACKOFF` tune it.
 
 ## Never pass `gh --body "..."` with backticks

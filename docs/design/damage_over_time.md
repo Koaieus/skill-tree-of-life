@@ -6,8 +6,8 @@ status: exploring
 
 > Design doc: the *unbuilt* part of the DoT family. The shipped model — the
 > five families, per-def decay, landing, resistance, wither below zero,
-> the decay shapes — is `docs/domain/effect-system.md` § "Status effects —
-> the DoT model". The *why* is in the ADRs: per-def decay, uncapped stacks and
+> the decay shapes — is `docs/domain/status-effects.md` §
+> "The DoT model". The *why* is in the ADRs: per-def decay, uncapped stacks and
 > rows that differ in character ([0048](../adr/0048-status-decay-is-authored-per-def-rows-differ-in-character-not-numbers.md)),
 > every notable stat gets an addon and an arrow ([0023](../adr/0023-every-notable-stat-gets-an-addon-and-an-arrow.md)),
 > the two hosts ([0024](../adr/0024-status-effects-have-two-hosts-and-fall-through-a-cracked-core.md)),

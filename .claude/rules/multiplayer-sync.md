@@ -1,1 +1,1 @@
-Sync is host-authoritative intent-up / confirmed-command-down, not lockstep (read ADR 0002 before re-arguing): a peer *receives* or *reproduces* every result, and a mirror never opens its own turn. See docs/domain/multiplayer-sync-model.md
+Sync is host-authoritative intent-up / confirmed-command-down, not lockstep (ADR 0002 before re-arguing): a peer *receives* or *reproduces* every result, and a mirror never opens its own turn. See docs/domain/multiplayer-sync-model.md

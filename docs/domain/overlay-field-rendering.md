@@ -7,61 +7,33 @@ territory wash, then takes a cross-entity `argmax` for the hard Voronoi cut
 (#74).
 
 This note records what was measured, and one attractive design that **does not
-work** — so nobody spends another afternoon rediscovering it. See #133.
+work**.
 
-## The CPU cost was the measurable one, and it was quadratic
+## CPU reference fold
 
-`FogOverlay._apply_per_element_dimming` sampled fog darkness once per SkillNode
-and once per Edge midpoint, and each sample folded over **every** vision source.
-`O(elements × sources)` — and it ran **per frame**, not per turn, because
-`VisionSystem` emits `vision_render_tick` from `_process` while any circle's
-radius is animating.
+Every element self-shades per fragment against the shared `vision_field` globals,
+so the render path takes no CPU darkness sample. `VisionSourceIndex`
+(`ui/fog_overlay/vision_source_index.gd`) owns the tile grid the GPU reads, and
+retains `distances_near` as the **CPU reference the shader is pinned against**
+(`test_vision_source_index.gd`): keep it in lockstep; it is not dead code. A
+per-element CPU walk (a sample per SkillNode and Edge midpoint, each folding over
+every source) was `O(elements x sources)` per frame; indexing it bought 14x and it
+still cost 78 ms at 2000 nodes, which is why the pass was deleted rather than
+indexed. **Measure the CPU first**: this subsystem's symptom was twice blamed on
+the shader and was a CPU walk (see [graph.md](../../.claude/rules/graph.md)).
 
-> **The pass itself is gone as of #414** — every element self-shades
-> per-fragment against the shared `vision_field` globals, so no CPU darkness
-> sample is taken at all. The measurements below are the #133 history and the
-> reason the tile index exists; the index still owns the grid the GPU reads.
-> Note that indexing this walk bought 14x and it still came back as a 78 ms
-> frame at 2000 nodes.
+The cull is exact. `field_smin(a, b, k)` returns `b` *identically* when
+`b <= a - k` (the blend factor clamps and the polynomial term vanishes). Call that
+**erasure**: any source at `d >= 1 + k` is erased by a nearer one and contributes
+nothing.
 
-| sources / elements | before | after |
-|---|---|---|
-| 150 / 300 | 17.8 ms | 1.21 ms |
-| 512 / 800 | 150.9 ms | 4.59 ms |
-| 2000 / 1500 | 1087.7 ms | 21.9 ms |
-
-Fixed by `VisionSourceIndex` (`ui/fog_overlay/vision_source_index.gd`), a
-uniform grid over the sources. This is the **second** time this subsystem's
-symptom was blamed on the shader and turned out to be a CPU walk — see
-[graph.md](../../.claude/rules/graph.md), c5f3e42. **Measure the CPU first.**
-
-The cull is exact, not a heuristic. `field_smin(a, b, k)` returns `b`
-*identically* when `b <= a - k` — the blend factor clamps and the polynomial
-term vanishes. Call that **erasure**. The dimming pass only samples elements it
-already knows are *visible*, so some source sits at `d <= 1`; any source at
-`d >= 1 + k` is erased by that nearest one and contributes nothing at all.
-
-## Don't "improve" the CPU fold's order. It is pinned to the shader's.
-
-`field_smin` is **not associative**, so the fold's result depends on the order it
-visits distances. The fragment shader has no choice: it walks its `circles`
-uniform array front to back, because distance is per-pixel and a GPU cannot
-sort. So the CPU fold must walk **the same array in the same order** — that's
-why `VisionSourceIndex.distances_near` sorts candidate *indices* and never
-candidate *distances*.
-
-Sorting by distance is tempting (it enables an early `break`, and it makes the
-result independent of `VisionSystem._circles`'s Dictionary iteration order). It
-was measured: it drifts the darkness by up to **0.061**, against a visible
-threshold of `1/255 = 0.0039`. A node in the fade zone would dim by a different
-amount than the fog painted behind it — the exact mismatch the `_sample_dark`
-docstring has always warned about. Order-independence is a *non-*requirement:
-reordering the Dictionary changes CPU and GPU identically.
-
-The `break` was redundant anyway. The grid already culls exactly, so the
-candidate set is small and every omitted source is a provable no-op.
-`test_indexed_fold_stays_in_lockstep_with_the_shader` pins this against an
-independent transcription of the shader's fold.
+**The fold's order is pinned to the shader's.** `field_smin` is not associative,
+so the result depends on visiting order. The fragment shader walks its tile's
+circles in a fixed order (distance is per pixel; a GPU cannot sort), so the CPU
+fold walks **the same order**, and `distances_near` never sorts by distance:
+sorting drifts the darkness by up to 0.061 against a visible threshold of
+`1/255 = 0.0039`. `test_indexed_fold_stays_in_lockstep_with_the_shader` pins this
+against an independent transcription of the shader's fold.
 
 ## The GPU cost cannot be measured in CI — use the harness
 
@@ -111,50 +83,32 @@ frame. Re-run the harness before assuming.
 **Trigger conditions for actually building the fix:** targeting integrated /
 handheld hardware, or circle counts pushing past ~1000, or the overlays
 acquiring a second full-screen pass. Until one of those lands, the 256-cap
-(bd8b169) and the CPU quadratic (below) were the bugs that mattered.
+(bd8b169) and the CPU quadratic were the bugs that mattered.
 
-## ⚠ Additive blending cannot compute a minimum. Don't bake the field.
+## Additive blending cannot compute a minimum. Don't bake the field.
 
-The tempting design: give each circle **one quad** instead of making every pixel
-loop over every circle, bake the union into an offscreen texture on change, and
-reduce the per-frame cost to one texture sample.
+Decision: the field is evaluated per fragment from the tiled circle data, never
+baked into an offscreen texture by additive blending. Godot's canvas has no
+`GL_MIN` blend mode, so the union of a bake would have to fall out of additive
+blending, and **no additive blend computes a minimum**: for `N` identical inputs
+additive accumulation yields `f(N * g(d))`, which equals `d` for every `N` only if
+`g` is identically zero.
 
-Godot's canvas exposes no `GL_MIN` blend mode, so the union has to fall out of
-additive blending. The classic trick is **LogSumExp**: accumulate
-`exp(-k·d)` additively, recover `d = -ln(Σ exp(-k·dᵢ)) / k`. It looks perfect —
-a genuine smooth minimum, computed by the blender, no loop.
+- **LogSumExp** (accumulate `exp(-k d)`, recover `-ln(sum) / k`) is biased by
+  `ln(N) / k`, `N` being the circles at that pixel. Two coincident circles at
+  `d = 1`, `k = 8` recover `0.913`; through the fog's `smoothstep(0.85, 1.0, .)`
+  that is `0.38` vs `1.0`, against an 8-bit step of `0.0039`. The bias is
+  density-dependent and fog radius is a stat, so a dense cluster would bulge past
+  its own `vision_range`: a mechanical change, not a cosmetic one. A `1/255`
+  budget needs `k > 15000`; fp16 (`use_hdr_2d`, the only float canvas target)
+  flushes `exp(-k)` to zero around `k = 20`. Power-means carry the same bias.
+- **Hard-min** via a 3D depth test or jump-flooding reintroduces the seam
+  creases the smooth-min removed, and the blur added to re-smooth them has a width
+  in world units that does not map onto `k`'s normalized-distance units.
+  LSE-with-compensation needs a per-pixel estimate of `N`.
 
-**It is unusable here, and the reason is structural.**
-
-LogSumExp is biased by `ln(N)/k`, where `N` is the number of circles
-contributing at that pixel. Two coincident circles at `d = 1`, with `k = 8`,
-recover `1 - ln2/8 = 0.913` instead of `1.0`. Push both through the fog's
-`smoothstep(0.85, 1.0, ·)` and you get `0.38` vs `1.0` — a **0.62 error**, on a
-scale where one 8-bit alpha step is `0.0039`.
-
-The bias is **density-dependent**, and fog radius is a *stat*. A player owning a
-dense cluster of nodes would watch their vision circle bulge outward past their
-own `vision_range`. That is a mechanical change, not a cosmetic one.
-
-You cannot tune out of it:
-
-- Meeting a 1/255 error budget needs `k > 15000`.
-- fp16 (`SubViewport.use_hdr_2d`, the only float canvas target) dies around
-  `k = 20`: `exp(-20)` flushes to zero, the field reads empty, and the screen
-  goes uniformly clear.
-
-And it generalizes to *every* additive scheme, including power-means
-(`(Σ dᵢ⁻ⁿ)^(-1/n)`), which carry the same `ln(N)/n` relative bias:
-
-> For `N` identical inputs, additive accumulation yields `f(N · g(d))`. For that
-> to equal `d` for **every** `N`, `g` must be identically zero. **No additive
-> blend computes a minimum.**
-
-Escape hatches all cost the thing you were protecting. Hard-min via a 3D depth
-test or jump-flooding reintroduces the seam creases d267c89 removed, and the
-blur you'd add to re-smooth them has a width in *world* units that doesn't map
-onto `k`'s *normalized-distance* units. LSE-with-compensation needs a per-pixel
-estimate of `N`.
+This is an architectural call that belongs in an ADR in `docs/adr/` (not yet
+written).
 
 ### Two facts worth keeping from the exercise
 
@@ -178,9 +132,8 @@ only which circles get folded, and their traversal order, changed.
 
 **Architecture: data textures, not a bigger uniform array.** `OverlayFieldTileIndex`
 (`ui/overlay_field_tile_index.gd`) is the shared CPU-side grid builder, used by
-both `FogOverlay` (wrapped by `VisionSourceIndex`, which also needs the CPU-side
-per-element dimming pass to stay in lockstep — see below) and `AuraOverlay`
-directly. It packs three `ImageTexture`s per build:
+both `FogOverlay` (wrapped by `VisionSourceIndex`, which keeps the CPU reference fold in
+lockstep — see above) and `AuraOverlay` directly. It packs three `ImageTexture`s per build:
 
 - `circles_tex` — one `vec4(x, y, radius, tag)` texel per circle (`tag` is
   `motion` for fog, `entity_index` for aura). Since #898 the aura's is two
@@ -212,75 +165,44 @@ Proven with a spike before building the rest: a minimal canvas_item shader
 `.claude/rules/godot-workflow.md`). Confirmed read-back matched to within one
 8-bit framebuffer quantization step before committing to the architecture.
 
-### Compiling clean is not rendering correctly — verify pixels, not just GLSL
+### Compiling clean is not rendering correctly — verify pixels
 
-Everything above (spike, xvfb compile checks, `test_indexed_fold_stays_in_lockstep_with_the_shader`)
-proves the shader *compiles* and that two *CPU* implementations agree with
-each other — none of it ever runs the real `fog.gdshader`/`aura.gdshader` and
-checks the pixels it paints. `scenes/overlay_shader_verify.tscn` closes that
-gap: it renders the real `FogOverlay`/`AuraOverlay` scenes under opengl3 (a
-correct, if slow, rasterizer for pixel output — unlike llvmpipe's *timings*,
-its *pixels* are trustworthy), captures the viewport, and compares sampled
-pixels against the same CPU reference math the overlays trust internally.
-Covers both single-circle and multi-tile-gather cases (three circles scattered
-across distinct grid cells, proving the 3×3 neighbourhood read finds the right
-circles from the right tiles and that distant tiles don't leak in).
+The xvfb compile checks and `test_indexed_fold_stays_in_lockstep_with_the_shader`
+prove the shader compiles and that two CPU implementations agree; none runs the real
+`fog.gdshader` / `aura.gdshader`. `scenes/overlay_shader_verify.tscn` renders the real
+overlay scenes under opengl3 (its pixels are trustworthy, unlike llvmpipe's
+timings), captures the viewport, and compares sampled pixels against the CPU
+reference math. It covers single-circle and multi-tile-gather cases (three circles
+in distinct grid cells, proving the 3x3 read finds the right circles and distant
+tiles do not leak in).
 
 ```
 xvfb-run -a godot --path . --rendering-driver opengl3 --quit-after 30 \
   res://scenes/overlay_shader_verify.tscn
 ```
 
-Building it caught one real bug in the shipped code and one in the test
-harness itself — worth separating, because only one says anything about
-`OverlayFieldTileIndex`:
+The fragment shader samples `world_pos` at the pixel CENTER (screen pixel N is
+world N+0.5); `Image.get_pixel(x, y)` reads the integer corner. A pixel-level
+check must apply the +0.5 offset, or it disagrees by a few percent in a steep
+gradient (the fog fade zone) while flat regions agree by coincidence.
 
-- **Pixel-center vs. pixel-corner sampling (test-harness bug, not a shader
-  bug).** The fragment shader samples `world_pos` at the pixel CENTER (screen
-  pixel N is world N+0.5, standard rasterizer convention); `Image.get_pixel(x,
-  y)` reads the integer corner. Comparing the two without a +0.5 offset
-  drifted a few percent in a steep gradient (fog's default falloff=0.25 fade
-  zone) even though flatter regions happened to agree closely by coincidence.
-  Worth remembering if a future pixel-level check "mysteriously" disagrees by
-  a small amount in the fade zone specifically.
-- **Missing `await` on a coroutine call, not a rendering bug at all.** The
-  verify script's first draft called `_verify_fog()` (which itself `await`s
-  mid-body) without `await`ing it — `_ready()` moved on immediately, freed the
-  `FogOverlay` node while `_verify_fog`'s suspended coroutine still held a
-  reference to it, and resumed into a use-after-free segfault. This produced a
-  crash that, while debugging it, looked suspiciously like it could be a real
-  renderer limitation (a null `sampler2D` uniform, or single/dual-channel
-  float `Image` formats). **Both of those hypotheses were tested in isolation
-  after fixing the `await` bug and neither reproduced the crash** — the
-  RF/RGF `Image` formats work fine, and a `null` texture on an empty circle
-  set does NOT crash the compatibility renderer. Don't trust a crash's
-  proximate symptom over an isolated repro; a coroutine call missing `await`
-  is a mundane, easy-to-miss bug that can masquerade as something far more
-  exotic.
+### Tiling is not bit-identical to a global-array fold
 
-### "Bit-identical to today" does NOT hold — measured, and it's small
-
-This was this issue's own optimistic framing, and it's wrong for a documented
-reason: `field_smin` is **not associative** (see the fade-zone drift already
-on this page). The old shader walked circles in **global array order**; the
-tiled shader walks tiles in `(dx, dy)` scan order and, within a tile, circles
-in build order — a different traversal, so a numerically different fold.
+`field_smin` is not associative. A shader that walked circles in global array order
+and the tiled shader (tiles in `(dx, dy)` scan order, circles in build order within a
+tile) are different traversals, so numerically different folds.
 
 Measured in `test/unit/ui/test_tile_gather_fold_order_drift.gd`: **max drift
 0.0026** across 3000 random probes (dense random fields, `union_smoothness =
 0.12`), against the visible threshold of `1/255 = 0.0039` used everywhere else
 on this page. Under threshold, but only by ~30% headroom — dense clusters with
-larger `union_smoothness` could plausibly exceed it. This is a real, if minor,
-visual behavior change, not a bug; it was surfaced to the user rather than
-silently shipped as "no visible change."
+larger `union_smoothness` could plausibly exceed it. This is a small, accepted
+visual difference from a global-order fold, not a bug.
 
-**CPU/GPU lockstep is unaffected.** `VisionSourceIndex.distances_near` used to
-sort candidates back into global array order specifically to match the old
-shader; it now returns tile-gather order instead — the same reorder the shader
-itself uses — so the CPU reference fold and the fragment
-shader still agree with each other exactly
-(`test_indexed_fold_stays_in_lockstep_with_the_shader`, tolerance `1e-5`). What
-changed is only the *old-vs-new absolute value*, not CPU/GPU agreement.
+**CPU/GPU lockstep holds.** `VisionSourceIndex.distances_near` returns tile-gather
+order, the same order the shader uses, so the CPU reference fold and the fragment
+shader agree exactly (`test_indexed_fold_stays_in_lockstep_with_the_shader`,
+tolerance `1e-5`).
 
 ### A floating-point trap in the grid origin — and why the margin is there
 
@@ -468,7 +390,7 @@ in the fade band, above `_TOL`, while a flat-interior sample would pass).
 `vision_range` base is 500 px (`entity/default_entity_board.tres`, PER only
 scales it up) while procgen edges run ~150–300 px (`min_dist =
 2·max_node_radius() + node_padding = 2·50 + 50 = 150` — the radius ramp's
-asymptote plus the authored padding, `first_level/topology.tres`, #783). Two 500 px discs 200 px apart differ from
+asymptote plus the authored padding, `procgen/modules/first_level/topology.tres`, #783). Two 500 px discs 200 px apart differ from
 their hull by `500 − √(500² − 100²) ≈ 10 px` at the waist, which
 `union_smoothness` already fills — a vision cone is a visual no-op. It would
 also have to teach `VisionCircles.has_point` (shared with `AiRecon`) and the

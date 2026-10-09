@@ -885,7 +885,7 @@ func edge_point(world_target: Vector2, extra_pad: float = 0.0) -> Vector2:
 ## `radius` itself is never redefined by this — it stays the collision /
 ## edge_point / blade-sim boundary; rings are purely relative to it. Filled
 ## discs (wash, inner disk) are NOT rings and don't use this. See
-## `.claude/rules/skill-node-visuals.md` for the band table.
+## `docs/domain/skillnode-visuals.md` for the band table.
 static func ring_centerline(node_radius: float, inner_offset: float, width: float) -> float:
 	return node_radius + inner_offset + width / 2.0
 

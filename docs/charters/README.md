@@ -69,5 +69,6 @@ derived instruction file, commits, then answers with
 charter keeps a short *Fold digest* section (date · kind → what it became),
 so a repo grep still finds the substance without the board.
 
-Checklist skills (`manage-stats`) have no charter: a checklist carries no
-laws and no incident corpus, and its *why* is the rule it points at.
+Checklist skills (`manage-stats`, `handoff`) have no charter: a checklist carries
+no laws and no incident corpus, and its *why* is the rule it points at. The
+`adr-librarian` agent is covered by the `adr` charter.

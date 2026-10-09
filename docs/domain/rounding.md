@@ -29,8 +29,7 @@ second rounding downstream.
 ## Consequences worth knowing
 
 - **Any positive hit lands at least 1 before mitigation.** A corruption burst of
-  0.4 on a 10 HP leaf lands 1 (this reverses #1157's "floors to 0 on small
-  nodes"). A 0.01 hit against `armor 1`, `min_damage_taken −5` is
+  0.4 on a 10 HP leaf lands 1. A 0.01 hit against `armor 1`, `min_damage_taken −5` is
   `max(−5, 1 − 1) = 0` — it neither hits nor heals.
 - **A 0 hit is not rounded.** The scout arrow (`damage_scale 0.0`) stays 0 and
   `Mitigation.compute`'s `amount <= 0 → 0` gate keeps it off the floor.

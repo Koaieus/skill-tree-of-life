@@ -1,33 +1,28 @@
-# Loot system (#68 XP reward + #888 tempo + #69/#173 SkillDust)
+# Loot system (XP reward, tempo award, SkillDust)
 
 `systems/loot_system.gd` is the authority for **killing-blow rewards**. It reacts
 to `Events.entity_dying(victim)` and does three things:
 
-1. **XP reward (#68, #173, #182)** — the killer gains XP for the **territory**
+1. **XP reward** — the killer gains XP for the **territory**
    the victim held at death (its core included). Never for its level. A
    per-node trickle rides `BattleSystem.cascade_started` alongside this (see
    below — it can't ride `Events.skill_node_depleted`).
 2. **Tempo award (#888)** — a HOSTILE killing blow spends 1 `tempo` to refund
    1 `action_points`, once per turn, the pool's own cap acting as the latch.
    See "The tempo award" below.
-3. **SkillDust drop (#69/#173, re-cut #323)** — the victim's former core node
+3. **SkillDust drop** — the victim's former core node
    becomes a claimable relic carrying a `SkillDustAddon`, a **weighted draw
    over three provenance buckets** offered as N **rounds of pick-1-of-3**.
 
-## Provenance, not "core-only" (the #323 re-cut)
+## Provenance buckets
 
-The original #173 correction drew from the victim's **core** modifiers only,
-excluding node grants outright — node modifiers are only *lent* by the graph
-(granted on allocation, released back to neutral on death), so looting the
-*live* modifier would have duplicated something still on the battlefield and
-re-claimable. That objection is still true, but it argued against looting the
-node's actual modifier — not against a **copy** of it ever being offered as
-loot. #323 re-cuts the axis: the meaningful question isn't "does this vanish on
-death" (the #173 test), it's **provenance** — is this modifier a rule of the
-game (board innate), part of how this build was assembled (a grant), or a
-transient effect (never offered)? The draw now reads THREE source arrays, each
-a straight provenance bucket, weighted by `@export var weight_bucket_*` (equal
-by default — tune in the inspector):
+Node modifiers are only *lent* by the graph (granted on allocation, released
+back to neutral on death), so the loot pool never takes the live modifier: only
+a `duplicate(true)`d COPY enters it, and the strip returns the original to the
+graph untouched. The draw reads THREE source arrays, each a straight provenance
+bucket — a rule of the game (board innate), part of how this build was assembled
+(a grant), or a transient effect (never offered) — weighted by
+`@export var weight_bucket_*` (equal by default, tuned in the inspector):
 
 | bucket | source array |
 |---|---|
@@ -35,21 +30,12 @@ by default — tune in the inspector):
 | class/register grants | `Entity.core_modifiers` — see below |
 | board innates | `EntityStatBoard.intrinsic_modifiers` |
 
-Node modifiers themselves are **still untouched by looting** — the strip still
-returns them to the graph exactly as before; only a `duplicate(true)`d COPY
-enters the loot pool, so nothing is duplicated on the battlefield.
+**Stealing a level-scaler is the point, not a hazard:** looting a piece of
+another build's growth curve is the compounding channel that makes the loop work,
+so no filter excludes level-reading formulas.
 
-**Stealing a level-scaler is now the point, not a hazard.** The old
-`_is_lootable` filter excluded any modifier whose formula read `level`, reasoning
-that a looted copy would "silently rebind to the looter's level and grant a
-scaling relic nobody designed." That filter is **deleted** (#323) — for a
-roguelite built around tuning your way into being OP, looting a piece of another
-build's growth curve is the compounding channel that makes the loop work, not a
-bug to filter out.
-
-**Territory scale is still rewarded as XP too** (the empire term) — "you slew a
-sprawling empire" pays out both ways now: XP for the scale of the kill, plus a
-richer node-grant bucket for the specific mods it was running.
+**Territory scale is rewarded as XP too** (the empire term): XP for the scale of
+the kill, plus a richer node-grant bucket for the specific mods it was running.
 
 ### `Entity.core_modifiers` — the granted-atom register
 
@@ -66,14 +52,6 @@ from. There is deliberately no separate "looted" bucket — a looted grant
 re-enters the SAME register a class grant lands in, so it is exactly as
 re-lootable.
 
-This is the MVP slice of the design doc's *Killing Blow Resolution* /
-*Loot Resolution* (`docs/design/combat_system.md`). Deferred for now:
-STEAL/PROLIFERATE choice, node staining (`last_owner`), proliferation, the DAP
-bonus, BLITZ, provenance legibility in the tooltip (`"+1 STR per level (stolen
-from a Serpent)"`), and the enemy-scaling contract that makes the stolen-curve
-loop have teeth — all filed as follow-ups, not this issue's scope. **Staining is
-shelved indefinitely** — "find something better" before reviving it.
-
 ## Killer attribution — resolved here, not on Entity or the bus
 
 Death fires **synchronously** inside the attacker's turn: core-HP overflow
@@ -83,14 +61,13 @@ call stack. So `turn_manager.current_entity` at `entity_died` **is** the killer.
 
 LootSystem holds an injected `@export var turn_manager` (DI per
 `.claude/rules/scene-composition.md`, wired in `game_root.tscn`) and resolves the
-killer itself. This was a deliberate choice over two alternatives:
+killer itself. LootSystem is the rewards authority, so attribution lives with the rewards, not
+elsewhere:
 
-- **Not on `Entity`** — keeps `Entity` dumb; it already only *announces* death
-  (`entity_died`), it shouldn't also attribute it. (`Events.entity_died` stays a
-  1-arg signal — no `killed_by` param, no churn across its other consumers.)
-- **Not in `BattleSystem`** — BattleSystem owns *attacks*; folding reward
-  attribution into it spreads reward logic across two systems. LootSystem is the
-  rewards authority, so attribution lives with the rewards.
+- **Not on `Entity`** — it only *announces* death (`entity_died`, a 1-arg signal
+  with no `killed_by`), it doesn't also attribute it.
+- **Not in `BattleSystem`** — it owns *attacks*; folding reward attribution in
+  would spread reward logic across two systems.
 
 `_resolve_killer` self-guards (victim ≠ killer → non-attack death, no reward) and
 null-guards a missing TurnManager (headless tests).
@@ -117,29 +94,23 @@ Events.entity_died   → AllocationSystem: force-deallocate every owned node
 ```
 
 `emit()` is synchronous, so **every `entity_dying` handler finishes before any
-`entity_died` handler runs** — the phases sequence themselves. LootSystem needs
-the pre-strip world for the **XP payout**, which counts the territory the
-victim still owns (`navigator.get_mirrored_nodes()`), gone once AllocationSystem
-strips it. (The loot draw itself reads only `core_class` + the core node, which
-survive the strip — but sharing the `entity_dying` phase keeps both reads in one
-place.) Subscribing to `entity_dying` makes the guarantee explicit; LootSystem's
-position in the scene tree is **irrelevant** (this is why the two-phase split
-exists — the editor is free to reorder `Systems` children).
+`entity_died` handler runs** — the phases sequence themselves, and LootSystem's
+position in the scene tree is **irrelevant** (the editor is free to reorder
+`Systems` children). LootSystem needs the pre-strip world for the **XP
+payout**, which counts the territory the victim still owns
+(`navigator.get_mirrored_nodes()`), gone once AllocationSystem strips it. The
+dust *attach* is order-independent w.r.t. the strip — the addon survives it
+(`force_deallocate` only pops `node.modifiers`, not addon children), and the
+core-mod source comes off `core_class` + the core node.
 
-Within the `entity_died` phase, AllocationSystem-before-GameRoot still holds, but
-on the *stronger* child-before-parent ready order (GameRoot is the root, so its
-`_ready` connects last and fires last) — not the fragile sibling order.
-
-The XP grant and the dust *attach* are order-independent w.r.t. the strip anyway
-— the addon survives it (`force_deallocate` only pops `node.modifiers`, not addon
-children), and the core-mod source comes off `core_class` + the core node, not
-the wider live subgraph. What DOES need the pre-strip world is the XP
-**payout**, which counts the territory still owned at death.
+Within the `entity_died` phase, AllocationSystem-before-GameRoot holds on the
+child-before-parent ready order (GameRoot is the root, so its `_ready` connects
+last and fires last) — not the fragile sibling order.
 
 ## The XP reward (`_award_kill_xp`)
 
 XP is paid for **territory removed**, plus a flat bonus when the core itself
-died. One rate, no multiplier, no rate-switching (#774):
+died. One rate, no multiplier, no rate-switching:
 
 ```
 XP = xp_per_node_killed(5) × |nodes this attack removed, core included|
@@ -153,14 +124,12 @@ board's read alone (`_entity_payout`). At zero `bounty` modifiers that is the
 formula above; Greed's Avarice face plants `INCREASE` on it (+10% per stack).
 
 The core node is simply one of the counted nodes — there is no folded-in "+1"
-for it anywhere in the arithmetic (#774 decision 1, owner, 2026-09-07: "no
-more killing entity that has many nodes makes those nodes count for more XP,
-it just muddies the calculations"). The old `entity_kill_bonus` multiplier and
-the `tier_xp_base × entity_tier²` tier term are both gone; the size-shaped
-reward for a fixed-size victim now lives entirely in `core_kill_xp`
-(`stats_system/defs/core_kill_xp.tres`), a per-board stat rather than a
-multiplier on the whole payout — owner-tunable per entity and reachable by a
-modifier like any other stat. Defaults: 60 on `default_entity_board.tres`
+for it anywhere in the arithmetic (owner, 2026-09-07: "no more killing entity
+that has many nodes makes those nodes count for more XP, it just muddies the
+calculations"). The size-shaped reward for a fixed-size victim lives entirely in
+`core_kill_xp` (`stats_system/defs/core_kill_xp.tres`), a per-board stat rather
+than a multiplier on the whole payout — owner-tunable per entity and reachable by
+a modifier like any other stat. Defaults: 60 on `default_entity_board.tres`
 (players/NPCs), 20 / 40 / 60 on the small / medium / large blocker boards.
 
 `_kill_xp_total(removed_node_count, kills_entity, victim)` is the one place
@@ -185,34 +154,17 @@ These three sources are **unioned**, then whatever the ledger already paid as
 trickle (iff `award_xp_on_node_kill`) is excluded from that union before
 pricing — a set difference, not an arithmetic correction. Both
 `xp_per_node_killed` and `core_kill_xp` are `@export`/per-board stats.
-Territory scale is paid **as XP, deliberately not as looted stats** (see the
-#173 correction above).
+Territory scale is paid **as XP, deliberately not as looted stats**.
 
-**Why `level` is gone.** The old base term was `xp_per_victim_level · victim.level`.
-D-19 pins an enemy's level to its starting node count — so "level" and
-"territory" were already the same fact, and the two terms double-counted it.
-Node count is the honest axis: it's what the player actually had to fight
-through.
+**Node count is the honest axis, not victim level:** D-19 pins an enemy's level to its starting node count, so a level term would double-count territory.
 
-### Why the ledger exists — the ordering bug it fixes
+### The ledger makes the payout order-independent
 
-The payout originally read **only** `held_at_death`. BattleSystem's cascade
-strips nodes one at a time and chips `dealloc_damage` off the defender's core HP
-per node, so the core can die **anywhere inside that loop** — and everything
-already stripped had vanished from the count. Measured on a 5-node victim, same
-attack, differing only in the defender's starting health:
-
-| core dies… | old payout |
-|---|---|
-| early in the cascade (2 nodes still unstripped) | **35** |
-| on the last cascade node (0 unstripped) | **15** |
-
-It paid you *less the more of the victim you actually destroyed*, decided by
-chip-damage arithmetic no player can see. The magic path had the same defect from
-the other end: once a forking spell kills the core mid-propagation,
-`entity_died` strips the corpse and every later hop lands on neutral nodes where
-`take_damage` returns early on `owned_by == null` — so a 6-hop spell that killed
-on hop 2 paid less than the same spell killing on hop 6.
+BattleSystem's cascade strips nodes one at a time and chips `dealloc_damage` off
+the defender's core HP per node, so the core can die **anywhere inside that
+loop** — and a payout that read only `held_at_death` would shrink the more of
+the victim the attack destroyed. A forking spell has the same shape: once it
+kills the core mid-propagation, every later hop lands on neutral nodes.
 
 The ledger makes the payout a function of **what the attack removed** instead of
 of loop ordering. The two sets **overlap** mid-cascade (the ledger is recorded
@@ -225,7 +177,7 @@ progresses and the total doesn't move. Pinned by
 in an earlier attack already collected its trickle and is not re-counted at bonus
 rate later.
 
-### Whittle vs. snipe — pay identically for territory now (#774)
+### Whittle vs. snipe — pay identically for territory
 
 At defaults against a 20-node enemy on the default board (`core_kill_xp` 60):
 
@@ -234,12 +186,10 @@ At defaults against a 20-node enemy on the default board (`core_kill_xp` 60):
 | kill in one attack (snipe, or cut the arm out from under it) | — | `20 · 5 + 60` | **160** |
 | break 19 limbs over earlier attacks, then the core | `19 · 5` = 95 | `1 · 5 + 60` = 65 | **160** |
 
-The union/NO NETTING rule above makes this identical **by construction** — the
+The union/NO NETTING rule makes this identical **by construction** — the
 territory term is always `xp_per_node_killed × total nodes removed`, whichever
 attack removed them, and `core_kill_xp` is added exactly once regardless of
-path. The old `entity_kill_bonus` multiplier that made a snipe worth ~2× a
-whittle-then-kill is gone (#774, owner: it "muddies the calculations"). What
-premium a fixed-size victim (a blocker) is worth now comes entirely from
+path. What premium a fixed-size victim (a blocker) is worth comes entirely from
 `core_kill_xp` being nonzero and size-shaped on its own board (20 / 40 / 60 for
 small / medium / large) — not from a kill-order bonus.
 
@@ -299,7 +249,7 @@ reward does `tempo.deplete(1)` + `action_points.replenish(1)`:
 `award_xp_on_kill` / `award_xp_on_node_kill`, for a sandbox tab to neuter the
 reward while keeping 1:1 wiring with the real system.
 
-## The loot draw (`_draw_payload`, #323) — the three-bucket weighted union
+## The loot draw (`_draw_payload`) — the three-bucket weighted union
 
 The candidate pool is the union of the three provenance buckets above, each
 expanded via `_expand_for_loot` (a `loots_as_unit = false` pack splits into
@@ -310,11 +260,9 @@ time — see below. `would_cycle` is **deliberately not checked here**: the
 claimant isn't known until someone allocates the relic, so cycle-safety is a
 claim-time concern.
 
-`rounds` (the number of pick-1-of-3 **rounds**, not "N of a flat M" since
-#323 — and named `pick_count` until 2026-08-22, when it collided with the
-per-round count that no longer exists) is a **constant**, `LootSystem.loot_rounds`
-(#775 — was `Entity.entity_tier`, #300), against the pool's **total** size
-across all three buckets:
+`rounds` (the number of pick-1-of-3 **rounds**, not a flat count) is a
+**constant**, `LootSystem.loot_rounds`, against the pool's **total** size across
+all three buckets:
 
 ```
 N = loot_rounds     clamped to [0, total supply], then to supply-1 whenever supply ≥ 2
@@ -322,10 +270,7 @@ N = loot_rounds     clamped to [0, total supply], then to supply-1 whenever supp
 
 Every kill offers the same `loot_rounds` (default 3) regardless of victim
 tier — the reduced per-round *value* (below) is what a small blocker pays in,
-not a shorter draw. This replaces the old level-scaled
-`core_keep_base + core_keep_per_level · level` formula — level was a stale axis
-for loot (see the kill-XP "why `level` is gone" note above) — and then #300's
-tier-scaled round count, retired in favour of the fraction below.
+not a shorter draw.
 
 ### Loot value scales with victim tier (#775)
 
@@ -348,16 +293,12 @@ until a second copy stacks it past a whole number. Accepted as-is (owner,
 2026-09-13): showing the player the effective value is #792's job, not this
 system's.
 
-**Why N is capped below the supply.** A keep-count that reaches the full supply
-turns every round into a no-choice auto-grant and the picker never pops. It did
-under the old core-only draw: D-19 pins an enemy's level to its starting node
-count (`enemy_territory_size`, 20), and the old `per_level = 0.25` gave
-`1 + 0.25·20 = 6` against a 5-modifier core — so **every** first_level kill
-auto-granted the full core at random and the loot modal never appeared. The
-supply-1 cap is the structural guarantee that a choice survives any future
-retune, now over the larger three-bucket pool.
+**N is capped below the supply.** A keep-count that reaches the full supply
+turns every round into a no-choice auto-grant and the picker never pops; the
+supply-1 cap is the structural guarantee that a choice survives any retune of
+the pool or of `loot_rounds`.
 
-## SkillDust pickup — N rounds of pick-1-of-3 (#173, re-cut #323)
+## SkillDust pickup — N rounds of pick-1-of-3
 
 `SkillDustAddon extends SkillNodeAddon` sits on the neutralised relic core and
 subscribes to `carrier.owner_changed`. When **any** entity allocates the relic
@@ -454,7 +395,7 @@ silently smaller reward). Checking `would_cycle` again each round, against the
 board as it now stands, catches that: once round 1 binds the first candidate,
 round 2's check sees it and excludes the second before it's ever offered.
 
-### The handshake (load-bearing, tri-state since #522)
+### The handshake (load-bearing, tri-state)
 
 `emit()` is synchronous. `LootPickRequest.claim` is the pre-emption flag:
 
@@ -491,11 +432,10 @@ rounds and the terminal spell round inside its turn. Every other loot test
 drives the claim by calling `AllocationSystem.allocate()` by hand, which skips
 the host gate and the command chain entirely.
 
-**Why it stopped being a bool.** With `handled: bool`, a remote human's request
-read as "nobody claimed it" and the emitter random-picked on the very next
-line — before a round trip could even begin — and the pick that arrived later
-landed on an already-resolved request and was silently dropped (`resolve()` is
-idempotent). A bool cannot say "somebody IS picking, just not here".
+The claim is tri-state, not a bool, because a bool cannot say "somebody IS
+picking, just not here": a remote human's request would read as unclaimed and be
+random-picked before the answer could arrive.
+
 
 `resolve()` is **idempotent**. The addon lingers on the relic until every round
 has resolved (possibly across several real seconds if the player is picking),
@@ -565,7 +505,7 @@ a time. Single attacker + victim, not a parallel grid — LootSystem /
 AllocationSystem / BattleSystem are singletons (global `Events` bus) and killer
 attribution reads `TurnManager.current_entity` at the synchronous death, so
 kills must be one-at-a-time. The victim carries a real CoreClass
-(`balanced_core.tres`) — the #173 core-only draw no-ops without one. **▶ Kill
+(`balanced_core.tres`) — the core-modifier bucket draws nothing without one. **▶ Kill
 victim** calls `adopt_turn(killer, tm.turns_taken)` and never ticks the TurnManager
 (auto-tick = played; explicit-step = live — see `sandbox-framework.md`);
 **⟲ Reset** re-arms with muted teardown. No play step, no `godot --path` — the

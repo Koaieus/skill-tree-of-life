@@ -1,9 +1,9 @@
 # Click grammar — left pushes, right pops
 
 The one input grammar allocation, targeting and every armed verb share. The
-mechanism lives in `systems/player_input_controller.gd`, `systems/armed/armed_stack.gd`
-and the `systems/armed/*_mode.gd` levels; this doc is the grammar they implement.
-Direction for its rework: ADR 0034, implemented by #1223.
+mechanism lives in `systems/player_input_controller.gd`, `systems/armed/armed_stack.gd`,
+the `ArmedMode` base (`systems/armed_mode.gd`) and the `systems/armed/*_mode.gd`
+levels; this doc is the grammar they implement. Decision: ADR 0034.
 
 ## The rule
 

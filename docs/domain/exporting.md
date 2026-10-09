@@ -41,9 +41,8 @@ default path with no stamp at all.
 The exporter **hard-fails** on a `.gdextension` that names a binary the tree
 does not have. That is not the runtime fallback the extension was designed
 around — `BladeSolverNative` resolves through `ClassDB` so a binary-less
-checkout still *runs*, but the exporter has no such tolerance, and #806 lost a
-day to a Windows preset that could not have worked since the extension landed
-(no `.dll` has ever existed in this repo).
+checkout still *runs*, but the exporter has no such tolerance (#806: a Windows
+preset with no `.dll` behind it).
 
 So `mise run build` reads every `.gdextension` in the tree first and refuses in
 a fraction of a second, naming the cure:
@@ -145,15 +144,10 @@ grep -rl "res://addons/<name>/" --include="*.tscn" --include="*.tres" --include=
 ### `all_resources` ships the whole of `assets/`, referenced or not
 
 `assets/` is a *stock of material*, not a manifest of what the game uses. With
-`all_resources`, everything in it ships whether a scene points at it or not — in
-2026-09 that was **17M of the 22M of packed art with zero references**, mostly
-purchased packs kept for six files each.
+`all_resources`, everything in it ships whether a scene points at it or not.
 
-They are gone: the packs were deleted and the six pause-menu icons that
-justified keeping `Icon set 1` re-cut from game-icons.net through
-`mise run icons:update`. **An exclusion is the holding pattern; a delete plus a
-pipeline-baked replacement is the answer** — the grounds, and why the exclusion
-that came first was reverted rather than kept, are
+An unreferenced pack is deleted and the few files used are re-cut through
+`mise run icons:update` — an exclusion is only the holding pattern. Grounds:
 [ADR 0006](../adr/0006-unreferenced-art-is-deleted-and-re-cut-not-excluded.md).
 The archives still in `assets/` (`icons.zip`, `border_pack.rar`, …) are repo
 weight only: Godot has no importer for them, so they were never packed.
@@ -199,19 +193,15 @@ and prints its size. Two other traps it handles:
 
 ## What only an export can show you
 
-The first real export of this project (2026-09-01) booted, and printed **two**
-classes of failure that `mise run check`, the GUT suite and `godot --path .`
-cannot produce. Assume any new one of these shapes is invisible until someone
-exports. (It printed a third, `res://<null>`, which *was* reproducible from
-source — see the section below; the export got the blame for a while and did
-not deserve it.)
+Two classes of failure that `mise run check`, the GUT suite and `godot --path .`
+cannot produce; assume any new one of these shapes is invisible until someone
+exports. (`res://<null>` below looks export-only but reproduces from source.)
 
 **1. A runtime `DirAccess` scan finds nothing in a PCK.** `StatRegistry` scanned
 `stats_system/defs/` for `*.tres`. The exporter rewrites each `.tres` into a
 `.res` + `.tres.remap` pair, so the filter matched nothing, the registry came up
-empty, and every stat lookup in the build failed — 20 `unknown stat id` /
-`def missing` warnings on frame one, 0 from source. This is #640's bug, which
-was fixed for `CoreClass` and left live here. The rule that prevents it is
+empty, and every stat lookup in the build failed (`unknown stat id` /
+`def missing` on frame one, none from source; same bug as #640). The rule that prevents it is
 **#597 D13: directory scan for editor and test code, authored array for
 runtime** — see [`StatDefRoster`](../../stats_system/stat_def_roster.gd) and
 `test/unit/test_stat_def_roster.gd`, which fails if the roster and the
@@ -238,26 +228,17 @@ full of it.
 
 ## A boot error with no backtrace: `res://<null>`
 
-Three `Resource file not found: res://<null>` errors at boot, fixed 2026-09-01.
-The three `sampler2D` entries in `project.godot`'s `[shader_globals]`
-(`vision_circles_tex`, `vision_tile_index_tex`, `vision_tile_indices_tex`) were
-serialized with `"value": null`. The rendering server resolves every sampler
-global by path at startup, and `String(null)` is `"<null>"`, which localizes to
-`res://<null>`. Setting each value to `""` silences all three (verified
-2026-09-01, editor and running game).
+`Resource file not found: res://<null>` at boot, no GDScript backtrace. Cause:
+the `sampler2D` entries in `project.godot`'s `[shader_globals]` serialized with
+`"value": null`; the rendering server resolves each by path and `String(null)` is
+`"<null>"`. Every sampler global needs `"value": ""`. It needs a **real
+renderer** (every `--headless` run, i.e. the suite, is clean) and fires during
+server init before any autoload, so no script is involved.
 
-Two things hid it for weeks. It needs a **real renderer** — every `--headless`
-run, which is the whole test suite, is clean, so it looks export-only when it
-is not. And it carries **no GDScript backtrace**, because no script is
-involved: it fires during server/scene init, before any autoload.
-
-`--verbose` is what cracks that shape. The load stream names the failing path in
-order (`Loading resource: res://<null>`), so what loaded *just before* it points
-at the caller — here, immediately after `res://theme.tres`.
-
-**Watch for a regression** — the editor's *Shader Globals* project-settings
-panel is a plausible source of the `null`s, so re-check `git diff project.godot`
-after touching it.
+`--verbose` cracks this shape: the load stream names the failing path in order
+(`Loading resource: res://<null>`), and what loaded just before it points at the
+caller. The editor's *Shader Globals* panel can re-write the `null`s, so re-check
+`git diff project.godot` after touching it.
 
 ## Testing multiplayer across two machines
 
@@ -268,5 +249,5 @@ takes JOIN and types the host's LAN address and that port. Nothing needs a
 checkout, an editor, or a CLI flag.
 
 The `--role=host/--role=client` CLI harness in `scenes/dev/` is a *dev* path and
-stays that: an exported build always enters `Boot`'s menu route, and cannot be
+stays that: an exported build always enters the frontmatter menu (`scenes/meta/meta_root.tscn`), and cannot be
 handed a scene to run. See [multiplayer-harness.md](multiplayer-harness.md).

@@ -1,509 +1,314 @@
-# Stat system — long-form reference
+# Stat system — reference
 
-Moved verbatim out of `.claude/rules/stats-system.md` to keep that rule under its size budget; the rule keeps a one-line pointer per section.
+The modifier pipeline, the stat and pool classes, intrinsic scaling, and the combat-adjacent stats built on them. `.claude/rules/stats-system.md` holds the silent-failure gotchas and points here; `docs/domain/stat-knobs-and-bins.md` is the decision procedure for adding a knob or a pool bin; `docs/domain/stat-surfaces.md` says where each stat shows in the HUD; `docs/domain/stat-board-classes.md` has the board-class reasoning and measurements.
 
+Pipeline: `(base + ADD_BASE) × (1 + INCREASE/100) × MULTIPLY + ADD_BONUS`, coerced once at the end by the stat's `value_type`. Stat IDs: `grep -h "^id = " stats_system/defs/*.tres | sort`.
 
 ## Pool stats
 
-`PoolStat extends ScalarStat`. The stat IS the cap — `get_value()` / `.value` returns the modifier-computed maximum. `.current` is the ephemeral game state (damage/heal, not the modifier system). Modifiers always target the pool id directly (e.g. `"health"`, `"action_points"`); there are no `*_max` sibling stats or IDs.
+`PoolStat extends ScalarStat`. The stat IS the cap — `get_value()` / `.value` returns the modifier-computed maximum. `.current` is the ephemeral game state (damage/heal, not the modifier system). Modifiers target the pool id directly (`"health"`, `"action_points"`); there are no `*_max` ids.
 
-### One door onto the cap, and a private mint (#555, supersedes D-31's two doors)
+### One door onto the cap, and a private mint
 
-**`pool.base_value = v` runs the def's cap-change policy.** That is the whole
-API — there is no `set_base_ratcheted` any more, and no way for gameplay code to
-move a cap without the configured policy firing.
-
-It works because `Stat` declares `base_value` with **`set = _set_base_value`**
-(a named setter function), not an inline `set(v):` block: an inline block cannot
-be overridden, a named one is an ordinary virtual method, so `PoolStat` overrides
-it. Verified — the override fires even through a `Stat`-typed reference, and
-`base_value = v` inside the setter assigns without re-entering it.
-**Don't convert that declaration back to an inline block.**
+`pool.base_value = v` runs the def's cap-change policy; gameplay code has no way to move a cap without it. `Stat` declares `base_value` with `set = _set_base_value` (a named setter) so `PoolStat` can override it, even through a `Stat`-typed reference — an inline `set(v):` block cannot be overridden, so don't convert the declaration back.
 
 | Door | Who may use it |
 |---|---|
 | `pool.base_value = v` | everyone — runs `_apply_max_change` |
-| `pool._set_base_minted(v)` | **`stats_system/` only.** Four mint sites: `SkillPointStat.claim`, `SkillPointStat.grant`, `GrowablePoolStatDef`'s growth, `PoolStat._read_base` — plus board init and `clone_live`, where seeding or copying a base is not a cap *change* |
+| `pool._set_base_minted(v)` | `stats_system/` only: `SkillPointStat.claim`, `SkillPointStat.grant`, `GrowablePoolStatDef`'s growth, `PoolStat._read_base`, plus board init and `clone_live` (seeding or copying a base is not a cap change) |
 
-**Why the inversion mattered:** before #555 the plain assignment was the *bypass*,
-so every new call site silently skipped the pool's own configuration — a wrong
-number, no error. Worked example: `docs/domain/stat-knobs-and-bins.md` § "How
-this bit us (#346)".
+### The cap-change policy
 
-### The cap-change policy: two enums on `PoolStatDef`
+Two enums on `PoolStatDef` (`on_cap_rise` PIN/FOLLOW, `on_cap_fall` CLAMP/FOLLOW) decide what `current` does when the cap moves; FOLLOW on both also makes `PoolStat.stores_missing()` true (the pool stores damage taken). The full contract, authoring table and representation consequences are `docs/domain/stat-knobs-and-bins.md` §3.
 
-`heal_on_max_increase: bool` is **gone**. It was a degenerate two-value enum on
-one subclass, answering the same question `GrowablePoolStatDef.post_grow_mode`
-answers with three values on a sibling, while the cap-*fall* half was hardcoded
-and the whole thing was skippable.
+**The clamp is an invariant, not a mode.** `current` is bounded by the cap after either policy runs. Budget that legitimately exceeds the cap is a separate bin (`SurplusPoolStat.surplus`) the policy never touches; don't "fix" either by letting `current` exceed the cap.
 
-| field | values | meaning |
-|---|---|---|
-| `on_cap_rise` | `PIN` (default) / `FOLLOW` | does `current` rise with the cap |
-| `on_cap_fall` | `CLAMP` (default) / `FOLLOW` | does `current` drop with the cap even when it had headroom |
+Authored: `on_cap_rise = FOLLOW` on `health`, `node_combat_health`, `skill_points`, `movement_points`, `action_points`, `tempo`; `PIN` on `deallocation_points`, `stake_level`, `xp`, `initiative`. `on_cap_fall = FOLLOW` on `node_combat_health` alone. The D-21 ratchet (allocating CON raises the `health` cap and hands you the delta as current HP) is `PoolStat._follow_cap_delta`, one named greppable method; the toggle is `on_cap_rise` on the def.
 
-**The clamp is an INVARIANT, not a mode.** `current` is bounded by the cap after
-either policy runs, and nothing can switch that off. Budget that legitimately
-exceeds the maximum is a **separate bin** — `SurplusPoolStat.surplus`
-(`deallocation_points`, `movement_points`), which sits outside the cap and which
-the cap-change policy must never touch. Those two facts coexist; don't "fix"
-either by letting `current` exceed the cap.
-
-Authored today: `on_cap_rise = FOLLOW` on `health`, `node_combat_health`,
-`skill_points`, `movement_points`, `action_points`, `tempo`; `PIN` on
-`deallocation_points`, `stake_level`, `xp`, `initiative`. `on_cap_fall = FOLLOW`
-on `node_combat_health` alone; every other pool CLAMPs. **FOLLOW on both axes is
-not just two policies** — it is the discriminator `PoolStat.stores_missing()`
-reads to store damage taken instead of an absolute `current` (#660).
-
-**The D-21 ratchet is now `PoolStat._follow_cap_delta`** — still one named,
-greppable method as D-26 requires, and now signed (it serves both directions).
-The toggle D-26 wants findable is `on_cap_rise` on the def.
-
-**`StandardPoolStatDef` is now deliberately empty** — the concrete "ordinary
-pool" choice, nothing more. `PoolStatDef` is abstract, so every def still picks a
-subclass.
+**The ratchet is knowingly exploitable and accepted (D-21).** The graph is the mechanics and DP is not free, so cycling territory to heal is bounded. The infinite version is closed at the other end: `deallocation_points.tres` is `PIN`, so a node granting `+1 max DP` raises the maximum without a spendable point. `test_entity_health_scaling.gd` pins both halves — don't tidy either flag.
 
 ### Def hierarchy
 
-`PoolStatDef` is abstract — concrete pools pick one of two subclasses, never the base directly. PoolStat stays agnostic to which subclass it holds; fill behaviour is delegated through one virtual on the base:
-
-- `on_pool_filled(stat, excess)` — fires when `current` crosses up to the cap. `excess` is the amount of the inbound replenish that was clipped by the cap-clamp.
-
-Cap-change behaviour is **authored data**, not a virtual — `on_cap_rise` / `on_cap_fall` above (#555). `on_max_increased` is gone.
-
-The base also carries `per_turn_mode: PerTurnMode {NONE, REFILL, ADD, CUSTOM}` — how the pool replenishes at turn start (`CUSTOM` dispatches to a `PoolStat` virtual). See "Turn-start upkeep" below. Default `NONE`.
+`PoolStatDef` is abstract; concrete pools pick one of three subclasses. `on_pool_filled(stat, excess)` fires when `current` crosses up to the cap (`excess` is the part of the inbound replenish the clamp clipped). `per_turn_mode: PerTurnMode {NONE, REFILL, ADD, CUSTOM, HOST_ADD}` declares the turn-start verb (see Turn-start upkeep).
 
 | Def class | When to use | Adds |
 |---|---|---|
-| `StandardPoolStatDef` | Fixed-cap pool (HP, AP, DP, SP, movement) | **nothing** — cap-change policy moved up to `PoolStatDef` in #555 |
-| `GrowablePoolStatDef` | Gauge that grows when filled (XP today; any future "fill-and-level" pool) | `growth_flat: float`, `growth_factor: float`, `post_grow_mode: PostGrowMode` |
-| `CyclicPoolStatDef` | Recurring threshold that resets on fill, carrying overshoot forward (`initiative` today) | nothing — `on_pool_filled` just does `set_current(min + excess)` (no growth) |
+| `StandardPoolStatDef` | Fixed-cap pool (HP, AP, DP, SP, movement) | nothing — the concrete "ordinary pool" choice |
+| `GrowablePoolStatDef` | Gauge that grows when filled (`xp`) | `growth_flat`, `growth_factor`, `post_grow_mode` |
+| `CyclicPoolStatDef` | Recurring threshold that resets on fill (`initiative`) | nothing — `on_pool_filled` does `set_current(min + excess)` |
 
-`xp` is a `GrowablePoolStat` (PoolStat subclass): `GrowablePoolStatDef.on_pool_filled` banks each consumed cap into `banked`, so `total()` (`xp__total`) = `banked + current` is lifetime XP; a growable def on a plain `PoolStat` `push_error`s once.
+`GrowablePoolStat` (`xp`): `on_pool_filled` banks each consumed cap into `banked`, so `total()` (`xp__total`) = `banked + current` is lifetime XP; a growable def on a plain `PoolStat` `push_error`s once. `PostGrowMode`: `KEEP` (current parks at the old cap) · `RESET` (current → min, new cap empty) · `OVERFLOW` (the level-up consumes `old_max` of the replenish and the new level starts at `min + excess`; cascades through several level-ups; XP uses it). Growth is `new_max = stat._coerce(old_max * growth_factor + growth_flat)` and **mints**, so a level-up does not run `on_cap_rise`. BOOL `value_type` is hidden from the inspector on `PoolStatDef`.
 
-`CyclicPoolStatDef` is the cap-as-recurring-threshold archetype: filling does NOT grow the cap and does NOT leave `current` parked at the cap — it restarts the cycle at `min + excess`, so the "deduct one cap's worth on cross" is implicit and an entity that overshot more keeps that lead. It's Growable's `OVERFLOW` post-grow path minus the growth (Growable can't be reused — its `on_pool_filled` bails when the cap delta is 0). The `replenished` signal still fires at the crossing (before the carry-reset), which is how `initiative` marks an entity ready — see `.claude/rules/turn-manager.md`. `per_turn_mode = NONE` (it's tick-driven by TurnManager, not the turn-start sweep).
+`CyclicPoolStatDef` restarts the cycle at `min + excess` — an entity that overshot keeps its lead. It is Growable's `OVERFLOW` minus the growth (Growable cannot be reused: its `on_pool_filled` bails when the cap delta is 0). `replenished` still fires at the crossing, before the carry-reset, which is how `initiative` marks an entity ready (`.claude/rules/turn-manager.md`). `per_turn_mode = NONE`: TurnManager ticks it.
 
-`PostGrowMode` (Growable only): `KEEP` (current parks at old cap, new headroom = delta) · `RESET` (current → min_value, new cap empty) · `OVERFLOW` (level-up consumes `old_max` worth of replenish; new level starts at `min_value + excess` — cascades naturally through multiple level-ups if the inbound replenish was huge). XP uses `OVERFLOW`.
+**`replenished` fires in reverse chronological order across a cascade; `value_changed` doesn't.** A `replenish()` crossing several levels recurses, so each frame's `replenished.emit()` fires as the recursion unwinds — highest level first. `value_changed` fires where `base_value` is written, before the recursive call, so it stays ascending. A UI sequencer replaying a multi-level cascade builds its segments from `value_changed` snapshots, never from `replenished` order.
 
-Growth math: `new_max = stat._coerce(old_max * growth_factor + growth_flat)` — coercion is via the stat's `value_type`, so int pools snap and float pools don't. Growth **mints** (`_set_base_minted`) so a growable pool's level-up does NOT run `on_cap_rise` — same deliberate pattern as `SkillPointStat.claim()`. BOOL `value_type` is hidden from the inspector via `_validate_property` on `PoolStatDef` — meaningless for a cap.
+### SkillPointStat
 
-### `replenished` fires in REVERSE chronological order across a cascade — `value_changed` doesn't
-
-A `replenish()` crossing multiple levels recurses, so each frame's
-`replenished.emit()` fires as the recursion *unwinds* — the highest level first,
-the level actually reached first last. `value_changed` fires at the point
-`base_value` is written, before the recursive call, so it stays in true ascending
-order.
-
-**How to apply:** anything replaying a multi-level cascade in order (a UI
-sequencer chaining "fill → grow → fill" per level) must build its segments from
-`value_changed` snapshots, never from the order of `replenished` calls.
-
-`skill_points` is `SkillPointStat` (PoolStat subclass). Max is the canonical PoolStat value (base + modifier pipeline). `current` is the spendable bucket; `wounded` and `staked` are two extra book-keeping buckets sitting *inside* max. **`used` is derived**: `max - current - wounded - staked` — SP locked into currently-allocated nodes. Operations:
+`skill_points` is a `SkillPointStat`. Max is the ordinary pool cap; `current` is the spendable bucket; `wounded` and `staked` sit inside max. **`used` is derived**: `max - current - wounded - staked`.
 
 | Method | Effect | Mints? |
 |---|---|---|
-| `spend(n)` | current -= n (used derives +n) | no |
-| `refund(n)` | current += n (used derives -n) | no |
-| `wound(n)` | wounded += n (used derives -n) | no |
-| `heal(n)` | wounded -= n; current += n | no |
-| `stake(n)` | current -= n; staked += n | no |
-| `extract(n)` | staked -= n; current += n | no |
-| **`claim(n)`** | `base_value += n` — max grows, current unchanged, the new SP lands in `used`. Equivalent to "grant(n) then spend(n)" collapsed atomically. Use for force_allocate / scripted setup. | **yes** |
-| **`grant(n)`** | `base_value += n; current += n` — mints free SP (level-up). | **yes** |
+| `spend(n)` / `refund(n)` | current -= n / += n | no |
+| `wound(n)` / `heal(n)` | wounded += n / wounded -= n, current += n | no |
+| `stake(n)` / `extract(n)` | current -= n, staked += n / reverse | no |
+| `claim(n)` | `base_value += n` — max grows, current unchanged, the new SP lands in `used` (force_allocate / scripted setup) | yes |
+| `grant(n)` | `base_value += n; current += n` — free SP (level-up) | yes |
 
-Modifiers on `skill_points` behave like modifiers on any other PoolStat — they bump max via the pipeline, and `on_cap_rise = FOLLOW` on the def causes modifier-driven max changes to also bump current. `claim()` **mints** so the policy does NOT fire — that's exactly what distinguishes it from grant. Both route `current` through `set_current`, never a raw `current +=`: `base_value += n` does not imply the *cap* moved by `n`, and the raw write could leave `current` above the cap, which `available()` reports as spendable (#555).
+Modifiers on `skill_points` bump max through the pipeline and `on_cap_rise = FOLLOW` bumps current too; `claim()` mints so the policy does not fire — that is what separates it from `grant`. Both route `current` through `set_current`, never a raw `current +=` (the raw write could leave `current` above the cap, which `available()` reports as spendable).
 
-`arrows` is `Quiver` (PoolStat subclass, #955) — **authored, never minted.** `@export var arrows: Quiver` on `EntityStatBoard` + the sub-resource on `default_entity_board.tres`, exactly like `skill_points`: `StatBoard._mint_stat` mints a plain `PoolStat`, so a board that reaches `arrows` through `_ensure_stat` first (a hand-built board with no instance) gets a quiver with no bins and `Entity.can_reload()` says no. `current` = the **plain** bin, max = capacity (`arrows.tres`, `on_cap_rise = PIN` so a capacity modifier never gifts arrows, `per_turn_mode = NONE` so nothing refills it — only `ReloadCommand` mints); each special `AmmoType` banks in its own bin *beside* current, clamped to its `max_stock`, which the caller passes in (`add(id, n, max_stock)` — `Quiver` never reads the roster and keeps its own `BASE_ID`). `current == bins[BASE_ID]` after every `add`/`take`; a cap **fall** trims the plain bin only; "every arrow held" is `total_stock()` (ADR 0041). The accessor is `ammo_bins()` — `bins` is `Stat.bins: ModifierBins`, the modifier pipeline's, and a `func bins()` on a subclass is a parse error that GUT skips silently. `_bins` is `@export` only so `clone_live` (`duplicate(true)`) carries the stock into a shadow world; `to_dict`/`read_dict` carry it over the wire. Minting stats: `arrows_per_reload` (node-owned + baked, MULTIPLY by `stake_level__current`, summed per turn-start leaf ∪ core via `get_local_value`) and the type's `per_reload_stat_id` for specials — its `<concept>_aspect` (`poison_aspect`, `scout_aspect`), entity-flat (#1248). The type roster is `attack/ammo/ammo_type_roster.tres` — preloaded, never a directory scan.
+### Quiver
 
-`deallocation_points` and `movement_points` are `SurplusPoolStat` (PoolStat subclass, #152/#156). Unlike SkillPointStat's bins which sit *inside* max, its one extra bin — `surplus: int` — sits **outside** the cap:
+`arrows` is a `Quiver` — authored (`@export var arrows: Quiver` on `EntityStatBoard` + the sub-resource on `default_entity_board.tres`), never minted: `StatBoard._mint_stat` mints a plain `PoolStat`, so a board that reaches `arrows` through `_ensure_stat` first gets a quiver with no bins and `Entity.can_reload()` says no. `current` is the plain bin, max is capacity (`arrows.tres`: `on_cap_rise = PIN`, `per_turn_mode = NONE` — only `ReloadCommand` mints). Each special `AmmoType` banks in its own bin beside current, clamped to the `max_stock` the caller passes in (`add(id, n, max_stock)`; `Quiver` never reads the roster). `current == bins[BASE_ID]` after every `add`/`take`; a cap fall trims the plain bin only; "every arrow held" is `total_stock()` (ADR 0041). The accessor is `ammo_bins()` — `bins` is `Stat.bins: ModifierBins`, and a `func bins()` on a subclass is a parse error GUT skips silently. `_bins` is `@export` so `clone_live` carries the stock into a shadow world; `to_dict`/`read_dict` carry it over the wire. Reload stats: `arrows_per_reload` (node-owned, baked, MULTIPLY by `stake_level__current`, summed per turn-start leaf and core via `get_local_value`) and each type's `per_reload_stat_id` for specials — its `<concept>_aspect` (`poison_aspect`, `scout_aspect`), entity-flat. The type roster is `attack/ammo/ammo_type_roster.tres`, preloaded, never a directory scan.
 
-```
-available() == roundi(current) + surplus     # may exceed .value
-```
+### SurplusPoolStat
 
-Surplus is a **transient budget boost** (extra DP/MP for one turn). It's deliberately outside two systems that would otherwise stomp it:
-- **`restore_to_full()`** only moves `current` against the cap, so a turn-start REFILL leaves surplus untouched (that's the whole point — a turn-start cap-modifier boost would arrive *after* the refill that fills it).
-- **The modifier pipeline** never consults it — no `heal_on_max_increase`, and crucially it survives a `SET`-short-circuit. A `SET cap = 0` pool with nonzero surplus is a legal, meaningful state (an entity whose entire DP/MP budget is bought with unspent AP); a cap-modifier design can't represent it.
+`deallocation_points` and `movement_points` are `SurplusPoolStat`. Its extra bin `surplus: int` sits outside the cap: `available() == roundi(current) + surplus`, which may exceed `.value`. Surplus is a transient one-turn budget boost, deliberately outside two systems that would stomp it: `restore_to_full()` only moves `current` (a turn-start REFILL leaves surplus alone), and the modifier pipeline never consults it, so it survives a `SET` short-circuit (a `SET cap = 0` pool with nonzero surplus is legal — an entity whose DP/MP is bought entirely with unspent AP).
 
-Contract: **overwritten each turn, never accumulated** — write it with `set_surplus(n)` (never an `add_surplus`, which would let an idle entity compound it). `deplete()` draws **surplus-first** (burn-it-or-lose-it: the boost is spent on travel or wasted; ordinary budget survives an idle turn). Cap changes never clamp surplus.
+Contract: **overwritten each turn, never accumulated** — write `set_surplus(n)`, never an add. `deplete()` draws surplus first (burn it or lose it). Cap changes never clamp surplus.
 
-**Gates and budgets must read `available()`, not `.current`.** `PoolStat.available()` (base) returns `roundi(current)`; `SurplusPoolStat` overrides it to add the bin. `AllocationSystem` (every gate, including the AP one), `HighlightController._movement_budget` and `PlayerInputController`'s movement budget read `available()` and honour surplus polymorphically without knowing the subclass. A gate reading `.current` would grant cells the player can't spend.
+**Gates and budgets read `available()`, not `.current`.** `PoolStat.available()` returns `roundi(current)`; `SurplusPoolStat` adds the bin. Every `AllocationSystem` gate (including the AP one), `HighlightController._movement_budget`, `PlayerInputController`'s movement budget, `can_player_act`, `BattleSystem.launch_attack` and `ActionCluster` read `available()`. The call site must not have to know which subclass it holds, so a gate on a surplus-less pool (AP) still reads `available()` — giving AP a surplus bin is a contemplated design.
 
-Only `deallocation_points` and `movement_points` are `SurplusPoolStat` today; `action_points` is a plain pool, where the two forms agree. That is exactly why the AP gates in `PlayerInputController.can_player_act`, `BattleSystem.launch_attack` and `ActionCluster` sat on `.current` unnoticed until the 2026-08-14 audit — and why this paragraph named them as compliant examples while they weren't. They read `available()` now. **The point of the rule is that the call site must not have to know which subclass it holds**, so don't "optimise" one back to `.current` on the grounds that its pool has no surplus bin *yet*: giving AP a surplus bin is a design the surplus section above explicitly contemplates ("an entity whose entire DP/MP budget is bought with unspent AP").
+**Negative caps are undefined.** `set_current` does `clamp(v, _min_value(), cap)`; with `cap = -1` the range inverts, `current` lands at -1 and `depleted` fires on every write, including every turn-start `restore_to_full()`. Harmless for DP/MP, fatal for `health` (`depleted` → `die()`). Express a penalty as a debt bin or clamp caps at zero.
 
-**Negative caps are undefined — don't reach for them.** `PoolStat.set_current` does `clamp(v, _min_value(), cap)`; with `cap = -1` the range inverts and `clamp` returns the cap, so `current` lands at `-1` (below floor) and `depleted` fires on *every* write, including every turn-start `restore_to_full()`. Harmless for DP/MP (nothing listens), fatal for `health` (`depleted` → `die()`). Express a penalty as a debt bin with real semantics, or clamp caps at zero — a real `min_value` change is its own issue.
+Scene-authored ownership (`owned_by = NodePath(...)`) doesn't go through `force_allocate`; `AllocationSystem.register_scene_authored_ownership()` walks the graph at `GameRoot._ready` and claims for each pre-owned node. Procgen content claims later via `force_allocate` — no double-count.
 
-Scene-authored ownership (e.g. dev_sandbox `owned_by = NodePath(...)`) doesn't go through `force_allocate`, so `AllocationSystem.register_scene_authored_ownership()` walks the graph at GameRoot._ready and claims for each pre-owned node. Procgen content runs later and claims via force_allocate — no double-count.
+### Node combat health
 
+The node's health is a `PoolStat` on `node_board` with id `node_health` (same id as the entity board's ScalarStat baseline, a different `Stat` class), minted off the `node_combat_health` def (`StandardPoolStatDef`, FOLLOW on both cap axes — the def and the id are different strings). The def is INT and `current` stays float storage written only whole: each of the four HP doors (`NodeCombat.take_damage`/`heal_damage`, `EntityCombat.take_pool_damage`/`heal`) floors its magnitude once via `HitPoints.land` (ADR 0017) — never floor in `Mitigation` or a formula.
 
-## Intrinsic scaling (node board)
+Nothing pushes the cap per node: `NodeCombat._hp_pool` installs a `PoolStat.base_provider` reading the owner's baseline, so the cap is derived on read, and FOLLOW-on-both makes the pool `stores_missing()`. `SkillNode._refresh_hp_binding` is the ownership transition alone. See `docs/domain/stat-knobs-and-bins.md` § "The policy also chooses the stored representation".
 
-Same field, one level down: `NodeStatBoard.intrinsic_modifiers` (`skill_node/default_node_board.tres`) holds node-owned intrinsics the same way the entity table above does — modifier inline on the board, formula file-backed. The node board is `duplicate(true)`d **per node** (500–2500/level, `.claude/rules/rendering-performance.md`) rather than per entity, so an inlined formula here forks that many ways instead of a handful — treat file-backing as non-negotiable for this table, not just good practice.
+## Intrinsic scaling
+
+Intrinsics are `StatModifier` sub-resources with a `formula`, wired as `intrinsic_modifiers` on a board and applied by `apply_intrinsics()`. Keep them inline in the board `.tres` and the formula **file-backed**. Contribution = `modifier.value × formula.compute(board)`; with `value = 1` the formula reads through. A `RatioFormula` row is a line — `+1 per 20 STR` contributes `0.05 × STR` continuously and the INT target floors once at the end, so a merged loot copy (`value 1.25`) moves the step to 16 STR rather than waiting for four copies. `AttributeRules` (Attributes Panel hover) discovers these lines by scanning `intrinsic_modifiers` for `scales_with(attr_id)`; this table is documentation, not a second source of truth. **Update the table when adding or changing a row.**
+
+### Entity board (`entity/default_entity_board.tres`)
+
+All entities get these. Divisors (bold) are tuning values.
+
+| Input stat | Target stat | Op | value | formula |
+|---|---|---|---|---|
+| `perception` | `vision_range` | INCREASE | 2 | LinearFormula(perception) — at PER=3 → +6% |
+| `perception` | `sensor_range` | ADD_BASE | 1 | ThresholdFormula(perception, [3, 8, 21, 55, 149, 404, 1097, 2981, 8104, 22027]) — `floor(ln PER)`, `ceil(e^n)` per rung. PER has two jobs (vision, sensor range); WIS has one (XP/turn) |
+| `wisdom` | `xp_per_turn` | ADD_BASE | 1 | RatioFormula(wisdom, **5**) |
+| `dexterity` | `range` | INCREASE | 1 | LinearFormula(dexterity) — at DEX=30 → +30% |
+| `dexterity` | `ranged_damage` | ADD_BASE | 1 | RatioFormula(dexterity, **20**) |
+| `intelligence` | `cast_range_distance` | INCREASE | 1 | RatioFormula(intelligence, **50**) — +1% euclidean reach per 50 INT over the spell's authored `max_distance` (overlay; stat base 0 by contract) |
+| `intelligence` | `cast_range_hops` | ADD_BASE | 1 | ThresholdFormula(intelligence, [50, 150, 500, 1000, 5000]) — flat +1..+5 hops over the spell's authored `max_hops` (overlay, base 0); feeds `HopRangeFinder` only, never `PropagationConfig.max_hops` |
+| `intelligence` | `spell_damage` | ADD_BASE | 1 | SqrtFormula(intelligence, divisor=1) — pure sqrt transfer, no knee |
+| `intelligence` | `infusion_slots` | ADD_BASE | 1 | ThresholdFormula(intelligence, [100, 1000, 10000]) — slots a cast can fill, one concept per slot |
+| `intelligence` | `infusion_points` | ADD_BASE | 1 | SqrtFormula(intelligence, divisor=1) — points per slot |
+| `strength` | `blade_size` | ADD_BASE | 1 | RatioFormula(strength, **40**) |
+| `strength` | `blade_damage` | ADD_BASE | 1 | RatioFormula(strength, **20**) |
+| `constitution` + `node_health_scaling` | `node_health` | ADD_BASE | 1 | `node_health_scaling * constitution` — the rate is a stat (see CON) |
+| `constitution` + `core_health_scaling` | `health` | ADD_BASE | 1 | `core_health_scaling * constitution` — the rate is a stat (see CON) |
+| `level` | `constitution` | ADD_BASE | 1 | `level_scaling.tres` (`level - 1`) — +1 CON per level |
+| `max_shots_per_leaf` | `volleys_per_turn` | ADD_BONUS | 1 | LinearFormula(max_shots_per_leaf) — base 0, reads 5 by default |
+
+### Node board (`skill_node/default_node_board.tres`)
+
+`NodeStatBoard.intrinsic_modifiers` holds node-owned intrinsics the same way. The node board is `duplicate(true)`d per node (500–2500 per level, `.claude/rules/rendering-performance.md`), so an inlined formula forks that many ways — file-backing is non-negotiable here.
 
 | Input stat | Target stat | Op | value | formula |
 |---|---|---|---|---|
 | `stake_level` (current) | `addon_slots` | ADD_BASE | 1 | `allocation_scaling.tres` — `ExpressionFormula(stake_level__current)` |
-| `stake_level` (current) | `arrows_per_reload` | MULTIPLY | 1 | `allocation_scaling.tres` — `ExpressionFormula(stake_level__current)` (#955) |
-| `stake_level` (current) | `max_shots_per_leaf` | MULTIPLY | 1 | `allocation_scaling.tres` — `ExpressionFormula(stake_level__current)` (#956) |
+| `stake_level` (current) | `arrows_per_reload` | MULTIPLY | 1 | same file |
+| `stake_level` (current) | `max_shots_per_leaf` | MULTIPLY | 1 | same file |
 
-### Formula classes — pick the narrowest one (#289)
+### Where a rate lives
+
+**A rate goes in `value`, not in the formula string.** Baking a rate into an expression (`floor(strength / 10.0)`) splits it across two places, and raising `value` then scales the already-stepped output. `mod_per_to_vision` (2.0 × PER) and every `level_scaling` class bonus keep the rate in `value`. **Unless something other than the authored-once tuning must move the rate — then it is a stat** a CoreClass, relic, addon, aura or curse can modify through the ordinary pipeline. The decision procedure is `docs/domain/stat-knobs-and-bins.md` §1.
+
+### CON
+
+**CON → `health` puts its rate in a stat.** `health = 10 + core_health_scaling × CON`: the flat 10 is `pool_health`'s `base_value` and the coefficient is `core_health_scaling`, an ordinary board scalar defaulting to `1.0`. A CoreClass must be able to move it: `core_health_scaling` sizes the pool, `dealloc_damage` sizes the chip, and `nodes_lost_before_death = health / dealloc_damage` is where class identity lives (Balanced 119÷1, Glass 119÷3, Bulwark 119÷0.5). A class tunes either with an ordinary modifier — no genesis/class-param mechanism is needed. The formula is an `ExpressionFormula` with **both** ids in `inputs`, or changing the class knob won't rebind.
+
+**CON → `node_health` does the same one pool over:** `node_health = 10 + node_health_scaling × CON`, `node_health_scaling` defaulting to `1.0`. There is no cliff: `core_class` is nullable (`GameRoot.spawn_entity` defaults it to null; coreless fixtures exist), so a fully class-side rate would have silently given them CON → 0. Both scalings are **entity-scope only** — as node-local stats they mean nothing, so don't add them to a procgen pool.
+
+**The level→CON grant lives on the board, and only there.** The board intrinsic scales every entity's durability with level regardless of core class. `BalancedCore` contributes the +10 CON base grant but **must not** get a per-level CON entry in its `level_scaling` modifiers — that would double-count against the board intrinsic. CON is the one attribute whose level channel is board-side; STR/DEX/INT are class-side. `constitution.tres`'s `default_value` is **0**, not 10, so a bare level-1 board's `node_health` baseline stays flat 10.
+
+CON gets **no** intrinsic targeting `armor` or `min_damage_taken`: letting CON drive `armor` produced a permanent dead zone against uninvested attackers (D-11). `test_constitution.gd` guards it.
+
+**Procgen:** `procgen/pools/constitution.tres` is CON's `StatPack` (`archetype_stat = &"constitution"`), a **mixed pack**: CON-primary `StatPool`s drawn only by CON nodes, plus universal pools (`archetype_stat == &""`: `node_health` INCREASE, `armor` ADD_BASE, an `intelligence` INCREASE debuff `unit_value=-5, max_tier=1` whose negative cost refunds 1 budget) drawn by every node. `flatten_for_node(primary_stat)` filters per pool; the pack-level `archetype_stat` is inert. Moving a pool between primary and universal changes which nodes draw it — author it deliberately (`docs/domain/procgen-v4.md`). There is no `node_health` ADD_BASE pool: base `node_health` is `10 + CON` with `BalancedCore` granting +10 CON, so a flat draw duplicated the percent draw; only INCREASE survives, `+5–15%` (the 5% floor is because `node_health` is INT: a `+2%` roll on a base of 20 rounds away). Pinned by `test_constitution_pool.gd` and `test_constitution.gd`.
+
+### Formula classes — pick the narrowest
 
 | Class | Shape | Describes itself as |
 |---|---|---|
-| `RatioFormula(source, divisor)` | `source / divisor` — a LINE, no floor (#891, ADR 0016); the INT target floors the finished total once | "per 20 STR" (generated); a merged `value` normalises to a unit numerator — `value 4/3` over `/5` reads "+1 … per 3.75 WIS", and below one point of source it flips to "+20 … per WIS", never "+1 per 0.05" |
-| `LinearFormula(source)` | `source` | "per PER" (generated) |
-| `ThresholdFormula(source, breakpoints)` | count of ascending breakpoints reached | "per ×10 INT" for a geometric ladder, else "at 50 / 150 / 500 INT" — names the ladder, never wrapped in "per" (#773) |
-| `SqrtFormula(source, divisor)` | `floor(sqrt(max(source, 0)) / divisor)` — pure sqrt transfer (#760, made knee-free by #776) | "√INT" at divisor 1, else "N √INT" (generated) — `describe_per()` bakes the `√` in so the default `" per %s"` wrap reads "per 20 √INT", never the bare "per N INT" a linear rate would claim |
+| `RatioFormula(source, divisor)` | `source / divisor` — a line, no floor (ADR 0016); the INT target floors the finished total once | "per 20 STR"; a merged `value` normalises to a unit numerator (`value 4/3` over `/5` reads "+1 … per 3.75 WIS"; below one point of source it flips to "+20 … per WIS") |
+| `LinearFormula(source)` | `source` | "per PER" |
+| `ThresholdFormula(source, breakpoints)` | count of ascending breakpoints reached | "per ×10 INT" for a geometric ladder, else "at 50 / 150 / 500 INT" — never wrapped in "per" |
+| `SqrtFormula(source, divisor)` | `floor(sqrt(max(source, 0)) / divisor)` | "√INT" at divisor 1, else "N √INT" — `describe_per()` bakes the `√` in so the default wrap reads "per 20 √INT" |
 | `ExpressionFormula(text, inputs)` | anything | authored `per_phrase`, or nothing |
 
-**No transcendental in a formula string — `log` / `exp` / `pow` / `sin` / `cos` / `tan`;
-`sqrt` is fine (#547).** A step function of one stat is a `ThresholdFormula`, whose
-`breakpoints` are compared with `>=` in integer-exact arithmetic. `floor(log(INT)/log(10))`
-returned **2 at INT 1000** on glibc — `log(1000.0)` is one ulp under `3 * log(10.0)` — and
-that is not a bug to wait out: IEEE 754 requires only `+ - * / sqrt` to be correctly
-rounded, so every platform's libm differs in the last bits, and `floor(log_b(x))` sits
-exactly on a boundary at the round numbers a stat system lands on constantly. Derived
-stats are recomputed on **every peer** rather than sent, so the next one desyncs a mixed
-Windows/Linux lobby silently. `mise run lint-transcendentals` fails on a new one.
-A `ThresholdFormula` **saturates at `breakpoints.size()`** — extend the ladder past
-anything the stat can reach, and pin its top in a test.
+**No transcendental in a formula string** (`log` / `exp` / `pow` / `sin` / `cos` / `tan`; `sqrt` is fine). A step function of one stat is a `ThresholdFormula`, compared with `>=` in integer-exact arithmetic. IEEE 754 requires only `+ - * / sqrt` to be correctly rounded, so libm differs in the last bits across platforms; `floor(log_b(x))` sits exactly on a boundary at the round numbers a stat system lands on, and derived stats are recomputed on every peer, so a mixed Windows/Linux lobby desyncs silently (`floor(log(INT)/log(10))` returned 2 at INT 1000 on glibc). `mise run lint-transcendentals` fails on a new one; reasoning in `docs/domain/stat-knobs-and-bins.md` §4. A `ThresholdFormula` **saturates at `breakpoints.size()`** — extend the ladder past anything the stat can reach and pin its top in a test.
 
-**Same reason, second rule: aggregate a bin in a STABLE, DEFINED order.** Float
-addition is not associative, so summing the same modifiers in a different order gives
-different last bits and two peers disagree about a node's derived total. Godot 4
-Dictionaries are insertion-ordered and insertion follows replicated command order, so
-this holds today — it breaks silently the moment a bin is sorted by a float or moved
-into an unordered container. Relevant the instant anyone restructures the bin walk for
-perf (#470): keep the order, and pin an aggregate against a shuffled insertion order.
+**Aggregate a bin in a stable, defined order.** Float addition is not associative; summing the same modifiers in a different order gives different last bits and peers disagree about a derived total. Godot 4 Dictionaries are insertion-ordered and insertion follows replicated command order, so this holds today — it breaks silently if a bin is sorted by a float or moved into an unordered container. Keep the order when restructuring the bin walk, and pin an aggregate against a shuffled insertion order.
 
-**`stat / N` must be a `RatioFormula`, never an `ExpressionFormula` — and never
-`floor(stat / N)` in either (#891).** A ratio is a line; the stat floors. With
-`divisor` a typed field, `describe_per(value)` renders `divisor / value` and
-`display_coefficient(value)` renders `1` (or `value / divisor` per point once the
-step drops below 1), both off the same two fields `compute()` multiplies, so the
-shown rule and the computed rule cannot disagree — the property `ThresholdFormula`
-reads its multiplier off `breakpoints` for the same reason. `format()` hands the
-modifier's `value` to both; no other formula shape reads it.
+**`stat / N` is a `RatioFormula`, never an `ExpressionFormula`, and never `floor(stat / N)` in either.** With `divisor` a typed field, `describe_per(value)` renders `divisor / value` and `display_coefficient(value)` renders `1` (or `value / divisor` per point once the step drops below 1), off the same two fields `compute()` multiplies, so the shown rule and the computed rule cannot disagree. `format()` hands the modifier's `value` to both; no other formula shape reads it.
 
-**Every formula owes a one-line `per_phrase`.** `StatModifier.format()` appends it —
-"+1 Blade Size **per 20 STR**" — and renders the modifier's `value` (the coefficient)
-rather than the effective value, because the clause now carries the variable part. Ratio,
-Linear and Threshold generate the phrase; an `ExpressionFormula` must author one on the resource
-(`"×10 INT"`, `"CON × core scaling"`, `"level"`). It is deliberately **not
-multiline** — a formula-bound modifier renders as a single-Label glass slab (`ModSlabRow`)
-in a hover tooltip, and prose would blow the line budget. Nothing may derive the phrase by
-parsing the expression string. `test_formula_descriptions.gd` fails on an undescribed
-formula reachable from the shipped boards.
+**Every formula owes a one-line `per_phrase`.** `StatModifier.format()` appends it ("+1 Blade Size **per 20 STR**") and renders the modifier's `value` (the coefficient) rather than the effective value. Ratio, Linear and Threshold generate it; an `ExpressionFormula` authors one on the resource (`"×10 INT"`, `"CON × core scaling"`, `"level"`). It is not multiline — a formula-bound modifier renders as a single-Label `ModSlabRow` in a hover tooltip. Nothing derives the phrase by parsing the expression string. `test_formula_descriptions.gd` fails on an undescribed formula reachable from the shipped boards. The authored phrase is the only copy of that prose: an editor round-trip can re-serialize it as `per_phrase = null` (the stale-class-view strip in `docs/domain/godot-workflow.md`), so after any headless editor pass run `git diff '*.tres' | grep per_phrase` and restore any line that turned into `null`.
 
-**A `StatDef.description`'s own "+N per D STAT" prose is a SEPARATE, hand-written
-field from `describe_per()`/`format()` above — it drifts independently, and did**
-(#825: `blade_size.tres` said "per 10 STR" while `formula_str_to_blade_size` had
-long since moved to `divisor = 20.0`, sizing an AI budget pass 2x optimistic).
-`test/unit/test_stat_def_description_ratio_agreement.gd` guards every
-`RatioFormula`-backed intrinsic on `default_entity_board.tres` and the four
-`entity/blocker/blocker_*_board.tres` — it reads the divisor off the live formula
-and the ratio off the target stat's `description` and asserts they agree, so it
-stays green across a retune (divisors are owner-tuned, e.g. #776) and only reds
-on real drift. A description with no "per N STAT" phrase is skipped, not failed
-— not every stat spells its ratio out in prose. The durable fix — compose
-`description` from the formula instead of hand-writing the ratio, so this class
-of drift can't recur — is proposed but not built (bigger than #825, touches the
-tooltip path).
+**`describe_per()` is the phrase; `describe_clause()` is what renders.** `StatModifier._with_per_clause` calls `formula.describe_clause()`; the base default wraps `describe_per()` in `" per %s"`. `ThresholdFormula` overrides `describe_clause()` alone for its non-geometric, unauthored ladder — that shape has no ratio, so `" per WIS"` would misdescribe it — and renders `" at 50 / 150 / 500 / 1000 / 5000 INT"`. `describe_per()` still returns the bare abbreviation there (non-empty, because the every-formula-described test needs an answer). A new shape needing the same escape hatch overrides `describe_clause()`, not `describe_per()`.
 
-**`describe_per()` is the phrase; `describe_clause()` (#773) is what actually
-renders.** `StatModifier._with_per_clause` calls `formula.describe_clause()`, not
-`describe_per()` directly — the base class's default `describe_clause()` just
-wraps `describe_per()` in `" per %s"`, which is right for every ratio/linear/
-authored shape. `ThresholdFormula` overrides `describe_clause()` alone (not
-`describe_per()`) for its non-geometric, unauthored ladder: that shape has no
-ratio, so `" per WIS"` would misdescribe it as a rate it doesn't have.
-`describe_per()` still returns the bare abbreviation there — kept non-empty
-on purpose, since `test_every_board_intrinsic_formula_is_described` requires
-every shipped formula to answer *something* — but `describe_clause()` renders
-the ladder itself instead: `" at 50 / 150 / 500 / 1000 / 5000 INT"`, no "per"
-anywhere. A future formula shape that needs the same escape hatch overrides
-`describe_clause()`, not `describe_per()`.
+**A `StatDef.description`'s own "+N per D STAT" prose is a separate, hand-written field** that drifts independently of `describe_per()`. `test_stat_def_description_ratio_agreement.gd` guards every `RatioFormula`-backed intrinsic on `default_entity_board.tres` and the `entity/blocker/blocker_*_board.tres` boards: it reads the divisor off the live formula and the ratio off the target stat's description and asserts they agree, so it stays green across a retune and reds only on real drift. A description with no "per N STAT" phrase is skipped.
 
-**An authored `per_phrase` is the only copy of that prose — an editor round-trip has
-already eaten all three once.** `fe0c625` re-serialized `level_scaling.tres` and
-`default_entity_board.tres` with `per_phrase = null`, silently un-describing three
-`ExpressionFormula`s (4 red tests, no runtime error — it's the stale-class-view strip
-that [godot-workflow.md](../../docs/domain/godot-workflow.md) documents). Nothing regenerates these strings.
-**How to apply:** after any `godot --headless --editor --quit`, add
-`git diff '*.tres' | grep per_phrase` to the usual post-refresh diff check, and restore
-any line that turned into `null`.
+### Stat polarity and valence
 
-`AttributeRules` (Attributes Panel hover) now **discovers** these lines by scanning
-`intrinsic_modifiers` for `scales_with(attr_id)` — it holds no rule text of its own, so
-this table is documentation, not a second source of truth.
+**`StatDef.lower_is_better`** (default false) marks stats where less is the win (`min_damage_taken`, `dealloc_damage`). `StatDef.is_improvement(delta)` is the one accessor (`delta < 0.0 if lower_is_better else delta > 0.0`; 0 is never an improvement). It is a delta predicate only. `DeltaChip.pop(delta, decimals, suffix, def)` consumes it (the optional `def` colours by polarity while arrow and sign stay arithmetic truth); `StatValueRow`, floaters and `StatModifier.format()` don't read it. `ModSlabRow.bind` reads `valence()` and renders a BANE as a cursed slab (`SlabRow.SlabStyle.HARMFUL`, `Emissive.HARMFUL`).
 
-**Put a rate in `value`, not in the formula string.** Most expression-formula intrinsics above bake their rate into the expression (`floor(strength / 10.0)`) and leave `value` at its 1.0 default. That still works — the knob exists on every modifier — but it splits the rate across two places, and turning `value` up on a `floor(X/10)` formula scales the already-*stepped* output rather than the rate. Prefer the rate in `value`; `mod_per_to_vision` (2.0 × PER) and every `level_scaling` class bonus follow it.
+**A modifier's delta is its value's displacement from its op's neutral element.** `StatModifier.displacement_from_neutral(op, v)` is the single home of "which value is this op's no-op": `v` for ADD_BASE / ADD_BONUS / INCREASE, `v - 1` for MULTIPLY, `NAN` for SET (callers `is_nan()` first). It is static and value-taking so a procgen candidate can be judged before any `StatModifier` holds it; `GraphProcgen._is_neutral_result` routes through it.
 
-**…unless something other than #268 must move the rate — then it's a STAT.** `value` is authored-once tuning; a *stat* can be moved at runtime by a CoreClass, relic, addon, aura or curse through the ordinary pipeline. Both CON intrinsics take this branch (see the next two paragraphs), and the decision procedure for which shape a new knob wants is `docs/domain/stat-knobs-and-bins.md` §1.
+`StatModifier.valence(board = null)` composes that with `is_improvement`: BOON / BANE / NEUTRAL / VOLATILE. VOLATILE means "no side to pick" — a SET, a sign-flipping MULTIPLY (`value <= 0`), or an unresolvable `stat_id`. Valence is holder-relative, never viewer-relative (an enemy's `-3% Dexterity` is a BANE; it never consults `ownership_bit`) and reads the same number the row next to it prints. Never re-derive `sign XOR lower_is_better` at a call site, and never `log(v)` for MULTIPLY (`log(-1.0)` is a silent NaN that renders `×-0.4` as a bane). `StatPool._get_configuration_warnings()` flags a MULTIPLY pool whose folded range reaches `<= 0`.
 
-**CON → `health` puts its rate in a *stat*, not in `value` (D-26, #276).** `health = 10 + core_health_scaling × CON`: the flat 10 is `pool_health`'s `base_value` (baked for now — D-26 defers making it a stat to #279's authoring problem), and the coefficient is `core_health_scaling`, an ordinary board scalar defaulting to `1.0`. It's a stat rather than a modifier `value` because a **CoreClass must be able to move it** — `core_health_scaling` sizes the pool, `dealloc_damage` sizes the chip, and `nodes_lost_before_death = health / dealloc_damage` is where class identity lives (Balanced 119÷1, Glass 119÷3, Bulwark 119÷0.5). Both are plain board stats, so a class tunes either with an ordinary modifier — **no genesis/class-param mechanism is needed or wanted here.** Consequence for the formula: it's an `ExpressionFormula` with **both** ids in `inputs`, or changing the class knob won't rebind.
+A stat is volatile on a read iff a modifier that read folds has `valence(board) == VOLATILE`: `Stat.is_volatile()`, `StatBoard.is_stat_volatile(id)` (entity readout; never mints), `NodeCombat.is_local_volatile(id)` / `SkillNode.is_local_volatile(id)` (node board or the owner's — the two sources `get_local_value_with` folds). No special cases, no cache.
 
-`core_health_scaling` is **entity-scope only** — as a node-local stat it means nothing (D-26 surfaced this; #287 is the open decision). Don't add it to a procgen pool.
+## Parent stats
 
-**CON → `node_health` does the same thing, one pool over (#298).** `node_health = 10 + node_health_scaling × CON`, with `node_health_scaling` an ordinary board scalar defaulting to `1.0`. This **settled #298** — its two proposed options (a `CoreClass` genesis param, or a board baseline plus a class delta) were both dropped in favour of the D-26 precedent, because a class tuning it needs no new mechanism and there is **no cliff**: `core_class` is nullable (`GameRoot.spawn_entity` defaults it to null, `Entity._ready` guards on it) and coreless entities really exist (several fixtures), so a fully class-side rate would have silently given them CON → 0. Same `inputs`-must-list-both-ids consequence as `health`. Per-class values remain a #268 pass — don't invent them. `node_health_scaling` is likewise entity-scope only.
-
-**The D-21 ratchet lives in `PoolStat._follow_cap_delta`.** Allocating CON raises the `health` cap *and* hands you the delta as current HP, so a player can cycle territory to heal. That is **knowingly exploitable and accepted** (D-21) — the graph *is* the mechanics, and DP is not free, so the ratchet is bounded. D-26 requires the grant to stay one named, greppable method rather than being inlined into an allocation path, so the toggle is findable when it's revisited; `health.tres` carries `on_cap_rise = 1` (FOLLOW) deliberately. The *infinite* version is closed at the other end: `deallocation_points.tres` sets `on_cap_rise = 0` (PIN), so a node granting `+1 max DP` raises the maximum **without** granting a spendable point. Both halves are pinned by `test_entity_health_scaling.gd` — don't "tidy" either flag. The recorded-but-not-adopted alternative (voluntary dealloc subtracts the delta and is illegal if lethal; forced dealloc reduces max only) is the first thing to reach for if the ratchet misbehaves.
-
-**CON (D-11/D-12/D-14, #269) — the level→CON grant lives on the board, and only there (user decision, 2026-07-24).** D-15 originally named `BalancedCore` as its home, mirroring `+1 STR/DEX/INT per level`. It was settled the other way: the board intrinsic means **every** entity's durability scales with level regardless of core class, which is the asymmetry #269 existed to fix. **`BalancedCore` therefore contributes the +10 CON *base* grant (#271) but must NOT get a per-level CON entry in its `level_scaling` modifiers** — that would double-count against the board intrinsic. CON is the one attribute whose level channel is board-side; STR/DEX/INT remain class-side.
-
-`constitution.tres`'s `default_value` is **0**, not 10 like the other four attributes — deliberately, so a level-1 *bare* board's `node_health` baseline stays at flat 10. The +10 baseline arrives as BalancedCore's class grant (#271), matching how the other attributes get theirs.
-
-CON does **not** get an intrinsic targeting `armor` or `min_damage_taken` — D-11 decision 3 is load-bearing (a prior draft that let CON drive `armor` produced a permanent dead zone against uninvested attackers). `test_constitution.gd` guards this explicitly.
-
-**Procgen home (v4, #321):** `procgen/pools/constitution.tres` is CON's own `StatPack` (`archetype_stat = &"constitution"`, mirrors `strength.tres`'s ADD_BASE/INCREASE/MULTIPLY pools targeting the `constitution` stat itself — not `node_health` directly). It is a **mixed pack**: alongside the CON-primary `StatPool`s it carries **universal** pools (`archetype_stat == &""` — `node_health` INCREASE, `armor` ADD_BASE, and the `intelligence` INCREASE **debuff** `unit_value=-5, max_tier=1` whose negative cost refunds 1 budget). Universal pools are drawn by *every* node regardless of `primary_stat` — they are v4's shared defensive/mobility axis (D-12's off-archetype phase is gone; v4 deleted `off_phase_op_weights`, `Role.DEFENSIVE`, `flatten_for_phase`; see `docs/domain/procgen-v4.md`). `test_constitution_pool.gd` pins the universal pools + debuff; `test_constitution.gd` pins the board intrinsics.
-
-**`constitution.tres` is a mixed pack** — v4's `flatten_for_node(primary_stat)` filters per `StatPool.archetype_stat`: CON-primary pools are drawn only by CON nodes, universal pools (`&""`) by every node. The pack-level `archetype_stat` is inert documentation. Moving a pool between "primary" and "universal" is *not* a no-op in v4 (it changes which nodes draw it) — author the per-pool `archetype_stat` deliberately.
-
-**#299 also dropped `node_health` ADD_BASE entirely.** Base `node_health` is `10 + CON` and `BalancedCore` grants +10 CON at level 1, so a flat `+2–4` draw was numerically identical to the `+10–20%` INCREASE draw at level 1 and decayed from there. Only the percent channel survives, re-ranged to `+5–15%` (floor is 5% because `node_health` is INT-typed: at an L1 base of 20, a `+2%` roll is +0.4 HP and rounds away).
-
-**HUD gap (#228, partially closed by #289):** `AttributeRules` no longer has a per-attribute `match`, so CON's hover lines (`node_health`, `health`) now render. `ui/hud/attributes_panel/attributes_panel.gd` still hardcodes the 5-attribute row/radar list, so CON has no row to hover from — that half remains open under #228.
-
+A child stat folds its ancestors' bins, never their base (mechanics in the rule). Shipped families: `damage` → `blade/spell/ranged_damage`; `attributes` → the six attributes; `status_resistance` → every `<aspect>_resistance`; `dot_stacks_per_hit` → the four `<family>_stacks_per_hit`; `aspects` → every `<concept>_aspect`. Each parent is an ordinary typed `ScalarStat` on `EntityStatBoard` (default 0, its own value never read), so a sparse board drops a family modifier like any absent stat. A node-local grant on a parent reaches a node with no child stat of its own (`bins_for`) — the Ninja's Phantom Strike is one `+5 damage`. A consumer that lists stats by id lists the child only, never child + parent.
 
 ## Local stats (per-node overrides)
 
-**Grant routes are data on `StatDef` (#1275)** — a SkillNode's two routes only (loot and core classes write a board directly):
-- **`local_grantable`** (default **false**): may a node grant it onto its own board (addon `local_modifiers`, an effect's node grant)? True iff production code folds it per node. The local door has two bodies, each gated once: `SkillNode.add_local_modifier` (live) and `NodeCombat.add_local_modifier`'s `host == null` branch (shadow — status effects and `EffectContext.grant(_at)` reach it); both `push_error` and reject anything else, and the door returns its verdict so `EffectContext` never ledgers a reject (producers never re-check). A new node-local read means flipping this flag on its def.
-- **`entity_grantable`** (default **true**): may a node grant it to its owner (`modifiers`, addon `entity_modifiers`)? False iff a strip's revoke corrupts a ledger (`skill_points`, `level`, `xp`). `StatRegistry.is_entity_grantable` vetoes a parent whose descendant is non-grantable. Both entity doors reject the whole modifier.
-- `StatRegistry.check_residency()` errors at load on a def neither on the entity board, nor a node pool def (`NodeStatBoard.pool_def_ids()` — `node_combat_health` / `node_spikes`, minted from, never targeted), nor `local_grantable`. `test_stat_grant_routes.gd` lints shipped content against both flags.
+**Grant routes are data on `StatDef`** (a SkillNode's two routes only; loot and core classes write a board directly):
+- `local_grantable` (default false): may a node grant it onto its own board (addon `local_modifiers`, an effect's node grant)? True iff production code folds it per node. Two gated bodies: `SkillNode.add_local_modifier` (live) and `NodeCombat.add_local_modifier`'s `host == null` branch (shadow); both `push_error` and reject anything else, and the door returns its verdict so `EffectContext` never ledgers a reject. A new node-local read means flipping this flag.
+- `entity_grantable` (default true): may a node grant it to its owner (`modifiers`, addon `entity_modifiers`)? False iff a strip's revoke corrupts a ledger (`skill_points`, `level`, `xp`). `StatRegistry.is_entity_grantable` vetoes a parent whose descendant is non-grantable. Both entity doors reject the whole modifier.
+- `StatRegistry.check_residency()` errors at load on a def that is neither on the entity board, nor a node pool def (`NodeStatBoard.pool_def_ids()`), nor `local_grantable`. `test_stat_grant_routes.gd` lints shipped content against both flags.
 
-`SkillNode.node_board` is a `NodeStatBoard` — owned stats baked, borrowed ones created only when a node-local modifier targets them (via `_ensure_local_stat(id)`) or when the node is allocated (combat health pool). No `LocalStat` class — the merge happens directly: `StatBoard.get_stat(id)` may differ per board, and combined reads use `ModifierBins.compute()` with bins from both the entity and node board.
+`SkillNode.node_board` is a `NodeStatBoard`: owned stats baked, borrowed ones created when a node-local modifier targets them (`_ensure_local_stat(id)`) or the node is allocated (combat health pool). No `LocalStat` class — combined reads use `ModifierBins.compute()` over bins from both boards. `SkillNode.get_local_value(id)` returns the combined value without allocating (entity pass-through when the node board has no stat), falling back to `StatRegistry.get_def(id).default_value` when neither board carries it. SET tiebreak: highest priority wins, at equal priority the last source wins, and the read orders `[entity.bins, node.bins]`, so a node-local SET beats an entity SET.
 
-Read side: `SkillNode.get_local_value(id)` returns the combined value without allocating — entity stat pass-through when the node board has no stat for that id. Modifier target side: `_ensure_local_stat(id)` creates (if needed) and returns the stat on `node_board`; addons route their `local_modifiers` here.
+**A new `StatDef` goes in `stats_system/stat_def_roster.tres`, not just `defs/`.** `StatRegistry` reads that authored roster and never scans the directory — an exported PCK rewrites every `.tres` to `.res` + remap, so a scan finds nothing and every stat lookup fails while the editor and suite stay green. `test_stat_def_roster.gd` fails if the directory and roster drift. See `docs/domain/exporting.md`.
 
-**SET tiebreak:** highest priority wins; at equal priority **last source listed wins**. The combined read orders `[entity.bins, node.bins]` so a node-local SET beats an entity SET at the same priority.
+**Node regen** (`node_healing`, `node_healing_ramp`): node-local scalars read through `get_local_value`; flat per-turn heal and the extra per consecutive undamaged turn. The stack counter is runtime state on `SkillNode` (`regen_stacks`), not a stat; there is deliberately no cap stat (the ramp stops at max HP and resets). Turn-start refill-to-full does not exist — damage persists; `SkillNode.refill()` serves the allocation path only, and the resulting dealloc/realloc full-heal is an accepted interaction (it costs DP/MP). See `docs/domain/node-hp.md`.
 
-For entity-absent fallback: `get_local_value(id)` uses `StatRegistry.get_def(id).default_value` when neither board carries the stat.
+**Shots are runtime state, not a stat.** `max_shots_per_leaf` is the entity-board scalar (default 5, read node-locally: × `stake_level__current` intrinsic, + Watchtower `local_modifiers`), but what a leaf fired this turn lives in `SkillNode.shots_fired_this_turn`; `shots_left()` is the subtraction. It must survive a same-turn dealloc → re-allocate (allocation refills node pools) and reset at the firer's turn end even if the node changed hands. Bump it only via `mark_shot_fired(n)` from the command commit path and append the node to `Entity._fired_nodes_this_turn` in the same breath; `finish_turn` resets exactly that set. `volleys_launched_this_turn` on the Entity is the same shape against `volleys_per_turn`.
 
-**A new `StatDef` must be added to `stats_system/stat_def_roster.tres`, not just dropped in `defs/`.** `StatRegistry` reads that authored roster and **never scans the directory** — a scan finds nothing inside an exported PCK (the exporter rewrites every `.tres` into `.res` + `.tres.remap`), which shipped a build where *every* stat lookup failed while the editor and the whole suite stayed green. That is #597 D13, "directory scan for editor and test code, authored array for runtime". `test/unit/test_stat_def_roster.gd` fails if the directory and the roster drift apart, so this is enforced, not remembered. See `docs/domain/exporting.md`.
+### CoreClass auras
 
-**`StatDef.lower_is_better` (#729) is which way is "up" for a stat — `false` by default (more is better), set `true` for a stat where less is the win (`min_damage_taken`, `dealloc_damage`).** `StatDef.is_improvement(delta: float) -> bool` is the one accessor: `delta < 0.0 if lower_is_better else delta > 0.0`, `0.0` never an improvement either way. It's a **DELTA predicate only** — it can't judge an absolute value, just whether a change is better or worse — so `DeltaChip.pop(delta, decimals, suffix, def)` consumes it directly (the optional `def` colours the chip by polarity while the arrow/sign stay arithmetic truth), and `StatModifier.valence()` composes it with the op law below. `StatValueRow`, floaters and `StatModifier.format()` stay untouched; `ModSlabRow.bind` reads `valence()` and renders a BANE as a cursed slab (`SlabRow.SlabStyle.HARMFUL` — the stat hue stays on the text, the material turns to `Emissive.HARMFUL`, the same red `DeltaChip.negative_color` reads).
+A class's turn-start healing aura is `HealAuraEffect` (`effects/heal_aura_effect.gd`), an `AuraEffect` authored on `CoreClass.effects`. Falloff is whatever `reach`/`metric`/`distance_scale` the resource carries: Balanced pairs `HopRangeFinder(max_hops 4)` with `ExpressionScale("v - d")` over hops 0–4.
 
-**The valence law (#1050): a modifier's delta is its value's DISPLACEMENT FROM ITS OP'S NEUTRAL ELEMENT.** `StatModifier.displacement_from_neutral(op, v)` is the single home of "which value is this op's no-op" — `v` for ADD_BASE / ADD_BONUS / INCREASE (neutral `0`), `v - 1` for MULTIPLY (neutral `1`), `NAN` for SET (no neutral element to measure from — callers MUST `is_nan()` first). It is static and value-taking so a procgen candidate can be judged before any `StatModifier` holds it; `GraphProcgen._is_neutral_result` routes through it rather than keeping a second copy, keeping only its own two rules (a SET is never a no-op; coerce to the stat's type first) at the call site.
-
-`StatModifier.valence(board = null) -> Valence` composes that with `is_improvement`: **BOON / BANE / NEUTRAL / VOLATILE**. VOLATILE is the owner's fourth state for "no side to pick" — a SET (NAN displacement), a **sign-flipping MULTIPLY** (`value <= 0`, the one op that carries the held value across zero, so two of them cancel), and an unresolvable `stat_id`. Valence is **holder-relative, never viewer-relative**: an enemy's `-3% Dexterity` still reports BANE, and it never consults `ownership_bit`. It reads the same number the row next to it prints — `board` goes straight to `get_effective_value`. **Never re-derive `sign XOR lower_is_better` at a call site**, and never `log(v)` for MULTIPLY (rejected: `log(-1.0)` is a silent NaN that fails both comparisons, quietly rendering a `×-0.4` as a bane). `StatPool._get_configuration_warnings()` flags a MULTIPLY pool whose folded `1 + magnitude` range reaches `<= 0`, since nothing authors a sign-flipper on purpose today.
-
-**A stat is volatile on a read iff a modifier THAT READ FOLDS has `valence(board) == VOLATILE` (#1238)** — `Stat.is_volatile()` (its own bound modifiers, judged on its own `_board`, so a formula MULTIPLY crossing zero at runtime counts), `StatBoard.is_stat_volatile(id)` (entity readout; never mints), `NodeCombat.is_local_volatile(id)` / `SkillNode.is_local_volatile(id)` (node board OR owner's entity board — the two sources `get_local_value_with` folds). No special cases, no cache.
-
-### Node regen stats (`node_healing` / `node_healing_ramp`, D-9 #270)
-
-Two **node-local** scalars read through `get_local_value` — so a single node can be tuned to regen faster than its owner's baseline. `node_healing` is the flat per-turn heal; `node_healing_ramp` is the extra granted per consecutive undamaged turn.
-
-The stack counter itself is **runtime state on `SkillNode` (`regen_stacks`), not a stat** — same reasoning as node HP: it's per-node combat bookkeeping that resets constantly and nothing should be able to modify it. **There is deliberately no cap stat**; the ramp self-limits by stopping at max HP and resetting. Don't add one.
-
-**Shots are runtime state too, not a stat (#956).** `max_shots_per_leaf` is the entity-board scalar (default 5, read node-locally: × `stake_level__current` intrinsic, + Watchtower `local_modifiers`), but what a leaf has *fired* this turn lives in `SkillNode.shots_fired_this_turn` and `shots_left()` is the subtraction — never a node-board pool, never a modifier. **Why:** it must survive a same-turn dealloc → re-allocate (allocation refills node pools — `SkillNode.refill()`, spikes-to-full — so a pool would read full again; nothing on the allocation path touches a runtime field) and must reset at the *firer's* turn end even if the node changed hands. **How to apply:** bump it only via `mark_shot_fired(n)` from the command commit path and append the node to `Entity._fired_nodes_this_turn` in the same breath — `finish_turn` resets exactly that set (the `_spiked_nodes_spent` discipline, never a sweep). `volleys_launched_this_turn` on the Entity is the same shape against board `volleys_per_turn`, reset at turn start.
-
-Turn-start refill-to-full is **gone** (D-9) — damage persists across turns. `SkillNode.refill()` survives for the allocation path only, and the resulting dealloc/realloc full-heal is an **accepted interaction, not a bug** (it costs DP/MP and needs topology permitting the dealloc without islanding). See `docs/domain/node-hp.md`.
-
-### CoreClass auras (D-10, #270; ported onto `AuraEffect` in #720; CON scaling in #896)
-
-A class's turn-start healing aura is `HealAuraEffect` (`effects/heal_aura_effect.gd`), an `AuraEffect` subclass authored on `CoreClass.effects` like any other class effect (Ninja/Serpent) — there is no separate `CoreClass.aura` field or standalone `CoreAura`/`HealAura` pair anymore. The falloff is whatever `reach`/`metric`/`distance_scale` the resource carries: Balanced pairs `HopRangeFinder(max_hops 4)` with `ExpressionScale("v - d")` for an absolute ladder over hops 0–4, `v` scaled with CON below (#900's scale-returns-the-value shape, not a derived range).
-
-- **`base` and `con_coefficient` live on the effect resource, NOT the stat board.** Don't add `aura_heal_base`/`aura_heal_range` as stats.
-- **Sub-linear CON scaling (#896, D-10): `v = base + con_coefficient × sqrt(CON)`** is what's handed to `distance_scale.scale(d, bound, v)` — CON read LIVE off `ctx.entity.stat_board.get_value(&"constitution")` every `_on_turn_start`, never cached on the resource (a board stat read as a formula input, see this file's own stat-formula-input rule). `sqrt` is deliberate: `node_health` grows ~linearly with CON, so a flat aura decays into irrelevance as levels climb, but matching that growth 1:1 would keep the fortress dominant forever. **`max_hops` never scales** — the level channel is the payload only, coverage stays ~quadratic in radius regardless of CON.
-- **Hop distance is measured over the OWNED subgraph** (`entity.navigator`, reached through `EffectContext.navigator`) via `RangeFinder.gather`, never the global navigator and never `in_range` in a loop — see `.claude/rules/graph.md`.
-- **A payload-channel subclass, not a membership one** (see `docs/domain/effect-system.md`'s payload seam): the heal is a per-turn amount, so `HealAuraEffect` overrides `_on_turn_start(ctx)` rather than `_grant_to` — `_grant_to` is a deliberate no-op, and `_has_payload()` reads `base > 0.0 or con_coefficient > 0.0 or distance_scale != null` since this channel carries no `modifiers`.
-- The aura heals **through** the damage gate but **grants no ramp**; it's additive outside the ramp term: `total = (node_healing + stacks × ramp) + aura_at_hop`.
-- **Clamped at 0 regardless of `discard`.** A negative computed value would be damage with no `AttackRecord` behind it (`.claude/rules/attack-timeline.md`), so `_on_turn_start` does an explicit `maxf(computed, 0.0)` before healing rather than relying on the `discard` policy, which only ever decided whether a MODIFIER-channel value was worth granting.
-- `AuraEffect` itself is a **channel, not a payload** — armor/damage auras are equally valid alongside heal ones. Don't hardcode "aura == healing" into its shape.
-
-### Node combat health
-
-The node's health is a `PoolStat` on `node_board` with **id `node_health`** — the same id as the entity board's ScalarStat baseline, a different `Stat` class — minted off the **`node_combat_health` def** (`StandardPoolStatDef`, FOLLOW on *both* cap axes). The id and the def are not the same string; this line said `node_combat_health` was the id until #702. `deplete()` / `restore_to_full()` replace the old `current_hp` float. The def is INT and `current` stays float storage written only whole: each of the four HP doors (`NodeCombat.take_damage`/`heal_damage`, `EntityCombat.take_pool_damage`/`heal`) floors its magnitude once via `HitPoints.land` (ADR 0017) — never floor in `Mitigation` or a formula.
-
-**Nothing pushes the cap per node (#660).** The `base_value` sync from the owner and the `value_changed` subscription re-pushing it as CON moved are both deleted: `NodeCombat._hp_pool` installs a **`PoolStat.base_provider`** reading the owner's baseline, so the cap is derived on read, and FOLLOW-on-both makes the pool `stores_missing()` — it keeps damage taken, not an absolute fill. `SkillNode._refresh_hp_binding` is the ownership transition alone now. Consequences (a cap that moves with no notification, path independence, the sliver): `docs/domain/stat-knobs-and-bins.md` § "The policy also chooses the stored representation".
+- `base` and `con_coefficient` live on the effect resource, not the board — don't add `aura_heal_*` stats.
+- `v = base + con_coefficient × sqrt(CON)` is handed to `distance_scale.scale(d, bound, v)`; CON is read live off `ctx.entity.stat_board.get_value(&"constitution")` every `_on_turn_start`, never cached. `sqrt` because `node_health` grows ~linearly with CON. `max_hops` never scales.
+- Hop distance is measured over the owned subgraph (`entity.navigator` via `EffectContext.navigator`) through `RangeFinder.gather`, never the global navigator and never `in_range` in a loop (`.claude/rules/graph.md`).
+- A payload-channel subclass (`docs/domain/effect-system.md`): the heal is a per-turn amount, so it overrides `_on_turn_start(ctx)` rather than `_grant_to` (a deliberate no-op); `_has_payload()` reads `base > 0 or con_coefficient > 0 or distance_scale != null`.
+- Heals through the damage gate, grants no ramp: `total = (node_healing + stacks × ramp) + aura_at_hop`. Clamped at 0 by an explicit `maxf(computed, 0.0)` — a negative value would be damage with no `AttackRecord` behind it (`.claude/rules/attack-timeline.md`).
 
 ## Turn-start upkeep
 
-`Entity.begin_turn` runs at the owning entity's turn start. It does, in order: **pool replenishment** (one declarative sweep), **wound healing** (bespoke), **node HP refill**, then the **class hook**.
+`Entity.begin_turn` runs, in order: pool replenishment (one declarative sweep), wound healing (bespoke), node HP refill, the class hook.
 
-### Pool replenishment is declarative (`per_turn_mode`)
+"Per turn" is four verbs, set by `PoolStatDef.per_turn_mode` (default `NONE`):
 
-"Per turn" is **three different verbs**, not one — don't conflate them:
+| `PerTurnMode` | Operation | Pools |
+|---|---|---|
+| `REFILL` | `restore_to_full()` | `action_points`, `deallocation_points`, `movement_points`, `tempo` |
+| `ADD` | `current += <rate stat>.value` (clamped) | `xp` (+`xp_per_turn`) |
+| `HOST_ADD` | the pool does nothing; `Entity._apply_turn_upkeep` reads `PoolStat.host_upkeep_amount` and calls `EntityCombat.heal(amount, rate_id)` | `health` (+`core_healing`) |
+| `CUSTOM` | `PoolStat._custom_turn_upkeep(board)` | `skill_points` (heals `wound_heal_per_turn` wounds) |
 
-| Verb | `PerTurnMode` | Operation | Pools |
-|---|---|---|---|
-| Reset-to-cap | `REFILL` | `restore_to_full()` | `action_points`, `deallocation_points`, `movement_points`, `tempo` |
-| Top-up by a rate | `ADD` | `current += <rate stat>.value` (clamped) | `xp` (+`xp_per_turn`) |
-| Top-up through the host's heal door | `HOST_ADD` | the pool does nothing; `Entity._apply_turn_upkeep` reads `PoolStat.host_upkeep_amount` and calls `EntityCombat.heal(amount, rate_id)` | `health` (+`core_healing`, #997) |
-| Bespoke | `CUSTOM` | `PoolStat._custom_turn_upkeep(board)` override | `skill_points` (heals `wound_heal_per_turn` wounds) |
+`StatBoard.apply_per_turn_upkeep()` enumerates every `PoolStat` field (`get_pool_stats()`) and calls `pool.run_turn_upkeep(self)`. **A new pool opts into upkeep by setting `per_turn_mode` on its def, not by editing `begin_turn`.** ADD resolves its rate through `PoolStatDef.resolved_per_turn_stat_id()` and `push_warning`s if missing. `initiative` is `NONE` (TurnManager ticks it).
 
-`PoolStatDef.per_turn_mode` (base-class field, default `NONE`) declares the verb. `StatBoard.apply_per_turn_upkeep()` enumerates every `PoolStat` field by introspection (`get_pool_stats()`) and calls `pool.run_turn_upkeep(self)`; the per-pool behaviour lives on `PoolStat`, the board is just the sweep. So **a new pool opts into upkeep by setting `per_turn_mode` on its def, not by editing `begin_turn`** (that was the footgun: `movement_points` was never restored and a regen-rate stat was never consumed because nobody remembered to wire them). ADD resolves its rate stat through `PoolStatDef.resolved_per_turn_stat_id()` and `push_warning`s if it's missing.
+**ADD's rate stat is `<id>_per_turn` by convention, overridable via `per_turn_stat_id`** — `health`'s rate is `core_healing`, named for the mechanic (D-25 and the #268 balance invariant use that name). Override only for that reason. A `CoreClass.on_turn_started` hook is not the place for pool upkeep.
 
-**ADD's rate stat is `<id>_per_turn` by convention, overridable by name (#277).** `per_turn_stat_id` on `PoolStatDef` (empty = the convention) exists because `health`'s rate is **`core_healing`**, named for the mechanic rather than for the pool it fills — D-25 names it, and #268 registers a balance invariant using that name, so renaming it to `health_per_turn` to fit the convention would break the traceability the design is written against. Set the override only for that reason; a rate stat with no independent identity should keep the convention. A `CoreClass.on_turn_started` hook is *not* the place for this — pool upkeep stays declarative (see the footgun above). **Every heal enters through one door per host (#997, owner: "All heals must consult it"):** `NodeCombat.heal_damage` for `node_health`, `EntityCombat.heal` for `health` — each multiplies by `healing_received` once, `raw := true` is the only bypass, and `test/unit/test_heal_door_drift.gd` scans the tree for a `replenish`/`set_current`/`.current +=` on either pool outside the two door bodies. That is why `health` is `HOST_ADD` rather than `ADD`: the def still names the rate and the route, but the pool hands the amount to the host instead of replenishing itself, so an entity-hosted Wither inverts the core's own trickle exactly as it inverts node heals.
+**Every heal enters through one door per host:** `NodeCombat.heal_damage` for `node_health`, `EntityCombat.heal` for `health`; each multiplies by `healing_received` once, `raw := true` is the only bypass, and `test/unit/test_heal_door_drift.gd` scans the tree for a `replenish`/`set_current`/`.current +=` on either pool outside the two door bodies. That is why `health` is `HOST_ADD` rather than `ADD`: an entity-hosted Wither inverts the core's own trickle exactly as it inverts node heals.
 
-**`CUSTOM` and the def-vs-stat hook split:** `wound_heal` isn't a pool top-up — it transfers SP from the `wounded` reservation back to `current` (a bin move inside `SkillPointStat`, conditional on `wounded > 0`). It can't be REFILL/ADD, so `skill_points` is `CUSTOM` and `SkillPointStat._custom_turn_upkeep()` does the `heal()`. Note this hook lives on the **stat** (`PoolStat`/`SkillPointStat`), whereas `on_pool_filled` / `on_max_increased` live on the **def** (`PoolStatDef` subclasses): cap-shape behaviour varies by def archetype → on the def; behaviour that touches the stat's *own extra state* (the SP bins) → on the stat. **Behaviour lives where its data lives.** A stray `REFILL`/`ADD` on `skill_points` would corrupt the `wounded`/`staked` bins — `test_per_turn_upkeep` guards the CUSTOM path.
+**The hook split: behaviour lives where its data lives.** `on_pool_filled` is on the **def** (cap-shape varies by def archetype); `_custom_turn_upkeep` is on the **stat** (it touches the stat's own extra state). Wound healing transfers SP from `wounded` back to `current` — a bin move, so `skill_points` is `CUSTOM`; a stray `REFILL`/`ADD` there would corrupt the `wounded`/`staked` bins (`test_per_turn_upkeep` guards it). `wound_heal_per_turn` defaults to 1.
 
-`wound_heal_per_turn` defaults to 1. Tuning lever: raise to recover faster from forced deallocs; drop to make wound damage stickier.
+**Fractional rates accumulate.** `SkillPointStat.wound_heal_progress` (0..1, runtime-only) banks `wound_heal_per_turn` each upkeep; once it crosses 1.0 and `wounded > 0` it heals 1 SP and drains by 1.0, so a 0.5 rate heals one SP per two turns. While `wounded == 0` it holds at a capped 1.0, so the next turn after a wound heals immediately. `wound_heal_progress_changed(progress)` feeds `turn_resources_panel.gd`'s sliver.
 
-**Fractional rates accumulate, they don't truncate.** `SkillPointStat.wound_heal_progress` (0..1, runtime-only) banks `wound_heal_per_turn` every turn upkeep; once it crosses 1.0 *and* `wounded > 0` it heals 1 SP and drains by 1.0. A rate below 1 (e.g. 0.5 — two turns per healed SP) would silently heal nothing forever under a naive `int(rate)` per-turn call, which is what this replaced. While `wounded == 0` the progress holds at a capped 1.0 instead of wrapping — nothing to spend it on yet — so it reads "full" until the entity is wounded again, at which point the *very next* turn upkeep immediately heals and drains it. `wound_heal_progress_changed(progress)` is what `turn_resources_panel.gd` binds its sliver to; the label showing the rate itself is always visible (not gated on `wounded > 0`) since the rate is a stat a player wants to see even unwounded.
+**`health`'s upkeep (`core_healing`)** is an integer heal, placeholder `1`/turn, **ungated and unramped**: a gate only exists to make a ramp meaningful, and a ramping out-of-combat heal rewards the camping the forced-dealloc cascade is engineered to punish. Node regen does ramp and is gated — don't unify them. `test_core_healing.gd` pins the no-gate/no-ramp contracts. Invariant (#268): `core_healing >= dealloc_damage × nodes_lost_per_turn` makes camping viable again; `1` is break-even against a 1-node chip.
 
-`health` is `HOST_ADD` with `core_healing` as its rate (D-25, #277; the door since #997): an **integer** heal, placeholder `1`/turn, **ungated and unramped**. No damage gate — a gate only exists to make a ramp meaningful, and a ramping out-of-combat heal would reward exactly the camping D-10's forced-dealloc cascade is engineered to punish. (Node regen *does* ramp and *is* gated — D-9 — because a held node recovering is territory you are defending. Don't unify the two.) Integer rather than a sub-1 sliver because the gauges already render an "incoming next turn" band: `hero_sigil_card.gd` binds `health` ← `core_healing` (the same way `xp_track.gd` binds `xp` ← `xp_per_turn` since XP moved out of the card in #320), so the UI cost was zero. `test_core_healing.gd` pins the no-gate and no-ramp contracts.
+**Turn end:** `Entity.finish_turn` transfers each unused action point into next turn's `deallocation_points`/`movement_points` surplus: `boost = roundi(unused_ap × ap_transfer_rate)` (ScalarStat, default 2; a Pacifist raises it, a Berserker drops it to 0). It runs at turn end because unused AP is only known then; `set_surplus` overwrites, so a turn that spends all AP self-clears the prior boost. `Entity.DEFAULT_AP_TRANSFER_RATE` is the fallback for sparse/test boards.
 
-**#268 invariant, named not implemented:** if `core_healing >= dealloc_damage × nodes_lost_per_turn`, camping is viable again and D-10's structural guarantee is silently undone. `1` is the break-even against a 1-node-per-turn chip — a placeholder per D-13, not a blessed value.
+Then, for each owned node `SkillNode.refill()`, and `core_class.on_turn_started(self)` (default no-op).
 
-`initiative` is the remaining `NONE` pool (tick-driven by TurnManager, not the sweep).
+## Effect-granted modifiers
 
-### Turn-*end*: unused-AP → DP/MP surplus (#152)
+`Effect`s grant modifiers through `EffectContext.grant(mod, target)`, which `.duplicate(true)`s once and records the handle in the `EffectInstance` ledger (`target` null = entity board, or a `SkillNode`'s `node_board`). **Provenance is the retained handle, not a field**: `StatModifier` has no `source` and `ModifierBinding.Kind` stays dormant. **Never store runtime state on an `Effect`** — one `.tres` is shared across every carrier; state goes on the per-grant `EffectInstance`. Entity-scoped node modifiers route through `SkillNode.add_entity_modifier` / `apply_entity_modifiers_to(board)`; node-scoped ones through `add_local_modifier` / `remove_local_modifier` (`docs/domain/effect-system.md`).
 
-`Entity.finish_turn` transfers each unused action point into next turn's `deallocation_points`/`movement_points` **surplus**, scaled by the **`ap_transfer_rate`** ScalarStat (default 2 — see "Turn Budget" board field). `boost = roundi(unused_ap × rate)`; the product is rounded so a future fractional/DEX-scaled rate doesn't truncate. Because `ap_transfer_rate` is an ordinary board stat, **class identity tunes it with no bespoke mechanism** — a Pacifist raises it, a Berserker drops it to 0 (see `PacifistCore`). `Entity.DEFAULT_AP_TRANSFER_RATE` is the fallback only for sparse/test boards that carry no such stat. This lives at turn *end*, not start, because unused AP is only known then; turn-start REFILL then leaves the surplus untouched (it's outside the cap). `set_surplus` **overwrites**, so a turn ending with all AP spent writes 0 and self-clears the prior boost. See the `SurplusPoolStat` note under "Pool stats".
+**`EffectContext.grant_at(mod, values, target)` writes the duplicate's leaves before granting.** Duplicate, walk `duplicate.flatten()`, SET each leaf's `.value` from `values[i]` (`PackedFloat32Array`, `flatten()` order, one already-computed value per leaf), then apply through the ordinary `grant`/`add_local_modifier` path. A write after bind is silently lost: `add_modifier` and `add_local_modifier` flatten a composite and bind each leaf, so the composite's own `value` is vestigial, and on a clone board `StatBoard._localize` hands the binder a private copy of a formula-bearing modifier so mutating the original never reaches it. One array rather than a per-leaf call because a composite is granted as one ledger handle.
 
-### Then: node refill + class hook
+**The local-scale ladder is reapplied at insert.** The ladder is linear (`1 : 2 : 3`) and MULTIPLY scales its growth part (`1 + (X−1)·ladder`) — ADR 0004. The law is `LocalScaleMutator` (`skill_node/local_scale_mutator.gd`, a stateless verb over `NodeState`); `SkillNode` keeps the `stake_level.current_changed` trigger. A modifier lands on `add_local_modifier` at its authored (al=1) value, then `SkillNode.add_local_modifier` calls `LocalScaleMutator.scale_modifier(state, m, 1, _last_allocation_level)` to bring it to the node's current level immediately. No double-scale: the ladder is floored at 1, so `al ∈ {0, 1}` both read baseline and the later per-stake-change delta composes (grant at al=3, stake to 4: ×4/3; `test_grant_at_al3_then_stake_round_trip_returns_exactly_no_double_scaling`). Scaling stays with `SkillNode`, not `AuraEffect` — an aura pre-scaling would be scaled again by the next `apply` walk — and covers every `add_local_modifier` caller, addons included. An aura scales its *distance*, never the node's allocation ladder.
 
-- (for each node owned by the entity) `SkillNode.refill()` — node combat HP back to max.
-- `core_class.on_turn_started(self)` — the wired class runs its own per-turn effects (caster flourishes, rage decay, etc.). Default hook is a no-op.
+A modifier that appears at allocation level K uses `LevelGatedModifier` (`stats_system/level_gated_modifier.gd`): neutral element below `unlock_level`, authored value at and above, no laddering; an override of `_local_scale_override`, so the board path and `scaled_copy` both honour it. SET unsupported.
 
+## Dependency-cycle rejection
 
-## Effect-granted modifiers (#4)
+The formula dependency graph (`stat_id -> formula.get_input_ids()`) must stay a DAG: a cycle doesn't error or hang, it settles on a silently wrong, evaluation-order-dependent value. `test/unit/test_stat_dependency_graph.gd` checks shipped content (board intrinsics + each core class on top); `StatBoard.cycle_from(m)` (`would_cycle(m)` the bool wrapper) is the runtime half for a modifier added later (a looted formula modifier rebinding to the looter's board). It folds the candidate's edges onto everything applied and runs a DFS; `StatBoard.add_modifier` calls it as a precondition and rejects (`push_warning`, no-op) before binding any leaf, so a rejection leaves the board unchanged. **The warning reports the offending path, never `m.stat_id`** (a composite's is empty).
 
-`Effect`s grant modifiers through `EffectContext.grant(mod, target)`, which
-`.duplicate(true)`s once and records the handle in the `EffectInstance` ledger.
-`target` is null (entity board) or a `SkillNode` (its `node_board`).
+- **The search is rooted at the candidate's own target stats.** Any cycle through a new edge is reachable from that edge's tail; a whole-graph search would reject an innocent modifier for a cycle it had no part in. A candidate with no edges yields no roots and the live graph is never folded.
+- **Edges are collected in place:** `StatModifier.collect_formula_edges(out)` defines an edge (`CompositeStatModifier` recurses); `Stat.collect_formula_edges(out)` folds its own `_modifiers`. There is deliberately no `Stat.get_modifiers()` — an escaped array lets a caller append an unbound modifier.
+- **Live vs authored are two reads, on purpose:** `StatBoard.collect_formula_edges` reads what is applied; `StatBoard.adjacency_from(mods)` (static) reads an authored array, which the static test needs before anything is applied. `StatBoard.find_cycle(adjacency, roots := [])` is shared (empty roots = whole graph). Don't re-derive the DFS.
+- **Runtime rejection has no notion of who should win** — the second arrival is rejected. `Entity._ready` runs `stat_board.apply_intrinsics()` then `core_class.apply(self)`, so a shipped conflict would drop the class modifier; flip the order and it voids a board intrinsic. Don't reorder, and don't treat `would_cycle` as sufficient: `test_every_authored_core_class_is_acyclic_on_top_of_the_board` discovers classes via `CoreClass.load_all()` (with a `MIN_CORE_CLASSES` vacuity floor) so a new class is enrolled automatically.
+- `SkillNode.add_local_modifier` does not route through `StatBoard.add_modifier` (`get_stat` would drop a sparse-board target) but mirrors its cycle-check → bind → resolve-target sequence against `node_board`.
 
-**Provenance is the retained handle, not a field.** `StatModifier` still has no
-`source`, and `ModifierBinding.Kind` stays dormant — the ledger makes `revoke_all`
-exact without changing the schema. Don't add a source field for this.
+## Modifier packs
 
-**Never store runtime state on an `Effect`** — a single `.tres` is shared across
-every entity carrying it. State goes on the per-grant `EffectInstance`.
+`CompositeStatModifier extends StatModifier` is a modifier pack, optionally atomic for loot: it bundles child modifiers into one atom for storage/authoring and flattens into its children wherever a modifier is applied or fully listed. Both uses are by reference (author one `.tres`, drop it into any `CoreClass.modifiers`):
+- **Authoring reuse** (`loots_as_unit = false`): a shared batch, e.g. `stats_system/packs/attribute_baseline.tres` (+10 STR/DEX/INT, used by `balanced_core`, `basic_enemy_core`, `ninja_core`). `LootSystem._expand_for_loot` expands these into separate candidates before the lootability filter, so a mixed static/level-scaling pack filters per leaf.
+- **Loot bundle** (`loots_as_unit = true`, default): a buff/debuff pair balanced only as a unit, looted all-or-nothing (`ninja_core.tres`'s `mod_budget_pack`, +2 DP / −1 SP).
 
-Entity-scoped node modifiers now route through `SkillNode.add_entity_modifier` /
-`apply_entity_modifiers_to(board)` rather than callers hand-rolling
-`modifiers.append(m)` + `board.add_modifier(m)`. Node-scoped ones go through
-`add_local_modifier` / `remove_local_modifier`. See `docs/domain/effect-system.md`.
+**A `CoreClass` `.tres` is a leaf**: it never references another `CoreClass`; shared batches live in its typed arrays (`modifiers` via a pack, `effects` via a shared `Effect` `.tres`). Packs live in `stats_system/packs/` so `CoreClass.load_all()` never picks one up as a phantom class (D-27, `docs/adr/legacy-mvp-decisions.md`).
 
-### `grant_at` writes the duplicate's LEAVES, before granting (#623, #900)
+The whole feature is one virtual, `StatModifier.flatten() -> Array[StatModifier]` (a leaf returns `[self]`). **Keep whole** for storage/authoring/loot (`CoreClass.modifiers`, `core_location.modifiers`, loot `candidates`: one entry / one pick-N-from-M candidate). **Flatten** at the two apply seams — `StatBoard.add_modifier`/`remove_modifier` and `SkillNode.add_local_modifier`/`remove_local_modifier` — and at display sites listing every leaf: `GrantedModifiersRoot._rebuild_rows`, `LootPicker._make_card`, `SkillDustAddon.grant_mod` and `AllocationVfx` (one floater per leaf). `StatModifier.flatten_all(mods)` is the list-level helper. The composite's own `stat_id`/`operation`/`value`/`formula`/`priority` are inert (hidden via `_validate_property`); a child's `emit_changed()` reaches its Stat through normal wiring. `duplicate(true)` deep-copies `children`.
 
-`EffectContext.grant_at(mod, values, target)` — the aura distance path — must
-never write the modifier it hands to `grant`/`add_local_modifier`
-*after* the fact. `StatBoard.add_modifier` and `SkillNode.add_local_modifier`
-both flatten a `CompositeStatModifier` into its children and bind each **leaf**
-directly; the outer composite's own `value` field is vestigial from that point
-on, so a post-bind write to it is silently lost. The same shape bites a
-**plain** formula-bearing modifier on a clone/shadow board too:
-`StatBoard._localize` (`stat_board.gd:401-408`) hands the binder a *private
-copy* the moment `_is_clone` and `m.formula != null`, so a post-bind mutation
-of the original object never reaches what got bound.
+**Gotcha:** testing `m is CompositeStatModifier` while iterating a typed `Array[StatModifier]` is a parse error (script path vs `class_name`); copy into an untyped `var mods: Array` first (`test_composite_stat_modifier.gd`).
 
-The fix (and the only correct shape): duplicate, walk `duplicate.flatten()`,
-SET each **leaf's** `.value` from `values[i]`, THEN apply the already-valued
-duplicate through the ordinary `grant`/`add_local_modifier` path. Composites,
-shadow boards, and formula-bearing modifiers all fall out of this for free —
-there is nothing downstream left to get wrong. Never reintroduce a
-write-after-bind to `grant_at`.
+## Class identity and level
 
-**#900 renamed it from `grant_scaled` and changed what it takes**: one
-already-computed value per leaf (`PackedFloat32Array`, in `flatten()` order),
-not a single multiplier. `DistanceScale.scale(d, max, v)` now returns the value
-itself, so there is nothing left here to multiply — and a composite's leaves
-each get their own result, which a single float could not express. It stays one
-array rather than a per-leaf call because a composite is granted as **one**
-handle: `_apply` ledgers it once and `add_modifier` does its own flattening.
+Per-entity class bonuses live on `Entity.core_class: CoreClass` (`entity/core/`), not on the board's intrinsic list. `Entity._ready` calls `core_class.apply(self)` once, installing every `CoreClass.modifiers` entry directly with **no per-entry duplication**: the same modifier instances are safe across every entity of that class because binding lives on each entity's board. `Entity.core_modifiers` is the register of modifiers permanently granted to the core, unflattened, which `LootSystem`'s draw reads; `grant_core_modifier` is the only writer. `BalancedCore` is the +10 STR/DEX/INT (and CON) baseline, plus +1 each per level, against which other classes are tuned. Procgen sandboxes pass the class to `GameRoot.spawn_entity(..., core_class)`; hand-authored scenes set it on the Entity.
 
-### The local-scale ladder (#376) is reapplied at INSERT (#634)
+**`level` is a plain INT `ScalarStat` (default 1)**, written imperatively: `Entity._on_xp_replenished` does `stat_board.level.base_value += 1`, whose `value_changed` walks the reactive path every formula source uses. `Entity.level` is a proxy onto `stat_board.level.value` / `.base_value` (fallback 1 for boards with no `level`); there is no separate counter. Level stays moddable (`+2 level` is legal); the level-up writes `base_value` so it never double-counts level modifiers.
 
-The ladder itself is **linear — `1 : 2 : 3`** — for every scaling modifier
-alike, and MULTIPLY scales its *growth part* (`1 + (X−1)·ladder`), not its whole
-value. Settled, re-affirmed, and not to be re-argued without evidence from play:
-**[ADR 0004](../../docs/adr/0004-the-allocation-level-magnitude-ladder-is-linear.md)**.
-The law lives in `skill_node/local_scale_mutator.gd` (`LocalScaleMutator`, a stateless verb over a `NodeState`); `SkillNode` keeps only the `stake_level.current_changed` trigger, and the swap ledgers live on `NodeState`.
+**Per-level class bonuses are ordinary modifiers.** "+1 STR per level" is one `StatModifier` in `CoreClass.modifiers` with `value = 1.0` and `formula = level_scaling.tres` (`ExpressionFormula("level - 1")`, so level 1 sits on the authored baseline). There is no `level_up_modifiers` field and no per-level-up mutation. The shared formula is one file, so retuning the curve is a one-file edit. **Keep it file-backed**: `duplicate(true)` preserves a file-backed sub-resource's identity and copies an inline one, and the `Entity.stat_board` setter's `duplicate(true)` and `EffectContext.grant()`'s per-grant duplicate would each fork an inline formula silently.
 
-A modifier lands on `add_local_modifier` at its AUTHORED (baseline, al=1)
-value — an aura re-grant included, since #623's fix scales the aura's
-*distance*, never the node's allocation ladder, and those are different
-owners that must not merge. `SkillNode.add_local_modifier` therefore ends by
-calling `LocalScaleMutator.scale_modifier(state, m, 1, _last_allocation_level)` — the same
-universal-law / `_local_scale_override` walk `apply` runs per
-stake change — bringing the freshly bound handle up to the node's *current*
-allocation level immediately, rather than leaving it at baseline until the
-next `stake_level` change happens to fire `_on_stake_level_changed`.
+**A `StatModifier` instance can live on N boards at once.** Both it and `StatFormula` are stateless — binding lives on `StatBoard` (`bind_modifier` / `unbind_modifier`, recomputed from `formula.get_input_ids()`). `.duplicate(true)` before `add_modifier()` is only for a genuinely independent value per grant (loot draws, addon sub-resources without `resource_local_to_scene`).
 
-**Why this doesn't double-scale:** `_local_scale`'s ladder is floored at 1, so
-`al ∈ {0, 1}` both read as baseline — a fresh grant is always "coming from
-al=1" regardless of `_last_allocation_level`'s literal value at grant time.
-`LocalScaleMutator.apply`'s later per-stake-change call then applies its OWN delta
-from wherever the handle now sits, which composes correctly (grant at al=3,
-stake to 4: `x 4/3`) — see `test_grant_at_al3_then_stake_round_trip_returns_exactly_no_double_scaling`.
+**Query level bonuses with `StatModifier.scales_with(&"level")`**, not a marker field. It asks every leaf via `flatten()`, survives duplication, and holds for a class authoring its own `ExpressionFormula("(level - 1) * dexterity")`. Two call sites with opposite signs — the HUD listing (include) and `LootSystem._is_lootable` (exclude); route a third through it. **Level-scaled mods are not lootable**: a looted copy would rebind to the looter's level, granting a scaling relic nobody designed.
 
-**Ownership stays with `SkillNode`, not `AuraEffect`.** The rejected
-alternative — an aura pre-scaling by `allocation_level` before granting —
-would leave the *next* `LocalScaleMutator.apply` walk applying its delta AGAIN on
-top (double-scaling), and would split the ladder's authority across two
-systems. Scaling at insert needs no new state (bind and scale are one act) and
-covers every `add_local_modifier` caller — addons included, not just auras.
+`core_kill_xp` is a flat board-authored scalar `loot_system.gd` adds once on top of the territory term when the victim's own core dies (60 on `default_entity_board.tres`; 20 / 40 / 60 on the small / medium / large blocker boards).
 
+## Damage mitigation, DoT and healing
 
-## Dependency-cycle rejection (#322)
+`Mitigation.apply(raw, defender_node)` (`attack/formulas/mitigation.gd`) runs inside `SkillNode.take_damage` before HP soak: `final = max(min_damage_taken, raw.amount - armor)`. `TRUE` damage bypasses it; `raw.amount <= 0` returns 0. `armor` (default 0) and `min_damage_taken` (default 3) are board stats; a defensive core can drive `min_damage_taken` below 0 so damage heals nodes. The floor is not a cap: at `raw=1, armor=-1` you take 3. **Both are read node-locally** through `defender.get_local_value(...)`, which merges the node's bins with the owner's, so a node-scoped modifier (`bunker_addon.tscn`'s `armor ADD_BONUS +5`, a core aura) reaches the formula. A formula that takes a board instead of a node would discard node-local `armor` while `combat_readout_card.gd` still displays it — the failure mode is a stat that displays right and computes wrong.
 
-The formula dependency graph (`stat_id -> formula.get_input_ids()`, i.e. "this stat
-depends on that one") must stay a DAG — `StatModifier._propagating` only guards
-re-entrancy on one modifier's `_on_source_changed`, so a genuine A→B→A cycle doesn't
-error or hang, it just settles on a **silently wrong, evaluation-order-dependent**
-value. `test/unit/test_stat_dependency_graph.gd` statically checks the shipped
-content (board intrinsics + each core class layered on top) is acyclic; it cannot
-cover a modifier added at **runtime** (a looted formula modifier rebinding to the
-looter's board, where its source may already derive from its own target).
+**Forced-dealloc damage.** When a node's combat HP hits 0, `BattleSystem._on_node_depleted` runs the cascade; each cascaded node costs the defender, bypassing `Mitigation`: `skill_points.wound(1)` (SP moves `used` → `wounded`, reserved until `wound_heal_per_turn` ticks it back; hardcoded 1) and `health.deplete(dealloc_damage.value)` (default 1; a fragile-core class raises it, Glass Cannon = 3). A 5-node cascade at `dealloc_damage = 2` deals 5 wounds + 10 HP, ignoring armor.
 
-`StatBoard.cycle_from(m)` is the runtime half (`would_cycle(m)` is its bool
-wrapper): it folds the candidate's edges into a graph, folds everything already
-**applied** on top, and runs a DFS. `StatBoard.add_modifier` calls it as a
-precondition and rejects (`push_warning`, no-op) rather than accept-and-corrupt —
-checked *before* any leaf is bound, so a rejection leaves the board provably
-unchanged. **The warning reports the offending path, never `m.stat_id`** — a
-`CompositeStatModifier`'s `stat_id` is vestigial/empty, and a bundle is the case
-most worth diagnosing.
+**DoT stacks and resistance.** Each status folds through one attacker-side stacks stat and one defender-side resistance. Stacks (FLOAT, entity-scope, default 0): `poison_`/`corruption_`/`curse_`/`wither_stacks_per_hit` (parent `dot_stacks_per_hit`) plus parentless `blindness_`, `bleeding_` and `hex_stacks_per_hit`; `bleeding_resistance` (parent `status_resistance`); identity stats `bleeding_aspect` / `hex_aspect` (parent `aspects`). A `StatusDef` names its stat in `stacks_stat_id` (armor-break: blank); `StatusDef.stacks_per_hit(board, authored)` is the one fold — the authored per-hit power is a `base_add` overlay in one `get_value_with` read, never floored (1 × +49% lands 1.49); a null board, blank id or unknown stat answers the authored power. `StatusInstance.land_on` lands that once (`power_resolved`) and `AttackRecord.rebuild` marks the hit resolved so a peer replays the landed number flat.
 
-**The search is rooted at the candidate's own target stats, not at every vertex.**
-Edges run `stat_id -> input`, so any cycle containing a newly added edge is
-reachable from that edge's tail — rooting there is sufficient *and* strictly
-narrower. That's correctness, not just speed: a whole-graph search reports a cycle
-the candidate had no part in and rejects an innocent modifier for it. It also
-means a candidate with no edges (static, or a formula with no declared inputs)
-yields no roots and the live graph is never folded at all — the short-circuit
-falls out of the shape instead of being a special case.
+Resistances (FLOAT fraction, default 0.0: `poison_`, `corruption_`, `curse_`, `blindness_resistance`; Wither has none) are read on the host via `get_local_value` like armor. They are a **live filter at effect time** (ADR 0031): `StatusHost.effective_power` hands every apply/tick `row − ⌈row × res − ½⌉` (half-down, clamped to `[0, row]`) while the row decays raw; `>= 1.0` blocks landing and a standing row deals 0 but decays. `DotTick.tick_damage` floors each projected tick through `HitPoints.land`. Procgen: each family lives in one attribute pack (poison DEX, corruption STR, curse CON, wither INT, blindness PER); resistance (wither excepted) rolls on blessed nodes only, ADD_BASE unit 0.05, T2–T4; the stacks INCREASE row (unit 7 → +7/+21/+49%) on blighted nodes only; `dot_stacks_per_hit` ADD_BASE on blighted WIS. See `docs/domain/status-effects.md` § "The DoT model".
 
-**Edges are collected in place, never as a modifier list.**
-`StatModifier.collect_formula_edges(out)` is the single definition of what an edge
-is; `CompositeStatModifier` overrides it to recurse (same seam as `flatten()`,
-without the per-leaf array). `Stat.collect_formula_edges(out)` folds its own
-`_modifiers` — tell-don't-ask, so `_modifiers` never leaves the `Stat`. There is
-deliberately **no `Stat.get_modifiers()`**: handing that array out lets a caller
-append an unbound modifier that sits in the list without contributing to `bins`
-(silently wrong values, no error), and a per-stat copy on a path that wants a
-handful of edges is pure churn.
+**`healing_received`** (FLOAT, default 1.0) is read node-locally once at the top of `NodeCombat.heal_damage` (turn regen, the core aura, healing spells) and entity-locally once at the top of `EntityCombat.heal` (the `core_healing` HOST_ADD upkeep). `raw := true` is the only bypass. Product `<= 0` heals and cures nothing; `< 0` lands as TRUE damage flagged `DamageInstance.from_withered_heal`, the one damage path that does not set `_damaged_since_upkeep`, so the regen ramp keeps climbing and the node heals itself to death. `WitherStatus` plants an unclamped UNSCALED MULTIPLY of `1 − 0.1·stacks` on it.
 
-**Live vs. authored are two different reads, on purpose.** `StatBoard.collect_formula_edges`
-reads what is **applied** (`Stat._modifiers` across every field, hardcoded + `_extra_stats`);
-`StatBoard.adjacency_from(mods)` is `static` and reads an **authored** array — the
-board's `intrinsic_modifiers` and a `CoreClass.modifiers` are inert until
-`apply_intrinsics()` / `apply()` attach them. The static test needs the authored
-read because it must fire *before* anything is applied. Don't unify them.
-`StatBoard.find_cycle(adjacency, roots := [])` is shared by both (empty `roots`
-= whole graph, which is what the static check wants). Don't re-derive this DFS a
-third time.
+## Notification batching
 
-**Runtime rejection has no notion of who *should* win — the static check is what
-makes that safe.** Whichever side arrives second is the one rejected. `Entity._ready`
-runs `stat_board.apply_intrinsics()` **then** `core_class.apply(self)`
-(`entity/entity.gd:122-124`), so today a shipped conflict would drop the *class*
-modifier and keep the board intrinsic. Flip that order and a cycle silently voids a
-board intrinsic instead. Don't reorder it, and don't treat `would_cycle` as
-sufficient on its own: `test_every_authored_core_class_is_acyclic_on_top_of_the_board`
-is what stops shipped content from ever reaching the runtime gate. It discovers
-classes via **`CoreClass.load_all()`** (scans `CoreClass.DIR`), so authoring a new
-class enrols it automatically — the old hand-maintained preload list could go stale
-in silence. It carries a `MIN_CORE_CLASSES` vacuity floor because a directory scan
-that matches nothing passes every assertion below it.
+`StatBoard.begin_batch()` … `end_batch()` coalesces `value_changed` into one emission per stat that moved. `SkillNode.apply_entity_modifiers_to` / `remove_entity_modifiers_from` wrap their loops in one: an allocation is one logical event, and without it a node granting both `constitution` and `node_health` cascaded twice, each cascade re-syncing every owned node's HP pool (75–83% of an allocation's cost at 200 owned; `test/perf/bench_allocation_cost.gd`).
 
-**Scope note (#340):** `SkillNode.add_local_modifier` does NOT route through
-`StatBoard.add_modifier` — `get_stat` would silently drop a sparse-board target —
-but it mirrors that method's cycle-check → bind → resolve-target sequence locally
-against `node_board` (`cycle_from` gates it, `bind_modifier` binds each leaf). So
-node-local formulas do compute, and gate and binding ship together.
+- **Every emit site calls `Stat._emit_value_changed()`**, the helper that defers to the board; a raw `value_changed.emit()` silently opts out.
+- **Defers notification, never value**: `get_value()` recomputes from the bins, so a mid-batch read is correct. `PoolStat._apply_max_change` runs on the add/remove path, not off `value_changed`.
+- **The flush is ordered by formula dependency depth, and that ordering is load-bearing**: emitting a source re-dirties its dependents, so one emitted too early gets a second full cascade. `end_batch` keeps the depth up during the flush and erases each stat before emitting it. Nested pairs flush once, at the outermost end.
+- **Always pair it** — an unmatched `begin_batch` swallows every later notification on that board.
+- Contract tests: `test/unit/test_stat_board_batch.gd`; its ordering test dirties the dependent first on purpose so it doesn't pass vacuously.
 
+## Wire form (`to_dict` / `read_dict`)
+
+`StatBoard.to_dict()` → `{stat_id: Stat.to_dict()}`; `Stat.to_dict()` → `{"base", "mods": [StatModifier.to_dict(), …]}`, extended down the pool chain (`PoolStat` adds `current`, `SkillPointStat` `wounded`/`staked`, `SurplusPoolStat` `surplus`). Consumed by `network/entity_snapshot.gd` for the join handshake. Deliberate, and they bite if "tidied":
+
+- **Only accumulated state crosses.** Never `get_value()`, a `bins` field or a pool's cap — the receiver recomputes from base + modifier list. `used` is derived and absent.
+- **The board encodes itself — no `Stat.get_modifiers()`.** `test_entity_snapshot.gd` asserts neither class has one.
+- **`read_dict` reconciles, it does not wipe and replay.** An existing modifier whose wire form equals an incoming one is kept; only genuinely-new is minted, only genuinely-absent removed. That keeps an `EffectInstance`'s grant ledger (revoking by object identity) valid across a decode — a wipe strands every effect's handle and its buff sticks forever. Matching walks `_modifiers` newest-first, because in `EntitySnapshot`'s second pass a node-sourced effect's fresh grant sits next to pass 1's decoded copy and the later one is the ledgered handle.
+- **`PoolStat._read_base` mints and `current` is restored raw.** Transporting a cap is not a cap change, so the def's rise/fall policy must not move the restored `current`; `current` skips `set_current` because its crossings would fire `on_pool_filled` (a full `xp` pool levels the entity up on arrival) and `depleted` (a `health` pool at 0 kills it). `current_changed` / `value_changed` are emitted by hand so UI still updates.
+- **`StatBoard.read_dict` pre-syncs the register before the reconcile.** `Stat._reconcile_modifiers` matches against a bound modifier's full `to_dict()` (value included); after a remote loot merge moved a value (`1.0 → 1.25`), a joiner whose `intrinsic_modifiers` / `Entity.core_modifiers` still says `1.0` would mint a fresh bound `1.25` and leave the stale one unbound. `StatBoard.sync_register_from_wire` (on `intrinsic_modifiers` inside `read_dict`, and via the `restoring` signal on `Entity.core_modifiers`) moves each entry's `value` to match its wire form first — privatising through `StatBoard.privatize_register_entry` if file-backed. `StatModifierCodec.merge_key(m)` (`to_dict()` minus `"value"`) is the shared comparison with `Entity.absorb_core_modifier`'s loot-merge.
+
+## BOOL stats
+
+`StatDef.ValueType.BOOL` fits a stat whose only question is "granted or not" and a magnitude would mislead; `deflection` is the only one. `armor`, `blunting`, `spike_regen`, `swing_drag` stay INT/FLOAT. `deflection` is read as `bool(sn.get_local_value(&"deflection"))` in exactly one place, `MeleeAttackPlan.build_obstacle_field`. `Stat._coerce` returns a real GDScript `bool` (`v != 0.0`). `ModifierPoolEntry`'s BOOL branch clamps a rolled ADD_BASE/ADD_BONUS to `1.0`/`0.0`; `deflection` is addon-authored and in no procgen pool, so don't build a pool entry to reach it. **The no-mint invariant** holds across the sparse node-local defender tier (`deflection`, `swing_drag`, `blunting`, `spike_regen`): reading one off a node that never had the granting addon returns the def default and mints nothing (`test_defender_stat_no_mint.gd`).
+
+Display has two type-aware doors: `StatDef.format_number(BOOL, v)` → `"True"`/`"False"` (the direct-value path, `StatValueRow`), and `StatModifier._format_value`, which renders a BOOL modifier as a bare trait line — the stat's display name alone, no sign or number, whatever the op (`Deflection`, not `+1 bonus Deflection`). INCREASE / MULTIPLY on a BOOL stat is a content error: it `push_warning`s and still renders the bare line. `contribution_text` (the stat-name-omitted "+10"/"×1.5" form used by the visualizer and per-leaf allocation floaters) is not type-aware.
+
+## Visualizer (editor plugin)
+
+`addons/stat_board_visualizer/` — an Inspector button on any `StatBoard` `.tres` mounts it in the "StatBoard" bottom panel; the runtime F3 overlay is `ui/stat_board_overlay/`.
+- **Add modifiers** with the toolbar `+` or by dragging one stat's port to another's (presets as Linear `source × scale`). Disk-backed boards persist via `ResourceSaver`; runtime boards mutate in memory only.
+- **Attribute/level override sliders**: an editor-only `attribute_override_bar.tscn` writes a stat's `base_value` in memory, gated on `_board.resource_path != ""`, so intrinsic rows can be read at any STR/DEX/INT/level spread without touching the `.tres`; `_save_board_preserving_overrides()` restores authored values, saves, then reapplies the override.
+- **Expression formula inputs are auto-derived** by `ExpressionFormula.detect_inputs(text, candidates)` (word-boundary regex, live-validated in the dialog). Candidates are the board's stat ids plus each stat's accessor tokens (`health__current`, …) from `stat.accessors()`, in the expression-mode list only — they are not stats and never appear in the target/linear-source dropdowns.

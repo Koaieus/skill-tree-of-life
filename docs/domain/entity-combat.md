@@ -5,7 +5,7 @@ from the `Node` notification half so that a whole attack — the forced-dealloc
 cascade and entity death included — can resolve on a detached SHADOW without
 touching `Events`, `AllocationSystem`, or any real `SkillNode` / `Entity`. The
 timeline this serves, the shadow-world design and why cloning nodes was the
-wrong answer are in `docs/domain/attack-timeline.md` ("The substrate seam");
+wrong answer are in `docs/domain/attack-timeline.md` ("The world is ALWAYS a shadow");
 this page is the class contract.
 
 ## `host` is set once and never reassigned
@@ -90,3 +90,74 @@ belongs on `EntityCombat`; a hook that only tells someone belongs on the host.
 A caller done with a SHADOW calls `free_shadow()` on it. Ordinary refcounting
 cannot do it: the instance and its owned `NodeCombat`s form a reference cycle
 (see the method's own doc for the exact shape).
+
+## State vs notification
+
+Every mutation site splits into a **state change** (a plain `RefCounted`) and a
+**notification** (stays on the Node), so a simulation runs the state half
+against a throwaway copy with one implementation of the logic.
+
+```
+SkillNode (Area2D)                    NodeCombat (RefCounted)
+├── visuals, collision, addons        ├── board: NodeStatBoard   ← Resource, duplicated
+├── signals, Events, presentation     ├── owner: EntityCombat
+└── _combat ──────────────────────────┤ host: SkillNode  (null on a shadow)
+                                      └── take_damage / heal / is_allocated
+```
+
+`SkillNode` composes the live `NodeCombat`; a shadow has `host == null`, so the
+notification branch does not exist for it. `StatBoard` / `NodeStatBoard` extend
+`Resource` and deep-duplicate (`NodeState.ensure_board()` does
+`source.duplicate(true)`), so the stat system is untouched, and
+`_node_board_ready` is lazy and driven from every write path, so a detached slice
+initialises with no scene tree. Cloning `SkillNode`s instead cannot work: a
+duplicated node still reaches `Events.skill_node_damaged`, `owned_by.dispatch`
+and `LootSystem` (via `Events.entity_dying`) through global surfaces, so a
+simulated kill would grant real XP.
+
+## What the shadow copies
+
+A revocation ledger is not enough: `AuraEffect.recompute` does `ctx.revoke_all()`
+and then **re-derives every modifier from the current world**, so any
+distance-scaled aura recomputes its *values*, not merely its membership. The
+shadow is a real copy of:
+
+- **every affected entity's complete owned subgraph** — HP and ownership per node
+- those entities' stat boards
+- **magic only:** unallocated nodes within the spell's hop reach, which exist
+  purely as propagation conduits for spells whose filter admits them
+
+with the effect hooks able to run against it — no scene tree, no addons as
+children, no physics.
+
+`EffectContext` is addressed at an `EntityCombat`, not an `Entity`, so no
+`Effect` implementer knows the difference and the same `recompute` rebuilds
+against a shadow board. `EntityCombat` carries the shadow's stand-ins for what
+the live `Entity` owned: the effect ledger (`EffectInstance.clone_for` — rows
+copied, live handles kept, because `StatBoard._localized` translates them), the
+tag store, and the mirror an aura measures over. `apply_cascade`'s shadow branch
+does what `force_deallocate` does, in its order: revoke sweep, ownership, then
+dispatch `_on_node_deallocated` — which is what makes wave N+1 read post-cascade
+armour.
+
+**A shadow slice never falls back to the live world for a node lookup** — that
+fallback is how an aura recomputing on a shadow would grant node-local modifiers
+to real nodes. A bare `EntityCombat.snapshot()` mints a private `CombatWorld` and
+frees it with itself.
+
+**Do not reach-bound the owned subgraph.** Copying only nodes the attack can
+physically touch computes the wrong cascade:
+`BattleSystem._on_node_depleted` calls
+`defender.navigator.nodes_islanded_by_removing(node, defender.core_location)`,
+which walks the defender's *entire* territory, and a node fifty hops from the
+impact can be in the cascade. Unowned nodes can be skipped, and only because
+their sole gameplay function is to be a spell conduit.
+
+## What a shadow cannot hold
+
+Melee's hit detection is a **physics query against the real world**
+(`space_state.intersect_shape`), and a shadow holds no collision shapes. This is
+fine because nothing moves nodes mid-attack: the scan runs once against the real
+world for geometry and only the gate re-evaluation is shadowed. A mechanic that
+displaces a node during a swing breaks this assumption.
+

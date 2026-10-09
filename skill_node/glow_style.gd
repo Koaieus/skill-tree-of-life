@@ -18,7 +18,7 @@ extends Resource
 ## All radii are RELATIVE to the node boundary (`radius`) so they track node
 ## size: the glow fades in `inner_feather` px inside the peak, peaks
 ## `peak_outset` px past the boundary, and reaches 0 by `outset` px past it.
-## See `.claude/rules/skill-node-visuals.md`.
+## See `docs/domain/skillnode-visuals.md`.
 
 ## Glow tint. The alpha channel scales overall brightness.
 @export var color: Color = Color.YELLOW_GREEN:

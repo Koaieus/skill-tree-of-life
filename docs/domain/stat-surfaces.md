@@ -1,15 +1,16 @@
 # Stat → surface map
 
-One row per `stats_system/defs/*.tres` id (54 total, `ls stats_system/defs/*.tres |
-wc -l`). "Surface" names the scene/script that renders the id — file only, no
-line numbers (they rot). A `hidden` row's reason is a **proposal**: the drone's
-best read of the id's own `.tres` `description`, not a decided call — the owner
-confirms or re-homes each one in review (see #914).
+One row per `stats_system/defs/*.tres` id (`ls stats_system/defs/*.tres`).
+"Surface" names the scene/script that renders the id — file only, no line
+numbers. A `hidden` row's reason is the id's own `.tres` description read as a
+proposal, not a decided call.
 
 This is a map, not a test: code mentioning an id doesn't prove it's visible,
-and a genuinely hidden stat (a pure formula input) is a valid, intended state —
-not a bug to fix. Register a new stat here when you add its `.tres`
-(`.claude/rules/stats-system.md` → "No metadata-driven stat panel").
+and a genuinely hidden stat (a pure formula input) is a valid, intended state.
+Register a new stat here when you add its `.tres` (the HUD has no
+metadata-driven stat panel — see `.claude/rules/stats-system.md` → Gotchas).
+Out of date? grep `get_stat`/`get_local_value`/`bind.*stat` in `ui/` and
+cross-check the tables.
 
 ## Attributes & senses
 
@@ -23,12 +24,12 @@ not a bug to fix. Register a new stat here when you add its `.tres`
 | `perception` | `ui/hud/attributes_panel/attributes_panel.gd` (`ATTR_IDS`) |
 | `vision_range` | `ui/hud/attributes_panel/attributes_panel.gd` (Senses row) |
 | `sensor_range` | `ui/hud/attributes_panel/attributes_panel.gd` (Senses row) |
-| `core_health_scaling` | `ui/hud/attribute_rules.gd` (`AttributeRules.describe`), surfaced via `ui/hud/attributes_panel/attributes_panel.gd`'s radar-axis hover tooltip — hovering the CON axis lists `mod_con_to_health` ("+1 Max Health per CON × core scaling", `entity/default_entity_board.tres`), a live `intrinsic_modifiers` entry formula'd off this stat. Indirect: the coefficient itself isn't printed, its effect is (owner-confirmed 2026-09-16, was proposed hidden) |
-| `node_health_scaling` | Same radar-axis-hover path as `core_health_scaling`, via `mod_con_to_node_health` (owner-confirmed 2026-09-16, was proposed hidden) |
+| `core_health_scaling` | `ui/hud/attribute_rules.gd` (`AttributeRules.describe`), surfaced via `ui/hud/attributes_panel/attributes_panel.gd`'s radar-axis hover tooltip — hovering the CON axis lists `mod_con_to_health` ("+1 Max Health per CON × core scaling", `entity/default_entity_board.tres`), a live `intrinsic_modifiers` entry formula'd off this stat. Indirect: the coefficient itself isn't printed, its effect is |
+| `node_health_scaling` | Same radar-axis-hover path as `core_health_scaling`, via `mod_con_to_node_health` |
 
 ## Combat readout cards
 
-Since #913 (a338840) a plain stat row is scene-authored — a `CombatValueRow`
+A plain stat row is scene-authored — a `CombatValueRow`
 instanced in the card's `.tscn` with its own `stat_id`, self-binding; the
 card's `.gd` no longer names the id for these. Cited file is the `.tscn`
 below unless noted otherwise.
@@ -61,15 +62,15 @@ below unless noted otherwise.
 | `level` | `ui/hud/hero_sigil_card/hero_sigil_card.gd` |
 | `xp` | `ui/hud/xp_track/xp_track.gd` |
 | `xp_per_turn` | `ui/hud/xp_track/xp_track.gd` |
-| `sp_gain_on_levelup` | `ui/hud/xp_track/level_up_flourish.gd` (`stamp()`'s "+N SP — LEVEL L" detail line) — indirect: the SP total comes from `Entity.sp_minted_for_level()` (`entity/entity.gd`), which reads this stat plus the every-5th-level milestone bonus (owner-confirmed 2026-09-16, was proposed hidden) |
-| `ap_transfer_rate` | `ui/hud/action_cluster/action_cluster.gd` (`_refresh_conversion()`, the "⇒ +N move · +N dealloc" line, scene-ordered directly above `EndTurnButton`) — indirect: shows the computed conversion, not the raw rate (owner-confirmed 2026-09-16, was proposed hidden). A named-rate hover sub-row is spec'd but unbuilt — see the follow-up issue below |
+| `sp_gain_on_levelup` | `ui/hud/xp_track/level_up_flourish.gd` (`stamp()`'s "+N SP — LEVEL L" detail line) — indirect: the SP total comes from `Entity.sp_minted_for_level()` (`entity/entity.gd`), which reads this stat plus the every-5th-level milestone bonus |
+| `ap_transfer_rate` | `ui/hud/action_cluster/action_cluster.gd` (`_refresh_conversion()`, the "⇒ +N move · +N dealloc" line, scene-ordered directly above `EndTurnButton`) — indirect: shows the computed conversion, not the raw rate A named-rate hover sub-row is spec'd but unbuilt |
 
 ## Initiative
 
 | id | surface |
 |---|---|
-| `initiative` | `ui/initiative_bar.gd` (the per-seat clock bar); also ordering only, via `TurnManager.forecast` (`systems/turn_manager.gd`, reads `initiative.current`), drawn by `ui/hud/turn_forecast/turn_forecast_strip.gd` — never a printed number there (#910) |
-| `initiative_speed` | Ordering only, via `TurnManager.forecast` (`systems/turn_manager.gd`, reads `initiative_speed.value`), drawn by `ui/hud/turn_forecast/turn_forecast_strip.gd` — no direct numeric row anywhere (#910 drift since the #914 research pass) |
+| `initiative` | `ui/initiative_bar.gd` (the per-seat clock bar); also ordering only, via `TurnManager.forecast` (`systems/turn_manager.gd`, reads `initiative.current`), drawn by `ui/hud/turn_forecast/turn_forecast_strip.gd` — never a printed number there |
+| `initiative_speed` | Ordering only, via `TurnManager.forecast` (`systems/turn_manager.gd`, reads `initiative_speed.value`), drawn by `ui/hud/turn_forecast/turn_forecast_strip.gd` — no direct numeric row anywhere |
 
 ## Node visuals & the tooltip-fan node panel
 
@@ -98,31 +99,51 @@ above).
 | `cast_range_hops` | `ui/hud/combat_readout/combat_card_magic.gd` — the Hop reach row, always the describe tier (`resolve_with([]).describe()`, e.g. "(X+3) × 1.5"). Base 0 by contract — the spell's authored reach folds in as an overlay, so the card never prints a bare number |
 | `cast_range_distance` | No surface drawn yet; base 0 by contract like `cast_range_hops` |
 
-## Hidden — owner-confirmed 2026-09-16
+## Quiver, volleys, infusion, ammo aspects
 
-None of these have a HUD row anywhere in the tree; each reads only as a
-formula input or a turn-upkeep tuning lever. `core_health_scaling`,
-`node_health_scaling`, `sp_gain_on_levelup`, and `ap_transfer_rate` were
-proposed hidden here too, but turned out to already have a real (if indirect)
-surface on investigation — see the tables above. The two rows below were
-settled with the owner in conversation (2026-09-16, see #914); UI specs for
-`tempo` and a richer `ap_transfer_rate` readout exist but are unbuilt — see
-the follow-up issues linked from #914.
+| id | surface |
+|---|---|
+| `arrows` | `ui/hud/command_tray/bodies/ranged_body.gd` (base arrows are the remainder `N − Σ specials`) and `volley_bar.gd` |
+| `arrows_per_reload` | node-local (`skill_node/addons/defs/watchtower_addon.tscn`); no row of its own |
+| `max_shots_per_leaf` | `skill_node/shots_pips.gd` (per-leaf shot pips) |
+| `volleys_per_turn` | no row; derived from `max_shots_per_leaf` (innate intrinsic) |
+| `infusion_slots` | `ui/hud/command_tray/bodies/infusion_row.gd` ("slots used / infusion_slots") |
+| `infusion_points` | `ui/hud/command_tray/bodies/infusion_row.gd` (points spent / `min(infusion_points, infusion_capacity)`) |
+| `*_aspect` (`armor_break`, `bleeding`, `blindness`, `corruption`, `curse`, `explosive`, `greed`, `hex`, `poison`, `scout`, `weakness`, `wither`) | caster affinity in `ui/hud/command_tray/bodies/affinity_line.gd` and `infusion_row.gd`; also the per-reload stat of a special ammo type |
+| `*_stacks_per_hit` (`bleeding`, `blindness`, `corruption`, `curse`, `greed`, `hex`, `poison`, `weakness`, `wither`) | `affinity_line.gd` (through `StatusDef.stacks_per_hit`) |
+| `*_resistance` (`bleeding`, `blindness`, `corruption`, `curse`, `poison`) | `ui/tooltip_fan/panels/node_stats_panel.gd` (dynamic, when a node or its owner carries one); also `addons/status_sandbox/` |
+| `healing_received` | no row; read at the heal doors (`NodeCombat.heal_damage`, `EntityCombat.heal`) |
+| `bounty` | no row; read by `systems/loot_system.gd` as a node's payout overlay |
+
+## Family parents
+
+`aspects`, `attributes`, `damage`, `dot_stacks_per_hit` and `status_resistance` are parent stats (ADR 0029): they fold into their children and have no entity-panel row. When one is minted on a node board (a Ninja aura's `+20% damage`), `node_stats_panel.gd` renders its terms through `StatRegistry.is_parent` — bins, never a value.
+
+## Hidden
+
+None of these has a HUD row; each reads only as a formula input or a tuning lever. `tempo` and a richer `ap_transfer_rate` readout have unbuilt UI specs.
 
 | id | reason |
 |---|---|
-| `blade_speed_half` | `v_half` in the speed-scaled blade damage curve (#779) — not attribute-driven (no `StatModifier`, read as a raw curve constant in `attack/melee/skill_blade.gd`/`blade_damage_instance.gd`), so it can't ride the attribute-hover path either. Visibility matters once blade-speed curve stats can roll as procgen modifiers — not before (owner call, 2026-09-16) |
-| `blade_speed_multiplier_max` | `M` in the same curve (#779) — same reasoning and same procgen-modifier condition as `blade_speed_half` |
-| `node_healing` | Base HP a node regenerates at turn start (D-9, #268 TBD) — node-local, read via `SkillNode.get_local_value`, no `StatModifier`. Blocked on #268 today; once it gets a surface, pair it with `node_healing_ramp` parenthetically, e.g. `node_healing (+ramp)` (owner call, 2026-09-16, matching the `armor + (min_damage_taken)` pairing convention). Also matters more once it can roll as a procgen modifier, same condition as blade_speed_half/multiplier_max |
-| `node_healing_ramp` | Extra HP `node_healing` gains per consecutive undamaged turn (D-9, #268 TBD) — same read path and #268 block as `node_healing`; display format decided alongside it above |
-| `tempo` | Once-per-turn kill-AP refund budget (#888) — a latch/pool consumed by the kill-refund mechanic, distinct from the action_points/deallocation_points/movement_points trio it refunds into. Placement spec'd (a lit/hollow pip trailing the AP gauge, owner call 2026-09-16) but unbuilt, and gated on a real mechanic question — see the follow-up issue |
+| `blade_speed_half` | `v_half` in the speed-scaled blade damage curve — a raw curve constant in `attack/melee/skill_blade.gd`/`blade_damage_instance.gd`, no `StatModifier`. Becomes visible once curve stats can roll as procgen modifiers |
+| `blade_speed_multiplier_max` | `M` in the same curve — same reasoning |
+| `node_healing` | Base HP a node regenerates at turn start — node-local, read via `SkillNode.get_local_value`. When surfaced, pair it with `node_healing_ramp` parenthetically (`node_healing (+ramp)`, like `armor + (min_damage_taken)`) |
+| `node_healing_ramp` | Extra HP `node_healing` gains per consecutive undamaged turn — same read path; display decided with `node_healing` |
+| `tempo` | Once-per-turn kill-AP refund budget — a latch consumed by the kill-refund mechanic, distinct from the AP/DP/MP trio it refunds into. Spec'd as a lit/hollow pip trailing the AP gauge; unbuilt |
+| `core_kill_xp` | XP bonus paid to the killer on this entity's core death — read once by `LootSystem`, not a standing stat |
+| `dealloc_damage` | Flat HP damage per forced-dealloc in a battle cascade — a tuning lever read inside the cascade resolver; its chip surfaces in the cascade toast at the core (`Events.entity_cascade_charged`: summed chip, `+N W` wound suffix) |
 
-## Hidden — still needs an owner pass
+## Stats in multiple UI locations
 
-Never brought up in the 2026-09-16 review pass; the original proposed reason
-stands until the owner confirms or re-homes it.
+Review these for intentionality when adding a component that re-displays an already-visible stat.
 
-| id | proposed reason |
-|---|---|
-| `core_kill_xp` | XP bonus paid to the killer on this entity's core death (#774) — a one-shot payout term, read once by `LootSystem`, not a standing stat with a row |
-| `dealloc_damage` | Flat HP damage per forced-dealloc in a battle cascade — a tuning lever read only inside the cascade resolver |
+| Stat | Locations | Why |
+|---|---|---|
+| `action_points` | `turn_resources_panel`, `action_cluster`, `command_tray` | pool overview, action readiness, spending gate |
+| `strength` / `dexterity` | attributes panel (+radar), combat cards (effective), node stats panel (mods) | raw vs effective vs mod breakdown |
+| `health` | `hero_sigil_card` (entity gauge), `skill_node/core_health_bar.gd` | entity-level vs node-level |
+| `armor` | `combat_card_defense`, node stats panel | effective vs mod breakdown |
+| `range` | `combat_card_ranged`, `ranged_body` | the tray shows it while planning a shot |
+| `node_combat_health` | node tooltip (hover), node inspector card (selected) | hover vs persistent selection |
+
+**New stat:** add its `StatDef` `.tres` (and its roster entry), then a row in the matching table above, or list it under Hidden with the consuming system. **New UI component:** add a column/row to the tables, and to "multiple locations" if it re-displays a visible stat.

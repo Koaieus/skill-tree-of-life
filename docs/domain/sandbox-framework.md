@@ -1,39 +1,34 @@
-# Unified sandbox framework (design)
+# Unified sandbox framework
 
-Status: **design / in progress.** Tracks the plan to fold the project's
-single-module sandboxes + editor plugins into one host. Phase 0 (the allocation
-VFX showcase) shipped; the rest is sequenced below. This doc is the source of
-truth for *why the obvious first step is a trap* and what to do instead — read it
-before touching `game_root.tscn` for "anti-drift" reasons.
+Status: **built** — one main-screen host with a live tab per module. Phase 3
+(jump-to-tab buttons on tab-able classes, finer live Inspector sync) is partly
+open. This doc is the source of truth for *why the obvious first step is a trap*
+and what to do instead — read it before touching `game_root.tscn` for
+"anti-drift" reasons.
 
 ## The goal
 
-We have several module-testing surfaces, each set up differently:
+Module-testing surfaces each re-derived graph + nodes + edges + entities +
+systems their own way, so they drifted from real gameplay. **If a sandbox
+mismatches the game, it's not proving anything.** One full-screen editor host
+with tabs; every tab drives the real systems.
 
-| Surface | Form today | Mode it wants |
+| Surface | Home | Mode |
 |---|---|---|
-| Spell cast / hop tuning | `addons/spell_playground/` (plugin) | live-edit |
-| VFX / projectile launcher | `addons/vfx_playground/` (plugin) | live-edit |
-| Stat-board visualizer | `addons/stat_board_visualizer/` (plugin) | live-edit |
-| Allocation / dealloc / death VFX | `addons/sandbox_host/tabs/40_allocation_tab.tscn` (live tab) | **live-edit** |
-| Melee blade | `addons/melee_sandbox/` (live tab, #256) | **live-edit** |
-| Status effects (one-node bench: apply / tick / log) | `addons/status_sandbox/` via `tabs/55_status_tab.tscn` (live tab, #1114) | **live-edit** |
-| Ranged — arrow looks (every `ammo_type_roster.tres` type, volley 1–20, dud / held / gained / crit board presets, fired through `BattleSystem.launch_attack` on a fresh `SandboxWorld` board per fire) | `addons/arrow_gallery/` via `tabs/11_ranged_tab.tscn` (live tab, #1479) — owns the arrow looks; `20_vfx_tab`'s primitive gallery stays the spell-coordinator parts catalogue, and `75_outcome_tab` stays a recorded-replay proof for spells | **live-edit** |
+| Spell cast / hop tuning | `addons/spell_playground/` via `tabs/12_spell_tab.tscn` | live-edit |
+| VFX / projectile launcher | `addons/vfx_playground/` via `tabs/20_vfx_tab.tscn` | live-edit |
+| Stat-board visualizer | `addons/stat_board_visualizer/` via `tabs/30_statboard_tab.tscn` | live-edit |
+| Allocation / dealloc / death VFX | `tabs/40_allocation_tab.tscn` | live-edit |
+| Loot | `tabs/50_loot_tab.tscn` | live-edit |
+| Melee blade | `addons/melee_sandbox/` via `tabs/10_melee_tab.tscn` | live-edit |
+| Status effects (one-node bench: apply / tick / log) | `addons/status_sandbox/` via `tabs/55_status_tab.tscn` | live-edit |
+| Ranged — arrow looks (every `ammo_type_roster.tres` type, volley 1–20, board presets, fired through `BattleSystem.launch_attack` on a fresh `SandboxWorld` board per fire) | `addons/arrow_gallery/` via `tabs/11_ranged_tab.tscn`; `20_vfx_tab`'s primitive gallery stays the spell-coordinator parts catalogue and `75_outcome_tab` the recorded-replay proof for spells | live-edit |
 | Ranged — played turn flow | — (none yet) | played |
-| Loot | — (foreseen) | played |
-
-Each re-derives graph + nodes + edges + entities + systems its own way, so they
-drift from real gameplay. **If a sandbox mismatches the game, it's not proving
-anything.** The vision: one full-screen editor host with tabs; tab-able classes
-expose a button that jumps to their tab; the host stays in sync with Inspector
-edits; eventually it auto-discovers tabs.
 
 ## The load-bearing distinction: two execution modes
 
-The old line was "allocation / battle / loot are non-`@tool` gameplay systems and
-don't run live in-editor" — **stale since the systems went `@tool`** (Allocation,
-Battle, Loot, Vision are all `@tool` now, #260 audited). The real kernel is
-narrower and holds:
+Allocation, Battle, Loot and Vision are all `@tool`, so the systems run in-editor.
+The kernel:
 
 > **auto-tick = played; explicit-step = live.**
 
@@ -48,211 +43,116 @@ ticking inside the editor: **`TurnManager` / AI**. Sandbox panels never
 `start_turn` / `end_turn` / `tick` — loot attribution only *adopts* the
 cursor (`turn_manager.adopt_turn(killer, tm.turns_taken)`, silent) before a kill.
 
-So the tab base must **declare its mode**:
 
-- **live-edit tab** (`@tool`, runs in-editor): stat visualizer, VFX look, spell
-  hops — and since #260 also the allocation / loot / death surfaces, which drive
-  the real (already-`@tool`) systems from explicit **▶ Play beat** / **▶ Kill**
-  buttons in a `SubViewport` world.
-- **played tab** (launch card, runs on play): only for surfaces that genuinely
-  need the runtime-only machinery to *auto-drive* — ranged, full turn
-  loops. **Melee was the headline example here and is no longer one:** a swing is
-  explicit-step (click Launch, watch a tween), so it went live. Only
-  `MeleePreview`'s idle ghost loop genuinely auto-drives, and the melee tab gates
-  that on tab focus rather than demoting the whole surface to played — which is
-  the general answer whenever a surface is *mostly* explicit-step. No shipped tab uses played mode since #260; the class is kept for
-  those.
+So the tab base **declares its mode**:
 
-"Don't promise live for everything" still holds — the line moved from "which
-systems" to "who drives the clock".
+- **live-edit tab** (`@tool`, runs in-editor): every shipped tab. Surfaces drive the
+  real systems from explicit **▶ Play beat** / **▶ Kill** buttons in a
+  `SubViewport` world.
+- **played tab** (launch card, runs on play): only for a surface that genuinely
+  *auto-drives* (full turn loops). No shipped tab uses it; the class is kept for
+  that case. When a surface is *mostly* explicit-step with one auto-driven part
+  (melee's `MeleePreview` idle ghost loop), gate that part on tab focus rather than
+  demoting the whole surface to played.
+
+The line is "who drives the clock", not "which systems".
 
 ## Why the naive `systems.tscn` extraction is a trap
 
-The instinct for anti-drift is: extract `GameRoot`'s `Systems` subtree into a
-reusable `systems.tscn` so everyone instances one wiring source. **Don't** — four
-findings (all verified 2026-06-28) undermine it:
+Extracting `GameRoot`'s `Systems` subtree into a reusable `systems.tscn` for
+anti-drift is the wrong abstraction:
 
-1. **Level scenes already inherit `game_root.tscn`.** `dev_sandbox`, `level`,
-   and `procgen_play_sandbox` are *inherited scenes* of `game_root.tscn` (and
-   since #584 `first_level_sandbox` inherits `level` in turn), so they already
-   share the Systems wiring for free. There is
-   no drift *between the real levels*. The drift victims are the **standalone
-   playgrounds**, which don't inherit it.
-2. **Standalone playgrounds want a *subset*, not the whole bundle.** The
-   allocation showcase deliberately omits `TurnManager` (no turn loop),
-   `VisionSystem` (fog would hide its nodes), `UIRoot`, input, and `LootSystem`
-   (would mutate the dead core). A monolithic bundle forces dormant-but-present
-   systems that actively misbehave (Vision fogs; Loot drops addons).
-3. **`%` unique names don't cross an instance boundary.** Verified: a node marked
-   `unique_name_in_owner` inside an instanced sub-scene is **not** reachable via
-   `%Name` from the instancing scene (returns null). `GameRoot` reads
-   `%AllocationSystem` … and `procgen_play_sandbox` reads `%VisionSystem`;
-   extraction forces an accessor rewrite (typed properties on the bundle root).
-4. **Inherited scenes override `Systems` children by path/index.**
-   `dev_sandbox.tscn` overrides `Systems/PlayerInputController.player` and
-   `Systems/VisionSystem.viewers` (declarative, the project's preferred style —
-   see `scene-composition.md`). Moving `Systems` into a sub-scene breaks those
-   overrides; the only repairs are (a) migrate them to code (degrades
-   dev_sandbox's clean declarative wiring) or (b) editable-children on the
-   instance (the fragile pattern we rejected). Either way fog/input break in a
-   way **unit tests won't catch**.
+1. **Level scenes already inherit `game_root.tscn`** (`dev_sandbox`, `level`,
+   `procgen_play_sandbox`; `first_level_sandbox` inherits `level`), so there is no
+   drift between the real levels. The drift victims are the standalone playgrounds.
+2. **Standalone playgrounds want a *subset*.** The allocation showcase omits
+   `TurnManager`, `VisionSystem` (fog would hide its nodes), `UIRoot`, input and
+   `LootSystem` (would mutate the dead core); a monolithic bundle forces systems
+   that actively misbehave.
+3. **`%` unique names don't cross an instance boundary** — `GameRoot` reads
+   `%AllocationSystem` and `procgen_play_sandbox` reads `%VisionSystem`; extraction
+   forces an accessor rewrite.
+4. **Inherited scenes override `Systems` children by path** (`dev_sandbox.tscn`
+   sets `Systems/PlayerInputController.player` and `Systems/VisionSystem.viewers`
+   declaratively, per `scene-composition.md`). Moving `Systems` into a sub-scene
+   breaks them in a way unit tests won't catch.
 
-Net: a monolithic `systems.tscn` adds risk to the most central scene while
-serving no consumer that isn't already served by inheritance. It's the wrong
-abstraction.
+## What anti-drift needs: a subset-capable, code-level scaffold
 
-## What anti-drift actually needs: a subset-capable, code-level scaffold
+`scenes/dev/sandbox_world.gd` is a `class_name`-less duck-typed helper:
+`build(graph, opts)` instantiates and wires the requested subset of systems with
+`GameRoot._ready`'s exact calls and exposes them as properties (allocation: the
+default core; loot: `{loot = true}` adds TurnManager + LootSystem).
 
-The standalone sandboxes need *"a graph + a chosen subset of the real systems,
-wired exactly as the game wires them, in one place."* That's a **`SandboxWorld`
-composition helper** (code), not a scene extraction — each sandbox declares
-which systems it needs and the helper instantiates + `bind`s them with the same
-calls `GameRoot._ready` uses.
+It is a parallel wiring source, not GameRoot's: it mirrors `game_root.tscn`'s
+wiring and must be **kept in sync** if a system gains a required dependency. If
+the two ever need one source, extract a `wire_systems(graph)` *helper function*
+both call — not a scene.
 
-**Built** (`scenes/dev/sandbox_world.gd`) once the second played consumer — the
-loot showcase — made the shared shape empirical rather than guessed. The two
-sandboxes request different subsets (allocation: the default core; loot:
-`{loot = true}` → adds TurnManager + LootSystem), which is exactly what proved
-the scaffold must be subset-capable. It's a `class_name`-less duck-typed helper:
-`build(graph, opts)` instantiates + wires the requested systems with GameRoot's
-exact calls and exposes them as properties.
+## Remaining work
 
-**Caveat — it's a parallel wiring source, not GameRoot's.** It mirrors
-`game_root.tscn`'s wiring; it does not share it (GameRoot wires declaratively in
-the .tscn, which we keep). So it unifies wiring *across sandboxes*, but must be
-**kept in sync with game_root.tscn** if a system gains a required dependency.
-True single-source would mean GameRoot composing systems in code — a regression
-of its clean declarative composition, not worth it.
-
-If we later still want `GameRoot` and `SandboxWorld` to share one wiring source,
-the safe refactor is to extract a `wire_systems(graph)` *helper function* both
-call — not a scene — leaving `game_root.tscn`'s declarative structure (and the
-inherited overrides) intact.
-
-## Sequencing
-
-| Phase | Work | Risk | Gate |
-|---|---|---|---|
-| 0 ✅ | Allocation VFX showcase as a played scene | low | shipped (`a65bfce`) |
-| ✅ | LootSystem showcase (2nd played sandbox) + per-side-effect kill-switches | low | shipped (`147f7f6`, `def5e3d`) |
-| 2 ✅ | `SandboxWorld` subset-capable system composition (built once the 2nd consumer existed) | low | both live panels share it |
-| 1 ✅ | Plugin host: main-screen `EditorPlugin` + `TabContainer`; `SandboxTab` base declares mode (live/played); explicit registration. The 3 playground plugins folded into one host (`addons/sandbox_host/`); showcases are played launch cards. | med | loads clean headless; **GUI behaviour pending human verify** |
-| ✅ | Allocate + loot (and toast) played launch cards converted to **live tabs** — `@tool` panels embedding the real systems in a `SubViewport` world, driven by explicit ▶ Play beat / ▶ Kill buttons; the played showcase scenes deleted (standalone sandbox variants are "if-all-else-fails" surfaces, ideally zero of them). | low | shipped (#260) — the panels are `addons/allocation_sandbox/` + `addons/loot_sandbox/` |
-| 3 | (partial — done) Inspector "Open in…" buttons now reveal the host main screen + select the tab (`set_main_screen_editor` + `current_tab`). (remaining) Jump-to-tab `@export_tool_button` on tab-able resource classes + finer live Inspector sync (`_edit`/`_handles` + resource `changed`). | low | button jumps; knob edits reflect w/o reload |
-| 4 ✅ | Auto-discover tabs — **scene-directory scan**, NOT the `get_global_class_list` class scan the issue first sketched (see below: a dedicated `tabs/` dir is a cleaner declaration). Drop a `*.tscn` whose root is a `SandboxTab` in `addons/sandbox_host/tabs/`; the host loads + adds it, ordered by filename. | low | tabs appear without manual registration |
+- Jump-to-tab `@export_tool_button` on tab-able resource classes (Inspector
+  "Open in…" buttons already reveal the host main screen and select the tab via
+  `set_main_screen_editor` + `current_tab`).
+- Finer live Inspector sync (`_edit`/`_handles` + the resource's `changed`).
 
 ## The host (`addons/sandbox_host/`)
 
-One main-screen `EditorPlugin` replacing the three bottom-panel playground
-plugins. **Everything is scene-composed** (per `scene-composition.md`): the host
-is a scene, and every tab is a scene whose root is a `SandboxTab`. Only
-`sandbox_host.tscn` is *generated* by `tools/gen_sandbox_tabs.gd` (run headless)
-— that dodges the uid-mismatch / field-strip landmines in `godot-workflow.md`;
-tab scenes are hand-authored inherited scenes in every mode (see below).
+One main-screen `EditorPlugin` (enabled in `project.godot`'s `[editor_plugins]`
+alongside `gut` and `procgen_preview`). **Everything is scene-composed** (per
+`scene-composition.md`): the host is a scene, every tab a scene rooted on a
+`SandboxTab`. Only `sandbox_host.tscn` is *generated*, by
+`tools/gen_sandbox_tabs.gd` (run headless); tab scenes are hand-authored
+inherited scenes — to add one, copy an existing file under
+`addons/sandbox_host/tabs/` and swap `tab_title` / `tab_id` / `loader_method`.
 
 Files:
 
 - `plugin.gd` — the `EditorPlugin`. `_has_main_screen() → true`; instances
   `sandbox_host.tscn` into `EditorInterface.get_editor_main_screen()` (a
-  `VBoxContainer` — the host needs `SIZE_EXPAND_FILL` or it renders collapsed)
-  and shows/hides it on `_make_visible`. **Reuses the three playgrounds' own
-  `EditorInspectorPlugin` scripts verbatim** and routes their signals → load the
-  resource into the matching tab (by `tab_id`) + `set_main_screen_editor` +
-  select the tab. So the "Open in…" buttons + the spell auto-sync still work;
-  they just target the host now. Icon: `icon.svg`.
+  `VBoxContainer` — the host needs `SIZE_EXPAND_FILL` or it renders collapsed) and
+  shows/hides it on `_make_visible`. It registers the playgrounds' own
+  `EditorInspectorPlugin` scripts and routes their signals → load the resource into
+  the matching tab (by `tab_id`) + `set_main_screen_editor` + select the tab, so the
+  "Open in…" buttons and the spell auto-sync target the host. Icon: `icon.svg`.
 - `sandbox_host.tscn` / `.gd` (`class_name SandboxHost`) — a `Control` + a
-  `Tabs` `TabContainer`. **Auto-discovers tabs**: scans `tabs/*.tscn`, loads
-  each, asserts the root is a `SandboxTab`, adds it, titles it from
-  `get_tab_title()`. Numeric filename prefixes (`10_…`, `20_…`) fix tab order.
+  `Tabs` `TabContainer`. **Auto-discovers tabs** with a `DirAccess` scan of
+  `tabs/*.tscn`: loads each, asserts the root is a `SandboxTab`, adds it, titles
+  it from `get_tab_title()`. Numeric filename prefixes (`10_…`, `20_…`) fix tab
+  order. `reload_tab()` rebuilds the **whole tab** from its `.tscn`, so reload and
+  cold open take the same path.
 - `sandbox_tab.gd` (`class_name SandboxTab`) — the mode-declaring base
-  (`Mode {LIVE_EDIT, PLAYED}`) every tab scene roots on. The directory-scan
-  contract replaces the issue's class-list scan; the `class_name` survives only
-  as the runtime `is SandboxTab` guard, not a discovery mechanism.
-> **Bake the panel into the tab scene.** A tab instances its panel scene inside
-> its own `.tscn`, under `%PanelHost`; `_mount_panel()` adopts that child (#254).
-> The reasons are the ones above — the tab previews non-empty in the editor, and
-> reload takes the same path as a cold open. It is **not** a post-processing
-> fix: #371 briefly credited baking with reviving the Bloom tab's glow, reverted
-> the `VIEWPORT_ENVIRONMENT_ENABLED` forcing that was actually carrying it, and
-> lost the pass again (see `docs/domain/hdr-color.md`, failure mode 5).
-> `70_bloom_tab.tscn` is the reference for the baked form; every tab is baked
-> (`70_bloom_tab.tscn`, `18_tooltip_fan_tab.tscn`, `40_allocation_tab.tscn`
-> (#838), and the last seven — spell / node_visuals / gimbal_3d / statboard /
-> procgen / loot / toast (#437) — among them; the `panel_scene` DI export and
-> the dual-mount fallback that used to coexist with baking were deleted once
-> the last tab landed, #881). Reload rebuilds the **whole tab** from its
-> `.tscn` via `SandboxHost.reload_tab()`, so reload and cold open take the same
-> path.
-
-- `sandbox_live_tab.gd` (`SandboxLiveTab`) + `sandbox_live_tab.tscn` (the
-  **scenic base**) — embeds an `@tool` panel baked scenically under
-  `%PanelHost`; forwards the inspected resource to its `loader_method` by name.
-  `tab_id` is the host's routing key. The base `.tscn` carries the shared
-  chrome: a toolbar with a **source-path breadcrumb** (click a folder → reveal
-  it in the FileSystem dock; click the file → open the panel scene for tuning,
-  via `EditorInterface`, editor-guarded) over a `%PanelHost` slot the panel is
-  baked into. A concrete live tab is a one-node **inherited scene** of this
-  base overriding only `tab_title` / `tab_id` / `loader_method` (see
-  `tabs/18_tooltip_fan_tab.tscn`, the reference migration). Tree stays scenic
-  (per `scene-composition.md`); the script only wires + acts, and the
-  breadcrumb — being path-length-variable — is built into the scenic
-  `%Breadcrumb` container in code.
-  - **All live tabs are now migrated** (#250) and since #260 **every shipped
-    tab is live**: spell / vfx / statboard / procgen / node_visuals / gimbal_3d /
-    tooltip_fan / toasts / allocation / loot are each a one-node inherited scene of
-    the base, so every live tab carries the breadcrumb chrome. There is no
-    dual-mount fallback left — `_mount_panel()` only ever adopts the scenically
-    authored `%PanelHost` child (#881).
-  - **Generator no longer emits tabs** (#250 live tabs, #260 the last played
-    cards). `tools/gen_sandbox_tabs.gd` now builds only the host scene. Tabs in
-    every mode are hand-authored inherited scenes (an inherited scene can't be
-    expressed via `PackedScene.pack`, and it hand-authors cleanly — path-resolved
-    ext_resources, no uid landmines), and regenerating them would silently
-    clobber hand-authored files (the 60_toast landmine this retired). To add a
-    tab, copy an existing one under `addons/sandbox_host/tabs/` and swap
-    `tab_title` / `tab_id` / `loader_method`.
+  (`Mode {LIVE_EDIT, PLAYED}`); `is SandboxTab` is the runtime guard on discovery.
+- **Bake the panel into the tab scene.** A tab instances its panel scene inside its
+  own `.tscn` under `%PanelHost`, and `_mount_panel()` adopts that child — the tab
+  previews non-empty in the editor and reload takes the cold-open path. Every tab
+  is baked; `70_bloom_tab.tscn` is the reference. Baking is not a glow fix
+  (`docs/domain/hdr-color.md`, failure mode 5).
+- `sandbox_live_tab.gd` (`SandboxLiveTab`) + `sandbox_live_tab.tscn` (the **scenic
+  base**) — embeds an `@tool` panel under `%PanelHost`; forwards the inspected
+  resource to its `loader_method` by name; `tab_id` is the host's routing key. The
+  base `.tscn` carries the shared chrome: a toolbar with a **source-path
+  breadcrumb** (click a folder → reveal it in the FileSystem dock; click the file
+  → open the panel scene, editor-guarded) over `%PanelHost`. A concrete live tab
+  is a one-node **inherited scene** of the base overriding only `tab_title` /
+  `tab_id` / `loader_method` (reference: `tabs/18_tooltip_fan_tab.tscn`). Every
+  tab under `tabs/` is such a scene. The breadcrumb, being path-length-variable,
+  is built into the scenic `%Breadcrumb` container in code. Shared pieces for tab
+  panels live in `components/` — see `sandbox-framework-components.md`.
 - `sandbox_played_tab.gd` (`SandboxPlayedTab`) — a launch card (title +
-  description + optional `preview: Texture2D` + ▶ Run → `play_custom_scene`).
-  Played scenes can't run in-editor because they *auto-drive* (turn loop / AI /
-  `await` beat cycle) — not because their systems are non-`@tool`, which they
-  aren't anymore (see the modes section above). Kept for genuinely
-  auto-driven surfaces (ranged / full turn loops — melee went live, see above);
-  **no shipped tab uses
-  played mode since #260**. The showcase *content* stays code-composed (its own
-  docstring defends that), only the tab *wrapper* is a scene.
-- `test/unit/test_sandbox_host_tabs.gd` — lints every tab scene: loads, root is
-  a `SandboxTab`, all exports resolve non-null (the `godot-workflow.md` guard
-  against a silently-nulled `@export`).
+  description + optional `preview: Texture2D` + ▶ Run → `play_custom_scene`) for
+  surfaces that auto-drive. `EditorResourcePreviewGenerator` does not help it (the
+  content builds in `_ready`, which doesn't run for previews); a thumbnail must be
+  a captured screenshot wired into `preview`.
+- `test/unit/test_sandbox_host_tabs.gd` — lints every tab scene: loads, root is a
+  `SandboxTab`, all exports resolve non-null (the `godot-workflow.md` guard against
+  a silently-nulled `@export`).
 
-**Previews:** `EditorResourcePreviewGenerator` does NOT help the played tabs —
-the showcases build their content in `_ready`, which doesn't run during preview
-generation, so it would thumbnail an empty graph. A meaningful thumbnail must be
-a captured screenshot wired into `SandboxPlayedTab.preview` (slot exists,
-unpopulated for now).
-
-**Migration is reversible.** The three old plugin folders are untouched; the
-swap is one line in `project.godot`'s `[editor_plugins] enabled=` array (host in,
-the three playgrounds out — `gut` + `procgen_preview` stay). Re-adding the three
-entries restores the old bottom panels.
-
-**Carry-over, fixed 2026-08-23:** the spell tab used to spam *"Node not found:
-Navigator/Entities/Nodes"* on load, because `spell_playground/playground_panel.tscn`
-hand-authored a partial bare `Graph` (the exact anti-pattern `scene-composition.md`
-warns about) instead of instancing `graph.tscn`. The host only ever *surfaced*
-that; it never caused it. The panel now instances `graph.tscn`, parks its entities
-in the real `Entities` container and mounts its systems through `sandbox_world.gd`
-— which is also what made a cast in that tab mutate anything at all.
-
-**Authored edges render for free — no per-tab workaround needed.** A `@tool`
-panel that hosts a `Graph` (via `graph.tscn` or `SandboxWorld`) gets its
-`.tscn`-authored `Edge`s wired into the shared `edge_mesh` MultiMesh
-automatically: `Graph._ready` calls `_backfill_edge_render()` above the
-`Engine.is_editor_hint()` guard, so it runs whether the panel is a live editor
-tab or a running game. (Edges added at runtime via `add_edge` were already
-covered by the `edge_added` signal; the backfill exists only for edges that
-came in through the scene tree, which never fire that signal.) A future tab
-author doesn't need to do anything special to make edges show up — this is
-Graph's job, not the tab's.
+**Authored edges render for free.** A `@tool` panel hosting a `Graph` (via
+`graph.tscn` or `SandboxWorld`) gets its `.tscn`-authored `Edge`s wired into the
+shared `edge_mesh` MultiMesh automatically: `Graph._ready` calls
+`_backfill_edge_render()` above the `Engine.is_editor_hint()` guard. A panel hosts
+`graph.tscn`, never a hand-authored partial `Graph` (`scene-composition.md`).
 
 ## Mechanism notes (all verified Godot 4.x patterns)
 
@@ -262,43 +162,36 @@ Graph's job, not the tab's.
   then select the tab.
 - **Live Inspector sync:** `_edit()`/`_handles()` to receive the selected object +
   the resource's own `changed` signal (the project already leans on `@tool` +
-  `emit_changed()` — `GlowStyle` is the template; see `skill-node-visuals.md`).
-- **Auto-discovery:** `ProjectSettings.get_global_class_list()` exposes each
-  script's `base`; filter for the tab base. Cheap, no scene loads.
+  `emit_changed()` — `GlowStyle` is the template; see `docs/domain/skillnode-visuals.md`).
 - **Live-world panels:** a live tab hosting a 2D gameplay world wraps it in a
   `SubViewportContainer` + `SubViewport` (`stretch = true` → viewport pixels ARE
   panel pixels, no camera needed; lay the world out on `world.size_changed`).
   Reference: `addons/spell_playground/playground_panel.gd`, and the allocation /
-  loot panels built on that pattern (#260).
-- **Explicit-step live beats (#260):** a live panel must never auto-run its
-  scenario — the "auto-tick = played" line. Beats are button-triggered (`▶ Play
-  beat`, `▶ Kill victim`), gated while in flight (`_busy`), and labels refresh
-  on demand instead of `_process` polling.
+  loot panels.
+- **Explicit-step live beats:** a live panel never auto-runs its scenario. Beats are
+  button-triggered (`▶ Play beat`, `▶ Kill victim`), gated while in flight (`_busy`),
+  and labels refresh on demand instead of `_process` polling.
 - **TurnManager in the editor:** a panel never *auto-drives* the clock — no
   `_process`, timer or `await` loop may call `start_turn` / `end_turn` / `tick`.
   A single button-bound step is explicit-step and allowed: the Status tab's
   ▶ Tick turn calls `end_turn()` once per click, which with a lone entity rolls
-  synchronously into that entity's next `start_turn` (real upkeep + the
-  owned-node status sweep in `Entity.begin_turn`). "Lone" needs work here, because the host
-  instantiates every live tab into one tree: the bench's TurnManager is scoped
-  (`entity_root` = its Graph), or an unscoped tick serves another tab's
-  entity. Nothing else needs wiring: an entity never binds to a TurnManager —
-  it is served only by the manager that calls `begin_turn` on it. Build that TurnManager with `TurnManager.new()`
-  from `@tool` code (hand it to `sandbox_world.build` as `adopt_turn_manager`)
-  — `turn_manager.gd` is not `@tool`, so one authored in a `.tscn` is a
-  placeholder in the editor. Killer attribution without a turn stays
-  `adopt_turn(killer, tm.turns_taken)` (loot panel), and that slot must be
-  cleared between kills (`adopt_turn(null, …)` on reset).
-- **Reset/mute:** `AllocationVFX.muted` (added in phase 0) is the pattern — a
-  panel's silent SETUP beat replays the real primitives with cosmetics muted.
-  Other VFX layers can grow the same switch as needed.
+  synchronously into that entity's next `start_turn`. The host instantiates every
+  live tab into one tree, so the bench's TurnManager is scoped (`entity_root` = its
+  Graph) or an unscoped tick serves another tab's entity. An entity never binds to
+  a TurnManager — it is served only by the manager that calls `begin_turn` on it.
+  Build that TurnManager with `TurnManager.new()` from `@tool` code (hand it to
+  `sandbox_world.build` as `adopt_turn_manager`) — `turn_manager.gd` is not `@tool`,
+  so one authored in a `.tscn` is a placeholder in the editor. Killer attribution
+  without a turn is `adopt_turn(killer, tm.turns_taken)` (loot panel), cleared
+  between kills (`adopt_turn(null, …)`).
+- **Reset/mute:** `AllocationVFX.muted` is the pattern — a panel's silent SETUP beat
+  replays the real primitives with cosmetics muted.
 
 ## `Engine.is_editor_hint()` is TRUE inside a live tab — and no test can see it
 
 A live tab instantiates **runtime, non-`@tool` scripts from tool code**
 (`sandbox_world.gd` does `PlayerInputController.new()`). Godot runs those scripts
-normally — they are not part of an edited scene — but they run with the editor
-hint set. So any `_ready` that opens with
+normally, but with the editor hint set. So any `_ready` that opens with
 
 ```gdscript
 if Engine.is_editor_hint():
@@ -306,29 +199,20 @@ if Engine.is_editor_hint():
 ```
 
 is **silently half-built in every live tab**: the object answers method calls
-(clicks route, plans build), while every signal subscription below the guard is
-absent. It reads as "feature X just doesn't work in the sandbox", with no error.
-
-This is exactly how #466's reform slot shipped dead in the melee tab: the slot is
-written from `attack_launched`, subscribed below that guard, so `can_reform()`
-could never be true there.
+(clicks route, plans build) while every signal subscription below the guard is
+absent. It reads as "feature X just doesn't work in the sandbox", with no error
+(the melee tab's reform slot was dead this way: written from `attack_launched`,
+subscribed below the guard).
 
 **GUT cannot catch this.** The suite is headless, `is_editor_hint()` is false, the
-guard never fires, and the test passes for the wrong reason. There is no
-in-editor assertion to write either — so the durable protection is the shape of
-the guard itself, not a test.
-
-**Statically enforced since #685.** `mise run lint-editor-hint-guard`
+guard never fires, and the test passes for the wrong reason; the durable protection
+is the shape of the guard. `mise run lint-editor-hint-guard`
 (`.mise/tasks/lint-editor-hint-guard`, wired into `mise run check`) greps every
-tracked `@tool` script for `if Engine.is_editor_hint():` as the first statement
-of `_ready()` whose entire body is a bare `return`, and fails the run if it
-finds one outside its allowlist. A narrow guard — one that does work before
-returning (`impact_ring.gd`'s `queue_redraw()` then `return`), or isn't the
-function's first statement — is untouched; only the blanket shape this section
-warns about trips it. Not a substitute for the reasoning above: the lint tells
-you the shape is wrong, not why, and the allowlist entries in that file (a
-handful of pure data mirrors + `addons/` wholesale for vendored code) record
-the judgement calls that are correct to keep.
+tracked `@tool` script for `if Engine.is_editor_hint():` as the first statement of
+`_ready()` whose entire body is a bare `return`, and fails outside its allowlist. A
+narrow guard — one that does work before returning, or isn't the function's first
+statement — is untouched. The allowlist entries in that file record the judgement
+calls that are correct to keep.
 
 **How to apply:**
 
@@ -346,16 +230,15 @@ the judgement calls that are correct to keep.
   `VisibleOnScreenNotifier2D` paints its rect in translucent magenta, a
   `CollisionShape2D` its shape, a `Camera2D` its limits — inside a live tab
   exactly as in the 2D editor. Any such node created in code as an internal
-  mechanism (the halo on-screen gate, #802) must switch its overlay off
-  (`show_rect = false`); that is what the purple AABBs on every core in the
-  Spell tab were (#892). Don't reach for an alpha-0 modulate instead — the
+  mechanism (the halo on-screen gate) must switch its overlay off
+  (`show_rect = false`). Don't reach for an alpha-0 modulate instead — the
   canvas cull pass returns on alpha before it evaluates the visibility
   notifier, so the overlay would vanish along with the gate it exists for.
 
 ## Cross-refs
 
-- `docs/domain/allocation-vfx.md` — the phase-0 showcase + the VFX it exercises.
+- `docs/domain/allocation-vfx.md` — the allocation showcase + the VFX it exercises.
 - `.claude/rules/scene-composition.md` — when a scene vs code; why declarative
   wiring (the thing the naive extraction would break) is preferred.
 - `.claude/rules/godot-workflow.md` — `@tool` injection-timing + don't refresh a
-  user's open editor (relevant to phase 1 plugin enablement).
+  user's open editor.

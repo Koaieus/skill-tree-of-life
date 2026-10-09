@@ -4,8 +4,8 @@ extends GutTest
 ## warnings missed: a profile or pool entry whose `tags` reference a
 ## StringName that isn't declared in `procgen/tags.tres`.
 ##
-## This is the belt-and-braces layer per docs/domain/procgen-v2.md
-## ("Identifiers & validation"). For each procgen .tres on disk, load it,
+## This is the belt-and-braces layer per docs/domain/procgen.md
+## (tags are declared once, in `procgen/tags.tres`). For each procgen .tres on disk, load it,
 ## walk its tag-bearing fields, and assert every member is in the canonical
 ## set.
 

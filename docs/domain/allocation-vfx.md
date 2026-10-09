@@ -1,48 +1,48 @@
 # Allocation VFX
 
 Cosmetic effects that play when a skill node changes ownership: allocation,
-voluntary deallocation, forced deallocation (single + cascade). Lives in
-`ui/vfx/allocation_vfx.gd`, mounted alongside `AttackVFX` from `GameRoot`.
+voluntary deallocation, forced deallocation (single + cascade), plus the modifier
+pulses an allocation sends to the core and the blade-pop burst. Lives in
+`ui/vfx/allocation_vfx.gd`; `AllocationVFX` is a scene child of `Graph` in
+`scenes/game_root.tscn` (`%AllocationVFX`, sibling of `AttackVFX`) with exported
+`allocation_system` / `battle_system` that `_ready` binds. It owns no game state
+and is safe to remove or mute (`muted`) without affecting gameplay.
 
 ## Signals it listens to
 
 | Signal | Source | Fires for | Payload |
 |---|---|---|---|
-| `allocated(node, entity)` | `AllocationSystem` | every allocation (gated `allocate` + primitive `force_allocate`) | node, new owner |
-| `deallocated(node, previous_owner)` | `AllocationSystem` | **voluntary** dealloc only (player/AI spent a DP) | node, previous owner |
+| `allocated(node, entity, forced)` | `AllocationSystem` | every allocation: gated `allocate` (`forced = false`) and primitive `force_allocate` (`forced = true`) | node, new owner, forced |
+| `deallocated(node, previous_owner)` | `AllocationSystem` | **voluntary** dealloc only | node, previous owner |
 | `force_deallocated(node, previous_owner)` | `AllocationSystem` | every forced dealloc (cascade head + every islanded follow-up) | node, previous owner |
-| `cascade_started(layers, defender)` | `BattleSystem` | **before** the force-dealloc loop runs; one emission per battle event | BFS layers ordered by graph distance from impact, defender entity |
-| `death_strip_scheduled(nodes, defender, impact)` | `BattleSystem` | #485 — only when this cascade's chip damage is about to kill `defender`, i.e. `AllocationSystem.deallocate_all_owned` is about to strip the rest of its territory | the remaining owned nodes (usually just the core), defender, the same impact node `cascade_started` fired with |
+| `cascade_started(layers, defender)` | `BattleSystem` | **before** a forced-dealloc loop runs, once per cascade: a battle event's cascade, or a dying entity's whole board | BFS layers by graph distance from the impact (or the core), defender entity |
+| `Events.blade_vertex_popped(defender, attacker, at_pos)` | blade sim | a spike vertex popping | for the pop burst |
 
-The split between `deallocated` and `force_deallocated` exists so the VFX can
-play a graceful "lift-away" for voluntary releases and a shatter for kills
-without sniffing context. Pre-split, both used the same `deallocated` signal.
-Existing consumers (currently only `VisionSystem`) connect to both.
+`deallocated` and `force_deallocated` stay separate so the VFX plays a graceful
+lift-away for voluntary releases and a shatter for kills without sniffing context.
+Other consumers connect to the same signals: `VisionSystem`, `HighlightController`,
+`AuraOverlay`, `systems/armed/magic_mode.gd`, and `combat/entity_combat.gd` (which
+dispatches `_on_node_deallocated`).
 
-`cascade_started` is the orchestration hook for the ripple. It carries
-`Array[Array[SkillNode]]` — layer `i` holds every cascade node at BFS depth
-`i` from the impact node (layer 0 = `[impact]`). The VFX uses `i * step` as
-the per-layer delay so same-depth nodes pop in unison and the wave radiates
-outward from the kill site. Each cascade node *also* gets its own
-`force_deallocated` emission (preserving the old behaviour for any other
-listener); the VFX coordinator de-duplicates by remembering which nodes were
-"already scheduled by a cascade".
+`cascade_started` carries `Array[Array[SkillNode]]`: layer `i` holds every cascade
+node at BFS depth `i` (layer 0 = `[impact]`). The VFX uses `i * CASCADE_STEP` as the
+per-layer delay so same-depth nodes pop in unison and the wave radiates outward.
+`_on_cascade_started` runs BEFORE `force_deallocate`, so it snapshots each node's
+position, radius, colour and `carve_params()` (the stake collapsing on dealloc
+shrinks `inner_radius`) plus its delay slot into `_cascade_snapshot`;
+`_on_force_deallocated` consumes the entry and spawns the shatter. A standalone
+force-dealloc has no entry and reads live values at zero delay.
 
 ## Effects
 
-Every effect is a transient `Node2D` parented to the `AllocationVFX` node
-(itself a sibling of `AttackVFX` under `Graph`), positioned at the target
-SkillNode's `global_position` at spawn time — so the visual survives node
-freeing / ownership changes mid-animation. The `AllocationVFX` node sets
-`z_index = 2000` (absolute, `z_as_relative = false`) in `_ready` so effects
-always render above the `FogOverlay` (z=1000) and the visible/sensed nodes
-+ edges it promotes to z=1001 — without this the spike sometimes ends up
-*under* a fog-promoted node, since visible nodes get z-promoted to render
-above the fog.
+Every effect is a transient `Node2D` parented to `AllocationVFX`, positioned at the
+target SkillNode's `global_position` at spawn time, so the visual survives node
+freeing / ownership changes mid-animation. `_ready` sets `z_as_relative = false`
+and `z_index = ZLayers.SPELL_VFX` (absolute) so effects render above the
+`FogOverlay` and the nodes and edges it promotes, and children inherit that floor.
 
-Effects never touch `NodeVisualsComposite` itself — that means ownership-state
-visuals (`allocation_level`, disk/rim fill color) flip the instant `owned_by`
-changes, while the cosmetic effect runs on its own timeline.
+Effects never touch `NodeVisualsComposite`: ownership-state visuals flip the instant
+`owned_by` changes while the effect runs on its own timeline.
 
 ### Allocate — "skill point from the heavens"
 
@@ -52,7 +52,7 @@ changes, while the cosmetic effect runs on its own timeline.
   `radius * SPIKE_HEIGHT_FACTOR` (default 6×).
 - Profile tunables: `SPIKE_NEEDLE_GAMMA` (γ in the Lorentzian — lower γ
   → hair-thin needle, higher γ → candle-flame), `SPIKE_SAMPLES` per side.
-- Tween (~180 ms): `modulate:a` 0 → 1 → 0 (peak at 40%), `scale:y` 1 → 0
+- Tween (`SPIKE_DURATION`, 0.4 s): `modulate:a` 0 → 1 → 0 (peak at 40%), `scale:y` 1 → 0
   cubic-ease-in so the needle collapses down into the node center.
 - The polygon's own `color` stays opaque (alpha 1); only `modulate.a`
   animates visibility. Polygon2D multiplies the two, so setting
@@ -75,52 +75,53 @@ changes, while the cosmetic effect runs on its own timeline.
 
 ### Forced deallocate — "shatter"
 
-- Snapshot disk as above (owner color from `previous_owner.color`).
-- **Phase 1 — vibrate (~120 ms):** position jitters via a sine-driven
-  offset (small amplitude, ~2.5 px) at ~60 Hz.
-- **Phase 2 — burst (~400 ms):** snapshot disk hides; a one-shot
-  `CPUParticles2D` emits `SHATTER_PARTICLE_COUNT` (default 24) glowy
-  particles distributed inside an `inner_radius` sphere, outward radial
-  velocity (`SHATTER_OUTWARD_SPEED`), no gravity, owner-color gradient
-  fading to 0 alpha over `SHATTER_PARTICLE_LIFETIME` (~350 ms).
-- Each cascade node animates on its own timeline, started at
-  `layer_index * CASCADE_STEP` (default ~90 ms per ring). The impact node
-  fires immediately; one ring later its neighbours; one ring after *their*
-  neighbours; until the outermost dying nodes pop.
+- `_spawn_shatter` fragments the dying node's own dome into the `ShatterField`
+  (`inner_disk_shatter_field.tscn`, a child of `AllocationVFX`): an intact-disc
+  crescendo (the crack seams glow) through the cascade `delay`, then the disc comes
+  apart at `shatter_flight_start` and the shards bloom, fly and fizzle. The rim is
+  untouched; the shards keep the node's carve glyph (`CarveParams`). The real
+  SkillNode's InnerDisk hides at `force_deallocate`, and the shard field takes over.
+- Tunables are exports on `AllocationVFX` (`shatter_window`, `shatter_flight_start`,
+  `shatter_shard_count`, `shatter_fling_speed`, tier exports) plus the shatter
+  material's own knobs; `_push_shatter_tuning` forwards them.
+- Each cascade node starts at `layer_index * CASCADE_STEP` (0.35 s per ring): the
+  impact node immediately, its neighbours one ring later, and so on outward.
 
-The cascade is purely cosmetic — the underlying `force_deallocate` calls and
-stat-board mutations (wound + core HP loss) all run synchronously inside
-`BattleSystem._on_node_depleted` regardless. The VFX layer just paces the
-visuals; if a second attack force-deallocs more nodes mid-cascade, both
-cascades will overlap on screen, which is fine.
+The cascade mutates synchronously (all layers inside one beat: wound, core HP loss,
+`force_deallocate` calls in `BattleSystem._on_node_depleted`); the layered ripple is
+pure animation here. If a second attack force-deallocs more nodes mid-cascade, both
+cascades overlap on screen.
 
-### Death strip (#485) — one continuous ripple, not two
+### Entity death — one core-first wave
 
-When this cascade's chip damage is exactly what kills the defender,
-`AllocationSystem.deallocate_all_owned` (triggered synchronously off the same
-`health.deplete → depleted → die() → entity_died` chain, from *inside* the
-force-dealloc loop below) is about to strip whatever territory this cascade's
-own BFS didn't already cover — almost always just the core. `BattleSystem`
-predicts this (comparing the cascade's total chip damage against the
-defender's current health, before mutating anything) and fires
-`death_strip_scheduled` for that remainder, **separately** from
-`cascade_started`.
+When an entity dies, `AllocationSystem.deallocate_all_owned` strips its whole board
+un-staggered, core LAST (island checks). The visual wave is the opposite, core
+FIRST rippling outward: `BattleSystem._on_entity_dying` (the pre-cleanup phase, while
+the corpse still owns its nodes) BFS-layers the owned set from the core and emits the
+same `cascade_started`. The delay map is keyed by node, so the mutation order and the
+visual order never have to agree.
 
-That separation is deliberate, not an oversight: `LootSystem._on_cascade_started`
-also reads `cascade_started`'s `layers` as this cascade's removal set and adds
-its own `+1` for the core in `_award_kill_xp` (`_held_nodes` excludes the
-core). Folding the death strip into `layers` double-paid the core — caught by
-`test_kill_xp_ledger.gd` (60 XP instead of 50) when first tried. AllocationVFX
-is the only consumer of `death_strip_scheduled`; it stitches the extra nodes
-onto the SAME `_pending_cascades[impact]` entry as one trailing layer (delay =
-the existing layers' max delay + one more `CASCADE_STEP`), so on screen it
-still reads as one continuous collapse — territory falls, then whatever's
-left dissolves one beat later — even though the two signals never touch.
+A direct hit that empties the core's `health` in one blow bypasses
+`_on_node_depleted` (the core never emits `depleted`; see
+`.claude/rules/entity-death.md`), but the `entity_dying` wave still covers it.
 
-Only covers death via the chip-damage cascade path. A direct hit on the core
-that empties `health` in one blow bypasses `_on_node_depleted` entirely (the
-core never emits `depleted` — see `.claude/rules/entity-death.md`) and is not
-covered; that death strip still runs unstaggered.
+### Modifier pulses
+
+On a non-forced allocation, `_spawn_modifier_pulses` sends one pulse per leaf
+modifier (`StatModifier.flatten_all`) from the node along the entity's owned subgraph
+to the core (`_core_route`), `PULSE_STAGGER` (0.07 s) apart, each travelling at
+`PULSE_PER_HOP` (0.13 s per graph hop, floor `PULSE_MIN_FLIGHT`). The modifier is
+already on the board; the floater (`Events.stat_modifier_changed`) fires on arrival.
+Forced allocations (spawn, procgen, scene-authored level setup) get the spike but no
+pulses or floaters. Voluntary dealloc fires the floaters immediately; force-dealloc
+and death never do, so the death-strip flurry is suppressed by construction.
+
+### Blade-pop burst
+
+`_on_blade_vertex_popped` spawns `_spawn_pop_burst`, a self-freeing one-shot
+`CPUParticles2D` spray at the contact point in the defender's colour, radius
+`POP_BASE_RADIUS + power * POP_RADIUS_PER_POWER` capped at `POP_MAX_RADIUS`. It is
+the only effect that still uses particles.
 
 ## Why ripple closest-to-impact first
 
@@ -140,37 +141,22 @@ node and every effect resizes in lockstep.
 
 ## Tunables
 
-Live as `const`s at the top of `allocation_vfx.gd`. Most-touched levers:
+Live as `const`s at the top of `allocation_vfx.gd` (shatter look as exports). Most
+touched:
 
-- `CASCADE_STEP` — crackle (~50 ms) vs. domino (~200 ms) for chain kills.
+- `CASCADE_STEP` (0.35 s) — crackle (~50 ms) vs. domino (~200 ms) for chain kills.
 - `SPIKE_NEEDLE_GAMMA` — needle vs. candle-flame for the alloc spike.
 - `SPIKE_HEIGHT_FACTOR` — alloc spike height as a multiple of node radius.
 - `LIFT_RISE_FACTOR` — how far the deallocation puff floats up.
-- `SHATTER_OUTWARD_SPEED`, `SHATTER_PARTICLE_COUNT` — shatter intensity.
-
-## Future texture swap
-
-When the central fill becomes a texture, the only change needed is in the
-snapshot disk used by lift + shatter: replace `_SnapshotDisk._draw` with a
-`Sprite2D` using the same texture. `disk_radius` and `disk_color` already
-parameterise it; callers stay valid. The alloc spike has no shape coupling
-to the disk and is unaffected.
-
-## Implementation seam
-
-Mounting follows the `AttackVFX` pattern (see
-`scenes/game_root.gd:_mount_allocation_vfx`): the coordinator is added as a
-child of `Graph` once `AllocationSystem` + `BattleSystem` exist, and its
-`bind(allocation_system, battle_system)` wires the signal connections. The
-coordinator owns no game state; safe to remove or disable globally without
-breaking gameplay.
+- `PULSE_STAGGER`, `PULSE_PER_HOP` — modifier-pulse pacing.
+- `shatter_*` exports — shatter intensity.
 
 ## Playground
 
 The **Allocation VFX** live tab (`addons/sandbox_host/tabs/40_allocation_tab.tscn`,
-embedding `addons/allocation_sandbox/allocation_sandbox_panel.tscn`, #260) runs a
+embedding `addons/allocation_sandbox/allocation_sandbox_panel.tscn`) runs a
 3×3 grid of self-resetting cells, each looping one allocation-flavoured scenario
-against the **real** systems (so #71 pulses + #70 floaters fire for real, unlike
+against the **real** systems (so the modifier pulses and floaters fire for real, unlike
 the old faked-signal loop). Cells: single-node alloc / dealloc / shatter;
 `O-0-0-0-X` allocate → three modifiers travel to core; `X-O-O-O-O` bulk allocate
 from core; and on a fully-allocated row — voluntary dealloc, forced-dealloc,
