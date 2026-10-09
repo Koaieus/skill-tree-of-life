@@ -1,0 +1,9 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://ui/hud/command_tray/bodies/sheaf_pile.gd" id="1_script"]
+
+[node name="SheafPile" type="Control"]
+custom_minimum_size = Vector2(72, 40)
+layout_mode = 3
+anchors_preset = 0
+script = ExtResource("1_script")
