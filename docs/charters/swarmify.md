@@ -431,9 +431,13 @@ Numbered so the skill can be checked against them law by law.
     `docs/charters/clerk.md`.
 
 35. **The pass ends with the session report** (`docs/domain/session-report.md`),
-    `Landed` carrying the swarmify columns (`# · now in · children ·
-    drift`) and `Not done` naming every issue that stayed in `Needs design`
-    and why. Mined 2026-10-09: swarmify's last long message was often a
+    `Landed` carrying the swarmify columns — issue, lane after the pass
+    (`Ready` is the goal), the decision direction or fork settled in a
+    clause, what is left (stubs, children, a fork kept) — and `Not done`
+    naming every issue that stayed in `Needs design` and why. Owner,
+    2026-10-09: *"the most important outcome is which issue, what status
+    (`Ready` being the ideal), short decision direction or fork settled, or
+    stubs left."* Mined 2026-10-09: swarmify's last long message was often a
     pasted brief or walkthrough, not a closing report, so the owner had to
     ask what actually moved.
 

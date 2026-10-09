@@ -170,7 +170,7 @@ definition in `mise.toml` if you need the exact fuzzy-match behavior.
 **8. Report**
 
 Your closing message is the session report — `docs/domain/session-report.md`:
-headline, `Landed` table, `Not done`, `Follow-ups` with a disposition each
+headline, `Landed` table (`# · sha` in one cell), `Not done`, `Follow-ups` with a disposition each
 (fixed now before filed), `Needs the owner`, `Touched`, `Cost`. Every
 section, even when `none`; never a diff.
 

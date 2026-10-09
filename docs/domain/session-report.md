@@ -22,9 +22,9 @@ needs, and the three least often present.
 **<skill> <issues> · landed <k>/<m> · `<base>..<tip>` · suite <verdict> · ~<N>k ctx**
 
 **Landed**
-| # | what | sha | tests |
-|---|---|---|---|
-| #1234 | one clause | `abc1234` | dir 41/41 |
+| # · sha | what | tests |
+|---|---|---|
+| #1234 · `abc1234` | one clause | dir 41/41 |
 
 **Not done** — none | one line each: what was in scope and is not on master, and why
 
@@ -46,14 +46,19 @@ needs, and the three least often present.
 Prose outside the sections: three sentences at most, and never a diff. The
 headline line alone must let the owner decide whether to read on.
 
+Tables are read on a phone: three or four columns, the identifier and its
+SHA share the first cell. A cell cannot hold a newline; `<br>` renders on
+GitHub and in the claude.ai app but not reliably in a terminal, so ` · ` is
+the separator and `<br>` only when the message is posted to GitHub.
+
 ### Per-skill columns
 
 The `Landed` table carries what that skill lands:
 
 | skill | `Landed` columns |
 |---|---|
-| warp, swarm, relay, relief | `# · what · sha · tests` |
-| swarmify | `# · now in · children · drift` (lane after the pass, child issues created, drift stamp present) |
+| warp, swarm, relay, relief | `# · sha` · `what` · `tests` |
+| swarmify | `#` · `now in` · `settled` · `left` — the lane after the pass (`Ready` is the goal), the decision direction or fork settled in one clause, and what is still open: stubs, children created, a fork the owner kept |
 | whip | its renderer's file (`docs/handoffs/whip-report-<date>.md`): `Landed / Back to Needs design / Still Ready / … / Filed since start / Needs the owner / Incidents / Cost` — the same vocabulary, more lanes |
 
 A `relief` ending adds one line under `Needs the owner` when it hands off:
