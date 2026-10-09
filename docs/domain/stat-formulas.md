@@ -2,7 +2,6 @@
 
 How a stat scales off another: the intrinsic tables on the entity and node boards, where a tuning rate lives, the CON → health model, and the formula classes with their self-descriptions. The stat and pool classes themselves are `docs/domain/stats-system.md`; the procedure for adding a knob is `docs/domain/stat-knobs-and-bins.md`; the modifier polarity/valence rules that colour a formula-bound row are `docs/domain/stats-system.md` § "Stat polarity and valence".
 
-
 Intrinsics are `StatModifier` sub-resources with a `formula`, wired as `intrinsic_modifiers` on a board and applied by `apply_intrinsics()`. Keep them inline in the board `.tres` and the formula **file-backed**. Contribution = `modifier.value × formula.compute(board)`; with `value = 1` the formula reads through. A `RatioFormula` row is a line — `+1 per 20 STR` contributes `0.05 × STR` continuously and the INT target floors once at the end, so a merged loot copy (`value 1.25`) moves the step to 16 STR rather than waiting for four copies. `AttributeRules` (Attributes Panel hover) discovers these lines by scanning `intrinsic_modifiers` for `scales_with(attr_id)`; this table is documentation, not a second source of truth. **Update the table when adding or changing a row.**
 
 ## Entity board (`entity/default_entity_board.tres`)

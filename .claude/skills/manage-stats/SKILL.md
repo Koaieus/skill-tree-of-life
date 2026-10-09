@@ -77,9 +77,9 @@ Then decide where the modifier hangs, and only there:
 
 - **Board intrinsic** (every entity, always — e.g. CON scales the health
   cap): a `StatModifier` with a formula on the target stat's instance in
-  `entity/default_entity_board.tres`; `stat-formulas.md`. Formulas: `stats_system/formulas/` (`LinearFormula`,
-  `ExpressionFormula`); a cycle is rejected at load, see
-  "Dependency-cycle rejection".
+  `entity/default_entity_board.tres`; `stat-formulas.md`. Formulas:
+  `stats_system/formulas/` (`LinearFormula`, `ExpressionFormula`); a cycle
+  is rejected at load, see `stats-system.md` → "Dependency-cycle rejection".
 - **Class identity** (this class only): the `CoreClass` resource under
   `entity/core/`; `stats-system.md` → "Class identity and level".
 - **Node-local** (varies per skill node): the node's sparse
