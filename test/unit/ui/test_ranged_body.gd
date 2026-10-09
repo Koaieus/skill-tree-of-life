@@ -344,3 +344,13 @@ func test_a_bin_clamp_never_writes_back_into_the_preference() -> void:
 	assert_eq(_plan.count_of(_POISON), 2, "the plan holds the bin-clamped count")
 	assert_eq(_ctl.armed_stack.memory_for(_attacker).ranged.special_counts.get(_POISON, 0), 5,
 			"the preference keeps what the player chose")
+
+
+func test_the_bar_segments_follow_the_plan_list_order() -> void:
+	_ctl.armed_stack.memory_for(_attacker).ranged.order = [_ARROW, _POISON] as Array[StringName]
+	_body.set_special(_POISON, 2)
+	var seg_ids: Array[StringName] = []
+	for s in _bar().segments:
+		seg_ids.append(s.type_id)
+	assert_eq(_plan.types(), [_ARROW, _POISON] as Array[StringName], "control: the plan lists arrows first")
+	assert_eq(seg_ids, _plan.types(), "the bar reads in firing order")
