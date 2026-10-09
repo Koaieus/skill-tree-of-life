@@ -78,9 +78,10 @@ const MAX_VISIBLE_ROWS: int = 2
 @onready var _sections: Array[SpellTooltipSection] = [%CastSection, %OnArrivalSection,
 		%ThenSection, %CritsSection]
 
-## The (plan, spell) the %Sections were last built for — see [method _show_sections].
+## The (plan, spell, source) the %Sections were last built for — see [method _show_sections].
 var _sections_plan: MagicAttackPlan = null
 var _sections_spell: SpellDef = null
+var _sections_source: SkillNode = null
 
 
 ## Wired here rather than in [method _on_bound] because it is pure layout —
@@ -220,18 +221,21 @@ func _refresh() -> void:
 
 
 ## The four marked sections of [param plan]'s spell, from [method SpellSections.build]
-## with the caster's board — the tooltip's own derivation; nothing about a spell
-## is derived here. [method _refresh] runs on every hover, so the build happens
-## only when (plan, spell) moved since the last one. A caster stat moving
-## mid-arm shows on the next spell or plan change.
+## with the caster's board and the plan's cast-from node (the landing's read
+## node, so a node-local bonus shows as it lands) — the tooltip's own
+## derivation; nothing about a spell is derived here. [method _refresh] runs on
+## every hover, so the build happens only when (plan, spell, source) moved since
+## the last one. A caster stat moving mid-arm shows on the next such change.
 func _show_sections(plan: MagicAttackPlan) -> void:
 	var spell := plan.spell if plan != null else null
-	if plan == _sections_plan and spell == _sections_spell:
+	var source := plan.source if plan != null else null
+	if plan == _sections_plan and spell == _sections_spell and source == _sections_source:
 		return
 	_sections_plan = plan
 	_sections_spell = spell
+	_sections_source = source
 	var board := plan.attacker.stat_board if plan != null and plan.attacker != null else null
-	var built := SpellSections.build(spell, board)
+	var built := SpellSections.build(spell, board, source)
 	var lines: Array[SpellSections.Lines] = [built.cast, built.on_arrival, built.then, built.crits]
 	for i in _sections.size():
 		_sections[i].bind(lines[i].lines, lines[i].dynamic)
