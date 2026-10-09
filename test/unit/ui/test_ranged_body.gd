@@ -377,6 +377,8 @@ func test_fill_on_fills_the_room_and_fill_off_holds_the_base_across_targets() ->
 	assert_false(_body.fill(), "the base card's toggle turns fill off")
 	_bar().step_requested.emit(-1, false)
 	assert_eq(_plan.count_of(_ARROW), cap - 6, "scroll −1 moves the base")
+	var held_pref: VolleyPreference = _ctl.armed_stack.memory_for(_attacker).ranged
+	assert_false(held_pref.special_counts.has(_ARROW), "the held base never lives in the specials table")
 	assert_eq(_plan.count_of(_POISON), 3, "specials unchanged")
 	assert_eq(_plan.count_of(&"curse"), 2, "specials unchanged")
 	_plan.set_target(_target2)
