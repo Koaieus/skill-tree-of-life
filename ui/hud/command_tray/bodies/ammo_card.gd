@@ -50,6 +50,9 @@ var count: int = 0
 ## The most "all" gives: min(bin, what the volley still holds).
 var cap: int = 0
 var fill: bool = true
+## The stock the label shows — [member stock], or on its way there.
+var shown_stock: float = 0.0
+var _stock_tween: Tween
 
 @onready var _name_label: Label = %NameLabel
 @onready var _status_badge: IdentityBadge = %StatusBadge
@@ -79,11 +82,27 @@ func setup(p_type: AmmoType) -> void:
 		_paint()
 
 
-func set_stock(p_stock: int, p_gain: int) -> void:
+## [param tween_secs] above 0 rolls the stock label from what it shows to
+## [param p_stock]; everything else repaints at once.
+func set_stock(p_stock: int, p_gain: int, tween_secs: float = 0.0) -> void:
+	var from := shown_stock
 	stock = p_stock
 	gain = p_gain
+	if _stock_tween != null and _stock_tween.is_valid():
+		_stock_tween.kill()
+	shown_stock = float(p_stock)
 	if is_node_ready():
 		_paint()
+		if tween_secs > 0.0 and not is_equal_approx(from, shown_stock) and is_inside_tree():
+			shown_stock = from
+			_stock_tween = create_tween()
+			_stock_tween.tween_method(_set_shown_stock, from, float(p_stock), tween_secs)
+			_paint_stock()
+
+
+## Global point arrows fly to and from: the centre of the [SheafPile].
+func pile_anchor() -> Vector2:
+	return _pile.get_global_rect().get_center()
 
 
 func set_count(p_count: int, p_cap: int) -> void:
@@ -137,7 +156,7 @@ func _paint() -> void:
 		return
 	_name_label.text = type.display_name
 	_paint_status()
-	_stock_label.text = ("%d  +%d" % [stock, gain]) if gain > 0 else "%d" % stock
+	_paint_stock()
 	_count_label.text = "%d" % count
 	# The volley bar's tint for this type, so a card reads as its bar segment.
 	var tint: Color = VolleyBar.TYPE_TINTS.get(type.id, VolleyBar.FALLBACK_TINT)
@@ -156,6 +175,16 @@ func _paint_status() -> void:
 	var def: StatusDef = type.first_status_def()
 	_status_badge.identity = def.identity if def else null
 	_status_badge.visible = _status_badge.identity != null
+
+
+func _paint_stock() -> void:
+	var shown := roundi(shown_stock)
+	_stock_label.text = ("%d  +%d" % [shown, gain]) if gain > 0 else "%d" % shown
+
+
+func _set_shown_stock(v: float) -> void:
+	shown_stock = v
+	_paint_stock()
 
 
 func _on_bar_requested(n: int) -> void:

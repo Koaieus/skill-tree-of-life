@@ -118,6 +118,17 @@ func on_arrow_released(index: int, total: int) -> void:
 	_tween_strip(_set_fired, index, _arrow_fired[index], 1.0, DRAIN_TIME)
 
 
+## Global rect of arrow [param index]'s shaft — from the layout pitch, so a
+## slot past N (an arrow just taken off) still has a place on the track.
+func segment_rect(index: int) -> Rect2:
+	var track := _track_rect()
+	var lay := layout(0, max_n, PackedInt32Array(), [] as Array[Dictionary], track.size.x, max_shaft_width, shaft_gap)
+	var pitch: float = lay["pitch"]
+	var w := minf(maxf(pitch - shaft_gap, 0.0), max_shaft_width)
+	var local := Rect2(track.position.x + pitch * float(maxi(index, 0)), track.position.y, w, track.size.y)
+	return get_global_transform() * local
+
+
 ## Pure: how one arrow slice paints for a charge `state` (0 = plain tint,
 ## 1 = `Emissive.at(tint, CHARGE_STOPS)`) and a drain `fired` fraction —
 ## `lit` covers the slice, `dim` covers its bottom `fired` of the height.

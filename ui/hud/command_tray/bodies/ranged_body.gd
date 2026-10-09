@@ -43,11 +43,16 @@ const _BASE := AmmoTypeRoster.BASE_ID
 @onready var _reload_button: Button = %ReloadButton
 @onready var _reset_button: Button = %ResetButton
 @onready var _launch_button: LaunchAttackButton = %LaunchButton
+@onready var _flight_layer: ArrowFlightLayer = %ArrowFlightLayer
 
 var _special_cards: Array[AmmoCard] = []
 var _quiver: Quiver = null
 var _refreshing := false
 var _orphan_pref: VolleyPreference = null
+## Each type's bin as last painted — a rise flies the gain onto its pile.
+## Unseeded until the first paint after a bind, which flies nothing.
+var _stock_seen: Dictionary = {}
+var _stock_seeded := false
 
 
 func _ready() -> void:
@@ -56,6 +61,8 @@ func _ready() -> void:
 
 
 func _on_bound() -> void:
+	_stock_seen.clear()
+	_stock_seeded = false
 	_reset_button.pressed.connect(_reset_plan)
 	_launch_button.pressed.connect(_on_launch_pressed)
 	_reload_button.pressed.connect(_on_reload_pressed)
@@ -114,6 +121,9 @@ func teardown() -> void:
 	if _row.order_changed.is_connected(_on_order_changed):
 		_row.order_changed.disconnect(_on_order_changed)
 	_disconnect_card(_base_card)
+	_flight_layer.clear()
+	_stock_seen.clear()
+	_stock_seeded = false
 	for card in _special_cards:
 		_row.remove_child(card)
 		card.queue_free()
@@ -418,13 +428,48 @@ func _refresh() -> void:
 		return
 	_refreshing = true
 	var plan := _aimed()
+	var old_list: Array[Dictionary] = []
+	var changed := false
 	if plan != null:
 		var list := _compose(plan)
 		if list != plan.ammo:
+			old_list = plan.ammo.duplicate()
 			plan.ammo = list
+			changed = true
 			plan.state_changed.emit()
 	_paint(_plan(), plan != null)
+	# After the paint: `set_volley` clears the bar's strips, so a landing must
+	# not be requested before it. The plan is already final here.
+	if changed and not (_battle_system != null and _battle_system.is_launching):
+		_fly_diff(old_list, plan.ammo)
 	_refreshing = false
+
+
+## Presentation of a plan-list change: each added arrow flies from its card's
+## pile into its bar slot, each removed one back; capped per type.
+func _fly_diff(old_list: Array, new_list: Array) -> void:
+	var batch: Dictionary = {}
+	for r in ArrowFlightLayer.diff(old_list, new_list, _flight_layer.max_flights_per_change):
+		var card := _card_for(r.type)
+		if card == null:
+			continue
+		var k: int = batch.get(r.type, 0)
+		batch[r.type] = k + 1
+		var delay := float(k) * _flight_layer.stagger_secs
+		var slot := _volley_bar.segment_rect(r.index)
+		if r.dir == ArrowFlightLayer.TO_BAR:
+			_flight_layer.fly(r.type, r.dir, card.pile_anchor(), slot,
+					_volley_bar.on_arrow_placed.bind(r.index, r.total), delay)
+		else:
+			_flight_layer.fly(r.type, r.dir, slot.get_center(), Rect2(card.pile_anchor(), Vector2.ZERO),
+					_volley_bar.on_arrow_released.bind(r.index, r.total), delay)
+
+
+func _card_for(type_id: StringName) -> AmmoCard:
+	for card in cards():
+		if card.type != null and card.type.id == type_id:
+			return card
+	return null
 
 
 func _paint(plan: RangedAttackPlan, has_target: bool) -> void:
@@ -505,10 +550,18 @@ func _sync_cards(yield_by_type: Dictionary, counts: Dictionary, cap: int) -> voi
 		_special_cards.append(card)
 	_row.set_order(order_ids, false)
 	_base_card.set_fill(_pref().fill)
+	var source := _reload_button.get_global_rect().get_center()
 	for card in cards():
 		var id := card.type.id
-		card.set_stock(_bin(id), int(yield_by_type.get(id, 0)))
+		var bin := _bin(id)
+		var gained := bin - int(_stock_seen.get(id, 0)) if _stock_seeded else 0
+		for k in mini(gained, _flight_layer.max_flights_per_change):
+			_flight_layer.fly(id, ArrowFlightLayer.RELOAD, source, Rect2(card.pile_anchor(), Vector2.ZERO),
+					Callable(), float(k) * _flight_layer.stagger_secs)
+		card.set_stock(bin, int(yield_by_type.get(id, 0)), _flight_layer.counter_tween_secs if _stock_seeded else 0.0)
+		_stock_seen[id] = bin
 		card.set_count(int(counts.get(id, 0)), mini(_bin(id), _room_for(id, counts, cap)))
+	_stock_seeded = true
 
 
 ## The row's drop: its order is the firing order. Types not on the row follow
