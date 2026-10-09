@@ -43,12 +43,10 @@ mise run mp:e2e                                # two processes play the shipped 
                                                # (~30s) — the gate for network/ session/ command/
 ```
 
-The full suite (~45s wall, sharded; `GUT_SHARDS=1` is the ~6-minute single
-process) is a **gate, not a feedback loop** — cheap in wall clock, not in the
-context its output costs. Earn it **once per unit of work**, at final green,
-never to explore. Iterate on the cheap ladder: `check` (~20s) → `test:one` →
-`test:dir` → the suite. `mise run test` prints a verdict and keeps the full log
-at `.godot/gut-last.log` plus junit XML — see `.claude/rules/testing.md`.
+The full suite (~45s) is a **gate, not a feedback loop**: earn it once per
+unit of work, at final green. Iterate on `check` (~20s) → `test:one` →
+`test:dir` → the suite. Verdict on stdout, full log at `.godot/gut-last.log`
+— see `.claude/rules/testing.md`.
 
 Each level scene extends `scenes/game_root.tscn` (the composition root); subclasses populate content via the `_setup_level()` hook.
 
@@ -83,13 +81,15 @@ Spawning runtime entities: in `_setup_level()`, call `spawn_entity(name, color, 
 
 ## Issue tracking
 
-GitHub Issues via `gh` (repo `Koaieus/skill-tree-of-life`); board via `mise gh-project -- list|add|status|…`. **A new issue joins the board in `Backlog` by itself — never `add` it**; only call `status` for a different lane.
-
-**The status ladder is the pipeline** — `Backlog` → `Needs design` (the `/swarmify` inbox) → `Ready` → `In progress` → `In review` → `Done`. `Ready` *is* the swarm queue and **a drone never touches a non-`Ready` issue**; what to pull first is the live GitHub milestone, never a prose file — the board is authoritative for status, dependencies and what shipped.
-
-**Reading an issue is two calls** — `gh issue view <n>` (body) and `--comments` (comments only; silent exit 0 on none), and the comments usually hold the decisions. **Never `gh --body "..."` with backticks** — heredoc to a file, `--body-file`. **Attribute owner decisions to the owner, verbatim**, dated. **A parent never carries work** — a hub's status is derived from its children, never set by hand.
-
-Board commands, the hub rules, roadmap fields, sub-issues, and why attribution is load-bearing: **`docs/domain/issue-workflow.md`**.
+GitHub Issues via `gh` (repo `Koaieus/skill-tree-of-life`); board via `mise
+gh-project -- list|status|…`. The board is authoritative for status,
+dependencies and what shipped; its lanes `Backlog` → `Needs design` → `Ready`
+→ `In progress` → `In review` → `Done` are the pipeline and **`Ready` is the
+only lane a drone pulls from**. Read an issue as `gh issue view <n>` plus
+`--comments` (the decisions live there). Everything else — a new issue joins
+`Backlog` by itself, `--body-file` never inline backticks, owner decisions
+attributed verbatim and dated, hubs never carry work — is in
+**`docs/domain/issue-workflow.md`**.
 
 ## Godot conventions
 
