@@ -13,7 +13,7 @@ extends RefCounted
 ## construction for damage[/b] — [method SkillNode.take_damage] reclassifies
 ## a [DamageInstance] to [constant Kind.HEAL] when post-[Mitigation] damage
 ## goes negative (a Bulwark-style `min_damage_taken` underflow — see
-## `.claude/rules/stats-system.md`'s "Damage mitigation" section). A
+## `docs/domain/stat-upkeep-and-combat.md` § "Damage mitigation"). A
 ## [HealInstance] never reclassifies; heals aren't mitigated. [StatusInstance]
 ## (#878) adds a third value — never reclassified either, and deliberately
 ## excluded from [method AttackOutcome.damage_hits]'s filter, so an AI scorer

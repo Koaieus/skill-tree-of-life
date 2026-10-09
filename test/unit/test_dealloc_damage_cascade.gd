@@ -3,7 +3,7 @@ const _EDGE_SCENE := preload("res://graph/edge.tscn")
 
 ## Forced-dealloc cascade chip damage (#59). `BattleSystem._on_node_depleted`
 ## deducts `dealloc_damage` HP off the defender's `health` pool per cascaded
-## node, bypassing `Mitigation.apply` — see `.claude/rules/stats-system.md`
+## node, bypassing `Mitigation.apply` — see `docs/domain/stat-upkeep-and-combat.md`
 ## "Forced-dealloc damage". Exercised via the realistic bus path
 ## (`SkillNode.take_damage` → `Events.skill_node_depleted`), same pattern as
 ## `test_entity_death.gd`, so the cascade snapshot + BFS layering run for real.

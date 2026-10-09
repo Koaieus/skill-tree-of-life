@@ -45,7 +45,7 @@ func _find_intrinsic(id: StringName) -> StatModifier:
 
 func test_absorb_merges_into_a_matching_intrinsic_without_appending() -> void:
 	# default_entity_board.tres: wisdom -> xp_per_turn, ADD_BASE, value 1.0,
-	# RatioFormula(wisdom, 5) — see .claude/rules/stats-system.md's table.
+	# RatioFormula(wisdom, 5) — see docs/domain/stat-formulas.md's entity-board table.
 	var loot := _mk_mod(&"xp_per_turn", StatModifier.Operation.ADD_BASE, 1.0)
 	var f := RatioFormula.new()
 	f.source_stat_id = &"wisdom"

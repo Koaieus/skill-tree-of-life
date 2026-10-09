@@ -60,7 +60,8 @@ Steps 1–6 above, with:
   matching neighbour (`stats_system/defs/action_points.tres` is a standard
   pool). Set `per_turn_mode` (`NONE` / `REFILL` / `ADD` / `CUSTOM` /
   `HOST_ADD`) and the cap-rise / cap-fall policy — semantics in
-  `stats-system.md` → "Pool stats" and "Turn-start upkeep".
+  `stats-system.md` → "Pool stats" and `stat-upkeep-and-combat.md` →
+  "Turn-start upkeep".
 - **3.** The field is `@export var <id>: PoolStat`.
 - **4.** A `PoolStat` sub-resource on `entity/default_entity_board.tres`.
   → still **unpinned**, and a null pool can break turns, so verify this
@@ -76,8 +77,7 @@ Then decide where the modifier hangs, and only there:
 
 - **Board intrinsic** (every entity, always — e.g. CON scales the health
   cap): a `StatModifier` with a formula on the target stat's instance in
-  `entity/default_entity_board.tres`; `stats-system.md` → "Intrinsic
-  scaling". Formulas: `stats_system/formulas/` (`LinearFormula`,
+  `entity/default_entity_board.tres`; `stat-formulas.md`. Formulas: `stats_system/formulas/` (`LinearFormula`,
   `ExpressionFormula`); a cycle is rejected at load, see
   "Dependency-cycle rejection".
 - **Class identity** (this class only): the `CoreClass` resource under

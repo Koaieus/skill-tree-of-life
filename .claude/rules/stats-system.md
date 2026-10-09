@@ -8,7 +8,7 @@ paths:
 
 # Stat system gotchas
 
-Reference (pools, intrinsic-scaling tables, formula classes, packs, levels, mitigation/DoT/healing, batching, wire form, visualizer): **`docs/domain/stats-system.md`**. Adding a tuning knob or pool bin: `docs/domain/stat-knobs-and-bins.md`. Which stat shows where in the HUD: `docs/domain/stat-surfaces.md`. **Keep the doc current** when the stat system changes.
+Reference, in three docs: pools, parent/local stats, packs, levels, batching, wire form, visualizer — **`docs/domain/stats-system.md`**; intrinsic-scaling tables and formula classes — **`docs/domain/stat-formulas.md`**; turn-start upkeep, mitigation, DoT and healing — **`docs/domain/stat-upkeep-and-combat.md`**. Adding a tuning knob or pool bin: `docs/domain/stat-knobs-and-bins.md`. Which stat shows where in the HUD: `docs/domain/stat-surfaces.md`. **Keep the doc current** when the stat system changes.
 
 Stat IDs: `grep -h "^id = " stats_system/defs/*.tres | sort`. Mana and mana regen are retired (ADR 0045); restore from tag `retired/mana`, never re-add ad hoc.
 

@@ -17,7 +17,7 @@ Two authoring questions that keep getting re-derived from scratch, answered once
   `docs/domain/rounding.md` (one table, quantity → unit → direction → site)
 
 `docs/domain/stats-system.md` is the *reference* — what exists, and how the
-pipeline computes; `.claude/rules/stats-system.md` holds its gotchas. This doc is
+pipeline computes (its formula half is `docs/domain/stat-formulas.md`); `.claude/rules/stats-system.md` holds its gotchas. This doc is
 the *decision procedure* for adding something new.
 
 ---
@@ -368,7 +368,7 @@ ever express decades.
   stat can plausibly reach, and pin the top rung in a test — a range that stops
   below the top of the array cannot see the saturation.
 - Everything else stays a `RatioFormula` (`source / N` — a line; the INT stat floors once, #891) or a
-  `LinearFormula`. See `docs/domain/stats-system.md` → *Formula classes*.
+  `LinearFormula`. See `docs/domain/stat-formulas.md` → *Formula classes*.
 - `mise run lint-transcendentals` fails on a new `log`/`exp`/`pow`/trig in a
   gameplay formula string or gameplay code path. Its allowlist is the record of
   which paths are presentation or transmitted-result, and **each entry states
