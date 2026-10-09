@@ -293,7 +293,8 @@ func test_a_sensed_target_composes_scouts_only() -> void:
 	await get_tree().process_frame
 	vision._recompute()
 	assert_true(vision.is_sensed(_target) and not vision.is_visible(_target), "fixture: target is sensed-only")
-	_body.set_special(_POISON, 2)
+	_body.set_special(_POISON, 1)
+	assert_false(_body.fill(), "fixture: lowering poison past the base bin turns fill off")
 	assert_true(_counts().has(_POISON) and _counts().has(_ARROW), "control: without the viewer fog poison and base fire")
 	_plan.viewer_vision = vision
 	_plan.reset()

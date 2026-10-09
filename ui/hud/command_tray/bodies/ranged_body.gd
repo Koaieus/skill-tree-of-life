@@ -357,9 +357,13 @@ func _compose(plan: RangedAttackPlan) -> Array[Dictionary]:
 	var base := 0
 	if pref.fill:
 		base = mini(cap - sum_special, base_stock)
-		# The base bin cannot fill the room: top up the specials in card order
-		# (at max = stock this is "every arrow fires"). Keeps a scout shot's
-		# default composition all scouts, where base reads 0 in fog.
+	else:
+		base = clampi(int(pref.special_counts.get(_BASE, 0)), 0, mini(base_stock, cap - sum_special))
+	# The base bin cannot fill the room: top up the specials in card order
+	# (at max = stock this is "every arrow fires"). Into fog there is no base
+	# to hold, so a scout shot tops up whatever fill says: its default
+	# composition is all the scouts.
+	if pref.fill or scout_shot:
 		var shortfall := cap - sum_special - base
 		for t in order:
 			if shortfall <= 0:
@@ -371,8 +375,6 @@ func _compose(plan: RangedAttackPlan) -> Array[Dictionary]:
 			if extra > 0:
 				counts[t.id] = have + extra
 				shortfall -= extra
-	else:
-		base = clampi(int(pref.special_counts.get(_BASE, 0)), 0, mini(base_stock, cap - sum_special))
 	if base > 0:
 		counts[_BASE] = base
 	var list: Array[Dictionary] = []
