@@ -59,9 +59,25 @@ var stack_scale: float = 1.0
 static var _next_hit_key: int = 1
 
 
-## A landing riding [param primary] — STUB.
+## The landing a non-spell mode's riders run on: [param primary]'s attacker,
+## source, origin, read node, target and structural key; [member paired] =
+## [param primary] (so every rider is gated by it); [param hits] and
+## [param gather_cache] by reference. Stamps the landing's [member hit_key]
+## onto [param primary] too, so the primary and its riders are one hit to a
+## host. Anything mode-specific ([member read_overlays]) is caller-set after.
 static func riding(primary: HitInstance, hits: Array[HitInstance], gather_cache: Dictionary = {}) -> HitLanding:
-	return HitLanding.new()
+	var landing := HitLanding.new()
+	landing.attacker = primary.attacker
+	landing.source = primary.source
+	landing.origin = primary.origin
+	landing.read_node = primary.read_node
+	landing.target = primary.target
+	landing.structural_key = primary.structural_key
+	landing.paired = primary
+	landing.hits = hits
+	landing.gather_cache = gather_cache
+	primary.hit_key = landing.hit_key
+	return landing
 
 
 func _init() -> void:

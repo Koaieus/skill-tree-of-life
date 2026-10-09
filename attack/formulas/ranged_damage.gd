@@ -72,19 +72,8 @@ static func riders_for(hit: DamageInstance, gather_cache: Dictionary = {}) -> Ar
 	var arrow := hit as RangedHitInstance
 	if arrow == null or arrow.ammo_type == null or arrow.ammo_type.on_hit_effects.is_empty():
 		return []
-	var landing := HitLanding.new()
-	landing.attacker = arrow.attacker
-	landing.source = arrow.source
-	landing.origin = arrow.origin
-	landing.read_node = arrow.read_node
-	landing.target = arrow.target
-	landing.structural_key = arrow.structural_key
-	landing.paired = arrow
-	landing.gather_cache = gather_cache
-	arrow.hit_key = landing.hit_key
-	for effect in arrow.ammo_type.on_hit_effects:
-		if effect != null:
-			effect.apply(landing)
+	var landing := HitLanding.riding(arrow, [] as Array[HitInstance], gather_cache)
+	OnHitEffect.run_all(arrow.ammo_type.on_hit_effects, landing)
 	for rider in landing.hits:
 		rider.ammo_type_id = arrow.ammo_type_id
 	return landing.hits

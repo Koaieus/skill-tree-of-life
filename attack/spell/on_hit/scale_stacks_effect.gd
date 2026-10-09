@@ -2,7 +2,7 @@
 class_name ScaleStacksEffect
 extends SpellOnHitEffect
 
-## Multiplies [member LandingContext.stack_scale] at a landing, optionally gated by
+## Multiplies [member HitLanding.stack_scale] at a landing, optionally gated by
 ## a [LandingCondition]: every [StatusInstance] this landing then mints — an
 ## authored [ApplyStatusEffect] or an affinity rider — lands its FOLDED stacks
 ## × that scale ([method StatusInstance.land_on]). Emits nothing itself;

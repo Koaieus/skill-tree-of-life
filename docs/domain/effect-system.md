@@ -25,6 +25,7 @@ effect that needs spell context extends `SpellOnHitEffect` (narrows to
 `LandingContext`). A status rides `HitLanding.paired`, and
 `HitInstance.paired` gates it (`rider_gated`): no landed paired hit, no status.
 A spell's status is not authored here but emitted by its `SpellAffinity` list via `Infusion.riders` (ADR 0047).
+The plumbing every mode shares is three statics: `HitLanding.riding(primary, hits, cache)` builds an arrow's or a blade contact's landing (and shares its `hit_key` with the primary), `OnHitEffect.run_all(effects, landing)` runs a list, and `OnHitEffect.keep_mode_agnostic(value, where)` is the refusal setter on `AmmoType`/`SkillNodeAddon`. `HitLanding.stack_scale` is a landing field any mode may read (`ApplyStatusEffect` copies it onto every status); today only spell context writes it.
 
 ## Composition, not a subclass zoo
 

@@ -298,11 +298,8 @@ static func _resolve(
 			# VFX a pure observer of an outcome BattleSystem already applied in
 			# full; see the #381 plan). Each new hit rolls its own crit.
 			var pre := outcome.hits.size()
-			for eff in spell.on_hit_effects:
-				if eff != null:
-					eff.apply(lctx)
-			for rider in riders:
-				rider.apply(lctx)
+			OnHitEffect.run_all(spell.on_hit_effects, lctx)
+			OnHitEffect.run_all(riders, lctx)
 			var ev := PropagationEvent.new()
 			ev.beat = state.hop_index
 			ev.predecessor = state.predecessor

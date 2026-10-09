@@ -440,22 +440,13 @@ func _land_batch(
 		# contact — same beat, later index — and apply iff it was admitted.
 		var riders: Array = state.vertex_on_hit[ev.particle_idx]
 		if not riders.is_empty():
-			var landing := HitLanding.new()
-			landing.attacker = di.attacker
-			landing.source = di.source
-			landing.origin = di.origin
-			landing.read_node = di.read_node
-			landing.target = di.target
-			landing.structural_key = di.structural_key
-			landing.paired = di
+			var landing := HitLanding.riding(di, sub.hits)
 			if _ctx.overlays_for.is_valid():
 				var carrier: SkillNode = di.read_node
 				var lookup: Callable = _ctx.overlays_for
 				landing.read_overlays = func(sid: StringName) -> Array[ModifierBins]:
 					return lookup.call(carrier, sid)
-			landing.hits = sub.hits
-			for effect in riders:
-				effect.apply(landing)
+			OnHitEffect.run_all(riders, landing)
 	if sub.hits.is_empty():
 		return
 	sub.schedule = OutcomeSchedule.compile(sub)

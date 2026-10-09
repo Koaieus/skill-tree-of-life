@@ -71,13 +71,7 @@ extends Node2D
 ## array never holds one.
 @export var on_hit_effects: Array[OnHitEffect] = []:
 	set(value):
-		var kept: Array[OnHitEffect] = []
-		for effect in value:
-			if effect is SpellOnHitEffect:
-				push_error("%s: %s is spell-only; refused from on_hit_effects" % [scene_file_path, str(effect.resource_path)])
-			else:
-				kept.append(effect)
-		on_hit_effects = kept
+		on_hit_effects = OnHitEffect.keep_mode_agnostic(value, scene_file_path)
 ## Free-text tooltip description — lets a behaviour-only addon (no modifiers,
 ## e.g. Clamp) still describe itself on the carrier's hover tooltip. Empty by
 ## default; [method SkillNode.get_addon_tooltip_sections] surfaces a section

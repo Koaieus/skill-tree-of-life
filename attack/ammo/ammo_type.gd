@@ -29,13 +29,7 @@ extends Resource
 ## `push_error` each; the stored array never holds one.
 @export var on_hit_effects: Array[OnHitEffect] = []:
 	set(value):
-		var kept: Array[OnHitEffect] = []
-		for effect in value:
-			if effect is SpellOnHitEffect:
-				push_error("%s: %s is spell-only; refused from on_hit_effects" % [resource_path, str(effect.resource_path)])
-			else:
-				kept.append(effect)
-		on_hit_effects = kept
+		on_hit_effects = OnHitEffect.keep_mode_agnostic(value, resource_path)
 ## Entity-board stat id minting this type on reload. The base arrow's is
 ## `arrows_per_reload` (node-local, summed per leaf); specials are flat.
 @export var per_reload_stat_id: StringName = &""

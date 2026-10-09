@@ -14,6 +14,7 @@ const _PLAYER_FACTION := preload("res://entity/factions/player.tres")
 const _NPC_FACTION := preload("res://entity/factions/npc.tres")
 const _POISON_DEF: StatusDef = preload("res://effects/status/poison.tres")
 const _TEST_DEF: StatusDef = preload("res://test/fixtures/status/test_status.tres")
+const _BARE_ADDON_SCENE := preload("res://test/fixtures/addons/bare_addon.tscn")
 
 ## Small, so a default-HP target survives the arrow and keeps its statuses.
 const _BASE_DAMAGE := 1.0
@@ -166,7 +167,7 @@ func test_a_spell_only_effect_is_refused_from_the_slot() -> void:
 
 
 func test_a_spell_only_effect_is_refused_from_an_addon_too() -> void:
-	var addon := SkillNodeAddon.new()
+	var addon := _BARE_ADDON_SCENE.instantiate() as SkillNodeAddon
 	var kept := _rider(_POISON_DEF)
 	addon.on_hit_effects = [_SpellOnly.new(), kept] as Array[OnHitEffect]
 	assert_push_error("spell-only")

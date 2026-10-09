@@ -29,16 +29,26 @@ func status_def() -> StatusDef:
 	return null
 
 
-## STUB.
+## Run every effect in [param effects] against [param landing], in order,
+## skipping nulls — the one loop every mode's resolver runs its list through.
 static func run_all(effects: Array, landing: HitLanding) -> void:
-	pass
+	for effect in effects:
+		if effect != null:
+			effect.apply(landing)
 
 
-## STUB.
+## [param value] minus every [SpellOnHitEffect], each dropped with one
+## `push_error` naming [param where] — what a non-spell carrier's
+## [code]on_hit_effects[/code] setter stores, so it never holds a spell-only
+## effect.
 static func keep_mode_agnostic(value: Array, where: String) -> Array[OnHitEffect]:
-	var out: Array[OnHitEffect] = []
-	out.assign(value)
-	return out
+	var kept: Array[OnHitEffect] = []
+	for effect in value:
+		if effect is SpellOnHitEffect:
+			push_error("%s: %s is spell-only; refused from on_hit_effects" % [where, str(effect.resource_path)])
+		else:
+			kept.append(effect)
+	return kept
 
 
 ## Player-facing line for this effect in [SpellTooltip]'s On-arrival section
