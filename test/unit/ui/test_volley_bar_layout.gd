@@ -41,19 +41,43 @@ func test_gauge_density_threshold_is_inclusive() -> void:
 	assert_true(GaugeDensity.ticks_fit(10, 30.0, 3.0), "custom min_px")
 
 
-func test_segments_tile_the_filled_width_exactly() -> void:
+func test_uncapped_shafts_tile_the_filled_width_in_input_order() -> void:
 	var lay := VolleyBar.layout(9, 11, PackedInt32Array([3, 6, 9]), SEGS, 330.0)
 	var segs: Array = lay["segments"]
-	assert_eq(segs.size(), 2)
+	assert_eq(segs.size(), 9, "one shaft per arrow")
 	var x := 0.0
-	var total := 0.0
 	for seg in segs:
-		assert_almost_eq(float(seg["x"]), x, 0.001, "segments abut")
+		assert_almost_eq(float(seg["x"]), x, 0.001, "shafts abut")
 		x += float(seg["w"])
-		total += float(seg["w"])
-	assert_almost_eq(total, 30.0 * 9.0, 0.001, "sum of widths == px_per * n")
-	assert_eq(segs[0]["tint"], VolleyBar.TYPE_TINTS[&"arrow"])
-	assert_eq(segs[1]["tint"], VolleyBar.TYPE_TINTS[&"poison"])
+	assert_almost_eq(x, 30.0 * 9.0, 0.001, "sum of widths == px_per * n")
+	assert_eq(segs[5]["tint"], VolleyBar.TYPE_TINTS[&"arrow"])
+	assert_eq(segs[6]["tint"], VolleyBar.TYPE_TINTS[&"poison"])
+
+
+func test_order_is_input_order_never_sorted() -> void:
+	var rev: Array[Dictionary] = [{"type_id": &"poison", "count": 1}, {"type_id": &"arrow", "count": 1}]
+	var segs: Array = VolleyBar.layout(2, 4, PackedInt32Array(), rev, 100.0, 6.0, 2.0)["segments"]
+	assert_eq(segs[0]["tint"], VolleyBar.TYPE_TINTS[&"poison"])
+	assert_eq(segs[1]["tint"], VolleyBar.TYPE_TINTS[&"arrow"])
+
+
+func test_shaft_never_wider_than_max_with_one_arrow_on_a_wide_track() -> void:
+	var lay := VolleyBar.layout(1, 1, PackedInt32Array(), _segs(1), 400.0, 6.0, 2.0)
+	assert_eq(lay["segments"].size(), 1)
+	assert_lte(float(lay["segments"][0]["w"]), 6.0)
+
+
+func test_shaft_never_wider_than_max_at_n_max_and_left_packs() -> void:
+	var lay := VolleyBar.layout(20, 20, PackedInt32Array(), _segs(20), 800.0, 6.0, 2.0)
+	for seg in lay["segments"]:
+		assert_lte(float(seg["w"]), 6.0)
+	var last: Dictionary = lay["segments"][19]
+	assert_almost_eq(float(last["x"]) + float(last["w"]), 20.0 * 8.0 - 2.0, 0.001, "packed, not stretched")
+
+
+func test_shafts_shrink_to_fit_a_narrow_track() -> void:
+	var lay := VolleyBar.layout(20, 20, PackedInt32Array(), _segs(20), 100.0, 6.0, 2.0)
+	assert_almost_eq(float(lay["segments"][0]["w"]), 3.0, 0.001, "pitch 5 minus gap 2")
 
 
 # --- per-arrow charge / drain strips (#1046) -------------------------------
@@ -81,7 +105,7 @@ func test_paint_slice_plain_tint_when_idle() -> void:
 
 
 func _bar() -> VolleyBar:
-	var bar := VolleyBar.new()
+	var bar := (load("res://ui/hud/command_tray/bodies/volley_bar.tscn") as PackedScene).instantiate() as VolleyBar
 	add_child_autofree(bar)
 	bar.set_volley(3, 5, PackedInt32Array([3]), _segs(3))
 	return bar

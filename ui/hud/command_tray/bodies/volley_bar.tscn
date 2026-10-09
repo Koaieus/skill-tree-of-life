@@ -1,6 +1,10 @@
 [gd_scene format=3]
 
+[ext_resource type="Shader" path="res://ui/hud/command_tray/bodies/volley_shaft.gdshader" id="2_shader"]
 [ext_resource type="Script" path="res://ui/hud/command_tray/bodies/volley_bar.gd" id="1_script"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_shaft"]
+shader = ExtResource("2_shader")
 
 [node name="VolleyBar" type="Control"]
 custom_minimum_size = Vector2(0, 18)
@@ -9,3 +13,15 @@ anchors_preset = 0
 size_flags_horizontal = 3
 mouse_default_cursor_shape = 2
 script = ExtResource("1_script")
+
+[node name="ShaftLayer" type="Control" parent="."]
+unique_name_in_owner = true
+show_behind_parent = true
+material = SubResource("ShaderMaterial_shaft")
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2

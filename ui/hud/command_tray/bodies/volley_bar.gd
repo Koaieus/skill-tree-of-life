@@ -41,6 +41,18 @@ const CHARGE_STOPS: float = 3.0
 const CHARGE_TIME: float = 0.08
 const DRAIN_TIME: float = 0.15
 
+## Widest a single arrow shaft paints, px (tentative). Thin shafts read as
+## arrows; a sparse volley left-packs instead of stretching.
+@export var max_shaft_width: float = 6.0:
+	set(v):
+		max_shaft_width = maxf(1.0, v)
+		queue_redraw()
+## Gap between neighbouring shafts, px (tentative).
+@export var shaft_gap: float = 2.0:
+	set(v):
+		shaft_gap = maxf(0.0, v)
+		queue_redraw()
+
 var n: int = 0
 var max_n: int = 0
 ## Cumulative wave sizes strictly below max, e.g. 3, 6, 9 for max 11.
@@ -49,6 +61,8 @@ var notches: PackedInt32Array = PackedInt32Array()
 var segments: Array[Dictionary] = []
 
 var _font: Font
+var _white_tex: Texture2D
+@onready var _shaft_layer: Control = %ShaftLayer
 var _dragging := false
 
 ## Per-arrow charge strip of the launched volley, 0 = normal, 1 = lit; the
@@ -66,6 +80,7 @@ func _ready() -> void:
 	custom_minimum_size = Vector2(0.0, TRACK_H)
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	_font = get_theme_default_font()
+	_shaft_layer.draw.connect(_draw_shafts)
 
 
 ## Repaint the bar from the plan. [param hold] true (the plan is launching)
@@ -168,30 +183,35 @@ func _track_rect() -> Rect2:
 
 
 ## Pure geometry for [method _draw], in track-local pixels (x = 0 at the
-## track's left edge). `segments` are `{x, w, tint}` rects tiling the filled
-## width in roster order; `wave_x` is one notch per wave boundary; `arrow_x`
-## is one tick per arrow boundary strictly inside the track, or empty with
-## `arrows_suppressed` true when [method GaugeDensity.ticks_fit] says the
-## pitch is illegible. A sibling paints per-arrow state on top of this shape.
-static func layout(p_n: int, p_max: int, p_notches: PackedInt32Array, p_segments: Array[Dictionary], track_w: float) -> Dictionary:
+## track's left edge). `segments` is one `{x, w, tint}` shaft per arrow, in
+## the order the input lists them (never sorted); `w` never exceeds
+## [param max_w]. `pitch` is the per-arrow step, `min(track_w / max, max_w +
+## gap)`: a sparse volley left-packs rather than stretching. `wave_x` is one
+## notch per wave boundary; `arrow_x` is one tick per arrow boundary strictly
+## inside the packed span, or empty with `arrows_suppressed` true when
+## [method GaugeDensity.ticks_fit] says the pitch is illegible.
+static func layout(p_n: int, p_max: int, p_notches: PackedInt32Array, p_segments: Array[Dictionary], track_w: float, max_w: float = INF, gap: float = 0.0) -> Dictionary:
 	var out := {
 		"segments": [],
 		"wave_x": PackedFloat32Array(),
 		"arrow_x": PackedFloat32Array(),
 		"arrows_suppressed": false,
+		"pitch": 0.0,
 	}
 	if p_max <= 0 or track_w <= 0.0:
 		return out
-	var px_per := track_w / float(p_max)
+	var px_per := minf(track_w / float(p_max), max_w + gap)
+	out["pitch"] = px_per
+	var shaft_w := minf(maxf(px_per - gap, 0.0), max_w)
 	var x := 0.0
 	for seg in p_segments:
-		var w := px_per * float(int(seg.get("count", 0)))
 		var tint: Color = TYPE_TINTS.get(seg.get("type_id", &""), FALLBACK_TINT)
-		out["segments"].append({"x": x, "w": w, "tint": tint})
-		x += w
+		for _i in int(seg.get("count", 0)):
+			out["segments"].append({"x": x, "w": shaft_w, "tint": tint})
+			x += px_per
 	for notch in p_notches:
 		out["wave_x"].append(px_per * float(notch))
-	if GaugeDensity.ticks_fit(p_max, track_w):
+	if GaugeDensity.ticks_fit(p_max, px_per * float(p_max)):
 		for i in range(1, p_max):
 			out["arrow_x"].append(px_per * float(i))
 	else:
@@ -202,11 +222,11 @@ static func layout(p_n: int, p_max: int, p_notches: PackedInt32Array, p_segments
 func _draw() -> void:
 	var track := _track_rect()
 	draw_rect(track, TRACK_COLOR)
-	var lay := layout(n, max_n, notches, segments, track.size.x)
-	for seg: Dictionary in lay["segments"]:
-		draw_rect(Rect2(track.position.x + float(seg["x"]), track.position.y, float(seg["w"]), track.size.y), seg["tint"] as Color)
+	var lay := layout(n, max_n, notches, segments, track.size.x, max_shaft_width, shaft_gap)
+	var pitch: float = lay["pitch"]
+	_shaft_layer.queue_redraw()
 	if max_n > 0 and _arrow_state.size() > 0:
-		var px_per := track.size.x / float(max_n)
+		var px_per := pitch
 		for i in mini(_arrow_state.size(), max_n):
 			var state := _arrow_state[i]
 			var fired := _arrow_fired[i]
@@ -237,11 +257,31 @@ func _draw() -> void:
 			EMPTY_TINT if max_n == 0 else Color.WHITE)
 
 
+## The shaft layer's `draw`: one 1x1 white texture per shaft, its UV spanning
+## the shaft's own width for the cylinder shader; colour rides the vertex
+## colour, so the whole bar is one material and one batch.
+func _draw_shafts() -> void:
+	var track := _track_rect()
+	var lay := layout(n, max_n, notches, segments, track.size.x, max_shaft_width, shaft_gap)
+	var white := _white()
+	for seg: Dictionary in lay["segments"]:
+		_shaft_layer.draw_texture_rect(white, Rect2(track.position.x + float(seg["x"]), track.position.y, float(seg["w"]), track.size.y), false, seg["tint"] as Color)
+
+
+func _white() -> Texture2D:
+	if _white_tex == null:
+		var img := Image.create(1, 1, false, Image.FORMAT_RGBA8)
+		img.fill(Color.WHITE)
+		_white_tex = ImageTexture.create_from_image(img)
+	return _white_tex
+
+
 func _n_at(x: float) -> int:
 	var track := _track_rect()
 	if max_n <= 0 or track.size.x <= 0.0:
 		return 0
-	return clampi(ceili((x - track.position.x) / track.size.x * float(max_n)), 0, max_n)
+	var pitch: float = layout(0, max_n, PackedInt32Array(), [] as Array[Dictionary], track.size.x, max_shaft_width, shaft_gap)["pitch"]
+	return clampi(ceili((x - track.position.x) / pitch), 0, max_n)
 
 
 func _gui_input(event: InputEvent) -> void:
