@@ -75,7 +75,6 @@ signal temp_upgrade_arm_changed(upgrade: PackedScene)
 var _last_temp_upgrade: PackedScene = null
 var _last_move_source: SkillNode = null
 
-
 ## Manage-tab verb ids (#338) — the tray's card ids and the highlight's verb
 ## key. NOT arm state: that is the [ArmedStack] branch, where Deallocate,
 ## Stake and Extract are [ManageVerbMode] levels on the [ManageMode] root.
@@ -94,8 +93,8 @@ enum GateAction { TOGGLE_UNLOCKED, OPEN_UNLOCKED, CLOSE_UNLOCKED, UNLOCK_ALL, LO
 signal gate_confirm_changed(stranded: Array[SkillNode])
 ## The current player's lock set changed (or the player did).
 signal gate_locks_changed
-## Survives [method clear_transient_state] like [ArmedStack]'s [SeatMemory]: a lock is a
-## standing preference, not half-finished intent.
+## Survives [method clear_transient_state] like [ArmedStack]'s [SeatMemory]: a
+## lock is a standing preference, not half-finished intent.
 var _gate_locks := GateLockSet.new()
 var _gate_pending_key: Array[Vector2i] = []
 var _gate_pending_strand: Array[SkillNode] = []
