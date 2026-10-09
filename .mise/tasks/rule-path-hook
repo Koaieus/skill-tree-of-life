@@ -1,0 +1,280 @@
+#!/usr/bin/env python3
+#MISE description="PostToolUse hook: inject a path-scoped rule when a Bash/Write/Edit call touches a file its paths: glob names. Not meant to be run directly — see rule-path-hook-selftest."
+"""
+A Claude Code PostToolUse hook, wired in .claude/settings.json.
+
+Claude Code injects a `.claude/rules/<x>.md` with `paths:` frontmatter only when
+the Read tool opens a matching file. A session steered toward Bash (`cat`,
+`sed -n`, heredoc writes — what auto mode asks for) never calls Read, so the
+scoped tier is dead there. This hook closes that gap: after a Bash, Write or
+Edit call it extracts the repo files the call touched, matches them against
+every scoped rule's globs, and prints the body of each rule not yet injected in
+this session as `additionalContext` — the same payload the native mechanism
+would have carried, once per rule per session (per subagent).
+
+Output on exit 0 is at most one JSON line:
+
+    {"hookSpecificOutput": {"hookEventName": "PostToolUse",
+                             "additionalContext": "<rule bodies>"}}
+
+Silence (zero stdout bytes, exit 0) is the default and the overwhelming
+majority case. See docs/domain/rule-path-hook.md for the design.
+
+FAIL-CLOSED IS THE TOP PROPERTY — same contract as context-size-hook: any
+exception degrades to silent exit 0. A broken JSON line on stdout breaks the
+calling agent's next turn.
+
+What counts as "touched": a token of the command (heredoc bodies stripped,
+quotes removed) that resolves, relative to the payload's cwd, to an existing
+regular file inside the project — including an output-redirect target that does
+not exist yet. The existence check is what keeps path-looking words in `echo`,
+`gh issue view` or a commit message from firing a rule.
+"""
+import json
+import os
+import re
+import shlex
+import sys
+
+_RULES_DIR = os.path.join(".claude", "rules")
+_MAX_RULE_BYTES = 64_000  # a rule bigger than this is a doc; refuse to inject it
+_MAX_TOKENS = 400         # bound the work on a pathological command
+# Pulled out of a command before tokenising. Heredoc bodies hold briefs, issue
+# bodies and subagent prompts that quote paths all the time; firing on those is
+# exactly the 5-10x overcount docs/domain/breadcrules.md warns about.
+_HEREDOC = re.compile(r"<<-?\s*(['\"]?)([A-Za-z_][A-Za-z0-9_]*)\1[^\n]*\n.*?^\s*\2\s*$",
+                      re.S | re.M)
+_SHELL_META = re.compile(r"[|;&<>()\s]+")
+
+
+def _glob_to_regex(pattern):
+    """Repo-relative glob -> anchored regex. `**` spans directories, `*` and `?`
+    stay inside one segment, `{a,b}` alternates. Mirrors rules-hygiene's
+    reading of `paths:` so a glob that passes hygiene fires here."""
+    out = []
+    i, n = 0, len(pattern)
+    while i < n:
+        c = pattern[i]
+        if c == "*":
+            if pattern.startswith("**/", i):
+                out.append("(?:.*/)?")
+                i += 3
+                continue
+            if pattern.startswith("**", i):
+                out.append(".*")
+                i += 2
+                continue
+            out.append("[^/]*")
+        elif c == "?":
+            out.append("[^/]")
+        elif c == "{":
+            j = pattern.find("}", i)
+            if j == -1:
+                out.append(re.escape(c))
+            else:
+                alts = pattern[i + 1:j].split(",")
+                out.append("(?:" + "|".join(re.escape(a) for a in alts) + ")")
+                i = j
+        else:
+            out.append(re.escape(c))
+        i += 1
+    return re.compile("^" + "".join(out) + "$")
+
+
+def _load_scoped_rules(root):
+    """[(name, [regex], body)] for every rule with a `paths:` frontmatter."""
+    rules = []
+    rules_dir = os.path.join(root, _RULES_DIR)
+    if not os.path.isdir(rules_dir):
+        return rules
+    for fname in sorted(os.listdir(rules_dir)):
+        if not fname.endswith(".md"):
+            continue
+        path = os.path.join(rules_dir, fname)
+        try:
+            if os.path.getsize(path) > _MAX_RULE_BYTES:
+                continue
+            with open(path, "r", encoding="utf-8", errors="ignore") as f:
+                text = f.read()
+        except OSError:
+            continue
+        if not text.startswith("---"):
+            continue
+        end = text.find("\n---", 3)
+        if end == -1:
+            continue
+        front, body = text[3:end], text[end + 4:].lstrip("\n")
+        globs = []
+        in_paths = False
+        for line in front.split("\n"):
+            stripped = line.strip()
+            if stripped.startswith("paths:"):
+                in_paths = True
+                continue
+            if in_paths and stripped.startswith("- "):
+                globs.append(stripped[2:].strip().strip("\"'"))
+            elif stripped and not stripped.startswith("#") and not line.startswith(" "):
+                in_paths = False
+        if globs:
+            rules.append((fname[:-3], [_glob_to_regex(g) for g in globs], body))
+    return rules
+
+
+def _find_project_root(cwd):
+    """Nearest ancestor of cwd holding .claude/rules — a worktree is its own root."""
+    probe = os.path.abspath(cwd)
+    while True:
+        if os.path.isdir(os.path.join(probe, _RULES_DIR)):
+            return probe
+        parent = os.path.dirname(probe)
+        if parent == probe:
+            return None
+        probe = parent
+
+
+def _candidate_tokens(command, cwd):
+    """[(token, cwd_for_token)] — a leading `cd X` in a segment moves the cwd
+    for the segments after it, so `cd systems && cat turn_manager.gd` resolves."""
+    text = _HEREDOC.sub(" ", command)
+    tokens = []
+    for segment in re.split(r"&&|\|\||;|\n|\|", text):
+        segment = segment.strip()
+        if not segment or len(tokens) > _MAX_TOKENS:
+            continue
+        try:
+            parts = shlex.split(segment)
+        except ValueError:
+            parts = [w.strip("\"'") for w in segment.split()]
+        if parts and parts[0] == "cd" and len(parts) > 1 and not parts[1].startswith("-"):
+            cwd = os.path.normpath(os.path.join(cwd, os.path.expanduser(parts[1])))
+            continue
+        for p in parts:
+            p = p.strip("\"'`,:<>()")
+            # `--include='*.gd'`, `key=path` and `path:line` forms
+            if "=" in p and not os.path.exists(os.path.join(cwd, p)):
+                p = p.split("=", 1)[1]
+            if p and ("/" in p or "." in p) and not p.startswith("-"):
+                tokens.append((p, cwd))
+    return tokens
+
+
+def _touched_paths(payload):
+    """Repo-relative paths this tool call touched, or [] — see module doc."""
+    tool = payload.get("tool_name")
+    tool_input = payload.get("tool_input") or {}
+    cwd = payload.get("cwd") or os.getcwd()
+    root = _find_project_root(cwd)
+    if not root:
+        return root, []
+    if tool in ("Write", "Edit", "MultiEdit", "NotebookEdit"):
+        raw = [(tool_input.get("file_path") or tool_input.get("notebook_path") or "", cwd)]
+        allow_missing = True
+    elif tool == "Bash":
+        command = tool_input.get("command") or ""
+        raw = _candidate_tokens(command, cwd)
+        # redirect targets may be brand-new files (heredoc authoring)
+        allow_missing = False
+        redirect_targets = set(re.findall(r"(?:>>?|\btee\s+(?:-a\s+)?)\s*([^\s|;&]+)", command))
+    else:
+        return root, []
+    found = []
+    seen = set()
+    for tok, tok_cwd in raw:
+        if not tok:
+            continue
+        abs_path = tok if os.path.isabs(tok) else os.path.join(tok_cwd, tok)
+        abs_path = os.path.normpath(abs_path)
+        if not abs_path.startswith(root + os.sep):
+            continue
+        is_new_target = tool == "Bash" and tok in redirect_targets
+        if not (os.path.isfile(abs_path) or allow_missing or is_new_target):
+            continue
+        rel = os.path.relpath(abs_path, root)
+        if rel not in seen:
+            seen.add(rel)
+            found.append(rel)
+    return root, found
+
+
+def _latch_path(payload):
+    transcript_path = payload.get("transcript_path")
+    session_id = payload.get("session_id")
+    if not transcript_path or not session_id:
+        return None
+    # Same discriminator as context-size-hook: agent_id present means a
+    # subagent, whose session_id/transcript_path are the PARENT's.
+    agent = payload.get("agent_id") or "main"
+    latch_dir = os.path.join(os.path.dirname(transcript_path), "rule-hook-state")
+    return os.path.join(latch_dir, f"{session_id}__{agent}.json")
+
+
+def _load_latch(path):
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        if isinstance(data, dict) and isinstance(data.get("fired"), list):
+            return data
+    except (OSError, ValueError):
+        pass
+    return {"fired": []}
+
+
+def _save_latch(path, data):
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    tmp = f"{path}.tmp{os.getpid()}"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(data, f)
+    os.replace(tmp, path)
+
+
+def _run(payload):
+    """Returns the additionalContext string, or None for silence."""
+    root, touched = _touched_paths(payload)
+    if not touched:
+        return None
+    rules = _load_scoped_rules(root)
+    if not rules:
+        return None
+    latch_path = _latch_path(payload)
+    if not latch_path:
+        return None
+    state = _load_latch(latch_path)
+    fired = set(state["fired"])
+    blocks = []
+    for name, regexes, body in rules:
+        if name in fired:
+            continue
+        hit = next((p for p in touched if any(r.match(p) for r in regexes)), None)
+        if hit is None:
+            continue
+        fired.add(name)
+        blocks.append(
+            f"Contents of {os.path.join(root, _RULES_DIR, name + '.md')} "
+            f"(project rule, path-scoped; loaded because this call touched {hit}):\n\n{body.rstrip()}"
+        )
+    if not blocks:
+        return None
+    # Persist BEFORE printing: if the latch can't be written, stay silent
+    # rather than re-inject the same rule on every call.
+    _save_latch(latch_path, {"fired": sorted(fired)})
+    return "\n\n".join(blocks)
+
+
+def main():
+    payload = json.load(sys.stdin)
+    text = _run(payload)
+    if text:
+        print(json.dumps({
+            "hookSpecificOutput": {
+                "hookEventName": "PostToolUse",
+                "additionalContext": text,
+            }
+        }))
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except Exception:
+        pass  # fail-closed: never a traceback on stdout, never a nonzero exit
+    sys.exit(0)

@@ -99,14 +99,15 @@ paths:
 - `description:` is what an agent reads to decide whether the rule is relevant, so
   make it a real summary, not a title.
 
-> **"Read" means the Read tool.** Verified 2026-09-17 in one session: `head -3
-> test/unit/test_smoke.gd` through Bash injected nothing; `Read` on the same
-> file injected `testing.md` (`paths: test/**`). So in a session steered toward
-> Bash (`cat`/`sed -n` "bash golf", which auto mode explicitly asks for) scoped
-> rules are effectively dead, and the only carriers that still fire are
-> always-on rules and the skill/agent files loaded by name. A lesson that must
-> reach a Bash-first author goes in the skill step where it applies (warp 3a,
-> swarmify step 4, Sage's review list), with the scoped rule as the second copy.
+> **Natively, "Read" means the Read tool.** `head -3 test/unit/test_smoke.gd`
+> through Bash injects nothing; `Read` on the same file injects `testing.md`.
+> Since 2026-10-09 the `rule-path-hook` (`PostToolUse` on Bash/Write/Edit)
+> closes that gap: a file a scoped glob names, touched through Bash, fires the
+> rule once per session the same way. Measured before the hook, 95% of a main
+> session's rule-matching touches went through Bash, so the scoped tier was
+> reaching about a quarter of its audience — see docs/domain/rule-path-hook.md.
+> A lesson that must reach an author inside a skill still goes in the skill step
+> where it applies, with the scoped rule as the second copy.
 >
 > **Scoping fires on *read*, so it can't catch a from-scratch author.** A brand-new
 > rule written straight through the Write tool is never read first, so a rule
@@ -211,3 +212,13 @@ verdict — several crumbs have live windows measured in days at n=1–2. The
 long-running-commands before/after is the high-confidence finding because it is
 a large-n behavioural comparison rather than a doc-open count. Worth re-running
 once `red-green`, `adr` and `long-running-commands` have a real exposure window.
+
+## Measured, 2026-10-09: the scoped tier was mostly not firing
+
+A sweep of every transcript from 2026-09-01 to 10-09 (366 main + 986 subagent)
+found scoped rules injected only by the Read tool, which carried 5% of a main
+session's rule-matching file touches (31% in subagents, falling month over
+month). Per-rule miss rates ran 67–98%. The fix is a hook, not more crumbs:
+docs/domain/rule-path-hook.md holds the table and the design. Consequence for
+authors: a fat scoped rule is now paid for in every session that touches its
+files, so the `doc-in-a-rule` and `expensive-scope` hygiene verdicts are real.

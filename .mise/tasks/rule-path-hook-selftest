@@ -1,0 +1,141 @@
+#!/usr/bin/env python3
+#MISE description="Runnable checks for rule-path-hook: `mise run rule-path-hook-selftest`"
+"""
+Not a GUT test — exercises a Claude Code hook script as a real subprocess
+(JSON on stdin, JSON-or-silence on stdout, exit code checked) and asserts:
+
+  1. a Bash `cat` of a file under a scoped glob injects that rule, once
+  2. the same rule stays silent on the second call in the same session
+  3. a different session (or subagent) gets its own latch
+  4. a path quoted only inside a heredoc body does NOT fire
+  5. a heredoc REDIRECT TARGET (new file) does fire — the from-scratch author
+  6. a Write tool_use fires; an unrelated Bash command is silent
+  7. a `cd sub && cat rel/path` resolves against the cd target
+  8. always-on rules (no frontmatter) are never injected by this hook
+  9. fails CLOSED (silent, exit 0) on garbage stdin and an unwritable latch dir
+ 10. per-call overhead stays small
+
+Re-run any time the hook changes: `mise run rule-path-hook-selftest`.
+"""
+import json
+import os
+import shutil
+import subprocess
+import sys
+import tempfile
+import time
+
+HOOK = os.path.join(os.path.dirname(os.path.abspath(__file__)), "rule-path-hook")
+_failures = []
+
+
+def check(name, condition, detail=""):
+    print(f"[{'ok' if condition else 'FAIL'}] {name}" + (f" — {detail}" if detail and not condition else ""))
+    if not condition:
+        _failures.append(name)
+
+
+def run_hook(payload, raw=None):
+    proc = subprocess.run([sys.executable, HOOK], input=raw if raw is not None else json.dumps(payload),
+                          capture_output=True, text=True, timeout=10)
+    return proc.returncode, proc.stdout, proc.stderr
+
+
+def context_of(stdout):
+    if not stdout.strip():
+        return ""
+    return json.loads(stdout)["hookSpecificOutput"]["additionalContext"]
+
+
+def main():
+    tmp = tempfile.mkdtemp(prefix="rule-hook-selftest-")
+    try:
+        root = os.path.join(tmp, "repo")
+        rules = os.path.join(root, ".claude", "rules")
+        os.makedirs(rules)
+        os.makedirs(os.path.join(root, "systems"))
+        os.makedirs(os.path.join(root, "test", "unit"))
+        with open(os.path.join(rules, "turn.md"), "w") as f:
+            f.write("---\ndescription: turn\npaths:\n  - \"systems/turn_manager.gd\"\n  - \"entity/**\"\n---\n\nTURN RULE BODY\n")
+        with open(os.path.join(rules, "testing.md"), "w") as f:
+            f.write("---\npaths:\n  - \"test/**\"\n---\nTESTING RULE BODY\n")
+        with open(os.path.join(rules, "crumb.md"), "w") as f:
+            f.write("ALWAYS ON CRUMB. See docs/domain/x.md\n")
+        with open(os.path.join(root, "systems", "turn_manager.gd"), "w") as f:
+            f.write("extends Node\n")
+        with open(os.path.join(root, "test", "unit", "test_smoke.gd"), "w") as f:
+            f.write("extends GutTest\n")
+        transcripts = os.path.join(tmp, "projects")
+        os.makedirs(transcripts)
+        transcript = os.path.join(transcripts, "sess1.jsonl")
+        open(transcript, "w").close()
+
+        def payload(tool, inp, session="sess1", agent=None, cwd=root):
+            p = {"session_id": session, "transcript_path": transcript, "cwd": cwd,
+                 "hook_event_name": "PostToolUse", "tool_name": tool, "tool_input": inp,
+                 "tool_response": ""}
+            if agent:
+                p["agent_id"] = agent
+            return p
+
+        # 1
+        code, out, err = run_hook(payload("Bash", {"command": "cat systems/turn_manager.gd | head -5"}))
+        ctx = context_of(out)
+        check("bash cat injects the matching rule", code == 0 and "TURN RULE BODY" in ctx and "crumb" not in ctx, out + err)
+        check("injected text names the rule file and trigger", "turn.md" in ctx and "systems/turn_manager.gd" in ctx)
+        # 2
+        code, out, _ = run_hook(payload("Bash", {"command": "sed -n '1,20p' systems/turn_manager.gd"}))
+        check("same rule silent on second call", code == 0 and out == "", out)
+        # 3
+        code, out, _ = run_hook(payload("Bash", {"command": "cat systems/turn_manager.gd"}, agent="agent-9"))
+        check("subagent gets its own latch", "TURN RULE BODY" in context_of(out))
+        code, out, _ = run_hook(payload("Bash", {"command": "cat systems/turn_manager.gd"}, session="sess2"))
+        check("another session gets its own latch", "TURN RULE BODY" in context_of(out))
+        # 4
+        cmd = "cat > /tmp/brief.md <<'EOF'\nread test/unit/test_smoke.gd first\nEOF\necho done"
+        code, out, _ = run_hook(payload("Bash", {"command": cmd}))
+        check("heredoc body path does not fire", code == 0 and out == "", out)
+        # 5
+        cmd = "cat > test/unit/test_new.gd <<'EOF'\nextends GutTest\nEOF"
+        code, out, _ = run_hook(payload("Bash", {"command": cmd}))
+        check("heredoc redirect target fires (new file)", "TESTING RULE BODY" in context_of(out), out)
+        # 6
+        code, out, _ = run_hook(payload("Write", {"file_path": os.path.join(root, "entity", "new_thing.gd"), "content": "x"}, session="sess3"))
+        check("Write tool_use fires on a ** glob", "TURN RULE BODY" in context_of(out), out)
+        code, out, _ = run_hook(payload("Bash", {"command": "gh issue view 123 --comments; echo systems/turn_manager.gd"}, session="sess4"))
+        check("echo of a path that exists still counts as a touch (documented)", "TURN RULE BODY" in context_of(out))
+        code, out, _ = run_hook(payload("Bash", {"command": "git status && mise run check"}, session="sess5"))
+        check("unrelated bash is silent", code == 0 and out == "", out)
+        # 7
+        code, out, _ = run_hook(payload("Bash", {"command": "cd systems && cat turn_manager.gd"}, session="sess6"))
+        check("cd-relative path resolves", "TURN RULE BODY" in context_of(out), out)
+        # 8
+        code, out, _ = run_hook(payload("Bash", {"command": "cat .claude/rules/crumb.md"}, session="sess7"))
+        check("always-on rule never injected by hook", code == 0 and out == "", out)
+        # 9
+        code, out, _ = run_hook(None, raw="{not json")
+        check("garbage stdin: silent exit 0", code == 0 and out == "")
+        ro = os.path.join(tmp, "ro")
+        os.makedirs(os.path.join(ro, "rule-hook-state"))
+        os.chmod(os.path.join(ro, "rule-hook-state"), 0o500)
+        p = payload("Bash", {"command": "cat systems/turn_manager.gd"}, session="sess8")
+        p["transcript_path"] = os.path.join(ro, "x.jsonl")
+        code, out, _ = run_hook(p)
+        check("unwritable latch: silent exit 0", code == 0 and out == "", out)
+        os.chmod(os.path.join(ro, "rule-hook-state"), 0o700)
+        # 10
+        t0 = time.monotonic()
+        for i in range(10):
+            run_hook(payload("Bash", {"command": "git status"}, session=f"perf{i}"))
+        per_call = (time.monotonic() - t0) / 10
+        check("overhead per call under 150ms", per_call < 0.15, f"{per_call*1000:.0f}ms")
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+    if _failures:
+        print(f"\n{len(_failures)} FAILED: {', '.join(_failures)}")
+        sys.exit(1)
+    print("\nall ok")
+
+
+if __name__ == "__main__":
+    main()
