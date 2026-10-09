@@ -533,9 +533,27 @@ func test_a_stock_gain_flies_onto_its_card_capped() -> void:
 	assert_eq(_requested(_POISON, ArrowFlightLayer.RELOAD), _flights().max_flights_per_change)
 
 
-func test_a_rebind_flies_no_phantom_reload() -> void:
+func test_a_rebind_flies_nothing() -> void:
 	_body.teardown()
+	_plan.ammo = [] as Array[Dictionary]
 	_flights().requested.clear()
 	_body.bind(_attacker, _battle, _ctl)
-	assert_eq(_requested(_POISON, ArrowFlightLayer.RELOAD), 0)
-	assert_eq(_requested(_ARROW, ArrowFlightLayer.RELOAD), 0)
+	assert_false(_plan.ammo.is_empty(), "the rebind recomposed the list")
+	assert_eq(_flights().requested.size(), 0, "no reload, no pile→bar flights from unlaid cards")
+
+
+## The first refresh after a launch recomposes against the spent quiver: the
+## arrows that left must not fly back to the piles.
+func test_the_refresh_after_a_launch_flies_nothing_back() -> void:
+	var fired := _plan.ammo.duplicate()
+	_battle.is_launching = true
+	_attacker.stat_board.arrows.take(_ARROW, 4)
+	# The plan still lists the volley that fired when control resumes.
+	_plan.ammo = fired
+	_battle.is_launching = false
+	_flights().requested.clear()
+	_body.set_fill(true)
+	assert_eq(_counts()[_ARROW], 5, "the plan shrank to the spent bin")
+	assert_eq(_flights().requested.size(), 0)
+	_attacker.stat_board.arrows.take(_ARROW, 1)
+	assert_eq(_requested(_ARROW, ArrowFlightLayer.TO_PILE), 1, "outside a launch a shrink flies again")

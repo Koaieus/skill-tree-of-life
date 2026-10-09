@@ -49,10 +49,12 @@ var _special_cards: Array[AmmoCard] = []
 var _quiver: Quiver = null
 var _refreshing := false
 var _orphan_pref: VolleyPreference = null
-## Each type's bin as last painted — a rise flies the gain onto its pile.
-## Unseeded until the first paint after a bind, which flies nothing.
+## Each carded type's bin as last painted — a rise flies the gain onto its
+## pile. A type missing here (first paint after a bind, a card instanced this
+## paint, the first paint after a launch) flies nothing: its card has no
+## layout yet, or its drop is the volley that just left.
 var _stock_seen: Dictionary = {}
-var _stock_seeded := false
+var _was_launching := false
 
 
 func _ready() -> void:
@@ -62,7 +64,7 @@ func _ready() -> void:
 
 func _on_bound() -> void:
 	_stock_seen.clear()
-	_stock_seeded = false
+	_was_launching = false
 	_reset_button.pressed.connect(_reset_plan)
 	_launch_button.pressed.connect(_on_launch_pressed)
 	_reload_button.pressed.connect(_on_reload_pressed)
@@ -123,7 +125,7 @@ func teardown() -> void:
 	_disconnect_card(_base_card)
 	_flight_layer.clear()
 	_stock_seen.clear()
-	_stock_seeded = false
+	_was_launching = false
 	for card in _special_cards:
 		_row.remove_child(card)
 		card.queue_free()
@@ -427,6 +429,12 @@ func _refresh() -> void:
 	if _refreshing:
 		return
 	_refreshing = true
+	var launching := _battle_system != null and _battle_system.is_launching
+	if _was_launching and not launching:
+		# The volley's arrows went into the enemy: reseed, fly nothing back.
+		_stock_seen.clear()
+	_was_launching = launching
+	var seen_before := _stock_seen.duplicate()
 	var plan := _aimed()
 	var old_list: Array[Dictionary] = []
 	var changed := false
@@ -440,18 +448,19 @@ func _refresh() -> void:
 	_paint(_plan(), plan != null)
 	# After the paint: `set_volley` clears the bar's strips, so a landing must
 	# not be requested before it. The plan is already final here.
-	if changed and not (_battle_system != null and _battle_system.is_launching):
-		_fly_diff(old_list, plan.ammo)
+	if changed and not launching:
+		_fly_diff(old_list, plan.ammo, seen_before)
 	_refreshing = false
 
 
 ## Presentation of a plan-list change: each added arrow flies from its card's
-## pile into its bar slot, each removed one back; capped per type.
-func _fly_diff(old_list: Array, new_list: Array) -> void:
+## pile into its bar slot, each removed one back; capped per type. Only types
+## in [param seen] fly — their cards were laid out before this paint.
+func _fly_diff(old_list: Array, new_list: Array, seen: Dictionary) -> void:
 	var batch: Dictionary = {}
 	for r in ArrowFlightLayer.diff(old_list, new_list, _flight_layer.max_flights_per_change):
 		var card := _card_for(r.type)
-		if card == null:
+		if card == null or not seen.has(r.type):
 			continue
 		var k: int = batch.get(r.type, 0)
 		batch[r.type] = k + 1
@@ -554,14 +563,14 @@ func _sync_cards(yield_by_type: Dictionary, counts: Dictionary, cap: int) -> voi
 	for card in cards():
 		var id := card.type.id
 		var bin := _bin(id)
-		var gained := bin - int(_stock_seen.get(id, 0)) if _stock_seeded else 0
+		var had := _stock_seen.has(id)
+		var gained := bin - int(_stock_seen[id]) if had else 0
 		for k in mini(gained, _flight_layer.max_flights_per_change):
 			_flight_layer.fly(id, ArrowFlightLayer.RELOAD, source, Rect2(card.pile_anchor(), Vector2.ZERO),
 					Callable(), float(k) * _flight_layer.stagger_secs)
-		card.set_stock(bin, int(yield_by_type.get(id, 0)), _flight_layer.counter_tween_secs if _stock_seeded else 0.0)
+		card.set_stock(bin, int(yield_by_type.get(id, 0)), _flight_layer.counter_tween_secs if had else 0.0)
 		_stock_seen[id] = bin
 		card.set_count(int(counts.get(id, 0)), mini(_bin(id), _room_for(id, counts, cap)))
-	_stock_seeded = true
 
 
 ## The row's drop: its order is the firing order. Types not on the row follow
