@@ -1,0 +1,89 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" path="res://addons/sandbox_host/sandbox_live_tab.tscn" id="1_base"]
+[ext_resource type="Script" path="res://addons/sandbox_host/tabs/13_ammo_widgets_panel.gd" id="2_panel"]
+[ext_resource type="PackedScene" path="res://ui/theme/bloom_viewport.tscn" id="3_vp"]
+[ext_resource type="PackedScene" path="res://ui/hud/command_tray/bodies/sheaf_pile.tscn" id="4_pile"]
+[ext_resource type="PackedScene" path="res://ui/hud/command_tray/bodies/send_bar.tscn" id="5_bar"]
+
+[node name="AmmoWidgets" instance=ExtResource("1_base")]
+tab_title = "Ammo Widgets"
+tab_id = &"ammo_widgets"
+loader_method = &"noop"
+
+[node name="TitleLabel" parent="Layout/Toolbar" index="0"]
+text = "Ammo Widgets"
+
+[node name="AmmoWidgetsPanel" type="PanelContainer" parent="Layout/Split/PanelHost" index="0"]
+layout_mode = 2
+script = ExtResource("2_panel")
+
+[node name="Split" type="HBoxContainer" parent="Layout/Split/PanelHost/AmmoWidgetsPanel"]
+layout_mode = 2
+
+[node name="Knobs" type="VBoxContainer" parent="Layout/Split/PanelHost/AmmoWidgetsPanel/Split"]
+custom_minimum_size = Vector2(220, 0)
+layout_mode = 2
+
+[node name="StockLabel" type="Label" parent="Layout/Split/PanelHost/AmmoWidgetsPanel/Split/Knobs"]
+layout_mode = 2
+text = "Stock"
+
+[node name="Stock" type="HSlider" parent="Layout/Split/PanelHost/AmmoWidgetsPanel/Split/Knobs"]
+unique_name_in_owner = true
+layout_mode = 2
+max_value = 999.0
+value = 12.0
+
+[node name="Tint" type="ColorPickerButton" parent="Layout/Split/PanelHost/AmmoWidgetsPanel/Split/Knobs"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 28)
+layout_mode = 2
+color = Color(0.55, 0.85, 0.95, 1)
+
+[node name="Readout" type="Label" parent="Layout/Split/PanelHost/AmmoWidgetsPanel/Split/Knobs"]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="ViewportContainer" type="SubViewportContainer" parent="Layout/Split/PanelHost/AmmoWidgetsPanel/Split"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+stretch = true
+
+[node name="World" parent="Layout/Split/PanelHost/AmmoWidgetsPanel/Split/ViewportContainer" instance=ExtResource("3_vp")]
+handle_input_locally = false
+size = Vector2i(600, 400)
+render_target_update_mode = 4
+
+[node name="Bg" type="ColorRect" parent="Layout/Split/PanelHost/AmmoWidgetsPanel/Split/ViewportContainer/World"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+color = Color(0.02, 0.025, 0.035, 1)
+
+[node name="Stage" type="Control" parent="Layout/Split/PanelHost/AmmoWidgetsPanel/Split/ViewportContainer/World"]
+layout_mode = 3
+anchors_preset = 0
+offset_left = 120.0
+offset_top = 80.0
+offset_right = 220.0
+offset_bottom = 220.0
+mouse_filter = 2
+
+[node name="Pile" parent="Layout/Split/PanelHost/AmmoWidgetsPanel/Split/ViewportContainer/World/Stage" instance=ExtResource("4_pile")]
+unique_name_in_owner = true
+offset_left = -18.0
+offset_top = 70.0
+offset_right = 54.0
+offset_bottom = 120.0
+
+[node name="Bar" parent="Layout/Split/PanelHost/AmmoWidgetsPanel/Split/ViewportContainer/World/Stage" instance=ExtResource("5_bar")]
+unique_name_in_owner = true
+offset_left = 0.0
+offset_top = 0.0
+offset_right = 36.0
+offset_bottom = 130.0
