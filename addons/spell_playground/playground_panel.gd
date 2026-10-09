@@ -484,7 +484,7 @@ func _arm_plan() -> MagicAttackPlan:
 		stack.cancel_attack()
 		_watch_plan(null)
 		return null
-	stack.selected_spell = _spell
+	stack.select_spell(_systems.input_controller.player, _spell)
 	if stack.attack_plan() == null or stack.attack_mode() != BattleSystem.AttackMode.MAGIC:
 		_systems.input_controller.arm_attack(BattleSystem.AttackMode.MAGIC)
 	var plan := stack.attack_plan() as MagicAttackPlan

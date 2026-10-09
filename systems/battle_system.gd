@@ -197,8 +197,8 @@ signal in_flight_plan_changed(plan: AttackPlan)
 
 ## Mint a fresh plan for [param mode], attacked by [param attacker], with no
 ## viewer fog. Null for [constant AttackMode.NONE]. Carries none of a seat's
-## sticky tray preferences ([member ArmedStack.next_melee_cw],
-## [member ArmedStack.selected_spell]) — an [AttackArmMode] layers those on its
+## sticky tray preferences ([member MeleeMemory.next_swing_cw],
+## [member MagicMemory.selected_spell]) — an [AttackArmMode] layers those on its
 ## own plans; an explicit attacker gets the plan's own defaults.
 func new_plan(mode: AttackMode, attacker: Entity) -> AttackPlan:
 	return mint_plan(mode, attacker, null)

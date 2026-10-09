@@ -94,7 +94,7 @@ var _board_sealed: bool = false
 ## Spells this entity knows + the gating logic for whether they can be cast
 ## from a given node (degree, etc.). Surfaced by the spell-picker UI and
 ## consulted by AI when scoring magic attacks. Promotion of a known spell
-## into the active slot happens via [member ArmedStack.selected_spell].
+## into the active slot happens via [member MagicMemory.selected_spell].
 @export var spellbook: SpellBook = null
 
 ## Reward tier (#300): sizes the SkillDust loot FRACTION

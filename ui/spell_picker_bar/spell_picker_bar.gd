@@ -3,7 +3,7 @@ extends HFlowContainer
 
 ## Renders the player [SpellBook] as a row of [SpellPickerButton]s. Selecting
 ## one routes through [signal spell_selected] which UIRoot forwards to
-## [member ArmedStack.selected_spell]. The bar self-syncs three independent
+## [member MagicMemory.selected_spell]. The bar self-syncs three independent
 ## gates on each button (#728): the bar-wide act gate (not your turn / no
 ## AP — grey AND unclickable), and whether ANY owned node clears the spell's
 ## min_degree. The latter goes grey but STAYS clickable so the press can float

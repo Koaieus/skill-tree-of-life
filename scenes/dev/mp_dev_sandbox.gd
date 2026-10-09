@@ -621,7 +621,7 @@ func _sweep_magic() -> void:
 	if source == null:
 		_write_log("autopilot: magic SKIPPED — no owned node in reach of a hostile one")
 		return
-	input_ctl.armed_stack.selected_spell = SpellCatalog.SPARK
+	input_ctl.armed_stack.select_spell(input_ctl.player, SpellCatalog.SPARK)
 	input_ctl.arm_attack(BattleSystem.AttackMode.MAGIC)
 	var plan := input_ctl.armed_stack.attack_plan() as MagicAttackPlan
 	plan.set_target(source)
@@ -635,7 +635,7 @@ func _sweep_magic() -> void:
 		input_ctl.armed_stack.cancel_attack()
 		return
 	_write_log("autopilot: casting %s from %s at %s"
-			% [input_ctl.armed_stack.selected_spell.name, plan.source.name, plan.target.name])
+			% [input_ctl.armed_stack.memory_for(input_ctl.player).magic.selected_spell.name, plan.source.name, plan.target.name])
 	await battle_system.launch_attack(plan)
 	_write_log("autopilot: magic OK")
 
