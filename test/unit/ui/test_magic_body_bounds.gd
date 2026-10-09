@@ -244,3 +244,26 @@ func test_the_sections_are_the_builders_lines_and_rebuild_only_on_a_new_spell() 
 	await get_tree().process_frame
 	var venom := SpellSections.build(_VENOM, _plan.attacker.stat_board)
 	assert_eq(_sections()[1].line_texts(), venom.on_arrival.lines, "rebuilt to the new spell")
+
+
+## #1508: the on-arrival numbers fold through the plan's cast-from node, the
+## landing's read node, so a node-local stacks bonus shows; moving the source
+## rebuilds the sections.
+func test_the_sections_read_through_the_plans_source_node() -> void:
+	await _configure(_VENOM)
+	var board := _plan.attacker.stat_board
+	var graph := _plan.attacker.get_parent() as Graph
+	var src := graph.get_skill_nodes()[0]
+	SpellTestHelper.new().assign_owner(graph, _plan.attacker, [0])
+	var more := StatModifier.new()
+	more.stat_id = &"poison_stacks_per_hit"
+	more.operation = StatModifier.Operation.MULTIPLY
+	more.value = 2.0
+	src.add_local_modifier(more)
+	var at_node := SpellSections.build(_VENOM, board, src).on_arrival.lines
+	assert_ne(at_node, SpellSections.build(_VENOM, board).on_arrival.lines,
+			"guard: the node-local bonus moves the on-arrival line")
+	_plan.source = src
+	_plan.state_changed.emit()
+	await get_tree().process_frame
+	assert_eq(_sections()[1].line_texts(), at_node, "the tray folds the source node's slice")
