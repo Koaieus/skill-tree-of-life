@@ -10,7 +10,12 @@ extends RefCounted
 var order: Array[StringName] = []
 ## Whether base arrows fill the volley up to N.
 var fill: bool = true
-## Special counts `{type_id: n}` — what the player chose per special. Clamped
+## The held base-arrow count: what the volley fires of base arrows while
+## [member fill] is off (read only then; fill ON derives it from the room).
+## Like [member special_counts] it is the player's choice, clamped in the
+## composed plan only.
+var base_count: int = 0
+## Special counts `{type_id: n}` — what the player chose per special type (never the base arrow). Clamped
 ## to the bins in the composed plan only; a launch that empties a bin leaves
 ## the choice here untouched.
 var special_counts: Dictionary[StringName, int] = {}

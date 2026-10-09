@@ -191,7 +191,7 @@ func set_n(value: int) -> void:
 	if plan != null:
 		for c in _clamped_specials(plan.max_n(), plan.is_scout_shot()).values():
 			specials += int(c)
-	pref.special_counts[_BASE] = maxi(0, value - specials)
+	pref.base_count = maxi(0, value - specials)
 	_refresh()
 
 
@@ -211,7 +211,7 @@ func set_fill(on: bool) -> void:
 	if pref.fill != on:
 		var plan := _aimed()
 		if not on and plan != null:
-			pref.special_counts[_BASE] = plan.count_of(_BASE)
+			pref.base_count = plan.count_of(_BASE)
 		pref.fill = on
 	_refresh()
 
@@ -224,7 +224,7 @@ func toggle_fill() -> void:
 func set_base(value: int) -> void:
 	var pref := _pref()
 	pref.fill = false
-	pref.special_counts[_BASE] = maxi(0, value)
+	pref.base_count = maxi(0, value)
 	_refresh()
 
 
@@ -244,7 +244,7 @@ func set_special(type_id: StringName, value: int) -> void:
 		var base_room := _stock_for(_ROSTER.base_type(), plan.is_scout_shot()) - base_now
 		if before - value > base_room:
 			pref.fill = false
-			pref.special_counts[_BASE] = base_now
+			pref.base_count = base_now
 	pref.special_counts[type_id] = value
 	_refresh()
 
@@ -364,7 +364,7 @@ func _clamped_specials(cap: int, scout_shot: bool) -> Dictionary:
 ## The explicit composition as the plan's ordered list, in card order. Reads
 ## the preference, never writes it: every clamp lives in the plan only.
 ## Fill ON: base takes the room the specials leave. Fill OFF: base is the
-## held count in `special_counts[BASE_ID]` (read only while fill is off),
+## held count in `base_count` (read only while fill is off),
 ## clamped to its bin and to the room — specials win the room.
 func _compose(plan: RangedAttackPlan) -> Array[Dictionary]:
 	var cap := plan.max_n()
@@ -382,7 +382,7 @@ func _compose(plan: RangedAttackPlan) -> Array[Dictionary]:
 	if pref.fill:
 		base = mini(cap - sum_special, base_stock)
 	else:
-		base = clampi(int(pref.special_counts.get(_BASE, 0)), 0, mini(base_stock, cap - sum_special))
+		base = clampi(pref.base_count, 0, mini(base_stock, cap - sum_special))
 	# The base bin cannot fill the room: top up the specials in card order
 	# (at max = stock this is "every arrow fires"). Into fog there is no base
 	# to hold, so a scout shot tops up whatever fill says: its default
