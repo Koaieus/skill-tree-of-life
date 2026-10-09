@@ -248,6 +248,11 @@ func stacks_per_hit(board: StatBoard, authored: float) -> float:
 	return round_half_up(float(stat.get_value_with(overlays)))
 
 
+## The on-hit readout line: `Applies <name> (<n> per hit<ingest>).`.
+func applies_line(_board: StatBoard, _authored: float, _ingest: String = "") -> String:
+	return ""
+
+
 ## [method stacks_per_hit] read through the attacking node's [param slice]:
 ## [method NodeCombat.get_local_value_with] folds the owner's entity bins, then
 ## the node's local bins, then [param authored] as the `base_add` overlay, then

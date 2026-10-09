@@ -62,9 +62,22 @@ func test_venom_burst_lands_one_poison_of_its_innate_per_landing_with_no_infusio
 		assert_eq(statuses[0].target, n[1], "on the landing's node")
 
 
-func test_venom_tres_holds_no_apply_status_effect() -> void:
-	for effect in _VENOM.on_hit_effects:
-		assert_false(effect is ApplyStatusEffect, "venom's poison is its affinity, not an authored rider")
+## ADR 0047 rule 4: a spell's status is its affinity, never an authored
+## [ApplyStatusEffect] — every def under `attack/spell/defs/`.
+func test_no_spell_def_authors_an_apply_status_effect() -> void:
+	const DIR := "res://attack/spell/defs/"
+	var walked := 0
+	for file in DirAccess.get_files_at(DIR):
+		if not file.ends_with(".tres"):
+			continue
+		var spell := load(DIR + file) as SpellDef
+		if spell == null:
+			continue
+		walked += 1
+		for effect in spell.on_hit_effects:
+			assert_false(effect is ApplyStatusEffect,
+					"%s authors an ApplyStatusEffect; its status belongs in an affinity" % file)
+	assert_gt(walked, 5, "walked %d spell defs" % walked)
 	assert_eq(Infusion.innate(_VENOM).affinity_of(_VENOM),
 			{&"poison": _VENOM.affinities[0].innate} as Dictionary[StringName, int])
 
@@ -105,3 +118,13 @@ func test_affinity_description_reads_the_stacks_fold_and_the_rate() -> void:
 	assert_eq(_affinity(_POISON, 5, 2.0).get_description(), "Applies Poison (5 per hit; +2 per poison infused).")
 	assert_eq(_affinity(_POISON, 0, 0.0).get_description(), "Applies Poison (0 per hit; refuses poison infusions).")
 	assert_eq(SpellAffinity.new().get_description(), "Applies nothing (no status set).")
+
+
+func test_apply_status_description_is_the_status_applies_line() -> void:
+	var board := (preload("res://entity/default_entity_board.tres") as EntityStatBoard).duplicate(true) as EntityStatBoard
+	var eff := ApplyStatusEffect.new()
+	eff.def = _POISON
+	eff.power = 3.0
+	var expected := _POISON.applies_line(board, 3.0)
+	assert_eq(expected, "Applies Poison (3 per hit).", "the shared line")
+	assert_eq(eff.get_description(null, board), expected)
