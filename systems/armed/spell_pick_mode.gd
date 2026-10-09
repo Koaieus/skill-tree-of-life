@@ -39,7 +39,7 @@ func on_popped() -> void:
 
 
 ## Select [param spell] and close. Picking the already-selected spell still
-## closes: the setter does not emit on an unchanged value.
+## closes: [method ArmedStack.select_spell] does not emit on an unchanged value.
 func pick(spell: SpellDef) -> void:
 	stack.select_spell(ctl.player if ctl != null else null, spell)
 	pop_self()
