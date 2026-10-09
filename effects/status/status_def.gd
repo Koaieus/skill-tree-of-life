@@ -248,9 +248,14 @@ func stacks_per_hit(board: StatBoard, authored: float) -> float:
 	return round_half_up(float(stat.get_value_with(overlays)))
 
 
-## The on-hit readout line: `Applies <name> (<n> per hit<ingest>).`.
-func applies_line(_board: StatBoard, _authored: float, _ingest: String = "") -> String:
-	return ""
+## The one on-hit readout line every status describer returns:
+## `Applies <name> (<n> per hit<ingest>).` — [member display_name], falling back
+## to [member id]; `<n>` is [method stacks_per_hit] of [param authored] on
+## [param board], the fold the landing uses; [param ingest] is appended inside
+## the parentheses verbatim (a [SpellAffinity] passes `"; <its ingest clause>"`).
+func applies_line(board: StatBoard, authored: float, ingest: String = "") -> String:
+	var name := display_name if not display_name.is_empty() else String(id)
+	return "Applies %s (%s per hit%s)." % [name, NumFmt.num(stacks_per_hit(board, authored)), ingest]
 
 
 ## [method stacks_per_hit] read through the attacking node's [param slice]:

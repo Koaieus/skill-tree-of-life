@@ -48,13 +48,11 @@ func status_def() -> StatusDef:
 ## Per #764's contract: a null [param spell] (no preview context) still
 ## returns a description, just without needing one — [member power] is
 ## already this effect's own authored number, not a formula input. The
-## per-hit line is [method StatusDef.stacks_per_hit] — #1189's fold, the same
-## one the landing itself uses — so a null [param board] answers the authored
-## [member power] unscaled and a board with the attacker's
-## `<family>_stacks_per_hit` folds it in, both trimmed to 2dp.
+## line is [method StatusDef.applies_line] — the one status readout, folding
+## [member power] through the same stacks fold the landing uses — so a null
+## [param board] answers the authored [member power] unscaled and a board with
+## the attacker's `<family>_stacks_per_hit` folds it in.
 func get_description(_spell: SpellDef = null, board: StatBoard = null) -> String:
 	if def == null:
 		return "Applies a status."
-	var name := def.display_name if not def.display_name.is_empty() else String(def.id)
-	var stacks := def.stacks_per_hit(board, power)
-	return "Applies %s (%s per hit)." % [name, NumFmt.num(stacks)]
+	return def.applies_line(board, power)

@@ -1,10 +1,8 @@
 [gd_resource type="Resource" script_class="SpellDef" format=3 uid="uid://bhx11tndfimq"]
 
 [ext_resource type="Script" uid="uid://ber34us1t16kb" path="res://attack/spell/spell_def.gd" id="1_spell"]
-[ext_resource type="Script" uid="uid://dw3civ4fol21f" path="res://attack/spell/on_hit/on_hit_effect.gd" id="2_effect"]
 [ext_resource type="Script" uid="uid://cx52yu8u4qipj" path="res://attack/spell/condition/landing_condition.gd" id="2_fbvit"]
 [ext_resource type="Script" uid="uid://c1371mypr70e1" path="res://attack/spell/spell_affinity.gd" id="3_affinity"]
-[ext_resource type="Script" uid="uid://c2q50hhtuf7g7" path="res://attack/spell/on_hit/apply_status_effect.gd" id="4_apply"]
 [ext_resource type="Resource" uid="uid://cxsty6fu58ea0" path="res://effects/status/scouted.tres" id="4_scouted"]
 [ext_resource type="Script" uid="uid://y1sg5vhlxmw7" path="res://attack/targeting/aimed_targeting.gd" id="5_targeting"]
 [ext_resource type="Script" uid="uid://cn5xe2rb5ymgv" path="res://attack/targeting/line_shape.gd" id="6_line"]
@@ -15,9 +13,11 @@
 [ext_resource type="PackedScene" path="res://attack/range_finder/visuals/range_ring.tscn" id="10_1gd11"]
 [ext_resource type="Resource" path="res://identity/defs/spell_scout_line.tres" id="identity_ref"]
 
-[sub_resource type="Resource" id="apply_scouted"]
-script = ExtResource("4_apply")
-def = ExtResource("4_scouted")
+[sub_resource type="Resource" id="scouted_affinity"]
+script = ExtResource("3_affinity")
+status = ExtResource("4_scouted")
+innate = 1
+rate = 0.0
 
 [sub_resource type="Resource" id="prop_none"]
 script = ExtResource("8_config")
@@ -44,6 +44,6 @@ tagline = "Point, fire, and light up everything along the way."
 description = "Aim a thin flare from the cast-from node. Every node the line crosses, whoever owns it and however deep in the fog, gains one scouted stack for your camp. The line reaches as far as your euclidean cast range. Deals no damage."
 identity = ExtResource("identity_ref")
 propagation = SubResource("prop_none")
-on_hit_effects = Array[ExtResource("2_effect")]([SubResource("apply_scouted")])
+affinities = Array[ExtResource("3_affinity")]([SubResource("scouted_affinity")])
 vfx_coordinator_scene = ExtResource("9_vfx")
 targeting = SubResource("targeting_line")
