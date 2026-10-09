@@ -19,11 +19,14 @@ and you say what you excluded. (Design behind this file:
 |---|---|
 | `list` | one line per session: id8, date, skill launched (`-` if none), turns, first prompt |
 | `grep <regex> [--role user\|assistant] [--max 5]` | one line per hit with id8 and role — the cheap first pass for any "how often" |
-| `final [--min-chars 300]` | the last assistant text of each session: the closing report a run gave the owner |
+| `final [--min-chars 300] [--tail N]` | the last assistant texts of each session, each with the number of owner turns after it. The owner usually keeps talking after a run's report, so the last text is often an addendum: `--tail 3` to see the report itself |
 | `show <id8> [--role] [--max-chars N]` | one session's user + assistant text in order, tool calls elided |
 | `subagents <id8>` | that session's subagent transcripts with names and sizes |
 
-`--days` defaults to 56. `--subagents` includes drone/explore transcripts in
+`--days` defaults to 56. A skill shown as `swarmify~` was launched by a
+prompt opening with the verb rather than `/swarmify`; those often name
+content, not issue numbers, so count by content when the question is "which
+issues". `--subagents` includes drone/explore transcripts in
 `list`/`grep`; off by default because they are most of the bytes and rarely
 the question. `--help` on any verb.
 

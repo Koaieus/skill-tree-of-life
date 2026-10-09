@@ -6,6 +6,10 @@ tables/headers (reliable). Rows: `2026-10-09-skill-endings-rows.jsonl`
 (id8, date, skill, labels, a 200-char quote per final message). Method: for
 each session launched as a skill (`<command-name>` in the first user
 record, or free text `<skill> #…`), take the last assistant text ≥ 300 chars.
+Caveats added after review: (1) free-text launches that name content rather
+than issue numbers were missed by the `#` rule; (2) the owner extends most
+runs past the report, so the sampled text is usually a post-report exchange
+— directional for structure, not a census of reports.
 
 
 ## 1. Per-skill table (% of final messages)

@@ -6,7 +6,9 @@ sections, same order, every section present even when it says `none`, so the
 owner — usually on a phone — can ingest a run without re-reading it, and a
 later scan (`mise run transcripts -- final --skill <s>`) can diff runs.
 
-Measured before this existed (208 endings, 2026-08-10 → 2026-10-09,
+Measured before this existed (208 last-long-messages — in most sessions a
+post-report exchange rather than the report itself, so directional —
+2026-08-10 → 2026-10-09,
 [corpus scan](../corpus/2026-10-09-skill-endings.md)): endings were 130–260
 words of prose with bold-lead bullets, 5 % had headers, 12 % a table, and
 the one thing nearly every ending carried was *what landed + SHA + test
@@ -56,6 +58,24 @@ The `Landed` table carries what that skill lands:
 
 A `relief` ending adds one line under `Needs the owner` when it hands off:
 `next relief: <what it takes>`.
+
+A launch does not always name issues — a swarmify or warp is often asked for
+by content ("the bruiser retarget bug"). `Landed` then lists the issues the
+run created or resolved for that content, and the headline says `<skill>
+<content, five words>` instead of numbers.
+
+## The addendum — the report is rarely the last message
+
+The owner usually keeps going after the report: a question on a loose end,
+"do the second follow-up too", "push". Measured on the same window, that
+happened after most swarm, warp and swarmify runs. So the report is rendered
+when the *work* ends, and every later closing message is an **addendum**:
+the same sections, only the ones that changed, under one bold `Addendum`
+line — a `Landed` row for the follow-up that got done, a `Follow-ups` row
+whose disposition moved, `Not done` cleared. Never a second full report, and
+never prose that forgets the sections: the last message of a session must
+still be ingestible on its own, and `mise run transcripts -- final` reads
+exactly that message (`--tail 3` shows the report before it).
 
 ## The follow-up rule
 

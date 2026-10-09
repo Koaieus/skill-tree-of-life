@@ -8,14 +8,19 @@ because the directory is hundreds of MB and a transcript is a few MB.
 
   list      one line per session: id8, date, skill (or -), turns, first prompt
   grep      regex over user/assistant text, one line per hit with id8 + role
-  final     the last assistant text (>= --min-chars) of each session — the
-            closing report a run gave the owner
+  final     the last assistant texts (>= --min-chars) of each session — the
+            closing report a run gave the owner. The owner often keeps going
+            after the report (loose ends, follow-ups), so the LAST text is
+            frequently an addendum: --tail 3 shows the last three with the
+            number of owner turns after each
   show      one session's user + assistant text in order (tool calls elided)
   subagents one session's subagent transcripts with their names and sizes
 
 Common filters: --days N (default 56) or --since YYYY-MM-DD, --skill NAME
-(a run launched as /NAME, or free text "NAME #…"), --subagents (include the
-subagent files too; off by default). --json on every verb for rows.
+(a run launched as /NAME, or a prompt opening with the verb — shown as
+NAME~ in `list`; such launches often name content, not issue numbers),
+--subagents (include the subagent files too; off by default). --json on
+every verb for rows.
 
 Record shape, for anyone extending this: `type` ∈ user | assistant |
 queue-operation | attachment | last-prompt | …; `message.content` is a string
@@ -65,11 +70,13 @@ def records(path, kinds=("user", "assistant")):
 
 
 def launch_skill(first):
+    """(skill, launch): launch is 'tag' for a /skill command, 'text' for a prompt that opens with the
+    verb — those often name content rather than issue numbers ("swarmify the bruiser retarget bug")."""
     m = re.search(r"<command-name>/?([\w-]+)</command-name>", first)
     if m:
-        return m.group(1)
-    m = re.match(r"\s*(%s)\s+#?\d" % "|".join(SKILLS), first, re.I)
-    return m.group(1).lower() if m else "-"
+        return m.group(1), "tag"
+    m = re.match(r"\s*(%s)\b[:,]?\s+\S" % "|".join(SKILLS), first, re.I)
+    return (m.group(1).lower(), "text") if m else ("-", "")
 
 
 def sessions(a):
@@ -88,12 +95,12 @@ def sessions(a):
                 break
         if not first or first[1][:10] < since:
             continue
-        skill = launch_skill(first[0])
+        skill, launch = launch_skill(first[0])
         if a.skill and skill != a.skill:
             continue
         base = os.path.basename(f)
         id8 = base[:8] if not base.startswith("agent-") else base[6:-6]
-        yield f, id8, first[1][:10], skill, first[0]
+        yield f, id8, first[1][:10], skill + ("~" if launch == "text" else ""), first[0]
 
 
 def common(p):
@@ -139,13 +146,17 @@ def cmd_grep(a):
 def cmd_final(a):
     rows = []
     for f, id8, date, skill, _ in sessions(a):
-        last = None
-        for t, x, ts in records(f, ("assistant",)):
-            if len(x) >= a.min_chars:
-                last = x
-        if last:
-            rows.append(dict(id8=id8, date=date, skill=skill, words=len(last.split()), text=last))
-    emit(a, rows, lambda r: f"━━ {r['id8']}  {r['date']}  {r['skill']}  ({r['words']} words)\n{r['text']}\n")
+        texts = []  # [text, owner turns after it]
+        for t, x, ts in records(f):
+            if t == "assistant" and len(x) >= a.min_chars:
+                texts.append([x, 0])
+            elif t == "user" and x.strip() and texts:
+                texts[-1][1] += 1
+        for i, (x, after) in enumerate(texts[-a.tail:]):
+            rows.append(dict(id8=id8, date=date, skill=skill, nth=i - min(a.tail, len(texts)) + 1,
+                             owner_turns_after=after, words=len(x.split()), text=x))
+    emit(a, rows, lambda r: f"━━ {r['id8']}  {r['date']}  {r['skill']}  ({r['words']} words, "
+                            f"{'last' if r['nth'] == 0 else str(r['nth'])}, +{r['owner_turns_after']} owner turns after)\n{r['text']}\n")
 
 
 def find(id8):
@@ -199,7 +210,8 @@ def main(argv=None):
     s = sub.add_parser("list"); common(s); s.set_defaults(fn=cmd_list)
     s = sub.add_parser("grep"); common(s); s.add_argument("pattern"); s.add_argument("--role", choices=("user", "assistant"))
     s.add_argument("--max", type=int, default=5, help="hits per session (5)"); s.add_argument("--width", type=int, default=160); s.set_defaults(fn=cmd_grep)
-    s = sub.add_parser("final"); common(s); s.add_argument("--min-chars", type=int, default=300); s.set_defaults(fn=cmd_final)
+    s = sub.add_parser("final"); common(s); s.add_argument("--min-chars", type=int, default=300)
+    s.add_argument("--tail", type=int, default=1, help="how many of the last substantive messages (1)"); s.set_defaults(fn=cmd_final)
     s = sub.add_parser("show"); s.add_argument("id8"); s.add_argument("--role", choices=("user", "assistant")); s.add_argument("--max-chars", type=int, default=0)
     s.add_argument("--json", action="store_true"); s.set_defaults(fn=cmd_show)
     s = sub.add_parser("subagents"); s.add_argument("id8"); s.add_argument("--json", action="store_true"); s.set_defaults(fn=cmd_subagents)

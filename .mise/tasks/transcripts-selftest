@@ -30,6 +30,9 @@ write(os.path.join(root, A + ".jsonl"), [
     rec("assistant", [{"type": "text", "text": "short"}], "2026-10-01T09:00:02Z"),
     rec("user", "fine, land it", "2026-10-01T09:05:00Z"),
     rec("assistant", [{"type": "text", "text": "**Landed** #12 at abc1234. " + "x " * 200}], "2026-10-01T09:06:00Z"),
+    rec("user", "and the loose end?", "2026-10-01T09:07:00Z"),
+    rec("user", "also push", "2026-10-01T09:08:00Z"),
+    rec("assistant", [{"type": "text", "text": "**Addendum** pushed. " + "y " * 200}], "2026-10-01T09:09:00Z"),
 ])
 write(os.path.join(root, A, "subagents", "agent-deadbeef01.jsonl"), [
     rec("user", "Work #12 in .worktrees/foo please", "2026-10-01T09:01:00Z"),
@@ -37,7 +40,7 @@ write(os.path.join(root, A, "subagents", "agent-deadbeef01.jsonl"), [
 ])
 json.dump({"name": "drone-foo"}, open(os.path.join(root, A, "subagents", "agent-deadbeef01.meta.json"), "w"))
 write(os.path.join(root, B + ".jsonl"), [
-    rec("user", "swarmify #99 please", "2026-01-01T09:00:00Z"),
+    rec("user", "swarmify the bruiser retarget bug, no issue yet", "2026-01-01T09:00:00Z"),
     rec("assistant", [{"type": "text", "text": "ancient " * 60}], "2026-01-01T09:01:00Z"),
 ])
 # the old file must look old to the mtime pre-filter too
@@ -58,10 +61,10 @@ def rows(*argv):
 
 r = rows("list", "--since", "2026-09-01")
 assert [x["id8"] for x in r] == ["aaaaaaaa"], r
-assert r[0]["skill"] == "warp" and r[0]["turns"] == 2 and r[0]["prompt"] == "#12", r[0]
+assert r[0]["skill"] == "warp" and r[0]["turns"] == 4 and r[0]["prompt"] == "#12", r[0]
 assert rows("list", "--since", "2026-09-01", "--skill", "swarm") == []
 r = rows("list", "--since", "2025-12-01")
-assert {x["skill"] for x in r} == {"warp", "swarmify"}, r
+assert {x["skill"] for x in r} == {"warp", "swarmify~"}, r  # ~ marks a free-text launch
 r = rows("list", "--since", "2026-09-01", "--subagents")
 assert sorted(x["id8"] for x in r) == ["aaaaaaaa", "deadbeef01"], r
 
@@ -70,13 +73,16 @@ assert len(r) == 1 and r[0]["role"] == "assistant" and "abc1234" in r[0]["line"]
 assert rows("grep", "landed", "--since", "2026-09-01", "--role", "user") == []
 
 r = rows("final", "--since", "2026-09-01")
-assert len(r) == 1 and r[0]["text"].startswith("**Landed**") and r[0]["words"] > 100, r
+assert len(r) == 1 and r[0]["text"].startswith("**Addendum**") and r[0]["owner_turns_after"] == 0, r
+r = rows("final", "--since", "2026-09-01", "--tail", "3")
+assert [(x["nth"], x["owner_turns_after"]) for x in r] == [(-1, 2), (0, 0)], r
+assert r[0]["text"].startswith("**Landed**"), r
 assert rows("final", "--since", "2026-09-01", "--min-chars", "100000") == []
 
 r = rows("show", "aaaaaaaa")
-assert [x["role"] for x in r] == ["user", "assistant", "user", "assistant"], r
+assert [x["role"] for x in r] == ["user", "assistant", "user", "assistant", "user", "user", "assistant"], r
 r = rows("show", "aaaaaaaa", "--role", "user", "--max-chars", "4")
-assert [x["text"] for x in r] == ["<com", "fine"], r
+assert [x["text"] for x in r] == ["<com", "fine", "and ", "also"], r
 
 r = rows("subagents", "aaaaaaaa")
 assert len(r) == 1 and r[0]["name"] == "drone-foo" and r[0]["id"] == "deadbeef01", r

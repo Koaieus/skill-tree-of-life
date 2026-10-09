@@ -67,7 +67,14 @@ twice, never to `cat` or `Read` one.
    the labelled rows, rows holding id8 + date + labels + a short quote and
    never full texts. The swarmify corpus (`.claude/skills/swarmify/corpus/`)
    predates this home and stays where its charter cites it.
-8. **Read-only on the transcripts and the repo**, except the corpus files
+8. **The last message is rarely the report.** The owner extends most
+   runs past the closing message (73 of 97 swarmify, 43 of 44 swarm, 19 of
+   23 warp sessions in the 60 days to 2026-10-09 had owner turns after an
+   earlier long message); `final` reports owner turns after each text and
+   `--tail` reaches back, and the agent file says so. Likewise a launch
+   may name content, not issues (`skill~` in `list`): "which issues" is
+   answered by what the run created or resolved, not by the prompt.
+9. **Read-only on the transcripts and the repo**, except the corpus files
    and its scratchpad. It never edits a charter or a rule — it hands the
    evidence to the session that will.
 
@@ -79,6 +86,7 @@ twice, never to `cat` or `Read` one.
 | 2026-09-22 | Swarmify's two corpus scans each re-derived the first-user-record launch tag and the block-list text shape | 1, 7 |
 | 2026-10-08 | Rule-trigger audit: a Sonnet trawl of 8 weeks, prompt explained Read/Write tool-call shape from scratch | 1, 3 |
 | 2026-10-09 | The first scan with the new layout knowledge in the prompt (208 endings) still cost a 600-word brief; this charter moves that brief into the agent file | 1 |
+| 2026-10-09 | Owner on that scan: launches "don't mention just issue numbers but instead specify content", and "after the final message … i responded with a few messages extending the back and forth" — the scan had sampled the extension, not the report | 8 |
 
 ## What the agent file must not contain
 
