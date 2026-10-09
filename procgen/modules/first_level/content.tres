@@ -6,9 +6,9 @@
 [ext_resource type="PackedScene" uid="uid://duyunqwjt7qd" path="res://skill_node/addons/defs/fortification_addon.tscn" id="4_eddxh"]
 [ext_resource type="PackedScene" uid="uid://cmkt6tybpv38p" path="res://skill_node/addons/defs/bunker_addon.tscn" id="5_ybboy"]
 [ext_resource type="PackedScene" uid="uid://b1addon0watch" path="res://skill_node/addons/defs/watchtower_addon.tscn" id="6_6prhp"]
-[ext_resource type="PackedScene" uid="uid://b1addon0toxin" path="res://skill_node/addons/defs/toxin_addon.tscn" id="6_toxin"]
 [ext_resource type="PackedScene" uid="uid://b1addon0compr" path="res://skill_node/addons/defs/compromiser_addon.tscn" id="6_compromiser"]
 [ext_resource type="PackedScene" uid="uid://b1addon0egate" path="res://skill_node/addons/defs/eldritch_gate_addon.tscn" id="6_eldritch_gate"]
+[ext_resource type="PackedScene" uid="uid://b1addon0toxin" path="res://skill_node/addons/defs/toxin_addon.tscn" id="6_toxin"]
 [ext_resource type="Script" uid="uid://c4jsrfudhqhuk" path="res://procgen/pools/addon_pool.gd" id="7_mkfxt"]
 [ext_resource type="Script" uid="uid://bi20g047mnsv6" path="res://procgen/pools/addon_policy.gd" id="8_cotot"]
 [ext_resource type="Script" uid="uid://0rdv1h0ycc3p" path="res://procgen/archetypes/archetype_stamp.gd" id="9_jdf0g"]
@@ -260,13 +260,6 @@ min_count = 0
 weight = SubResource("rim_field")
 min_hops_from_starter = 3
 
-[sub_resource type="Resource" id="sp_inversion"]
-script = ExtResource("34_scnpl")
-node_scene = ExtResource("42_invers")
-min_count = 0
-weight = SubResource("rim_field")
-min_hops_from_starter = 3
-
 [sub_resource type="Resource" id="sp_natural_xp"]
 script = ExtResource("34_scnpl")
 node_scene = ExtResource("40_natxp")
@@ -280,6 +273,13 @@ node_scene = ExtResource("41_wisdom")
 min_count = 4
 max_count = 8
 min_hops_from_starter = 2
+
+[sub_resource type="Resource" id="sp_inversion"]
+script = ExtResource("34_scnpl")
+node_scene = ExtResource("42_invers")
+min_count = 0
+weight = SubResource("rim_field")
+min_hops_from_starter = 3
 
 [sub_resource type="Resource" id="sgpe_bruiser"]
 script = ExtResource("25_yaek3")
@@ -370,9 +370,9 @@ weights = {
 
 [resource]
 script = ExtResource("24_stf08")
-universal_share = 0.15
 modifier_pool_set = ExtResource("23_u3mra")
 weight_profiles = Array[Resource]([SubResource("awp_main")])
+universal_share = 0.15
 budget_policy = SubResource("bp_main")
 archetypes = Array[ExtResource("10_t0e51")]([SubResource("ap_red"), SubResource("ap_green"), SubResource("ap_blue"), SubResource("ap_white"), SubResource("ap_gold"), SubResource("ap_purple")])
 subtypes = Array[ExtResource("90_nsub")]([ExtResource("92_sbli"), ExtResource("93_sble")])

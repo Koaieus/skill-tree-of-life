@@ -1,32 +1,34 @@
-[gd_resource type="Resource" script_class="SpellDef" format=3]
+[gd_resource type="Resource" script_class="SpellDef" format=3 uid="uid://bhx11tndfimq"]
 
-[ext_resource type="Script" path="res://attack/spell/spell_def.gd" id="1_spell"]
-[ext_resource type="Script" path="res://attack/spell/on_hit/on_hit_effect.gd" id="2_effect"]
-[ext_resource type="Script" path="res://attack/spell/spell_affinity.gd" id="3_affinity"]
-[ext_resource type="Resource" path="res://effects/status/scouted.tres" id="4_scouted"]
-[ext_resource type="Script" path="res://attack/spell/on_hit/apply_status_effect.gd" id="4_apply"]
-[ext_resource type="Script" path="res://attack/targeting/aimed_targeting.gd" id="5_targeting"]
-[ext_resource type="Script" path="res://attack/targeting/line_shape.gd" id="6_line"]
-[ext_resource type="Script" path="res://attack/range_finder/euclidean_range_finder.gd" id="7_range"]
-[ext_resource type="Script" path="res://attack/spell/propagation/propagation_config.gd" id="8_config"]
+[ext_resource type="Script" uid="uid://ber34us1t16kb" path="res://attack/spell/spell_def.gd" id="1_spell"]
+[ext_resource type="Script" uid="uid://dw3civ4fol21f" path="res://attack/spell/on_hit/on_hit_effect.gd" id="2_effect"]
+[ext_resource type="Script" uid="uid://cx52yu8u4qipj" path="res://attack/spell/condition/landing_condition.gd" id="2_fbvit"]
+[ext_resource type="Script" uid="uid://c1371mypr70e1" path="res://attack/spell/spell_affinity.gd" id="3_affinity"]
+[ext_resource type="Script" uid="uid://c2q50hhtuf7g7" path="res://attack/spell/on_hit/apply_status_effect.gd" id="4_apply"]
+[ext_resource type="Resource" uid="uid://cxsty6fu58ea0" path="res://effects/status/scouted.tres" id="4_scouted"]
+[ext_resource type="Script" uid="uid://y1sg5vhlxmw7" path="res://attack/targeting/aimed_targeting.gd" id="5_targeting"]
+[ext_resource type="Script" uid="uid://cn5xe2rb5ymgv" path="res://attack/targeting/line_shape.gd" id="6_line"]
+[ext_resource type="Script" uid="uid://duy3yt7dr5o8t" path="res://attack/range_finder/euclidean_range_finder.gd" id="7_range"]
+[ext_resource type="Script" uid="uid://o0v6inqs5wk6" path="res://attack/spell/propagation/propagation_config.gd" id="8_config"]
+[ext_resource type="PackedScene" path="res://attack/range_finder/visuals/range_edge.tscn" id="9_b2j20"]
 [ext_resource type="PackedScene" path="res://ui/vfx/coordinator/spells/scout_line_coordinator.tscn" id="9_vfx"]
+[ext_resource type="PackedScene" path="res://attack/range_finder/visuals/range_ring.tscn" id="10_1gd11"]
 [ext_resource type="Resource" path="res://identity/defs/spell_scout_line.tres" id="identity_ref"]
 
 [sub_resource type="Resource" id="apply_scouted"]
 script = ExtResource("4_apply")
 def = ExtResource("4_scouted")
-power = 1.0
 
 [sub_resource type="Resource" id="prop_none"]
 script = ExtResource("8_config")
 
-[sub_resource type="Resource" id="shape_line"]
-script = ExtResource("6_line")
-width = 16.0
-
 [sub_resource type="Resource" id="range_long"]
 script = ExtResource("7_range")
 max_distance = 400.0
+
+[sub_resource type="Resource" id="shape_line"]
+script = ExtResource("6_line")
+width = 16.0
 
 [sub_resource type="Resource" id="targeting_line"]
 script = ExtResource("5_targeting")
@@ -36,14 +38,12 @@ range_finder = SubResource("range_long")
 
 [resource]
 script = ExtResource("1_spell")
-identity = ExtResource("identity_ref")
 id = &"scout_line"
 name = "Flare Line"
 tagline = "Point, fire, and light up everything along the way."
 description = "Aim a thin flare from the cast-from node. Every node the line crosses, whoever owns it and however deep in the fog, gains one scouted stack for your camp. The line reaches as far as your euclidean cast range. Deals no damage."
-power = 0.0
+identity = ExtResource("identity_ref")
 propagation = SubResource("prop_none")
 on_hit_effects = Array[ExtResource("2_effect")]([SubResource("apply_scouted")])
-affinities = Array[ExtResource("3_affinity")]([])
 vfx_coordinator_scene = ExtResource("9_vfx")
 targeting = SubResource("targeting_line")

@@ -1,19 +1,27 @@
-[gd_resource type="Resource" script_class="SpellDef" format=3]
+[gd_resource type="Resource" script_class="SpellDef" format=3 uid="uid://yrmexdqlu4q1"]
 
 [ext_resource type="Script" uid="uid://ber34us1t16kb" path="res://attack/spell/spell_def.gd" id="1_spell"]
 [ext_resource type="Script" uid="uid://dw3civ4fol21f" path="res://attack/spell/on_hit/on_hit_effect.gd" id="2_effect"]
-[ext_resource type="Script" uid="uid://cymqlf1js3ra8" path="res://attack/spell/on_hit/damage_effect.gd" id="3_dmg"]
-[ext_resource type="Script" path="res://attack/spell/on_hit/scale_stacks_effect.gd" id="3_scale"]
-[ext_resource type="Script" path="res://attack/spell/propagation/ranker/content_ranker.gd" id="3_content"]
-[ext_resource type="Resource" path="res://effects/status/corruption.tres" id="3_corruption"]
 [ext_resource type="Script" uid="uid://c1371mypr70e1" path="res://attack/spell/spell_affinity.gd" id="3_affinity"]
+[ext_resource type="Script" uid="uid://o8mbyyfx5biq" path="res://attack/spell/propagation/ranker/content_ranker.gd" id="3_content"]
+[ext_resource type="Resource" path="res://effects/status/corruption.tres" id="3_corruption"]
+[ext_resource type="Script" uid="uid://cymqlf1js3ra8" path="res://attack/spell/on_hit/damage_effect.gd" id="3_dmg"]
+[ext_resource type="Script" uid="uid://cx52yu8u4qipj" path="res://attack/spell/condition/landing_condition.gd" id="3_kihv3"]
+[ext_resource type="Script" uid="uid://cpigj7at6nq2n" path="res://attack/spell/on_hit/scale_stacks_effect.gd" id="3_scale"]
 [ext_resource type="Script" uid="uid://o0v6inqs5wk6" path="res://attack/spell/propagation/propagation_config.gd" id="4_config"]
 [ext_resource type="Script" uid="uid://dsyv0dkxki366" path="res://attack/spell/propagation/filter/owner_filter.gd" id="5_filter"]
 [ext_resource type="Script" uid="uid://bqrga3k1hmfut" path="res://attack/spell/propagation/spread/fan_all_spread.gd" id="6_fan"]
 [ext_resource type="Script" uid="uid://btpnit4nenasw" path="res://attack/targeting/node_targeting.gd" id="6_targeting"]
 [ext_resource type="Script" uid="uid://br4akul8rvteg" path="res://attack/range_finder/hop_range_finder.gd" id="7_range"]
 [ext_resource type="PackedScene" path="res://ui/vfx/coordinator/spells/spark_coordinator.tscn" id="10_vfx"]
+[ext_resource type="PackedScene" path="res://attack/range_finder/visuals/range_edge.tscn" id="13_vc1qn"]
+[ext_resource type="PackedScene" path="res://attack/range_finder/visuals/range_ring.tscn" id="14_3sv7c"]
 [ext_resource type="Resource" path="res://identity/defs/spell_defile.tres" id="identity_ref"]
+
+[sub_resource type="Resource" id="corruption_defile"]
+script = ExtResource("3_affinity")
+status = ExtResource("3_corruption")
+innate = 1
 
 [sub_resource type="Resource" id="content_defile"]
 script = ExtResource("3_content")
@@ -24,11 +32,6 @@ ranker = SubResource("content_defile")
 
 [sub_resource type="Resource" id="dmg_defile"]
 script = ExtResource("3_dmg")
-
-[sub_resource type="Resource" id="corruption_defile"]
-script = ExtResource("3_affinity")
-status = ExtResource("3_corruption")
-innate = 1
 
 [sub_resource type="Resource" id="filter_enemy"]
 script = ExtResource("5_filter")
@@ -51,11 +54,11 @@ range_finder = SubResource("range_3hop")
 
 [resource]
 script = ExtResource("1_spell")
-identity = ExtResource("identity_ref")
 id = &"defile"
 name = "Defile"
 tagline = "Rot what is rich: every modifier a node carries takes a stack of corruption."
 description = "Deal a little damage to an enemy-occupied node within 3 hops, then fan up to 2 hops through enemy territory. Each node struck is corrupted once per modifier it carries — a spell grant or an addon counts twice. A blank node is immune."
+identity = ExtResource("identity_ref")
 power = 0.4
 propagation = SubResource("prop_defile")
 on_hit_effects = Array[ExtResource("2_effect")]([SubResource("scale_defile"), SubResource("dmg_defile")])

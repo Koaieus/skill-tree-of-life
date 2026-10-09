@@ -1,6 +1,7 @@
-[gd_resource type="Resource" script_class="BlindnessStatus" format=3]
+[gd_resource type="Resource" script_class="BlindnessStatus" format=3 uid="uid://nmnrq5fdv7xq"]
 
 [ext_resource type="Script" uid="uid://bx6v4guitql5c" path="res://effects/status/blindness.gd" id="1_blind"]
+[ext_resource type="Script" uid="uid://che6xhl6srqh3" path="res://stats_system/stat_modifier.gd" id="3_fxrbm"]
 [ext_resource type="Script" uid="uid://18mskbhypx7a" path="res://effects/status/decay/fraction_decay.gd" id="decay_script"]
 [ext_resource type="Resource" path="res://identity/defs/blindness.tres" id="identity_blindness"]
 
@@ -10,17 +11,14 @@ fraction = 0.7
 
 [resource]
 script = ExtResource("1_blind")
-identity = ExtResource("identity_blindness")
 id = &"blindness"
 display_name = "Blindness"
+identity = ExtResource("identity_blindness")
 description = "The node sees and senses less; the deeper the blindness, the slower its recovery starts."
 tags = Array[StringName]([&"debuff"])
 resistance_stat_id = &"blindness_resistance"
+stacks_stat_id = &"blindness_stacks_per_hit"
 power_max = 0.0
+decay = SubResource("Resource_decay")
 display_max = 3.0
 reapply = 1
-on_dealloc = 0
-depth_k = 3.0
-floor_factor = 0.1
-stacks_stat_id = &"blindness_stacks_per_hit"
-decay = SubResource("Resource_decay")

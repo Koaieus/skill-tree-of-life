@@ -1,6 +1,7 @@
 [gd_resource type="Resource" script_class="SpellDef" format=3 uid="uid://hi2w3tufav8y"]
 
 [ext_resource type="Texture2D" uid="uid://dmikkhwx58iww" path="res://assets/icons/spells/spark.png" id="1_6qevb"]
+[ext_resource type="Script" uid="uid://c1371mypr70e1" path="res://attack/spell/spell_affinity.gd" id="1_fvvar"]
 [ext_resource type="Texture2D" uid="uid://brj7obegt2fyi" path="res://assets/emblem_luts/spark.png" id="1_lut"]
 [ext_resource type="Script" uid="uid://cx52yu8u4qipj" path="res://attack/spell/condition/landing_condition.gd" id="1_numg4"]
 [ext_resource type="Script" uid="uid://ber34us1t16kb" path="res://attack/spell/spell_def.gd" id="1_spell"]
@@ -40,11 +41,11 @@ range_finder = SubResource("range_3hop")
 
 [resource]
 script = ExtResource("1_spell")
-identity = ExtResource("identity_ref")
 id = &"spark"
 name = "Spark"
 tagline = "Cheap poke at one nearby enemy node."
 description = "Deal 5 damage to a single enemy-occupied node within 3 hops of the source via the live graph (allocation status irrelevant — hops route through whatever's connected)."
+identity = ExtResource("identity_ref")
 carve_shape = SubResource("carve_spark")
 power = 1.0
 propagation = SubResource("prop_spark")

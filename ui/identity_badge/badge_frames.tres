@@ -1,7 +1,7 @@
-[gd_resource type="Resource" script_class="BadgeFrames" format=3]
+[gd_resource type="Resource" script_class="BadgeFrames" format=3 uid="uid://d0besplina7vm"]
 
-[ext_resource type="Script" path="res://ui/identity_badge/badge_frame.gd" id="1_lbe58"]
-[ext_resource type="Script" path="res://ui/identity_badge/badge_frames.gd" id="2_5kl13"]
+[ext_resource type="Script" uid="uid://bvfdercuxr4tr" path="res://ui/identity_badge/badge_frame.gd" id="1_lbe58"]
+[ext_resource type="Script" uid="uid://cpcarepxgqv2x" path="res://ui/identity_badge/badge_frames.gd" id="2_5kl13"]
 
 [sub_resource type="Resource" id="Resource_uty5m"]
 script = ExtResource("1_lbe58")

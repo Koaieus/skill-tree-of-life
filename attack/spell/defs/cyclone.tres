@@ -1,5 +1,6 @@
 [gd_resource type="Resource" script_class="SpellDef" format=3 uid="uid://b6c1yc1lonvkq"]
 
+[ext_resource type="Script" uid="uid://c1371mypr70e1" path="res://attack/spell/spell_affinity.gd" id="1_d7ays"]
 [ext_resource type="Texture2D" uid="uid://bmpvgd428n8v5" path="res://assets/icons/spells/cyclone.png" id="1_icon"]
 [ext_resource type="Texture2D" uid="uid://be3m0tcmtjlag" path="res://assets/emblem_luts/cyclone.png" id="1_lut"]
 [ext_resource type="Script" uid="uid://ber34us1t16kb" path="res://attack/spell/spell_def.gd" id="1_spell"]
@@ -68,11 +69,11 @@ range_finder = SubResource("range")
 
 [resource]
 script = ExtResource("1_spell")
-identity = ExtResource("identity_ref")
 id = &"cyclone"
 name = "Cyclone"
 tagline = "Turns hardest each hop; closing a loop crits and feeds it."
 description = "Turns one way and never straightens: at every node the storm ranks the turns it could make and splits its power across them, hardest into the sharpest turn. No single thread survives the split — but converging threads ADD, so anything that folds back onto itself feeds itself while offshoots bleed out. Closing a loop crits (x2) and boosts the storm feeding that loop. It does not care whether a ring is odd or even, or how long it is; it cares whether the ground is two-dimensional. A tree gets literally nothing. A lone triangle gets demolished. A field of joined triangles becomes an epicentre."
+identity = ExtResource("identity_ref")
 carve_shape = SubResource("carve_cyclone")
 min_degree = 4
 power = 2.0

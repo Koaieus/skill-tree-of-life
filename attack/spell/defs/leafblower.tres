@@ -1,5 +1,6 @@
 [gd_resource type="Resource" script_class="SpellDef" format=3 uid="uid://b6ecc584ysaku"]
 
+[ext_resource type="Script" uid="uid://c1371mypr70e1" path="res://attack/spell/spell_affinity.gd" id="1_8o5c5"]
 [ext_resource type="Texture2D" uid="uid://c1rvtca44v8cw" path="res://assets/emblem_luts/leafblower.png" id="1_lut"]
 [ext_resource type="Script" uid="uid://ber34us1t16kb" path="res://attack/spell/spell_def.gd" id="1_spell"]
 [ext_resource type="Script" uid="uid://ci08q7vcgbwdx" path="res://skill_node/visuals/emblem/texture_carve_shape.gd" id="1_tcs"]
@@ -77,11 +78,11 @@ range_finder = SubResource("range")
 
 [resource]
 script = ExtResource("1_spell")
-identity = ExtResource("identity_ref")
 id = &"leafblower"
 name = "Leafblower"
 tagline = "Flows downhill and crits the leaf it dead-ends on."
 description = "Trickles downhill: at each hop only flows into neighbours whose degree within their owner's territory is no higher than the current node's. Damage compounds (×1.5 per hop) so the leaf at the end of the chain eats the payload while intermediate hubs barely register. CRIT on leaf nodes (territory degree 1). Self-loops count double, so a fortified node turns the flow away. Perfect for sniping dangling addon-leaves through fortified topology."
+identity = ExtResource("identity_ref")
 carve_shape = SubResource("carve_leafblower")
 min_degree = 2
 power = 2.0

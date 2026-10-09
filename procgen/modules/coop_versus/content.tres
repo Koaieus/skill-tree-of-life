@@ -5,10 +5,10 @@
 [ext_resource type="PackedScene" uid="uid://b1addon0clamp" path="res://skill_node/addons/defs/clamp_addon.tscn" id="3_lkvcl"]
 [ext_resource type="PackedScene" uid="uid://duyunqwjt7qd" path="res://skill_node/addons/defs/fortification_addon.tscn" id="4_kb7v8"]
 [ext_resource type="PackedScene" uid="uid://cmkt6tybpv38p" path="res://skill_node/addons/defs/bunker_addon.tscn" id="5_bpg7m"]
-[ext_resource type="PackedScene" uid="uid://b1addon0watch" path="res://skill_node/addons/defs/watchtower_addon.tscn" id="6_eqvd6"]
-[ext_resource type="PackedScene" uid="uid://b1addon0toxin" path="res://skill_node/addons/defs/toxin_addon.tscn" id="6_toxin"]
 [ext_resource type="PackedScene" uid="uid://b1addon0compr" path="res://skill_node/addons/defs/compromiser_addon.tscn" id="6_compromiser"]
 [ext_resource type="PackedScene" uid="uid://b1addon0egate" path="res://skill_node/addons/defs/eldritch_gate_addon.tscn" id="6_eldritch_gate"]
+[ext_resource type="PackedScene" uid="uid://b1addon0watch" path="res://skill_node/addons/defs/watchtower_addon.tscn" id="6_eqvd6"]
+[ext_resource type="PackedScene" uid="uid://b1addon0toxin" path="res://skill_node/addons/defs/toxin_addon.tscn" id="6_toxin"]
 [ext_resource type="Script" uid="uid://c4jsrfudhqhuk" path="res://procgen/pools/addon_pool.gd" id="7_nfi6m"]
 [ext_resource type="Script" uid="uid://bi20g047mnsv6" path="res://procgen/pools/addon_policy.gd" id="8_0ok6c"]
 [ext_resource type="Script" uid="uid://0rdv1h0ycc3p" path="res://procgen/archetypes/archetype_stamp.gd" id="9_678ts"]
@@ -296,9 +296,9 @@ weights = {
 
 [resource]
 script = ExtResource("24_euka3")
-universal_share = 0.15
 modifier_pool_set = ExtResource("23_3abnx")
 weight_profiles = Array[Resource]([SubResource("awp_main")])
+universal_share = 0.15
 budget_policy = SubResource("bp_main")
 archetypes = Array[ExtResource("10_q7cgk")]([SubResource("ap_red"), SubResource("ap_green"), SubResource("ap_blue"), SubResource("ap_white"), SubResource("ap_gold"), SubResource("ap_purple")])
 subtypes = Array[ExtResource("90_nsub")]([ExtResource("92_sbli"), ExtResource("93_sble")])

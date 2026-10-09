@@ -1,6 +1,7 @@
 [gd_resource type="Resource" script_class="SpellDef" format=3 uid="uid://b56spbwfkkese"]
 
 [ext_resource type="Texture2D" uid="uid://s4oabnvsa1bl" path="res://assets/emblem_luts/bruiser.png" id="1_5pwpp"]
+[ext_resource type="Script" uid="uid://c1371mypr70e1" path="res://attack/spell/spell_affinity.gd" id="1_885nj"]
 [ext_resource type="Texture2D" uid="uid://dvmxe1fnf6sfw" path="res://assets/icons/spells/bruiser.png" id="1_bm58y"]
 [ext_resource type="Script" uid="uid://cx52yu8u4qipj" path="res://attack/spell/condition/landing_condition.gd" id="1_js5d8"]
 [ext_resource type="Script" uid="uid://ber34us1t16kb" path="res://attack/spell/spell_def.gd" id="1_spell"]
@@ -71,11 +72,11 @@ range_finder = SubResource("range")
 
 [resource]
 script = ExtResource("1_spell")
-identity = ExtResource("identity_ref")
 id = &"bruiser"
 name = "Bruiser"
 tagline = "Chips the toughest neighbour each hop; never kills alone."
 description = "Climbs the HP gradient: each hop greedily picks the neighbour with the highest current node_health and nicks it for low damage. Cannot kill on its own — softens the toughest nodes for a follow-up. Pairs with wound mechanics: damage that doesn't kill stays as wounds, slowly bracketing fat enemies."
+identity = ExtResource("identity_ref")
 carve_shape = SubResource("Resource_u38nb")
 min_degree = 2
 power = 3.0

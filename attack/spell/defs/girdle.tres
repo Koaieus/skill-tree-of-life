@@ -1,30 +1,35 @@
-[gd_resource type="Resource" script_class="SpellDef" format=3]
+[gd_resource type="Resource" script_class="SpellDef" format=3 uid="uid://c5farq4l84o6f"]
 
 [ext_resource type="Script" uid="uid://cx52yu8u4qipj" path="res://attack/spell/condition/landing_condition.gd" id="1_cond"]
 [ext_resource type="Script" uid="uid://ber34us1t16kb" path="res://attack/spell/spell_def.gd" id="1_spell"]
-[ext_resource type="Script" uid="uid://dw3civ4fol21f" path="res://attack/spell/on_hit/on_hit_effect.gd" id="2_effect"]
 [ext_resource type="Script" uid="uid://crrmin5xq4057" path="res://attack/spell/condition/chokepoint_condition.gd" id="2_choke"]
-[ext_resource type="Script" uid="uid://cymqlf1js3ra8" path="res://attack/spell/on_hit/damage_effect.gd" id="3_dmg"]
-[ext_resource type="Resource" path="res://effects/status/wither.tres" id="3_wither"]
+[ext_resource type="Script" uid="uid://dw3civ4fol21f" path="res://attack/spell/on_hit/on_hit_effect.gd" id="2_effect"]
 [ext_resource type="Script" uid="uid://c1371mypr70e1" path="res://attack/spell/spell_affinity.gd" id="3_affinity"]
+[ext_resource type="Script" uid="uid://cymqlf1js3ra8" path="res://attack/spell/on_hit/damage_effect.gd" id="3_dmg"]
+[ext_resource type="Resource" uid="uid://dhcxexo8gd0b" path="res://effects/status/wither.tres" id="3_wither"]
 [ext_resource type="Script" uid="uid://o0v6inqs5wk6" path="res://attack/spell/propagation/propagation_config.gd" id="4_config"]
-[ext_resource type="Script" uid="uid://dsyv0dkxki366" path="res://attack/spell/propagation/filter/owner_filter.gd" id="5_filter"]
-[ext_resource type="Script" uid="uid://7wdkvrd3qinr" path="res://attack/spell/propagation/filter/propagation_filter.gd" id="5_pf"]
 [ext_resource type="Script" uid="uid://dpm0inm5l0utx" path="res://attack/spell/propagation/filter/composite_filter.gd" id="5_and"]
 [ext_resource type="Script" uid="uid://bgmscch40roet" path="res://attack/spell/propagation/filter/core_distance_filter.gd" id="5_away"]
+[ext_resource type="Script" uid="uid://dsyv0dkxki366" path="res://attack/spell/propagation/filter/owner_filter.gd" id="5_filter"]
+[ext_resource type="Script" uid="uid://7wdkvrd3qinr" path="res://attack/spell/propagation/filter/propagation_filter.gd" id="5_pf"]
 [ext_resource type="Script" uid="uid://bqrga3k1hmfut" path="res://attack/spell/propagation/spread/fan_all_spread.gd" id="6_fan"]
 [ext_resource type="Script" uid="uid://btpnit4nenasw" path="res://attack/targeting/node_targeting.gd" id="6_targeting"]
 [ext_resource type="Script" uid="uid://br4akul8rvteg" path="res://attack/range_finder/hop_range_finder.gd" id="7_range"]
 [ext_resource type="PackedScene" path="res://ui/vfx/coordinator/spells/spark_coordinator.tscn" id="10_vfx"]
+[ext_resource type="PackedScene" path="res://attack/range_finder/visuals/range_edge.tscn" id="15_qpy6e"]
+[ext_resource type="PackedScene" path="res://attack/range_finder/visuals/range_ring.tscn" id="16_drj2v"]
 [ext_resource type="Resource" path="res://identity/defs/spell_girdle.tres" id="identity_ref"]
-
-[sub_resource type="Resource" id="dmg_girdle"]
-script = ExtResource("3_dmg")
 
 [sub_resource type="Resource" id="wither_girdle"]
 script = ExtResource("3_affinity")
 status = ExtResource("3_wither")
 innate = 3
+
+[sub_resource type="Resource" id="crit_choke"]
+script = ExtResource("2_choke")
+
+[sub_resource type="Resource" id="dmg_girdle"]
+script = ExtResource("3_dmg")
 
 [sub_resource type="Resource" id="filter_enemy"]
 script = ExtResource("5_filter")
@@ -46,9 +51,6 @@ filter = SubResource("filter_girdle")
 spread = SubResource("spread_fan")
 max_hops = 2.0
 
-[sub_resource type="Resource" id="crit_choke"]
-script = ExtResource("2_choke")
-
 [sub_resource type="Resource" id="range_3hop"]
 script = ExtResource("7_range")
 
@@ -58,11 +60,11 @@ range_finder = SubResource("range_3hop")
 
 [resource]
 script = ExtResource("1_spell")
-identity = ExtResource("identity_ref")
 id = &"girdle"
 name = "Girdle"
 tagline = "Ring the bark: the limb beyond it withers."
 description = "Deal a little damage to an enemy-occupied node within 3 hops and wither it, then fan up to 2 hops outward, away from its owner's core. A chokepoint (a node its owner's territory hangs on) crits and withers harder."
+identity = ExtResource("identity_ref")
 power = 0.4
 propagation = SubResource("prop_girdle")
 on_hit_effects = Array[ExtResource("2_effect")]([SubResource("dmg_girdle")])

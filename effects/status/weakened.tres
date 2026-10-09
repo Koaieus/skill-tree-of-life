@@ -1,6 +1,7 @@
-[gd_resource type="Resource" script_class="WeaknessStatus" format=3]
+[gd_resource type="Resource" script_class="WeaknessStatus" format=3 uid="uid://27simm0x7pob"]
 
 [ext_resource type="Script" uid="uid://pt2jryuibe45" path="res://effects/status/weakness.gd" id="1_weak"]
+[ext_resource type="Script" uid="uid://che6xhl6srqh3" path="res://stats_system/stat_modifier.gd" id="3_agrm8"]
 [ext_resource type="Script" uid="uid://18mskbhypx7a" path="res://effects/status/decay/fraction_decay.gd" id="decay_script"]
 [ext_resource type="Resource" path="res://identity/defs/weakness.tres" id="identity_weakness"]
 
@@ -10,16 +11,13 @@ fraction = 0.25
 
 [resource]
 script = ExtResource("1_weak")
-identity = ExtResource("identity_weakness")
 id = &"weakness"
 display_name = "Weakened"
+identity = ExtResource("identity_weakness")
 description = "Attacks from the node deal less damage; deep weakness needs steady reapplication to hold."
 tags = Array[StringName]([&"debuff"])
+stacks_stat_id = &"weakness_stacks_per_hit"
 power_max = 0.0
+decay = SubResource("Resource_decay")
 display_max = 5.0
 reapply = 1
-on_dealloc = 0
-half_depth = 5.0
-floor_factor = 0.1
-stacks_stat_id = &"weakness_stacks_per_hit"
-decay = SubResource("Resource_decay")

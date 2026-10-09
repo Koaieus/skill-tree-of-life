@@ -1,15 +1,14 @@
-[gd_resource type="Resource" script_class="AmmoType" load_steps=7 format=3]
+[gd_resource type="Resource" script_class="AmmoType" format=3 uid="uid://bwt6tnisvc1ln"]
 
-[ext_resource type="Script" path="res://attack/ammo/ammo_type.gd" id="1_ammo_type"]
+[ext_resource type="Script" uid="uid://ct0ddi47bsnm4" path="res://attack/ammo/ammo_type.gd" id="1_ammo_type"]
 [ext_resource type="Resource" path="res://effects/status/corruption.tres" id="2_status"]
-[ext_resource type="Script" uid="uid://dw3civ4fol21f" path="res://attack/spell/on_hit/on_hit_effect.gd" id="5_on_hit_effect"]
 [ext_resource type="Script" uid="uid://c2q50hhtuf7g7" path="res://attack/spell/on_hit/apply_status_effect.gd" id="4_apply_status"]
+[ext_resource type="Script" uid="uid://dw3civ4fol21f" path="res://attack/spell/on_hit/on_hit_effect.gd" id="5_on_hit_effect"]
 [ext_resource type="PackedScene" path="res://ui/vfx/projectile/visual/arrows/corruption_arrow.tscn" id="9_visual"]
 
 [sub_resource type="Resource" id="Resource_rider"]
 script = ExtResource("4_apply_status")
 def = ExtResource("2_status")
-power = 1.0
 
 [resource]
 script = ExtResource("1_ammo_type")

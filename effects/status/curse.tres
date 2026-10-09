@@ -1,31 +1,28 @@
-[gd_resource type="Resource" script_class="CurseStatus" format=3]
+[gd_resource type="Resource" script_class="CurseStatus" format=3 uid="uid://cbv37pv3tipqh"]
 
-[ext_resource type="Script" path="res://effects/status/curse.gd" id="1_curse"]
+[ext_resource type="Script" uid="uid://dw50ixc61u2r3" path="res://effects/status/curse.gd" id="1_curse"]
+[ext_resource type="Script" uid="uid://che6xhl6srqh3" path="res://stats_system/stat_modifier.gd" id="3_65ikt"]
 [ext_resource type="Script" uid="uid://h4ca876s2ht3" path="res://effects/status/decay/flat_decay.gd" id="decay_script"]
-[ext_resource type="Script" uid="uid://iigrjih2rio8" path="res://effects/status/spread/spill_spread.gd" id="spill_script"]
 [ext_resource type="Resource" path="res://identity/defs/curse.tres" id="identity_curse"]
+[ext_resource type="Script" uid="uid://iigrjih2rio8" path="res://effects/status/spread/spill_spread.gd" id="spill_script"]
 
 [sub_resource type="Resource" id="Resource_decay"]
 script = ExtResource("decay_script")
-per_tick = 1.0
 
 [sub_resource type="Resource" id="Resource_spill"]
 script = ExtResource("spill_script")
-ownership_mask = 2
-spread_fraction = 1.0
-triggers = 3
 
 [resource]
 script = ExtResource("1_curse")
-identity = ExtResource("identity_curse")
 id = &"curse"
 display_name = "Curse"
+identity = ExtResource("identity_curse")
 description = "Every stack raises the least damage a hit can deal to this node by 1; stacks fall by 1 each turn and never cap."
 tags = Array[StringName]([&"debuff"])
 resistance_stat_id = &"curse_resistance"
-power_max = 0.0
-display_max = 10.0
-reapply = 1
 stacks_stat_id = &"curse_stacks_per_hit"
+power_max = 0.0
 decay = SubResource("Resource_decay")
 spread = SubResource("Resource_spill")
+display_max = 10.0
+reapply = 1

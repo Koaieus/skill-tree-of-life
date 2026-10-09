@@ -1,13 +1,12 @@
-[gd_resource type="Resource" script_class="HexStatus" load_steps=6 format=3]
+[gd_resource type="Resource" script_class="HexStatus" format=3 uid="uid://dn7y75eg81ok0"]
 
 [ext_resource type="Script" uid="uid://b5t5a183rjbqs" path="res://effects/status/hex.gd" id="1_def"]
 [ext_resource type="Script" uid="uid://h4ca876s2ht3" path="res://effects/status/decay/flat_decay.gd" id="decay_script"]
-[ext_resource type="Script" uid="uid://che6xhl6srqh3" path="res://stats_system/stat_modifier.gd" id="mod_script"]
 [ext_resource type="Resource" path="res://identity/defs/hex.tres" id="identity_hex"]
+[ext_resource type="Script" uid="uid://che6xhl6srqh3" path="res://stats_system/stat_modifier.gd" id="mod_script"]
 
 [sub_resource type="Resource" id="Resource_decay"]
 script = ExtResource("decay_script")
-per_tick = 1.0
 
 [sub_resource type="Resource" id="Resource_crit_taken"]
 script = ExtResource("mod_script")
@@ -17,14 +16,14 @@ value = 0.05
 
 [resource]
 script = ExtResource("1_def")
-identity = ExtResource("identity_hex")
 id = &"hex"
 display_name = "Hexed"
+identity = ExtResource("identity_hex")
 description = "Every stack adds a flat bonus to the crit chance of any hit landing on this node, after the attacker's own increases; a core's hex counts for every node its owner holds. Stacks fall by 1 each turn."
 tags = Array[StringName]([&"debuff"])
+stacks_stat_id = &"hex_stacks_per_hit"
+incoming_modifiers = Array[ExtResource("mod_script")]([SubResource("Resource_crit_taken")])
 power_max = 0.0
+decay = SubResource("Resource_decay")
 display_max = 10.0
 reapply = 1
-stacks_stat_id = &"hex_stacks_per_hit"
-decay = SubResource("Resource_decay")
-incoming_modifiers = Array[ExtResource("mod_script")]([SubResource("Resource_crit_taken")])

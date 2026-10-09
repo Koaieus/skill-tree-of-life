@@ -1,5 +1,6 @@
 [gd_resource type="Resource" script_class="SpellDef" format=3 uid="uid://vgrgi0u2ij56"]
 
+[ext_resource type="Script" uid="uid://c1371mypr70e1" path="res://attack/spell/spell_affinity.gd" id="1_53qeu"]
 [ext_resource type="Script" uid="uid://cx52yu8u4qipj" path="res://attack/spell/condition/landing_condition.gd" id="1_ef7vp"]
 [ext_resource type="Texture2D" uid="uid://c34eukqay0mcn" path="res://assets/emblem_luts/trailblazer.png" id="1_lut"]
 [ext_resource type="Script" uid="uid://dw3civ4fol21f" path="res://attack/spell/on_hit/on_hit_effect.gd" id="1_p8d3l"]
@@ -72,11 +73,11 @@ range_finder = SubResource("range")
 
 [resource]
 script = ExtResource("9_en1rl")
-identity = ExtResource("identity_ref")
 id = &"trail_blazer"
 name = "The Trailblazer"
 tagline = "Slams double damage on any junction it lands on, ramped by the string it walked."
 description = "Every landing on a junction (degree > 2) instantly slams for double damage and stops the walk there — including a seed cast directly onto one. Each degree-2 node passed through first adds +2 damage before hopping onward. The walk ends one node short of a tip rather than finishing it — a free-floating tip is Leafblower's to punish. Cast on a node at the end of a long string for maximum devastation."
+identity = ExtResource("identity_ref")
 carve_shape = SubResource("carve_trailblazer")
 min_degree = 3
 power = 1.0

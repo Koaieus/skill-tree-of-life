@@ -1,5 +1,6 @@
 [gd_resource type="Resource" script_class="SpellDef" format=3 uid="uid://22735wciupcm"]
 
+[ext_resource type="Script" uid="uid://c1371mypr70e1" path="res://attack/spell/spell_affinity.gd" id="1_68w5p"]
 [ext_resource type="Texture2D" uid="uid://b4v1ui4eo5ec2" path="res://assets/emblem_luts/lightning_bolt.png" id="1_lut"]
 [ext_resource type="Script" uid="uid://cx52yu8u4qipj" path="res://attack/spell/condition/landing_condition.gd" id="1_p8lud"]
 [ext_resource type="Script" uid="uid://ber34us1t16kb" path="res://attack/spell/spell_def.gd" id="1_spell"]
@@ -57,11 +58,11 @@ range_finder = SubResource("range_lightning")
 
 [resource]
 script = ExtResource("1_spell")
-identity = ExtResource("identity_ref")
 id = &"lightning_bolt"
 name = "Lightning Bolt"
 tagline = "Full hit, then chains outward, halving each hop."
 description = "Deal full damage to the target, then chain to every enemy neighbour up to 3 hops away — damage halves each hop. Overlapping branches resolve to the strongest incident (no compounding). No friendly fire."
+identity = ExtResource("identity_ref")
 carve_shape = SubResource("carve_lightning")
 min_degree = 2
 power = 3.0

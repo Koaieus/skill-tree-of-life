@@ -1,6 +1,7 @@
 [gd_resource type="Resource" script_class="SpellDef" format=3 uid="uid://d4cd1vbl585es"]
 
 [ext_resource type="Texture2D" uid="uid://b5behwp0w2ow0" path="res://assets/emblem_luts/resonator.png" id="1_lut"]
+[ext_resource type="Script" uid="uid://c1371mypr70e1" path="res://attack/spell/spell_affinity.gd" id="1_ouxji"]
 [ext_resource type="Script" uid="uid://ber34us1t16kb" path="res://attack/spell/spell_def.gd" id="1_spell"]
 [ext_resource type="Script" uid="uid://ci08q7vcgbwdx" path="res://skill_node/visuals/emblem/texture_carve_shape.gd" id="1_tcs"]
 [ext_resource type="Texture2D" uid="uid://dv1fcbldx0ptl" path="res://assets/icons/spells/resonator.png" id="1_uku7o"]
@@ -61,11 +62,11 @@ range_finder = SubResource("range")
 
 [resource]
 script = ExtResource("1_spell")
-identity = ExtResource("identity_ref")
 id = &"resonator"
 name = "Resonator"
 tagline = "Fans out; converging branches add and crit hard."
 description = "Constructive interference — branches fan to every enemy neighbour, adding +2 damage each hop. When two branches converge on the same node in the same wave, they ADD and the landing crits (×2). Diamonds, hexagons, and chained-diamond topologies detonate on the convergence node; straight lines and the first hit don't crit. The longer the diamond chain, the harder the last crit — build the run around a graph that feeds it."
+identity = ExtResource("identity_ref")
 carve_shape = SubResource("carve_resonator")
 min_degree = 2
 power = 1.0

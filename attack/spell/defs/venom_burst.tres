@@ -2,9 +2,10 @@
 
 [ext_resource type="Script" uid="uid://ber34us1t16kb" path="res://attack/spell/spell_def.gd" id="1_spell"]
 [ext_resource type="Script" uid="uid://dw3civ4fol21f" path="res://attack/spell/on_hit/on_hit_effect.gd" id="2_effect"]
+[ext_resource type="Script" uid="uid://cx52yu8u4qipj" path="res://attack/spell/condition/landing_condition.gd" id="3_1rgke"]
+[ext_resource type="Script" uid="uid://c1371mypr70e1" path="res://attack/spell/spell_affinity.gd" id="3_affinity"]
 [ext_resource type="Script" uid="uid://cymqlf1js3ra8" path="res://attack/spell/on_hit/damage_effect.gd" id="3_dmg"]
 [ext_resource type="Resource" uid="uid://c7s5qybcqmll5" path="res://effects/status/poison.tres" id="3_poison"]
-[ext_resource type="Script" uid="uid://c1371mypr70e1" path="res://attack/spell/spell_affinity.gd" id="3_affinity"]
 [ext_resource type="Script" uid="uid://o0v6inqs5wk6" path="res://attack/spell/propagation/propagation_config.gd" id="4_config"]
 [ext_resource type="Script" uid="uid://dsyv0dkxki366" path="res://attack/spell/propagation/filter/owner_filter.gd" id="5_filter"]
 [ext_resource type="Script" uid="uid://bqrga3k1hmfut" path="res://attack/spell/propagation/spread/fan_all_spread.gd" id="6_fan"]
@@ -12,10 +13,9 @@
 [ext_resource type="Script" uid="uid://btpnit4nenasw" path="res://attack/targeting/node_targeting.gd" id="6_targeting"]
 [ext_resource type="Script" uid="uid://br4akul8rvteg" path="res://attack/range_finder/hop_range_finder.gd" id="7_range"]
 [ext_resource type="PackedScene" path="res://ui/vfx/coordinator/spells/spark_coordinator.tscn" id="10_vfx"]
+[ext_resource type="PackedScene" path="res://attack/range_finder/visuals/range_edge.tscn" id="12_nrymh"]
+[ext_resource type="PackedScene" path="res://attack/range_finder/visuals/range_ring.tscn" id="13_egjxf"]
 [ext_resource type="Resource" path="res://identity/defs/spell_venom_burst.tres" id="identity_ref"]
-
-[sub_resource type="Resource" id="dmg_burst"]
-script = ExtResource("3_dmg")
 
 [sub_resource type="Resource" id="poison_burst"]
 script = ExtResource("3_affinity")
@@ -23,22 +23,24 @@ status = ExtResource("3_poison")
 innate = 15
 rate = 2.0
 
+[sub_resource type="Resource" id="dmg_burst"]
+script = ExtResource("3_dmg")
+
 [sub_resource type="Resource" id="filter_enemy"]
 script = ExtResource("5_filter")
-
-[sub_resource type="Resource" id="spread_fan"]
-script = ExtResource("6_fan")
 
 [sub_resource type="Resource" id="stacks_taper"]
 script = ExtResource("6_prog")
 seed_fraction_per_hop = -0.33333334
+
+[sub_resource type="Resource" id="spread_fan"]
+script = ExtResource("6_fan")
 
 [sub_resource type="Resource" id="prop_burst"]
 script = ExtResource("4_config")
 filter = SubResource("filter_enemy")
 spread = SubResource("spread_fan")
 max_hops = 2.0
-max_visits_per_node = 1
 hop_stacks = SubResource("stacks_taper")
 
 [sub_resource type="Resource" id="range_3hop"]
@@ -50,15 +52,14 @@ range_finder = SubResource("range_3hop")
 
 [resource]
 script = ExtResource("1_spell")
-identity = ExtResource("identity_ref")
 id = &"venom_burst"
 name = "Venom Burst"
 tagline = "A big poison dose on one enemy node that bursts outward, thinning as it spreads."
 description = "Deal a little damage to an enemy-occupied node within 3 hops and dose it with 15 poison stacks, then burst 2 hops outward through enemy territory: 10 stacks a node on the first hop, 5 on the second, never twice on one node. Poison infusions count double."
+identity = ExtResource("identity_ref")
 power = 0.4
 propagation = SubResource("prop_burst")
 on_hit_effects = Array[ExtResource("2_effect")]([SubResource("dmg_burst")])
 affinities = Array[ExtResource("3_affinity")]([SubResource("poison_burst")])
-default_rate = 1.0
 vfx_coordinator_scene = ExtResource("10_vfx")
 targeting = SubResource("targeting_hostile_3hop")
