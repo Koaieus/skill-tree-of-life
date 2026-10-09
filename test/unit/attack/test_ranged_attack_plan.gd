@@ -616,7 +616,7 @@ func _four_reaching_two_firing() -> RangedAttackPlan:
 	_add_reaching_leaf(Vector2(450, -600))
 	var p := _plan()
 	p.set_target(_target)
-	p.ammo_counts = {AmmoTypeRoster.BASE_ID: 2}
+	p.ammo = [{"type": AmmoTypeRoster.BASE_ID, "count": 2}]
 	return p
 
 

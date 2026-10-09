@@ -509,9 +509,8 @@ func _consume_volley(plan: RangedAttackPlan, outcome: AttackOutcome) -> void:
 		return
 	var quiver: Quiver = entity.stat_board.arrows if entity.stat_board != null else null
 	if quiver != null:
-		var counts := plan.effective_ammo_counts()
-		for id in counts:
-			quiver.take(id, int(counts[id]))
+		for entry in plan.effective_ammo():
+			quiver.take(StringName(entry.type), int(entry.count))
 	for hit in outcome.hits:
 		# One shot per ARROW: a typed arrow's status hit (#495) shares its
 		# arrow's origin and must not burn a second shot. Skipped by CLASS,

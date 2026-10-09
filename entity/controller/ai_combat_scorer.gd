@@ -84,8 +84,9 @@ class ScoredCandidate:
 	## RANGED only (#958): the typed composition the controller sized this
 	## candidate's volley to — what [method AIController._execute_candidate]
 	## stamps onto the armed plan so the launch fires the N that was scored.
-	## Empty = the plan's bare default (N = max, all base).
-	var ammo_counts: Dictionary = {}
+	## Empty = the plan's bare default (N = max, all base). Same shape as
+	## [member RangedAttackPlan.ammo]: ordered `{type, count}` entries.
+	var ammo: Array[Dictionary] = []
 
 	var ev: float = 0.0
 	var is_kill: bool = false

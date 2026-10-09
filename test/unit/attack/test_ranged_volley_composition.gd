@@ -119,12 +119,12 @@ func test_max_n_is_min_of_stock_and_shots_left_over_reaching_leaves() -> void:
 func test_default_composition_is_all_base_at_max_n() -> void:
 	var p := _plan()
 	assert_eq(p.n(), 14, "bare input: N = max")
-	assert_eq(p.effective_ammo_counts(), {_ARROW: 14})
+	assert_eq(p.effective_ammo(), [{"type": _ARROW, "count": 14}] as Array[Dictionary])
 
 
 func test_composition_yields_wave_major_schedule_with_types_in_roster_order() -> void:
 	var p := _plan()
-	p.ammo_counts = {_POISON: 2, _ARROW: 5}
+	p.ammo = [{"type": _POISON, "count": 2}, {"type": _ARROW, "count": 5}]
 	assert_eq(p.n(), 7)
 	var schedule := p.get_firing_schedule()
 	assert_eq(schedule.size(), 7)
@@ -146,7 +146,7 @@ func test_composition_yields_wave_major_schedule_with_types_in_roster_order() ->
 
 func test_resolve_lands_poison_first_in_structural_key_order_and_costs_no_ap() -> void:
 	var p := _plan()
-	p.ammo_counts = {_POISON: 2, _ARROW: 5}
+	p.ammo = [{"type": _POISON, "count": 2}, {"type": _ARROW, "count": 5}]
 	var outcome := p.resolve()
 	# One DAMAGE hit per arrow; a poison arrow also emits its status hit (#495).
 	var arrows: Array = _combat_hits(outcome).filter(func(h: HitInstance) -> bool:
@@ -171,9 +171,9 @@ func test_resolve_lands_poison_first_in_structural_key_order_and_costs_no_ap() -
 
 func test_mirror_plan_from_wire_dict_produces_the_identical_schedule() -> void:
 	var p := _plan()
-	p.ammo_counts = {_POISON: 2, _ARROW: 5}
+	p.ammo = [{"type": _POISON, "count": 2}, {"type": _ARROW, "count": 5}]
 	var d := p.to_dict(_graph)
-	assert_eq(d.get("ammo_counts"), {_POISON: 2, _ARROW: 5})
+	assert_eq(d.get("ammo"), [{"type": "poison", "count": 2}, {"type": "arrow", "count": 5}])
 	var mirror := RangedAttackPlan.from_dict(d, _graph)
 	autofree(mirror)
 	var a := p.get_firing_schedule()
@@ -187,11 +187,11 @@ func test_mirror_plan_from_wire_dict_produces_the_identical_schedule() -> void:
 
 func test_validate_third_state() -> void:
 	var p := _plan()
-	p.ammo_counts = {_POISON: 6}
+	p.ammo = [{"type": _POISON, "count": 6}]
 	assert_false(p.validate().is_empty(), "a count above its bin is refused")
-	p.ammo_counts = {_ARROW: 15}
+	p.ammo = [{"type": _ARROW, "count": 15}]
 	assert_false(p.validate().is_empty(), "N above the shot budget is refused")
-	p.ammo_counts = {}
+	p.ammo = []
 	_attacker.stat_board.arrows.take(_ARROW, 15)
 	_attacker.stat_board.arrows.take(_POISON, 5)
 	assert_has(p.validate(), RangedAttackPlan.ERR_NO_AMMO)
@@ -231,7 +231,7 @@ func test_launch_consumes_bins_leaf_shots_and_a_volley_slot_but_no_ap() -> void:
 	var bs := _battle_system()
 	var plan := bs.new_plan(BattleSystem.AttackMode.RANGED, bs.turn_manager.current_entity) as RangedAttackPlan
 	plan.set_target(_target)
-	plan.ammo_counts = {_POISON: 2, _ARROW: 5}
+	plan.ammo = [{"type": _POISON, "count": 2}, {"type": _ARROW, "count": 5}]
 	assert_true(plan.is_valid(), str(plan.validate()))
 
 	await bs.launch_attack(plan)
@@ -258,13 +258,13 @@ func test_volley_limit_reached_fails_validate_with_the_volleys_reason() -> void:
 	for i in limit:
 		var plan := bs.new_plan(BattleSystem.AttackMode.RANGED, bs.turn_manager.current_entity) as RangedAttackPlan
 		plan.set_target(_target)
-		plan.ammo_counts = {_ARROW: 1}
+		plan.ammo = [{"type": _ARROW, "count": 1}]
 		assert_true(plan.is_valid(), "volley %d: %s" % [i, str(plan.validate())])
 		await bs.launch_attack(plan)
 	assert_eq(_attacker.volleys_launched_this_turn, limit)
 	var extra := bs.new_plan(BattleSystem.AttackMode.RANGED, bs.turn_manager.current_entity) as RangedAttackPlan
 	extra.set_target(_target)
-	extra.ammo_counts = {_ARROW: 1}
+	extra.ammo = [{"type": _ARROW, "count": 1}]
 	assert_has(extra.validate(), RangedAttackPlan.ERR_VOLLEY_LIMIT)
 
 
@@ -274,7 +274,7 @@ func test_a_target_that_dies_mid_volley_still_consumes_every_arrow() -> void:
 	var bs := _battle_system()
 	var plan := bs.new_plan(BattleSystem.AttackMode.RANGED, bs.turn_manager.current_entity) as RangedAttackPlan
 	plan.set_target(_target)
-	plan.ammo_counts = {_ARROW: 7}
+	plan.ammo = [{"type": _ARROW, "count": 7}]
 	assert_true(plan.is_valid(), str(plan.validate()))
 	var stock_before := roundi(_attacker.stat_board.arrows.current)
 	await bs.launch_attack(plan)

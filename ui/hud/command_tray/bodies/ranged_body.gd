@@ -8,10 +8,11 @@ extends CommandTrayBodyBase
 ## Composition rule (owner, 2026-09-19): the player sets N and each
 ## SPECIAL's count; **base arrows are the remainder** `N − Σ specials`. N
 ## defaults to max on every target pick and is not kill-snapped; special
-## counts are STICKY across target picks within the body's life, clamped to
-## their bin (and to N) on every rebuild. If the specials exceed N, N grows
-## to fit. The body writes exactly one thing into the plan —
-## [member RangedAttackPlan.ammo_counts] — and submits one command,
+## counts are STICKY for the run ([VolleyPreference]), clamped to their bin
+## (and to N) on every rebuild — in the plan only, never written back into
+## the preference. If the specials exceed N, N grows to fit. The body writes
+## exactly one thing into the plan — [member RangedAttackPlan.ammo], listed
+## in the preference's card order — and submits one command,
 ## [ReloadCommand] via [method PlayerInputController.request_reload].
 ##
 ## Readouts, all of them: `N / max` on the bar with the typed segments,
@@ -149,9 +150,9 @@ func set_special(type_id: StringName, value: int) -> void:
 	value = maxi(0, value)
 	var plan := _plan()
 	if plan != null and plan.target != null:
-		var before := int(plan.ammo_counts.get(type_id, 0))
+		var before := plan.count_of(type_id)
 		if value < before:
-			var base_now := int(plan.ammo_counts.get(AmmoTypeRoster.BASE_ID, 0))
+			var base_now := plan.count_of(AmmoTypeRoster.BASE_ID)
 			var base_bin := _quiver.stock_of(AmmoTypeRoster.BASE_ID) if _quiver != null else 0
 			var drop := (before - value) - maxi(0, base_bin - base_now)
 			if drop > 0:
@@ -161,8 +162,13 @@ func set_special(type_id: StringName, value: int) -> void:
 	_refresh()
 
 
+## Steps from the count the plan FIRES (the bin-clamped one) while aimed, so
+## a preference above its bin never makes the stepper feel stuck.
 func step_special(type_id: StringName, delta: int) -> void:
-	set_special(type_id, _pref().special_counts.get(type_id, 0) + delta)
+	var plan := _plan()
+	var now: int = plan.count_of(type_id) if plan != null and plan.target != null \
+			else int(_pref().special_counts.get(type_id, 0))
+	set_special(type_id, now + delta)
 
 
 func cards() -> Array[AmmoCard]:
@@ -219,10 +225,25 @@ static func wave_notches(shots_left: Array[int], cap: int) -> PackedInt32Array:
 
 # --- rebuild ----------------------------------------------------------------
 
-## Clamp the sticky specials, derive base as the remainder, and write the
-## explicit composition into the plan (only when it changed — the plan's
-## `state_changed` re-enters here and must find nothing to do).
-func _compose(plan: RangedAttackPlan) -> Dictionary:
+## The card order: [member VolleyPreference.order], then every roster type it
+## misses in the roster's authored order. An empty preference is the roster.
+func _type_order() -> Array[AmmoType]:
+	var out: Array[AmmoType] = []
+	for id in _pref().order:
+		var t := _ROSTER.by_id(id)
+		if t != null and not out.has(t):
+			out.append(t)
+	for t in _ROSTER.sorted():
+		if not out.has(t):
+			out.append(t)
+	return out
+
+
+## Clamp the sticky specials, derive base as the remainder, and return the
+## explicit composition as the plan's ordered list, in card order. Earlier
+## cards win the clamp and the base-shortfall top-up. Reads the preference,
+## never writes it: the clamp lives in the plan only.
+func _compose(plan: RangedAttackPlan) -> Array[Dictionary]:
 	var cap := plan.max_n()
 	# A scout shot (#1036, a sensed-only target): only scout arrows fly into
 	# fog, so every other bin reads as empty here and the default composition
@@ -231,11 +252,11 @@ func _compose(plan: RangedAttackPlan) -> Dictionary:
 	var counts: Dictionary = {}
 	var sum_special := 0
 	var special_counts := _pref().special_counts
-	for t in _ROSTER.sorted():
+	var order := _type_order()
+	for t in order:
 		if t.id == AmmoTypeRoster.BASE_ID:
 			continue
 		var c := clampi(special_counts.get(t.id, 0), 0, mini(_stock_for(t, scout_shot), cap - sum_special))
-		special_counts[t.id] = c
 		if c > 0:
 			counts[t.id] = c
 		sum_special += c
@@ -243,11 +264,11 @@ func _compose(plan: RangedAttackPlan) -> Dictionary:
 	target_n = maxi(target_n, sum_special)
 	_n = target_n  # N grew to fit the specials: remember the grown value
 	var base := mini(target_n - sum_special, _stock_for(_ROSTER.base_type(), scout_shot))
-	# The base bin cannot fill N: top up the specials in roster order (at
+	# The base bin cannot fill N: top up the specials in card order (at
 	# N = max = stock this is simply "every arrow fires").
 	var shortfall := target_n - sum_special - base
 	if shortfall > 0 and _quiver != null:
-		for t in _ROSTER.sorted():
+		for t in order:
 			if shortfall <= 0:
 				break
 			if t.id == AmmoTypeRoster.BASE_ID:
@@ -259,7 +280,11 @@ func _compose(plan: RangedAttackPlan) -> Dictionary:
 				shortfall -= extra
 	if base > 0:
 		counts[AmmoTypeRoster.BASE_ID] = base
-	return counts
+	var list: Array[Dictionary] = []
+	for t in order:
+		if counts.has(t.id):
+			list.append({"type": t.id, "count": int(counts[t.id])})
+	return list
 
 
 ## The bin the composer may draw on: the quiver's stock, or 0 for a non-scout
@@ -282,9 +307,9 @@ func _refresh() -> void:
 		if plan.target != _last_target:
 			_last_target = plan.target
 			_n_at_max = true
-		var counts := _compose(plan)
-		if counts != plan.ammo_counts:
-			plan.ammo_counts = counts
+		var list := _compose(plan)
+		if list != plan.ammo:
+			plan.ammo = list
 			plan.state_changed.emit()
 	else:
 		_last_target = null
@@ -295,19 +320,21 @@ func _refresh() -> void:
 func _paint(plan: RangedAttackPlan, has_target: bool) -> void:
 	var yield_by_type: Dictionary = _player.reload_yield() if _player != null else {}
 	var cap := plan.max_n() if has_target else 0
-	var counts: Dictionary = plan.ammo_counts if has_target else {}
+	var counts: Dictionary = {}
 	var n_now := 0
-	for c in counts.values():
-		n_now += int(c)
+	if has_target:
+		for entry in plan.ammo:
+			counts[StringName(entry.type)] = int(entry.count)
+			n_now += int(entry.count)
 	_sync_cards(yield_by_type, counts, cap, n_now)
 
 	var segments: Array[Dictionary] = []
 	var notches := PackedInt32Array()
 	if has_target:
-		for t in _ROSTER.sorted():
-			var c := int(counts.get(t.id, 0))
-			if c > 0:
-				segments.append({"type_id": t.id, "count": c})
+		# Plan-list order: the bar reads left to right as the volley fires.
+		for entry in plan.ammo:
+			if int(entry.count) > 0:
+				segments.append({"type_id": StringName(entry.type), "count": int(entry.count)})
 		var shots: Array[int] = []
 		for leaf in plan.get_reaching_firing_positions():
 			shots.append(leaf.shots_left())

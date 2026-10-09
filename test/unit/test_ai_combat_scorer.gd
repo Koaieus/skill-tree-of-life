@@ -83,7 +83,7 @@ func _resolve_ranged_at(target: SkillNode) -> AttackOutcome:
 	# #957: pin ONE wave (one arrow per reaching leaf) — the pre-volley shape
 	# these EV assertions were written against; N = max would overkill the
 	# target and gate the tail.
-	plan.ammo_counts = {AmmoTypeRoster.BASE_ID: plan.get_reaching_firing_positions().size()}
+	plan.ammo = [{"type": AmmoTypeRoster.BASE_ID, "count": plan.get_reaching_firing_positions().size()}]
 	assert_true(plan.is_valid(), "fixture plan should validate: %s" % str(plan.validate()))
 	return plan.resolve()
 
@@ -492,7 +492,7 @@ func test_arrows_to_kill_is_negative_when_the_volley_never_kills() -> void:
 	var plan := RangedAttackPlan.new()
 	plan.attacker = _ai
 	plan.target = _nodes[3]
-	plan.ammo_counts = {AmmoTypeRoster.BASE_ID: 2} # two arrows fall short of full HP
+	plan.ammo = [{"type": AmmoTypeRoster.BASE_ID, "count": 2}] # two arrows fall short of full HP
 	var outcome := plan.resolve()
 	assert_lt(AiCombatScorer.expected_damage(outcome), _nodes[3].get_current_hp(),
 			"fixture: the volley must not kill")

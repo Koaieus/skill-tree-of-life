@@ -170,7 +170,7 @@ func fire(type_index: int, preset: Preset, n: int, target_name: String = "d_targ
 		_busy = false
 		_refresh_status()
 		return null
-	plan.ammo_counts = {ammo.id: stocked}
+	plan.ammo = [{"type": ammo.id, "count": stocked}] as Array[Dictionary]
 	await _battle.launch_attack(plan)
 	_verdict = _describe(_last_outcome, ammo, preset)
 	_busy = false

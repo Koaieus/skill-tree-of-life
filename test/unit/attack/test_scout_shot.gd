@@ -129,7 +129,8 @@ func _arm(ctx: Dictionary, target: SkillNode, counts: Dictionary) -> RangedAttac
 	(ctx.ctl as PlayerInputController).arm_attack(BattleSystem.AttackMode.RANGED)
 	var plan := (ctx.ctl as PlayerInputController).armed_stack.attack_plan() as RangedAttackPlan
 	plan.set_target(target)
-	plan.ammo_counts = counts
+	for id in counts:
+		plan.ammo.append({"type": StringName(id), "count": int(counts[id])})
 	return plan
 
 

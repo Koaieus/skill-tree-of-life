@@ -733,7 +733,7 @@ func _effective_per_arrow(target: SkillNode = _nodes[2]) -> float:
 	var plan := RangedAttackPlan.new()
 	plan.attacker = _enemy
 	plan.target = target
-	plan.ammo_counts = {AmmoTypeRoster.BASE_ID: 1}
+	plan.ammo = [{"type": AmmoTypeRoster.BASE_ID, "count": 1}]
 	var outcome := plan.resolve()
 	var arrows := outcome.hits.filter(func(h: HitInstance) -> bool: return not h is ExertInstance)
 	assert_eq(arrows.size(), 1, "fixture: one arrow resolves: %s / reach=%s / hostile=%s" % [str(plan.validate()), plan.get_reaching_firing_positions().size(), target.ownership_bit(_enemy)])

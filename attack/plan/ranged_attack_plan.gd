@@ -11,12 +11,13 @@ extends AttackPlan
 ## pops the target — see docs/domain/click-grammar.md.
 
 var target: SkillNode = null
-## Composition (#957): `{type_id: n}` — N is the sum, each count ≤ its
-## quiver bin. EMPTY means the bare default, resolved live by
-## [method effective_ammo_counts]: N = [method max_n], all base arrows. The
-## tray (#954) writes an explicit dict; the wire always carries the explicit
-## one ([method to_dict]), so a mirror never re-derives a default.
-var ammo_counts: Dictionary = {}
+## Composition: an ordered list of `{type: StringName, count: int}`, one
+## entry per type, in FIRING order — the first entry's arrows fly (and land)
+## first. N is the sum, each count ≤ its quiver bin. EMPTY means the bare
+## default, resolved live by [method effective_ammo]: N = [method max_n], all
+## base arrows. The tray writes an explicit list in the player's card order
+## ([member VolleyPreference.order]); the wire always carries the explicit one
+## ([method to_dict]), so a mirror never re-derives a default.
 var ammo: Array[Dictionary] = []
 
 const _ROSTER_PATH := "res://attack/ammo/ammo_type_roster.tres"
@@ -50,10 +51,10 @@ func _quiver() -> Quiver:
 ## Σ [method SkillNode.shots_left] over the reaching leaves — the per-turn
 ## shot budget this volley can spend (#956).
 func _shots_available() -> int:
-	var total := 0
+	var sum := 0
 	for leaf in get_reaching_firing_positions():
-		total += leaf.shots_left()
-	return total
+		sum += leaf.shots_left()
+	return sum
 
 
 ## Owner (2026-09-18): `max N = min(arrows.current, Σ shots_left over leaves
@@ -65,45 +66,67 @@ func max_n() -> int:
 	return mini(stock, _shots_available())
 
 
-## The composition actually fired: [member ammo_counts] when set, else the
-## bare default — N = max, every arrow the base type (capped by its bin, so
-## a quiver holding only specials yields an empty default and validate's
+## The composition actually fired: [member ammo] when set, else the bare
+## default — N = max, every arrow the base type (capped by its bin, so a
+## quiver holding only specials yields an empty default and validate's
 ## no-ammo state rather than a volley of the wrong type).
-func effective_ammo_counts() -> Dictionary:
-	if not ammo_counts.is_empty():
-		return ammo_counts
+func effective_ammo() -> Array[Dictionary]:
+	if not ammo.is_empty():
+		return ammo
+	var out: Array[Dictionary] = []
 	var quiver := _quiver()
 	if quiver == null:
-		return {}
+		return out
 	var base_n := mini(max_n(), quiver.stock_of(AmmoTypeRoster.BASE_ID))
-	return {AmmoTypeRoster.BASE_ID: base_n} if base_n > 0 else {}
+	if base_n > 0:
+		out.append({"type": AmmoTypeRoster.BASE_ID, "count": base_n})
+	return out
 
 
+## The effective volley's type ids, in firing order.
 func types() -> Array[StringName]:
-	return []
+	var out: Array[StringName] = []
+	for entry in effective_ammo():
+		out.append(StringName(entry.type))
+	return out
 
 
-func count_of(_id: StringName) -> int:
-	return 0
+## Arrows of type [param id] in the effective volley (summed, should a
+## malformed list repeat a type — validate refuses that).
+func count_of(id: StringName) -> int:
+	var c := 0
+	for entry in effective_ammo():
+		if StringName(entry.type) == id:
+			c += int(entry.count)
+	return c
 
 
-## Arrows in this volley — the sum of [method effective_ammo_counts].
+## Arrows in this volley — the sum over [method effective_ammo].
+func total() -> int:
+	var t := 0
+	for entry in effective_ammo():
+		t += int(entry.count)
+	return t
+
+
+## N, the volley size; the same number as [method total].
 func n() -> int:
-	var total := 0
-	for count in effective_ammo_counts().values():
-		total += int(count)
-	return total
+	return total()
 
 
-## The volley's ammo, one [AmmoType] per shot, in roster `order` — the order
-## the schedule assigns them along. Owner: *"5 armor breaker shots configured
-## first -> will land first, regardless of what wave inside the burst they
-## launch at"*. Unknown ids are skipped (validate refuses them anyway).
+## The volley's ammo, one [AmmoType] per shot, in [member ammo]'s order — the
+## order the schedule assigns them along. Owner: *"5 armor breaker shots
+## configured first -> will land first, regardless of what wave inside the
+## burst they launch at"*; whose arrows are configured first is the player's
+## card order. Unknown ids are skipped (validate refuses them anyway).
 func _ammo_sequence() -> Array[AmmoType]:
 	var seq: Array[AmmoType] = []
-	var counts := effective_ammo_counts()
-	for t in _roster().sorted():
-		for _i in int(counts.get(t.id, 0)):
+	var roster := _roster()
+	for entry in effective_ammo():
+		var t := roster.by_id(StringName(entry.type))
+		if t == null:
+			continue
+		for _i in int(entry.count):
 			seq.append(t)
 	return seq
 
@@ -141,12 +164,12 @@ func _init() -> void:
 func to_dict(graph: Graph) -> Dictionary:
 	var d := super(graph)
 	d["target"] = graph.get_stable_id(target) if graph != null and target != null else 0
-	# The EFFECTIVE counts, never the raw field: a bare-default authority
-	# holds an empty dict and its mirror must fire the same explicit volley.
-	var counts := {}
-	for id in effective_ammo_counts():
-		counts[String(id)] = int(effective_ammo_counts()[id])
-	d["ammo_counts"] = counts
+	# The EFFECTIVE list, never the raw field: a bare-default authority
+	# holds an empty list and its mirror must fire the same explicit volley.
+	var list: Array = []
+	for entry in effective_ammo():
+		list.append({"type": String(entry.type), "count": int(entry.count)})
+	d["ammo"] = list
 	return d
 
 
@@ -154,9 +177,9 @@ static func from_dict(d: Dictionary, graph: Graph) -> RangedAttackPlan:
 	var plan := RangedAttackPlan.new()
 	plan._read_base(d, graph)
 	plan.target = graph.get_by_stable_id(int(d.get("target", 0))) if graph != null else null
-	var counts: Dictionary = d.get("ammo_counts", {})
-	for id in counts:
-		plan.ammo_counts[StringName(id)] = int(counts[id])
+	# Read back verbatim, duplicates included: validate is what refuses them.
+	for entry in d.get("ammo", []):
+		plan.ammo.append({"type": StringName(entry.get("type", "")), "count": int(entry.get("count", 0))})
 	return plan
 
 
@@ -365,22 +388,26 @@ func validate() -> Array[String]:
 		errors.append(ERR_VOLLEY_LIMIT)
 	if not errors.is_empty():
 		return errors
-	var counts := effective_ammo_counts()
-	var total := 0
-	for id in counts:
-		var count := int(counts[id])
+	var sum := 0
+	var seen: Dictionary[StringName, bool] = {}
+	for entry in effective_ammo():
+		var id := StringName(entry.type)
+		var count := int(entry.count)
+		if seen.has(id):
+			errors.append(&'Duplicate ammo type: %s' % id)
+		seen[id] = true
 		if _roster().by_id(id) == null:
 			errors.append(&'Unknown ammo type: %s' % id)
 		elif count > quiver.stock_of(id):
 			errors.append(&'Not enough %s arrows (%d < %d)' % [id, quiver.stock_of(id), count])
-		total += count
+		sum += count
 		# Into fog only scouts fly: one error for the mix, never one per bin.
 		if scout_shot and not _is_scout_type(id) and not errors.has(ERR_SCOUT_ONLY):
 			errors.append(ERR_SCOUT_ONLY)
-	if total <= 0:
+	if sum <= 0:
 		errors.append(&'Volley is empty')
-	elif total > _shots_available():
-		errors.append(&'Volley exceeds the shots left on reaching leaves (%d > %d)' % [total, _shots_available()])
+	elif sum > _shots_available():
+		errors.append(&'Volley exceeds the shots left on reaching leaves (%d > %d)' % [sum, _shots_available()])
 	return errors
 
 

@@ -121,7 +121,8 @@ func _arm(ctx: Dictionary, counts: Dictionary) -> RangedAttackPlan:
 	var bs: BattleSystem = ctx.bs
 	var plan := bs.new_plan(BattleSystem.AttackMode.RANGED, bs.turn_manager.current_entity) as RangedAttackPlan
 	plan.set_target(ctx.nodes.target)
-	plan.ammo_counts = counts
+	for id in counts:
+		plan.ammo.append({"type": StringName(id), "count": int(counts[id])})
 	_armed = plan
 	return plan
 

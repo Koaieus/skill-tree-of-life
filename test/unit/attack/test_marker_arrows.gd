@@ -55,7 +55,8 @@ func _volley(counts: Dictionary) -> AttackOutcome:
 	autofree(p)
 	p.attacker = _attacker
 	p.set_target(_target)
-	p.ammo_counts = counts
+	for id in counts:
+		p.ammo.append({"type": StringName(id), "count": int(counts[id])})
 	return p.resolve()
 
 
@@ -68,7 +69,8 @@ func _volley_in(counts: Dictionary, world: CombatWorld) -> AttackOutcome:
 	autofree(p)
 	p.attacker = _attacker
 	p.set_target(_target)
-	p.ammo_counts = counts
+	for id in counts:
+		p.ammo.append({"type": StringName(id), "count": int(counts[id])})
 	return p.resolve_against(world)
 
 

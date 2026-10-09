@@ -113,7 +113,7 @@ func _set_local(node: SkillNode, stat_id: StringName, value: float) -> void:
 func _plan(scouts: int) -> RangedAttackPlan:
 	var plan := _bs.new_plan(BattleSystem.AttackMode.RANGED, _attacker) as RangedAttackPlan
 	plan.set_target(_nodes.target)
-	plan.ammo_counts = {&"scout": scouts}
+	plan.ammo = [{"type": &"scout", "count": scouts}]
 	return plan
 
 

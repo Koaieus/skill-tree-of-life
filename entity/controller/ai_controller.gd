@@ -471,11 +471,12 @@ func _reload() -> bool:
 ## The typed composition of an [param n]-arrow volley from the live quiver:
 ## specials first in roster `order`, base fills the rest (owner, 2026-09-18 —
 ## the AI has no composer). Each bin contributes at most what it holds.
-func _compose_volley(n: int) -> Dictionary:
+func _compose_volley(n: int) -> Array[Dictionary]:
+	var list: Array[Dictionary] = []
 	var counts: Dictionary = {}
 	var quiver := entity.stat_board.arrows as Quiver
 	if quiver == null or n <= 0:
-		return counts
+		return list
 	var remaining := n
 	for t in _AMMO_TYPES.sorted():
 		if t.id == AmmoTypeRoster.BASE_ID:
@@ -487,7 +488,11 @@ func _compose_volley(n: int) -> Dictionary:
 	var base := mini(remaining, quiver.stock_of(AmmoTypeRoster.BASE_ID))
 	if base > 0:
 		counts[AmmoTypeRoster.BASE_ID] = base
-	return counts
+	# Fired in the roster's authored order: the AI keeps no card order.
+	for t in _AMMO_TYPES.sorted():
+		if counts.has(t.id):
+			list.append({"type": t.id, "count": int(counts[t.id])})
+	return list
 
 
 ## Bounded melee rollout — see [AiBladeRollout] for the reach-bound rejection
@@ -536,15 +541,15 @@ func _gather_ranged_candidates(visible_enemies: Array[SkillNode]) -> Array[AiCom
 		# so the scored outcome IS the launched one. No kill on the table:
 		# fire everything (the chip is as large as it can be). Never one
 		# arrow when more would do — "never single-shots".
-		plan.ammo_counts = _compose_volley(plan.max_n())
+		plan.ammo = _compose_volley(plan.max_n())
 		var outcome := plan.resolve()
 		var to_kill := AiCombatScorer.arrows_to_kill(outcome, target, entity)
 		if to_kill > 0 and to_kill + KILL_MARGIN_ARROWS < plan.n():
-			plan.ammo_counts = _compose_volley(to_kill + KILL_MARGIN_ARROWS)
+			plan.ammo = _compose_volley(to_kill + KILL_MARGIN_ARROWS)
 			outcome = plan.resolve()
 		var c := AiCombatScorer.score(BattleSystem.AttackMode.RANGED, outcome, target, entity, ai_tier,
 				0, loot_system)
-		c.ammo_counts = plan.ammo_counts.duplicate()
+		c.ammo = plan.ammo.duplicate(true)
 		c.trace += " n=%d" % plan.n()
 		out.append(c)
 	return out
@@ -757,7 +762,7 @@ func _execute_candidate(candidate: AiCombatScorer.ScoredCandidate) -> bool:
 			var plan := attack as RangedAttackPlan
 			plan.target = candidate.target
 			# The N that was scored is the N that fires (#958).
-			plan.ammo_counts = candidate.ammo_counts.duplicate()
+			plan.ammo = candidate.ammo.duplicate(true)
 		BattleSystem.AttackMode.MAGIC:
 			_arm_magic_plan(attack as MagicAttackPlan, candidate)
 		BattleSystem.AttackMode.MELEE:

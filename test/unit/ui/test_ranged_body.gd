@@ -127,6 +127,15 @@ func before_each() -> void:
 	_plan.set_target(_target)
 
 
+## The plan's list flattened to `{type: count}` — for asserts that pin the
+## composition, not its order.
+func _counts() -> Dictionary:
+	var out := {}
+	for entry in _plan.ammo:
+		out[entry.type] = entry.count
+	return out
+
+
 func _per_leaf() -> int:
 	return int(_attacker.stat_board.arrows_per_reload.get_value())
 
@@ -152,7 +161,7 @@ func test_bar_max_and_default_n_and_wave_notches() -> void:
 	assert_eq(_bar().max_n, 11)
 	assert_eq(_bar().n, 11)
 	assert_eq(Array(_bar().notches), [3, 6, 9], "wave boundaries below max")
-	assert_eq(_plan.ammo_counts, {_ARROW: 9, _POISON: 2}, "the body writes the explicit composition")
+	assert_eq(_counts(), {_ARROW: 9, _POISON: 2}, "the body writes the explicit composition")
 
 
 ## N = max = stock (11) means every arrow fires, so the default already reads
@@ -161,23 +170,23 @@ func test_bar_max_and_default_n_and_wave_notches() -> void:
 ## a fixed N carves it out of the base; scrolling N re-derives the base.
 func test_stepping_poison_and_scrolling_n_down_re_derives_base() -> void:
 	_body.set_special(_POISON, 1)
-	assert_eq(_plan.ammo_counts, {_ARROW: 9, _POISON: 1}, "base is bin-capped at 9 → N follows down to 10")
+	assert_eq(_counts(), {_ARROW: 9, _POISON: 1}, "base is bin-capped at 9 → N follows down to 10")
 	assert_eq(_body.n(), 10)
 	_body.step_special(_POISON, 1)
-	assert_eq(_plan.ammo_counts, {_POISON: 2, _ARROW: 8}, "at fixed N 10 the extra poison carves out of base")
+	assert_eq(_counts(), {_POISON: 2, _ARROW: 8}, "at fixed N 10 the extra poison carves out of base")
 	_body.reset_n_to_max()
 	assert_eq(_body.n(), 11)
-	assert_eq(_plan.ammo_counts, {_POISON: 2, _ARROW: 9})
+	assert_eq(_counts(), {_POISON: 2, _ARROW: 9})
 	_body.set_n(4)
-	assert_eq(_plan.ammo_counts, {_POISON: 2, _ARROW: 2}, "N 4 with 2 poison → 2 base")
+	assert_eq(_counts(), {_POISON: 2, _ARROW: 2}, "N 4 with 2 poison → 2 base")
 	assert_eq(_body.n(), 4)
 	_body.set_n(1)
 	assert_eq(_body.n(), 2, "specials exceed N → N grows to fit")
-	assert_eq(_plan.ammo_counts, {_POISON: 2})
+	assert_eq(_counts(), {_POISON: 2})
 	_body.set_special(_POISON, 0)
-	assert_eq(_plan.ammo_counts, {_ARROW: 2}, "no poison at N 2 → 2 base")
+	assert_eq(_counts(), {_ARROW: 2}, "no poison at N 2 → 2 base")
 	_body.reset_n_to_max()
-	assert_eq(_plan.ammo_counts, {_POISON: 2, _ARROW: 9}, "max fires everything again")
+	assert_eq(_counts(), {_POISON: 2, _ARROW: 9}, "max fires everything again")
 
 
 func test_special_count_is_sticky_across_target_picks_and_clamps_to_bin() -> void:
@@ -185,10 +194,10 @@ func test_special_count_is_sticky_across_target_picks_and_clamps_to_bin() -> voi
 	_body.set_n(4)
 	_plan.set_target(_target2)
 	assert_eq(_body.n(), 11, "a new target rebuilds at N = max")
-	assert_eq(_plan.ammo_counts, {_POISON: 2, _ARROW: 9}, "poison stays 2 while the bin has 2")
+	assert_eq(_counts(), {_POISON: 2, _ARROW: 9}, "poison stays 2 while the bin has 2")
 	_attacker.stat_board.arrows.take(_POISON, 1)
 	_plan.set_target(_target)
-	assert_eq(_plan.ammo_counts, {_POISON: 1, _ARROW: 9}, "clamped to the bin once it has 1")
+	assert_eq(_counts(), {_POISON: 1, _ARROW: 9}, "clamped to the bin once it has 1")
 
 
 func test_reload_row_shows_projected_yield_and_ap() -> void:
@@ -284,15 +293,15 @@ func test_a_sensed_target_composes_scouts_only() -> void:
 	vision._recompute()
 	assert_true(vision.is_sensed(_target) and not vision.is_visible(_target), "fixture: target is sensed-only")
 	_body.set_special(_POISON, 1)
-	assert_true(_plan.ammo_counts.has(_POISON) and _plan.ammo_counts.has(_ARROW), "control: without the viewer fog poison and base fire")
+	assert_true(_counts().has(_POISON) and _counts().has(_ARROW), "control: without the viewer fog poison and base fire")
 	_plan.viewer_vision = vision
 	_plan.reset()
 	_plan.set_target(_target)
 	assert_true(_plan.is_scout_shot(), "fixture: the plan sees a scout shot")
-	assert_eq(_plan.ammo_counts, {&"scout": 2}, "scouts only, poison and base forced to 0")
+	assert_eq(_counts(), {&"scout": 2}, "scouts only, poison and base forced to 0")
 	assert_eq(_plan.validate(), [] as Array[String], "the default composition validates")
 	_body.step_special(_POISON, 1)
-	assert_eq(_plan.ammo_counts, {&"scout": 2}, "a poison step is clamped back to 0 into fog")
+	assert_eq(_counts(), {&"scout": 2}, "a poison step is clamped back to 0 into fog")
 
 
 ## The counts are the entity's [VolleyPreference], not the body's: a tray tab
@@ -310,7 +319,7 @@ func test_special_counts_survive_a_rebuild_and_a_fresh_plan() -> void:
 	_body.bind(_attacker, _battle, _ctl)
 	_plan.set_target(_target2)
 	_body.set_n(4)
-	assert_eq(_plan.ammo_counts, {_POISON: 1, _ARROW: 3}, "the rebuilt body composes the kept count")
+	assert_eq(_counts(), {_POISON: 1, _ARROW: 3}, "the rebuilt body composes the kept count")
 	assert_eq(_ctl.armed_stack.memory_for(_attacker).ranged.special_counts.get(_POISON, 0), 1,
 			"held on the entity's seat memory")
 
@@ -326,7 +335,7 @@ func test_the_composed_list_follows_the_preference_order_else_the_roster() -> vo
 			"card order is firing order")
 	pref.order = [] as Array[StringName]
 	_body.set_n(4)
-	assert_eq(_plan.types(), [&"armor_break", &"curse", _POISON, _ARROW] as Array[StringName],
+	assert_eq(_plan.types(), [&"armor_break", &"curse", _ARROW] as Array[StringName],
 			"an empty preference falls back to the roster's authored order")
 
 
