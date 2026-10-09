@@ -6,7 +6,7 @@ shader_type canvas_item;
 void fragment() {
 	float across = UV.x * 2.0 - 1.0;
 	float lit = sqrt(max(1.0 - across * across, 0.0));
-	float shade = mix(0.55, 1.15, lit);
+	float shade = mix(0.5, 1.0, lit);
 	vec4 base = texture(TEXTURE, UV) * COLOR;
 	COLOR = vec4(base.rgb * shade, base.a);
 }
