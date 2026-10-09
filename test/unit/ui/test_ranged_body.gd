@@ -293,3 +293,23 @@ func test_a_sensed_target_composes_scouts_only() -> void:
 	assert_eq(_plan.validate(), [] as Array[String], "the default composition validates")
 	_body.step_special(_POISON, 1)
 	assert_eq(_plan.ammo_counts, {&"scout": 2}, "a poison step is clamped back to 0 into fog")
+
+
+## The counts are the entity's [VolleyPreference], not the body's: a tray tab
+## switch rebuilds the body, a launch or turn end re-arms a fresh plan, and the
+## same entity's special counts are still there.
+func test_special_counts_survive_a_rebuild_and_a_fresh_plan() -> void:
+	_body.set_special(_POISON, 1)
+	_body.teardown()
+	_body.free()
+	_ctl.arm_attack(BattleSystem.AttackMode.NONE)
+	_ctl.arm_attack(BattleSystem.AttackMode.RANGED)
+	_plan = _ctl.armed_stack.attack_plan() as RangedAttackPlan
+	_body = _BODY_SCENE.instantiate() as RangedBody
+	add_child_autofree(_body)
+	_body.bind(_attacker, _battle, _ctl)
+	_plan.set_target(_target2)
+	_body.set_n(4)
+	assert_eq(_plan.ammo_counts, {_POISON: 1, _ARROW: 3}, "the rebuilt body composes the kept count")
+	assert_eq(_ctl.armed_stack.memory_for(_attacker).ranged.special_counts.get(_POISON, 0), 1,
+			"held on the entity's seat memory")

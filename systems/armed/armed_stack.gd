@@ -53,8 +53,20 @@ var last_infusion: Dictionary[StringName, Dictionary] = {}
 ## ([member MeleeAttackPlan.swing_cw]); survives resets and re-arms.
 var next_melee_cw: bool = false
 
+var _memory: Dictionary[int, SeatMemory] = {}
 var _branch: Array[ArmedMode] = []
 var _last_plan: AttackPlan = null
+
+
+## [param entity]'s [SeatMemory] — every attack mode's last choice. Keyed by
+## `get_instance_id()` (the [GateLockSet] pattern) so a hot-seat handover keeps
+## each player's. A null entity gets a throwaway default.
+func memory_for(entity: Entity) -> SeatMemory:
+	return SeatMemory.new()
+
+
+func select_spell(entity: Entity, spell: SpellDef) -> void:
+	pass
 
 
 ## Install [param mode] as the unpoppable root, dropping any branch silently
