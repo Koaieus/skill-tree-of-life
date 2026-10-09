@@ -430,6 +430,13 @@ Numbered so the skill can be checked against them law by law.
     board's flag traps, so the pass neither carries nor outputs them. See
     `docs/charters/clerk.md`.
 
+35. **The pass ends with the session report** (`docs/domain/session-report.md`),
+    `Landed` carrying the swarmify columns (`# · now in · children ·
+    drift`) and `Not done` naming every issue that stayed in `Needs design`
+    and why. Mined 2026-10-09: swarmify's last long message was often a
+    pasted brief or walkthrough, not a closing report, so the owner had to
+    ask what actually moved.
+
 ## Incident corpus
 
 Each law traces to at least one of these. Kept here so the skill does not
@@ -481,7 +488,8 @@ have to carry them.
 
 Transcript scans behind a law live in `.claude/skills/swarmify/corpus/` —
 a dated report plus the labelled rows, so a count can be re-checked rather
-than trusted. The skill never reads them.
+than trusted. The skill never reads them. New scans go to `docs/corpus/`
+via the `archivist` agent; these stay where this charter cites them.
 
 ## Open follow-ups
 

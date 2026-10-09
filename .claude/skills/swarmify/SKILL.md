@@ -392,7 +392,11 @@ Then spawn **one** `Agent(subagent_type: "clerk", prompt: "<manifest path>")`.
 It holds every flag trap and ordering rule; you state intent, never commands.
 Read its one-line-per-issue report: handle each `SKIPPED` / `FAILED`
 yourself (a fixed manifest and a second clerk, or the one call by hand),
-then tell the owner what landed.
+then tell the owner what landed — as the session report
+(`docs/domain/session-report.md`): headline, `Landed` with the swarmify
+columns (`# · now in · children · drift`), `Not done` (issues that stayed in
+`Needs design` and why), `Follow-ups` with a disposition each, `Needs the
+owner`, `Touched`, `Cost`.
 
 ## What swarmify is NOT
 

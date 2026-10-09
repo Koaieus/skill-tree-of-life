@@ -105,6 +105,11 @@ live outgoing — never by reading issues to compensate.
    pointing at swarm's, because relief restates nothing of swarm (law 4).
    See [whip](whip.md).
 
+9. **Relief ends like swarm.** The session report of swarm law 30, plus
+   `next relief: <what it takes>` under `Needs the owner` when it hands off
+   in turn — the one ending the scan of 2026-10-09 found already uniform,
+   now the law for the rest.
+
 ## Incident corpus
 
 | Date | Where | What happened | Law |

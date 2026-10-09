@@ -1,0 +1,85 @@
+#!/usr/bin/env python3
+#MISE description="Self-test for transcripts: a synthetic project dir, asserts list/grep/final/show/subagents and the skill + date filters. `mise run transcripts-selftest`"
+import importlib.machinery, importlib.util, io, json, os, sys, tempfile, contextlib
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+spec = importlib.util.spec_from_loader("transcripts", importlib.machinery.SourceFileLoader("transcripts", os.path.join(HERE, "transcripts")))
+tr = importlib.util.module_from_spec(spec); spec.loader.exec_module(tr)
+
+
+def rec(kind, content, ts):
+    return {"type": kind, "timestamp": ts, "message": {"role": kind, "content": content}}
+
+
+def write(path, rows):
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w") as fh:
+        for r in rows:
+            fh.write(json.dumps(r) + "\n")
+
+
+root = tempfile.mkdtemp(prefix="transcripts-")
+os.environ["CLAUDE_TRANSCRIPTS_DIR"] = root
+A = "aaaaaaaa-1111-2222-3333-444444444444"
+B = "bbbbbbbb-1111-2222-3333-444444444444"
+write(os.path.join(root, A + ".jsonl"), [
+    {"type": "queue-operation", "operation": "enqueue"},
+    rec("user", "<command-message>warp</command-message><command-name>/warp</command-name><command-args>#12</command-args>", "2026-10-01T09:00:00Z"),
+    rec("assistant", [{"type": "tool_use", "name": "Bash", "input": {}}], "2026-10-01T09:00:01Z"),
+    rec("assistant", [{"type": "text", "text": "short"}], "2026-10-01T09:00:02Z"),
+    rec("user", "fine, land it", "2026-10-01T09:05:00Z"),
+    rec("assistant", [{"type": "text", "text": "**Landed** #12 at abc1234. " + "x " * 200}], "2026-10-01T09:06:00Z"),
+])
+write(os.path.join(root, A, "subagents", "agent-deadbeef01.jsonl"), [
+    rec("user", "Work #12 in .worktrees/foo please", "2026-10-01T09:01:00Z"),
+    rec("assistant", [{"type": "text", "text": "BRANCH: foo"}], "2026-10-01T09:02:00Z"),
+])
+json.dump({"name": "drone-foo"}, open(os.path.join(root, A, "subagents", "agent-deadbeef01.meta.json"), "w"))
+write(os.path.join(root, B + ".jsonl"), [
+    rec("user", "swarmify #99 please", "2026-01-01T09:00:00Z"),
+    rec("assistant", [{"type": "text", "text": "ancient " * 60}], "2026-01-01T09:01:00Z"),
+])
+# the old file must look old to the mtime pre-filter too
+old = 1767225600  # 2026-01-01
+os.utime(os.path.join(root, B + ".jsonl"), (old, old))
+
+
+def run(*argv):
+    out = io.StringIO()
+    with contextlib.redirect_stdout(out):
+        tr.main(list(argv))
+    return out.getvalue()
+
+
+def rows(*argv):
+    return json.loads(run(*argv, "--json"))
+
+
+r = rows("list", "--since", "2026-09-01")
+assert [x["id8"] for x in r] == ["aaaaaaaa"], r
+assert r[0]["skill"] == "warp" and r[0]["turns"] == 2 and r[0]["prompt"] == "#12", r[0]
+assert rows("list", "--since", "2026-09-01", "--skill", "swarm") == []
+r = rows("list", "--since", "2025-12-01")
+assert {x["skill"] for x in r} == {"warp", "swarmify"}, r
+r = rows("list", "--since", "2026-09-01", "--subagents")
+assert sorted(x["id8"] for x in r) == ["aaaaaaaa", "deadbeef01"], r
+
+r = rows("grep", "landed", "--since", "2026-09-01")
+assert len(r) == 1 and r[0]["role"] == "assistant" and "abc1234" in r[0]["line"], r
+assert rows("grep", "landed", "--since", "2026-09-01", "--role", "user") == []
+
+r = rows("final", "--since", "2026-09-01")
+assert len(r) == 1 and r[0]["text"].startswith("**Landed**") and r[0]["words"] > 100, r
+assert rows("final", "--since", "2026-09-01", "--min-chars", "100000") == []
+
+r = rows("show", "aaaaaaaa")
+assert [x["role"] for x in r] == ["user", "assistant", "user", "assistant"], r
+r = rows("show", "aaaaaaaa", "--role", "user", "--max-chars", "4")
+assert [x["text"] for x in r] == ["<com", "fine"], r
+
+r = rows("subagents", "aaaaaaaa")
+assert len(r) == 1 and r[0]["name"] == "drone-foo" and r[0]["id"] == "deadbeef01", r
+
+plain = run("list", "--since", "2026-09-01")
+assert plain.startswith("aaaaaaaa  2026-10-01  warp"), plain
+print("transcripts-selftest: ok")

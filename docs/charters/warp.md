@@ -167,6 +167,13 @@ why swarm routes every landing through it.
     piece commented out behind a `TODO(#<n>)` so `master` stays runnable,
     issue left open — or stays alive and is rebased onto `master` at least
     daily. Never a branch that drifts for days.
+16. **The run ends with the session report.** One message in the shape of
+    `docs/domain/session-report.md`, every section present, follow-ups each
+    carrying a disposition with *fixed now* before *filed*. Mined 2026-10-09
+    from 208 endings: what landed + SHA + tests was near-constant, what was
+    not done appeared in under half, questions for the owner in under a
+    tenth, and no two endings shared a shape — the owner could not ingest a
+    run without re-reading it.
 
 ## Incident corpus
 

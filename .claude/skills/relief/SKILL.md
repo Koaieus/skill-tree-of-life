@@ -63,4 +63,6 @@ outgoing is in the same mode.
 
 From the reconciled ledger, `swarm` §3 onward: briefs, tiers, review,
 `land`, the train, teardown. Thresholds, ceilings and when *you* request
-relief are `swarm`'s — this file quotes none.
+relief are `swarm`'s — this file quotes none. So is the closing message:
+`swarm` §7's session report, with `next relief: <what it takes>` under
+`Needs the owner` when you hand off in turn.

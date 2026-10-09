@@ -322,6 +322,13 @@ disk at `scratchpad/land/land-<n>.log` (#920), so filling the ledger is a
     it verbatim into the brief; anything the peer flagged as *unverified* goes
     to the drone as an open question to resolve by reading, never as fact.
 
+30. **The run ends with the session report** (`docs/domain/session-report.md`),
+    one row per unit under `Landed`, and the `NOTES:` sweep of law 28
+    rendered as `Follow-ups` with a disposition each — *fixed now* or *a
+    drone did it* before *filed*, because small optional work filed "for
+    later" is what grew `Needs design` past 80 issues. Same shape for relay
+    and relief; whip's renderer emits the same vocabulary as a file.
+
 ## Incident corpus
 
 | Date | Where | What happened | Law |

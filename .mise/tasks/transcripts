@@ -1,0 +1,210 @@
+#!/usr/bin/env python3
+#MISE description="Read-only queries over this project's Claude Code session transcripts: `mise run transcripts -- list|grep|final|show|subagents …` (the archivist agent's toolbox; `--help` per verb)"
+"""
+Streaming, stdlib-only queries over ~/.claude/projects/<cwd-slug>/*.jsonl —
+one file per top-level session, `<session>/subagents/agent-*.jsonl` per
+subagent. Every verb streams line by line and never loads a file whole,
+because the directory is hundreds of MB and a transcript is a few MB.
+
+  list      one line per session: id8, date, skill (or -), turns, first prompt
+  grep      regex over user/assistant text, one line per hit with id8 + role
+  final     the last assistant text (>= --min-chars) of each session — the
+            closing report a run gave the owner
+  show      one session's user + assistant text in order (tool calls elided)
+  subagents one session's subagent transcripts with their names and sizes
+
+Common filters: --days N (default 56) or --since YYYY-MM-DD, --skill NAME
+(a run launched as /NAME, or free text "NAME #…"), --subagents (include the
+subagent files too; off by default). --json on every verb for rows.
+
+Record shape, for anyone extending this: `type` ∈ user | assistant |
+queue-operation | attachment | last-prompt | …; `message.content` is a string
+or a list of blocks, text blocks are {"type":"text","text":…}; `timestamp`
+is ISO-8601; a skill launch is `<command-name>/warp</command-name>` in the
+FIRST user record. $CLAUDE_TRANSCRIPTS_DIR overrides the directory (tests).
+"""
+import argparse, glob, json, os, re, sys, time
+
+ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+SKILLS = ("warp", "swarm", "swarmify", "relay", "whip", "relief", "handoff", "adr", "archivist")
+
+
+def tdir():
+    env = os.environ.get("CLAUDE_TRANSCRIPTS_DIR")
+    if env:
+        return env
+    slug = "-" + ROOT.strip("/").replace("/", "-")
+    return os.path.expanduser(f"~/.claude/projects/{slug}")
+
+
+def text(content):
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        return "\n".join(b.get("text", "") for b in content if isinstance(b, dict) and b.get("type") == "text")
+    return ""
+
+
+def records(path, kinds=("user", "assistant")):
+    """Yield (type, text, timestamp) for text-bearing records; tool_use/tool_result rows yield ''."""
+    with open(path, errors="ignore") as fh:
+        for line in fh:
+            if not line.startswith("{"):
+                continue
+            m = re.search(r'"type":\s*"(\w[\w-]*)"', line[:200])
+            if not m or m.group(1) not in kinds:
+                continue
+            try:
+                r = json.loads(line)
+            except ValueError:
+                continue
+            if r.get("type") not in kinds:
+                continue
+            yield r["type"], text(r.get("message", {}).get("content")), r.get("timestamp", "")
+
+
+def launch_skill(first):
+    m = re.search(r"<command-name>/?([\w-]+)</command-name>", first)
+    if m:
+        return m.group(1)
+    m = re.match(r"\s*(%s)\b" % "|".join(SKILLS), first, re.I)
+    return m.group(1).lower() if m else "-"
+
+
+def sessions(a):
+    """Yield (path, id8, date, skill, first_prompt) for sessions passing the date/skill filters."""
+    since = a.since or time.strftime("%Y-%m-%d", time.gmtime(time.time() - a.days * 86400))
+    files = sorted(glob.glob(os.path.join(tdir(), "*.jsonl")), key=os.path.getmtime, reverse=True)
+    if a.subagents:
+        files += sorted(glob.glob(os.path.join(tdir(), "*", "subagents", "agent-*.jsonl")), key=os.path.getmtime, reverse=True)
+    for f in files:
+        if os.path.getmtime(f) < time.mktime(time.strptime(since, "%Y-%m-%d")) - 86400:
+            continue
+        first = None
+        for t, x, ts in records(f, ("user",)):
+            if x.strip():
+                first = (x, ts)
+                break
+        if not first or first[1][:10] < since:
+            continue
+        skill = launch_skill(first[0])
+        if a.skill and skill != a.skill:
+            continue
+        base = os.path.basename(f)
+        id8 = base[:8] if not base.startswith("agent-") else base[6:-6]
+        yield f, id8, first[1][:10], skill, first[0]
+
+
+def common(p):
+    p.add_argument("--days", type=int, default=56)
+    p.add_argument("--since")
+    p.add_argument("--skill")
+    p.add_argument("--subagents", action="store_true")
+    p.add_argument("--json", action="store_true")
+
+
+def one_line(s, n=90):
+    return re.sub(r"\s+", " ", s).strip()[:n]
+
+
+def cmd_list(a):
+    rows = []
+    for f, id8, date, skill, first in sessions(a):
+        turns = sum(1 for t, x, _ in records(f, ("user",)) if x.strip())
+        prompt = one_line(re.sub(r"<command-(?:message|name)>.*?</command-(?:message|name)>|</?command-args>", " ", first, flags=re.S))
+        rows.append(dict(id8=id8, date=date, skill=skill, turns=turns, prompt=prompt, path=f))
+    emit(a, rows, lambda r: f"{r['id8']}  {r['date']}  {r['skill']:<9} {r['turns']:>4}  {r['prompt']}")
+
+
+def cmd_grep(a):
+    rx = re.compile(a.pattern, re.I)
+    rows = []
+    for f, id8, date, skill, _ in sessions(a):
+        hits = 0
+        for t, x, ts in records(f):
+            if a.role and t != a.role:
+                continue
+            for ln in x.splitlines():
+                if rx.search(ln):
+                    rows.append(dict(id8=id8, date=date, skill=skill, role=t, ts=ts, line=one_line(ln, a.width)))
+                    hits += 1
+                    if hits >= a.max:
+                        break
+            if hits >= a.max:
+                break
+    emit(a, rows, lambda r: f"{r['id8']}  {r['date']}  {r['role'][0]}  {r['line']}")
+
+
+def cmd_final(a):
+    rows = []
+    for f, id8, date, skill, _ in sessions(a):
+        last = None
+        for t, x, ts in records(f, ("assistant",)):
+            if len(x) >= a.min_chars:
+                last = x
+        if last:
+            rows.append(dict(id8=id8, date=date, skill=skill, words=len(last.split()), text=last))
+    emit(a, rows, lambda r: f"━━ {r['id8']}  {r['date']}  {r['skill']}  ({r['words']} words)\n{r['text']}\n")
+
+
+def find(id8):
+    hits = glob.glob(os.path.join(tdir(), id8 + "*.jsonl")) + glob.glob(os.path.join(tdir(), "*", "subagents", "agent-" + id8 + "*.jsonl"))
+    if len(hits) != 1:
+        sys.exit(f"transcripts: {len(hits)} sessions match {id8!r}")
+    return hits[0]
+
+
+def cmd_show(a):
+    f = find(a.id8)
+    rows = []
+    for t, x, ts in records(f):
+        if not x.strip() or (a.role and t != a.role):
+            continue
+        rows.append(dict(role=t, ts=ts, text=x if not a.max_chars else x[:a.max_chars]))
+    emit(a, rows, lambda r: f"── {r['role']} {r['ts'][11:19]}\n{r['text']}\n")
+
+
+def cmd_subagents(a):
+    f = find(a.id8)
+    rows = []
+    for p in sorted(glob.glob(os.path.join(f[:-6], "subagents", "agent-*.jsonl")), key=os.path.getmtime):
+        meta = p[:-6] + ".meta.json"
+        name = ""
+        if os.path.exists(meta):
+            try:
+                m = json.load(open(meta))
+                name = m.get("name") or m.get("agentName") or m.get("subagent_type") or ""
+            except ValueError:
+                pass
+        first = next((x for t, x, _ in records(p, ("user",)) if x.strip()), "")
+        rows.append(dict(id=os.path.basename(p)[6:-6], name=name, kb=os.path.getsize(p) // 1024, prompt=one_line(first), path=p))
+    emit(a, rows, lambda r: f"{r['id']:<18} {r['name']:<16} {r['kb']:>6}K  {r['prompt']}")
+
+
+def emit(a, rows, fmt):
+    if a.json:
+        json.dump(rows, sys.stdout, indent=1)
+        print()
+    else:
+        for r in rows:
+            print(fmt(r))
+        if not rows:
+            print("(no matches)", file=sys.stderr)
+
+
+def main(argv=None):
+    p = argparse.ArgumentParser(prog="mise run transcripts --", description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    sub = p.add_subparsers(dest="verb", required=True)
+    s = sub.add_parser("list"); common(s); s.set_defaults(fn=cmd_list)
+    s = sub.add_parser("grep"); common(s); s.add_argument("pattern"); s.add_argument("--role", choices=("user", "assistant"))
+    s.add_argument("--max", type=int, default=5, help="hits per session (5)"); s.add_argument("--width", type=int, default=160); s.set_defaults(fn=cmd_grep)
+    s = sub.add_parser("final"); common(s); s.add_argument("--min-chars", type=int, default=300); s.set_defaults(fn=cmd_final)
+    s = sub.add_parser("show"); s.add_argument("id8"); s.add_argument("--role", choices=("user", "assistant")); s.add_argument("--max-chars", type=int, default=0)
+    s.add_argument("--json", action="store_true"); s.set_defaults(fn=cmd_show)
+    s = sub.add_parser("subagents"); s.add_argument("id8"); s.add_argument("--json", action="store_true"); s.set_defaults(fn=cmd_subagents)
+    a = p.parse_args(argv)
+    a.fn(a)
+
+
+if __name__ == "__main__":
+    main()

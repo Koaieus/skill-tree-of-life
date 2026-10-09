@@ -396,6 +396,12 @@ Overnight the budget is **tokens per 5-hour window, twice over**, and
     11:26 ("no further trains; let relief-a-1 land train a, then wrap up")
     was this verb done by hand with `train drop` × 16.
 
+33. **The morning report speaks the session-report vocabulary.**
+    `write_report` emits `Landed / … / Filed since start / Needs the owner /
+    Incidents / Cost` — the sections of `docs/domain/session-report.md`
+    with more lanes; a new section there is a new section here, never a
+    second vocabulary.
+
 ## Incident corpus
 
 | Date | Where | What happened | Law |

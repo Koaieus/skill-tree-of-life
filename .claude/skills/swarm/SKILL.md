@@ -402,8 +402,15 @@ A stray worktree (`.claude/worktrees/` too) whose branch is merged, or that
 holds nothing worth mining, is deleted on sight — never an owner question.
 
 `mise run ledger -- close` — it moves your ledger to `docs/handoffs/archive/`;
-whip never closes it for you. Relay reports to the user in your own words — never paste
-a diff.
+whip never closes it for you.
+
+### 7. Report
+
+Your closing message is the session report — `docs/domain/session-report.md`:
+headline, `Landed` table (one row per unit), `Not done`, `Follow-ups` with a
+disposition each (the sweep of `NOTES:` lines: fixed now or by a drone before
+filed), `Needs the owner`, `Touched`, `Cost`. Every section, even when
+`none`; never a diff.
 
 ## Standing gotchas
 
