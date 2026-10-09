@@ -420,6 +420,8 @@ rank reaching leaves by euclidean distance to target, ascending
     tie-break: SkillNode.stable_id          # wire-legal, minted by Graph
 wave-major fill (#957): each wave, every ranked leaf with a shot left fires
     one arrow in rank order; waves repeat until N
+ammo types along that schedule order, walking RangedAttackPlan.ammo — the
+    ordered [{type, count}] list, the player's card order (ADR 0051)
 d_min, d_max   = nearest and furthest distance in the volley
 frac_i         = (d_i - d_min) / (d_max - d_min)   # 0 .. 1; 0 if the span is 0
 key_i          = (wave_i + frac_i) / waves         # 0 .. 1; == frac_i for one wave

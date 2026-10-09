@@ -1,11 +1,11 @@
 ---
 id: 0020
 title: A ranged volley's composition rides the command as typed counts; per-arrow leaf and type are derived along schedule order at resolve, never carried per arrow or assigned at replay
-status: accepted
+status: superseded
 date: 2026-09-18
 deciders: owner
 supersedes: []
-superseded-by: null
+superseded-by: 0051
 sources:
   - "#496"
   - "#957"

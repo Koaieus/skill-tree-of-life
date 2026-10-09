@@ -16,7 +16,9 @@ extends Resource
 ## Bin key on the [Quiver]; the stat minting it is [member per_reload_stat_id].
 @export var id: StringName = &""
 @export var display_name: String = ""
-## Position in a volley's fixed type order — lower fires (and lands) first.
+## Position in the DEFAULT volley order — lower fires (and lands) first. The
+## player's card order ([member VolleyPreference.order]) overrides it; this is
+## what an empty preference, restore-default and the AI fire in.
 ## Owner (2026-09-18): armour-breaking first … poison near last, base last.
 @export var order: int = 0
 ## Multiplier on the arrow's raw damage before mitigation. 1.0 for the base arrow.

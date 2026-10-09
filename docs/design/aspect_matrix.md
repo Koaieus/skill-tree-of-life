@@ -313,8 +313,9 @@ Hue stays `Identity.tint`.
   It is the status's fact (#1202), never the arrow's: the arrow feeds the
   pile, and its stacks-per-hit is retuned when #1202 lands.
 - **Situational volley order** (Greed's *"up for the situation to
-  determine"*) means a player-chosen order. That is its own feature, parked;
-  authored `order` stays the rule.
+  determine"*) is a player-chosen order: the card order is the firing order,
+  sticky for the run (#1512, ADR 0051). Authored `order` is the default and
+  what restore-default returns to.
 - **Creep and Exposed** (contenders, #1444 / #1445) get arrows on this
   template once their rows settle.
 

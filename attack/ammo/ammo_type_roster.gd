@@ -3,7 +3,8 @@ class_name AmmoTypeRoster
 extends Resource
 
 ## Every authored [AmmoType], as hard `ExtResource` edges — the one place the
-## fixed volley order is read (`attack/ammo/ammo_type_roster.tres`). The
+## DEFAULT volley order is read (`attack/ammo/ammo_type_roster.tres`); a
+## player's card order ([member VolleyPreference.order]) overrides it. The
 ## [StatDefRoster] pattern: a directory scan of `attack/ammo/types/` does not
 ## survive export, so runtime code preloads this resource and never scans.
 ##

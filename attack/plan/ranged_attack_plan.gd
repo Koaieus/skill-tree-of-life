@@ -253,7 +253,8 @@ func get_reaching_firing_positions() -> Array[SkillNode]:
 ## Graph — never allocation/mirror-insertion order: allocation order must
 ## never influence combat outcome). Waves repeat until N (3 leaves at 5/5,
 ## 5/5, 4/5 → waves of 3, 3, 3, 3, 2). Ammo types are assigned along that
-## order in roster `order` — the first shots of wave 0 carry the specials.
+## order in [member ammo]'s list order — the first entry's arrows ride the
+## first shots of wave 0.
 ## Empty if no target or N is 0.
 func get_firing_schedule() -> Array[FiringShot]:
 	var result: Array[FiringShot] = []
