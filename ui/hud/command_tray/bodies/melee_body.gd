@@ -171,10 +171,11 @@ func _on_reform_pressed() -> void:
 func _on_swing_pressed() -> void:
 	if _armed_stack == null:
 		return
-	_armed_stack.next_melee_cw = not _armed_stack.next_melee_cw
+	var melee_memory := _armed_stack.memory_for(_player).melee
+	melee_memory.next_swing_cw = not melee_memory.next_swing_cw
 	var plan := _armed_plan() as MeleeAttackPlan
 	if plan != null:
-		plan.swing_cw = _armed_stack.next_melee_cw
+		plan.swing_cw = melee_memory.next_swing_cw
 	_refresh()
 
 
@@ -236,7 +237,7 @@ func _refresh() -> void:
 	_upgrade_blips.count = upgrade_bound.size()
 
 	_count_label.text = "pivot + %d" % count
-	var cw: bool = _armed_stack != null and _armed_stack.next_melee_cw
+	var cw: bool = _armed_stack != null and _armed_stack.memory_for(_player).melee.next_swing_cw
 	_swing_button.text = "↻ Swing CW" if cw else "↺ Swing CCW"
 	var can_act := _input_ctl == null or (_input_ctl.can_player_act() and _input_ctl.can_afford(plan))
 	_launch_button.set_enabled(plan != null and plan.is_valid() and can_act)

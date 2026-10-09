@@ -167,14 +167,14 @@ func test_nothing_to_reform_before_the_first_launch() -> void:
 
 func test_swing_direction_is_restored_onto_the_sticky_preference() -> void:
 	var plan := _click_build([_joint])
-	_pic.armed_stack.next_melee_cw = true
+	_pic.armed_stack.memory_for(_pic.player).melee.next_swing_cw = true
 	plan.swing_cw = true
 	await _launch_and_settle()
 	# Flip the preference away, so a restore is observable rather than a no-op.
-	_pic.armed_stack.next_melee_cw = false
+	_pic.armed_stack.memory_for(_pic.player).melee.next_swing_cw = false
 	assert_true(_pic.reform_blade())
 	assert_true((_pic.armed_stack.attack_plan() as MeleeAttackPlan).swing_cw)
-	assert_true(_pic.armed_stack.next_melee_cw,
+	assert_true(_pic.armed_stack.memory_for(_pic.player).melee.next_swing_cw,
 			"the tray's swing toggle reads BattleSystem, so the restore has to land there too")
 
 

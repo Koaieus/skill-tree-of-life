@@ -110,15 +110,15 @@ func test_the_seat_remembers_the_infusion_per_spell_clamped_to_todays_caps() -> 
 	var plan := _plan(caster)
 	var stack: ArmedStack = _STUB_ARM.stack_holding(plan)
 	autofree(stack)
-	stack.selected_spell = _VENOM
+	stack.select_spell(plan.attacker, _VENOM)
 	plan.set_infusion(&"poison", 2)
-	stack.selected_spell = _SPARK
+	stack.select_spell(plan.attacker, _SPARK)
 	assert_eq(plan.infusion.points.get(&"poison", 0), 0, "another spell starts from its own memory")
-	stack.selected_spell = _VENOM
+	stack.select_spell(plan.attacker, _VENOM)
 	assert_eq(plan.infusion.points.get(&"poison", 0), 2, "back to venom restores its infusion")
-	stack.selected_spell = _SPARK
+	stack.select_spell(plan.attacker, _SPARK)
 	caster.stat_board.poison_aspect.base_value = 1.0
-	stack.selected_spell = _VENOM
+	stack.select_spell(plan.attacker, _VENOM)
 	assert_eq(plan.infusion.points.get(&"poison", 0), 1, "restored, clamped to today's aspect")
 	assert_eq(plan.aspect_overrun(), 0)
 
@@ -128,7 +128,7 @@ func test_a_fresh_plan_with_the_sticky_spell_gets_its_memory() -> void:
 	var first := _plan(caster)
 	var stack: ArmedStack = _STUB_ARM.stack_holding(first)
 	autofree(stack)
-	stack.selected_spell = _VENOM
+	stack.select_spell(first.attacker, _VENOM)
 	first.set_infusion(&"poison", 2)
 	stack.cancel_attack()
 	var second := _plan(caster)

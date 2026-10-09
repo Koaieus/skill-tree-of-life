@@ -119,7 +119,7 @@ func _hostile_only_spell() -> SpellDef:
 
 ## Arms magic with a sticky spell, then opens the picker on demand.
 func _arm_with_picker(spell: SpellDef) -> void:
-	_ctl.armed_stack.selected_spell = spell
+	_ctl.armed_stack.select_spell(_ctl.player, spell)
 	_ctl.arm_attack(BattleSystem.AttackMode.MAGIC)
 	assert_true(_magic_level().toggle_picker(), "precondition: the picker opens")
 
@@ -129,13 +129,13 @@ func _magic_level() -> MagicMode:
 
 
 func test_first_arm_with_no_spell_opens_the_picker() -> void:
-	assert_null(_ctl.armed_stack.selected_spell, "precondition")
+	assert_null(_ctl.armed_stack.memory_for(_ctl.player).magic.selected_spell, "precondition")
 	assert_true(_ctl.arm_attack(BattleSystem.AttackMode.MAGIC))
 	assert_eq(_branch(), [ManageMode, MagicMode, SpellPickMode])
 
 
 func test_arm_with_a_sticky_spell_lands_on_magic() -> void:
-	_ctl.armed_stack.selected_spell = _heal_spell()
+	_ctl.armed_stack.select_spell(_ctl.player, _heal_spell())
 	assert_true(_ctl.arm_attack(BattleSystem.AttackMode.MAGIC))
 	assert_eq(_branch(), [ManageMode, MagicMode])
 
@@ -144,7 +144,7 @@ func test_pick_selects_the_spell_and_closes_the_picker() -> void:
 	_ctl.arm_attack(BattleSystem.AttackMode.MAGIC)
 	var spell := _heal_spell()
 	_picker().pick(spell)
-	assert_eq(_ctl.armed_stack.selected_spell, spell)
+	assert_eq(_ctl.armed_stack.memory_for(_ctl.player).magic.selected_spell, spell)
 	assert_eq(_magic().spell, spell, "the plan is re-equipped")
 	assert_eq(_branch(), [ManageMode, MagicMode], "the picker is off the branch")
 
@@ -159,7 +159,7 @@ func test_picking_the_selected_spell_still_closes_the_picker() -> void:
 
 func test_a_hotkey_spell_write_closes_the_picker() -> void:
 	_ctl.arm_attack(BattleSystem.AttackMode.MAGIC)
-	_ctl.armed_stack.selected_spell = _heal_spell()
+	_ctl.armed_stack.select_spell(_ctl.player, _heal_spell())
 	assert_eq(_branch(), [ManageMode, MagicMode])
 
 
@@ -172,7 +172,7 @@ func test_a_graph_click_closes_the_picker_then_targets() -> void:
 
 
 func test_a_graph_click_over_target_closes_the_picker_then_retargets() -> void:
-	_ctl.armed_stack.selected_spell = _heal_spell()
+	_ctl.armed_stack.select_spell(_ctl.player, _heal_spell())
 	_ctl.arm_attack(BattleSystem.AttackMode.MAGIC)
 	_ctl.route_left_click(_joint)
 	assert_true(_magic_level().toggle_picker(), "precondition")
@@ -183,7 +183,7 @@ func test_a_graph_click_over_target_closes_the_picker_then_retargets() -> void:
 
 func test_a_pop_removes_only_the_picker() -> void:
 	var spell := _heal_spell()
-	_ctl.armed_stack.selected_spell = spell
+	_ctl.armed_stack.select_spell(_ctl.player, spell)
 	_ctl.arm_attack(BattleSystem.AttackMode.MAGIC)
 	_ctl.route_left_click(_joint)
 	assert_true(_magic_level().toggle_picker(), "precondition")
@@ -194,7 +194,7 @@ func test_a_pop_removes_only_the_picker() -> void:
 
 
 func test_a_pick_that_drops_the_target_cascades_cleanly() -> void:
-	_ctl.armed_stack.selected_spell = _heal_spell()
+	_ctl.armed_stack.select_spell(_ctl.player, _heal_spell())
 	_ctl.arm_attack(BattleSystem.AttackMode.MAGIC)
 	_ctl.route_left_click(_joint)
 	assert_true(_magic_level().toggle_picker(), "precondition")
@@ -204,7 +204,7 @@ func test_a_pick_that_drops_the_target_cascades_cleanly() -> void:
 
 
 func test_toggle_twice_returns_to_the_start_one_changed_each() -> void:
-	_ctl.armed_stack.selected_spell = _heal_spell()
+	_ctl.armed_stack.select_spell(_ctl.player, _heal_spell())
 	_ctl.arm_attack(BattleSystem.AttackMode.MAGIC)
 	watch_signals(_ctl.armed_stack)
 	assert_true(_magic_level().toggle_picker(), "the first toggle opens")
@@ -235,7 +235,7 @@ func test_after_a_launch_the_rearmed_plan_stands_with_no_picker() -> void:
 
 
 func test_a_launch_with_the_picker_open_pops_it() -> void:
-	_ctl.armed_stack.selected_spell = SpellCatalog.SPARK
+	_ctl.armed_stack.select_spell(_ctl.player, SpellCatalog.SPARK)
 	_ctl.arm_attack(BattleSystem.AttackMode.MAGIC)
 	# Aimed without the click, so no TargetMode stands between: a TargetMode
 	# would pop on the launch and take the picker with it.

@@ -120,16 +120,16 @@ func test_a_digit_selects_the_spell_at_that_position() -> void:
 	var spells := _stock_book(4)
 	_ctl.arm_attack(BattleSystem.AttackMode.MAGIC)
 	_press(&"ui_select_spell_3")
-	assert_eq(_ctl.armed_stack.selected_spell, spells[2], "the 3 key picks the THIRD spell")
+	assert_eq(_ctl.armed_stack.memory_for(_ctl.player).magic.selected_spell, spells[2], "the 3 key picks the THIRD spell")
 	_press(&"ui_select_spell_1")
-	assert_eq(_ctl.armed_stack.selected_spell, spells[0], "and 1 picks the first")
+	assert_eq(_ctl.armed_stack.memory_for(_ctl.player).magic.selected_spell, spells[0], "and 1 picks the first")
 
 
 func test_the_keypad_digit_does_the_same_thing() -> void:
 	var spells := _stock_book(4)
 	_ctl.arm_attack(BattleSystem.AttackMode.MAGIC)
 	_press(&"ui_select_spell_2", 1)
-	assert_eq(_ctl.armed_stack.selected_spell, spells[1],
+	assert_eq(_ctl.armed_stack.memory_for(_ctl.player).magic.selected_spell, spells[1],
 			"KP 2 and 2 are one binding, not two that can drift")
 
 
@@ -138,7 +138,7 @@ func test_a_digit_past_the_book_is_a_silent_no_op() -> void:
 	_ctl.arm_attack(BattleSystem.AttackMode.MAGIC)
 	assert_false(_ctl._select_spell_at(7),
 			"unconsumed, so the key stays free for whatever wants it downstream")
-	assert_null(_ctl.armed_stack.selected_spell)
+	assert_null(_ctl.armed_stack.memory_for(_ctl.player).magic.selected_spell)
 
 
 func test_the_digits_are_dead_outside_magic() -> void:
@@ -147,7 +147,7 @@ func test_the_digits_are_dead_outside_magic() -> void:
 	assert_eq(_attack_mode(), BattleSystem.AttackMode.MELEE,
 			"fixture check: magic must actually be gone")
 	_press(&"ui_select_spell_1")
-	assert_null(_ctl.armed_stack.selected_spell,
+	assert_null(_ctl.armed_stack.memory_for(_ctl.player).magic.selected_spell,
 			"a stray digit must not reach across from the tab you are in")
 	assert_false(_ctl._select_spell_at(0), "and it must not consume the key either")
 
@@ -158,7 +158,7 @@ func test_the_digits_are_dead_when_the_player_cannot_act() -> void:
 	_tm.adopt_turn(null, _tm.turns_taken)
 	assert_false(_ctl.can_player_act(), "fixture check: it is not the player's turn")
 	_press(&"ui_select_spell_1")
-	assert_null(_ctl.armed_stack.selected_spell)
+	assert_null(_ctl.armed_stack.memory_for(_ctl.player).magic.selected_spell)
 
 
 func test_a_null_hole_in_the_book_does_not_shift_the_digits() -> void:

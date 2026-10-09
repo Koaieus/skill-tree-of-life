@@ -189,7 +189,7 @@ func test_mirror_replay_leaves_the_slot_untouched() -> void:
 # (c) ------------------------------------------------------------------------
 
 func _confirmed_swing_cw(candidate_cw: bool, sticky_cw: bool) -> Array:
-	_ctl.armed_stack.next_melee_cw = sticky_cw
+	_ctl.armed_stack.memory_for(_ctl.player).melee.next_swing_cw = sticky_cw
 	var seen: Array = []
 	_applier.command_confirmed.connect(func(c: Command) -> void:
 		if c is LaunchAttackCommand:

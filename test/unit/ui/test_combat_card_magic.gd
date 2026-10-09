@@ -77,9 +77,9 @@ func test_selecting_a_spell_leaves_the_reach_row_on_the_describe_tier() -> void:
 	var value: Label = pair[1]
 	plan.attacker = pair[2]
 	var before := value.text
-	stack.selected_spell = _spell_with_hops(3)
+	stack.select_spell(plan.attacker, _spell_with_hops(3))
 	assert_eq(value.text, before, "a 3-hop spell does not move the card's reach")
-	stack.selected_spell = null
+	stack.select_spell(plan.attacker, null)
 	assert_eq(value.text, before, "nor does deselecting it")
 
 

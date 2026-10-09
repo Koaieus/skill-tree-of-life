@@ -238,7 +238,7 @@ func test_the_sections_are_the_builders_lines_and_rebuild_only_on_a_new_spell() 
 		assert_same(after[i], before[i], "an unchanged spell keeps section %d's rows" % i)
 		assert_false(before[i] == null or before[i].is_queued_for_deletion(),
 				"section %d was not rebuilt" % i)
-	_ctl.armed_stack.selected_spell = _VENOM
+	_ctl.armed_stack.select_spell(_ctl.player, _VENOM)
 	assert_eq(_plan.spell, _VENOM, "guard: the stack's pick reaches the plan")
 	assert_true(before[0].is_queued_for_deletion(), "a new spell rebuilds the sections")
 	await get_tree().process_frame

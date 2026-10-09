@@ -24,35 +24,12 @@ signal attack_plan_state_changed
 signal plan_reset
 
 
-## The seat's picked spell — a sticky preference that outlives every plan. The
-## next [MagicMode] plan is minted with it; picking one while a magic plan is
-## armed re-equips that plan ([method MagicAttackPlan.set_spell]). Null means
-## "the plan's bundled fallback".
+## An entity's picked spell moved ([method select_spell]) — a sticky
+## preference on its [MagicMemory] that outlives every plan.
 signal selected_spell_changed(spell: SpellDef)
-var selected_spell: SpellDef = null:
-	set(value):
-		if selected_spell == value:
-			return
-		selected_spell = value
-		var magic := attack_plan() as MagicAttackPlan
-		if magic != null:
-			remember_infusion(magic)
-			magic.set_spell(value)
-			restore_infusion(magic)
-		selected_spell_changed.emit(value)
 
-## The seat's last infusion per spell, `{spell id: {concept id: points}}`. Taken
-## when a magic plan leaves a spell (re-equip, disarm, launch) — never off
-## [signal AttackPlan.state_changed], since [method MagicAttackPlan.set_spell]
-## resets the infusion before it emits — and put back, clamped to the caster's
-## caps of the moment, when a plan equips that spell again: a repeat cast needs
-## no clicks. Spells with an empty [member SpellDef.id] are not remembered.
-var last_infusion: Dictionary[StringName, Dictionary] = {}
-
-## The seat's sticky swing direction for the next [MeleeAttackPlan]
-## ([member MeleeAttackPlan.swing_cw]); survives resets and re-arms.
-var next_melee_cw: bool = false
-
+## Per-entity [SeatMemory], keyed by `get_instance_id()`. Never synced, never
+## saved, and untouched by [method clear_to_root]: it lasts the level, i.e. the run.
 var _memory: Dictionary[int, SeatMemory] = {}
 var _branch: Array[ArmedMode] = []
 var _last_plan: AttackPlan = null
@@ -62,11 +39,30 @@ var _last_plan: AttackPlan = null
 ## `get_instance_id()` (the [GateLockSet] pattern) so a hot-seat handover keeps
 ## each player's. A null entity gets a throwaway default.
 func memory_for(entity: Entity) -> SeatMemory:
-	return SeatMemory.new()
+	if entity == null:
+		return SeatMemory.new()
+	var id := entity.get_instance_id()
+	if not _memory.has(id):
+		_memory[id] = SeatMemory.new()
+	return _memory[id]
 
 
+## Pick [param spell] for [param entity]: the next [MagicMode] plan of that
+## entity is minted with it, and an armed magic plan of that entity is
+## re-equipped ([method MagicAttackPlan.set_spell]) with its infusion swapped
+## for the remembered one. Null means "the plan's bundled fallback". A no-op
+## (no [signal selected_spell_changed]) when the pick is unchanged.
 func select_spell(entity: Entity, spell: SpellDef) -> void:
-	pass
+	var magic_memory := memory_for(entity).magic
+	if magic_memory.selected_spell == spell:
+		return
+	magic_memory.selected_spell = spell
+	var magic := attack_plan() as MagicAttackPlan
+	if magic != null and entity != null and magic.attacker == entity:
+		remember_infusion(magic)
+		magic.set_spell(spell)
+		restore_infusion(magic)
+	selected_spell_changed.emit(spell)
 
 
 ## Install [param mode] as the unpoppable root, dropping any branch silently
@@ -102,19 +98,24 @@ func sync_attack_plan() -> void:
 	attack_plan_state_changed.emit()
 
 
-## Record [param plan]'s infusion as its spell's [member last_infusion].
+## Record [param plan]'s infusion as its spell's entry in its attacker's
+## [member MagicMemory.last_infusion]. Taken when a magic plan leaves a spell
+## (re-equip, disarm, launch) — never off [signal AttackPlan.state_changed],
+## since [method MagicAttackPlan.set_spell] resets the infusion before it
+## emits. Spells with an empty [member SpellDef.id] are not remembered.
 func remember_infusion(plan: MagicAttackPlan) -> void:
 	if plan.spell == null or plan.spell.id.is_empty():
 		return
-	last_infusion[plan.spell.id] = plan.infusion.points.duplicate()
+	memory_for(plan.attacker).magic.last_infusion[plan.spell.id] = plan.infusion.points.duplicate()
 
 
 ## Put back the remembered infusion of [param plan]'s spell, clamped by
 ## [method clamp_infusion]. Nothing remembered leaves the plan as it is.
 func restore_infusion(plan: MagicAttackPlan) -> void:
-	if plan.spell == null or not last_infusion.has(plan.spell.id):
+	var remembered := memory_for(plan.attacker).magic.last_infusion
+	if plan.spell == null or not remembered.has(plan.spell.id):
 		return
-	var kept := clamp_infusion(plan.spell, plan.attacker, last_infusion[plan.spell.id])
+	var kept := clamp_infusion(plan.spell, plan.attacker, remembered[plan.spell.id])
 	for id in plan.infusion.points.keys():
 		if not kept.has(id):
 			plan.set_infusion(id, 0)

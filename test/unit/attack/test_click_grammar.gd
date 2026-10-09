@@ -205,7 +205,7 @@ func test_ranged_target_pushes_target_retargets_in_place_and_two_pops_exit() -> 
 
 func test_magic_target_pushes_target_retargets_in_place_and_two_pops_exit() -> void:
 	_ctl.arm_attack(BattleSystem.AttackMode.MAGIC)
-	_ctl.armed_stack.selected_spell = _heal_spell()
+	_ctl.armed_stack.select_spell(_ctl.player, _heal_spell())
 	_ctl.route_left_click(_joint)
 	assert_eq(_branch(), [ManageMode, MagicMode, TargetMode], "a target pushes Target")
 	_ctl.route_left_click(_tip)
@@ -222,12 +222,12 @@ func test_magic_target_pushes_target_retargets_in_place_and_two_pops_exit() -> v
 
 func test_a_spell_swap_that_drops_the_target_pops_target() -> void:
 	_ctl.arm_attack(BattleSystem.AttackMode.MAGIC)
-	_ctl.armed_stack.selected_spell = _heal_spell()
+	_ctl.armed_stack.select_spell(_ctl.player, _heal_spell())
 	_ctl.route_left_click(_joint)
 	assert_eq(_branch(), [ManageMode, MagicMode, TargetMode], "precondition")
 	var hostile_only := _heal_spell()
 	(hostile_only.targeting as NodeTargeting).ownership_filter = SkillNode.Ownership.HOSTILE
-	_ctl.armed_stack.selected_spell = hostile_only
+	_ctl.armed_stack.select_spell(_ctl.player, hostile_only)
 	assert_null((_ctl.armed_stack.attack_plan() as MagicAttackPlan).target, "precondition: the swap dropped it")
 	assert_eq(_branch(), [ManageMode, MagicMode], "the spell swap is Target's pop event")
 

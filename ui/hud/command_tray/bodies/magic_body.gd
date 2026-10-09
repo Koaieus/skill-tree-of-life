@@ -140,8 +140,9 @@ func _on_bound() -> void:
 		_input_ctl.player_can_act_changed.connect(_on_can_act_changed)
 		_spell_bar.set_enabled(_input_ctl.can_player_act())
 		_spell_button.set_actionable(_input_ctl.can_player_act())
-	if _armed_stack != null and _armed_stack.selected_spell != null:
-		_spell_bar.sync_selected(_armed_stack.selected_spell)
+	var picked := _armed_stack.memory_for(_player).magic.selected_spell if _armed_stack != null else null
+	if picked != null:
+		_spell_bar.sync_selected(picked)
 	_repaint_picker()
 	_refresh()
 

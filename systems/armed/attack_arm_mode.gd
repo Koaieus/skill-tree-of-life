@@ -85,8 +85,9 @@ func set_target(_node: SkillNode) -> bool:
 
 
 ## Mint this level's plan for [member PlayerInputController.player], layered
-## with the seat's sticky preferences ([member ArmedStack.selected_spell],
-## [member ArmedStack.next_melee_cw]). False mid-swing or when none can be made.
+## with that player's last choices ([method ArmedStack.memory_for]: its
+## [member MagicMemory.selected_spell], [member MeleeMemory.next_swing_cw]).
+## False mid-swing or when none can be made.
 func _request() -> bool:
 	var bs := ctl.battle_system if ctl != null else null
 	if bs == null or bs.is_launching or ctl.player == null:
@@ -100,10 +101,11 @@ func _request() -> bool:
 		return false
 	var seat := stack if stack != null else ctl.armed_stack
 	if seat != null:
-		if p is MagicAttackPlan and seat.selected_spell != null:
-			(p as MagicAttackPlan).spell = seat.selected_spell
+		var memory := seat.memory_for(ctl.player)
+		if p is MagicAttackPlan and memory.magic.selected_spell != null:
+			(p as MagicAttackPlan).spell = memory.magic.selected_spell
 		if p is MeleeAttackPlan:
-			(p as MeleeAttackPlan).swing_cw = seat.next_melee_cw
+			(p as MeleeAttackPlan).swing_cw = memory.melee.next_swing_cw
 	_set_plan(p)
 	return true
 

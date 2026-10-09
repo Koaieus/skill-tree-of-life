@@ -97,7 +97,7 @@ func after_each() -> void:
 
 
 func _arm() -> MagicAttackPlan:
-	_ctl.armed_stack.selected_spell = _spark
+	_ctl.armed_stack.select_spell(_ctl.player, _spark)
 	_ctl.arm_attack(BattleSystem.AttackMode.MAGIC)
 	var plan := _ctl.armed_stack.attack_plan() as MagicAttackPlan
 	assert_not_null(plan, "fixture: magic arms a MagicAttackPlan")

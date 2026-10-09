@@ -46,8 +46,8 @@ var vertex_fill := BladeVertexFill.new()
 var blade_target: Vector2
 
 ## Swing direction. false = CCW (positive sweep, the default); true = CW
-## (negative sweep). Toggle persists across plan resets via BattleSystem's
-## sticky preference. See docs/adr/legacy-mvp-decisions.md §D-1.
+## (negative sweep). The toggle persists across plan resets via the attacker's
+## [member MeleeMemory.next_swing_cw] on [ArmedStack]. See docs/adr/legacy-mvp-decisions.md §D-1.
 var swing_cw: bool = false: set = _set_swing_cw
 
 # Plan-driven mirror of `{source} ∪ blade_nodes`. Used to answer

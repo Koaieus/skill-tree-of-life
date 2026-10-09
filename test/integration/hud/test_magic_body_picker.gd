@@ -129,7 +129,7 @@ func _picker_up() -> bool:
 
 ## Magic armed on a sticky spell, so the arm lands with no picker (#1484).
 func _arm() -> void:
-	_ctl.armed_stack.selected_spell = _spells[0]
+	_ctl.armed_stack.select_spell(_ctl.player, _spells[0])
 	assert_true(_ctl.arm_attack(BattleSystem.AttackMode.MAGIC), "precondition: magic armed")
 	assert_false(_picker_up(), "precondition: no picker")
 
@@ -158,7 +158,7 @@ func test_a_tile_press_picks_closes_and_relabels_the_button() -> void:
 	var tile := _tile(_spells[2])
 	assert_not_null(tile, "precondition: the open bar has the tile")
 	tile.pressed.emit()
-	assert_eq(_ctl.armed_stack.selected_spell, _spells[2], "the tile picked its spell")
+	assert_eq(_ctl.armed_stack.memory_for(_ctl.player).magic.selected_spell, _spells[2], "the tile picked its spell")
 	assert_false(_picker_up(), "the pick closed the picker")
 	assert_false(_panel().visible, "and hid the panel")
 	assert_eq(_button().spell, _spells[2], "the button shows the new spell")

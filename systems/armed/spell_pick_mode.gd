@@ -4,7 +4,7 @@ extends ArmedMode
 ## The spell picker is open: a leaf over [MagicMode] or the [TargetMode] above
 ## it, opened on demand by [method MagicMode.toggle_picker] or by the first
 ## magic arm with no sticky spell. It writes nothing to the plan — only
-## [member ArmedStack.selected_spell] — so it is a plain level, not an
+## [method ArmedStack.select_spell] — so it is a plain level, not an
 ## [AttackStepMode] (whose pop undoes plan writes).
 ##
 ## It closes on a [method pick], on any other write of the sticky spell (the
@@ -41,7 +41,7 @@ func on_popped() -> void:
 ## Select [param spell] and close. Picking the already-selected spell still
 ## closes: the setter does not emit on an unchanged value.
 func pick(spell: SpellDef) -> void:
-	stack.selected_spell = spell
+	stack.select_spell(ctl.player if ctl != null else null, spell)
 	pop_self()
 
 

@@ -161,7 +161,7 @@ func test_ranged_and_magic_badge_their_own_art() -> void:
 ## wand answers that only down to attack mode. `armed_magic` is now the
 ## fallback for a null/iconless spell, never the everyday case.
 func test_magic_badges_the_armed_spells_own_icon() -> void:
-	_ctl.armed_stack.selected_spell = _SPARK
+	_ctl.armed_stack.select_spell(_ctl.player, _SPARK)
 	_ctl.on_attack_mode_requested(BattleSystem.AttackMode.MAGIC)
 	assert_eq(_ctl.get_armed_icon(), _SPARK.icon,
 			"Spark armed — the badge should show Spark's own card art")
@@ -175,11 +175,11 @@ func test_magic_badges_the_armed_spells_own_icon() -> void:
 ## the same `state_changed` → `attack_plan_state_changed` route
 ## `test_setting_the_pivot_fires_the_icon_signal` pins for melee's pivot.
 func test_switching_the_armed_spell_moves_the_badge() -> void:
-	_ctl.armed_stack.selected_spell = _SPARK
+	_ctl.armed_stack.select_spell(_ctl.player, _SPARK)
 	_ctl.on_attack_mode_requested(BattleSystem.AttackMode.MAGIC)
 	assert_eq(_ctl.get_armed_icon(), _SPARK.icon)
 
-	_ctl.armed_stack.selected_spell = _HEALING_BEAM
+	_ctl.armed_stack.select_spell(_ctl.player, _HEALING_BEAM)
 
 	assert_eq(_ctl.get_armed_icon(), _HEALING_BEAM.icon,
 			"re-equipping mid-arm should swap the badge to the new spell")

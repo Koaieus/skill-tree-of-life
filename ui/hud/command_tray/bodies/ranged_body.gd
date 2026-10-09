@@ -36,9 +36,6 @@ const _ROSTER: AmmoTypeRoster = preload("res://attack/ammo/ammo_type_roster.tres
 @onready var _reset_button: Button = %ResetButton
 @onready var _launch_button: LaunchAttackButton = %LaunchButton
 
-## Sticky special counts `{type_id: n}` — the player's last setting per
-## special, re-clamped on every rebuild.
-var _special_counts: Dictionary[StringName, int] = {}
 ## N while the player has moved it off max; ignored while [member _n_at_max].
 var _n: int = 0
 ## Owner: "default N : max" — true until the player adjusts N, reset on a
@@ -48,6 +45,7 @@ var _last_target: SkillNode = null
 var _cards: Array[AmmoCard] = []
 var _quiver: Quiver = null
 var _refreshing := false
+var _orphan_pref: VolleyPreference = null
 
 
 func _on_bound() -> void:
@@ -65,10 +63,20 @@ func _on_bound() -> void:
 	_quiver = _player.stat_board.arrows as Quiver if _player != null and _player.stat_board != null else null
 	if _quiver != null:
 		_quiver.bin_changed.connect(_refresh.unbind(1))
-	_special_counts.clear()
 	_n_at_max = true
 	_last_target = null
 	_refresh()
+
+
+## The bound player's sticky ranged choices — its [VolleyPreference] on the
+## [ArmedStack], so they survive a tray rebuild, a launch and a turn end. A
+## body with no stack keeps a throwaway one.
+func _pref() -> VolleyPreference:
+	if _armed_stack != null:
+		return _armed_stack.memory_for(_player).ranged
+	if _orphan_pref == null:
+		_orphan_pref = VolleyPreference.new()
+	return _orphan_pref
 
 
 func teardown() -> void:
@@ -149,12 +157,12 @@ func set_special(type_id: StringName, value: int) -> void:
 			if drop > 0:
 				_n = n() - drop
 				_n_at_max = false
-	_special_counts[type_id] = value
+	_pref().special_counts[type_id] = value
 	_refresh()
 
 
 func step_special(type_id: StringName, delta: int) -> void:
-	set_special(type_id, _special_counts.get(type_id, 0) + delta)
+	set_special(type_id, _pref().special_counts.get(type_id, 0) + delta)
 
 
 func cards() -> Array[AmmoCard]:
@@ -222,11 +230,12 @@ func _compose(plan: RangedAttackPlan) -> Dictionary:
 	var scout_shot := plan.is_scout_shot()
 	var counts: Dictionary = {}
 	var sum_special := 0
+	var special_counts := _pref().special_counts
 	for t in _ROSTER.sorted():
 		if t.id == AmmoTypeRoster.BASE_ID:
 			continue
-		var c := clampi(_special_counts.get(t.id, 0), 0, mini(_stock_for(t, scout_shot), cap - sum_special))
-		_special_counts[t.id] = c
+		var c := clampi(special_counts.get(t.id, 0), 0, mini(_stock_for(t, scout_shot), cap - sum_special))
+		special_counts[t.id] = c
 		if c > 0:
 			counts[t.id] = c
 		sum_special += c

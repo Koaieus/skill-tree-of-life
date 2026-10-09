@@ -75,24 +75,6 @@ signal temp_upgrade_arm_changed(upgrade: PackedScene)
 var _last_temp_upgrade: PackedScene = null
 var _last_move_source: SkillNode = null
 
-## The last melee blade each entity successfully launched (#466), keyed by
-## `Object.get_instance_id()` — never `Entity.entity_id`, which is 0 until the
-## entity enters `entities_container`, and never the Entity itself, since a
-## freed Object compares equal to `null` (see the gdscript-pitfalls rule).
-##
-## The value is the plan's own wire form, [method MeleeAttackPlan.to_dict], so
-## there is no second representation of a blade to keep in step; only the
-## stable ids and `swing_cw` are ever read back out.
-##
-## [b]Client-local input state that never syncs.[/b] Reform is not a command:
-## it expands into an ordinary [MeleeAttackPlan] which then launches through
-## the normal path, so it adds no wire surface at all
-## (docs/domain/multiplayer-sync-model.md). It is keyed per entity rather than
-## held as one slot so a hot-seat handover (#459) cannot let the incoming
-## player reform the outgoing one's blade, and it deliberately survives
-## [method clear_transient_state] — the slot is not half-finished intent, it is
-## the memory of a completed action, and it lasts the whole run.
-var _reform_slots: Dictionary[int, Dictionary] = {}
 
 ## Manage-tab verb ids (#338) — the tray's card ids and the highlight's verb
 ## key. NOT arm state: that is the [ArmedStack] branch, where Deallocate,
@@ -112,7 +94,7 @@ enum GateAction { TOGGLE_UNLOCKED, OPEN_UNLOCKED, CLOSE_UNLOCKED, UNLOCK_ALL, LO
 signal gate_confirm_changed(stranded: Array[SkillNode])
 ## The current player's lock set changed (or the player did).
 signal gate_locks_changed
-## Survives [method clear_transient_state] like `_reform_slots`: a lock is a
+## Survives [method clear_transient_state] like [ArmedStack]'s [SeatMemory]: a lock is a
 ## standing preference, not half-finished intent.
 var _gate_locks := GateLockSet.new()
 var _gate_pending_key: Array[Vector2i] = []
@@ -479,7 +461,7 @@ func _on_attack_launched(mode: BattleSystem.AttackMode, _spell: SpellDef) -> voi
 	var plan := armed_stack.attack_plan() as MeleeAttackPlan
 	if plan == null or plan.source == null or plan.attacker != player:
 		return
-	_reform_slots[player.get_instance_id()] = plan.to_dict(graph)
+	armed_stack.memory_for(player).melee.reform_slot = plan.to_dict(graph)
 
 
 ## The stored blade for the current player, resolved from stable ids back to
@@ -489,7 +471,7 @@ func _on_attack_launched(mode: BattleSystem.AttackMode, _spell: SpellDef) -> voi
 func _reform_payload() -> Dictionary:
 	if player == null or graph == null:
 		return {}
-	var stored: Dictionary = _reform_slots.get(player.get_instance_id(), {})
+	var stored: Dictionary = armed_stack.memory_for(player).melee.reform_slot
 	if stored.is_empty():
 		return {}
 	var pivot := graph.get_by_stable_id(int(stored.get("source", 0)))
@@ -570,7 +552,7 @@ func reform_blade() -> bool:
 	# the tray's toggle label reads — setting only `plan.swing_cw` would restore
 	# the swing while the button kept advertising the old direction.
 	var cw: bool = payload.swing_cw
-	armed_stack.next_melee_cw = cw
+	armed_stack.memory_for(player).melee.next_swing_cw = cw
 	plan.swing_cw = cw
 	return true
 
@@ -779,7 +761,7 @@ func _arm_temp_upgrade_at(index: int) -> bool:
 ## MAGIC is the live attack mode — the picker these mirror only exists in the
 ## magic tray, so the digits are modal exactly like the tray is.
 ##
-## Writes [member ArmedStack.selected_spell], the SAME terminal
+## Goes through [method ArmedStack.select_spell], the SAME terminal
 ## [SpellPickerBar] `spell_selected` reaches through [MagicBody] — so the
 ## picker's highlight (driven by `selected_spell_changed`) and the plan cannot
 ## disagree about what is armed.
@@ -796,7 +778,7 @@ func _select_spell_at(index: int) -> bool:
 	var spell := spell_at_slot(player.spellbook, index)
 	if spell == null:
 		return false
-	armed_stack.selected_spell = spell
+	armed_stack.select_spell(player, spell)
 	return true
 
 
@@ -1183,7 +1165,7 @@ func arm_attack(mode: BattleSystem.AttackMode) -> bool:
 	# rather than from MagicMode.on_pushed, which runs before the level lands;
 	# a refused arm returns above, so it never leaves a picker behind, and the
 	# post-launch re-arm never comes through here.
-	if level is MagicMode and armed_stack.selected_spell == null:
+	if level is MagicMode and armed_stack.memory_for(player).magic.selected_spell == null:
 		(level as MagicMode).toggle_picker()
 	return true
 

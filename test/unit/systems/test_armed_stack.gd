@@ -174,13 +174,13 @@ func test_next_melee_cw_is_sticky_across_reset_and_a_fresh_arm() -> void:
 	var f := _melee_fixture()
 	var ctl: PlayerInputController = f.ctl
 	var stack := ctl.armed_stack
-	stack.next_melee_cw = true
+	stack.memory_for(ctl.player).melee.next_swing_cw = true
 	ctl.arm_attack(BattleSystem.AttackMode.MELEE)
 	var plan := stack.attack_plan() as MeleeAttackPlan
 	assert_true(plan.swing_cw, "the new melee plan takes the sticky direction")
 	stack.reset_plan()
 	assert_same(stack.attack_plan(), plan, "reset_plan keeps the plan itself")
-	assert_true(stack.next_melee_cw, "reset_plan keeps the sticky direction")
+	assert_true(stack.memory_for(ctl.player).melee.next_swing_cw, "reset_plan keeps the sticky direction")
 	stack.cancel_attack()
 	ctl.arm_attack(BattleSystem.AttackMode.MELEE)
 	assert_true((stack.attack_plan() as MeleeAttackPlan).swing_cw,
@@ -192,15 +192,15 @@ func test_selected_spell_is_sticky_and_re_equips_the_armed_plan() -> void:
 	var ctl: PlayerInputController = f.ctl
 	var stack := ctl.armed_stack
 	watch_signals(stack)
-	stack.selected_spell = SpellCatalog.SPARK
+	stack.select_spell(ctl.player, SpellCatalog.SPARK)
 	assert_signal_emitted(stack, "selected_spell_changed")
 	ctl.arm_attack(BattleSystem.AttackMode.MAGIC)
 	assert_eq((stack.attack_plan() as MagicAttackPlan).spell, SpellCatalog.SPARK,
 			"the new magic plan takes the sticky spell")
 	stack.reset_plan()
-	assert_eq(stack.selected_spell, SpellCatalog.SPARK, "reset_plan keeps the spell")
+	assert_eq(stack.memory_for(ctl.player).magic.selected_spell, SpellCatalog.SPARK, "reset_plan keeps the spell")
 	assert_eq((stack.attack_plan() as MagicAttackPlan).spell, SpellCatalog.SPARK)
-	stack.selected_spell = _HEALING_BEAM
+	stack.select_spell(ctl.player, _HEALING_BEAM)
 	assert_eq((stack.attack_plan() as MagicAttackPlan).spell, _HEALING_BEAM,
 			"picking a spell re-equips the armed magic plan")
 
