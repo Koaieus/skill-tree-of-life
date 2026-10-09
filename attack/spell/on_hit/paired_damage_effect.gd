@@ -32,5 +32,5 @@ func apply(landing: HitLanding) -> void:
 	landing.hits.append(hit)
 
 
-func get_description(_spell: SpellDef = null, _board: StatBoard = null) -> String:
+func get_description(_spell: SpellDef = null, _board: StatBoard = null, _read_node: SkillNode = null) -> String:
 	return "Deals %s%% of the arrow's damage." % NumFmt.num(fraction * 100.0)

@@ -34,7 +34,7 @@ func _apply_spell(lctx: LandingContext) -> void:
 
 ## A multiplier, not an absolute — [param _spell]/[param _board] are unused,
 ## kept only to match [method OnHitEffect.get_description].
-func get_description(_spell: SpellDef = null, _board: StatBoard = null) -> String:
+func get_description(_spell: SpellDef = null, _board: StatBoard = null, _read_node: SkillNode = null) -> String:
 	var what := "Status stacks × %s" % (ranker.get_description() if ranker != null else NumFmt.num(factor))
 	if when == null:
 		return what + "."

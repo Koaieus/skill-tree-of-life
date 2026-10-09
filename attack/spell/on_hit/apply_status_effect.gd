@@ -52,7 +52,7 @@ func status_def() -> StatusDef:
 ## [member power] through the same stacks fold the landing uses — so a null
 ## [param board] answers the authored [member power] unscaled and a board with
 ## the attacker's `<family>_stacks_per_hit` folds it in.
-func get_description(_spell: SpellDef = null, board: StatBoard = null) -> String:
+func get_description(_spell: SpellDef = null, board: StatBoard = null, _read_node: SkillNode = null) -> String:
 	if def == null:
 		return "Applies a status."
 	return def.applies_line(board, power)

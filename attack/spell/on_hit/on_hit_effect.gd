@@ -61,7 +61,7 @@ static func keep_mode_agnostic(value: Array, where: String) -> Array[OnHitEffect
 ## marks the line gold when that differs from the unscaled ([code]board =
 ## null[/code]) reading. Null [param spell] (no preview context) still returns
 ## a description, just without a number.
-func get_description(_spell: SpellDef = null, _board: StatBoard = null) -> String:
+func get_description(_spell: SpellDef = null, _board: StatBoard = null, _read_node: SkillNode = null) -> String:
 	return ""
 
 

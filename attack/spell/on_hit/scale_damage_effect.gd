@@ -72,7 +72,7 @@ func _scaled(state: CastSpell, lctx: LandingContext) -> float:
 
 ## No number to quote (a multiplier, not an absolute) — [param _spell]/
 ## [param _board] are unused, kept only to match [method OnHitEffect.get_description].
-func get_description(_spell: SpellDef = null, _board: StatBoard = null) -> String:
+func get_description(_spell: SpellDef = null, _board: StatBoard = null, _read_node: SkillNode = null) -> String:
 	var what := ""
 	match mode:
 		Mode.MULTIPLY: what = "×%s damage" % NumFmt.num(factor)

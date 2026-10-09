@@ -42,7 +42,7 @@ func aspect_id() -> StringName:
 ## the fold the landing itself uses, so a [param board] carrying the attacker's
 ## `<family>_stacks_per_hit` scales it here exactly as it scales the rider —
 ## with how the spell ingests an infusion of this concept as its suffix.
-func get_description(board: StatBoard = null) -> String:
+func get_description(board: StatBoard = null, _read_node: SkillNode = null) -> String:
 	if status == null:
 		return "Applies nothing (no status set)."
 	var name := status.display_name if not status.display_name.is_empty() else String(status.id)

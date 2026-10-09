@@ -44,7 +44,7 @@ func status_def() -> StatusDef:
 	return inner.status_def() if inner != null else null
 
 
-func get_description(spell: SpellDef = null, board: StatBoard = null) -> String:
+func get_description(spell: SpellDef = null, board: StatBoard = null, _read_node: SkillNode = null) -> String:
 	var line := inner.get_description(spell, board) if inner != null else ""
 	if range_finder == null:
 		return line

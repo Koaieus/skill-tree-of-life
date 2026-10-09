@@ -33,7 +33,7 @@ func _apply_spell(lctx: LandingContext) -> void:
 ## Same D-32 number as [method DamageEffect.get_description] — heal amount
 ## reuses [code]spell_damage[/code] (see this file's top docstring: "yes,
 ## DAMAGE!") so the same [method SpellResolver.impact_damage] call applies.
-func get_description(spell: SpellDef = null, board: StatBoard = null) -> String:
+func get_description(spell: SpellDef = null, board: StatBoard = null, _read_node: SkillNode = null) -> String:
 	if spell == null:
 		return "Heals the node it lands on."
 	return "Heals %s." % _fmt_amount(SpellResolver.impact_damage(spell, null, board), basis)
