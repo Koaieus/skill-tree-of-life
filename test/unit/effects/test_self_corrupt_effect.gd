@@ -1,6 +1,6 @@
 extends GutTest
 
-## `eldritch_gate_addon.tscn` + [SelfCorruptEffect] — Corruption × Addon's
+## `abyssal_conduit_addon.tscn` + [SelfCorruptEffect] — Corruption × Addon's
 ## bargain. Held, the gate grants its owner +3 `corruption_aspect`, and at
 ## each of the owner's turn starts it grows `stacks_per_turn` corruption on
 ## its own node. Cutting the node stops the growth and takes the grant; an
@@ -13,7 +13,7 @@ extends GutTest
 const _BOARD := preload("res://entity/default_entity_board.tres")
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _GRAPH_SCENE := preload("res://graph/graph.tscn")
-const _GATE_SCENE := preload("res://skill_node/addons/defs/eldritch_gate_addon.tscn")
+const _GATE_SCENE := preload("res://skill_node/addons/defs/abyssal_conduit_addon.tscn")
 const _CORRUPTION := preload("res://effects/status/corruption.tres")
 
 var _graph: Graph

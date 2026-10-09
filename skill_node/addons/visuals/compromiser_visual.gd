@@ -61,7 +61,7 @@ const _SWELL_SHARE := 0.75
 		queue_redraw()
 ## Pustule growth per corruption stack on the carrier's own node, as a
 ## fraction of [member pustule_size]. 0 = a fixed pustule (the compromiser);
-## a sibling that feeds on its own row (the eldritch gate) swells with it.
+## a sibling that feeds on its own row (the abyssal conduit) swells with it.
 @export_range(0.0, 0.5, 0.01) var swell_per_stack: float = 0.0:
 	set(value):
 		swell_per_stack = value

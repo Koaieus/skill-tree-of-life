@@ -6,7 +6,7 @@
 [ext_resource type="Script" uid="uid://bskeuqjpjmovd" path="res://effects/self_corrupt_effect.gd" id="4_self_corrupt"]
 [ext_resource type="Script" uid="uid://dg4m4os0d6e5f" path="res://effects/effect.gd" id="5_effect"]
 [ext_resource type="Script" uid="uid://d0hgvosm3t3a1" path="res://skill_node/addons/visuals/compromiser_visual.gd" id="9_visual"]
-[ext_resource type="Resource" path="res://identity/defs/addon_eldritch_gate.tres" id="identity_ref"]
+[ext_resource type="Resource" path="res://identity/defs/addon_abyssal_conduit.tres" id="identity_ref"]
 
 [sub_resource type="Resource" id="Resource_gate_aspect"]
 resource_local_to_scene = true
@@ -20,13 +20,13 @@ metadata/_custom_type_script = "uid://che6xhl6srqh3"
 script = ExtResource("4_self_corrupt")
 def = ExtResource("3_corruption")
 
-[node name="EldritchGateAddon" type="Node2D"]
+[node name="AbyssalConduitAddon" type="Node2D"]
 z_index = 1
 script = ExtResource("1_addon")
 identity = ExtResource("identity_ref")
 entity_modifiers = Array[ExtResource("2_mod")]([SubResource("Resource_gate_aspect")])
 effects = Array[ExtResource("5_effect")]([SubResource("Resource_gate_self_corrupt")])
-description = "The Eldritch Gate — a portal held open for power. Its owner gains three corruption arrows, and every turn the gate grows one corruption on its own node: manage it, or cut the node away."
+description = "The Abyssal Conduit — a portal held open for power. Its owner gains three corruption arrows, and every turn the conduit grows one corruption on its own node: manage it, or cut the node away."
 unique = true
 
 [node name="Visual" type="Node2D" parent="."]

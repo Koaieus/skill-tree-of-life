@@ -4,7 +4,7 @@
 
 [resource]
 script = ExtResource("1_identity")
-id = &"addon_eldritch_gate"
-noun = "Eldritch Gate"
+id = &"addon_abyssal_conduit"
+noun = "Abyssal Conduit"
 kind = 4
 tint = Color(0.42, 0.16, 0.5, 1)
