@@ -5,6 +5,7 @@
 [ext_resource type="PackedScene" path="res://ui/theme/bloom_viewport.tscn" id="3_vp"]
 [ext_resource type="PackedScene" path="res://ui/hud/command_tray/bodies/sheaf_pile.tscn" id="4_pile"]
 [ext_resource type="PackedScene" path="res://ui/hud/command_tray/bodies/send_bar.tscn" id="5_bar"]
+[ext_resource type="PackedScene" path="res://ui/hud/command_tray/bodies/reorder_row.tscn" id="6_row"]
 
 [node name="AmmoWidgets" instance=ExtResource("1_base")]
 tab_title = "Ammo Widgets"
@@ -44,6 +45,39 @@ color = Color(0.55, 0.85, 0.95, 1)
 [node name="Readout" type="Label" parent="Layout/Split/PanelHost/AmmoWidgetsPanel/Split/Knobs"]
 unique_name_in_owner = true
 layout_mode = 2
+
+[node name="SettleLabel" type="Label" parent="Layout/Split/PanelHost/AmmoWidgetsPanel/Split/Knobs"]
+layout_mode = 2
+text = "Reorder settle (s)"
+
+[node name="Settle" type="HSlider" parent="Layout/Split/PanelHost/AmmoWidgetsPanel/Split/Knobs"]
+unique_name_in_owner = true
+layout_mode = 2
+max_value = 1.0
+step = 0.01
+value = 0.18
+
+[node name="LiftLabel" type="Label" parent="Layout/Split/PanelHost/AmmoWidgetsPanel/Split/Knobs"]
+layout_mode = 2
+text = "Drag lift scale"
+
+[node name="Lift" type="HSlider" parent="Layout/Split/PanelHost/AmmoWidgetsPanel/Split/Knobs"]
+unique_name_in_owner = true
+layout_mode = 2
+min_value = 1.0
+max_value = 1.3
+step = 0.01
+value = 1.05
+
+[node name="DefaultOrder" type="Button" parent="Layout/Split/PanelHost/AmmoWidgetsPanel/Split/Knobs"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "⇆ Default order"
+
+[node name="OrderReadout" type="Label" parent="Layout/Split/PanelHost/AmmoWidgetsPanel/Split/Knobs"]
+unique_name_in_owner = true
+layout_mode = 2
+autowrap_mode = 3
 
 [node name="ViewportContainer" type="SubViewportContainer" parent="Layout/Split/PanelHost/AmmoWidgetsPanel/Split"]
 layout_mode = 2
@@ -87,3 +121,10 @@ offset_left = 0.0
 offset_top = 0.0
 offset_right = 36.0
 offset_bottom = 130.0
+
+[node name="Row" parent="Layout/Split/PanelHost/AmmoWidgetsPanel/Split/ViewportContainer/World" instance=ExtResource("6_row")]
+unique_name_in_owner = true
+offset_left = 20.0
+offset_top = 230.0
+offset_right = 580.0
+offset_bottom = 390.0
