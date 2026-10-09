@@ -9,6 +9,8 @@ because the directory is hundreds of MB and a transcript is a few MB.
   list      one line per session: id8, date, skill (or -), turns, first prompt
   grep      regex over user/assistant text, one line per hit with id8 + role
   final     the last assistant texts (>= --min-chars) of each session — the
+            (`final --latest 1 --tail 3`: the report + addenda of the session
+            you are picking up from; `--session ID8` for a named one) —
             closing report a run gave the owner. The owner often keeps going
             after the report (loose ends, follow-ups), so the LAST text is
             frequently an addendum: --tail 3 shows the last three with the
@@ -80,9 +82,16 @@ def launch_skill(first):
 
 
 def sessions(a):
-    """Yield (path, id8, date, skill, first_prompt) for sessions passing the date/skill filters."""
+    """Yield (path, id8, date, skill, first_prompt) for sessions passing the date/skill filters.
+    --session ID8 narrows to one; --latest N takes the N most recently modified, never the calling
+    session's own ($CLAUDE_CODE_SESSION_ID) — a fresh session picking up a stale one's report."""
     since = a.since or time.strftime("%Y-%m-%d", time.gmtime(time.time() - a.days * 86400))
     files = sorted(glob.glob(os.path.join(tdir(), "*.jsonl")), key=os.path.getmtime, reverse=True)
+    if getattr(a, "session", None):
+        files = [find(a.session)]
+    if getattr(a, "latest", 0):
+        me = os.environ.get("CLAUDE_CODE_SESSION_ID", "")
+        files = [f for f in files if not (me and os.path.basename(f).startswith(me))][:a.latest]
     if a.subagents:
         files += sorted(glob.glob(os.path.join(tdir(), "*", "subagents", "agent-*.jsonl")), key=os.path.getmtime, reverse=True)
     for f in files:
@@ -109,6 +118,8 @@ def common(p):
     p.add_argument("--skill")
     p.add_argument("--subagents", action="store_true")
     p.add_argument("--json", action="store_true")
+    p.add_argument("--session", metavar="ID8", help="one session only")
+    p.add_argument("--latest", type=int, metavar="N", help="the N most recent sessions, excluding this one")
 
 
 def one_line(s, n=90):

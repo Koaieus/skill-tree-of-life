@@ -87,6 +87,10 @@ assert [x["text"] for x in r] == ["<com", "fine", "and ", "also"], r
 r = rows("subagents", "aaaaaaaa")
 assert len(r) == 1 and r[0]["name"] == "drone-foo" and r[0]["id"] == "deadbeef01", r
 
+os.environ["CLAUDE_CODE_SESSION_ID"] = A
+assert rows("list", "--since", "2025-12-01", "--latest", "1")[0]["id8"] == "bbbbbbbb"  # never its own session
+assert [x["id8"] for x in rows("final", "--since", "2025-12-01", "--session", "aaaa")] == ["aaaaaaaa"]
+del os.environ["CLAUDE_CODE_SESSION_ID"]
 plain = run("list", "--since", "2026-09-01")
 assert plain.startswith("aaaaaaaa  2026-10-01  warp"), plain
 print("transcripts-selftest: ok")
