@@ -41,12 +41,13 @@ func aspect_id() -> StringName:
 ## The on-arrival line: [method StatusDef.applies_line] of the innate points —
 ## the fold the landing itself uses, so a [param board] carrying the attacker's
 ## `<family>_stacks_per_hit` scales it here exactly as it scales the rider —
-## with how the spell ingests an infusion of this concept as its suffix.
-func get_description(board: StatBoard = null, _read_node: SkillNode = null) -> String:
+## with how the spell ingests an infusion of this concept as its suffix. A
+## [param read_node] folds through its live slice instead, as the rider lands.
+func get_description(board: StatBoard = null, read_node: SkillNode = null) -> String:
 	if status == null:
 		return "Applies nothing (no status set)."
 	var name := status.display_name if not status.display_name.is_empty() else String(status.id)
 	var concept := name.to_lower()
 	var ingest := "refuses %s infusions" % concept if is_zero_approx(rate) \
 			else "+%s per %s infused" % [NumFmt.num(rate), concept]
-	return status.applies_line(board, float(innate), "; " + ingest)
+	return status.applies_line(board, float(innate), "; " + ingest, OnHitEffect.read_slice(read_node))

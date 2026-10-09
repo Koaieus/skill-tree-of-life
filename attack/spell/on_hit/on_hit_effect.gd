@@ -59,10 +59,20 @@ static func keep_mode_agnostic(value: Array, where: String) -> Array[OnHitEffect
 ## tooltip describer uses ([method RangeFinder.get_description]) — pass the
 ## caster's board to get the number their own stats moved, and the caller
 ## marks the line gold when that differs from the unscaled ([code]board =
-## null[/code]) reading. Null [param spell] (no preview context) still returns
-## a description, just without a number.
+## null[/code]) reading. [param read_node] is the node the hit would read
+## through ([member HitLanding.read_node] — a spell's cast-from node): a
+## describer whose number the landing folds through that node's slice folds it
+## the same way, so node-local bonuses show; null keeps the board reading.
+## Null [param spell] (no preview context) still returns a description, just
+## without a number.
 func get_description(_spell: SpellDef = null, _board: StatBoard = null, _read_node: SkillNode = null) -> String:
 	return ""
+
+
+## The live slice a describer folds [param read_node]'s stats through — the
+## world [method StatusInstance.land_on] reads on the live board; null for none.
+static func read_slice(read_node: SkillNode) -> NodeCombat:
+	return CombatWorld.live().combat_for(read_node)
 
 
 ## [method NumFmt.num] for a [member HitInstance.basis]-denominated number: a

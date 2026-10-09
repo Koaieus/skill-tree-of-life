@@ -54,13 +54,15 @@ var crits: Lines = Lines.new()
 
 ## Derive all four sections for [param def]. [param board] is the caster's
 ## [StatBoard] when a caster is known (the tooltip), null for base numbers
-## (the catalogue).
-static func build(def: SpellDef, board: StatBoard = null) -> SpellSections:
+## (the catalogue). [param read_node] is the cast-from node when one is known:
+## the on-arrival numbers then fold through its slice, node-local bonuses
+## included, exactly as the landing reads them.
+static func build(def: SpellDef, board: StatBoard = null, read_node: SkillNode = null) -> SpellSections:
 	var out := SpellSections.new()
 	if def == null:
 		return out
 	out.cast = _cast(def, board)
-	out.on_arrival = _on_arrival(def, board)
+	out.on_arrival = _on_arrival(def, board, read_node)
 	out.then = _then(def)
 	out.crits = _crits(def)
 	return out
@@ -83,16 +85,16 @@ static func _cast(def: SpellDef, board: StatBoard) -> Lines:
 ## D-32 impact number, gold when the board moved it), then one per
 ## [SpellAffinity] (its riders land after the effects), then the reducer's
 ## line when the spell propagates.
-static func _on_arrival(def: SpellDef, board: StatBoard) -> Lines:
+static func _on_arrival(def: SpellDef, board: StatBoard, read_node: SkillNode) -> Lines:
 	var out := Lines.new()
 	for effect in def.on_hit_effects:
 		if effect == null:
 			continue
-		out.add_scaled(effect.get_description(def, null), effect.get_description(def, board))
+		out.add_scaled(effect.get_description(def, null), effect.get_description(def, board, read_node))
 	for affinity in def.affinities:
 		if affinity == null:
 			continue
-		out.add_scaled(affinity.get_description(null), affinity.get_description(board))
+		out.add_scaled(affinity.get_description(null), affinity.get_description(board, read_node))
 	var prop := def.propagation
 	if prop != null and prop.max_hops > 0 and prop.reducer != null:
 		out.add(prop.reducer.get_description())

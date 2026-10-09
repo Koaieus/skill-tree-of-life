@@ -253,9 +253,15 @@ func stacks_per_hit(board: StatBoard, authored: float) -> float:
 ## to [member id]; `<n>` is [method stacks_per_hit] of [param authored] on
 ## [param board], the fold the landing uses; [param ingest] is appended inside
 ## the parentheses verbatim (a [SpellAffinity] passes `"; <its ingest clause>"`).
-func applies_line(board: StatBoard, authored: float, ingest: String = "") -> String:
+## A [param slice] (the hit's read node) folds through [method stacks_per_hit_at]
+## instead — the branch [method StatusInstance.land_on] takes — and then
+## [param board] is moot: the slice reads its owner's entity bins itself.
+func applies_line(board: StatBoard, authored: float, ingest: String = "",
+		slice: NodeCombat = null) -> String:
 	var name := display_name if not display_name.is_empty() else String(id)
-	return "Applies %s (%s per hit%s)." % [name, NumFmt.num(stacks_per_hit(board, authored)), ingest]
+	var stacks := stacks_per_hit_at(slice, authored) if slice != null \
+			else stacks_per_hit(board, authored)
+	return "Applies %s (%s per hit%s)." % [name, NumFmt.num(stacks), ingest]
 
 
 ## [method stacks_per_hit] read through the attacking node's [param slice]:

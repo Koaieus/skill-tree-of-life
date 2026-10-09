@@ -51,8 +51,9 @@ func status_def() -> StatusDef:
 ## line is [method StatusDef.applies_line] — the one status readout, folding
 ## [member power] through the same stacks fold the landing uses — so a null
 ## [param board] answers the authored [member power] unscaled and a board with
-## the attacker's `<family>_stacks_per_hit` folds it in.
-func get_description(_spell: SpellDef = null, board: StatBoard = null, _read_node: SkillNode = null) -> String:
+## the attacker's `<family>_stacks_per_hit` folds it in; a [param read_node]
+## folds through its live slice instead, node-local bonuses included.
+func get_description(_spell: SpellDef = null, board: StatBoard = null, read_node: SkillNode = null) -> String:
 	if def == null:
 		return "Applies a status."
-	return def.applies_line(board, power)
+	return def.applies_line(board, power, "", OnHitEffect.read_slice(read_node))
