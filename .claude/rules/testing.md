@@ -41,4 +41,6 @@ mise run test:dir -- res://test/some/path/          # one directory
 - **A real mouse event needs its own `SubViewport`** (`handle_input_locally = true`, `push_input()`); GUT's UI covers the window. Example: `test_frontmatter_navigation.gd`.
 - **A `MultiMesh` read-back asserts nothing headless**; assert the pushed value as a pure function.
 - **A leaked `get_tree().paused`** is caught by `test/gut_hooks/pause_state_guard.gd`; prefer asserting the pure function a tween drives.
+- **Slow only in the suite = a leaked autoload**: replay the shard's scripts (`-gtest=a.gd,b.gd -gdir=`, names from `gut-shard-N.xml`), pair it with each predecessor.
+- **Real swing / AI turn, asserting outcome not timing**: `FastPresentation.on_root(root)` in `before_each`.
 - **A narrow `test:dir` green does not contain a change to a default, constant or eligibility rule** (#840 broke three tests elsewhere). `grep -rn` the old value across `test/`; re-point characterization tests, don't delete them.
