@@ -45,12 +45,30 @@ const _TERMS_ROW_SCENE: PackedScene = preload("res://ui/hud/combat_readout/comba
 const _ROW_STAGGER_STEP := 0.12
 const _ROW_STAGGER_CAP := 0.85
 
-static func channel_text(_alloc: int, _stake: int, _target: int, _progress: int, _turns: int) -> String:
-	return "x"
+## The source of the channel turn count K shown in the channel row. Null →
+## the row reads "M/N → T" without the turn counter rather than guess K.
+@export var allocation_system: AllocationSystem = null
 
 
-static func channel_label(_direction: int) -> String:
-	return "x"
+## A channelling node's row text: fill/cap, the cap it steps toward, and turns
+## served toward the next step out of [param turns] (K). `""` when idle
+## ([param target] 0); the counter is dropped when K is unknown (≤ 0).
+static func channel_text(alloc: int, stake: int, target: int, progress: int, turns: int) -> String:
+	if target == 0:
+		return ""
+	var text := "%d/%d → %d" % [alloc, stake, target]
+	if turns > 0:
+		text += ", %d/%d turns" % [progress, turns]
+	return text
+
+
+## The channel row's label by [method SkillNode.channel_direction].
+static func channel_label(direction: int) -> String:
+	if direction > 0:
+		return "Staking"
+	if direction < 0:
+		return "Extracting"
+	return ""
 
 
 ## The node currently rendered, if any (set by [method bind]).
@@ -91,6 +109,8 @@ func _rebuild_rows() -> void:
 		return
 	if _bound_node.is_allocated():
 		_add_always_shown_rows()
+	if _bound_node.is_channelling():
+		_add_channel_row()
 	for id in _visible_dynamic_ids():
 		if StatRegistry.is_parent(id):
 			_add_terms_row(id)
@@ -118,6 +138,23 @@ func _add_always_shown_rows() -> void:
 				_bound_node.is_local_volatile(&"armor"),
 				_bound_node.is_local_volatile(&"min_damage_taken"))
 		_row_setters.append(row.set_progress)
+
+
+## The open channel, read off the node; K comes from [member allocation_system]
+## (its per-direction knob), never re-derived here.
+func _add_channel_row() -> void:
+	var dir := _bound_node.channel_direction()
+	var turns := 0
+	if allocation_system != null:
+		turns = allocation_system.stake_channel_turns if dir > 0 \
+				else allocation_system.extract_channel_turns
+	var row := _TERMS_ROW_SCENE.instantiate() as CombatValueRow
+	_rows.add_child(row)
+	row.row_label = channel_label(dir)
+	row.set_text(channel_text(_bound_node.allocation_level, _bound_node.stake_level,
+			_bound_node.channel_target, _bound_node.channel_progress, turns))
+	_row_setters.append(func(t: float) -> void:
+		row.modulate.a = Easing.out_cubic(clampf(t, 0.0, 1.0)))
 
 
 func _add_scalar_row(id: StringName) -> void:
