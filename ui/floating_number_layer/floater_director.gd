@@ -18,6 +18,13 @@ extends Node2D
 ## the renderer stays free of any vision dependency.
 @export var vision_system: VisionSystem = null
 
+## Injected by the composing scene: the source of [signal
+## AllocationSystem.channel_ended], which floats an aborted channel's reason
+## at its node. Null → no channel floaters.
+@export var allocation_system: AllocationSystem = null:
+	set = _set_allocation_system
+
+
 ## #91/#108 — when set, entity-level toasts (wound/heal, XP gain) for THIS
 ## entity render at [member player_anchor] (the Hero Sigil Card's FloatAnchor)
 ## instead of the world-space core. A plain Node2D works unmodified as a
@@ -35,12 +42,6 @@ extends Node2D
 ## world layer draws under the HUD's CanvasLayer) on top of being visually
 ## redundant. So [method _on_stat_modifier_changed] always targets the core,
 ## player or not — see [method _emit_at_entity]'s `route_to_player_anchor` arg.
-## Injected by the composing scene: the source of [signal
-## AllocationSystem.channel_ended], which floats an aborted channel's reason
-## at its node. Null → no channel floaters.
-@export var allocation_system: AllocationSystem = null:
-	set = _set_allocation_system
-
 @export var player: Entity = null
 @export var player_anchor: Node2D = null
 
