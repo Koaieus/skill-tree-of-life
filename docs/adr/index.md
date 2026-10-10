@@ -74,6 +74,7 @@ mise run adr-hygiene     # frontmatter, supersede links, index coverage, immutab
 | [0050](0050-special-arrows-mint-from-the-concept-aspect-stat.md) | Special arrows mint from `<concept>_aspect`; the per-type `<id>_arrows_per_reload` stat is retired — supersedes 0023's reload clause | accepted | 2026-10-08 | combat, ammo, stats |
 | [0051](0051-a-ranged-volley-rides-the-command-as-an-ordered-type-count-list.md) | A ranged volley rides the command as an ordered `[{type, count}]` list in the player's card order; per-arrow leaf and type still derived along schedule order — supersedes 0020 | accepted | 2026-10-09 | ranged, combat, multiplayer, architecture |
 | [0052](0052-the-addon-cap-reads-stake-level-and-procgen-draws-addons-with-replacement.md) | A node's addon cap reads its stake level (1 when unallocated), never its fill; procgen draws addon nodes with replacement per 100 nodes and stakes repeats (up to 4); an overflowing extract is denied — supersedes legacy D-3 | accepted | 2026-10-10 | addons, procgen, stats, staking |
+| [0053](0053-staking-is-a-channel-on-the-node.md) | Staking and extracting are K-turn channels whose state lives on the node (Euclidean reach, leash checked on core arrival, explicit cancel), paid from the entity's own staked bucket, tuned by AllocationSystem exports | accepted | 2026-10-10 | staking, allocation, economy, stats |
 
 ## Pre-ADR log
 
