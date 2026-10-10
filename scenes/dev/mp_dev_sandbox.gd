@@ -230,6 +230,13 @@ func _boost_autopilot_budget() -> void:
 		board.action_points.base_value = 12.0
 	if board.deallocation_points != null:
 		board.deallocation_points.base_value = 10.0
+	# The leash probe in [method _sweep_move_core] walks the core off an open
+	# channel: a few hops of movement, and the leash pulled in to the reach
+	# (ratio 1, its floor) so a sandbox-sized territory can cross it at all.
+	if board.movement_points != null:
+		board.movement_points.base_value = 4.0
+	if allocation_system != null:
+		allocation_system.stake_leash_ratio = 1.0
 
 
 func _parse_cmdline() -> void:
@@ -619,10 +626,16 @@ func _sweep_move_core() -> void:
 	if core == null:
 		_write_log("autopilot: move_core SKIPPED — no core_location")
 		return
-	# The leash probe: land as far as one hop allows from the channel the stake
-	# step left open on the old core, so an arrival past `stake_leash_px()`
-	# aborts it on both peers (whether one hop gets there is the map's call).
+	# The leash probe: walk the core over Red's own nodes to the nearest landing
+	# past `stake_leash_px()` from the channel the stake step left open on the
+	# old core, so the arrival aborts it on both peers. No such walk within the
+	# movement budget falls back to one plain hop.
 	var channel: SkillNode = core if core.is_channelling() else null
+	if channel != null:
+		var walk := _walk_past_leash(core, channel)
+		if not walk.is_empty():
+			await _submit_leash_walk(walk, channel)
+			return
 	var target: SkillNode = null
 	for neighbour in graph.get_neighbours(core):
 		if not allocation_system.can_move_core(_red, neighbour):
@@ -640,6 +653,47 @@ func _sweep_move_core() -> void:
 	if ok and channel != null:
 		_write_log("autopilot: leash probe — %.0f px from the channel, leash %.0f px, channel %s"
 				% [_dist(target, channel), allocation_system.stake_leash_px(),
+				"ABORTED" if not channel.is_channelling() else "held"])
+
+
+## Shortest walk (excluding [param from]) over Red-owned nodes to one lying
+## beyond the leash of [param channel], within Red's movement budget; empty
+## when none exists.
+func _walk_past_leash(from: SkillNode, channel: SkillNode) -> Array[SkillNode]:
+	var budget := int(_red.stat_board.movement_points.available()) \
+			if _red.stat_board.movement_points != null else 1
+	var leash := allocation_system.stake_leash_px()
+	var came_from: Dictionary = {from: null}
+	var frontier: Array[SkillNode] = [from]
+	for _hop in budget:
+		var next: Array[SkillNode] = []
+		for node in frontier:
+			for neighbour in graph.get_neighbours(node):
+				if came_from.has(neighbour) or neighbour.owned_by != _red:
+					continue
+				came_from[neighbour] = node
+				if _dist(neighbour, channel) > leash:
+					var walk: Array[SkillNode] = []
+					var at: SkillNode = neighbour
+					while at != from:
+						walk.push_front(at)
+						at = came_from[at]
+					return walk
+				next.append(neighbour)
+		frontier = next
+	return []
+
+
+func _submit_leash_walk(walk: Array[SkillNode], channel: SkillNode) -> void:
+	var ids: Array[int] = []
+	for n in walk:
+		ids.append(graph.get_stable_id(n))
+	_write_log("autopilot: walking core %d hop(s) to %s, past the leash" % [walk.size(), walk.back().name])
+	var ok := await _submit_and_wait(MoveCoreCommand.new(_red.entity_id, ids))
+	_write_log("autopilot: move_core %s" % ("OK" if ok else "SKIPPED — command refused"))
+	if ok:
+		_write_log("autopilot: leash probe — %.0f px from the channel, leash %.0f px, channel %s"
+				% [_dist(_red.core_location, channel), allocation_system.stake_leash_px(),
 				"ABORTED" if not channel.is_channelling() else "held"])
 
 
