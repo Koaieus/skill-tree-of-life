@@ -99,7 +99,8 @@ func spawn_entity(
 ## [param stake_level] is the #916 pre-stake (procgen rolls 1..3 per
 ## placement) and only RAISES the core node's cap — a node procgen already
 ## staked keeps its own. Ungated by the node's ceiling: a raise past it lifts
-## [member SkillNode.stake_ceiling] (see [method set_procgen_stake]). The fill and kill-XP offset read that effective stake:
+## [member SkillNode.stake_ceiling] (see [method set_procgen_stake]). The fill
+## and kill-XP offset read that effective stake:
 ## the cap is stamped, `force_allocate` opens the 0→1 as usual, and
 ## [method AllocationSystem.force_fill] walks the fill to the cap — no SP
 ## minted for the fill, so the blocker's pool never says it bought it. A
@@ -164,7 +165,11 @@ func spawn_blocker(size: BlockerSize, core_location: SkillNode,
 static func set_procgen_stake(node: SkillNode, level: int) -> void:
 	node.stake_level = level
 	while node.stake_level > node.stake_ceiling:
+		var before := node.stake_ceiling
 		node.add_local_modifier(_STAKE_CEILING_LIFT.duplicate() as StatModifier)
+		if node.stake_ceiling <= before:
+			push_error("EntityFactory.set_procgen_stake: a stake_ceiling lift did not land")
+			return
 
 
 ## The #916 kill-XP offset for a pre-staked blocker, owner's formula verbatim
