@@ -77,7 +77,7 @@ var _last_move_source: SkillNode = null
 
 ## Manage-tab verb ids (#338) — the tray's card ids and the highlight's verb
 ## key. NOT arm state: that is the [ArmedStack] branch, where Deallocate,
-## Stake and Extract are [ManageVerbMode] levels on the [ManageMode] root.
+## Stake, Extract and Cancel are [ManageVerbMode] levels on the [ManageMode] root.
 enum ManageVerb { NONE, ALLOCATE, DEALLOCATE, STAKE, EXTRACT, CANCEL }
 ## A distant-allocate-path or would-island-deallocate click is pending
 ## confirmation ([MassActionMode] on the branch). Derived off the stack; fires
@@ -395,6 +395,9 @@ func _on_command_applied(command: Command, success: bool) -> void:
 	elif command is ExtractCommand:
 		Events.node_action_denied.emit(node,
 				_gate_denial(allocation_system.extract_denial(node, player), &"extract_denied"))
+	elif command is CancelChannelCommand:
+		Events.node_action_denied.emit(node,
+				_gate_denial(allocation_system.cancel_channel_denial(node, player), &"cancel_denied"))
 
 
 ## The one door out of this controller into the world. Drops the command with a
@@ -1114,7 +1117,7 @@ func temp_upgrade_arm() -> PackedScene:
 	return level.scene if level != null else null
 
 
-## Arm a Manage verb card (#338): Deallocate / Stake / Extract switch to their
+## Arm a Manage verb card (#338): Deallocate / Stake / Extract / Cancel switch to their
 ## level (pop to root, then push), and re-pressing the armed card pops it.
 ## ALLOCATE and NONE clear to the root — Allocate is the root's native click.
 func arm_verb(verb: ManageVerb) -> void:
@@ -1122,7 +1125,7 @@ func arm_verb(verb: ManageVerb) -> void:
 		return
 	var current := armed_stack.find(ManageVerbMode) as ManageVerbMode
 	match verb:
-		ManageVerb.DEALLOCATE, ManageVerb.STAKE, ManageVerb.EXTRACT:
+		ManageVerb.DEALLOCATE, ManageVerb.STAKE, ManageVerb.EXTRACT, ManageVerb.CANCEL:
 			if current != null and current.verb == verb:
 				armed_stack.pop(current)
 			else:
@@ -1135,6 +1138,7 @@ func _verb_level(verb: ManageVerb) -> ManageVerbMode:
 	match verb:
 		ManageVerb.DEALLOCATE: return DeallocateMode.new(self)
 		ManageVerb.STAKE: return StakeMode.new(self)
+		ManageVerb.CANCEL: return CancelChannelMode.new(self)
 		_: return ExtractMode.new(self)
 
 

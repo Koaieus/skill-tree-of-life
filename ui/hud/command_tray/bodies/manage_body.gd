@@ -1,9 +1,9 @@
 @tool
 class_name ManageBody
 extends CommandTrayBodyBase
-## Manage tab content (#114, #338): five live [ManageCard] buttons —
-## Allocate/Move Core/Deallocate/Stake/Extract. Allocate/Deallocate/Stake/
-## Extract switch the [ArmedStack] to their level (Allocate pops to the root);
+## Manage tab content (#114, #338): six live [ManageCard] buttons —
+## Allocate/Move Core/Deallocate/Stake/Extract/Cancel. Allocate/Deallocate/
+## Stake/Extract/Cancel switch the [ArmedStack] to their level (Allocate pops to the root);
 ## Move Core arms [CoreMoveMode] via
 ## [method PlayerInputController.enter_core_move_targeting]. A card is lit iff
 ## its level is on the stack's active branch.
@@ -13,6 +13,7 @@ extends CommandTrayBodyBase
 @onready var _dealloc_card: ManageCard = %DeallocCard
 @onready var _stake_card: ManageCard = %StakeCard
 @onready var _extract_card: ManageCard = %ExtractCard
+@onready var _cancel_card: ManageCard = %CancelCard
 
 ## Card title colours (#664). These were five inline `title_color`s on
 ## `manage_body.tscn` until the armed-mode cursor badge became a second
@@ -49,6 +50,10 @@ func _ready() -> void:
 		var card: ManageCard = cards[key]
 		if card != null:
 			card.title_color = _PALETTE.color_for(key)
+	# No `cancel` palette key yet (it would read transparent): borrow Stake's,
+	# the same tint [CancelChannelMode] gives its badge.
+	if _cancel_card != null:
+		_cancel_card.title_color = _PALETTE.color_for(&"stake")
 
 
 func _on_bound() -> void:
@@ -59,6 +64,7 @@ func _on_bound() -> void:
 	_dealloc_card.pressed.connect(_input_ctl.arm_verb.bind(PlayerInputController.ManageVerb.DEALLOCATE))
 	_stake_card.pressed.connect(_input_ctl.arm_verb.bind(PlayerInputController.ManageVerb.STAKE))
 	_extract_card.pressed.connect(_input_ctl.arm_verb.bind(PlayerInputController.ManageVerb.EXTRACT))
+	_cancel_card.pressed.connect(_input_ctl.arm_verb.bind(PlayerInputController.ManageVerb.CANCEL))
 	_move_card.pressed.connect(_input_ctl.enter_core_move_targeting)
 	_input_ctl.armed_stack.changed.connect(_refresh)
 	_refresh()
@@ -81,4 +87,5 @@ func _refresh() -> void:
 	_dealloc_card.set_armed(stack.find(DeallocateMode) != null)
 	_stake_card.set_armed(stack.find(StakeMode) != null)
 	_extract_card.set_armed(stack.find(ExtractMode) != null)
+	_cancel_card.set_armed(stack.find(CancelChannelMode) != null)
 	_move_card.set_armed(stack.find(CoreMoveMode) != null)

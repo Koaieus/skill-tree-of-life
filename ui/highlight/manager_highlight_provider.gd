@@ -2,12 +2,12 @@ class_name ManagerHighlightProvider
 extends HighlightProvider
 
 ## Highlight provider for manage-mode allocation (#176) and, since #338, every
-## other Manage-tab verb (Stake/Extract/Deallocate). A pure view-state
+## other Manage-tab verb (Stake/Extract/Deallocate/Cancel). A pure view-state
 ## snapshot the [HighlightController] rebuilds when no attack plan or core-move
 ## targeting is active and it's the player's turn. With no verb armed (or
 ## ALLOCATE explicitly armed — arming it is cosmetic, #338) it tags every
 ## unowned node the player can allocate with [enum HighlightRole.ALLOCATABLE],
-## same as before #338. With Stake/Extract/Deallocate armed it tags every
+## same as before #338. With Stake/Extract/Deallocate/Cancel armed it tags every
 ## legal target with [enum HighlightRole.IN_RANGE] instead — reusing the
 ## existing role rather than adding new tinting (per #338's acceptance spec).
 
@@ -35,6 +35,8 @@ func get_node_role(node: SkillNode) -> HighlightRole:
 			return HighlightRole.IN_RANGE if allocation_system.can_stake(node, player) else HighlightRole.NONE
 		PlayerInputController.ManageVerb.EXTRACT:
 			return HighlightRole.IN_RANGE if allocation_system.can_extract(node, player) else HighlightRole.NONE
+		PlayerInputController.ManageVerb.CANCEL:
+			return HighlightRole.IN_RANGE if allocation_system.can_cancel_channel(node, player) else HighlightRole.NONE
 		PlayerInputController.ManageVerb.DEALLOCATE:
 			return HighlightRole.IN_RANGE if allocation_system.can_deallocate(node, player) else HighlightRole.NONE
 	if allocation_system.can_allocate(node, player):

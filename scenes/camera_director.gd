@@ -738,7 +738,8 @@ func _build_command_request(command: Command) -> FocusRequest:
 ## is not wrong.
 func _framed_node_ids(command: Command) -> Array[int]:
 	if command is AllocateCommand or command is DeallocateCommand \
-			or command is StakeCommand or command is ExtractCommand:
+			or command is StakeCommand or command is ExtractCommand \
+			or command is CancelChannelCommand:
 		return [(command as NodeCommand).node_id]
 	if command is DeallocateSetCommand:
 		return (command as DeallocateSetCommand).node_ids

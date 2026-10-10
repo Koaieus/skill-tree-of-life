@@ -51,3 +51,9 @@ unique_name_in_owner = true
 layout_mode = 2
 title_text = "⬇ Extract"
 hint_text = "Click a staked node within 1 hop of core · costs 1 DP"
+
+[node name="CancelCard" parent="BodyContent/Content/Cards" instance=ExtResource("3_card")]
+unique_name_in_owner = true
+layout_mode = 2
+title_text = "✕ Cancel"
+hint_text = "Click a channelling node · aborts its stake/extract"
