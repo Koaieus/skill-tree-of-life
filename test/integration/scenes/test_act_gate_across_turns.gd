@@ -35,6 +35,7 @@ var _emissions: Array[bool]
 func before_each() -> void:
 	_root = _SANDBOX.instantiate()
 	add_child_autofree(_root)
+	FastPresentation.on_root(_root)
 	_ctl = _root.input_ctl
 	await wait_until(func() -> bool: return _root.turn_manager.current_entity != null, 10.0,
 			"fixture: the level should open a turn")

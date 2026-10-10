@@ -41,6 +41,7 @@ func before_each() -> void:
 	_root.get_node("%TurnManager").opens_first_turn = false
 	_root.route_to_meta_on_run_end = false
 	add_child_autofree(_root)
+	FastPresentation.on_root(_root)
 	# `_open_link` sits past the last await in `_ready` — see
 	# `test_link_mount.gd` for why fewer frames sees a level with no link.
 	await wait_frames(6)

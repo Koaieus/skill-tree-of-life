@@ -51,6 +51,7 @@ func _launch(scene: PackedScene) -> GameRoot:
 	root.node_count_override = _NODE_COUNT
 	root.enemy_territory_size = 3
 	add_child(root)
+	FastPresentation.on_root(root)
 	_root = root
 	# Freeing a level mid-`_setup_level` crashes the engine: wait for the reveal.
 	await wait_until(func() -> bool: return root._reveal_ready, 10.0, "level never revealed")
