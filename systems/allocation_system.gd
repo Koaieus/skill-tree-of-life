@@ -309,6 +309,7 @@ func _deallocate_unchecked(node: SkillNode, entity: Entity) -> void:
 	# set — the collector snapshots the masked neighbours a spill lands on.
 	# The command that called this flushes ([method deallocate] / [method deallocate_set]).
 	# `LINGER` rows survive the dealloc and are not spilled (#1344).
+	_abort_channel(node, &"ownership")
 	var combat := node.get_combat()
 	CombatWorld.live().note_removed(combat, combat.release_statuses(true), StatusSpread.CAUSE_DEALLOC)
 	# Snapshot the fill BEFORE ownership clears — owner_changed zeroes
@@ -350,6 +351,7 @@ func force_deallocate(node: SkillNode) -> Entity:
 	var previous := node.owned_by
 	if previous == null:
 		return null
+	_abort_channel(node, &"ownership")
 	# Statuses void on any ownership loss (#879). A cascade has already
 	# released and noted them (EntityCombat.apply_cascade, the spill feeder),
 	# so this is the net for a direct caller, which drops them unspilled.
@@ -539,17 +541,22 @@ func _graph_of(gates: Array[Gate]) -> Graph:
 	return null
 
 
-# ── Staking (#337): raise a node's cap with SP+AP, reclaim with extract ──────
+# ── Staking channels: raise / lower a node's cap one step per K turns ────────
 #
 # `stake_level` is the cap N, `allocation_level` the fill M — a node reads M/N.
-# stake raises the cap (SP current → staked + 1 AP); allocate fills it (SP
-# spend); extract drops the cap back (1 DP, staked SP → current, plus the
-# displaced fill's SP when the node was full). The `staked` bucket is a global
-# per-entity reservation, coupled to caps by convention only — capturing an
-# enemy's staked node and extracting it reclaims YOUR staked SP, not theirs
-# (extract() caps at min(n, staked), so a never-staked entity gains nothing).
+# stake / extract never move the cap directly: they open (or extend) a channel
+# toward `channel_target`, which steps once per K of the owner's real turn
+# starts ([method advance_channels]). stake pledges its SP at initiation
+# (current → staked); extract pays its 1 DP at initiation. A landed extract
+# step moves `extract_sp_refund` staked → wounded and refunds the displaced
+# fill when the node was full. Reach is Euclidean px from the core node; the
+# leash (reach × ratio) is checked only on a core ARRIVAL in [method move_core]
+# — the tick never measures. Any abort (leash, ownership loss, cancel) wounds
+# the still-pledged SP and forfeits a paid DP; landed steps stay. The `staked`
+# bucket is a global per-entity reservation, coupled to caps by convention
+# only. See docs/domain/allocation_system.md.
 
-## Can this entity stake [param node] — raise its allocation cap by 1?
+## Can this entity stake [param node] — open or extend a channel one cap up?
 ## True exactly when [method stake_denial] names no reason.
 func can_stake(node: SkillNode, entity: Entity) -> bool:
 	return stake_denial(node, entity) == &""
@@ -557,130 +564,222 @@ func can_stake(node: SkillNode, entity: Entity) -> bool:
 
 ## Why [param entity] may not stake [param node]: the `node_action_denied`
 ## reason key of the first failing gate, or `&""` when the stake is allowed.
-## Gates, in order: ownership · cap below the ceiling · core within 1 hop over
-## the OWNED subgraph · ≥ 1 SP · ≥ 1 AP. Budget gates read `available()`, never
-## `.current` (.claude/rules/stats-system.md). A null node or entity is the
-## generic `stake_denied`.
+## Gates, in order: ownership · not channelling down · effective cap (the
+## target while channelling) below the node's `stake_ceiling` · within
+## [member stake_reach_px] of the core · SP ≥ [member stake_sp_cost]. Budget
+## gates read `available()`, never `.current` (.claude/rules/stats-system.md).
+## A null node or entity is the generic `stake_denied`.
 func stake_denial(node: SkillNode, entity: Entity) -> StringName:
 	if entity == null or node == null:
 		return &"stake_denied"
 	if node.owned_by != entity:
 		return &"stake_denied_not_owned"
-	if node.stake_level >= node.stake_ceiling:
+	if node.channel_direction() < 0:
+		return &"stake_denied_channelling"
+	if _effective_cap(node) >= node.stake_ceiling:
 		return &"stake_denied_at_ceiling"
-	if not _within_core_hop(node, entity):
+	if not _in_reach(node, entity):
 		return &"stake_denied_not_adjacent"
 	var board := entity.stat_board
-	if board != null and board.skill_points != null and board.skill_points.available() < 1:
+	if board != null and board.skill_points != null \
+			and board.skill_points.available() < stake_sp_cost:
 		return &"stake_denied_no_sp"
-	if board != null and board.action_points != null and board.action_points.available() < 1:
-		return &"stake_denied_no_ap"
 	return &""
 
 
-## The core itself, or an immediate neighbour over the OWNED subgraph — one
-## are_adjacent on the territory mirror, no frontier. Fails closed without a
-## navigator; are_adjacent is already false on a null core.
-func _within_core_hop(node: SkillNode, entity: Entity) -> bool:
-	var core := entity.core_location
-	return entity.navigator != null \
-			and (node == core or entity.navigator.are_adjacent(core, node))
-
-
-## Raise [param node]'s allocation cap by 1: 1 SP moves current → staked,
-## 1 AP is spent.
+## Open (or extend) a stake channel on [param node]: [member stake_sp_cost] SP
+## moves current → staked now, the target rises one above the effective cap.
 func stake(node: SkillNode, entity: Entity) -> bool:
 	if not can_stake(node, entity):
 		return false
 	var board := entity.stat_board
-	if board != null and board.skill_points != null:
-		board.skill_points.stake(1)
-	if board != null and board.action_points != null:
-		board.action_points.deplete(1)
-	node.stake_level += 1
+	if board != null and board.skill_points != null and stake_sp_cost > 0:
+		board.skill_points.stake(stake_sp_cost)
+	node.channel_target = _effective_cap(node) + 1
+	channel_changed.emit(node)
 	return true
 
 
-## Can this entity extract [param node] — drop its cap by 1 and reclaim the
-## staked SP? True exactly when [method extract_denial] names no reason.
+## Can this entity extract [param node] — open or extend a channel one cap
+## down? True exactly when [method extract_denial] names no reason.
 func can_extract(node: SkillNode, entity: Entity) -> bool:
 	return extract_denial(node, entity) == &""
 
 
 ## Why [param entity] may not extract [param node]: the `node_action_denied`
 ## reason key of the first failing gate, or `&""` when the extract is allowed.
-## Gates, in order: ownership · cap above 1 (a 1/1 node is a deallocate, not an
-## extract) · addons fit the lowered cap (count ≤ `addon_slots` − 1) · core
-## within 1 hop · ≥ 1 DP · ≥ 1 staked SP. A null node or
-## entity is the generic `extract_denied`.
+## Gates, in order: ownership · not channelling up · effective cap above 1 (a
+## 1/1 node is a deallocate, not an extract) · addons fit the lowered target
+## cap · within [member stake_reach_px] of the core · ≥ 1 DP · staked ≥
+## [member extract_sp_refund]. A null node or entity is the generic
+## `extract_denied`.
 func extract_denial(node: SkillNode, entity: Entity) -> StringName:
 	if entity == null or node == null:
 		return &"extract_denied"
 	if node.owned_by != entity:
 		return &"extract_denied_not_owned"
-	if node.stake_level <= 1:
+	if node.channel_direction() > 0:
+		return &"extract_denied_channelling"
+	var cap := _effective_cap(node)
+	if cap <= 1:
 		return &"extract_denied_at_floor"
-	if node.get_addon_count() > int(node.get_local_value(&"addon_slots")) - 1:
+	# Slots shrink with the cap: the lowered target loses `stake_level − (cap − 1)`.
+	var slots_after := int(node.get_local_value(&"addon_slots")) - (node.stake_level - (cap - 1))
+	if node.get_addon_count() > slots_after:
 		return &"extract_denied_addon_overflow"
-	if not _within_core_hop(node, entity):
+	if not _in_reach(node, entity):
 		return &"extract_denied_not_adjacent"
 	var board := entity.stat_board
 	if board != null and board.deallocation_points != null and board.deallocation_points.available() < 1:
 		return &"extract_denied_no_dp"
-	if board != null and board.skill_points != null and board.skill_points.staked < 1:
+	if board != null and board.skill_points != null \
+			and board.skill_points.staked < maxi(extract_sp_refund, 1):
 		return &"extract_denied_no_staked_sp"
 	return &""
 
 
-## Drop [param node]'s cap by 1. Costs 1 DP. Refunds the staked SP; when the
-## node was full (fill == cap) the displaced fill's SP is refunded too, so a
-## 2/2 extract yields 1/1. The fill steps down with the cap through the pool's
-## clamp (cap fall clamps current).
+## Open (or extend) an extract channel on [param node]: 1 DP is paid now, the
+## target drops one below the effective cap. The SP exchange lands per step.
 func extract(node: SkillNode, entity: Entity) -> bool:
 	if not can_extract(node, entity):
 		return false
 	var board := entity.stat_board
-	# Displaced fill: snapshot BEFORE the cap drops — the pool clamps the fill
-	# down on cap fall, and the refunded SP must match.
-	var fill: int = node.allocation_level
-	var displaced := 1 if fill >= node.stake_level else 0
-	if board != null:
-		if board.deallocation_points != null:
-			board.deallocation_points.deplete(1)
-		if board.skill_points != null:
-			board.skill_points.extract(1)
-			if displaced > 0:
-				board.skill_points.refund(displaced)
-	node.stake_level -= 1
+	if board != null and board.deallocation_points != null:
+		board.deallocation_points.deplete(1)
+	node.channel_target = _effective_cap(node) - 1
+	channel_changed.emit(node)
 	return true
 
 
-func _set_turn_manager(value: TurnManager) -> void:
-	turn_manager = value
+## The cap a verb builds on: the channel's target while one is open, else
+## `stake_level`.
+func _effective_cap(node: SkillNode) -> int:
+	return node.channel_target if node.channel_target != 0 else node.stake_level
 
 
+## Euclidean reach from the core node, on logical positions (identical on every
+## peer). Fails closed without a core.
+func _in_reach(node: SkillNode, entity: Entity) -> bool:
+	var core := entity.core_location
+	if core == null:
+		return false
+	return core.global_position.distance_squared_to(node.global_position) \
+			<= stake_reach_px * stake_reach_px
+
+
+## The leash radius in px: reach × ratio, never below reach.
 func stake_leash_px() -> float:
-	return 0.0
+	return stake_reach_px * maxf(stake_leash_ratio, 1.0)
 
 
-func channel_fraction(_node: SkillNode) -> float:
-	return -1.0
+## Progress toward [param node]'s next step as a fraction of its direction's
+## K; 0 when idle. AllocationSystem owns K — a visual never re-derives it.
+func channel_fraction(node: SkillNode) -> float:
+	if node == null or not node.is_channelling():
+		return 0.0
+	return float(node.channel_progress) / float(maxi(_channel_turns(node.channel_direction()), 1))
 
 
-func advance_channels(_entity: Entity) -> void:
-	pass
+func _channel_turns(direction: int) -> int:
+	return stake_channel_turns if direction > 0 else extract_channel_turns
 
 
+func _set_turn_manager(value: TurnManager) -> void:
+	if turn_manager != null and turn_manager.real_turn_started.is_connected(advance_channels):
+		turn_manager.real_turn_started.disconnect(advance_channels)
+	turn_manager = value
+	if turn_manager != null and not turn_manager.real_turn_started.is_connected(advance_channels):
+		turn_manager.real_turn_started.connect(advance_channels)
+
+
+## One served turn of [param entity]: every owned channelling node counts one
+## tick; at K the step lands. No distance check — the leash is arrival-checked.
+func advance_channels(entity: Entity) -> void:
+	if entity == null or graph == null:
+		return
+	for node in graph.get_skill_nodes():
+		if node.owned_by != entity or not node.is_channelling():
+			continue
+		var dir := node.channel_direction()
+		node.channel_progress += 1
+		if node.channel_progress < maxi(_channel_turns(dir), 1):
+			continue
+		node.channel_progress = 0
+		_land_step(node, entity, dir)
+		channel_stepped.emit(node, dir)
+		if node.stake_level == node.channel_target:
+			node.channel_target = 0
+			channel_ended.emit(node, entity, &"landed")
+
+
+## One step of the cap. Up: the SP was pledged at initiation. Down: the
+## refund's staked SP is wounded and a full node's displaced fill refunded —
+## snapshot BEFORE the cap drops, the pool clamps the fill on cap fall.
+func _land_step(node: SkillNode, entity: Entity, dir: int) -> void:
+	if dir > 0:
+		node.stake_level += 1
+		return
+	var displaced := 1 if node.allocation_level >= node.stake_level else 0
+	var board := entity.stat_board
+	if board != null and board.skill_points != null:
+		board.skill_points.wound_staked(extract_sp_refund)
+		if displaced > 0:
+			board.skill_points.refund(displaced)
+	node.stake_level -= 1
+
+
+## Close [param node]'s channel without landing: a stake's still-pledged SP
+## goes staked → wounded on the owner's board; a paid extract DP stays spent.
+## Call before `owned_by` clears so the previous owner is the one wounded.
+func _abort_channel(node: SkillNode, reason: StringName) -> void:
+	if node == null or not node.is_channelling():
+		return
+	var owner := node.owned_by
+	var pledged := (node.channel_target - node.stake_level) * stake_sp_cost
+	node.channel_target = 0
+	node.channel_progress = 0
+	if pledged > 0 and owner != null and owner.stat_board != null \
+			and owner.stat_board.skill_points != null:
+		owner.stat_board.skill_points.wound_staked(pledged)
+	channel_ended.emit(node, owner, reason)
+
+
+## Can [param entity] cancel the channel on [param node]? No reach gate.
 func can_cancel_channel(node: SkillNode, entity: Entity) -> bool:
 	return cancel_channel_denial(node, entity) == &""
 
 
-func cancel_channel_denial(_node: SkillNode, _entity: Entity) -> StringName:
-	return &"cancel_denied"
+## Gates, in order: ownership · an open channel. A null node or entity is the
+## generic `cancel_denied`.
+func cancel_channel_denial(node: SkillNode, entity: Entity) -> StringName:
+	if entity == null or node == null:
+		return &"cancel_denied"
+	if node.owned_by != entity:
+		return &"cancel_denied_not_owned"
+	if not node.is_channelling():
+		return &"cancel_denied_idle"
+	return &""
 
 
-func cancel_channel(_node: SkillNode, _entity: Entity) -> bool:
-	return false
+## Abort [param node]'s channel with reason `&"cancelled"`.
+func cancel_channel(node: SkillNode, entity: Entity) -> bool:
+	if not can_cancel_channel(node, entity):
+		return false
+	_abort_channel(node, &"cancelled")
+	return true
+
+
+## Abort every channel of [param entity] whose node lies beyond the leash of
+## its current core — called on each core arrival.
+func _check_leash(entity: Entity) -> void:
+	var core := entity.core_location
+	if core == null or graph == null:
+		return
+	var leash := stake_leash_px()
+	for node in graph.get_skill_nodes():
+		if node.owned_by == entity and node.is_channelling() \
+				and core.global_position.distance_squared_to(node.global_position) > leash * leash:
+			_abort_channel(node, &"leash")
 
 
 ## Core movement (#21). Validates `move_core` preconditions without committing.## - target must be owned by the entity (you only hop across your own subgraph)
@@ -719,6 +818,8 @@ func move_core(entity: Entity, target: SkillNode) -> bool:
 	# The setter dispatches `_on_core_moved` — it's the one point that catches
 	# every core placement, including the opening one. Don't dispatch again here.
 	entity.core_location = target
+	# An arrival is the only moment the leash is measured (positions are fixed).
+	_check_leash(entity)
 	core_moved.emit(entity, from_node, target)
 	return true
 
