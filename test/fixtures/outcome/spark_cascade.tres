@@ -5,8 +5,8 @@
 [resource]
 script = ExtResource("1_1rqvb")
 command = {
-"entity_id": 1,
-"plan": {
+&"entity_id": 1,
+&"plan": {
 "attacker": 1,
 "mode": 3,
 "seed": 0,
@@ -14,46 +14,54 @@ command = {
 "spell": &"spark",
 "target": 3
 },
-"record": {
-"ap": 1,
-"cad": 1,
-"d_chip": PackedFloat64Array(1, 1, 1),
-"d_lbl": PackedStringArray(),
-"d_lblc": PackedInt32Array(0, 0, 0),
-"d_lvl": PackedInt32Array(1, 1, 1),
-"d_n": PackedInt32Array(3),
-"d_node": PackedInt32Array(3, 5, 6),
-"d_wnd": PackedInt32Array(1, 1, 1),
-"e_beat": PackedInt32Array(0),
-"e_hits": [PackedInt32Array(0)],
-"e_org": PackedInt32Array(2),
-"e_pred": PackedInt32Array(0),
-"e_preda": PackedInt32Array(0),
-"e_predc": PackedInt32Array(1),
-"e_term": PackedByteArray(1),
-"e_tgt": PackedInt32Array(3),
-"e_verb": PackedByteArray(0),
-"e_visit": PackedInt32Array(0),
-"h_amt": PackedFloat64Array(9999),
-"h_atk": PackedInt32Array(1),
-"h_crit": PackedInt32Array(0),
-"h_flags": PackedByteArray(0),
-"h_hp0": PackedFloat64Array(30),
-"h_hp1": PackedFloat64Array(0),
-"h_hpm": PackedFloat64Array(30),
-"h_key": PackedFloat64Array(0),
-"h_kind": PackedByteArray(0),
-"h_org": PackedInt32Array(2),
-"h_pop": PackedInt32Array(0),
-"h_sdef": PackedStringArray(""),
-"h_tgt": PackedInt32Array(3),
-"seed": 314338813,
-"tempo": ""
+&"record": {
+&"ap": 1,
+&"cad": 1,
+&"d_chip": PackedFloat64Array(1, 1, 1),
+&"d_lbl": PackedStringArray(),
+&"d_lblc": PackedInt32Array(0, 0, 0),
+&"d_lvl": PackedInt32Array(1, 1, 1),
+&"d_n": PackedInt32Array(0, 0, 3),
+&"d_node": PackedInt32Array(3, 5, 6),
+&"d_wnd": PackedInt32Array(1, 1, 1),
+&"e_beat": PackedInt32Array(0),
+&"e_hits": Array[PackedInt32Array]([PackedInt32Array(2)]),
+&"e_org": PackedInt32Array(2),
+&"e_pred": PackedInt32Array(0),
+&"e_preda": PackedInt32Array(0),
+&"e_predc": PackedInt32Array(1),
+&"e_term": PackedByteArray(1),
+&"e_tgt": PackedInt32Array(3),
+&"e_verb": PackedByteArray(0),
+&"e_visit": PackedInt32Array(0),
+&"h_ammo": PackedStringArray("", "", ""),
+&"h_amt": PackedFloat64Array(0, 0, 9999),
+&"h_atk": PackedInt32Array(1, 1, 1),
+&"h_crit": PackedInt32Array(0, 0, 0),
+&"h_flags": PackedByteArray(0, 0, 0),
+&"h_hp0": PackedFloat64Array(0, 0, 30),
+&"h_hp1": PackedFloat64Array(0, 0, 0),
+&"h_hpm": PackedFloat64Array(0, 0, 30),
+&"h_key": PackedFloat64Array(0, 0, 0),
+&"h_kind": PackedByteArray(5, 5, 0),
+&"h_org": PackedInt32Array(0, 0, 2),
+&"h_pop": PackedInt32Array(0, 0, 0),
+&"h_sdef": PackedStringArray("", "", ""),
+&"h_shost": PackedInt32Array(0, 0, 0),
+&"h_skey": PackedInt32Array(0, 0, 0),
+&"h_tgt": PackedInt32Array(2, 1, 3),
+&"s_amt": PackedFloat64Array(),
+&"s_def": PackedStringArray(),
+&"s_key": PackedStringArray(),
+&"s_n": PackedInt32Array(0, 0, 0),
+&"s_to": PackedInt32Array(),
+&"seed": 1876016346,
+&"tempo": ""
 },
-"seed": 314338813,
+&"seed": 1876016346,
 "type": &"launch_attack"
 }
-world_fingerprint_at_capture = 146133625
-expected_fingerprint = 1647315072
+world_fingerprint_at_capture = 174310889
+expected_fingerprint = 1210976136
 notes = "Spark cast from a_leaf onto d_gate: the kill islands the limb, so the forced-dealloc cascade replays as three BFS layers. Regenerate with REGEN_OUTCOME_FIXTURE=1 on test_outcome_fixture_replay.gd."
-captured_at = "2026-09-20"
+captured_at = "2026-10-10"
