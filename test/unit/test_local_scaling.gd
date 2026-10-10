@@ -428,7 +428,7 @@ func test_force_fill_walks_the_ladder_stepwise_and_mints_no_sp() -> void:
 	assert_eq(_node.allocation_level, 3, "filled to 3/3")
 	assert_eq(int(strength.get_value()), 13, "al=3: local modifiers contribute x3")
 	assert_eq(int(_node.node_board.get_stat(&"addon_slots").get_value()), 3,
-			"addon_slots follows the fill")
+			"addon_slots follows the stake level")
 	assert_eq(sp.get_value(), max_before, "force_fill mints no SP (max unchanged)")
 	assert_eq(sp.used, used_before, "force_fill claims no SP (used unchanged)")
 

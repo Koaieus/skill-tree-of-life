@@ -136,7 +136,7 @@ func test_apply_temp_upgrade_rejected_when_addon_slots_full() -> void:
 	var ctx: Dictionary = await _setup_plan(10.0)
 	var plan: MeleeAttackPlan = ctx.plan
 	var joint: SkillNode = ctx.joint
-	# force_allocate gives allocation_level 1 -> addon_slots == 1. Filling it
+	# a stake-1 node has addon_slots == 1. Filling it
 	# with a real addon leaves no open slot for a temp upgrade, even though
 	# budget is generous.
 	var clamp_addon := _CLAMP_SCENE.instantiate() as ClampAddon

@@ -32,7 +32,7 @@ Stat IDs: `grep -h "^id = " stats_system/defs/*.tres | sort`. Mana and mana rege
 - **`_mint_stat(id)` is the subclass seam**, `_ensure_stat` the gate above it. `EntityStatBoard` refuses to mint (a mint attempt is a typo). `NodeStatBoard` makes `node_health` a `PoolStat` off the `node_combat_health` def. There is no mirror guard on node boards: an entity-only stat there is inert, not wrong.
 - **A `sparse = true` entity board (the blockers') drops a modifier for a registered stat it lacks without a warning** (`StatBoard._drops_absent_stat`); an id no `StatDef` declares still warns on every board.
 
-**`SkillNode.node_board` is `@export`ed and `duplicate(true)`d exactly once** (same shape as `Entity.stat_board`; `resource_local_to_scene` doesn't recurse). **`node_board != null` is NOT "initialized" — `_node_board_ready` is**; treating non-null as initialized skips `apply_intrinsics()` forever and silently kills `addon_slots`. The `addon_slots` formula lives in file-backed `stats_system/formulas/allocation_scaling.tres`; inlining it forks the curve once per node. Reasoning and measurements: `docs/domain/stat-board-classes.md`.
+**`SkillNode.node_board` is `@export`ed and `duplicate(true)`d exactly once** (same shape as `Entity.stat_board`; `resource_local_to_scene` doesn't recurse). **`node_board != null` is NOT "initialized" — `_node_board_ready` is**; treating non-null as initialized skips `apply_intrinsics()` forever and silently kills `addon_slots`. The `addon_slots` formula lives in file-backed `stats_system/formulas/stake_scaling.tres` (reads the stake level, the cap N); inlining it forks the curve once per node. Reasoning and measurements: `docs/domain/stat-board-classes.md`.
 
 ## Parent stats (ADR 0029, 0030)
 

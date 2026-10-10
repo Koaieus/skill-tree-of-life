@@ -33,7 +33,7 @@ All entities get these. Divisors (bold) are tuning values.
 
 | Input stat | Target stat | Op | value | formula |
 |---|---|---|---|---|
-| `stake_level` (current) | `addon_slots` | ADD_BASE | 1 | `allocation_scaling.tres` — `ExpressionFormula(stake_level__current)` |
+| `stake_level` (cap) | `addon_slots` | ADD_BASE | 1 | `stake_scaling.tres` — `ExpressionFormula(stake_level)` |
 | `stake_level` (current) | `arrows_per_reload` | MULTIPLY | 1 | same file |
 | `stake_level` (current) | `max_shots_per_leaf` | MULTIPLY | 1 | same file |
 
