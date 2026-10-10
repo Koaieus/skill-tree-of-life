@@ -6,7 +6,7 @@ extends RefCounted
 ##
 ## Folds four tiers ([GraphSnapshot]'s own tier table): ownership, topology (node identity +
 ## edges), ACCUMULATED per-node state — stake level, allocation level,
-## regen stacks, and node HP — and per-node STATUSES (#879: `(id, power)`
+## regen stacks, node HP and the staking channel (target, progress) — and per-node STATUSES (#879: `(id, power)`
 ## pairs, see [method _status_rows]). It does NOT fold derived [StatBoard] totals: the
 ## tier table says totals never cross the wire, so folding them would assert
 ## agreement on a quantity the sync layer deliberately does not transmit — a
@@ -72,13 +72,14 @@ static func _topology_rows(graph: Graph) -> Array:
 
 
 ## Accumulated per-node state: stake level, allocation level, regen stacks,
-## and HP (quantized — see class docstring).
+## HP (quantized — see class docstring) and the staking channel's two ints.
 static func _accumulated_rows(graph: Graph) -> Array:
 	var rows: Array = []
 	for node in graph.get_skill_nodes():
 		var hp_int := roundi(node.get_current_hp() * 100.0)
 		rows.append([graph.get_stable_id(node), node.stake_level,
-				node.allocation_level, node.regen_stacks, hp_int])
+				node.allocation_level, node.regen_stacks, hp_int,
+				node.channel_target, node.channel_progress])
 	return rows
 
 

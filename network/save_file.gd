@@ -15,8 +15,11 @@ extends RefCounted
 enum LoadResult { OK, MISSING, CORRUPT, VERSION_MISMATCH }
 
 ## Bumped whenever the body's shape, a snapshot's `_R_*` row layout or the
-## [WorldImage] envelope changes; a file of another version is refused, never
-## migrated. `test_save_file.gd` pins [method row_layout_hash] per version.
+## [WorldImage] envelope changes; a file older than
+## [constant MIN_FORMAT_VERSION] (or newer than this) is refused. A version in
+## between loads only because its rows are a prefix of today's and
+## [GraphSnapshot] decodes the missing tail with defaults — never a second
+## decoder. `test_save_file.gd` pins [method row_layout_hash] per version.
 ## 2: an `_R_STATUSES` entry is `[def_idx, power, key, camp_id, applier_id]`.
 ## 3: the xp stat's dict carries `banked` ([GrowablePoolStat]); an older file
 ##    would decode it as 0 and under-report lifetime XP.
@@ -26,7 +29,12 @@ enum LoadResult { OK, MISSING, CORRUPT, VERSION_MISMATCH }
 ##    this build no longer defines.
 ## 6: an `_R_STATUSES` entry grew `decay_step` (a ramping decay's position).
 ## 7: an entity row carries `_R_CORE_MOVED` (the mid-turn core-move exert latch).
-const FORMAT_VERSION := 7
+## 8: a node row carries `_R_CHANNEL_TARGET`, `_R_CHANNEL_PROGRESS` (the
+##    staking channel) and `_R_STAKE_CEILING_LIFTS`. A 7 still loads: no
+##    channel, lifts re-derived from the stake.
+const FORMAT_VERSION := 8
+## The oldest file that still loads — see [constant FORMAT_VERSION].
+const MIN_FORMAT_VERSION := 7
 ## The single slot — mirrors [constant Settings.SAVE_PATH]'s `user://` home.
 const SLOT_PATH := "user://save.bin"
 const MAGIC := "STLS"
@@ -100,7 +108,7 @@ static func from_bytes(bytes: PackedByteArray) -> SaveFile:
 	if bytes.size() < HEADER_SIZE + 4 or bytes.slice(0, VERSION_OFFSET) != MAGIC.to_ascii_buffer():
 		return save
 	var version := bytes.decode_u32(VERSION_OFFSET)
-	if version != FORMAT_VERSION:
+	if version < MIN_FORMAT_VERSION or version > FORMAT_VERSION:
 		save.format_version = version
 		save.load_result = LoadResult.VERSION_MISMATCH
 		return save
@@ -121,6 +129,8 @@ static func from_bytes(bytes: PackedByteArray) -> SaveFile:
 	save.config = payload["config"]
 	save.roster = payload["roster"]
 	save.world = image
+	# The file's own: its world bytes are still that version's rows.
+	save.format_version = version
 	save.load_result = LoadResult.OK
 	return save
 

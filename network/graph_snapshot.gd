@@ -71,6 +71,15 @@ const _R_BASE_RADIUS := 13       ## SkillNode.base_radius (#783) — procgen ram
 const _R_BASE_INNER_RADIUS := 14 ## SkillNode.base_inner_radius (#783) — same reason
 const _R_SCENE := 15 ## index into `res`, -1 for the plain skill_node.tscn — the node's own `scene_file_path` (#330): an authored keystone scene (or the blocker scene) is re-instantiated on the create path, since the scene IS its content (colour, name, effects, radius)
 const _R_LAST_OWNED_VISION := 16 ## SkillNode.last_owned_vision — the node-local sight it had when it last lost its owner, 0 = never owned; restored AFTER `owned_by` so the setter's own sample is overwritten
+const _R_CHANNEL_TARGET := 17   ## SkillNode.channel_target — the staking channel's goal cap, 0 = no channel
+const _R_CHANNEL_PROGRESS := 18 ## SkillNode.channel_progress — turns ticked toward it
+const _R_STAKE_CEILING_LIFTS := 19 ## how many procgen `stake_ceiling` lifts the node holds (they live on the node board, not in `modifiers`, so _R_MODS never carries them)
+## A row this short predates the three columns above (a save's v7 body): the
+## channel defaults to none and the lifts re-derive from the stake.
+const _ROW_SIZE_V7 := 17
+const _ROW_SIZE := 20
+
+const _LIFT := preload("res://skill_node/stake_ceiling_lift_modifier.tres")
 
 
 ## Builds the payload for the WHOLE graph in one shot: `res` (the interned
@@ -325,7 +334,7 @@ static func _encode_node(graph: Graph, node: SkillNode, table: _InternTable) -> 
 	if node.scene_file_path != "" and node.scene_file_path != _NODE_SCENE.resource_path:
 		scene_idx = table.intern(node.scene_file_path)
 	var row: Array
-	row.resize(17)
+	row.resize(_ROW_SIZE)
 	row[_R_STABLE_ID] = graph.get_stable_id(node)
 	row[_R_ARCHETYPE] = archetype_idx
 	row[_R_OWNER_ID] = owner_id
@@ -343,6 +352,9 @@ static func _encode_node(graph: Graph, node: SkillNode, table: _InternTable) -> 
 	row[_R_BASE_INNER_RADIUS] = node.base_inner_radius
 	row[_R_SCENE] = scene_idx
 	row[_R_LAST_OWNED_VISION] = node.last_owned_vision
+	row[_R_CHANNEL_TARGET] = node.channel_target
+	row[_R_CHANNEL_PROGRESS] = node.channel_progress
+	row[_R_STAKE_CEILING_LIFTS] = _lifts_of(node).size()
 	return row
 
 
@@ -368,8 +380,11 @@ static func _decode_node(
 	else:
 		_reconcile_authored(node, row, res)
 		node.position = Vector2(float(row[_R_X]), float(row[_R_Y]))
-	# Stake before allocation: allocation is a fill WITHIN the stake cap.
-	node.stake_level = int(row[_R_STAKE])
+	# The ceiling before the stake it may have been lifted for, the stake
+	# before allocation: allocation is a fill WITHIN the stake cap.
+	var stake := int(row[_R_STAKE])
+	_reconcile_lifts(node, row, stake)
+	node.stake_level = stake
 	node.allocation_level = int(row[_R_ALLOC])
 	node.regen_stacks = int(row[_R_REGEN])
 	var owner_id := int(row[_R_OWNER_ID])
@@ -377,6 +392,9 @@ static func _decode_node(
 	# "unowned" has to be able to UNSET an owner this peer wrongly believes in.
 	node.owned_by = graph.get_by_entity_id(owner_id) if owner_id != 0 else null
 	node.last_owned_vision = float(row[_R_LAST_OWNED_VISION])
+	var has_channel := row.size() > _R_CHANNEL_PROGRESS
+	node.channel_target = int(row[_R_CHANNEL_TARGET]) if has_channel else 0
+	node.channel_progress = int(row[_R_CHANNEL_PROGRESS]) if has_channel else 0
 	_reconcile_addons(node, row, res)
 	# Addons attach (and push their own modifiers) above — the node's OWN
 	# residual modifiers reconcile on top, reproducing the source's full list.
@@ -384,6 +402,35 @@ static func _decode_node(
 	node.restore_current_hp(float(row[_R_HP]) / 100.0)
 	_reconcile_statuses(node, row, res)
 	return node
+
+
+## The node's procgen `stake_ceiling` lifts — told apart by script, since each
+## is a fresh duplicate of [constant _LIFT] with no `resource_path`.
+static func _lifts_of(node: SkillNode) -> Array[StatModifier]:
+	var out: Array[StatModifier] = []
+	for m in node.state.local_modifiers:
+		if m.get_script() == _LIFT.get_script():
+			out.append(m)
+	return out
+
+
+## "Become exactly N lifts" by delta, so a resync into an agreeing node is a
+## no-op. A row with no lift column (pre-channel) re-derives the count the way
+## the procgen write does: lift until the ceiling covers [param stake].
+static func _reconcile_lifts(node: SkillNode, row: Array, stake: int) -> void:
+	var held := _lifts_of(node)
+	if row.size() <= _R_STAKE_CEILING_LIFTS:
+		while node.stake_ceiling < stake:
+			var before := node.stake_ceiling
+			node.add_local_modifier(_LIFT.duplicate() as StatModifier)
+			if node.stake_ceiling <= before:
+				return
+		return
+	var want := int(row[_R_STAKE_CEILING_LIFTS])
+	for i in range(want, held.size()):
+		node.remove_local_modifier(held[i])
+	for i in range(held.size(), want):
+		node.add_local_modifier(_LIFT.duplicate() as StatModifier)
 
 
 ## Statuses restore as "become exactly this" (#879), like HP: wipe the slice

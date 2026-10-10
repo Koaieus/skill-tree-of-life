@@ -31,6 +31,9 @@ const _ROW_LAYOUT_PINS := {
 	6: "2f2af3cc83555396e3dd69b5864bec2d12f52dbcb125bbd81661ae3f353dbfa2",
 	# 7: EntitySnapshot gained `_R_CORE_MOVED` (the core-move exert latch).
 	7: "a947145a33c12afa7ccdfedb81a1605126696059aefda1a137a470768664152a",
+	# 8: GraphSnapshot gained `_R_CHANNEL_TARGET`, `_R_CHANNEL_PROGRESS` and
+	# `_R_STAKE_CEILING_LIFTS`; a 7 still loads (the rows are a prefix).
+	8: "361baaae99c44377a776aa1b303c572bc244059f9a620be7e1229776f7e35b17",
 }
 
 
@@ -103,6 +106,12 @@ func test_the_previous_version_still_loads() -> void:
 	assert_eq(got.load_result, SaveFile.LoadResult.OK)
 	assert_eq(got.format_version, 7, "the file's own version")
 	assert_false(got.world.is_empty())
+
+
+func test_a_version_below_the_oldest_loadable_is_a_version_mismatch() -> void:
+	var bytes := _sample().to_bytes()
+	bytes.encode_u32(SaveFile.VERSION_OFFSET, SaveFile.MIN_FORMAT_VERSION - 1)
+	assert_eq(SaveFile.from_bytes(bytes).load_result, SaveFile.LoadResult.VERSION_MISMATCH)
 
 
 func test_missing_slot_is_missing() -> void:

@@ -117,3 +117,21 @@ func test_a_pre_channel_row_decodes_with_defaults() -> void:
 	assert_eq(got.channel_progress, 0)
 	assert_eq(got.stake_level, 4)
 	assert_eq(got.stake_ceiling, 4, "the lift re-derives from the stake")
+
+
+func test_a_save_taken_mid_channel_loads_with_the_channel() -> void:
+	var source := await _new_graph()
+	var target := await _new_graph(0)
+	var node: SkillNode = source.get_skill_nodes()[2]
+	node.channel_target = 2
+	node.channel_progress = 1
+	var save := SaveFile.new()
+	save.world = WorldImage.new(PackedByteArray([1]), GraphSnapshot.encode(source))
+
+	var loaded := SaveFile.from_bytes(save.to_bytes())
+	assert_eq(loaded.load_result, SaveFile.LoadResult.OK)
+	GraphSnapshot.decode(loaded.world.graph_bytes, target)
+
+	var got := _twin(source, target, node)
+	assert_eq(got.channel_target, 2)
+	assert_eq(got.channel_progress, 1)
