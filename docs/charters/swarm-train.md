@@ -130,8 +130,10 @@ top session  (/swarm-train: trains, ledger, tick, relief, report)
    it, record, spawn relief. The cap (15 h, Whip law 19) ends the run at
    any tick.
 10. **Relief is a fresh `swarm-lead` with the relief prompt**, oriented
-    from the ledger (`ledger adopt`), as `relief` already does. The top
-    launches it; nobody else.
+    from the ledger as `relief` already does — but never `ledger adopt`:
+    a subagent shares the top's session id (probed, 2026-10-10), so
+    `ledger show` already prints the outgoing lead's live ledger and an
+    `adopt` fails as "already leads". The top launches it; nobody else.
 
 **Reuse** (*designed*)
 

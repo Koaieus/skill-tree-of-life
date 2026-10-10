@@ -111,7 +111,9 @@ live outgoing — never by reading issues to compensate.
    now the law for the rest.
 
 10. **In a swarm-train tree, the top launches relief** as a `swarm-lead`
-    with the relief prompt; the orient-from-disk cycle is unchanged. See
+    with the relief prompt; the orient-from-disk cycle is unchanged but
+    for `adopt`, which a tree skips — the relief shares the outgoing's
+    session id, so `ledger show` is already its ledger. See
     [swarm-train](swarm-train.md), law 10.
 
 ## Incident corpus

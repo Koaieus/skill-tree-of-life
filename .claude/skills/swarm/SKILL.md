@@ -166,8 +166,10 @@ nuance.
 
 Active only when your launch prompt says *train mode, train `<t>`* — you
 are a `swarm-lead` subagent and your parent is the train's top session, not
-a person. Its prompt names the ledger: `mise run ledger -- adopt <path>`
-before your first dispatch, so the train has one ledger. No Sage in this
+a person. You share the top's session id: `mise run ledger -- show` is
+the train's ledger (a relief inherits the outgoing lead's live one) — never
+`adopt`. The ledger path in your prompt is the whip ledger: read it, never
+adopt it. No Sage in this
 mode: every brief names the `advisor` tool.
 
 - **Waves are foreground.** One wave per message still holds: every `Agent`

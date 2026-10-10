@@ -15,6 +15,6 @@ the night, given one train of issues to land. (Design behind this file:
 2. Apply swarm's *Train mode* section: it says what changes for a lead
    whose parent is a session, not a person. Everything else in the skill
    holds as written.
-3. Your prompt names your train and the ledger to adopt. It, and any later
+3. Your prompt names your train and the whip ledger. It, and any later
    message from the session that spawned you, are your instructions.
 4. Your final text is your report. Nothing after it reaches anyone.

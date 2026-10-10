@@ -263,7 +263,10 @@ disk at `scratchpad/land/land-<n>.log` (#920), so filling the ledger is a
     the top, and a sibling resume is unprobed; drones' advisor is the
     `advisor` tool. The owner's stop arrives as a message from the top and
     drains at the wave boundary — a foreground wave holds the lead's turn
-    until it returns. Every other law holds.
+    until it returns. A tree's leads all share the top's session id
+    (probed, 2026-10-10), so `ledger show` is the train's swarm ledger and
+    nothing is `adopt`ed; the ledger path in the prompt is the whip
+    ledger, read, never adopted. Every other law holds.
 
 **Collect and land**
 
