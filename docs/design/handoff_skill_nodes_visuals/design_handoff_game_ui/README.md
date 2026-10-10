@@ -79,7 +79,7 @@ The `//N` gear-ratio spine decouples chunky modifier loot from single-digit dama
 `max = current + wounded + staked + allocated` (allocated = non-core owned node count; core is free).
 - **Allocate** node: current−1, allocated+1.
 - **Force-deallocation** (node killed): allocated−1 → **wounded**+1 (SP not returned to hand). Heals to current at `wound_heal_per_turn` (currently 1/turn; if fractional e.g. 0.5, the wound-heal sliver tracks progress → 1 wound per full bar).
-- **Stake:** spend 1 SP to raise a node's `alloc_cap_max` (1/1→1/2→2/2…) → **staked** bucket. Recovered via **Extract** (core within 0–1 hops). Killing an enemy's staked node and extracting it leaves the *enemy* with the permanent staked reservation — capture-and-heal play.
+- **Stake:** pledge 1 SP (→ **staked** bucket) to open a channel that raises a node's `alloc_cap_max` (1/1→1/2→2/2…) one step per few owner turns, while the core stays within the leash. **Extract** is the reverse channel (1 DP; each landed step turns staked SP into wounds). Both start within a px radius of the core; **Cancel** aborts a channel (the pledge is wounded). Killing an enemy's staked node and extracting it leaves the *enemy* with the permanent staked reservation — capture-and-heal play.
 
 ## Interaction model (per attack mode — SETTLED intent)
 - **No mode (Manage):** left-click = allocate (if SP); click core then destination (or drag) = move core (if Move pts); hover + `D` = deallocate (if Dealloc pts and no self-islanding).

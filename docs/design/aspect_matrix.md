@@ -588,10 +588,10 @@ lightning's hops become mechanics that existing rows can use.
   filled with an idea that's just too perfect"*.
 - **Silence's threshold B on allocation level is degenerate today.** Owner:
   at most ~1% of nodes have stake > 1, so 1 stack would silence a node 99% of
-  the time. Staking costs 1 AP + 1 SP (N/M → N/(M+1)), then 1 SP to allocate
-  into it; the AP is there so a player can't stake 1/1 → 3/3 right before an
-  attack and undo it next turn — staking is a long-term investment. Revisit B
-  if staking gets cheaper.
+  the time. Staking pledges 1 SP and lands N/M → N/(M+1) only after a
+  channel of owner turns (then 1 SP to allocate into it); the channel is what
+  stops a player staking 1/1 → 3/3 right before an attack and undoing it next
+  turn — staking is a long-term investment. Revisit B if staking gets cheaper.
 - **Statuses can land on a core** (owner, 2026-10-06): *"status effects can
   also land on a core if the applying hit hits the core sitting on a depleted
   node (the node it sits on takes the brunt of damage and statuses, but when

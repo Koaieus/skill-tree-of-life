@@ -28,6 +28,17 @@ The sibling gated verbs follow the same `can_*` / verb shape: `can_stake` / `sta
 
 On success: `skill_points.spend(1)` runs (transfers current → used), then steps 1–3 of the side-effects, then `allocated.emit(node, entity)`. Note: `allocate()` does **not** call `force_allocate()` — that would double-bump `used` (once via spend, once via claim). The side-effects are inlined.
 
+## Staking channels: `stake` / `extract` / `cancel_channel`
+
+`stake_level` is the cap N, `allocation_level` the fill M. Neither verb moves the cap: each opens (or extends by one step) a **channel** toward `SkillNode.channel_target` (`0` = idle; backed by `NodeState`, so a shadow clone carries it). The "effective cap" a verb builds on is the target while channelling, else `stake_level`.
+
+- **Initiation pays.** `stake` pledges `stake_sp_cost` SP current → staked; `extract` pays 1 DP. No AP. Gates (`stake_denial` / `extract_denial`, first failing key wins): ownership · not channelling the opposite way (`*_denied_channelling`) · effective cap below the node-local `stake_ceiling` stat (stake) / above 1 and addons fitting the lowered target (extract) · **reach** · budget (SP ≥ `stake_sp_cost`; DP ≥ 1 and staked ≥ `extract_sp_refund`).
+- **Reach is Euclidean px**, core node position → target node position, within `stake_reach_px` (squared distance on `global_position`, never hops, never a presentation position). The out-of-reach key is still `*_denied_not_adjacent`.
+- **The tick.** `advance_channels(entity)` runs on `TurnManager.real_turn_started` (once per served turn, never the resync cursor): each of the entity's channelling nodes counts `channel_progress += 1`; at K (`stake_channel_turns` / `extract_channel_turns`) one step lands. A stake step is `stake_level += 1` (the SP was pledged already). An extract step moves `extract_sp_refund` staked → wounded (`SkillPointStat.wound_staked`) and refunds the displaced fill to current when the node was full, then `stake_level -= 1`. The tick never measures distance.
+- **The leash is arrival-checked.** `stake_leash_px()` = reach × `stake_leash_ratio` (clamped ≥ 1, so anything initiable starts inside it). `move_core` checks every owned channel right after `core_location` is reassigned; one beyond the leash aborts in that call. Out-and-back in one turn still aborts (each arrival is checked); the slide tween is never checked.
+- **Abort** (one helper, reasons `&"leash"`, `&"ownership"`, `&"cancelled"`): the still-pledged SP (`(target − stake_level) × stake_sp_cost`, if positive) goes staked → wounded on the owner's board; a paid extract DP stays spent; landed steps stay. `deallocate`, `force_deallocate` (and so the death strip) abort with `&"ownership"` **before** `owned_by` clears, so the previous owner is wounded. `cancel_channel` (`CancelChannelCommand`; gates `cancel_denied_not_owned` / `cancel_denied_idle`, no reach gate) is the explicit abort.
+- **Signals** (on AllocationSystem, not `Events`): `channel_changed(node)` on start or a mid-channel extension, `channel_stepped(node, direction)` per landed step, `channel_ended(node, previous_owner, reason)` exactly once per channel (`&"landed"` or the abort reason). `channel_fraction(node)` is progress / K for a visual; AllocationSystem owns K.
+
 ## The gated path: `deallocate(node, entity)`
 
 | Guard | Condition |
