@@ -538,8 +538,8 @@ func _sweep_mass_allocate() -> void:
 ## competes with the other steps for a scarce frontier node. A stake or an
 ## extract is a PLEDGE: it opens a channel and the cap moves on later turns as
 ## reproduced upkeep, so this step never expects a cap change. Per sweep: report
-## the channel the previous sweep left open (it ticked across the turn), then
-## cancel it, stake, cancel, extract (and cancel that), and finally re-stake and
+## every channel still open from earlier sweeps (they ticked across the turn),
+## cancel the core's, stake, cancel, extract (and cancel that), and finally re-stake and
 ## leave the channel open for the next turn's upkeep and the leash probe in
 ## [method _sweep_move_core].
 func _sweep_stake_and_extract() -> void:
@@ -548,10 +548,12 @@ func _sweep_stake_and_extract() -> void:
 		_write_log("autopilot: stake SKIPPED — no core_location")
 		_write_log("autopilot: extract SKIPPED — no core_location")
 		return
+	for node in graph.get_skill_nodes():
+		if node.owned_by == _red and node.is_channelling():
+			_write_log("autopilot: channel carried over on %s — target %d, progress %d, cap %d"
+					% [node.name, node.channel_target, node.channel_progress, node.stake_level])
 	var core_id := graph.get_stable_id(core)
 	if core.is_channelling():
-		_write_log("autopilot: channel carried over on %s — target %d, progress %d, cap %d"
-				% [core.name, core.channel_target, core.channel_progress, core.stake_level])
 		await _submit_cancel(core_id)
 	var staked := await _submit_and_wait(StakeCommand.new(_red.entity_id, core_id))
 	_write_log("autopilot: stake %s" % ("OK" if staked else "SKIPPED — command refused"))
