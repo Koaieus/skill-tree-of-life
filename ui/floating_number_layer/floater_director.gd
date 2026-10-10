@@ -58,6 +58,7 @@ const _DENIAL_TEXTS := {
 	"stake_denied": "CAN'T STAKE",
 	"extract_denied_not_owned": "NOT YOURS",
 	"extract_denied_at_floor": "NOTHING TO EXTRACT",
+	"extract_denied_addon_overflow": "TOO MANY ADDONS",
 	"extract_denied_not_adjacent": "TOO FAR FROM CORE",
 	"extract_denied_no_dp": "NEED 1 DP",
 	"extract_denied_no_staked_sp": "NO STAKED SP",

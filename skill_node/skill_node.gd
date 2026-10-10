@@ -1752,6 +1752,12 @@ func _on_addon_removed(c: Node) -> void:
 		_detach_addon(c)
 
 
+## How many addons are attached. Prefer this to `get_addons().size()` — the
+## accessor duplicates the whole ledger just to count it.
+func get_addon_count() -> int:
+	return _addons.size()
+
+
 ## Whether an addon of `kind` (a scene path — [method SkillNodeAddon.get_kind])
 ## would legally attach
 ## right now: an open slot AND no unique-collision (#406). Read-only —
@@ -1761,9 +1767,7 @@ func _on_addon_removed(c: Node) -> void:
 ## work). Callers that want slot enforcement call this instead of
 ## reimplementing it.
 func can_attach_addon(kind: String) -> bool:
-	# `_addons.size()`, not `get_addons().size()` — the accessor duplicates the
-	# whole ledger just to count it, and #406's UI calls this per candidate node.
-	if _addons.size() >= int(get_local_value(&"addon_slots")):
+	if get_addon_count() >= int(get_local_value(&"addon_slots")):
 		return false
 	for a in _addons:
 		if a.unique and a.get_kind() == kind:

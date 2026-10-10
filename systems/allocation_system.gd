@@ -584,7 +584,8 @@ func can_extract(node: SkillNode, entity: Entity) -> bool:
 ## Why [param entity] may not extract [param node]: the `node_action_denied`
 ## reason key of the first failing gate, or `&""` when the extract is allowed.
 ## Gates, in order: ownership · cap above 1 (a 1/1 node is a deallocate, not an
-## extract) · core within 1 hop · ≥ 1 DP · ≥ 1 staked SP. A null node or
+## extract) · addons fit the lowered cap (count ≤ `addon_slots` − 1) · core
+## within 1 hop · ≥ 1 DP · ≥ 1 staked SP. A null node or
 ## entity is the generic `extract_denied`.
 func extract_denial(node: SkillNode, entity: Entity) -> StringName:
 	if entity == null or node == null:
@@ -593,6 +594,8 @@ func extract_denial(node: SkillNode, entity: Entity) -> StringName:
 		return &"extract_denied_not_owned"
 	if node.stake_level <= 1:
 		return &"extract_denied_at_floor"
+	if node.get_addon_count() > int(node.get_local_value(&"addon_slots")) - 1:
+		return &"extract_denied_addon_overflow"
 	if not _within_core_hop(node, entity):
 		return &"extract_denied_not_adjacent"
 	var board := entity.stat_board

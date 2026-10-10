@@ -10,6 +10,10 @@ extends GutTest
 
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _GRAPH_SCENE := preload("res://graph/graph.tscn")
+const _ADDON_SCENES := [
+	preload("res://skill_node/addons/defs/bunker_addon.tscn"),
+	preload("res://skill_node/addons/defs/fortification_addon.tscn"),
+]
 
 var _graph: Graph
 var _alloc: AllocationSystem
@@ -140,6 +144,31 @@ func test_extract_no_dp() -> void:
 func test_extract_no_staked_sp() -> void:
 	_nodes[1].stake_level = 2
 	_assert_extract(_nodes[1], &"extract_denied_no_staked_sp")
+
+
+func _add_addons(node: SkillNode, count: int) -> void:
+	for i in count:
+		node.add_child(_ADDON_SCENES[i].instantiate())
+
+
+func test_extract_denied_when_addons_exceed_the_lowered_cap() -> void:
+	assert_true(_alloc.stake(_nodes[1], _player))  # 2 stake
+	_add_addons(_nodes[1], 2)
+	assert_eq(_nodes[1].get_addon_count(), 2)
+	_assert_extract(_nodes[1], &"extract_denied_addon_overflow")
+
+
+func test_extract_allowed_with_addons_within_the_lowered_cap() -> void:
+	assert_true(_alloc.stake(_nodes[1], _player))  # 2 stake
+	_add_addons(_nodes[1], 1)
+	_assert_extract(_nodes[1], &"")
+
+
+func test_extract_allowed_three_stake_two_addons() -> void:
+	assert_true(_alloc.stake(_nodes[1], _player))
+	assert_true(_alloc.stake(_nodes[1], _player))  # 3 stake
+	_add_addons(_nodes[1], 2)
+	_assert_extract(_nodes[1], &"")
 
 
 func test_extract_null_is_generic() -> void:
