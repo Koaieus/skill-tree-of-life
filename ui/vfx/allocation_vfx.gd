@@ -5,6 +5,7 @@ extends Node2D
 const ZLayers = preload("res://ui/z_layers.gd")
 const InnerDiskShatterField := preload("res://skill_node/visuals/inner_disk_shatter_field.tscn")
 const InnerDiskScript := preload("res://skill_node/visuals/inner_disk.gd")
+const NodeVisualsCompositeScript := preload("res://skill_node/visuals/node_visuals_composite.gd")
 
 ## Listens to AllocationSystem (allocate / dealloc) and BattleSystem
 ## (cascade_started) and spawns transient world-space effects:
@@ -284,6 +285,7 @@ func bind(_allocation_system: AllocationSystem, _battle_system: BattleSystem) ->
 		allocation_system.allocated.connect(_on_allocated)
 		allocation_system.deallocated.connect(_on_deallocated)
 		allocation_system.force_deallocated.connect(_on_force_deallocated)
+		_connect_channel_cue()
 	if _battle_system != null:
 		battle_system = _battle_system
 		# The pre-dealloc snapshot point AND where the ripple schedule is
@@ -295,7 +297,46 @@ func bind(_allocation_system: AllocationSystem, _battle_system: BattleSystem) ->
 		Events.blade_vertex_popped.connect(_on_blade_vertex_popped)
 
 
+## The channel cue is state, not a transient: idempotent across repeat binds.
+func _connect_channel_cue() -> void:
+	for sig: Signal in [allocation_system.channel_changed,
+			allocation_system.channel_progressed]:
+		if not sig.is_connected(_sync_channel_cue):
+			sig.connect(_sync_channel_cue)
+	if not allocation_system.channel_stepped.is_connected(_on_channel_stepped):
+		allocation_system.channel_stepped.connect(_on_channel_stepped)
+	if not allocation_system.channel_ended.is_connected(_on_channel_ended):
+		allocation_system.channel_ended.connect(_on_channel_ended)
+
+
 # --- Signal handlers ---------------------------------------------------------
+
+## Pushes [param node]'s live channel onto its rim cue. Every channel signal
+## fires after the node's channel fields settle (an ended channel already
+## reads direction 0), so one read covers them all. Not gated on [member muted]:
+## it mirrors state, it spawns nothing.
+func _sync_channel_cue(node: SkillNode) -> void:
+	if node == null or allocation_system == null:
+		return
+	var cue := node.node_visuals() as NodeVisualsCompositeScript
+	if cue == null:
+		return
+	cue.channel_direction = node.channel_direction()
+	cue.channel_fraction = allocation_system.channel_fraction(node)
+
+
+func _on_channel_stepped(node: SkillNode, _direction: int) -> void:
+	_sync_channel_cue(node)
+	if muted or node == null:
+		return
+	var cue := node.node_visuals() as NodeVisualsCompositeScript
+	if cue != null:
+		cue.flash_channel_step()
+
+
+func _on_channel_ended(node: SkillNode, _previous_owner: Entity, _reason: StringName) -> void:
+	_sync_channel_cue(node)
+
 
 func _on_allocated(node: SkillNode, entity: Entity, forced: bool) -> void:
 	if muted or node == null or entity == null:

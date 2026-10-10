@@ -203,7 +203,14 @@ func test_ready_and_compose_connect_every_cross_system_signal() -> void:
 		[Events, "entity_death_shown", root.victory_system, "_on_entity_death_shown"],
 		[Events, "skill_node_depleted", root.battle_system, "_on_node_depleted"],
 		[Events, "entity_dying", root.battle_system, "_on_entity_dying"],
+		# AllocationVFX.bind: the channel rim cue
+		[root.allocation_system, "channel_changed", root.allocation_vfx, "_sync_channel_cue"],
+		[root.allocation_system, "channel_progressed", root.allocation_vfx, "_sync_channel_cue"],
+		[root.allocation_system, "channel_stepped", root.allocation_vfx, "_on_channel_stepped"],
+		[root.allocation_system, "channel_ended", root.allocation_vfx, "_on_channel_ended"],
 	]
+	assert_eq(hud.tooltip_fan.allocation_system, root.allocation_system,
+			"compose hands the fan the AllocationSystem its NodeStatsPanel reads K from")
 	for p: Array in pairs:
 		var emitter: Object = p[0]
 		var listener: Object = p[2]

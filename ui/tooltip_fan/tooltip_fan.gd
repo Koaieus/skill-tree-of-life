@@ -262,7 +262,13 @@ func _feed_keep_in(fan_instance: Node) -> void:
 ## box, unbounded height) and takes the node alone. The root is also never
 ## gated — it renders an explicit empty row instead of vanishing.
 func _bind_content(fan_instance: Node, node: SkillNode) -> void:
-	for n in fan_instance.find_children("*", "", true, false):
+	var nodes := fan_instance.find_children("*", "", true, false)
+	# Seeded before any bind: a unit precedes its panel in the walk, and the
+	# panel renders its channel row on bind.
+	for n in nodes:
+		if n is NodeStatsPanel:
+			(n as NodeStatsPanel).allocation_system = allocation_system
+	for n in nodes:
 		if n is FanUnit:
 			var unit := n as FanUnit
 			unit.bind(node, graph)

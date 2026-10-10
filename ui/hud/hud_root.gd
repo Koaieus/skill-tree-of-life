@@ -218,7 +218,7 @@ func bind_systems(
 
 	# The fan is hover-driven and renders for unowned nodes too, so it stays
 	# useful in a level with no player entity.
-	tooltip_fan.bind(graph)
+	tooltip_fan.bind(graph, allocation_system)
 	# The glow reads the input controller, not the player, and a level with no
 	# player entity simply never arms anything.
 	armed_mode_glow.bind(_input_ctl)

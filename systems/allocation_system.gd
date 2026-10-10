@@ -48,6 +48,9 @@ signal core_moved(entity: Entity, from_node: SkillNode, to_node: SkillNode)
 signal channel_changed(node: SkillNode)
 ## One channel step landed: `stake_level` moved by [param direction] (±1).
 signal channel_stepped(node: SkillNode, direction: int)
+## A channel tick advanced `channel_progress` without landing a step — upkeep
+## every peer reproduces, so it fires everywhere [signal channel_stepped] does.
+signal channel_progressed(node: SkillNode)
 ## A channel closed — exactly once per channel. [param reason] is `&"landed"`
 ## (target reached), `&"leash"`, `&"ownership"` or `&"cancelled"`;
 ## [param previous_owner] is the owner the channel ran for, set even when the
@@ -703,6 +706,7 @@ func advance_channels(entity: Entity) -> void:
 		var dir := node.channel_direction()
 		node.channel_progress += 1
 		if node.channel_progress < maxi(_channel_turns(dir), 1):
+			channel_progressed.emit(node)
 			continue
 		node.channel_progress = 0
 		_land_step(node, entity, dir)

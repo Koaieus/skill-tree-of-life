@@ -223,5 +223,6 @@ func build(p_graph: Graph, opts: Dictionary = {}) -> void:
 	floater_director = _FLOATER_DIRECTOR_SCENE.instantiate()
 	floater_director.name = "FloaterDirector"
 	floater_director.vision_system = null
+	floater_director.allocation_system = allocation_system
 	graph.add_child(floater_director)
 	floating_number_layer = floater_director.renderer
