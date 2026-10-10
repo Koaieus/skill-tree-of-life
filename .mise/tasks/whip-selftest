@@ -518,12 +518,22 @@ for verb in (("daemon", "status"), ("timer", "install"), ("launch", "lead-b")):
     code, out = run(*verb)
     check(f"{verb[0]} in tree mode refuses in one line", code != 0 and len(out.strip().splitlines()) == 1 and "tree" in out)
 code, out = run("relieve-me", me="feedface-0000")
+check("relieve-me in tree mode refuses (a tree lead has no session to key on)", code != 0 and "relieve --lead" in out and not sysc(base))
 code, out = run("done", "--lead", "lead-b", SHA, "1/1", me="feedface-0000")
 rep = open(state()["report_path"]).read() if state().get("report_path") else ""
 check("(e) done on the last train sets done and renders the report",
       code == 0 and state()["done"] is True and rep.startswith("# Whip report") and "needs owner #52" in rep and "linger" not in rep.splitlines()[2].lower())
-check("tree mode never touched systemd, linger or claude", not sysc(base))
 run("retire", "--force")
+run("start", "--tree", "--no-issue", me="feedface-0000"); run("next-train", "--lead", "lead-a", me="feedface-0000")
+code, out = run("stop")
+check("stop on a tree run sets stopped, queues no request, the lead keeps running to drain", code == 0 and state()["stopped"] and not state()["requests"]
+      and lead("lead-a")["state"] == "running")
+code, out = run("next-train", "--lead", "lead-b", me="feedface-0000")
+check("next-train after a stop hands out nothing", "lead-b" not in state()["leads"] and "stopped" in out)
+code, out = run("done", "--lead", "lead-a", SHA, "2/4", me="feedface-0000")
+check("the stopped tree run ends on its last done, report STOPPED", state()["done"] is True and "STOPPED" in open(state()["report_path"]).read().splitlines()[2])
+run("retire", "--force")
+check("tree mode never touched systemd, linger or claude (stop and retire included)", not sysc(base))
 
 # --- the fence held --------------------------------------------------------
 check("the only gh calls were answered by the fake, never posting", all(c.startswith("gh issue list") for c in calls if c.startswith("gh ")))

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-#MISE description="Whip v2, the overnight relay of swarms: ledger + verbs + zero-token watchdog. `mise run whip -- start [--cap H] [--max-leads N] [--stall-minutes M] | show | stop [--now] | note '…' | trains | train split|drop | max-leads N | launch <name> [--relief] | done <sha> <n/m> | relieve-me | needs-owner <n> '<line>' | done-check | report | retire [--force] | watchdog | daemon start|status|stop | timer install|uninstall`"
+#MISE description="Whip v2, the overnight relay of swarms: ledger + verbs + zero-token watchdog. `mise run whip -- start [--cap H] [--max-leads N] [--stall-minutes M] | show | stop [--now] | note '…' | trains | train split|drop | max-leads N | launch <name> [--relief] | done [--lead L] <sha> <n/m> | relieve-me | needs-owner [--lead L] <n> '<line>' | tree: start --tree [--tick-minutes 15..55] · next-train --lead L · relieve --lead L | done-check | report | retire [--force] | watchdog | daemon start|status|stop | timer install|uninstall`"
 """
 State for one overnight run lives in docs/handoffs/whip-<date>.json
 (gitignored); every write renders the human ledger whip-<date>.md next to
@@ -8,6 +8,14 @@ then the owner's console; leads pass the baton by verb (`done`,
 `relieve-me`, `needs-owner`, keyed on the caller's session id); the systemd
 user timer runs `watchdog` with no Claude session involved. Design:
 docs/charters/whip.md.
+
+Tree transport (`start --tree`, ledger `transport: tree`): one top session
+drives subagent leads, so the session process model below stays dormant —
+no daemon, timer, linger or `claude` process. The top takes trains with
+`next-train --lead <name>` and names the lead on `done`/`relieve`/
+`needs-owner --lead` (subagents share its session id); `watchdog`,
+`daemon`, `timer`, `launch` and `relieve-me` refuse. Design:
+docs/charters/swarm-train.md.
 
 Process model, in one paragraph: every lead is a `--bg` session, and a
 `--bg` session lives under whatever `claude daemon` is running — with none
@@ -97,6 +105,7 @@ def load(p):
     pend = st.get("pending")
     st["pending"] = [pend] if isinstance(pend, dict) else (pend or [])
     st.setdefault("requests", [])
+    st.setdefault("transport", "sessions")
     for t in st.get("trains", []): t.setdefault("reliefs", 0); t.setdefault("lead", None)
     return st
 
@@ -167,13 +176,27 @@ def capped(st):
     return time.time() - st["started_ts"] > st["cap_h"] * 3600
 
 
+def tree(st):
+    """Tree transport: the top session drives subagent leads; no daemon, timer, linger or `claude` process."""
+    return st.get("transport") == "tree"
+
+
+def refuse_in_tree(verb):
+    """One line, non-zero, when a live tree-transport ledger is on disk; silent otherwise."""
+    p = state_path()
+    if p:
+        st = load(p)
+        if tree(st) and not st.get("done"):
+            sys.exit(f"{verb}: refused — the live run is tree transport (the top session drives its leads; no daemon, timer or launch)")
+
+
 def train_of(st, name):
     return next((t for t in st["trains"] if t["name"] == name), None)
 
 
 def warnings(st):
     w = []
-    if st.get("linger") != "yes": w.append(f"linger: {st.get('linger') or '?'} (the timer and the fleet die at logout)")
+    if not tree(st) and st.get("linger") != "yes": w.append(f"linger: {st.get('linger') or '?'} (the timer and the fleet die at logout)")
     if st.get("stopped"): w.append(f"STOPPED by the owner {st['stopped'][-5:]}")
     if capped(st): w.append(f"CAPPED at {st['cap_h']}h")
     if st.get("gave_up"): w.append(f"GAVE UP: {st['gave_up']}")
@@ -189,7 +212,8 @@ def render(st):
           f"watchdog failures {st.get('failures', 0)}/{MAX_FAILURES}" if st.get("failures") else "watchdog ok")
     L = [f"# Whip {st['date']} — ledger (gitignored; relief and the watchdog read this)",
          f"Start: master `{st['start_sha'][:7]}` · run issue #{st.get('run_issue', '?')} · cap {st['cap_h']}h · "
-         f"leads ≤ {st.get('max_leads', 1)} · stall {st.get('stall_minutes', 45)} min · started {st['started']} · "
+         f"leads ≤ {st.get('max_leads', 1)} · stall {st.get('stall_minutes', 45)} min · "
+         f"{'tree · tick %s min · ' % st.get('tick_minutes') if tree(st) else ''}started {st['started']} · "
          f"{'DONE' if st.get('done') else 'live'} · {wd}" + "".join(f" · {w}" for w in warnings(st)),
          "", "## Trains", "| train | issues | lead | reliefs | state |", "|---|---|---|---|---|"]
     for t in st["trains"]:
@@ -415,7 +439,10 @@ def running_trains(st):
 
 
 def pass_baton(st):
-    """Queued trains launch under the ceiling — unless stopped or capped. Then: is the run over?"""
+    """Queued trains launch under the ceiling — unless stopped or capped. Then: is the run over?
+    Tree transport launches nothing: the top takes the next train with `next-train`."""
+    if tree(st):
+        maybe_end_run(st); return
     if not st.get("stopped") and not capped(st):
         for t in st["trains"]:
             if len(running_trains(st)) >= st.get("max_leads", 1): break
@@ -443,6 +470,12 @@ def request_relief(st, train, why):
     t["reliefs"] = t.get("reliefs", 0) + 1
     name = f"relief-{train}-{t['reliefs']}"
     t["outgoing"] = t.get("lead"); t["lead"] = name; t["state"] = "running"
+    if tree(st):  # the top spawns the relief subagent; the ledger only records it
+        out = st["leads"].get(t["outgoing"])
+        if out and out["state"] == "running": out["state"] = "relieved"
+        tree_lead(st, name, train, relief=True)
+        event(st, f"relief {name} recorded for the top to spawn: {why}")
+        return True
     request(st, kind="launch", name=name, train=train, relief=True)
     event(st, f"relief {name} requested: {why}")
     return True
@@ -468,11 +501,33 @@ def end_run(st):
     write_report(st)
 
 
+def tree_lead(st, name, train, relief=False):
+    """A tree lead's row: no session of its own (every subagent shares the top's id)."""
+    st["leads"][name] = {"session": "", "kind": "relief" if relief else "lead", "train": train, "launched": now(),
+                         "launched_ts": time.time(), "last_ts": time.time(), "state": "running", "verified": True}
+    save(st)
+
+
+def named_lead(st, a, verb):
+    """Tree transport: the top names the lead (`--lead`); session mode keys on the caller's session."""
+    if not tree(st):
+        if getattr(a, "lead", None):
+            sys.exit(f"{verb}: --lead is tree transport only — this run's leads are sessions; run it from the lead's session")
+        return need_caller(st, verb)
+    if not getattr(a, "lead", None):
+        sys.exit(f"{verb}: usage — tree transport: `whip -- {verb} --lead <name> …` (the top names the lead)")
+    l = st["leads"].get(a.lead)
+    if not l or l["state"] != "running":
+        sys.exit(f"{verb}: {a.lead} is no running lead in the ledger ({l['state'] if l else 'unknown'})")
+    l["last_ts"] = time.time()
+    return a.lead, l
+
+
 def caller_lead(st):
     me = os.environ.get("CLAUDE_CODE_SESSION_ID", "")
     if not me: return None, None
     for name, l in st["leads"].items():
-        if l["session"].startswith(me) or me.startswith(l["session"]):
+        if l["session"] and (l["session"].startswith(me) or me.startswith(l["session"])):
             return name, l
     return None, None
 
@@ -527,25 +582,33 @@ def cmd_start(a):
             sys.exit(f"a LIVE run is on disk: {p} (started {old.get('started')}). A start would inherit its trains and stale "
                      "Ready set. `mise run whip -- show` to see it; `mise run whip -- retire --force` to archive it, then start again.")
         print(f"previous run {p} was done — retired to {retire_ledger(old, 'start of a new run')}")
-    import pwd
-    user = pwd.getpwuid(os.getuid()).pw_name
-    linger = sh(f"loginctl show-user {user} -p Linger").strip().replace("Linger=", "")
-    if linger != "yes":
-        sh("loginctl enable-linger")
-        linger = sh(f"loginctl show-user {user} -p Linger").strip().replace("Linger=", "") or "?"
-    daemon = ensure_daemon()
-    timer_install(a.every)
+    if a.tree:
+        linger, daemon = None, False
+    else:
+        import pwd
+        user = pwd.getpwuid(os.getuid()).pw_name
+        linger = sh(f"loginctl show-user {user} -p Linger").strip().replace("Linger=", "")
+        if linger != "yes":
+            sh("loginctl enable-linger")
+            linger = sh(f"loginctl show-user {user} -p Linger").strip().replace("Linger=", "") or "?"
+        daemon = ensure_daemon()
+        timer_install(a.every)
     ready = ready_issues()
     sha = sh("git rev-parse master", cwd=ROOT).strip()
     st = {"_path": p, "date": time.strftime("%Y-%m-%d"), "started": now(), "started_ts": time.time(),
           "cap_h": a.cap, "max_leads": a.max_leads, "stall_minutes": a.stall_minutes, "start_sha": sha,
           "ready": [i["number"] for i in ready], "ready_titles": {str(i["number"]): i["title"] for i in ready},
           "trains": [], "leads": {}, "notes": [], "events": [], "dropped": [], "done": False, "pending": [], "requests": [],
-          "failures": 0, "gave_up": None, "stopped": None, "linger": linger, "console": os.environ.get("CLAUDE_CODE_SESSION_ID", "")}
+          "failures": 0, "gave_up": None, "stopped": None, "linger": linger, "console": os.environ.get("CLAUDE_CODE_SESSION_ID", ""),
+          "transport": "tree" if a.tree else "sessions"}
+    if a.tree: st["tick_minutes"] = a.tick_minutes
     save(st)
-    event(st, f"start: {len(ready)} Ready, master {sha[:7]}, cap {a.cap}h, leads ≤ {a.max_leads}, stall {a.stall_minutes} min, "
+    if a.tree:
+        event(st, f"start (tree): {len(ready)} Ready, master {sha[:7]}, cap {a.cap}h, stall {a.stall_minutes} min, tick {a.tick_minutes} min")
+    else:
+        event(st, f"start: {len(ready)} Ready, master {sha[:7]}, cap {a.cap}h, leads ≤ {a.max_leads}, stall {a.stall_minutes} min, "
               f"daemon {DAEMON_UNIT} {'up' if daemon else 'NOT up (launches deferred to the tick)'}, timer every {a.every} min, linger {linger}")
-    if linger != "yes": event(st, f"warning: Linger={linger} and `loginctl enable-linger` did not fix it — the timer and the fleet die at logout")
+    if not a.tree and linger != "yes": event(st, f"warning: Linger={linger} and `loginctl enable-linger` did not fix it — the timer and the fleet die at logout")
     compute_trains(st, a.size)
     if not a.no_issue:
         body = f"Overnight run started {st['started']} from master `{sha[:7]}` over {len(ready)} Ready issues: " + \
@@ -553,6 +616,9 @@ def cmd_start(a):
         out = sh(["gh", "issue", "create", "--title", f"Whip run {st['date']}", "--body", body, "--label", "tech-debt"])
         m = re.search(r"/issues/(\d+)", out)
         st["run_issue"] = int(m.group(1)) if m else None; save(st)
+    if a.tree:
+        print(f"tree run started: {len(st['trains'])} train(s), tick {a.tick_minutes} min — `mise run whip -- next-train --lead lead-<t>` takes the next")
+        print(); print(open(p[:-5] + ".md").read()); return
     pass_baton(st)
     kick_watchdog()
     st = current()
@@ -565,6 +631,26 @@ def cmd_start(a):
     print(f"  launched now: {' '.join(launched) or 'none'}" + (f" · left for the next tick: {' '.join(waiting)}" if waiting else ""))
     print()
     print(open(p[:-5] + ".md").read())
+
+
+def cmd_next_train(a):
+    """Tree transport: the next queued train, marked running under the lead the top names. Order is the tool's."""
+    st = current()
+    if not tree(st):
+        sys.exit("next-train: tree transport only — a sessions run passes the baton itself on `done`")
+    if st.get("done"):
+        print("no next train: the run is done"); return
+    if st.get("stopped") or capped(st):
+        print(f"no next train: {'the owner stopped the run' if st.get('stopped') else 'past the %sh cap' % st['cap_h']}"); maybe_end_run(st); return
+    if a.lead in st["leads"]:
+        sys.exit(f"next-train: {a.lead} is already in the ledger ({st['leads'][a.lead]['state']}) — name a fresh lead")
+    t = next((t for t in st["trains"] if t.get("state") == "queued"), None)
+    if not t:
+        print("no next train: nothing queued"); return
+    t["state"] = "running"; t["lead"] = a.lead
+    tree_lead(st, a.lead, t["name"])
+    event(st, f"train {t['name']} → {a.lead} (tree)")
+    print(f"train {t['name']}: {' '.join('#%d' % n for n in t['issues'])} · lead {a.lead}")
 
 
 def cmd_trains(a):
@@ -592,6 +678,7 @@ def cmd_train(a):
 
 def cmd_launch(a):
     """The owner's manual launch (`lead-<t>` or `relief-<t>-<k>`); the relay's own launches go through done/relieve-me."""
+    refuse_in_tree("launch")
     st = current()
     if capped(st):
         event(st, f"launch {a.name} REFUSED: past the {st['cap_h']}h cap"); sys.exit(f"past the {st['cap_h']}h cap — nothing launches")
@@ -633,13 +720,13 @@ def cmd_stop(a):
     if st.get("done"): print("the run is already done"); return
     st["stopped"] = st.get("stopped") or now(); save(st)
     event(st, "owner stop" + (" --now" if a.now else "") + ": nothing launches from here on" + ("" if a.now else "; running leads drain"))
-    for name, l in st["leads"].items():
+    for name, l in ([] if tree(st) else st["leads"].items()):  # tree: the top reads `stopped` at its next tick
         if l["state"] == "running":
             if a.now:
                 request(st, kind="stop", name=name, session=l["session"], action="owner stop --now")
             else:
                 request(st, kind="prompt", name=name, session=l["session"], prompt=STOP_PROMPT, action=f"owner stop prompt for {name}")
-    kick_watchdog()
+    if not tree(st): kick_watchdog()
     st = current()
     if a.now and not st.get("done"):
         for l in st["leads"].values():
@@ -658,20 +745,27 @@ def cmd_retire(a):
     if not st.get("done") and not a.force:
         sys.exit(f"{p} is a LIVE run (started {st.get('started')}, not reported). `mise run whip -- report` first, "
                  "or `retire --force` to archive it as it stands.")
-    timer_uninstall()
+    if not tree(st): timer_uninstall()
     print(f"retired to {retire_ledger(st, 'retire' + (' --force' if a.force else ''))}")
 
 
 # ---------------------------------------------------------------- verbs: the relay (run by a lead)
 def cmd_done(a):
     st = current()
-    name, l = need_caller(st, "done")
+    name, l = named_lead(st, a, "done")
     t = train_of(st, l.get("train"))
     l["state"] = "done"; l["last"] = f"DONE {a.sha[:7]} {a.landed}"
     if t and t.get("lead") == name: t["state"] = f"done {a.sha[:7]} {a.landed}"
     save(st); event(st, f"{name} DONE {a.sha[:7]} {a.landed}")
     n0 = len(st["events"])
     pass_baton(st)
+    if tree(st):
+        st = current()
+        print("\n".join(st["events"][n0:]))
+        left = [t["name"] for t in st["trains"] if t.get("state") == "queued"]
+        print(f"DONE recorded for {name}" + (" — the run is over, the report is rendered" if st.get("done") else
+              f" — queued: {' '.join(left)} (`next-train --lead …`)" if left else " — nothing queued; the run ends with the last running lead"))
+        return
     kick_watchdog()
     st = current()
     if not st.get("done"): maybe_end_run(st); st = current()
@@ -681,6 +775,8 @@ def cmd_done(a):
 
 def cmd_relieve_me(a):
     st = current()
+    if tree(st):
+        sys.exit("relieve-me: tree transport — the top runs `whip -- relieve --lead <name>`")
     name, l = need_caller(st, "relieve-me")
     ok = request_relief(st, l.get("train"), f"{name} asked for relief")
     kick_watchdog()
@@ -694,9 +790,24 @@ def cmd_relieve_me(a):
         sys.exit(f"no relief: train {l.get('train')} is {t.get('state')} — end your turn and do nothing more")
 
 
+def cmd_relieve(a):
+    """Tree transport: record a relief for the named lead's train; the top spawns it. Launches nothing."""
+    st = current()
+    if not tree(st):
+        sys.exit("relieve: tree transport only — a sessions lead runs `relieve-me` from its own session")
+    name, l = named_lead(st, a, "relieve")
+    ok = request_relief(st, l.get("train"), f"top relieves {name}")
+    st = current(); t = train_of(st, l.get("train")) or {}
+    if not ok:
+        sys.exit(f"no relief: train {l.get('train')} is {t.get('state')}")
+    sid = (st.get("console") or "")[:8]
+    adopt = f"mise run ledger -- adopt --from {sid}" if sid else "mise run ledger -- adopt"
+    print(f"relief {t['lead']} recorded for train {t['name']} (relieving {name}) — spawn it; it joins the ledger with `{adopt}`")
+
+
 def cmd_needs_owner(a):
     st = current()
-    name, l = need_caller(st, "needs-owner")
+    name, l = named_lead(st, a, "needs-owner")
     st["notes"].append(f"{now()} needs owner #{a.n} (train {l.get('train')}, {name}): {a.line}")
     save(st); event(st, f"{name}: needs owner #{a.n} — {a.line[:80]}")
     print("noted for the morning — keep going")
@@ -741,7 +852,7 @@ def collapse(lines):
 
 
 def write_report(st):
-    torn = timer_uninstall()
+    torn = [] if tree(st) else timer_uninstall()
     rem = set(remaining_ready(st)); start = st["start_sha"]; dropped = st.get("dropped", [])
     log = sh(f"git log --oneline {start}..master", cwd=ROOT).strip().splitlines()
     closes = {int(n) for n in re.findall(r"[Cc]loses #(\d+)", sh(f"git log {start}..master", cwd=ROOT))}
@@ -768,8 +879,9 @@ def write_report(st):
         ["", f"## Filed since start ({since})", filed or "- none", "", "## Needs the owner"] + ([f"- {o}" for o in owner] or ["- none"]) + \
         ["", "## Incidents"] + ([f"- {e}" for e in inc] or ["- none"]) + \
         ["", "## Cost (agent-cost, latest 20)", "```"] + cost + ["```", "",
-         f"Torn down: {', '.join(torn) if torn else 'nothing (the timer units were already gone)'}. The daemon unit {DAEMON_UNIT} stays up; "
-         f"`systemctl --user stop {DAEMON_UNIT}` is the owner's."]
+         ("Tree transport: no daemon, timer or session was ever started; nothing to tear down." if tree(st) else
+          f"Torn down: {', '.join(torn) if torn else 'nothing (the timer units were already gone)'}. The daemon unit {DAEMON_UNIT} stays up; "
+          f"`systemctl --user stop {DAEMON_UNIT}` is the owner's.")]
     out = os.path.join(HDIR, f"whip-report-{st['date']}.md")
     if os.path.exists(out) and st.get("report_path") != out:  # another run's report of this date: never overwrite it
         out = os.path.join(HDIR, f"whip-report-{st['date']}-{time.strftime('%H%M', time.localtime(st['started_ts']))}.md")
@@ -904,6 +1016,7 @@ def tick():
 
 
 def cmd_watchdog(a):
+    refuse_in_tree("watchdog")
     tick()
 
 
@@ -946,6 +1059,7 @@ def timer_uninstall():
 
 
 def cmd_timer(a):
+    refuse_in_tree("timer")
     if a.action != "install":
         print("removed: " + (" ".join(timer_uninstall()) or "nothing")); return
     timer_install(a.every)
@@ -958,6 +1072,7 @@ def cmd_timer(a):
 
 
 def cmd_daemon(a):
+    refuse_in_tree("daemon")
     if a.action == "start":
         print(f"{DAEMON_UNIT}: {'active' if ensure_daemon() else 'FAILED to start'}")
     elif a.action == "stop":
@@ -967,6 +1082,13 @@ def cmd_daemon(a):
         print(sh("claude daemon status").strip())
 
 
+def tick_minutes(v):
+    n = int(v)
+    if not 15 <= n <= 55:
+        raise argparse.ArgumentTypeError(f"{n} is outside [15, 55] — the tick must land inside the one-hour prompt-cache lifetime")
+    return n
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sp = ap.add_subparsers(dest="cmd", required=True)
@@ -974,16 +1096,22 @@ def main():
     s.add_argument("--cap", type=float, default=15); s.add_argument("--max-leads", type=int, default=1)
     s.add_argument("--stall-minutes", type=int, default=45, help="disk silence that counts as a stall")
     s.add_argument("--every", type=int, default=10); s.add_argument("--size", type=int, default=4, help="max singletons per train")
-    s.add_argument("--no-issue", action="store_true"); s.set_defaults(f=cmd_start)
+    s.add_argument("--no-issue", action="store_true")
+    s.add_argument("--tree", action="store_true", help="tree transport: snapshot, trains, run issue, ledger — no daemon, timer, linger or launch")
+    s.add_argument("--tick-minutes", type=tick_minutes, default=45, help="tree: the top's tick interval, [15, 55] (inside the prompt-cache hour)")
+    s.set_defaults(f=cmd_start)
+    s = sp.add_parser("next-train", help="(tree top) mark the next queued train running under --lead and print its issues")
+    s.add_argument("--lead", required=True); s.set_defaults(f=cmd_next_train)
     s = sp.add_parser("stop", help="the owner's stop: nothing launches; leads drain (--now: leads stopped, report now)"); s.add_argument("--now", action="store_true"); s.set_defaults(f=cmd_stop)
     s = sp.add_parser("retire", help="archive the run on disk into handoffs/archive/ so the next start begins clean"); s.add_argument("--force", action="store_true", help="archive a live, unreported run"); s.set_defaults(f=cmd_retire)
     s = sp.add_parser("trains"); s.add_argument("--redo", action="store_true"); s.add_argument("--size", type=int, default=4); s.set_defaults(f=cmd_trains)
     s = sp.add_parser("train"); s.add_argument("verb", choices=["split", "drop"]); s.add_argument("train"); s.add_argument("arg", help="split: index · drop: issue number"); s.set_defaults(f=cmd_train)
     s = sp.add_parser("launch", help="owner's manual launch of lead-<t> (or relief-<t>-<k> with --relief)"); s.add_argument("name"); s.add_argument("--relief", action="store_true"); s.set_defaults(f=cmd_launch)
     s = sp.add_parser("max-leads"); s.add_argument("n", type=int); s.set_defaults(f=cmd_max_leads)
-    s = sp.add_parser("done", help="(lead) train landed: records, passes the baton or ends the run"); s.add_argument("sha"); s.add_argument("landed"); s.set_defaults(f=cmd_done)
+    s = sp.add_parser("done", help="(lead) train landed: records, passes the baton or ends the run"); s.add_argument("--lead"); s.add_argument("sha"); s.add_argument("landed"); s.set_defaults(f=cmd_done)
     sp.add_parser("relieve-me", help="(lead) launches your relief").set_defaults(f=cmd_relieve_me)
-    s = sp.add_parser("needs-owner", help="(lead) after a Needs design move"); s.add_argument("n", type=int); s.add_argument("line"); s.set_defaults(f=cmd_needs_owner)
+    s = sp.add_parser("relieve", help="(tree top) record a relief for --lead's train; launches nothing"); s.add_argument("--lead"); s.set_defaults(f=cmd_relieve)
+    s = sp.add_parser("needs-owner", help="(lead) after a Needs design move"); s.add_argument("--lead"); s.add_argument("n", type=int); s.add_argument("line"); s.set_defaults(f=cmd_needs_owner)
     s = sp.add_parser("note"); s.add_argument("text"); s.set_defaults(f=cmd_note)
     sp.add_parser("show").set_defaults(f=cmd_show)
     sp.add_parser("done-check").set_defaults(f=cmd_done_check)
