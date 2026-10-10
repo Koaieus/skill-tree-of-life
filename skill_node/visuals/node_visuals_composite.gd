@@ -152,6 +152,78 @@ var _applied_a_shape: bool = false
 	%InnerDisk, %RimRing, _core_presence, _core_sigil_bloom, %SensedOutline,
 ]
 
+## Channel cue: the rim breathes while the node channels — brightening
+## toward [member channel_pulse_tier] when staking, draining toward
+## [member channel_drain_tint] when extracting, deeper as the step nears.
+## Rides the RimRing's own `modulate` (batching-safe, outside this node's
+## [method _apply_modulate] chain). Pushed by whoever holds the
+## [AllocationSystem]: `SkillNode.channel_direction()` here, never re-derived.
+## Set it in the inspector to preview. 0 = idle, no per-frame cost.
+@export_range(-1, 1, 1) var channel_direction: int = 0:
+	set(value):
+		channel_direction = clampi(value, -1, 1)
+		_update_channel_processing()
+
+## [method AllocationSystem.channel_fraction] — progress toward the next step,
+## scaling the pulse depth from [member channel_pulse_floor] up to full.
+@export_range(0.0, 1.0, 0.01) var channel_fraction: float = 0.0:
+	set(value):
+		channel_fraction = clampf(value, 0.0, 1.0)
+
+## Seconds per breath. Tentative.
+@export_range(0.2, 5.0, 0.05) var channel_pulse_period: float = 1.4
+## Pulse depth at fraction 0 (a fresh channel still reads). Tentative.
+@export_range(0.0, 1.0, 0.01) var channel_pulse_floor: float = 0.35
+## How bright a staking rim breathes at full depth (named HDR tier).
+@export var channel_pulse_tier: Emissive.Tier = Emissive.Tier.VALUE
+## What an extracting rim drains toward at full depth. Tentative.
+@export var channel_drain_tint: Color = Color(0.45, 0.45, 0.5)
+## The one-shot flash a landed step fires ([method flash_channel_step]).
+@export var channel_step_tier: Emissive.Tier = Emissive.Tier.ALERT
+## Seconds the step flash takes to decay. Tentative.
+@export_range(0.05, 2.0, 0.01) var channel_step_flash_s: float = 0.4
+
+var _channel_flash: float = 0.0
+
+
+## A channel step just landed: flash the rim once. Composes with the pulse.
+func flash_channel_step() -> void:
+	_channel_flash = 1.0
+	_update_channel_processing()
+
+
+func _update_channel_processing() -> void:
+	var active := channel_direction != 0 or _channel_flash > 0.0
+	if active == _animating:
+		return
+	set_animating(active)
+	if not active:
+		anim_time = 0.0
+		if _rim_ring != null:
+			_rim_ring.modulate = Color.WHITE
+
+
+## One tick of the shared [member anim_time] clock: the rim's modulate, no
+## redraw (the composite draws nothing itself).
+func _on_anim_tick() -> void:
+	var delta := get_process_delta_time()
+	_channel_flash = maxf(_channel_flash - delta / maxf(channel_step_flash_s, 0.01), 0.0)
+	if _rim_ring == null:
+		return
+	var tint := Color.WHITE
+	if channel_direction != 0:
+		var wave := 0.5 - 0.5 * cos(TAU * anim_time / maxf(channel_pulse_period, 0.01))
+		var depth := lerpf(channel_pulse_floor, 1.0, channel_fraction) * wave
+		var peak := Emissive.at(Color.WHITE, Emissive.stops(channel_pulse_tier)) \
+				if channel_direction > 0 else channel_drain_tint
+		tint = Color.WHITE.lerp(peak, depth)
+	if _channel_flash > 0.0:
+		tint = tint.lerp(Emissive.at(Color.WHITE, Emissive.stops(channel_step_tier)), _channel_flash)
+	_rim_ring.modulate = tint
+	if channel_direction == 0 and _channel_flash <= 0.0:
+		_update_channel_processing()
+
+
 ## Sensed-but-not-visible: the node reads as an archetype-only outline
 ## ([SensedOutline]) with the full shader stack hidden — a real display state on
 ## the composite, not "hide everything and let a legacy renderer stand in" (the
