@@ -141,6 +141,7 @@ var _link_end_presented: bool = false
 @onready var edge_highlight: EdgeHighlightOverlay = %EdgeHighlightOverlay
 @onready var attack_vfx: AttackVFX = %AttackVFX
 @onready var allocation_vfx: AllocationVFX = %AllocationVFX
+@onready var channel_lasso_director: ChannelLassoDirector = %ChannelLassoDirector
 @onready var melee_preview: MeleePreview = %MeleePreview
 
 
@@ -180,6 +181,10 @@ func _ready() -> void:
 	# [method EntityFactory.spawn_snapshot_entity]. Set here, before any link
 	# can be up, because the first thing a joining client does with its link is ask for that world.
 	world_sync.entity_spawner = entity_factory.spawn_snapshot_entity
+	# A resync adopts channels without replaying their started signal: the
+	# lasso set reconciles against the adopted world.
+	channel_lasso_director.initialize()
+	world_sync.resync_applied.connect(channel_lasso_director.rebuild)
 	# The session owns the wire's lifecycle; the root keeps the presentation of
 	# each event (#1004). The world-arrived hook re-runs `_ensure_controllers`
 	# for entities the resync brought with it — idempotent and cheap.

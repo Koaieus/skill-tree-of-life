@@ -87,6 +87,7 @@ const _EXPORT_DEPS: Array = [
 	["Graph/NodeHighlightOverlay", "graph"],
 	["Graph/AllocationVFX", "allocation_system"],
 	["Graph/AllocationVFX", "battle_system"],
+	["Graph/ChannelLassoDirector", "allocation_system"],
 	["Graph/MeleePreview", "battle_system"],
 	["Graph/MeleePreview", "armed_stack"],
 	["CommandChannel", "command_applier"],
@@ -172,6 +173,8 @@ func test_ready_and_compose_connect_every_cross_system_signal() -> void:
 		[root.network_session, "peer_left", root.seat_handover, "_on_seat_vacated"],
 		# NetworkSession._ready
 		[root.world_sync, "resync_applied", root.network_session, "_on_resync_applied"],
+		# GameRoot._ready: the lasso set reconciles on a resync
+		[root.world_sync, "resync_applied", root.channel_lasso_director, "rebuild"],
 		[root.network_link, "link_refused", root.network_session, "_on_refused_by_host"],
 		[Events, "entity_died", root, "_on_entity_died"],
 		[Events, "entity_death_shown", root, "_on_entity_death_shown"],

@@ -45,6 +45,7 @@
 [ext_resource type="Resource" path="res://ui/indicator/themes/ranged.tres" id="31_theme_ranged"]
 [ext_resource type="Resource" path="res://ui/indicator/themes/magic.tres" id="31_theme_magic"]
 [ext_resource type="Resource" path="res://ui/indicator/themes/core_move.tres" id="31_theme_core_move"]
+[ext_resource type="PackedScene" path="res://ui/vfx/channel_lasso/channel_lasso_director.tscn" id="32_lasso_dir"]
 
 [node name="GameRoot" type="Node2D" unique_id=599287172]
 script = ExtResource("1_root")
@@ -230,6 +231,12 @@ script = ExtResource("16_k6861")
 allocation_system = NodePath("../../Systems/AllocationSystem")
 battle_system = NodePath("../../Systems/BattleSystem")
 metadata/_custom_type_script = "uid://db27minejvsw1"
+
+[node name="ChannelLassoDirector" parent="Graph" node_paths=PackedStringArray("allocation_system") instance=ExtResource("32_lasso_dir")]
+unique_name_in_owner = true
+z_index = 2000
+z_as_relative = false
+allocation_system = NodePath("../../Systems/AllocationSystem")
 
 [node name="MeleePreview" type="Node2D" parent="Graph" unique_id=813121593 node_paths=PackedStringArray("battle_system", "armed_stack")]
 unique_name_in_owner = true
