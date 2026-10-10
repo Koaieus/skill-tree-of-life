@@ -116,6 +116,9 @@ func _build(presented: bool) -> Dictionary:
 		add_child(presenter)
 		bs.stage = presenter
 		result_presenter = presenter
+	# Both worlds on the fast tempo, so the stage stays the only variable:
+	# melee's live swing is a real tween `instant_mutation` does not shorten.
+	FastPresentation.on_battle_system(bs)
 
 	var layers: Array = []
 	bs.cascade_started.connect(func(ls: Array, _d: Entity) -> void:
@@ -154,7 +157,7 @@ func _arm(ctx: Dictionary, mode: BattleSystem.AttackMode) -> void:
 
 
 ## Launch and wait for release, capped in seconds: melee's live swing is a real
-## tween that `instant_mutation` does not shorten.
+## tween that `instant_mutation` does not shorten (it runs at FastPresentation's rate).
 func _launch(ctx: Dictionary, mode: BattleSystem.AttackMode) -> bool:
 	_arm(ctx, mode)
 	var bs: BattleSystem = ctx.bs

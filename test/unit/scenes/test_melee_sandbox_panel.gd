@@ -101,6 +101,8 @@ func test_a_launched_swing_damages_the_quarry() -> void:
 	# Instant mutation: this test reads the world on the next line, not on the
 	# presentation clock (that is what the flag exists for).
 	battle.instant_mutation = true
+	# Outcome only: the swing it holds the release for plays on the fast tempo.
+	FastPresentation.on_battle_system(battle)
 	# The panel tops the quarry up as it is hit ("spam the same swing at the same
 	# board"), which would hide the very damage this test is looking for.
 	_panel._topup_toggle.button_pressed = false

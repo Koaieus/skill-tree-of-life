@@ -21,6 +21,7 @@ var _ap: PoolStat
 func before_each() -> void:
 	_root = _SANDBOX.instantiate()
 	add_child_autofree(_root)
+	FastPresentation.on_root(_root)
 	for _i in 60:
 		await wait_physics_frames(1)
 		if _root.turn_manager.current_entity != null:

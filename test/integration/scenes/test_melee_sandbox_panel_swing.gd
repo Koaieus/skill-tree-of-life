@@ -18,6 +18,7 @@ func before_each() -> void:
 	# process-disabled — which takes its Area2Ds out of the physics broadphase,
 	# so no swing could hit anything. Waking it is a prerequisite here.
 	_panel.set_live(true)
+	FastPresentation.on_battle_system(_panel._battle)
 	# Two physics frames: melee hit detection is a physics-server sweep
 	# (BladeHitScan), so the world's Area2Ds must be in the broadphase first.
 	await get_tree().physics_frame
