@@ -535,7 +535,13 @@ func _sweep_mass_allocate() -> void:
 
 
 ## Self-contained on Red's own core — no topology dependency, so it never
-## competes with the other steps for a scarce frontier node.
+## competes with the other steps for a scarce frontier node. A stake or an
+## extract is a PLEDGE: it opens a channel and the cap moves on later turns as
+## reproduced upkeep, so this step never expects a cap change. Per sweep: report
+## the channel the previous sweep left open (it ticked across the turn), then
+## cancel it, stake, cancel, extract (and cancel that), and finally re-stake and
+## leave the channel open for the next turn's upkeep and the leash probe in
+## [method _sweep_move_core].
 func _sweep_stake_and_extract() -> void:
 	var core := _red.core_location
 	if core == null:
@@ -543,13 +549,25 @@ func _sweep_stake_and_extract() -> void:
 		_write_log("autopilot: extract SKIPPED — no core_location")
 		return
 	var core_id := graph.get_stable_id(core)
+	if core.is_channelling():
+		_write_log("autopilot: channel carried over on %s — target %d, progress %d, cap %d"
+				% [core.name, core.channel_target, core.channel_progress, core.stake_level])
+		await _submit_cancel(core_id)
 	var staked := await _submit_and_wait(StakeCommand.new(_red.entity_id, core_id))
 	_write_log("autopilot: stake %s" % ("OK" if staked else "SKIPPED — command refused"))
-	if not staked:
-		_write_log("autopilot: extract SKIPPED — nothing was staked")
-		return
+	if staked:
+		await _submit_cancel(core_id)
 	var extracted := await _submit_and_wait(ExtractCommand.new(_red.entity_id, core_id))
 	_write_log("autopilot: extract %s" % ("OK" if extracted else "SKIPPED — command refused"))
+	if extracted:
+		await _submit_cancel(core_id)
+	var restaked := await _submit_and_wait(StakeCommand.new(_red.entity_id, core_id))
+	_write_log("autopilot: re-stake %s" % ("OK — channel left open" if restaked else "SKIPPED — command refused"))
+
+
+func _submit_cancel(node_id: int) -> void:
+	var ok := await _submit_and_wait(CancelChannelCommand.new(_red.entity_id, node_id))
+	_write_log("autopilot: cancel_channel %s" % ("OK" if ok else "SKIPPED — command refused"))
 
 
 func _owned_non_core_nodes() -> Array[SkillNode]:
@@ -599,11 +617,17 @@ func _sweep_move_core() -> void:
 	if core == null:
 		_write_log("autopilot: move_core SKIPPED — no core_location")
 		return
+	# The leash probe: land as far as one hop allows from the channel the stake
+	# step left open on the old core, so an arrival past `stake_leash_px()`
+	# aborts it on both peers (whether one hop gets there is the map's call).
+	var channel: SkillNode = core if core.is_channelling() else null
 	var target: SkillNode = null
 	for neighbour in graph.get_neighbours(core):
-		if allocation_system.can_move_core(_red, neighbour):
+		if not allocation_system.can_move_core(_red, neighbour):
+			continue
+		if target == null or (channel != null
+				and _dist(neighbour, channel) > _dist(target, channel)):
 			target = neighbour
-			break
 	if target == null:
 		_write_log("autopilot: move_core SKIPPED — no legal adjacent landing")
 		return
@@ -611,6 +635,14 @@ func _sweep_move_core() -> void:
 	var ok := await _submit_and_wait(
 			MoveCoreCommand.new(_red.entity_id, [graph.get_stable_id(target)] as Array[int]))
 	_write_log("autopilot: move_core %s" % ("OK" if ok else "SKIPPED — command refused"))
+	if ok and channel != null:
+		_write_log("autopilot: leash probe — %.0f px from the channel, leash %.0f px, channel %s"
+				% [_dist(target, channel), allocation_system.stake_leash_px(),
+				"ABORTED" if not channel.is_channelling() else "held"])
+
+
+func _dist(a: SkillNode, b: SkillNode) -> float:
+	return a.global_position.distance_to(b.global_position)
 
 
 ## Magic (#511): needs no per-node `range` stat and no physics arc to
