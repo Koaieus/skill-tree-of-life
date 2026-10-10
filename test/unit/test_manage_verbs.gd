@@ -10,13 +10,15 @@ const _EDGE_SCENE := preload("res://graph/edge.tscn")
 ## In-memory graph: a 4-node line A–B–C–D. Player owns A (core) and B (1 hop,
 ## stakeable/extractable target) via AllocationSystem.force_allocate — unlike
 ## test_intent_dispatch's direct `owned_by` writes, this also mirrors into
-## EntityNavigator, which _core_within_one_hop needs. C is owned but 2 hops
-## from the core (not-adjacent denial target). D stays unowned (not-owned
-## denial target).
+## EntityNavigator. Nodes sit 0.6 × stake reach apart: C is owned but beyond
+## the core's Euclidean reach (not-adjacent denial target). D stays unowned
+## (not-owned denial target). Stake / extract open channels; a fixture that
+## needs a landed cap ticks them with advance_channels.
 
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _BOARD := preload("res://entity/default_entity_board.tres")
 const _GRAPH_SCENE := preload("res://graph/graph.tscn")
+const _REACH := 250.0
 
 var _graph: Graph
 var _alloc: AllocationSystem
@@ -48,8 +50,11 @@ func before_each() -> void:
 	_add_edge(_nodes[1], _nodes[2])  # B–C
 	_add_edge(_nodes[2], _nodes[3])  # C–D
 
+	for i in _nodes.size():
+		_nodes[i].position = Vector2(0.6 * _REACH * i, 0)
 	_alloc = AllocationSystem.new()
 	_alloc.graph = _graph
+	_alloc.stake_reach_px = _REACH
 	add_child_autofree(_alloc)
 
 	_battle = autofree(BattleSystem.new())
@@ -119,6 +124,13 @@ func _on_denied(node: SkillNode, reason: String) -> void:
 	_denials.append([node, reason])
 
 
+## Stake [param n] directly and let the channel land: cap +1.
+func _stake_landed(n: SkillNode) -> void:
+	assert_true(_alloc.stake(n, _player), "stake %s" % n.name)
+	for i in _alloc.stake_channel_turns:
+		_alloc.advance_channels(_player)
+
+
 func _add_edge(a: SkillNode, b: SkillNode) -> void:
 	# Graph.add_edge emits edge_added so the board Navigator mirrors it
 	# (.claude/rules/graph.md); a container add_child is invisible to it.
@@ -133,22 +145,22 @@ func test_arming_stake_then_clicking_legal_node_stakes() -> void:
 	var sp_before: int = _player.stat_board.skill_points.available()
 	var ap_before: int = _player.stat_board.action_points.available()
 	_nodes[1].left_clicked.emit(_nodes[1])
-	assert_eq(_nodes[1].stake_level, 2, "arm Stake + click legal node raises stake_level")
-	assert_eq(_player.stat_board.skill_points.available(), sp_before - 1, "stake spends 1 SP into staked")
-	assert_eq(_player.stat_board.action_points.available(), ap_before - 1, "stake spends 1 AP")
+	assert_eq(_nodes[1].channel_target, 2, "arm Stake + click legal node opens a channel to stake_level 2")
+	assert_eq(_player.stat_board.skill_points.available(), sp_before - 1, "stake pledges 1 SP into staked")
+	assert_eq(_player.stat_board.action_points.available(), ap_before, "stake spends no AP")
 
 
 func test_stake_click_on_illegal_node_denies_and_spends_nothing() -> void:
 	_ctl.arm_verb(PlayerInputController.ManageVerb.STAKE)
 	var sp_before: int = _player.stat_board.skill_points.available()
 	var ap_before: int = _player.stat_board.action_points.available()
-	_nodes[2].left_clicked.emit(_nodes[2])  # owned but 2 hops from core
+	_nodes[2].left_clicked.emit(_nodes[2])  # owned but beyond reach
 	assert_eq(_nodes[2].stake_level, 1, "illegal stake click does not raise stake_level")
 	assert_eq(_player.stat_board.skill_points.available(), sp_before, "no SP spent on denial")
 	assert_eq(_player.stat_board.action_points.available(), ap_before, "no AP spent on denial")
 	assert_eq(_denials.size(), 1, "denial fires exactly once")
 	assert_eq(_denials[0][0], _nodes[2], "denial targets the clicked node")
-	assert_eq(_denials[0][1], "stake_denied_not_adjacent", "denial reason names the >1-hop gate")
+	assert_eq(_denials[0][1], "stake_denied_not_adjacent", "denial reason names the reach gate")
 
 
 func test_stake_click_on_unowned_node_denies_not_owned() -> void:
@@ -168,7 +180,7 @@ func test_stake_stays_armed_after_a_denial() -> void:
 func test_stake_disarms_after_a_successful_stake() -> void:
 	_ctl.arm_verb(PlayerInputController.ManageVerb.STAKE)
 	_nodes[1].left_clicked.emit(_nodes[1])
-	assert_eq(_nodes[1].stake_level, 2, "precondition: the stake landed")
+	assert_true(_nodes[1].is_channelling(), "precondition: the stake opened a channel")
 	assert_eq(_ctl.armed_stack.branch().size(), 1,
 			"Stake is a one-off — a landed stake drops the arm")
 
@@ -176,12 +188,12 @@ func test_stake_disarms_after_a_successful_stake() -> void:
 # ── Extract ──────────────────────────────────────────────────────────────
 
 func test_arming_extract_then_clicking_staked_node_extracts() -> void:
-	_alloc.stake(_nodes[1], _player)  # bring B to stake_level 2 so it's extractable
+	_stake_landed(_nodes[1])  # bring B to stake_level 2 so it's extractable
 	assert_eq(_nodes[1].stake_level, 2, "precondition: B staked to level 2")
 	_ctl.arm_verb(PlayerInputController.ManageVerb.EXTRACT)
 	var dp_before: int = _player.stat_board.deallocation_points.available()
 	_nodes[1].left_clicked.emit(_nodes[1])
-	assert_eq(_nodes[1].stake_level, 1, "arm Extract + click legal node drops stake_level")
+	assert_eq(_nodes[1].channel_target, 1, "arm Extract + click legal node opens a channel down to 1")
 	assert_eq(_player.stat_board.deallocation_points.available(), dp_before - 1, "extract spends 1 DP")
 
 
@@ -263,13 +275,13 @@ func test_stake_armed_tints_legal_target_in_range_and_leaves_non_adjacent_none()
 	_ctl.arm_verb(PlayerInputController.ManageVerb.STAKE)
 	_hl._resolve()
 	assert_eq(_hl.provider.get_node_role(_nodes[1]), HighlightProvider.HighlightRole.IN_RANGE,
-			"Stake-armed: the 1-hop legal target is tinted IN_RANGE")
+			"Stake-armed: the in-reach legal target is tinted IN_RANGE")
 	assert_eq(_hl.provider.get_node_role(_nodes[2]), HighlightProvider.HighlightRole.NONE,
-			"Stake-armed: the 2-hop node (not adjacent) gets no tint")
+			"Stake-armed: the out-of-reach node gets no tint")
 
 
 func test_extract_armed_tints_only_a_staked_node() -> void:
-	_alloc.stake(_nodes[1], _player)  # B now stake_level 2, extractable
+	_stake_landed(_nodes[1])  # B now stake_level 2, extractable
 	_ctl.arm_verb(PlayerInputController.ManageVerb.EXTRACT)
 	_hl._resolve()
 	assert_eq(_hl.provider.get_node_role(_nodes[1]), HighlightProvider.HighlightRole.IN_RANGE,
@@ -305,10 +317,10 @@ func test_another_players_successful_stake_changes_nothing() -> void:
 
 
 func test_extract_stays_armed_after_a_landed_extract() -> void:
-	_alloc.stake(_nodes[1], _player)
+	_stake_landed(_nodes[1])
 	_ctl.arm_verb(PlayerInputController.ManageVerb.EXTRACT)
 	_nodes[1].left_clicked.emit(_nodes[1])
-	assert_eq(_nodes[1].stake_level, 1, "precondition: the extract landed")
+	assert_eq(_nodes[1].channel_target, 1, "precondition: the extract was accepted")
 	assert_eq(_branch_types(), [ManageMode, ExtractMode])
 
 
