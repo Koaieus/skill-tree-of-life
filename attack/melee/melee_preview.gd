@@ -15,6 +15,8 @@ extends Node2D
 ## per cycle. See docs/domain/melee-blade-sim.md.
 
 const _FADE: float = 0.4
+## The ghost blade's fade after a committed swing, at rate 1.0.
+const _SWING_FADE: float = 0.45
 
 @export var battle_system: BattleSystem
 ## The seat's armed-input stack: the armed plan is read off its attack level.
@@ -322,8 +324,10 @@ func launch(plan: MeleeAttackPlan, schedule: OutcomeSchedule = null) -> void:
 	if gen != _gen or blade != _ghost:
 		_live_swing = false
 		return
+	# On the same clock as the swing: a faster schedule shortens the fade too.
+	var fade_seconds := _SWING_FADE * (schedule.rate if schedule != null else 1.0)
 	var fade := create_tween()
-	fade.tween_property(blade, "modulate", Color(0.55, 0.55, 0.55, 0.0), 0.45)
+	fade.tween_property(blade, "modulate", Color(0.55, 0.55, 0.55, 0.0), fade_seconds)
 	await fade.finished
 	if blade == _ghost:
 		_ghost = null

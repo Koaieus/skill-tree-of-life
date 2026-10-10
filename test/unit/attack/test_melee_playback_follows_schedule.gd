@@ -165,9 +165,9 @@ func test_preview_launch_plays_on_the_schedules_clock() -> void:
 	var start := Time.get_ticks_msec()
 	await preview.launch(plan, schedule)
 	var elapsed: float = float(Time.get_ticks_msec() - start) / 1000.0
-	# `launch` also runs a 0.45s fade after the swing; subtract it rather than
-	# reaching into the coroutine.
-	var swing_wall: float = elapsed - 0.45
+	# `launch` also runs a 0.45s fade after the swing, on the same clock;
+	# subtract it rather than reaching into the coroutine.
+	var swing_wall: float = elapsed - 0.45 * schedule.rate
 	assert_almost_eq(swing_wall, schedule.duration(), 0.09,
 			"the swing took %ss of wall clock; its hits land over %ss" \
 					% [swing_wall, schedule.duration()])

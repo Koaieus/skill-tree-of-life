@@ -52,6 +52,7 @@ var roster: ParticipantRoster = null
 ## network role. So it cannot be read live at level setup — the host stamps the
 ## joining peer and the client learns its own at handshake, both of which are
 ## #554's mechanism. Single-player and hot-seat correctly stay at 0 forever.
+## Cleared by [method end] with the link it belongs to.
 var local_peer_id: int = 0
 
 ## How the run ended, recorded off [signal Events.run_ended]. Null until then.
