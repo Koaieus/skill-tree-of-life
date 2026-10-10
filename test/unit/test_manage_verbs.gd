@@ -269,6 +269,36 @@ func test_d_hover_deallocate_still_works_while_allocate_armed() -> void:
 	assert_null(_nodes[2].owned_by, "D-hover-deallocate isn't gated off by a merely-cosmetic Allocate arm")
 
 
+# ── Cancel channel ───────────────────────────────────────────────────────
+
+func test_arming_cancel_then_clicking_a_channelling_node_cancels_and_pops() -> void:
+	assert_true(_alloc.stake(_nodes[1], _player), "precondition: B opens a stake channel")
+	_ctl.arm_verb(PlayerInputController.ManageVerb.CANCEL)
+	assert_eq(_branch_types(), [ManageMode, CancelChannelMode], "the Cancel card arms CancelChannelMode")
+	_nodes[1].left_clicked.emit(_nodes[1])
+	assert_false(_nodes[1].is_channelling(), "arm Cancel + click a channelling node aborts the channel")
+	assert_eq(_denials.size(), 0, "a landed cancel raises no denial")
+	assert_eq(_ctl.armed_stack.branch().size(), 1, "Cancel is a one-off — a landed cancel drops the arm")
+
+
+func test_cancel_click_on_idle_node_denies_idle_and_stays_armed() -> void:
+	_ctl.arm_verb(PlayerInputController.ManageVerb.CANCEL)
+	_nodes[1].left_clicked.emit(_nodes[1])  # owned, no channel open
+	var reasons: Array = _denials.map(func(d: Array) -> String: return d[1])
+	assert_eq(reasons, ["cancel_denied_idle"], "an idle node denies with cancel_denied_idle")
+	assert_eq(_branch_types(), [ManageMode, CancelChannelMode], "a denied cancel keeps the arm")
+
+
+func test_cancel_armed_tints_only_a_channelling_node() -> void:
+	assert_true(_alloc.stake(_nodes[1], _player), "precondition: B opens a stake channel")
+	_ctl.arm_verb(PlayerInputController.ManageVerb.CANCEL)
+	_hl._resolve()
+	assert_eq(_hl.provider.get_node_role(_nodes[1]), HighlightProvider.HighlightRole.IN_RANGE,
+			"Cancel-armed: a channelling owned node is tinted IN_RANGE")
+	assert_eq(_hl.provider.get_node_role(_nodes[2]), HighlightProvider.HighlightRole.NONE,
+			"Cancel-armed: an idle owned node gets no tint")
+
+
 # ── Highlight reachability tinting (HighlightController → ManagerHighlightProvider) ──
 
 func test_stake_armed_tints_legal_target_in_range_and_leaves_non_adjacent_none() -> void:

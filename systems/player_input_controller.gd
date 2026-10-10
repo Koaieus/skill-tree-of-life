@@ -78,7 +78,7 @@ var _last_move_source: SkillNode = null
 ## Manage-tab verb ids (#338) — the tray's card ids and the highlight's verb
 ## key. NOT arm state: that is the [ArmedStack] branch, where Deallocate,
 ## Stake and Extract are [ManageVerbMode] levels on the [ManageMode] root.
-enum ManageVerb { NONE, ALLOCATE, DEALLOCATE, STAKE, EXTRACT }
+enum ManageVerb { NONE, ALLOCATE, DEALLOCATE, STAKE, EXTRACT, CANCEL }
 ## A distant-allocate-path or would-island-deallocate click is pending
 ## confirmation ([MassActionMode] on the branch). Derived off the stack; fires
 ## once per transition.
