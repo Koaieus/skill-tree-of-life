@@ -135,6 +135,18 @@ var is_gapless: bool:
 ## pushed brighter/more saturated before the blend — a straight lerp toward
 ## the raw [member SkillNodeVisual.archetype_tint] washed out too fast toward
 ## this rim's own bronze metal to read clearly.
+## Transient multiplier on the pushed `ring_tint` — the channel pulse rides it
+## (the rim shader overwrites `COLOR`, so `modulate` never reaches the rim).
+## Runtime-only plain var; WHITE is identity. Pushes just the one parameter,
+## under the same visibility gate as [method _sync_material].
+var tint_scale: Color = Color.WHITE:
+	set(value):
+		if tint_scale == value:
+			return
+		tint_scale = value
+		if is_node_ready() and is_visible_in_tree():
+			set_instance_shader_parameter(&"ring_tint", _effective_tint * tint_scale)
+
 var _effective_tint: Color:
 	get():
 		var boosted := Color.from_hsv(
@@ -251,7 +263,7 @@ func _sync_material() -> void:
 	set_instance_shader_parameter(&"inner_r", inner_radius)
 	set_instance_shader_parameter(&"crest_r", crest_r)
 	set_instance_shader_parameter(&"outer_r", outer_radius)
-	set_instance_shader_parameter(&"ring_tint", _effective_tint)
+	set_instance_shader_parameter(&"ring_tint", _effective_tint * tint_scale)
 	set_instance_shader_parameter(&"height_preset", CUSTOM_PRESET_INDEX if use_custom else int(height_preset))
 	set_instance_shader_parameter(&"light_dir_xy", light_dir)
 	set_instance_shader_parameter(&"fill_slots", Vector2(float(fill_current), float(fill_max)))

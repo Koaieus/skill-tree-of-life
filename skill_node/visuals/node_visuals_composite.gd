@@ -155,8 +155,8 @@ var _applied_a_shape: bool = false
 ## Channel cue: the rim breathes while the node channels — brightening
 ## toward [member channel_pulse_tier] when staking, draining toward
 ## [member channel_drain_tint] when extracting, deeper as the step nears.
-## Rides the RimRing's own `modulate` (batching-safe, outside this node's
-## [method _apply_modulate] chain). Pushed by whoever holds the
+## Rides RimRing's `ring_tint` instance uniform via its `tint_scale` — the rim
+## shader overwrites `COLOR`, so a `modulate` never reaches it. Pushed by whoever holds the
 ## [AllocationSystem]: `SkillNode.channel_direction()` here, never re-derived.
 ## Set it in the inspector to preview. 0 = idle, no per-frame cost.
 @export_range(-1, 1, 1) var channel_direction: int = 0:
@@ -200,7 +200,7 @@ func _update_channel_processing() -> void:
 	if not active:
 		anim_time = 0.0
 		if _rim_ring != null:
-			_rim_ring.modulate = Color.WHITE
+			_rim_ring.tint_scale = Color.WHITE
 
 
 ## One tick of the shared [member anim_time] clock: the rim's modulate, no
@@ -219,7 +219,7 @@ func _on_anim_tick() -> void:
 		tint = Color.WHITE.lerp(peak, depth)
 	if _channel_flash > 0.0:
 		tint = tint.lerp(Emissive.at(Color.WHITE, Emissive.stops(channel_step_tier)), _channel_flash)
-	_rim_ring.modulate = tint
+	_rim_ring.tint_scale = tint
 	if channel_direction == 0 and _channel_flash <= 0.0:
 		_update_channel_processing()
 
