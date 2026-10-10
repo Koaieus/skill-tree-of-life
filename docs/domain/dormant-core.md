@@ -200,3 +200,31 @@ blocker placement, so it is a replay input. A joining client runs no procgen: th
 spells cross **by value**, as indices into the interned spell table on the entity
 snapshot row (`network/entity_snapshot.gd` `_encode_spell_ids`). Never roll the prune
 unseeded at spawn. See `.claude/rules/multiplayer-sync.md`.
+
+## The look
+
+A Dormant Core's core node wears a **null-field blob**, not a rock (#1526): a
+tar-black goo whose edge deforms very slowly (it is dormant), with drifting texture
+layers inside and a scanline-tear / channel-jitter glitch.
+
+- **Tier = fused lobe count**, never node size: `BlockerVisual.tier_lobes`
+  (`[1, 2, 3]`, small / medium / large). `SkillNode.radius` already grows with stake,
+  so size-per-tier would make a staked small core outgrow an unstaked medium one. The
+  tier is latched with the owner's instance id, so a later write or a freed corpse
+  never changes the look.
+- **Damage** keeps the three crack stages (intact / cracked ≤ 2/3 / shattered ≤ 1/3
+  HP, thresholds in GDScript). As the stage rises the lobes drift apart with goo
+  strands between them, cracks bite the edge, and the bleed light grows.
+- **Variants**: `BlockerVisual.seed_for(stable_id)` drives texture offset, lobe phase
+  and glitch timing — deterministic, so every peer draws the same blob.
+- **Rendering**: one shared `skill_node/visuals/blocker_blob_material.tres` for every
+  core; `lobes` / `seed` / `damage` are instance uniforms, and the material is bound
+  only while the visual is visible (a cleared or sensed core claims no slot). Motion
+  runs on `TIME` in `blocker_blob.gdshader` — zero per-frame CPU. The bleed colour is
+  `Emissive.tint(bleed_base, bleed_tier)`, written once onto the shared material.
+- **Interior layers** are plain `sampler2D` slots (`layer_a`, `layer_b`) read as
+  luminance masks and tinted in-shader: swapping a slot's texture on the `.tres`
+  needs no code change. Tuning lives on the material (`deform_speed`,
+  `glitch_intensity`, `damage_spread`, tints, scrolls) — open it in the inspector.
+- **Territory colour** is a void indigo, `Color(0.30, 0.27, 0.42)`, on
+  `blocker_entity.tscn` (what the territory tint reads) and `factions/blocker.tres`.
