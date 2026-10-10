@@ -162,6 +162,29 @@ nuance.
   in-flight drones report, land what is reported, then `done`).
 - Everything else in this file is unchanged, the owner-stop rule included.
 
+## Train mode
+
+Active only when your launch prompt says *train mode, train `<t>`* — you
+are a `swarm-lead` subagent and your parent is the train's top session, not
+a person. Its prompt names the ledger: `mise run ledger -- adopt <path>`
+before your first dispatch, so the train has one ledger. No Sage in this
+mode: every brief names the `advisor` tool.
+
+- **Waves are foreground.** One wave per message still holds: every `Agent`
+  call of the wave in one message, each with `run_in_background: false`.
+  The wave returns in one turn; act on each report from it as usual.
+- **No whip verbs** — none of the three; the top carries the transport.
+- **Report by return**: your final text is the session report (§ 7). It is
+  the only thing that reaches the top; end on it.
+- **Relief**: where this skill says "request relief", end your turn with
+  the session report whose first line is `RELIEF NEEDED`. The top spawns
+  your relief; you do nothing more.
+- **Owner stop** arrives as a message from the top and drains at the wave
+  boundary: spawn nothing new, collect the wave in flight, land what is
+  reported, then report.
+- **Train end**: `mise run ledger -- close` after the push, then report.
+- Everything else in this file is unchanged.
+
 ## The cycle
 
 ### 1. Read the issues once, delegate the rest

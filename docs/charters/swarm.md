@@ -245,6 +245,26 @@ disk at `scratchpad/land/land-<n>.log` (#920), so filling the ledger is a
     principal, which is why the relay clauses still name the watchdog's
     and the owner's prompts as the lead's instructions.
 
+32. **Train mode is a report-address swap too.** When the launch prompt
+    says *train mode, train `<t>`* (see [swarm-train](swarm-train.md), laws
+    4, 12, 13), the lead is a `swarm-lead` subagent whose parent is the
+    train's top session, not a person, and four things change (owner,
+    2026-10-10, all four reviewed as settled). Drones go out as
+    **foreground waves** — law 16's one message, every `Agent` call
+    `run_in_background: false` — because a background subagent never
+    receives its own background children's reports (spike, 2026-10-09: one
+    dropped, one bubbled to the top; whip § Incident corpus). **No whip
+    verbs**: the top carries the transport, so the lead reports by
+    **returning** this charter's session report as its final text, asks for
+    relief by ending its turn with `RELIEF NEEDED` as that report's first
+    line (the top launches it — the lead cannot outlive its own call to do
+    so), and runs `mise run ledger -- close` at train end. **Sage is out**
+    for the tryout: its `APPROVED` line goes to `main`, which in a tree is
+    the top, and a sibling resume is unprobed; drones' advisor is the
+    `advisor` tool. The owner's stop arrives as a message from the top and
+    drains at the wave boundary — a foreground wave holds the lead's turn
+    until it returns. Every other law holds.
+
 **Collect and land**
 
 17. **Read reports, not diffs.** A report is six lines — the sixth is `COST:` (ctx, calls, exchanges), the drone's own count, so the lead can judge resume vs retire and tier the next brief without waiting for `agent-cost` (owner, 2026-09-17: "drone must report ctx size or tool call count if known in report. Helps judge"); a wall of text is a
