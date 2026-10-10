@@ -474,12 +474,14 @@ func test_reach_continues_from_the_handle_tip() -> void:
 	await get_tree().process_frame
 	var core_distances: Dictionary = {pivot: 0, handle: 1, branch_a: 2, branch_b: 2}
 
-	# max_size 2, handle_target 1: handle takes exactly `handle` (plain — no
-	# triangle, no attachable clamp slot filled — this fixture has none), then
-	# one reach slot remains for the branch choice.
+	# max_size 3, handle_target 1: handle takes exactly `handle` (no triangle,
+	# so it rigidifies through a clamp in its one stake-level slot — 2 spent),
+	# then one reach slot remains for the branch choice.
 	var archetype := AiBladeRollout._build_archetype(
-			pivot, adjacency, handle.global_position, 2, 1, core_distances)
+			pivot, adjacency, handle.global_position, 3, 1, core_distances)
 	var members: Array[SkillNode] = archetype.members
+	assert_eq(archetype.clamps, [handle] as Array[SkillNode],
+			"a plain stake-1 handle has one slot, so it takes the clamp")
 	assert_eq(members, [handle, branch_b],
 			"reach picks the spiked branch off the handle's tip, not the pivot")
 
