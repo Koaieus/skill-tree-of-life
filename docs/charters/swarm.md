@@ -257,8 +257,8 @@ disk at `scratchpad/land/land-<n>.log` (#920), so filling the ledger is a
     verbs**: the top carries the transport, so the lead reports by
     **returning** this charter's session report as its final text, asks for
     relief by ending its turn with `RELIEF NEEDED` as that report's first
-    line (the top launches it — the lead cannot outlive its own call to do
-    so), and runs `mise run ledger -- close` at train end. **Sage is out**
+    line (the top launches it — a relief the lead spawned would be its own
+    child and die with it, [relief](relief.md) law 6), and runs `mise run ledger -- close` at train end. **Sage is out**
     for the tryout: its `APPROVED` line goes to `main`, which in a tree is
     the top, and a sibling resume is unprobed; drones' advisor is the
     `advisor` tool. The owner's stop arrives as a message from the top and
