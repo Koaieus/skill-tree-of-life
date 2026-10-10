@@ -9,3 +9,4 @@ swarmify's older scans stay in `.claude/skills/swarmify/corpus/`.
 | Date | Scan | Backs |
 |---|---|---|
 | 2026-10-09 | [skill-endings](2026-10-09-skill-endings.md) — how 208 skill runs closed; structure, content kinds, samples | `docs/domain/session-report.md` |
+| 2026-10-10 | [swarmify-spec-weight-headless-clerk](2026-10-10-swarmify-spec-weight-headless-clerk.md) — when steps 8-10 start; headless issue filing; clerk manifest friction | swarmify skill split / clerk grammar decision |
