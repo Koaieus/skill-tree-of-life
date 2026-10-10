@@ -26,6 +26,7 @@ Status is each doc's `status:` frontmatter — `exploring` → `settling` → `b
 | [skill_node_specializations.md](skill_node_specializations.md) | `exploring` | Node specializations (Corrupted, Crystallized, Anchor) — **early spitball, nothing built or scheduled**; inspiration only |
 | [node_subtypes.md](node_subtypes.md) | `exploring` | Node subtypes — open threads only (clustered placement, territory conversion, more families). Shipped model: [`../domain/node-subtypes.md`](../domain/node-subtypes.md) |
 | [aspect_matrix.md](aspect_matrix.md) | `settling` | **The Matrix** — every status/concept × ranged/melee/magic, living home of the concept-to-delivery table (#1199) |
+| [inner_tree_and_stake_economy.md](inner_tree_and_stake_economy.md) | `exploring` | **Inner aspect tree, stake economy, run pacing** — the 2026-10-10 idea dump explored: shapes with pacing, gating, cost and reward; recommended packages, nothing decided |
 | [aspect_personas.md](aspect_personas.md) | `exploring` | **Aspect Personas** — each aspect as a lesser god with a character (Ivy, Cuss, …); lore, parked; built on the matrix's rows |
 | [spells.md](spells.md) | `exploring` | Spell identities for the shipped spells (roster: `attack/spell/defs/`), the issue-backed ones, and a fenced idea pool of spells that do **not** exist |
 | [damage_over_time.md](damage_over_time.md) | `exploring` | The DoT family's unbuilt half — cures, per-type content, contagion, the defensive-axis matrix. The shipped model is `../domain/status-effects.md` |
