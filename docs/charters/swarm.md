@@ -249,7 +249,7 @@ disk at `scratchpad/land/land-<n>.log` (#920), so filling the ledger is a
     says *train mode, train `<t>`* (see [swarm-train](swarm-train.md), laws
     4, 12, 13), the lead is a `swarm-lead` subagent whose parent is the
     train's top session, not a person, and four things change (owner,
-    2026-10-10, all four reviewed as settled). Drones go out as
+    2026-10-10). Drones go out as
     **foreground waves** — law 16's one message, every `Agent` call
     `run_in_background: false` — because a background subagent never
     receives its own background children's reports (spike, 2026-10-09: one
@@ -259,7 +259,7 @@ disk at `scratchpad/land/land-<n>.log` (#920), so filling the ledger is a
     relief by ending its turn with `RELIEF NEEDED` as that report's first
     line (the top launches it — a relief the lead spawned would be its own
     child and die with it, [relief](relief.md) law 6), and runs `mise run ledger -- close` at train end. **Sage is out**
-    for the tryout: its `APPROVED` line goes to `main`, which in a tree is
+    for the tryout (tentative — the pass's call, swarm-train law 13): its `APPROVED` line goes to `main`, which in a tree is
     the top, and a sibling resume is unprobed; drones' advisor is the
     `advisor` tool. The owner's stop arrives as a message from the top and
     drains at the wave boundary — a foreground wave holds the lead's turn
