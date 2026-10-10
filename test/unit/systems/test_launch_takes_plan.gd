@@ -63,6 +63,7 @@ func before_each() -> void:
 	add_child_autofree(_preview)
 
 	_bs = autofree(BattleSystem.new())
+	FastPresentation.on_battle_system(_bs)
 	_bs.temp_upgrade_catalog = _CATALOG
 	_bs.turn_manager = _tm
 	_bs.allocation_system = _alloc
