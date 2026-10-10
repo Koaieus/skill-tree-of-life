@@ -14,7 +14,7 @@ Compiled 2026-09-29. An empty cell means no ADR or domain doc holds that decisio
 |---|---|---|---|---|
 | D-1 | Melee damage source: edges inert | [0005](0005-blade-parts-and-counters-are-orthogonal.md) | [melee-blade-sim.md](../domain/melee-blade-sim.md) | #785 briefly gave edges damage; ADR 0005 restored D-1's call |
 | D-2 | Magic cast range: INT-scaling | | | revised by D-18, then #912/#1018 (`cast_range_hops` / `cast_range_distance`); no ADR |
-| D-3 | Addon application model | | | live balance call, no ADR |
+| D-3 | Addon application model | [0052](0052-the-addon-cap-reads-stake-level-and-procgen-draws-addons-with-replacement.md) | | **superseded** 2026-10-10 by 0052 (draw with replacement, cap = stake level) |
 | D-4 | Spell gating: allocated-degree | | [degree.md](../domain/degree.md) | canonicalized as `get_entity_degree` |
 | D-5 | Damage type taxonomy: armor-only | [0018](0018-hit-basis-and-damage-type-are-orthogonal-knobs.md) | | R/G/B taxonomy still deferred; 0018 is orthogonal to it |
 | D-6 | Battle-mode UI: contextual action bar | | | no ADR — live UI/design call |
@@ -89,6 +89,8 @@ Compiled 2026-09-29. An empty cell means no ADR or domain doc holds that decisio
 ---
 
 ## D-3 — Addon application model
+
+**Superseded by [ADR 0052](0052-the-addon-cap-reads-stake-level-and-procgen-draws-addons-with-replacement.md)** (2026-10-10): procgen draws addon nodes with replacement at a per-100-node density and stakes repeats; the cap is the stake level.
 
 **Question:** per-unit vs per-node chance, unique vs stackable, ratio tunability.
 

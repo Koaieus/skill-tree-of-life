@@ -73,6 +73,7 @@ mise run adr-hygiene     # frontmatter, supersede links, index coverage, immutab
 | [0049](0049-a-rider-is-any-hit-instance-gated-by-its-paired-hit-and-land-mask.md) | A rider is any `HitInstance`: `hit_key`, `paired` and the land mask live on the base, and a hit's riders are the later hits sharing its key — supersedes 0044 | accepted | 2026-10-07 | combat, on-hit, status, architecture |
 | [0050](0050-special-arrows-mint-from-the-concept-aspect-stat.md) | Special arrows mint from `<concept>_aspect`; the per-type `<id>_arrows_per_reload` stat is retired — supersedes 0023's reload clause | accepted | 2026-10-08 | combat, ammo, stats |
 | [0051](0051-a-ranged-volley-rides-the-command-as-an-ordered-type-count-list.md) | A ranged volley rides the command as an ordered `[{type, count}]` list in the player's card order; per-arrow leaf and type still derived along schedule order — supersedes 0020 | accepted | 2026-10-09 | ranged, combat, multiplayer, architecture |
+| [0052](0052-the-addon-cap-reads-stake-level-and-procgen-draws-addons-with-replacement.md) | A node's addon cap reads its stake level (1 when unallocated), never its fill; procgen draws addon nodes with replacement per 100 nodes and stakes repeats (up to 4); an overflowing extract is denied — supersedes legacy D-3 | accepted | 2026-10-10 | addons, procgen, stats, staking |
 
 ## Pre-ADR log
 
