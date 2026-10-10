@@ -128,7 +128,7 @@ func test_dynamic_stat_ids_does_not_create_a_stat() -> void:
 	# node owns" bullet.
 	# Order is the board's property order, which the full suite and a lone run
 	# disagree on — compare as a set.
-	var baked: Array[String] = ["addon_slots", "arrows_per_reload", "max_shots_per_leaf", "stake_level"]
+	var baked: Array[String] = ["addon_slots", "arrows_per_reload", "max_shots_per_leaf", "stake_ceiling", "stake_level"]
 	var live: Array[String] = []
 	for id in sn.node_board.get_stat_ids():
 		live.append(String(id))
