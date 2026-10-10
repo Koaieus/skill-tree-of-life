@@ -1,14 +1,13 @@
 extends GutTest
 
-## #375 — addon_slots = base(0) + allocation_level as a node-local Stat.
+## addon_slots = base(0) + stake_level as a node-local Stat.
 ##
-## `addon_slots` is a node-OWNED Stat, so it is baked as a typed
-## NodeStatBoard field on `default_node_board.tres` (it used to be minted in
-## code when the first addon landed): `addon_slots = base(0) +
-## allocation_level`, plain 1:1, the formula authored as a board intrinsic and
-## reading the stake pool through the `stake_level__current` accessor so fill
-## changes recompute reactively.
-## No enforcement yet (nothing caps addon attach) — the cap just exists.
+## `addon_slots` is a node-OWNED Stat, baked as a typed NodeStatBoard field on
+## `default_node_board.tres`: the cap reads the node's STAKE LEVEL (the
+## stake pool's cap N, the bare `stake_level` token), never its fill M. A plain
+## unallocated node has stake 1, so it reads 1 slot; fill never moves slots.
+## The formula is authored as a board intrinsic bound to the file-backed
+## `stake_scaling.tres`, so a stake change recomputes reactively.
 
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _GRAPH_SCENE := preload("res://graph/graph.tscn")
@@ -48,33 +47,42 @@ func _slots() -> int:
 
 # --- 1/2. reads ---------------------------------------------------------------
 
-func test_fill_3_reads_three_slots() -> void:
+func test_fresh_node_reads_one_slot() -> void:
+	# A plain node: default stake 1, fill 0 -> the cap is the stake level, 1.
+	var n := _SKILL_NODE_SCENE.instantiate() as SkillNode
+	add_child_autofree(n)
+	await get_tree().process_frame
+	assert_eq(n.allocation_level, 0, "fresh node is unallocated")
+	assert_eq(int(n.get_local_value(&"addon_slots")), 1,
+			"stake 1, fill 0 -> 1 slot")
+
+
+func test_stake_3_reads_three_slots_at_every_fill() -> void:
 	await _attach_bunker()
+	assert_eq(_slots(), 3, "stake 3, fill 0 -> 3")
+	_node.allocation_level = 1
+	assert_eq(_slots(), 3, "stake 3, fill 1 -> 3")
 	_node.allocation_level = 3
-	assert_eq(_slots(), 3, "addon_slots == allocation_level at 3/3")
-
-
-func test_fill_zero_reads_zero() -> void:
-	await _attach_bunker()
-	assert_eq(_slots(), 0, "freshly generated node (al 0) reads 0 slots")
+	assert_eq(_slots(), 3, "stake 3, fill 3 -> 3")
 
 
 # --- 3. reactivity ------------------------------------------------------------
 
-func test_fill_ramp_recomputes_reactively() -> void:
+func test_stake_raise_recomputes_reactively() -> void:
 	await _attach_bunker()
-	assert_eq(_slots(), 0)
-	_node.allocation_level = 2
-	assert_eq(_slots(), 2, "0 -> 2 recomputes through the bound formula")
+	_node.stake_level = 1
+	assert_eq(_slots(), 1)
+	_node.stake_level = 4
+	assert_eq(_slots(), 4, "1 -> 4 recomputes through the bound formula")
 
 
 # --- 4. authored base ---------------------------------------------------------
 
-func test_authored_base_adds_on_top_of_fill() -> void:
+func test_authored_base_adds_on_top_of_stake() -> void:
 	await _attach_bunker()
 	_node.node_board.get_stat(&"addon_slots").base_value = 1.0
 	_node.allocation_level = 2
-	assert_eq(_slots(), 3, "base(1) + allocation_level(2)")
+	assert_eq(_slots(), 4, "base(1) + stake_level(3), fill irrelevant")
 
 
 # --- 5. baked, not minted -----------------------------------------------------
@@ -87,7 +95,7 @@ func test_addonless_node_still_carries_addon_slots_baked() -> void:
 	# only BORROWED stats. See NodeStatBoard.
 	assert_not_null(_node.node_board.get_stat(&"addon_slots"),
 			"addon_slots is baked on every node board, addons or not")
-	assert_eq(_slots(), 0, "addonless, al 0 -> base(0) + allocation_level(0)")
+	assert_eq(_slots(), 3, "addonless, stake 3, al 0 -> base(0) + stake_level(3)")
 	# Baked, NOT minted: the node-owned stats are typed fields, so they never
 	# appear in _extra_stats. (`node_health` does — it is BORROWED from the
 	# owner's board, and allocation mints the node's combat pool for it.)
@@ -110,15 +118,15 @@ func test_formula_input_ids_strip_to_the_base_id() -> void:
 
 # --- 7. the scaling formula must stay file-backed, never inlined -------------
 
-func test_allocation_scaling_formula_is_shared_across_every_node_board() -> void:
+func test_stake_scaling_formula_is_shared_across_every_node_board() -> void:
 	# `duplicate(true)` PRESERVES the identity of a file-backed sub-resource and
-	# COPIES an inline one. Inlining `allocation_scaling.tres` into
+	# COPIES an inline one. Inlining `stake_scaling.tres` into
 	# default_node_board.tres would therefore fork the curve into one private
 	# ExpressionFormula per node — 2500 of them in a level — with no error, and
 	# retuning the file would silently stop reaching anything. Same contract as
 	# level_scaling.tres for core classes (stats-system.md).
 	const _TEMPLATE := preload("res://skill_node/default_node_board.tres")
-	const _SHARED := preload("res://stats_system/formulas/allocation_scaling.tres")
+	const _SHARED := preload("res://stats_system/formulas/stake_scaling.tres")
 	var a: NodeStatBoard = _TEMPLATE.duplicate(true)
 	var b: NodeStatBoard = _TEMPLATE.duplicate(true)
 	assert_eq(a.intrinsic_modifiers[0].formula, _SHARED,
@@ -127,7 +135,7 @@ func test_allocation_scaling_formula_is_shared_across_every_node_board() -> void
 			"two cloned boards must share one formula instance, not fork it")
 	# The MODIFIER, by contrast, is deliberately inline/per-board: it is the
 	# reactive subscriber, and one shared instance would make a single node's
-	# allocation change recompute addon_slots on every node in the level.
+	# stake change recompute addon_slots on every node in the level.
 	assert_ne(a.intrinsic_modifiers[0], b.intrinsic_modifiers[0],
 			"each board owns its own modifier instance")
 
@@ -139,18 +147,17 @@ func test_scene_authored_board_still_gets_its_intrinsics_applied() -> void:
 	# node may author its own), so "already non-null" must NOT be read as
 	# "already initialized". If it were, an authored board would skip
 	# apply_intrinsics() forever and addon_slots would silently stop tracking
-	# allocation level — no error, correct-looking board, dead formula.
+	# stake level — no error, correct-looking board, dead formula.
 	var authored: NodeStatBoard = preload("res://skill_node/default_node_board.tres").duplicate(true)
 	authored.addon_slots.base_value = 2.0
 	var n := _SKILL_NODE_SCENE.instantiate() as SkillNode
 	n.node_board = authored
 	add_child(n)
 	await get_tree().process_frame
-	n.stake_level = 3   # the pool clamps fill to cap, so raise the cap first
-	n.allocation_level = 3
+	n.stake_level = 3
 
 	assert_eq(int(n.get_local_value(&"addon_slots")), 5,
-			"authored base(2) + allocation_level(3) — intrinsics ran on the authored board")
+			"authored base(2) + stake_level(3) — intrinsics ran on the authored board")
 	assert_ne(n.node_board, authored,
 			"the authored resource is a template: the node runs on a deep clone of it")
 	assert_eq(authored.addon_slots.base_value, 2.0,
