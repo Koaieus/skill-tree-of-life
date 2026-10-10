@@ -81,17 +81,21 @@ func test_wound_heal_round_trip() -> void:
 	_assert_invariant(sp)
 
 
-func test_stake_extract_round_trip() -> void:
+func test_stake_then_wound_staked() -> void:
 	var sp := _fresh(3)
 	assert_true(sp.stake(1))
 	assert_eq(sp.staked, 1)
 	assert_eq(sp.current, 2.0)
 	assert_eq(_max(sp), 3)
 	_assert_invariant(sp)
-	sp.extract(1)
-	assert_eq(sp.staked, 0)
-	assert_eq(sp.current, 3.0)
+	sp.wound_staked(1)
+	assert_eq(sp.staked, 0, "the pledge leaves staked")
+	assert_eq(sp.wounded, 1, "into wounded, not current")
+	assert_eq(sp.current, 2.0)
 	assert_eq(_max(sp), 3)
+	_assert_invariant(sp)
+	sp.wound_staked(5)
+	assert_eq(sp.wounded, 1, "clamped to staked")
 
 
 # --- mints: claim + grant --------------------------------------------------

@@ -1,19 +1,25 @@
 @tool
 extends GutTest
 
-## #337 — Staking mechanics: raise a node's cap with SP+AP, fill it with
-## allocate, reclaim with extract. Headless-only (no UI).
+## Staking economy on the channel model: raise a node's cap with a stake
+## channel, fill it with allocate, lower it with an extract channel.
+## Headless-only (no UI). The channel mechanics themselves (ticks, leash,
+## cancel, signals) live in test_stake_channel.gd; this file pins the economy.
 ##
 ## Model: `stake_level` is the cap N, `allocation_level` the fill M — a node
-## reads M/N. stake: 1 SP current→staked + 1 AP, cap+1. allocate (refill):
-## 1 SP, fill+1 — with NO first-allocation side effects. extract: 1 DP,
-## cap-1, staked SP → current (+ the displaced fill's SP when the node was
-## full). Wounds and dealloc damage scale with the fill (economy
-## preservation). The stake ceiling is one named constant (default 3).
+## reads M/N. stake: SP current→staked at initiation, cap+1 after K owner
+## turns. allocate (refill): 1 SP, fill+1 — with NO first-allocation side
+## effects. extract: 1 DP at initiation; after K turns cap-1, staked SP →
+## wounded (+ the displaced fill's SP → current when the node was full).
+## Wounds and dealloc damage scale with the fill (economy preservation). The
+## ceiling is the node-local `stake_ceiling` stat. Reach is Euclidean px:
+## nodes sit 0.6 × reach apart along the chain.
 
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _EDGE_SCENE := preload("res://graph/edge.tscn")
+
+const REACH := 250.0
 
 var _graph: Graph
 var _alloc: AllocationSystem
@@ -39,8 +45,12 @@ func before_each() -> void:
 	for i in 3:
 		_add_edge(_nodes[i], _nodes[i + 1])
 
+	for i in _nodes.size():
+		_nodes[i].position = Vector2(0.6 * REACH * i, 0)
+
 	_alloc = AllocationSystem.new()
 	_alloc.graph = _graph
+	_alloc.stake_reach_px = REACH
 	add_child_autofree(_alloc)
 
 	_player = autofree(Entity.new())
@@ -64,6 +74,20 @@ func after_each() -> void:
 
 func _add_edge(a: SkillNode, b: SkillNode) -> void:
 	_graph.add_edge(a, b)  # emits edge_added — the Navigator mirrors it (.claude/rules/graph.md)
+
+
+## Stake [param n] and let the channel land: cap +1.
+func _stake_landed(n: SkillNode) -> void:
+	assert_true(_alloc.stake(n, _player), "stake %s" % n.name)
+	for i in _alloc.stake_channel_turns:
+		_alloc.advance_channels(_player)
+
+
+## Extract [param n] and let the channel land: cap -1.
+func _extract_landed(n: SkillNode) -> void:
+	assert_true(_alloc.extract(n, _player), "extract %s" % n.name)
+	for i in _alloc.extract_channel_turns:
+		_alloc.advance_channels(_player)
 
 
 func _sp() -> SkillPointStat:
@@ -101,7 +125,7 @@ func test_refill_increments_fill_and_spends_sp() -> void:
 	var b := _nodes[1]
 	assert_eq(b.allocation_level, 1, "force_allocated nodes start 1/1")
 	var used_before: int = _sp().used
-	assert_true(_alloc.stake(b, _player), "cap 1 -> 2 first")
+	_stake_landed(b)
 	assert_eq(b.allocation_level, 1, "1/2 after stake")
 	assert_true(_alloc.allocate(b, _player), "refill from 1/2 succeeds")
 	assert_eq(b.allocation_level, 2, "fill incremented to 2/2")
@@ -123,7 +147,7 @@ func test_refill_skips_first_allocation_side_effects() -> void:
 
 	watch_signals(_alloc)
 	var mirrored_before := _player.navigator.get_mirrored_nodes().size()
-	assert_true(_alloc.stake(b, _player))
+	_stake_landed(b)
 	assert_true(_alloc.allocate(b, _player), "refill succeeds")
 
 	assert_signal_not_emitted(_alloc, "allocated", "refill must not re-emit allocated")
@@ -142,7 +166,7 @@ func test_refill_skips_first_allocation_side_effects() -> void:
 
 func test_allocate_at_full_fill_fails() -> void:
 	var b := _nodes[1]
-	_alloc.stake(b, _player)
+	_stake_landed(b)
 	_alloc.allocate(b, _player)
 	assert_eq(b.allocation_level, b.stake_level, "2/2")
 	assert_false(_alloc.can_allocate(b, _player), "full node is not allocatable")
@@ -151,26 +175,27 @@ func test_allocate_at_full_fill_fails() -> void:
 
 # --- 4/5/6. stake -------------------------------------------------------------
 
-func test_stake_raises_cap_moves_sp_and_deducts_ap() -> void:
+func test_stake_raises_cap_and_moves_sp_without_ap() -> void:
 	var a := _nodes[0]
-	assert_true(_alloc.stake(a, _player), "stake the core itself (0 hops)")
+	var ap := int(_ap().current)
+	_stake_landed(a)
 	assert_eq(a.stake_level, 2, "cap raised by 1")
 	assert_eq(_sp().current, 2.0, "1 SP current -> staked")
 	assert_eq(_sp().staked, 1, "the SP lands in the staked bucket")
-	assert_eq(int(_ap().current), 1, "1 AP deducted")
+	assert_eq(int(_ap().current), ap, "no AP")
 
 
-func test_stake_gated_by_core_hop_distance() -> void:
+func test_stake_gated_by_euclidean_reach() -> void:
 	var d := _nodes[3]
-	assert_false(_alloc.can_stake(d, _player), "core at A, D is 3 hops away")
+	assert_false(_alloc.can_stake(d, _player), "core at A, D is 1.8 reach away")
 	_move_core_to(1)
-	assert_false(_alloc.can_stake(d, _player), "core at B, D is 2 hops away")
+	assert_false(_alloc.can_stake(d, _player), "core at B, D is 1.2 reach away")
 	_move_core_to(2)
-	assert_true(_alloc.can_stake(d, _player), "core at C, D is 1 hop away")
-	assert_true(_alloc.stake(d, _player), "stake succeeds at 1 hop")
+	assert_true(_alloc.can_stake(d, _player), "core at C, D is 0.6 reach away")
+	assert_true(_alloc.stake(d, _player), "stake succeeds within reach")
 	_move_core_to(3)
-	assert_true(_alloc.can_stake(d, _player), "the core itself is 0 hops")
-	assert_true(_alloc.stake(d, _player), "stake succeeds at 0 hops")
+	assert_true(_alloc.can_stake(d, _player), "the core itself is distance 0")
+	assert_true(_alloc.stake(d, _player), "stake succeeds at distance 0")
 
 
 func test_stake_fails_on_budget_shortfall_and_ceiling() -> void:
@@ -179,42 +204,40 @@ func test_stake_fails_on_budget_shortfall_and_ceiling() -> void:
 	assert_false(_alloc.can_stake(a, _player), "0 SP blocks stake")
 	assert_false(_alloc.stake(a, _player))
 	_sp().set_current(3.0)
-	_ap().set_current(0.0)
-	assert_false(_alloc.can_stake(a, _player), "0 AP blocks stake")
-	assert_false(_alloc.stake(a, _player))
-	_ap().set_current(2.0)
-	a.stake_level = AllocationSystem.STAKE_CEILING
+	a.stake_level = a.stake_ceiling
 	assert_false(_alloc.can_stake(a, _player), "at the ceiling blocks stake")
 	assert_false(_alloc.stake(a, _player))
-	assert_eq(a.stake_level, AllocationSystem.STAKE_CEILING, "cap unchanged")
+	assert_eq(a.stake_level, a.stake_ceiling, "cap unchanged")
 
 
 # --- 7/8/9. extract -----------------------------------------------------------
 
 func test_extract_from_partial_refunds_staked_sp() -> void:
 	var b := _nodes[1]
-	_alloc.stake(b, _player)
+	_stake_landed(b)
 	assert_eq(b.stake_level, 2)
 	assert_eq(b.allocation_level, 1, "1/2 before extract")
-	assert_true(_alloc.extract(b, _player))
+	_extract_landed(b)
 	assert_eq(b.stake_level, 1, "cap drops to 1/1")
 	assert_eq(b.allocation_level, 1, "fill is untouched when not full")
 	assert_eq(int(_dp().current), 2, "1 DP deducted")
-	assert_eq(_sp().staked, 0, "staked SP reclaimed")
-	assert_eq(_sp().current, 3.0, "1 SP staked -> current")
+	assert_eq(_sp().staked, 0, "staked SP leaves the reservation")
+	assert_eq(_sp().wounded, 1, "staked -> wounded: extract is an exchange, not a refund")
+	assert_eq(_sp().current, 2.0, "current keeps the stake's spend")
 
 
 func test_extract_from_full_refunds_staked_and_displaced_fill() -> void:
 	var b := _nodes[1]
-	_alloc.stake(b, _player)
+	_stake_landed(b)
 	_alloc.allocate(b, _player)
 	assert_eq(b.allocation_level, 2, "2/2 before extract")
-	assert_true(_alloc.extract(b, _player))
+	_extract_landed(b)
 	assert_eq(b.stake_level, 1, "cap drops to 1/1")
 	assert_eq(b.allocation_level, 1, "the fill steps down with the cap")
 	assert_eq(_sp().staked, 0)
-	# current: 3 (baseline) - 1 (stake) - 1 (refill) + 1 (extract) + 1 (refund)
-	assert_eq(_sp().current, 3.0, "both the staked SP and the displaced fill SP are refunded")
+	assert_eq(_sp().wounded, 1, "the staked SP is wounded")
+	# current: 3 (baseline) - 1 (stake) - 1 (refill) + 1 (displaced fill refund)
+	assert_eq(_sp().current, 2.0, "only the displaced fill SP is refunded")
 	assert_eq(_sp().used, 4, "only the surviving fill's SP stays used")
 
 
@@ -243,7 +266,7 @@ func test_extract_from_cap_one_is_a_deallocate_not_an_extract() -> void:
 func test_voluntary_deallocate_of_2_2_refunds_full_fill_keeps_cap() -> void:
 	var d := _nodes[3]
 	_move_core_to(2)
-	assert_true(_alloc.stake(d, _player))
+	_stake_landed(d)
 	assert_true(_alloc.allocate(d, _player))
 	assert_eq(d.allocation_level, 2)
 	assert_true(_alloc.deallocate(d, _player), "leaf 2/2 deallocates without islanding")
@@ -261,7 +284,7 @@ func test_voluntary_deallocate_of_2_2_refunds_full_fill_keeps_cap() -> void:
 func test_cascade_on_2_2_emits_two_wounds_and_double_dealloc_damage() -> void:
 	var d := _nodes[3]
 	_move_core_to(2)
-	_alloc.stake(d, _player)
+	_stake_landed(d)
 	_alloc.allocate(d, _player)
 	var bs := _battle_system()
 	bs._on_node_depleted(d)

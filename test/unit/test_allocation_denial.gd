@@ -6,7 +6,8 @@ extends GutTest
 ## gate that fails, `&""` when the action is allowed, and `can_*` is exactly
 ## "the denial is empty". Each fixture fails one gate, in gate order.
 ##
-## Board: N0 (core) - N1 - N2 - N3, all owned; N4 hangs off N0, unowned.
+## Board: N0 (core) - N1 - N2 - N3, all owned, 0.6 × reach apart in a line
+## (N2 is out of reach); N4 hangs off N0 inside reach, unowned.
 
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _GRAPH_SCENE := preload("res://graph/graph.tscn")
@@ -14,6 +15,8 @@ const _ADDON_SCENES := [
 	preload("res://skill_node/addons/defs/bunker_addon.tscn"),
 	preload("res://skill_node/addons/defs/fortification_addon.tscn"),
 ]
+
+const REACH := 250.0
 
 var _graph: Graph
 var _alloc: AllocationSystem
@@ -34,8 +37,13 @@ func before_each() -> void:
 		_graph.add_edge(_nodes[i], _nodes[i + 1])
 	_graph.add_edge(_nodes[0], _nodes[4])
 
+	for i in 4:
+		_nodes[i].position = Vector2(0.6 * REACH * i, 0)
+	_nodes[4].position = Vector2(0, 0.6 * REACH)
+
 	_alloc = AllocationSystem.new()
 	_alloc.graph = _graph
+	_alloc.stake_reach_px = REACH
 	add_child_autofree(_alloc)
 
 	_player = autofree(Entity.new())
@@ -54,6 +62,13 @@ func after_each() -> void:
 	_alloc = null
 	_player = null
 	_nodes = []
+
+
+## Stake [param n] and let the channel land: cap +1.
+func _stake_landed(n: SkillNode) -> void:
+	assert_true(_alloc.stake(n, _player), "stake %s" % n.name)
+	for i in _alloc.stake_channel_turns:
+		_alloc.advance_channels(_player)
 
 
 func _board() -> EntityStatBoard:
@@ -86,7 +101,7 @@ func test_stake_not_owned() -> void:
 
 
 func test_stake_at_ceiling() -> void:
-	_nodes[1].stake_level = AllocationSystem.STAKE_CEILING
+	_nodes[1].stake_level = _nodes[1].stake_ceiling
 	_assert_stake(_nodes[1], &"stake_denied_at_ceiling")
 
 
@@ -99,11 +114,6 @@ func test_stake_no_sp() -> void:
 	_assert_stake(_nodes[1], &"stake_denied_no_sp")
 
 
-func test_stake_no_ap() -> void:
-	_board().action_points.set_current(0.0)
-	_assert_stake(_nodes[1], &"stake_denied_no_ap")
-
-
 func test_stake_null_is_generic() -> void:
 	assert_eq(_alloc.stake_denial(null, _player), &"stake_denied")
 	assert_eq(_alloc.stake_denial(_nodes[0], null), &"stake_denied")
@@ -114,29 +124,29 @@ func test_stake_null_is_generic() -> void:
 # --- extract --------------------------------------------------------------------
 
 func test_extract_allowed_is_empty() -> void:
-	assert_true(_alloc.stake(_nodes[1], _player))
+	_stake_landed(_nodes[1])
 	_assert_extract(_nodes[1], &"")
 
 
 func test_extract_not_owned() -> void:
-	assert_true(_alloc.stake(_nodes[1], _player))
+	_stake_landed(_nodes[1])
 	_nodes[4].stake_level = 2
 	_assert_extract(_nodes[4], &"extract_denied_not_owned")
 
 
 func test_extract_at_floor() -> void:
-	assert_true(_alloc.stake(_nodes[1], _player))
+	_stake_landed(_nodes[1])
 	_assert_extract(_nodes[0], &"extract_denied_at_floor")
 
 
 func test_extract_not_adjacent() -> void:
-	assert_true(_alloc.stake(_nodes[1], _player))
+	_stake_landed(_nodes[1])
 	_nodes[2].stake_level = 2
 	_assert_extract(_nodes[2], &"extract_denied_not_adjacent")
 
 
 func test_extract_no_dp() -> void:
-	assert_true(_alloc.stake(_nodes[1], _player))
+	_stake_landed(_nodes[1])
 	_board().deallocation_points.set_current(0.0)
 	_assert_extract(_nodes[1], &"extract_denied_no_dp")
 
@@ -152,21 +162,21 @@ func _add_addons(node: SkillNode, count: int) -> void:
 
 
 func test_extract_denied_when_addons_exceed_the_lowered_cap() -> void:
-	assert_true(_alloc.stake(_nodes[1], _player))  # 2 stake
+	_stake_landed(_nodes[1])  # 2 stake
 	_add_addons(_nodes[1], 2)
 	assert_eq(_nodes[1].get_addon_count(), 2)
 	_assert_extract(_nodes[1], &"extract_denied_addon_overflow")
 
 
 func test_extract_allowed_with_addons_within_the_lowered_cap() -> void:
-	assert_true(_alloc.stake(_nodes[1], _player))  # 2 stake
+	_stake_landed(_nodes[1])  # 2 stake
 	_add_addons(_nodes[1], 1)
 	_assert_extract(_nodes[1], &"")
 
 
 func test_extract_allowed_three_stake_two_addons() -> void:
-	assert_true(_alloc.stake(_nodes[1], _player))
-	assert_true(_alloc.stake(_nodes[1], _player))  # 3 stake
+	_stake_landed(_nodes[1])
+	_stake_landed(_nodes[1])  # 3 stake
 	_add_addons(_nodes[1], 2)
 	_assert_extract(_nodes[1], &"")
 
