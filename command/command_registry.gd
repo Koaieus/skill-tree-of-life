@@ -47,6 +47,8 @@ static func _build() -> void:
 	_register(StakeCommand.TAG, StakeCommand.from_dict, StakeCommandHandler.new())
 	_register(ReloadCommand.TAG, ReloadCommand.from_dict, ReloadCommandHandler.new())
 	_register(ExtractCommand.TAG, ExtractCommand.from_dict, ExtractCommandHandler.new())
+	_register(CancelChannelCommand.TAG, CancelChannelCommand.from_dict,
+			CancelChannelCommandHandler.new())
 	_register(MoveCoreCommand.TAG, MoveCoreCommand.from_dict, MoveCoreCommandHandler.new())
 	_register(EndTurnCommand.TAG, EndTurnCommand.from_dict, EndTurnCommandHandler.new())
 	_register(StartTurnCommand.TAG, StartTurnCommand.from_dict, StartTurnCommandHandler.new())

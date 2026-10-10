@@ -548,6 +548,34 @@ func shots_left() -> int:
 func mark_shot_fired(n: int = 1) -> void:
 	shots_fired_this_turn += n
 
+## The cap this node's staking channel steps toward, `0` when idle. Written
+## only by [AllocationSystem]; backed by [member NodeState.channel_target].
+var channel_target: int:
+	get:
+		return state.channel_target
+	set(value):
+		state.channel_target = value
+
+## Owner real-turn-starts counted toward the channel's next step. Written only
+## by [AllocationSystem]; backed by [member NodeState.channel_progress].
+var channel_progress: int:
+	get:
+		return state.channel_progress
+	set(value):
+		state.channel_progress = value
+
+
+## True while a staking channel is open on this node.
+func is_channelling() -> bool:
+	return state.channel_target != 0
+
+
+## +1 while channelling up (stake), −1 down (extract), 0 when idle.
+func channel_direction() -> int:
+	if state.channel_target == 0:
+		return 0
+	return signi(state.channel_target - stake_level)
+
 ## Set by [method take_damage] whenever a hit actually reduces this node's
 ## HP; cleared by [method apply_turn_regen]. Gates the D-9 base heal — a node
 ## hit since its last upkeep gets no base heal this turn and its ramp resets.

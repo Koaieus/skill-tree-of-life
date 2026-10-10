@@ -43,15 +43,41 @@ signal force_deallocated(node: SkillNode, previous_owner: Entity)
 ## one. Slide-tween consumers (SkillNode's CorePresence, #128) subscribe here
 ## rather than to `core_location_changed` so they get the previous position too.
 signal core_moved(entity: Entity, from_node: SkillNode, to_node: SkillNode)
+## A staking channel started on [param node], or its target moved one step
+## further (a mid-channel stake / extract). Read the node's channel fields.
+signal channel_changed(node: SkillNode)
+## One channel step landed: `stake_level` moved by [param direction] (±1).
+signal channel_stepped(node: SkillNode, direction: int)
+## A channel closed — exactly once per channel. [param reason] is `&"landed"`
+## (target reached), `&"leash"`, `&"ownership"` or `&"cancelled"`;
+## [param previous_owner] is the owner the channel ran for, set even when the
+## reason is ownership loss.
+signal channel_ended(node: SkillNode, previous_owner: Entity, reason: StringName)
 
 @export var graph: Graph
 @export var navigator: Navigator
-@export var turn_manager: TurnManager
+@export var turn_manager: TurnManager:
+	set = _set_turn_manager
 
-## The stake ceiling — the highest `stake_level` a node may reach (#337). One
-## named constant so a balance pass is a one-number edit; the "4 as a special
-## keystone" idea is future scope and gets no mechanism here.
-const STAKE_CEILING := 3
+@export_group("Staking channels")
+## Initiation radius in px: stake / extract need the target node's position
+## within this distance of the core node's. Tentative, easy to change.
+@export var stake_reach_px: float = 250.0
+## Leash = reach × this ratio; a core arrival beyond it aborts the entity's
+## channels. Clamped to ≥ 1 so anything initiable starts inside its leash.
+## Tentative, easy to change.
+@export_range(1.0, 4.0, 0.05, "or_greater") var stake_leash_ratio: float = 2.0:
+	set(value):
+		stake_leash_ratio = maxf(value, 1.0)
+## Owner real-turn-starts per landed stake step. Tentative, easy to change.
+@export_range(1, 10, 1, "or_greater") var stake_channel_turns: int = 2
+## Owner real-turn-starts per landed extract step. Tentative, easy to change.
+@export_range(1, 10, 1, "or_greater") var extract_channel_turns: int = 3
+## SP pledged (current → staked) per stake step, at initiation.
+@export_range(0, 5, 1, "or_greater") var stake_sp_cost: int = 1
+## Staked SP lost (staked → wounded) per landed extract step.
+@export_range(0, 5, 1, "or_greater") var extract_sp_refund: int = 1
+@export_group("")
 
 
 func _ready() -> void:
@@ -540,7 +566,7 @@ func stake_denial(node: SkillNode, entity: Entity) -> StringName:
 		return &"stake_denied"
 	if node.owned_by != entity:
 		return &"stake_denied_not_owned"
-	if node.stake_level >= STAKE_CEILING:
+	if node.stake_level >= node.stake_ceiling:
 		return &"stake_denied_at_ceiling"
 	if not _within_core_hop(node, entity):
 		return &"stake_denied_not_adjacent"
@@ -627,6 +653,34 @@ func extract(node: SkillNode, entity: Entity) -> bool:
 				board.skill_points.refund(displaced)
 	node.stake_level -= 1
 	return true
+
+
+func _set_turn_manager(value: TurnManager) -> void:
+	turn_manager = value
+
+
+func stake_leash_px() -> float:
+	return 0.0
+
+
+func channel_fraction(_node: SkillNode) -> float:
+	return -1.0
+
+
+func advance_channels(_entity: Entity) -> void:
+	pass
+
+
+func can_cancel_channel(node: SkillNode, entity: Entity) -> bool:
+	return cancel_channel_denial(node, entity) == &""
+
+
+func cancel_channel_denial(_node: SkillNode, _entity: Entity) -> StringName:
+	return &"cancel_denied"
+
+
+func cancel_channel(_node: SkillNode, _entity: Entity) -> bool:
+	return false
 
 
 ## Core movement (#21). Validates `move_core` preconditions without committing.## - target must be owned by the entity (you only hop across your own subgraph)

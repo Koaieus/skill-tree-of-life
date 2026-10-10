@@ -32,6 +32,11 @@ var last_allocation_level: int = 0
 var regen_stacks: int = 0
 var shots_fired_this_turn: int = 0
 var damaged_since_upkeep: bool = false
+## Staking channel (docs/domain/allocation_system.md): the cap the node is
+## stepping toward, `0` when idle; and the owner real-turn-starts counted
+## toward the next step. Accumulated world state.
+var channel_target: int = 0
+var channel_progress: int = 0
 ## The node-local `vision_range` it last had while owned, sampled as it
 ## loses its owner; `0` means never owned. Accumulated world state (saved).
 var last_owned_vision: float = 0.0
@@ -76,6 +81,8 @@ func clone() -> NodeState:
 	c.regen_stacks = regen_stacks
 	c.shots_fired_this_turn = shots_fired_this_turn
 	c.damaged_since_upkeep = damaged_since_upkeep
+	c.channel_target = channel_target
+	c.channel_progress = channel_progress
 	c.last_owned_vision = last_owned_vision
 	# By reference: a shadow only ever reads the ledgers (it strips what they
 	# list from its own board), never writes them.

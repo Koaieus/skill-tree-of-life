@@ -29,7 +29,6 @@ signal staked_changed
 signal wounds_applied(amount: int)
 signal wounds_healed(amount: int)
 signal stake_applied(amount: int)
-signal stake_extracted(amount: int)
 ## Fires every turn upkeep with the new [member wound_heal_progress] — the
 ## UI's wound-heal sliver binds here rather than polling.
 signal wound_heal_progress_changed(progress: float)
@@ -179,14 +178,15 @@ func stake(n: int) -> bool:
 	return true
 
 
-## Extract N staked SP back into current — the inverse of stake().
-func extract(n: int) -> void:
+## A pledge lost: transfer N staked → wounded (an aborted stake channel, a
+## landed extract step). Clamped to `staked`; emits [signal wounds_applied].
+func wound_staked(n: int) -> void:
 	var amount: int = min(n, staked)
 	if amount <= 0:
 		return
 	staked -= amount
-	set_current(current + float(amount))
-	stake_extracted.emit(amount)
+	wounded += amount
+	wounds_applied.emit(amount)
 
 
 # --- Mints (max grows) ------------------------------------------------------
