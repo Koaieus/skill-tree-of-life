@@ -110,6 +110,10 @@ live outgoing — never by reading issues to compensate.
    in turn — the one ending the scan of 2026-10-09 found already uniform,
    now the law for the rest.
 
+10. **In a swarm-train tree, the top launches relief** as a `swarm-lead`
+    with the relief prompt; the orient-from-disk cycle is unchanged. See
+    [swarm-train](swarm-train.md), law 10.
+
 ## Incident corpus
 
 | Date | Where | What happened | Law |
