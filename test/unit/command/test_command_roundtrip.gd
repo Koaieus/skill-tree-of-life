@@ -119,6 +119,7 @@ func _every_command() -> Array[Command]:
 		MassAllocateCommand.new(1, path),
 		StakeCommand.new(1, 2),
 		ExtractCommand.new(1, 2),
+		CancelChannelCommand.new(1, 2),
 		MoveCoreCommand.new(1, path),
 		EndTurnCommand.new(1),
 		PickLootCommand.new(1, 5, 0),
@@ -126,8 +127,8 @@ func _every_command() -> Array[Command]:
 	]
 
 
-func test_the_vocabulary_is_ten_commands() -> void:
-	assert_eq(_every_command().size(), 10)
+func test_the_vocabulary_is_eleven_commands() -> void:
+	assert_eq(_every_command().size(), 11)
 
 
 ## The load-bearing invariant: a command NEVER holds a SkillNode or Entity
