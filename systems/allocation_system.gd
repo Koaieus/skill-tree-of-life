@@ -688,6 +688,10 @@ func _channel_turns(direction: int) -> int:
 
 
 func _set_turn_manager(value: TurnManager) -> void:
+	# In the editor TurnManager (not @tool) is a placeholder with no signals.
+	if Engine.is_editor_hint():
+		turn_manager = value
+		return
 	if turn_manager != null and turn_manager.real_turn_started.is_connected(advance_channels):
 		turn_manager.real_turn_started.disconnect(advance_channels)
 	turn_manager = value
