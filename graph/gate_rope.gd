@@ -80,7 +80,7 @@ func play(p_mode: Mode, from_global: Vector2, to_global: Vector2,
 	var stops := Emissive.stops(rope_tier)
 	_flash_color = Emissive.at(color_to if mode == Mode.THROW else color_from.lerp(color_to, 0.5),
 		Emissive.stops(handshake_meet_flash if mode == Mode.HANDSHAKE else latch_flash))
-	_strip.mesh = _build_strip()
+	_strip.mesh = RopeStrip.build(span, SEGMENTS, 2)
 	var mat := _strip.material as ShaderMaterial
 	mat.set_shader_parameter(&"mode", int(mode))
 	mat.set_shader_parameter(&"span_px", span)
@@ -154,25 +154,3 @@ func _draw() -> void:
 	var c := _flash_color
 	c.a *= k
 	draw_circle(at, flash_radius * (1.0 + 0.6 * (1.0 - k)), c)
-
-
-## Two ropes of [constant SEGMENTS] quads; see the shader header for the layout.
-func _build_strip() -> ArrayMesh:
-	var verts := PackedVector2Array()
-	var uvs := PackedVector2Array()
-	for k in 2:
-		for i in SEGMENTS:
-			var s0 := float(i) / SEGMENTS
-			var s1 := float(i + 1) / SEGMENTS
-			for q in [[s0, 0.0], [s1, 0.0], [s1, 1.0], [s0, 0.0], [s1, 1.0], [s0, 1.0]]:
-				var s: float = q[0]
-				var x := s * span * 0.5 if k == 0 else span - s * span * 0.5
-				verts.append(Vector2(x, 0.0))
-				uvs.append(Vector2(s + 2.0 * k, q[1]))
-	var arrays := []
-	arrays.resize(Mesh.ARRAY_MAX)
-	arrays[Mesh.ARRAY_VERTEX] = verts
-	arrays[Mesh.ARRAY_TEX_UV] = uvs
-	var mesh := ArrayMesh.new()
-	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
-	return mesh
