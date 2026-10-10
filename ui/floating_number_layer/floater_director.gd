@@ -35,6 +35,11 @@ extends Node2D
 ## world layer draws under the HUD's CanvasLayer) on top of being visually
 ## redundant. So [method _on_stat_modifier_changed] always targets the core,
 ## player or not — see [method _emit_at_entity]'s `route_to_player_anchor` arg.
+## Injected by the composing scene: the source of [signal
+## AllocationSystem.channel_ended], which floats an aborted channel's reason
+## at its node. Null → no channel floaters.
+@export var allocation_system: AllocationSystem = null
+
 @export var player: Entity = null
 @export var player_anchor: Node2D = null
 
@@ -202,6 +207,10 @@ func _on_ui_action_denied(anchor: Node2D, reason: String) -> void:
 	if not is_instance_valid(anchor):
 		return
 	_emit(anchor, _denial_text(reason), FloaterStyles.denied_alert())
+
+
+static func _channel_end_text(_reason: StringName) -> String:
+	return ""
 
 
 static func _denial_text(reason: String) -> String:

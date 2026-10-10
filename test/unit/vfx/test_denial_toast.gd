@@ -37,7 +37,7 @@ func test_denial_floats_the_reason_at_the_node() -> void:
 	Events.node_action_denied.emit(node, "stake_denied_not_adjacent")
 	var toasts := _toasts()
 	assert_eq(toasts.size(), 1, "one denial toast")
-	assert_eq(toasts[0].label.text, "TOO FAR FROM CORE",
+	assert_eq(toasts[0].label.text, "OUT OF REACH",
 			"the reason in player-facing words, not snake_case")
 
 
@@ -45,7 +45,7 @@ func test_denial_style_is_the_quiet_register() -> void:
 	var node := _SKILL_NODE_SCENE.instantiate() as SkillNode
 	add_child_autofree(node)
 	await get_tree().process_frame
-	Events.node_action_denied.emit(node, "stake_denied_no_ap")
+	Events.node_action_denied.emit(node, "stake_denied_no_sp")
 	var toasts := _toasts()
 	assert_eq(toasts.size(), 1)
 	var toast := toasts[0]
@@ -68,7 +68,7 @@ func test_unknown_reason_stays_silent() -> void:
 
 func test_null_node_makes_no_toast() -> void:
 	await get_tree().process_frame
-	Events.node_action_denied.emit(null, "stake_denied_no_ap")
+	Events.node_action_denied.emit(null, "stake_denied_no_sp")
 	assert_eq(_toasts().size(), 0)
 
 
@@ -76,6 +76,54 @@ func test_every_mapped_reason_has_text() -> void:
 	for reason in FloaterDirector._DENIAL_TEXTS:
 		assert_false(FloaterDirector._denial_text(reason).is_empty(),
 				"reason '%s' must map to visible text" % reason)
+
+
+## Every reason key AllocationSystem can mint (stake, extract, cancel) has a
+## row — read off the source so a new gate without a translation fails here.
+func test_every_allocation_denial_key_has_text() -> void:
+	var source := FileAccess.get_file_as_string("res://systems/allocation_system.gd")
+	assert_false(source.is_empty(), "allocation_system.gd readable")
+	var re := RegEx.create_from_string("&\"((?:stake|extract|cancel)_denied\\w*)\"")
+	var keys := {}
+	for m in re.search_all(source):
+		keys[m.get_string(1)] = true
+	assert_gt(keys.size(), 10, "the scan found the denial keys")
+	for key in keys:
+		assert_true(FloaterDirector._DENIAL_TEXTS.has(key),
+				"denial key '%s' needs a floater string" % key)
+
+
+func test_no_denial_mentions_ap() -> void:
+	assert_false(FloaterDirector._DENIAL_TEXTS.has("stake_denied_no_ap"),
+			"AP no longer gates staking")
+	var re := RegEx.create_from_string("\\bAP\\b")
+	for reason in FloaterDirector._DENIAL_TEXTS:
+		assert_null(re.search(FloaterDirector._denial_text(reason)),
+				"reason '%s' must not mention AP" % reason)
+
+
+func test_channel_end_reasons_map_to_floaters() -> void:
+	for reason in [&"leash", &"ownership", &"cancelled"]:
+		assert_false(FloaterDirector._channel_end_text(reason).is_empty(),
+				"abort reason '%s' floats a string" % reason)
+	assert_eq(FloaterDirector._channel_end_text(&"landed"), "",
+			"a landed channel floats nothing — the rim pulse carries it")
+
+
+func test_channel_ended_floats_at_the_node() -> void:
+	var alloc := AllocationSystem.new()
+	add_child_autofree(alloc)
+	_director.allocation_system = alloc
+	var node := _SKILL_NODE_SCENE.instantiate() as SkillNode
+	add_child_autofree(node)
+	await get_tree().process_frame
+	alloc.channel_ended.emit(node, null, &"leash")
+	var toasts := _toasts()
+	assert_eq(toasts.size(), 1, "one abort toast")
+	if toasts.size() == 1:
+		assert_eq(toasts[0].label.text, "LEASH BROKEN")
+	alloc.channel_ended.emit(node, null, &"landed")
+	assert_eq(_toasts().size(), 1, "landed adds nothing")
 
 
 func test_denial_style_in_gallery() -> void:
