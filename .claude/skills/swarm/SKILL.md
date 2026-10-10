@@ -169,8 +169,7 @@ are a `swarm-lead` subagent and your parent is the train's top session, not
 a person. You share the top's session id: `mise run ledger -- show` is
 the train's ledger (a relief inherits the outgoing lead's live one) — never
 `adopt`. The ledger path in your prompt is the whip ledger: read it, never
-adopt it. No Sage in this
-mode: every brief names the `advisor` tool.
+adopt it. No Sage in this mode: every brief names the `advisor` tool.
 
 - **Waves are foreground.** One wave per message still holds: every `Agent`
   call of the wave in one message, each with `run_in_background: false`.
