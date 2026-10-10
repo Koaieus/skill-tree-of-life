@@ -192,9 +192,10 @@ graph = NodePath("..")
 allocation_system = NodePath("../../Systems/AllocationSystem")
 bounds = Rect2(-3000, -2250, 6000, 4500)
 
-[node name="FloaterDirector" parent="Graph" unique_id=1985116673 node_paths=PackedStringArray("vision_system") instance=ExtResource("12_ywsqi")]
+[node name="FloaterDirector" parent="Graph" unique_id=1985116673 node_paths=PackedStringArray("vision_system", "allocation_system") instance=ExtResource("12_ywsqi")]
 unique_name_in_owner = true
 vision_system = NodePath("../../Systems/VisionSystem")
+allocation_system = NodePath("../../Systems/AllocationSystem")
 
 [node name="EdgeHighlightOverlay" type="Node2D" parent="Graph" unique_id=316344470 node_paths=PackedStringArray("highlight_controller", "graph")]
 unique_name_in_owner = true

@@ -38,7 +38,8 @@ extends Node2D
 ## Injected by the composing scene: the source of [signal
 ## AllocationSystem.channel_ended], which floats an aborted channel's reason
 ## at its node. Null → no channel floaters.
-@export var allocation_system: AllocationSystem = null
+@export var allocation_system: AllocationSystem = null:
+	set = _set_allocation_system
 
 @export var player: Entity = null
 @export var player_anchor: Node2D = null
@@ -47,7 +48,7 @@ const FloaterStyles := preload("res://ui/floating_number_layer/floater_styles.gd
 
 ## Player-facing text per [signal Events.node_action_denied] reason string.
 ## The reasons are minted by [method AllocationSystem.stake_denial] /
-## [method AllocationSystem.extract_denial] (emitted by [PlayerInputController],
+## [method AllocationSystem.extract_denial] / [method AllocationSystem.cancel_channel_denial] (emitted by [PlayerInputController],
 ## alongside its allocate and deallocate sites) and by [PlayerInputController.request_temp_upgrade_at]. This
 ## table is the single place a raw reason becomes words; an unmapped reason
 ## toasts nothing (better silent than snake_case on screen), so a new reason
@@ -56,22 +57,34 @@ const _DENIAL_TEXTS := {
 	"allocate_denied_unreachable": "OUT OF REACH",
 	"deallocate_denied": "CAN'T DEALLOCATE",
 	"stake_denied_not_owned": "NOT YOURS",
+	"stake_denied_channelling": "EXTRACTING",
 	"stake_denied_at_ceiling": "STAKE AT MAX",
-	"stake_denied_not_adjacent": "TOO FAR FROM CORE",
+	"stake_denied_not_adjacent": "OUT OF REACH",
 	"stake_denied_no_sp": "NEED 1 SP",
-	"stake_denied_no_ap": "NEED 1 AP",
 	"stake_denied": "CAN'T STAKE",
 	"extract_denied_not_owned": "NOT YOURS",
+	"extract_denied_channelling": "STAKING",
 	"extract_denied_at_floor": "NOTHING TO EXTRACT",
 	"extract_denied_addon_overflow": "TOO MANY ADDONS",
-	"extract_denied_not_adjacent": "TOO FAR FROM CORE",
+	"extract_denied_not_adjacent": "OUT OF REACH",
 	"extract_denied_no_dp": "NEED 1 DP",
 	"extract_denied_no_staked_sp": "NO STAKED SP",
 	"extract_denied": "CAN'T EXTRACT",
+	"cancel_denied_not_owned": "NOT YOURS",
+	"cancel_denied_idle": "NOT CHANNELLING",
+	"cancel_denied": "CAN'T CANCEL",
 	"temp_upgrade_denied_slot_full": "SLOT FULL",
 	"temp_upgrade_denied_budget": "NO BLADE BUDGET",
 	"temp_upgrade_denied_aspect": "NEEDS ASPECT",
 	"spell_denied_no_caster": "GEEN CASTER",
+}
+
+## Player-facing text per [signal AllocationSystem.channel_ended] reason. A
+## landed channel floats nothing — its step is the rim pulse's flash.
+const _CHANNEL_END_TEXTS := {
+	&"leash": "LEASH BROKEN",
+	&"ownership": "CHANNEL LOST",
+	&"cancelled": "CANCELLED",
 }
 
 
@@ -188,7 +201,7 @@ func _on_stat_modifier_changed(
 ## A gated verb was refused. The node already buzzes (#89's shake, generalized
 ## #404 — [PlayerInputController._on_node_action_denied]); this adds the WHY as
 ## a short toast at the refused node, so "it shook" never has to stand in for
-## "you're out of AP" or "your core is too far". Fog-gated like any
+## "you're out of SP" or "it's out of reach". Fog-gated like any
 ## node-targeted intake; an unmapped reason stays silent (see [_DENIAL_TEXTS]).
 func _on_node_action_denied(node: SkillNode, reason: String) -> void:
 	if node == null or not _node_visible(node):
@@ -209,8 +222,25 @@ func _on_ui_action_denied(anchor: Node2D, reason: String) -> void:
 	_emit(anchor, _denial_text(reason), FloaterStyles.denied_alert())
 
 
-static func _channel_end_text(_reason: StringName) -> String:
-	return ""
+static func _channel_end_text(reason: StringName) -> String:
+	return _CHANNEL_END_TEXTS.get(reason, "") as String
+
+
+## A channel closed without landing: float why at its node, in the deny
+## register, fog-gated like every node-targeted intake. Never reads
+## [param _previous_owner] — the owner may already be gone.
+func _on_channel_ended(node: SkillNode, _previous_owner: Entity, reason: StringName) -> void:
+	if node == null or not _node_visible(node):
+		return
+	_emit(node, _channel_end_text(reason), FloaterStyles.denied())
+
+
+func _set_allocation_system(value: AllocationSystem) -> void:
+	if allocation_system != null and allocation_system.channel_ended.is_connected(_on_channel_ended):
+		allocation_system.channel_ended.disconnect(_on_channel_ended)
+	allocation_system = value
+	if allocation_system != null and not allocation_system.channel_ended.is_connected(_on_channel_ended):
+		allocation_system.channel_ended.connect(_on_channel_ended)
 
 
 static func _denial_text(reason: String) -> String:
