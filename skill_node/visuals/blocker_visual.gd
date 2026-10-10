@@ -1,3 +1,4 @@
+class_name BlockerVisual
 extends Node2D
 ## Boulder overlay for a removable-blocked node (#300 / #478). While the node
 ## reads as blocked, draws a neutral grey rock that dominates the node's inner
@@ -88,6 +89,19 @@ const BOULDER_RADIUS_SCALE := 0.92
 const CRACK_COUNTS: Array[int] = [0, 2, 4]
 
 var crack_stage: CrackStage = CrackStage.INTACT
+
+@export var tier_lobes: Array[int] = [1, 2, 3]
+
+var lobe_count: int:
+	get: return 0
+
+var blob_seed: float:
+	get: return 0.0
+
+
+static func seed_for(_stable_id: int) -> float:
+	return 0.0
+
 
 var _node: SkillNode = null
 

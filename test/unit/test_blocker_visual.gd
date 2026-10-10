@@ -34,7 +34,7 @@ func before_each() -> void:
 	_graph = _GRAPH_SCENE.instantiate()
 	add_child_autofree(_graph)
 	_nodes = []
-	for i in 2:
+	for i in 3:
 		var sn := _BLOCKER_NODE_SCENE.instantiate() as SkillNode
 		sn.name = "N%d" % i
 		_graph.skill_nodes_container.add_child(sn)
@@ -58,16 +58,16 @@ func _add_edge(a: SkillNode, b: SkillNode) -> void:
 
 ## Build a blocker owning `_nodes[0]` directly (not via GameRoot.spawn_blocker)
 ## — mirrors `test_blocker_entity.gd`'s fixture pattern.
-func _spawn_blocker() -> Entity:
+func _spawn_blocker(node_idx := 0, tier := 1) -> Entity:
 	var blocker := Entity.new()
 	blocker.display_name = "Blocker"
 	blocker.stat_board = _SMALL_BOARD.duplicate(true) as EntityStatBoard
-	blocker.entity_tier = 1
+	blocker.entity_tier = tier
 	blocker.core_class = _BLOCKER_CORE  # as game_root spawns a Dormant Core
 	_graph.add_child(blocker)
 	await get_tree().process_frame  # _ready: board dup + intrinsics + health wiring
-	_alloc.force_allocate(blocker, _nodes[0])
-	blocker.core_location = _nodes[0]
+	_alloc.force_allocate(blocker, _nodes[node_idx])
+	blocker.core_location = _nodes[node_idx]
 	return blocker
 
 
@@ -242,6 +242,75 @@ func test_clearing_survives_the_corpse_being_freed() -> void:
 	_alloc.force_allocate(player, sn)
 	await get_tree().process_frame
 	assert_false(visual.visible, "claiming the node the corpse left must not re-latch the boulder")
+
+
+# ── The null-field blob: tier = lobes, per-node seed, shared material (#1526) ──
+
+## Tier reads as fused lobe count, never node size: each tier maps through the
+## `tier_lobes` knob, and the count strictly grows with tier (the invariant,
+## not the literal table).
+func test_lobe_count_follows_tier_and_grows_with_it() -> void:
+	var counts: Array[int] = []
+	for tier in [1, 2, 3]:
+		await _spawn_blocker(tier - 1, tier)
+	await get_tree().process_frame
+	for tier in [1, 2, 3]:
+		var visual := _visual(_nodes[tier - 1])
+		assert_eq(visual.lobe_count, visual.tier_lobes[tier - 1],
+			"tier %d wears tier_lobes[%d] lobes" % [tier, tier - 1])
+		counts.append(visual.lobe_count)
+	assert_lt(counts[0], counts[1], "a medium core has more lobes than a small one")
+	assert_lt(counts[1], counts[2], "a large core has more lobes than a medium one")
+
+
+## The tier is latched with the owner: a later write to the entity's tier never
+## changes the look while the node stays blocked.
+func test_tier_is_latched_with_the_owner() -> void:
+	var visual := _visual(_nodes[0])
+	var blocker := await _spawn_blocker(0, 1)
+	await get_tree().process_frame
+	var before: int = visual.lobe_count
+	blocker.entity_tier = 3
+	_nodes[0].owner_changed.emit()
+	await get_tree().process_frame
+	assert_true(visual.visible, "still blocked")
+	assert_eq(visual.lobe_count, before, "the latched tier holds")
+
+
+## Each core's variant seed is a pure function of its node's stable_id — never
+## randf — so every peer draws the same blob.
+func test_seed_derives_from_stable_id() -> void:
+	var a := _nodes[0]
+	var b := _nodes[1]
+	_graph.get_stable_id(a)  # mints the graph's stable ids
+	assert_ne(a.stable_id, 0, "precondition: the graph minted a stable_id")
+	assert_ne(a.stable_id, b.stable_id, "precondition: distinct stable_ids")
+	assert_ne(_visual(a).blob_seed, _visual(b).blob_seed, "different stable_id, different seed")
+	assert_eq(_visual(a).blob_seed, BlockerVisual.seed_for(a.stable_id),
+		"the seed is seed_for(stable_id)")
+	assert_eq(BlockerVisual.seed_for(a.stable_id), BlockerVisual.seed_for(a.stable_id),
+		"same stable_id, same seed")
+
+
+## One ShaderMaterial shared by every visible blob; a sensed or cleared one
+## binds none, so it claims no instance-uniform slot.
+func test_visible_blobs_share_one_material_and_hidden_ones_bind_none() -> void:
+	await _spawn_blocker(0, 1)
+	await _spawn_blocker(1, 2)
+	await get_tree().process_frame
+	var va := _visual(_nodes[0])
+	var vb := _visual(_nodes[1])
+	assert_true(va.is_visible_in_tree() and vb.is_visible_in_tree(), "precondition: both shown")
+	assert_not_null(va.material, "a visible blob binds the material")
+	assert_true(is_same(va.material, vb.material), "every blob shares one material")
+
+	_nodes[1].sensed = true
+	await get_tree().process_frame
+	assert_null(vb.material, "a sensed blob binds no material")
+
+	_alloc.force_deallocate(_nodes[0])
+	await get_tree().process_frame
+	assert_null(va.material, "a cleared blob binds no material")
 
 
 # ── Procgen wiring ─────────────────────────────────────────────────────────
