@@ -94,6 +94,17 @@ func test_other_version_is_a_version_mismatch() -> void:
 	assert_true(got.world.is_empty())
 
 
+## A v7 file differs from v8 only by rows ending earlier, which
+## [GraphSnapshot] decodes with defaults — so it loads rather than refusing.
+func test_the_previous_version_still_loads() -> void:
+	var bytes := _sample().to_bytes()
+	bytes.encode_u32(SaveFile.VERSION_OFFSET, 7)
+	var got := SaveFile.from_bytes(bytes)
+	assert_eq(got.load_result, SaveFile.LoadResult.OK)
+	assert_eq(got.format_version, 7, "the file's own version")
+	assert_false(got.world.is_empty())
+
+
 func test_missing_slot_is_missing() -> void:
 	var got := SaveFile.read_slot("user://no_such_save_file.bin")
 	assert_eq(got.load_result, SaveFile.LoadResult.MISSING)
