@@ -95,10 +95,10 @@ func spawn_entity(
 ## rebuilding a blocker on a peer that ran no procgen. `0`, the default, is
 ## every ordinary caller and mints as before.
 ##
-## [param stake_level] is the #916 pre-stake (1..[constant
-## AllocationSystem.STAKE_CEILING], procgen rolls it per placement) only RAISES
-## the core node's cap — a node procgen already staked keeps its own, possibly
-## past the ceiling, and the fill and kill-XP offset read that effective stake:
+## [param stake_level] is the #916 pre-stake (procgen rolls 1..3 per
+## placement) and only RAISES the core node's cap — a node procgen already
+## staked keeps its own. Ungated by the node's ceiling: a raise past it lifts
+## [member SkillNode.stake_ceiling] (see [method set_procgen_stake]). The fill and kill-XP offset read that effective stake:
 ## the cap is stamped, `force_allocate` opens the 0→1 as usual, and
 ## [method AllocationSystem.force_fill] walks the fill to the cap — no SP
 ## minted for the fill, so the blocker's pool never says it bought it. A
@@ -136,11 +136,10 @@ func spawn_blocker(size: BlockerSize, core_location: SkillNode,
 	if core_location != null:
 		# Raise-only: a core landing on a node procgen already staked (a
 		# repeat addon draw, possibly past the ceiling) keeps that stake.
-		var stake := maxi(core_location.stake_level,
-				clampi(stake_level, 1, AllocationSystem.STAKE_CEILING))
+		var stake := maxi(core_location.stake_level, maxi(stake_level, 1))
 		# Cap BEFORE the allocate: the fill is clamped to the cap, and the
 		# stake_level setter re-derives the radius the halo reads.
-		core_location.stake_level = stake
+		set_procgen_stake(core_location, stake)
 		allocation_system.force_allocate(ent, core_location)
 		ent.core_location = core_location
 		if stake > 1:
@@ -154,6 +153,15 @@ func spawn_blocker(size: BlockerSize, core_location: SkillNode,
 			if node != null and node != core_location:
 				allocation_system.force_allocate(ent, node)
 	return ent
+
+
+## The one procgen stake write: sets [param node]'s [member SkillNode.stake_level]
+## to [param level], ungated by its ceiling, and grants one +1 `stake_ceiling`
+## local modifier per level the write lands past it, so the ceiling never sits
+## below a level procgen wrote. A fresh modifier per raise —
+## [method SkillNode.add_local_modifier] dedupes by instance.
+static func set_procgen_stake(node: SkillNode, level: int) -> void:
+	node.stake_level = level
 
 
 ## The #916 kill-XP offset for a pre-staked blocker, owner's formula verbatim

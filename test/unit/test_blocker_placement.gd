@@ -7,6 +7,8 @@ extends GutTest
 ## placements never land on a starter core or a landmark (authored-scene) node, that no node is
 ## picked twice, and that placements are seed-deterministic.
 
+## `_roll_blocker_stakes` is a two-draw chain: 1..3 by construction.
+const _ROLL_MAX := 3
 const _LANDMARK := preload("res://skill_node/keystone/instances/farsight_node.tscn")
 
 
@@ -522,8 +524,8 @@ func test_same_seed_same_stakes() -> void:
 	assert_eq(stakes_a, _stakes(b.get("blockers", [])), "same seed, same stakes")
 	var mixed := false
 	for st in stakes_a:
-		assert_true(st >= 1 and st <= AllocationSystem.STAKE_CEILING,
-				"stake %d within 1..STAKE_CEILING" % st)
+		assert_true(st >= 1 and st <= _ROLL_MAX,
+				"stake %d within 1.._ROLL_MAX" % st)
 		if st != stakes_a[0]:
 			mixed = true
 	assert_true(mixed, "a 0.5 chance over %d blockers rolls more than one value" % stakes_a.size())
@@ -537,4 +539,4 @@ func test_stake_chance_off_is_all_ones_and_on_is_all_ceiling() -> void:
 	var stakes := _stakes(on.get("blockers", []))
 	assert_gt(stakes.size(), 0, "the fixture places blockers at all")
 	for st in stakes:
-		assert_eq(st, AllocationSystem.STAKE_CEILING, "chance 1: every blocker at the ceiling")
+		assert_eq(st, _ROLL_MAX, "chance 1: every blocker at the roll max")

@@ -1020,8 +1020,9 @@ static func _place_blocker_indices(
 ## The #916 pre-stake per placed blocker: a chain of two draws against the
 ## tier's chance — P(stake 2), then P(stake 3 | stake 2) — so with chance `p`
 ## the split is `1−p : p(1−p) : p²`. Draws are ALWAYS consumed (both of them,
-## whatever the chance) so the stream stays aligned across a retune. Never
-## above [constant AllocationSystem.STAKE_CEILING].
+## whatever the chance) so the stream stays aligned across a retune. 1..3 by
+## construction; a stake past the core's ceiling raises the ceiling
+## ([method EntityFactory.set_procgen_stake]).
 static func _roll_blocker_stakes(
 	blocker_sizes: Dictionary, blockers: GraphProcgenBlockers,
 	blocker_rng: RandomNumberGenerator
@@ -1036,7 +1037,7 @@ static func _roll_blocker_stakes(
 			stake = 2
 			if second < chance:
 				stake = 3
-		out[idx] = mini(stake, AllocationSystem.STAKE_CEILING)
+		out[idx] = stake
 	return out
 
 
@@ -1168,7 +1169,7 @@ static func _place_addons(
 		var sn := eligible[idx]
 		count += 1
 		if count > 1:
-			sn.stake_level = count
+			EntityFactory.set_procgen_stake(sn, count)
 		sn.add_child(instance)
 		counts[idx] = count
 		if instance.unique:

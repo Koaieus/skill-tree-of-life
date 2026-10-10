@@ -127,10 +127,14 @@ func test_killed_staked_blocker_leaves_a_0_of_3_a_player_can_fill() -> void:
 	assert_eq(node.owned_by, player)
 
 
-func test_stake_never_exceeds_the_ceiling() -> void:
-	_spawn(AllocationSystem.STAKE_CEILING + 2)
-	assert_eq(_nodes[1].stake_level, AllocationSystem.STAKE_CEILING, "clamped to the ceiling")
-	assert_eq(_nodes[1].allocation_level, AllocationSystem.STAKE_CEILING)
+## Procgen stake writes are ungated by the node's ceiling: a roll past it
+## lands, and the ceiling is lifted to match.
+func test_a_rolled_stake_past_the_ceiling_lifts_the_ceiling() -> void:
+	var past := _nodes[1].stake_ceiling + 2
+	_spawn(past)
+	assert_eq(_nodes[1].stake_level, past, "not clamped to the ceiling")
+	assert_eq(_nodes[1].allocation_level, past)
+	assert_eq(_nodes[1].stake_ceiling, past, "the ceiling never sits below the stake")
 
 
 ## The spawn only RAISES stake: a core landing on a node procgen already staked
@@ -148,11 +152,13 @@ func test_rolled_stake_below_a_pre_staked_node_keeps_the_node_stake() -> void:
 
 
 func test_a_procgen_stake_past_the_ceiling_fills_to_it() -> void:
-	_nodes[1].stake_level = AllocationSystem.STAKE_CEILING + 1
+	var past := _nodes[1].stake_ceiling + 1
+	EntityFactory.set_procgen_stake(_nodes[1], past)
 	var blocker := _spawn(1)
 	assert_eq(_nodes[1].owned_by, blocker)
-	assert_eq(_nodes[1].stake_level, AllocationSystem.STAKE_CEILING + 1)
-	assert_eq(_nodes[1].allocation_level, AllocationSystem.STAKE_CEILING + 1)
+	assert_eq(_nodes[1].stake_level, past)
+	assert_eq(_nodes[1].allocation_level, past)
+	assert_eq(_nodes[1].stake_ceiling, past)
 
 
 func test_rolled_stake_2_on_a_plain_node_is_2_of_2() -> void:

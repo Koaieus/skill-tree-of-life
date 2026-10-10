@@ -470,6 +470,16 @@ var _stake_level_backing: int = 1:
 	set(value):
 		state.stake_level_backing = value
 
+## The most [member stake_level] a staking verb may raise this node to — the
+## node-local `stake_ceiling` stat (baked on [member NodeStatBoard.stake_ceiling],
+## default 3) plus any local modifiers. Read-only: raise it with a
+## `stake_ceiling` local modifier, never a write. Procgen stake writes are not
+## gated by it; they grant +1 modifiers instead so it never sits below the
+## level procgen wrote.
+var stake_ceiling: int:
+	get:
+		return int(get_local_value(&"stake_ceiling"))
+
 ## Per-node allocation fill — the M in M/N. 0 = unowned, 1 = baseline,
 ## 2+ = staked. Mirrors `stake_level` PoolStat.current; the pool's clamp
 ## keeps it ≤ the cap and is authoritative once minted. Exported like
