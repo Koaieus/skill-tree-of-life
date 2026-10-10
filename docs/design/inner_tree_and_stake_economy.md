@@ -144,64 +144,28 @@ never on the meta tree (`metagame.md`); no node appears in both.
 
 ## 3. The stake economy
 
-Facts: stake = 1 SP + 1 AP, one hop from the core, raises the cap N; fill is 1
-SP; extract = 1 DP, returns the staked SP (+ the fill's SP only if the node
-was full); **the staked bucket is per entity**, so extracting anyone else's
-stake returns nothing to a never-staked entity; ~1% of nodes are staked
-above 1; the ladder is linear so a ×2 keystone is ×4 at 3/3; ~22 SP are minted
-by lv10. Every shape below assumes the one rule change the owner's loop needs:
-**extracting a stake you did not place mints 1 SP.**
+**Decided on #1524 (owner, 2026-10-10)** — stake and extract are multi-turn
+*channels*: a target cap on the node, one step per K of the owner's turn
+starts, initiated within a reach of hops from the core and kept alive by a
+wider leash; abort wounds the pledged SP. Extract is a currency exchange out of
+the entity's own `staked` bucket, paid back as wounds; no AP cost; the stake
+ceiling is a node-local stat. Economy knobs ship at 1 SP cost / 1 refund with
+the 2 / 1 flip a later edit. The shapes weighed are the issue's two design
+comments; the rejected ones (per-node `staked_by` with minting, a pin instead
+of a leash, a cost drain alone) are dead grounds in the ADR child.
 
-| shape | fantasy | loop | pace (30–60 turns) | breaks |
-|---|---|---|---|---|
-| **Claims** — a stake is a deed (`staked_by`) that survives conquest; the conqueror extracts it for +1 SP | you bought the land; the deed outlives you | staked nodes become attack objectives; Silence's threshold B finally has a population | 3–5 stakes/player, 5–8% of nodes; a raid that takes 2 staked nodes ≈ 1 level | turtling; the loser bleeds further (snowball) |
-| **Veins** — procgen pre-stakes multi-addon nodes at N/N; owning one lets you extract it for +1 SP (and a loot pick) | ore seams | you push toward veins because they refinance you | ~1 per 25–30 nodes → 3–4 per run ≈ +4 SP, covers two of your own stakes | mined out → drain unrelieved; a fixed route |
-| Pure sink — 2 SP, no extract | a tattoo | a tax on power, no raid motive | 2–3/run | contradicts the owner's "extract others' stakes" line — drop |
-| Stake-as-tempo — stake refunds 1 AP | commitment makes you faster | a turn-economy trick | 4–6/run | stake-spam opening unless latched 1/turn like kill-AP |
-
-**Claims + Veins are one package**: veins seed the map, claims make player
-stakes the raid economy.
-
-### The drain
-
-~22 SP minted by lv10, 11 nodes of base allocation as the floor. Light staking
-(2 stakes, 6 SP burned, 2 foreign extracts back) is ~18% of the mint, felt as a
-pleasant tax; heavy (4 stakes, 12 burned) is ~45%, halves territory growth —
-which *is* "not everywhere". Relief beyond "per X kills" (farming): **conquest
-relief** (+1 SP on extracting a node you did not stake — the claims rule
-itself) and **tenure relief** (+1 SP once per node held at cap for 8
-consecutive turns, capped 2/run — rewards defending the investment).
-
-### Keystones, the gate, the target
-
-- **Keystone ×4**: authoring keystones non-scaling (the hook exists) is the
-  cleanest and the least fun — it empties the best nodes out of the staking
-  game. **A per-node stake ceiling** (keystones cap at 1/2 = ×3) is the readable
-  baseline; ×4 as an *earned* thing (a 3/3 keystone needs an extracted vein or
-  a conquered claim as prerequisite) is the fun version, for later.
-- **Gate**: keep one hop from the core — it bounds the early staking surface
-  to ~6–10 nodes and makes the core zone the economic centre — and widen it
-  with a `stake_reach` stat from loot or a class passive, so reach is a build
-  axis, not a rule.
-- **Target**: 8–12% of a player's nodes staked by run end (2–3 of ~22). Lever:
-  the stake-to-fresh-allocation cost ratio (2:1 with 1 back). Under 6% → stake
-  1 SP or more relief; over 15% → fill costs 2.
-
-### Recommended package
-
-Stake 2 SP, no AP, fill 1 SP · extract 1 DP, pays +1 SP minted to whoever
-holds the node (own stake: reclaimed from `staked`; foreign: minted) · claims
-persist on conquest, procgen seeds veins on multi-addon nodes · tenure relief
-+1/node at 8 turns, cap 2 · keystone ceiling 1/2 · gate 1 hop + `stake_reach`
-· first 3/3 stake of the run mints an inner-tree point.
+Still open here, not on #1524: **tenure relief** (+1 SP per node held at cap
+for 8 turns, cap 2/run) and the **inner-tree point on the first 3/3** — both
+rewards for holding, parked until stake usage under channels is seen; the
+**Mastery tempo dividend** lives on #887. Veins are #1531; under the
+currency-exchange rule a vein pays only an entity that holds staked SP.
 
 ## 4. What falls out for free
 
 - The vein rule answers the addon-cap issue: a pre-staked N/N multi-addon node
-  is honest against a cap defined off `stake_level`, *and* is the owner's
-  extract target, *and* pays the SP the owner's loop needs.
-- The inner-tree bonus point on a 3/3 stake gives staking a non-SP reward
-  without the "per X kills" farming smell (#887's Mastery, finally with a
-  reason).
+  is honest against a cap defined off `stake_level` (#1530) *and* is an extract
+  target for an entity holding staked SP.
+- The inner-tree bonus point on a 3/3 stake would give staking a non-SP reward
+  without the "per X kills" farming smell.
 - Kill XP ×5 with curve F makes blocker tiers matter again without touching
   blocker health; the health ×10 pass then stays a pure unit change.
