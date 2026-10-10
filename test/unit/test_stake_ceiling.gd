@@ -38,3 +38,10 @@ func test_repeat_addon_draws_lift_the_ceiling() -> void:
 	for count in [2, 3, 4]:
 		EntityFactory.set_procgen_stake(n, count)
 	assert_eq(n.stake_ceiling, 4)
+
+
+func test_a_lift_is_not_laddered_by_the_fill() -> void:
+	var n := _node()
+	EntityFactory.set_procgen_stake(n, 4)
+	n.allocation_level = 4
+	assert_eq(n.stake_ceiling, 4, "+1 per lift at any allocation level")

@@ -42,6 +42,13 @@ extends StatBoard
 ## open the board.
 @export var stake_level: PoolStat
 
+## The most [member stake_level] a staking verb may raise this node to,
+## default 3 (`base_value` on `default_node_board.tres`). Node-only, so a
+## typed field: `add_modifier`'s non-minting lookup must find it for the +1
+## local modifiers a procgen raise past it grants. Read through
+## [member SkillNode.stake_ceiling].
+@export var stake_ceiling: ScalarStat
+
 ## How many addons this node may carry (#375). `base(0) + allocation_level`,
 ## via an ADD_BASE modifier whose formula reads the `stake_level__current`
 ## accessor — authored in `intrinsic_modifiers` on

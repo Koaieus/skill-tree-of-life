@@ -10,6 +10,7 @@
 [ext_resource type="Resource" path="res://stats_system/defs/arrows_per_reload.tres" id="def_arrows_per_reload"]
 [ext_resource type="Resource" path="res://stats_system/defs/max_shots_per_leaf.tres" id="def_max_shots_per_leaf"]
 [ext_resource type="Resource" path="res://stats_system/defs/stake_level.tres" id="def_stake_level"]
+[ext_resource type="Resource" path="res://stats_system/defs/stake_ceiling.tres" id="def_stake_ceiling"]
 
 [sub_resource type="Resource" id="Resource_addon_slots"]
 resource_name = "addon_slots"
@@ -49,9 +50,16 @@ script = ExtResource("2_pool")
 definition = ExtResource("def_stake_level")
 base_value = 1.0
 
+[sub_resource type="Resource" id="Resource_stake_ceiling"]
+resource_name = "stake_ceiling"
+script = ExtResource("3_scalar")
+definition = ExtResource("def_stake_ceiling")
+base_value = 3.0
+
 [resource]
 script = ExtResource("1_board")
 stake_level = SubResource("Resource_stake")
+stake_ceiling = SubResource("Resource_stake_ceiling")
 addon_slots = SubResource("Resource_addon_slots")
 arrows_per_reload = SubResource("Resource_arrows_per_reload")
 max_shots_per_leaf = SubResource("Resource_max_shots_per_leaf")

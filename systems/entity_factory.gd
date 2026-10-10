@@ -15,6 +15,7 @@ const _ENTITY_SCENE := preload("res://entity/entity.tscn")
 enum BlockerSize { SMALL, MEDIUM, LARGE }
 
 const _BLOCKER_SCENE := preload("res://entity/blocker/blocker_entity.tscn")
+const _STAKE_CEILING_LIFT := preload("res://skill_node/stake_ceiling_lift_modifier.tres")
 const _BLOCKER_BOARDS: Dictionary = {
 	BlockerSize.SMALL: preload("res://entity/blocker/blocker_small_board.tres"),
 	BlockerSize.MEDIUM: preload("res://entity/blocker/blocker_medium_board.tres"),
@@ -162,6 +163,8 @@ func spawn_blocker(size: BlockerSize, core_location: SkillNode,
 ## [method SkillNode.add_local_modifier] dedupes by instance.
 static func set_procgen_stake(node: SkillNode, level: int) -> void:
 	node.stake_level = level
+	while node.stake_level > node.stake_ceiling:
+		node.add_local_modifier(_STAKE_CEILING_LIFT.duplicate() as StatModifier)
 
 
 ## The #916 kill-XP offset for a pre-staked blocker, owner's formula verbatim

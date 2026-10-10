@@ -1,0 +1,8 @@
+[gd_resource type="Resource" script_class="StatModifier" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://skill_node/stake_ceiling_lift_modifier.gd" id="1_lift"]
+
+[resource]
+script = ExtResource("1_lift")
+stat_id = &"stake_ceiling"
+value = 1.0
