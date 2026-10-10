@@ -80,6 +80,7 @@ const _EXPORT_DEPS: Array = [
 	["Graph/AuraOverlay", "graph"],
 	["Graph/AuraOverlay", "allocation_system"],
 	["Graph/FloaterDirector", "vision_system"],
+	["Graph/FloaterDirector", "allocation_system"],
 	["Graph/EdgeHighlightOverlay", "highlight_controller"],
 	["Graph/EdgeHighlightOverlay", "graph"],
 	["Graph/NodeHighlightOverlay", "highlight_controller"],
