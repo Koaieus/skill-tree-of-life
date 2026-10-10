@@ -398,7 +398,7 @@ var status_viewers: Array[Entity] = []:
 ## function, and a deep copy round-trips to the same values. What is NOT safe is
 ## treating non-null as "already initialized": a scene-authored board would then
 ## skip [method StatBoard.apply_intrinsics] forever and `addon_slots` would
-## silently stop tracking allocation level. [member _node_board_ready] separates
+## silently stop tracking stake level. [member _node_board_ready] separates
 ## "authored" from "initialized"; Entity gets the same property for free by
 ## running its init exactly once in `_ready`.
 const DEFAULT_NODE_BOARD: NodeStatBoard = preload("res://skill_node/default_node_board.tres")
@@ -1583,7 +1583,7 @@ func _init_node_board() -> void:
 	# of the `stake_level__current` accessor. Connected here rather than in the
 	# template because a signal connection is not a resource property.
 	node_board.stake_level.current_changed.connect(_on_stake_level_changed)
-	# `addon_slots = base(0) + allocation_level` — authored on the template as an
+	# `addon_slots = base(0) + stake_level` — authored on the template as an
 	# intrinsic instead of built in code, so the formula is a one-file edit and
 	# binds through the ordinary reactive path (#375). Unconditional, mirroring
 	# Entity._ready: an authored board needs its intrinsics applied just as much

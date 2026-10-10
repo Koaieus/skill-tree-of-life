@@ -49,15 +49,18 @@ func _slots() -> int:
 
 func test_fresh_node_reads_one_slot() -> void:
 	# A plain node: default stake 1, fill 0 -> the cap is the stake level, 1.
-	pending("lazy board: NodeCombat.get_local_value falls back to StatDef.default_value (0) until a write path wires node_board, and a default stake-1 node never wires one")
-	return
-	@warning_ignore("unreachable_code")
+	# Its board is lazy (never wired: stake 1 is the default, so no write path
+	# ran), so this read is StatDef.default_value, not the formula.
 	var n := _SKILL_NODE_SCENE.instantiate() as SkillNode
 	add_child_autofree(n)
 	await get_tree().process_frame
 	assert_eq(n.allocation_level, 0, "fresh node is unallocated")
 	assert_eq(int(n.get_local_value(&"addon_slots")), 1,
 			"stake 1, fill 0 -> 1 slot")
+	n.allocation_level = 1
+	n.allocation_level = 0
+	assert_eq(int(n.get_local_value(&"addon_slots")), 1,
+			"wired at stake 1 -> base(0) + stake 1, the default never stacks on top")
 
 
 func test_stake_3_reads_three_slots_at_every_fill() -> void:
