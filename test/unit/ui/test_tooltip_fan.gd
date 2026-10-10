@@ -134,6 +134,17 @@ func test_releasing_more_info_mid_hover_retracts_only_the_units() -> void:
 
 # --- one fan scene, gated per unit --------------------------------------------
 
+func test_bind_hands_the_allocation_system_to_the_node_stats_panel() -> void:
+	var alloc: AllocationSystem = autofree(AllocationSystem.new())
+	_fan.bind(null, alloc)
+	_fan.show_for(_node)
+	var panels := _fan._current_fan.find_children("*", "NodeStatsPanel", true, false)
+	assert_false(panels.is_empty(), "the fan carries a NodeStatsPanel")
+	for p in panels:
+		assert_eq((p as NodeStatsPanel).allocation_system, alloc,
+				"K for the channel row comes from the bound AllocationSystem")
+
+
 func test_hovering_mounts_the_one_fan_scene() -> void:
 	Events.skill_node_hovered.emit(_node)
 	await get_tree().process_frame

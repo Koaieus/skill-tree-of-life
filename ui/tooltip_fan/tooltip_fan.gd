@@ -107,10 +107,17 @@ var _more_info_held := false
 var _core_health_stat: Stat = null
 
 
-## Injects the level [Graph]. Called by [method HudRoot.compose]; safe to leave
-## unbound in a sandbox, where degree readouts simply render 0.
-func bind(level_graph: Graph) -> void:
+## The level's [AllocationSystem], handed to every [NodeStatsPanel] the fan
+## binds so its channel row reads K. Null in a sandbox: the row omits K.
+var allocation_system: AllocationSystem = null
+
+
+## Injects the level [Graph] and [AllocationSystem]. Called by
+## [method HudRoot.compose]; safe to leave unbound in a sandbox, where degree
+## readouts simply render 0 and the channel row carries no turn count.
+func bind(level_graph: Graph, level_allocation_system: AllocationSystem = null) -> void:
 	graph = level_graph
+	allocation_system = level_allocation_system
 
 
 func _ready() -> void:

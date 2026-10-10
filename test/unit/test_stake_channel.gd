@@ -124,6 +124,17 @@ func test_stake_lands_after_exactly_k_ticks() -> void:
 	assert_signal_emitted_with_parameters(_alloc, "channel_ended", [n, _player, &"landed"])
 
 
+func test_every_non_landing_tick_emits_channel_progressed() -> void:
+	var n := _nodes[1]
+	_alloc.stake(n, _player)
+	watch_signals(_alloc)
+	_ticks(_k_up())
+	assert_signal_emit_count(_alloc, "channel_progressed", _k_up() - 1,
+			"one per tick short of the step; the landing tick steps instead")
+	assert_signal_emitted_with_parameters(_alloc, "channel_progressed", [n])
+	assert_signal_emit_count(_alloc, "channel_stepped", 1)
+
+
 func test_tick_never_aborts_even_with_the_core_beyond_the_leash() -> void:
 	var n := _nodes[1]
 	_alloc.stake(n, _player)
