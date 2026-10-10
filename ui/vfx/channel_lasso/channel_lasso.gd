@@ -161,7 +161,7 @@ func _process(delta: float) -> void:
 	mat.set_shader_parameter(&"color", Emissive.at(_color,
 		lerpf(Emissive.stops(lasso_tier), Emissive.stops(lasso_tier_full), fraction)))
 	mat.set_shader_parameter(&"pulse_color", Emissive.at(_color, Emissive.stops(step_flash)))
-	var reach := slack_amplitude * core_local.distance_to(_node_local) + width * 4.0
+	var reach := 1.35 * slack_amplitude * core_local.distance_to(_node_local) + width * 4.0
 	var box := Rect2(core_local, Vector2.ZERO).expand(_node_local).grow(reach)
 	RenderingServer.canvas_item_set_custom_rect(_strip.get_canvas_item(), true, box)
 	if _flash_age < flash_duration:
