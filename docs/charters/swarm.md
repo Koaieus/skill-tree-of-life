@@ -220,7 +220,7 @@ disk at `scratchpad/land/land-<n>.log` (#920), so filling the ledger is a
 16. **One wave per message.** All `Agent` calls for a wave in one message;
     act on each completion as it arrives, never batch reports.
 
-30. **A split shares one brief file.** When the lead splits one issue
+33. **A split shares one brief file.** When the lead splits one issue
     across drones, it writes one `docs/handoffs/swarm-brief-<n>.md`
     (gitignored) with the common part first and one short section per
     drone; each drone's `prompt` is the file path plus its section name, and
