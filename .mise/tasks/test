@@ -94,8 +94,10 @@ DEFAULT_SCRIPT_SECONDS = 0.5
 # Shard wall deadline (`shard_deadline`): a hung shard is killed rather than
 # holding the verdict forever. 3x the planned load absorbs a box shared with
 # another agent's gate; the boot allowance covers godot start + GUT
-# collection + exit; the floor keeps a tiny shard from being shot on a slow
-# boot. GUT_SHARD_DEADLINE=<seconds> pins it for every shard.
+# collection + exit (measured ~1.9s for a one-test script, ~3.5s per
+# full-suite shard, 2026-10-11 — 30s is headroom for a loaded box); the floor
+# keeps a tiny shard from being shot on a slow boot.
+# GUT_SHARD_DEADLINE=<seconds> pins it for every shard.
 SHARD_DEADLINE_LOAD_FACTOR = 3.0
 SHARD_BOOT_SECONDS = 30.0
 SHARD_DEADLINE_FLOOR = 120.0
