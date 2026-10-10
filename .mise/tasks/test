@@ -99,6 +99,12 @@ DEFAULT_SCRIPT_SECONDS = 0.5
 SHARD_DEADLINE_LOAD_FACTOR = 3.0
 SHARD_BOOT_SECONDS = 30.0
 SHARD_DEADLINE_FLOOR = 120.0
+# Per-script wall budget by tier (docs/domain/testing-tiers.md); a script over
+# its tier's is listed under `slow:` in the verdict — a warning, never a
+# failure, since timing on a shared box is noisy. A tier absent here
+# (test/perf) has no budget.
+TIER_BUDGET_SECONDS = {"test/unit": 2.0, "test/integration": 15.0}
+MAX_SLOW_SHOWN = 8
 
 
 MAX_TESTS_SHOWN = 15
@@ -598,6 +604,25 @@ def _trailer_lines(console):
     return out
 
 
+def over_budget(times):
+    """[(script, seconds, budget)] for every script over its tier's budget,
+    slowest first. `times` is {script: seconds} as `suite_times` returns."""
+    out = [(s, secs, TIER_BUDGET_SECONDS[_tier(s)]) for s, secs in times.items()
+           if _tier(s) in TIER_BUDGET_SECONDS and secs > TIER_BUDGET_SECONDS[_tier(s)]]
+    return sorted(out, key=lambda r: r[1], reverse=True)
+
+
+def _report_slow(times):
+    slow = over_budget(times)
+    if not slow:
+        return
+    print("\nslow: (over the tier's per-script budget — a warning, not a failure)")
+    for script, secs, budget in slow[:MAX_SLOW_SHOWN]:
+        print(f"  {secs:5.1f}s > {budget:.0f}s  {script}")
+    if len(slow) > MAX_SLOW_SHOWN:
+        print(f"  …and {len(slow) - MAX_SLOW_SHOWN} more")
+
+
 def _report_missing(missing):
     """One block per shard that left no XML: it lost every script it carried,
     a run failure even when every other shard is green. Names where its live
@@ -737,7 +762,9 @@ def main():
         for line in unexpected[:5]:
             print(f"  {truncate(line)}")
 
-    save_timings(suite_times(), root=ROOT)
+    times = suite_times()
+    _report_slow(times)
+    save_timings(times, root=ROOT)
 
     # -F, not a bare pattern: [Failed] is a bracket expression matching any of
     # F/a/i/l/e/d, i.e. nearly every line of a 7000-line log.

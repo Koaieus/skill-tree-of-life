@@ -12,11 +12,14 @@ test drives, never by how fast it runs**:
 
 | Tier | Runs | Drives | Budget |
 |---|---|---|---|
-| `test/unit/` | `mise run test:unit` | hand-built objects; a pure method, a resource, a controller stepped by hand | fast, no wall-clock waits |
+| `test/unit/` | `mise run test:unit` | hand-built objects; a pure method, a resource, a controller stepped by hand | **2 s per script**, no wall-clock waits |
 | `test/integration/` | `mise run test:dir -- res://test/integration/` | a composed scene (`game_root.tscn`, `level.tscn`, a sandbox, `meta_root.tscn`) **or the real clock** — the one designated wall-clock test per feature | **15 s per script**; full suite **≤ 90 s wall** |
 | `mp:e2e` | `mise run mp:e2e` | two processes over a real socket, the shipped lobby | ~30 s, the gate for `network/`, `session/`, `command/` |
 
-`mise run test` runs the first two, sharded. The mechanics of GUT (the
+`mise run test` runs the first two, sharded, and lists every script over its
+tier's per-script budget under `slow:` in the verdict — a warning, never a
+failure (`TIER_BUDGET_SECONDS` in `.mise/tasks/test`; the unit 2 s sits
+above 97% of unit scripts, median 0.05 s, 2026-10-11). The mechanics of GUT (the
 silent-skip trap, `wait_until`, `free()` vs `queue_free()`) stay in
 `.claude/rules/testing.md`; *whether* a change earns a test is
 `docs/domain/red-green.md` §1. This doc is the **discipline**: which tier, and

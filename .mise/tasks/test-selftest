@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-#MISE description="Self-test for test's class-cache drift predicate: fixture tree + cfg in a tempdir, thirteen cases. `mise run test-selftest`"
+#MISE description="Self-test for test's class-cache drift predicate: fixture tree + cfg in a tempdir, fourteen cases. `mise run test-selftest`"
 """
 Exercises `class_cache_drift(root)` from .mise/tasks/test against a synthetic
 project tree — never the real one, so it runs in <0.1s and never touches
@@ -144,4 +144,18 @@ assert t.last_position_in_log("res://test/unit/c.gd\n") == ("res://test/unit/c.g
 assert t.last_position_in_log("Godot Engine v4.7\n---  GUT  ---\n") == (None, None)
 assert t.last_position_in_log("") == (None, None)
 
-print("test-selftest: 13 cases OK")
+# --- tier slowness warning ---------------------------------------------
+
+# (n) a script over its tier's budget is listed, slowest first; an
+# integration script between the unit and integration budgets is not, and a
+# tier with no budget (test/perf) never is
+times = {"test/unit/slow.gd": 9.0, "test/unit/slower.gd": 12.0, "test/unit/fast.gd": 0.1,
+         "test/integration/mid.gd": 10.0, "test/integration/huge.gd": 20.0,
+         "test/perf/bench.gd": 99.0}
+got = t.over_budget(times)
+assert got == [("test/integration/huge.gd", 20.0, t.TIER_BUDGET_SECONDS["test/integration"]),
+               ("test/unit/slower.gd", 12.0, t.TIER_BUDGET_SECONDS["test/unit"]),
+               ("test/unit/slow.gd", 9.0, t.TIER_BUDGET_SECONDS["test/unit"])], got
+assert t.over_budget({"test/unit/fast.gd": 0.1}) == []
+
+print("test-selftest: 14 cases OK")
