@@ -22,8 +22,8 @@ instance uniform float seed = 0.0;
 // Crack stage 0 intact / 1 cracked / 2 shattered (BlockerVisual.CrackStage).
 instance uniform float damage = 0.0;
 
-uniform sampler2D layer_a : repeat_enable, filter_linear;
-uniform sampler2D layer_b : repeat_enable, filter_linear;
+uniform sampler2D layer_a : repeat_enable, filter_linear_mipmap;
+uniform sampler2D layer_b : repeat_enable, filter_linear_mipmap;
 uniform vec4 layer_a_tint : source_color = vec4(0.30, 0.20, 0.55, 1.0);
 uniform vec4 layer_b_tint : source_color = vec4(0.08, 0.40, 0.48, 1.0);
 uniform float layer_a_scale = 0.7;
