@@ -494,13 +494,17 @@ code, out = run("next-train", "--lead", "lead-a", me="feedface-0000")
 check("(b) next-train --lead lead-a marks train a running under lead-a and prints its issues",
       code == 0 and train("a")["state"] == "running" and train("a")["lead"] == "lead-a" and lead("lead-a").get("state") == "running"
       and "#50 #51 #52 #53" in out and not sysc(base))
+fx["agents"] = [{"kind": "background", "pid": 7, "name": "x", "sessionId": "deadbeef-full", "state": "working"}]
+code, out = run("done-check")
+check("done-check never matches a session-less tree lead to a live agent", "lead-a still running" not in out)
+fx["agents"] = []
 code, out = run("next-train", "--lead", "lead-b", me="feedface-0000")
 check("(b) a second next-train names train b", code == 0 and train("b")["lead"] == "lead-b" and "#60" in out and re.search(r"\bb\b", out))
 code, out = run("next-train", "--lead", "lead-c", me="feedface-0000")
 check("next-train with nothing queued says so and marks nothing", "lead-c" not in state()["leads"] and "no" in out.lower())
 code, out = run("relieve", "--lead", "lead-a", me="feedface-0000")
-check("(d) relieve --lead lead-a records the request, prints relief-a-1 + the adopt hint, launches nothing",
-      code == 0 and "relief-a-1" in out and "adopt --from feedface" in out and train("a")["lead"] == "relief-a-1" and train("a")["reliefs"] == 1
+check("(d) relieve --lead lead-a records the request, prints relief-a-1 + the whip ledger path and no adopt hint, launches nothing",
+      code == 0 and "relief-a-1" in out and jpath in out and "adopt" not in out and train("a")["lead"] == "relief-a-1" and train("a")["reliefs"] == 1
       and lead("lead-a")["state"] == "relieved" and lead("relief-a-1").get("state") == "running" and not state()["requests"] and not sysc(base))
 code, out = run("needs-owner", "--lead", "relief-a-1", "52", "cursor fork", me="feedface-0000")
 check("needs-owner --lead names the train", code == 0 and any("needs owner #52" in n and "train a" in n for n in state()["notes"]))

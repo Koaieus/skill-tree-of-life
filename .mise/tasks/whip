@@ -800,9 +800,8 @@ def cmd_relieve(a):
     st = current(); t = train_of(st, l.get("train")) or {}
     if not ok:
         sys.exit(f"no relief: train {l.get('train')} is {t.get('state')}")
-    sid = (st.get("console") or "")[:8]
-    adopt = f"mise run ledger -- adopt --from {sid}" if sid else "mise run ledger -- adopt"
-    print(f"relief {t['lead']} recorded for train {t['name']} (relieving {name}) — spawn it; it joins the ledger with `{adopt}`")
+    # No `ledger adopt` hint: every subagent shares the top's session id, so the relief already owns that swarm ledger.
+    print(f"relief {t['lead']} recorded for train {t['name']} (relieving {name}) — spawn it; whip ledger: {st['_path']}")
 
 
 def cmd_needs_owner(a):
