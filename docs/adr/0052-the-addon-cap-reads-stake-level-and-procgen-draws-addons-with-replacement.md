@@ -6,10 +6,11 @@ date: 2026-10-10
 deciders: owner (all four calls); agent (drafting, the separate formula file)
 supersedes: []              # legacy D-3 is not an ADR; superseded in legacy-mvp-decisions.md
 superseded-by: null
-revisit-when: "an addon inventory ({inventory}, #348) lets an extract pop an addon instead of being denied"
+revisit-when: "an addon inventory (#1533, with #348) lets an extract pop an addon instead of being denied"
 sources:
   - "#1528"
   - "#1530"
+  - "#1533"
   - "stats_system/formulas/stake_scaling.tres"
   - "skill_node/default_node_board.tres"
   - "docs/adr/legacy-mvp-decisions.md (D-3)"
@@ -53,7 +54,7 @@ Lost on the one-cap driver. An unallocated procgen node could not hold the addon
 Lost on the one-knob driver. Weights per slot count do not scale with map size. **Most likely to be revived** if multi-addon rarity needs tuning on its own.
 
 ### Pop an addon into an inventory on an overflowing extract
-Not rejected but parked as a design sibling ({inventory}, #348). It is this record's `revisit-when`.
+Not rejected but parked as a design sibling (#1533, with #348). It is this record's `revisit-when`.
 
 ### Flip `allocation_scaling.tres` in place
 Rejected: that file also feeds two ranged stats that must keep following fill.
