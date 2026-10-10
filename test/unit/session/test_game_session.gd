@@ -192,3 +192,11 @@ func test_end_restores_the_default_world_source() -> void:
 	GameSession.apply_received(_config(4242), ParticipantRoster.new())
 	GameSession.end()
 	assert_eq(GameSession.world_source, GameSession.WorldSource.GENERATE)
+
+
+func test_end_forgets_this_machines_peer_id() -> void:
+	# The id belongs to the link `end` tears down; a stale one seats the next
+	# level's human on a machine that is not this one.
+	GameSession.local_peer_id = 2
+	GameSession.end()
+	assert_eq(GameSession.local_peer_id, 0)
