@@ -1,0 +1,31 @@
+[gd_resource type="ShaderMaterial" load_steps=6 format=3]
+
+[ext_resource type="Shader" path="res://skill_node/visuals/blocker_blob.gdshader" id="1_shader"]
+
+[sub_resource type="FastNoiseLite" id="FastNoiseLite_a"]
+noise_type = 1
+frequency = 0.012
+fractal_type = 3
+fractal_octaves = 3
+
+[sub_resource type="NoiseTexture2D" id="NoiseTexture2D_a"]
+width = 256
+height = 256
+noise = SubResource("FastNoiseLite_a")
+seamless = true
+
+[sub_resource type="FastNoiseLite" id="FastNoiseLite_b"]
+noise_type = 2
+frequency = 0.02
+fractal_octaves = 2
+
+[sub_resource type="NoiseTexture2D" id="NoiseTexture2D_b"]
+width = 256
+height = 256
+noise = SubResource("FastNoiseLite_b")
+seamless = true
+
+[resource]
+shader = ExtResource("1_shader")
+shader_parameter/layer_a = SubResource("NoiseTexture2D_a")
+shader_parameter/layer_b = SubResource("NoiseTexture2D_b")

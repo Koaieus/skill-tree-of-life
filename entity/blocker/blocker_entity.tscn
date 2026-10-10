@@ -6,6 +6,6 @@
 
 [node name="BlockerEntity" type="Node" groups=["scenery"]]
 script = ExtResource("1_entity")
-color = Color(0.55, 0.55, 0.58, 1)
+color = Color(0.3, 0.27, 0.42, 1)
 faction = ExtResource("2_blocker_faction")
 core_class = ExtResource("3_blocker_core")

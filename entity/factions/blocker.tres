@@ -7,6 +7,6 @@
 script = ExtResource("1_faction")
 id = &"blocker"
 display_name = "Dormant Cores"
-color = Color(0.55, 0.55, 0.58, 1.0)
+color = Color(0.3, 0.27, 0.42, 1.0)
 targeted_by_ai = false
 emblem = ExtResource("2_emblem")

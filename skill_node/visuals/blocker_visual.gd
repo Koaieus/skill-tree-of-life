@@ -1,14 +1,27 @@
 class_name BlockerVisual
 extends Node2D
-## Boulder overlay for a removable-blocked node (#300 / #478). While the node
-## reads as blocked, draws a neutral grey rock that dominates the node's inner
-## disk. Three crack stages sync to the node's combat-HP fraction (intact >
-## 66%, cracked ≤ 66%, shattered ≤ 33%).
+## Null-field blob overlay for a Dormant Core's blocked node (#300 / #478 /
+## #1526). While the node reads as blocked, draws one quad under the shared
+## `blocker_blob_material.tres`; the shader draws everything — tar-black
+## metaball lobes whose edge deforms slowly on `TIME`, drifting luminance-mask
+## texture layers, glitch, and the damage read. Tier reads as fused LOBE COUNT
+## ([member tier_lobes]), never node size: [member SkillNode.radius] already
+## grows with stake. Three crack stages sync to the node's combat-HP fraction
+## (intact > 66%, cracked ≤ 66%, shattered ≤ 33%); as the stage rises the lobes
+## drift apart, the edge fractures and the glitch light bleeds. Each node's
+## variant (texture offset, lobe phase, glitch timing) is
+## [method seed_for] its [member SkillNode.stable_id], so every peer draws the
+## same blob. The design: `docs/domain/dormant-core.md` "The look".
+##
+## [b]One shared material, bound only while visible[/b] (the InnerDisk
+## pattern, `docs/domain/skillnode-visuals.md`): lobe count, seed and damage
+## travel as `instance uniform`s, and binding the material is what claims an
+## instance-uniform slot, so a cleared or sensed blob binds none.
 ##
 ## [b]Crack stage is combat PAINT, and under design B (#504) the model IS the
 ## presentation clock.[/b] A hit mutates the world at its own `arrival_time`
 ## (see [BeatClock]), so [method _on_damaged] — bound to the node's own
-## `damaged` / `healed` — already fires exactly when the boulder should
+## `damaged` / `healed` — already fires exactly when the blob should
 ## visibly crack, with no view store in between. Crack stage ALSO lags one idle
 ## frame behind a FRESH allocation (see `_ready`'s docstring for why); that only
 ## delays picking up new ownership, never a mid-life damage tick.
@@ -19,7 +32,7 @@ extends Node2D
 ## as [member SkillNode.owned_by] stays that entity. The instant ownership
 ## differs — including going back to null on the blocker's death — clearing is
 ## PERMANENT: a real entity re-allocating the node afterward must never
-## re-show the boulder, even though `owned_by` briefly equals a non-blocker
+## re-show the blob, even though `owned_by` briefly equals a non-blocker
 ## entity that could otherwise look plausible. `owned_by.core_class == null`
 ## was considered and rejected as the predicate: it can't distinguish "still
 ## the original blocker" from "some other null-core actor", and it re-derives
@@ -34,7 +47,7 @@ extends Node2D
 ## "nothing latched yet" branch instead of its "ownership diverged" one.
 ## Clearing never happened, and the next entity to allocate the node (the one
 ## claiming the SkillDust relic the dead blocker dropped) RE-latched — the
-## boulder reappeared from under the loot the moment the loot was picked up.
+## blob reappeared from under the loot the moment the loot was picked up.
 ## `get_instance_id()` is a never-reused int, so `cur_id != _latched_owner_id`
 ## stays a truthful comparison for the rest of the node's life. Note this is
 ## deliberately NOT [member Entity.entity_id]: that one is minted only on entry
@@ -57,50 +70,65 @@ extends Node2D
 ## here worth the scene-baking hazard (`.claude/rules/godot-workflow.md`): an
 ## `@tool` `_ready` writing `visible` while `blocker_node.tscn` is open in the
 ## editor would get serialized back into the scene on save. Staying non-tool
-## sidesteps that outright — the boulder simply doesn't run until the scene is
+## sidesteps that outright — the blob simply doesn't run until the scene is
 ## live in a real game/test tree.
 
-## Crack stages are the contract (the exact boulder art is placeholder).
+## Crack stages are the contract (the blob art is tunable).
 enum CrackStage { INTACT, CRACKED, SHATTERED }
 
-## Node HP fraction at or below which the boulder reads "cracked" (≤ 66%).
+## Node HP fraction at or below which the blob reads "cracked" (≤ 66%).
 const CRACKED_AT := 2.0 / 3.0
-## Node HP fraction at or below which the boulder reads "shattered" (≤ 33%).
+## Node HP fraction at or below which the blob reads "shattered" (≤ 33%).
 const SHATTERED_AT := 1.0 / 3.0
 
-## Neutral grey — deliberately not the blocker's own entity tint, so the rock
-## reads as an obstacle surface rather than a washed-out enemy disk.
-const ROCK_COLOR := Color(0.46, 0.47, 0.53, 1.0)
-const ROCK_SHADE := Color(0.27, 0.28, 0.33, 1.0)
-const ROCK_HILITE := Color(0.60, 0.62, 0.68, 1.0)
-const CRACK_COLOR := Color(0.13, 0.14, 0.17, 1.0)
+const BLOB_MATERIAL := preload("res://skill_node/visuals/blocker_blob_material.tres")
 
-## Fixed per-vertex radial jitter for the rocky silhouette (deterministic, not
-## per-frame random) — a smooth circle reads as a marble, not a boulder.
-const SILHOUETTE_JITTER: Array[float] = [
-	1.00, 0.94, 1.02, 0.90, 1.00, 0.96, 1.04, 0.92,
-	1.00, 0.95, 1.03, 0.91, 1.00, 0.97, 1.01, 0.93,
-]
+## How far the drawn quad reaches past the blob's rest radius, so lobes that
+## drift apart on damage are never clipped by the quad's edge. Must match the
+## shader's `QUAD_EXTENT`.
+const QUAD_EXTENT := 1.6
 
-## Boulder footprint as a fraction of the node's [member SkillNode.radius].
-const BOULDER_RADIUS_SCALE := 0.92
+## Lobes per [member Entity.entity_tier] 1..3 (index = tier - 1). Tentative,
+## easy to change; keep it strictly increasing so tiers stay distinguishable.
+@export var tier_lobes: Array[int] = [1, 2, 3]:
+	set(value):
+		tier_lobes = value
+		_sync_material()
 
-## How many crack lines each stage draws.
-const CRACK_COUNTS: Array[int] = [0, 2, 4]
+## The blob's rest footprint as a fraction of [member SkillNode.radius] — so
+## stake still grows it. Tentative, easy to change.
+@export_range(0.5, 1.2, 0.01) var blob_radius_scale := 0.92:
+	set(value):
+		blob_radius_scale = value
+		queue_redraw()
+
+## The named glow tier the damage bleed lights at (`docs/domain/hdr-color.md`);
+## the lowest tier above threshold. Written onto the SHARED material as a plain
+## uniform — identical for every core.
+@export var bleed_tier: Emissive.Tier = Emissive.Tier.LABEL
+
+## The bleed's hue before its [member bleed_tier] lift.
+@export var bleed_base: Color = Color(0.55, 0.42, 1.0)
 
 var crack_stage: CrackStage = CrackStage.INTACT
 
-@export var tier_lobes: Array[int] = [1, 2, 3]
-
+## Lobes this blob draws: [member tier_lobes] at the LATCHED tier.
 var lobe_count: int:
-	get: return 0
+	get:
+		if tier_lobes.is_empty():
+			return 1
+		return tier_lobes[clampi(_latched_tier - 1, 0, tier_lobes.size() - 1)]
 
+## This node's variant seed in [0, 1), read live off [member SkillNode.stable_id]
+## (it is 0 until the graph mints it, so it is never latched).
 var blob_seed: float:
-	get: return 0.0
+	get: return seed_for(_node.stable_id if _node != null else 0)
 
 
-static func seed_for(_stable_id: int) -> float:
-	return 0.0
+## The variant seed for a node identity: golden-ratio fract, deterministic on
+## every peer, distinct for neighbouring ids.
+static func seed_for(stable_id: int) -> float:
+	return fposmod(float(stable_id) * 0.6180339887, 1.0)
 
 
 var _node: SkillNode = null
@@ -113,6 +141,9 @@ var _latched_owner_id: int = 0
 ## True once ownership has diverged from [member _latched_owner_id] even once.
 ## Permanent: never reset back to false.
 var _cleared: bool = false
+## The latched owner's [member Entity.entity_tier], read once with the id so a
+## later write (or a freed corpse) can never change the look.
+var _latched_tier: int = 1
 
 
 func _ready() -> void:
@@ -133,11 +164,13 @@ func _ready() -> void:
 			_node.sensed_changed.connect(_on_sensed_changed)
 		# #504: crack stage re-syncs off the node's real combat HP. The hit that
 		# causes it lands on its own `arrival_time` (see [BeatClock]), so
-		# `damaged` already fires on the beat the boulder should visibly crack.
+		# `damaged` already fires on the beat the blob should visibly crack.
 		if not _node.damaged.is_connected(_on_damaged):
 			_node.damaged.connect(_on_damaged)
 		if not _node.healed.is_connected(_on_damaged):
 			_node.healed.connect(_on_damaged)
+	# An ancestor (a fogged SkillNode) toggling visibility re-gates the material.
+	visibility_changed.connect(_sync_material)
 	# Deferred for the same reason as the connect above. Establishes the
 	# initial latch (a freshly-spawned blocker's force_allocate already ran
 	# before this visual entered the tree, so `owned_by` is non-null here) and
@@ -172,6 +205,7 @@ func _update_latch() -> void:
 	if _latched_owner_id == 0:
 		if cur != null:
 			_latched_owner_id = cur.get_instance_id()
+			_latched_tier = cur.entity_tier
 		return
 	# `cur` going null covers BOTH the death strip and a freed corpse — the
 	# strip always runs first (AllocationSystem on `entity_died`, GameRoot's
@@ -201,7 +235,35 @@ func _refresh_stage_and_visibility() -> void:
 
 func _apply_visibility() -> void:
 	visible = _is_blocked() and (_node == null or not _node.sensed)
+	_sync_material()
+
+
+## Binds the shared material and pushes this blob's instance uniforms — only
+## while visible in the tree, because binding claims an instance-uniform slot.
+## Hidden, sensed or cleared: no material at all.
+func _sync_material() -> void:
+	if not is_node_ready():
+		return
+	if not (visible and is_visible_in_tree()):
+		if material != null:
+			material = null
+		return
+	if material != BLOB_MATERIAL:
+		material = BLOB_MATERIAL
+	var bleed := Emissive.tint(bleed_base, Emissive.stops(bleed_tier))
+	if BLOB_MATERIAL.get_shader_parameter(&"bleed_color") != bleed:
+		BLOB_MATERIAL.set_shader_parameter(&"bleed_color", bleed)
+	set_instance_shader_parameter(&"lobes", lobe_count)
+	set_instance_shader_parameter(&"seed", blob_seed)
+	set_instance_shader_parameter(&"damage", float(crack_stage))
 	queue_redraw()
+
+
+## Never bake the runtime material or its instance uniforms into a saved scene
+## (as [method SkillNodeVisual._validate_property]).
+func _validate_property(property: Dictionary) -> void:
+	if property.name == "material" or (property.name as String).begins_with("instance_shader_parameters/"):
+		property.usage = (property.usage as int) & ~PROPERTY_USAGE_STORAGE
 
 
 func _update_stage() -> void:
@@ -228,59 +290,7 @@ func _radius() -> float:
 
 
 func _draw() -> void:
-	var r := _radius()
-	if r <= 0.0 or not _is_blocked() or (_node != null and _node.sensed):
+	var r := _radius() * blob_radius_scale * QUAD_EXTENT
+	if r <= 0.0 or material == null:
 		return
-	var base_r := r * BOULDER_RADIUS_SCALE
-	_draw_rock(base_r)
-	_draw_cracks(base_r)
-
-
-## The boulder body: a jagged grey polygon with a darker rim and a top-left
-## highlight, so it reads as an opaque rock sitting over the disk rather than a
-## flat grey disc.
-func _draw_rock(base_r: float) -> void:
-	var pts := _silhouette(base_r)
-	draw_colored_polygon(pts, ROCK_COLOR)
-	draw_polyline(pts, ROCK_SHADE, 2.0, true)
-	# Off-centre highlight patch for a rounded-rock read.
-	var hilite := _silhouette(base_r * 0.62)
-	for i in hilite.size():
-		hilite[i] += Vector2(-base_r * 0.14, -base_r * 0.14)
-	draw_colored_polygon(hilite, Color(ROCK_HILITE.r, ROCK_HILITE.g, ROCK_HILITE.b, 0.35))
-
-
-## Jagged circular silhouette, jittered by the fixed table.
-func _silhouette(base_r: float) -> PackedVector2Array:
-	var pts := PackedVector2Array()
-	var count := SILHOUETTE_JITTER.size()
-	for i in count:
-		var angle := TAU * float(i) / float(count)
-		pts.append(Vector2.from_angle(angle) * (base_r * SILHOUETTE_JITTER[i]))
-	return pts
-
-
-func _draw_cracks(base_r: float) -> void:
-	var count := CRACK_COUNTS[int(crack_stage)]
-	for i in count:
-		_draw_crack(_crack_angle(i, count), base_r * 0.92)
-
-
-## Deterministic spread: cracks radiate evenly from the centre, offset so a
-## 2-crack and a 4-crack stage don't line up identically.
-func _crack_angle(i: int, count: int) -> float:
-	return TAU * float(i) / float(count) + 0.35
-
-
-## One jagged crack: a polyline from near the centre to the rim, with a small
-## deterministic perpendicular jitter per segment.
-func _draw_crack(angle: float, length: float) -> void:
-	var dir := Vector2.from_angle(angle)
-	var perp := Vector2(-dir.y, dir.x)
-	var pts := PackedVector2Array()
-	pts.append(dir * length * 0.08)
-	for s in 4:
-		var t := float(s + 1) / 4.0
-		var jitter := sin(angle * 7.0 + float(s) * 2.4) * 3.0
-		pts.append(dir * (length * t) + perp * jitter)
-	draw_polyline(pts, CRACK_COLOR, 2.0, true)
+	draw_rect(Rect2(Vector2(-r, -r), Vector2.ONE * r * 2.0), Color.WHITE)
