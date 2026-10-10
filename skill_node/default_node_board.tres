@@ -5,6 +5,7 @@
 [ext_resource type="Script" uid="uid://drnlaxdudvq1t" path="res://stats_system/scalar_stat.gd" id="3_scalar"]
 [ext_resource type="Script" uid="uid://che6xhl6srqh3" path="res://stats_system/stat_modifier.gd" id="4_mod"]
 [ext_resource type="Resource" uid="uid://b5b2vjwvxe44m" path="res://stats_system/formulas/allocation_scaling.tres" id="5_alloc_scaling"]
+[ext_resource type="Resource" path="res://stats_system/formulas/stake_scaling.tres" id="6_stake_scaling"]
 [ext_resource type="Resource" path="res://stats_system/defs/addon_slots.tres" id="def_addon_slots"]
 [ext_resource type="Resource" path="res://stats_system/defs/arrows_per_reload.tres" id="def_arrows_per_reload"]
 [ext_resource type="Resource" path="res://stats_system/defs/max_shots_per_leaf.tres" id="def_max_shots_per_leaf"]
@@ -23,7 +24,7 @@ definition = ExtResource("def_arrows_per_reload")
 [sub_resource type="Resource" id="Resource_m_addon_slots"]
 script = ExtResource("4_mod")
 stat_id = &"addon_slots"
-formula = ExtResource("5_alloc_scaling")
+formula = ExtResource("6_stake_scaling")
 
 [sub_resource type="Resource" id="Resource_m_arrows_per_reload"]
 script = ExtResource("4_mod")

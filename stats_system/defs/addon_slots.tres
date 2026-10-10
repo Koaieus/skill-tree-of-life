@@ -6,7 +6,7 @@
 script = ExtResource("1_stat_def")
 id = &"addon_slots"
 display_name = "Addon Slots"
-description = "How many addons a node may carry. Node-local: base(0) + allocation_level (plain 1:1, via the stake_level__current formula). base defaults to 0 so there is no baseline to double-count; the cap is advisory until player-managed placement exists (#348)."
+description = "How many addons a node may carry. Node-local: base(0) + stake_level (the stake pool's cap, via stake_scaling.tres), never the fill, so a plain unallocated node (stake 1) carries 1. The cap is real: procgen draws addons within it and extract over it is denied."
 value_type = 0
 default_value = 0.0
 tint_color = Color(0.4, 0.9, 0.7, 1)

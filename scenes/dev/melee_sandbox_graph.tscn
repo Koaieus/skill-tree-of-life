@@ -11,7 +11,7 @@
 [ext_resource type="Script" uid="uid://che6xhl6srqh3" path="res://stats_system/stat_modifier.gd" id="24_54p5j"]
 [ext_resource type="Script" uid="uid://ci0mmuifd3c71" path="res://entity/core/core_class.gd" id="55_t8y2c"]
 [ext_resource type="Resource" path="res://stats_system/defs/addon_slots.tres" id="57_teek0"]
-[ext_resource type="Resource" uid="uid://b5b2vjwvxe44m" path="res://stats_system/formulas/allocation_scaling.tres" id="58_wnxn8"]
+[ext_resource type="Resource" path="res://stats_system/formulas/stake_scaling.tres" id="58_wnxn8"]
 [ext_resource type="Script" uid="uid://bk0uo05s658hk" path="res://stats_system/node_stat_board.gd" id="59_006eo"]
 [ext_resource type="Resource" path="res://stats_system/defs/stake_level.tres" id="60_uph8y"]
 [ext_resource type="Resource" uid="uid://ccs1cqdf8r6qt" path="res://entity/default_entity_board.tres" id="99_default_board"]

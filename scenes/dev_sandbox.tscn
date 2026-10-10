@@ -18,7 +18,7 @@
 [ext_resource type="Resource" uid="uid://yiu2rf0g04du" path="res://archetypes/wisdom.tres" id="44_arch_wis"]
 [ext_resource type="PackedScene" uid="uid://b1addon0spike" path="res://skill_node/addons/defs/spike_ring_addon.tscn" id="45_df164"]
 [ext_resource type="Resource" path="res://stats_system/defs/addon_slots.tres" id="46_d7bkb"]
-[ext_resource type="Resource" uid="uid://b5b2vjwvxe44m" path="res://stats_system/formulas/allocation_scaling.tres" id="47_jc1be"]
+[ext_resource type="Resource" path="res://stats_system/formulas/stake_scaling.tres" id="47_jc1be"]
 [ext_resource type="Script" uid="uid://bk0uo05s658hk" path="res://stats_system/node_stat_board.gd" id="48_54w3d"]
 [ext_resource type="PackedScene" uid="uid://b1addon0clamp" path="res://skill_node/addons/defs/clamp_addon.tscn" id="48_owpne"]
 [ext_resource type="PackedScene" uid="uid://cmkt6tybpv38p" path="res://skill_node/addons/defs/bunker_addon.tscn" id="48_qk0se"]
@@ -36,7 +36,7 @@ script = ExtResource("11_uulnk")
 definition = ExtResource("46_d7bkb")
 
 [sub_resource type="Resource" id="Resource_1sde5"]
-resource_name = "+1 Addon Slots per allocation level"
+resource_name = "+1 Addon Slots per stake level"
 script = ExtResource("2_mod")
 stat_id = &"addon_slots"
 formula = ExtResource("47_jc1be")
@@ -71,7 +71,7 @@ script = ExtResource("11_uulnk")
 definition = ExtResource("46_d7bkb")
 
 [sub_resource type="Resource" id="Resource_ph4qk"]
-resource_name = "+1 Addon Slots per allocation level"
+resource_name = "+1 Addon Slots per stake level"
 script = ExtResource("2_mod")
 stat_id = &"addon_slots"
 formula = ExtResource("47_jc1be")
@@ -107,7 +107,7 @@ script = ExtResource("11_uulnk")
 definition = ExtResource("46_d7bkb")
 
 [sub_resource type="Resource" id="Resource_tihqh"]
-resource_name = "+1 Addon Slots per allocation level"
+resource_name = "+1 Addon Slots per stake level"
 script = ExtResource("2_mod")
 stat_id = &"addon_slots"
 formula = ExtResource("47_jc1be")
@@ -151,7 +151,7 @@ script = ExtResource("11_uulnk")
 definition = ExtResource("46_d7bkb")
 
 [sub_resource type="Resource" id="Resource_wcpfy"]
-resource_name = "+1 Addon Slots per allocation level"
+resource_name = "+1 Addon Slots per stake level"
 script = ExtResource("2_mod")
 stat_id = &"addon_slots"
 formula = ExtResource("47_jc1be")
@@ -212,7 +212,7 @@ script = ExtResource("11_uulnk")
 definition = ExtResource("46_d7bkb")
 
 [sub_resource type="Resource" id="Resource_wrquo"]
-resource_name = "+1 Addon Slots per allocation level"
+resource_name = "+1 Addon Slots per stake level"
 script = ExtResource("2_mod")
 stat_id = &"addon_slots"
 formula = ExtResource("47_jc1be")
@@ -243,7 +243,7 @@ definition = ExtResource("46_d7bkb")
 metadata/_custom_type_script = "uid://che6xhl6srqh3"
 
 [sub_resource type="Resource" id="Resource_7yiaw"]
-resource_name = "+1 Addon Slots per allocation level"
+resource_name = "+1 Addon Slots per stake level"
 script = ExtResource("2_mod")
 stat_id = &"addon_slots"
 formula = ExtResource("47_jc1be")
@@ -279,7 +279,7 @@ script = ExtResource("11_uulnk")
 definition = ExtResource("46_d7bkb")
 
 [sub_resource type="Resource" id="Resource_v4i6i"]
-resource_name = "+1 Addon Slots per allocation level"
+resource_name = "+1 Addon Slots per stake level"
 script = ExtResource("2_mod")
 stat_id = &"addon_slots"
 formula = ExtResource("47_jc1be")
@@ -308,7 +308,7 @@ script = ExtResource("11_uulnk")
 definition = ExtResource("46_d7bkb")
 
 [sub_resource type="Resource" id="Resource_am3yw"]
-resource_name = "+1 Addon Slots per allocation level"
+resource_name = "+1 Addon Slots per stake level"
 script = ExtResource("2_mod")
 stat_id = &"addon_slots"
 formula = ExtResource("47_jc1be")
@@ -338,7 +338,7 @@ script = ExtResource("11_uulnk")
 definition = ExtResource("46_d7bkb")
 
 [sub_resource type="Resource" id="Resource_3uy4o"]
-resource_name = "+1 Addon Slots per allocation level"
+resource_name = "+1 Addon Slots per stake level"
 script = ExtResource("2_mod")
 stat_id = &"addon_slots"
 formula = ExtResource("47_jc1be")
@@ -362,7 +362,7 @@ script = ExtResource("11_uulnk")
 definition = ExtResource("46_d7bkb")
 
 [sub_resource type="Resource" id="Resource_smy7u"]
-resource_name = "+1 Addon Slots per allocation level"
+resource_name = "+1 Addon Slots per stake level"
 script = ExtResource("2_mod")
 stat_id = &"addon_slots"
 formula = ExtResource("47_jc1be")
@@ -386,7 +386,7 @@ script = ExtResource("11_uulnk")
 definition = ExtResource("46_d7bkb")
 
 [sub_resource type="Resource" id="Resource_x25t5"]
-resource_name = "+1 Addon Slots per allocation level"
+resource_name = "+1 Addon Slots per stake level"
 script = ExtResource("2_mod")
 stat_id = &"addon_slots"
 formula = ExtResource("47_jc1be")
@@ -410,7 +410,7 @@ script = ExtResource("11_uulnk")
 definition = ExtResource("46_d7bkb")
 
 [sub_resource type="Resource" id="Resource_3j5cd"]
-resource_name = "+1 Addon Slots per allocation level"
+resource_name = "+1 Addon Slots per stake level"
 script = ExtResource("2_mod")
 stat_id = &"addon_slots"
 formula = ExtResource("47_jc1be")
@@ -434,7 +434,7 @@ script = ExtResource("11_uulnk")
 definition = ExtResource("46_d7bkb")
 
 [sub_resource type="Resource" id="Resource_ng2ll"]
-resource_name = "+1 Addon Slots per allocation level"
+resource_name = "+1 Addon Slots per stake level"
 script = ExtResource("2_mod")
 stat_id = &"addon_slots"
 formula = ExtResource("47_jc1be")
@@ -484,7 +484,7 @@ script = ExtResource("11_uulnk")
 definition = ExtResource("46_d7bkb")
 
 [sub_resource type="Resource" id="Resource_5484d"]
-resource_name = "+1 Addon Slots per allocation level"
+resource_name = "+1 Addon Slots per stake level"
 script = ExtResource("2_mod")
 stat_id = &"addon_slots"
 formula = ExtResource("47_jc1be")
@@ -520,7 +520,7 @@ script = ExtResource("11_uulnk")
 definition = ExtResource("46_d7bkb")
 
 [sub_resource type="Resource" id="Resource_xkbxa"]
-resource_name = "+1 Addon Slots per allocation level"
+resource_name = "+1 Addon Slots per stake level"
 script = ExtResource("2_mod")
 stat_id = &"addon_slots"
 formula = ExtResource("47_jc1be")

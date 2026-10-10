@@ -24,7 +24,7 @@
 [ext_resource type="Resource" path="res://stats_system/defs/addon_slots.tres" id="46_c6vki"]
 [ext_resource type="Resource" uid="uid://dw4xgicipm3wp" path="res://archetypes/intelligence.tres" id="46_jwe71"]
 [ext_resource type="Resource" uid="uid://b8tbru5xba2lw" path="res://archetypes/perception.tres" id="47_8ws7e"]
-[ext_resource type="Resource" uid="uid://b5b2vjwvxe44m" path="res://stats_system/formulas/allocation_scaling.tres" id="47_lqoji"]
+[ext_resource type="Resource" path="res://stats_system/formulas/stake_scaling.tres" id="47_lqoji"]
 [ext_resource type="PackedScene" uid="uid://b1addon0clamp" path="res://skill_node/addons/defs/clamp_addon.tscn" id="48_k8uqd"]
 [ext_resource type="Script" uid="uid://bk0uo05s658hk" path="res://stats_system/node_stat_board.gd" id="48_whgxu"]
 [ext_resource type="Resource" uid="uid://lmh5qnv0xocl" path="res://archetypes/constitution.tres" id="49_00oto"]
