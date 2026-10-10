@@ -76,8 +76,7 @@ first train (§2).
 mise run whip -- next-train --lead lead-<t>     # marks train <t> running under that name, prints its issues
 ```
 
-Then spawn exactly what it printed, and remember `m`, the count of issues
-it listed:
+Then spawn exactly what it printed:
 
 ```
 Agent(subagent_type: "swarm-lead", name: "lead-<t>", run_in_background: true,
@@ -125,30 +124,37 @@ mise run whip -- done --lead <name> <sha> <n/m>
 The report is `swarm`'s session report and carries no `done` line of its
 own, so you assemble it: `<sha>` is `git rev-parse master` in the main
 checkout (one lead at a time, so the tip is that lead's push), `<n>` the
-rows in its `Landed` table, `<m>` the train's issue count from §2. A lead
-that landed nothing reports `0/m` against the tip. `done` prints what
+rows in its `Landed` table, `<m>` the train's issue count as `show` lists
+it (the ledger, never your memory). A lead that landed nothing reports
+`0/m` against the tip. A *Needs the owner* line that names an issue goes to
+`needs-owner`; one that names none goes to `note "owner: <line>"`. `done` prints what
 follows: trains still queued → §2 with a fresh `lead-<t>`; `the run is
 over, the report is rendered` → `delete_trigger` every pending wake of
 yours and end your turn. The report is `done`'s; you never render it.
 
-## 4. The tick — a four-row table, nothing else
+## 4. The tick — the table, nothing else
 
-The wake arrives as `swarm-train tick`. First line, before anything:
-**ledger `DONE`, `CAPPED`, `GAVE UP` or missing → `delete_trigger` every
-pending wake of yours, end your turn.** Otherwise one Bash call reads the
-ledger and the disk-silence sensor, and one `ListAgents` reads the tree:
+The wake arrives as `swarm-train tick`. One Bash call reads the ledger
+and the disk-silence sensor, and one `ListAgents` reads the tree:
 
 ```bash
 mise run whip -- show
 d=~/.claude/projects/$(pwd | tr / -)/$CLAUDE_CODE_SESSION_ID/subagents
-stat -c '%y %n' "$d"/*.jsonl | sort | tail -3          # newest transcripts; the last line is the deepest live one
+stat -c '%y %n' "$d"/*.jsonl 2>/dev/null | sort | tail -3   # by mtime; the last line is the newest transcript
 ```
+
+**First line, before the table: `show`'s header says `DONE`, `CAPPED` or
+`GAVE UP`, or there is no ledger → `delete_trigger` every pending wake of
+yours, end your turn.** Otherwise "lead" below is the train's current lead
+as `show` names it — an outgoing lead the ledger shows `relieved` is not
+it, whatever `ListAgents` says of it.
 
 | You find | You do |
 |---|---|
 | lead `running`, newest transcript fresher than `stall_minutes` | `noop`; end the turn |
 | lead `completed`, its report already acted on (§3 verbs in the ledger) | nothing: the report woke you |
-| lead gone (`completed` or `killed`) with its train still `running` in the ledger | once: `SendMessage` the lead — `window reset: continue from your ledger, then report` — and `mise run whip -- note "resume <name> tried"`; a later tick finding that note still unanswered → `mise run whip -- relieve --lead <name>`, spawn the relief as §3 |
+| lead gone (`completed` or `killed`) with its train still `running` in the ledger, no `resume <name> tried` note | `SendMessage` the lead — `window reset: continue from your ledger, then report` — and `mise run whip -- note "resume <name> tried"` |
+| the same, and the note is already in the ledger | `mise run whip -- relieve --lead <name>`, spawn the relief as §3 |
 | lead `running`, newest transcript older than `stall_minutes` | `TaskStop <name>`; `mise run whip -- note "stall: <name>, <minutes> min silent"`; `relieve --lead <name>`, spawn the relief as §3 |
 
 Ledger `stopped` with a lead `running` (the owner stopped from another
