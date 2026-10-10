@@ -19,14 +19,18 @@ var _xp_gained: float
 var _level_before: int
 
 
-func before_each() -> void:
+## The cycle is expensive and the four tests read different facets of the ONE
+## end state it reaches, so it runs once; nothing here mutates the world after.
+## (`add_child_autofree` would free the level after the first test.)
+func before_all() -> void:
 	_root = _LEVEL.instantiate()
-	add_child_autofree(_root)
+	add_child(_root)
 	assert_true(await wait_until(
 			func() -> bool:
 				return _root.player != null \
 						and _root.turn_manager.current_entity == _root.player, 5),
 			"fixture: the player must hold the first turn")
+	FastPresentation.on_root(_root)
 	_player = _root.player
 	_enemy = _root.enemy
 	_enemy_core = _root.enemy_core
@@ -47,6 +51,11 @@ func before_each() -> void:
 		last[0] = float(now))
 	_level_before = _player.level
 	await _run_cycle()
+
+
+func after_all() -> void:
+	if is_instance_valid(_root):
+		_root.queue_free()
 
 
 ## Allocate two steps toward the enemy through the GATED path, arm a melee

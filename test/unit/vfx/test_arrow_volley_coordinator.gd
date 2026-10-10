@@ -318,6 +318,9 @@ func _mount_scene_coord() -> ArrowVolleyCoordinator:
 	var coord: ArrowVolleyCoordinator = _COORD_SCENE.instantiate()
 	coord.flight_time = 0.02
 	coord.visual_scene = null
+	# The compiled schedule rides this tempo; the shared default would fly the
+	# RAMP volley on its slow cadence and nothing here asserts on that.
+	coord.tempo = _windup_tempo()
 	add_child_autofree(coord)
 	return coord
 
