@@ -74,9 +74,8 @@ const _R_LAST_OWNED_VISION := 16 ## SkillNode.last_owned_vision — the node-loc
 const _R_CHANNEL_TARGET := 17   ## SkillNode.channel_target — the staking channel's goal cap, 0 = no channel
 const _R_CHANNEL_PROGRESS := 18 ## SkillNode.channel_progress — turns ticked toward it
 const _R_STAKE_CEILING_LIFTS := 19 ## how many procgen `stake_ceiling` lifts the node holds (they live on the node board, not in `modifiers`, so _R_MODS never carries them)
-## A row this short predates the three columns above (a save's v7 body): the
-## channel defaults to none and the lifts re-derive from the stake.
-const _ROW_SIZE_V7 := 17
+## A row shorter than this predates the three columns above (a save's v7
+## body): the channel defaults to none and the lifts re-derive from the stake.
 const _ROW_SIZE := 20
 
 const _LIFT := preload("res://skill_node/stake_ceiling_lift_modifier.tres")
