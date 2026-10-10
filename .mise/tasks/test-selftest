@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-#MISE description="Self-test for test's class-cache drift predicate: fixture tree + cfg in a tempdir, six cases. `mise run test-selftest`"
+#MISE description="Self-test for test's class-cache drift predicate: fixture tree + cfg in a tempdir, eleven cases. `mise run test-selftest`"
 """
 Exercises `class_cache_drift(root)` from .mise/tasks/test against a synthetic
 project tree — never the real one, so it runs in <0.1s and never touches
@@ -74,4 +74,46 @@ root = fresh(); cfg(root, [("Foo", "res://old/foo.gd"), ("Bar", "res://b/bar.gd"
 drift = t.class_cache_drift(root)
 assert sorted(drift) == ["gone Foo res://old/foo.gd", "new Foo res://a/foo.gd"], drift
 
-print("test-selftest: 6 cases OK")
+# --- shard planning off persisted timings -------------------------------
+
+# (g) blend: a slower run is believed at once, a faster one only halfway —
+# under-estimating a long script stacks it with others, over-estimating costs
+# a little balance. A script absent from this run keeps its old value.
+tmp = tempfile.mkdtemp(prefix="test-selftest-")
+tf = os.path.join(tmp, "gut-timings.json")
+t.save_timings({"test/unit/a.gd": 2.0, "test/unit/b.gd": 10.0, "test/unit/c.gd": 1.0}, tf)
+t.save_timings({"test/unit/a.gd": 8.0, "test/unit/b.gd": 2.0}, tf)
+got = t.load_timings(tf)
+assert got == {"test/unit/a.gd": 8.0, "test/unit/b.gd": 6.0, "test/unit/c.gd": 1.0}, got
+
+# (h) prune: an entry whose script is gone from the tree is dropped on save
+proj = tempfile.mkdtemp(prefix="test-selftest-")
+write(os.path.join(proj, "test", "unit", "kept.gd"), "extends GutTest\n")
+tf = os.path.join(proj, "gut-timings.json")
+t.save_timings({"test/unit/kept.gd": 1.0, "test/unit/gone.gd": 1.0}, tf, root=proj)
+assert t.load_timings(tf) == {"test/unit/kept.gd": 1.0}, t.load_timings(tf)
+
+# (i) unknown script: costed at its tier's median, not a flat constant, so a
+# new integration test is not planned as if it were a 0.5s formula test
+timings = {"test/unit/a.gd": 0.1, "test/unit/b.gd": 0.2, "test/unit/c.gd": 0.3,
+           "test/integration/x.gd": 4.0, "test/integration/y.gd": 6.0}
+est = t.cost_model(timings)
+assert est("res://test/unit/a.gd") == 0.1
+assert est("res://test/integration/new.gd") == 5.0, est("res://test/integration/new.gd")
+assert est("res://test/unit/new.gd") == 0.2
+assert est("res://test/elsewhere/new.gd") == t.DEFAULT_SCRIPT_SECONDS
+assert t.cost_model({})("res://test/unit/new.gd") == t.DEFAULT_SCRIPT_SECONDS
+
+# (j) partition balances on that model: the two 5s unknowns split apart
+plan = t.partition(["res://test/integration/n1.gd", "res://test/integration/n2.gd",
+                    "res://test/unit/a.gd", "res://test/unit/b.gd"], 2, timings)
+assert sorted(len([s for s in sh if "integration" in s]) for sh in plan) == [1, 1], plan
+
+# (k) a worktree with no timings of its own plans off the main checkout's;
+# its own entries win where both exist
+main_t = {"test/unit/a.gd": 9.0, "test/unit/b.gd": 3.0}
+mine = {"test/unit/a.gd": 1.0}
+assert t.merge_timings(main_t, mine) == {"test/unit/a.gd": 1.0, "test/unit/b.gd": 3.0}
+assert t.merge_timings(main_t, {}) == main_t
+
+print("test-selftest: 11 cases OK")
