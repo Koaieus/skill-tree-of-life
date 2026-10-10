@@ -32,7 +32,8 @@ the same footing as CI, never the developer's real settings.
 Each shard's console is written LIVE to .godot/gut-shard-N.log, so
 `tail -f .godot/gut-shard-*.log` shows which script every shard is on while
 the suite runs — and a run that is killed or crashes still leaves everything
-it printed. The merged .godot/gut-last.log lands with the verdict, which is
+it printed. A shard that outlives its wall deadline (`shard_deadline`) is
+killed and reported with the script its log was on. The merged .godot/gut-last.log lands with the verdict, which is
 the last thing to arrive, never the first: assume the summary is absent until
 the run ends, and read the shard logs if you need to know what is happening.
 
@@ -63,6 +64,7 @@ import json
 import os
 import re
 import shutil
+import signal
 import statistics
 import subprocess
 import sys
@@ -89,6 +91,14 @@ SHARD_RSS_MB = 1024
 # A script with no persisted timing costs its tier's median (`cost_model`);
 # this is the last resort when the tier has no timings at all.
 DEFAULT_SCRIPT_SECONDS = 0.5
+# Shard wall deadline (`shard_deadline`): a hung shard is killed rather than
+# holding the verdict forever. 3x the planned load absorbs a box shared with
+# another agent's gate; the boot allowance covers godot start + GUT
+# collection + exit; the floor keeps a tiny shard from being shot on a slow
+# boot. GUT_SHARD_DEADLINE=<seconds> pins it for every shard.
+SHARD_DEADLINE_LOAD_FACTOR = 3.0
+SHARD_BOOT_SECONDS = 30.0
+SHARD_DEADLINE_FLOOR = 120.0
 
 
 MAX_TESTS_SHOWN = 15
@@ -453,15 +463,59 @@ def _godot_cmd(flags, xml_path):
             *flags, "-gdisable_colors", f"-gjunit_xml_file={xml_path}"]
 
 
+def shard_deadline(planned_seconds, env=os.environ):
+    """Wall seconds a shard may run before it is killed as hung.
+
+    GUT_SHARD_DEADLINE pins it outright; else LOAD_FACTOR x the shard's
+    planned load plus the boot allowance, never under the floor.
+    """
+    pinned = env.get("GUT_SHARD_DEADLINE", "").strip()
+    if pinned:
+        return float(pinned)
+    return max(SHARD_DEADLINE_FLOOR,
+               SHARD_BOOT_SECONDS + SHARD_DEADLINE_LOAD_FACTOR * planned_seconds)
+
+
+# GUT prints each script's res:// path at column 0 as it starts it, then
+# `* test_name` per test; a failure detail citing a script is indented.
+_SCRIPT_HEADER = re.compile(r"^res://\S+\.gd$")
+_TEST_LINE = re.compile(r"^\* (\w+)")
+
+
+def last_position_in_log(text):
+    """(script, test) a shard's live log was on when it stopped — either None
+    when the log never got that far. Pure: reads text, not the file."""
+    script = test = None
+    for line in text.splitlines():
+        if _SCRIPT_HEADER.match(line.rstrip()):
+            script, test = line.rstrip(), None
+        elif script and (m := _TEST_LINE.match(line)):
+            test = m.group(1)
+    return script, test
+
+
+def _kill_group(proc):
+    try:
+        os.killpg(proc.pid, signal.SIGKILL)
+    except (OSError, ProcessLookupError):
+        proc.kill()
+    proc.wait()
+
+
 def run_shards(flags, scripts, n, tmp):
     """Launch one godot per shard, each console streamed live to its own log.
 
-    Returns [(shard_index, scripts, returncode)]. Only `-gtest=` and
+    Returns [(shard_index, scripts, returncode, timed_out_after_or_None)].
+    Each shard gets a wall deadline (`shard_deadline`) measured from launch;
+    one that passes it is killed with its process group. Only `-gtest=` and
     `-gdir=` are added per shard; any passthrough flags ride along on all.
     """
-    plan = partition(scripts, n, merge_timings(main_checkout_timings(), load_timings()))
+    timings = merge_timings(main_checkout_timings(), load_timings())
+    cost = cost_model(timings)
+    plan = partition(scripts, n, timings)
     passthrough = [f for f in flags if not f.startswith(("-gdir=", "-gtest="))]
     procs = []
+    started = time.monotonic()
     for i, shard in enumerate(plan):
         # Own user:// per shard — see the module docstring.
         env = dict(os.environ, XDG_DATA_HOME=os.path.join(tmp, f"shard-{i}"))
@@ -469,13 +523,22 @@ def run_shards(flags, scripts, n, tmp):
         log = open(SHARD_LOG.format(i), "w", buffering=1)
         cmd = _godot_cmd([f"-gtest={','.join(shard)}", "-gdir=", *passthrough],
                          SHARD_XML.format(i))
-        procs.append((i, shard, log, subprocess.Popen(
-            cmd, stdout=log, stderr=subprocess.STDOUT, env=env, text=True)))
+        budget = shard_deadline(sum(cost(s) for s in shard))
+        procs.append((i, shard, log, budget, subprocess.Popen(
+            cmd, stdout=log, stderr=subprocess.STDOUT, env=env, text=True,
+            start_new_session=True)))
     results = []
-    for i, shard, log, proc in procs:
-        proc.wait()
+    # Deadlines are absolute from launch, so waiting on the shards in turn
+    # never lets one shard's budget ride on another's.
+    for i, shard, log, budget, proc in procs:
+        timed_out = None
+        try:
+            proc.wait(timeout=max(0.0, started + budget - time.monotonic()))
+        except subprocess.TimeoutExpired:
+            _kill_group(proc)
+            timed_out = budget
         log.close()
-        results.append((i, shard, proc.returncode))
+        results.append((i, shard, proc.returncode, timed_out))
     return results
 
 
@@ -497,11 +560,11 @@ def merge_shards(results):
     root = ET.Element("testsuites", name="GutTests")
     missing = []
     tests = failures = 0
-    for i, shard, code in results:
+    for i, shard, code, timed_out in results:
         try:
             tree = ET.parse(SHARD_XML.format(i))
         except (OSError, ET.ParseError):
-            missing.append((i, len(shard), code))
+            missing.append((i, len(shard), code, timed_out))
             continue
         for suite in list(tree.getroot().iter("testsuite")):
             root.append(suite)
@@ -512,7 +575,7 @@ def merge_shards(results):
     if root.findall("testsuite") or not missing:
         ET.ElementTree(root).write(XML, encoding="unicode", xml_declaration=True)
     chunks = []
-    for i, shard, code in results:
+    for i, shard, code, timed_out in results:
         try:
             with open(SHARD_LOG.format(i), encoding="utf-8", errors="replace") as fh:
                 body = fh.read()
@@ -533,6 +596,24 @@ def _trailer_lines(console):
                    if l.startswith(("ERROR:", "WARNING:", "CRASH"))
                    and not any(b in l for b in BENIGN_TRAILER))
     return out
+
+
+def _report_missing(missing):
+    """One block per shard that left no XML: it lost every script it carried,
+    a run failure even when every other shard is green. Names where its live
+    log stopped — the hung (or crashed) script is that one."""
+    for i, n, code, timed_out in missing:
+        why = (f"killed at its {timed_out:.0f}s wall deadline; GUT_SHARD_DEADLINE=<s> sets it"
+               if timed_out else f"godot exit {code}")
+        print(f"\nshard {i} did not complete ({why}) — {n} scripts unreported; "
+              f"tail {os.path.relpath(SHARD_LOG.format(i), ROOT)}")
+        try:
+            with open(SHARD_LOG.format(i), encoding="utf-8", errors="replace") as fh:
+                script, test = last_position_in_log(fh.read())
+        except OSError:
+            script, test = None, None
+        if script:
+            print(f"  was on: {script}" + (f" :: {test}" if test else ""))
 
 
 def main():
@@ -568,7 +649,7 @@ def main():
         finally:
             shutil.rmtree(tmp, ignore_errors=True)
         console, missing = merge_shards(results)
-        returncode = max(code for _, _, code in results)
+        returncode = max(code for _, _, code, _ in results)
     else:
         # Merge stderr INTO stdout rather than capturing both: godot writes
         # engine errors to stderr and GUT to stdout, and concatenating the two
@@ -603,6 +684,7 @@ def main():
     # alike, and the alarm lines are the whole diagnosis for the second.
     if cases is None:
         print(f"✗ run did not complete (godot exit {returncode}) — no results file")
+        _report_missing(missing)
         tail = [l for l in console.splitlines()[-40:]
                 if l.strip() and not any(b in l for b in BENIGN_TRAILER)]
         print("\n".join(tail[-20:]))
@@ -625,16 +707,11 @@ def main():
           f"{scripts_ran} script" + ("s" if scripts_ran != 1 else "")
           + (f" · {shards} shards" if shards > 1 else "")
           + f" ({elapsed:.1f}s wall)")
-    if scripts and scripts_ran != len(scripts) - sum(n for _, n, _ in missing):
+    if scripts and scripts_ran != len(scripts) - sum(m[1] for m in missing):
         print(f"  ! collected {len(scripts)} scripts but {scripts_ran} reported — "
               f"see run health / shard logs")
 
-    # A shard that produced no XML lost every script it carried; that is a run
-    # failure even when every other shard is green, and its log tail is the
-    # diagnosis.
-    for i, n, code in missing:
-        print(f"\nshard {i} did not complete (godot exit {code}) — {n} scripts unreported; "
-              f"tail {os.path.relpath(SHARD_LOG.format(i), ROOT)}")
+    _report_missing(missing)
 
     if failing:
         report_failures(cases)

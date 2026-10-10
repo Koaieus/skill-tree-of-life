@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-#MISE description="Self-test for test's class-cache drift predicate: fixture tree + cfg in a tempdir, eleven cases. `mise run test-selftest`"
+#MISE description="Self-test for test's class-cache drift predicate: fixture tree + cfg in a tempdir, thirteen cases. `mise run test-selftest`"
 """
 Exercises `class_cache_drift(root)` from .mise/tasks/test against a synthetic
 project tree — never the real one, so it runs in <0.1s and never touches
@@ -116,4 +116,32 @@ mine = {"test/unit/a.gd": 1.0}
 assert t.merge_timings(main_t, mine) == {"test/unit/a.gd": 1.0, "test/unit/b.gd": 3.0}
 assert t.merge_timings(main_t, {}) == main_t
 
-print("test-selftest: 11 cases OK")
+# --- shard hang protection ---------------------------------------------
+
+# (l) deadline: 3x the planned load plus a boot allowance, never under the
+# floor; GUT_SHARD_DEADLINE pins it outright (seconds), blank means unset
+assert t.shard_deadline(0.0, {}) == t.SHARD_DEADLINE_FLOOR
+assert t.shard_deadline(100.0, {}) == t.SHARD_BOOT_SECONDS + 300.0, t.shard_deadline(100.0, {})
+assert t.shard_deadline(100.0, {"GUT_SHARD_DEADLINE": "7"}) == 7.0
+assert t.shard_deadline(100.0, {"GUT_SHARD_DEADLINE": " "}) == t.SHARD_BOOT_SECONDS + 300.0
+
+# (m) which script a shard was on: the last column-0 `res://…gd` header and
+# the last `* test_` line under it; an indented failure line citing another
+# script (`[2] test_x (res://…gd:71)`) is not a header
+log = """GUT  ---
+res://test/unit/a.gd
+* test_one
+1/1 passed.
+
+res://test/unit/b.gd
+* test_two
+       [2] test_two (res://test/unit/zzz.gd:71)
+* test_three
+[client] dialling
+"""
+assert t.last_position_in_log(log) == ("res://test/unit/b.gd", "test_three"), t.last_position_in_log(log)
+assert t.last_position_in_log("res://test/unit/c.gd\n") == ("res://test/unit/c.gd", None)
+assert t.last_position_in_log("Godot Engine v4.7\n---  GUT  ---\n") == (None, None)
+assert t.last_position_in_log("") == (None, None)
+
+print("test-selftest: 13 cases OK")
