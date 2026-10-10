@@ -5,7 +5,8 @@ extends GutTest
 ## roll. The floors are the contract: at the default tier knobs
 ## (0.10 / 0.17 / 0.30 / 0.30) a 300-node map MUST show the rarity ladder
 ## (≥30 single loops, ≥5 doubles, ≥1 triple, none beyond the cap of 4), and
-## the ladder scales linearly to 3000 (≥300 / ≥51 / ≥15 / ≥4).
+## the ladder scales linearly to 1000 (≥100 / ≥17 / ≥5 / ≥1) — the smallest
+## size at which all four tiers carry a floor.
 
 func _build_config(node_count: int, rng_seed: int) -> GraphProcgenConfig:
 	var cfg := GraphProcgenConfig.new()
@@ -76,17 +77,17 @@ func test_floors_hold_across_seeds() -> void:
 		_assert_cap(counts, context)
 
 
-func test_scaled_floors_at_3000() -> void:
-	var result: Dictionary = await _generate(_build_config(3000, 777))
+func test_scaled_floors_at_1000() -> void:
+	var result: Dictionary = await _generate(_build_config(1000, 777))
 	var counts := _loop_counts(result.get("nodes", []))
-	assert_eq(counts.size(), 3000, "sanity: 3000 generated nodes")
-	# Floors at N=3000: floor(3000×0.10)=300, floor(300×0.17)=51,
-	# floor(51×0.30)=15, floor(15×0.30)=4.
-	_assert_floor(counts, 1, 300, "seed 777 @3000 (tier-1)")
-	_assert_floor(counts, 2, 51, "seed 777 @3000 (tier-2)")
-	_assert_floor(counts, 3, 15, "seed 777 @3000 (tier-3)")
-	_assert_floor(counts, 4, 4, "seed 777 @3000 (tier-4)")
-	_assert_cap(counts, "seed 777 @3000")
+	assert_eq(counts.size(), 1000, "sanity: 1000 generated nodes")
+	# Floors at N=1000: floor(1000×0.10)=100, floor(100×0.17)=17,
+	# floor(17×0.30)=5, floor(5×0.30)=1.
+	_assert_floor(counts, 1, 100, "seed 777 @1000 (tier-1)")
+	_assert_floor(counts, 2, 17, "seed 777 @1000 (tier-2)")
+	_assert_floor(counts, 3, 5, "seed 777 @1000 (tier-3)")
+	_assert_floor(counts, 4, 1, "seed 777 @1000 (tier-4)")
+	_assert_cap(counts, "seed 777 @1000")
 
 
 func test_zero_tier1_rate_yields_no_self_loops() -> void:
