@@ -76,18 +76,3 @@ func test_pool_pick_excludes_already_minted_unique_scenes() -> void:
 	# Mark scene as already minted → no candidates → null.
 	var picked := GraphProcgen._weighted_pick_addon(pool, [_SPIKE_RING], _rng())
 	assert_null(picked)
-
-
-func test_slot_count_distribution_sampling() -> void:
-	var policy := AddonPolicy.new()
-	policy.slot_count_weights = {0: 60.0, 1: 25.0, 2: 12.0, 3: 3.0}
-	# Sample many; assert distribution is roughly right.
-	var counts := [0, 0, 0, 0]
-	for i in 1000:
-		var rng := _rng(i + 1)
-		var n := policy.sample_slot_count(rng)
-		if n >= 0 and n <= 3:
-			counts[n] += 1
-	# Loose bounds: 50%–70% zero, 15%–35% one. Stochastic but stable.
-	assert_true(counts[0] >= 500 and counts[0] <= 700, "0-slot count = %d not in [500,700]" % counts[0])
-	assert_true(counts[1] >= 150 and counts[1] <= 350, "1-slot count = %d not in [150,350]" % counts[1])

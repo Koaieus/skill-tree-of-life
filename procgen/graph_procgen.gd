@@ -44,6 +44,8 @@ const _SCENE_RNG_SALT := 0x3300
 ## churn on any `base_chance` retune and a placement change would be
 ## indistinguishable from a content change.
 const _SUBTYPE_RNG_SALT := 0x5B17
+## Salt for the addon placement pass's own stream (see [method _place_addons]).
+const _ADDON_RNG_SALT := 0xADD0
 
 ## Poisson-disk auto-scale sizing (#164, retuned in #566). The disc area a
 ## ShapeMask needs to hold `node_count` points at spacing `d = min_dist`.
@@ -268,6 +270,8 @@ static func generate(
 	# (see GraphProcgenSpellGrants.distribute; it needs the full pool size to
 	# compute the level's grant budget, not a per-node decision).
 	var int_nodes: Array[SkillNode] = []
+	# Every non-authored-scene node: the addon pass's draw pool.
+	var addon_eligible: Array[SkillNode] = []
 	# Subtype placement (#1056) — its own derived stream, plus the two things
 	# that must be computed ONCE per generate(): the resolved default (D14) and
 	# D13's per-(archetype, subtype) drawability lookup.
@@ -364,9 +368,7 @@ static func generate(
 			# No archetype → no budget → the uniform default (budget 0 path).
 			_stamp_radius(sn, config.topology.radius_for_budget(0))
 		graph.add_skill_node(sn)
-		# After add_skill_node, so the node is in the tree and its addon anchor
-		# is listening.
-		_roll_and_attach_addons(sn, config, rng)
+		addon_eligible.append(sn)
 		if GraphProcgenSpellGrants.is_eligible_node(archetype_primary_stat):
 			int_nodes.append(sn)
 		nodes.append(sn)
@@ -374,6 +376,12 @@ static func generate(
 			# 0.45 → 0.92 over the per-node loop.
 			var frac: float = 0.45 + 0.47 * (float(i) / float(positions.size()))
 			await _emit_progress(progress_cb, frac, "Rolling content")
+
+	# Own derived stream (the blocker pass's precedent): retuning the addon
+	# density never shifts the modifier rolls on the main `rng`.
+	var addon_rng := RandomNumberGenerator.new()
+	addon_rng.seed = rng.seed + _ADDON_RNG_SALT
+	_place_addons(addon_eligible, nodes.size(), config, addon_rng)
 
 	GraphProcgenSpellGrants.distribute(
 			int_nodes, config.content.spell_grant_pool, config.content.spell_grant_ratio, rng)
@@ -1119,31 +1127,54 @@ static func _stamp_radius(sn: SkillNode, base_radius: float) -> void:
 	sn.base_inner_radius = base_radius - _INNER_RING_PX
 
 
-static func _roll_and_attach_addons(
-		sn: SkillNode,
+## Places `roundi(node_count × k / 100)` addons, each on a node drawn
+## uniformly WITH replacement from `eligible`. A repeat draw raises the node's
+## `stake_level` to its new addon count BEFORE the attach, so `addon count ≤
+## addon_slots` holds after every step and a node's stake always equals its
+## addon count. A draw landing on a node at `max_addons_per_node`, or whose
+## remaining legal pool is empty (unique filter), is redrawn; redraws are
+## bounded at 4× the target so the pass always ends — it falls short only when
+## the pool is exhausted.
+static func _place_addons(
+		eligible: Array[SkillNode],
+		node_count: int,
 		config: GraphProcgenConfig,
 		rng: RandomNumberGenerator,
 ) -> void:
-	var policy: AddonPolicy = config.content.addon_policy
-	if policy == null or policy.pool == null:
+	var policy: AddonPolicy = config.content.addon_policy if config.content != null else null
+	if policy == null or policy.pool == null or eligible.is_empty():
 		return
-	var slots := policy.sample_slot_count(rng)
-	if slots <= 0:
-		return
-	# Track unique-addon scenes already minted on this node so we filter
-	# duplicates out of subsequent slot picks. The scene PackedScene IS the
-	# uniqueness key — same scene → same uniqueness class.
-	var minted_unique_scenes: Array = []
-	for _i in slots:
-		var entry := _weighted_pick_addon(policy.pool, minted_unique_scenes, rng)
+	var target := roundi(float(node_count) * policy.addons_per_100_nodes / 100.0)
+	var max_attempts := target * 4
+	# Per-node ledger (eligible index → count / minted unique scenes): an addon
+	# instance does not carry its pool entry's scene, the uniqueness key.
+	var counts: Dictionary = {}
+	var minted_unique: Dictionary = {}
+	var placed := 0
+	var attempts := 0
+	while placed < target and attempts < max_attempts:
+		attempts += 1
+		var idx := rng.randi_range(0, eligible.size() - 1)
+		var count: int = counts.get(idx, 0)
+		if count >= policy.max_addons_per_node:
+			continue
+		var minted: Array = minted_unique.get(idx, [])
+		var entry := _weighted_pick_addon(policy.pool, minted, rng)
 		if entry == null:
-			break
+			continue
 		var instance: SkillNodeAddon = entry.mint(rng)
 		if instance == null:
-			break
+			continue
+		var sn := eligible[idx]
+		count += 1
+		if count > 1:
+			sn.stake_level = count
 		sn.add_child(instance)
+		counts[idx] = count
 		if instance.unique:
-			minted_unique_scenes.append(entry.addon_scene)
+			minted.append(entry.addon_scene)
+			minted_unique[idx] = minted
+		placed += 1
 
 
 static func _weighted_pick_addon(

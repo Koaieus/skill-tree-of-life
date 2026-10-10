@@ -96,8 +96,10 @@ func spawn_entity(
 ## every ordinary caller and mints as before.
 ##
 ## [param stake_level] is the #916 pre-stake (1..[constant
-## AllocationSystem.STAKE_CEILING], procgen rolls it per placement): the core
-## node's cap is stamped, `force_allocate` opens the 0→1 as usual, and
+## AllocationSystem.STAKE_CEILING], procgen rolls it per placement) only RAISES
+## the core node's cap — a node procgen already staked keeps its own, possibly
+## past the ceiling, and the fill and kill-XP offset read that effective stake:
+## the cap is stamped, `force_allocate` opens the 0→1 as usual, and
 ## [method AllocationSystem.force_fill] walks the fill to the cap — no SP
 ## minted for the fill, so the blocker's pool never says it bought it. A
 ## staked kill then frees a node already filled to 3, SP the killer never
@@ -132,7 +134,10 @@ func spawn_blocker(size: BlockerSize, core_location: SkillNode,
 	ent.spellbook = book
 	graph.entities_container.add_child(ent)
 	if core_location != null:
-		var stake := clampi(stake_level, 1, AllocationSystem.STAKE_CEILING)
+		# Raise-only: a core landing on a node procgen already staked (a
+		# repeat addon draw, possibly past the ceiling) keeps that stake.
+		var stake := maxi(core_location.stake_level,
+				clampi(stake_level, 1, AllocationSystem.STAKE_CEILING))
 		# Cap BEFORE the allocate: the fill is clamped to the cap, and the
 		# stake_level setter re-derives the radius the halo reads.
 		core_location.stake_level = stake
