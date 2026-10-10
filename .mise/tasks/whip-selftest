@@ -470,6 +470,61 @@ code, out = run("start", "--no-issue", me="feedface-0000")
 check("start over a DONE v1-shaped ledger retires it and starts clean", code == 0 and "retired" in out and state()["ready"] == [2] and lead("lead-a").get("state") == "running")
 run("retire", "--force")
 
+# --- tree transport: the top session drives subagent leads; nothing touches systemd/claude/linger
+fx["agents"] = []; fx["ready"] = [50, 51, 52, 53, 60]; fx["blocked_by"] = {51: [50], 52: [51], 53: [52]}; fx["milestone"] = {60: "M3"}
+fx["needs_design"] = []; fx["in_progress"] = []
+os.makedirs(wh.UNIT_DIR, exist_ok=True); units_tree = sorted(os.listdir(wh.UNIT_DIR))
+base = len(calls)
+code, out = run("start", "--tree", "--no-issue", "--tick-minutes", "30", me="feedface-0000")
+st = state() if os.path.exists(jpath) else {}
+sysc = lambda since: [c for c in calls[since:] if re.search(r"systemctl|loginctl|systemd-run|^claude", c)]
+check("(a) start --tree writes a ledger with trains and transport tree, tick_minutes recorded",
+      code == 0 and st.get("transport") == "tree" and [t["issues"] for t in st.get("trains", [])] == [[50, 51, 52, 53], [60]] and st.get("tick_minutes") == 30)
+check("(a) start --tree calls no systemctl/loginctl/claude, installs no timer, launches nothing",
+      not sysc(base) and sorted(os.listdir(wh.UNIT_DIR)) == units_tree and not st.get("leads") and not st.get("requests")
+      and all(t["state"] == "queued" for t in st.get("trains", [])))
+hdr = (open(jpath[:-5] + ".md").read().splitlines() + ["", ""])[1] if os.path.exists(jpath[:-5] + ".md") else ""
+check("(a) the tree ledger header carries the tick and no linger warning", "tick 30 min" in hdr and "linger" not in hdr.lower())
+code, out = run("start", "--tree", "--no-issue", "--tick-minutes", "60")
+check("--tick-minutes is bounded [15, 55]: 60 is a usage error", code != 0)
+run("retire", "--force"); run("start", "--tree", "--no-issue", me="feedface-0000")
+check("--tick-minutes defaults to 45", state().get("tick_minutes") == 45)
+base = len(calls)
+code, out = run("next-train", "--lead", "lead-a", me="feedface-0000")
+check("(b) next-train --lead lead-a marks train a running under lead-a and prints its issues",
+      code == 0 and train("a")["state"] == "running" and train("a")["lead"] == "lead-a" and lead("lead-a").get("state") == "running"
+      and "#50 #51 #52 #53" in out and not sysc(base))
+code, out = run("next-train", "--lead", "lead-b", me="feedface-0000")
+check("(b) a second next-train names train b", code == 0 and train("b")["lead"] == "lead-b" and "#60" in out and re.search(r"\bb\b", out))
+code, out = run("next-train", "--lead", "lead-c", me="feedface-0000")
+check("next-train with nothing queued says so and marks nothing", "lead-c" not in state()["leads"] and "no" in out.lower())
+code, out = run("relieve", "--lead", "lead-a", me="feedface-0000")
+check("(d) relieve --lead lead-a records the request, prints relief-a-1 + the adopt hint, launches nothing",
+      code == 0 and "relief-a-1" in out and "adopt --from feedface" in out and train("a")["lead"] == "relief-a-1" and train("a")["reliefs"] == 1
+      and lead("lead-a")["state"] == "relieved" and lead("relief-a-1").get("state") == "running" and not state()["requests"] and not sysc(base))
+code, out = run("needs-owner", "--lead", "relief-a-1", "52", "cursor fork", me="feedface-0000")
+check("needs-owner --lead names the train", code == 0 and any("needs owner #52" in n and "train a" in n for n in state()["notes"]))
+code, out = run("done", "--lead", "relief-a-1", SHA, "3/4", me="feedface-0000")
+check("(c) done --lead relief-a-1 records train a done and launches nothing; the run is not over",
+      code == 0 and train("a")["state"] == f"done {SHA[:7]} 3/4" and lead("relief-a-1")["state"] == "done" and state()["done"] is False
+      and not state()["requests"] and not sysc(base))
+code, out = run("done", SHA, "1/1", me="feedface-0000")
+check("(f) done without --lead in tree mode is a usage error", code != 0 and "--lead" in out and train("b")["state"] == "running")
+code, out = run("done", "--lead", "lead-zz", SHA, "1/1", me="feedface-0000")
+check("done --lead naming no running lead refuses", code != 0)
+code, out = run("watchdog")
+check("(g) watchdog in tree mode refuses in one line", code != 0 and len(out.strip().splitlines()) == 1 and "tree" in out)
+for verb in (("daemon", "status"), ("timer", "install"), ("launch", "lead-b")):
+    code, out = run(*verb)
+    check(f"{verb[0]} in tree mode refuses in one line", code != 0 and len(out.strip().splitlines()) == 1 and "tree" in out)
+code, out = run("relieve-me", me="feedface-0000")
+code, out = run("done", "--lead", "lead-b", SHA, "1/1", me="feedface-0000")
+rep = open(state()["report_path"]).read() if state().get("report_path") else ""
+check("(e) done on the last train sets done and renders the report",
+      code == 0 and state()["done"] is True and rep.startswith("# Whip report") and "needs owner #52" in rep and "linger" not in rep.splitlines()[2].lower())
+check("tree mode never touched systemd, linger or claude", not sysc(base))
+run("retire", "--force")
+
 # --- the fence held --------------------------------------------------------
 check("the only gh calls were answered by the fake, never posting", all(c.startswith("gh issue list") for c in calls if c.startswith("gh ")))
 real_after = {p: os.path.getmtime(os.path.join(real, p)) for p in os.listdir(real) if p.startswith("whip-")} if os.path.isdir(real) else {}
