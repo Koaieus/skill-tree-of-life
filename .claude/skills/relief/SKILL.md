@@ -13,7 +13,7 @@ this is the entry half. Nothing below restates `swarm` — once oriented, you
 
 ```bash
 mise run ledger -- show                     # no ledger yet for your session: it lists the live ones (path · lead sessions · age)
-mise run ledger -- adopt --from <sid8>      # join the outgoing lead's ledger (the whip prompt names it; bare `adopt` = the only live one)
+mise run ledger -- adopt --from <sid8>      # join the outgoing lead's ledger (the whip prompt names it; bare `adopt` = the only live one) — skip in a swarm-train tree: you share the top's session id, the first `show` already is yours
 mise run ledger -- show                     # now yours: roster, states, queue order — never cat a dated path
 mise gh-project -- list in-progress         # the board's view of the same run
 git worktree list
