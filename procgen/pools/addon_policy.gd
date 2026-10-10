@@ -19,6 +19,16 @@ extends Resource
 ## zero with a long tail. `0` means "no addons this node".
 @export var slot_count_weights: Dictionary = {0: 60.0, 1: 25.0, 2: 12.0, 3: 3.0}
 
+## Addon density: how many addons the post-loop pass places per 100 generated
+## nodes, so maps of every size scale alike. Each one draws a node uniformly
+## WITH replacement; a node drawn again gains one stake level. Tentative.
+@export_range(0, 200, 0.5) var addons_per_100_nodes: float = 30.0
+
+## Procgen's own per-node addon limit — a draw landing on a full node is
+## redrawn. Not the player's stake ceiling: a rare 4th draw stakes the node to
+## 4. Tentative.
+@export_range(1, 8) var max_addons_per_node: int = 4
+
 @export var pool: AddonPool
 @export var weight_profiles: Array[Resource] = []
 

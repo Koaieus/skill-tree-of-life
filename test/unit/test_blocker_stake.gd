@@ -131,3 +131,31 @@ func test_stake_never_exceeds_the_ceiling() -> void:
 	_spawn(AllocationSystem.STAKE_CEILING + 2)
 	assert_eq(_nodes[1].stake_level, AllocationSystem.STAKE_CEILING, "clamped to the ceiling")
 	assert_eq(_nodes[1].allocation_level, AllocationSystem.STAKE_CEILING)
+
+
+## The spawn only RAISES stake: a core landing on a node procgen already staked
+## (a repeat addon draw) keeps that stake and fills to it.
+func test_rolled_stake_below_a_pre_staked_node_keeps_the_node_stake() -> void:
+	_nodes[1].stake_level = 3
+	var blocker := _spawn(1)
+	assert_eq(_nodes[1].owned_by, blocker)
+	assert_eq(_nodes[1].stake_level, 3, "raise-only: the node's stake stands")
+	assert_eq(_nodes[1].allocation_level, 3, "filled to the effective stake")
+	var board := blocker.stat_board
+	assert_almost_eq(board.core_kill_xp.value,
+			board.core_kill_xp.base_value * _expected_offset(board, 3, 0.25), 0.0001,
+			"kill XP offset from the effective stake, not the rolled one")
+
+
+func test_a_procgen_stake_past_the_ceiling_fills_to_it() -> void:
+	_nodes[1].stake_level = AllocationSystem.STAKE_CEILING + 1
+	var blocker := _spawn(1)
+	assert_eq(_nodes[1].owned_by, blocker)
+	assert_eq(_nodes[1].stake_level, AllocationSystem.STAKE_CEILING + 1)
+	assert_eq(_nodes[1].allocation_level, AllocationSystem.STAKE_CEILING + 1)
+
+
+func test_rolled_stake_2_on_a_plain_node_is_2_of_2() -> void:
+	_spawn(2)
+	assert_eq(_nodes[1].stake_level, 2)
+	assert_eq(_nodes[1].allocation_level, 2)
