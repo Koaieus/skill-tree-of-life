@@ -157,8 +157,11 @@ func test_authored_content_module_is_never_mutated_across_two_generations() -> v
 	var authored_base_min: int = authored.budget_policy.base_min
 
 	for override_value in [11, 22]:
-		var cfg := _merged_preset(
-				_fresh_scenario(), [_override("preset:content:budget_policy:base_min", override_value)])
+		# The map is shrunk through the same merge (the authored node count is
+		# the whole cost of this test and says nothing about the content module).
+		var cfg := _merged_preset(_fresh_scenario(), [
+				_override("preset:content:budget_policy:base_min", override_value),
+				_override("preset:topology:node_count", 60)])
 		cfg.seed = 7
 		await _generate(cfg)
 
