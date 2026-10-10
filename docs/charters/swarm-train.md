@@ -103,13 +103,24 @@ top session  (/swarm-train: trains, ledger, tick, relief, report)
 
 **The tick** (*designed*)
 
-8. **The wake is scheduled, never polled.** Where the `claude-code-remote`
-   tools work (probed: a `send_later` fired into this session kind on the
-   minute), the top arms one hourly Routine into itself at start and
-   deletes it at `done`. Where they do not, `/loop` in self-paced mode is
-   the tick. Which one survives a spent window is the first night's second
-   measurement: a loop wake landing during the window may never reschedule
-   itself; a Routine keeps firing from the server.
+8. **The wake is scheduled, one-shot and counted — never a cron, never
+   polled.** A cron Routine that outlives its run wakes a finished session
+   forever, each wake an uncached re-read of the whole context, so no
+   recurring trigger is ever armed. At start the top arms at most one
+   `send_later` per window boundary under the cap (≈ 5h05, 10h05, 15h05)
+   where the `claude-code-remote` tools work (probed: a `send_later` fired
+   into this session kind on the minute); each tick re-arms the next
+   intra-window tick only while the ledger is live; `/loop` self-paced is
+   the same shape without the server. A tick's first line is: ledger done,
+   capped or missing → delete my pending wakes, stop. A dead top schedules
+   nothing, so the chain extinguishes itself. Which wake survives a spent
+   window is the first night's second measurement.
+8a. **The tick interval sits inside the prompt-cache lifetime.** The cache
+   lives one hour from the last request; a tick at 60 min plus scheduler
+   jitter misses it every time and pays the uncached rate on the whole
+   context. Default 45 min; in usage overage the lifetime is five minutes
+   and the only lever is fewer ticks.
+
 9. **A tick is a four-row table, nothing else.** Lead `running` and its
    deepest transcript fresher than `stall_minutes` → `noop`. Lead gone
    (`completed` with a report the top already acted on) → nothing: the
@@ -144,9 +155,9 @@ top session  (/swarm-train: trains, ledger, tick, relief, report)
 
 ## Knobs
 
-- `whip start --tree --cap 15 --stall-minutes 45 --tick-minutes 60` — the
-  cap and stall threshold are Whip's; `tick-minutes` is new and bounded
-  `[15, 60]` by the wake's own clamp.
+- `whip start --tree --cap 15 --stall-minutes 45 --tick-minutes 45` — the
+  cap and stall threshold are Whip's; `tick-minutes` is new, bounded
+  `[15, 55]` (law 8a: inside the one-hour cache lifetime).
 
 ## Open forks — options with costs, owner decides
 
