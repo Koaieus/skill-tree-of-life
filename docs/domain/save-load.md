@@ -29,9 +29,17 @@ anything presentation-side.
   decompress, field types, in that order. `LoadResult { OK, MISSING, CORRUPT,
   VERSION_MISMATCH }`; anything but `OK` leaves an empty world, so a refused
   load has nothing to half-apply.
-- **Versioning** — another `FORMAT_VERSION` is refused, never migrated. The
-  build `short_sha` is recorded for diagnostics only: a dev save survives a
-  commit.
+- **Versioning** — a version outside `MIN_FORMAT_VERSION..FORMAT_VERSION` is
+  refused. One in between loads only when its rows are a *prefix* of today's
+  (columns appended, none moved): `GraphSnapshot._decode_node` defaults the
+  missing tail, so there is still no migration code and no second decoder. 7
+  → 8 is that case — v8 appended the staking channel
+  (`_R_CHANNEL_TARGET`/`_R_CHANNEL_PROGRESS`) and `_R_STAKE_CEILING_LIFTS`
+  (procgen ceiling lifts live on the node board, not in `_R_MODS`); a v7 row
+  loads with no channel and its lifts re-derived from the stake. A change
+  that moves or reshapes a column raises `MIN_FORMAT_VERSION` to the new
+  version. The build `short_sha` is recorded for diagnostics only: a dev save
+  survives a commit.
 - **Atomic write** — `<slot>.tmp`, then rename over the slot.
 - **`bytes_to_var` only**, never `_with_objects`: a save file cannot carry code.
 
