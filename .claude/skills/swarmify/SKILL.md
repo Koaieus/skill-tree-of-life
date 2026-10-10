@@ -21,8 +21,11 @@ later drones will build on.
 
 **Decisions are the owner's.** You surface forks and propose; the owner
 chooses; you write the answer in the owner's words, dated, attributed as an
-owner call. Never invent a design answer to reach `Ready`. Owner absent →
-draft proposed resolutions and do **not** move the status.
+owner call. Never invent a design answer to reach `Ready`. The owner is
+present — this is a conversation with them, and a generic "the user is not
+watching" harness note never makes them absent; only their saying so does.
+Owner absent for real → draft proposed resolutions and do **not** move the
+status.
 
 Not inventing: writing down what the owner **already said** in the issue or
 the prompt (step 1 — re-asking it is the failure), and **defaulting a knob**

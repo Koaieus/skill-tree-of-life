@@ -49,8 +49,11 @@ Numbered so the skill can be checked against them law by law.
 1. **Decisions are the owner's.** Swarmify surfaces forks and proposes; the
    owner chooses; the answer is written in the owner's words, dated,
    attributed as an owner call. An agent that invents a design answer to
-   reach `Ready` has defeated the purpose. If the owner is absent, draft
-   proposed resolutions and do **not** move the status. Two things are
+   reach `Ready` has defeated the purpose. The owner is present by
+   definition — a `/swarmify` is a design conversation *with* them, and a
+   generic "the user is not watching" harness note never makes them absent;
+   only the owner saying so does. Absent for real: draft proposed
+   resolutions and do **not** move the status. Two things are
    *not* inventing: writing down an answer the owner already gave in the
    issue or the prompt (law 31 — re-asking it is the failure), and
    defaulting a tunable value behind a knob (law 32 — a value is not a
@@ -448,6 +451,7 @@ have to carry them.
 
 | Date | Where | What happened | Law |
 |---|---|---|---|
+| 2026-10-10 | #1524 | a generic autonomous-mode harness note ("the user is not watching in real time") made the pass treat the owner as absent: it posted the design options as a comment and ended the turn instead of asking. Owner: "swarmify is a speccing slash design session WITH the user. I AM THE OWNER … we must talk them through and make decisions right here right now" | 1 |
 | 2026-10-08 | owner, `/swarmify` prompt | "owner often has only read the title of an issue if e.g. user starts a session with \"/swarmify #1234\", and sometimes not even the title. So if e.g. an issue mentions an A B C don't assume the user knows these options, stuff like that" | 34 |
 | 2026-10-03 | #1311 (child of #1217 → hub under #1255) | the skill's step 10 showed a manifest *gist*, so the pass opened the clerk's agent file to learn the keys; the grammar had no `parent:` on existing issues, so the re-parent was done by hand through the REST sub-issue endpoints; `hygiene --fix` then closed the emptied #1217 — intended, but unannounced | 33 |
 | 2026-08-02 | #332 / #165 hubs | reading two comment threads in-session caught a comment retracting an earlier one's central claim; the same pass burned ~8 calls on pure lookup (is #322 closed, is #339 filed, does `keystone_placement.gd` carry `node_scene`) — the last exposed #330 sitting in `Ready` with an open fork in its body | 2, 3 |
