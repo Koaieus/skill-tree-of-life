@@ -6,6 +6,7 @@
 [resource]
 script = ExtResource("1_stat_def")
 identity = ExtResource("identity_bleeding")
+role = 1
 id = &"bleeding_aspect"
 parent_ids = Array[StringName]([&"aspects"])
 display_name = "Bleeding Aspect"

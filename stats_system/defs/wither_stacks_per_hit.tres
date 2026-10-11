@@ -6,6 +6,7 @@
 [resource]
 script = ExtResource("1_stat_def")
 identity = ExtResource("identity_wither")
+role = 2
 id = &"wither_stacks_per_hit"
 parent_ids = Array[StringName]([&"dot_stacks_per_hit"])
 display_name = "Wither Stacks per Hit"

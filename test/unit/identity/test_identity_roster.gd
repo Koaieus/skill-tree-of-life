@@ -17,8 +17,6 @@ const _STAT_DEFS_DIR := "res://stats_system/defs"
 const _STATUS_DIR := "res://effects/status"
 const _SPELL_DIR := "res://attack/spell/defs"
 const _ADDON_DIR := "res://skill_node/addons/defs"
-## The per-concept stat suffixes that make a stat a facet of an aspect.
-const _ASPECT_SUFFIXES: Array[String] = ["_aspect", "_resistance", "_stacks_per_hit"]
 
 
 func _identities_on_disk() -> Array[Identity]:
@@ -91,19 +89,18 @@ func test_tints_are_unlifted() -> void:
 
 
 func test_aspect_stats_reference_their_concept() -> void:
-	var checked := 0
+	var roster_ids: Array[StringName] = []
 	for identity in IdentityRoster.shared().identities:
-		if identity.kind != Identity.Kind.ASPECT:
+		roster_ids.append(identity.id)
+	var checked := 0
+	for def in StatRegistry.facet_defs():
+		assert_not_null(def.identity, "%s has no identity" % def.id)
+		if def.identity == null:
 			continue
-		for suffix in _ASPECT_SUFFIXES:
-			var path := "%s/%s%s.tres" % [_STAT_DEFS_DIR, identity.id, suffix]
-			if not ResourceLoader.exists(path):
-				continue
-			var def := load(path) as StatDef
-			assert_not_null(def.identity, "%s has no identity" % def.id)
-			if def.identity != null:
-				assert_eq(def.identity.id, identity.id, "%s's identity" % def.id)
-			checked += 1
+		assert_has(roster_ids, def.identity.id, "%s's identity is on the roster" % def.id)
+		assert_true(String(def.id).begins_with("%s_" % def.identity.id),
+				"%s names its concept %s" % [def.id, def.identity.id])
+		checked += 1
 	assert_gt(checked, 0, "expected to check some aspect stats")
 
 

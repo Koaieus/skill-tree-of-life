@@ -68,13 +68,17 @@ func get_all_defs() -> Array[StatDef]:
 ## The stat that is [param concept]'s [param role] facet ([member StatDef.role]),
 ## or null when the concept has none. ADR 0054.
 func facet_def(concept: StringName, role: StatDef.Role) -> StatDef:
-	return null
+	return _facets.get(_facet_key(concept, role), null)
 
 
 ## Every def with [code]role != NONE[/code] — the stats a non-sparse
 ## [EntityStatBoard] mints at init. Sorted by id.
 func facet_defs() -> Array[StatDef]:
-	return []
+	return _facet_defs.duplicate()
+
+
+static func _facet_key(concept: StringName, role: StatDef.Role) -> String:
+	return "%s:%d" % [concept, role]
 
 
 ## Transitive ancestors of [param id], nearest-first, deduped (breadth-first
@@ -202,6 +206,21 @@ func _rebuild_graph() -> void:
 				next.append_array(parents.get(a, []))
 			frontier = next
 		_ancestors[id] = out
+	_facets.clear()
+	_facet_defs.clear()
+	for id in ids:
+		var def: StatDef = _defs[id]
+		if def.role == StatDef.Role.NONE:
+			continue
+		if def.identity == null:
+			push_error("StatRegistry: '%s' has a concept role but no identity — not a facet" % id)
+			continue
+		var key := _facet_key(def.identity.id, def.role)
+		if _facets.has(key):
+			push_error("StatRegistry: '%s' and '%s' are both facet %s — '%s' dropped" % [_facets[key].id, id, key, id])
+			continue
+		_facets[key] = def
+		_facet_defs.append(def)
 	_entity_vetoed.clear()
 	for id in _defs:
 		if not _defs[id].entity_grantable:

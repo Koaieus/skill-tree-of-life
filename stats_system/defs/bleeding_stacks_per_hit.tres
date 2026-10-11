@@ -6,6 +6,7 @@
 [resource]
 script = ExtResource("1_stat_def")
 identity = ExtResource("identity_bleeding")
+role = 2
 id = &"bleeding_stacks_per_hit"
 display_name = "Bleeding Stacks per Hit"
 description = "The bleeding this entity's hits land. The authored per-hit bleeding is a base_add overlay on this stat, so its flats add to it and its INCREASE / MORE scale it: landed = fold(per-hit), never floored (ADR 0029); the target's Bleeding Resistance filters the row later, at effect time, never here (ADR 0031). No parent. Default 1; read at the attacking node — an entity grant reaches every hit, a node-local grant only the hits that node lands."

@@ -6,6 +6,7 @@
 [resource]
 script = ExtResource("1_stat_def")
 identity = ExtResource("identity_weakness")
+role = 2
 id = &"weakness_stacks_per_hit"
 display_name = "Weakness Stacks per Hit"
 description = "The weakness this entity's hits land. The authored per-hit weakness is a base_add overlay on this stat, so its flats add to it and its INCREASE / MORE scale it: landed = fold(per-hit), never floored. No resistance filters it (owner: weakness cuts damage dealt, which the damage family already defends). No parent: weakness is not a DoT. Default 1; read at the attacking node — an entity grant reaches every hit, a node-local grant only the hits that node lands."

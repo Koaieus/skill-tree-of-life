@@ -6,6 +6,7 @@
 [resource]
 script = ExtResource("1_stat_def")
 identity = ExtResource("identity_hex")
+role = 1
 id = &"hex_aspect"
 parent_ids = Array[StringName]([&"aspects"])
 display_name = "Hex Aspect"

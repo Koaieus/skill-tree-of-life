@@ -6,6 +6,7 @@
 [resource]
 script = ExtResource("1_stat_def")
 identity = ExtResource("identity_curse")
+role = 2
 id = &"curse_stacks_per_hit"
 parent_ids = Array[StringName]([&"dot_stacks_per_hit"])
 display_name = "Curse Stacks per Hit"

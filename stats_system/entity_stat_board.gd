@@ -274,22 +274,34 @@ extends StatBoard
 @export var sparse: bool = false
 
 
-## An entity board carries every stat it can legitimately hold as a typed field
-## above, so mint-on-demand has nothing left to do here: reaching this override
-## means a modifier named a `stat_id` this board has no field for — in practice
-## a typo, or a node-only id (`stake_level`, `addon_slots`) pointed at the wrong
-## board. Warn and refuse rather than silently growing an `_extra_stats` entry
-## nothing will ever read.
+## Mints every concept facet ([member StatDef.role], ADR 0054) before the
+## intrinsics land, unless [member sparse] — a sparse board carries only what
+## its entity uses.
+func apply_intrinsics() -> void:
+	if not sparse:
+		for def in StatRegistry.facet_defs():
+			_ensure_stat(def.id)
+	super()
+
+
+## An entity board holds its stats as the typed fields above plus the concept
+## facets, which are minted rather than declared: a def with a
+## [member StatDef.role] mints here (eagerly at [method apply_intrinsics], or on
+## first touch from a clone, a wire read or a modifier — whichever comes
+## first), parented through [method StatBoard._register_minted]. Anything else
+## reaching this override is a typo or a node-only id (`stake_level`,
+## `addon_slots`) pointed at the wrong board: warn and refuse rather than
+## silently growing an `_extra_stats` entry nothing will ever read.
 ##
-## No deny-list: the rule is derived from the class shape ("not a declared
-## field") rather than authored, so it cannot drift. The mirror guard on
-## [NodeStatBoard] is deliberately absent — an entity-only stat minted on a node
-## board is inert, not wrong, and rejecting it would mean authoring a list of
-## "stats that mean nothing on a node", which is a design statement (#287's
-## StatDef scope enum) rather than a mechanism.
+## No deny-list: the rule is derived from the class shape plus the def's role,
+## so it cannot drift. The mirror guard on [NodeStatBoard] is deliberately
+## absent — an entity-only stat minted on a node board is inert, not wrong.
 func _mint_stat(stat_id: StringName) -> Stat:
+	var def := StatRegistry.get_def(stat_id)
+	if def != null and def.role != StatDef.Role.NONE:
+		return super._mint_stat(stat_id)
 	push_warning(
-		"EntityStatBoard._mint_stat: no field for stat id '%s' — entity boards do not mint stats on demand (typo, or a node-only id on the wrong board?)"
+		"EntityStatBoard._mint_stat: no field for stat id '%s' — entity boards mint only concept facets (typo, or a node-only id on the wrong board?)"
 		% stat_id
 	)
 	return null

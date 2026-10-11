@@ -165,7 +165,10 @@ func get_stat(id: StringName) -> Stat:
 ## [method StatRegistry.facet_def] names, or null when the concept has no such
 ## stat or this board holds none. Read-only — never mints.
 func facet(concept: StringName, role: StatDef.Role) -> ScalarStat:
-	return null
+	var def := StatRegistry.facet_def(concept, role)
+	if def == null:
+		return null
+	return get_stat(def.id) as ScalarStat
 
 
 ## Ensure a Stat exists for [param stat_id], creating one if necessary from
