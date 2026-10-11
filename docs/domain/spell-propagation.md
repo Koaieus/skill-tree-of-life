@@ -63,6 +63,7 @@ Stock subclasses (slot into one or more `PropagationConfig`s):
 
 - `OwnerFilter` — `enemy` / `ally` / `unallocated` / `any` (drops the
   duplicated `only_enemy` logic from every existing propagator)
+- `StatusFilter` — admits a candidate carrying ≥ `min_stacks` of any listed status, read world-aware through `lctx.stacks_of` (a node cured earlier in this cast reads clean); AND it with `OwnerFilter` via `CompositeFilter` to follow an infection.
 - Max visits — not a filter: the resolver reads `ctx.visit_count(to_node)`
   against `PropagationConfig.max_visits_per_node`
 - `RankThresholdFilter` — a `NodeRanker` score compared against the CURRENT
@@ -133,6 +134,7 @@ Stock subclasses (`propagation/spread/`):
   one per authored rank; the rank coefficient (× `closing_gain` on a closing
   hop) is the pick's `share`. **The damage split happens in `mint`, nowhere
   else** — the spread only decides the number.
+- `NeedSplitSpread` — a cleanse's leftover dose split over the eligible children by `Cure.need_of`, largest-remainder whole-dose apportionment stamped as `share` (zero need → no pick); pair with `MultiplyProgression` 1.0 and `SumDamageReducer` so the dose is conserved (`MaxDamageReducer` loses it).
 
 **A spread never transforms damage on arrival, and never decides that the
 walk is over.** Both are authored elsewhere:
@@ -185,6 +187,8 @@ Two consequences worth stating rather than rediscovering:
   `MULTIPLY` that agrees with scaling each branch before the merge
   (distributivity; max / first-wins outright); under `SQUARE` with a summing
   reducer it differs, and scaling the merged arrival is the intended reading.
+
+**Drain in place** is the same contract read as a budget: `CureEffect` spends what it cures out of `CastSpell.damage` (the dose) and emits a `CureInstance` with the counts decided on the walk's world, so the next hop inherits only the leftover and the spell stops when the dose runs out.
 
 ### `IncidentReducer`
 
