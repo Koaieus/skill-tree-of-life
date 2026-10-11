@@ -243,7 +243,7 @@ func test_allocating_a_doombrand_node_grants_the_owner_curse_aspect() -> void:
 
 
 func test_a_temp_doombrand_grants_no_curse_aspect() -> void:
-	_attacker.stat_board.curse_aspect.base_value = 1.0
+	_attacker.stat_board.facet(&"curse", StatDef.Role.ASPECT).base_value = 1.0
 	_attacker.stat_board.blade_size.base_value = 20.0
 	await _settle()
 	var before: float = _attacker.stat_board.get_value(&"curse_aspect")

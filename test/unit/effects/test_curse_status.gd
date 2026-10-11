@@ -201,4 +201,4 @@ func test_authored_curse_and_hex_load_and_are_in_the_debug_book() -> void:
 		assert_gt(applier.innate, 0)
 
 	var book := load("res://entity/spellbook_debug.tres") as SpellBook
-	assert_true(hex in book.spells, "hex is in the debug spellbook")
+	assert_true(malediction in book.spells, "malediction is in the debug spellbook")
