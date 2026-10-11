@@ -135,6 +135,7 @@ signal wave_started(hop_index: int, events_in_wave: int)
 ## it up to before the [constant Emissive.PEAK] flare. A tier, never a float
 ## (`.claude/rules/hdr-color.md`).
 const _DRAW_GLOW_TIER: float = Emissive.VALUE
+const _LANTERN := preload("res://ui/fog_overlay/lantern.tscn")
 
 # The `waves` / beat-index / `pending` triple this coordinator schedules with
 # wants to be a per-wave object rather than three parallel locals — #722.
@@ -153,6 +154,8 @@ var clock: BeatClock = null
 ## ([method SpellDef.is_scout]) hangs a [Lantern] on each carrier it draws.
 var spell: SpellDef = null
 var caster_entity: Entity = null
+## Whose lanterns this cast hangs — resolved once per cast in [method play].
+var _lantern_source: Entity = null
 
 var _caster_tint: Color = Color.WHITE
 ## Which way the cast currently playing turns, and the signed paths built for
@@ -180,6 +183,7 @@ func _play_cast(outcome: AttackOutcome) -> void:
 	# An aimed cast's streak plays even when the aim crossed nothing: it draws
 	# to the aim's full length, which no hit list can say.
 	var pending: Array[int] = [0]
+	_lantern_source = _resolve_caster(outcome)
 	if outcome.aim != null and aim_streak_visual != null:
 		_ensure_schedule(outcome)
 		_play_aim_streak(outcome.aim, outcome.schedule.lead_in(), pending)
@@ -246,6 +250,9 @@ func _play_aim_streak(aim: AttackOutcome.Aim, lead_in: float, pending: Array[int
 	pending[0] += 1
 	streak.tree_exiting.connect(func() -> void:
 		pending[0] -= 1)
+	var lantern := _attach_lantern(streak, aim.origin)
+	if lantern != null:
+		streak.tip_marker = lantern
 	streak.play(aim.origin.global_position, aim.angle, aim.length, lead_in)
 
 
@@ -510,6 +517,8 @@ func _spawn_projectile(ev: PropagationEvent, origin: SkillNode, share: float,
 		pending[0] -= 1)
 	proj.launch(origin.global_position, ev.target.global_position, 0.0)
 	_stamp_visual(proj, share)
+	# After the stamp: the visual must stay child 0.
+	_attach_lantern(proj, origin)
 
 
 ## Tint hook, mirroring ArrowVolleyCoordinator exactly (#663 D4): `launch`
@@ -537,6 +546,34 @@ func _stamp_visual(proj: Projectile, share: float) -> void:
 ## until #671/#672 authored the first spell bodies that read it, so every
 ## spell rendered neutral-white. `docs/domain/spell-vfx-kit.md` already
 ## described the stamp as if it were here; now it is.
+## The casting entity: the first hit's attacker, else the one the wind-up
+## read off the plan (an aim that crossed nothing carries no hit).
+func _resolve_caster(outcome: AttackOutcome) -> Entity:
+	for hit in outcome.hits:
+		if hit.attacker != null:
+			return hit.attacker
+	return caster_entity
+
+
+## A scout spell's carrier is a lantern while it is drawn: hangs one on
+## [param carrier], sized off [param origin] (the node it leaves from) and the
+## spell's innate scout stacks; [member Lantern.radius]'s default when either
+## gives nothing. Null — and nothing hung — for any other spell.
+func _attach_lantern(carrier: Node, origin: SkillNode) -> Lantern:
+	if spell == null or not spell.is_scout():
+		return null
+	var lantern := _LANTERN.instantiate() as Lantern
+	lantern.source = _lantern_source
+	for affinity in spell.affinities:
+		if affinity != null and affinity.status is ScoutStatus:
+			var r := (affinity.status as ScoutStatus).lantern_radius_for(origin, affinity.innate)
+			if r > 0.0:
+				lantern.radius = r
+			break
+	carrier.add_child(lantern)
+	return lantern
+
+
 func _resolve_caster_tint(outcome: AttackOutcome) -> Color:
 	for hit in outcome.hits:
 		if hit.attacker != null:
@@ -617,7 +654,12 @@ func _default_path() -> ProjectilePath:
 ## fails to compile (the same reason [method PresentationTempo.windup_lead]
 ## matches literals). `source` / `spell` are read by name; 3 = MAGIC.
 func begin_windup(plan: AttackPlan, tempo: PresentationTempo) -> float:
-	if plan == null or tempo == null:
+	if plan == null:
+		return 0.0
+	# Before every early return: play() reads these whatever the tempo.
+	spell = plan.get(&"spell") as SpellDef
+	caster_entity = plan.attacker
+	if tempo == null:
 		return 0.0
 	var caster := plan.get(&"source") as SkillNode
 	if caster == null:
@@ -635,7 +677,7 @@ func begin_windup(plan: AttackPlan, tempo: PresentationTempo) -> float:
 	if span > 0.0:
 		_spawn_draw_streaks(plan.attacker, caster, lead, span)
 	_ramp_caster(caster, lead, span, flare)
-	_layer_windup_fx(plan.get(&"spell") as SpellDef, caster)
+	_layer_windup_fx(spell, caster)
 	return total
 
 

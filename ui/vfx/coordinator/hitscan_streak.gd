@@ -37,10 +37,19 @@ func play(from: Vector2, angle: float, length: float, duration: float) -> void:
 	var tip := Vector2.from_angle(angle) * length
 	points = PackedVector2Array([Vector2.ZERO, Vector2.ZERO])
 	var t := create_tween()
-	t.tween_method(func(f: float) -> void:
-		set_point_position(1, tip * f), 0.0, 1.0, maxf(duration, 0.0))
+	if tip_marker != null:
+		tip_marker.position = Vector2.ZERO
+	t.tween_method(_draw_tip.bind(tip), 0.0, 1.0, maxf(duration, 0.0))
 	t.tween_interval(hold_seconds)
 	t.tween_property(self, ^"modulate:a", 0.0, fade_seconds)
 	t.finished.connect(func() -> void:
 		finished.emit()
 		queue_free())
+
+
+## One step of the tip tween: the line's end and [member tip_marker] at the
+## same point, [param f] of the way along [param tip].
+func _draw_tip(f: float, tip: Vector2) -> void:
+	set_point_position(1, tip * f)
+	if is_instance_valid(tip_marker):
+		tip_marker.position = tip * f

@@ -40,6 +40,7 @@ extends VFXCoordinator
 
 const _DEFAULT_VISUAL: PackedScene = preload("res://ui/vfx/projectile/visual/light_arrow.tscn")
 const _ROSTER: AmmoTypeRoster = preload("res://attack/ammo/ammo_type_roster.tres")
+const _LANTERN := preload("res://ui/fog_overlay/lantern.tscn")
 
 ## #950 — landing-point spread. Margin off [member SkillNode.radius] (the
 ## GROWN radius) so nothing lands right on the rim, and the gaussian's sigma
@@ -182,6 +183,7 @@ func begin_windup(plan: AttackPlan, tempo: PresentationTempo) -> float:
 		# Status colour only: the attacker tint is stamped at release, as it
 		# always was, so a parked plain arrow looks exactly as before.
 		_stamp_field(proj, &"status_tint", _status_tint_for(type))
+		_attach_lantern(proj, type, shot.attacker, leaf)
 		_parked.append(proj)
 		_parked_landings.append(landing)
 		# Animate in: alpha is the fade channel, scale the pop; delayed by
@@ -211,7 +213,7 @@ func _shots(plan: AttackPlan) -> Array[Dictionary]:
 			if hit.origin == null or hit.target == null or hit is StatusInstance:
 				continue
 			out.append({origin = hit.origin, target = hit.target, index = i,
-					ammo_type = _type_of(hit.ammo_type_id)})
+					ammo_type = _type_of(hit.ammo_type_id), attacker = hit.attacker})
 		return out
 	var ranged := plan as RangedAttackPlan
 	if ranged == null:
@@ -222,7 +224,7 @@ func _shots(plan: AttackPlan) -> Array[Dictionary]:
 		if shot.firing_node == null or shot.target == null:
 			continue
 		out.append({origin = shot.firing_node, target = shot.target, index = i,
-				ammo_type = shot.ammo_type})
+				ammo_type = shot.ammo_type, attacker = ranged.attacker})
 	return out
 
 
@@ -303,6 +305,29 @@ func _type_of(id: StringName) -> AmmoType:
 	if id == &"" or ammo_roster == null:
 		return null
 	return ammo_roster.by_id(id)
+
+
+## A scout arrow ([method AmmoType.is_scout]) is a lantern while it is drawn:
+## hangs one on [param proj] for [param attacker], sized off [param origin]
+## (the firing node) and the scout rider's stacks; [member Lantern.radius]'s
+## default when either gives nothing. Call it after the visual is stamped —
+## the visual must stay the projectile's child 0.
+func _attach_lantern(proj: Projectile, type: AmmoType, attacker: Entity,
+		origin: SkillNode) -> void:
+	if type == null or not type.is_scout():
+		return
+	var lantern := _LANTERN.instantiate() as Lantern
+	lantern.source = attacker
+	for effect in type.on_hit_effects:
+		var scout := effect.status_def() as ScoutStatus if effect != null else null
+		if scout == null:
+			continue
+		var stacks: int = roundi(float(effect.get(&"power"))) if &"power" in effect else 1
+		var r := scout.lantern_radius_for(origin, stacks)
+		if r > 0.0:
+			lantern.radius = r
+		break
+	proj.add_child(lantern)
 
 
 func _scene_for(type: AmmoType) -> PackedScene:
@@ -444,6 +469,8 @@ func play(payload: Variant) -> void:
 				else hit.target.global_position + _landing_offset(outcome.resolve_seed, i, hit.target)
 		proj.launch(origin, landing, launch_delay)
 		_stamp_tint(proj, tint, _status_tint_for(type))
+		if parked == null:
+			_attach_lantern(proj, type, hit.attacker, hit.origin)
 		landing_points.append(landing)
 		leaves[hit.origin] = true
 	_parked.clear()
