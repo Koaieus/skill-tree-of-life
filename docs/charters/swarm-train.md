@@ -119,7 +119,9 @@ top session  (/swarm-train: trains, ledger, tick, relief, report)
    boundary** (≈ start + 5 h 05; the spent-window insurance) **and the next
    tick** (`now + tick-minutes`). Whichever fires re-arms its own successor
    while the run is live (a boundary arms the next boundary under the cap;
-   a tick the next tick). Each id goes in a `wakes:` note; when the run
+   a tick the next tick). A wake's prompt and its `wakes:` note name its
+   kind (`tick` / `boundary`), so the firing turn knows which successor to
+   arm and which id is now spent. Each id goes in a `wakes:` note; when the run
    ends the top deletes the ones pending (owner, 2026-10-11: *"we can clear
    any unneeded"*). A refused delete is a `note` for the owner, never a
    retry; the stray fires into a finished ledger, reads the header and
