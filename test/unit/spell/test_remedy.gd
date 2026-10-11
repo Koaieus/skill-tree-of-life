@@ -179,4 +179,5 @@ func test_corruption_is_untouched() -> void:
 			assert_ne(d.id, _CORRUPTION.id)
 		if ci.target == n[3]:
 			hit_three = true
+			assert_true(ci.defs.has(_BLEEDING), "mixed stacks: bleeding cleared at its own rate")
 	assert_true(hit_three, "the corrupted node was landed on for its other stacks")
