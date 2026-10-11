@@ -57,26 +57,30 @@ bounded `[15, 55]`; take the default.
 **Trains are mechanical and you never resize them.** A lead's limit is its
 context, not its train: it takes waves until its own relief threshold and
 asks for relief past it. `--size` (issues per train) is passed only when
-the owner asks for a trial size. Mid-run changes are verbs, never a hand
+the owner asks for a trial size; `--size all` puts every `Ready` issue in
+one train. Mid-run changes are verbs, never a hand
 edit of the ledger: an issue the owner pulls is `mise run whip -- train
 drop <t> <n>` (a drop never returns by itself); one put back or added is
 `mise run whip -- train add <t> <n…> [--head]` (a queued train, or a new
 name for a train at the end). Issues that simply turn `Ready` need nothing:
 the last `done` refills from the live board.
 
-**Arm the wakes — one-shot, recorded, never a cron, never polled.** Where
-the `claude-code-remote` tools answer, `send_later` with the prompt
-`swarm-train tick`, each one independent of the others:
+**Arm the wakes — one-shot, recorded, never a cron, never polled.** First
+check the `claude-code-remote` trigger tools (`send_later`,
+`delete_trigger`) are in your tool list. Without them the run is `/loop`
+self-paced — the same shape without the server, nothing to note or disarm.
+With them, **at most two wakes are pending at any moment**, each a
+`send_later` whose prompt names its kind:
 
-- **every window boundary up to the cap** — ≈ 5 h 05, 10 h 05 and 15 h 05
-  after start;
-- **the tick** at `now + tick-minutes`.
+- **the next window boundary** — `swarm-train boundary` at ≈ start + 5 h 05;
+- **the next tick** — `swarm-train tick` at `now + tick-minutes`.
 
-`mise run whip -- note "wakes: <id> <id> …"` — every id you arm, now and on
-each re-arm, is in a `wakes:` note, because the run's end deletes every
-one that has not fired (§3). Never `create_trigger` with a cron or any
-recurring Routine. Where the remote tools do not answer, `/loop` at the
-tick interval is the same shape without the server. Then take the first
+Whichever fires re-arms its own successor while the run is live (§4); you
+never arm every boundary up front. Every id you arm, now and on each
+re-arm, goes in a `wakes:` note by kind — `mise run whip -- note "wakes:
+boundary <id>"`, `note "wakes: tick <id>"` — because the run's end deletes
+the ones still pending (§3), the newest id of each kind. Never
+`create_trigger` with a cron or any recurring Routine. Then take the first
 train (§2).
 
 ## 2. The lead — one at a time, in the background
@@ -94,10 +98,10 @@ Agent(subagent_type: "swarm-lead", name: "lead-<t>", run_in_background: true,
 
 **Then end your turn.** Do not subscribe to the lead, do not message it,
 do not poll `ListAgents`. The lead's report is the only wake you expect
-from it; the scheduled tick is the only other. `next-train` printing `no
-next train` means nothing is spawned: queued trains are exhausted, the
-owner stopped the run, or the cap passed — the last running lead's `done`
-ends the run.
+from it; the scheduled tick is the only other. `next-train` skips a train
+left empty by `train drop`; it printing `no next train` means nothing is
+spawned: queued trains are exhausted, the owner stopped the run, or the
+cap passed — the last running lead's `done` ends the run.
 
 ## 3. A lead's report — verbs, then the next train
 
@@ -147,14 +151,17 @@ it (the ledger, never your memory). A lead that landed nothing reports
 - trains still queued, or refilled from the live `Ready` → §2 with a fresh
   `lead-<t>`;
 - `the run is over, the report is rendered` → **disarm**: `delete_trigger`
-  every id in the `wakes:` notes that has not fired, once each; a refused
-  delete is `note "owner: wake <id> still armed"`, never a retry. Then end
-  your turn. The report is `done`'s; you never render it.
+  the pending wakes — the newest `wakes:` id of each kind, at most two —
+  once each; a refused delete is `note "owner: wake <id> still armed"`,
+  never a retry. Then end your turn. The report is `done`'s; you never
+  render it.
 
 ## 4. The tick — the table, nothing else
 
-The wake arrives as `swarm-train tick`. One Bash call reads the ledger
-and the disk-silence sensor, and one `ListAgents` reads the tree:
+The wake arrives as `swarm-train tick` or `swarm-train boundary`; its
+kind names the wake that fired (the newest `wakes:` id of that kind). One
+Bash call reads the ledger and the disk-silence sensor, and one
+`ListAgents` reads the tree:
 
 ```bash
 mise run whip -- show
@@ -162,8 +169,11 @@ d=~/.claude/projects/$(pwd | tr / -)/$CLAUDE_CODE_SESSION_ID/subagents
 stat -c '%y %n' "$d"/*.jsonl 2>/dev/null | sort | tail -3   # by mtime; the last line is the newest transcript
 ```
 
-**First line, before the table: `show`'s header says `DONE` or `GAVE UP`,
-or there is no ledger → disarm as §3, arm nothing, end your turn.**
+**First line, before the table: `show`'s header says `DONE` or `GAVE UP`
+→ this turn is waste: `mise run whip -- note "wasted: <wake id>"` (the
+report counts those notes), arm nothing, delete nothing, end your turn —
+a stray reads the header and stops. No ledger → arm nothing, end your
+turn.**
 `CAPPED` is a live run: spawn nothing, run the table for the lead still
 in flight, whose `done` ends the run. "Lead" below is the train's current
 lead as `show` names it — an outgoing lead the ledger shows `relieved` is
@@ -181,9 +191,12 @@ Ledger `stopped` with a lead `running` (the owner stopped from another
 console): `SendMessage` the lead the stop line from §5, once, and `note`
 it.
 
-**Re-arm before ending the turn**, only while the ledger is live: one tick
-at `now + tick-minutes`, its id noted. A boundary never re-arms. A `noop`
-tick is one cheap turn: read, re-arm, end.
+**Re-arm your own successor before ending the turn**, only while the
+ledger is live: a tick arms the next tick at `now + tick-minutes`; a
+boundary arms the next boundary (≈ 5 h 05 on) if it falls under the cap,
+else nothing. The id goes in a `wakes:` note by kind, as §1 — so at most
+two wakes are ever pending. A `noop` tick is one cheap turn: read, re-arm,
+end — the watch, not waste.
 
 ## 5. Console — the owner typing
 
