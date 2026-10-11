@@ -166,6 +166,18 @@ func test_a_scout_arrow_emits_one_scout_status_and_no_damage() -> void:
 		assert_true(h.landed(), "a zero carrier that reaches the node lands, so its rider does")
 
 
+func test_scout_stacks_per_hit_on_the_board_scales_the_arrows_stacks() -> void:
+	var ctx: Dictionary = await _build()
+	var more := StatModifier.new()
+	more.stat_id = &"scout_stacks_per_hit"
+	more.value = 1.0
+	(ctx.attacker as Entity).stat_board.add_modifier(more)
+	var statuses: Array = _of(_resolve(ctx, {&"scout": 1}), StatusInstance)
+	assert_eq(statuses.size(), 1, "exactly one StatusInstance")
+	if statuses.size() == 1:
+		assert_eq(statuses[0].power, 2.0, "1 authored + 1 from the attacker's board")
+
+
 func test_two_base_and_three_scouts_land_two_damage_hits_and_three_stacks() -> void:
 	var ctx: Dictionary = await _build()
 	var outcome := _resolve(ctx, {&"arrow": 2, &"scout": 3})
