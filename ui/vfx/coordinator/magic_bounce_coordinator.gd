@@ -538,14 +538,6 @@ func _stamp_visual(proj: Projectile, share: float) -> void:
 			v.set("arc_weight", share)
 
 
-## The caster's identity colour for the cast currently playing, resolved in
-## [method play]. White means "no attacker named a colour" — the documented
-## no-identity fallback, never a hand-picked default.
-##
-## This existed for ranged since #507 and was simply absent on the magic path
-## until #671/#672 authored the first spell bodies that read it, so every
-## spell rendered neutral-white. `docs/domain/spell-vfx-kit.md` already
-## described the stamp as if it were here; now it is.
 ## The casting entity: the first hit's attacker, else the one the wind-up
 ## read off the plan (an aim that crossed nothing carries no hit).
 func _resolve_caster(outcome: AttackOutcome) -> Entity:
@@ -574,6 +566,14 @@ func _attach_lantern(carrier: Node, origin: SkillNode) -> Lantern:
 	return lantern
 
 
+## The caster's identity colour for the cast currently playing, resolved in
+## [method play]. White means "no attacker named a colour" — the documented
+## no-identity fallback, never a hand-picked default.
+##
+## This existed for ranged since #507 and was simply absent on the magic path
+## until #671/#672 authored the first spell bodies that read it, so every
+## spell rendered neutral-white. `docs/domain/spell-vfx-kit.md` already
+## described the stamp as if it were here; now it is.
 func _resolve_caster_tint(outcome: AttackOutcome) -> Color:
 	for hit in outcome.hits:
 		if hit.attacker != null:
