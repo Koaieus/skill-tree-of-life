@@ -592,8 +592,9 @@ def compute_trains(st, size=4, issues=None):
         cur.append(n); cur_ms = ms
     if cur: trains.append(cur)
     trains = chains + trains
-    k0 = 0 if issues is None else len(st["trains"])
-    new = [{"name": chr(97 + k0 + i), "issues": t, "state": "queued", "lead": None, "reliefs": 0} for i, t in enumerate(trains)]
+    taken = set() if issues is None else {t["name"] for t in st["trains"]}
+    names = (c for c in (chr(97 + i) for i in range(26)) if c not in taken)
+    new = [{"name": next(names), "issues": t, "state": "queued", "lead": None, "reliefs": 0} for t in trains]
     st["trains"] = new if issues is None else st["trains"] + new
     save(st); event(st, f"trains: {len(trains)}" if issues is None else f"refill from Ready: {' '.join(t['name'] + ' ' + ' '.join('#%d' % n for n in t['issues']) for t in new)}")
 

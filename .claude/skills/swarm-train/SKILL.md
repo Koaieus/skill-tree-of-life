@@ -60,9 +60,12 @@ train drop <t> <n>`; one put back or added is `mise run whip -- train add
 Issues that simply turn `Ready` need nothing: the last `done` refills from
 the board.
 
-**Arm two wakes — one-shot, one of each, never a cron.** Where the
-`claude-code-remote` tools answer, `send_later` with the prompt
-`swarm-train tick`:
+**Prove you can disarm, then arm two wakes — one-shot, one of each, never
+a cron.** First `send_later` a throwaway (`+12 h`, message `probe`) and
+`delete_trigger` it at once. Refused → `note "owner: wakes cannot be
+cancelled — tick chain only"` and arm the tick alone, never a boundary.
+Otherwise, where the `claude-code-remote` tools answer, `send_later` with
+the prompt `swarm-train tick`:
 
 - **the tick** at `now + tick-minutes`;
 - **the boundary** at `now + 5 h 05` (none past the cap).

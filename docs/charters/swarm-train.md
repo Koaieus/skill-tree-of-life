@@ -116,8 +116,11 @@ top session  (/swarm-train: trains, ledger, tick, relief, report)
    the last one; the only spent-window insurance), each re-armed by the wake
    that consumes it, and only while the run is live. The remote trigger
    tools are allowlisted in `.claude/settings.json` (owner, 2026-10-11) so
-   the top cancels its own wakes at run end; a refused cancel is a `note`
-   for the owner, never a retry. A stray wake into a finished ledger is one
+   the top cancels its own wakes at run end — but that is unverified, so
+   the start proves it: one throwaway `send_later` and its immediate
+   `delete_trigger`; refused → no boundary wake is armed (the tick chain
+   alone, so a spent window pauses the run until the owner types) and the
+   refusal is a `note`. A refused cancel later is a `note`, never a retry. A stray wake into a finished ledger is one
    turn: read the header, stop, arm nothing. `/loop` self-paced is the same
    shape without the server. Which wake survives a spent window is still
    unmeasured (#1540 never hit one).
