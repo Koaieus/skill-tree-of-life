@@ -2,47 +2,60 @@
 
 [ext_resource type="Script" uid="uid://cuw7nj5i81f8" path="res://stats_system/entity_stat_board.gd" id="1_board"]
 [ext_resource type="Script" uid="uid://drnlaxdudvq1t" path="res://stats_system/scalar_stat.gd" id="2_scalar"]
+[ext_resource type="Script" uid="uid://cp3ckow0xfp1" path="res://stats_system/growable_pool_stat.gd" id="3_growable"]
 [ext_resource type="Script" uid="uid://ceaxdyhhuysdx" path="res://stats_system/pool_stat.gd" id="3_pool"]
 [ext_resource type="Script" uid="uid://f73t1rkb44ye" path="res://stats_system/surplus_pool_stat.gd" id="3_surplus"]
-[ext_resource type="Script" path="res://stats_system/growable_pool_stat.gd" id="3_growable"]
 [ext_resource type="Script" uid="uid://lnbdt5qiroa4" path="res://stats_system/quiver.gd" id="4_quiver"]
 [ext_resource type="Script" uid="uid://cioeeste4m3t0" path="res://stats_system/skill_point_stat.gd" id="4_sp"]
 [ext_resource type="Script" uid="uid://che6xhl6srqh3" path="res://stats_system/stat_modifier.gd" id="12_3edt8"]
 [ext_resource type="Resource" uid="uid://ccpue5w27rur1" path="res://stats_system/defs/action_points.tres" id="def_ap"]
 [ext_resource type="Resource" path="res://stats_system/defs/ap_transfer_rate.tres" id="def_ap_transfer_rate"]
 [ext_resource type="Resource" path="res://stats_system/defs/armor.tres" id="def_armor"]
+[ext_resource type="Resource" path="res://stats_system/defs/armor_break_aspect.tres" id="def_armor_break_aspect"]
 [ext_resource type="Resource" path="res://stats_system/defs/arrows.tres" id="def_arrows"]
 [ext_resource type="Resource" path="res://stats_system/defs/arrows_per_reload.tres" id="def_arrows_per_reload"]
+[ext_resource type="Resource" path="res://stats_system/defs/aspects.tres" id="def_aspects"]
+[ext_resource type="Resource" path="res://stats_system/defs/attributes.tres" id="def_attributes"]
 [ext_resource type="Resource" path="res://stats_system/defs/blade_damage.tres" id="def_blade_damage"]
 [ext_resource type="Resource" path="res://stats_system/defs/blade_size.tres" id="def_blade_size"]
 [ext_resource type="Resource" path="res://stats_system/defs/blade_speed_half.tres" id="def_blade_speed_half"]
 [ext_resource type="Resource" path="res://stats_system/defs/blade_speed_multiplier_max.tres" id="def_blade_speed_multiplier_max"]
-[ext_resource type="Resource" path="res://stats_system/defs/blindness_stacks_per_hit.tres" id="def_blindness_stacks_per_hit"]
+[ext_resource type="Resource" path="res://stats_system/defs/bleeding_aspect.tres" id="def_bleeding_aspect"]
+[ext_resource type="Resource" path="res://stats_system/defs/bleeding_resistance.tres" id="def_bleeding_resistance"]
+[ext_resource type="Resource" path="res://stats_system/defs/bleeding_stacks_per_hit.tres" id="def_bleeding_stacks_per_hit"]
+[ext_resource type="Resource" path="res://stats_system/defs/blindness_aspect.tres" id="def_blindness_aspect"]
 [ext_resource type="Resource" path="res://stats_system/defs/blindness_resistance.tres" id="def_blindness_resistance"]
+[ext_resource type="Resource" path="res://stats_system/defs/blindness_stacks_per_hit.tres" id="def_blindness_stacks_per_hit"]
 [ext_resource type="Resource" path="res://stats_system/defs/blunting.tres" id="def_blunting"]
+[ext_resource type="Resource" path="res://stats_system/defs/bounty.tres" id="def_bounty"]
 [ext_resource type="Resource" path="res://stats_system/defs/cast_range_distance.tres" id="def_cast_range_distance"]
 [ext_resource type="Resource" path="res://stats_system/defs/cast_range_hops.tres" id="def_cast_range_hops"]
-[ext_resource type="Resource" path="res://stats_system/defs/infusion_slots.tres" id="def_infusion_slots"]
-[ext_resource type="Resource" path="res://stats_system/defs/infusion_points.tres" id="def_infusion_points"]
 [ext_resource type="Resource" uid="uid://cj6e6uijkdjrc" path="res://stats_system/defs/constitution.tres" id="def_constitution"]
 [ext_resource type="Resource" path="res://stats_system/defs/core_healing.tres" id="def_core_healing"]
 [ext_resource type="Resource" path="res://stats_system/defs/core_health_scaling.tres" id="def_core_health_scaling"]
 [ext_resource type="Resource" path="res://stats_system/defs/core_kill_xp.tres" id="def_core_kill_xp"]
+[ext_resource type="Resource" path="res://stats_system/defs/corruption_aspect.tres" id="def_corruption_aspect"]
 [ext_resource type="Resource" path="res://stats_system/defs/corruption_resistance.tres" id="def_corruption_resistance"]
 [ext_resource type="Resource" path="res://stats_system/defs/corruption_stacks_per_hit.tres" id="def_corruption_stacks_per_hit"]
 [ext_resource type="Resource" path="res://stats_system/defs/crit_chance.tres" id="def_crit_chance"]
 [ext_resource type="Resource" path="res://stats_system/defs/crit_multiplier.tres" id="def_crit_multiplier"]
+[ext_resource type="Resource" path="res://stats_system/defs/curse_aspect.tres" id="def_curse_aspect"]
 [ext_resource type="Resource" path="res://stats_system/defs/curse_resistance.tres" id="def_curse_resistance"]
 [ext_resource type="Resource" path="res://stats_system/defs/curse_stacks_per_hit.tres" id="def_curse_stacks_per_hit"]
+[ext_resource type="Resource" path="res://stats_system/defs/damage.tres" id="def_damage"]
 [ext_resource type="Resource" uid="uid://cimwxtc82ck7f" path="res://stats_system/defs/deallocation_points.tres" id="def_dealloc"]
 [ext_resource type="Resource" path="res://stats_system/defs/dealloc_damage.tres" id="def_dealloc_damage"]
 [ext_resource type="Resource" uid="uid://cw4lvh2rp4j3l" path="res://stats_system/defs/dexterity.tres" id="def_dexterity"]
 [ext_resource type="Resource" path="res://stats_system/defs/dot_stacks_per_hit.tres" id="def_dot_stacks_per_hit"]
-[ext_resource type="Resource" path="res://stats_system/defs/damage.tres" id="def_damage"]
-[ext_resource type="Resource" path="res://stats_system/defs/attributes.tres" id="def_attributes"]
-[ext_resource type="Resource" path="res://stats_system/defs/status_resistance.tres" id="def_status_resistance"]
+[ext_resource type="Resource" path="res://stats_system/defs/explosive_aspect.tres" id="def_explosive_aspect"]
+[ext_resource type="Resource" path="res://stats_system/defs/greed_aspect.tres" id="def_greed_aspect"]
+[ext_resource type="Resource" path="res://stats_system/defs/greed_stacks_per_hit.tres" id="def_greed_stacks_per_hit"]
 [ext_resource type="Resource" path="res://stats_system/defs/healing_received.tres" id="def_healing_received"]
 [ext_resource type="Resource" uid="uid://bqvqe5cem0wr0" path="res://stats_system/defs/health.tres" id="def_health"]
+[ext_resource type="Resource" path="res://stats_system/defs/hex_aspect.tres" id="def_hex_aspect"]
+[ext_resource type="Resource" path="res://stats_system/defs/hex_stacks_per_hit.tres" id="def_hex_stacks_per_hit"]
+[ext_resource type="Resource" path="res://stats_system/defs/infusion_points.tres" id="def_infusion_points"]
+[ext_resource type="Resource" path="res://stats_system/defs/infusion_slots.tres" id="def_infusion_slots"]
 [ext_resource type="Resource" path="res://stats_system/defs/initiative.tres" id="def_initiative"]
 [ext_resource type="Resource" path="res://stats_system/defs/initiative_speed.tres" id="def_initiative_speed"]
 [ext_resource type="Resource" uid="uid://cws6dhm8bjilt" path="res://stats_system/defs/intelligence.tres" id="def_intelligence"]
@@ -55,21 +68,27 @@
 [ext_resource type="Resource" path="res://stats_system/defs/node_health.tres" id="def_node_health"]
 [ext_resource type="Resource" path="res://stats_system/defs/node_health_scaling.tres" id="def_node_health_scaling"]
 [ext_resource type="Resource" uid="uid://dstlg0lrt8nvv" path="res://stats_system/defs/perception.tres" id="def_perception"]
+[ext_resource type="Resource" path="res://stats_system/defs/poison_aspect.tres" id="def_poison_aspect"]
 [ext_resource type="Resource" path="res://stats_system/defs/poison_resistance.tres" id="def_poison_resistance"]
 [ext_resource type="Resource" path="res://stats_system/defs/poison_stacks_per_hit.tres" id="def_poison_stacks_per_hit"]
 [ext_resource type="Resource" uid="uid://bo02uqmdhuhlb" path="res://stats_system/defs/range.tres" id="def_range"]
 [ext_resource type="Resource" path="res://stats_system/defs/ranged_damage.tres" id="def_ranged_damage"]
+[ext_resource type="Resource" path="res://stats_system/defs/scout_aspect.tres" id="def_scout_aspect"]
 [ext_resource type="Resource" path="res://stats_system/defs/sensor_range.tres" id="def_sensor_range"]
 [ext_resource type="Resource" uid="uid://b47g428wp5d4w" path="res://stats_system/defs/skill_points.tres" id="def_skill_points"]
 [ext_resource type="Resource" path="res://stats_system/defs/spell_damage.tres" id="def_spell_damage"]
 [ext_resource type="Resource" path="res://stats_system/defs/spikes.tres" id="def_spikes"]
 [ext_resource type="Resource" path="res://stats_system/defs/spike_regen.tres" id="def_spike_regen"]
 [ext_resource type="Resource" path="res://stats_system/defs/sp_gain_on_levelup.tres" id="def_sp_gain_on_levelup"]
+[ext_resource type="Resource" path="res://stats_system/defs/status_resistance.tres" id="def_status_resistance"]
 [ext_resource type="Resource" uid="uid://vtw8ktmktkgq" path="res://stats_system/defs/strength.tres" id="def_strength"]
 [ext_resource type="Resource" path="res://stats_system/defs/tempo.tres" id="def_tempo"]
 [ext_resource type="Resource" path="res://stats_system/defs/vision_range.tres" id="def_vision_range"]
 [ext_resource type="Resource" path="res://stats_system/defs/volleys_per_turn.tres" id="def_volleys_per_turn"]
+[ext_resource type="Resource" path="res://stats_system/defs/weakness_aspect.tres" id="def_weakness_aspect"]
+[ext_resource type="Resource" path="res://stats_system/defs/weakness_stacks_per_hit.tres" id="def_weakness_stacks_per_hit"]
 [ext_resource type="Resource" uid="uid://dvpjmk8e3m08k" path="res://stats_system/defs/wisdom.tres" id="def_wisdom"]
+[ext_resource type="Resource" path="res://stats_system/defs/wither_aspect.tres" id="def_wither_aspect"]
 [ext_resource type="Resource" path="res://stats_system/defs/wither_stacks_per_hit.tres" id="def_wither_stacks_per_hit"]
 [ext_resource type="Resource" uid="uid://dj0fpcgn42hcn" path="res://stats_system/defs/wound_heal_per_turn.tres" id="def_wound_heal_per_turn"]
 [ext_resource type="Resource" uid="uid://b04rych6tmpxr" path="res://stats_system/defs/xp.tres" id="def_xp"]
@@ -80,25 +99,6 @@
 [ext_resource type="Script" uid="uid://dknxw63lhq13c" path="res://stats_system/formulas/ratio_formula.gd" id="script_ratio"]
 [ext_resource type="Script" uid="uid://cu48nr8jgyso" path="res://stats_system/formulas/sqrt_formula.gd" id="script_sqrt"]
 [ext_resource type="Script" uid="uid://tni13fhowqha" path="res://stats_system/formulas/threshold_formula.gd" id="script_threshold"]
-[ext_resource type="Resource" path="res://stats_system/defs/poison_aspect.tres" id="def_poison_aspect"]
-[ext_resource type="Resource" path="res://stats_system/defs/corruption_aspect.tres" id="def_corruption_aspect"]
-[ext_resource type="Resource" path="res://stats_system/defs/curse_aspect.tres" id="def_curse_aspect"]
-[ext_resource type="Resource" path="res://stats_system/defs/wither_aspect.tres" id="def_wither_aspect"]
-[ext_resource type="Resource" path="res://stats_system/defs/blindness_aspect.tres" id="def_blindness_aspect"]
-[ext_resource type="Resource" path="res://stats_system/defs/weakness_aspect.tres" id="def_weakness_aspect"]
-[ext_resource type="Resource" path="res://stats_system/defs/weakness_stacks_per_hit.tres" id="def_weakness_stacks_per_hit"]
-[ext_resource type="Resource" path="res://stats_system/defs/greed_aspect.tres" id="def_greed_aspect"]
-[ext_resource type="Resource" path="res://stats_system/defs/greed_stacks_per_hit.tres" id="def_greed_stacks_per_hit"]
-[ext_resource type="Resource" path="res://stats_system/defs/hex_aspect.tres" id="def_hex_aspect"]
-[ext_resource type="Resource" path="res://stats_system/defs/hex_stacks_per_hit.tres" id="def_hex_stacks_per_hit"]
-[ext_resource type="Resource" path="res://stats_system/defs/bounty.tres" id="def_bounty"]
-[ext_resource type="Resource" path="res://stats_system/defs/scout_aspect.tres" id="def_scout_aspect"]
-[ext_resource type="Resource" path="res://stats_system/defs/armor_break_aspect.tres" id="def_armor_break_aspect"]
-[ext_resource type="Resource" path="res://stats_system/defs/explosive_aspect.tres" id="def_explosive_aspect"]
-[ext_resource type="Resource" path="res://stats_system/defs/aspects.tres" id="def_aspects"]
-[ext_resource type="Resource" path="res://stats_system/defs/bleeding_aspect.tres" id="def_bleeding_aspect"]
-[ext_resource type="Resource" path="res://stats_system/defs/bleeding_stacks_per_hit.tres" id="def_bleeding_stacks_per_hit"]
-[ext_resource type="Resource" path="res://stats_system/defs/bleeding_resistance.tres" id="def_bleeding_resistance"]
 
 [sub_resource type="Resource" id="pool_ap"]
 resource_name = "action_points"
@@ -118,6 +118,11 @@ resource_name = "armor"
 script = ExtResource("2_scalar")
 definition = ExtResource("def_armor")
 
+[sub_resource type="Resource" id="scalar_armor_break_aspect"]
+resource_name = "armor_break_aspect"
+script = ExtResource("2_scalar")
+definition = ExtResource("def_armor_break_aspect")
+
 [sub_resource type="Resource" id="quiver_arrows"]
 resource_name = "arrows"
 script = ExtResource("4_quiver")
@@ -129,6 +134,16 @@ resource_name = "arrows_per_reload"
 script = ExtResource("2_scalar")
 definition = ExtResource("def_arrows_per_reload")
 base_value = 2.0
+
+[sub_resource type="Resource" id="scalar_aspects"]
+resource_name = "aspects"
+script = ExtResource("2_scalar")
+definition = ExtResource("def_aspects")
+
+[sub_resource type="Resource" id="scalar_attributes"]
+resource_name = "attributes"
+script = ExtResource("2_scalar")
+definition = ExtResource("def_attributes")
 
 [sub_resource type="Resource" id="scalar_blade_damage"]
 resource_name = "blade_damage"
@@ -154,40 +169,47 @@ script = ExtResource("2_scalar")
 definition = ExtResource("def_blade_speed_multiplier_max")
 base_value = 2.0
 
-[sub_resource type="Resource" id="scalar_blindness_stacks_per_hit"]
-resource_name = "blindness_stacks_per_hit"
+[sub_resource type="Resource" id="scalar_bleeding_aspect"]
+resource_name = "bleeding_aspect"
 script = ExtResource("2_scalar")
-definition = ExtResource("def_blindness_stacks_per_hit")
-base_value = 0.0
+definition = ExtResource("def_bleeding_aspect")
 
-[sub_resource type="Resource" id="scalar_weakness_stacks_per_hit"]
-resource_name = "weakness_stacks_per_hit"
+[sub_resource type="Resource" id="scalar_bleeding_resistance"]
+resource_name = "bleeding_resistance"
 script = ExtResource("2_scalar")
-definition = ExtResource("def_weakness_stacks_per_hit")
+definition = ExtResource("def_bleeding_resistance")
+
+[sub_resource type="Resource" id="scalar_bleeding_stacks_per_hit"]
+resource_name = "bleeding_stacks_per_hit"
+script = ExtResource("2_scalar")
+definition = ExtResource("def_bleeding_stacks_per_hit")
 base_value = 1.0
 
-[sub_resource type="Resource" id="scalar_greed_stacks_per_hit"]
-resource_name = "greed_stacks_per_hit"
+[sub_resource type="Resource" id="scalar_blindness_aspect"]
+resource_name = "blindness_aspect"
 script = ExtResource("2_scalar")
-definition = ExtResource("def_greed_stacks_per_hit")
-base_value = 1.0
-
-[sub_resource type="Resource" id="scalar_hex_stacks_per_hit"]
-resource_name = "hex_stacks_per_hit"
-script = ExtResource("2_scalar")
-definition = ExtResource("def_hex_stacks_per_hit")
-base_value = 1.0
+definition = ExtResource("def_blindness_aspect")
 
 [sub_resource type="Resource" id="scalar_blindness_resistance"]
 resource_name = "blindness_resistance"
 script = ExtResource("2_scalar")
 definition = ExtResource("def_blindness_resistance")
 
+[sub_resource type="Resource" id="scalar_blindness_stacks_per_hit"]
+resource_name = "blindness_stacks_per_hit"
+script = ExtResource("2_scalar")
+definition = ExtResource("def_blindness_stacks_per_hit")
+
 [sub_resource type="Resource" id="scalar_blunting"]
 resource_name = "blunting"
 script = ExtResource("2_scalar")
 definition = ExtResource("def_blunting")
 base_value = 1.0
+
+[sub_resource type="Resource" id="scalar_bounty"]
+resource_name = "bounty"
+script = ExtResource("2_scalar")
+definition = ExtResource("def_bounty")
 
 [sub_resource type="Resource" id="scalar_cast_range_distance"]
 resource_name = "cast_range_distance"
@@ -198,16 +220,6 @@ definition = ExtResource("def_cast_range_distance")
 resource_name = "cast_range_hops"
 script = ExtResource("2_scalar")
 definition = ExtResource("def_cast_range_hops")
-
-[sub_resource type="Resource" id="scalar_infusion_slots"]
-resource_name = "infusion_slots"
-script = ExtResource("2_scalar")
-definition = ExtResource("def_infusion_slots")
-
-[sub_resource type="Resource" id="scalar_infusion_points"]
-resource_name = "infusion_points"
-script = ExtResource("2_scalar")
-definition = ExtResource("def_infusion_points")
 
 [sub_resource type="Resource" id="scalar_constitution"]
 resource_name = "constitution"
@@ -233,6 +245,11 @@ script = ExtResource("2_scalar")
 definition = ExtResource("def_core_kill_xp")
 base_value = 60.0
 
+[sub_resource type="Resource" id="scalar_corruption_aspect"]
+resource_name = "corruption_aspect"
+script = ExtResource("2_scalar")
+definition = ExtResource("def_corruption_aspect")
+
 [sub_resource type="Resource" id="scalar_corruption_resistance"]
 resource_name = "corruption_resistance"
 script = ExtResource("2_scalar")
@@ -255,6 +272,11 @@ script = ExtResource("2_scalar")
 definition = ExtResource("def_crit_multiplier")
 base_value = 2.0
 
+[sub_resource type="Resource" id="scalar_curse_aspect"]
+resource_name = "curse_aspect"
+script = ExtResource("2_scalar")
+definition = ExtResource("def_curse_aspect")
+
 [sub_resource type="Resource" id="scalar_curse_resistance"]
 resource_name = "curse_resistance"
 script = ExtResource("2_scalar")
@@ -264,6 +286,11 @@ definition = ExtResource("def_curse_resistance")
 resource_name = "curse_stacks_per_hit"
 script = ExtResource("2_scalar")
 definition = ExtResource("def_curse_stacks_per_hit")
+
+[sub_resource type="Resource" id="scalar_damage"]
+resource_name = "damage"
+script = ExtResource("2_scalar")
+definition = ExtResource("def_damage")
 
 [sub_resource type="Resource" id="scalar_dealloc_damage"]
 resource_name = "dealloc_damage"
@@ -289,20 +316,21 @@ resource_name = "dot_stacks_per_hit"
 script = ExtResource("2_scalar")
 definition = ExtResource("def_dot_stacks_per_hit")
 
-[sub_resource type="Resource" id="scalar_damage"]
-resource_name = "damage"
+[sub_resource type="Resource" id="scalar_explosive_aspect"]
+resource_name = "explosive_aspect"
 script = ExtResource("2_scalar")
-definition = ExtResource("def_damage")
+definition = ExtResource("def_explosive_aspect")
 
-[sub_resource type="Resource" id="scalar_attributes"]
-resource_name = "attributes"
+[sub_resource type="Resource" id="scalar_greed_aspect"]
+resource_name = "greed_aspect"
 script = ExtResource("2_scalar")
-definition = ExtResource("def_attributes")
+definition = ExtResource("def_greed_aspect")
 
-[sub_resource type="Resource" id="scalar_status_resistance"]
-resource_name = "status_resistance"
+[sub_resource type="Resource" id="scalar_greed_stacks_per_hit"]
+resource_name = "greed_stacks_per_hit"
 script = ExtResource("2_scalar")
-definition = ExtResource("def_status_resistance")
+definition = ExtResource("def_greed_stacks_per_hit")
+base_value = 1.0
 
 [sub_resource type="Resource" id="scalar_healing_received"]
 resource_name = "healing_received"
@@ -316,6 +344,27 @@ script = ExtResource("3_pool")
 current = 10.0
 definition = ExtResource("def_health")
 base_value = 10.0
+
+[sub_resource type="Resource" id="scalar_hex_aspect"]
+resource_name = "hex_aspect"
+script = ExtResource("2_scalar")
+definition = ExtResource("def_hex_aspect")
+
+[sub_resource type="Resource" id="scalar_hex_stacks_per_hit"]
+resource_name = "hex_stacks_per_hit"
+script = ExtResource("2_scalar")
+definition = ExtResource("def_hex_stacks_per_hit")
+base_value = 1.0
+
+[sub_resource type="Resource" id="scalar_infusion_points"]
+resource_name = "infusion_points"
+script = ExtResource("2_scalar")
+definition = ExtResource("def_infusion_points")
+
+[sub_resource type="Resource" id="scalar_infusion_slots"]
+resource_name = "infusion_slots"
+script = ExtResource("2_scalar")
+definition = ExtResource("def_infusion_slots")
 
 [sub_resource type="Resource" id="pool_initiative"]
 resource_name = "initiative"
@@ -431,7 +480,7 @@ source_stat_id = &"intelligence"
 breakpoints = Array[float]([100.0, 1000.0, 10000.0])
 
 [sub_resource type="Resource" id="mod_int_to_infusion_slots"]
-resource_name = "+1 Infusion Slot at 100 / 1000 / 10000 INT"
+resource_name = "+1 Infusion Slots at 100 / 1000 / 10000 INT"
 script = ExtResource("12_3edt8")
 stat_id = &"infusion_slots"
 formula = SubResource("formula_int_to_infusion_slots")
@@ -442,7 +491,7 @@ source_stat_id = &"intelligence"
 divisor = 1.0
 
 [sub_resource type="Resource" id="mod_int_to_infusion_points"]
-resource_name = "+1 Infusion Point per √INT"
+resource_name = "+1 Infusion Points per √INT"
 script = ExtResource("12_3edt8")
 stat_id = &"infusion_points"
 formula = SubResource("formula_int_to_infusion_points")
@@ -565,6 +614,11 @@ script = ExtResource("2_scalar")
 definition = ExtResource("def_perception")
 base_value = 10.0
 
+[sub_resource type="Resource" id="scalar_poison_aspect"]
+resource_name = "poison_aspect"
+script = ExtResource("2_scalar")
+definition = ExtResource("def_poison_aspect")
+
 [sub_resource type="Resource" id="scalar_poison_resistance"]
 resource_name = "poison_resistance"
 script = ExtResource("2_scalar")
@@ -586,6 +640,11 @@ resource_name = "ranged_damage"
 script = ExtResource("2_scalar")
 definition = ExtResource("def_ranged_damage")
 base_value = 1.0
+
+[sub_resource type="Resource" id="scalar_scout_aspect"]
+resource_name = "scout_aspect"
+script = ExtResource("2_scalar")
+definition = ExtResource("def_scout_aspect")
 
 [sub_resource type="Resource" id="scalar_sensor_range"]
 resource_name = "sensor_range"
@@ -622,6 +681,11 @@ resource_name = "spikes"
 script = ExtResource("2_scalar")
 definition = ExtResource("def_spikes")
 
+[sub_resource type="Resource" id="scalar_status_resistance"]
+resource_name = "status_resistance"
+script = ExtResource("2_scalar")
+definition = ExtResource("def_status_resistance")
+
 [sub_resource type="Resource" id="scalar_strength"]
 resource_name = "strength"
 script = ExtResource("2_scalar")
@@ -646,11 +710,27 @@ resource_name = "volleys_per_turn"
 script = ExtResource("2_scalar")
 definition = ExtResource("def_volleys_per_turn")
 
+[sub_resource type="Resource" id="scalar_weakness_aspect"]
+resource_name = "weakness_aspect"
+script = ExtResource("2_scalar")
+definition = ExtResource("def_weakness_aspect")
+
+[sub_resource type="Resource" id="scalar_weakness_stacks_per_hit"]
+resource_name = "weakness_stacks_per_hit"
+script = ExtResource("2_scalar")
+definition = ExtResource("def_weakness_stacks_per_hit")
+base_value = 1.0
+
 [sub_resource type="Resource" id="scalar_wisdom"]
 resource_name = "wisdom"
 script = ExtResource("2_scalar")
 definition = ExtResource("def_wisdom")
 base_value = 10.0
+
+[sub_resource type="Resource" id="scalar_wither_aspect"]
+resource_name = "wither_aspect"
+script = ExtResource("2_scalar")
+definition = ExtResource("def_wither_aspect")
 
 [sub_resource type="Resource" id="scalar_wither_stacks_per_hit"]
 resource_name = "wither_stacks_per_hit"
@@ -673,87 +753,6 @@ base_value = 5.0
 resource_name = "xp_per_turn"
 script = ExtResource("2_scalar")
 definition = ExtResource("def_xp_per_turn")
-
-[sub_resource type="Resource" id="scalar_poison_aspect"]
-resource_name = "poison_aspect"
-script = ExtResource("2_scalar")
-definition = ExtResource("def_poison_aspect")
-
-[sub_resource type="Resource" id="scalar_corruption_aspect"]
-resource_name = "corruption_aspect"
-script = ExtResource("2_scalar")
-definition = ExtResource("def_corruption_aspect")
-
-[sub_resource type="Resource" id="scalar_curse_aspect"]
-resource_name = "curse_aspect"
-script = ExtResource("2_scalar")
-definition = ExtResource("def_curse_aspect")
-
-[sub_resource type="Resource" id="scalar_wither_aspect"]
-resource_name = "wither_aspect"
-script = ExtResource("2_scalar")
-definition = ExtResource("def_wither_aspect")
-
-[sub_resource type="Resource" id="scalar_blindness_aspect"]
-resource_name = "blindness_aspect"
-script = ExtResource("2_scalar")
-definition = ExtResource("def_blindness_aspect")
-
-[sub_resource type="Resource" id="scalar_weakness_aspect"]
-resource_name = "weakness_aspect"
-script = ExtResource("2_scalar")
-definition = ExtResource("def_weakness_aspect")
-
-[sub_resource type="Resource" id="scalar_greed_aspect"]
-resource_name = "greed_aspect"
-script = ExtResource("2_scalar")
-definition = ExtResource("def_greed_aspect")
-
-[sub_resource type="Resource" id="scalar_hex_aspect"]
-resource_name = "hex_aspect"
-script = ExtResource("2_scalar")
-definition = ExtResource("def_hex_aspect")
-
-[sub_resource type="Resource" id="scalar_scout_aspect"]
-resource_name = "scout_aspect"
-script = ExtResource("2_scalar")
-definition = ExtResource("def_scout_aspect")
-
-[sub_resource type="Resource" id="scalar_armor_break_aspect"]
-resource_name = "armor_break_aspect"
-script = ExtResource("2_scalar")
-definition = ExtResource("def_armor_break_aspect")
-
-[sub_resource type="Resource" id="scalar_explosive_aspect"]
-resource_name = "explosive_aspect"
-script = ExtResource("2_scalar")
-definition = ExtResource("def_explosive_aspect")
-
-[sub_resource type="Resource" id="scalar_aspects"]
-resource_name = "aspects"
-script = ExtResource("2_scalar")
-definition = ExtResource("def_aspects")
-
-[sub_resource type="Resource" id="scalar_bleeding_aspect"]
-resource_name = "bleeding_aspect"
-script = ExtResource("2_scalar")
-definition = ExtResource("def_bleeding_aspect")
-
-[sub_resource type="Resource" id="scalar_bleeding_stacks_per_hit"]
-resource_name = "bleeding_stacks_per_hit"
-script = ExtResource("2_scalar")
-definition = ExtResource("def_bleeding_stacks_per_hit")
-base_value = 1.0
-
-[sub_resource type="Resource" id="scalar_bleeding_resistance"]
-resource_name = "bleeding_resistance"
-script = ExtResource("2_scalar")
-definition = ExtResource("def_bleeding_resistance")
-
-[sub_resource type="Resource" id="scalar_bounty"]
-resource_name = "bounty"
-script = ExtResource("2_scalar")
-definition = ExtResource("def_bounty")
 
 [resource]
 script = ExtResource("1_board")
@@ -785,10 +784,12 @@ damage = SubResource("scalar_damage")
 attributes = SubResource("scalar_attributes")
 status_resistance = SubResource("scalar_status_resistance")
 blindness_stacks_per_hit = SubResource("scalar_blindness_stacks_per_hit")
+blindness_resistance = SubResource("scalar_blindness_resistance")
 weakness_stacks_per_hit = SubResource("scalar_weakness_stacks_per_hit")
 greed_stacks_per_hit = SubResource("scalar_greed_stacks_per_hit")
 hex_stacks_per_hit = SubResource("scalar_hex_stacks_per_hit")
-blindness_resistance = SubResource("scalar_blindness_resistance")
+bleeding_stacks_per_hit = SubResource("scalar_bleeding_stacks_per_hit")
+bleeding_resistance = SubResource("scalar_bleeding_resistance")
 dealloc_damage = SubResource("scalar_dealloc_damage")
 spikes = SubResource("scalar_spikes")
 spike_regen = SubResource("scalar_spike_regen")
@@ -796,6 +797,7 @@ xp = SubResource("pool_xp")
 xp_per_turn = SubResource("scalar_xp_per_turn")
 level = SubResource("scalar_level")
 core_kill_xp = SubResource("scalar_core_kill_xp")
+bounty = SubResource("scalar_bounty")
 skill_points = SubResource("sp_skill_points")
 wound_heal_per_turn = SubResource("scalar_wound_heal_per_turn")
 sp_gain_on_levelup = SubResource("scalar_sp_gain_on_levelup")
@@ -820,6 +822,7 @@ blindness_aspect = SubResource("scalar_blindness_aspect")
 weakness_aspect = SubResource("scalar_weakness_aspect")
 greed_aspect = SubResource("scalar_greed_aspect")
 hex_aspect = SubResource("scalar_hex_aspect")
+bleeding_aspect = SubResource("scalar_bleeding_aspect")
 scout_aspect = SubResource("scalar_scout_aspect")
 armor_break_aspect = SubResource("scalar_armor_break_aspect")
 explosive_aspect = SubResource("scalar_explosive_aspect")
@@ -839,7 +842,3 @@ blade_speed_half = SubResource("scalar_blade_speed_half")
 crit_chance = SubResource("scalar_crit_chance")
 crit_multiplier = SubResource("scalar_crit_multiplier")
 intrinsic_modifiers = Array[ExtResource("12_3edt8")]([SubResource("mod_per_to_vision"), SubResource("mod_per_to_sensor"), SubResource("mod_wis_to_xp_pt"), SubResource("mod_str_to_blade_damage"), SubResource("mod_str_to_blade_size"), SubResource("mod_dex_to_range"), SubResource("mod_int_to_cast_range_distance"), SubResource("mod_int_to_cast_range_hops"), SubResource("mod_int_to_infusion_slots"), SubResource("mod_int_to_infusion_points"), SubResource("mod_dex_to_ranged_damage"), SubResource("mod_int_to_spell_damage"), SubResource("mod_con_to_node_health"), SubResource("mod_con_to_health"), SubResource("mod_level_to_con"), SubResource("mod_max_shots_to_volleys")])
-bleeding_aspect = SubResource("scalar_bleeding_aspect")
-bleeding_stacks_per_hit = SubResource("scalar_bleeding_stacks_per_hit")
-bleeding_resistance = SubResource("scalar_bleeding_resistance")
-bounty = SubResource("scalar_bounty")
