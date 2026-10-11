@@ -280,6 +280,15 @@ Each cell links its cell issue (`<Concept> × <Facet>`, a child of the row hub i
   density is a knob, and it must stay sparse when a whole volley flies (the
   owner's 20-arrow case). Lands with #1352.
 - **Spells:** **Venom Burst** (#1502, replaces `venom`) — the dose, 15/10/5 over two hops; **Miasma** (#1503) — the cloud; **Pestilence** (#1504) — the SUM spell, punishing hubs.
+- **Boon: Remedy** (#1505, owner 2026-10-11) — no damage. The hit is a dose
+  that cures poison 1:1 (*"a hit of `5` would cure 5 stacks of poison"*), and
+  Bleeding, Weakened and Blindness at a lower rate (*"ones that fit being
+  cured. like corruption is not it"*). Each stack cleared heals the node. The
+  dose drains as it cures and the leftover flows on, split by need among the
+  infected neighbours; it spreads only through infected nodes, so its reach is
+  the size of the outbreak. Named wider than "antidote" on purpose. Its kit
+  (a cure table, a status-gated filter, a need-split spread) is the template a
+  family cleanse (#969) reuses.
 
 ## Arrow faces (owner, 2026-10-07)
 
@@ -350,8 +359,8 @@ content a node holds, chokepoints, who has vision on you, the fog.
   going to determine for a good part how effects proliferate and we want to
   provide spell authors the tools to make clear intuitive resolution"*. It
   gets its own issue (#1489).
-- **No spell shape takes a stack doubler or a cleanse yet**, so neither needs a
-  kit part this pass.
+- **No spell shape takes a stack doubler yet**, so it needs no kit part. The
+  cleanse's kit is Remedy's (Poison row).
 
 ## Contenders — sparse rows
 
