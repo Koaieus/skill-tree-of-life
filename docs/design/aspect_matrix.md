@@ -233,7 +233,7 @@ Each cell links its cell issue (`<Concept> × <Facet>`, a child of the row hub i
 |---|---|---|---|---|---|---|---|
 | Poison | DoT | `poison_aspect` | shipped; look designed (see "Rows designed in #1318"), per-type scenes shipped (#1352) | shipped (#1271): `toxin_addon.tscn` — +1 `poison_aspect` on the map; local +1 `poison_stacks_per_hit` laddered by allocation, ×2 `MULTIPLY` at 3/X; froth-into-gas rim look | `venom` shipped; `miasma` shipped (name tentative, #1503): 3 stacks, fan 4 hops, visits 2, no damage | #1250 | row: #1377. Spread signature deferred to an authoring pass (owner, #1204) |
 | Corruption | buildup, %dmg, spread | `corruption_aspect` | type shipped (#1349); feel and look #1382 | shipped (#1383): `compromiser_addon.tscn` (**Compromiser**, owner 2026-10-08) — +1 `corruption_aspect` on the map; a flat 1-stack corruption rider per contact at every allocation level (no ladder, no 3/X multiplier — the budget is the degree); temp 2 blade size + 1 `corruption_aspect`; pustule-beating rim look | `defile` shipped (see "Spell faces") | #1250 | row: #1378. Spreads as a sandpile by nature (#1202) — no `spread` authored yet, the diffusion classes are test-only; health bar shows blips per stack, extra-mean when critical (#1092). `skill_node_specializations.md`'s Corrupted Node is this row's content under another name; its penalties (double damage, floor −1) are Curse's and the floor axis's |
-| Curse | fragility, spill | `curse_aspect` | type shipped (#1349, #1385) | #1386 | `hex` shipped; no second spell proposed | #1250 | row: #1379. Raises `min_damage_taken`; spills to surviving direct neighbours on death AND dealloc (#1204) — the only authored spread today (`spill_spread.gd`). `spells.md`'s Aftershock restates this spill |
+| Curse | fragility, spill | `curse_aspect` | type shipped (#1349, #1385) | **Doombrand** #1386 (see "Rows designed" → Curse) | **Malediction** (reshapes the shipped `hex`) and **Gloomflux**, cells under #1379 (see "Rows designed" → Curse) | #1250 | row: #1379. Raises `min_damage_taken`; spills to surviving direct neighbours on death AND dealloc (#1204) — the only authored spread today (`spill_spread.gd`). Lethal once *hits × (floor + curse) > HP*; zero effect while no damaging hits land (owner, 2026-10-11). `spells.md`'s Aftershock restates this spill |
 | Wither | anti-heal | `wither_aspect` | type shipped (#1349); feel and look #1387 | #1388 | `girdle` shipped (see "Spell faces") | #1250 | row: #1380. Drives healing received negative: while it does, a negative heal deals damage that does not close the regen gate, so the regen ramp keeps climbing and the node heals itself toward death — temporary, never permanent: as Wither decays the multiplier climbs back through zero, nulling healing, then restoring it (owner, 2026-10-07, moved here from the superseded ADR 0022 d5). Owner, 2026-09-20: *"it ruins your healing to making you effectively undead"*. `spells.md`'s Flood wants this anti-heal (#1389) |
 | Blindness | vision debuff | `blindness_aspect` | type shipped (#1349); feel and look #1390 | #1391 | `dazzle` shipped, reshaped to climb vision #1491 (see "Spell faces"); `scout_line` shipped (#1490); **Throw Sand** #1392 | #1250 | row: #1253. Count stacks, effect reads as a % via a saturating curve |
 | Scout (a status whose rows draw vision, #949) | reveal | `scout_aspect` | scouting arrow shipped (stacks: #1345, #1346) | watchtower shipped (map face); +1 grant, tag rider, stacks ladder, lantern look #1393 | `eagle_eye` and `scout_line` shipped (see "Spell faces") | #1250 | row: #1254. `effects/status/scouted.tres` is live: the arrow lands camp-keyed stacks, VisionSystem draws `radius_for` discs from the rows (#1346); first-class concept (owner, 2026-09-30). **Two faces (owner, 2026-10-11):** *"scout arrow and eagle eye and scout line ALL apply scouted stacks on hit (tag); while some (or all, or at least the Scout Line) carriers themselves are a lighting/revealing (\"lantern\") vision source"* — every scouting carrier is a lantern (owner pick), mechanism #1557. Scout and Blindness are two PER rows by the owner's table, not one vision axis. Watchtower's offence stats and production-vs-firing: #1413 |
@@ -242,7 +242,7 @@ Each cell links its cell issue (`<Concept> × <Facet>`, a child of the row hub i
 | Greed | status magnet | `greed_aspect` | type shipped; look #1422 | #1423 | #1424 | #1250 | row: #1419 (child 0: the landing term, #1420, shipped; Avarice #1421, shipped). One Greed stack on the node doubles every negative status the next hit lands, Greed included, then one stack is spent; its Avarice face pays bonus XP per stack left when an attack removes the node (rounds 5–6) |
 | Explosive | AoE | `explosive_aspect` | #1398 | #1399 — detonation kills the blade node, reuses spike-pop plumbing (owner, #1211) | #1400 (or none) | #1250 | row: #1211. Euclidean hitscan radius from `SkillNode.radius`; barrels / friendly fire open (#1399). The concept names the content, never the reverse (owner, 2026-10-05): *"an explosive barrel blast would at best do an *explosive* (as a concept) blast, not an "explosive arrow blast" literally cuz it's not like *arrows* determine the concept but the concept determines arrows+addons+spells etc."* — so the addon is an `ExplosiveBarrelAddon` doing the explosive blast. A detonated blade node is *damaged*, and today that means popped: *"so far we put their HP on 1 so they pop after taking 1 dmg"* (owner, 2026-10-05). `spells.md`'s Detonate / Supernova are its spell (#1400) |
 | Bleeding | wound, exertion | `bleeding_aspect` | shipped (#1436) | #1437 — Spike Ring refit, with #1369 | #1438 | #1250 | row: #1434 (child 0: the status + origin set, #1435, shipped). Promoted 2026-10-06. **Round 10 (owner, 2026-10-06) replaces round 9's conditional tick:** a node in an attack's origin set has its stacks ×`exert_growth` (2) **at launch**; every turn end the row pays ⌈stacks × `bleed_rate` (½)⌉ flat HP, then decays on a ramp (−1, −2, −3 … while not exerting; exertion resets it). A core exerts by *moving*, once per turn, never by attacking. Dealloc or death spills ⌊S/(N+M)⌋ to each owned neighbour, the unallocated shares soak away. STR: the price of exertion. Edgelord's **Bleeding Edge** jab takes a new name (#1449) |
-| Hex | jinx, crit taken | `hex_aspect` | shipped (#1441) | #1442 | #1443 — the shipped spell `hex` (Curse payload) is renamed or repointed | #1250 | row: #1439 (child 0: the status, #1440, shipped). INT's slot (owner, 2026-10-06, round 9). The defender side of crit: per stack, hits *against* the node crit more often, a % on the saturating curve (Blindness / Weakness shape) — **Hex pass (owner, 2026-10-07): flat +5% per stack for now, past 100% is #197; authored as `incoming_modifiers` on the status**; attacker-side `crit_chance` / `crit_multiplier` stay DEX's native stats, never an aspect. The crit roll must open for a hexed target even when the attacker's board holds no crit investment (#1280's stream note) |
+| Hex | jinx, crit taken | `hex_aspect` | shipped (#1441) | #1442 | #1443 — a fresh first spell; the shipped `hex` becomes Curse's Malediction (owner, 2026-10-11) | #1250 | row: #1439 (child 0: the status, #1440, shipped). INT's slot (owner, 2026-10-06, round 9). The defender side of crit: per stack, hits *against* the node crit more often, a % on the saturating curve (Blindness / Weakness shape) — **Hex pass (owner, 2026-10-07): flat +5% per stack for now, past 100% is #197; authored as `incoming_modifiers` on the status**; attacker-side `crit_chance` / `crit_multiplier` stay DEX's native stats, never an aspect. The crit roll must open for a hexed target even when the attacker's board holds no crit investment (#1280's stream note) |
 
 ## Rows designed in #1318
 
@@ -289,6 +289,38 @@ Each cell links its cell issue (`<Concept> × <Facet>`, a child of the row hub i
   the size of the outbreak. Named wider than "antidote" on purpose. Its kit
   (a cure table, a status-gated filter, a need-split spread) is the template a
   family cleanse (#969) reuses.
+
+### Curse (owner, 2026-10-11)
+
+- **Reading curse.** Owner: *"curse becomes dangerous if the `number of
+  possible hits taken × (min_damage_taken + curse) > HP` e.g. if a node has
+  100 health and expects to be hit 4 times and has min_damage_taken=0, a
+  curse of 25 would be lethal ... and while units take no damaging hits,
+  curse has zero effect"*.
+- **Addon: Doombrand.** Owner: *"Doombrand might work"*, a glowing pentagram
+  look; *"Marker"* struck (*"it doesn't mark as much as it just applies curse
+  stacks"*). On the map: +1 `curse_aspect`. On a blade: each contact lands
+  *"a few curse stacks like 2 or 3, by default; scalable by attacker stats"*,
+  and a node a Doombrand contact kills spills its curse multiplied (the doom).
+  The killing hit carries the spill scale; the status's own spill multiplies
+  by it.
+- **Spell: Malediction** (the shipped `hex`, reshaped). Owner: *"literally a
+  spell, as in spelling out, shit-talking ... words do _spread_"*. The payload
+  flows downhill by `min_damage_taken`, forking on ties; neighbours that do
+  not win the lowest-floor pick take a minor fraction (*"words never travel in
+  a straight line"*) and end there. Two visits per node, the stacks of both
+  landing (*"a fun cursed-reply incurring more debt"*).
+- **Spell: Gloomflux.** 1 damage; first adds a low stack count (*"most nodes
+  have 0 curse, and ×2 wouldn't do anything to those"*), then doubles the
+  target's curse, then copies a share out through Curse's own spill rule as if
+  the node had died — the target is never cured.
+- **Every damage + status rider lands in the advantageous order** (owner,
+  2026-10-11: *"as for all damage+status riders should use an advantageous
+  application order"*), so a floor-raising rider lifts its own hit. Today
+  every rider lands after its paired damage; the fix is its own issue, linked from #1379.
+- **The Reliquary** (a status sink that stores debuffs for release) left the
+  row as its own design issue; the bell imagery went to a Reverberator
+  issue (both linked from #1379).
 
 ## Arrow faces (owner, 2026-10-07)
 
@@ -1023,7 +1055,6 @@ this table's rows.
 - `dealloc_damage` has no row; Creep (Contenders) is its candidate home; stale facts: #1414 (`damage_over_time.md`'s halving decay closed with #1448).
 - Which row holds the anti-blade face: Explosive (owner lean, 2026-10-04) — barrels / friendly fire on #1399, the pop budget's fate on #1369; ADR 0005 would be superseded, not edited.
 - Combos / hybrids: #1446; third row = pair row is the lens.
-- The shipped spell `hex` applies Curse; it is renamed or repointed now that Hex is a row (Hex × Spell, #1443).
 - The Edgelord jab "Bleeding Edge" is renamed now that Bleeding is a row (#1449).
 
 Round 9 (2026-10-06) was the final design round; the table is now the cell swarm's basis.
