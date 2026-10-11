@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-#MISE description="Skill feedback boards (GitHub Discussions): `mise run feedback -- post <charter> <kind> <file> | post --verbatim <charter> <file> | unanswered [<charter>] | reply <comment-id> <file>`"
+#MISE description="Skill feedback boards (GitHub Discussions): `mise run feedback -- post <charter> <kind> <file> | post --verbatim <charter> <file> | unanswered [<charter>] | reply [--resolve] <comment-id> <file>`"
 set -euo pipefail
 
 # Each charter's board is a Discussion titled `<charter> — skill feedback
@@ -148,15 +148,23 @@ cmd_unanswered() {
 }
 
 cmd_reply() {
+  local resolve=0
+  [ "${1:-}" = "--resolve" ] && { resolve=1; shift; }
   [ $# -eq 2 ] || usage
   [ -f "$2" ] || die "no such file: $2"
-  local d disc
+  local d disc m
   d=$(gql 'query CommentDiscussion($id: ID!) {
     node(id: $id) { ... on DiscussionComment { discussion { id } } } }' \
     "$(jq -n --arg id "$1" '{id: $id}')")
   disc=$(jq -r '.node.discussion.id // empty' <<<"$d")
   [ -n "$disc" ] || die "'$1' is not a Discussion comment."
   add_comment "$disc" "$2" "$1"
+  [ "$resolve" -eq 1 ] || return 0
+  m=$(gql 'mutation MinimizeComment($subjectId: ID!, $classifier: ReportedContentClassifiers!) {
+    minimizeComment(input: {subjectId: $subjectId, classifier: $classifier}) { minimizedComment { isMinimized } } }' \
+    "$(jq -n --arg id "$1" '{subjectId: $id, classifier: "RESOLVED"}')")
+  [ "$(jq -r '.minimizeComment.minimizedComment.isMinimized' <<<"$m")" = "true" ] \
+    || die "replied, but '$1' was not minimized."
 }
 
 [ $# -ge 1 ] || usage

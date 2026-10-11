@@ -117,6 +117,19 @@ out=$(fb reply DC_3 "$work/f" 2>"$work/err"); rc=$?
 check "reply sends replyToId on the comment's discussion" "$rc:$(vars_of AddComment | jq -r '[.replyToId,.discussionId]|join("|")')" "0:DC_3|D_whip"
 check "  ...body is the file verbatim" "$(vars_of AddComment | jq -r .body)" "$(cat "$work/f")"
 
+echo "5b. reply --resolve"
+resp MinimizeComment <<<'{"data":{"minimizeComment":{"minimizedComment":{"isMinimized":true}}}}'
+reset
+out=$(fb reply --resolve DC_3 "$work/f" 2>"$work/err"); rc=$?
+check "--resolve posts then minimizes as RESOLVED" "$rc:$(ops):$(vars_of MinimizeComment | jq -r '[.subjectId,.classifier]|join("|")')" "0:CommentDiscussion AddComment MinimizeComment:DC_3|RESOLVED"
+reset
+out=$(fb reply DC_3 "$work/f" 2>"$work/err"); rc=$?
+check "no --resolve: no minimize" "$rc:$(ops)" "0:CommentDiscussion AddComment"
+resp MinimizeComment <<<'{"data":{"minimizeComment":{"minimizedComment":{"isMinimized":false}}}}'
+reset
+fb reply --resolve DC_3 "$work/f" >/dev/null 2>"$work/err"; rc=$?
+check "isMinimized false -> dies" "$([ $rc -ne 0 ] && echo nz)" "nz"
+
 echo "6. discussions off / category missing"
 resp Meta <<<'{"data":{"repository":{"id":"R_1","hasDiscussionsEnabled":false,"discussionCategories":{"nodes":[]}}}}'
 reset
