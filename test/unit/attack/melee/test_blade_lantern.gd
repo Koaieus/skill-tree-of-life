@@ -1,8 +1,9 @@
 extends GutTest
 
 ## A melee blade vertex whose riders land the scout status carries one
-## lantern marker that follows the drawn vertex; a plain blade carries none,
-## and nothing outlives the blade.
+## lantern marker that follows the drawn vertex once the swing is committed
+## ([method SkillBlade.arm_lanterns]); a plain blade carries none, the aim-time
+## preview ghost carries none, and nothing outlives the blade.
 
 const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
@@ -28,6 +29,7 @@ func _build_blade(scout_member: bool, autofree: bool = true) -> SkillBlade:
 		add_child(blade)
 	var nodes: Array[SkillNode] = [pivot, member]
 	blade.build_from_skill_nodes(nodes, pivot, [[pivot, member]], null, BladeVertexFill.new())
+	blade.arm_lanterns()
 	return blade
 
 
@@ -70,3 +72,34 @@ func test_no_marker_outlives_the_blade() -> void:
 	assert_eq(_lanterns().size(), 1, "precondition: the scout blade is lit")
 	blade.free()
 	assert_eq(_lanterns().size(), 0, "freeing the blade leaves no marker")
+
+
+func _preview_plan(preview: MeleePreview) -> MeleeAttackPlan:
+	var graph := _GRAPH_SCENE.instantiate()
+	add_child_autofree(graph)
+	var pivot := _SKILL_NODE_SCENE.instantiate() as SkillNode
+	var member := _SKILL_NODE_SCENE.instantiate() as SkillNode
+	graph.skill_nodes_container.add_child(pivot)
+	graph.skill_nodes_container.add_child(member)
+	member.position = Vector2(80.0, 0.0)
+	member.add_child(_WATCHTOWER.instantiate())
+	var plan := MeleeAttackPlan.new()
+	plan.source = pivot
+	plan.blade_nodes = [member]
+	return plan
+
+
+func test_preview_ghost_is_dark_until_the_commit_claims_it() -> void:
+	var preview := MeleePreview.new()
+	add_child_autofree(preview)
+	var plan := _preview_plan(preview)
+	preview._spawn_blade(plan)
+	assert_not_null(preview.current_blade(), "precondition: the aim ghost is mounted")
+	assert_eq(_lanterns().size(), 0, "the aim-time ghost lights nothing")
+
+	preview.begin_windup(plan, null)
+	await get_tree().process_frame  # the rebuild's old vertices are queue_freed
+	assert_eq(_lanterns().size(), 1, "the committed swing lights its one scout vertex")
+	var visuals := preview.current_blade().get_node_visuals()
+	assert_lt(_lanterns()[0].global_position.distance_to(visuals[1].global_position), 1.0,
+			"on the drawn scout vertex")

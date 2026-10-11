@@ -711,8 +711,6 @@ func _spawn_visuals() -> void:
 		bn.tint = tint
 		_nodes_container.add_child(bn)
 		bn.global_position = state.positions[i]
-		if is_scout_vertex(state, i):
-			bn.light_lantern(owned_by)
 		_node_visuals.append(bn)
 	for e in state.edges:
 		var be := BLADE_EDGE.instantiate() as BladeEdge
@@ -722,6 +720,17 @@ func _spawn_visuals() -> void:
 		be.from = _node_visuals[e.x]
 		be.to = _node_visuals[e.y]
 		_edge_visuals.append(be)
+
+
+## Light a sight marker on every scout vertex ([method is_scout_vertex]) of the
+## CURRENT build, sourced to [member owned_by]. A lantern means "you saw it", so
+## only a committed swing calls this ([method MeleePreview.begin_windup] /
+## [method MeleePreview.launch]) — never the aim-time ghost. Idempotent; a
+## rebuild frees the vertices and so drops the markers until called again.
+func arm_lanterns() -> void:
+	for i in _node_visuals.size():
+		if is_scout_vertex(state, i):
+			_node_visuals[i].light_lantern(owned_by)
 
 
 ## Does vertex [param i] scout what it hits? True iff one of its on-hit riders

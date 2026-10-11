@@ -300,6 +300,8 @@ func launch(plan: MeleeAttackPlan, schedule: OutcomeSchedule = null) -> void:
 	var blade := _ghost
 	if blade == null:
 		return
+	# Committed now: the swing may light what it scouts (never the aim ghost).
+	blade.arm_lanterns()
 	var gen := _gen
 	var traj := plan.last_trajectory
 	var events := plan.last_events
@@ -382,6 +384,8 @@ func begin_windup(plan: MeleeAttackPlan, tempo: PresentationTempo) -> float:
 	_live_swing = true
 	_windup_blade = blade
 	blade.modulate = Color.WHITE
+	# The claim is the commit: only now may a scout vertex light its marker.
+	blade.arm_lanterns()
 	# A sandbox or fixture with no authored tempo still gets a formed blade —
 	# there is simply no sequence to stage, so nothing is returned to wait out.
 	if tempo == null:
