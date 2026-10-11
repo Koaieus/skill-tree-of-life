@@ -345,8 +345,8 @@ if [ ! -d "$dir/native/bin" ] || [ -z "$(ls -A "$dir/native/bin" 2>/dev/null)" ]
 fi
 
 
-# A fresh worktree has its own gitignored .godot/ — no import or class cache
-# at all — so its first `check`/`test` pays a slow, noisy cold import. Pay
+# The seed above copied main's import + class caches into .godot/, but they
+# are only as current as main's — `refresh` settles the difference. Pay
 # that cost here instead, while the worktree is already the thing being
 # waited on: run `refresh` then `check` INSIDE the new worktree ($dir), never
 # the main checkout, so this can never write the shared checkout's .godot/,

@@ -53,7 +53,7 @@ float32 `length()` vs double `sqrt`, in-loop pushout): `docs/domain/blade-native
 pulling a change to `native/src/`, rebuild (`mise run native:build`). A built `.so` is
 not a loaded extension: Godot's `.godot/extension_list.cfg` cache can predate
 `native/blade_sim.gdextension`, so after the first build in an existing checkout (or a
-fresh worktree; `worktree:new` does it) run `mise run refresh` and confirm the entry.
+fresh worktree that predates the build) run `mise run refresh` and confirm the entry.
 Verify: `mise run test:one -- res://test/unit/attack/test_blade_goldens.gd`, 0 pending.
 
 ## A cached `ptrw()` aliases every snapshot you pushed

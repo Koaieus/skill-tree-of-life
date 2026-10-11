@@ -167,8 +167,8 @@ diverge from a vendored addon over it.
 `.godot/global_script_class_cache.cfg` goes stale whenever the set of
 `class_name`s moves under it: you added or renamed one, you rebased / pulled /
 ff-merged a branch whose commit did (nothing in your own tree changed — the
-surprising one), or you are in a **fresh worktree** (own gitignored `.godot/`,
-so no cache at all). Symptoms: *"Could not find type X"* on correct source, or
+surprising one), or you are in a **fresh worktree** (its `.godot/` is a copy of
+main's caches via `.worktreeinclude`, as current as main's was). Symptoms: *"Could not find type X"* on correct source, or
 **a green GUT run with a lower `Scripts`/`Tests` total**, because a script that
 cannot resolve a type is skipped silently (`.claude/rules/testing.md`). Refresh
 first; don't audit the test file.
@@ -387,9 +387,12 @@ var t: MyType = stored if is_instance_valid(stored) else null
 `mise run worktree:new -- <issue|name>` / `worktree:ls` / `worktree:rm -- <fuzzy>`
 give an isolated checkout under `.worktrees/<slug>/`; the `warp` and `swarm`
 skills drive the cycle on top (swarm drones make their own worktree as their
-first action). Each worktree has its own gitignored `.godot/` (own import and
-class cache; its cold import never touches the main checkout's), and
-`worktree:new` pays it up front — `refresh` then `check` inside the new
+first action). Each worktree has its own gitignored `.godot/`, born as a
+**copy** of main's import and class caches (`.worktreeinclude` — Claude Code
+applies it to agent worktrees, `worktree:new` to its own; measured first
+`check` 11.5 s copied vs 18.8 s cold). It is never a link, so a worktree's
+imports never touch the main checkout's. `worktree:new` also settles the
+rest up front — `refresh` then `check` inside the new
 worktree, one verdict line; `--no-warm` / `NO_WARM=1` skips both. Closing
 keywords and `gh --body-file`: `docs/domain/issue-workflow.md`.
 
