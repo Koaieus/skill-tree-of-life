@@ -127,7 +127,9 @@ func _process(delta: float) -> void:
 		image.set_pixel(i, 0, Color(d.pos.x, d.pos.y, d.radius, 0.0))
 	_upload(discs.size())
 	_light(vs, discs)
-	if discs.is_empty():
+	# Sleep on the GROUP, not the filtered set: a lantern filtered out today
+	# lights the moment the viewer changes (hot-seat), with no new wake.
+	if _ghosts.is_empty() and get_tree().get_nodes_in_group(Lantern.GROUP).is_empty():
 		set_process(false)
 
 
