@@ -176,7 +176,8 @@ func facet(concept: StringName, role: StatDef.Role) -> ScalarStat:
 ## or [code]null[/code] if the id is unknown to the registry. Use this on
 ## sparse boards (like [member SkillNode.node_board]) where stats are not
 ## pre-populated; an [EntityStatBoard] declares every stat it can hold as a
-## field and refuses to mint (see its [method _mint_stat] override).
+## field and refuses to mint except a def with a concept [member StatDef.role]
+## (ADR 0054; see its [method _mint_stat] override).
 ##
 ## Rejects decorated accessor tokens (`health__current` and friends): those are
 ## formula-read tokens, not stats — no [StatDef], no write path through the
@@ -199,7 +200,8 @@ func _ensure_stat(stat_id: StringName) -> Stat:
 
 ## Create the Stat for an id this board has no field for, and file it under
 ## [member _extra_stats]. The overridable half of [method _ensure_stat] — the
-## sparse default mints from [StatRegistry]; [EntityStatBoard] refuses.
+## sparse default mints from [StatRegistry]; [EntityStatBoard] refuses except a
+## def with a concept [member StatDef.role] (ADR 0054).
 ## Never call directly: [method _ensure_stat] owns the accessor-token gate and
 ## the already-exists short-circuit.
 func _mint_stat(stat_id: StringName) -> Stat:
