@@ -1,0 +1,60 @@
+[gd_resource type="Resource" script_class="SpellDef" format=3]
+
+[ext_resource type="Script" path="res://attack/spell/spell_def.gd" id="1_spell"]
+[ext_resource type="Script" path="res://attack/spell/on_hit/on_hit_effect.gd" id="2_effect"]
+[ext_resource type="Script" path="res://attack/spell/on_hit/damage_effect.gd" id="3_dmg"]
+[ext_resource type="Script" path="res://attack/spell/on_hit/apply_status_effect.gd" id="4_apply"]
+[ext_resource type="Script" path="res://attack/spell/on_hit/multiply_row_effect.gd" id="5_multiply"]
+[ext_resource type="Script" path="res://attack/spell/on_hit/flux_effect.gd" id="6_flux"]
+[ext_resource type="Resource" path="res://effects/status/curse.tres" id="7_curse"]
+[ext_resource type="Script" path="res://attack/spell/propagation/propagation_config.gd" id="8_config"]
+[ext_resource type="Script" path="res://attack/spell/propagation/spread/no_spread.gd" id="9_nospread"]
+[ext_resource type="Script" path="res://attack/targeting/node_targeting.gd" id="10_targeting"]
+[ext_resource type="Script" path="res://attack/range_finder/hop_range_finder.gd" id="11_range"]
+[ext_resource type="PackedScene" path="res://ui/vfx/coordinator/spells/spark_coordinator.tscn" id="12_vfx"]
+[ext_resource type="Resource" path="res://identity/defs/spell_gloomflux.tres" id="identity_ref"]
+
+[sub_resource type="Resource" id="dmg_gloomflux"]
+script = ExtResource("3_dmg")
+
+[sub_resource type="Resource" id="add_curse"]
+script = ExtResource("4_apply")
+def = ExtResource("7_curse")
+power = 2.0
+
+[sub_resource type="Resource" id="double_curse"]
+script = ExtResource("5_multiply")
+def = ExtResource("7_curse")
+factor = 2.0
+
+[sub_resource type="Resource" id="flux_curse"]
+script = ExtResource("6_flux")
+def = ExtResource("7_curse")
+share = 0.5
+
+[sub_resource type="Resource" id="spread_none"]
+script = ExtResource("9_nospread")
+
+[sub_resource type="Resource" id="prop_gloomflux"]
+script = ExtResource("8_config")
+spread = SubResource("spread_none")
+
+[sub_resource type="Resource" id="range_3hop"]
+script = ExtResource("11_range")
+
+[sub_resource type="Resource" id="targeting_hostile_3hop"]
+script = ExtResource("10_targeting")
+range_finder = SubResource("range_3hop")
+
+[resource]
+script = ExtResource("1_spell")
+id = &"gloomflux"
+name = "Gloomflux"
+tagline = "Feeds a curse, doubles it, and lets it bleed into the node's kin without lifting it."
+description = "Deal 1 damage to an enemy node within 3 hops and curse it with 2 stacks, then double its curse, then copy half of it out through the curse's own spill, split evenly over the node's surviving neighbours, as if it had died. The target keeps every stack. Each stack raises the floor on damage the node takes by 1 (one stack fades each turn, never cap)."
+identity = ExtResource("identity_ref")
+power = 1.0
+propagation = SubResource("prop_gloomflux")
+on_hit_effects = Array[ExtResource("2_effect")]([SubResource("dmg_gloomflux"), SubResource("add_curse"), SubResource("double_curse"), SubResource("flux_curse")])
+vfx_coordinator_scene = ExtResource("12_vfx")
+targeting = SubResource("targeting_hostile_3hop")

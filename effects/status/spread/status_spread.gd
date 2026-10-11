@@ -61,3 +61,12 @@ static func cause_phrase(causes: int) -> String:
 		words.append("released")
 	return " or ".join(words)
 
+
+## A QUOTE of what this rule would hand [param node]'s neighbours were it
+## removed now, for [param share] of its raw row — without removing it and
+## without any remainder burn: every transfer's `from` is [param node] and
+## its `to` a receiver. The caller lands the `to` side only (as hits —
+## [FluxEffect]); handing the list to [SpreadApplier] would debit the source.
+## Default: nothing to copy.
+func copy_out(_field: StackField, _node: NodeCombat, _share: float) -> Array[StackTransfer]:
+	return [] as Array[StackTransfer]

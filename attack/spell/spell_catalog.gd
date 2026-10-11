@@ -28,6 +28,7 @@ const DAZZLE: SpellDef = preload("res://attack/spell/defs/dazzle.tres")
 const REND: SpellDef = preload("res://attack/spell/defs/rend.tres")
 const VENOM_BURST: SpellDef = preload("res://attack/spell/defs/venom_burst.tres")
 const MALEDICTION: SpellDef = preload("res://attack/spell/defs/malediction.tres")
+const GLOOMFLUX: SpellDef = preload("res://attack/spell/defs/gloomflux.tres")
 const EAGLE_EYE: SpellDef = preload("res://attack/spell/defs/eagle_eye.tres")
 const GIRDLE: SpellDef = preload("res://attack/spell/defs/girdle.tres")
 const DEFILE: SpellDef = preload("res://attack/spell/defs/defile.tres")
@@ -46,6 +47,7 @@ const ALL: Array[SpellDef] = [
 	CYCLONE, DAZZLE, REND, VENOM_BURST, MALEDICTION, EAGLE_EYE,
 	GIRDLE, DEFILE, SCOUT_LINE, MIASMA, PESTILENCE, REMEDY, PURIFICATION,
 	FIRECRACKER, POCKET_SAND,
+	GLOOMFLUX,
 ]
 
 
