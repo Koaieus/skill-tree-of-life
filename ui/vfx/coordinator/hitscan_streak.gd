@@ -22,6 +22,10 @@ signal finished
 @export_range(0.0, 1.0, 0.01) var hold_seconds: float = 0.05
 ## Seconds the line takes to fade out after the hold.
 @export_range(0.0, 2.0, 0.01) var fade_seconds: float = 0.25
+## Optional marker riding the tip: a child of this streak the tip tween moves
+## along with the line's end, so it is wherever the tip is drawn and leaves
+## with the streak. Whoever spawns the streak adds it and sets this.
+var tip_marker: Node2D = null
 
 
 ## Draws from [param from] (global) along [param angle] (radians) to

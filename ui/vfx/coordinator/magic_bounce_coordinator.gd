@@ -147,6 +147,13 @@ const _DRAW_GLOW_TIER: float = Emissive.VALUE
 ## the real clock — it drains in-flight projectiles frame by frame.
 var clock: BeatClock = null
 
+## The spell this coordinator is playing and the entity casting it, captured
+## off the plan at [method begin_windup] (which runs on every peer). A test
+## that plays a hand-built outcome sets them directly. A scout spell
+## ([method SpellDef.is_scout]) hangs a [Lantern] on each carrier it draws.
+var spell: SpellDef = null
+var caster_entity: Entity = null
+
 var _caster_tint: Color = Color.WHITE
 ## Which way the cast currently playing turns, and the signed paths built for
 ## it. Both are per-cast state resolved in [method play] — see #708.
