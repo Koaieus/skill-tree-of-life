@@ -61,4 +61,4 @@ func select(eligible: Array[SkillNode], lctx: LandingContext) -> Array[Propagati
 
 
 func get_description() -> String:
-	return "Splits the leftover dose over infected neighbours by need."
+	return "Leftover dose splits by need."

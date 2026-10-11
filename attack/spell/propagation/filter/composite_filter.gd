@@ -84,5 +84,5 @@ func get_description() -> String:
 			parts.append(d)
 	if parts.is_empty():
 		return ""
-	var sep := " and " if mode == Mode.AND else " or "
+	var sep := " " if mode == Mode.AND else " or "
 	return sep.join(parts)
