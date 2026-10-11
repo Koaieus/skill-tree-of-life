@@ -64,6 +64,13 @@ void fragment() {
 			}
 		}
 	}
+	// Same lantern fold as `vision_field_darkness`, so the halo never rings a
+	// frontier a lantern has already cleared; a lantern carries no motion.
+	float lantern_d = vision_field_fold_lanterns(world_pos, 1e9);
+	if (lantern_d < min_d + 1e-4) {
+		closest_motion = 0.0;
+	}
+	min_d = field_smin(min_d, lantern_d, vision_union_smoothness);
 	float dark = vision_field_darkness(world_pos);
 	// Frontier halo: bell centered on d=1.0 (the outer edge of vision),
 	// symmetric ±glow_band. Inner side dips into the fade zone; outer

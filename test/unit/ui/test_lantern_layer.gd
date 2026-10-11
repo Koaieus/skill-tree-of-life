@@ -80,7 +80,10 @@ func before_each() -> void:
 func _lantern(source: Entity, pos: Vector2, parent: Node = self) -> Lantern:
 	var l := _LANTERN_SCENE.instantiate() as Lantern
 	l.source = source
-	parent.add_child(l)
+	if parent == self:
+		add_child_autofree(l)
+	else:
+		parent.add_child(l)
 	l.global_position = pos
 	return l
 
@@ -103,7 +106,7 @@ func test_own_camp_lantern_is_uploaded_enemy_is_not() -> void:
 	mine.radius = 90.0
 	await _frames(2)
 	assert_eq(_layer.uploaded_count, 1, "the viewer's lantern is uploaded")
-	var px := _layer.texture.get_image().get_pixel(0, 0)
+	var px := _layer.image.get_pixel(0, 0)
 	assert_almost_eq(px.r, mine.global_position.x, 0.01)
 	assert_almost_eq(px.g, mine.global_position.y, 0.01)
 	assert_almost_eq(px.b, mine.radius, 0.01)
@@ -169,7 +172,7 @@ func test_freed_carrier_fades_out_then_the_layer_sleeps() -> void:
 	carrier.free()
 	await get_tree().process_frame
 	assert_eq(_layer.uploaded_count, 1, "the disc lingers as a fading ghost")
-	var r := _layer.texture.get_image().get_pixel(0, 0).b
+	var r := _layer.image.get_pixel(0, 0).b
 	assert_lt(r, r0, "and is shrinking")
 	await wait_seconds(_layer.fade_seconds + 0.2)
 	assert_eq(_layer.uploaded_count, 0, "faded to nothing within fade_seconds")

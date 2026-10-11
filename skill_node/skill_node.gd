@@ -362,7 +362,12 @@ var revealed: bool = true:
 ## gives the node its revealed look (addons, core) and touches nothing logical
 ## — not [member revealed], picking, targeting or the AI. With no fog system
 ## it stays false. See docs/domain/vision-system.md, "Lanterns".
-var lantern_lit: bool = false
+var lantern_lit: bool = false:
+	set(value):
+		if lantern_lit == value:
+			return
+		lantern_lit = value
+		_apply_sensed_state()
 
 ## Scouted flag (#1033), written by VisionSystem on every recompute: true
 ## while this MACHINE's vision group holds a live scouted mark on the node —
@@ -709,7 +714,7 @@ func _refresh_core_health_bar(_is_core: bool) -> void:
 		pool = owned_by.stat_board.health
 	core_health_bar.bind_health(pool)
 	# Fog-gated: only a revealed core reads its HP (not a fogged/sensed one, #94).
-	core_health_bar.visible = revealed and _is_core
+	core_health_bar.visible = (revealed or lantern_lit) and _is_core
 
 
 ## Mirror the `sensed` flag onto the visual stack. Three things shift:
@@ -722,20 +727,23 @@ func _refresh_core_health_bar(_is_core: bool) -> void:
 func _apply_sensed_state() -> void:
 	if not is_node_ready():
 		return
+	# A lantern-lit node wears its revealed look; the flags themselves stay put.
+	var look_sensed := sensed and not lantern_lit
+	var look_revealed := revealed or lantern_lit
 	if _node_visuals != null:
-		_node_visuals.sensed = sensed
+		_node_visuals.sensed = look_sensed
 		# Half of the core look's gate (#802). `sensed` hides the whole
 		# ShaderStack, but a FULLY fogged node is neither sensed nor revealed —
 		# its halo stayed visible under the fog overlay and kept rebuilding.
-		_node_visuals.set_core_revealed(revealed)
-	z_as_relative = not sensed
-	z_index = ZLayers.GRAPH_DEFAULT + ZLayers.SENSED if sensed else 0
+		_node_visuals.set_core_revealed(look_revealed)
+	z_as_relative = not look_sensed
+	z_index = ZLayers.GRAPH_DEFAULT + ZLayers.SENSED if look_sensed else 0
 	# CorePresence needs no explicit hide here — it's nested under ShaderStack,
 	# which `_node_visuals.sensed` above already hid wholesale.
 	var _is_core := owned_by != null and owned_by.core_location == self
-	core_health_bar.visible = revealed and _is_core
+	core_health_bar.visible = look_revealed and _is_core
 	for a in _addons:
-		a.visible = not sensed
+		a.visible = not look_sensed
 	sensed_changed.emit()
 
 

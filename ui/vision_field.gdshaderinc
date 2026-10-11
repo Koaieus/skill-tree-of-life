@@ -26,6 +26,12 @@ global uniform float vision_cell_size;
 global uniform int vision_grid_cols;
 global uniform int vision_grid_rows;
 global uniform int vision_circle_count;
+// The lantern set (`LanternLayer` is its sole writer): texel i of an N×1
+// RGBA32F texture is one disc `(x, y, radius, 0)`, the first
+// `vision_lantern_count` are live. A separate dynamic set, never folded into
+// the circle tiles above — `vision_field_darkness` unions the two.
+global uniform sampler2D vision_lanterns_tex : filter_nearest, repeat_disable;
+global uniform int vision_lantern_count;
 global uniform float vision_falloff : hint_range(0.0, 1.0);
 global uniform float vision_union_smoothness : hint_range(0.0, 0.5);
 // True only while `FogOverlay` is actually active (a live `VisionSystem` says
@@ -64,6 +70,18 @@ float _vision_field_smin(float _a, float _b, float _k) {
 	return mix(_b, _a, _h) - _k * _h * (1.0 - _h);
 }
 
+// Folds every lantern disc into a running normalized distance with the same
+// smooth union the circle tiles use. Runs whatever `vision_circle_count` is: a
+// lantern clears fog even where no vision circle reaches.
+float vision_field_fold_lanterns(vec2 _world_pos, float _min_d) {
+	for (int _li = 0; _li < vision_lantern_count; _li++) {
+		vec4 _l = texelFetch(vision_lanterns_tex, ivec2(_li, 0), 0);
+		float _d = distance(_world_pos, _l.xy) / max(_l.z, 1.0);
+		_min_d = _vision_field_smin(_min_d, _d, vision_union_smoothness);
+	}
+	return _min_d;
+}
+
 // Darkness in [0,1] at `_world_pos`: 0 inside the clear zone, smooth 0→1
 // across the fade zone, 1 beyond every vision source's radius. Mirrors
 // `fog.gdshader`'s fragment() exactly (minus the frontier-halo term, which is
@@ -90,6 +108,7 @@ float vision_field_darkness(vec2 _world_pos) {
 			}
 		}
 	}
+	_min_d = vision_field_fold_lanterns(_world_pos, _min_d);
 	float _fade_start = 1.0 - max(vision_falloff, 1e-4);
 	return smoothstep(_fade_start, 1.0, _min_d);
 }

@@ -278,6 +278,14 @@ vision_tile_indices_tex={
 "type": "sampler2D",
 "value": ""
 }
+vision_lanterns_tex={
+"type": "sampler2D",
+"value": ""
+}
+vision_lantern_count={
+"type": "int",
+"value": 0
+}
 vision_field_enabled={
 "type": "bool",
 "value": false

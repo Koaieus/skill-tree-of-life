@@ -302,7 +302,9 @@ func _on_node_statuses_changed(node: SkillNode) -> void:
 ## Whether [param e] sits in the local viewer's camp — the one question a
 ## view-only layer ([LanternLayer]) asks. Null is never in it.
 func is_viewer_camp(e: Entity) -> bool:
-	return false
+	if e == null:
+		return false
+	return _camps_of(_effective_viewers()).has(e.faction.id if e.faction != null else &"")
 
 
 ## The camps ([member Faction.id], `&""` none) of [param viewers] — the keys
