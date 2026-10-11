@@ -121,6 +121,19 @@ Haiku is priced a fifth of Opus and never carries the pass's context.
    reported as `no stamp (not Ready)`, not `FAILED` — those issues carry
    none by design, and the noise trained callers to skim the drift column
    (2026-10-11 scan: every `Needs design` child in afff5b02 flagged).
+10. **A body is verified against the order, by length.** A new issue is
+    two calls — a stub create, then the body edit — and the stub *looks*
+    filed: a dropped edit leaves an issue with a title, labels, parent and
+    status, and nothing to read. So step 3 names the body fill per issue,
+    first, before any comment; the stub says what it is (`Clerk stub — body
+    not posted yet.`); and the verify pass walks the *order's* body files,
+    not the clerk's memory of its own posts — reads back each body's length
+    against its `.resolved` file and fails the line when it is still the
+    stub or shorter. The new-issue report line carries `body <file>
+    <got>/<want>c`, so a missing body shows as a missing field, not silence.
+    A self-referential check ("re-read what you posted") passes vacuously on
+    a post that never happened. The stub stays: it is what keeps a forward
+    handle from ever being posted (law 2).
 
 ## Fold digest
 
@@ -130,6 +143,7 @@ Haiku is priced a fifth of Opus and never carries the pass's context.
 | 2026-10-03 | friction (59cf3f36) | handles resolved in new-issue bodies but not in comments on existing issues → law 2: every posted file is resolved, body or comment |
 | 2026-10-06 | autopsy (b27f3a88) | eleven bodies shipped with raw `#@` tokens, one already `Ready` → the `#{name}` sigil the shim refuses (already landed) plus law 2's closing re-read |
 | 2026-10-11 | owner + scans | manifest grammar → prose work order (law 2); vocabulary table (law 8); `no stamp` not a failure off `Ready` (law 9) |
+| 2026-10-11 | autopsy (52517a89) | two new issues left on the stub body, reported clean → law 10: body fill named per issue in step 3, self-describing stub, verify by length against the order's files, `body <file> <got>/<want>c` on the report line |
 
 ## What the agent file must not contain
 
@@ -147,3 +161,4 @@ beyond the one clause that makes it recognisable.
 | 2026-10-03 | owner | on leaving `--remove-parent` out of the clerk: "if the clerk doesn't do it then a more costly agent must" | 2 |
 | 2026-10-10 | corpus scan (54 sessions, 81 clerk runs; `docs/corpus/2026-10-10-swarmify-spec-weight-headless-clerk.md`) | `clerk.md` opened by the orchestrator in 25 of 54 sessions (22 before the grammar was mirrored into swarmify); final-report SKIPPED/FAILED 4 of 81 — 2 GraphQL quota, 2 manifest shape (a missing spec file; "no documented command to remove blockers"); in-run recoveries mostly vocabulary | 2, 8 |
 | 2026-10-01 | reticle pass (#1284, six children) | creates, comments and body edits landed; then every `--add-blocked-by`, `milestone` and `issue view` died on "API rate limit already exceeded" — the hourly GraphQL quota, spent by `gh-project status <n>` reads at ~607 points each (now ~1). The clerk tried `sleep 60`, a `rate_limit` poll loop and backgrounded `gh-project` calls hung in the shim's backoff; the parent session finished by hand, links via REST `dependencies/blocked_by`. Owner: "The clerk charter updating to direct using REST first might be good nonetheless" | 7 |
+| 2026-10-11 | /swarmify #1254 (Scout row), clerk in 52517a89 | the order said "body lantern.md" / "body statshape.md" for two new issues; the clerk created #1557 and #1558 with the stub "Spec follows.", resolved and posted only the #1393 comment (the one file the order said had handles), re-read only that comment, and reported both creates clean with no SKIPPED/FAILED. The owner found it opening #1558 in a fresh swarmify session; bodies repaired by hand | 10 |

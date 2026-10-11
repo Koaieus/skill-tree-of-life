@@ -33,7 +33,7 @@ Substitute with plain `sed` (BRE, braces literal) —
 
 | The order says | You run |
 |---|---|
-| new issue `{h}` "Title", under #p, label l | `gh issue create --title "<title>" --body "Spec follows." [--parent <p>] [--label <l>]` — capture the number from the URL |
+| new issue `{h}` "Title", under #p, label l | `gh issue create --title "<title>" --body "Clerk stub — body not posted yet." [--parent <p>] [--label <l>]` — capture the number from the URL; the stub is a placeholder that **owes** a body edit |
 | body is F | `gh issue edit <n> --body-file <F.resolved>` |
 | post F as a comment | `gh issue comment <n> --body-file <F.resolved>` |
 | move it under #p / detach it | read the old parent first (`gh issue view <n> --json parent --jq .parent.number`), then `gh issue edit <n> --parent <p>` / `--remove-parent`; then the old parent's open children: `gh issue view <old> --json subIssuesSummary --jq '.subIssuesSummary.total - .subIssuesSummary.completed'` |
@@ -59,15 +59,22 @@ Backlog — never `add` it.
    its line or the order's default skips that status. Report each; the rest
    still runs.
 2. **Create every new issue**, in order, with the stub body.
-3. **Resolve and post** every body and comment, now that every handle has a
-   number.
+3. **Fill every body, then post every comment**, now that every handle has
+   a number. First, for **each** issue the order gives a body file — every
+   new issue at least — make `<F>.resolved` (even with no handle in it) and
+   run `gh issue edit <n> --body-file <F.resolved>`; then the comments. An
+   issue left on the stub is the worst failure you can have: it looks filed.
 4. **Relations**, then **board per issue** (milestone, labels, status last).
 5. **Drift checks.** `no stamp` on an issue going `ready` is `FAILED`; on an
    issue left in `needs-design`, or a hub, it is `no stamp (not Ready)`.
    Silence or a drift list is fine (report the list).
 6. **refresh**, if asked. **hygiene**, always last of the writes.
-7. **Verify:** re-read every body and comment you posted and confirm no `#{`
-   survives; `gh issue view <n> --json number,title,labels,milestone` and
+7. **Verify:** walk the **order's** body files, not your memory of what
+   you posted: per issue, `gh issue view <n> --json body --jq '.body|length'`
+   against `wc -c < <F.resolved>`. Still the stub, or shorter than the file
+   (allow a few bytes for a trailing newline), is
+   `FAILED: #n body <F> — <got>/<want> chars`. Re-read every body and comment
+   you posted and confirm no `#{` survives; `gh issue view <n> --json number,title,labels,milestone` and
    `mise gh-project -- status <n>` per touched issue; for a new child or a
    re-parent, confirm the parent with
    `gh api graphql -f query='{repository(owner:"Koaieus",name:"skill-tree-of-life"){issue(number:<p>){subIssues(first:50){nodes{number}}}}}'`.
@@ -111,8 +118,8 @@ then the checks, then anything not done:
 
 ```
 #1130 comment posted · labels −design −blocked · hub (status left to derivation) · drift ok
-#1131 {state} created · parent #1130 ✓ · Ready · M3 · drift ok
-#1132 {wiring} created · parent #1130 ✓ · blocked-by #1131 · Ready · M3 · drift ok
+#1131 {state} created · body state.md 2841/2841c · parent #1130 ✓ · Ready · M3 · drift ok
+#1132 {wiring} created · body wiring.md 1907/1907c · parent #1130 ✓ · blocked-by #1131 · Ready · M3 · drift ok
 #1128 re-parented #1120 → #1130 ✓ · old parent #1120 has 0 open children · drift ok
 #1129 detached from #1120 ✓ · old parent #1120 has 2 open children
 #1127 blockers cleared · Needs design · drift no stamp (not Ready)
@@ -121,5 +128,8 @@ hygiene: clean
 SKIPPED: #1133 status — no milestone in the order
 FAILED: #1131 blocked-by 1101 — "could not resolve to an Issue"
 ```
+
+A line for an issue the order gave a body carries `body <file> <got>/<want>c`
+from the step-7 read-back; a `created` line without it is not clean.
 
 No prose, no summary of the specs, no suggestions.
