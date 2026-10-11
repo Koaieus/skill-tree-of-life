@@ -31,6 +31,7 @@ docs/handoffs/.whip.lock
 # tracked; per-platform binaries are BUILT, not committed — `mise run
 # native:build` (#1303). Mandatory since #847: a checkout without them
 # push_errors on every melee swing (see attack/melee/sim/blade_sim.gd).
+# New worktrees get a copy via .worktreeinclude.
 /native/bin/
 /native/.sconsign.dblite
 /native/src/*.os

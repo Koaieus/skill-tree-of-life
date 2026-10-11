@@ -153,8 +153,10 @@ in tests and benches.
   gitignored.
 - **Compiled locally, always.** There is no CI. `mise install`'s postinstall
   runs `native:build`; nothing is fetched or published, so a fresh checkout can
-  never pick up a stale binary. `mise run worktree:new` copies `native/bin/`
-  from the source checkout, or builds in the new worktree.
+  never pick up a stale binary. A new worktree gets `native/bin/` copied in
+  from `.worktreeinclude` — by Claude Code for agent worktrees, by `mise run
+  worktree:new` otherwise (which builds in the new worktree if there is
+  nothing to copy).
 - **The supported matrix is what is declared and built:** `blade_sim.gdextension`
   declares four keys (linux and windows x86_64, debug and release). Declare
   nothing you do not build; add a target in the same change as its binary.

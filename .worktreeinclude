@@ -1,0 +1,11 @@
+# Gitignored files every new worktree needs, in gitignore syntax. Claude Code
+# copies these into the worktrees it makes itself (Agent `isolation: worktree`,
+# `--worktree`); `mise run worktree:new` reads this same file, so it is the one
+# list for both.
+#
+# COPIED, never symlinked: a linked native/bin would let a worktree's
+# `native:build` overwrite the main checkout's binary.
+
+# The blade solver GDExtension — gitignored build output, but every melee
+# swing push_errors without it (see docs/domain/blade-native.md).
+/native/bin/

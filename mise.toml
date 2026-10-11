@@ -313,20 +313,25 @@ fi
 
 git worktree add "$dir" -b "$slug"
 
-# native/bin/ is gitignored build output, so a fresh worktree has no compiled
-# GDExtension — and since #847 the binary is mandatory: every simulated swing
-# push_errors and test_blade_goldens.gd fails outright without it. Seed the
-# binary so a new worktree works from its first `mise run test`.
+# Seed the gitignored files a worktree needs — `.worktreeinclude`, the same
+# list Claude Code copies into the agent worktrees it makes itself. Chiefly
+# native/bin/: since #847 the blade GDExtension is mandatory (every simulated
+# swing push_errors, test_blade_goldens.gd fails outright without it).
 #
 # COPY, not a symlink, and that is load-bearing: a symlinked native/bin would
 # make `mise run native:build` inside a worktree write the MAIN checkout's
 # binary, and a worktree must never write there. A stale copy is cheap to
 # refresh; a clobbered primary is not.
-if [ -d native/bin ] && [ -n "$(ls -A native/bin 2>/dev/null)" ]; then
-  mkdir -p "$dir/native/bin"
-  cp -a native/bin/. "$dir/native/bin/"
-  echo "✓ native binary seeded from this checkout ($(ls -1 native/bin | wc -l | tr -d ' ') file(s))"
-else
+seeded=0
+while IFS= read -r f; do
+  mkdir -p "$dir/$(dirname "$f")"
+  cp -a "$f" "$dir/$f"
+  seeded=$((seeded + 1))
+done < <(git ls-files --others --ignored --exclude-from=.worktreeinclude)
+if [ "$seeded" -gt 0 ]; then
+  echo "✓ seeded $seeded file(s) from .worktreeinclude"
+fi
+if [ ! -d "$dir/native/bin" ] || [ -z "$(ls -A "$dir/native/bin" 2>/dev/null)" ]; then
   # The source checkout has nothing to copy — fall back to building from
   # source (#1303: compiled locally, always; there is nothing left to fetch).
   # Run IN the new worktree (its own mise.toml, its own $MISE_PROJECT_ROOT) so
