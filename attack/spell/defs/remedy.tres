@@ -1,0 +1,115 @@
+[gd_resource type="Resource" script_class="SpellDef" format=3]
+
+[ext_resource type="Script" path="res://attack/spell/spell_def.gd" id="1_spell"]
+[ext_resource type="Script" path="res://attack/spell/on_hit/on_hit_effect.gd" id="2_effect"]
+[ext_resource type="Script" path="res://attack/spell/on_hit/cure_effect.gd" id="3_cure_fx"]
+[ext_resource type="Script" path="res://attack/spell/cure.gd" id="4_cure"]
+[ext_resource type="Script" path="res://attack/spell/cure_entry.gd" id="5_entry"]
+[ext_resource type="Resource" path="res://effects/status/poison.tres" id="6_poison"]
+[ext_resource type="Resource" path="res://effects/status/bleeding.tres" id="7_bleeding"]
+[ext_resource type="Resource" path="res://effects/status/weakened.tres" id="8_weakness"]
+[ext_resource type="Resource" path="res://effects/status/blindness.tres" id="9_blindness"]
+[ext_resource type="Script" path="res://attack/spell/propagation/propagation_config.gd" id="10_config"]
+[ext_resource type="Script" path="res://attack/spell/propagation/spread/need_split_spread.gd" id="11_spread"]
+[ext_resource type="Script" path="res://attack/spell/propagation/reducer/sum_damage_reducer.gd" id="12_reducer"]
+[ext_resource type="Script" path="res://attack/spell/propagation/progression/multiply_progression.gd" id="13_prog"]
+[ext_resource type="Script" path="res://attack/spell/propagation/filter/composite_filter.gd" id="14_composite"]
+[ext_resource type="Script" path="res://attack/spell/propagation/filter/owner_filter.gd" id="15_owner"]
+[ext_resource type="Script" path="res://attack/spell/propagation/filter/status_filter.gd" id="16_status"]
+[ext_resource type="Script" path="res://attack/spell/propagation/filter/propagation_filter.gd" id="17_filter_base"]
+[ext_resource type="Script" path="res://attack/targeting/node_targeting.gd" id="18_targeting"]
+[ext_resource type="Script" path="res://effects/status/status_def.gd" id="24_status_def"]
+[ext_resource type="Script" path="res://attack/range_finder/euclidean_range_finder.gd" id="19_range"]
+[ext_resource type="Script" path="res://skill_node/visuals/emblem/texture_carve_shape.gd" id="20_tcs"]
+[ext_resource type="Texture2D" uid="uid://bh7gjwa8gtjwe" path="res://assets/icons/spells/hospital_cross.png" id="21_icon"]
+[ext_resource type="Texture2D" uid="uid://kiwpmieety4s" path="res://assets/emblem_luts/hospital_cross.png" id="22_lut"]
+[ext_resource type="PackedScene" path="res://ui/vfx/coordinator/spells/healing_beam_coordinator.tscn" id="23_vfx"]
+[ext_resource type="Resource" path="res://identity/defs/spell_remedy.tres" id="identity_ref"]
+
+[sub_resource type="Resource" id="carve_remedy"]
+script = ExtResource("20_tcs")
+source_texture = ExtResource("21_icon")
+baked_lut = ExtResource("22_lut")
+
+[sub_resource type="Resource" id="entry_poison"]
+script = ExtResource("5_entry")
+status = ExtResource("6_poison")
+rate = 1.0
+
+[sub_resource type="Resource" id="entry_bleeding"]
+script = ExtResource("5_entry")
+status = ExtResource("7_bleeding")
+rate = 0.5
+
+[sub_resource type="Resource" id="entry_weakness"]
+script = ExtResource("5_entry")
+status = ExtResource("8_weakness")
+rate = 0.5
+
+[sub_resource type="Resource" id="entry_blindness"]
+script = ExtResource("5_entry")
+status = ExtResource("9_blindness")
+rate = 0.5
+
+[sub_resource type="Resource" id="cure_table"]
+script = ExtResource("4_cure")
+entries = Array[ExtResource("5_entry")]([SubResource("entry_poison"), SubResource("entry_bleeding"), SubResource("entry_weakness"), SubResource("entry_blindness")])
+
+[sub_resource type="Resource" id="cure_fx"]
+script = ExtResource("3_cure_fx")
+cure = SubResource("cure_table")
+heal_per_stack = 1.0
+
+[sub_resource type="Resource" id="filter_friendly"]
+script = ExtResource("15_owner")
+ownership_filter = 6
+
+[sub_resource type="Resource" id="filter_infected"]
+script = ExtResource("16_status")
+statuses = Array[ExtResource("24_status_def")]([ExtResource("6_poison"), ExtResource("7_bleeding"), ExtResource("8_weakness"), ExtResource("9_blindness")])
+
+[sub_resource type="Resource" id="filter_both"]
+script = ExtResource("14_composite")
+children = Array[ExtResource("17_filter_base")]([SubResource("filter_friendly"), SubResource("filter_infected")])
+
+[sub_resource type="Resource" id="spread_need"]
+script = ExtResource("11_spread")
+cure = SubResource("cure_table")
+
+[sub_resource type="Resource" id="reducer_sum"]
+script = ExtResource("12_reducer")
+
+[sub_resource type="Resource" id="prog_flat"]
+script = ExtResource("13_prog")
+factor = 1.0
+
+[sub_resource type="Resource" id="prop_remedy"]
+script = ExtResource("10_config")
+filter = SubResource("filter_both")
+spread = SubResource("spread_need")
+reducer = SubResource("reducer_sum")
+max_hops = 4.0
+hop_damage = SubResource("prog_flat")
+
+[sub_resource type="Resource" id="range_euclid"]
+script = ExtResource("19_range")
+
+[sub_resource type="Resource" id="targeting_friendly"]
+script = ExtResource("18_targeting")
+ownership_filter = 6
+range_finder = SubResource("range_euclid")
+
+[resource]
+script = ExtResource("1_spell")
+id = &"remedy"
+name = "Remedy"
+tagline = "A cure dose that follows the infection through your territory, healing as it clears."
+description = "Cures stacks on a friendly node — poison one for one, bleeding, weakness and blindness at half rate — healing 1 per stack cleared. Whatever the dose does not spend flows on to infected friendly neighbours, split by how sick each is."
+identity = ExtResource("identity_ref")
+carve_shape = SubResource("carve_remedy")
+min_degree = 3
+power = 2.0
+propagation = SubResource("prop_remedy")
+on_hit_effects = Array[ExtResource("2_effect")]([SubResource("cure_fx")])
+vfx_coordinator_scene = ExtResource("23_vfx")
+targeting = SubResource("targeting_friendly")

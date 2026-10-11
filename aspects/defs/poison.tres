@@ -1,4 +1,4 @@
-[gd_resource type="Resource" script_class="Aspect" load_steps=9 format=3]
+[gd_resource type="Resource" script_class="Aspect" load_steps=10 format=3]
 
 [ext_resource type="Script" path="res://aspects/aspect.gd" id="1_aspect"]
 [ext_resource type="Script" path="res://attack/spell/spell_def.gd" id="1_spell_def"]
@@ -10,6 +10,7 @@
 [ext_resource type="Resource" path="res://attack/spell/defs/venom_burst.tres" id="7_venom"]
 [ext_resource type="Resource" path="res://attack/spell/defs/miasma.tres" id="8_miasma"]
 [ext_resource type="Resource" path="res://attack/spell/defs/pestilence.tres" id="9_pestilence"]
+[ext_resource type="Resource" path="res://attack/spell/defs/remedy.tres" id="10_remedy"]
 
 [resource]
 script = ExtResource("1_aspect")
@@ -18,4 +19,4 @@ stat = ExtResource("3_stat")
 status = ExtResource("4_status")
 ammo = ExtResource("5_ammo")
 addon_scene = ExtResource("6_addon")
-spells = Array[ExtResource("1_spell_def")]([ExtResource("7_venom"), ExtResource("8_miasma"), ExtResource("9_pestilence")])
+spells = Array[ExtResource("1_spell_def")]([ExtResource("7_venom"), ExtResource("8_miasma"), ExtResource("9_pestilence"), ExtResource("10_remedy")])
