@@ -838,8 +838,9 @@ func exert_core_move() -> void:
 func resolve_turn_end() -> void:
 	_combat.tick_statuses()
 	_tick_owned_node_statuses()
-	# The tick step is one beat: a DoT kill's spill lands before the
-	# diffusion sweep reads the field.
+	# The tick step is one beat: a DoT kill's spill lands, and the sandpile
+	# settles (its only topple this turn end: SandpileSpread.on_tick is
+	# empty), before the diffusion sweep reads the field.
 	CombatWorld.live().flush_removals()
 	_spread_owned_node_statuses()
 

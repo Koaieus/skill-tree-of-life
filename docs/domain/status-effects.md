@@ -28,8 +28,9 @@ bypass are [defense-axes.md](defense-axes.md).
   is set (`FlatDiffusion` seeps 1 stack past a crowding threshold,
   `FractionDiffusion` a floored share of the gap, `SandpileSpread` topples every
   host at `T = masked degree + burn + keep` to its abelian fixed point and returns
-  a `ToppleResult` of per-node net transfers plus each host's topple count and `T`,
-  which a settle driver hands to `StatusDef._on_burst` — corruption's only damage;
+  a `ToppleResult` of per-node net transfers plus each host's topple count and `T`
+  from `stabilize`; its `on_tick` returns nothing, because the settle driver
+  below owns every topple and the turn end's flush already ran it;
   senders are the owned set,
   landed through `SpreadApplier` on the live world; a null slot pays nothing).
   - It runs every played-out turn, the first included; never on `abandon_turn` (a
@@ -63,6 +64,25 @@ bypass are [defense-axes.md](defense-axes.md).
   Curse and Bleeding are authored with `SpillSpread` (both triggers, 1.0, Mine);
   `SandpileSpread` spills
   nothing (a removed pile vanishes).
+- **Sandpile settle** (corruption: `SandpileSpread`, burn 1, keep 0, Mine|Ally).
+  `CombatWorld.settle_topples()` runs at the tail of every `flush_removals()`, so a
+  pile pops inside whatever beat pushed it to `T` — a landing, a spell wave, a
+  dealloc/allocate command, the turn end — a degree change included, with no dirty
+  set. A round, per sandpile row `(def.id, key)`: `stabilize` at the current degrees
+  over every allocated non-core holder plus its allocated non-core neighbours, land
+  the transfers through `SpreadApplier`, then `StatusDef._on_burst` per toppled host
+  (a normal hit: a depletion notes a removal). The flush loops spill → settle until a
+  round topples nothing, so a burst kill's stacks vanish and the new degrees settle in
+  the same beat; 32 rounds (`settle_round_cap`) is a `push_error` guard. The core
+  never topples here (#1568). Hosts: a shadow scans only the slices it has minted (an
+  unminted node kept the live world's settled pile and degree); the live world walks
+  every entity's owned nodes. **Sync**: inside an attack the beat's first fresh
+  landing records the settle on `HitInstance.settle` (`CombatWorld.SettleOp`s, in
+  order, a later round's burst-kill spill included; wire columns `t_*` in
+  `AttackRecord`), and a non-empty `settle` marks a rebuilt hit recorded — the replay
+  lands the ops and computes nothing. Every other beat (turn end, dealloc command)
+  is reproduced. Known gap: a replayed burst kill takes `BattleSystem`'s derive
+  branch for its cascade, like a turn-end DoT kill.
 - **Sync.** `network/graph_snapshot.gd` carries `(status id, power)` rows in resync,
   and `WorldFingerprint` folds them.
 - **Roster.** `effects/status/*.gd`: poison, corruption, curse, wither, bleeding,
