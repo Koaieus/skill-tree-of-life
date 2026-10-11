@@ -7,6 +7,7 @@
 [ext_resource type="Resource" path="res://effects/status/curse.tres" id="4_status"]
 [ext_resource type="Resource" path="res://attack/ammo/types/curse.tres" id="5_ammo"]
 [ext_resource type="Resource" path="res://attack/spell/defs/malediction.tres" id="7_malediction"]
+[ext_resource type="PackedScene" path="res://skill_node/addons/defs/doombrand_addon.tscn" id="8_addon"]
 
 [resource]
 script = ExtResource("1_aspect")
@@ -15,3 +16,4 @@ stat = ExtResource("3_stat")
 status = ExtResource("4_status")
 ammo = ExtResource("5_ammo")
 spells = Array[ExtResource("1_spell_def")]([ExtResource("7_malediction")])
+addon_scene = ExtResource("8_addon")
