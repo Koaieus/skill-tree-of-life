@@ -13,7 +13,7 @@ const _DIR := "res://effects/status/"
 const _DESCRIPTIONS := {
 	&"armor_break": "The node's armor is chipped away: -1 per stack, and one stack fades each turn.",
 	&"blindness": "The node sees and senses less; the deeper the blindness, the slower its recovery starts.",
-	&"corruption": "Every stack eats 2% of the node's max health each turn, unmitigated; the stacks never fade and never cap.",
+	&"corruption": "A pile that hurts only when it topples: each topple deals its threshold times 2% of the node's max health, unmitigated. Nothing ticks; the stacks never fade and never cap.",
 	&"curse": "Every stack raises the least damage a hit can deal to this node by 1; stacks fall by 1 each turn and never cap.",
 	&"poison": "Every stack deals 1 unmitigated damage each turn; one stack fades each turn and they never cap.",
 	&"scout": "Scout arrows lit up this node's surroundings for their camp: the disc grows with the root of the stacks, only your own camp's stacks count, and one stack fades each turn.",
