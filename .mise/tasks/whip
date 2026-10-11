@@ -212,6 +212,11 @@ def warnings(st):
     return w
 
 
+def wasted_turns(st):
+    """Notes are `<date> <time> <text>`; a scheduled wake that found its run finished notes `wasted: <wake id>`."""
+    return sum(1 for n in st["notes"] if n.split(" ", 2)[-1].startswith("wasted:"))
+
+
 def render(st):
     md = st["_path"][:-5] + ".md"
     wd = (f"watchdog pending: {', '.join(p['action'] for p in st['pending'])}" if st.get("pending") else
@@ -231,6 +236,7 @@ def render(st):
         L.append(f"| {n} | {l['session'][:8]} | {l['kind']} | {l.get('train', '-')} | {l['launched']} | {l['state']} | {l.get('last', '')} |")
     if st.get("requests"):
         L += ["", "## Requests (performed by the next watchdog tick)"] + [f"- {r['kind']} {r.get('name') or r.get('session', '')[:8]}" for r in st["requests"]]
+    if wasted_turns(st): L += ["", f"Wasted top turns: {wasted_turns(st)}"]
     L += ["", "## Notes"] + [f"- {n}" for n in st["notes"]] + ["", "## Events"] + [f"- {e}" for e in st["events"][-60:]]
     with open(md, "w") as f:
         f.write("\n".join(L) + "\n")
@@ -760,7 +766,8 @@ def cmd_max_leads(a):
 
 
 def cmd_note(a):
-    st = current(); st["notes"].append(f"{now()} {a.text}"); save(st); event(st, f"note: {a.text[:80]}")
+    # any_recent: a wake can fire into a finished run, past midnight (swarm-train law 18) and still must land its `wasted:` note
+    st = current(any_recent=True); st["notes"].append(f"{now()} {a.text}"); save(st); event(st, f"note: {a.text[:80]}")
 
 
 def cmd_show(a):
@@ -928,6 +935,7 @@ def write_report(st):
         ["", "## Orphaned In progress"] + ([f"- #{n} {T(n)} — left In progress by a dead lead; check its worktree/branch" for n in orphaned] or ["- none"]) + \
         ["", "## Dropped by the owner"] + ([f"- #{n} {T(n)}" for n in dropped] or ["- none"]) + \
         ["", f"## Filed since start ({since})", filed or "- none", "", "## Needs the owner"] + ([f"- {o}" for o in owner] or ["- none"]) + \
+        (["", f"Wasted top turns: {wasted_turns(st)}"] if wasted_turns(st) else []) + \
         ["", "## Incidents"] + ([f"- {e}" for e in inc] or ["- none"]) + \
         ["", "## Cost (agent-cost, latest 20)", "```"] + cost + ["```", "",
          ("Tree transport: no daemon, timer or session was ever started; nothing to tear down." if tree(st) else
