@@ -308,7 +308,9 @@ Each cell links its cell issue (`<Concept> × <Facet>`, a child of the row hub i
   spell, as in spelling out, shit-talking ... words do _spread_"*. The payload
   flows downhill by `min_damage_taken`, forking on ties; neighbours that do
   not win the lowest-floor pick take a minor fraction (*"words never travel in
-  a straight line"*) and end there. Two visits per node, the stacks of both
+  a straight line"*) and end there. A minor share rounds down; below one stack the
+  neighbour is not visited at all (*"3×0.25 = 0 stacks && don't even go
+  there"*). Two visits per node, the stacks of both
   landing (*"a fun cursed-reply incurring more debt"*).
 - **Spell: Gloomflux.** 1 damage; first adds a low stack count (*"most nodes
   have 0 curse, and ×2 wouldn't do anything to those"*), then doubles the
