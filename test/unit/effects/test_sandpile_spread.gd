@@ -267,14 +267,12 @@ func test_mine_mask_leaves_the_ally_out() -> void:
 
 # ── hooks ────────────────────────────────────────────────────────────────────
 
-func test_on_tick_lands_the_stabilized_transfers() -> void:
+func test_on_tick_moves_nothing_the_settle_driver_owns_topples() -> void:
 	var rule := _rule()
 	var t := 1 + rule.burn + rule.keep
 	var f := _field([t, 0], [[0, 1]])
-	var ticked := rule.on_tick(f)
-	assert_eq(ticked.size(), rule.stabilize(f).transfers.size(), "on_tick is stabilize's transfers")
-	SpreadApplier.apply(_def, ticked)
-	assert_eq(_heights(_pool.slice(0, 2)), [rule.keep, 1])
+	assert_gt(rule.stabilize(f).transfers.size(), 0, "precondition: the pile is unstable")
+	assert_eq(rule.on_tick(f).size(), 0, "CombatWorld.settle_topples topples; the turn sweep does not")
 
 
 func test_on_removed_spills_nothing() -> void:
