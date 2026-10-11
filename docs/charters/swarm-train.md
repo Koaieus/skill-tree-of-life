@@ -105,25 +105,22 @@ top session  (/swarm-train: trains, ledger, tick, relief, report)
 
 **The tick** (*designed*)
 
-8. **The wake is scheduled, one-shot, one at a time — never a cron, never
-   polled, never left behind.** A recurring Routine outlives its run; so does
-   a one-shot the top cannot cancel (run #1540, 2026-10-10: three boundary
-   wakes armed at start, `delete_trigger` refused "requires approval" in a
-   bypass session, two fired into the finished run, one uncached — owner,
-   2026-10-11: *"So you're forced to take uncached turns? Heresy."*). So at
-   most two wakes are ever armed: **the next tick** (`now + tick-minutes`,
-   inside the cache hour) and **the next window boundary** (≈ 5 h 05 after
-   the last one; the only spent-window insurance), each re-armed by the wake
-   that consumes it, and only while the run is live. The remote trigger
-   tools are allowlisted in `.claude/settings.json` (owner, 2026-10-11) so
-   the top cancels its own wakes at run end — but that is unverified, so
-   the start proves it: one throwaway `send_later` and its immediate
-   `delete_trigger`; refused → no boundary wake is armed (the tick chain
-   alone, so a spent window pauses the run until the owner types) and the
-   refusal is a `note`. A refused cancel later is a `note`, never a retry. A stray wake into a finished ledger is one
-   turn: read the header, stop, arm nothing. `/loop` self-paced is the same
-   shape without the server. Which wake survives a spent window is still
-   unmeasured (#1540 never hit one).
+8. **One wake is armed at a time — the next tick — and nothing ever
+   needs cancelling.** A recurring Routine outlives its run; so does any
+   one-shot the top cannot cancel, and it cannot: `delete_trigger` was
+   refused "requires approval" in a bypass session (run #1540, 2026-10-10;
+   two wakes fired into the finished run, one uncached — owner, 2026-10-11:
+   *"So you're forced to take uncached turns? Heresy."*), and an allow rule
+   is not expected to clear it (owner, 2026-10-11: *"99% sure the allow
+   wouldn't fix it. Notorious 'safety'"*). So the top arms only the next
+   tick at `now + tick-minutes`, re-armed by the tick that consumes it while
+   the run is live. A run that ends leaves at most that one wake, which
+   fires inside the cache hour into a finished ledger: one cheap turn that
+   reads the header, arms nothing and stops. **Rejected: window-boundary
+   wakes** (≈ 5 h 05) — the only spent-window insurance, but uncached by
+   construction and stranded by an early end; the price of dropping them is
+   that a spent window pauses the run until the owner types (never yet
+   hit). `/loop` self-paced is the same shape without the server.
 8a. **The tick interval sits inside the prompt-cache lifetime.** The cache
    lives one hour from the last request; a tick at 60 min plus scheduler
    jitter misses it every time and pays the uncached rate on the whole
