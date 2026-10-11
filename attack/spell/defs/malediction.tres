@@ -13,6 +13,9 @@
 [ext_resource type="PackedScene" path="res://ui/vfx/coordinator/spells/spark_coordinator.tscn" id="10_vfx"]
 [ext_resource type="PackedScene" path="res://attack/range_finder/visuals/range_ring.tscn" id="11_slqml"]
 [ext_resource type="Resource" path="res://identity/defs/spell_malediction.tres" id="identity_ref"]
+[ext_resource type="Script" path="res://attack/spell/propagation/spread/rumour_spread.gd" id="12_rumour"]
+[ext_resource type="Script" uid="uid://kvd7y10ttqsx" path="res://attack/spell/propagation/ranker/stat_ranker.gd" id="13_sr"]
+[ext_resource type="Script" uid="uid://swy0lo6vcopg" path="res://attack/spell/propagation/reducer/sum_damage_reducer.gd" id="14_sum"]
 
 [sub_resource type="Resource" id="curse_malediction"]
 script = ExtResource("3_affinity")
@@ -22,9 +25,25 @@ innate = 5
 [sub_resource type="Resource" id="filter_enemy"]
 script = ExtResource("5_filter")
 
+[sub_resource type="Resource" id="ranker_floor"]
+script = ExtResource("13_sr")
+stat_id = &"min_damage_taken"
+
+[sub_resource type="Resource" id="spread_rumour"]
+script = ExtResource("12_rumour")
+ranker = SubResource("ranker_floor")
+
+[sub_resource type="Resource" id="reducer_sum"]
+script = ExtResource("14_sum")
+stack_fold = 1
+
 [sub_resource type="Resource" id="prop_malediction"]
 script = ExtResource("4_config")
 filter = SubResource("filter_enemy")
+spread = SubResource("spread_rumour")
+reducer = SubResource("reducer_sum")
+max_hops = 4.0
+max_visits_per_node = 2
 
 [sub_resource type="Resource" id="range_3hop"]
 script = ExtResource("7_range")
@@ -37,8 +56,8 @@ range_finder = SubResource("range_3hop")
 script = ExtResource("1_spell")
 id = &"malediction"
 name = "Malediction"
-tagline = "Curse one enemy node: every stack raises the least damage any hit deals it."
-description = "Curse a single enemy-occupied node within 3 hops with 5 stacks: each stack raises the floor on damage it takes by 1 (one stack fades each turn, never cap)."
+tagline = "A curse that runs downhill to the lowest floor; neighbours hear a little."
+description = "Curse an enemy node within 3 hops with 5 stacks, then let the rumour run up to 4 hops into enemy nodes with an equal or lower damage floor, only the lowest of them, forking on ties and twice over any node. Every other enemy neighbour hears a quarter of the stacks, rounded down, and passes nothing on. Each stack raises the floor on damage the node takes by 1 (one stack fades each turn, never cap)."
 identity = ExtResource("identity_ref")
 power = 0.4
 propagation = SubResource("prop_malediction")
