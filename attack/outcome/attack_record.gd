@@ -262,6 +262,9 @@ var event_hits: Array[PackedInt32Array] = []
 var gate_counts := PackedInt32Array()
 var gate_from := PackedInt32Array()
 var gate_to := PackedInt32Array()
+var cure_counts := PackedInt32Array()
+var cure_defs := PackedStringArray()
+var cure_cleared := PackedFloat64Array()
 var aim_origin: int = 0
 var aim_geom := PackedFloat64Array()
 
@@ -315,6 +318,9 @@ static func wire_fields() -> Array[WireFields.Field]:
 		WireFields.Field.new(&"gate_counts", TYPE_PACKED_INT32_ARRAY).as_key(KEY_GATE_COUNT).omitted_at_default(),
 		WireFields.Field.new(&"gate_from", TYPE_PACKED_INT32_ARRAY).as_key(KEY_GATE_FROM).omitted_at_default(),
 		WireFields.Field.new(&"gate_to", TYPE_PACKED_INT32_ARRAY).as_key(KEY_GATE_TO).omitted_at_default(),
+		WireFields.Field.new(&"cure_counts", TYPE_PACKED_INT32_ARRAY).as_key(KEY_CURE_COUNT).omitted_at_default(),
+		WireFields.Field.new(&"cure_defs", TYPE_PACKED_STRING_ARRAY).as_key(KEY_CURE_DEF).omitted_at_default(),
+		WireFields.Field.new(&"cure_cleared", TYPE_PACKED_FLOAT64_ARRAY).as_key(KEY_CURE_CLEARED).omitted_at_default(),
 	]
 
 
@@ -390,6 +396,13 @@ static func capture(outcome: AttackOutcome, graph: Graph) -> Dictionary:
 			for g in flip.gates:
 				r.gate_from.append(_id_of(g.from if g != null else null, graph))
 				r.gate_to.append(_id_of(g.to if g != null else null, graph))
+		var cure := hit as CureInstance
+		if cure != null:
+			r.cure_counts.append(cure.defs.size())
+			for k in cure.defs.size():
+				var cdef := cure.defs[k]
+				r.cure_defs.append(cdef.resource_path if cdef != null else "")
+				r.cure_cleared.append(cure.cleared[k] if k < cure.cleared.size() else 0.0)
 	for event in outcome.timeline:
 		r.beats.append(event.beat)
 		r.visits.append(event.visit_index)
@@ -461,6 +474,10 @@ static func rebuild(d: Dictionary, graph: Graph, rate: float = -1.0) -> AttackOu
 	# `gate_at` over their flattened pairs.
 	var flip_at := 0
 	var gate_at := 0
+	# Running offsets for the cure arrays: `cure_at` over cure hits,
+	# `cure_entry_at` over their flattened (def, cleared) entries.
+	var cure_at := 0
+	var cure_entry_at := 0
 	for i in r.kinds.size():
 		var gated := (r.flags[i] & FLAG_GATED) != 0
 		var amount: float = 0.0 if gated else r.amounts[i]
@@ -486,6 +503,22 @@ static func rebuild(d: Dictionary, graph: Graph, rate: float = -1.0) -> AttackOu
 			hit = si
 		elif r.kinds[i] == int(HitInstance.Kind.EXERT):
 			hit = ExertInstance.new()
+		elif r.kinds[i] == int(HitInstance.Kind.CURE):
+			# The authority planned these counts on the world its walk read;
+			# the peer clears exactly them. A def this machine cannot load is
+			# dropped loudly with its count, never cleared blind.
+			var ci := CureInstance.new()
+			var count := r.cure_counts[cure_at] if cure_at < r.cure_counts.size() else 0
+			cure_at += 1
+			for k in count:
+				var path: String = r.cure_defs[cure_entry_at + k]
+				if path.is_empty() or not ResourceLoader.exists(path):
+					push_warning("AttackRecord: cured status %s not found on this machine" % path)
+					continue
+				ci.add(load(path) as StatusDef, r.cure_cleared[cure_entry_at + k])
+			cure_entry_at += count
+			ci.heal = amount
+			hit = ci
 		elif r.kinds[i] == int(HitInstance.Kind.GATE_FLIP):
 			# The pairs back to [Gate]s by identity on THIS board; a pair the
 			# peer cannot resolve is dropped loudly rather than flipped blind.

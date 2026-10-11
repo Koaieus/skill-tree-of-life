@@ -37,5 +37,19 @@ func draws_own_crit() -> bool:
 	return false
 
 
+## Clear each planned count off [param node], then heal [member heal] through
+## [method NodeCombat.heal_damage] with this instance as the source. The heal
+## is stamped onto [member HitInstance.amount] / [member
+## HitInstance.effective_amount] first: [method NodeCombat.heal_damage] only
+## writes the latter back for a [HealInstance], and [AttackRecord] ships it.
+func land_on(node: NodeCombat, _world: CombatWorld) -> void:
+	amount = heal
+	effective_amount = heal
+	for i in defs.size():
+		node.adjust_status_power(defs[i], -cleared[i])
+	if heal > 0.0:
+		node.heal_damage(heal, self)
+
+
 func _to_string() -> String:
 	return "<CureInstance %s heal %.1f → %s>" % [cleared, heal, target]
