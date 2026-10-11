@@ -21,6 +21,11 @@ var type: Type = Type.PHYSICAL
 ## — the withered node keeps "regenerating" itself to death. Never set by an
 ## attack.
 var from_withered_heal: bool = false
+## Multiplier on the spillable stacks of the node THIS hit depletes, stamped
+## at resolve by a [DoomSpillEffect] rider. Only the depleted node is scaled;
+## nodes its cascade strips spill at 1.0. Shadow-only: the computed spill
+## rides the hit's [DeallocEntry]s, so the record never carries this.
+var spill_scale: float = 1.0
 
 
 func _init() -> void:

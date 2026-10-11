@@ -1,0 +1,43 @@
+[gd_scene format=3 uid="uid://b1addon0doomb"]
+
+[ext_resource type="Script" uid="uid://bkf87fqtgkm7a" path="res://skill_node/addons/skill_node_addon.gd" id="1_addon"]
+[ext_resource type="Script" uid="uid://che6xhl6srqh3" path="res://stats_system/stat_modifier.gd" id="2_mod"]
+[ext_resource type="Resource" path="res://effects/status/curse.tres" id="3_curse"]
+[ext_resource type="Script" uid="uid://c2q50hhtuf7g7" path="res://attack/spell/on_hit/apply_status_effect.gd" id="5_status"]
+[ext_resource type="Script" uid="uid://dw3civ4fol21f" path="res://attack/spell/on_hit/on_hit_effect.gd" id="6_effect"]
+[ext_resource type="Script" path="res://attack/spell/on_hit/doom_spill_effect.gd" id="7_doom"]
+[ext_resource type="Script" path="res://skill_node/addons/visuals/doombrand_visual.gd" id="9_visual"]
+[ext_resource type="Resource" path="res://identity/defs/curse.tres" id="identity_ref"]
+
+[sub_resource type="Resource" id="Resource_doombrand_aspect"]
+resource_local_to_scene = true
+resource_name = "+1 Curse Aspect"
+script = ExtResource("2_mod")
+stat_id = &"curse_aspect"
+value = 1.0
+metadata/_custom_type_script = "uid://che6xhl6srqh3"
+
+[sub_resource type="Resource" id="Resource_doombrand_rider"]
+script = ExtResource("5_status")
+def = ExtResource("3_curse")
+power = 2.0
+
+[sub_resource type="Resource" id="Resource_doombrand_doom"]
+script = ExtResource("7_doom")
+spill_scale = 2.0
+
+[node name="DoombrandAddon" type="Node2D"]
+z_index = 1
+script = ExtResource("1_addon")
+identity = ExtResource("identity_ref")
+on_hit_effects = Array[ExtResource("6_effect")]([SubResource("Resource_doombrand_rider"), SubResource("Resource_doombrand_doom")])
+entity_modifiers = Array[ExtResource("2_mod")]([SubResource("Resource_doombrand_aspect")])
+description = "The Doombrand. Its owner gains a curse arrow; a blade swung through this node brands two curse onto every contact, and a node it kills spills its curse doubled."
+temp_placeable = true
+temp_cost_blade_size = 2
+temp_cost_aspects = Dictionary[StringName, int]({
+&"curse_aspect": 1
+})
+
+[node name="Visual" type="Node2D" parent="."]
+script = ExtResource("9_visual")
