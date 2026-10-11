@@ -31,6 +31,12 @@ extends AddonVisual
 ## makes the same point about baked icons). So the legs, cabin and roof are
 ## filled polygons that survive minification, and the X-bracing is drawn over
 ## them as lines that simply fade out — losing detail, never the shape.
+##
+## [b]The lantern.[/b] The cabin window holds a lit beacon in the addon's own
+## identity hue (Scout's, never a school family colour), glowing on a named
+## [Emissive] tier with a slow breath and a soft halo: the tower that scouts
+## is the tower that shines. Its hue is derived from the parent addon's
+## [member SkillNodeAddon.tint], never authored here.
 
 ## Where on the rim the tower plants its feet, measured clockwise from +X in
 ## screen space (so positive is downward). The default puts it lower-right;
@@ -51,6 +57,36 @@ extends AddonVisual
 		brace_tiers = value
 		queue_redraw()
 
+## Glow tier of the lantern in the cabin (`.claude/rules/hdr-color.md`); the
+## timber stays plain colour.
+@export var glow_tier: Emissive.Tier = Emissive.Tier.VALUE:
+	set(value):
+		glow_tier = value
+		queue_redraw()
+## Lantern breaths per second.
+@export_range(0.05, 3.0, 0.05) var pulse_hz: float = 0.35:
+	set(value):
+		pulse_hz = value
+		queue_redraw()
+## How far a breath dims the lantern, as a fraction of its glow. 0 = steady.
+@export_range(0.0, 1.0, 0.05) var pulse_depth: float = 0.3:
+	set(value):
+		pulse_depth = value
+		queue_redraw()
+## Radius of the soft halo around the lantern, × the cabin half-width.
+## 0 hides it.
+@export_range(0.0, 3.0, 0.05) var halo_size: float = 1.4:
+	set(value):
+		halo_size = value
+		queue_redraw()
+## Peak opacity of that halo.
+@export_range(0.0, 1.0, 0.05) var halo_alpha: float = 0.25:
+	set(value):
+		halo_alpha = value
+		queue_redraw()
+## Redraw rate cap, in Hz.
+@export_range(5.0, 60.0, 1.0) var redraw_hz: float = 15.0
+
 ## Every dimension below is a fraction of the carrier radius, so the tower
 ## scales with whatever [member AddonVisual.radius] is.
 const _FOOT_HALF := 0.28
@@ -70,8 +106,35 @@ const _TIMBER := Color(0.33, 0.30, 0.27)
 const _TIMBER_LIT := Color(0.60, 0.55, 0.47)
 const _ROOF_COLOR := Color(0.24, 0.22, 0.21)
 const _BRACE_COLOR := Color(0.20, 0.18, 0.16)
-const _WINDOW_COLOR := Color(0.05, 0.05, 0.07)
 const _SHADOW_COLOR := Color(0.02, 0.02, 0.03, 0.5)
+## Lantern hue with no addon behind the visual (an editor preview).
+const _FALLBACK_TINT := Color(1.0, 0.85, 0.45)
+
+var _time := 0.0
+var _since_redraw := 0.0
+
+
+func _process(delta: float) -> void:
+	if not is_visible_in_tree() or pulse_depth <= 0.0:
+		return
+	_time += delta
+	_since_redraw += delta
+	if _since_redraw >= 1.0 / redraw_hz:
+		_since_redraw = 0.0
+		queue_redraw()
+
+
+## Derived, never authored: the parent addon's identity tint.
+func _tint() -> Color:
+	var addon := get_parent() as SkillNodeAddon
+	if addon != null and addon.tint.a > 0.0:
+		return addon.tint
+	return _FALLBACK_TINT
+
+
+## Stable per-carrier phase so neighbouring towers never breathe in step.
+func _phase() -> float:
+	return fposmod(sin(global_position.x * 0.173 + global_position.y * 0.291) * 43758.5453, 1.0)
 
 func _draw() -> void:
 	if radius <= 0.0:
@@ -134,17 +197,24 @@ func _draw() -> void:
 	var rail_half := r * _RAIL_HALF
 	draw_rect(Rect2(base + Vector2(-rail_half, -h - rail_h), Vector2(rail_half * 2.0, rail_h)), _TIMBER_LIT)
 
-	# Cabin + its lookout window.
+	# Cabin + the lantern in its window.
 	var cab_half := r * _CABIN_HALF
 	var cab_h := r * _CABIN_HEIGHT
 	var cab_top := -h - rail_h - cab_h
+	var tint := _tint()
+	var breath := 1.0 - pulse_depth * 0.5 * (1.0 - cos(TAU * (_time * pulse_hz + _phase())))
+	var lantern := base + Vector2(0.0, cab_top + cab_h * 0.46)
+	if halo_size > 0.0 and halo_alpha > 0.0:
+		var halo := Color(tint, halo_alpha * breath)
+		draw_circle(lantern, cab_half * halo_size, Color(halo, halo.a * 0.5))
+		draw_circle(lantern, cab_half * halo_size * 0.6, halo)
 	draw_rect(Rect2(base + Vector2(-cab_half, cab_top), Vector2(cab_half * 2.0, cab_h)), _TIMBER)
 	draw_rect(
 		Rect2(
 			base + Vector2(-cab_half * 0.55, cab_top + cab_h * 0.25),
 			Vector2(cab_half * 1.1, cab_h * 0.42)
 		),
-		_WINDOW_COLOR
+		Emissive.at(tint, Emissive.stops(glow_tier) * breath)
 	)
 
 	# Pitched roof, overhanging the cabin on both sides.
