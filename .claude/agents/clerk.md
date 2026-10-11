@@ -33,7 +33,7 @@ Substitute with plain `sed` (BRE, braces literal) —
 
 | The order says | You run |
 |---|---|
-| new issue `{h}` "Title", under #p, label l | `gh issue create --title "<title>" --body "Clerk stub — body not posted yet." [--parent <p>] [--label <l>]` — capture the number from the URL; the stub is a placeholder that **owes** a body edit |
+| new issue `{h}` "Title", under #p, label l | `gh issue create --title "<title>" --body-file <F.resolved> [--parent <p>] [--label <l>]` — capture the number from the URL |
 | body is F | `gh issue edit <n> --body-file <F.resolved>` |
 | post F as a comment | `gh issue comment <n> --body-file <F.resolved>` |
 | move it under #p / detach it | read the old parent first (`gh issue view <n> --json parent --jq .parent.number`), then `gh issue edit <n> --parent <p>` / `--remove-parent`; then the old parent's open children: `gh issue view <old> --json subIssuesSummary --jq '.subIssuesSummary.total - .subIssuesSummary.completed'` |
@@ -58,12 +58,16 @@ Backlog — never `add` it.
    handle never declared is skipped whole; `ready` with no milestone from
    its line or the order's default skips that status. Report each; the rest
    still runs.
-2. **Create every new issue**, in order, with the stub body.
-3. **Fill every body, then post every comment**, now that every handle has
-   a number. First, for **each** issue the order gives a body file — every
-   new issue at least — make `<F>.resolved` (even with no handle in it) and
-   run `gh issue edit <n> --body-file <F.resolved>`; then the comments. An
-   issue left on the stub is the worst failure you can have: it looks filed.
+2. **Create every new issue with its body**, in order: make `<F>.resolved`
+   with every handle numbered so far (even a file with no handle gets a
+   copy) and create from it. Only if the copy still holds a `#{` — a
+   sibling created later — create it with `--body "Clerk stub — body not
+   posted yet."` and note it owes a fill.
+3. **Fill the owed bodies, then post every comment**, now that every handle
+   has a number: re-resolve each owed file, `gh issue edit <n> --body-file
+   <F.resolved>`; then the same for existing issues' bodies and comments.
+   An issue left on the stub is the worst failure you can have: it looks
+   filed.
 4. **Relations**, then **board per issue** (milestone, labels, status last).
 5. **Drift checks.** `no stamp` on an issue going `ready` is `FAILED`; on an
    issue left in `needs-design`, or a hub, it is `no stamp (not Ready)`.
