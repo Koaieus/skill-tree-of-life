@@ -225,3 +225,50 @@ func test_the_sandpile_turn_tick_moves_nothing_the_driver_owns_it() -> void:
 	var field := StackField.over_world(_CORRUPTION, spread.ownership_mask, CombatWorld.live(),
 			[n[2]] as Array[SkillNode], _graph)
 	assert_eq(spread.on_tick(field).size(), 0, "on_tick leaves topples to the settle driver")
+
+
+# ── 6. A plain kill drops a neighbour's degree: the shadow still sees it ────
+
+func test_a_corruption_free_kill_pops_its_critical_neighbour_in_the_shadow() -> void:
+	# C–X, C–Y, X–Y: Y (T 3) at 2, X holds no corruption and dies.
+	var n := await _territory(3, [[0, 1], [0, 2], [1, 2]])
+	n[2].get_combat().apply_status(_CORRUPTION, 2.0)
+	var o := AttackOutcome.new()
+	var d := DamageInstance.new()
+	d.target = n[1]
+	d.amount = 1.0e6
+	d.type = DamageInstance.Type.TRUE
+	d.structural_key = 0.0
+	o.hits.append(d)
+	var shadow := CombatWorld.shadow()
+	OutcomeApplier.apply(o, shadow)
+	assert_false(shadow.combat_for(n[1]).is_allocated(), "precondition: X died")
+	assert_eq(_stacks(n[2], shadow), 0.0, "Y's T dropped to 2: it popped in the kill's beat")
+	assert_eq(_stacks(n[0], shadow), 1.0, "the core received Y's stack")
+	shadow.free_shadow()
+
+
+func test_the_live_replay_lands_the_recorded_bursts_not_its_own() -> void:
+	var n := await _territory(3, [[0, 1], [1, 2]])
+	var o := _volley(n, _arrow(n[2], 1.0, 3))
+	var shadow := CombatWorld.shadow()
+	OutcomeApplier.apply(o, shadow)
+	shadow.free_shadow()
+	var rebuilt := AttackRecord.rebuild(
+			bytes_to_var(var_to_bytes(AttackRecord.capture(o, _graph))), _graph)
+	var bursts := 0
+	for hit in rebuilt.hits:
+		for op in hit.settle:
+			if op.threshold > 0:
+				op.amount = 0.0
+				bursts += 1
+	assert_gt(bursts, 0, "precondition: the record carries bursts")
+	var hp := []
+	for sn in n:
+		hp.append(_hp(sn))
+	_battle()
+	OutcomeApplier.apply(rebuilt, CombatWorld.live(), null, _alloc)
+	var after := []
+	for sn in n:
+		after.append(_hp(sn))
+	assert_eq(after, hp, "zeroed recorded bursts deal nothing: the replay computed none")

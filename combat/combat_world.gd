@@ -361,15 +361,13 @@ func note_removed(node: NodeCombat, rows: Array[NodeStatus], cause: int) -> void
 	r.cause = cause
 	r.spill_scale = _spill_scale.get(node, 1.0)
 	_spill_scale.erase(node)
-	var neighbours: Array[NodeCombat] = []
-	var gathered := false
+	# Read for every stripped node, spreading rows or not: on a shadow this
+	# mints the neighbours, so the settle sees their degree drop.
+	var neighbours := _neighbours_of(node)
 	for row in rows:
 		var def := row.def if row != null else null
 		if def == null or def.spread == null:
 			continue
-		if not gathered:
-			neighbours = _neighbours_of(node)
-			gathered = true
 		var probe := StackField.new(def, def.spread.ownership_mask, {node: neighbours})
 		var rid := [def.id, row.key]
 		r.defs[rid] = def
