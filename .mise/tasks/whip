@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-#MISE description="Whip v2, the overnight relay of swarms: ledger + verbs + zero-token watchdog. `mise run whip -- start [--cap H] [--max-leads N] [--stall-minutes M] | show | stop [--now] | note '…' | trains | train split|drop | max-leads N | launch <name> [--relief] | done [--lead L] <sha> <n/m> | relieve-me | needs-owner [--lead L] <n> '<line>' | tree: start --tree [--tick-minutes 15..55] · next-train --lead L · relieve --lead L | done-check | report | retire [--force] | watchdog | daemon start|status|stop | timer install|uninstall`"
+#MISE description="Whip v2, the overnight relay of swarms: ledger + verbs + zero-token watchdog. `mise run whip -- start [--cap H] [--max-leads N] [--stall-minutes M] | show | stop [--now] | note '…' | trains | train split|drop | max-leads N | launch <name> [--relief] | done [--lead L] <sha> <n/m> | relieve-me | needs-owner [--lead L] <n> '<line>' | train add <t> <n…> [--head] | tree: start --tree [--tick-minutes 15..55] · next-train --lead L · relieve --lead L | done-check | report | retire [--force] | watchdog | daemon start|status|stop | timer install|uninstall`"
 """
 State for one overnight run lives in docs/handoffs/whip-<date>.json
 (gitignored); every write renders the human ledger whip-<date>.md next to
@@ -116,8 +116,14 @@ def save(st):
     render(st)
 
 
-def current():
-    p = state_path()
+def recent_path():
+    """The newest ledger of the last LIVE_HOURS, done or not — `show` across midnight reads last night's run."""
+    ps = [p for p in glob.glob(os.path.join(HDIR, "whip-20*.json")) if time.time() - os.path.getmtime(p) <= LIVE_HOURS * 3600]
+    return max(ps, key=os.path.getmtime) if ps else None
+
+
+def current(any_recent=False):
+    p = state_path() or (recent_path() if any_recent else None)
     if not p:
         print("no whip run on disk"); sys.exit(0)
     st = load(p); st["_path"] = p
@@ -248,6 +254,10 @@ def board_lane(lane):
 def blocked_by(n):
     out = sh(f"gh api repos/{REPO}/issues/{n}/dependencies/blocked_by --jq '.[].number'")
     return [int(x) for x in out.split()]
+
+
+def title_of(n):
+    return sh(f"gh issue view {n} --json title --jq .title").strip()
 
 
 def milestone_of(n):
@@ -662,13 +672,26 @@ def cmd_trains(a):
 
 def cmd_train(a):
     st = current()
-    t = train_of(st, a.train) or sys.exit("no such train")
+    t = train_of(st, a.train)
+    if not t and a.verb != "add": sys.exit("no such train")
     if a.verb == "split":
         k = int(a.arg)
         new = {"name": t["name"] + "2", "issues": t["issues"][k:], "state": "queued", "lead": None, "reliefs": 0}
         t["issues"] = t["issues"][:k]
         st["trains"].insert(st["trains"].index(t) + 1, new)
         save(st); event(st, f"train {a.train} split at {k}")
+    elif a.verb == "add":
+        ns = [int(x) for x in [a.arg] + a.more]
+        if t and t.get("state") != "queued": sys.exit(f"train add: train {a.train} is {t.get('state')} — only a queued train takes issues")
+        held = [n for n in ns for x in st["trains"] if n in x["issues"]]
+        if held: sys.exit(f"train add: {' '.join('#%d' % n for n in held)} already in a train")
+        if not t:
+            t = {"name": a.train, "issues": [], "state": "queued", "lead": None, "reliefs": 0}; st["trains"].append(t)
+        t["issues"] = ns + t["issues"] if a.head else t["issues"] + ns
+        for n in ns:
+            if n not in st["ready"]: st["ready"].append(n)
+        st["dropped"] = [n for n in st.get("dropped", []) if n not in ns]
+        save(st); event(st, f"owner: added {' '.join('#%d' % n for n in ns)} to train {a.train}{' at its head' if a.head else ''}")
     else:
         n = int(a.arg)
         if n not in t["issues"]: sys.exit(f"#{n} not in train {a.train}")
@@ -712,7 +735,7 @@ def cmd_note(a):
 
 
 def cmd_show(a):
-    st = current(); print(open(st["_path"][:-5] + ".md").read())
+    st = current(any_recent=True); print(open(st["_path"][:-5] + ".md").read())
 
 
 def cmd_stop(a):
@@ -864,7 +887,7 @@ def write_report(st):
     owner = [n for n in st["notes"] if "needs owner" in n]
     inc = collapse([e for e in st["events"] if re.search(r"relief|watchdog|REFUSED|FAILED|deferred|dropped|blocked|stalled|respawn|limit|GAVE UP|ceiling|strike|did not|owner stop|CAPPED|warning", e)])
     cost = sh("mise run --quiet agent-cost -- --latest 20", cwd=ROOT).strip().splitlines()[:25]
-    T = lambda n: st["ready_titles"].get(str(n), "")
+    T = lambda n: st["ready_titles"].get(str(n)) or title_of(n)
     why = lambda n: next((" — " + x.split(":", 2)[-1].strip() for x in st["notes"] if f"still-ready #{n}" in x), "")
     head = (f"Landed {len(landed)}/{len(st['ready'])} · {len(log)} commits `{start[:7]}..master` · back to Needs design {len(back)} · "
             f"orphaned In progress {len(orphaned)} · dropped {len(dropped)} · still Ready {len(rem)}")
@@ -1104,7 +1127,8 @@ def main():
     s = sp.add_parser("stop", help="the owner's stop: nothing launches; leads drain (--now: leads stopped, report now)"); s.add_argument("--now", action="store_true"); s.set_defaults(f=cmd_stop)
     s = sp.add_parser("retire", help="archive the run on disk into handoffs/archive/ so the next start begins clean"); s.add_argument("--force", action="store_true", help="archive a live, unreported run"); s.set_defaults(f=cmd_retire)
     s = sp.add_parser("trains"); s.add_argument("--redo", action="store_true"); s.add_argument("--size", type=int, default=4); s.set_defaults(f=cmd_trains)
-    s = sp.add_parser("train"); s.add_argument("verb", choices=["split", "drop"]); s.add_argument("train"); s.add_argument("arg", help="split: index · drop: issue number"); s.set_defaults(f=cmd_train)
+    s = sp.add_parser("train"); s.add_argument("verb", choices=["split", "drop", "add"]); s.add_argument("train"); s.add_argument("arg", help="split: index · drop: issue number · add: issue number(s)")
+    s.add_argument("more", nargs="*", type=int, help="add: further issue numbers"); s.add_argument("--head", action="store_true", help="add: first in the train"); s.set_defaults(f=cmd_train)
     s = sp.add_parser("launch", help="owner's manual launch of lead-<t> (or relief-<t>-<k> with --relief)"); s.add_argument("name"); s.add_argument("--relief", action="store_true"); s.set_defaults(f=cmd_launch)
     s = sp.add_parser("max-leads"); s.add_argument("n", type=int); s.set_defaults(f=cmd_max_leads)
     s = sp.add_parser("done", help="(lead) train landed: records, passes the baton or ends the run"); s.add_argument("--lead"); s.add_argument("sha"); s.add_argument("landed"); s.set_defaults(f=cmd_done)

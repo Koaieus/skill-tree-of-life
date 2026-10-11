@@ -523,10 +523,33 @@ for verb in (("daemon", "status"), ("timer", "install"), ("launch", "lead-b")):
     check(f"{verb[0]} in tree mode refuses in one line", code != 0 and len(out.strip().splitlines()) == 1 and "tree" in out)
 code, out = run("relieve-me", me="feedface-0000")
 check("relieve-me in tree mode refuses (a tree lead has no session to key on)", code != 0 and "relieve --lead" in out and not sysc(base))
+code, out = run("train", "add", "a", "70")
+check("train add refuses a train that is not queued", code != 0 and 70 not in state()["ready"])
+run("train", "drop", "a", "53")
+code, out = run("train", "add", "c2", "70", "53")
+check("train add to an unknown name appends a queued train; an added issue joins the snapshot and leaves dropped",
+      code == 0 and train("c2") == {"name": "c2", "issues": [70, 53], "state": "queued", "lead": None, "reliefs": 0}
+      and [t["name"] for t in state()["trains"]][-1] == "c2" and {70, 53} <= set(state()["ready"]) and state()["dropped"] == [])
+code, out = run("train", "add", "c2", "71", "--head")
+check("train add --head puts the issue first", code == 0 and train("c2")["issues"] == [71, 70, 53])
+code, out = run("train", "add", "c2", "50")
+check("train add refuses an issue already in a train", code != 0 and train("c2")["issues"] == [71, 70, 53])
+st = state(); st["trains"] = [t for t in st["trains"] if t["name"] != "c2"]; st["ready"] = [n for n in st["ready"] if n not in (70, 71)]; st["dropped"] = [53]
+with open(jpath, "w") as f: json.dump(st, f)
 code, out = run("done", "--lead", "lead-b", SHA, "1/1", me="feedface-0000")
 rep = open(state()["report_path"]).read() if state().get("report_path") else ""
 check("(e) done on the last train sets done and renders the report",
       code == 0 and state()["done"] is True and rep.startswith("# Whip report") and "needs owner #52" in rep and "linger" not in rep.splitlines()[2].lower())
+wh.title_of = lambda n: f"fetched {n}"
+st = state(); st["ready"].append(11); st["ready_titles"].pop("11", None)
+with open(jpath, "w") as f: json.dump(st, f)
+rep = open(wh.write_report(dict(state(), _path=jpath))).read()
+check("the report fetches a landed issue's title the snapshot never had", "- #11 fetched 11" in rep)
+yday = os.path.join(handoffs, "whip-2000-01-01.json")
+os.rename(jpath, yday); os.rename(jpath[:-5] + ".md", yday[:-5] + ".md")
+code, out = run("show")
+check("show after midnight still prints the finished run dated yesterday", code == 0 and "no whip run" not in out and "DONE" in out)
+os.rename(yday, jpath); os.rename(yday[:-5] + ".md", jpath[:-5] + ".md")
 run("retire", "--force")
 run("start", "--tree", "--no-issue", me="feedface-0000"); run("next-train", "--lead", "lead-a", me="feedface-0000")
 code, out = run("stop")
