@@ -264,6 +264,7 @@ func _peer_node(resistance: float) -> SkillNode:
 	var peer_entity: Entity = autofree(Entity.new())
 	peer_entity.display_name = "PeerDefender"
 	peer_entity.stat_board = _BOARD.duplicate(true) as EntityStatBoard
+	peer_entity.stat_board.mint_facets()
 	peer_entity.stat_board.get_stat(&"poison_resistance").base_value = resistance
 	peer_graph.add_child(peer_entity)
 	var peer_node := _SKILL_NODE_SCENE.instantiate() as SkillNode

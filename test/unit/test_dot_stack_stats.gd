@@ -23,6 +23,7 @@ const _DEFAULTS := {
 
 func test_the_seven_stats_resolve_through_the_registry_with_their_defaults() -> void:
 	var board := (load("res://entity/default_entity_board.tres") as EntityStatBoard).duplicate(true) as EntityStatBoard
+	board.mint_facets()
 	for id: StringName in _DEFAULTS:
 		var def := StatRegistry.get_def(id)
 		assert_not_null(def, "%s is registered" % id)

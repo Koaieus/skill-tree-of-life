@@ -112,6 +112,7 @@ func test_get_description_folds_stacks_per_hit_with_a_board_null_falls_back_to_a
 			"null board: the authored power lands unscaled")
 
 	var board := _BOARD.duplicate(true) as EntityStatBoard
+	board.mint_facets()
 	var m := StatModifier.new()
 	m.stat_id = &"poison_stacks_per_hit"
 	m.operation = StatModifier.Operation.INCREASE

@@ -24,5 +24,6 @@ const DEFAULT_ENTITY_BOARD := preload("res://entity/default_entity_board.tres")
 ## authored content (and then assert its shape, not its literal).
 static func flat_entity_board() -> EntityStatBoard:
 	var board: EntityStatBoard = DEFAULT_ENTITY_BOARD.duplicate(true)
+	board.mint_facets()
 	board.constitution.base_value = 0.0
 	return board

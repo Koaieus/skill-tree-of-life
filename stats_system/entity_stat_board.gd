@@ -213,13 +213,21 @@ extends StatBoard
 
 
 ## Mints every concept facet ([member StatDef.role], ADR 0054) before the
-## intrinsics land, unless [member sparse] — a sparse board carries only what
-## its entity uses.
+## intrinsics land — see [method mint_facets].
 func apply_intrinsics() -> void:
-	if not sparse:
-		for def in StatRegistry.facet_defs():
-			_ensure_stat(def.id)
+	mint_facets()
 	super()
+
+
+## Mint every concept facet ([member StatDef.role], ADR 0054) this board lacks;
+## a no-op on a [member sparse] board, which carries only what its entity uses.
+## Idempotent. [method apply_intrinsics] runs it; call it directly only on a
+## board that is read or modified before an [Entity] applies its intrinsics.
+func mint_facets() -> void:
+	if sparse:
+		return
+	for def in StatRegistry.facet_defs():
+		_ensure_stat(def.id)
 
 
 ## An entity board holds its stats as the typed fields above plus the concept
