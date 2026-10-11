@@ -36,6 +36,12 @@ func test_tab_scene_exports_resolve(p = use_parameters(_params)) -> void:
 	var tab = scene.instantiate()
 	assert_true(tab is SandboxTab, "%s root must extend SandboxTab" % p)
 	assert_ne(tab.get_tab_title(), "", "%s has empty tab_title" % p)
+	# The host titles and routes an unbuilt tab off a textual read of the file,
+	# so that read must agree with what the instantiated tab says.
+	var meta := SandboxHost.read_tab_meta(_TABS_DIR + p)
+	assert_eq(meta.get(&"title"), tab.get_tab_title(), "%s: read_tab_meta title drifted" % p)
+	if tab.get_mode() == SandboxTab.Mode.LIVE_EDIT:
+		assert_eq(meta.get(&"id"), tab.tab_id, "%s: read_tab_meta id drifted" % p)
 
 	if tab.get_mode() == SandboxTab.Mode.LIVE_EDIT:
 		assert_ne(tab.tab_id, &"", "%s (live) has empty tab_id" % p)

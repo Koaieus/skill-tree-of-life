@@ -117,12 +117,17 @@ Files:
   "Open in…" buttons and the spell auto-sync target the host. Icon: `icon.svg`.
 - `sandbox_host.tscn` / `.gd` (`class_name SandboxHost`) — a `Control` + a
   `Tabs` `TabContainer`. **Auto-discovers tabs** with a `DirAccess` scan of
-  `tabs/*.tscn`: loads each, asserts the root is a `SandboxTab`, adds it, titles
-  it from `get_tab_title()`. Numeric filename prefixes (`10_…`, `20_…`) fix tab
-  order. `reload_tab()` rebuilds the **whole tab** from its `.tscn`, so reload and
-  cold open take the same path.
+  `tabs/*.tscn`, adding an empty placeholder per file titled by
+  `read_tab_meta()` (a text read of the root's `tab_title`/`tab_id` — no `load()`).
+  **Tabs build lazily**: only the selected tab, only while the host is visible,
+  at most one at a time (building one evicts the other, stashing its loaded
+  object), and the host stops processing while hidden — building all of them
+  eagerly cost ~2 s headless on every editor launch and `refresh`. A `route_to`
+  an unbuilt tab is delivered when it builds. Numeric filename prefixes (`10_…`,
+  `20_…`) fix tab order. `reload_tab()` rebuilds the **whole tab** from its
+  `.tscn`, so reload and cold open take the same path.
 - `sandbox_tab.gd` (`class_name SandboxTab`) — the mode-declaring base
-  (`Mode {LIVE_EDIT, PLAYED}`); `is SandboxTab` is the runtime guard on discovery.
+  (`Mode {LIVE_EDIT, PLAYED}`); `is SandboxTab` is the runtime guard when a tab builds.
 - **Bake the panel into the tab scene.** A tab instances its panel scene inside its
   own `.tscn` under `%PanelHost`, and `_mount_panel()` adopts that child — the tab
   previews non-empty in the editor and reload takes the cold-open path. Every tab
