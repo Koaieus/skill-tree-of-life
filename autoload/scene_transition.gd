@@ -60,8 +60,11 @@ func fade_in():
 	show()
 	progress_bar.hide()
 	anim.play("fade_in")
-	await anim.animation_finished
-	hide()
+	# A fade_out started meanwhile finishes THIS await too; only the fade_in's
+	# own finish may drop the curtain, or a stale revealer uncovers the screen.
+	var finished: StringName = await anim.animation_finished
+	if finished == &"fade_in":
+		hide()
 	fade_in_finished.emit()
 
 

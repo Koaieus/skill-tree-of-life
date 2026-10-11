@@ -78,3 +78,11 @@ func test_a_game_root_is_not_presentable_until_ready_finishes() -> void:
 	for _i in 10:
 		await get_tree().process_frame
 	assert_true(root.is_reveal_ready(), "presentable once _ready has run through")
+
+
+func test_a_superseded_fade_in_does_not_drop_a_later_fade_out() -> void:
+	SceneTransition.set_faded(true)
+	SceneTransition.fade_in()  # deliberately not awaited: a revealer still pending
+	await SceneTransition.fade_out()
+	assert_true(SceneTransition.is_curtain_up(),
+			"the stale fade_in's await resumes on fade_out's finish and must not hide()")
