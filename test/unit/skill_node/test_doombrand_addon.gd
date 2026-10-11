@@ -122,7 +122,7 @@ func _effect(type: Variant) -> OnHitEffect:
 	for e in addon.on_hit_effects:
 		if is_instance_of(e, type):
 			found = e
-	addon.free()
+	addon.queue_free()
 	return found
 
 
