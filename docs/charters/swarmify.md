@@ -11,34 +11,23 @@ issue from "has open forks" to `Ready`, in an Opus session that already holds
 the design, *with the owner*, before any worktree exists. It removes
 blockers, surfaces every decision a drone would otherwise have to make, gets
 the owner to settle each one, writes the acceptance spec, splits a hub into
-children along its real seams, and moves the status.
+children along its real seams, and moves the status. The writing half — the
+spec, the split, the board tail — is the [`spec`](spec.md) skill, which the
+pass invokes once the forks are settled (law 33).
 
 Its output is read by exactly one consumer: a drone doing `gh issue view <n>`
 and `--comments` cold, with no chat history and a bare fence. **The Ready
 criterion is that such a drone can act.** Everything below follows from what
 that reader needs and from what it costs when they do not have it.
 
-## The cost argument — why discovery moves upstream
+## The cost argument
 
-The bulk implementation side has been tuned hard (see [drone](drone.md)),
-but the thing being implemented is an issue, and *what it says shapes
-everything a drone does*. The postmortem corpus below put three of four
-Sonnet overruns on **spec gaps** — an undeclared seam, a bundled unit, an
-interaction hidden behind an adjective — not on drone error.
-
-The economics are lopsided. Implementation discovery — which files does this
-touch, what is the seam, what shape is the new class — done in swarmify runs
-**once**, at Opus rates, in a context that already holds the design. The same
-discovery left to the drone costs 30–100k of orientation reads, re-sent on
-**every later turn** (the integral `mise run agent-cost` measures), and
-re-derived by **every resume-leg** (17 of 160 drone transcripts in the
-warp-vs-drone audit were bare continuations). It also crosses the wire twice
-when the orchestrator does it instead — once into the orchestrator's context,
-once into the brief. On the issue it crosses once, by `gh issue view`.
-
-So the Ready comment gains four sections that carry that discovery, and the
-brief is left carrying only what the issue cannot know (fence, seams this run,
-tier, advisor, budget).
+Why discovery moves upstream — implementation discovery done once at spec
+time instead of by every drone and resume-leg — lives in the
+[spec charter](spec.md), with the sections that carry it. What stays here is
+the cost of a fork left open: a drone that meets one stalls, guesses, or
+ships the wrong shape, and every consumer written against an unsettled seam
+inherits it.
 
 ## Laws
 
@@ -129,125 +118,17 @@ Numbered so the skill can be checked against them law by law.
     answerable from the plan sentence. The owner catches these by glancing
     at a plan; the pass must catch them without the glance.
 
-**The Ready comment — sections**
+**Writing it down — moved to `spec`**
 
-10. **Decisions, files touched, acceptance, NOTES** — the established four:
-    each resolved fork as a one-line settled fact; the paths the work lands on
-    (naming any sibling that shares one); the failing test to make green or
-    an exact behavioural spec; descoped asides parked for their own issue.
-11. **Reading list.** 5–15 entries of `path:start-end — why`, headed by the
-    master sha it was written at. "Read these, nothing else" — the successor-
-    brief shape that works for retiring drones, applied at the start. Not a
-    file map, not a tour: each entry names what the reader will learn there.
-    Omitting what should be skipped, rather than listing it, unless a specific
-    trap must be named.
-12. **Seam map.** Every file the change touches, **including files that
-    merely reference the thing** — a scene that instances the node, a board
-    `.tres` that must gain a null-guard, a sandbox panel that lists the
-    system — derived by grep in the same Haiku Explore as law 3, never by
-    recall. Each entry is a whole-file entry in the drift stamp (law 15).
-13. **Stubs on master before dispatch**, when the unit adds classes or
-    signatures and swarmify judges the arch fork worth settling in code:
-    `class_name`, method signatures, and the red test file **committed under
-    `pending()`** so trunk stays green. The drone's first commit flips the
-    pending to RED and confirms it ran; red-green stays the drone's. One
-    `mise run refresh` on master instead of one per worktree; Sonnet's job
-    becomes fill-in. Swarmify commits these itself, explicit paths, after
-    `git status` — the main checkout is shared and may hold a peer's WIP.
-    **A stub is a proposal.** A drone that finds the stub wrong says so on
-    the issue and goes against it with a stated reason; that is leeway the
-    corpus shows drones use well.
-26. **Composition, written down.** A few lines of prose or a small diagram:
-    which class owns which fact, what it exposes, who reads it, what is
-    deleted by name. What cannot be written up concisely cannot be coded
-    cleanly; a Composition that will not come out is a fork still open.
+10–23, 26, 27. *Moved to the [spec charter](spec.md) on 2026-10-11* — the
+    Acceptance spec sections, reading list, seam map, stubs, drift stamp,
+    write-time verification, the cold-drone test, hub splitting and sizing,
+    promotion. Spec carries them as its laws 4–21, each tagged with its old
+    number here, and their corpus rows moved with them.
 
-14. **Shapes and seams, not bodies.** The line is signatures, seams, reading
-    list, red tests. If swarmify writes the implementation, Sonnet adds
-    nothing and Opus has done the work at planning rates without isolation.
-15. **The drift stamp.** The reading list and seam map sit in one fenced
-    block whose first line is the master sha they were written against. That
-    sha makes staleness deterministic: `mise run issue-drift -- <n>` parses
-    the latest stamp on the issue, diffs `<sha>..master` with `-U0`, and
-    reports every entry whose range a hunk intersects (whole-file entries
-    match any hunk). Silent, exit 0, when nothing drifted; exit 0 with the
-    drifted entries otherwise; exit 0 with `no stamp` on an unstamped issue —
-    it is clipped onto the orchestrator's dispatch command and must never
-    abort that chain. Only when it reports drift does a Haiku Explore
-    re-verify. A diff is cheaper than a model. The block's exact shape is
-    the contract between the skill and the task:
-
-    ````
-    ```drift-stamp <master sha, 7–40 hex>
-    path/to/file.gd:120-180 — what the reader learns here
-    path/to/scene.tscn — seam: instances the node
-    ```
-    ````
-
-    One entry per line: `path`, optionally `:start-end`, then ` — ` and free
-    text. The fence info string is the parse key; anything else in the
-    comment is prose. Body and comments are scanned in order and the last
-    stamp wins, so a re-swarmified issue simply posts a new one.
-
-    **A cited design doc is a stamp entry.** Every `docs/design/*` path the
-    acceptance spec cites goes in the stamp with a line range. `issue-drift`
-    diffs only the listed paths, and a design doc may be rewritten any day
-    (`.claude/rules/design-docs-vs-code.md`). A cited doc left out of the
-    stamp lets that rewrite reach the drone silently, as spec. Copying the
-    settled text into the issue instead was rejected: the copy drifts from
-    the doc, and the issue quietly turns into the design doc.
-16. **Verify at write time.** Every reading-list `path:range` is confirmed to
-    exist and to say what the entry claims (the Haiku Explore of law 3, or
-    a `sed -n` of the range), or it is a stale spec with extra authority.
-17. **The more, the better — by judgement, never by silence.** Any serious
-    issue is decked out with every section. Omitting one is a stated call
-    written on the issue: "no seams", "exploratory / docs", "few-turn patch,
-    the drone finds the edits faster than we write the list". Issues promoted
-    before this charter carry no stamp; `issue-drift` says so and moves on.
-18. **The brief restates nothing.** If the session finds itself thinking
-    "the orchestrator will explain that part", the issue is not `Ready`. Test
-    before promoting: read body and `--comments` cold, as a Sonnet with no
-    chat history would, and ask whether a single unsettled fork remains.
-
-**Hubs**
-
-19. **A parent never carries work.** On split, *all* of the hub's work moves
-    into children — including the hub's own defect, as "child 0". The hub
-    keeps the problem statement, the decisions, the DAG. Its status is never
-    set by hand; `land` and `hygiene --fix` derive it.
-20. **Split along the seam the design has**, one decision one unit; where
-    that is also a file boundary, say so; where it is not, split anyway and
-    record the overlap. **A unit describing three or more deliverables is
-    split before dispatch**, not left for a drone to self-split.
-21. **A follow-up not required for the hub to be done is a sibling**, linking
-    back, never a child.
-22. **Shared-file work every child touches** (one `.tres`, a registry append)
-    is the orchestrator's pre-step in the main checkout, not parcelled out.
-
-**Promotion**
-
-23. **`Ready` is the admission ticket**: status move, `design`/`blocked`
-    labels dropped in the same breath, a milestone set (Ready without one is
-    a hygiene violation), then `hygiene` kept clean — the board is the
-    queue; there is no separate decisions-queue issue to update.
-
-**What swarmify is not**
-
-24. **Not implementation** beyond law 13's stubs. **Not a rubber stamp.**
+24. **Not implementation** beyond spec's stubs. **Not a rubber stamp.**
     **Not a spawn** — the thinking runs in the session with the owner; only
-    law 3's lookup and law 33's clerk are delegated.
-
-27. **Every child is drone-sized — load balancing is swarmify's job.**
-    Roughly one subsystem, a handful of files, one test file, **one or two
-    deliverables** — finished under ~150k drone context. Size by
-    deliverables × files × subsystems × tests before promoting; a unit
-    touching more than three subsystems, needing more than five tests, or
-    describing three or more deliverables is split along its state /
-    wiring / consumer seams *at swarmify time*, never after it stalls
-    (owner, 2026-09-30: "load balancing sounds like a swarmify job indeed";
-    the swarm lead keeps only a size net at dispatch, swarm law 3). Prefer more small children with native `blocked-by` over one fat
-    one. A drone is reused only for a tiny follow-up ("add this class" → "use
-    that class"); one that just did a 200k run has no room left.
+    law 3's lookup and the clerk are delegated.
 
 28. **An architectural fork is settled in the pass, not parked.** Two classes
     doing one job, a stage doing another's work, a mirror of logic that
@@ -407,31 +288,19 @@ Numbered so the skill can be checked against them law by law.
     answer; law 34 says what the owner did *not* write is not something
     they know — an option the issue enumerates is still news to them, and
     a question that leans on it is answered blind or bounced back. The
-    test is the cold-drone test of law 18 turned around: read the message
+    test is the cold-drone test (spec law 4) turned around: read the message
     as someone who has seen only the title.
 
 **Handing off the tail**
 
-33. **The mechanical tail goes to a clerk.** Once every spec and child body
-    is written, the pass writes them as files plus a manifest and spawns
-    **one** `Agent(subagent_type: "clerk")` with the manifest path. The skill
-    carries the **full manifest grammar** — every key, including `labels-add`,
-    `blocked-by` on a new issue, a per-issue `milestone`, and `parent:` on an
-    existing issue to re-parent it (`-` detaches) — duplicated verbatim from
-    `.claude/agents/clerk.md`, so the pass never opens a second file to write
-    it (a change to the block there is a change here, same commit). The clerk
-    posts, creates, relates, re-parents, sets status / labels / milestone,
-    checks each drift stamp parses, runs hygiene, and reports one line per
-    issue; the pass reads the report, handles any `SKIPPED` / `FAILED` itself,
-    and tells the owner what landed — including that a re-parent emptied a
-    hub, which `land` / `hygiene --fix` then close: the clerk's report line
-    carries the old parent's open-child count, and whether that close is wanted
-    is the pass's to say, not the clerk's. Writing the spec stays in the pass — it is the
-    compressed thinking (law 26) — and so do stubs, which are code. The tail
-    is tool calls at the session's largest context, each re-sending all of
-    it; the clerk runs them in a fresh Haiku context and also holds the
-    board's flag traps, so the pass neither carries nor outputs them. See
-    `docs/charters/clerk.md`.
+33. **Spec time loads `spec`.** Once every fork is settled, the pass
+    invokes the `spec` skill, which writes the Acceptance spec, splits a hub
+    and hands the board tail to a clerk (its laws 1–22). Loaded at that step
+    and not before: the spec half was 42% of this file and sat unused through
+    ~64% of a pass's calls (2026-10-10 scan), and a separate skill gives
+    sessions with no owner a format to file by without claiming law 1. Writing
+    the spec stays in this session — it is the compressed thinking — and the
+    Composition that will not come out sends the pass back to the forks.
 
 35. **The pass ends with the session report** (`docs/domain/session-report.md`),
     `Landed` carrying the swarmify columns — issue, lane after the pass
@@ -451,31 +320,16 @@ have to carry them.
 
 | Date | Where | What happened | Law |
 |---|---|---|---|
+| 2026-10-11 | owner, after the 2026-10-10 scan (`docs/corpus/2026-10-10-swarmify-spec-weight-headless-clerk.md`) | asked whether the spec-writing half should be its own skill, loaded at spec time and usable by sessions with no owner; "I want literally all of these enhancements and fixes you propose, I'm sold" | 33 |
 | 2026-10-10 | #1524 | a generic autonomous-mode harness note ("the user is not watching in real time") made the pass treat the owner as absent: it posted the design options as a comment and ended the turn instead of asking. Owner: "swarmify is a speccing slash design session WITH the user. I AM THE OWNER … we must talk them through and make decisions right here right now" | 1 |
 | 2026-10-08 | owner, `/swarmify` prompt | "owner often has only read the title of an issue if e.g. user starts a session with \"/swarmify #1234\", and sometimes not even the title. So if e.g. an issue mentions an A B C don't assume the user knows these options, stuff like that" | 34 |
-| 2026-10-03 | #1311 (child of #1217 → hub under #1255) | the skill's step 10 showed a manifest *gist*, so the pass opened the clerk's agent file to learn the keys; the grammar had no `parent:` on existing issues, so the re-parent was done by hand through the REST sub-issue endpoints; `hygiene --fix` then closed the emptied #1217 — intended, but unannounced | 33 |
 | 2026-08-02 | #332 / #165 hubs | reading two comment threads in-session caught a comment retracting an earlier one's central claim; the same pass burned ~8 calls on pure lookup (is #322 closed, is #339 filed, does `keystone_placement.gd` carry `node_scene`) — the last exposed #330 sitting in `Ready` with an open fork in its body | 2, 3 |
-| 2026-08-02 | label collapse | the `swarmable` label retired; `Ready` became the queue; a `design` label left on a `Ready` issue is the drift the collapse was meant to end | 23 |
 | 2026-09-11 | #847 | a publish-a-Release pre-step lived in a post-review comment and rewrote acceptance 7 — fine, because it was on the issue, dated, the owner's | 1, 18 |
-| 2026-09-11 | #857 | the Ready criterion stated: a drone given only the number, its comments and a fence can act | 18 |
-| 2026-09-14 | #879 status-tick | four sub-units (sparse tick, clear-on-dealloc, resync, docs) bundled in one brief; +29% calls, Sage exchanges over cap; the drone "sound throughout" — bundling was the cost | 20 |
-| 2026-09-14 | #888 tempo-pool | the fence omitted `scenes/dev_sandbox.tscn` / `melee_sandbox_graph.tscn`, which the new pool touched; found mid-flight, +69% calls and a review round-trip | 12 |
-| 2026-09-14 | #878 status-hit | an `AttackRecord`/crit-draw interaction hidden behind "shadow-safe", surfaced only in Sage review; +34% | 11, 16 |
-| 2026-09-14 | #766 mana-rework | the one in-budget Sonnet unit: single mechanism, narrow fence, 75 calls | 14, 20 |
-| 2026-09-14 | #872 status-def | the cheapest unit by every measure was the tightest-fenced foundation with nothing upstream to reconcile against | 13 |
-| 2026-09-15 | hubs (#729/#901) | "hub that is also a bug" vs "hub that is only a container" kept tripping agents and `hygiene`; owner chose "a parent never carries work" | 19, 21 |
-| 2026-09-15 | warp-vs-drone audit | 17/160 drone transcripts open with a bare "continue"; per-file parity with warp, the tax is coordination and fragmentation — every resume-leg re-derives orientation the issue could have carried | cost argument, 11 |
-| 2026-09-15 | #902, owner | "the more the better; every section met is a happier / more effective drone … some issues have little to no seams, or no reading list because they're exploratory / docs, or small patch jobs … any *serious* issue should ideally be decked out best we can. stubs too — depends on the issue / judgment. a wrong attempt at a stub needs the drone to realize and go against it, which often happens (drones make excellent value judgement calls)" | 13, 17 |
 | 2026-09-16 | #928 → #930/#931 | the camera 2-step was fixed inside the director by reading the blade's `state.pivot_index`, `get_node_visuals()` and a vertex's alpha; the test had to poke those to move the goalpost. The owner caught it from a glimpse of the plan — "opportunity: decouple the director from what it follows by letting the (alive) melee blade provide some %Marker2D" — and the sim storing its own centroid. Seven such redirects in seven days (#889, #900, #910/#917, #927, #928, #930, #931), all answerable from the plan, none from the diff | 25, 26 |
-| 2026-09-17 | owner | "if you can't write it up cleanly (potentially concise, get the idea across) you won't be able to code it up cleanly either" — the Composition section | 26 |
-| 2026-09-15 | #902, owner | stub shape: stubs + `pending()` test on master, so trunk stays green and red-green stays the drone's first commit; drift range-aware and exit 0 always; charter written in the pass, three children | 13, 15 |
 | 2026-09-26 | #1125 → #1126 | told "`/swarmify` this, i assume no real forks", the pass picked `MIN_SEGMENT_PX := 12` and `DIAGONAL_SHARE := 0.5` itself, marked them tentative on the issue, and told the owner "they're easy to change". Owner: "that's excellent. leaving design knobs while not harking over details, just put sensible defaults and enable enough DX that tweaking them is easy in the godot editor. most often an exported variable, ideally with instant editor view feedback (if it's a visual thing)". The picks shipped as `const`s on `TraceRouter` — easy in code, not in the editor; the DX half is what law 32 adds | 1, 32 |
 | 2026-09-26 | owner, status-fx sandbox tab (#1114) | the prompt asked for every status effect with controls and the tooltip panels always on; the session (a `/warp`, `6f05643b…`) asked how the always-on tooltips should show and what "single node with vision range" meant — narrower than remembered, but stated intent framed as open. Owner: "like seriously asking me this? but then again, rather they ask than silently head in the wrong direction … [an agent] should just better report on what's good, if the idea is clean, and if it clearly is (like a mini internal review) then just write that out" | 31 |
 | 2026-09-26 | transcript scan (59 swarmify sessions, 32 in depth, 251 questions; `.claude/skills/swarmify/corpus/2026-09-26-reask-scan.md`) | most questions code-grounded; re-asks a minority, in three shapes — numeric magnitudes deferred inside a range the owner stated, confirm-everything closers ("OK?", "Settle both?"), and a milestone question in nearly every session. Legit asks (a review finding, an arithmetic hole, a bug in the issue's own fix) are the overcorrection guard | 31, 32 |
 | 2026-09-10 | #764 / #849 | Recommended parking an architectural fork in a design issue; owner overrode — settle now, refactor-first hub with three children. | 28 |
-| 2026-09-14 | last 2–3 swarms | Drones hitting 300k+ on oversized units; a "plumbing" issue spanning five subsystems was the shape that did it. #872 → #872/#878/#879 is the split that worked. | 27 |
-| 2026-09-30 | #1222 | promoted `Ready` with ≥4 deliverables (a statechart stack, its levels, a mass-action pop, docs); dispatched as one opus unit, 4.21M priced (23% of the run), did not land in budget — the deliverable count joins the size test | 27 |
-| 2026-08-24 | #573 | "`test_meta_routing_parity.gd` still passes unmodified" was unsatisfiable — the deletion half of the same issue removed `class_name`s the test cast to, so it stopped *parsing*. A characterization pin enumerates the surviving assertions and says the test may be re-pointed; then asks whether there is anything to re-point onto yet. | 10 |
 | 2026-09-22 | owner | "read the room for when an issue is more about designing before serving forks … put your Epic Game Designer hat on and when the picture becomes clear, then we talk code plans, forks to settle, with the cold hard specs and technical seam maps … sometimes crank up the LLM temperature" | 29 |
 | 2026-09-22 | owner | "when a fork can be settled with 'this option A which is sorta clean' and 'this option B which is hella clean but costs more work' then that's gonna be a B in 99% of cases … This project for a solo dev grew this big yet stayed so maintainable due to our aggressive combating of tech debt … you wouldn't know how much stuff landed by drones that used plumbing that was already there just because what could've been deferred as YAGNI instead was implemented on the spot"; asked for a stars ranking on cleanliness plus blast radius ("which we take to the chin every time"), effectiveness, good practices, lack of smell, perf, style secondary — "swarmify is often a lot of reading and thinking in which i could use all help i can get" | 30 |
 | 2026-09-22 | transcript scan (318 sessions, 681 `AskUserQuestion` pairs; `.claude/skills/swarmify/corpus/2026-09-22-askq-scan.md`) | 106 pairs turned on a clean-vs-cheap axis; owner picked cleaner 49 vs cheaper 33 (~1.5:1), even within `/swarmify` runs. Where the agent's `(Recommended)` tag and the owner's pick disagreed on that axis, the owner pushed toward *more* work 9 times and toward less 5 — the tag was under-recommending cleanliness. Sonnet-labelled, directional not exact. Two side patterns: perf ("how many nodes, how fast") is the real tiebreaker at least as often as cleanliness; and the owner routinely answers a menu by redirecting the premise or synthesising a new option — options are a prompt to think aloud, not a strict menu, so a scorecard must survive an "Other" answer | 30 |
@@ -485,8 +339,8 @@ have to carry them.
 ## What the skill must not contain
 
 - Any row of the table above, any issue number, any date.
-- The cost argument. The skill says "reading list", "seam map", "stubs",
-  "drift stamp" as instructions with the template; why they pay is here.
+- Anything `spec` carries — the Acceptance spec template, the split rules,
+  the clerk work order. The skill names the step and invokes `spec`.
 - Worked examples and "why this is a rule" paragraphs. Each law states the
   next action; the charter holds the why.
 - Restatements of the board rules (`docs/domain/issue-workflow.md`) beyond the
@@ -504,6 +358,6 @@ via the `archivist` agent; these stay where this charter cites them.
 - `swarm` wants the same charter treatment: 1171 lines, still frames opencode
   as the primary harness though the repo has no opencode config, and its
   dispatch section should say `Agent(subagent_type: "drone", model: <tier>)`.
-- Whether the Haiku Explore of law 3 and the seam grep of law 12 should be one
+- Whether the Haiku Explore of law 3 and the seam grep (spec law 9) should be one
   dispatch or two is a per-pass call; one is cheaper, two lets the seam grep
   start before the claims are listed.

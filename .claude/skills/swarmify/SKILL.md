@@ -135,8 +135,8 @@ A fork is anything a drone would have to *decide*:
   pass, refactor-first, with the delay cost said out loud — never parked in
   a design issue. An unsettled seam leaks into every consumer written
   against it.
-- **Cross-issue dependencies** — recorded in the spec prose (step 8) *and*
-  the manifest's `blocked-by:` (step 10), never disqualifying; the
+- **Cross-issue dependencies** — recorded in the spec and as native
+  `blocked-by` (step 8), never disqualifying; the
   orchestrator sequences them. Only a dependency on a decision nobody has made keeps an
   issue out of `Ready`.
 
@@ -228,183 +228,29 @@ File ownership is a map, not a gate: record which paths a unit touches so
 the orchestrator can sequence; never contort the design to keep files
 disjoint, never withhold `Ready` because two issues share a file.
 
-### 8. Write the Ready comment
+### 8. Write it down — invoke `spec`
 
-Write it to a file in your scratchpad (the clerk posts it, step 10), headed
-`## Acceptance spec`:
-
-`````markdown
-## Acceptance spec
-
-**Decisions** (owner, <date>)
-- <each resolved fork as one line of settled fact, in the owner's words>
-- <a stated decision from the body/prompt: the quoted sentence, then "— reviewed, taken as settled">
-
-**Knobs** (tentative pass defaults — easy to change)
-- `<OwningClass>.<export_name>` = <default> — <what it tunes; editor feedback: setter redraw / sandbox tab>
-
-**Composition**
-<how the pieces compose — a few lines of prose or a small diagram: which unit
-owns which fact, what it exposes, who reads it, what dies>
-
-**Files touched**
-- <path> — <what lands here; name any sibling issue sharing it>
-
-**Acceptance**
-1. <the failing test to make green, or an exact behavioural spec>
-
-**NOTES**
-- <descoped asides, each parked for its own issue; never riding this unit>
-
-**Stubs on master** — <commit sha> · <class_name / signatures added> · <test file under `pending()`>
-
-```drift-stamp <master sha, 7–40 hex>
-path/to/file.gd:120-180 — what the reader learns here
-path/to/scene.tscn — seam: instances the node
-```
-`````
-
-- **Decisions** — one line per resolved fork, dated, attributed to the owner.
-  A decision the owner stated before the pass quotes their sentence, so a
-  cold drone sees it was theirs; a pick the owner delegated is marked as
-  the pass's tentative call.
-- **Knobs** — every tunable defaulted in step 5: the exported property, its
-  default, and how it gives feedback. Omit the section when there are none.
-- **Composition** — the proposed shape, concise: which class owns which
-  fact, what it exposes (marker, signal, accessor), who reads it, which path
-  is deleted by name. Prose or a small diagram, whichever gets the idea
-  across. If it cannot be written up cleanly in a few lines it cannot be
-  coded cleanly either — that is a fork still open, go back to step 5.
-- **Files touched** — the paths the work lands on; name any sibling that
-  shares one, and which issue.
-- **Acceptance** — the failing test to make green or an exact behavioural
-  spec. A characterization pin ("this test still passes") enumerates the
-  surviving assertions and says whether the test may be re-pointed.
-- **NOTES** — descoped asides, parked for their own issue.
-- **Reading list** (inside the stamp) — 5–15 entries of `path:start-end —
-  why`, "read these, nothing else". Not a file map, not a tour: each entry
-  names what the reader learns there. Omit what should be skipped rather
-  than listing it, unless a specific trap must be named. Every range is
-  verified at write time (step 3, or `sed -n 'a,bp'`).
-- **Seam map** (inside the stamp) — every file the change touches, including
-  files that merely reference the thing, from step 3's grep; one whole-file
-  entry each (`path — seam: <why>`).
-- **Stubs on master** — when the unit adds classes or signatures and the
-  arch fork is worth settling in code: `class_name`, method signatures, and
-  the red test file committed **under `pending()`** so trunk stays green.
-  One `mise run refresh` on master, `git status` (the main checkout is
-  shared), `git add` explicit paths, commit — before step 10. The drone's
-  first commit flips the pending to RED. A stub is a proposal: a drone that
-  finds it wrong says so on the issue and goes against it with a stated
-  reason.
-- **The drift stamp** — one fenced block, info string `drift-stamp <sha>`
-  where `<sha>` is the master sha the entries were written against; one
-  entry per line: `path`, optionally `:start-end`, then ` — ` and free text.
-  That shape is a parse contract (`mise run issue-drift` consumes it); the
-  info string is the key, anything else in the comment is prose. The last
-  stamp on the issue wins, so a re-swarmified issue simply posts a new one.
-  Every `docs/design/*` path the spec cites is a stamp entry with a line
-  range. `issue-drift` diffs only listed paths, and a design doc may change
-  any day.
-
-**Shapes and seams, not bodies.** Signatures, seams, reading list, red
-tests — never the implementation.
-
-**Every section, on any serious issue.** Omitting one is a *written* call on
-the issue — "no seams", "exploratory / docs", "few-turn patch, the drone
-finds the edits faster than we write the list" — never silence.
-
-**Test before promoting:** read the issue and your spec files cold, as a
-Sonnet with no chat history would. If you think "the orchestrator will explain that
-part", or a single unsettled fork remains, it is not `Ready`.
-
-### 9. If it is a hub, decompose into Ready children
-
-A hub (sub-issues > 0, or too big for one unit) is never `Ready` itself — its
-children are. **A parent never carries work**: on split, *all* of the hub's
-work moves into children, the hub's own defect included as "child 0". The hub
-keeps the problem statement, the decisions and the DAG; never set its status
-by hand — `land` and `hygiene --fix` derive it.
-
-- Every child is drone-sized: one subsystem, a handful of files, one test
-  file, one or two deliverables — under ~150k drone context. More than
-  three subsystems, more than five tests, or three or more deliverables is
-  a split, along state / wiring / consumer seams, now — load balancing is
-  this pass's job, the swarm lead only keeps a size net. Prefer more small
-  children with native `blocked-by` over one fat one.
-- Split along the seam the design has: one decision, one unit. Where that
-  is also a file boundary, say so; where it is not, split anyway and record
-  the overlap. A unit describing three or more deliverables is split before
-  dispatch.
-- A follow-up not required for the hub to be done is a sibling linking back,
-  never a child.
-- Shared-file work every child touches (one `.tres`, a registry append) is
-  the orchestrator's pre-step in the main checkout, not parcelled out.
-- Each child gets its own full `## Acceptance spec` (step 8), as its own
-  body file. Refer to a sibling not yet filed by handle — `#{wiring}` — and
-  the clerk substitutes the number. Never `@wiring`: that is a live mention
-  of whoever owns the login, and the gh shim refuses it. Every handle you
-  write is declared in the manifest, or the post is refused.
-
-### 10. Promote — hand the tail to the clerk
-
-`Ready` is the admission ticket: status, `design`/`blocked` labels dropped,
-and a milestone, in one breath. The **milestone is a default, not a
-question** — the live one (`mise gh-project -- roadmap`) or the parent's,
-stated in the spec.
+Every fork settled: invoke the `spec` skill now, not before. It writes the
+Acceptance spec, splits a hub into drone-sized children, and hands the board
+to a clerk; the writing stays in this session. A Composition that will not
+come out concisely is a fork still open — back to step 5.
 
 A `Backlog` issue named in `/swarmify` is picked up by being named: it goes
 straight to `Ready` (or `Needs design` if a fork stays open), with no
 intermediate move and no comment about leaving `Backlog`.
 
-You do not run the board calls. Write a manifest next to the spec files;
-this is its whole grammar (`.claude/agents/clerk.md` holds the same block —
-you need not open it):
+### 9. Close with the session report
 
-```
-milestone: 3                           # default for every issue below
-
-issue #1130                            # an existing issue
-  comment: 1130-spec.md                # post as a new comment
-  body: 1130-body.md                   # or: replace the body
-  parent: #1120                        # optional: move it under another parent; `-` detaches
-  status: ready                        # omit on a hub — hub status is derived
-  labels-rm: design, blocked
-  labels-add: ui
-  blocked-by: #1101, {state}
-  milestone: 4                         # overrides the default
-
-new {state} "Status tick: sparse schedule"   # a new issue; {state} is its handle
-  parent: #1130
-  body: state.md
-  labels-add: ui
-  blocked-by: -
-  status: ready
-
-drift: #1130 {state}                    # each must carry a parseable drift stamp
-refresh                                # optional: run `mise run refresh`, report its verdict
-hygiene                                # always last
-```
-
-A `parent:` on an existing issue moves it, `parent: -` detaches it. Moving the last open child out
-of a hub leaves that hub empty, and `land` / `hygiene --fix` then close it;
-the clerk's report line gives the old parent's open-child count, and you
-tell the owner when that count hit zero.
-
-Then spawn **one** `Agent(subagent_type: "clerk", prompt: "<manifest path>")`.
-It holds every flag trap and ordering rule; you state intent, never commands.
-Read its one-line-per-issue report: handle each `SKIPPED` / `FAILED`
-yourself (a fixed manifest and a second clerk, or the one call by hand),
-then tell the owner what landed — as the session report
+Tell the owner what landed, as the session report
 (`docs/domain/session-report.md`): headline, `Landed` with the swarmify
-columns (`#` · `now in` · `settled` · `left`), `Not done` (issues that stayed in
-`Needs design` and why), `Follow-ups` with a disposition each, `Needs the
-owner`, `Touched`, `Cost`.
+columns (`#` · `now in` · `settled` · `left`), `Not done` (issues that stayed
+in `Needs design` and why), `Follow-ups` with a disposition each, `Needs the
+owner`, `Touched`, `Cost`. Say it when a re-parent emptied a hub.
 
 ## What swarmify is NOT
 
-- **Not implementation** beyond step 8's stubs.
+- **Not implementation** beyond the spec's stubs.
 - **Not a rubber stamp** — an issue with an unsettleable fork stays in
   `Needs design`.
 - **Not a spawn** — the thinking runs here, with the owner; only step 3's
-  lookup and step 10's clerk are delegated.
+  lookup and the spec's clerk are delegated.

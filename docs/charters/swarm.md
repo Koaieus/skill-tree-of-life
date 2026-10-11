@@ -325,8 +325,9 @@ disk at `scratchpad/land/land-<n>.log` (#920), so filling the ledger is a
     comment, a `.tres` that should exist: no design question, a drone-unit
     or less — goes to ONE sweep drone appended to the train, on the same
     branch discipline as any unit. Only a genuine fork, an owner call, or
-    work past a drone-unit earns `gh issue create`, and then with the
-    milestone set and the fork named in the first line. Never a "follow-ups
+    work past a drone-unit earns an issue, filed through the `spec` skill
+    (2026-10-11: one format for every filer, and its fence sends a fork to
+    `Needs design` as a written menu, never `Ready`). Never a "follow-ups
     from swarm <date>" grab-bag issue: each line in one is a unit the lead
     declined to dispatch. **Why:** on 2026-10-08 the owner found 100+
     `Needs design`/`Backlog` issues filed by swarm leads, a large share of

@@ -391,8 +391,8 @@ one-liners yourself in the main checkout as one docs commit; anything
 bounded and mechanical (a doc row, a rename, a prune, a missing twin test,
 a stale comment — no design question, a drone-unit or less) is **one sweep
 drone appended to the train**, never an issue. Only a genuine fork, an owner
-call, or work past a drone-unit → `gh issue create` (it joins the board by
-itself), milestone set, fork named in the first line. Never a "follow-ups
+call, or work past a drone-unit → an issue, filed through the `spec` skill
+(a fork goes to `Needs design` as a written menu, never `Ready`). Never a "follow-ups
 from swarm <date>" grab-bag issue.
 
 **The authoritative suite runs once per train**, after every branch of the
