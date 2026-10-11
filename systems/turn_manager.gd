@@ -439,9 +439,32 @@ func _note_played_turn_end() -> void:
 	_end_world_turn()
 
 
-## The world's turn end. A world turn only ends: no start, no upkeep, no regen.
+## The world's turn end (ADR 0055). A world turn only ends: no start, no
+## upkeep, no regen. Every living turnless host plays out its turn end
+## ([method Entity.resolve_turn_end]: own statuses, owned nodes, spread) in
+## tree order, then every unowned LINGER row ticks once, then one flush. Runs
+## inside [method end_turn], so [EndTurnCommand] reproduces it on every peer.
 func _end_world_turn() -> void:
+	for e in _turnless_entities():
+		# An earlier host's tick or spread can kill a later one.
+		if is_instance_valid(e) and not e.is_dead:
+			e.resolve_turn_end()
+	CombatWorld.live().tick_lingering()
+	CombatWorld.live().flush_removals()
 	world_turn_ended.emit()
+
+
+## Every in-scope entity [method _initiative_carriers] skips — a blocker, a
+## dormant core: no initiative pool, so no turn of its own. Tree order, living.
+func _turnless_entities() -> Array[Entity]:
+	var out: Array[Entity] = []
+	for node in _in_scope(Entity.GROUP):
+		var e := node as Entity
+		if e == null or e.is_dead:
+			continue
+		if e.stat_board == null or e.stat_board.initiative == null:
+			out.append(e)
+	return out
 
 
 ## [method _initiative_carriers] minus the dead — the round roster and the

@@ -831,12 +831,13 @@ func exert_core_move() -> void:
 ## turn ticks at its end). Never on [method TurnManager.abandon_turn] or a
 ## resync [method TurnManager.adopt_turn]. A tick's damage gates the regen of
 ## this entity's NEXT [method begin_turn]. A tick may kill this entity; the
-## nulled cursor makes the death path's `abandon_turn` a no-op.
+## nulled cursor makes the death path's `abandon_turn` a no-op. A turnless host
+## (no initiative pool — a blocker, a dormant core) has no turn: it runs this
+## on the world turn instead ([method TurnManager._end_world_turn], ADR 0055),
+## which also ticks the unowned LINGER rows — never this method.
 func resolve_turn_end() -> void:
 	_combat.tick_statuses()
 	_tick_owned_node_statuses()
-	# Every unowned node's LINGER rows tick on ANY entity's turn end (#1344).
-	CombatWorld.live().tick_lingering()
 	# The tick step is one beat: a DoT kill's spill lands before the
 	# diffusion sweep reads the field.
 	CombatWorld.live().flush_removals()
