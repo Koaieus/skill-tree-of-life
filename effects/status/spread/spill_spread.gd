@@ -46,7 +46,9 @@ func on_removed(field: StackField, removed: Array[NodeCombat], cause: int) -> Ar
 		var k := survivors.size()
 		var sinks := _sink_count(field, r, removed_set, survivors)
 		var fraction: float = spread_fraction * death_fraction if cause == CAUSE_DEATH else spread_fraction
-		var spillable: float = floor(stacks * fraction)
+		# The doom scale multiplies past the fraction's [0, 1] clamp: a doomed
+		# node can spill more than it held.
+		var spillable: float = floor(stacks * fraction * field.spill_scale(r))
 		var share: float = floor(spillable / (k + sinks)) if k > 0 else 0.0
 		if share > 0.0:
 			for survivor in survivors:

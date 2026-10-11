@@ -74,6 +74,9 @@ var _tracked: Dictionary[SkillNode, DeallocEntry] = {}
 ## Entries a rebuilt record handed in since the last flush. Non-empty makes the
 ## beat a replay: the flush lands their recorded spill and computes nothing.
 var _fed: Array[DeallocEntry] = []
+## NodeCombat -> the spill scale of the hit that depleted it
+## ([method mark_spill_scale]); consumed by [method note_removed].
+var _spill_scale: Dictionary = {}
 
 
 ## One stripped node as it stood at its strip: per spreading def, the stacks
@@ -86,6 +89,7 @@ class _Removal:
 	var defs: Dictionary = {}    # [StringName, key] -> StatusDef
 	var power: Dictionary = {}   # [StringName, key] -> float
 	var around: Dictionary = {}  # [StringName, key] -> Array[NodeCombat]
+	var spill_scale: float = 1.0
 
 
 ## The field a flush hands [method StatusSpread.on_removed]: a removed node
@@ -96,10 +100,16 @@ class _RemovalField:
 	extends StackField
 	var _power: Dictionary = {}   # NodeCombat -> float
 	var _around: Dictionary = {}  # NodeCombat -> Array[NodeCombat]
+	var _scale: Dictionary = {}   # NodeCombat -> float, only when != 1.0
 
-	func snap(n: NodeCombat, p: float, around: Array[NodeCombat]) -> void:
+	func snap(n: NodeCombat, p: float, around: Array[NodeCombat], scale: float = 1.0) -> void:
 		_power[n] = p
 		_around[n] = around
+		if scale != 1.0:
+			_scale[n] = scale
+
+	func spill_scale(n: NodeCombat) -> float:
+		return _scale.get(n, 1.0)
 
 	func nodes() -> Array[NodeCombat]:
 		var out: Array[NodeCombat] = []
@@ -302,6 +312,14 @@ func free_shadow() -> void:
 # step (before its diffusion sweep). See docs/domain/effect-system.md.
 
 
+## [param node] was just depleted by a hit carrying [param scale]
+## ([member DamageInstance.spill_scale]): its own removal, noted next, spills
+## multiplied. Keyed by node, so the nodes its cascade strips stay at 1.0.
+func mark_spill_scale(node: NodeCombat, scale: float) -> void:
+	if node != null and scale != 1.0:
+		_spill_scale[node] = scale
+
+
 ## Record that [param node] is leaving its owner, with the [param rows]
 ## [method NodeCombat.release_statuses] just took off it. Call BEFORE the strip
 ## clears ownership: the masked-neighbour snapshot reads the node's owner.
@@ -313,6 +331,8 @@ func note_removed(node: NodeCombat, rows: Array[NodeStatus], cause: int) -> void
 	var r := _Removal.new()
 	r.node = node
 	r.cause = cause
+	r.spill_scale = _spill_scale.get(node, 1.0)
+	_spill_scale.erase(node)
 	var neighbours: Array[NodeCombat] = []
 	var gathered := false
 	for row in rows:
@@ -379,11 +399,12 @@ func flush_removals() -> void:
 				var field := _RemovalField.new(def, def.spread.ownership_mask, {}, rid[1])
 				for r in batch:
 					if r.cause == cause and r.power.has(rid):
-						field.snap(r.node, r.power[rid], r.around[rid])
+						field.snap(r.node, r.power[rid], r.around[rid], r.spill_scale)
 				var transfers := def.spread.on_removed(field, removed, cause)
 				_record_spill(def, transfers)
 				SpreadApplier.apply(def, transfers, self)
 	_tracked.clear()
+	_spill_scale.clear()
 
 
 ## Writes [param transfers] onto their `from`'s tracked entry, re-pointed at

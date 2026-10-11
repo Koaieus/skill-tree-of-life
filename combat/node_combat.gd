@@ -444,6 +444,11 @@ func take_damage(amount: float, source: HitInstance) -> void:
 			o.take_pool_damage(overflow, source)
 		return
 	if hp.current <= 0.0:
+		# The killing hit's doom ([member DamageInstance.spill_scale]) is
+		# marked BEFORE either cascade entry: both note this node's removal
+		# synchronously and consume the mark there.
+		if source is DamageInstance and o != null:
+			o.world().mark_spill_scale(self, (source as DamageInstance).spill_scale)
 		if host != null:
 			# Presentation + the live cascade's ENTRY: the bus handler
 			# ([method BattleSystem._on_node_depleted]) announces the VFX

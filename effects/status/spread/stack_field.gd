@@ -52,6 +52,13 @@ func stacks(n: NodeCombat) -> float:
 	return n.get_status_power(def.id, key) if n != null and def != null else 0.0
 
 
+## Multiplier on [param n]'s spillable stacks — a removal field's answer for
+## the node a doomed hit depleted ([member DamageInstance.spill_scale]).
+## `1.0` on a live field.
+func spill_scale(_n: NodeCombat) -> float:
+	return 1.0
+
+
 ## [param n]'s neighbours in [member mask] — [method neighbours_in] with the field's own mask.
 func masked_neighbours(n: NodeCombat) -> Array[NodeCombat]:
 	return neighbours_in(n, mask)
