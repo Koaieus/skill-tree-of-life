@@ -33,6 +33,7 @@ lines[4] = "a5 changed"; lines[5] = "a6 changed"      # old lines 5-6
 lines.insert(20, "inserted after a20")               # pure insertion at old 21 (zero-length old span)
 put("a.txt", lines)
 os.remove(os.path.join(root, "b.txt"))
+put("d.txt", ["born after the stamp"])
 git("add", "-A"); git("commit", "-q", "-m", "two")
 
 STAMP2 = "\n".join([
@@ -45,6 +46,7 @@ STAMP2 = "\n".join([
     "b.txt — deleted",
     "c.txt — untouched",
     "nope.txt:1-2 — typo path",
+    "d.txt — created after the stamp",
     "```",
 ])
 payload = {
@@ -72,6 +74,8 @@ check("(c) whole-file entry drifts on any hunk", by[("a.txt", None, None)]["drif
 check("(d) deleted file drifts", by[("b.txt", None, None)]["drifted"] is True and by[("b.txt", None, None)]["reason"] == "deleted")
 check("untouched whole-file does not drift", by[("c.txt", None, None)]["drifted"] is False)
 check("missing path at stamp is drift", by[("nope.txt", 1, 2)]["drifted"] is True and by[("nope.txt", 1, 2)]["reason"] == "missing-at-stamp")
+check("path created since the stamp reads created-since-stamp",
+      by[("d.txt", None, None)]["drifted"] is True and by[("d.txt", None, None)]["reason"] == "created-since-stamp")
 check("json row shape", set(rows[0]) >= {"path", "start", "end", "drifted", "reason"})
 
 
@@ -112,6 +116,15 @@ with open(pf, "w") as fh:
     json.dump({"body": "```drift-stamp 0123456789abcdef\na.txt — x\n```", "comments": []}, fh)
 code, out, err = run("903")
 check("unknown sha is a tool failure (non-zero)", code != 0)
+
+# a directory that is not a git repo is its own error, never "sha unknown"
+nogit = tempfile.mkdtemp(prefix="issue-drift-nogit-")
+with open(pf, "w") as fh:
+    json.dump({"body": f"```drift-stamp {sha1}\na.txt — x\n```", "comments": []}, fh)
+out, err = io.StringIO(), io.StringIO()
+with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+    code = idr.main(["--payload-json", pf, "--repo", nogit, "903"])
+check("non-repo dir is a tool failure that says so", code != 0 and "not a git repository" in err.getvalue() and "unknown" not in err.getvalue())
 
 print("all checks passed" if not failed else f"{failed} FAILED")
 sys.exit(1 if failed else 0)

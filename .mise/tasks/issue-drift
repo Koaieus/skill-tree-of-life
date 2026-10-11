@@ -18,12 +18,15 @@ Drift rules
              context changed. Conservative on purpose: a false positive costs
              one Haiku look, a false negative costs a drone a wrong map.
   path       (whole file) drifts on any hunk, a deletion, or a rename.
-  any        a path absent at <sha> is `missing-at-stamp` — a typo in the
-             stamp is drift too.
+  any        a path absent at <sha> is drift too: `created-since-stamp` if it
+             exists on the base now (the file got built — real information),
+             `missing-at-stamp` if it exists on neither (a typo, or a sibling
+             path still unbuilt).
 
 Exit code: 0 ALWAYS on a verdict (drift, clean, or `no stamp on #<n>`) —
 this is clipped onto the swarm dispatch chain and must never abort it. Only a
-tool failure (gh error, sha unknown to the repo, git failure) is non-zero.
+tool failure (gh error, sha unknown to the repo, --repo/cwd not a git
+repository, git failure) is non-zero.
 
   --json               `[{path, start, end, drifted, reason, ins, del, hunk}]`
   --payload-json FILE  `{"body": …, "comments": [{"body": …}]}` instead of
@@ -33,6 +36,7 @@ tool failure (gh error, sha unknown to the repo, git failure) is non-zero.
 """
 import argparse
 import json
+import os
 import re
 import subprocess
 import sys
@@ -139,6 +143,8 @@ def _old_span(h):
 
 def compute(repo, sha, entries, base="master"):
     """One row per stamp entry: {path, start, end, drifted, reason, ins, del, hunk}."""
+    if _git(repo, "rev-parse", "--git-dir", ok=(0, 128))[0] != 0:
+        raise ToolError(f"{os.path.abspath(repo)} is not a git repository (run from the repo or pass --repo)")
     if not _known(repo, sha):
         raise ToolError(f"stamp sha {sha} is unknown to {repo} (fetch?)")
     if not _known(repo, base):
@@ -151,7 +157,8 @@ def compute(repo, sha, entries, base="master"):
                "ins": 0, "del": 0, "hunk": ""}
         f = files.get(e["path"])
         if not _exists_at(repo, sha, e["path"]):
-            row.update(drifted=True, reason="missing-at-stamp")
+            created = _exists_at(repo, base, e["path"])
+            row.update(drifted=True, reason="created-since-stamp" if created else "missing-at-stamp")
         elif f is None:
             pass
         elif f["status"] in ("deleted", "renamed"):
