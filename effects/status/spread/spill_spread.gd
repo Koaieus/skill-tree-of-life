@@ -39,23 +39,50 @@ func on_removed(field: StackField, removed: Array[NodeCombat], cause: int) -> Ar
 		var stacks: float = field.stacks(r)
 		if stacks <= 0.0:
 			continue
-		var survivors: Array[NodeCombat] = []
-		for m in field.masked_neighbours(r):
-			if not removed_set.has(m):
-				survivors.append(m)
-		var k := survivors.size()
-		var sinks := _sink_count(field, r, removed_set, survivors)
 		var fraction: float = spread_fraction * death_fraction if cause == CAUSE_DEATH else spread_fraction
 		# The doom scale multiplies past the fraction's [0, 1] clamp: a doomed
 		# node can spill more than it held.
-		var spillable: float = floor(stacks * fraction * field.spill_scale(r))
-		var share: float = floor(spillable / (k + sinks)) if k > 0 else 0.0
-		if share > 0.0:
-			for survivor in survivors:
-				out.append(StackTransfer.new(r, survivor, share, field.key))
-		var remainder: float = stacks - share * k
+		var spilled := _split(field, r, floor(stacks * fraction * field.spill_scale(r)), removed_set)
+		var remainder: float = stacks
+		for t in spilled:
+			remainder -= t.amount
+		out.append_array(spilled)
 		if remainder > 0.0:
 			out.append(StackTransfer.new(r, null, remainder, field.key))
+	return out
+
+
+## The spill [method on_removed] would ring for [param node] dying now, over
+## [param share] of its row: the same survivors, sinks and even split, but
+## nothing is removed and nothing burned — a quote, see
+## [method StatusSpread.copy_out]. Fires only if this rule fires on a death.
+func copy_out(field: StackField, node: NodeCombat, share: float) -> Array[StackTransfer]:
+	if triggers & CAUSE_DEATH == 0 or node == null:
+		return [] as Array[StackTransfer]
+	var stacks: float = field.stacks(node)
+	if stacks <= 0.0:
+		return [] as Array[StackTransfer]
+	var spillable: float = floor(stacks * share * spread_fraction * death_fraction * field.spill_scale(node))
+	return _split(field, node, spillable, {node: true})
+
+
+## [param spillable] of [param r]'s stacks split evenly, floored, over its
+## masked neighbours outside [param removed_set]; each [member sink_mask]
+## neighbour takes a share that is never transferred.
+func _split(field: StackField, r: NodeCombat, spillable: float, removed_set: Dictionary) -> Array[StackTransfer]:
+	var out: Array[StackTransfer] = []
+	var survivors: Array[NodeCombat] = []
+	for m in field.masked_neighbours(r):
+		if not removed_set.has(m):
+			survivors.append(m)
+	var k := survivors.size()
+	if k == 0:
+		return out
+	var sinks := _sink_count(field, r, removed_set, survivors)
+	var share: float = floor(spillable / (k + sinks))
+	if share > 0.0:
+		for survivor in survivors:
+			out.append(StackTransfer.new(r, survivor, share, field.key))
 	return out
 
 
