@@ -77,6 +77,16 @@ var _fed: Array[DeallocEntry] = []
 ## NodeCombat -> the spill scale of the hit that depleted it
 ## ([method mark_spill_scale]); consumed by [method note_removed].
 var _spill_scale: Dictionary = {}
+## The beat's recording landing ([method track_hit]); null outside a fresh
+## attack's beat.
+var _recording: HitInstance = null
+## [SettleOp]s a rebuilt record handed in since the last flush.
+var _fed_settle: Array[SettleOp] = []
+var _batch_seq: int = 0
+var _flushing: bool = false
+## Guard on [method flush_removals]' stabilize → burst → deaths rounds; hitting
+## it is a [method @GlobalScope.push_error], not a balance knob.
+var settle_round_cap: int = 32
 
 
 ## One stripped node as it stood at its strip: per spreading def, the stacks
@@ -298,6 +308,8 @@ func free_shadow() -> void:
 	_pending.clear()
 	_tracked.clear()
 	_fed.clear()
+	_fed_settle.clear()
+	_recording = null
 	# Taken and cleared FIRST: EntityCombat.free_shadow hands a world it minted
 	# itself back to this method, so re-entry has to find nothing left to do.
 	var entities: Array = _entities.values()
@@ -380,23 +392,53 @@ func feed_recorded(entries: Array[DeallocEntry]) -> void:
 	_fed.append_array(entries)
 
 
-## Run the spill rule over everything noted since the last flush: per cause,
-## per row `(def.id, key)`, one [method StatusSpread.on_removed] over the whole removed union,
-## landed through [SpreadApplier] in this world. Loops until nothing new was
-## noted, should a landing itself strip a node. Each computed transfer is also
-## written onto its `from`'s tracked [DeallocEntry] ([method track_entries]).
+## End the beat: run the spill rule over everything noted since the last
+## flush, then [method settle_topples], and repeat while a settle round
+## toppled anything — a burst kill's removals spill and change degrees, and
+## the next round re-stabilizes on them (the phased settle). Bounded by
+## [member settle_round_cap].
 ##
-## A beat fed a record ([method feed_recorded]) RECEIVES instead: it lands
-## exactly the recorded transfers and computes nothing. Removals with no
-## [DeallocEntry] — a whole-entity death's strips, inside the beat whose chip
-## killed it — are never recorded. That is world-identical under the only
-## authored mask, Mine: the dying entity's whole territory is in the beat's
-## union, so every Mine transfer it could compute is burned. A rule with a
-## wider-than-Mine mask must get those strips recorded first.
+## Spill: per cause, per row `(def.id, key)`, one [method StatusSpread.on_removed]
+## over the whole removed union, landed through [SpreadApplier] in this world.
+## Loops until nothing new was noted. Each computed transfer is also written
+## onto its `from`'s tracked [DeallocEntry] ([method track_entries]); a later
+## round's spill (a burst kill, which no entry carries) and every settle step
+## go onto the beat's recording hit ([method track_hit]) as [SettleOp]s.
+##
+## A beat fed a record ([method feed_recorded], [method feed_settle]) RECEIVES
+## instead: it lands exactly the recorded spill and settle and computes nothing.
+## Removals with no [DeallocEntry] — a whole-entity death's strips, inside the
+## beat whose chip killed it — are never recorded. That is world-identical
+## under the only authored spill mask, Mine: the dying entity's whole territory
+## is in the beat's union, so every Mine transfer it could compute is burned.
+## A rule with a wider-than-Mine mask must get those strips recorded first.
+##
+## Re-entrant calls (a landing inside the settle that flushes) return at once:
+## the outer loop picks up whatever they noted.
 func flush_removals() -> void:
-	if not _fed.is_empty():
-		_land_recorded()
+	if _flushing:
 		return
+	_flushing = true
+	if not _fed.is_empty() or not _fed_settle.is_empty():
+		_land_recorded()
+	else:
+		var rounds := 0
+		while true:
+			_spill_pending(rounds > 0)
+			if not settle_topples():
+				break
+			rounds += 1
+			if rounds >= settle_round_cap:
+				_spill_pending(true)
+				push_error("CombatWorld: settle hit settle_round_cap (%d); pile left unsettled" % settle_round_cap)
+				break
+	_tracked.clear()
+	_spill_scale.clear()
+	_recording = null
+	_flushing = false
+
+
+func _spill_pending(record_ops: bool) -> void:
 	while not _pending.is_empty():
 		var batch := _pending
 		_pending = []
@@ -418,9 +460,9 @@ func flush_removals() -> void:
 						field.snap(r.node, r.power[rid], r.around[rid], r.spill_scale)
 				var transfers := def.spread.on_removed(field, removed, cause)
 				_record_spill(def, transfers)
+				if record_ops:
+					_record_batch(def, transfers)
 				SpreadApplier.apply(def, transfers, self)
-	_tracked.clear()
-	_spill_scale.clear()
 
 
 ## Writes [param transfers] onto their `from`'s tracked entry, re-pointed at
@@ -444,7 +486,10 @@ func _record_spill(def: StatusDef, transfers: Array[StackTransfer]) -> void:
 
 
 ## A replay beat: land every fed entry's recorded transfers, per def, in this
-## world's slices; the noted removals are dropped uncomputed.
+## world's slices, then the fed [SettleOp]s in their recorded order — a batch
+## through one [SpreadApplier] call, a burst through [method StatusDef._on_burst].
+## The removals noted meanwhile (a replayed burst's kill included) are dropped
+## uncomputed.
 func _land_recorded() -> void:
 	var by_def := {}  # StatusDef -> Array[StackTransfer]
 	for e in _fed:
@@ -457,11 +502,35 @@ func _land_recorded() -> void:
 			var to := combat_for(t.to.real()) if t.to != null else null
 			var list: Array = by_def.get_or_add(def, [] as Array[StackTransfer])
 			list.append(StackTransfer.new(from, to, t.amount, t.key))
+	var ops := _fed_settle
 	_fed.clear()
-	_pending.clear()
-	_tracked.clear()
+	_fed_settle = []
 	for def: StatusDef in by_def:
 		SpreadApplier.apply(def, by_def[def], self)
+	var i := 0
+	while i < ops.size():
+		var op := ops[i]
+		if op == null or op.def == null:
+			i += 1
+			continue
+		if op.threshold > 0:
+			var host := combat_for(op.from.real()) if op.from != null else null
+			if host != null:
+				op.def._on_burst(host, int(op.amount), op.threshold)
+			i += 1
+			continue
+		var list: Array[StackTransfer] = []
+		var def := op.def
+		var batch := op.batch
+		while i < ops.size() and ops[i] != null and ops[i].threshold == 0 \
+				and ops[i].batch == batch and ops[i].def == def:
+			var t := ops[i]
+			list.append(StackTransfer.new(combat_for(t.from.real()) if t.from != null else null,
+					combat_for(t.to.real()) if t.to != null else null, t.amount, t.key))
+			i += 1
+		SpreadApplier.apply(def, list, self)
+	_pending.clear()
+	_tracked.clear()
 
 
 ## [param node]'s graph neighbours as slices of this world — the topology is
@@ -478,5 +547,137 @@ func _neighbours_of(node: NodeCombat) -> Array[NodeCombat]:
 	return out
 
 
-func settle_topples() -> void:
-	pass
+# ── Sandpile settle ──────────────────────────────────────────────────────────
+#
+# Every beat ends here (the tail of [method flush_removals]), so a pile pops
+# the moment anything — a landing, a spill, a degree change — pushes it to its
+# threshold, with no dirty set. See docs/domain/status-effects.md.
+
+
+## One settle round: per sandpile row `(def.id, key)`, [method SandpileSpread.stabilize]
+## at the CURRENT degrees over every allocated, non-core holder and its
+## allocated non-core neighbours, land the transfers, then one
+## [method StatusDef._on_burst] per toppled host (its damage is a normal hit,
+## so a depletion notes a removal). Returns whether anything toppled. The core
+## never topples here: it is an absorber.
+func settle_topples() -> bool:
+	var rows := {}     # [id, key] -> StatusDef
+	var holders := {}  # [id, key] -> Array[NodeCombat]
+	for h in _sandpile_candidates():
+		if not _settles(h):
+			continue
+		for row in h.get_statuses():
+			if row == null or row.def == null or not (row.def.spread is SandpileSpread):
+				continue
+			if row.power <= 0.0:
+				continue
+			var rid := [row.def.id, row.key]
+			rows[rid] = row.def
+			(holders.get_or_add(rid, []) as Array).append(h)
+	var toppled := false
+	for rid: Array in rows:
+		var def: StatusDef = rows[rid]
+		var spread := def.spread as SandpileSpread
+		var result := spread.stabilize(_settle_field(def, spread.ownership_mask, holders[rid], rid[1]))
+		if result.topples.is_empty():
+			continue
+		toppled = true
+		_record_batch(def, result.transfers)
+		SpreadApplier.apply(def, result.transfers, self)
+		for n: NodeCombat in result.topples:
+			var count: int = result.topples[n]
+			var t: int = result.thresholds[n]
+			_record_burst(def, rid[1], n, count, t)
+			def._on_burst(n, count, t)
+	return toppled
+
+
+## The landing whose beat this is: the first fresh hit since the last flush.
+## The flush writes the beat's [SettleOp]s onto its [member HitInstance.settle].
+func track_hit(hit: HitInstance) -> void:
+	if hit != null and _recording == null:
+		_recording = hit
+
+
+## [param ops] arrive from a rebuilt record: the next flush is a replay beat.
+func feed_settle(ops: Array[CombatWorld.SettleOp]) -> void:
+	_fed_settle.append_array(ops)
+
+
+## Slices that may hold a sandpile row. Shadow: exactly the slices it has
+## minted — an unminted node kept the live world's settled stacks and degree
+## (a removal mints its neighbours, a credit mints its receiver). Live: every
+## entity's owned nodes.
+func _sandpile_candidates() -> Array[NodeCombat]:
+	var out: Array[NodeCombat] = []
+	if _shadow:
+		out.assign(_nodes.values())
+		return out
+	var tree := Engine.get_main_loop() as SceneTree
+	if tree == null:
+		return out
+	for e in tree.get_nodes_in_group(Entity.GROUP):
+		var entity := e as Entity
+		if entity == null or entity.navigator == null:
+			continue
+		for n in entity.navigator.get_mirrored_nodes():
+			if is_instance_valid(n) and n.owned_by == entity:
+				out.append(n.get_combat())
+	return out
+
+
+## An allocated, non-core host — the only kind that topples here.
+func _settles(n: NodeCombat) -> bool:
+	return n != null and n.is_allocated() and not n.is_core()
+
+
+## [param holders] plus their settling neighbours, so a receiver at zero can
+## topple inside the same stabilize; every field node's adjacency is its real
+## graph neighbourhood (the mask filters at read time).
+func _settle_field(def: StatusDef, mask: int, holders: Array, key: Variant) -> StackField:
+	var adjacency := {}
+	for h: NodeCombat in holders:
+		if not adjacency.has(h):
+			adjacency[h] = _neighbours_of(h)
+	for h: NodeCombat in holders:
+		for m: NodeCombat in adjacency[h]:
+			if not adjacency.has(m) and _settles(m):
+				adjacency[m] = _neighbours_of(m)
+	return StackField.new(def, mask, adjacency, key)
+
+
+func _record_batch(def: StatusDef, transfers: Array[StackTransfer]) -> void:
+	if _recording == null or transfers.is_empty():
+		return
+	_batch_seq += 1
+	for t in transfers:
+		if t == null:
+			continue
+		var op := SettleOp.new()
+		op.def = def
+		op.key = t.key
+		op.from = _live_slice(t.from)
+		op.to = _live_slice(t.to)
+		op.amount = t.amount
+		op.batch = _batch_seq
+		_recording.settle.append(op)
+
+
+func _record_burst(def: StatusDef, key: Variant, n: NodeCombat, count: int, t: int) -> void:
+	if _recording == null:
+		return
+	var op := SettleOp.new()
+	op.def = def
+	op.key = key
+	op.from = _live_slice(n)
+	op.amount = float(count)
+	op.threshold = t
+	_recording.settle.append(op)
+
+
+## [param n]'s REAL node's live slice — a record outlives its shadow.
+static func _live_slice(n: NodeCombat) -> NodeCombat:
+	if n == null:
+		return null
+	var real := n.real()
+	return real.get_combat() if real != null else null

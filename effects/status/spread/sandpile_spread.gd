@@ -1,3 +1,4 @@
+@tool
 class_name SandpileSpread
 extends StatusSpread
 
@@ -79,8 +80,11 @@ func stabilize(field: StackField) -> ToppleResult:
 	return result
 
 
-func on_tick(field: StackField) -> Array[StackTransfer]:
-	return stabilize(field).transfers
+## Nothing: [method CombatWorld.settle_topples] owns every topple, at the tail
+## of each beat's flush — the turn end's included, which runs before its
+## spread sweep — so the sweep moving stacks here would topple twice.
+func on_tick(_field: StackField) -> Array[StackTransfer]:
+	return [] as Array[StackTransfer]
 
 
 ## A removed host's stacks vanish (owner call): nothing spills.

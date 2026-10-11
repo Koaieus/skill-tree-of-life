@@ -2,6 +2,11 @@
 
 [ext_resource type="Script" uid="uid://o5i87vxhsioj" path="res://effects/status/corruption.gd" id="1_corruption"]
 [ext_resource type="Resource" path="res://identity/defs/corruption.tres" id="identity_corruption"]
+[ext_resource type="Script" path="res://effects/status/spread/sandpile_spread.gd" id="sandpile_script"]
+
+[sub_resource type="Resource" id="Resource_sandpile"]
+script = ExtResource("sandpile_script")
+ownership_mask = 6
 
 [resource]
 script = ExtResource("1_corruption")
@@ -15,3 +20,4 @@ power_max = 0.0
 display_max = 10.0
 reapply = 1
 decay = null
+spread = SubResource("Resource_sandpile")

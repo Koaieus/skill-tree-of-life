@@ -110,9 +110,12 @@ static func land_one(hit: HitInstance, world: CombatWorld,
 	# this is the replay signal: a record feeds the beat its recorded spill, a
 	# fresh landing has the spill the flush computes written onto the entries
 	# it just produced.
-	var recorded := not hit.deallocations.is_empty()
+	var recorded := not hit.deallocations.is_empty() or not hit.settle.is_empty()
 	if recorded:
 		world.feed_recorded(hit.deallocations)
+		world.feed_settle(hit.settle)
+	else:
+		world.track_hit(hit)
 	# A fuse's gate flip (#1209) lands on the TOPOLOGY, not on a slice — and
 	# live it needs [param alloc], the one flip-and-cascade implementation.
 	if hit.kind == HitInstance.Kind.GATE_FLIP:

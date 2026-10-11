@@ -192,6 +192,20 @@ const KEY_CURE_CLEARED := "c_clr"
 ## [member AttackOutcome.aim]: the cast-from node's stable id, and
 ## `[angle, length]` as float64 — empty on a node cast, which is how the far
 ## side tells "no aim" from an aim at angle 0. Both omitted at default.
+## The sandpile settle each hit's beat ran ([member HitInstance.settle]): one
+## count per hit slicing flat per-op columns — `from` / `to` stable ids (0 =
+## null, a burned stack), def path, amount (stacks, or a burst's topples),
+## row key, threshold (0 = a transfer, else a burst) and batch (one
+## [SpreadApplier] call per run of equal batches). All omitted when no hit
+## settled anything, so a topple-less record is dict-identical to an older one.
+const KEY_SETTLE_COUNT := "t_n"
+const KEY_SETTLE_FROM := "t_from"
+const KEY_SETTLE_TO := "t_to"
+const KEY_SETTLE_DEF := "t_def"
+const KEY_SETTLE_AMOUNT := "t_amt"
+const KEY_SETTLE_KEY := "t_key"
+const KEY_SETTLE_THRESHOLD := "t_thr"
+const KEY_SETTLE_BATCH := "t_bat"
 const KEY_AIM_ORIGIN := "a_org"
 const KEY_AIM_GEOM := "a_geom"
 
@@ -265,6 +279,14 @@ var gate_to := PackedInt32Array()
 var cure_counts := PackedInt32Array()
 var cure_defs := PackedStringArray()
 var cure_cleared := PackedFloat64Array()
+var settle_counts := PackedInt32Array()
+var settle_from := PackedInt32Array()
+var settle_to := PackedInt32Array()
+var settle_defs := PackedStringArray()
+var settle_amounts := PackedFloat64Array()
+var settle_keys := PackedStringArray()
+var settle_thresholds := PackedInt32Array()
+var settle_batches := PackedInt32Array()
 var aim_origin: int = 0
 var aim_geom := PackedFloat64Array()
 
@@ -321,6 +343,14 @@ static func wire_fields() -> Array[WireFields.Field]:
 		WireFields.Field.new(&"cure_counts", TYPE_PACKED_INT32_ARRAY).as_key(KEY_CURE_COUNT).omitted_at_default(),
 		WireFields.Field.new(&"cure_defs", TYPE_PACKED_STRING_ARRAY).as_key(KEY_CURE_DEF).omitted_at_default(),
 		WireFields.Field.new(&"cure_cleared", TYPE_PACKED_FLOAT64_ARRAY).as_key(KEY_CURE_CLEARED).omitted_at_default(),
+		WireFields.Field.new(&"settle_counts", TYPE_PACKED_INT32_ARRAY).as_key(KEY_SETTLE_COUNT).omitted_at_default(),
+		WireFields.Field.new(&"settle_from", TYPE_PACKED_INT32_ARRAY).as_key(KEY_SETTLE_FROM).omitted_at_default(),
+		WireFields.Field.new(&"settle_to", TYPE_PACKED_INT32_ARRAY).as_key(KEY_SETTLE_TO).omitted_at_default(),
+		WireFields.Field.new(&"settle_defs", TYPE_PACKED_STRING_ARRAY).as_key(KEY_SETTLE_DEF).omitted_at_default(),
+		WireFields.Field.new(&"settle_amounts", TYPE_PACKED_FLOAT64_ARRAY).as_key(KEY_SETTLE_AMOUNT).omitted_at_default(),
+		WireFields.Field.new(&"settle_keys", TYPE_PACKED_STRING_ARRAY).as_key(KEY_SETTLE_KEY).omitted_at_default(),
+		WireFields.Field.new(&"settle_thresholds", TYPE_PACKED_INT32_ARRAY).as_key(KEY_SETTLE_THRESHOLD).omitted_at_default(),
+		WireFields.Field.new(&"settle_batches", TYPE_PACKED_INT32_ARRAY).as_key(KEY_SETTLE_BATCH).omitted_at_default(),
 	]
 
 
@@ -345,6 +375,11 @@ static func capture(outcome: AttackOutcome, graph: Graph) -> Dictionary:
 	# Identity-keyed, because two landings on one node in one beat are
 	# genuinely distinct hits with equal field values.
 	var index_of: Dictionary = {}
+	var any_settle := false
+	for hit in outcome.hits:
+		if not hit.settle.is_empty():
+			any_settle = true
+			break
 	for i in outcome.hits.size():
 		var hit := outcome.hits[i]
 		index_of[hit] = i
@@ -390,6 +425,8 @@ static func capture(outcome: AttackOutcome, graph: Graph) -> Dictionary:
 				r.spill_defs.append(def.resource_path if def != null else "")
 				r.spill_amounts.append(t.amount if t != null else 0.0)
 				r.spill_keys.append(var_to_str(t.key if t != null else true))
+		if any_settle:
+			_capture_settle(r, hit, graph)
 		var flip := hit as GateFlipInstance
 		if flip != null:
 			r.gate_counts.append(flip.gates.size())
@@ -470,6 +507,8 @@ static func rebuild(d: Dictionary, graph: Graph, rate: float = -1.0) -> AttackOu
 	var dealloc_at := 0
 	# Running offset over the flattened spill transfers, advanced per entry.
 	var spill_at := 0
+	# Running offset over the flattened settle ops, advanced per hit.
+	var settle_at := 0
 	# Running offsets for the gate-flip arrays: `flip_at` over flip hits,
 	# `gate_at` over their flattened pairs.
 	var flip_at := 0
@@ -593,6 +632,8 @@ static func rebuild(d: Dictionary, graph: Graph, rate: float = -1.0) -> AttackOu
 				entries.append(entry)
 			hit.deallocations = entries
 			dealloc_at += count
+		if i < r.settle_counts.size():
+			settle_at = _rebuild_settle(r, hit, settle_at, r.settle_counts[i], graph)
 		hit.gated = gated
 		hit.structural_key = r.structural[i]
 		hit.target = _node_of(r.targets[i], graph)
@@ -685,6 +726,42 @@ static func _rebuild_spill(r: AttackRecord, entry: DeallocEntry, at: int, count:
 		var key: Variant = str_to_var(r.spill_keys[i]) if i < r.spill_keys.size() else true
 		entry.spill.append(StackTransfer.new(from, to, r.spill_amounts[i], key))
 		entry.spill_defs.append(def)
+	return at + count
+
+
+static func _capture_settle(r: AttackRecord, hit: HitInstance, graph: Graph) -> void:
+	r.settle_counts.append(hit.settle.size())
+	for op in hit.settle:
+		r.settle_from.append(_id_of(op.from.real() if op != null and op.from != null else null, graph))
+		r.settle_to.append(_id_of(op.to.real() if op != null and op.to != null else null, graph))
+		r.settle_defs.append(op.def.resource_path if op != null and op.def != null else "")
+		r.settle_amounts.append(op.amount if op != null else 0.0)
+		r.settle_keys.append(var_to_str(op.key if op != null else true))
+		r.settle_thresholds.append(op.threshold if op != null else 0)
+		r.settle_batches.append(op.batch if op != null else 0)
+
+
+## Unpacks [param hit]'s recorded settle starting at [param at]; returns the
+## offset past it. A node this peer does not hold (fog) rebuilds as null — a
+## burned transfer, a skipped burst — the [method _rebuild_spill] seam.
+static func _rebuild_settle(r: AttackRecord, hit: HitInstance, at: int, count: int,
+		graph: Graph) -> int:
+	for k in count:
+		var i := at + k
+		if i >= r.settle_amounts.size():
+			break
+		var op := CombatWorld.SettleOp.new()
+		var from_node := _node_of(r.settle_from[i], graph)
+		var to_node := _node_of(r.settle_to[i], graph)
+		op.from = from_node.get_combat() if from_node != null else null
+		op.to = to_node.get_combat() if to_node != null else null
+		var path := r.settle_defs[i]
+		op.def = load(path) as StatusDef if not path.is_empty() else null
+		op.key = str_to_var(r.settle_keys[i]) if i < r.settle_keys.size() else true
+		op.amount = r.settle_amounts[i]
+		op.threshold = r.settle_thresholds[i] if i < r.settle_thresholds.size() else 0
+		op.batch = r.settle_batches[i] if i < r.settle_batches.size() else 0
+		hit.settle.append(op)
 	return at + count
 
 
