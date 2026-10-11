@@ -299,6 +299,12 @@ func _on_node_statuses_changed(node: SkillNode) -> void:
 		_request_recompute()
 
 
+## Whether [param e] sits in the local viewer's camp — the one question a
+## view-only layer ([LanternLayer]) asks. Null is never in it.
+func is_viewer_camp(e: Entity) -> bool:
+	return false
+
+
 ## The camps ([member Faction.id], `&""` none) of [param viewers] — the keys
 ## their scout rows are grouped under.
 static func _camps_of(viewers: Array[Entity]) -> Array[StringName]:

@@ -357,6 +357,13 @@ var revealed: bool = true:
 		revealed = value
 		_apply_sensed_state()
 
+## Lantern-lit flag, written by [LanternLayer] while a lantern disc of this
+## machine's camp covers a node that is not [member revealed]. VIEW-ONLY: it
+## gives the node its revealed look (addons, core) and touches nothing logical
+## — not [member revealed], picking, targeting or the AI. With no fog system
+## it stays false. See docs/domain/vision-system.md, "Lanterns".
+var lantern_lit: bool = false
+
 ## Scouted flag (#1033), written by VisionSystem on every recompute: true
 ## while this MACHINE's vision group holds a live scouted mark on the node —
 ## never a hostile scout's, so it leaks nothing. The disc in the fog is the

@@ -1,0 +1,6 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://ui/fog_overlay/lantern_layer.gd" id="1_script"]
+
+[node name="LanternLayer" type="Node"]
+script = ExtResource("1_script")
