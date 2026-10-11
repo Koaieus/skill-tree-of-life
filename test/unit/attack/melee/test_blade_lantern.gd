@@ -103,3 +103,36 @@ func test_preview_ghost_is_dark_until_the_commit_claims_it() -> void:
 	var visuals := preview.current_blade().get_node_visuals()
 	assert_lt(_lanterns()[0].global_position.distance_to(visuals[1].global_position), 1.0,
 			"on the drawn scout vertex")
+
+
+func test_lantern_radius_follows_the_scout_knob() -> void:
+	var blade := _build_blade(true)
+	var lanterns := _lanterns()
+	assert_eq(lanterns.size(), 1, "precondition: one lit vertex")
+	if lanterns.size() != 1:
+		return
+	for effect in blade.state.vertex_on_hit[1]:
+		if effect != null and effect.status_def() is ScoutStatus:
+			effect.set(&"power", 4.0)  # the authored rider is 0 stacks: nothing to size
+	blade.arm_lanterns()
+	var expected := SkillBlade.scout_lantern_radius(blade.state, 1, blade._source_nodes[1])
+	assert_gt(expected, 0.0, "the scout rider sizes the marker")
+	assert_eq(lanterns[0].get(&"radius"), expected, "marker radius is the knob's, not the default")
+	var scout: ScoutStatus = null
+	for effect in blade.state.vertex_on_hit[1]:
+		if effect != null and effect.status_def() is ScoutStatus:
+			scout = effect.status_def()
+			var stacks := roundi(float(effect.get(&"power"))) if &"power" in effect else 1
+			assert_eq(lanterns[0].get(&"radius"), scout.lantern_radius_for(blade._source_nodes[1], stacks))
+			break
+	assert_not_null(scout, "a scout rider is on the vertex")
+
+
+func test_launch_without_windup_lights_the_swing() -> void:
+	var preview := MeleePreview.new()
+	add_child_autofree(preview)
+	var plan := _preview_plan(preview)
+	preview._spawn_blade(plan)
+	assert_eq(_lanterns().size(), 0, "precondition: the aim ghost is dark")
+	preview.launch(plan)
+	assert_eq(_lanterns().size(), 1, "launch's fallback path lights the scout vertex")

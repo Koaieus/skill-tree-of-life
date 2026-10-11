@@ -730,7 +730,8 @@ func _spawn_visuals() -> void:
 func arm_lanterns() -> void:
 	for i in _node_visuals.size():
 		if is_scout_vertex(state, i):
-			_node_visuals[i].light_lantern(owned_by)
+			var origin: SkillNode = _source_nodes[i] if i < _source_nodes.size() else null
+			_node_visuals[i].light_lantern(owned_by, scout_lantern_radius(state, i, origin))
 
 
 ## Does vertex [param i] scout what it hits? True iff one of its on-hit riders
@@ -744,6 +745,22 @@ static func is_scout_vertex(blade_state: BladeState, i: int) -> bool:
 		if effect != null and effect.status_def() is ScoutStatus:
 			return true
 	return false
+
+
+## The lantern radius vertex [param i] lights, sized like a scout arrow's
+## (`ArrowVolleyCoordinator._attach_lantern`): [method ScoutStatus.lantern_radius_for]
+## off [param origin] and the first scout rider's stacks. `0` when it gives
+## nothing — the marker keeps its own default.
+static func scout_lantern_radius(blade_state: BladeState, i: int, origin: SkillNode) -> float:
+	if origin == null or i >= blade_state.vertex_on_hit.size():
+		return 0.0
+	for effect in blade_state.vertex_on_hit[i]:
+		var scout := effect.status_def() as ScoutStatus if effect != null else null
+		if scout == null:
+			continue
+		var stacks: int = roundi(float(effect.get(&"power"))) if &"power" in effect else 1
+		return scout.lantern_radius_for(origin, stacks)
+	return 0.0
 
 
 ## The wielder's identity colour, or transparent when the blade has no owner

@@ -91,14 +91,16 @@ func _reconfigure() -> void:
 
 ## Light this vertex for [param source]'s camp: instances [member lantern_scene]
 ## once and keeps it (a second call only re-points its source). The radius is
-## the scene's own default.
-func light_lantern(source: Entity) -> void:
+## [param radius] when positive, else the scene's own default.
+func light_lantern(source: Entity, radius: float = 0.0) -> void:
 	if _lantern == null:
 		if lantern_scene == null:
 			return
 		_lantern = lantern_scene.instantiate() as Node2D
 		add_child(_lantern)
 	_lantern.set(&"source", source)
+	if radius > 0.0:
+		_lantern.set(&"radius", radius)
 
 
 ## The lit marker, or null — for tests and the sandbox.
