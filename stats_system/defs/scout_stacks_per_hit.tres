@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="StatDef" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://stats_system/stat_def.gd" id="1_stat_def"]
+[ext_resource type="Resource" path="res://identity/defs/scout.tres" id="identity_scout"]
+
+[resource]
+script = ExtResource("1_stat_def")
+identity = ExtResource("identity_scout")
+role = 2
+id = &"scout_stacks_per_hit"
+display_name = "Scout Stacks per Hit"
+description = "The scouted stacks this entity's hits land for its camp. The authored per-hit scouting is a base_add overlay on this stat, so its flats add to it and its INCREASE / MORE scale it: landed = fold(per-hit), never floored. More stacks mean a wider disc (radius grows with the root of the stacks) that lasts longer, one stack fading per turn. No parent: scouting is not a DoT, so DoT Stacks per Hit never reaches it. Only boosts a scouting application that already happens — never scouts on its own. Default 0; read at the attacking node — an entity grant reaches every hit, a node-local grant only the hits that node lands."
+value_type = 1
+default_value = 0.0
+modifier_name = "Scout Stacks per Hit"
+local_grantable = true
