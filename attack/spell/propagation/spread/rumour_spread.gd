@@ -78,5 +78,5 @@ func _payload_stacks(lctx: LandingContext) -> float:
 
 func get_description() -> String:
 	var metric := ranker.get_description() if ranker != null else "rank"
-	return "Flows toward the lowest %s, forking on ties; every other neighbour takes %d%% of the stacks and stops there." \
+	return "Toward the lowest %s, ties forking; the rest take %d%% and stop." \
 			% [metric, roundi(off_path_share * 100.0)]
