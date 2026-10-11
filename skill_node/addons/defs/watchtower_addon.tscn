@@ -4,6 +4,10 @@
 [ext_resource type="Script" uid="uid://che6xhl6srqh3" path="res://stats_system/stat_modifier.gd" id="2_wtwr"]
 [ext_resource type="Script" uid="uid://bexewgt16aia1" path="res://skill_node/addons/visuals/watchtower_visual.gd" id="9_visual"]
 [ext_resource type="Resource" path="res://identity/defs/scout.tres" id="identity_ref"]
+[ext_resource type="Resource" uid="uid://cxsty6fu58ea0" path="res://effects/status/scouted.tres" id="3_scouted"]
+[ext_resource type="Script" uid="uid://c2q50hhtuf7g7" path="res://attack/spell/on_hit/apply_status_effect.gd" id="5_status"]
+[ext_resource type="Script" uid="uid://dw3civ4fol21f" path="res://attack/spell/on_hit/on_hit_effect.gd" id="6_effect"]
+[ext_resource type="Script" uid="uid://bnawtc8ic78fp" path="res://stats_system/level_gated_modifier.gd" id="7_gated"]
 
 [sub_resource type="Resource" id="Resource_wtwr"]
 resource_local_to_scene = true
@@ -49,12 +53,49 @@ operation = 3
 value = 2.0
 metadata/_custom_type_script = "uid://che6xhl6srqh3"
 
+[sub_resource type="Resource" id="Resource_wtwr_aspect"]
+resource_local_to_scene = true
+resource_name = "+1 Scout Aspect"
+script = ExtResource("2_wtwr")
+stat_id = &"scout_aspect"
+value = 1.0
+metadata/_custom_type_script = "uid://che6xhl6srqh3"
+
+[sub_resource type="Resource" id="Resource_wtwr_rider"]
+script = ExtResource("5_status")
+def = ExtResource("3_scouted")
+power = 0.0
+
+[sub_resource type="Resource" id="Resource_wtwr_stacks"]
+resource_local_to_scene = true
+resource_name = "+1 Scout Stacks per Hit"
+script = ExtResource("2_wtwr")
+stat_id = &"scout_stacks_per_hit"
+value = 1.0
+metadata/_custom_type_script = "uid://che6xhl6srqh3"
+
+[sub_resource type="Resource" id="Resource_wtwr_unlock"]
+resource_local_to_scene = true
+resource_name = "×2 Scout Stacks per Hit at 3/X"
+script = ExtResource("7_gated")
+unlock_level = 3
+stat_id = &"scout_stacks_per_hit"
+operation = 2
+value = 2.0
+
 [node name="WatchtowerAddon" type="Node2D" unique_id=1780589357]
 z_index = 1
 script = ExtResource("1_wtwr")
 identity = ExtResource("identity_ref")
-local_modifiers = Array[ExtResource("2_wtwr")]([SubResource("Resource_wtwr"), SubResource("Resource_rtvrv"), SubResource("Resource_cjnh8"), SubResource("Resource_wtwr_arrows"), SubResource("Resource_wtwr_shots")])
-description = "A raised lookout post — extends this node's sight radius, no matter who holds it."
+on_hit_effects = Array[ExtResource("6_effect")]([SubResource("Resource_wtwr_rider")])
+entity_modifiers = Array[ExtResource("2_wtwr")]([SubResource("Resource_wtwr_aspect")])
+local_modifiers = Array[ExtResource("2_wtwr")]([SubResource("Resource_wtwr"), SubResource("Resource_rtvrv"), SubResource("Resource_cjnh8"), SubResource("Resource_wtwr_arrows"), SubResource("Resource_wtwr_shots"), SubResource("Resource_wtwr_stacks"), SubResource("Resource_wtwr_unlock")])
+description = "A raised lookout post — extends this node's sight radius, no matter who holds it. Its owner gains a scouting arrow, and a blade swung through this node lights up every contact it makes for its camp."
+temp_placeable = true
+temp_cost_blade_size = 1
+temp_cost_aspects = Dictionary[StringName, int]({
+&"scout_aspect": 1
+})
 
 [node name="Visual" type="Node2D" parent="." unique_id=744162610]
 script = ExtResource("9_visual")
