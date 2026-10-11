@@ -9,6 +9,8 @@
 [ext_resource type="Resource" path="res://attack/spell/defs/defile.tres" id="6_defile"]
 [ext_resource type="PackedScene" path="res://skill_node/addons/defs/compromiser_addon.tscn" id="7_addon"]
 
+[ext_resource type="Resource" path="res://attack/spell/defs/purification.tres" id="8_purification"]
+
 [resource]
 script = ExtResource("1_aspect")
 identity = ExtResource("2_identity")
@@ -16,4 +18,4 @@ stat = ExtResource("3_stat")
 status = ExtResource("4_status")
 ammo = ExtResource("5_ammo")
 addon_scene = ExtResource("7_addon")
-spells = Array[ExtResource("1_spell_def")]([ExtResource("6_defile")])
+spells = Array[ExtResource("1_spell_def")]([ExtResource("6_defile"), ExtResource("8_purification")])
