@@ -17,5 +17,4 @@ display_name = "Weakness Arrow"
 order = 50
 damage_scale = 0.5
 on_hit_effects = Array[ExtResource("5_on_hit_effect")]([SubResource("Resource_rider")])
-per_reload_stat_id = &"weakness_aspect"
 visual_scene = ExtResource("3_visual")

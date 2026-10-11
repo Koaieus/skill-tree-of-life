@@ -21,7 +21,6 @@ display_name = "Hexed"
 identity = ExtResource("identity_hex")
 description = "Every stack adds a flat bonus to the crit chance of any hit landing on this node, after the attacker's own increases; a core's hex counts for every node its owner holds. Stacks fall by 1 each turn."
 tags = Array[StringName]([&"debuff"])
-stacks_stat_id = &"hex_stacks_per_hit"
 incoming_modifiers = Array[ExtResource("mod_script")]([SubResource("Resource_crit_taken")])
 power_max = 0.0
 decay = SubResource("Resource_decay")

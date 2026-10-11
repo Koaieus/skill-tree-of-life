@@ -2,7 +2,7 @@
 extends HBoxContainer
 
 ## One resistance slider: a label, a 0–1 slider and its readout. The panel
-## instantiates one per distinct [member StatusDef.resistance_stat_id].
+## instantiates one per distinct [method StatusDef.resistance_stat_id].
 
 signal changed(stat_id: StringName, value: float)
 

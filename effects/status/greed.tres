@@ -13,6 +13,5 @@ tags = Array[StringName]([&"debuff"])
 power_max = 0.0
 display_max = 10.0
 reapply = 1
-stacks_stat_id = &"greed_stacks_per_hit"
 decay = null
 avarice_increase_per_stack = 10.0

@@ -16,7 +16,6 @@ display_name = "Wither"
 identity = ExtResource("identity_wither")
 description = "Every stack cuts healing on this node by 10%; past 10 stacks healing becomes damage that never closes the regen gate. A quarter of the stacks fade each turn and they never cap."
 tags = Array[StringName]([&"debuff"])
-stacks_stat_id = &"wither_stacks_per_hit"
 power_max = 0.0
 decay = SubResource("Resource_decay")
 display_max = 10.0

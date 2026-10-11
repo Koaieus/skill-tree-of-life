@@ -6,7 +6,7 @@
 
 [sub_resource type="Resource" id="Resource_identity"]
 script = ExtResource("identity_script")
-id = &"fixture"
+id = &"poison"
 tint = Color(0, 1, 0, 1)
 
 [sub_resource type="Resource" id="Resource_decay"]
@@ -21,6 +21,4 @@ identity = SubResource("Resource_identity")
 power_max = 5.0
 reapply = 0
 on_dealloc = 0
-resistance_stat_id = &"poison_resistance"
-stacks_stat_id = &"poison_stacks_per_hit"
 decay = SubResource("Resource_decay")

@@ -30,5 +30,4 @@ display_name = "Blindness Arrow"
 order = 20
 damage_scale = 0.0
 on_hit_effects = Array[ExtResource("5_on_hit_effect")]([SubResource("Resource_flare")])
-per_reload_stat_id = &"blindness_aspect"
 visual_scene = ExtResource("9_visual")

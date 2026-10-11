@@ -41,7 +41,7 @@ markers, the flare, every arrow's look — is `docs/design/aspect_matrix.md`
 | stats | `order` | volley position: lower fires and lands first, the base arrow sits at 100, scout last (120). A **marker** flies early (curse 40, hex 30, greed 5) |
 | | `damage_scale` | raw-damage multiplier before mitigation; markers 0.3, plain stacks 0.5 unless the row says otherwise (armor break 0.75), blindness and scout 0 |
 | | `max_stock` | the type's own bank cap, outside the shared quiver capacity (ADR 0041); 999 unless tuned (curse and corruption 6) |
-| | `per_reload_stat_id` | `<concept>_aspect` |
+| | `per_reload_stat_id()` | derived: the concept's ASPECT facet (base arrow authors `base_per_reload_stat_id`) |
 | effect | `on_hit_effects` | `OnHitEffect` riders run in order on every landing arrow ([On-hit shelf](#on-hit-shelf)) — usually one `ApplyStatusEffect` of the concept's `effects/status/<concept>.tres`, its `power` the stacks per landing arrow before potency × (1 − resistance). A scout type is one `ApplyStatusEffect(scouted.tres)` rider with `damage_scale` 0 (`AmmoType.is_scout()`) |
 | looks | `visual_scene` | the type's own inherited scene of `ui/vfx/projectile/visual/status_arrow.tscn` under `ui/vfx/projectile/visual/arrows/<concept>_arrow.tscn`, picked per shot by `ArrowVolleyCoordinator` (#1351, #1352). A look is parts, not code ([Look shelf](#look-shelf)). `test_ammo_type_roster.gd` requires a statused type to fly its own scene |
 
@@ -193,7 +193,7 @@ A spell's status is its **affinity**, not an authored rider:
 - `attack/spell/spell_def.gd`: `affinities: Array[SpellAffinity]` and `default_rate` (for concepts the list leaves out; 0 refuses them).
 - `attack/spell/spell_def.gd`: `infusion_capacity` (most points one cast of this spell takes; `INF` = the pool alone caps).
 - `attack/spell/infusion.gd`: `Infusion.innate(spell)` / `for_cast(spell, points)`, `points` (concept id → points), `rate_of`, `affinity_of` = innate + ⌊points × rate⌋, `riders`. Riders are one `ApplyStatusEffect` per concept with affinity above 0; a concept the spell does not list finds its status through `effects/status_roster.gd` (`StatusRoster.by_concept`). `AspectRoster` ranks above `attack`, so it can't serve that lookup. A new `effects/status/*.tres` joins `effects/status_roster.tres` (`test_status_roster.gd` pins it).
-- `attack/aspect_currency.gd`: `AspectCurrency.cap_of(attacker, stat_id)`, the one floored board read behind melee's `currency_cap` and magic's caps; `stat_of(concept)` = `<concept>_aspect`.
+- `attack/aspect_currency.gd`: `AspectCurrency.cap_of(attacker, stat_id)`, the one floored board read behind melee's `currency_cap` and magic's caps; `stat_of(concept)` = the concept's ASPECT facet id (`StatRegistry.facet_def`).
 - `attack/plan/magic_attack_plan.gd`: `infusion` (never null; innate after `set_spell`), `set_infusion(id, points)`, `aspect_overrun()` (per-aspect stat + `infusion_slots` + `min(infusion_points, infusion_capacity)` + refused points), the `"infusion"` wire key (only when points are spent; `from_dict` ungated, ADR 0035), and the preview and launch resolves both carry it.
 - `stats_system/defs/infusion_slots.tres` / `infusion_points.tres`: derived on `entity/default_entity_board.tres` from INT. Slots: a threshold ladder at 100 / 1000 / 10000. Points: ⌊√INT⌋.
 - `attack/spell/spell_resolver.gd`: `resolve_against(…, infusion = null)` runs the riders after `on_hit_effects` at every landing.

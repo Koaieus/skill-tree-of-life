@@ -99,8 +99,8 @@ func _tick_paying() -> float:
 func test_the_authored_def_shape() -> void:
 	var d := _def()
 	assert_true(d is BleedingStatus, "bleeding.tres is a BleedingStatus")
-	assert_eq(d.resistance_stat_id, &"bleeding_resistance", "the def names its resistance")
-	assert_eq(d.stacks_stat_id, &"bleeding_stacks_per_hit")
+	assert_eq(d.resistance_stat_id(), &"bleeding_resistance", "the def names its resistance")
+	assert_eq(d.stacks_stat_id(), &"bleeding_stacks_per_hit")
 	assert_true(d.decay is RampDecay, "decay is the ramp")
 	assert_true(d.spread is SpillSpread, "spread is the dissipating spill")
 	assert_eq(d.reapply, StatusDef.Reapply.ACCUMULATE)

@@ -68,13 +68,26 @@ var tint: Color:
 ## fraction read on the HOST at effect time, filtering how many stacks each
 ## apply and tick counts, round half-down, while the row decays raw; at
 ## `>= 1` stacks do not land ([method StatusHost.effective_power], ADR 0031).
-## Blank → unresisted.
-@export var resistance_stat_id: StringName = &""
+## Derived from the concept's RESISTANCE facet ([member StatDef.role]); blank
+## → unresisted.
+func resistance_stat_id() -> StringName:
+	return _facet_id(StatDef.Role.RESISTANCE)
+
+
 ## The attacker-side stacks stat this status folds its per-hit power through
-## ([method stacks_per_hit]): `<family>_stacks_per_hit` for a DoT, whose
-## `dot_stacks_per_hit` parent folds in the same read, or blindness's own
-## parentless stat. Blank → the authored power lands as-is.
-@export var stacks_stat_id: StringName = &""
+## ([method stacks_per_hit]): the concept's STACKS_PER_HIT facet, whose
+## `dot_stacks_per_hit` parent folds in the same read. Blank → the authored
+## power lands as-is.
+func stacks_stat_id() -> StringName:
+	return _facet_id(StatDef.Role.STACKS_PER_HIT)
+
+
+func _facet_id(role: StatDef.Role) -> StringName:
+	var concept: StringName = identity.id if identity != null else id
+	var def: StatDef = StatRegistry.facet_def(concept, role)
+	return def.id if def != null else &""
+
+
 ## What an attacker reads differently against this status's host: each entry
 ## says "an attacker's read of `stat_id` against my host gets `operation` with
 ## `value × power`", power being the host's EFFECTIVE power summed over the
@@ -228,7 +241,7 @@ func get_description() -> String:
 ## The stacks one hit of [param authored] power lands from an attacker with
 ## [param board] (the defender's resistance filters later, on the host):
 ## ONE read of
-## [member stacks_stat_id] with [param authored] as a `base_add` overlay, so
+## [method stacks_stat_id] with [param authored] as a `base_add` overlay, so
 ## the stat's flats add to it and its INCREASE / MORE scale it (ADR 0029).
 ## Rounded HALF-UP, once, here — the row is a whole count (ADR 0032) and a tie
 ## goes to the attacker; the `*_stacks_per_hit` stats stay FLOAT so their read
@@ -236,9 +249,9 @@ func get_description() -> String:
 ## [param authored], rounded the same way. The landing and the on-hit readout
 ## both call this, so they cannot disagree.
 func stacks_per_hit(board: StatBoard, authored: float) -> float:
-	if board == null or stacks_stat_id.is_empty():
+	if board == null or stacks_stat_id().is_empty():
 		return round_half_up(authored)
-	var stat: Stat = board.get_stat(stacks_stat_id)
+	var stat: Stat = board.get_stat(stacks_stat_id())
 	if stat == null:
 		return round_half_up(authored)
 	var bins := ModifierBins.new()
@@ -272,13 +285,13 @@ func applies_line(board: StatBoard, authored: float, ingest: String = "",
 ## board answers [param authored], rounded the same way.
 func stacks_per_hit_at(slice: NodeCombat, authored: float,
 		extra: Array[ModifierBins] = []) -> float:
-	if slice == null or stacks_stat_id.is_empty():
+	if slice == null or stacks_stat_id().is_empty():
 		return round_half_up(authored)
 	var bins := ModifierBins.new()
 	bins.base_add = authored
 	var overlays: Array[ModifierBins] = [bins]
 	overlays.append_array(extra)
-	var v: Variant = slice.get_local_value_with(stacks_stat_id, overlays)
+	var v: Variant = slice.get_local_value_with(stacks_stat_id(), overlays)
 	if v == null:
 		return round_half_up(authored)
 	return round_half_up(float(v))

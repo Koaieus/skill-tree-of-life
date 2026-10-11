@@ -8,4 +8,4 @@ id = &"arrow"
 display_name = "Arrow"
 order = 100
 damage_scale = 1.0
-per_reload_stat_id = &"arrows_per_reload"
+base_per_reload_stat_id = &"arrows_per_reload"

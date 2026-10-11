@@ -128,7 +128,7 @@ func land_on(node: NodeCombat, world: CombatWorld) -> void:
 			var rn: NodeCombat = world.combat_for(read_node) if world != null else null
 			var extra: Array[ModifierBins] = []
 			if read_overlays.is_valid():
-				extra = read_overlays.call(def.stacks_stat_id)
+				extra = read_overlays.call(def.stacks_stat_id())
 			power = def.stacks_per_hit_at(rn, power, extra) if rn != null \
 				else def.stacks_per_hit(_attacker_board(), power)
 			power *= absf(crit_multiplier)

@@ -178,7 +178,7 @@ func _populate_statuses() -> void:
 func _build_resistance_rows() -> void:
 	var seen: Dictionary[StringName, bool] = {}
 	for def in _defs:
-		var id := def.resistance_stat_id
+		var id := def.resistance_stat_id()
 		if id.is_empty() or seen.has(id):
 			continue
 		seen[id] = true

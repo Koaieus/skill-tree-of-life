@@ -300,9 +300,9 @@ func blocks(def: StatusDef) -> bool:
 
 func _resistance(def: StatusDef) -> float:
 	var o = owner
-	if def == null or def.resistance_stat_id.is_empty() or o == null:
+	if def == null or def.resistance_stat_id().is_empty() or o == null:
 		return 0.0
-	var v: Variant = o.get_local_value(def.resistance_stat_id)
+	var v: Variant = o.get_local_value(def.resistance_stat_id())
 	return float(v) if v != null else 0.0
 
 

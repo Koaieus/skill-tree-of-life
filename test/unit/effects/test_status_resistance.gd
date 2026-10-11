@@ -49,7 +49,6 @@ func _pool() -> EntityCombat:
 func _poison() -> PoisonStatus:
 	var d := PoisonStatus.new()
 	d.id = &"poison"
-	d.resistance_stat_id = &"poison_resistance"
 	d.power_max = 0.0
 	d.decay = FractionDecay.new(0.5)
 	d.reapply = StatusDef.Reapply.ACCUMULATE
@@ -61,7 +60,6 @@ func _poison() -> PoisonStatus:
 func _corruption() -> CorruptionStatus:
 	var d := CorruptionStatus.new()
 	d.id = &"corruption"
-	d.resistance_stat_id = &"corruption_resistance"
 	d.power_max = 0.0
 	d.decay = FractionDecay.new(0.5)
 	d.reapply = StatusDef.Reapply.ACCUMULATE
@@ -72,7 +70,6 @@ func _corruption() -> CorruptionStatus:
 func _curse() -> CurseStatus:
 	var d := CurseStatus.new()
 	d.id = &"curse"
-	d.resistance_stat_id = &"curse_resistance"
 	d.power_max = 0.0
 	d.decay = FlatDecay.new(1.0)
 	d.reapply = StatusDef.Reapply.ACCUMULATE
@@ -126,7 +123,7 @@ func test_the_half_down_table() -> void:
 
 func test_a_blank_resistance_id_filters_nothing() -> void:
 	var def := _poison()
-	def.resistance_stat_id = &""
+	def.id = &"nothing"
 	_set_res(&"poison_resistance", 0.9)
 	assert_almost_eq(_combat().effective_status_power(def, 10.0), 10.0, 0.0001)
 
@@ -253,7 +250,7 @@ func _run_to_empty(host, def: StatusDef, power: float, hp: Callable) -> Array[fl
 
 func _assert_parity(label: String, host, def: StatusDef, hp: Callable, refill: Callable) -> void:
 	for res in _RESISTANCES:
-		_entity.stat_board.get_stat(def.resistance_stat_id).base_value = res
+		_entity.stat_board.get_stat(def.resistance_stat_id()).base_value = res
 		for power in _POWERS:
 			refill.call()
 			var r := _run_to_empty(host, def, power, hp)

@@ -17,5 +17,4 @@ display_name = "Armor Break Arrow"
 order = 10
 damage_scale = 0.75
 on_hit_effects = Array[ExtResource("5_on_hit_effect")]([SubResource("Resource_rider")])
-per_reload_stat_id = &"armor_break_aspect"
 visual_scene = ExtResource("9_visual")

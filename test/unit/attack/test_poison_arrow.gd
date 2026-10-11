@@ -419,7 +419,7 @@ func test_fall_through_gates_on_the_entity_boards_resistance_not_the_nodes() -> 
 	var ctx: Dictionary = await _build()
 	var core := _core_of(ctx)
 	var defender: Entity = ctx.defender
-	assert_eq(_POISON_DEF.resistance_stat_id, &"poison_resistance", "the authored def names the stat")
+	assert_eq(_POISON_DEF.resistance_stat_id(), &"poison_resistance", "the authored def names the stat")
 	assert_not_null(defender.stat_board.get_stat(&"poison_resistance"), "the entity board carries it")
 	defender.stat_board.get_stat(&"poison_resistance").base_value = 0.0
 	_set_local(core, &"poison_resistance", 1.0)

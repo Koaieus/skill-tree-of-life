@@ -17,5 +17,4 @@ display_name = "Greed Arrow"
 order = 5
 damage_scale = 0.3
 on_hit_effects = Array[ExtResource("5_on_hit_effect")]([SubResource("Resource_rider")])
-per_reload_stat_id = &"greed_aspect"
 visual_scene = ExtResource("3_visual")

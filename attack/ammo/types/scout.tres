@@ -17,5 +17,4 @@ display_name = "Scout Arrow"
 order = 120
 damage_scale = 0.0
 on_hit_effects = Array[ExtResource("5_on_hit_effect")]([SubResource("Resource_rider")])
-per_reload_stat_id = &"scout_aspect"
 visual_scene = ExtResource("9_visual")

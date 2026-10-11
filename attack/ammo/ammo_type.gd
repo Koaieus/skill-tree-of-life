@@ -13,7 +13,7 @@ extends Resource
 ## hits ride the arrow's beat. A scout type ([method is_scout]) is no
 ## exception: its zero-damage arrow carries a `scout` stack like any rider.
 
-## Bin key on the [Quiver]; the stat minting it is [member per_reload_stat_id].
+## Bin key on the [Quiver]; the stat minting it is [method per_reload_stat_id].
 @export var id: StringName = &""
 @export var display_name: String = ""
 ## Position in the DEFAULT volley order — lower fires (and lands) first. The
@@ -32,9 +32,20 @@ extends Resource
 @export var on_hit_effects: Array[OnHitEffect] = []:
 	set(value):
 		on_hit_effects = OnHitEffect.keep_mode_agnostic(value, resource_path)
-## Entity-board stat id minting this type on reload. The base arrow's is
-## `arrows_per_reload` (node-local, summed per leaf); specials are flat.
-@export var per_reload_stat_id: StringName = &""
+## The base arrow's node-local reload stat (`arrows_per_reload`, summed per
+## leaf). Blank on every special, which answers its ASPECT facet instead.
+@export var base_per_reload_stat_id: StringName = &""
+
+
+## Entity-board stat id minting this type on reload: the base arrow's
+## [member base_per_reload_stat_id], else the concept's ASPECT facet
+## (`poison` → `poison_aspect`, flat on the entity; ADR 0050, 0054).
+func per_reload_stat_id() -> StringName:
+	if not base_per_reload_stat_id.is_empty():
+		return base_per_reload_stat_id
+	var def: StatDef = StatRegistry.facet_def(id, StatDef.Role.ASPECT)
+	return def.id if def != null else &""
+
 ## A special's own bank cap: its bin holds at most this many, outside the
 ## quiver's shared capacity (owner, 2026-10-01: "Banks, capped at 999 per
 ## type"; ADR 0041). The base arrow ignores it — its cap is the `arrows` pool's

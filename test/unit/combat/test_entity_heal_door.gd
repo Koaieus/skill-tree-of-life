@@ -189,7 +189,6 @@ func test_entity_curse_resistance_filters_a_fallen_through_curse() -> void:
 	var def := CurseStatus.new()
 	def.id = &"curse"
 	def.power_max = 0.0
-	def.resistance_stat_id = &"curse_resistance"
 	def.decay = FractionDecay.new(0.5)
 	def.reapply = StatusDef.Reapply.ACCUMULATE
 	_entity.stat_board.get_stat(&"curse_resistance").base_value = 0.25

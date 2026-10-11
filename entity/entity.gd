@@ -740,9 +740,9 @@ func reload_yield() -> Dictionary:
 		var n_minted := 0
 		if t.id == AmmoTypeRoster.BASE_ID:
 			for node in producers:
-				n_minted += int(node.get_local_value(t.per_reload_stat_id))
+				n_minted += int(node.get_local_value(t.per_reload_stat_id()))
 		elif stat_board != null:
-			var flat := stat_board.get_stat(t.per_reload_stat_id)
+			var flat := stat_board.get_stat(t.per_reload_stat_id())
 			n_minted = int(flat.get_value()) if flat != null else 0
 		if n_minted > 0:
 			out[t.id] = n_minted

@@ -16,7 +16,6 @@ display_name = "Weakened"
 identity = ExtResource("identity_weakness")
 description = "Attacks from the node deal less damage; deep weakness needs steady reapplication to hold."
 tags = Array[StringName]([&"debuff"])
-stacks_stat_id = &"weakness_stacks_per_hit"
 power_max = 0.0
 decay = SubResource("Resource_decay")
 display_max = 5.0

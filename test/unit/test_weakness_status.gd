@@ -196,5 +196,5 @@ func test_authored_def_is_uncapped_accumulating_and_unresisted() -> void:
 	assert_eq(w.power_max, 0.0, "uncapped")
 	assert_eq(w.reapply, StatusDef.Reapply.ACCUMULATE)
 	assert_true(w.decay is FractionDecay, "fractional decay")
-	assert_eq(w.resistance_stat_id, &"", "no weakness resistance (owner 2026-10-06)")
+	assert_eq(w.resistance_stat_id(), &"", "no weakness resistance (owner 2026-10-06)")
 	assert_true(w.tags.has(&"debuff"))

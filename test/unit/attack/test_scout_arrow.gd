@@ -138,7 +138,7 @@ func test_scout_is_rostered_last_with_the_authored_knobs() -> void:
 	if rider != null:
 		assert_eq(rider.def, _SCOUTED)
 		assert_eq(rider.power, 1.0, "1 stack per arrow")
-	assert_eq(_SCOUT.per_reload_stat_id, &"scout_aspect")
+	assert_eq(_SCOUT.per_reload_stat_id(), &"scout_aspect")
 	for t in sorted:
 		if t.id != &"scout":
 			assert_false(t.is_scout(), "%s is no scout" % t.id)

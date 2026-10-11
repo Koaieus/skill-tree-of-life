@@ -199,8 +199,8 @@ func test_authored_corruption_loads_with_the_model_shape() -> void:
 	assert_eq(c.id, &"corruption")
 	assert_true(&"debuff" in c.tags, "tagged as a debuff")
 	assert_true(&"dot" in c.tags, "tagged as a dot")
-	assert_eq(c.stacks_stat_id, &"corruption_stacks_per_hit")
-	assert_eq(c.resistance_stat_id, &"corruption_resistance")
+	assert_eq(c.stacks_stat_id(), &"corruption_stacks_per_hit")
+	assert_eq(c.resistance_stat_id(), &"corruption_resistance")
 	assert_true(c.power_max <= 0.0, "uncapped")
 	# No decay for now (owner, 2026-10-01; interim until #1203).
 	assert_null(c.decay, "corruption does not decay")

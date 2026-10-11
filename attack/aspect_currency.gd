@@ -15,7 +15,7 @@ static func cap_of(attacker: Entity, stat_id: StringName) -> int:
 
 
 ## The count stat of concept [param aspect_id] — `&"poison"` → `&"poison_aspect"`,
-## the `<concept>_aspect` naming `test_identity_roster.gd` pins. Spelled here
-## rather than read off [code]AspectRoster[/code], which ranks above `attack`.
+## its ASPECT facet in the registry; `&""` for a concept with none.
 static func stat_of(aspect_id: StringName) -> StringName:
-	return StringName("%s_aspect" % aspect_id)
+	var def: StatDef = StatRegistry.facet_def(aspect_id, StatDef.Role.ASPECT)
+	return def.id if def != null else &""
