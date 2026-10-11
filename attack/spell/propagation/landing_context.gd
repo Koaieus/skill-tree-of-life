@@ -80,6 +80,11 @@ func local_value_of(n: SkillNode, stat_id: StringName) -> Variant:
 	return cast.local_value_of(n, stat_id)
 
 
+## See [method PropagationContext.stacks_of].
+func stacks_of(n: SkillNode, status_id: StringName) -> float:
+	return cast.stacks_of(n, status_id)
+
+
 ## See [method PropagationContext.visit_count].
 func visit_count(n: SkillNode) -> int:
 	return cast.visit_count(n)

@@ -95,6 +95,18 @@ func local_value_of(node: SkillNode, stat_id: StringName) -> Variant:
 	return slice.get_local_value(stat_id) if slice != null else node.get_local_value(stat_id)
 
 
+## [param node]'s power (stacks) of status [param status_id] as read in
+## [member world] — the fourth world-aware twin, and the ONE place a
+## propagation predicate reads a candidate's status stacks. A node this cast
+## cured on an earlier wave reads clean here while the live node still carries
+## its stacks. 0 when the world has no combat slice for [param node].
+func stacks_of(node: SkillNode, status_id: StringName) -> float:
+	if node == null:
+		return 0.0
+	var slice := world.combat_for(node)
+	return slice.get_status_power(status_id) if slice != null else 0.0
+
+
 ## [param node]'s degree within the induced subgraph of ITS OWNER, as read in
 ## [member world] (#860) — the fourth form on top of the three
 ## `.claude/rules/degree.md` already names, for exactly the moment those three
