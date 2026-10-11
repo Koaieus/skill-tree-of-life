@@ -16,8 +16,10 @@ Guard: `test/unit/aspects/test_aspect_roster.gd`.
 ## Stat (prerequisite for every other cell)
 
 - `stats_system/defs/<concept>_aspect.tres`, a child of the `aspects`
-  parent (ADR 0029), on `stats_system/stat_def_roster.tres` and the entity
-  board — the `manage-stats` skill is the checklist.
+  parent (ADR 0029) with `identity` + `role = ASPECT`, on
+  `stats_system/stat_def_roster.tres` — no board field: every entity board
+  mints it at init, read as `board.facet(&"<concept>", StatDef.Role.ASPECT)`
+  (ADR 0054). The `manage-stats` skill is the checklist.
 - It is a **count**, read three ways: arrows minted per reload (flat off
   the entity board, `Entity.reload_yield`), the per-swing cap on that
   concept's temp addons (`test_temp_upgrade_budget.gd`), and whatever

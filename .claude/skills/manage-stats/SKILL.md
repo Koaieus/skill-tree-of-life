@@ -26,7 +26,9 @@ Each step: the file the artefact lands in → what catches forgetting it.
    array and not a directory scan).
    → `test/unit/test_stat_def_roster.gd` — `test_roster_lists_every_authored_def`
    red on omission, `test_every_rostered_def_has_a_unique_id` on an id clash.
-3. **Typed field.** `@export var <id>: ScalarStat` on `EntityStatBoard`
+3. **Typed field.** Skip 3–4 for a concept stat (`identity` + a `role` on
+   the def): every entity board mints it at init, never a field (ADR 0054).
+   Otherwise `@export var <id>: ScalarStat` on `EntityStatBoard`
    in `stats_system/entity_stat_board.gd`, under the right
    `@export_group`; the property name must equal the def `id` exactly
    (`get_stat(id)` is `Object.get(id)`).
