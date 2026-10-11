@@ -564,7 +564,7 @@ lightning's hops become mechanics that existing rows can use.
   two. The term is round 6's "does the node hold a Greed stack". How
   resistance behaves for non-damage statuses is closed by mechanism
   (2026-10-06): `StatusHost` hands `effective_power` to every def's apply and
-  tick, so any def naming a `resistance_stat_id` is filtered the same way —
+  tick, so any def naming a `resistance_stat_id()` is filtered the same way —
   but Greed itself takes no % resistance (owner, 2026-10-06, § Axes).
 
 **Owner calls, 2026-10-05 (round 5).**
@@ -987,7 +987,7 @@ not a family of their own:
 a few grouped ones, or a resistance composed into the aspect, the owner kept
 none-new: *"none new, with a rule of adding one where damage is involved or
 when it just makes sense or no other counterplay is available (e.g. for
-blindness)"*. So a row ships with a blank `resistance_stat_id` unless its axis
+blindness)"*. So a row ships with a blank `resistance_stat_id()` unless its axis
 deals damage or has no other defence; the new rows (Weakness, Greed,
 Hex) ship without one; Bleeding's is round 11's call below. The pass's lens, which the table above
 already encodes: an axis with a native stat to defend with (armor, damage,
@@ -1021,7 +1021,7 @@ this"*. Applied to what the code holds:
 Mechanics, unchanged: a resistance is read on the host as a live filter at
 effect time (ADR 0031). Grouping is an ADR 0029 parent, and composing a
 resistance into `Aspect` needs no subclass: `Aspect` composes `stat` +
-`status`, and `StatusDef.resistance_stat_id` is already the edge. Procgen: a
+`status`, and `StatusDef.resistance_stat_id()` is already the edge. Procgen: a
 resistance rolls on **blessed** nodes only, in its school pack, ADD_BASE unit
 0.05 at T2–T4, the value rung indexed from the pool's `min_tier`
 (`StatPool._tier_magnitude_bounds`): up to +5 % at T2, +5–15 % at T3,

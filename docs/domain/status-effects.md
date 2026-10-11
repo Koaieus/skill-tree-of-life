@@ -111,7 +111,7 @@ lands 2). Hit size never scales stacks. Poison, corruption, curse and wither's
 stacks stats share one parent umbrella, `dot_stacks_per_hit`, which lands more
 stacks and never scales damage; bleeding, blindness, greed, hex (`hex_stacks_per_hit`)
 and weakness each carry a parentless `<id>_stacks_per_hit` and sit outside it.
-Armor break and scout author no `StatusDef.stacks_stat_id` (a flat landing count).
+Armor break and scout author no `StatusDef.stacks_stat_id()` (a flat landing count).
 
 **Resistance** (`poison_resistance`, …, default 0, a fraction) is read on the
 **host** and filters the accumulated row at effect time, never the incoming hit
