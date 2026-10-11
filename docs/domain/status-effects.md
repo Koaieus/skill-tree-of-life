@@ -33,10 +33,15 @@ bypass are [defense-axes.md](defense-axes.md).
   - A tick's damage suppresses the owner's next turn-start regen; a tick that kills
     the actor hits `abandon_turn` as a no-op and `end_turn` still hands on.
   - Peers reproduce it, since `EndTurnCommand` runs `end_turn` everywhere.
+  - A **turnless host** (an in-scope entity with no `initiative` pool: a
+    blocker, a dormant core) has no turn: it runs the same `resolve_turn_end` on
+    the **world turn** (`TurnManager._end_world_turn`, one every N played turn
+    ends, N = the living carriers; ADR 0055), in tree order, then the unowned
+    `LINGER` rows tick once and the beat flushes. No upkeep, no regen.
 - **Deallocation.** `CLEAR` rows release and spill
   (`NodeCombat.release_statuses(true)`, which hands back only the released rows);
   `LINGER` rows stay on the node, are never spilled, and while it is unowned tick
-  on every entity's turn end (`CombatWorld.tick_lingering`). A combat or death
+  once per world turn (`CombatWorld.tick_lingering`, ADR 0055). A combat or death
   strip (`EntityCombat.apply_cascade`) releases every row. A bare
   `force_deallocate` outside a cascade releases `CLEAR` rows without spilling.
 - **Spill.** Exactly two feeders note released rows on the world's removal

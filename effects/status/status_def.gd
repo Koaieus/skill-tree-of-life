@@ -35,11 +35,10 @@ enum OnDealloc {
 	## The row survives deallocation — a voluntary dealloc or a bare
 	## [method AllocationSystem.force_deallocate] — and is never handed to
 	## spill (`release_statuses(true)` keeps it out of the returned rows); it
-	## may land on an unallocated node. While its node is unowned it ticks once per ANY
-	## entity's [method Entity.resolve_turn_end] (the lingering-host registry
-	## on [method CombatWorld.live]), so it decays N× faster in an N-entity
-	## game; re-allocated, it ticks on its new owner's turn end like every
-	## owned row. A death strip — a node stripped by combat or by its owner's
+	## may land on an unallocated node. While its node is unowned it ticks once per
+	## WORLD turn — one every N played turn ends, ADR 0055 — through the
+	## lingering-host registry on [method CombatWorld.live]; re-allocated, it
+	## ticks on its new owner's turn end like every owned row. A death strip — a node stripped by combat or by its owner's
 	## death ([method EntityCombat.apply_cascade]) — releases every row:
 	## LINGER survives deallocation only.
 	LINGER,

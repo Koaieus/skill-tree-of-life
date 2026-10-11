@@ -176,9 +176,9 @@ func is_lingering(node: NodeCombat) -> bool:
 	return _lingering.has(node) and not node.is_allocated()
 
 
-## One tick of every unowned lingering host — run once per entity turn end by
-## [method Entity.resolve_turn_end], after its owned-node tick and before its
-## flush. Iterates a snapshot: a tick can release a host or add another. A
+## One tick of every unowned lingering host — run once per WORLD turn end by
+## [method TurnManager._end_world_turn] (ADR 0055), after the turnless hosts'
+## ticks and before its flush. Iterates a snapshot: a tick can release a host or add another. A
 ## host whose node is gone is dropped.
 func tick_lingering() -> void:
 	for node: NodeCombat in _lingering.keys():
