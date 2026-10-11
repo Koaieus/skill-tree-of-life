@@ -134,8 +134,10 @@ top session  (/swarm-train: trains, ledger, tick, relief, report)
    report woke the top. Lead gone with its train unfinished (a window cut
    it off) → one `SendMessage` resume (law 5), else spawn relief. Lead
    `running` but every transcript older than `stall_minutes` → `TaskStop`
-   it, record, spawn relief. The cap (15 h, Whip law 19) ends the run at
-   any tick.
+   it, record, spawn relief. The cap (15 h, Whip law 23) is read at every
+   tick: past it nothing is spawned, the lead in flight finishes its train
+   and its `done` ends the run — `CAPPED` in the header is a live run with
+   a lead to watch, not a finished one.
 10. **Relief is a fresh `swarm-lead` with the relief prompt**, oriented
     from the ledger as `relief` already does — but never `ledger adopt`:
     a subagent shares the top's session id (probed, 2026-10-10), so

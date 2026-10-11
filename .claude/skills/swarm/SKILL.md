@@ -192,8 +192,10 @@ adopt it. No Sage in this mode: every brief names the `advisor` tool.
 - **A wave result that is not a report** (a drone ended its turn early):
   one `SendMessage` to that drone — `continue, then report`. Never poll its
   transcript, `sleep`-loop on a ref, or wait on a `pgrep`.
-- **Your relief threshold is the train's size.** Past it, no new wave: land
-  the wave in flight, then report — `RELIEF NEEDED` first if issues remain.
+- **Your relief threshold is your context, never the train's size** — the
+  ceiling under *Your own budget*, relief 50k below it. Past it, no new
+  wave: land the wave in flight, then report — `RELIEF NEEDED` first if
+  issues remain.
 - **Train end**: `mise run ledger -- close` after the push, then report.
 - Everything else in this file is unchanged.
 

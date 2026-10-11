@@ -275,9 +275,11 @@ disk at `scratchpad/land/land-<n>.log` (#920), so filling the ledger is a
     re-notified the top half an hour later. A drone's `Agent` result is its
     end of turn: a result that is not the six-line report gets one
     `SendMessage` to continue, never a transcript poll, `sleep` loop or
-    `pgrep` wait. **The relief threshold is the train's real size**
-    (swarm-train law 15): past it no new wave, the wave in flight lands,
-    and an unfinished train reports `RELIEF NEEDED`. Every other law holds.
+    `pgrep` wait. **The relief threshold is the lead's own context** —
+    law 6's ceiling, relief 50k below it — never the train's size
+    (swarm-train law 15: a lead's limit is its context, not its train):
+    past it no new wave, the wave in flight lands, and an unfinished train
+    reports `RELIEF NEEDED`. Every other law holds.
 
 **Collect and land**
 
