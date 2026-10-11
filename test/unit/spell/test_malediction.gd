@@ -113,6 +113,17 @@ func test_an_off_path_share_flooring_to_zero_is_not_visited() -> void:
 	assert_eq(off_path, [], "3 x 0.25 floors to 0: the losers are never visited")
 
 
+func test_a_node_both_won_and_lost_on_one_wave_still_carries_the_rumour() -> void:
+	# 1 -> P(2), Q(3) tied; P -> A(4), Q -> B(5); A and B both reach X(6) on
+	# one wave: X is downhill from A (a winner) but uphill from B (an off-path
+	# terminal). The winner's arc must survive the merge and reach Y(7).
+	_board([[0, 1], [1, 2], [1, 3], [2, 4], [3, 5], [4, 6], [5, 6], [6, 7]],
+			[1, 2, 3, 4, 5, 6, 7], {2: -1.0, 3: -1.0, 4: -1.0, 5: -3.0, 6: -2.0, 7: -2.0})
+	var hit := _cursed(1)
+	assert_true(hit.has(_n[6]), "X is cursed")
+	assert_true(hit.has(_n[7]), "the winning arc into X keeps flowing past the terminal one")
+
+
 func test_no_spell_answers_to_the_old_hex_id() -> void:
 	for spell in SpellCatalog.ALL:
 		assert_ne(spell.id, &"hex", "the shipped hex is Malediction now")
