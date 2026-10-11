@@ -14,13 +14,13 @@ func test_status_ids_derive_from_the_facets() -> void:
 		assert_eq(d.stacks_stat_id(), stk.id if stk != null else &"", d.id)
 
 
-func test_poison_has_both_and_scout_neither() -> void:
+func test_poison_has_both_and_scout_only_stacks() -> void:
 	var poison := load("res://effects/status/poison.tres") as StatusDef
 	assert_eq(poison.resistance_stat_id(), &"poison_resistance")
 	assert_eq(poison.stacks_stat_id(), &"poison_stacks_per_hit")
 	var scout := load("res://effects/status/scouted.tres") as StatusDef
 	assert_eq(scout.resistance_stat_id(), &"")
-	assert_eq(scout.stacks_stat_id(), &"")
+	assert_eq(scout.stacks_stat_id(), &"scout_stacks_per_hit")
 
 
 func test_ammo_per_reload_ids() -> void:
