@@ -183,6 +183,17 @@ adopt it. No Sage in this mode: every brief names the `advisor` tool.
 - **Owner stop** arrives as a message from the top and drains at the wave
   boundary: spawn nothing new, collect the wave in flight, land what is
   reported, then report.
+- **Nothing is backgrounded — yours or a drone's.** Your turn end is your
+  report, a drone's is its `Agent` result. Run the train's gate (§ 5) in the
+  foreground with `timeout: 600000`; every brief's suite policy is "run
+  every check — baseline, `check`, suite — in the foreground, never
+  background a command and end your turn". This overrides § 3's suite
+  clauses, § 5's "backgrounded" and the long-running-command rule.
+- **A wave result that is not a report** (a drone ended its turn early):
+  one `SendMessage` to that drone — `continue, then report`. Never poll its
+  transcript, `sleep`-loop on a ref, or wait on a `pgrep`.
+- **Your relief threshold is the train's size.** Past it, no new wave: land
+  the wave in flight, then report — `RELIEF NEEDED` first if issues remain.
 - **Train end**: `mise run ledger -- close` after the push, then report.
 - Everything else in this file is unchanged.
 

@@ -266,7 +266,18 @@ disk at `scratchpad/land/land-<n>.log` (#920), so filling the ledger is a
     until it returns. A tree's leads all share the top's session id
     (probed, 2026-10-10), so `ledger show` is the train's swarm ledger and
     nothing is `adopt`ed; the ledger path in the prompt is the whip
-    ledger, read, never adopted. Every other law holds.
+    ledger, read, never adopted. **Nothing in the tree is backgrounded**
+    (swarm-train law 16, run #1540): a subagent's turn end is its report,
+    so the lead runs the gate suite in the foreground (~1 min, `timeout`
+    600000) and every brief's suite policy is the foreground one — a drone
+    that backgrounded a baseline ended its turn early, its lead polled the
+    transcript, and a lead that reported with a suite wait still running
+    re-notified the top half an hour later. A drone's `Agent` result is its
+    end of turn: a result that is not the six-line report gets one
+    `SendMessage` to continue, never a transcript poll, `sleep` loop or
+    `pgrep` wait. **The relief threshold is the train's real size**
+    (swarm-train law 15): past it no new wave, the wave in flight lands,
+    and an unfinished train reports `RELIEF NEEDED`. Every other law holds.
 
 **Collect and land**
 

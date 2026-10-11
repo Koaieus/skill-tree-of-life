@@ -45,9 +45,11 @@ top session  (/swarm-train: trains, ledger, tick, relief, report)
 
 ## The cost model
 
-- **The top has almost no context.** Only a subagent's final text enters
-  its parent — under 1 KB per lead report against 120–280 KB transcripts
-  (probed). A night of twenty trains plus hourly ticks is tens of KB.
+- **The top's context grows slowly, never small.** Only a subagent's final
+  text enters its parent, but a lead's session report is 4–5.5 k chars and
+  the skill, the start and the owner's chat sit underneath: #1540's top
+  went 66k → 120k over four trains (2026-10-10). That is why an uncached
+  wake is ~100k re-read, and why law 8 leaves none behind.
 - **A tick is one cheap turn.** Reading `ListAgents` and a transcript mtime
   is a few hundred tokens; a tick that finds nothing says `noop` and ends.
 - **Waves are the price of the tree.** A lead reacts per wave, not per
@@ -103,18 +105,22 @@ top session  (/swarm-train: trains, ledger, tick, relief, report)
 
 **The tick** (*designed*)
 
-8. **The wake is scheduled, one-shot and counted — never a cron, never
-   polled.** A cron Routine that outlives its run wakes a finished session
-   forever, each wake an uncached re-read of the whole context, so no
-   recurring trigger is ever armed. At start the top arms at most one
-   `send_later` per window boundary under the cap (≈ 5h05, 10h05, 15h05)
-   where the `claude-code-remote` tools work (probed: a `send_later` fired
-   into this session kind on the minute); each tick re-arms the next
-   intra-window tick only while the ledger is live; `/loop` self-paced is
-   the same shape without the server. A tick's first line is: ledger done,
-   capped or missing → delete my pending wakes, stop. A dead top schedules
-   nothing, so the chain extinguishes itself. Which wake survives a spent
-   window is the first night's second measurement.
+8. **The wake is scheduled, one-shot, one at a time — never a cron, never
+   polled, never left behind.** A recurring Routine outlives its run; so does
+   a one-shot the top cannot cancel (run #1540, 2026-10-10: three boundary
+   wakes armed at start, `delete_trigger` refused "requires approval" in a
+   bypass session, two fired into the finished run, one uncached — owner,
+   2026-10-11: *"So you're forced to take uncached turns? Heresy."*). So at
+   most two wakes are ever armed: **the next tick** (`now + tick-minutes`,
+   inside the cache hour) and **the next window boundary** (≈ 5 h 05 after
+   the last one; the only spent-window insurance), each re-armed by the wake
+   that consumes it, and only while the run is live. The remote trigger
+   tools are allowlisted in `.claude/settings.json` (owner, 2026-10-11) so
+   the top cancels its own wakes at run end; a refused cancel is a `note`
+   for the owner, never a retry. A stray wake into a finished ledger is one
+   turn: read the header, stop, arm nothing. `/loop` self-paced is the same
+   shape without the server. Which wake survives a spent window is still
+   unmeasured (#1540 never hit one).
 8a. **The tick interval sits inside the prompt-cache lifetime.** The cache
    lives one hour from the last request; a tick at 60 min plus scheduler
    jitter misses it every time and pays the uncached rate on the whole
@@ -142,8 +148,10 @@ top session  (/swarm-train: trains, ledger, tick, relief, report)
     issue, and launches nothing — no daemon, no timer, no linger. `done`,
     `relieve` and `needs-owner` take `--lead <name>` from the top instead
     of keying on the caller's session; `show`, `report`, `train split/drop`,
-    `note`, `stop`, `retire` and the cap are unchanged. The report is
-    Whip's report.
+    `note`, `stop`, `retire` and the cap are unchanged. An issue added
+    mid-run is `train add <t> <n…> [--head]` — never a hand edit of the
+    ledger (#1540: the top imported the tool from python to do it). The
+    report is Whip's report, titles fetched at render.
 12. **A lead is `swarm` in train mode.** The `swarm-lead` agent definition
     pins the model (opus) and tools and tells the lead to `cat` the swarm
     and relief skills and apply swarm's *train mode* section: drones as
@@ -155,11 +163,40 @@ top session  (/swarm-train: trains, ledger, tick, relief, report)
     lead, and a sibling-to-sibling resume is unprobed. Drones' advisor is
     the `advisor` tool.
 
+**The run's shape** (*first night, 2026-10-10*)
+
+14. **The watch ends when `Ready` is empty — the live board, not the
+    snapshot.** Owner, 2026-10-11: *"Like when Ready queue is empty, your
+    Watch ends. End of round."* The last `done` re-reads `Ready` and queues
+    trains for issues that turned Ready since the start (a drop never
+    returns); only an empty board, the owner's stop or the cap ends the
+    run, and at that moment no wake of the top's is armed (law 8).
+15. **A lead's limit is its context, not its train.** Owner, 2026-10-10:
+    *"normally they could handle more or just should do waves until they
+    call for relief between 150-200k ctx (gracefully landing some slack
+    allowed but not starting more)"*; *"they are highly aware of when they
+    reach 150, 200, 250k"*. The lead takes waves until swarm's relief
+    threshold, starts none past it, lands what is in flight and reports
+    `RELIEF NEEDED` if its train is unfinished. The top never splits a train
+    to fit a window; `--size` (issues per train) is a trial knob.
+16. **Nothing in the tree backgrounds a command.** A subagent's turn end is
+    its report, so a backgrounded suite or baseline ends a drone's turn
+    early (the lead then polled its transcript) or outlives a lead's report
+    and re-notifies the top with a duplicate (#1540, lead-a and lead-b). The
+    lead runs the gate suite in the foreground; every train-mode brief says
+    the same. That rule is swarm's (law 32); the top's half is: a second
+    report from a lead the ledger shows `done`, and any task notification
+    from below a lead, is nothing — end the turn.
+17. **The top's chat is one line per event.** The owner is away; a lead's
+    report goes to the ledger by verb and to the chat as one line, never
+    re-summarised (#1540: ~600 tokens × 5 of prose nobody read).
+
 ## Knobs
 
-- `whip start --tree --cap 15 --stall-minutes 45 --tick-minutes 45` — the
+- `whip start --tree --cap 15 --stall-minutes 45 --tick-minutes 45 [--size 4]` — the
   cap and stall threshold are Whip's; `tick-minutes` is new, bounded
-  `[15, 55]` (law 8a: inside the one-hour cache lifetime).
+  `[15, 55]` (law 8a: inside the one-hour cache lifetime); `--size` caps
+  issues per train and is a trial knob (law 15).
 
 ## Open forks — options with costs, owner decides
 
@@ -183,7 +220,15 @@ fork A's lean (a second lead only for a cheap train) carries over.
 | Date | Where | What happened | Law |
 |---|---|---|---|
 | 2026-10-09 | spike #1518 | the four probe rows live in [whip](whip.md) § Incident corpus, dated 2026-10-09 | 3–8 |
+| 2026-10-10 | run #1540 | first night: 11/11 landed, 4 leads, 15 drones, 2 h 32 min, no relief, no stall; three noop ticks at ~4 calls each on a warm cache | 3, 4, 9 |
+| 2026-10-10 | run #1540 | #1536 reinstated and #1549/#1550 added mid-run by a sibling session; no verb, so the top edited the ledger through a python import of the tool; report titles blank for the added issues | 11, 14 |
+| 2026-10-10 | run #1540 | `delete_trigger` "requires approval" in a bypass session ×5; wakes fired 33 min and 2 h after the end, the second rebuilding 82.5k of cache; `show` said "no whip run" after midnight | 8 |
+| 2026-10-10 | run #1540 | drone-blob ended its turn on a backgrounded baseline → lead-a polled its transcript (owner killed it at 4 min); lead-b reported with a suite wait still running → a duplicate report 29 min later; lead-c2 ran the gate foreground and was clean | 16 |
 
 ## Fold digest — board `swarm-train — skill feedback board`
 
-- (none yet — the first night folds here)
+- 2026-10-11 · `law-candidate` lead limit is context, train size trial-only → law 15
+- 2026-10-11 · `friction` no add/undrop verb mid-run → law 11, `whip train add`
+- 2026-10-11 · `friction` wakes not disarmable; blank titles for added issues → law 8, titles at render
+- 2026-10-11 · `autopsy` uncached stray wakes, `show` broken past midnight → law 8; `show` reads the newest ledger of 36 h
+- 2026-10-11 · `law-candidate` watch ends when Ready is empty → law 14

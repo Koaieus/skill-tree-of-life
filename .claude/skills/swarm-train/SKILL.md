@@ -51,24 +51,27 @@ a lead in flight finishes its train, and the report says `CAPPED` — you
 never argue with it.
 
 `start` prints the trains. Trains are mechanical (board dependencies,
-milestone order); your only check is that no train exceeds what one lead
-lands in one window: `mise run whip -- train split <t> <at>` before that
-train is taken. An issue the owner pulls mid-run: `mise run whip -- train
-drop <t> <n>` — the ledger remembers the drop, nobody else does.
+milestone order) and you never resize them: a lead's limit is its context,
+and it asks for relief past it. `--size` (issues per train) is passed only
+when the owner asks for a trial size. Mid-run changes are verbs, never a
+hand edit of the ledger: an issue the owner pulls is `mise run whip --
+train drop <t> <n>`; one put back or added is `mise run whip -- train add
+<t> <n…> [--head]` (a queued train, or a new name for a train at the end).
+Issues that simply turn `Ready` need nothing: the last `done` refills from
+the board.
 
-**Arm the wakes — one-shot and counted, never a cron.** Where the
-`claude-code-remote` tools answer, arm with `send_later`, each with the
-prompt `swarm-train tick`:
+**Arm two wakes — one-shot, one of each, never a cron.** Where the
+`claude-code-remote` tools answer, `send_later` with the prompt
+`swarm-train tick`:
 
-- one wake per window boundary under the cap, at ≈ 5 h 05, 10 h 05 and
-  15 h 05 after start (drop any past the cap);
-- one wake at `now + tick-minutes`, the first intra-window tick.
+- **the tick** at `now + tick-minutes`;
+- **the boundary** at `now + 5 h 05` (none past the cap).
 
-Never `create_trigger` with a cron or any recurring Routine: a recurring
-wake outlives the run and wakes a finished session forever. Where the
-remote tools do not answer, `/loop` at the tick interval is the same shape
-without the server; §4's first line ends it the same way. Then take the
-first train (§2).
+`mise run whip -- note "wakes: tick <id>, boundary <id>"`. Never more than
+these two are armed: a wake re-arms only its own kind (§4), and the run's
+end cancels both. Never `create_trigger` with a cron or any recurring
+Routine. Where the remote tools do not answer, `/loop` at the tick interval
+is the same shape without the server. Then take the first train (§2).
 
 ## 2. The lead — one at a time, in the background
 
@@ -114,6 +117,9 @@ already its own: nobody runs `ledger adopt`, and you never say so in the
 prompt. A refused relief (the tool fails the train on its third) is final:
 go to §2 for the next train.
 
+**A second report from a lead the ledger shows `done`**, or a task
+notification from anything below a lead: nothing — end the turn.
+
 **Any other report** — the train is finished, landed or not:
 
 ```bash
@@ -128,9 +134,13 @@ rows in its `Landed` table, `<m>` the train's issue count as `show` lists
 it (the ledger, never your memory). A lead that landed nothing reports
 `0/m` against the tip. A *Needs the owner* line that names an issue goes to
 `needs-owner`; one that names none goes to `note "owner: <line>"`. `done` prints what
-follows: trains still queued → §2 with a fresh `lead-<t>`; `the run is
-over, the report is rendered` → `delete_trigger` every pending wake of
-yours and end your turn. The report is `done`'s; you never render it.
+follows: trains still queued (or refilled from `Ready`) → §2 with a fresh
+`lead-<t>`; `the run is over, the report is rendered` → **disarm**:
+`delete_trigger` each wake id in the `wakes:` notes that has not fired; a
+refused delete is `note "owner: wake <id> still armed"`, never a retry.
+Then end your turn. The report is `done`'s; you never render it. To the
+owner, each report is one line (train, n/m, needs-owner count) — the
+ledger holds the rest.
 
 ## 4. The tick — the table, nothing else
 
@@ -144,8 +154,8 @@ stat -c '%y %n' "$d"/*.jsonl 2>/dev/null | sort | tail -3   # by mtime; the last
 ```
 
 **First line, before the table: `show`'s header says `DONE`, `CAPPED` or
-`GAVE UP`, or there is no ledger → `delete_trigger` every pending wake of
-yours, end your turn.** Otherwise "lead" below is the train's current lead
+`GAVE UP`, or there is no ledger → disarm as §3 (one try each), arm
+nothing, end your turn.** Otherwise "lead" below is the train's current lead
 as `show` names it — an outgoing lead the ledger shows `relieved` is not
 it, whatever `ListAgents` says of it.
 
@@ -162,10 +172,11 @@ console): `SendMessage` the lead the stop line from §5, once, and `note`
 it. The cap ends the run at any tick: past it you spawn nothing and the
 lead in flight finishes.
 
-**Re-arm before ending the turn**, only while the ledger is live:
-`send_later` one tick at `now + tick-minutes` if that lands before your
-next boundary wake — else nothing, the boundary covers it. A `noop` tick is
-one cheap turn: read, re-arm, end.
+**Re-arm before ending the turn**, only while the ledger is live, and only
+the kind that woke you: a tick arms the next tick at `now + tick-minutes`;
+a boundary arms the next boundary at `now + 5 h 05` (none past the cap) and
+a tick if none is pending. `note` the new id. A `noop` tick is one cheap
+turn: read, re-arm, end.
 
 ## 5. Console — the owner typing
 
@@ -174,6 +185,7 @@ one cheap turn: read, re-arm, end.
 | status / how is it going | `mise run whip -- show`; answer from it in a few lines |
 | stop / wrap up / no more trains | `mise run whip -- stop`, then `SendMessage` the running lead: `owner stop: spawn nothing new, collect the wave in flight, land what is reported, then report` — its report comes back through §3 |
 | stop now / kill it | `mise run whip -- stop --now` (renders the report at once), then `TaskStop` every running lead and `delete_trigger` every pending wake of yours |
+| put #n back / add #n (owner or a sibling session) | `mise run whip -- train add <t> <n…> [--head]` |
 | anything else worth the morning | `mise run whip -- note "owner: <what>"` |
 
 One verb per owner message, then end your turn. One lead at a time is
@@ -187,6 +199,8 @@ this skill's rule, not a knob: there is no `max-leads` here.
 - **Never background a drone from a lead** — a lead's drones are
   foreground waves; that is the lead's rule from `swarm`, and a prompt of
   yours never contradicts it.
+- **Task notifications from below a lead** (its commands, its drones)
+  are not reports: nothing, end the turn.
 - **The lead's report is the only wake you expect from it.** A lead idle
   between waves is a working lead: no subscribing, no `ListAgents` outside
   a tick, no message outside §4's rows and §5's stop line.
