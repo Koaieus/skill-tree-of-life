@@ -3,7 +3,7 @@
 [ext_resource type="Script" path="res://attack/spell/spell_def.gd" id="1_spell"]
 [ext_resource type="Script" path="res://attack/spell/on_hit/on_hit_effect.gd" id="2_effect"]
 [ext_resource type="Script" path="res://attack/spell/on_hit/damage_effect.gd" id="3_dmg"]
-[ext_resource type="Script" path="res://attack/spell/on_hit/apply_status_effect.gd" id="4_apply"]
+[ext_resource type="Script" path="res://attack/spell/spell_affinity.gd" id="4_affinity"]
 [ext_resource type="Script" path="res://attack/spell/on_hit/multiply_row_effect.gd" id="5_multiply"]
 [ext_resource type="Script" path="res://attack/spell/on_hit/flux_effect.gd" id="6_flux"]
 [ext_resource type="Resource" path="res://effects/status/curse.tres" id="7_curse"]
@@ -17,10 +17,10 @@
 [sub_resource type="Resource" id="dmg_gloomflux"]
 script = ExtResource("3_dmg")
 
-[sub_resource type="Resource" id="add_curse"]
-script = ExtResource("4_apply")
-def = ExtResource("7_curse")
-power = 2.0
+[sub_resource type="Resource" id="curse_gloomflux"]
+script = ExtResource("4_affinity")
+status = ExtResource("7_curse")
+innate = 2
 
 [sub_resource type="Resource" id="double_curse"]
 script = ExtResource("5_multiply")
@@ -50,11 +50,12 @@ range_finder = SubResource("range_3hop")
 script = ExtResource("1_spell")
 id = &"gloomflux"
 name = "Gloomflux"
-tagline = "Feeds a curse, doubles it, and lets it bleed into the node's kin without lifting it."
+tagline = "Feeds a curse, doubles it, and lets it seep into kin without lifting it."
 description = "Deal a sliver of damage (1 at a fresh caster's spell damage) to an enemy node within 3 hops and curse it with 2 stacks, then double its curse, then copy half of it out through the curse's own spill, split evenly over the node's surviving neighbours, as if it had died. The target keeps every stack. Each stack raises the floor on damage the node takes by 1 (one stack fades each turn, never cap)."
 identity = ExtResource("identity_ref")
 power = 0.25
 propagation = SubResource("prop_gloomflux")
-on_hit_effects = Array[ExtResource("2_effect")]([SubResource("dmg_gloomflux"), SubResource("add_curse"), SubResource("double_curse"), SubResource("flux_curse")])
+affinities = Array[ExtResource("4_affinity")]([SubResource("curse_gloomflux")])
+on_hit_effects = Array[ExtResource("2_effect")]([SubResource("dmg_gloomflux"), SubResource("double_curse"), SubResource("flux_curse")])
 vfx_coordinator_scene = ExtResource("12_vfx")
 targeting = SubResource("targeting_hostile_3hop")
