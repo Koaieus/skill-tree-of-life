@@ -84,13 +84,13 @@ disk at `scratchpad/land/land-<n>.log` (#920), so filling the ledger is a
    its own test file, two minutes, settles which.
 3. **Three or more deliverables in one unit is a split**, done before
    dispatch, never left to a drone. Sizing is swarmify's job (owner,
-   2026-09-30: "load balancing sounds like a swarmify job indeed" — its law
-   27 sizes every child before `Ready`); the lead keeps a **size net** at
+   2026-09-30: "load balancing sounds like a swarmify job indeed" — since
+   2026-10-11 spec's law 16, which sizes every child before `Ready`); the lead keeps a **size net** at
    dispatch: a unit expected to exceed ~40 calls or ~120k context is split
    before dispatch. The net's numbers are the 09-30 lead's proposal adopted
    as a tentative default, not an owner call: ~40 expected calls is half the
    80-call hard stop of law 12 and ~120k leaves room under the ~150k that
-   swarmify's law 27 sizes a child to finish in; a unit that already
+   spec's law 16 sizes a child to finish in; a unit that already
    *looks* like it needs the whole budget will blow it.
 
 **Sizing and the lead's budget**

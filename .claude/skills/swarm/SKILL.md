@@ -58,7 +58,7 @@ plus its own test file settles it in two minutes; run that before deferring
 anything as "new surface".
 
 **A unit describing three or more deliverables is split before dispatch.**
-Never hope a drone self-splits. Sizing was swarmify's job; your net at
+Never hope a drone self-splits. Sizing was the spec's job; your net at
 dispatch is **a unit expected to exceed ~40 calls or ~120k context is split
 before dispatch** — a unit that looks like it needs the whole budget will
 blow it.

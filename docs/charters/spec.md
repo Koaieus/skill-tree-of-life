@@ -224,6 +224,13 @@ corpus rows citing them moved with them.
 | 2026-08-24 | #573 | "still passes unmodified" was unsatisfiable — the same issue deleted `class_name`s the test cast to | 5 |
 | 2026-08-02 | label collapse | `swarmable` retired; `Ready` became the queue; a `design` label on a `Ready` issue is the drift the collapse ended | 21 |
 
+## Fold digest
+
+| Date | Kind | Became |
+|---|---|---|
+| 2026-10-04 | gotcha (bc56e8dd, swarmify board) | law 12: a path a sibling creates is never a stamp entry |
+| 2026-10-07 | law-candidate (d359f7ce, swarmify board, two posts) | law 20: bed unit before siblings, retrospective after a column. Not folded: a recipe-delta line in every Acceptance (lives in `docs/design/aspect_matrix.md`, too domain-specific for every spec) and a swarm-lead dispatch guard (swarm's charter, not this one) — left for the owner |
+
 ## What the skill must not contain
 
 - Any row above, any issue number, any date, the cost argument.
