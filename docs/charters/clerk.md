@@ -21,6 +21,12 @@ board mechanics — the `gh` flag traps, the
 milestone rule — in its instructions or its output. The clerk holds them;
 swarmify only states intent.
 
+The third stretch of the same shape is the end of a **feedback fold pass**
+(README → *Feedback boards*): the charter is edited and committed, and what
+is left is one `feedback reply --resolve` per post, each verdict line
+already written. Owner, 2026-10-12: *"maybe use a clerk to manage the
+discussions"*. Same clerk, same order format, one more verb.
+
 ## The cost argument
 
 Σ(context × turns) is the cost (`mise run agent-cost` measures it). The tail's
@@ -138,6 +144,14 @@ Haiku is priced a fifth of Opus and never carries the pass's context.
     <got>/<want>c`, so a missing body shows as a missing field, not silence.
     A self-referential check ("re-read what you posted") passes vacuously on
     a post that never happened.
+11. **A fold order is replies, nothing else.** Each line names a comment id
+    and a reply file whose text the folder wrote (`folded in <sha>: …` or
+    `rejected: …`); the clerk runs `mise run feedback -- reply --resolve
+    <id> <file>` per line, then `feedback -- unanswered <charter>` per board
+    touched, and reports `<id> replied+resolved` or the failure. It never
+    writes a verdict, never edits a charter, never replies to a post the
+    order does not name — a post still unanswered afterwards is reported,
+    not answered.
 
 ## Fold digest
 
@@ -148,6 +162,7 @@ Haiku is priced a fifth of Opus and never carries the pass's context.
 | 2026-10-06 | autopsy (b27f3a88) | eleven bodies shipped with raw `#@` tokens, one already `Ready` → the `#{name}` sigil the shim refuses (already landed) plus law 2's closing re-read |
 | 2026-10-11 | owner + scans | manifest grammar → prose work order (law 2); vocabulary table (law 8); `no stamp` not a failure off `Ready` (law 9) |
 | 2026-10-11 | autopsy (52517a89) | two new issues left on the stub body, reported clean → law 10: body fill named per issue in step 3, self-describing stub, verify by length against the order's files, `body <file> <got>/<want>c` on the report line; then owner: create with the body, stub only for a forward handle (law 2) |
+| 2026-10-12 | owner | the fold pass's reply tail goes to the clerk → law 11, `feedback reply --resolve` |
 
 ## What the agent file must not contain
 

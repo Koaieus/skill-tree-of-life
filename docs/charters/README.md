@@ -63,9 +63,14 @@ unchanged — no header, no kind.
 sweep, a dedicated pass) works from
 `mise run feedback -- unanswered [<charter>]`, folds each post into the
 charter — a law, a corpus row, a fork, a follow-up — and from there into the
-derived instruction file, commits, then answers with
-`mise run feedback -- reply <comment-id> <file>`, the file reading
-`folded in <sha>` or `rejected: <why>`. **Unanswered = unprocessed.** The
+derived instruction file, commits, then answers every post with
+`mise run feedback -- reply --resolve <comment-id> <file>`, the file reading
+`folded in <sha>` or `rejected: <why>` — usually as a work order to one
+Haiku `clerk` (its law 11), since the answers are pure tool calls.
+`--resolve` also minimizes the post as *resolved*, which folds its reply
+away with it: the board stays open and reads as its unprocessed posts.
+**Unanswered = unprocessed** — the reply is the contract, the resolve is
+cosmetic. The
 charter keeps a short *Fold digest* section (date · kind → what it became),
 so a repo grep still finds the substance without the board.
 

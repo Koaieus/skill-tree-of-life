@@ -406,6 +406,8 @@ disk at `scratchpad/land/land-<n>.log` (#920), so filling the ledger is a
 | 2026-09-30 | lead cost | the swarm lead and a concurrent Fable session each blamed the other for the window; `agent-cost` could only see subagents (18.1M priced) — `--main` prices a main transcript | cost model |
 | 2026-09-30 | owner | advisor law redrawn: "we shouldn't underestimate the power of the Advisor tool … so long Sonnet gets the plan right at the right time (and doesn't try 100 failed attempts first) that should help a lot"; a loop is not a count — the target is "i'm throwing things at a wall now", where drones "should raise their finger and be like 'help pls sensei, shed some light'"; with no Sage "a final advisor call might still be cheaper than bloating lead's context; though lead may have more of an overview"; an advisor answering a fork says stop and flag the lead, and the issue is "pulled from the swarm, sent back to the drawing board; possibly issues it blocks removed too" | 8, 9 |
 | 2026-10-08 | 9 units | the lead filtered every `land` with `grep -E 'LANDED\|FAIL\|rror\|board'`; a red `test:dir` prints `✗ … is red` and `[land] ERROR`, neither matched, so the #1490 land failed silently — caught only because `LANDED` was missing | 20 |
+| 2026-10-03 | whip #1363 | both in-flight drones stopped writing at 06:02; no stop wake reached lead-a, which sat "waiting on d1355a and d1362" until the owner found it at 11:13. A waiting lead has no turn to look at disk, so the sensor is the top's (whip law 30, swarm-train law 9); why no wake arrived is open | 24 |
+| 2026-10-08 | owner | 100+ parked issues filed by leads under the "not a one-liner → issue" bar → follow-ups ride one sweep drone, filing is the last resort | 28 |
 
 ## What the skill must not contain
 
@@ -434,3 +436,13 @@ disk at `scratchpad/land/land-<n>.log` (#920), so filling the ledger is a
   if it stays zero, drop the nudge/file-pointer fallback from the skill.
 - `.claude/agents/sage.md` was patched for law 10 (reviewer only, never
   lands) and deserves its own charter.
+- **A drone that dies with no wake** (whip #1363, 2026-10-03): two drones
+  stopped at once and their spawner never heard. Probe whether a drone killed
+  by a spent window or a crash delivers its stop to the lead at all; if it
+  never does, every waiting lead depends on an outside sensor, and the
+  charter should say so as a law.
+
+## Fold digest — board `swarm — skill feedback board`
+
+- 2026-10-03 · `gotcha` lead idle 5 h on dead drones → rejected as a lead-side disk check (a waiting lead has no turn); corpus row (law 24); the no-wake question → open follow-up
+- 2026-10-08 · `autopsy` 100+ parked issues → law 28 (a517124); corpus row

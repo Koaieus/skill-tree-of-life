@@ -110,18 +110,24 @@ top session  (/swarm-train: trains, ledger, tick, relief, report)
    did run #1540's boundary wakes, when `delete_trigger` was refused
    "requires approval" without an allow rule (2026-10-10: two fired into
    the finished run, one uncached — owner, 2026-10-11: *"So you're forced
-   to take uncached turns? Heresy."*). With the remote trigger tools
-   allowlisted in `.claude/settings.json`, the first delete went through
-   (2026-10-11, auto mode, n=1). So the top arms **every window boundary
-   under the cap at start** (≈ 5 h 05, 10 h 05, 15 h 05 — the spent-window
-   insurance, each one independent of the last) plus **the next tick**
-   (`now + tick-minutes`, re-armed by the tick that consumes it while the
-   run is live), records each id in a `wakes:` note, and when the run ends
-   deletes every one that has not fired (owner, 2026-10-11: *"we can clear
+   to take uncached turns? Heresy."*). Deleting is not reliable: with the
+   remote trigger tools allowlisted in `.claude/settings.json` a delete
+   goes through in **auto mode** (n=3, 2026-10-11/12) but was refused in
+   **bypass mode with the rule present** (run #1565, ×4: four wakes fired
+   into a finished run, one turn each). So a refusal must be cheap, not
+   rare: the top keeps **at most two wakes pending — the next window
+   boundary** (≈ start + 5 h 05; the spent-window insurance) **and the next
+   tick** (`now + tick-minutes`). Whichever fires re-arms its own successor
+   while the run is live (a boundary arms the next boundary under the cap;
+   a tick the next tick). Each id goes in a `wakes:` note; when the run
+   ends the top deletes the ones pending (owner, 2026-10-11: *"we can clear
    any unneeded"*). A refused delete is a `note` for the owner, never a
-   retry; the stray then fires into a finished ledger, reads the header and
-   stops. `/loop` self-paced is the same shape without the server. Which
-   wake survives a spent window is still unmeasured.
+   retry; the stray fires into a finished ledger, reads the header and
+   stops — at most two such turns. **Before arming, the top checks the
+   trigger tools exist** (a CLI session may lack the claude-code-remote
+   server, 2026-10-11); without them the run is `/loop` self-paced — the
+   same shape without the server. Which wake survives a spent window is
+   still unmeasured.
 8a. **The tick interval sits inside the prompt-cache lifetime.** The cache
    lives one hour from the last request; a tick at 60 min plus scheduler
    jitter misses it every time and pays the uncached rate on the whole
@@ -193,13 +199,22 @@ top session  (/swarm-train: trains, ledger, tick, relief, report)
 17. **The top's chat is one line per event.** The owner is away; a lead's
     report goes to the ledger by verb and to the chat as one line, never
     re-summarised (#1540: ~600 tokens × 5 of prose nobody read).
+18. **Every wasted top turn is counted in the report.** Owner, 2026-10-11:
+    *"every wasted turn reported"*. A wake that fires into a finished run
+    records itself as a `wasted: <wake id>` note before it stops; the report
+    counts those notes at render, and one that fires after the render lives
+    in the ledger alone. A noop tick of a live run is the watch, not waste.
 
 ## Knobs
 
 - `whip start --tree --cap 15 --stall-minutes 45 --tick-minutes 45 [--size 4]` — the
   cap and stall threshold are Whip's; `tick-minutes` is new, bounded
   `[15, 55]` (law 8a: inside the one-hour cache lifetime); `--size` caps
-  issues per train and is a trial knob (law 15).
+  issues per train and is a trial knob (law 15). The default 4 plus the
+  milestone/chain split cut 10 Ready issues into 2/2/2/4 (run #1565); the
+  owner then folded the queue into one train by hand (fork C). Until fork C
+  settles: `--size all` puts every Ready issue in one train, and
+  `next-train` skips a train left empty by `train drop` (#1565 left four).
 
 ## Open forks — options with costs, owner decides
 
@@ -209,6 +224,33 @@ an `--as <lead>` identity flag on the ledger tool and the whip tool. Whip
 fork A's lean (a second lead only for a cheap train) carries over.
 **B. Whip or swarm-train, after a night of each.** The transport ADR
 (#1316) is written from both nights' evidence.
+**C. Ready is one DAG, not a list of trains** (owner, 2026-10-11,
+*"thinking out loud, not yet settled"*; folds fork A in). The owner's model:
+- *"the Ready bulk is one DAG"* — a lead launches whatever front is
+  unblocked, up to a parallelism cap, and keeps going; the top only replaces
+  a lead that is getting bloated (~150k). Applied by hand on #1565: one
+  train holding all of Ready plus reliefs (≈ `--size all`, no chain or
+  milestone cut). An earlier same-day remark, *"trains should be 4~8
+  issues, sized by issue size and parallelism"*, is the other end of the
+  same knob.
+- **The cap is a token-window budget**: a spent window kills every agent at
+  once, so recovery cost grows with drones in flight — the cap bounds that
+  as well as merge conflicts.
+- **Strangler-fig relief**: the outgoing lead starts nothing, finishes and
+  lands its drones' work; the incoming lead runs beside it and launches
+  waves at once on units that do not depend on one the outgoing has not
+  landed. "One lead at a time" becomes "one *accepting* lead at a time".
+- **A run is a directory**: one overview file only the top writes, one file
+  per lead only that lead writes; a claim is an append to one's own file;
+  the top referees conflicting claims; leads still `SendMessage` a ping,
+  state lives on disk. Single-writer files remove the two-writer ledger
+  problem; `land` already serializes on master.
+
+Costs: per-lead ledger files (the session-id collision of the cost model
+makes this mandatory, not optional — fork A's `SWARM_LEDGER` / `--as`
+question), a claim/referee protocol in the top, `relief` rewritten for a
+live predecessor. `train merge` is only worth building if C keeps several
+trains.
 
 ## What the files must not contain
 
@@ -226,6 +268,9 @@ fork A's lean (a second lead only for a cheap train) carries over.
 | 2026-10-10 | run #1540 | first night: 11/11 landed, 4 leads, 15 drones, 2 h 32 min, no relief, no stall; three noop ticks at ~4 calls each on a warm cache | 3, 4, 9 |
 | 2026-10-10 | run #1540 | #1536 reinstated and #1549/#1550 added mid-run by a sibling session; no verb, so the top edited the ledger through a python import of the tool; report titles blank for the added issues | 11, 14 |
 | 2026-10-10 | run #1540 | `delete_trigger` "requires approval" in a bypass session ×5; wakes fired 33 min and 2 h after the end, the second rebuilding 82.5k of cache; `show` said "no whip run" after midnight | 8 |
+| 2026-10-11 | probes | a CLI bypass session had no claude-code-remote tools at all; an auto-mode session with the allow rule deleted a wake first call | 8 |
+| 2026-10-11 | run #1565 | 10 Ready → 2/2/2/4 trains at `--size 4`; owner folded them by hand via drop/add, leaving 4 empty trains `next-train` still handed out | knobs, C |
+| 2026-10-11 | run #1565 | finished 19:20 after 2 h of a 15 h cap; bypass-mode top, allow rule present, 4 deletes refused; the tick and three boundary wakes armed at start fired into the finished run (2 by 22:18; the last two deleted 2026-10-12 01:40 from an auto-mode session) | 8, 18 |
 | 2026-10-10 | run #1540 | drone-blob ended its turn on a backgrounded baseline → lead-a polled its transcript (owner killed it at 4 min); lead-b reported with a suite wait still running → a duplicate report 29 min later; lead-c2 ran the gate foreground and was clean | 16 |
 
 ## Fold digest — board `swarm-train — skill feedback board`
@@ -235,3 +280,7 @@ fork A's lean (a second lead only for a cheap train) carries over.
 - 2026-10-11 · `friction` wakes not disarmable; blank titles for added issues → law 8, titles at render
 - 2026-10-11 · `autopsy` uncached stray wakes, `show` broken past midnight → law 8; `show` reads the newest ledger of 36 h
 - 2026-10-11 · `law-candidate` watch ends when Ready is empty → law 14
+- 2026-10-11 · `gotcha` ×2 trigger tools absent / allowlisted delete works → law 8 (tool check, `/loop` fallback)
+- 2026-10-11 · `autopsy` ×2 #1565 wasted wakes → law 8 (≤2 pending, re-armed by successor; bypass refuses), law 18
+- 2026-10-11 · `friction` 2/2/2/4 trains, empty trains handed out → knobs (`--size all`, `next-train` skips empty)
+- 2026-10-11 · `law-candidate` ×3 one DAG, window-budget cap, strangler-fig relief, run directory → fork C (not settled)
