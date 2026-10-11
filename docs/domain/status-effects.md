@@ -26,7 +26,11 @@ bypass are [defense-axes.md](defense-axes.md).
   the owned set (skipping a node stripped mid-sweep), then one
   `StatusSpread.on_tick` sweep per def carried by an owned node whose `spread` slot
   is set (`FlatDiffusion` seeps 1 stack past a crowding threshold,
-  `FractionDiffusion` a floored share of the gap; senders are the owned set,
+  `FractionDiffusion` a floored share of the gap, `SandpileSpread` topples every
+  host at `T = masked degree + burn + keep` to its abelian fixed point and returns
+  a `ToppleResult` of per-node net transfers plus each host's topple count and `T`,
+  which a settle driver hands to `StatusDef._on_burst` — corruption's only damage;
+  senders are the owned set,
   landed through `SpreadApplier` on the live world; a null slot pays nothing).
   - It runs every played-out turn, the first included; never on `abandon_turn` (a
     death, the status sandbox's `disarm`) nor an adopted resync cursor.
@@ -56,7 +60,9 @@ bypass are [defense-axes.md](defense-axes.md).
   `OutcomeApplier.apply`; one wave in `SpellResolver.resolve_against`; one turn-end
   tick step (flushed before its diffusion sweep); a gate-flip command flushes as its
   own beat; an entity death never flushes, it belongs to the beat that killed it.
-  Curse is authored with `SpillSpread` (both triggers, 1.0, Mine).
+  Curse and Bleeding are authored with `SpillSpread` (both triggers, 1.0, Mine);
+  `SandpileSpread` spills
+  nothing (a removed pile vanishes).
 - **Sync.** `network/graph_snapshot.gd` carries `(status id, power)` rows in resync,
   and `WorldFingerprint` folds them.
 - **Roster.** `effects/status/*.gd`: poison, corruption, curse, wither, bleeding,
@@ -88,7 +94,7 @@ is `docs/design/damage_over_time.md`.
 | Family | Denomination | Answers | Weak against |
 |---|---|---|---|
 | **Poison** | flat HP per stack per tick, unmitigated | armor, a sub-zero `min_damage_taken` | bulk |
-| **Corruption** | % of max HP per stack per tick, unmitigated | bulk (the CON stacker) | rarity and cure only |
+| **Corruption** | `T` × % of max HP per topple, unmitigated; nothing ticks | bulk (the CON stacker) | rarity and cure only |
 | **Curse** | raises `min_damage_taken` by its stacks | armor: every hit lands again | deals nothing alone |
 | **Wither** | multiplies `healing_received` down, below zero | the heal aura and regen | nodes nobody heals |
 | **Bleeding** | ⌈stacks × `bleed_rate`⌉ flat HP per tick, unmitigated; the row ×`exert_growth` when its host exerts (`BleedingStatus`) | the kiting core and the node that keeps attacking | a host that rests: `RampDecay` closes the wound faster each still turn |
