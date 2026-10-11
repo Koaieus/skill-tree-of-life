@@ -274,6 +274,35 @@ same surface, not a separate code path. See
 roster, default profiles (Hidden / Sensed / Scouted / Identified /
 Vision), and the ergonomics requirements that should land first.
 
+## Lanterns
+
+A lantern means **you saw it, never that you can target it** (owner, #1557).
+A `Lantern` (`ui/fog_overlay/lantern.tscn`) is a plain child marker — a carrier
+sets `radius` and `source` and moves; the marker joins the group
+`vision_lanterns`. `LanternLayer` (a child of `fog_overlay.tscn`, reading
+FogOverlay's `vision_system`) is the whole view layer:
+
+- **Only the local viewer's camp** — `VisionSystem.is_viewer_camp(source)`; a
+  null or freed source is never lit.
+- **Never logical.** It never enters `_recompute`, `VisionCircles`,
+  `input_pickable`, `revealed`, targeting or the AI, never calls
+  `FogOverlay.set_sources` or emits `vision_render_tick`, and nothing is
+  remembered after it. `SkillNode.lantern_lit` is a view-only flag:
+  `_apply_sensed_state` gives a lit node its revealed look (addons, core, HP
+  bar), and only on nodes not already `revealed`.
+- **Two uploads, one read site.** The circle tiles stay FogOverlay's; lanterns
+  are a separate N×1 RGBA32F texture (`vision_lanterns_tex`, texel
+  `(x, y, radius, 0)`) plus `vision_lantern_count`, rewritten every frame a
+  lantern exists, so the tile index is never rebuilt for a moving disc.
+  `vision_field_darkness` folds both into one `_min_d` with the same smooth
+  union (`vision_field_fold_lanterns`, which `fog.gdshader`'s halo walk calls
+  too), so every consumer agrees with no wiring of its own.
+- **Cost.** `max_lanterns` (64) bounds the per-pixel loop in every consumer;
+  the lit pass queries a static node grid (rebuilt on `node_added` /
+  `node_removed`), lanterns × local nodes. A freed carrier's disc shrinks to 0
+  over `fade_seconds`, then the layer sleeps. Numbers:
+  `test/perf/bench_lantern_frame.gd`.
+
 ## Sensed edges
 
 An edge is sensed iff **both endpoints are reached** (visible or sensed) **and at
