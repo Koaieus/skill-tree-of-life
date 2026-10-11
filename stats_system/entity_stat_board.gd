@@ -232,9 +232,9 @@ func mint_facets() -> void:
 
 ## An entity board holds its stats as the typed fields above plus the concept
 ## facets, which are minted rather than declared: a def with a
-## [member StatDef.role] mints here (eagerly at [method apply_intrinsics], or on
-## first touch from a clone, a wire read or a modifier — whichever comes
-## first), parented through [method StatBoard._register_minted]. Anything else
+## [member StatDef.role] mints here (eagerly at [method apply_intrinsics], or
+## when [method StatBoard.clone_live] / [method StatBoard.read_dict] ensure it on
+## a fresh duplicate), parented through [method StatBoard._register_minted]. Anything else
 ## reaching this override is a typo or a node-only id (`stake_level`,
 ## `addon_slots`) pointed at the wrong board: warn and refuse rather than
 ## silently growing an `_extra_stats` entry nothing will ever read.
