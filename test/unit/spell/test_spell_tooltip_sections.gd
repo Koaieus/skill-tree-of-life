@@ -6,7 +6,7 @@ extends GutTest
 ## affinity's now, read through the same stacks fold the landing uses.
 
 const _VENOM := preload("res://attack/spell/defs/venom_burst.tres")
-const _HEX := preload("res://attack/spell/defs/hex.tres")
+const _MALEDICTION := preload("res://attack/spell/defs/malediction.tres")
 const _DAZZLE := preload("res://attack/spell/defs/dazzle.tres")
 const _SUNDER := preload("res://attack/spell/defs/sunder.tres")
 
@@ -39,6 +39,6 @@ func test_the_affinity_line_follows_the_damage_line() -> void:
 
 
 func test_every_template_spell_reads_its_innate_count() -> void:
-	assert_true(_has_prefix(_arrival(_HEX), "Applies Curse (5 per hit"), str(_arrival(_HEX)))
+	assert_true(_has_prefix(_arrival(_MALEDICTION), "Applies Curse (5 per hit"), str(_arrival(_MALEDICTION)))
 	assert_true(_has_prefix(_arrival(_DAZZLE), "Applies Blindness (3 per hit"), str(_arrival(_DAZZLE)))
 	assert_true(_has_prefix(_arrival(_SUNDER), "Applies Armor Break (2 per hit"), str(_arrival(_SUNDER)))

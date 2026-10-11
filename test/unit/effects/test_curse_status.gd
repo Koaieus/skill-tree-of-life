@@ -188,14 +188,14 @@ func test_authored_curse_and_hex_load_and_are_in_the_debug_book() -> void:
 	assert_almost_eq(curse.power_max, 0.0, 0.001, "uncapped")
 	assert_eq(curse.reapply, StatusDef.Reapply.ACCUMULATE, "stacks add")
 
-	var hex := load("res://attack/spell/defs/hex.tres") as SpellDef
-	assert_not_null(hex, "hex.tres is a SpellDef")
-	if hex == null:
+	var malediction := load("res://attack/spell/defs/malediction.tres") as SpellDef
+	assert_not_null(malediction, "malediction.tres is a SpellDef")
+	if malediction == null:
 		return
 	var applier: SpellAffinity = null
-	for aff in hex.affinities:
+	for aff in malediction.affinities:
 		applier = aff
-	assert_not_null(applier, "hex carries an innate affinity")
+	assert_not_null(applier, "malediction carries an innate affinity")
 	if applier != null:
 		assert_eq(applier.status, curse, "…that applies the authored Curse def")
 		assert_gt(applier.innate, 0)

@@ -12,9 +12,9 @@
 [ext_resource type="PackedScene" path="res://attack/range_finder/visuals/range_edge.tscn" id="10_3k41u"]
 [ext_resource type="PackedScene" path="res://ui/vfx/coordinator/spells/spark_coordinator.tscn" id="10_vfx"]
 [ext_resource type="PackedScene" path="res://attack/range_finder/visuals/range_ring.tscn" id="11_slqml"]
-[ext_resource type="Resource" path="res://identity/defs/spell_hex.tres" id="identity_ref"]
+[ext_resource type="Resource" path="res://identity/defs/spell_malediction.tres" id="identity_ref"]
 
-[sub_resource type="Resource" id="curse_hex"]
+[sub_resource type="Resource" id="curse_malediction"]
 script = ExtResource("3_affinity")
 status = ExtResource("3_curse")
 innate = 5
@@ -22,7 +22,7 @@ innate = 5
 [sub_resource type="Resource" id="filter_enemy"]
 script = ExtResource("5_filter")
 
-[sub_resource type="Resource" id="prop_hex"]
+[sub_resource type="Resource" id="prop_malediction"]
 script = ExtResource("4_config")
 filter = SubResource("filter_enemy")
 
@@ -35,13 +35,13 @@ range_finder = SubResource("range_3hop")
 
 [resource]
 script = ExtResource("1_spell")
-id = &"hex"
-name = "Hex"
+id = &"malediction"
+name = "Malediction"
 tagline = "Curse one enemy node: every stack raises the least damage any hit deals it."
 description = "Curse a single enemy-occupied node within 3 hops with 5 stacks: each stack raises the floor on damage it takes by 1 (one stack fades each turn, never cap)."
 identity = ExtResource("identity_ref")
 power = 0.4
-propagation = SubResource("prop_hex")
-affinities = Array[ExtResource("3_affinity")]([SubResource("curse_hex")])
+propagation = SubResource("prop_malediction")
+affinities = Array[ExtResource("3_affinity")]([SubResource("curse_malediction")])
 vfx_coordinator_scene = ExtResource("10_vfx")
 targeting = SubResource("targeting_hostile_3hop")
