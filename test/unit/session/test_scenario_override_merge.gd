@@ -51,6 +51,62 @@ func _generate(cfg: GraphProcgenConfig) -> Array:
 	return result.get("nodes", [])
 
 
+## Every module `coop_versus.tres` references — each its own top-level `.tres`,
+## so `_fresh_preset()`'s `duplicate(true)` hands back the SHARED cached
+## instance for every one of them.
+const _COOP_VERSUS_MODULE_PATHS := [
+	"res://procgen/modules/coop_versus/topology.tres",
+	"res://procgen/modules/coop_versus/shape.tres",
+	"res://procgen/modules/coop_versus/starting_points.tres",
+	"res://procgen/modules/coop_versus/content.tres",
+	"res://procgen/modules/coop_versus/blockers.tres",
+]
+
+## The cached module instances, held for the whole script. Without a holder the
+## cache drops a module when its last user goes, and the next `load()` reads it
+## fresh off disk — which hides a write into the shared instance until some
+## OTHER script (a `preload` const keeping the preset alive) runs later in the
+## same process and inherits it.
+var _pinned_modules: Array[Resource] = []
+
+
+func before_all() -> void:
+	for path in _COOP_VERSUS_MODULE_PATHS:
+		_pinned_modules.append(load(path))
+
+
+## No test may write into a cached module: its live state must still match a
+## fresh read off disk.
+func after_each() -> void:
+	for module in _pinned_modules:
+		var on_disk: Resource = ResourceLoader.load(
+				module.resource_path, "", ResourceLoader.CACHE_MODE_IGNORE)
+		assert_eq(_fingerprint(module), _fingerprint(on_disk),
+				"the cached %s was mutated in place" % module.resource_path)
+
+
+## Stored-property values of [param value], recursing through built-in
+## sub-resources and arrays; an external resource below the root contributes
+## only its path.
+static func _fingerprint(value: Variant, is_root := true) -> String:
+	if value is Array:
+		var items: PackedStringArray = []
+		for item in value:
+			items.append(_fingerprint(item, false))
+		return "[%s]" % ", ".join(items)
+	if not (value is Resource):
+		return var_to_str(value)
+	var res: Resource = value
+	if not is_root and not res.resource_path.is_empty() and not res.resource_path.contains("::"):
+		return "<%s>" % res.resource_path
+	var fields: PackedStringArray = []
+	for prop in res.get_property_list():
+		if not (prop.usage & PROPERTY_USAGE_STORAGE) or prop.name in ["script", "resource_path"]:
+			continue
+		fields.append("%s=%s" % [prop.name, _fingerprint(res.get(prop.name), false)])
+	return "{%s}" % ", ".join(fields)
+
+
 func _override(target: String, value: Variant) -> ScenarioOverride:
 	var o := ScenarioOverride.new()
 	o.target = target
@@ -209,6 +265,11 @@ func test_an_unresolvable_target_warns_and_does_not_mutate_the_preset() -> void:
 ## assertion).
 func test_set_indexed_get_indexed_traversal_is_pinned_against_the_real_preset() -> void:
 	var cfg := _fresh_preset()
+	# The writes below go through raw `set_indexed`, with no `merge_onto` to
+	# localize the modules they cross — so this test does it, or it writes
+	# into the cached modules every later loader in the process shares.
+	cfg.content = cfg.content.duplicate(true)
+	cfg.starting = cfg.starting.duplicate(true)
 
 	assert_eq(cfg.get_indexed("content:budget_policy:base_min"), 2,
 			"coop_versus's base_min is unauthored — reads the BudgetPolicy class default")
