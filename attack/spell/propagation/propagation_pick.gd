@@ -42,6 +42,13 @@ var came_from: Array[SkillNode] = []
 ## but trivial".
 var lineage_override: Array[SkillNode] = []
 
+## Multiplies the child's [member CastSpell.stack_weight] (status stacks),
+## independently of [member share] (damage). 1.0 leaves stacks as the parent's.
+var stack_share: float = 1.0
+
+## The child lands but never propagates on: the mint zeroes its hops.
+var terminal: bool = false
+
 
 static func to(node_: SkillNode, share_: float = 1.0) -> PropagationPick:
 	var p := PropagationPick.new()

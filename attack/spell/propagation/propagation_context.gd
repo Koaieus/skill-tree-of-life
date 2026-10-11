@@ -56,6 +56,10 @@ var world: CombatWorld = CombatWorld.live()
 ## to take (and the [code]null[/code] the crit path passed for it).
 var outcome: AttackOutcome = null
 
+## The cast's affinity riders, as every landing runs them — read by a spread
+## that must know the stacks a hop would carry before it takes it.
+var riders: Array[OnHitEffect] = []
+
 
 ## [param node]'s ownership relation to [member caster] in [member world] —
 ## exactly one [enum SkillNode.Ownership] bit. The ONE place a propagation

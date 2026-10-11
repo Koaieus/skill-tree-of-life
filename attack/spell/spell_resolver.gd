@@ -186,6 +186,7 @@ static func _resolve(
 	# rather than being threaded per-landing or passed as `null` the way the
 	# crit path used to.
 	ctx.outcome = outcome
+	ctx.riders = riders
 
 	# Wave 0: one seed per node. Two seeds never share a node, so the reducer
 	# first meets them where their fronts converge later on.

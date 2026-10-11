@@ -83,7 +83,8 @@ func mint(payload: CastSpell, pick: PropagationPick) -> CastSpell:
 	next.stack_weight = payload.stack_weight
 	if hop_stacks != null:
 		next.stack_weight = hop_stacks.apply(payload.stack_weight, 1.0, payload.hop_index)
-	next.hops_remaining = payload.hops_remaining - 1
+	next.stack_weight *= pick.stack_share
+	next.hops_remaining = 0.0 if pick.terminal else payload.hops_remaining - 1
 	next.hop_index = payload.hop_index + 1
 	if pick.lineage_override.is_empty():
 		next.visited = payload.visited.duplicate()
