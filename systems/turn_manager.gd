@@ -24,6 +24,10 @@ signal turn_ended(entity: Entity)
 ## [param round] is the new [member rounds_completed]. Never emitted by
 ## [method adopt_turn]: a repair has no presentation semantics.
 signal round_completed(round: int)
+## A world turn ended — one every N played turn ends, N = the living
+## initiative carriers (ADR 0055). The beat turnless hosts tick on. Never
+## emitted by [method adopt_turn] or [method abandon_turn].
+signal world_turn_ended
 
 ## Fires whenever [method forecast]'s answer could have changed: after
 ## `turn_started`, after `turn_ended`, and whenever any live entity's
@@ -92,6 +96,17 @@ var rounds_completed: int = 0
 var _round_open: bool = false
 ## The open round's roster members still waiting for their turn to end.
 var _round_waiting: Array[Entity] = []
+## Played turn ends ([method end_turn] only) since the last world turn (ADR
+## 0055). The world turn ends when this reaches the count of living
+## [method _initiative_carriers] — `>=`, so a death that shrinks N below it
+## closes the world turn at the next played turn end. Counts turns, never
+## ticks. Bookkept on every peer by [EndTurnCommand]; the resync adopts it
+## outright ([method adopt_turn]), like [member rounds_completed]. Read-only
+## from outside.
+var world_turn_progress: int:
+	get:
+		return _world_turn_progress
+var _world_turn_progress: int = 0
 
 
 ## Whether a round is open — the resync carries it with [method round_waiting].
@@ -287,15 +302,20 @@ func start_turn(entity: Entity) -> void:
 ## a mirror that counted its own would end a turn-limited run on a different
 ## turn. [param rounds] `< 0` leaves the round state untouched (a caller with
 ## only a cursor to set). Never emits [signal round_completed].
+## [param world_progress] is the authority's [member world_turn_progress],
+## adopted with the round state (and only then); never emits
+## [signal world_turn_ended].
 func adopt_turn(
 	entity: Entity, total_turns_taken: int, rounds: int = -1,
-	round_open: bool = false, waiting: Array[Entity] = []
+	round_open: bool = false, waiting: Array[Entity] = [],
+	world_progress: int = 0
 ) -> void:
 	turns_taken = total_turns_taken
 	if rounds >= 0:
 		rounds_completed = rounds
 		_round_open = round_open
 		_round_waiting = waiting.duplicate()
+		_world_turn_progress = world_progress
 	if current_entity == entity:
 		return
 	# The displaced entity's turn is over in the authority's world; only its
@@ -331,6 +351,7 @@ func end_turn() -> void:
 	entity.resolve_turn_end()
 	entity.finish_turn()
 	_note_turn_over(entity)
+	_note_played_turn_end()
 	turn_ended.emit(entity)
 	forecast_changed.emit()
 	_tick_until_ready(entity)
@@ -404,7 +425,29 @@ func _note_turn_over(entity: Entity) -> void:
 ## A fresh roster: every living initiative carrier this clock serves.
 func _open_round() -> void:
 	_round_open = true
-	_round_waiting = _initiative_carriers().filter(
+	_round_waiting = _living_carriers()
+
+
+## World-turn bookkeeping at the PLAYED turn-end site only ([method end_turn];
+## never [method abandon_turn]), run before [signal turn_ended] like
+## [method _note_turn_over]. See [member world_turn_progress].
+func _note_played_turn_end() -> void:
+	_world_turn_progress += 1
+	if _world_turn_progress < _living_carriers().size():
+		return
+	_world_turn_progress = 0
+	_end_world_turn()
+
+
+## The world's turn end. A world turn only ends: no start, no upkeep, no regen.
+func _end_world_turn() -> void:
+	world_turn_ended.emit()
+
+
+## [method _initiative_carriers] minus the dead — the round roster and the
+## world turn's N.
+func _living_carriers() -> Array[Entity]:
+	return _initiative_carriers().filter(
 		func(e: Entity) -> bool: return not e.is_dead)
 
 
