@@ -183,6 +183,12 @@ const KEY_EVENT_HITS := "e_hits"
 const KEY_GATE_COUNT := "g_n"
 const KEY_GATE_FROM := "g_from"
 const KEY_GATE_TO := "g_to"
+## A cleanse's clears ([CureInstance]): one count per [constant HitInstance.Kind.CURE]
+## hit, in hit order, slicing the flat def-path / stacks-cleared arrays. The heal
+## rides [constant KEY_HIT_AMOUNT]. Omitted when empty, like the gate columns.
+const KEY_CURE_COUNT := "c_n"
+const KEY_CURE_DEF := "c_def"
+const KEY_CURE_CLEARED := "c_clr"
 ## [member AttackOutcome.aim]: the cast-from node's stable id, and
 ## `[angle, length]` as float64 — empty on a node cast, which is how the far
 ## side tells "no aim" from an aim at angle 0. Both omitted at default.
