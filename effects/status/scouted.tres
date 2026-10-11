@@ -20,5 +20,6 @@ decay = SubResource("Resource_decay")
 display_max = 8.0
 reapply = 1
 on_dealloc = 1
+lantern_radius_scale = 1.0
 group_by = "camp_id"
 visible_if = "camp_id == viewer_camp_id"

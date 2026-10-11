@@ -14,6 +14,10 @@ extends StatusDef
 ## A never-owned node's V, as a multiple of its own [member SkillNode.radius].
 ## Owner knob, tentative.
 @export_range(0.0, 40.0, 0.5, "or_greater") var fallback_radius_factor: float = 10.0
+## A scout carrier's in-flight lantern (an arrow, a spell bolt, a streak tip,
+## a blade) lights `radius_for(origin, stacks) × lantern_radius_scale`, where
+## origin is the node the carrier leaves from. Owner knob, tentative.
+@export_range(0.0, 4.0, 0.05) var lantern_radius_scale: float = 1.0
 
 
 ## The reveal radius [param stacks] scout stacks give on [param node]. V is,
@@ -25,6 +29,13 @@ func radius_for(node: SkillNode, stacks: int) -> float:
 	if node == null or stacks <= 0:
 		return 0.0
 	return radius_scale * sqrt(float(stacks)) * sight_of(node)
+
+
+## The radius a scout carrier's lantern lights when it leaves [param origin]
+## carrying [param stacks]: [method radius_for] × [member lantern_radius_scale].
+## `0` when there is nothing to scale — the caller keeps its own default.
+func lantern_radius_for(origin: SkillNode, stacks: int) -> float:
+	return radius_for(origin, stacks) * lantern_radius_scale
 
 
 ## V in [method radius_for] — the sight the node lends a scout disc.

@@ -157,5 +157,14 @@ func validate(_plan: MagicAttackPlan) -> Array[String]:
 	return errors
 
 
+## True iff some [member affinities] entry lands a [ScoutStatus] — the spell
+## lights the fog it crosses. Mirrors [method AmmoType.is_scout].
+func is_scout() -> bool:
+	for affinity in affinities:
+		if affinity != null and affinity.status is ScoutStatus:
+			return true
+	return false
+
+
 func _to_string() -> String:
 	return "<SpellDef %s>" % name
