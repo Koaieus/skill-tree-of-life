@@ -161,6 +161,13 @@ func get_stat(id: StringName) -> Stat:
 	return _extra_stats.get(id, null)
 
 
+## The typed read of [param concept]'s [param role] facet (ADR 0054): the stat
+## [method StatRegistry.facet_def] names, or null when the concept has no such
+## stat or this board holds none. Read-only — never mints.
+func facet(concept: StringName, role: StatDef.Role) -> ScalarStat:
+	return null
+
+
 ## Ensure a Stat exists for [param stat_id], creating one if necessary from
 ## [code]StatRegistry[/code]. Returns the existing or newly created Stat,
 ## or [code]null[/code] if the id is unknown to the registry. Use this on

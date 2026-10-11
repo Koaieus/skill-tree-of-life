@@ -7,6 +7,11 @@ extends Resource
 ## See .claude/rules/stats-system.md.
 
 enum ValueType { INT, FLOAT, BOOL }
+## Which facet of its [member identity]'s concept this stat is (ADR 0054). A
+## role-bearing def is minted on every non-sparse [EntityStatBoard] at
+## [method StatBoard.apply_intrinsics] and read typed via [method StatBoard.facet];
+## [code]NONE[/code] for every stat that is not one concept's per-concept facet.
+enum Role { NONE, ASPECT, STACKS_PER_HIT, RESISTANCE }
 
 @export var id: StringName = &""
 @export var display_name: String = ""
@@ -17,6 +22,10 @@ enum ValueType { INT, FLOAT, BOOL }
 ## set, [member tint_color] reads its hue. Null for a stat that belongs to no
 ## concept. See docs/adr/0046-identity-is-the-one-display-atom.md.
 @export var identity: Identity = null
+## This stat's facet of [member identity]'s concept; non-[code]NONE[/code] requires
+## an identity, and no two defs share (identity, role) — [code]StatRegistry[/code]
+## indexes the pair ([method StatRegistry.facet_def]).
+@export var role: Role = Role.NONE
 ## The stat's hue. Derived from [member identity] when one is set — the
 ## authored value is then ignored, so a concept's stats never drift apart;
 ## authored directly only on a stat that belongs to no concept.

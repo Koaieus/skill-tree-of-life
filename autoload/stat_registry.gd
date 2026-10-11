@@ -32,6 +32,11 @@ var _children: Dictionary = {}
 ## Ids a SkillNode may not grant its entity: a non-grantable def plus every
 ## transitive ancestor of one (a parent's bins fold into the vetoed child).
 var _entity_vetoed: Dictionary = {}
+## Concept facets, built by [method _rebuild_graph]: `"<concept>:<role>"` -> the
+## [StatDef] with that [member StatDef.identity] id and [member StatDef.role].
+var _facets: Dictionary = {}
+## Every def with a non-NONE role, in sorted-id order.
+var _facet_defs: Array[StatDef] = []
 
 
 func _ready() -> void:
@@ -59,6 +64,17 @@ func get_all_defs() -> Array[StatDef]:
 		out.append(def)
 	return out
 
+
+## The stat that is [param concept]'s [param role] facet ([member StatDef.role]),
+## or null when the concept has none. ADR 0054.
+func facet_def(concept: StringName, role: StatDef.Role) -> StatDef:
+	return null
+
+
+## Every def with [code]role != NONE[/code] — the stats a non-sparse
+## [EntityStatBoard] mints at init. Sorted by id.
+func facet_defs() -> Array[StatDef]:
+	return []
 
 
 ## Transitive ancestors of [param id], nearest-first, deduped (breadth-first
