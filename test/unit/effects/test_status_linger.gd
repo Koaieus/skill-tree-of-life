@@ -2,7 +2,7 @@ extends GutTest
 
 ## `StatusDef.OnDealloc.LINGER` (#1344): a LINGER row survives deallocation
 ## (a CLEAR row beside it does not), and while its node is unowned it ticks
-## once per ANY entity's [method Entity.resolve_turn_end] through the
+## once per WORLD turn (ADR 0055: one every N played turn ends) through the
 ## lingering-host registry on [method CombatWorld.live]. Re-allocated, it
 ## ticks on its new owner's turn end only; a death strip releases it. Every
 ## assertion counts turn ends — never frames or seconds.
@@ -18,6 +18,7 @@ var _graph: Graph
 var _alloc: AllocationSystem
 var _a: Entity
 var _b: Entity
+var _tm: TurnManager
 
 
 func before_each() -> void:
@@ -28,7 +29,23 @@ func before_each() -> void:
 	add_child_autofree(_alloc)
 	_a = _make_entity("A")
 	_b = _make_entity("B")
+	_tm = autofree(TurnManager.new())
+	_tm.entity_root = _graph
+	add_child(_tm)
 	await get_tree().process_frame
+
+
+## One played turn end; with A and B the only carriers, every second one
+## closes a world turn.
+func _played_turn_end() -> void:
+	if _tm.current_entity == null:
+		_tm.start_turn(_a)
+	_tm.end_turn()
+
+
+func _world_turn() -> void:
+	_played_turn_end()
+	_played_turn_end()
 
 
 func _make_entity(n: String) -> Entity:
@@ -79,15 +96,15 @@ func test_linger_row_survives_force_deallocate_and_clear_row_does_not() -> void:
 	assert_true(CombatWorld.live().is_lingering(node.get_combat()), "the unowned host registered")
 
 
-# ── (b) unowned: one tick per entity turn end ───────────────────────────────
+# ── (b) unowned: one tick per world turn ────────────────────────────────────
 
-func test_unowned_linger_row_ticks_on_every_entitys_turn_end() -> void:
+func test_unowned_linger_row_ticks_once_per_world_turn() -> void:
 	var node := await _lingering_node(_a)
 	_alloc.force_deallocate(node)
-	_a.resolve_turn_end()
-	assert_eq(_power(node), 4.0, "A's turn end ticks the unowned row once")
-	_b.resolve_turn_end()
-	assert_eq(_power(node), 3.0, "B's turn end ticks it once more")
+	_played_turn_end()
+	assert_eq(_power(node), 5.0, "one played turn end of two does not tick it")
+	_played_turn_end()
+	assert_eq(_power(node), 4.0, "the second played turn end closes the world turn: one tick")
 
 
 func test_a_linger_def_lands_on_an_unowned_node() -> void:
@@ -95,9 +112,9 @@ func test_a_linger_def_lands_on_an_unowned_node() -> void:
 	await get_tree().process_frame
 	node.get_combat().apply_status(_LINGER, 2.0)
 	assert_eq(_power(node), 2.0, "_may_host admits a LINGER def on an unallocated node")
-	_b.resolve_turn_end()
+	_world_turn()
 	assert_eq(_power(node), 1.0)
-	_b.resolve_turn_end()
+	_world_turn()
 	assert_eq(_power(node), 0.0, "decayed out")
 	assert_false(CombatWorld.live().is_lingering(node.get_combat()), "its last row leaving unregisters it")
 
@@ -162,8 +179,8 @@ func test_save_load_of_an_unowned_linger_row_keeps_ticking() -> void:
 	var decoded := target.get_by_stable_id(source.get_stable_id(node))
 	assert_eq(_power(decoded), 4.0, "the unowned node's LINGER row restored")
 	assert_true(CombatWorld.live().is_lingering(decoded.get_combat()), "loading re-registers the host")
-	target_owner.resolve_turn_end()
-	assert_eq(_power(decoded), 3.0, "the restored row ticks on a turn end")
+	_world_turn()
+	assert_eq(_power(decoded), 3.0, "the restored row ticks on a world turn")
 
 
 func _procgen_graph(node_count: int, seed_value: int) -> Graph:
