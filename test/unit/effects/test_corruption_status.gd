@@ -1,12 +1,10 @@
 extends GutTest
 const _EDGE_SCENE := preload("res://graph/edge.tscn")
 
-## [CorruptionStatus] (#964, hub #952): a fraction of the node's MAX hp per
-## stack per tick, unmitigated `DamageInstance.Type.TRUE`, halving and
-## uncapped. Mirrors `test_poison_status.gd` — same fixture, same kill /
-## cascade path — with the series computed from `StatusDef.decayed()`: ten
-## stacks halve 10 → 5 → 2.5 → 1.25 and the 0.625 tail is cut before it
-## ticks, so four ticks land, not five.
+## [CorruptionStatus]: damage only on a topple — [method StatusDef._on_burst]
+## deals `topples × T × damage_per_power` of the node's MAX hp, unmitigated
+## `DamageInstance.Type.TRUE`; a tick deals nothing and nothing is projected.
+## Same fixture and kill / cascade path as `test_poison_status.gd`.
 
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _GRAPH_SCENE := preload("res://graph/graph.tscn")
@@ -53,7 +51,7 @@ func _combat() -> NodeCombat:
 	return _nodes[0].get_combat()
 
 
-## Hand-built at the model's anchor (0.02, halving, uncapped) — the authored
+## Hand-built at the model's anchor (0.02, uncapped) — the authored
 ## `.tres` is the owner's to tune, so only the shape tests read it.
 func _def(per_power: float = 0.02) -> CorruptionStatus:
 	var d := CorruptionStatus.new()
@@ -75,29 +73,21 @@ func _set_max_hp(hp: float) -> void:
 	(_nodes[0].node_board.get_stat(&"node_health") as PoolStat).set_current(hp)
 
 
-# ── Acceptance 1: % of max hp per stack, halving ─────────────────────────────
+# ── Acceptance 1: burst = topples × T × damage_per_power of max hp ──────────
 
-func test_ten_stacks_on_a_2000_hp_node_deal_the_halving_series() -> void:
+func test_burst_deals_topples_times_threshold_of_max_hp() -> void:
+	_set_max_hp(2000.0)
+	var d := _def(0.01)
+	d._on_burst(_combat(), 2, 7)
+	assert_almost_eq(_nodes[0].get_current_hp(), 2000.0 - 2.0 * 7.0 * d.damage_per_power * 2000.0,
+			0.001, "2 topples at T 7: 2 × 7 × X of max hp")
+
+
+func test_a_tick_deals_nothing() -> void:
 	_set_max_hp(2000.0)
 	_combat().apply_status(_def(), 10.0)
-	# A halving test def on the int row keeps the floor: 10 → 5 → 2 → 1 → 0.
-	var expected := [400.0, 200.0, 80.0, 40.0]
-	var hp := 2000.0
-	for dmg: float in expected:
-		_combat().tick_statuses()
-		hp -= dmg
-		assert_almost_eq(_nodes[0].get_current_hp(), hp, 0.001, "tick deals %s" % dmg)
-	assert_almost_eq(_combat().get_status_power(&"corruption"), 0.0, 0.001,
-			"⌊1 × 0.5⌋ = 0: cleared on the fourth tick")
 	_combat().tick_statuses()
-	assert_almost_eq(_nodes[0].get_current_hp(), 1280.0, 0.001, "nothing left to tick")
-
-
-func test_ten_stacks_on_a_20_hp_node_deal_four_first() -> void:
-	_set_max_hp(20.0)
-	_combat().apply_status(_def(), 10.0)
-	_combat().tick_statuses()
-	assert_almost_eq(_nodes[0].get_current_hp(), 16.0, 0.001, "10 x 0.02 x 20 = 4")
+	assert_almost_eq(_nodes[0].get_current_hp(), 2000.0, 0.001, "corruption only hurts on a topple")
 
 
 func test_uncapped_and_accumulates() -> void:
@@ -113,40 +103,23 @@ func test_armor_and_damage_floor_change_nothing() -> void:
 	_entity.stat_board.get_stat(&"armor").base_value = 100.0
 	_entity.stat_board.get_stat(&"min_damage_taken").base_value = -5.0
 	assert_almost_eq(_nodes[0].get_combat().get_local_value(&"armor"), 100.0, 0.001, "armor arranged")
-	_combat().apply_status(_def(), 10.0)
-	_combat().tick_statuses()
+	_def()._on_burst(_combat(), 1, 10)
 	assert_almost_eq(_nodes[0].get_current_hp(), 1600.0, 0.001,
 			"400 lands whole: TRUE bypasses armor 100 and the -5 floor alike")
 
 
-# ── projected_damage (#962 hook for #953's overlay) ──────────────────────────
+# ── projections: nothing ticks ───────────────────────────────────────────────
 
-func test_projected_damage_sums_the_remaining_ticks_against_max_hp() -> void:
+func test_projections_are_zero() -> void:
 	_set_max_hp(2000.0)
-	assert_almost_eq(_combat().projected_status_damage(), 0.0, 0.0001, "no statuses")
 	_combat().apply_status(_def(), 10.0)
-	assert_almost_eq(_combat().projected_status_damage(), 720.0, 0.001,
-			"10, 5, 2, 1 stacks: 400 + 200 + 80 + 40")
-	_combat().tick_statuses()
-	assert_almost_eq(_combat().projected_status_damage(), 320.0, 0.001, "shrinks as it ticks")
+	assert_almost_eq(_combat().projected_status_damage(), 0.0, 0.0001, "no tick to project")
+	assert_almost_eq(_def().next_tick_damage(_combat(), 10.0), 0.0, 0.0001, "no next tick")
 
 
-func test_projected_damage_rounds_each_tick_up_as_it_lands() -> void:
-	# 1237 hp makes every term fractional: 10, 5, 2, 1 stacks → 247.4, 123.7, 49.48, 24.74.
-	_set_max_hp(1237.0)
-	_combat().apply_status(_def(), 10.0)
-	var expected := ceilf(247.4) + ceilf(123.7) + ceilf(49.48) + ceilf(24.74)
-	assert_almost_eq(_combat().projected_status_damage(), expected, 0.001,
-			"each tick rounded up through the landing rule, never the unrounded series")
-	var before := _nodes[0].get_current_hp()
-	_combat().tick_statuses()
-	assert_almost_eq(before - _nodes[0].get_current_hp(), ceilf(247.4), 0.001,
-			"the first term is what the tick lands")
+# ── Acceptance 3: a lethal burst kills, cascades and clears ───────────────────
 
-
-# ── Acceptance 3: a lethal tick kills, cascades and clears ───────────────────
-
-func test_lethal_tick_kills_islands_and_clears_statuses() -> void:
+func test_lethal_burst_kills_islands_and_clears_statuses() -> void:
 	# core(N0) - N1 - N2, N1 a cut vertex: killing N1 islands N2 too. N2 is
 	# corrupted as well so its status must vanish mid cascade without erroring.
 	var n1 := _SKILL_NODE_SCENE.instantiate() as SkillNode
@@ -172,13 +145,13 @@ func test_lethal_tick_kills_islands_and_clears_statuses() -> void:
 	battle.cascade_started.connect(func(layers: Array, _defender: Entity) -> void:
 		layers_seen.append(layers))
 
-	# 1.0 of max hp per stack at power 5 = 500% of max hp: lethal at any size.
+	# 1.0 of max hp per unit of T, one topple at T 5 = 500% of max hp: lethal.
 	n1.get_combat().apply_status(_def(1.0), 5.0)
 	var mild := _def(0.0)
 	mild.id = &"corruption_mild"
 	n2.get_combat().apply_status(mild, 1.0)
 
-	n1.get_combat().tick_statuses()
+	_def(1.0)._on_burst(n1.get_combat(), 1, 5)
 
 	assert_eq(layers_seen.size(), 1, "cascade_started fired once")
 	assert_null(n1.owned_by, "N1 (impact) is unowned")

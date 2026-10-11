@@ -380,6 +380,14 @@ func _on_tick(_host, _before: float, _after: float) -> void:
 	pass
 
 
+## A [SandpileSpread] settle toppled [param host] [param topples] times at
+## threshold [param threshold] — the burst a pile pays for popping. Called by
+## whoever drives the settle, once per toppled host per settle, never by a
+## tick. The default does nothing.
+func _on_burst(_host, _topples: int, _threshold: int) -> void:
+	pass
+
+
 ## [param host] exerted: it is in a launching attack's origin set (one call per
 ## attack, at its first beat), or it is the entity host of a core that moved
 ## this turn (once per turn). Called for every row on the host; a row the hook

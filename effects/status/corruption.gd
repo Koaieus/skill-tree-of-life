@@ -2,36 +2,42 @@
 class_name CorruptionStatus
 extends StatusDef
 
-## Corruption: each turn tick deals `power × damage_per_power`
-## of the node's MAX hp as unmitigated [constant DamageInstance.Type.TRUE]
-## damage — the answer to bulk (owner, 2026-09-20: *"a fully corrupted lv1
-## enemy would die too basically. the harsh reality of % damage"*). No decay
-## (owner, 2026-10-01) and no cap are authored on the `.tres`; rarity comes from its
+## Corruption: a pile that hurts only when it TOPPLES. Each topple of a host
+## at threshold `T` ([SandpileSpread]) deals `T × damage_per_power` of the
+## node's MAX hp as unmitigated [constant DamageInstance.Type.TRUE] damage
+## ([method _on_burst]) — the answer to bulk (owner, 2026-09-20: *"a fully
+## corrupted lv1 enemy would die too basically. the harsh reality of %
+## damage"*). Nothing ticks: a turn end deals no damage, so the projections
+## read 0 (owner, 2026-10-11: damage only on topple). No decay (owner,
+## 2026-10-01) and no cap are authored on the `.tres`; rarity comes from its
 ## sources and small stacks per hit, never from a clamp.
 ##
 ## Its own [StatusDef] subclass rather than a [PoisonStatus] with a basis
-## flag — composition over inheritance — but the tick body is the shared
+## flag — composition over inheritance — but the burst is the shared
 ## [method DotTick.mint], so there is one implementation of "a DoT lands".
 ## The basis is not a knob here: corruption IS percent-of-max.
-##
-## Damage lands on the PRE-decay power (`_on_tick`'s `before`) — a status
-## about to drop out this tick still deals its last hit.
 
-## Fraction of max hp per point of power per tick (anchor 0.02: ten stacks
-## take a fifth of any node). Owner-tuned on the `.tres`.
+## Fraction of max hp per unit of threshold per topple (`X`; anchor 0.02).
+## Owner-tuned on the `.tres`.
 @export var damage_per_power: float = 0.02
 
 
-func _on_tick(host, before: float, _after: float) -> void:
-	DotTick.mint(host, before * damage_per_power, HitInstance.AmountBasis.PERCENT_MAX)
+## [param topples] pops at threshold [param threshold]: one TRUE hit of
+## `topples × threshold × damage_per_power` of max hp.
+func _on_burst(host, topples: int, threshold: int) -> void:
+	DotTick.mint(host, float(topples * threshold) * damage_per_power,
+			HitInstance.AmountBasis.PERCENT_MAX)
 
 
-## Every remaining tick's damage as it will land, against max hp as of now —
-## resisted and floored per tick ([method DotTick.project]): ten stacks at
-## 0.02 on 2000 hp project 400 + 200 + 100 + 50 = 750.
-func projected_damage(host, power: float) -> float:
-	return DotTick.project(self, host, power, damage_per_power, HitInstance.AmountBasis.PERCENT_MAX)
+## A tick deals nothing: corruption only hurts on a topple.
+func _on_tick(_host, _before: float, _after: float) -> void:
+	pass
 
 
-func next_tick_damage(host, power: float) -> float:
-	return DotTick.tick_damage(self, host, power, damage_per_power, HitInstance.AmountBasis.PERCENT_MAX)
+## Nothing ticks, so nothing is projected.
+func projected_damage(_host, _power: float) -> float:
+	return 0.0
+
+
+func next_tick_damage(_host, _power: float) -> float:
+	return 0.0
