@@ -68,8 +68,8 @@ func _plan(spell: SpellDef, intelligence: float) -> MagicAttackPlan:
 	var graph := h.make_graph([[0, 1]], self)
 	var atk := h.make_entity(graph, "ATK", Color.RED)
 	atk.stat_board.intelligence.base_value = intelligence
-	atk.stat_board.poison_aspect.base_value = 20.0
-	atk.stat_board.curse_aspect.base_value = 20.0
+	atk.stat_board.facet(&"poison", StatDef.Role.ASPECT).base_value = 20.0
+	atk.stat_board.facet(&"curse", StatDef.Role.ASPECT).base_value = 20.0
 	var plan := MagicAttackPlan.new()
 	plan.attacker = atk
 	plan.set_spell(spell)
@@ -102,7 +102,7 @@ func test_two_aspects_on_one_slot_overrun_by_one() -> void:
 
 func test_points_above_the_aspect_stat_count() -> void:
 	var plan := _plan(_SPARK, 100.0)
-	plan.attacker.stat_board.poison_aspect.base_value = 2.0
+	plan.attacker.stat_board.facet(&"poison", StatDef.Role.ASPECT).base_value = 2.0
 	plan.set_infusion(&"poison", 5)
 	assert_eq(plan.aspect_overrun(), 3, "5 poison on poison_aspect 2")
 

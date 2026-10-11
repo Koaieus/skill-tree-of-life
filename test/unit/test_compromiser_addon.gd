@@ -167,7 +167,7 @@ func test_the_attackers_corruption_stacks_per_hit_folds_into_the_rider() -> void
 # ── temp face ───────────────────────────────────────────────────────────────
 
 func test_a_temp_compromiser_lands_the_same_1_per_contact() -> void:
-	_attacker.stat_board.corruption_aspect.base_value = 1.0
+	_attacker.stat_board.facet(&"corruption", StatDef.Role.ASPECT).base_value = 1.0
 	_attacker.stat_board.blade_size.base_value = 20.0
 	await _settle()
 	var plan := autofree(MeleeAttackPlan.new()) as MeleeAttackPlan
@@ -187,7 +187,7 @@ func test_a_temp_compromiser_costs_2_blade_size_and_1_corruption_aspect() -> voi
 
 
 func test_corruption_aspect_caps_temp_compromisers_per_swing() -> void:
-	_attacker.stat_board.corruption_aspect.base_value = 1.0
+	_attacker.stat_board.facet(&"corruption", StatDef.Role.ASPECT).base_value = 1.0
 	_attacker.stat_board.blade_size.base_value = 40.0
 	# A bare chain (test_temp_upgrade_budget.gd's shape): no clamp, free slots.
 	var source := _spawn("Source", Vector2(0.0, -_SPACING * 3.0))
@@ -228,7 +228,7 @@ func test_allocating_a_compromiser_node_grants_the_owner_corruption_aspect() -> 
 
 
 func test_a_temp_compromiser_grants_no_corruption_aspect() -> void:
-	_attacker.stat_board.corruption_aspect.base_value = 1.0
+	_attacker.stat_board.facet(&"corruption", StatDef.Role.ASPECT).base_value = 1.0
 	_attacker.stat_board.blade_size.base_value = 20.0
 	await _settle()
 	var before: float = _attacker.stat_board.get_value(&"corruption_aspect")

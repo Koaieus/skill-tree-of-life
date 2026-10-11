@@ -87,7 +87,7 @@ func test_a_melee_plan_carries_a_temp_toxin_across_the_wire_by_kind() -> void:
 		alloc.force_allocate(attacker, n)
 	attacker.core_location = nodes[0]
 	attacker.stat_board.blade_size.base_value = 3.0
-	attacker.stat_board.poison_aspect.base_value = 1.0
+	attacker.stat_board.facet(&"poison", StatDef.Role.ASPECT).base_value = 1.0
 
 	var plan := MeleeAttackPlan.new()
 	plan.attacker = attacker

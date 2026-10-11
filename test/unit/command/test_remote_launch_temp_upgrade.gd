@@ -165,10 +165,10 @@ func test_a_launch_over_its_blade_budget_is_refused_whole() -> void:
 ## #1268 — the aspect cap is judged at the same door as the budget: a remote
 ## plan carrying more toxins than the attacker's poison_aspect is refused.
 func test_a_launch_over_its_poison_aspect_is_refused_whole() -> void:
-	_attacker.stat_board.poison_aspect.base_value = 1.0
+	_attacker.stat_board.facet(&"poison", StatDef.Role.ASPECT).base_value = 1.0
 	var command := _remote_launch(preload("res://skill_node/addons/defs/toxin_addon.tscn"))
 	# The seat planned against poison_aspect 1; the host's board says 0.
-	_attacker.stat_board.poison_aspect.base_value = 0.0
+	_attacker.stat_board.facet(&"poison", StatDef.Role.ASPECT).base_value = 0.0
 	var applied: Array[bool] = []
 	_applier.command_applied.connect(func(_cmd: Command, ok: bool): applied.append(ok))
 	_applier.submit(command)

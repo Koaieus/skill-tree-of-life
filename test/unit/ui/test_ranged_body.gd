@@ -216,7 +216,7 @@ func test_cards_show_stock_and_gain_per_owned_type() -> void:
 	assert_eq(arrow.stock, 9)
 	assert_eq(arrow.gain, 4 * _per_leaf())
 	assert_eq(poison.stock, 2)
-	assert_eq(poison.gain, int(_attacker.stat_board.poison_aspect.get_value()))
+	assert_eq(poison.gain, int(_attacker.stat_board.facet(&"poison", StatDef.Role.ASPECT).get_value()))
 	assert_true(arrow.has_fill_toggle, "the base card carries the fill toggle")
 	assert_false(poison.has_fill_toggle, "specials do not")
 

@@ -69,7 +69,7 @@ func test_poison_aspect_admits_that_many_toxins_then_denies() -> void:
 	var members: Array[SkillNode] = []
 	members.assign(ctx.members)
 	var toxin := preload("res://skill_node/addons/defs/toxin_addon.tscn")
-	_entity.stat_board.poison_aspect.base_value = 3.0
+	_entity.stat_board.facet(&"poison", StatDef.Role.ASPECT).base_value = 3.0
 	var n := floori(_entity.stat_board.get_value(&"poison_aspect"))
 	assert_gt(n, 0, "the board grants some poison_aspect")
 	assert_lt(n, members.size(), "room for one past the cap")
@@ -89,7 +89,7 @@ func test_two_kinds_sharing_an_aspect_draw_one_pool() -> void:
 	members.assign(ctx.members)
 	var toxin := preload("res://skill_node/addons/defs/toxin_addon.tscn")
 	var second := _SECOND_DOT_SCENE
-	_entity.stat_board.poison_aspect.base_value = 2.0
+	_entity.stat_board.facet(&"poison", StatDef.Role.ASPECT).base_value = 2.0
 	assert_eq(SkillNodeAddon.temp_costs_of(_SECOND_DOT_SCENE).get(&"poison_aspect", 0), 1,
 			"the fixture DoT spends poison_aspect too")
 	assert_true(plan.apply_temp_upgrade(members[0], toxin))
@@ -125,7 +125,7 @@ func test_an_aspect_cost_over_the_cap_is_denied_with_blade_budget_left() -> void
 	var plan: MeleeAttackPlan = ctx.plan
 	var member: SkillNode = ctx.members[0]
 	var toxin := preload("res://skill_node/addons/defs/toxin_addon.tscn")
-	_entity.stat_board.poison_aspect.base_value = 0.0
+	_entity.stat_board.facet(&"poison", StatDef.Role.ASPECT).base_value = 0.0
 	assert_gt(plan.currency_remaining(&"blade_size"),
 			SkillNodeAddon.temp_costs_of(toxin)[&"blade_size"], "blade budget to spare")
 	assert_false(plan.can_apply_temp_upgrade(member, toxin))

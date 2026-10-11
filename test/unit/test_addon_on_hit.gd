@@ -319,7 +319,7 @@ func test_a_toxin_on_a_3_of_x_blade_node_lands_6_stacks() -> void:
 
 
 func test_the_3_of_x_doubling_is_local_to_its_own_node() -> void:
-	_attacker.stat_board.poison_stacks_per_hit.base_value = 10.0
+	_attacker.stat_board.facet(&"poison", StatDef.Role.STACKS_PER_HIT).base_value = 10.0
 	_fill(_tip, 3)
 	_attach_toxin(_tip)
 	_fill(_mid, 3)
@@ -334,7 +334,7 @@ func test_a_temp_toxin_on_a_3_of_x_blade_node_lands_like_a_map_one() -> void:
 	await _settle()
 	var plan := _plan()
 	_attacker.stat_board.get_stat(&"blade_size").base_value = 4.0
-	_attacker.stat_board.poison_aspect.base_value = 1.0
+	_attacker.stat_board.facet(&"poison", StatDef.Role.ASPECT).base_value = 1.0
 	assert_true(plan.apply_temp_upgrade(_tip, _TOXIN_SCENE), "budget admits the toxin")
 	await get_tree().process_frame
 	assert_eq(_tip_poison(plan.resolve_against(CombatWorld.live())), 6.0)
@@ -404,7 +404,7 @@ func test_a_temp_toxin_on_a_blade_node_poisons_in_the_same_resolve() -> void:
 	var plan := _plan()
 	# max_blades reads the wielder's blade_size; 2 members + a cost-2 toxin.
 	_attacker.stat_board.get_stat(&"blade_size").base_value = 4.0
-	_attacker.stat_board.poison_aspect.base_value = 1.0
+	_attacker.stat_board.facet(&"poison", StatDef.Role.ASPECT).base_value = 1.0
 	assert_true(plan.apply_temp_upgrade(_tip, toxin_def), "budget admits the toxin")
 	await get_tree().process_frame
 	var outcome := plan.resolve_against(CombatWorld.live())

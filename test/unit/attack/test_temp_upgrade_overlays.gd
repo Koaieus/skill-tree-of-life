@@ -100,7 +100,7 @@ func _column(state: BladeState, arr: StringName) -> Array:
 func test_a_temp_upgrade_leaves_every_board_unchanged() -> void:
 	var ctx: Dictionary = await _setup()
 	var plan: MeleeAttackPlan = ctx.plan
-	_entity.stat_board.poison_aspect.base_value = 2.0
+	_entity.stat_board.facet(&"poison", StatDef.Role.ASPECT).base_value = 2.0
 	var before := _world_print(ctx)
 	assert_true(plan.apply_temp_upgrade(ctx.joint, preload("res://skill_node/addons/defs/toxin_addon.tscn")))
 	assert_true(plan.apply_temp_upgrade(ctx.tip, preload("res://skill_node/addons/defs/spike_ring_addon.tscn")))
@@ -193,7 +193,7 @@ func test_budget_reads_ignore_temps() -> void:
 	var ctx: Dictionary = await _setup()
 	var plan: MeleeAttackPlan = ctx.plan
 	var toxin := preload("res://skill_node/addons/defs/toxin_addon.tscn")
-	_entity.stat_board.poison_aspect.base_value = 2.0
+	_entity.stat_board.facet(&"poison", StatDef.Role.ASPECT).base_value = 2.0
 	var blades_before := plan.max_blades()
 	var cap_before := plan.currency_cap(&"poison_aspect")
 	var no_entity: Array[StatModifier] = []

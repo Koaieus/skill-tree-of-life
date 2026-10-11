@@ -30,7 +30,7 @@ func _caster(poison: float) -> Entity:
 	for aspect in AspectRoster.shared().aspects:
 		if aspect.stat != null and board.get_stat(aspect.stat.id) != null:
 			board.get_stat(aspect.stat.id).base_value = 0.0
-	board.poison_aspect.base_value = poison
+	board.facet(&"poison", StatDef.Role.ASPECT).base_value = poison
 	assert_eq(AspectCurrency.cap_of(atk, &"infusion_slots"), 1, "guard: INT 100 → 1 slot")
 	assert_eq(AspectCurrency.cap_of(atk, &"infusion_points"), 10, "guard: INT 100 → 10 points")
 	return atk
@@ -117,7 +117,7 @@ func test_the_seat_remembers_the_infusion_per_spell_clamped_to_todays_caps() -> 
 	stack.select_spell(plan.attacker, _VENOM)
 	assert_eq(plan.infusion.points.get(&"poison", 0), 2, "back to venom restores its infusion")
 	stack.select_spell(plan.attacker, _SPARK)
-	caster.stat_board.poison_aspect.base_value = 1.0
+	caster.stat_board.facet(&"poison", StatDef.Role.ASPECT).base_value = 1.0
 	stack.select_spell(plan.attacker, _VENOM)
 	assert_eq(plan.infusion.points.get(&"poison", 0), 1, "restored, clamped to today's aspect")
 	assert_eq(plan.aspect_overrun(), 0)

@@ -132,6 +132,8 @@ func check_residency() -> Array[StringName]:
 	var board := load(ENTITY_BOARD_PATH) as StatBoard
 	var resident: Array[StringName] = board.get_stat_ids() if board != null else []
 	resident.append_array(NodeStatBoard.pool_def_ids())
+	for def in _facet_defs:
+		resident.append(def.id)
 	var ids: Array = _defs.keys()
 	ids.sort()
 	for id in ids:

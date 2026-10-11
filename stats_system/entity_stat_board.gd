@@ -69,34 +69,6 @@ extends StatBoard
 ## Floor on post-armor damage. A landed hit always deals at least this much
 ## unless TRUE-typed. Default 3; defensive classes (Bulwark) may push lower.
 @export var min_damage_taken: ScalarStat
-## Fraction of the poison row a node shrugs off: a live filter at every apply and
-## tick (ADR 0031), the row decays raw. Read node-locally via get_local_value
-## like armor; status_resistance folds in as its parent. Default 0.
-@export var poison_resistance: ScalarStat
-## Fraction of the corruption row a node shrugs off: a live filter at every apply and
-## tick (ADR 0031), the row decays raw. Read node-locally via get_local_value
-## like armor; status_resistance folds in as its parent. Default 0.
-@export var corruption_resistance: ScalarStat
-## Fraction of the curse row a node shrugs off: a live filter at every apply and
-## tick (ADR 0031), the row decays raw. Read node-locally via get_local_value
-## like armor; status_resistance folds in as its parent. Default 0.
-@export var curse_resistance: ScalarStat
-## The poison stacks this entity's hits land: the authored per-hit amount is a
-## base_add overlay on this stat (StatusDef.stacks_per_hit), dot_stacks_per_hit
-## folds in as its parent; resistance never scales it (ADR 0031). Default 0.
-@export var poison_stacks_per_hit: ScalarStat
-## The corruption stacks this entity's hits land: the authored per-hit amount is a
-## base_add overlay on this stat (StatusDef.stacks_per_hit), dot_stacks_per_hit
-## folds in as its parent; resistance never scales it (ADR 0031). Default 0.
-@export var corruption_stacks_per_hit: ScalarStat
-## The curse stacks this entity's hits land: the authored per-hit amount is a
-## base_add overlay on this stat (StatusDef.stacks_per_hit), dot_stacks_per_hit
-## folds in as its parent; resistance never scales it (ADR 0031). Default 0.
-@export var curse_stacks_per_hit: ScalarStat
-## The wither stacks this entity's hits land: the authored per-hit amount is a
-## base_add overlay on this stat (StatusDef.stacks_per_hit), dot_stacks_per_hit
-## folds in as its parent; resistance never scales it (ADR 0031). Default 0.
-@export var wither_stacks_per_hit: ScalarStat
 ## Family parent of the four <family>_stacks_per_hit (ADR 0029): its bins fold
 ## into each family stat's read, never summed separately; never blindness/
 ## weakness/armor-break. Its own value is never read. Default 0.
@@ -110,28 +82,6 @@ extends StatBoard
 ## Family parent of every <aspect>_resistance — folds into their node-local
 ## reads (ADR 0029). Its own value is never read.
 @export var status_resistance: ScalarStat
-## The blindness this entity's hits land, folded as poison_stacks_per_hit is but
-## with no parent (blindness is not a DoT). Default 0.
-@export var blindness_stacks_per_hit: ScalarStat
-## Fraction of the blindness row a node shrugs off, a live filter at effect time
-## (ADR 0031), read node-locally; status_resistance folds in as its parent. Default 0.
-@export var blindness_resistance: ScalarStat
-## The weakness this entity's hits land, folded as blindness_stacks_per_hit is;
-## no parent, no resistance. Default 1.
-@export var weakness_stacks_per_hit: ScalarStat
-## The greed this entity's hits land, folded as weakness_stacks_per_hit is;
-## no parent, no resistance. Default 1.
-@export var greed_stacks_per_hit: ScalarStat
-## The hex this entity's hits land, folded as greed_stacks_per_hit is;
-## no parent, no resistance. Default 1.
-@export var hex_stacks_per_hit: ScalarStat
-## The bleeding this entity's hits land, folded as greed_stacks_per_hit is;
-## no parent. Default 1.
-@export var bleeding_stacks_per_hit: ScalarStat
-## Fraction of the bleeding row a node shrugs off: a live filter at every apply and
-## tick (ADR 0031), the row decays raw. Read node-locally via get_local_value
-## like armor; status_resistance folds in as its parent. Default 0.
-@export var bleeding_resistance: ScalarStat
 ## Flat HP damage dealt to this entity per node forced-deallocated in a battle
 ## cascade. Bypasses mitigation (currency-exchange semantics — the cascade also
 ## wounds 1 SP per node, separately). Default 1; fragile-core classes raise it.
@@ -220,18 +170,6 @@ extends StatBoard
 ## `StatBoard._mint_stat`, which would mint a plain PoolStat with no bins.
 @export var arrows: Quiver
 @export var arrows_per_reload: ScalarStat	## Base arrow yield per producing leaf/core on a ReloadCommand. Node-local via get_local_value, scaled by allocation level (#955).
-@export var poison_aspect: ScalarStat	## Special poison arrows minted per ReloadCommand, entity-flat; this is the ranged read, the magic read is #1250. Parent: aspects. Default 0.
-@export var corruption_aspect: ScalarStat	## Special corruption arrows minted per ReloadCommand, entity-flat; this is the ranged read, the magic read is #1250. Parent: aspects. Default 0.
-@export var curse_aspect: ScalarStat	## Special curse arrows minted per ReloadCommand, entity-flat; this is the ranged read, the magic read is #1250. Parent: aspects. Default 0.
-@export var wither_aspect: ScalarStat	## Special wither arrows minted per ReloadCommand, entity-flat; this is the ranged read, the magic read is #1250. Parent: aspects. Default 0.
-@export var blindness_aspect: ScalarStat	## Special blindness arrows minted per ReloadCommand, entity-flat; this is the ranged read, the magic read is #1250. Parent: aspects. Default 0.
-@export var weakness_aspect: ScalarStat	## Weakness aspect count; each combat mode reads it in its own cell. Parent: aspects. Default 0.
-@export var greed_aspect: ScalarStat	## Greed aspect count; each combat mode reads it in its own cell. Parent: aspects. Default 0.
-@export var hex_aspect: ScalarStat	## Hex aspect count; each combat mode reads it in its own cell. Parent: aspects. Default 0.
-@export var bleeding_aspect: ScalarStat	## Bleeding aspect count; each combat mode reads it in its own cell. Parent: aspects. Default 0.
-@export var scout_aspect: ScalarStat	## Special scout arrows minted per ReloadCommand, entity-flat; this is the ranged read, the magic read is #1250. Parent: aspects. Default 0.
-@export var armor_break_aspect: ScalarStat	## Special armor-break arrows minted per ReloadCommand, entity-flat; this is the ranged read, the magic read is #1250. Parent: aspects. Default 0.
-@export var explosive_aspect: ScalarStat	## Special explosive arrows minted per ReloadCommand, entity-flat; this is the ranged read, the magic read is #1250. Parent: aspects. Default 0.
 ## Family parent of the twelve <concept>_aspect (ADR 0029): +1 here is +1 to
 ## each. Its own value is never read. Default 0.
 @export var aspects: ScalarStat

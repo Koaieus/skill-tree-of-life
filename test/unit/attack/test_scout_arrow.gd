@@ -203,6 +203,6 @@ func test_a_scout_burns_its_shot_and_its_scout_stock() -> void:
 func test_reload_yield_mints_scout_arrows_flat_off_the_board_stat() -> void:
 	var ctx: Dictionary = await _build()
 	var attacker: Entity = ctx.attacker
-	attacker.stat_board.scout_aspect.base_value = 2.0
+	attacker.stat_board.facet(&"scout", StatDef.Role.ASPECT).base_value = 2.0
 	var y: Dictionary = attacker.reload_yield()
 	assert_eq(int(y.get(&"scout", 0)), 2, "entity-flat: 2, not 2 × leaves")

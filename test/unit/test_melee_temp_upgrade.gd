@@ -361,7 +361,7 @@ func test_poison_aspect_caps_toxins_per_swing() -> void:
 	var members: Array[SkillNode] = []
 	members.assign(ctx.members)
 	var toxin := preload("res://skill_node/addons/defs/toxin_addon.tscn")
-	_entity.stat_board.poison_aspect.base_value = 2.0
+	_entity.stat_board.facet(&"poison", StatDef.Role.ASPECT).base_value = 2.0
 	assert_true(plan.apply_temp_upgrade(members[0], toxin), "first toxin fits the aspect")
 	assert_true(plan.apply_temp_upgrade(members[1], toxin), "second toxin fits the aspect")
 	assert_eq(plan.currency_spent(&"poison_aspect"), 2)
@@ -374,7 +374,7 @@ func test_zero_poison_aspect_refuses_any_toxin() -> void:
 	var ctx: Dictionary = await _setup_chain(20.0, 1)
 	var plan: MeleeAttackPlan = ctx.plan
 	var member: SkillNode = ctx.members[0]
-	_entity.stat_board.poison_aspect.base_value = 0.0
+	_entity.stat_board.facet(&"poison", StatDef.Role.ASPECT).base_value = 0.0
 	assert_false(plan.can_apply_temp_upgrade(member, preload("res://skill_node/addons/defs/toxin_addon.tscn")))
 	assert_false(plan.has_temp_upgrade_budget(preload("res://skill_node/addons/defs/toxin_addon.tscn")))
 
@@ -390,7 +390,7 @@ func test_clamp_without_an_aspect_is_limited_only_by_budget() -> void:
 func test_a_temp_toxin_grants_no_poison_aspect_but_a_permanent_one_does() -> void:
 	var ctx: Dictionary = await _setup_chain(20.0, 2)
 	var plan: MeleeAttackPlan = ctx.plan
-	_entity.stat_board.poison_aspect.base_value = 1.0
+	_entity.stat_board.facet(&"poison", StatDef.Role.ASPECT).base_value = 1.0
 	var before: float = _entity.stat_board.get_value(&"poison_aspect")
 	assert_true(plan.apply_temp_upgrade(ctx.members[0], preload("res://skill_node/addons/defs/toxin_addon.tscn")))
 	assert_eq(_entity.stat_board.get_value(&"poison_aspect"), before,

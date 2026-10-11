@@ -194,9 +194,9 @@ func test_rolled_poison_grant_lands_on_the_board_and_mints_on_reload() -> void:
 
 	player.core_location = a
 	alloc.force_allocate(player, a)
-	var before: float = player.stat_board.poison_aspect.get_value()
+	var before: float = player.stat_board.facet(&"poison", StatDef.Role.ASPECT).get_value()
 	alloc.force_allocate(player, b)
-	assert_almost_eq(player.stat_board.poison_aspect.get_value(), before + float(grant), 0.001,
+	assert_almost_eq(player.stat_board.facet(&"poison", StatDef.Role.ASPECT).get_value(), before + float(grant), 0.001,
 			"allocating the grant node raises poison_aspect by the rolled grant")
 
 	tm.start_turn(player)
@@ -207,5 +207,5 @@ func test_rolled_poison_grant_lands_on_the_board_and_mints_on_reload() -> void:
 			"a reload mints the granted poison arrows, flat")
 
 	alloc.force_deallocate(b)
-	assert_almost_eq(player.stat_board.poison_aspect.get_value(), before, 0.001,
+	assert_almost_eq(player.stat_board.facet(&"poison", StatDef.Role.ASPECT).get_value(), before, 0.001,
 			"deallocating the grant node takes the grant back")

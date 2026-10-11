@@ -18,7 +18,7 @@ func _caster(intelligence: float, poison: float, blind: float) -> Entity:
 	var atk := h.make_entity(graph, "ATK", Color.RED)
 	var b := atk.stat_board
 	b.intelligence.base_value = intelligence
-	b.poison_aspect.base_value = poison
+	b.facet(&"poison", StatDef.Role.ASPECT).base_value = poison
 	b.get_stat(&"blindness_aspect").base_value = blind
 	return atk
 
