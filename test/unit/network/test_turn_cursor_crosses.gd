@@ -347,3 +347,52 @@ func test_the_snapshot_carries_the_round_state() -> void:
 	var ids := func(tm: TurnManager) -> Array:
 		return tm.round_waiting().map(func(e: Entity) -> int: return e.entity_id)
 	assert_eq(ids.call(dst_tm), ids.call(src_tm), "and so is the open round's roster")
+
+
+## ADR 0055: the world turn's progress crosses with the round state — a mirror
+## counting its own would tick turnless hosts on a different turn end.
+func test_the_snapshot_carries_the_world_turn_progress() -> void:
+	var source := await _build_world("src")
+	var target := await _build_world("dst")
+	var src_tm: TurnManager = source["tm"]
+	var dst_tm: TurnManager = target["tm"]
+	src_tm.entity_root = source["graph"]
+	dst_tm.entity_root = target["graph"]
+
+	src_tm.start_turn(source["p1"])
+	for _i in 3:
+		src_tm.end_turn()
+	assert_eq(src_tm.world_turn_progress, 1, "sanity: 1 of 2 played turn ends")
+
+	var bytes := EntitySnapshot.encode(source["graph"])
+	EntitySnapshot.decode(bytes, target["graph"])
+	EntitySnapshot.resolve_graph_refs(bytes, target["graph"])
+	EntitySnapshot.restore_turn_cursor(bytes, target["graph"], dst_tm)
+
+	assert_eq(dst_tm.world_turn_progress, 1, "the world turn's progress adopted outright")
+
+
+## A five-element cursor (an older save) still decodes, with progress 0.
+func test_a_five_element_cursor_decodes_with_no_world_progress() -> void:
+	var source := await _build_world("src")
+	var target := await _build_world("dst")
+	var src_tm: TurnManager = source["tm"]
+	var dst_tm: TurnManager = target["tm"]
+	src_tm.entity_root = source["graph"]
+	dst_tm.entity_root = target["graph"]
+
+	src_tm.start_turn(source["p1"])
+	for _i in 3:
+		src_tm.end_turn()
+	dst_tm.adopt_turn(null, 0, 0, false, [], 1)
+	var payload := GraphSnapshot._unpack(EntitySnapshot.encode(source["graph"]))
+	var cursor: Array = payload["turn"]
+	assert_eq(cursor.size(), 6, "sanity: today's cursor has six elements")
+	payload["turn"] = cursor.slice(0, 5)
+	var bytes := GraphSnapshot._pack(payload)
+	EntitySnapshot.decode(bytes, target["graph"])
+	EntitySnapshot.resolve_graph_refs(bytes, target["graph"])
+	EntitySnapshot.restore_turn_cursor(bytes, target["graph"], dst_tm)
+
+	assert_eq(dst_tm.rounds_completed, src_tm.rounds_completed, "the round state still lands")
+	assert_eq(dst_tm.world_turn_progress, 0, "a missing sixth element is 0")

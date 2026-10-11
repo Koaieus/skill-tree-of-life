@@ -297,7 +297,10 @@ static func _encode_turn_cursor(graph: Graph) -> Array:
 	for e in tm.round_waiting():
 		if is_instance_valid(e):
 			waiting.append(e.entity_id)
-	return [holder, tm.turns_taken, tm.rounds_completed, tm.is_round_open(), waiting]
+	return [
+		holder, tm.turns_taken, tm.rounds_completed, tm.is_round_open(), waiting,
+		tm.world_turn_progress,
+	]
 
 
 ## Adopt the authority's turn cursor. A FIFTH decode step, run last — after
@@ -337,7 +340,10 @@ static func restore_turn_cursor(
 		var e := graph.get_by_entity_id(int(id))
 		if e != null:
 			waiting.append(e)
-	turn_manager.adopt_turn(holder, int(cursor[1]), int(cursor[2]), bool(cursor[3]), waiting)
+	# The world turn's progress (ADR 0055); a five-element cursor predates it.
+	var world_progress := int(cursor[5]) if cursor.size() >= 6 else 0
+	turn_manager.adopt_turn(
+		holder, int(cursor[1]), int(cursor[2]), bool(cursor[3]), waiting, world_progress)
 
 
 ## The level's single [TurnManager], found the same way [Entity] finds it — by

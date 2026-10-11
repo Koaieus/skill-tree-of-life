@@ -34,6 +34,9 @@ const _ROW_LAYOUT_PINS := {
 	# 8: GraphSnapshot gained `_R_CHANNEL_TARGET`, `_R_CHANNEL_PROGRESS` and
 	# `_R_STAKE_CEILING_LIFTS`; a 7 still loads (the rows are a prefix).
 	8: "361baaae99c44377a776aa1b303c572bc244059f9a620be7e1229776f7e35b17",
+	# 9: the turn cursor grew a sixth element (the world turn's progress). It
+	# is not an `_R_*` row, so the hash is 8's; the bump is the cursor's shape.
+	9: "361baaae99c44377a776aa1b303c572bc244059f9a620be7e1229776f7e35b17",
 }
 
 
