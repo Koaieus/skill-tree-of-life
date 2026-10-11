@@ -452,7 +452,7 @@ def pass_baton(st):
     """Queued trains launch under the ceiling — unless stopped or capped. Then: is the run over?
     Tree transport launches nothing: the top takes the next train with `next-train`."""
     if tree(st):
-        maybe_end_run(st); return
+        refill(st); maybe_end_run(st); return
     if not st.get("stopped") and not capped(st):
         for t in st["trains"]:
             if len(running_trains(st)) >= st.get("max_leads", 1): break
@@ -462,6 +462,18 @@ def pass_baton(st):
                 request(st, kind="launch", name=name, train=t["name"])
                 event(st, f"baton: train {t['name']} → {name} requested")
     maybe_end_run(st)
+
+
+def refill(st):
+    """Tree: the watch ends when Ready is empty, not when the snapshot is — with no train queued or running,
+    issues that turned Ready since the snapshot (never a drop) become new trains. Stop and the cap still end it."""
+    if st.get("stopped") or capped(st) or any(t.get("state") in ("queued", "running") for t in st["trains"]): return
+    seen = set(st["ready"]) | set(st.get("dropped", []))
+    fresh = [i for i in ready_issues() if i["number"] not in seen]
+    if not fresh: return
+    for i in fresh:
+        st["ready"].append(i["number"]); st["ready_titles"][str(i["number"])] = i["title"]
+    compute_trains(st, st.get("size", 4), [i["number"] for i in fresh])
 
 
 def request_relief(st, train, why):
@@ -552,8 +564,9 @@ def need_caller(st, verb):
 
 
 # ---------------------------------------------------------------- verbs: console
-def compute_trains(st, size=4):
-    ready = set(st["ready"]) - set(st.get("dropped", []))
+def compute_trains(st, size=4, issues=None):
+    """Trains over `issues` (default: the snapshot minus drops), appended after any trains already named."""
+    ready = set(st["ready"]) - set(st.get("dropped", [])) if issues is None else set(issues)
     deps = {n: [b for b in blocked_by(n) if b in ready] for n in ready}
     seen, comps = set(), []
     for n in sorted(ready):
@@ -579,8 +592,10 @@ def compute_trains(st, size=4):
         cur.append(n); cur_ms = ms
     if cur: trains.append(cur)
     trains = chains + trains
-    st["trains"] = [{"name": chr(97 + i), "issues": t, "state": "queued", "lead": None, "reliefs": 0} for i, t in enumerate(trains)]
-    save(st); event(st, f"trains: {len(trains)}")
+    k0 = 0 if issues is None else len(st["trains"])
+    new = [{"name": chr(97 + k0 + i), "issues": t, "state": "queued", "lead": None, "reliefs": 0} for i, t in enumerate(trains)]
+    st["trains"] = new if issues is None else st["trains"] + new
+    save(st); event(st, f"trains: {len(trains)}" if issues is None else f"refill from Ready: {' '.join(t['name'] + ' ' + ' '.join('#%d' % n for n in t['issues']) for t in new)}")
 
 
 def cmd_start(a):
@@ -619,6 +634,7 @@ def cmd_start(a):
         event(st, f"start: {len(ready)} Ready, master {sha[:7]}, cap {a.cap}h, leads ≤ {a.max_leads}, stall {a.stall_minutes} min, "
               f"daemon {DAEMON_UNIT} {'up' if daemon else 'NOT up (launches deferred to the tick)'}, timer every {a.every} min, linger {linger}")
     if not a.tree and linger != "yes": event(st, f"warning: Linger={linger} and `loginctl enable-linger` did not fix it — the timer and the fleet die at logout")
+    st["size"] = a.size
     compute_trains(st, a.size)
     if not a.no_issue:
         body = f"Overnight run started {st['started']} from master `{sha[:7]}` over {len(ready)} Ready issues: " + \

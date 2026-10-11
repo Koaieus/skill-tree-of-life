@@ -536,7 +536,12 @@ code, out = run("train", "add", "c2", "50")
 check("train add refuses an issue already in a train", code != 0 and train("c2")["issues"] == [71, 70, 53])
 st = state(); st["trains"] = [t for t in st["trains"] if t["name"] != "c2"]; st["ready"] = [n for n in st["ready"] if n not in (70, 71)]; st["dropped"] = [53]
 with open(jpath, "w") as f: json.dump(st, f)
+fx["ready"] = [50, 51, 52, 53, 60, 80]
 code, out = run("done", "--lead", "lead-b", SHA, "1/1", me="feedface-0000")
+check("done with nothing queued re-reads Ready: an issue Ready since the snapshot becomes a new train, a drop never does; the run goes on",
+      code == 0 and state()["done"] is False and [t["issues"] for t in state()["trains"] if t["state"] == "queued"] == [[80]] and "issue 80" in str(state()["ready_titles"]))
+run("next-train", "--lead", "lead-c", me="feedface-0000"); fx["ready"] = [50, 51, 52, 60]
+code, out = run("done", "--lead", "lead-c", SHA, "1/1", me="feedface-0000")
 rep = open(state()["report_path"]).read() if state().get("report_path") else ""
 check("(e) done on the last train sets done and renders the report",
       code == 0 and state()["done"] is True and rep.startswith("# Whip report") and "needs owner #52" in rep and "linger" not in rep.splitlines()[2].lower())
