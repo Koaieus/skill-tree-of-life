@@ -55,7 +55,6 @@ Lost on "adding a concept touches nothing on the board": it stays typed only as
 a declared field per concept, one level down, and every board walk learns a
 nested shape. Most likely to be revived if the revisit condition fires.
 
-**Keep the hand declarations plus a guard test.** Lost on one owner per fact:
-the four-place shotgun stays and compounds per concept.
+**Keep the hand declarations plus a guard test.** Lost on one owner per fact: the shotgun compounds per concept.
 
 **Mint from the aspect roster.** Lost on module tiers; the defs already carry the fact.
