@@ -12,7 +12,6 @@ extends RefCounted
 ## [PresentationTempo] SHAPE, scaled into a private copy handed to
 ## [member AttackPresenter.presentation_tempo] so the shared `.tres` is never
 ## mutated. The wind-up was ~0.9 s of every AI magic cast before it was covered.
-## Call each entry point once per fixture: the release beat scales in place.
 ## The tempo is only reached through a stage already mounted when this runs.
 
 ## Duration multiplier: 0.05 runs a 1.2s swing in 60ms.
@@ -20,6 +19,10 @@ const RATE := 0.05
 
 
 static func on_battle_system(battle_system: BattleSystem) -> void:
+	# Idempotent: the release beat scales in place, so a second call would
+	# compound it.
+	if battle_system.presentation_rate_scale == RATE:
+		return
 	battle_system.presentation_rate_scale = RATE
 	battle_system.release_beat *= RATE
 	var presenter := battle_system.stage as AttackPresenter

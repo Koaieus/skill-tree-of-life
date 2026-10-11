@@ -536,17 +536,28 @@ def run_shards(flags, scripts, n, tmp):
             cmd, stdout=log, stderr=subprocess.STDOUT, env=env, text=True,
             start_new_session=True)))
     results = []
-    # Deadlines are absolute from launch, so waiting on the shards in turn
-    # never lets one shard's budget ride on another's.
-    for i, shard, log, budget, proc in procs:
-        timed_out = None
-        try:
-            proc.wait(timeout=max(0.0, started + budget - time.monotonic()))
-        except subprocess.TimeoutExpired:
-            _kill_group(proc)
-            timed_out = budget
-        log.close()
-        results.append((i, shard, proc.returncode, timed_out))
+    # Each shard runs in its own session, so a Ctrl-C or a SIGTERM to this
+    # runner no longer reaches it: kill every group on the way out instead.
+    previous = signal.signal(signal.SIGTERM, lambda *_: sys.exit(143))
+    try:
+        # Deadlines are absolute from launch, so waiting on the shards in turn
+        # never lets one shard's budget ride on another's.
+        for i, shard, log, budget, proc in procs:
+            timed_out = None
+            try:
+                proc.wait(timeout=max(0.0, started + budget - time.monotonic()))
+            except subprocess.TimeoutExpired:
+                _kill_group(proc)
+                timed_out = budget
+            log.close()
+            results.append((i, shard, proc.returncode, timed_out))
+    except BaseException:
+        for _, _, _, _, proc in procs:
+            if proc.poll() is None:
+                _kill_group(proc)
+        raise
+    finally:
+        signal.signal(signal.SIGTERM, previous)
     return results
 
 
