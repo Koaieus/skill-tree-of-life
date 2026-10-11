@@ -121,11 +121,12 @@ decisions and the DAG; its status is derived, never set.
   consumer seams. Prefer more small children with native `blocked-by`.
 - **One decision, one unit.** Where that is not a file boundary, split anyway
   and record the overlap.
-- **Bed before siblings.** Three or more siblings sharing a recipe: what
-  will drone two copy from drone one? A shared pattern not yet in code gets a
-  bed unit the siblings are blocked on (a part only if two or more siblings
-  use it), and a column of siblings gets a retrospective unit after it. A
-  recipe that is already data plus a roster line needs no bed.
+- **Shared base before siblings.** Three or more siblings built the same
+  way (nine arrow types, say): what will drone two copy from drone one? If
+  that shared code does not exist yet, file a unit that builds it first and
+  block the siblings on it — put a part in only if two or more siblings use
+  it — and a retrospective unit after them that harvests what they added.
+  Siblings that are only data plus a roster line need no base unit.
 - A follow-up the hub does not need is a **sibling** linking back, never a
   child.
 - Shared-file work every child touches (one `.tres`, a registry append) is

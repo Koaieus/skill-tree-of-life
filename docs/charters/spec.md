@@ -170,14 +170,14 @@ corpus rows citing them moved with them.
     back, never a child.
 19. **Shared-file work every child touches** *(sw 22)* is the orchestrator's
     pre-step in the main checkout, not parcelled out.
-20. **Bed before siblings.** When three or more siblings share a recipe,
+20. **Shared base before siblings** (the owner's word was a "readily made bed"; the plain name is the one agents read). When three or more siblings share a recipe,
     answer "what will drone two and three copy from drone one?" before
-    promoting. A shared pattern not yet in code gets a **bed unit** the
+    promoting. A shared pattern not yet in code gets a **base unit** the
     siblings are blocked on, built from a demand table of the siblings'
     specs (a part goes in only if two or more use it); a column of siblings
     also gets a **retrospective** unit after it, harvesting what the units
-    added. Where the recipe is already a bed (data plus a roster line), no
-    bed unit. Owner, 2026-10-07: *"after 1 or 2 are implemented, some
+    added. Where the recipe is already data plus a roster line, no base
+    unit. Owner, 2026-10-07: *"after 1 or 2 are implemented, some
     roadblocks may have been resolved, gotchas encountered, plumbing
     specific to arrow types or delivery added … the third would ideally end
     up on a readily made bed"*, and *"kits are the way to go"*.
@@ -207,7 +207,7 @@ corpus rows citing them moved with them.
 | 2026-10-11 | drift-stamp scan (78 stamping passes, 203 lead-side drift runs, 358 drones, 09-15→10-10; `docs/corpus/2026-10-11-drift-stamp-value.md`) | verdict *slim*: drones read the reading list (69% of stamp paths touched within 15 calls of the view); the sha check redirected leads a handful of times and was mostly the run's own landings; seam map a start not a fence; the cost was per-range verification. Clerk `no stamp` fired on every `Needs design` child as noise | 9, 12, 13 |
 | 2026-09-22 | 65f779bf | a stub commit shifted lines after the ranges were read; six entries pointed at the wrong functions — "would have actively misled a drone" | 13 |
 | 2026-10-07 | drone afb0fab3 | the fork-menu shape for an owner-less issue, quoted in law 2 | 2 |
-| 2026-10-07 | arrow pass (d359f7ce) | nine bespoke-look siblings promoted in parallel, each told to copy poison's shape; six shed trail particles, seven leave a lingering impact — fixed after the fact by bed unit #1474 and retrospective #1475 | 20 |
+| 2026-10-07 | arrow pass (d359f7ce) | nine bespoke-look siblings promoted in parallel, each told to copy poison's shape; six shed trail particles, seven leave a lingering impact — fixed after the fact by base unit #1474 and retrospective #1475 | 20 |
 | 2026-10-04 | #1410 (bc56e8dd) | stamped `identity/defs`, which sibling #1404 creates; the clerk flagged it `missing-at-stamp` | 12 |
 | 2026-09-30 | #1222 | `Ready` with ≥4 deliverables, one opus unit, 4.21M priced (23% of the run), did not land in budget | 16 |
 | 2026-09-17 | owner | "if you can't write it up cleanly (potentially concise, get the idea across) you won't be able to code it up cleanly either" | 7 |
@@ -229,7 +229,7 @@ corpus rows citing them moved with them.
 | Date | Kind | Became |
 |---|---|---|
 | 2026-10-04 | gotcha (bc56e8dd, swarmify board) | law 12: a path a sibling creates is never a stamp entry |
-| 2026-10-07 | law-candidate (d359f7ce, swarmify board, two posts) | law 20: bed unit before siblings, retrospective after a column. Not folded: a recipe-delta line in every Acceptance (lives in `docs/design/aspect_matrix.md`, too domain-specific for every spec) and a swarm-lead dispatch guard (swarm's charter, not this one) — left for the owner |
+| 2026-10-07 | law-candidate (d359f7ce, swarmify board, two posts) | law 20: base unit before siblings, retrospective after a column. Not folded: a recipe-delta line in every Acceptance (lives in `docs/design/aspect_matrix.md`, too domain-specific for every spec) and a swarm-lead dispatch guard (swarm's charter, not this one) — left for the owner |
 
 ## What the skill must not contain
 
