@@ -212,6 +212,13 @@ var deallocations: Array[DeallocEntry] = []
 ## and hands a peer the pop cue it never used to get at all.
 var popped_vertex: SkillNode = null
 
+## The sandpile settle this landing's beat ran ([method CombatWorld.settle_topples]),
+## in order: [CombatWorld.SettleOp]s, re-pointed at the real nodes' live slices.
+## Written by the authority's shadow flush onto the beat's first fresh landing;
+## a non-empty list on a rebuilt hit marks it recorded, and the replay beat
+## lands exactly these ([method CombatWorld.feed_settle]) instead of computing.
+var settle: Array[CombatWorld.SettleOp] = []
+
 ## Set when a mode's land-time gate VETOED this landing (target/origin no
 ## longer allocated or hostile) instead of applying it — #503. Not the same
 ## as [code]effective_amount == 0.0[/code]: a hit that WAS applied and

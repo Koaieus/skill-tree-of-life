@@ -127,6 +127,22 @@ class _RemovalField:
 		return super(n)
 
 
+## One step of a recorded sandpile settle, as a replay lands it: a transfer
+## batch member ([member threshold] 0: [member amount] stacks [member from] →
+## [member to], null burned) or a burst ([member threshold] > 0:
+## [method StatusDef._on_burst] on [member from], [member amount] topples).
+## Consecutive transfers with the same [member batch] land as ONE
+## [SpreadApplier] call, keeping its debit-first contract.
+class SettleOp:
+	var def: StatusDef
+	var key: Variant = true
+	var from: NodeCombat
+	var to: NodeCombat
+	var amount: float = 0.0
+	var threshold: int = 0
+	var batch: int = 0
+
+
 ## The real world. Every lookup delegates to the live slice each object already
 ## composes, so this adds no state and cannot go stale.
 static func live() -> CombatWorld:
@@ -460,3 +476,7 @@ func _neighbours_of(node: NodeCombat) -> Array[NodeCombat]:
 	for m in mirror.graph.get_neighbours(real):
 		out.append(combat_for(m))
 	return out
+
+
+func settle_topples() -> void:
+	pass
