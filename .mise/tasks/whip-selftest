@@ -569,6 +569,30 @@ check("the stopped tree run ends on its last done, report STOPPED", state()["don
 run("retire", "--force")
 check("tree mode never touched systemd, linger or claude (stop and retire included)", not sysc(base))
 
+# --- --size all: every Ready issue in one train; next-train skips an emptied train
+fx["agents"] = []; fx["ready"] = [1, 2, 3, 4, 5, 6, 7]; fx["blocked_by"] = {2: [1]}; fx["milestone"] = {3: "M1", 4: "M2", 5: "M3"}
+run("start", "--tree", "--no-issue", "--size", "all", me="feedface-0000")
+check("start --size all puts every Ready issue (chain, milestones and all) in ONE train, and persists size all",
+      os.path.exists(jpath) and [t["issues"] for t in state()["trains"]] == [[1, 2, 3, 4, 5, 6, 7]] and state()["size"] == "all")
+code, out = run("trains", "--redo", "--size", "all")
+check("trains --redo --size all is one train too", code == 0 and os.path.exists(jpath) and [t["issues"] for t in state()["trains"]] == [[1, 2, 3, 4, 5, 6, 7]])
+run("retire", "--force")
+fx["ready"] = [1, 3, 4]; fx["blocked_by"] = {}
+run("start", "--tree", "--no-issue", "--size", "1", me="feedface-0000")
+st = state(); st["trains"][0]["issues"] = []; poke(trains=st["trains"])
+code, out = run("next-train", "--lead", "lead-b", me="feedface-0000")
+check("next-train skips an emptied queued train, marks it empty, hands out the next non-empty one",
+      code == 0 and train("a")["state"] == "empty" and train("b")["lead"] == "lead-b" and "train b" in out)
+run("retire", "--force")
+run("start", "--tree", "--no-issue", "--size", "1", me="feedface-0000")
+st = state()
+for t in st["trains"]: t["issues"] = []
+poke(trains=st["trains"])
+code, out = run("next-train", "--lead", "lead-b", me="feedface-0000")
+check("next-train over only-empty trains says nothing queued and marks every one empty",
+      code == 0 and "nothing queued" in out and all(t["state"] == "empty" for t in state()["trains"]) and "lead-b" not in state()["leads"])
+run("retire", "--force")
+
 # --- the fence held --------------------------------------------------------
 check("the only gh calls were answered by the fake, never posting", all(c.startswith("gh issue list") for c in calls if c.startswith("gh ")))
 real_after = {p: os.path.getmtime(os.path.join(real, p)) for p in os.listdir(real) if p.startswith("whip-")} if os.path.isdir(real) else {}
