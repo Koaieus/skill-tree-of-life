@@ -31,7 +31,7 @@ ADR 0040 ticks a status at the end of the afflicted entity's turn. A turnless ho
 
 1. **A world turn ends every N played turn ends, N = the number of living turn-takers.** Owner, 2026-10-11: *"B sounds best here. Supersede ADR if needed"*. With equal speeds it is a round; with mixed speeds it runs at exactly the average pace; a death only shrinks N.
 2. **It counts turns, never ticks.** Owner, 2026-10-11: the empty ticks *"might as well have never happened, from the experience of the entities, relatively speaking they only see how fast they go w.r.t one another"*.
-3. **Every turn end is rejected.** Owner: *"you could never stack poison like that"*.
+3. **Every turn end is rejected.** Owner, 2026-10-10/11: *"you could never stack poison like that"*.
 4. **One beat.** Owner, 2026-10-11, picked "one beat now" over a per-status beat: every turnless-host status ticks on the world turn.
 5. Pass calls (no behaviour change): only a played turn end (`TurnManager.end_turn`) counts — never `abandon_turn` (death) nor `adopt_turn` (resync); a world turn only *ends* (no start, upkeep or regen); `>=` N closes it, so a death that shrinks N below the progress closes it at the next played turn end.
 
