@@ -63,7 +63,18 @@ const DEFAULT_STYLE: BladeStyle = preload("res://attack/melee/default_blade_styl
 		death_progress = clamped
 		_reconfigure()
 
+## The sight marker a scout vertex carries (`ui/fog_overlay/lantern.tscn`,
+## set in `blade_node.tscn`). Injected, never preloaded: `attack/` sits below
+## `ui/`, so this script treats the instance as a plain [Node2D] with
+## `radius`/`source` properties. Null means this vertex can never light.
+@export var lantern_scene: PackedScene = null
+
 @onready var _visual: Node2D = $Visuals/BladeCircle
+
+## The one marker this vertex carries once lit, a child at local zero — so it
+## sits on the drawn vertex whatever playback writes to [member global_position],
+## and frees with it. Null while unlit.
+var _lantern: Node2D = null
 
 
 func _ready() -> void:
@@ -76,6 +87,23 @@ func _reconfigure() -> void:
 	_visual.configure(
 			radius, inner_radius, is_pivot,
 			style if style != null else DEFAULT_STYLE, tint, death_progress)
+
+
+## Light this vertex for [param source]'s camp: instances [member lantern_scene]
+## once and keeps it (a second call only re-points its source). The radius is
+## the scene's own default.
+func light_lantern(source: Entity) -> void:
+	if _lantern == null:
+		if lantern_scene == null:
+			return
+		_lantern = lantern_scene.instantiate() as Node2D
+		add_child(_lantern)
+	_lantern.set(&"source", source)
+
+
+## The lit marker, or null — for tests and the sandbox.
+func get_lantern() -> Node2D:
+	return _lantern
 
 
 ## Returns the point on this node's circumference facing `world_target`.

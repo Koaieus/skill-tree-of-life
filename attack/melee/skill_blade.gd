@@ -711,6 +711,8 @@ func _spawn_visuals() -> void:
 		bn.tint = tint
 		_nodes_container.add_child(bn)
 		bn.global_position = state.positions[i]
+		if is_scout_vertex(state, i):
+			bn.light_lantern(owned_by)
 		_node_visuals.append(bn)
 	for e in state.edges:
 		var be := BLADE_EDGE.instantiate() as BladeEdge
@@ -720,6 +722,19 @@ func _spawn_visuals() -> void:
 		be.from = _node_visuals[e.x]
 		be.to = _node_visuals[e.y]
 		_edge_visuals.append(be)
+
+
+## Does vertex [param i] scout what it hits? True iff one of its on-hit riders
+## lands a [ScoutStatus] — the marking a scout addon leaves on its carrier's
+## vertex via [method SkillNodeAddon.apply_to_blade]; same predicate as
+## [method AmmoType.is_scout]. Such a vertex carries a sight marker.
+static func is_scout_vertex(blade_state: BladeState, i: int) -> bool:
+	if i >= blade_state.vertex_on_hit.size():
+		return false
+	for effect in blade_state.vertex_on_hit[i]:
+		if effect != null and effect.status_def() is ScoutStatus:
+			return true
+	return false
 
 
 ## The wielder's identity colour, or transparent when the blade has no owner
