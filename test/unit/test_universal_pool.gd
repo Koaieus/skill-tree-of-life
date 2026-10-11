@@ -32,9 +32,9 @@ func test_movement_points_pool_values() -> void:
 	# Content invariant, NOT a value pin (#719). The magnitudes here are the
 	# owner's to tune between balance passes; pinning them turned a deliberate
 	# tuning pass red without catching anything (#717). Formula conformance for
-	# whatever this pool authors is swept in test_pool_range_bounds.gd, the
-	# ladder itself is pinned on hand-built pools in test_pool_seed_values.gd,
-	# and unintended content drift is the procgen goldens' job.
+	# whatever this pool authors is swept in test_pool_range_bounds.gd,
+	# and the ladder itself is pinned on hand-built pools in
+	# test_pool_seed_values.gd. Content drift is deliberately unguarded.
 	var p: StatPack = _PACK.duplicate(true) as StatPack
 	var found := false
 	for sp in p.pools:

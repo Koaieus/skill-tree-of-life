@@ -47,14 +47,12 @@ extends GutTest
 ##     and diff the full text by hand to see what moved, never to weaken this
 ##     assert to make it pass.
 ##
-## Regenerating a fixture is a DELIBERATE act, never a way to turn a red test
-## green:
-##   1. Flip `_REGENERATE` below to `true`.
-##   2. Run this script alone:
-##      `mise run test:one -- res://test/unit/procgen/test_preset_generation_golden.gd`
-##   3. Flip `_REGENERATE` back to `false`.
-##   4. Commit the rewritten fixture(s) with a message that justifies WHY
-##      GraphProcgen's output was supposed to change.
+## PARKED: the comparisons are pending and the fixtures are deliberately NOT
+## in the tree — procgen content has no settled standard yet, so a golden is
+## pure churn. Never regenerate or commit a fixture on a tune. Only the owner
+## revives this, once a standard exists: flip `_REGENERATE` to `true`, run this
+## script alone (`mise run test:one -- res://test/unit/procgen/test_preset_generation_golden.gd`),
+## flip it back, drop the `pending()` guards, and commit the fixtures.
 
 const _PRESETS := {
 	"first_level": "res://procgen/presets/first_level/first_level.tres",
@@ -486,11 +484,9 @@ func _run_preset(preset_key: String) -> void:
 		% [preset_key, full_snapshot.node_count])
 
 
-## Owner decision, 2026-09-24 (#751): the golden comparisons are skipped
-## indefinitely, with no regen. Making the pack the only archetype gate
-## reordered CON-primary nodes' flattened entries (the entry set and the weights
-## are unchanged), so seeded rolls moved there. `_REGENERATE` still works.
-const _PENDING_REASON := "golden comparison skipped indefinitely — owner decision 2026-09-24 on #751 (no regen)"
+## Parked until procgen content has a standard — see the class docstring.
+## No fixture exists, so there is nothing to regenerate.
+const _PENDING_REASON := "procgen goldens parked until content settles — no fixtures, do not regenerate"
 
 
 func test_first_level_matches_golden() -> void:

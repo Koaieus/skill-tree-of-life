@@ -28,10 +28,8 @@ for pack in packs:
   A stale tag silently relocates a pool's incidence — a `-dexterity` pool still tagged `int`
   got a 3x boost on INT nodes.
 - **Moving a pool between packs changes the flattened entry order**, and the weighted pick
-  walks that order — the same seed rolls differently, so the procgen goldens go red even
-  when every pool's scope is unchanged. Regenerate only deliberately: flip `_REGENERATE` in
-  `test/unit/procgen/test_preset_generation_golden.gd` (its header has the steps) and
-  justify the diff.
+  walks that order — the same seed rolls differently even when every pool's scope is
+  unchanged. (The procgen goldens that would show this are parked: never regenerate them.)
 
 **The second key — `subtypes` (#1056).** `Array[NodeSubtype]`, **empty = any subtype**,
 which is the attribute ladder and most content; the eight flavour pools gated by #1059

@@ -278,9 +278,9 @@ the field's authored 4x is the entire rim power ratio. Live numbers: the preset'
 
 ## Tuning a pool: what goes red, and what to run
 
-**Only the procgen goldens should go red on a content tune.** Editing
+**A content tune turns nothing red.** Editing
 `unit_value` / `range_floor` / `pool_weight` / `min_tier` / `max_tier`, or
-adding a pool to a pack, must not fail a unit test. If it does, that test is
+adding a pool to a pack, must not fail a test. If it does, that test is
 asserting the tuner's numbers instead of the engine's behaviour — fix the
 test, not the tuning.
 
@@ -290,7 +290,7 @@ The three layers, and what each is allowed to know:
 |---|---|---|
 | `test_pool_seed_values.gd` | nothing — hand-built `StatPool`s | never |
 | `test_pool_range_bounds.gd` | every pool in the specimen set, as **input** | never |
-| `test_preset_generation_golden.gd` | full generated output | **yes, by design** |
+| `test_preset_generation_golden.gd` | full generated output | parked — pending, no fixtures |
 
 - The **formula** (`H = unit × V[t]`, `L(1) = M`, `L(t+1) = H(t) + M`, cost
   ladder, override fixed points, min_tier-relative rungs, negative-pool
@@ -304,17 +304,10 @@ The three layers, and what each is allowed to know:
   literal list goes stale the moment a pool is added and then blames the roll
   for a fact about the fixture.
 
-**A pool re-tune reshuffles both goldens wholesale — a value-only diff is the
-exception.** Pool *selection* is weighted, so changing a `pool_weight`, adding a
-pool, or dropping a `max_tier` cap changes how much RNG the draw consumes at the
-first node of that archetype; everything downstream differs by *position*. Don't
-reconcile such a diff line by line — check it in aggregate: the line-tag census
-(counts per `MOD`/`ADDON`/`SPELL` kind) should be unchanged *in kind*, and spot-check
-that any new extreme value is reachable under the new authoring.
-
-The fix for a red golden is deliberate: `mise run procgen-golden-regenerate`, then
-re-verify with `mise run test:one -- res://test/unit/procgen/test_preset_generation_golden.gd`.
-Commit the fixtures with a message saying *why* generation was supposed to change.
+**The procgen goldens are parked** until content has a settled standard (owner, #751
+and 2026-10-11). The comparisons are `pending()` and no `.golden.txt` is in
+the tree. **Never regenerate or commit a fixture** — reviving the goldens is the
+owner's call, steps in the test's header.
 
 **One test is meant to be tune-sensitive:**
 `test_specimen_pool_set.gd::test_value_overrides_stay_under_repo_budget` caps
