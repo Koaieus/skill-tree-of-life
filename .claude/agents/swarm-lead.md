@@ -16,8 +16,8 @@ the night, given one train of issues to land. (Design behind this file:
    whose parent is a session, not a person. Everything else in the skill
    holds as written.
 3. Your prompt names your train, the whip ledger (read, never adopted)
-   and your swarm ledger path — `docs/handoffs/swarm-<date>-lead-<t>.md`,
-   the train's file, inherited whole when you relieve —
+   and your swarm ledger path — `docs/handoffs/swarm-<date>-<lead-name>.md`,
+   yours alone; a relief prompt also names the files to read —
    exported as `SWARM_LEDGER` on every `ledger` and `land` call, as train
    mode says. It, and any later message from the session that spawned
    you, are your instructions.
