@@ -122,7 +122,7 @@ func release_aim() -> bool:
 
 ## Open the spell picker ([SpellPickMode]) on top, or close the one on the
 ## branch. True iff the picker is open afterwards. The one entry point the
-## magic body's spell button calls.
+## magic body's spell button calls. An open aspect chooser closes.
 func toggle_picker() -> bool:
 	if stack == null:
 		return false
@@ -130,24 +130,33 @@ func toggle_picker() -> bool:
 	if picker != null and picker.magic == self:
 		picker.pop_self()
 		return false
-	return stack.push(SpellPickMode.new(self))
+	return _open_leaf(SpellPickMode.new(self), stack.find(InfusionPickMode))
 
 
 ## Open the aspect chooser ([InfusionPickMode]) on infusion socket
 ## [param index], close it when that socket is already open, or move an open
-## one to [param index]. True iff a chooser is open afterwards. The entry point
-## a socket's left-click calls.
+## one to [param index]; an open spell picker closes. True iff a chooser is
+## open afterwards. The entry point a socket's left-click calls.
 func toggle_socket(index: int) -> bool:
 	if stack == null:
 		return false
 	var open := stack.find(InfusionPickMode) as InfusionPickMode
 	if open == null or open.magic != self:
-		return stack.push(InfusionPickMode.new(self, index))
+		return _open_leaf(InfusionPickMode.new(self, index), stack.find(SpellPickMode))
 	if open.socket == index:
 		open.pop_self()
 		return false
+	return _open_leaf(InfusionPickMode.new(self, index), open)
+
+
+## Push [param leaf], or swap it in for [param rival] — the other chooser leaf
+## open on the branch — in one [signal ArmedStack.changed]: the spell picker
+## and an aspect chooser never stand open together.
+func _open_leaf(leaf: ArmedMode, rival: ArmedMode) -> bool:
+	if rival == null:
+		return stack.push(leaf)
 	var branch := stack.branch()
-	return stack.switch_to(InfusionPickMode.new(self, index), branch[branch.find(open) - 1])
+	return stack.switch_to(leaf, branch[branch.find(rival) - 1])
 
 
 ## For an aimed spell a click names a caster, not a target: it re-arms the

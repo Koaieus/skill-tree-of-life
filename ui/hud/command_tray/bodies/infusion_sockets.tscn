@@ -1,8 +1,16 @@
 [gd_scene format=3]
 
 [ext_resource type="Script" path="res://ui/hud/command_tray/bodies/infusion_sockets.gd" id="1_script"]
+[ext_resource type="PackedScene" path="res://ui/aspect_wheel/aspect_wheel.tscn" id="2_wheel"]
 
 [node name="InfusionSockets" type="Control"]
 layout_mode = 3
 anchors_preset = 0
 script = ExtResource("1_script")
+mouse_filter = 2
+
+[node name="Wheel" parent="." instance=ExtResource("2_wheel")]
+unique_name_in_owner = true
+visible = false
+top_level = true
+layout_mode = 0
