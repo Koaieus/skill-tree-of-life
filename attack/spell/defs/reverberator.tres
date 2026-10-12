@@ -35,6 +35,7 @@ baked_lut = ExtResource("1_lut")
 script = ExtResource("1_22gko")
 status = ExtResource("13_corruption")
 innate = 2
+rate = 1.0
 
 [sub_resource type="Resource" id="crit_self_loop"]
 script = ExtResource("2_crit_self_loop")
@@ -89,7 +90,7 @@ script = ExtResource("1_spell")
 id = &"reverberator"
 name = "Demon Bell"
 tagline = "Climbs to the highest point and rings the bell: a self-loop tolls corruption into its node."
-description = "Fans to every enemy neighbour at or above the current node's territory degree — it climbs toward hubs and never flows downhill. Converging branches ADD, +{SEED} damage per hop. Every hit rings corruption into the node it strikes. At the top, a self-loop is the bell: the walk folds back into its own node, and each toll there CRITS (stacks with crit_chance), multiplying both the damage and the corruption. The rung pile topples into the node's neighbours, a stain that outlasts the node."
+description = "Fans to every enemy neighbour at or above the current node's territory degree — it climbs toward hubs and never flows downhill. Converging branches ADD, +{SEED} damage per hop. Every hit rings corruption into the node it strikes. At the top, a self-loop is the bell: the walk folds back into its own node, and each toll there CRITS, multiplying the damage (random crits stack on it) and the corruption with it. The rung pile topples into the node's neighbours, a stain that outlasts the node."
 identity = ExtResource("identity_ref")
 carve_shape = SubResource("carve_reverberator")
 min_degree = 3
