@@ -423,7 +423,7 @@ def record_launch(st, name, train, relief, sess):
     t = train_of(st, train)
     if t:
         if relief and t.get("outgoing") in st["leads"] and st["leads"][t["outgoing"]]["state"] == "running":
-            st["leads"][t["outgoing"]]["state"] = "relieved"
+            st["leads"][t["outgoing"]]["state"] = "draining" if tree(st) else "relieved"
         t["lead"] = name; t["state"] = "running"
     st["leads"][name] = {"session": sess, "kind": kind, "train": train, "launched": now(), "launched_ts": time.time(),
                          "last_ts": time.time(), "state": "running", "verified": False}
@@ -500,7 +500,7 @@ def request_relief(st, train, why):
     t["outgoing"] = t.get("lead"); t["lead"] = name; t["state"] = "running"
     if tree(st):  # the top spawns the relief subagent; the ledger only records it
         out = st["leads"].get(t["outgoing"])
-        if out and out["state"] == "running": out["state"] = "relieved"
+        if out and out["state"] == "running": out["state"] = "draining"  # still lands its in-flight drones; `drained` closes it
         tree_lead(st, name, train, relief=True)
         event(st, f"relief {name} recorded for the top to spawn: {why}")
         return True
@@ -511,7 +511,7 @@ def request_relief(st, train, why):
 
 def maybe_end_run(st):
     if st.get("done"): return
-    if any(l["state"] == "running" for l in st["leads"].values()): return
+    if any(l["state"] in ("running", "draining") for l in st["leads"].values()): return
     if st.get("requests"): return
     if any(t.get("state") == "queued" for t in st["trains"]) and not st.get("stopped") and not capped(st): return
     end_run(st)
@@ -536,7 +536,7 @@ def tree_lead(st, name, train, relief=False):
     save(st)
 
 
-def named_lead(st, a, verb):
+def named_lead(st, a, verb, states=("running", "draining")):
     """Tree transport: the top names the lead (`--lead`); session mode keys on the caller's session."""
     if not tree(st):
         if getattr(a, "lead", None):
@@ -545,8 +545,8 @@ def named_lead(st, a, verb):
     if not getattr(a, "lead", None):
         sys.exit(f"{verb}: usage — tree transport: `whip -- {verb} --lead <name> …` (the top names the lead)")
     l = st["leads"].get(a.lead)
-    if not l or l["state"] != "running":
-        sys.exit(f"{verb}: {a.lead} is no running lead in the ledger ({l['state'] if l else 'unknown'})")
+    if not l or l["state"] not in states:
+        sys.exit(f"{verb}: {a.lead} is no {'/'.join(states)} lead in the ledger ({l['state'] if l else 'unknown'})")
     l["last_ts"] = time.time()
     return a.lead, l
 
@@ -850,12 +850,23 @@ def cmd_relieve_me(a):
         sys.exit(f"no relief: train {l.get('train')} is {t.get('state')} — end your turn and do nothing more")
 
 
+def cmd_drained(a):
+    """Tree transport: the outgoing lead has returned its session report; draining -> relieved."""
+    st = current()
+    if not tree(st):
+        sys.exit("drained: tree transport only")
+    name, l = named_lead(st, a, "drained", states=("draining",))
+    l["state"] = "relieved"; save(st)
+    event(st, f"{name} drained: returned, relieved")
+    print(f"{name} relieved (drained)")
+
+
 def cmd_relieve(a):
     """Tree transport: record a relief for the named lead's train; the top spawns it. Launches nothing."""
     st = current()
     if not tree(st):
         sys.exit("relieve: tree transport only — a sessions lead runs `relieve-me` from its own session")
-    name, l = named_lead(st, a, "relieve")
+    name, l = named_lead(st, a, "relieve", states=("running",))
     ok = request_relief(st, l.get("train"), f"top relieves {name}")
     st = current(); t = train_of(st, l.get("train")) or {}
     if not ok:
@@ -884,8 +895,8 @@ def cmd_done_check(a):
         if n not in noted: bad.append(f"#{n} still Ready and not noted (whip -- note 'still-ready #{n}: <why>')")
     ags = agents()
     for name, l in st["leads"].items():
-        if l["state"] == "running" and session_state(by_session(ags, l["session"])) != "gone":
-            bad.append(f"{name} still running")
+        if l["state"] in ("running", "draining") and session_state(by_session(ags, l["session"])) != "gone":
+            bad.append(f"{name} still {l['state']}")
     wts = sh("git worktree list --porcelain", cwd=ROOT).count("worktree ") - 1
     if wts > 0: bad.append(f"{wts} worktree(s) still open (mise run worktree:ls)")
     hyg = sh("mise run --quiet gh-project -- hygiene", cwd=ROOT).strip()
@@ -1172,6 +1183,7 @@ def main():
     s = sp.add_parser("done", help="(lead) train landed: records, passes the baton or ends the run"); s.add_argument("--lead"); s.add_argument("sha"); s.add_argument("landed"); s.set_defaults(f=cmd_done)
     sp.add_parser("relieve-me", help="(lead) launches your relief").set_defaults(f=cmd_relieve_me)
     s = sp.add_parser("relieve", help="(tree top) record a relief for --lead's train; launches nothing"); s.add_argument("--lead"); s.set_defaults(f=cmd_relieve)
+    s = sp.add_parser("drained", help="(tree top) an outgoing lead returned: draining -> relieved"); s.add_argument("--lead"); s.set_defaults(f=cmd_drained)
     s = sp.add_parser("needs-owner", help="(lead) after a Needs design move"); s.add_argument("--lead"); s.add_argument("n", type=int); s.add_argument("line"); s.set_defaults(f=cmd_needs_owner)
     s = sp.add_parser("note"); s.add_argument("text"); s.set_defaults(f=cmd_note)
     sp.add_parser("show").set_defaults(f=cmd_show)

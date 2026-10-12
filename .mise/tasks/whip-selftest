@@ -505,7 +505,16 @@ check("next-train with nothing queued says so and marks nothing", "lead-c" not i
 code, out = run("relieve", "--lead", "lead-a", me="feedface-0000")
 check("(d) relieve --lead lead-a records the request, prints relief-a-1 + the whip ledger path and no adopt hint, launches nothing",
       code == 0 and "relief-a-1" in out and jpath in out and "adopt" not in out and train("a")["lead"] == "relief-a-1" and train("a")["reliefs"] == 1
-      and lead("lead-a")["state"] == "relieved" and lead("relief-a-1").get("state") == "running" and not state()["requests"] and not sysc(base))
+      and lead("lead-a")["state"] == "draining" and lead("relief-a-1").get("state") == "running" and not state()["requests"] and not sysc(base))
+code, out = run("relieve", "--lead", "lead-a", me="feedface-0000")
+check("a draining lead cannot be relieved again", code != 0 and train("a")["reliefs"] == 1)
+code, out = run("drained", "--lead", "lead-b", me="feedface-0000")
+check("drained refuses a lead that is not draining", code != 0 and lead("lead-b")["state"] == "running")
+code, out = run("drained", "--lead", "lead-a", me="feedface-0000")
+check("drained --lead lead-a moves the outgoing lead draining -> relieved and the train stays on the relief",
+      code == 0 and lead("lead-a")["state"] == "relieved" and train("a")["lead"] == "relief-a-1")
+code, out = run("drained", "--lead", "lead-a", me="feedface-0000")
+check("drained is not repeatable (only from draining)", code != 0)
 code, out = run("needs-owner", "--lead", "relief-a-1", "52", "cursor fork", me="feedface-0000")
 check("needs-owner --lead names the train", code == 0 and any("needs owner #52" in n and "train a" in n for n in state()["notes"]))
 code, out = run("done", "--lead", "relief-a-1", SHA, "3/4", me="feedface-0000")
