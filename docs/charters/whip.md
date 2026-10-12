@@ -1,12 +1,6 @@
 # Whip — charter
 
-> **Retired 2026-10-12** (owner: *"tree wins, retire whip"*; #1578): the relay
-> of `--bg` sessions, its watchdog, the `/whip` skill and swarm's *whip relay*
-> mode are removed; swarm-train is the only overnight transport — see
-> ADR 0056, `docs/adr/0056-overnight-runs-are-one-session-over-a-subagent-tree.md`. The tool
-> `.mise/tasks/whip` keeps its name as swarm-train's ledger and verbs. This
-> charter stays for its incident corpus and laws, which
-> [swarm-train](swarm-train.md) cites; nothing here is derived any more.
+> **Retired 2026-10-12** (owner: *"tree wins, retire whip"*; #1578) — see `docs/adr/0056-overnight-runs-are-one-session-over-a-subagent-tree.md`; the tool `.mise/tasks/whip` keeps its name as swarm-train's ledger, and this charter stays for the corpus [swarm-train](swarm-train.md) cites.
 
 The design behind `.claude/skills/whip/SKILL.md`, the relay contract that
 `swarm`'s *whip relay* section carries for every lead, and the zero-token

@@ -48,7 +48,7 @@ never yours.
 ## 1. Start — one verb, then arm the wakes
 
 ```bash
-mise run whip -- start --tree [--cap 15] [--stall-minutes 45] [--tick-minutes 45] [--size <n>]
+mise run whip -- start [--cap 15] [--stall-minutes 45] [--tick-minutes 45] [--size <n>]
 ```
 
 `start --tree` snapshots `Ready` and master, writes the trains and the
