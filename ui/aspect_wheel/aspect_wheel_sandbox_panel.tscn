@@ -1,0 +1,45 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://ui/aspect_wheel/aspect_wheel_sandbox_panel.gd" id="1_panel"]
+[ext_resource type="PackedScene" path="res://ui/aspect_wheel/aspect_wheel.tscn" id="2_wheel"]
+
+[node name="AspectWheelSandboxPanel" type="PanelContainer"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+script = ExtResource("1_panel")
+
+[node name="Split" type="HBoxContainer" parent="."]
+layout_mode = 2
+
+[node name="Knobs" type="VBoxContainer" parent="Split"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(320, 0)
+layout_mode = 2
+
+[node name="Body" type="VBoxContainer" parent="Split"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="Log" type="Label" parent="Split/Body"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "hover / click a wedge; right-click or Esc dismisses"
+
+[node name="Wheels" type="HFlowContainer" parent="Split/Body"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/h_separation = 24
+theme_override_constants/v_separation = 24
+
+[node name="Wheel2" parent="Split/Body/Wheels" instance=ExtResource("2_wheel")]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="Wheel5" parent="Split/Body/Wheels" instance=ExtResource("2_wheel")]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="Wheel12" parent="Split/Body/Wheels" instance=ExtResource("2_wheel")]
+unique_name_in_owner = true
+layout_mode = 2
