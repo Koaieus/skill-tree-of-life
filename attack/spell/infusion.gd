@@ -36,7 +36,8 @@ func slots_used() -> int:
 	return points.size()
 
 
-## Total points this cast spends — what `infusion_points` caps.
+## Total points this cast spends — what [member SpellDef.infusion_capacity]
+## caps (there is no caster-side total; each aspect is capped by its own stat).
 func total_points() -> int:
 	var total := 0
 	for id in points:

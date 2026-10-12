@@ -2,9 +2,9 @@ class_name AspectCurrency
 extends RefCounted
 
 ## The one board read behind every per-attack currency cap: a melee swing's
-## `<concept>_aspect` temp costs and a cast's infusion caps (`<concept>_aspect`,
-## `infusion_slots`, `infusion_points`) all ask "how much of this stat may one
-## attack spend", floored. A pooled budget — nothing is consumed.
+## `<concept>_aspect` temp costs and a cast's infusion caps (`<concept>_aspect`
+## for depth, `infusion_slots` for breadth) all ask "how much of this stat may
+## one attack spend", floored. A pooled budget — nothing is consumed.
 
 
 ## [param attacker]'s live [param stat_id], floored at 0; 0 with no board.

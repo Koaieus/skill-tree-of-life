@@ -109,8 +109,8 @@ var icon: Texture2D:
 ## every unlisted concept.
 @export_range(0.0, 10.0, 0.05, "or_greater") var default_rate: float = 1.0
 
-## Most infusion points one cast of this spell takes, whatever the caster's
-## `infusion_points` pool; INF leaves the pool as the only cap.
+## Most infusion points one cast of this spell takes in total, across every
+## socketed aspect; INF leaves each aspect capped only by its `<concept>_aspect`.
 @export var infusion_capacity: float = INF
 
 ## Spell-specific crit conditions. Evaluated per landing in addition to

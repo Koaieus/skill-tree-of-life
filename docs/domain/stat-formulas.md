@@ -19,7 +19,6 @@ All entities get these. Divisors (bold) are tuning values.
 | `intelligence` | `cast_range_hops` | ADD_BASE | 1 | ThresholdFormula(intelligence, [50, 150, 500, 1000, 5000]) — flat +1..+5 hops over the spell's authored `max_hops` (overlay, base 0); feeds `HopRangeFinder` only, never `PropagationConfig.max_hops` |
 | `intelligence` | `spell_damage` | ADD_BASE | 1 | SqrtFormula(intelligence, divisor=1) — pure sqrt transfer, no knee |
 | `intelligence` | `infusion_slots` | ADD_BASE | 1 | ThresholdFormula(intelligence, [100, 1000, 10000]) — slots a cast can fill, one concept per slot |
-| `intelligence` | `infusion_points` | ADD_BASE | 1 | SqrtFormula(intelligence, divisor=1) — points per slot |
 | `strength` | `blade_size` | ADD_BASE | 1 | RatioFormula(strength, **40**) |
 | `strength` | `blade_damage` | ADD_BASE | 1 | RatioFormula(strength, **20**) |
 | `constitution` + `node_health_scaling` | `node_health` | ADD_BASE | 1 | `node_health_scaling * constitution` — the rate is a stat (see CON) |
