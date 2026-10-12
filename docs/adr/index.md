@@ -78,6 +78,8 @@ mise run adr-hygiene     # frontmatter, supersede links, index coverage, immutab
 | [0054](0054-concept-stats-are-def-declared-and-minted-at-init.md) | A concept's per-role entity stats (aspect / stacks_per_hit / resistance) are declared by their StatDef (a role next to its identity) and minted by the entity board at init, never hand-declared as typed fields | accepted | 2026-10-11 | stats, aspects, architecture |
 | [0055](0055-turnless-hosts-tick-on-the-world-turn-one-every-n-played-turn-ends.md) | Turnless hosts (blockers, dormant cores) tick on the world turn — one ends every N played turn ends, N = the living turn-takers; counted in turns, never ticks | accepted | 2026-10-11 | combat, status, dot, turn, multiplayer |
 | [0056](0056-overnight-runs-are-one-session-over-a-subagent-tree.md) | An overnight run is one session over a subagent tree (swarm-train); the relay of `--bg` sessions with a watchdog (Whip v2) is retired | accepted | 2026-10-12 | meta, orchestration, overnight, swarm |
+| [0057](0057-a-turn-has-no-phases-the-input-channel-picks-the-verb.md) | A turn has no phases — every per-turn budget is spendable in any order until End Turn, and the input channel picks the verb | accepted | 2026-10-12 | turn, input, combat, allocation |
+| [0058](0058-a-node-subtype-is-a-resource-not-an-enum.md) | A node subtype is a `NodeSubtype` Resource carrying its own data (tint, emissive tier, name), not an enum or a bare StringName | accepted | 2026-10-12 | procgen, content, authoring, visuals |
 
 ## Pre-ADR log
 

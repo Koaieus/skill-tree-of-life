@@ -10,6 +10,7 @@ extends Resource
 ## and the thing crossing those layers must carry DATA (a tint, an emissive
 ## tier). An enum would force a `match` in each layer; a new subtype would then
 ## mean editing all three. [Archetype] is already exactly this shape.
+## Decision: docs/adr/0058-a-node-subtype-is-a-resource-not-an-enum.md.
 ##
 ## The gate lives on [member StatPool.subtypes], NOT here: a pool states which
 ## subtypes may draw it, which makes "blighted DEX trades crit% for DoT stats"
