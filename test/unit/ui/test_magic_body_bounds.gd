@@ -132,7 +132,7 @@ func test_selection_survives_the_container_swap() -> void:
 	assert_false(buttons[0].button_pressed, "and unmarks the others")
 
 
-# --- The configure view (#1486): sections, infusion row, affinity line ------
+# --- The crucible (#1585): vessel, socket arc, traces, readout ---------------
 
 const _GIRDLE: SpellDef = preload("res://attack/spell/defs/girdle.tres")
 const _VENOM: SpellDef = preload("res://attack/spell/defs/venom_burst.tres")
@@ -187,9 +187,16 @@ func _configure(spell: SpellDef) -> void:
 	await get_tree().process_frame
 
 
+func _readout() -> CrucibleReadout:
+	return _body.get_node("%CrucibleReadout") as CrucibleReadout
+
+
+## The Shift detail lives in the readout (#1585); a test has no keyboard, so
+## [member CrucibleReadout.force_more_info] holds it open.
 func _sections() -> Array[SpellTooltipSection]:
 	var out: Array[SpellTooltipSection] = []
-	for child in _body.get_node("%Sections").get_children():
+	_readout().force_more_info = true
+	for child in _readout().get_node("%Sections").get_children():
 		if child is SpellTooltipSection:
 			out.append(child as SpellTooltipSection)
 	return out
@@ -269,3 +276,48 @@ func test_the_sections_read_through_the_plans_source_node() -> void:
 	_plan.state_changed.emit()
 	await get_tree().process_frame
 	assert_eq(_sections()[1].line_texts(), at_node, "the tray folds the source node's slice")
+
+
+## Acceptance 3: at rest the vessel, the sockets and the readout show and the
+## SpellSections blocks do not; holding more-info shows them in the readout.
+func test_at_rest_no_sections_and_more_info_shows_them_in_the_readout() -> void:
+	await _configure(_VENOM)
+	assert_true((_body.get_node("%SpellButton") as Control).is_visible_in_tree(), "the vessel shows")
+	assert_true((_body.get_node("%InfusionSockets") as Control).is_visible_in_tree(), "the sockets show")
+	assert_true(_readout().is_visible_in_tree(), "the readout shows")
+	assert_false((_readout().get_node("%Sections") as Control).is_visible_in_tree(), "no sections at rest")
+	_readout().force_more_info = true
+	assert_true((_readout().get_node("%Sections") as Control).is_visible_in_tree(), "more-info shows them")
+
+
+func test_the_vessel_is_vessel_px_square() -> void:
+	await _configure(_VENOM)
+	var vessel := _body.get_node("%SpellButton") as Control
+	assert_almost_eq(vessel.size, Vector2.ONE * _body.vessel_px, Vector2.ONE * 0.5)
+
+
+## Acceptance 2 on the laid-out body: one trace per filled socket, each from
+## its socket into its own readout line, and none cross.
+func test_one_trace_per_filled_socket_and_none_cross() -> void:
+	await _configure(_VENOM)
+	var sockets := _body.get_node("%InfusionSockets") as InfusionSockets
+	assert_eq(sockets.socket_count(), 3, "guard: INT 10000 owns three sockets")
+	for n in range(1, 4):
+		_plan.set_socket(n - 1, AspectRoster.shared().aspects[n - 1].id())
+		await get_tree().process_frame
+		await get_tree().process_frame
+		var traces := _body.trace_polylines()
+		assert_eq(traces.size(), n, "%d filled, %d traces" % [n, n])
+		for i in traces.size():
+			for j in range(i + 1, traces.size()):
+				assert_false(_crosses(traces[i], traces[j]), "%d filled: traces %d, %d cross" % [n, i, j])
+	var min_size := _body.get_combined_minimum_size()
+	assert_lt(min_size.y, MAX_BODY_MIN_HEIGHT + 1.0, "three filled sockets stay inside the tray budget")
+
+
+static func _crosses(a: PackedVector2Array, b: PackedVector2Array) -> bool:
+	for i in a.size() - 1:
+		for j in b.size() - 1:
+			if Geometry2D.segment_intersects_segment(a[i], a[i + 1], b[j], b[j + 1]) != null:
+				return true
+	return false

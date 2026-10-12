@@ -5,7 +5,6 @@ extends GutTest
 ## ([method Infusion.affinity_of] through [method StatusDef.stacks_per_hit]).
 
 const _VENOM: SpellDef = preload("res://attack/spell/defs/venom_burst.tres")
-const _LINE_SCENE := preload("res://ui/hud/command_tray/bodies/affinity_line.tscn")
 const _POISON_STATUS: StatusDef = preload("res://effects/status/poison.tres")
 
 var h: SpellTestHelper
@@ -58,20 +57,6 @@ func test_venom_with_40_poison_socketed_reads_innate_plus_infused() -> void:
 	assert_eq(line.per_hit, _POISON_STATUS.stacks_per_hit(caster.stat_board, 95.0),
 			"per hit folds through stacks_per_hit")
 	assert_eq(line.status, _POISON_STATUS)
-
-
-func test_the_total_matches_what_the_affinity_line_shows() -> void:
-	var caster := _caster(40.0)
-	var plan := _plan(caster)
-	plan.set_socket(0, &"poison")
-	var affinity_line: AffinityLine = _LINE_SCENE.instantiate()
-	add_child_autofree(affinity_line)
-	affinity_line.bind(plan)
-	var lines := ReadoutLines.lines(plan)
-	assert_eq(lines.size(), 1)
-	if lines.size() != 1:
-		return
-	assert_eq(affinity_line.text(), "Poison %s/hit" % NumFmt.num(lines[0].per_hit))
 
 
 func test_an_innate_only_aspect_yields_a_line_with_no_socket() -> void:
