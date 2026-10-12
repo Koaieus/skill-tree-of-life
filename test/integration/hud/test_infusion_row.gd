@@ -60,7 +60,7 @@ func test_one_poison_stepper_capped_at_the_aspect_stat() -> void:
 	assert_eq(row.value_text(&"poison"), "2 / 2")
 	assert_true(row.plus_button(&"poison").disabled, "greyed at the aspect cap")
 	assert_string_contains(row.plus_button(&"poison").tooltip_text.to_lower(), "aspect")
-	assert_eq(row.header_text(), "slots 1/1 · points 2/%d" % InfusionRow._UNCAPPED, "no pool: uncapped")
+	assert_eq(row.header_text(), "slots 1/1 · points 2", "no pool, no capacity: no total to show")
 	assert_eq(plan.aspect_overrun(), 0, "the row never overruns")
 	row.minus_button(&"poison").pressed.emit()
 	assert_eq(plan.infusion.points.get(&"poison", 0), 1, "minus steps back")

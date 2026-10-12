@@ -5,7 +5,7 @@ extends HBoxContainer
 ## The cast's infusion steppers (#1463): one per aspect the caster holds, its
 ## identity glyph, `points / <concept>_aspect` and −/+ that write
 ## [method MagicAttackPlan.set_infusion]. The header reads both caps —
-## `slots used / infusion_slots · Σ points / SpellDef.infusion_capacity`. A "+"
+## `slots used / infusion_slots · Σ points [/ SpellDef.infusion_capacity]`. A "+"
 ## greys at the first cap that bites and its tooltip names it; a stepper the
 ## spell refuses, or that no free slot could take, dims whole. Hidden while there is nothing to infuse.
 ##
@@ -110,8 +110,11 @@ func _refresh() -> void:
 		return
 	var infusion := _plan.infusion
 	var slots := AspectCurrency.cap_of(_caster(), &"infusion_slots")
-	_header.text = "slots %d/%d · points %d/%d" % [infusion.slots_used(), slots,
-			infusion.total_points(), _depth()]
+	var depth := _depth()
+	var points := "points %d" % infusion.total_points()
+	if depth < _UNCAPPED:
+		points += "/%d" % depth
+	_header.text = "slots %d/%d · %s" % [infusion.slots_used(), slots, points]
 	for id in _steppers:
 		_paint(id, slots)
 
