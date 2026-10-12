@@ -108,6 +108,9 @@ func test_a_refused_or_unheld_aspect_never_lands() -> void:
 	var plan2 := _plan(_caster({&"poison": 3}), _spell())
 	plan2.set_socket(0, &"curse")
 	assert_true(plan2.infusion.points.is_empty(), "curse not held")
+	plan2.set_socket(0, &"poison")
+	plan2.set_socket(0, &"curse")
+	assert_eq(_keys(plan2), [&"poison"] as Array[StringName], "an unheld write never displaces")
 
 
 func test_no_sequence_overruns() -> void:

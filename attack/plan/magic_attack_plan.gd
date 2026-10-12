@@ -645,13 +645,17 @@ func set_socket(index: int, aspect_id: StringName) -> void:
 
 
 ## The socket order [method set_socket] would write for ([param index],
-## [param aspect_id]) — the current order when that write is a no-op. Pure.
+## [param aspect_id]) — the current order when that write is a no-op (a refused
+## or unheld aspect never displaces a filled socket). Pure.
 func socket_order_with(index: int, aspect_id: StringName) -> Array[StringName]:
 	var order: Array[StringName] = []
 	order.assign(infusion.points.keys())
 	if aspect_id.is_empty():
 		if index >= 0 and index < order.size():
 			order.remove_at(index)
+		return order
+	if Infusion.rate_of(spell, aspect_id) <= 0.0 \
+			or AspectCurrency.cap_of(attacker, AspectCurrency.stat_of(aspect_id)) <= 0:
 		return order
 	var old := order.find(aspect_id)
 	if index >= 0 and index < order.size():
