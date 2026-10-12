@@ -3,7 +3,6 @@
 [ext_resource type="Script" path="res://ui/spell_picker_bar/spell_picker_button.gd" id="1_spbtn"]
 [ext_resource type="PackedScene" uid="uid://ciwfwr1bjujfw" path="res://ui/spell_picker_bar/spell_picker_button_tick.tscn" id="2_77ytg"]
 [ext_resource type="PackedScene" path="res://ui/common/key_chip.tscn" id="3_keychip"]
-[ext_resource type="PackedScene" path="res://ui/spell_picker_bar/innate_chip.tscn" id="4_chip"]
 
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_normal"]
 
