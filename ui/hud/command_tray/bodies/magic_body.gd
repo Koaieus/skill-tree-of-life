@@ -1,10 +1,18 @@
 @tool
 class_name MagicBody
 extends CommandTrayBodyBase
-## Magic tab content (#114): reuses [SpellPickerBar]/[SpellPickerButton]
-## verbatim (gating/lock-state logic already lives there — see #114's
-## explicit "don't rebuild the spell bar from scratch") + a Launch button
-## whose label mirrors the currently-equipped spell.
+## Magic tab content: the crucible (#1585). The vessel (%SpellButton, the
+## equipped spell full-bleed at [member vessel_px], an [ArcaneCircle] turning
+## behind it) on the left, its [InfusionSockets] fanned on an arc hugging its
+## bottom edge, a circuit trace from each filled socket down, then right into
+## its own line of the always-on [CrucibleReadout] in the middle, and Launch
+## bottom-right. The traces are [method CrucibleTraces.route] over the laid-out
+## rects: socket 0 sits rightmost ([member InfusionSockets.right_to_left]) and
+## the readout lists its line topmost, so they nest without crossing.
+##
+## The readout owns its hover, wheel-preview and Shift state; the body only
+## forwards socket hovers and wheel-wedge hovers to it. The readout scrolls
+## inside %ReadoutScroll, so its Shift expansion never grows the tray.
 ##
 ## [b]The picker floats (#1485).[/b] The body shows the equipped spell as one
 ## collapsed %SpellButton; pressing it toggles [SpellPickMode] on the seat's
@@ -59,14 +67,48 @@ const MAX_VISIBLE_ROWS: int = 2
 		picker_width_px = v
 		_place_picker()
 
-## Minimum width of each of the four %Sections columns (Cast / On arrival /
-## Then / Crits); the lines wrap inside it.
-@export_range(80, 400, 1, "suffix:px") var section_min_width: int = 180:
+## Edge of the vessel, the equipped spell's tile. Tentative.
+@export_range(48, 200, 1, "suffix:px") var vessel_px: int = 112:
 	set(v):
-		section_min_width = v
-		_size_sections()
+		vessel_px = v
+		_apply_vessel()
 
-@onready var _context_label: Label = %ContextLabel
+## How far the socket arc tucks up beside the vessel's lower corners. Tentative.
+@export_range(0, 120, 1, "suffix:px") var arc_tuck_px: int = 40:
+	set(v):
+		arc_tuck_px = v
+		_apply_vessel()
+
+## Vertical offset between adjacent traces' turns under the arc. Tentative.
+@export_range(2, 32, 1, "suffix:px") var trace_turn_step_px: int = 8:
+	set(v):
+		trace_turn_step_px = v
+		_queue_traces()
+
+## Gap between the rightmost riser and the readout's left edge. Tentative.
+@export_range(0, 64, 1, "suffix:px") var trace_riser_gap_px: int = 10:
+	set(v):
+		trace_riser_gap_px = v
+		_queue_traces()
+
+## Readout column's minimum width. Tentative.
+@export_range(120, 600, 1, "suffix:px") var readout_min_width_px: int = 260:
+	set(v):
+		readout_min_width_px = v
+		_apply_vessel()
+
+## Stroke of a trace — fan_trace's line width. Tentative.
+@export_range(0.5, 8.0, 0.5, "suffix:px") var trace_width_px: float = 2.5:
+	set(v):
+		trace_width_px = v
+		_queue_traces()
+
+## Glow tier a filled trace lights at, in its aspect's tint.
+@export var trace_tier: Emissive.Tier = Emissive.Tier.VALUE:
+	set(v):
+		trace_tier = v
+		_queue_traces()
+
 @onready var _spell_bar: SpellPickerBar = %SpellPickerBar
 @onready var _spell_scroll: ScrollContainer = %SpellScroll
 @onready var _picker_panel: PanelContainer = %PickerPanel
@@ -74,14 +116,17 @@ const MAX_VISIBLE_ROWS: int = 2
 @onready var _reset_button: Button = %ResetButton
 @onready var _launch_button: LaunchAttackButton = %LaunchButton
 @onready var _infusion_sockets: InfusionSockets = %InfusionSockets
-@onready var _affinity_line: AffinityLine = %AffinityLine
-@onready var _sections: Array[SpellTooltipSection] = [%CastSection, %OnArrivalSection,
-		%ThenSection, %CritsSection]
+@onready var _readout: CrucibleReadout = %CrucibleReadout
+@onready var _readout_scroll: ScrollContainer = %ReadoutScroll
+@onready var _crucible: VBoxContainer = %Crucible
+@onready var _vessel_slot: Control = %VesselSlot
+@onready var _circle: ArcaneCircle = %Circle
+@onready var _traces: Control = %Traces
+@onready var _trace_room: Control = %TraceRoom
 
-## The (plan, spell, source) the %Sections were last built for — see [method _show_sections].
-var _sections_plan: MagicAttackPlan = null
-var _sections_spell: SpellDef = null
-var _sections_source: SkillNode = null
+## Sockets whose hover is already forwarded to the readout, by instance id —
+## [InfusionSockets] rebuilds its sockets when the slot count moves.
+var _hover_wired: Dictionary = {}
 
 
 ## Wired here rather than in [method _on_bound] because it is pure layout —
@@ -94,16 +139,77 @@ func _ready() -> void:
 	# The collapsed button's press always opens the picker, castable or not:
 	# the caster gate's denial toast belongs to the bar's tiles.
 	_spell_button.set_has_caster(true)
-	# The configure view shares the body's height budget with the sections and
-	# the infusion sockets, so the collapsed tile is the bar's compact edge.
-	_spell_button.custom_minimum_size = Vector2.ONE * SpellPickerBar.COMPACT_BUTTON_PX
+	_traces.draw.connect(_draw_traces)
+	_readout.anchors_changed.connect(_queue_traces)
+	_readout_scroll.get_v_scroll_bar().value_changed.connect(_queue_traces.unbind(1))
+	_infusion_sockets.item_rect_changed.connect(_queue_traces)
+	_infusion_sockets.wheel().hovered.connect(_on_wedge_hovered)
+	_apply_vessel()
 	_place_picker()
-	_size_sections()
 
 
-func _size_sections() -> void:
-	for section in _sections:
-		section.custom_minimum_size.x = section_min_width
+## Push the vessel and column knobs into the scene.
+func _apply_vessel() -> void:
+	if not is_node_ready():
+		return
+	var edge := Vector2.ONE * vessel_px
+	_vessel_slot.custom_minimum_size = edge
+	_spell_button.custom_minimum_size = edge
+	_circle.position = edge * 0.5
+	_circle.radius = vessel_px * 0.45
+	_crucible.add_theme_constant_override(&"separation", -arc_tuck_px)
+	_readout_scroll.custom_minimum_size.x = readout_min_width_px
+	_queue_traces()
+
+
+## Under the arc, one turn step per owned socket so every trace's turn fits.
+func _queue_traces() -> void:
+	if _traces == null:
+		return
+	_trace_room.custom_minimum_size.y = trace_turn_step_px * _infusion_sockets.socket_count()
+	_traces.queue_redraw()
+
+
+## Each filled socket's trace, in %Traces' local coordinates, in socket order
+## (socket 0, the rightmost, first — it feeds the topmost line). A socket whose
+## line is missing from the readout gets none.
+func trace_polylines() -> Array[PackedVector2Array]:
+	var froms := PackedVector2Array()
+	var tos := PackedVector2Array()
+	var plan := _infusion_plan()
+	if plan == null or not _infusion_sockets.visible:
+		return []
+	var to_local := _traces.get_global_transform().affine_inverse()
+	var readout_xf := _readout.get_global_transform()
+	for i in mini(plan.infusion.points.size(), _infusion_sockets.socket_count()):
+		var anchor := _readout.line_anchor(i)
+		var s := _infusion_sockets.socket(i)
+		if anchor == Vector2.INF or s == null:
+			break
+		froms.append(to_local * (s.get_global_transform() * Vector2(s.size.x * 0.5, s.size.y)))
+		tos.append(to_local * (readout_xf * anchor))
+	return CrucibleTraces.route(froms, tos, trace_turn_step_px, trace_riser_gap_px)
+
+
+func _infusion_plan() -> MagicAttackPlan:
+	var plan := _armed_plan() as MagicAttackPlan if _armed_stack != null else null
+	return plan if plan != null and plan.spell != null else null
+
+
+## fan_trace's look: a constant-colour line in the aspect's tint at
+## [member trace_tier], a solder pad at the socket end.
+func _draw_traces() -> void:
+	var plan := _infusion_plan()
+	if plan == null:
+		return
+	var ids := plan.infusion.points.keys()
+	var traces := trace_polylines()
+	for k in traces.size():
+		var aspect := AspectRoster.shared().by_id(ids[k])
+		var base := aspect.identity.tint if aspect != null and aspect.identity != null else Color.WHITE
+		var color := Emissive.at(base, Emissive.stops(trace_tier))
+		_traces.draw_polyline(traces[k], color, trace_width_px, true)
+		_traces.draw_circle(traces[k][0], trace_width_px * 1.4, color)
 
 
 ## Bottom edge [member picker_gap_px] above the body's top edge, growing up.
@@ -133,6 +239,7 @@ func _on_bound() -> void:
 	_launch_button.pressed.connect(_on_launch_pressed)
 	_spell_button.pressed.connect(_on_spell_button_pressed)
 	if _armed_stack != null:
+		_armed_stack.changed.connect(_clear_stale_preview)
 		_armed_stack.attack_plan_state_changed.connect(_refresh)
 		_armed_stack.changed.connect(_repaint_picker)
 		_armed_stack.selected_spell_changed.connect(_spell_bar.sync_selected)
@@ -149,8 +256,9 @@ func _on_bound() -> void:
 
 func teardown() -> void:
 	_infusion_sockets.bind(null)
-	_affinity_line.bind(null)
-	_show_sections(null)
+	_readout.bind(null)
+	if _armed_stack != null and _armed_stack.changed.is_connected(_clear_stale_preview):
+		_armed_stack.changed.disconnect(_clear_stale_preview)
 	if _armed_stack != null and _armed_stack.selected_spell_changed.is_connected(_spell_bar.sync_selected):
 		_armed_stack.selected_spell_changed.disconnect(_spell_bar.sync_selected)
 	if _armed_stack != null and _armed_stack.attack_plan_state_changed.is_connected(_refresh):
@@ -198,19 +306,9 @@ func _on_can_act_changed(can_act: bool) -> void:
 func _refresh() -> void:
 	var plan := _armed_plan() as MagicAttackPlan
 	_infusion_sockets.bind(plan, _armed_stack)
-	_affinity_line.bind(plan)
-	_show_sections(plan)
-	# Post-#728 there is no cast-from node until a target is clicked, so this
-	# reads 0 until one is auto-picked. Deliberately NOT "the best degree the
-	# territory offers": _refresh runs on attack_plan_state_changed, which
-	# every hover emits, and a max-degree scan is a degree query per owned node
-	# per mouse move — the exact per-point-predicate shape .claude/rules/graph.md
-	# warns about. The picker's caster gate already says whether a spell is
-	# castable at all, and it costs nothing here.
-	var degree := 0
-	if plan != null and plan.source != null and _player.navigator != null:
-		degree = _player.navigator.get_degree(plan.source)
-	_context_label.text = "source degree %d" % degree
+	_readout.bind(plan)
+	_wire_socket_hover()
+	_queue_traces()
 	if plan != null:
 		_spell_bar.update_gating_context(plan.attacker)
 	if plan != null and plan.spell != null and _spell_button.spell != plan.spell:
@@ -221,25 +319,35 @@ func _refresh() -> void:
 	_launch_button.set_enabled(plan != null and plan.is_valid() and can_act)
 
 
-## The four marked sections of [param plan]'s spell, from [method SpellSections.build]
-## with the caster's board and the plan's cast-from node (the landing's read
-## node, so a node-local bonus shows as it lands) — the tooltip's own
-## derivation; nothing about a spell is derived here. [method _refresh] runs on
-## every hover, so the build happens only when (plan, spell, source) moved since
-## the last one. A caster stat moving mid-arm shows on the next such change.
-func _show_sections(plan: MagicAttackPlan) -> void:
-	var spell := plan.spell if plan != null else null
-	var source := plan.source if plan != null else null
-	if plan == _sections_plan and spell == _sections_spell and source == _sections_source:
-		return
-	_sections_plan = plan
-	_sections_spell = spell
-	_sections_source = source
-	var board := plan.attacker.stat_board if plan != null and plan.attacker != null else null
-	var built := SpellSections.build(spell, board, source)
-	var lines: Array[SpellSections.Lines] = [built.cast, built.on_arrival, built.then, built.crits]
-	for i in _sections.size():
-		_sections[i].bind(lines[i].lines, lines[i].dynamic)
+## Forward each socket's hover to the readout, once per socket node.
+func _wire_socket_hover() -> void:
+	for i in _infusion_sockets.socket_count():
+		var s := _infusion_sockets.socket(i)
+		if s == null or _hover_wired.has(s.get_instance_id()):
+			continue
+		_hover_wired[s.get_instance_id()] = true
+		s.mouse_entered.connect(_readout.set_hovered_socket.bind(s.index))
+		s.mouse_exited.connect(_on_socket_unhovered.bind(s.index))
+
+
+func _on_socket_unhovered(index: int) -> void:
+	if _readout.hovered_socket() == index:
+		_readout.set_hovered_socket(-1)
+
+
+## A wheel wedge previews "if you socket this here" on the open socket.
+func _on_wedge_hovered(id: StringName) -> void:
+	var open := _armed_stack.find(InfusionPickMode) as InfusionPickMode if _armed_stack != null else null
+	if open == null or id == &"":
+		_readout.clear_preview()
+	else:
+		_readout.preview_wedge(open.socket, id)
+
+
+## The wheel closed (every close path is a stack change): drop its preview.
+func _clear_stale_preview() -> void:
+	if _armed_stack == null or _armed_stack.find(InfusionPickMode) == null:
+		_readout.clear_preview()
 
 
 func _on_launch_pressed() -> void:

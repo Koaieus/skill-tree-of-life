@@ -6,109 +6,94 @@
 [ext_resource type="PackedScene" uid="uid://dqlt773tgviy7" path="res://ui/spell_picker_bar/spell_picker_bar.tscn" id="4_spellbar"]
 [ext_resource type="PackedScene" path="res://ui/hud/command_tray/bodies/infusion_sockets.tscn" id="5_infusion"]
 [ext_resource type="PackedScene" uid="uid://w2m6rt1jv4vs" path="res://ui/spell_picker_bar/spell_picker_button.tscn" id="6_spellbtn"]
-[ext_resource type="PackedScene" path="res://ui/spell_tooltip/spell_tooltip_section.tscn" id="7_section"]
-[ext_resource type="PackedScene" path="res://ui/hud/command_tray/bodies/affinity_line.tscn" id="8_affinity"]
+[ext_resource type="PackedScene" path="res://ui/hud/command_tray/bodies/crucible_readout.tscn" id="7_readout"]
+[ext_resource type="PackedScene" path="res://ui/indicator/arcane_circle.tscn" id="8_circle"]
 
 [node name="MagicBody" instance=ExtResource("1_base")]
 script = ExtResource("2_script")
 
-[node name="Content" type="VBoxContainer" parent="BodyContent" unique_id=333665761]
+[node name="Content" type="HBoxContainer" parent="BodyContent" unique_id=333665761]
 layout_mode = 2
-theme_override_constants/separation = 4
+theme_override_constants/separation = 32
 
-[node name="SpellRow" type="HBoxContainer" parent="BodyContent/Content" unique_id=13126492]
+[node name="Forge" type="VBoxContainer" parent="BodyContent/Content"]
 layout_mode = 2
-theme_override_constants/separation = 8
+size_flags_vertical = 0
+theme_override_constants/separation = 0
 
-[node name="SpellButton" parent="BodyContent/Content/SpellRow" instance=ExtResource("6_spellbtn")]
+[node name="Crucible" type="VBoxContainer" parent="BodyContent/Content/Forge"]
 unique_name_in_owner = true
 layout_mode = 2
-size_flags_vertical = 4
+theme_override_constants/separation = -40
 
-[node name="Header" type="VBoxContainer" parent="BodyContent/Content/SpellRow" unique_id=266619087]
-layout_mode = 2
-size_flags_vertical = 4
-theme_override_constants/separation = 2
-
-[node name="Title" type="Label" parent="BodyContent/Content/SpellRow/Header" unique_id=1144342937]
-modulate = Color(0.291, 0.5892, 1, 1)
-layout_mode = 2
-theme_type_variation = &"CinzelHeader"
-theme_override_font_sizes/font_size = 12
-text = "✴ Spells"
-
-[node name="ContextLabel" type="Label" parent="BodyContent/Content/SpellRow/Header" unique_id=1069517415]
+[node name="VesselSlot" type="Control" parent="BodyContent/Content/Forge/Crucible"]
 unique_name_in_owner = true
-modulate = Color(0.784, 0.824, 0.902, 0.75)
+custom_minimum_size = Vector2(112, 112)
 layout_mode = 2
-theme_override_font_sizes/font_size = 11
-text = "source degree 0"
-
-[node name="InfusionSockets" parent="BodyContent/Content/SpellRow" instance=ExtResource("5_infusion")]
-unique_name_in_owner = true
-layout_mode = 2
-size_flags_vertical = 4
-
-[node name="SpellRowSpacer" type="Control" parent="BodyContent/Content/SpellRow"]
-layout_mode = 2
-size_flags_horizontal = 3
+size_flags_horizontal = 4
 mouse_filter = 2
 
-[node name="ResetButton" type="Button" parent="BodyContent/Content/SpellRow" unique_id=1850223647]
+[node name="Circle" parent="BodyContent/Content/Forge/Crucible/VesselSlot" instance=ExtResource("8_circle")]
+unique_name_in_owner = true
+position = Vector2(56, 56)
+radius = 50.0
+tint = Color(0.291, 0.5892, 1, 1)
+outer_spin_deg_s = 8.0
+inner_spin_deg_s = -12.0
+
+[node name="SpellButton" parent="BodyContent/Content/Forge/Crucible/VesselSlot" instance=ExtResource("6_spellbtn")]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="InfusionSockets" parent="BodyContent/Content/Forge/Crucible" instance=ExtResource("5_infusion")]
 unique_name_in_owner = true
 layout_mode = 2
-size_flags_vertical = 4
+size_flags_horizontal = 4
+socket_arc_deg = 120.0
+
+[node name="TraceRoom" type="Control" parent="BodyContent/Content/Forge"]
+unique_name_in_owner = true
+layout_mode = 2
+mouse_filter = 2
+
+[node name="ReadoutScroll" type="ScrollContainer" parent="BodyContent/Content"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+horizontal_scroll_mode = 0
+
+[node name="CrucibleReadout" parent="BodyContent/Content/ReadoutScroll" instance=ExtResource("7_readout")]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="Controls" type="VBoxContainer" parent="BodyContent/Content"]
+layout_mode = 2
+theme_override_constants/separation = 8
+alignment = 2
+
+[node name="ResetButton" type="Button" parent="BodyContent/Content/Controls" unique_id=1850223647]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 8
 text = "⟲ Reset"
 
-[node name="LaunchButton" parent="BodyContent/Content/SpellRow" unique_id=1287195377 instance=ExtResource("3_launch")]
+[node name="LaunchButton" parent="BodyContent/Content/Controls" unique_id=1287195377 instance=ExtResource("3_launch")]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(150, 44)
 layout_mode = 2
-size_flags_vertical = 4
 text = "Cast"
 tint = Color(0.291, 0.5892, 1, 1)
 
-[node name="Sections" type="HBoxContainer" parent="BodyContent/Content"]
+[node name="Traces" type="Control" parent="."]
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_constants/separation = 12
-
-[node name="CastSection" parent="BodyContent/Content/Sections" instance=ExtResource("7_section")]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(180, 0)
-layout_mode = 2
-size_flags_horizontal = 3
-header_text = "CAST"
-
-[node name="OnArrivalSection" parent="BodyContent/Content/Sections" instance=ExtResource("7_section")]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(180, 0)
-layout_mode = 2
-size_flags_horizontal = 3
-header_text = "ON ARRIVAL"
-
-[node name="ThenSection" parent="BodyContent/Content/Sections" instance=ExtResource("7_section")]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(180, 0)
-layout_mode = 2
-size_flags_horizontal = 3
-header_text = "THEN"
-
-[node name="CritsSection" parent="BodyContent/Content/Sections" instance=ExtResource("7_section")]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(180, 0)
-layout_mode = 2
-size_flags_horizontal = 3
-header_text = "CRITS"
-
-[node name="BottomRow" type="HBoxContainer" parent="BodyContent/Content"]
-layout_mode = 2
-theme_override_constants/separation = 12
-
-[node name="AffinityLine" parent="BodyContent/Content/BottomRow" instance=ExtResource("8_affinity")]
-unique_name_in_owner = true
-layout_mode = 2
-size_flags_vertical = 0
+mouse_filter = 2
 
 [node name="PickerPanel" type="PanelContainer" parent="."]
 unique_name_in_owner = true

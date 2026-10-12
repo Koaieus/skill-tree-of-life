@@ -311,6 +311,10 @@ func test_one_trace_per_filled_socket_and_none_cross() -> void:
 		for i in traces.size():
 			for j in range(i + 1, traces.size()):
 				assert_false(_crosses(traces[i], traces[j]), "%d filled: traces %d, %d cross" % [n, i, j])
+		var room := Rect2(Vector2.ZERO, _body.size).grow(0.5)
+		for t in traces:
+			for p in t:
+				assert_true(room.has_point(p), "%d filled: trace point %s inside the body %s" % [n, p, _body.size])
 	var min_size := _body.get_combined_minimum_size()
 	assert_lt(min_size.y, MAX_BODY_MIN_HEIGHT + 1.0, "three filled sockets stay inside the tray budget")
 

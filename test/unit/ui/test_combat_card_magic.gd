@@ -83,7 +83,7 @@ func test_selecting_a_spell_leaves_the_reach_row_on_the_describe_tier() -> void:
 	assert_eq(value.text, before, "nor does deselecting it")
 
 
-## The cast's affinity lives in the configure view's AffinityLine (#1486).
+## The cast's affinity lives in the tray's crucible readout (#1585).
 func test_the_card_carries_no_affinity_row() -> void:
 	var pair := _bound_card()
 	var card: CombatCardMagic = pair[0]
