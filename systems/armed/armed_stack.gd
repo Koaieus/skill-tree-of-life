@@ -123,30 +123,32 @@ func restore_infusion(plan: MagicAttackPlan) -> void:
 		plan.set_infusion(id, kept[id])
 
 
-## [param points] (`{concept id: points}`) cut to what [param attacker] may
-## spend on one cast of [param spell] today, in entry order: refused concepts
-## dropped, each entry capped by its `<concept>_aspect`, then by what is left of
-## `min(infusion_points, infusion_capacity)`, and no more entries than
-## `infusion_slots`. Its [method MagicAttackPlan.aspect_overrun] is 0.
+## The remembered aspects of [param points] (`{concept id: points}`) socketed
+## into one cast of [param spell] by [param attacker] today, in entry order (the
+## socket order): refused concepts dropped, no more entries than
+## `infusion_slots`, and each kept aspect filled to the most it can carry —
+## `min(<concept>_aspect held, what infusion_capacity leaves)`. Nothing is
+## consumed, so the remembered point counts are ignored. Its
+## [method MagicAttackPlan.aspect_overrun] is 0.
 static func clamp_infusion(spell: SpellDef, attacker: Entity,
 		points: Dictionary) -> Dictionary[StringName, int]:
 	var out: Dictionary[StringName, int] = {}
 	var slots := AspectCurrency.cap_of(attacker, &"infusion_slots")
-	var depth := AspectCurrency.cap_of(attacker, &"infusion_points")
-	if spell != null and not is_inf(spell.infusion_capacity):
-		depth = mini(depth, maxi(0, floori(spell.infusion_capacity)))
+	var capped := spell != null and not is_inf(spell.infusion_capacity)
+	var left := maxi(0, floori(spell.infusion_capacity)) if capped else 0
 	for key in points:
 		var id := StringName(key)
-		if out.size() >= slots or depth <= 0:
+		if out.size() >= slots or (capped and left <= 0):
 			break
 		if Infusion.rate_of(spell, id) <= 0.0:
 			continue
-		var pts := mini(int(points[key]), AspectCurrency.cap_of(attacker, AspectCurrency.stat_of(id)))
-		pts = mini(pts, depth)
+		var pts := AspectCurrency.cap_of(attacker, AspectCurrency.stat_of(id))
+		if capped:
+			pts = mini(pts, left)
 		if pts <= 0:
 			continue
 		out[id] = pts
-		depth -= pts
+		left -= pts
 	return out
 
 

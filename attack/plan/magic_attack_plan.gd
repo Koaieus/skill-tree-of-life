@@ -630,9 +630,9 @@ func set_infusion(aspect_id: StringName, points: int) -> void:
 
 ## How far the infusion runs past what the caster may spend on one cast (the
 ## host's launch check, ADR 0035): points above each `<concept>_aspect`, aspects
-## above `infusion_slots`, the total above
-## `min(infusion_points, SpellDef.infusion_capacity)`, and every point on a
-## concept the spell refuses (rate 0).
+## above `infusion_slots`, the total above `floor(SpellDef.infusion_capacity)`
+## when that is finite, and every point on a concept the spell refuses (rate 0).
+## There is no shared points pool: an aspect's depth is what the caster holds.
 func aspect_overrun() -> int:
 	var over := 0
 	for id in infusion.points:
@@ -642,10 +642,8 @@ func aspect_overrun() -> int:
 			continue
 		over += maxi(0, pts - AspectCurrency.cap_of(attacker, AspectCurrency.stat_of(id)))
 	over += maxi(0, infusion.slots_used() - AspectCurrency.cap_of(attacker, &"infusion_slots"))
-	var depth := float(AspectCurrency.cap_of(attacker, &"infusion_points"))
-	if spell != null:
-		depth = minf(depth, floorf(spell.infusion_capacity))
-	over += maxi(0, infusion.total_points() - int(depth))
+	if spell != null and not is_inf(spell.infusion_capacity):
+		over += maxi(0, infusion.total_points() - maxi(0, floori(spell.infusion_capacity)))
 	return over
 
 
