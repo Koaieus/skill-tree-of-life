@@ -125,7 +125,7 @@ Implementation: `docs/domain/melee-blade-sim.md`, "Bunker deflection".
 > **Discontinued indefinitely (owner, 2026-10-05).**
 >
 
-> **Rewritten.** The old inhale/exhale charge-holding model is gone (melee no longer runs on charged Buffer nodes — it is the phantom blade, sized `STR//10+1`; see `combat_system.md`). Buffer is now a **utility** addon: the key that unlocks **temporary reach** for an attack.
+> **Rewritten.** The old inhale/exhale charge-holding model is gone (melee no longer runs on charged Buffer nodes — it is the phantom blade, sized `1 + STR/40`; see `combat_system.md`). Buffer is now a **utility** addon: the key that unlocks **temporary reach** for an attack.
 >
 > **Speculative — not built.** The temp-allocation hook this describes does not exist in the live code; this is a parked design. When it's built, its lifetime is bounded by the attack it serves, not by a turn phase (phases were removed in #60).
 

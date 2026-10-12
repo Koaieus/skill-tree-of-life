@@ -15,7 +15,7 @@ The shipped Balanced class is **not** the Allround below (Balanced is flat attri
 > **Combat-redesign deltas affecting classes (see `combat_system.md`).**
 > - **Degree-defense is removed.** Node durability now comes from **CON (White)**, not from edge count. This leaves **Bulwark** and **Halo unaffected** — they always defended through armor / `damage_floor` / thorns / shell topology, never through degree. Hubs are now glass cannons (great casters, normal HP), which only sharpens the "silence, then grind" counterplay.
 > - **Six-attribute roster:** R/STR, G/DEX, B/INT (attack) + **White/CON** (durability), **Gold/WIS** (XP/growth — the new economy color), **Purple/PER** (vision/sensing). Class economy prose below still says "White nodes" for the economy (Hive, Harvester, Halo interior) — read that as **Gold** under the new roster; a dedicated migration sweep is pending and the reassignment is not yet final.
-> - **Melee is the phantom blade** (swing a copy of your owned subgraph; size `STR//10+1`; rigidity from triangulation). This hands the **Halo** a melee option — swing the thorny shell (thorns = swung spikes) — and gives any class that invests offense into its **core** a "core-swing" finisher (big payoff, real exposure).
+> - **Melee is the phantom blade** (swing a copy of your owned subgraph; size `1 + STR/40`, `default_entity_board.tres:307-318`; rigidity from triangulation). This hands the **Halo** a melee option — swing the thorny shell (thorns = swung spikes) — and gives any class that invests offense into its **core** a "core-swing" finisher (big payoff, real exposure).
 
 ---
 

@@ -21,7 +21,7 @@ paths:
 
 **Why:** it is easy to read "clamp node" as a persistent, cross-turn structural investment — #771 was filed on exactly that assumption. It is not. A clamp is a per-swing choice competing directly with one more member of reach, and it is refunded when the plan resets.
 
-**How to apply:** any budget reasoning — AI or UI — must charge upgrades and members against the same `_budget_remaining()`. `blade_size = 1 + STR/20` (base STR 10), so a starting entity has a budget of **2**, and one clamp is half the weapon.
+**How to apply:** any budget reasoning — AI or UI — must charge upgrades and members against the same `_budget_remaining()`. `blade_size = 1 + STR/40`, floored once on the total (`default_entity_board.tres:307-318`), so a starting entity (base STR 10) has a budget of **1**, and one clamp costs the whole weapon.
 
 ## Clamps compound only when CONSECUTIVE from the pivot
 

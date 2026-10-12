@@ -46,7 +46,7 @@ pinned (owner, 2026-09-30), and all eight exist as entity stats under the
 (owner, 2026-10-01, #1248): the aspect is a plain stat, sourced mostly from
 nodes, and each mode reads it its own way — ranged **mints that many arrows
 of the type on every reload** (*"i AM poison"*), melee caps that concept's
-temp upgrades per swing, magic's use is #1250. It is a count, not potency:
+temp upgrades per swing, magic infuses it into a spell (ADR 0047; the aspect held is the depth, `infusion_slots` the breadth; tracked #1250). It is a count, not potency:
 `<family>_stacks_per_hit` stays separate.
 
 **One stat, every facet (owner, 2026-10-03).** *"one stack supporting
@@ -104,8 +104,10 @@ default:
   like this, all bound to what would be fun elements without doing more of the
   same"*. A pair of spells differs on an axis (payload vs utility, spread,
   targeting shape, hit count vs stack size), never on numbers alone.
-- **Infusion** — spending aspect budget on a cast; a spell's innate affinity
-  is the same plumbing (ADR 0047).
+- **Infusion** — a spell has innate per-aspect values; infusing an aspect adds
+  `floor(points × rate)` on top (rate 0 refuses it), and the default use is
+  "N stacks on hit". Nothing is spent from a shared pool: there is none (#1574,
+  owner 2026-10-12). The innate value is the same plumbing (ADR 0047).
 
 **Defensive faces are rare (owner, 2026-10-03).** *"if every thing has a
 defensive option (against just melee) swinging a blade is always just
@@ -164,9 +166,12 @@ these sections and never copies them, so an addition reaches every open
 cell at once.
 
 **Magic infusion** is a per-cast fifth spell component, settled in ADR 0047.
-INT-derived slots cap how many concepts a cast infuses. Each spell sets its own
-ingest rate per concept. A spell's innate affinity replaces the authored status
-rider (`SpellDef.affinities`, `Infusion`). Its files are listed in
+INT-derived slots (`infusion_slots`, 100 / 1000 / 10000 INT) cap how many
+concepts a cast infuses; depth is the aspect held, with no shared points pool
+(#1574, owner 2026-10-12; `infusion_points` is deleted). Each spell sets its own
+innate value and rate per concept: affinity = `innate + floor(points × rate)`,
+rate 0 refuses. A spell's innate value replaces the authored status rider
+(`SpellDef.affinities`, `Infusion`). Its files are listed in
 `docs/domain/aspect-cell-authoring.md` § Infusion.
 
 ## Authoring a row, and why the passes run by column
@@ -607,9 +612,9 @@ lightning's hops become mechanics that existing rows can use.
   a different face of it. Avarice would be a better name tbh, for the XP gain
   part, but we wouldn't want to serve them separately anyway (the status
   incurring and the xp boost)."*).
-- **Spell affinity** (owner idea): a spell carries innate aspect budget,
-  landed by the infusion plumbing, with a per-spell rate as the balancing
-  knob. Posted to #1250.
+- **Spell affinity** (owner idea, shipped as ADR 0047): a spell carries an
+  innate per-aspect value, landed by the infusion plumbing, with a per-spell
+  rate as the balancing knob. Posted to #1250.
 
 **Owner calls, 2026-10-06 (round 6).**
 - **Greed, closed.** One Greed stack per hit: if the node holds one when a

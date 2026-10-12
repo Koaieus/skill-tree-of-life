@@ -45,7 +45,7 @@ whatever it did), ADR 0034 (armed input is a statechart stack).
 ## Mode plans
 
 - **`MeleeAttackPlan`** — the pivot is set first, then blade members are toggled
-  (cap = `attacker.stat_board.blade_size`, base 1 + `floor(STR/10)`). Clicking a
+  (cap = `attacker.stat_board.blade_size`, base 1 + `floor(STR/40)`). Clicking a
   node not directly adjacent to the blade set mass-selects: `_try_select_path`
   runs `attacker.navigator.shortest_path_to_any(node, {pivot} ∪ blade_nodes)`
   and pulls in the whole excursion as one atomic toggle, rejected outright if it
@@ -187,7 +187,7 @@ Lives on `Entity.begin_turn` (no god-mode TurnManager): `action_points` and
 
 ## Stats
 
-- **`blade_size`** — ScalarStat, base 1, intrinsic `ADD_BASE floor(STR/10)`.
+- **`blade_size`** — ScalarStat, base 1, intrinsic `RatioFormula(strength, 40)`, floored once on the total (`default_entity_board.tres:307-318`).
 - **`wound_heal_per_turn`** — ScalarStat, base 1: the rate wounds flow back to
   spendable SP at turn start.
 
