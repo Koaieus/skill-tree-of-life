@@ -185,7 +185,11 @@ running and still writing its file: its rows are claims — dispatch only
 units with no row there and not blocked by one of its unlanded units, up
 to the cap minus its rows in state `dispatched` (no `reported@`, no
 `landed`), re-read before each of your dispatches. Never message it, never
-land its units; it lands and closes its own. The
+land its units; it lands and closes its own. Its blocked units free up
+when the top's `<name> drained` message arrives — re-read its ledger then.
+With nothing in flight and only blocked units left, end your turn on the
+one line `blocked on <name>`, never a session report; that message wakes
+you. The
 whip ledger path in your prompt is read, never adopted. A row written
 before dispatch is the claim: a unit with a row in another live
 `swarm-*.md` is never yours to dispatch. No Sage in this mode: every brief

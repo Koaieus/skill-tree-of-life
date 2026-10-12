@@ -105,8 +105,9 @@ The prompt names the lead's own name (its drones' final `SendMessage`
 goes to it) and its swarm ledger path, the lead's name under the whip
 ledger's date; the lead exports it on every `ledger` and `land` call, and
 its first dispatch creates the file. **Then end your turn.** Do not subscribe to the lead, do not message it,
-do not poll `ListAgents`. The lead's report is the only wake you expect
-from it; the scheduled tick is the only other. `next-train` skips a train
+do not poll `ListAgents`. Its report, its `relief now` and a `blocked on`
+line are the only wakes you expect from it; the scheduled tick is the only
+other. `next-train` skips a train
 left empty by `train drop`; it printing `no next train` means nothing is
 spawned: queued trains are exhausted, the owner stopped the run, or the
 cap passed — the last running lead's `done` ends the run.
@@ -149,7 +150,16 @@ its ledger) — never `done`, which is the accepting lead's:
 mise run whip -- drained --lead <name>      # draining → relieved; refused from any other state
 ```
 
-Its *Needs the owner* lines go to `needs-owner` / `note` as for `done`.
+Then `SendMessage` the accepting lead one line — `<name> drained; its
+units are on master — continue` — it is the only thing that wakes a lead
+waiting on the outgoing. Its *Needs the owner* lines go to `needs-owner` /
+`note` as for `done`. The run ends at the later of the last `done` and the
+last `drained`.
+
+**`blocked on <name>`** (the accepting lead's final text while the
+outgoing drains — nothing in flight, every remaining unit behind an
+outgoing one): `mise run whip -- note "<lead> blocked on <name>"`, nothing
+else — never `done`; the `drained` line above is its wake.
 
 **A second report from a lead the ledger shows `done` or `relieved`**, a
 drone's six-line report reaching you (it goes to its lead by
@@ -260,8 +270,8 @@ this skill's rule, not a knob: there is no `max-leads` here.
   real report went to its lead.
 - **A lead's report and its `relief now` are the only wakes you expect
   from it.** A lead idle between drone reports is a working lead: no
-  subscribing, no `ListAgents` outside a tick, no message outside §4's
-  rows and §5's stop line.
+  subscribing, no `ListAgents` outside a tick, no message outside §3's
+  drained line, §4's rows and §5's stop line.
 - **A spent window ends your turn with an API error** and leaves you at
   your prompt. The next boundary wake, or the owner typing, resumes you:
   §0 — you are the top, run §4.
