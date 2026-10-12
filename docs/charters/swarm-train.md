@@ -328,8 +328,8 @@ fork C's first half; the overlap between leads stays open there*)
 per lead, named in its brief; the `--as` flag was not built). Whether two
 leads run at once, and how they share a train, is fork C's overlap (#1577).
 Whip fork A's lean (a second lead only for a cheap train) carries over.
-**B. Whip or swarm-train, after a night of each.** The transport ADR
-(#1316) is written from both nights' evidence.
+**B. Whip or swarm-train — closed** (owner, 2026-10-12: *"tree wins,
+retire whip."*) → [ADR 0056](../adr/0056-overnight-runs-are-one-session-over-a-subagent-tree.md).
 **C. Ready is one DAG — closed** (hub #1575; owner, 2026-10-11, folded
 in two halves). One train, per-lead ledgers, claim = row → laws 19–21
 (#1576). Strangler-fig overlap — background drones that wake their lead,

@@ -77,6 +77,7 @@ mise run adr-hygiene     # frontmatter, supersede links, index coverage, immutab
 | [0053](0053-staking-is-a-channel-on-the-node.md) | Staking and extracting are K-turn channels whose state lives on the node (Euclidean reach, leash checked on core arrival, explicit cancel), paid from the entity's own staked bucket, tuned by AllocationSystem exports | accepted | 2026-10-10 | staking, allocation, economy, stats |
 | [0054](0054-concept-stats-are-def-declared-and-minted-at-init.md) | A concept's per-role entity stats (aspect / stacks_per_hit / resistance) are declared by their StatDef (a role next to its identity) and minted by the entity board at init, never hand-declared as typed fields | accepted | 2026-10-11 | stats, aspects, architecture |
 | [0055](0055-turnless-hosts-tick-on-the-world-turn-one-every-n-played-turn-ends.md) | Turnless hosts (blockers, dormant cores) tick on the world turn — one ends every N played turn ends, N = the living turn-takers; counted in turns, never ticks | accepted | 2026-10-11 | combat, status, dot, turn, multiplayer |
+| [0056](0056-overnight-runs-are-one-session-over-a-subagent-tree.md) | An overnight run is one session over a subagent tree (swarm-train); the relay of `--bg` sessions with a watchdog (Whip v2) is retired | accepted | 2026-10-12 | meta, orchestration, overnight, swarm |
 
 ## Pre-ADR log
 
