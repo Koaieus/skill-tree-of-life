@@ -1,6 +1,59 @@
 [gd_scene format=3]
 
 [ext_resource type="Script" path="res://ui/hud/command_tray/bodies/crucible_readout.gd" id="1_script"]
+[ext_resource type="PackedScene" path="res://ui/spell_tooltip/spell_tooltip_section.tscn" id="2_section"]
 
 [node name="CrucibleReadout" type="VBoxContainer"]
+custom_minimum_size = Vector2(260, 0)
+theme_override_constants/separation = 4
 script = ExtResource("1_script")
+
+[node name="Name" type="Label" parent="."]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"TierValue"
+theme_override_font_sizes/font_size = 15
+
+[node name="Shape" type="Label" parent="."]
+unique_name_in_owner = true
+modulate = Color(1, 1, 1, 0.65)
+layout_mode = 2
+theme_override_font_sizes/font_size = 11
+autowrap_mode = 3
+
+[node name="Base" type="Label" parent="."]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 11
+autowrap_mode = 3
+
+[node name="Lines" type="VBoxContainer" parent="."]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="Sections" type="VBoxContainer" parent="."]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="CastSection" parent="Sections" instance=ExtResource("2_section")]
+unique_name_in_owner = true
+layout_mode = 2
+header_text = "CAST"
+
+[node name="OnArrivalSection" parent="Sections" instance=ExtResource("2_section")]
+unique_name_in_owner = true
+layout_mode = 2
+header_text = "ON ARRIVAL"
+
+[node name="ThenSection" parent="Sections" instance=ExtResource("2_section")]
+unique_name_in_owner = true
+layout_mode = 2
+header_text = "THEN"
+
+[node name="CritsSection" parent="Sections" instance=ExtResource("2_section")]
+unique_name_in_owner = true
+layout_mode = 2
+header_text = "CRITS"

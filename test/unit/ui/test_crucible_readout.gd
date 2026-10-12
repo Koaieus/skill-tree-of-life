@@ -15,12 +15,12 @@ func before_each() -> void:
 	h = SpellTestHelper.new()
 
 
-## INT 200 → 2 infusion slots; every aspect zeroed but poison 40 and curse 10.
+## INT 1000 → 2 infusion slots; every aspect zeroed but poison 40 and curse 10.
 func _caster() -> Entity:
 	var graph := h.make_graph([[0, 1]], self)
 	var atk := h.make_entity(graph, "ATK", Color.RED)
 	var board := atk.stat_board
-	board.intelligence.base_value = 200.0
+	board.intelligence.base_value = 1000.0
 	for aspect in AspectRoster.shared().aspects:
 		if aspect.stat != null and board.get_stat(aspect.stat.id) != null:
 			board.get_stat(aspect.stat.id).base_value = 0.0
@@ -51,6 +51,7 @@ func test_one_line_per_readout_line_in_order() -> void:
 	var readout := _readout(plan)
 	var expected := ReadoutLines.lines(plan)
 	assert_eq(expected.size(), 2, "guard: curse and poison in play")
+	assert_eq(plan.infusion.points.keys(), [&"curse", &"poison"], "guard: both socketed")
 	var nodes := readout.line_nodes()
 	assert_eq(nodes.size(), expected.size())
 	for i in mini(nodes.size(), expected.size()):
