@@ -237,7 +237,7 @@ func _draw() -> void:
 
 func _tint(entry: AspectWheelEntry, is_hover: bool) -> Color:
 	if not entry.is_pickable():
-		return Emissive.neutral(Emissive.stops(Emissive.Tier.INERT)) * Color(0.6, 0.6, 0.6)
+		return Color(Emissive.neutral(Emissive.stops(Emissive.Tier.INERT)), 0.45)
 	var hue := entry.identity.tint if entry.identity != null else Emissive.NEUTRAL
 	return Emissive.at(hue, Emissive.stops(hover_tier if is_hover else emissive_tier))
 
