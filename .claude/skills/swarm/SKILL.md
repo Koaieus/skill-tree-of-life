@@ -178,39 +178,54 @@ SWARM_LEDGER=docs/handoffs/swarm-<date>-<lead-name>.md mise run land -- <branch>
 
 A bare call lands in whichever lead's file is newest: a bug, never a
 shortcut. Your first `dispatch` creates the file. A relief's prompt names
-the dead outgoing's file (and its predecessors') to read and your own to
-write: orient from theirs, dispatch into yours — their rows are history,
-not claims; never `adopt`. The
+the outgoing's file (and its predecessors') to read and your own to write:
+orient from theirs, dispatch into yours; never `adopt`. A **dead**
+outgoing's rows are history, not claims. A **draining** outgoing is still
+running and still writing its file: its rows are claims — dispatch only
+units with no row there and not blocked by one of its unlanded units, up
+to the cap minus its rows in state `dispatched` (no `reported@`, no
+`landed`), re-read before each of your dispatches. Never message it, never
+land its units; it lands and closes its own. The
 whip ledger path in your prompt is read, never adopted. A row written
 before dispatch is the claim: a unit with a row in another live
 `swarm-*.md` is never yours to dispatch. No Sage in this mode: every brief
 names the `advisor` tool.
 
-- **Waves are foreground.** One wave per message still holds: every `Agent`
-  call of the wave in one message, each with `run_in_background: false`.
-  The wave returns in one turn; act on each report from it as usual.
+- **Drones are background, and each wakes you.** One message per wave
+  still holds — every `Agent` call in one message — but each with
+  `run_in_background: true`, and every brief ends with the final-act line:
+  *last of all, `SendMessage(<lead-name>, <your six-line report>)`, then
+  the same report as your final text*. Your prompt names `<lead-name>`;
+  fill it in every brief. Act on each report as it wakes you. A drone's
+  ordinary completion report is a second wake for the same unit: if the
+  row is already handled, nothing — end the turn.
 - **No whip verbs** — none of the three; the top carries the transport.
 - **Report by return**: your final text is the session report (§ 7). It is
   the only thing that reaches the top; end on it.
-- **Relief**: where this skill says "request relief", end your turn with
-  the session report whose first line is `RELIEF NEEDED`. The top spawns
-  your relief; you do nothing more.
-- **Owner stop** arrives as a message from the top and drains at the wave
-  boundary: spawn nothing new, collect the wave in flight, land what is
-  reported, then report.
-- **Nothing is backgrounded — yours or a drone's.** Your turn end is your
-  report, a drone's is its `Agent` result. Run the train's gate (§ 5) in the
-  foreground with `timeout: 600000`; every brief's suite policy is "run
-  every check — baseline, `check`, suite — in the foreground, never
-  background a command and end your turn". This overrides § 3's suite
-  clauses, § 5's "backgrounded" and the long-running-command rule.
-- **A wave result that is not a report** (a drone ended its turn early):
-  one `SendMessage` to that drone — `continue, then report`. Never poll its
-  transcript, `sleep`-loop on a ref, or wait on a `pgrep`.
+- **Relief**: where this skill says "request relief", the moment the
+  context notice lands: dispatch nothing more, `SendMessage` the top
+  (`main`) one line — `relief now; I keep <unit list>` — and go on landing
+  each report as it arrives. The top spawns your relief beside you; it
+  reads your ledger and dispatches around your units. When nothing of
+  yours is in flight: `ledger close`, then your session report as final
+  text. If your train has nothing left to dispatch, no message — finish.
+- **Owner stop** arrives as a message from the top: dispatch nothing new,
+  land each report as it arrives, then report.
+- **No command is backgrounded — yours or a drone's; dispatch is the one
+  background thing.** Your turn end is your report. Run the train's gate
+  (§ 5) and every `land` in the foreground with `timeout: 600000`; every
+  brief's suite policy is "run every check — baseline, `check`, suite — in
+  the foreground, never background a command and end your turn". This
+  overrides § 3's suite clauses, § 5's "backgrounded" and the
+  long-running-command rule.
+- **A wake whose body is not a six-line report** (a drone ended its turn
+  early): one `SendMessage` to that drone — `continue, then report`. Never
+  poll its transcript, `sleep`-loop on a ref, or wait on a `pgrep`. A drone
+  that ends without its final act is silent to you; the top's stall tick
+  is the net, not a poll of yours.
 - **Your relief threshold is your context, never the train's size** — the
-  ceiling under *Your own budget*, relief 50k below it. Past it, no new
-  wave: land the wave in flight, then report — `RELIEF NEEDED` first if
-  issues remain.
+  ceiling under *Your own budget*, relief 50k below it; the notice itself
+  is the moment, not the next report.
 - **Train end**: `SWARM_LEDGER=<your path> mise run ledger -- close` after
   the push, then report.
 - Everything else in this file is unchanged.

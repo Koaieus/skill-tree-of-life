@@ -60,8 +60,8 @@ bounded `[15, 55]`; take the default.
 
 **`Ready` is one train.** `start --tree` puts every `Ready` issue in one
 train (`--size all` is the default) and you never resize it: a lead's limit
-is its context, not its train — it takes waves until its own relief
-threshold and asks for relief past it. `--size <n>` (issues per train) is
+is its context, not its train — it dispatches until its own relief
+threshold and asks for relief the moment it lands. `--size <n>` (issues per train) is
 passed only when the owner asks for a trial size. Mid-run changes are
 verbs, never a hand
 edit of the ledger: an issue the owner pulls is `mise run whip -- train
@@ -98,46 +98,64 @@ Then spawn exactly what it printed:
 
 ```
 Agent(subagent_type: "swarm-lead", name: "lead-<t>", run_in_background: true,
-      prompt: "train mode, train <t>: #a #b #c — ledger docs/handoffs/whip-<date>.md — swarm ledger docs/handoffs/swarm-<date>-lead-<t>.md")
+      prompt: "train mode, train <t>: #a #b #c — you are lead-<t> — ledger docs/handoffs/whip-<date>.md — swarm ledger docs/handoffs/swarm-<date>-lead-<t>.md")
 ```
 
-The swarm ledger path is the lead's name under the whip ledger's date; the
-lead exports it on every `ledger` and `land` call, and its first dispatch
-creates the file. **Then end your turn.** Do not subscribe to the lead, do not message it,
+The prompt names the lead's own name (its drones' final `SendMessage`
+goes to it) and its swarm ledger path, the lead's name under the whip
+ledger's date; the lead exports it on every `ledger` and `land` call, and
+its first dispatch creates the file. **Then end your turn.** Do not subscribe to the lead, do not message it,
 do not poll `ListAgents`. The lead's report is the only wake you expect
 from it; the scheduled tick is the only other. `next-train` skips a train
 left empty by `train drop`; it printing `no next train` means nothing is
 spawned: queued trains are exhausted, the owner stopped the run, or the
 cap passed — the last running lead's `done` ends the run.
 
-## 3. A lead's report — verbs, then the next train
+## 3. A lead's messages — verbs, then the next train
 
-A background lead's final text reaches you as its report. Read its first
-line, then run the matching verb and nothing else.
+Two things come up from a lead: a mid-run `SendMessage` asking for relief,
+and its final text, the report. Read the first line, then run the matching
+verb and nothing else.
 
-**First line `RELIEF NEEDED`** — the lead hands its train over:
+**`relief now; I keep <units>`** (a message from a running lead — its
+context notice landed; it dispatches nothing more and lands what it has):
 
 ```bash
-mise run whip -- relieve --lead <name>      # prints the relief's name and the whip ledger path
+mise run whip -- relieve --lead <name>      # marks <name> draining, points the train at the relief, prints its name and the whip ledger path
 ```
 
 Spawn the name it printed — never compute the `-<k>` yourself — with a
-prompt that opens with `relief` and names the train:
+prompt that opens with `relief`, names the train and the outgoing:
 
 ```
 Agent(subagent_type: "swarm-lead", name: "relief-<t>-<k>", run_in_background: true,
-      prompt: "relief — train mode, train <t>, relieving <name> — ledger docs/handoffs/whip-<date>.md — swarm ledger docs/handoffs/swarm-<date>-relief-<t>-<k>.md — read docs/handoffs/swarm-<date>-<name>.md")
+      prompt: "relief — train mode, train <t>, relieving <name> (draining) — you are relief-<t>-<k> — ledger docs/handoffs/whip-<date>.md — swarm ledger docs/handoffs/swarm-<date>-relief-<t>-<k>.md — read docs/handoffs/swarm-<date>-<name>.md")
 ```
 
 Two swarm-ledger paths: the relief's own (its name) to write, and the
-outgoing's (`<name>`) to read. When the outgoing was itself a relief, list
-every earlier lead of the train after `read` too — the train's lead
-history in `show` — so the relief sees the whole chain. Nobody runs
-`ledger adopt`, and you never say so in the prompt. A refused relief (the tool fails the train on its third) is final:
+outgoing's (`<name>`) to read. Say `(draining)` when the outgoing is still
+running — the relief then treats that file's rows as claims and dispatches
+beside it; say `(dead)` when §4 relieved a lead that is gone. When the
+outgoing was itself a relief, list every earlier lead of the train after
+`read` too — the train's lead history in `show` — so the relief sees the
+whole chain. Nobody runs `ledger adopt`, and you never say so in the
+prompt. A refused relief (the tool fails the train on its third) is final:
 go to §2 for the next train.
 
-**A second report from a lead the ledger shows `done`**, or a task
-notification from anything below a lead (its commands, its drones):
+**The draining lead's final text** (it landed its last report and closed
+its ledger) — never `done`, which is the accepting lead's:
+
+```bash
+mise run whip -- drained --lead <name>      # draining → relieved; refused from any other state
+```
+
+Its *Needs the owner* lines go to `needs-owner` / `note` as for `done`.
+
+**A second report from a lead the ledger shows `done` or `relieved`**, a
+drone's six-line report reaching you (it goes to its lead by
+`SendMessage`; its ordinary completion notice also surfaces here whenever
+the lead's turn had ended), or any other task notification from below a
+lead (its commands, its drones):
 nothing — end the turn.
 
 **Any other report** — the train is finished, landed or not:
@@ -149,7 +167,7 @@ mise run whip -- done --lead <name> <sha> <n/m>
 
 The report is `swarm`'s session report and carries no `done` line of its
 own, so you assemble it: `<sha>` is `git rev-parse master` in the main
-checkout (one lead at a time, so the tip is that lead's push), `<n>` the
+checkout (one accepting lead at a time, so the tip is that lead's push), `<n>` the
 rows in its `Landed` table, `<m>` the train's issue count as `show` lists
 it (the ledger, never your memory). A lead that landed nothing reports
 `0/m` against the tip. A *Needs the owner* line that names an issue goes to
@@ -184,17 +202,23 @@ report counts those notes), arm nothing, delete nothing, end your turn —
 a stray reads the header and stops. No ledger → arm nothing, end your
 turn.**
 `CAPPED` is a live run: spawn nothing, run the table for the lead still
-in flight, whose `done` ends the run. "Lead" below is the train's current
-lead as `show` names it — an outgoing lead the ledger shows `relieved` is
-not it, whatever `ListAgents` says of it.
+in flight, whose `done` ends the run. "Lead" below is each lead `show`
+lists as `running` or `draining` — during a relief that is two, the
+accepting one and the outgoing still landing its drones; one the ledger
+shows `relieved` is not it, whatever `ListAgents` says of it. A
+`draining` lead that stalls or is gone gets the same rows, with `drained
+--lead` in place of `relieve --lead` (its drones' units then belong to
+the accepting lead, which you tell in one line: `<name> is dead; its
+ledger is history`).
 
 | You find | You do |
 |---|---|
 | lead `running`, newest transcript fresher than `stall_minutes` | `noop`; end the turn |
 | lead `completed`, its report already acted on (§3 verbs in the ledger) | nothing: the report woke you |
 | lead gone (`completed` or `killed`) with its train still `running` in the ledger, no `resume <name> tried` note | `SendMessage` the lead — `window reset: continue from your ledger, then report` — and `mise run whip -- note "resume <name> tried"` |
-| the same, and the note is already in the ledger | `mise run whip -- relieve --lead <name>`, spawn the relief as §3 |
-| lead `running`, newest transcript older than `stall_minutes` | `TaskStop <name>`; `mise run whip -- note "stall: <name>, <minutes> min silent"`; `relieve --lead <name>`, spawn the relief as §3 |
+| the same, and the note is already in the ledger | `mise run whip -- relieve --lead <name>`, spawn the relief as §3 with `(dead)` |
+| lead `running`, newest transcript older than `stall_minutes` | `TaskStop <name>`; `mise run whip -- note "stall: <name>, <minutes> min silent"`; `relieve --lead <name>`, spawn the relief as §3 with `(dead)` |
+| a `draining` lead gone or stalled the same way | `TaskStop` if running; `mise run whip -- drained --lead <name>`; one line to the accepting lead; no relief spawned |
 
 Ledger `stopped` with a lead `running` (the owner stopped from another
 console): `SendMessage` the lead the stop line from §5, once, and `note`
@@ -212,7 +236,7 @@ end — the watch, not waste.
 | Owner says | You run |
 |---|---|
 | status / how is it going | `mise run whip -- show`; answer from it in a few lines |
-| stop / wrap up / no more trains | `mise run whip -- stop`, then `SendMessage` the running lead: `owner stop: spawn nothing new, collect the wave in flight, land what is reported, then report` — its report comes back through §3 |
+| stop / wrap up / no more trains | `mise run whip -- stop`, then `SendMessage` each running or draining lead: `owner stop: dispatch nothing new, land each report as it arrives, then report` — its report comes back through §3 |
 | stop now / kill it | `mise run whip -- stop --now` (renders the report at once), then `TaskStop` every running lead and disarm as §3 |
 | put #n back / add #n (owner or a sibling session) | `mise run whip -- train add <t> <n…> [--head]` |
 | anything else worth the morning | `mise run whip -- note "owner: <what>"` |
@@ -225,14 +249,19 @@ this skill's rule, not a knob: there is no `max-leads` here.
 - **A foreground lead blinds you.** `run_in_background: true` on every
   lead, or your turn is held for the whole train: no tick, no stop, no
   wake until it returns.
-- **Nothing in the tree backgrounds a command** — a lead's drones are
-  foreground waves and its gate suite runs in the foreground; that is the
-  lead's rule from `swarm`, and a prompt of yours never contradicts it.
-- **Task notifications from below a lead** (its commands, its drones)
-  are not reports: nothing, end the turn.
-- **The lead's report is the only wake you expect from it.** A lead idle
-  between waves is a working lead: no subscribing, no `ListAgents` outside
-  a tick, no message outside §4's rows and §5's stop line.
+- **Nothing in the tree backgrounds a command; drone dispatch is the one
+  background thing** — a lead's drones run in the background and wake it
+  by `SendMessage`; its gate suite and `land` run in the foreground. That
+  is the lead's rule from `swarm`, and a prompt of yours never contradicts
+  it.
+- **Task notifications from below a lead are not reports** — its
+  commands, and its drones' ordinary completion reports, which reach you
+  whenever the lead's turn had ended: nothing, end the turn. The drone's
+  real report went to its lead.
+- **A lead's report and its `relief now` are the only wakes you expect
+  from it.** A lead idle between drone reports is a working lead: no
+  subscribing, no `ListAgents` outside a tick, no message outside §4's
+  rows and §5's stop line.
 - **A spent window ends your turn with an API error** and leaves you at
   your prompt. The next boundary wake, or the owner typing, resumes you:
   §0 — you are the top, run §4.

@@ -15,9 +15,11 @@ the night, given one train of issues to land. (Design behind this file:
 2. Apply swarm's *Train mode* section: it says what changes for a lead
    whose parent is a session, not a person. Everything else in the skill
    holds as written.
-3. Your prompt names your train, the whip ledger (read, never adopted)
+3. Your prompt names your own name (every drone brief's final act is a
+   `SendMessage` to it), your train, the whip ledger (read, never adopted)
    and your swarm ledger path — `docs/handoffs/swarm-<date>-<lead-name>.md`,
-   yours alone; a relief prompt also names the files to read —
+   yours alone; a relief prompt also names the files to read and whether
+   the outgoing is draining or dead —
    exported as `SWARM_LEDGER` on every `ledger` and `land` call, as train
    mode says. It, and any later message from the session that spawned
    you, are your instructions.

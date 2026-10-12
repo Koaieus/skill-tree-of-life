@@ -32,12 +32,16 @@ Never open an issue to compensate — the worktree is the state.
 | **branch-ready** | reported, not landed | you review `--stat` + diff, then `mise run land -- <branch> --closes <n>` |
 | **partial** | commits or WIP in a worktree, no report | a resume-brief naming the worktree, the branch, and "read `git diff master...` first" |
 | **unstarted** | no worktree | a fresh brief per `swarm` |
-| **in flight, outgoing alive** | ledger row `dispatched`, outgoing responsive | wait for the outgoing's ping, then treat as branch-ready |
+| **in flight, outgoing alive** | ledger row `dispatched`, outgoing responsive | wait for the outgoing's ping, then treat as branch-ready (in a swarm-train tree: not yours at all, §3) |
 
 Uncommitted WIP in a dead drone's worktree is state: commit it there as
 `wip(<scope>): <what works>; missing <what>` before any resume-drone sees it.
 
 ## 3. A live outgoing — the contract
+
+In a swarm-train tree none of this section applies: a draining outgoing
+lands and closes its own units, you read its ledger by name and dispatch
+around them (`swarm`'s train mode), and you never message it. Otherwise:
 
 Your first message to the outgoing states your name. From then on it owes
 you **exactly one wake per in-flight drone** and nothing else:
