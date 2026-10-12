@@ -11,7 +11,7 @@ extends GutTest
 const _VENOM: SpellDef = preload("res://attack/spell/defs/venom_burst.tres")
 const _SPARK: SpellDef = preload("res://attack/spell/defs/spark.tres")
 const _SOCKETS_SCENE := preload("res://ui/hud/command_tray/bodies/infusion_sockets.tscn")
-const _LINE_SCENE := preload("res://ui/hud/command_tray/bodies/affinity_line.tscn")
+const _READOUT_SCENE := preload("res://ui/hud/command_tray/bodies/crucible_readout.tscn")
 const _BODY_SCENE := preload("res://ui/hud/command_tray/bodies/magic_body.tscn")
 const _POISON_STATUS: StatusDef = preload("res://effects/status/poison.tres")
 const _STUB_ARM := preload("res://test/fixtures/stub_arm.gd")
@@ -99,19 +99,31 @@ func test_the_magic_body_hosts_the_sockets() -> void:
 
 # ── Carried over from the stepper row ────────────────────────────────────────
 
-func test_the_affinity_line_reads_the_infused_affinity() -> void:
+func test_the_readout_reads_the_infused_affinity() -> void:
 	var caster := _caster(2.0)
 	var plan := _plan(caster)
 	_sockets(plan)
-	var line: AffinityLine = _LINE_SCENE.instantiate()
-	add_child_autofree(line)
-	line.bind(plan)
+	var readout: CrucibleReadout = _READOUT_SCENE.instantiate()
+	add_child_autofree(readout)
+	readout.bind(plan)
 	plan.set_socket(0, &"poison")
 	# venom burst: innate + floor(2 points × rate), through the landing's fold.
 	var aff: SpellAffinity = _VENOM.affinities[0]
 	var stacks := _POISON_STATUS.stacks_per_hit(caster.stat_board, aff.innate + floorf(2 * aff.rate))
-	assert_true(line.visible, "venom lands poison, so the line shows")
-	assert_eq(line.text(), "Poison %s/hit" % NumFmt.num(stacks))
+	var nodes := readout.line_nodes()
+	assert_eq(nodes.size(), 1, "venom lands poison, so one line shows")
+	if nodes.size() == 1:
+		assert_eq(nodes[0].line().per_hit, stacks)
+
+
+## Socket 0 sits at the arc's right end, so the crucible's traces nest.
+func test_socket_zero_sits_rightmost() -> void:
+	var sockets := _sockets(_plan(_caster(2.0, 10000.0)))
+	assert_gt(sockets.socket_count(), 1, "guard: two sockets or more")
+	for i in range(1, sockets.socket_count() + 1):
+		var s := sockets.socket(i)
+		if s != null:
+			assert_lt(s.position.x, sockets.socket(i - 1).position.x, "socket %d left of socket %d" % [i, i - 1])
 
 
 func test_the_seat_remembers_the_infusion_per_spell_clamped_to_todays_caps() -> void:

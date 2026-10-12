@@ -41,6 +41,13 @@ extends Control
 	set(v):
 		slot_width_px = v
 		_layout()
+## Socket 0 at the arc's right end, the ghost at its left. The crucible's
+## readout lists socket 0's line topmost and its traces run down then right,
+## so the rightmost socket must feed the top line or the traces cross.
+@export var right_to_left := true:
+	set(v):
+		right_to_left = v
+		_layout()
 
 const _SOCKET_SCENE := preload("res://ui/hud/command_tray/bodies/infusion_socket.tscn")
 const _SLOTS_STAT := &"infusion_slots"
@@ -154,8 +161,9 @@ func _rebuild(count: int) -> void:
 	_layout()
 
 
-## Socket i at angle θ_i across [member socket_arc_deg], measured from straight
-## down off a centre [member arc_radius_px] above; the box is the arc's extent.
+## Socket i at angle θ_i across [member socket_arc_deg] (mirrored by
+## [member right_to_left]), measured from straight down off a centre
+## [member arc_radius_px] above; the box is the arc's extent.
 func _layout() -> void:
 	if not is_node_ready():
 		return
@@ -166,7 +174,8 @@ func _layout() -> void:
 		var s := _sockets[i]
 		s.socket_px = socket_px
 		slot.y = s.get_combined_minimum_size().y
-		var theta := lerpf(-half, half, float(i) / (n - 1)) if n > 1 else 0.0
+		var t := float(i) / (n - 1) if n > 1 else 0.5
+		var theta := lerpf(-half, half, 1.0 - t if right_to_left else t)
 		var x := arc_radius_px * (sin(theta) + sin(half))
 		var y := arc_radius_px * (cos(theta) - cos(half))
 		s.size = slot
