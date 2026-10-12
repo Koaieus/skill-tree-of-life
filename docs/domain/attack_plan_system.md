@@ -187,7 +187,7 @@ Lives on `Entity.begin_turn` (no god-mode TurnManager): `action_points` and
 
 ## Stats
 
-- **`blade_size`** — ScalarStat, base 1, intrinsic `RatioFormula(strength, 40)`, floored once on the total (`default_entity_board.tres:307-318`).
+- **`blade_size`** — ScalarStat, base 1, intrinsic `ADD_BASE` `RatioFormula(strength, 40)`, floored once on the total (`default_entity_board.tres:307-318`).
 - **`wound_heal_per_turn`** — ScalarStat, base 1: the rate wounds flow back to
   spendable SP at turn start.
 

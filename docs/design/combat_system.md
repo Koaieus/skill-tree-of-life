@@ -117,7 +117,7 @@ The roster grew to **six attributes** — three attack (prevalent), three utilit
 |---|---|---|---|---|
 | **Red** | STR | melee | Adjacency / phantom blade | Per-contact damage and blade size (`1 + STR/40` nodes, `default_entity_board.tres:307-318`); **+weight for armor modifiers** (flat and %) in affix generation. Beats Blue. |
 | **Green** | DEX | ranged | **Euclidean**, leaf-only | Per-leaf damage (`1/node @ 0 DEX → 2/node @ 10 DEX`). Beats Red. |
-| **Blue** | INT | magic | **Spell-native (graph)** | Per-instance **potency** (√INT) plus a gentle cast-reach term (see Magic). Beats Green. |
+| **Blue** | INT | magic | **Spell-native (graph)** | Per-instance **potency** (√INT) plus cast-target range, never propagation hops (see Magic). Beats Green. |
 | **White** | CON | durability | none | Scales node/core HP; a light armor sprinkle (armor is now STR-primary, see Red) in affix generation. No attack mode. |
 | **Gold** | WIS | XP / growth | none | Wisdom ≈ accumulated experience → **XP-gain rate**. Carries the most valuable growth-oriented modifiers. |
 | **Purple** | PER | perception | none | Vision + sensor range. Information *is* the weapon (spot cut-vertices/bridges early, scout). No attack needed; one may surface later. |
@@ -176,7 +176,7 @@ Ranged's signature role is **precision reach**: it is the only attack that can p
 
 ## Magic (Graph-Magic) — Spells
 
-**Magic is graph-math made into a weapon.** Each spell defines its own propagation mechanism — a graph-theory primitive, not a generic attack. INT scales potency and, more gently, cast reach (below); the spell's *shape* is inherent. `attack_range` does not apply.
+**Magic is graph-math made into a weapon.** Each spell defines its own propagation mechanism — a graph-theory primitive, not a generic attack. INT scales potency and cast-target range (below), never propagation hops; the spell's *shape* is inherent. `attack_range` does not apply.
 
 ```
 per damage instance:  outgoing = base_magic + √INT        (`spell_damage`, `default_entity_board.tres:373-381`; or spell-specific formula)
@@ -184,7 +184,7 @@ per damage instance:  outgoing = base_magic + √INT        (`spell_damage`, `de
 instances            = initial hit + each hop + each self-loop return
 ```
 
-Per the [scaling spine](#the-attribute-scaling-spine--the-10-model), **INT scales per-instance potency** (√INT, above). INT also feeds the board's cast reach: `cast_range_distance` gains +1% per 50 INT and `cast_range_hops` +1 at 50 / 150 / 500 / 1000 / 5000 INT (`default_entity_board.tres:329-351`). The spell's own hop count stays its identity; the dedicated `bonus_hop_count` stat (below) is the rare extra reach.
+Per the [scaling spine](#the-attribute-scaling-spine--the-10-model), **INT scales per-instance potency** (√INT, above). INT also feeds the board's *cast-target* range (how far from the cast-from node a spell may be aimed): `cast_range_distance` gains +1% per 50 INT and `cast_range_hops` +1 at 50 / 150 / 500 / 1000 / 5000 INT (`default_entity_board.tres:329-351`; `cast_range_hops` feeds `HopRangeFinder` only, never a spell's propagation hops). Buying *propagation* hops with INT is still rejected (it breaks board legibility; reach is the spell's identity); those grow only through the dedicated `bonus_hop_count` stat (below).
 
 **Infusion** (#1574, owner 2026-10-12; ADR 0047): a spell has innate per-aspect values, and infusing an aspect adds `floor(points × rate)` on top (rate 0 refuses the aspect). The default use is "N stacks on hit"; a spell may hook the value anywhere else. There is no shared points pool and no mana: depth is the aspect held, breadth is `infusion_slots` (INT threshold 100 / 1000 / 10000).
 
@@ -195,7 +195,7 @@ Magic's identity: it reaches targets that are geometrically far but **topologica
 Magic is the most calculable in advance (it's graph math — simulate total damage to derive the scaling rate) but the **combinatorics of topologies make it genuinely hard**, so it needs a set of **canonical attack situations** to pin scaling against. Expect heavy tweaking. Direction, not locks:
 
 - **Friendly fire (lean):** **ON for propagating spells, OFF for purely targeted ones**, with a rare "discriminating" modifier to opt a spell out. Theology: a propagating spell follows *edges, not allegiances* — it flows wherever the graph leads, so casting into mixed/contested territory risks looping back into your own nodes. Makes directional casting a real spatial decision and keeps the shared graph dangerous. Confirm during magic balancing.
-- **`bonus_hop_count` stat (new):** default 0. INT's own reach term is gentle (see Magic); the big reach grows only through this dedicated, **ultra-rare** stat. At most ~1–2 `+1` modifiers exist on the entire map. Ultra-powerful, a must-have chase item for wizard entities, and a **prime proliferation target** (proliferation efficiency scales inversely with rarity — see Loot Resolution — so duplicating it works but poorly).
+- **`bonus_hop_count` stat (new):** default 0. INT scales potency and cast-target range, never propagation hops — those grow only through this dedicated, **ultra-rare** stat. At most ~1–2 `+1` modifiers exist on the entire map. Ultra-powerful, a must-have chase item for wizard entities, and a **prime proliferation target** (proliferation efficiency scales inversely with rarity — see Loot Resolution — so duplicating it works but poorly).
 
 ### Degree-gated casting
 
