@@ -103,3 +103,4 @@ migration of pre-tier decision prose out of `docs/domain/`, done on **#769**; th
 when you find yourself re-deriving why something is the way it is, that is the
 signal the decision deserves a record. A backfill says so in a note at the top and
 dates itself to the decision, not to the writing.
+| [0059](0059-the-six-primaries-are-the-schools-and-never-scale-via-each-other.md) | The six primary attributes are the schools, and a primary never scales via another primary | accepted | 2026-10-05 | stats, attributes, schools, aspects, design |

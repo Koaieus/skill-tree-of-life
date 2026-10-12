@@ -23,8 +23,14 @@ func _primary_ids() -> Array[StringName]:
 ## Every "<source> -> <target>" where both ends are primaries. A link is a modifier
 ## whose formula reads a primary and whose target stat is another primary.
 func _violations(mods: Array, primaries: Array[StringName]) -> Array[String]:
-	# STUB (red)
 	var out: Array[String] = []
+	for m in mods:
+		if m == null or m.formula == null or not primaries.has(m.stat_id):
+			continue
+		for input in m.formula.get_input_ids():
+			var src := StatFormula.base_of(input)
+			if primaries.has(src):
+				out.append("%s -> %s" % [src, m.stat_id])
 	return out
 
 

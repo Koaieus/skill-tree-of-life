@@ -38,6 +38,8 @@ Stat IDs: `grep -h "^id = " stats_system/defs/*.tres | sort`. Mana and mana rege
 
 **A child stat folds its ancestors' bins, never their base.** `StatDef.parent_ids` declares edges; `StatRegistry` flattens once (`ancestors_of` nearest-first, `children_of`, `is_parent`) and `push_error`s on an unknown id or cycle. A read is `compute(child.base_value, [farthest ancestor … nearest parent, own bins])` at every door via `Stat.all_bins()`, so INCREASEs sum across the chain and a child SET beats a parent SET at equal priority. Invalidation is a link: `StatBoard._link_parents` wires `Stat._parents` / `_children` at the three registration sites (`apply_intrinsics`' typed-field pass, `_register_minted`, `clone_live`), and a parent's `_emit_value_changed` dirties every descendant through the batch branch. **Tests arrange throwaway defs through `StatRegistry.register_def` / `unregister_def`** — nothing outside `test/` calls them. Shipped families: `docs/domain/stats-system.md` § "Parent stats".
 
+No stat link runs primary → primary (ADR 0059): a primary is a school root and scales only non-primaries; `test_primaries_never_scale_via_primaries.gd` guards the shipped boards.
+
 ## Gotchas
 
 - **`PoolStat.set_current` emits `value_changed`, not just `current_changed`**, so a formula modifier sourcing a pool recomputes on every `current` write. `<stat_id>__<accessor>` tokens route through `Stat.read_accessor(name)` (a per-subclass `accessors()` map), so `health__current` reads `.current`, not the cap; `get_input_ids()` strips to base ids (`StatFormula.base_of`) so the dependency graph keeps seeing `health`. **Don't drop `set_current`'s `value_changed` emit** to save the recompute.
