@@ -74,7 +74,10 @@ the last `done` refills from the live board.
 check the `claude-code-remote` trigger tools (`send_later`,
 `delete_trigger`) are in your tool list. Without them the run is `/loop`
 self-paced — the same shape without the server, nothing to note or disarm.
-With them, **at most two wakes are pending at any moment**, each a
+With them, read your own mode: `get_session` with no id. Unless
+`external_metadata.permission_mode` is `auto`, stop and ask the owner to
+switch this session to auto mode (in bypass the server refuses every
+`delete_trigger` as "requires approval"; no allow rule fixes it). Arm nothing until they have, or say run anyway. Then, **at most two wakes are pending at any moment**, each a
 `send_later` whose prompt names its kind:
 
 - **the next window boundary** — `swarm-train boundary` at ≈ start + 5 h 05;

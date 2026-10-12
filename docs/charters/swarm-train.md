@@ -141,8 +141,18 @@ top session  (/swarm-train: trains, ledger, tick, relief, report)
    goes through in **auto mode** (n=3, 2026-10-11/12) but was refused in
    **bypass mode with the rule present** (run #1565, ×4: four wakes fired
    into a finished run, one turn each). So a refusal must be cheap, not
-   rare: the top keeps **at most two wakes pending — the next window
-   boundary** (≈ start + 5 h 05; the spent-window insurance) **and the next
+   rare. **And the top runs in auto mode:** the refusal is the server's,
+   keyed on the session's permission mode — a bypass session (whose
+   record carries no `permission_mode`) is asked for approval nobody is
+   there to give, an auto one is not (2026-10-13, run #1589: the same
+   top refused ×2 in bypass, then deleted a probe wake first call once
+   the owner switched it to auto — owner: *"this concept that bypass
+   permissions can do *less* than auto is completely backwards"*). So
+   before arming, the top reads its own record (`get_session`, no id);
+   unless `external_metadata.permission_mode` is `auto` it asks the owner
+   to switch the session to auto and arms nothing until they have or say
+   run anyway. Even so the top keeps **at most two wakes pending — the
+   next window boundary** (≈ start + 5 h 05; the spent-window insurance) **and the next
    tick** (`now + tick-minutes`). Whichever fires re-arms its own successor
    while the run is live (a boundary arms the next boundary under the cap;
    a tick the next tick). A wake's prompt and its `wakes:` note name its
@@ -366,6 +376,7 @@ window kills every agent at once) is why the drone cap stays 2–5.
 | 2026-10-11 | probes | a CLI bypass session had no claude-code-remote tools at all; an auto-mode session with the allow rule deleted a wake first call | 8 |
 | 2026-10-11 | run #1565 | 10 Ready → 2/2/2/4 trains at `--size 4`; owner folded them by hand via drop/add, leaving 4 empty trains `next-train` still handed out | knobs, C |
 | 2026-10-11 | run #1565 | finished 19:20 after 2 h of a 15 h cap; bypass-mode top, allow rule present, 4 deletes refused; the tick and three boundary wakes armed at start fired into the finished run (2 by 22:18; the last two deleted 2026-10-12 01:40 from an auto-mode session) | 8, 18 |
+| 2026-10-13 | run #1589 | bypass-mode top, run DONE: 00:15Z boundary delete + disable refused "requires approval"; the top blamed the allow rule (already present since 2026-10-11) and committed a duplicate; switched to auto by the owner, it deleted a probe wake first call. The Android client attaching to the same RC host had flipped another session bypass→auto (`permission_mode_seq` 2), which is why deletes "worked from the phone" | 8 |
 | 2026-10-10 | run #1540 | drone-blob ended its turn on a backgrounded baseline → lead-a polled its transcript (owner killed it at 4 min); lead-b reported with a suite wait still running → a duplicate report 29 min later; lead-c2 ran the gate foreground and was clean | 16 |
 
 ## Fold digest — board `swarm-train — skill feedback board`
@@ -379,3 +390,4 @@ window kills every agent at once) is why the drone cap stays 2–5.
 - 2026-10-11 · `autopsy` ×2 #1565 wasted wakes → law 8 (≤2 pending, re-armed by successor; bypass refuses), law 18
 - 2026-10-11 · `friction` 2/2/2/4 trains, empty trains handed out → knobs (`--size all`, `next-train` skips empty)
 - 2026-10-11 · `law-candidate` ×3 one DAG, window-budget cap, strangler-fig relief, run directory → fork C; one DAG and per-lead files settled 2026-10-12 (#1576) → laws 19–21, law 10 amended; the overlap settled 2026-10-12 (#1577, spike: a depth-2 background drone's `SendMessage` resumes its depth-1 lead) → laws 4, 9, 10, 15, 16, the cost model; fork C closed
+- 2026-10-13 · `autopsy` #1589 bypass top can't disarm, A/B'd to auto → law 8 (auto-mode preflight via `get_session`)
