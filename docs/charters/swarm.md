@@ -232,18 +232,11 @@ disk at `scratchpad/land/land-<n>.log` (#920), so filling the ledger is a
     output tokens and keeps the parts consistent; the drones' read cost is
     unchanged.
 
-31. **Whip relay mode is a report-address swap, nothing else.** When the
-    launch prompt says *whip relay, train `<t>`* (see [whip](whip.md), law
-    12), the lead's three human-facing moments become three verbs —
-    `mise run whip -- relieve-me`, `done <sha> <n/m>`, `needs-owner <n>
-    "<line>"` — which launch the relief, pass the baton to the next train
-    or end the run, and note the item; a question becomes a stated
-    assumption or a pull, and no other traffic exists. Every other law
-    holds. v1 (2026-10-02) sent three `SendMessage` lines to a central
-    `whip` session instead; probed then that a `--bg` session refuses a
-    peer's instruction unless its launch prompt names the peer as
-    principal, which is why the relay clauses still name the watchdog's
-    and the owner's prompts as the lead's instructions.
+31. **Retired 2026-10-12: whip relay mode** (#1578; ADR 0056,
+    `docs/adr/0056-overnight-runs-are-one-session-over-a-subagent-tree.md`). It swapped the lead's three
+    human-facing moments for three whip verbs under a `--bg` relay; the
+    relay transport is removed and train mode (law 32) is the only
+    unattended mode. The number stays so the laws still diff.
 
 32. **Train mode is a report-address swap too.** When the launch prompt
     says *train mode, train `<t>`* (see [swarm-train](swarm-train.md), laws
@@ -435,9 +428,8 @@ disk at `scratchpad/land/land-<n>.log` (#920), so filling the ledger is a
   harness table, the Claude Code `<details>` block on harness worktrees
   (`isolation: "worktree"` is not used).
 - The wake arithmetic, the window-percentage table, the worker-cost table.
-- Whip's laws, its ledger verbs beyond the three a lead runs, or the
-  watchdog (the whip-relay section names three verbs; the rest is
-  [whip](whip.md)'s).
+- Any whip verb or the retired relay: a lead in train mode runs none (law
+  32); the ledger's verbs are [swarm-train](swarm-train.md)'s.
 - The drone's standing rules themselves (they are in the agent; the skill
   carries only the digest of what a brief must not restate and the six-line
   report shape), `warp`'s rebase discipline (`land` mechanises it), or

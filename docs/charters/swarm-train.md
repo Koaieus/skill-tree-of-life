@@ -5,18 +5,20 @@ runs a night of trains), the `swarm-lead` agent definition
 (`.claude/agents/swarm-lead.md`, the lead as a subagent), `swarm`'s *train
 mode* section and the whip tool's *tree transport*. The files are derived from
 this; change the wish here, then re-derive. See [README](README.md) for the
-protocol. Sibling charters: [whip](whip.md) (the incumbent: the same night as
-a relay of `--bg` sessions plus a watchdog; its ledger, trains, cap and report
-are reused here unchanged), [swarm](swarm.md) (the lead's cycle),
+protocol. Sibling charters: [whip](whip.md) (retired: the same night as
+a relay of `--bg` sessions plus a watchdog, removed 2026-10-12, #1578; its
+ledger, trains, cap and report live on here unchanged), [swarm](swarm.md) (the lead's cycle),
 [relief](relief.md) (the lead that takes a train over), [drone](drone.md).
 **Feedback board: `swarm-train — skill feedback board`** (Discussions,
 `Skill feedback`), created by the first `mise run feedback -- post swarm-train …`.
 
 This charter was **designed from a spike, not mined** (#1518, 2026-10-09;
 four corpus rows in [whip](whip.md) § Incident corpus, dated 2026-10-09). It
-exists as a **tryout next to Whip**: the owner keeps one or both after a
+began as a **tryout next to Whip**: the owner keeps one or both after a
 night of each (owner, 2026-10-09: *"i think a 2nd skill as tryout might be
-best, can then decide which to keep or both"*). Laws marked *probed* rest on
+best, can then decide which to keep or both"*). Decided 2026-10-12, owner:
+*"tree wins, retire whip"* — the relay transport is removed, not dormant
+(#1578; ADR 0056, `docs/adr/0056-overnight-runs-are-one-session-over-a-subagent-tree.md`). Laws marked *probed* rest on
 the spike; *designed* ones are picks the first night tests.
 
 ## What swarm-train is for
@@ -212,8 +214,9 @@ top session  (/swarm-train: trains, ledger, tick, relief, report)
 
 **Reuse** (*designed*)
 
-11. **The whip tool carries a tree transport, not a second tool.** `start
-    --tree` snapshots, splits trains, writes the ledger and opens the run
+11. **The whip tool carries the tree transport, not a second tool** — its
+    only transport since the relay was removed (#1578); `--tree` is
+    accepted and redundant. `start` snapshots, splits trains, writes the ledger and opens the run
     issue, and launches nothing — no daemon, no timer, no linger. `done`,
     `relieve`, `drained` and `needs-owner` take `--lead <name>` from the
     top instead of keying on the caller's session — `relieve` marks the old
@@ -312,7 +315,7 @@ fork C's first half; the overlap between leads stays open there*)
 
 ## Knobs
 
-- `whip start --tree --cap 15 --stall-minutes 45 --tick-minutes 45 [--size <n>]` — the
+- `whip start --cap 15 --stall-minutes 45 --tick-minutes 45 [--size <n>]` — the
   cap and stall threshold are Whip's; `tick-minutes` is new, bounded
   `[15, 55]` (law 8a: inside the one-hour cache lifetime); `--size`
   defaults to `all` (law 19: one train) and `<n>` caps issues per train as

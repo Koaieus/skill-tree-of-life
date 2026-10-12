@@ -100,10 +100,11 @@ live outgoing — never by reading issues to compensate.
    crash and the owner are the other triggers. Any number in the relief
    skill is a contradiction waiting to happen.
 
-8. **Under the whip relay, relief is swarm's whip relay mode.** The launch
-   prompt names the train; the section in the skill is one paragraph
-   pointing at swarm's, because relief restates nothing of swarm (law 4).
-   See [whip](whip.md).
+8. **Retired 2026-10-12: relief under the whip relay** (#1578; ADR 0056,
+   `docs/adr/0056-overnight-runs-are-one-session-over-a-subagent-tree.md`). Its one-paragraph
+   section pointing at swarm's whip relay mode went with the relay; a
+   relief in a swarm-train tree follows swarm's train mode. The number
+   stays so the laws still diff.
 
 9. **Relief ends like swarm.** The session report of swarm law 30, plus
    `next relief: <what it takes>` under `Needs the owner` when it hands off
