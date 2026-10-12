@@ -166,10 +166,23 @@ nuance.
 
 Active only when your launch prompt says *train mode, train `<t>`* — you
 are a `swarm-lead` subagent and your parent is the train's top session, not
-a person. You share the top's session id: `mise run ledger -- show` is
-the train's ledger (a relief inherits the outgoing lead's live one) — never
-`adopt`. The ledger path in your prompt is the whip ledger: read it, never
-adopt it. No Sage in this mode: every brief names the `advisor` tool.
+a person. You share the top's session id, so the ledger tool's session
+lookup is blind here and never consulted: your prompt names your swarm
+ledger, `docs/handoffs/swarm-<date>-<lead-name>.md`, and **every** `ledger`
+and `land` call carries it —
+
+```bash
+SWARM_LEDGER=docs/handoffs/swarm-<date>-<lead-name>.md mise run ledger -- dispatch <n> <drone> <tier>
+SWARM_LEDGER=docs/handoffs/swarm-<date>-<lead-name>.md mise run land -- <branch> --closes <n>
+```
+
+A bare call lands in whichever lead's file is newest: a bug, never a
+shortcut. Your first `dispatch` creates the file. A relief's prompt names
+the outgoing's file as its own — take it over by path, never `adopt`. The
+whip ledger path in your prompt is read, never adopted. A row written
+before dispatch is the claim: a unit with a row in another live
+`swarm-*.md` is never yours to dispatch. No Sage in this mode: every brief
+names the `advisor` tool.
 
 - **Waves are foreground.** One wave per message still holds: every `Agent`
   call of the wave in one message, each with `run_in_background: false`.
@@ -196,7 +209,8 @@ adopt it. No Sage in this mode: every brief names the `advisor` tool.
   ceiling under *Your own budget*, relief 50k below it. Past it, no new
   wave: land the wave in flight, then report — `RELIEF NEEDED` first if
   issues remain.
-- **Train end**: `mise run ledger -- close` after the push, then report.
+- **Train end**: `SWARM_LEDGER=<your path> mise run ledger -- close` after
+  the push, then report.
 - Everything else in this file is unchanged.
 
 ## The cycle

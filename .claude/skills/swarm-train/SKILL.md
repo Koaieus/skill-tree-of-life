@@ -1,6 +1,6 @@
 ---
 name: swarm-train
-description: Run the `Ready` queue unattended as a tree of subagents — `/swarm-train` from a session that stays up all night (a terminal, Remote Control, the web app) snapshots the board, splits `Ready` into trains, and spawns one background `swarm-lead` per train, one at a time; the session itself is the top: it ticks on a scheduled wake, relieves a stalled or cut-off lead with a fresh one, records every outcome in the whip ledger, and the last `done` renders the morning report. Nothing runs outside the session. Use when the user says "swarm-train", "run the Ready queue overnight as a tree", "train the swarms"; a live `whip-<date>.md` ledger on disk makes the session its console, never a second start.
+description: Run the `Ready` queue unattended as a tree of subagents — `/swarm-train` from a session that stays up all night (a terminal, Remote Control, the web app) snapshots the board, puts `Ready` in one train (or `--size <n>` of them), and spawns one background `swarm-lead` per train, one at a time; the session itself is the top: it ticks on a scheduled wake, relieves a stalled or cut-off lead with a fresh one, records every outcome in the whip ledger, and the last `done` renders the morning report. Nothing runs outside the session. Use when the user says "swarm-train", "run the Ready queue overnight as a tree", "train the swarms"; a live `whip-<date>.md` ledger on disk makes the session its console, never a second start.
 ---
 
 # Swarm-train
@@ -17,11 +17,14 @@ goes on its board: `mise run feedback -- post swarm-train <kind> <file>`
 **The ledger on disk is the shared state.** Every write to the whip ledger
 (`docs/handoffs/whip-<date>.json/.md`: trains, lead table, events, cap) goes
 through `mise run whip -- <verb>`; each lead keeps its own swarm ledger
-beside it. No message carries state — a relief orients from disk, and so do
-you after a window reset. `mise run whip -- help` lists the verbs; the ones
-you run take `--lead <name>`, because every lead shares your session id.
-The lead's half of the contract is `swarm`'s *Train mode* section; you
-never restate it in a prompt.
+beside it, keyed by its name: `docs/handoffs/swarm-<date>-<lead-name>.md`,
+`<date>` the whip ledger's. No message carries state — a relief orients
+from disk, and so do you after a window reset. `mise run whip -- help`
+lists the verbs; the ones you run take `--lead <name>`, because every lead
+shares your session id — which is also why a lead's prompt names its swarm
+ledger path: the ledger tool's session lookup is blind inside the tree and
+the lead derives nothing. The lead's half of the contract is `swarm`'s
+*Train mode* section; you never restate it in a prompt.
 
 **Your chat is one line per event.** The owner is away: a start, a spawn, a
 report, a tick, a relief is one line to the chat (train, n/m, needs-owner
@@ -54,11 +57,12 @@ ceiling: past it nothing is spawned, a lead in flight finishes its train,
 and the report says `CAPPED` — you never argue with it. `tick-minutes` is
 bounded `[15, 55]`; take the default.
 
-**Trains are mechanical and you never resize them.** A lead's limit is its
-context, not its train: it takes waves until its own relief threshold and
-asks for relief past it. `--size` (issues per train) is passed only when
-the owner asks for a trial size; `--size all` puts every `Ready` issue in
-one train. Mid-run changes are verbs, never a hand
+**`Ready` is one train.** `start --tree` puts every `Ready` issue in one
+train (`--size all` is the default) and you never resize it: a lead's limit
+is its context, not its train — it takes waves until its own relief
+threshold and asks for relief past it. `--size <n>` (issues per train) is
+passed only when the owner asks for a trial size. Mid-run changes are
+verbs, never a hand
 edit of the ledger: an issue the owner pulls is `mise run whip -- train
 drop <t> <n>` (a drop never returns by itself); one put back or added is
 `mise run whip -- train add <t> <n…> [--head]` (a queued train, or a new
@@ -93,10 +97,12 @@ Then spawn exactly what it printed:
 
 ```
 Agent(subagent_type: "swarm-lead", name: "lead-<t>", run_in_background: true,
-      prompt: "train mode, train <t>: #a #b #c — ledger docs/handoffs/whip-<date>.md")
+      prompt: "train mode, train <t>: #a #b #c — ledger docs/handoffs/whip-<date>.md — swarm ledger docs/handoffs/swarm-<date>-lead-<t>.md")
 ```
 
-**Then end your turn.** Do not subscribe to the lead, do not message it,
+The swarm ledger path is the lead's name under the whip ledger's date; the
+lead exports it on every `ledger` and `land` call, and its first dispatch
+creates the file. **Then end your turn.** Do not subscribe to the lead, do not message it,
 do not poll `ListAgents`. The lead's report is the only wake you expect
 from it; the scheduled tick is the only other. `next-train` skips a train
 left empty by `train drop`; it printing `no next train` means nothing is
@@ -119,12 +125,13 @@ prompt that opens with `relief` and names the train:
 
 ```
 Agent(subagent_type: "swarm-lead", name: "relief-<t>-<k>", run_in_background: true,
-      prompt: "relief — train mode, train <t>, relieving <name> — ledger docs/handoffs/whip-<date>.md")
+      prompt: "relief — train mode, train <t>, relieving <name> — ledger docs/handoffs/whip-<date>.md — swarm ledger docs/handoffs/swarm-<date>-<name>.md")
 ```
 
-The relief shares your session id, so the outgoing lead's swarm ledger is
-already its own: nobody runs `ledger adopt`, and you never say so in the
-prompt. A refused relief (the tool fails the train on its third) is final:
+The swarm ledger you name is the **outgoing's** file (`<name>` is the lead
+being relieved, not the relief): the file follows the train, and the relief
+takes it over by path — nobody runs `ledger adopt`, and you never say so in
+the prompt. A refused relief (the tool fails the train on its third) is final:
 go to §2 for the next train.
 
 **A second report from a lead the ledger shows `done`**, or a task
@@ -227,6 +234,8 @@ this skill's rule, not a knob: there is no `max-leads` here.
 - **A spent window ends your turn with an API error** and leaves you at
   your prompt. The next boundary wake, or the owner typing, resumes you:
   §0 — you are the top, run §4.
-- **A lead's name is its address** (`lead-<t>`, `relief-<t>-<k>`); a name
-  the ledger already knows is refused by `next-train`, so a fresh train
-  always gets a fresh name.
+- **A lead's name is its address and its ledger key** (`lead-<t>`,
+  `relief-<t>-<k>`); a name the ledger already knows is refused by
+  `next-train`, so a fresh train always gets a fresh name. A prompt
+  without a `swarm ledger` path spawns a lead whose ledger calls land in
+  whichever file is newest — never spawn one.

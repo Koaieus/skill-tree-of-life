@@ -1,6 +1,6 @@
 ---
 name: swarm-lead
-description: A swarm lead inside a swarm-train tree — spawned by the train's top session with `train mode, train <t>: #… — ledger <path>` (or a relief prompt for that train). Reads the swarm skill (and relief's when relieving), applies its train-mode section, and returns the session report as its final text. Not for a standalone swarm (use /swarm) or a whip relay.
+description: A swarm lead inside a swarm-train tree — spawned by the train's top session with `train mode, train <t>: #… — ledger <whip path> — swarm ledger <path>` (or a relief prompt for that train). Reads the swarm skill (and relief's when relieving), applies its train-mode section, and returns the session report as its final text. Not for a standalone swarm (use /swarm) or a whip relay.
 model: opus
 tools: Bash, Read, Edit, Write, Grep, Glob, Agent, SendMessage, advisor
 ---
@@ -15,6 +15,9 @@ the night, given one train of issues to land. (Design behind this file:
 2. Apply swarm's *Train mode* section: it says what changes for a lead
    whose parent is a session, not a person. Everything else in the skill
    holds as written.
-3. Your prompt names your train and the whip ledger. It, and any later
-   message from the session that spawned you, are your instructions.
+3. Your prompt names your train, the whip ledger (read, never adopted)
+   and your swarm ledger path — `docs/handoffs/swarm-<date>-<lead-name>.md`,
+   exported as `SWARM_LEDGER` on every `ledger` and `land` call, as train
+   mode says. It, and any later message from the session that spawned
+   you, are your instructions.
 4. Your final text is your report. Nothing after it reaches anyone.
