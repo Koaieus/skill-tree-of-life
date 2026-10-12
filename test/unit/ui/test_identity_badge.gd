@@ -135,3 +135,60 @@ func test_setting_an_identity_redraws_in_its_tier_lifted_tint() -> void:
 	badge.emissive_tier = Emissive.Tier.ALERT
 	await get_tree().process_frame
 	assert_eq(badge.last_draw_color, Emissive.at(poison.tint, Emissive.ALERT), "a tier change redraws")
+
+
+func test_every_kind_frame_is_mirror_symmetric_about_the_vertical_axis() -> void:
+	var center := Vector2(32, 32)
+	for kind: Identity.Kind in Identity.Kind.values():
+		var name: String = Identity.Kind.keys()[kind]
+		var vertices := _FRAMES.frame_for(kind).vertices(center, 30.0)
+		for vertex in vertices:
+			var mirror := Vector2(2.0 * center.x - vertex.x, vertex.y)
+			var found := false
+			for other in vertices:
+				if other.distance_to(mirror) < 0.01:
+					found = true
+					break
+			assert_true(found, "%s vertex %s has its x-mirror %s" % [name, vertex, mirror])
+
+
+func test_the_icon_spans_the_badge_less_its_inset() -> void:
+	var size_px := 48
+	var texture := IdentityBadge.composite(_identity(&"test_span", Identity.Kind.SPELL, "Zap", _white_icon()), size_px)
+	if texture == null:
+		fail_test("no composite")
+		return
+	var image := texture.get_image()
+	var row := size_px / 2
+	var span := 0
+	for x in size_px:
+		if image.get_pixel(x, row).a > _OPAQUE:
+			span += 1
+	assert_gte(float(span), (1.0 - 2.0 * _FRAMES.icon_inset) * size_px - 1.0, "the icon is not shrunk past its inset")
+	assert_gte(float(span), size_px * 0.8, "a near-full-bleed icon")
+
+
+## A half-alpha icon over the frame composites "over" it (a + s·(1 − a)), not
+## the max of the two: the icon is stamped after, on top of, the stroke.
+func test_the_icon_is_stamped_over_the_frame_stroke() -> void:
+	var size_px := 48
+	var clear := _icon_of_alpha(0.0)
+	var half := _icon_of_alpha(0.5)
+	var stroke_only := IdentityBadge.composite(_identity(&"test_over_clear", Identity.Kind.SPELL, "Zap", clear), size_px).get_image()
+	var over := IdentityBadge.composite(_identity(&"test_over_half", Identity.Kind.SPELL, "Zap", half), size_px).get_image()
+	var a := half.get_image().get_pixel(0, 0).a
+	var checked := 0
+	for y in size_px:
+		for x in size_px:
+			var s := stroke_only.get_pixel(x, y).a
+			if s < 0.2 or s > 0.8 or over.get_pixel(x, y).a < a * 0.9:
+				continue
+			checked += 1
+			assert_almost_eq(over.get_pixel(x, y).a, a + s * (1.0 - a), 0.02, "(%d, %d) is icon over stroke" % [x, y])
+	assert_gt(checked, 0, "some icon pixel overlaps a partial stroke pixel")
+
+
+func _icon_of_alpha(alpha: float) -> Texture2D:
+	var image := Image.create_empty(16, 16, false, Image.FORMAT_RGBA8)
+	image.fill(Color(1, 1, 1, alpha))
+	return ImageTexture.create_from_image(image)
