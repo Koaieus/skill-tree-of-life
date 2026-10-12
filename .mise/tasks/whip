@@ -648,8 +648,9 @@ def cmd_start(a):
         event(st, f"start: {len(ready)} Ready, master {sha[:7]}, cap {a.cap}h, leads ≤ {a.max_leads}, stall {a.stall_minutes} min, "
               f"daemon {DAEMON_UNIT} {'up' if daemon else 'NOT up (launches deferred to the tick)'}, timer every {a.every} min, linger {linger}")
     if not a.tree and linger != "yes": event(st, f"warning: Linger={linger} and `loginctl enable-linger` did not fix it — the timer and the fleet die at logout")
-    st["size"] = a.size
-    compute_trains(st, a.size)
+    size = a.size if a.size is not None else ("all" if a.tree else 4)
+    st["size"] = size
+    compute_trains(st, size)
     if not a.no_issue:
         body = f"Overnight run started {st['started']} from master `{sha[:7]}` over {len(ready)} Ready issues: " + \
                " ".join(f"#{i['number']}" for i in ready) + "\n\nThe morning report lands here as a comment."
@@ -1154,7 +1155,7 @@ def main():
     s = sp.add_parser("start", help="from any session: daemon + timer up, snapshot, trains, run issue, first lead(s)")
     s.add_argument("--cap", type=float, default=15); s.add_argument("--max-leads", type=int, default=1)
     s.add_argument("--stall-minutes", type=int, default=45, help="disk silence that counts as a stall")
-    s.add_argument("--every", type=int, default=10); s.add_argument("--size", type=size_arg, default=4, help="max singletons per train, or `all`: every Ready issue in one train")
+    s.add_argument("--every", type=int, default=10); s.add_argument("--size", type=size_arg, default=None, help="max singletons per train, or `all`: every Ready issue in one train (default: `all` with --tree, else 4)")
     s.add_argument("--no-issue", action="store_true")
     s.add_argument("--tree", action="store_true", help="tree transport: snapshot, trains, run issue, ledger — no daemon, timer, linger or launch")
     s.add_argument("--tick-minutes", type=tick_minutes, default=45, help="tree: the top's tick interval, [15, 55] (inside the prompt-cache hour)")

@@ -475,7 +475,7 @@ fx["agents"] = []; fx["ready"] = [50, 51, 52, 53, 60]; fx["blocked_by"] = {51: [
 fx["needs_design"] = []; fx["in_progress"] = []
 os.makedirs(wh.UNIT_DIR, exist_ok=True); units_tree = sorted(os.listdir(wh.UNIT_DIR))
 base = len(calls)
-code, out = run("start", "--tree", "--no-issue", "--tick-minutes", "30", me="feedface-0000")
+code, out = run("start", "--tree", "--no-issue", "--size", "4", "--tick-minutes", "30", me="feedface-0000")
 st = state() if os.path.exists(jpath) else {}
 sysc = lambda since: [c for c in calls[since:] if re.search(r"systemctl|loginctl|systemd-run|^claude", c)]
 check("(a) start --tree writes a ledger with trains and transport tree, tick_minutes recorded",
@@ -487,7 +487,7 @@ hdr = (open(jpath[:-5] + ".md").read().splitlines() + ["", ""])[1] if os.path.ex
 check("(a) the tree ledger header carries the tick and no linger warning", "tick 30 min" in hdr and "linger" not in hdr.lower())
 code, out = run("start", "--tree", "--no-issue", "--tick-minutes", "60")
 check("--tick-minutes is bounded [15, 55]: 60 is a usage error", code != 0)
-run("retire", "--force"); run("start", "--tree", "--no-issue", me="feedface-0000")
+run("retire", "--force"); run("start", "--tree", "--no-issue", "--size", "4", me="feedface-0000")
 check("--tick-minutes defaults to 45", state().get("tick_minutes") == 45)
 base = len(calls)
 code, out = run("next-train", "--lead", "lead-a", me="feedface-0000")
@@ -567,7 +567,7 @@ rep = open(wh.write_report(dict(json.load(open(yday)), _path=yday))).read()
 check("the morning report carries the Wasted top turns line", "Wasted top turns: 2" in rep)
 os.rename(yday, jpath); os.rename(yday[:-5] + ".md", jpath[:-5] + ".md")
 run("retire", "--force")
-run("start", "--tree", "--no-issue", me="feedface-0000"); run("next-train", "--lead", "lead-a", me="feedface-0000")
+run("start", "--tree", "--no-issue", "--size", "4", me="feedface-0000"); run("next-train", "--lead", "lead-a", me="feedface-0000")
 code, out = run("stop")
 check("stop on a tree run sets stopped, queues no request, the lead keeps running to drain", code == 0 and state()["stopped"] and not state()["requests"]
       and lead("lead-a")["state"] == "running")
@@ -585,6 +585,13 @@ check("start --size all puts every Ready issue (chain, milestones and all) in ON
       os.path.exists(jpath) and [t["issues"] for t in state()["trains"]] == [[1, 2, 3, 4, 5, 6, 7]] and state()["size"] == "all")
 code, out = run("trains", "--redo", "--size", "all")
 check("trains --redo --size all is one train too", code == 0 and os.path.exists(jpath) and [t["issues"] for t in state()["trains"]] == [[1, 2, 3, 4, 5, 6, 7]])
+run("retire", "--force")
+run("start", "--tree", "--no-issue", me="feedface-0000")
+check("start --tree with no --size is one train holding every Ready issue, size all persisted",
+      [t["issues"] for t in state()["trains"]] == [[1, 2, 3, 4, 5, 6, 7]] and state()["size"] == "all")
+run("retire", "--force")
+run("start", "--tree", "--no-issue", "--size", "2", me="feedface-0000")
+check("start --tree --size 2 still cuts", len(state()["trains"]) > 1 and state()["size"] == 2)
 run("retire", "--force")
 fx["ready"] = [1, 3, 4]; fx["blocked_by"] = {}
 run("start", "--tree", "--no-issue", "--size", "1", me="feedface-0000")

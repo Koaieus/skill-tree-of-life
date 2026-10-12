@@ -185,5 +185,18 @@ check("$SWARM_LEDGER wins even with no session id; a roster whose header is not 
 del os.environ["SWARM_LEDGER"]
 check("an old-format ledger is never resolved implicitly", "no ledger for this session" in run(["show"], "eeee5555")[1])
 
+# --- two writers, one session id, each its own $SWARM_LEDGER: rows stay in their own file
+la, lb = os.path.join(handoffs, "swarm-2026-01-01-lead-a.md"), os.path.join(handoffs, "swarm-2026-01-01-lead-b.md")
+os.environ["SWARM_LEDGER"] = la
+run(["dispatch", "7001", "d", "opus"], "same0000")
+os.environ["SWARM_LEDGER"] = lb
+run(["dispatch", "7002", "d", "opus"], "same0000")
+os.environ["SWARM_LEDGER"] = la
+run(["report", "7001"], "same0000")
+del os.environ["SWARM_LEDGER"]
+check("two writers sharing one session id, each with its own $SWARM_LEDGER: the first dispatch creates the file and rows land only in their own",
+      os.path.isfile(la) and os.path.isfile(lb) and "| 7001 |" in _read(la) and "| 7002 |" not in _read(la)
+      and "| 7002 |" in _read(lb) and "| 7001 |" not in _read(lb) and "reported" in roster_row(la, "7001"))
+
 print("all checks passed" if not failed else f"{failed} FAILED")
 sys.exit(1 if failed else 0)
