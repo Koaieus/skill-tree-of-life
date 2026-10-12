@@ -79,6 +79,15 @@ func test_reverberator_preset_well_formed() -> void:
 	assert_true(p.hop_damage is ScaledAddProgression, "reverberator ramps additively off the seed")
 	assert_gt(p.hop_damage.seed_fraction_per_hop, 0.0, "reverberator ramps up per hop")
 	assert_gt(p.max_visits_per_node, 1, "reverberator allows revisits to weaponise self-loops")
+	var corruption := s.affinities.filter(func(a: SpellAffinity) -> bool:
+		return a != null and a.status != null and a.status.id == &"corruption")
+	assert_eq(corruption.size(), 1, "the bell rings corruption: one innate corruption affinity")
+	assert_eq(s.id, &"reverberator", "the id stays reverberator")
+	assert_eq(s.name, "Demon Bell", "displayed as Demon Bell")
+	var by_id := SpellCatalog.by_id(&"reverberator")
+	assert_not_null(by_id, "the catalog still resolves &\"reverberator\"")
+	if by_id != null:
+		assert_eq(by_id.name, "Demon Bell", "the catalog's entry reads Demon Bell")
 
 
 func test_spark_cast_produces_single_seed_hit() -> void:

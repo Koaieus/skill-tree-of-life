@@ -11,15 +11,17 @@ const _REVERBERATOR: SpellDef = preload("res://attack/spell/defs/reverberator.tr
 const _CORRUPTION: StatusDef = preload("res://effects/status/corruption.tres")
 
 
-## 0(atk) - 1(self-loop, D) - {2, 3} (D). The degree filter keeps every ring
-## on node 1; 2 and 3 are its friendly neighbours.
+## 0(atk) - 1(self-loop, D) - {2, 3} (D), 2 - 3, both - 4 (D's core): a core
+## never topples, so the rung node is not it, and 2 and 3 are no leaves (a
+## leaf's `T` is 2, so it drains everything it is given). The degree filter keeps every
+## ring on node 1; 2 and 3 are its friendly neighbours.
 func _setup() -> Dictionary:
 	var helper := H.new()
-	var graph := helper.make_graph([[0, 1], [1, 1], [1, 2], [1, 3]], self)
+	var graph := helper.make_graph([[0, 1], [1, 1], [1, 2], [1, 3], [2, 3], [2, 4], [3, 4]], self)
 	var atk := helper.make_entity(graph, "A")
 	var def := helper.make_entity(graph, "D")
 	helper.give_big_hp(def)
-	helper.assign_owner(graph, def, [1, 2, 3])
+	helper.assign_owner(graph, def, [4, 1, 2, 3])
 	helper.assign_owner(graph, atk, [0])
 	atk.stat_board.get_stat(&"crit_chance").base_value = 0.0
 	return {graph = graph, atk = atk, n = graph.get_skill_nodes()}
@@ -112,7 +114,9 @@ func test_ringing_a_self_loop_topples_into_the_friendly_neighbours() -> void:
 	var bursts := 0
 	for hit in outcome.hits:
 		for op: CombatWorld.SettleOp in hit.settle:
-			if op.to == null and op.def != null and op.def.id == _CORRUPTION.id:
+			# A burst op: no receiver, the host's `T` stamped (a transfer has a `to`).
+			if op.to == null and op.threshold > 0 and op.from == (n[1] as SkillNode).get_combat() \
+					and op.def != null and op.def.id == _CORRUPTION.id:
 				bursts += int(op.amount)
 	assert_gt(bursts, 0, "the rung node toppled at least once within the cast")
 	for i in [2, 3]:

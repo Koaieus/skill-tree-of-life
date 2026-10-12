@@ -24,11 +24,17 @@
 [ext_resource type="Script" uid="uid://bqrga3k1hmfut" path="res://attack/spell/propagation/spread/fan_all_spread.gd" id="10_step"]
 [ext_resource type="PackedScene" path="res://ui/vfx/coordinator/spells/reverberator_coordinator.tscn" id="12_ww832"]
 [ext_resource type="Resource" path="res://identity/defs/spell_reverberator.tres" id="identity_ref"]
+[ext_resource type="Resource" path="res://effects/status/corruption.tres" id="13_corruption"]
 
 [sub_resource type="Resource" id="carve_reverberator"]
 script = ExtResource("1_tcs")
 source_texture = ExtResource("1_uku7o")
 baked_lut = ExtResource("1_lut")
+
+[sub_resource type="Resource" id="corruption_ring"]
+script = ExtResource("1_22gko")
+status = ExtResource("13_corruption")
+innate = 2
 
 [sub_resource type="Resource" id="crit_self_loop"]
 script = ExtResource("2_crit_self_loop")
@@ -53,7 +59,7 @@ children = Array[ExtResource("4_filter_base")]([SubResource("filter_enemy"), Sub
 
 [sub_resource type="Resource" id="Resource_ahisb"]
 script = ExtResource("9_qehuf")
-seed_fraction_per_hop = 0.5
+seed_fraction_per_hop = 0.25
 metadata/_custom_type_script = "uid://bs86s2grue8eq"
 
 [sub_resource type="Resource" id="reducer_sum"]
@@ -81,15 +87,16 @@ range_finder = SubResource("range")
 [resource]
 script = ExtResource("1_spell")
 id = &"reverberator"
-name = "Reverberator"
-tagline = "Climbs toward hubs; a self-loop crits and folds back in."
-description = "Fans to every enemy neighbour at or above the current node's territory degree — climbs toward hubs and refuses to flow downhill. Converging branches ADD, +{SEED} damage per hop. Self-loops count double, so a peak with a self-loop can't spread further outward: the walk reverberates into itself instead, doubling up on the same node. CRIT on traversal of a self-loop edge (×2, stacks with crit_chance stat) — the spell feeds back into its own path."
+name = "Demon Bell"
+tagline = "Climbs to the highest point and rings the bell: a self-loop tolls corruption into its node."
+description = "Fans to every enemy neighbour at or above the current node's territory degree — it climbs toward hubs and never flows downhill. Converging branches ADD, +{SEED} damage per hop. Every hit rings corruption into the node it strikes. At the top, a self-loop is the bell: the walk folds back into its own node, and each toll there CRITS (stacks with crit_chance), doubling both the damage and the corruption. The rung pile topples into the node's neighbours, a stain that outlasts the node."
 identity = ExtResource("identity_ref")
 carve_shape = SubResource("carve_reverberator")
 min_degree = 3
 power = 3.0
 propagation = SubResource("prop")
 on_hit_effects = Array[ExtResource("2_effect")]([SubResource("dmg")])
+affinities = Array[ExtResource("1_22gko")]([SubResource("corruption_ring")])
 crit_conditions = Array[ExtResource("2_crit_base")]([SubResource("crit_self_loop")])
 vfx_coordinator_scene = ExtResource("12_ww832")
 targeting = SubResource("targeting")

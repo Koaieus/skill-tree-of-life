@@ -6,7 +6,7 @@
 [resource]
 script = ExtResource("1_identity")
 id = &"spell_reverberator"
-noun = "Reverberator"
+noun = "Demon Bell"
 kind = 3
 tint = Color(0.8586, 0.9018, 0.9482, 1)
 icon = ExtResource("2_icon")
