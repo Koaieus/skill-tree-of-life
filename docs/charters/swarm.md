@@ -264,9 +264,16 @@ disk at `scratchpad/land/land-<n>.log` (#920), so filling the ledger is a
     `advisor` tool. The owner's stop arrives as a message from the top and
     drains at the wave boundary — a foreground wave holds the lead's turn
     until it returns. A tree's leads all share the top's session id
-    (probed, 2026-10-10), so `ledger show` is the train's swarm ledger and
-    nothing is `adopt`ed; the ledger path in the prompt is the whip
-    ledger, read, never adopted. **Nothing in the tree is backgrounded**
+    (probed, 2026-10-10), so the ledger tool's session lookup is never
+    consulted in a tree: the lead's prompt names its swarm ledger,
+    `docs/handoffs/swarm-<date>-<lead-name>.md` (swarm-train law 20), and
+    the lead exports it as `SWARM_LEDGER` on **every** `ledger` and `land`
+    call — a bare call would land in whichever lead's file is newest. A
+    relief's prompt names the dead outgoing's file as its own (swarm-train
+    law 10); nothing is `adopt`ed, and the whip ledger path in the prompt
+    is read, never adopted. A row before dispatch is the claim (law 14,
+    swarm-train law 21): a unit with a row in another live ledger is never
+    dispatched. **Nothing in the tree is backgrounded**
     (swarm-train law 16, run #1540): a subagent's turn end is its report,
     so the lead runs the gate suite in the foreground (~1 min, `timeout`
     600000) and every brief's suite policy is the foreground one — a drone

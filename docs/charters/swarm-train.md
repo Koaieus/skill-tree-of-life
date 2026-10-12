@@ -56,11 +56,15 @@ top session  (/swarm-train: trains, ledger, tick, relief, report)
   drone: a fast drone's branch waits for the slowest in its wave, and a stop
   drains at the wave boundary. The alternative (background drones under a
   background lead) loses reports (law 4) and is not on the table.
-- **One lead at a time**, as in Whip: every lead shares the top's session
-  id (probed: `CLAUDE_CODE_SESSION_ID` inside a subagent is the parent's),
-  so the swarm ledger's and the whip tool's session keying collide across
-  concurrent leads. Sequential leads plus `ledger close` at train end need
-  no code; two at once need a per-lead ledger path (fork A, below).
+- **One lead at a time**, as in Whip — but the ledger is keyed by name,
+  not session. Every lead shares the top's session id (probed:
+  `CLAUDE_CODE_SESSION_ID` inside a subagent is the parent's, and a
+  subagent's env carries no agent id, probed 2026-10-12), so the swarm
+  ledger's session lookup would hand every lead the same file. Inside a
+  tree it is never consulted: each lead's ledger is
+  `docs/handoffs/swarm-<date>-<lead-name>.md`, exported as `SWARM_LEDGER`
+  on every `ledger` and `land` call (law 20). Whether two leads may run at
+  once is a separate question (fork C's overlap, #1577), not a keying one.
 
 ## Laws
 
@@ -74,7 +78,8 @@ top session  (/swarm-train: trains, ledger, tick, relief, report)
 2. **The ledger is the shared state.** The whip ledger on disk
    (`docs/handoffs/whip-<date>.json/.md`: trains, lead table, events, cap)
    written by `mise run whip -- <verb>`, and each lead's swarm ledger beside
-   it. No message carries state; relief orients from disk as it does today.
+   it, `docs/handoffs/swarm-<date>-<lead-name>.md` (law 20). No message
+   carries state; relief orients from disk as it does today.
 
 **Process model** (*probed*)
 
@@ -146,11 +151,18 @@ top session  (/swarm-train: trains, ledger, tick, relief, report)
    tick: past it nothing is spawned, the lead in flight finishes its train
    and its `done` ends the run — `CAPPED` in the header is a live run with
    a lead to watch, not a finished one.
-10. **Relief is a fresh `swarm-lead` with the relief prompt**, oriented
-    from the ledger as `relief` already does — but never `ledger adopt`:
-    a subagent shares the top's session id (probed, 2026-10-10), so
-    `ledger show` already prints the outgoing lead's live ledger and an
-    `adopt` fails as "already leads". The top launches it; nobody else.
+10. **Relief of a dead lead takes over that lead's ledger file by name**
+    — never `ledger adopt`, never a bare `ledger show`: a subagent shares
+    the top's session id (probed, 2026-10-10), so the session lookup is
+    blind inside a tree and an `adopt` fails as "already leads". The relief
+    is a fresh `swarm-lead` with the relief prompt, which names the
+    outgoing's `swarm-<date>-<lead-name>.md` as the relief's own
+    `SWARM_LEDGER`: the file follows the train, keyed by the lead that
+    opened it, and the relief orients from it as `relief` already does.
+    (If a relief opened its own file, every unit of the dead lead would
+    hold a row in another live ledger and law 21 would forbid re-dispatching
+    its partials.) Relief of a *live* lead is fork C. The top launches it;
+    nobody else.
 
 **Reuse** (*designed*)
 
@@ -189,7 +201,8 @@ top session  (/swarm-train: trains, ledger, tick, relief, report)
     reach 150, 200, 250k"*. The lead takes waves until swarm's relief
     threshold, starts none past it, lands what is in flight and reports
     `RELIEF NEEDED` if its train is unfinished. The top never splits a train
-    to fit a window; `--size` (issues per train) is a trial knob.
+    to fit a window; `--size <n>` (issues per train) is an override of
+    law 19's one train, for trials only.
 16. **Nothing in the tree backgrounds a command.** A subagent's turn end is
     its report, so a backgrounded suite or baseline ends a drone's turn
     early (the lead then polled its transcript) or outlives a lead's report
@@ -207,52 +220,79 @@ top session  (/swarm-train: trains, ledger, tick, relief, report)
     counts those notes at render, and one that fires after the render lives
     in the ledger alone. A noop tick of a live run is the watch, not waste.
 
+**One train, per-lead ledgers** (*settled, owner 2026-10-12, #1576 —
+fork C's first half; the overlap between leads stays open there*)
+
+19. **`Ready` is one train by default.** Owner, 2026-10-11: *"the Ready
+    bulk is one DAG"* — reviewed and taken as settled. `start --tree`
+    defaults to `--size all`: every Ready issue in one train, no chain or
+    milestone cut; `--size <n>` stays as an override. Nothing about trains
+    is removed — a tree run simply has one, and `train merge` is not built
+    because one train has no use for it. The drones-in-flight cap inside
+    that train is swarm law 4's 2–5, unchanged (a tentative knob, recorded
+    here, no code).
+20. **A lead's swarm ledger is keyed by its name.** Owner: *"key by agent
+    ID … each lead already has a unique name"*; a subagent's env has no
+    agent id (probed 2026-10-12), so the name from the lead's prompt is the
+    key. The path is `docs/handoffs/swarm-<date>-<lead-name>.md`, carried
+    in the lead's prompt by the top (the top owns the whip JSON and the
+    names; the lead derives nothing), and exported as `SWARM_LEDGER` on
+    **every** `ledger` and `land` call the lead makes — `land` already
+    inherits it into its ledger write. A bare call is a bug: the tool's
+    session lookup would hand it whichever lead's file is newest, since
+    every file's lineage is the top's id. The first `dispatch` creates the
+    file. The ledger tool's session-id lookup is never consulted inside a
+    tree.
+21. **A claim is a ledger row written before dispatch** (swarm law 14). A
+    lead never dispatches a unit that has a row in another live ledger. With
+    one lead at a time the rule only bites through law 10's takeover; the
+    referee for two live leads is fork C.
+
 ## Knobs
 
-- `whip start --tree --cap 15 --stall-minutes 45 --tick-minutes 45 [--size 4]` — the
+- `whip start --tree --cap 15 --stall-minutes 45 --tick-minutes 45 [--size <n>]` — the
   cap and stall threshold are Whip's; `tick-minutes` is new, bounded
-  `[15, 55]` (law 8a: inside the one-hour cache lifetime); `--size` caps
-  issues per train and is a trial knob (law 15). The default 4 plus the
-  milestone/chain split cut 10 Ready issues into 2/2/2/4 (run #1565); the
-  owner then folded the queue into one train by hand (fork C). Until fork C
-  settles: `--size all` puts every Ready issue in one train, and
-  `next-train` skips a train left empty by `train drop` (#1565 left four).
+  `[15, 55]` (law 8a: inside the one-hour cache lifetime); `--size`
+  defaults to `all` (law 19: one train) and `<n>` caps issues per train as
+  a trial override (law 15). The old default 4 plus the milestone/chain
+  split cut 10 Ready issues into 2/2/2/4 (run #1565) and the owner folded
+  the queue into one train by hand — hence the default. `next-train` skips
+  a train left empty by `train drop` (#1565 left four).
+- Drones in flight per lead: swarm law 4's 2–5 (law 19), no code.
 
 ## Open forks — options with costs, owner decides
 
-**A. Concurrent leads.** One at a time needs no code. Two at once needs
-either `SWARM_LEDGER=<path>` on every ledger call from the lead's brief, or
-an `--as <lead>` identity flag on the ledger tool and the whip tool. Whip
-fork A's lean (a second lead only for a cheap train) carries over.
+**A. Concurrent leads — the keying half is settled** (law 20: `SWARM_LEDGER`
+per lead, named in its brief; the `--as` flag was not built). Whether two
+leads run at once, and how they share a train, is fork C's overlap (#1577).
+Whip fork A's lean (a second lead only for a cheap train) carries over.
 **B. Whip or swarm-train, after a night of each.** The transport ADR
 (#1316) is written from both nights' evidence.
-**C. Ready is one DAG, not a list of trains** (hub #1575: settled half #1576, overlap #1577; owner, 2026-10-11,
-*"thinking out loud, not yet settled"*; folds fork A in). The owner's model:
-- *"the Ready bulk is one DAG"* — a lead launches whatever front is
-  unblocked, up to a parallelism cap, and keeps going; the top only replaces
-  a lead that is getting bloated (~150k). Applied by hand on #1565: one
-  train holding all of Ready plus reliefs (≈ `--size all`, no chain or
-  milestone cut). An earlier same-day remark, *"trains should be 4~8
+**C. The overlap between leads** (hub #1575; the settled half — one
+train, per-lead ledgers keyed by name, claim = row — is laws 19–21 via
+#1576; what remains is #1577; owner, 2026-10-11, *"thinking out loud, not
+yet settled"*). The owner's model for the rest:
+- **A lead keeps launching**: whatever front of the one DAG is unblocked,
+  up to a parallelism cap; the top only replaces a lead that is getting
+  bloated (~150k). An earlier same-day remark, *"trains should be 4~8
   issues, sized by issue size and parallelism"*, is the other end of the
-  same knob.
+  `--size` knob.
 - **The cap is a token-window budget**: a spent window kills every agent at
   once, so recovery cost grows with drones in flight — the cap bounds that
   as well as merge conflicts.
 - **Strangler-fig relief**: the outgoing lead starts nothing, finishes and
   lands its drones' work; the incoming lead runs beside it and launches
   waves at once on units that do not depend on one the outgoing has not
-  landed. "One lead at a time" becomes "one *accepting* lead at a time".
-- **A run is a directory**: one overview file only the top writes, one file
-  per lead only that lead writes; a claim is an append to one's own file;
-  the top referees conflicting claims; leads still `SendMessage` a ping,
-  state lives on disk. Single-writer files remove the two-writer ledger
-  problem; `land` already serializes on master.
+  landed. "One lead at a time" becomes "one *accepting* lead at a time" —
+  law 10 covers only a dead outgoing.
+- **The top referees claims**: one file per lead only that lead writes (law
+  20 gives the files); a conflicting claim (law 21) is the top's call;
+  leads still `SendMessage` a ping, state lives on disk; `land` already
+  serializes on master.
 
-Costs: per-lead ledger files (the session-id collision of the cost model
-makes this mandatory, not optional — fork A's `SWARM_LEDGER` / `--as`
-question), a claim/referee protocol in the top, `relief` rewritten for a
-live predecessor. `train merge` is only worth building if C keeps several
-trains.
+Costs: a claim/referee protocol in the top, `relief` rewritten for a live
+predecessor, the two-writer question for a relief that inherits a live
+lead's file.
 
 ## What the files must not contain
 
@@ -285,4 +325,4 @@ trains.
 - 2026-10-11 · `gotcha` ×2 trigger tools absent / allowlisted delete works → law 8 (tool check, `/loop` fallback)
 - 2026-10-11 · `autopsy` ×2 #1565 wasted wakes → law 8 (≤2 pending, re-armed by successor; bypass refuses), law 18
 - 2026-10-11 · `friction` 2/2/2/4 trains, empty trains handed out → knobs (`--size all`, `next-train` skips empty)
-- 2026-10-11 · `law-candidate` ×3 one DAG, window-budget cap, strangler-fig relief, run directory → fork C (not settled)
+- 2026-10-11 · `law-candidate` ×3 one DAG, window-budget cap, strangler-fig relief, run directory → fork C; one DAG and per-lead files settled 2026-10-12 (#1576) → laws 19–21, law 10 amended; the rest stays fork C (#1577)
