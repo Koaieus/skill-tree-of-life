@@ -156,9 +156,10 @@ top session  (/swarm-train: trains, ledger, tick, relief, report)
     the top's session id (probed, 2026-10-10), so the session lookup is
     blind inside a tree and an `adopt` fails as "already leads". The relief
     is a fresh `swarm-lead` with the relief prompt, which names the
-    outgoing's `swarm-<date>-<lead-name>.md` as the relief's own
-    `SWARM_LEDGER`: the file follows the train, keyed by the lead that
-    opened it, and the relief orients from it as `relief` already does.
+    train's file, `swarm-<date>-lead-<t>.md` — opened by the train's first
+    lead, inherited by every relief in turn, never the outgoing's own name
+    (which may itself be a relief) — as the relief's own `SWARM_LEDGER`;
+    the relief orients from it as `relief` already does.
     (If a relief opened its own file, every unit of the dead lead would
     hold a row in another live ledger and law 21 would forbid re-dispatching
     its partials.) Relief of a *live* lead is fork C. The top launches it;
