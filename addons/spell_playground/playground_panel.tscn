@@ -11,7 +11,7 @@
 [ext_resource type="Resource" uid="uid://0icrnqbby6yx" path="res://entity/core/balanced_core.tres" id="9_core"]
 [ext_resource type="Resource" path="res://entity/factions/player.tres" id="10_player"]
 [ext_resource type="Resource" path="res://entity/factions/npc.tres" id="11_npc"]
-[ext_resource type="PackedScene" path="res://ui/hud/command_tray/bodies/infusion_row.tscn" id="12_infusion"]
+[ext_resource type="PackedScene" path="res://ui/hud/command_tray/bodies/infusion_sockets.tscn" id="12_infusion"]
 [ext_resource type="PackedScene" path="res://addons/spell_playground/aspect_slots_row.tscn" id="13_aspects"]
 [ext_resource type="PackedScene" path="res://addons/sandbox_host/components/tooltip_fan_mount.tscn" id="tfm_mount"]
 
@@ -186,7 +186,7 @@ tooltip_text = "infusion_slots override — how many different aspects one cast 
 max_value = 10.0
 value = 2.0
 
-[node name="InfusionRow" parent="HBox/ControlsColumn" instance=ExtResource("12_infusion")]
+[node name="InfusionSockets" parent="HBox/ControlsColumn" instance=ExtResource("12_infusion")]
 unique_name_in_owner = true
 layout_mode = 2
 

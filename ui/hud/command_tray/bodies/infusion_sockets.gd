@@ -31,7 +31,7 @@ extends Control
 		socket_arc_deg = v
 		_layout()
 ## Radius of that arc. Tentative.
-@export_range(40.0, 400.0, 1.0, "suffix:px") var arc_radius_px: float = 120.0:
+@export_range(40.0, 400.0, 1.0, "suffix:px") var arc_radius_px: float = 90.0:
 	set(v):
 		arc_radius_px = v
 		_layout()

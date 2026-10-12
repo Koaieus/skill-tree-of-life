@@ -73,7 +73,7 @@ const MAX_VISIBLE_ROWS: int = 2
 @onready var _spell_button: SpellPickerButton = %SpellButton
 @onready var _reset_button: Button = %ResetButton
 @onready var _launch_button: LaunchAttackButton = %LaunchButton
-@onready var _infusion_row: InfusionRow = %InfusionRow
+@onready var _infusion_sockets: InfusionSockets = %InfusionSockets
 @onready var _affinity_line: AffinityLine = %AffinityLine
 @onready var _sections: Array[SpellTooltipSection] = [%CastSection, %OnArrivalSection,
 		%ThenSection, %CritsSection]
@@ -95,7 +95,7 @@ func _ready() -> void:
 	# the caster gate's denial toast belongs to the bar's tiles.
 	_spell_button.set_has_caster(true)
 	# The configure view shares the body's height budget with the sections and
-	# the infusion row, so the collapsed tile is the bar's compact edge.
+	# the infusion sockets, so the collapsed tile is the bar's compact edge.
 	_spell_button.custom_minimum_size = Vector2.ONE * SpellPickerBar.COMPACT_BUTTON_PX
 	_place_picker()
 	_size_sections()
@@ -148,7 +148,7 @@ func _on_bound() -> void:
 
 
 func teardown() -> void:
-	_infusion_row.bind(null)
+	_infusion_sockets.bind(null)
 	_affinity_line.bind(null)
 	_show_sections(null)
 	if _armed_stack != null and _armed_stack.selected_spell_changed.is_connected(_spell_bar.sync_selected):
@@ -197,7 +197,7 @@ func _on_can_act_changed(can_act: bool) -> void:
 
 func _refresh() -> void:
 	var plan := _armed_plan() as MagicAttackPlan
-	_infusion_row.bind(plan)
+	_infusion_sockets.bind(plan, _armed_stack)
 	_affinity_line.bind(plan)
 	_show_sections(plan)
 	# Post-#728 there is no cast-from node until a target is clicked, so this

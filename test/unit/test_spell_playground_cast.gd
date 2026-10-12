@@ -292,13 +292,15 @@ func test_the_infusion_survives_a_cast() -> void:
 	assert_eq(again.infusion.points.get(&"poison", 0), 4)
 
 
-## The strip is the shipped InfusionRow, and its steppers stop at the slotted
-## aspect's ceiling (4) — there is no points pool to stop them sooner.
-func test_the_row_stops_at_the_aspect_ceiling() -> void:
+## The strip is the shipped InfusionSockets: a socket's wheel pick fills to
+## the slotted aspect's ceiling (4) — there is no points pool to stop it sooner.
+func test_the_sockets_fill_to_the_aspect_ceiling() -> void:
 	var plan := _armed_cyclone()
-	var row := _panel.find_child("InfusionRow", true, false) as InfusionRow
-	assert_not_null(row, "the panel hosts an InfusionRow")
-	assert_true(row.stepper_ids().has(&"poison"), "the caster holds poison")
-	for i in 30:
-		row.plus_button(&"poison").pressed.emit()
+	var sockets := _panel.find_child("InfusionSockets", true, false) as InfusionSockets
+	assert_not_null(sockets, "the panel hosts an InfusionSockets")
+	assert_gt(sockets.socket_count(), 0, "the caster owns a socket")
+	(sockets.socket(0) as InfusionSocket).toggled.emit(0)
+	assert_true(sockets.wheel().visible, "a socket click opens the wheel on the panel's stack")
+	sockets.wheel().picked.emit(&"poison")
+	assert_false(sockets.wheel().visible, "the pick closes it")
 	assert_eq(plan.infusion.points.get(&"poison", 0), 4)

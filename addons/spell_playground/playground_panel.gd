@@ -92,7 +92,7 @@ const LOOP_GAP_SECONDS: float = 0.35
 @onready var spell_damage_label: Label = %SpellDamageLabel
 @onready var node_health_slider: HSlider = %NodeHealthSlider
 @onready var node_health_label: Label = %NodeHealthLabel
-@onready var infusion_row: InfusionRow = %InfusionRow
+@onready var infusion_sockets: InfusionSockets = %InfusionSockets
 @onready var aspect_slots_row: AspectSlotsRow = %AspectSlotsRow
 @onready var infusion_slots_box: SpinBox = %InfusionSlotsBox
 @onready var affinity_label: Label = %AffinityLabel
@@ -500,7 +500,7 @@ func _arm_plan() -> MagicAttackPlan:
 		# put it back; the seed simply stays unaccepted.
 		if plan.source == null:
 			plan.set_target(caster_node)
-	infusion_row.bind(plan)
+	infusion_sockets.bind(plan, _systems.armed_stack)
 	_refresh_affinity()
 	return plan
 
@@ -515,7 +515,7 @@ func _watch_plan(plan: MagicAttackPlan) -> void:
 	if plan != null:
 		plan.state_changed.connect(_on_plan_changed)
 	else:
-		infusion_row.bind(null)
+		infusion_sockets.bind(null)
 		_refresh_affinity()
 
 
@@ -540,8 +540,8 @@ func _refresh_affinity() -> void:
 
 ## SET modifiers on the caster's board — the slots / points the spin boxes drive
 ## and one `<concept>_aspect` per rostered aspect, driven by the
-## [AspectSlotsRow] — so the infusion row has something to spend, and a stepper
-## for exactly the slotted aspects. Same mechanism as [method _install_node_health_sets].
+## [AspectSlotsRow] — so the infusion sockets have something to spend, and a wheel
+## wedge for exactly the slotted aspects. Same mechanism as [method _install_node_health_sets].
 func _install_infusion_sets() -> void:
 	var board: EntityStatBoard = caster_entity.stat_board
 	if board == null:

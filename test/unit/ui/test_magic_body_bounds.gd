@@ -157,7 +157,7 @@ func _configure(spell: SpellDef) -> void:
 	var graph := h.make_graph([[0, 1]], self)
 	var caster := h.make_entity(graph, "ATK", Color.RED)
 	var board := caster.stat_board
-	board.intelligence.base_value = 400.0
+	board.intelligence.base_value = 10000.0
 	for aspect in AspectRoster.shared().aspects:
 		if aspect.stat != null and board.get_stat(aspect.stat.id) != null:
 			board.get_stat(aspect.stat.id).base_value = 5.0
@@ -209,9 +209,11 @@ func test_a_twelve_aspect_configure_view_stays_inside_the_budget() -> void:
 	for lines in [built.cast, built.on_arrival, built.then, built.crits]:
 		assert_false(lines.is_empty(), "guard: girdle fills all four sections")
 	await _configure(_GIRDLE)
-	var row := _body.get_node("%InfusionRow") as InfusionRow
-	assert_true(row.visible, "the infusion row shows")
-	assert_eq(row.stepper_ids().size(), 12, "one stepper per held aspect")
+	var sockets := _body.get_node("%InfusionSockets") as InfusionSockets
+	assert_true(sockets.visible, "the infusion sockets show")
+	for i in sockets.socket_count():
+		_plan.set_socket(i, AspectRoster.shared().aspects[i].id())
+	assert_eq(_plan.infusion.points.size(), sockets.socket_count(), "every owned socket filled")
 	var min_size := _body.get_combined_minimum_size()
 	gut.p("12-aspect configure view min size = %s" % min_size)
 	assert_lt(min_size.x, MAX_BODY_MIN_WIDTH + 1.0, "min width must stay inside the tray slot")
