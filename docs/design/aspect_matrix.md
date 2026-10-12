@@ -320,9 +320,12 @@ Each cell links its cell issue (`<Concept> × <Facet>`, a child of the row hub i
   2026-10-11: *"as for all damage+status riders should use an advantageous
   application order"*), so a floor-raising rider lifts its own hit. Today
   every rider lands after its paired damage; the fix is its own issue, linked from #1379.
-- **The Reliquary** (a status sink that stores debuffs for release) left the
-  row as its own design issue; the bell imagery went to a Reverberator
-  issue (both linked from #1379).
+- **The Reliquary** (a status sink that stores debuffs for release) is its
+  own design issue (linked from #1379).
+- **Demon Bell rings corruption** (spell id `reverberator`, #1564): an innate
+  corruption affinity lands on every hit, and each self-loop toll crits and
+  doubles it, so the rung node topples into its friendly neighbours and the
+  stain outlasts the node.
 
 ## Arrow faces (owner, 2026-10-07)
 

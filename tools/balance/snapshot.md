@@ -223,10 +223,10 @@
 | sp_income_at_level_max | 90.000 |
 | spell_damage | 7.000 |
 | spell_dpa_Bruiser | 21.000 |
+| spell_dpa_Demon Bell | 21.000 |
 | spell_dpa_Leafblower | 14.000 |
 | spell_dpa_Lightning Bolt | 21.000 |
 | spell_dpa_Resonator | 7.000 |
-| spell_dpa_Reverberator | 21.000 |
 | spell_dpa_Spark | 7.000 |
 | spell_dpa_The Trailblazer | 7.000 |
 | spell_dpa_best | 21.000 |
