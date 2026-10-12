@@ -107,8 +107,8 @@ above).
 | `arrows_per_reload` | node-local (`skill_node/addons/defs/watchtower_addon.tscn`); no row of its own |
 | `max_shots_per_leaf` | `skill_node/shots_pips.gd` (per-leaf shot pips) |
 | `volleys_per_turn` | no row; derived from `max_shots_per_leaf` (innate intrinsic) |
-| `infusion_slots` | `ui/hud/command_tray/bodies/infusion_row.gd` ("slots used / infusion_slots"; the row is transitional, #1574) |
-| `*_aspect` (`armor_break`, `bleeding`, `blindness`, `corruption`, `curse`, `explosive`, `greed`, `hex`, `poison`, `scout`, `weakness`, `wither`) | caster affinity in `ui/hud/command_tray/bodies/affinity_line.gd` and `infusion_row.gd`; also the per-reload stat of a special ammo type |
+| `infusion_slots` | `ui/hud/command_tray/bodies/infusion_sockets.gd` (one socket per slot, plus a ghost socket labelled with the next INT threshold) |
+| `*_aspect` (`armor_break`, `bleeding`, `blindness`, `corruption`, `curse`, `explosive`, `greed`, `hex`, `poison`, `scout`, `weakness`, `wither`) | caster affinity in `ui/hud/command_tray/bodies/affinity_line.gd` and `infusion_choices.gd` (the aspect wheel entries); also the per-reload stat of a special ammo type |
 | `*_stacks_per_hit` (`bleeding`, `blindness`, `corruption`, `curse`, `greed`, `hex`, `poison`, `weakness`, `wither`) | `affinity_line.gd` (through `StatusDef.stacks_per_hit`) |
 | `*_resistance` (`bleeding`, `blindness`, `corruption`, `curse`, `poison`) | `ui/tooltip_fan/panels/node_stats_panel.gd` (dynamic, when a node or its owner carries one); also `addons/status_sandbox/` |
 | `healing_received` | no row; read at the heal doors (`NodeCombat.heal_damage`, `EntityCombat.heal`) |
