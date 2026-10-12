@@ -4,6 +4,8 @@ status: exploring
 
 # Handoff: Skill Tree of Life — In-Game HUD
 
+> **Superseded mock in parts.** This is the original HTML handoff, kept for its look. Mana is gone (#1583): every Mana bar, mana cost and mana gate below describes the mock, not the game. The Magic tab is now the crucible (#1585), described in §Magic.
+
 ## Overview
 A full-fledged combat HUD for *Skill Tree of Life* (turn-based PvP-on-a-skill-tree, Godot 4.4). The player is an **entity** = a connected subgraph on a shared procgen graph. This HUD surfaces the entity's stats, derived combat power, turn resources, and the per-mode action flow, arranged as floating panels around the live graph playing field.
 
@@ -55,7 +57,7 @@ Tabs **Manage(1) / Melee(2) / Ranged(3) / Magic(4)** across the top of a **fixed
 - **Manage** (no attack mode): three quick-action cards — Allocate (left-click, 1 SP) · Move Core (click core→dest or drag, costs Move) · Deallocate (hover + D, costs Dealloc, no self-islanding). **Manage un-dims all combat readouts** (reference state).
 - **Melee:** pivot/blade builder hint (pivot ● + up to `blade_size` linked pips), **Swing CW/CCW** toggle, **Launch ⎵**.
 - **Ranged:** target hint + firing-leaves count, **Launch ⎵**.
-- **Magic:** **spell bar** — each slot: glyph, name, ◈ mana cost, degree icon (vertex + fanning lines) min-degree; greys/locks 🔒 when mana too low or source-node degree too small; then **Cast <spell> ⎵**.
+- **Magic:** the **crucible** (#1585; this replaced the mock's inline spell bar with mana costs). The equipped spell is the vessel, big on the left, its icon full-bleed with an arcane circle turning behind it; clicking it opens the floating spell picker. The infusion sockets fan on an arc under it. From each filled socket a circuit trace runs down, then right, into that socket's line in the always-on readout. The readout shows the spell's name, shape and base behaviour, then one behaviour-change line per aspect in play. Hovering a socket expands its line, hovering an aspect-wheel wedge previews it, and holding Shift shows the full spell sections. **Cast <spell> ⎵** sits bottom-right.
 
 ### Action Points + End Turn (bottom-right)
 AP battery (near End Turn because *no action = no attack*) with an **unspent-AP warning** ("⚠ 2 unspent Action Points") and the End Turn button **dimmed** while not-ok (full opacity on hover). End Turn is a chunky rounded (16px) gold seal with `⟫⟫` chevrons — **placement is final: bottom-right corner.**
@@ -85,7 +87,7 @@ The `//N` gear-ratio spine decouples chunky modifier loot from single-digit dama
 - **No mode (Manage):** left-click = allocate (if SP); click core then destination (or drag) = move core (if Move pts); hover + `D` = deallocate (if Dealloc pts and no self-islanding).
 - **Melee:** right-click = set pivot; left-click = toggle node into blade (grows from pivot, ≤ blade_size, connected); direction toggle CW/CCW; Launch when blade has ≥1 node besides pivot.
 - **Ranged:** click enemy node to target; owned leaves that can reach auto-fire on commit; Launch (⎵). One volley/turn.
-- **Magic:** click own node = source; pick spell (gated by source degree + mana); click enemy node = target (range per-spell: max hops from source, or euclidean px, bonus modifiable by stats); Launch/Cast (⎵).
+- **Magic:** click own node = source; pick spell (gated by source degree); click enemy node = target (range per-spell: max hops from source, or euclidean px, bonus modifiable by stats); Launch/Cast (⎵).
 - **Always:** hover a *visible* node → tooltip (contents + owner), gated by vision/fog-of-war. `action_points` default 2 (attacks/turn).
 
 ## Announcer FX (SETTLED)
