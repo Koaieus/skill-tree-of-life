@@ -226,7 +226,7 @@ an `--as <lead>` identity flag on the ledger tool and the whip tool. Whip
 fork A's lean (a second lead only for a cheap train) carries over.
 **B. Whip or swarm-train, after a night of each.** The transport ADR
 (#1316) is written from both nights' evidence.
-**C. Ready is one DAG, not a list of trains** (owner, 2026-10-11,
+**C. Ready is one DAG, not a list of trains** (hub #1575: settled half #1576, overlap #1577; owner, 2026-10-11,
 *"thinking out loud, not yet settled"*; folds fork A in). The owner's model:
 - *"the Ready bulk is one DAG"* — a lead launches whatever front is
   unblocked, up to a parallelism cap, and keeps going; the top only replaces
