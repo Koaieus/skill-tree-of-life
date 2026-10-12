@@ -152,6 +152,10 @@ func test_clamp_infusion_drops_refused_and_past_the_slots() -> void:
 			{&"curse": 1, &"poison": 1, &"wither": 1})
 	assert_eq(kept, {&"curse": 20, &"poison": 10} as Dictionary[StringName, int],
 			"entry order, 2 slots, capacity 30 left after curse 20")
+	var uncapped := ArmedStack.clamp_infusion(_VENOM, plan.attacker,
+			{&"curse": 1, &"poison": 1, &"wither": 1})
+	assert_eq(uncapped, {&"curse": 20, &"poison": 40} as Dictionary[StringName, int],
+			"no capacity: the third aspect is dropped by the 2 slots alone")
 
 
 func test_set_infusion_emits_state_changed() -> void:
