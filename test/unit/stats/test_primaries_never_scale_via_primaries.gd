@@ -3,13 +3,33 @@ extends GutTest
 ## ADR 0059: a primary is a school's root, so no stat link may run primary -> primary.
 ## The primary set is read from the defs (the children of `attributes`), never named here.
 
-const _BOARDS: Array[String] = [
-	"res://entity/default_entity_board.tres",
-	"res://entity/blocker/blocker_small_board.tres",
-	"res://entity/blocker/blocker_medium_board.tres",
-	"res://entity/blocker/blocker_large_board.tres",
-	"res://skill_node/default_node_board.tres",
-]
+const _SKIP_DIRS: Array[String] = [".godot", ".worktrees", "addons"]
+## Boards with formula links today (default entity + 3 blockers); discovery must find at least these.
+const _KNOWN_FLOOR := 4
+
+
+## Every `.tres` that mentions a formula source (so can carry a link) and loads as a
+## stat board or a core class, found by walking res:// (editor/test code, never runtime).
+func _link_carriers(dir: String = "res://") -> Array[Resource]:
+	var out: Array[Resource] = []
+	for sub in DirAccess.get_directories_at(dir):
+		if _SKIP_DIRS.has(sub) or sub.begins_with("."):
+			continue
+		out.append_array(_link_carriers(dir.path_join(sub)))
+	for file in DirAccess.get_files_at(dir):
+		if not file.ends_with(".tres"):
+			continue
+		var path := dir.path_join(file)
+		if not FileAccess.get_file_as_string(path).contains("source_stat_id"):
+			continue
+		var res := load(path)
+		if res is StatBoard or res is CoreClass:
+			out.append(res)
+	return out
+
+
+func _links_of(res: Resource) -> Array:
+	return res.intrinsic_modifiers if res is StatBoard else res.modifiers
 
 
 func _primary_ids() -> Array[StringName]:
@@ -60,14 +80,15 @@ func test_primary_to_non_primary_link_is_allowed() -> void:
 	assert_eq(_violations([link], primaries).size(), 0)
 
 
-func test_shipped_boards_have_no_primary_to_primary_link() -> void:
+func test_shipped_boards_and_core_classes_have_no_primary_to_primary_link() -> void:
 	var primaries := _primary_ids()
-	for path in _BOARDS:
-		var board: StatBoard = load(path)
-		assert_not_null(board, path)
-		if board == null:
-			continue
-		assert_eq(_violations(board.intrinsic_modifiers, primaries), [], path)
+	var carriers := _link_carriers()
+	var boards := 0
+	for res in carriers:
+		if res is StatBoard:
+			boards += 1
+		assert_eq(_violations(_links_of(res), primaries), [], res.resource_path)
+	assert_gte(boards, _KNOWN_FLOOR, "discovery found the boards known to carry links")
 
 
 ## Positive control: the scan really reads formulas off the board (a uid mismatch would null them).
