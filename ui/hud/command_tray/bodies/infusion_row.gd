@@ -6,8 +6,8 @@ extends HBoxContainer
 ## identity glyph, `points / <concept>_aspect` and −/+ that write
 ## [method MagicAttackPlan.set_infusion]. The header reads both caps —
 ## `slots used / infusion_slots · Σ points / SpellDef.infusion_capacity`. A "+"
-## greys at the first cap that bites and its tooltip names it; a stepper the spell refuses, or that no free slot could
-## take, dims whole. Hidden while there is nothing to infuse.
+## greys at the first cap that bites and its tooltip names it; a stepper the
+## spell refuses, or that no free slot could take, dims whole. Hidden while there is nothing to infuse.
 ##
 ## Binds to a bare [MagicAttackPlan] — the caster is [member AttackPlan.attacker]
 ## — and repaints on the plan's own [signal AttackPlan.state_changed], so any

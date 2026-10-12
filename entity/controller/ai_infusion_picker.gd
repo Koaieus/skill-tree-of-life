@@ -5,8 +5,8 @@ extends RefCounted
 ## filled to the cap and the only choice is which aspects. Aspects rank by
 ## `floor(aspect stat x spell rate)` descending, ties by [AspectRoster] order;
 ## each takes min(its own stat, what is left of the spell's
-## `infusion_capacity`) — there is no shared points pool. Aspects the spell refuses
-## (rate 0), the entity holds none of, or that land no status are skipped.
+## `infusion_capacity`) — there is no shared points pool. Aspects the spell
+## refuses (rate 0), the entity holds none of, or that land no status are skipped.
 
 
 ## `{concept id: points}` for [param spell] cast by [param entity]; empty when
