@@ -68,3 +68,17 @@ func test_shipped_boards_have_no_primary_to_primary_link() -> void:
 		if board == null:
 			continue
 		assert_eq(_violations(board.intrinsic_modifiers, primaries), [], path)
+
+
+## Positive control: the scan really reads formulas off the board (a uid mismatch would null them).
+func test_default_board_scan_sees_primary_sourced_formulas() -> void:
+	var primaries := _primary_ids()
+	var board: StatBoard = load("res://entity/default_entity_board.tres")
+	var seen := 0
+	for m in board.intrinsic_modifiers:
+		if m == null or m.formula == null:
+			continue
+		for input in m.formula.get_input_ids():
+			if primaries.has(StatFormula.base_of(input)):
+				seen += 1
+	assert_gt(seen, 0, "default board has primary -> non-primary links")
