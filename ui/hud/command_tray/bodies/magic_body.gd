@@ -14,8 +14,8 @@ extends CommandTrayBodyBase
 ## forwards socket hovers and wheel-wedge hovers to it. The readout scrolls
 ## inside %ReadoutScroll, so its Shift expansion never grows the tray.
 ##
-## [b]The picker floats (#1485).[/b] The body shows the equipped spell as one
-## collapsed %SpellButton; pressing it toggles [SpellPickMode] on the seat's
+## [b]The picker floats (#1485).[/b] The body shows the equipped spell as
+## %SpellButton, the vessel; pressing it toggles [SpellPickMode] on the seat's
 ## [ArmedStack] ([method MagicMode.toggle_picker]). The spell bar lives in
 ## %PickerPanel, a `top_level` panel whose bottom edge sits
 ## [member picker_gap_px] above the body's top edge and which grows upward over
@@ -136,7 +136,7 @@ func _ready() -> void:
 	_on_bar_layout_changed(_spell_bar.get_row_count(), _spell_bar.get_button_px())
 	_picker_panel.minimum_size_changed.connect(_place_picker)
 	item_rect_changed.connect(_place_picker)
-	# The collapsed button's press always opens the picker, castable or not:
+	# The vessel's press always opens the picker, castable or not:
 	# the caster gate's denial toast belongs to the bar's tiles.
 	_spell_button.set_has_caster(true)
 	_traces.draw.connect(_draw_traces)
@@ -170,25 +170,32 @@ func _queue_traces() -> void:
 	_traces.queue_redraw()
 
 
-## Each filled socket's trace, in %Traces' local coordinates, in socket order
-## (socket 0, the rightmost, first — it feeds the topmost line). A socket whose
-## line is missing from the readout gets none.
+## Each traced socket's polyline, in %Traces' local coordinates, in the order
+## of [method _traced_sockets] (socket 0, the rightmost, first — it feeds the
+## topmost line).
 func trace_polylines() -> Array[PackedVector2Array]:
 	var froms := PackedVector2Array()
 	var tos := PackedVector2Array()
-	var plan := _infusion_plan()
-	if plan == null or not _infusion_sockets.visible:
-		return []
 	var to_local := _traces.get_global_transform().affine_inverse()
 	var readout_xf := _readout.get_global_transform()
-	for i in mini(plan.infusion.points.size(), _infusion_sockets.socket_count()):
-		var anchor := _readout.line_anchor(i)
+	for i in _traced_sockets():
 		var s := _infusion_sockets.socket(i)
-		if anchor == Vector2.INF or s == null:
-			break
 		froms.append(to_local * (s.get_global_transform() * Vector2(s.size.x * 0.5, s.size.y)))
-		tos.append(to_local * (readout_xf * anchor))
+		tos.append(to_local * (readout_xf * _readout.line_anchor(i)))
 	return CrucibleTraces.route(froms, tos, trace_turn_step_px, trace_riser_gap_px)
+
+
+## Filled sockets that have a readout line to feed, in socket order — an
+## aspect landing no status has no line, so no trace.
+func _traced_sockets() -> Array[int]:
+	var out: Array[int] = []
+	var plan := _infusion_plan()
+	if plan == null or not _infusion_sockets.visible:
+		return out
+	for i in mini(plan.infusion.points.size(), _infusion_sockets.socket_count()):
+		if _infusion_sockets.socket(i) != null and _readout.line_anchor(i) != Vector2.INF:
+			out.append(i)
+	return out
 
 
 func _infusion_plan() -> MagicAttackPlan:
@@ -203,9 +210,10 @@ func _draw_traces() -> void:
 	if plan == null:
 		return
 	var ids := plan.infusion.points.keys()
+	var sockets := _traced_sockets()
 	var traces := trace_polylines()
 	for k in traces.size():
-		var aspect := AspectRoster.shared().by_id(ids[k])
+		var aspect := AspectRoster.shared().by_id(ids[sockets[k]])
 		var base := aspect.identity.tint if aspect != null and aspect.identity != null else Color.WHITE
 		var color := Emissive.at(base, Emissive.stops(trace_tier))
 		_traces.draw_polyline(traces[k], color, trace_width_px, true)
@@ -288,7 +296,7 @@ func _on_spell_button_pressed() -> void:
 
 ## Shown iff the stack holds a [SpellPickMode]. On [signal ArmedStack.changed]
 ## only — never on `attack_plan_state_changed`, which every hover emits. The
-## collapsed button reads pressed while the picker is open.
+## vessel reads pressed while the picker is open.
 func _repaint_picker() -> void:
 	var open := _armed_stack != null and _armed_stack.find(SpellPickMode) != null
 	_picker_panel.visible = open
