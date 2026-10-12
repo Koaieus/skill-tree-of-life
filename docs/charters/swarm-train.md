@@ -39,7 +39,8 @@ process, not a baton.
 ```
 top session  (/swarm-train: trains, ledger, tick, relief, report)
  └─ swarm-lead  (one per train, BACKGROUND subagent, opus)
-     └─ drone × n  (FOREGROUND wave, several Agent calls in one message)
+     └─ drone × n  (BACKGROUND, several Agent calls in one message;
+         │            final act SendMessage(<lead-name>, report))
          └─ Explore  (haiku leaf, foreground)
 ```
 
@@ -52,10 +53,18 @@ top session  (/swarm-train: trains, ledger, tick, relief, report)
   wake is ~100k re-read, and why law 8 leaves none behind.
 - **A tick is one cheap turn.** Reading `ListAgents` and a transcript mtime
   is a few hundred tokens; a tick that finds nothing says `noop` and ends.
-- **Waves are the price of the tree.** A lead reacts per wave, not per
-  drone: a fast drone's branch waits for the slowest in its wave, and a stop
-  drains at the wave boundary. The alternative (background drones under a
-  background lead) loses reports (law 4) and is not on the table.
+- **A lead reacts per drone, not per wave.** Drones go out in the
+  background and each wakes its lead by `SendMessage` (law 4), so a fast
+  drone's branch lands while the slow one runs, a stop takes effect at
+  once, and the 150k notice is acted on the moment it lands instead of at
+  the next wave boundary (law 15). The price is a duplicate wake per drone
+  (the drone's ordinary report, to the lead or the top) that both treat as
+  nothing (laws 4, 16).
+- **One accepting lead at a time.** Relief overlaps: the outgoing lead
+  `draining` lands what it has and starts nothing; the incoming lead
+  dispatches beside it, up to the cap minus the outgoing's drones in
+  flight (law 10). The gain is about one wave, 20–40 min, per relief,
+  0–3 reliefs a night.
 - **One lead at a time**, as in Whip — but the ledger is keyed by name,
   not session. Every lead shares the top's session id (probed:
   `CLAUDE_CODE_SESSION_ID` inside a subagent is the parent's, and a
@@ -87,11 +96,22 @@ top session  (/swarm-train: trains, ledger, tick, relief, report)
    where a background report is proven to reach its parent, and it leaves
    the top's turn free for the tick. A foreground lead would hold the top's
    turn for the whole train: no tick, no stop, no wake until it returned.
-4. **A lead dispatches drones as foreground waves.** A background subagent
-   never receives its own background children's reports (probed: one
-   dropped, one bubbled to the top). Several `Agent` calls in one message
-   run concurrently (starts 1.5–2 s apart) and all return in one turn.
-   Drones keep their Explore leaves; nesting holds three deep.
+4. **A lead dispatches drones in the background; each drone's final act
+   is `SendMessage(<lead-name>, <its six-line report>)`.** A background
+   subagent never receives its own background children's reports by
+   itself (probed 2026-10-09: one dropped, one bubbled to the top), but a
+   depth-2 background drone's `SendMessage` resumes its depth-1 background
+   lead (spike 2026-10-12, n=1; owner: *"Confirm both"*), so the lead
+   stays responsive between reports. The drone's ordinary completion
+   report still arrives somewhere — at the lead if it is live at that
+   moment, else at the top (hypothesis, n=1 each): **a second wake for a
+   unit already handled is nothing, end the turn** — the lead's rule and
+   the top's (law 16). A drone that ends without its final act is silent
+   to its lead; the top's stall tick (law 9) is the net, never a lead-side
+   poll. Several `Agent` calls in one message still start together
+   (1.5–2 s apart); drones keep their Explore leaves; nesting holds three
+   deep. Foreground waves (the first nights' shape) are replaced by this
+   contract.
 5. **A finished subagent resumes from its transcript.** `SendMessage` to a
    lead's name resumed it with full context after four minutes; a lead cut
    off by a spent window (its last record the limit error) is n=0 — the
@@ -103,10 +123,9 @@ top session  (/swarm-train: trains, ledger, tick, relief, report)
    disk-silence sensor (Whip law 30, read by the top instead of a timer).
 7. **A stall is stopped by name.** `TaskStop <lead-name>` from the top
    stopped a subagent wedged in a 500 s command at once, with a `killed`
-   notification. Whether stopping a depth-2 foreground drone returns the
-   lead's `Agent` call or wedges the lead is unmeasured: the first night's
-   first measurement; the recovery path (stop the lead, relief from disk)
-   exists either way.
+   notification. Whether stopping a depth-2 drone wedges the lead is
+   unmeasured; the recovery path (stop the lead, relief from disk) exists
+   either way.
 
 **The tick** (*designed*)
 
@@ -150,8 +169,13 @@ top session  (/swarm-train: trains, ledger, tick, relief, report)
    it, record, spawn relief. The cap (15 h, Whip law 23) is read at every
    tick: past it nothing is spawned, the lead in flight finishes its train
    and its `done` ends the run — `CAPPED` in the header is a live run with
-   a lead to watch, not a finished one.
-10. **Relief of a dead lead takes over that lead's ledger file by name**
+   a lead to watch, not a finished one. A train may hold two live leads
+   during relief: the accepting one and a `draining` one (law 10). The
+   table runs for each; a stalled draining lead is stopped like any other
+   and its ledger is dead history from then on — the accepting lead, told
+   by the top, reclassifies its units (its stop is `drained --lead`, the
+   relief count is not spent on it).
+10. **Relief of a dead lead reads that lead's ledger file by name**
     — never `ledger adopt`, never a bare `ledger show`: a subagent shares
     the top's session id (probed, 2026-10-10), so the session lookup is
     blind inside a tree and an `adopt` fails as "already leads". The relief
@@ -163,26 +187,44 @@ top session  (/swarm-train: trains, ledger, tick, relief, report)
     a dead lead's ledger is not live (law 21), so nothing there is a claim.
     A second relief reads its predecessor's file plus the ones that one
     read: the chain of dead ledgers is the train's lead history in the whip
-    JSON, each by name. One file per lead, only that lead writes it — the
-    shape #1577 needs when the outgoing is still alive (fork C). The top
-    launches the relief; nobody else.
+    JSON, each by name. One file per lead, only that lead writes it. The
+    top launches the relief; nobody else.
+    **Relief of a `draining` lead** (strangler-fig; owner 2026-10-11, *"one
+    accepting lead at a time"*, settled 2026-10-12, #1577) differs in one
+    thing: the outgoing's file is **live**, so its rows are claims (law
+    21). The incoming lead reads it by name while the outgoing still
+    writes it, and dispatches only units with no row there and not blocked
+    by an outgoing unit not yet landed, up to the cap minus the outgoing's
+    drones in flight — the rows in the outgoing's file in state
+    `dispatched` (no `reported@`, no `landed`), re-read before each
+    dispatch since that file is still moving. The incoming never messages
+    the outgoing and never lands its units: the outgoing lands each report
+    as it arrives, runs `ledger close` once nothing of its is in flight, and
+    returns its session report — the top records it with `drained --lead
+    <name>` (`draining` → `relieved`), never `done`.
 
 **Reuse** (*designed*)
 
 11. **The whip tool carries a tree transport, not a second tool.** `start
     --tree` snapshots, splits trains, writes the ledger and opens the run
     issue, and launches nothing — no daemon, no timer, no linger. `done`,
-    `relieve` and `needs-owner` take `--lead <name>` from the top instead
-    of keying on the caller's session; `show`, `report`, `train split/drop`,
+    `relieve`, `drained` and `needs-owner` take `--lead <name>` from the
+    top instead of keying on the caller's session — `relieve` marks the old
+    lead `draining` and points the train at `relief-<t>-<k>`; `drained`
+    moves it `draining` → `relieved` on its return, and only from
+    `draining`; a draining lead counts as live with drones in flight, never
+    as finished; `show`, `report`, `train split/drop`,
     `note`, `stop`, `retire` and the cap are unchanged. An issue added
     mid-run is `train add <t> <n…> [--head]` — never a hand edit of the
     ledger (#1540: the top imported the tool from python to do it). The
     report is Whip's report, titles fetched at render.
 12. **A lead is `swarm` in train mode.** The `swarm-lead` agent definition
     pins the model (opus) and tools and tells the lead to `cat` the swarm
-    and relief skills and apply swarm's *train mode* section: drones as
-    foreground waves, no `whip` verbs, report by returning its session
-    report as final text, `ledger close` at train end. Slash expansion
+    and relief skills and apply swarm's *train mode* section: drones in
+    the background with the `SendMessage` final act, `SWARM_LEDGER` on
+    every ledger/land call, `relief now` to the top at the 150k notice, no
+    `whip` verbs, report by returning its session report as final text,
+    `ledger close` at train end. Slash expansion
     inside an `Agent` prompt is unproven, so the lead reads the file.
 13. **Sage is out of train mode for the tryout** (tentative, 2026-10-09):
     its `APPROVED` line goes to `main`, which in a tree is the top, not the
@@ -201,19 +243,27 @@ top session  (/swarm-train: trains, ledger, tick, relief, report)
     *"normally they could handle more or just should do waves until they
     call for relief between 150-200k ctx (gracefully landing some slack
     allowed but not starting more)"*; *"they are highly aware of when they
-    reach 150, 200, 250k"*. The lead takes waves until swarm's relief
-    threshold, starts none past it, lands what is in flight and reports
-    `RELIEF NEEDED` if its train is unfinished. The top never splits a train
-    to fit a window; `--size <n>` (issues per train) is an override of
-    law 19's one train, for trials only.
-16. **Nothing in the tree backgrounds a command.** A subagent's turn end is
-    its report, so a backgrounded suite or baseline ends a drone's turn
-    early (the lead then polled its transcript) or outlives a lead's report
-    and re-notifies the top with a duplicate (#1540, lead-a and lead-b). The
-    lead runs the gate suite in the foreground; every train-mode brief says
-    the same. That rule is swarm's (law 32); the top's half is: a second
-    report from a lead the ledger shows `done`, and any task notification
-    from below a lead, is nothing — end the turn.
+    reach 150, 200, 250k"*. The threshold is swarm's (its ceiling, relief
+    50k below); what moved (2026-10-12, #1577) is the moment: with
+    background drones the context notice lands mid-flight, not at a wave
+    boundary, and the lead acts on it at once — dispatches nothing more,
+    `SendMessage`s the top `relief now; I keep <unit list>`, lands each
+    report as it arrives, closes its ledger, and returns its session
+    report. `RELIEF NEEDED` as a report's first line is no longer the
+    trigger; a lead whose train is done at the notice simply finishes. The
+    top never splits a train to fit a window; `--size <n>` (issues per
+    train) is an override of law 19's one train, for trials only.
+16. **Nothing in the tree backgrounds a command; only drone dispatch is
+    background.** A subagent's turn end is its report, so a backgrounded
+    suite or baseline ends a drone's turn early (the lead then polled its
+    transcript) or outlives a lead's report and re-notifies the top with a
+    duplicate (#1540, lead-a and lead-b). The lead runs the gate suite and
+    `land` in the foreground; every train-mode brief says the same. That
+    rule is swarm's (law 32); the top's half is: a second report from a
+    lead the ledger shows `done` or `relieved`, any task notification from
+    below a lead — **the drones' ordinary completion reports included,
+    which reach the top whenever their lead's turn has ended** (law 4) —
+    is nothing: end the turn, never a verb, never a line to the chat.
 17. **The top's chat is one line per event.** The owner is away; a lead's
     report goes to the ledger by verb and to the chat as one line, never
     re-summarised (#1540: ~600 tokens × 5 of prose nobody read).
@@ -273,31 +323,19 @@ leads run at once, and how they share a train, is fork C's overlap (#1577).
 Whip fork A's lean (a second lead only for a cheap train) carries over.
 **B. Whip or swarm-train, after a night of each.** The transport ADR
 (#1316) is written from both nights' evidence.
-**C. The overlap between leads** (hub #1575; the settled half — one
-train, per-lead ledgers keyed by name, claim = row — is laws 19–21 via
-#1576; what remains is #1577; owner, 2026-10-11, *"thinking out loud, not
-yet settled"*). The owner's model for the rest:
-- **A lead keeps launching**: whatever front of the one DAG is unblocked,
-  up to a parallelism cap; the top only replaces a lead that is getting
-  bloated (~150k). An earlier same-day remark, *"trains should be 4~8
-  issues, sized by issue size and parallelism"*, is the other end of the
-  `--size` knob.
-- **The cap is a token-window budget**: a spent window kills every agent at
-  once, so recovery cost grows with drones in flight — the cap bounds that
-  as well as merge conflicts.
-- **Strangler-fig relief**: the outgoing lead starts nothing, finishes and
-  lands its drones' work; the incoming lead runs beside it and launches
-  waves at once on units that do not depend on one the outgoing has not
-  landed. "One lead at a time" becomes "one *accepting* lead at a time" —
-  law 10 covers only a dead outgoing.
-- **The top referees claims**: one file per lead only that lead writes (law
-  20 gives the files); a conflicting claim (law 21) is the top's call;
-  leads still `SendMessage` a ping, state lives on disk; `land` already
-  serializes on master.
-
-Costs: a claim/referee protocol in the top, `relief` rewritten for a live
-predecessor (it reads the outgoing's file by name while the outgoing still
-writes it — law 20's one-writer-per-file holds).
+**C. Ready is one DAG — closed** (hub #1575; owner, 2026-10-11, folded
+in two halves). One train, per-lead ledgers, claim = row → laws 19–21
+(#1576). Strangler-fig overlap — background drones that wake their lead,
+`relief now` at the notice, a `draining` lead state, the incoming's cap =
+cap − the outgoing's in flight — → laws 4, 9, 10, 15, 16 (#1577; spike
+2026-10-12 proved the wake; *b* "predict the last wave" and *c* "stay
+sequential" were the rejected options). Not built, on purpose: `train
+merge` (one train has no use for it), a referee in the top (two live files
+plus law 21 need none while one lead accepts), the "run is a directory"
+overview file (the whip ledger is it). Still open from the owner's model:
+*"trains should be 4~8 issues, sized by issue size and parallelism"* is the
+other end of the `--size` knob; the cap as a token-window budget (a spent
+window kills every agent at once) is why the drone cap stays 2–5.
 
 ## What the files must not contain
 
@@ -330,4 +368,4 @@ writes it — law 20's one-writer-per-file holds).
 - 2026-10-11 · `gotcha` ×2 trigger tools absent / allowlisted delete works → law 8 (tool check, `/loop` fallback)
 - 2026-10-11 · `autopsy` ×2 #1565 wasted wakes → law 8 (≤2 pending, re-armed by successor; bypass refuses), law 18
 - 2026-10-11 · `friction` 2/2/2/4 trains, empty trains handed out → knobs (`--size all`, `next-train` skips empty)
-- 2026-10-11 · `law-candidate` ×3 one DAG, window-budget cap, strangler-fig relief, run directory → fork C; one DAG and per-lead files settled 2026-10-12 (#1576) → laws 19–21, law 10 amended; the rest stays fork C (#1577)
+- 2026-10-11 · `law-candidate` ×3 one DAG, window-budget cap, strangler-fig relief, run directory → fork C; one DAG and per-lead files settled 2026-10-12 (#1576) → laws 19–21, law 10 amended; the overlap settled 2026-10-12 (#1577, spike: a depth-2 background drone's `SendMessage` resumes its depth-1 lead) → laws 4, 9, 10, 15, 16, the cost model; fork C closed
