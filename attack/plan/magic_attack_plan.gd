@@ -628,6 +628,10 @@ func set_infusion(aspect_id: StringName, points: int) -> void:
 	state_changed.emit()
 
 
+func set_socket(_index: int, _aspect_id: StringName) -> void:
+	pass
+
+
 ## How far the infusion runs past what the caster may spend on one cast (the
 ## host's launch check, ADR 0035): points above each `<concept>_aspect`, aspects
 ## above `infusion_slots`, the total above `floor(SpellDef.infusion_capacity)`

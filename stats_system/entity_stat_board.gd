@@ -254,3 +254,7 @@ func _mint_stat(stat_id: StringName) -> Stat:
 
 func _drops_absent_stat(stat_id: StringName) -> bool:
 	return sparse and StatRegistry.get_def(stat_id) != null
+
+
+func next_threshold(_stat_id: StringName) -> float:
+	return 0.0

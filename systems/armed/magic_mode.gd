@@ -133,6 +133,10 @@ func toggle_picker() -> bool:
 	return stack.push(SpellPickMode.new(self))
 
 
+func toggle_socket(_index: int) -> bool:
+	return false
+
+
 ## For an aimed spell a click names a caster, not a target: it re-arms the
 ## drag (how [TargetMode] re-aims) rather than committing anything.
 func set_target(node: SkillNode) -> bool:

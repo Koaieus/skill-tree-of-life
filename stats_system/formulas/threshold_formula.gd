@@ -81,6 +81,10 @@ func compute(board: StatBoard) -> float:
 	return float(reached)
 
 
+func next_breakpoint(_source_value: float) -> float:
+	return 0.0
+
+
 ## "×10 INT" for a geometric ladder, "WIS" otherwise — the same principle as
 ## [RatioFormula.describe_per]: the displayed number is READ OFF the same
 ## array [method compute] walks, so the two cannot drift apart. A ladder whose
