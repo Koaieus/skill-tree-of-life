@@ -86,7 +86,8 @@ static func clear_cache() -> void:
 	_cache.clear()
 
 
-## Frame ∪ (icon | letter) as a white silhouette, `size_px` square, baked once
+## The frame stroke with (icon | letter) composited over it, as a white
+## silhouette, `size_px` square, baked once
 ## per `(identity.id, size_px)` — the caller tints it (e.g. `add_image`'s
 ## colour). Null for a null identity.
 static func composite(of: Identity, size_px: int) -> ImageTexture:
@@ -172,6 +173,8 @@ static func _stamp_stroke(mask: PackedFloat32Array, size_px: int, points: Packed
 			mask[at] = maxf(mask[at], alpha)
 
 
+## `content`'s alpha composited OVER `mask` (stamped after the frame stroke,
+## so an opaque icon pixel wins wherever the two overlap).
 static func _stamp_image(mask: PackedFloat32Array, size_px: int, content: Image, at: Vector2i) -> void:
 	for y in content.get_height():
 		for x in content.get_width():
@@ -179,7 +182,8 @@ static func _stamp_image(mask: PackedFloat32Array, size_px: int, content: Image,
 			if px.x < 0 or px.y < 0 or px.x >= size_px or px.y >= size_px:
 				continue
 			var i := px.y * size_px + px.x
-			mask[i] = maxf(mask[i], content.get_pixel(x, y).a)
+			var a := content.get_pixel(x, y).a
+			mask[i] = a + mask[i] * (1.0 - a)
 
 
 ## The icon's alpha, fitted into `box`.

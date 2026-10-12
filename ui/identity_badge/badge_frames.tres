@@ -17,7 +17,8 @@ sides = 24
 
 [sub_resource type="Resource" id="Resource_qd7ft"]
 script = ExtResource("1_lbe58")
-sides = 3
+sides = 8
+rotation_deg = 22.5
 
 [sub_resource type="Resource" id="Resource_67pn4"]
 script = ExtResource("1_lbe58")
@@ -32,3 +33,4 @@ frames = Dictionary[int, ExtResource("1_lbe58")]({
 3: SubResource("Resource_qd7ft"),
 4: SubResource("Resource_67pn4")
 })
+icon_inset = 0.06
