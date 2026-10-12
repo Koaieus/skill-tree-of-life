@@ -3,8 +3,8 @@ extends GutTest
 ## The per-cast half of an infusion (#1250): points spent on a cast fold into
 ## the spell's affinity at its ingest rate (floored), and a [MagicAttackPlan]
 ## reports how far the spend runs past the caster's caps — per-aspect stat,
-## `infusion_slots` (breadth), `infusion_points` / `SpellDef.infusion_capacity`
-## (depth) and the spell's refusals.
+## `infusion_slots` (breadth), `SpellDef.infusion_capacity` (the total) and the
+## spell's refusals. No shared points pool (#1574): depth is the aspect held.
 
 const _CYCLONE: SpellDef = preload("res://attack/spell/defs/cyclone.tres")
 const _VENOM: SpellDef = preload("res://attack/spell/defs/venom_burst.tres")
@@ -80,10 +80,8 @@ func test_infusion_stats_derive_from_int() -> void:
 	var plan := _plan(_SPARK, 100.0)
 	var board := plan.attacker.stat_board
 	assert_eq(int(board.get_value(&"infusion_slots")), 1, "first slot at 100 INT")
-	assert_eq(int(board.get_value(&"infusion_points")), 10, "floor(sqrt(100))")
 	board.intelligence.base_value = 1000.0
 	assert_eq(int(board.get_value(&"infusion_slots")), 2, "second slot at 1000 INT")
-	assert_eq(int(board.get_value(&"infusion_points")), 31, "floor(sqrt(1000))")
 
 
 func test_a_fresh_plan_is_innate_only_and_within_caps() -> void:
@@ -107,18 +105,20 @@ func test_points_above_the_aspect_stat_count() -> void:
 	assert_eq(plan.aspect_overrun(), 3, "5 poison on poison_aspect 2")
 
 
-func test_points_above_the_pool_count() -> void:
-	var plan := _plan(_SPARK, 100.0)
-	plan.set_infusion(&"poison", 12)
-	assert_eq(plan.aspect_overrun(), 2, "12 points on infusion_points 10")
+func test_each_aspect_carries_what_it_holds_with_no_pool() -> void:
+	var plan := _plan(_VENOM, 1000.0)
+	plan.attacker.stat_board.facet(&"poison", StatDef.Role.ASPECT).base_value = 40.0
+	plan.set_infusion(&"poison", 40)
+	plan.set_infusion(&"curse", 20)
+	assert_eq(plan.aspect_overrun(), 0, "poison 40 + curse 20 at 2 slots, no total cap")
 
 
-func test_spell_capacity_caps_below_the_pool() -> void:
+func test_spell_capacity_caps_the_total() -> void:
 	var spell := _SPARK.duplicate() as SpellDef
 	spell.infusion_capacity = 4.0
 	var plan := _plan(spell, 10000.0)
 	plan.set_infusion(&"poison", 6)
-	assert_eq(plan.aspect_overrun(), 2, "6 points on a capacity-4 spell, pool 100")
+	assert_eq(plan.aspect_overrun(), 2, "6 points on a capacity-4 spell")
 
 
 func test_points_on_a_refused_aspect_count() -> void:
@@ -127,6 +127,31 @@ func test_points_on_a_refused_aspect_count() -> void:
 	var plan := _plan(spell, 100.0)
 	plan.set_infusion(&"poison", 3)
 	assert_eq(plan.aspect_overrun(), 3, "a 0-rate aspect takes no points")
+
+
+# ── the remembered infusion, clamped to today ──────────────────────────
+
+func test_clamp_infusion_refills_each_kept_aspect_to_what_it_holds() -> void:
+	var plan := _plan(_VENOM, 1000.0)
+	plan.attacker.stat_board.facet(&"poison", StatDef.Role.ASPECT).base_value = 40.0
+	var kept := ArmedStack.clamp_infusion(_VENOM, plan.attacker, {&"poison": 5})
+	assert_eq(kept, {&"poison": 40} as Dictionary[StringName, int], "re-maxed to the held 40")
+
+
+func test_clamp_infusion_drops_refused_and_past_the_slots() -> void:
+	var spell := _VENOM.duplicate() as SpellDef
+	spell.infusion_capacity = 30.0
+	var plan := _plan(spell, 1000.0)
+	plan.attacker.stat_board.facet(&"poison", StatDef.Role.ASPECT).base_value = 40.0
+	plan.attacker.stat_board.facet(&"wither", StatDef.Role.ASPECT).base_value = 5.0
+	var refused := spell.duplicate() as SpellDef
+	refused.default_rate = 0.0
+	assert_true(ArmedStack.clamp_infusion(refused, plan.attacker, {&"curse": 1}).is_empty(),
+			"a refused aspect is dropped")
+	var kept := ArmedStack.clamp_infusion(spell, plan.attacker,
+			{&"curse": 1, &"poison": 1, &"wither": 1})
+	assert_eq(kept, {&"curse": 20, &"poison": 10} as Dictionary[StringName, int],
+			"entry order, 2 slots, capacity 30 left after curse 20")
 
 
 func test_set_infusion_emits_state_changed() -> void:

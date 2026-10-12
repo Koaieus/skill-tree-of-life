@@ -1,8 +1,8 @@
 extends GutTest
 
 ## The AI fills its infusion slots greedily (#1464): by floor(aspect x rate)
-## descending, ties by roster order, each bounded by its aspect stat and the
-## per-cast pool.
+## descending, ties by roster order, each taking what it holds up to what the
+## spell's `infusion_capacity` leaves.
 
 const _VENOM: SpellDef = preload("res://attack/spell/defs/venom_burst.tres")
 
@@ -13,13 +13,14 @@ func before_each() -> void:
 	h = SpellTestHelper.new()
 
 
-func _caster(intelligence: float, poison: float, blind: float) -> Entity:
+func _caster(intelligence: float, poison: float, blind: float, curse: float = 0.0) -> Entity:
 	var graph := h.make_graph([[0, 1]], self)
 	var atk := h.make_entity(graph, "ATK", Color.RED)
 	var b := atk.stat_board
 	b.intelligence.base_value = intelligence
 	b.facet(&"poison", StatDef.Role.ASPECT).base_value = poison
 	b.get_stat(&"blindness_aspect").base_value = blind
+	b.facet(&"curse", StatDef.Role.ASPECT).base_value = curse
 	return atk
 
 
@@ -34,10 +35,9 @@ func test_two_slots_take_both() -> void:
 	assert_eq(picked.get(&"blindness", 0), 5)
 
 
-func test_pool_bounds_the_total() -> void:
-	var picked := AiInfusionPicker.pick(_caster(1000, 20, 20), _VENOM)
-	assert_eq(picked.get(&"poison", 0), 20)
-	assert_eq(picked.get(&"blindness", 0), 11, "what is left of the 31-point pool")
+func test_each_pick_takes_all_it_holds() -> void:
+	var picked := AiInfusionPicker.pick(_caster(1000, 40, 0, 20), _VENOM)
+	assert_eq(picked, {&"poison": 40, &"curse": 20} as Dictionary[StringName, int], "no shared pool")
 
 
 func test_capacity_bounds_the_cast() -> void:
