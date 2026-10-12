@@ -155,15 +155,17 @@ top session  (/swarm-train: trains, ledger, tick, relief, report)
     — never `ledger adopt`, never a bare `ledger show`: a subagent shares
     the top's session id (probed, 2026-10-10), so the session lookup is
     blind inside a tree and an `adopt` fails as "already leads". The relief
-    is a fresh `swarm-lead` with the relief prompt, which names the
-    train's file, `swarm-<date>-lead-<t>.md` — opened by the train's first
-    lead, inherited by every relief in turn, never the outgoing's own name
-    (which may itself be a relief) — as the relief's own `SWARM_LEDGER`;
-    the relief orients from it as `relief` already does.
-    (If a relief opened its own file, every unit of the dead lead would
-    hold a row in another live ledger and law 21 would forbid re-dispatching
-    its partials.) Relief of a *live* lead is fork C. The top launches it;
-    nobody else.
+    is a fresh `swarm-lead` with the relief prompt, which names the dead
+    outgoing's `swarm-<date>-<outgoing-name>.md` to **read** and the
+    relief's own `swarm-<date>-<relief-name>.md` as its `SWARM_LEDGER` to
+    **write**: it orients from the outgoing's file as `relief` already does
+    and re-dispatches the dead lead's partials with rows in its own file —
+    a dead lead's ledger is not live (law 21), so nothing there is a claim.
+    A second relief reads its predecessor's file plus the ones that one
+    read: the chain of dead ledgers is the train's lead history in the whip
+    JSON, each by name. One file per lead, only that lead writes it — the
+    shape #1577 needs when the outgoing is still alive (fork C). The top
+    launches the relief; nobody else.
 
 **Reuse** (*designed*)
 
@@ -245,9 +247,11 @@ fork C's first half; the overlap between leads stays open there*)
     file. The ledger tool's session-id lookup is never consulted inside a
     tree.
 21. **A claim is a ledger row written before dispatch** (swarm law 14). A
-    lead never dispatches a unit that has a row in another live ledger. With
-    one lead at a time the rule only bites through law 10's takeover; the
-    referee for two live leads is fork C.
+    lead never dispatches a unit that has a row in another **live** ledger
+    — one whose lead is running or draining. A dead lead's file is not
+    live: its rows are history a relief reads (law 10), never claims. With
+    one lead at a time the rule never bites; the referee for two live
+    leads is fork C.
 
 ## Knobs
 
@@ -292,8 +296,8 @@ yet settled"*). The owner's model for the rest:
   serializes on master.
 
 Costs: a claim/referee protocol in the top, `relief` rewritten for a live
-predecessor, the two-writer question for a relief that inherits a live
-lead's file.
+predecessor (it reads the outgoing's file by name while the outgoing still
+writes it — law 20's one-writer-per-file holds).
 
 ## What the files must not contain
 

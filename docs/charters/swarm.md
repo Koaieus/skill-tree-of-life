@@ -269,8 +269,8 @@ disk at `scratchpad/land/land-<n>.log` (#920), so filling the ledger is a
     `docs/handoffs/swarm-<date>-<lead-name>.md` (swarm-train law 20), and
     the lead exports it as `SWARM_LEDGER` on **every** `ledger` and `land`
     call — a bare call would land in whichever lead's file is newest. A
-    relief's prompt names the train's file, its first lead's, as its own
-    (swarm-train law 10); nothing is `adopt`ed, and the whip ledger path in the prompt
+    relief's prompt names the dead outgoing's file to read and the relief's
+    own to write (swarm-train law 10); nothing is `adopt`ed, and the whip ledger path in the prompt
     is read, never adopted. A row before dispatch is the claim (law 14,
     swarm-train law 21): a unit with a row in another live ledger is never
     dispatched. **Nothing in the tree is backgrounded**
