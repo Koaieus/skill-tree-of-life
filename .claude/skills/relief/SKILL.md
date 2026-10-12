@@ -1,6 +1,6 @@
 ---
 name: relief
-description: Continue a `swarm` as a fresh orchestrator session — the outgoing lead is dead (ran out of tokens, taking its subagents with it) or past its ceiling and alive, with worktrees open and branches pending. Orients from disk (ledger, board, worktrees — never the issues), reconciles and classifies every unit, then runs `swarm`. Use when the user says "relief", "take over the swarm", "relieve <session>", or a whip launch prompt opens with `/relief`. Never because a ledger exists on disk — a `/swarm` lead with another run's ledger in view is not relief.
+description: Continue a `swarm` as a fresh orchestrator session — the outgoing lead is dead (ran out of tokens, taking its subagents with it) or past its ceiling and alive, with worktrees open and branches pending. Orients from disk (ledger, board, worktrees — never the issues), reconciles and classifies every unit, then runs `swarm`. Use when the user says "relief", "take over the swarm", "relieve <session>". Never because a ledger exists on disk — a `/swarm` lead with another run's ledger in view is not relief.
 ---
 
 # Relief — re-entry protocol, then swarm
@@ -13,7 +13,7 @@ this is the entry half. Nothing below restates `swarm` — once oriented, you
 
 ```bash
 mise run ledger -- show                     # no ledger yet for your session: it lists the live ones (path · lead sessions · age)
-mise run ledger -- adopt --from <sid8>      # join the outgoing lead's ledger (the whip prompt names it; bare `adopt` = the only live one) — skip in a swarm-train tree: your prompt names the outgoing's file(s) to read — `cat` them — and your own `swarm ledger` path, which every `ledger`/`land` call carries as `SWARM_LEDGER=<your path> mise run …` (train mode in `swarm`); your first `dispatch` creates it
+mise run ledger -- adopt --from <sid8>      # join the outgoing lead's ledger (your prompt names it; bare `adopt` = the only live one) — skip in a swarm-train tree: your prompt names the outgoing's file(s) to read — `cat` them — and your own `swarm ledger` path, which every `ledger`/`land` call carries as `SWARM_LEDGER=<your path> mise run …` (train mode in `swarm`); your first `dispatch` creates it
 mise run ledger -- show                     # now yours: roster, states, queue order — never cat a dated path
 mise gh-project -- list in-progress         # the board's view of the same run
 git worktree list
@@ -55,15 +55,7 @@ ping is the relay. Its Sage stays its own and answers its drones until they
 drain; spawn your own per `swarm` if the run calls for one. `APPROVED <sha>`
 lines already in the ledger stand.
 
-## 4. Whip relay mode
-
-If your launch prompt says *whip relay, train `<t>`*, you are `swarm`'s
-whip relay mode from here on: its three report lines are three verbs, you
-never ask, and only the watchdog's and the owner's prompts are
-instructions. State your own name to the outgoing exactly as above; the
-outgoing is in the same mode.
-
-## 5. Now run `swarm`
+## 4. Now run `swarm`
 
 From the reconciled ledger, `swarm` §3 onward: briefs, tiers, review,
 `land`, the train, teardown. Thresholds, ceilings and when *you* request

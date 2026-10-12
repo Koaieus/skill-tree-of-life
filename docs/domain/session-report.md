@@ -1,7 +1,7 @@
 # The session report — how a skill run ends
 
 Every user-facing skill run (`warp`, `swarm`, `relay`, `relief`, `swarmify`;
-`whip` renders its own file) ends with **one message in this shape**. Same
+`swarm-train` renders its own file through `mise run whip -- report`) ends with **one message in this shape**. Same
 sections, same order, every section present even when it says `none`, so the
 owner — usually on a phone — can ingest a run without re-reading it, and a
 later scan (`mise run transcripts -- final --skill <s>`) can diff runs.
@@ -59,7 +59,7 @@ The `Landed` table carries what that skill lands:
 |---|---|
 | warp, swarm, relay, relief | `# · sha` · `what` · `tests` |
 | swarmify | `#` · `now in` · `settled` · `left` — the lane after the pass (`Ready` is the goal), the decision direction or fork settled in one clause, and what is still open: stubs, children created, a fork the owner kept |
-| whip | its renderer's file (`docs/handoffs/whip-report-<date>.md`): `Landed / Back to Needs design / Still Ready / … / Filed since start / Needs the owner / Incidents / Cost` — the same vocabulary, more lanes |
+| swarm-train | the whip tool's renderer's file (`docs/handoffs/whip-report-<date>.md`): `Landed / Back to Needs design / Still Ready / … / Filed since start / Needs the owner / Incidents / Cost` — the same vocabulary, more lanes |
 
 A `relief` ending adds one line under `Needs the owner` when it hands off:
 `next relief: <what it takes>`.

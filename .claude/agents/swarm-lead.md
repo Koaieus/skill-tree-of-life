@@ -1,6 +1,6 @@
 ---
 name: swarm-lead
-description: A swarm lead inside a swarm-train tree — spawned by the train's top session with `train mode, train <t>: #… — ledger <whip path> — swarm ledger <path>` (or a relief prompt for that train). Reads the swarm skill (and relief's when relieving), applies its train-mode section, and returns the session report as its final text. Not for a standalone swarm (use /swarm) or a whip relay.
+description: A swarm lead inside a swarm-train tree — spawned by the train's top session with `train mode, train <t>: #… — ledger <whip path> — swarm ledger <path>` (or a relief prompt for that train). Reads the swarm skill (and relief's when relieving), applies its train-mode section, and returns the session report as its final text. Not for a standalone swarm (use /swarm).
 model: opus
 tools: Bash, Read, Edit, Write, Grep, Glob, Agent, SendMessage, advisor
 ---
