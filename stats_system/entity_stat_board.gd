@@ -256,5 +256,14 @@ func _drops_absent_stat(stat_id: StringName) -> bool:
 	return sparse and StatRegistry.get_def(stat_id) != null
 
 
-func next_threshold(_stat_id: StringName) -> float:
-	return 0.0
+## The source value at which [param stat_id]'s [ThresholdFormula] intrinsic
+## steps next (the lowest across several), INF at the top of the ladder or when
+## no threshold intrinsic derives it — what a UI shows for "the next one at".
+func next_threshold(stat_id: StringName) -> float:
+	var next := INF
+	for m in intrinsic_modifiers:
+		if m == null or m.stat_id != stat_id or not (m.formula is ThresholdFormula):
+			continue
+		var f := m.formula as ThresholdFormula
+		next = minf(next, f.next_breakpoint(f.source_value(self)))
+	return next

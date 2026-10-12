@@ -49,6 +49,7 @@ No stat link runs primary → primary (ADR 0059): a primary is a school root and
 - **Pool modifiers target the pool id, not a `_max` suffix** (`"health"` is the cap; `"health_max"` doesn't exist).
 - **`max` is a GDScript built-in** — never name a property or variable `max` on PoolStat or its subclasses (it shadows `max()`); use `.value` for the cap. Same risk for `min`; `range` is OK because nothing in `StatBoard` calls the global `range()`.
 - **StatBoard field name must match the stat's `id`.** `get_stat(id)` calls `Object.get(id)`; renaming either silently breaks lookup.
+- **"Where does this stat step next" is `EntityStatBoard.next_threshold(id)`** (over its `ThresholdFormula` intrinsics, via `ThresholdFormula.next_breakpoint` / `source_value`; INF at the top or with none) — a UI never walks the board's modifiers or holds a ladder constant (the infusion sockets' "INT 1000" ghost).
 - **Iterating a typed `Array[StatModifier]` and testing `m is CompositeStatModifier` is a parse error** — copy into an untyped `var mods: Array` first.
 - **`Entity.core_modifiers` is the register of modifiers granted to the core, not the class's own list** (class modifiers live in `CoreClass.modifiers`, installed by `core_class.apply`). `Entity._ready` runs `apply_intrinsics()` then `core_class.apply(self)`; don't reorder it (the runtime cycle gate rejects the second arrival).
 - **`BalancedCore` must not get a per-level CON entry** — the board intrinsic already owns the level→CON channel and it would double-count.

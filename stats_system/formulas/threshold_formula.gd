@@ -69,10 +69,9 @@ func get_input_ids() -> Array[StringName]:
 
 
 func compute(board: StatBoard) -> float:
-	var s := board.get_stat(StatFormula.base_of(source_stat_id))
-	if s == null:
+	if board.get_stat(StatFormula.base_of(source_stat_id)) == null:
 		return 0.0
-	var v := float(s.read_accessor(StatFormula.accessor_of(source_stat_id)))
+	var v := source_value(board)
 	var reached := 0
 	for b in breakpoints:
 		if v < b:
@@ -81,8 +80,22 @@ func compute(board: StatBoard) -> float:
 	return float(reached)
 
 
-func next_breakpoint(_source_value: float) -> float:
-	return 0.0
+## The first breakpoint [param source_value] has not reached — the source value
+## at which [method compute] steps next — or INF at the top of the ladder.
+func next_breakpoint(source_value: float) -> float:
+	for b in breakpoints:
+		if source_value < b:
+			return b
+	return INF
+
+
+## The value of [member source_stat_id] on [param board] that [method compute]
+## compares, accessor and all; 0 when the board lacks the stat.
+func source_value(board: StatBoard) -> float:
+	var s := board.get_stat(StatFormula.base_of(source_stat_id))
+	if s == null:
+		return 0.0
+	return float(s.read_accessor(StatFormula.accessor_of(source_stat_id)))
 
 
 ## "×10 INT" for a geometric ladder, "WIS" otherwise — the same principle as

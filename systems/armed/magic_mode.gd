@@ -133,8 +133,21 @@ func toggle_picker() -> bool:
 	return stack.push(SpellPickMode.new(self))
 
 
-func toggle_socket(_index: int) -> bool:
-	return false
+## Open the aspect chooser ([InfusionPickMode]) on infusion socket
+## [param index], close it when that socket is already open, or move an open
+## one to [param index]. True iff a chooser is open afterwards. The entry point
+## a socket's left-click calls.
+func toggle_socket(index: int) -> bool:
+	if stack == null:
+		return false
+	var open := stack.find(InfusionPickMode) as InfusionPickMode
+	if open == null or open.magic != self:
+		return stack.push(InfusionPickMode.new(self, index))
+	if open.socket == index:
+		open.pop_self()
+		return false
+	var branch := stack.branch()
+	return stack.switch_to(InfusionPickMode.new(self, index), branch[branch.find(open) - 1])
 
 
 ## For an aimed spell a click names a caster, not a target: it re-arms the

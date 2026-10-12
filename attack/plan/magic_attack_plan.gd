@@ -628,8 +628,62 @@ func set_infusion(aspect_id: StringName, points: int) -> void:
 	state_changed.emit()
 
 
-func set_socket(_index: int, _aspect_id: StringName) -> void:
-	pass
+## Put [param aspect_id] in infusion socket [param index]; an empty id clears
+## it. The socket order is the insertion order of `infusion.points` and holds
+## no gap: a cleared socket's right neighbours slide left, and an index past the
+## filled sockets appends. An aspect already in another socket moves here and
+## the aspect it displaces drops out; a new aspect past `infusion_slots` is a
+## no-op. Every socket's depth is then re-walked ([method socket_points]), so
+## this never overruns. Emits [signal state_changed] once, and only on change.
+func set_socket(index: int, aspect_id: StringName) -> void:
+	var points := socket_points(socket_order_with(index, aspect_id))
+	if points == infusion.points and points.keys() == infusion.points.keys():
+		return
+	infusion = Infusion.for_cast(spell, points)
+	_preview_key_valid = false
+	state_changed.emit()
+
+
+## The socket order [method set_socket] would write for ([param index],
+## [param aspect_id]) — the current order when that write is a no-op. Pure.
+func socket_order_with(index: int, aspect_id: StringName) -> Array[StringName]:
+	var order: Array[StringName] = []
+	order.assign(infusion.points.keys())
+	if aspect_id.is_empty():
+		if index >= 0 and index < order.size():
+			order.remove_at(index)
+		return order
+	var old := order.find(aspect_id)
+	if index >= 0 and index < order.size():
+		order[index] = aspect_id
+		if old >= 0 and old != index:
+			order.remove_at(old)
+	elif old >= 0:
+		order.remove_at(old)
+		order.append(aspect_id)
+	elif order.size() < AspectCurrency.cap_of(attacker, &"infusion_slots"):
+		order.append(aspect_id)
+	return order
+
+
+## Each socket's depth for socket order [param order], walked front to back:
+## `min(held, capacity left)`, nothing on an aspect the spell refuses (rate 0).
+## Unspendable aspects drop out, which keeps [method aspect_overrun] at 0. Pure.
+func socket_points(order: Array[StringName]) -> Dictionary[StringName, int]:
+	var out: Dictionary[StringName, int] = {}
+	if spell == null:
+		return out
+	var left := 1 << 62
+	if not is_inf(spell.infusion_capacity):
+		left = maxi(0, floori(spell.infusion_capacity))
+	for id in order:
+		if Infusion.rate_of(spell, id) <= 0.0:
+			continue
+		var pts := mini(AspectCurrency.cap_of(attacker, AspectCurrency.stat_of(id)), left)
+		if pts > 0:
+			out[id] = pts
+			left -= pts
+	return out
 
 
 ## How far the infusion runs past what the caster may spend on one cast (the
