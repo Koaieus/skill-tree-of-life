@@ -21,5 +21,7 @@ func _ready() -> void:
 	_badge.size_px = badge_px
 
 
+## Show `aspect_id`'s badge and `count` points.
 func bind(aspect_id: StringName, count: int) -> void:
-	pass
+	_badge.identity = IdentityRoster.shared().by_id(aspect_id)
+	_count.text = str(count)

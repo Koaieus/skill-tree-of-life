@@ -5,8 +5,12 @@ extends Button
 ## A single spell pick in [SpellPickerBar]. Toggle button (radio-managed by
 ## the bar's ButtonGroup) that renders a spell card:
 ##   * top inset — one tick per [member SpellDef.min_degree]
-##   * the spell [IdentityBadge] (its icon, or its noun letter)
+##   * the spell icon, full-bleed in its square (or the noun letter, via
+##     [method IdentityBadge.letter_of]) — the tile is identity enough, so no
+##     [IdentityBadge] frames the spell here
 ##   * name label
+##   * one [InnateChip] per innate affinity (aspect badge + count); a non-1
+##     ingest rate is named only in [member Control.tooltip_text]
 ##
 ## Same shader scaffolding as [AttackModeButton] — the bg shader handles
 ## rounded-rect rendering, mouse-proximity glow, rim, breathing pulse when
@@ -49,6 +53,7 @@ signal spell_picked(spell: SpellDef)
 const BG_SHADER := preload("res://ui/attack_mode_bar/attack_mode_button.gdshader")
 const TEXT_SHADER := preload("res://ui/attack_mode_bar/attack_mode_button_text.gdshader")
 const TICK_SCENE := preload("res://ui/spell_picker_bar/spell_picker_button_tick.tscn")
+const CHIP_SCENE := preload("res://ui/spell_picker_bar/innate_chip.tscn")
 
 const ANIMATION_TIME: float = 0.2
 
@@ -74,7 +79,9 @@ const ANIMATION_TIME: float = 0.2
 
 @onready var _bg: ColorRect = $Bg
 @onready var _ticks: HBoxContainer = %Ticks
-@onready var _badge: IdentityBadge = %Badge
+@onready var _icon: TextureRect = %Icon
+@onready var _letter: Label = %Letter
+@onready var _chips: HBoxContainer = %InnateChips
 @onready var _name_label: Label = %NameLabel
 @onready var _float_anchor: Node2D = %FloatAnchor
 ## Anchored (layout_mode = 1), so it is POSITIONED and never measured — a tile
@@ -236,15 +243,55 @@ func refresh() -> void:
 func _apply_spell() -> void:
 	if not is_node_ready():
 		return
+	_apply_identity(spell.identity if spell != null else null)
+	_rebuild_chips()
+	tooltip_text = _rate_note()
 	if spell == null:
 		_name_label.text = ""
-		_badge.identity = null
 		if not Engine.is_editor_hint():
 			_clear_ticks()
 		return
 	_name_label.text = spell.name
-	_badge.identity = spell.identity
 	_rebuild_ticks(spell.min_degree)
+
+
+## The icon in the identity's label-tier tint, or its noun letter without one.
+func _apply_identity(identity: Identity) -> void:
+	var has_icon := identity != null and identity.icon != null
+	_icon.texture = identity.icon if has_icon else null
+	_icon.visible = has_icon
+	_letter.visible = identity != null and not has_icon
+	_letter.text = IdentityBadge.letter_of(identity) if identity != null else ""
+	if identity != null:
+		var color := Emissive.at(identity.tint, Emissive.stops(Emissive.Tier.LABEL))
+		_icon.self_modulate = color
+		_letter.add_theme_color_override(&"font_color", color)
+
+
+## One [InnateChip] per affinity with innate points, in [member SpellDef.affinities] order.
+func _rebuild_chips() -> void:
+	for chip in _chips.get_children():
+		_chips.remove_child(chip)
+		chip.queue_free()
+	if spell != null:
+		for affinity in spell.affinities:
+			if affinity == null or affinity.innate <= 0:
+				continue
+			var chip := CHIP_SCENE.instantiate() as InnateChip
+			_chips.add_child(chip)
+			chip.bind(affinity.aspect_id(), affinity.innate)
+	_chips.visible = _chips.get_child_count() > 0
+
+
+## "poison ×2" per affinity whose ingest rate is not 1, one per line.
+func _rate_note() -> String:
+	if spell == null:
+		return ""
+	var lines := PackedStringArray()
+	for affinity in spell.affinities:
+		if affinity != null and not is_equal_approx(affinity.rate, 1.0):
+			lines.append("%s ×%s" % [affinity.aspect_id(), NumFmt.num(affinity.rate)])
+	return "\n".join(lines)
 
 
 func _clear_ticks() -> void:
