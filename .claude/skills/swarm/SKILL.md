@@ -178,7 +178,8 @@ SWARM_LEDGER=docs/handoffs/swarm-<date>-<lead-name>.md mise run land -- <branch>
 
 A bare call lands in whichever lead's file is newest: a bug, never a
 shortcut. Your first `dispatch` creates the file. A relief's prompt names
-the outgoing's file as its own — take it over by path, never `adopt`. The
+the train's file (its first lead's) as its own — take it over by path,
+never `adopt`. The
 whip ledger path in your prompt is read, never adopted. A row written
 before dispatch is the claim: a unit with a row in another live
 `swarm-*.md` is never yours to dispatch. No Sage in this mode: every brief
