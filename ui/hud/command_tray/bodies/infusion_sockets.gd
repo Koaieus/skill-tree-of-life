@@ -62,8 +62,11 @@ func _ready() -> void:
 
 
 ## Show and drive [param plan]'s sockets; the choosers open on [param stack]
-## (none: the sockets show, but clicks open nothing). Null unbinds.
+## (none: the sockets show, but clicks open nothing). Null unbinds. Re-binding
+## the bound pair is free — the tray re-binds on every hover.
 func bind(plan: MagicAttackPlan, stack: ArmedStack = null) -> void:
+	if plan == _plan and stack == _stack:
+		return
 	if plan != _plan:
 		if _plan != null and _plan.state_changed.is_connected(_refresh):
 			_plan.state_changed.disconnect(_refresh)
