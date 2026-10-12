@@ -5,9 +5,8 @@ extends HBoxContainer
 ## The cast's infusion steppers (#1463): one per aspect the caster holds, its
 ## identity glyph, `points / <concept>_aspect` and −/+ that write
 ## [method MagicAttackPlan.set_infusion]. The header reads both caps —
-## `slots used / infusion_slots · Σ points / min(infusion_points,
-## SpellDef.infusion_capacity)`. A "+" greys at the first cap that bites and its
-## tooltip names it; a stepper the spell refuses, or that no free slot could
+## `slots used / infusion_slots · Σ points / SpellDef.infusion_capacity`. A "+"
+## greys at the first cap that bites and its tooltip names it; a stepper the spell refuses, or that no free slot could
 ## take, dims whole. Hidden while there is nothing to infuse.
 ##
 ## Binds to a bare [MagicAttackPlan] — the caster is [member AttackPlan.attacker]
@@ -23,6 +22,9 @@ extends HBoxContainer
 @export_range(1, 100, 1, "or_greater") var big_step: int = 5
 ## How far a stepper dims when the spell refuses it or no slot could take it.
 @export_range(0.0, 1.0, 0.05) var dimmed_alpha: float = 0.4
+
+## [method _depth] with no spell capacity: large enough never to bite.
+const _UNCAPPED := 1 << 30
 
 @onready var _header: Label = %Header
 @onready var _steppers_box: HFlowContainer = %Steppers
@@ -86,12 +88,12 @@ func _held() -> Array[Aspect]:
 	return out
 
 
-## Points this cast may spend in total: `min(infusion_points, infusion_capacity)`.
+## Points this cast may spend in total: `floor(infusion_capacity)`, or
+## [constant _UNCAPPED] when the spell sets none (no shared pool).
 func _depth() -> int:
-	var depth := AspectCurrency.cap_of(_caster(), &"infusion_points")
 	if _plan != null and _plan.spell != null and not is_inf(_plan.spell.infusion_capacity):
-		depth = mini(depth, maxi(0, floori(_plan.spell.infusion_capacity)))
-	return depth
+		return maxi(0, floori(_plan.spell.infusion_capacity))
+	return _UNCAPPED
 
 
 func _refresh() -> void:
@@ -157,10 +159,7 @@ func _blocked(id: StringName, pts: int, cap: int, slots: int) -> String:
 		return "At the %s aspect cap (%d)" % [id, cap]
 	var depth := _depth()
 	if _plan.infusion.total_points() >= depth:
-		var pool := AspectCurrency.cap_of(_caster(), &"infusion_points")
-		if depth < pool:
-			return "At %s's infusion capacity (%d points)" % [spell.name, depth]
-		return "At the infusion points cap (%d)" % depth
+		return "At %s's infusion capacity (%d points)" % [spell.name, depth]
 	if pts == 0 and _plan.infusion.slots_used() >= slots:
 		return "No infusion slot free (%d/%d)" % [_plan.infusion.slots_used(), slots]
 	return ""

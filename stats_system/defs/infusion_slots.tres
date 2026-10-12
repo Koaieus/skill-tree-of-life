@@ -6,7 +6,7 @@
 script = ExtResource("1_stat_def")
 id = &"infusion_slots"
 display_name = "Infusion Slots"
-description = "How many different aspects one cast may be infused with — breadth, beside infusion_points' depth. Base 0; INT grants +1 at 100 / 1000 / 10000 via a threshold ladder. Entity-scope only: no procgen pool rolls it (yet), and it is not node-local."
+description = "How many different aspects one cast may be infused with — breadth; an aspect's depth is what the caster holds of it. Base 0; INT grants +1 at 100 / 1000 / 10000 via a threshold ladder. Entity-scope only: no procgen pool rolls it (yet), and it is not node-local."
 value_type = 0
 default_value = 0.0
 tint_color = Color(0.7, 0.55, 1.0, 1)

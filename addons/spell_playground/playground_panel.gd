@@ -95,16 +95,14 @@ const LOOP_GAP_SECONDS: float = 0.35
 @onready var infusion_row: InfusionRow = %InfusionRow
 @onready var aspect_slots_row: AspectSlotsRow = %AspectSlotsRow
 @onready var infusion_slots_box: SpinBox = %InfusionSlotsBox
-@onready var infusion_points_box: SpinBox = %InfusionPointsBox
 @onready var affinity_label: Label = %AffinityLabel
 @onready var _world_container: SubViewportContainer = $HBox/WorldContainer
 ## The real hover tooltip (EFFECTS + NODE STATS) over the world (test hook).
 @onready var tooltip_mount: SandboxTooltipFanMount = %TooltipFanMount
 
 var _spell: SpellDef = null
-## The SET modifiers behind the slots / points spin boxes, mutated in place.
+## The SET modifier behind the slots spin box, mutated in place.
 var _infusion_slots_set: StatModifier = null
-var _infusion_points_set: StatModifier = null
 ## One SET per rostered aspect's `<concept>_aspect`, keyed by stat id: the
 ## [AspectSlotsRow] amount when slotted, 0 otherwise.
 var _aspect_sets: Dictionary[StringName, StatModifier] = {}
@@ -187,7 +185,6 @@ func _ready() -> void:
 	node_health_slider.value_changed.connect(_on_node_health_changed)
 	_install_infusion_sets()
 	infusion_slots_box.value_changed.connect(_on_infusion_limit_changed)
-	infusion_points_box.value_changed.connect(_on_infusion_limit_changed)
 	aspect_slots_row.changed.connect(_on_aspect_slots_changed)
 	world.size_changed.connect(_layout_world)
 	_populate_spell_list()
@@ -550,7 +547,6 @@ func _install_infusion_sets() -> void:
 	if board == null:
 		return
 	_infusion_slots_set = _add_set(board, &"infusion_slots", infusion_slots_box.value)
-	_infusion_points_set = _add_set(board, &"infusion_points", infusion_points_box.value)
 	for aspect in AspectRoster.shared().aspects:
 		if aspect != null and aspect.stat != null:
 			_aspect_sets[aspect.stat.id] = _add_set(board, aspect.stat.id, 0.0)
@@ -569,8 +565,6 @@ func _add_set(board: EntityStatBoard, stat_id: StringName, value: float) -> Stat
 func _on_infusion_limit_changed(_value: float) -> void:
 	if _infusion_slots_set != null:
 		_infusion_slots_set.value = infusion_slots_box.value
-	if _infusion_points_set != null:
-		_infusion_points_set.value = infusion_points_box.value
 	if is_instance_valid(_watched_plan):
 		_watched_plan.state_changed.emit()
 

@@ -186,17 +186,6 @@ tooltip_text = "infusion_slots override — how many different aspects one cast 
 max_value = 10.0
 value = 2.0
 
-[node name="PointsLabel" type="Label" parent="HBox/ControlsColumn/InfusionLimitsRow"]
-layout_mode = 2
-text = "Points"
-
-[node name="InfusionPointsBox" type="SpinBox" parent="HBox/ControlsColumn/InfusionLimitsRow"]
-unique_name_in_owner = true
-layout_mode = 2
-tooltip_text = "infusion_points override — the most points one cast may spend in total (the spell's infusion_capacity still caps it). A SET modifier on the caster's board."
-max_value = 1000.0
-value = 20.0
-
 [node name="InfusionRow" parent="HBox/ControlsColumn" instance=ExtResource("12_infusion")]
 unique_name_in_owner = true
 layout_mode = 2

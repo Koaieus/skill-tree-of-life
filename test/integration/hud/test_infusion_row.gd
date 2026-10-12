@@ -1,7 +1,7 @@
 extends GutTest
 
 ## The magic tray's infusion steppers: one per aspect the caster holds, capped
-## by the aspect stat, the caster's `infusion_slots` / `infusion_points` and the
+## by the aspect stat, the caster's `infusion_slots` and the
 ## spell's `infusion_capacity`; the affinity line reads the resulting affinity; the
 ## seat remembers the last infusion per spell, clamped to today's caps.
 
@@ -20,7 +20,7 @@ func before_each() -> void:
 	h = SpellTestHelper.new()
 
 
-## INT 100 → 1 infusion slot and 10 infusion points; every aspect zeroed but
+## INT 100 → 1 infusion slot; every aspect zeroed but
 ## poison, which holds [param poison].
 func _caster(poison: float) -> Entity:
 	var graph := h.make_graph([[0, 1]], self)
@@ -32,7 +32,6 @@ func _caster(poison: float) -> Entity:
 			board.get_stat(aspect.stat.id).base_value = 0.0
 	board.facet(&"poison", StatDef.Role.ASPECT).base_value = poison
 	assert_eq(AspectCurrency.cap_of(atk, &"infusion_slots"), 1, "guard: INT 100 → 1 slot")
-	assert_eq(AspectCurrency.cap_of(atk, &"infusion_points"), 10, "guard: INT 100 → 10 points")
 	return atk
 
 
@@ -61,24 +60,13 @@ func test_one_poison_stepper_capped_at_the_aspect_stat() -> void:
 	assert_eq(row.value_text(&"poison"), "2 / 2")
 	assert_true(row.plus_button(&"poison").disabled, "greyed at the aspect cap")
 	assert_string_contains(row.plus_button(&"poison").tooltip_text.to_lower(), "aspect")
-	assert_eq(row.header_text(), "slots 1/1 · points 2/10")
+	assert_eq(row.header_text(), "slots 1/1 · points 2/%d" % InfusionRow._UNCAPPED, "no pool: uncapped")
 	assert_eq(plan.aspect_overrun(), 0, "the row never overruns")
 	row.minus_button(&"poison").pressed.emit()
 	assert_eq(plan.infusion.points.get(&"poison", 0), 1, "minus steps back")
 
 
-func test_the_points_pool_stops_the_stepper_before_a_deep_aspect() -> void:
-	var plan := _plan(_caster(100.0))
-	var row := _row(plan)
-	for i in 15:
-		row.plus_button(&"poison").pressed.emit()
-	assert_eq(plan.infusion.points.get(&"poison", 0), 10, "infusion_points 10 caps a 100 aspect")
-	assert_true(row.plus_button(&"poison").disabled)
-	assert_string_contains(row.plus_button(&"poison").tooltip_text.to_lower(), "points")
-	assert_eq(plan.aspect_overrun(), 0)
-
-
-func test_the_spells_capacity_caps_below_the_pool() -> void:
+func test_the_spells_capacity_caps_the_total() -> void:
 	var spell := _VENOM.duplicate() as SpellDef
 	spell.infusion_capacity = 4.0
 	var plan := _plan(_caster(100.0), spell)
