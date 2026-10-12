@@ -21,7 +21,8 @@ extends Button
 ##
 ## On hover emits [signal Events.spell_hovered] / [signal Events.spell_unhovered]
 ## so the floating [SpellTooltip] (mounted in HudRoot) shows a formatted scene
-## with dynamic-value highlighting instead of a plain-text Godot tooltip.
+## with dynamic-value highlighting. The native [member Control.tooltip_text]
+## carries only the non-1 ingest-rate note (`poison ×2`).
 ##
 ## [b]Two independent gates (#728).[/b] Both grey the same shader term, but
 ## only one flips the engine [member Button.disabled]:

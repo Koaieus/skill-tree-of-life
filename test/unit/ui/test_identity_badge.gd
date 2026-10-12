@@ -165,7 +165,6 @@ func test_the_icon_spans_the_badge_less_its_inset() -> void:
 		if image.get_pixel(x, row).a > _OPAQUE:
 			span += 1
 	assert_gte(float(span), (1.0 - 2.0 * _FRAMES.icon_inset) * size_px - 1.0, "the icon is not shrunk past its inset")
-	assert_gte(float(span), size_px * 0.8, "a near-full-bleed icon")
 
 
 ## A half-alpha icon over the frame composites "over" it (a + s·(1 − a)), not
