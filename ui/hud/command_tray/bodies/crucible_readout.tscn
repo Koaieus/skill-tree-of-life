@@ -1,0 +1,6 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://ui/hud/command_tray/bodies/crucible_readout.gd" id="1_script"]
+
+[node name="CrucibleReadout" type="VBoxContainer"]
+script = ExtResource("1_script")
