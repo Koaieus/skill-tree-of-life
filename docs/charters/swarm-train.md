@@ -201,7 +201,14 @@ top session  (/swarm-train: trains, ledger, tick, relief, report)
     the outgoing and never lands its units: the outgoing lands each report
     as it arrives, runs `ledger close` once nothing of its is in flight, and
     returns its session report — the top records it with `drained --lead
-    <name>` (`draining` → `relieved`), never `done`.
+    <name>` (`draining` → `relieved`), never `done`, and then resumes the
+    accepting lead with one line, `<name> drained; its units are on master
+    — continue`, since the outgoing never messages it. An accepting lead
+    with nothing in flight and only units blocked on the outgoing ends its
+    turn on the single line `blocked on <outgoing>` — not a report, so the
+    top runs no `done` on it (a `note`, nothing else); that `drained` line
+    is its wake. The run ends at the later of the last `done` and the
+    last `drained`.
 
 **Reuse** (*designed*)
 

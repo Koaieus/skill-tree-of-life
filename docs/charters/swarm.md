@@ -266,7 +266,9 @@ disk at `scratchpad/land/land-<n>.log` (#920), so filling the ledger is a
     closes its ledger and returns its report (the top launches the relief —
     one the lead spawned would be its own child and die with it,
     [relief](relief.md) law 6; a relief dispatches beside the draining
-    lead up to the cap minus its `dispatched` rows, swarm-train law 10),
+    lead up to the cap minus its `dispatched` rows, and when only blocked
+    units remain ends its turn on `blocked on <outgoing>` until the top's
+    `drained` line wakes it — swarm-train law 10),
     and runs `mise run ledger -- close` at train end. **Sage is out**
     for the tryout (tentative — the pass's call, swarm-train law 13): its `APPROVED` line goes to `main`, which in a tree is
     the top, and a sibling resume is unprobed; drones' advisor is the
