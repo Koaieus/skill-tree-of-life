@@ -24,7 +24,6 @@ theme_override_constants/separation = 0
 [node name="Crucible" type="VBoxContainer" parent="BodyContent/Content/Forge"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_constants/separation = -40
 
 [node name="VesselSlot" type="Control" parent="BodyContent/Content/Forge/Crucible"]
 unique_name_in_owner = true

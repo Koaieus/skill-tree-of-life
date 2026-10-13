@@ -20,6 +20,9 @@ extends Control
 ## Positioned children report no minimum size, so [method _get_minimum_size]
 ## is the arc's bounding box.
 
+## A locked ghost was tapped; [param threshold_line] is its unlock label ("INT 100").
+signal locked_tapped(threshold_line: String)
+
 ## Edge of each socket's ring. Tentative.
 @export_range(16, 96, 1, "suffix:px") var socket_px: int = 44:
 	set(v):
@@ -50,6 +53,7 @@ extends Control
 		_layout()
 
 const _SOCKET_SCENE := preload("res://ui/hud/command_tray/bodies/infusion_socket.tscn")
+const _NO_ASPECTS_HINT := "no aspects held"
 const _SLOTS_STAT := &"infusion_slots"
 
 @onready var _wheel: AspectWheel = %Wheel
@@ -156,6 +160,7 @@ func _rebuild(count: int) -> void:
 		s.index = i
 		s.toggled.connect(_on_socket_toggled)
 		s.cleared.connect(_on_socket_cleared)
+		s.locked_tapped.connect(_on_socket_locked_tapped)
 		add_child(s)
 		_sockets.append(s)
 	_layout()
@@ -163,20 +168,21 @@ func _rebuild(count: int) -> void:
 
 ## Socket i at angle θ_i across [member socket_arc_deg] (mirrored by
 ## [member right_to_left]), measured from straight down off a centre
-## [member arc_radius_px] above; the box is the arc's extent.
+## [member arc_radius_px] above; the box is the arc's extent. A lone socket
+## hangs at the apex, where a fan's middle socket would, on the vessel's rim.
 func _layout() -> void:
 	if not is_node_ready():
 		return
 	var n := _sockets.size()
-	var half := deg_to_rad(socket_arc_deg) * 0.5 if n > 1 else 0.0
+	var half := deg_to_rad(socket_arc_deg) * 0.5
 	var slot := Vector2(maxi(slot_width_px, socket_px), 0.0)
 	for i in n:
 		var s := _sockets[i]
 		s.socket_px = socket_px
 		slot.y = s.get_combined_minimum_size().y
 		var t := float(i) / (n - 1) if n > 1 else 0.5
-		var theta := lerpf(-half, half, 1.0 - t if right_to_left else t)
-		var x := arc_radius_px * (sin(theta) + sin(half))
+		var theta := lerpf(-half, half, 1.0 - t if right_to_left else t) if n > 1 else 0.0
+		var x := arc_radius_px * (sin(theta) + sin(half)) if n > 1 else 0.0
 		var y := arc_radius_px * (cos(theta) - cos(half))
 		s.size = slot
 		s.position = Vector2(x, y)
@@ -188,9 +194,10 @@ func _layout() -> void:
 func _get_minimum_size() -> Vector2:
 	if _sockets.is_empty():
 		return Vector2.ZERO
-	var half := deg_to_rad(socket_arc_deg) * 0.5 if _sockets.size() > 1 else 0.0
+	var half := deg_to_rad(socket_arc_deg) * 0.5
+	var span := 2.0 * arc_radius_px * sin(half) if _sockets.size() > 1 else 0.0
 	var slot_h := _sockets[0].get_combined_minimum_size().y
-	return Vector2(2.0 * arc_radius_px * sin(half) + maxi(slot_width_px, socket_px),
+	return Vector2(span + maxi(slot_width_px, socket_px),
 			arc_radius_px * (1.0 - cos(half)) + slot_h)
 
 
@@ -228,10 +235,18 @@ func _mark_open() -> void:
 		s.is_open = open != null and open.socket == s.index
 
 
+## A socket with nothing to offer opens no chooser: it says so instead.
 func _on_socket_toggled(index: int) -> void:
+	if _plan != null and InfusionChoices.entries(_plan, index).is_empty():
+		_sockets[index].flash_hint(_NO_ASPECTS_HINT)
+		return
 	var magic := _stack.find(MagicMode) as MagicMode if _stack != null else null
 	if magic != null:
 		magic.toggle_socket(index)
+
+
+func _on_socket_locked_tapped(index: int) -> void:
+	locked_tapped.emit(_sockets[index].line_text())
 
 
 func _on_socket_cleared(index: int) -> void:
