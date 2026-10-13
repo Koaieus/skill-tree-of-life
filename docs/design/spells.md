@@ -203,25 +203,9 @@ These have an issue; the issue is the design's home, not this doc.
 
 ---
 
-### Detonate
+### Explosive's spells: Firecracker and Flamestrike
 
-- **target type:** node
-- **power:** medium
-- **range:** medium
-- **mechanics/propagation:** deal zero direct damage. Place a **charge** on the target node. The charge is visible (marked). When any damage source hits the charged node next (any type, any origin), it detonates: full base damage to the node + half to all neighbours. Charge expires after `N` turns if undetonated.
-- **notes:** a trap spell — the threat of detonation is often more valuable than the detonation itself. Forces the enemy to route around the marked node or eat the explosion. A well-placed charge on a cut vertex or high-traffic bridge endpoint creates serious movement tension. Open: does the charge trigger on thorns returns, recovery penalty ticks, or only active attack hits? Can the caster detonate it on purpose by following up with a melee hit from an adjacent owned node? Both seem valid and potentially fun.
-- review: can do this but maybe later, introduces entire new realm of concepts
-
----
-
-### Supernova
-
-- **target type:** AoE
-- **power:** ultra
-- **range:** short (euclidean)
-- **mechanics/propagation:** all enemy nodes within euclidean radius of the target point take full base damage simultaneously. No graph propagation — pure geometric area blast.
-- **notes:** the deliberate exception in the catalogue: euclidean, not topological. Reserved for ultra (degree 5+) to keep it rare and earned. The spell exists so the graph-magic player who has been reading topology all game has one option to just *explode an area* when the graph is too chaotic to parse. Interesting tension: in dense graphs it hits many nodes, but smart dense-graph play (ring topology) means those nodes have more HP and resist. In sparse graphs the nodes are spread far apart and few fall in the radius. Less overpowered than it sounds in both extremes.
-- review: possible, if we tweak spells to accept multiple main targets
+Designed with the Explosive row (owner, 2026-10-13): `aspect_matrix.md` § Explosive. Detonate's charge is now the explosive status itself, planted by the arrow; Supernova was infusion's blast under a name. Both struck.
 
 ---
 
@@ -245,12 +229,11 @@ These have an issue; the issue is the design's home, not this doc.
 
 1. **Friendly fire policy** — most ideas say "no friendly fire"; should be decided per spell, not globally.
 2. **Propagation across own nodes** — can enemy-origin spells relay through player-owned nodes? Undefined.
-3. **Detonate trigger** — thorns returns, penalty ticks, or only active attack hits? Can the caster trigger it?
-4. **Topple + cut-vertex UX** — highlight cut vertices when armed, or is the partial-information read the challenge?
-5. **Ghost Walk path choice** — caster picks the corridor, or shortest wins?
-6. **Degree Drain metric** — owned degree (casting-power metric) or total degree (bracing metric)? Different spells.
-7. **Aftershock recursion** — does a secondary kill chain another aftershock? No by default.
-8. **Flood + Lifelink gaps** — can Flood cross pod gaps through the field?
+3. **Topple + cut-vertex UX** — highlight cut vertices when armed, or is the partial-information read the challenge?
+4. **Ghost Walk path choice** — caster picks the corridor, or shortest wins?
+5. **Degree Drain metric** — owned degree (casting-power metric) or total degree (bracing metric)? Different spells.
+6. **Aftershock recursion** — does a secondary kill chain another aftershock? No by default.
+7. **Flood + Lifelink gaps** — can Flood cross pod gaps through the field?
 
 ---
 

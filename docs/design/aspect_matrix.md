@@ -245,7 +245,7 @@ Each cell links its cell issue (`<Concept> × <Facet>`, a child of the row hub i
 | Armor break | armor debuff | `armor_break_aspect` | type shipped (#1349); feel and look #1395 | #1396 | `sunder` shipped; second spell #1397 | #1250 | row: #395 (child 0: penetration stat #1401). Flat −1 armor per stack, uncapped, can go below zero (#1203, owner 2026-09-30). School CON (round 7). Has no `_stacks_per_hit` / `_resistance` while the DEX pool rolls a raw `armor` −% bane that bypasses the aspect. `spells.md`'s Heavy / Piercing Bolt (seek max / min armor) are its second spell (#1397) |
 | Weakness | damage debuff | `weakness_aspect` | type shipped (#1349); look #1427 (Sap?) | #1428 | #1429 (Enfeeble?) | #1250 | row: #1425 (child 0: the status, #1426, shipped). Stacks cut damage dealt by attacks originating from the node, % on a saturating curve (round 7) |
 | Greed | status magnet | `greed_aspect` | type shipped; look #1422 | #1423 | #1424 | #1250 | row: #1419 (child 0: the landing term, #1420, shipped; Avarice #1421, shipped). One Greed stack on the node doubles every negative status the next hit lands, Greed included, then one stack is spent; its Avarice face pays bonus XP per stack left when an attack removes the node (rounds 5–6) |
-| Explosive | AoE | `explosive_aspect` | #1398 | #1399 — detonation kills the blade node, reuses spike-pop plumbing (owner, #1211) | #1400 (or none) | #1250 | row: #1211. Euclidean hitscan radius from `SkillNode.radius`; barrels / friendly fire open (#1399). The concept names the content, never the reverse (owner, 2026-10-05): *"an explosive barrel blast would at best do an *explosive* (as a concept) blast, not an "explosive arrow blast" literally cuz it's not like *arrows* determine the concept but the concept determines arrows+addons+spells etc."* — so the addon is an `ExplosiveBarrelAddon` doing the explosive blast. A detonated blade node is *damaged*, and today that means popped: *"so far we put their HP on 1 so they pop after taking 1 dmg"* (owner, 2026-10-05). `spells.md`'s Detonate / Supernova are its spell (#1400) |
+| Explosive | charges (AoE) | `explosive_aspect` | #1398 — plants charges | #1399 — the barrel: stacking, refills N charges; on a blade the warhead's lives | #1400 — Firecracker, Flamestrike | #1466 — plants charges (column default) | row: #1211. Designed in § Explosive (owner, 2026-10-13): charges are a side-less status, a blast per spent charge in a euclidean radius; a blade's contact pops blade, a projectile spreads its hit. The concept names the content, never the reverse (owner, 2026-10-05): *"the concept determines arrows+addons+spells etc."* |
 | Bleeding | wound, exertion | `bleeding_aspect` | shipped (#1436) | #1437 — Spike Ring refit, with #1369 | #1438 | #1250 | row: #1434 (child 0: the status + origin set, #1435, shipped). Promoted 2026-10-06. **Round 10 (owner, 2026-10-06) replaces round 9's conditional tick:** a node in an attack's origin set has its stacks ×`exert_growth` (2) **at launch**; every turn end the row pays ⌈stacks × `bleed_rate` (½)⌉ flat HP, then decays on a ramp (−1, −2, −3 … while not exerting; exertion resets it). A core exerts by *moving*, once per turn, never by attacking. Dealloc or death spills ⌊S/(N+M)⌋ to each owned neighbour, the unallocated shares soak away. STR: the price of exertion. Edgelord's **Bleeding Edge** jab takes a new name (#1449) |
 | Hex | jinx, crit taken | `hex_aspect` | shipped (#1441) | #1442 | #1443 — a fresh first spell; the shipped `hex` becomes Curse's Malediction (owner, 2026-10-11) | #1250 | row: #1439 (child 0: the status, #1440, shipped). INT's slot (owner, 2026-10-06, round 9). The defender side of crit: per stack, hits *against* the node crit more often, a % on the saturating curve (Blindness / Weakness shape) — **Hex pass (owner, 2026-10-07): flat +5% per stack for now, past 100% is #197; authored as `incoming_modifiers` on the status**; attacker-side `crit_chance` / `crit_multiplier` stay DEX's native stats, never an aspect. The crit roll must open for a hexed target even when the attacker's board holds no crit investment (#1280's stream note) |
 
@@ -331,6 +331,74 @@ Each cell links its cell issue (`<Concept> × <Facet>`, a child of the row hub i
   corruption affinity lands on every hit, and each self-loop toll crits and
   doubles it, so the rung node topples into its friendly neighbours and the
   stain outlasts the node.
+
+### Explosive (owner, 2026-10-13)
+
+Explosive is a **status: charges**, an int stack count on a node with no
+side (owner: *"charges are .. ints, some status stack count"*). A charge is
+a life: a pop that hits a charged blade piece spends a charge instead of
+killing it (owner: *"i was thinking along "lives" the entire time"*).
+Addons stay scene objects and reach charges only through their own hooks.
+
+- **Detonation, by what sets it off** (owner, verbatim):
+  - *"blade node with stacks hits unstacked node: it explodes for -1 stack
+    on the blade node, AoE hit + any riders. if stacks become 0 this way,
+    the blade vertex dies (it.. exploded) mid swing"* — the **warhead**.
+  - *"blade node w/o stacks hits stacked node: stacked node explodes,
+    popping blade vertices in range"* — the **barrel**: a blade's contact
+    pops blade pieces only, never the board and never the attacker's riders
+    (*"should it apply the *attacker's* riders..? Sounds counterintuitive"*).
+  - *"type X arrow hits node with stacks: node explodes and effect X rides
+    along the AoE"* — a projectile spreads **that hit** to the shooter's
+    enemies in range. Spells likewise.
+  - *"blade node w/stacks hits stacked node: min(N,M)-sized explosion that
+    eats the same amount of both their "lives""*; the larger side keeps the
+    difference.
+- **Chains.** A blast that lands on a charged node sets it off only when the
+  blast came from an arrow or a spell, never from a blade contact (owner:
+  *"A sounds best for now"*, against a one-charge warhead burning a barrel
+  from a neighbour). At most one blast per node per arrow hit; per wave for
+  magic (*"magic goes in beats"*); per contact for melee. The relay is the
+  point: arrow 1 plants, arrow 2 blasts and replants on the neighbours,
+  arrow 3 sets the whole patch off carrying its own payload.
+- **Melee gets a little AoE, not a lot.** Owner: *"melee's whole secretly
+  OP face is that you could literally sweep the entire map with it ... it
+  doesn't *need* a lot more AoE, just a bit for fun"*.
+- **Death:** a node that dies with charges explodes, spending them.
+  Charges reach the core the way any status does, when they land on the core
+  node (*"Halo sticky grenades anyone?"*). On the core they act as on any
+  node, also set off when its host node is attacked; no lit fuse.
+- **Decay:** −1 charge at end of turn; barrels refill at turn start.
+- **Barrel addon** (the anti-blade face, moved here from spikes; owner lean
+  2026-10-04, shape 2026-10-13): not unique, it stacks. On an allocated node,
+  N barrels refill the node to N charges at turn start; removing one takes
+  one charge off if any. A flat +1 per barrel, never stat-scaled (*"if you
+  get 20 explosive_aspect then you're cooked"*). Look: stacked cylinder
+  segments, *"like a "database flowchart figure""*, one per charge. On a
+  blade the same charges are the warhead's lives. Rare by procgen, which
+  keeps it *"the"* anti-blade exception.
+- **Arrow and infusion plant charges.** Owner, 2026-10-12: *"explosive
+  arrow does this, explosive infusion should do so too"*. The arrow plants
+  (the relay above), so infusion is the column default, apply the row's
+  status. A multi-wave spell infused with explosive plants on one wave and
+  sets them off the next.
+- **Ranged off-main.** A melee player's handful of stored arrows cut the
+  fuses before a swing: *"maybe this is just the way of off-maining ranged:
+  some tactical chip damage and procs"*.
+- **Spell: Firecracker.** Low damage, a small scalable euclidean radius,
+  jumps to euclidean candidates, not along edges. Each jump burns explosive
+  as fuel; it fizzles at zero; a jump cap around 10 (*"Putting some bounds
+  on it might be wise"*). It crits on a jump to a node with no edge to the
+  node it jumped from (the jump source, not the attacker).
+- **Spell: Flamestrike.** One strike; a damage pool divided over the
+  hostile nodes in a circle, so one target takes it all (*"hitting a single
+  target concentrates the boom on the one unlucky node"*). Explosive
+  shrinks the radius (*"more concentrated with aspect"*). Damage divides,
+  riders don't. No jumps, hostile only. Look: the whole circle charges, the
+  charge contracts onto the hit nodes, and the fewer there are, the taller
+  the pillar.
+- **Struck:** Supernova (infusion's blast under a name) and Detonate (the
+  arrow plants charges now).
 
 ## Arrow faces (owner, 2026-10-07)
 
@@ -424,8 +492,8 @@ or is struck (the ADR 0045 "dead for two of three attack modes" test).
 | Exposed | surface DoT | STR × INT (pair) | stacks of the status | stacks of the status | stacks of the status | **Round 9 (owner, 2026-10-06): the third-row candidate.** Tick = stacks × the node's edges to *non-owned* neighbours; decay counts the same edges, so consolidating territory is the cure. Owner: *"excellent topological twist of counting *non owned edges* only. it eats away leaf nodes that arent true dead ends. the ratio of connected vs not connected could also be mapped out. and could also be made to decay using edge-counting logic that would fit its scaling mechanic, would also determine counterplay to some extend. a strong contender. if we would add a 3rd row to each, this would 100% be in it"*; *"STR themed feel with an INT themed (edge counting) touch"*. Design issue #1445 |
 | Fatigue / Slow | — | — | — | — | — | **Struck (owner, 2026-10-06)** with Paralysis, *"the whole tardy bunch"*: movement and dealloc are entity pools with no node-local meaning, and a per-node cost deadlocks chokepoints while the nodes worth slowing sit out of reach (round 5) |
 | Paralysis | — | — | — | — | — | **Struck (owner, 2026-10-06)** with Fatigue / Slow. An AP-cap cut also sits on core-class territory (the Pacifist ruling) |
-| Spikes | offense | STR? | — | `spike_ring_addon.tscn`: local `blade_damage` (×1.5, +3), allocation-scaled per #1369 | — | **Not an aspect**: its defensive face (pop a blade vertex) has no ranged or spell meaning. Owner, 2026-10-05: *"spikes addon just adds blade damage. Switch to bleed stacks instead? (Or keep some blade dmg mods why not). Spikes do fit bleeding thematically. Though they also fit poison"*. **Round 9 lean (pass, 2026-10-06): Spike Ring is Bleeding × Addon** — a sawblade that opens wounds: keeps its local `blade_damage`, gains the bleed rider, and Blunting dies with the pop budget; settled on #1369 and the Bleeding addon cell. The pop budget (`spikes`, `node_spikes`, `spike_regen`) is the #1369 fork; the owner leans to moving the anti-blade face to Explosive (2026-10-04: *"I think the explosive one thematically fits best"*), which would delete those stats |
-| Blunting | — | — | — | today only a spiked node's +1 | — | Struck candidate: a counter to a counter, meaningless to an arrow or a spell. Dies with the pop budget if #1369 takes the explosive pivot (and #794 with it) |
+| Spikes | offense | STR? | — | `spike_ring_addon.tscn`: local `blade_damage` (×1.5, +3), allocation-scaled per #1369 | — | **Not an aspect**: its defensive face (pop a blade vertex) has no ranged or spell meaning. Owner, 2026-10-05: *"spikes addon just adds blade damage. Switch to bleed stacks instead? (Or keep some blade dmg mods why not). Spikes do fit bleeding thematically. Though they also fit poison"*. **Round 9 lean (pass, 2026-10-06): Spike Ring is Bleeding × Addon** — a sawblade that opens wounds: keeps its local `blade_damage`, gains the bleed rider, and Blunting dies with the pop budget; settled on #1369 and the Bleeding addon cell. The pop budget (`spikes`, `node_spikes`, `spike_regen`) is the #1369 fork; the anti-blade face moved to Explosive's barrel (lean 2026-10-04: *"I think the explosive one thematically fits best"*; shape settled 2026-10-13, § Explosive), so those stats go |
+| Blunting | — | — | — | today only a spiked node's +1 | — | Struck candidate: a counter to a counter, meaningless to an arrow or a spell. Dies with the pop budget (the anti-blade face is Explosive's barrel, 2026-10-13) (and #794 with it) |
 | Elemental (family) | — | — | — | — | — | **Keep away (settled with Schools, 2026-10-05):** each pro is harvested as a mechanic for existing rows. Owner, 2026-10-05: *"Chill or burn sound like pure elemental, which is also a real mechanic family we haven't touched on yet. And if we start adding it, shouldn't half-ass it"*. A family, not a row: which elements, what each does on a graph, and whether elements share a resistance layer are one design pass. Chill would absorb the tempo debuffs above (Fatigue/Slow, Paralysis, Petrified). All or nothing (owner, 2026-10-05): *"either fully flesh it out or keep it away"*. Owner's pros: burning is a canonical DoT; burning could spread to neighbours; freeze may lock a node (can't act, can't be deallocated), chill a lesser or building version (*"enough chill turns into freeze idk"*); lightning *"might do hops based shenanigans"*. Against: the settled aspects (Corruption, Curse, Wither, Poison, Armor break) fit none of fire/cold/lightning, nor a fourth element. Advisor read: burn collides with Poison's axis unless edge-spread sets it apart, freeze is the tempo row's name, lightning is a targeting shape — so elements may be flavour, not a school |
 | Frailty / Fragile | fragility | — | — | — | — | Struck: owner, 2026-10-05, *"likely what curse does so no"* |
 | Healing | heal, regen | CON? | — | — | — | Owner, 2026-10-07, while ruling on Wither's resistance: *"`healing_aspect` sounds like something we might want to look into, maybe a contender? could scale healing power and regen effects. but generally sounds like an odd duck compared to the others"*. A positive aspect among debuffs; whether an arrow or an addon has an honest healing face is the promotion test |
@@ -1063,7 +1131,7 @@ this table's rows.
   edge spread, hop; Contagion would be an infusion on it, never a row. Pass
   proposal, unruled.
 - `dealloc_damage` has no row; Creep (Contenders) is its candidate home; stale facts: #1414 (`damage_over_time.md`'s halving decay closed with #1448).
-- Which row holds the anti-blade face: Explosive (owner lean, 2026-10-04) — barrels / friendly fire on #1399, the pop budget's fate on #1369; ADR 0005 would be superseded, not edited.
+- The anti-blade face is Explosive's barrel (§ Explosive, 2026-10-13); the pop budget's fate is #1369's; ADR 0005 is superseded, not edited.
 - Combos / hybrids: #1446; third row = pair row is the lens.
 - The Edgelord jab "Bleeding Edge" is renamed now that Bleeding is a row (#1449).
 
