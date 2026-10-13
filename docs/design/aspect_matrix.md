@@ -360,8 +360,15 @@ Addons stay scene objects and reach charges only through their own hooks.
   from a neighbour). At most one blast per node per arrow hit; per wave for
   magic (*"magic goes in beats"*); per contact for melee. A blast never
   plants charges (owner: *"a good exception to make"*), so a patch is set off
-  only after it was charged hit by hit or by barrels. Whether an
-  explosive-carrying hit arms without firing is open (#1594).
+  only after it was charged hit by hit or by barrels.
+- **Arming order.** A hit whose only rider is explosive plants and never
+  sets anything off (owner, 2026-10-13: *"unless we make it "hits that
+  apply **only explosive**" don't fire..?"*, picked the same day). Any other hit on a charged node, a plain arrow
+  included, sets off one charge first and then lands its riders. So three
+  explosive arrows leave three charges, and the poison arrows behind them
+  each cash one in carrying poison. Arrows carry at most one rider, so for
+  ranged the rule is exact; it matters for spells that carry explosive plus
+  something else.
 - **Melee gets a little AoE, not a lot.** Owner: *"melee's whole secretly
   OP face is that you could literally sweep the entire map with it ... it
   doesn't *need* a lot more AoE, just a bit for fun"*.
@@ -381,8 +388,9 @@ Addons stay scene objects and reach charges only through their own hooks.
 - **Arrow and infusion plant charges.** Owner, 2026-10-12: *"explosive
   arrow does this, explosive infusion should do so too"*. The arrow plants
   (the relay above), so infusion is the column default, apply the row's
-  status. A multi-wave spell infused with explosive plants on one wave and
-  sets them off the next.
+  status, picked over a direct blast (owner, 2026-10-13). A multi-wave
+  spell infused with explosive plants on one wave and sets them off the
+  next.
 - **Ranged off-main.** A melee player's handful of stored arrows cut the
   fuses before a swing: *"maybe this is just the way of off-maining ranged:
   some tactical chip damage and procs"*.
@@ -390,11 +398,17 @@ Addons stay scene objects and reach charges only through their own hooks.
   jumps to euclidean candidates, not along edges. Each jump burns explosive
   as fuel; it fizzles at zero; a jump cap around 10 (*"Putting some bounds
   on it might be wise"*). It crits on a jump to a node with no edge to the
-  node it jumped from (the jump source, not the attacker).
+  node it jumped from (the jump source, not the attacker). Its explosive is
+  **fuel, not cargo** (owner, 2026-10-13): it plants no charges, so its
+  pops carry nothing and set off whatever charges they land on. Firecracker
+  is the row's detonator, crackling through a cluster that arrows or barrels
+  charged. Infuse poison and every pop spreads poison.
 - **Spell: Flamestrike.** One strike; a damage pool divided over the
   hostile nodes in a circle, so one target takes it all (*"hitting a single
   target concentrates the boom on the one unlucky node"*). Explosive
-  shrinks the radius (*"more concentrated with aspect"*). Damage divides,
+  shrinks the radius (*"more concentrated with aspect"*), as shape like
+  Firecracker's fuel, never planted (tentative, follows from the
+  Firecracker pick, 2026-10-13). Damage divides,
   riders don't. No jumps, hostile only. Look: the whole circle charges, the
   charge contracts onto the hit nodes, and the fewer there are, the taller
   the pillar.
@@ -413,6 +427,19 @@ Addons stay scene objects and reach charges only through their own hooks.
     for something only an addon (so far) provides"*.
   - Charge segments drawn by every node: a per-status visual chapter, not
     started here.
+  - An explosive hit setting off every charge at once, then planting
+    fresh: explosive arrows sent ahead of a poison volley would cash the big
+    stack as one boom that spreads nothing.
+  - Any explosive-carrying hit arming without firing: an infused multi-wave
+    spell would never boom on its own charges (*"explosive infusion should
+    do so too"*, 2026-10-12).
+  - A spell's innate explosive planting charges: one number would be both
+    fuel and the lives handed to the enemy against the caster's blade, and a
+    jump back to a node would stack plants. Only infused explosive planting
+    was rejected too: innate and infused load take one path (ADR 0047).
+  - Infusion blasting directly instead of planting: two booms with
+    different rules for one concept.
+- **Later, maybe:** a cluster-grenade arrow that does set off charges.
 
 ## Arrow faces (owner, 2026-10-07)
 
