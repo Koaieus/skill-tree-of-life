@@ -11,3 +11,4 @@ swarmify's older scans stay in `.claude/skills/swarmify/corpus/`.
 | 2026-10-09 | [skill-endings](2026-10-09-skill-endings.md) — how 208 skill runs closed; structure, content kinds, samples | `docs/domain/session-report.md` |
 | 2026-10-10 | [swarmify-spec-weight-headless-clerk](2026-10-10-swarmify-spec-weight-headless-clerk.md) — when steps 8-10 start; headless issue filing; clerk manifest friction | swarmify skill split / clerk grammar decision |
 | 2026-10-11 | [drift-stamp-value](2026-10-11-drift-stamp-value.md) — what the drift stamp costs to write vs what leads and drones get from it | `docs/charters/spec.md` laws 9, 12, 13; clerk law 8 |
+| 2026-10-14 | [zsh-equals-not-found](2026-10-14-zsh-equals-not-found.md) — 390 Bash results with `(eval):N: =… not found`, 274 pure runs, 144 sessions; trend and trigger shape | none yet — `.claude/rules/zsh-bash.md` already states the rule |
