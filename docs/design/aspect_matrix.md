@@ -400,6 +400,19 @@ Addons stay scene objects and reach charges only through their own hooks.
   the pillar.
 - **Struck:** Supernova (infusion's blast under a name) and Detonate (the
   arrow plants charges now).
+- **Rejected, with why** (2026-10-13):
+  - Charges that remember the side that planted them: charges are ints, and
+    the owner's fuse-cutting volley needs a barrel to hurt its own side.
+  - A barrel blast that carries the striking blade's hit onto the defender's
+    board: *"Sounds counterintuitive"*, and it could kill more than it defends.
+  - Blade-contact blasts setting off board charges: a one-charge warhead on a
+    neighbour would burn a barrel and leave nothing.
+  - A lit fuse on barrels or the core: no anti-blade value, and a pending
+    state that lives on the map.
+  - A per-node charge-cap stat for refills: *"no charge cap on ALL nodes needed
+    for something only an addon (so far) provides"*.
+  - Charge segments drawn by every node: a per-status visual chapter, not
+    started here.
 
 ## Arrow faces (owner, 2026-10-07)
 
