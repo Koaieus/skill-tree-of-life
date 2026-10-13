@@ -103,22 +103,19 @@ func before_each() -> void:
 
 
 ## XP is a growing pool, so a raw `current` delta undercounts once it levels.
-## Reconstruct the total: each level consumed its cap (5, 10, 15, ... per the
-## xp def's growth_flat).
-func _xp_gained(before: float, lvl_before: int) -> float:
-	var consumed := 0.0
-	for l in range(lvl_before, _killer.level):
-		consumed += 5.0 * float(l)
-	return consumed + _killer.stat_board.xp.current - before
+## Reconstruct the total: every cap a level consumed is banked on the pool.
+func _xp_gained(before: float, banked_before: float) -> float:
+	var xp := _killer.stat_board.xp as GrowablePoolStat
+	return xp.banked - banked_before + xp.current - before
 
 
 func _cut_the_arm_with_health(health: float) -> float:
 	_victim.stat_board.health.set_current(health)
 	var before := _killer.stat_board.xp.current
-	var lvl_before := _killer.level
+	var banked_before := (_killer.stat_board.xp as GrowablePoolStat).banked
 	_nodes[2].take_damage(10000.0, null)  # deplete A, the cut vertex
 	assert_true(_victim.is_dead, "chip damage kills the core mid-cascade")
-	return _xp_gained(before, lvl_before)
+	return _xp_gained(before, banked_before)
 
 
 func test_payout_is_invariant_to_where_in_the_cascade_the_core_dies() -> void:
@@ -142,10 +139,10 @@ func test_a_clean_decapitation_pays_the_same_as_dismantling_in_one_attack() -> v
 	# as cutting the arm out from under it.
 	_victim.stat_board.health.set_current(1.0)
 	var before := _killer.stat_board.xp.current
-	var lvl_before := _killer.level
+	var banked_before := (_killer.stat_board.xp as GrowablePoolStat).banked
 	_victim.core_location.take_damage(10000.0, null)
 	assert_true(_victim.is_dead)
-	assert_eq(_xp_gained(before, lvl_before), _WHOLE_VICTIM_XP,
+	assert_eq(_xp_gained(before, banked_before), _WHOLE_VICTIM_XP,
 			"snipe and same-attack dismantle are worth the same")
 
 
@@ -154,10 +151,10 @@ func test_a_non_killing_cut_pays_the_trickle_only() -> void:
 	# left the board; each pays 1x, no core bonus (the core never died).
 	_victim.stat_board.health.set_current(100.0)
 	var before := _killer.stat_board.xp.current
-	var lvl_before := _killer.level
+	var banked_before := (_killer.stat_board.xp as GrowablePoolStat).banked
 	_nodes[2].take_damage(10000.0, null)
 	assert_false(_victim.is_dead, "the victim survives this one")
-	assert_eq(_xp_gained(before, lvl_before), 4.0 * _PER_NODE,
+	assert_eq(_xp_gained(before, banked_before), 4.0 * _PER_NODE,
 			"4 removed nodes at the plain rate, no core bonus")
 
 
@@ -170,14 +167,14 @@ func test_whittling_across_attacks_pays_the_same_as_one_decisive_blow() -> void:
 	# Attack 1: cut the arm, victim survives → 4 nodes at 1x, no core bonus.
 	_victim.stat_board.health.set_current(100.0)
 	var before := _killer.stat_board.xp.current
-	var lvl_before := _killer.level
+	var banked_before := (_killer.stat_board.xp as GrowablePoolStat).banked
 	_nodes[2].take_damage(10000.0, null)
 	# Attack 2: a new attack clears the ledger; only the core is left to remove.
 	_battle.attack_launched.emit(0, null)
 	_victim.stat_board.health.set_current(1.0)
 	_victim.core_location.take_damage(10000.0, null)
 	assert_true(_victim.is_dead)
-	var total := _xp_gained(before, lvl_before)
+	var total := _xp_gained(before, banked_before)
 	assert_eq(total, 4.0 * _PER_NODE + (1.0 * _PER_NODE + _CORE_BONUS),
 			"limbs at 1x from the earlier attack, only the core kill pays the bonus")
 	assert_eq(total, _WHOLE_VICTIM_XP, "no premium for a decisive attack anymore — same total either way")

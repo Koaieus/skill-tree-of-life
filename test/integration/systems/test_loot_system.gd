@@ -167,10 +167,10 @@ func test_core_kill_bonus_is_additive_not_multiplicative() -> void:
 
 
 func test_xp_award_routes_through_level_up() -> void:
-	# Award >= xp cap (5) → fills the pool → the normal replenished cascade
-	# levels the killer and mints 1 SP (proves we go through the pool, not a
-	# raw set_current that would skip it).
-	_loot.xp_per_node_killed = 5.0
+	# Award == the xp cap → fills the pool → the normal replenished cascade
+	# levels the killer and mints SP (proves we go through the pool, not a
+	# raw set_current that would skip it). Victim holds 2 nodes.
+	_loot.xp_per_node_killed = float(_killer.stat_board.xp.get_value()) / 2.0
 	var lvl_before := _killer.level
 	var sp_before := _killer.stat_board.skill_points.current
 	_kill_victim()
@@ -182,19 +182,24 @@ func test_xp_award_routes_through_level_up() -> void:
 
 
 func test_a_big_kill_cascades_through_several_levels() -> void:
-	# A big award needs to cascade through multiple level-ups on a pool whose
-	# cap starts at 5. That only works because the xp def is OVERFLOW mode —
-	# `on_pool_filled` re-enters `set_current` with the excess and cascades. If
-	# that ever regresses to KEEP or RESET, a 20 XP kill silently pays ONE
-	# level and bins the rest.
-	_loot.xp_per_node_killed = 10.0
+	# A big award needs to cascade through multiple level-ups. That only works
+	# because the xp def is OVERFLOW mode — `on_pool_filled` re-enters
+	# `set_current` with the excess and cascades. If that ever regresses to
+	# KEEP or RESET, a two-level kill silently pays ONE level and bins the rest.
+	# Caps are read off the xp def's growth, never pinned: the curve is a knob.
+	var xp: PoolStat = _killer.stat_board.xp
+	var def := xp.definition as GrowablePoolStatDef
+	var cap1 := float(xp.get_value())
+	var cap2 := float(xp._coerce(cap1 * def.growth_factor + def.growth_flat))
+	var cap3 := float(xp._coerce(cap2 * def.growth_factor + def.growth_flat))
+	var remainder := 5.0
+	# Victim holds 2 nodes → cap1 + cap2 + remainder XP across them.
+	_loot.xp_per_node_killed = (cap1 + cap2 + remainder) / 2.0
 	var lvl_before := _killer.level
-	# Victim holds 2 nodes → 2 * 10 = 20 XP. Caps run 5 then 10 (growth_flat 5),
-	# consuming 15 across two level-ups; the remaining 5 sits in the new cap-15 pool.
 	_kill_victim()
-	assert_eq(_killer.level, lvl_before + 2, "a 20 XP award cascades through both level-ups")
-	assert_eq(_killer.stat_board.xp.current, 5.0, "the remainder carries in, nothing is binned")
-	assert_eq(float(_killer.stat_board.xp.get_value()), 15.0, "cap grew once per level")
+	assert_eq(_killer.level, lvl_before + 2, "a two-cap award cascades through both level-ups")
+	assert_eq(float(xp.current), remainder, "the remainder carries in, nothing is binned")
+	assert_eq(float(xp.get_value()), cap3, "cap grew once per level")
 
 
 func test_self_death_grants_no_xp() -> void:

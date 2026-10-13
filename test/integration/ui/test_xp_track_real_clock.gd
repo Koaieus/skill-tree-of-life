@@ -60,7 +60,13 @@ func after_each() -> void:
 
 func test_a_two_level_cascade_plays_out_on_the_real_clock() -> void:
 	watch_signals(_flourish)
-	_entity.stat_board.xp.replenish(20.0)  # 2 levels off a fresh board: 5 → 10 → 15
+	# 2 levels off a fresh board plus a remainder; caps read off the xp def.
+	var xp: PoolStat = _entity.stat_board.xp
+	var def := xp.definition as GrowablePoolStatDef
+	var cap1 := float(xp.get_value())
+	var cap2 := float(xp._coerce(cap1 * def.growth_factor + def.growth_flat))
+	var cap3 := float(xp._coerce(cap2 * def.growth_factor + def.growth_flat))
+	xp.replenish(cap1 + cap2 + 5.0)
 	await wait_until(func(): return _levels.size() >= 1, 10.0)
 	assert_eq(_levels, [2] as Array[int], "the first beat landed")
 	# Passive income lands mid-replay; it must be in the settle, not swallowed.
@@ -77,7 +83,7 @@ func test_a_two_level_cascade_plays_out_on_the_real_clock() -> void:
 	assert_eq((_track.get_node("%LevelLabel") as Label).text, "LEVEL 3", "the readout caught up")
 
 	await wait_until(func(): return is_equal_approx(_gauge.current, float(_entity.stat_board.xp.current)), 10.0)
-	assert_almost_eq(_gauge.max_value, 15.0, 0.01, "settled on the final cap")
+	assert_almost_eq(_gauge.max_value, cap3, 0.01, "settled on the final cap")
 	assert_almost_eq(_gauge.current, float(_entity.stat_board.xp.current), 0.05,
 			"the bar settles on the pool's LIVE value, including the interrupt")
-	assert_almost_eq(_gauge.current, 7.0, 0.05, "20 + 2 XP over caps 5 and 10 carries 7 (sanity)")
+	assert_almost_eq(_gauge.current, 7.0, 0.05, "a 5 remainder + 2 XP carries 7 (sanity)")
