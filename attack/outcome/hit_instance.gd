@@ -12,7 +12,7 @@ extends RefCounted
 ## each subclass's own [code]_init()[/code], but [b]not fixed at
 ## construction for damage[/b] — [method SkillNode.take_damage] reclassifies
 ## a [DamageInstance] to [constant Kind.HEAL] when post-[Mitigation] damage
-## goes negative (a Bulwark-style `min_damage_taken` underflow — see
+## goes negative (a negative `min_damage_taken` underflow — see
 ## `docs/domain/stat-upkeep-and-combat.md` § "Damage mitigation"). A
 ## [HealInstance] never reclassifies; heals aren't mitigated. [StatusInstance]
 ## (#878) adds a third value — never reclassified either, and deliberately

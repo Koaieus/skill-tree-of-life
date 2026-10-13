@@ -387,7 +387,7 @@ func take_damage(amount: float, source: HitInstance) -> void:
 			var armor: float = get_local_value(&"armor")
 			var floor_min: float = get_local_value(&"min_damage_taken")
 			effective = Mitigation.compute(raw.amount, armor, floor_min)
-	# #381: a defensive `min_damage_taken` underflow (Bulwark-style) can push
+	# #381: a defensive `min_damage_taken` underflow (a negative floor) can push
 	# `effective` negative — that's a real heal, not a damage number that
 	# happened to round to nothing. Reclassify BEFORE the presentation layer
 	# reads `kind`. `effective == 0` stays DAMAGE — a real hit that soaked to

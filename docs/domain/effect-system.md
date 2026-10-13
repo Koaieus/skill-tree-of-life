@@ -248,8 +248,6 @@ is what catches it).
 
 | Class | `reach` | `metric` | `distance_scale` |
 |---|---|---|---|
-| Bulwark | `EuclideanRangeFinder` / `HopRangeFinder` | inherited | `FlatScale` |
-| Halo | `HopRangeFinder(shell+1)` | inherited | `ShellScale` |
 | Ninja | `HopRangeFinder(2)` | inherited | `LinearScale` (falling, `strength` buff) |
 | Balanced heal (`HealAuraEffect`, #720) | `HopRangeFinder(4)` | inherited | `ExpressionScale("5 - d")` |
 | Serpent A | `null` | `HopMetric` | `ProportionalScale` (positive mods) |

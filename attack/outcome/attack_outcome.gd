@@ -105,7 +105,7 @@ class Aim extends RefCounted:
 ## [member hits] filtered to [constant HitInstance.Kind.DAMAGE] and cast —
 ## the "accepted cost" of unifying hits/heals into one list (#381). Reads
 ## [member HitInstance.kind], not `is DamageInstance`, so a hit
-## [method SkillNode.take_damage] reclassified to a heal (Bulwark-style
+## [method SkillNode.take_damage] reclassified to a heal (a negative
 ## `min_damage_taken` underflow) correctly drops out here.
 func damage_hits() -> Array[DamageInstance]:
 	var out: Array[DamageInstance] = []

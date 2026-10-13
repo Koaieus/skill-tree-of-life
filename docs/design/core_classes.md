@@ -142,7 +142,7 @@ once-per-turn on-kill AP gain cap (`stats_system/defs/tempo.tres`).
 | Nerfed | `deallocation_points` (reshapes slowly); `movement_speed` |
 | Unique | a raised starting `min_damage_taken`; floor-reduction perk path |
 
-**Aura:** Short-range, heavily defensive. Within ~3 hops of core: additional armor, additional resist, and a weak offensive aura component so nearby nodes can fend off approaches.
+**Aura:** (design intent: `EuclideanRangeFinder` or `HopRangeFinder` reach, `FlatScale` — uniform inside reach.) Short-range, heavily defensive. Within ~3 hops of core: additional armor, additional resist, and a weak offensive aura component so nearby nodes can fend off approaches.
 
 **Ideal constellation:** Compact. Ring-topology preferred (2-edge-connected). Core at center.
 
@@ -214,7 +214,7 @@ Introduced after the player is comfortable with basic island rules and the stat 
 | Nerfed | Nodes inside and outside the shell: no aura benefit |
 | Unique | `shell_distance` (INT stat, default 3); `thorns_base` (INT stat, default 1) |
 
-**Aura:** Shell with thorns gradient.
+**Aura:** Shell with thorns gradient (design intent: `HopRangeFinder(shell+1)` reach, `ShellScale`).
 - Nodes AT `shell_distance`: full aura buff + `thorns = 2 × thorns_base` returned to melee attackers
 - Nodes at `shell_distance ± 1`: partial buff + `thorns = 1 × thorns_base`
 - Other nodes: no aura

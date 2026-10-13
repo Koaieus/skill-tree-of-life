@@ -15,7 +15,7 @@ extends Resource
 ##
 ## [b]Deliberately not called "falloff."[/b] The return is an unbounded scalar,
 ## not an attenuation. It may rise with distance (the Serpent's hop buff), fall
-## (Bulwark), spike at exactly one ring (Halo), or deepen a negative modifier
+## (a fortress zone), spike at exactly one ring (a halo), or deepen a negative modifier
 ## (the Ninja's armor debuff). "Falloff" would imply `<= 1` and monotonic
 ## decrease — precisely the constraint this abstraction must not have.
 ##

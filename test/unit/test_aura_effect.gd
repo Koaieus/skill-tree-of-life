@@ -71,7 +71,7 @@ func _armor_mod(value: float) -> StatModifier:
 
 
 ## Flat +5 armor within 1 hop of the core.
-func _bulwark() -> AuraEffect:
+func _flat_armor_aura() -> AuraEffect:
 	var aura := AuraEffect.new()
 	var reach := HopRangeFinder.new()
 	reach.max_hops = 1
@@ -85,7 +85,7 @@ func _bulwark() -> AuraEffect:
 
 func test_aura_buffs_nodes_in_reach_only() -> void:
 	var ent: Entity = await _spawn(_nodes[0], [_nodes[0], _nodes[1], _nodes[2]])
-	ent.grant_effect(_bulwark())
+	ent.grant_effect(_flat_armor_aura())
 
 	assert_almost_eq(_armor(_nodes[0]), 5.0, 0.001, "core is in its own aura")
 	assert_almost_eq(_armor(_nodes[1]), 5.0, 0.001, "1 hop away: buffed")
@@ -97,14 +97,14 @@ func test_aura_buffs_nodes_in_reach_only() -> void:
 func test_aura_populates_on_grant() -> void:
 	var ent: Entity = await _spawn(_nodes[0], [_nodes[0], _nodes[1]])
 	assert_almost_eq(_armor(_nodes[1]), 0.0, 0.001)
-	ent.grant_effect(_bulwark())
+	ent.grant_effect(_flat_armor_aura())
 	assert_almost_eq(_armor(_nodes[1]), 5.0, 0.001, "granted → immediately applied")
 
 
 ## The remove path is where the bugs live. Write it first.
 func test_core_moves_away_and_node_loses_the_buff() -> void:
 	var ent: Entity = await _spawn(_nodes[0], [_nodes[0], _nodes[1], _nodes[2]])
-	ent.grant_effect(_bulwark())
+	ent.grant_effect(_flat_armor_aura())
 	assert_almost_eq(_armor(_nodes[0]), 5.0, 0.001)
 	assert_almost_eq(_armor(_nodes[2]), 0.0, 0.001)
 
@@ -118,7 +118,7 @@ func test_core_moves_away_and_node_loses_the_buff() -> void:
 
 func test_allocating_a_node_in_reach_buffs_it() -> void:
 	var ent: Entity = await _spawn(_nodes[0], [_nodes[0]])
-	ent.grant_effect(_bulwark())
+	ent.grant_effect(_flat_armor_aura())
 	assert_almost_eq(_armor(_nodes[1]), 0.0, 0.001, "unowned: not in the owned-scope mirror")
 
 	_alloc.force_allocate(ent, _nodes[1])
@@ -130,7 +130,7 @@ func test_allocating_a_node_in_reach_buffs_it() -> void:
 
 func test_revoking_the_aura_clears_every_node() -> void:
 	var ent: Entity = await _spawn(_nodes[0], [_nodes[0], _nodes[1]])
-	var inst := ent.grant_effect(_bulwark())
+	var inst := ent.grant_effect(_flat_armor_aura())
 	assert_almost_eq(_armor(_nodes[1]), 5.0, 0.001)
 	ent.revoke_effect(inst)
 	assert_almost_eq(_armor(_nodes[0]), 0.0, 0.001)
@@ -150,7 +150,7 @@ func test_revoking_the_aura_clears_every_node() -> void:
 ## hand-ordered test still passes.
 func test_core_class_aura_populates_via_the_spawn_entity_order() -> void:
 	var core_class := CoreClass.new()
-	core_class.effects = [_bulwark()]
+	core_class.effects = [_flat_armor_aura()]
 
 	var ent := autofree(Entity.new()) as Entity
 	ent.display_name = "Spawned"
@@ -174,7 +174,7 @@ func test_core_class_aura_populates_via_the_spawn_entity_order() -> void:
 ## only one caller of the setter.
 func test_assigning_core_location_directly_recomputes_the_aura() -> void:
 	var ent: Entity = await _spawn(_nodes[0], [_nodes[0], _nodes[1], _nodes[2]])
-	ent.grant_effect(_bulwark())
+	ent.grant_effect(_flat_armor_aura())
 	assert_almost_eq(_armor(_nodes[2]), 0.0, 0.001)
 
 	ent.core_location = _nodes[2]               # bypasses AllocationSystem entirely
@@ -188,7 +188,7 @@ func test_assigning_core_location_directly_recomputes_the_aura() -> void:
 ## dict on the resource would have one entity's recompute wipe the other's. The
 ## existing "same .tres on two entities" duplication test would NOT catch this.
 func test_two_entities_share_one_aura_resource_without_interfering() -> void:
-	var aura := _bulwark()
+	var aura := _flat_armor_aura()
 	var a: Entity = await _spawn(_nodes[0], [_nodes[0], _nodes[1], _nodes[2]])
 	var b: Entity = await _spawn(_nodes[3], [_nodes[3], _nodes[4], _nodes[5]])
 	a.grant_effect(aura)
