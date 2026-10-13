@@ -50,6 +50,9 @@ func before_all() -> void:
 			_xp_gained += delta
 		last[0] = float(now))
 	_level_before = _player.level
+	# The one attack must END the enemy: a core kill overflows into its entity
+	# pool, so leave that pool one hit from empty whatever the shipped scale.
+	_enemy.stat_board.health.set_current(1.0)
 	await _run_cycle()
 
 
