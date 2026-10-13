@@ -34,6 +34,7 @@ Wire="*res://autoload/wire.gd"
 [debug]
 
 settings/stdout/print_fps=true
+file_logging/max_log_files=50
 
 [display]
 
