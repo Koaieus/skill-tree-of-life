@@ -52,7 +52,7 @@ modifier that reads that stat back, is the shape to refuse.
 ### Authoring a rate as a modifier value
 
 ```
-health      = 100 + 3 x CON       # intrinsic ADD_BASE, formula = CON, value = 1.0
+health      = 100 + 3 x CON       # intrinsic ADD_BASE, formula = CON, value = 3
 node_health = 100 + 3 x CON      # same shape, value = 3 — the rate IS the value
 ```
 
