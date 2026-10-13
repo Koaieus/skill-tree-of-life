@@ -1,11 +1,11 @@
-# The Bash tool runs zsh — quote globs, never lead a word with `=`
+# The Bash tool runs zsh — quote globs
 
 Two trips (~1 in 42 Bash calls across 317 transcripts), each a wasted round-trip:
 
 | Signature | Count | Cause | Fix |
 |---|---|---|---|
 | `no matches found: --include=*.gd` | 367 (93%) | zsh `NOMATCH`: an unquoted glob that matches nothing in cwd aborts the *whole* command | `--include='*.gd'` — quote every glob you mean literally |
-| `===== not found` | 26 | zsh expands a word starting with `=` as `=cmd` (path lookup) | never start a word with `=`; `echo "----"` for separators |
+| `===== not found` | 26 | zsh `EQUALS`: a word starting with `=` expands as `=cmd` (path lookup) | fixed in the owner's dotfiles: `unsetopt equals` when `CLAUDECODE` is set (2026-10-14, probe-verified); a session started before that still trips it |
 
 Both fail loud and early, so they never corrupt anything — they only cost a
 turn. `grep -r … --include='*.gd'`, `find . -name '*.tscn'`, `ls '*.uid'`.
