@@ -105,7 +105,7 @@ func test_bunker_addon_grants_node_local_armor() -> void:
 
 
 func test_fortification_addon_grants_node_local_health() -> void:
-	await _assert_local_modifier(_FORTIFICATION, &"node_health", 15.0)
+	await _assert_local_modifier(_FORTIFICATION, &"node_health", 50.0)
 
 
 ## A scene-authored owned node (`owned_by` baked into the .tscn, the

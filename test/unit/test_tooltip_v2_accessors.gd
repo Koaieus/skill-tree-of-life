@@ -155,7 +155,7 @@ func test_bunker_addon_tooltip_section_regression() -> void:
 	assert_eq(sections.size(), 1)
 	assert_eq(sections[0]["title"], "Bunker")
 	var mods: Array = sections[0]["modifiers"]
-	# Bunker carries three authored local modifiers: +5 armor, the
+	# Bunker carries three authored local modifiers: +5 armor, a -12 the
 	# min_damage_taken floor, and #781's +1 deflection (what makes the plate
 	# an obstacle a blade cannot pass through). The tooltip owes all three.
 	assert_eq(mods.size(), 3)
@@ -163,7 +163,7 @@ func test_bunker_addon_tooltip_section_regression() -> void:
 	assert_eq(mods[0].operation, StatModifier.Operation.ADD_BONUS)
 	assert_almost_eq(float(mods[0].value), 5.0, 0.001)
 	assert_eq(String(mods[1].stat_id), "min_damage_taken")
-	assert_almost_eq(float(mods[1].value), -5.0, 0.001)
+	assert_almost_eq(float(mods[1].value), -12.0, 0.001)
 	assert_eq(String(mods[2].stat_id), "deflection")
 	# #805: deflection is BOOL now — the AUTHORED value stays 1.0 (presence),
 	# but it renders as a bare trait line, never "+1 bonus Deflection": two

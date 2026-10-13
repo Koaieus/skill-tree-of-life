@@ -60,14 +60,16 @@ func test_inversion_flips_min_damage_taken_on_allocate() -> void:
 	add_child(inv)
 	add_child(ward)
 	await get_tree().process_frame
-	assert_almost_eq(float(ent.stat_board.get_value(&"min_damage_taken")), 3.0, 0.001,
+	var f := float(ent.stat_board.min_damage_taken.base_value)
+	assert_gt(f, 1.0, "the default board's floor is above the ward's step")
+	assert_almost_eq(float(ent.stat_board.get_value(&"min_damage_taken")), f, 0.001,
 		"default floor before the flip")
 	alloc.force_allocate(ent, inv)
-	assert_almost_eq(float(ent.stat_board.get_value(&"min_damage_taken")), -3.0, 0.001,
-		"default board: 3 flips to -3")
+	assert_almost_eq(float(ent.stat_board.get_value(&"min_damage_taken")), -f, 0.001,
+		"default board: the floor flips sign")
 	alloc.force_allocate(ent, ward)
-	assert_almost_eq(float(ent.stat_board.get_value(&"min_damage_taken")), -2.0, 0.001,
-		"with Mythic Ward: (3 - 1) x -1 = -2")
+	assert_almost_eq(float(ent.stat_board.get_value(&"min_damage_taken")), -(f - 1.0), 0.001,
+		"with Mythic Ward: (floor - 1) x -1")
 
 
 ## #886 acceptance 1: allocating the AP keystone reads exactly +1 max AP over

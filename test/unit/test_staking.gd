@@ -287,18 +287,22 @@ func test_cascade_on_2_2_emits_two_wounds_and_double_dealloc_damage() -> void:
 	_stake_landed(d)
 	_alloc.allocate(d, _player)
 	var bs := _battle_system()
+	var hp0 := float(_player.stat_board.health.current)
+	var chip := float(_player.stat_board.dealloc_damage.get_value())
 	bs._on_node_depleted(d)
 	assert_eq(_sp().wounded, 2, "a 2/2 node costs 2 wounds")
 	assert_eq(_sp().used, 3, "the two filled SP moved used -> wounded")
-	assert_almost_eq(float(_player.stat_board.health.current), 8.0, 0.001,
-			"2x dealloc_damage (2 x 1.0) off entity HP")
+	assert_almost_eq(float(_player.stat_board.health.current), hp0 - 2.0 * chip, 0.001,
+			"2x dealloc_damage off entity HP")
 
 
 func test_cascade_on_never_staked_node_pays_todays_costs() -> void:
 	var d := _nodes[3]
 	assert_eq(d.stake_level, 1, "never staked")
 	var bs := _battle_system()
+	var hp0 := float(_player.stat_board.health.current)
+	var chip := float(_player.stat_board.dealloc_damage.get_value())
 	bs._on_node_depleted(d)
 	assert_eq(_sp().wounded, 1, "1/1 still costs exactly 1 wound")
-	assert_almost_eq(float(_player.stat_board.health.current), 9.0, 0.001,
+	assert_almost_eq(float(_player.stat_board.health.current), hp0 - chip, 0.001,
 			"1x dealloc_damage — nothing regressed for the baseline case")

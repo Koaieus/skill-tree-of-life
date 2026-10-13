@@ -52,14 +52,20 @@ func test_adoption_orders_correctly_against_hp_binding() -> void:
 	var entity := Entity.new()
 	entity.stat_board = BOARD.duplicate(true) as EntityStatBoard
 	add_child_autofree(entity)
-	_node.add_child(FORTIFICATION_SCENE.instantiate())
+	var fort: SkillNodeAddon = FORTIFICATION_SCENE.instantiate()
+	var bonus := 0.0
+	for m in fort.local_modifiers:
+		if m.stat_id == &"node_health":
+			bonus += m.value
+	assert_gt(bonus, 0.0, "fortification grants node_health")
+	_node.add_child(fort)
 	_node.owned_by = entity
 	add_child(_node)
 	await get_tree().process_frame
 
 	var baseline := float(entity.stat_board.get_stat(&"node_health").get_value())
-	assert_almost_eq(_node.get_max_hp(), baseline + 15.0, 0.001,
-			"fortification's +15 node_health rides on top of the entity baseline")
+	assert_almost_eq(_node.get_max_hp(), baseline + bonus, 0.001,
+			"fortification's node_health bonus rides on top of the entity baseline")
 	assert_almost_eq(_node.get_current_hp(), _node.get_max_hp(), 0.001,
 			"the refill in _refresh_hp_binding saw the adopted addon's bonus")
 

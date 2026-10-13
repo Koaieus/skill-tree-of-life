@@ -44,6 +44,9 @@ func before_each() -> void:
 	# play, but it lands on top of the regen/aura numbers these tests assert
 	# exactly. Nothing here tests levelling, so take the variable off the table.
 	_entity.stat_board.xp.base_value = 100000.0
+	# Every regen/aura number below is worked against a 10-HP node: pin the
+	# baseline here rather than inherit the shipped board's scale.
+	_entity.stat_board.node_health.base_value = 10.0
 	# These tests drive ONE begin_turn() and read its effects, so the
 	# entity must be past the first-turn upkeep skip before the first call.
 	_entity.turns_taken = 1

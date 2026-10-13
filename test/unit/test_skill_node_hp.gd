@@ -65,6 +65,7 @@ func test_current_hp_refills_after_realloc_cycle() -> void:
 
 func test_realloc_reads_modified_max_not_stale_default() -> void:
 	var nh := _entity.stat_board.get_stat(&"node_health")
+	var modified := float(nh.get_value()) + 40.0
 	var m := StatModifier.new()
 	m.stat_id = &"node_health"
 	m.operation = StatModifier.Operation.ADD_BASE
@@ -73,14 +74,14 @@ func test_realloc_reads_modified_max_not_stale_default() -> void:
 
 	_alloc.force_allocate(_entity, _node)
 	var hp := _hp_pool()
-	assert_almost_eq(hp.value, 50.0, 0.001, "modified max should be 50")
-	assert_almost_eq(hp.current, 50.0, 0.001, "alloc refilled to 50")
+	assert_almost_eq(hp.value, modified, 0.001, "modified max should be baseline + 40")
+	assert_almost_eq(hp.current, modified, 0.001, "alloc refilled to the modified max")
 
 	_alloc.force_deallocate(_node)
 	_alloc.force_allocate(_entity, _node)
 	hp = _hp_pool()
-	assert_almost_eq(hp.current, 50.0, 0.001,
-			"re-alloc must refill to the MODIFIED max (50), not stale (#92)")
+	assert_almost_eq(hp.current, modified, 0.001,
+			"re-alloc must refill to the MODIFIED max, not stale (#92)")
 
 
 func test_multiple_cycles_stay_full() -> void:

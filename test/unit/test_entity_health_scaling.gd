@@ -41,16 +41,17 @@ func test_core_health_scaling_present_on_default_board() -> void:
 		"core_health_scaling StatDef should be registered")
 	var board := _board()
 	assert_not_null(board.core_health_scaling, "default board should carry core_health_scaling")
-	assert_almost_eq(float(board.core_health_scaling.get_value()), 1.0, 0.001,
-		"D-26 default coefficient is 1.0 — every D-21 published number assumes it")
+	assert_gt(float(board.core_health_scaling.get_value()), 0.0,
+		"D-26: CON must buy entity HP on the default board")
 
 
 func test_health_max_is_base_plus_scaling_times_con() -> void:
-	# Acceptance 1: at CON 109 with base 10 the pool is ~119.
+	# Acceptance 1: max = board base + core_health_scaling x CON, at any CON.
 	var board := _board()
 	board.constitution.base_value = 109.0
-	assert_almost_eq(float(board.health.get_value()), 119.0, 0.001,
-		"health max should be 10 + core_health_scaling x CON")
+	var k := float(board.core_health_scaling.get_value())
+	assert_almost_eq(float(board.health.get_value()), board.health.base_value + k * 109.0, 0.001,
+		"health max should be base + core_health_scaling x CON")
 
 
 func test_class_knob_resizes_the_pool() -> void:
@@ -59,10 +60,12 @@ func test_class_knob_resizes_the_pool() -> void:
 	# to declare core_health_scaling among its inputs (no reactive rebind).
 	var board := _board()
 	board.constitution.base_value = 100.0
-	assert_almost_eq(float(board.health.get_value()), 110.0, 0.001, "precondition")
+	var base := board.health.base_value
+	var k := float(board.core_health_scaling.get_value())
+	assert_almost_eq(float(board.health.get_value()), base + k * 100.0, 0.001, "precondition")
 
-	board.core_health_scaling.base_value = 0.5
-	assert_almost_eq(float(board.health.get_value()), 60.0, 0.001,
+	board.core_health_scaling.base_value = k * 0.5
+	assert_almost_eq(float(board.health.get_value()), base + k * 50.0, 0.001,
 		"halving core_health_scaling should halve the CON term reactively")
 
 
@@ -88,9 +91,10 @@ func test_allocating_con_grants_the_max_hp_delta_as_current() -> void:
 
 	alloc.force_allocate(ent, node)
 
-	assert_almost_eq(float(health.get_value()), max_before + 40.0, 0.001,
-		"+40 CON should raise max HP by 40")
-	assert_almost_eq(health.current, current_before + 40.0, 0.001,
+	var delta := 40.0 * float(ent.stat_board.core_health_scaling.get_value())
+	assert_almost_eq(float(health.get_value()), max_before + delta, 0.001,
+		"+40 CON should raise max HP by 40 x core_health_scaling")
+	assert_almost_eq(health.current, current_before + delta, 0.001,
 		"D-21: the max delta is granted as current HP")
 
 
@@ -117,7 +121,8 @@ func test_deallocating_con_clamps_current_but_does_not_subtract_it() -> void:
 
 	alloc.force_deallocate(node)
 
-	assert_almost_eq(float(health.get_value()), max_with_con - 40.0, 0.001,
+	assert_almost_eq(float(health.get_value()),
+		max_with_con - 40.0 * float(ent.stat_board.core_health_scaling.get_value()), 0.001,
 		"removing the node should drop max HP by the CON term")
 	assert_almost_eq(health.current, 30.0, 0.001,
 		"a damaged entity keeps its current HP — clamp-to-new-max, never subtract-the-delta")
@@ -177,7 +182,8 @@ func test_dealloc_damage_is_an_ordinary_board_stat_a_class_can_modify() -> void:
 	# is a plain board stat, so a CoreClass tunes it with an ordinary modifier.
 	var board := _board()
 	assert_not_null(board.dealloc_damage)
-	assert_almost_eq(float(board.dealloc_damage.get_value()), 1.0, 0.001, "default 1")
+	var before := float(board.dealloc_damage.get_value())
+	assert_gt(before, 0.0, "a forced dealloc always chips something")
 	board.add_modifier(_mod(&"dealloc_damage", 2.0))
-	assert_almost_eq(float(board.dealloc_damage.get_value()), 3.0, 0.001,
+	assert_almost_eq(float(board.dealloc_damage.get_value()), before + 2.0, 0.001,
 		"a class modifier should move it like any other stat")

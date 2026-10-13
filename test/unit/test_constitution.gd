@@ -38,11 +38,11 @@ func test_con_0_vs_30_node_health_differs_by_intrinsic_rate() -> void:
 	board_hi.apply_intrinsics()
 	board_hi.constitution.base_value = 30.0
 
-	# node_health = 10 + node_health_scaling × CON (#298). The rate lives in the
+	# node_health = base + node_health_scaling × CON (#298). The rate lives in the
 	# `node_health_scaling` STAT, not in the modifier's `value` and not in a
 	# formula string — so a CoreClass can move it with an ordinary modifier and
-	# #268 tunes it in one place. TBD (#268): placeholder scaling, 1.0.
-	var expected_rate := 30.0  # 1.0 * (30 - 0)
+	# #268 tunes it in one place.
+	var expected_rate := float(board_hi.node_health_scaling.get_value()) * 30.0
 	var diff: float = float(board_hi.node_health.get_value()) - float(board_lo.node_health.get_value())
 	assert_almost_eq(diff, expected_rate, 0.001, "node_health delta should equal the CON intrinsic rate exactly")
 
@@ -61,12 +61,12 @@ func test_node_health_scaling_resolves_via_stat_registry() -> void:
 	assert_almost_eq(def.default_value, 1.0, 0.001)
 
 
-func test_node_health_scaling_present_and_defaults_to_one() -> void:
+func test_node_health_scaling_present_and_positive() -> void:
 	var board := _board()
 	assert_not_null(board.node_health_scaling, "default board should carry node_health_scaling")
 	assert_eq(String(board.node_health_scaling.definition.id), "node_health_scaling")
-	assert_almost_eq(float(board.node_health_scaling.get_value()), 1.0, 0.001,
-		"default 1.0 keeps every previously-published node_health number valid")
+	assert_gt(float(board.node_health_scaling.get_value()), 0.0,
+		"CON must buy node HP on the default board")
 
 
 func test_node_health_scaling_drives_the_con_rate_reactively() -> void:
@@ -93,7 +93,7 @@ func test_node_health_scaling_drives_the_con_rate_reactively() -> void:
 func test_coreless_entity_still_gets_the_con_rate() -> void:
 	# (#298 option 2 (fully class-side) had a real cliff: coreless entities exist
 	# (live sandbox fixtures) and would have got CON -> 0.
-	# Board-stat home means the 1.0 default always applies.
+	# Board-stat home means the board's scaling always applies.
 	var entity := Entity.new()
 	entity.stat_board = _board()
 	# The setter took a private copy: read it back and apply intrinsics to THAT
@@ -104,8 +104,10 @@ func test_coreless_entity_still_gets_the_con_rate() -> void:
 	assert_null(entity.core_class, "fixture entity is deliberately coreless")
 
 	board.constitution.base_value = 30.0
-	assert_almost_eq(float(board.node_health.get_value()), 40.0, 0.001,
-		"10 base + 1.0 x 30 CON — no cliff without a CoreClass")
+	var expected := board.node_health.base_value + float(board.node_health_scaling.get_value()) * 30.0
+	assert_gt(float(board.node_health_scaling.get_value()), 0.0, "coreless still has a CON rate")
+	assert_almost_eq(float(board.node_health.get_value()), expected, 0.001,
+		"base + scaling x 30 CON — no cliff without a CoreClass")
 
 
 # --- 3. Guard on D-11 decision 3: armor and min_damage_taken must NOT move

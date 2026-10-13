@@ -400,17 +400,18 @@ func test_al_ramp_does_not_interfere_with_the_hp_ratchet() -> void:
 	_node.modifiers = [_add_mod(&"node_health", 15.0)]
 	_own()
 	var hp := _node.node_board.get_stat(&"node_health") as PoolStat
+	var base := float(hp.value) - 15.0  # the owner's node_health baseline
 	hp.set_current(0.0)
 	_set_al(2)
-	assert_almost_eq(float(hp.value), 40.0, 0.001, "cap scales (10 + 15x2)")
+	assert_almost_eq(float(hp.value), base + 30.0, 0.001, "cap scales (base + 15x2)")
 	assert_almost_eq(hp.current, 15.0, 0.001, "rise grants the delta: 0 -> 15 (ticks up)")
 	_set_al(3)
-	assert_almost_eq(float(hp.value), 55.0, 0.001, "cap scales (10 + 15x3)")
+	assert_almost_eq(float(hp.value), base + 45.0, 0.001, "cap scales (base + 15x3)")
 	assert_almost_eq(hp.current, 30.0, 0.001, "second rise grants again: 15 -> 30")
 	_set_al(1)
-	assert_almost_eq(float(hp.value), 25.0, 0.001, "cap round-trips (10 + 15)")
+	assert_almost_eq(float(hp.value), base + 15.0, 0.001, "cap round-trips (base + 15)")
 	assert_almost_eq(hp.current, 0.0, 0.001,
-			"path independence (#660): 25 missing throughout, so the round trip heals nothing")
+			"path independence (#660): the whole cap missing throughout, so the round trip heals nothing")
 
 
 # ── force_fill (#915): stepwise fill through the allocate path ───────────────

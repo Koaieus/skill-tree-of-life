@@ -79,12 +79,20 @@ func _add_edge(a: SkillNode, b: SkillNode) -> void:
 
 # ── Tiered board ─────────────────────────────────────────────────────────────
 
+## The board's own lv1 node HP — what an unmodified owned node caps at. Read
+## through the real pipeline so a retuned base or scaling never breaks a pin.
+func _authored_node_hp(board: EntityStatBoard) -> float:
+	var b := board.duplicate(true) as EntityStatBoard
+	b.apply_intrinsics()
+	return float(b.get_value(&"node_health"))
+
+
 func test_tier_2_blocker_node_hp_armor_health() -> void:
 	var blocker := await _spawn_blocker(_MEDIUM_BOARD, 2)
-	assert_eq(_nodes[1].get_max_hp(), 40.0, "node HP = 10 + 1×CON 30")
+	assert_eq(_nodes[1].get_max_hp(), _authored_node_hp(_MEDIUM_BOARD), "node HP = the medium board's lv1 node_health")
 	assert_eq(float(blocker.stat_board.armor.value), 3.0, "armor 3")
-	assert_eq(float(blocker.stat_board.health.value), 1.0, "entity health pool 1")
-	assert_eq(float(blocker.stat_board.health.current), 1.0, "health starts full")
+	assert_eq(float(blocker.stat_board.health.value), _MEDIUM_BOARD.health.base_value, "entity health pool = the board base")
+	assert_eq(float(blocker.stat_board.health.current), float(blocker.stat_board.health.value), "health starts full")
 
 
 func test_blocker_board_has_no_initiative() -> void:
@@ -170,7 +178,7 @@ func test_spawn_blocker_spawns_with_tiered_board_and_spellbook() -> void:
 	assert_eq(blocker.entity_tier, 2, "tier = size + 1")
 	assert_eq(blocker.core_location, _nodes[2], "core force-allocated")
 	assert_eq(_nodes[2].owned_by, blocker, "blocked node owned by the blocker")
-	assert_eq(_nodes[2].get_max_hp(), 40.0, "tier-2 board → node HP 40")
+	assert_eq(_nodes[2].get_max_hp(), _authored_node_hp(_MEDIUM_BOARD), "tier-2 board → its lv1 node HP")
 	assert_eq(blocker.core_class, _BLOCKER_CORE,
 			"the scene authors the Dormant Core class — that is what carries the falloff")
 	assert_eq(blocker.core_class.pickable_in, 0, "and no lobby slot may choose it")
@@ -296,32 +304,33 @@ func test_spawn_blocker_force_allocates_every_footprint_node() -> void:
 
 ## The acceptance formula, read through the live `node_health` path (#660)
 ## rather than any stored value: cap = the owner's CON-derived baseline minus
-## 5 per hop from the core, over the owned subgraph. The core is at hop 0 and
+## the aura's per-hop step from the core, over the owned subgraph. The core is at hop 0 and
 ## keeps its full authored HP — [ProportionalScale] puts the source at scale 0.
-func test_footprint_node_health_falls_off_five_per_hop() -> void:
+func test_footprint_node_health_falls_off_per_hop() -> void:
 	var chain := await _extend_chain(3)
 	_factory().spawn_blocker(EntityFactory.BlockerSize.MEDIUM, _nodes[2], chain)
 	await get_tree().process_frame
 	var base := _nodes[2].get_max_hp()
 	var per_hop := _falloff_per_hop()
-	assert_eq(base, 40.0, "tier-2 board → an unmodified node caps at 40")
+	assert_eq(base, _authored_node_hp(_MEDIUM_BOARD), "tier-2 board → an unmodified node caps at its lv1 node HP")
 	for hop in range(1, chain.size() + 1):
 		assert_eq(chain[hop - 1].get_max_hp(), base - per_hop * hop,
 				"hop %d caps at base − %s×%d" % [hop, per_hop, hop])
 
 
 ## The clamp is the footprint bound, not a stat floor (#777 decision 5): a
-## small tops out at hop 2 (20 − 10 = 10), so nothing ever reaches zero.
+## small tops out at hop 2 (core HP − 2 steps), so nothing ever reaches zero.
 func test_a_small_blockers_deepest_footprint_node_still_has_health() -> void:
 	var chain := await _extend_chain(2)
 	_factory().spawn_blocker(EntityFactory.BlockerSize.SMALL, _nodes[2], chain)
 	await get_tree().process_frame
 	var per_hop := _falloff_per_hop()
-	assert_eq(_nodes[2].get_max_hp(), 20.0, "tier-1 board → 20 at the core")
-	assert_eq(chain[0].get_max_hp(), 20.0 - per_hop, "hop 1")
+	var core_hp := _authored_node_hp(_SMALL_BOARD)
+	assert_eq(_nodes[2].get_max_hp(), core_hp, "tier-1 board → its lv1 node HP at the core")
+	assert_eq(chain[0].get_max_hp(), core_hp - per_hop, "hop 1")
 	assert_gt(chain[1].get_max_hp(), 0.0,
 			"hop 2 is the deepest a small ever grows, and it still has health")
-	assert_eq(chain[1].get_max_hp(), 20.0 - per_hop * 2.0, "hop 2")
+	assert_eq(chain[1].get_max_hp(), core_hp - per_hop * 2.0, "hop 2")
 
 
 ## An explicit empty footprint is the default, and the aura still arrives — it
@@ -331,7 +340,7 @@ func test_a_small_blockers_deepest_footprint_node_still_has_health() -> void:
 func test_a_footprintless_blocker_is_todays_blocker_with_an_inert_aura() -> void:
 	var blocker := _factory().spawn_blocker(EntityFactory.BlockerSize.MEDIUM, _nodes[2])
 	await get_tree().process_frame
-	assert_eq(_nodes[2].get_max_hp(), 40.0, "the lone core keeps its full HP")
+	assert_eq(_nodes[2].get_max_hp(), _authored_node_hp(_MEDIUM_BOARD), "the lone core keeps its full HP")
 	var owned := 0
 	for sn in _nodes:
 		if sn.owned_by == blocker:
@@ -353,14 +362,15 @@ func test_losing_a_footprint_node_re_derives_the_remaining_caps() -> void:
 	var blocker := _factory().spawn_blocker(EntityFactory.BlockerSize.MEDIUM, _nodes[2], chain)
 	await get_tree().process_frame
 	var per_hop := _falloff_per_hop()
-	assert_eq(chain[2].get_max_hp(), 40.0 - per_hop * 3.0, "hop 3 before the cut")
+	var full := _authored_node_hp(_MEDIUM_BOARD)
+	assert_eq(chain[2].get_max_hp(), full - per_hop * 3.0, "hop 3 before the cut")
 	_alloc.force_deallocate(chain[0])
 	await get_tree().process_frame
 	assert_eq(chain[0].owned_by, null, "the cut node is unowned")
-	assert_eq(_nodes[2].get_max_hp(), 40.0, "the core is untouched by the cut")
+	assert_eq(_nodes[2].get_max_hp(), full, "the core is untouched by the cut")
 	# hop 1 is gone, so the outer two are no longer reachable over OWNED nodes —
 	# a HopMetric aura scoped to the subgraph simply stops seeing them, and they
 	# fall back to the owner's undiminished baseline rather than keeping a stale
 	# cap. This is the kill-strip cascade's normal shape, so it is worth pinning.
-	assert_eq(chain[1].get_max_hp(), 40.0, "an orphaned node loses the falloff, not the owner")
-	assert_eq(chain[2].get_max_hp(), 40.0, "and so does the one behind it")
+	assert_eq(chain[1].get_max_hp(), full, "an orphaned node loses the falloff, not the owner")
+	assert_eq(chain[2].get_max_hp(), full, "and so does the one behind it")

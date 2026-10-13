@@ -17,6 +17,8 @@ extends GutTest
 const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _EDGE_SCENE := preload("res://graph/edge.tscn")
+const _MEDIUM_BOARD := preload("res://entity/blocker/blocker_medium_board.tres")
+const _FALLOFF := preload("res://effects/blocker_footprint_falloff.tres")
 
 
 ## A line of `count` nodes with matching stable ids on both sides, plus the
@@ -69,8 +71,13 @@ func test_a_multi_node_blocker_crosses_with_its_falloff_intact() -> void:
 	var blocker: Entity = (host["factory"] as EntityFactory).spawn_blocker(
 			EntityFactory.BlockerSize.MEDIUM, host["nodes"][1], footprint)
 	await get_tree().process_frame
-	assert_eq(_caps(host), [0.0, 40.0, 35.0, 30.0, 25.0] as Array[float],
-			"host: an unowned node never mints a pool at all (0), then 40 − 5 per hop")
+	var b := _MEDIUM_BOARD.duplicate(true) as EntityStatBoard
+	b.apply_intrinsics()
+	var full := float(b.get_value(&"node_health"))
+	var step := -(_FALLOFF.modifiers[0] as StatModifier).value
+	assert_gt(step, 0.0, "the falloff costs node health per hop")
+	assert_eq(_caps(host), [0.0, full, full - step, full - 2.0 * step, full - 3.0 * step] as Array[float],
+			"host: an unowned node never mints a pool at all (0), then the core's HP minus one step per hop")
 
 	# The join, in the order the real one runs it. The client spawns nothing
 	# up front — the blocker arrives through the spawner, exactly as on a peer
