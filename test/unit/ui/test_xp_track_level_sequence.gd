@@ -28,6 +28,11 @@ var _levels: Array[int] = []
 ## The test's own read of the schedule, recorded off the pool exactly as the
 ## track records its (`value_changed`, ascending).
 var _seq: PoolLevelSequencer
+## The first three xp caps off a fresh board, read off the xp def's growth —
+## the curve is a tuned knob, never pinned here.
+var _c1: float
+var _c2: float
+var _c3: float
 
 
 func before_each() -> void:
@@ -47,6 +52,10 @@ func before_each() -> void:
 	_gauge = _track.get_node("%XPGauge") as PoolGauge
 	var xp: PoolStat = _entity.stat_board.xp
 	_seq = PoolLevelSequencer.new(float(xp.value))
+	var def := xp.definition as GrowablePoolStatDef
+	_c1 = float(xp.value)
+	_c2 = float(xp._coerce(_c1 * def.growth_factor + def.growth_flat))
+	_c3 = float(xp._coerce(_c2 * def.growth_factor + def.growth_flat))
 	xp.value_changed.connect(func(): _seq.observe(float(xp.current), float(xp.value)))
 
 	_levels = []
@@ -79,9 +88,9 @@ func _beat_all() -> void:
 
 
 func test_one_level_reaches_once_and_carries_the_overflow() -> void:
-	_entity.stat_board.xp.replenish(7.0)
-	assert_eq(_fill_tos(), [5.0], "one segment: fill to the cap reached")
-	assert_eq(_new_maxes(), [10.0], "then adopt the grown cap")
+	_entity.stat_board.xp.replenish(_c1 + 2.0)
+	assert_eq(_fill_tos(), [_c1], "one segment: fill to the cap reached")
+	assert_eq(_new_maxes(), [_c2], "then adopt the grown cap")
 	_beat_all()
 	assert_eq(_levels, [2] as Array[int], "one beat, one level")
 	assert_almost_eq(float(_entity.stat_board.xp.current), 2.0, 0.01,
@@ -91,9 +100,9 @@ func test_one_level_reaches_once_and_carries_the_overflow() -> void:
 ## The bug #317 names: `_xp_leveled` was a bare bool, so a 2-level cascade
 ## played exactly one fill→wrap→fill.
 func test_a_two_level_cascade_plays_one_beat_per_level_in_order() -> void:
-	_entity.stat_board.xp.replenish(20.0)
-	assert_eq(_fill_tos(), [5.0, 10.0], "ascending, one segment per level crossed")
-	assert_eq(_new_maxes(), [10.0, 15.0], "each on its own new cap")
+	_entity.stat_board.xp.replenish(_c1 + _c2 + 5.0)
+	assert_eq(_fill_tos(), [_c1, _c2], "ascending, one segment per level crossed")
+	assert_eq(_new_maxes(), [_c2, _c3], "each on its own new cap")
 	_beat_all()
 	assert_eq(_levels, [2, 3] as Array[int], "ascending, one per level crossed")
 	assert_eq(_entity.level, 3, "and the model agrees (sanity)")
@@ -102,13 +111,13 @@ func test_a_two_level_cascade_plays_one_beat_per_level_in_order() -> void:
 func test_the_level_readout_follows_the_bar_not_the_model() -> void:
 	var label := _track.get_node("%LevelLabel") as Label
 	assert_eq(label.text, "LEVEL 1", "starts where bind() found it")
-	_entity.stat_board.xp.replenish(20.0)
+	_entity.stat_board.xp.replenish(_c1 + _c2 + 5.0)
 	# The model has already applied BOTH levels synchronously...
 	assert_eq(_entity.level, 3, "model is instant")
 	assert_eq(label.text, "LEVEL 1", "...but the readout waits for the bar to say so")
-	_beat(10.0)
+	_beat(_c2)
 	assert_eq(label.text, "LEVEL 2", "and catches up beat by beat")
-	_beat(15.0)
+	_beat(_c3)
 	assert_eq(label.text, "LEVEL 3")
 
 
@@ -123,11 +132,11 @@ func test_the_hero_sigil_badge_rides_the_same_beat() -> void:
 	var badge := card.get_node("%LevelBadge") as Label
 	assert_eq(badge.text, "1", "starts where bind() found it")
 
-	_entity.stat_board.xp.replenish(20.0)
+	_entity.stat_board.xp.replenish(_c1 + _c2 + 5.0)
 	assert_eq(badge.text, "1", "not yanked forward by the model's instant level-up")
-	_beat(10.0)
+	_beat(_c2)
 	assert_eq(badge.text, "2", "bumped by the gauge's beat")
-	_beat(15.0)
+	_beat(_c3)
 	assert_eq(badge.text, "3", "beat by beat")
 
 
@@ -175,22 +184,22 @@ func test_the_hero_sigil_card_no_longer_binds_the_xp_pool() -> void:
 ## The retarget-on-interrupt requirement: passive per-turn XP is the main
 ## income source and routinely lands while a kill's replay is still playing.
 func test_xp_landing_mid_replay_is_not_swallowed() -> void:
-	_entity.stat_board.xp.replenish(20.0)
-	_beat(10.0)  # mid-cascade: the first level landed, the second is queued
+	_entity.stat_board.xp.replenish(_c1 + _c2 + 5.0)
+	_beat(_c2)  # mid-cascade: the first level landed, the second is queued
 	_entity.stat_board.xp.replenish(2.0)
-	assert_eq(_fill_tos(), [5.0, 10.0], "the late grant crossed no extra level")
-	_beat(15.0)
+	assert_eq(_fill_tos(), [_c1, _c2], "the late grant crossed no extra level")
+	_beat(_c3)
 	assert_eq(_levels, [2, 3] as Array[int], "one beat per level, still")
 	assert_almost_eq(float(_entity.stat_board.xp.current), 7.0, 0.01,
 			"the settle target reads the pool's LIVE value, including the interrupt")
 
 
 func test_a_late_grant_that_levels_gets_its_own_beat() -> void:
-	_entity.stat_board.xp.replenish(7.0)
-	# 30 more from 2/10 crosses two further caps (10 and 15), so the replay
+	_entity.stat_board.xp.replenish(_c1 + 2.0)
+	# Enough from 2/cap2 to cross two further caps (cap2 and cap3), so the replay
 	# queue must grow behind the segment already recorded.
-	_entity.stat_board.xp.replenish(30.0)
-	assert_eq(_fill_tos(), [5.0, 10.0, 15.0], "appended, ascending")
+	_entity.stat_board.xp.replenish(_c2 - 2.0 + _c3 + 7.0)
+	assert_eq(_fill_tos(), [_c1, _c2, _c3], "appended, ascending")
 	_beat_all()
 	assert_eq(_levels, [2, 3, 4] as Array[int], "appended, still one beat per level")
 

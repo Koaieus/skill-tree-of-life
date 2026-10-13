@@ -102,7 +102,7 @@ func test_raising_cap_does_not_auto_fill() -> void:
 func test_get_local_value_absent_stat_returns_entity_value_no_mint() -> void:
 	await _add_to_tree()
 	var v: Variant = _node.get_local_value(&"wisdom")
-	assert_eq(v, 10, "absent local stat passes through to the entity board")
+	assert_eq(v, _entity.stat_board.get_value(&"wisdom"), "absent local stat passes through to the entity board")
 	assert_null(_node.node_board.get_stat(&"wisdom"),
 			"get_local_value must not mint the stat on node_board")
 	assert_null(_node.node_board.get_stat(&"armor"),
