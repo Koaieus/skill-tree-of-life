@@ -29,34 +29,10 @@ decision is **#1525** (lv1 core and node HP ≈ 100 starting value, floor 5, hea
 spell damage up with HP, status per-stack values unchanged, Dormant Cores
 100 / 200 / 300 core HP, footprint falloff −15/hop). Read the numbers there.
 
-### XP: kills must scale with the curve, and WIS must not run the game
+### XP curve and kill payouts
 
-Today's curve is cap 5L (lv1→2 is **5**, cumulative lv5 50 / lv7 105 / lv10
-225), kills pay 5 per node + 20/40/60 per blocker core, passive floor(WIS/5).
-A medium blocker from lv1 is +4 levels; a level-13 player at turn 45 holds ~29
-nodes of 800. The owner's "lv7 in two turns" for the +30-WIS AI is kill XP,
-not passive (8/turn today).
-
-| curve | caps | cum. lv5 / lv7 / lv10 | medium kill from lv1 | lv5 at (passive 5/turn + kills) |
-|---|---|---|---|---|
-| today 5 + 5L | 5, 10, 15 | 50 / 105 / 225 | +4 levels | turn ~10 |
-| **A** base 50, flat 10 | 50, 60, 70 | 260 / 450 / 810 | +1 | turn ~24 |
-| **F** base 25, flat 10 | 25, 35, 45 | 160 / 300 / 585 | +1–2 | turn ~18 |
-| B base 50, flat 25 | 50, 75, 100 | 350 / 675 / 1350 | +1 | turn ~30 |
-
-Two findings that overturn the pass's first tentative picks on the XP issue:
-
-- **Under A, 20/40/60 kill XP stops mattering**: passive is 38% of income at
-  turn 45 and the AI's WIS head start decides the game. Kill XP must scale with
-  the curve — ×5 (100 / 200 / 300 per core, 25 per node) keeps "a kill is an
-  event" while a medium kill is one level, not four.
-- **Keep the divisor at 5.** Divisor 2 makes the +30-WIS AI 20 XP/turn against
-  the player's 5 — lv5 at turn 13 vs 24, lv10 at 40 vs 62. The LAN deaths
-  (LAN-02) get worse, not better. Raise the *procgen* WIS unit (2 → 3) instead
-  so WIS is something you find, not something the cheater is born with.
-
-Recommended: **curve F, kills ×5, divisor 5, procgen WIS unit 3, cheater WIS
-+30 → +15.** The one number that matters: real run length.
+Decided in **#1527** (curve 50 + 10/level, innate WIS 15, procgen WIS unit 3,
+kills 10 per node + 30 / 60 / 120 core, divisor 5). Read the numbers there.
 
 ### Level cadence → specialisation points
 

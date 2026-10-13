@@ -113,7 +113,7 @@ XP is paid for **territory removed**, plus a flat bonus when the core itself
 died. One rate, no multiplier, no rate-switching:
 
 ```
-XP = xp_per_node_killed(5) × |nodes this attack removed, core included|
+XP = xp_per_node_killed(10) × |nodes this attack removed, core included|
      + victim.stat_board.core_kill_xp.value           (only if the core died)
 ```
 
@@ -129,8 +129,9 @@ that has many nodes makes those nodes count for more XP, it just muddies the
 calculations"). The size-shaped reward for a fixed-size victim lives entirely in
 `core_kill_xp` (`stats_system/defs/core_kill_xp.tres`), a per-board stat rather
 than a multiplier on the whole payout — owner-tunable per entity and reachable by
-a modifier like any other stat. Defaults: 60 on `default_entity_board.tres`
-(players/NPCs), 20 / 40 / 60 on the small / medium / large blocker boards.
+a modifier like any other stat. Defaults: 120 on `default_entity_board.tres`
+(players/NPCs — an entity is the large tier), 30 / 60 / 120 on the small /
+medium / large blocker boards (#1527).
 
 `_kill_xp_total(removed_node_count, kills_entity, victim)` is the one place
 this formula is written — shared by `_award_kill_xp` (which builds the correct
