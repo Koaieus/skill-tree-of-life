@@ -123,6 +123,14 @@ func _make_entity(ent_name: String, faction: Faction = null) -> Entity:
 	e.display_name = ent_name
 	# Flat board: this is a frozen golden captured under CON=0; tuned CON must not ride in.
 	e.stat_board = TestBoards.flat_entity_board()
+	# The worked world these numbers were scored in: 10-HP nodes behind a
+	# floor of 3, 1.5 raw per shot/contact (base 1 + 5/10 DEX or STR).
+	e.stat_board.node_health.base_value = 10.0
+	e.stat_board.min_damage_taken.base_value = 3.0
+	e.stat_board.ranged_damage.base_value = 1.0
+	e.stat_board.blade_damage.base_value = 1.0
+	e.stat_board.dexterity.base_value = 5.0
+	e.stat_board.strength.base_value = 5.0
 	# Zero the 5 % baseline crit: since #507 a ranged crit rolls off a fresh
 	# per-attack seed, and a golden snapshot cannot flake on a doubled shot.
 	e.stat_board.get_stat(&"crit_chance").base_value = 0.0

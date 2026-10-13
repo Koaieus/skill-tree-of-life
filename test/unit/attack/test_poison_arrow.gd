@@ -163,6 +163,7 @@ func test_damage_scale_applies_before_mitigation() -> void:
 	var target: SkillNode = ctx.nodes.target
 	_set_local(ctx.nodes.leaf, &"ranged_damage", 8.0)
 	_set_local(target, &"armor", 1.0)
+	_set_local(target, &"min_damage_taken", 0.0)  # the floor must not mask the order
 	var ammo := AmmoType.new()  # hand-built: the owner tunes poison.tres
 	ammo.damage_scale = 0.5
 	var hit := RangedDamageFormula.compute(ctx.attacker, ctx.nodes.leaf, target, ammo)

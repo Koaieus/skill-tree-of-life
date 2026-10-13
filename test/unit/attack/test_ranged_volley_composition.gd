@@ -67,7 +67,7 @@ func before_each() -> void:
 	_graph.entities_container.add_child(_attacker)
 	_hostile = Entity.new()
 	_hostile.faction = _NPC_FACTION
-	_hostile.stat_board = TestBoards.flat_entity_board()
+	_hostile.stat_board = _worked_board()
 	_graph.entities_container.add_child(_hostile)
 	await get_tree().process_frame
 
@@ -325,3 +325,12 @@ func test_validate_refuses_a_duplicate_type() -> void:
 	assert_eq(p.validate(), [] as Array[String], "control: one arrow is a valid volley")
 	p.ammo = [{"type": _ARROW, "count": 1}, {"type": _ARROW, "count": 1}]
 	assert_false(p.validate().is_empty(), "one position per type")
+
+
+## The defender's world every worked number in this file assumes: a 10-HP
+## node behind a floor of 3. Pinned here, not inherited from the shipped scale.
+func _worked_board() -> EntityStatBoard:
+	var b := TestBoards.flat_entity_board()
+	b.node_health.base_value = 10.0
+	b.min_damage_taken.base_value = 3.0
+	return b

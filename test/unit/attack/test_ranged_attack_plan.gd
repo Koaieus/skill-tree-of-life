@@ -88,7 +88,7 @@ func before_each() -> void:
 
 	_hostile = Entity.new()
 	_hostile.faction = _NPC_FACTION
-	_hostile.stat_board = TestBoards.flat_entity_board()
+	_hostile.stat_board = _worked_board()
 	_graph.add_child(_hostile)
 	await get_tree().process_frame
 
@@ -394,7 +394,7 @@ func _build_three_leaf_star(leaf_order: Array) -> Dictionary:
 	graph.add_child(attacker)
 	var hostile := Entity.new()
 	hostile.faction = _NPC_FACTION
-	hostile.stat_board = TestBoards.flat_entity_board()
+	hostile.stat_board = _worked_board()
 	graph.add_child(hostile)
 	await get_tree().process_frame
 
@@ -644,3 +644,12 @@ func _combat_hits(outcome: AttackOutcome) -> Array[HitInstance]:
 		if not hit is ExertInstance:
 			out.append(hit)
 	return out
+
+
+## The defender's world every worked number in this file assumes: a 10-HP
+## node behind a floor of 3. Pinned here, not inherited from the shipped scale.
+func _worked_board() -> EntityStatBoard:
+	var b := TestBoards.flat_entity_board()
+	b.node_health.base_value = 10.0
+	b.min_damage_taken.base_value = 3.0
+	return b

@@ -109,21 +109,22 @@ func test_hover_node_override_shows_then_clears_on_unhover() -> void:
 	var entity := _spawn_entity(graph)
 	var node := _spawn_owned_node(graph, entity)
 	node.add_local_modifier(_static_mod(&"node_health", 15.0))
+	var baseline := int(entity.stat_board.get_value(&"node_health"))
 
 	var card: CombatCardDefense = _DEFENSE_SCENE.instantiate()
 	add_child_autofree(card)
 	card.bind(entity)
 
 	var health_row: CombatValueRow = card.get_node("%NodeHealthRow")
-	assert_eq(health_row.get_node("%Value").text, "10", "at rest the row shows the entity baseline")
+	assert_eq(health_row.get_node("%Value").text, str(baseline), "at rest the row shows the entity baseline")
 	assert_false(health_row.get_node("%OverrideBadge").visible, "no badge before hover")
 
 	card.set_hover_node(node)
-	assert_eq(health_row.get_node("%Value").text, "25", "hovering an owned node with a local override shows it")
+	assert_eq(health_row.get_node("%Value").text, str(baseline + 15), "hovering an owned node with a local override shows it")
 	assert_true(health_row.get_node("%OverrideBadge").visible, "override badge lights up on hover")
 
 	card.set_hover_node(null)
-	assert_eq(health_row.get_node("%Value").text, "10", "unhover reverts to the entity baseline")
+	assert_eq(health_row.get_node("%Value").text, str(baseline), "unhover reverts to the entity baseline")
 	assert_false(health_row.get_node("%OverrideBadge").visible, "badge clears on unhover")
 
 

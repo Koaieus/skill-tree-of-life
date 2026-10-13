@@ -81,7 +81,9 @@ func test_damage_falls_off_per_hop() -> void:
 	var atk: Entity = ctx[2]
 	var config := helper.make_config(helper.fan_all(), helper.owner_enemy(), helper.max_reducer(),
 			{max_hops = 2, hop_damage = helper.multiply_progression(0.5)})
-	var spell := helper.make_spell(config, [DamageEffect.new()], 10.0)
+	# Power 4 keeps every halving step a whole number, so whole-HP rounding
+	# (ADR 0033) never blurs the ratio under test.
+	var spell := helper.make_spell(config, [DamageEffect.new()], 4.0)
 	var n := graph.get_skill_nodes()
 	var outcome := SpellResolver.resolve(spell, n[1], n[0], atk, graph)
 	# Seed = spell_damage(cast-from node) × power; the falloff is a ratio of it.

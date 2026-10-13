@@ -228,6 +228,7 @@ func test_a_shadow_slice_the_cast_has_not_touched_reads_its_real_current() -> vo
 	var b: SkillNode = ctx.nodes[1]
 	var entity: Entity = ctx.entity
 	entity.stat_board.node_health.base_value = 40.0
+	entity.stat_board.min_damage_taken.base_value = 0.0  # dents land exactly, unfloored
 	a.get_combat().take_damage(3.0, null)
 	b.get_combat().take_damage(1.0, null)
 	assert_almost_eq(_hp(a).current, 37.0, 0.001, "fixture: the live read already sees the raised baseline")

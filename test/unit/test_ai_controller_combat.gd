@@ -38,6 +38,14 @@ func _make_entity(ent_name: String, faction: Faction = null) -> Entity:
 	e.display_name = ent_name
 	# Flat board: kill-sized-volley fixtures arrange node_health themselves, tuned CON must not ride in.
 	e.stat_board = TestBoards.flat_entity_board()
+	# The worked world these fixtures count shots in: 10-HP nodes, floor 3.
+	e.stat_board.node_health.base_value = 10.0
+	e.stat_board.min_damage_taken.base_value = 3.0
+	# ...and 1.5 raw per shot/contact (base 1 + 5/10 DEX or STR).
+	e.stat_board.ranged_damage.base_value = 1.0
+	e.stat_board.blade_damage.base_value = 1.0
+	e.stat_board.dexterity.base_value = 5.0
+	e.stat_board.strength.base_value = 5.0
 	# #957: a volley needs arrows; the default board's quiver starts empty.
 	e.stat_board.arrows.add(AmmoTypeRoster.BASE_ID, 40)
 	# Zero the board's 5 % baseline crit. Since #507 ranged rolls crits off a
@@ -470,6 +478,9 @@ func test_clearing_the_core_expands_into_the_freed_node_the_same_turn() -> void:
 	# SP the growth pass couldn't spend is still banked for the second pass.
 	var per_shot: float = float(_nodes[1].get_local_value(&"ranged_damage"))
 	_true_damage(walled, walled.get_current_hp() - per_shot)
+	# A core kill overflows into the Dormant Core's own health pool: leave it
+	# one shot from dead too, so that one shot ends the core entity.
+	walled.owned_by.stat_board.health.set_current(1.0)
 	_enemy.stat_board.skill_points.set_current(1)
 
 	_tm.start_turn(_enemy)

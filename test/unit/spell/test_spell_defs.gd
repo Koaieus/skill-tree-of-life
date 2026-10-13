@@ -119,9 +119,10 @@ func test_lightning_cast_chains_with_halving_falloff() -> void:
 	var n := graph.get_skill_nodes()
 	var outcome := SpellResolver.resolve(_LIGHTNING, n[1], n[0], atk, graph)
 	var seed_dmg: float = helper.seed_multiplier(n[0]) * _LIGHTNING.power
-	assert_almost_eq(helper.total_damage_on(outcome, n[1]), seed_dmg, 0.001)
-	assert_almost_eq(helper.total_damage_on(outcome, n[2]), seed_dmg * 0.5, 0.001)
-	assert_almost_eq(helper.total_damage_on(outcome, n[3]), seed_dmg * 0.25, 0.001)
+	# Each hop lands as whole HP, rounded half-up (ADR 0033).
+	assert_almost_eq(helper.total_damage_on(outcome, n[1]), floorf(seed_dmg + 0.5), 0.001)
+	assert_almost_eq(helper.total_damage_on(outcome, n[2]), floorf(seed_dmg * 0.5 + 0.5), 0.001)
+	assert_almost_eq(helper.total_damage_on(outcome, n[3]), floorf(seed_dmg * 0.25 + 0.5), 0.001)
 
 
 ## --- catalogue-wide lints ----------------------------------------------------
