@@ -9,6 +9,6 @@ identity = ExtResource("identity_intelligence")
 id = &"intelligence"
 parent_ids = Array[StringName]([&"attributes"])
 display_name = "Intelligence"
-description = "Magic attribute (B/Blue). INT//10 per damage instance — potency, and it drives cast reach (cast_range_hops / cast_range_distance)."
+description = "Magic attribute (B/Blue). +3 spell damage per √INT — potency, and it drives cast reach (cast_range_hops / cast_range_distance)."
 default_value = 10.0
 abbrev = "INT"

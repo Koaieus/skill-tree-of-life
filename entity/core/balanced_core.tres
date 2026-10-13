@@ -23,7 +23,7 @@ max_hops = 4
 
 [sub_resource type="Resource" id="heal_aura_balanced"]
 script = ExtResource("5_heal_aura")
-con_coefficient = 1.5811388300841898
+con_coefficient = 9.0
 reach = SubResource("reach_4hop")
 distance_scale = SubResource("scale_v_minus_d")
 display_name = "Sanctuary"

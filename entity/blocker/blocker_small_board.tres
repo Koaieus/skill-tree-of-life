@@ -75,7 +75,7 @@ base_value = 1.0
 resource_name = "blade_damage"
 script = ExtResource("2_scalar")
 definition = ExtResource("def_blade_damage")
-base_value = 1.0
+base_value = 5.0
 
 [sub_resource type="Resource" id="scalar_blade_size"]
 resource_name = "blade_size"
@@ -97,7 +97,7 @@ definition = ExtResource("def_cast_range_hops")
 resource_name = "constitution"
 script = ExtResource("2_scalar")
 definition = ExtResource("def_constitution")
-base_value = 10.0
+base_value = 0.0
 
 [sub_resource type="Resource" id="scalar_core_healing"]
 resource_name = "core_healing"
@@ -109,7 +109,7 @@ base_value = 1.0
 resource_name = "core_health_scaling"
 script = ExtResource("2_scalar")
 definition = ExtResource("def_core_health_scaling")
-base_value = 1.0
+base_value = 3.0
 
 [sub_resource type="Resource" id="scalar_core_kill_xp"]
 resource_name = "core_kill_xp"
@@ -151,9 +151,9 @@ base_value = 10.0
 [sub_resource type="Resource" id="pool_health"]
 resource_name = "health"
 script = ExtResource("3_pool")
-current = 1.0
+current = 100.0
 definition = ExtResource("def_health")
-base_value = 1.0
+base_value = 100.0
 
 [sub_resource type="Resource" id="scalar_intelligence"]
 resource_name = "intelligence"
@@ -175,10 +175,10 @@ formula = SubResource("formula_wis_to_xp_pt")
 [sub_resource type="Resource" id="formula_str_to_blade_damage"]
 script = ExtResource("script_ratio")
 source_stat_id = &"strength"
-divisor = 20.0
+divisor = 10.0
 
 [sub_resource type="Resource" id="mod_str_to_blade_damage"]
-resource_name = "+1 Blade Damage per 20 STR"
+resource_name = "+1 Blade Damage per 10 STR"
 script = ExtResource("12_3edt8")
 stat_id = &"blade_damage"
 formula = SubResource("formula_str_to_blade_damage")
@@ -231,10 +231,10 @@ formula = SubResource("formula_int_to_cast_range_hops")
 [sub_resource type="Resource" id="formula_dex_to_ranged_damage"]
 script = ExtResource("script_ratio")
 source_stat_id = &"dexterity"
-divisor = 20.0
+divisor = 10.0
 
 [sub_resource type="Resource" id="mod_dex_to_ranged_damage"]
-resource_name = "+1 Ranged Damage per 20 DEX"
+resource_name = "+1 Ranged Damage per 10 DEX"
 script = ExtResource("12_3edt8")
 stat_id = &"ranged_damage"
 formula = SubResource("formula_dex_to_ranged_damage")
@@ -245,8 +245,9 @@ source_stat_id = &"intelligence"
 divisor = 1.0
 
 [sub_resource type="Resource" id="mod_int_to_spell_damage"]
-resource_name = "+1 Spell Damage per √INT"
+resource_name = "+3 Spell Damage per √INT"
 script = ExtResource("12_3edt8")
+value = 3.0
 stat_id = &"spell_damage"
 formula = SubResource("formula_int_to_spell_damage")
 
@@ -278,7 +279,7 @@ base_value = 1.0
 resource_name = "min_damage_taken"
 script = ExtResource("2_scalar")
 definition = ExtResource("def_min_dmg_taken")
-base_value = 3.0
+base_value = 5.0
 
 [sub_resource type="Resource" id="pool_movement_points"]
 resource_name = "movement_points"
@@ -303,13 +304,13 @@ base_value = 1.0
 resource_name = "node_health"
 script = ExtResource("2_scalar")
 definition = ExtResource("def_node_health")
-base_value = 10.0
+base_value = 70.0
 
 [sub_resource type="Resource" id="scalar_node_health_scaling"]
 resource_name = "node_health_scaling"
 script = ExtResource("2_scalar")
 definition = ExtResource("def_node_health_scaling")
-base_value = 1.0
+base_value = 3.0
 
 [sub_resource type="Resource" id="scalar_perception"]
 resource_name = "perception"
@@ -327,7 +328,7 @@ base_value = 400.0
 resource_name = "ranged_damage"
 script = ExtResource("2_scalar")
 definition = ExtResource("def_ranged_damage")
-base_value = 1.0
+base_value = 5.0
 
 [sub_resource type="Resource" id="scalar_sensor_range"]
 resource_name = "sensor_range"
@@ -351,7 +352,7 @@ base_value = 2.0
 resource_name = "spell_damage"
 script = ExtResource("2_scalar")
 definition = ExtResource("def_spell_damage")
-base_value = 1.0
+base_value = 4.0
 
 [sub_resource type="Resource" id="scalar_strength"]
 resource_name = "strength"

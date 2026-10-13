@@ -9,6 +9,6 @@ identity = ExtResource("identity_strength")
 id = &"strength"
 parent_ids = Array[StringName]([&"attributes"])
 display_name = "Strength"
-description = "Melee attribute (R/Red). Scales phantom-blade damage; +1 damage per 20 STR, +1 blade size per 40 STR."
+description = "Melee attribute (R/Red). Scales phantom-blade damage; +1 damage per 10 STR, +1 blade size per 40 STR."
 default_value = 10.0
 abbrev = "STR"

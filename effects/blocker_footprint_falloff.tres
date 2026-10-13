@@ -14,10 +14,10 @@ script = ExtResource("4_metric")
 metadata/_custom_type_script = "uid://b6apvlm4x1tgu"
 
 [sub_resource type="Resource" id="mod_node_health"]
-resource_name = "-5 Node Health"
+resource_name = "-15 Node Health"
 script = ExtResource("2_mod")
 stat_id = &"node_health"
-value = -5.0
+value = -15.0
 metadata/_custom_type_script = "uid://che6xhl6srqh3"
 
 [resource]
@@ -26,6 +26,6 @@ metric = SubResource("hop_metric")
 distance_scale = SubResource("per_hop")
 discard = 1
 display_name = "Dormant Reach"
-description = "The Dormant Core's grip thins with distance: each hop out from the core costs an owned node 5 Node Health. The core itself is untouched."
+description = "The Dormant Core's grip thins with distance: each hop out from the core costs an owned node 15 Node Health. The core itself is untouched."
 modifiers = Array[ExtResource("2_mod")]([SubResource("mod_node_health")])
 metadata/_custom_type_script = "uid://n522mioa0d4q"

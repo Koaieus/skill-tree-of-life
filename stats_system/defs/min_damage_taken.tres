@@ -6,9 +6,9 @@
 script = ExtResource("1_stat_def")
 id = &"min_damage_taken"
 display_name = "Min Damage Taken"
-description = "Floor on post-armor damage. A successful hit always lands at least this much, unless overridden (e.g. Bulwark)."
+description = "Floor on post-armor damage. A successful hit always lands at least this much, unless overridden (e.g. Bulwark). A fresh lv1 board starts at 5 against a 100 HP bar, so a pure-floor kill is about 20 hits and every floor step down is felt; curse stacks, procgen rolls and addons move it all run."
 value_type = 0
-default_value = 3.0
+default_value = 5.0
 tint_color = Color(0.66, 0.72, 0.86, 1)
 lower_is_better = true
 local_grantable = true

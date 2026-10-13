@@ -7,11 +7,11 @@
 
 [sub_resource type="Resource" id="Resource_kv1mp"]
 resource_local_to_scene = true
-resource_name = "+15 bonus Node Health"
+resource_name = "+50 bonus Node Health"
 script = ExtResource("1_3e5dq")
 stat_id = &"node_health"
 operation = 3
-value = 15.0
+value = 50.0
 metadata/_custom_type_script = "uid://che6xhl6srqh3"
 
 [sub_resource type="Resource" id="Resource_swdrg"]
