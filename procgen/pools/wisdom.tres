@@ -16,7 +16,7 @@ resource_name = "wisdom +"
 script = ExtResource("2_pool")
 stat_id = &"wisdom"
 tags = Array[StringName]([&"wis", &"flat"])
-unit_value = 2.0
+unit_value = 3.0
 pool_weight = 150.0
 tier_shape = SubResource("Resource_bqyuw")
 

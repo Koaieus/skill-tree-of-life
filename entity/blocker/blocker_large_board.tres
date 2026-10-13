@@ -115,7 +115,7 @@ base_value = 3.0
 resource_name = "core_kill_xp"
 script = ExtResource("2_scalar")
 definition = ExtResource("def_core_kill_xp")
-base_value = 60.0
+base_value = 120.0
 
 [sub_resource type="Resource" id="scalar_crit_chance"]
 resource_name = "crit_chance"

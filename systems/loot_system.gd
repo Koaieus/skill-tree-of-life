@@ -131,7 +131,7 @@ extends Node
 ## everything the cascade islands off it. Islanded nodes are not "collateral" —
 ## they left the defender's subgraph because of your hit, and the arm you
 ## severed is the thing you destroyed.
-@export var xp_per_node_killed: float = 5.0
+@export var xp_per_node_killed: float = 10.0
 
 ## ── Core loot draw (#173) ─────────────────────────────────────────────────────
 ## The SkillDust draw is CORE-ONLY: the victim's class-identity mods plus

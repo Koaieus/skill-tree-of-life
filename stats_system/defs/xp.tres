@@ -5,7 +5,7 @@
 
 [resource]
 script = ExtResource("1_growable_pool_def")
-growth_flat = 5.0
+growth_flat = 10.0
 post_grow_mode = 2
 per_turn_mode = 2
 identity = ExtResource("identity_xp")

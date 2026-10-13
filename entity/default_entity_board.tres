@@ -180,7 +180,7 @@ base_value = 3.0
 resource_name = "core_kill_xp"
 script = ExtResource("2_scalar")
 definition = ExtResource("def_core_kill_xp")
-base_value = 60.0
+base_value = 120.0
 
 [sub_resource type="Resource" id="scalar_crit_chance"]
 resource_name = "crit_chance"
@@ -559,7 +559,7 @@ definition = ExtResource("def_volleys_per_turn")
 resource_name = "wisdom"
 script = ExtResource("2_scalar")
 definition = ExtResource("def_wisdom")
-base_value = 10.0
+base_value = 15.0
 
 [sub_resource type="Resource" id="scalar_wound_heal_per_turn"]
 resource_name = "wound_heal_per_turn"
@@ -571,7 +571,7 @@ base_value = 1.0
 resource_name = "xp"
 script = ExtResource("3_growable")
 definition = ExtResource("def_xp")
-base_value = 5.0
+base_value = 50.0
 
 [sub_resource type="Resource" id="scalar_xp_per_turn"]
 resource_name = "xp_per_turn"
