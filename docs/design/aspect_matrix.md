@@ -394,11 +394,16 @@ Addons stay scene objects and reach charges only through their own hooks.
 - **Ranged off-main.** A melee player's handful of stored arrows cut the
   fuses before a swing: *"maybe this is just the way of off-maining ranged:
   some tactical chip damage and procs"*.
-- **Spell: Firecracker.** Low damage, a small scalable euclidean radius,
-  jumps to euclidean candidates, not along edges. Each jump burns explosive
-  as fuel; it fizzles at zero; a jump cap around 10 (*"Putting some bounds
-  on it might be wise"*). It crits on a jump to a node with no edge to the
-  node it jumped from (the jump source, not the attacker). Its explosive is
+- **Spell: Firecracker.** Low damage, in waves of euclidean blasts, never
+  along edges. Each landing is a blast: the spell's hit and riders on every
+  hostile node in its radius, and those nodes are the next wave (owner,
+  2026-10-13: *"this blast is also the propagation candidate gatherer for
+  the next wave"*). Each wave burns explosive as fuel and the radius
+  shrinks with it (*"6->5->4->.. with each hop, smaller blasts"*); it
+  fizzles at zero, with a wave cap around 10 (*"Putting some bounds on it
+  might be wise"*) and a handful of visits per node. A landing crits when
+  any blast that reached it came from a node with no edge to it (the blast's
+  centre, not the attacker; owner, 2026-10-14). Its explosive is
   **fuel, not cargo** (owner, 2026-10-13): it plants no charges, so its
   pops carry nothing and set off whatever charges they land on. Firecracker
   is the row's detonator, crackling through a cluster that arrows or barrels
