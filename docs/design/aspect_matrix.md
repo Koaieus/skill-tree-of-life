@@ -358,9 +358,10 @@ Addons stay scene objects and reach charges only through their own hooks.
   blast came from an arrow or a spell, never from a blade contact (owner:
   *"A sounds best for now"*, against a one-charge warhead burning a barrel
   from a neighbour). At most one blast per node per arrow hit; per wave for
-  magic (*"magic goes in beats"*); per contact for melee. The relay is the
-  point: arrow 1 plants, arrow 2 blasts and replants on the neighbours,
-  arrow 3 sets the whole patch off carrying its own payload.
+  magic (*"magic goes in beats"*); per contact for melee. A blast never
+  plants charges (owner: *"a good exception to make"*), so a patch is set off
+  only after it was charged hit by hit or by barrels. Whether an
+  explosive-carrying hit arms without firing is open (#1594).
 - **Melee gets a little AoE, not a lot.** Owner: *"melee's whole secretly
   OP face is that you could literally sweep the entire map with it ... it
   doesn't *need* a lot more AoE, just a bit for fun"*.
