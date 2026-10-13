@@ -143,7 +143,7 @@ whatever it did), ADR 0034 (armed input is a statechart stack).
 - **`BattleSystem._on_node_depleted(node)`** — the cascade. It snapshots
   `defender.navigator.nodes_islanded_by_removing(node, core)` BEFORE touching the
   mirror, then force-deallocs the depleted node and each newly islanded one, each
-  costing the defender `skill_points.wound(1)` and `health.deplete(1)`. The
+  costing the defender `skill_points.wound(1)` and the `dealloc_damage` chip (`dealloc_damage × wound`, 3 per node at the lv1 board default) off `health`. The
   cascade lives on `BattleSystem`, not `AllocationSystem`: wound and core-HP
   routing is combat policy, and anything may deplete a node, so one subscriber
   to the bus signal covers every damage source.

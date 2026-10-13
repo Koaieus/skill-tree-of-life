@@ -155,4 +155,4 @@ currency-exchange rule a vein pays only an entity that holds staked SP.
 - The inner-tree bonus point on a 3/3 stake would give staking a non-SP reward
   without the "per X kills" farming smell.
 - Kill XP ×5 with curve F makes blocker tiers matter again without touching
-  blocker health; the health ×10 pass then stays a pure unit change.
+  blocker health; the #1525 health rebase then stays a pure unit change.

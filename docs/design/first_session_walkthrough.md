@@ -96,7 +96,7 @@ It is, unmistakably, an entity. The same kind of thing you are.
 
 > **Questionable.** Realizing *I am one of these, and there are others, and they are not friendly* is a fairly large pill to swallow in silence. The game does not narrate the realization. It just lets you have it.
 
-You hover its nodes. Some show stat modifiers. Some show **damage taken** if you struck them. Some show node HP — 10 of 10. Some show *unusual* things.
+You hover its nodes. Some show stat modifiers. Some show **damage taken** if you struck them. Some show node HP — 100 of 100. Some show *unusual* things.
 
 > **Funny.** One of its outer nodes grants **+2 to Coolness.** Coolness is, apparently, a stat. You don't know what it does. You're not sure it does anything. You'll think about it later.
 
@@ -106,7 +106,7 @@ The enemy ends their turn with another small expansion. They don't seem to have 
 
 You stare at the enemy's shape. One of its arms — three nodes — is connected to its body through a **single bridge node.** The bridge has degree 2: one edge in, one edge out. The arm dangles off it.
 
-You hover the bridge. Its HP reads **10/10.** The tooltip helpfully tells you about its modifiers and its color. It does not tell you "this is a cut vertex." You figure that out yourself, because you can see the shape.
+You hover the bridge. Its HP reads **100/100.** The tooltip helpfully tells you about its modifiers and its color. It does not tell you "this is a cut vertex." You figure that out yourself, because you can see the shape.
 
 > **Questionable.** The game has just become a topology puzzle and **did not announce it.** It expects you to look.
 
@@ -116,7 +116,7 @@ You count your leaves. You have four allocated nodes with degree 1. You hover th
 
 ## Beat 9 — The first volley.
 
-You commit. Three of your leaves fire at the bridge. A line of light from each, converging on the one node. Numbers float up. The bridge's HP drops from 10/10 to 4/10.
+You commit. Three of your leaves fire at the bridge. A line of light from each, converging on the one node. Numbers float up. The bridge's HP drops from 100/100 to 40/100.
 
 You stop, because you don't have a second action this turn and you have to think. You did **not** kill the bridge. You **dented** it. The enemy is about to take a turn, and when their turn begins, that dent is going to heal.
 

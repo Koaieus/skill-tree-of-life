@@ -52,8 +52,8 @@ modifier that reads that stat back, is the shape to refuse.
 ### Authoring a rate as a modifier value
 
 ```
-health      = 10 + 1.0 x CON      # intrinsic ADD_BASE, formula = CON, value = 1.0
-node_health = 10 + 1.5 x CON      # same shape, value = 1.5 — the rate IS the value
+health      = 100 + 3 x CON       # intrinsic ADD_BASE, formula = CON, value = 1.0
+node_health = 100 + 3 x CON      # same shape, value = 3 — the rate IS the value
 ```
 
 One `StatModifier` sub-resource on the board `.tres`: `operation`, `formula`

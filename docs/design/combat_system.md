@@ -27,7 +27,7 @@ The two most basic laws:
 
 **Base-10 is the anchor.**
 
-- Default node HP: **10**, scaled by CON
+- Default node HP: **100** at lv1 (a starting value, not a constant), scaled by CON
 - Core attributes (STR, DEX, INT) at run start: **≈ 10 each**
 - Offensive and defensive buffs scale from there (e.g. +1 STR on an early skill node; +10 STR at the Apex end of the meta tree)
 
@@ -103,7 +103,7 @@ per target node:
 
 **Defense once per target — the spine's intent, not what shipped.** The design summed a combined strike (a volley's leaves, a blade's contacts) into one `outgoing` per target and subtracted `armor`/`resist` **once**. What shipped applies `armor` per hit instead — per arrow landing and per blade contact alike, each hit rolling its own crit (`../domain/defense-axes.md`).
 
-**`min_damage_taken`** floors a hit after reductions, and below `0` a hit heals — shipped (`attack/formulas/mitigation.gd`). The unbuilt Bulwark class would start at `3` with a class path to reduce it.
+**`min_damage_taken`** floors a hit after reductions, and below `0` a hit heals — shipped (`attack/formulas/mitigation.gd`). The unbuilt Bulwark class would start above the board's lv1 floor of `5` with a class path to reduce it.
 
 **Thorns (unbuilt):** flat counter-damage returned on a melee hit to the attacking node, not reduced by armor. See Thorns below.
 
@@ -397,7 +397,7 @@ Node HP, its regen and the core's overflow into the entity `health` pool are shi
 Unbuilt defensive stats:
 
 - `resist_r / resist_g / resist_b`: per-color reduction. Triangle lives here.
-- The Bulwark would start `min_damage_taken` at 3, with a perk path to 0 and below.
+- The Bulwark would start `min_damage_taken` above the board's lv1 floor of 5, with a perk path to 0 and below.
 
 ### Thorns (unbuilt)
 
