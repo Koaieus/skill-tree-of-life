@@ -401,9 +401,12 @@ Addons stay scene objects and reach charges only through their own hooks.
   the next wave"*). Each wave burns explosive as fuel and the radius
   shrinks with it (*"6->5->4->.. with each hop, smaller blasts"*); it
   fizzles at zero, with a wave cap around 10 (*"Putting some bounds on it
-  might be wise"*) and a handful of visits per node. A landing crits when
-  any blast that reached it came from a node with no edge to it (the blast's
-  centre, not the attacker; owner, 2026-10-14). Its explosive is
+  might be wise"*). Each node is reached once, so two nodes across a chasm
+  never trade blasts. Every blast covering a node hits it, and the node
+  blasts once (owner, 2026-10-14: *"A take [B, C, D(crit)] in terms of
+  hits. tho A should in turn propagate just 1 not 3"*). A hit crits when
+  its blast's centre has no edge to the node (the centre, not the
+  attacker). Smaller blasts, never less damage. Its explosive is
   **fuel, not cargo** (owner, 2026-10-13): it plants no charges, so its
   pops carry nothing and set off whatever charges they land on. Firecracker
   is the row's detonator, crackling through a cluster that arrows or barrels
