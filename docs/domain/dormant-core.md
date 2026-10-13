@@ -94,7 +94,7 @@ pocket. The kill-strip is the door.
 Every Dormant Core carries `effects/blocker_footprint_falloff.tres`, one shared
 `AuraEffect`: `reach: null`, `scope: OWNED`, `metric: HopMetric`,
 `distance_scale: ProportionalScale(per_unit = 1.0)`, one modifier
-`node_health ADD_BASE -5`.
+`node_health ADD_BASE -15`.
 
 **It arrives through the ordinary `CoreClass.effects` seam, not a `grant_effect`
 call.** `blocker_entity.tscn` authors `core_class = entity/blocker/blocker_core.tres`,
@@ -103,21 +103,22 @@ about the aura. That class is a Dormant Core's *composition*, never a pick: it
 carries no modifiers, no sigil and no turn hook, sets `pickable_in = 0`, is absent
 from `core_class_roster.tres`, and is filed under `entity/blocker/` so
 `CoreClass.load_all()` cannot enumerate it. An owned node caps at **the size's
-CON-derived `node_health` baseline minus 5 per hop from the core**, and
+authored `node_health` base (70 / 130 / 250 at lv1) minus 15 per hop from the core**, and
 `ProportionalScale` puts the source itself at scale 0 — the core keeps its full
 authored HP.
 
 **Not a scaled `SET`.** `distance_scale` multiplies the modifier's *value*, so
-`SET X` scaled by `s(h)` yields `X · s(h)`; getting `X − 5h` out of that needs
-`s(h) = 1 − 5h/X`, i.e. the scale would have to know X, coupling the two knobs
+`SET X` scaled by `s(h)` yields `X · s(h)`; getting `X − 15h` out of that needs
+`s(h) = 1 − 15h/X`, i.e. the scale would have to know X, coupling the two knobs
 `AuraEffect` deliberately keeps orthogonal. The additive spelling also composes
 with every other `node_health` source instead of bypassing them.
 
 **The footprint range IS the clamp.** `node_health` has no floor, and nothing
-stops `-5/hop` going negative past hop `X/5` — except that a footprint of `n`
+stops `-15/hop` going negative past hop `X/15` — except that a footprint of `n`
 nodes reaches at most hop `n`. At the authored ranges the worst cases are a
-large at hop 6 (80 − 30 = 50) and a small at hop 2 (20 − 10 = 10). Raising a
-`footprint_*_max` past `node_health / 5` is what would need a stat minimum.
+large at hop 6 (250 − 90 = 160) and a small at hop 2 (70 − 30 = 40), at lv1 starting
+values. Raising a
+`footprint_*_max` past `node_health / 15` is what would need a stat minimum.
 
 Because the class carries it, the aura is present on **every** blocker,
 footprint or not: on a lone core it is inert (the only node in scope is the

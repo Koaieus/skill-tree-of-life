@@ -20,27 +20,14 @@ first level has no turn cap, `session/scenario.gd:72-73`). Every pacing number
 below assumes a 30–60 turn run. **One logged 800-node playthrough with turn
 counts per level and per kill is the cheapest thing on this page.**
 
-## 1. Run pacing (health ×10, XP curve, level cadence)
+## 1. Run pacing (health rebase, XP curve, level cadence)
 
-### Health ×10 is safe only as a full rebase
+### Health rebase: decided in #1525
 
-Today: core 10 + CON (≈30), node 10 + CON, every damage source ≈ 1/hit, heal
-1/turn, blocker cores 1 + CON = 11 / 31 / 71, large-blocker armor 5, footprint
-falloff −5/hop. Turns-to-kill at lv1 (3 dmg/turn, heal 1): small 6, medium 16,
-large 36; lv5 vs lv5 core 7. These ratios survive ×10 **only if every flat
-number moves**:
-
-| must move ×10 | why |
-|---|---|
-| health, node_health, both CON scalings, core/node healing | the pools and their regen |
-| blade / ranged / spell / dealloc damage, crit floors, DoT ticks | the hits |
-| blocker cores → **110 / 310 / 710**, armor 5 → 50, falloff −5 → −50 | the owner's "~300 for large" is a *different* design: 110/130/170 turns a 36-turn large into a 9-turn one |
-| not wounds (`wound_heal_per_turn` is SP, not health) | wrong unit |
-
-Where ×10 is *not* neutral and that is the point: spell power 0.4 × (1+√20)
-= 2.2 rounds to 2 today, 22 after — the owner's "magic does big things with
-numbers" is the rounding floor; it goes away. Armor goes from "immune to
-1-damage arrows" to "halves 10-damage arrows" unless it is ×10 too.
+The "×10 is safe only as a full rebase" analysis is superseded: the scale
+decision is **#1525** (lv1 core and node HP ≈ 100 starting value, floor 5, heals 3,
+spell damage up with HP, status per-stack values unchanged, Dormant Cores
+100 / 200 / 300 core HP, footprint falloff −15/hop). Read the numbers there.
 
 ### XP: kills must scale with the curve, and WIS must not run the game
 

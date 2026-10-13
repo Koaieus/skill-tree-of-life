@@ -138,7 +138,7 @@ There are a LOT of stats. Almost every aspect in game may be a stat — if you f
 
 > *Short summary here. The full resolution rules live in `design/combat_system.md`.*
 
-> **Enrichment — the base-10 anchor (from `combat_system.md`).** Two laws: *damage increases damage; defense reduces damage.* Everything is pinned to base-10 so numbers stay legible (four-digit damage is a design failure): node HP = 10, attributes ≈ 10 at start, and the one calibration target that already exists — **3–4 unbuffed leaf volleys ≈ dismember one unbuffed node.** Linear scaling is the baseline (flagged for revisit). Rules must be legible — no hidden formulas the player can't reverse-engineer.
+> **Enrichment — the base-10 anchor (from `combat_system.md`).** Two laws: *damage increases damage; defense reduces damage.* Everything is pinned to base-10 so numbers stay legible (four-digit damage is a design failure): a lv1 core and node both start at ≈ 100 HP on the bar with a damage floor of 5 (the #1525 rebase; starting values, since level, rolls, addons and curse stacks move them all run), attributes ≈ 10 at start, and the one calibration target that already exists — **3–4 unbuffed leaf volleys ≈ dismember one unbuffed node.** Linear scaling is the baseline (flagged for revisit). Rules must be legible — no hidden formulas the player can't reverse-engineer.
 
 ### The R/G/B triangle (note: less important?)
 Not sure if relevant, your stats + graph topology vs enemy stats + topology determine what type of attack would land best, likely very situationally dependent. Some entities may have resistances, but can never be immune to all damage.

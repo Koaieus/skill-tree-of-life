@@ -133,7 +133,7 @@ once-per-turn on-kill AP gain cap (`stats_system/defs/tempo.tres`).
 
 **Identity:** An immovable fortress that becomes exponentially harder to damage with each investment in its floor-reduction progression.
 
-**Playstyle:** Plants itself, lets enemies come, becomes progressively more unkillable. Its `min_damage_taken` (the floor) starts above the board base, meaning even heavily-armored nodes always take that much chip damage per hit. The class progression reduces the floor one step at a time, down through 0 to negative... Each step is more impactful than the last (halving the minimum each time, then eliminating it, then inverting it to healing). The short-range aura creates a fortress zone — nodes near the core fight from a fortified position.
+**Playstyle:** Plants itself, lets enemies come, becomes progressively more unkillable. Its `min_damage_taken` (the floor) starts above the board base (lv1 board floor 5, against a ≈100 HP core), meaning even heavily-armored nodes always take that much chip damage per hit. The class progression reduces the floor one step at a time, down through 0 to negative... Each step is more impactful than the last (halving the minimum each time, then eliminating it, then inverting it to healing). The short-range aura creates a fortress zone — nodes near the core fight from a fortified position.
 
 **Stat profile:**
 | | |
@@ -147,7 +147,7 @@ once-per-turn on-kill AP gain cap (`stats_system/defs/tempo.tres`).
 **Ideal constellation:** Compact. Ring-topology preferred (2-edge-connected). Core at center.
 
 **Unique mechanic(s):**
-- **Floor perk path:** Class-specific upgrade series: each perk reduces `min_damage_taken` by 1. Upgrade costs increase per step. The class's roguelike arc is this journey. Reaching 0 = chip immunity; negative = healing from hits.
+- **Floor perk path:** Class-specific upgrade series: each perk reduces `min_damage_taken` by 1. Upgrade costs increase per step. The class's roguelike arc is this journey. Reaching 0 = chip immunity; negative = healing from hits. On the lv1 scale a pure-floor kill of a ≈100 HP core takes 20 hits at floor 5, then 25 / 33 / 50 / 100 at floor 4 / 3 / 2 / 1 (starting values; level, rolls and curse stacks move both pools), which is why each step is felt more than the last.
 
 **Synergizes with:** Armor Ring and Reinforcement addons; compact ring topologies; W (White) economic nodes in the interior.
 
