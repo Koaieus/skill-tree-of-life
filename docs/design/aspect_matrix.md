@@ -377,6 +377,19 @@ Addons stay scene objects and reach charges only through their own hooks.
   node (*"Halo sticky grenades anyone?"*). On the core they act as on any
   node, also set off when its host node is attacked; no lit fuse.
 - **Decay:** −1 charge at end of turn; barrels refill at turn start.
+- **Blast size: the bomb is the node** (owner, 2026-10-14). A node-centred
+  blast (detonation, barrel pop, warhead, exchange, death) reaches the
+  exploding node's radius × a reach factor × √(charges present before the
+  spend), uncapped: area is linear in charges, so stacking is an efficiency,
+  never a runaway, and the charge economy bounds it. Picked over √(charges
+  spent) (*"almost every blast spends exactly 1"*) and over a px cap. A
+  loaded barrel booms big first and shrinks as it pops, so the stacked look
+  tells the truth. No `blast_radius` stat on any board: nothing targets
+  blast size (owner: *"if the only difference is adding a "times the
+  node's radius" factor in there then a stat would not be warranted"*); the
+  day a relic says "+X% blast radius" it is promoted additively. Spell
+  blasts (Firecracker, Flamestrike) are a separate source: authored reach,
+  burning explosive as fuel.
 - **Barrel addon** (the anti-blade face, moved here from spikes; owner lean
   2026-10-04, shape 2026-10-13): not unique, it stacks. On an allocated node,
   N barrels refill the node to N charges at turn start; removing one takes
