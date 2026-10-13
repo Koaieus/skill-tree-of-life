@@ -18,7 +18,7 @@ enum PostGrowMode {
 
 ## new_max = coerce(old_max * growth_factor + growth_flat)
 ## Coercion uses the stat's value_type, so int pools snap and float pools don't.
-## Flat alone → linear curve (XP: +5 per level). Factor > 1 → mild exponential.
+## Flat alone → linear curve (XP, see `defs/xp.tres`). Factor > 1 → mild exponential.
 @export var growth_flat: float = 0.0
 @export var growth_factor: float = 1.0
 
