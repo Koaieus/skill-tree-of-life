@@ -86,16 +86,14 @@ func _greed(n: SkillNode, stacks: float) -> void:
 	n.get_combat().apply_status(_GREED, stacks)
 
 
-## XP is a growing pool: reconstruct the total across level-ups (each level
-## consumed its cap — 5, 10, 15, … per the xp def's growth_flat).
+## XP is a growing pool: reconstruct the total across level-ups — every cap a
+## level consumed is banked on the pool.
 func _gained(run: Callable) -> float:
-	var before := _killer.stat_board.xp.current
-	var lvl_before := _killer.level
+	var xp := _killer.stat_board.xp as GrowablePoolStat
+	var before := xp.current
+	var banked_before := xp.banked
 	run.call()
-	var consumed := 0.0
-	for l in range(lvl_before, _killer.level):
-		consumed += 5.0 * float(l)
-	return consumed + _killer.stat_board.xp.current - before
+	return xp.banked - banked_before + xp.current - before
 
 
 func _kill() -> float:
