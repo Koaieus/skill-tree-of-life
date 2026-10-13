@@ -149,7 +149,7 @@ Not sure if relevant, your stats + graph topology vs enemy stats + topology dete
 Entity A chooses attack mode, source node [if applicable] and target node(/edge/AoE/whatever we decide), the attack resolves based on the type, often involving dealing damage to the affected node, and for magic attacks may involve hopping (a limited amount of times) along edges with some factor, possibly also affecting/damaging those.
 The offensive stats of the casting entity & node are put against the defensive stats of the target entity & node, including rolling for crits and incorporating resistances and application of effects or statuses (poison, bleed, who knows?) and could result in damage or status effects.
 
-> **Enrichment — established pieces of the pipeline (still uncalibrated):** the combat doc sketches `taken = max(damage_floor, outgoing − armor − resist[color])`, applied **once per attack** for combined volleys/taps. `damage_floor` is a stat (default 1; the Bulwark starts at 3 and can drive it negative → heal-on-hit). **Thorns** return flat damage to a melee attacker (the Halo's ring). Two precise targets to keep straight: a **cut vertex** is a *node* whose loss islands an arm (the snipe target); a **bridge** is an *edge* whose loss disconnects (what Bleeding Edge severs). *None of these numbers are settled — and the defensive curve itself is the open question (§11a).*
+> **Enrichment — established pieces of the pipeline (still uncalibrated):** the combat doc sketches `taken = max(min_damage_taken, outgoing − armor − resist[color])` (shipped: no `resist` term yet, `attack/formulas/mitigation.gd`), applied **once per damage instance**. `min_damage_taken` (the floor) is a live stat: the board base is only a fresh entity's start, and procgen rolls, addons and curse stacks move it all run; driven below 0 it heals on hit (`docs/domain/defense-axes.md`). **Thorns** return flat damage to a melee attacker (the Halo's ring). Two precise targets to keep straight: a **cut vertex** is a *node* whose loss islands an arm (the snipe target); a **bridge** is an *edge* whose loss disconnects (what Bleeding Edge severs). *None of these numbers are settled — and the defensive curve itself is the open question (§11a).*
 
 ### Per-node health 
 If a node's health is reduced to zero, it will be force-deallocated. ...
@@ -182,7 +182,7 @@ A **core class** = starting stat weights + one aura rule (+ occasionally a uniqu
 |-------|------------------|--------|
 | Allround — *The Human* | The reliable generalist. No constraints, no specialization, a small persistent XP edge. The default. | 📐 |
 | Predator — *The Hunter* | Grows by consuming, not leveling — BLITZ steals an adjacent enemy node on an adjacency kill. XP-starved; must stay aggressive. | 📐 |
-| Bulwark — *The Fortress* | Immovable. A `damage_floor` reduction path that ramps from chip-resistant → chip-immune → healing-on-hit. | 📐 |
+| Bulwark — *The Fortress* | Immovable. A `min_damage_taken` (floor) reduction path that ramps from chip-resistant → chip-immune → healing-on-hit. | 📐 |
 | Ninja — *The Phantom* | High deallocation budget, intense but very short aura, low SP cap. Hit-and-run; every turn is a new shape. | ✅ |
 | Hive — *The Swarm* | Distributed Lifelink-anchored pods, each small and expendable; the real core hides in one. Economic sprawl. | 📐 |
 | Halo — *The Ring* | Shell aura that buffs nodes at exactly N hops and bites back with thorns. Touching the ring hurts. | 📐 #786 |
@@ -205,7 +205,7 @@ Beyond these seven, the detail doc also carries the **Edgelord** (fights *with* 
 ### Stat categories
 One shared vocabulary, instantiated by every entity (player and NPC alike). The main buckets:
 - **Attributes (six)** — three attack: `strength` (melee/R), `dexterity` (ranged/G), `intelligence` (magic/B); three utility: `constitution` (durability/White), `wisdom` (XP-growth/Gold), `perception` (sensing/Purple). Base ≈ 10 each at run start. All attack scaling runs through `attribute//10` (the spine). Plus non-mechanical `coolness`.
-- **Defense** — `armor` (flat), `resist_r/g/b` (per-color, where the triangle emerges), `damage_floor`, the persistent `health`/`health_max` **death-clock pool**, plus per-node `node_health`/`node_health_max` (scaled by CON, not degree; resets each owner turn — the focus-soak gate). `core_health` now **folds into `health`** as a class bonus (the core node's `node_health` is a recharging shield over that pool — see §5 Per-node health).
+- **Defense** — `armor` (flat), `resist_r/g/b` (per-color, where the triangle emerges), `min_damage_taken` (the floor), the persistent `health`/`health_max` **death-clock pool**, plus per-node `node_health`/`node_health_max` (scaled by CON, not degree; resets each owner turn — the focus-soak gate). `core_health` now **folds into `health`** as a class bonus (the core node's `node_health` is a recharging shield over that pool — see §5 Per-node health).
 - **Economy** — `xp`, `skill_points`, and their `_per_turn` income siblings (`xp_per_turn`, `sp_per_turn`); **Gold (WIS)** nodes are the lifeblood here (the role formerly assigned to White).
 - **Movement** — `movement_speed` (core hops/turn) and `deallocation_points` (per-turn reshape budget). Two distinct stats on purpose.
 - **Perception** — `sense_range` (hops, silhouettes) and `vision_range` (euclidean, full detail).

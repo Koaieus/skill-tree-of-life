@@ -13,7 +13,7 @@ Core classes are not locked. A run may present opportunities to shift class iden
 The shipped Balanced class is **not** the Allround below (Balanced is flat attributes plus a heal aura; Allround is an XP edge).
 
 > **Combat-redesign deltas affecting classes (see `combat_system.md`).**
-> - **Degree-defense is removed.** Node durability now comes from **CON (White)**, not from edge count. This leaves **Bulwark** and **Halo unaffected** — they always defended through armor / `damage_floor` / thorns / shell topology, never through degree. Hubs are now glass cannons (great casters, normal HP), which only sharpens the "silence, then grind" counterplay.
+> - **Degree-defense is removed.** Node durability now comes from **CON (White)**, not from edge count. This leaves **Bulwark** and **Halo unaffected** — they always defended through armor / `min_damage_taken` (the floor) / thorns / shell topology, never through degree. Hubs are now glass cannons (great casters, normal HP), which only sharpens the "silence, then grind" counterplay.
 > - **Six-attribute roster:** R/STR, G/DEX, B/INT (attack) + **White/CON** (durability), **Gold/WIS** (XP/growth — the new economy color), **Purple/PER** (vision/sensing). Class economy prose below still says "White nodes" for the economy (Hive, Harvester, Halo interior) — read that as **Gold** under the new roster; a dedicated migration sweep is pending and the reassignment is not yet final.
 > - **Melee is the phantom blade** (swing a copy of your owned subgraph; size `1 + STR/40`, `default_entity_board.tres:307-318`; rigidity from triangulation). This hands the **Halo** a melee option — swing the thorny shell (thorns = swung spikes) — and gives any class that invests offense into its **core** a "core-swing" finisher (big payoff, real exposure).
 
@@ -133,21 +133,21 @@ once-per-turn on-kill AP gain cap (`stats_system/defs/tempo.tres`).
 
 **Identity:** An immovable fortress that becomes exponentially harder to damage with each investment in its floor-reduction progression.
 
-**Playstyle:** Plants itself, lets enemies come, becomes progressively more unkillable. Its `damage_floor` starts at 3 (higher than the global default of 1), meaning even heavily-armored nodes always take at minimum 3 chip damage per hit. The class progression reduces the floor: 3→2→1→0→-1→... Each step is more impactful than the last (halving the minimum each time, then eliminating it, then inverting it to healing). The short-range aura creates a fortress zone — nodes near the core fight from a fortified position.
+**Playstyle:** Plants itself, lets enemies come, becomes progressively more unkillable. Its `min_damage_taken` (the floor) starts above the board base, meaning even heavily-armored nodes always take that much chip damage per hit. The class progression reduces the floor one step at a time, down through 0 to negative... Each step is more impactful than the last (halving the minimum each time, then eliminating it, then inverting it to healing). The short-range aura creates a fortress zone — nodes near the core fight from a fortified position.
 
 **Stat profile:**
 | | |
 |---|---|
 | Boosted | `armor` (all nodes), `resist_r/g/b` (modest, uniform), `node_health_max` |
 | Nerfed | `deallocation_points` (reshapes slowly); `movement_speed` |
-| Unique | `damage_floor = 3` starting; floor-reduction perk path |
+| Unique | a raised starting `min_damage_taken`; floor-reduction perk path |
 
 **Aura:** Short-range, heavily defensive. Within ~3 hops of core: additional armor, additional resist, and a weak offensive aura component so nearby nodes can fend off approaches.
 
 **Ideal constellation:** Compact. Ring-topology preferred (2-edge-connected). Core at center.
 
 **Unique mechanic(s):**
-- **`damage_floor` perk path:** Class-specific upgrade series: each perk reduces `damage_floor` by 1. Upgrade costs increase per step. The class's roguelike arc is this journey. Reaching 0 = chip immunity; negative = healing from hits.
+- **Floor perk path:** Class-specific upgrade series: each perk reduces `min_damage_taken` by 1. Upgrade costs increase per step. The class's roguelike arc is this journey. Reaching 0 = chip immunity; negative = healing from hits.
 
 **Synergizes with:** Armor Ring and Reinforcement addons; compact ring topologies; W (White) economic nodes in the interior.
 
@@ -155,7 +155,7 @@ once-per-turn on-kill AP gain cap (`stats_system/defs/tempo.tres`).
 
 **Introduction point:** Early game.
 
-**Balancing notes:** The hyperbolic floor reduction is intentional — do not flatten it. The inflection at floor=0 (first chip-immune state) is the key calibration point. Watch: what `damage_floor` perk cost makes the floor=0 milestone feel earned but achievable?
+**Balancing notes:** The hyperbolic floor reduction is intentional — do not flatten it. The inflection at floor=0 (first chip-immune state) is the key calibration point. Watch: what floor perk cost makes the floor=0 milestone feel earned but achievable?
 
 ---
 

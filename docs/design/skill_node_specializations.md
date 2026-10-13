@@ -28,7 +28,7 @@ Both contrast with addons, which are applied freely (within resource constraints
 **Examples (illustrative, not committed):**
 - `+5 DEX / −3 armor` — ranged powerhouse, structurally fragile
 - `+1 sp_per_turn / takes double damage` — economic engine with a death wish
-- `damage_floor = −1 / 0.5× node_health_max` — heals slightly when hit, but dies in two hits
+- `min_damage_taken = −1 / 0.5× node_health_max` — heals slightly when hit, but dies in two hits
 
 **How encountered:** Field-generated (type-A) primarily. Possibly also type-B: the Bulwark's floor-reduction perk path as a form of controlled self-corruption — choosing to make your floor-reduction permanent and irreversible in exchange for a stronger bonus.
 
