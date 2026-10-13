@@ -67,7 +67,8 @@ extends StatBoard
 ## min_damage_taken floor. Default 0.
 @export var armor: ScalarStat
 ## Floor on post-armor damage. A landed hit always deals at least this much
-## unless TRUE-typed. Default 3; defensive classes (Bulwark) may push lower.
+## unless TRUE-typed. The board base is only a fresh entity's start: curse
+## stacks, rolls and node-local modifiers move it, and below zero a hit heals.
 @export var min_damage_taken: ScalarStat
 ## Family parent of the four <family>_stacks_per_hit (ADR 0029): its bins fold
 ## into each family stat's read, never summed separately; never blindness/
