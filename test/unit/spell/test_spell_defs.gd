@@ -81,7 +81,7 @@ func test_reverberator_preset_well_formed() -> void:
 	assert_gt(p.max_visits_per_node, 1, "reverberator allows revisits to weaponise self-loops")
 	var corruption := s.intakes.filter(func(a: AspectIntake) -> bool:
 		return a != null and a.aspect_id() == &"corruption")
-	assert_eq(corruption.size(), 1, "the bell rings corruption: one innate corruption affinity")
+	assert_eq(corruption.size(), 1, "the bell rings corruption: one innate corruption intake")
 	assert_eq(s.id, &"reverberator", "the id stays reverberator")
 	assert_eq(s.name, "Demon Bell", "displayed as Demon Bell")
 	var by_id := SpellCatalog.by_id(&"reverberator")

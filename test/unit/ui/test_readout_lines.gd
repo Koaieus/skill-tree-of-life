@@ -53,7 +53,7 @@ func test_venom_with_40_poison_socketed_reads_innate_plus_infused() -> void:
 	assert_eq(line.innate, 15)
 	assert_eq(line.infused, 80)
 	assert_eq(line.innate + line.infused, plan.infusion.load_of(_VENOM)[&"poison"],
-			"the total is the plan's own affinity")
+			"the total is the plan's own load")
 	assert_eq(line.per_hit, _POISON_STATUS.stacks_per_hit(caster.stat_board, 95.0),
 			"per hit folds through stacks_per_hit")
 	assert_eq(line.status, _POISON_STATUS)

@@ -2,7 +2,7 @@
 extends GutTest
 
 ## A spell's innate intake lands through [Infusion] (#1461): one
-## [ApplyStatusEffect] rider per concept with affinity > 0, after the spell's
+## [ApplyStatusEffect] rider per concept with load > 0, after the spell's
 ## own [member SpellDef.on_hit_effects], at every landing.
 
 const H := preload("res://test/unit/spell/spell_test_helper.gd")
@@ -105,7 +105,7 @@ func test_venom_burst_lands_one_poison_of_its_innate_per_landing_with_no_infusio
 		assert_eq(statuses[0].target, n[1], "on the landing's node")
 
 
-## ADR 0047 rule 4: a spell's status is its affinity, never an authored
+## ADR 0047 rule 4: a spell's status is its intake's load, never an authored
 ## [ApplyStatusEffect] — every def under `attack/spell/defs/`.
 func test_no_spell_def_authors_an_apply_status_effect() -> void:
 	const DIR := "res://attack/spell/defs/"
@@ -119,7 +119,7 @@ func test_no_spell_def_authors_an_apply_status_effect() -> void:
 		walked += 1
 		for effect in spell.on_hit_effects:
 			assert_false(effect is ApplyStatusEffect,
-					"%s authors an ApplyStatusEffect; its status belongs in an affinity" % file)
+					"%s authors an ApplyStatusEffect; its status belongs in an intake" % file)
 	assert_gt(walked, 5, "walked %d spell defs" % walked)
 	assert_eq(Infusion.innate(_VENOM).load_of(_VENOM),
 			{&"poison": _VENOM.intakes[0].innate} as Dictionary[StringName, int])

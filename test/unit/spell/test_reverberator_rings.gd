@@ -2,7 +2,7 @@
 extends GutTest
 
 ## Demon Bell (`reverberator.tres`) rings corruption: an innate corruption
-## affinity lands on every landing, and a self-loop landing's condition crit
+## intake lands on every landing, and a self-loop landing's condition crit
 ## doubles it. The rung pile topples into the node's friendly neighbours.
 ## Every number is read from the def's exports and the attacker's board.
 
@@ -51,14 +51,14 @@ func _cast(s: Dictionary, infusion: Infusion = null) -> AttackOutcome:
 
 func test_the_spell_carries_a_corruption_intake() -> void:
 	var a := _intake()
-	assert_not_null(a, "reverberator lists a corruption affinity")
+	assert_not_null(a, "reverberator lists a corruption intake")
 	if a != null:
 		assert_gt(a.innate, 0, "it rings corruption with no infusion")
 
 
 func test_seed_landing_adds_innate_plus_the_attackers_stacks_stat() -> void:
 	var a := _intake()
-	assert_not_null(a, "corruption affinity")
+	assert_not_null(a, "corruption intake")
 	if a == null:
 		return
 	var s := _setup()
@@ -94,7 +94,7 @@ func test_a_self_loop_landing_lands_crit_multiplier_times_the_seed() -> void:
 
 func test_a_corruption_infusion_raises_the_seed_by_its_rate() -> void:
 	var a := _intake()
-	assert_not_null(a, "corruption affinity")
+	assert_not_null(a, "corruption intake")
 	if a == null:
 		return
 	var s := _setup()

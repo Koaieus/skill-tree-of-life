@@ -3,7 +3,7 @@ extends GutTest
 
 ## [SpellSections] on-arrival: the spell's own effect lines, then one line per
 ## [AspectIntake] — a status spell's "Applies X (N per hit" line is its
-## affinity's now, read through the same stacks fold the landing uses.
+## intake's now, read through the same stacks fold the landing uses.
 
 const _VENOM := preload("res://attack/spell/defs/venom_burst.tres")
 const _MALEDICTION := preload("res://attack/spell/defs/malediction.tres")
@@ -35,7 +35,7 @@ func test_the_affinity_line_follows_the_damage_line() -> void:
 	for i in lines.size():
 		if String(lines[i]).begins_with("Applies Poison"):
 			poison_at = i
-	assert_gt(poison_at, 0, "damage line first, then the affinity: %s" % str(lines))
+	assert_gt(poison_at, 0, "damage line first, then the intake: %s" % str(lines))
 
 
 func test_every_template_spell_reads_its_innate_count() -> void:

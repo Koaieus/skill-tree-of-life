@@ -180,26 +180,36 @@ A spell is many facets, each its own design call:
 | cast gate | `min_degree`, `carve_shape` |
 | reach | `targeting` (a `Targeting` with a range finder), `propagation` (`PropagationConfig` + filter) |
 | payload | `power`, `on_hit_effects` (`DamageEffect`, `HealEffect` …; the one on-hit vocabulary for every mode, see `docs/domain/effect-system.md` and ADR 0044) |
-| status | `affinities` (`SpellAffinity{status, innate, rate}`) + `default_rate` (§ Infusion, ADR 0047) |
+| status | `intakes` (`AspectIntake{identity, innate, affinity_gain, affinity_cost}`) + `ingest_gain` / `ingest_cost` (§ Infusion, ADR 0060) |
 | crit | `crit_conditions` (`LandingCondition`s) |
 | presentation | `vfx_coordinator_scene`, `windup_vfx_scene`, `tempo` (`.claude/rules/spell-vfx.md`) |
 
 The design work is what else the spell does, so it is not "damage plus status" again.
 
-## Infusion (magic column — ADR 0047, #1250)
+## Infusion (magic column — ADR 0047, ADR 0060, #1250)
 
-A spell's status is its **affinity**, not an authored rider:
+Five words, one meaning each (owner, 2026-10-13, #1593):
 
-- `attack/spell/spell_affinity.gd`: `SpellAffinity{status, innate, rate}`. Its `get_description` gives the tooltip's on-arrival line.
-- `attack/spell/spell_def.gd`: `affinities: Array[SpellAffinity]` and `default_rate` (for concepts the list leaves out; 0 refuses them).
+| term | means | where |
+|---|---|---|
+| **innate** | the spell's authored starting amount of a concept | `AspectIntake.innate` |
+| **affinity** | the per-concept exchange rate, `gain:cost` ints; 0 refuses ("venom has 2:1 poison affinity") | `AspectIntake.affinity_gain` / `affinity_cost`; 1:1 when unlisted |
+| **ingest rate** | the spell-wide exchange rate, multiplied with every affinity | `SpellDef.ingest_gain` / `ingest_cost` |
+| **infusion** | what the caster adds this cast | `Infusion.points` |
+| **load** | the final amount: `innate + floor(infusion × ingest × affinity)`, exact int arithmetic | `Infusion.load_of` |
+
+A spell's status is the **load** of its intake rows, not an authored rider:
+
+- `attack/spell/aspect_intake.gd`: `AspectIntake{identity, innate, affinity_gain, affinity_cost}` — points at the concept's `Identity` (a concept with no status, like Explosive, can be listed); `status()` resolves the concept's `StatusDef` by id. Its `get_description` gives the tooltip's on-arrival line.
+- `attack/spell/spell_def.gd`: `intakes: Array[AspectIntake]` and the ingest pair `ingest_gain` / `ingest_cost` (default 1:1; ingest 0 refuses every infusion).
 - `attack/spell/spell_def.gd`: `infusion_capacity` (most points one cast of this spell takes in total; `INF` = each aspect capped only by its own stat).
-- `attack/spell/infusion.gd`: `Infusion.innate(spell)` / `for_cast(spell, points)`, `points` (concept id → points), `rate_of`, `affinity_of` = innate + ⌊points × rate⌋, `riders`. Riders are one `ApplyStatusEffect` per concept with affinity above 0; a concept the spell does not list finds its status through `effects/status_roster.gd` (`StatusRoster.by_concept`). `AspectRoster` ranks above `attack`, so it can't serve that lookup. A new `effects/status/*.tres` joins `effects/status_roster.tres` (`test_status_roster.gd` pins it).
+- `attack/spell/infusion.gd`: `Infusion.innate(spell)` / `for_cast(spell, points)`, `points` (concept id → points), `ratio_of` (affinity × ingest as a `gain:cost` `Vector2i`), `gained` (⌊points × gain / cost⌋), `load_of` = innate + `gained`, `riders`; `rate_of` is that ratio as a float, for display and the refusal test only. Riders are one `ApplyStatusEffect` per concept with load above 0; every concept finds its status through `effects/status_roster.gd` (`StatusRoster.by_concept`). `AspectRoster` ranks above `attack`, so it can't serve that lookup. A new `effects/status/*.tres` joins `effects/status_roster.tres` (`test_status_roster.gd` pins it).
 - `attack/aspect_currency.gd`: `AspectCurrency.cap_of(attacker, stat_id)`, the one floored board read behind melee's `currency_cap` and magic's caps; `stat_of(concept)` = the concept's ASPECT facet id (`StatRegistry.facet_def`).
 - `attack/plan/magic_attack_plan.gd`: `infusion` (never null; innate after `set_spell`), `set_infusion(id, points)`, `aspect_overrun()` (per-aspect stat + `infusion_slots` + total over `floor(infusion_capacity)` when finite + refused points), the `"infusion"` wire key (only when points are spent; `from_dict` ungated, ADR 0035), and the preview and launch resolves both carry it.
 - `stats_system/defs/infusion_slots.tres`: derived on `entity/default_entity_board.tres` from INT, a threshold ladder at 10 / 100 / 1000 (development tuning, owner 2026-10-14; 100 / 1000 / 10000 later) — breadth. There is **no shared points pool** (#1574, owner 2026-10-12; the √INT `infusion_points` stat of #1462 is deleted): depth is the aspect held. Nothing is consumed (ADR 0047), so a socketed aspect carries the most it can — `min(<concept>_aspect, what infusion_capacity leaves)` — and `ArmedStack.clamp_infusion` (memory restore) and `AiInfusionPicker.pick` fill each kept aspect to that.
 - `attack/spell/spell_resolver.gd`: `resolve_against(…, infusion = null)` runs the riders after `on_hit_effects` at every landing.
 
-A status cell's spell lists one `SpellAffinity` for the concept's
-`StatusDef`. It never authors an `ApplyStatusEffect` in `on_hit_effects`.
+A status cell's spell lists one `AspectIntake` for the concept's
+`Identity`. It never authors an `ApplyStatusEffect` in `on_hit_effects`.
 `test_aspect_roster.gd` pins this. `test_infusion.gd` pins the cast-time
 arithmetic and the overrun.

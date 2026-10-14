@@ -2,8 +2,8 @@ extends GutTest
 
 ## A spell picker tile draws its spell's icon full-bleed (no [IdentityBadge]
 ## for the spell), falls back to the noun letter, and lists each innate
-## affinity as an [InnateChip] (aspect badge + count) under the name; a non-1
-## ingest rate is named in the hover tooltip only.
+## intake as an [InnateChip] (aspect badge + count) under the name; a non-1:1
+## affinity is named in the hover tooltip only.
 
 const _BUTTON_SCENE := preload("res://ui/spell_picker_bar/spell_picker_button.tscn")
 const _VENOM_BURST := preload("res://attack/spell/defs/venom_burst.tres")
@@ -19,20 +19,20 @@ func _button(spell: SpellDef) -> SpellPickerButton:
 
 
 func _intake(status: StatusDef, innate: int, gain := 1) -> AspectIntake:
-	var affinity := AspectIntake.new()
-	affinity.identity = status.identity
-	affinity.innate = innate
-	affinity.affinity_gain = gain
-	return affinity
+	var intake := AspectIntake.new()
+	intake.identity = status.identity
+	intake.innate = innate
+	intake.affinity_gain = gain
+	return intake
 
 
-func _spell(affinities: Array[AspectIntake], icon: Texture2D = null) -> SpellDef:
+func _spell(intakes: Array[AspectIntake], icon: Texture2D = null) -> SpellDef:
 	var spell := SpellDef.new()
 	spell.name = "Zap"
 	spell.identity = IdentityFixture.of(Color(0.4, 0.8, 1.0), &"zap", Identity.Kind.SPELL)
 	spell.identity.noun = "Zap"
 	spell.identity.icon = icon
-	spell.intakes = affinities
+	spell.intakes = intakes
 	return spell
 
 

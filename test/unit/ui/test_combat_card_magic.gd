@@ -3,7 +3,7 @@ extends GutTest
 ## The Magic card reads the CASTER, never the cast (#1487): Potency is the
 ## caster's `spell_damage`, and the Reach row always DESCRIBES the caster's
 ## `cast_range_hops` pipeline (the fold as text, via
-## `Stat.resolve_with([]).describe()`). The per-cast facts — sections, affinity —
+## `Stat.resolve_with([]).describe()`). The per-cast facts — sections, load —
 ## live in the magic tray's configure view.
 
 const _GRAPH_SCENE := preload("res://graph/graph.tscn")
@@ -83,8 +83,8 @@ func test_selecting_a_spell_leaves_the_reach_row_on_the_describe_tier() -> void:
 	assert_eq(value.text, before, "nor does deselecting it")
 
 
-## The cast's affinity lives in the tray's crucible readout (#1585).
+## The cast's load lives in the tray's crucible readout (#1585).
 func test_the_card_carries_no_affinity_row() -> void:
 	var pair := _bound_card()
 	var card: CombatCardMagic = pair[0]
-	assert_null(card.find_child("AffinityRow", true, false), "the affinity line moved to the tray")
+	assert_null(card.find_child("AffinityRow", true, false), "the load line moved to the tray")

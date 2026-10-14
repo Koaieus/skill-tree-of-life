@@ -1,6 +1,6 @@
 extends GutTest
 
-## [method SpellDef.is_scout]: exactly the defs whose affinities land
+## [method SpellDef.is_scout]: exactly the defs whose intakes land
 ## `scouted` answer true — every authored def under `attack/spell/defs/`.
 
 const DEFS_DIR := "res://attack/spell/defs/"
