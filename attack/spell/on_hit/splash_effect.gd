@@ -137,4 +137,5 @@ static func _retargeted(landing: HitLanding, node: SkillNode) -> HitLanding:
 	copy.raw_amount = landing.raw_amount
 	copy.raw_type = landing.raw_type
 	copy.target_mask = landing.target_mask
+	copy.detonated = landing.detonated
 	return copy
