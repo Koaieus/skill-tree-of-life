@@ -107,6 +107,34 @@ class Severance extends RefCounted:
 		vertices = vertices_
 
 
+## One explosive blade contact's two sides, as the gate decided them: the
+## striker's side (the piece's load plus the shared chunk) blasts the board,
+## the node's side (the node's charges plus the shared chunk) reaches the
+## blade pieces around the struck node. Recorded so the swing's replay draws
+## it as a pure function of time, like [member Result.dead_at]; nothing reads
+## it to decide anything.
+class Contact extends RefCounted:
+	## What the node's-side pass did to one piece it considered.
+	enum Verdict { POPPED, SPENT, SHRUGGED }
+	## The contact time.
+	var t: float
+	var struck: SkillNode
+	## The struck node's position: the bomb is the node.
+	var centre: Vector2
+	## The node's-side reach in px; 0.0 when the node held no charges.
+	var piece_reach: float
+	var striker_power: int
+	var node_power: int
+	## particle_idx -> [enum Verdict], for every piece the pass considered,
+	## the contact's own piece included.
+	var verdicts: Dictionary = {}
+
+	func _init(t_: float, struck_: SkillNode) -> void:
+		t = t_
+		struck = struck_
+		centre = struck_.global_position if struck_ != null else Vector2.ZERO
+
+
 ## One explosive charge spend a blade contact decided (#1595): [member count]
 ## charges off [member node] at [member t]. Recorded, never written: the
 ## resolve lands it as a 1-stack-per-charge cleanse on the attack record.
@@ -165,6 +193,8 @@ class Result extends RefCounted:
 	## are coasting, not destroyed, and they go on hitting things in the same
 	## trajectory. Each vertex appears in at most one entry.
 	var severances: Array[Severance] = []
+	## Every explosive contact in time order, one row each.
+	var contacts: Array[Contact] = []
 
 	func is_dead(particle_idx: int, t: float) -> bool:
 		return dead_at.has(particle_idx) and t >= dead_at[particle_idx]
@@ -322,6 +352,7 @@ class LiveGate extends RefCounted:
 	const EXPLOSIVE := &"explosive"
 	const WARHEAD := &"warhead"
 	const EXCHANGE := &"exchange"
+	const BLAST := &"blast"
 
 	## The explosive cause (#1595), reading the piece's charges N (the
 	## swing's working copy) and the struck node's M:
