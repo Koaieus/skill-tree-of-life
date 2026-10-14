@@ -253,10 +253,25 @@ static func _resolve(
 		# The share cannot be recovered after the fact: the reducer sums the
 		# incidents and the crit multiplies again below.
 		var share_sets: Dictionary = {}  ## SkillNode -> PackedFloat32Array
+		# state -> the arrival LandingContexts step 3 runs: just its lctx, or one
+		# per incident under `hit_each_incident`.
+		var arrivals_of: Dictionary = {}  ## CastSpell -> Array[LandingContext]
+		var per_incident := config.reducer != null and config.reducer.hit_each_incident
 		for node in groups:
 			var incidents: Array[CastSpell] = []
 			for inc in (groups[node] as Array):
 				incidents.append(inc)
+			# Incidents are an unordered set; per-incident hits still need a
+			# replay-stable order, so sort the set itself -- the event's
+			# predecessors and shares then align with its hits.
+			if per_incident:
+				incidents.sort_custom(func(a: CastSpell, b: CastSpell) -> bool:
+					return graph.get_stable_id(a.predecessor) < graph.get_stable_id(b.predecessor))
+			# Captured before the reducer, which may hand an incident back as
+			# its merge and overwrite its weight below.
+			var own_weights: Array[float] = []
+			for inc in incidents:
+				own_weights.append(inc.stack_weight)
 			var resolved: CastSpell = _apply_reducer(config.reducer, incidents, ctx)
 			if resolved == null:
 				_record_cancel(outcome, node, ctx.wave_index, incidents)
@@ -286,6 +301,10 @@ static func _resolve(
 					else IncidentReducer.fold_of(incidents, IncidentReducer.StackFold.MAX)
 			lctx.fill_landing()
 			lctx_of[resolved] = lctx
+			var arrivals: Array[LandingContext] = [lctx]
+			if per_incident:
+				arrivals = _incident_arrivals(ctx, node, incidents, arrived, own_weights)
+			arrivals_of[resolved] = arrivals
 			var preds: Array[SkillNode] = []
 			var shares := PackedFloat32Array()
 			for inc in incidents:
@@ -302,15 +321,6 @@ static func _resolve(
 		# landings in one wave are distinct CastSpell objects.
 		var event_of: Dictionary = {}
 		for state in merged:
-			var lctx: LandingContext = lctx_of[state]
-			# Every `HitInstance` this landing's effects append belongs to this
-			# event (#381: was two parallel lists with a <=1-per-landing parity
-			# assert between the headless and VFX paths -- dead since #474 made
-			# VFX a pure observer of an outcome BattleSystem already applied in
-			# full; see the #381 plan). Each new hit rolls its own crit.
-			var pre := outcome.hits.size()
-			OnHitEffect.run_all(spell.on_hit_effects, lctx)
-			OnHitEffect.run_all(riders, lctx)
 			var ev := PropagationEvent.new()
 			ev.beat = state.hop_index
 			ev.predecessor = state.predecessor
@@ -335,19 +345,29 @@ static func _resolve(
 			# n-1: 0, 1, 2 for a Reverberator-shaped cast (#543 D6). The count
 			# already existed on the context and was dropped on the floor.
 			ev.visit_index = ctx.visit_count(state.current_node)
-			for i in range(pre, outcome.hits.size()):
-				var hit: HitInstance = outcome.hits[i]
-				# The caster is stamped HERE rather than inside each
-				# OnHitEffect: every effect that appends a hit needs it (the
-				# shared crit roll reads its board), and one place that cannot
-				# be forgotten beats N places that can.
-				hit.attacker = ctx.caster
-				_stamp_crit_conditions(spell, lctx, hit)
-				# Magic's structural parameter is purely ORDINAL -- which wave
-				# this landing belongs to, nothing more. The compiler turns it
-				# into seconds; this walk never names one (#543).
-				hit.structural_key = float(state.hop_index)
-				ev.hits.append(hit)
+			# Every `HitInstance` this landing's arrivals append belongs to this
+			# event (#381: was two parallel lists with a <=1-per-landing parity
+			# assert between the headless and VFX paths -- dead since #474 made
+			# VFX a pure observer of an outcome BattleSystem already applied in
+			# full; see the #381 plan). Each new hit rolls its own crit, against
+			# the arrival that appended it.
+			for alctx: LandingContext in arrivals_of[state]:
+				var pre := outcome.hits.size()
+				OnHitEffect.run_all(spell.on_hit_effects, alctx)
+				OnHitEffect.run_all(riders, alctx)
+				for i in range(pre, outcome.hits.size()):
+					var hit: HitInstance = outcome.hits[i]
+					# The caster is stamped HERE rather than inside each
+					# OnHitEffect: every effect that appends a hit needs it (the
+					# shared crit roll reads its board), and one place that cannot
+					# be forgotten beats N places that can.
+					hit.attacker = ctx.caster
+					_stamp_crit_conditions(spell, alctx, hit)
+					# Magic's structural parameter is purely ORDINAL -- which wave
+					# this landing belongs to, nothing more. The compiler turns it
+					# into seconds; this walk never names one (#543).
+					hit.structural_key = float(state.hop_index)
+					ev.hits.append(hit)
 			outcome.timeline.append(ev)
 			event_of[state] = ev
 			ctx.bump_visit(state.current_node)
@@ -416,6 +436,30 @@ static func _resolve(
 	# concern on the replay pass, and this is what gives it something to wait on.
 	outcome.schedule = OutcomeSchedule.compile(outcome, spell.tempo)
 	return outcome
+
+
+## One arrival per incident for a [member IncidentReducer.hit_each_incident]
+## landing: each incident is its own payload, stamped with the landing's
+## convergence facts ([member CastSpell.incident_count],
+## [member CastSpell.arrived_from]) so a condition reads them as on the merge,
+## and starts from its OWN stack weight rather than the reducer's fold.
+static func _incident_arrivals(ctx: PropagationContext, node: SkillNode,
+		incidents: Array[CastSpell], arrived: Array[SkillNode],
+		own_weights: Array[float]) -> Array[LandingContext]:
+	var out: Array[LandingContext] = []
+	for i in incidents.size():
+		var inc := incidents[i]
+		inc.incident_count = incidents.size()
+		inc.arrived_from = arrived
+		var alctx := LandingContext.new()
+		alctx.cast = ctx
+		alctx.node = node
+		alctx.payload = inc
+		alctx.incidents = incidents
+		alctx.stack_scale = own_weights[i]
+		alctx.fill_landing()
+		out.append(alctx)
+	return out
 
 
 ## Stamp [member PropagationEvent.is_terminal] on the event a state emitted.
