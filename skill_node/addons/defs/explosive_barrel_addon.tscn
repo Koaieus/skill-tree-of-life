@@ -1,0 +1,31 @@
+[gd_scene format=3 uid="uid://b1addon0barrl"]
+
+[ext_resource type="Script" path="res://skill_node/addons/explosive_barrel_addon.gd" id="1_addon"]
+[ext_resource type="Script" uid="uid://che6xhl6srqh3" path="res://stats_system/stat_modifier.gd" id="2_mod"]
+[ext_resource type="Resource" path="res://effects/status/explosive.tres" id="3_charge"]
+[ext_resource type="Script" path="res://skill_node/addons/visuals/explosive_barrel_visual.gd" id="4_visual"]
+[ext_resource type="Resource" path="res://identity/defs/explosive.tres" id="identity_ref"]
+
+[sub_resource type="Resource" id="Resource_barrel_aspect"]
+resource_local_to_scene = true
+resource_name = "+1 Explosive Aspect"
+script = ExtResource("2_mod")
+stat_id = &"explosive_aspect"
+value = 1.0
+metadata/_custom_type_script = "uid://che6xhl6srqh3"
+
+[node name="ExplosiveBarrelAddon" type="Node2D"]
+z_index = 1
+script = ExtResource("1_addon")
+charge_status = ExtResource("3_charge")
+identity = ExtResource("identity_ref")
+entity_modifiers = Array[ExtResource("2_mod")]([SubResource("Resource_barrel_aspect")])
+description = "An explosive barrel. Its owner gains an explosive arrow; at each of the owner's turn starts, an allocated carrier tops its explosive charges up to one per barrel it carries. Removing a barrel spends one charge."
+temp_placeable = true
+temp_cost_blade_size = 2
+temp_cost_aspects = Dictionary[StringName, int]({
+&"explosive_aspect": 1
+})
+
+[node name="Visual" type="Node2D" parent="."]
+script = ExtResource("4_visual")
