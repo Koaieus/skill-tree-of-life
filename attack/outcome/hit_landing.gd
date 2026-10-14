@@ -65,6 +65,12 @@ var raw_type: DamageInstance.Type = DamageInstance.Type.PHYSICAL
 ## A [SplashEffect] with filter 0 splashes with it. 0 = unknown: such a splash
 ## reaches nothing. Stamped by the landing's builder.
 var target_mask: int = 0
+## The dedupe scope of explosive detonations: every node this landing's hit
+## already set off, `SkillNode -> true`. Built once per arrow (each
+## [method riding] starts empty) and once per spell wave ([SpellResolver]
+## stamps one dict on every landing of the wave); a blast's chained
+## [DetonateEffect] shares its parent's, so a chain never sets a node off twice.
+var detonated: Dictionary = {}
 
 static var _next_hit_key: int = 1
 

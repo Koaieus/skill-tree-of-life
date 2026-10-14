@@ -172,7 +172,8 @@ static func _resolve(
 	# The cast's intake riders (null = the spell as authored), run after the
 	# spell's own effects at every landing.
 	var cast_infusion := infusion if infusion != null else Infusion.innate(spell)
-	var riders := cast_infusion.riders(spell)
+	# Behind the arming rule: a charged node the cast lands on sets one off.
+	var riders := DetonateEffect.arm(cast_infusion.riders(spell))
 
 	var ctx := PropagationContext.new()
 	ctx.graph = graph
@@ -317,6 +318,8 @@ static func _resolve(
 
 		# 3. Apply effects, emit a timeline event per landing, bump visit counter.
 		var wave_first := outcome.hits.size()
+		# One detonation scope per wave ("magic goes in beats").
+		var detonated: Dictionary = {}
 		# state -> the event it emitted, so step 4 can stamp `is_terminal` on
 		# the landings the walk actually ENDED at (#543 D6) rather than leaving
 		# a VFX reader to re-derive the stopping condition. Identity-keyed: two
@@ -354,6 +357,7 @@ static func _resolve(
 			# full; see the #381 plan). Each new hit rolls its own crit, against
 			# the arrival that appended it.
 			for alctx: LandingContext in arrivals_of[state]:
+				alctx.detonated = detonated
 				var pre := outcome.hits.size()
 				OnHitEffect.run_all(spell.on_hit_effects, alctx)
 				OnHitEffect.run_all(riders, alctx)

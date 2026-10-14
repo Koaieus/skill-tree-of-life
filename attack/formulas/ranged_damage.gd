@@ -47,13 +47,14 @@ static func compute(attacker: Entity, firing_node: SkillNode, target: SkillNode,
 
 ## The riders pass of a typed arrow's landing: every one of the arrow's
 ## [member AmmoType.on_hit_effects], in authored order, run against ONE
-## [HitLanding] built from [param hit] — empty for an untyped arrow or one with
-## no riders. The landing is paired to the arrow, so each emitted rider is a
+## [HitLanding] built from [param hit], behind the [method DetonateEffect.arm]
+## rule — so even an untyped or riderless arrow sets off one explosive charge
+## on a charged node. The landing is paired to the arrow, so each emitted rider is a
 ## dud iff the arrow is ([member HitInstance.paired]); each rider is stamped
 ## with the arrow's [member HitInstance.ammo_type_id], and the arrow takes the
 ## landing's [member HitInstance.hit_key] — its riders are the later hits
-## sharing it. An untyped arrow returns before minting a landing, so it stays
-## keyless (`0`).
+## sharing it. An arrow with no riders that sets nothing off emits nothing and
+## stays keyless (`0`).
 ## The caller appends the riders right after their arrow: the copied
 ## [member HitInstance.structural_key] puts them on its beat, and the later
 ## original index keeps the arrow first ([method OutcomeSchedule.compile]). A
@@ -70,11 +71,16 @@ static func compute(attacker: Entity, firing_node: SkillNode, target: SkillNode,
 ## [method NodeCombat.apply_status] ignores.
 static func riders_for(hit: DamageInstance, gather_cache: Dictionary = {}) -> Array[HitInstance]:
 	var arrow := hit as RangedHitInstance
-	if arrow == null or arrow.ammo_type == null or arrow.ammo_type.on_hit_effects.is_empty():
+	if arrow == null:
 		return []
+	var effects: Array[OnHitEffect] = []
+	if arrow.ammo_type != null:
+		effects = arrow.ammo_type.on_hit_effects
 	var landing := HitLanding.riding(arrow, [] as Array[HitInstance], gather_cache)
 	landing.target_mask = SkillNode.Ownership.HOSTILE
-	OnHitEffect.run_all(arrow.ammo_type.on_hit_effects, landing)
+	OnHitEffect.run_all(DetonateEffect.arm(effects), landing)
+	if landing.hits.is_empty() and effects.is_empty():
+		arrow.hit_key = 0
 	for rider in landing.hits:
 		rider.ammo_type_id = arrow.ammo_type_id
 	return landing.hits
