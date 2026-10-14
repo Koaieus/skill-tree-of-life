@@ -254,7 +254,7 @@ Each cell links its cell issue (`<Concept> × <Facet>`, a child of the row hub i
 | Armor break | armor debuff | `armor_break_aspect` | type shipped (#1349); feel and look #1395 | #1396 | `sunder` shipped; second spell #1397 | #1250 | row: #395 (child 0: penetration stat #1401). Flat −1 armor per stack, uncapped, can go below zero (#1203, owner 2026-09-30). School CON (round 7). Has no `_stacks_per_hit` / `_resistance` while the DEX pool rolls a raw `armor` −% bane that bypasses the aspect. `spells.md`'s Heavy / Piercing Bolt (seek max / min armor) are its second spell (#1397) |
 | Weakness | damage debuff | `weakness_aspect` | type shipped (#1349); look #1427 (Sap?) | #1428 | #1429 (Enfeeble?) | #1250 | row: #1425 (child 0: the status, #1426, shipped). Stacks cut damage dealt by attacks originating from the node, % on a saturating curve (round 7) |
 | Greed | status magnet | `greed_aspect` | type shipped; look #1422 | #1423 | #1424 | #1250 | row: #1419 (child 0: the landing term, #1420, shipped; Avarice #1421, shipped). One Greed stack on the node doubles every negative status the next hit lands, Greed included, then one stack is spent; its Avarice face pays bonus XP per stack left when an attack removes the node (rounds 5–6) |
-| Explosive | charges (AoE) | `explosive_aspect` | #1398 — plants charges | #1399 — the barrel: stacking, refills N charges; on a blade the warhead's lives | #1400 — Firecracker, Flamestrike | #1466 — plants charges (column default) | row: #1211. Designed in § Explosive (owner, 2026-10-13): charges are a side-less status, a blast per spent charge in a euclidean radius; a blade's contact pops blade, a projectile spreads its hit. The concept names the content, never the reverse (owner, 2026-10-05): *"the concept determines arrows+addons+spells etc."* |
+| Explosive | charges (AoE) | `explosive_aspect` | #1398 — goo: the PLANT face, coats a node | #1399 — the barrel: stacking, refills N charges; on a blade the warhead's lives | #1400 — Firecracker, Flamestrike | #1466 — DETONATE by default; the intake row picks PLANT, FUEL or a composition | row: #1211. Designed in § Explosive (owner, 2026-10-14, #1608): charges are a side-less status; a hit's load is spent as a blast (DETONATE), planted (PLANT) or shapes propagation (FUEL); a blast carries the hit in a euclidean radius; a blade's contact pops blade. The concept names the content, never the reverse (owner, 2026-10-05): *"the concept determines arrows+addons+spells etc."* |
 | Bleeding | wound, exertion | `bleeding_aspect` | shipped (#1436) | #1437 — Spike Ring refit, with #1369 | #1438 | #1250 | row: #1434 (child 0: the status + origin set, #1435, shipped). Promoted 2026-10-06. **Round 10 (owner, 2026-10-06) replaces round 9's conditional tick:** a node in an attack's origin set has its stacks ×`exert_growth` (2) **at launch**; every turn end the row pays ⌈stacks × `bleed_rate` (½)⌉ flat HP, then decays on a ramp (−1, −2, −3 … while not exerting; exertion resets it). A core exerts by *moving*, once per turn, never by attacking. Dealloc or death spills ⌊S/(N+M)⌋ to each owned neighbour, the unallocated shares soak away. STR: the price of exertion. Edgelord's **Bleeding Edge** jab takes a new name (#1449) |
 | Hex | jinx, crit taken | `hex_aspect` | shipped (#1441) | #1442 | #1443 — a fresh first spell; the shipped `hex` becomes Curse's Malediction (owner, 2026-10-11) | #1250 | row: #1439 (child 0: the status, #1440, shipped). INT's slot (owner, 2026-10-06, round 9). The defender side of crit: per stack, hits *against* the node crit more often, a % on the saturating curve (Blindness / Weakness shape) — **Hex pass (owner, 2026-10-07): flat +5% per stack for now, past 100% is #197; authored as `incoming_modifiers` on the status**; attacker-side `crit_chance` / `crit_multiplier` stay DEX's native stats, never an aspect. The crit roll must open for a hexed target even when the attacker's board holds no crit investment (#1280's stream note) |
 
@@ -341,59 +341,125 @@ Each cell links its cell issue (`<Concept> × <Facet>`, a child of the row hub i
   doubles it, so the rung node topples into its friendly neighbours and the
   stain outlasts the node.
 
-### Explosive (owner, 2026-10-13)
+### Explosive (owner, 2026-10-14)
 
 Explosive is a **status: charges**, an int stack count on a node with no
-side (owner: *"charges are .. ints, some status stack count"*). A charge is
-a life: a pop that hits a charged blade piece spends a charge instead of
-killing it (owner: *"i was thinking along "lives" the entire time"*).
-Addons stay scene objects and reach charges only through their own hooks.
+side (owner, 2026-10-13: *"charges are .. ints, some status stack count"*).
+A charge is a life: a pop that hits a charged blade piece spends a charge
+instead of killing it (owner: *"i was thinking along "lives" the entire
+time"*). Addons stay scene objects and reach charges only through their own
+hooks. Issue: #1608 (grammar v2, revisiting #1594 / #1595, row #1211).
 
-- **Detonation, by what sets it off** (owner, verbatim):
+- **Vocabulary.** A *hit* is the catch-all: a blade contact, an arrow
+  landing, a spell landing (HitInstance / HitLanding / OnHitEffect in code).
+  A hit's explosive **load** is the explosive points it carries (infusion
+  load, ammo `explosive_stacks_per_hit`, a blade piece's charges). A node's
+  **charges** (ESS) are the Explosive status stacks present on it.
+- **Three faces** (owner, 2026-10-14). What a hit's load does is an enum on
+  the spell's intake row (`AspectIntake`), replacing the `rides` bool:
+  - **DETONATE**, the default for every hit, zero-load hits included: the
+    load is spent at the hit as a blast. Owner: *"A DETONATE load of 0 means
+    *no explosive* so no detonation just single target hit but may still
+    trigger detonation if locally there's N ESS for a power N AoE explosion.
+    There needs to be at least 1 ESS or load 1 in play before any explosion
+    can occur"*.
+  - **PLANT**, opt-in: +load charges on the target, spends nothing, no blast
+    from this hit. The goo ammo, the barrel addon's turn-start refill, a
+    mine-laying spell row.
+  - **FUEL** (Firecracker, Flamestrike): the load shapes propagation and
+    neither plants nor detonates.
+
+  The default comes from the aspect def; a spell row overrides only when it
+  differs.
+- **Spend and power**, for a DETONATE hit landing on a node (owner: *"Each
+  explosion consumes 1. Restores the ranged."*; *"Load on load bonus chips
+  away their shared chunk via min() and potentially does something with it
+  like adding twice that to the explosive power"*; *"Power = present + load
+  + 2 * shared"*):
+
+  ```
+  shared = min(load, present)
+  spent  = max(1, shared) if present > 0 else 0   # a spark always takes one
+  power  = present + load + 2 * shared            # 2 = resonance, a tuning knob on the status def
+  left   = present - spent
+  ```
+
+  A blast happens iff power > 0.
+
+  | Hit | present | load | power | left |
+  |---|---|---|---|---|
+  | plain arrow | 0 | 0 | none, no blast | 0 |
+  | plain arrow | 5 | 0 | 5 | 4 |
+  | load 3 | 0 | 3 | 3 | 0 |
+  | load 3 | 5 | 3 | 14 | 2 |
+  | load 3 | 1 | 3 | 6 | 0 |
+
+  Five sparks on a 5-patch fire 5, 4, 3, 2, 1 in turn.
+- **A blast carries the hit, not damage.** The blast replicates a fraction
+  of whatever the hit does (damage, or a heal) plus the hit's non-explosive
+  riders, under the landing's own target mask, to everything in reach except
+  the centre. A blast never plants: its load was spent. Smaller blasts, never
+  less of the hit.
+- **Chains.** A blast is a zero-load hit on each neighbour, so a charged
+  neighbour goes off, at most once per node per arrow hit, per wave for magic
+  (*"magic goes in beats"*), per contact for melee. A blast from a blade
+  contact does not set off board charges (owner: *"A sounds best for now"*,
+  against a one-charge warhead burning a barrel from a neighbour).
+- **Composition.** The face can be realised as an effects list with the load
+  injected as power (the shape ammo `on_hit_effects` already has); empty
+  means the aspect's default. **Both** (a heal that plants and heals in a
+  circle): the owner asked *"healing circle can't have it both ways? As
+  options separately or together?"* (2026-10-14) and answered with the
+  filter below; the pass's pick, **not yet settled by the owner**, is two
+  entries at full load priced by the row's affinity (two infusion per load)
+  rather than a third face. Open on #1608. A list entry can be
+  gated by the propagation filter resource, evaluated at landing, so one
+  spell chooses its face per target. Owner: *"Healing spell might author an
+  alternative set of hits or tag the hit list items then filter this list at
+  hit time depending on target node / spell ctx, e.g. set entire spell to
+  'detonate if primary target has even degree, plant if odd' or do something
+  with ratio of owned:unowned edges of target"*. Degree inside a resolve goes
+  through the landing context accessor.
+- **Ranged: goo.** Explosive ammo is PLANT, a more *"flammable oil or
+  unstable goo"* role (owner: *"The explosive arrow will take PLANT ...
+  Ranged NEEDS to grow stacks for N explosions for it's many arrows"*): it
+  coats the node with `explosive_stacks_per_hit` and still deals arrow
+  damage. Plain arrows, blades and spells are the sparks. Five goo arrows
+  then five poison arrows make five shrinking poison blasts. One charge fades
+  per turn end, so the coat is used soon. A melee player's handful of stored
+  arrows cut the fuses before a swing: *"maybe this is just the way of
+  off-maining ranged: some tactical chip damage and procs"*.
+- **Melee: warhead, barrel, exchange** (owner, 2026-10-13, verbatim):
   - *"blade node with stacks hits unstacked node: it explodes for -1 stack
     on the blade node, AoE hit + any riders. if stacks become 0 this way,
-    the blade vertex dies (it.. exploded) mid swing"* — the **warhead**.
+    the blade vertex dies (it.. exploded) mid swing"*: the **warhead**.
   - *"blade node w/o stacks hits stacked node: stacked node explodes,
-    popping blade vertices in range"* — the **barrel**: a blade's contact
-    pops blade pieces only, never the board and never the attacker's riders
+    popping blade vertices in range"*: the **barrel**, a blade's contact pops
+    blade pieces only, never the board and never the attacker's riders
     (*"should it apply the *attacker's* riders..? Sounds counterintuitive"*).
-  - *"type X arrow hits node with stacks: node explodes and effect X rides
-    along the AoE"* — a projectile spreads **that hit** to the shooter's
-    enemies in range. Spells likewise.
   - *"blade node w/stacks hits stacked node: min(N,M)-sized explosion that
     eats the same amount of both their "lives""*; the larger side keeps the
     difference.
-- **Chains.** A blast that lands on a charged node sets it off only when the
-  blast came from an arrow or a spell, never from a blade contact (owner:
-  *"A sounds best for now"*, against a one-charge warhead burning a barrel
-  from a neighbour). At most one blast per node per arrow hit; per wave for
-  magic (*"magic goes in beats"*); per contact for melee. A blast never
-  plants charges (owner: *"a good exception to make"*), so a patch is set off
-  only after it was charged hit by hit or by barrels.
-- **Arming order.** A hit whose only rider is explosive plants and never
-  sets anything off (owner, 2026-10-13: *"unless we make it "hits that
-  apply **only explosive**" don't fire..?"*, picked the same day). Any other hit on a charged node, a plain arrow
-  included, sets off one charge first and then lands its riders. So three
-  explosive arrows leave three charges, and the poison arrows behind them
-  each cash one in carrying poison. Arrows carry at most one rider, so for
-  ranged the rule is exact; it matters for spells that carry explosive plus
-  something else.
+
+  **Open (axis two, #1608):** how a blade contact's load fits the spend rule
+  (one life per contact, so the exchange becomes min(1,M), versus the min(N,M)
+  exchange kept as melee's own expression, and the barrel-case asymmetry),
+  and whose side a blast's payload hurts (side-blind shrapnel with masked
+  riders versus the landing's mask filtering everything). Not decided here.
 - **Melee gets a little AoE, not a lot.** Owner: *"melee's whole secretly
   OP face is that you could literally sweep the entire map with it ... it
   doesn't *need* a lot more AoE, just a bit for fun"*.
-- **Death:** a node that dies with charges explodes, spending them.
+- **Death:** a node that dies with charges explodes, spending them (#1604).
   Charges reach the core the way any status does, when they land on the core
   node (*"Halo sticky grenades anyone?"*). On the core they act as on any
   node, also set off when its host node is attacked; no lit fuse.
 - **Decay:** −1 charge at end of turn; barrels refill at turn start.
 - **Blast size: the bomb is the node** (owner, 2026-10-14). A node-centred
-  blast (detonation, barrel pop, warhead, exchange, death) reaches the
-  exploding node's radius × a reach factor × √(charges present before the
-  spend), uncapped: area is linear in charges, so stacking is an efficiency,
-  never a runaway, and the charge economy bounds it. Picked over √(charges
-  spent) (*"almost every blast spends exactly 1"*) and over a px cap. A
-  loaded barrel booms big first and shrinks as it pops, so the stacked look
-  tells the truth. No `blast_radius` stat on any board: nothing targets
+  blast reaches the exploding node's radius × a reach factor × √power, with
+  power from the formula above, uncapped: area is linear in power, so
+  stacking is an efficiency, never a runaway, and the charge economy bounds
+  it. A loaded barrel booms big first and shrinks as it pops, so the stacked
+  look tells the truth. No `blast_radius` stat on any board: nothing targets
   blast size (owner: *"if the only difference is adding a "times the
   node's radius" factor in there then a stat would not be warranted"*); the
   day a relic says "+X% blast radius" it is promoted additively. Spell
@@ -403,19 +469,13 @@ Addons stay scene objects and reach charges only through their own hooks.
   2026-10-04, shape 2026-10-13): not unique, it stacks. On an allocated node,
   N barrels refill the node to N charges at turn start; removing one takes
   one charge off if any. A flat +1 per barrel, never stat-scaled (*"if you
-  get 20 explosive_aspect then you're cooked"*). Look: stacked cylinder
+  get 20 explosive_aspect then you're cooked"*). Owner, 2026-10-14: *"the
+  barrel addon was only there to form a bridge between addon (no state?) and
+  ESS which then could be homogenized as battlefield use for melee copies and
+  defensive and then also hazard situations"*. Look: stacked cylinder
   segments, *"like a "database flowchart figure""*, one per charge. On a
   blade the same charges are the warhead's lives. Rare by procgen, which
   keeps it *"the"* anti-blade exception.
-- **Arrow and infusion plant charges.** Owner, 2026-10-12: *"explosive
-  arrow does this, explosive infusion should do so too"*. The arrow plants
-  (the relay above), so infusion is the column default, apply the row's
-  status, picked over a direct blast (owner, 2026-10-13). A multi-wave
-  spell infused with explosive plants on one wave and sets them off the
-  next.
-- **Ranged off-main.** A melee player's handful of stored arrows cut the
-  fuses before a swing: *"maybe this is just the way of off-maining ranged:
-  some tactical chip damage and procs"*.
 - **Spell: Firecracker.** Low damage, in waves of euclidean blasts, never
   along edges. Each landing is a blast: the spell's hit and riders on every
   hostile node in its radius, and those nodes are the next wave (owner,
@@ -428,23 +488,26 @@ Addons stay scene objects and reach charges only through their own hooks.
   blasts once (owner, 2026-10-14: *"A take [B, C, D(crit)] in terms of
   hits. tho A should in turn propagate just 1 not 3"*). A hit crits when
   its blast's centre has no edge to the node (the centre, not the
-  attacker). Smaller blasts, never less damage. Its explosive is
-  **fuel, not cargo** (owner, 2026-10-13): it plants no charges, so its
-  pops carry nothing and set off whatever charges they land on. Firecracker
-  is the row's detonator, crackling through a cluster that arrows or barrels
-  charged. Infuse poison and every pop spreads poison.
+  attacker). Its explosive is the FUEL face (owner, 2026-10-13: fuel, not
+  cargo): it plants no charges, so its pops carry nothing and set off
+  whatever charges they land on. Firecracker is the row's detonator,
+  crackling through a cluster that goo or barrels charged. Infuse poison and
+  every pop spreads poison.
 - **Spell: Flamestrike.** One strike; a damage pool divided over the
   hostile nodes in a circle, so one target takes it all (*"hitting a single
   target concentrates the boom on the one unlucky node"*). Explosive
-  shrinks the radius (*"more concentrated with aspect"*), as shape like
-  Firecracker's fuel, never planted (tentative, follows from the
-  Firecracker pick, 2026-10-13). Damage divides,
-  riders don't. No jumps, hostile only. Look: the whole circle charges, the
-  charge contracts onto the hit nodes, and the fewer there are, the taller
-  the pillar.
-- **Struck:** Supernova (infusion's blast under a name) and Detonate (the
-  arrow plants charges now).
-- **Rejected, with why** (2026-10-13):
+  shrinks the radius (*"more concentrated with aspect"*) as the FUEL face,
+  like Firecracker's (tentative, follows from the Firecracker pick,
+  2026-10-13). Damage divides, riders don't. No jumps, hostile only. Look:
+  the whole circle charges, the charge contracts onto the hit nodes, and the
+  fewer there are, the taller the pillar.
+- **Infusion** takes its face from its intake row: DETONATE by default (a
+  spark with a load), PLANT or FUEL where the row says so, a composition where
+  it authors one. Owner, 2026-10-12: *"explosive arrow does this, explosive
+  infusion should do so too"*; the 2026-10-14 faces replace the single
+  planting face that sentence assumed.
+- **Struck:** Supernova (infusion's blast under a name).
+- **Rejected, with why:**
   - Charges that remember the side that planted them: charges are ints, and
     the owner's fuse-cutting volley needs a barrel to hurt its own side.
   - A barrel blast that carries the striking blade's hit onto the defender's
@@ -457,18 +520,9 @@ Addons stay scene objects and reach charges only through their own hooks.
     for something only an addon (so far) provides"*.
   - Charge segments drawn by every node: a per-status visual chapter, not
     started here.
-  - An explosive hit setting off every charge at once, then planting
-    fresh: explosive arrows sent ahead of a poison volley would cash the big
-    stack as one boom that spreads nothing.
-  - Any explosive-carrying hit arming without firing: an infused multi-wave
-    spell would never boom on its own charges (*"explosive infusion should
-    do so too"*, 2026-10-12).
-  - A spell's innate explosive planting charges: one number would be both
-    fuel and the lives handed to the enemy against the caster's blade, and a
-    jump back to a node would stack plants. Only infused explosive planting
-    was rejected too: innate and infused load take one path (ADR 0047).
-  - Infusion blasting directly instead of planting: two booms with
-    different rules for one concept.
+  - A third "both" face (tentative, pass pick): two authored entries priced
+    by affinity say the same thing without a new enum value. Owner has not
+    ruled; see #1608.
 - **Later, maybe:** a cluster-grenade arrow that does set off charges.
 
 ## Arrow faces (owner, 2026-10-07)
@@ -491,7 +545,7 @@ Hue stays `Identity.tint`.
 | Weakness | plain stacks | — | blunt concussive tip, a dull thud ring on impact |
 | Bleeding | plain stacks | — | dark wound-red drips off the trail, sparse like poison's froth |
 | Hex | **marker**, early, low damage: Curse lifts the floor, Hex lifts the crit chance of the arrows behind it | early | a magenta eye-sigil blinks open over the node on impact, then fades |
-| Explosive | plants charges (#1594's arming rule); no blast of its own | — | a lit-fuse pulsing tip; short sparks thrown backward off the trail |
+| Explosive | goo: the PLANT face, coats the node with charges and still deals arrow damage | — | a lit-fuse pulsing tip; short sparks thrown backward off the trail |
 
 - **No "fully absorbed" special.** Owner: *"There is little to no "fully
   absorbed" in this game, i.e. curse may lift the damage floor anyway"*:
