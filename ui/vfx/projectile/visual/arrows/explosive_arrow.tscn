@@ -1,0 +1,40 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" path="res://ui/vfx/projectile/visual/status_arrow.tscn" id="1_base"]
+[ext_resource type="PackedScene" path="res://ui/vfx/projectile/visual/arrow_parts/arrow_shed_emitter.tscn" id="2_shed"]
+
+[sub_resource type="Gradient" id="Gradient_sparks"]
+offsets = PackedFloat32Array(0, 0.15, 1)
+colors = PackedColorArray(1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0)
+
+[sub_resource type="GradientTexture1D" id="GradientTexture1D_sparks"]
+gradient = SubResource("Gradient_sparks")
+
+[sub_resource type="ParticleProcessMaterial" id="ParticleProcessMaterial_sparks"]
+particle_flag_disable_z = true
+direction = Vector3(-1, 0, 0)
+spread = 70.0
+initial_velocity_min = 25.0
+initial_velocity_max = 60.0
+gravity = Vector3(0, 0, 0)
+damping_min = 40.0
+damping_max = 80.0
+scale_min = 0.05
+scale_max = 0.12
+color_ramp = SubResource("GradientTexture1D_sparks")
+
+[node name="ExplosiveArrow" instance=ExtResource("1_base")]
+
+[node name="Sparks" parent="." index="1" instance=ExtResource("2_shed")]
+show_on_dud = false
+show_on_absorbed = false
+process_material = SubResource("ParticleProcessMaterial_sparks")
+amount = 10
+lifetime = 0.35
+tier = 3
+density = 0.5
+
+[node name="Tip" parent="."]
+tier = 3
+pulse_hz = 6.0
+pulse_depth = 0.5
