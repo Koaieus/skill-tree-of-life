@@ -1,0 +1,25 @@
+[gd_resource type="Resource" script_class="StatusDef" load_steps=6 format=3]
+
+[ext_resource type="Script" path="res://effects/status/status_def.gd" id="1_status_def"]
+[ext_resource type="Script" path="res://effects/status/decay/flat_decay.gd" id="2_decay"]
+[ext_resource type="Script" path="res://effects/status/spread/explosive_spread.gd" id="3_spread"]
+[ext_resource type="Resource" path="res://identity/defs/explosive.tres" id="4_identity"]
+
+[sub_resource type="Resource" id="Resource_decay"]
+script = ExtResource("2_decay")
+
+[sub_resource type="Resource" id="Resource_spread"]
+script = ExtResource("3_spread")
+
+[resource]
+script = ExtResource("1_status_def")
+id = &"explosive"
+display_name = "Explosive"
+identity = ExtResource("4_identity")
+description = "Charges on a node. A hit on a charged node spends one into a blast that carries the hit's other effects to the attacker's enemies around it; a node killed while charged spends them all in one blast. One charge fades each turn end."
+tags = Array[StringName]([&"charge"])
+power_max = 0.0
+decay = SubResource("Resource_decay")
+spread = SubResource("Resource_spread")
+display_max = 10.0
+reapply = 1

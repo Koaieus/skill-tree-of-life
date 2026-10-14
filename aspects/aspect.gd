@@ -17,7 +17,8 @@ extends Resource
 @export var identity: Identity = null
 ## The `<concept>_aspect` count stat, a child of the `aspects` family parent.
 @export var stat: StatDef = null
-## The concept's status. Null for a concept with none (explosive).
+## The concept's status (explosive's is its charges). Null for a concept
+## with none.
 @export var status: StatusDef = null
 ## The concept's special arrow. Null until its arrow cell lands.
 @export var ammo: AmmoType = null

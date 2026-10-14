@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="StatDef" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://stats_system/stat_def.gd" id="1_stat_def"]
+[ext_resource type="Resource" path="res://identity/defs/explosive.tres" id="identity_explosive"]
+
+[resource]
+script = ExtResource("1_stat_def")
+identity = ExtResource("identity_explosive")
+role = 2
+id = &"explosive_stacks_per_hit"
+display_name = "Explosive Charges per Hit"
+description = "Flat explosive charges added to every explosive application this entity lands, a base_add overlay on the authored per-hit power: landed = fold(per-hit + Explosive Charges per Hit), never floored (ADR 0029). No parent: explosive is not a DoT, so DoT Stacks per Hit never reaches it. Only boosts an explosive application that already happens — never plants charges on its own. Default 1 (tentative); read at the attacking node — an entity grant reaches every hit, a node-local grant only the hits that node lands. Not rolled by procgen and not on the HUD yet."
+value_type = 1
+default_value = 1.0
+modifier_name = "Explosive Charges per Hit"
+local_grantable = true
