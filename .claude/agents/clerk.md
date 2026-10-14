@@ -42,7 +42,7 @@ Substitute with plain `sed` (BRE, braces literal) —
 | new issue `{h}` "Title", under #p, label l | `gh issue create --title "<title>" --body-file <F.resolved> [--parent <p>] [--label <l>]` — capture the number from the URL |
 | body is F | `gh issue edit <n> --body-file <F.resolved>` |
 | post F as a comment / comment "text" | `gh issue comment <n> --body-file <F.resolved>` (inline text → your own temp file first) |
-| close as not planned / completed / duplicate of #m, comment "text" | the comment first (row above), then `gh issue close <n> --reason "not planned"` \| `--reason completed` \| `--reason duplicate --duplicate-of <m>` — a close line with no reason or no comment text is `SKIPPED`; a closed issue gets no status line |
+| close as not planned / completed / duplicate of #m, comment "text" | the comment first (row above), then `gh issue close <n> --reason "not planned"` \| `--reason completed` \| `--duplicate-of <m>` — a close line with no reason or no comment text is `SKIPPED`; a closed issue gets no status line |
 | move it under #p / detach it | read the old parent first (`gh issue view <n> --json parent --jq .parent.number`), then `gh issue edit <n> --parent <p>` / `--remove-parent`; then the old parent's open children: `gh issue view <old> --json subIssuesSummary --jq '.subIssuesSummary.total - .subIssuesSummary.completed'` |
 | blocked by #b / `{h}` | `mise gh-project -- blocked-by <n> <b>`, one blocker per call |
 | clear its blockers | `mise gh-project -- blocked-by <n> clear` |
