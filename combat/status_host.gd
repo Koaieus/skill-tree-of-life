@@ -23,7 +23,8 @@ extends RefCounted
 ##   `_on_pile_rose(def, key)` — a row whose [method StatusSpread.settles] rose:
 ##   the pile may now topple, so its world should check it at the next flush.
 ## The live-only gating of those three (`host != null`) is the owner's, not
-## this class's: a shadow owner implements them as no-ops.
+## this class's: a shadow owner implements them as no-ops. `_on_pile_rose` is
+## NOT live-gated: it fires in every world, since each world drains its own list.
 
 ## The rows, `def.id -> {key: NodeStatus}` (#1343): a row's identity is
 ## `(def.id, key)`, the key computed by [method StatusDef.group_key]; a shared

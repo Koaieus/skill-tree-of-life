@@ -529,7 +529,8 @@ func _record_spill(def: StatusDef, transfers: Array[StackTransfer]) -> void:
 ## world's slices, then the fed [SettleOp]s in their recorded order — a batch
 ## through one [SpreadApplier] call, a burst through [method StatusDef._on_burst].
 ## The removals noted meanwhile (a replayed burst's kill included) are dropped
-## uncomputed.
+## uncomputed; the piles they (or the landings) enqueued stay on the worklist
+## for the next computing flush.
 func _land_recorded() -> void:
 	var by_def := {}  # StatusDef -> Array[StackTransfer]
 	for e in _fed:
