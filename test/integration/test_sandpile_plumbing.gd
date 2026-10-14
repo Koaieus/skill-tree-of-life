@@ -448,3 +448,33 @@ func test_moving_the_core_onto_a_low_degree_node_pops_its_pile_inside_the_move()
 	assert_eq(_entity_stacks(), 0.0, "the pile popped inside move_core")
 	assert_eq([_stacks(n[0]), _stacks(n[4]), _stacks(n[1])], [1.0, 1.0, 0.0],
 			"1 to each of X's neighbours, nothing to X")
+
+
+func _entity_hp(world: CombatWorld) -> float:
+	return (world.combat_for_entity(_a).board().get_stat(&"health") as PoolStat).current
+
+
+func test_a_recorded_core_pile_burst_replays_the_same_row_and_pool_damage_live() -> void:
+	# X–C–Y: the pile (T 3) at 2; one arrow falls through to the entity.
+	var n := await _territory(3, [[0, 1], [0, 2]])
+	_a.get_combat().apply_status(_CORRUPTION, 2.0)
+	_flush()
+	var arrow := _arrow(n[0], 1.0, 0)
+	arrow.host_kind = StatusInstance.HostKind.ENTITY
+	var o := AttackOutcome.new()
+	o.hits.append(arrow)
+	var shadow := CombatWorld.shadow()
+	OutcomeApplier.apply(o, shadow)
+	var want := [shadow.combat_for_entity(_a).get_status_power(&"corruption"), _entity_hp(shadow),
+			_stacks(n[0], shadow), _stacks(n[1], shadow), _stacks(n[2], shadow)]
+	shadow.free_shadow()
+	assert_eq(want[0], 0.0, "precondition: the shadow's core pile toppled")
+	assert_lt(want[1], _entity_hp(CombatWorld.live()), "precondition: its burst hit the shadow pool")
+
+	var wired: Dictionary = bytes_to_var(var_to_bytes(AttackRecord.capture(o, _graph)))
+	var rebuilt := AttackRecord.rebuild(wired, _graph)
+	_battle()
+	OutcomeApplier.apply(rebuilt, CombatWorld.live(), null, _alloc)
+	var got := [_entity_stacks(), _entity_hp(CombatWorld.live()),
+			_stacks(n[0]), _stacks(n[1]), _stacks(n[2])]
+	assert_eq(got, want, "the live replay lands the core pile's row, transfers and pool damage")

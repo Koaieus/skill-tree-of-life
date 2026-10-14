@@ -206,6 +206,11 @@ const KEY_SETTLE_AMOUNT := "t_amt"
 const KEY_SETTLE_KEY := "t_key"
 const KEY_SETTLE_THRESHOLD := "t_thr"
 const KEY_SETTLE_BATCH := "t_bat"
+const KEY_SETTLE_CORE := "t_core"
+## [member settle_core] bits: the op's `from` / `to` is the core pile of the
+## entity standing on the recorded node, not the node itself.
+const SETTLE_FROM_CORE := 1
+const SETTLE_TO_CORE := 2
 const KEY_AIM_ORIGIN := "a_org"
 const KEY_AIM_GEOM := "a_geom"
 
@@ -287,6 +292,7 @@ var settle_amounts := PackedFloat64Array()
 var settle_keys := PackedStringArray()
 var settle_thresholds := PackedInt32Array()
 var settle_batches := PackedInt32Array()
+var settle_core := PackedInt32Array()
 var aim_origin: int = 0
 var aim_geom := PackedFloat64Array()
 
@@ -351,6 +357,7 @@ static func wire_fields() -> Array[WireFields.Field]:
 		WireFields.Field.new(&"settle_keys", TYPE_PACKED_STRING_ARRAY).as_key(KEY_SETTLE_KEY).omitted_at_default(),
 		WireFields.Field.new(&"settle_thresholds", TYPE_PACKED_INT32_ARRAY).as_key(KEY_SETTLE_THRESHOLD).omitted_at_default(),
 		WireFields.Field.new(&"settle_batches", TYPE_PACKED_INT32_ARRAY).as_key(KEY_SETTLE_BATCH).omitted_at_default(),
+		WireFields.Field.new(&"settle_core", TYPE_PACKED_INT32_ARRAY).as_key(KEY_SETTLE_CORE).omitted_at_default(),
 	]
 
 
@@ -732,8 +739,12 @@ static func _rebuild_spill(r: AttackRecord, entry: DeallocEntry, at: int, count:
 static func _capture_settle(r: AttackRecord, hit: HitInstance, graph: Graph) -> void:
 	r.settle_counts.append(hit.settle.size())
 	for op in hit.settle:
-		r.settle_from.append(_id_of(op.from.real() if op != null and op.from != null else null, graph))
-		r.settle_to.append(_id_of(op.to.real() if op != null and op.to != null else null, graph))
+		var from = op.from if op != null else null
+		var to = op.to if op != null else null
+		r.settle_from.append(_id_of(_holder_node(from), graph))
+		r.settle_to.append(_id_of(_holder_node(to), graph))
+		r.settle_core.append((SETTLE_FROM_CORE if from is EntityCombat else 0)
+				| (SETTLE_TO_CORE if to is EntityCombat else 0))
 		r.settle_defs.append(op.def.resource_path if op != null and op.def != null else "")
 		r.settle_amounts.append(op.amount if op != null else 0.0)
 		r.settle_keys.append(var_to_str(op.key if op != null else true))
@@ -751,10 +762,9 @@ static func _rebuild_settle(r: AttackRecord, hit: HitInstance, at: int, count: i
 		if i >= r.settle_amounts.size():
 			break
 		var op := CombatWorld.SettleOp.new()
-		var from_node := _node_of(r.settle_from[i], graph)
-		var to_node := _node_of(r.settle_to[i], graph)
-		op.from = from_node.get_combat() if from_node != null else null
-		op.to = to_node.get_combat() if to_node != null else null
+		var core := r.settle_core[i] if i < r.settle_core.size() else 0
+		op.from = _holder_of(_node_of(r.settle_from[i], graph), core & SETTLE_FROM_CORE != 0)
+		op.to = _holder_of(_node_of(r.settle_to[i], graph), core & SETTLE_TO_CORE != 0)
 		var path := r.settle_defs[i]
 		op.def = load(path) as StatusDef if not path.is_empty() else null
 		op.key = str_to_var(r.settle_keys[i]) if i < r.settle_keys.size() else true
@@ -763,6 +773,28 @@ static func _rebuild_settle(r: AttackRecord, hit: HitInstance, at: int, count: i
 		op.batch = r.settle_batches[i] if i < r.settle_batches.size() else 0
 		hit.settle.append(op)
 	return at + count
+
+
+## The node a settle holder is wired as: a node slice's real node, or a core
+## pile's core node (the core cannot move mid-attack, so it names the same
+## entity on every peer).
+static func _holder_node(holder) -> SkillNode:
+	if holder == null:
+		return null
+	if holder is EntityCombat:
+		var core: NodeCombat = holder.core()
+		return core.real() if core != null else null
+	return holder.real()
+
+
+## [method _holder_node]'s inverse: [param node]'s live slice, or with
+## [param core] the live pile of the entity standing on it. Null when fogged.
+static func _holder_of(node: SkillNode, core: bool):
+	if node == null:
+		return null
+	if not core:
+		return node.get_combat()
+	return node.owned_by.get_combat() if node.owned_by != null else null
 
 
 static func _node_of(id: int, graph: Graph) -> SkillNode:
