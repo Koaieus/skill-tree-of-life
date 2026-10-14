@@ -46,6 +46,13 @@ func nodes() -> Array[NodeCombat]:
 	return out
 
 
+## Whether [param n] topples in this field (has an adjacency to compute a `T`
+## from); anything else only receives — an absorber. A world-backed field
+## answers its own rule (e.g. the core never topples).
+func topples(n: NodeCombat) -> bool:
+	return _adjacency.has(n)
+
+
 ## [param n]'s RAW row `(def.id, key)` (ADR 0032: spread moves the raw
 ## integer row; resistance stays the live filter). `0` when absent.
 func stacks(n: NodeCombat) -> float:

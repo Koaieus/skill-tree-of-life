@@ -7,16 +7,16 @@ extends StatusSpread
 ## [member burn] burned, and so at least [member keep] left behind. A pile
 ## settles fully within one [method stabilize] call. Adds and topples commute
 ## at fixed degrees, so the fixed point and each host's topple count are
-## independent of order: the field-order sweep only sequences the loop.
+## independent of order: the drain's queue only sequences the loop.
 ##
 ## Pure, like every [StatusSpread]: works on a local copy of the field's
 ## stacks and returns a [ToppleResult]. Deals no damage and knows nothing about
 ## deaths; the caller turns [member ToppleResult.topples] into bursts
 ## ([method StatusDef._on_burst]) and re-runs after degrees change.
 ##
-## Only [method StackField.nodes] topple. A masked neighbour outside the field
-## receives and keeps what it gets (an absorber), since the field has no
-## adjacency for it to compute a `T` from.
+## [method StackField.nodes] seed the drain; a host topples iff
+## [method StackField.topples] says so. Any other masked neighbour receives and
+## keeps what it gets (an absorber).
 
 ## Stacks burned per topple (`B`). At least 1: the sink that guarantees every
 ## cascade ends (a call topples at most `total stacks / burn` times).
@@ -36,48 +36,70 @@ func threshold(field: StackField, n: NodeCombat) -> int:
 	return field.masked_degree(n) + burn + keep
 
 
-## Topple until no field host holds `≥ T`. Transfers are per-node nets (see
-## [ToppleResult]), so [SpreadApplier]'s debit-first landing is exact.
+## Topple until no field host holds `≥ T`: a DRAIN seeded with
+## [method StackField.nodes]. Pop a host; if it holds `≥ T`, bulk-topple it and
+## push every masked neighbour that [method StackField.topples] and now holds
+## `≥ T`. Cost scales with what topples, never with the field's size; the
+## abelian property keeps the fixed point and per-host counts order-free.
+## A neighbour's adjacency is asked for only when it is reached, so a lazy
+## field may resolve it then. Transfers are per-node nets (see [ToppleResult]),
+## so [SpreadApplier]'s debit-first landing is exact.
 func stabilize(field: StackField) -> ToppleResult:
 	var result := ToppleResult.new()
-	var senders := field.nodes()
 	var around := {}
 	var pile := {}
+	var initial := {}
 	var order: Array[NodeCombat] = []
-	for n in senders:
-		around[n] = field.masked_neighbours(n)
-		result.thresholds[n] = (around[n] as Array).size() + burn + keep
-		_track(field, pile, order, n)
-		for m: NodeCombat in around[n]:
-			_track(field, pile, order, m)
-	var initial := pile.duplicate()
+	var queue: Array[NodeCombat] = []
+	var queued := {}
+	for n in field.nodes():
+		if not queued.has(n) and field.topples(n):
+			queued[n] = true
+			queue.append(n)
+			_track(field, pile, initial, order, n)
 	var step := maxi(1, burn)
 	var total := 0
-	var moved := true
-	while moved:
-		moved = false
-		for n in senders:
-			var t: int = result.thresholds[n]
-			var s: int = pile[n]
-			if s < t:
+	var head := 0
+	while head < queue.size():
+		var n := queue[head]
+		head += 1
+		queued.erase(n)
+		var t := _threshold_of(field, around, result, n)
+		var s: int = pile[n]
+		if s < t:
+			continue
+		# Each topple removes `degree + burn`, not `T`: pop while S stays ≥ T.
+		var loss: int = (around[n] as Array).size() + step
+		var k := (s - t) / loss + 1
+		if total + k > max_topples:
+			k = max_topples - total
+		if k <= 0:
+			push_error("SandpileSpread: hit max_topples (%d); pile left unstable" % max_topples)
+			break
+		total += k
+		result.topples[n] = result.topples.get(n, 0) + k
+		pile[n] = s - k * loss
+		for m: NodeCombat in around[n]:
+			_track(field, pile, initial, order, m)
+			pile[m] += k
+			if queued.has(m) or not field.topples(m):
 				continue
-			# Each topple removes `degree + burn`, not `T`: pop while S stays ≥ T.
-			var loss: int = (around[n] as Array).size() + step
-			var k := (s - t) / loss + 1
-			if total + k > max_topples:
-				k = max_topples - total
-			if k <= 0:
-				push_error("SandpileSpread: hit max_topples (%d); pile left unstable" % max_topples)
-				moved = false
-				break
-			total += k
-			moved = true
-			result.topples[n] = result.topples.get(n, 0) + k
-			pile[n] = s - k * loss
-			for m: NodeCombat in around[n]:
-				pile[m] += k
+			if pile[m] >= _threshold_of(field, around, result, m):
+				queued[m] = true
+				queue.append(m)
 	result.transfers = _net_transfers(order, initial, pile, field.key)
 	return result
+
+
+func _threshold_of(field: StackField, around: Dictionary, result: ToppleResult, n: NodeCombat) -> int:
+	if not around.has(n):
+		around[n] = field.masked_neighbours(n)
+		result.thresholds[n] = (around[n] as Array).size() + burn + keep
+	return result.thresholds[n]
+
+
+func settles() -> bool:
+	return true
 
 
 ## Nothing: [method CombatWorld.settle_topples] owns every topple, at the tail
@@ -92,10 +114,12 @@ func on_removed(_field: StackField, _removed: Array[NodeCombat], _cause: int) ->
 	return [] as Array[StackTransfer]
 
 
-func _track(field: StackField, pile: Dictionary, order: Array[NodeCombat], n: NodeCombat) -> void:
+func _track(field: StackField, pile: Dictionary, initial: Dictionary,
+		order: Array[NodeCombat], n: NodeCombat) -> void:
 	if pile.has(n):
 		return
 	pile[n] = int(field.stacks(n))
+	initial[n] = pile[n]
 	order.append(n)
 
 

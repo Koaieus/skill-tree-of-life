@@ -22,6 +22,13 @@ const CAUSE_DEATH: int = 1
 const CAUSE_DEALLOC: int = 2
 
 
+## Whether this rule's rows settle at the tail of every beat — a pile that may
+## topple ([SandpileSpread]). A host whose row of such a def rises tells its
+## world, which drains only those piles ([method CombatWorld.note_pile]).
+func settles() -> bool:
+	return false
+
+
 ## Once per tick of [param field]'s status: the transfers to land, in order.
 func on_tick(_field: StackField) -> Array[StackTransfer]:
 	return [] as Array[StackTransfer]
