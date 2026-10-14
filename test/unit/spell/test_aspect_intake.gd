@@ -1,7 +1,7 @@
 @tool
 extends GutTest
 
-## A spell's innate affinity lands through [Infusion] (#1461): one
+## A spell's innate intake lands through [Infusion] (#1461): one
 ## [ApplyStatusEffect] rider per concept with affinity > 0, after the spell's
 ## own [member SpellDef.on_hit_effects], at every landing.
 
@@ -11,16 +11,59 @@ const _POISON := preload("res://effects/status/poison.tres")
 const _CURSE := preload("res://effects/status/curse.tres")
 
 
-func _affinity(status: StatusDef, innate: int, rate: float = 1.0) -> SpellAffinity:
-	var a := SpellAffinity.new()
-	a.status = status
+func _intake(status: StatusDef, innate: int, gain: int = 1, cost: int = 1) -> AspectIntake:
+	var a := AspectIntake.new()
+	a.identity = status.identity
 	a.innate = innate
-	a.rate = rate
+	a.affinity_gain = gain
+	a.affinity_cost = cost
 	return a
 
 
+
+## `{concept, innate, affinity gain:cost}` rows on a spell with ingest
+## `ingest_gain:ingest_cost`, [param infused] points of [param id] → its load.
+func _load(id: StringName, innate: int, a_gain: int, a_cost: int, i_gain: int, i_cost: int,
+		infused: int) -> int:
+	var spell := SpellDef.new()
+	var row := AspectIntake.new()
+	row.identity = StatusRoster.shared().by_concept(id).identity
+	row.innate = innate
+	row.affinity_gain = a_gain
+	row.affinity_cost = a_cost
+	spell.intakes = [row] as Array[AspectIntake]
+	spell.ingest_gain = i_gain
+	spell.ingest_cost = i_cost
+	return Infusion.for_cast(spell, {id: infused}).load_of(spell).get(id, 0)
+
+
+## The owner's examples (2026-10-13): rates multiply, int:int, floored.
+func test_load_is_innate_plus_floored_infusion_times_ingest_times_affinity() -> void:
+	# [concept, innate, affinity gain, cost, ingest gain, cost, infused, load, why]
+	var rows := [
+		[&"poison", 5, 1, 1, 1, 1, 3, 8, "venom innate 5, affinity 1:1, +3"],
+		[&"poison", 5, 2, 1, 1, 1, 3, 11, "affinity 2:1, +3"],
+		[&"poison", 0, 1, 2, 1, 1, 1, 0, "cyclone-like 1:2, +1 floors to 0"],
+		[&"poison", 0, 1, 2, 1, 1, 2, 1, "1:2, +2"],
+		[&"poison", 0, 1, 1, 1, 5, 10, 2, "a listed 1:1 row on a 1:5-ingest many-hit spell, +10"],
+		[&"poison", 0, 2, 1, 1, 2, 3, 3, "affinity 2:1 times ingest 1:2, +3"],
+		[&"corruption", 0, 0, 1, 1, 1, 5, 0, "affinity 0:1 refuses"],
+	]
+	for r in rows:
+		assert_eq(_load(r[0], r[1], r[2], r[3], r[4], r[5], r[6]), r[7], r[8])
+
+
+func test_an_unlisted_concept_takes_the_ingest_rate_alone() -> void:
+	var spell := SpellDef.new()
+	spell.ingest_cost = 5
+	assert_eq(Infusion.for_cast(spell, {&"poison": 10}).load_of(spell).get(&"poison", 0), 2,
+			"affinity 1:1 unlisted, ingest 1:5")
+	spell.ingest_gain = 0
+	assert_eq(Infusion.for_cast(spell, {&"poison": 10}).load_of(spell).get(&"poison", 0), 0,
+			"ingest 0 refuses")
+
 ## Line 0(atk) - 1 - 2, both enemy; fan_all, max_hops 1: two landings.
-func _cast(spell_affinities: Array[SpellAffinity], max_hops: int = 1) -> AttackOutcome:
+func _cast(spell_intakes: Array[AspectIntake], max_hops: int = 1) -> AttackOutcome:
 	var helper := H.new()
 	var graph := helper.make_graph([[0, 1], [1, 2]], self)
 	var atk := helper.make_entity(graph, "A")
@@ -31,7 +74,7 @@ func _cast(spell_affinities: Array[SpellAffinity], max_hops: int = 1) -> AttackO
 	var config := helper.make_config(helper.fan_all(), helper.owner_enemy(), helper.max_reducer(),
 			{max_hops = max_hops})
 	var spell := helper.make_spell(config, [DamageEffect.new()], 10.0)
-	spell.affinities = spell_affinities
+	spell.intakes = spell_intakes
 	var n := graph.get_skill_nodes()
 	return SpellResolver.resolve(spell, n[1], n[0], atk, graph)
 
@@ -58,7 +101,7 @@ func test_venom_burst_lands_one_poison_of_its_innate_per_landing_with_no_infusio
 	assert_eq(statuses.size(), 1, "one poison per landing")
 	if statuses.size() == 1:
 		assert_eq(statuses[0].def, _POISON, "the rider is poison")
-		assert_eq(statuses[0].power, float(_VENOM.affinities[0].innate), "the innate")
+		assert_eq(statuses[0].power, float(_VENOM.intakes[0].innate), "the innate")
 		assert_eq(statuses[0].target, n[1], "on the landing's node")
 
 
@@ -78,12 +121,12 @@ func test_no_spell_def_authors_an_apply_status_effect() -> void:
 			assert_false(effect is ApplyStatusEffect,
 					"%s authors an ApplyStatusEffect; its status belongs in an affinity" % file)
 	assert_gt(walked, 5, "walked %d spell defs" % walked)
-	assert_eq(Infusion.innate(_VENOM).affinity_of(_VENOM),
-			{&"poison": _VENOM.affinities[0].innate} as Dictionary[StringName, int])
+	assert_eq(Infusion.innate(_VENOM).load_of(_VENOM),
+			{&"poison": _VENOM.intakes[0].innate} as Dictionary[StringName, int])
 
 
 func test_two_affinities_land_two_riders_per_landing() -> void:
-	var outcome := _cast([_affinity(_POISON, 3), _affinity(_CURSE, 2)] as Array[SpellAffinity])
+	var outcome := _cast([_intake(_POISON, 3), _intake(_CURSE, 2)] as Array[AspectIntake])
 	var statuses := _statuses(outcome)
 	assert_eq(statuses.size(), 4, "two landings × two riders")
 	var by_node := {}
@@ -95,13 +138,13 @@ func test_two_affinities_land_two_riders_per_landing() -> void:
 
 
 func test_innate_zero_lands_nothing() -> void:
-	var outcome := _cast([_affinity(_POISON, 0)] as Array[SpellAffinity])
+	var outcome := _cast([_intake(_POISON, 0)] as Array[AspectIntake])
 	assert_eq(_statuses(outcome).size(), 0, "innate 0 is no rider")
 	assert_true(Infusion.innate(SpellDef.new()).riders(SpellDef.new()).is_empty())
 
 
 func test_riders_run_after_the_spells_own_effects() -> void:
-	var outcome := _cast([_affinity(_POISON, 1)] as Array[SpellAffinity], 0)
+	var outcome := _cast([_intake(_POISON, 1)] as Array[AspectIntake], 0)
 	assert_eq(outcome.hits.size() >= 2, true)
 	var damage_at := -1
 	var status_at := -1
@@ -115,9 +158,9 @@ func test_riders_run_after_the_spells_own_effects() -> void:
 
 
 func test_affinity_description_reads_the_stacks_fold_and_the_rate() -> void:
-	assert_eq(_affinity(_POISON, 5, 2.0).get_description(), "Applies Poison (5 per hit; +2 per poison infused).")
-	assert_eq(_affinity(_POISON, 0, 0.0).get_description(), "Applies Poison (0 per hit; refuses poison infusions).")
-	assert_eq(SpellAffinity.new().get_description(), "Applies nothing (no status set).")
+	assert_eq(_intake(_POISON, 5, 2).get_description(), "Applies Poison (5 per hit; +2 per poison infused).")
+	assert_eq(_intake(_POISON, 0, 0).get_description(), "Applies Poison (0 per hit; refuses poison infusions).")
+	assert_eq(AspectIntake.new().get_description(), "Applies nothing (no status set).")
 
 
 func test_apply_status_description_is_the_status_applies_line() -> void:

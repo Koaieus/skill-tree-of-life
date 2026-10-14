@@ -78,9 +78,9 @@ func test_every_facet_carries_the_aspect_identity() -> void:
 			# status (every status it lands is some row's), or — a boon face
 			# that lands none — a CureEffect whose table cures it.
 			var carries := false
-			for affinity in spell.affinities:
-				assert_not_null(affinity.status, "%s: spell %s affinity has a status" % [id, spell.id])
-				if affinity.status != null and affinity.status.identity == identity:
+			for affinity in spell.intakes:
+				assert_not_null(affinity.status(), "%s: spell %s affinity has a status" % [id, spell.id])
+				if affinity.status() != null and affinity.status().identity == identity:
 					carries = true
 			for fx in spell.on_hit_effects:
 				if fx is CureEffect and fx.cure != null:

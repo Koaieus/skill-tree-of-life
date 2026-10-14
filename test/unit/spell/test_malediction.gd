@@ -47,7 +47,7 @@ func _cursed(target_idx: int, spell: SpellDef = MALEDICTION) -> Dictionary:
 
 
 func _innate() -> float:
-	return float(MALEDICTION.affinities[0].innate)
+	return float(MALEDICTION.intakes[0].innate)
 
 
 func test_main_payload_follows_the_lower_floor_and_siblings_take_a_terminal_minor_share() -> void:
@@ -94,10 +94,10 @@ func test_a_node_reached_twice_holds_both_visits_stacks() -> void:
 
 func test_an_off_path_share_flooring_to_zero_is_not_visited() -> void:
 	var weak: SpellDef = MALEDICTION.duplicate()
-	var aff: SpellAffinity = MALEDICTION.affinities[0].duplicate()
+	var aff: AspectIntake = MALEDICTION.intakes[0].duplicate()
 	aff.innate = 3
-	var affs: Array[SpellAffinity] = [aff]
-	weak.affinities = affs
+	var affs: Array[AspectIntake] = [aff]
+	weak.intakes = affs
 	_board([[0, 1], [1, 2], [1, 3], [1, 4]], [1, 2, 3, 4], {2: -1.0})
 	var outcome := SpellResolver.resolve(weak, _n[1], _n[0], _blue, _graph)
 	var reached := {}

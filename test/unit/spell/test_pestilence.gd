@@ -27,7 +27,7 @@ func before_each() -> void:
 
 
 func _innate() -> float:
-	return float(_def.affinities[0].innate)
+	return float(_def.intakes[0].innate)
 
 
 ## Attacker owns 0, the defender every other node. Returns [graph, nodes, outcome].

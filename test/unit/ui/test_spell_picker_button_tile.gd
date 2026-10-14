@@ -18,21 +18,21 @@ func _button(spell: SpellDef) -> SpellPickerButton:
 	return button
 
 
-func _affinity(status: StatusDef, innate: int, rate := 1.0) -> SpellAffinity:
-	var affinity := SpellAffinity.new()
-	affinity.status = status
+func _intake(status: StatusDef, innate: int, gain := 1) -> AspectIntake:
+	var affinity := AspectIntake.new()
+	affinity.identity = status.identity
 	affinity.innate = innate
-	affinity.rate = rate
+	affinity.affinity_gain = gain
 	return affinity
 
 
-func _spell(affinities: Array[SpellAffinity], icon: Texture2D = null) -> SpellDef:
+func _spell(affinities: Array[AspectIntake], icon: Texture2D = null) -> SpellDef:
 	var spell := SpellDef.new()
 	spell.name = "Zap"
 	spell.identity = IdentityFixture.of(Color(0.4, 0.8, 1.0), &"zap", Identity.Kind.SPELL)
 	spell.identity.noun = "Zap"
 	spell.identity.icon = icon
-	spell.affinities = affinities
+	spell.intakes = affinities
 	return spell
 
 
@@ -80,7 +80,7 @@ func test_venom_burst_shows_one_poison_chip_of_fifteen() -> void:
 
 
 func test_two_innate_entries_show_two_chips_in_affinity_order() -> void:
-	var chips := _chips(_button(_spell([_affinity(_BLEEDING, 3), _affinity(_POISON, 7)])))
+	var chips := _chips(_button(_spell([_intake(_BLEEDING, 3), _intake(_POISON, 7)])))
 	assert_eq(chips.size(), 2, "two chips")
 	if chips.size() < 2:
 		return
@@ -89,25 +89,25 @@ func test_two_innate_entries_show_two_chips_in_affinity_order() -> void:
 
 
 func test_no_innate_entries_leave_an_empty_hidden_row() -> void:
-	var button := _button(_spell([_affinity(_POISON, 0, 0.0)]))
+	var button := _button(_spell([_intake(_POISON, 0, 0)]))
 	assert_eq(_chips(button).size(), 0, "a refused aspect with no innate shows nothing")
 	assert_false((button.get_node(^"%InnateChips") as Control).visible, "the empty row hides")
 
 
 func test_respelling_rebuilds_the_chips() -> void:
 	var button := _button(_VENOM_BURST)
-	button.spell = _spell([_affinity(_BLEEDING, 3), _affinity(_POISON, 7)])
+	button.spell = _spell([_intake(_BLEEDING, 3), _intake(_POISON, 7)])
 	assert_eq(_chips(button).size(), 2, "the old chip is gone, the new two are in")
 	button.spell = null
 	assert_eq(_chips(button).size(), 0, "no spell, no chips")
 
 
 func test_the_tooltip_names_each_non_one_rate() -> void:
-	var button := _button(_spell([_affinity(_POISON, 7, 2.0), _affinity(_BLEEDING, 0, 0.0), _affinity(_BLEEDING, 1)]))
+	var button := _button(_spell([_intake(_POISON, 7, 2), _intake(_BLEEDING, 0, 0), _intake(_BLEEDING, 1)]))
 	assert_string_contains(button.tooltip_text, "poison ×2")
 	assert_string_contains(button.tooltip_text, "bleeding ×0")
 	assert_eq(button.tooltip_text.count("×"), 2, "a rate of 1 is not listed")
-	button.spell = _spell([_affinity(_POISON, 7)])
+	button.spell = _spell([_intake(_POISON, 7)])
 	assert_eq(button.tooltip_text, "", "all-default rates leave no tooltip")
 
 

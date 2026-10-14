@@ -27,11 +27,11 @@ func _caster(held: Dictionary, intelligence: float = 10000.0) -> Entity:
 	return atk
 
 
-func _spell(capacity: float = INF, default_rate: float = 1.0) -> SpellDef:
+func _spell(capacity: float = INF, ingest_gain: int = 1) -> SpellDef:
 	var spell := SpellDef.new()
 	spell.name = "Test Bolt"
 	spell.infusion_capacity = capacity
-	spell.default_rate = default_rate
+	spell.ingest_gain = ingest_gain
 	return spell
 
 
@@ -102,7 +102,7 @@ func test_full_slots_refuse_a_new_aspect() -> void:
 
 
 func test_a_refused_or_unheld_aspect_never_lands() -> void:
-	var plan := _plan(_caster({&"poison": 3}), _spell(INF, 0.0))
+	var plan := _plan(_caster({&"poison": 3}), _spell(INF, 0))
 	plan.set_socket(0, &"poison")
 	assert_true(plan.infusion.points.is_empty(), "rate 0: refused")
 	var plan2 := _plan(_caster({&"poison": 3}), _spell())

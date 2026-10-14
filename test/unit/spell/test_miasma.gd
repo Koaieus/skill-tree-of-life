@@ -36,7 +36,7 @@ func _statuses_on(outcome: AttackOutcome, node: SkillNode) -> Array:
 func test_ring_lands_innate_once_per_visit_capped_by_the_knob() -> void:
 	var r := _cast([[0, 1], [1, 2], [2, 3], [3, 4], [4, 1]], [1, 2, 3, 4])
 	var n: Array = r[0]
-	var innate: int = _MIASMA.affinities[0].innate
+	var innate: int = _MIASMA.intakes[0].innate
 	var cap: int = _MIASMA.propagation.max_visits_per_node
 	for i in [1, 2, 3, 4]:
 		var hits := _statuses_on(r[1], n[i])
@@ -58,6 +58,6 @@ func test_diamond_far_node_does_not_stack_two_branches_in_one_wave() -> void:
 	assert_lte(far.size(), cap, "bounded by the visits knob")
 	var times := {}
 	for hit in far:
-		assert_eq(hit.power, float(_MIASMA.affinities[0].innate), "default fold: no stacking")
+		assert_eq(hit.power, float(_MIASMA.intakes[0].innate), "default fold: no stacking")
 		assert_false(times.has(hit.arrival_time), "one landing per wave, branches merged")
 		times[hit.arrival_time] = true

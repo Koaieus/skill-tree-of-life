@@ -27,9 +27,9 @@ func _setup() -> Dictionary:
 	return {graph = graph, atk = atk, n = graph.get_skill_nodes()}
 
 
-func _affinity() -> SpellAffinity:
-	for a in _REVERBERATOR.affinities:
-		if a != null and a.status != null and a.status.id == _CORRUPTION.id:
+func _intake() -> AspectIntake:
+	for a in _REVERBERATOR.intakes:
+		if a != null and a.aspect_id() == _CORRUPTION.identity.id:
 			return a
 	return null
 
@@ -49,15 +49,15 @@ func _cast(s: Dictionary, infusion: Infusion = null) -> AttackOutcome:
 	return SpellResolver.resolve(_REVERBERATOR, n[1], n[0], s.atk, s.graph, null, infusion)
 
 
-func test_the_spell_carries_a_corruption_affinity() -> void:
-	var a := _affinity()
+func test_the_spell_carries_a_corruption_intake() -> void:
+	var a := _intake()
 	assert_not_null(a, "reverberator lists a corruption affinity")
 	if a != null:
 		assert_gt(a.innate, 0, "it rings corruption with no infusion")
 
 
 func test_seed_landing_adds_innate_plus_the_attackers_stacks_stat() -> void:
-	var a := _affinity()
+	var a := _intake()
 	assert_not_null(a, "corruption affinity")
 	if a == null:
 		return
@@ -93,7 +93,7 @@ func test_a_self_loop_landing_lands_crit_multiplier_times_the_seed() -> void:
 
 
 func test_a_corruption_infusion_raises_the_seed_by_its_rate() -> void:
-	var a := _affinity()
+	var a := _intake()
 	assert_not_null(a, "corruption affinity")
 	if a == null:
 		return
@@ -103,7 +103,7 @@ func test_a_corruption_infusion_raises_the_seed_by_its_rate() -> void:
 	var landed := _corruption_on(_cast(s, infusion), s.n[1])
 	assert_gt(landed.size(), 0, "the seed lands corruption")
 	if not landed.is_empty():
-		assert_eq(landed[0].power, float(a.innate + floori(p * a.rate)), "seed = innate + floor(p × rate)")
+		assert_eq(landed[0].power, float(a.innate + floori(p * float(a.affinity_gain) / a.affinity_cost)), "seed = innate + floor(p × affinity)")
 
 
 func test_ringing_a_self_loop_topples_into_the_friendly_neighbours() -> void:

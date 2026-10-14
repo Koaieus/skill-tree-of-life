@@ -56,14 +56,14 @@ func _assert_path_scales_from(base: float, infusion: Infusion) -> void:
 
 func test_path_lands_innate_tapered_by_the_progression() -> void:
 	assert_not_null(_def)
-	_assert_path_scales_from(float(_def.affinities[0].innate), null)
+	_assert_path_scales_from(float(_def.intakes[0].innate), null)
 
 
 func test_infusion_scales_every_hop_together() -> void:
-	var aff: SpellAffinity = _def.affinities[0]
+	var aff: AspectIntake = _def.intakes[0]
 	var points := 3
 	var inf := Infusion.for_cast(_def, {&"poison": points})
-	_assert_path_scales_from(float(aff.innate) + floorf(points * aff.rate), inf)
+	_assert_path_scales_from(float(aff.innate) + floorf(points * float(aff.affinity_gain) / aff.affinity_cost), inf)
 
 
 func test_diamond_lands_the_far_node_once() -> void:
@@ -82,4 +82,4 @@ func test_the_dose_keeps_its_damage_and_no_reducer() -> void:
 	assert_true(has_damage, "venom's damage stays on the dose")
 	assert_null(_def.propagation.reducer, "default MAX fold")
 	assert_eq(_def.propagation.max_hops, 2.0)
-	assert_eq(_def.default_rate, 1.0)
+	assert_eq(Vector2i(_def.ingest_gain, _def.ingest_cost), Vector2i(1, 1))

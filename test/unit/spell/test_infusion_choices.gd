@@ -26,11 +26,11 @@ func _caster(held: Dictionary, intelligence: float = 10000.0) -> Entity:
 	return atk
 
 
-func _spell(capacity: float = INF, default_rate: float = 1.0) -> SpellDef:
+func _spell(capacity: float = INF, ingest_gain: int = 1) -> SpellDef:
 	var spell := SpellDef.new()
 	spell.name = "Test Bolt"
 	spell.infusion_capacity = capacity
-	spell.default_rate = default_rate
+	spell.ingest_gain = ingest_gain
 	return spell
 
 
@@ -68,7 +68,7 @@ func test_only_held_aspects_in_roster_order_with_their_values() -> void:
 
 
 func test_a_refused_aspect_is_disabled_with_a_reason() -> void:
-	var plan := _plan(_caster({&"poison": 5}), _spell(INF, 0.0))
+	var plan := _plan(_caster({&"poison": 5}), _spell(INF, 0))
 	var e: AspectWheelEntry = InfusionChoices.entries(plan, 0)[0]
 	assert_false(e.is_pickable())
 	assert_string_contains(e.disabled_reason, "refused by Test Bolt")

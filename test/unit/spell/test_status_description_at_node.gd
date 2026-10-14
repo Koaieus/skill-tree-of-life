@@ -110,9 +110,9 @@ func test_with_no_node_the_description_keeps_the_entity_board_reading() -> void:
 
 func test_an_affinity_described_at_a_node_folds_the_same_slice() -> void:
 	_blade.add_local_modifier(_mod(StatModifier.Operation.MULTIPLY, 2.0))
-	var aff := SpellAffinity.new()
-	aff.status = _POISON
+	var aff := AspectIntake.new()
+	aff.identity = _POISON.identity
 	aff.innate = 3
-	aff.rate = 0.0
+	aff.affinity_gain = 0
 	assert_eq(aff.get_description(_attacker.stat_board, _blade),
 			"Applies Poison (%s per hit; refuses poison infusions)." % NumFmt.num(_land(_blade, 3.0)))

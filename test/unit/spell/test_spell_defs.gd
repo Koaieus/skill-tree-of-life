@@ -79,8 +79,8 @@ func test_reverberator_preset_well_formed() -> void:
 	assert_true(p.hop_damage is ScaledAddProgression, "reverberator ramps additively off the seed")
 	assert_gt(p.hop_damage.seed_fraction_per_hop, 0.0, "reverberator ramps up per hop")
 	assert_gt(p.max_visits_per_node, 1, "reverberator allows revisits to weaponise self-loops")
-	var corruption := s.affinities.filter(func(a: SpellAffinity) -> bool:
-		return a != null and a.status != null and a.status.id == &"corruption")
+	var corruption := s.intakes.filter(func(a: AspectIntake) -> bool:
+		return a != null and a.aspect_id() == &"corruption")
 	assert_eq(corruption.size(), 1, "the bell rings corruption: one innate corruption affinity")
 	assert_eq(s.id, &"reverberator", "the id stays reverberator")
 	assert_eq(s.name, "Demon Bell", "displayed as Demon Bell")

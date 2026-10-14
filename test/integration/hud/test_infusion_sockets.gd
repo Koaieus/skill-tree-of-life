@@ -99,7 +99,7 @@ func test_the_magic_body_hosts_the_sockets() -> void:
 
 # ── Carried over from the stepper row ────────────────────────────────────────
 
-func test_the_readout_reads_the_infused_affinity() -> void:
+func test_the_readout_reads_the_infused_intake() -> void:
 	var caster := _caster(2.0)
 	var plan := _plan(caster)
 	_sockets(plan)
@@ -107,9 +107,9 @@ func test_the_readout_reads_the_infused_affinity() -> void:
 	add_child_autofree(readout)
 	readout.bind(plan)
 	plan.set_socket(0, &"poison")
-	# venom burst: innate + floor(2 points × rate), through the landing's fold.
-	var aff: SpellAffinity = _VENOM.affinities[0]
-	var stacks := _POISON_STATUS.stacks_per_hit(caster.stat_board, aff.innate + floorf(2 * aff.rate))
+	# venom burst: innate + floor(2 points × affinity), through the landing's fold.
+	var aff: AspectIntake = _VENOM.intakes[0]
+	var stacks := _POISON_STATUS.stacks_per_hit(caster.stat_board, aff.innate + floorf(2.0 * aff.affinity_gain / aff.affinity_cost))
 	var nodes := readout.line_nodes()
 	assert_eq(nodes.size(), 1, "venom lands poison, so one line shows")
 	if nodes.size() == 1:

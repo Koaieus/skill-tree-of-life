@@ -34,19 +34,19 @@ func _rider_power(inf: Infusion, spell: SpellDef, id: StringName) -> float:
 
 func test_cyclone_ingests_at_half_rate_and_floors() -> void:
 	var one := _infused(_CYCLONE, {&"poison": 1})
-	assert_eq(one.affinity_of(_CYCLONE).get(&"poison", 0), 0, "1 point at 1:2 floors to nothing")
+	assert_eq(one.load_of(_CYCLONE).get(&"poison", 0), 0, "1 point at 1:2 floors to nothing")
 	assert_eq(_rider_power(one, _CYCLONE, &"poison"), 0.0, "and lands no poison rider")
 	var four := _infused(_CYCLONE, {&"poison": 4})
-	assert_eq(four.affinity_of(_CYCLONE).get(&"poison", 0), 2, "4 points at 1:2 is 2")
+	assert_eq(four.load_of(_CYCLONE).get(&"poison", 0), 2, "4 points at 1:2 is 2")
 	assert_eq(_rider_power(four, _CYCLONE, &"poison"), 2.0, "2 poison per landing")
 
 
 func test_venom_ingests_at_double_rate_on_top_of_innate() -> void:
 	var inf := _infused(_VENOM, {&"poison": 3})
-	var aff: SpellAffinity = _VENOM.affinities[0]
-	var expected := aff.innate + int(floor(3 * aff.rate))
-	assert_eq(aff.rate, 2.0, "fixture: the dose ingests poison at 2:1")
-	assert_eq(inf.affinity_of(_VENOM).get(&"poison", 0), expected, "innate + floor(3 x 2)")
+	var aff: AspectIntake = _VENOM.intakes[0]
+	var expected := aff.innate + floori(3.0 * aff.affinity_gain / aff.affinity_cost)
+	assert_eq(Vector2i(aff.affinity_gain, aff.affinity_cost), Vector2i(2, 1), "fixture: the dose has 2:1 poison affinity")
+	assert_eq(inf.load_of(_VENOM).get(&"poison", 0), expected, "innate + floor(3 x 2)")
 	assert_eq(_rider_power(inf, _VENOM, &"poison"), float(expected))
 
 
@@ -54,7 +54,7 @@ func test_innate_infusion_spends_nothing() -> void:
 	var inf := Infusion.innate(_VENOM)
 	assert_true(inf.points.is_empty())
 	assert_eq(inf.slots_used(), 0)
-	assert_eq(inf.affinity_of(_VENOM).get(&"poison", 0), _VENOM.affinities[0].innate)
+	assert_eq(inf.load_of(_VENOM).get(&"poison", 0), _VENOM.intakes[0].innate)
 
 
 func test_slots_used_counts_aspects_with_points() -> void:
@@ -123,7 +123,7 @@ func test_spell_capacity_caps_the_total() -> void:
 
 func test_points_on_a_refused_aspect_count() -> void:
 	var spell := _SPARK.duplicate() as SpellDef
-	spell.default_rate = 0.0
+	spell.ingest_gain = 0
 	var plan := _plan(spell, 10.0)
 	plan.set_infusion(&"poison", 3)
 	assert_eq(plan.aspect_overrun(), 3, "a 0-rate aspect takes no points")
@@ -145,7 +145,7 @@ func test_clamp_infusion_drops_refused_and_past_the_slots() -> void:
 	plan.attacker.stat_board.facet(&"poison", StatDef.Role.ASPECT).base_value = 40.0
 	plan.attacker.stat_board.facet(&"wither", StatDef.Role.ASPECT).base_value = 5.0
 	var refused := spell.duplicate() as SpellDef
-	refused.default_rate = 0.0
+	refused.ingest_gain = 0
 	assert_true(ArmedStack.clamp_infusion(refused, plan.attacker, {&"curse": 1}).is_empty(),
 			"a refused aspect is dropped")
 	var kept := ArmedStack.clamp_infusion(spell, plan.attacker,

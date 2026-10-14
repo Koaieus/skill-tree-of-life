@@ -192,12 +192,12 @@ func test_authored_curse_and_hex_load_and_are_in_the_debug_book() -> void:
 	assert_not_null(malediction, "malediction.tres is a SpellDef")
 	if malediction == null:
 		return
-	var applier: SpellAffinity = null
-	for aff in malediction.affinities:
+	var applier: AspectIntake = null
+	for aff in malediction.intakes:
 		applier = aff
-	assert_not_null(applier, "malediction carries an innate affinity")
+	assert_not_null(applier, "malediction carries an innate intake")
 	if applier != null:
-		assert_eq(applier.status, curse, "…that applies the authored Curse def")
+		assert_eq(applier.status(), curse, "…that applies the authored Curse def")
 		assert_gt(applier.innate, 0)
 
 	var book := load("res://entity/spellbook_debug.tres") as SpellBook

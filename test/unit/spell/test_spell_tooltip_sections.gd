@@ -2,7 +2,7 @@
 extends GutTest
 
 ## [SpellSections] on-arrival: the spell's own effect lines, then one line per
-## [SpellAffinity] — a status spell's "Applies X (N per hit" line is its
+## [AspectIntake] — a status spell's "Applies X (N per hit" line is its
 ## affinity's now, read through the same stacks fold the landing uses.
 
 const _VENOM := preload("res://attack/spell/defs/venom_burst.tres")
@@ -24,7 +24,7 @@ func _has_prefix(lines: Array, prefix: String) -> bool:
 
 func test_venom_burst_reads_applies_poison_innate_per_hit() -> void:
 	var lines := _arrival(_VENOM)
-	var innate: int = _VENOM.affinities[0].innate
+	var innate: int = _VENOM.intakes[0].innate
 	assert_true(_has_prefix(lines, "Applies Poison (%d per hit" % innate), "the dose's line: %s" % str(lines))
 	assert_true(lines.has("Applies Poison (%d per hit; +2 per poison infused)." % innate), str(lines))
 

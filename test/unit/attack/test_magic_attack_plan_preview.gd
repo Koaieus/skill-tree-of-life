@@ -353,10 +353,9 @@ func test_preview_status_hits_equal_the_launched_cast() -> void:
 	var spell := h.make_spell(config, [DamageEffect.new()] as Array[OnHitEffect], 10.0)
 	spell.targeting = _hostile_targeting()
 	spell.min_degree = 0
-	var poison := SpellAffinity.new()
-	poison.status = load("res://effects/status/poison.tres") as StatusDef
-	poison.rate = 1.0
-	spell.affinities = [poison] as Array[SpellAffinity]
+	var poison := AspectIntake.new()
+	poison.identity = (load("res://effects/status/poison.tres") as StatusDef).identity
+	spell.intakes = [poison] as Array[AspectIntake]
 
 	var plan := MagicAttackPlan.new()
 	plan.attacker = attacker

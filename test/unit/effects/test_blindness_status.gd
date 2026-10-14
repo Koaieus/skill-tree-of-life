@@ -316,17 +316,17 @@ func test_authored_blindness_and_dazzle_load_and_are_in_the_debug_book() -> void
 	assert_not_null(dazzle, "dazzle.tres is a SpellDef")
 	if dazzle == null:
 		return
-	var applier: SpellAffinity = null
-	for aff in dazzle.affinities:
+	var applier: AspectIntake = null
+	for aff in dazzle.intakes:
 		applier = aff
 	var has_damage := false
 	for fx in dazzle.on_hit_effects:
 		if fx is DamageEffect:
 			has_damage = true
 	assert_true(has_damage, "dazzle also deals (a little) damage")
-	assert_not_null(applier, "dazzle carries an innate affinity")
+	assert_not_null(applier, "dazzle carries an innate intake")
 	if applier != null:
-		assert_eq(applier.status, blind, "…that applies the authored Blindness def")
+		assert_eq(applier.status(), blind, "…that applies the authored Blindness def")
 		assert_gt(applier.innate, 0)
 
 	var book := load("res://entity/spellbook_debug.tres") as SpellBook

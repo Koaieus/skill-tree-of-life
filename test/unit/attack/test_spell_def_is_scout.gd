@@ -22,5 +22,5 @@ func test_only_the_scout_spells_are_scouts() -> void:
 
 func test_an_affinity_with_no_status_is_not_a_scout() -> void:
 	var def := SpellDef.new()
-	def.affinities = [SpellAffinity.new()]
+	def.intakes = [AspectIntake.new()]
 	assert_false(def.is_scout())

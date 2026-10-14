@@ -2,7 +2,7 @@ extends GutTest
 
 ## [ReadoutLines]: one line per aspect in play — socketed first, in socket
 ## order, then innate-only — whose numbers are the plan's own
-## ([method Infusion.affinity_of] through [method StatusDef.stacks_per_hit]).
+## ([method Infusion.load_of] through [method StatusDef.stacks_per_hit]).
 
 const _VENOM: SpellDef = preload("res://attack/spell/defs/venom_burst.tres")
 const _POISON_STATUS: StatusDef = preload("res://effects/status/poison.tres")
@@ -39,9 +39,9 @@ func test_venom_with_40_poison_socketed_reads_innate_plus_infused() -> void:
 	var plan := _plan(caster)
 	plan.set_socket(0, &"poison")
 	assert_eq(plan.infusion.points.get(&"poison", 0), 40, "guard: 40 points socketed")
-	var aff: SpellAffinity = _VENOM.affinities[0]
+	var aff: AspectIntake = _VENOM.intakes[0]
 	assert_eq(aff.innate, 15, "guard: venom's innate poison")
-	assert_almost_eq(aff.rate, 2.0, 0.001, "guard: venom's poison rate")
+	assert_eq(Vector2i(aff.affinity_gain, aff.affinity_cost), Vector2i(2, 1), "guard: venom's poison affinity")
 	var lines := ReadoutLines.lines(plan)
 	assert_eq(lines.size(), 1, "one aspect in play")
 	if lines.size() != 1:
@@ -52,7 +52,7 @@ func test_venom_with_40_poison_socketed_reads_innate_plus_infused() -> void:
 	assert_eq(line.points, 40)
 	assert_eq(line.innate, 15)
 	assert_eq(line.infused, 80)
-	assert_eq(line.innate + line.infused, plan.infusion.affinity_of(_VENOM)[&"poison"],
+	assert_eq(line.innate + line.infused, plan.infusion.load_of(_VENOM)[&"poison"],
 			"the total is the plan's own affinity")
 	assert_eq(line.per_hit, _POISON_STATUS.stacks_per_hit(caster.stat_board, 95.0),
 			"per hit folds through stacks_per_hit")

@@ -247,17 +247,17 @@ func test_authored_poison_and_venom_load_and_are_in_the_debug_book() -> void:
 	assert_not_null(venom, "venom.tres is a SpellDef")
 	if venom == null:
 		return
-	var applier: SpellAffinity = null
-	for aff in venom.affinities:
+	var applier: AspectIntake = null
+	for aff in venom.intakes:
 		applier = aff
 	var has_damage := false
 	for fx in venom.on_hit_effects:
 		if fx is DamageEffect:
 			has_damage = true
 	assert_true(has_damage, "venom also deals a little damage")
-	assert_not_null(applier, "venom carries an innate affinity")
+	assert_not_null(applier, "venom carries an innate intake")
 	if applier != null:
-		assert_eq(applier.status, poison, "…that applies the authored Poison def")
+		assert_eq(applier.status(), poison, "…that applies the authored Poison def")
 		assert_gt(applier.innate, 0)
 
 	var book := load("res://entity/spellbook_debug.tres") as SpellBook
