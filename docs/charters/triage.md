@@ -49,41 +49,87 @@ reads no issue itself; its context is the scout reports and the answers.
 
 1. **The owner is present, or there is no triage.** Routing out of `Intake`
    is an owner call by definition; a headless session that loads this skill
-   stops and says so.
-2. **Snapshot once, priority first.** The queue is `list intake --json`
-   taken at the start, ordered P0 → P4 then unprioritised, oldest first
-   within a priority. Issues filed during the run wait for the next run, so
-   the run ends.
+   stops and says so. *Why:* every other route out of `Intake` is a filer
+   deciding for the owner, which is what the lane exists to stop.
+2. **Snapshot once, in the tool's order.** The queue is `list intake --json`
+   taken at the start; the tool already sorts P0 → P4 then unprioritised,
+   lowest number (oldest) first within a priority, so the lead re-sorts
+   nothing. The snapshot is the whole run: an issue filed meanwhile waits for
+   the next one. *Why:* a live re-read mid-run re-orders the batches under
+   the scouts, and a priority-first order means the owner's first answers
+   are the ones that unblock work in flight.
 3. **Two-deep pipeline.** Dispatch two scouts (batches 1 and 2) in the
-   background at the start. When a batch's report arrives and no question is
-   pending, ask it. After each answer: dispatch the next scout first, then
-   hand the answers to the clerk, then ask the next ready batch. The owner
-   never waits on a scout the lead could have started earlier.
-4. **The scout's report is short and decision-shaped.** Per issue: why it
-   exists and what it fixes or adds (two lines), the cost (a size, and what
-   it touches), any UX/DX downgrade or risk, whether it still holds (already
-   fixed, a duplicate of #n, superseded), and a recommended route plus any
-   label/priority/milestone change. No design, no acceptance spec.
-5. **One question per issue, the recommendation first.** Options are the
-   routes that apply: close as not planned, `Backlog`, `Needs design`, and
-   `Ready` only when the scout found the issue small and fully specced (a
-   `Ready` issue WILL be pulled by the next swarm). Already-fixed or
-   duplicate → close as completed/duplicate is offered first. The owner's
-   free-text "Other" and notes carry retags and riders.
-6. **Every routing leaves its reason on the issue.** The clerk posts a
-   one-line comment quoting the owner's answer verbatim with the date, then
-   sets status, labels, priority and milestone, or closes. A routing with no
-   comment is a decision that lives only in this transcript.
-7. **Mechanics are the clerk's, except a close.** One background Haiku
-   `clerk` per answered batch, given a plain-prose work order; the lead
-   runs no other board write inline while a question could be up. The
-   clerk never closes an issue (its own law), so a close is the lead's one
-   `gh issue close --comment` call — cheap enough not to stall the next
-   question. `Ready` needs a milestone
-   (hygiene's `unmilestoned_ready`): the lead's order names one.
-8. **The run ends on an empty snapshot**, with `gh-project hygiene` and the
-   session report (`docs/domain/session-report.md`): a `Routed` table (#,
-   route, note), `Needs the owner` for anything the owner deferred.
+   background at the start. When a report is back and no question is up,
+   ask it; two back at once → the lower batch number. After each answer, in
+   this order: dispatch the next unscouted batch; do the closes (law 7); hand
+   the rest to a clerk; ask the next batch that is back, else end the turn.
+   A scout that fails, or whose report leaves an issue unjudged, is
+   re-dispatched once for exactly those numbers; a second failure leaves
+   them in `Intake` under `Not done`, never guessed at by the lead. *Why:*
+   the owner's answer time is the slot the next scout runs in; anything the
+   lead does before dispatching eats that slot. A failed scout is noise
+   once and a finding twice.
+4. **The scout's report is short and decision-shaped.** Per issue, at most
+   eight lines: why it exists and what it fixes or adds; the cost (a size
+   and what it touches); any UX/DX downgrade or risk; whether it still holds
+   (already fixed, duplicate of #n, superseded); whether the body already
+   carries a drone-ready acceptance spec; what the filer set (the `Intended
+   lane:` line, milestone, priority — `issue-workflow.md` → *Filing* makes
+   those the filer's hand-off to triage); whether it is a hub (has
+   sub-issues); and a recommended route plus any label/priority/milestone
+   change. No design, no acceptance spec. *Why:* the question is built from
+   this report alone, and the lead reads nothing else; a report that argues
+   is a question that argues.
+5. **One question per issue, inside the tool's limits.** `AskUserQuestion`
+   takes at most four questions per call (hence the batch of four), two to
+   four options per question, a header of at most twelve characters
+   (`#<n>`), and each question must end in a question mark; the tool adds
+   its own free-text *Other*. So a question lists **at most four options**,
+   the scout's route first and marked recommended: `Close (not planned)`,
+   `Backlog`, `Needs design`, and `Ready` only when the scout found it small,
+   fully specced and with a milestone set or proposed (a `Ready` issue WILL
+   be pulled by the next swarm, and the clerk skips `ready` with no
+   milestone). An issue that no longer holds offers `Close (fixed)` or
+   `Close (duplicate #m)` *in place of* `Close (not planned)`, never beside
+   it. A hub is not routed — `hygiene --fix` derives its status from its
+   children — so its question offers only close or leave. *Other* is read
+   three ways: it names a route (with riders: retags, priority, milestone, a
+   note, "actually a duplicate of #m") → that route, riders applied; it asks
+   something → answered in prose from the scout's report and the issue
+   re-asked alone in a one-question call; it defers ("later", "skip") →
+   the issue stays in `Intake`, gets no clerk order, and lands under `Needs
+   the owner`. Design thoughts in an answer go to `Needs design` with the
+   text quoted — triage never pursues them. *Why:* a fifth option or a
+   thirteen-character header fails the call and costs the owner a round;
+   the owner routinely answers a menu by redirecting its premise
+   (swarmify's corpus), so *Other* is a path, not an error.
+6. **Every routing leaves its reason on the issue.** A one-line comment
+   quoting the owner's answer verbatim with the date — `Triage (owner,
+   <YYYY-MM-DD>): <answer and notes>` — posted from a file (`--body-file`;
+   an inline body loses its backticks to the shell), then status, labels,
+   priority and milestone. A routing with no comment is a decision that
+   lives only in this transcript.
+7. **Mechanics are the clerk's; a close is the lead's.** One background
+   Haiku `clerk` per answered batch, given a plain-prose work order (comment
+   file, then labels/priority/milestone, status last; a `Ready` line names
+   its milestone); the lead runs no other board write inline while a
+   question could be up. The clerk never closes an issue (its own law), so
+   triage's close routes — not planned, already fixed, duplicate — are the
+   lead's, two calls each: `gh issue comment <n> --body-file <f>`, then
+   `gh issue close <n> --reason "not planned"|completed|duplicate
+   --duplicate-of <m>`. No commit backs a triage close, so the land task's
+   `Closes #n` footer never applies to these: the close is immediate and
+   manual. The lead reads every clerk report; a `FAILED`/`SKIPPED` line is
+   re-ordered once, then listed under `Not done`. *Why:* a close is one cheap
+   call that would otherwise need a second kind of clerk; everything else
+   is a recipe a Haiku runs while the owner answers the next batch.
+8. **The run ends when every snapshotted issue is routed, deferred or
+   failed and every clerk has reported.** Then `gh-project hygiene` and the
+   session report (`docs/domain/session-report.md`), every section present:
+   `Routed` (#, route, note) in place of `Landed`; `Not done` for scout and
+   clerk failures; `Needs the owner` for deferrals. *Why:* a deferred issue
+   stays in `Intake` by design, so "empty lane" is the wrong end condition;
+   and a report the owner reads on a phone must say what did not happen.
 
 ## What the skill file must not contain
 
@@ -96,6 +142,11 @@ dates, incidents. It carries the steps and the scout brief.
   should go three deep or batches should shrink.
 - The owner keeps overriding the scout's recommended route on one kind of
   issue — that kind wants a rule in the scout brief.
+- Open forks, owner's call (2026-10-14 review): whether a hub in `Intake`
+  is ever routed by hand or only its children (law 5 says children only);
+  whether a triage `Ready` order asks the clerk for a drift check (a
+  stampless issue would then `FAILED` instead of entering the swarm queue
+  unspecced).
 - `Intake` routinely holds more than ~30 issues at a run's start — filers
   are skipping the fix-before-filing rung (`session-report.md`), which is
   the bug to chase, not triage throughput.
