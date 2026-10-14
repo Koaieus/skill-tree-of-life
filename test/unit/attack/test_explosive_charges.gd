@@ -101,3 +101,17 @@ func test_dealloc_spends_nothing() -> void:
 	var field := StackField.over_world(def, def.spread.ownership_mask, CombatWorld.live(), [_nodes[0]], _graph)
 	var removed: Array[NodeCombat] = [c]
 	assert_eq(_spread().on_removed(field, removed, StatusSpread.CAUSE_DEALLOC).size(), 0, "only a kill booms")
+
+
+# --- blast_for: the one door every emitter builds its blast through ----------
+
+func test_blast_for_reaches_radius_for_and_shares_a_finder_per_reach() -> void:
+	var s := ExplosiveSpread.new()
+	var inners: Array[OnHitEffect] = [DamageEffect.new()]
+	var a := s.blast_for(_nodes[0], 4, inners)
+	var b := s.blast_for(_nodes[0], 4, inners)
+	assert_false(a.hits_centre, "the centre already took the hit")
+	assert_eq(a.inners, inners, "the caller's riders ride")
+	assert_almost_eq(a.range_finder.max_reach(), s.radius_for(_nodes[0].radius, 4), 0.0001, "reach is radius_for's")
+	assert_same(a.range_finder, b.range_finder, "one finder per reach, so gather_cache dedupes")
+	assert_ne(s.blast_for(_nodes[0], 1, inners).range_finder, a.range_finder, "another reach, another finder")
