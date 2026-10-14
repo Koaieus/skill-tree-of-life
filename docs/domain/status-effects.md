@@ -98,8 +98,8 @@ bypass are [defense-axes.md](defense-axes.md).
   Holders are the `StatusHost` duck type (untyped) across `StackField`,
   `SandpileSpread`, `StackTransfer`, `ToppleResult`, `SettleOp`. **Sync**: inside an attack the beat's first fresh
   landing records the settle on `HitInstance.settle` (`CombatWorld.SettleOp`s, in
-  order, a later round's burst-kill spill included; wire columns `t_*` in (a core-pile holder rides as its core node + a `t_core` flag) in
-  `AttackRecord`), and a non-empty `settle` marks a rebuilt hit recorded — the replay
+  order, a later round's burst-kill spill included; wire columns `t_*` in
+  `AttackRecord`, a core-pile holder riding as its core node + a `t_core` flag), and a non-empty `settle` marks a rebuilt hit recorded — the replay
   lands the ops and computes nothing. Every other beat (turn end, dealloc command)
   is reproduced. Known gap: a replayed burst kill takes `BattleSystem`'s derive
   branch for its cascade, like a turn-end DoT kill.
