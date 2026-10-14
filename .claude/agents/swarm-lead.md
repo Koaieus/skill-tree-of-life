@@ -23,4 +23,5 @@ the night, given one train of issues to land. (Design behind this file:
    exported as `SWARM_LEDGER` on every `ledger` and `land` call, as train
    mode says. It, and any later message from the session that spawned
    you, are your instructions.
-4. Your final text is your report. Nothing after it reaches anyone.
+4. Your final text is your report. Nothing after it reaches anyone — except when drones are still in flight: then it is the one line
+   `interim: <n>/<m> landed, <k> in flight`, never a report.
