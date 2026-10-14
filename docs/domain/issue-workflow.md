@@ -121,7 +121,9 @@ A child's status is its own; the hub's is a summary of the children.
    `.mise/tasks/lib/hub_derive.jq` (`mise run gh-project-selftest` pins it):
    all closed → `Done` + closed · every open child `In review` → `In review` ·
    any child `Ready`/`In progress`/`In review` → `In progress` · children only
-   `Backlog`/`Needs design` → left alone (filing state stays yours). Derivation
+   `Backlog`/`Needs design` → left alone (filing state stays yours), except an
+   `Intake` hub, which follows its children out of the inbox once none is in
+   `Intake`: `Needs design` if any open child is, else `Backlog`. Derivation
    follows the children up *or back* — a reopened child or a new `Ready` sibling
    takes an `In review` hub back to `In progress`. `--fix` is a single pass, so
    a nested hub (a child that is itself a hub) settles across two runs.

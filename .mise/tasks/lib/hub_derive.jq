@@ -7,6 +7,9 @@
 #   3. any child Ready / In progress / In review  → In progress
 #   4. children only Intake / Backlog / Needs design → no action (hand-set filing state)
 #   5. a hub is never Ready (Ready is the swarm queue) → In progress
+#   6. an Intake hub, once no child is in Intake       → Needs design if any open
+#      child is, else Backlog (it follows its children out of the inbox; rules 2-3
+#      and 5 take precedence)
 # A parent with an OPEN child missing from the board is never derived (you'd
 # close a hub over a child you can't see) — it lands in `unboarded` instead.
 # Closed children are routinely archived off the project and don't matter here.
@@ -30,6 +33,12 @@ def derive:
               { to: "In progress", close: false, reason: "a child is being ground" }
             elif $hub.status == "Ready" then
               { to: "In progress", close: false, reason: "a hub is never Ready — Ready is the swarm queue" }
+            elif $hub.status == "Intake" and all($open[]; .status != "Intake") then
+              if any($open[]; .status == "Needs design") then
+                { to: "Needs design", close: false, reason: "no child left in Intake; a child needs design" }
+              else
+                { to: "Backlog", close: false, reason: "no child left in Intake" }
+              end
             else
               null
             end
