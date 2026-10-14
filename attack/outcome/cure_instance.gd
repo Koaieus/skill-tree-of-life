@@ -19,6 +19,9 @@ extends HitInstance
 var defs: Array[StatusDef] = []
 ## Whole stacks removed per entry of [member defs].
 var cleared := PackedFloat64Array()
+## Per entry of [member defs]: 1 when the clear comes off the core (the
+## landed node's owner's entity row), 0 when off the node.
+var on_core := PackedByteArray()
 ## HP healed on landing, through [method NodeCombat.heal_damage]; 0 heals nothing.
 var heal: float = 0.0
 
@@ -28,9 +31,10 @@ func _init() -> void:
 
 
 ## Append one status's planned clear.
-func add(def: StatusDef, count: float) -> void:
+func add(def: StatusDef, count: float, core: bool = false) -> void:
 	defs.append(def)
 	cleared.append(count)
+	on_core.append(1 if core else 0)
 
 
 func draws_own_crit() -> bool:

@@ -91,6 +91,16 @@ func stacks_of(n: SkillNode, status_id: StringName) -> float:
 	return cast.stacks_of(n, status_id)
 
 
+
+## See [method PropagationContext.core_stacks_of].
+func core_stacks_of(n: SkillNode, status_id: StringName) -> float:
+	return cast.core_stacks_of(n, status_id)
+
+
+## See [method PropagationContext.spot_stacks_of].
+func spot_stacks_of(n: SkillNode, status_id: StringName) -> float:
+	return cast.spot_stacks_of(n, status_id)
+
 ## See [method PropagationContext.visit_count].
 func visit_count(n: SkillNode) -> int:
 	return cast.visit_count(n)

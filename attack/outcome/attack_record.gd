@@ -207,6 +207,7 @@ const KEY_SETTLE_KEY := "t_key"
 const KEY_SETTLE_THRESHOLD := "t_thr"
 const KEY_SETTLE_BATCH := "t_bat"
 const KEY_SETTLE_CORE := "t_core"
+const KEY_CURE_CORE := "cu_core"
 ## [member settle_core] bits: the op's `from` / `to` is the core pile of the
 ## entity standing on the recorded node, not the node itself.
 const SETTLE_FROM_CORE := 1
