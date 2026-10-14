@@ -260,6 +260,14 @@ static func _resolve(
 				_record_cancel(outcome, node, ctx.wave_index, incidents)
 				continue
 			resolved.incident_count = incidents.size()
+			# Every merged front's predecessor, as an unordered deduped set
+			# (the reducer keeps one `predecessor`); the seed's null is skipped,
+			# so the seed comes out empty with no special case.
+			var arrived: Array[SkillNode] = []
+			for inc in incidents:
+				if inc.predecessor != null and not arrived.has(inc.predecessor):
+					arrived.append(inc.predecessor)
+			resolved.arrived_from = arrived
 			# The null reducer's first-wins short-circuit returns incidents[0]
 			# raw; the carried weight is still MAX of the incidents.
 			resolved.stack_weight = IncidentReducer.fold_of(incidents, IncidentReducer.StackFold.MAX)
@@ -371,8 +379,17 @@ static func _resolve(
 			# must tie-break among candidates that can actually be reached,
 			# not pick a winner the cap then deletes. For a pairwise filter
 			# the two orders are identical -- independent predicates commute.
+			#
+			# The candidates themselves come from the config's reach when one is
+			# set (it may propose nodes with no edge to this landing), else the
+			# graph neighbours; the cap, filter, spread and mint run unchanged.
+			var reachable: Array[SkillNode] = []
+			if config.reach != null:
+				reachable = config.reach.candidates(lctx)
+			else:
+				reachable = graph.get_neighbours(state.current_node)
 			var capped: Array[SkillNode] = []
-			for nb in graph.get_neighbours(state.current_node):
+			for nb in reachable:
 				if ctx.visit_count(nb) < config.max_visits_per_node:
 					capped.append(nb)
 			# ONE set-level question per landing, not one per candidate. The
