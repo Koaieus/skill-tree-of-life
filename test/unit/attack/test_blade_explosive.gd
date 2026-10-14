@@ -246,7 +246,10 @@ func test_100_on_0_reaches_the_board_and_no_piece() -> void:
 	var state := _blade([Vector2(430, 0), t + Vector2(0, 5)], [100, 0])
 	var gate := BladePopResolver.LiveGate.new(state, _f.attacker)
 	var c := _contact(gate, 1, _f.target)
-	_arm(gate, state, c)
+	var hits := _arm(gate, state, c)
+	var mark: BlastMark = hits[0].blast_mark if not hits.is_empty() else null
+	assert_almost_eq(mark.reach if mark != null else -1.0,
+			_share() * _spread().radius_for(_f.target.radius, 100), 0.001, "the warhead's mark: the striker side's reach")
 	assert_true(gate.admit(c[0], CombatWorld.live()))
 	assert_eq(gate.blast_of(c[0]), BladePopResolver.LiveGate.BLAST, "the board side goes off")
 	assert_eq(state.vertex_charges[1], 99, "the piece spends 1")
