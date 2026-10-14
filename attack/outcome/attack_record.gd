@@ -748,13 +748,9 @@ static func _tempo_of(path: String) -> PresentationTempo:
 	return load(path) as PresentationTempo
 
 
-## Node -> wire id. Always through [method Graph.get_stable_id], never
-## `node.stable_id`: node ids mint LAZILY, so a container-added or
-## hand-authored node reads 0 until something forces a topology rebuild
-## (`.claude/rules/multiplayer-sync.md`).
 ## [param mark]'s 1-based row in [param r]'s blast table, appending it on
-## first sight; 0 for no mark. A record whose every hit carries 0 leaves the table empty, so
-## a blastless record omits every blast key.
+## first sight; 0 for no mark. A blastless record leaves the table empty and
+## so omits every blast key.
 static func _capture_blast(r: AttackRecord, mark: BlastMark, index: Dictionary, graph: Graph) -> int:
 	if mark == null:
 		return 0
@@ -792,6 +788,10 @@ static func _rebuild_blasts(r: AttackRecord, graph: Graph) -> Array[BlastMark]:
 	return marks
 
 
+## Node -> wire id. Always through [method Graph.get_stable_id], never
+## `node.stable_id`: node ids mint LAZILY, so a container-added or
+## hand-authored node reads 0 until something forces a topology rebuild
+## (`.claude/rules/multiplayer-sync.md`).
 static func _id_of(node: SkillNode, graph: Graph) -> int:
 	if node == null or graph == null or not is_instance_valid(node):
 		return 0

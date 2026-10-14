@@ -14,6 +14,8 @@ extends SplashEffect
 func _init() -> void:
 	hits_centre = false
 	ownership_filter = 0
+
+
 ## The detonation's power, for the mark's audience only ([member BlastMark.power]);
 ## the reach is [member range_finder]'s. 0 = the emitter did not say.
 var power: int = 0
