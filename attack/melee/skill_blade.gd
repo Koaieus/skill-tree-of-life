@@ -50,7 +50,12 @@ const BLADE_SHARD_FIELD := preload("res://attack/melee/blade_shard_field.tscn")
 ## (#256). One resource per blade, so a sandbox can retune the whole swing live.
 @export var style: BladeStyle = BladeNode.DEFAULT_STYLE:
 	set(value):
+		if style != null and style.changed.is_connected(queue_redraw):
+			style.changed.disconnect(queue_redraw)
 		style = value
+		# The piece-blast ring is this node's own draw; its knobs repaint it.
+		if style != null:
+			style.changed.connect(queue_redraw)
 		_apply_style()
 
 ## The swing's pop outcome, set by the caller BEFORE [method play] when one is

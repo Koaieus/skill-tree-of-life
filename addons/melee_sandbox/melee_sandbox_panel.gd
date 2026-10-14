@@ -62,6 +62,9 @@ const _KNOBS: Array[Array] = [
 	["disabled_tier", "Popped tier (EV)", -3.0, 2.0, 0.05],
 	["disabled_desaturation", "Popped desaturation", 0.0, 1.0, 0.01],
 	["disabled_alpha", "Popped alpha", 0.0, 1.0, 0.01],
+	["shrug_window", "Shrug window (s)", 0.05, 2.0, 0.01],
+	["piece_blast_window", "Blast ring window (s)", 0.05, 2.0, 0.01],
+	["piece_blast_width", "Blast ring width", 0.5, 12.0, 0.5],
 ]
 
 @onready var _world: SubViewport = %World
@@ -74,6 +77,8 @@ const _KNOBS: Array[Array] = [
 @onready var _delit_spin: SpinBox = %DelitSpin
 @onready var _charges_spin: SpinBox = %ChargesSpin
 @onready var _spend_slider: HSlider = %SpendSlider
+@onready var _shrug_slider: HSlider = %ShrugSlider
+@onready var _blast_ring_check: CheckBox = %BlastRingCheck
 @onready var _preview_toggle: CheckBox = %PreviewToggle
 @onready var _topup_toggle: CheckBox = %TopUpToggle
 @onready var _rearm_toggle: CheckBox = %RearmToggle
@@ -355,6 +360,8 @@ func _wire_controls() -> void:
 	_delit_spin.value_changed.connect(_on_delit_changed)
 	_charges_spin.value_changed.connect(_on_charges_look_changed)
 	_spend_slider.value_changed.connect(_on_charges_look_changed)
+	_shrug_slider.value_changed.connect(_on_charges_look_changed)
+	_blast_ring_check.toggled.connect(_on_blast_ring_toggled)
 	_preview_toggle.toggled.connect(_on_preview_toggled)
 	_rigidity.item_selected.connect(_on_rigidity_selected)
 	_rearm_toggle.toggled.connect(func(_on: bool) -> void: _refresh_status())
@@ -414,6 +421,12 @@ func _on_delit_changed(_value: float) -> void:
 ## [member SkillBlade.pop_result] — the model always wins.
 func _on_charges_look_changed(_value: float) -> void:
 	_apply_forced_charges(_preview.current_blade())
+
+
+## The piece-blast ring is a [BladeStyle] knob: flip it on the live style, so
+## it rides along to every blade the preview builds.
+func _on_blast_ring_toggled(on: bool) -> void:
+	_style.piece_blast_ring = on
 
 
 ## Add or strip a bunker addon on one node. Plain `add_child` / `queue_free`:
@@ -488,6 +501,7 @@ func _apply_forced_charges(blade: SkillBlade) -> void:
 		if forced > 0:
 			visuals[i].charges = forced
 		visuals[i].spend_progress = _spend_slider.value
+		visuals[i].shrug_progress = _shrug_slider.value
 
 
 ## Tops the quarry up through a spam session: refill anything that took a hit, so
@@ -508,6 +522,7 @@ func _build_knobs() -> void:
 		child.queue_free()
 	for spec in _KNOBS:
 		_knob_box.add_child(_make_knob(spec))
+	_blast_ring_check.set_pressed_no_signal(_style.piece_blast_ring)
 
 
 func _make_knob(spec: Array) -> Control:
