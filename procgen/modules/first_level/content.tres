@@ -10,6 +10,7 @@
 [ext_resource type="PackedScene" uid="uid://b1addon0doomb" path="res://skill_node/addons/defs/doombrand_addon.tscn" id="6_doombrand"]
 [ext_resource type="PackedScene" uid="uid://b1addon0egate" path="res://skill_node/addons/defs/abyssal_conduit_addon.tscn" id="6_abyssal_conduit"]
 [ext_resource type="PackedScene" uid="uid://b1addon0toxin" path="res://skill_node/addons/defs/toxin_addon.tscn" id="6_toxin"]
+[ext_resource type="PackedScene" uid="uid://b1addon0barrl" path="res://skill_node/addons/defs/explosive_barrel_addon.tscn" id="6_explosive_barrel"]
 [ext_resource type="Script" uid="uid://c4jsrfudhqhuk" path="res://procgen/pools/addon_pool.gd" id="7_mkfxt"]
 [ext_resource type="Script" uid="uid://bi20g047mnsv6" path="res://procgen/pools/addon_policy.gd" id="8_cotot"]
 [ext_resource type="Script" uid="uid://0rdv1h0ycc3p" path="res://procgen/archetypes/archetype_stamp.gd" id="9_jdf0g"]
@@ -121,9 +122,17 @@ cost = 5
 weight = 5.0
 metadata/_custom_type_script = "uid://b3fhyx2c2bvat"
 
+[sub_resource type="Resource" id="Resource_explosive_barrel"]
+script = ExtResource("1_x1tax")
+id = &"explosive_barrel"
+addon_scene = ExtResource("6_explosive_barrel")
+cost = 4
+weight = 2.5
+metadata/_custom_type_script = "uid://b3fhyx2c2bvat"
+
 [sub_resource type="Resource" id="Resource_3kv1o"]
 script = ExtResource("7_mkfxt")
-entries = Array[ExtResource("1_x1tax")]([SubResource("Resource_68xts"), SubResource("Resource_2jawg"), SubResource("Resource_qrpdt"), SubResource("Resource_eyb1c"), SubResource("Resource_watch"), SubResource("Resource_toxin"), SubResource("Resource_compromiser"), SubResource("Resource_doombrand"), SubResource("Resource_abyssal_conduit")])
+entries = Array[ExtResource("1_x1tax")]([SubResource("Resource_68xts"), SubResource("Resource_2jawg"), SubResource("Resource_qrpdt"), SubResource("Resource_eyb1c"), SubResource("Resource_watch"), SubResource("Resource_toxin"), SubResource("Resource_compromiser"), SubResource("Resource_doombrand"), SubResource("Resource_abyssal_conduit"), SubResource("Resource_explosive_barrel")])
 metadata/_custom_type_script = "uid://c4jsrfudhqhuk"
 
 [sub_resource type="Resource" id="Resource_c6pvu"]
