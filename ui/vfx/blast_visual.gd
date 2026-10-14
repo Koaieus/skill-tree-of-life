@@ -44,7 +44,9 @@ signal finished
 		identity = value
 		queue_redraw()
 ## Rider layers, instantiated as children at [method play]; each gets
-## [member riders] (and [member radius]) if it declares them.
+## [member riders], [member radius] and [member duration] if it declares them,
+## and companion i also `rider` = riders[i] and `layer` = i ([BlastVFX] lays
+## one per rider).
 @export var companions: Array[PackedScene] = []
 
 ## The blast's rider identities, explosive stripped ([member BlastMark.riders]).
@@ -70,7 +72,8 @@ func setup(mark: BlastMark) -> void:
 
 ## Start the sweep and lay down the companions; [signal finished] at the end.
 func play() -> void:
-	for scene in companions:
+	for i in companions.size():
+		var scene := companions[i]
 		var companion := scene.instantiate() if scene != null else null
 		if companion == null:
 			continue
@@ -78,6 +81,12 @@ func play() -> void:
 			companion.set(&"riders", riders)
 		if &"radius" in companion:
 			companion.set(&"radius", radius)
+		if &"duration" in companion:
+			companion.set(&"duration", duration)
+		if &"rider" in companion and i < riders.size():
+			companion.set(&"rider", riders[i])
+		if &"layer" in companion:
+			companion.set(&"layer", i)
 		add_child(companion)
 	_t = 0.0
 	_playing = true

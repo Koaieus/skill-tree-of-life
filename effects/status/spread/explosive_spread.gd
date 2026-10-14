@@ -66,6 +66,7 @@ func _charge_scale(charges: int) -> float:
 func blast_for(centre: SkillNode, charges: int, inners: Array[OnHitEffect]) -> BlastEffect:
 	var blast := BlastEffect.new()
 	blast.inners = inners
+	blast.power = charges
 	blast.range_finder = _finder(radius_for(centre.radius if centre != null else 0.0, charges))
 	return blast
 

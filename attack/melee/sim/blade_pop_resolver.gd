@@ -487,6 +487,7 @@ class LiveGate extends RefCounted:
 		var power := side_power(n, mini(n, m), spread)
 		var blast := BlastEffect.new()
 		blast.inners = _with_shrapnel(armed, shrapnel_fraction)
+		blast.power = power
 		blast.range_finder = _finder(warhead_reach * spread.radius_for(struck.radius, power))
 		_ride(blast, BLAST, ev, contact, hits, read_overlays)
 
