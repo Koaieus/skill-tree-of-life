@@ -60,15 +60,17 @@ reads no issue itself; its context is the scout reports and the answers.
    are the ones that unblock work in flight.
 3. **Two-deep pipeline.** Dispatch two scouts (batches 1 and 2) in the
    background at the start. When a report is back and no question is up,
-   ask it; two back at once → the lower batch number. After each answer, in
-   this order: dispatch the next unscouted batch; do the closes (law 7); hand
-   the rest to a clerk; ask the next batch that is back, else end the turn.
+   ask it; two back at once → the lower batch number. After each answer,
+   one turn: dispatch the next unscouted batch and spawn the batch's clerk
+   (law 7) as two `Agent` calls in the same message; then ask the next
+   batch that is back, else end the turn.
    A scout that fails, or whose report leaves an issue unjudged, is
    re-dispatched once for exactly those numbers; a second failure leaves
    them in `Intake` under `Not done`, never guessed at by the lead. *Why:*
    the owner's answer time is the slot the next scout runs in; anything the
-   lead does before dispatching eats that slot. A failed scout is noise
-   once and a finding twice.
+   lead does before dispatching eats that slot — the scout and the clerk
+   go out together, and no scratch file precedes either (clerk law 12). A
+   failed scout is noise once and a finding twice.
 4. **The scout's report is short and decision-shaped.** Per issue, at most
    eight lines: why it exists and what it fixes or adds; the cost (a size
    and what it touches); any UX/DX downgrade or risk; whether it still holds
@@ -105,24 +107,27 @@ reads no issue itself; its context is the scout reports and the answers.
    (swarmify's corpus), so *Other* is a path, not an error.
 6. **Every routing leaves its reason on the issue.** A one-line comment
    quoting the owner's answer verbatim with the date — `Triage (owner,
-   <YYYY-MM-DD>): <answer and notes>` — posted from a file (`--body-file`;
-   an inline body loses its backticks to the shell), then status, labels,
+   <YYYY-MM-DD>): <answer and notes>` — written in the clerk's order
+   inline (the clerk files and posts it; clerk law 2), then status, labels,
    priority and milestone. A routing with no comment is a decision that
    lives only in this transcript.
-7. **Mechanics are the clerk's; a close is the lead's.** One background
-   Haiku `clerk` per answered batch, given a plain-prose work order (comment
-   file, then labels/priority/milestone, status last; a `Ready` line names
-   its milestone); the lead runs no other board write inline while a
-   question could be up. The clerk never closes an issue (its own law), so
-   triage's close routes — not planned, already fixed, duplicate — are the
-   lead's, two calls each: `gh issue comment <n> --body-file <f>`, then
-   `gh issue close <n> --reason "not planned"|completed|duplicate
-   --duplicate-of <m>`. No commit backs a triage close, so the land task's
-   `Closes #n` footer never applies to these: the close is immediate and
-   manual. The lead reads every clerk report; a `FAILED`/`SKIPPED` line is
-   re-ordered once, then listed under `Not done`. *Why:* a close is one cheap
-   call that would otherwise need a second kind of clerk; everything else
-   is a recipe a Haiku runs while the owner answers the next batch.
+7. **Every mechanic is the clerk's, closes included; the lead writes no
+   files.** One background Haiku `clerk` per answered batch, its plain-prose
+   work order *in the spawn prompt* — per issue: the comment text, the
+   labels/priority/milestone, then the status (a `Ready` line names its
+   milestone) or the close with its reason (`not planned` | `completed` |
+   `duplicate of #m`). No scratch file per comment, no order file: the
+   lead spends one turn on the spawn (clerk law 12; owner, 2026-10-14:
+   *"Clerks not closing means a more expensive model must."*). The lead
+   runs no board write inline. Triage's close routes are manual by nature —
+   no commit backs them, so the land task's `Closes #n` footer never
+   applies; the clerk closes exactly what the order names (clerk law 4).
+   The lead reads every clerk report; a `FAILED`/`SKIPPED` line is
+   re-ordered once, then listed under `Not done`. *Why:* a close done by
+   the lead was a Fable-priced call and a scratch file per comment was a
+   Fable-priced turn, both in the slot the owner's next answer runs in.
+   (Was: closes the lead's, comments from files, 2026-10-14 morning —
+   superseded the same day by the owner's clerk call above.)
 8. **The run ends when every snapshotted issue is routed, deferred or
    failed and every clerk has reported.** Then `gh-project hygiene` and the
    session report (`docs/domain/session-report.md`), every section present:

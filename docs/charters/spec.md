@@ -204,6 +204,10 @@ corpus rows citing them moved with them.
     The one convention kept is the sibling **handle**: a body file names a
     sibling not yet filed as `#{name}`, declared in the work order, and the
     clerk substitutes the number — never `@name`, a live mention.
+    The order goes inline in the spawn prompt when short (clerk law 12,
+    2026-10-14: the parent spends one turn on the spawn); a file beside the
+    bodies, with its path as the prompt, when long or when relative body
+    paths earn it.
 
 ## Incident corpus
 

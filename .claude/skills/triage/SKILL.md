@@ -34,7 +34,7 @@ with this brief and the four numbers:
 > - **specced?** does the body already carry a drone-ready acceptance spec
 > - **filer set:** the body's `Intended lane:` line, milestone, priority
 >   (`—` for each not set); `hub` if the issue has sub-issues
-> - **route:** close (not planned | fixed | duplicate #n) | backlog |
+> - **route:** close (not planned | completed | duplicate #n) | backlog |
 >   needs-design | ready, plus any label, priority (p0–p4) or milestone
 >   change, with a one-line reason
 
@@ -72,23 +72,22 @@ quoted — never pursue them.
 
 ## 4. On each answer
 
-In this order:
+One turn, two `Agent` calls in the same message, then the next question:
 
 1. **Dispatch the next scout**, if any batch is unscouted.
-2. **Closes are yours** (the clerk never closes), two calls each: write
-   `Triage (owner, <YYYY-MM-DD>): <their answer and notes, verbatim>` to a
-   scratchpad file, `gh issue comment <n> --body-file <file>`, then
-   `gh issue close <n> --reason "not planned"` | `--reason completed` |
-   `--reason duplicate --duplicate-of <m>`. These are manual closes: no
-   `Closes #n` footer.
-3. **The rest goes to a clerk**: per routed issue, the same one-line
-   comment in its own scratchpad file, then a work order — post that file
-   as a comment; the labels, priority and milestone to set; the status last
-   (a `Ready` line names its milestone) — and
-   `Agent(subagent_type: "clerk", run_in_background: true, prompt: "<order path>")`.
-   When a clerk reports, re-order any `FAILED`/`SKIPPED` line once; a
-   second failure goes under `Not done`.
-4. **Ask the next batch** if its scout is back; otherwise end your turn.
+2. **Spawn the batch's clerk** —
+   `Agent(subagent_type: "clerk", run_in_background: true, prompt: "<the order>")`
+   — with the work order written inline in the prompt, no scratch file. Per
+   routed issue, one sentence: the comment text
+   `Triage (owner, <YYYY-MM-DD>): <their answer and notes, verbatim>`, the
+   labels, priority and milestone to set, then the status (a `Ready` line
+   names its milestone) or the close with its reason — `not planned`,
+   `completed`, or `duplicate of #m`. A deferred issue gets no line. These
+   are manual closes: no `Closes #n` footer.
+3. **Ask the next batch** if its scout is back; otherwise end your turn.
+
+When a clerk reports, re-order any `FAILED`/`SKIPPED` line once in the next
+batch's order; a second failure goes under `Not done`.
 
 ## 5. Close out
 

@@ -146,9 +146,11 @@ issue stays in `Intake`) but still a milestone and a priority; the example
 below is the owner-present shape. The milestone is a default — the live one
 (`mise gh-project -- roadmap`) or the parent's — never a question.
 
-Write a work order next to the spec files: plain sentences, one line or
-short paragraph per issue, saying what should be true afterwards. Declare
-each new issue's handle where you create it. For example:
+The work order is plain sentences, one line or short paragraph per issue,
+saying what should be true afterwards; declare each new issue's handle
+where you create it. Short → write it inline as the clerk's prompt, naming
+body files by absolute path. Long, or many bodies → a file next to the spec
+files (relative paths resolve there), its path as the prompt. For example:
 
 ```
 Milestone 3 for everything unless a line says otherwise.
@@ -161,7 +163,8 @@ New issue {wiring} "Status tick: wiring": under #1130, body wiring.md, blocked b
 Check the drift stamps on {state} and {wiring}. Run refresh. Then hygiene.
 ```
 
-Then spawn **one** `Agent(subagent_type: "clerk", prompt: "<work order path>")`.
+Then spawn **one** `Agent(subagent_type: "clerk", prompt: "<the order, or its path>")`
+— one turn, nothing written before it that the order could have carried.
 It knows the commands and the traps; you state intent. Its report is one line
 per issue: handle each `SKIPPED` / `FAILED` yourself (a corrected order and a
 second clerk, or the one call by hand). A re-parent line gives the old

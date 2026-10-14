@@ -86,6 +86,16 @@ Haiku is priced a fifth of Opus and never carries the pass's context.
    forever'*); the gh shim refuses both a bare `@name` and an unresolved
    `#{name}`. Before reporting, the clerk re-reads every body and comment it
    posted and confirms no `#{` survives.
+   **The order may be the spawn prompt itself** (2026-10-14, with law 12):
+   plain prose inline, or a path to a file holding the same prose. The file
+   form stays for when body files already exist beside it (spec bodies —
+   relative paths resolve against the order's directory); an inline order
+   names any file by absolute or repo-root-relative path. A short comment
+   is written *in* the order — `comment "Triage (owner, 2026-10-14): …"` —
+   and the clerk writes it to a temp file itself (a quoted heredoc, so
+   backticks survive) and posts it with `--body-file`; inline comment text
+   gets the same handle pass as a file. Was: a scratch file per comment,
+   written by the parent, which cost the parent a turn per file.
 3. **Every exit code is checked; nothing is piped through `tail`; nothing is
    retried blind.** The
    issue-workflow traps (`--add-parent` swallowed by a pipe, `blockedBy` as an
@@ -94,8 +104,21 @@ Haiku is priced a fifth of Opus and never carries the pass's context.
    all fail *silently*; the clerk's instructions carry each one so the spawning
    session does not have to.
 4. **Board rules are enforced by refusal, not repair.** No `Ready` without a
-   milestone, no status on a hub, no close/reopen/retitle, no git. An order
-   that asks for one gets a `SKIPPED` line.
+   milestone, no status on a hub, no reopen/retitle, no git. An order that
+   asks for one gets a `SKIPPED` line. **A close the order names is the
+   clerk's** (superseded in place, 2026-10-14): the line gives the reason
+   (`not planned` | `completed` | `duplicate of #m`) and the comment text,
+   and the clerk posts the comment then closes with that reason; a close
+   line missing either is `SKIPPED` (law 1: a missing datum is not
+   guessed). Closes for landed work still come from the push footer
+   (`land --closes`, `Closes #n` fires on push); the clerk closes only what
+   the order names, which is the triage routes — not planned, already
+   fixed, duplicate — that no commit backs. *Rejected grounds of the old
+   ban:* a clerk close would duplicate or race the push footer (true only
+   for landed work, which no order will name), and closing felt like a
+   content call (it is not once the order carries the reason and the
+   words). Owner, 2026-10-14: *"Clerks not closing means a more expensive
+   model must."*
 5. **The report is the whole output.** One line per issue, then drift,
    `refresh` when the order asks for it, hygiene, then `SKIPPED` / `FAILED`. The spawning session reads it
    once; prose would be context it pays for. A re-parent's line names the old
@@ -155,6 +178,17 @@ Haiku is priced a fifth of Opus and never carries the pass's context.
     order does not name — a post still unanswered afterwards is reported,
     not answered.
 
+12. **The parent spends one turn on the clerk spawn.** The order is written
+    in the `Agent` call's prompt, in the same message as whatever else the
+    parent dispatches; no scratch files, no path to pass, no turn spent on
+    `Write` before the spawn. Owner, 2026-10-14: *"Clerks are just here to
+    turn 1 prompt by parent into N dirt cheap turns by Haiku. Esp if no
+    thinking is needed, just mechanical or sequential steps. And the '1
+    turn prompt' is in practice already violated often with agents taking
+    a few turns to write out prompts to scratch files n whatnot before
+    posting it to Clerk"*. The file form (law 2) is for bodies that exist
+    anyway, not for the order.
+
 ## Fold digest
 
 | Date | Kind | Became |
@@ -165,6 +199,7 @@ Haiku is priced a fifth of Opus and never carries the pass's context.
 | 2026-10-11 | owner + scans | manifest grammar → prose work order (law 2); vocabulary table (law 8); `no stamp` not a failure off `Ready` (law 9) |
 | 2026-10-11 | autopsy (52517a89) | two new issues left on the stub body, reported clean → law 10: body fill named per issue in step 3, self-describing stub, verify by length against the order's files, `body <file> <got>/<want>c` on the report line; then owner: create with the body, stub only for a forward handle (law 2) |
 | 2026-10-12 | owner | the fold pass's reply tail goes to the clerk → law 11, `feedback reply --resolve` |
+| 2026-10-14 | owner (triage review) | the clerk closes what the order names, with reason and comment (law 4 superseded in place); the order may be the spawn prompt, comments inline (law 2); the parent spends one turn on the spawn (law 12) |
 
 ## What the agent file must not contain
 
