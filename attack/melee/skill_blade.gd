@@ -263,6 +263,7 @@ func play(
 		_shard_field.flight_start = 0.0
 		_shard_field.clear()
 	_last_frame_t = -INF
+	queue_redraw()
 	_rebuild_pending_pops()
 	var pending: Array[BladeHitEvent] = hits.duplicate()
 	var dur := duration_override if duration_override >= 0.0 else traj.duration()
@@ -305,6 +306,7 @@ func _apply_playback_frame(
 			_node_visuals[i].death_progress = _death_progress_at(i, t)
 			_node_visuals[i].charges = _charges_at(i, t)
 			_node_visuals[i].spend_progress = _spend_progress_at(i, t)
+			_node_visuals[i].shrug_progress = _shrug_progress_at(i, t)
 	# The marker rides the trajectory's stored centroid (#930): the one place
 	# the swing writes vertex positions is the one place the focus follows them.
 	# Only the committed swing, though — the idle preview loop plays the ghost
@@ -313,6 +315,8 @@ func _apply_playback_frame(
 	# that reason), so the ghost loop leaves the marker on the rest centre.
 	if not ghostly and state != null and positions.size() > 0:
 		_set_focus(weighted_focus(_pivot_position(), traj.centroid_at(t), positions.size()))
+	if pop_result != null and not pop_result.contacts.is_empty():
+		queue_redraw()
 	if pop_result != null:
 		for i in _edge_visuals.size():
 			# Edge index into state.edges is stable for the whole swing
@@ -368,6 +372,32 @@ func _death_progress_at(idx: int, t: float) -> float:
 		return 0.0
 	var s: BladeStyle = style if style != null else BladeNode.DEFAULT_STYLE
 	return clampf((t - dead_t) / s.pop_window, 0.0, 1.0)
+
+
+## The piece-blast rings: one thin arc per explosive contact whose struck node
+## held charges ([member BladePopResolver.Contact.piece_reach] > 0), centred on
+## that node and expanding to its reach over [member BladeStyle.piece_blast_window]
+## as it fades — the defender's bomb across the pieces, so the player sees why
+## they died. A pure function of [member pop_result] and the last frame's `t`.
+func _draw() -> void:
+	if pop_result == null:
+		return
+	var s: BladeStyle = style if style != null else BladeNode.DEFAULT_STYLE
+	if not s.piece_blast_ring:
+		return
+	var colour := s.shrug_color()
+	for contact in pop_result.contacts:
+		if contact.t > _last_frame_t:
+			break
+		if contact.piece_reach <= 0.0:
+			continue
+		var p := clampf((_last_frame_t - contact.t) / s.piece_blast_window, 0.0, 1.0)
+		if p >= 1.0:
+			continue
+		var ring := colour
+		ring.a *= 1.0 - p
+		draw_arc(to_local(contact.centre), contact.piece_reach * maxf(p, 0.05),
+				0.0, TAU, 64, ring, s.piece_blast_width, true)
 
 
 ## Takes [member BladeState.vertex_charges] as this build's starting charges
@@ -429,7 +459,16 @@ func _spend_progress_at(idx: int, t: float) -> float:
 ## the latest such contact at or before `t` — a charged piece in a node's blast
 ## reach that the blast spared. Called only when [member pop_result] is non-null.
 func _shrug_progress_at(idx: int, t: float) -> float:
-	return 0.0
+	var shrug_t := -INF
+	for contact in pop_result.contacts:
+		if contact.t > t:
+			break
+		if contact.verdicts.get(idx, -1) == BladePopResolver.Contact.Verdict.SHRUGGED:
+			shrug_t = contact.t
+	if shrug_t == -INF:
+		return 0.0
+	var s: BladeStyle = style if style != null else BladeNode.DEFAULT_STYLE
+	return clampf((t - shrug_t) / s.shrug_window, 0.0, 1.0)
 
 
 ## Rebuilds [member _pending_pops] from [member pop_result]: one entry per

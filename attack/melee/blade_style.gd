@@ -137,6 +137,11 @@ extends Resource
 	set(value):
 		piece_blast_window = maxf(value, 0.0001)
 		emit_changed()
+## Stroke width (px) of a piece-blast ring.
+@export_range(0.5, 12.0, 0.5) var piece_blast_width: float = 2.0:
+	set(value):
+		piece_blast_width = value
+		emit_changed()
 ## Emissive tier a charge bead is lit at.
 @export var charge_tier: Emissive.Tier = Emissive.Tier.VALUE:
 	set(value):
@@ -180,6 +185,14 @@ func charge_color() -> Color:
 	var identity := IdentityRoster.shared().by_id(charge_identity)
 	var base := identity.tint if identity != null else Color.WHITE
 	return Emissive.tint(base, Emissive.stops(charge_tier))
+
+
+## The shrug sheen's colour, and the piece-blast ring's: [member charge_identity]'s
+## hue at [member shrug_tier].
+func shrug_color() -> Color:
+	var identity := IdentityRoster.shared().by_id(charge_identity)
+	var base := identity.tint if identity != null else Color.WHITE
+	return Emissive.tint(base, Emissive.stops(shrug_tier))
 
 
 func fill_color(is_pivot: bool, entity_color: Color, disabled: bool) -> Color:
