@@ -367,10 +367,23 @@ func get_emblem() -> Variant:
 	return null
 
 
+## The carrier's owner's turn start: [method Entity._apply_turn_upkeep] calls
+## this once per addon on every owned node, in its per-node pass ahead of the
+## spike regen, on host and mirror alike. Never on a temporary addon. No-op.
+func on_turn_start() -> void:
+	pass
+
+
+## This addon just left its carrier: [method SkillNode._detach_addon] calls it
+## after the ledger erase (so the carrier's [method SkillNode.get_addons] no
+## longer counts it), at runtime only and never for a temporary addon. No-op.
+func on_detached() -> void:
+	pass
+
+
 # Future hooks (add only when a concrete addon demands them):
 #   on_damage_taken(amount, source) -> void
 #   on_incoming_blade_contact(blade, edge_or_particle_idx) -> void
-#   on_turn_start() -> void
 
 
 func _find_carrier() -> SkillNode:

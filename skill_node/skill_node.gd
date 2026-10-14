@@ -1895,7 +1895,16 @@ func _detach_addon(a: SkillNodeAddon) -> void:
 		remove_local_modifier(m)
 	for m in a.get_entity_modifiers():
 		remove_entity_modifier(m)
+	a.on_detached()
 	addons_changed.emit()
+
+
+## The owner's turn start reaching this node's addons — see
+## [method SkillNodeAddon.on_turn_start]. Iterates a copy: a hook may detach.
+func run_addon_turn_start() -> void:
+	for a in _addons.duplicate():
+		if is_instance_valid(a) and not a.is_temporary:
+			a.on_turn_start()
 
 
 ## How long a core's presence takes to glide between two nodes. Named because

@@ -924,6 +924,7 @@ func _apply_turn_upkeep() -> void:
 	if navigator != null:
 		for n in navigator.get_mirrored_nodes():
 			n.apply_turn_regen()
+			n.run_addon_turn_start()
 	if core_class != null:
 		core_class.on_turn_started(self)
 	# #778: sparse spikes regen — exactly the nodes marked spent since the
