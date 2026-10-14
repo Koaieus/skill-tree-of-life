@@ -244,14 +244,18 @@ disk at `scratchpad/land/land-<n>.log` (#920), so filling the ledger is a
     train's top session, not a person, and four things change (owner,
     2026-10-10). Drones go out
     **in the background** — law 16's one message, every `Agent` call
-    `run_in_background: true` — and every brief's final act is
-    `SendMessage(<lead-name>, <the six-line report>)`, then the report as
-    text: a background subagent never receives its own background
+    `run_in_background: true` — and every brief's final act is three
+    things in order: the six-line report written to
+    `<inbox>/<unit>.md` (the lead's inbox directory,
+    `docs/handoffs/swarm-<date>-<lead-name>.inbox/`, named absolute in the
+    brief), `SendMessage(<lead-name>, <the same report>)`, then the report
+    as text: a background subagent never receives its own background
     children's reports by itself (spike, 2026-10-09: one dropped, one
     bubbled to the top), but a drone's `SendMessage` resumes it (spike,
     2026-10-12, swarm-train law 4), so the lead acts per drone and a
     second wake for a unit already handled (the drone's ordinary report)
-    is nothing — end the turn. **No whip verbs**: the top carries the
+    is nothing — nap again while any row is in flight, end the turn only
+    when none is. **No whip verbs**: the top carries the
     transport, so the lead reports by **returning** this charter's session
     report as its final text, asks for relief the moment the context
     notice lands by `SendMessage` to the top — `relief now; I keep <unit
@@ -261,15 +265,19 @@ disk at `scratchpad/land/land-<n>.log` (#920), so filling the ledger is a
     [relief](relief.md) law 6; a relief dispatches beside the draining
     lead up to the cap minus its `dispatched` rows, and when only blocked
     units remain ends its turn on `blocked on <outgoing>` until the top's
-    `drained` line wakes it — swarm-train law 10; with drones still in flight
-    it ends on the one line `interim: <n>/<m> landed, <k> in flight` —
-    swarm-train law 22),
+    `drained` line wakes it — swarm-train law 10; with drones in flight it
+    never ends its turn but naps in the foreground on its inbox directory,
+    `until [ -n "$(find <inbox> -maxdepth 1 -name '*.md' -print -quit)" ]; do sleep 20; done`
+    with `timeout: 600000`, reads the inbox on every return (file or cap),
+    moves a handled file to `<inbox>/done/`, and on a cap return with no
+    file checks its drones by `ListAgents` — swarm-train law 23; only a
+    lead that slipped out of its nap ends on the one line `interim: <n>/<m>
+    landed, <k> in flight` — swarm-train law 22),
     and runs `mise run ledger -- close` at train end. **Sage is out**
     for the tryout (tentative — the pass's call, swarm-train law 13): its `APPROVED` line goes to `main`, which in a tree is
     the top, and a sibling resume is unprobed; drones' advisor is the
     `advisor` tool. The owner's stop arrives as a message from the top and
-    drains at the wave boundary — a foreground wave holds the lead's turn
-    until it returns. A tree's leads all share the top's session id
+    drains when the lead's nap returns, ten minutes at most. A tree's leads all share the top's session id
     (probed, 2026-10-10), so the ledger tool's session lookup is never
     consulted in a tree: the lead's prompt names its swarm ledger,
     `docs/handoffs/swarm-<date>-<lead-name>.md` (swarm-train law 20), and
@@ -288,7 +296,8 @@ disk at `scratchpad/land/land-<n>.log` (#920), so filling the ledger is a
     polled the transcript, and a lead that reported with a suite wait still
     running re-notified the top half an hour later. A wake whose body is
     not the six-line report gets one `SendMessage` to continue, never a
-    transcript poll, `sleep` loop or `pgrep` wait; a drone that ends
+    transcript poll or `pgrep` wait (the inbox nap of swarm-train law 23
+    is the one sanctioned sleep loop); a drone that ends
     without its final act is silent, and the top's stall tick is the net.
     **The relief threshold is the lead's own context** — law 6's ceiling,
     relief 50k below it — never the train's size (swarm-train law 15: a
@@ -380,6 +389,15 @@ disk at `scratchpad/land/land-<n>.log` (#920), so filling the ledger is a
     drone did it* before *filed*, because small optional work filed "for
     later" is what grew `Needs design` past 80 issues. Same shape for relay
     and relief; whip's renderer emits the same vocabulary as a file.
+
+## Frontmatter
+
+`name: swarm`; `description`: *Orchestrate parallel `drone` subagents over
+`Ready` issues — hold the DAG, dispatch one fenced unit per drone in its own
+worktree, review each report as it lands, land it with `mise run land`, gate
+the train once, push. Use when the user says "swarm #<n>" / "swarm #<n>,
+#<m>" or asks to parallelise pre-decided work across subagents. `relay` is
+this at wave size 1; `relief` takes a running swarm over.*
 
 ## Incident corpus
 

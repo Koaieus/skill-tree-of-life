@@ -1,476 +1,465 @@
 ---
 name: swarm
-description: Orchestrate parallel `drone` subagents over `Ready` issues — hold the DAG, dispatch one fenced unit per drone in its own worktree, review each report as it lands, land it with `mise run land`, gate the train once, push. Use when the user says "swarm #<n>" / "swarm #<n>, #<m>" or asks to parallelise pre-decided work across subagents. `relay` is this at wave size 1; `relief` takes a running swarm over.
+description: 'Orchestrate parallel `drone` subagents over `Ready` issues — hold the DAG, dispatch one fenced unit per drone in its own worktree, review each report as it lands, land it with `mise run land`, gate the train once, push. Use when the user says "swarm #<n>" / "swarm #<n>, #<m>" or asks to parallelise pre-decided work across subagents. `relay` is this at wave size 1; `relief` takes a running swarm over.'
 ---
 
 # Swarm
 
-You are the **DAG holder**, the **reviewer and lander**, and the **train
-gate**. Drones do the typing, each in its own worktree and context; you
-decide — tier, fence, land / fix / resume / abandon — and you spend your
-context on nothing else. Reading, grepping and verifying are delegated
-downward, always. Why each rule below exists: `docs/charters/swarm.md`.
+You are the orchestrator. The three things only you can do — and the only
+things you spend context on — are **hold the DAG**, **gate the train**, and
+**decide** (tier, fence, merge / resume / abandon). Reading, grepping, typing
+and verifying are delegated downward. Why each step says what it says:
+`docs/charters/swarm.md`.
 
-## What a drone already carries — never in a brief
+A fresh session always starts its own run: `/swarm` never adopts a ledger it
+finds on disk — another live ledger is not a relief trigger, the `/relief`
+verb is.
 
-Never open `.claude/agents/drone.md`; this is all of it you need. A drone
-makes its own worktree (`worktree:new`, warm and checked); reads the issue
-and `--comments` once as its spec (a `swarm-brief-*.md` says on its first
-line whether it replaces the issue or only adds a section to it);
-`cat`s the repo skill the issue names; searches via `Explore(haiku)` leaves;
-batches, reads narrow, never polls; runs `check` → `test:one` → `test:dir`
-→ the full suite at most once and only if the brief allows; commits as it
-goes by explicit path (a new script's generated `.uid` included), the red
-test first when a claim is testable; writes
-only owned paths and reports a need outside the fence instead of reaching;
-`@export`s an open number as a knob and lists it as tentative; calls
-`advisor` at the plan, once when stuck (out of hypotheses, not a count of
-failures), and at done when there is no Sage; reports `PULL` on a fork or
-a wall; retires on a blown budget by `wip(...)` commit + successor `gh issue comment` + report; never
-`Closes`, rebases, lands, asks the user, or expands scope.
+## 1. Gate every issue
 
-Its report is six lines — `BRANCH:` (your merge handle) / `FILES:` /
-`TESTS:` / `DID:` / `COST:` (ctx · tool calls · advisor/Sage exchanges) /
-`NOTES:` (`none`, or one line each: blocker, deviation, stale spec,
-out-of-scope, tentative knob, `poison: <path>:<line> — <wrong> → <right>`,
-`PULL — <fork>`;
-anything a future worker needs is also on the issue). With Sage, the
-report's `NOTES:` carries the review round and the drone is spent.
-
-## Gate — do not swarm the wrong work
-
-All five must hold, else `warp` the single highest-value issue instead:
+Swarm only what passes all five; any failure means `warp` the single
+highest-value issue instead.
 
 1. **Pre-decided** — every design question is answered on the issue. It is
-   `Ready`, or it is not swarmed. Never pin a fork in a brief.
-   `Ready` is the whole test — a missing milestone is board hygiene, never a
-   reason to hold it back.
-2. **Decomposable** into units a drone can hold. Overlap between units is a
-   sequencing fact, not a disqualifier.
+   `Ready`, or it is not swarmed.
+2. **Decomposable** — the work comes apart into units a drone can hold.
 3. **Mechanical** — a failing test or an exact spec defines done.
 4. **Unattended** — nobody needs the owner mid-flight.
-5. **Affordable** — the budget below fits.
+5. **Affordable** — the budget of step 3 fits.
 
-**A unit whose acceptance needs a file that does not exist is a whole-issue
-unit**, opus-tier, reviewed like a feature — never a drone's second unit. A
-draft that exists but was never run is *not* that shape: `mise run check`
-plus its own test file settles it in two minutes; run that before deferring
-anything as "new surface".
+Then size each unit:
 
-**A unit describing three or more deliverables is split before dispatch.**
-Never hope a drone self-splits. Sizing was the spec's job; your net at
-dispatch is **a unit expected to exceed ~40 calls or ~120k context is split
-before dispatch** — a unit that looks like it needs the whole budget will
-blow it.
+- **A unit that builds a new surface** — a file its acceptance needs that
+  does not exist — is a whole-issue unit, opus-tier, reviewed like a
+  feature. A draft that exists but was never run is *not* that: `mise run
+  check` plus its own test file, two minutes, settles which.
+- **Three or more deliverables in one unit is a split**, done before
+  dispatch, never left to a drone. Keep a **size net** at dispatch: a unit
+  expected to exceed ~40 calls or ~120k context is split before it goes
+  out; a unit that already looks like it needs the whole budget will blow
+  it.
 
-## Size the swarm
+## 2. Orient from disk, not from issues
 
-- **2–5 drones, never ten.** Prefer landing four issues to starting twelve.
-- **Cluster by shared context first, partition by file second.** Issues that
-  read the same subsystem are one drone doing several units with hot
-  context; overlap *inside* a drone is free, overlap *across* drones is a
-  wave boundary. Fewer drones wins.
-- **Per-unit cost is the ledger's number**, not a constant: ask the owner for
-  the remaining window as one figure, and price the wave from the last
-  run's `mise run agent-cost` `priced` per landed unit at the tier you are
-  dispatching. Your own session is priced by `mise run agent-cost -- --main`
-  (add `--session` for you plus your drones on one table).
+One Bash call:
 
-## Hard units: a trap list first
+```
+mise run ledger -- show
+mise gh-project -- list
+git -C <repo> worktree list
+ls .claude/worktrees/ 2>/dev/null
+```
 
-For a bit-exact port or solver transliteration, ask an idle peer (`ListAgents`)
-for *where this will break* and which files it holds; dispatch without waiting
-and relay the list verbatim into the brief. Unverified items go to the drone as
-questions to resolve by reading.
+- `ledger -- show` says "none" for a fresh session — expected; `dispatch`
+  creates the file. Never build a ledger path from a date.
+- A stray worktree (`.worktrees/` or `.claude/worktrees/`) is **deleted, not
+  carried as an owner question**, once its branch is merged or nothing in it
+  is worth mining: `mise run worktree:rm -- <slug>` then `git branch -d`.
+- Always `git -C <repo>` (the main checkout's absolute path), never a bare
+  `git` after a `cd`.
 
-## Your own budget
+## 3. Budget the run
 
-- **Dispatch ceiling = ceiling(model) − 15k × drones in flight**, read on the
-  hook's `CONTEXT SIZE SO FAR` marker. Ceiling is **250k for a Sonnet lead,
-  200k for an Opus lead**; every in-flight drone reserves ~15k for its
-  settling turns (report, review, land — three turns, not ten). Past the
-  ceiling, dispatch nothing new.
-- **Request relief 50k below the ceiling** (`.claude/skills/relief/SKILL.md`
-  is what the incoming session follows).
-- **Duplicate dispatch overrides every number.** A drone replying "already
-  done" to a fresh dispatch means you have lost track of what you sent —
-  stop dispatching now.
-- **A stop from the owner outranks everything, including spawning** — an
-  `Agent` call is new work. Go quiet: no dispatch, no merge, no test, no
-  review. If a relief session has named itself, you owe it exactly one wake
-  per in-flight drone — on each report, update that drone's ledger row and
-  `SendMessage` relief one line (`#<n> reported @<sha>, row updated`).
-  Never redirect a drone to relief's address; its report reaches you and
-  your ping is the relay.
+- **Workers: 2–5, never ten.** Prefer landing four issues to starting
+  twelve. Cluster by shared context first (one drone, several units, hot
+  context), partition by file second; fewer drones wins.
+- **Per-unit cost is the ledger's number.** Ask the owner for the remaining
+  window as one figure; price the wave from the last run's `mise run
+  agent-cost` `priced` column per landed unit, tier-adjusted. No fixed
+  percentage. A window percentage is a snapshot, never a comparable unit.
+- **Dispatch ceiling = ceiling(model) − 15k × drones in flight**, read on
+  the hook's `CONTEXT SIZE` marker: 250k for a Sonnet lead, 200k for an
+  Opus lead. Past the ceiling, dispatch nothing new. **Request relief 50k
+  below it.** A drone replying "already done" to a dispatch overrides every
+  number: you are past your useful context now — request relief.
+- **Tier default is opus.** Sonnet only for a small unit with an existing
+  named test, or mechanical churn where rigor buys nothing. A Sonnet that
+  spent its stuck call, or `PULL`ed on something that was not a fork, is
+  logged as a mis-tier (`ledger -- note`).
 
-## Roles
+## 4. Choose the roles
 
-- **Drones' advisor is the `advisor` tool**, named in every brief with its
-  three moments: the plan (before the first edit), stuck (once — out of
-  hypotheses, not a count of failures), and done (only with no Sage: it
-  reviews the diff so you don't have to). Its answer is the straight route
-  or "stop, report `PULL`".
-- **A `PULL` report takes the unit off this run.** Comment the fork on the
-  issue, move it to `Needs design`, and don't dispatch anything it blocks;
-  a dependent whose spec the fork changes goes back to `Needs design` too.
-- **You review and you land.** `git diff master...<branch> --stat` for the
-  fence on every unit; the full diff only where your cross-unit overview
-  is what's being checked — a seam another unit touches, anything a player
-  would notice — since the drone's done-call has reviewed the rest. One
-  `advisor` call per wave for the judgement, not per unit. `mise run land` from your own context — never resume a
-  deep-context drone to rebase, merge or land.
-- **Sage is opt-in, and never lands.** At four or more concurrent drones,
-  or an absent owner, spawn `Agent(subagent_type: "sage", name: "Sage")`
-  as reviewer and advisor; briefs then say "Sage is your advisor" instead.
-  A drone's review request is its last turn: it messages Sage and ends with
-  its report as text, and is spent. Sage sends findings to the drone and
-  `APPROVED #n <sha>` to **you** — the drone's notification is your fence
-  check, Sage's line is your land trigger; never nudge a drone for a
-  report and never wake one that Sage approved. `NOT APPROVED` after two
-  rounds is yours: resume the drone (hot context) or dispatch fresh. Sage
-  otherwise messages you only for exceptions and one `REVIEWED:` list.
-- **A throwaway Opus planner is a fallback**, for a run whose issues are not
-  well enough specced to dispatch from directly: `Agent(model: "opus",
-  run_in_background: false)` writes the DAG, tiers and briefs to
-  `docs/handoffs/swarm-brief-<n>.md` and dies. The fix for next time is a
-  better swarmify pass, not a standing planner.
+- **The drone's advisor is the `advisor` tool**, named in every brief with
+  its three moments:
+  - **Plan** — after orientation, before the first edit. Always.
+  - **Stuck** — at most once, and stuck is a state, not a count: the drone
+    can no longer say what it believes is wrong and what the next attempt
+    will show. A typo or a wrong path is not stuck.
+  - **Done** — only when no Sage runs: the advisor reviews the diff instead
+    of you reading it. It sees only the drone's context, so you still check
+    what spans units.
+  Its answer is one message: the straight route, or "stop — report `PULL`"
+  on an unresolved fork or a wall. A `PULL` takes the unit off the run and
+  back to `Needs design`; what it blocks is not dispatched.
+- **You review and land.** Never resume a deep-context drone to rebase,
+  merge or land.
+- **Sage is opt-in and never lands.** At four or more concurrent drones, or
+  an absent owner, spawn one `sage` named "Sage" as reviewer and advisor;
+  drones then ask Sage instead of `advisor`. `approved` goes back to the
+  drone, which carries it in its report (`NOTES: Sage approved, 2
+  exchanges`), and you land off that report. Sage messages you only for
+  exceptions (a second failed land, a cross-unit conflict, a mis-tier) and
+  one `REVIEWED:` list at the end. Sage runs nothing that mutates the repo.
+  Not in train mode (section *Train mode*).
+- **The planner is a fallback, not a shape.** A `Ready` issue already
+  carries its reading list, seam map and stubs; dispatch from it directly.
+  Only when the issues are not that well specced, spawn one throwaway Opus
+  planner that writes the DAG and the briefs and dies.
+
+## 5. Land shared contracts first
+
+A seam every unit overrides, a registry every unit appends to, a `.tres`
+every unit touches — commit it on master yourself before spawning; drones
+branch from the tip. The second brief of a collision pair names the first's
+landed sha.
+
+## 6. A trap list for a genuinely hard unit
+
+For a bit-exact transliteration, a solver port, anything where a green suite
+would not catch the wrong answer: `ListAgents`, then ask an idle peer session
+for *where this will break* — not a plan, not a file summary — and (1) which
+files it holds so the drone stays clear. Say "if you're mid-task, answer (1)
+alone". Dispatch without waiting; relay the list verbatim into the brief (a
+`SendMessage` to the drone if it arrives after dispatch). Anything the peer
+flagged as *unverified* goes to the drone as an open question to resolve by
+reading, never as fact.
+
+## 7. What a drone already carries — never restate it
+
+You never open `.claude/agents/drone.md`. A `drone` already:
+
+- makes its own worktree (`mise run worktree:new -- <slug>`) before any
+  edit — pass no `isolation` parameter;
+- reads the issue once, writes only owned paths, reads anything;
+- `git add`s by explicit path, never stashes, never lands, never writes
+  `Closes #n`;
+- writes a named test RED first and confirms it ran; authors no test for an
+  exact-spec / visual / tuning unit;
+- holds "pre-existing failure" as a claim and notes it;
+- has a coherent commit by ~150k, retires on a blown budget with a
+  successor brief on the issue, and never finishes past the stop;
+- calls the `advisor` tool only when the brief names it, never the user;
+- defaults an open number as a knob, not a doubt;
+- batches shell commands, never polls or idles, verifies on the ladder
+  `check` → `test:one` → `test:dir`;
+- ends its turn with its report as its final text — a drone is spent once it
+  has reported.
+
+The report is six lines, nothing else:
+
+```
+BRANCH: <slug>
+FILES: <paths touched>
+TESTS: <what ran, what is green>
+DID: <one line>
+COST: ctx <k>, calls <n>, exchanges <n>
+NOTES: <follow-ups, poison: lines, Sage approved N exchanges, PULL>
+```
+
+A wall of text is a drone-contract violation, not something to summarise.
+
+## 8. Dispatch
+
+### Before every dispatch — one Bash call
+
+```
+mise run ledger -- dispatch <n> <drone-name> <tier>
+mise gh-project -- status <n> in-progress
+mise run issue-drift -- <n>
+```
+
+- The ledger (`docs/handoffs/swarm-<date>-<HHMM>.md`, gitignored, ≤1.5k
+  tokens) is the at-most-once record and the relief briefing. **Its roster
+  is written by commands, never by you remembering**: `dispatch` creates it
+  on a new run and prints the roster back, so the read is free. The prose
+  under the roster (queue order, carried items, open owner calls) is yours.
+- A row before dispatch is the claim: a unit with a row in another live
+  ledger is never dispatched.
+- `issue-drift` is silent when the issue's stamped reading list still
+  holds; it prints the drifted entries otherwise — then one
+  `Explore(model: "haiku")` re-verifies them before the brief is written —
+  and says `no stamp` on an unstamped issue.
+
+### The brief is bare
+
+Nothing the issue already says, nothing the drone already carries (section
+7). Exactly:
+
+```
+#<n> (hub #<h>). <one line of what, if the issue title is not enough>
+Owned paths: <the fence — including scenes and boards that reference the changed system>
+Seams this run: <who owns what; the seam's sha on master>
+Tier: <opus|sonnet>
+Your advisor is the `advisor` tool: plan after orientation, stuck at most once, done before you report.
+   (or: Your advisor is Sage — SendMessage "Sage"; ask it for a review as your final exchange.)
+HARD stop: your first report by call <N>; do not take call N+1. Each review round adds <k> calls; two rounds at most.
+Commit early and often, even partial.
+Suite: never the full suite.
+   (or, if a full suite is allowed, all three clauses: once, only after test:dir is green; in the background, then END YOUR TURN — the harness resumes you on exit; report its verdict line.)
+Report: the six-line report as your final text.
+```
+
+The HARD stop budgets the *first report*; one number for the whole unit is
+never honoured once a reviewer asks for changes. A trap list (section 6) is appended verbatim.
+
+### The `Agent` call
+
+- `subagent_type: "drone"`, the brief in `prompt`, `name` set for
+  addressability (`d<n>`), **`model` mandatory and equal to the ledger's
+  tier** — an omitted `model` inherits yours.
+- No `isolation` parameter.
+- **One wave per message**: every `Agent` call for the wave in one message.
+  Act on each completion as it arrives; never batch reports.
+- A drone that idles on its prompt gets one `SendMessage` nudge; the
+  fallback shape is a file-pointer brief. Log the idle: `mise run ledger --
+  note <n> 'idled on prompt, nudged'`.
+
+### A split shares one brief file
+
+When you split one issue across drones, write one
+`docs/handoffs/swarm-brief-<n>.md` (gitignored): the common part first, one
+short section per drone. Each drone's `prompt` is the file path plus its
+section name. The file's first line says whether the issue is still the
+spec (a split of a `Ready` issue: it is — the drone views it as usual) or
+the brief replaces it (the planner shape of section 4).
+
+## 9. Collect
+
+**Read reports, not diffs.** On each report, one Bash call:
+
+```
+mise run ledger -- report <n> --branch <slug> [--plan] [--stuck] [--pull]
+git -C <repo> diff --stat master...<slug>
+```
+
+- `--stat` checks the fence on every unit. Open the full diff only where
+  the cross-unit overview is what you are checking — a shared seam,
+  anything a player would notice; the drone's done-call (or Sage) reviewed
+  the rest.
+- `COST:` is the drone's own count: use it to judge resume vs retire and to
+  tier the next brief without waiting for `agent-cost`.
+- One `advisor` call per wave for the judgement, not per unit.
+
+**Per report: fence, content, tests — then branch.** Pick one:
+
+1. **Land it** (section 10).
+2. **Fix a one-liner yourself** in the worktree, then land.
+3. **Resume the drone** with a sharp diagnosis — `SendMessage` to its name
+   — within its review-round allowance.
+4. **Pull it** — a `PULL` or a fork: `mise gh-project -- status <n>
+   needs-design`, one-line comment, and what it blocks is not dispatched.
+5. **Stop** — the same blocker twice with no fork: `mise gh-project --
+   status <n> in-review` with a one-line comment, and serve the rest of the
+   swarm.
+
+**"Pre-existing failure" is a claim.** Check it against a real `master`
+run (`mise run test:one -- <script>` in the main checkout) before landing
+over it.
+
+**Never acknowledge a finished drone.** Never infer from an idle that a drone's background command finished. Relay
+reports to the owner in your own words; never paste diffs.
+
+**A killed drone's worktree is checked before it is written off:**
+
+```
+git -C .worktrees/<slug> log --oneline master..HEAD
+git -C .worktrees/<slug> status --porcelain
+```
+
+Commit what is there by explicit path as `wip(...)`; the two-minute
+discriminator of section 1 (`check` + its own test file) decides done vs
+rewrite.
+
+## 10. Land
+
+`mise run land -- <branch> [--closes <n>]` is the **only** way onto master
+— serial by `flock`, rebases in the worktree, runs `check` + `test:dir` on
+the touched dirs, fast-forwards, writes the `landed <sha>` ledger row
+itself. `--closes` only on the final branch of a multi-unit issue.
+
+- Run it from your own cheap context, in the foreground
+  (`timeout: 600000`), never from a drone.
+- Its verdict is the exit code or a `LANDED` / `✗` line. A filter on its
+  output must match both: `grep -E 'LANDED|✗|ERROR'` — never success alone.
+- A non-zero is handed back to the drone once with the failing line; twice
+  is a stop (section 9, option 5).
+- `checkout -- .` a worktree that cold-imported before rebasing; re-read
+  `master` before concluding a merge misbehaved — it moves under you.
+- Every landing's `cost:` rows are at `scratchpad/land/land-<n>.log`; the
+  ledger's cost cells are a `cat`/`grep` away, not a re-derivation.
+
+## 11. Gate the train once
+
+After every branch of the batch is fast-forwarded:
+
+- **Runtime-observable batch** (`.gd` / `.tscn` changed): `mise run test`
+  once, in the background, then end the turn. Red train → bisect by `mise
+  run test:dir` on the merge points.
+- **Scripts-only batch**: `mise run check`.
+- **Docs only**: nothing.
+- **After a new `class_name` landed, compare script counts** between this
+  suite run and the last green one — a missing or unstaged `.uid` is a test
+  that silently never ran. No hand `refresh`: `mise run test*` refreshes
+  the cache itself on `class_name` drift.
+
+## 12. Sweep, then push
+
+Before the gate closes, sweep every `poison:` line and `NOTES:` follow-up
+from the reports. **The board is the last resort, not the first:**
+
+1. **One-liners** — apply yourself in the main checkout as one docs
+   commit.
+2. **Bounded and mechanical** — a doc row, a rename, a prune, a missing
+   twin test, a stale comment, a `.tres` that should exist: no design
+   question, a drone-unit or less — goes to **one sweep drone appended to
+   the train**, on the same branch discipline as any unit.
+3. **A genuine fork, an owner call, or work past a drone-unit** earns an
+   issue, filed through the `spec` skill; it stays in `Intake` for the
+   owner, a fork written as a menu. Never a "follow-ups from swarm"
+   grab-bag: each line in one is a unit you declined to dispatch.
+
+Then:
+
+```
+git -C <repo> push origin master
+mise gh-project -- hygiene --fix
+```
+
+`Closes` fires on push; `hygiene --fix` derives every hub. A blocked unit
+goes back to `ready` with a comment — never `in-progress` with nobody on
+it.
+
+## 13. Tear down
+
+Only a drone that has reported and will not be resumed:
+
+```
+mise run worktree:rm -- <slug>
+git -C <repo> branch -d <slug>
+```
+
+Never `-D` until you know why `-d` refused.
+
+## Stop and relief
+
+- **A stop from the owner outranks everything, including spawning.** Go
+  quiet: no dispatch, no merge, no test, no review. If a relief session has
+  named itself, you owe it exactly one wake per in-flight drone: on each
+  report, `mise run ledger -- report <n> --branch <slug>` and `SendMessage`
+  relief one line. Never redirect a drone to relief's address — its report
+  reaches you regardless, and your wake is the relay.
+- **Relief at 50k below the ceiling** (section 3): say so to the owner in
+  one line, dispatch nothing more, land what arrives, and leave the ledger
+  current — `/relief` adopts it.
+
+## Close the run
+
+1. `mise run agent-cost` — fill the ledger's `adv` / ctx / calls / priced
+   cells from it (`--main` prices your own session).
+2. `mise run ledger -- close` — archives the ledger.
+3. **End with the session report** (`docs/domain/session-report.md`): one
+   row per unit under `Landed`; the sweep of section 12 rendered as
+   `Follow-ups` with a disposition each — *fixed now* or *a drone did it*
+   before *filed*; `Not done` never silent; `Needs the owner` for open
+   calls.
+
+Learned something the skill does not say? `mise run feedback -- post swarm
+<kind> <file>`.
 
 ## Train mode
 
-Active only when your launch prompt says *train mode, train `<t>`* — you
-are a `swarm-lead` subagent and your parent is the train's top session, not
-a person. You share the top's session id, so the ledger tool's session
-lookup is blind here and never consulted: your prompt names your swarm
-ledger, `docs/handoffs/swarm-<date>-<lead-name>.md`, and **every** `ledger`
-and `land` call carries it —
+When the launch prompt says *train mode, train `<t>`*, you are a
+`swarm-lead` subagent whose parent is the train's **top session**, not a
+person. Every section above holds; these lines replace their counterparts.
 
-```bash
-SWARM_LEDGER=docs/handoffs/swarm-<date>-<lead-name>.md mise run ledger -- dispatch <n> <drone> <tier>
-SWARM_LEDGER=docs/handoffs/swarm-<date>-<lead-name>.md mise run land -- <branch> --closes <n>
+**Ledger**
+
+- Your prompt names your swarm ledger,
+  `docs/handoffs/swarm-<date>-<lead-name>.md`. Every tree lead shares the
+  top's session id, so the ledger tool's session lookup is never consulted:
+  export it on **every** `ledger` and `land` call —
+  `SWARM_LEDGER=<path> mise run ledger -- …`,
+  `SWARM_LEDGER=<path> mise run land -- …`. A bare call lands in whichever
+  lead's file is newest.
+- Nothing is `adopt`ed. A relief prompt names the dead outgoing's file to
+  read and your own to write; the whip ledger path in the prompt is read,
+  never adopted.
+- A row before dispatch is the claim: a unit with a row in any other live
+  ledger — a draining lead's included — is never dispatched.
+- `SWARM_LEDGER=<path> mise run ledger -- close` at train end.
+
+**Roles**
+
+- No Sage: drones' advisor is the `advisor` tool, and every brief says so.
+- No whip verbs, no relay: the top carries the transport. You report by
+  **returning** the session report as your final text.
+
+**Dispatch — background drones**
+
+- Still one wave per message, every `Agent` call now
+  `run_in_background: true`. Dispatch is the one background thing in the
+  tree.
+- Make the inbox before the wave: `mkdir -p <inbox>/done`, where `<inbox>`
+  is `docs/handoffs/swarm-<date>-<lead-name>.inbox/` (absolute path).
+- Every brief's suite policy is the foreground one (`never the full suite`,
+  or `in the foreground, timeout 600000` where allowed) — a backgrounded
+  command ends a subagent's turn early and its report never comes.
+- Every brief ends with the three-act final act, in order, replacing the
+  `Report:` line:
+
+```
+Final act, in this order: (1) write your six-line report to
+<inbox>/<unit>.md (absolute path given), (2) SendMessage("<lead-name>",
+<the same report>), (3) the same report as your final text.
 ```
 
-A bare call lands in whichever lead's file is newest: a bug, never a
-shortcut. Your first `dispatch` creates the file. A relief's prompt names
-the outgoing's file (and its predecessors') to read and your own to write:
-orient from theirs, dispatch into yours; never `adopt`. A **dead**
-outgoing's rows are history, not claims. A **draining** outgoing is still
-running and still writing its file: its rows are claims — dispatch only
-units with no row there and not blocked by one of its unlanded units, up
-to the cap minus its rows in state `dispatched` (no `reported@`, no
-`landed`), re-read before each of your dispatches. Never message it, never
-land its units; it lands and closes its own. Its blocked units free up
-when the top's `<name> drained` message arrives — re-read its ledger then.
-With nothing in flight and only blocked units left, end your turn on the
-one line `blocked on <name>`, never a session report; that message wakes
-you. Likewise, if the harness ends your turn with drones still in flight,
-your final text is the ONE line `interim: <n>/<m> landed, <k> in flight`,
-never a report — the report is for the train's end. The
-whip ledger path in your prompt is read, never adopted. A row written
-before dispatch is the claim: a unit with a row in another live
-`swarm-*.md` is never yours to dispatch. No Sage in this mode: every brief
-names the `advisor` tool.
+**Collect — the foreground inbox nap**
 
-- **Drones are background, and each wakes you.** One message per wave
-  still holds — every `Agent` call in one message — but each with
-  `run_in_background: true`, and every brief ends with the final-act line:
-  *last of all, `SendMessage(<lead-name>, <your six-line report>)`, then
-  the same report as your final text*. Your prompt names `<lead-name>`;
-  fill it in every brief. Act on each report as it wakes you. A drone's
-  ordinary completion report is a second wake for the same unit: if the
-  row is already handled, nothing — end the turn.
-- **No whip verbs** — the top carries the transport.
-- **Report by return**: your final text is the session report (§ 7). It is
-  the only thing that reaches the top; end on it.
-- **Relief**: where this skill says "request relief", the moment the
-  context notice lands: dispatch nothing more, `SendMessage` the top
-  (`main`) one line — `relief now; I keep <unit list>` — and go on landing
-  each report as it arrives. The top spawns your relief beside you; it
-  reads your ledger and dispatches around your units. When nothing of
-  yours is in flight: `ledger close`, then your session report as final
-  text. If your train has nothing left to dispatch, no message — finish.
-- **Owner stop** arrives as a message from the top: dispatch nothing new,
-  land each report as it arrives, then report.
-- **No command is backgrounded — yours or a drone's; dispatch is the one
-  background thing.** Your turn end is your report. Run the train's gate
-  (§ 5) and every `land` in the foreground with `timeout: 600000`; every
-  brief's suite policy is "run every check — baseline, `check`, suite — in
-  the foreground, never background a command and end your turn". This
-  overrides § 3's suite clauses, § 5's "backgrounded" and the
-  long-running-command rule.
-- **A wake whose body is not a six-line report** (a drone ended its turn
-  early): one `SendMessage` to that drone — `continue, then report`. Never
-  poll its transcript, `sleep`-loop on a ref, or wait on a `pgrep`. A drone
-  that ends without its final act is silent to you; the top's stall tick
-  is the net, not a poll of yours.
-- **Your relief threshold is your context, never the train's size** — the
-  ceiling under *Your own budget*, relief 50k below it; the notice itself
-  is the moment, not the next report.
-- **Train end**: `SWARM_LEDGER=<your path> mise run ledger -- close` after
-  the push, then report.
-- Everything else in this file is unchanged.
+- A background child's ordinary report never reaches you by itself; its
+  `SendMessage` does. So with any row in flight you never end your turn:
+  nap in the foreground on the inbox,
 
-## The cycle
-
-### 1. Read the issues once, delegate the rest
-
-`/swarm` always starts its own run: the verb decides relief, never the
-disk. A ledger is keyed by its lead sessions, so `mise run ledger -- show`
-prints yours or says you have none — another lead's live ledger in its list
-is not yours to orient from or touch, and your first `ledger -- dispatch`
-creates your own. Relief is only `/relief` (`.claude/skills/relief/SKILL.md`),
-which joins a ledger with `ledger -- adopt`.
-
-```bash
-gh issue view <n>            # once per issue
-gh issue view <n> --comments # once; empty output on a 0-comment issue is normal
+```
+until [ -n "$(find <inbox> -maxdepth 1 -name '*.md' -print -quit)" ]; do sleep 20; done
 ```
 
-Never re-read; never page through other issues for context. Every
-verification — is the seam present on `master`, has any of this landed,
-where is X called from, what tests exist — goes to `Explore` agents with
-`model: "haiku"`, one per question, all in one message, returning
-conclusions only.
+  with `timeout: 600000`. This is the one sanctioned sleep loop.
+- On **every** return — a file or the ten-minute cap — read the inbox:
+  handle each report (section 9, then land in the foreground), then move
+  the file to `<inbox>/done/`. A second wake for a unit already handled is
+  nothing: nap again.
+- On a cap return with no file, check your drones by `ListAgents`. A drone
+  shown `completed` or `killed` with no report file ended without its final
+  act and is silent: treat it as a failed unit yourself — check its worktree
+  (section 9, the killed-drone check), `mise run ledger -- note <n>
+  'ended without report'`, then re-dispatch or retire the unit per section
+  9. The top's stall tick is only the second net.
+- A wake whose body is not the six-line report gets one `SendMessage` to
+  continue — never a transcript poll, never a `pgrep` wait.
+- Gate suite and `land` run in the foreground (`timeout: 600000`), never
+  backgrounded.
+- End the turn only when no row is in flight. A lead that slipped out of
+  its nap with rows in flight ends on the one line
+  `interim: <n>/<m> landed, <k> in flight` — nothing else.
 
-For a bulk swarm, have one such agent tabulate per issue: the literal
-acceptance bullets, sibling linkage, and anything that smells like a quiet
-descope. That table is your approval pass; a descoped spec is pushed back to
-the owner, never inherited into a brief.
+**Stop and relief**
 
-### 2. Build the DAG, then units
+- The owner's stop arrives as a message from the top; it drains when your
+  nap returns, ten minutes at most. Then section *Stop and relief* as
+  written.
+- **The relief threshold is your own context** — the ceiling of section 3,
+  relief 50k below it — never the train's size. What train mode changes is
+  the moment: the notice itself, not the next boundary. On the notice,
+  `SendMessage` the top one line — `relief now; I keep <unit list>` — then
+  dispatch nothing more, land each report as it arrives, close the ledger
+  and return your report. Never spawn the relief yourself; the top launches
+  it.
+- As a relief lead: dispatch beside the draining lead up to the cap minus
+  its `dispatched` rows; when only units blocked on it remain, end your turn
+  on `blocked on <outgoing>` until the top's `drained` line wakes you.
 
-1. Cluster issues by subsystem → that is your drone list.
-2. Check file-disjointness *between* clusters; sequence overlapping clusters
-   into waves. Wave 2 dispatches from the `master` tip after wave 1 lands.
-3. **Tier every unit**: `opus` default for anything medium or larger — a
-   new scene, system or surface, a reshaping across modules, any fork the
-   comments leave open, or simply >150 lines of expected diff; `sonnet` only
-   for small or dumb units — ≤150 lines with a named test that already
-   exists, or mechanical churn where rigor buys nothing; `haiku` only for
-   pure mechanical churn with nothing to decide. Priced per landed line, opus
-   is the cheaper tier on medium units, so the default is not the
-   cheap-looking model. A Sonnet that spent its stuck call, reported `PULL`
-   on a non-fork, or passed three Sage exchanges is logged as mis-tiered,
-   and the next brief is tiered from that.
-4. **Shared contracts land on master first.** A seam every unit overrides,
-   a registry every unit appends to, a `.tres` every unit touches: commit
-   it in the main checkout, test it, then spawn — drones branch from the tip.
-5. **Pre-flight envelopes against real content** when units fill a layout
-   you own; delegate the measurement.
+**Close**
 
-If the work will not come apart, that is a real answer: `warp`.
-
-### 3. Dispatch — one Bash call, then one message
-
-**Before every dispatch, in a single Bash call:**
-
-```bash
-mise run ledger -- dispatch <n> <drone-name> <tier>     # writes the roster row, prints the ledger back
-mise gh-project -- status <n> in-progress               # claim on the persistent board
-mise run issue-drift -- <n>                             # silent = the Ready comment still holds
-```
-
-- **The ledger** (`docs/handoffs/swarm-<date>-<HHMM>.md`, gitignored — never
-  commit it; `mise run ledger -- show` finds yours by your session id) is what relief reads. **Its roster is written by commands**:
-  `ledger -- dispatch` here (it creates your ledger on your first dispatch,
-  its header's `Lead sessions:` line naming you, and prints the whole ledger,
-  so you never `cat` it), `ledger -- report` at collect
-  (step 4), and `mise run land --closes <n>` writes the `landed <sha>` row
-  itself. A row is unit / drone / tier / state (`dispatched@HH:MM` →
-  `reported@` | `pulled@` → `landed <sha>`; a re-dispatch says
-  `redispatched@`) / PLAN / STUCK / PULL (the advisor's three moments) /
-  adv / ctx / calls / priced (from `agent-cost`) / notes (`--note '…'` on
-  any write, or `ledger -- note <n> '…'` alone, state untouched). Below the roster, the queue order, carried items and open
-  owner calls are your prose: ≤ ~1.5k tokens total. `ledger -- close` at
-  teardown archives it; anything that must outlive the run goes to the issue.
-- **`issue-drift`** prints nothing when the issue's stamped reading list and
-  seam map still hold on `master`; prints the drifted entries otherwise —
-  then one `Explore(model: "haiku")` re-verifies *those entries* before you
-  write the brief; prints `no stamp` on an issue promoted before stamps
-  existed — dispatch as before. It never fails the chain.
-- Flip an issue back to `ready` if you end up dispatching nothing for it.
-
-**Then spawn every drone of the wave in one message.** Per `Agent` call:
-
-- `subagent_type: "drone"` — never `Explore`/`Plan` (no `Edit`), never
-  `general-purpose` (no drone contract).
-- `model:` **mandatory, equal to the ledger's tier.** Read it back against
-  the roster row before sending; an omitted `model` silently runs sonnet.
-- `name:` — the drone's address for a nudge or a resume.
-- **No `isolation`** — the drone makes its own worktree with
-  `mise run worktree:new` and reports its `BRANCH:` slug, your merge handle.
-- **The full brief in `prompt`.** If a drone idles without starting, one
-  `SendMessage` with the same brief; if idles recur, write the brief to a
-  file and spawn with a one-line pointer instead. Log every idle in the
-  ledger: `mise run ledger -- note <n> 'idle'` (notes only, state untouched).
-- **A split shares one brief file.** Splitting one issue across drones:
-  write `docs/handoffs/swarm-brief-<n>.md` (gitignored) — first line "the
-  issue is still your spec" (or "this brief replaces the issue"), then the
-  common part once, then one short `## <drone-name>` section per drone.
-  Each `prompt` is the path plus its section name. The common part is the
-  bare brief below; a section holds only what differs (fence, seam sha).
-
-**The bare brief** — ~15 lines, only what the issue cannot know:
-
-- **Issue number(s)**, plus the hub if there is one.
-- **Owned paths** — the exact fence, *including* scenes, boards and sandbox
-  panels that reference the changed system (the seam map on the issue lists
-  them).
-- **Seams this run** — "`#m` (drone `foo`) owns `ui/hud/`; the seam is
-  `HudRoot.compose()`, on master at `<sha>`." For a collision pair, the
-  second brief names the first's landed sha.
-- **Tier**, and that it decides the drone's model.
-- **"Your advisor is the `advisor` tool: at the plan, once when stuck, and
-  at done."** (Drop "at done" when Sage runs.) (Or "Sage is your advisor;
-  your last turn is the review request to Sage plus your report as text —
-  never wait for its verdict.")
-- **A turn/time budget as a HARD stop, budgeting the first report**: "80
-  calls / 40 minutes to your first report — do not take call 81. Each
-  review round after it gets +15 calls; two rounds, then hand back." One
-  number for the whole unit is a fiction once a reviewer asks for changes.
-- **"COMMIT EARLY AND OFTEN, even partial, even ugly"** — its own line.
-- **Suite policy**: either "never the full suite" or, if the unit earns one,
-  all three clauses verbatim — *launch it once with `run_in_background:
-  true`; then do nothing — no sleep, no tail, no re-reading the output
-  file; then END YOUR TURN.*
-
-Acceptance restated, "what done means", file maps, `git show` tours, or
-anything from the digest above — none of it. If the issue cannot carry it,
-the issue is not `Ready`: bounce it, don't patch it in a brief.
-
-### 4. Collect — act on each report as it lands
-
-Read the six-line report, not the diff. A wall of text is a drone-contract
-violation; do not propagate it. **The exact cost is available at report
-time, not just at land**: put `mise run agent-cost -- --branch <slug>` in
-the same Bash call as the fence `--stat` below — the transcript exists while
-the drone is alive — and decide resume / retire / fresh drone on that row.
-The report's `COST:` line is the drone's own tally, a cross-check for when
-the transcript match fails; `land` prints the row again as the audited
-figure for the ledger's `priced` — and persists it, `cost:` rows included,
-at `scratchpad/land/land-<n>.log` in the main checkout (#920), so a later
-ledger pass never has to re-grep a console that's already scrolled away.
-
-Per report, in order:
-
-```bash
-git diff master...<branch> --stat        # 1. fence — every tier (+ agent-cost --branch, same call)
-mise run ledger -- report <n> --branch <slug> [--plan] [--stuck] [--pull] [--note '…']   # the row, from the report's COST:/NOTES:
-git diff master...<branch>               # 2. content — shared seam / player-visible only
-```
-
-`--plan` / `--stuck` are read off the report's `COST:` exchanges and
-`NOTES:` (a drone that called its advisor at the plan; one that spent its
-stuck call); `--pull` on a `PULL` report. The row's ctx / calls / adv /
-priced come from the transcript.
-
-1. **Fence.** Strayed outside its paths? Understand why before reading
-   content: the drone guessed (resume-and-redirect) or your fence was wrong
-   (fix the fence, land).
-2. **Content.** As the spec asked, no quiet cop-out — a feature descoped, a
-   TODO where code was asked, an escape the issue rejected.
-3. **Tests.** A drone's green is a claim. "Pre-existing failure" is a claim:
-   check it against a real `master` run before landing over it. A narrow
-   `test:dir` says nothing about fallout outside the directory — expect
-   stale characterization tests when a default or constant changed.
-
-Then branch, most frequent first:
-
-- **Land it now** — `mise run land -- <branch> [--closes <n>]`.
-- **One-line gap** — fix it in your own context, then land. Cheaper than a
-  resume-and-re-review.
-- **Recoverable** — `SendMessage` the drone by name with a sharp diagnosis
-  and the new target; its context is still hot.
-- **Pulled** — a `PULL` report or a real fork you found yourself: the
-  `PULL` handling under Roles, then serve the rest of the swarm.
-- **Stuck** — the same blocker twice after a resume, no fork: move the issue
-  to `in-review` with a one-line comment naming the blocker. A blocker reported on a *first* report is the
-  drone doing the right thing; the blocker is the signal.
-
-**A drone that died** (spend limit, kill): check its worktree before writing
-the unit off — `git -C .worktrees/<slug> log master..HEAD` and `status
---porcelain`; commit what is there by explicit path as `wip(...)` stating
-what was never run; the two-minute discriminator from the gate decides
-done vs rewrite. Never leave loose worktree state or an `in-progress` issue
-nobody is on.
-
-Never acknowledge a finished drone — a "thanks" wakes it and invites a reply.
-Never infer from an idle that a drone's *background command* finished; it
-idles correctly while a suite runs.
-
-### 5. Land, one branch at a time — test once per train
-
-`mise run land -- <branch> [--closes <n>]` is the only way onto `master`:
-serial by `flock`, rebases inside the drone's worktree, runs `check` +
-`test:dir` for the dirs the branch touches, fast-forwards, moves the issue to
-`in-review`, derives the hub. Non-zero → hand the printed reason to the
-drone once; a second failure is a stop. `--closes` only on the *final*
-branch of a multi-unit issue; on every branch of independent issues.
-Filter its output with `grep -E 'LANDED|✗|ERROR'` — a red land prints `✗`
-and `ERROR`, and a success-only filter shows it as silence.
-
-**Before the gate, sweep `poison:` lines and NOTES follow-ups** out of the
-reports (`ledger -- note <n> 'poison: …'` keeps them findable): apply the
-one-liners yourself in the main checkout as one docs commit; anything
-bounded and mechanical (a doc row, a rename, a prune, a missing twin test,
-a stale comment — no design question, a drone-unit or less) is **one sweep
-drone appended to the train**, never an issue. Only a genuine fork, an owner
-call, or work past a drone-unit → an issue, filed through the `spec` skill
-(it stays in `Intake` for the owner; a fork is a written menu). Never a "follow-ups
-from swarm <date>" grab-bag issue.
-
-**The authoritative suite runs once per train**, after every branch of the
-batch is fast-forwarded — and only when the batch is runtime-observable:
-`mise run test` if `.gd`/`.tscn` changed, `mise run check` for scripts-only,
-nothing for a docs-only train. Red train → bisect with `test:dir` on the
-merge points. Launch the suite backgrounded and end your turn.
-
-**After a new `class_name` lands, compare script counts** before and after
-the train's suite run: a `.uid` that was never generated, or generated but
-never staged, is a test that silently never ran, and no cache predicate sees
-it. The cache itself needs no hand `refresh` — `mise run test*` refreshes it
-when the `class_name` set drifts.
-
-`Closes` fires on push. `git status -sb` before claiming anything is done;
-`master` may carry others' commits a push would ship — surface that. After
-the push: `mise gh-project -- hygiene --fix` once.
-
-### 6. Teardown
-
-Only for a drone that has reported and will not be resumed — it may still be
-running its final check in that worktree.
-
-```bash
-mise run worktree:ls
-mise run worktree:rm -- <slug>
-git branch -d <slug>          # -d: refuses if unmerged, which means you dropped work
-```
-
-A stray worktree (`.claude/worktrees/` too) whose branch is merged, or that
-holds nothing worth mining, is deleted on sight — never an owner question.
-
-`mise run ledger -- close` — it moves your ledger to `docs/handoffs/archive/`;
-whip never closes it for you.
-
-### 7. Report
-
-Your closing message is the session report — `docs/domain/session-report.md`:
-headline, `Landed` table (one row per unit), `Not done`, `Follow-ups` with a
-disposition each (the sweep of `NOTES:` lines: fixed now or by a drone before
-filed), `Needs the owner`, `Touched`, `Cost`. Every section, even when
-`none`; never a diff.
-
-## Standing gotchas
-
-- **Always `git -C <path>`**, never a bare `git` after a `cd` — a
-  `--ff-only` aimed at master will merge a branch into itself and report
-  "already up to date".
-- **Explicit-path `git add`**, never `-A`/`-a`; never `git stash`.
-- A fresh worktree cold-imports and dirties `.import` files: `git -C
-  <worktree> checkout -- .` before a rebase complains.
-- **`master` moves under you** — another session may land while you run;
-  re-read it before concluding a merge misbehaved.
-- Untracked files in the main checkout are invisible to worktrees; compare
-  tracked-only test counts, `git ls-files --error-unmatch <path>` before
-  suspecting a drone.
-- The same long-running-command rule binds you: launch the gate once,
-  backgrounded, end the turn.
+- `SWARM_LEDGER=<path> mise run ledger -- close`, then the session report
+  as your final text — the return is the report. No `interim:` line on a
+  clean end.

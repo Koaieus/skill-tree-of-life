@@ -61,7 +61,16 @@ top session  (/swarm-train: trains, ledger, tick, relief, report)
   once, and the 150k notice is acted on the moment it lands instead of at
   the next wave boundary (law 15). The price is a duplicate wake per drone
   (the drone's ordinary report, to the lead or the top) that both treat as
-  nothing (laws 4, 16).
+  nothing (laws 4, 16). Between reports the lead holds its turn in a
+  bounded foreground nap on its inbox directory (law 23), so the top is
+  not woken between drone reports; law 22's hand-back line is the
+  exception, never the rhythm.
+- **A top turn is priced at the top's model.** The top runs verbs and
+  reads first lines, yet every turn it takes — a tick, a hand-back, a stray
+  wake — re-reads its whole cached context at its model's rate. Run #1620
+  (2026-10-14) ran its top on Fable by accident, ≈2.5× Opus per token
+  (owner, 2026-10-15): six hand-backs in 29 min, each a turn on a ~50k
+  cached context. Hence law 24.
 - **One accepting lead at a time.** Relief overlaps: the outgoing lead
   `draining` lands what it has and starts nothing; the incoming lead
   dispatches beside it, up to the cap minus the outgoing's drones in
@@ -99,7 +108,8 @@ top session  (/swarm-train: trains, ledger, tick, relief, report)
    the top's turn free for the tick. A foreground lead would hold the top's
    turn for the whole train: no tick, no stop, no wake until it returned.
 4. **A lead dispatches drones in the background; each drone's final act
-   is `SendMessage(<lead-name>, <its six-line report>)`.** A background
+   is `SendMessage(<lead-name>, <its six-line report>)`** — since law 23
+   the last of three acts, after the inbox file. A background
    subagent never receives its own background children's reports by
    itself (probed 2026-10-09: one dropped, one bubbled to the top), but a
    depth-2 background drone's `SendMessage` resumes its depth-1 background
@@ -107,10 +117,12 @@ top session  (/swarm-train: trains, ledger, tick, relief, report)
    stays responsive between reports. The drone's ordinary completion
    report still arrives somewhere — at the lead if it is live at that
    moment, else at the top (hypothesis, n=1 each): **a second wake for a
-   unit already handled is nothing, end the turn** — the lead's rule and
-   the top's (law 16). A drone that ends without its final act is silent
-   to its lead; the top's stall tick (law 9) is the net, never a lead-side
-   poll. Several `Agent` calls in one message still start together
+   unit already handled is nothing** — the lead naps again while any row
+   is in flight (law 23) and ends its turn only when none is; the top ends
+   its turn on it (law 16). A drone that ends without its final act is silent
+   to its lead; the lead's nap cap (law 23) is the first net and the
+   top's stall tick (law 9) the second — never a poll of a drone's
+   transcript. Several `Agent` calls in one message still start together
    (1.5–2 s apart); drones keep their Explore leaves; nesting holds three
    deep. Foreground waves (the first nights' shape) are replaced by this
    contract.
@@ -197,6 +209,9 @@ top session  (/swarm-train: trains, ledger, tick, relief, report)
     **write**: it orients from the outgoing's file as `relief` already does
     and re-dispatches the dead lead's partials with rows in its own file —
     a dead lead's ledger is not live (law 21), so nothing there is a claim.
+    It also reads the dead lead's inbox directory (law 23): a report file
+    there for a unit the ledger shows unlanded is a finished drone whose
+    lead died first — the relief lands that branch, never redoes it.
     A second relief reads its predecessor's file plus the ones that one
     read: the chain of dead ledgers is the train's lead history in the whip
     JSON, each by name. One file per lead, only that lead writes it. The
@@ -329,7 +344,87 @@ fork C's first half; the overlap between leads stays open there*)
     context for nothing (twice in 10 min, 2026-10-13), and the §3 catch-all
     would have run `done` on it. The lead says `interim: <n>/<m> landed, <k>
     in flight` and the top does nothing — the same shape as `blocked on
-    <outgoing>` (law 10), a line that is not a report.
+    <outgoing>` (law 10), a line that is not a report. Since law 23 this is
+   the fallback, not the rhythm: a lead that ends its turn with units in
+   flight has slipped out of its nap, and the line is still the right text.
+
+23. **A lead with a unit in flight never ends its turn: it naps.** A
+    background lead's turn end is a hand-back, and the top is woken once
+    per end for a line it does nothing with (run #1620, 2026-10-14: lead-a
+    ended its turn six times in 29 min; owner, 2026-10-15 00:18: *"the real
+    damage is not 1 sentence vs 1 smaller sentence, it's you taking turns …
+    each turn paying Fable price … 2.5x an opus' token for token"*). So
+    between drone reports the lead holds its turn in a **foreground,
+    bounded nap** on its inbox directory,
+    `docs/handoffs/swarm-<date>-<lead-name>.inbox/` (the lead creates it
+    before its first dispatch and names it, absolute, in every brief):
+
+    ```
+    until [ -n "$(find <inbox> -maxdepth 1 -name '*.md' -print -quit)" ]; do sleep 20; done
+    ```
+
+    run in the foreground with `timeout: 600000`. The drone's final act
+    grows to three, in this order: write the six-line report to
+    `<inbox>/<unit>.md`, `SendMessage(<lead-name>, <the same report>)`,
+    the same report as final text. The nap returns on a file or on the
+    cap; either way the lead reads the inbox, acts on each file (moves a
+    handled one to `<inbox>/done/`, so the next nap waits on new ones
+    only), and naps again while any row is in flight. A cap return with no
+    new file is the cue to `ListAgents` its drones: one `completed` or
+    `killed` without a file is law 4's silent drone, reclassified by the
+    lead now, not by the top's tick. **Why a nap cannot wedge the tree** —
+    the owner's worry, 2026-10-15 00:26: *"cheap waits getting stuck (often
+    happened that file watching doesn't work properly, or one small mistake
+    could lock the lead forever, with agents in foreground so it's
+    unreachable?"*: the harness caps a foreground command at ten minutes
+    and returns regardless, so a wrong path, a wrong flag or a drone that
+    never writes costs at most one cap, and the lead's next tool round
+    drains every message queued meanwhile; the check is a stat poll, never
+    inotify and never `pgrep`; ten minutes is under law 9's stall threshold,
+    so a nap never reads as a stall; and `TaskStop` reaches a subagent
+    inside a command (law 7, probed at 500 s), so the top's net holds. The
+    nap is not a backgrounded command (law 16): it is the foreground wait,
+    and drone dispatch stays the one background thing. The message stays
+    because it is the proven wake (law 4); the file is the durable copy,
+    which is why a message that fails to arrive loses nothing. That a
+    message queued during a nap drains when the nap returns is the
+    harness's stated contract ("messages drain at the receiver's next tool
+    round") and *designed*, n=0: the first night reads it off, no probe is
+    run for it. Cost: the nap's wall time is free; each return is one tool
+    round on the lead's own context, six an hour at worst.
+24. **The top's model is Opus, read before `start`.** Every top turn is
+    priced at the top's model (cost model), and run #1620's top was Fable
+    by accident — the owner meant Opus. Law 8's `get_session` preflight
+    also reads `session_context.model` (the configured model, not
+    `last_served_model`): an id starting `claude-opus` or `claude-sonnet`
+    proceeds; anything else is said to the owner in one line before
+    `start`, which waits for their word exactly as the mode check does.
+    Without the `claude-code-remote` tools (the `/loop` fallback of law 8)
+    the top reads the configured-model line of its own system prompt, or
+    says it cannot tell.
+
+## Frontmatter
+
+- The skill, `name: swarm-train`; `description`: *Run the `Ready` queue
+  unattended as a tree of subagents — `/swarm-train` from a session that
+  stays up all night (a terminal, Remote Control, the web app) snapshots the
+  board, puts `Ready` in one train (or `--size <n>` of them), and spawns one
+  background `swarm-lead` per train, one at a time; the session itself is
+  the top: it ticks on a scheduled wake, relieves a stalled or cut-off lead
+  with a fresh one, records every outcome in the whip ledger, and the last
+  `done` renders the morning report. Nothing runs outside the session. Use
+  when the user says "swarm-train", "run the Ready queue overnight as a
+  tree", "train the swarms"; a live `whip-<date>.md` ledger on disk makes
+  the session its console, never a second start.*
+- The agent, `name: swarm-lead`; `model: opus` (law 12); `tools: Bash,
+  Read, Edit, Write, Grep, Glob, Agent, SendMessage, ListAgents, advisor`
+  (`ListAgents` for law 23's cap-return check);
+  `description`: *A swarm lead inside a swarm-train tree — spawned by the
+  train's top session with `train mode, train <t>: #… — ledger <whip path>
+  — swarm ledger <path>` (or a relief prompt for that train). Reads the
+  swarm skill (and relief's when relieving), applies its train-mode
+  section, and returns the session report as its final text. Not for a
+  standalone swarm (use /swarm).*
 
 ## Knobs
 
@@ -385,6 +480,7 @@ window kills every agent at once) is why the drone cap stays 2–5.
 | 2026-10-11 | run #1565 | 10 Ready → 2/2/2/4 trains at `--size 4`; owner folded them by hand via drop/add, leaving 4 empty trains `next-train` still handed out | knobs, C |
 | 2026-10-11 | run #1565 | finished 19:20 after 2 h of a 15 h cap; bypass-mode top, allow rule present, 4 deletes refused; the tick and three boundary wakes armed at start fired into the finished run (2 by 22:18; the last two deleted 2026-10-12 01:40 from an auto-mode session) | 8, 18 |
 | 2026-10-13 | run #1589 | bypass-mode top, run DONE: 00:15Z boundary delete + disable refused "requires approval"; the top blamed the allow rule (already present since 2026-10-11) and committed a duplicate; switched to auto by the owner, it deleted a probe wake first call. The Android client attaching to the same RC host had flipped another session bypass→auto (`permission_mode_seq` 2), which is why deletes "worked from the phone"; both filed via `/bug` 224a4a89-41c0-401a-98a1-bd14462b0f3b — drop the auto preflight once bypass deletes go through | 8 |
+| 2026-10-14 | run #1620 | lead-a ended its turn six times in 29 min with drones in flight; each hand-back woke the top — on Fable by accident, meant Opus — for a turn on ~50k cached context | 22, 23, 24 |
 | 2026-10-10 | run #1540 | drone-blob ended its turn on a backgrounded baseline → lead-a polled its transcript (owner killed it at 4 min); lead-b reported with a suite wait still running → a duplicate report 29 min later; lead-c2 ran the gate foreground and was clean | 16 |
 
 ## Fold digest — board `swarm-train — skill feedback board`
@@ -399,3 +495,4 @@ window kills every agent at once) is why the drone cap stays 2–5.
 - 2026-10-11 · `friction` 2/2/2/4 trains, empty trains handed out → knobs (`--size all`, `next-train` skips empty)
 - 2026-10-11 · `law-candidate` ×3 one DAG, window-budget cap, strangler-fig relief, run directory → fork C; one DAG and per-lead files settled 2026-10-12 (#1576) → laws 19–21, law 10 amended; the overlap settled 2026-10-12 (#1577, spike: a depth-2 background drone's `SendMessage` resumes its depth-1 lead) → laws 4, 9, 10, 15, 16, the cost model; fork C closed
 - 2026-10-13 · `autopsy` #1589 bypass top can't disarm, A/B'd to auto → law 8 (auto-mode preflight via `get_session`)
+- 2026-10-15 · `friction` each hand-back is a top turn at Fable price → law 23 (bounded foreground nap on an inbox file; the hand-back line of law 22 is the fallback), law 24 (top model preflight)
