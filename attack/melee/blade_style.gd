@@ -103,7 +103,27 @@ extends Resource
 	set(value):
 		pop_window = maxf(value, 0.0001)
 		emit_changed()
-@export_range(0.05, 2.0, 0.01) var spend_window: float = 0.25
+## Width of the concentric band inside the rim a charged piece strings its
+## beads on, as a fraction of the piece's radius; a bead's diameter is the band.
+@export_range(0.02, 0.5, 0.01) var charge_band_width: float = 0.12:
+	set(value):
+		charge_band_width = value
+		emit_changed()
+## Seconds a spent bead takes to flare out and fade after a contact spends it.
+@export_range(0.05, 2.0, 0.01) var spend_window: float = 0.25:
+	set(value):
+		spend_window = maxf(value, 0.0001)
+		emit_changed()
+## Emissive tier a charge bead is lit at.
+@export var charge_tier: Emissive.Tier = Emissive.Tier.VALUE:
+	set(value):
+		charge_tier = value
+		emit_changed()
+## The [Identity] whose tint a charge bead wears, looked up in [IdentityRoster].
+@export var charge_identity: StringName = &"explosive":
+	set(value):
+		charge_identity = value
+		emit_changed()
 ## Shards a popped vertex's disc splits into. Capped at
 ## [constant ShatterField.MAX_CELLS] (32) — the half-float packing budget.
 @export_range(1, 32, 1) var pop_shard_count: int = 8:
@@ -130,6 +150,13 @@ func base_for(is_pivot: bool, entity_color: Color) -> Color:
 	var tinted := base.lerp(entity_color, tint)
 	tinted.a = base.a
 	return tinted
+
+
+## A charge bead's colour: [member charge_identity]'s hue at [member charge_tier].
+func charge_color() -> Color:
+	var identity := IdentityRoster.shared().by_id(charge_identity)
+	var base := identity.tint if identity != null else Color.WHITE
+	return Emissive.tint(base, Emissive.stops(charge_tier))
 
 
 func fill_color(is_pivot: bool, entity_color: Color, disabled: bool) -> Color:

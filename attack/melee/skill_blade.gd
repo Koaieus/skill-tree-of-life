@@ -96,6 +96,10 @@ var _last_frame_t: float = -INF
 ## The SkillNodes [method build_from_skill_nodes] was last built from, in
 ## [BladeState] particle order. Only the wind-up reads it.
 var _source_nodes: Array[SkillNode] = []
+
+## Each piece's explosive charges at build, before any resolve spent the
+## state's working copy — the start [method _charges_at] counts down from.
+var _build_charges: PackedInt32Array = PackedInt32Array()
 ## The single Tween driving the wind-up (#559). One tween with parallel,
 ## delayed tweeners rather than a coroutine chain, so [method stop] can kill
 ## the whole sequence in one call and [method play] cannot end up fighting a
@@ -195,6 +199,7 @@ func build_from_skill_nodes(
 	# so this blade's numbers are the ones the resolve computes.
 	fill.fill(state, skill_nodes)
 	_spawn_visuals()
+	_snapshot_build_charges()
 	_mark_all_placed()
 
 
@@ -298,6 +303,8 @@ func _apply_playback_frame(
 			_node_visuals[i].global_position = positions[i]
 		if pop_result != null:
 			_node_visuals[i].death_progress = _death_progress_at(i, t)
+			_node_visuals[i].charges = _charges_at(i, t)
+			_node_visuals[i].spend_progress = _spend_progress_at(i, t)
 	# The marker rides the trajectory's stored centroid (#930): the one place
 	# the swing writes vertex positions is the one place the focus follows them.
 	# Only the committed swing, though — the idle preview loop plays the ghost
@@ -363,16 +370,58 @@ func _death_progress_at(idx: int, t: float) -> float:
 	return clampf((t - dead_t) / s.pop_window, 0.0, 1.0)
 
 
+## Takes [member BladeState.vertex_charges] as this build's starting charges
+## (a resolve spends the state's working copy, so the start must be held) and
+## shows them on the visuals already spawned.
 func _snapshot_build_charges() -> void:
-	pass
+	_build_charges = state.vertex_charges.duplicate() if state != null else PackedInt32Array()
+	for i in mini(_node_visuals.size(), _build_charges.size()):
+		_node_visuals[i].charges = _build_charges[i]
 
 
+## Piece `idx`'s charges at trajectory time `t` — a pure function of the build
+## charges and [member pop_result]'s contacts at or before `t`: a POPPED verdict
+## leaves none, a SPENT one takes [method _spend_count]. Called only when
+## [member pop_result] is non-null.
 func _charges_at(idx: int, t: float) -> int:
-	return -1
+	var n := _build_charges[idx] if idx < _build_charges.size() else 0
+	for contact in pop_result.contacts:
+		if contact.t > t:
+			break
+		match contact.verdicts.get(idx, -1):
+			BladePopResolver.Contact.Verdict.POPPED:
+				n = 0
+			BladePopResolver.Contact.Verdict.SPENT:
+				n = maxi(0, n - _spend_count(contact, n))
+	return n
 
 
+## How many charges a SPENT piece holding `n` paid on [param contact]:
+## `max(1, min(n, m))`, `m` the struck node's charges. [BladePopResolver.Contact]
+## does not record the count, so it is recovered exactly from the two powers it
+## does: both sides add the same `resonance · shared`, so
+## `striker_power - node_power == n - m` whenever the node held any (else
+## `node_power` is 0 and `m` is 0). Must track `_admit_explosive`'s spend rule.
+static func _spend_count(contact: BladePopResolver.Contact, n: int) -> int:
+	var m := 0 if contact.node_power <= 0 else n - contact.striker_power + contact.node_power
+	return maxi(1, mini(n, m))
+
+
+## spend_progress at trajectory time `t` for piece `idx`: 0 until a SPENT
+## verdict on it, then `(t - contact.t) / spend_window` clamped to [0, 1] off
+## the latest such contact at or before `t`. A POPPED piece never flares — it
+## shows the pop. Called only when [member pop_result] is non-null.
 func _spend_progress_at(idx: int, t: float) -> float:
-	return -1.0
+	var spent_t := -INF
+	for contact in pop_result.contacts:
+		if contact.t > t:
+			break
+		if contact.verdicts.get(idx, -1) == BladePopResolver.Contact.Verdict.SPENT:
+			spent_t = contact.t
+	if spent_t == -INF:
+		return 0.0
+	var s: BladeStyle = style if style != null else BladeNode.DEFAULT_STYLE
+	return clampf((t - spent_t) / s.spend_window, 0.0, 1.0)
 
 
 ## Rebuilds [member _pending_pops] from [member pop_result]: one entry per

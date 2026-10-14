@@ -11,3 +11,6 @@ edge_tier = 0.1499999999999999
 edge_width = 4.5
 disabled_tier = 0.20000000000000015
 disabled_desaturation = 0.76
+charge_band_width = 0.12
+spend_window = 0.25
+charge_tier = 2
