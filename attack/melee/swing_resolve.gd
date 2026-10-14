@@ -377,8 +377,8 @@ func _append_spends(hits: Array[HitInstance], gate: BladePopResolver.LiveGate) -
 		hits.append(cure)
 
 
-## Land the spends the swing's last batch decided, which no later batch
-## will carry.
+## Land the spends the gate decided and has not handed over, on the
+## resolve's world, appended to the outcome. A no-op when there are none.
 func _flush_spends() -> void:
 	var sub := AttackOutcome.new()
 	sub.cadence = ScheduleEntry.Cadence.SWING
@@ -439,8 +439,6 @@ func _land_batch(
 	var sub := AttackOutcome.new()
 	sub.cadence = ScheduleEntry.Cadence.SWING
 	sub.resolve_seed = _ctx.resolve_seed
-	# The charges earlier contacts spent land first, so this batch reads them.
-	_append_spends(sub.hits, gate)
 	for ev in batch:
 		# An EDGE contact produces no DamageInstance at all (ADR 0005): edges
 		# give rigidity, nodes deal damage. It stays in `last_events` — it is a
@@ -512,6 +510,9 @@ func _land_batch(
 	for hit in sub.hits:
 		outcome.hits.append(hit)
 		hits.append(hit)
+	# The charges this batch's contacts spent land now, behind its hits, so
+	# the next batch's arming and gate both read them off the world.
+	_flush_spends()
 
 
 ## [param drivers] minus every driver on a vertex the swing has stopped
