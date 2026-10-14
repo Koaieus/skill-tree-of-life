@@ -258,7 +258,7 @@ func test_a_detonate_load_on_charges_spends_the_shared_chunk_and_blasts_poison()
 
 func test_spend_and_power_follow_the_formula() -> void:
 	# [load, present, spent, power] at resonance 1.
-	for row in [[3, 0, 0, 3], [3, 5, 3, 14], [3, 1, 1, 5], [0, 5, 1, 5], [0, 0, 0, 0], [3, 2, 2, 9]]:
+	for row in [[3, 0, 0, 3], [3, 5, 3, 14], [3, 1, 1, 6], [0, 5, 1, 5], [0, 0, 0, 0], [3, 2, 2, 9]]:
 		assert_eq(DetonateEffect.spend_of(row[0], row[1]), row[2], "spent for %s" % [row])
 		assert_eq(DetonateEffect.power_of(row[0], row[1], 1), row[3], "power for %s" % [row])
 	assert_eq(DetonateEffect.power_of(3, 2, 0), 5, "resonance 0: load + present")

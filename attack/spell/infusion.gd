@@ -105,12 +105,25 @@ func load_of(spell: SpellDef) -> Dictionary[StringName, int]:
 ## `explosive` load iff its face resolves DETONATE ([method face_of]), else 0
 ## — a FUEL row's load only shapes the spell, a PLANT row's lands as a rider.
 func detonate_load(spell: SpellDef) -> int:
-	return 0
+	if face_of(spell, DetonateEffect.EXPLOSIVE) != AspectIntake.Face.DETONATE:
+		return 0
+	return load_of(spell).get(DetonateEffect.EXPLOSIVE, 0)
 
 
-## One [ApplyStatusEffect] per concept whose load is above zero, carrying
-## that concept's status at `power = load` — except a concept whose intake row
-## has [member AspectIntake.rides] false: its load only shapes the spell.
+## The face concept [param id] resolves to on [param spell]: its intake row's
+## [method AspectIntake.resolved_face], else — an infused concept with no row —
+## its status's default ([method AspectIntake.face_of_status]).
+static func face_of(spell: SpellDef, id: StringName) -> AspectIntake.Face:
+	var row := intake_of(spell, id)
+	if row != null:
+		return row.resolved_face()
+	return AspectIntake.face_of_status(StatusRoster.shared().by_concept(id))
+
+
+## One [ApplyStatusEffect] per PLANT concept ([method face_of]) whose load is
+## above zero, carrying that concept's status at `power = load`. A DETONATE
+## load is spent at the hit ([method detonate_load]); a FUEL load only shapes
+## the spell.
 ## Fresh effects per call — the resolver builds them once per cast.
 func riders(spell: SpellDef) -> Array[OnHitEffect]:
 	var out: Array[OnHitEffect] = []
@@ -120,8 +133,7 @@ func riders(spell: SpellDef) -> Array[OnHitEffect]:
 	for id in counts:
 		if counts[id] <= 0:
 			continue
-		var row := intake_of(spell, id)
-		if row != null and row.resolved_face() == AspectIntake.Face.FUEL:
+		if face_of(spell, id) != AspectIntake.Face.PLANT:
 			continue
 		var status := StatusRoster.shared().by_concept(id)
 		if status == null:

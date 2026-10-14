@@ -2,11 +2,13 @@
 class_name DetonateEffect
 extends OnHitEffect
 
-## A hit on a charged node sets one explosive charge off before its own riders
-## land: a 1-stack spend ([CureInstance]) on the target, then the
-## [ExplosiveSpread] blast centred on it, carrying [member riders] with
-## explosive stripped (a blast never plants charges) plus [member shrapnel].
-## Never built by hand: [method arm] owns the arming rule and prepends it.
+## A hit detonates before its own riders land: its explosive [member load]
+## meets the charges present on the target — a spend ([CureInstance],
+## [method spend_of]) on the target, then the [ExplosiveSpread] blast centred
+## on it at [method power_of], carrying [member riders] with explosive stripped
+## (a blast never plants charges) plus [member shrapnel]. Load 0 on a clean
+## node is no detonation. Never built by hand: [method arm] owns the arming
+## rule and prepends it.
 ##
 ## Once per node per scope: [member HitLanding.detonated] is built once per
 ## arrow and once per spell wave; the blast's inners carry a chained copy
@@ -25,6 +27,9 @@ extends OnHitEffect
 var riders: Array[OnHitEffect] = []
 ## The blast's own damage: a share of the triggering landing's raw amount.
 var shrapnel: PairedDamageEffect = null
+## The hit's own explosive load (a spell's DETONATE load); 0 for an arrow, a
+## blade and a chained copy — a blast is a zero-load hit on each neighbour.
+var load: int = 0
 ## A chained copy's scope, shared with the landing that set it off; null on
 ## the top-level effect, which reads [member HitLanding.detonated].
 var _scope: Variant = null
@@ -35,14 +40,15 @@ const EXPLOSIVE := &"explosive"
 const SPENT_KEY := &"detonate_spent"
 
 
-## The arming rule's one owner: [param effects] with a [DetonateEffect]
-## prepended — unless they are non-empty and every one lands explosive, in
-## which case they only plant and are returned unchanged. A riderless hit
+## The arming rule's one owner: [param effects] with a [DetonateEffect] at
+## [param load] prepended — unless any one lands explosive: that is a PLANT
+## hit, which never blasts, and they are returned unchanged. A riderless hit
 ## (empty) still detonates.
 static func arm(effects: Array[OnHitEffect], load: int = 0) -> Array[OnHitEffect]:
-	if not effects.is_empty() and effects.all(_is_explosive):
+	if effects.any(_is_explosive):
 		return effects
 	var det := DetonateEffect.new()
+	det.load = maxi(load, 0)
 	det.riders = strip(effects)
 	det.shrapnel = PairedDamageEffect.new()
 	var out: Array[OnHitEffect] = [det]
@@ -70,13 +76,16 @@ static func _is_explosive(e: OnHitEffect) -> bool:
 ## Charges a hit with [param load] spends off [param present]: none on a clean
 ## node, else `max(1, min(load, present))` — a spark always takes one.
 static func spend_of(load: int, present: int) -> int:
-	return 0
+	if present <= 0:
+		return 0
+	return maxi(1, mini(load, present))
 
 
 ## A detonation's power: `load + present + 2·r·min(load, present)`, the
 ## shared chunk weighted [param resonance] on each side. 0 = no blast.
 static func power_of(load: int, present: int, resonance: int) -> int:
-	return 0
+	var shared := mini(load, present)
+	return maxi(load, 0) + maxi(present, 0) + 2 * resonance * maxi(shared, 0)
 
 
 func apply(landing: HitLanding) -> void:
@@ -90,14 +99,17 @@ func apply(landing: HitLanding) -> void:
 	if spread == null:
 		return
 	var held := _present(landing)
-	var present := int(held[1])
-	if present <= 0:
+	var present := maxi(int(held[1]), 0)
+	var power := power_of(load, present, spread.resonance)
+	if power <= 0:
 		return
 	scope[landing.target] = true
-	if not _resolves_on_cast(landing):
-		var ledger := _ledger(landing)
-		ledger[held[0]] = ledger.get(held[0], 0.0) + 1.0
-	landing.hits.append(_spend(landing, def, held[0] is EntityCombat))
+	var spent := spend_of(load, present)
+	if spent > 0:
+		if not _resolves_on_cast(landing):
+			var ledger := _ledger(landing)
+			ledger[held[0]] = ledger.get(held[0], 0.0) + float(spent)
+		landing.hits.append(_spend(landing, def, held[0] is EntityCombat, spent))
 	var chained := DetonateEffect.new()
 	chained.riders = riders
 	chained.shrapnel = shrapnel
@@ -106,11 +118,11 @@ func apply(landing: HitLanding) -> void:
 	if shrapnel != null:
 		inners.append(shrapnel)
 	inners.append_array(riders)
-	spread.blast_for(landing.target, present, inners).apply(landing)
+	spread.blast_for(landing.target, power, inners).apply(landing)
 
 
 func get_description(_spell: SpellDef = null, _board: StatBoard = null, _read_node: SkillNode = null) -> String:
-	return "Sets off one explosive charge on a charged node, blasting this hit's other effects outward."
+	return "Sets off the explosive charges on a charged node, blasting this hit's other effects outward."
 
 
 ## `[holder, charges]`: the charges present on the target BEFORE the spend,
@@ -148,12 +160,12 @@ static func _world(landing: HitLanding) -> CombatWorld:
 	return CombatWorld.live()
 
 
-## The 1-stack spend, through the cleanse path — off the core's entity rows
+## The [param count]-stack spend, through the cleanse path — off the core's entity rows
 ## when [param on_core]. It carries the landing's pairing, so a dud hit spends
 ## nothing ([method HitInstance.rider_gated]).
-static func _spend(landing: HitLanding, def: StatusDef, on_core: bool) -> CureInstance:
+static func _spend(landing: HitLanding, def: StatusDef, on_core: bool, count: int) -> CureInstance:
 	var cure := CureInstance.new()
-	cure.add(def, 1.0, on_core)
+	cure.add(def, float(count), on_core)
 	cure.attacker = landing.attacker
 	cure.source = landing.source
 	cure.origin = landing.origin
