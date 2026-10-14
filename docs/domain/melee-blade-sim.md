@@ -657,6 +657,24 @@ crit-driven kill cascade can change a later defender's board). Both are accepted
 mispredicts; the rule they must not break is that a peer *receives* or *reproduces*
 a landing and never re-decides one (`.claude/rules/multiplayer-sync.md`).
 
+## Explosive charges: `vertex_charges` and the two-sided contact
+
+`BladeState.vertex_charges` is the swing's **working copy** of each source
+node's Explosive charges, filled at swing start by `BladeVertexFill`. A
+charge is a life: `BladePopResolver.LiveGate._admit_explosive` spends from it
+mid-swing, a piece at 0 dies, and the resolve lands the recorded `Spend`s on
+the source nodes as cleanses; nothing writes the board from this array.
+
+A contact by a piece with `n` charges on a node with `m` is one DETONATE hit
+at load `n` with two sides: each side holding charges spends
+`max(1, min(n, m))`; the striker's side blasts the **board** under the
+landing's mask (`arm_blasts`, chaining like any blast), the node's side
+reaches the **blade pieces** around the struck node (`_piece_pass`: a plain
+piece pops, a charged one shrugs) and never the board. Each explosive contact
+records one `Contact` row in `Result.contacts` for the replay. The formula,
+reach and knobs (`warhead_reach`, `shrapnel_fraction`):
+[explosive.md](explosive.md).
+
 ## Open questions
 
 - **Damping for a DRIVEN blade.** `BladeState.damping` is written only for severed
