@@ -156,6 +156,15 @@ addon". Designing a concept's addon cell means filling in these parts:
    (`temp_placeable`), its `blade_size` cost (≥ 1), and any aspect costs
    (`temp_cost_aspects`, each > 0). Authored on the scene; every currency is
    a pooled per-swing budget capped by the attacker's live stat.
+   **Placeable is the default (owner, 2026-10-14):** *"Ruled: unless
+   explicitly decided against, all addons can be placed as temporary unit"*.
+   An addon is left off the tray only by an explicit, dated, attributed call
+   written into its cell; tray capacity is never a reason (owner,
+   2026-10-14: *"if tray doesn't fit that's a UI problem of its own"*). A
+   temp copy behaves as the map addon would on that one swing (owner,
+   2026-10-14, of the barrel: *"Barrel can be placed temporarily for a single
+   AoE hit when it impacts (identical to how a procgen rolled addon would
+   behave)"*).
 
 **These recipes grow (owner, 2026-10-03).** The facet rules above and the
 addon recipe are a target to iterate on, not a finished checklist. When a
