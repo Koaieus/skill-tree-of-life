@@ -168,10 +168,10 @@ cell at once.
 **Magic infusion** is a per-cast fifth spell component, settled in ADR 0047.
 INT-derived slots (`infusion_slots`, 10 / 100 / 1000 INT in development; 100 / 1000 / 10000 later, owner 2026-10-14) cap how many
 concepts a cast infuses; depth is the aspect held, with no shared points pool
-(#1574, owner 2026-10-12; `infusion_points` is deleted). Each spell sets its own
-innate value and rate per concept: affinity = `innate + floor(points × rate)`,
-rate 0 refuses. A spell's innate value replaces the authored status rider
-(`SpellDef.affinities`, `Infusion`). Its files are listed in
+(#1574, owner 2026-10-12; `infusion_points` is deleted). Each spell lists an `AspectIntake` per concept (ADR 0060): load =
+`innate + floor(infusion × ingest × affinity)`, both rates int:int, affinity 0
+refuses. A spell's innate value replaces the authored status rider
+(`SpellDef.intakes`, `Infusion.load_of`). Its files are listed in
 `docs/domain/aspect-cell-authoring.md` § Infusion.
 
 ## Authoring a row, and why the passes run by column
@@ -482,6 +482,7 @@ Hue stays `Identity.tint`.
 | Weakness | plain stacks | — | blunt concussive tip, a dull thud ring on impact |
 | Bleeding | plain stacks | — | dark wound-red drips off the trail, sparse like poison's froth |
 | Hex | **marker**, early, low damage: Curse lifts the floor, Hex lifts the crit chance of the arrows behind it | early | a magenta eye-sigil blinks open over the node on impact, then fades |
+| Explosive | plants charges (#1594's arming rule); no blast of its own | — | a lit-fuse pulsing tip; short sparks thrown backward off the trail |
 
 - **No "fully absorbed" special.** Owner: *"There is little to no "fully
   absorbed" in this game, i.e. curse may lift the damage floor anyway"*:

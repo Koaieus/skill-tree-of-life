@@ -142,6 +142,7 @@ Gotchas:
 | blindness | inert blunt tip; grit trail; smoke cloud burst spread over riders |
 | corruption | beating club tip; swelling blip trail; delayed pop burst; pustule sprite |
 | curse | inert tip and trail; contracting ring at the node |
+| explosive | pulsing fuse tip; spark trail (second shed emitter) |
 | greed | pulsing tip; tumbling coin trail; gilt ring |
 | hex | pulsing tip; eye sigil blinking open at the node |
 | poison | fading neon tip; froth (second shed emitter) |
