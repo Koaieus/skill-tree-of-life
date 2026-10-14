@@ -87,6 +87,11 @@ var _flushing: bool = false
 ## Guard on [method flush_removals]' stabilize → burst → deaths rounds; hitting
 ## it is a [method @GlobalScope.push_error], not a balance knob.
 var settle_round_cap: int = 32
+## Test-facing: holders popped off the sandpile worklist since the current
+## flush began (reset at the top of [method flush_removals]).
+var settle_visits: int = 0
+## Test-facing: settle rounds that toppled anything since the current flush began.
+var settle_rounds: int = 0
 
 
 ## One stripped node as it stood at its strip: per spreading def, the stacks

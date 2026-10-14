@@ -279,3 +279,16 @@ func test_on_removed_spills_nothing() -> void:
 	var f := _field([50, 0], [[0, 1]])
 	var gone: Array[NodeCombat] = [_pool[0]]
 	assert_eq(_rule().on_removed(f, gone, StatusSpread.CAUSE_DEATH).size(), 0, "a removed pile vanishes")
+
+
+# ── Drain pin: a cascade reaches its fixed point in one call ──────────────────
+
+func test_a_cascade_down_a_line_settles_in_one_stabilize() -> void:
+	# 0–1–2–3, burn 1 keep 0: leaves T 2, inner T 3. Node 0 at T, the rest at T − 1.
+	var rule := _rule(1, 0)
+	var f := _field([2, 2, 2, 1], [[0, 1], [1, 2], [2, 3]])
+	var r := _settle(rule, f)
+	for i in 4:
+		assert_eq(r.topples.get(_pool[i], 0), 1, "node %d toppled exactly once" % i)
+	assert_eq(_heights(_pool.slice(0, 4)), [1, 1, 1, 0], "the fixed point")
+	assert_eq(rule.stabilize(f).total_topples(), 0, "and it is stable")

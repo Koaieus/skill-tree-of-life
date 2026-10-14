@@ -272,3 +272,113 @@ func test_the_live_replay_lands_the_recorded_bursts_not_its_own() -> void:
 	for sn in n:
 		after.append(_hp(sn))
 	assert_eq(after, hp, "zeroed recorded bursts deal nothing: the replay computed none")
+
+
+# ── 7. The worklist: settle visits what may topple, never the territory ─────
+
+const _BLEEDING := preload("res://effects/status/bleeding.tres")
+
+
+func _flush() -> CombatWorld:
+	var w := CombatWorld.live()
+	w.flush_removals()
+	return w
+
+
+func test_a_beat_with_no_sandpile_movement_visits_zero_holders() -> void:
+	# A star of 6 around the core, no corruption anywhere.
+	var n := await _territory(6, [[0, 1], [0, 2], [0, 3], [0, 4], [0, 5], [1, 2]])
+	assert_true(_alloc.deallocate(n[5], _a), "precondition: the dealloc is legal")
+	assert_eq(CombatWorld.live().settle_visits, 0, "a corruption-free dealloc visits nothing")
+	_a.resolve_turn_end()
+	assert_eq(CombatWorld.live().settle_visits, 0, "a corruption-free turn end visits nothing")
+
+
+func test_a_landing_visits_only_the_critical_node_and_its_fed_neighbours() -> void:
+	# A 20-node line; node 10 (T 3) at 2.
+	var edges := []
+	for i in 19:
+		edges.append([i, i + 1])
+	var n := await _territory(20, edges)
+	n[10].get_combat().apply_status(_CORRUPTION, 2.0)
+	_flush()
+	n[10].get_combat().apply_status(_CORRUPTION, 1.0)
+	var w := _flush()
+	assert_eq([_stacks(n[9]), _stacks(n[10]), _stacks(n[11])], [1.0, 0.0, 1.0],
+			"node 10 toppled in the landing's beat")
+	assert_between(w.settle_visits, 1, 3, "visits: node 10 plus its two masked neighbours at most")
+
+
+func test_a_two_hop_cascade_settles_in_one_round() -> void:
+	# C–a–b–c: a, b (T 3) at 2, leaf c (T 2) at 1.
+	var n := await _territory(4, [[0, 1], [1, 2], [2, 3]])
+	n[1].get_combat().apply_status(_CORRUPTION, 2.0)
+	n[2].get_combat().apply_status(_CORRUPTION, 2.0)
+	n[3].get_combat().apply_status(_CORRUPTION, 1.0)
+	_flush()
+	var hp := [_hp(n[1]), _hp(n[2]), _hp(n[3])]
+	n[1].get_combat().apply_status(_CORRUPTION, 1.0)
+	var w := _flush()
+	# a → C, b; b → a, c; c → b: each toppled once.
+	assert_eq([_stacks(n[0]), _stacks(n[1]), _stacks(n[2]), _stacks(n[3])],
+			[1.0, 1.0, 1.0, 0.0], "a, then b, then c toppled once each")
+	for i in 3:
+		assert_lt(_hp(n[i + 1]), hp[i], "node %d burst" % (i + 1))
+	assert_eq(w.settle_rounds, 1, "the cascade toppled inside one round")
+
+
+func test_closing_a_gate_pops_a_critical_endpoint() -> void:
+	# C–X, C–Y, gate X–Y: X (T 3) at 2; closing the gate makes X's T 2.
+	var n := await _territory(3, [[0, 1], [0, 2]])
+	var gate := _graph.add_gate(n[1], n[2], true)
+	await get_tree().process_frame
+	n[1].get_combat().apply_status(_CORRUPTION, 2.0)
+	_flush()
+	assert_eq(_stacks(n[1]), 2.0, "precondition: X is stable at degree 2")
+	_alloc.apply_gate_flip([gate] as Array[Gate], _a)
+	_flush()
+	assert_eq(_stacks(n[1]), 0.0, "X popped inside the toggle-gates beat")
+	assert_eq(_stacks(n[0]), 1.0, "the core received X's stack")
+
+
+func test_a_core_move_pops_the_pile_on_the_departed_node() -> void:
+	# C–X–N. X (T 3) at 2, N leaf (T 2) at 1.
+	var n := await _territory(3, [[0, 1], [1, 2]])
+	var x := n[1]
+	var nn := n[2]
+	_a.stat_board.movement_points.restore_to_full()
+	x.get_combat().apply_status(_CORRUPTION, 2.0)
+	nn.get_combat().apply_status(_CORRUPTION, 1.0)
+	_flush()
+	assert_true(_alloc.move_core(_a, x), "precondition: the core moves onto X")
+	nn.get_combat().apply_status(_CORRUPTION, 1.0)
+	_flush()
+	assert_eq([_stacks(x), _stacks(nn)], [3.0, 0.0], "N toppled into X; X, the core, holds T")
+	assert_true(_alloc.move_core(_a, n[0]), "precondition: the core moves off X")
+	_flush()
+	assert_eq([_stacks(n[0]), _stacks(x), _stacks(nn)], [1.0, 0.0, 1.0],
+			"the departed X toppled exactly once")
+
+
+func test_a_bleeding_grow_a_cure_and_a_crit_move_enqueue_nothing() -> void:
+	var n := await _territory(3, [[0, 1], [1, 2]])
+	var xc := n[1].get_combat()
+	xc.apply_status(_CORRUPTION, 2.0)
+	xc.apply_status(_BLEEDING, 1.0)
+	_flush()
+	xc.adjust_status_power(_BLEEDING, 2.0)
+	xc.adjust_status_power(_CORRUPTION, -1.0)
+	xc.on_crit_taken()
+	var w := _flush()
+	assert_eq(w.settle_visits, 0, "no rise of a sandpile row, no degree change: nothing visited")
+
+
+func test_a_row_risen_before_a_replay_beat_is_checked_at_the_next_computing_flush() -> void:
+	var n := await _territory(3, [[0, 1], [1, 2]])
+	n[2].get_combat().apply_status(_CORRUPTION, 1.0)
+	var w := CombatWorld.live()
+	w.feed_settle([CombatWorld.SettleOp.new()] as Array[CombatWorld.SettleOp])
+	w.flush_removals()
+	assert_eq(w.settle_visits, 0, "a replay beat computes nothing")
+	w.flush_removals()
+	assert_eq(w.settle_visits, 1, "the risen row waited and was checked once")
