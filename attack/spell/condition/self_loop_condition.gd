@@ -2,25 +2,24 @@
 class_name SelfLoopCondition
 extends LandingCondition
 
-## Crits when the spell traversed a self-loop edge to land here — i.e. the
-## branch's predecessor IS its current node. A self-loop edge node-fans two
-## copies back at itself; the resolver stamps `predecessor = current_node` on
-## those hops, so the predicate is [code]state.predecessor == target[/code] —
-## not [code]target.self_loop_count > 0[/code] (the previous broken form,
-## which crited any landing on a self-loop-bearing node, including the first
-## hit and edge hops into it). See #353.
+## Crits when ANY front merged into this landing traversed a self-loop edge
+## to get here — i.e. [member CastSpell.arrived_from] contains the landed node.
+## A self-loop edge node-fans a copy back at itself, so that front's
+## predecessor IS the node. [member CastSpell.arrived_from] is an unordered
+## set of every merged front's predecessor, so there is no "first" front: the
+## reducer's single [member CastSpell.predecessor] is never consulted.
 ##
-## First hit doesn't crit: at the seed, [member CastSpell.predecessor] is
-## null, so [code]null == target[/code] is false. An edge hop into a node
-## with a self-loop also doesn't crit: predecessor is the upstream node, not
-## the target.
+## First hit doesn't crit: the seed's [member CastSpell.arrived_from] is
+## empty. An edge hop into a node with a self-loop also doesn't crit: the
+## arrival is the upstream node, not the target. An unmerged landing has a
+## one-element set, so single-front behaviour is unchanged.
 
 func evaluate(lctx: LandingContext) -> bool:
 	var state := lctx.payload
 	var target := lctx.node
 	if state == null or target == null:
 		return false
-	return state.predecessor == target
+	return state.arrived_from.has(target)
 
 
 func get_description() -> String:

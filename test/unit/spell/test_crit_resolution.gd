@@ -58,6 +58,7 @@ func test_self_loop_condition_target_via_self_loop_edge_returns_true() -> void:
 	var n := graph.get_skill_nodes()
 	var state := CastSpell.new()
 	state.predecessor = n[1]
+	state.arrived_from = [n[1]]
 	assert_true(c.evaluate(LandingContext.for_test(state, n[1])), "self-loop traversal crits")
 
 
