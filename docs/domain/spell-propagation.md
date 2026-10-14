@@ -466,6 +466,19 @@ while wave not empty:
     wave = next_wave
 ```
 
+**Hits can be per incident while the departure is merged.** With
+`IncidentReducer.hit_each_incident` on, step 3 runs one arrival per incident
+instead of one for the merge: each has its own `LandingContext` whose `payload`
+is that incident (with `incident_count` and `arrived_from` stamped, so
+`ConvergenceCondition` still reads the convergence), runs the on-hit effects and
+the crit conditions once, and starts from its own `stack_weight`. Incidents are an
+unordered set, so under the flag the resolver sorts them by the predecessor's
+`graph.get_stable_id` before reducing. That order is what replay sees, and the
+event's `predecessors` and `incident_shares` follow it, in step with its `hits`.
+Every hit goes into the node's one `PropagationEvent`. The visit bump and
+step 4's departure still run once, from the reducer's merge. A cancelling merge
+(null) cancels the hits too. Off (the default), there is one merged arrival.
+
 Notes:
 
 - `current_node` keying assumes node-target spells; when edge/area
