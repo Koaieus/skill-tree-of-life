@@ -67,13 +67,20 @@ corpus rows citing them moved with them.
    with no owner use the skill at all.
 2. **No owner, no question.** A headless caller never calls
    `AskUserQuestion` and never waits for an answer. An issue it files with an
-   open fork goes to `Needs design`: title naming the fork, the problem in two
+   open fork intends `Needs design`: title naming the fork, the problem in two
    lines, each fork numbered and restated, each option described by what it
    *is*, the caller's recommendation marked as its tentative pick — the
    swarmify pass then starts from a written menu. The corpus shape that
    worked: *"Every decision below is the owner's, for a `/swarmify` session;
    each fork carries scored options and a recommendation, nothing is settled
-   here."* A headless issue with no fork, sized and stamped, may go `Ready`.
+   here."* A headless filing never sets its own lane, fork or no fork: it
+   stays in `Intake` with a milestone, a priority and an `Intended lane:`
+   line (`Needs design` for a fork menu, `Ready` for a fork-free sized and
+   stamped spec), and the owner routes it in `/triage`. Owner, 2026-10-14:
+   *"All of them stop at intake … Ready is a powerful tool it means it WILL
+   get done next swarm run."* Before this, a headless fork-free issue could
+   go `Ready` and be pulled by the next unattended swarm unseen. A lane the
+   owner names in the conversation (a swarmify pass) is set as named.
 3. **Who loads it.** Swarmify invokes it at its spec step; any session that
    files or rewrites an issue meant for implementation loads it by its
    description — a swarm lead's follow-up, a relief, a warp, an ad-hoc

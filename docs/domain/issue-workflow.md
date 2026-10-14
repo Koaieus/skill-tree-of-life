@@ -16,12 +16,12 @@ one; from `Needs design` on it is scheduled and carries its push.
 ## The board
 
 `mise gh-project -- list|add|status|priority|size`. `list
-[backlog|needs-design|ready|in-progress|in-review|done|all]` shows a column —
+[intake|backlog|needs-design|ready|in-progress|in-review|done|all]` shows a column —
 that's how an agent finds work to pick up; add `--json` (with `mise run
 --quiet`) for machine-readable output. See `.mise/tasks/gh-project`.
 
 **A new issue joins the board by itself** — every issue filed in the repo is
-auto-added to the project and lands in `Backlog`. Never `gh-project add` a
+auto-added to the project and lands in `Intake`. Never `gh-project add` a
 fresh issue (owner, 2026-10-02: *"any issue filed here does NEVER have to be
 manually `gh-project add`ed"*); call `status` only for a different lane
 (e.g. `needs-design` or `ready`). `add` remains for an issue that somehow
@@ -32,7 +32,8 @@ built-in workflows are (an option-list rewrite silently disables them).
 
 ## The status ladder is the pipeline
 
-`Backlog` (not scheduled) → `Needs design` (scheduled, open forks — the
+`Intake` (unrouted — the owner's inbox, emptied by `/triage`) → `Backlog`
+(not scheduled) → `Needs design` (scheduled, open forks — the
 `/swarmify` inbox) → `Ready` (a drone can take it) → `In progress` → `In review`
 → `Done`.
 
@@ -51,16 +52,46 @@ the live one. `Ready` is a superset, not the queue: anything in it *could* be
 taken; being in the live milestone means it *should*. Same for `Needs design` —
 that column means "forks are open", not "work on this next".
 
-**A spin-off takes the live milestone and leaves `Backlog` (owner,
-2026-10-05).** The lanes move at different speeds: `Ready` is actively
-implemented, `Needs design` is actively ground down into `Ready` issues or
-hubs, and `Backlog` can sit untouched for a long time. So an issue filed off
-current work gets the milestone being worked and goes to `Needs design`;
-only work that truly isn't near-term stays in `Backlog`. Owner: *"truly
-backlog -> backlog. related to current work, better be picked up sooner
-rather than later -> needs design; related to current focus milestone -> not
-backlog"*. `Backlog` is where a new issue lands, so set both fields by hand
-at filing.
+## Filing: fix it, or file it to `Intake`
+
+**A known, scoped finding is fixed, not filed** — by you or one subagent
+briefed from the hot context, whatever the context budget says. The
+disposition ladder is `docs/domain/session-report.md` → *The follow-up
+rule*; an issue is for a real owner fork or a multi-unit job. Before
+filing a flake or bug, `gh issue list --search` for it.
+
+**What is filed lands in `Intake` and stays there** (owner, 2026-10-14):
+*"All of them stop at intake. Truly fixable nits they should've fixed
+already (via subagent if needed) … Ready is a powerful tool it means it
+WILL get done next swarm run. "For my consideration" is surely intake."*
+The filer leaves the status alone and sets three things for the triage
+pass to route on:
+
+- **the live milestone**, if the issue comes off current work (none if it
+  is truly someday);
+- **a priority** — the scale below;
+- **the lane it intends**, one line in the body (`Intended lane: Needs
+  design — fork 2 is open`), so `/triage` starts from the filer's read.
+
+The one exception is a lane the owner chose in the conversation — a
+swarmify pass filing its children `Ready`, an owner saying "put it in
+Needs design". That issue goes straight there. This replaces the
+2026-10-05 rule that a filer sets `Needs design` on a spin-off itself:
+that rule fought `Backlog` swallowing near-term work, which `Intake` now
+prevents by holding everything until the owner routes it.
+
+**Priority at filing** (`mise gh-project -- priority <n> p0..p3`). Owner,
+2026-10-14: *"if follow-up relates to work or is important in any way, P0
+or P1 might work, i can intake them first"*. The scale is a tentative pick:
+
+| | means |
+|---|---|
+| `P0` | breaks or blocks the work in flight |
+| `P1` | sharpens the work in flight or its milestone |
+| `P2` | worth doing, not tied to what is in flight |
+| `P3` | an idea; closing it is a fine outcome |
+
+`P4` exists on the board and is the owner's to set, never a filer's.
 
 There is deliberately no prose priority file (the milestone is the live
 priority; `docs/FOCUS.md` rotted twice, story in `adr.md`). A sentence

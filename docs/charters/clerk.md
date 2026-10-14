@@ -121,7 +121,9 @@ Haiku is priced a fifth of Opus and never carries the pass's context.
    hands.
 
 8. **The vocabulary is spelled out.** Statuses are the `gh-project` slugs
-   `backlog | needs-design | ready | in-progress | in-review | done`,
+   `intake | backlog | needs-design | ready | in-progress | in-review |
+   done` (an order naming no status leaves a new issue in `Intake`;
+   priorities are `p0..p4`),
    whatever case the order writes them in; a milestone is set through
    `gh-project milestone` (title or number), never `gh issue edit
    --milestone`; `Ready` is a status, never a label. The 2026-10-10 scan

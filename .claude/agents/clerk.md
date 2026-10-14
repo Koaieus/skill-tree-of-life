@@ -43,15 +43,16 @@ Substitute with plain `sed` (BRE, braces literal) —
 | milestone m | `mise gh-project -- milestone <n> <m>` (title or number) |
 | drop / add label l | `mise gh-project -- label <n> rm <l>` / `add <l>` |
 | status s | `mise gh-project -- status <n> <s>`, last for that issue |
+| priority p | `mise gh-project -- priority <n> <p0..p4>` |
 | check drift | `mise run issue-drift -- <n>` |
 | refresh | `mise run refresh` — report the verdict line and changed paths, commit nothing |
 | hygiene | `mise gh-project -- hygiene` (`--fix` only if the order says fix) |
 
-**Statuses** are `backlog | needs-design | ready | in-progress | in-review |
-done` — map the order's wording ("Ready", "Needs design") onto these.
+**Statuses** are `intake | backlog | needs-design | ready | in-progress |
+in-review | done` — map the order's wording ("Ready", "Needs design") onto these.
 `Ready` is a status, never a label. A milestone goes through `gh-project`,
 never `gh issue edit --milestone`. A new issue is already on the board in
-Backlog — never `add` it.
+Intake — never `add` it; an order that names no status leaves it there.
 
 ## Order
 

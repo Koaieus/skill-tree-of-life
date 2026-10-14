@@ -274,7 +274,9 @@ cmd_priority() {
     p0|P0) option="79628723" ;;
     p1|P1) option="0a877460" ;;
     p2|P2) option="da944a9c" ;;
-    *) echo "✗ unknown priority: $priority (p0|p1|p2)"; exit 1 ;;
+    p3|P3) option="8d4aa552" ;;
+    p4|P4) option="7eb02cdd" ;;
+    *) echo "✗ unknown priority: $priority (p0|p1|p2|p3|p4)"; exit 1 ;;
   esac
   gh project item-edit --id "$id" --project-id "$PROJECT_ID" --field-id "$FIELD_PRIORITY" --single-select-option-id "$option"
   echo "✓ issue #$issue priority → $priority"
@@ -878,7 +880,7 @@ Commands:
                                status: intake|backlog|needs-design|ready|in-progress|in-review|done|all
   add <n>                      Add issue to project (idempotent)
   status <n> [<status>]        Read or set status (intake|backlog|needs-design|ready|…)
-  priority <n> [<p0|p1|p2>]    Read or set priority
+  priority <n> [<p0..p4>]      Read or set priority
   size <n> [<xs|s|m|l|xl>]    Read or set size
 
 Roadmap (milestone spine + target dates):

@@ -1,1 +1,1 @@
-Every GitHub Discussions board is open to agents, no asking; browse past a thread or two via a Haiku subagent. See docs/domain/discussions.md
+Discussions boards are open to agents, no asking; past a thread or two, use a Haiku subagent. See docs/domain/discussions.md

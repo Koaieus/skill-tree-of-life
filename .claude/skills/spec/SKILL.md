@@ -1,6 +1,6 @@
 ---
 name: spec
-description: Write a GitHub issue a cold drone can act on, then file it — the `## Acceptance spec` (decisions, knobs, composition, files touched, acceptance, NOTES, reading list + seam map in a drift stamp, stubs), a too-big issue or hub split into drone-sized children, and the board tail (post, create, relate, status, milestone) handed to one Haiku `clerk` as a plain-prose work order. Use whenever you file, split or rewrite an issue meant for implementation — at the end of a /swarmify pass, when a swarm / relief / warp lead files a follow-up or splits a unit, or when asked to "spec this", "write it up as an issue", "file a Ready issue for X". Headless-safe: it never asks; an issue with an unsettled design fork is filed to `Needs design` with the forks laid out, never `Ready`.
+description: Write a GitHub issue a cold drone can act on, then file it — the `## Acceptance spec` (decisions, knobs, composition, files touched, acceptance, NOTES, reading list + seam map in a drift stamp, stubs), a too-big issue or hub split into drone-sized children, and the board tail (post, create, relate, status, milestone) handed to one Haiku `clerk` as a plain-prose work order. Use whenever you file, split or rewrite an issue meant for implementation — at the end of a /swarmify pass, when a swarm / relief / warp lead files a follow-up or splits a unit, or when asked to "spec this", "write it up as an issue", "file a Ready issue for X". Headless-safe: it never asks; a headless filing stays in `Intake` with its intended lane named — a fork as a written menu, never `Ready`.
 ---
 
 # Spec
@@ -24,11 +24,14 @@ verified in the code, and a knob (a number on something that exists),
 defaulted and marked tentative.
 
 **No owner to ask** (a lead, a relief, a background session): never
-`AskUserQuestion`, never wait. An issue with an open fork goes to
-`Needs design` as a written menu: the title names the fork, the problem in
-two lines, each fork numbered and restated, each option described by what it
-*is*, your recommendation marked as your tentative pick. A fork-free issue,
-sized and stamped, may go `Ready`.
+`AskUserQuestion`, never wait. Set no status — the issue stays in
+`Intake` for the owner to route — but give it a milestone, a priority
+(`docs/domain/issue-workflow.md` → *Filing*) and an `Intended lane:` line.
+An issue with an open fork intends `Needs design` and is a written menu: the
+title names the fork, the problem in two lines, each fork numbered and
+restated, each option described by what it *is*, your recommendation marked
+as your tentative pick. A fork-free issue, sized and stamped, may intend
+`Ready`. A lane the owner named in the conversation is set as named.
 
 ## 1. Write the Acceptance spec
 

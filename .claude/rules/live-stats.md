@@ -1,1 +1,1 @@
-A board `base_value` is a fresh lv1 entity's start, never the value a hit sees: level, rolls, addons, auras and statuses move every stat all run. Reason in ranges; never write a default as fixed. See docs/domain/defense-axes.md
+A board `base_value` is a fresh lv1 entity's start, never what a hit sees: level, rolls, addons, auras and statuses move every stat all run. Reason in ranges, never a fixed default. See docs/domain/defense-axes.md

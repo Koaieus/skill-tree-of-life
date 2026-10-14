@@ -93,12 +93,17 @@ and the table shows the choice:
 1. **fixed now** — the default for anything under ~20 minutes inside the
    run's fence. Cite the SHA.
 2. **sub did it** — delegated to a subagent this session (an `Explore` for a
-   lookup, a `drone` for a fenced fix). Cite the SHA.
+   lookup, a `drone` for a fenced fix). Cite the SHA. **The context budget
+   never moves an item past this rung**: the subagent pays for the work and
+   you only review its diff, so a session past its target briefs one from
+   the hot context rather than filing. "Past target, fresh session" was the
+   reason in 25 of 74 session-end filings, and 37 of 43 real follow-ups were
+   this kind (`docs/corpus/2026-10-14-followup-issues-at-session-end.md`).
 3. **filed #n — <why not now>** — only with a reason from this list: *needs
-   an owner design call*, *outside this run's fence and more than ~20
-   minutes*, *blocked on another issue*. A filed issue names its milestone,
-   or it is `Backlog`, which the owner reads as "basically never" — say so
-   in the reason if that is what you mean.
+   an owner design call*, *a multi-unit job*, *blocked on another issue*.
+   It lands in `Intake` with a milestone, a priority and its intended lane
+   (`docs/domain/issue-workflow.md` → *Filing*); search for a duplicate
+   first.
 4. **dropped — <why>** — honest and cheap: cosmetic, speculative, or nobody
    asked. A dropped item costs one line here and nothing later.
 
