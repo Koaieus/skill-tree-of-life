@@ -783,6 +783,13 @@ func _on_last_status_removed() -> void:
 	pass
 
 
+## Host contract: a settling row rose — this pile may topple. Enqueued on
+## this slice's own world (a shadow's, or the live one), drained at the tail of
+## its next computing flush ([method CombatWorld.settle_topples]).
+func _on_pile_rose(_def: StatusDef, _key: Variant) -> void:
+	(_world if _world != null else CombatWorld.live()).note_pile(self)
+
+
 ## #880: the node tint reads the strongest LIVE status. Also (#1344) keeps
 ## this slice's entry in the live lingering registry in step with whether it
 ## holds a `LINGER` row — every apply / tick / remove / restore lands here.

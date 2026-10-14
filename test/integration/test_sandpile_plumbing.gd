@@ -288,6 +288,7 @@ func _flush() -> CombatWorld:
 func test_a_beat_with_no_sandpile_movement_visits_zero_holders() -> void:
 	# A star of 6 around the core, no corruption anywhere.
 	var n := await _territory(6, [[0, 1], [0, 2], [0, 3], [0, 4], [0, 5], [1, 2]])
+	_flush()  # drain whatever an earlier beat left on the live worklist
 	assert_true(_alloc.deallocate(n[5], _a), "precondition: the dealloc is legal")
 	assert_eq(CombatWorld.live().settle_visits, 0, "a corruption-free dealloc visits nothing")
 	_a.resolve_turn_end()

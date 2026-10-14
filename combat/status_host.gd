@@ -19,7 +19,9 @@ extends RefCounted
 ##   `is_allocated()` — the `CLEAR` gate on apply;
 ##   `_on_first_status()` — the FIRST row landing (sparse tick subscription, #879);
 ##   `_on_last_status_removed()` — the LAST row leaving;
-##   `_on_statuses_changed()` — after every apply / tick / cure / remove (#880).
+##   `_on_statuses_changed()` — after every apply / tick / cure / remove (#880);
+##   `_on_pile_rose(def, key)` — a row whose [method StatusSpread.settles] rose:
+##   the pile may now topple, so its world should check it at the next flush.
 ## The live-only gating of those three (`host != null`) is the owner's, not
 ## this class's: a shadow owner implements them as no-ops.
 
@@ -137,6 +139,7 @@ func _settle(def: StatusDef, target: float, key: Variant = true, notify: bool = 
 			"StatusHost: non-integer stack count %s for %s" % [target, def.id])
 	var whole := roundf(target)
 	var next := whole if def.power_max <= 0.0 else minf(whole, floorf(def.power_max))
+	var before := get_status_power(def.id, key)
 	if next <= 0.0:
 		remove_row(def.id, key)
 		return
@@ -152,6 +155,8 @@ func _settle(def: StatusDef, target: float, key: Variant = true, notify: bool = 
 	def._on_applied(owner, effective_power(def, row.power))
 	if not had_status:
 		owner._on_first_status()
+	if next > before and def.spread != null and def.spread.settles():
+		owner._on_pile_rose(def, key)
 	if notify:
 		owner._on_statuses_changed()
 

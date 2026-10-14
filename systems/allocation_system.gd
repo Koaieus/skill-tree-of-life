@@ -504,6 +504,7 @@ func apply_gate_flip(gates: Array[Gate], entity: Entity) -> Array[SkillNode]:
 	if g == null:
 		return stranded
 	g.flip_gates(gates)
+	_note_gate_piles(gates)
 	if entity != null and entity.navigator != null and entity.core_location != null:
 		# An empty removal set already means "owned nodes the core cannot reach".
 		stranded = entity.navigator.nodes_islanded_by_removing_set([], entity.core_location)
@@ -519,7 +520,20 @@ func apply_gate_flip_recorded(gates: Array[Gate], entity: Entity,
 	if g == null:
 		return
 	g.flip_gates(gates)
+	_note_gate_piles(gates)
 	_cascade_stranded(stranded, entity)
+
+
+## A flip changes both endpoints' degree: a pile on either may now sit at its
+## lowered `T`, so the live world checks it at the beat's flush.
+func _note_gate_piles(gates: Array[Gate]) -> void:
+	var world := CombatWorld.live()
+	for gate in gates:
+		if gate == null:
+			continue
+		for end in [gate.from, gate.to]:
+			if end != null:
+				world.note_pile_if_held(end.get_combat())
 
 
 ## A self-cut is permitted and charged like a combat cascade: forced
@@ -826,6 +840,12 @@ func move_core(entity: Entity, target: SkillNode) -> bool:
 	# The setter dispatches `_on_core_moved` — it's the one point that catches
 	# every core placement, including the opening one. Don't dispatch again here.
 	entity.core_location = target
+	# The departed node settles again (the core is an absorber); no flush here,
+	# so the entry drains at the next computing beat.
+	var world := CombatWorld.live()
+	if from_node != null:
+		world.note_pile_if_held(from_node.get_combat())
+	world.note_pile_if_held(target.get_combat())
 	# An arrival is the only moment the leash is measured (positions are fixed).
 	_check_leash(entity)
 	core_moved.emit(entity, from_node, target)

@@ -866,6 +866,12 @@ func _on_last_status_removed() -> void:
 	pass
 
 
+## Host contract: a settling row rose. A no-op: the entity pile does not
+## topple yet (the core is an absorber).
+func _on_pile_rose(_def: StatusDef, _key: Variant) -> void:
+	pass
+
+
 ## Host contract: the live entity announces its rows changed (#880's node
 ## tint has no entity twin yet — #953 reads the rows at the core's readout).
 func _on_statuses_changed() -> void:
