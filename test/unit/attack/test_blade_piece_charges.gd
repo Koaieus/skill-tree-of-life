@@ -105,3 +105,25 @@ func test_playback_drives_both_channels() -> void:
 	blade._apply_playback_frame(0.6, _traj(), [], true)
 	assert_eq(bn.charges, 3)
 	assert_almost_eq(bn.spend_progress, 0.5, 0.001)
+
+
+## The 100-on-1 case: the striker spends, the charged piece in the node's reach
+## shrugs, the plain one in reach is dead. Only the shrugged piece's sheen ramps.
+func test_shrug_progress_ramps_only_for_a_shrugged_piece() -> void:
+	var blade := _build_blade(5)
+	(blade.style as BladeStyle).shrug_window = 0.2
+	blade.pop_result = BladePopResolver.Result.new()
+	var row := BladePopResolver.Contact.new(0.5, null)
+	row.striker_power = 101
+	row.node_power = 2
+	row.piece_reach = 120.0
+	row.verdicts = {1: _V.SPENT, 2: _V.SHRUGGED, 3: _V.POPPED}
+	blade.pop_result.contacts.append(row)
+	blade.pop_result.dead_at[3] = 0.5
+	assert_eq(blade._shrug_progress_at(2, 0.4), 0.0, "0 before the contact")
+	assert_eq(blade._shrug_progress_at(2, 0.5), 0.0, "the ramp starts at contact.t")
+	assert_almost_eq(blade._shrug_progress_at(2, 0.6), 0.5, 0.001, "halfway through the window")
+	assert_almost_eq(blade._shrug_progress_at(2, 0.9), 1.0, 0.0001, "done after the window")
+	assert_eq(blade._shrug_progress_at(1, 0.6), 0.0, "the spending striker never shrugs")
+	assert_eq(blade._shrug_progress_at(3, 0.6), 0.0, "the plain piece is dead, not shrugging")
+	assert_true(blade.pop_result.is_dead(3, 0.6), "and it is dead there")

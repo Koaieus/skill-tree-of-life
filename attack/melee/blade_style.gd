@@ -114,6 +114,29 @@ extends Resource
 	set(value):
 		spend_window = maxf(value, 0.0001)
 		emit_changed()
+## Seconds a shrugged piece's protective sheen takes to expand over the rim
+## and fade, after a node's blast spared it.
+@export_range(0.05, 2.0, 0.01) var shrug_window: float = 0.3:
+	set(value):
+		shrug_window = maxf(value, 0.0001)
+		emit_changed()
+## Emissive tier the shrug sheen is lit at.
+@export var shrug_tier: Emissive.Tier = Emissive.Tier.ALERT:
+	set(value):
+		shrug_tier = value
+		emit_changed()
+## Whether the blade draws the struck node's blast ring (its centre and
+## node-side reach) on each explosive contact, so the player sees why pieces
+## in it died.
+@export var piece_blast_ring: bool = true:
+	set(value):
+		piece_blast_ring = value
+		emit_changed()
+## Seconds a piece-blast ring takes to expand to the node's reach and fade.
+@export_range(0.05, 2.0, 0.01) var piece_blast_window: float = 0.25:
+	set(value):
+		piece_blast_window = maxf(value, 0.0001)
+		emit_changed()
 ## Emissive tier a charge bead is lit at.
 @export var charge_tier: Emissive.Tier = Emissive.Tier.VALUE:
 	set(value):

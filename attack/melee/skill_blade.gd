@@ -424,6 +424,14 @@ func _spend_progress_at(idx: int, t: float) -> float:
 	return clampf((t - spent_t) / s.spend_window, 0.0, 1.0)
 
 
+## shrug_progress at trajectory time `t` for piece `idx`: 0 until a SHRUGGED
+## verdict on it, then `(t - contact.t) / shrug_window` clamped to [0, 1] off
+## the latest such contact at or before `t` — a charged piece in a node's blast
+## reach that the blast spared. Called only when [member pop_result] is non-null.
+func _shrug_progress_at(idx: int, t: float) -> float:
+	return 0.0
+
+
 ## Rebuilds [member _pending_pops] from [member pop_result]: one entry per
 ## `dead_at` vertex, `.x` the death time and `.y` the particle index, sorted
 ## ascending by time (Vector2's default sort compares `.x` then `.y`) so
