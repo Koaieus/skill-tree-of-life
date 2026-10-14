@@ -63,6 +63,9 @@ static func apply(outcome: AttackOutcome, world: CombatWorld,
 	# node stripped by the group's landings spills over their union, flushed
 	# before the next group lands (CombatWorld.flush_removals).
 	var group := -1
+	# Marks already announced this apply: a blast's cue fires on its first
+	# landed hit and never again.
+	var announced: Dictionary = {}
 	for hit in in_arrival_order(outcome.hits):
 		if hit.target == null:
 			continue
@@ -75,7 +78,22 @@ static func apply(outcome: AttackOutcome, world: CombatWorld,
 		@warning_ignore("redundant_await")
 		await beat.advance_to(hit.arrival_time)
 		land_one(hit, world, alloc, outcome.crit_stream)
+		_announce_blast(hit, world, announced)
 	world.flush_removals()
+
+
+## [signal Events.blast_landed] for [param hit]'s [member HitInstance.blast_mark],
+## the first time that mark lands this apply — live only, the same shadow guard
+## as the pop cue in [method land_one]. Lives in [method apply] rather than
+## [method land_one]: the once-per-mark set is per apply, and a mid-walk
+## caller lands on a cast world that has no audience anyway.
+static func _announce_blast(hit: HitInstance, world: CombatWorld, announced: Dictionary) -> void:
+	var mark := hit.blast_mark
+	if mark == null or world.is_shadow() or announced.has(mark):
+		return
+	announced[mark] = true
+	if is_instance_valid(mark.centre):
+		Events.blast_landed.emit(mark)
 
 
 ## One landing, gate and cue included — the body of [method apply]'s loop, and
