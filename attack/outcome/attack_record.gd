@@ -108,6 +108,20 @@ const KEY_HIT_HP_MAX := "h_hpm"
 ## flattened side list, because a landing pops at most one vertex.
 ## See [member HitInstance.popped_vertex] for why a cue is on the wire at all.
 const KEY_HIT_POP := "h_pop"
+## [member HitInstance.blast_mark] per hit, as a 1-based index into the blast
+## table below — 0 for every hit no blast stamped. An index rather than inline
+## fields so the hits of one blast rebuild sharing ONE mark: the applier
+## announces once per mark. A cue, like [constant KEY_HIT_POP].
+const KEY_HIT_BLAST := "h_blast"
+## The blast table, one row per distinct [BlastMark]: centre node id, reach,
+## power, attacker entity id, and its rider [Identity] ids flattened with a
+## per-mark count.
+const KEY_BLAST_CENTRE := "b_ctr"
+const KEY_BLAST_REACH := "b_rch"
+const KEY_BLAST_POWER := "b_pow"
+const KEY_BLAST_ATTACKER := "b_atk"
+const KEY_BLAST_RIDER_COUNT := "b_ridc"
+const KEY_BLAST_RIDER := "b_rid"
 ## [member StatusInstance.def]'s `resource_path`, "" for every non-STATUS hit
 ## (#878). Same pattern as [constant KEY_TEMPO]/`_tempo_path` — the def is
 ## authored content both peers already have on disk, so shipping the path
@@ -250,6 +264,13 @@ var hp_before := PackedFloat64Array()
 var hp_after := PackedFloat64Array()
 var hp_max := PackedFloat64Array()
 var pops := PackedInt32Array()
+var blasts := PackedInt32Array()
+var blast_centres := PackedInt32Array()
+var blast_reach := PackedFloat64Array()
+var blast_power := PackedInt32Array()
+var blast_attackers := PackedInt32Array()
+var blast_rider_counts := PackedInt32Array()
+var blast_riders := PackedStringArray()
 var status_defs := PackedStringArray()
 var status_hosts := PackedInt32Array()
 var status_keys := PackedInt32Array()
@@ -364,6 +385,13 @@ static func wire_fields() -> Array[WireFields.Field]:
 		WireFields.Field.new(&"settle_thresholds", TYPE_PACKED_INT32_ARRAY).as_key(KEY_SETTLE_THRESHOLD).omitted_at_default(),
 		WireFields.Field.new(&"settle_batches", TYPE_PACKED_INT32_ARRAY).as_key(KEY_SETTLE_BATCH).omitted_at_default(),
 		WireFields.Field.new(&"settle_core", TYPE_PACKED_INT32_ARRAY).as_key(KEY_SETTLE_CORE).omitted_at_default(),
+		WireFields.Field.new(&"blasts", TYPE_PACKED_INT32_ARRAY).as_key(KEY_HIT_BLAST).omitted_at_default(),
+		WireFields.Field.new(&"blast_centres", TYPE_PACKED_INT32_ARRAY).as_key(KEY_BLAST_CENTRE).omitted_at_default(),
+		WireFields.Field.new(&"blast_reach", TYPE_PACKED_FLOAT64_ARRAY).as_key(KEY_BLAST_REACH).omitted_at_default(),
+		WireFields.Field.new(&"blast_power", TYPE_PACKED_INT32_ARRAY).as_key(KEY_BLAST_POWER).omitted_at_default(),
+		WireFields.Field.new(&"blast_attackers", TYPE_PACKED_INT32_ARRAY).as_key(KEY_BLAST_ATTACKER).omitted_at_default(),
+		WireFields.Field.new(&"blast_rider_counts", TYPE_PACKED_INT32_ARRAY).as_key(KEY_BLAST_RIDER_COUNT).omitted_at_default(),
+		WireFields.Field.new(&"blast_riders", TYPE_PACKED_STRING_ARRAY).as_key(KEY_BLAST_RIDER).omitted_at_default(),
 	]
 
 
@@ -388,6 +416,8 @@ static func capture(outcome: AttackOutcome, graph: Graph) -> Dictionary:
 	# Identity-keyed, because two landings on one node in one beat are
 	# genuinely distinct hits with equal field values.
 	var index_of: Dictionary = {}
+	# BlastMark -> its 1-based row in the blast table.
+	var blast_index: Dictionary = {}
 	var any_settle := false
 	for hit in outcome.hits:
 		if not hit.settle.is_empty():
@@ -414,6 +444,7 @@ static func capture(outcome: AttackOutcome, graph: Graph) -> Dictionary:
 		r.hp_after.append(hit.hp_after)
 		r.hp_max.append(hit.hp_max)
 		r.pops.append(_id_of(hit.popped_vertex, graph))
+		r.blasts.append(_capture_blast(r, hit.blast_mark, blast_index, graph))
 		var status_hit := hit as StatusInstance
 		r.status_defs.append(status_hit.def.resource_path if status_hit != null and status_hit.def != null else "")
 		r.status_hosts.append(int(status_hit.host_kind) if status_hit != null else 0)
@@ -533,6 +564,7 @@ static func rebuild(d: Dictionary, graph: Graph, rate: float = -1.0) -> AttackOu
 	# `cure_entry_at` over their flattened (def, cleared) entries.
 	var cure_at := 0
 	var cure_entry_at := 0
+	var marks := _rebuild_blasts(r, graph)
 	for i in r.kinds.size():
 		var gated := (r.flags[i] & FLAG_GATED) != 0
 		var amount: float = 0.0 if gated else r.amounts[i]
@@ -625,6 +657,8 @@ static func rebuild(d: Dictionary, graph: Graph, rate: float = -1.0) -> AttackOu
 		if i < r.pops.size():
 			# 0 means "popped nothing", which `_node_of` already answers as null.
 			hit.popped_vertex = _node_of(r.pops[i], graph)
+		if i < r.blasts.size() and r.blasts[i] > 0 and r.blasts[i] <= marks.size():
+			hit.blast_mark = marks[r.blasts[i] - 1]
 		# The cascade this landing caused, RECORDED. A peer applies exactly this
 		# set instead of walking the defender's navigator for one — under the
 		# filtered-delta model it may not hold the nodes that walk would visit,
@@ -718,6 +752,46 @@ static func _tempo_of(path: String) -> PresentationTempo:
 ## `node.stable_id`: node ids mint LAZILY, so a container-added or
 ## hand-authored node reads 0 until something forces a topology rebuild
 ## (`.claude/rules/multiplayer-sync.md`).
+## [param mark]'s 1-based row in [param r]'s blast table, appending it on
+## first sight; 0 for no mark. A record whose every hit carries 0 leaves the table empty, so
+## a blastless record omits every blast key.
+static func _capture_blast(r: AttackRecord, mark: BlastMark, index: Dictionary, graph: Graph) -> int:
+	if mark == null:
+		return 0
+	if index.has(mark):
+		return index[mark]
+	r.blast_centres.append(_id_of(mark.centre, graph))
+	r.blast_reach.append(mark.reach)
+	r.blast_power.append(mark.power)
+	r.blast_attackers.append(mark.attacker.entity_id if mark.attacker != null else 0)
+	r.blast_rider_counts.append(mark.riders.size())
+	for rider in mark.riders:
+		r.blast_riders.append(String(rider.id) if rider != null else "")
+	index[mark] = r.blast_centres.size()
+	return index[mark]
+
+
+## The blast table back as one [BlastMark] per row, riders resolved by id
+## through [IdentityRoster] (authored content both peers hold).
+static func _rebuild_blasts(r: AttackRecord, graph: Graph) -> Array[BlastMark]:
+	var marks: Array[BlastMark] = []
+	var roster := IdentityRoster.shared() if not r.blast_riders.is_empty() else null
+	var rider_at := 0
+	for k in r.blast_centres.size():
+		var mark := BlastMark.new()
+		mark.centre = _node_of(r.blast_centres[k], graph)
+		mark.reach = r.blast_reach[k]
+		mark.power = r.blast_power[k]
+		mark.attacker = graph.get_by_entity_id(r.blast_attackers[k]) if graph != null else null
+		for n in r.blast_rider_counts[k]:
+			var identity := roster.by_id(StringName(r.blast_riders[rider_at + n])) if roster != null else null
+			if identity != null:
+				mark.riders.append(identity)
+		rider_at += r.blast_rider_counts[k]
+		marks.append(mark)
+	return marks
+
+
 static func _id_of(node: SkillNode, graph: Graph) -> int:
 	if node == null or graph == null or not is_instance_valid(node):
 		return 0
