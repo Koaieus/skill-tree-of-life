@@ -238,6 +238,7 @@ cmd_status() {
   #     ProjectV2SingleSelectField{options{id name}}}}'
   local option
   case "$status" in
+    intake)              option="039468a4" ;;
     backlog)             option="4acdef0f" ;;
     needs-design|nd)     option="d73dcce5" ;;
     ready)               option="8fdb35d1" ;;
@@ -305,6 +306,7 @@ cmd_size() {
 # Map a CLI status token to the board's display label. Empty = no filter.
 # The status ladder, in flow order:
 #
+#   Intake        where every new item lands. the owner routes it out; nobody else.
 #   Backlog       not scheduled. someday. NO LIVE PARENT — see `hygiene`.
 #   Needs design  scheduled, but has open forks. this is the /swarmify inbox.
 #   Ready         a drone can take it: no open forks, clear goal and scope.
@@ -316,10 +318,11 @@ cmd_size() {
 # never got labelled, while `Ready` accumulated issues with live design forks.
 # One field, one answer. "Swarmable" was never a state anyway — it's a dispatch
 # strategy for whatever is Ready.
-STATUS_NAMES="backlog|needs-design|ready|in-progress|in-review|done"
+STATUS_NAMES="intake|backlog|needs-design|ready|in-progress|in-review|done"
 
 status_label() {
   case "$1" in
+    intake)          echo "Intake" ;;
     backlog)         echo "Backlog" ;;
     needs-design|nd) echo "Needs design" ;;
     ready)           echo "Ready" ;;
@@ -627,6 +630,9 @@ cmd_hygiene() {
           unmilestoned_ready:
             [ $all[] | select(.status == "Ready" and .milestone == null)
               | { number, title, detail: "" } ],
+          intake:
+            [ $all[] | select(.status == "Intake")
+              | { number, title, detail: (.milestone // "no milestone") } ],
           stale_label:
             [ $all[] | select(.labels | index("swarmable"))
               | { number, title, detail: .status } ]
@@ -680,7 +686,7 @@ cmd_hygiene() {
   # The three mirror invariants below are the only ones computed over CLOSED
   # items too ($every, not $all). They exist because be8f5c9's Status-option
   # rewrite emptied the built-in workflows' action targets (see cmd_status):
-  # `Item added to project` (status → Backlog) and `Item closed` (status → Done)
+  # `Item added to project` (status → Intake) and `Item closed` (status → Done)
   # both stopped firing, so new items landed in a `No Status` column and closed
   # issues stayed parked wherever they were — including `Ready`, which IS the
   # swarm queue. It took a day to notice, because agents set Status explicitly
@@ -689,7 +695,7 @@ cmd_hygiene() {
   # `deleteProjectV2Workflow` exists), so this cannot self-heal: the report is
   # the smoke alarm, and the fix is manual in Project → ⋯ → Workflows.
   _section no_status "No Status at all" \
-    "The \`Item added to project\` workflow is off. Re-enable it (Status → Backlog), then: mise gh-project -- status <n> backlog"
+    "The \`Item added to project\` workflow is off. Re-enable it (Status → Intake), then: mise gh-project -- status <n> intake"
   _section closed_not_done "Closed, but not Done on the board" \
     "A closed issue sitting in \`Ready\` gets pulled by a drone. Re-enable \`Item closed\` (Status → Done)."
   _section done_still_open "Done on the board, but still OPEN" \
@@ -711,6 +717,14 @@ cmd_hygiene() {
     "Not derived until every child is an item: mise gh-project -- add <child>"
   _section stale_label "Still carries the retired \`swarmable\` label" \
     "Ready is the swarm queue now. Drop the label: mise gh-project -- label <n> rm swarmable"
+
+  # Not a violation: Intake is the owner's inbox, so it is counted, never failed.
+  local intake_n
+  intake_n=$(printf '%s' "$report" | jq '.intake | length')
+  if [ "$intake_n" -gt 0 ]; then
+    printf '\n▸ Intake — waiting on the owner to route  [%s]  (not a violation)\n' "$intake_n"
+    printf '%s' "$report" | jq -r '.intake[] | "  #\(.number)\t\(.title[0:64])\t\(.detail)"' | column -t -s $'\t'
+  fi
 
   echo ""
   if [ "$total" -eq 0 ]; then echo "✓ board is clean"; else echo "$total violation(s)"; fi
@@ -861,9 +875,9 @@ Usage: mise gh-project -- <cmd> [args...]
 
 Commands:
   list [<status>] [--json]     List issues in a column (default: ready).
-                               status: backlog|ready|in-progress|in-review|done|all
+                               status: intake|backlog|needs-design|ready|in-progress|in-review|done|all
   add <n>                      Add issue to project (idempotent)
-  status <n> [<status>]        Read or set status (backlog|ready|in-progress|in-review|done)
+  status <n> [<status>]        Read or set status (intake|backlog|needs-design|ready|…)
   priority <n> [<p0|p1|p2>]    Read or set priority
   size <n> [<xs|s|m|l|xl>]    Read or set size
 

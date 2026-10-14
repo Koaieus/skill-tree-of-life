@@ -5,7 +5,7 @@
 #   1. no open child                              → Done, and close the issue
 #   2. every open child is In review              → In review
 #   3. any child Ready / In progress / In review  → In progress
-#   4. children only Backlog / Needs design       → no action (hand-set filing state)
+#   4. children only Intake / Backlog / Needs design → no action (hand-set filing state)
 #   5. a hub is never Ready (Ready is the swarm queue) → In progress
 # A parent with an OPEN child missing from the board is never derived (you'd
 # close a hub over a child you can't see) — it lands in `unboarded` instead.
