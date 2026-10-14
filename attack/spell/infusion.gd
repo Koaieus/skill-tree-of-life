@@ -102,7 +102,8 @@ func load_of(spell: SpellDef) -> Dictionary[StringName, int]:
 
 
 ## One [ApplyStatusEffect] per concept whose load is above zero, carrying
-## that concept's status at `power = load`. Fresh effects per call — the
+## that concept's status at `power = load` — except a concept whose intake row
+## has [member AspectIntake.rides] false: its load only shapes the spell. Fresh effects per call — the
 ## resolver builds them once per cast.
 func riders(spell: SpellDef) -> Array[OnHitEffect]:
 	var out: Array[OnHitEffect] = []
@@ -111,6 +112,9 @@ func riders(spell: SpellDef) -> Array[OnHitEffect]:
 	var counts := load_of(spell)
 	for id in counts:
 		if counts[id] <= 0:
+			continue
+		var row := intake_of(spell, id)
+		if row != null and not row.rides:
 			continue
 		var status := StatusRoster.shared().by_concept(id)
 		if status == null:

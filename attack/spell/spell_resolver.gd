@@ -171,7 +171,8 @@ static func _resolve(
 	var config: PropagationConfig = spell.propagation
 	# The cast's intake riders (null = the spell as authored), run after the
 	# spell's own effects at every landing.
-	var riders := (infusion if infusion != null else Infusion.innate(spell)).riders(spell)
+	var cast_infusion := infusion if infusion != null else Infusion.innate(spell)
+	var riders := cast_infusion.riders(spell)
 
 	var ctx := PropagationContext.new()
 	ctx.graph = graph
@@ -187,6 +188,7 @@ static func _resolve(
 	# crit path used to.
 	ctx.outcome = outcome
 	ctx.riders = riders
+	ctx.load = cast_infusion.load_of(spell)
 	var mask: Variant = spell.targeting.get(&"ownership_filter") if spell.targeting != null else null
 	ctx.target_mask = int(mask) if mask != null else 0
 
