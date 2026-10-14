@@ -88,6 +88,11 @@ signal entity_died(entity: Entity)
 ## system (#189) can count charges off this without touching the detection.
 signal blade_vertex_popped(defender: SkillNode, attacker: Entity, position: Vector2)
 
+## A board blast went off: the first hit carrying [param mark] landed on the
+## live world. [OutcomeApplier] is the sole emitter, once per mark per apply —
+## on the authority's live replay and on every peer alike. VFX draws the ring.
+signal blast_landed(mark: BlastMark)
+
 ## The run reached a terminal state (#460). [VictorySystem] is the SOLE emitter
 ## and fires this at most once per run, carrying the populated [RunOutcome].
 ## The outcome is point-of-view-free (#517): it names the winning camp and

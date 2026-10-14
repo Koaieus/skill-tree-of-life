@@ -212,6 +212,12 @@ var deallocations: Array[DeallocEntry] = []
 ## and hands a peer the pop cue it never used to get at all.
 var popped_vertex: SkillNode = null
 
+## The board blast this hit belongs to — minted and stamped by [BlastEffect]
+## on every hit its blast appends; null on every other hit. Like
+## [member popped_vertex] a recorded cue: [OutcomeApplier] announces it on the
+## live landing, never from the sim.
+var blast_mark: BlastMark = null
+
 ## The sandpile settle this landing's beat ran ([method CombatWorld.settle_topples]),
 ## in order: [CombatWorld.SettleOp]s, re-pointed at the real nodes' live slices.
 ## Written by the authority's shadow flush onto the beat's first fresh landing;
