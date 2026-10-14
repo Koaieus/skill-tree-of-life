@@ -36,3 +36,21 @@ func test_radius_stays_world_space_under_zoom() -> void:
 	await get_tree().process_frame
 	var inner: float = r.get("radius") + float(r.get("arm_inner_offset"))
 	assert_almost_eq(float(r.get_node("%Spinner").get("inner_radius")), inner, 0.0001)
+
+
+## A HUD indicator sits under a CanvasLayer: the level camera's zoom on the
+## viewport's default canvas is not its canvas, so its strokes stay put.
+func test_stroke_ignores_camera_zoom_under_a_canvas_layer() -> void:
+	var vp := SubViewport.new()
+	vp.size = Vector2i(64, 64)
+	add_child_autofree(vp)
+	vp.canvas_transform = Transform2D.IDENTITY.scaled(Vector2(0.25, 0.25))
+	var layer := CanvasLayer.new()
+	vp.add_child(layer)
+	var r := _RETICLE.instantiate() as Node2D
+	r.set("min_screen_px", _M)
+	layer.add_child(r)
+	await get_tree().process_frame
+	var ring_w: float = r.get("ring_width")
+	assert_almost_eq(float(r.get_node("%Ring").get("width")), maxf(ring_w, _M), 0.0001,
+			"the layer's own scale (1) sizes the stroke, not the camera's 0.25")

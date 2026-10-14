@@ -49,8 +49,9 @@ extends Node2D
 
 ## Smallest on-screen stroke width any member draws at: [method stroke] widens
 ## a world-space width to [code]min_screen_px / zoom[/code] when the camera
-## zooms out past it. Radii stay world-space. Zoom is this viewport's canvas
-## transform scale (the level camera); a parent Node2D's scale is NOT
+## zooms out past it. Radii stay world-space. Zoom is the scale of the canvas
+## this item draws on: the level camera on the default canvas, the layer's own
+## (1 for the HUD) under a CanvasLayer; a parent Node2D's scale is NOT
 ## compensated. Editor feedback: zoom the 2D viewport on target_reticle.tscn.
 @export_range(0.0, 16.0, 0.1) var min_screen_px: float = 3.0:
 	set(value):
@@ -77,7 +78,7 @@ func _process(_delta: float) -> void:
 func _canvas_zoom() -> float:
 	if not is_inside_tree():
 		return _zoom
-	var z := get_viewport().get_canvas_transform().get_scale().x
+	var z := get_canvas_transform().get_scale().x
 	return z if z > 0.0 else _zoom
 
 
