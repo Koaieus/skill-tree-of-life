@@ -122,20 +122,20 @@ class Spend extends RefCounted:
 
 
 ## The [member HitInstance.paired] of a blade contact's blast landing: it
-## "landed" iff the gate decided this contact's [member kind] of blast when
+## "landed" iff the gate decided this contact's [member blast_kind] of blast when
 ## the contact itself landed (same beat, earlier index). Never in a hit list —
 ## only [method HitInstance.rider_gated] ever reads it. Carries the contact's
 ## crit so a [PairedDamageInstance] riding it inherits the contact's.
 class BlastToken extends HitInstance:
 	var _gate: LiveGate
 	var _event: BladeHitEvent
-	var _kind: StringName
+	var blast_kind: StringName
 	var _contact: HitInstance
 
-	func _init(gate: LiveGate, event: BladeHitEvent, kind: StringName, contact: HitInstance) -> void:
+	func _init(gate: LiveGate, event: BladeHitEvent, kind_: StringName, contact: HitInstance) -> void:
 		_gate = gate
 		_event = event
-		_kind = kind
+		blast_kind = kind_
 		_contact = contact
 
 	func landed() -> bool:
@@ -143,7 +143,7 @@ class BlastToken extends HitInstance:
 			is_crit = _contact.is_crit
 			crit_multiplier = _contact.crit_multiplier
 			crit_tier = _contact.crit_tier
-		return _gate.blast_of(_event) == _kind
+		return _gate.blast_of(_event) == blast_kind
 
 
 ## `dead_at`: particle_idx -> time a spike DESTROYED it. A hit by that vertex
