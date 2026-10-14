@@ -153,11 +153,20 @@ Haiku is priced a fifth of Opus and never carries the pass's context.
    found clerks recovering from exactly these: a status in the wrong case or
    spacing in 22 runs, a milestone number passed to `gh` in 5, a `ready`
    label in 4.
-9. **`no stamp` is a failure only where a stamp is due.** A drift check on
-   an issue left in `Needs design`, or on a hub, that finds no stamp is
-   reported as `no stamp (not Ready)`, not `FAILED` — those issues carry
-   none by design, and the noise trained callers to skim the drift column
-   (2026-10-11 scan: every `Needs design` child in afff5b02 flagged).
+9. **`no stamp` is a failure only where a stamp is due — and there it
+   gates the status.** A drift check on an issue left in `Needs design`,
+   or on a hub, that finds no stamp is reported as `no stamp (not Ready)`,
+   not `FAILED` — those issues carry none by design, and the noise trained
+   callers to skim the drift column (2026-10-11 scan: every `Needs design`
+   child in afff5b02 flagged). An issue a line sends to `ready` has its
+   drift check run *before* the status is set: no stamp → `FAILED`, the
+   status stays unset and the issue stays in its lane; a drift list is
+   reported and the status still set. A spec order already wrote the stamp,
+   so this costs it nothing; a triage order's `Ready` is the one that can
+   lack one (owner, 2026-10-14, asked whether triage's `Ready` should
+   drift-check: *"Yes, drift-check"*). (Was: status first, drift after —
+   a stampless issue sat in the swarm queue with a `FAILED` line nobody
+   acted on.)
 10. **A body is verified against the order, by length.** A stub *looks*
     filed: a dropped fill leaves an issue with a title, labels, parent and
     status, and nothing to read. So a new issue is created with its body

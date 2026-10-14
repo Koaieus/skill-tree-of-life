@@ -13,9 +13,27 @@ design them, and you read no issue yourself — the scouts do.
 ## 1. Snapshot
 
 `mise run --quiet gh-project -- list intake --json`, taken once. It is
-already ordered P0 → P4 then unprioritised, oldest first; keep that order
-and cut it into batches of four. This list is the whole run — an issue
-filed meanwhile waits for the next one.
+already ordered P0 → P4 then unprioritised, oldest first; keep that order.
+This list is the whole run — an issue filed meanwhile waits for the next
+one.
+
+Then find the hubs in it, one call:
+
+```bash
+sel=""; for n in $(mise run --quiet gh-project -- list intake --json | jq -r '.[].number'); do
+  sel="$sel i$n: issue(number:$n){number subIssues(first:50){nodes{number state}}}"; done
+if [ -n "$sel" ]; then gh api graphql -f query="{ repository(owner:\"Koaieus\",name:\"skill-tree-of-life\"){ $sel } }" \
+  --jq '.data.repository[] | select(.subIssues.nodes|length>0)
+        | "#\(.number) hub → open children: \([.subIssues.nodes[]|select(.state==\"OPEN\")|.number]|map("#\(.)")|join(" "))"'
+fi
+```
+
+A hub is not a queue item: drop it from the list, and note its number
+against each of its children that are in the list (they are the units;
+a child in another lane is already routed and is not touched). A hub is
+never asked, routed or closed — its status derives from its children,
+and closing its last open child closes it. Cut what remains into batches
+of four.
 
 ## 2. Keep two batches scouting
 
@@ -31,9 +49,10 @@ with this brief and the four numbers:
 > - **cost:** a size (xs–xl) and what it touches
 > - **downside:** any UX/DX downgrade, risk or churn; `none` is fine
 > - **still holds?** yes / already fixed (sha or file) / duplicate of #n / superseded
-> - **specced?** does the body already carry a drone-ready acceptance spec
+> - **specced?** does the body already carry a drone-ready acceptance spec,
+>   and a `drift-stamp` block (yes / no for each)
 > - **filer set:** the body's `Intended lane:` line, milestone, priority
->   (`—` for each not set); `hub` if the issue has sub-issues
+>   (`—` for each not set)
 > - **route:** close (not planned | completed | duplicate #n) | backlog |
 >   needs-design | ready, plus any label, priority (p0–p4) or milestone
 >   change, with a one-line reason
@@ -50,16 +69,16 @@ batch, one question per issue, within the tool's limits (at most four
 questions per call, two to four options per question, a header of at most
 twelve characters, every question ending in `?`):
 
-- **question:** `#<n> <title>` and the scout's why/what, cost and downside
-  in two or three short lines, ending `Route it?`.
+- **question:** `#<n> <title>` (`child of #h` when the snapshot gave it
+  a hub) and the scout's why/what, cost and downside in two or three short
+  lines, ending `Route it?`.
 - **header:** `#<n>`, nothing more.
 - **options, at most four:** the scout's route first, marked
   `(Recommended)`, then the other routes that apply — `Close (not planned)`,
   `Backlog`, `Needs design`. Offer `Ready` only when the scout says small
-  **and** specced **and** a milestone is set or proposed. An issue that no
-  longer holds offers `Close (fixed)` or `Close (duplicate #m)` *instead of*
-  `Close (not planned)`. A hub is not routed: offer only close or leave.
-  Each option's description names the metadata it applies (labels,
+  **and** specced **and** stamped **and** a milestone is set or proposed.
+  An issue that no longer holds offers `Close (fixed)` or `Close (duplicate
+  #m)` *instead of* `Close (not planned)`. Each option's description names the metadata it applies (labels,
   priority, milestone). The tool supplies `Other` itself; never add one.
 
 Read an `Other` answer three ways: it names a route (with riders — retags,
@@ -83,11 +102,15 @@ One turn, two `Agent` calls in the same message, then the next question:
    labels, priority and milestone to set, then the status (a `Ready` line
    names its milestone) or the close with its reason — `not planned`,
    `completed`, or `duplicate of #m`. A deferred issue gets no line. These
-   are manual closes: no `Closes #n` footer.
+   are manual closes: no `Closes #n` footer. The clerk checks a `Ready`
+   issue's drift stamp before setting the status; `no stamp` comes back
+   `FAILED` with the issue left in `Intake`.
 3. **Ask the next batch** if its scout is back; otherwise end your turn.
 
 When a clerk reports, re-order any `FAILED`/`SKIPPED` line once in the next
-batch's order; a second failure goes under `Not done`.
+batch's order; a second failure goes under `Not done`. A `FAILED … no
+drift stamp` line is not re-ordered: it goes straight under `Not done` as
+*no drift stamp — `/swarmify` or `/spec` it*.
 
 ## 5. Close out
 
@@ -95,4 +118,8 @@ When every snapshotted issue is routed, deferred or failed and every clerk
 has reported: `mise gh-project -- hygiene`, then the session report
 (`docs/domain/session-report.md`), every section present: a `Routed`
 table (`# · route · note`) in place of `Landed`, scout and clerk failures
-under `Not done`, deferrals under `Needs the owner`.
+under `Not done`, deferrals under `Needs the owner`. A hub that was in
+`Intake` follows its children through `hygiene --fix` once one of them is
+`Ready` or beyond; if every child went to `Backlog` or `Needs design` it is
+still in `Intake` — list it under `Needs the owner` as *hub #h: children
+routed, derivation does not move it*.

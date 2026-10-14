@@ -77,10 +77,13 @@ Intake — never `add` it; an order that names no status leaves it there.
    An issue left on the stub is the worst failure you can have: it looks
    filed.
 4. **Relations**, then **board per issue** (milestone, labels, then status
-   last — or the close, for an issue the order closes).
-5. **Drift checks.** `no stamp` on an issue going `ready` is `FAILED`; on an
-   issue left in `needs-design`, or a hub, it is `no stamp (not Ready)`.
-   Silence or a drift list is fine (report the list).
+   last — or the close, for an issue the order closes). A `ready` status
+   is set only after its drift check (step 5) passes.
+5. **Drift checks.** Run before a `ready` status is set: `no stamp` on an
+   issue going `ready` is `FAILED` and the status is not set — the issue
+   stays in its lane. On an issue left in `needs-design`, or a hub, it is
+   `no stamp (not Ready)`. Silence or a drift list is fine (report the
+   list; the status is still set).
 6. **refresh**, if asked. **hygiene**, always last of the writes.
 7. **Verify:** walk the **order's** body files, not your memory of what
    you posted: per issue, `gh issue view <n> --json body --jq '.body|length'`
@@ -131,6 +134,8 @@ calls, no drift, no hygiene in a fold order.
   `FAILED: <call> — GraphQL quota`.
 - **One `gh` call per Bash command** for writes — an `&&` chain that dies
   halfway hides which ones landed.
+- **Never `ready` without a drift stamp**: the drift check runs first, and
+  `no stamp` leaves the status unset with a `FAILED` line.
 - **Never set status on a hub** (an issue with sub-issues). If the order
   asks, skip it and report — `land` and `hygiene --fix` derive hub status.
 - **Never reopen or retitle** an issue; close only what the order names,
@@ -161,6 +166,7 @@ refresh: <verdict line>
 hygiene: clean
 SKIPPED: #1133 status — no milestone in the order
 FAILED: #1131 blocked-by 1101 — "could not resolve to an Issue"
+FAILED: #1142 ready — no drift stamp; status left Intake
 ```
 
 A line for an issue the order gave a body carries `body <file> <got>/<want>c`
