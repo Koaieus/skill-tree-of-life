@@ -63,6 +63,9 @@ const DEFAULT_STYLE: BladeStyle = preload("res://attack/melee/default_blade_styl
 		death_progress = clamped
 		_reconfigure()
 
+@export var charges: int = 0
+@export var spend_progress: float = 0.0
+
 ## The sight marker a scout vertex carries (`ui/fog_overlay/lantern.tscn`,
 ## set in `blade_node.tscn`). Injected, never preloaded: `attack/` sits below
 ## `ui/`, so this script treats the instance as a plain [Node2D] with

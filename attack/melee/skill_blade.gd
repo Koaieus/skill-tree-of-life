@@ -363,6 +363,18 @@ func _death_progress_at(idx: int, t: float) -> float:
 	return clampf((t - dead_t) / s.pop_window, 0.0, 1.0)
 
 
+func _snapshot_build_charges() -> void:
+	pass
+
+
+func _charges_at(idx: int, t: float) -> int:
+	return -1
+
+
+func _spend_progress_at(idx: int, t: float) -> float:
+	return -1.0
+
+
 ## Rebuilds [member _pending_pops] from [member pop_result]: one entry per
 ## `dead_at` vertex, `.x` the death time and `.y` the particle index, sorted
 ## ascending by time (Vector2's default sort compares `.x` then `.y`) so

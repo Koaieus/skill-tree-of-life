@@ -103,6 +103,7 @@ extends Resource
 	set(value):
 		pop_window = maxf(value, 0.0001)
 		emit_changed()
+@export_range(0.05, 2.0, 0.01) var spend_window: float = 0.25
 ## Shards a popped vertex's disc splits into. Capped at
 ## [constant ShatterField.MAX_CELLS] (32) — the half-float packing budget.
 @export_range(1, 32, 1) var pop_shard_count: int = 8:
