@@ -55,6 +55,9 @@ var gather_cache: Dictionary = {}
 ## spell context writes it (the reducer's seed in [SpellResolver],
 ## [ScaleStacksEffect]). Per landing, so it never compounds across hops.
 var stack_scale: float = 1.0
+var raw_amount: float = 0.0
+var raw_type: DamageInstance.Type = DamageInstance.Type.PHYSICAL
+var target_mask: int = 0
 
 static var _next_hit_key: int = 1
 

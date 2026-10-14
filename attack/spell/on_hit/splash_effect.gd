@@ -21,6 +21,8 @@ extends OnHitEffect
 ## [member HitInstance.land_mask].
 
 @export var inner: OnHitEffect = null
+@export var inners: Array[OnHitEffect] = []
+@export var hits_centre: bool = true
 ## Who a splash may land on, beyond the target — [NodeTargeting]'s flag set.
 @export_flags("Neutral:1", "Mine:2", "Ally:4", "Hostile:8", "Friendly:6", "Allocated:14", "Any:15") var ownership_filter: int = 8
 ## Where it reaches. The radius is the finder's own export, unscaled by any

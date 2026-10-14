@@ -55,6 +55,7 @@ var world: CombatWorld = CombatWorld.live()
 ## [code]outcome[/code] positional parameter [LandingCondition.evaluate] used
 ## to take (and the [code]null[/code] the crit path passed for it).
 var outcome: AttackOutcome = null
+var target_mask: int = 0
 
 ## The cast's affinity riders, as every landing runs them — read by a spread
 ## that must know the stacks a hop would carry before it takes it.
