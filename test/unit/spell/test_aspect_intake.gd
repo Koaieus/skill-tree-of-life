@@ -295,3 +295,11 @@ func test_a_resolve_exposes_the_load_to_the_spread() -> void:
 	assert_true(spy.called, "the spread ran")
 	assert_eq(spy.seen, inf.load_of(spell) as Dictionary, "ctx.load is load_of")
 	assert_eq(spy.seen.get(&"explosive", 0), 9)
+
+
+func test_the_shipped_firecracker_row_is_fuel() -> void:
+	var spell := load("res://attack/spell/defs/firecracker.tres") as SpellDef
+	var row := Infusion.intake_of(spell, &"explosive")
+	assert_not_null(row, "firecracker lists explosive")
+	assert_eq(row.resolved_face(), AspectIntake.Face.FUEL, "face = 3 deserialises as FUEL")
+	assert_eq(Infusion.innate(spell).detonate_load(spell), 0, "its innate 6 is fuel, never a detonation load")
