@@ -27,6 +27,12 @@ enum StackFold { MAX, SUM, MIN, FIRST }
 ## See [enum StackFold]. Named by [method fold_description] when not MAX.
 @export var stack_fold: StackFold = StackFold.MAX
 
+## When on, every incident at a node lands its OWN arrival — on-hit effects and
+## crit evaluation with that incident as the payload, in predecessor
+## [method Graph.get_stable_id] order — while the visit bump and the departure
+## still run once off [method reduce]'s merge. Off: one merged arrival.
+@export var hit_each_incident: bool = false
+
 
 ## [b]Deliberately NOT a [LandingContext][/b] (#356): the reducer MAKES the
 ## landing, so none exists yet when it runs. Pre-landing stages take the cast
