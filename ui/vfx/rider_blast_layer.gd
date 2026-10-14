@@ -63,7 +63,7 @@ func _process(delta: float) -> void:
 
 
 func _draw() -> void:
-	if radius <= 0.0:
+	if radius <= 0.0 or (_elapsed != INF and _elapsed >= duration):
 		return
 	var delay := minf(lag * float(layer + 1), duration * 0.9)
 	var t := clampf((_elapsed - delay) / maxf(duration - delay, 0.001), 0.0, 1.0)
@@ -72,6 +72,6 @@ func _draw() -> void:
 	var sweep := 1.0 - pow(1.0 - t, 3.0)
 	var fade := 1.0 if t < 0.5 else 1.0 - (t - 0.5) * 2.0
 	var c := color()
-	if _elapsed < duration:
+	if _elapsed != INF:
 		c.a *= clampf(fade, 0.0, 1.0)
 	draw_arc(Vector2.ZERO, radius * maxf(sweep, 0.02), 0.0, TAU, 96, c, thickness, true)
