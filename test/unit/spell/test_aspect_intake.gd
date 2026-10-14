@@ -171,3 +171,77 @@ func test_apply_status_description_is_the_status_applies_line() -> void:
 	var expected := _POISON.applies_line(board, 3.0)
 	assert_eq(expected, "Applies Poison (3 per hit).", "the shared line")
 	assert_eq(eff.get_description(null, board), expected)
+
+
+# ── A shaping-only intake (rides = false) ──────────────────────────────────
+
+const _EXPLOSIVE_ID := preload("res://identity/defs/explosive.tres")
+
+
+func _shaping(identity: Identity, innate: int) -> AspectIntake:
+	var a := AspectIntake.new()
+	a.identity = identity
+	a.innate = innate
+	a.rides = false
+	return a
+
+
+func test_a_shaping_intake_lands_no_rider_but_keeps_its_load() -> void:
+	var spell := SpellDef.new()
+	spell.intakes = [_shaping(_EXPLOSIVE_ID, 6), _intake(_POISON, 2)] as Array[AspectIntake]
+	var inf := Infusion.innate(spell)
+	var riders := inf.riders(spell)
+	assert_eq(riders.size(), 1, "only the poison rides")
+	assert_eq((riders[0] as ApplyStatusEffect).def, _POISON)
+	assert_eq(inf.load_of(spell), {&"explosive": 6, &"poison": 2} as Dictionary[StringName, int])
+
+
+func test_a_shaping_intake_with_a_status_still_lands_no_rider() -> void:
+	var spell := SpellDef.new()
+	spell.intakes = [_shaping(_CURSE.identity, 4), _intake(_POISON, 2)] as Array[AspectIntake]
+	var riders := Infusion.innate(spell).riders(spell)
+	assert_eq(riders.size(), 1, "curse shapes only; poison rides")
+	assert_eq((riders[0] as ApplyStatusEffect).def, _POISON)
+	assert_eq(Infusion.innate(spell).load_of(spell).get(_CURSE.identity.id, 0), 4)
+
+
+func test_infusing_a_shaping_concept_raises_its_load_and_adds_no_rider() -> void:
+	var spell := SpellDef.new()
+	spell.intakes = [_shaping(_CURSE.identity, 6), _intake(_POISON, 2)] as Array[AspectIntake]
+	var inf := Infusion.for_cast(spell, {_CURSE.identity.id: 3})
+	assert_eq(inf.load_of(spell).get(_CURSE.identity.id, 0), 9, "6 innate + 3 at 1:1")
+	var riders := inf.riders(spell)
+	assert_eq(riders.size(), 1, "still only poison rides")
+	assert_eq((riders[0] as ApplyStatusEffect).def, _POISON)
+
+
+## Records the cast's load the first time it selects.
+class LoadSpy extends FanAllSpread:
+	var seen: Dictionary = {}
+	var called := false
+
+	func select(eligible: Array[SkillNode], lctx: LandingContext) -> Array[PropagationPick]:
+		if not called:
+			called = true
+			seen = lctx.cast.load.duplicate()
+		return super(eligible, lctx)
+
+
+func test_a_resolve_exposes_the_load_to_the_spread() -> void:
+	var helper := H.new()
+	var graph := helper.make_graph([[0, 1], [1, 2]], self)
+	var atk := helper.make_entity(graph, "A")
+	var def := helper.make_entity(graph, "D")
+	helper.give_big_hp(def)
+	helper.assign_owner(graph, def, [1, 2])
+	helper.assign_owner(graph, atk, [0])
+	var spy := LoadSpy.new()
+	var config := helper.make_config(spy, helper.owner_enemy(), helper.max_reducer(), {max_hops = 1})
+	var spell := helper.make_spell(config, [DamageEffect.new()], 10.0)
+	spell.intakes = [_shaping(_EXPLOSIVE_ID, 6), _intake(_POISON, 2)] as Array[AspectIntake]
+	var inf := Infusion.for_cast(spell, {&"explosive": 3})
+	var n := graph.get_skill_nodes()
+	SpellResolver.resolve(spell, n[1], n[0], atk, graph, null, inf)
+	assert_true(spy.called, "the spread ran")
+	assert_eq(spy.seen, inf.load_of(spell) as Dictionary, "ctx.load is load_of")
+	assert_eq(spy.seen.get(&"explosive", 0), 9)

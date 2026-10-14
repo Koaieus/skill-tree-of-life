@@ -34,6 +34,13 @@ extends Resource
 	set(value):
 		affinity_cost = maxi(value, 1)
 		emit_changed()
+## True: the load lands as the concept's status rider. False: the load only
+## shapes the spell — no rider; a spread reads it from
+## [member PropagationContext.load] (Firecracker's explosive fuel).
+@export var rides: bool = true:
+	set(value):
+		rides = value
+		emit_changed()
 
 
 ## The concept id this row keys on (`&"poison"`); `&""` unset.

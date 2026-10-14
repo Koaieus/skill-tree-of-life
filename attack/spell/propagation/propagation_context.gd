@@ -63,6 +63,9 @@ var target_mask: int = 0
 ## The cast's intake riders, as every landing runs them — read by a spread
 ## that must know the stacks a hop would carry before it takes it.
 var riders: Array[OnHitEffect] = []
+## The cast's load per concept ([method Infusion.load_of]), riding or not —
+## where a spread reads a shaping load (fuel, radius), never from [member riders].
+var load: Dictionary[StringName, int] = {}
 
 
 ## [param node]'s ownership relation to [member caster] in [member world] —
