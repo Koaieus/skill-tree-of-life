@@ -214,15 +214,6 @@ func _generate(cfg: GraphProcgenConfig) -> Array[SkillNode]:
 ## is what would keep a still-ragged grid honest: force a subtype to certainty
 ## and every node on an empty cell must still end on the default.
 func test_perception_and_wisdom_always_end_on_the_default_subtype() -> void:
-	# QUARANTINED. Passes alone and sharded; fails single-process in
-	# `GUT_SHARDS=1 mise run test:dir -- res://test/unit/procgen/` — alongside
-	# five siblings in this file that never call `generate()` and both preset
-	# goldens, all already red there on a generate() that no longer writes to
-	# its config (#425). So the contaminator is an earlier procgen script, not
-	# this test and not generate(); the assertion is right, the isolation is not.
-	pending("single-process procgen contamination, independent of generate() — see comment")
-	return
-	@warning_ignore("unreachable_code")
 	for forced: StringName in [&"blight", &"bless"]:
 		var cfg := _fresh_config()
 		cfg.content.subtypes = [_subtype(forced, 1.0)] as Array[NodeSubtype]
@@ -241,7 +232,9 @@ func test_perception_and_wisdom_always_end_on_the_default_subtype() -> void:
 					% [primary, forced, default_id])
 			elif sn.subtype.id == forced:
 				stood += 1
-		assert_true(empty_cell_nodes > 0, "sanity: the run produced PER/WIS nodes")
+		# Vacuous while `_EMPTY_CELLS` is empty; bites again the moment a hole returns.
+		if not (_EMPTY_CELLS[forced] as Array).is_empty():
+			assert_true(empty_cell_nodes > 0, "sanity: the run produced nodes on the empty cells")
 		assert_true(stood > 0,
 			"%s must still stand on the four populated archetypes" % forced)
 
