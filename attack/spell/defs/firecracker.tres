@@ -14,6 +14,7 @@
 [ext_resource type="Script" path="res://attack/spell/propagation/reach/fuel_blast_reach.gd" id="5_reach"]
 [ext_resource type="Script" path="res://attack/targeting/node_targeting.gd" id="6_targeting"]
 [ext_resource type="Script" path="res://attack/range_finder/hop_range_finder.gd" id="6_range"]
+[ext_resource type="Resource" path="res://identity/defs/spell_firecracker.tres" id="7_identity"]
 
 [sub_resource type="Resource" id="fuel"]
 script = ExtResource("2_intake")
@@ -61,6 +62,7 @@ script = ExtResource("1_spell")
 id = &"firecracker"
 name = "Firecracker"
 tagline = "Each landing is a blast; the next wave lands on all it hits."
+identity = ExtResource("7_identity")
 description = "Pops on an enemy node, and the pop is a blast: every enemy node inside it is where the next wave lands, edge or no edge. Its explosive is fuel, not cargo: each wave burns one, so the blasts shrink while the damage holds. A blast whose centre shares no edge with a node it hits CRITS there. Every pop sets off one charge on a charged node, and infused poison rides that charge's blast."
 power = 0.3
 propagation = SubResource("prop")
