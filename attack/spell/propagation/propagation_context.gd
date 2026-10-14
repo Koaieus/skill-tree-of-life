@@ -118,7 +118,6 @@ func stacks_of(node: SkillNode, status_id: StringName) -> float:
 	return slice.get_status_power(status_id) if slice != null else 0.0
 
 
-
 ## [param node]'s stacks of [param status_id] on the core it stands for, read
 ## in [member world]: its owner's entity row when [param node] is that owner's
 ## core node, else 0. The second status holder at a core (ADR 0024).
@@ -137,6 +136,7 @@ func core_stacks_of(node: SkillNode, status_id: StringName) -> float:
 ## [method stacks_of].
 func spot_stacks_of(node: SkillNode, status_id: StringName) -> float:
 	return stacks_of(node, status_id) + core_stacks_of(node, status_id)
+
 
 ## [param node]'s degree within the induced subgraph of ITS OWNER, as read in
 ## [member world] (#860) — the fourth form on top of the three
