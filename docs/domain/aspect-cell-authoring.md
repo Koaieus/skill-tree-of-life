@@ -60,8 +60,9 @@ appended right after the arrow in the outcome; the arrow takes the landing's
 | effect | what it gives an arrow | example |
 |---|---|---|
 | `ApplyStatusEffect` | `def` + `power` stacks on the landed node, folded through the read node's `<family>_stacks_per_hit` | every statused arrow |
-| `SplashEffect` | wraps one `inner` effect and re-runs it on every other node its `range_finder` gathers around the target (over the global `Navigator`, unscaled) whose ownership bit matches `ownership_filter` — `NodeTargeting`'s mask + finder pair, the caller sets the radius on the finder; each copy keeps the arrow's hit key and pairing, and every hit a copy emits re-checks the same mask at land (`land_mask = ownership_filter`, ADR 0049); the gather goes through the landing's `gather_cache` — one per volley, keyed (target, finder, reach), pre-mask — so a volley's splashes on one node sweep the board once | blindness's flare: `HopRangeFinder(max_hops = 1)` + Hostile |
-| `PairedDamageEffect` | a `PairedDamageInstance` on the landed node worth `fraction` × the arrow's raw amount, fixed at compile (pre-crit, pre-mitigation, so each node mitigates it once by its own armour); it duds with the arrow and copies the arrow's crit at land. No `paired` (a spell's landing) emits nothing | Explosive's blast: `SplashEffect(EuclideanRangeFinder, Hostile, PairedDamageEffect)` |
+| `SplashEffect` | runs its `inners` (via `OnHitEffect.run_all`) on the target unless `hits_centre` is off, then again on every other node its `range_finder` gathers around the target (over the global `Navigator`, unscaled) whose ownership bit matches the mask — `NodeTargeting`'s mask + finder pair, the caller sets the radius on the finder. The mask is `ownership_filter`, or at **0 the landing's own `target_mask`** (hostile for an arrow or blade, the spell's targeting filter for a spell): a splash hits what its hit may hit. Each copy keeps the hit key, pairing, raw amount and mask, and every hit a copy emits re-checks the same mask at land (`land_mask`, ADR 0049); the gather goes through the landing's `gather_cache` — one per volley, keyed (target, finder, reach), pre-mask — so a volley's splashes on one node sweep the board once | blindness's flare: `HopRangeFinder(max_hops = 1)` + Hostile |
+| `PairedDamageEffect` | a `PairedDamageInstance` on the landed node worth `fraction` × the landing's `raw_amount` (the arrow's or contact's amount, a spell payload's damage), fixed at compile (pre-crit, pre-mitigation, so each node mitigates it once by its own armour); with a `paired` hit it duds with it and copies its crit at land, on a spell landing it stands alone | Explosive's shrapnel, inside a `BlastEffect` |
+| `BlastEffect` | a `SplashEffect` preset: `hits_centre = false` (the centre already took the main hit), `ownership_filter = 0` (inherit the landing's mask). Its reach is its finder's, built by whoever emits it — one finder per distinct radius, so `gather_cache` still dedupes a volley | Explosive's blast: `BlastEffect(EuclideanRangeFinder, [PairedDamageEffect])` |
 | `OnHitEffect.status_def()` | the seam a wrapper answers through, so `AmmoType.first_status_def()` (tint, card swatch, scout check) never type-switches; a new wrapper overrides it | `SplashEffect` |
 
 **Not on the shelf:** `DamageEffect`, `HealEffect` and `ScaleDamageEffect`
@@ -75,7 +76,7 @@ there when the arrows behind it hit: curse lifts their damage floor, hex their
 crit chance. Crit rolls *at landing* (one draw per hit, in landing order, off
 `AttackOutcome.crit_stream` — local, never on the wire, null on a rebuilt
 `AttackRecord`, which lands its recorded crits); `docs/domain/attack-timeline.md`.
-Guards: `test_marker_arrows.gd`, `test_crit_at_landing.gd`, `test_splash_effect.gd`, `test_splash_reach.gd`, `test_splash_gather_cache.gd`, `test_paired_damage_effect.gd` — all on `test/support/volley_board_fixture.gd`.
+Guards: `test_marker_arrows.gd`, `test_crit_at_landing.gd`, `test_splash_effect.gd`, `test_splash_reach.gd`, `test_splash_gather_cache.gd`, `test_paired_damage_effect.gd`, `test_blast_effect.gd` — all on `test/support/volley_board_fixture.gd`.
 
 ### Look shelf
 

@@ -55,6 +55,9 @@ var world: CombatWorld = CombatWorld.live()
 ## [code]outcome[/code] positional parameter [LandingCondition.evaluate] used
 ## to take (and the [code]null[/code] the crit path passed for it).
 var outcome: AttackOutcome = null
+## The spell's targeting ownership filter ([member NodeTargeting.ownership_filter]),
+## stamped by [SpellResolver]: every landing's [member HitLanding.target_mask].
+## 0 = the targeting has none.
 var target_mask: int = 0
 
 ## The cast's affinity riders, as every landing runs them — read by a spread

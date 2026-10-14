@@ -441,6 +441,7 @@ func _land_batch(
 		var riders: Array = state.vertex_on_hit[ev.particle_idx]
 		if not riders.is_empty():
 			var landing := HitLanding.riding(di, sub.hits)
+			landing.target_mask = SkillNode.Ownership.HOSTILE
 			if _ctx.overlays_for.is_valid():
 				var carrier: SkillNode = di.read_node
 				var lookup: Callable = _ctx.overlays_for

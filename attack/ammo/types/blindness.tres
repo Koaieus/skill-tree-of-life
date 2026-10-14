@@ -20,7 +20,7 @@ max_hops = 1
 
 [sub_resource type="Resource" id="Resource_flare"]
 script = ExtResource("6_splash")
-inner = SubResource("Resource_rider")
+inners = Array[ExtResource("5_on_hit_effect")]([SubResource("Resource_rider")])
 range_finder = SubResource("Resource_reach")
 
 [resource]

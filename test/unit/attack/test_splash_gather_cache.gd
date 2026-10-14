@@ -29,7 +29,7 @@ func before_each() -> void:
 
 func _blast(finder: CountingFinder) -> AmmoType:
 	var splash := SplashEffect.new()
-	splash.inner = PairedDamageEffect.new()
+	splash.inners = [PairedDamageEffect.new()] as Array[OnHitEffect]
 	splash.ownership_filter = SkillNode.Ownership.HOSTILE
 	splash.range_finder = finder
 	var ammo := AmmoType.new()

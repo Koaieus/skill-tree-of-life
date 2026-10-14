@@ -89,7 +89,7 @@ func _blast(r: float) -> AmmoType:
 	var finder := EuclideanRangeFinder.new()
 	finder.max_distance = r
 	var splash := SplashEffect.new()
-	splash.inner = PairedDamageEffect.new()
+	splash.inners = [PairedDamageEffect.new()] as Array[OnHitEffect]
 	splash.ownership_filter = SkillNode.Ownership.HOSTILE
 	splash.range_finder = finder
 	var ammo := AmmoType.new()

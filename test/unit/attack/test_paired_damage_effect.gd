@@ -1,6 +1,6 @@
 extends GutTest
 
-## [PairedDamageEffect]: a damage rider worth a fraction of its arrow's RAW
+## [PairedDamageEffect]: a damage rider worth a fraction of its landing's RAW
 ## amount, fixed at compile, mitigated by each landed node's own armour, and
 ## carrying the arrow's crit rather than drawing its own. Wrapped in a
 ## [SplashEffect] it is the Explosive arrow's blast.
@@ -33,7 +33,7 @@ func _blast(fraction: float, r: float) -> AmmoType:
 	var inner := PairedDamageEffect.new()
 	inner.fraction = fraction
 	var splash := SplashEffect.new()
-	splash.inner = inner
+	splash.inners = [inner] as Array[OnHitEffect]
 	splash.ownership_filter = SkillNode.Ownership.HOSTILE
 	splash.range_finder = finder
 	var ammo := AmmoType.new()
@@ -79,12 +79,12 @@ func test_ammo_type_accepts_a_paired_damage_rider() -> void:
 	assert_eq(ammo.on_hit_effects.size(), 1, "mode-agnostic, not refused as spell-only")
 
 
-func test_a_spell_landing_with_no_paired_hit_emits_nothing() -> void:
+func test_a_landing_with_no_raw_amount_emits_nothing() -> void:
 	var landing := HitLanding.new()
 	landing.attacker = _f.attacker
 	landing.target = _f.target
 	PairedDamageEffect.new().apply(landing)
-	assert_eq(landing.hits.size(), 0, "a spell uses DamageEffect")
+	assert_eq(landing.hits.size(), 0, "no raw damage, nothing to take a share of")
 
 
 ## Each (fraction, radius) on a fresh board, so no pass kills what the next

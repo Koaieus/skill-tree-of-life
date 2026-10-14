@@ -187,6 +187,8 @@ static func _resolve(
 	# crit path used to.
 	ctx.outcome = outcome
 	ctx.riders = riders
+	var mask: Variant = spell.targeting.get(&"ownership_filter") if spell.targeting != null else null
+	ctx.target_mask = int(mask) if mask != null else 0
 
 	# Wave 0: one seed per node. Two seeds never share a node, so the reducer
 	# first meets them where their fronts converge later on.

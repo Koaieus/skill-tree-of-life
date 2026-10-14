@@ -24,7 +24,7 @@ func _splash(filter: int, finder: RangeFinder) -> SplashEffect:
 	inner.def = _BLINDNESS_DEF
 	inner.power = 1.0
 	var splash := SplashEffect.new()
-	splash.inner = inner
+	splash.inners = [inner] as Array[OnHitEffect]
 	splash.ownership_filter = filter
 	splash.range_finder = finder
 	return splash

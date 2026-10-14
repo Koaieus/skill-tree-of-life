@@ -73,6 +73,7 @@ static func riders_for(hit: DamageInstance, gather_cache: Dictionary = {}) -> Ar
 	if arrow == null or arrow.ammo_type == null or arrow.ammo_type.on_hit_effects.is_empty():
 		return []
 	var landing := HitLanding.riding(arrow, [] as Array[HitInstance], gather_cache)
+	landing.target_mask = SkillNode.Ownership.HOSTILE
 	OnHitEffect.run_all(arrow.ammo_type.on_hit_effects, landing)
 	for rider in landing.hits:
 		rider.ammo_type_id = arrow.ammo_type_id

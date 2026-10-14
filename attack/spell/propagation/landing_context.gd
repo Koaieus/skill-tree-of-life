@@ -23,7 +23,8 @@ extends HitLanding
 ## sets the inherited mode-agnostic fields from the cast and payload — the
 ## same facts the resolver stamps on every hit this landing emits — so an
 ## [OnHitEffect] that reads only [HitLanding] ([ApplyStatusEffect]) works here
-## unchanged. A spell gates nothing, so [member HitLanding.paired] stays null.
+## unchanged. A spell gates nothing, so [member HitLanding.paired] stays null;
+## its raw amount is the payload's damage and its target mask the cast's.
 
 
 ## The per-cast ledger this landing belongs to — [member PropagationContext.outcome],
@@ -48,10 +49,13 @@ var incidents: Array[CastSpell] = []
 ## node, origin = its predecessor (the seed falls back to its cast-from node,
 ## so the first projectile flies from there), read node = the cast source on
 ## every hop, structural key = its hop
-## ordinal, and [member HitLanding.hits] = the cast outcome's own array, by
+## ordinal, raw amount = the payload's damage (MAGIC), target mask = the
+## cast's [member PropagationContext.target_mask], and
+## [member HitLanding.hits] = the cast outcome's own array, by
 ## reference. Call once [member cast] and [member payload] are set.
 func fill_landing() -> void:
 	attacker = cast.caster if cast != null else null
+	target_mask = cast.target_mask if cast != null else 0
 	if cast != null and cast.outcome != null:
 		hits = cast.outcome.hits
 	if payload == null:
@@ -61,6 +65,8 @@ func fill_landing() -> void:
 	origin = payload.predecessor if payload.predecessor != null else payload.source
 	read_node = payload.source
 	structural_key = float(payload.hop_index)
+	raw_amount = payload.damage
+	raw_type = DamageInstance.Type.MAGIC
 
 
 ## Forwarding accessor: a stage asks THIS, never [code]lctx.cast.ownership_bit_of[/code],

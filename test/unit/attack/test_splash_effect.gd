@@ -30,9 +30,9 @@ func _riders(ctx: Dictionary) -> Dictionary:
 
 func _inner_power() -> float:
 	var effect: Variant = _BLINDNESS_ARROW.on_hit_effects[0]
-	if not (effect is SplashEffect) or not (effect.inner is ApplyStatusEffect):
+	if not (effect is SplashEffect) or not (effect.inners[0] is ApplyStatusEffect):
 		return -1.0
-	return effect.inner.power
+	return effect.inners[0].power
 
 
 func test_a_blindness_arrow_blinds_the_target_and_its_hostile_neighbours_only() -> void:

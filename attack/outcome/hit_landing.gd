@@ -55,8 +55,15 @@ var gather_cache: Dictionary = {}
 ## spell context writes it (the reducer's seed in [SpellResolver],
 ## [ScaleStacksEffect]). Per landing, so it never compounds across hops.
 var stack_scale: float = 1.0
+## The landing's own damage, raw (pre-crit, pre-mitigation) — the arrow's or
+## the contact's amount, a spell payload's damage — and its type. What a
+## [PairedDamageEffect] takes its share of; 0 when the landing deals none.
 var raw_amount: float = 0.0
 var raw_type: DamageInstance.Type = DamageInstance.Type.PHYSICAL
+## Who this landing's attack may hit, as [NodeTargeting]'s ownership flag set —
+## hostile for an arrow or a blade, the spell's targeting filter for a spell.
+## A [SplashEffect] with filter 0 splashes with it. 0 = unknown: such a splash
+## reaches nothing. Stamped by the landing's builder.
 var target_mask: int = 0
 
 static var _next_hit_key: int = 1
@@ -67,7 +74,9 @@ static var _next_hit_key: int = 1
 ## [param primary] (so every rider is gated by it); [param hits] and
 ## [param gather_cache] by reference. Stamps the landing's [member hit_key]
 ## onto [param primary] too, so the primary and its riders are one hit to a
-## host. Anything mode-specific ([member read_overlays]) is caller-set after.
+## host. [member raw_amount]/[member raw_type] come off [param primary] when it
+## is damage. Anything mode-specific ([member read_overlays],
+## [member target_mask]) is caller-set after.
 static func riding(primary: HitInstance, hits: Array[HitInstance], gather_cache: Dictionary = {}) -> HitLanding:
 	var landing := HitLanding.new()
 	landing.attacker = primary.attacker
@@ -80,6 +89,10 @@ static func riding(primary: HitInstance, hits: Array[HitInstance], gather_cache:
 	landing.hits = hits
 	landing.gather_cache = gather_cache
 	primary.hit_key = landing.hit_key
+	var damage := primary as DamageInstance
+	if damage != null:
+		landing.raw_amount = damage.amount
+		landing.raw_type = damage.type
 	return landing
 
 

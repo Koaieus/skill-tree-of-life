@@ -73,7 +73,7 @@ func test_riders_for_blindness_arrow_carries_the_def_at_authored_power() -> void
 	var status := riders[0] as StatusInstance
 	assert_not_null(status)
 	assert_eq(status.def.resource_path, "res://effects/status/blindness.tres")
-	assert_eq(status.power, (splash.inner as ApplyStatusEffect).power)
+	assert_eq(status.power, (splash.inners[0] as ApplyStatusEffect).power)
 
 
 ## Every statused type flies its own inherited scene of the base status arrow,
