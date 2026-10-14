@@ -111,9 +111,16 @@ func test_lantern_radius_follows_the_scout_knob() -> void:
 	assert_eq(lanterns.size(), 1, "precondition: one lit vertex")
 	if lanterns.size() != 1:
 		return
-	for effect in blade.state.vertex_on_hit[1]:
+	# The authored rider is 0 stacks: nothing to size. Size a private copy —
+	# the rider is the preloaded scene's shared sub-resource, so writing it in
+	# place leaks into every later watchtower instance.
+	var riders: Array = blade.state.vertex_on_hit[1]
+	for i in riders.size():
+		var effect: Variant = riders[i]
 		if effect != null and effect.status_def() is ScoutStatus:
-			effect.set(&"power", 4.0)  # the authored rider is 0 stacks: nothing to size
+			var sized: Resource = effect.duplicate()
+			sized.set(&"power", 4.0)
+			riders[i] = sized
 	blade.arm_lanterns()
 	var expected := SkillBlade.scout_lantern_radius(blade.state, 1, blade._source_nodes[1])
 	assert_gt(expected, 0.0, "the scout rider sizes the marker")
