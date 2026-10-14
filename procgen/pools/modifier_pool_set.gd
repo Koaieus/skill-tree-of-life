@@ -24,7 +24,7 @@ func _print_tables() -> void:
 
 
 ## All entries flattened (debug / print-tool / one-shot consumers). The draw
-## loop calls [method flatten_for_node] which filters by archetype affinity.
+## loop calls [method flatten_for_node] which filters by archetype.
 func flatten_all() -> Array[ModifierPoolEntry]:
 	var out: Array[ModifierPoolEntry] = []
 	for pack in packs:

@@ -4,7 +4,7 @@ extends SpellOnHitEffect
 
 ## Multiplies [member HitLanding.stack_scale] at a landing, optionally gated by
 ## a [LandingCondition]: every [StatusInstance] this landing then mints — an
-## authored [ApplyStatusEffect] or an affinity rider — lands its FOLDED stacks
+## authored [ApplyStatusEffect] or an intake rider — lands its FOLDED stacks
 ## × that scale ([method StatusInstance.land_on]). Emits nothing itself;
 ## author it in [member SpellDef.on_hit_effects], which run before the riders.
 ##

@@ -3,10 +3,10 @@ extends RefCounted
 
 ## The AI's infusion call: infusing costs nothing but slots, so every slot is
 ## filled to the cap and the only choice is which aspects. Aspects rank by
-## `floor(aspect stat x spell rate)` descending, ties by [AspectRoster] order;
+## [method Infusion.gained] of the held aspect stat descending, ties by [AspectRoster] order;
 ## each takes min(its own stat, what is left of the spell's
 ## `infusion_capacity`) — there is no shared points pool. Aspects the spell
-## refuses (rate 0), the entity holds none of, or that land no status are skipped.
+## refuses (affinity or ingest 0), the entity holds none of, or that land no status are skipped.
 
 
 ## `{concept id: points}` for [param spell] cast by [param entity]; empty when
@@ -20,14 +20,14 @@ static func pick(entity: Entity, spell: SpellDef) -> Dictionary[StringName, int]
 	var left := maxi(0, floori(spell.infusion_capacity)) if capped else 0
 	if slots <= 0 or (capped and left <= 0):
 		return out
-	var ranked: Array = []  # [id, held, ingest]
+	var ranked: Array = []  # [id, held, gained]
 	for aspect in AspectRoster.shared().aspects:
 		var id := aspect.id()
-		var rate := Infusion.rate_of(spell, id)
 		var held := AspectCurrency.cap_of(entity, AspectCurrency.stat_of(id))
-		if rate <= 0.0 or held <= 0 or StatusRoster.shared().by_concept(id) == null:
+		if Infusion.ratio_of(spell, id).x <= 0 or held <= 0 \
+				or StatusRoster.shared().by_concept(id) == null:
 			continue
-		ranked.append([id, held, floori(held * rate)])
+		ranked.append([id, held, Infusion.gained(spell, id, held)])
 	# Stable by construction: roster order is the array order, ties keep it.
 	var order: Array[int] = []
 	for i in ranked.size():

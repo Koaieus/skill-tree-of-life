@@ -169,7 +169,7 @@ static func _resolve(
 	if not is_nan(aim_angle):
 		outcome.aim = _aim_of(spell, source, caster, aim_angle)
 	var config: PropagationConfig = spell.propagation
-	# The cast's affinity riders (null = the spell as authored), run after the
+	# The cast's intake riders (null = the spell as authored), run after the
 	# spell's own effects at every landing.
 	var riders := (infusion if infusion != null else Infusion.innate(spell)).riders(spell)
 

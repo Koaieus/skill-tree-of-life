@@ -2,7 +2,7 @@
 class_name InnateChip
 extends HBoxContainer
 
-## One innate entry of a spell tile's affinity row: the aspect's small
+## One innate entry of a spell tile's intake row: the aspect's small
 ## [IdentityBadge] plus the innate point count. [method bind] resolves the
 ## aspect through [IdentityRoster]; an unknown id shows the count alone.
 

@@ -97,17 +97,24 @@ var icon: Texture2D:
 ## the standard first entry via [DamageEffect].
 @export var on_hit_effects: Array[OnHitEffect] = []
 
-## The spell's element list (#1250): per concept, the stacks it lands per hit
-## with no infusion ([member SpellAffinity.innate]) and how it ingests one
-## ([member SpellAffinity.rate]). [Infusion] turns it into one
+## The spell's intake list (#1250): per concept, the load it lands per hit
+## with no infusion ([member AspectIntake.innate]) and its affinity, the
+## per-concept exchange rate for an infusion of it. [Infusion] turns it into one
 ## [ApplyStatusEffect] rider per concept, run after [member on_hit_effects] at
 ## every landing — a status spell authors its stacks here, never as an
 ## [ApplyStatusEffect] in [member on_hit_effects].
-@export var affinities: Array[SpellAffinity] = []
+@export var intakes: Array[AspectIntake] = []
 
-## Ingest ratio for a concept [member affinities] does not list; 0 refuses
-## every unlisted concept.
-@export_range(0.0, 10.0, 0.05, "or_greater") var default_rate: float = 1.0
+## Ingest rate numerator: the spell-wide exchange rate `ingest_gain:ingest_cost`,
+## multiplied with every concept's affinity (an unlisted concept's is 1:1);
+## 0 refuses every infusion.
+@export_range(0, 10, 1, "or_greater") var ingest_gain: int = 1:
+	set(value):
+		ingest_gain = maxi(value, 0)
+## Ingest rate denominator; ≥ 1.
+@export_range(1, 10, 1, "or_greater") var ingest_cost: int = 1:
+	set(value):
+		ingest_cost = maxi(value, 1)
 
 ## Most infusion points one cast of this spell takes in total, across every
 ## socketed aspect; INF leaves each aspect capped only by its `<concept>_aspect`.
@@ -151,17 +158,17 @@ func validate(_plan: MagicAttackPlan) -> Array[String]:
 		errors.append(&"Spell has no targeting set")
 	if propagation == null:
 		errors.append(&"Spell has no propagation set")
-	# A status-only spell (Hex) lands nothing but its affinity riders.
-	if on_hit_effects.is_empty() and affinities.is_empty():
+	# A status-only spell (Hex) lands nothing but its intake riders.
+	if on_hit_effects.is_empty() and intakes.is_empty():
 		errors.append(&"Spell has no on-hit effects")
 	return errors
 
 
-## True iff some [member affinities] entry lands a [ScoutStatus] — the spell
+## True iff some [member intakes] row lands a [ScoutStatus] — the spell
 ## lights the fog it crosses. Mirrors [method AmmoType.is_scout].
 func is_scout() -> bool:
-	for affinity in affinities:
-		if affinity != null and affinity.status is ScoutStatus:
+	for intake in intakes:
+		if intake != null and intake.status() is ScoutStatus:
 			return true
 	return false
 

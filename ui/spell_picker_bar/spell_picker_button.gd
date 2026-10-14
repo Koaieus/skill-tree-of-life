@@ -9,7 +9,7 @@ extends Button
 ##     [method IdentityBadge.letter_of]) — the tile is identity enough, so no
 ##     [IdentityBadge] frames the spell here
 ##   * name label
-##   * one [InnateChip] per innate affinity (aspect badge + count); a non-1
+##   * one [InnateChip] per innate intake (aspect badge + count); a non-1
 ##     ingest rate is named only in [member Control.tooltip_text]
 ##
 ## Same shader scaffolding as [AttackModeButton] — the bg shader handles
@@ -269,29 +269,29 @@ func _apply_identity(identity: Identity) -> void:
 		_letter.add_theme_color_override(&"font_color", color)
 
 
-## One [InnateChip] per affinity with innate points, in [member SpellDef.affinities] order.
+## One [InnateChip] per intake with innate load, in [member SpellDef.intakes] order.
 func _rebuild_chips() -> void:
 	for chip in _chips.get_children():
 		_chips.remove_child(chip)
 		chip.queue_free()
 	if spell != null:
-		for affinity in spell.affinities:
-			if affinity == null or affinity.innate <= 0:
+		for intake in spell.intakes:
+			if intake == null or intake.innate <= 0:
 				continue
 			var chip := CHIP_SCENE.instantiate() as InnateChip
 			_chips.add_child(chip)
-			chip.bind(affinity.aspect_id(), affinity.innate)
+			chip.bind(intake.aspect_id(), intake.innate)
 	_chips.visible = _chips.get_child_count() > 0
 
 
-## "poison ×2" per affinity whose ingest rate is not 1, one per line.
+## "poison ×2" per intake whose affinity is not 1:1, one per line.
 func _rate_note() -> String:
 	if spell == null:
 		return ""
 	var lines := PackedStringArray()
-	for affinity in spell.affinities:
-		if affinity != null and not is_equal_approx(affinity.rate, 1.0):
-			lines.append("%s ×%s" % [affinity.aspect_id(), NumFmt.num(affinity.rate)])
+	for intake in spell.intakes:
+		if intake != null and intake.affinity_gain != intake.affinity_cost:
+			lines.append("%s ×%s" % [intake.aspect_id(), NumFmt.num(float(intake.affinity_gain) / intake.affinity_cost)])
 	return "\n".join(lines)
 
 

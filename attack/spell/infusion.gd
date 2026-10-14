@@ -1,13 +1,13 @@
 class_name Infusion
 extends RefCounted
 
-## A cast's infusion — the fifth spell component (ADR 0047). Folds the
-## spell's [member SpellDef.affinities] into one count per concept
-## ([method affinity_of]) and emits it as [OnHitEffect] riders
+## A cast's infusion — the fifth spell component (ADR 0047, ADR 0060). Folds
+## the spell's [member SpellDef.intakes] and the points spent into one load per
+## concept ([method load_of]) and emits it as [OnHitEffect] riders
 ## ([method riders]) that [SpellResolver] runs after the spell's own
 ## [member SpellDef.on_hit_effects] at every landing. [method innate] is "the
 ## spell as authored"; [method for_cast] adds the points one cast spends,
-## ingested at the spell's per-concept rate and floored.
+## exchanged at affinity × ingest rate and floored.
 
 
 ## Points spent on this cast, `{concept id: points}` — what the plan ships and
@@ -45,56 +45,78 @@ func total_points() -> int:
 	return total
 
 
-## [param spell]'s ingest ratio for concept [param id]: its listed
-## [member SpellAffinity.rate], else [member SpellDef.default_rate].
-static func rate_of(spell: SpellDef, id: StringName) -> float:
+## The listed [AspectIntake] of [param spell] for concept [param id] (its
+## first row), or null — an unlisted concept's affinity is 1:1.
+static func intake_of(spell: SpellDef, id: StringName) -> AspectIntake:
 	if spell == null:
-		return 0.0
-	for affinity in spell.affinities:
-		if affinity != null and affinity.status != null and affinity.aspect_id() == id:
-			return affinity.rate
-	return spell.default_rate
+		return null
+	for intake in spell.intakes:
+		if intake != null and intake.aspect_id() == id:
+			return intake
+	return null
 
 
-## `{concept id: affinity}` — the spell's innate count per listed concept (two
-## entries for one concept sum), plus `floor(points × rate)` for every concept
-## this cast spends on. Listed concepts in authored order, then infused ones.
-func affinity_of(spell: SpellDef) -> Dictionary[StringName, int]:
+## [param spell]'s whole exchange rate for concept [param id] as `(gain, cost)`:
+## its affinity (1:1 unlisted) times the spell's ingest rate. Gain 0 refuses.
+static func ratio_of(spell: SpellDef, id: StringName) -> Vector2i:
+	if spell == null:
+		return Vector2i(0, 1)
+	var intake := intake_of(spell, id)
+	var gain := intake.affinity_gain if intake != null else 1
+	var cost := intake.affinity_cost if intake != null else 1
+	return Vector2i(gain * spell.ingest_gain, cost * spell.ingest_cost)
+
+
+## The load [param points] of concept [param id] add on [param spell]:
+## `floor(points × gain / cost)`, exact integer arithmetic.
+static func gained(spell: SpellDef, id: StringName, points: int) -> int:
+	var ratio := ratio_of(spell, id)
+	if points <= 0 or ratio.x <= 0:
+		return 0
+	@warning_ignore("integer_division")
+	return (points * ratio.x) / ratio.y
+
+
+## [method ratio_of] as one float — for display and the refusal test
+## (`<= 0`) only; never multiply points by it, use [method gained].
+static func rate_of(spell: SpellDef, id: StringName) -> float:
+	var ratio := ratio_of(spell, id)
+	return float(ratio.x) / ratio.y
+
+
+## `{concept id: load}` — the spell's innate per listed concept (two rows for
+## one concept sum), plus [method gained] for every concept this cast infuses.
+## Listed concepts in authored order, then infused ones.
+func load_of(spell: SpellDef) -> Dictionary[StringName, int]:
 	var out: Dictionary[StringName, int] = {}
 	if spell == null:
 		return out
-	for affinity in spell.affinities:
-		if affinity == null or affinity.status == null:
+	for intake in spell.intakes:
+		if intake == null or intake.identity == null:
 			continue
-		var id := affinity.aspect_id()
-		out[id] = out.get(id, 0) + affinity.innate
+		var id := intake.aspect_id()
+		out[id] = out.get(id, 0) + intake.innate
 	for id in points:
-		out[id] = out.get(id, 0) + floori(points[id] * rate_of(spell, id))
+		out[id] = out.get(id, 0) + gained(spell, id, points[id])
 	return out
 
 
-## One [ApplyStatusEffect] per concept whose affinity is above zero, carrying
-## that concept's status at `power = affinity`. Fresh effects per call — the
+## One [ApplyStatusEffect] per concept whose load is above zero, carrying
+## that concept's status at `power = load`. Fresh effects per call — the
 ## resolver builds them once per cast.
 func riders(spell: SpellDef) -> Array[OnHitEffect]:
 	var out: Array[OnHitEffect] = []
 	if spell == null:
 		return out
-	var status_of: Dictionary[StringName, StatusDef] = {}
-	for affinity in spell.affinities:
-		if affinity != null and affinity.status != null:
-			status_of.get_or_add(affinity.aspect_id(), affinity.status)
-	for id in points:
-		if not status_of.has(id):
-			var status := StatusRoster.shared().by_concept(id)
-			if status != null:
-				status_of[id] = status
-	var counts := affinity_of(spell)
+	var counts := load_of(spell)
 	for id in counts:
-		if counts[id] <= 0 or not status_of.has(id):
+		if counts[id] <= 0:
+			continue
+		var status := StatusRoster.shared().by_concept(id)
+		if status == null:
 			continue
 		var rider := ApplyStatusEffect.new()
-		rider.def = status_of[id]
+		rider.def = status
 		rider.power = float(counts[id])
 		out.append(rider)
 	return out

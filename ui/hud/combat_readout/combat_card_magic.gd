@@ -2,7 +2,7 @@
 class_name CombatCardMagic
 extends CombatReadoutCard
 ## Magic readout: the CASTER's magic stats, never the cast — the per-cast facts
-## (the spell's sections, its affinity) live in the magic tray's configure view.
+## (the spell's sections, its intakes) live in the magic tray's configure view.
 ##
 ## Potency is the caster's `spell_damage`: %PotencyRow is a self-binding stat
 ## row ([member CombatValueRow.stat_id]), so it also shows a hovered owned

@@ -190,10 +190,10 @@ value = 2.0
 unique_name_in_owner = true
 layout_mode = 2
 
-[node name="AffinityLabel" type="Label" parent="HBox/ControlsColumn"]
+[node name="LoadLabel" type="Label" parent="HBox/ControlsColumn"]
 unique_name_in_owner = true
 layout_mode = 2
-tooltip_text = "Infusion.affinity_of(spell): the innate count of every listed concept plus floor(points x rate) for each one infused — what Inspector edits to a SpellAffinity produce, live."
+tooltip_text = "Infusion.load_of(spell): the innate load of every listed concept plus floor(points x ingest x affinity) for each one infused — what Inspector edits to an AspectIntake produce, live."
 autowrap_mode = 2
 
 [node name="WorldContainer" type="SubViewportContainer" parent="HBox" unique_id=1417011098]

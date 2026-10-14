@@ -264,7 +264,7 @@ func stacks_per_hit(board: StatBoard, authored: float) -> float:
 ## `Applies <name> (<n> per hit<ingest>).` — [member display_name], falling back
 ## to [member id]; `<n>` is [method stacks_per_hit] of [param authored] on
 ## [param board], the fold the landing uses; [param ingest] is appended inside
-## the parentheses verbatim (a [SpellAffinity] passes `"; <its ingest clause>"`).
+## the parentheses verbatim (an [AspectIntake] passes `"; <its ingest clause>"`).
 ## A [param slice] (the hit's read node) folds through [method stacks_per_hit_at]
 ## instead — the branch [method StatusInstance.land_on] takes — and then
 ## [param board] is moot: the slice reads its owner's entity bins itself.

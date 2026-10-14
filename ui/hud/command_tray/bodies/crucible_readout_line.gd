@@ -4,7 +4,7 @@ extends HBoxContainer
 ## One aspect line of the [CrucibleReadout]: a small aspect badge and the
 ## [method ReadoutLines.ReadoutLine.text] behaviour change. Highlighted while
 ## its socket is hovered (the `TierValue` text tier, `TierLabel` at rest);
-## expanded, it adds the detail — the spell's [method SpellAffinity.get_description],
+## expanded, it adds the detail — the spell's [method AspectIntake.get_description],
 ## the socket's [InfusionExchange] line and the status's own description.
 
 const _REST_TIER := &"TierLabel"
@@ -19,7 +19,7 @@ var _highlighted := false
 
 
 ## Show [param line] of [param spell]; [param board] is the caster's (the
-## affinity description folds through it, as the landing does).
+## intake description folds through it, as the landing does).
 func bind(line: ReadoutLines.ReadoutLine, spell: SpellDef, board: StatBoard) -> void:
 	_line = line
 	var aspect := AspectRoster.shared().by_id(line.aspect_id) if line != null else null
@@ -69,9 +69,9 @@ static func _detail_of(line: ReadoutLines.ReadoutLine, spell: SpellDef, board: S
 	if line == null:
 		return ""
 	var parts: PackedStringArray = []
-	var affinity := line.affinity_of(spell)
-	if affinity != null:
-		parts.append(affinity.get_description(board))
+	var intake := line.intake_of(spell)
+	if intake != null:
+		parts.append(intake.get_description(board))
 	var exchange := line.exchange(spell)
 	if not exchange.is_empty():
 		parts.append("Socket: %s" % exchange)

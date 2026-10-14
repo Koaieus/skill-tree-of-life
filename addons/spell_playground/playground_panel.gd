@@ -95,7 +95,7 @@ const LOOP_GAP_SECONDS: float = 0.35
 @onready var infusion_sockets: InfusionSockets = %InfusionSockets
 @onready var aspect_slots_row: AspectSlotsRow = %AspectSlotsRow
 @onready var infusion_slots_box: SpinBox = %InfusionSlotsBox
-@onready var affinity_label: Label = %AffinityLabel
+@onready var load_label: Label = %LoadLabel
 @onready var _world_container: SubViewportContainer = $HBox/WorldContainer
 ## The real hover tooltip (EFFECTS + NODE STATS) over the world (test hook).
 @onready var tooltip_mount: SandboxTooltipFanMount = %TooltipFanMount
@@ -501,11 +501,11 @@ func _arm_plan() -> MagicAttackPlan:
 		if plan.source == null:
 			plan.set_target(caster_node)
 	infusion_sockets.bind(plan, _systems.armed_stack)
-	_refresh_affinity()
+	_refresh_load()
 	return plan
 
 
-## Follow [param plan]'s infusion and reprint the affinity readout. One connection at a time.
+## Follow [param plan]'s infusion and reprint the load readout. One connection at a time.
 func _watch_plan(plan: MagicAttackPlan) -> void:
 	if plan == _watched_plan:
 		return
@@ -516,26 +516,26 @@ func _watch_plan(plan: MagicAttackPlan) -> void:
 		plan.state_changed.connect(_on_plan_changed)
 	else:
 		infusion_sockets.bind(null)
-		_refresh_affinity()
+		_refresh_load()
 
 
 func _on_plan_changed() -> void:
-	_refresh_affinity()
+	_refresh_load()
 
 
-## `Poison 2 · Curse 0` from [method Infusion.affinity_of] for the armed plan —
-## the ingest result of the spell's [SpellAffinity] resources and the strip's
+## `Poison 2 · Curse 0` from [method Infusion.load_of] for the armed plan —
+## the spell's [AspectIntake] rows and the strip's
 ## points, readable without launching the game.
-func _refresh_affinity() -> void:
+func _refresh_load() -> void:
 	var plan := _watched_plan
 	if not is_instance_valid(plan) or plan.spell == null:
-		affinity_label.text = ""
+		load_label.text = ""
 		return
-	var counts := plan.infusion.affinity_of(plan.spell)
+	var counts := plan.infusion.load_of(plan.spell)
 	var parts: PackedStringArray = []
 	for id in counts:
 		parts.append("%s %d" % [String(id).capitalize(), counts[id]])
-	affinity_label.text = "Affinity: " + (" · ".join(parts) if not parts.is_empty() else "none")
+	load_label.text = "Load: " + (" · ".join(parts) if not parts.is_empty() else "none")
 
 
 ## SET modifiers on the caster's board — the slots / points the spin boxes drive

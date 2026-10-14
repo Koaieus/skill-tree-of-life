@@ -556,9 +556,9 @@ func _attach_lantern(carrier: Node, origin: SkillNode) -> Lantern:
 		return null
 	var lantern := _LANTERN.instantiate() as Lantern
 	lantern.source = _lantern_source
-	for affinity in spell.affinities:
-		if affinity != null and affinity.status is ScoutStatus:
-			var r := (affinity.status as ScoutStatus).lantern_radius_for(origin, affinity.innate)
+	for intake in spell.intakes:
+		if intake != null and intake.status() is ScoutStatus:
+			var r := (intake.status() as ScoutStatus).lantern_radius_for(origin, intake.innate)
 			if r > 0.0:
 				lantern.radius = r
 			break

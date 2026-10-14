@@ -60,7 +60,7 @@ var outcome: AttackOutcome = null
 ## 0 = the targeting has none.
 var target_mask: int = 0
 
-## The cast's affinity riders, as every landing runs them — read by a spread
+## The cast's intake riders, as every landing runs them — read by a spread
 ## that must know the stacks a hop would carry before it takes it.
 var riders: Array[OnHitEffect] = []
 

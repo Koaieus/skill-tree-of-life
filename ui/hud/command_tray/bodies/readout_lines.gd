@@ -5,8 +5,8 @@ extends RefCounted
 ## as a behaviour change: `+ applies 95 poison stacks per hit (15 innate + 80
 ## infused)`. Socketed aspects first, in socket order (the insertion order of
 ## [member Infusion.points]), then the spell's innate-only aspects in authored
-## order. Pure statics: the plan owns the points, [method Infusion.affinity_of]
-## the count, [method StatusDef.stacks_per_hit] the per-hit fold and
+## order. Pure statics: the plan owns the points, [method Infusion.load_of]
+## the load, [method StatusDef.stacks_per_hit] the per-hit fold and
 ## [InfusionExchange] the exchange text — nothing here derives a second number.
 
 
@@ -18,16 +18,16 @@ class ReadoutLine extends RefCounted:
 	var socket: int = -1
 	## Points the cast spends on this aspect (0 when innate-only).
 	var points: int = 0
-	## The spell's own affinity for the concept, summed over its listed entries.
+	## The spell's innate load of the concept, summed over its listed rows.
 	var innate: int = 0
-	## The affinity the spent points add: `floor(points × rate)`.
+	## The load the spent points add: [method Infusion.gained].
 	var infused: int = 0
 	## Stacks one hit lands: `innate + infused` through the status's fold.
 	var per_hit: float = 0.0
 	## The status the concept lands.
 	var status: StatusDef = null
 
-	## `innate + infused` — the plan's [method Infusion.affinity_of] entry.
+	## `innate + infused` — the plan's [method Infusion.load_of] entry.
 	func total() -> int:
 		return innate + infused
 
@@ -54,14 +54,9 @@ class ReadoutLine extends RefCounted:
 			return ""
 		return InfusionExchange.line(spell, aspect_id, points)
 
-	## The listed [SpellAffinity] of [param spell] for this concept, or null.
-	func affinity_of(spell: SpellDef) -> SpellAffinity:
-		if spell == null:
-			return null
-		for affinity in spell.affinities:
-			if affinity != null and affinity.status != null and affinity.aspect_id() == aspect_id:
-				return affinity
-		return null
+	## The listed [AspectIntake] of [param spell] for this concept, or null.
+	func intake_of(spell: SpellDef) -> AspectIntake:
+		return Infusion.intake_of(spell, aspect_id)
 
 
 ## [param plan]'s lines as configured.
@@ -89,12 +84,12 @@ static func for_infusion(spell: SpellDef, board: StatBoard, infusion: Infusion) 
 		return out
 	if infusion == null:
 		infusion = Infusion.innate(spell)
-	var counts := infusion.affinity_of(spell)
+	var counts := infusion.load_of(spell)
 	var innate_of: Dictionary[StringName, int] = {}
-	for affinity in spell.affinities:
-		if affinity != null and affinity.status != null:
-			var id := affinity.aspect_id()
-			innate_of[id] = innate_of.get(id, 0) + affinity.innate
+	for intake in spell.intakes:
+		if intake != null and intake.identity != null:
+			var id := intake.aspect_id()
+			innate_of[id] = innate_of.get(id, 0) + intake.innate
 	var order: Array[StringName] = []
 	order.assign(infusion.points.keys())
 	for id in counts:
@@ -118,12 +113,9 @@ static func for_infusion(spell: SpellDef, board: StatBoard, infusion: Infusion) 
 	return out
 
 
-## The status concept [param id] lands for [param spell]: its listed affinity's,
-## else the concept's roster status — the lookup [method Infusion.riders] makes.
-static func status_of(spell: SpellDef, id: StringName) -> StatusDef:
-	for affinity in spell.affinities:
-		if affinity != null and affinity.status != null and affinity.aspect_id() == id:
-			return affinity.status
+## The status concept [param id] lands for [param spell]: the concept's roster
+## status — the lookup [method Infusion.riders] makes.
+static func status_of(_spell: SpellDef, id: StringName) -> StatusDef:
 	return StatusRoster.shared().by_concept(id)
 
 
