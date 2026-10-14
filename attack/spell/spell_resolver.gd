@@ -361,6 +361,7 @@ static func _resolve(
 				alctx.detonated = detonated
 				var pre := outcome.hits.size()
 				OnHitEffect.run_all(spell.on_hit_effects, alctx)
+				alctx.ride_heal(pre)
 				OnHitEffect.run_all(riders, alctx)
 				for i in range(pre, outcome.hits.size()):
 					var hit: HitInstance = outcome.hits[i]

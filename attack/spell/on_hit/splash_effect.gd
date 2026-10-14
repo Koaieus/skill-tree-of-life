@@ -50,9 +50,14 @@ func apply(landing: HitLanding) -> void:
 
 
 ## The relation mask this splash gathers and lands with on [param landing]:
-## [member ownership_filter], or the landing's own mask when that is 0.
+## [member ownership_filter], or the landing's own mask when that is 0 —
+## narrowed to friendly nodes when the landing rides a heal, so a heal's
+## splash never heals a hostile even under an Any mask.
 func mask_for(landing: HitLanding) -> int:
-	return ownership_filter if ownership_filter != 0 else landing.target_mask
+	var mask := ownership_filter if ownership_filter != 0 else landing.target_mask
+	if landing.paired is HealInstance:
+		mask &= SkillNode.Ownership.MINE | SkillNode.Ownership.ALLY
+	return mask
 
 
 func status_def() -> StatusDef:

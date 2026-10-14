@@ -23,8 +23,10 @@ extends HitLanding
 ## sets the inherited mode-agnostic fields from the cast and payload — the
 ## same facts the resolver stamps on every hit this landing emits — so an
 ## [OnHitEffect] that reads only [HitLanding] ([ApplyStatusEffect]) works here
-## unchanged. A spell gates nothing, so [member HitLanding.paired] stays null;
-## its raw amount is the payload's damage and its target mask the cast's.
+## unchanged. A damage spell gates nothing, so [member HitLanding.paired]
+## stays null; a heal spell's landing rides its own heal ([method ride_heal]),
+## so a blast off it heals. Its raw amount is the payload's damage and its
+## target mask the cast's.
 
 
 ## The per-cast ledger this landing belongs to — [member PropagationContext.outcome],
@@ -67,6 +69,19 @@ func fill_landing() -> void:
 	structural_key = float(payload.hop_index)
 	raw_amount = payload.damage
 	raw_type = DamageInstance.Type.MAGIC
+
+
+## Ride the [HealInstance] the spell's own effects appended for this landing
+## at or after index [param from] of [member HitLanding.hits], if any — the
+## spell-route twin of [method HitLanding.riding] for a heal: what a rider's
+## blast reads to pair a heal rather than MAGIC damage. A heal never gates, so
+## riding one gates nothing. Call between the spell's effects and its riders.
+func ride_heal(from: int) -> void:
+	for i in range(from, hits.size()):
+		var heal := hits[i] as HealInstance
+		if heal != null and heal.target == target:
+			paired = heal
+			return
 
 
 ## Forwarding accessor: a stage asks THIS, never [code]lctx.cast.ownership_bit_of[/code],
