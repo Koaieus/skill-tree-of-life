@@ -2,24 +2,35 @@
 class_name PairedDamageEffect
 extends OnHitEffect
 
-## Damage worth [member fraction] of the landing's stored raw amount
-## ([member HitLanding.raw_amount], its type too), on the landed node — a
-## [PairedDamageInstance] carrying the landing's pairing, key and beat. When the
-## landing rides a hit (an arrow, a blade contact) it duds with it and takes its
-## crit; a spell landing has no paired hit, so its shrapnel stands alone.
+## The landing's own hit, again, worth [member fraction] of its stored raw
+## amount ([member HitLanding.raw_amount]) on the landed node, carrying the
+## landing's pairing, key and beat. Its kind is the landing's: a landing riding
+## a heal ([member HitLanding.paired] a [HealInstance]) pairs a
+## [PairedHealInstance] in the heal's basis; any other pairs a
+## [PairedDamageInstance] of [member HitLanding.raw_type]. When the landing
+## rides a hit (an arrow, a blade contact, a heal) it duds with it and takes
+## its crit; a spell landing has no paired hit, so its shrapnel stands alone.
 ## Mode-agnostic; wrapped in a [SplashEffect] or [BlastEffect] it is a blast,
-## each copy mitigated by its own node's armour. No raw amount, no hit.
+## each damage copy mitigated by its own node's armour. No raw amount, no hit.
 
-## The share of the landing's raw (pre-crit, pre-mitigation) amount.
+## The share of the landing's raw (pre-crit, pre-mitigation) amount, whatever
+## its kind.
 @export_range(0.0, 2.0) var fraction: float = 0.5
 
 
 func apply(landing: HitLanding) -> void:
 	if landing == null or landing.target == null or landing.raw_amount <= 0.0:
 		return
-	var hit := PairedDamageInstance.new()
+	var hit: HitInstance
+	var heal := landing.paired as HealInstance
+	if heal != null:
+		hit = PairedHealInstance.new()
+		hit.basis = heal.basis
+	else:
+		var damage := PairedDamageInstance.new()
+		damage.type = landing.raw_type
+		hit = damage
 	hit.amount = fraction * landing.raw_amount
-	hit.type = landing.raw_type
 	hit.attacker = landing.attacker
 	hit.source = landing.source
 	hit.origin = landing.origin
@@ -32,4 +43,4 @@ func apply(landing: HitLanding) -> void:
 
 
 func get_description(_spell: SpellDef = null, _board: StatBoard = null, _read_node: SkillNode = null) -> String:
-	return "Deals %s%% of the hit's damage." % NumFmt.num(fraction * 100.0)
+	return "Repeats %s%% of the hit — its damage or its heal." % NumFmt.num(fraction * 100.0)
