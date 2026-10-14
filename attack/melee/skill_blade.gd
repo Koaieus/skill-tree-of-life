@@ -146,6 +146,10 @@ func _ready() -> void:
 	# deserialization on instantiate) and no-ops on a null field; catch it up
 	# now that one exists.
 	_push_shard_look()
+	# A default-initialised `style` never ran the setter, so hook the ring's
+	# repaint here too.
+	if style != null and not style.changed.is_connected(queue_redraw):
+		style.changed.connect(queue_redraw)
 
 
 ## True when the selected node set can form a valid blade.
