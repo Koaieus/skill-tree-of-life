@@ -69,6 +69,7 @@ func test_one_mark_rides_every_inner_hit_at_the_sims_reach() -> void:
 	var spread := _EXPLOSIVE.spread as ExplosiveSpread
 	var power := DetonateEffect.power_of(3, 2, spread.resonance)
 	assert_almost_eq(mark.reach, spread.radius_for(_f.target.radius, power), 0.001, "the sim's reach")
+	assert_eq(mark.power, power, "the detonation's power reaches the mark")
 	assert_true(is_same(mark.centre, _f.target), "centred on the struck node")
 	assert_true(is_same(mark.attacker, _f.attacker), "the attacker's blast")
 	assert_eq(mark.riders, [_POISON.identity, _BLIND.identity] as Array[Identity],

@@ -27,6 +27,9 @@ extends Resource
 @export var addon_scene: PackedScene = null
 ## Spells expressing the concept — any status one applies is this concept's.
 @export var spells: Array[SpellDef] = []
+## The concept's bespoke layer on a board blast it rides ([BlastVFX]). Null =
+## the identity-tinted generic ([RiderBlastLayer]).
+@export var blast_layer: PackedScene = null
 
 
 func id() -> StringName:
