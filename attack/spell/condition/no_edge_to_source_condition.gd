@@ -10,7 +10,12 @@ extends LandingCondition
 
 
 func evaluate(lctx: LandingContext) -> bool:
-	return false
+	if lctx == null or lctx.payload == null or lctx.node == null:
+		return false
+	var centre := lctx.payload.predecessor
+	if centre == null or lctx.cast == null or lctx.cast.graph == null:
+		return false
+	return not lctx.cast.graph.get_neighbours(lctx.node).has(centre)
 
 
 func get_description() -> String:

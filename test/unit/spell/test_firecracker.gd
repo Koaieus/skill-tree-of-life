@@ -51,7 +51,9 @@ func _board(positions: Dictionary, edges: Array = [], friendly: Array = []) -> D
 	h.assign_owner(graph, def, hostile)
 	h.assign_owner(graph, atk, [0] + friendly)
 	atk.stat_board.get_stat(&"crit_chance").base_value = 0.0
-	return {graph = graph, atk = atk, n = graph.get_skill_nodes()}
+	var nodes := graph.get_skill_nodes()
+	assert_almost_eq(nodes[1].radius, _rad(), 0.01, "fixture: geometry assumes this node radius")
+	return {graph = graph, atk = atk, n = nodes}
 
 
 func _resolve(b: Dictionary, seed_idx: int, spell: SpellDef = FIRECRACKER, inf: Infusion = null) -> AttackOutcome:
@@ -79,6 +81,7 @@ func _is_main_hit(x: HitInstance, node: SkillNode) -> bool:
 	return x.target == node and not (x is CureInstance or x is StatusInstance or x is PairedDamageInstance)
 
 
+## The default node radius every fixture node keeps; [method _board] pins it.
 func _rad() -> float:
 	return 32.0
 
@@ -274,6 +277,9 @@ func test_a_charged_node_pops_once_per_wave_and_its_blast_carries_poison() -> vo
 	var spread := _EXPLOSIVE_STATUS.spread as ExplosiveSpread
 	assert_gt(spread.radius_for(n[7].radius, 2), 2.0 * _rad() + 8.0 - n[7].radius, "fixture: G inside A's pop")
 	a.get_combat().apply_status(_EXPLOSIVE_STATUS, 2.0)
+	# The pop gathers over the global mirror, which a hand-built board fills
+	# only on reconcile.
+	(b.graph as Graph).navigator.reconcile()
 	var inf := Infusion.for_cast(FIRECRACKER, {_POISON: 2})
 	var outcome := _resolve(b, 1, FIRECRACKER, inf)
 	var cures := outcome.hits.filter(func(x): return x is CureInstance and x.target == a)

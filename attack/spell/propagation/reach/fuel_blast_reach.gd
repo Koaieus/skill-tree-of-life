@@ -39,7 +39,16 @@ func radius_at(load: Dictionary, hop_index: int) -> float:
 
 
 func candidates(lctx: LandingContext) -> Array[SkillNode]:
-	return [] as Array[SkillNode]
+	var out: Array[SkillNode] = []
+	if lctx == null or lctx.node == null or lctx.cast == null or lctx.cast.graph == null or lctx.payload == null:
+		return out
+	var radius := radius_at(lctx.cast.load, lctx.payload.hop_index)
+	if radius <= 0.0:
+		return out
+	var graph := lctx.cast.graph
+	out = EuclideanRangeFinder.nodes_within(lctx.node, graph.get_skill_nodes(), radius)
+	out.sort_custom(func(a: SkillNode, b: SkillNode) -> bool: return graph.get_stable_id(a) < graph.get_stable_id(b))
+	return out
 
 
 func get_description() -> String:
