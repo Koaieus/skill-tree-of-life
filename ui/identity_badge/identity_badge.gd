@@ -91,9 +91,19 @@ static func clear_cache() -> void:
 ## per `(identity.id, size_px)` — the caller tints it (e.g. `add_image`'s
 ## colour). Null for a null identity.
 static func composite(of: Identity, size_px: int) -> ImageTexture:
+	return _bake(of, size_px, true)
+
+
+## [method composite] without the frame: the icon (or letter) alone, inset as
+## in a badge, for a host that draws the kind's frame itself.
+static func glyph(of: Identity, size_px: int) -> ImageTexture:
+	return _bake(of, size_px, false)
+
+
+static func _bake(of: Identity, size_px: int, framed: bool) -> ImageTexture:
 	if of == null or size_px <= 0:
 		return null
-	var key := "%s@%d" % [of.id, size_px]
+	var key := "%s@%d%s" % [of.id, size_px, "" if framed else "g"]
 	if _cache.has(key):
 		return _cache[key]
 	var frames := BadgeFrames.shared()
@@ -101,7 +111,8 @@ static func composite(of: Identity, size_px: int) -> ImageTexture:
 	mask.resize(size_px * size_px)
 	var side := float(size_px)
 	var half := Vector2(side, side) * 0.5
-	_stamp_stroke(mask, size_px, frames.frame_for(of.kind).vertices(half, side * 0.5 - frames.stroke_px * 0.5), frames.stroke_px)
+	if framed:
+		_stamp_stroke(mask, size_px, frames.frame_for(of.kind).vertices(half, side * 0.5 - frames.stroke_px * 0.5), frames.stroke_px)
 	var box := _content_rect(Vector2.ZERO, side, frames.icon_inset)
 	var content := _icon_image(of.icon, box) if of.icon != null else _letter_image(letter_of(of), box, frames.letter_embolden)
 	if content != null:

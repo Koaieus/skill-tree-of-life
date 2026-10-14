@@ -2,10 +2,12 @@
 class_name InfusionSocket
 extends Control
 
-## One infusion socket of an [InfusionSockets] arc, in one of three states:
-## [b]empty[/b] — a ring; [b]filled[/b] — the aspect's badge in its tint, a ring
-## whose arc is points / held, and the exchange line under it; [b]locked[/b] —
-## a dim ghost labelled with the INT that unlocks it. Pure view: the arc paints
+## One infusion socket of an [InfusionSockets] arc, housed in the aspect badge's
+## own frame ([BadgeFrames], so a socket reads as an empty aspect chip), in one
+## of three states: [b]empty[/b] — a grey frame; [b]filled[/b] — the frame
+## washed in the aspect's tint with its icon inside, the tinted edge tracing
+## points / held of the perimeter, and the exchange line under it;
+## [b]locked[/b] — a dim ghost labelled with the INT that unlocks it. Pure view: the arc paints
 ## it and routes its two signals; it never touches the plan.
 
 ## Left-click on an owned socket.
@@ -39,7 +41,7 @@ enum State { EMPTY, FILLED, LOCKED }
 	set(v):
 		ghost_label_alpha = v
 		queue_redraw()
-## Alpha of the recessed disc behind the ring: a locked ghost's, then an owned socket's.
+## Alpha of the recessed fill inside the frame: a locked ghost's, then an owned socket's.
 @export_range(0.0, 1.0, 0.01) var disc_alpha_locked: float = 0.1:
 	set(v):
 		disc_alpha_locked = v
@@ -47,6 +49,16 @@ enum State { EMPTY, FILLED, LOCKED }
 @export_range(0.0, 1.0, 0.01) var disc_alpha_open: float = 0.22:
 	set(v):
 		disc_alpha_open = v
+		queue_redraw()
+## Alpha of a filled socket's tint wash inside the frame.
+@export_range(0.0, 1.0, 0.01) var fill_alpha_filled: float = 0.3:
+	set(v):
+		fill_alpha_filled = v
+		queue_redraw()
+## The icon's size as a fraction of the socket.
+@export_range(0.2, 1.0, 0.01) var glyph_scale: float = 0.62:
+	set(v):
+		glyph_scale = v
 		queue_redraw()
 ## Seconds a tapped ghost's label takes to fade from full back to its resting alpha.
 @export_range(0.1, 3.0, 0.1, "suffix:s") var flash_seconds: float = 0.8
@@ -56,7 +68,6 @@ enum State { EMPTY, FILLED, LOCKED }
 		emissive_tier = v
 		queue_redraw()
 
-const _ARC_STEPS := 48
 const _RING_WIDTH := 2.0
 const _FONT_PX := 10
 
@@ -174,15 +185,20 @@ func _draw() -> void:
 	if state == State.FILLED and _identity != null:
 		tint = Emissive.at(_identity.tint, Emissive.stops(emissive_tier))
 	var track_alpha := ghost_alpha if state == State.LOCKED else (0.9 if is_open else 0.5)
-	draw_circle(center, r, Color(grey, disc_alpha_locked if state == State.LOCKED else disc_alpha_open))
-	draw_arc(center, r, 0.0, TAU, _ARC_STEPS, Color(grey, track_alpha), _RING_WIDTH, true)
+	var frame := BadgeFrames.shared().frame_for(Identity.Kind.ASPECT).vertices(center, r)
+	var loop := frame.duplicate()
+	loop.append(frame[0])
+	draw_colored_polygon(frame, Color(grey, disc_alpha_locked if state == State.LOCKED else disc_alpha_open))
+	if state == State.FILLED:
+		draw_colored_polygon(frame, Color(tint, fill_alpha_filled))
+	draw_polyline(loop, Color(grey, track_alpha), _RING_WIDTH, true)
 	if state == State.FILLED:
 		if _fill > 0.0:
-			draw_arc(center, r, -PI * 0.5, -PI * 0.5 + TAU * _fill, _ARC_STEPS, tint, _RING_WIDTH, true)
-		var badge_px := int(socket_px * 0.55)
-		var badge := IdentityBadge.composite(_identity, badge_px)
-		if badge != null:
-			draw_texture_rect(badge, Rect2(center - Vector2.ONE * badge_px * 0.5, Vector2.ONE * badge_px), false, tint)
+			draw_polyline(perimeter_run(frame, _fill), tint, _RING_WIDTH, true)
+		var glyph_px := int(socket_px * glyph_scale)
+		var glyph := IdentityBadge.glyph(_identity, glyph_px)
+		if glyph != null:
+			draw_texture_rect(glyph, Rect2(center - Vector2.ONE * glyph_px * 0.5, Vector2.ONE * glyph_px), false, tint)
 	var hinting := state != State.LOCKED and not _hint.is_empty() and _flash > 0.0
 	var line := _hint if hinting else _line
 	if line.is_empty() or line_px <= 0:
@@ -194,3 +210,36 @@ func _draw() -> void:
 	var width := font.get_string_size(line, HORIZONTAL_ALIGNMENT_LEFT, -1, _FONT_PX).x
 	var at := Vector2(size.x * 0.5 - width * 0.5, socket_px + line_px - 2.0)
 	draw_string(font, at, line, HORIZONTAL_ALIGNMENT_LEFT, -1, _FONT_PX, text_color)
+
+
+
+## The run along closed polygon [param vertices] (in screen order, clockwise
+## with y down) covering [param fraction] of its perimeter, from the midpoint of
+## its topmost edge; empty at 0, the whole closed loop at 1.
+static func perimeter_run(vertices: PackedVector2Array, fraction: float) -> PackedVector2Array:
+	var out := PackedVector2Array()
+	var n := vertices.size()
+	if n < 2 or fraction <= 0.0:
+		return out
+	var top := 0
+	for i in n:
+		if (vertices[i] + vertices[(i + 1) % n]).y < (vertices[top] + vertices[(top + 1) % n]).y:
+			top = i
+	var perimeter := 0.0
+	for i in n:
+		perimeter += vertices[i].distance_to(vertices[(i + 1) % n])
+	var left := perimeter * minf(fraction, 1.0)
+	var at := (vertices[top] + vertices[(top + 1) % n]) * 0.5
+	out.append(at)
+	var k := (top + 1) % n
+	for _step in n + 1:
+		var next := vertices[k]
+		var leg := at.distance_to(next)
+		if leg >= left:
+			out.append(at.move_toward(next, left))
+			return out
+		left -= leg
+		out.append(next)
+		at = next
+		k = (k + 1) % n
+	return out
