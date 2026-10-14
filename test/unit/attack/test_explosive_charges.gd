@@ -288,6 +288,45 @@ func test_no_hit_on_an_uncharged_node_blasts() -> void:
 	assert_eq(plain[0].hit_key, 0, "and stays keyless")
 
 
+# --- the booms never exceed the charges on the board ------------------------
+
+func test_a_volley_on_one_charge_blasts_once() -> void:
+	await _board()
+	_charge(_f.target, 1.0)
+	var volley := {}
+	var hits: Array = []
+	for i in 3:
+		var arrow := RangedDamageFormula.compute(_f.attacker, _f.leaves[0], _f.target, null)
+		hits.append(arrow)
+		hits.append_array(RangedDamageFormula.riders_for(arrow, volley))
+	assert_eq(_cures_on(hits, _f.target), 1, "one charge, one boom, however many arrows")
+
+
+func test_a_core_hosted_charge_spends_off_the_entity() -> void:
+	await _board()
+	var core := _f.cluster[0]
+	assert_true(core.get_combat().is_core(), "fixture: cluster[0] is the hostile core")
+	_f.hostile.get_combat().apply_status(_def(), 2.0)
+	var hits := _shoot(null, core)
+	assert_eq(_cures_on(hits, core), 1, "the core-hosted charge sets off")
+	_land(hits)
+	assert_almost_eq(_f.hostile.get_combat().get_status_power(&"explosive"), 1.0, 0.0001, "spent off the entity")
+	assert_almost_eq(_charges(core), 0.0, 0.0001, "the node held none and holds none")
+
+
+func test_a_dud_arrow_spends_no_charge() -> void:
+	await _board()
+	_charge(_f.target, 2.0)
+	var hits := _shoot(null)
+	assert_eq(_cures_on(hits, _f.target), 1, "armed")
+	hits[0].gated = true
+	_land(hits)
+	assert_almost_eq(_charges(_f.target), 2.0, 0.0001, "a dud spends nothing")
+	for h in hits:
+		if h is CureInstance:
+			assert_true(h.gated, "the spend is flagged a dud")
+
+
 func _spell_landing() -> LandingContext:
 	var cast := PropagationContext.new()
 	cast.caster = _f.attacker
