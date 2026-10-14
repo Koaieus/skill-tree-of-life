@@ -110,8 +110,9 @@ static func _world(landing: HitLanding) -> CombatWorld:
 	return CombatWorld.live()
 
 
-## The 1-stack spend, through the cleanse path: paired to the landing's hit,
-## so a dud arrow spends nothing.
+## The 1-stack spend, through the cleanse path. It carries the landing's
+## pairing, but [method CureInstance.land_on] never checks
+## [method HitInstance.rider_gated]: a dud arrow still spends its charge.
 static func _spend(landing: HitLanding, def: StatusDef) -> CureInstance:
 	var cure := CureInstance.new()
 	cure.add(def, 1.0)
