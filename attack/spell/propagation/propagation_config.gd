@@ -8,7 +8,8 @@ extends Resource
 ## child [CastSpell] is built ([method mint]). [SpellDef.propagation] points at
 ## one of these.
 ##
-## Departure, per landing: filter [b]narrows[/b] → spread [b]selects[/b]
+## Departure, per landing: reach [b]proposes[/b] candidates (graph neighbours
+## when [member reach] is null) → filter [b]narrows[/b] → spread [b]selects[/b]
 ## picks → this config [b]mints[/b] one child per pick.
 ##
 ## Design rationale: filter / spread / reducer are orthogonal axes — mixing
@@ -20,6 +21,12 @@ extends Resource
 ## Decides which neighbour candidates are eligible at each step. Null = no
 ## filtering (every neighbour passes — useful for tests).
 @export var filter: PropagationFilter = null
+
+## Where a landing's wave CAN go, before the visit cap and [member filter]
+## narrow it. Null = the landed node's graph neighbours. A reach may propose
+## nodes with no edge to the landing (a euclidean blast); everything after it
+## runs unchanged.
+@export var reach: PropagationReach = null
 
 ## Selects which of the narrowed candidates the spell goes to, and with what
 ## share. Null = the spell does not propagate (single-target).
@@ -114,6 +121,10 @@ func get_description() -> String:
 		return "Single target."
 	var parts: PackedStringArray = []
 	parts.append(spread.get_description())
+	if reach != null:
+		var rd := reach.get_description()
+		if rd != "":
+			parts.append(rd)
 	if filter != null:
 		var fd := filter.get_description()
 		if fd != "":

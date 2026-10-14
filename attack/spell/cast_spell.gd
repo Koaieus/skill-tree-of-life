@@ -95,6 +95,13 @@ var hop_index: int = 0
 ## of the reducer so it is set even on the [code]reducer == null[/code]
 ## "first-wins" short-circuit path.
 var incident_count: int = 1
+## The predecessor of every incident merged into this landing — an UNORDERED,
+## deduped set: ask membership ([code]has[/code]), never position. Stamped by
+## [SpellResolver] beside [member incident_count] on every reducer path, so it
+## holds all converging fronts even though the reducer keeps one
+## [member predecessor]. Empty on the seed. Crit conditions read it ("did any
+## front reach here from X"); VFX keeps reading [member predecessor].
+var arrived_from: Array[SkillNode] = []
 ## Per-branch trail of nodes visited so far. Carried for filters that need
 ## branch-local "have I been here on THIS path" semantics; the canonical
 ## revisit gate is the global ledger on [PropagationContext.global_visit_count]
@@ -111,20 +118,20 @@ var graph: Graph = null
 ## RandomNumberGenerator. Tests inject a seeded one via [method
 ## SpellResolver.resolve]'s `rng` parameter for determinism.
 var rng: RandomNumberGenerator = null
-## Nodes this front may NOT travel back into on its next step — the "where I
-## came from" set, vetoed by [BacktrackFilter]. An ARRAY and not a single
-## [member predecessor] because a convergence merges N fronts that genuinely
-## arrived from N directions, and the merged payload has to refuse all of them
-## (owner's spec for Cyclone: [i]"it makes the cast-from an array, and the
-## step/propagation needs to veto all of them for travel"[/i]).
+## The "where I came from" set — the nodes [BacktrackFilter] vetoes this
+## front's next step back into. Set at SELECT by the spread on its
+## [PropagationPick] and copied onto the child by [method PropagationConfig.mint];
+## [CycloneSpread] stamps the parent node on an open hop and an empty set on a
+## cycle-closing one, and [CycloneReducer] keeps the closer's (cleared) or the
+## surviving lineage's set on a merge. Cyclone itself no longer vetoes on it —
+## its curl ranks from the arrival edge and never offers it — so there it is
+## telemetry; a spell that pairs [BacktrackFilter] with a spread that stamps it
+## gets the veto.
 ##
-## [b]Empty means free[/b], which is what makes the reset branchless: a spread
-## that closed a cycle picks its children with an empty set, so the filter is
-## one membership test with no "did we just reset?" special case. Decided at
-## SELECT by [CycloneSpread] (copied onto the child by the mint); merged by
-## [CycloneReducer]. Distinct from
-## [member predecessor], which stays the single canonical "the projectile flew
-## from here" reader for VFX.
+## [b]Empty means free[/b]: a front with nothing stamped may step anywhere, so
+## the filter is one membership test with no reset special case. Distinct from
+## [member predecessor] (the single "the projectile flew from here" reader for
+## VFX) and from [member arrived_from] (every merged front's predecessor).
 var came_from: Array[SkillNode] = []
 ## True when the hop that produced this payload landed on a node already in its
 ## own lineage's [member visited] trail — i.e. it CLOSED a cycle.
