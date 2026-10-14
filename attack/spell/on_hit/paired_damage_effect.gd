@@ -9,7 +9,8 @@ extends OnHitEffect
 ## [PairedHealInstance] in the heal's basis; any other pairs a
 ## [PairedDamageInstance] of [member HitLanding.raw_type]. When the landing
 ## rides a hit (an arrow, a blade contact, a heal) it duds with it and takes
-## its crit; a spell landing has no paired hit, so its shrapnel stands alone.
+## its crit; a damage spell landing has no paired hit, so its shrapnel stands
+## alone, while a heal spell's landing rides its heal.
 ## Mode-agnostic; wrapped in a [SplashEffect] or [BlastEffect] it is a blast,
 ## each damage copy mitigated by its own node's armour. No raw amount, no hit.
 
