@@ -39,6 +39,16 @@ wave-based resolver. Each interface is intentionally **as scoped as
 `RangeFinder`** — one virtual method, one job. RangeFinder's reusability
 is the model.
 
+### `PropagationReach` (optional slot, before the filter)
+
+`PropagationConfig.reach` answers one question per landing — **where can this
+wave go** — as `candidates(lctx) -> Array[SkillNode]` (plus
+`get_description()`). Null keeps the landed node's graph neighbours, so every
+spell without one walks edges as before. A reach may propose nodes with **no
+edge** to the landing (a euclidean blast); it only proposes, so the visit cap,
+`filter.narrow`, `spread.select` and `mint` all still run on its answer. Lives
+in `attack/spell/propagation/reach/`.
+
 ### `PropagationFilter`
 
 ```gdscript
@@ -422,6 +432,10 @@ while wave not empty:
         resolved = config.reducer.reduce(incidents, ctx)
         if resolved == null:    # CANCEL — no effect, no propagation from here
             continue
+        resolved.incident_count = incidents.size()
+        # every front's predecessor, deduped, nulls skipped — an UNORDERED set
+        # (the reducer keeps one `predecessor`); empty on the seed
+        resolved.arrived_from = unique(inc.predecessor for inc in incidents if inc.predecessor)
         lctx_of[resolved] = LandingContext.new(cast=ctx, node=node, payload=resolved, incidents=incidents)
         lctx_of[resolved].fill_landing()
         merged.append(resolved)
@@ -433,8 +447,8 @@ while wave not empty:
             eff.apply(lctx)
         ctx.global_visit_count[state.current_node] += 1
 
-    # 4. compute next wave: cap visits, filter NARROWS, spread SELECTS,
-    #    config MINTS. The visit cap runs FIRST — the filter is set-level, so a
+    # 4. compute next wave: reach PROPOSES, cap visits, filter NARROWS,
+    #    spread SELECTS, config MINTS. The visit cap runs FIRST — the filter is set-level, so a
     #    TopTiesFilter must tie-break among reachable candidates, not pick a
     #    winner the cap then deletes. For a pairwise filter the two orders are
     #    identical.
@@ -442,7 +456,9 @@ while wave not empty:
     for state in merged:
         lctx = lctx_of[state]
         if state.hops_remaining <= 0: continue
-        candidates = [nb for nb in graph.get_neighbours(state.current_node)
+        reachable = config.reach.candidates(lctx) if config.reach \
+                    else graph.get_neighbours(state.current_node)
+        candidates = [nb for nb in reachable
                       if ctx.visit_count(nb) < config.max_visits_per_node]
         candidates = config.filter.narrow(candidates, lctx)
         for pick in config.spread.select(candidates, lctx):
