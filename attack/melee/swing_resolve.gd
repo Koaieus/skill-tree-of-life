@@ -484,7 +484,7 @@ func _land_batch(
 				landing.read_overlays = func(sid: StringName) -> Array[ModifierBins]:
 					return lookup.call(carrier, sid)
 			OnHitEffect.run_all(riders, landing)
-		# A charged piece's warhead / exchange blast: armed here, fired iff
+		# A charged piece's board blast (the striker's side): armed here, fired iff
 		# the gate decides it as this contact lands.
 		if gate.piece_charges(ev.particle_idx) > 0:
 			var overlays := Callable()

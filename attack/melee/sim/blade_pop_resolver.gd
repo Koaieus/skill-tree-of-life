@@ -260,15 +260,15 @@ class LiveGate extends RefCounted:
 	## one O(E) build instead of one O(E) rescan per dequeued BFS vertex.
 	var _adjacency: Dictionary = {}
 	var _adjacency_built: bool = false
-	## The warhead's blast reach as a share of the piece's own
-	## [method ExplosiveSpread.radius_for] — melee's "little AoE" (owner:
-	## "just a bit for fun"). Tentative, easy to change.
+	## Melee's reach share (owner: "just a bit for fun"): both sides of a
+	## contact reach this share of [method ExplosiveSpread.radius_for] on the
+	## struck node at that side's power. Tentative, easy to change.
 	@export_range(0.0, 2.0, 0.05) var warhead_reach: float = 0.5
-	## The share of the contact's raw damage each blast's shrapnel deals,
-	## times min(N, M) for an exchange. Tentative, easy to change.
+	## The share of the contact's raw damage the board blast's shrapnel deals
+	## (the power sizes the reach, not the damage). Tentative, easy to change.
 	@export_range(0.0, 2.0, 0.05) var shrapnel_fraction: float = 0.5
-	## BladeHitEvent -> &"warhead" / &"exchange": the blast this contact set
-	## off, decided in [method admit] and read by its [BlastToken]s.
+	## BladeHitEvent -> [constant BLAST]: the contact set its board blast off,
+	## decided in [method admit] and read by its [BlastToken]s.
 	var _blasts: Dictionary = {}
 	## Real SkillNode -> charges this swing already spent off it. A struck
 	## node's charges are its world power minus this, until the resolve lands
@@ -350,19 +350,16 @@ class LiveGate extends RefCounted:
 	const _EXPLOSIVE_NONE := 0
 	const _EXPLOSIVE_REFUSE := 1
 	const EXPLOSIVE := &"explosive"
-	const WARHEAD := &"warhead"
-	const EXCHANGE := &"exchange"
 	const BLAST := &"blast"
 
-	## The explosive cause (#1595), reading the piece's charges N (the
-	## swing's working copy) and the struck node's M:
-	## - warhead (N>0, M=0): the piece spends 1 and blasts the board;
-	## - barrel (N=0, M>0): the node spends 1 and pops every blade piece in
-	##   its reach — a charged piece spends 1 instead of dying;
-	## - exchange (both): both spend min(N, M) and one blast goes off.
-	## A piece its own blast takes to 0 dies through [method _kill]. Blasts
-	## from a blade contact never set off board charges. REFUSE when the
-	## contact killed its piece; NONE lets the spike ladder run on.
+	## The explosive cause: one contact, two sides. With the piece's charges
+	## N (the swing's working copy), the struck node's M and
+	## `shared = min(N, M)`, each side that holds charges spends
+	## `max(1, shared)`; the striker's side `N + r·shared` blasts the board
+	## ([method arm_blasts]), the node's side `M + r·shared` reaches the blade
+	## pieces ([method _piece_pass]). One [Contact] row per explosive contact.
+	## REFUSE when the contact's own piece ends at 0; NONE lets the spike
+	## ladder run on.
 	func _admit_explosive(ev: BladeHitEvent, real_node: SkillNode, node: NodeCombat) -> int:
 		var spread := explosive_spread()
 		if spread == null:
@@ -372,35 +369,45 @@ class LiveGate extends RefCounted:
 		var m := node_charges(node)
 		if n <= 0 and m <= 0:
 			return _EXPLOSIVE_NONE
-		if n <= 0:
-			_barrel(ev, real_node, spread.radius_for(real_node.radius, m))
-			return _EXPLOSIVE_REFUSE
-		var k := 1 if m <= 0 else mini(n, m)
-		_blasts[ev] = WARHEAD if m <= 0 else EXCHANGE
-		_spend_piece(idx, k, ev.t)
+		var shared := mini(n, m)
+		var row := Contact.new(ev.t, real_node)
+		row.striker_power = side_power(n, shared, spread)
+		row.node_power = side_power(m, shared, spread)
+		if n > 0:
+			_blasts[ev] = BLAST
+			_spend_piece(idx, maxi(1, shared), ev.t)
 		if m > 0:
-			_spend_node(real_node, k, ev.t)
+			_spend_node(real_node, maxi(1, shared), ev.t)
+		result.contacts.append(row)
+		if row.node_power > 0:
+			row.piece_reach = warhead_reach * spread.radius_for(real_node.radius, row.node_power)
+			_piece_pass(ev, real_node, row)
 		if piece_charges(idx) <= 0:
+			row.verdicts[idx] = Contact.Verdict.POPPED
 			_kill(idx, ev.t, real_node, 0.0)
 			return _EXPLOSIVE_REFUSE
+		row.verdicts[idx] = Contact.Verdict.SPENT
 		return _EXPLOSIVE_NONE
 
-	## The barrel pop: the struck node spends 1 and pops every live blade
-	## piece within [param reach] of it, the contact's own last so its pop is
-	## the one the contact reports.
-	func _barrel(ev: BladeHitEvent, struck: SkillNode, reach: float) -> void:
-		_spend_node(struck, 1, ev.t)
-		var centre := struck.global_position
+	## One side's power: its own charges plus the shared chunk weighted by
+	## [member ExplosiveSpread.resonance]; 0 for a side that holds none.
+	static func side_power(own: int, shared: int, spread: ExplosiveSpread) -> int:
+		return own + spread.resonance * shared if own > 0 else 0
+
+	## The node's side: every live blade piece within [member Contact.piece_reach]
+	## of the struck node — a plain one pops, a charged one is armed, not
+	## fragile, and shrugs. The contact's own piece is the caller's.
+	func _piece_pass(ev: BladeHitEvent, struck: SkillNode, row: Contact) -> void:
 		for v in _state.positions.size():
 			if v == ev.particle_idx or v == _state.pivot_index or _removed.has(v):
 				continue
-			if _state.positions[v].distance_to(centre) > reach:
+			if _state.positions[v].distance_to(row.centre) > row.piece_reach:
 				continue
 			if piece_charges(v) > 0:
-				_spend_piece(v, 1, ev.t)
+				row.verdicts[v] = Contact.Verdict.SHRUGGED
 			else:
+				row.verdicts[v] = Contact.Verdict.POPPED
 				_kill(v, ev.t, struck, 0.0)
-		_kill(ev.particle_idx, ev.t, struck, 0.0)
 
 	## The piece's charges left this swing.
 	func piece_charges(idx: int) -> int:
@@ -414,8 +421,8 @@ class LiveGate extends RefCounted:
 			return 0
 		return maxi(0, int(node.get_status_power(EXPLOSIVE)) - int(_node_spent.get(node.real(), 0)))
 
-	## The blast [param ev] set off: [constant WARHEAD], [constant EXCHANGE]
-	## or &"" — what each [BlastToken] gates on.
+	## The blast [param ev] set off: [constant BLAST] or &"" — what each
+	## [BlastToken] gates on.
 	func blast_of(ev: BladeHitEvent) -> StringName:
 		return _blasts.get(ev, &"")
 
@@ -450,13 +457,14 @@ class LiveGate extends RefCounted:
 		var roster := StatusRoster.shared()
 		return roster.by_concept(EXPLOSIVE) if roster != null else null
 
-	## Arm [param ev]'s possible blasts on landings riding [param contact],
-	## appended to [param hits]: a warhead if the piece holds charges, and an
-	## exchange if the struck node does too (read on [param world] now). Each
-	## lands only if [method admit] decides that blast for this contact
-	## ([BlastToken]). Inners are the piece's [param riders] minus anything
-	## explosive and any detonation, so a blade blast never sets off or plants
-	## a charge. [param read_overlays] is copied onto each landing.
+	## Arm [param ev]'s board blast on a landing riding [param contact],
+	## appended to [param hits]: the striker's side `N + r·min(N, M)` (M read
+	## on [param world] now), centred on the struck node, landing only if
+	## [method admit] decides it ([BlastToken]). Inners are shrapnel plus the
+	## piece's [param riders] with explosive stripped, armed with a load-0
+	## [DetonateEffect] so the blast chains like any blast — a charged board
+	## node in reach goes off once. [param read_overlays] is copied onto the
+	## landing.
 	func arm_blasts(
 			ev: BladeHitEvent,
 			contact: HitInstance,
@@ -469,23 +477,18 @@ class LiveGate extends RefCounted:
 		var spread := explosive_spread() if n > 0 and struck != null else null
 		if spread == null:
 			return
-		var piece: SkillNode = _state.vertex_node[ev.particle_idx] \
-				if ev.particle_idx < _state.vertex_node.size() else null
 		var plain: Array[OnHitEffect] = []
 		for r in riders:
 			var effect := r as OnHitEffect
 			if effect != null and not effect is DetonateEffect:
 				plain.append(effect)
-		plain = DetonateEffect.strip(plain)
-		var reach := warhead_reach * spread.radius_for(piece.radius if piece != null else 0.0, n)
-		var warhead := BlastEffect.new()
-		warhead.inners = _with_shrapnel(plain, shrapnel_fraction)
-		warhead.range_finder = _finder(reach)
-		_ride(warhead, WARHEAD, ev, contact, hits, read_overlays)
+		var armed := DetonateEffect.arm(DetonateEffect.strip(plain))
 		var m := node_charges(world.combat_for(struck))
-		if m > 0:
-			var inners := _with_shrapnel(plain, shrapnel_fraction * float(mini(n, m)))
-			_ride(spread.blast_for(struck, m, inners), EXCHANGE, ev, contact, hits, read_overlays)
+		var power := side_power(n, mini(n, m), spread)
+		var blast := BlastEffect.new()
+		blast.inners = _with_shrapnel(armed, shrapnel_fraction)
+		blast.range_finder = _finder(warhead_reach * spread.radius_for(struck.radius, power))
+		_ride(blast, BLAST, ev, contact, hits, read_overlays)
 
 	func _ride(
 			blast: BlastEffect,

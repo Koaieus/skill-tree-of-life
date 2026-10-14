@@ -193,8 +193,9 @@ func test_both_charged_larger_node_pops_the_piece_and_keeps_the_difference() -> 
 
 func test_board_reach_grows_with_the_striker_side_and_piece_reach_with_the_node_side() -> void:
 	var res := _spread().resonance
-	_size_target(1 + res, 200.0)
-	assert_lt(_share() * _spread().radius_for(_f.target.radius, 1), 150.0,
+	var gap := _f.target.global_position.distance_to(_f.cluster[0].global_position) - _f.cluster[0].radius
+	_size_target(1 + res, 1.2 * gap)
+	assert_lt(_share() * _spread().radius_for(_f.target.radius, 1), gap,
 			"fixture: a lone charge's reach falls short of cluster[0]")
 	var amounts: Array[float] = []
 	var reaches: Array[float] = []
