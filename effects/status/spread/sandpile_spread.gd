@@ -14,8 +14,8 @@ extends StatusSpread
 ## deaths; the caller turns [member ToppleResult.topples] into bursts
 ## ([method StatusDef._on_burst]) and re-runs after degrees change.
 ##
-## [method StackField.nodes] seed the drain; a host topples iff
-## [method StackField.topples] says so. Any other masked neighbour receives and
+## [method StackField.nodes] seed the drain; a holder (a node, or an entity's
+## core pile) topples iff [method StackField.topples] says so. Any other masked neighbour receives and
 ## keeps what it gets (an absorber).
 
 ## Stacks burned per topple (`B`). At least 1: the sink that guarantees every
@@ -32,7 +32,7 @@ extends StatusSpread
 
 
 ## [param n]'s topple threshold in [param field].
-func threshold(field: StackField, n: NodeCombat) -> int:
+func threshold(field: StackField, n) -> int:
 	return field.masked_degree(n) + burn + keep
 
 
@@ -49,8 +49,8 @@ func stabilize(field: StackField) -> ToppleResult:
 	var around := {}
 	var pile := {}
 	var initial := {}
-	var order: Array[NodeCombat] = []
-	var queue: Array[NodeCombat] = []
+	var order: Array = []
+	var queue: Array = []
 	var queued := {}
 	for n in field.nodes():
 		if not queued.has(n) and field.topples(n):
@@ -61,7 +61,7 @@ func stabilize(field: StackField) -> ToppleResult:
 	var total := 0
 	var head := 0
 	while head < queue.size():
-		var n := queue[head]
+		var n = queue[head]
 		head += 1
 		queued.erase(n)
 		var t := _threshold_of(field, around, result, n)
@@ -91,7 +91,7 @@ func stabilize(field: StackField) -> ToppleResult:
 	return result
 
 
-func _threshold_of(field: StackField, around: Dictionary, result: ToppleResult, n: NodeCombat) -> int:
+func _threshold_of(field: StackField, around: Dictionary, result: ToppleResult, n) -> int:
 	if not around.has(n):
 		around[n] = field.masked_neighbours(n)
 		result.thresholds[n] = (around[n] as Array).size() + burn + keep
@@ -115,7 +115,7 @@ func on_removed(_field: StackField, _removed: Array[NodeCombat], _cause: int) ->
 
 
 func _track(field: StackField, pile: Dictionary, initial: Dictionary,
-		order: Array[NodeCombat], n: NodeCombat) -> void:
+		order: Array, n) -> void:
 	if pile.has(n):
 		return
 	pile[n] = int(field.stacks(n))
@@ -125,10 +125,10 @@ func _track(field: StackField, pile: Dictionary, initial: Dictionary,
 
 ## Each shrunk host sends exactly its net loss, greedily onto the grown hosts
 ## in [param order]; what no host gained is burned.
-static func _net_transfers(order: Array[NodeCombat], initial: Dictionary, pile: Dictionary,
+static func _net_transfers(order: Array, initial: Dictionary, pile: Dictionary,
 		key: Variant) -> Array[StackTransfer]:
 	var out: Array[StackTransfer] = []
-	var sinks: Array[NodeCombat] = []
+	var sinks: Array = []
 	var need := {}
 	for n in order:
 		var d: int = pile[n] - initial[n]
@@ -139,7 +139,7 @@ static func _net_transfers(order: Array[NodeCombat], initial: Dictionary, pile: 
 	for n in order:
 		var give: int = initial[n] - pile[n]
 		while give > 0 and i < sinks.size():
-			var to := sinks[i]
+			var to = sinks[i]
 			var amt := mini(give, need[to])
 			out.append(StackTransfer.new(n, to, float(amt), key))
 			give -= amt

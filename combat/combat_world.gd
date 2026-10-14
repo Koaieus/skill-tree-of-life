@@ -90,7 +90,7 @@ var settle_round_cap: int = 32
 ## The sandpile worklist: holders whose pile may have become unstable since the
 ## last settle — insertion-ordered, so one Dictionary is both set and queue.
 ## Per world, so a shadow's dies with it. See [method note_pile].
-var _piles: Dictionary[NodeCombat, bool] = {}
+var _piles: Dictionary = {}  # holder (NodeCombat | EntityCombat) -> true
 ## Test-facing: holders popped off the sandpile worklist since the current
 ## flush began (reset at the top of [method flush_removals]).
 var settle_visits: int = 0
@@ -127,18 +127,16 @@ class _RemovalField:
 		if scale != 1.0:
 			_scale[n] = scale
 
-	func spill_scale(n: NodeCombat) -> float:
+	func spill_scale(n) -> float:
 		return _scale.get(n, 1.0)
 
-	func nodes() -> Array[NodeCombat]:
-		var out: Array[NodeCombat] = []
-		out.assign(_power.keys())
-		return out
+	func nodes() -> Array:
+		return _power.keys()
 
-	func stacks(n: NodeCombat) -> float:
+	func stacks(n) -> float:
 		return _power[n] if _power.has(n) else super(n)
 
-	func masked_neighbours(n: NodeCombat) -> Array[NodeCombat]:
+	func masked_neighbours(n) -> Array[NodeCombat]:
 		if _around.has(n):
 			var out: Array[NodeCombat] = []
 			out.assign(_around[n])
@@ -151,12 +149,14 @@ class _RemovalField:
 ## [member to], null burned) or a burst ([member threshold] > 0:
 ## [method StatusDef._on_burst] on [member from], [member amount] topples).
 ## Consecutive transfers with the same [member batch] land as ONE
-## [SpreadApplier] call, keeping its debit-first contract.
+## [SpreadApplier] call, keeping its debit-first contract. [member from] /
+## [member to] are LIVE holders: a [NodeCombat], or an [EntityCombat] for a
+## core pile.
 class SettleOp:
 	var def: StatusDef
 	var key: Variant = true
-	var from: NodeCombat
-	var to: NodeCombat
+	var from
+	var to
 	var amount: float = 0.0
 	var threshold: int = 0
 	var batch: int = 0
@@ -164,28 +164,30 @@ class SettleOp:
 
 ## The field [method settle_topples] hands [method SandpileSpread.stabilize]:
 ## seeded with the popped holders, its adjacency resolved from the world on
-## first ask (a neighbour reached mid-cascade included), and a node topples iff
-## [method CombatWorld._settles] — so the core is an absorber.
+## first ask (a neighbour reached mid-cascade included), and a holder topples
+## iff [method CombatWorld._settles]. A core pile ([EntityCombat]) borrows its
+## core node's adjacency; no node lists it, so it receives only by hits.
 class _SettleField:
 	extends StackField
 	var _world: CombatWorld
-	var _seeds: Array[NodeCombat] = []
+	var _seeds: Array = []
 
 	func _init(p_world: CombatWorld, p_def: StatusDef, p_mask: int,
-			p_seeds: Array[NodeCombat], p_key: Variant) -> void:
+			p_seeds: Array, p_key: Variant) -> void:
 		super(p_def, p_mask, {}, p_key)
 		_world = p_world
 		_seeds = p_seeds
 
-	func nodes() -> Array[NodeCombat]:
+	func nodes() -> Array:
 		return _seeds.duplicate()
 
-	func topples(n: NodeCombat) -> bool:
+	func topples(n) -> bool:
 		return _world._settles(n)
 
-	func neighbours_in(n: NodeCombat, p_mask: int) -> Array[NodeCombat]:
+	func neighbours_in(n, p_mask: int) -> Array[NodeCombat]:
 		if n != null and not _adjacency.has(n):
-			_adjacency[n] = _world._neighbours_of(n)
+			var at: NodeCombat = n.core() if n is EntityCombat else n
+			_adjacency[n] = _world._neighbours_of(at) if at != null else [] as Array[NodeCombat]
 		return super(n, p_mask)
 
 
@@ -515,7 +517,7 @@ func _record_spill(def: StatusDef, transfers: Array[StackTransfer]) -> void:
 	for t in transfers:
 		if t == null or t.from == null:
 			continue
-		var from_real := t.from.real()
+		var from_real: SkillNode = t.from.real()
 		var e: DeallocEntry = _tracked.get(from_real)
 		if e == null:
 			continue
@@ -555,7 +557,7 @@ func _land_recorded() -> void:
 			i += 1
 			continue
 		if op.threshold > 0:
-			var host := combat_for(op.from.real()) if op.from != null else null
+			var host = _resolve(op.from)
 			if host != null:
 				op.def._on_burst(host, int(op.amount), op.threshold)
 			i += 1
@@ -566,12 +568,21 @@ func _land_recorded() -> void:
 		while i < ops.size() and ops[i] != null and ops[i].threshold == 0 \
 				and ops[i].batch == batch and ops[i].def == def:
 			var t := ops[i]
-			list.append(StackTransfer.new(combat_for(t.from.real()) if t.from != null else null,
-					combat_for(t.to.real()) if t.to != null else null, t.amount, t.key))
+			list.append(StackTransfer.new(_resolve(t.from), _resolve(t.to), t.amount, t.key))
 			i += 1
 		SpreadApplier.apply(def, list, self)
 	_pending.clear()
 	_tracked.clear()
+
+
+## A recorded LIVE holder as this world's slice: a node through
+## [method combat_for], a core pile through [method combat_for_entity].
+func _resolve(holder):
+	if holder == null:
+		return null
+	if holder is EntityCombat:
+		return combat_for_entity(holder.real_entity())
+	return combat_for(holder.real())
 
 
 ## [param node]'s graph neighbours as slices of this world — the topology is
@@ -600,16 +611,20 @@ func _neighbours_of(node: NodeCombat) -> Array[NodeCombat]:
 
 ## [param holder]'s pile may topple: check it at the next computing flush.
 ## Idempotent. A replay beat computes nothing, so an entry simply waits.
-func note_pile(holder: NodeCombat) -> void:
+## A holder is a [NodeCombat] or an entity's core pile ([EntityCombat]).
+func note_pile(holder) -> void:
 	if holder != null:
 		_piles[holder] = true
 
 
 ## A degree event touched [param holder]: enqueue it only if it holds a
-## settling row, so a corruption-free territory's dealloc visits nothing.
-func note_pile_if_held(holder: NodeCombat) -> void:
+## settling row, so a corruption-free territory's dealloc visits nothing. A
+## core NODE's event reaches its entity's core pile too (same adjacency).
+func note_pile_if_held(holder) -> void:
 	if holder == null:
 		return
+	if holder is NodeCombat and holder.is_core():
+		note_pile_if_held(holder.owner())
 	for row in holder.get_statuses():
 		if row != null and row.def != null and row.def.spread != null \
 				and row.def.spread.settles() and row.power > 0:
@@ -618,23 +633,25 @@ func note_pile_if_held(holder: NodeCombat) -> void:
 
 
 ## One settle round: take the whole worklist (inserts during the round land in
-## the next one), and per settling row `(def.id, key)` the popped allocated,
-## non-core holders carry, one [method SandpileSpread.stabilize] seeded with
+## the next one), and per settling row `(def.id, key)` the popped live holders
+## carry ([method _settles]), one [method SandpileSpread.stabilize] seeded with
 ## them at the CURRENT degrees; land the transfers (each receiver re-enqueues
 ## itself through the hook — the next round finds it stable), then one
 ## [method StatusDef._on_burst] per toppled host (its damage is a normal hit,
-## so a depletion notes a removal). Returns whether anything toppled. The core
-## never topples here: it is an absorber.
+## so a depletion notes a removal). Returns whether anything toppled. Two piles
+## stand at a core: its node's rows topple like any node's, and the entity's
+## own rows (fallen through a cracked core) are a second holder over the core
+## node's masked neighbours minus itself; its burst hits the entity's pool.
 func settle_topples() -> bool:
 	if _piles.is_empty():
 		return false
-	var popped: Array[NodeCombat] = _piles.keys()
+	var popped: Array = _piles.keys()
 	_piles.clear()
 	settle_visits += popped.size()
 	var rows := {}     # [id, key] -> StatusDef
-	var holders := {}  # [id, key] -> Array[NodeCombat]
+	var holders := {}  # [id, key] -> Array of holders
 	for h in popped:
-		if h.real() == null or not _settles(h):
+		if not _settles(h):
 			continue
 		for row in h.get_statuses():
 			if row == null or row.def == null or not (row.def.spread is SandpileSpread):
@@ -643,7 +660,7 @@ func settle_topples() -> bool:
 				continue
 			var rid := [row.def.id, row.key]
 			rows[rid] = row.def
-			(holders.get_or_add(rid, [] as Array[NodeCombat]) as Array[NodeCombat]).append(h)
+			(holders.get_or_add(rid, []) as Array).append(h)
 	var toppled := false
 	for rid: Array in rows:
 		var def: StatusDef = rows[rid]
@@ -655,7 +672,7 @@ func settle_topples() -> bool:
 		toppled = true
 		_record_batch(def, result.transfers)
 		SpreadApplier.apply(def, result.transfers, self)
-		for n: NodeCombat in result.topples:
+		for n in result.topples:
 			var count: int = result.topples[n]
 			var t: int = result.thresholds[n]
 			_record_burst(def, rid[1], n, count, t)
@@ -675,9 +692,12 @@ func feed_settle(ops: Array[CombatWorld.SettleOp]) -> void:
 	_fed_settle.append_array(ops)
 
 
-## An allocated host — the only kind that topples here (the core node too).
-func _settles(n: NodeCombat) -> bool:
-	return n != null and n.is_allocated()
+## A holder that topples here: an allocated node (the core node too), or a
+## living entity standing on a core (its core pile).
+func _settles(n) -> bool:
+	if n is EntityCombat:
+		return n.is_allocated() and n.core() != null and n.real_entity() != null
+	return n != null and n.real() != null and n.is_allocated()
 
 
 func _record_batch(def: StatusDef, transfers: Array[StackTransfer]) -> void:
@@ -697,7 +717,7 @@ func _record_batch(def: StatusDef, transfers: Array[StackTransfer]) -> void:
 		_recording.settle.append(op)
 
 
-func _record_burst(def: StatusDef, key: Variant, n: NodeCombat, count: int, t: int) -> void:
+func _record_burst(def: StatusDef, key: Variant, n, count: int, t: int) -> void:
 	if _recording == null:
 		return
 	var op := SettleOp.new()
@@ -709,9 +729,13 @@ func _record_burst(def: StatusDef, key: Variant, n: NodeCombat, count: int, t: i
 	_recording.settle.append(op)
 
 
-## [param n]'s REAL node's live slice — a record outlives its shadow.
-static func _live_slice(n: NodeCombat) -> NodeCombat:
+## [param n]'s LIVE holder — a record outlives its shadow: a node's real
+## node's slice, an entity holder's real entity's.
+static func _live_slice(n):
 	if n == null:
 		return null
-	var real := n.real()
+	if n is EntityCombat:
+		var e: Entity = n.real_entity()
+		return e.get_combat() if e != null else null
+	var real: SkillNode = n.real()
 	return real.get_combat() if real != null else null

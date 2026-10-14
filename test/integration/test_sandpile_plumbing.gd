@@ -414,3 +414,37 @@ func test_a_neighbours_topple_resettles_the_core_node_in_the_same_flush() -> voi
 	_flush()
 	assert_eq([_stacks(n[0]), _stacks(n[1])], [0.0, 1.0],
 			"X toppled into C, and C toppled back in the same flush")
+
+
+func _entity_stacks() -> float:
+	return _a.get_combat().get_status_power(&"corruption")
+
+
+func test_a_core_pile_of_d_plus_one_topples_once_into_the_core_nodes_neighbours() -> void:
+	# X–C–Y: the entity's pile at C has D = 2, T = 3.
+	var n := await _territory(3, [[0, 1], [0, 2]])
+	var health := _a.stat_board.health
+	var hp := health.current
+	var core_hp := _hp(n[0])
+	_a.get_combat().apply_status(_CORRUPTION, 3.0)
+	_flush()
+	assert_eq(_entity_stacks(), 0.0, "the core pile dropped to keep")
+	assert_eq([_stacks(n[0]), _stacks(n[1]), _stacks(n[2])], [0.0, 1.0, 1.0],
+			"each neighbour gained 1; the core node's own row is unchanged")
+	assert_eq(hp - health.current,
+			HitPoints.whole(3.0 * _CORRUPTION.damage_per_power * _a.get_combat().get_max_hp()),
+			"the burst hit the entity's health")
+	assert_eq(_hp(n[0]), core_hp, "the core node's HP is untouched")
+
+
+func test_moving_the_core_onto_a_low_degree_node_pops_its_pile_inside_the_move() -> void:
+	# Hub C (X, Y, Z: T 4) holds the pile at 3; X (C, L: T 3) is critical for it.
+	var n := await _territory(5, [[0, 1], [0, 2], [0, 3], [1, 4]])
+	_a.stat_board.movement_points.restore_to_full()
+	_a.get_combat().apply_status(_CORRUPTION, 3.0)
+	_flush()
+	assert_eq(_entity_stacks(), 3.0, "precondition: stable on the hub")
+	assert_true(_alloc.move_core(_a, n[1]), "precondition: the core moves onto X")
+	assert_eq(_entity_stacks(), 0.0, "the pile popped inside move_core")
+	assert_eq([_stacks(n[0]), _stacks(n[4]), _stacks(n[1])], [1.0, 1.0, 0.0],
+			"1 to each of X's neighbours, nothing to X")

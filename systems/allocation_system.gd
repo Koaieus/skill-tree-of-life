@@ -840,12 +840,14 @@ func move_core(entity: Entity, target: SkillNode) -> bool:
 	# The setter dispatches `_on_core_moved` — it's the one point that catches
 	# every core placement, including the opening one. Don't dispatch again here.
 	entity.core_location = target
-	# The departed node settles again (the core is an absorber); no flush here,
-	# so the entry drains at the next computing beat.
+	# A move changes the core pile's `T` (it borrows the new core node's
+	# adjacency): enqueue it, and settle inside the command, as a dealloc does.
 	var world := CombatWorld.live()
 	if from_node != null:
 		world.note_pile_if_held(from_node.get_combat())
 	world.note_pile_if_held(target.get_combat())
+	world.note_pile_if_held(entity.get_combat())
+	world.flush_removals()
 	# An arrival is the only moment the leash is measured (positions are fixed).
 	_check_leash(entity)
 	core_moved.emit(entity, from_node, target)

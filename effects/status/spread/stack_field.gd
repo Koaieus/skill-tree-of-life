@@ -1,8 +1,11 @@
 class_name StackField
 extends RefCounted
 
-## A read-only view of ONE [StatusDef]'s raw stacks over a set of
-## [NodeCombat]s and their adjacency — what a [StatusSpread] rule reads.
+## A read-only view of ONE [StatusDef]'s raw stacks over a set of HOLDERS and
+## their adjacency — what a [StatusSpread] rule reads. A holder is a
+## [NodeCombat], or an [EntityCombat] (the core pile: the entity's own rows,
+## adjacent to its core node's neighbours). Holder params are untyped for that
+## duck type; a neighbour is always a [NodeCombat] — no node lists an entity.
 ## Built over a [CombatWorld] ([method over_world], live or shadow alike, since
 ## every read goes through the slices) or straight from a dictionary graph
 ## (`{NodeCombat: Array[NodeCombat]}`), so every rule is unit-tier.
@@ -39,46 +42,55 @@ static func over_world(p_def: StatusDef, p_mask: int, world: CombatWorld,
 	return StackField.new(p_def, p_mask, adjacency, p_key)
 
 
-## Every host in the field, in insertion order.
-func nodes() -> Array[NodeCombat]:
-	var out: Array[NodeCombat] = []
-	out.assign(_adjacency.keys())
-	return out
+## Every holder in the field, in insertion order.
+func nodes() -> Array:
+	return _adjacency.keys()
 
 
 ## Whether [param n] topples in this field (has an adjacency to compute a `T`
 ## from); anything else only receives — an absorber. A world-backed field
 ## answers its own rule (e.g. the core never topples).
-func topples(n: NodeCombat) -> bool:
+func topples(n) -> bool:
 	return _adjacency.has(n)
 
 
 ## [param n]'s RAW row `(def.id, key)` (ADR 0032: spread moves the raw
 ## integer row; resistance stays the live filter). `0` when absent.
-func stacks(n: NodeCombat) -> float:
+func stacks(n) -> float:
 	return n.get_status_power(def.id, key) if n != null and def != null else 0.0
 
 
 ## Multiplier on [param n]'s spillable stacks — a removal field's answer for
 ## the node a doomed hit depleted ([member DamageInstance.spill_scale]).
 ## `1.0` on a live field.
-func spill_scale(_n: NodeCombat) -> float:
+func spill_scale(_n) -> float:
 	return 1.0
 
 
 ## [param n]'s neighbours in [member mask] — [method neighbours_in] with the field's own mask.
-func masked_neighbours(n: NodeCombat) -> Array[NodeCombat]:
+func masked_neighbours(n) -> Array[NodeCombat]:
 	return neighbours_in(n, mask)
 
 
 ## [param n]'s neighbours whose [method NodeCombat.ownership_bit] — seen by
 ## [param n]'s OWNER — is in [param p_mask]. An unowned host has no one to be
 ## Mine or Ally to: a neutral neighbour reads Neutral, an owned one Hostile.
-func neighbours_in(n: NodeCombat, p_mask: int) -> Array[NodeCombat]:
+## An entity holder is its own owner, and never neighbours its own core node
+## (a self-loop there neither raises its `T` nor receives).
+func neighbours_in(n, p_mask: int) -> Array[NodeCombat]:
 	var out: Array[NodeCombat] = []
-	var owner_slice := n.owner() if n != null else null
-	var viewer: Entity = owner_slice.real_entity() if owner_slice != null else null
+	var viewer: Entity = null
+	var skip: SkillNode = null
+	if n is EntityCombat:
+		viewer = n.real_entity()
+		var core: NodeCombat = n.core()
+		skip = core.real() if core != null else null
+	elif n != null:
+		var owner_slice: EntityCombat = n.owner()
+		viewer = owner_slice.real_entity() if owner_slice != null else null
 	for m: NodeCombat in _adjacency.get(n, []):
+		if skip != null and m.real() == skip:
+			continue
 		if m.ownership_bit(viewer) & p_mask != 0:
 			out.append(m)
 	return out
@@ -86,5 +98,5 @@ func neighbours_in(n: NodeCombat, p_mask: int) -> Array[NodeCombat]:
 
 ## How many of [param n]'s neighbours are in [member mask] — the one owner of
 ## "degree inside a mask" (see docs/domain/degree.md).
-func masked_degree(n: NodeCombat) -> int:
+func masked_degree(n) -> int:
 	return masked_neighbours(n).size()

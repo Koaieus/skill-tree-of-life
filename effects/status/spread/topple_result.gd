@@ -13,7 +13,7 @@ extends RefCounted
 ## non-adjacent hosts; read [member topples] for "who popped", never the list.
 
 var transfers: Array[StackTransfer] = []
-## [NodeCombat] → how many times it toppled.
+## Holder ([NodeCombat] or a core pile's [EntityCombat]) → how many times it toppled.
 var topples: Dictionary = {}
 ## [NodeCombat] → its threshold `T` (fixed for the whole call).
 var thresholds: Dictionary = {}

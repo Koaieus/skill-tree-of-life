@@ -292,3 +292,26 @@ func test_a_cascade_down_a_line_settles_in_one_stabilize() -> void:
 		assert_eq(r.topples.get(_pool[i], 0), 1, "node %d toppled exactly once" % i)
 	assert_eq(_heights(_pool.slice(0, 4)), [1, 1, 1, 0], "the fixed point")
 	assert_eq(rule.stabilize(f).total_topples(), 0, "and it is stable")
+
+
+# ── Core pile: an entity holder over its core node's adjacency ───────────────
+
+func test_a_core_pile_ignores_a_self_loop_on_its_core_node() -> void:
+	# The entity's pile borrows core node 0's adjacency [0 (self-loop), 1, 2]:
+	# 0 neither counts toward its T nor receives.
+	_me.core_location = _pool[0].real()
+	var ec := _me.get_combat()
+	var f := _field([0, 0, 0], [[0, 1], [0, 2]])
+	f._adjacency[ec] = [_pool[0], _pool[1], _pool[2]] as Array[NodeCombat]
+	var rule := _rule()
+	var t := 2 + rule.burn + rule.keep
+	assert_eq(rule.threshold(f, ec), t, "T = core node's masked degree minus itself + burn + keep")
+	ec.adjust_status_power(_def, float(t))
+	var r := rule.stabilize(f)
+	SpreadApplier.apply(_def, r.transfers)
+	assert_eq(r.topples.get(ec, 0), 1, "the core pile toppled once")
+	assert_eq([_h(_pool[0]), _h(_pool[1]), _h(_pool[2])], [0, 1, 1],
+			"its core node received nothing; each neighbour 1")
+	assert_eq(int(ec.get_status_power(_def.id)), rule.keep, "the pile drops to keep")
+	ec.remove_status(_def.id)
+	_me.core_location = null

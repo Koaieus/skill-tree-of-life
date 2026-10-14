@@ -8,16 +8,18 @@ extends RefCounted
 ## `to` onto the slices' `stable_id`s on the wire — the record's job, not this
 ## class's.
 
-var from: NodeCombat
-## Null = burned.
-var to: NodeCombat
+## A holder: a [NodeCombat] or an [EntityCombat] (a core pile) — the
+## [StatusHost] duck type, so untyped.
+var from
+## Null = burned. A holder, as [member from].
+var to
 var amount: float = 0.0
 ## The row both ends move: `(def.id, key)` ([method StatusDef.group_key]);
 ## `true` for a shared def.
 var key: Variant = true
 
 
-func _init(p_from: NodeCombat = null, p_to: NodeCombat = null, p_amount: float = 0.0,
+func _init(p_from = null, p_to = null, p_amount: float = 0.0,
 		p_key: Variant = true) -> void:
 	from = p_from
 	to = p_to
