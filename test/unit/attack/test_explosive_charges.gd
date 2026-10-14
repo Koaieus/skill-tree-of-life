@@ -300,3 +300,55 @@ func _spell_landing() -> LandingContext:
 	payload.source = _f.leaves[0]
 	payload.damage = 10.0
 	return LandingContext.for_test(payload, _f.target, cast)
+
+
+# --- the shipped explosive arrow (#1398) ---------------------------------------
+
+const _EXPLOSIVE_ARROW_PATH := "res://attack/ammo/types/explosive.tres"
+
+
+func _shipped_explosive_arrow() -> AmmoType:
+	var ammo := load(_EXPLOSIVE_ARROW_PATH) as AmmoType
+	assert_not_null(ammo, "explosive.tres authored")
+	return ammo
+
+
+func test_three_shipped_explosive_arrows_plant_three_landings_and_never_fire() -> void:
+	await _board()
+	var ammo := _shipped_explosive_arrow()
+	if ammo == null:
+		return
+	var all: Array = []
+	var one := _shoot(ammo)
+	all.append_array(one)
+	_land(one)
+	var per_landing := _charges(_f.target)
+	assert_gt(per_landing, 0.0, "the shipped arrow plants")
+	for i in 2:
+		var hits := _shoot(ammo)
+		all.append_array(hits)
+		_land(hits)
+	assert_eq(_cures_on(all, _f.target), 0, "an explosive arrow never spends a charge")
+	assert_true(_blast_hits(all).is_empty(), "nor blasts")
+	assert_almost_eq(_charges(_f.target), 3.0 * per_landing, 0.0001, "three arrows, three landings' charges")
+
+
+func test_a_poison_arrow_behind_a_shipped_explosive_arrow_cashes_one_charge_in() -> void:
+	await _board()
+	var ammo := _shipped_explosive_arrow()
+	if ammo == null:
+		return
+	_land(_shoot(ammo))
+	var planted := _charges(_f.target)
+	var hits := _shoot(_POISON_ARROW)
+	assert_eq(_cures_on(hits, _f.target), 1, "the follower spends one charge")
+	assert_false(_blast_hits(hits).is_empty(), "and blasts")
+	_land(hits)
+	assert_almost_eq(_charges(_f.target), planted - 1.0, 0.0001, "one charge gone")
+
+
+func test_the_explosive_aspect_mints_the_shipped_arrow() -> void:
+	var aspect := load("res://aspects/defs/explosive.tres") as Aspect
+	assert_not_null(aspect.ammo, "explosive aspect sets ammo")
+	if aspect.ammo != null:
+		assert_eq(aspect.ammo.resource_path, _EXPLOSIVE_ARROW_PATH)
