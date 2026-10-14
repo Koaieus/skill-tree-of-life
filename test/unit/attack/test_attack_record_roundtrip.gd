@@ -86,6 +86,14 @@ func _build_outcome() -> AttackOutcome:
 	status.host_kind = StatusInstance.HostKind.ENTITY
 	var gated := _fill(DamageInstance.new(), _nodes[4], _nodes[3], 9.0, 4.0, 0)
 	gated.gated = true
+	var mark := BlastMark.new()
+	mark.centre = _nodes[1]
+	mark.reach = 123.5
+	mark.power = 7
+	mark.attacker = _attacker
+	mark.riders.assign([(load(_POISON) as StatusDef).identity])
+	status.blast_mark = mark
+	gated.blast_mark = mark
 	o.hits.assign([dmg, heal, status, gated])
 
 	var e0 := PropagationEvent.new()
@@ -131,6 +139,7 @@ func test_every_captured_hit_field_comes_back_on_the_rebuilt_hit() -> void:
 	assert_eq(rebuilt.ap_cost, outcome.ap_cost, "ap")
 	assert_eq(rebuilt.cadence, outcome.cadence, "cadence")
 	assert_eq(rebuilt.hits.size(), outcome.hits.size(), "hit count")
+	assert_eq(_marks(rebuilt), _marks(outcome), "blast marks: fields, and one mark shared by its hits")
 	for i in mini(rebuilt.hits.size(), outcome.hits.size()):
 		var a := outcome.hits[i]
 		var b := rebuilt.hits[i]
@@ -190,3 +199,21 @@ func test_the_timeline_rebuilds_with_its_aliasing() -> void:
 			assert_true(is_same(b.hits[k], rebuilt.hits[index]),
 					at + "hits[%d] IS flat hit %d, not a copy" % [k, index])
 	assert_true(rebuilt.schedule != null, "rebuild compiles a schedule")
+
+
+## Per hit: null, or its [BlastMark] as the index of the first hit sharing it
+## plus every field — sharing is what lets the applier announce once per mark.
+func _marks(outcome: AttackOutcome) -> Array:
+	var out := []
+	for h in outcome.hits:
+		var m := h.blast_mark
+		if m == null:
+			out.append(null)
+			continue
+		var first := -1
+		for k in outcome.hits.size():
+			if is_same(outcome.hits[k].blast_mark, m):
+				first = k
+				break
+		out.append([first, m.centre, m.reach, m.power, m.attacker, m.riders])
+	return out
