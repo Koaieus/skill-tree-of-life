@@ -54,15 +54,36 @@ Numbered so the skill can be checked against them law by law.
 
 **Reading and verifying**
 
-2. **RTFC is the session's own job.** The issue body *and* every comment, in
-   the session, never summarised by a subagent — a later comment routinely
-   corrects an earlier one, and the summary is where that dies.
-3. **Verification is delegated, once.** Every claim the issue makes about the
-   code ("X is unbuilt", "Y has no caller", "that helper was deleted") is
-   checked against `master` by one `Explore(model: haiku)` carrying the whole
-   claim list, reporting verified / false / stale with a `file:line` each.
-   Fact-checking is not thinking; skipping it specs work against a world two
-   commits stale. A stale item closes with a doc correction, not new work.
+2. **RTFC is the session's own job — for the named issues, once.** The body
+   *and* every comment of each issue the prompt names, in the session, never
+   summarised by a subagent — a later comment routinely corrects an earlier
+   one, and the summary is where that dies. Read each once; a multi-issue
+   pass pays this per issue and that is fine (it is sublinear overall — the
+   code reads are shared). A *related* issue — a parent, a sibling, a number
+   a comment cites — is not read in full by the session: a status or title
+   question is one `gh issue view <n> --json title,state,labels` line, a
+   content question ("what did #N settle about X") goes into the law 3
+   Explore's question list.
+3. **The Explore orients and verifies; the session confirms and thinks.**
+   One `Explore(model: haiku)`, dispatched always (a pass with none is the
+   shape that reads the tree itself), carrying three lists: the orientation
+   questions ("what does `X` look like", "where is `Y` wired", "what does
+   `Z`'s contract say", "what did #N settle"), the claim list (every claim
+   the issue makes about the code — "X is unbuilt", "Y has no caller",
+   "that helper was deleted" — reported verified / false / stale with a
+   `file:line` each, against `master`), and the seam grep. Its return is
+   shaped, not capped: `file:line` facts and one-line answers, never
+   excerpts. Fact-checking is not thinking; skipping it specs work against
+   a world two commits stale. A stale item closes with a doc correction,
+   not new work. The thinking stays in the session.
+36. **The session's own reads are ranged and confirm-only.** Before the first
+   owner message the session opens a file only to confirm a contract it has
+   already named from the Explore's answer — a ranged `sed -n` of the lines
+   that carry it, never a whole source file, never a `head -200`, never a
+   review or design doc end to end. Bash reads bypass every line cap the
+   Read tool has, and no hook clamps them; the discipline is the law. What
+   the session wants to *know* goes in the Explore's question list; what it
+   must *see* to reason it reads, bounded.
 4. **Arithmetic on pinned values.** After pinning anything numeric, compute
    what it implies at both ends of the range (level 1 and 100, one node and
    two hundred). The fix that surfaces is usually structural, and it
@@ -320,6 +341,8 @@ have to carry them.
 
 | Date | Where | What happened | Law |
 |---|---|---|---|
+| 2026-10-14 | owner; scan `.claude/skills/swarmify/corpus/2026-10-14-research-cost-scan.md` (133 sessions) | owner: swarmify sessions "should upgrade their initial research … a Fable … exploring codebase rapidly bloating context possibly reading stuff they dont need", asked what to read, what to delegate, how many explorers and what return size. Scan: the research phase is 73% of a session's tool-result bytes (median 62k chars, max 195k); the session's own `cat`/`sed` reads are the largest bucket (3.0M total), issue reads second (2.1M), Explore returns smallest by 7x (0.4M, ~3.4k/agent). The two heaviest passes cat'ed whole source files and a whole review doc that the resulting specs never cite; one ran no Explore at all; 45 of 133 did not. Owner picked: Explore orients + session confirms, no Explore cap, "just a shape" | 3, 36 |
+| 2026-10-14 | same scan, `bebb84f4` (#1381/#1383/#1489) | the max issue-read case (70k chars, 13 `gh issue` calls) read its three named issues once; the rest was six *related* issues' comment tails and a nine-issue status loop. Multi-issue cost is sublinear (median 58k → 76k → 93k chars for 1 / 2–3 / 4+ issues) because code reads are shared. Owner leaned to keeping full in-session reads of the named issues ("comments could get *long* right?") — the ceiling observed is 17k tokens, half a heavy pass's own cats | 2 |
 | 2026-10-11 | owner, after the 2026-10-10 scan (`docs/corpus/2026-10-10-swarmify-spec-weight-headless-clerk.md`) | asked whether the spec-writing half should be its own skill, loaded at spec time and usable by sessions with no owner; "I want literally all of these enhancements and fixes you propose, I'm sold" | 33 |
 | 2026-10-10 | #1524 | a generic autonomous-mode harness note ("the user is not watching in real time") made the pass treat the owner as absent: it posted the design options as a comment and ended the turn instead of asking. Owner: "swarmify is a speccing slash design session WITH the user. I AM THE OWNER … we must talk them through and make decisions right here right now" | 1 |
 | 2026-10-08 | owner, `/swarmify` prompt | "owner often has only read the title of an issue if e.g. user starts a session with \"/swarmify #1234\", and sometimes not even the title. So if e.g. an issue mentions an A B C don't assume the user knows these options, stuff like that" | 34 |
@@ -360,4 +383,9 @@ via the `archivist` agent; these stay where this charter cites them.
   dispatch section should say `Agent(subagent_type: "drone", model: <tier>)`.
 - Whether the Haiku Explore of law 3 and the seam grep (spec law 9) should be one
   dispatch or two is a per-pass call; one is cheaper, two lets the seam grep
-  start before the claims are listed.
+  start before the claims are listed. Since law 3 now also carries the
+  orientation questions, a second dispatch for the seam grep is the likelier
+  split when it is split at all.
+- A `PreToolUse` hook that clamps a Bash `cat`/`sed -n` to N lines would make
+  law 36 mechanical; none exists (2026-10-14). `/update-config` scope, owner
+  has not asked.
