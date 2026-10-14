@@ -119,3 +119,26 @@ func test_core_part_round_trips_through_the_record() -> void:
 	back.land_on(_core.get_combat(), CombatWorld.live())
 	assert_almost_eq(_core_power(), 0.0, 0.0001, "the replay clears the same core row")
 	assert_almost_eq(_node_power(), 1.0, 0.0001)
+
+
+func test_remedy_on_a_cracked_core_leaves_one_on_the_node() -> void:
+	_poison(3.0, 2.0)
+	var effect := CureEffect.new()
+	effect.cure = _remedy()
+	effect.heal_per_stack = 0.0
+	var p := CastSpell.new()
+	p.damage = 4.0
+	p.current_node = _core
+	p.graph = _graph
+	var ctx := PropagationContext.new()
+	ctx.graph = _graph
+	var lctx := LandingContext.for_test(p, _core, ctx)
+	effect.apply(lctx)
+	assert_almost_eq(p.damage, 0.0, 0.0001, "the whole dose is spent")
+	var cures := lctx.cast.outcome.hits.filter(func(hit): return hit is CureInstance)
+	assert_eq(cures.size(), 1)
+	if cures.size() != 1:
+		return
+	(cures[0] as CureInstance).land_on(_core.get_combat(), CombatWorld.live())
+	assert_almost_eq(_core_power(), 0.0, 0.0001, "the core clears 3")
+	assert_almost_eq(_node_power(), 1.0, 0.0001, "the node clears 1, 1 left")

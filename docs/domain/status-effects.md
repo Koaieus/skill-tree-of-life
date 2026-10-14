@@ -130,6 +130,10 @@ the hosts (node, or the entity once the row falls through a cracked core) are
 [ADR 0024](../adr/0024-status-effects-have-two-hosts-and-fall-through-a-cracked-core.md).
 What could still come (cures, contagion, the other families' arrows and spells)
 is `docs/design/damage_over_time.md`.
+A cure (`Cure`, `CureEffect`) reads and clears a spot's two holders: on a core
+node the core's rows count toward the walk (`StatusFilter`) and the need, and
+the dose clears them first, in cure-table order, then the node's
+(`Cure.plan`'s `core_cleared`, `CureInstance.on_core`); the heal lands on the node.
 
 | Family | Denomination | Answers | Weak against |
 |---|---|---|---|

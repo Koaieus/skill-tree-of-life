@@ -123,7 +123,13 @@ func stacks_of(node: SkillNode, status_id: StringName) -> float:
 ## in [member world]: its owner's entity row when [param node] is that owner's
 ## core node, else 0. The second status holder at a core (ADR 0024).
 func core_stacks_of(node: SkillNode, status_id: StringName) -> float:
-	return 0.0
+	if node == null or world == null:
+		return 0.0
+	var slice := world.combat_for(node)
+	if slice == null or not slice.is_core():
+		return 0.0
+	var entity := slice.owner()
+	return entity.get_status_power(status_id) if entity != null else 0.0
 
 
 ## The cure's read of a spot: [method stacks_of] plus [method core_stacks_of]

@@ -189,6 +189,10 @@ const KEY_GATE_TO := "g_to"
 const KEY_CURE_COUNT := "c_n"
 const KEY_CURE_DEF := "c_def"
 const KEY_CURE_CLEARED := "c_clr"
+## Parallel to [constant KEY_CURE_DEF]: 1 where the clear comes off the core
+## ([member CureInstance.on_core]). Full length or absent — absent iff no entry
+## is a core clear, so a core-less record is dict-identical to an older one.
+const KEY_CURE_CORE := "c_core"
 ## [member AttackOutcome.aim]: the cast-from node's stable id, and
 ## `[angle, length]` as float64 — empty on a node cast, which is how the far
 ## side tells "no aim" from an aim at angle 0. Both omitted at default.
@@ -207,7 +211,6 @@ const KEY_SETTLE_KEY := "t_key"
 const KEY_SETTLE_THRESHOLD := "t_thr"
 const KEY_SETTLE_BATCH := "t_bat"
 const KEY_SETTLE_CORE := "t_core"
-const KEY_CURE_CORE := "cu_core"
 ## [member settle_core] bits: the op's `from` / `to` is the core pile of the
 ## entity standing on the recorded node, not the node itself.
 const SETTLE_FROM_CORE := 1
@@ -285,6 +288,7 @@ var gate_to := PackedInt32Array()
 var cure_counts := PackedInt32Array()
 var cure_defs := PackedStringArray()
 var cure_cleared := PackedFloat64Array()
+var cure_core := PackedInt32Array()
 var settle_counts := PackedInt32Array()
 var settle_from := PackedInt32Array()
 var settle_to := PackedInt32Array()
@@ -350,6 +354,7 @@ static func wire_fields() -> Array[WireFields.Field]:
 		WireFields.Field.new(&"cure_counts", TYPE_PACKED_INT32_ARRAY).as_key(KEY_CURE_COUNT).omitted_at_default(),
 		WireFields.Field.new(&"cure_defs", TYPE_PACKED_STRING_ARRAY).as_key(KEY_CURE_DEF).omitted_at_default(),
 		WireFields.Field.new(&"cure_cleared", TYPE_PACKED_FLOAT64_ARRAY).as_key(KEY_CURE_CLEARED).omitted_at_default(),
+		WireFields.Field.new(&"cure_core", TYPE_PACKED_INT32_ARRAY).as_key(KEY_CURE_CORE).omitted_at_default(),
 		WireFields.Field.new(&"settle_counts", TYPE_PACKED_INT32_ARRAY).as_key(KEY_SETTLE_COUNT).omitted_at_default(),
 		WireFields.Field.new(&"settle_from", TYPE_PACKED_INT32_ARRAY).as_key(KEY_SETTLE_FROM).omitted_at_default(),
 		WireFields.Field.new(&"settle_to", TYPE_PACKED_INT32_ARRAY).as_key(KEY_SETTLE_TO).omitted_at_default(),
@@ -448,6 +453,9 @@ static func capture(outcome: AttackOutcome, graph: Graph) -> Dictionary:
 				var cdef := cure.defs[k]
 				r.cure_defs.append(cdef.resource_path if cdef != null else "")
 				r.cure_cleared.append(cure.cleared[k] if k < cure.cleared.size() else 0.0)
+				r.cure_core.append(cure.on_core[k] if k < cure.on_core.size() else 0)
+	if not r.cure_core.has(1):
+		r.cure_core = PackedInt32Array()
 	for event in outcome.timeline:
 		r.beats.append(event.beat)
 		r.visits.append(event.visit_index)
@@ -562,7 +570,9 @@ static func rebuild(d: Dictionary, graph: Graph, rate: float = -1.0) -> AttackOu
 				if path.is_empty() or not ResourceLoader.exists(path):
 					push_warning("AttackRecord: cured status %s not found on this machine" % path)
 					continue
-				ci.add(load(path) as StatusDef, r.cure_cleared[cure_entry_at + k])
+				var at := cure_entry_at + k
+				ci.add(load(path) as StatusDef, r.cure_cleared[at],
+						at < r.cure_core.size() and r.cure_core[at] != 0)
 			cure_entry_at += count
 			ci.heal = amount
 			hit = ci

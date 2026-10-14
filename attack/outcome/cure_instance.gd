@@ -41,7 +41,9 @@ func draws_own_crit() -> bool:
 	return false
 
 
-## Clear each planned count off [param node], then heal [member heal] through
+## Clear each planned count off its holder — [param node], or for an
+## [member on_core] entry its owner's entity rows (skipped when a replay's node
+## has lost its owner) — then heal [member heal] through
 ## [method NodeCombat.heal_damage] with this instance as the source. The heal
 ## is stamped onto [member HitInstance.amount] / [member
 ## HitInstance.effective_amount] first: [method NodeCombat.heal_damage] only
@@ -50,7 +52,12 @@ func land_on(node: NodeCombat, _world: CombatWorld) -> void:
 	amount = heal
 	effective_amount = heal
 	for i in defs.size():
-		node.adjust_status_power(defs[i], -cleared[i])
+		if i < on_core.size() and on_core[i] != 0:
+			var core := node.owner()
+			if core != null:
+				core.adjust_status_power(defs[i], -cleared[i])
+		else:
+			node.adjust_status_power(defs[i], -cleared[i])
 	if heal > 0.0:
 		node.heal_damage(heal, self)
 

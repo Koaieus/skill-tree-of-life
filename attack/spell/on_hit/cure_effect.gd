@@ -6,7 +6,8 @@ extends SpellOnHitEffect
 ## same figure [HealEffect] heals by — cure is 1:1 with the hit). [member cure]
 ## prices it ([method Cure.plan]); the dose spent is taken out of
 ## [member CastSpell.damage] IN PLACE and one [CureInstance] carries the exact
-## per-status counts plus [code]Σcleared × heal_per_stack[/code] HP.
+## per-status counts (core part first, see [Cure]) plus
+## [code]Σcleared × heal_per_stack[/code] HP, healed on the node for both parts.
 ##
 ## [b]Drain in place.[/b] On-hit effects run before departure, so the leftover
 ## is what the next hop inherits — the [ScaleDamageEffect] precedent. Pair it
@@ -31,11 +32,15 @@ func _apply_spell(lctx: LandingContext) -> void:
 	if cure == null or state == null or state.current_node == null or state.damage <= 0.0:
 		return
 	var plan := cure.plan(state.current_node, state.damage, lctx)
+	var core_cleared: Dictionary = plan.core_cleared
 	var cleared: Dictionary = plan.cleared
-	if cleared.is_empty():
+	if cleared.is_empty() and core_cleared.is_empty():
 		return
 	var hit := CureInstance.new()
 	var total := 0.0
+	for def: StatusDef in core_cleared:
+		hit.add(def, core_cleared[def], true)
+		total += core_cleared[def]
 	for def: StatusDef in cleared:
 		hit.add(def, cleared[def])
 		total += cleared[def]
