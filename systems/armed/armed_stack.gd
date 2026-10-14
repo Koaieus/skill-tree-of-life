@@ -142,7 +142,10 @@ static func clamp_infusion(spell: SpellDef, attacker: Entity,
 			break
 		if Infusion.rate_of(spell, id) <= 0.0:
 			continue
-		var pts := AspectCurrency.cap_of(attacker, AspectCurrency.stat_of(id))
+		var stat := AspectCurrency.stat_of(id)
+		if stat.is_empty():
+			continue
+		var pts := AspectCurrency.cap_of(attacker, stat)
 		if capped:
 			pts = mini(pts, left)
 		if pts <= 0:

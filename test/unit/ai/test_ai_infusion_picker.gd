@@ -25,25 +25,25 @@ func _caster(intelligence: float, poison: float, blind: float, curse: float = 0.
 
 
 func test_one_slot_takes_the_higher_ingest() -> void:
-	var picked := AiInfusionPicker.pick(_caster(100, 3, 5), _VENOM)
+	var picked := AiInfusionPicker.pick(_caster(10, 3, 5), _VENOM)
 	assert_eq(picked, {&"poison": 3} as Dictionary[StringName, int], "poison 3 x2 = 6 beats blindness 5")
 
 
 func test_two_slots_take_both() -> void:
-	var picked := AiInfusionPicker.pick(_caster(1000, 3, 5), _VENOM)
+	var picked := AiInfusionPicker.pick(_caster(100, 3, 5), _VENOM)
 	assert_eq(picked.get(&"poison", 0), 3)
 	assert_eq(picked.get(&"blindness", 0), 5)
 
 
 func test_each_pick_takes_all_it_holds() -> void:
-	var picked := AiInfusionPicker.pick(_caster(1000, 40, 0, 20), _VENOM)
+	var picked := AiInfusionPicker.pick(_caster(100, 40, 0, 20), _VENOM)
 	assert_eq(picked, {&"poison": 40, &"curse": 20} as Dictionary[StringName, int], "no shared pool")
 
 
 func test_capacity_bounds_the_cast() -> void:
 	var spell: SpellDef = _VENOM.duplicate()
 	spell.infusion_capacity = 2.0
-	var picked := AiInfusionPicker.pick(_caster(1000, 3, 5), spell)
+	var picked := AiInfusionPicker.pick(_caster(100, 3, 5), spell)
 	assert_eq(picked, {&"poison": 2} as Dictionary[StringName, int])
 
 
@@ -71,7 +71,7 @@ class _CapturingBattle extends BattleSystem:
 
 
 func test_launched_ai_plan_carries_the_pick() -> void:
-	var atk := _caster(100, 3, 5)
+	var atk := _caster(10, 3, 5)
 	var battle := _CapturingBattle.new()
 	add_child_autofree(battle)
 	var ai := AIController.new()

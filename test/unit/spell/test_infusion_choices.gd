@@ -101,10 +101,10 @@ func test_exhausted_capacity_disables_and_the_line_reads_capacity_left() -> void
 
 
 func test_next_threshold_walks_the_infusion_slots_ladder() -> void:
-	for row in [[10.0, 100.0], [100.0, 1000.0], [999.0, 1000.0], [1000.0, 10000.0]]:
+	for row in [[5.0, 10.0], [10.0, 100.0], [99.0, 100.0], [100.0, 1000.0]]:
 		var board := _caster({}, row[0]).stat_board as EntityStatBoard
 		assert_eq(board.next_threshold(&"infusion_slots"), row[1], "INT %d" % row[0])
-	var top := _caster({}, 10000.0).stat_board as EntityStatBoard
+	var top := _caster({}, 1000.0).stat_board as EntityStatBoard
 	assert_eq(top.next_threshold(&"infusion_slots"), INF, "the cap: no ghost")
 	assert_eq(top.next_threshold(&"strength"), INF, "no threshold formula derives it")
 

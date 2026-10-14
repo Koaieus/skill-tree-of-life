@@ -95,10 +95,10 @@ func test_one_state_changed_per_call_and_none_on_a_no_op() -> void:
 
 
 func test_full_slots_refuse_a_new_aspect() -> void:
-	var plan := _plan(_caster({&"poison": 3, &"curse": 3}, 100.0), _spell())
+	var plan := _plan(_caster({&"poison": 3, &"curse": 3}, 10.0), _spell())
 	plan.set_socket(0, &"poison")
 	plan.set_socket(1, &"curse")
-	assert_eq(_keys(plan), [&"poison"] as Array[StringName], "INT 100 owns one socket")
+	assert_eq(_keys(plan), [&"poison"] as Array[StringName], "INT 10 owns one socket")
 
 
 func test_a_refused_or_unheld_aspect_never_lands() -> void:

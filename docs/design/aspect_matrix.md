@@ -166,7 +166,7 @@ these sections and never copies them, so an addition reaches every open
 cell at once.
 
 **Magic infusion** is a per-cast fifth spell component, settled in ADR 0047.
-INT-derived slots (`infusion_slots`, 100 / 1000 / 10000 INT) cap how many
+INT-derived slots (`infusion_slots`, 10 / 100 / 1000 INT in development; 100 / 1000 / 10000 later, owner 2026-10-14) cap how many
 concepts a cast infuses; depth is the aspect held, with no shared points pool
 (#1574, owner 2026-10-12; `infusion_points` is deleted). Each spell sets its own
 innate value and rate per concept: affinity = `innate + floor(points × rate)`,

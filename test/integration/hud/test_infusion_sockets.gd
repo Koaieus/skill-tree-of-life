@@ -65,8 +65,8 @@ func _click(socket: InfusionSocket, button: MouseButton) -> void:
 # ── The ladder ───────────────────────────────────────────────────────────────
 
 func test_int_ladder_owned_sockets_and_one_ghost() -> void:
-	var cases := [[10.0, 0, "INT 100"], [100.0, 1, "INT 1000"], [1000.0, 2, "INT 10000"],
-			[10000.0, 3, ""]]
+	var cases := [[5.0, 0, "INT 10"], [10.0, 1, "INT 100"], [100.0, 2, "INT 1000"],
+			[1000.0, 3, ""]]
 	for c in cases:
 		var plan := _plan(_caster(2.0, c[0]))
 		var sockets := _sockets(plan)

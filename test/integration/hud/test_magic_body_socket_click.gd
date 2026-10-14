@@ -82,9 +82,9 @@ func _click(socket: InfusionSocket) -> void:
 
 
 func test_clicking_an_owned_socket_opens_a_wheel_with_wedges() -> void:
-	await _arm(100.0, 3.0)
+	await _arm(10.0, 3.0)
 	var sockets := _sockets()
-	assert_eq(sockets.socket_count(), 1, "guard: INT 100 owns one socket")
+	assert_eq(sockets.socket_count(), 1, "guard: INT 10 owns one socket")
 	assert_null(_ctl.armed_stack.find(InfusionPickMode), "guard: nothing open yet")
 	await _click(sockets.socket(0))
 	var open := _ctl.armed_stack.find(InfusionPickMode) as InfusionPickMode
@@ -96,7 +96,7 @@ func test_clicking_an_owned_socket_opens_a_wheel_with_wedges() -> void:
 
 
 func test_clicking_an_owned_socket_holding_no_aspects_opens_nothing_and_says_why() -> void:
-	await _arm(100.0)
+	await _arm(10.0)
 	var socket := _sockets().socket(0)
 	assert_eq(socket.state, InfusionSocket.State.EMPTY, "guard: an owned socket")
 	await _click(socket)
@@ -107,10 +107,10 @@ func test_clicking_an_owned_socket_holding_no_aspects_opens_nothing_and_says_why
 
 
 func test_a_mid_run_unlock_gives_a_working_socket() -> void:
-	await _arm(10.0, 3.0)
+	await _arm(5.0, 3.0)
 	var sockets := _sockets()
 	assert_eq(sockets.socket_count(), 0, "guard: only the ghost")
-	_ctl.player.stat_board.intelligence.base_value = 100.0
+	_ctl.player.stat_board.intelligence.base_value = 10.0
 	_ctl.armed_stack.attack_plan().state_changed.emit()
 	await wait_frames(3)
 	assert_eq(sockets.socket_count(), 1, "the unlock added a socket")
@@ -120,9 +120,9 @@ func test_a_mid_run_unlock_gives_a_working_socket() -> void:
 
 
 func test_clicking_the_ghost_opens_nothing_and_says_why() -> void:
-	await _arm(10.0)
+	await _arm(5.0)
 	var sockets := _sockets()
-	assert_eq(sockets.socket_count(), 0, "guard: INT 10 owns none")
+	assert_eq(sockets.socket_count(), 0, "guard: INT 5 owns none")
 	var ghost := sockets.socket(0)
 	assert_not_null(ghost, "guard: the ghost is socket 0")
 	if ghost == null:
@@ -134,12 +134,12 @@ func test_clicking_the_ghost_opens_nothing_and_says_why() -> void:
 	assert_null(_ctl.armed_stack.find(InfusionPickMode), "a locked socket opens no chooser")
 	assert_false(sockets.wheel().visible, "and no wheel")
 	assert_signal_emitted(ghost, "locked_tapped", "the ghost reports the tap")
-	assert_signal_emitted_with_parameters(sockets, "locked_tapped", ["INT 100"])
+	assert_signal_emitted_with_parameters(sockets, "locked_tapped", ["INT 10"])
 	assert_gt(ghost.label_alpha(), ghost.ghost_label_alpha, "the threshold label flashes above its resting alpha")
 
 
 func test_a_lone_socket_hangs_on_the_vessel_rim() -> void:
-	await _arm(10.0)
+	await _arm(5.0)
 	var ghost := _sockets().socket(0)
 	var vessel := _body.get_node("%VesselSlot") as Control
 	var overlap := ghost.get_global_rect().intersection(vessel.get_global_rect())
