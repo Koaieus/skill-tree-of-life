@@ -128,6 +128,26 @@ func test_barrel_pops_blade_pieces_in_reach_and_a_charged_one_spends_a_life() ->
 	assert_false(gate.result.dead_at.has(2), "and lives")
 	assert_false(gate.result.dead_at.has(4), "a piece out of reach is untouched")
 	assert_eq(gate.node_charges(_f.target.get_combat()), 1, "the barrel ends with 1")
+	# The resolve records the spends as cleanses and lands them; nothing else
+	# wrote the board.
+	assert_eq(_f.target.get_combat().get_status_power(&"explosive"), 2.0, "no live write yet")
+	var cures := _land_spends(gate)
+	assert_eq(cures.size(), 2, "the barrel's spend and the charged piece's")
+	assert_eq(_f.target.get_combat().get_status_power(&"explosive"), 1.0, "the barrel ends with 1")
+	assert_eq(gate.node_charges(_f.target.get_combat()), 1, "and the gate's read agrees once landed")
+
+
+## The gate's recorded spends as [SwingResolve] turns them into hits, landed.
+func _land_spends(gate: BladePopResolver.LiveGate) -> Array[HitInstance]:
+	var ctx := SwingContext.new()
+	ctx.attacker = _f.attacker
+	var run := SwingResolve.new(ctx)
+	var hits: Array[HitInstance] = []
+	run._append_spends(hits, gate)
+	for h in hits:
+		assert_true(h is CureInstance, "a spend is a cleanse on the record")
+		h.land_on(h.target.get_combat(), CombatWorld.live())
+	return hits
 
 
 # ── 3. exchange ──────────────────────────────────────────────────────────────
