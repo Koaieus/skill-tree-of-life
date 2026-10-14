@@ -675,9 +675,9 @@ func feed_settle(ops: Array[CombatWorld.SettleOp]) -> void:
 	_fed_settle.append_array(ops)
 
 
-## An allocated, non-core host — the only kind that topples here.
+## An allocated host — the only kind that topples here (the core node too).
 func _settles(n: NodeCombat) -> bool:
-	return n != null and n.is_allocated() and not n.is_core()
+	return n != null and n.is_allocated()
 
 
 func _record_batch(def: StatusDef, transfers: Array[StackTransfer]) -> void:

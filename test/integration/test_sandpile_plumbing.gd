@@ -6,7 +6,8 @@ extends GutTest
 ## degrees, repeat). An attack RECORDS its topples on the landing hit and a
 ## replay RECEIVES them. Corruption is the authored sandpile
 ## (burn 1, keep 0, Mine|Ally): a host topples at `T = masked degree + 1`.
-## The core never topples here (#1568).
+## The core node topples like any node; the entity's own corruption row is a
+## second pile at the core's spot (`T` over the core node's masked neighbours).
 
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _GRAPH_SCENE := preload("res://graph/graph.tscn")
@@ -142,9 +143,10 @@ func test_a_burst_kill_drops_a_neighbours_threshold_and_it_topples_in_the_same_b
 	OutcomeApplier.apply(o, shadow)
 	assert_false(shadow.combat_for(d).is_allocated(), "D's burst killed it")
 	assert_eq(_stacks(d, shadow), 0.0, "a dead node's stacks vanish")
-	# D sent X 1 (X = 2 = T − 1); D died, X's T dropped to 2: X topples.
-	assert_eq(_stacks(x, shadow), 0.0, "X toppled on its new degree in the same beat")
-	assert_eq(_stacks(n[0], shadow), 2.0, "the core kept D's and X's stack")
+	# D sent X 1 (X = 2 = T − 1); D died, X's T dropped to 2: X topples into
+	# C (2 = T on its one edge): C topples back, X ends at 1, C at 0.
+	assert_eq(_stacks(x, shadow), 1.0, "X toppled on its new degree; C's topple handed it 1")
+	assert_eq(_stacks(n[0], shadow), 0.0, "the core node toppled in the same beat")
 	assert_lt(_hp(x, shadow), x_hp, "X's burst landed")
 	shadow.free_shadow()
 
@@ -342,7 +344,7 @@ func test_closing_a_gate_pops_a_critical_endpoint() -> void:
 	assert_eq(_stacks(n[0]), 1.0, "the core received X's stack")
 
 
-func test_a_core_move_pops_the_pile_on_the_departed_node() -> void:
+func test_the_core_node_topples_where_it_stands() -> void:
 	# C–X–N. X (T 3) at 2, N leaf (T 2) at 1.
 	var n := await _territory(3, [[0, 1], [1, 2]])
 	var x := n[1]
@@ -354,11 +356,13 @@ func test_a_core_move_pops_the_pile_on_the_departed_node() -> void:
 	assert_true(_alloc.move_core(_a, x), "precondition: the core moves onto X")
 	nn.get_combat().apply_status(_CORRUPTION, 1.0)
 	_flush()
-	assert_eq([_stacks(x), _stacks(nn)], [3.0, 0.0], "N toppled into X; X, the core, holds T")
+	# N topples into X (3 = T); X, now the core node, topples: 1 to C, 1 to N.
+	assert_eq([_stacks(n[0]), _stacks(x), _stacks(nn)], [1.0, 0.0, 1.0],
+			"the core node X toppled like any node")
 	assert_true(_alloc.move_core(_a, n[0]), "precondition: the core moves off X")
 	_flush()
 	assert_eq([_stacks(n[0]), _stacks(x), _stacks(nn)], [1.0, 0.0, 1.0],
-			"the departed X toppled exactly once")
+			"nothing was critical: the move pops nothing")
 
 
 func test_a_bleeding_grow_a_cure_and_a_crit_move_enqueue_nothing() -> void:
@@ -383,3 +387,30 @@ func test_a_row_risen_before_a_replay_beat_is_checked_at_the_next_computing_flus
 	assert_eq(w.settle_visits, 0, "a replay beat computes nothing")
 	w.flush_removals()
 	assert_eq(w.settle_visits, 1, "the risen row waited and was checked once")
+
+
+# ── 9. The core topples (#1568) ─────────────────────────────────────────────
+
+func test_an_allocated_core_node_at_t_bursts_and_sends_one_down_each_edge() -> void:
+	# X–C–Y: C (T 3) handed 3.
+	var n := await _territory(3, [[0, 1], [0, 2]])
+	var c := n[0].get_combat()
+	var max_hp := c.get_max_hp()
+	var hp := _hp(n[0])
+	c.apply_status(_CORRUPTION, 3.0)
+	_flush()
+	assert_eq([_stacks(n[0]), _stacks(n[1]), _stacks(n[2])], [0.0, 1.0, 1.0],
+			"C toppled: 1 down each edge, 1 burned")
+	assert_almost_eq(hp - _hp(n[0]), roundf(3.0 * _CORRUPTION.damage_per_power * max_hp), 1.0,
+			"T × damage_per_power of the core node's max HP")
+
+
+func test_a_neighbours_topple_resettles_the_core_node_in_the_same_flush() -> void:
+	# C–X: both T 2. C at 1; X handed 2 tops C up to 2.
+	var n := await _territory(2, [[0, 1]])
+	n[0].get_combat().apply_status(_CORRUPTION, 1.0)
+	_flush()
+	n[1].get_combat().apply_status(_CORRUPTION, 2.0)
+	_flush()
+	assert_eq([_stacks(n[0]), _stacks(n[1])], [0.0, 1.0],
+			"X toppled into C, and C toppled back in the same flush")
