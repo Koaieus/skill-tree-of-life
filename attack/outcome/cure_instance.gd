@@ -48,7 +48,15 @@ func draws_own_crit() -> bool:
 ## is stamped onto [member HitInstance.amount] / [member
 ## HitInstance.effective_amount] first: [method NodeCombat.heal_damage] only
 ## writes the latter back for a [HealInstance], and [AttackRecord] ships it.
+## A rider gates first, like its siblings: a [method HitInstance.rider_gated]
+## clear (a dud [member HitInstance.paired] hit) is flagged
+## [member HitInstance.gated] and clears and heals nothing.
 func land_on(node: NodeCombat, _world: CombatWorld) -> void:
+	if rider_gated(node):
+		gated = true
+		amount = 0.0
+		effective_amount = 0.0
+		return
 	amount = heal
 	effective_amount = heal
 	for i in defs.size():
