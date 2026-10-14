@@ -483,7 +483,9 @@ func _apply_forced_charges(blade: SkillBlade) -> void:
 	var forced := int(_charges_spin.value)
 	var visuals := blade.get_node_visuals()
 	for i in visuals.size():
-		if forced > 0 and not visuals[i].is_pivot:
+		if visuals[i].is_pivot:
+			continue
+		if forced > 0:
 			visuals[i].charges = forced
 		visuals[i].spend_progress = _spend_slider.value
 
