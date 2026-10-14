@@ -34,14 +34,19 @@ extends Resource
 	set(value):
 		affinity_cost = maxi(value, 1)
 		emit_changed()
-## True: the load lands as the concept's status rider. False: the load only
-## shapes the spell — no rider; a spread reads it from
-## [member PropagationContext.load] (Firecracker's explosive fuel).
-@export var rides: bool = true:
-	set(value):
-		rides = value
-		emit_changed()
+## How a hit spends this row's load — the row's **face**:
+## DETONATE: spent at the hit as a blast ([DetonateEffect]); PLANT: lands as
+## the concept's status rider at `power = load`; FUEL: no rider, the load only
+## shapes the spell — a spread reads it from [member PropagationContext.load]
+## (Firecracker's explosive fuel). INHERIT takes the concept's
+## [member StatusDef.default_face] ([method resolved_face]).
+enum Face { INHERIT, DETONATE, PLANT, FUEL }
 
+## This row's face; INHERIT (the default) defers to the concept's status.
+@export var face: Face = Face.INHERIT:
+	set(value):
+		face = value
+		emit_changed()
 
 ## The concept id this row keys on (`&"poison"`); `&""` unset.
 func aspect_id() -> StringName:
@@ -52,6 +57,22 @@ func aspect_id() -> StringName:
 func status() -> StatusDef:
 	var id := aspect_id()
 	return null if id.is_empty() else StatusRoster.shared().by_concept(id)
+
+
+## [member face], INHERIT resolved through the concept status's
+## [member StatusDef.default_face] — PLANT when the concept has no status.
+func resolved_face() -> Face:
+	if face != Face.INHERIT:
+		return face
+	return face_of_status(status())
+
+
+## The face a row left INHERIT takes for [param def]: its authored
+## [member StatusDef.default_face], PLANT when [param def] is null.
+static func face_of_status(def: StatusDef) -> Face:
+	if def != null and def.default_face == Face.DETONATE:
+		return Face.DETONATE
+	return Face.PLANT
 
 
 ## True iff this row's affinity is 0 — the spell takes no infusion of it.

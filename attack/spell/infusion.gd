@@ -101,6 +101,13 @@ func load_of(spell: SpellDef) -> Dictionary[StringName, int]:
 	return out
 
 
+## The explosive load this cast spends at each hit as a blast: the
+## `explosive` load iff its face resolves DETONATE ([method face_of]), else 0
+## — a FUEL row's load only shapes the spell, a PLANT row's lands as a rider.
+func detonate_load(spell: SpellDef) -> int:
+	return 0
+
+
 ## One [ApplyStatusEffect] per concept whose load is above zero, carrying
 ## that concept's status at `power = load` — except a concept whose intake row
 ## has [member AspectIntake.rides] false: its load only shapes the spell.
@@ -114,7 +121,7 @@ func riders(spell: SpellDef) -> Array[OnHitEffect]:
 		if counts[id] <= 0:
 			continue
 		var row := intake_of(spell, id)
-		if row != null and not row.rides:
+		if row != null and row.resolved_face() == AspectIntake.Face.FUEL:
 			continue
 		var status := StatusRoster.shared().by_concept(id)
 		if status == null:

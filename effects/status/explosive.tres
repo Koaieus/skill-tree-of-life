@@ -23,3 +23,4 @@ decay = SubResource("Resource_decay")
 spread = SubResource("Resource_spread")
 display_max = 10.0
 reapply = 1
+default_face = 1

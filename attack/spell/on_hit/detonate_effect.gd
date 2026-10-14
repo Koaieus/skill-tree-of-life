@@ -39,7 +39,7 @@ const SPENT_KEY := &"detonate_spent"
 ## prepended — unless they are non-empty and every one lands explosive, in
 ## which case they only plant and are returned unchanged. A riderless hit
 ## (empty) still detonates.
-static func arm(effects: Array[OnHitEffect]) -> Array[OnHitEffect]:
+static func arm(effects: Array[OnHitEffect], load: int = 0) -> Array[OnHitEffect]:
 	if not effects.is_empty() and effects.all(_is_explosive):
 		return effects
 	var det := DetonateEffect.new()
@@ -65,6 +65,18 @@ static func _is_explosive(e: OnHitEffect) -> bool:
 		return false
 	var def := e.status_def()
 	return def != null and def.id == EXPLOSIVE
+
+
+## Charges a hit with [param load] spends off [param present]: none on a clean
+## node, else `max(1, min(load, present))` — a spark always takes one.
+static func spend_of(load: int, present: int) -> int:
+	return 0
+
+
+## A detonation's power: `load + present + 2·r·min(load, present)`, the
+## shared chunk weighted [param resonance] on each side. 0 = no blast.
+static func power_of(load: int, present: int, resonance: int) -> int:
+	return 0
 
 
 func apply(landing: HitLanding) -> void:

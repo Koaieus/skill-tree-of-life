@@ -20,7 +20,7 @@
 script = ExtResource("2_intake")
 identity = ExtResource("2_explosive")
 innate = 6
-rides = false
+face = 3
 
 [sub_resource type="Resource" id="crit_gap"]
 script = ExtResource("3_crit_gap")

@@ -230,26 +230,90 @@ func test_a_plain_arrow_on_a_charged_node_blasts_shrapnel_only() -> void:
 	assert_ne(hits[0].hit_key, 0, "the arrow keys its blast")
 
 
-func test_a_spell_landing_with_poison_and_explosive_blasts_poison_then_plants() -> void:
-	await _board()
-	_charge(_f.target, 2.0)
+func _poison_rider() -> ApplyStatusEffect:
 	var poison := ApplyStatusEffect.new()
 	poison.def = _POISON_DEF
-	var explosive := ApplyStatusEffect.new()
-	explosive.def = _def()
+	return poison
+
+
+## A spell landing on the target carrying [param effects] armed at [param load].
+func _detonate(effects: Array[OnHitEffect], load: int) -> Array:
 	var lctx := _spell_landing()
-	OnHitEffect.run_all(DetonateEffect.arm([poison, explosive] as Array[OnHitEffect]), lctx)
-	var hits := lctx.hits
+	OnHitEffect.run_all(DetonateEffect.arm(effects, load), lctx)
+	return lctx.hits
+
+
+func test_a_detonate_load_on_charges_spends_the_shared_chunk_and_blasts_poison() -> void:
+	await _board()
+	_charge(_f.target, 2.0)
+	var hits := _detonate([_poison_rider()] as Array[OnHitEffect], 3)
 	assert_eq(_cures_on(hits, _f.target), 1, "one blast, one spend")
 	assert_eq(_status_on(hits, _f.cluster[0], _POISON_DEF.id).size(), 1, "poison rides the blast")
 	for h in hits:
-		if h is StatusInstance and h.def.id == &"explosive":
-			assert_eq(h.target, _f.target, "explosive never rides a blast")
-	var planted := _status_on(hits, _f.target, &"explosive")
-	assert_eq(planted.size(), 1, "then the hit plants on the centre")
+		if h is StatusInstance:
+			assert_ne(h.def.id, &"explosive", "a DETONATE load plants nothing")
 	_land(hits)
-	var stacks: float = planted[0].power
-	assert_almost_eq(_charges(_f.target), 2.0 - 1.0 + stacks, 0.0001, "net change is stacks - 1")
+	assert_almost_eq(_charges(_f.target), 0.0, 0.0001, "spends max(1, min(3, 2)) = 2")
+
+
+func test_spend_and_power_follow_the_formula() -> void:
+	# [load, present, spent, power] at resonance 1.
+	for row in [[3, 0, 0, 3], [3, 5, 3, 14], [3, 1, 1, 5], [0, 5, 1, 5], [0, 0, 0, 0], [3, 2, 2, 9]]:
+		assert_eq(DetonateEffect.spend_of(row[0], row[1]), row[2], "spent for %s" % [row])
+		assert_eq(DetonateEffect.power_of(row[0], row[1], 1), row[3], "power for %s" % [row])
+	assert_eq(DetonateEffect.power_of(3, 2, 0), 5, "resonance 0: load + present")
+	assert_eq(DetonateEffect.power_of(3, 2, 2), 13, "resonance weighs the shared chunk on each side")
+
+
+func test_a_load_on_a_clean_node_blasts_and_spends_nothing() -> void:
+	await _board()
+	var hits := _detonate([] as Array[OnHitEffect], 3)
+	assert_eq(_cures_on(hits, _f.target), 0, "nothing present, nothing spent")
+	assert_false(_blast_hits(hits).is_empty(), "the load alone blasts")
+
+
+func test_a_load_of_three_on_five_leaves_two() -> void:
+	await _board()
+	_charge(_f.target, 5.0)
+	_land(_detonate([] as Array[OnHitEffect], 3))
+	assert_almost_eq(_charges(_f.target), 2.0, 0.0001)
+
+
+func test_a_load_of_three_on_one_leaves_none() -> void:
+	await _board()
+	_charge(_f.target, 1.0)
+	var hits := _detonate([] as Array[OnHitEffect], 3)
+	assert_false(_blast_hits(hits).is_empty(), "blasts")
+	_land(hits)
+	assert_almost_eq(_charges(_f.target), 0.0, 0.0001)
+
+
+func test_five_sparks_on_a_five_patch_each_take_one() -> void:
+	await _board()
+	_charge(_f.target, 5.0)
+	for i in 5:
+		var hits := _shoot(null)
+		assert_eq(_cures_on(hits, _f.target), 1, "spark %d spends one" % i)
+		assert_false(_blast_hits(hits).is_empty(), "spark %d blasts" % i)
+		_land(hits)
+		assert_almost_eq(_charges(_f.target), 4.0 - i, 0.0001, "5, 4, 3, 2, 1 in turn")
+	assert_true(_blast_hits(_shoot(null)).is_empty(), "the patch is spent")
+
+
+func test_a_plant_row_with_poison_on_a_charged_node_plants_and_never_blasts() -> void:
+	await _board()
+	_charge(_f.target, 2.0)
+	var explosive := ApplyStatusEffect.new()
+	explosive.def = _def()
+	explosive.power = 1.0
+	var hits := _detonate([_poison_rider(), explosive] as Array[OnHitEffect], 0)
+	assert_eq(_cures_on(hits, _f.target), 0, "a PLANT hit spends nothing")
+	assert_true(_blast_hits(hits).is_empty(), "nor blasts")
+	assert_eq(_status_on(hits, _f.target, _POISON_DEF.id).size(), 1, "poison lands on the centre")
+	var planted := _status_on(hits, _f.target, &"explosive")
+	assert_eq(planted.size(), 1, "and the charge plants")
+	_land(hits)
+	assert_almost_eq(_charges(_f.target), 2.0 + planted[0].power, 0.0001, "nothing spent")
 
 
 func test_a_chain_sets_each_charged_node_off_once_per_arrow() -> void:

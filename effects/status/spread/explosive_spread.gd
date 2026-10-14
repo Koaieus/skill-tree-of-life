@@ -24,6 +24,10 @@ extends StatusSpread
 ## from integer powers and one `sqrt`, never `pow` (`lint-transcendentals`).
 ## Tentative, easy to change.
 @export_range(0.0, 2.0, 0.5) var charge_exponent: float = 0.5
+## The shared chunk's weight on each side of a detonation's power:
+## `power = load + present + 2 × resonance × min(load, present)`
+## ([method DetonateEffect.power_of]). Tentative, easy to change.
+@export_range(0, 5, 1, "or_greater") var resonance: int = 1
 ## Which removal causes spend the charges, as [constant StatusSpread.CAUSE_DEATH]
 ## / [constant StatusSpread.CAUSE_DEALLOC] bits. Default: a kill only.
 @export_flags("Death", "Dealloc") var triggers: int = CAUSE_DEATH

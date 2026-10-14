@@ -61,6 +61,11 @@ var icon: Texture2D:
 var tint: Color:
 	get:
 		return identity.tint if identity != null else Color.WHITE
+## The face an intake row of this concept takes when it leaves its own
+## `face` INHERIT: 1 = DETONATE (the load is spent at the hit as a blast),
+## 2 = PLANT (the load lands as this status's rider). The ints mirror
+## `AspectIntake.Face`, which `effects/` may not name (module-deps).
+@export_enum("Detonate:1", "Plant:2") var default_face: int = 2
 ## Classification tags a consumer may filter on (`&"debuff"`, `&"dot"`, …).
 ## Metadata only — NOT granted to the node as [method NodeCombat.add_tag] tags.
 @export var tags: Array[StringName] = []
