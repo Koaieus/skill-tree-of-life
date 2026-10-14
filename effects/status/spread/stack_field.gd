@@ -49,7 +49,8 @@ func nodes() -> Array:
 
 ## Whether [param n] topples in this field (has an adjacency to compute a `T`
 ## from); anything else only receives — an absorber. A world-backed field
-## answers its own rule (e.g. the core never topples).
+## answers its own rule ([method CombatWorld._settles]: any allocated node, the
+## core node included, and a living entity's core pile).
 func topples(n) -> bool:
 	return _adjacency.has(n)
 
