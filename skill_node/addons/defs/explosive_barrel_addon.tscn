@@ -21,7 +21,7 @@ charge_status = ExtResource("3_charge")
 identity = ExtResource("identity_ref")
 entity_modifiers = Array[ExtResource("2_mod")]([SubResource("Resource_barrel_aspect")])
 description = "An explosive barrel. Its owner gains an explosive arrow; at each of the owner's turn starts, an allocated carrier tops its explosive charges up to one per barrel it carries. Removing a barrel spends one charge."
-temp_placeable = true
+temp_placeable = false
 temp_cost_blade_size = 2
 temp_cost_aspects = Dictionary[StringName, int]({
 &"explosive_aspect": 1
