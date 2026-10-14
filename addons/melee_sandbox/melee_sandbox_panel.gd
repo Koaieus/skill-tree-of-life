@@ -72,6 +72,8 @@ const _KNOBS: Array[Array] = [
 @onready var _tray_host: Control = %TrayHost
 @onready var _blade_size: SpinBox = %BladeSizeSpin
 @onready var _delit_spin: SpinBox = %DelitSpin
+@onready var _charges_spin: SpinBox = %ChargesSpin
+@onready var _spend_slider: HSlider = %SpendSlider
 @onready var _preview_toggle: CheckBox = %PreviewToggle
 @onready var _topup_toggle: CheckBox = %TopUpToggle
 @onready var _rearm_toggle: CheckBox = %RearmToggle
@@ -351,6 +353,8 @@ func _wire_controls() -> void:
 	_reset_button.pressed.connect(arm_world)
 	_blade_size.value_changed.connect(_on_blade_size_changed)
 	_delit_spin.value_changed.connect(_on_delit_changed)
+	_charges_spin.value_changed.connect(_on_charges_look_changed)
+	_spend_slider.value_changed.connect(_on_charges_look_changed)
 	_preview_toggle.toggled.connect(_on_preview_toggled)
 	_rigidity.item_selected.connect(_on_rigidity_selected)
 	_rearm_toggle.toggled.connect(func(_on: bool) -> void: _refresh_status())
@@ -405,6 +409,13 @@ func _on_delit_changed(_value: float) -> void:
 	_apply_forced_delit(_preview.current_blade())
 
 
+## Force the LIVE ghost's charge beads and spend flare, for tuning the look
+## without arming the board. A real swing overrides both from
+## [member SkillBlade.pop_result] — the model always wins.
+func _on_charges_look_changed(_value: float) -> void:
+	_apply_forced_charges(_preview.current_blade())
+
+
 ## Add or strip a bunker addon on one node. Plain `add_child` / `queue_free`:
 ## [SkillNode] keeps its addon ledger off `child_entered_tree` / `child_exiting`,
 ## so attaching one at runtime is the same act the scene file performs.
@@ -451,6 +462,7 @@ func _on_rigidity_selected(index: int) -> void:
 
 func _on_blade_spawned(blade: SkillBlade) -> void:
 	_apply_forced_delit(blade)
+	_apply_forced_charges(blade)
 
 
 func _apply_forced_delit(blade: SkillBlade) -> void:
@@ -463,6 +475,17 @@ func _apply_forced_delit(blade: SkillBlade) -> void:
 		# tool, not a real pop — pin it fully dead (1.0) rather than deriving
 		# a ramp nothing is driving.
 		visuals[i].death_progress = 1.0 if (forced > 0 and i >= visuals.size() - forced) else 0.0
+
+
+func _apply_forced_charges(blade: SkillBlade) -> void:
+	if blade == null:
+		return
+	var forced := int(_charges_spin.value)
+	var visuals := blade.get_node_visuals()
+	for i in visuals.size():
+		if forced > 0 and not visuals[i].is_pivot:
+			visuals[i].charges = forced
+		visuals[i].spend_progress = _spend_slider.value
 
 
 ## Tops the quarry up through a spam session: refill anything that took a hit, so

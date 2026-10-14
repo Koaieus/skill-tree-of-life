@@ -98,6 +98,35 @@ layout_mode = 2
 tooltip_text = "Show the outermost N ghost vertices as popped (HDR → SDR). A real swing overrides this from the pop resolver."
 max_value = 20.0
 
+[node name="ChargesRow" type="HBoxContainer" parent="VBox/Bar/Controls" unique_id=2010000001]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="ChargesLabel" type="Label" parent="VBox/Bar/Controls/ChargesRow" unique_id=2010000002]
+layout_mode = 2
+theme_override_font_sizes/font_size = 11
+text = "Charges"
+
+[node name="ChargesSpin" type="SpinBox" parent="VBox/Bar/Controls/ChargesRow" unique_id=2010000003]
+unique_name_in_owner = true
+layout_mode = 2
+tooltip_text = "Show N explosive charge beads on every ghost member piece. 0 leaves each piece its built charges; a real swing overrides this from the pop resolver."
+max_value = 16.0
+
+[node name="SpendLabel" type="Label" parent="VBox/Bar/Controls/ChargesRow" unique_id=2010000004]
+layout_mode = 2
+theme_override_font_sizes/font_size = 11
+text = "Force spend"
+
+[node name="SpendSlider" type="HSlider" parent="VBox/Bar/Controls/ChargesRow" unique_id=2010000005]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(80, 0)
+layout_mode = 2
+size_flags_vertical = 4
+tooltip_text = "Pin every ghost piece's spend flare at this progress (0 = none). A real swing overrides this from the pop resolver."
+max_value = 1.0
+step = 0.01
+
 [node name="RigidityRow" type="HBoxContainer" parent="VBox/Bar/Controls" unique_id=1204471833]
 layout_mode = 2
 theme_override_constants/separation = 6
