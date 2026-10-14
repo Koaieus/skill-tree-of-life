@@ -6,8 +6,8 @@ extends StatusSpread
 ## every node-centred blast (detonation, barrel pop, warhead, exchange, death)
 ## asks [method radius_for] / [method blast_for] and never computes a reach
 ## itself. The bomb is the node: reach = node radius × [member reach_per_radius]
-## × charges^[member charge_exponent], uncapped — area grows linearly in
-## charges, and the charge economy bounds it. No stat targets it, so it lives
+## × power^[member charge_exponent], uncapped — area grows linearly in
+## the blast's power, and the charge economy bounds it. No stat targets it, so it lives
 ## here as knobs (`docs/domain/stat-knobs-and-bins.md` §1).
 ##
 ## Death ([method on_removed]): a killed node spends every charge at once —
@@ -39,8 +39,8 @@ var _finders: Dictionary = {}  # float reach -> EuclideanRangeFinder
 
 
 ## The reach in px of a blast on a node of [param node_radius] px holding
-## [param charges] charges BEFORE the spend (owner: √present, not √spent).
-## `0.0` for no charges.
+## a blast of [param charges] power: every caller passes the formula's power
+## (present and load, before the spend), never a raw charge count. `0.0` for 0.
 func radius_for(node_radius: float, charges: int) -> float:
 	if charges <= 0 or node_radius <= 0.0:
 		return 0.0
