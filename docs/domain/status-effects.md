@@ -128,7 +128,7 @@ the row is an integer count
 ([ADR 0032](../adr/0032-status-stacks-are-integers-a-def-derives-any-fractional-effect-from-the-count.md));
 the hosts (node, or the entity once the row falls through a cracked core) are
 [ADR 0024](../adr/0024-status-effects-have-two-hosts-and-fall-through-a-cracked-core.md).
-What could still come (cures, contagion, the other families' arrows and spells)
+What could still come (contagion, the other families' arrows and spells)
 is `docs/design/damage_over_time.md`.
 A cure (`Cure`, `CureEffect`) reads and clears a spot's two holders: on a core
 node the core's rows count toward the walk (`StatusFilter`) and the need, and
