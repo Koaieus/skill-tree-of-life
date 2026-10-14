@@ -1,8 +1,9 @@
 extends GutTest
 
-## [PairedDamageEffect]: a damage rider worth a fraction of its landing's RAW
-## amount, fixed at compile, mitigated by each landed node's own armour, and
-## carrying the arrow's crit rather than drawing its own. Wrapped in a
+## [PairedDamageEffect]: a rider repeating its landing's hit (damage, or a
+## heal) for a fraction of its RAW amount, fixed at compile, damage mitigated
+## by each landed node's own armour, carrying its paired hit's crit rather
+## than drawing its own. Wrapped in a
 ## [SplashEffect] it is the Explosive arrow's blast.
 
 ## Pinned on every leaf; the arrow's compiled amount is what the blast's
@@ -210,6 +211,15 @@ func test_a_heal_landing_blasts_its_fraction_as_a_heal_onto_friendlies_only() ->
 	var hits := _heal_volley(RAW)
 	var blasts := _blast_hits(hits)
 	var landed := _targets_of(blasts)
+	var finder := EuclideanRangeFinder.new()
+	finder.max_distance = _HEAL_REACH
+	var reach: Array[SkillNode] = []
+	for n in finder.gather(_f.leaves[0], _f.graph.navigator):
+		if n != _f.leaves[0] and n.ownership_bit(_f.attacker) & _FRIENDLY != 0:
+			reach.append(n)
+	assert_eq(landed.size(), reach.size(), "one blast heal per friendly node in reach")
+	for n in reach:
+		assert_has(landed, n)
 	assert_has(landed, _f.leaves[1], "the friendly leaf in reach takes the blast heal")
 	assert_does_not_have(landed, _f.target, "the friendly mask keeps the hostile out")
 	assert_does_not_have(landed, _f.leaves[0], "never the centre")
