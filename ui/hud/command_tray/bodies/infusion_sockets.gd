@@ -220,13 +220,19 @@ func _repaint_wheel() -> void:
 	_mark_open()
 
 
+## Centred on the open socket, then slid to stay inside the viewport: the tray
+## is bottom-anchored, so a centred wheel would lose its lower wedges off-screen.
 func _place_wheel() -> void:
 	var open := _open()
 	var s := socket(open.socket) if open != null else null
 	if s == null:
 		return
 	var centre := s.global_position + Vector2(s.size.x * 0.5, socket_px * 0.5)
-	_wheel.global_position = centre - _wheel.size * 0.5
+	var at := centre - _wheel.size * 0.5
+	var limit := get_viewport().get_visible_rect()
+	at.x = clampf(at.x, limit.position.x, limit.end.x - _wheel.size.x)
+	at.y = clampf(at.y, limit.position.y, limit.end.y - _wheel.size.y)
+	_wheel.global_position = at
 
 
 func _mark_open() -> void:

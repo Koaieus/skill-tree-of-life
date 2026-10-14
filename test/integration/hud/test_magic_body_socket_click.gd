@@ -146,3 +146,18 @@ func test_a_lone_socket_hangs_on_the_vessel_rim() -> void:
 	assert_lt(overlap.size.y, _MAX_VESSEL_OVERLAP_PX,
 			"the lone socket's rect %s overlaps the vessel %s by %s" % [
 			ghost.get_global_rect(), vessel.get_global_rect(), overlap.size.y])
+
+
+func test_the_wheel_stays_inside_the_viewport_near_its_bottom_edge() -> void:
+	await _arm(10.0, 3.0)
+	var sockets := _sockets()
+	var socket := sockets.socket(0)
+	_body.position.y = _host.size.y - (socket.global_position.y - _body.global_position.y) - 20.0
+	await wait_frames(2)
+	var limit := Rect2(Vector2.ZERO, Vector2(_host.size))
+	assert_false(limit.encloses(Rect2(socket.get_global_rect().get_center() - Vector2.ONE * 96.0,
+			Vector2.ONE * 192.0)), "guard: a wheel centred on the socket would overflow")
+	await _click(socket)
+	assert_true(sockets.wheel().visible, "guard: the wheel opened")
+	var rect := sockets.wheel().get_global_rect()
+	assert_true(limit.encloses(rect), "the wheel %s is clamped into the viewport %s" % [rect, limit])
