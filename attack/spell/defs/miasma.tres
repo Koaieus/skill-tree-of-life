@@ -2,8 +2,8 @@
 
 [ext_resource type="Script" uid="uid://ber34us1t16kb" path="res://attack/spell/spell_def.gd" id="1_spell"]
 [ext_resource type="Script" uid="uid://dw3civ4fol21f" path="res://attack/spell/on_hit/on_hit_effect.gd" id="2_effect"]
-[ext_resource type="Script" uid="uid://c1371mypr70e1" path="res://attack/spell/spell_affinity.gd" id="3_affinity"]
-[ext_resource type="Resource" uid="uid://c7s5qybcqmll5" path="res://effects/status/poison.tres" id="3_poison"]
+[ext_resource type="Script" uid="uid://c1371mypr70e1" path="res://attack/spell/aspect_intake.gd" id="3_affinity"]
+[ext_resource type="Resource" path="res://identity/defs/poison.tres" id="identity_poison"]
 [ext_resource type="Script" uid="uid://cx52yu8u4qipj" path="res://attack/spell/condition/landing_condition.gd" id="3_y0jtk"]
 [ext_resource type="Script" uid="uid://o0v6inqs5wk6" path="res://attack/spell/propagation/propagation_config.gd" id="4_config"]
 [ext_resource type="Script" uid="uid://dsyv0dkxki366" path="res://attack/spell/propagation/filter/owner_filter.gd" id="5_filter"]
@@ -17,7 +17,7 @@
 
 [sub_resource type="Resource" id="poison_miasma"]
 script = ExtResource("3_affinity")
-status = ExtResource("3_poison")
+identity = ExtResource("identity_poison")
 innate = 3
 
 [sub_resource type="Resource" id="filter_enemy"]
@@ -49,6 +49,6 @@ description = "Poison an enemy-occupied node within 3 hops with 3 stacks, then l
 identity = ExtResource("identity_ref")
 power = 0.4
 propagation = SubResource("prop_miasma")
-affinities = Array[ExtResource("3_affinity")]([SubResource("poison_miasma")])
+intakes = Array[ExtResource("3_affinity")]([SubResource("poison_miasma")])
 vfx_coordinator_scene = ExtResource("10_vfx")
 targeting = SubResource("targeting_hostile_3hop")

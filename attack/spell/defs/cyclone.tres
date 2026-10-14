@@ -1,6 +1,6 @@
 [gd_resource type="Resource" script_class="SpellDef" format=3 uid="uid://b6c1yc1lonvkq"]
 
-[ext_resource type="Script" uid="uid://c1371mypr70e1" path="res://attack/spell/spell_affinity.gd" id="1_d7ays"]
+[ext_resource type="Script" uid="uid://c1371mypr70e1" path="res://attack/spell/aspect_intake.gd" id="1_d7ays"]
 [ext_resource type="Texture2D" uid="uid://bmpvgd428n8v5" path="res://assets/icons/spells/cyclone.png" id="1_icon"]
 [ext_resource type="Texture2D" uid="uid://be3m0tcmtjlag" path="res://assets/emblem_luts/cyclone.png" id="1_lut"]
 [ext_resource type="Script" uid="uid://ber34us1t16kb" path="res://attack/spell/spell_def.gd" id="1_spell"]
@@ -79,7 +79,7 @@ min_degree = 4
 power = 2.0
 propagation = SubResource("prop")
 on_hit_effects = Array[ExtResource("2_effect")]([SubResource("dmg")])
-default_rate = 0.5
+ingest_cost = 2
 crit_conditions = Array[ExtResource("2_crit_base")]([SubResource("crit_cycle")])
 vfx_coordinator_scene = ExtResource("12_vfx")
 targeting = SubResource("targeting")

@@ -1,6 +1,6 @@
 [gd_resource type="Resource" script_class="SpellDef" format=3 uid="uid://dae6hdb4aq3b3"]
 
-[ext_resource type="Script" uid="uid://c1371mypr70e1" path="res://attack/spell/spell_affinity.gd" id="1_22gko"]
+[ext_resource type="Script" uid="uid://c1371mypr70e1" path="res://attack/spell/aspect_intake.gd" id="1_22gko"]
 [ext_resource type="Texture2D" uid="uid://dupvj03b5mlb3" path="res://assets/emblem_luts/reverberator.png" id="1_lut"]
 [ext_resource type="Script" uid="uid://ber34us1t16kb" path="res://attack/spell/spell_def.gd" id="1_spell"]
 [ext_resource type="Script" uid="uid://ci08q7vcgbwdx" path="res://skill_node/visuals/emblem/texture_carve_shape.gd" id="1_tcs"]
@@ -24,7 +24,7 @@
 [ext_resource type="Script" uid="uid://bqrga3k1hmfut" path="res://attack/spell/propagation/spread/fan_all_spread.gd" id="10_step"]
 [ext_resource type="PackedScene" path="res://ui/vfx/coordinator/spells/reverberator_coordinator.tscn" id="12_ww832"]
 [ext_resource type="Resource" path="res://identity/defs/spell_reverberator.tres" id="identity_ref"]
-[ext_resource type="Resource" path="res://effects/status/corruption.tres" id="13_corruption"]
+[ext_resource type="Resource" path="res://identity/defs/corruption.tres" id="identity_corruption"]
 
 [sub_resource type="Resource" id="carve_reverberator"]
 script = ExtResource("1_tcs")
@@ -33,9 +33,8 @@ baked_lut = ExtResource("1_lut")
 
 [sub_resource type="Resource" id="corruption_ring"]
 script = ExtResource("1_22gko")
-status = ExtResource("13_corruption")
+identity = ExtResource("identity_corruption")
 innate = 2
-rate = 1.0
 
 [sub_resource type="Resource" id="crit_self_loop"]
 script = ExtResource("2_crit_self_loop")
@@ -97,7 +96,7 @@ min_degree = 3
 power = 3.0
 propagation = SubResource("prop")
 on_hit_effects = Array[ExtResource("2_effect")]([SubResource("dmg")])
-affinities = Array[ExtResource("1_22gko")]([SubResource("corruption_ring")])
+intakes = Array[ExtResource("1_22gko")]([SubResource("corruption_ring")])
 crit_conditions = Array[ExtResource("2_crit_base")]([SubResource("crit_self_loop")])
 vfx_coordinator_scene = ExtResource("12_ww832")
 targeting = SubResource("targeting")
