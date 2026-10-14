@@ -749,8 +749,8 @@ static func _tempo_of(path: String) -> PresentationTempo:
 
 
 ## [param mark]'s 1-based row in [param r]'s blast table, appending it on
-## first sight; 0 for no mark. A blastless record leaves the table empty and
-## so omits every blast key.
+## first sight; 0 for no mark. The per-hit index rides every record like
+## `pops`; a blastless record omits only the table keys.
 static func _capture_blast(r: AttackRecord, mark: BlastMark, index: Dictionary, graph: Graph) -> int:
 	if mark == null:
 		return 0
