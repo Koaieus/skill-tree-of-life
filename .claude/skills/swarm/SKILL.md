@@ -162,7 +162,9 @@ land its units; it lands and closes its own. Its blocked units free up
 when the top's `<name> drained` message arrives — re-read its ledger then.
 With nothing in flight and only blocked units left, end your turn on the
 one line `blocked on <name>`, never a session report; that message wakes
-you. The
+you. Likewise, if the harness ends your turn with drones still in flight,
+your final text is the ONE line `interim: <n>/<m> landed, <k> in flight`,
+never a report — the report is for the train's end. The
 whip ledger path in your prompt is read, never adopted. A row written
 before dispatch is the claim: a unit with a row in another live
 `swarm-*.md` is never yours to dispatch. No Sage in this mode: every brief

@@ -323,6 +323,14 @@ fork C's first half; the overlap between leads stays open there*)
     one lead at a time the rule never bites; the referee for two live
     leads is fork C.
 
+22. **A lead's mid-train hand-back is one line.** A background lead that
+    ends its turn waiting on drones is force-handed-back to the top, which
+    is woken each time; a multi-paragraph "interim report" cost the top
+    context for nothing (twice in 10 min, 2026-10-13), and the §3 catch-all
+    would have run `done` on it. The lead says `interim: <n>/<m> landed, <k>
+    in flight` and the top does nothing — the same shape as `blocked on
+    <outgoing>` (law 10), a line that is not a report.
+
 ## Knobs
 
 - `whip start --cap 15 --stall-minutes 45 --tick-minutes 45 [--size <n>]` — the

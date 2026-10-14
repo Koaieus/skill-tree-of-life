@@ -171,7 +171,11 @@ the lead's turn had ended), or any other task notification from below a
 lead (its commands, its drones):
 nothing — end the turn.
 
-**Any other report** — the train is finished, landed or not:
+**`interim: …`** (a lead's hand-back whose first line starts `interim:` —
+its turn ended with drones still in flight, not the train's end): nothing
+— end the turn. No note, never `done`.
+
+**Any other report** (not `interim:`) — the train is finished, landed or not:
 
 ```bash
 mise run whip -- needs-owner --lead <name> <n> "<one line>"   # once per line under its `Needs the owner`
