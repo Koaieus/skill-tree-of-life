@@ -22,7 +22,7 @@ const _DESCRIPTIONS := {
 	&"greed": "The node's next hit lands its negative statuses doubled, and each such hit spends one stack. Greed never fades on its own.",
 	&"hex": "Every stack adds a flat bonus to the crit chance of any hit landing on this node, after the attacker's own increases; a core's hex counts for every node its owner holds. Stacks fall by 1 each turn.",
 	&"bleeding": "Each turn the wound pays half its stacks as damage, rounded up. Using the node doubles the stacks; resting closes the wound faster every turn.",
-	&"explosive": "Charges on a node. A hit on a charged node spends one into a blast that carries the hit's other effects to the attacker's enemies around it; a node killed while charged spends them all in one blast. One charge fades each turn end.",
+	&"explosive": "Charges on a node. A hit on a charged node sets them off: it spends at least one into a blast that grows with the node's charges and the hit's own explosive load, carrying the hit's other effects to whatever the hit may hit around it. A hit that plants charges sets none off. A node killed while charged spends them all in one blast. One charge fades each turn end.",
 }
 
 
