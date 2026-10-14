@@ -1,0 +1,8 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://ui/vfx/blast_visual.gd" id="1_script"]
+[ext_resource type="Resource" path="res://identity/defs/explosive.tres" id="2_identity"]
+
+[node name="BlastVisual" type="Node2D"]
+script = ExtResource("1_script")
+identity = ExtResource("2_identity")

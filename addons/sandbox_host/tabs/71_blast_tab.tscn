@@ -1,0 +1,100 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" path="res://addons/sandbox_host/sandbox_live_tab.tscn" id="1_base"]
+[ext_resource type="Script" path="res://addons/sandbox_host/tabs/71_blast_panel.gd" id="2_panel"]
+[ext_resource type="PackedScene" path="res://ui/theme/bloom_viewport.tscn" id="3_vp"]
+
+[node name="Blast" instance=ExtResource("1_base")]
+tab_title = "Blast"
+tab_id = &"blast"
+loader_method = &"noop"
+
+[node name="TitleLabel" parent="Layout/Toolbar" index="0"]
+text = "Blast"
+
+[node name="BlastPanel" type="PanelContainer" parent="Layout/Split/PanelHost" index="0"]
+layout_mode = 2
+script = ExtResource("2_panel")
+
+[node name="Split" type="HBoxContainer" parent="Layout/Split/PanelHost/BlastPanel"]
+layout_mode = 2
+
+[node name="Knobs" type="VBoxContainer" parent="Layout/Split/PanelHost/BlastPanel/Split"]
+custom_minimum_size = Vector2(220, 0)
+layout_mode = 2
+
+[node name="ReachLabel" type="Label" parent="Layout/Split/PanelHost/BlastPanel/Split/Knobs"]
+layout_mode = 2
+text = "Reach (px)"
+
+[node name="Reach" type="HSlider" parent="Layout/Split/PanelHost/BlastPanel/Split/Knobs"]
+unique_name_in_owner = true
+layout_mode = 2
+min_value = 10.0
+max_value = 800.0
+value = 160.0
+
+[node name="PowerLabel" type="Label" parent="Layout/Split/PanelHost/BlastPanel/Split/Knobs"]
+layout_mode = 2
+text = "Power"
+
+[node name="Power" type="HSlider" parent="Layout/Split/PanelHost/BlastPanel/Split/Knobs"]
+unique_name_in_owner = true
+layout_mode = 2
+max_value = 200.0
+value = 3.0
+
+[node name="ZoomLabel" type="Label" parent="Layout/Split/PanelHost/BlastPanel/Split/Knobs"]
+layout_mode = 2
+text = "Zoom"
+
+[node name="Zoom" type="HSlider" parent="Layout/Split/PanelHost/BlastPanel/Split/Knobs"]
+unique_name_in_owner = true
+layout_mode = 2
+min_value = 0.25
+max_value = 3.0
+step = 0.05
+value = 1.0
+
+[node name="Replay" type="Button" parent="Layout/Split/PanelHost/BlastPanel/Split/Knobs"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Replay"
+
+[node name="Loop" type="CheckBox" parent="Layout/Split/PanelHost/BlastPanel/Split/Knobs"]
+unique_name_in_owner = true
+layout_mode = 2
+button_pressed = true
+text = "Loop"
+
+[node name="Readout" type="Label" parent="Layout/Split/PanelHost/BlastPanel/Split/Knobs"]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="ViewportContainer" type="SubViewportContainer" parent="Layout/Split/PanelHost/BlastPanel/Split"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+stretch = true
+
+[node name="World" parent="Layout/Split/PanelHost/BlastPanel/Split/ViewportContainer" instance=ExtResource("3_vp")]
+unique_name_in_owner = true
+handle_input_locally = false
+size = Vector2i(600, 400)
+render_target_update_mode = 4
+
+[node name="Bg" type="ColorRect" parent="Layout/Split/PanelHost/BlastPanel/Split/ViewportContainer/World"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+color = Color(0.02, 0.025, 0.035, 1)
+
+[node name="Stage" type="Node2D" parent="Layout/Split/PanelHost/BlastPanel/Split/ViewportContainer/World"]
+unique_name_in_owner = true
+
+[node name="NodeDisc" type="Polygon2D" parent="Layout/Split/PanelHost/BlastPanel/Split/ViewportContainer/World/Stage"]
+color = Color(0.35, 0.38, 0.45, 1)
+polygon = PackedVector2Array(24, 0, 20.8, 12, 12, 20.8, 0, 24, -12, 20.8, -20.8, 12, -24, 0, -20.8, -12, -12, -20.8, 0, -24, 12, -20.8, 20.8, -12)
