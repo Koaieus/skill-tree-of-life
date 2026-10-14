@@ -1,10 +1,11 @@
 # Explosive — charges, faces, the spend/power formula, the two-sided blade contact
 
-What *is*. The design passages still open (Flamestrike, "both" from one
-heal, the death-blast carrier, the rejected list) stay in
-[`docs/design/aspect_matrix.md`](../design/aspect_matrix.md) § Explosive;
-the calls are ADR 0061 and ADR 0062, the owner's rulings #1608 (comments
-6176828602 and 6177810352, 2026-10-14) and #1609.
+What *is*. The calls are ADR 0061 and ADR 0062 (the default face on
+`StatusDef`, the blade's second target set), from the owner's rulings on
+#1608 (comments 6176828602 and 6177810352, 2026-10-14) and #1609 (comment
+6178627285). Design record: the passages still open (Flamestrike, "both"
+from one heal, the death-blast carrier, the rejected list) stay in
+[`docs/design/aspect_matrix.md`](../design/aspect_matrix.md) § Explosive.
 
 ## Vocabulary
 
