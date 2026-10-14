@@ -16,7 +16,9 @@ extends Resource
 
 
 ## The nodes this landing's wave may go to, before the cap and the filter.
-## Order is the order the filter and spread see.
+## Order is the order the filter and spread see. No duplicates and no null:
+## a repeated node would mint two incidents into one landing, which the reducer
+## then merges (graph neighbours are unique by construction).
 @abstract func candidates(lctx: LandingContext) -> Array[SkillNode]
 
 

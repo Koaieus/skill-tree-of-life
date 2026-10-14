@@ -34,8 +34,8 @@ departure (filter, spread) alike. `IncidentReducer` is the one exception: it
 
 ## Pipeline stages
 
-Three small interfaces, plus a shared per-cast context, plus a
-wave-based resolver. Each interface is intentionally **as scoped as
+Three small interfaces, plus an optional reach slot ahead of them, plus a
+shared per-cast context, plus a wave-based resolver. Each interface is intentionally **as scoped as
 `RangeFinder`** — one virtual method, one job. RangeFinder's reusability
 is the model.
 
