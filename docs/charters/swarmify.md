@@ -63,21 +63,29 @@ Numbered so the skill can be checked against them law by law.
    a comment cites — is not read in full by the session: a status or title
    question is one `gh issue view <n> --json title,state,labels` line, a
    content question ("what did #N settle about X") goes into the law 3
-   Explore's question list.
+   Explore's question list, answered as the owner's sentence verbatim with
+   its comment date — never a paraphrase, so the retraction guard holds
+   at one remove. This refinement is the pass's tentative call
+   (2026-10-14), not an owner decision.
 3. **The Explore orients and verifies; the session confirms and thinks.**
-   One `Explore(model: haiku)`, dispatched always (a pass with none is the
-   shape that reads the tree itself), carrying three lists: the orientation
+   One `Explore(model: haiku)`, dispatched always once the question is *how
+   to build it* — straight away when there is no design beat, after the
+   design beat converges (law 29) when there is; a pass with none is the
+   shape that reads the tree itself. It carries three lists: the orientation
    questions ("what does `X` look like", "where is `Y` wired", "what does
    `Z`'s contract say", "what did #N settle"), the claim list (every claim
    the issue makes about the code — "X is unbuilt", "Y has no caller",
    "that helper was deleted" — reported verified / false / stale with a
    `file:line` each, against `master`), and the seam grep. Its return is
-   shaped, not capped: `file:line` facts and one-line answers, never
-   excerpts. Fact-checking is not thinking; skipping it specs work against
+   shaped, not capped: `file:line` facts, one-line answers, and for a
+   related-issue question the owner's sentence verbatim with its date; never
+   excerpts of code. Reading-list ranges are verified at spec time by
+   `spec`, not here. Fact-checking is not thinking; skipping it specs work against
    a world two commits stale. A stale item closes with a doc correction,
    not new work. The thinking stays in the session.
-36. **The session's own reads are ranged and confirm-only.** Before the first
-   owner message the session opens a file only to confirm a contract it has
+36. **The session's own reads are ranged and confirm-only.** During research —
+   from the moment the question is how to build it until a fork is
+   presented — the session opens a file only to confirm a contract it has
    already named from the Explore's answer — a ranged `sed -n` of the lines
    that carry it, never a whole source file, never a `head -200`, never a
    review or design doc end to end. Bash reads bypass every line cap the
@@ -189,7 +197,9 @@ Numbered so the skill can be checked against them law by law.
     work fluently on plumbing that was built on the spot instead of deferred
     as YAGNI. So: the `(Recommended)` tag sits on the cleanest option unless
     a stated reason moves it; the cost of the clean option is said out loud,
-    never used as the tiebreaker; and the owner still sees every option
+    never used as the tiebreaker; the options are a prompt to think aloud, not a strict menu, so the
+    scorecard must survive an "Other" answer (a redirected premise, a
+    synthesised option) and score that too; and the owner still sees every option
     (law 1 — the default changes, the choice does not). To make the choice
     cheap to read, each option carries one **scorecard line** with a fixed
     axis order, cleanest option first:
@@ -334,6 +344,12 @@ Numbered so the skill can be checked against them law by law.
     pasted brief or walkthrough, not a closing report, so the owner had to
     ask what actually moved.
 
+## Frontmatter
+
+`name: swarmify`. `description:`, verbatim:
+
+> Take one GitHub issue from "has open design forks" to Ready — remove blockers, read whether the open question is "what would be fun" (design it first, game-designer hat on, with the user) or "how to build it", surface every unresolved decision, research the code and think each fork through with the user, present options scored for cleanliness with the cleanest as the default, get them to settle it, write a crisp acceptance spec, split a hub into coherent children if needed, and move it to the `Ready` column. This is the design gate that feeds the `swarm` skill. Use when the user says "swarmify #<n>", "make #<n> ready/swarmable", "settle the design on #<n>", or asks to prep an issue/epic for autonomous work. Run as Opus — resolving forks is the thinking swarm cannot do.
+
 ## Incident corpus
 
 Each law traces to at least one of these. Kept here so the skill does not
@@ -342,7 +358,7 @@ have to carry them.
 | Date | Where | What happened | Law |
 |---|---|---|---|
 | 2026-10-14 | owner; scan `.claude/skills/swarmify/corpus/2026-10-14-research-cost-scan.md` (133 sessions) | owner: swarmify sessions "should upgrade their initial research … a Fable … exploring codebase rapidly bloating context possibly reading stuff they dont need", asked what to read, what to delegate, how many explorers and what return size. Scan: the research phase is 73% of a session's tool-result bytes (median 62k chars, max 195k); the session's own `cat`/`sed` reads are the largest bucket (3.0M total), issue reads second (2.1M), Explore returns smallest by 7x (0.4M, ~3.4k/agent). The two heaviest passes cat'ed whole source files and a whole review doc that the resulting specs never cite; one ran no Explore at all; 45 of 133 did not. Owner picked: Explore orients + session confirms, no Explore cap, "just a shape" | 3, 36 |
-| 2026-10-14 | same scan, `bebb84f4` (#1381/#1383/#1489) | the max issue-read case (70k chars, 13 `gh issue` calls) read its three named issues once; the rest was six *related* issues' comment tails and a nine-issue status loop. Multi-issue cost is sublinear (median 58k → 76k → 93k chars for 1 / 2–3 / 4+ issues) because code reads are shared. Owner leaned to keeping full in-session reads of the named issues ("comments could get *long* right?") — the ceiling observed is 17k tokens, half a heavy pass's own cats | 2 |
+| 2026-10-14 | same scan, `bebb84f4` (#1381/#1383/#1489) | the max issue-read case (70k chars, 13 `gh issue` calls) read its three named issues once; the rest was six *related* issues' comment tails and a nine-issue status loop. Multi-issue cost is sublinear (median 58k → 76k → 93k chars for 1 / 2–3 / 4+ issues) because code reads are shared. Owner deferred ("what does advisor say? i'm leaning 1 but comments could get *long* right?"); the pass's tentative call: keep full in-session reads of the named issues (the observed ceiling is 17k tokens, half a heavy pass's own cats) and route related issues through the Explore with a verbatim quote-back | 2 |
 | 2026-10-11 | owner, after the 2026-10-10 scan (`docs/corpus/2026-10-10-swarmify-spec-weight-headless-clerk.md`) | asked whether the spec-writing half should be its own skill, loaded at spec time and usable by sessions with no owner; "I want literally all of these enhancements and fixes you propose, I'm sold" | 33 |
 | 2026-10-10 | #1524 | a generic autonomous-mode harness note ("the user is not watching in real time") made the pass treat the owner as absent: it posted the design options as a comment and ended the turn instead of asking. Owner: "swarmify is a speccing slash design session WITH the user. I AM THE OWNER … we must talk them through and make decisions right here right now" | 1 |
 | 2026-10-08 | owner, `/swarmify` prompt | "owner often has only read the title of an issue if e.g. user starts a session with \"/swarmify #1234\", and sometimes not even the title. So if e.g. an issue mentions an A B C don't assume the user knows these options, stuff like that" | 34 |

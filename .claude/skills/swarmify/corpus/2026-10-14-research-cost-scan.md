@@ -62,7 +62,7 @@ a code region). A 4+ pass costs ~1.6x a single-issue pass, not Nx.
 - The knob is the session's own source reads, not explorer count or return
   size. Orientation belongs in the Explore's question list; the session
   reads ranged windows to confirm a contract it has already named, and
-  never a source file whole. (law 35)
+  never a source file whole. (law 36)
 - Named issues are read in full, once, in-session (law 2 stands — the
   2026-08-02 retraction incident). Related issues are not read in full by
   the session: a status question is a `--json` one-liner, a content
