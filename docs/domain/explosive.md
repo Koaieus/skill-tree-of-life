@@ -4,8 +4,8 @@ What *is*. The calls are ADR 0061 and ADR 0062 (the default face on
 `StatusDef`, the blade's second target set), from the owner's rulings on
 #1608 (comments 6176828602 and 6177810352, 2026-10-14) and #1609 (comment
 6178627285). The passages still open (Flamestrike, "both" from one heal, the
-death-blast carrier, the rejected list) stay in the design record:
-[`docs/design/aspect_matrix.md`](../design/aspect_matrix.md) § Explosive.
+death-blast carrier, the rejected list) stay in the
+design record: [`docs/design/aspect_matrix.md`](../design/aspect_matrix.md) § Explosive.
 
 ## Vocabulary
 
