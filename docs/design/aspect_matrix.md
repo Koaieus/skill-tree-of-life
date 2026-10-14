@@ -385,9 +385,15 @@ hooks. Issue: #1608 (grammar v2, revisiting #1594 / #1595, row #1211).
   ```
 
   A blast happens iff power > 0. The load is *offered*, never consumed by
-  the formula: each reservoir pays its own spend. An arrow has no reservoir
-  (its load is the hit), infusion paid at cast, a blade piece's charges are
-  its lives and pay per contact (below).
+  the formula: each reservoir pays its own spend, `max(1, shared)` if it
+  holds any. An arrow has no reservoir (its load is the hit), infusion paid
+  at cast, a blade piece's charges are its lives and pay per contact
+  (below). The power has two sides, `(load + shared) + (present + shared)`:
+  the striker's and the node's, the shared chunk counting once on each
+  (owner, 2026-10-14; the resonance knob is per side, default 1). A hit
+  that left nothing behind (arrow, spell) lands both sides on the board; a
+  blade contact lands the striker's side on the board and the node's side
+  on the blade (melee, below).
 
   | Hit | present | load | power | left |
   |---|---|---|---|---|
@@ -401,21 +407,33 @@ hooks. Issue: #1608 (grammar v2, revisiting #1594 / #1595, row #1211).
 - **A blast carries the hit, not damage.** The blast replicates a fraction
   of whatever the hit does (damage, or a heal) plus the hit's non-explosive
   riders, under the landing's own target mask, to everything in reach except
-  the centre. A blast never plants: its load was spent. Smaller blasts, never
-  less of the hit.
+  the centre (owner, 2026-10-14: the mask filters everything on the board;
+  only blade pieces, which have no side bit, sit outside it, see Melee). A
+  blast never plants: its load was spent. Smaller blasts, never less of the
+  hit.
 - **Chains.** A blast is a zero-load hit on each neighbour, so a charged
   neighbour goes off, at most once per node per arrow hit, per wave for magic
-  (*"magic goes in beats"*), per contact for melee. A blast from a blade
-  contact does not set off board charges (owner: *"A sounds best for now"*,
-  against a one-charge warhead burning a barrel from a neighbour).
+  (*"magic goes in beats"*), per contact for melee; a blade's blast chains
+  like any other (owner, 2026-10-14: the formula prices it, the neighbour
+  only spends one). Blade pieces are never chained: a pop is the blade sim's
+  event, not a hit.
 - **Composition.** The face can be realised as an effects list with the load
   injected as power (the shape ammo `on_hit_effects` already has); empty
   means the aspect's default. **Both** (a heal that plants and heals in a
-  circle): the owner asked *"healing circle can't have it both ways? As
-  options separately or together?"* (2026-10-14) and answered with the
-  filter below; the pass's pick, **not yet settled by the owner**, is two
-  entries at full load priced by the row's affinity (two infusion per load)
-  rather than a third face. Open on #1608. A list entry can be
+  circle) is two list entries, never a fourth face (owner, 2026-10-14:
+  *"option 1 but price the PLANT at twice the infusion cost vs DETONATE (and
+  thats still a bargain given N plant means N, N-1, N-2, … worth of
+  explosions)"*): the row pays its infusion once and each entry converts it
+  at its own face's affinity. **The face is the carrier's author's choice,
+  never the player's**: a spell row, an ammo def, an addon says what
+  explosive does there; the player picks the carrier. A PLANT row's price
+  is its authored affinity (owner: *"the affinity aka exchange rate, not a
+  constant in code but a combination of setting the Hit's DETONATE vs
+  SOURCE and on the spelldef match this by balancing out the ingestion
+  affinity ... by roughly a factor of 2, or 3, or anything that feels
+  suitable for that particular spell"*), so house convention authors a
+  PLANT row at about half a DETONATE row's affinity; no per-face knob on
+  any def. A list entry can be
   gated by the propagation filter resource, evaluated at landing, so one
   spell chooses its face per target. Owner: *"Healing spell might author an
   alternative set of hits or tag the hit list items then filter this list at
@@ -432,39 +450,41 @@ hooks. Issue: #1608 (grammar v2, revisiting #1594 / #1595, row #1211).
   per turn end, so the coat is used soon. A melee player's handful of stored
   arrows cut the fuses before a swing: *"maybe this is just the way of
   off-maining ranged: some tactical chip damage and procs"*.
-- **Melee: warhead, barrel, exchange** (owner, 2026-10-13, verbatim):
-  - *"blade node with stacks hits unstacked node: it explodes for -1 stack
-    on the blade node, AoE hit + any riders. if stacks become 0 this way,
-    the blade vertex dies (it.. exploded) mid swing"*: the **warhead**.
-  - *"blade node w/o stacks hits stacked node: stacked node explodes,
-    popping blade vertices in range"*: the **barrel**, a blade's contact pops
-    blade pieces only, never the board and never the attacker's riders
-    (*"should it apply the *attacker's* riders..? Sounds counterintuitive"*).
-  - *"blade node w/stacks hits stacked node: min(N,M)-sized explosion that
-    eats the same amount of both their "lives""*; the larger side keeps the
-    difference.
+- **Melee: one contact, two sides** (owner, 2026-10-13 cases, 2026-10-14
+  rule). A blade contact is a DETONATE hit whose load is the piece's *whole*
+  charge count (owner: *"a melee blade node with 3 charges hits a node with
+  N explosive stacks (0 or more), and loses 1 charge emitting a lv(3+N
+  +(shared bit times some knob 1 or 2 or smth)) explosion. it uses the same
+  mechanism. the next hit will hit bringing a load of 2 to the table, the
+  next hit brings 1 and pops the blade node (kills it) ... more explosive,
+  bigger boom"*), and both reservoirs spend `max(1, shared)` (owner:
+  *"both lose charges, at least 1"*; 2026-10-13: *"eats the same amount of
+  both their 'lives'"*). The power's two sides land on two target sets:
+  - the **striker's side**, `load + shared`, is the blade's hit replicated
+    on the board under the landing's mask, the centre excepted: the
+    **warhead** (*"blade node with stacks hits unstacked node: it explodes
+    for -1 stack on the blade node, AoE hit + any riders. if stacks become
+    0 this way, the blade vertex dies (it.. exploded) mid swing"*);
+  - the **node's side**, `present + shared`, is the defender's bomb and
+    reaches the **blade pieces** around the struck node: a plain piece in
+    reach pops, a charged piece is *armed, not fragile* and is untouched
+    (owner, 2026-10-14: the grenade-bouquet flail keeps every grenade for
+    its own impact; the answer to a bomb blade is the exchange, and an
+    all-bomb blade costs a rare addon per node or a fresh PLANT every
+    turn). The **barrel** (*"blade node w/o stacks hits stacked node:
+    stacked node explodes, popping blade vertices in range"*) is this side
+    alone: load 0, so nothing of the blade's hit reaches the board.
 
-  **One mechanism** (owner, 2026-10-14): a blade contact is a DETONATE hit
-  whose load is the piece's *whole* charge count, through the formula above,
-  and both reservoirs pay: *"a melee blade node with 3 charges hits a node
-  with N explosive stacks (0 or more), and loses 1 charge emitting a
-  lv(3+N +(shared bit times some knob 1 or 2 or smth)) explosion. it uses the
-  same mechanism. the next hit will hit bringing a load of 2 to the table,
-  the next hit brings 1 and pops the blade node (kills it) ... more
-  explosive, bigger boom"*. So the three 2026-10-13 cases are one rule: the
-  warhead is load N on a clean node (power N, three shrinking blasts from a
-  3-piece), the barrel is load 0 on M (power M, the node spends 1), the
-  exchange is load N on M (power N + M + 2·min(N, M)). **Open on the piece's
-  spend:** exactly one life per contact (the owner's worked sequence), or
-  `max(1, shared)` like the node (the owner's *"both lose charges, at least
-  1"* and the 2026-10-13 *"eats the same amount of both their lives"*, which
-  is what `blade_pop_resolver.gd` ships); the two differ only when the
-  struck node holds 2+ charges.
-
-  **Open (axis two, #1608):** whose side a blast's payload hurts (side-blind
-  shrapnel with masked riders versus the landing's mask filtering
-  everything), and with it whether every blast pops the blade pieces in its
-  reach or only the barrel case does. Not decided here.
+  Worked (owner's numbers): 100 on 0, board 100, blade 0. 0 on 100, board
+  0, the whole plain blade one-tapped. 100 on 1, board 101, blade 2: *"one
+  massive explosion damaging both defenders and blade nodes just because of
+  the teensy single explosive stack on the defender, feels off"*, and the
+  split is what fixes it. 3 on 5: board 6, blade 8, both spend 3, the piece
+  pops at once (the 2026-10-13 **exchange**). A 3-piece on clean nodes:
+  3 → 2 → 1 → pop, three shrinking warheads. A charged piece struck by a
+  pop (a spike, a disintegration) still spends a charge instead of dying.
+  The piece-side reach follows the bomb-is-the-node rule below at the
+  node's side's power, times melee's reach share.
 - **Melee gets a little AoE, not a lot.** Owner: *"melee's whole secretly
   OP face is that you could literally sweep the entire map with it ... it
   doesn't *need* a lot more AoE, just a bit for fun"*.
@@ -530,9 +550,13 @@ hooks. Issue: #1608 (grammar v2, revisiting #1594 / #1595, row #1211).
   - Charges that remember the side that planted them: charges are ints, and
     the owner's fuse-cutting volley needs a barrel to hurt its own side.
   - A barrel blast that carries the striking blade's hit onto the defender's
-    board: *"Sounds counterintuitive"*, and it could kill more than it defends.
-  - Blade-contact blasts setting off board charges: a one-charge warhead on a
-    neighbour would burn a barrel and leave nothing.
+    board: *"Sounds counterintuitive"*, and it could kill more than it
+    defends. The node's side of a blade contact never reaches the board.
+  - A blast on a charged blade piece spending a life (it ends alive and
+    empty) or setting it off (a bouquet of grenades pops at the first
+    impact): the piece is armed, not fragile.
+  - A face the player picks at infusion time: new UI and state to sync, for
+    a choice the carrier's author makes better.
   - A lit fuse on barrels or the core: no anti-blade value, and a pending
     state that lives on the map.
   - A per-node charge-cap stat for refills: *"no charge cap on ALL nodes needed
