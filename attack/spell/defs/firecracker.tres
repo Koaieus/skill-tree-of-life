@@ -1,0 +1,70 @@
+[gd_resource type="Resource" script_class="SpellDef" format=3]
+
+[ext_resource type="Script" path="res://attack/spell/spell_def.gd" id="1_spell"]
+[ext_resource type="Script" path="res://attack/spell/aspect_intake.gd" id="2_intake"]
+[ext_resource type="Resource" path="res://identity/defs/explosive.tres" id="2_explosive"]
+[ext_resource type="Script" path="res://attack/spell/condition/landing_condition.gd" id="3_crit_base"]
+[ext_resource type="Script" path="res://attack/spell/condition/no_edge_to_source_condition.gd" id="3_crit_gap"]
+[ext_resource type="Script" path="res://attack/spell/on_hit/on_hit_effect.gd" id="4_effect"]
+[ext_resource type="Script" path="res://attack/spell/on_hit/damage_effect.gd" id="4_dmg"]
+[ext_resource type="Script" path="res://attack/spell/propagation/propagation_config.gd" id="5_config"]
+[ext_resource type="Script" path="res://attack/spell/propagation/filter/owner_filter.gd" id="5_owner"]
+[ext_resource type="Script" path="res://attack/spell/propagation/spread/fan_all_spread.gd" id="5_spread"]
+[ext_resource type="Script" path="res://attack/spell/propagation/reducer/max_damage_reducer.gd" id="5_reducer"]
+[ext_resource type="Script" path="res://attack/spell/propagation/reach/fuel_blast_reach.gd" id="5_reach"]
+[ext_resource type="Script" path="res://attack/targeting/node_targeting.gd" id="6_targeting"]
+[ext_resource type="Script" path="res://attack/range_finder/hop_range_finder.gd" id="6_range"]
+
+[sub_resource type="Resource" id="fuel"]
+script = ExtResource("2_intake")
+identity = ExtResource("2_explosive")
+innate = 6
+rides = false
+
+[sub_resource type="Resource" id="crit_gap"]
+script = ExtResource("3_crit_gap")
+
+[sub_resource type="Resource" id="dmg"]
+script = ExtResource("4_dmg")
+
+[sub_resource type="Resource" id="filter_enemy"]
+script = ExtResource("5_owner")
+
+[sub_resource type="Resource" id="spread_fan"]
+script = ExtResource("5_spread")
+
+[sub_resource type="Resource" id="reducer_max"]
+script = ExtResource("5_reducer")
+hit_each_incident = true
+
+[sub_resource type="Resource" id="reach_blast"]
+script = ExtResource("5_reach")
+
+[sub_resource type="Resource" id="prop"]
+script = ExtResource("5_config")
+filter = SubResource("filter_enemy")
+reach = SubResource("reach_blast")
+spread = SubResource("spread_fan")
+reducer = SubResource("reducer_max")
+max_hops = 10.0
+max_visits_per_node = 1
+
+[sub_resource type="Resource" id="range"]
+script = ExtResource("6_range")
+
+[sub_resource type="Resource" id="targeting"]
+script = ExtResource("6_targeting")
+range_finder = SubResource("range")
+
+[resource]
+script = ExtResource("1_spell")
+id = &"firecracker"
+name = "Firecracker"
+tagline = "Each landing is a blast; the next wave lands on all it hits."
+description = "Pops on an enemy node, and the pop is a blast: every enemy node inside it is where the next wave lands, edge or no edge. Its explosive is fuel, not cargo: each wave burns one, so the blasts shrink while the damage holds. A blast whose centre shares no edge with a node it hits CRITS there. Every pop sets off one charge on a charged node, and infused poison rides that charge's blast."
+power = 0.3
+propagation = SubResource("prop")
+on_hit_effects = Array[ExtResource("4_effect")]([SubResource("dmg")])
+intakes = Array[ExtResource("2_intake")]([SubResource("fuel")])
+crit_conditions = Array[ExtResource("3_crit_base")]([SubResource("crit_gap")])
+targeting = SubResource("targeting")

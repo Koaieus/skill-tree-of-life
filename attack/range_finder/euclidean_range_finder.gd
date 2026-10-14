@@ -82,6 +82,20 @@ func gather_multi(sources: Array[SkillNode], mirror: GraphMirror,
 	return out
 
 
+## Every node of [param nodes] whose hitbox touches a circle of [param reach]
+## around [param source], [param source] itself excluded, in the given order.
+## The per-call-radius entry for a caller with no attacker-scaled reach of its
+## own (a blast sized by fuel); same [method _reaches] test, same linear scan.
+static func nodes_within(source: SkillNode, nodes: Array[SkillNode], reach: float) -> Array[SkillNode]:
+	var out: Array[SkillNode] = []
+	if source == null:
+		return out
+	for n in nodes:
+		if n != source and _reaches(_centre_distance(source, n), n, reach):
+			out.append(n)
+	return out
+
+
 ## The one reach predicate (#944): [param d] is the centre-to-centre distance
 ## from the source, and the candidate is in range when any part of its hitbox
 ## lies within [param reach]. Every caller above goes through here; a
