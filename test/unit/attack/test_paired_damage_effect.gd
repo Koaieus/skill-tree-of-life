@@ -176,3 +176,73 @@ func test_the_blast_replays_on_a_peer_with_its_amounts_and_crits_under_its_arrow
 		assert_eq(b.target, a.target, "hit %d target" % i)
 	var riders := ArrowVolleyCoordinator.riders_of(rebuilt.hits, 0, false)
 	assert_eq(riders.size(), outcome.hits.size() - 1, "every blast hit rides its arrow")
+
+
+## A hand-built heal off leaf_0 onto leaf_0 (the attacker's own node), its
+## riders run on [method HitLanding.riding] under a MINE|ALLY mask: the blast
+## that pairs it.
+const _FRIENDLY := SkillNode.Ownership.MINE | SkillNode.Ownership.ALLY
+## Reaches the hub and leaf_1 round leaf_0, and the hostile target 50 px off —
+## which the friendly mask must keep out.
+const _HEAL_REACH := 180.0
+
+
+func _heal_volley(raw: float) -> Array[HitInstance]:
+	var heal := HealInstance.new()
+	heal.amount = raw
+	heal.attacker = _f.attacker
+	heal.read_node = _f.leaves[0]
+	heal.origin = _f.leaves[0]
+	heal.target = _f.leaves[0]
+	var hits: Array[HitInstance] = [heal]
+	var landing := HitLanding.riding(heal, hits)
+	landing.target_mask = _FRIENDLY
+	var finder := EuclideanRangeFinder.new()
+	finder.max_distance = _HEAL_REACH
+	var blast := BlastEffect.new()
+	blast.inners = [PairedDamageEffect.new()] as Array[OnHitEffect]
+	blast.range_finder = finder
+	blast.apply(landing)
+	return hits
+
+
+func test_a_heal_landing_blasts_its_fraction_as_a_heal_onto_friendlies_only() -> void:
+	var hits := _heal_volley(RAW)
+	var blasts := _blast_hits(hits)
+	var landed := _targets_of(blasts)
+	assert_has(landed, _f.leaves[1], "the friendly leaf in reach takes the blast heal")
+	assert_does_not_have(landed, _f.target, "the friendly mask keeps the hostile out")
+	assert_does_not_have(landed, _f.leaves[0], "never the centre")
+	for hit in blasts:
+		assert_eq(hit.kind, HitInstance.Kind.HEAL, "%s: a heal landing pairs a heal" % hit.target.name)
+		assert_almost_eq(hit.amount, PairedDamageEffect.new().fraction * RAW, 0.0001)
+		assert_ne(hit.target.ownership_bit(_f.attacker) & _FRIENDLY, 0, hit.target.name)
+
+
+func test_a_blast_heal_inherits_its_paired_heals_crit_and_draws_none() -> void:
+	VolleyBoardFixture.set_stat(_f.leaves[0], &"crit_chance", 1.0)
+	VolleyBoardFixture.set_stat(_f.leaves[1], &"crit_chance", 0.0)
+	var hits := _heal_volley(RAW)
+	var blasts := _blast_hits(hits)
+	assert_false(blasts.is_empty(), "a blast to inspect")
+	# The blast reads a no-crit leaf: a crit on it can only be the heal's copy.
+	for hit in blasts:
+		hit.read_node = _f.leaves[1]
+		assert_false(hit.draws_own_crit(), "the blast heal draws nothing from the stream")
+	_land(hits)
+	assert_true(hits[0].is_crit, "the heal crit")
+	for hit in blasts:
+		assert_true(hit.is_crit, "%s inherits the crit" % hit.target.name)
+		assert_eq(hit.crit_multiplier, hits[0].crit_multiplier)
+		assert_eq(hit.crit_tier, hits[0].crit_tier)
+
+
+func test_a_heal_landing_with_no_raw_amount_emits_nothing() -> void:
+	assert_eq(_blast_hits(_heal_volley(0.0)).size(), 0, "no raw heal, nothing to take a share of")
+
+
+func _targets_of(hits: Array[HitInstance]) -> Array[SkillNode]:
+	var out: Array[SkillNode] = []
+	for h in hits:
+		out.append(h.target)
+	return out
