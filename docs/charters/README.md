@@ -15,9 +15,12 @@ history, or the next rewrite re-learns it.
 ## Protocol
 
 - **Changing a wish → edit the charter, then re-derive the instruction file
-  from it** — a full rewrite if the laws moved, a patch if one line did. Never
-  patch the instruction file with a new lesson and leave the charter stale;
-  the charter is the source, the file is the build.
+  from it — through the `charter` skill** (`/charter <name>`, charter
+  [charter.md](charter.md)): the charter is edited, one advisor pass reads
+  it, and a fresh Fable subagent briefed with nothing but the charter path
+  writes the whole file. Never patch the instruction file with a new lesson
+  and leave the charter stale; the charter is the source, the file is the
+  build.
 - **The instruction file cites the charter once** (a one-line pointer, so a
   reader who wants the why can find it) and otherwise **names no issue
   numbers, no incidents, no dates, no reasoning-behind.** If a line in the
@@ -30,7 +33,8 @@ history, or the next rewrite re-learns it.
   companion doc cannot sit there; skills could hold one in their directory,
   but one home for both keeps the convention uniform.
 
-Charters so far: [drone](drone.md), [swarmify](swarmify.md), [spec](spec.md), [swarm](swarm.md), [sage](sage.md), [adr](adr.md), [warp](warp.md), [relay](relay.md), [relief](relief.md), [clerk](clerk.md), [whip](whip.md) (retired; corpus only), [swarm-train](swarm-train.md), [archivist](archivist.md), [triage](triage.md).
+Charters so far: [charter](charter.md) (the skill that revises every other),
+[drone](drone.md), [swarmify](swarmify.md), [spec](spec.md), [swarm](swarm.md), [sage](sage.md), [adr](adr.md), [warp](warp.md), [relay](relay.md), [relief](relief.md), [clerk](clerk.md), [whip](whip.md) (retired; corpus only), [swarm-train](swarm-train.md), [archivist](archivist.md), [triage](triage.md).
 
 ## Feedback boards
 
@@ -59,13 +63,13 @@ To move a post that already carries its header from one board to another,
 `mise run feedback -- post --verbatim <charter> <file>` sends the file
 unchanged — no header, no kind.
 
-**The fold pass** — whoever revises the charter (a rewrite, a `/handoff`
-sweep, a dedicated pass) works from
-`mise run feedback -- unanswered [<charter>]`, folds each post into the
-charter — a law, a corpus row, a fork, a follow-up — and from there into the
-derived instruction file, commits, then answers every post with
-`mise run feedback -- reply --resolve <comment-id> <file>`, the file reading
-`folded in <sha>` or `rejected: <why>` — usually as a work order to one
+**The fold pass** is the `charter` skill's board input: a revision of a
+charter (a wish, a `/handoff` sweep, a dedicated pass) runs `/charter
+<name>`, which works from `mise run feedback -- unanswered [<charter>]`,
+folds each post into the charter — a law, a corpus row, a fork, a
+follow-up — derives the instruction file, commits, then answers every post
+with `mise run feedback -- reply --resolve <comment-id> <file>`, the file
+reading `folded in <sha>` or `rejected: <why>` — as a work order to one
 Haiku `clerk` (its law 11), since the answers are pure tool calls.
 `--resolve` also minimizes the post as *resolved*, which folds its reply
 away with it: the board stays open and reads as its unprocessed posts.
@@ -74,6 +78,8 @@ cosmetic. The
 charter keeps a short *Fold digest* section (date · kind → what it became),
 so a repo grep still finds the substance without the board.
 
-Checklist skills (`manage-stats`, `handoff`) have no charter: a checklist carries
-no laws and no incident corpus, and its *why* is the rule it points at. The
-`adr-librarian` agent is covered by the `adr` charter.
+A skill or agent with no charter yet (`handoff`, `manage-stats`, `pickup`)
+gets its first one the first time `/charter` is asked to change it, written
+from the file's own imperatives ([charter.md](charter.md) law 9). The
+`adr-librarian` agent is covered by the `adr` charter, `swarm-lead` by
+`swarm-train`.
