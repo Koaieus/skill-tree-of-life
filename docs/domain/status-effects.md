@@ -76,11 +76,12 @@ bypass are [defense-axes.md](defense-axes.md).
   and a **degree event** on a holder that carries such a row (`note_pile_if_held`):
   a removal's neighbours (`note_removed`), a gate flip's endpoints
   (`AllocationSystem._note_gate_piles`), a core move's departed and arrival nodes
-  (`move_core`, which does not flush — the entry waits for the next computing beat,
-  as does any entry a replay beat leaves). Allocate is not an enqueue point: corruption
+  and the entity's core pile (`move_core` flushes, so a pile the move made critical
+  pops inside the command; an entry a replay beat leaves waits for the next
+  computing beat). A degree event on a core node reaches its core pile too. Allocate is not an enqueue point: corruption
   is `CLEAR`, and a neighbour gaining an owner only raises `T`. A round takes the
   whole list; per sandpile row `(def.id, key)` one `SandpileSpread.stabilize` —
-  itself a drain seeded with the popped allocated non-core holders, resolving
+  itself a drain seeded with the popped live holders (`_settles`), resolving
   neighbours lazily through `_SettleField` — reaches the fixed point at the current
   degrees however deep the cascade; land the transfers through `SpreadApplier`
   (receivers re-enqueue via the hook and are found stable next round), then
@@ -88,9 +89,16 @@ bypass are [defense-axes.md](defense-axes.md).
   The flush loops spill → settle until a round topples nothing, so a burst kill's
   stacks vanish and the new degrees settle in the same beat; `burn ≥ 1` bounds it,
   and 32 rounds (`settle_round_cap`) / `max_topples` are `push_error` bug alarms
-  only. The core never topples here (#1568). **Sync**: inside an attack the beat's first fresh
+  only. **Two piles stand at a core** (#1568): the core node's rows topple like any
+  node's; the entity's own rows (fallen through a cracked core) are a second holder,
+  the `EntityCombat`, whose `T` is the core node's masked degree minus itself
+  (a self-loop neither counts nor receives) + burn + keep, ownership read from the
+  entity. It sends 1 down each of those edges, its burst lands on the entity pool
+  (`DotTick.mint`), and no node lists it as a neighbour: it fills only by hits.
+  Holders are the `StatusHost` duck type (untyped) across `StackField`,
+  `SandpileSpread`, `StackTransfer`, `ToppleResult`, `SettleOp`. **Sync**: inside an attack the beat's first fresh
   landing records the settle on `HitInstance.settle` (`CombatWorld.SettleOp`s, in
-  order, a later round's burst-kill spill included; wire columns `t_*` in
+  order, a later round's burst-kill spill included; wire columns `t_*` in (a core-pile holder rides as its core node + a `t_core` flag) in
   `AttackRecord`), and a non-empty `settle` marks a rebuilt hit recorded — the replay
   lands the ops and computes nothing. Every other beat (turn end, dealloc command)
   is reproduced. Known gap: a replayed burst kill takes `BattleSystem`'s derive
