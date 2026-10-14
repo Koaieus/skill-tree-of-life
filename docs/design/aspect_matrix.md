@@ -379,12 +379,15 @@ hooks. Issue: #1608 (grammar v2, revisiting #1594 / #1595, row #1211).
 
   ```
   shared = min(load, present)
-  spent  = max(1, shared) if present > 0 else 0   # a spark always takes one
+  spent  = max(1, shared) if present > 0 else 0   # the node's side; a spark always takes one
   power  = present + load + 2 * shared            # 2 = resonance, a tuning knob on the status def
   left   = present - spent
   ```
 
-  A blast happens iff power > 0.
+  A blast happens iff power > 0. The load is *offered*, never consumed by
+  the formula: each reservoir pays its own spend. An arrow has no reservoir
+  (its load is the hit), infusion paid at cast, a blade piece's charges are
+  its lives and pay per contact (below).
 
   | Hit | present | load | power | left |
   |---|---|---|---|---|
@@ -441,11 +444,27 @@ hooks. Issue: #1608 (grammar v2, revisiting #1594 / #1595, row #1211).
     eats the same amount of both their "lives""*; the larger side keeps the
     difference.
 
-  **Open (axis two, #1608):** how a blade contact's load fits the spend rule
-  (one life per contact, so the exchange becomes min(1,M), versus the min(N,M)
-  exchange kept as melee's own expression, and the barrel-case asymmetry),
-  and whose side a blast's payload hurts (side-blind shrapnel with masked
-  riders versus the landing's mask filtering everything). Not decided here.
+  **One mechanism** (owner, 2026-10-14): a blade contact is a DETONATE hit
+  whose load is the piece's *whole* charge count, through the formula above,
+  and both reservoirs pay: *"a melee blade node with 3 charges hits a node
+  with N explosive stacks (0 or more), and loses 1 charge emitting a
+  lv(3+N +(shared bit times some knob 1 or 2 or smth)) explosion. it uses the
+  same mechanism. the next hit will hit bringing a load of 2 to the table,
+  the next hit brings 1 and pops the blade node (kills it) ... more
+  explosive, bigger boom"*. So the three 2026-10-13 cases are one rule: the
+  warhead is load N on a clean node (power N, three shrinking blasts from a
+  3-piece), the barrel is load 0 on M (power M, the node spends 1), the
+  exchange is load N on M (power N + M + 2·min(N, M)). **Open on the piece's
+  spend:** exactly one life per contact (the owner's worked sequence), or
+  `max(1, shared)` like the node (the owner's *"both lose charges, at least
+  1"* and the 2026-10-13 *"eats the same amount of both their lives"*, which
+  is what `blade_pop_resolver.gd` ships); the two differ only when the
+  struck node holds 2+ charges.
+
+  **Open (axis two, #1608):** whose side a blast's payload hurts (side-blind
+  shrapnel with masked riders versus the landing's mask filtering
+  everything), and with it whether every blast pops the blade pieces in its
+  reach or only the barrel case does. Not decided here.
 - **Melee gets a little AoE, not a lot.** Owner: *"melee's whole secretly
   OP face is that you could literally sweep the entire map with it ... it
   doesn't *need* a lot more AoE, just a bit for fun"*.

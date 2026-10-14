@@ -19,10 +19,12 @@ mask and never plants.
    Coupling: the second reading keeps the barrel asymmetry (an uncharged blade
    on a charged node pops blade pieces and spares the defender's neighbours);
    the first removes it.
-2. **A blade contact's load.** One life per contact, so exchange becomes
-   `min(1, M)` and the shipped `min(N, M)` exchange goes — vs melee keeping its
-   own spend expression with the piece's full count. Coupling: settling fork 1
-   side-blind makes the piece-pop the shrapnel and fork 2 mostly dissolves.
+2. **A blade contact's load — settled** (owner, 2026-10-14, on #1608 and in
+   aspect_matrix): a contact is a DETONATE hit with load = the piece's whole
+   count through the one formula; each reservoir pays its own spend.
+   Remaining check: the piece spends exactly 1 per contact, or
+   `max(1, shared)` like the node (what the code ships). Differs only on a
+   struck node holding 2+.
 3. **Blade chains.** aspect_matrix still says a blade's blast does not set off
    board charges, which sits oddly beside "a blast is a zero-load hit on each
    neighbour". Confirm or delete that sentence when fork 1 lands.
