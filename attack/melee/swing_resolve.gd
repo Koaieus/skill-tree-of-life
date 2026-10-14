@@ -346,6 +346,7 @@ func advance(max_steps: int) -> bool:
 
 
 func _finish() -> void:
+	_flush_spends()
 	_done = true
 	_state.speed_history = _speed_history
 	# One coherent timeline over every batch. The record carries each hit's
@@ -355,6 +356,41 @@ func _finish() -> void:
 	# swing actually DESTROYED. Pops only (#799) — a vertex that merely lost its
 	# path to the handle coasts on in this same trajectory and is not a loss.
 	_outcome.popped_nodes += _gate.result.vertex_pop_count()
+
+
+## The explosive charges the gate spent and has not handed over yet, as one
+## cleanse per spend appended to [param hits] — outcomes on the record, never
+## a live write. Keyed at the contact's own time.
+func _append_spends(hits: Array[HitInstance], gate: BladePopResolver.LiveGate) -> void:
+	var spends := gate.take_spends()
+	if spends.is_empty():
+		return
+	var def := BladePopResolver.LiveGate.explosive_def()
+	for spend in spends:
+		var cure := CureInstance.new()
+		cure.add(def, float(spend.count))
+		cure.attacker = _ctx.attacker
+		cure.source = _ctx.hit_source
+		cure.origin = _ctx.origin
+		cure.target = spend.node
+		cure.structural_key = spend.t / maxf(0.001, _ctx.swing_duration)
+		hits.append(cure)
+
+
+## Land the spends the swing's last batch decided, which no later batch
+## will carry.
+func _flush_spends() -> void:
+	var sub := AttackOutcome.new()
+	sub.cadence = ScheduleEntry.Cadence.SWING
+	sub.resolve_seed = _ctx.resolve_seed
+	_append_spends(sub.hits, _gate)
+	if sub.hits.is_empty():
+		return
+	sub.schedule = OutcomeSchedule.compile(sub)
+	OutcomeApplier.apply(sub, _world)
+	for hit in sub.hits:
+		_outcome.hits.append(hit)
+		_hits.append(hit)
 
 
 ## Cut every fused gate's blade edge at [param step] through the bunker-break
@@ -403,6 +439,8 @@ func _land_batch(
 	var sub := AttackOutcome.new()
 	sub.cadence = ScheduleEntry.Cadence.SWING
 	sub.resolve_seed = _ctx.resolve_seed
+	# The charges earlier contacts spent land first, so this batch reads them.
+	_append_spends(sub.hits, gate)
 	for ev in batch:
 		# An EDGE contact produces no DamageInstance at all (ADR 0005): edges
 		# give rigidity, nodes deal damage. It stays in `last_events` — it is a
@@ -448,6 +486,16 @@ func _land_batch(
 				landing.read_overlays = func(sid: StringName) -> Array[ModifierBins]:
 					return lookup.call(carrier, sid)
 			OnHitEffect.run_all(riders, landing)
+		# A charged piece's warhead / exchange blast: armed here, fired iff
+		# the gate decides it as this contact lands.
+		if gate.piece_charges(ev.particle_idx) > 0:
+			var overlays := Callable()
+			if _ctx.overlays_for.is_valid():
+				var piece: SkillNode = di.read_node
+				var look: Callable = _ctx.overlays_for
+				overlays = func(sid: StringName) -> Array[ModifierBins]:
+					return look.call(piece, sid)
+			gate.arm_blasts(ev, di, sub.hits, world, riders, overlays)
 	if sub.hits.is_empty():
 		return
 	sub.schedule = OutcomeSchedule.compile(sub)

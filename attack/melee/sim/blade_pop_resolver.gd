@@ -107,6 +107,45 @@ class Severance extends RefCounted:
 		vertices = vertices_
 
 
+## One explosive charge spend a blade contact decided (#1595): [member count]
+## charges off [member node] at [member t]. Recorded, never written: the
+## resolve lands it as a 1-stack-per-charge cleanse on the attack record.
+class Spend extends RefCounted:
+	var node: SkillNode
+	var count: int
+	var t: float
+
+	func _init(node_: SkillNode, count_: int, t_: float) -> void:
+		node = node_
+		count = count_
+		t = t_
+
+
+## The [member HitInstance.paired] of a blade contact's blast landing: it
+## "landed" iff the gate decided this contact's [member kind] of blast when
+## the contact itself landed (same beat, earlier index). Never in a hit list —
+## only [method HitInstance.rider_gated] ever reads it. Carries the contact's
+## crit so a [PairedDamageInstance] riding it inherits the contact's.
+class BlastToken extends HitInstance:
+	var _gate: LiveGate
+	var _event: BladeHitEvent
+	var _kind: StringName
+	var _contact: HitInstance
+
+	func _init(gate: LiveGate, event: BladeHitEvent, kind: StringName, contact: HitInstance) -> void:
+		_gate = gate
+		_event = event
+		_kind = kind
+		_contact = contact
+
+	func landed() -> bool:
+		if _contact != null:
+			is_crit = _contact.is_crit
+			crit_multiplier = _contact.crit_multiplier
+			crit_tier = _contact.crit_tier
+		return _gate.blast_of(_event) == _kind
+
+
 ## `dead_at`: particle_idx -> time a spike DESTROYED it. A hit by that vertex
 ## at `ev.t >= dead_at[idx]` must be dropped. Since #801 this holds destroyed
 ## vertices only — a vertex that merely lost its path to the handle coasts on
@@ -191,6 +230,24 @@ class LiveGate extends RefCounted:
 	## one O(E) build instead of one O(E) rescan per dequeued BFS vertex.
 	var _adjacency: Dictionary = {}
 	var _adjacency_built: bool = false
+	## The warhead's blast reach as a share of the piece's own
+	## [method ExplosiveSpread.radius_for] — melee's "little AoE" (owner:
+	## "just a bit for fun"). Tentative, easy to change.
+	@export_range(0.0, 2.0, 0.05) var warhead_reach: float = 0.5
+	## The share of the contact's raw damage each blast's shrapnel deals,
+	## times min(N, M) for an exchange. Tentative, easy to change.
+	@export_range(0.0, 2.0, 0.05) var shrapnel_fraction: float = 0.5
+	## BladeHitEvent -> &"warhead" / &"exchange": the blast this contact set
+	## off, decided in [method admit] and read by its [BlastToken]s.
+	var _blasts: Dictionary = {}
+	## Real SkillNode -> charges this swing already spent off it. A struck
+	## node's charges are its world power minus this, until the resolve lands
+	## the recorded [Spend]s.
+	var _node_spent: Dictionary = {}
+	## Spends decided and not yet handed to the resolve ([method take_spends]).
+	var _spends: Array[Spend] = []
+	## Finder per warhead reach, so one reach gathers once per landing cache.
+	var _finders: Dictionary = {}
 
 	## `vertex_blunting` is an OPTIONAL particle_idx -> blunting override
 	## (#778), consulted BEFORE the state's own
@@ -240,6 +297,9 @@ class LiveGate extends RefCounted:
 			return true
 		if _attacker != null and node.ownership_bit(_attacker) == SkillNode.Ownership.MINE:
 			return true  # your own spike can't pop your own blade
+		match _admit_explosive(ev, real_node, node):
+			_EXPLOSIVE_REFUSE:
+				return false  # the piece spent its last life on this contact
 		var pool := _spikes_pool(node)
 		var remaining := float(pool.current) if pool != null else 0.0
 		if remaining <= 0.0:
@@ -256,6 +316,174 @@ class LiveGate extends RefCounted:
 		pool.deplete(remaining)
 		_mark_spent(node, w)
 		return true
+
+	const _EXPLOSIVE_NONE := 0
+	const _EXPLOSIVE_REFUSE := 1
+	const EXPLOSIVE := &"explosive"
+	const WARHEAD := &"warhead"
+	const EXCHANGE := &"exchange"
+
+	## The explosive cause (#1595), reading the piece's charges N (the
+	## swing's working copy) and the struck node's M:
+	## - warhead (N>0, M=0): the piece spends 1 and blasts the board;
+	## - barrel (N=0, M>0): the node spends 1 and pops every blade piece in
+	##   its reach — a charged piece spends 1 instead of dying;
+	## - exchange (both): both spend min(N, M) and one blast goes off.
+	## A piece its own blast takes to 0 dies through [method _kill]. Blasts
+	## from a blade contact never set off board charges. REFUSE when the
+	## contact killed its piece; NONE lets the spike ladder run on.
+	func _admit_explosive(ev: BladeHitEvent, real_node: SkillNode, node: NodeCombat) -> int:
+		var spread := explosive_spread()
+		if spread == null:
+			return _EXPLOSIVE_NONE
+		var idx := ev.particle_idx
+		var n := piece_charges(idx)
+		var m := node_charges(node)
+		if n <= 0 and m <= 0:
+			return _EXPLOSIVE_NONE
+		if n <= 0:
+			_barrel(ev, real_node, spread.radius_for(real_node.radius, m))
+			return _EXPLOSIVE_REFUSE
+		var k := 1 if m <= 0 else mini(n, m)
+		_blasts[ev] = WARHEAD if m <= 0 else EXCHANGE
+		_spend_piece(idx, k, ev.t)
+		if m > 0:
+			_spend_node(real_node, k, ev.t)
+		if piece_charges(idx) <= 0:
+			_kill(idx, ev.t, real_node, 0.0)
+			return _EXPLOSIVE_REFUSE
+		return _EXPLOSIVE_NONE
+
+	## The barrel pop: the struck node spends 1 and pops every live blade
+	## piece within [param reach] of it, the contact's own last so its pop is
+	## the one the contact reports.
+	func _barrel(ev: BladeHitEvent, struck: SkillNode, reach: float) -> void:
+		_spend_node(struck, 1, ev.t)
+		var centre := struck.global_position
+		for v in _state.positions.size():
+			if v == ev.particle_idx or v == _state.pivot_index or _removed.has(v):
+				continue
+			if _state.positions[v].distance_to(centre) > reach:
+				continue
+			if piece_charges(v) > 0:
+				_spend_piece(v, 1, ev.t)
+			else:
+				_kill(v, ev.t, struck, 0.0)
+		_kill(ev.particle_idx, ev.t, struck, 0.0)
+
+	## The piece's charges left this swing.
+	func piece_charges(idx: int) -> int:
+		if _state == null or idx < 0 or idx >= _state.vertex_charges.size():
+			return 0
+		return _state.vertex_charges[idx]
+
+	## [param node]'s charges on its own world, minus what this swing spent.
+	func node_charges(node: NodeCombat) -> int:
+		if node == null:
+			return 0
+		return maxi(0, int(node.get_status_power(EXPLOSIVE)) - int(_node_spent.get(node.real(), 0)))
+
+	## The blast [param ev] set off: [constant WARHEAD], [constant EXCHANGE]
+	## or &"" — what each [BlastToken] gates on.
+	func blast_of(ev: BladeHitEvent) -> StringName:
+		return _blasts.get(ev, &"")
+
+	## Every [Spend] decided since the last call, in decision order; clears.
+	## The caller lands them on this gate's world before the next
+	## [method admit], so from here the world's own power carries them and
+	## the in-swing ledger lets go.
+	func take_spends() -> Array[Spend]:
+		var out := _spends
+		_spends = []
+		for spend in out:
+			if _node_spent.has(spend.node):
+				_node_spent[spend.node] = maxi(0, int(_node_spent[spend.node]) - spend.count)
+		return out
+
+	func _spend_piece(idx: int, count: int, t: float) -> void:
+		_state.vertex_charges[idx] = maxi(0, _state.vertex_charges[idx] - count)
+		var source: SkillNode = _state.vertex_node[idx] if idx < _state.vertex_node.size() else null
+		if source != null:
+			_spends.append(Spend.new(source, count, t))
+
+	func _spend_node(node: SkillNode, count: int, t: float) -> void:
+		_node_spent[node] = int(_node_spent.get(node, 0)) + count
+		_spends.append(Spend.new(node, count, t))
+
+	## The explosive status's spread, or null if the roster has none.
+	static func explosive_spread() -> ExplosiveSpread:
+		var def := explosive_def()
+		return def.spread as ExplosiveSpread if def != null else null
+
+	static func explosive_def() -> StatusDef:
+		var roster := StatusRoster.shared()
+		return roster.by_concept(EXPLOSIVE) if roster != null else null
+
+	## Arm [param ev]'s possible blasts on landings riding [param contact],
+	## appended to [param hits]: a warhead if the piece holds charges, and an
+	## exchange if the struck node does too (read on [param world] now). Each
+	## lands only if [method admit] decides that blast for this contact
+	## ([BlastToken]). Inners are the piece's [param riders] minus anything
+	## explosive and any detonation, so a blade blast never sets off or plants
+	## a charge. [param read_overlays] is copied onto each landing.
+	func arm_blasts(
+			ev: BladeHitEvent,
+			contact: HitInstance,
+			hits: Array[HitInstance],
+			world: CombatWorld,
+			riders: Array,
+			read_overlays: Callable = Callable()) -> void:
+		var n := piece_charges(ev.particle_idx)
+		var struck := ev.target as SkillNode
+		var spread := explosive_spread() if n > 0 and struck != null else null
+		if spread == null:
+			return
+		var piece: SkillNode = _state.vertex_node[ev.particle_idx] \
+				if ev.particle_idx < _state.vertex_node.size() else null
+		var plain: Array[OnHitEffect] = []
+		for r in riders:
+			var effect := r as OnHitEffect
+			if effect != null and not effect is DetonateEffect:
+				plain.append(effect)
+		plain = DetonateEffect.strip(plain)
+		var reach := warhead_reach * spread.radius_for(piece.radius if piece != null else 0.0, n)
+		var warhead := BlastEffect.new()
+		warhead.inners = _with_shrapnel(plain, shrapnel_fraction)
+		warhead.range_finder = _finder(reach)
+		_ride(warhead, WARHEAD, ev, contact, hits, read_overlays)
+		var m := node_charges(world.combat_for(struck))
+		if m > 0:
+			var inners := _with_shrapnel(plain, shrapnel_fraction * float(mini(n, m)))
+			_ride(spread.blast_for(struck, m, inners), EXCHANGE, ev, contact, hits, read_overlays)
+
+	func _ride(
+			blast: BlastEffect,
+			kind: StringName,
+			ev: BladeHitEvent,
+			contact: HitInstance,
+			hits: Array[HitInstance],
+			read_overlays: Callable) -> void:
+		var landing := HitLanding.riding(contact, hits)
+		landing.paired = BlastToken.new(self, ev, kind, contact)
+		landing.target_mask = SkillNode.Ownership.HOSTILE
+		if read_overlays.is_valid():
+			landing.read_overlays = read_overlays
+		blast.apply(landing)
+
+	static func _with_shrapnel(plain: Array[OnHitEffect], fraction: float) -> Array[OnHitEffect]:
+		var shrapnel := PairedDamageEffect.new()
+		shrapnel.fraction = fraction
+		var out: Array[OnHitEffect] = [shrapnel]
+		out.append_array(plain)
+		return out
+
+	func _finder(reach: float) -> EuclideanRangeFinder:
+		var finder: EuclideanRangeFinder = _finders.get(reach)
+		if finder == null:
+			finder = EuclideanRangeFinder.new()
+			finder.max_distance = reach
+			_finders[reach] = finder
+		return finder
 
 	## The edge branch of [method admit]. Under [b]ADR 0005[/b] an edge is not a
 	## blunting element at all — [b]spikes pop vertices, bunkers break edges[/b] —

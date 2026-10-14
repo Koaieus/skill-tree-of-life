@@ -70,6 +70,13 @@ var speed_history: Array[PackedFloat32Array] = []
 ## leave the array zeroed, and [method BladePopResolver.LiveGate._blunting_for]
 ## falls back to the `blunting` [StatDef]'s own default.
 var vertex_blunting: PackedFloat32Array
+## Per-particle explosive charges: the swing's WORKING COPY of each source
+## node's own charges, filled at swing start by [BladeVertexFill] (whatever
+## planted them). A charge is a life — [BladePopResolver.LiveGate] spends from
+## here mid-swing, a piece at 0 dies, and the resolve records the spends on
+## the source nodes as cleanses; nothing writes the board from this array.
+## Zero-initialised in build(): a hand-built state carries no charges.
+var vertex_charges: PackedInt32Array
 ## Per-particle on-hit riders (#951, ADR 0044) — one Array of [OnHitEffect]
 ## per vertex, empty meaning none. Untyped on purpose: naming the type here
 ## closes a class-load cycle through the spell module (`check` fails). Sized in build(), then appended to by each
@@ -168,6 +175,8 @@ static func build(
 	s.vertex_node.resize(positions_.size())  # null-init; caller fills per-vertex
 	s.vertex_blunting = PackedFloat32Array()
 	s.vertex_blunting.resize(positions_.size())  # zero-init == unfilled; see the member
+	s.vertex_charges = PackedInt32Array()
+	s.vertex_charges.resize(positions_.size())
 	s.vertex_on_hit = []
 	for i in positions_.size():
 		var riders: Array = []
