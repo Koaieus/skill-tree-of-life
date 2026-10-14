@@ -1,3 +1,4 @@
+@tool
 class_name ExplosiveBarrelAddon
 extends SkillNodeAddon
 ## Explosive × Addon: the barrel. Not unique — barrels stack, and each is one
