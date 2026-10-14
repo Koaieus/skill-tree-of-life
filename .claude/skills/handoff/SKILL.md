@@ -81,7 +81,7 @@ skip it. Do not restate what the repo already records.
 | Larger engineering context | `docs/domain/<topic>.md` (+ a breadcrule if it must be always-on) |
 | Work state, next steps, sequencing | The issue — that is what issues are for |
 | Anything that is code | A commit. Obviously — but say it, because it gets skipped |
-| Un-actioned discovery with no owner | **File an issue.** An orphan thread in a doc is a thread that dies |
+| Un-actioned discovery with no owner | **Fix it** — yourself or one subagent briefed from the hot context, budget or not. Only a real fork or a multi-unit job is **filed**, to `Intake` (`docs/domain/session-report.md` → *The follow-up rule*). An orphan thread in a doc is a thread that dies |
 
 **Never let a decision live only in a handoff file.** A handoff file is a
 pointer and a task ledger; it is not a home. If deleting it would lose

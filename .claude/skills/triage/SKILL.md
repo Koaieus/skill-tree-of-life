@@ -41,7 +41,7 @@ Then end your turn; a scout's return wakes you.
 One `AskUserQuestion` per batch, one question per issue:
 
 - **question:** `#<n> <title>` and the scout's why/what, cost and downside
-  in two or three short lines.
+  in two or three short lines, ending `Route it?`.
 - **header:** `#<n>`.
 - **options:** the scout's route first, marked `(Recommended)`, then the
   other routes that apply — `Close (not doing)`, `Backlog`, `Needs design`.

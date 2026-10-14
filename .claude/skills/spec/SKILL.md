@@ -140,8 +140,10 @@ decisions and the DAG; its status is derived, never set.
 
 ## 3. Hand the board to the clerk
 
-`Ready` is status, `design` / `blocked` labels dropped, and a milestone, in
-one breath. The milestone is a default — the live one
+With the owner, `Ready` is status, `design` / `blocked` labels dropped, and
+a milestone, in one breath. **Headless, the order names no status** (the
+issue stays in `Intake`) but still a milestone and a priority; the example
+below is the owner-present shape. The milestone is a default — the live one
 (`mise gh-project -- roadmap`) or the parent's — never a question.
 
 Write a work order next to the spec files: plain sentences, one line or
