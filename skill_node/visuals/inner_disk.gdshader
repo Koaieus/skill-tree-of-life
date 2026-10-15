@@ -29,11 +29,15 @@ shader_type canvas_item;
 // mechanism as `edge_mesh.gdshader`.
 varying vec2 world_pos;
 
+// tint_mix and highlight_* hold one value in a shipped level but stay
+// per-instance: each composite owns its own LightingStyle, so a plain uniform
+// needs one global house-light owner first. Slots don't argue for the move —
+// Godot reserves a fixed 16-slot block per CanvasItem however many are declared.
 instance uniform vec4 tint_color : source_color = vec4(0.291, 0.5892, 1.0, 1.0);
-instance uniform float tint_mix : hint_range(0.0, 1.0) = 0.6;  // TODO: this one might be a real uniform, we don't tweak it per instance
+instance uniform float tint_mix : hint_range(0.0, 1.0) = 0.6;
 instance uniform bool allocated = false;
-instance uniform vec2 highlight_position = vec2(-0.35, -0.35); // TODO: this one might be a real uniform, we don't tweak it per instance
-instance uniform float highlight_intensity : hint_range(0.0, 1.0) = 0.85; // TODO: this one might be a real uniform, we don't tweak it per instance 
+instance uniform vec2 highlight_position = vec2(-0.35, -0.35);
+instance uniform float highlight_intensity : hint_range(0.0, 1.0) = 0.85;
 
 // Which CARVE shape family the dome etches — one selector rather than the
 // retired pair of mutually-exclusive "show this glyph" bools
@@ -82,7 +86,7 @@ instance uniform int carve_slice = -1;
 // contract it defers; see skill-node-visuals.md). TEXTURE-only, deliberately —
 // every SpellDef.carve_shape is a TextureCarveShape (baked icon art via
 // CarveAtlas), never a POLYGON/GEM shape, so a full mirror of slot A's 6
-// uniforms isn't needed; this shader is already at 11 instance uniforms
+// uniforms isn't needed; this shader is already at 12 instance uniforms
 // against Godot's hard cap of 16 (verified empirically — "Too many 'instance'
 // uniforms" is a shader COMPILE failure, invisible under the headless dummy
 // renderer, see godot-shaders.md), and a full mirror would have blown it.
