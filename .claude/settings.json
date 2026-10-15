@@ -2,7 +2,10 @@
   "env": {
     "CLAUDE_CODE_AUTO_COMPACT_WINDOW": "300000"
   },
-  "claudeMdExcludes": ["**/.worktrees/**", "**/.claude/worktrees/**"],
+  "claudeMdExcludes": [
+    "**/.worktrees/**",
+    "**/.claude/worktrees/**"
+  ],
   "permissions": {
     "allow": [
       "Bash(mise run test*)",
@@ -22,6 +25,18 @@
       "mcp__claude-code-remote__update_trigger",
       "mcp__claude-code-remote__list_triggers",
       "mcp__claude-code-remote__get_trigger"
+    ],
+    "deny": [
+      "mcp__claude-code-remote__fire_trigger",
+      "mcp__claude-code-remote__get_event",
+      "mcp__claude-code-remote__list_repos",
+      "mcp__claude-code-remote__register_repo_root",
+      "mcp__claude-code-remote__set_session_tags",
+      "mcp__claude-code-remote__subscribe_pr_activity",
+      "mcp__claude-code-remote__unsubscribe_pr_activity",
+      "mcp__claude-code-remote__unarchive_session",
+      "mcp__claude-code-remote__watch_url",
+      "mcp__claude-code-remote__unwatch_url"
     ]
   },
   "hooks": {
