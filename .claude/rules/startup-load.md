@@ -3,7 +3,7 @@ description: Why settings.json denies remote MCP tools and trims skills — star
 paths:
   - ".claude/settings.json"
 ---
-`permissions.deny` on `mcp__claude-code-remote__*` and the user-tier `skillOverrides` exist to cut every session's start load: the remote server is `alwaysLoad` (ToolSearch never defers it), so deny is the only lever. Each denied name had 0 calls across all transcripts 2026-09-01..10-15.
+`permissions.deny` (rare `mcp__claude-code-remote__*` tools, `Workflow`) and `skillOverrides` (here and user-tier) exist to cut every session's start load: the remote server is `alwaysLoad` (ToolSearch never defers it), so deny is the only lever. Each denied name had 0–1 calls across all transcripts 2026-09-01..10-15.
 
 **Why:** a fresh session showed ~62k used before its first word (MCP tools 15.7k, skills 6.7k; panel 2026-10-15).
 
