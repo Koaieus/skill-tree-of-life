@@ -169,7 +169,7 @@ func test_a_multi_hop_core_move_issues_exactly_one_command() -> void:
 	_ctl._commit_core_move(_n("C"))
 	assert_eq(_applier.pending_count(), 0,
 			"nothing queued behind it — the walk is the single in-flight command")
-	await wait_until(func() -> bool: return _player.core_location == _n("C"), 3.0)
+	await wait_until(func() -> bool: return _player.core_location == _n("C") and not _applier.is_applying, 3.0)
 	assert_eq(seen, [&"move_core"] as Array[StringName],
 			"two hops, one MoveCoreCommand — never one command per hop")
 	assert_eq(_player.core_location, _n("C"))
