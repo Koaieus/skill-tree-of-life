@@ -155,7 +155,7 @@ The offensive stats of the casting entity & node are put against the defensive s
 If a node's health is reduced to zero, it will be force-deallocated. ...
 Node health is determined by:
 - Entity stats (= allocated nodes' stats + core stats)
-- Node add-ons? Fortification add-on? Armor-ring?
+- Node add-ons? Armor-ring?
 - Node local/intrinsic stats? (which they don't provide on allocation but keep for themselves?)
 - <other..?>
 - All of the above, but what formula combines them? TBD

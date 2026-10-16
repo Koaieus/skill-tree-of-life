@@ -95,7 +95,7 @@ everything else follows by constraint. `BladeArcDriver` drives one particle on a
 circle (center, radius, start angle, sweep, duration, ease, default sine-in-out);
 `MeleeAttackPlan` builds one per pivot-adjacent particle. Progress is `t /
 duration` unless a `BladeSwingClock` is attached **and warping**, then
-`clock.progress()` ("Fortification drag").
+`clock.progress()` ("Swing drag").
 
 ### `ClampAddon` — a weld is a brace
 
@@ -272,10 +272,12 @@ its own sim** (`.claude/rules/multiplayer-sync.md`). Do not add quantization to
 the curve: it is pure `+ - * /`, and `sqrt` (speed from `sp_sq`) is exempt from
 `lint-transcendentals` as correctly rounded.
 
-## Fortification drag
+## Swing drag
 
-A wall of fortified nodes bogs a blade down. The magnitude is a defender-side,
-node-local stat `swing_drag` (base 0; `FortificationAddon` authors the grant).
+A wall of dragging nodes bogs a blade down. The magnitude is a defender-side,
+node-local stat `swing_drag` (base 0). Nothing ships a granter: Fortress, which
+did, was struck (owner, 2026-10-16, #1369) and drag waits for a fitting owner;
+tests grant a bare `swing_drag` `StatModifier` on the node.
 
 ### It acts on the CLOCK
 
@@ -637,7 +639,7 @@ draw-only resim steps the same way (`replay_slice_steps`, `begin_replay`).
   `pop_result.severed_at`.
 - The node that does it is marked `HighlightRole.PREDICTED_THREAT` (read off
   `MeleeAttackPlan.get_node_role`); one role covers spikes and bunkers.
-- **Fortification drag is shown by the arc alone**: a drag zone carries no `Pop`, so
+- **Swing drag is shown by the arc alone**: a drag zone carries no `Pop`, so
   no node is marked (drag sensing and `BladeHitScan` are separate models, and a
   per-node claim could disagree with the scan).
 - Spacing luck stays visible: the preview shows which side of it this selection landed on.

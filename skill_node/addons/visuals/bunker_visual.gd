@@ -9,16 +9,12 @@ extends AddonVisual
 ## assets/icons/addons/mapping.txt) is a flat slab roof over a slit with fire
 ## converging on it; this is that object seen from above.
 ##
-## [b]Read it against [FortificationVisual][/b] — the pair has to be
-## distinguishable at a glance or the two defensive addons are one blur:
-##
 ## [codeblock]
-##            Bunker                    Fortification
-## count      4, discrete               12, continuous
-## band       [0.90, 1.12] r (over rim)  [1.14, 1.36] r (outboard)
-## profile    thick, chamfered, faceted thin, toothed
-## shading    per-plate, faceted        flat chrome + drop shadow
-## value      dark body, bright bevel   bright teeth, dark curtain
+## count      4, discrete
+## band       [0.90, 1.12] r (over rim)
+## profile    thick, chamfered, faceted
+## shading    per-plate, faceted
+## value      dark body, bright bevel
 ## [/codeblock]
 ##
 ## [b]Deliberately non-emissive.[/b] Every colour below stays under 1.0, so
@@ -26,13 +22,12 @@ extends AddonVisual
 ## that does NOT glow is the statement — on a board where payload and identity
 ## announce themselves with light, armour is the thing that absorbs it.
 ##
-## No [method SkillNodeAddon.get_emblem] contribution, for the same reason
-## [FortificationVisual] makes none: CARVE is single-winner and outranked by
+## No [method SkillNodeAddon.get_emblem] contribution: CARVE is single-winner and outranked by
 ## SPELL/LOOT/KEYSTONE, so routing defensive state through it would make a
 ## bunker invisible on exactly the high-value nodes worth bunkering.
 
 ## Plate count. Four reads as deliberate armour; more turns the ring
-## continuous and steals Fortification's silhouette.
+## continuous and stops reading as discrete plates.
 @export_range(3, 8, 1) var plate_count: int = 4:
 	set(value):
 		plate_count = value
@@ -78,9 +73,6 @@ const _SHADOW_COLOR := Color(0.02, 0.02, 0.03, 0.6)
 ## bronze one — and since procgen and players both put addons on owned nodes,
 ## allocated is the primary case, not the edge. Dark-cool-on-warm-bright works
 ## on bronze; the bevel is what keeps it off the dark rim.
-##
-## It also stays clear of [FortificationVisual]'s bright cool chrome by VALUE
-## rather than hue: dark plates over the rim, bright teeth outboard of it.
 ## Every value is still well under 1.0 — see the non-emissive note above, which
 ## this cut serves better than the bright one did.
 const _STEEL_DARK := Color(0.13, 0.14, 0.18)

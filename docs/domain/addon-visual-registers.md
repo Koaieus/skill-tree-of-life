@@ -16,7 +16,7 @@ contention) but is an entity-tinted *glow*, which suits presence and payload,
 not armour.
 
 So addons draw their own geometry outboard of the emblem. That is what SpikeRing,
-Bunker, Fortification and Watchtower do.
+Bunker and Watchtower do.
 
 ## Why the sprite keeps coming back
 
@@ -33,8 +33,7 @@ not one:
 ## Which register — decided by what the addon does
 
 **Shell** (changes what the node is made of) -> **plan**, a concentric band past
-the rim. Bunker's `armor` + `min_damage_taken` floor, Fortification's
-`node_health`.
+the rim. Bunker's `armor` + `min_damage_taken` floor.
 
 **Structure** (built on the territory, projects outward) -> **elevation**,
 standing on the rim on a bearing. Watchtower's `vision_range` / `range`.
@@ -56,15 +55,14 @@ in `skill_node/addons/visuals/` — never in an addon subclass:
 | Addon | Band | Elements | Hue |
 |---|---|---|---|
 | Bunker | `[0.90, 1.12]` (overlaps the rim) | 4 chamfered plates | dark cool body, bright bevel |
-| Fortification | `[1.14, 1.36]` | 12 merlons over a dark curtain | cool chrome |
 | SpikeRing | `[1.00, 1.45]` | 12 radial spikes | owner colour |
 | Toxin | rim, drifting outward (no fixed band) | `bubble_count` froth bubbles popping into gas puffs, one `_draw` pass | green (identity tint), gas on a named `Emissive` tier |
 | Compromiser (`compromiser_visual.gd`) | rim, in place (no fixed band) | one beating pustule + `blip_count` blips that swell and pop into a fading ring, one `_draw` pass | the addon's identity tint; pustule core and pops on a named `Emissive` tier |
 
 **Separate neighbours by tone as well as by geometry.** Element count is
 unreadable at zoom; two mid-grey bands at adjacent radii read as one crust
-however different their silhouettes are up close. Bunker/Fortification separate
-by *value* — dark plate bodies over the rim, bright teeth outboard of it.
+however different their silhouettes are up close. Bunker separates from its
+neighbours by *value* — dark plate bodies over the rim, a bright bevel.
 
 **A band that overlaps the rim must be judged against BOTH rim states.**
 `rim_ring.gd` blends a bronze `BASE_COLOR` toward `archetype_tint` when the node
@@ -128,9 +126,7 @@ identity. The bearing offset is baked into the drawn geometry, not into the root
 
 A thin band of dark steel abutting the node's own dark rim renders as very nearly
 nothing at distance, and many small parts (16 merlons) collapse into a dotted line.
-Bunker therefore widens over the rim and warms/brightens its lit end;
-Fortification uses 12 chunkier merlons over a much darker curtain, so the teeth
-have something to contrast with.
+Bunker therefore widens over the rim and warms/brightens its lit end.
 
 Bold closed fills survive minification; thin many-part detail fragments (the same
 point `.claude/rules/icon-assets.md` makes about baked icons). Build the shape out
@@ -139,7 +135,7 @@ of fills, and let the fine detail — Watchtower's X-bracing, Bunker's firing sl
 
 **Preview surface:** the sandbox host's **Node Visuals** tab
 (`skill_node/visuals/panel/node_visuals_panel.tscn`) carries one slot per
-structure addon plus an all-four crowding check. A headless `mise run check`
+structure addon plus an all-three crowding check. A headless `mise run check`
 cannot validate any of this — it needs a real frame.
 
 ## Deliberately non-emissive
@@ -151,7 +147,6 @@ the brightest object on its own node.
 
 ## Not yet built
 
-Fortification's `node_health` is a resource that gets *consumed*, so the wall
-could chip and lose merlons as the node takes damage. Deferred: it needs a
-health-change hook on the addon and a redraw path. Worth doing — a shelled wall
-is a better object than a static one.
+A shell addon granting `node_health` (a resource that gets *consumed*) could
+chip as the node takes damage. Deferred: it needs a health-change hook on the
+addon and a redraw path.

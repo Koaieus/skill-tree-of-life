@@ -86,7 +86,7 @@ above).
 | `stake_level` | `skill_node/visuals/node_visuals_composite.gd` (`_rim_ring.fill_max = stake_level`) |
 | `addon_slots` | `ui/tooltip_fan/panels/node_stats_panel.gd`, dynamic — baked on every node board (#332); the row is omitted only when the node carries no addons |
 | `deflection` | `ui/tooltip_fan/panels/node_stats_panel.gd`, dynamic — conditional on an addon granting it locally (`bunker_addon.tscn`) |
-| `swing_drag` | `ui/tooltip_fan/panels/node_stats_panel.gd`, dynamic — conditional on an addon granting it locally (`fortification_addon.tscn`) |
+| `swing_drag` | `ui/tooltip_fan/panels/node_stats_panel.gd`, dynamic — conditional on something granting it locally (no shipped granter: Fortress was struck, #1369) |
 | `spikes` | `ui/tooltip_fan/panels/node_stats_panel.gd`, dynamic — conditional on `skill_node/addons/spike_ring_addon.gd` granting it. On a node board the displayed pool is minted from the node_spikes def (`stats_system/node_stat_board.gd`'s `_mint_stat`, same split as node_health/node_combat_health below) |
 | `node_health` | `ui/tooltip_fan/panels/node_stats_panel.gd` (always-shown); also the entity combat card's "Node Health" row, `ui/hud/combat_readout/combat_card_defense.tscn` (`stat_id = &"node_health"`); the live per-node pool also draws at `skill_node/health_bar.gd`. On a node board the pool is minted from the node_combat_health def, not requested by node_health's own def (`stats_system/node_stat_board.gd`'s `_mint_stat`) |
 | `node_combat_health` | Not requested by its own id anywhere. It is the def `NodeStatBoard._mint_stat` substitutes in for node_health on a node board — surfaced only indirectly, via `skill_node/health_bar.gd` |

@@ -150,7 +150,7 @@ The pure-stat path already works and authors cleanly, so `Effect` is additive:
 
 Every authored carrier has its own modifier array, so a pure stat bundle never
 rides in its `effects` (check the addon *scenes*, not only the script: bunker,
-fortification, spike ring, toxin and watchtower all author modifiers and no
+spike ring, toxin and watchtower all author modifiers and no
 effect). Only a runtime `Entity.grant_effect` from a source with no carrier
 of its own has nowhere else to put one.
 

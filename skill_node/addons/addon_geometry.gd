@@ -1,7 +1,7 @@
 @tool
 class_name AddonGeometry
-## Polygon builders shared by the plan-view structure addons (Bunker,
-## Fortification). Statics only — never instanced.
+## Polygon builders shared by the plan-view structure addons (Bunker).
+## Statics only — never instanced.
 ##
 ## Lives here rather than on [SkillNodeVisual] (which already carries
 ## `polar_point` / `polar_steps`) because addons are NOT part of the

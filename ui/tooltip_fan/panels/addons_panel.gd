@@ -9,7 +9,7 @@ extends FanPanel
 ## Data source is [method SkillNode.get_addons] directly — NOT [method
 ## SkillNode.get_addon_tooltip_sections], which is a filtered view that drops
 ## any addon contributing neither modifiers nor a description (Bunker,
-## Fortification, Clamp all render nothing through it). That silent drop was
+## Clamp all render nothing through it). That silent drop was
 ## the bug this panel exists to fix, so every addon on the node gets a row.
 ##
 ## One [AddonItem] per addon: title + modifiers + description all render

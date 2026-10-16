@@ -6,9 +6,9 @@ extends AddonVisual
 ## one: a lattice tower standing in elevation on the carrier's rim, roof and
 ## railing above, legs planted on a contact shadow.
 ##
-## [b]Why this one breaks the concentric habit.[/b] [BunkerVisual] and
-## [FortificationVisual] armour the node itself, so they become part of its
-## shell and are drawn in plan, as bands. Watchtower doesn't change what the
+## [b]Why this one breaks the concentric habit.[/b] [BunkerVisual]
+## armours the node itself, so it becomes part of its
+## shell and is drawn in plan, as a band. Watchtower doesn't change what the
 ## node is made of — it grants `vision_range` and `range`, i.e. it projects
 ## outward — so it is a structure standing ON the territory, and the honest
 ## projection for that is elevation. The split is the rule, not a compromise:

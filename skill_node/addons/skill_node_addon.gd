@@ -138,7 +138,7 @@ var _kind_error_reported := false
 ## own presentation concern.
 ##
 ## In the script rather than per-scene because there is no base addon scene to
-## put it in: each concrete addon (bunker, fortification, clamp, spike_ring,
+## put it in: each concrete addon (bunker, clamp, spike_ring,
 ## skill_dust) is its own standalone scene carrying this script. A per-scene value would have to be
 ## repeated in each and would be missed by the next addon anyone adds.
 ##
@@ -298,7 +298,7 @@ func apply_to_blade(state: BladeState, particle_idx: int) -> void:
 # extend this later. Default: no contribution.
 
 ## Own global class name — comparing a carried script's global name against
-## this catches the "no real subclass" case (Bunker/Fortification attach this
+## this catches the "no real subclass" case (Bunker attaches this
 ## base script directly onto a scene node named e.g. "BunkerAddon" rather than
 ## authoring a dedicated .gd), which reads as "there is no global name" for
 ## THIS addon's purposes even though the base class itself has one.
@@ -307,7 +307,7 @@ const _BASE_CLASS_NAME := "SkillNodeAddon"
 
 ## Heading for this addon's tooltip section. Default derives a readable name
 ## from the attached script's global class name (or, when there is none — a
-## scene-composed addon like Bunker/Fortification that reuses this base script
+## scene-composed addon like Bunker that reuses this base script
 ## directly — the scene node's own name), stripping a trailing "Addon" and
 ## splitting PascalCase: "BunkerAddon" -> "Bunker", "SpikeRingAddon" ->
 ## "Spike Ring". Subclass overrides win (SpikeRing -> "Spikes", SkillDust ->

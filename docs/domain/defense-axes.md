@@ -32,7 +32,7 @@ bin the entity and node carry, and during a run those bins pile up:
   `min_damage_taken -`; `universal` rolls `node_health +%`; INT carries a
   `min_damage_taken +` bane. One allocated node can move a defence axis.
 - **core class, addons, auras**: Sanctuary's +CON, the Bunker's +armor and
-  −floor, the Fortification's +node_health.
+  −floor.
 - **statuses**: each curse stack raises the floor by 1, armor break lowers
   armor, wither scales healing.
 

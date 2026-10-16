@@ -29,7 +29,7 @@ self-edge — so it adds `+ 2 * node.self_loop_count` explicitly.
 
 Verified equal: one self-loop on a degree-2 node reads 4 from all three.
 
-This is what makes fortification legible: two self-loops turn a degree-2 node
+This is what makes self-loop defence legible: two self-loops turn a degree-2 node
 into a degree-6 node, and a downhill walk turns away from it.
 
 ### And they count toward a spell's casting gate — owner ruling, 2026-09-02

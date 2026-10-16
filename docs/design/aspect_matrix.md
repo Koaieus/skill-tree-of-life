@@ -127,8 +127,8 @@ blade nodes. Spike nodes currently POP blade nodes, bunkers deflect them and
 fortress slows them. Each of these is intrusive and should be balanced and
 intuitive and not every aspect should grow one most likely. But other defensive
 modifiers on addons like boosting some health or other defensive stat is mostly
-fine"*. Pop (Spike Ring), deflect (Bunker) and drag (Fortification) are taken;
-a new blade interaction needs a reason none of the three covers.
+fine"*. Pop (Spike Ring), deflect (Bunker) and drag (no granter since Fortress was struck,
+#1369) are taken; a new blade interaction needs a reason none of the three covers.
 
 **Addon column note:** "addon" and "temp addon" are one thing — a
 `SkillNodeAddon` scene (entity + node-local modifier lists, plus the
