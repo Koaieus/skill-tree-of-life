@@ -13,6 +13,6 @@ REGEN_OUTCOME_FIXTURE=1 mise run test:one -- \
     res://test/unit/attack/test_outcome_fixture_replay.gd
 ```
 
-That captures a live attack in the same headless context and rewrites the `.tres` the tab's Save button writes, so the two authoring paths cannot become two formats. Read the diff before committing. **A missing fixture is a failure, never a silent re-capture** — a test that captured its own golden when it found none would pass everywhere while asserting nothing.
+That captures a live attack in the same headless context and rewrites the `.tres` the tab's Save button writes, so the two authoring paths cannot become two formats. Read the diff before committing. **A missing fixture is a failure, never a silent re-capture** — a test that captured its own expectation when it found none would pass everywhere while asserting nothing.
 
 **Untested:** every amount in `spark_cascade.tres` is integral, so whether a text resource round-trips `AttackRecord`'s `PackedFloat64Array` amounts exactly is unverified. They are float64 so a peer's HP lands on the host's number; if a fixture with a mitigated or crit-multiplied amount loses precision, the fix is a binary `.res`, not a change of format.

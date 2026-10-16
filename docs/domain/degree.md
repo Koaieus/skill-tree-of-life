@@ -103,7 +103,7 @@ neighbour, `world.combat_for(neighbour).owner()?.real_entity()` compared to
 the node's own world-side owner. On a LIVE world this is definitionally the
 same answer as the node's own `get_entity_degree` (`combat_for` on a live
 world just returns the node's own slice), which is what keeps every
-pre-#860 golden that never triggers a mid-cast kill unchanged. It only
+pre-#860 snapshot that never triggers a mid-cast kill unchanged. It only
 diverges once a shadow has actually stripped someone.
 
 Five call sites in `attack/spell/` go through this now — never
