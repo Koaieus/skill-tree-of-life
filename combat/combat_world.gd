@@ -376,7 +376,7 @@ func free_shadow() -> void:
 # spill rule sees the beat's whole removed union: a node stripped in the same
 # beat never receives. The beats: one dealloc command, one `schedule_index`
 # group in [method OutcomeApplier.apply], one spell wave, one turn-end tick
-# step (before its diffusion sweep). See docs/domain/effect-system.md.
+# step (before its diffusion sweep). See docs/domain/status-effects.md.
 
 
 ## [param node] was just depleted by a hit carrying [param scale]
@@ -415,6 +415,12 @@ func note_removed(node: NodeCombat, rows: Array[NodeStatus], cause: int) -> void
 		r.power[rid] = row.power
 		r.around[rid] = probe.masked_neighbours(node)
 	_pending.append(r)
+
+
+## True while removals noted on this world await the beat's
+## [method flush_removals]. Outside a beat that is a bug: the spill lands late.
+func has_pending_removals() -> bool:
+	return not _pending.is_empty()
 
 
 ## [param entries] were produced by a fresh landing on this world: the next

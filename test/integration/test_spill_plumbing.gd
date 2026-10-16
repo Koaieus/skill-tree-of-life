@@ -10,6 +10,7 @@ const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _BOARD := preload("res://entity/default_entity_board.tres")
 const _CURSE := preload("res://effects/status/curse.tres")
+const _LINGER := preload("res://test/unit/effects/linger_status_fixture.tres")
 
 
 ## Diffusion on the tick, spill on removal — one def that exercises both
@@ -212,3 +213,37 @@ func test_a_shadow_cascade_releases_the_stripped_nodes_statuses() -> void:
 	assert_true(node.get_statuses().is_empty(), "the shadow strip released the row")
 	assert_eq(_curse(n[1]), 3.0, "the real node is untouched")
 	shadow.free_shadow()
+
+
+# ── 7. One strip atom: a bare force_deallocate notes like a cascade ─────────
+
+func test_bare_force_deallocate_then_flush_spills_like_a_cascade() -> void:
+	# C–X, C–Y, X–Y: the same board as §1, stripped by the death verb.
+	var n := await _territory(3, [[0, 1], [0, 2], [1, 2]])
+	n[1].get_combat().apply_status(_CURSE, 5.0)
+	_alloc.force_deallocate(n[1])
+	assert_true(CombatWorld.live().has_pending_removals(), "the bare strip is noted, not flushed")
+	CombatWorld.live().flush_removals()
+	assert_false(CombatWorld.live().has_pending_removals(), "the flush drains the beat")
+	assert_eq([_curse(n[0]), _curse(n[2])], [2.0, 2.0], "⌊5/2⌋ to each survivor, as a cascade")
+	assert_eq(_curse(n[1]), 0.0, "the stripped node keeps nothing")
+
+
+func test_a_cascade_of_the_same_node_spills_the_same() -> void:
+	var n := await _territory(3, [[0, 1], [0, 2], [1, 2]])
+	n[1].get_combat().apply_status(_CURSE, 5.0)
+	_a.get_combat().apply_cascade([n[1].get_combat()] as Array[NodeCombat], _alloc, false)
+	CombatWorld.live().flush_removals()
+	assert_eq([_curse(n[0]), _curse(n[2])], [2.0, 2.0], "the cascade's spill, for parity")
+
+
+# ── 8. A voluntary dealloc spills CLEAR rows and keeps LINGER ones ──────────
+
+func test_deallocate_spills_the_clear_row_and_keeps_the_linger_row() -> void:
+	var n := await _territory(3, [[0, 1], [0, 2], [1, 2]])
+	n[1].get_combat().apply_status(_CURSE, 5.0)
+	n[1].get_combat().apply_status(_LINGER, 4.0)
+	assert_true(_alloc.deallocate(n[1], _a), "precondition: the dealloc is legal")
+	assert_eq([_curse(n[0]), _curse(n[2])], [2.0, 2.0], "the CLEAR row spills")
+	assert_eq(_curse(n[1]), 0.0, "the CLEAR row left the node")
+	assert_eq(n[1].get_combat().get_status_power(_LINGER.id), 4.0, "the LINGER row stays on the node")
