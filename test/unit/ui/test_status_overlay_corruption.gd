@@ -107,10 +107,11 @@ func test_critical_ghost_is_the_extra_a_landing_stack_deals() -> void:
 	assert_gt(o.ghost.size.x, 0.0, "fixture: the ghost has width at this max hp")
 	assert_almost_eq(o.ghost.size.x, _CORRUPTION.burst_amount(_host(), 1, 4) - solid, 0.01,
 			"ghost = stack pop − solid")
+	var ghost_w := o.ghost.size.x
 	var before := _nodes[0].get_current_hp()
 	_host().apply_status(_CORRUPTION, 1.0)
 	CombatWorld.live().flush_removals()
-	assert_almost_eq(before - _nodes[0].get_current_hp(), solid + o.ghost.size.x, 0.01,
+	assert_almost_eq(before - _nodes[0].get_current_hp(), solid + ghost_w, 0.01,
 			"a landed stack's pop costs solid + ghost")
 
 
