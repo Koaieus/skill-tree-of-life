@@ -15,6 +15,9 @@ signal finished
 @export_range(0.0, 2000.0, 1.0) var radius: float = 120.0:
 	set(value):
 		radius = maxf(value, 0.0)
+		for child in get_children():
+			if &"radius" in child:
+				child.set(&"radius", radius)
 		queue_redraw()
 ## The detonation's power; only [member power_width] reads it.
 @export_range(0, 500, 1) var power: int = 0:
@@ -87,6 +90,8 @@ func play() -> void:
 			companion.set(&"rider", riders[i])
 		if &"layer" in companion:
 			companion.set(&"layer", i)
+		if &"layer_count" in companion:
+			companion.set(&"layer_count", companions.size())
 		add_child(companion)
 	_t = 0.0
 	_playing = true
