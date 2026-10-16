@@ -369,9 +369,9 @@ func free_shadow() -> void:
 
 # ── Removal collector ────────────────────────────────────────────────────────
 #
-# Every ownership loss in this world feeds [method note_removed] — a cascade
-# strip (cause DEATH, [method EntityCombat.apply_cascade]) or a voluntary
-# dealloc (cause DEALLOC, [method AllocationSystem._deallocate_unchecked]) — and
+# Every ownership loss in this world feeds [method note_removed] through the
+# one strip atom, [method EntityCombat.strip_node] — a death or force (cause
+# DEATH) or a voluntary dealloc (cause DEALLOC) — and
 # the beat that caused it calls [method flush_removals] once at its end, so the
 # spill rule sees the beat's whole removed union: a node stripped in the same
 # beat never receives. The beats: one dealloc command, one `schedule_index`

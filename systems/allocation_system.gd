@@ -305,33 +305,16 @@ func deallocate(node: SkillNode, entity: Entity) -> bool:
 ## the actual strip + refund + signal, no gating of its own.
 func _deallocate_unchecked(node: SkillNode, entity: Entity) -> void:
 	var previous := node.owned_by
-	# Statuses are node-local and void on any ownership loss (#879, owner
-	# 2026-09-14: "poison/blind/armor break -> remove effect upon dealloc").
-	# Released before the strip below so nothing downstream reads a status the
-	# node no longer legitimately holds, and noted while `owned_by` is still
-	# set — the collector snapshots the masked neighbours a spill lands on.
-	# The command that called this flushes ([method deallocate] / [method deallocate_set]).
-	# `LINGER` rows survive the dealloc and are not spilled (#1344).
 	_abort_channel(node, &"ownership")
-	var combat := node.get_combat()
-	CombatWorld.live().note_removed(combat, combat.release_statuses(true), StatusSpread.CAUSE_DEALLOC)
-	# Snapshot the fill BEFORE ownership clears — owner_changed zeroes
+	# Snapshot the fill BEFORE the strip — owner_changed zeroes
 	# allocation_level via _refresh_alloc_count, so a read after would return
 	# 0 and under-refund the SP (the #337 ordering hazard; same shape as
 	# LootSystem's pre-cleanup snapshot). A 2/2 node refunds 2 SP.
 	var fill: int = node.allocation_level
 	var board := entity.stat_board
-	# Strip swapped effect-sets BEFORE the revoke sweep — the set leaves were
-	# applied outside the effect ledger and would strand otherwise (#376).
-	node.clear_scaled_effect_sets(board)
-	_revoke_node_effects(node, entity)
-	node.remove_entity_modifiers_from(board)
-	if entity.navigator != null:
-		entity.navigator.mirror_remove(node)
-	node.owned_by = null
-	# After the mirror drops the node and ownership clears — an aura recomputing
-	# here must not still see the node as its own.
-	entity.dispatch(&"_on_node_deallocated", [node, false])
+	# The one strip atom; a dealloc keeps `LINGER` rows. The command that
+	# called this flushes ([method deallocate] / [method deallocate_set]).
+	entity.get_combat().strip_node(node.get_combat(), StatusSpread.CAUSE_DEALLOC)
 
 	if board != null:
 		if board.deallocation_points != null:
@@ -355,18 +338,10 @@ func force_deallocate(node: SkillNode) -> Entity:
 	if previous == null:
 		return null
 	_abort_channel(node, &"ownership")
-	# Statuses void on any ownership loss (#879). A cascade has already
-	# released and noted them (EntityCombat.apply_cascade, the spill feeder),
-	# so this is the net for a direct caller, which drops them unspilled.
-	# Re-entrancy: a poison tick can force_deallocate the very node being
-	# ticked, and release_statuses() tolerates a slice already mid-iteration.
-	# `LINGER` rows survive (#1344); a cascade has released them already.
-	node.get_combat().release_statuses(true)
-	# Revoke sweep + navigator mirror removal (#498 step 1): lives on the
-	# previous owner's EntityCombat slice now — see EntityCombat.revoke_node.
-	previous.get_combat().revoke_node(node)
-	node.owned_by = null
-	previous.dispatch(&"_on_node_deallocated", [node, true])
+	# The one strip atom, as a death: every status row is released and noted
+	# for spill. No flush — the enclosing beat flushes (a direct caller
+	# outside one leaves [method CombatWorld.has_pending_removals] true).
+	previous.get_combat().strip_node(node.get_combat(), StatusSpread.CAUSE_DEATH)
 	force_deallocated.emit(node, previous)
 	return previous
 
@@ -862,14 +837,6 @@ func _grant_node_effects(node: SkillNode, entity: Entity) -> void:
 		return
 	for e in node.get_node_effects():
 		entity.grant_effect(e, node)
-
-
-## Symmetric strip. Keyed by source node, so a node losing ownership takes only
-## its own effects with it.
-func _revoke_node_effects(node: SkillNode, entity: Entity) -> void:
-	if node == null or entity == null:
-		return
-	entity.revoke_effects_from(node)
 
 
 ## Adjacent over a real (non-self-loop) edge, ignoring ownership — the

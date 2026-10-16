@@ -80,16 +80,22 @@ func _lingering_node(owner: Entity) -> SkillNode:
 	return node
 
 
+## A voluntary dealloc — the one strip that keeps `LINGER` rows (a force is a
+## death and releases them, see [method test_a_death_strip_releases_the_linger_row]).
+func _deallocate(node: SkillNode, owner: Entity) -> void:
+	assert_true(_alloc.deallocate(node, owner), "precondition: the dealloc is legal")
+
+
 func _power(node: SkillNode) -> float:
 	return node.get_combat().get_status_power(_LINGER.id)
 
 
 # ── (a) dealloc keeps LINGER, drops CLEAR ───────────────────────────────────
 
-func test_linger_row_survives_force_deallocate_and_clear_row_does_not() -> void:
+func test_linger_row_survives_deallocate_and_clear_row_does_not() -> void:
 	var node := await _lingering_node(_a)
 	node.get_combat().apply_status(_clear_def(), 4.0)
-	_alloc.force_deallocate(node)
+	_deallocate(node, _a)
 	assert_null(node.owned_by, "the node is unowned")
 	assert_eq(_power(node), 5.0, "the LINGER row survives deallocation untouched")
 	assert_eq(node.get_combat().get_status_power(&"clearing"), 0.0, "the CLEAR row is gone")
@@ -100,7 +106,7 @@ func test_linger_row_survives_force_deallocate_and_clear_row_does_not() -> void:
 
 func test_unowned_linger_row_ticks_once_per_world_turn() -> void:
 	var node := await _lingering_node(_a)
-	_alloc.force_deallocate(node)
+	_deallocate(node, _a)
 	_played_turn_end()
 	assert_eq(_power(node), 5.0, "one played turn end of two does not tick it")
 	_played_turn_end()
@@ -123,7 +129,7 @@ func test_a_linger_def_lands_on_an_unowned_node() -> void:
 
 func test_reallocated_linger_row_ticks_only_on_the_new_owners_turn_end() -> void:
 	var node := await _lingering_node(_a)
-	_alloc.force_deallocate(node)
+	_deallocate(node, _a)
 	_alloc.force_allocate(_b, node)
 	assert_eq(_power(node), 5.0, "the row stays through re-allocation")
 	_a.resolve_turn_end()

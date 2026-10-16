@@ -673,10 +673,9 @@ func cascade_set(node: NodeCombat) -> Array[NodeCombat]:
 ##
 ## [param alloc] is required on a LIVE slice and ignored on a shadow. A live
 ## call without one strips nothing and returns empty rather than half-applying:
-## [method AllocationSystem.force_deallocate] owns `owned_by`, the
-## `_on_node_deallocated` dispatch and the `force_deallocated` signal that
-## [AllocationVFX] draws from, and reimplementing those here is exactly the
-## second implementation this method exists to delete.
+## live, the strip goes through [method AllocationSystem.force_deallocate],
+## which wraps [method strip_node] with the `force_deallocated` signal that
+## [AllocationVFX] draws from; a shadow calls [method strip_node] directly.
 ##
 ## [param charge] is the one knob: entity death strips without wounding or
 ## chipping — an entity already at 0 health is not further attrited — while the
@@ -737,25 +736,15 @@ func apply_cascade(nodes: Array[NodeCombat], alloc: AllocationSystem = null,
 			if sp != null:
 				sp.wound(entry.wound)
 				wound_sum += entry.wound
-		# Statuses void on the strip, and spill: released and noted BEFORE
-		# the strip below clears ownership — the world's collector snapshots
-		# the node's masked neighbours, and the beat that drove this cascade
-		# flushes them (CombatWorld.flush_removals). Both worlds.
-		world().note_removed(n, n.release_statuses(), StatusSpread.CAUSE_DEATH)
-		# ── The one branch: which strip verb. Everything else is shared. ──
+		# ── The one branch: which door reaches [method strip_node]. Live goes
+		# through the allocation wrapper for its signal; the beat that drove
+		# this cascade flushes the spill (CombatWorld.flush_removals).
 		if host != null:
 			if alloc == null:
 				continue
 			alloc.force_deallocate(n.host)
 		else:
-			# The same three steps `force_deallocate` performs, in its order
-			# (#520): revoke sweep, then ownership, then the dealloc hook — and
-			# it is that hook which re-runs AuraEffect.recompute against the set
-			# this strip just shrank, so wave N+1 resolves against POST-cascade
-			# armour rather than pre-cascade armour.
-			revoke_node(entry.node)
-			_strip_one(n)
-			dispatch(&"_on_node_deallocated", [entry.node, true])
+			strip_node(n, StatusSpread.CAUSE_DEATH)
 		if b != null and charge and entry.chip > 0.0:
 			# #504: the core bar draws `health` directly and hears its
 			# `current_changed`, so the chip announces itself — nothing to
@@ -975,6 +964,35 @@ static func _granted_labels(node: SkillNode) -> PackedStringArray:
 	return out
 
 
+## The one strip atom: every ownership loss in either world — a voluntary
+## dealloc, a force, both branches of [method apply_cascade] — is this body.
+## In order:
+## [codeblock]
+##   release + note statuses  ->  world().note_removed  (owned_by still set:
+##                                the collector snapshots masked neighbours)
+##   revoke footprint         ->  revoke_node
+##   clear ownership          ->  owned_by = null live / _strip_one shadow
+##   dealloc hook             ->  dispatch(_on_node_deallocated)  (an aura
+##                                recompute must see the shrunk set)
+## [/codeblock]
+## [param cause] is the only knob: `CAUSE_DEALLOC` keeps `LINGER` rows, every
+## other cause releases them all. Never flushes — the enclosing beat does.
+## Re-entrancy: a poison tick can strip the very node being ticked;
+## [method NodeCombat.release_statuses] tolerates a slice mid-iteration.
+func strip_node(n: NodeCombat, cause: int) -> void:
+	if n == null:
+		return
+	var node := real_node_for(n)
+	var voluntary := cause == StatusSpread.CAUSE_DEALLOC
+	world().note_removed(n, n.release_statuses(voluntary), cause)
+	revoke_node(node)
+	if host != null:
+		node.owned_by = null
+	else:
+		_strip_one(n)
+	dispatch(&"_on_node_deallocated", [node, not voluntary])
+
+
 func _strip_one(node: NodeCombat) -> void:
 	if node == null or not _owned.has(node):
 		return
@@ -987,10 +1005,9 @@ func _strip_one(node: NodeCombat) -> void:
 
 ## Strip [param node]'s footprint from this entity: swapped effect-sets, granted
 ## effects, entity-scoped modifiers, and the navigator mirror. Called by
-## [method AllocationSystem.force_deallocate] on the node's previous owner,
-## before ownership clears — and, since #520, by [method apply_cascade] on the
-## shadow side of its one branch, so shadow MITIGATION parity now holds the way
-## #518 made shadow ATTRITION parity hold.
+## [method strip_node] on the node's previous owner, before ownership clears,
+## in both worlds — so shadow MITIGATION parity holds the way shadow ATTRITION
+## parity does.
 ##
 ## One body, two worlds, and the difference is only which board is written and
 ## which mirror is trimmed:
