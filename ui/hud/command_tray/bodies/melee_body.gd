@@ -220,17 +220,14 @@ func _refresh() -> void:
 	var upgrade_bound: Array = []
 	var upgrade_colors: Array[Color] = []
 	if plan != null:
-		var nodes: Array[SkillNode] = []
-		if plan.source != null:
-			nodes.append(plan.source)
-		nodes.append_array(plan.blade_nodes)
+		var priced := plan.temp_prices()
 		for upgrade in _battle_system.temp_upgrade_kinds():
-			for node in nodes:
-				for a in node.get_addons():
-					if a.is_temporary and a.get_kind() == upgrade.resource_path:
-						for _j in a.get_temp_costs().get(&"blade_size", 0):
-							upgrade_bound.append(node)
-							upgrade_colors.append(_upgrade_color(upgrade))
+			for entry in priced:
+				var a := entry[0] as SkillNodeAddon
+				if a.get_kind() == upgrade.resource_path:
+					for _j in (entry[1] as Dictionary).get(&"blade_size", 0):
+						upgrade_bound.append(a.get_parent() as SkillNode)
+						upgrade_colors.append(_upgrade_color(upgrade))
 	_upgrade_blips.max_count = upgrade_bound.size()
 	_upgrade_blips.bound_nodes = upgrade_bound
 	_upgrade_blips.segment_colors = upgrade_colors
@@ -259,6 +256,9 @@ func _refresh() -> void:
 		var upgrade := kinds[i]
 		var btn := _upgrade_row.get_child(i) as TempUpgradeButton
 		btn.armed = arm == upgrade
+		# The card shows the NEXT one's price: it escalates with the plan.
+		btn.costs = plan.next_temp_costs(upgrade) if plan != null \
+				else SkillNodeAddon.temp_costs_of(upgrade)
 		# No blade up reads as unavailable: a card arms "Only with a blade"
 		# (owner, 2026-09-30).
 		btn.affordable = plan != null and can_act and plan.has_temp_upgrade_budget(upgrade) \

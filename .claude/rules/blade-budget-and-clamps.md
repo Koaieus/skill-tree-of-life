@@ -16,8 +16,10 @@ paths:
 | spend | cost |
 |---|---|
 | a plain member | 1 |
-| a `clamp` temp upgrade (`skill_node/addons/defs/clamp_addon.tscn`) | 1 |
+| the n-th `clamp` temp upgrade on a swing (`skill_node/addons/defs/clamp_addon.tscn`) | 1, 2, 3, … (`temp_cost_blade_size + (n−1)·temp_cost_step_blade_size`) |
 | a `spike_ring` temp upgrade (`skill_node/addons/defs/spike_ring_addon.tscn`) | 2 |
+
+Escalation counts only temps of the same kind (scene path) on this swing, derived from the carried addons and never stored: k of them spend `k·base + step·k(k−1)/2` in any order. A permanent clamp neither pays nor counts. Price a temp through `SkillNodeAddon.temp_costs_of(scene, already)` / `MeleeAttackPlan.next_temp_costs` / `temp_prices`, never a literal.
 
 **Why:** it is easy to read "clamp node" as a persistent, cross-turn structural investment — #771 was filed on exactly that assumption. It is not. A clamp is a per-swing choice competing directly with one more member of reach, and it is refunded when the plan resets.
 

@@ -170,7 +170,9 @@ func get_kind() -> String:
 ## kind (only `blade_size` escalates, by [member temp_cost_step_blade_size]).
 ## [MeleeAttackPlan] spends each entry against its own pool.
 func get_temp_costs(already: int = 0) -> Dictionary[StringName, int]:
-	var out: Dictionary[StringName, int] = {_BLADE_SIZE: temp_cost_blade_size}
+	var out: Dictionary[StringName, int] = {
+		_BLADE_SIZE: temp_cost_blade_size + maxi(already, 0) * temp_cost_step_blade_size,
+	}
 	for id in temp_cost_aspects:
 		out[id] = temp_cost_aspects[id]
 	return out
@@ -179,8 +181,12 @@ func get_temp_costs(already: int = 0) -> Dictionary[StringName, int]:
 ## [method get_temp_costs] of [param scene]'s addon, without a live instance
 ## to hand: read once per scene path through [method _scene_record].
 static func temp_costs_of(scene: PackedScene, already: int = 0) -> Dictionary[StringName, int]:
-	var costs: Dictionary[StringName, int] = _scene_record(scene).get(&"costs", {})
-	return costs.duplicate()
+	var record := _scene_record(scene)
+	var costs: Dictionary[StringName, int] = record.get(&"costs", {})
+	var out := costs.duplicate()
+	if out.has(_BLADE_SIZE):
+		out[_BLADE_SIZE] += maxi(already, 0) * int(record.get(&"step", 0))
+	return out
 
 
 ## [member temp_placeable] of [param scene]'s addon, read like
@@ -224,6 +230,7 @@ static func _scene_record(scene: PackedScene) -> Dictionary:
 		return {}
 	var record := {
 		&"costs": addon.get_temp_costs(),
+		&"step": addon.temp_cost_step_blade_size,
 		&"placeable": addon.temp_placeable,
 		&"tint": addon.tint,
 		&"icon": addon.icon,

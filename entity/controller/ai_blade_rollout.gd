@@ -309,8 +309,9 @@ static func _propose_blade_selections(
 ## reach extension that prefers spiked, far-from-core nodes (#824). Single
 ## pass, budget-correct by construction — `spent` never exceeds `max_size`,
 ## the ONE budget shared between members and clamps
-## (`.claude/rules/blade-budget-and-clamps.md`). Returns
-## {members: Array[SkillNode], clamps: Array[SkillNode] (subset of members)}.
+## (`.claude/rules/blade-budget-and-clamps.md`); the n-th clamp pays the
+## clamp's escalating temp price. Returns {members: Array[SkillNode], clamps:
+## Array[SkillNode] (subset of members), spent: int (the plan's blade_size spend)}.
 ##
 ## [b]HANDLE member selection is unconditionally geometric — [method
 ## _grow_path] decides `path` before this function ever runs.[/b] Requirement
@@ -359,9 +360,10 @@ static func _build_archetype(
 		var particle_idx := i + 1 # pivot occupies index 0, path[k] -> k + 1
 		if BladeState.edges_form_triangle_at(edges, particle_idx) or node.has_addon(ClampAddon):
 			rigidified += 1 # free — costs nothing, still extends the RIGID handle
-		elif spent < max_size and node.can_attach_addon(_CLAMP_SCENE.resource_path):
+		elif spent + _next_clamp_cost(clamps.size()) <= max_size \
+				and node.can_attach_addon(_CLAMP_SCENE.resource_path):
+			spent += _next_clamp_cost(clamps.size())
 			clamps.append(node)
-			spent += 1
 			rigidified += 1
 		else:
 			# #771 D2: a gap here (no budget, or the slot's already full) means
@@ -378,8 +380,16 @@ static func _build_archetype(
 		for m in members:
 			selected[m] = true
 		var tip: SkillNode = members[-1] if not members.is_empty() else pivot
-		members.append_array(_extend_reach(tip, adjacency, selected, core_distances, max_size - spent))
-	return {members = members, clamps = clamps}
+		var reach := _extend_reach(tip, adjacency, selected, core_distances, max_size - spent)
+		members.append_array(reach)
+		spent += reach.size()
+	return {members = members, clamps = clamps, spent = spent}
+
+
+## What the swing's next temp clamp costs once it carries [param already] —
+## the addon's own escalating price, so the AI and the plan never disagree.
+static func _next_clamp_cost(already: int) -> int:
+	return SkillNodeAddon.temp_costs_of(_CLAMP_SCENE, already).get(&"blade_size", 1)
 
 
 ## A single consecutive walk outward from [param pivot] toward [param

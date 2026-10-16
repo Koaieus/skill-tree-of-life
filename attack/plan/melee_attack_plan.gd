@@ -499,14 +499,41 @@ func currency_remaining(id: StringName) -> int:
 	return currency_cap(id) - currency_spent(id)
 
 
-## The carried temps' summed cost of currency [param id].
+## The carried temps' summed cost of currency [param id], each priced as the
+## next of its kind ([method temp_prices]).
 func _temp_spent(id: StringName) -> int:
 	var total := 0
+	for priced in temp_prices():
+		total += (priced[1] as Dictionary).get(id, 0)
+	return total
+
+
+## Every carried temp as `[addon, cost vector]`, the i-th of a kind (scan order)
+## priced at `get_temp_costs(i)`. The count is derived, never stored, and a
+## kind's sum is order-free — removing one re-prices the rest. Every reader of
+## a carried temp's cost (the tray's pips included) goes through this.
+func temp_prices() -> Array:
+	var seen: Dictionary = {}
+	var out: Array = []
 	for node in _temp_upgrade_carriers():
 		for a in node.get_addons():
-			if a.is_temporary:
-				total += a.get_temp_costs().get(id, 0)
-	return total
+			if not a.is_temporary:
+				continue
+			var kind := a.get_kind()
+			var already: int = seen.get(kind, 0)
+			seen[kind] = already + 1
+			out.append([a, a.get_temp_costs(already)])
+	return out
+
+
+## How many temps of `scene`'s kind the swing carries.
+func temp_count_of(scene: PackedScene) -> int:
+	var n := 0
+	for node in _temp_upgrade_carriers():
+		for a in node.get_addons():
+			if a.is_temporary and a.get_kind() == scene.resource_path:
+				n += 1
+	return n
 
 
 ## Budget left for blade-member selection AND temp upgrades — one shared
@@ -526,16 +553,15 @@ func temp_upgrade_cost_total() -> int:
 ## per-kind breakdown of [method temp_upgrade_cost_total].
 func temp_upgrade_cost_for(scene: PackedScene) -> int:
 	var total := 0
-	for node in _temp_upgrade_carriers():
-		for a in node.get_addons():
-			if a.is_temporary and a.get_kind() == scene.resource_path:
-				total += a.get_temp_costs().get(_BLADE_SIZE_ID, 0)
+	for priced in temp_prices():
+		if (priced[0] as SkillNodeAddon).get_kind() == scene.resource_path:
+			total += (priced[1] as Dictionary).get(_BLADE_SIZE_ID, 0)
 	return total
 
 
 ## What one more temp of `scene`'s kind would cost this swing, every currency.
 func next_temp_costs(scene: PackedScene) -> Dictionary[StringName, int]:
-	return SkillNodeAddon.temp_costs_of(scene)
+	return SkillNodeAddon.temp_costs_of(scene, temp_count_of(scene))
 
 
 ## Can the swing pay `scene`'s whole cost vector out of what is left in each
@@ -543,7 +569,7 @@ func next_temp_costs(scene: PackedScene) -> Dictionary[StringName, int]:
 func _affords(scene: PackedScene) -> bool:
 	if not SkillNodeAddon.temp_placeable_of(scene):
 		return false
-	var costs := SkillNodeAddon.temp_costs_of(scene)
+	var costs := next_temp_costs(scene)
 	for id in costs:
 		if currency_remaining(id) < costs[id]:
 			return false
@@ -552,7 +578,7 @@ func _affords(scene: PackedScene) -> bool:
 
 ## Is some non-`blade_size` currency of `scene`'s cost vector short?
 func _short_of_aspect(scene: PackedScene) -> bool:
-	var costs := SkillNodeAddon.temp_costs_of(scene)
+	var costs := next_temp_costs(scene)
 	for id in costs:
 		if id != _BLADE_SIZE_ID and currency_remaining(id) < costs[id]:
 			return true
