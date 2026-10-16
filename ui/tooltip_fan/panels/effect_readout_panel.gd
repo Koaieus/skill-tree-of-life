@@ -4,7 +4,8 @@ extends FanPanel
 
 ## Tooltip V2 (#621) — the aura|effect readout: every currently-affecting
 ## aura/effect on the hovered node, one row per (effect, leaf modifier) pair
-## from [method NodeEffectReadout.gather]. Rendered through [SlabRow] — #588's
+## from [method NodeEffectReadout.gather], plus one per non-modifier payload
+## row (a heal aura's "+N HP/turn") on the same cap and paging. Rendered through [SlabRow] — #588's
 ## generic "tinted text" vocabulary, reused rather than inventing a new row
 ## component (the issue's own decision).
 ##
@@ -156,6 +157,11 @@ func _rebuild_rows() -> void:
 	var hidden_by_group: Dictionary = {}  # "<stat_id>|<op>" -> Array[NodeEffectReadout]
 
 	for entry in NodeEffectReadout.gather(_bound_node, _bound_graph):
+		if entry.is_payload():
+			# A non-modifier payload (a heal aura's per-turn heal): never rolled
+			# up, never hidden as neutral — the effect only emits non-zero rows.
+			shown.append(_build_payload_row(entry))
+			continue
 		var m := entry.modifier
 		var def: StatDef = StatRegistry.get_def(m.stat_id)
 		if def == null:
@@ -345,6 +351,18 @@ func _build_row(entry: NodeEffectReadout, def: StatDef) -> Dictionary:
 		effect_name = entry.effect.display_name
 	var text := "%s: %s" % [effect_name, entry.modifier.format_effective(_bound_node.node_board)]
 	return {"text": text, "tint": _row_tint(def.tint_color, _is_hostile(entry.source_entity))}
+
+
+## "<effect name>: +N HP/turn", tinted like a modifier row on the stat it
+## moves (the node's health) and hostile-mixed the same way.
+func _build_payload_row(entry: NodeEffectReadout) -> Dictionary:
+	var effect_name := "Effect"
+	if entry.effect != null and not entry.effect.display_name.is_empty():
+		effect_name = entry.effect.display_name
+	var text := "%s: %+d %s" % [effect_name, int(entry.payload_amount), entry.payload_unit]
+	var def: StatDef = StatRegistry.get_def(&"node_health")
+	var base := def.tint_color if def != null else Color.WHITE
+	return {"text": text, "tint": _row_tint(base, _is_hostile(entry.source_entity))}
 
 
 func _build_rollup_row(stat_id: StringName, op: StatModifier.Operation, combined: float, count: int, def: StatDef) -> Dictionary:

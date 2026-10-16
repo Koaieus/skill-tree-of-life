@@ -89,3 +89,14 @@ func test_repeat_hover_walks_no_new_distances() -> void:
 	_heal_rows(_chain[1])
 	_heal_rows(_chain[2])
 	assert_eq(AuraDistanceCache.walk_count, walks, "a warm hover re-walks nothing")
+
+
+func test_panel_formats_the_heal_row() -> void:
+	_grant_aura()
+	var panel := preload("res://ui/tooltip_fan/panels/effect_readout_panel.tscn").instantiate() as EffectReadoutPanel
+	add_child_autofree(panel)
+	panel.bind(_chain[1], _w.graph)
+	var texts: Array[String] = []
+	for row in panel._rows.get_children():
+		texts.append((row as SlabRow)._label.text)
+	assert_has(texts, "Sanctuary: +7 HP/turn", "hop 1's 6.667 lands as 7 whole HP")
