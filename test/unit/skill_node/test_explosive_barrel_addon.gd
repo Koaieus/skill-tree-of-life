@@ -126,3 +126,102 @@ func test_turn_end_decay_then_turn_start_refill() -> void:
 	assert_lt(decayed, full, "turn-end decay spends a charge")
 	_entity.begin_turn()
 	assert_eq(_charges(n), full, "the next turn start refills what decayed")
+
+
+# --- the temp face: one Explosive Status Stack on the swing's working copy ----
+# A temp barrel is inert like any barrel; on apply it adds one stack to its
+# vertex's `vertex_charges` (the swing's copy of the node's charges), and that
+# stack is what the swing spends as a blast. The node's own row is untouched.
+
+func _temp_barrels(n: SkillNode, count: int) -> Array[ExplosiveBarrelAddon]:
+	var out: Array[ExplosiveBarrelAddon] = []
+	for i in count:
+		var b := _BARREL_SCENE.instantiate() as ExplosiveBarrelAddon
+		b.is_temporary = true
+		n.add_child(b)
+		out.append(b)
+	return out
+
+
+## A two-vertex blade over [pivot, member], filled the way a swing fills it.
+func _filled(pivot: SkillNode, member: SkillNode) -> BladeState:
+	var positions: Array[Vector2] = [Vector2.ZERO, Vector2(80, 0)]
+	var radii: Array[float] = [16.0, 16.0]
+	var edges: Array[Vector2i] = [Vector2i(0, 1)]
+	var state := BladeState.build(positions, 0, edges, radii)
+	var nodes: Array[SkillNode] = [pivot, member]
+	BladeVertexFill.new().fill(state, nodes)
+	return state
+
+
+func test_a_temp_barrel_adds_one_stack_to_its_vertex() -> void:
+	var pivot := _node("Pivot")
+	var member := _node("Member")
+	_alloc.force_allocate(_entity, member)
+	_set_charges(member, 2.0)
+	_temp_barrels(member, 1)
+	var state := _filled(pivot, member)
+	assert_eq(state.vertex_charges[1], int(_charges(member)) + 1, "live charges + 1")
+	assert_eq(state.vertex_charges[0], 0, "the pivot carries none")
+
+
+func test_two_temp_barrels_add_two_stacks() -> void:
+	var pivot := _node("Pivot")
+	var member := _node("Member")
+	_alloc.force_allocate(_entity, member)
+	_set_charges(member, 1.0)
+	_temp_barrels(member, 2)
+	assert_eq(_filled(pivot, member).vertex_charges[1], int(_charges(member)) + 2)
+
+
+func test_a_map_barrel_adds_nothing_past_the_live_charges() -> void:
+	var pivot := _node("Pivot")
+	var member := _node("Member")
+	_alloc.force_allocate(_entity, member)
+	_barrels(member, 1)
+	_set_charges(member, 1.0)
+	assert_eq(_filled(pivot, member).vertex_charges[1], int(_charges(member)),
+			"a map barrel's stacks are already the node's status")
+
+
+func test_a_temp_barrel_never_writes_the_carriers_status_nor_counts_as_a_barrel() -> void:
+	var pivot := _node("Pivot")
+	var member := _node("Member")
+	_alloc.force_allocate(_entity, member)
+	var map := _barrels(member, 1)
+	_set_charges(member, 1.0)
+	var before := _charges(member)
+	_temp_barrels(member, 1)
+	_filled(pivot, member)
+	assert_eq(_charges(member), before, "the carrier's explosive row is never written")
+	assert_eq(map[0].barrel_count(), 1, "barrel_count skips the temp")
+
+
+func test_a_swing_spends_a_temp_barrels_stack_as_exactly_one_blast() -> void:
+	var f := await VolleyBoardFixture.build(self, true)
+	var piece := f.leaves[0]
+	assert_eq(piece.get_combat().get_status_power(_EXPLOSIVE.id), 0.0, "no live charges")
+	_temp_barrels(piece, 1)
+	var positions: Array[Vector2] = [Vector2(-400, 0), Vector2(430, 0)]
+	var radii: Array[float] = [16.0, 16.0]
+	var edges: Array[Vector2i] = [Vector2i(0, 1)]
+	var state := BladeState.build(positions, 0, edges, radii)
+	var nodes: Array[SkillNode] = [f.hub, piece]
+	BladeVertexFill.new().fill(state, nodes)
+	assert_eq(state.vertex_charges[1], 1, "the temp's one stack is the piece's only charge")
+	var gate := BladePopResolver.LiveGate.new(state, f.attacker)
+	var ev := BladeHitEvent.new(0.5, 1, -1, f.target)
+	var di := BladeDamageInstance.new(ev, gate)
+	di.amount = 10.0
+	di.type = DamageInstance.Type.PHYSICAL
+	di.target = f.target
+	di.attacker = f.attacker
+	var hits: Array[HitInstance] = []
+	gate.arm_blasts(ev, di, hits, CombatWorld.live(), [])
+	gate.admit(ev, CombatWorld.live())
+	assert_eq(gate.blast_of(ev), BladePopResolver.LiveGate.BLAST, "the contact set the blast off")
+	assert_eq(state.vertex_charges[1], 0, "the stack is spent")
+	var spends := gate.take_spends()
+	assert_eq(spends.size(), 1, "exactly one spend")
+	assert_eq(piece.get_combat().get_status_power(_EXPLOSIVE.id), 0.0,
+			"nothing reached the board's status rows")
