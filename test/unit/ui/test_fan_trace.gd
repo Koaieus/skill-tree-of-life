@@ -15,6 +15,7 @@ const _SCENE := preload("res://ui/tooltip_fan/fan_trace.tscn")
 
 func _make() -> FanTrace:
 	var trace := _SCENE.instantiate() as FanTrace
+	trace.clock.manual = true
 	add_child(trace)
 	autofree(trace)
 	return trace
@@ -255,7 +256,7 @@ func test_idle_pulse_only_touches_the_tip_never_the_line() -> void:
 	var width_before := trace._trace.width
 	trace._on_draw_in_finished() # settles + starts idle
 	# Let the idle tween run a beat.
-	await get_tree().create_timer(0.1).timeout
+	trace.clock.advance(trace.idle_anim.period * 0.25)
 	assert_eq(trace._trace.default_color, color_before, "idle must never touch the line color")
 	assert_eq(trace._trace.width, width_before, "idle must never touch the line width")
 

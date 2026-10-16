@@ -24,6 +24,7 @@ const B := Vector2(520.0, 100.0)
 
 func _spawn() -> EdgeEnergize:
 	var overlay: EdgeEnergize = ENERGIZE.instantiate()
+	overlay.clock.manual = true
 	add_child_autofree(overlay)
 	overlay.edge_origin = A
 	overlay.edge_target = B
@@ -210,7 +211,7 @@ func test_it_lingers_before_finishing() -> void:
 	watch_signals(overlay)
 	overlay._on_arrival()
 	assert_signal_not_emitted(overlay, "finished", "the burn-in outlives the front")
-	await wait_seconds(0.35)
+	overlay.clock.advance(overlay.linger_seconds + 0.05)
 	assert_signal_emitted(overlay, "finished")
 
 
@@ -271,6 +272,7 @@ func test_context_without_endpoints_never_touches_top_level() -> void:
 	# unconditional `top_level = true` (e.g. moved into `_ready`) would
 	# reinterpret those coordinates as world space and misplace the overlay.
 	var overlay: EdgeEnergize = ENERGIZE.instantiate()
+	overlay.clock.manual = true
 	add_child_autofree(overlay)
 	assert_false(overlay.top_level, "never received a context — stays parent-space by default")
 	overlay._on_context({&"magnitude": 0.5})

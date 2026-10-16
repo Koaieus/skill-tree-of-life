@@ -256,6 +256,8 @@ const PHI_FRACTION := 0.382
 ## Full computed polyline (progress == 1). Cached so reveal truncation doesn't
 ## re-run TraceRouter every frame of the tween.
 var _full_points := PackedVector2Array()
+## The one door all four tweens come through; a test sets `clock.manual` and steps.
+var clock := TweenClock.new()
 var _lifecycle_tween: Tween = null
 var _idle_tween: Tween = null
 var _dismiss_tween: Tween = null
@@ -454,7 +456,7 @@ func play_in() -> Tween:
 	_tip.scale = Vector2.ONE * tip_scale
 	_apply_tip_color()
 	progress = 0.0
-	_lifecycle_tween = create_tween()
+	_lifecycle_tween = clock.tween(self)
 	if ignite_fraction > 0.0:
 		_lifecycle_tween.tween_property(self, "progress", ignite_fraction,
 			draw_in_duration * ignite_fraction).set_trans(Tween.TRANS_LINEAR)
@@ -478,7 +480,7 @@ func play_out() -> Tween:
 	_erasing = true
 	_tip_dismissing = false
 	_tip.visible = false
-	_lifecycle_tween = create_tween()
+	_lifecycle_tween = clock.tween(self)
 	if ignite_fraction > 0.0 and progress > ignite_fraction:
 		_lifecycle_tween.tween_property(self, "progress", ignite_fraction,
 			erase_duration * (1.0 - ignite_fraction)) \
@@ -515,7 +517,7 @@ func _play_tip_dismiss() -> void:
 		return
 	_tip_dismissing = true
 	_tip.visible = true
-	_dismiss_tween = create_tween()
+	_dismiss_tween = clock.tween(self)
 	_dismiss_tween.set_parallel(true)
 	_dismiss_tween.tween_property(_tip, "scale", Vector2.ZERO, tip_dismiss_duration) \
 		.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
@@ -540,7 +542,7 @@ func _refresh_idle() -> void:
 	var period := maxf(idle_anim.period, 0.05)
 	_tip.position = _full_points[_full_points.size() - 1] if not _full_points.is_empty() else to_point
 	_tip.visible = true
-	_idle_tween = create_tween().set_loops()
+	_idle_tween = clock.tween(self).set_loops()
 	_idle_tween.tween_property(_tip, "scale", Vector2.ONE * tip_scale * idle_anim.pulse_scale, period * 0.5) \
 		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 	_idle_tween.tween_property(_tip, "scale", Vector2.ONE * tip_scale, period * 0.5) \

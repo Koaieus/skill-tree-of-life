@@ -102,6 +102,8 @@ const _OVERLAY_WIDTH_PARAM: StringName = &"edge_width"
 ## is the number [method max_live_overlays] is bounded by — retuning it changes
 ## peak overlay count, so read #663's load table before raising it.
 @export_range(0.0, 8.0, 0.05) var linger_seconds: float = 2.5
+## The one door the linger tween comes through; a test sets `clock.manual` and steps.
+var clock := TweenClock.new()
 
 ## Fraction of the edge the overlay already covers when the front sets off.
 ## A hair above zero so the very first frame is a visible spark at the origin
@@ -167,7 +169,7 @@ func _on_arrival() -> void:
 	if linger_seconds <= 0.0:
 		_emit_finished()
 		return
-	var tween := create_tween()
+	var tween := clock.tween(self)
 	tween.tween_property(self, ^"_alpha", 0.0, linger_seconds)
 	tween.tween_callback(_emit_finished)
 	set_process(true)
