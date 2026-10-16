@@ -51,9 +51,9 @@ func _combat() -> NodeCombat:
 	return _nodes[0].get_combat()
 
 
-## Hand-built at the model's anchor (0.02, uncapped) — the authored
-## `.tres` is the owner's to tune, so only the shape tests read it.
-func _def(per_power: float = 0.02) -> CorruptionStatus:
+## Hand-built at the authored knob (uncapped), so a retune of the `.tres`
+## moves every expectation with it.
+func _def(per_power: float = _AUTHORED.damage_per_power) -> CorruptionStatus:
 	var d := CorruptionStatus.new()
 	d.id = &"corruption"
 	d.display_name = "Corruption"
@@ -104,8 +104,8 @@ func test_armor_and_damage_floor_change_nothing() -> void:
 	_entity.stat_board.get_stat(&"min_damage_taken").base_value = -5.0
 	assert_almost_eq(_nodes[0].get_combat().get_local_value(&"armor"), 100.0, 0.001, "armor arranged")
 	_def()._on_burst(_combat(), 1, 10)
-	assert_almost_eq(_nodes[0].get_current_hp(), 1600.0, 0.001,
-			"400 lands whole: TRUE bypasses armor 100 and the -5 floor alike")
+	assert_almost_eq(_nodes[0].get_current_hp(), 2000.0 - 10.0 * _AUTHORED.damage_per_power * 2000.0, 0.001,
+			"10 × X of max lands whole: TRUE bypasses armor 100 and the -5 floor alike")
 
 
 # ── projections: nothing ticks ───────────────────────────────────────────────

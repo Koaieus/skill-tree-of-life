@@ -119,6 +119,12 @@ func _fill(node: SkillNode, level: int) -> void:
 	_alloc.force_fill(node, level)
 
 
+## The authored rider's `power` — the knob a blade contact lands.
+func _rider_power() -> float:
+	var addon := autofree(_COMPROMISER_SCENE.instantiate()) as SkillNodeAddon
+	return (addon.on_hit_effects[0] as ApplyStatusEffect).power
+
+
 ## The corruption stacks the outcome's first landed corruption carried.
 func _corruption(outcome: AttackOutcome) -> float:
 	for hit in outcome.hits:
@@ -134,14 +140,14 @@ func _corruption(outcome: AttackOutcome) -> float:
 func test_a_compromiser_on_a_1_of_x_blade_node_lands_1_stack() -> void:
 	_attach(_tip)
 	await _settle()
-	assert_eq(_corruption(_plan().resolve_against(CombatWorld.live())), 1.0)
+	assert_eq(_corruption(_plan().resolve_against(CombatWorld.live())), _rider_power())
 
 
 func test_a_compromiser_on_a_2_of_x_blade_node_still_lands_1_stack() -> void:
 	_fill(_tip, 2)
 	_attach(_tip)
 	await _settle()
-	assert_eq(_corruption(_plan().resolve_against(CombatWorld.live())), 1.0,
+	assert_eq(_corruption(_plan().resolve_against(CombatWorld.live())), _rider_power(),
 			"no allocation ladder")
 
 
@@ -149,7 +155,7 @@ func test_a_compromiser_on_a_3_of_x_blade_node_still_lands_1_stack() -> void:
 	_fill(_tip, 3)
 	_attach(_tip)
 	await _settle()
-	assert_eq(_corruption(_plan().resolve_against(CombatWorld.live())), 1.0,
+	assert_eq(_corruption(_plan().resolve_against(CombatWorld.live())), _rider_power(),
 			"no 3/X multiplier")
 
 
@@ -160,8 +166,8 @@ func test_the_attackers_corruption_stacks_per_hit_folds_into_the_rider() -> void
 	_attacker.stat_board.add_modifier(more)
 	_attach(_tip)
 	await _settle()
-	assert_eq(_corruption(_plan().resolve_against(CombatWorld.live())), 3.0,
-			"1 authored + 2 from the attacker's board")
+	assert_eq(_corruption(_plan().resolve_against(CombatWorld.live())), _rider_power() + 2.0,
+			"authored + 2 from the attacker's board")
 
 
 # ── temp face ───────────────────────────────────────────────────────────────
@@ -177,7 +183,7 @@ func test_a_temp_compromiser_lands_the_same_1_per_contact() -> void:
 	plan.toggle_member(_tip)
 	assert_true(plan.apply_temp_upgrade(_tip, _COMPROMISER_SCENE), "fits the budget")
 	await _settle()
-	assert_eq(_corruption(plan.resolve_against(CombatWorld.live())), 1.0)
+	assert_eq(_corruption(plan.resolve_against(CombatWorld.live())), _rider_power())
 
 
 func test_a_temp_compromiser_costs_2_blade_size_and_1_corruption_aspect() -> void:

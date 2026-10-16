@@ -212,8 +212,8 @@ func test_a_row_at_turn_end_never_topples_twice() -> void:
 	_a.resolve_turn_end()
 	assert_eq([_stacks(n[1]), _stacks(n[2])], [1.0, 0.0], "one topple: 1 to node 1, 1 burned")
 	var max_hp := n[2].get_combat().get_max_hp()
-	assert_almost_eq(hp - _hp(n[2]), HitPoints.whole(2.0 * 0.02 * max_hp), 0.001,
-			"exactly one burst (topples 1 × T 2 × 2%)")
+	assert_almost_eq(hp - _hp(n[2]), HitPoints.whole(2.0 * _CORRUPTION.damage_per_power * max_hp), 0.001,
+			"exactly one burst (topples 1 × T 2 × X)")
 
 
 func test_the_sandpile_turn_tick_moves_nothing_the_driver_owns_it() -> void:
