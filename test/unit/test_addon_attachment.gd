@@ -7,6 +7,7 @@ extends GutTest
 
 const SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const BUNKER_SCENE := preload("res://skill_node/addons/defs/bunker_addon.tscn")
+const SPIKE_RING_SCENE := preload("res://skill_node/addons/defs/spike_ring_addon.tscn")
 const BOARD := preload("res://entity/default_entity_board.tres")
 
 var _node: SkillNode
@@ -51,14 +52,17 @@ func test_adoption_orders_correctly_against_hp_binding() -> void:
 	var entity := Entity.new()
 	entity.stat_board = BOARD.duplicate(true) as EntityStatBoard
 	add_child_autofree(entity)
-	# A code-built addon: the base script alone carries a local modifier list.
+	# No shipped addon grants node_health, so a real one carries an extra
+	# grant: addons are scenes, never built in code.
 	var bonus := 50.0
 	var hp := StatModifier.new()
 	hp.stat_id = &"node_health"
 	hp.operation = StatModifier.Operation.ADD_BONUS
 	hp.value = bonus
-	var addon := SkillNodeAddon.new()
-	addon.local_modifiers = [hp]
+	var addon := SPIKE_RING_SCENE.instantiate() as SkillNodeAddon
+	var mods := addon.local_modifiers.duplicate()
+	mods.append(hp)
+	addon.local_modifiers = mods
 	_node.add_child(addon)
 	_node.owned_by = entity
 	add_child(_node)
