@@ -34,7 +34,7 @@ These are established mechanics referenced consistently in the design docs.
 > not two.
 
 **Effect:** Two authored modifiers (`bunker_addon.tscn`) — `+5 armor` and
-`-5 min_damage_taken` — reduce `taken` for every attack type hitting this
+`-5 min_damage_taken` (owner, 2026-10-16, #1369: the default floor is 5, so a lone Bunker nets the floor to 0 and heals only when a pool roll pushes it lower; Curse counters it) — reduce `taken` for every attack type hitting this
 specific node, the node-level version of the `armor` entity stat. **Plus a
 third, characteristic effect shipped in #781: `+1 deflection`.** Above 0,
 `deflection` makes the node a solid obstacle a melee blade cannot pass
@@ -51,7 +51,7 @@ break, and once its last edge to the pivot goes it coasts with the severed
 rest of the blade.
 
 **On a blade (owner, 2026-10-16, #1369).** Armor and floor do nothing *for* a blade; a bunker member gets its own faces:
-- **Blast shield.** A bunker member ignores defensive explosions, the way an Explosive-charged piece shrugs them.
+- **Blast shield** (shipped, #1631). A bunker member ignores defensive explosions, the way an Explosive-charged piece shrugs them, but **spends nothing**. Keyed on the `deflection` stat, not the addon, so anything that grants `deflection` shields (today only Bunker). See `docs/domain/explosive.md`.
 - **Mace head.** A bunker member is heavier than a plain member.
 - **Bunker × bunker.** A bunker member hitting a bunker plate collides elastically and recoils. If the hit is hard enough (mass × speed past a threshold), it destroys the defender's Bunker addon: *"go find yourself another bunker to hide in"*.
 

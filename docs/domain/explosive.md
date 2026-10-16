@@ -142,7 +142,10 @@ with `m` charges (`node_charges`, less this swing's spends):
 - **The node's side** `m + r·shared` reaches the **blade pieces** within
   `warhead_reach × radius_for(struck.radius, node_power)` of the struck
   node (`_piece_pass`): a plain piece POPS, a charged piece is armed, not
-  fragile, and SHRUGS. **The node's side never reaches the board.**
+  fragile, and SHRUGS. A piece whose source node has `deflection`
+  (`BladeState.vertex_shielded`, filled by `BladeVertexFill`) also SHRUGS,
+  spending nothing; a charged one keeps its charges as any shrugged piece
+  does. **The node's side never reaches the board.**
 - The contact's own piece is SPENT, or POPPED (and its hit refused) when it
   ends at 0 charges.
 - One `Contact` row per explosive contact in `Result.contacts` (time,
