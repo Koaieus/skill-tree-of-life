@@ -48,8 +48,9 @@ statuses stay on `StatusHost`.
 
 `apply_cascade` is the forced-dealloc cascade for both worlds, with
 `cascade_set` as its pure set query. The design's single `if host != null`
-branch sits inside the loop body and selects only the STRIP VERB —
-`AllocationSystem.force_deallocate` when live, `_strip_one` when shadow.
+branch sits inside the loop body and selects only the DOOR to the one strip
+atom, `strip_node(n, CAUSE_DEATH)` — through `AllocationSystem.force_deallocate`
+(for its signal) when live, directly when shadow.
 Everything around that branch — the set, the pre-strip `allocation_level`
 read, the SP wound, the `dealloc_damage` chip, the `DeallocEntry` record — is
 shared, so a shadow charges the wound and the chip exactly as the live path

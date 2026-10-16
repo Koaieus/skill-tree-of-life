@@ -46,13 +46,18 @@ bypass are [defense-axes.md](defense-axes.md).
 - **Deallocation.** `CLEAR` rows release and spill
   (`NodeCombat.release_statuses(true)`, which hands back only the released rows);
   `LINGER` rows stay on the node, are never spilled, and while it is unowned tick
-  once per world turn (`CombatWorld.tick_lingering`, ADR 0055). A combat or death
-  strip (`EntityCombat.apply_cascade`) releases every row. A bare
-  `force_deallocate` outside a cascade releases `CLEAR` rows without spilling.
-- **Spill.** Exactly two feeders note released rows on the world's removal
-  collector before the strip: `EntityCombat.apply_cascade`'s per-node body (cause
-  DEATH, both worlds; every forced removal, entity death included) and
-  `AllocationSystem._deallocate_unchecked` (cause DEALLOC).
+  once per world turn (`CombatWorld.tick_lingering`, ADR 0055). A death strip
+  (`force_deallocate`, either branch of `EntityCombat.apply_cascade`) releases
+  every row, `LINGER` included.
+- **Spill.** One strip atom, `EntityCombat.strip_node(n, cause)`, is the only
+  feeder: it notes the released rows on the world's removal collector before it
+  clears ownership. `deallocate` strips with cause DEALLOC (`CLEAR` rows only);
+  `force_deallocate` and both `apply_cascade` branches with cause DEATH (every
+  row). Every strip spills — nothing strips quietly — and the flush is the
+  enclosing beat's job, never the strip's. Live removals still pending when the
+  actor hands off its turn are a bug: `TurnManager.end_turn` `push_error`s on
+  `CombatWorld.has_pending_removals()`. A sandbox reset is a death of each
+  entity (`deallocate_all_owned`) plus its own `flush_removals()`.
   `CombatWorld.flush_removals()` runs each def's `spread.on_removed` once per beat
   over the beat's whole removed union, so a node stripped in that beat never
   receives. A beat fed a rebuilt record (a live replay) lands the recorded
