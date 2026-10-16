@@ -46,7 +46,7 @@
 [ext_resource type="Resource" path="res://ui/indicator/themes/magic.tres" id="31_theme_magic"]
 [ext_resource type="Resource" path="res://ui/indicator/themes/core_move.tres" id="31_theme_core_move"]
 [ext_resource type="PackedScene" path="res://ui/vfx/channel_lasso/channel_lasso_director.tscn" id="32_lasso_dir"]
-[ext_resource type="Script" path="res://ui/vfx/blast_vfx.gd" id="99_blast_vfx"]
+[ext_resource type="PackedScene" path="res://ui/vfx/blast_vfx.tscn" id="99_blast_vfx"]
 
 [node name="GameRoot" type="Node2D" unique_id=599287172]
 script = ExtResource("1_root")
@@ -233,11 +233,8 @@ allocation_system = NodePath("../../Systems/AllocationSystem")
 battle_system = NodePath("../../Systems/BattleSystem")
 metadata/_custom_type_script = "uid://db27minejvsw1"
 
-[node name="BlastVFX" type="Node2D" parent="Graph"]
+[node name="BlastVFX" parent="Graph" instance=ExtResource("99_blast_vfx")]
 unique_name_in_owner = true
-z_index = 2000
-z_as_relative = false
-script = ExtResource("99_blast_vfx")
 
 [node name="ChannelLassoDirector" parent="Graph" node_paths=PackedStringArray("allocation_system") instance=ExtResource("32_lasso_dir")]
 unique_name_in_owner = true

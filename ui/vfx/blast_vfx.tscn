@@ -1,0 +1,8 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://ui/vfx/blast_vfx.gd" id="1_blast_vfx"]
+
+[node name="BlastVFX" type="Node2D"]
+z_index = 2000
+z_as_relative = false
+script = ExtResource("1_blast_vfx")
