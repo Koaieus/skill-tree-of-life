@@ -79,7 +79,8 @@ enum State {
 		if is_node_ready():
 			_restyle()
 
-## The addon's swing price ([method SkillNodeAddon.get_temp_costs]): every
+## What the NEXT temp of this kind costs the swing
+## ([method MeleeAttackPlan.next_temp_costs] — it escalates per placement): every
 ## currency it spends, listed in the tooltip so "unaffordable" is explicable
 ## rather than merely visible.
 @export var costs: Dictionary[StringName, int] = {&"blade_size": 1}:
