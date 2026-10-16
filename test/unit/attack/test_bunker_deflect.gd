@@ -200,14 +200,42 @@ func test_a_clamped_spine_breaks_an_edge_within_the_contact() -> void:
 	assert_eq(state.removed_vertices.size(), 0, "ADR 0005: a bunker never pops a vertex")
 
 
-func test_a_truss_breaks_the_end_rung_that_takes_the_plate_head_on() -> void:
+func test_a_truss_breaks_the_tip_vertexs_pivot_ward_edge() -> void:
 	var state := _truss()
+	var hops := _hops(state)
 	var r := _run(state, 6)
 	assert_true(r.broke, "an induced truss must break")
-	# Edge 10 is (5, 6): the rung at the tip, perpendicular to the spine and so
-	# squarely along the plate's push — the load-share selector's pick.
-	assert_eq(r.break_edge, 10, "the most loaded edge is the tip rung")
 	assert_true(r.break_step > 0, "the break is stamped with the sample that armed it")
+	if not r.broke:
+		return
+	# The plate meets the tip pair (5, 6), both one hop further out than the
+	# rest. What snaps is the jammed vertex's edge one step toward the pivot —
+	# never the tip rung, whose endpoints sit at the same hop distance.
+	var e: Vector2i = state.edges[r.break_edge]
+	var far := maxi(hops[e.x], hops[e.y])
+	var near := mini(hops[e.x], hops[e.y])
+	assert_eq(far, hops[6], "the broken edge reaches the tip, got %s" % e)
+	assert_eq(near, far - 1, "the broken edge steps toward the pivot, got %s" % e)
+
+
+## Hop distance from the pivot over [param state]'s edges (the pristine
+## topology — every case here measures it before anything breaks).
+func _hops(state: BladeState) -> PackedInt32Array:
+	var hops := PackedInt32Array()
+	hops.resize(state.positions.size())
+	hops.fill(-1)
+	hops[state.pivot_index] = 0
+	var frontier: Array[int] = [state.pivot_index]
+	while not frontier.is_empty():
+		var next: Array[int] = []
+		for v in frontier:
+			for e in state.edges:
+				var o := e.y if e.x == v else (e.x if e.y == v else -1)
+				if o >= 0 and hops[o] < 0:
+					hops[o] = hops[v] + 1
+					next.append(o)
+		frontier = next
+	return hops
 
 
 func test_raising_solver_fidelity_sharpens_the_separation() -> void:
