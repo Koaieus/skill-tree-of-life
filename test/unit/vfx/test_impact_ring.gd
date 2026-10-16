@@ -171,7 +171,8 @@ func test_it_finishes_and_frees_itself() -> void:
 	ring.duration = 0.05
 	var seen: Array[bool] = [false]
 	ring.finished.connect(func() -> void: seen[0] = true)
+	var ring_id := ring.get_instance_id()
 	add_child(ring)
-	await wait_until(func() -> bool: return seen[0] and not is_instance_valid(ring), 2.0)
+	await wait_until(func() -> bool: return seen[0] and not is_instance_valid(instance_from_id(ring_id)), 2.0)
 	assert_true(seen[0], "the ring must announce `finished` so a coordinator can drain")
 	assert_false(is_instance_valid(ring), "and then free itself, like CancelDissipate")
