@@ -17,6 +17,9 @@ const _GRAZE_DEPTH := 6.0
 const _BREAK_WITHIN_SAMPLES := 20
 ## A plate on the grip's circle, clear of the start pose.
 const _GRIP_TURNS := 0.2
+## The capsule case's links: long enough that a plate mid-span clears both discs.
+const _LONG_SPACING := 140.0
+const _THIN_RADIUS := 12.0
 
 
 ## Since #847 there is one backend, the native one; a checkout without the
@@ -218,6 +221,41 @@ func test_a_truss_breaks_the_tip_vertexs_pivot_ward_edge() -> void:
 	assert_eq(near, far - 1, "the broken edge steps toward the pivot, got %s" % e)
 
 
+func test_an_edge_capsule_jammed_on_a_plate_breaks_that_edge() -> void:
+	# Long, thin links: the plate sits mid-span of edge (2, 3), farther from
+	# both endpoint discs than their reach, so only that capsule touches it.
+	var positions: Array[Vector2] = []
+	var edges: Array[Vector2i] = []
+	var radii: Array[float] = []
+	for i in 4:
+		positions.append(Vector2(float(i) * _LONG_SPACING, 0.0))
+		radii.append(_THIN_RADIUS)
+		if i > 0:
+			edges.append(Vector2i(i - 1, i))
+	var state := BladeState.build(positions, 0, edges, radii)
+	for i in range(1, 3):
+		ClampAddon.append_weld_braces(state, i)
+	var field := BladeObstacleField.new()
+	field.add_zone(Vector2.from_angle(0.15 * TAU) * (_LONG_SPACING * 2.5), _BUNKER_RADIUS)
+	state.obstacles = field
+	BladeSim.simulate(state, _drivers(state), _DURATION, BladeSim.DEFAULT_DT,
+			BladeSim.DEFAULT_ITERATIONS, 0.0, BladeSim.DEFAULT_SUBSTEPS, true,
+			BladeSwingClock.new(_DURATION))
+	# Up to the sample that armed the break: past it, this bare simulate (no
+	# resolve loop to land the break) lets the jammed blade slide on.
+	var vertex_banked := false
+	for b: BladeObstacleField.Bank in field.history:
+		for key: int in b.edge_residual[0]:
+			vertex_banked = vertex_banked or key < positions.size()
+		if b.break_edge >= 0:
+			break
+	assert_false(vertex_banked, "only the capsule may touch the plate before the break")
+	assert_true(field._break_edge >= 0, "a clamped spine jammed mid-span must break")
+	if field._break_edge >= 0:
+		assert_eq(state.edges[field._break_edge], Vector2i(2, 3),
+				"the edge whose capsule takes the plate is the one that snaps")
+
+
 ## Hop distance from the pivot over [param state]'s edges (the pristine
 ## topology — every case here measures it before anything breaks).
 func _hops(state: BladeState) -> PackedInt32Array:
@@ -321,6 +359,9 @@ func test_a_plate_on_the_grips_arc_breaks_an_edge_incident_to_the_grip() -> void
 	if r.broke:
 		var e: Vector2i = state.edges[r.break_edge]
 		assert_true(e.x == 1 or e.y == 1, "the broken edge is incident to the grip, got %s" % e)
+		# The grip is the most rigid case: its own edge to the pivot snaps.
+		assert_true(e.x == state.pivot_index or e.y == state.pivot_index,
+				"the grip breaks its edge to the pivot, got %s" % e)
 	assert_eq(state.removed_vertices.size(), 0, "ADR 0005: a bunker never pops a vertex")
 
 
