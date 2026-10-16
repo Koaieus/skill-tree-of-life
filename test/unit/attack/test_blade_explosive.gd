@@ -303,6 +303,60 @@ func test_100_on_1_sizes_each_side_and_records_the_verdicts() -> void:
 		assert_ne(spend.node, state.vertex_node[3], "and spends nothing")
 
 
+## Two uncharged pieces and one charged piece in the node side's reach; the
+## shielded ones (a `deflection` source) shrug — the uncharged one spends
+## nothing, the charged one spends exactly as an unshielded charged piece.
+func test_a_shielded_piece_shrugs_the_node_side_spending_nothing() -> void:
+	_charge(_f.target, 1.0)
+	var res := _spread().resonance
+	var reach := _share() * _spread().radius_for(_f.target.radius, 1 + res)
+	var t := _f.target.global_position
+	var state := _blade([t + Vector2(-10, 0), t + Vector2(0, 0.5 * reach), t + Vector2(0, -0.5 * reach)],
+			[100, 0, 0])
+	state.vertex_shielded[2] = 1
+	var gate := BladePopResolver.LiveGate.new(state, _f.attacker)
+	var c := _contact(gate, 1, _f.target)
+	_arm(gate, state, c)
+	assert_true(gate.admit(c[0], CombatWorld.live()))
+	var V := BladePopResolver.Contact.Verdict
+	assert_eq(_only_contact(gate).verdicts, {1: V.SPENT, 2: V.SHRUGGED, 3: V.POPPED},
+			"the shielded piece shrugs; the same piece unshielded pops")
+	assert_false(gate.result.dead_at.has(2), "the shielded piece lives")
+	assert_true(gate.result.dead_at.has(3), "the plain piece dies")
+	for spend in gate.take_spends():
+		assert_ne(spend.node, state.vertex_node[2], "a shielded piece spends nothing")
+
+
+func test_a_charged_shielded_piece_spends_as_a_charged_one() -> void:
+	_charge(_f.target, 1.0)
+	var res := _spread().resonance
+	var reach := _share() * _spread().radius_for(_f.target.radius, 1 + res)
+	var t := _f.target.global_position
+	var state := _blade([t + Vector2(-10, 0), t + Vector2(0, 0.5 * reach)], [100, 2])
+	state.vertex_shielded[1] = 1
+	state.vertex_shielded[2] = 1
+	var gate := BladePopResolver.LiveGate.new(state, _f.attacker)
+	var c := _contact(gate, 1, _f.target)
+	_arm(gate, state, c)
+	assert_true(gate.admit(c[0], CombatWorld.live()))
+	assert_eq(state.vertex_charges[1], 99, "the contact's own piece spends 1, shield or not")
+	assert_eq(state.vertex_charges[2], 2, "a shrugged charged piece keeps its charges")
+	var V := BladePopResolver.Contact.Verdict
+	assert_eq(_only_contact(gate).verdicts, {1: V.SPENT, 2: V.SHRUGGED})
+	var spent := gate.take_spends().filter(func(s): return s.node == state.vertex_node[1])
+	assert_eq(spent.size(), 1, "one spend on the contact's piece, no double effect")
+
+
+func test_fill_shields_a_vertex_whose_source_grants_deflection() -> void:
+	var bunker := (load("res://skill_node/addons/defs/bunker_addon.tscn") as PackedScene).instantiate()
+	_f.leaves[0].add_child(bunker)
+	var nodes: Array[SkillNode] = [_f.hub, _f.leaves[0], _f.leaves[1]]
+	var state := _blade([Vector2(400, 0), Vector2(450, 150)], [0, 0])
+	BladeVertexFill.new().fill(state, nodes)
+	assert_eq(state.vertex_shielded[1], 1, "the bunker vertex is shielded")
+	assert_eq(state.vertex_shielded[2], 0, "a plain vertex is not")
+
+
 func test_3_on_5_both_spend_3_and_the_piece_dies() -> void:
 	_charge(_f.target, 5.0)
 	var res := _spread().resonance

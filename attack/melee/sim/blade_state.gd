@@ -77,6 +77,12 @@ var vertex_blunting: PackedFloat32Array
 ## the source nodes as cleanses; nothing writes the board from this array.
 ## Zero-initialised in build(): a hand-built state carries no charges.
 var vertex_charges: PackedInt32Array
+## Per-particle blast shield: 1 iff the source node's local `deflection` is
+## true, filled at swing start by [BladeVertexFill]. A shielded piece shrugs
+## a defensive explosion in [BladePopResolver.LiveGate] spending nothing —
+## keyed on the stat, so whatever grants `deflection` shields. Zero-initialised
+## in build(): a hand-built state is unshielded.
+var vertex_shielded: PackedByteArray
 ## Per-particle on-hit riders (#951, ADR 0044) — one Array of [OnHitEffect]
 ## per vertex, empty meaning none. Untyped on purpose: naming the type here
 ## closes a class-load cycle through the spell module (`check` fails). Sized in build(), then appended to by each
@@ -177,6 +183,8 @@ static func build(
 	s.vertex_blunting.resize(positions_.size())  # zero-init == unfilled; see the member
 	s.vertex_charges = PackedInt32Array()
 	s.vertex_charges.resize(positions_.size())
+	s.vertex_shielded = PackedByteArray()
+	s.vertex_shielded.resize(positions_.size())
 	s.vertex_on_hit = []
 	for i in positions_.size():
 		var riders: Array = []
