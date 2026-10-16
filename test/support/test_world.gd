@@ -82,6 +82,16 @@ func build(adjacency: Array, positions: Dictionary = {}) -> Array[SkillNode]:
 ## entity its own one-member camp, so two default entities are hostile.
 func add_entity(display_name: String, board: EntityStatBoard = null,
 		faction: Faction = null, color: Color = Color.WHITE) -> Entity:
+	var ent := new_entity(display_name, board, faction, color)
+	graph.entities_container.add_child(ent)
+	return ent
+
+
+## [method add_entity] without the parenting, for a caller that must place the
+## entity elsewhere under the graph. It must still enter the graph's subtree,
+## or it gets no navigator.
+static func new_entity(display_name: String, board: EntityStatBoard = null,
+		faction: Faction = null, color: Color = Color.WHITE) -> Entity:
 	var ent := Entity.new()
 	ent.display_name = display_name
 	ent.color = color
@@ -92,7 +102,6 @@ func add_entity(display_name: String, board: EntityStatBoard = null,
 	ent.faction = faction
 	ent.stat_board = board if board != null \
 			else _DEFAULT_BOARD.duplicate(true) as EntityStatBoard
-	graph.entities_container.add_child(ent)
 	return ent
 
 

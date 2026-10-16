@@ -60,7 +60,11 @@ func make_entity(graph: Graph, display_name: String, color: Color = Color.WHITE,
 		# If core-class / other tests run into crit-triggered flakiness despite
 		# this zeroing (e.g. a modifier adds crit_chance after construction),
 		# switch to a high-priority SET=0 StatModifier on the Stat instead.
-	return TestWorld.around(graph).add_entity(display_name, board, faction, color)
+	# A direct child of the graph, not `entities_container`: tests read the
+	# graph back as `entity.get_parent() as Graph`.
+	var ent := TestWorld.new_entity(display_name, board, faction, color)
+	graph.add_child(ent)
+	return ent
 
 
 func give_big_hp(entity: Entity, value: float = 9999.0) -> void:

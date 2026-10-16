@@ -13,15 +13,14 @@ extends RefCounted
 ## is the guard (`.claude/rules/ranged-attack-fixtures.md`); [method build]
 ## runs it on the bare board.
 
-const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
-const _DEFAULT_BOARD := preload("res://entity/default_entity_board.tres")
 const _PLAYER_FACTION := preload("res://entity/factions/player.tres")
 const _NPC_FACTION := preload("res://entity/factions/npc.tres")
 
 const LEAF_RANGE := 1000.0
 
 var test: GutTest
+## The world this board is built on; [member graph] and [member alloc] are its.
+var world: TestWorld
 var graph: Graph
 var alloc: AllocationSystem
 var attacker: Entity
@@ -41,8 +40,8 @@ var nodes: Dictionary[StringName, SkillNode] = {}
 static func build(gut: GutTest, flat := false) -> VolleyBoardFixture:
 	var f := VolleyBoardFixture.new()
 	f.test = gut
-	f.graph = _GRAPH_SCENE.instantiate()
-	gut.add_child_autofree(f.graph)
+	f.world = TestWorld.create(gut)
+	f.graph = f.world.graph
 	f.hub = f._node(&"hub", Vector2(200, 0))
 	for i in 3:
 		var leaf := f._node(StringName("leaf_%d" % i),
@@ -59,9 +58,7 @@ static func build(gut: GutTest, flat := false) -> VolleyBoardFixture:
 	f.hostile = f._entity("Hostile", _NPC_FACTION, flat)
 	await gut.get_tree().process_frame
 
-	f.alloc = AllocationSystem.new()
-	f.alloc.graph = f.graph
-	gut.add_child_autofree(f.alloc)
+	f.alloc = f.world.allocator()
 	f.alloc.force_allocate(f.attacker, f.hub)
 	for leaf in f.leaves:
 		f.alloc.force_allocate(f.attacker, leaf)
@@ -111,19 +108,10 @@ func assert_firing_positions(expected: int) -> void:
 
 
 func _node(id: StringName, pos: Vector2) -> SkillNode:
-	var n := _SKILL_NODE_SCENE.instantiate() as SkillNode
-	n.name = String(id)
-	graph.add_skill_node(n)
-	n.global_position = pos
+	var n := world.add_node(id, pos)
 	nodes[id] = n
 	return n
 
 
 func _entity(display: String, faction: Faction, flat: bool) -> Entity:
-	var e := Entity.new()
-	e.display_name = display
-	e.faction = faction
-	e.stat_board = TestBoards.flat_entity_board() if flat \
-			else _DEFAULT_BOARD.duplicate(true) as EntityStatBoard
-	graph.entities_container.add_child(e)
-	return e
+	return world.add_entity(display, TestBoards.flat_entity_board() if flat else null, faction)
