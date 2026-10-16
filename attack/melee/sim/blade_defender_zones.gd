@@ -112,12 +112,12 @@ func deflects_at(z: int) -> bool:
 ## (#864).
 ##
 ## [b]Territory defends; terrain does not.[/b] `swing_drag` and `deflection`
-## are LOCAL modifiers authored the instant a [FortificationAddon] /
-## [BunkerAddon] is parented, and procgen attaches addons at generation time —
+## are LOCAL modifiers authored the instant a granter (a
+## [BunkerAddon], a bare grant) lands, and procgen attaches addons at generation time —
 ## when the whole board is still unowned. So the physics query's collision-bit
 ## predicate, which is keyed on the local value and nothing else by #810's
 ## design, cheerfully returned a map's worth of unowned walls and plates: a
-## swing across neutral ground was dragged and deflected by fortifications
+## swing across neutral ground was dragged and deflected by walls
 ## nobody had paid for.
 ##
 ## [b]The bit is deliberately NOT where this is fixed.[/b] [method

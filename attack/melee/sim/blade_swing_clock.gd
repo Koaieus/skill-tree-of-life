@@ -1,7 +1,7 @@
 class_name BladeSwingClock
 extends RefCounted
 
-## The swing's own clock, and the channel Fortification's drag acts on (#780).
+## The swing's own clock, and the channel swing drag acts on (#780).
 ##
 ## [b]Drag slows the CLOCK, never a particle.[/b] Subtracting velocity from a
 ## particle on a rigid blade does nothing: the distance constraints fight it,
@@ -112,7 +112,7 @@ var history: Array[Bank] = []
 ## can rewind it (#801). [b]The clock is sim state[/b] — `_f`, banked `drag`,
 ## which zones it has `touched` — so replaying a span of the swing to recover an
 ## exact pose must replay the clock with it. Restoring a FRESH clock instead
-## would un-bank a Fortification wall's drag mid-swing and silently stop it
+## would un-bank a dragging wall's drag mid-swing and silently stop it
 ## sheltering what is behind it. The zones themselves are not in here: they
 ## live on [BladeDefenderZones], are built once before the sim, and never
 ## change — which is also what lets one zone set be SHARED across a pivot's

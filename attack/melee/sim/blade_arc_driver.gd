@@ -17,7 +17,7 @@ var ease: Callable
 ## touched at least one fortified node — [method apply] reads its angular
 ## progress instead of deriving progress from `t`. Null, or present but not yet
 ## warping, leaves the expression below EXACTLY as it was, which is what keeps a
-## swing that never meets Fortification bit-identical (and native-parity-safe).
+## swing that never meets drag bit-identical (and native-parity-safe).
 ##
 ## Shared, not per-driver: every arc driver of one swing is the same rigid body
 ## turning about one pivot, so they must all read one progress or the blade

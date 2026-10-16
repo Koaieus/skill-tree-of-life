@@ -565,7 +565,7 @@ static func _coarse_rank_and_select(proposals: Array, entity: Entity, enemy_posi
 			zones_by_pivot[pivot] = probe.query_defender_zones(
 					pivot.global_position, float(bounds.get(pivot, 0.0)))
 		MeleeAttackPlan.attach_defender_field(state, zones_by_pivot[pivot])
-		# The coarse tier GAINS fortification drag here: before #811 it never
+		# The coarse tier GAINS swing drag here: before #811 it never
 		# built a clock at all, so a wall that would bog the real swing down
 		# ranked as if it were empty ground.
 		var clock: BladeSwingClock = BladeSwingClock.new(MeleeAttackPlan.SWING_DURATION) \

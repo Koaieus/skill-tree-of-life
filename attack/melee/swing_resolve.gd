@@ -18,7 +18,7 @@ extends RefCounted
 ## `obstacles.history` and `state.speed_history` are rebuilt per bake, so a
 ## sliced caller has to stitch them rather than assume they accumulate. Getting
 ## it wrong is not a visible glitch: a fresh clock mid-swing un-banks a
-## Fortification wall's drag and silently stops it sheltering what is behind it
+## dragging wall's drag and silently stops it sheltering what is behind it
 ## (`test_blade_chunked_parity.gd:200-203`). That an arbitrary boundary is
 ## bit-identical to no boundary at all is pinned by
 ## `test_a_dragged_swing_is_bit_identical_across_a_chunk_boundary`.
@@ -99,7 +99,7 @@ func _init(ctx: SwingContext) -> void:
 		return
 	_drivers = ctx.drivers
 	# The defender field (#811) carries both kinds; the clock is its
-	# accumulator half. Fortification drag (#780) bogs the swing's own clock
+	# accumulator half. Swing drag (#780) bogs the swing's own clock
 	# down cumulatively from the moment the blade first touches a wall — so a
 	# swing with any defender in reach gets one, and a swing with none gets
 	# neither.

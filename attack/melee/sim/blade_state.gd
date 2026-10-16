@@ -107,7 +107,7 @@ var pivot_index: int = 0
 ## Written by [method MeleeAttackPlan.resolve_against] at each severance, for
 ## exactly the complement of [method BladePopResolver._reachable_from_pivot] —
 ## the vertices that have stopped being pulled by the handle. [b]This is not
-## #780's channel.[/b] Fortification drag slows the swing's CLOCK
+## #780's channel.[/b] Swing drag slows the swing's CLOCK
 ## ([BladeSwingClock]) and removes nothing from the blade; this bleeds the
 ## velocity of a particle nothing is driving any more. A driven particle's
 ## damping is fought by the distance constraints and then overwritten outright

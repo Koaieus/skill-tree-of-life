@@ -186,7 +186,7 @@ static func simulate_range(
 	# thing that has to know a clock exists. A CONTINUED chunk is handed the same
 	# clock instance the previous chunk ticked (#780 is sim state: `_f`, banked
 	# `drag` and `touched` all carry) — building a fresh one mid-swing would
-	# un-bank a Fortification wall's drag and stop it sheltering what is behind it.
+	# un-bank a dragging wall's drag and stop it sheltering what is behind it.
 	if clock != null:
 		for d in drivers:
 			if d is BladeArcDriver:
