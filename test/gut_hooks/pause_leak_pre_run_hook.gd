@@ -39,7 +39,7 @@ func run() -> void:
 ## (`TurnManager.end_turn`), blamed on the wrong test. Dropped, never flushed —
 ## their nodes are freed by now; the next test starts on a fresh live world.
 func _on_end_test() -> void:
-	CombatWorld._live = null
+	CombatWorld.reset_live()
 
 
 func _on_start_script(coll_script) -> void:

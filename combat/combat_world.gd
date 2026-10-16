@@ -199,6 +199,12 @@ static func live() -> CombatWorld:
 	return _live
 
 
+## Drops the live world so the next live() starts with no pending removals.
+## Test-harness only: a run between tests, never mid-turn.
+static func reset_live() -> void:
+	_live = null
+
+
 ## A detached world. Nothing is snapshotted until something is asked for — see
 ## the class doc on why growing on demand is both safe and cheaper.
 static func shadow() -> CombatWorld:
