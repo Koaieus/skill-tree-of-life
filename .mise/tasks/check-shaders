@@ -49,6 +49,9 @@ func _initialize() -> void:
 		if shader == null:
 			push_error("PROBE: failed to load %s" % path)
 			continue
+		# Marker on stderr, the stream the engine's ERROR: lines use, so a
+		# failure line can be attributed to the shader compiled just before it.
+		printerr("PROBE: compiling %s" % path)
 		var mat := ShaderMaterial.new()
 		mat.shader = shader
 
@@ -94,20 +97,87 @@ FAIL_PATTERN = re.compile(
 SUMMARY_PATTERN = re.compile(r"PROBE: checked (\d+) shader\(s\), (\d+) include\(s\)")
 
 
-def main() -> int:
+COMPILING_PATTERN = re.compile(r"PROBE: compiling (\S+)")
+
+# The #908 shape: `TEXTURE` forwarded through a user function's sampler2D
+# parameter. Parses clean; codegen logs `ERROR: Condition
+# "!actions.custom_samplers.has(...)" is true. Continuing.`
+SELF_TEST_BAD = """shader_type canvas_item;
+
+vec4 tap(sampler2D tex, vec2 uv) {
+\treturn texture(tex, uv);
+}
+
+void fragment() {
+\tCOLOR = tap(TEXTURE, UV);
+}
+"""
+# Sorts after bad.gdshader: a failure attributed one shader late would name it.
+SELF_TEST_GOOD = """shader_type canvas_item;
+
+void fragment() {
+\tCOLOR = texture(TEXTURE, UV);
+}
+"""
+
+
+def run_probe(project_path: str) -> tuple[list[str], str]:
+    """Runs the probe against `project_path`; returns (failure lines, output).
+
+    stderr is merged into stdout so markers and engine errors keep their
+    order; each failure is prefixed with the shader last announced compiling.
+    """
     fd, probe_path = tempfile.mkstemp(suffix=".gd", prefix="check-shaders-probe-")
     try:
         with os.fdopen(fd, "w") as f:
             f.write(PROBE_SCRIPT)
         r = subprocess.run(
-            ["godot", "--headless", "--path", ".", "--script", probe_path],
-            capture_output=True, text=True,
+            ["godot", "--headless", "--path", project_path, "--script", probe_path],
+            stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
         )
     finally:
         os.unlink(probe_path)
 
-    out = r.stdout + r.stderr
-    failures = [line for line in out.splitlines() if FAIL_PATTERN.search(line)]
+    out = r.stdout
+    failures = []
+    current = "<before first shader>"
+    for line in out.splitlines():
+        m = COMPILING_PATTERN.search(line)
+        if m:
+            current = m.group(1)
+            continue
+        if FAIL_PATTERN.search(line):
+            failures.append(f"{current}: {line.strip()}")
+    return failures, out
+
+
+def self_test() -> int:
+    with tempfile.TemporaryDirectory(prefix="check-shaders-selftest-") as d:
+        with open(os.path.join(d, "project.godot"), "w") as f:
+            f.write("config_version=5\n")
+        with open(os.path.join(d, "bad.gdshader"), "w") as f:
+            f.write(SELF_TEST_BAD)
+        with open(os.path.join(d, "zz_good.gdshader"), "w") as f:
+            f.write(SELF_TEST_GOOD)
+        failures, out = run_probe(d)
+    if not failures:
+        print(out[-2000:])
+        print("✗ self-test: the #908 shape did not go red")
+        return 1
+    print("\n".join(failures))
+    misattributed = [l for l in failures if not l.startswith("res://bad.gdshader: ")]
+    if misattributed:
+        print("✗ self-test: failure not attributed to res://bad.gdshader")
+        return 1
+    print("✓ self-test: the #908 shape goes red, attributed to bad.gdshader")
+    return 0
+
+
+def main() -> int:
+    if "--self-test" in sys.argv[1:]:
+        return self_test()
+
+    failures, out = run_probe(".")
     if failures:
         print("\n".join(failures))
         print("✗ shader errors found")
