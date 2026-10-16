@@ -11,12 +11,12 @@ extends GutTest
 ##
 ## [b]The two bullets of #867's spec, in order.[/b]
 ##
-## 1. One test for all THREE defensive addons at once. Spike (pop),
+## 1. One test for all THREE defender stats at once. Spike (pop),
 ##    drag (`swing_drag`) and Bunker (`deflection`) each answer
 ##    ownership at a different site — [method BladePopResolver.LiveGate.admit],
 ##    and #864's gate in the zone query — so the contract "an unallocated node
 ##    does nothing to a blade" was three scattered assertions and no single
-##    statement of it. `test_an_unowned_node_carrying_all_three_addons_does_nothing`
+##    statement of it. `test_an_unowned_node_carrying_all_three_defender_stats_does_nothing`
 ##    is that statement.
 ##
 ## 2. A plate the swing KILLS must stop deflecting from the kill onward. The
@@ -182,7 +182,7 @@ func _closest_approach(traj: BladeTrajectory, center: Vector2) -> float:
 
 # --------------------------------------------------------------- spec bullet 1
 
-func test_an_unowned_node_carrying_all_three_addons_does_nothing() -> void:
+func test_an_unowned_node_carrying_all_three_defender_stats_does_nothing() -> void:
 	var ctx: Dictionary = await _setup(
 			[_SPIKE_SCENE, _BUNKER_SCENE], false, 200.0, true)
 	var plan: MeleeAttackPlan = ctx.plan

@@ -71,11 +71,11 @@ func test_addon_attached_well_after_the_node_is_already_established_still_flips_
 	await get_tree().physics_frame
 	await get_tree().physics_frame
 	await get_tree().physics_frame
-	assert_false(_drag_bit(), "still nothing fortified several frames in")
+	assert_false(_deflect_bit(), "still nothing bunkered several frames in")
 
-	_grant_drag(_node)
+	_node.add_child(_BUNKER_SCENE.instantiate())
 	await get_tree().physics_frame
-	assert_true(_drag_bit(), "a mid-lifetime grant mints swing_drag and the bit follows")
+	assert_true(_deflect_bit(), "a mid-lifetime attach mints deflection and the bit follows")
 
 
 ## Acceptance 3 — the registry is keyed on the LOCAL VALUE, never on addon
