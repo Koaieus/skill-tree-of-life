@@ -377,13 +377,15 @@ func test_a_non_seated_actors_command_waits_out_the_pre_roll() -> void:
 	# inside (:385-:422).
 	_applier.seat_policy = SeatPolicy.seat(999999)  # pinned to nobody in this fixture
 	_applier.pre_roll_seconds = 0.2
+	_applier.clock.manual = true
 	var applied := [false]
 	_applier.command_applied.connect(func(_cmd, _ok): applied[0] = true)
 	_applier.submit(_allocate("B"))
+	_applier.clock.advance(0.1)
 	assert_false(applied[0], "the pre-roll has not elapsed yet")
 	assert_true(_applier.is_applying, "the guard survives the pre-roll like every other await")
 
-	await wait_seconds(0.3)
+	_applier.clock.advance(0.2)
 	assert_true(applied[0], "and now the mutation has landed")
 	assert_false(_applier.is_applying)
 	assert_eq(_n("B").owned_by, _player, "the mutation itself is unaffected by the delay")

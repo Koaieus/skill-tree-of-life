@@ -553,13 +553,20 @@ func _drain() -> void:
 ## timing drift, not divergence, under host-authoritative
 ## confirmed-command-down: outcomes come from the command itself, never from
 ## when `_drain` happens to resume. See `docs/domain/multiplayer-sync-model.md`.
+## The pre-roll's tween door; a test sets `clock.manual = true` and steps
+## `clock.advance(dt)` instead of waiting on the wall.
+var clock := TweenClock.new()
+
+
 func _pre_roll(command: Command) -> void:
 	if seat_policy == null or graph == null or pre_roll_seconds <= 0.0:
 		return
 	var actor := graph.get_by_entity_id(command.entity_id)
 	if actor == null or seat_policy.seats(actor):
 		return
-	await get_tree().create_timer(pre_roll_seconds).timeout
+	var tw := clock.tween(self)
+	tw.tween_interval(pre_roll_seconds)
+	await tw.finished
 
 
 ## Recompute [member is_awaiting_confirmation] from what the queue actually
