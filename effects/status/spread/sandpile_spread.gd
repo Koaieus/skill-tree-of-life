@@ -33,7 +33,28 @@ extends StatusSpread
 
 ## [param n]'s topple threshold in [param field].
 func threshold(field: StackField, n) -> int:
-	return field.masked_degree(n) + burn + keep
+	return _from_degree(field.masked_degree(n))
+
+
+## [param node]'s threshold on the LIVE board right now, no field in hand —
+## what a readout asks. The same [method threshold] over a one-node field of
+## the owner's graph; an unowned node has no masked neighbours (as in
+## [method CombatWorld._neighbours_of]), so it reads `burn + keep`.
+func threshold_of(node: NodeCombat) -> int:
+	var real: SkillNode = node.real() if node != null else null
+	var owner_slice: EntityCombat = node.owner() if node != null else null
+	var mirror: GraphMirror = owner_slice.mirror() if owner_slice != null else null
+	if real == null or mirror == null or mirror.graph == null:
+		return _from_degree(0)
+	var world := CombatWorld.live()
+	var field := StackField.over_world(null, ownership_mask, world,
+			[real] as Array[SkillNode], mirror.graph)
+	return threshold(field, world.combat_for(real))
+
+
+## The one formula: `T = masked degree + burn + keep`.
+func _from_degree(degree: int) -> int:
+	return degree + burn + keep
 
 
 ## Topple until no field host holds `≥ T`: a DRAIN seeded with
@@ -94,7 +115,7 @@ func stabilize(field: StackField) -> ToppleResult:
 func _threshold_of(field: StackField, around: Dictionary, result: ToppleResult, n) -> int:
 	if not around.has(n):
 		around[n] = field.masked_neighbours(n)
-		result.thresholds[n] = (around[n] as Array).size() + burn + keep
+		result.thresholds[n] = _from_degree((around[n] as Array).size())
 	return result.thresholds[n]
 
 

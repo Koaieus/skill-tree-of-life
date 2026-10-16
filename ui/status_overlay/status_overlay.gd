@@ -52,6 +52,14 @@ class IconEntry:
 ## The model `_draw` paints. Read-only for callers.
 var segments: Array[Segment] = []
 var icons: Array[IconEntry] = []
+## The corruption layer (node hosts only): one pending chunk per stack, stacked
+## back from the tip after the bands; the ghost (N+1)th chunk while critical
+## (empty otherwise); one blip per stack above the icon row.
+var chunks: Array[Rect2] = []
+var ghost: Rect2 = Rect2()
+var blips: Array[Rect2] = []
+## `N == T − 1`: one more stack, or one lost degree, cashes the chunks in.
+var critical: bool = false
 
 var _host: Object = null
 var _fill_value: float = 0.0

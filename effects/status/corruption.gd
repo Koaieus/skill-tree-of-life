@@ -25,8 +25,16 @@ extends StatusDef
 ## [param topples] pops at threshold [param threshold]: one TRUE hit of
 ## `topples × threshold × damage_per_power` of max hp.
 func _on_burst(host, topples: int, threshold: int) -> void:
-	DotTick.mint(host, float(topples * threshold) * damage_per_power,
-			HitInstance.AmountBasis.PERCENT_MAX)
+	DotTick.mint(host, burst_amount(host, topples, threshold), HitInstance.AmountBasis.FLAT)
+
+
+## The HP [param topples] pops at [param threshold] land on [param host]:
+## `topples × threshold × damage_per_power × max hp`, rounded up once by
+## [method HitPoints.whole] as the door rounds it. [method _on_burst] mints
+## exactly this, so a readout drawing it cannot drift from what lands.
+func burst_amount(host, topples: int, threshold: int) -> float:
+	var amount := float(topples * threshold) * damage_per_power * float(host.get_max_hp())
+	return HitPoints.whole(amount) if amount > 0.0 else 0.0
 
 
 ## A tick deals nothing: corruption only hurts on a topple.
