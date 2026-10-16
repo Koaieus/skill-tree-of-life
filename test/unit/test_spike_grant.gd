@@ -11,16 +11,19 @@ const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _SPIKE_SCENE := preload("res://skill_node/addons/defs/spike_ring_addon.tscn")
 
 
-func _spawn_node(graph: Node, nm: String, stake: int) -> SkillNode:
+## [param alloc] < 0 fills the node to its cap. Set AFTER [code]stake_level[/code]:
+## the pool clamps fill to the cap.
+func _spawn_node(graph: Node, nm: String, stake: int, alloc: int = -1) -> SkillNode:
 	var node := _SKILL_NODE_SCENE.instantiate() as SkillNode
 	node.name = nm
 	graph.skill_nodes_container.add_child(node)
 	node.stake_level = stake
+	node.allocation_level = stake if alloc < 0 else alloc
 	return node
 
 
-func _spiked_node(graph: Node, nm: String, stake: int) -> SkillNode:
-	var node := _spawn_node(graph, nm, stake)
+func _spiked_node(graph: Node, nm: String, stake: int, alloc: int = -1) -> SkillNode:
+	var node := _spawn_node(graph, nm, stake, alloc)
 	node.add_child(_SPIKE_SCENE.instantiate())
 	return node
 
@@ -29,6 +32,24 @@ func _setup_graph() -> Node:
 	var graph := _GRAPH_SCENE.instantiate()
 	add_child_autofree(graph)
 	return graph
+
+
+func test_spikes_scale_with_allocation_not_stake() -> void:
+	var graph := _setup_graph()
+	var node := _spiked_node(graph, "S", 3, 1)
+	var full := _spiked_node(graph, "Full", 3, 3)
+	await get_tree().process_frame
+	var spikes_a1 := float(node.get_local_value(&"spikes"))
+	var regen_a1 := float(node.get_local_value(&"spike_regen"))
+	assert_gt(spikes_a1, 0.0, "allocation 1 grants a nonzero spikes cap")
+	assert_almost_eq(float(full.get_local_value(&"spikes")) / spikes_a1, 3.0, 1e-6,
+			"a 1/3 node holds a third of a 3/3 node's spikes -- the fill scales it, not the stake")
+	node.allocation_level = 2
+	await get_tree().process_frame
+	assert_almost_eq(float(node.get_local_value(&"spikes")) / spikes_a1, 2.0, 1e-6,
+			"raising allocation 1 -> 2 at stake 3 doubles spikes")
+	assert_almost_eq(float(node.get_local_value(&"spike_regen")) / regen_a1, 2.0, 1e-6,
+			"raising allocation 1 -> 2 at stake 3 doubles spike_regen")
 
 
 func test_spikes_cap_orders_strictly_with_stake() -> void:
