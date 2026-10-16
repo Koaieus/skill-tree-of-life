@@ -529,6 +529,11 @@ func _drain() -> void:
 	applying_changed.emit(false)
 
 
+## The pre-roll's tween door; a test sets `clock.manual = true` and steps
+## `clock.advance(dt)` instead of waiting on the wall.
+var clock := TweenClock.new()
+
+
 ## #556: a fixed pause between a command's confirmation and its mutation, for a
 ## NON-LOCAL actor only, so [CameraDirector] has time to pan there before the
 ## world changes under it. Called from inside [method _drain]'s :385-:422
@@ -553,11 +558,6 @@ func _drain() -> void:
 ## timing drift, not divergence, under host-authoritative
 ## confirmed-command-down: outcomes come from the command itself, never from
 ## when `_drain` happens to resume. See `docs/domain/multiplayer-sync-model.md`.
-## The pre-roll's tween door; a test sets `clock.manual = true` and steps
-## `clock.advance(dt)` instead of waiting on the wall.
-var clock := TweenClock.new()
-
-
 func _pre_roll(command: Command) -> void:
 	if seat_policy == null or graph == null or pre_roll_seconds <= 0.0:
 		return
