@@ -72,10 +72,10 @@ var _subs := SubBag.new()
 ## re-entrancy [method SubBag.now] introduces — its synchronous first call lands
 ## in [method _on_current_changed], which re-enters [method _update_visibility].
 var _bound: bool = false
-## Bench pin ([member SkillNode.pin_health_bar]): shown regardless of HP or hover.
 ## The node's own status rows ([StatusOverlay]); bound to the node's
 ## [NodeCombat], so it never shows the owner's rows.
 @onready var _overlay: StatusOverlay = get_node_or_null(^"StatusOverlay")
+## Bench pin ([member SkillNode.pin_health_bar]): shown regardless of HP or hover.
 var pinned: bool = false:
 	set(value):
 		if pinned == value:
