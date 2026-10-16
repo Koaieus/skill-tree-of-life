@@ -26,56 +26,28 @@ reports `&"native"`. Without it:
   that hits nothing reads green to every "nothing severed" test). The callers
   (`MeleeAttackPlan.resolve_against`, `AiBladeRollout`, `SkillBlade`) deref it
   on the next line; none guards it, because a guard is a fallback wearing a hat.
-- `test_blade_goldens.gd` **fails** in `before_each`, never `pending()`.
+- `test_blade_native_binary.gd` **fails** in `before_each`, never `pending()`.
 - A binary lacking `simulate_range` or `simulate_range_field` is "stale" and
   treated as no binary, with the same cure (`_acquire_native` requires both).
 - The exporter hard-fails on a `.gdextension` key whose file is absent, so
   `mise run build` refuses up front ([exporting.md](exporting.md)). The library
   ships beside the executable, not inside the pck.
 
-## Golden trajectories: the determinism contract
+## No golden trajectories
 
-`test/unit/attack/test_blade_goldens.gd` replays twenty worlds on the native
-backend and compares each to its fixture under
-`test/unit/attack/fixtures/blade_goldens/<case>.golden.txt`, exact text, first
-differing line reported.
+Owner, 2026-10-16: no goldens until most of the game has shipped. The recorded
+trajectory replays and their `native:goldens` task are retired; a solver change
+is checked by the behaviour tests, and a drift too small to change any outcome is
+accepted until the owner revives goldens.
 
-- **Guards:** an *unintended* change to the shipped solver (FMA contraction, a
-  compiler upgrade, an optimisation flag, one reordered expression). Each moves
-  a trajectory by a few px without changing any outcome, so no behavioural test
-  can see it. It is **not** a cross-machine / multiplayer pin (owner,
-  2026-09-10): peers replay the recorded `AttackRecord` and never re-run the
-  solver for anything authoritative; the only peer-side caller is `SkillBlade`,
-  pure visuals.
-- **Coverage:** the swing clock, the defender field (wall, plate, both,
-  five-zone cluster), `simulate` / `simulate_range` (chunked, seeded from
-  `prev_samples`) / `simulate_range_field`, a bare spine, an induced truss, a
-  welded spine that breaks, a severing swing (per-particle drag), a uniformly
-  damped one, substeps 1/4/8, adaptive iterations, length scaling off and past
-  the ceiling, the coarse AI tier. Every world is serialised whole: samples,
-  `prev_samples`, the advanced state, every clock and field bank, the armed
-  `Break`.
-- **Format, two tiers:** human rows at 6 decimals (one sample per line) plus
-  one `DIGEST <section>` line per trajectory / state / clock / field, a SHA-256
-  over the exact bytes. The digest is the bit-exact assertion; the rows are for
-  the reviewer. A DIGEST-only diff is sub-1e-6 drift.
-- **Regeneration is an act:** `mise run native:goldens` flips `_REGENERATE`,
-  runs the one script in its own godot process, and flips it back under `trap`.
-  The human re-runs to confirm green; the commit says why the output changed.
-- **Vacuity guards:** `test_every_golden_case_runs_on_the_native_path` and
-  `test_the_goldens_are_not_vacuous` (the wall warps the clock, the spine
-  breaks, the cluster meters two plates).
-- A new `simulate()` parameter or `BladeState` output gets a `_CASES` entry in
-  the same commit.
-
-## Float semantics are frozen by the goldens
+## Float semantics are frozen
 
 The C++ reads like the transliteration it is: same expressions, same evaluation
 order, same float32 (`real_t`) vs `double` split. `BladeHitScan` turns
 positions into a hit *set*, so a 1e-7 drift next to a shape boundary is a
-different attack; a "cleanup" that moves a golden one ulp is a solver change.
+different attack; a "cleanup" that moves a trajectory one ulp is a solver change.
 `native/SConstruct` pins **`-ffp-contract=off`** (GCC/Clang default to `fast`;
-the goldens hold today because the x86_64 SSE2 baseline has no FMA, so the flag
+the solver stays reproducible today because the x86_64 SSE2 baseline has no FMA, so the flag
 is insurance). Never add `-ffast-math` / `-march=native`.
 
 **Everything `simulate()` takes and produces must cross the boundary.** A

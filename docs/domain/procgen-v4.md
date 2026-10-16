@@ -290,7 +290,6 @@ The three layers, and what each is allowed to know:
 |---|---|---|
 | `test_pool_seed_values.gd` | nothing — hand-built `StatPool`s | never |
 | `test_pool_range_bounds.gd` | every pool in the specimen set, as **input** | never |
-| `test_preset_generation_golden.gd` | full generated output | parked — pending, no fixtures |
 
 - The **formula** (`H = unit × V[t]`, `L(1) = M`, `L(t+1) = H(t) + M`, cost
   ladder, override fixed points, min_tier-relative rungs, negative-pool
@@ -304,10 +303,8 @@ The three layers, and what each is allowed to know:
   literal list goes stale the moment a pool is added and then blames the roll
   for a fact about the fixture.
 
-**The procgen goldens are parked** until content has a settled standard (owner, #751
-and 2026-10-11). The comparisons are `pending()` and no `.golden.txt` is in
-the tree. **Never regenerate or commit a fixture** — reviving the goldens is the
-owner's call, steps in the test's header.
+**No procgen goldens** (owner, 2026-10-16: none until most of the game has
+shipped). Determinism is guarded by the self-comparing `test_procgen_determinism.gd`.
 
 **One test is meant to be tune-sensitive:**
 `test_specimen_pool_set.gd::test_value_overrides_stay_under_repo_budget` caps

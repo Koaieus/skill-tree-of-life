@@ -29,7 +29,7 @@ for pack in packs:
   got a 3x boost on INT nodes.
 - **Moving a pool between packs changes the flattened entry order**, and the weighted pick
   walks that order — the same seed rolls differently even when every pool's scope is
-  unchanged. (The procgen goldens that would show this are parked: never regenerate them.)
+  unchanged. (No procgen goldens exist: owner, 2026-10-16.)
 
 **The second key — `subtypes` (#1056).** `Array[NodeSubtype]`, **empty = any subtype**,
 which is the attribute ladder and most content; the eight flavour pools gated by #1059
@@ -40,14 +40,13 @@ mechanism. There is no `NodeSubtype.forbid_tags` — the set IS the give-up (D12
 `ArchetypePolicy.forbid_tags` is the *archetype's* give-up and is unrelated.
 
 - **Match by `NodeSubtype.id`, never by object identity** — `StatPool.admits_subtype` is
-  the only place that comparison lives. A config reached through `duplicate(true)` (the
-  golden fixture, `test_pool_scoping`) holds *copies* of its subtype resources, and the
+  the only place that comparison lives. A config reached through `duplicate(true)` (`test_pool_scoping`) holds *copies* of its subtype resources, and the
   copy is the same subtype.
 - **A non-empty `subtypes` appends a sorted id segment to every entry id**
   (`<stat>_<op>_<arch>_s<ids>_t<tier>`), because two pools for the same (stat, op,
   archetype) gated to different subtypes would otherwise collide and weight profiles
   target by that id. An empty list appends nothing, so an ungated pool's id never moves — the eight pools
-  gated by #1059 did gain the segment, which is what their golden churn was.
+  gated by #1059 did gain the segment.
 - **Leave a pool shared by every subtype at `[]`** (decision 16) — never copy it per
   subtype. Authoring discipline, deliberately not enforced in code: copy a pool to
   `[regular, bless]`, forget `[blight]`, and blighted nodes silently lose that content

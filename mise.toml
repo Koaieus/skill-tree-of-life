@@ -316,7 +316,7 @@ git worktree add "$dir" -b "$slug"
 # Seed the gitignored files a worktree needs — `.worktreeinclude`, the same
 # list Claude Code copies into the agent worktrees it makes itself. Chiefly
 # native/bin/: since #847 the blade GDExtension is mandatory (every simulated
-# swing push_errors, test_blade_goldens.gd fails outright without it).
+# swing push_errors, test_blade_native_binary.gd fails outright without it).
 #
 # COPY, not a symlink, and that is load-bearing: a symlinked native/bin would
 # make `mise run native:build` inside a worktree write the MAIN checkout's
@@ -340,7 +340,7 @@ if [ ! -d "$dir/native/bin" ] || [ -z "$(ls -A "$dir/native/bin" 2>/dev/null)" ]
   (cd "$dir" && mise run native:build) || true
   if [ ! -d "$dir/native/bin" ] || [ -z "$(ls -A "$dir/native/bin" 2>/dev/null)" ]; then
     echo "⚠ still no native binary — every blade swing will push_error and the"
-    echo "  goldens will fail until you build it by hand: mise run native:build"
+    echo "  the native-binary test will fail until you build it by hand: mise run native:build"
   fi
 fi
 

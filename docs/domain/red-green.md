@@ -42,7 +42,7 @@ Does **not**:
 - **Visual acceptance.** "Does it look right" gets no test harness. Shaders,
   layouts, tuning of a `.tres` — `check` (plus `check-shaders`) is the gate.
   A test must never pin an authored `.tres` value either — the owner tunes
-  those, and a golden that goes red on every tuning pass is noise.
+  those, and a pin that goes red on every tuning pass is noise.
 - **A pure refactor with the tests already green.** The existing suite *is* the
   red-green loop; you're keeping it green, not turning it green.
 - **A one-line rename, a doc, a comment.**

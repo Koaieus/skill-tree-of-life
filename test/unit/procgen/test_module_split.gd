@@ -1,9 +1,8 @@
 extends GutTest
 
 ## Acceptance for #349 (procgen config → module split): the properties the
-## split itself is judged on, distinct from the golden byte-identical guard
-## in `test_preset_generation_golden.gd` (that one is acceptance 3 — this
-## file is 4, 5 and 6).
+## split itself is judged on, distinct from the byte-identical guard
+## (acceptance 3, retired with the goldens — this file is 4, 5 and 6).
 
 const _FIRST_LEVEL_PATH := "res://procgen/presets/first_level/first_level.tres"
 const _TOPOLOGY_PATH := "res://procgen/modules/first_level/topology.tres"

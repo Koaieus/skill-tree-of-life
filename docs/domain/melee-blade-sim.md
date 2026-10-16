@@ -2,7 +2,7 @@
 
 > **Damage model:** blade **vertices** deal `blade_damage`; blade **edges** deal **nothing** — they collide as swept capsules and that is all they do ([ADR 0005](../adr/0005-blade-parts-and-counters-are-orthogonal.md): *nodes deal damage, edges give rigidity; spikes pop vertices, bunkers break edges*). There is no `edge_damage` stat. STR//10 scales per-vertex damage, multiplied by the per-contact speed curve ("Speed-scaled damage"). A face/cycle bonus is rejected as a geometric filled region ([legacy-mvp-decisions](../adr/legacy-mvp-decisions.md) §D-1). See "Edge collision".
 
-Siblings: `blade-native.md` (the C++ backend and golden contract), `blade-perf.md` (cost numbers).
+Siblings: `blade-native.md` (the C++ backend), `blade-perf.md` (cost numbers).
 
 ## Goal
 
@@ -165,7 +165,7 @@ less than a whip of equal node count, since braces shorten paths. A long blade
 costing more is the intended outcome; do not tune the multiplier down to squeeze
 under the flat cost.
 
-**Native contract in one line:** goldens (`blade-native.md`) pin the solver; a
+**Native contract in one line:** there are no goldens (owner, 2026-10-16); a
 test observes only what crosses the boundary (trajectory, `speed_history`,
 `clock.history` / `field.history`, `_length_factor`).
 
@@ -527,7 +527,7 @@ curve already gives it less than a driven blade (and more if flung). The one
 authored term is `BladeState.SEVERED_DRAG` (0.8/s, owner-tunable) written into
 `BladeState.damping` for the `_reachable_from_pivot` complement at each severance.
 An **empty** array makes `_step` skip the multiply (the driven path is
-bit-identical; the `severed_coasting_tail` golden pins it) and a **zero entry** is
+bit-identical) and a **zero entry** is
 a retention factor of exactly `1.0`. This is not the swing clock's drag: that slows
 the clock and removes nothing; this bleeds a particle nothing is driving.
 

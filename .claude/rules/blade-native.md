@@ -8,7 +8,7 @@ paths:
 
 The binary is mandatory (`mise run native:build`, run by `mise install`'s
 postinstall); a checkout without it gets a `push_error` naming that command at
-simulate time, never at parse time. Contract, goldens, decline list and build
+simulate time, never at parse time. Contract, decline list and build
 notes: `docs/domain/blade-native.md`. Behaviour: `docs/domain/melee-blade-sim.md`.
 
 ## Never name a GDExtension class as a bare identifier in GDScript
@@ -27,12 +27,12 @@ add an `if traj == null` fallback; a test needing a solver-side hook re-points o
 what crosses the boundary (`BladeTrajectory`, `speed_history`, `clock.history` /
 `field.history`, `_length_factor`).
 
-## Goldens are the determinism contract
+## No goldens (owner, 2026-10-16)
 
-`test_blade_goldens.gd` replays recorded worlds; a one-ulp drift is red. Re-record an
-intentional change with **`mise run native:goldens`**, review the fixture diff, justify
-it in the commit; a new axis gets a `_CASES` entry in the same commit. No binary is a
-**failure** in `before_each`, never `pending()`.
+"We don't do golden anything until most of the game has shipped." A solver change
+is checked by the behaviour tests (`test_blade_*`), plus `test_blade_native_binary.gd`
+for the binary itself: no binary is a **failure**, never `pending()`. There is no
+re-record step.
 
 ## Float semantics, boundary values and the defender half
 
@@ -54,7 +54,7 @@ pulling a change to `native/src/`, rebuild (`mise run native:build`). A built `.
 not a loaded extension: Godot's `.godot/extension_list.cfg` cache can predate
 `native/blade_sim.gdextension`, so after the first build in an existing checkout (or a
 fresh worktree that predates the build) run `mise run refresh` and confirm the entry.
-Verify: `mise run test:one -- res://test/unit/attack/test_blade_goldens.gd`, 0 pending.
+Verify: `mise run test:one -- res://test/unit/attack/test_blade_native_binary.gd`, 0 pending.
 
 ## A cached `ptrw()` aliases every snapshot you pushed
 

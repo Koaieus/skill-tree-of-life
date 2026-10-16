@@ -22,9 +22,8 @@ extends GutTest
 ##     sweeps every pool in the specimen set for conformance against whatever
 ##     it authors. Tune-proof: the `.tres` is the input, never the expectation.
 ##   - **Did pool content change unintentionally?** — nothing, on purpose:
-##     content is unsettled, so the procgen goldens
-##     (`test/unit/procgen/test_preset_generation_golden.gd`) are pending with
-##     no fixtures. No layer goes red on a tune.
+##     content is unsettled, so there are no procgen goldens
+##     (owner, 2026-10-16). No layer goes red on a tune.
 
 
 ## A bare pool with no archetype/tags — just the ladder fields under test.
