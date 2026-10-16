@@ -1029,9 +1029,9 @@ proposal, 2026-10-05; the per-addon calls live in
 
 | Family (proposed) | Addons | State |
 |---|---|---|
-| Fortify | Bunker (armor, floor, deflect), Fortress (`fortification_addon`: node health + swing drag; may be struck, see round 6) | both shipped; Reinforcement folded into Fortress |
+| Fortify | Bunker (armor, floor, deflect) | the buff in Armor break's domain, Curse its counter (owner, 2026-10-16, #1369); on a blade: blast-shielded, heavy, and a hard enough bunker × bunker hit destroys the defender's Bunker. Fortress struck (owner, 2026-10-16): `swing_drag` is an unowned concept, never force-homed |
 | Survival | Lifeline, Lifelink, Fountain (heal / cleanse) | Lifeline may merge into Fountain; Lifelink keystone / core-class only. Anchor Node (`skill_node_specializations.md`, "a built-in Lifeline") is Lifeline's intrinsic variant or struck — unruled |
-| Topology | Gate, Winch, Clamp | Clamp shipped; Gate landing; Winch has a determinism fork. Clamp is blade-build crafting more than board topology; Winch's Serpent relief is a class concern |
+| Topology | Gate, Winch, Clamp | Clamp shipped, aspect-less; each further temp clamp on a swing costs more (owner, 2026-10-16, #1369); Gate landing; Winch has a determinism fork. Clamp is blade-build crafting more than board topology; Winch's Serpent relief is a class concern |
 | Spell routing | Anti-Magic, Conduit, Relay, Void? | needs design. Anti-Magic (+1 hop cost through the node) is an addon, not a status, and never Silence's twin (owner, round 7). Owner shapes, 2026-10-06: a hop-nabbing "black hole, but less intense", a node that mangles its local `degree` to confuse degree-targeting spells, a projectile-eater (struck by the owner as unbalanced). Relay's damage bonus is spell power riding a routing addon |
 | Growth | Skill Dust | shipped; technical — consumed on allocation, never persistent; a loot window (`begin_claim` / `offers_for`), not a placed addon. Owner: WIS-related (*"permanent growth"*) |
 | — | Buffer | discontinued indefinitely (owner, 2026-10-05) |
@@ -1042,12 +1042,12 @@ proposal, 2026-10-05; the per-addon calls live in
 The 2026-10-05 misplacement sweep (four read-only agent passes reading every
 mechanic against the rule) is folded in: each ruled line sits in its row's
 Notes, the unruled ones in § Open, the stale facts on #1414. What remains is
-its one table — Bunker and Fortress are the defender side of the status axes,
+its one table — Bunker is the defender side of the status axes,
 not a family of their own:
 
 | Axis | Attacked by | Defended by |
 |---|---|---|
-| flat HP | Poison | Fortress (`node_health`) |
+| flat HP | Poison | nothing (Fortress struck, 2026-10-16) |
 | bulk %HP | Corruption | nothing |
 | damage floor | Curse | Bunker (`min_damage_taken` −5), Bulwark class |
 | armor | Armor break | Bunker (`armor` +5) |

@@ -50,6 +50,13 @@ exception — it is the most rigid case: jammed on the plate, its own edges
 break, and once its last edge to the pivot goes it coasts with the severed
 rest of the blade.
 
+**On a blade (owner, 2026-10-16, #1369).** Armor and floor do nothing *for* a blade; a bunker member gets its own faces:
+- **Blast shield.** A bunker member ignores defensive explosions, the way an Explosive-charged piece shrugs them.
+- **Mace head.** A bunker member is heavier than a plain member.
+- **Bunker × bunker.** A bunker member hitting a bunker plate collides elastically and recoils. If the hit is hard enough (mass × speed past a threshold), it destroys the defender's Bunker addon: *"go find yourself another bunker to hide in"*.
+
+**Which blades break.** Only a part rigid all the way back to the pivot breaks. That means clamped or triangulated: the pivot is the only driver, and any free pin joint between the contact and the pivot lets the blade twist around the plate. The solver measures this rather than checking topology: refused drive against one plate, summed past `SHATTER_DISTANCE`, arms the break.
+
 **Stacks with:** Entity-level `armor` stat, exactly as before. `deflection`
 does not stack usefully with itself on one node (presence, not magnitude, is
 what matters today) but a ring of Bunker nodes is a wall a rigid blade must
@@ -96,27 +103,9 @@ Implementation: `docs/domain/melee-blade-sim.md`, "Bunker deflection".
 
 ---
 
-### Reinforcement
+### Fortress (`fortification_addon`) — struck
 
-> **Folds into Fortification (owner, 2026-10-05).** This older entry and Fortification both buff node health; there is one addon. Owner: *"in my mind there is just the one, Fortress, which adds node health and applies drag (currently)"*. "Fortress" is the owner's name for `fortification_addon.tscn`.
-
-**Effect:** Increases this node's `node_health_max`. The node has more HP before being severed.
-
-**Stacks with:** Entity-level `node_health_max`. Per-node HP is seeded from the entity total plus Reinforcement bonus.
-
-**Notes:** The direct survivability addon. Where Armor Ring reduces damage per hit, Reinforcement increases the number of hits a node can take. Together they compound: an Armor Ring + Reinforcement node is both harder to damage and has more buffer.
-
----
-
-### Fortification
-> **Drag is leaving (owner, 2026-10-05).** `swing_drag` was attached here for convenience, because Spike Ring and Bunker already had blade-defensive faces, not because a fortress slows anything. A swing slowing down is a *slow*, so drag moves to the tempo row in `aspect_matrix.md` once that row is promoted (owner: *"exactly"*). Fortress keeps node health. Until then drag stays here, unseen in play; a one-click sandbox setup is what tells whether it earns its keep.
-
-
-**Effect:** Two modifiers. `node_health` — more wall to chew through. And `swing_drag`, its characteristic second effect: a melee swing that sweeps across this node bogs down for the **rest of its arc**.
-
-**Stacks with:** Itself, cumulatively and by design. One fortified node is a nuisance; a wall of them stalls a sweep partway. That gradient is the point — **density is the melee analogue of the gaps that counter magic**.
-
-**Notes:** Drag slows the swing's clock, never a vertex's velocity, so it removes nothing: no severance, no cascade, no popped node. A stalled swing simply never sweeps the rest of its arc, which is how a wall **protects what is behind it** — the spatial, gradual, non-deleting counter melee has never had. Angular progress is monotonic: a swing can be slowed to a crawl but can never reverse, and never freezes outright. Composes with speed-scaled damage — drag cuts speed, which cuts the damage multiplier — so the two multiply and should be tuned together. Under ADR 0005 this is a **third** defensive effect: a spike destroys matter, a bunker destroys structure, a wall destroys neither and spends the swing's budget instead. Whether it wants a third modifier on top is open. Implementation: `docs/domain/melee-blade-sim.md`, "Fortification drag".
+> **Deleted (owner, 2026-10-16, #1369):** *"leaning delete. drag becomes a free floating concept looking for an owner, and wont find one until it's a truly fitting one (could be an addon but who knows it might be attached to something entirely different)"*. Reinforcement had folded into it and goes with it. `swing_drag` stays as a stat and sim mechanic with no shipped granter; how it behaves is `docs/domain/melee-blade-sim.md`, "Fortification drag".
 
 ---
 
