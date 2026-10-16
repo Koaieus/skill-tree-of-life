@@ -626,7 +626,7 @@ func _gather_magic_candidates(visible_enemies: Array[SkillNode]) -> Array[AiComb
 	# PASS 1 — identity only, no resolve. Each entry is
 	# [SpellDef, SkillNode source, SkillNode target, float raw_damage];
 	# raw_damage is the seed-hit formula's own un-mitigated input
-	# (spell_damage(source) x power — attack/spell/spell_resolver.gd:321),
+	# (SpellResolver.impact_damage — a percent-basis spell's is its fraction),
 	# constant per (spell, source) so it's read once per source, not once per
 	# target.
 	var pre: Array = []
@@ -659,7 +659,7 @@ func _gather_magic_candidates(visible_enemies: Array[SkillNode]) -> Array[AiComb
 			if picked.is_empty():
 				continue
 			picked.sort()
-			var raw_damage := float(source.get_local_value(&"spell_damage")) * spell.power
+			var raw_damage := SpellResolver.impact_damage(spell, source)
 			var probe := MagicAttackPlan.new()
 			probe.attacker = entity
 			probe.spell = spell

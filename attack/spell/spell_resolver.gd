@@ -480,8 +480,9 @@ static func _mark_terminal(event_of: Dictionary, state: CastSpell) -> void:
 		ev.is_terminal = true
 
 
-## The impact hit: [code]spell_damage × SpellDef.power[/code] (D-32). **The one
-## home for this expression** — UI that shows a spell's damage calls this, it
+## The impact hit: [code]spell_damage × SpellDef.power[/code] (D-32), or
+## [member SpellDef.power] alone when the spell opts out of
+## [member SpellDef.scale_by_spell_damage]. **The one home for this expression** — UI that shows a spell's damage calls this, it
 ## does not re-multiply (three copies of it had already drifted apart).
 ##
 ## Where the [code]spell_damage[/code] term comes from, in order:
@@ -500,6 +501,8 @@ static func _mark_terminal(event_of: Dictionary, state: CastSpell) -> void:
 static func impact_damage(spell: SpellDef, source: SkillNode, board: StatBoard = null) -> float:
 	if spell == null:
 		return 0.0
+	if not spell.scale_by_spell_damage:
+		return spell.power
 	if source != null:
 		return float(source.get_local_value(&"spell_damage")) * spell.power
 	if board != null:

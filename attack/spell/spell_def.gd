@@ -82,10 +82,18 @@ var icon: Texture2D:
 ## carries[/b] (D-32). The seed hit is
 ## [code]spell_damage(cast-from node) × power[/code]: the caster's board stat
 ## supplies "who is casting", this supplies "which spell". A low-scaling spell
-## is [code]power = 0.3[/code]; there is no opt-out of INT, just as no melee
-## weapon ignores STR. Every hop after the seed is shaped by
+## is [code]power = 0.3[/code]. A spell that should ignore the caster opts out
+## with [member scale_by_spell_damage]; one that should ignore power authors
+## [code]power = 1.0[/code]. Every hop after the seed is shaped by
 ## [member PropagationConfig.hop_damage] (a [HopDamageProgression]).
 @export var power: float = 0.0
+
+## Whether the seed hit multiplies [member power] by the caster's
+## [code]spell_damage[/code]. Off, the seed is [member power] flat — the
+## authored fraction of a percent-basis spell (Bruiser chips [code]power[/code]
+## of current hp whoever casts it). [method SpellResolver.impact_damage] is the
+## only reader.
+@export var scale_by_spell_damage: bool = true
 
 ## How this spell propagates from the seed target. Composes
 ## [PropagationFilter] (what neighbours count), [PropagationSpread] (how

@@ -31,6 +31,7 @@ metadata/_custom_type_script = "uid://ci08q7vcgbwdx"
 
 [sub_resource type="Resource" id="dmg"]
 script = ExtResource("3_dmg")
+basis = 2
 
 [sub_resource type="Resource" id="Resource_0tuuk"]
 script = ExtResource("5_owner")
@@ -74,12 +75,13 @@ range_finder = SubResource("range")
 script = ExtResource("1_spell")
 id = &"bruiser"
 name = "Bruiser"
-tagline = "Chips the toughest neighbour each hop; never kills alone."
-description = "Climbs the HP gradient: each hop greedily picks the neighbour with the highest current node_health and nicks it for low damage. Cannot kill on its own — softens the toughest nodes for a follow-up. Pairs with wound mechanics: damage that doesn't kill stays as wounds, slowly bracketing fat enemies."
+tagline = "Chips a fifth of current HP from the toughest neighbour each hop; never kills alone."
+description = "Climbs the HP gradient: each hop greedily picks the neighbour with the highest current node_health and chips a percentage of its current HP — the same share whoever casts it, so it bites hardest on the fattest nodes. Cannot kill on its own — softens the toughest nodes for a follow-up. Pairs with wound mechanics: damage that doesn't kill stays as wounds, slowly bracketing fat enemies."
 identity = ExtResource("identity_ref")
 carve_shape = SubResource("Resource_u38nb")
 min_degree = 2
-power = 3.0
+power = 0.2
+scale_by_spell_damage = false
 propagation = SubResource("prop")
 on_hit_effects = Array[ExtResource("2_effect")]([SubResource("dmg")])
 vfx_coordinator_scene = ExtResource("13_ihn2u")
