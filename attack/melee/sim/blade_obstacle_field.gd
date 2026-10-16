@@ -662,9 +662,8 @@ func native_inputs() -> Dictionary:
 		edges_flat[e_idx * 2 + 1] = e.y
 		edge_removed[e_idx] = 1 if _state.removed_edges.has(e_idx) else 0
 	# `_incident` as a CSR over particles. The per-particle lists stay in the
-	# ascending-edge-index order [method prepare] appended them in, because the
-	# load share sums into shared edge banks in that order — this is summation
-	# order, not merely a layout.
+	# ascending-edge-index order [method prepare] appended them in: the vertex
+	# pick's tie order.
 	var n := _state.positions.size()
 	var incident_offsets := PackedInt32Array()
 	incident_offsets.resize(n + 1)
