@@ -280,8 +280,10 @@ on opengl3/llvmpipe even though production uses RD/Vulkan.
 
 `mise run check-shaders` (#682) walks every `.gdshader`/`.gdshaderinc` and gates
 GDSL parse/type errors (undefined function, name collision) on the dummy
-renderer. It says nothing about the silent codegen miscompile above, which
-needs the rendered recipe.
+renderer, plus Godot's own codegen conditions: any `ERROR:` line in its probe
+run is red, attributed to the shader compiled just before it (#1072;
+`--self-test` proves the gate on a planted bad shader). It says nothing about
+the silent driver-GLSL miscompile above, which needs the rendered recipe.
 
 ## Hand-authoring `.tres` — UID mismatch silently nulls the field*
 

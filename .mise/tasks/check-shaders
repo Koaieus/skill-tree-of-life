@@ -22,11 +22,14 @@ walks them too, and fails if one is never `#include`-d by any walked
 `.gdshader` — that shader-inc would silently carry zero coverage otherwise,
 reproducing this exact issue one file type over.
 
-An unrelated engine line shows up on every run regardless of shader content —
-`ERROR: Condition "!actions.custom_samplers.has(...)" ... at: _dump_node_code`
-— confirmed by testing against a completely empty SceneTree (no shader loaded
-at all): it's headless/dummy-driver boot noise, not a shader defect, and is
-deliberately not in FAIL_PATTERN below.
+Parse-clean shaders can still fail at code generation: the compiler logs
+`ERROR: Condition "..." is true. Continuing.` (e.g. `TEXTURE` forwarded through
+a user function's `sampler2D` parameter) and carries on. The same assign drives
+that codegen headless, so any `ERROR:` line in the probe run is red -- a clean
+tree logs none. `WARNING:` is not, since shaders warn legitimately. Each failure
+is attributed to the shader whose `PROBE: compiling` marker precedes it;
+`--self-test` plants that shape in a temp project and asserts both. Driver-level
+GLSL errors still need the rendered xvfb + opengl3 recipe.
 """
 import os
 import re
@@ -92,7 +95,7 @@ func _walk(dir_path: String, shaders: Array[String], includes: Array[String]) ->
 '''
 
 FAIL_PATTERN = re.compile(
-    r"SHADER ERROR|Shader compilation failed|PROBE: failed to load|PROBE: .* is never #include"
+    r"\bERROR:|SHADER ERROR|Shader compilation failed|PROBE: failed to load|PROBE: .* is never #include"
 )
 SUMMARY_PATTERN = re.compile(r"PROBE: checked (\d+) shader\(s\), (\d+) include\(s\)")
 
