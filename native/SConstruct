@@ -25,17 +25,17 @@ env = SConscript("godot-cpp/SConstruct", {
 
 env.Append(CPPPATH=["src/"])
 
-# The recorded golden trajectories (test_blade_goldens.gd, #846) are this
-# extension's determinism contract: a rebuild must reproduce them bit-for-bit,
-# across compilers and optimisation flags, or the goldens go red for a reason
-# that has nothing to do with the sim. FMA contraction is the classic way to
+# A rebuild should reproduce the solver's trajectories bit-for-bit across
+# compilers and optimisation flags (`docs/domain/blade-native.md`, "Float
+# semantics are frozen"); no recorded replay pins that today (same doc, "No
+# golden trajectories"), so a drift shows only through the behaviour tests. FMA contraction is the classic way to
 # lose that: `a * b + c` fused into one instruction keeps the product at full
 # width instead of rounding it to float64/float32 between the two ops, which
 # moves a trajectory by a few ulp per step. GCC and Clang default to
 # `-ffp-contract=fast` and WILL fuse where the target has FMA. It happens not
 # to bite on baseline x86_64 (no FMA in the SSE2 baseline) — the whole matrix
 # `blade_sim.gdextension` declares as of #844 is linux + windows x86_64 — so
-# this pin is insurance for golden stability against a future compiler or flag
+# this pin is insurance for trajectory stability against a future compiler or flag
 # change (`-march=native`, a newer default), not a fix for FMA baseline today.
 # This is NOT a cross-platform or multiplayer claim: peers replay the recorded
 # AttackRecord and never re-run the solver for anything authoritative.

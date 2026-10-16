@@ -1362,7 +1362,7 @@ static func attach_defender_field(blade_state: BladeState, zones: BladeDefenderZ
 ## endpoint's [member SkillNode.stable_id], ties broken by [method
 ## Graph.get_neighbours]'s own per-node order. Every consumer (`BladeState`'s
 ## constraint list, `AttackPlan`'s wire payload) treats this as a set of
-## pairs, never a golden sequence, so a stable-but-different order is a
+## pairs, never a fixed sequence, so a stable-but-different order is a
 ## behavioural no-op — see `.claude/rules/degree.md`'s neighbouring guidance
 ## and the #809 acceptance note on iteration order.
 ##

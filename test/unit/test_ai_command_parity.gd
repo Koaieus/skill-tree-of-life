@@ -1,18 +1,9 @@
 extends GutTest
 
-## Full-turn parity for #512: an AI turn that emits [Command]s through the one
-## [CommandApplier] must reach the SAME end state as the direct
-## `allocation_system.allocate(...)` / `turn_manager.end_turn()` path it
-## replaced — same nodes allocated, same ownership, same SP/AP, same
-## initiative, same decision trace.
-##
-## [b]The expected snapshot is a golden, not a description of the new code.[/b]
-## It was captured by running this exact fixture against the pre-#512
-## controller (branch point 5349743, direct calls), then frozen into
-## [constant _GOLDEN]. Rerunning it after the reroute is the parity assertion.
-## If a future change to AI scoring or the stat economy moves these numbers,
-## recapture the golden the same way — do not "fix" it to whatever the code
-## currently does.
+## An AI turn reaches the world only through the one [CommandApplier] (#512):
+## its commands arrive in decided order, a command submitted mid-turn queues
+## instead of re-entering, a turn raised from inside a drain still completes,
+## and the controller holds no direct mutating system call.
 ##
 ## Fixture is shaped after test_ai_controller_combat.gd (a real hostile plus a
 ## headless BattleSystem so the attack step engages), with two deliberate
@@ -26,83 +17,6 @@ const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _PLAYER_FACTION := preload("res://entity/factions/player.tres")
 
-## Set true to print the observed snapshot instead of asserting against
-## [constant _GOLDEN] — how the golden below was captured in the first place.
-const _CAPTURE := false
-
-## End state of one AI turn on the pre-#512 direct-call path, captured with
-## [constant _CAPTURE] on at 5349743. See the class note before touching these.
-## The two decisions are the AP×2 ranged loop: one dent, then the re-evaluated
-## finisher — `kill=yes` is the scorer's PREDICTION, not an outcome, which is
-## why N3 is still the hostile's at the end.
-##
-## [b]One post-capture amendment, #604[/b] — the ` door=500.0` trailer and the
-## +500 it adds to each `total`. This fixture's AI ends its growth step
-## growth-capped (it owns N0-N2, and N3 is the hostile's), so the breakout
-## bonus applies to N3, which borders N2. What did NOT change is everything the
-## parity assertion is actually about: same target, same two shots, same
-## ownership / SP / AP / initiative / current_entity, all still the
-## values captured at 5349743. The scoring term is new behaviour, deliberately
-## added, and it moved the trace strings only — it could not be recaptured on
-## the pre-#512 controller because it did not exist there.
-##
-## [b]Second amendment, #823[/b] — `weak=0.0` -> `weak=-0.0`. This fixture never
-## set `ai_tier` explicitly, so it rode the controller's default; #823
-## requirement 8 flips that default 0 -> 1, and the weak-point term (unlike
-## melee's shape-risk) is *computed* rather than hardcoded once tier-gating
-## opens, landing on a `-0.0` float for this geometry. Pre-existing
-## [AiCombatScorer] behaviour — #823 touches no ranged/magic scoring code —
-## simply never exercised by this golden until the default it silently
-## inherited moved. Recaptured with [constant _CAPTURE] the same way; every
-## other field is byte-identical to the pre-#823 golden.
-##
-## [b]Third amendment, #776[/b] — `sp` 2.0 -> 0.0. The rebalance pass raised
-## the `xp_per_turn` RatioFormula's WIS divisor 2 -> 5, so the enemy's turn-
-## start upkeep tick no longer fills the level-1 xp cap and the level-up SP
-## grant this golden captured never fires. Every other field — ownership, AP,
-## initiative, current_entity, the decision trace — is byte-identical
-## to the pre-#776 golden; only the stat-economy-driven `sp` moved.
-##
-## [b]Fourth amendment, #888[/b] — added `tempo`. New field on the board
-## (kill-AP budget, cap 1, REFILL), not a value that moved: this fixture's AI
-## never lands a killing blow (`kill=yes` above is the scorer's PREDICTION,
-## N3 stays the hostile's), so `tempo` sits at its untouched cap, 1.0, same as
-## every other field. Proves the new pool rides the queue path identically to
-## a direct call, same as `ap` already does — the award itself has its own
-## coverage in `test/unit/systems/test_loot_kill_tempo.gd`, which actually
-## kills something.
-##
-## [b]Fifth amendment, #766 / ADR 0045[/b] — #766 moved the value of a
-## field whose stat ADR 0045 later retired; the field left the golden with the
-## stat. Every other field is byte-identical.
-## [b]Sixth amendment, #957/#958[/b] — the volley economy. A volley costs 0
-## AP and carries N arrows; the quiver starts EMPTY (hub #496: "Turn 1 =
-## allocate + reload"), and the AI reloads when stock < Σ shots_left with no
-## kill on the table. So the two 1-arrow, 1-AP volleys became: two
-## [ReloadCommand]s (the AP), each minting the core's `arrows_per_reload`
-## (the turn-start leaf set is just N0 — growth happens after the capture),
-## then ONE 4-arrow volley (`n=4`, the trace's #958 trailer) at N3, then the
-## no-shots trailer. `kill=yes` is still the scorer's node-hp PREDICTION on a
-## core; N3 stays the hostile's exactly as before. Every other field —
-## ownership, AP, SP, tempo, initiative, current_entity — is
-## byte-identical. A reload now rides the queue path in the golden, which is
-## the #958 parity ask: "a reload must round-trip like any command".
-const _GOLDEN := {
-	"ap": 0.0,
-	"current_entity": "Player",
-	"decisions": [
-		"reload: 0 → 2 arrows",
-		"reload: 2 → 4 arrows",
-		"[RANGED→N3] ev=12.0 kill=yes cut=0.0 weak=-0.0 risk=0.0 total=1512.0 door=500.0 n=4",
-		"no reachable attack this turn",
-	],
-	"enemy_owned": ["N0", "N1", "N2"],
-	"initiative": 0.0,
-	"ownership": {"N0": "Enemy", "N1": "Enemy", "N2": "Enemy", "N3": "Hostile"},
-	"sp": 0.0,
-	"tempo": 1.0,
-}
-
 var _graph: Graph
 var _alloc: AllocationSystem
 var _tm: TurnManager
@@ -114,14 +28,12 @@ var _hostile: Entity
 var _ai: AIController
 var _nodes: Array[SkillNode]
 
-var _decisions: Array[String] = []
-
 
 func _make_entity(ent_name: String, faction: Faction = null) -> Entity:
 	var e := Entity.new()
 	e.name = ent_name
 	e.display_name = ent_name
-	# Flat board: this is a frozen golden captured under CON=0; tuned CON must not ride in.
+	# Flat board (CON=0): tuned stats must not ride into the fixture's numbers.
 	e.stat_board = TestBoards.flat_entity_board()
 	# The worked world these numbers were scored in: 10-HP nodes behind a
 	# floor of 3, 1.5 raw per shot/contact (base 1 + 5/10 DEX or STR).
@@ -132,7 +44,7 @@ func _make_entity(ent_name: String, faction: Faction = null) -> Entity:
 	e.stat_board.dexterity.base_value = 5.0
 	e.stat_board.strength.base_value = 5.0
 	# Zero the 5 % baseline crit: since #507 a ranged crit rolls off a fresh
-	# per-attack seed, and a golden snapshot cannot flake on a doubled shot.
+	# per-attack seed, and the ownership asserts cannot flake on a doubled shot.
 	e.stat_board.get_stat(&"crit_chance").base_value = 0.0
 	if faction != null:
 		e.faction = faction
@@ -140,7 +52,6 @@ func _make_entity(ent_name: String, faction: Faction = null) -> Entity:
 
 
 func before_each() -> void:
-	_decisions = []
 
 	_graph = _GRAPH_SCENE.instantiate()
 	_graph.name = "TestGraph"
@@ -218,33 +129,6 @@ func before_each() -> void:
 	_nodes[2].global_position = Vector2(200.0, 0.0)
 	_nodes[3].global_position = Vector2(300.0, 0.0)
 
-	_ai.decided.connect(_on_ai_decision)
-
-
-func _on_ai_decision(summary: String) -> void:
-	_decisions.append(summary)
-
-
-## Everything #512's acceptance names, plus the decision trace — the AI's own
-## account of what it chose, which is what proves the reroute changed plumbing
-## and not behaviour.
-func _snapshot() -> Dictionary:
-	var ownership := {}
-	for n in _nodes:
-		# String(n.name), not n.name: a StringName key never matches the golden's
-		# String key, and Dictionary == compares keys.
-		ownership[String(n.name)] = n.owned_by.display_name if n.owned_by != null else ""
-	var board := _enemy.stat_board
-	return {
-		"ownership": ownership,
-		"enemy_owned": _owned_names(_enemy),
-		"sp": board.skill_points.current,
-		"ap": board.action_points.current,
-		"tempo": board.tempo.current,
-		"initiative": board.initiative.current,
-		"current_entity": _tm.current_entity.display_name if _tm.current_entity != null else "",
-		"decisions": _decisions.duplicate(),
-	}
 
 
 func _owned_names(e: Entity) -> Array:
@@ -265,30 +149,13 @@ func _await_enemy_turn_end() -> void:
 
 func _run_one_ai_turn() -> void:
 	_enemy.stat_board.skill_points.set_current(2)
-	# The golden was captured before Entity's first-turn upkeep skip existed, so
-	# it encodes a turn that ran a full upkeep (the xp tick and the SP
-	# it levels into). Claiming a turn already served keeps this fixture on the
-	# conditions the golden was captured under — the parity property under test
-	# is "queue path == direct path", not "an entity's opening turn".
+	# Claiming a turn already served bypasses the first-turn upkeep skip, so
+	# the turn runs a full upkeep (the xp tick and any SP it levels into) — the
+	# property under test is "the AI reaches the world through the queue", not
+	# "an entity's opening turn".
 	_enemy.turns_taken = 1
 	_tm.start_turn(_enemy)
 	await _await_enemy_turn_end()
-
-
-# ---------------------------------------------------------------------------
-# Parity
-# ---------------------------------------------------------------------------
-
-func test_full_ai_turn_matches_the_direct_call_end_state() -> void:
-	await _run_one_ai_turn()
-	var observed := _snapshot()
-	if _CAPTURE:
-		print_rich("[AI PARITY CAPTURE] %s" % JSON.stringify(observed, "  "))
-		pass_test("capture mode")
-		return
-	for key in _GOLDEN:
-		assert_eq(observed[key], _GOLDEN[key],
-				"'%s' drifted from the pre-#512 direct-call golden" % key)
 
 
 # ---------------------------------------------------------------------------

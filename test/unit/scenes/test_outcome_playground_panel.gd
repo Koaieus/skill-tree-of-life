@@ -11,7 +11,7 @@ extends GutTest
 ## "the tab does nothing", with no error to read.
 ##
 ## The FIXTURE is pinned elsewhere — `test_outcome_fixture_replay.gd` owns the
-## committed golden and the cascade layers. This file is about the tab.
+## committed fixture and the cascade layers. This file is about the tab.
 
 const _PANEL := preload("res://addons/outcome_playground/outcome_playground_panel.tscn")
 

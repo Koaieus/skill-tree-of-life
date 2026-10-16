@@ -24,7 +24,7 @@ extends SpellOnHitEffect
 ## max-ed, or first-won) FIRST and scaled once. The old in-step slam scaled
 ## per branch, before the merge. For [constant Mode.MULTIPLY] the two agree by
 ## distributivity and for max/first-wins they agree outright, which is why the
-## Trailblazer's goldens do not move; for [constant Mode.SQUARE] under a
+## Trailblazer's results do not move; for [constant Mode.SQUARE] under a
 ## summing reducer they genuinely differ, and scaling the merged arrival is
 ## the intended reading of "arrival transforms are on-hit effects".
 

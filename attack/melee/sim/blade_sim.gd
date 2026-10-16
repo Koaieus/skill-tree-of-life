@@ -18,8 +18,8 @@ extends RefCounted
 ##
 ## What stays GDScript-side: BladeState / drivers / constraints as descriptors,
 ## the pop-gate loop, and `_length_factor`'s BFS, computed here and passed in.
-## The determinism pin is test_blade_goldens.gd: twenty recorded trajectories
-## the shipped binary must reproduce bit-for-bit.
+## No recorded trajectory pins determinism (`blade-native.md`, "No golden
+## trajectories"); the behaviour tests are the check.
 
 const DEFAULT_DT: float = 1.0 / 120.0
 const DEFAULT_ITERATIONS: int = 16
@@ -93,8 +93,7 @@ static func native_available() -> bool:
 
 
 ## &"native" when the extension loaded, &"missing" otherwise. The only backend
-## there is; kept as a name because the bench and the goldens' before_each
-## report it.
+## there is; kept as a name because the bench reports it.
 static func backend() -> StringName:
 	return &"native" if _native != null else &"missing"
 

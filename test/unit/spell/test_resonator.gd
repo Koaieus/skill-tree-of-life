@@ -6,7 +6,7 @@ extends GutTest
 ## incidents pass through; no convergence → no crit.
 ##
 ## X = the seed (`spell_damage(cast-from node) × power`, D-32),
-## A = increment (2, absolute — FlatAddProgression), crit ×2. Goldens are
+## A = increment (2, absolute — FlatAddProgression), crit ×2. Expected values are
 ## written as X/A expressions, never literals, so they pin the SHAPE and
 ## survive an INT-coefficient retune (#278).
 ##   T2 single diamond A-{B,D}-C:           crit C = 4X + 8A

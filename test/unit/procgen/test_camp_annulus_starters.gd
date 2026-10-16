@@ -160,7 +160,7 @@ func test_arc_clamp_holds_under_pressure_8_8() -> void:
 # ── Full generate() integration (items 7, 8, 9's no-drop half, 10) ───────
 
 
-## Golden freely re-authored (#742) — `first_level.tres` now authors a real
+## Pin freely re-authored (#742) — `first_level.tres` now authors a real
 ## [CenterCoreStarters] (lifted off the legacy manual-anchor-plus-random-fill
 ## branch this test used to pin byte-for-byte), so the interesting assertion
 ## is that it still centres one contender and fills the rest, sized off

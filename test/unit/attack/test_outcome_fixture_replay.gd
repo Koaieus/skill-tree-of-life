@@ -23,7 +23,7 @@ extends GutTest
 ## That path captures a LIVE attack in this same headless context and rewrites
 ## the `.tres` — the same artifact the tab's Save button writes, so the two can
 ## never drift into two formats. Review the diff before committing it: a
-## regenerated golden that nobody looked at bakes in whatever broke.
+## regenerated fixture that nobody looked at bakes in whatever broke.
 
 const _WORLD := preload("res://scenes/dev/outcome_playground_world.gd")
 const _SANDBOX_WORLD := preload("res://scenes/dev/sandbox_world.gd")
@@ -113,7 +113,7 @@ func _regenerate() -> void:
 
 
 ## The committed fixture. Regenerated ONLY when [constant REGEN_ENV] is set —
-## never as a fallback for a missing file. A test that captured its own golden
+## never as a fallback for a missing file. A test that captured its own fixture
 ## when it could not find one would pass on every machine forever while
 ## asserting nothing, which is precisely the toy this file exists to not be.
 func _fixture() -> OutcomeFixture:
@@ -223,7 +223,7 @@ func test_the_replayed_cascade_keeps_its_bfs_layers() -> void:
 	# The expected shape is read off the builder's topology, not off the
 	# fixture: killing `d_gate` islands `d_limb1` then `d_limb2`, one hop at a
 	# time, while `d_core` survives. An independent oracle, so a regenerated
-	# golden cannot quietly bake a flattened cascade in.
+	# fixture cannot quietly bake a flattened cascade in.
 	var fixture: OutcomeFixture = await _fixture()
 	var ctx: Dictionary = await _build()
 	var seen: Array = []

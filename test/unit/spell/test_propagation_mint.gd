@@ -10,7 +10,7 @@ extends GutTest
 ##   - `CycloneSpread.select`: the picks carry exactly the shares the old
 ##     `CycloneStep` folded into `damage` — rank coefficient, closing gain on
 ##     a closing hop — so the split moved WHERE the multiply happens and
-##     nothing else (`test_cyclone.gd` is the end-to-end golden for that).
+##     nothing else (`test_cyclone.gd` is the end-to-end check for that).
 
 const H := preload("res://test/unit/spell/spell_test_helper.gd")
 const _CYCLONE := preload("res://attack/spell/defs/cyclone.tres")

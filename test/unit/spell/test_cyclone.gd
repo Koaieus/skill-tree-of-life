@@ -15,7 +15,7 @@ extends GutTest
 ##     rho(dense triangulated) -> sum(c_r)
 ## so the authoring condition is c_1 < 1 < sum(c_r).
 ##
-## What the tests below pin is that thesis, not a hop-by-hop golden: a tree gets
+## What the tests below pin is that thesis, not a hop-by-hop number: a tree gets
 ## nothing whatever you tune, rings grade smoothly by LENGTH with no odd/even
 ## zigzag anywhere, and joined triangles become an epicentre.
 

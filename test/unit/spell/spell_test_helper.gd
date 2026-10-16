@@ -236,7 +236,7 @@ func flat_add_progression(increment: float = 0.0) -> FlatAddProgression:
 
 
 ## The `spell_damage` an entity's node reports — the seed multiplier every
-## damage golden is expressed against (`seed = spell_damage × power`, D-32).
+## expected damage is expressed against (`seed = spell_damage × power`, D-32).
 ## Read it instead of hardcoding a number, so a later INT-coefficient retune
 ## (#278) doesn't move a single test.
 func seed_multiplier(node: SkillNode) -> float:

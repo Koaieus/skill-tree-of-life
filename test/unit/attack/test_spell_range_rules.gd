@@ -7,7 +7,7 @@ extends GutTest
 ##
 ## Every value assert runs on a HAND-BUILT board with no intrinsics — the
 ## shipped boards' INT line is the owner's to tune; the two shipped-board tests
-## at the bottom are structural, never goldens.
+## at the bottom are structural, never pinned magnitudes.
 
 const _NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _DEFAULT_BOARD := preload("res://entity/default_entity_board.tres")
@@ -166,7 +166,7 @@ func test_int_pool_distance_entry_rolled_onto_a_node_scales_euclid_reach() -> vo
 			"reach scales by the entry's own unit_value, read off the entry")
 
 
-# ── structural guards on the shipped boards (no goldens) ─────────────────────
+# ── structural guards on the shipped boards (no magnitudes) ──────────────────
 
 
 func test_shipped_spells_hops_are_unchanged_by_the_default_board_at_baseline() -> void:
