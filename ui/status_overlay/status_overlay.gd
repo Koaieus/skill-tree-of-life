@@ -236,6 +236,8 @@ func _build_segments(rows: Array[NodeStatus]) -> void:
 func _build_corruption(row: NodeStatus, tip: float) -> float:
 	var def := row.def as CorruptionStatus
 	var n := roundi(row.power)
+	if n <= 0:
+		return tip
 	var t := (def.spread as SandpileSpread).threshold_of(_host)
 	critical = n == t - 1
 	_corruption_tint = def.tint
