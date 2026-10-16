@@ -37,6 +37,8 @@ extends Node2D
 @export_range(0.05, 2.0, 0.01) var duration: float = 0.35
 ## Index among the blast's layers: the lag stacks per layer.
 var layer: int = 0
+## How many layers the blast lays; many layers share the lag window instead of piling up.
+var layer_count: int = 1
 
 ## Seconds since play; INF at rest (the scene opened alone) shows the full ring.
 var _elapsed: float = INF
@@ -55,6 +57,16 @@ func color() -> Color:
 	return Emissive.tint(base, Emissive.stops(emissive_tier))
 
 
+## Seconds this layer trails the main ring: [member lag] per layer while the
+## stack fits in 90% of [member duration], else spread evenly across that window.
+func delay_seconds() -> float:
+	var window := duration * 0.9
+	var count := maxi(layer_count, layer + 1)
+	if lag * float(count) <= window:
+		return lag * float(layer + 1)
+	return window * float(layer + 1) / float(count)
+
+
 func _process(delta: float) -> void:
 	_elapsed += delta
 	queue_redraw()
@@ -65,7 +77,7 @@ func _process(delta: float) -> void:
 func _draw() -> void:
 	if radius <= 0.0 or (_elapsed != INF and _elapsed >= duration):
 		return
-	var delay := minf(lag * float(layer + 1), duration * 0.9)
+	var delay := delay_seconds()
 	var t := clampf((_elapsed - delay) / maxf(duration - delay, 0.001), 0.0, 1.0)
 	if t <= 0.0:
 		return

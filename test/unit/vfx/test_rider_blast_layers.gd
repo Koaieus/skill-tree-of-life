@@ -84,3 +84,36 @@ func test_an_authored_blast_layer_replaces_the_generic() -> void:
 	if layers.size() == 2:
 		assert_eq(String(layers[0].name), "Bespoke", "the authored scene")
 		assert_true(layers[1] is RiderBlastLayer, "the generic for the bare rider")
+
+
+func test_eight_layers_have_strictly_increasing_delays_inside_the_duration() -> void:
+	var riders: Array[Identity] = []
+	for i in 8:
+		riders.append(_POISON)
+	var layers := _layers(_vfx.spawn(_mark(riders)))
+	assert_eq(layers.size(), 8, "one layer per rider")
+	var prev := 0.0
+	for node in layers:
+		var layer := node as RiderBlastLayer
+		var d := layer.delay_seconds()
+		assert_gt(d, prev, "strictly later than the layer before")
+		assert_lt(d, layer.duration, "lands inside the sweep")
+		prev = d
+
+
+func test_few_layers_keep_the_plain_lag_stack() -> void:
+	var layers := _layers(_vfx.spawn(_mark([_POISON, _CURSE] as Array[Identity])))
+	assert_almost_eq((layers[1] as RiderBlastLayer).delay_seconds(), 0.12, 0.0001, "lag * (layer + 1)")
+
+
+func test_blast_landed_on_the_bus_spawns_exactly_one_visual() -> void:
+	Events.blast_landed.emit(_mark([] as Array[Identity]))
+	var visuals := _vfx.get_children().filter(func(c: Node) -> bool: return c is BlastVisual)
+	assert_eq(visuals.size(), 1, "one ring per blast")
+
+
+func test_a_muted_vfx_ignores_the_bus() -> void:
+	_vfx.muted = true
+	Events.blast_landed.emit(_mark([] as Array[Identity]))
+	var visuals := _vfx.get_children().filter(func(c: Node) -> bool: return c is BlastVisual)
+	assert_eq(visuals.size(), 0, "muted = silent")
