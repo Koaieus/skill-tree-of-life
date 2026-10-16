@@ -19,6 +19,7 @@ const VERTEX_STATS: Array[StringName] = [&"blade_damage", &"blunting"]
 ## The [BladeState] array each of [constant VERTEX_STATS] lands in.
 const STATE_ARRAYS: Array[StringName] = [&"vertex_damage", &"vertex_blunting"]
 const EXPLOSIVE := &"explosive"
+const DEFLECTION := &"deflection"
 
 
 ## Optional `(node: SkillNode, stat_id: StringName) -> Array[ModifierBins]`:
@@ -46,6 +47,14 @@ func fill(state: BladeState, nodes: Array[SkillNode]) -> void:
 		var combat := nodes[i].get_combat() if nodes[i] != null else null
 		charges[i] = int(combat.get_status_power(EXPLOSIVE)) if combat != null else 0
 	state.vertex_charges = charges
+	# A blast shield keyed on the stat, not the addon: whatever grants
+	# `deflection` shields (see [member BladeState.vertex_shielded]).
+	var shielded := PackedByteArray()
+	shielded.resize(nodes.size())
+	for i in nodes.size():
+		var deflect: Variant = nodes[i].get_local_value(DEFLECTION) if nodes[i] != null else null
+		shielded[i] = 1 if deflect != null and bool(deflect) else 0
+	state.vertex_shielded = shielded
 	for i in nodes.size():
 		for addon in nodes[i].get_addons():
 			addon.apply_to_blade(state, i)

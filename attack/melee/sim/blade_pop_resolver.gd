@@ -395,15 +395,17 @@ class LiveGate extends RefCounted:
 		return own + spread.resonance * shared if own > 0 else 0
 
 	## The node's side: every live blade piece within [member Contact.piece_reach]
-	## of the struck node — a plain one pops, a charged one is armed, not
-	## fragile, and shrugs. The contact's own piece is the caller's.
+	## of the struck node — a plain one pops; a charged one is armed, not
+	## fragile, and shrugs; a shielded one ([member BladeState.vertex_shielded])
+	## shrugs too, and nothing here spends either. The contact's own piece is
+	## the caller's.
 	func _piece_pass(ev: BladeHitEvent, struck: SkillNode, row: Contact) -> void:
 		for v in _state.positions.size():
 			if v == ev.particle_idx or v == _state.pivot_index or _removed.has(v):
 				continue
 			if _state.positions[v].distance_to(row.centre) > row.piece_reach:
 				continue
-			if piece_charges(v) > 0:
+			if piece_charges(v) > 0 or piece_shielded(v):
 				row.verdicts[v] = Contact.Verdict.SHRUGGED
 			else:
 				row.verdicts[v] = Contact.Verdict.POPPED
@@ -414,6 +416,12 @@ class LiveGate extends RefCounted:
 		if _state == null or idx < 0 or idx >= _state.vertex_charges.size():
 			return 0
 		return _state.vertex_charges[idx]
+
+	## The piece's source node grants `deflection`: it shrugs a blast.
+	func piece_shielded(idx: int) -> bool:
+		if _state == null or idx < 0 or idx >= _state.vertex_shielded.size():
+			return false
+		return _state.vertex_shielded[idx] != 0
 
 	## [param node]'s charges on its own world, minus what this swing spent.
 	func node_charges(node: NodeCombat) -> int:
