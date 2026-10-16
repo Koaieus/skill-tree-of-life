@@ -498,8 +498,12 @@ func _apply_forced_charges(blade: SkillBlade) -> void:
 	for i in visuals.size():
 		if visuals[i].is_pivot:
 			continue
+		# 0 = "as built": put back what the blade's build started the piece with.
 		if forced > 0:
 			visuals[i].charges = forced
+		else:
+			var built: PackedInt32Array = blade.state.vertex_charges if blade.state != null else PackedInt32Array()
+			visuals[i].charges = built[i] if i < built.size() else 0
 		visuals[i].spend_progress = _spend_slider.value
 		visuals[i].shrug_progress = _shrug_slider.value
 
