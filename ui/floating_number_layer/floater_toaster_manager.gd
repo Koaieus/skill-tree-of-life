@@ -25,11 +25,11 @@ const _TOASTER_SCENE: PackedScene = preload("res://ui/floating_number_layer/floa
 ## Cap on queued (not-yet-shown) toasts per target. Passed to new toasters.
 @export var max_queue_size: int = 8
 
-# stack_key (int) → FloaterToaster; entry may be invalid after self-destruct.
 ## Shared by every toaster it spawns (their stagger tweens); a test flips
 ## `clock.manual` before the first spawn and steps it.
 var clock := TweenClock.new()
 
+# stack_key (int) → FloaterToaster; entry may be invalid after self-destruct.
 var _toasters: Dictionary = {}
 
 

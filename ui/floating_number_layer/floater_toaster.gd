@@ -18,8 +18,8 @@ extends Node2D
 @export var max_queue_size: int = 8
 
 @onready var _vbox: VBoxContainer = $VBoxContainer
-## The door for the stagger tween; the manager hands every toaster its own
-## clock so a test can flip `manual` and step it.
+## The door for the stagger tween; the manager replaces it with its one shared
+## clock before add_child, so a test can flip `manual` and step every toaster.
 var clock := TweenClock.new()
 # True while the one-toast-per-fade-in stagger interval runs.
 var _staggering: bool = false
