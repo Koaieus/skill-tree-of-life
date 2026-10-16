@@ -416,17 +416,27 @@ sharpen the separation and never shift the verdict.
 
 ### What breaks
 
-Contact and failure need not coincide (ADR 0005). Each substep
-`BladeObstacleField.end_substep` banks the unresolved drive onto every *live* edge
-incident to a pushed vertex, in proportion to `|normal . edge_direction|`, and
-onto any edge directly touched by its own capsule contact at full share. When a
-zone's strain crosses `SHATTER_DISTANCE` (8 px), the most-strained live edge banked
-against that zone breaks, ties to the lowest index (`_pick_edge`); on a truss that
-is the outermost rung, whichever edge carried the load.
+Contact and failure need not coincide (ADR 0005), and *whether* a break happens
+is the strain meter above alone; this is only *which edge*. Each substep with
+refused drive, `BladeObstacleField.end_substep` banks it against the zone onto
+every **contact element** the pushout moved: a vertex disc or an edge capsule.
+When a zone's strain crosses `SHATTER_DISTANCE` (8 px), `_pick_edge` takes the
+element with the most banked drive (ties: vertices first, then lowest index):
+
+- **Edge capsule** — that edge breaks.
+- **Vertex disc** — its live edge to the neighbour **nearest the pivot** breaks
+  (hop distance over live edges, ties to the lowest edge index). The pivot is the
+  only driver, so nothing off the rigid path to it carries more strain than the
+  edge feeding the jammed vertex (owner, 2026-10-16, #1633). On a truss that is
+  the tip vertex's spine edge, never the tip rung.
+
+An element with nothing live left to break falls through to the next. The hop
+distances are computed by `prepare()` (so re-derived after every sever, since
+`removed_edges` changes reachability) and cross to C++ as `vertex_hops`.
 
 **The grip is the most rigid case, not a special case.** A contact on a *driven*
-particle is metered like any other: the refused advance accumulates, its incident
-edges bank load, `_pick_edge` arms the break. A grip driven squarely into a plate
+particle is metered like any other: the refused advance accumulates, the grip's
+disc banks it, and `_pick_edge` breaks its own edge to the pivot. A grip driven squarely into a plate
 breaks on any blade; one that grazes it does not. Once its last edge to the pivot
 goes, `SwingResolve._surviving_drivers` drops its driver and it coasts with the
 severed remainder. Nothing stalls the swing clock (owner, 2026-10-01, reversing
@@ -437,7 +447,7 @@ the wielder dismembers their own blade at the handle.
 
 ### State, rewind, and where the sever lands
 
-`BladeObstacleField` is sim state like `BladeSwingClock`: per-zone strain, edge-load
+`BladeObstacleField` is sim state like `BladeSwingClock`: per-zone strain, element-load
 banks, driven-particle history and the pending break are captured/restored by its
 `Bank`, with a chunk-local `history` of one bank per sample. A break is never
 applied directly: `end_substep` only *arms* a `BladeObstacleField.Break` (edge

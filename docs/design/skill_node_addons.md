@@ -44,7 +44,8 @@ around it: no pop, no break, the mitigated hit still lands as normal. **A
 blade too rigid to yield — driven a fixed distance into the plate — breaks**,
 but per [ADR 0005](../adr/0005-blade-parts-and-counters-are-orthogonal.md) a
 bunker **destroys structure, never matter**: the contacting vertex survives,
-and the edge that carried the most load into the plate breaks instead. A
+and an edge breaks instead: the edge whose own span hit the plate, or, when
+a vertex hit it, that vertex's edge one step toward the pivot. A
 driven grip particle (one of the wielder's own pivot-adjacent nodes) is no
 exception — it is the most rigid case: jammed on the plate, its own edges
 break, and once its last edge to the pivot goes it coasts with the severed
@@ -55,7 +56,7 @@ rest of the blade.
 - **Mace head.** A bunker member is heavier than a plain member.
 - **Bunker × bunker.** A bunker member hitting a bunker plate collides elastically and recoils. If the hit is hard enough (mass × speed past a threshold), it destroys the defender's Bunker addon: *"go find yourself another bunker to hide in"*.
 
-**Which blades break.** Only a part rigid all the way back to the pivot breaks. That means clamped or triangulated: the pivot is the only driver, and any free pin joint between the contact and the pivot lets the blade twist around the plate. The solver measures this rather than checking topology: refused drive against one plate, summed past `SHATTER_DISTANCE`, arms the break.
+**Which blades break.** Only a part rigid all the way back to the pivot breaks. That means clamped or triangulated: the pivot is the only driver, and any free pin joint between the contact and the pivot lets the blade twist around the plate. The solver measures this rather than checking topology: refused drive against one plate, summed past `SHATTER_DISTANCE`, arms the break. What snaps is the edge loading the plate: the hit edge itself, or the hitting vertex's edge closest to the pivot (owner, 2026-10-16, #1369: *"the edge closest to pivot snaps first"*).
 
 **Stacks with:** Entity-level `armor` stat, exactly as before. `deflection`
 does not stack usefully with itself on one node (presence, not magnitude, is
