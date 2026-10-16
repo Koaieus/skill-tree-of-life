@@ -85,6 +85,7 @@ func test_no_row_where_the_heal_is_zero() -> void:
 func test_repeat_hover_walks_no_new_distances() -> void:
 	_grant_aura()
 	_heal_rows(_chain[1])
+	assert_eq(AuraDistanceCache.walk_count, 1, "the first hover walks once, through the cache")
 	var walks := AuraDistanceCache.walk_count
 	_heal_rows(_chain[1])
 	_heal_rows(_chain[2])

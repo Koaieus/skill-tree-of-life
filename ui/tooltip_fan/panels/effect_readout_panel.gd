@@ -5,9 +5,9 @@ extends FanPanel
 ## Tooltip V2 (#621) — the aura|effect readout: every currently-affecting
 ## aura/effect on the hovered node, one row per (effect, leaf modifier) pair
 ## from [method NodeEffectReadout.gather], plus one per non-modifier payload
-## row (a heal aura's "+N HP/turn") on the same cap and paging. Rendered through [SlabRow] — #588's
-## generic "tinted text" vocabulary, reused rather than inventing a new row
-## component (the issue's own decision).
+## row (a heal aura's "+N HP/turn") on the same cap and paging. Rendered
+## through [SlabRow] — #588's generic "tinted text" vocabulary, reused rather
+## than inventing a new row component (the issue's own decision).
 ##
 ## [b]Status rows (#876, sibling gather).[/b] Below the aura/effect rows, one
 ## [StatusRow] per entry in [method NodeCombat.get_statuses] — the node's OWN
