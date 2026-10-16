@@ -139,7 +139,8 @@ func test_rows_linger_through_dealloc_and_tick_down_by_one() -> void:
 	var n: SkillNode = await _owned_node()
 	n.get_combat().apply_status(d, 2.0, &"A", 1)
 	n.get_combat().apply_status(d, 1.0, &"B", 2)
-	_alloc.force_deallocate(n)
+	# A voluntary dealloc: a force is a death and releases LINGER rows too.
+	assert_true(_alloc.deallocate(n, _a), "precondition: the dealloc is legal")
 	assert_not_null(_row(n, d.id, &"A"), "row A survives deallocation")
 	assert_not_null(_row(n, d.id, &"B"), "row B survives deallocation")
 	n.get_combat().tick_statuses()
