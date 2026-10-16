@@ -28,9 +28,10 @@ env.Append(CPPPATH=["src/"])
 # A rebuild should reproduce the solver's trajectories bit-for-bit across
 # compilers and optimisation flags (`docs/domain/blade-native.md`, "Float
 # semantics are frozen"); no recorded replay pins that today (same doc, "No
-# golden trajectories"), so a drift shows only through the behaviour tests. FMA contraction is the classic way to
-# lose that: `a * b + c` fused into one instruction keeps the product at full
-# width instead of rounding it to float64/float32 between the two ops, which
+# golden trajectories"), so a drift shows only through the behaviour tests.
+# FMA contraction is the classic way to lose that: `a * b + c` fused into one
+# instruction keeps the product at full width instead of rounding it to
+# float64/float32 between the two ops, which
 # moves a trajectory by a few ulp per step. GCC and Clang default to
 # `-ffp-contract=fast` and WILL fuse where the target has FMA. It happens not
 # to bite on baseline x86_64 (no FMA in the SSE2 baseline) — the whole matrix
