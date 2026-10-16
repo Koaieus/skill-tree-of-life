@@ -241,9 +241,10 @@ func arm_world() -> void:
 	# constructible again and Reset → Reform reproduces it.
 	_rearm_pending = false
 	_mute_vfx()
+	for entity in [_wielder, _quarry]:
+		_alloc.deallocate_all_owned(entity)
+	CombatWorld.live().flush_removals()
 	for n in graph.get_skill_nodes():
-		if n.owned_by != null:
-			_alloc.force_deallocate(n)
 		n.refill(true)
 	for entity in [_wielder, _quarry]:
 		_reset_board(entity)

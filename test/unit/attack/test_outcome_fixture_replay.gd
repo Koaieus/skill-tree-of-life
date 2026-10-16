@@ -128,6 +128,25 @@ func _fixture() -> OutcomeFixture:
 
 # ── The builder's own contract ──────────────────────────────────────────────
 
+## A reset strips through the death path and flushes its own beat: nothing is
+## left pending for a later flush, and no status row — LINGER included —
+## survives onto the re-armed board.
+func test_arm_leaves_no_pending_removals_and_no_status_rows() -> void:
+	var b := await _build()
+	var nodes: Dictionary = b.world.nodes
+	var clear := StatusDef.new()
+	clear.id = &"clearing"
+	clear.power_max = 10.0
+	clear.decay = FlatDecay.new(1.0)
+	nodes["d_limb1"].get_combat().apply_status(clear, 4.0)
+	nodes["d_limb2"].get_combat().apply_status(
+			preload("res://test/unit/effects/linger_status_fixture.tres"), 5.0)
+	_arm(b.world, b.systems)
+	assert_false(CombatWorld.live().has_pending_removals(), "arm flushes its own strips")
+	for node in nodes.values():
+		assert_eq(node.get_combat().get_statuses().size(), 0, "%s carries no status row" % node.name)
+
+
 func test_the_world_builder_mints_the_same_ids_every_time() -> void:
 	# The assumption the whole fixture design rests on. A record names nodes by
 	# `stable_id` and its attacker by `entity_id`; both mint from per-Graph

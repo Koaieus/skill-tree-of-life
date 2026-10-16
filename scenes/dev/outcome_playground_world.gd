@@ -139,9 +139,10 @@ func build(parent: Node) -> Graph:
 ## TICKED — writing the plain var IS the whole of "it is the attacker's turn"
 ## (the standing sandbox rule).
 func arm(alloc: AllocationSystem, turn_manager: TurnManager = null) -> void:
+	for entity in [attacker, defender]:
+		alloc.deallocate_all_owned(entity)
+	CombatWorld.live().flush_removals()
 	for node in nodes.values():
-		if node.owned_by != null:
-			alloc.force_deallocate(node)
 		node.refill(true)
 	for entity in [attacker, defender]:
 		entity.is_dead = false

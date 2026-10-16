@@ -230,9 +230,11 @@ func reset_world() -> void:
 
 ## Strip ownership + clear any relic the last kill dropped.
 func _teardown_world() -> void:
+	for e in [_attacker, _victim]:
+		if is_instance_valid(e):
+			_alloc.deallocate_all_owned(e)
+	CombatWorld.live().flush_removals()
 	for n in _all_nodes():
-		if n.owned_by != null:
-			_alloc.force_deallocate(n)
 		_clear_dust(n)
 
 

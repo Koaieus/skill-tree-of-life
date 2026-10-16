@@ -243,10 +243,10 @@ func _end_setup() -> void:
 
 func _setup_cell(cell: _Cell) -> void:
 	var e := cell.entity
-	# Silent teardown: strip whatever it still owns (real primitive, muted VFX).
-	for n in cell.nodes:
-		if n.owned_by == e:
-			_alloc.force_deallocate(n)
+	# Silent teardown through the death path (muted VFX), flushed here: a whole
+	# territory in one beat burns every spill and releases LINGER rows too.
+	_alloc.deallocate_all_owned(e)
+	CombatWorld.live().flush_removals()
 	e.is_dead = false          # core_death latches this; clear so it re-fires next cycle
 	_reset_board(e)
 	e.core_location = null
@@ -268,7 +268,9 @@ func _play_cell(cell: _Cell) -> void:
 		"dealloc_single", "dealloc_first":
 			_alloc.deallocate(cell.nodes[0], e)
 		"death_single":
-			_alloc.force_deallocate(cell.nodes[0])
+			# A node death: the cascade driver, uncharged, then its beat's flush.
+			e.get_combat().apply_cascade([cell.nodes[0].get_combat()] as Array[NodeCombat], _alloc, false)
+			CombatWorld.live().flush_removals()
 		"bulk_alloc":
 			for j in range(1, cell.nodes.size()):
 				_alloc.allocate(cell.nodes[j], e)

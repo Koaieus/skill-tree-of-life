@@ -298,9 +298,10 @@ func _arm_board() -> void:
 	var vfx: AllocationVFX = _systems.allocation_vfx
 	if vfx != null:
 		vfx.muted = true
+	for entity in [caster_entity, defender_entity]:
+		_alloc.deallocate_all_owned(entity)
+	CombatWorld.live().flush_removals()
 	for sn in graph.get_skill_nodes():
-		if sn.owned_by != null:
-			_alloc.force_deallocate(sn)
 		sn.refill(true)
 	for entity in [caster_entity, defender_entity]:
 		entity.is_dead = false
