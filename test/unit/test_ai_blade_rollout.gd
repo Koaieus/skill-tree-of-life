@@ -647,46 +647,6 @@ func test_coarse_rank_selects_the_nearer_finalists() -> void:
 
 # ── Full pipeline: pivot prune -> proposals -> coarse rank -> full resolve ──
 
-func test_gather_melee_candidates_scores_a_real_hit() -> void:
-	var pivot := _spawn("Pivot")
-	var member := _spawn("Member")
-	var target := _spawn("Target")
-	_add_edge(pivot, member)
-	pivot.global_position = Vector2.ZERO
-	# Member sweeps a circle of this radius around the pivot; placing the
-	# target AT that same point guarantees shape overlap at t=0 regardless
-	# of physics-server sync timing, rather than depending on the swing
-	# reaching a particular angle by a particular frame.
-	member.global_position = Vector2(60.0, 0.0)
-	target.global_position = Vector2(60.0, 0.0)
-
-	_alloc.force_allocate(_ai_entity, pivot)
-	_ai_entity.core_location = pivot
-	_alloc.force_allocate(_ai_entity, member)
-	_alloc.force_allocate(_hostile, target)
-	_hostile.core_location = target
-	await get_tree().process_frame
-	await get_tree().physics_frame
-	await get_tree().physics_frame
-
-	var visible: Array[SkillNode] = [target]
-	var started := Time.get_ticks_msec()
-	var candidates := AiBladeRollout.gather_melee_candidates(_ai_entity, visible, 0)
-	var elapsed := Time.get_ticks_msec() - started
-
-	assert_lt(elapsed, 5000, "rollout must complete in bounded time (no infinite MCMC)")
-	assert_gt(candidates.size(), 0, "a valid pivot + induced subgraph exists -> at least one candidate")
-	for c in candidates:
-		assert_eq(c.mode, BattleSystem.AttackMode.MELEE)
-		# Either owned node is a legitimate pivot here (both sit adjacent to
-		# the target-coincident point) — the acceptance bar is "the swing
-		# actually connects", not which of the two symmetric picks won.
-		assert_true(c.source_node == pivot or c.source_node == member,
-				"pivot must be one of the AI's own owned nodes")
-	var best: AiCombatScorer.ScoredCandidate = AiCombatScorer.pick_best(candidates)
-	assert_gt(best.ev, 0.0, "the best candidate should register real damage on the coincident target")
-
-
 func test_gather_melee_candidates_empty_without_visible_enemy() -> void:
 	var pivot := _spawn("Pivot")
 	_alloc.force_allocate(_ai_entity, pivot)

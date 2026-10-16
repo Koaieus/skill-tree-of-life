@@ -592,9 +592,13 @@ func test_the_partial_arc_continues_into_the_whole_swing_without_restarting() ->
 	assert_not_null(blade, "fixture: the click mounted a ghost")
 	watch_signals(blade)
 
-	# The first slice is 12 samples = 0.1s of swing; 0.6s is well past that and
-	# well short of the 1.2s a whole swing takes.
-	await get_tree().create_timer(0.6).timeout
+	# The first slice is 12 samples = 0.1s of swing. Step the preview's slice
+	# pump by hand until the resolve is whole: no wall-clock wait, and nothing
+	# near the 1.2s a whole swing takes has elapsed.
+	var pumps := 0
+	while plan.prediction() == null and pumps < _swing_steps() * 4:
+		_preview._process(0.0)
+		pumps += 1
 
 	assert_not_null(plan.prediction(), "fixture: the slices are long done by now")
 	assert_signal_not_emitted(blade, "playback_finished",
