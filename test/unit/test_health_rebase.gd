@@ -95,9 +95,9 @@ func test_per_stack_dot_values_are_unchanged() -> void:
 	assert_eq(WITHER.factor_per_stack, 0.1, "wither healing factor per stack")
 
 
-# ── Bunker still heals on a default node ────────────────────────────────────
+# ── Bunker nets the default floor to zero ───────────────────────────────────
 
-func test_bunker_on_a_default_node_nets_a_negative_floor() -> void:
+func test_bunker_on_a_default_node_nets_the_floor_to_zero() -> void:
 	var ent := autofree(Entity.new()) as Entity
 	ent.stat_board = BOARD.duplicate(true) as EntityStatBoard
 	var node: SkillNode = NODE_SCENE.instantiate()
@@ -108,5 +108,5 @@ func test_bunker_on_a_default_node_nets_a_negative_floor() -> void:
 	await get_tree().process_frame
 	node.add_child(BUNKER.instantiate())
 	await get_tree().process_frame
-	assert_lt(float(node.get_local_value(&"min_damage_taken")), 0.0,
-		"Bunker's floor modifier must still overshoot the default floor")
+	assert_almost_eq(float(node.get_local_value(&"min_damage_taken")), 0.0, 0.001,
+		"a lone Bunker nets the default floor to 0")
