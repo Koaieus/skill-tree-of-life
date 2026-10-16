@@ -9,6 +9,9 @@ extends GutTest
 ## sits before and after, whether the root reads allocated, and that a second
 ## press during the travel does nothing — which is the one behaviour #574 calls
 ## out by name.
+##
+## Integration tier, not unit: every test builds a whole [FrontmatterRoot], and
+## that composed scene is the subject (where the camera sits on the root node).
 
 const _SPLASH := preload("res://ui/frontmatter/splash_screen.tscn")
 const _FRONTMATTER := preload("res://ui/frontmatter/frontmatter_root.tscn")
