@@ -22,74 +22,45 @@ extends RefCounted
 ## var out := SpellResolver.resolve(spell, graph.get_skill_nodes()[1], graph.get_skill_nodes()[0], attacker, graph)
 ## ```
 
-const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _DEFAULT_BOARD := preload("res://entity/default_entity_board.tres")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
-const _EDGE_SCENE := preload("res://graph/edge.tscn")
 
 
+## World building is [TestWorld]'s; these keep the graph-first signatures the
+## spell tests were written against.
+##
 ## [param positions] maps node index -> position. Optional, and empty is the
 ## right answer for every test that only reads topology — but a spell with a
 ## [b]curl[/b] ranks its candidates by angle, so a fixture that leaves every
 ## node stacked at the origin hands [method Curl.rank] a pile of zero-length
 ## directions and gets an empty fan. Any test touching Cyclone must pass real
-## coordinates (#703).
+## coordinates.
 func make_graph(adjacency: Array, gut: GutTest, positions: Dictionary = {}) -> Graph:
-	var node_count: int = 0
-	for pair in adjacency:
-		node_count = max(node_count, int(pair[0]) + 1, int(pair[1]) + 1)
-	var graph := _GRAPH_SCENE.instantiate()
-	graph.name = "TestGraph"
-	gut.add_child_autofree(graph)
-	for i in node_count:
-		var sn := _SKILL_NODE_SCENE.instantiate() as SkillNode
-		sn.name = "N%d" % i
-		if positions.has(i):
-			sn.position = positions[i]
-		graph.skill_nodes_container.add_child(sn)
-	for pair in adjacency:
-		var a: SkillNode = graph.get_skill_nodes()[int(pair[0])]
-		var b: SkillNode = graph.get_skill_nodes()[int(pair[1])]
-		var e := _EDGE_SCENE.instantiate() as Edge
-		e.from = a
-		e.to = b
-		graph.edges_container.add_child(e)
-	return graph
+	var w := TestWorld.create(gut)
+	w.build(adjacency, positions)
+	return w.graph
 
 
 ## Zero `crit_chance`, so a test that pins damage MATH isn't rolling dice.
 ##
 ## The default board ships a 5% baseline crit (`crit_chance.tres`). A seeded
-## test *can* reproduce crits (see #213), but damage-math tests shouldn't
-## need to manage a seed just to avoid noise. A crit test sets its own value
-## explicitly (see test_crit_resolution.gd).
+## test *can* reproduce crits, but damage-math tests shouldn't need to manage
+## a seed just to avoid noise. A crit test sets its own value explicitly (see
+## test_crit_resolution.gd).
 ## Every entity gets its OWN one-member camp unless [param faction] says
-## otherwise — so `make_entity(g, "A")` and `make_entity(g, "D")` are genuinely
-## hostile, which is what these fixtures always meant by "enemy". Without it
-## they'd both inherit `npc.tres` (Entity's default) and read ALLIED, and every
-## `owner_enemy()` propagation test would silently assert on an allied chain.
-## Pass a shared [Faction] to two entities to build the co-op case on purpose.
+## otherwise (see [method TestWorld.add_entity]) — so `make_entity(g, "A")` and
+## `make_entity(g, "D")` are genuinely hostile, which is what these fixtures
+## always meant by "enemy". Pass a shared [Faction] to two entities to build
+## the co-op case on purpose.
 func make_entity(graph: Graph, display_name: String, color: Color = Color.WHITE,
 		faction: Faction = null) -> Entity:
-	var ent := Entity.new()
-	ent.display_name = display_name
-	ent.color = color
-	if faction != null:
-		ent.faction = faction
-	else:
-		var solo := Faction.new()
-		solo.id = StringName("test_camp_%s_%d" % [display_name, ent.get_instance_id()])
-		solo.display_name = display_name
-		ent.faction = solo
-	ent.stat_board = _DEFAULT_BOARD.duplicate(true) as EntityStatBoard
-	var cc: Stat = ent.stat_board.get_stat(&"crit_chance")
+	var board := _DEFAULT_BOARD.duplicate(true) as EntityStatBoard
+	var cc: Stat = board.get_stat(&"crit_chance")
 	if cc != null:
 		cc.base_value = 0.0
 		# If core-class / other tests run into crit-triggered flakiness despite
 		# this zeroing (e.g. a modifier adds crit_chance after construction),
 		# switch to a high-priority SET=0 StatModifier on the Stat instead.
-	graph.add_child(ent)
-	return ent
+	return TestWorld.around(graph).add_entity(display_name, board, faction, color)
 
 
 func give_big_hp(entity: Entity, value: float = 9999.0) -> void:
@@ -100,40 +71,21 @@ func give_big_hp(entity: Entity, value: float = 9999.0) -> void:
 		nh.base_value = value
 
 
-## Allocate [param indices] to [param entity], through [AllocationSystem] —
-## never by writing `owned_by` directly, which is what this used to do.
-##
-## [b]That shortcut stopped being harmless at #536.[/b] A bare `owned_by =`
-## leaves the entity's [EntityNavigator] mirror empty, and
-## [method EntityCombat.snapshot] builds a shadow from exactly that mirror — so
-## a resolve against a shadow saw a defender who owned nothing, every
-## [OwnerFilter] read NEUTRAL, and no spell propagated anywhere. The fixture was
-## always lying about ownership (`.claude/rules/graph.md` names the same trap);
-## it just had nothing to lie to before.
+## Allocate [param indices] to [param entity] via [method TestWorld.allocate] —
+## through [AllocationSystem], never a bare `owned_by =`: that leaves the
+## entity's [EntityNavigator] mirror empty, and [method EntityCombat.snapshot]
+## builds its shadow from exactly that mirror, so every [OwnerFilter] on a
+## shadow would read NEUTRAL.
 ##
 ## The first node in [param indices] becomes the entity's `core_location`, so a
 ## cascade has an anchor to island against — [method EntityCombat.cascade_set]
 ## needs one, and no fixture wants its core to be the node under attack.
 func assign_owner(graph: Graph, entity: Entity, indices: Array) -> void:
 	var nodes := graph.get_skill_nodes()
-	var alloc := _allocator(graph)
+	var picked: Array = []
 	for i in indices:
-		alloc.force_allocate(entity, nodes[int(i)])
-	if entity.core_location == null and not indices.is_empty():
-		entity.core_location = nodes[int(indices[0])]
-
-
-## One [AllocationSystem] per graph, parented to it so the fixture's teardown
-## takes it too.
-func _allocator(graph: Graph) -> AllocationSystem:
-	var existing := graph.get_node_or_null(^"TestAllocationSystem") as AllocationSystem
-	if existing != null:
-		return existing
-	var alloc := AllocationSystem.new()
-	alloc.name = "TestAllocationSystem"
-	alloc.graph = graph
-	graph.add_child(alloc)
-	return alloc
+		picked.append(nodes[int(i)])
+	TestWorld.around(graph).allocate(entity, picked)
 
 
 ## Build a SpellDef. `prop` is a PropagationConfig (use [method make_config]
