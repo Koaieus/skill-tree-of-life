@@ -45,9 +45,9 @@ using namespace godot;
  *     `< SHATTER_DISTANCE` test then compares the narrowed value. Keeping a
  *     double accumulator "for accuracy" is a different solver. `_edge_residual`
  *     is the opposite — its values are plain GDScript floats, i.e. doubles.
- *   - `_contact_particles` / `_contact_edges` / `_contact_normals` are godot
+ *   - `_contact_particles` / `_contact_edges` are godot
  *     Dictionaries here for the same reason they are in GDScript: iteration is
- *     INSERTION order, and the load-share pass sums into shared edge banks in
+ *     INSERTION order, and the element banking pass sums into the zone banks in
  *     that order. A particle touched by zone 3 and then zone 7 keeps zone 7's
  *     value at zone 3's position — a key-sorted map is NOT equivalent.
  *   - The pushout mutates `positions` in place mid-loop: zone z+1 sees zone z's
@@ -75,10 +75,13 @@ struct FieldCtx {
     int64_t driven_count = 0;
 
     // particle -> live incident edge indices, CSR. Flattened from the
-    // Dictionary prepare() built, in its ascending-edge-index order — which is
-    // summation order for the load share, not merely a layout.
+    // Dictionary prepare() built, in its ascending-edge-index order — the
+    // vertex pick's tie order.
     const int32_t *incident_offsets = nullptr; // size n + 1
     const int32_t *incident_edges = nullptr;
+    // particle -> hop distance from the pivot over the live edges, computed by
+    // prepare() (BladeObstacleField._hops).
+    const int32_t *vertex_hops = nullptr;
 
     double contact_slop = 0.0;
     double contact_hysteresis = 0.0;
@@ -110,7 +113,6 @@ struct FieldCtx {
     PackedVector2Array driven_targets;
     Dictionary contact_particles;
     Dictionary contact_edges;
-    Dictionary contact_normals;
     Dictionary near_plates;
 
     // ── Per-sample history, parallel to `samples[1..]` ──────────────────────
@@ -240,7 +242,6 @@ void field_project(FieldCtx &f, Vector2 *positions, const float *inv_masses, int
             const Vector2 normal = d > 1e-6 ? (p - c) / (real_t)d : Vector2(1, 0);
             positions[i] = c + normal * (real_t)reach;
             f.contact_particles[i] = z;
-            f.contact_normals[i] = normal;
         }
         if (!deflect && !wants_drag) {
             continue; // wall, already banked by a disc — skip the capsule pass
@@ -312,23 +313,51 @@ void field_project(FieldCtx &f, Vector2 *positions, const float *inv_masses, int
 
 // BladeObstacleField._bank_load() — the values are GDScript floats, i.e.
 // doubles, unlike `strain`.
-void field_bank_load(FieldCtx &f, int64_t z, int64_t e_idx, double r) {
+void field_bank_load(FieldCtx &f, int64_t z, int64_t key, double r) {
     Dictionary d = f.edge_residual[z];
-    const double prev = d.has(e_idx) ? (double)d[e_idx] : 0.0;
-    d[e_idx] = prev + r;
+    const double prev = d.has(key) ? (double)d[key] : 0.0;
+    d[key] = prev + r;
 }
 
-// BladeObstacleField._pick_edge() — most strained LIVE edge, lowest index on a
-// tie (ascending keys plus a strict `>`).
+// BladeObstacleField._element_edge() — the live edge one contact element
+// breaks, or -1. Key < n is a vertex: its live edge to the neighbour nearest
+// the pivot, lowest edge index on a tie. Key >= n is edge `key - n` itself.
+int64_t field_element_edge(const FieldCtx &f, int64_t key, int64_t n) {
+    if (key >= n) {
+        const int64_t e_idx = key - n;
+        return f.edge_removed[e_idx] != 0 ? -1 : e_idx;
+    }
+    int64_t best = -1;
+    int32_t best_hop = 0;
+    for (int64_t k = f.incident_offsets[key]; k < f.incident_offsets[key + 1]; k++) {
+        const int64_t e_idx = f.incident_edges[k];
+        if (f.edge_removed[e_idx] != 0) {
+            continue;
+        }
+        const int32_t ex = f.edges[e_idx * 2 + 0];
+        const int32_t ey = f.edges[e_idx * 2 + 1];
+        const int32_t hop = f.vertex_hops[(int64_t)ex == key ? ey : ex];
+        if (best < 0 || hop < best_hop || (hop == best_hop && e_idx < best)) {
+            best = e_idx;
+            best_hop = hop;
+        }
+    }
+    return best;
+}
+
+// BladeObstacleField._pick_edge() — the contact element with the most banked
+// drive (ascending keys plus a strict `>`: vertices first, lowest index on a
+// tie) decides; an element with nothing live to break falls through.
 int64_t field_pick_edge(const FieldCtx &f, int64_t z) {
+    const int64_t n = f.vertex_radii_count;
     Dictionary d = f.edge_residual[z];
     Array keys = d.keys();
     keys.sort();
     int64_t best = -1;
     double best_r = -1.0;
     for (int64_t i = 0; i < keys.size(); i++) {
-        const int64_t e_idx = keys[i];
-        if (f.edge_removed[e_idx] != 0) {
+        const int64_t e_idx = field_element_edge(f, (int64_t)keys[i], n);
+        if (e_idx < 0) {
             continue;
         }
         const double r = d[keys[i]];
@@ -352,7 +381,6 @@ void field_roll_driven(FieldCtx &f, const Vector2 *positions) {
     }
     f.contact_particles.clear();
     f.contact_edges.clear();
-    f.contact_normals.clear();
     f.near_plates.clear();
 }
 
@@ -403,35 +431,19 @@ void field_end_substep(FieldCtx &f, const Vector2 *positions) {
             Dictionary(f.edge_residual[z]).clear();
         }
     }
-    // Load share, for "which edge": every live edge incident to a pushed vertex
-    // banks the drive in proportion to how squarely the push runs along it.
+    // "Which edge": every element (vertex disc, edge capsule) pushed out of a
+    // plate this substep banks the refused drive against that plate.
     if (unresolved > 0.0) {
+        const int64_t n = f.vertex_radii_count;
         const Array contacts = f.contact_particles.keys();
         for (int64_t ci = 0; ci < contacts.size(); ci++) {
             const Variant key = contacts[ci];
-            const int64_t i = key;
-            const int64_t z = f.contact_particles[key];
-            const Vector2 normal = f.contact_normals[key];
-            const int64_t from = f.incident_offsets[i];
-            const int64_t to = f.incident_offsets[i + 1];
-            for (int64_t k = from; k < to; k++) {
-                const int64_t e_idx = f.incident_edges[k];
-                const int32_t ex = f.edges[e_idx * 2 + 0];
-                const int32_t ey = f.edges[e_idx * 2 + 1];
-                const int64_t other = (int64_t)ex == i ? (int64_t)ey : (int64_t)ex;
-                const Vector2 dir = positions[other] - positions[i];
-                const double len = (double)dir.length();
-                if (len <= 1e-6) {
-                    continue;
-                }
-                const double along = (double)normal.dot(dir / (real_t)len);
-                field_bank_load(f, z, e_idx, unresolved * (along < 0.0 ? -along : along));
-            }
+            field_bank_load(f, (int64_t)f.contact_particles[key], (int64_t)key, unresolved);
         }
         const Array contact_edges = f.contact_edges.keys();
         for (int64_t ei = 0; ei < contact_edges.size(); ei++) {
             const Variant key = contact_edges[ei];
-            field_bank_load(f, (int64_t)f.contact_edges[key], (int64_t)key, unresolved);
+            field_bank_load(f, (int64_t)f.contact_edges[key], n + (int64_t)key, unresolved);
         }
     }
     // Armed once, ascending zone, and held until GDScript's consume_break().
@@ -894,6 +906,7 @@ Dictionary BladeSolverNative::simulate_range_field(
     PackedInt32Array driven;
     PackedInt32Array incident_offsets;
     PackedInt32Array incident_edges;
+    PackedInt32Array vertex_hops;
 
     if (ctx.has_clock) {
         BLADE_REQUIRE_KEY(p_field, "clock_duration");
@@ -915,7 +928,7 @@ Dictionary BladeSolverNative::simulate_range_field(
     if (ctx.has_field) {
         for (const char *key : { "zone_centers", "zone_radii", "zone_drags", "zone_deflects",
                      "edges", "edge_removed", "vertex_radii", "driven",
-                     "incident_offsets", "incident_edges", "contact_slop",
+                     "incident_offsets", "incident_edges", "vertex_hops", "contact_slop",
                      "contact_hysteresis", "shatter_distance", "edge_radius" }) {
             ERR_FAIL_COND_V_MSG(!p_field.has(String(key)), Dictionary(),
                     String("simulate_range_field: missing field input '") + key + "'.");
@@ -932,6 +945,7 @@ Dictionary BladeSolverNative::simulate_range_field(
         driven = p_field["driven"];
         incident_offsets = p_field["incident_offsets"];
         incident_edges = p_field["incident_edges"];
+        vertex_hops = p_field["vertex_hops"];
 
         ctx.zone_count = zone_radii.size();
         ERR_FAIL_COND_V_MSG(zone_centers.size() != ctx.zone_count
@@ -947,6 +961,8 @@ Dictionary BladeSolverNative::simulate_range_field(
                 "simulate_range_field: vertex_radii must parallel positions.");
         ERR_FAIL_COND_V_MSG(incident_offsets.size() != p_positions.size() + 1, Dictionary(),
                 "simulate_range_field: incident_offsets must be one longer than positions.");
+        ERR_FAIL_COND_V_MSG(vertex_hops.size() != p_positions.size(), Dictionary(),
+                "simulate_range_field: vertex_hops must parallel positions.");
 
         ctx.zone_centers = zone_centers.ptr();
         ctx.zone_radii = zone_radii.ptr();
@@ -960,6 +976,7 @@ Dictionary BladeSolverNative::simulate_range_field(
         ctx.driven_count = driven.size();
         ctx.incident_offsets = incident_offsets.ptr();
         ctx.incident_edges = incident_edges.ptr();
+        ctx.vertex_hops = vertex_hops.ptr();
         ctx.contact_slop = p_field["contact_slop"];
         ctx.contact_hysteresis = p_field["contact_hysteresis"];
         ctx.shatter_distance = p_field["shatter_distance"];

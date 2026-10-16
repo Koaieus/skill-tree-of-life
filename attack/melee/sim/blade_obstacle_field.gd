@@ -113,8 +113,11 @@ var _live_deflects: PackedByteArray = PackedByteArray()
 ## Per zone: accumulated unresolved drive (px) over the CURRENT contact. Reset
 ## to 0 the first substep the zone touches nothing, and after a break.
 var _strain: PackedFloat32Array = PackedFloat32Array()
-## Per zone: edge_idx -> load banked over the current contact, for the edges
-## incident to what touched it. The strain's "which edge" answer.
+## Per zone: contact ELEMENT -> refused drive banked over the current contact,
+## the strain's "which edge" answer. An element is a vertex disc (key = its
+## particle index) or an edge capsule (key = particle count + edge index), so
+## an ascending key scan visits vertices first, each kind in index order — the
+## pick's tie rule. See [method _pick_edge].
 var _edge_residual: Array[Dictionary] = []
 ## Where each driven particle ended the PREVIOUS substep, and where its driver
 ## had prescribed it then (both parallel to `_driven`); empty until one substep
@@ -144,8 +147,6 @@ var _driven_targets: PackedVector2Array = PackedVector2Array()
 ## particle -> zone, and edge_idx -> zone, for THIS substep. Cleared at its end.
 var _contact_particles: Dictionary = {}
 var _contact_edges: Dictionary = {}
-## particle -> the outward normal it was last pushed along this substep.
-var _contact_normals: Dictionary = {}
 ## zone -> true while some part is within CONTACT_HYSTERESIS of it this substep.
 ## PLATES only: a wall never enters this set, so it can never meter strain,
 ## arm a break (#811 — see the class docstring).
@@ -154,6 +155,11 @@ var _near: Dictionary = {}
 ## Array on purpose: a packed array read back out of a Dictionary is a copy,
 ## and appending to it would be lost.
 var _incident: Dictionary = {}
+## Per particle: hop distance from the pivot over the live edges, or
+## [constant _UNREACHED] for a vertex no live path reaches. Rebuilt by
+## [method prepare], which also runs after every severance.
+var _hops: PackedInt32Array = PackedInt32Array()
+const _UNREACHED := 1 << 30
 
 ## False once this field was handed someone else's zone set — appending to a
 ## SHARED set would silently give a sibling proposal an extra defender.
@@ -270,6 +276,29 @@ func prepare(state: BladeState, drivers: Array[BladeDriver],
 			continue
 		(_incident.get_or_add(e.x, [] as Array[int]) as Array[int]).append(e_idx)
 		(_incident.get_or_add(e.y, [] as Array[int]) as Array[int]).append(e_idx)
+	_hops = _pivot_hops(state)
+
+
+## Breadth-first hop distance from the pivot over [member _incident].
+func _pivot_hops(state: BladeState) -> PackedInt32Array:
+	var hops := PackedInt32Array()
+	hops.resize(state.positions.size())
+	hops.fill(_UNREACHED)
+	if state.pivot_index < 0 or state.pivot_index >= hops.size():
+		return hops
+	hops[state.pivot_index] = 0
+	var frontier: Array[int] = [state.pivot_index]
+	while not frontier.is_empty():
+		var next: Array[int] = []
+		for v in frontier:
+			for e_idx: int in _incident.get(v, []):
+				var e := state.edges[e_idx]
+				var o := e.y if e.x == v else e.x
+				if hops[o] == _UNREACHED:
+					hops[o] = hops[v] + 1
+					next.append(o)
+		frontier = next
+	return hops
 
 
 ## The GLOBAL index of the sample the next substeps produce.
@@ -372,7 +401,6 @@ func project(positions: PackedVector2Array, inv_masses: PackedFloat32Array) -> v
 			var normal := (p - c) / d if d > 1e-6 else Vector2.RIGHT
 			positions[i] = c + normal * reach
 			_contact_particles[i] = z
-			_contact_normals[i] = normal
 		if not deflect and not wants_drag:
 			continue  # wall, already banked by a disc — skip the capsule pass
 		var cap_reach := zr + _EDGE_RADIUS
@@ -458,23 +486,14 @@ func end_substep(positions: PackedVector2Array) -> void:
 		elif _strain[z] != 0.0:
 			_strain[z] = 0.0
 			_edge_residual[z].clear()
-	# Load share, for "which edge": every live edge incident to a pushed vertex
-	# banks the drive in proportion to how squarely the push runs along it.
+	# "Which edge": every element (vertex disc, edge capsule) pushed out of a
+	# plate this substep banks the refused drive against that plate.
 	if unresolved > 0.0:
 		for i in _contact_particles:
-			var z: int = _contact_particles[i]
-			var normal: Vector2 = _contact_normals[i]
-			var inc: Array = _incident.get(i, [])
-			for e_idx in inc:
-				var e := _state.edges[e_idx]
-				var other := e.y if e.x == i else e.x
-				var dir := positions[other] - positions[i]
-				var len := dir.length()
-				if len <= 1e-6:
-					continue
-				_bank_load(z, e_idx, unresolved * absf(normal.dot(dir / len)))
+			_bank_load(_contact_particles[i], i, unresolved)
+		var n := positions.size()
 		for e_idx in _contact_edges:
-			_bank_load(_contact_edges[e_idx], e_idx, unresolved)
+			_bank_load(_contact_edges[e_idx], n + e_idx, unresolved)
 	if _break_edge < 0:
 		for z in _strain.size():
 			if _strain[z] < SHATTER_DISTANCE:
@@ -610,7 +629,6 @@ func restore(b: Bank) -> void:
 	_current_step = b.current_step
 	_contact_particles.clear()
 	_contact_edges.clear()
-	_contact_normals.clear()
 	_near.clear()
 
 
@@ -671,6 +689,7 @@ func native_inputs() -> Dictionary:
 		"driven": _driven,
 		"incident_offsets": incident_offsets,
 		"incident_edges": incident_edges,
+		"vertex_hops": _hops,
 		"contact_slop": CONTACT_SLOP,
 		"contact_hysteresis": CONTACT_HYSTERESIS,
 		"shatter_distance": SHATTER_DISTANCE,
@@ -728,7 +747,6 @@ func apply_native_state(d: Dictionary) -> void:
 	# it here mirrors [method restore] rather than leaving GDScript's stale.
 	_contact_particles.clear()
 	_contact_edges.clear()
-	_contact_normals.clear()
 	_near.clear()
 
 
@@ -740,29 +758,50 @@ func _roll_driven(positions: PackedVector2Array) -> void:
 		_driven_last_target[k] = _driven_targets[k]
 	_contact_particles.clear()
 	_contact_edges.clear()
-	_contact_normals.clear()
 	_near.clear()
 
 
-func _bank_load(z: int, e_idx: int, r: float) -> void:
+func _bank_load(z: int, key: int, r: float) -> void:
 	var d := _edge_residual[z]
-	d[e_idx] = float(d.get(e_idx, 0.0)) + r
+	d[key] = float(d.get(key, 0.0)) + r
 
 
-## The most strained live edge banked against zone [param z], lowest index on
-## a tie; -1 if nothing is left to break there.
+## The edge zone [param z] breaks, or -1 if nothing is left to break there.
+## The contact element with the most banked drive (ties: vertices first, lowest
+## index) decides it: an edge capsule breaks itself; a vertex breaks its live
+## edge to the neighbour nearest the pivot (ties: lowest edge index). An
+## element with nothing live to break falls through to the next.
 func _pick_edge(z: int) -> int:
+	var n := _state.positions.size()
 	var best := -1
 	var best_r := -1.0
 	var keys := _edge_residual[z].keys()
 	keys.sort()
-	for e_idx in keys:
-		if _state.removed_edges.has(e_idx):
+	for key: int in keys:
+		var e_idx := _element_edge(key, n)
+		if e_idx < 0:
 			continue
-		var r: float = _edge_residual[z][e_idx]
+		var r: float = _edge_residual[z][key]
 		if r > best_r:
 			best_r = r
 			best = e_idx
+	return best
+
+
+## The live edge element [param key] would break, or -1.
+func _element_edge(key: int, n: int) -> int:
+	if key >= n:
+		return -1 if _state.removed_edges.has(key - n) else key - n
+	var best := -1
+	var best_hop := 0
+	for e_idx: int in _incident.get(key, []):
+		if _state.removed_edges.has(e_idx):
+			continue
+		var e := _state.edges[e_idx]
+		var hop := _hops[e.y if e.x == key else e.x]
+		if best < 0 or hop < best_hop or (hop == best_hop and e_idx < best):
+			best = e_idx
+			best_hop = hop
 	return best
 
 
