@@ -142,14 +142,11 @@ func test_scene_authored_ownership_applies_node_modifiers() -> void:
 		"a hand-authored owned node's modifiers must reach its owner's board")
 	assert_eq(node.allocation_level, 1, "and the first allocation slot is filled")
 
-	# `register_scene_authored_ownership` does NOT call `navigator.mirror_add`,
-	# unlike the other two setup paths — and it correctly doesn't have to.
-	# `EntityNavigator._ready` calls `GraphMirror.wire_to`, whose bootstrap
-	# sweep mirrors every already-owned node. Pinned because the omission looks
-	# exactly like the bug this test was written for, and the next reader will
-	# want to know it was checked rather than missed.
+	# Both the navigator's wire_to bootstrap and the setup atom
+	# (`register_scene_authored_ownership` -> `_take_ownership`) mirror an
+	# already-owned node; mirror_add is idempotent, so it lands exactly once.
 	assert_true(ent.navigator.get_mirrored_nodes().has(node),
-		"the navigator's wire_to bootstrap covers scene-authored ownership")
+		"scene-authored ownership is mirrored")
 
 
 ## Every StatModifier authored as a sub-resource of an addon scene must be

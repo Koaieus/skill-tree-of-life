@@ -143,20 +143,10 @@ func register_scene_authored_ownership() -> void:
 		var board := n.owned_by.stat_board
 		if board.skill_points != null:
 			board.skill_points.claim(1)
-		# This path bypasses force_allocate, so it must reproduce its side
-		# effects itself — and in the SAME order, or the #376 local-scale
-		# mutator sees a different world when the fill lands.
-		#
-		# The modifier push was missing until 2026-08-14: every hand-authored
-		# owned node's `modifiers` were inert, so dev_sandbox's Right/Down
-		# granted the player nothing. Pinned by
-		# test_allocation.gd::test_scene_authored_ownership_applies_node_modifiers.
-		n.apply_entity_modifiers_to(board)
-		_grant_node_effects(n, n.owned_by)
-		# Fill the first allocation slot LAST — the allocate path owns fill
-		# writes (#337); this bypasses it, so it sets the 1 explicitly, after
-		# the grants are applied (the mutator reads the board when it lands).
-		n.allocation_level = 1
+		# Atom, no announce: level load stays silent (no allocation VFX on
+		# scene open). The owner is already set and the navigator's wire_to
+		# bootstrap may already mirror the node; the atom tolerates both.
+		_take_ownership(n, n.owned_by)
 
 
 func can_allocate(node: SkillNode, entity: Entity) -> bool:
@@ -204,30 +194,17 @@ func _restore_spikes_to_full(node: SkillNode) -> void:
 func allocate(node: SkillNode, entity: Entity) -> bool:
 	if not can_allocate(node, entity):
 		return false
-	# spend(1) does current -= 1, used += 1. force_allocate would also call
-	# claim(1) — that'd double-bump used and mint an extra SP. So inline the
-	# rest of force_allocate's side-effects here, skipping the claim.
+	# spend(1) does current -= 1, used += 1 — force_allocate's claim(1) would
+	# double-bump used and mint an extra SP, so the two share only the atom.
 	var board := entity.stat_board
 	if board != null and board.skill_points != null:
 		board.skill_points.spend(1)
 	if node.owned_by == null:
-		# First allocation: 0 → 1. ONLY this transition runs the full side
-		# effect path — a refill must never re-apply modifiers or re-grant
-		# effects (#337), or they would double-stack silently.
-		node.owned_by = entity
-		_restore_spikes_to_full(node)
-		if entity.navigator != null:
-			entity.navigator.mirror_add(node)
-		node.apply_entity_modifiers_to(board)
-		# Effects BEFORE the fill lands: the local-scale mutator (#376) walks
-		# the effects on the 0→1 transition and must find the fresh grant.
-		_grant_node_effects(node, entity)
-		# Fill after the grants are applied (the mutator reads the board).
-		node.allocation_level = 1
-		# After the mirror update: an aura recomputing off this hook must see the
-		# new node in the owned subgraph, not the stale one.
-		entity.dispatch(&"_on_node_allocated", [node, false])
-		allocated.emit(node, entity, false)
+		# First allocation: 0 → 1. ONLY this transition runs the setup atom —
+		# a refill must never re-apply modifiers or re-grant effects (#337),
+		# or they would double-stack silently.
+		_take_ownership(node, entity)
+		_announce_allocated(node, entity, false)
 	else:
 		# Refill: fill 1 → 2. Only spend + increment + visuals sync — no
 		# re-grant, no mirror, no modifiers, no signal.
@@ -246,23 +223,39 @@ func allocate(node: SkillNode, entity: Entity) -> bool:
 func force_allocate(entity: Entity, node: SkillNode) -> void:
 	if entity == null or node == null:
 		return
+	var board := entity.stat_board
+	if board != null and board.skill_points != null:
+		board.skill_points.claim(1)
+	_take_ownership(node, entity)
+	_announce_allocated(node, entity, true)
+
+
+## The one writer of a 0→1 ownership's world side effects, in this order:
+## owner, spikes, navigator mirror, entity modifiers, effects, fill = 1.
+## Callers own the SP accounting (spend / claim) and the announcement
+## ([method _announce_allocated]). Tolerates an already-set owner (the setter
+## no-ops) and an already-mirrored node ([method GraphMirror.mirror_add] is
+## idempotent) — the scene-authored case.
+func _take_ownership(node: SkillNode, entity: Entity) -> void:
 	node.owned_by = entity
 	_restore_spikes_to_full(node)
 	if entity.navigator != null:
 		entity.navigator.mirror_add(node)
-	var board := entity.stat_board
-	if board != null and board.skill_points != null:
-		board.skill_points.claim(1)
-	node.apply_entity_modifiers_to(board)
+	node.apply_entity_modifiers_to(entity.stat_board)
 	# Effects BEFORE the fill lands: the local-scale mutator (#376) walks the
 	# effects on the 0→1 transition and must find the fresh grant.
 	_grant_node_effects(node, entity)
-	# Fill the first allocation slot — the allocate path owns fill writes
-	# (#337); this bypasses it, so it sets the 1 explicitly, after the grants
-	# are applied (the mutator reads the board when the fill lands).
+	# Fill LAST — the allocate path owns fill writes (#337); the mutator reads
+	# the board when the fill lands.
 	node.allocation_level = 1
-	entity.dispatch(&"_on_node_allocated", [node, true])
-	allocated.emit(node, entity, true)
+
+
+## Tell the entity's hooks and the world a 0→1 ownership landed. After the
+## mirror update: an aura recomputing off the hook must see the new node in
+## the owned subgraph.
+func _announce_allocated(node: SkillNode, entity: Entity, forced: bool) -> void:
+	entity.dispatch(&"_on_node_allocated", [node, forced])
+	allocated.emit(node, entity, forced)
 
 
 ## Gating-free fill primitive (#915): raise an OWNED node's fill from its
