@@ -2,7 +2,7 @@ extends GutTest
 
 ## #864 — an UNALLOCATED node must not defend.
 ##
-## `swing_drag` (Fortification) and `deflection` (Bunker) are authored as LOCAL
+## `swing_drag` and `deflection` (Bunker) are authored as LOCAL
 ## modifiers the instant the addon is parented, and procgen attaches addons at
 ## generation time — on a board where every node is still unowned. Since #810
 ## the defender collision bit is minted off that local value alone, so
@@ -22,7 +22,6 @@ extends GutTest
 const _BOARD := preload("res://entity/default_entity_board.tres")
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _GRAPH_SCENE := preload("res://graph/graph.tscn")
-const _FORTIFICATION_SCENE := preload("res://skill_node/addons/defs/fortification_addon.tscn")
 const _BUNKER_SCENE := preload("res://skill_node/addons/defs/bunker_addon.tscn")
 
 const _QUERY_RADIUS := 400.0
@@ -38,7 +37,8 @@ func _spawn(nm: String, pos: Vector2, addon_scene: PackedScene) -> SkillNode:
 	sn.name = nm
 	_graph.add_skill_node(sn)
 	sn.global_position = pos
-	sn.add_child(addon_scene.instantiate() as SkillNodeAddon)
+	if addon_scene != null:
+		sn.add_child(addon_scene.instantiate() as SkillNodeAddon)
 	return sn
 
 
@@ -56,7 +56,8 @@ func before_each() -> void:
 	_alloc.graph = _graph
 	add_child_autofree(_alloc)
 
-	_wall = _spawn("Wall", Vector2(120.0, 0.0), _FORTIFICATION_SCENE)
+	_wall = _spawn("Wall", Vector2(120.0, 0.0), null)
+	_grant_drag(_wall)
 	_plate = _spawn("Plate", Vector2(-120.0, 0.0), _BUNKER_SCENE)
 
 	await get_tree().process_frame
@@ -73,7 +74,7 @@ func _query() -> BladeDefenderZones:
 
 func test_fixture_actually_authors_both_defender_stats() -> void:
 	assert_gt(float(_wall.get_local_value(&"swing_drag")), 0.0,
-			"fixture: Fortification must author swing_drag")
+			"fixture: the node must carry swing_drag")
 	assert_true(bool(_plate.get_local_value(&"deflection")),
 			"fixture: Bunker must author deflection")
 	assert_false(_wall.is_allocated(), "fixture: the wall is unowned")
@@ -102,5 +103,16 @@ func test_allocating_a_carrier_makes_it_defend_again() -> void:
 	assert_eq(zones.size(), 1,
 			"the newly-owned wall defends; the still-unowned plate does not")
 	assert_true(zones.defenders.has(_wall), "the owned wall is the zone that landed")
-	assert_true(zones.has_drag(), "an owned fortification still drags")
+	assert_true(zones.has_drag(), "an owned dragging node still drags")
 	assert_false(zones.has_deflection(), "the unowned bunker still does not deflect")
+
+
+## Drag has no shipped granter: a bare node-local `swing_drag` grant is the
+## whole fixture, keyed on the value exactly as an addon's modifier would be.
+func _grant_drag(sn: SkillNode) -> StatModifier:
+	var m := StatModifier.new()
+	m.stat_id = &"swing_drag"
+	m.operation = StatModifier.Operation.ADD_BONUS
+	m.value = 1.0
+	sn.add_local_modifier(m)
+	return m

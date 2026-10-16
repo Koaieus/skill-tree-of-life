@@ -15,7 +15,6 @@ extends GutTest
 const _ADDON_SCENES := {
 	"spike_ring": preload("res://skill_node/addons/defs/spike_ring_addon.tscn"),
 	"bunker": preload("res://skill_node/addons/defs/bunker_addon.tscn"),
-	"fortification": preload("res://skill_node/addons/defs/fortification_addon.tscn"),
 	"clamp": preload("res://skill_node/addons/defs/clamp_addon.tscn"),
 	"skill_dust": preload("res://skill_node/addons/defs/skill_dust_addon.tscn"),
 	"watchtower": preload("res://skill_node/addons/defs/watchtower_addon.tscn"),

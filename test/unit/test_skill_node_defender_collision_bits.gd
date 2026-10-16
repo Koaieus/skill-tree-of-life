@@ -12,7 +12,6 @@ extends GutTest
 ## ui/frontmatter/menu_node_view.gd) depends on it.
 
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
-const _FORTIFICATION_SCENE := preload("res://skill_node/addons/defs/fortification_addon.tscn")
 const _BUNKER_SCENE := preload("res://skill_node/addons/defs/bunker_addon.tscn")
 
 var _node: SkillNode
@@ -42,23 +41,6 @@ func test_default_pickable_bit_survives_untouched() -> void:
 			"the default pickable bit must stay on — the new bits are additive")
 	assert_false(_drag_bit(), "a bare node carries neither defender stat")
 	assert_false(_deflect_bit(), "a bare node carries neither defender stat")
-
-
-func test_fortification_addon_attach_and_detach_toggles_drag_bit() -> void:
-	add_child(_node)
-	await get_tree().physics_frame
-	assert_false(_drag_bit(), "precondition: no drag yet")
-
-	var addon := _FORTIFICATION_SCENE.instantiate() as SkillNodeAddon
-	_node.add_child(addon)
-	await get_tree().physics_frame
-	assert_true(_drag_bit(), "fortification's swing_drag mint flips the drag bit on")
-	assert_false(_deflect_bit(), "fortification never touches deflection")
-
-	_node.remove_child(addon)
-	addon.free()
-	await get_tree().physics_frame
-	assert_false(_drag_bit(), "detaching fortification's modifier drops swing_drag back to 0 — bit off")
 
 
 func test_bunker_addon_attach_and_detach_toggles_deflect_bit() -> void:
@@ -91,10 +73,9 @@ func test_addon_attached_well_after_the_node_is_already_established_still_flips_
 	await get_tree().physics_frame
 	assert_false(_drag_bit(), "still nothing fortified several frames in")
 
-	var addon := _FORTIFICATION_SCENE.instantiate() as SkillNodeAddon
-	_node.add_child(addon)
+	_grant_drag(_node)
 	await get_tree().physics_frame
-	assert_true(_drag_bit(), "a mid-lifetime attach mints swing_drag and the bit follows")
+	assert_true(_drag_bit(), "a mid-lifetime grant mints swing_drag and the bit follows")
 
 
 ## Acceptance 3 — the registry is keyed on the LOCAL VALUE, never on addon
@@ -120,16 +101,27 @@ func test_bare_granted_modifier_without_an_addon_flips_the_drag_bit() -> void:
 
 ## A node carrying both stats is one carrier of both kinds — both bits come
 ## on independently and neither addon's presence affects the other's bit.
-func test_fortification_and_bunker_together_set_both_bits_independently() -> void:
+func test_drag_and_bunker_together_set_both_bits_independently() -> void:
 	add_child(_node)
 	await get_tree().physics_frame
 
-	_node.add_child(_FORTIFICATION_SCENE.instantiate())
+	_grant_drag(_node)
 	await get_tree().physics_frame
 	assert_true(_drag_bit())
 	assert_false(_deflect_bit())
 
 	_node.add_child(_BUNKER_SCENE.instantiate())
 	await get_tree().physics_frame
-	assert_true(_drag_bit(), "fortification's bit survives bunker's arrival")
+	assert_true(_drag_bit(), "the drag bit survives bunker's arrival")
 	assert_true(_deflect_bit(), "bunker's bit is now on too")
+
+
+## Drag has no shipped granter: a bare node-local `swing_drag` grant is the
+## whole fixture, keyed on the value exactly as an addon's modifier would be.
+func _grant_drag(sn: SkillNode) -> StatModifier:
+	var m := StatModifier.new()
+	m.stat_id = &"swing_drag"
+	m.operation = StatModifier.Operation.ADD_BONUS
+	m.value = 1.0
+	sn.add_local_modifier(m)
+	return m

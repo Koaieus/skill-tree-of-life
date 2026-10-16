@@ -1,6 +1,6 @@
 extends GutTest
 
-## #780 — Fortification's swing drag: a wall of fortified nodes bogs a blade
+## #780 — swing drag: a wall of dragging nodes bogs a blade
 ## down by slowing the SWING'S CLOCK, never a vertex's velocity.
 ##
 ## #811 re-pointed the SENSING half of these tests: the clock no longer holds
@@ -14,7 +14,7 @@ extends GutTest
 ## Everything here runs on HAND-BUILT blades and hand-placed drag zones, per the
 ## issue's own NOTES: AI-built blades sit at the floppy end and under-report
 ## drag's bite. Nothing pins an authored `.tres` magnitude — the number on
-## `fortification_addon.tscn` is the owner's to tune, so these tests pin the
+## whatever grants `swing_drag` is the owner's to tune, so these tests pin the
 ## SHAPE (more fortified nodes ⇒ more drag ⇒ less arc) and the invariants
 ## (monotonic, exactly inert when untouched).
 
@@ -458,18 +458,5 @@ func test_swing_drag_is_a_registered_stat_that_defaults_to_no_drag() -> void:
 	if def != null:
 		assert_eq(def.default_value, 0.0,
 				"an ordinary node must drag nothing, or every swing pays for "
-				+ "Fortification whether or not anyone built it")
+				+ "drag whether or not anything granted it")
 
-
-func test_fortification_authors_a_swing_drag_modifier() -> void:
-	# The MAGNITUDE is the owner's to tune and is deliberately not pinned; that
-	# the addon carries the channel at all is the spec.
-	var addon := preload("res://skill_node/addons/defs/fortification_addon.tscn") \
-			.instantiate() as SkillNodeAddon
-	autofree(addon)
-	var ids: Array[StringName] = []
-	for m in addon.get_local_modifiers():
-		ids.append(m.stat_id)
-	assert_has(ids, &"swing_drag",
-			"Fortification's characteristic second modifier is swing drag")
-	assert_has(ids, &"node_health", "and it keeps its original node_health grant")

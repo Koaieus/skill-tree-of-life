@@ -12,7 +12,7 @@ extends GutTest
 ## [b]The two bullets of #867's spec, in order.[/b]
 ##
 ## 1. One test for all THREE defensive addons at once. Spike (pop),
-##    Fortification (`swing_drag`) and Bunker (`deflection`) each answer
+##    drag (`swing_drag`) and Bunker (`deflection`) each answer
 ##    ownership at a different site — [method BladePopResolver.LiveGate.admit],
 ##    and #864's gate in the zone query — so the contract "an unallocated node
 ##    does nothing to a blade" was three scattered assertions and no single
@@ -45,7 +45,6 @@ const _BOARD := preload("res://entity/default_entity_board.tres")
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _BUNKER_SCENE := preload("res://skill_node/addons/defs/bunker_addon.tscn")
-const _FORTIFICATION_SCENE := preload("res://skill_node/addons/defs/fortification_addon.tscn")
 const _SPIKE_SCENE := preload("res://skill_node/addons/defs/spike_ring_addon.tscn")
 
 const _SPACING := 150.0
@@ -94,7 +93,7 @@ func _sharpen(node: SkillNode, amount: float) -> void:
 ## outer blade vertices: large enough and the plate dies on the contact that
 ## reaches it, small enough and it survives the whole swing.
 func _setup(addons: Array[PackedScene], allocate_defender: bool,
-		blade_damage: float) -> Dictionary:
+		blade_damage: float, drag := false) -> Dictionary:
 	var graph := _GRAPH_SCENE.instantiate()
 	add_child_autofree(graph)
 	var attacker := _make_entity(graph)
@@ -143,6 +142,8 @@ func _setup(addons: Array[PackedScene], allocate_defender: bool,
 
 	for scene in addons:
 		plate.add_child(scene.instantiate() as SkillNodeAddon)
+	if drag:
+		_grant_drag(plate)
 
 	# The wielder's own baseline blade_damage is 0 with no CoreClass assigned
 	# (test_severed_swing_live.gd and test_bunker_break_live.gd hit the same
@@ -183,14 +184,14 @@ func _closest_approach(traj: BladeTrajectory, center: Vector2) -> float:
 
 func test_an_unowned_node_carrying_all_three_addons_does_nothing() -> void:
 	var ctx: Dictionary = await _setup(
-			[_SPIKE_SCENE, _FORTIFICATION_SCENE, _BUNKER_SCENE], false, 200.0)
+			[_SPIKE_SCENE, _BUNKER_SCENE], false, 200.0, true)
 	var plan: MeleeAttackPlan = ctx.plan
 	var plate: SkillNode = ctx.plate
 
 	# Fixture teeth: the node really does carry all three, and really is unowned.
 	assert_false(plate.is_allocated(), "fixture: the carrier must be unowned")
 	assert_gt(float(plate.get_local_value(&"swing_drag")), 0.0,
-			"fixture: Fortification must author swing_drag")
+			"fixture: the node must carry swing_drag")
 	assert_true(bool(plate.get_local_value(&"deflection")),
 			"fixture: Bunker must author deflection")
 	assert_gt(float(plate.get_local_value(&"spikes")), 0.0,
@@ -318,3 +319,14 @@ func test_a_plate_killed_mid_swing_stops_deflecting_from_that_moment() -> void:
 	assert_gte(first_divergence, death,
 			"#867 bullet 2: and only FROM the kill — nothing before it may move, "
 			+ "since blade_damage is not an input to the solver")
+
+
+## Drag has no shipped granter: a bare node-local `swing_drag` grant is the
+## whole fixture, keyed on the value exactly as an addon's modifier would be.
+func _grant_drag(sn: SkillNode) -> StatModifier:
+	var m := StatModifier.new()
+	m.stat_id = &"swing_drag"
+	m.operation = StatModifier.Operation.ADD_BONUS
+	m.value = 1.0
+	sn.add_local_modifier(m)
+	return m

@@ -39,7 +39,6 @@ extends GutTest
 const _BOARD := preload("res://entity/default_entity_board.tres")
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _GRAPH_SCENE := preload("res://graph/graph.tscn")
-const _FORTIFICATION_SCENE := preload("res://skill_node/addons/defs/fortification_addon.tscn")
 
 const _SPACING := 150.0
 
@@ -105,7 +104,7 @@ func _setup() -> Dictionary:
 	return {"plan": plan, "hostile": hostile}
 
 
-func test_a_same_frame_fortification_attach_is_found_by_the_walk_fallback() -> void:
+func test_a_same_frame_drag_grant_is_found_by_the_walk_fallback() -> void:
 	var ctx: Dictionary = await _setup()
 	var plan: MeleeAttackPlan = ctx.plan
 	var hostile: SkillNode = ctx.hostile
@@ -114,9 +113,9 @@ func test_a_same_frame_fortification_attach_is_found_by_the_walk_fallback() -> v
 	# `.claude/rules/skill-node-addons.md`), so `swing_drag` reads nonzero the
 	# instant this returns, and `_sync_defender_bit` stamps the dirty frame
 	# the same instant.
-	hostile.add_child(_FORTIFICATION_SCENE.instantiate() as SkillNodeAddon)
+	_grant_drag(hostile)
 	assert_gt(float(hostile.get_local_value(&"swing_drag")), 0.0,
-			"fixture: Fortification must actually author swing_drag before the "
+			"fixture: the grant must actually author swing_drag before the "
 			+ "physics half is even in question")
 	# The red this test can actually observe (see the class doc): strip either
 	# `mark_broadphase_dirty` call site and this goes red because the stamp
@@ -147,7 +146,7 @@ func test_one_physics_frame_later_the_physics_path_takes_over_and_agrees() -> vo
 	var plan: MeleeAttackPlan = ctx.plan
 	var hostile: SkillNode = ctx.hostile
 
-	hostile.add_child(_FORTIFICATION_SCENE.instantiate() as SkillNodeAddon)
+	_grant_drag(hostile)
 	var dirty_frame_at_attach: int = BladeDefenderZones._dirty_frame
 
 	await get_tree().physics_frame
@@ -167,3 +166,14 @@ func test_one_physics_frame_later_the_physics_path_takes_over_and_agrees() -> vo
 	if state.obstacles != null:
 		assert_true(state.obstacles.zone_defenders.has(hostile),
 				"physics path and fallback must agree on which node defends")
+
+
+## Drag has no shipped granter: a bare node-local `swing_drag` grant is the
+## whole fixture, keyed on the value exactly as an addon's modifier would be.
+func _grant_drag(sn: SkillNode) -> StatModifier:
+	var m := StatModifier.new()
+	m.stat_id = &"swing_drag"
+	m.operation = StatModifier.Operation.ADD_BONUS
+	m.value = 1.0
+	sn.add_local_modifier(m)
+	return m

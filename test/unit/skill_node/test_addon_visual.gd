@@ -9,7 +9,6 @@ const SPIKE_RING_SCRIPT := preload("res://skill_node/addons/spike_ring_addon.gd"
 
 const _DRAW_ONLY := [
 	"res://skill_node/addons/defs/bunker_addon.tscn",
-	"res://skill_node/addons/defs/fortification_addon.tscn",
 	"res://skill_node/addons/defs/watchtower_addon.tscn",
 ]
 const _SPIKE_RING := "res://skill_node/addons/defs/spike_ring_addon.tscn"

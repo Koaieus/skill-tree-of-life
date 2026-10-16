@@ -6,7 +6,6 @@ const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _BOARD := preload("res://entity/default_entity_board.tres")
 const _BUNKER_SCENE := preload("res://skill_node/addons/defs/bunker_addon.tscn")
-const _FORTIFICATION_SCENE := preload("res://skill_node/addons/defs/fortification_addon.tscn")
 const _SPIKE_RING_SCENE := preload("res://skill_node/addons/defs/spike_ring_addon.tscn")
 const _BARE_ADDON_SCENE := preload("res://test/fixtures/addons/bare_addon.tscn")
 const _SKILL_DUST_SCENE := preload("res://skill_node/addons/defs/skill_dust_addon.tscn")
@@ -139,7 +138,7 @@ func test_dynamic_stat_ids_does_not_create_a_stat() -> void:
 		"enumeration must be read-only — no side-effect stat creation")
 
 
-# ── SkillNodeAddon tooltip identity (the Bunker/Fortification bug fix) ──────
+# ── SkillNodeAddon tooltip identity (the Bunker bug fix) ──────
 
 func _attach(node: SkillNode, scene: PackedScene) -> SkillNodeAddon:
 	var addon := scene.instantiate() as SkillNodeAddon
@@ -182,21 +181,6 @@ func test_bunkered_node_deflection_reads_as_a_real_bool_not_a_float() -> void:
 	assert_eq(typeof(v), TYPE_BOOL, "Stat._coerce's BOOL branch must hand back a real bool")
 	assert_true(v)
 
-
-func test_fortification_addon_tooltip_section_regression() -> void:
-	var sn := _make_node("FortHost")
-	_attach(sn, _FORTIFICATION_SCENE)
-
-	var sections := sn.get_addon_tooltip_sections()
-	assert_eq(sections.size(), 1)
-	assert_eq(sections[0]["title"], "Fortification")
-	var mods: Array = sections[0]["modifiers"]
-	# Two since #780: node_health, then swing_drag — Fortification's
-	# characteristic second effect. Magnitudes stay the owner's to tune, so
-	# only the CHANNELS are pinned here, in authored order.
-	assert_eq(mods.size(), 2)
-	assert_eq(String(mods[0].stat_id), "node_health")
-	assert_eq(String(mods[1].stat_id), "swing_drag")
 
 
 func test_spike_ring_keeps_its_authored_title_and_payload() -> void:

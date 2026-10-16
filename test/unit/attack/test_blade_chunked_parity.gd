@@ -200,7 +200,7 @@ func test_damping_bleeds_only_the_particle_it_is_written_for() -> void:
 ## #780's clock carries `_f`, banked `drag` and `touched` — so a chunk boundary
 ## must hand the NEXT chunk the same instance, and rewinding for a head-replay
 ## must rewind the clock with it. A fresh clock mid-swing would un-bank a
-## Fortification wall's drag and silently stop it sheltering what is behind it.
+## dragging wall's drag and silently stop it sheltering what is behind it.
 func test_a_dragged_swing_is_bit_identical_across_a_chunk_boundary() -> void:
 	var steps := _steps()
 	var cut := 50

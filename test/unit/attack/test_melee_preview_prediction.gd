@@ -18,7 +18,6 @@ const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _CLAMP_SCENE := preload("res://skill_node/addons/defs/clamp_addon.tscn")
 const _BUNKER_SCENE := preload("res://skill_node/addons/defs/bunker_addon.tscn")
-const _FORT_SCENE := preload("res://skill_node/addons/defs/fortification_addon.tscn")
 
 const _ArmingCtl := preload("res://test/fixtures/arming_ctl.gd")
 const _SPACING := 150.0
@@ -263,9 +262,9 @@ func test_a_bunker_shatter_is_predicted_and_its_defender_is_marked() -> void:
 ## which is the only one that tracks its nominal radius. A floppy tip curls
 ## sharply inward and would sail past a plate placed on its nominal arc (the
 ## same trap `test_bunker_break_live.gd` documents for its floppy fixture).
-func test_fortification_drag_shows_in_the_previewed_arc() -> void:
+func test_drag_shows_in_the_previewed_arc() -> void:
 	await _setup(Vector2.from_angle(_TURNS * TAU) * _SPACING)
-	_blocker.add_child(_FORT_SCENE.instantiate() as SkillNodeAddon)
+	_grant_drag(_blocker)
 	var plan := await _arm()
 
 	plan.refresh_prediction()
@@ -428,7 +427,7 @@ func _slice_to_completion(plan: MeleeAttackPlan, budget: int) -> int:
 ## slices must land on the SAME trajectory, the same pops and the same predicted
 ## defenders as the single-shot one.
 ##
-## The fixture carries a Fortification, so the swing runs with a real defender
+## The fixture carries a `swing_drag` grant, so the swing runs with a real defender
 ## field and a real drag clock under it. That is the case where a botched stitch
 ## is SILENT rather than visible: `clock.history`, `obstacles.history` and
 ## `state.speed_history` are chunk-local by design, and a fresh clock mid-swing
@@ -439,7 +438,7 @@ func _slice_to_completion(plan: MeleeAttackPlan, budget: int) -> int:
 ## guarantee carried through a whole melee resolve.
 func test_a_sliced_prediction_is_identical_to_a_single_shot_one() -> void:
 	await _setup(Vector2.from_angle(_TURNS * TAU) * _SPACING)
-	_blocker.add_child(_FORT_SCENE.instantiate() as SkillNodeAddon)
+	_grant_drag(_blocker)
 	await _arm()
 
 	var whole_plan := _twin_plan()
@@ -447,7 +446,7 @@ func test_a_sliced_prediction_is_identical_to_a_single_shot_one() -> void:
 	var whole := whole_plan.prediction()
 	assert_not_null(whole, "fixture: the single-shot resolve must produce a swing")
 	assert_not_null(whole.obstacles,
-			"fixture: a Fortification in reach must give the swing a defender field")
+			"fixture: a dragging node in reach must give the swing a defender field")
 	assert_not_null(whole.clock, "fixture: and its drag clock")
 
 	var sliced_plan := _twin_plan()
@@ -601,3 +600,14 @@ func test_the_partial_arc_continues_into_the_whole_swing_without_restarting() ->
 	assert_signal_not_emitted(blade, "playback_finished",
 			"the first cycle plays the WHOLE swing, growing under the playhead")
 	assert_same(_preview.current_blade(), blade, "and the ghost was never rebuilt")
+
+
+## Drag has no shipped granter: a bare node-local `swing_drag` grant is the
+## whole fixture, keyed on the value exactly as an addon's modifier would be.
+func _grant_drag(sn: SkillNode) -> StatModifier:
+	var m := StatModifier.new()
+	m.stat_id = &"swing_drag"
+	m.operation = StatModifier.Operation.ADD_BONUS
+	m.value = 1.0
+	sn.add_local_modifier(m)
+	return m

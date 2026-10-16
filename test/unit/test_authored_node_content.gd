@@ -12,7 +12,6 @@ const _NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _FARSIGHT := preload("res://skill_node/keystone/instances/farsight_node.tscn")
 const _WARD := preload("res://skill_node/keystone/instances/mythic_ward_node.tscn")
 const _BUNKER := preload("res://skill_node/addons/defs/bunker_addon.tscn")
-const _FORTIFICATION := preload("res://skill_node/addons/defs/fortification_addon.tscn")
 
 
 func _make_entity() -> Entity:
@@ -103,9 +102,6 @@ func _assert_local_modifier(scene: PackedScene, stat_id: StringName, delta: floa
 func test_bunker_addon_grants_node_local_armor() -> void:
 	await _assert_local_modifier(_BUNKER, &"armor", 5.0)
 
-
-func test_fortification_addon_grants_node_local_health() -> void:
-	await _assert_local_modifier(_FORTIFICATION, &"node_health", 50.0)
 
 
 ## A scene-authored owned node (`owned_by` baked into the .tscn, the

@@ -25,7 +25,6 @@ extends GutTest
 const _BOARD := preload("res://entity/default_entity_board.tres")
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _GRAPH_SCENE := preload("res://graph/graph.tscn")
-const _FORTIFICATION_SCENE := preload("res://skill_node/addons/defs/fortification_addon.tscn")
 const _BUNKER_SCENE := preload("res://skill_node/addons/defs/bunker_addon.tscn")
 
 ## The W, exactly as #811's acceptance 1 specifies it. Pivot is index 0.
@@ -141,7 +140,7 @@ func test_a_fortified_node_outside_the_rest_reach_still_drags_the_swing() -> voi
 	var whip: Dictionary = _whip_point(plan)
 
 	hostile.global_position = whip.point
-	hostile.add_child(_FORTIFICATION_SCENE.instantiate() as SkillNodeAddon)
+	_grant_drag(hostile)
 	# An Area2D is not in the physics space until a physics frame runs — without
 	# this the defender query comes back empty and this test silently passes
 	# nothing.
@@ -152,7 +151,7 @@ func test_a_fortified_node_outside_the_rest_reach_still_drags_the_swing() -> voi
 	assert_gt(pivot.distance_to(hostile.global_position), _REST_REACH + hostile.radius,
 			"fixture: the wall must sit OUTSIDE the deleted cull, or this proves nothing")
 	assert_gt(float(hostile.get_local_value(&"swing_drag")), 0.0,
-			"fixture: Fortification must actually author swing_drag")
+			"fixture: the grant must actually author swing_drag")
 
 	plan._invalidate_prediction()
 	plan.refresh_prediction()
@@ -211,7 +210,7 @@ func test_a_node_carrying_both_stats_is_one_zone_of_both_kinds() -> void:
 	var whip: Dictionary = _whip_point(plan)
 
 	hostile.global_position = whip.point
-	hostile.add_child(_FORTIFICATION_SCENE.instantiate() as SkillNodeAddon)
+	_grant_drag(hostile)
 	hostile.add_child(_BUNKER_SCENE.instantiate() as SkillNodeAddon)
 	await get_tree().process_frame
 	await get_tree().physics_frame
@@ -253,7 +252,7 @@ func test_the_zone_set_is_ordered_by_stable_id_and_reproduces() -> void:
 	for i in 6:
 		var a := (0.37 * float((i * 5) % 6)) * TAU
 		var sn := _spawn(graph, "Wall%d" % i, Vector2.from_angle(a) * 300.0)
-		sn.add_child(_FORTIFICATION_SCENE.instantiate() as SkillNodeAddon)
+		_grant_drag(sn)
 		walls.append(sn)
 	await get_tree().process_frame
 	for sn in walls:
@@ -278,3 +277,14 @@ func test_the_zone_set_is_ordered_by_stable_id_and_reproduces() -> void:
 			"the same query must reproduce the same zone order, every time")
 	assert_eq(second.obstacles.zones.drags, zones.drags,
 			"and the same per-zone magnitudes, in the same slots")
+
+
+## Drag has no shipped granter: a bare node-local `swing_drag` grant is the
+## whole fixture, keyed on the value exactly as an addon's modifier would be.
+func _grant_drag(sn: SkillNode) -> StatModifier:
+	var m := StatModifier.new()
+	m.stat_id = &"swing_drag"
+	m.operation = StatModifier.Operation.ADD_BONUS
+	m.value = 1.0
+	sn.add_local_modifier(m)
+	return m

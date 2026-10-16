@@ -157,7 +157,7 @@ extends GutTest
 ## proposals. Measured at 192 proposals, blade size 4: 12682 us shared vs
 ## 18447 us if every proposal queried for itself (the shape #811 refused) —
 ## and against 338495 us before #809. Note the coarse tier also GAINED
-## fortification drag here, which it never had.
+## swing drag here, which it never had.
 ##
 ## [b]After #821, same machine, same fixture.[/b] The aim-time resolve is now
 ## time-sliced: a click buys ONE slice and the preview pumps one per frame, so
@@ -544,7 +544,7 @@ func test_defender_carrier_count_on_first_level() -> void:
 			both += 1
 	gut.p("")
 	gut.p("defender carriers on first_level (%d nodes):" % nodes.size())
-	gut.p("  %-56s %7d" % ["swing_drag (Fortification)", drag])
+	gut.p("  %-56s %7d" % ["swing_drag", drag])
 	gut.p("  %-56s %7d" % ["deflection (Bunker)", deflect])
 	gut.p("  %-56s %7d" % ["both", both])
 	gut.p("  %-56s %7d" % ["BladeDefenderZones._MAX_ZONES cap", 512])

@@ -14,7 +14,7 @@ const _PANEL := preload("res://addons/melee_sandbox/melee_sandbox_panel.tscn")
 var _panel: PanelContainer
 
 
-## Bunker, fortification and watchtower share the base script — the scene is the kind.
+## Bunker and watchtower share the base script — the scene is the kind.
 func _is_bunker(a: SkillNodeAddon) -> bool:
 	return a.scene_file_path == "res://skill_node/addons/defs/bunker_addon.tscn"
 

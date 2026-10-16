@@ -140,7 +140,7 @@ func test_one_self_loop_mid_chain_shields_the_leaf_behind_it() -> void:
 
 func test_a_self_loop_that_stays_under_the_threshold_does_not_block() -> void:
 	# One loop on B: 2 → 4, still ≤ the hub's 5. The knob has to have a
-	# threshold, not just "any fortification stops it".
+	# threshold, not just "any self-loop stops it".
 	_fortify(B, 1)
 	assert_eq(_n[B].get_entity_degree(_graph), 4)
 	var hit := _cast()

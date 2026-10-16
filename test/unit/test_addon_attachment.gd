@@ -7,7 +7,6 @@ extends GutTest
 
 const SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const BUNKER_SCENE := preload("res://skill_node/addons/defs/bunker_addon.tscn")
-const FORTIFICATION_SCENE := preload("res://skill_node/addons/defs/fortification_addon.tscn")
 const BOARD := preload("res://entity/default_entity_board.tres")
 
 var _node: SkillNode
@@ -52,20 +51,22 @@ func test_adoption_orders_correctly_against_hp_binding() -> void:
 	var entity := Entity.new()
 	entity.stat_board = BOARD.duplicate(true) as EntityStatBoard
 	add_child_autofree(entity)
-	var fort: SkillNodeAddon = FORTIFICATION_SCENE.instantiate()
-	var bonus := 0.0
-	for m in fort.local_modifiers:
-		if m.stat_id == &"node_health":
-			bonus += m.value
-	assert_gt(bonus, 0.0, "fortification grants node_health")
-	_node.add_child(fort)
+	# A code-built addon: the base script alone carries a local modifier list.
+	var bonus := 50.0
+	var hp := StatModifier.new()
+	hp.stat_id = &"node_health"
+	hp.operation = StatModifier.Operation.ADD_BONUS
+	hp.value = bonus
+	var addon := SkillNodeAddon.new()
+	addon.local_modifiers = [hp]
+	_node.add_child(addon)
 	_node.owned_by = entity
 	add_child(_node)
 	await get_tree().process_frame
 
 	var baseline := float(entity.stat_board.get_stat(&"node_health").get_value())
 	assert_almost_eq(_node.get_max_hp(), baseline + bonus, 0.001,
-			"fortification's node_health bonus rides on top of the entity baseline")
+			"the addon's node_health bonus rides on top of the entity baseline")
 	assert_almost_eq(_node.get_current_hp(), _node.get_max_hp(), 0.001,
 			"the refill in _refresh_hp_binding saw the adopted addon's bonus")
 
@@ -139,7 +140,6 @@ func test_every_concrete_addon_scene_gets_the_base_z() -> void:
 	# no one .tscn a scene-level value could live in.
 	var scenes: Array[String] = [
 		"res://skill_node/addons/defs/bunker_addon.tscn",
-		"res://skill_node/addons/defs/fortification_addon.tscn",
 		"res://skill_node/addons/defs/clamp_addon.tscn",
 		"res://skill_node/addons/defs/spike_ring_addon.tscn",
 		"res://skill_node/addons/defs/skill_dust_addon.tscn",
