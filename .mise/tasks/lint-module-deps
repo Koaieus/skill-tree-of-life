@@ -58,6 +58,9 @@ REACHABLE_FROM_ALL = {"autoload"}
 ALLOWED_PRIMITIVES = {
     "ui/theme/emissive.gd": "the HDR glow tier table (hdr-color.md) — a colour "
                             "vocabulary, not UI; permanent, not a debt.",
+    "ui/common/tween_clock.gd": "the steppable tween door (testing-tiers.md §3) — "
+                                "a bare RefCounted over Tween with no UI deps; any "
+                                "layer that waits on a tween takes it. Permanent.",
 }
 
 # "src→dst": (retiring issue or None, what crosses). Today's upward edges,
