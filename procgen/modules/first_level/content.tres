@@ -3,7 +3,6 @@
 [ext_resource type="Script" uid="uid://b3fhyx2c2bvat" path="res://procgen/pools/addon_pool_entry.gd" id="1_x1tax"]
 [ext_resource type="PackedScene" uid="uid://b1addon0spike" path="res://skill_node/addons/defs/spike_ring_addon.tscn" id="2_037l0"]
 [ext_resource type="PackedScene" uid="uid://b1addon0clamp" path="res://skill_node/addons/defs/clamp_addon.tscn" id="3_8a357"]
-[ext_resource type="PackedScene" uid="uid://duyunqwjt7qd" path="res://skill_node/addons/defs/fortification_addon.tscn" id="4_eddxh"]
 [ext_resource type="PackedScene" uid="uid://cmkt6tybpv38p" path="res://skill_node/addons/defs/bunker_addon.tscn" id="5_ybboy"]
 [ext_resource type="PackedScene" uid="uid://b1addon0watch" path="res://skill_node/addons/defs/watchtower_addon.tscn" id="6_6prhp"]
 [ext_resource type="PackedScene" uid="uid://b1addon0compr" path="res://skill_node/addons/defs/compromiser_addon.tscn" id="6_compromiser"]
@@ -66,14 +65,6 @@ cost = 3
 weight = 40.0
 metadata/_custom_type_script = "uid://b3fhyx2c2bvat"
 
-[sub_resource type="Resource" id="Resource_qrpdt"]
-script = ExtResource("1_x1tax")
-id = &"fortification"
-addon_scene = ExtResource("4_eddxh")
-cost = 4
-weight = 60.0
-metadata/_custom_type_script = "uid://b3fhyx2c2bvat"
-
 [sub_resource type="Resource" id="Resource_eyb1c"]
 script = ExtResource("1_x1tax")
 id = &"bunker"
@@ -132,7 +123,7 @@ metadata/_custom_type_script = "uid://b3fhyx2c2bvat"
 
 [sub_resource type="Resource" id="Resource_3kv1o"]
 script = ExtResource("7_mkfxt")
-entries = Array[ExtResource("1_x1tax")]([SubResource("Resource_68xts"), SubResource("Resource_2jawg"), SubResource("Resource_qrpdt"), SubResource("Resource_eyb1c"), SubResource("Resource_watch"), SubResource("Resource_toxin"), SubResource("Resource_compromiser"), SubResource("Resource_doombrand"), SubResource("Resource_abyssal_conduit"), SubResource("Resource_explosive_barrel")])
+entries = Array[ExtResource("1_x1tax")]([SubResource("Resource_68xts"), SubResource("Resource_2jawg"), SubResource("Resource_eyb1c"), SubResource("Resource_watch"), SubResource("Resource_toxin"), SubResource("Resource_compromiser"), SubResource("Resource_doombrand"), SubResource("Resource_abyssal_conduit"), SubResource("Resource_explosive_barrel")])
 metadata/_custom_type_script = "uid://c4jsrfudhqhuk"
 
 [sub_resource type="Resource" id="Resource_c6pvu"]

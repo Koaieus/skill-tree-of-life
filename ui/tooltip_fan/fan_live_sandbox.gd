@@ -57,7 +57,7 @@ const _FACTION_BY_ID := {
 }
 
 ## Addon scenes the count knob draws from, cycled for counts > pool size.
-## Deliberately excludes `clamp_addon.tscn` — the only one of the five that is
+## Deliberately excludes `clamp_addon.tscn` — the only one of the four that is
 ## `unique` (`skill_node.gd` rejects a second same-script instance with a
 ## `push_error`), so an 8-addon fixture needs scenes that may repeat. All real
 ## shipped addons — an "8-addon node" is a fixture one control away, not a
@@ -66,7 +66,6 @@ const _ADDON_SCENES: Array[PackedScene] = [
 	preload("res://skill_node/addons/defs/spike_ring_addon.tscn"),
 	preload("res://skill_node/addons/defs/skill_dust_addon.tscn"),
 	preload("res://skill_node/addons/defs/bunker_addon.tscn"),
-	preload("res://skill_node/addons/defs/fortification_addon.tscn"),
 ]
 
 ## Per-index start delay when fanning in — matches [member TooltipFan.stagger_delay].

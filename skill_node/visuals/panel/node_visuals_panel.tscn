@@ -9,7 +9,6 @@
 [ext_resource type="PackedScene" uid="uid://8p2jfvxkgscr" path="res://skill_node/visuals/rune_ring.tscn" id="8_rune"]
 [ext_resource type="PackedScene" path="res://skill_node/visuals/panel/skill_node_lab.tscn" id="9_lab"]
 [ext_resource type="PackedScene" uid="uid://cmkt6tybpv38p" path="res://skill_node/addons/defs/bunker_addon.tscn" id="13_bunker"]
-[ext_resource type="PackedScene" uid="uid://duyunqwjt7qd" path="res://skill_node/addons/defs/fortification_addon.tscn" id="14_fort"]
 [ext_resource type="PackedScene" uid="uid://b1addon0watch" path="res://skill_node/addons/defs/watchtower_addon.tscn" id="15_watch"]
 [ext_resource type="PackedScene" uid="uid://b1addon0spike" path="res://skill_node/addons/defs/spike_ring_addon.tscn" id="16_spike"]
 [ext_resource type="Resource" path="res://skill_node/visuals/emblem/shapes/triangle.tres" id="10_tri"]
@@ -160,22 +159,6 @@ offset_bottom = 754.0
 text = "Bunker"
 horizontal_alignment = 1
 
-[node name="FortificationSlot" type="Node2D" parent="ViewportContainer/World" unique_id=767952902]
-position = Vector2(560, 600)
-scale = Vector2(2.2, 2.2)
-
-[node name="SkillNodeLab" parent="ViewportContainer/World/FortificationSlot" unique_id=195987202 instance=ExtResource("9_lab")]
-
-[node name="FortificationAddon" parent="ViewportContainer/World/FortificationSlot/SkillNodeLab" unique_id=195987212 instance=ExtResource("14_fort")]
-
-[node name="FortificationLabel" type="Label" parent="ViewportContainer/World" unique_id=1522921692]
-offset_left = 470.0
-offset_top = 730.0
-offset_right = 650.0
-offset_bottom = 754.0
-text = "Fortification"
-horizontal_alignment = 1
-
 [node name="WatchtowerSlot" type="Node2D" parent="ViewportContainer/World" unique_id=767952903]
 position = Vector2(910, 600)
 scale = Vector2(2.2, 2.2)
@@ -200,8 +183,6 @@ scale = Vector2(2.2, 2.2)
 
 [node name="BunkerAddon" parent="ViewportContainer/World/StackSlot/SkillNodeLab" unique_id=195987214 instance=ExtResource("13_bunker")]
 
-[node name="FortificationAddon" parent="ViewportContainer/World/StackSlot/SkillNodeLab" unique_id=195987215 instance=ExtResource("14_fort")]
-
 [node name="WatchtowerAddon" parent="ViewportContainer/World/StackSlot/SkillNodeLab" unique_id=195987216 instance=ExtResource("15_watch")]
 
 [node name="SpikeRingAddon" parent="ViewportContainer/World/StackSlot/SkillNodeLab" unique_id=195987217 instance=ExtResource("16_spike")]
@@ -211,5 +192,5 @@ offset_left = 1170.0
 offset_top = 730.0
 offset_right = 1350.0
 offset_bottom = 754.0
-text = "all four (crowding check)"
+text = "all three (crowding check)"
 horizontal_alignment = 1

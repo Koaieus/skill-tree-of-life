@@ -5,7 +5,6 @@
 # placeholder icon instead of failing the run.
 addon_spikes	sbed/spikes.svg
 addon_bunker	quoting/bunker-assault.svg
-addon_fortification	heavenly-dog/defensive-wall.svg
 addon_clamp	delapouite/clamp.svg
 addon_skill_dust	lorc/dust-cloud.svg
 addon_watchtower	delapouite/watchtower.svg
