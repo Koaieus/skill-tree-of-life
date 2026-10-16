@@ -2,8 +2,8 @@ extends GutTest
 
 ## SpikeRingAddon's spikes / spike_regen / blunting grant (#778). Only
 ## SpikeRingAddon ever contributes to spikes / spike_regen, and the grant
-## scales 1:2:3 with the carrier's own stake_level (the N in the M/N dial,
-## SkillNode.stake_level) -- so only ORDERING is asserted here, never the
+## scales 1:2:3 with the carrier's allocation level (stake_level__current, the M
+## in the M/N dial) -- so only ORDERING is asserted here, never the
 ## literal numbers: those are the owner's to tune (issue #778, acceptance 6).
 
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
@@ -52,32 +52,32 @@ func test_spikes_scale_with_allocation_not_stake() -> void:
 			"raising allocation 1 -> 2 at stake 3 doubles spike_regen")
 
 
-func test_spikes_cap_orders_strictly_with_stake() -> void:
+func test_spikes_cap_orders_strictly_with_allocation() -> void:
 	var graph := _setup_graph()
-	var n1 := _spiked_node(graph, "S1", 1)
-	var n2 := _spiked_node(graph, "S2", 2)
-	var n3 := _spiked_node(graph, "S3", 3)
+	var n1 := _spiked_node(graph, "S1", 3, 1)
+	var n2 := _spiked_node(graph, "S2", 3, 2)
+	var n3 := _spiked_node(graph, "S3", 3, 3)
 	await get_tree().process_frame
 	var spikes1 := float(n1.get_local_value(&"spikes"))
 	var spikes2 := float(n2.get_local_value(&"spikes"))
 	var spikes3 := float(n3.get_local_value(&"spikes"))
-	assert_gt(spikes3, spikes2, "stake 3 must grant more spikes cap than stake 2")
-	assert_gt(spikes2, spikes1, "stake 2 must grant more spikes cap than stake 1")
-	assert_gt(spikes1, 0.0, "even stake 1 must grant a nonzero spikes cap")
+	assert_gt(spikes3, spikes2, "allocation 3 must grant more spikes cap than allocation 2")
+	assert_gt(spikes2, spikes1, "allocation 2 must grant more spikes cap than allocation 1")
+	assert_gt(spikes1, 0.0, "even allocation 1 must grant a nonzero spikes cap")
 
 
-func test_spike_regen_orders_strictly_with_stake() -> void:
+func test_spike_regen_orders_strictly_with_allocation() -> void:
 	var graph := _setup_graph()
-	var n1 := _spiked_node(graph, "S1", 1)
-	var n2 := _spiked_node(graph, "S2", 2)
-	var n3 := _spiked_node(graph, "S3", 3)
+	var n1 := _spiked_node(graph, "S1", 3, 1)
+	var n2 := _spiked_node(graph, "S2", 3, 2)
+	var n3 := _spiked_node(graph, "S3", 3, 3)
 	await get_tree().process_frame
 	var regen1 := float(n1.get_local_value(&"spike_regen"))
 	var regen2 := float(n2.get_local_value(&"spike_regen"))
 	var regen3 := float(n3.get_local_value(&"spike_regen"))
-	assert_gt(regen3, regen2, "stake 3 must grant more spike_regen than stake 2")
-	assert_gt(regen2, regen1, "stake 2 must grant more spike_regen than stake 1")
-	assert_gt(regen1, 0.0, "even stake 1 must grant a nonzero spike_regen")
+	assert_gt(regen3, regen2, "allocation 3 must grant more spike_regen than allocation 2")
+	assert_gt(regen2, regen1, "allocation 2 must grant more spike_regen than allocation 1")
+	assert_gt(regen1, 0.0, "even allocation 1 must grant a nonzero spike_regen")
 
 
 func test_unspiked_node_has_zero_spikes_at_any_stake() -> void:
