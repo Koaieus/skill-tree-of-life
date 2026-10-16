@@ -343,10 +343,15 @@ func adopt_turn(
 ## played-out turn ticks. The order is load-bearing: a DoT that kills the actor
 ## reaches [method abandon_turn] through the death path with the cursor already
 ## null, so that call is a no-op and this method still finishes the handoff.
+##
+## The late-spill net runs first: live removals still pending here were noted
+## outside any beat that flushes them, so their spill would land on some later,
+## unrelated flush. Loud, never repaired — see docs/domain/status-effects.md.
 func end_turn() -> void:
 	if current_entity == null:
 		return
 	var entity := current_entity
+	_check_late_spill(entity)
 	_current_entity = null
 	entity.resolve_turn_end()
 	entity.finish_turn()
@@ -400,6 +405,14 @@ func abandon_turn(entity: Entity) -> void:
 	_note_turn_over(entity)
 	turn_ended.emit(entity)
 	forecast_changed.emit()
+
+
+## Not called from [method abandon_turn]: that runs inside a death handler,
+## inside a beat that has not flushed yet.
+func _check_late_spill(entity: Entity) -> void:
+	if CombatWorld.live().has_pending_removals():
+		push_error("TurnManager: pending removals at %s's turn handoff — a live strip outside a beat that flushes (CombatWorld.flush_removals)"
+				% entity.name)
 
 
 ## Round bookkeeping at a turn-end site, run BEFORE [signal turn_ended] so a
