@@ -98,6 +98,17 @@ func _on_revoked(ctx: EffectContext) -> void:
 	ctx.revoke_all()
 
 
+## Read-side query for a NON-modifier payload this effect lands on [param node]
+## — a per-turn heal, say — that [method NodeEffectReadout.gather] cannot see
+## through the grant ledger because nothing is granted. Side-effect free: it
+## must not grant, heal, or mutate [param instance]. Return one
+## [NodeEffectReadout] per payload with [member NodeEffectReadout.payload_amount]
+## and [member NodeEffectReadout.payload_unit] set; `gather` fills the
+## provenance. Default: none. Never an `_on_*` name — it is not a hook.
+func readout_payloads(_node: SkillNode, _instance: EffectInstance) -> Array[NodeEffectReadout]:
+	return []
+
+
 ## One-line summary for tooltips. Falls back to folding the modifier set into
 ## words, mirroring how [PropagationConfig.get_description] composes its parts.
 func get_description() -> String:
