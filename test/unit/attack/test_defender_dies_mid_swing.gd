@@ -194,8 +194,8 @@ func test_an_unowned_node_carrying_all_three_defender_stats_does_nothing() -> vo
 			"fixture: the node must carry swing_drag")
 	assert_true(bool(plate.get_local_value(&"deflection")),
 			"fixture: Bunker must author deflection")
-	assert_gt(float(plate.get_local_value(&"spikes")), 0.0,
-			"fixture: SpikeRing must author spikes")
+	assert_eq(float(plate.get_local_value(&"spikes")), 0.0,
+			"fixture: SpikeRing's spikes scale with allocation, so an unowned carrier holds none")
 
 	var state := plan.build_blade_state()
 	assert_null(state.obstacles,

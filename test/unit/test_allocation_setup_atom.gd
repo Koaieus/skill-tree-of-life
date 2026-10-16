@@ -101,12 +101,12 @@ func test_scene_authored_restores_spikes_like_force_allocate() -> void:
 	await get_tree().process_frame
 	var pool := _node.get_combat().board().get_stat(&"spikes") as PoolStat
 	assert_not_null(pool, "spike ring mints a spikes pool")
-	pool.restore_to_full()
-	var full: float = pool.current
-	assert_gt(full, 0.0, "a full ring has spikes")
-	pool.deplete(full)
+	# The grant scales with allocation level: an unowned ring holds no spikes
+	# until the 0->1 fill raises the cap, which the setup atom then refills.
+	pool.deplete(pool.current)
 	_w.allocator().register_scene_authored_ownership()
-	assert_eq(pool.current, full, "scene-authored ownership refills the spike ring")
+	assert_gt(pool.value, 0.0, "an allocated ring has a spikes cap")
+	assert_eq(pool.current, pool.value, "scene-authored ownership refills the spike ring")
 
 
 # ── Teardown: both strip back to the pre-allocation world ────────────────────
