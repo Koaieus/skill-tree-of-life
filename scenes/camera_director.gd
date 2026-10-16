@@ -81,6 +81,9 @@ const ZOOM_LATTICE := 0.25
 ## level constructs during `_setup_level`, not a node in the scene.
 var seat_policy: SeatPolicy = null
 
+## The door for this director's tweens; a test flips `clock.manual` and steps it.
+var clock := TweenClock.new()
+
 var _seconds_since_manual: float = INF
 var _active: bool = false
 var _remaining: float = 0.0
@@ -533,13 +536,17 @@ func _append_anchor_centroid(points: PackedVector2Array, plan: AttackPlan,
 ## Raise [param request] after [param seconds]. Detached on purpose — see
 ## [method _on_attack_committed].
 func _widen_after(seconds: float, request: FocusRequest) -> void:
-	var tree := get_tree()
-	if seconds > 0.0 and tree != null:
-		await tree.create_timer(seconds).timeout
-	if not is_inside_tree():
+	if seconds > 0.0 and is_inside_tree():
+		var tw := clock.tween(self)
+		tw.tween_interval(seconds)
+		tw.tween_callback(_widen.bind(request))
 		return
-	# The lead beat is over: the span widens. For a following shot the follow
-	# is already open, so this retargets the zoom and leaves the band its pan.
+	_widen(request)
+
+
+## The lead beat is over: the span widens. For a following shot the follow
+## is already open, so this retargets the zoom and leaves the band its pan.
+func _widen(request: FocusRequest) -> void:
 	request_focus(request)
 
 

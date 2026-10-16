@@ -39,6 +39,7 @@ func before_each() -> void:
 	_vision = _StubVision.new()
 	_holder.add_child(_vision)
 	_dir = CameraDirector.new()
+	_dir.clock.manual = true
 	_dir.vision_system = _vision
 	_holder.add_child(_dir)
 
@@ -465,7 +466,7 @@ func test_the_swing_beat_does_not_reopen_a_shot_the_widen_already_holds() -> voi
 	var outcome := _outcome([_hit(pivot, _node_at(Vector2(400, 0)))])
 
 	_dir._on_attack_committed(outcome, _entity(true))
-	await wait_seconds(0.2)
+	_dir.clock.advance(0.2)
 	assert_true(cam.is_following(),
 			"after the lead the span has widened, still following — the band was never interrupted")
 	_dir._on_replay_started(outcome)
