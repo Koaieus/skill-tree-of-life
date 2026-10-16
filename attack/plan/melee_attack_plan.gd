@@ -533,6 +533,11 @@ func temp_upgrade_cost_for(scene: PackedScene) -> int:
 	return total
 
 
+## What one more temp of `scene`'s kind would cost this swing, every currency.
+func next_temp_costs(scene: PackedScene) -> Dictionary[StringName, int]:
+	return SkillNodeAddon.temp_costs_of(scene)
+
+
 ## Can the swing pay `scene`'s whole cost vector out of what is left in each
 ## currency? `scene`'s scene must also be [member SkillNodeAddon.temp_placeable].
 func _affords(scene: PackedScene) -> bool:

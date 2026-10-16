@@ -156,3 +156,143 @@ func test_the_scene_cache_reads_what_an_instance_says() -> void:
 		assert_true(addon.temp_placeable, "%s is temp_placeable" % def.resource_path)
 		assert_true(SkillNodeAddon.temp_placeable_of(def), "%s: cached placeable" % def.resource_path)
 		addon.free()
+
+
+# 7 ── escalating temp cost: the n-th temp of a kind costs base + (n-1)·step ──
+
+const _CLAMP_SCENE := preload("res://skill_node/addons/defs/clamp_addon.tscn")
+const _BUTTON_SCENE := preload("res://ui/hud/command_tray/bodies/temp_upgrade_button.tscn")
+
+
+## A clamp kind priced by the test, not the shipped scene. The path encodes
+## (base, step) because [method SkillNodeAddon._scene_record] caches by path.
+func _clamp_priced(base: int, step: int) -> PackedScene:
+	var inst := _CLAMP_SCENE.instantiate() as SkillNodeAddon
+	inst.temp_cost_blade_size = base
+	inst.temp_cost_step_blade_size = step
+	var ps := PackedScene.new()
+	ps.pack(inst)
+	inst.free()
+	ps.take_over_path("res://test/_tmp/clamp_b%d_s%d.tscn" % [base, step])
+	return ps
+
+
+static func _closed_form(k: int, base: int, step: int) -> int:
+	return k * base + step * k * (k - 1) / 2
+
+
+func test_k_temp_clamps_spend_the_linear_escalation() -> void:
+	var b := 2
+	var s := 3
+	var kind := _clamp_priced(b, s)
+	var ctx: Dictionary = await _setup_chain(60.0, 4)
+	var plan: MeleeAttackPlan = ctx.plan
+	var members: Array[SkillNode] = []
+	members.assign(ctx.members)
+	for k in range(1, 5):
+		assert_eq(plan.next_temp_costs(kind)[&"blade_size"], b + (k - 1) * s, "price of temp %d" % k)
+		assert_true(plan.apply_temp_upgrade(members[k - 1], kind), "temp %d fits" % k)
+		assert_eq(plan.temp_upgrade_cost_total(), _closed_form(k, b, s), "%d temps spend the closed form" % k)
+		assert_eq(plan.temp_upgrade_cost_for(kind), _closed_form(k, b, s))
+		assert_eq(plan.currency_spent(&"blade_size"), members.size() + _closed_form(k, b, s))
+
+
+func test_removing_the_first_of_three_spends_as_two() -> void:
+	var b := 2
+	var s := 3
+	var kind := _clamp_priced(b, s)
+	var ctx: Dictionary = await _setup_chain(60.0, 3)
+	var plan: MeleeAttackPlan = ctx.plan
+	var members: Array[SkillNode] = []
+	members.assign(ctx.members)
+	for m in members:
+		assert_true(plan.apply_temp_upgrade(m, kind))
+	plan.remove_temp_upgrade(members[0])
+	assert_eq(plan.temp_upgrade_cost_total(), _closed_form(2, b, s), "the rest re-price as two")
+	assert_eq(plan.next_temp_costs(kind)[&"blade_size"], b + 2 * s)
+
+
+func test_a_step_zero_kind_never_escalates() -> void:
+	var b := 2
+	var kind := _clamp_priced(b, 0)
+	var ctx: Dictionary = await _setup_chain(60.0, 4)
+	var plan: MeleeAttackPlan = ctx.plan
+	var members: Array[SkillNode] = []
+	members.assign(ctx.members)
+	for k in range(1, 5):
+		assert_eq(plan.next_temp_costs(kind)[&"blade_size"], b)
+		assert_true(plan.apply_temp_upgrade(members[k - 1], kind))
+		assert_eq(plan.temp_upgrade_cost_total(), k * b)
+
+
+func test_the_next_temp_is_refused_below_its_price_while_a_member_fits() -> void:
+	var b := 1
+	var s := 2
+	var k := 2
+	var kind := _clamp_priced(b, s)
+	var next_price := b + k * s
+	var budget := 3 + _closed_form(k, b, s) + next_price - 1
+	var ctx: Dictionary = await _setup_chain(float(budget), 4, 3)
+	var plan: MeleeAttackPlan = ctx.plan
+	var members: Array[SkillNode] = []
+	members.assign(ctx.members)
+	for i in k:
+		assert_true(plan.apply_temp_upgrade(members[i], kind), "temp %d fits" % (i + 1))
+	assert_eq(plan.currency_remaining(&"blade_size"), next_price - 1)
+	assert_false(plan.can_apply_temp_upgrade(members[2], kind), "one short of the escalated price")
+	assert_false(plan.has_temp_upgrade_budget(kind))
+	plan.toggle_member(members[3])
+	assert_true(plan.blade_nodes.has(members[3]), "a plain member at 1 still fits")
+
+
+func test_the_tray_card_reads_the_next_price() -> void:
+	var b := 1
+	var s := 2
+	var kind := _clamp_priced(b, s)
+	var ctx: Dictionary = await _setup_chain(60.0, 3)
+	var plan: MeleeAttackPlan = ctx.plan
+	var members: Array[SkillNode] = []
+	members.assign(ctx.members)
+	var btn := _BUTTON_SCENE.instantiate() as TempUpgradeButton
+	add_child_autofree(btn)
+	for k in range(0, 3):
+		btn.costs = plan.next_temp_costs(kind)
+		var price := b + k * s
+		assert_eq(btn._cost_text(), "%d blade node%s" % [price, "" if price == 1 else "s"])
+		plan.apply_temp_upgrade(members[k], kind)
+
+
+func test_the_ai_rollout_charges_what_the_plan_charges() -> void:
+	_entity.stat_board.blade_size.base_value = 6.0
+	var pivot := _spawn("Pivot")
+	var chain: Array[SkillNode] = []
+	var prev := pivot
+	for i in 5:
+		var n := _spawn("N%d" % i)
+		n.global_position = Vector2(50.0 * (i + 1), 0.0)
+		_graph.add_edge(prev, n)
+		chain.append(n)
+		prev = n
+	await get_tree().process_frame
+	_alloc.force_allocate(_entity, pivot)
+	_entity.core_location = pivot
+	for n in chain:
+		_alloc.force_allocate(_entity, n)
+	var adjacency := AiBladeRollout._owned_adjacency(_entity)
+	var archetype := AiBladeRollout._build_archetype(pivot, adjacency, chain[-1].global_position, 6, 3)
+	var members: Array[SkillNode] = []
+	members.assign(archetype.members)
+	var clamps: Array[SkillNode] = []
+	clamps.assign(archetype.clamps)
+	assert_gte(clamps.size(), 2, "the archetype buys an escalated clamp")
+	var plan := autofree(MeleeAttackPlan.new()) as MeleeAttackPlan
+	plan.attacker = _entity
+	plan.set_pivot(pivot)
+	for m in members:
+		plan.toggle_member(m)
+	assert_eq(plan.blade_nodes.size(), members.size(), "every proposed member fits")
+	for c in clamps:
+		assert_true(plan.apply_temp_upgrade(c, _CLAMP_SCENE), "the plan accepts the AI's clamp on %s" % c.name)
+	assert_eq(plan.currency_spent(&"blade_size"), int(archetype.get(&"spent", -1)),
+			"the AI's spend is the plan's spend")
+	assert_lte(plan.currency_spent(&"blade_size"), plan.max_blades())

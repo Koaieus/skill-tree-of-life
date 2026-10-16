@@ -112,6 +112,11 @@ var tint: Color:
 ## What one swing pays in `blade_size` to carry this addon as a temp, from the
 ## same pool blade members spend 1 each from. Read when [member temp_placeable].
 @export_range(1, 8, 1, "or_greater") var temp_cost_blade_size: int = 1
+## How much dearer each further temp of THIS kind on one swing gets: the n-th
+## costs `temp_cost_blade_size + (n - 1) * step` blade size, so k of them spend
+## `k * base + step * k * (k - 1) / 2` whatever order they were placed in. 0 never
+## escalates. Only temps count; a permanent addon of the kind is free of it.
+@export_range(0, 10, 1, "or_greater") var temp_cost_step_blade_size: int = 0
 ## Extra per-swing currencies this temp spends, keyed by a `<concept>_aspect`
 ## stat (the `aspects` family); each is a pooled budget capped by the
 ## attacker's live stat value. Every cost must be > 0.
@@ -161,8 +166,10 @@ func get_kind() -> String:
 
 
 ## This addon's swing price as one cost vector: `blade_size` plus every
-## aspect cost. [MeleeAttackPlan] spends each entry against its own pool.
-func get_temp_costs() -> Dictionary[StringName, int]:
+## aspect cost, for a swing already carrying [param already] temps of this
+## kind (only `blade_size` escalates, by [member temp_cost_step_blade_size]).
+## [MeleeAttackPlan] spends each entry against its own pool.
+func get_temp_costs(already: int = 0) -> Dictionary[StringName, int]:
 	var out: Dictionary[StringName, int] = {_BLADE_SIZE: temp_cost_blade_size}
 	for id in temp_cost_aspects:
 		out[id] = temp_cost_aspects[id]
@@ -171,7 +178,7 @@ func get_temp_costs() -> Dictionary[StringName, int]:
 
 ## [method get_temp_costs] of [param scene]'s addon, without a live instance
 ## to hand: read once per scene path through [method _scene_record].
-static func temp_costs_of(scene: PackedScene) -> Dictionary[StringName, int]:
+static func temp_costs_of(scene: PackedScene, already: int = 0) -> Dictionary[StringName, int]:
 	var costs: Dictionary[StringName, int] = _scene_record(scene).get(&"costs", {})
 	return costs.duplicate()
 
