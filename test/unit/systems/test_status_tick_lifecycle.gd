@@ -356,6 +356,7 @@ func test_force_deallocate_clears_statuses_and_stops_ticking() -> void:
 	assert_false(node.get_combat().get_statuses().is_empty())
 
 	_alloc.force_deallocate(node)
+	CombatWorld.live().flush_removals()  # a bare strip outside a beat flushes itself
 	assert_true(node.get_combat().get_statuses().is_empty(),
 			"force_deallocate must clear the node's statuses")
 
@@ -405,6 +406,7 @@ func test_deallocate_all_owned_clears_every_owned_nodes_statuses() -> void:
 	node.get_combat().apply_status(d_node, 2.0)
 
 	_alloc.deallocate_all_owned(a)
+	CombatWorld.live().flush_removals()  # a bare strip outside a beat flushes itself
 	assert_true(core.get_combat().get_statuses().is_empty(), "core's statuses must clear too")
 	assert_true(node.get_combat().get_statuses().is_empty())
 

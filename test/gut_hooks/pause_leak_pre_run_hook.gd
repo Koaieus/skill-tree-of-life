@@ -29,6 +29,17 @@ func run() -> void:
 		OS.low_processor_usage_mode_sleep_usec = HEADLESS_FRAME_SLEEP_USEC
 	gut.start_script.connect(_on_start_script)
 	gut.end_script.connect(_on_end_script)
+	# The pause-guard tests drive run() with a stub that has no `end_test`.
+	if gut.has_signal(&"end_test"):
+		gut.end_test.connect(_on_end_test)
+
+
+## `CombatWorld.live()` is a process-wide static: removals a test noted and
+## never flushed would otherwise trip a later test's turn-handoff net
+## (`TurnManager.end_turn`), blamed on the wrong test. Dropped, never flushed —
+## their nodes are freed by now; the next test starts on a fresh live world.
+func _on_end_test() -> void:
+	CombatWorld._live = null
 
 
 func _on_start_script(coll_script) -> void:
