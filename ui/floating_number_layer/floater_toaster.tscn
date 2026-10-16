@@ -19,7 +19,3 @@ grow_vertical = 0
 mouse_filter = 2
 theme_override_constants/separation = 2
 
-[node name="Timer" type="Timer" parent="." unique_id=1549688564]
-one_shot = true
-
-[connection signal="timeout" from="Timer" to="." method="_pop_toast"]

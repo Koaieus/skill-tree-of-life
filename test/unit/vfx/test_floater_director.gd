@@ -18,6 +18,7 @@ func before_each() -> void:
 	_director.vision_system = null  # no fog gating in tests
 	add_child_autofree(_director)
 	_renderer = _director.renderer
+	_renderer.clock.manual = true
 
 
 func _toaster_children() -> Array:
@@ -85,7 +86,8 @@ func test_burst_staggers_by_target() -> void:
 	var vbox := toasters[0].get_node("VBoxContainer") as VBoxContainer
 	assert_eq(vbox.get_child_count(), 1, "first fires immediately; 2 queued")
 	var fade_in: float = (vbox.get_child(0) as FloaterToast).fade_in_duration
-	await get_tree().create_timer(fade_in * 2.2).timeout
+	_renderer.clock.advance(fade_in * 1.1)
+	_renderer.clock.advance(fade_in * 1.1)
 	assert_eq(vbox.get_child_count(), 3, "all 3 popped after stagger intervals")
 
 
@@ -113,7 +115,8 @@ func test_max_stack_drops_oldest() -> void:
 	assert_eq(toasters.size(), 1)
 	var vbox := toasters[0].get_node("VBoxContainer") as VBoxContainer
 	var fade_in: float = (vbox.get_child(0) as FloaterToast).fade_in_duration
-	await get_tree().create_timer(fade_in * 2.5).timeout
+	_renderer.clock.advance(fade_in * 1.25)
+	_renderer.clock.advance(fade_in * 1.25)
 	assert_eq(vbox.get_child_count(), 3, "first + 2 queued; oldest dropped")
 
 

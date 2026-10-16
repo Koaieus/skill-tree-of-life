@@ -18,7 +18,11 @@ extends Node2D
 @export var max_queue_size: int = 8
 
 @onready var _vbox: VBoxContainer = $VBoxContainer
-@onready var _timer: Timer = $Timer
+## The door for the stagger tween; the manager hands every toaster its own
+## clock so a test can flip `manual` and step it.
+var clock := TweenClock.new()
+# True while the one-toast-per-fade-in stagger interval runs.
+var _staggering: bool = false
 
 var _queue: Array[FloaterRequest] = []
 # The resolved anchor node (FloatAnchor marker, or the target itself).
@@ -33,8 +37,8 @@ const _FLOATER_TOAST_SCENE: PackedScene = preload("res://ui/floating_number_laye
 
 func _ready() -> void:
 	_vbox.child_exiting_tree.connect(_on_toast_exited)
-	# Anything queued before _ready wired _vbox/_timer (see add_toast) drains now.
-	if not _queue.is_empty() and _timer.is_stopped():
+	# Anything queued before _ready wired _vbox (see add_toast) drains now.
+	if not _queue.is_empty() and not _staggering:
 		_pop_toast()
 
 
@@ -73,11 +77,11 @@ func add_toast(request: FloaterRequest) -> void:
 	_queue.append(request)
 	if _queue.size() > max_queue_size:
 		_queue.pop_front()
-	# Only pop once _ready has wired _timer/_vbox. If the owning manager is
+	# Only pop once _ready has wired _vbox. If the owning manager is
 	# outside the SceneTree (e.g. an editor 2D-canvas preview copy of the
-	# scene), add_child never fires this node's _ready, so _timer is still
+	# scene), add_child never fires this node's _ready, so _vbox is still
 	# null here — _ready drains the queue if/when we do enter the tree.
-	if is_node_ready() and _timer.is_stopped():
+	if is_node_ready() and not _staggering:
 		_pop_toast()
 
 
@@ -96,7 +100,15 @@ func _pop_toast() -> void:
 	toast.set_content(request.text, request.style)
 	toast.set_suffix(request.suffix_text, request.suffix_style)
 	toast.animate()
-	_timer.start(toast.fade_in_duration)
+	_staggering = true
+	var tw := clock.tween(self)
+	tw.tween_interval(toast.fade_in_duration)
+	tw.tween_callback(_on_stagger_elapsed)
+
+
+func _on_stagger_elapsed() -> void:
+	_staggering = false
+	_pop_toast()
 
 
 func _on_toast_exited(_node: Node) -> void:

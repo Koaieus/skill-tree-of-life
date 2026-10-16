@@ -26,6 +26,10 @@ const _TOASTER_SCENE: PackedScene = preload("res://ui/floating_number_layer/floa
 @export var max_queue_size: int = 8
 
 # stack_key (int) → FloaterToaster; entry may be invalid after self-destruct.
+## Shared by every toaster it spawns (their stagger tweens); a test flips
+## `clock.manual` before the first spawn and steps it.
+var clock := TweenClock.new()
+
 var _toasters: Dictionary = {}
 
 
@@ -43,6 +47,7 @@ func spawn(request: FloaterRequest) -> void:
 	var key := request.stack_key()
 	if key == 0:
 		var t: FloaterToaster = _TOASTER_SCENE.instantiate()
+		t.clock = clock
 		add_child(t)
 		t.global_position = request.anchor_position()
 		t.add_toast(request)
@@ -58,6 +63,7 @@ func _get_or_create_toaster(key: int, request: FloaterRequest) -> FloaterToaster
 	var t: FloaterToaster = stored if is_instance_valid(stored) else null
 	if t == null:
 		t = _TOASTER_SCENE.instantiate()
+		t.clock = clock
 		t.max_queue_size = max_queue_size
 		add_child(t)
 		_wire_anchor(t, request.target)
