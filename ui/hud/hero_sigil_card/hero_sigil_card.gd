@@ -34,6 +34,8 @@ extends MarginContainer
 @onready var _class_label: Label = %ClassLabel
 @onready var _health_gauge: PoolGauge = %HealthGauge
 @onready var _health_caption: Label = %HealthCaption
+## The hero's entity-hosted status rows over the health gauge.
+@onready var _health_overlay: StatusOverlay = %StatusOverlay
 
 ## World/UI-space anchor floaters rise from (stat gains, wounds, level-ups).
 ## A plain [Node2D] child works as a [FloaterRequest.target] unmodified —
@@ -74,6 +76,7 @@ func bind(entity: Entity) -> void:
 	# emblem.
 	_apply_entity_tint(_entity.color if _entity != null else Color(0, 0, 0, 0))
 	if _entity == null:
+		_health_overlay.bind(null)
 		return
 
 	_name_label.text = _entity.display_name
@@ -91,6 +94,7 @@ func bind(entity: Entity) -> void:
 	# turn" band XP already renders, which is exactly why D-25 chose an
 	# integer heal over a sub-1 sliver: zero new UI.
 	_bind_pool(_health_gauge, _health_caption, board.health, board.core_healing)
+	_bind_health_overlay(board.health)
 
 
 ## Paint the whole portrait — ring, sigil, fallback glyph — in the bound hero's
@@ -121,6 +125,18 @@ func show_level(level: int) -> void:
 	_shown_level = level
 	if _level_badge != null:
 		_level_badge.text = str(_shown_level)
+
+
+## The status overlay over the health gauge reads the ENTITY's rows against
+## `health`. A smooth gauge draws its model value at once, so the pool is the
+## drawn fill here.
+func _bind_health_overlay(pool: PoolStat) -> void:
+	_health_overlay.bind(_entity.get_combat(), _entity.statuses_changed)
+	var fill := func() -> void:
+		_health_overlay.set_fill(float(pool.current), float(pool.value))
+	fill.call()
+	_binds.link(pool.current_changed, fill.unbind(1))
+	_binds.link(pool.value_changed, fill)
 
 
 ## #504: every gauge follows its pool directly. The `health` pool used to need

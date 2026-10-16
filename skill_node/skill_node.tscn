@@ -8,6 +8,7 @@
 [ext_resource type="Script" uid="uid://drufglnla4da3" path="res://skill_node/health_bar.gd" id="6_r2qlo"]
 [ext_resource type="Script" uid="uid://drxjp5sanc7cf" path="res://skill_node/core_health_bar.gd" id="7_corehb"]
 [ext_resource type="PackedScene" path="res://skill_node/shots_pips.tscn" id="8_pips"]
+[ext_resource type="PackedScene" path="res://ui/status_overlay/status_overlay.tscn" id="9_overlay"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_hit"]
 resource_local_to_scene = true
@@ -85,6 +86,9 @@ theme_override_styles/fill = SubResource("StyleBoxFlat_3po0j")
 show_percentage = false
 script = ExtResource("6_r2qlo")
 
+[node name="StatusOverlay" parent="Visuals/HealthBar" instance=ExtResource("9_overlay")]
+layout_mode = 1
+
 [node name="CoreHealthBar" type="ProgressBar" parent="Visuals" unique_id=1764922170]
 visible = false
 modulate = Color(1, 1, 1, 0)
@@ -98,6 +102,9 @@ theme_override_styles/background = SubResource("StyleBoxFlat_r2qlo")
 theme_override_styles/fill = SubResource("StyleBoxFlat_58fw3")
 show_percentage = false
 script = ExtResource("7_corehb")
+
+[node name="StatusOverlay" parent="Visuals/CoreHealthBar" instance=ExtResource("9_overlay")]
+layout_mode = 1
 
 [node name="ShotsPips" parent="Visuals" instance=ExtResource("8_pips")]
 z_index = 10

@@ -73,6 +73,9 @@ var _subs := SubBag.new()
 ## in [method _on_current_changed], which re-enters [method _update_visibility].
 var _bound: bool = false
 ## Bench pin ([member SkillNode.pin_health_bar]): shown regardless of HP or hover.
+## The node's own status rows ([StatusOverlay]); bound to the node's
+## [NodeCombat], so it never shows the owner's rows.
+@onready var _overlay: StatusOverlay = get_node_or_null(^"StatusOverlay")
 var pinned: bool = false:
 	set(value):
 		if pinned == value:
@@ -114,6 +117,8 @@ func _on_owner_changed() -> void:
 	if _skill_node == null:
 		return
 	_release()
+	if _overlay != null:
+		_overlay.bind(_skill_node.get_combat(), _skill_node.statuses_changed)
 	var allocated := _skill_node.is_allocated()
 	_pool = _skill_node.node_board.get_stat(&"node_health") as PoolStat \
 			if allocated and _skill_node.node_board != null else null
@@ -186,6 +191,7 @@ func _on_max_changed() -> void:
 	if _pool == null:
 		return
 	max_value = _pool.value
+	_sync_overlay()
 	_on_current_changed()
 
 
@@ -263,6 +269,7 @@ func _tween_value(target: float, duration: float,
 # ── Color by ratio (connected via value_changed signal in scene) ────────────
 
 func _on_value_changed(new_value: float) -> void:
+	_sync_overlay()
 	if _fill_style == null:
 		return
 	var ratio_ := new_value / max_value if max_value > 0.0 else 0.0
@@ -272,3 +279,10 @@ func _on_value_changed(new_value: float) -> void:
 		_fill_style.bg_color = _COLOR_MID
 	else:
 		_fill_style.bg_color = _COLOR_FULL
+
+
+## The overlay's band ends at the fill the bar is DRAWING — the tweened
+## `value`, so it rides the damage tween instead of leading it.
+func _sync_overlay() -> void:
+	if _overlay != null:
+		_overlay.set_fill(value, max_value)

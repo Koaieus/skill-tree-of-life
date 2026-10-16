@@ -29,6 +29,9 @@ var _fade_target: float = 0.0
 ## rebind can never fade in showing the previous owner's fill, and `clear()`
 ## replaces the hand-rolled `is_connected` guards this used to carry.
 var _subs := SubBag.new()
+## The ENTITY's status rows ([StatusOverlay]) against `health` — the body's,
+## never the core node's own shell rows (those are the node bar's).
+@onready var _overlay: StatusOverlay = get_node_or_null(^"StatusOverlay")
 
 
 func _ready() -> void:
@@ -49,6 +52,7 @@ func bind_health(pool: PoolStat) -> void:
 		return
 	_subs.clear()
 	_pool = pool
+	_bind_overlay()
 	if _pool == null:
 		return _fade_to(0.0)
 	_subs.on(_pool.current_changed, _on_current_changed)
@@ -81,6 +85,7 @@ func _on_max_changed() -> void:
 	if _pool == null:
 		return
 	max_value = _pool.value
+	_sync_overlay()
 	_on_current_changed()
 
 
@@ -117,6 +122,7 @@ func _tween_value(target: float, duration: float,
 # ── Color by ratio (connected via value_changed in scene) ────────────────────
 
 func _on_value_changed(new_value: float) -> void:
+	_sync_overlay()
 	if _fill_style == null:
 		return
 	var fill_ratio := new_value / max_value if max_value > 0.0 else 0.0
@@ -126,3 +132,25 @@ func _on_value_changed(new_value: float) -> void:
 		_fill_style.bg_color = _COLOR_MID
 	else:
 		_fill_style.bg_color = _COLOR_FULL
+
+
+# ── Status overlay ────────────────────────────────────────────────────────────
+
+## Bind the overlay to the owning entity's combat — the host of [member _pool].
+## Resolved from the SkillNode this bar lives in, so [method bind_health]'s
+## caller passes the pool alone.
+func _bind_overlay() -> void:
+	if _overlay == null:
+		return
+	var skill_node := owner as SkillNode
+	var body: Entity = skill_node.owned_by if _pool != null and skill_node != null else null
+	if body == null:
+		_overlay.bind(null)
+	else:
+		_overlay.bind(body.get_combat(), body.statuses_changed)
+
+
+## The band ends at the drawn (tweened) fill, as on the node bar.
+func _sync_overlay() -> void:
+	if _overlay != null:
+		_overlay.set_fill(value, max_value)

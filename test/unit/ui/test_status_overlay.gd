@@ -67,7 +67,6 @@ func _standalone_overlay(size: Vector2) -> StatusOverlay:
 	add_child_autofree(frame)
 	var o := _OVERLAY_SCENE.instantiate() as StatusOverlay
 	frame.add_child(o)
-	o.size = size
 	return o
 
 
