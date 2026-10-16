@@ -79,7 +79,7 @@ func test_the_action_row_is_absent_at_first_and_present_after_the_delay() -> voi
 	assert_true(_overlay.visible, "the surface itself is immediate")
 	assert_false(_overlay.action_row.visible, "the row is not")
 
-	await wait_seconds(_ROW_DELAY + 0.15)
+	await wait_until(func() -> bool: return _overlay.action_row.visible, _ROW_DELAY + 2.0)
 
 	assert_true(_overlay.action_row.visible)
 
@@ -89,7 +89,7 @@ func test_the_action_row_is_absent_at_first_and_present_after_the_delay() -> voi
 func test_presenting_again_hides_the_row_again() -> void:
 	_overlay.action_row_delay = _ROW_DELAY
 	_overlay.present(RunEndOverlay.Reading.DRAW, null)
-	await wait_seconds(_ROW_DELAY + 0.15)
+	await wait_until(func() -> bool: return _overlay.action_row.visible, _ROW_DELAY + 2.0)
 	assert_true(_overlay.action_row.visible, "precondition")
 
 	_overlay.present(RunEndOverlay.Reading.VICTORY, _CAMP_1)

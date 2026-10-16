@@ -76,7 +76,7 @@ func test_travel_glide_moves_the_holder() -> void:
 		return
 	leaf.on_core_travel_start(Vector2(40, 0), 0.05)
 	assert_almost_eq(leaf._holder.position.x, 140.0, 0.01, "the holder starts at the old node")
-	await get_tree().create_timer(0.15).timeout
+	await wait_until(func() -> bool: return leaf.global_position.is_equal_approx(Vector2(100, 50)) and leaf._holder.position.is_equal_approx(GimbalWorld.to_world_3d(leaf.global_position)), 2.0)
 	assert_true(leaf._holder.position.is_equal_approx(GimbalWorld.to_world_3d(leaf.global_position)),
 		"after the tween the holder sits on the node")
 	assert_true(leaf.global_position.is_equal_approx(Vector2(100, 50)))

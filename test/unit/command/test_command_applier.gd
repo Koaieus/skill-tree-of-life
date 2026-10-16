@@ -243,7 +243,7 @@ func test_a_multi_hop_move_core_holds_the_queue_until_the_walk_settles() -> void
 	_applier.submit(_allocate("D"))
 	assert_eq(_applier.pending_count(), 1, "the second command waits behind the walk")
 
-	await wait_seconds(CommandApplier.CORE_HOP_SLIDE_DELAY * 3.0)
+	await wait_until(func() -> bool: return order.size() == 2 and not _applier.is_applying, 3.0)
 	assert_eq(order, ["move_core", "allocate"] as Array[String],
 			"the second command applied only after the walk fully settled")
 	assert_eq(_player.core_location, _n("C"), "and the core walked both hops")
@@ -258,7 +258,7 @@ func test_a_move_core_stops_at_the_first_illegal_hop() -> void:
 	var outcome := [true]
 	_applier.command_applied.connect(func(_cmd, ok): outcome[0] = ok)
 	_applier.submit(MoveCoreCommand.new(_player.entity_id, hops))
-	await wait_seconds(CommandApplier.CORE_HOP_SLIDE_DELAY * 4.0)
+	await wait_until(func() -> bool: return not _applier.is_applying and _applier.pending_count() == 0 and not outcome[0], 3.0)
 	assert_eq(_player.core_location, _n("C"), "the core sits where hop two left it")
 	assert_false(outcome[0], "and the command reports the partial walk as a failure")
 

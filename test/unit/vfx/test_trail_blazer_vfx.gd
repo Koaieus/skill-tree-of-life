@@ -240,7 +240,7 @@ func test_the_hundred_hop_cap_holds() -> void:
 	# The one terminal slam ring plays out on its own (longer) duration —
 	# wait for it too before asserting everything cleaned up.
 	clock.advance(linger + 0.1)
-	await wait_seconds(maxf(linger, 0.4) + 0.1)
+	await wait_until(func() -> bool: return alive.size() == 0, maxf(linger, 0.4) + 2.0)
 
 	assert_true(peak <= expected_cap + 1,
 		"live edge overlays must stay bounded by linger (cap %d), not by the 100-node walk (peak was %d)"

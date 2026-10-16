@@ -96,7 +96,7 @@ func test_crit_toast_still_grows_its_slot() -> void:
 
 	t.animate()
 	assert_almost_eq(t.custom_minimum_size.y, 0.0, 0.001, "the slot starts collapsed")
-	await wait_seconds(t.fade_in_duration + 0.1)
+	await wait_until(func() -> bool: return absf(t.custom_minimum_size.y - full_height) <= 0.5, t.fade_in_duration + 2.0)
 	assert_almost_eq(t.custom_minimum_size.y, full_height, 0.5,
 		"the slot grew back — this is what pushes the stack up")
 
@@ -110,6 +110,6 @@ func test_crit_toast_cools_back_to_the_style_colour() -> void:
 	var ignition: Color = t.label.label_settings.font_color
 	assert_gt(ignition.srgb_to_linear().r, style.fill_color.srgb_to_linear().r,
 		"it lands white-hot, above its own resting colour")
-	await wait_seconds(0.6)
+	await wait_until(func() -> bool: return absf(t.label.label_settings.font_color.r - style.fill_color.r) <= 0.02, 3.0)
 	assert_almost_eq(t.label.label_settings.font_color.r, style.fill_color.r, 0.02,
 		"and cools into the style's fill")

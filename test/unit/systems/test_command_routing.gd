@@ -169,7 +169,7 @@ func test_a_multi_hop_core_move_issues_exactly_one_command() -> void:
 	_ctl._commit_core_move(_n("C"))
 	assert_eq(_applier.pending_count(), 0,
 			"nothing queued behind it — the walk is the single in-flight command")
-	await wait_seconds(CommandApplier.CORE_HOP_SLIDE_DELAY * 3.0)
+	await wait_until(func() -> bool: return _player.core_location == _n("C"), 3.0)
 	assert_eq(seen, [&"move_core"] as Array[StringName],
 			"two hops, one MoveCoreCommand — never one command per hop")
 	assert_eq(_player.core_location, _n("C"))
@@ -182,7 +182,7 @@ func test_a_core_move_whose_last_hop_is_illegal_stops_where_it_could() -> void:
 	var mp: PoolStat = _player.stat_board.movement_points
 	mp.deplete(float(mp.available() - 2))
 	_ctl._commit_core_move(_n("C"))
-	await wait_seconds(CommandApplier.CORE_HOP_SLIDE_DELAY * 3.0)
+	await wait_until(func() -> bool: return _player.core_location == _n("C"), 3.0)
 	assert_eq(_player.core_location, _n("C"), "identical to the per-hop loop it replaced")
 
 

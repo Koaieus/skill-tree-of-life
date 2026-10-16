@@ -96,12 +96,12 @@ func test_health_bar_sprouts_on_damage_and_tracks_it() -> void:
 	assert_eq(bar.max_value, float(hp.value), "the sprout's first paint snaps the cap")
 	assert_eq(hp.current, 0.0)
 	# Both the fill and the fade-in are tweened — let them land before reading.
-	await wait_seconds(0.3)
+	await wait_until(func() -> bool: return bar.value == 0.0 and bar.modulate.a == 1.0, 2.0)
 	assert_almost_eq(bar.value, 0.0, 0.001, "the bar drains to empty")
 	assert_almost_eq(bar.modulate.a, 1.0, 0.001,
 			"a depleted node shows an empty bar rather than hiding it")
 
 	_node.refill()
-	await wait_seconds(0.6)
+	await wait_until(func() -> bool: return bar.value == float(hp.value) and bar.modulate.a == 0.0, 3.0)
 	assert_almost_eq(bar.value, float(hp.value), 0.001, "Reset visibly refills the bar")
 	assert_almost_eq(bar.modulate.a, 0.0, 0.001, "a full node hides its bar again")
