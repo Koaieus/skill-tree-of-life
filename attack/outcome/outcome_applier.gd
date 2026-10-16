@@ -89,7 +89,7 @@ static func apply(outcome: AttackOutcome, world: CombatWorld,
 ## caller lands on a cast world that has no audience anyway.
 static func _announce_blast(hit: HitInstance, world: CombatWorld, announced: Dictionary) -> void:
 	var mark := hit.blast_mark
-	if mark == null or world.is_shadow() or announced.has(mark):
+	if mark == null or hit.gated or world.is_shadow() or announced.has(mark):
 		return
 	announced[mark] = true
 	if is_instance_valid(mark.centre):

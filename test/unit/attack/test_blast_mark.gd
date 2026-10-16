@@ -91,3 +91,31 @@ func test_a_shadow_apply_never_announces() -> void:
 	watch_signals(Events)
 	await OutcomeApplier.apply(_outcome(hits), CombatWorld.shadow())
 	assert_signal_emit_count(Events, "blast_landed", 0, "a shadow world has no audience")
+
+
+func test_a_blast_whose_hits_all_gated_never_announces() -> void:
+	var hits := _detonate()
+	for h in hits:
+		h.gated = true
+	watch_signals(Events)
+	await OutcomeApplier.apply(_outcome(hits), CombatWorld.live())
+	assert_signal_emit_count(Events, "blast_landed", 0, "a gated blast has no ring")
+
+
+func test_a_later_ungated_hit_still_announces_a_mark_gated_hits_shared() -> void:
+	var hits := _detonate()
+	var inner := _inner(hits)
+	inner[0].gated = true
+	watch_signals(Events)
+	await OutcomeApplier.apply(_outcome(hits), CombatWorld.live())
+	assert_signal_emit_count(Events, "blast_landed", 1, "the gated hit does not spend the mark")
+
+
+func test_two_marks_announce_twice() -> void:
+	var hits := _detonate()
+	var second := _detonate()
+	assert_ne(_inner(second)[0].blast_mark, _inner(hits)[0].blast_mark, "fixture: two marks")
+	hits.append_array(second)
+	watch_signals(Events)
+	await OutcomeApplier.apply(_outcome(hits), CombatWorld.live())
+	assert_signal_emit_count(Events, "blast_landed", 2, "once per mark, not once per apply")
