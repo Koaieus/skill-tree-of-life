@@ -122,16 +122,11 @@ func _launch() -> void:
 	await _await_launch_settle()
 
 
-## Pumps frames until `_bs.is_launching` clears or `max_seconds` of wall clock
-## pass. A wall-clock budget, never a tick count: the swing it waits on runs on
-## real-second timers, while the headless frame period is a test-hook knob
-## (pause_leak_pre_run_hook.gd) and varies by an order of magnitude between
-## machines — 900 ticks was 15 s on one box and 1.4 s on another.
-func _await_launch_settle(max_seconds: float = 15.0) -> float:
-	var started := Time.get_ticks_msec()
-	while _bs.is_launching and Time.get_ticks_msec() - started < max_seconds * 1000.0:
-		await get_tree().process_frame
-	return (Time.get_ticks_msec() - started) / 1000.0
+## Waits until `_bs.is_launching` clears, within `max_seconds`. A wall-clock
+## budget, never a tick count: the swing runs on real-second timers while the
+## headless frame period varies by machine.
+func _await_launch_settle(max_seconds: float = 15.0) -> void:
+	await wait_until(func() -> bool: return not _bs.is_launching, max_seconds)
 
 
 func test_live_swing_plain_hit_deals_damage() -> void:

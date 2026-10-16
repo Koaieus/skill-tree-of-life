@@ -120,19 +120,13 @@ func _click_build(members: Array[SkillNode]) -> MeleeAttackPlan:
 	return plan
 
 
-## Pumps frames until `_bs.is_launching` clears or `max_seconds` of wall clock
-## pass. A wall-clock budget, never a tick count: the swing it waits on runs on
-## real-second timers, while the headless frame period is a test-hook knob
-## (pause_leak_pre_run_hook.gd) and varies by an order of magnitude between
-## machines — 900 ticks was 15 s on one box and 1.4 s on another.
-func _launch_and_settle(max_seconds: float = 15.0) -> float:
+## Launches and waits until `_bs.is_launching` clears, within `max_seconds`.
+## A wall-clock budget, never a tick count: the swing runs on real-second
+## timers while the headless frame period varies by machine.
+func _launch_and_settle(max_seconds: float = 15.0) -> void:
 	_bs.launch_attack(_pic.armed_stack.attack_plan())
-	var started := Time.get_ticks_msec()
-	while _bs.is_launching and Time.get_ticks_msec() - started < max_seconds * 1000.0:
-		await get_tree().process_frame
-	var ticks := (Time.get_ticks_msec() - started) / 1000.0
-	assert_false(_bs.is_launching, "the swing must settle (after %.2fs)" % ticks)
-	return ticks
+	await wait_until(func() -> bool: return not _bs.is_launching, max_seconds)
+	assert_false(_bs.is_launching, "the swing must settle")
 
 
 ## Blade as a comparable set of node names — order is an implementation detail

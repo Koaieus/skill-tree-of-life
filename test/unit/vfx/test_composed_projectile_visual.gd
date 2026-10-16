@@ -117,7 +117,7 @@ func test_finished_waits_for_every_signalling_child_and_never_races_the_await() 
 	wrapper._on_arrival()
 	# Not yet — even the zero-fade body's `finished` is deferred one frame.
 	assert_false(seen[0], "finished must not fire synchronously inside _on_arrival")
-	await wait_seconds(0.5)
+	await wait_until(func() -> bool: return seen[0], 0.5)
 	assert_true(seen[0], "finished must eventually fire once every child has drained")
 
 
@@ -136,5 +136,5 @@ func test_a_companion_with_no_finished_signal_does_not_block_completion() -> voi
 	wrapper.finished.connect(func() -> void: seen[0] = true)
 	wrapper._on_launch()
 	wrapper._on_arrival()
-	await wait_seconds(0.5)
+	await wait_until(func() -> bool: return seen[0], 0.5)
 	assert_true(seen[0], "a signal-less companion must not gate the wrapper's own finished")

@@ -111,7 +111,7 @@ func test_own_camp_lantern_is_uploaded_enemy_is_not() -> void:
 	assert_almost_eq(px.g, mine.global_position.y, 0.01)
 	assert_almost_eq(px.b, mine.radius, 0.01)
 	mine.free()
-	await wait_seconds(_layer.fade_seconds + 0.2)
+	await wait_until(func() -> bool: return _layer.uploaded_count == 0, _layer.fade_seconds + 0.2)
 	_lantern(_enemy, Vector2(100.0, 200.0))
 	await _frames(2)
 	assert_eq(_layer.uploaded_count, 0, "an enemy-camp lantern is never uploaded")
@@ -136,7 +136,7 @@ func test_lantern_lights_a_fogged_node_and_leaving_clears_it() -> void:
 	assert_false(addon.visible, "and the sensed look returns")
 	assert_true(n2.lantern_lit, "the other lantern still holds its node")
 	l2.free()
-	await wait_seconds(_layer.fade_seconds + 0.2)
+	await wait_until(func() -> bool: return not n2.lantern_lit, _layer.fade_seconds + 0.2)
 	assert_false(n2.lantern_lit)
 
 
@@ -174,7 +174,7 @@ func test_freed_carrier_fades_out_then_the_layer_sleeps() -> void:
 	assert_eq(_layer.uploaded_count, 1, "the disc lingers as a fading ghost")
 	var r := _layer.image.get_pixel(0, 0).b
 	assert_lt(r, r0, "and is shrinking")
-	await wait_seconds(_layer.fade_seconds + 0.2)
+	await wait_until(func() -> bool: return _layer.uploaded_count == 0, _layer.fade_seconds + 0.2)
 	assert_eq(_layer.uploaded_count, 0, "faded to nothing within fade_seconds")
 	assert_false(_nodes[2].lantern_lit, "the last fade frame clears the lit set")
 	assert_false(_layer.is_processing(), "and the layer sleeps")

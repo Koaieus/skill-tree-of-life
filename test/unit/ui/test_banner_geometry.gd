@@ -41,8 +41,9 @@ func test_band_spans_the_canvas_when_its_anchors_arrive_zeroed() -> void:
 func test_a_zeroed_band_still_centres_its_text() -> void:
 	var band := _add_band(true)
 	band.play(AnnouncementRequest.make("YOUR TURN", "", AnnouncementRequest.Style.PHASE))
-	await get_tree().create_timer(0.75).timeout
 	var label: Label = band.get_node("Label")
 	var centre: float = band.size.x * 0.5
+	await wait_until(func() -> bool:
+			return absf(label.position.x + label.size.x * 0.5 - centre) <= Banner.DRIFT_OFFSET, 0.75)
 	assert_almost_eq(label.position.x + label.size.x * 0.5, centre, Banner.DRIFT_OFFSET,
 			"the text holds within a drift's reach of centre, not off the left edge")

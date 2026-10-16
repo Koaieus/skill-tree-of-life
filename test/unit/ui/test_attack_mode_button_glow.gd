@@ -29,7 +29,7 @@ func test_active_reaches_the_label_material() -> void:
 	gut.p("active (rest) = %s" % [mat.get_shader_parameter("active_strength")])
 
 	b.override_toggle(true)
-	await wait_seconds(0.4)
+	await wait_until(func() -> bool: return mat.get_shader_parameter("active_strength") == 1.0, 0.4)
 
 	var active_after: Variant = mat.get_shader_parameter("active_strength")
 	gut.p("active (toggled) = %s" % [active_after])

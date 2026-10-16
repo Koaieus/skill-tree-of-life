@@ -200,7 +200,7 @@ func test_batch_that_finishes_first_reflows_the_survivor_up_to_close_the_gap() -
 	assert_eq(toast._batches.size(), 1, "the finished batch must be gone")
 	# _reflow tweens the survivor upward rather than snapping it — let that
 	# tween resolve before asserting the closed gap.
-	await get_tree().create_timer(toast.reflow_duration + 0.05).timeout
+	await wait_until(func() -> bool: return absf(second_row.position.y - toast.stack_offset.y) <= 0.5, toast.reflow_duration + 0.05)
 	assert_almost_eq(second_row.position.y, toast.stack_offset.y, 0.5,
 		"the surviving batch must slide up to close the gap the finished one left")
 	assert_true(second_row.position.y < second_row_start_y,

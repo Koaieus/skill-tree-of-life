@@ -74,7 +74,7 @@ func test_glide_from_repositions_halos_and_completes() -> void:
 	var halos := _look(presence) as Node2D
 	presence.glide_from(Vector2(40, 0), 0.05)
 	assert_eq(halos.position, Vector2(40, 0), "halo starts offset at the old node's relative position")
-	await get_tree().create_timer(0.15).timeout
+	await wait_until(func() -> bool: return halos.position.distance_to(Vector2.ZERO) < 0.01, 0.15)
 	assert_true(halos.position.distance_to(Vector2.ZERO) < 0.01, "halo glides back to zero")
 
 

@@ -157,7 +157,7 @@ func test_impact_emitter_delay_holds_the_burst_and_grows_the_drain() -> void:
 	assert_almost_eq(burst.drain_seconds(), base + 0.2, 0.001, "drain grows by the delay")
 	burst.arrive(ArrowImpactContext.new())
 	assert_false(burst.particles().emitting, "held until the delay elapses")
-	await get_tree().create_timer(0.5).timeout
+	await wait_until(func() -> bool: return burst.particles().emitting, 0.5)
 	assert_true(burst.particles().emitting, "bursts once the delay elapsed")
 
 
