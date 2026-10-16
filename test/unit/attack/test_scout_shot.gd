@@ -15,7 +15,7 @@ const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _BOARD := preload("res://entity/default_entity_board.tres")
 const _PLAYER_FACTION := preload("res://entity/factions/player.tres")
 const _NPC_FACTION := preload("res://entity/factions/npc.tres")
-const _ArmingCtl := preload("res://test/fixtures/arming_ctl.gd")
+const _ArmingCtl := preload("res://test/support/arming_ctl.gd")
 
 
 func _set_local(node: SkillNode, stat_id: StringName, value: float) -> void:

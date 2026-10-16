@@ -19,7 +19,7 @@ const _PLAYER_FACTION := preload("res://entity/factions/player.tres")
 const _NPC_FACTION := preload("res://entity/factions/npc.tres")
 const _WATCHTOWER_SCENE := preload("res://skill_node/addons/defs/watchtower_addon.tscn")
 const _ROSTER: AmmoTypeRoster = preload("res://attack/ammo/ammo_type_roster.tres")
-const _ArmingCtl := preload("res://test/fixtures/arming_ctl.gd")
+const _ArmingCtl := preload("res://test/support/arming_ctl.gd")
 const _BODY_SCENE := preload("res://ui/hud/command_tray/bodies/ranged_body.tscn")
 
 const _POISON := &"poison"

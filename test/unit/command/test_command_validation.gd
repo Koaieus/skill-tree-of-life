@@ -155,7 +155,7 @@ func test_pre_fingerprint_is_stamped_even_when_validation_fails() -> void:
 
 
 func test_pre_fingerprint_is_not_serialized() -> void:
-	# The tripwire #539 left: `test/fixtures/outcome/*.tres` IS a serialized
+	# The tripwire #539 left: `test/support/outcome/*.tres` IS a serialized
 	# LaunchAttackCommand dict. A field added here invalidates every committed
 	# fixture, so it stays CommandChannel's envelope-level concern.
 	var command := AllocateCommand.new(_player.entity_id, _sid("B"))

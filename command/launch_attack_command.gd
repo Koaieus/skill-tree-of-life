@@ -52,7 +52,7 @@ var record: Dictionary = {}
 ## [method from_dict][/b], exactly like [member Command.pre_fingerprint] and for
 ## the same two reasons: a received command is by definition one this machine did
 ## not compute (so false is the only correct value off the wire), and
-## `test/fixtures/outcome/*.tres` IS a serialized dictionary of this type (#539),
+## `test/support/outcome/*.tres` IS a serialized dictionary of this type (#539),
 ## so a new wire field invalidates every committed fixture.
 ##
 ## It replaced `record.is_empty()` when the compute moved ahead of the confirm

@@ -17,7 +17,7 @@ extends GutTest
 ## encoded after the host had already started).
 
 const _GRAPH_SCENE := preload("res://graph/graph.tscn")
-const _Rig := preload("res://test/fixtures/link_rig.gd")
+const _Rig := preload("res://test/support/link_rig.gd")
 const _BOARD := preload("res://entity/default_entity_board.tres")
 const _NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 
@@ -104,7 +104,7 @@ func test_it_round_trips_through_the_codec() -> void:
 
 
 func test_the_wire_form_carries_no_fingerprint() -> void:
-	# `test/fixtures/outcome/*.tres` IS a serialized command dictionary — see
+	# `test/support/outcome/*.tres` IS a serialized command dictionary — see
 	# [member Command.pre_fingerprint]. `host_fingerprint` joined it as transient
 	# applier state and must stay out of `to_dict` for the same reason.
 	var command := StartTurnCommand.new(3)

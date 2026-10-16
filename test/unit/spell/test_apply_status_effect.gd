@@ -5,7 +5,7 @@ extends GutTest
 ## CastSpell.damage) — see attack/spell/on_hit/apply_status_effect.gd.
 
 const H := preload("res://test/unit/spell/spell_test_helper.gd")
-const _TEST_DEF := preload("res://test/fixtures/status/test_status.tres")
+const _TEST_DEF := preload("res://test/support/status/test_status.tres")
 
 
 func test_skips_null_current_node() -> void:

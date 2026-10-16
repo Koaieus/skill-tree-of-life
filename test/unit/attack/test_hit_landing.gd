@@ -4,7 +4,7 @@ extends GutTest
 ## [ApplyStatusEffect] to emit its [StatusInstance] (ADR 0044): the one on-hit
 ## vocabulary every attack mode shares.
 
-const _TEST_DEF := preload("res://test/fixtures/status/test_status.tres")
+const _TEST_DEF := preload("res://test/support/status/test_status.tres")
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _BOARD := preload("res://entity/default_entity_board.tres")

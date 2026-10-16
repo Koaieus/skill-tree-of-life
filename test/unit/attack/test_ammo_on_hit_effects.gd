@@ -13,8 +13,8 @@ const _BOARD := preload("res://entity/default_entity_board.tres")
 const _PLAYER_FACTION := preload("res://entity/factions/player.tres")
 const _NPC_FACTION := preload("res://entity/factions/npc.tres")
 const _POISON_DEF: StatusDef = preload("res://effects/status/poison.tres")
-const _TEST_DEF: StatusDef = preload("res://test/fixtures/status/test_status.tres")
-const _BARE_ADDON_SCENE := preload("res://test/fixtures/addons/bare_addon.tscn")
+const _TEST_DEF: StatusDef = preload("res://test/support/status/test_status.tres")
+const _BARE_ADDON_SCENE := preload("res://test/support/addons/bare_addon.tscn")
 
 ## Small, so a default-HP target survives the arrow and keeps its statuses.
 const _BASE_DAMAGE := 1.0

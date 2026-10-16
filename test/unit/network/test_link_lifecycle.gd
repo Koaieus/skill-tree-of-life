@@ -1,5 +1,5 @@
 extends GutTest
-const _Rig := preload("res://test/fixtures/link_rig.gd")
+const _Rig := preload("res://test/support/link_rig.gd")
 
 ## #716 item 1: refusing a PEER is not refusing the socket.
 ##

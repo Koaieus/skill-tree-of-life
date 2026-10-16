@@ -5,7 +5,7 @@ extends GutTest
 ## parse cycle the catalog script itself must avoid.
 
 const CATALOG: TempUpgradeCatalog = preload("res://attack/melee/temp_upgrade_catalog.tres")
-const _FIXTURES := "res://test/fixtures/addons"
+const _FIXTURES := "res://test/support/addons"
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _BOARD := preload("res://entity/default_entity_board.tres")

@@ -9,7 +9,7 @@ extends GutTest
 const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _ENTITY_SCENE := preload("res://entity/entity.tscn")
 const _MAGIC_SCENE := preload("res://ui/hud/combat_readout/combat_card_magic.tscn")
-const _STUB_ARM := preload("res://test/fixtures/stub_arm.gd")
+const _STUB_ARM := preload("res://test/support/stub_arm.gd")
 
 
 func _spawn_entity(graph: Graph) -> Entity:

@@ -10,7 +10,7 @@ var _catalog: TempUpgradeCatalog = preload("res://attack/melee/temp_upgrade_cata
 const _BOARD := preload("res://entity/default_entity_board.tres")
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _GRAPH_SCENE := preload("res://graph/graph.tscn")
-const _SECOND_DOT_SCENE := preload("res://test/fixtures/addons/second_dot_addon.tscn")
+const _SECOND_DOT_SCENE := preload("res://test/support/addons/second_dot_addon.tscn")
 const _BUNKER_SCENE := preload("res://skill_node/addons/defs/bunker_addon.tscn")
 
 var _graph: Graph

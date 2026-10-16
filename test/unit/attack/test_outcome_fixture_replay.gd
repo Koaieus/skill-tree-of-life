@@ -30,7 +30,7 @@ const _SANDBOX_WORLD := preload("res://scenes/dev/sandbox_world.gd")
 
 ## The one committed fixture: Spark kills `d_gate`, whose loss islands the limb
 ## — a three-layer forced-dealloc cascade on the replay path.
-const FIXTURE_PATH := "res://test/fixtures/outcome/spark_cascade.tres"
+const FIXTURE_PATH := "res://test/support/outcome/spark_cascade.tres"
 
 const REGEN_ENV := "REGEN_OUTCOME_FIXTURE"
 

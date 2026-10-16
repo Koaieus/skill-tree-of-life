@@ -7,7 +7,7 @@ extends GutTest
 ## reset) and off BattleSystem's plan signals — never per frame.
 
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
-const _ArmingCtl := preload("res://test/fixtures/arming_ctl.gd")
+const _ArmingCtl := preload("res://test/support/arming_ctl.gd")
 const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _BOARD := preload("res://entity/default_entity_board.tres")
 const _PLAYER_FACTION := preload("res://entity/factions/player.tres")

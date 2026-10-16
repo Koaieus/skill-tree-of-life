@@ -3,7 +3,7 @@ extends GutTest
 ## An addon exists only as a scene: no `SkillNodeAddon` (or subclass) is ever
 ## built with `.new()`, and no script is ever `set_script`-ed onto a bare node to
 ## make one — not in shipped code, not in tests. A test instantiates a shipped
-## scene under `skill_node/addons/defs/` or a fixture under `test/fixtures/addons/`.
+## scene under `skill_node/addons/defs/` or a fixture under `test/support/addons/`.
 ## This is what lets an addon's kind be its scene path with no fallback.
 ##
 ## Walks every `.gd` under `res://`, skipping dot-directories (`.godot`, `.claude`,

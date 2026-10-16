@@ -5,7 +5,7 @@ extends GutTest
 ## kinds — for uniqueness on a carrier and for the melee tray's outline colour.
 
 const _TOXIN_SCENE := preload("res://skill_node/addons/defs/toxin_addon.tscn")
-const _SECOND_DOT_SCENE := preload("res://test/fixtures/addons/second_dot_addon.tscn")
+const _SECOND_DOT_SCENE := preload("res://test/support/addons/second_dot_addon.tscn")
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _BOARD := preload("res://entity/default_entity_board.tres")

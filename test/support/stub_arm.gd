@@ -5,7 +5,7 @@ extends AttackArmMode
 ## slot. [method stack_holding] stands it on a bare [ArmedStack], so a reader
 ## wired to that stack sees exactly [param plan] as the armed plan.
 
-const _SELF := preload("res://test/fixtures/stub_arm.gd")
+const _SELF := preload("res://test/support/stub_arm.gd")
 
 var _held: AttackPlan
 

@@ -16,7 +16,7 @@ extends GutTest
 ## drifted is never repaired at all (acceptance 3).
 
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
-const _Rig := preload("res://test/fixtures/link_rig.gd")
+const _Rig := preload("res://test/support/link_rig.gd")
 const _BOARD := preload("res://entity/default_entity_board.tres")
 const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 

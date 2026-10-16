@@ -1,5 +1,5 @@
 extends GutTest
-const _Rig := preload("res://test/fixtures/link_rig.gd")
+const _Rig := preload("res://test/support/link_rig.gd")
 
 ## #1176 — a parked loot pick's [LootPickOffer] is ADDRESSED to the peer that
 ## seats the collector's human ([method LootPickRegistry.peer_for]), never

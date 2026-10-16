@@ -1,7 +1,7 @@
 [gd_scene format=3]
 
 [ext_resource type="PackedScene" path="res://scenes/game_root.tscn" id="1_base"]
-[ext_resource type="Script" path="res://test/fixtures/integration_level.gd" id="2_script"]
+[ext_resource type="Script" path="res://test/support/integration_level.gd" id="2_script"]
 [ext_resource type="PackedScene" path="res://skill_node/skill_node.tscn" id="3_skill"]
 [ext_resource type="PackedScene" path="res://graph/edge.tscn" id="4_edge"]
 

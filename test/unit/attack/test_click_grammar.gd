@@ -92,7 +92,7 @@ func _melee() -> MeleeAttackPlan:
 
 
 func _upgrade() -> PackedScene:
-	return preload("res://test/fixtures/addons/second_dot_addon.tscn")
+	return preload("res://test/support/addons/second_dot_addon.tscn")
 
 
 func _heal_spell() -> SpellDef:

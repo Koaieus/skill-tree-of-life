@@ -37,7 +37,7 @@ var entity_id: int = 0
 ## [b]Transient applier state — deliberately absent from [method to_dict].[/b]
 ## It rides the wire as [CommandChannel]'s envelope-level `KEY_FINGERPRINT`, not as
 ## a command field, and that separation is load-bearing twice over: the codec's
-## namespace stays the command's own, and `test/fixtures/outcome/*.tres` IS a
+## namespace stays the command's own, and `test/support/outcome/*.tres` IS a
 ## serialized [LaunchAttackCommand] dictionary (#539), so adding a field here
 ## invalidates every committed fixture. A red fixture after touching this means
 ## the field was put in the wrong place, not that the fixture is stale.
@@ -61,7 +61,7 @@ var pre_fingerprint: int = 0
 ## reasons [member pre_fingerprint]'s note gives[/b] — it is the same number,
 ## one peer over, and it rides the wire as [CommandChannel]'s envelope-level
 ## `KEY_FINGERPRINT`. Adding either to the command's own dictionary would
-## invalidate every `test/fixtures/outcome/*.tres`.
+## invalidate every `test/support/outcome/*.tres`.
 ##
 ## [b]Why it has to travel ON the command.[/b] The compare it feeds is between
 ## the host's stamp and the MIRROR's own stamp, and the mirror does not stamp
@@ -79,7 +79,7 @@ var host_fingerprint: int = 0
 ## [member CommandApplier.is_awaiting_confirmation] would never close.
 ##
 ## [b]0 means unminted[/b], and [method to_dict] OMITS the key when it is 0, so
-## every committed fixture under `test/fixtures/outcome/` round-trips
+## every committed fixture under `test/support/outcome/` round-trips
 ## byte-identical and none of them recapture. A minted id is never 0:
 ## [method CommandApplier._mint_intent_id] starts its counter at 1.
 var intent_id: int = 0
@@ -96,7 +96,7 @@ func type_tag() -> StringName:
 
 
 ## The wire form of the base: the actor, and the intent id only once minted —
-## an unconditional key would recapture every `test/fixtures/outcome/*.tres`.
+## an unconditional key would recapture every `test/support/outcome/*.tres`.
 ## Subclasses append to this list, never restart it.
 static func wire_fields() -> Array[WireFields.Field]:
 	return [

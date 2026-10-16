@@ -11,7 +11,7 @@ extends GutTest
 const _ROOT_SCENE := preload("res://ui/tooltip_fan/panels/granted_modifiers_root.tscn")
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _GRAPH_SCENE := preload("res://graph/graph.tscn")
-const _BARE_ADDON_SCENE := preload("res://test/fixtures/addons/bare_addon.tscn")
+const _BARE_ADDON_SCENE := preload("res://test/support/addons/bare_addon.tscn")
 
 var _graph: Graph
 var _node: SkillNode

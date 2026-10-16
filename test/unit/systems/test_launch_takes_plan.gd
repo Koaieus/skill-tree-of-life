@@ -9,7 +9,7 @@ const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _PLAYER_FACTION := preload("res://entity/factions/player.tres")
 const _CATALOG := preload("res://attack/melee/temp_upgrade_catalog.tres")
-const _ArmingCtl := preload("res://test/fixtures/arming_ctl.gd")
+const _ArmingCtl := preload("res://test/support/arming_ctl.gd")
 
 var _graph: Graph
 var _alloc: AllocationSystem
@@ -229,7 +229,7 @@ func test_highlights_follow_the_in_flight_plan_then_the_slot() -> void:
 	var human := _arm_human_plan()
 	var hc := HighlightController.new()
 	hc.battle_system = _bs
-	hc.armed_stack = autofree(preload("res://test/fixtures/stub_arm.gd").stack_holding(human))
+	hc.armed_stack = autofree(preload("res://test/support/stub_arm.gd").stack_holding(human))
 	add_child_autofree(hc)
 	assert_eq(hc.provider, human, "sanity: the armed plan paints before the swing")
 	var during: Array = []

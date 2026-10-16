@@ -99,7 +99,7 @@ are **not comparable between two runs**. Compare the sweep-driven verbs.
 the replay path and leaves messaging as the only suspect. The world is rebuilt
 from `scenes/dev/outcome_playground_world.gd` rather than carried in the fixture
 (ids mint from per-`Graph` child order, so both sides must build it the same
-way). **Never hand-edit a `test/fixtures/outcome/*.tres`** — regenerate:
+way). **Never hand-edit a `test/support/outcome/*.tres`** — regenerate:
 `REGEN_OUTCOME_FIXTURE=1 mise run test:one -- res://test/unit/attack/test_outcome_fixture_replay.gd`,
 then read the diff. A moved `world_fingerprint_at_capture` means the builder
 drifted; a moved `expected_fingerprint` alone means the replay path changed.

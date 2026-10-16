@@ -115,13 +115,13 @@ size_flags_horizontal = 3
 unique_name_in_owner = true
 custom_minimum_size = Vector2(190, 0)
 layout_mode = 2
-tooltip_text = "Filename stem under test/fixtures/outcome/."
+tooltip_text = "Filename stem under test/support/outcome/."
 text = "spark_cascade"
 
 [node name="SaveBtn" type="Button" parent="VBox/Bar"]
 unique_name_in_owner = true
 layout_mode = 2
-tooltip_text = "Write the held fixture to test/fixtures/outcome/ — editor-only."
+tooltip_text = "Write the held fixture to test/support/outcome/ — editor-only."
 text = "💾  Save fixture"
 
 [node name="StatusLabel" type="RichTextLabel" parent="VBox"]

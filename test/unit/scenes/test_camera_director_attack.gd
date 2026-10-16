@@ -15,7 +15,7 @@ const VIEWPORT := Vector2(1440, 960)
 
 var _dir: CameraDirector
 
-const _StubArm := preload("res://test/fixtures/stub_arm.gd")
+const _StubArm := preload("res://test/support/stub_arm.gd")
 var _vision: _StubVision
 var _holder: Node2D
 

@@ -18,7 +18,7 @@ const _NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 ## A landmark whose payload is a StatEffect SubResource — the shape a
 ## behavioural landmark has. No shipped keystone carries one (pure stat bundles
 ## are plain modifiers), so the fixture keeps this wire path covered.
-const _TITAN_SCENE := preload("res://test/fixtures/effect_landmark_node.tscn")
+const _TITAN_SCENE := preload("res://test/support/effect_landmark_node.tscn")
 
 
 func _new_graph() -> Graph:

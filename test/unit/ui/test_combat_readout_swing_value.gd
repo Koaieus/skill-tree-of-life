@@ -9,7 +9,7 @@ var _catalog: TempUpgradeCatalog = preload("res://attack/melee/temp_upgrade_cata
 const _BOARD := preload("res://entity/default_entity_board.tres")
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _GRAPH_SCENE := preload("res://graph/graph.tscn")
-const _ArmingCtl := preload("res://test/fixtures/arming_ctl.gd")
+const _ArmingCtl := preload("res://test/support/arming_ctl.gd")
 const _READOUT_SCENE := preload("res://ui/hud/combat_readout/combat_readout.tscn")
 
 var _graph: Graph

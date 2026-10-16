@@ -105,7 +105,7 @@ func _arm_plan() -> MeleeAttackPlan:
 	plan.toggle_member(_arm)
 	assert_true(plan.is_valid(), "fixture plan must be valid before launching")
 	# The preview reads the armed plan off a stack; a bare one holds this plan.
-	_preview.armed_stack = autofree(preload("res://test/fixtures/stub_arm.gd").stack_holding(plan))
+	_preview.armed_stack = autofree(preload("res://test/support/stub_arm.gd").stack_holding(plan))
 	return plan
 
 
@@ -149,7 +149,7 @@ func test_a_stack_assigned_after_ready_still_drives_the_preview() -> void:
 	stack.set_root(ArmedMode.new())
 	_preview.armed_stack = stack  # late: the preview has long been in the tree
 	assert_null(_preview.current_blade(), "nothing armed yet")
-	stack.push(preload("res://test/fixtures/stub_arm.gd").new(plan))
+	stack.push(preload("res://test/support/stub_arm.gd").new(plan))
 	assert_not_null(_preview.current_blade(), "a level pushed on a late-assigned stack paints the ghost")
 
 

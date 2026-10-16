@@ -7,10 +7,10 @@ extends GutTest
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _BOARD := preload("res://entity/default_entity_board.tres")
-const _TEST_DEF := preload("res://test/fixtures/status/test_status.tres")
+const _TEST_DEF := preload("res://test/support/status/test_status.tres")
 ## Same shape with the poison identity, so the derived stat ids name the poison
 ## pair — a `.tres` so it survives an AttackRecord round trip by path.
-const _SCALED_DEF := preload("res://test/fixtures/status/test_scaled_status.tres")
+const _SCALED_DEF := preload("res://test/support/status/test_scaled_status.tres")
 const _POISON := preload("res://effects/status/poison.tres")
 const _BLINDNESS := preload("res://effects/status/blindness.tres")
 

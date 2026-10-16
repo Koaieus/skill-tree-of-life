@@ -8,7 +8,7 @@ extends GutTest
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _POISON := preload("res://effects/status/poison.tres")
-const _TEST_DEF := preload("res://test/fixtures/status/test_status.tres")
+const _TEST_DEF := preload("res://test/support/status/test_status.tres")
 
 var _graph: Graph
 var _nodes: Array[SkillNode] = []

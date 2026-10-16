@@ -1,14 +1,14 @@
 extends GutTest
 ## The integration tier's first behavioural customer (#979): one full
 ## allocate → attack → kill → loot → XP cycle driven end to end on the shared
-## `test/fixtures/integration_level.tscn`, on the logical clock
+## `test/support/integration_level.tscn`, on the logical clock
 ## (`BattleSystem.instant_mutation`).
 ##
 ## Every assert is a RELATION — XP rose, level rose, the victim is gone, a
 ## relic sits on the former core — never an authored magnitude: the owner
 ## tunes the numbers, this file tests the shape of the cycle.
 
-const _LEVEL := preload("res://test/fixtures/integration_level.tscn")
+const _LEVEL := preload("res://test/support/integration_level.tscn")
 
 var _root: GameRoot
 var _player: Entity

@@ -19,7 +19,7 @@ const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _CLAMP_SCENE := preload("res://skill_node/addons/defs/clamp_addon.tscn")
 const _BUNKER_SCENE := preload("res://skill_node/addons/defs/bunker_addon.tscn")
 
-const _ArmingCtl := preload("res://test/fixtures/arming_ctl.gd")
+const _ArmingCtl := preload("res://test/support/arming_ctl.gd")
 const _SPACING := 150.0
 ## Fraction of a full turn round the tip's own arc where a defender sits —
 ## `test_bunker_break_live.gd`'s convention, far enough in that the contact

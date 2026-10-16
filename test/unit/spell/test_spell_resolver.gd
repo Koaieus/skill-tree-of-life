@@ -180,7 +180,7 @@ func test_landing_with_a_status_effect_resolves_on_a_shadow_only() -> void:
 	helper.assign_owner(graph, def, [1])
 	helper.assign_owner(graph, atk, [0])
 	var config := helper.make_config(helper.no_spread(), helper.owner_enemy(), null, {max_hops = 0})
-	var status_def: StatusDef = preload("res://test/fixtures/status/test_status.tres")
+	var status_def: StatusDef = preload("res://test/support/status/test_status.tres")
 	var status_effect := ApplyStatusEffect.new()
 	status_effect.def = status_def
 	status_effect.power = 2.0

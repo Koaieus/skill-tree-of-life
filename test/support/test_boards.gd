@@ -11,7 +11,7 @@ extends RefCounted
 ## arranges its own inputs; content is an input, never the fixture
 ## (`docs/domain/stat-knobs-and-bins.md`).
 ##
-## Lives in `test/fixtures/` (outside `.gutconfig.json`'s `dirs`), so GUT never
+## Lives in `test/support/` (outside `.gutconfig.json`'s `dirs`), so GUT never
 ## collects it as a suite.
 
 const DEFAULT_ENTITY_BOARD := preload("res://entity/default_entity_board.tres")

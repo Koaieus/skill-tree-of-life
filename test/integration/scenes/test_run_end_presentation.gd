@@ -19,7 +19,7 @@ extends GutTest
 ## (through a probe subclass that counts departures instead of taking them), a
 ## two-camp roster, a hand-driven turn loop.
 
-const _GAME_ROOT := preload("res://test/fixtures/route_probe_game_root.tscn")
+const _GAME_ROOT := preload("res://test/support/route_probe_game_root.tscn")
 const _SKILL_NODE := preload("res://skill_node/skill_node.tscn")
 const _BALANCED := preload("res://entity/core/balanced_core.tres")
 const _CAMP_1 := preload("res://entity/factions/camp_1.tres")

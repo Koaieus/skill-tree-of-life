@@ -16,7 +16,7 @@ extends GutTest
 
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _DUST_SCENE := preload("res://skill_node/addons/defs/skill_dust_addon.tscn")
-const _Rig := preload("res://test/fixtures/link_rig.gd")
+const _Rig := preload("res://test/support/link_rig.gd")
 const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _BOARD := preload("res://entity/default_entity_board.tres")
 
@@ -86,7 +86,7 @@ func _receiver() -> LootPickRegistry:
 
 
 ## #1179: the loot-offer leg rides its own [LootOfferChannel] now, registered
-## onto the same [NetworkLink] core `test/fixtures/link_rig.gd` composes with
+## onto the same [NetworkLink] core `test/support/link_rig.gd` composes with
 ## the world and command channels — the level's shape.
 func _link(applier: CommandApplier, graph: Graph, transport: NetworkTransport,
 		mode: NetworkConfig.Role, registry: LootPickRegistry = null) -> NetworkLink:

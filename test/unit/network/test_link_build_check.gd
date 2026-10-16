@@ -15,7 +15,7 @@ extends GutTest
 ## `mp_dev_sandbox.bind_failure_lines` — extracted pure for exactly that reason.
 
 const _SANDBOX := preload("res://scenes/dev/mp_dev_sandbox.gd")
-const _Rig := preload("res://test/fixtures/link_rig.gd")
+const _Rig := preload("res://test/support/link_rig.gd")
 
 var _host: NetworkLink
 var _client: NetworkLink

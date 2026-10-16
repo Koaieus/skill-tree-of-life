@@ -14,8 +14,8 @@ const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _TOXIN_SCENE := preload("res://skill_node/addons/defs/toxin_addon.tscn")
 const _POISON := preload("res://effects/status/poison.tres")
-const _SECOND_DOT_SCENE := preload("res://test/fixtures/addons/second_dot_addon.tscn")
-const _BARE_SCENE := preload("res://test/fixtures/addons/bare_addon.tscn")
+const _SECOND_DOT_SCENE := preload("res://test/support/addons/second_dot_addon.tscn")
+const _BARE_SCENE := preload("res://test/support/addons/bare_addon.tscn")
 ## A rigid spine (mid welded) traces the nominal radius the plate sits on; a
 ## floppy one curls inward and misses — test_bunker_break_live.gd's finding.
 const _CLAMP_SCENE := preload("res://skill_node/addons/defs/clamp_addon.tscn")

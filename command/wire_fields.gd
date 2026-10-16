@@ -45,7 +45,7 @@ class Field extends RefCounted:
 	var nested: Script = null
 	## Leave the key out entirely while the value equals [member default] —
 	## for [member Command.intent_id], whose absence at 0 keeps every
-	## `test/fixtures/outcome/*.tres` byte-identical.
+	## `test/support/outcome/*.tres` byte-identical.
 	var omit_default: bool = false
 
 	func _init(name_: StringName, type_: Variant.Type, default_: Variant = null) -> void:

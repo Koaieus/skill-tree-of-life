@@ -136,7 +136,7 @@ func test_selection_survives_the_container_swap() -> void:
 
 const _GIRDLE: SpellDef = preload("res://attack/spell/defs/girdle.tres")
 const _VENOM: SpellDef = preload("res://attack/spell/defs/venom_burst.tres")
-const _STUB_ARM := preload("res://test/fixtures/stub_arm.gd")
+const _STUB_ARM := preload("res://test/support/stub_arm.gd")
 
 var _ctl: PlayerInputController
 var _plan: MagicAttackPlan

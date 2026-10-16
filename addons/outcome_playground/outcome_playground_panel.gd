@@ -45,7 +45,7 @@ const _SANDBOX_WORLD: Script = preload("res://scenes/dev/sandbox_world.gd")
 const _PLAYGROUND_WORLD: Script = preload("res://scenes/dev/outcome_playground_world.gd")
 
 ## Where Save writes, and where the headless test reads from.
-const FIXTURE_DIR := "res://test/fixtures/outcome/"
+const FIXTURE_DIR := "res://test/support/outcome/"
 
 ## Room left around the authored layout when it is fitted to the viewport.
 const _FIT_MARGIN: float = 60.0
@@ -324,7 +324,7 @@ func load_fixture(fixture: OutcomeFixture) -> void:
 		_refresh_status()
 
 
-## Write the held fixture to `test/fixtures/outcome/`. Editor-only: this is how
+## Write the held fixture to `test/support/outcome/`. Editor-only: this is how
 ## a committed fixture is authored, and there is nothing to write to at runtime.
 func _on_save_pressed() -> void:
 	if _fixture == null:

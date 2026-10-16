@@ -11,7 +11,7 @@ paths:
 
 Concrete addon scenes live in `skill_node/addons/defs/`; a base or template scene never does.
 
-An addon is a scene: never `.new()` one or `set_script` onto a bare node — tests instantiate a shipped `defs/` scene or a `test/fixtures/addons/` fixture (guarded by `test/unit/skill_node/test_addons_are_scenes.gd`).
+An addon is a scene: never `.new()` one or `set_script` onto a bare node — tests instantiate a shipped `defs/` scene or a `test/support/addons/` fixture (guarded by `test/unit/skill_node/test_addons_are_scenes.gd`).
 
 An addon's kind is `SkillNodeAddon.get_kind()` — its scene path, never its script (two scenes may share one); `unique`, `can_attach_addon(kind)` and the melee tray's outline all compare it.
 

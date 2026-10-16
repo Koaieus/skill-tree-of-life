@@ -565,7 +565,7 @@ func route_to_meta_now() -> bool:
 
 ## The departure itself, split off [method route_to_meta_now] so the latch and
 ## the veto can be exercised without a test actually swapping the scene out from
-## under GUT. Overridden by `test/fixtures/route_probe_game_root.gd`.
+## under GUT. Overridden by `test/support/route_probe_game_root.gd`.
 func _leave_for_meta() -> void:
 	SceneDirector.goto(META_ROOT)
 

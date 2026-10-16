@@ -9,7 +9,7 @@ extends GameRoot
 ## rules — the once-only latch and the `route_to_meta_on_run_end` veto — on the
 ## real production path rather than on a re-implementation of it.
 ##
-## Lives in `test/fixtures/` (outside `.gutconfig.json`'s `dirs`), so GUT never
+## Lives in `test/support/` (outside `.gutconfig.json`'s `dirs`), so GUT never
 ## tries to run it as a test script.
 
 var departures: int = 0

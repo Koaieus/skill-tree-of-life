@@ -8,7 +8,7 @@ extends GutTest
 const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _BOARD := preload("res://entity/default_entity_board.tres")
-const _CAMP_STATUS := preload("res://test/fixtures/status/test_camp_status.tres")
+const _CAMP_STATUS := preload("res://test/support/status/test_camp_status.tres")
 
 var _owner: Entity
 
@@ -198,7 +198,7 @@ func test_dealloc_spill_driver_keeps_each_camps_row() -> void:
 
 func test_every_authored_group_by_and_visible_if_parses() -> void:
 	var violations: Array[String] = []
-	for dir in ["res://effects/status", "res://test/fixtures/status"]:
+	for dir in ["res://effects/status", "res://test/support/status"]:
 		for f in DirAccess.get_files_at(dir):
 			if not f.ends_with(".tres"):
 				continue
