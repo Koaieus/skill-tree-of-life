@@ -211,10 +211,13 @@ func test_the_hundred_hop_cap_holds() -> void:
 	var expected_cap: int = EdgeEnergize.max_live_overlays(linger, beat_interval)
 	var alive: Array[TrailBlazerEdgeVisual] = []
 	var peak := 0
+	var clock := TweenClock.new()
+	clock.manual = true
 
 	for i in 100:
 		var visual: TrailBlazerEdgeVisual = TRAIL_BLAZER_EDGE_VISUAL.instantiate()
 		visual.linger_seconds = linger
+		visual.clock = clock
 		add_child_autofree(visual)
 		alive.append(visual)
 		visual.finished.connect(func() -> void: alive.erase(visual))
@@ -229,10 +232,14 @@ func test_the_hundred_hop_cap_holds() -> void:
 		visual._on_arrival()
 
 		peak = maxi(peak, alive.size())
-		await get_tree().create_timer(beat_interval).timeout
+		clock.advance(beat_interval)
+		# `finished` is emitted deferred at both hops (edge, then wrapper).
+		await get_tree().process_frame
+		await get_tree().process_frame
 
 	# The one terminal slam ring plays out on its own (longer) duration —
 	# wait for it too before asserting everything cleaned up.
+	clock.advance(linger + 0.1)
 	await wait_seconds(maxf(linger, 0.4) + 0.1)
 
 	assert_true(peak <= expected_cap + 1,

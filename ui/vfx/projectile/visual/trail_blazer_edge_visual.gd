@@ -51,6 +51,8 @@ const IMPACT_RING_SCENE: PackedScene = preload("res://ui/vfx/projectile/visual/i
 @export_range(1.0, 128.0, 0.5) var slam_radius: float = 14.0
 @export_range(1.0, 256.0, 0.5) var slam_expand_radius: float = 46.0
 
+## Handed to the inner [EdgeEnergize]; a test sets `clock.manual` and steps.
+var clock := TweenClock.new()
 var _overlay: EdgeEnergize
 var _is_terminal: bool = false
 var _crit_tier: int = 0
@@ -75,6 +77,7 @@ func _ready() -> void:
 		return
 	_overlay = EDGE_ENERGIZE_SCENE.instantiate()
 	_overlay.linger_seconds = linger_seconds
+	_overlay.clock = clock
 	_overlay.tint = tint
 	add_child(_overlay)
 	_overlay.finished.connect(_on_overlay_finished)
