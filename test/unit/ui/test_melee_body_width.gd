@@ -419,6 +419,11 @@ func test_a_right_click_swap_puts_the_pick_in_that_slot_and_pins_it() -> void:
 	_press(&"ui_temp_upgrade_4")
 	assert_eq(_ctl.temp_upgrade_arm(), pick, "its key arms the swapped-in kind")
 
+	# A filled card's right-click lands on its inner Button, not the card.
+	(row.get_child(3).get_node(^"%Button") as Control).gui_input.emit(right)
+	assert_true(fan.visible, "right-click on a filled card opens the picker too")
+	assert_eq(body.swap_slot(), 3)
+
 
 func test_re_pressing_the_same_key_cancels_the_arm() -> void:
 	# Same toggle semantics the card click already has — one door, not two.

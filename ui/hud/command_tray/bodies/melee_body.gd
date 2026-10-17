@@ -184,6 +184,11 @@ func _build_upgrade_buttons() -> void:
 				btn.pressed.connect(_input_ctl.arm_temp_upgrade.bind(upgrade))
 			slot = btn
 		slot.gui_input.connect(_on_slot_gui_input.bind(i))
+		# A card's own Button stops the mouse, so its right-click never reaches
+		# the card's gui_input; listen where it lands.
+		var inner := slot.get_node_or_null(^"%Button") as Control
+		if inner != null:
+			inner.gui_input.connect(_on_slot_gui_input.bind(i))
 		_quickbar_row.add_child(slot)
 
 
