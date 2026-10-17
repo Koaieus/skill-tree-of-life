@@ -470,6 +470,5 @@ func _rebuild_receipt(plan: MeleeAttackPlan) -> void:
 		hover_target.mouse_exited.connect(_on_pip_hover_changed.bind(node, false))
 
 
-
 func _on_launch_pressed() -> void:
 	_battle_system.launch_attack(_armed_plan())
