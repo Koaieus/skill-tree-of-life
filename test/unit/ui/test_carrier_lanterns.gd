@@ -22,7 +22,7 @@ func before_each() -> void:
 	_graph = world.graph
 	_origin = world.add_node(&"", Vector2.ZERO)
 	_target = world.add_node(&"", Vector2(500, 0))
-	_attacker = autofree(TestWorld.new_entity(""))
+	_attacker = autofree(Entity.new())
 
 
 func _arrow_hit(ammo_id: StringName) -> DamageInstance:
