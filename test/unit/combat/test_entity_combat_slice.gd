@@ -601,3 +601,45 @@ func _outcome_of(hit: HitInstance) -> AttackOutcome:
 	var outcome := AttackOutcome.new()
 	outcome.hits = [hit] as Array[HitInstance]
 	return outcome
+
+
+## Armor pierce read off the ATTACKING node's own node_board reaches the hit,
+## and the one door lands the same effective live and on the shadow.
+func test_node_local_pierce_lands_the_same_live_and_shadow() -> void:
+	var armor := StatModifier.new()
+	armor.stat_id = &"armor"
+	armor.operation = StatModifier.Operation.ADD_BONUS
+	armor.value = 3.0
+	_n1.add_local_modifier(armor)
+	var atk: NodeCombat = null
+	for c in _entity.get_combat().owned():
+		if c.host != _n1:
+			atk = c
+			break
+	var p := StatModifier.new()
+	p.stat_id = &"armor_pierce"
+	p.operation = StatModifier.Operation.ADD_BASE
+	p.value = -1.0
+	atk.host.add_local_modifier(p)
+	var none: Array[StatModifier] = []
+	var terms := Mitigation.pierce_terms(atk, true, none)
+	assert_not_null(terms, "a node_board pierce modifier reaches get_local_terms")
+
+	var shadow := _entity.get_combat().snapshot()
+	_shadows.append(shadow)
+	var armor_now := float(_n1.get_local_value(&"armor"))
+	var floor_min := float(_n1.get_local_value(&"min_damage_taken"))
+	var raw := armor_now + floor_min + 4.0
+	var sim_hit := DamageInstance.new()
+	sim_hit.amount = raw
+	sim_hit.armor_pierce = terms
+	var live_hit := DamageInstance.new()
+	live_hit.amount = raw
+	live_hit.armor_pierce = terms
+	var expected := raw - (armor_now - 1.0)
+	assert_almost_eq(Mitigation.apply_to(sim_hit, shadow.shadow_for(_n1)), expected, 0.001, "shadow: armor − 1")
+	assert_almost_eq(Mitigation.apply_to(live_hit, _n1.get_combat()), expected, 0.001, "live: armor − 1")
+	var hp_before := _n1.get_current_hp()
+	_n1.take_damage(live_hit.amount, live_hit)
+	assert_almost_eq(hp_before - _n1.get_current_hp(), minf(expected, hp_before), 0.001,
+			"a live take_damage lands the pierced amount")
