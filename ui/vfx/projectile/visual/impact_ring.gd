@@ -98,7 +98,7 @@ const CRIT_RING_COUNT: Array[int] = [1, 1, 2]
 ## Visit count (0-based) at which the ring reads fully escalated. 0 = off.
 ## When on, the visit ramp OWNS [member expand_radius] and [member emissive_tier]
 ## and `convergence_count` is ignored — the two channels never compete.
-## Reverberator authors it (#677: "the 1st strike whispers, the 4th blazes").
+## Reverberator authors it: "the 1st strike whispers, the 4th blazes".
 ## Tentative, easy to change.
 @export_range(0.0, 16.0, 0.5) var visit_ramp_visits: float = 0.0:
 	set(value):
