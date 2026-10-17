@@ -40,6 +40,8 @@ extends PanelContainer
 
 ## This instance's own copy of the authored panel stylebox.
 var _style: StyleBoxFlat
+## The bound count; kept so a [method bind] before entering the tree survives.
+var _count_value := 0
 
 @onready var _glyph: TextureRect = %Glyph
 @onready var _count: Label = %Count
@@ -51,9 +53,8 @@ func _ready() -> void:
 
 ## Show `of`'s glyph and `count`, both in its lit tint.
 func bind(of: Identity, count: int) -> void:
+	_count_value = count
 	identity = of
-	if is_node_ready():
-		_count.text = str(count)
 
 
 func _refresh() -> void:
@@ -70,4 +71,5 @@ func _refresh() -> void:
 	_glyph.custom_minimum_size = Vector2(glyph_px, glyph_px)
 	_glyph.visible = identity != null
 	_glyph.self_modulate = color
+	_count.text = str(_count_value)
 	_count.add_theme_color_override(&"font_color", color)

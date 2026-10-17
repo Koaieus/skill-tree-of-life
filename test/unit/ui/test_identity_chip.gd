@@ -75,3 +75,10 @@ func test_a_null_identity_still_shows_the_count() -> void:
 	var chip := _chip(null, 3)
 	assert_eq(_count(chip).text, "3", "the count shows alone")
 	assert_null(_glyph(chip).texture, "no identity, no glyph")
+
+
+func test_a_bind_before_entering_the_tree_keeps_the_count() -> void:
+	var chip: IdentityChip = _CHIP_SCENE.instantiate()
+	chip.bind(_POISON.identity, 4)
+	add_child_autofree(chip)
+	assert_eq(_count(chip).text, "4", "a bind before add_child still shows its count")
