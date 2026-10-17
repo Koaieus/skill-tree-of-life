@@ -1,6 +1,7 @@
 [gd_scene format=3]
 
 [ext_resource type="Script" path="res://ui/hud/blade_node_menu/blade_node_menu.gd" id="1_menu"]
+[ext_resource type="PackedScene" path="res://ui/card_fan/card_fan.tscn" id="2_fan"]
 
 [node name="BladeNodeMenu" type="Control"]
 layout_mode = 3
@@ -11,3 +12,8 @@ grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
 script = ExtResource("1_menu")
+
+[node name="CardFan" parent="." instance=ExtResource("2_fan")]
+unique_name_in_owner = true
+visible = false
+layout_mode = 0

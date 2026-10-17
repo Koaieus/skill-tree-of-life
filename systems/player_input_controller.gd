@@ -433,8 +433,10 @@ static func _gate_denial(reason: StringName, generic: StringName) -> String:
 ## at launch. A refusal is announced here on [signal Events.node_action_denied]
 ## with the plan's reason. The returned bool is "this click was consumed",
 ## never "the upgrade landed"; every caller only uses it for routing.
-func request_temp_upgrade_at(skill_node: SkillNode) -> bool:
-	var arm := temp_upgrade_arm()
+## [param scene] names the kind directly (a [BladeNodeMenuMode] pick, which
+## arms nothing); null places the armed [TempUpgradeMode]'s card.
+func request_temp_upgrade_at(skill_node: SkillNode, scene: PackedScene = null) -> bool:
+	var arm := scene if scene != null else temp_upgrade_arm()
 	if arm == null or not can_player_act():
 		return false
 	var plan := _active_attack_plan() as MeleeAttackPlan

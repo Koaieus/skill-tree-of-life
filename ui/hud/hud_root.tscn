@@ -27,6 +27,7 @@
 [ext_resource type="PackedScene" path="res://ui/ring/ring_modal.tscn" id="24_ring_modal"]
 [ext_resource type="PackedScene" path="res://ui/hud/turn_forecast/turn_forecast_strip.tscn" id="24_forecast"]
 [ext_resource type="PackedScene" path="res://ui/hud/gates_menu/gates_menu.tscn" id="25_gates"]
+[ext_resource type="PackedScene" path="res://ui/hud/blade_node_menu/blade_node_menu.tscn" id="26_blade_node_menu"]
 
 [node name="HudRoot" type="Control" unique_id=1012524231]
 process_mode = 1
@@ -175,6 +176,10 @@ unique_name_in_owner = true
 
 [node name="TooltipFan" parent="." unique_id=1233274301 instance=ExtResource("19_tooltip_fan")]
 unique_name_in_owner = true
+
+[node name="BladeNodeMenu" parent="." instance=ExtResource("26_blade_node_menu")]
+unique_name_in_owner = true
+layout_mode = 1
 
 [node name="GainedModifierToast" parent="." unique_id=549119865 instance=ExtResource("20_gain_toast")]
 unique_name_in_owner = true

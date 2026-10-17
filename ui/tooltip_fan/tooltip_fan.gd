@@ -90,8 +90,12 @@ var graph: Graph = null
 ## sandbox, a test that doesn't care) leaves the driver's unbounded default.
 var usable_rect_source: Callable = Callable()
 
-## Stub (red commit).
-var held := false
+## A surface that owns the node's detail while it is up (the
+## [BladeNodeMenu]) holds the fan down: taking the hold drops any fan already
+## raised, and while held a hover raises nothing. Releasing raises nothing
+## either — the next hover does.
+var held := false:
+	set = _set_held
 
 var _hovered_node: SkillNode = null
 var _current_fan: Node = null
@@ -176,7 +180,16 @@ func _more_info_pressed() -> bool:
 	return force_more_info or Input.is_action_pressed(_MORE_INFO_ACTION)
 
 
+func _set_held(value: bool) -> void:
+	held = value
+	if held:
+		_on_unhovered()
+		visible = false
+
+
 func _on_hovered(node: SkillNode) -> void:
+	if held:
+		return
 	# The reveal gate: a sensed-only node is pickable while a scout shot is
 	# armed (VisionSystem.pick_sensed) and hovers like any other, but shows
 	# archetype only (docs/domain/vision-system.md § Logical visibility) — no fan, nothing to leak.

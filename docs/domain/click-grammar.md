@@ -24,7 +24,7 @@ origin set, selecting targets   (pivot locked, picking members/target)
 - **Right-click** from "origin set" clears the origin **and everything built
   on it** (blade members, target) in one step, back to "mode armed, no
   origin". A second right-click exits the mode to idle. **Two pops, worst
-  case, from anywhere to idle**; three in Melee with a temp-upgrade card armed
+  case, from anywhere to idle**; three in Melee with a temp-upgrade card or a node menu
   on top. There is no flat "cancel everything" shortcut.
 - **Re-pivoting is pop-then-push**: right-click clears the pivot, left-click
   sets the new one. Right-click never re-pivots, so one button never means two
@@ -35,10 +35,22 @@ origin set, selecting targets   (pivot locked, picking members/target)
 ## Self-targeting falls through to a pop
 
 Left-clicking the armed origin again runs the mode's ordinary target check. A
-legal target resolves normally; an illegal one (Melee: the pivot is never a
-blade member) **pops, silently** — no `shake_denied`, since it is the expected
-"never mind", not an error. Both paths are `BladeMode`'s pop: the pivot click
-is consumed there so the `MeleeMode` below never re-arms it.
+legal target resolves normally; an illegal one **pops, silently** — no
+`shake_denied`, since it is the expected "never mind", not an error.
+
+**Melee is the exception: a picked node opens its menu.** At `BladeMode`, a
+left-click on the pivot or a member pushes `BladeNodeMenuMode` (the HUD's
+`BladeNodeMenu`, a `CardFan` around that node) instead of popping or
+toggling; an unpicked node still toggles in. The menu's hub sits under the
+cursor and replays the old click — on the pivot it pops Blade (clearing the
+pivot), on a member it drops the member — so a double-click un-picks with no
+timer. Its cards are the temp kinds placeable on that node now; a pick toggles
+that kind there through `request_temp_upgrade_at(node, scene)` and pops the
+menu, arming nothing. Right-click / Esc pops the menu back to Blade; a
+left-click elsewhere pops it and falls through. An armed `TempUpgradeMode`
+sits above Blade and takes the click first, so no menu opens while a card is
+armed. The pivot click is still consumed at Blade, so the `MeleeMode` below
+never re-arms it. Owner, 2026-10-17 (#1682).
 
 ## The stack, in pop order
 
@@ -65,6 +77,7 @@ release (`attack_plan_changed` with null) re-requests its mode, so
 |---|---|---|---|
 | `MassActionMode` | whatever is top | a distant-allocate / would-island-deallocate click awaits confirmation | the pending request |
 | `SpellPickMode` | `MagicMode` / `TargetMode` | the spell picker is open | nothing on the plan |
+| `BladeNodeMenuMode` | `BladeMode` | a picked node's menu (un-pick + placeable temps) is open | nothing on the plan |
 | `TempUpgradeMode` | `BladeMode` | a temp-upgrade card (Clamp, Spikes…) is armed — only ever with a blade up (owner, 2026-09-30) | just the arm — never the pivot/members under it |
 | `BladeMode` | `MeleeMode` | a pivot is set | the pivot and every member |
 | `TargetMode` | `RangedMode` / `MagicMode` | a target is set | the target (magic: and its auto-picked caster) |
@@ -81,6 +94,7 @@ Opposite ends, on purpose.
 | Mode | Origin (left-click) | Leaf (left-click) | Pop clears |
 |---|---|---|---|
 | Melee | pivot (an owned node) | blade members, toggled, cap `blade_size` | pivot + all members |
+| Melee, a picked node | *(its menu: un-pick at the hub, a card places that temp there)* | — | the menu only |
 | Melee + temp upgrade | *(the card, armed from the command tray)* | a blade member; the arm stays set for repeat placement | the arm only |
 | Ranged | *(none — firing positions are derived)* | the target, retargeted directly: a visible hostile, or any sensed node while the quiver holds scout arrows | the target |
 | Magic | *(none — the cast-from node is auto-picked from the spell's reach union)* | the spell target, directly | source + target |

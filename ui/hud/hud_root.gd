@@ -52,6 +52,7 @@ extends Control
 @onready var run_end_overlay: RunEndOverlay = %RunEndOverlay
 @onready var pause_menu: PauseMenu = %PauseMenu
 @onready var tooltip_fan: TooltipFan = %TooltipFan
+@onready var blade_node_menu: BladeNodeMenu = %BladeNodeMenu
 @onready var gained_modifier_toast: GainedModifierToast = %GainedModifierToast
 @onready var minimap_panel: MinimapPanel = %MinimapPanel
 @onready var gates_menu: GatesMenu = %GatesMenu
@@ -231,6 +232,7 @@ func bind_systems(
 	# handover (#459) can hand over a different controller, and a badge left
 	# driven by the outgoing one would describe the wrong player's next click.
 	armed_mode_icon.bind(_input_ctl)
+	blade_node_menu.bind(_input_ctl, tooltip_fan, _game_root.camera if _game_root != null else null)
 	node_inspector_card.bind(_input_ctl)
 	turn_resources_panel.bind_input_ctl(_input_ctl)
 	combat_readout.bind(_battle_system, _input_ctl.armed_stack if _input_ctl != null else null)
@@ -320,6 +322,7 @@ func rebind_player(player: Entity) -> void:
 	# rather than at whatever they arm next. `bind` releases its previous scope,
 	# so re-calling it never doubles the connection.
 	armed_mode_icon.bind(_input_ctl)
+	blade_node_menu.bind(_input_ctl, tooltip_fan, _game_root.camera if _game_root != null else null)
 	_bind_initiative_pool()
 	turn_forecast_strip.set_player(_player)
 

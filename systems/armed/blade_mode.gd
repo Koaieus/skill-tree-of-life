@@ -1,10 +1,11 @@
 class_name BladeMode
 extends AttackStepMode
 
-## The blade being formed on a pivot. A click on the pivot pops this level
-## (the pivot is never a member — the self-click fallthrough, consumed so the
-## [MeleeMode] below does not re-arm it); any other click toggles a member.
-## Popping clears the pivot. A temp upgrade arms only on top of this level.
+## The blade being formed on a pivot. A click on an unpicked node toggles it in
+## as a member; a click on the pivot or a member opens that node's
+## [BladeNodeMenuMode] (un-pick, placeable temps) — consumed, so the
+## [MeleeMode] below never re-arms the pivot. Popping clears the pivot. A temp
+## upgrade arms only on top of this level, and an armed one takes the click first.
 
 const _MELEE_ICON := preload("res://assets/icons/addons/armed_melee.png")
 
@@ -20,8 +21,8 @@ func handle_left_click(node: SkillNode) -> bool:
 	var p := parent.plan() as MeleeAttackPlan
 	if p == null:
 		return false
-	if node == p.source:
-		pop_self()
+	if node == p.source or p.blade_nodes.has(node):
+		stack.push(BladeNodeMenuMode.new(self, node))
 	else:
 		p.toggle_member(node)
 	return true
