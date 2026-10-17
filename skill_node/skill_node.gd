@@ -15,12 +15,15 @@ const EmblemResolver = preload("res://skill_node/visuals/emblem/emblem_resolver.
 ## (#810) — the physics-queryable half of "does this node carry `swing_drag`
 ## / `deflection`", consumed by #811's merged obstacle-field build via
 ## `intersect_shape`. **Additive** to layer 1, the untouched Godot default this
-## node's `Area2D` root has never set explicitly and that `intersect_point`
-## mouse picking depends on staying set (`systems/player_input_controller.gd`,
-## `ui/hud/minimap_panel/minimap_panel.gd`, `ui/frontmatter/menu_node_view.gd`)
-## — never written here, only read by never touching it.
+## node's `Area2D` root has never set explicitly: layer 1 is "the gameplay
+## hitbox", what blade sweeps and range gathers query.
 const DRAG_COLLISION_LAYER := 2
 const DEFLECT_COLLISION_LAYER := 3
+## The `PickArea` child's only layer: the padded mouse ring, which is larger
+## than the hitbox and so must never answer a gameplay query. A query that
+## masks "everything" excludes it via [constant GAMEPLAY_QUERY_MASK].
+const PICK_COLLISION_LAYER := 4
+const GAMEPLAY_QUERY_MASK := 0xFFFFFFFF & ~(1 << (PICK_COLLISION_LAYER - 1))
 
 ## Which physics layer number each sparse defender stat's presence toggles —
 ## the registry [method _sync_defender_bit] writes against, keyed on the
@@ -224,6 +227,16 @@ var inner_radius: float:
 
 @export var self_loops: Array[Edge] = []
 
+## World px the mouse hover/click ring reaches past [member radius] — a
+## mouse-only allowance; the gameplay hitbox stays at `radius`. Neighbours'
+## rings may overlap: the nearest rim owns the hover (see [method _arbitrate_hover]).
+## Tentative, easy to change.
+@export_range(0.0, 64.0, 1.0, "or_greater") var pick_padding: float = 12.0:
+	set(value):
+		pick_padding = value
+		if is_node_ready():
+			_sync_collision()
+
 @export_group("Bench")
 ## Presentation-only bench knob: `false` keeps this node's core presence
 ## (the class look + sigil bloom) off even while it IS its owner's core. The
@@ -263,6 +276,7 @@ func node_visuals() -> Node2D:
 func carve_params() -> CarveParams:
 	return _node_visuals.carve_params() if _node_visuals != null else CarveParams.none()
 @onready var _collision: CollisionShape2D = $CollisionShape2D
+@onready var _pick_collision: CollisionShape2D = $PickArea/Shape
 ## The shots-left pip row (#959) — see `shots_pips.gd`. Typed via preload,
 ## not a `class_name`, for the same cache-refresh reason as line 6.
 @onready var shot_pips: Sprite2D = $Visuals/ShotsPips
@@ -770,6 +784,8 @@ func _sync_collision() -> void:
 	if _collision == null or _collision.shape == null:
 		return
 	(_collision.shape as CircleShape2D).radius = radius
+	if _pick_collision != null and _pick_collision.shape != null:
+		(_pick_collision.shape as CircleShape2D).radius = radius + pick_padding
 	BladeDefenderZones.mark_broadphase_dirty()
 
 func _load_type_color_from_archetype() -> void:
@@ -2027,22 +2043,72 @@ func shake_denied() -> void:
 	_feedback_tweens.append(shake)
 
 
+## Whether the cursor is inside this node's padded pick ring. Several nodes can
+## be at once where rings overlap; [member _hover_owner_id] says which ONE of
+## them is hovered — the only one that rings, reports to `Events`, and clicks.
 var _mouse_hovering: bool = false
 var _forced_hover: bool = false
+## Instance id (never a reference: a freed owner must not latch) of the node
+## that owns the mouse hover, or 0. Static: there is one mouse.
+static var _hover_owner_id: int = 0
+
+## This node's own hover changed — its pick ring won or lost the mouse.
+signal hover_changed(hovered: bool)
 
 
-func _on_mouse_entered() -> void:
+static func _hover_owner() -> SkillNode:
+	var o := instance_from_id(_hover_owner_id) if _hover_owner_id != 0 else null
+	return o as SkillNode if is_instance_valid(o) else null
+
+
+func is_mouse_hovered() -> bool:
+	return _hover_owner_id == get_instance_id()
+
+
+func _on_pick_mouse_entered() -> void:
 	_mouse_hovering = true
-	_sync_hover_ring()
-	if not Engine.is_editor_hint():
-		Events.skill_node_hovered.emit(self)
+	if _hover_owner() == null:
+		_take_hover()
 
 
-func _on_mouse_exited() -> void:
+func _on_pick_mouse_exited() -> void:
 	_mouse_hovering = false
+	if not is_mouse_hovered():
+		return
+	_hover_owner_id = 0
 	_sync_hover_ring()
+	hover_changed.emit(false)
 	if not Engine.is_editor_hint():
 		Events.skill_node_unhovered.emit()
+
+
+## Where pick rings overlap, the node whose rim is nearest the cursor owns the
+## hover — re-asked on every motion, so it hands over mid-overlap and a
+## still-covered node reclaims the hover once the owner's ring is left.
+func _arbitrate_hover(event: InputEvent) -> void:
+	var owner_node := _hover_owner()
+	if owner_node == self:
+		return
+	if owner_node != null and owner_node._mouse_hovering \
+			and owner_node._rim_distance(event) <= _rim_distance(event):
+		return
+	_take_hover()
+
+
+func _rim_distance(event: InputEvent) -> float:
+	return (make_input_local(event) as InputEventMouse).position.length() - radius
+
+
+func _take_hover() -> void:
+	var previous := _hover_owner()
+	_hover_owner_id = get_instance_id()
+	if previous != null and previous != self:
+		previous._sync_hover_ring()
+		previous.hover_changed.emit(false)
+	_sync_hover_ring()
+	hover_changed.emit(true)
+	if not Engine.is_editor_hint():
+		Events.skill_node_hovered.emit(self)
 
 
 ## Highlights this node from outside real mouse hover — e.g. the melee command
@@ -2058,13 +2124,18 @@ func set_forced_hover(active: bool) -> void:
 func _sync_hover_ring() -> void:
 	if hover_ring == null:
 		return
-	if _mouse_hovering or _forced_hover:
+	if is_mouse_hovered() or _forced_hover:
 		hover_ring.show()
 	else:
 		hover_ring.hide()
 
 
-func _on_input_event(_viewport: Node, event: InputEvent, _shape_idx: int) -> void:
+func _on_pick_input_event(_viewport: Node, event: InputEvent, _shape_idx: int) -> void:
+	if event is InputEventMouseMotion:
+		_arbitrate_hover(event)
+		return
+	if not is_mouse_hovered():
+		return
 	if event is InputEventMouseButton:
 		var mb := event as InputEventMouseButton
 		if not mb.pressed:

@@ -133,9 +133,9 @@ func test_damage_binds_and_heal_to_full_releases() -> void:
 
 ## Hover is the other reason a bar is on screen, and it binds the same way.
 func test_hover_binds_and_unhover_releases() -> void:
-	_node.mouse_entered.emit()
+	_node.hover_changed.emit(true)
 	assert_eq(_bound_bars(), 1, "a hovered bar is bound even at full HP")
-	_node.mouse_exited.emit()
+	_node.hover_changed.emit(false)
 	assert_eq(_bound_bars(), 0, "unhover releases it again")
 
 
@@ -162,15 +162,15 @@ func test_visible_bar_updates_on_an_entity_cap_move() -> void:
 ## The strong form — a cap move the released bar could not have heard.
 func test_first_paint_after_an_unheard_cap_move_is_not_stale() -> void:
 	# Bind then release, so the bar carries a concrete, now-doomed fill.
-	_node.mouse_entered.emit()
-	_node.mouse_exited.emit()
+	_node.hover_changed.emit(true)
+	_node.hover_changed.emit(false)
 	var stale_max: float = _bar.max_value
 
 	_boost_cap(30.0)
 	assert_eq(_bound_bars(), 0, "a released bar heard nothing")
 	assert_almost_eq(_bar.max_value, stale_max, 0.001, "…and is now genuinely stale")
 
-	_node.mouse_entered.emit()
+	_node.hover_changed.emit(true)
 	assert_almost_eq(_bar.max_value, _hp().value, 0.001, "first paint snaps the cap")
 	assert_almost_eq(_bar.value, float(_hp().current), 0.001, "first paint snaps the fill")
 	assert_almost_eq(_bar.modulate.a, 0.0, 0.001,

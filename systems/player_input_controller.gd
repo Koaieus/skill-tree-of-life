@@ -595,7 +595,7 @@ func _push_magic_hover(skill_node: SkillNode) -> void:
 ##    core-move — docs/domain/click-grammar.md), node-independent like Esc
 ##    (below). Handled here rather than via a per-`SkillNode` signal so it
 ##    fires over empty space too, not just when the cursor is over a node —
-##    `SkillNode._on_input_event`'s physics picking runs a physics tick after
+##    `SkillNode._on_pick_input_event`'s physics picking runs a physics tick after
 ##    `_unhandled_input`, so routing the pop through a node signal would read
 ##    stale pre-pop armed-state on the very click that's popping it. When
 ##    nothing is armed, right-click instead toggles `_hovered_node`'s pin in

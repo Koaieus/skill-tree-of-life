@@ -327,8 +327,9 @@ holds the decision and dead alternatives).
 
 `BladeDefenderZones.query()` issues a single `intersect_shape` against the two
 collision-layer bits a `SkillNode` toggles from its own `swing_drag` /
-`deflection` values (bit 2 `swing_drag`, bit 3 `deflection`; bit 1 stays so
-`intersect_point` mouse picking works). The result is an **immutable**
+`deflection` values (bit 2 `swing_drag`, bit 3 `deflection`; bit 1 is the
+gameplay hitbox). Mouse picking is a separate, padded `PickArea` on bit 4, which
+every gameplay query masks out (`SkillNode.GAMEPLAY_QUERY_MASK`). The result is an **immutable**
 parallel-array table (centres, radii, drag magnitudes, deflect flags, source
 nodes). `BladeObstacleField` wraps one and owns every mutable accumulator;
 `BladeSwingClock` owns the banked drag.

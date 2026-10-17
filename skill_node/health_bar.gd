@@ -97,8 +97,7 @@ func _ready() -> void:
 		return
 
 	_skill_node.owner_changed.connect(_on_owner_changed, CONNECT_DEFERRED)
-	_skill_node.mouse_entered.connect(_on_hovered)
-	_skill_node.mouse_exited.connect(_on_unhovered)
+	_skill_node.hover_changed.connect(_on_hover_changed)
 	# The sprout trigger, and the reason an undamaged node needs no pool
 	# subscription: node-LOCAL, one listener, no entity fan-out.
 	_skill_node.damaged.connect(_on_node_hp_event)
@@ -197,13 +196,8 @@ func _on_max_changed() -> void:
 
 # ── Hover ───────────────────────────────────────────────────────────────────
 
-func _on_hovered() -> void:
-	_hovered = true
-	_update_visibility()
-
-
-func _on_unhovered() -> void:
-	_hovered = false
+func _on_hover_changed(hovered: bool) -> void:
+	_hovered = hovered
 	_update_visibility()
 
 

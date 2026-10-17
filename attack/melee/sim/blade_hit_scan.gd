@@ -120,7 +120,7 @@ class Sweep extends RefCounted:
 			state: BladeState,
 			space_state: PhysicsDirectSpaceState2D,
 			graph: Graph,
-			collision_mask: int = 0xFFFFFFFF,
+			collision_mask: int = SkillNode.GAMEPLAY_QUERY_MASK,
 			exclude: Array[RID] = [],
 			broad_phase: bool = true) -> void:
 		_state = state
@@ -245,7 +245,7 @@ static func scan(
 		state: BladeState,
 		space_state: PhysicsDirectSpaceState2D,
 		graph: Graph,
-		collision_mask: int = 0xFFFFFFFF,
+		collision_mask: int = SkillNode.GAMEPLAY_QUERY_MASK,
 		exclude: Array[RID] = [],
 		broad_phase: bool = true) -> Array[BladeHitEvent]:
 	var events: Array[BladeHitEvent] = []

@@ -7,9 +7,8 @@ extends GutTest
 ## these bits via intersect_shape.
 ##
 ## Layer 1 (Godot's untouched default) stays set throughout — additive only,
-## never disturbed — since intersect_point mouse picking
-## (systems/player_input_controller.gd, ui/hud/minimap_panel/minimap_panel.gd,
-## ui/frontmatter/menu_node_view.gd) depends on it.
+## never disturbed — since it is the gameplay hitbox blade sweeps and range
+## gathers query.
 
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _BUNKER_SCENE := preload("res://skill_node/addons/defs/bunker_addon.tscn")

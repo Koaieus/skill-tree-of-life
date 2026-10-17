@@ -14,6 +14,10 @@
 resource_local_to_scene = true
 radius = 32.0
 
+[sub_resource type="CircleShape2D" id="CircleShape2D_pick"]
+resource_local_to_scene = true
+radius = 44.0
+
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_r2qlo"]
 content_margin_left = 2.0
 content_margin_top = 2.0
@@ -52,6 +56,7 @@ corner_radius_bottom_left = 6
 corner_detail = 6
 
 [node name="SkillNode" type="Area2D" unique_id=1765804138]
+input_pickable = false
 script = ExtResource("1_skill")
 node_board = ExtResource("1_nodeboard")
 stake_level = 1
@@ -59,6 +64,17 @@ stake_level = 1
 [node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=987061496]
 visible = false
 shape = SubResource("CircleShape2D_hit")
+metadata/_edit_lock_ = true
+
+[node name="PickArea" type="Area2D" parent="." unique_id=1402557931]
+collision_layer = 8
+collision_mask = 0
+monitoring = false
+metadata/_edit_lock_ = true
+
+[node name="Shape" type="CollisionShape2D" parent="PickArea" unique_id=1402557932]
+visible = false
+shape = SubResource("CircleShape2D_pick")
 metadata/_edit_lock_ = true
 
 [node name="Visuals" type="Node2D" parent="." unique_id=1803819214]
@@ -114,8 +130,8 @@ unique_name_in_owner = true
 visible = false
 position = Vector2(0, -50)
 
-[connection signal="input_event" from="." to="." method="_on_input_event"]
-[connection signal="mouse_entered" from="." to="." method="_on_mouse_entered"]
-[connection signal="mouse_exited" from="." to="." method="_on_mouse_exited"]
+[connection signal="input_event" from="PickArea" to="." method="_on_pick_input_event"]
+[connection signal="mouse_entered" from="PickArea" to="." method="_on_pick_mouse_entered"]
+[connection signal="mouse_exited" from="PickArea" to="." method="_on_pick_mouse_exited"]
 [connection signal="value_changed" from="Visuals/HealthBar" to="Visuals/HealthBar" method="_on_value_changed"]
 [connection signal="value_changed" from="Visuals/CoreHealthBar" to="Visuals/CoreHealthBar" method="_on_value_changed"]

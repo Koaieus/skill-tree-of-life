@@ -125,7 +125,7 @@ func _init(ctx: SwingContext) -> void:
 	# #530: each batch stable-sorts on SkillNode.stable_id, so the hit SET a pop
 	# cascade sees never depends on physics broadphase order.
 	if space_state != null:
-		_sweep = BladeHitScan.Sweep.new(_state, space_state, graph, 0xFFFFFFFF, exclude)
+		_sweep = BladeHitScan.Sweep.new(_state, space_state, graph, SkillNode.GAMEPLAY_QUERY_MASK, exclude)
 
 	_total_steps = int(ceil(ctx.swing_duration / _dt))
 	_trajectory = BladeTrajectory.new()
