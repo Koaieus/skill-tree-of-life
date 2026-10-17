@@ -536,3 +536,31 @@ func _combat_hits(outcome: AttackOutcome) -> Array[HitInstance]:
 		if not hit is ExertInstance:
 			out.append(hit)
 	return out
+
+
+## AI parity with the door: an attacker pierce of −3 scores a 5-armor target
+## exactly as an unpierced 2-armor one.
+func test_cheap_estimate_applies_the_attackers_pierce() -> void:
+	var ent := autofree(Entity.new()) as Entity
+	ent.stat_board = (preload("res://entity/default_entity_board.tres") as EntityStatBoard).duplicate(true) as EntityStatBoard
+	var node: SkillNode = autofree(preload("res://skill_node/skill_node.tscn").instantiate())
+	add_child(ent)
+	add_child(node)
+	node.owned_by = ent
+	await get_tree().process_frame
+	ent.stat_board.min_damage_taken.base_value = 0.0
+	var m := StatModifier.new()
+	m.stat_id = &"armor_pierce"
+	m.operation = StatModifier.Operation.ADD_BASE
+	m.value = -3.0
+	var bins := ModifierBins.new()
+	bins.add(m, null)
+	var sources: Array[ModifierBins] = [bins]
+	var pierce := ModifierBins.resolve(sources)
+	ent.stat_board.armor.base_value = 5.0
+	var pierced := AiCombatScorer.cheap_estimate(node, 4.0, pierce)
+	ent.stat_board.armor.base_value = 2.0
+	var bare := AiCombatScorer.cheap_estimate(node, 4.0)
+	assert_almost_eq(pierced, bare, 0.001, "armor 5 under −3 pierce scores as armor 2")
+	ent.stat_board.armor.base_value = 5.0
+	assert_lt(AiCombatScorer.cheap_estimate(node, 4.0), pierced, "and the pierce actually moved the score")

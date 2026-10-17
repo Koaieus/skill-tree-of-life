@@ -282,7 +282,9 @@ static func arrows_to_kill(outcome: AttackOutcome, target: SkillNode, attacker: 
 	return -1
 
 
-static func cheap_estimate(target: SkillNode, raw_damage: float) -> float:
+## [param pierce] is the attacker's armor pierce ([method Mitigation.pierce_terms]),
+## resolved once per candidate attacking node by the caller; null is none.
+static func cheap_estimate(target: SkillNode, raw_damage: float, pierce: FoldTerms = null) -> float:
 	if target == null:
 		return -INF
 	var target_hp := target.get_current_hp()
@@ -292,7 +294,7 @@ static func cheap_estimate(target: SkillNode, raw_damage: float) -> float:
 	# predicts kills the door never delivers; a negative-floor heal scores 0.
 	var mitigated := maxf(0.0, Mitigation.compute(HitPoints.whole(raw_damage),
 			float(target.get_local_value(&"armor")),
-			float(target.get_local_value(&"min_damage_taken"))))
+			float(target.get_local_value(&"min_damage_taken")), pierce))
 	var score := minf(mitigated, target_hp)
 	if mitigated >= target_hp:
 		score += _KILL_BONUS

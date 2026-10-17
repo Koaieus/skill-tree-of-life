@@ -28,8 +28,9 @@ const _ENVELOPE_ROWS := 8
 
 ## Offensive damage stats stay out of this panel (settled, #230) — they're
 ## already previewed by CombatReadoutCard on hover, and duplicating them here
-## risks the two displays disagreeing.
-const _EXCLUDED_STAT_IDS: Array[StringName] = [&"blade_damage", &"ranged_damage", &"range"]
+## risks the two displays disagreeing. `armor_pierce` is a pipeline over
+## another entity's armor, not a number (its value is inert): never a bare row.
+const _EXCLUDED_STAT_IDS: Array[StringName] = [&"blade_damage", &"ranged_damage", &"range", &"armor_pierce"]
 
 ## Rendered via the dedicated always-shown rows ([method _add_always_shown_rows]),
 ## not the generic enumeration — skip them there so they don't double-render.

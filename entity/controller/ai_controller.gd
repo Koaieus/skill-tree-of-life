@@ -515,6 +515,11 @@ func _gather_ranged_candidates(visible_enemies: Array[SkillNode]) -> Array[AiCom
 	var out: Array[AiCombatScorer.ScoredCandidate] = []
 	var raw_damage: float = float(entity.stat_board.ranged_damage.value) \
 			if entity.stat_board != null and entity.stat_board.ranged_damage != null else 0.0
+	# No firing node is known at rank time: the entity board's pierce terms.
+	var pierce: FoldTerms = null
+	if entity.stat_board != null and entity.stat_board.armor_pierce != null:
+		var none: Array[ModifierBins] = []
+		pierce = entity.stat_board.armor_pierce.resolve_with(none)
 	var reachable: Array[SkillNode] = []
 	for target in visible_enemies:
 		var plan := RangedAttackPlan.new()
@@ -525,7 +530,7 @@ func _gather_ranged_candidates(visible_enemies: Array[SkillNode]) -> Array[AiCom
 	var order := AiBladeRollout.top_k_indices(
 			reachable,
 			func(a: SkillNode, b: SkillNode) -> bool:
-				return AiCombatScorer.cheap_estimate(a, raw_damage) > AiCombatScorer.cheap_estimate(b, raw_damage),
+				return AiCombatScorer.cheap_estimate(a, raw_damage, pierce) > AiCombatScorer.cheap_estimate(b, raw_damage, pierce),
 			_CANDIDATE_GATE_K)
 	last_ranged_candidate_count = reachable.size()
 	last_ranged_promoted_count = order.size()
@@ -630,6 +635,7 @@ func _gather_magic_candidates(visible_enemies: Array[SkillNode]) -> Array[AiComb
 	# constant per (spell, source) so it's read once per source, not once per
 	# target.
 	var pre: Array = []
+	var pierce_by_source: Dictionary = {}
 	for spell in spells:
 		# The plan rides along for a non-NodeTargeting spell (an aimed one),
 		# whose union walks Targeting.valid_targets and needs the attacker
@@ -675,7 +681,7 @@ func _gather_magic_candidates(visible_enemies: Array[SkillNode]) -> Array[AiComb
 				else:
 					probe.target = target
 				if probe.is_valid():
-					pre.append([spell, source, target, raw_damage, angle])
+					pre.append([spell, source, target, raw_damage, angle, _source_pierce(source, pierce_by_source)])
 				probe.target = null
 				probe.aim_angle = NAN
 
@@ -688,7 +694,7 @@ func _gather_magic_candidates(visible_enemies: Array[SkillNode]) -> Array[AiComb
 	var order := AiBladeRollout.top_k_indices(
 			pre,
 			func(a: Array, b: Array) -> bool:
-				return AiCombatScorer.cheap_estimate(a[2], a[3]) > AiCombatScorer.cheap_estimate(b[2], b[3]),
+				return AiCombatScorer.cheap_estimate(a[2], a[3], a[5]) > AiCombatScorer.cheap_estimate(b[2], b[3], b[5]),
 			_CANDIDATE_GATE_K)
 	last_magic_candidate_count = pre.size()
 	last_magic_promoted_count = order.size()
@@ -876,3 +882,15 @@ func _wait() -> void:
 ## documents.
 func _graph_or_null() -> Graph:
 	return entity.navigator.graph if entity != null and entity.navigator != null else null
+
+
+## The cast-from node's pierce for the cheap rank, resolved once per source
+## (memoised in [param cache] by instance id).
+static func _source_pierce(source: SkillNode, cache: Dictionary) -> FoldTerms:
+	if source == null:
+		return null
+	var key := source.get_instance_id()
+	if not cache.has(key):
+		var none: Array[StatModifier] = []
+		cache[key] = Mitigation.pierce_terms(source.get_combat(), true, none)
+	return cache[key]
