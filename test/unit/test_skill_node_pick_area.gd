@@ -95,14 +95,15 @@ func test_overlap_hover_goes_to_the_nearest_rim_and_a_stale_exit_is_silent() -> 
 	_b._on_pick_mouse_entered()
 	_b._on_pick_input_event(null, _motion(between), 0)
 	assert_eq(_hovered.back(), _b, "B's rim is nearer the cursor: B takes the hover")
+	assert_eq(_unhovers, 1, "a handover unhovers A first, as a plain exit would")
 	assert_false(_a.hover_ring.visible, "only the owner shows its ring")
 	assert_true(_b.hover_ring.visible)
 
 	_a._on_pick_mouse_exited()
-	assert_eq(_unhovers, 0, "leaving A while B owns the hover must not clear it")
+	assert_eq(_unhovers, 1, "leaving A while B owns the hover must not clear it")
 
 	_b._on_pick_mouse_exited()
-	assert_eq(_unhovers, 1, "the owner leaving clears the hover")
+	assert_eq(_unhovers, 2, "the owner leaving clears the hover")
 
 
 func test_only_the_hover_owner_takes_a_click() -> void:

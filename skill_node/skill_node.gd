@@ -2102,9 +2102,13 @@ func _rim_distance(event: InputEvent) -> float:
 func _take_hover() -> void:
 	var previous := _hover_owner()
 	_hover_owner_id = get_instance_id()
+	# A handover keeps the unhovered-then-hovered order consumers were built
+	# on (CombatReadout only clears on unhover).
 	if previous != null and previous != self:
 		previous._sync_hover_ring()
 		previous.hover_changed.emit(false)
+		if not Engine.is_editor_hint():
+			Events.skill_node_unhovered.emit()
 	_sync_hover_ring()
 	hover_changed.emit(true)
 	if not Engine.is_editor_hint():
