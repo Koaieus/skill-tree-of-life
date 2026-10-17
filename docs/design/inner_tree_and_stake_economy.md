@@ -1,5 +1,5 @@
 ---
-status: exploring
+status: settling
 ---
 
 # Inner aspect tree, stake economy, run pacing — shapes that would fit
@@ -46,6 +46,24 @@ Plus **one bonus point on the first 3/3 stake of the run** — ties the inner
 tree to the thing the game is about, and gives staking a reward that is not SP.
 
 ## 2. The inner aspect tree
+
+**Settled (owner, 2026-10-17, #199):** *"ring (interconnected a bit tho) with
+aspect sectors first, keystones already taking up spots but just use the XP
+anchor keystones in there for now; when we switch to each CoreClass getting
+their own bespoke innerskilltree we simply replace those keystones with a set
+of coreclass-specific (or just an inherited scene?)"*. The Ring below is the
+pick, as an authored `RingDef` resource shown in a modal (never a second graph
+of SkillNodes); T1 count, T2 potency, a keystone cell per sector; cells grant
+through the core register, so they are lootable on death. T3 signatures and
+opposition are a Needs-design child of #199. The point cadence (every 3) is a
+knob, the milestone +1 SP stays. The other shapes in the table are dead.
+
+**Settled the same day — the "taken" channel beside this "earned" one:**
+faced Dormant Cores (a per-aspect core class granting size-scaled count /
+potency / resistance-where-the-stat-exists, pinned into the kill's first loot
+round) and procgen-placed aspect spirits (skill dust with a fixed +1 count
+offer, plus a gray mystery variant). Both are their own Ready issues filed from
+#199's pass.
 
 Facts it leans on: 12 `<aspect>_aspect` counts under the `aspects` family
 parent, 10 `<aspect>_stacks_per_hit` potencies (scout, armor_break, explosive
