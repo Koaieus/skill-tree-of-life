@@ -26,6 +26,12 @@ extends SpellOnHitEffect
 ## [member CastSpell.damage] as HP; PERCENT_MAX lands it as a fraction of the
 ## target's max hp, resolved at land by [method DamageInstance.land_on].
 @export var basis: HitInstance.AmountBasis = HitInstance.AmountBasis.FLAT
+## Whether the attacking node's local `armor_pierce` terms join this
+## producer's hits ([method Mitigation.pierce_terms]). Off by exception only.
+@export var uses_board_pierce: bool = true
+## This producer's own pierce, overlaid on the board's — the same modifier
+## vocabulary (one SET 0 ignores armor). Empty by default.
+@export var armor_pierce_modifiers: Array[StatModifier] = []
 
 
 func _apply_spell(lctx: LandingContext) -> void:
@@ -40,6 +46,9 @@ func _apply_spell(lctx: LandingContext) -> void:
 	hit.target = state.current_node
 	hit.origin = state.predecessor if state.predecessor != null else state.source
 	hit.read_node = state.source
+	hit.armor_pierce = Mitigation.pierce_terms(
+			state.source.get_combat() if state.source != null else null,
+			uses_board_pierce, armor_pierce_modifiers)
 	lctx.cast.outcome.hits.append(hit)
 
 ## No [param spell] (no preview context) reads as the generic fragment;

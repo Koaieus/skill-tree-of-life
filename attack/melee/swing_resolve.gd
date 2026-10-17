@@ -35,6 +35,9 @@ extends RefCounted
 var result: SwingResult = SwingResult.new()
 
 var _ctx: SwingContext = null
+## Per-swing pierce snapshot by read node's instance id: resolved once per
+## contributing node and shared by every hit it reads for.
+var _pierce_by_node: Dictionary = {}
 var _world: CombatWorld = null
 var _outcome: AttackOutcome = null
 var _state: BladeState = null
@@ -78,6 +81,7 @@ class Fuse extends RefCounted:
 
 func _init(ctx: SwingContext) -> void:
 	_ctx = ctx
+	_pierce_by_node.clear()
 	_world = ctx.world
 	_dt = ctx.dt
 	_substeps = ctx.substeps
@@ -463,6 +467,7 @@ func _land_batch(
 		# The pivot is the VFX origin; the stats this contact reads are its
 		# own vertex's, copied from that node.
 		di.read_node = state.vertex_node[ev.particle_idx]
+		di.armor_pierce = _pierce_for(di.read_node)
 		di.source = _ctx.hit_source
 		di.attacker = _ctx.attacker
 		# Melee is #543's honest caveat: its structural parameter IS continuous
@@ -535,3 +540,15 @@ static func _surviving_drivers(
 			continue
 		kept.append(d)
 	return kept
+
+
+## The swing's pierce for hits read off [param read_node], resolved once per
+## node per swing ([method Mitigation.pierce_terms]).
+func _pierce_for(read_node: SkillNode) -> FoldTerms:
+	if read_node == null:
+		return null
+	var key := read_node.get_instance_id()
+	if not _pierce_by_node.has(key):
+		_pierce_by_node[key] = Mitigation.pierce_terms(read_node.get_combat(),
+				_ctx.uses_board_pierce, _ctx.armor_pierce_modifiers)
+	return _pierce_by_node[key]

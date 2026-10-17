@@ -42,7 +42,18 @@ static func compute(attacker: Entity, firing_node: SkillNode, target: SkillNode,
 	hit.amount = _read_offense(firing_node.get_combat() if firing_node != null else null)
 	if ammo_type != null:
 		hit.amount *= ammo_type.damage_scale
+	hit.armor_pierce = _read_pierce(firing_node.get_combat() if firing_node != null else null, ammo_type)
 	return hit
+
+
+## The shot's pierce: the firing node's local `armor_pierce` under the arrow
+## type's own authoring ([member AmmoType.uses_board_pierce] /
+## [member AmmoType.armor_pierce_modifiers]); a plain shot takes the board's.
+static func _read_pierce(firing_slice: NodeCombat, ammo_type: AmmoType) -> FoldTerms:
+	if ammo_type == null:
+		var none: Array[StatModifier] = []
+		return Mitigation.pierce_terms(firing_slice, true, none)
+	return Mitigation.pierce_terms(firing_slice, ammo_type.uses_board_pierce, ammo_type.armor_pierce_modifiers)
 
 
 ## The riders pass of a typed arrow's landing: every one of the arrow's

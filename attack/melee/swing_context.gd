@@ -46,6 +46,12 @@ var overlays_for: Callable = Callable()
 ## The stamped crit seed ([member AttackPlan.resolve_seed]); 0 for an
 ## unstamped preview.
 var resolve_seed: int = 0
+## The swing's hit authoring for armor pierce — the blade has no authoring
+## resource, so the plan that builds this context is where an exception is
+## set. Same meaning as [member DamageEffect.uses_board_pierce] /
+## [member DamageEffect.armor_pierce_modifiers].
+var uses_board_pierce: bool = true
+var armor_pierce_modifiers: Array[StatModifier] = []
 ## Sim parameters. Defaults are the authoritative / aim-time values.
 var swing_duration: float = MeleeAttackPlan.SWING_DURATION
 var dt: float = BladeSim.DEFAULT_DT

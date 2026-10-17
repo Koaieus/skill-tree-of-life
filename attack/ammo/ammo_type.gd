@@ -23,6 +23,12 @@ extends Resource
 @export var order: int = 0
 ## Multiplier on the arrow's raw damage before mitigation. 1.0 for the base arrow.
 @export var damage_scale: float = 1.0
+## Whether the attacking node's local `armor_pierce` terms join this
+## producer's hits ([method Mitigation.pierce_terms]). Off by exception only.
+@export var uses_board_pierce: bool = true
+## This producer's own pierce, overlaid on the board's — the same modifier
+## vocabulary (one SET 0 ignores armor). Empty by default.
+@export var armor_pierce_modifiers: Array[StatModifier] = []
 ## What a landing arrow carries (ADR 0044), run in order by [method
 ## RangedDamageFormula.riders_for] against one [HitLanding] paired to the arrow
 ## — a status rider is an [ApplyStatusEffect], whose power a volley re-applies

@@ -17,6 +17,12 @@ extends OnHitEffect
 ## The share of the landing's raw (pre-crit, pre-mitigation) amount, whatever
 ## its kind.
 @export_range(0.0, 2.0) var fraction: float = 0.5
+## Whether the attacking node's local `armor_pierce` terms join this
+## producer's hits ([method Mitigation.pierce_terms]). Off by exception only.
+@export var uses_board_pierce: bool = true
+## This producer's own pierce, overlaid on the board's — the same modifier
+## vocabulary (one SET 0 ignores armor). Empty by default.
+@export var armor_pierce_modifiers: Array[StatModifier] = []
 
 
 func apply(landing: HitLanding) -> void:
@@ -30,6 +36,9 @@ func apply(landing: HitLanding) -> void:
 	else:
 		var damage := PairedDamageInstance.new()
 		damage.type = landing.raw_type
+		damage.armor_pierce = Mitigation.pierce_terms(
+				landing.read_node.get_combat() if landing.read_node != null else null,
+				uses_board_pierce, armor_pierce_modifiers)
 		hit = damage
 	hit.amount = fraction * landing.raw_amount
 	hit.attacker = landing.attacker
