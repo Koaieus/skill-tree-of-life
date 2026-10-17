@@ -114,6 +114,46 @@ func _mount_body(blade: int) -> MeleeBody:
 
 # ── The bound ────────────────────────────────────────────────────────────────
 
+## A catalog of [constant _FIXTURE_KINDS] aspect-free placeable kinds, written
+## once per run to `user://` and scanned through a fresh [TempUpgradeCatalog]
+## (its [method TempUpgradeCatalog.kinds] caches, so [member folder] is set
+## before the first read).
+const _FIXTURE_DIR := "user://test_melee_body_width_addons"
+const _FIXTURE_KINDS := 10
+
+
+func _fixture_catalog() -> TempUpgradeCatalog:
+	DirAccess.make_dir_recursive_absolute(_FIXTURE_DIR)
+	for i in _FIXTURE_KINDS:
+		var path := _FIXTURE_DIR.path_join("fixture_%02d_addon.tscn" % i)
+		if not FileAccess.file_exists(path):
+			var addon := SkillNodeAddon.new()
+			addon.name = "Fixture%02d" % i
+			addon.temp_placeable = true
+			var packed := PackedScene.new()
+			packed.pack(addon)
+			addon.free()
+			ResourceSaver.save(packed, path)
+	var catalog := TempUpgradeCatalog.new()
+	catalog.folder = _FIXTURE_DIR
+	assert_eq(catalog.offered().size(), _FIXTURE_KINDS,
+			"fixture check: every generated kind is scanned and placeable")
+	return catalog
+
+
+func test_a_catalog_of_ten_kinds_keeps_the_tray_body_bounded() -> void:
+	# The quickbar is a fixed row of hotkey-count slots, so the tray no longer
+	# grows with the catalog.
+	_battle.temp_upgrade_catalog = _fixture_catalog()
+	await _build_star(3)
+	var body := await _mount_body(2)
+	var w := body.get_combined_minimum_size().x
+	gut.p("%d-kind catalog — MeleeBody min width %.1f px" % [_FIXTURE_KINDS, w])
+	assert_lte(w, _MAX_TRAY_WIDTH,
+			"a catalog-sized card row slides the tray under the End Turn button")
+
+
+
 func test_a_full_45_node_blade_keeps_the_tray_body_under_890px() -> void:
 	await _build_star(45)
 	var body := await _mount_body(45)
