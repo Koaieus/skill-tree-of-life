@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-#MISE description="Fail on a regex-grade house-rule violation: `mise run lint-house-rules [-- --json|--rule <id>|--self-test]`"
+#MISE description="Fail on a regex-grade house-rule violation: `mise run lint-house-rules [-- --json|--rule <id>|--all|--self-test]`"
 """
 Table-driven lint for the house rules a regex can see. Each rule is one row of
 `RULES`; one loop applies every row to every tracked file in its scope.
@@ -14,8 +14,20 @@ line names it, so the reader lands on the why, not on this file.
 
 Output: `path:line  [row-id] message → see doc`. Exit 1 on any violation — a gate,
 unlike `rules-hygiene`. `--json` prints `{"violations": [...], "exempted": [...]}`;
-`--rule <id>` runs one row; `--self-test` feeds every row its positive and
-negative fixture (and the inline escape) and asserts all three.
+`--rule <id>` runs one row; `--all` adds the report-only rows (`default_on=False`,
+off in the default run that gates `check`); `--self-test` feeds every row, report-only
+included, its positive and negative fixtures (and the inline escape) and asserts all three.
+
+  FILE PREDICATE: `file_predicate` gates a row per FILE (it sees the file's code
+  lines, strings blanked) — the one step past line regex, for `access-style`'s
+  "this file already uses `$`/`%`". A third use of it is the moment to reconsider
+  the table.
+
+  SANCTIONED EXCEPTIONS of `control-composed` (a `Label.new()`+`add_child` tree in
+  code): (1) `test/` — a test builds the throwaway tree it asserts on; (2) `tools/`
+  — dev tooling, never a shipped path; (3) `addons/` — vendored (GLOBAL_EXCLUDE).
+  A row list built from DATA (a sandbox-host tab, a dev scene) is the inline
+  escape on the `.new()` line, with that reason; "it was quicker" is not one.
 
   EXEMPTION DISCIPLINE (as `lint-transcendentals`): every `exempt_dirs` /
   `exempt_files` entry carries a REASON, and the reason states the condition
@@ -45,8 +57,8 @@ class Rule:
     doc: str
     pattern: re.Pattern
     message: str
-    pos: str                       # fixture that MUST hit (self-test)
-    neg: str                       # fixture that must NOT hit (self-test)
+    pos: object                    # fixture that MUST hit (self-test); a list = one file each
+    neg: object                    # fixture that must NOT hit (self-test); a list = one file each
     window: int = 1                # lines joined with "\n" and matched at line i
     scope: list = field(default_factory=lambda: ["*.gd"])
     exempt_dirs: dict = field(default_factory=dict)
@@ -54,6 +66,11 @@ class Rule:
     # Optional refinement over a match, for a fact a regex states badly (a
     # numeric comparison). Still regex-grade: it sees the match, never a tree.
     predicate: Optional[Callable[[re.Match], bool]] = None
+    # Optional per-file gate: given the file's code lines (comments stripped,
+    # string contents blanked), False skips the row for the whole file.
+    file_predicate: Optional[Callable[[list], bool]] = None
+    # False = report-only: skipped by the default run, on with --rule / --all.
+    default_on: bool = True
 
 
 def _any_component_over_one(m):
@@ -63,6 +80,32 @@ def _any_component_over_one(m):
             return True
     return False
 
+
+def blank_strings(line):
+    """Empty every string literal's contents (`"a%b"` -> `""`), keeping quotes."""
+    return re.sub(r'"(?:[^"\\\n]|\\.)*"|\'(?:[^\'\\\n]|\\.)*\'',
+                  lambda m: m.group(0)[0] * 2, line)
+
+
+# `$X` / `$"X"`, or a `%X` / `%"X"` in unary position — the char before `%` is not
+# an operand end (identifier, `)`, `]`, closing quote), so `"%s" % x` and `a %b` are
+# the modulo/format operator, not a unique-name access.
+def _uses_sigil_access(lines):
+    for raw in lines:
+        line = blank_strings(raw)
+        if "$" in line and re.search(r'\$["\w]', line):
+            return True
+        for m in re.finditer(r'%["A-Za-z_]', line):
+            before = line[:m.start()].rstrip()
+            if not before or not re.search(r'[\w)\]"\']$', before):
+                return True
+    return False
+
+
+CONTROL_CLASSES = ("Label|Button|VBoxContainer|HBoxContainer|PanelContainer|MarginContainer|"
+                   "GridContainer|ScrollContainer|RichTextLabel|TextureRect|ColorRect|Panel|"
+                   "LineEdit|SpinBox|CheckBox|OptionButton|Control")
+COMPOSE_WINDOW = 5   # tentative knob: the `.new()` line plus the next four
 
 LIFECYCLE = "_ready|_process|_physics_process|_input|_unhandled_input|_draw|_enter_tree|_exit_tree|_notification"
 
@@ -170,6 +213,44 @@ RULES = [
         pos="\tmaterial.set_shader_parameter(&\"glow\", 2.0)",
         neg="\tmodulate = tint",
     ),
+    Rule(
+        id="control-composed",
+        doc="docs/domain/scene-composition.md",
+        # Reported on the `.new()` line — the inline escape goes THERE, not on
+        # the add_child line.
+        pattern=re.compile(r"^[^\n]*(?:(?<![\w.])(?:{c})\.new\(\)[\s\S]*?\badd_child\("
+                           r"|\badd_child\([^\n]*(?<![\w.])(?:{c})\.new\(\))".format(c=CONTROL_CLASSES)),
+        window=COMPOSE_WINDOW,
+        default_on=False,
+        exempt_dirs={
+            **TEST_DIR,
+            "tools/": "dev tooling (editor probes, benches), never a shipped path — "
+                      "void if a tool's UI ships to players.",
+        },
+        message="built-in Control tree composed in code — move the subtree into a .tscn "
+                "the owner instantiate()s (inherited scene when it varies per use)",
+        pos=["\tvar l := Label.new()\n\tl.text = t\n\tadd_child(l)",
+             "\tbox.add_child(VBoxContainer.new())",
+             "\tvar r := RichTextLabel.new()\n\n\n\n\trow.add_child(r)"],
+        neg=["\tvar l := Label.new()\n\tl.text = t\n\tvar a\n\tvar b\n\tvar c\n\tadd_child(l)",
+             "\tvar n := MyLabel.new()\n\tadd_child(n)\n\tvar s := Sprite2D.new()\n\tadd_child(s)",
+             "\tvar row := ROW.instantiate()\n\tadd_child(row)"],
+    ),
+    Rule(
+        id="access-style",
+        doc="docs/domain/scene-composition.md",
+        # Self only (bare or `self.`): `other.get_node("A")` has no `$`/`%` form,
+        # the same ground on which `get_node(path_var)` is allowed.
+        pattern=re.compile(r"(?:(?<![\w.])|\bself\.)get_node\(\s*[\"']"),
+        file_predicate=_uses_sigil_access,
+        default_on=False,
+        message="literal get_node(\"…\") in a file that uses $/% — write $A/B or %B; "
+                "only a non-literal get_node(path_var) stays",
+        pos=["@onready var a := $A\nvar b = get_node(\"B/C\")",
+             "@onready var a := %A\nfunc f():\n\tself.get_node('B')"],
+        neg=["@onready var a := $A\nvar b = get_node(path)\nvar c = card.get_node(\"%Box\")",
+             "var b = get_node(\"B/C\")\nvar s := \"%s $x\" % v\nvar m := a % b\nvar k := (a)%b"],
+    ),
 ]
 
 
@@ -217,6 +298,13 @@ def match_lines(rule, raw_lines):
         yield i + 1, code[i]
 
 
+def hits_for(rule, raw_lines):
+    """match_lines behind the row's per-file gate: what scan and self-test both see."""
+    if rule.file_predicate is not None and not rule.file_predicate(code_lines(raw_lines)):
+        return
+    yield from match_lines(rule, raw_lines)
+
+
 def in_scope(rule, path):
     return any(fnmatch.fnmatch(path, g) for g in rule.scope)
 
@@ -250,7 +338,7 @@ def scan(rules):
             raw = fh.read().split("\n")
         for rule in active:
             why = exemption_for(rule, path)
-            for lineno, text in match_lines(rule, raw):
+            for lineno, text in hits_for(rule, raw):
                 rec = {"file": path, "line": lineno, "rule": rule.id,
                        "doc": rule.doc, "text": text.strip()[:120]}
                 if why is None and escaped(raw[lineno - 1], rule.id):
@@ -268,18 +356,21 @@ def scan(rules):
 def self_test(rules):
     ok = True
     for r in rules:
-        pos = r.pos.split("\n")
-        pos_hits = list(match_lines(r, pos))
-        neg_hits = list(match_lines(r, r.neg.split("\n")))
-        if not pos_hits:
-            print(f"  ✗ [{r.id}] positive fixture did not hit")
-            ok = False
-        if neg_hits:
-            print(f"  ✗ [{r.id}] negative fixture hit at line(s) {[n for n, _ in neg_hits]}")
-            ok = False
-        for n, _ in pos_hits:
-            if not escaped(pos[n - 1] + "  # lint: %s — self-test" % r.id, r.id):
-                print(f"  ✗ [{r.id}] inline escape not recognised")
+        # A fixture is one file; a list is several, each asserted on its own.
+        for k, fx in enumerate([r.pos] if isinstance(r.pos, str) else r.pos):
+            pos = fx.split("\n")
+            pos_hits = list(hits_for(r, pos))
+            if not pos_hits:
+                print(f"  ✗ [{r.id}] positive fixture #{k} did not hit")
+                ok = False
+            for n, _ in pos_hits:
+                if not escaped(pos[n - 1] + "  # lint: %s — self-test" % r.id, r.id):
+                    print(f"  ✗ [{r.id}] inline escape not recognised")
+                    ok = False
+        for k, fx in enumerate([r.neg] if isinstance(r.neg, str) else r.neg):
+            neg_hits = list(hits_for(r, fx.split("\n")))
+            if neg_hits:
+                print(f"  ✗ [{r.id}] negative fixture #{k} hit at line(s) {[n for n, _ in neg_hits]}")
                 ok = False
     print("✓ lint-house-rules self-test (%d rows)" % len(rules) if ok
           else "✗ lint-house-rules self-test failed")
@@ -287,7 +378,7 @@ def self_test(rules):
 
 
 def main(argv):
-    rules = RULES
+    rules = RULES if "--all" in argv or "--self-test" in argv else [r for r in RULES if r.default_on]
     if "--rule" in argv:
         i = argv.index("--rule")
         want = argv[i + 1] if i + 1 < len(argv) else ""
