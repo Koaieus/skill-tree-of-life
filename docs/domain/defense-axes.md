@@ -30,7 +30,8 @@ bin the entity and node carry, and during a run those bins pile up:
   lv1 adds nothing); CON climbs this way and drags both HP pools with it.
 - **procgen node rolls**: the CON pool rolls CON (flat, %, ×), `armor +` and
   `min_damage_taken -`; `universal` rolls `node_health +%`; INT carries a
-  `min_damage_taken +` bane. One allocated node can move a defence axis.
+  `min_damage_taken +` bane; DEX rolls `armor_pierce` (flat and %), which
+  lowers the *enemy's* armor rather than raising yours. One allocated node can move a defence axis.
 - **core class, addons, auras**: Sanctuary's +CON, the Bunker's +armor and
   −floor.
 - **statuses**: each curse stack raises the floor by 1, armor break lowers
