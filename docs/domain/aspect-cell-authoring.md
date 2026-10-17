@@ -52,10 +52,11 @@ distinct mint stats, order invariants, own scene per statused type),
 
 ### On-hit shelf
 
-`RangedDamageFormula.riders_for` builds one `HitLanding` per arrow (paired to
-it, so a gated arrow duds every rider) and runs each effect; the riders are
-appended right after the arrow in the outcome; the arrow takes the landing's
-`hit_key`, and the coordinator finds its riders by that key (`riders_of`). What an arrow may carry:
+`RangedDamageFormula.ride` builds one `HitLanding` per arrow, anchored at its
+slot in the outcome (paired to it, so a gated arrow duds every rider), runs
+each effect, then places the span: statuses just before the arrow, damage-shaped
+riders just after (ADR 0067). The arrow takes the landing's `hit_key`, and the
+coordinator finds its riders by that key (`riders_of`). What an arrow may carry:
 
 | effect | what it gives an arrow | example |
 |---|---|---|
