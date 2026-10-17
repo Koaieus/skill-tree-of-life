@@ -1,0 +1,6 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://ui/ring/ring_body.gd" id="1_body"]
+
+[node name="RingBody" type="HBoxContainer"]
+script = ExtResource("1_body")

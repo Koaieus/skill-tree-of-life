@@ -24,6 +24,7 @@
 [ext_resource type="PackedScene" path="res://ui/hud/armed_mode_icon/armed_mode_icon.tscn" id="22_armed_icon"]
 [ext_resource type="PackedScene" uid="uid://c26eoebnjw1lg" path="res://ui/mass_action_confirm/mass_action_confirm_panel.tscn" id="22_mass_action"]
 [ext_resource type="PackedScene" path="res://ui/spell_catalogue/spell_catalogue_modal.tscn" id="23_spell_catalogue"]
+[ext_resource type="PackedScene" path="res://ui/ring/ring_modal.tscn" id="24_ring_modal"]
 [ext_resource type="PackedScene" path="res://ui/hud/turn_forecast/turn_forecast_strip.tscn" id="24_forecast"]
 [ext_resource type="PackedScene" path="res://ui/hud/gates_menu/gates_menu.tscn" id="25_gates"]
 
@@ -210,6 +211,11 @@ visible = false
 layout_mode = 1
 
 [node name="SpellCatalogueModal" parent="." instance=ExtResource("23_spell_catalogue")]
+unique_name_in_owner = true
+visible = false
+layout_mode = 1
+
+[node name="RingModal" parent="." instance=ExtResource("24_ring_modal")]
 unique_name_in_owner = true
 visible = false
 layout_mode = 1

@@ -48,6 +48,7 @@ extends Control
 @onready var mass_action_confirm_panel: MassActionConfirmPanel = %MassActionConfirmPanel
 @onready var spell_loot_picker: SpellLootPicker = %SpellLootPicker
 @onready var spell_catalogue_modal: SpellCatalogueModal = %SpellCatalogueModal
+@onready var ring_modal: RingModal = %RingModal
 @onready var run_end_overlay: RunEndOverlay = %RunEndOverlay
 @onready var pause_menu: PauseMenu = %PauseMenu
 @onready var tooltip_fan: TooltipFan = %TooltipFan
@@ -350,6 +351,10 @@ func _on_mass_action_pending_changed(request: MassActionRequest) -> void:
 ## which is where the player came from.
 func _on_spell_catalogue_requested() -> void:
 	_enqueue_modal(func() -> void: spell_catalogue_modal.present())
+
+
+func open_ring(_entity: Entity) -> void:
+	pass
 
 
 func _enqueue_modal(show_request: Callable) -> void:
