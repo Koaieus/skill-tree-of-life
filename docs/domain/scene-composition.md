@@ -15,6 +15,21 @@ wire, and preview something for you, don't reimplement that in `_ready`.
 | Has an animation / one-shot effect to trigger | Scene + `@export_tool_button` (or `@export` knobs) so it's previewable in-editor. |
 | Variation is identity/runtime-bound (the human player, spawned at runtime) | Can't be a scene NodePath — inject the plain `var` from the composer after it resolves. |
 
+**Linted** by `mise run lint-house-rules` (it gates `check`), two rows:
+- `control-composed` — a built-in Control (`Label`, `Button`, `*Container`,
+  `ColorRect`, …) `.new()` with an `add_child(` within 5 lines, outside `test/`,
+  `tools/` and `addons/`. A repeated row becomes a small row `.tscn` the owner
+  `instantiate()`s; a one-off node is authored in the owner's `.tscn` and
+  reached by `%`. Escape, on the `.new()` line:
+  `# lint: control-composed — <reason>`. A real reason is a row list built from
+  data, a bare one-node primitive that a scene would add nothing to, or a
+  documented build-order contract (`LobbyScreen.configure` runs before `_ready`).
+  "It was quicker" is not a reason.
+- `access-style` — a file that uses `$`/`%` must not also call a literal
+  `get_node("A/B")` on itself; write `$A/B` or `%B`. `get_node(path_var)` and
+  `other.get_node("…")` stay, because no sigil can express them. Escape:
+  `# lint: access-style — <reason>`.
+
 ## A base scene earns its keep by packaging children — otherwise delete it
 
 A one-node "template" `.tscn` (bare root + script, no children) is dead weight.

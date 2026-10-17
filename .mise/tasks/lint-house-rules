@@ -14,8 +14,8 @@ line names it, so the reader lands on the why, not on this file.
 
 Output: `path:line  [row-id] message → see doc`. Exit 1 on any violation — a gate,
 unlike `rules-hygiene`. `--json` prints `{"violations": [...], "exempted": [...]}`;
-`--rule <id>` runs one row; `--all` adds the report-only rows (`default_on=False`,
-off in the default run that gates `check`); `--self-test` feeds every row, report-only
+`--rule <id>` runs one row; `--all` adds any report-only row (`default_on=False`,
+off in the default run that gates `check`; none today); `--self-test` feeds every row, report-only
 included, its positive and negative fixtures (and the inline escape) and asserts all three.
 
   FILE PREDICATE: `file_predicate` gates a row per FILE (it sees the file's
@@ -28,7 +28,9 @@ included, its positive and negative fixtures (and the inline escape) and asserts
   code): (1) `test/` — a test builds the throwaway tree it asserts on; (2) `tools/`
   — dev tooling, never a shipped path; (3) `addons/` — vendored (GLOBAL_EXCLUDE).
   A row list built from DATA (a sandbox-host tab, a dev scene) is the inline
-  escape on the `.new()` line, with that reason; "it was quicker" is not one.
+  escape on the `.new()` line, with that reason — as is a bare one-node primitive a
+  scene would add nothing to, or a documented build-order contract
+  (`LobbyScreen.configure` before `_ready`); "it was quicker" is not one.
 
   EXEMPTION DISCIPLINE (as `lint-transcendentals`): every `exempt_dirs` /
   `exempt_files` entry carries a REASON, and the reason states the condition
@@ -222,7 +224,6 @@ RULES = [
         pattern=re.compile(r"^[^\n]*(?:(?<![\w.])(?:{c})\.new\(\)[\s\S]*?\badd_child\("
                            r"|\badd_child\([^\n]*(?<![\w.])(?:{c})\.new\(\))".format(c=CONTROL_CLASSES)),
         window=COMPOSE_WINDOW,
-        default_on=False,
         exempt_dirs={
             "test/": "a test builds the throwaway tree it asserts on — never a "
                       "shipped path.",
@@ -245,7 +246,6 @@ RULES = [
         # the same ground on which `get_node(path_var)` is allowed.
         pattern=re.compile(r"(?:(?<![\w.])|\bself\.)get_node\(\s*[\"']"),
         file_predicate=_uses_sigil_access,
-        default_on=False,
         message="literal get_node(\"…\") in a file that uses $/% — write $A/B or %B; "
                 "only a non-literal get_node(path_var) stays",
         pos=["@onready var a := $A\nvar b = get_node(\"B/C\")",
