@@ -61,7 +61,9 @@ func _draw() -> void:
 	# `draw_multiline_colors` wants exactly one colour per SEGMENT, i.e. per
 	# point PAIR. A mismatch draws nothing at all rather than erroring, so the
 	# guard is worth its two lines.
+	@warning_ignore("integer_division")
 	if _edge_points.size() >= 2 and _edge_colors.size() == _edge_points.size() / 2:
 		draw_multiline_colors(_edge_points, _edge_colors, _edge_width)
+	@warning_ignore("integer_division")
 	if _dot_points.size() >= 2 and _dot_colors.size() == _dot_points.size() / 2:
 		draw_multiline_colors(_dot_points, _dot_colors, _dot_size)

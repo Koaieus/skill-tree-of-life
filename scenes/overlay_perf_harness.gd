@@ -168,6 +168,7 @@ func _aura_cones(n: int, view: Rect2) -> Array:
 	var step := Vector2(view.size.x / float(cols), view.size.y / float(rows))
 	var centres: Array[Vector2] = []
 	for i in n:
+		@warning_ignore("integer_division")
 		var cell := Vector2(float(i % cols), float(i / cols))
 		var jitter := Vector2(randf_range(-0.3, 0.3), randf_range(-0.3, 0.3))
 		centres.append(view.position + (cell + Vector2(0.5, 0.5) + jitter) * step)

@@ -266,6 +266,7 @@ static func pack_shard(cell: int, cell_count: int) -> float:
 ## Inverse of [method pack_shard]: `(cell, cell_count)`.
 static func unpack_shard(packed: float) -> Vector2i:
 	var p := int(roundf(packed))
+	@warning_ignore("integer_division")
 	return Vector2i(p % _CELL_SCALE, p / _CELL_SCALE + 1)
 
 

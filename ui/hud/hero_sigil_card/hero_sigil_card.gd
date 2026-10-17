@@ -25,7 +25,6 @@ extends MarginContainer
 ## HudRoot's LeftColumnSlot VBoxContainer. See combat_readout_card.gd for
 ## the same pattern/writeup (shared bug across all HUD cards).
 
-@onready var _panel: GlassPanel = %GlassPanel
 @onready var _emblem_ring: EmblemRing = %EmblemRing
 @onready var _emblem_glyph: Label = %EmblemGlyph
 @onready var _sigil_glyph: SigilGlyph = %SigilGlyph

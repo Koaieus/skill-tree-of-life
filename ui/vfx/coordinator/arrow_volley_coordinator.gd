@@ -156,7 +156,6 @@ func begin_windup(plan: AttackPlan, tempo: PresentationTempo) -> float:
 	var seed: int = outcome.resolve_seed if outcome != null \
 			else (plan.resolve_seed if plan != null else 0)
 	var stagger: float = maxf(0.0, tempo.volley_place_stagger)
-	var tint := _resolve_tint(outcome.hits) if outcome != null else _resolve_tint([])
 	var total := shots.size()
 	# Per-leaf rank and count drive the spread, so two leaves each firing
 	# three arrows get the same three-slot sunflower.

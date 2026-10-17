@@ -1386,6 +1386,7 @@ static func _v4_pick_distribution(
 				break
 		if wm <= 0.0:
 			continue
+		@warning_ignore("incompatible_ternary")
 		var key: Variant = e.pool_key if e.pool_key != &"" else e
 		if not pools.has(key):
 			pools[key] = {"universal": e.universal, "pool_weight": e.pool_weight,

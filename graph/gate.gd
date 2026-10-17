@@ -175,6 +175,7 @@ func _reference_span() -> float:
 			lengths.append(e.from.global_position.distance_to(e.to.global_position))
 	if not lengths.is_empty():
 		lengths.sort()
+		@warning_ignore("integer_division")
 		_median_span = lengths[lengths.size() / 2]
 	return _median_span
 

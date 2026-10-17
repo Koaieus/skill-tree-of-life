@@ -11,6 +11,7 @@ extends AnnouncementBand
 @onready var _sub: Banner = %SubBanner
 
 ## Inspector button: play a sample banner for live preview in the editor.
+@warning_ignore("unused_private_class_variable")
 @export_tool_button("Preview") var _preview_button: Callable = _preview
 
 var _main_done: bool = true

@@ -32,6 +32,7 @@ var _anchor: Node2D = null
 const _FLOATER_TOAST_SCENE: PackedScene = preload("res://ui/floating_number_layer/floater_toast.tscn")
 
 # Tool button for in-editor smoke-testing.
+@warning_ignore("unused_private_class_variable")
 @export_tool_button("+ Toast!") var _btn: Callable = _add_debug_toasts
 
 

@@ -251,7 +251,7 @@ func _topology_changed(ctx: EffectContext, changed_node: SkillNode) -> void:
 ## the underlying reason — `in_range` isn't mirror-generic — is the same one
 ## that bites here), so a bounded hop reach skips the short-circuit and lets
 ## the downstream membership/diff logic do the filtering instead.
-func _reach_could_include(node: SkillNode, source: SkillNode, mirror: GraphMirror) -> bool:
+func _reach_could_include(node: SkillNode, source: SkillNode, _mirror: GraphMirror) -> bool:
 	if reach == null or not reach is EuclideanRangeFinder:
 		return true
 	return reach.in_range(null, source, node)

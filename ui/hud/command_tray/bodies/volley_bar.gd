@@ -201,7 +201,7 @@ func _track_rect() -> Rect2:
 ## notch per wave boundary; `arrow_x` is one tick per arrow boundary strictly
 ## inside the packed span, or empty with `arrows_suppressed` true when
 ## [method GaugeDensity.ticks_fit] says the pitch is illegible.
-static func layout(p_n: int, p_max: int, p_notches: PackedInt32Array, p_segments: Array[Dictionary], track_w: float, max_w: float = INF, gap: float = 0.0) -> Dictionary:
+static func layout(_p_n: int, p_max: int, p_notches: PackedInt32Array, p_segments: Array[Dictionary], track_w: float, max_w: float = INF, gap: float = 0.0) -> Dictionary:
 	var out := {
 		"segments": [],
 		"wave_x": PackedFloat32Array(),

@@ -43,6 +43,7 @@ func edge_count() -> int:
 	var total := 0
 	for row in adjacency:
 		total += row.size()
+	@warning_ignore("integer_division")
 	return total / 2
 
 

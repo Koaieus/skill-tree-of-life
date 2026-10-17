@@ -1393,6 +1393,7 @@ func get_induced_edges() -> Array:
 			# underlying [Edge] rather than once from each endpoint's list.
 			if neighbour.stable_id > sn.stable_id:
 				out.append([sn, neighbour])
+		@warning_ignore("integer_division")
 		for _i in self_loop_hits / 2:
 			out.append([sn, sn])
 	return out

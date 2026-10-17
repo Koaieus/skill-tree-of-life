@@ -29,6 +29,7 @@ const DRIFT_OFFSET: float = 40.0
 var _tween: Tween
 
 ## Inspector button: fire a sample announcement for live editor preview.
+@warning_ignore("unused_private_class_variable")
 @export_tool_button("Preview") var _preview_button: Callable = _preview
 
 

@@ -164,6 +164,7 @@ func resolve_override(hover_node: SkillNode, board: StatBoard, baseline: float) 
 	if local == null:
 		local = hover_node.get_local_value(stat_id)
 	var overridden: float = float(local)
+	@warning_ignore("incompatible_ternary")
 	return overridden if overridden != baseline else null
 
 

@@ -103,6 +103,7 @@ var _batches: Array[_Batch] = []
 
 # Editor-preview only — lets the layer be tuned in the inspector without
 # booting the whole game (mirrors FloaterToaster's own debug button).
+@warning_ignore("unused_private_class_variable")
 @export_tool_button("+ Show sample gains") var _preview_btn: Callable = _show_sample_gains
 
 

@@ -201,12 +201,14 @@ func _core_global() -> Variant:
 				or owner_entity.core_location == null:
 			return null
 		return owner_entity.core_location.global_position
+	@warning_ignore("incompatible_ternary")
 	return _drive_core if _driven else null
 
 
 func _node_global() -> Variant:
 	if _bound():
 		return _node.global_position
+	@warning_ignore("incompatible_ternary")
 	return _drive_node if _driven else null
 
 

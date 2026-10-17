@@ -21,7 +21,9 @@ const POP_TIME := 0.25
 @export var negative_color: Color = Emissive.HARMFUL
 
 ## Preview the pop-in/fade-out in the editor via the Inspector button.
+@warning_ignore("unused_private_class_variable")
 @export_tool_button("Preview +N") var _preview_positive_action := pop.bind(3.0)
+@warning_ignore("unused_private_class_variable")
 @export_tool_button("Preview -N") var _preview_negative_action := pop.bind(-2.0)
 
 @onready var _panel: PanelContainer = %Panel

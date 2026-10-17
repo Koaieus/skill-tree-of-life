@@ -76,12 +76,12 @@ func _run() -> void:
 	_print_header(bench, root)
 	var segments_cfg: Array = bench.get("segments")
 	for segment in segments_cfg:
-		await _enter_segment(segment, root)
+		_enter_segment(segment, root)
 		var stats := await _measure(
 				float(bench.get("warmup_seconds")),
 				float(bench.get("sample_seconds")))
 		_print_segment(segment, stats)
-		await _exit_segment(segment, root)
+		_exit_segment(segment, root)
 	_print_footer()
 
 

@@ -365,7 +365,7 @@ func _build_payload_row(entry: NodeEffectReadout) -> Dictionary:
 	return {"text": text, "tint": _row_tint(base, _is_hostile(entry.source_entity))}
 
 
-func _build_rollup_row(stat_id: StringName, op: StatModifier.Operation, combined: float, count: int, def: StatDef) -> Dictionary:
+func _build_rollup_row(stat_id: StringName, op: StatModifier.Operation, combined: float, count: int, _def: StatDef) -> Dictionary:
 	# A bare (formula-less) synthetic modifier reuses format_effective()'s
 	# grammar for free instead of re-deriving the op-text switch a third time
 	# (StatModifier._format_value already has it; contribution_text() is the

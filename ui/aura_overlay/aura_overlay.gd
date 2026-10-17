@@ -243,6 +243,7 @@ func set_cones(cones: Array, colors: Array) -> void:
 	if material == null or not material is ShaderMaterial:
 		return
 	var mat: ShaderMaterial = material
+	@warning_ignore("integer_division")
 	var primitive_count := mini(cones.size() / 2, _MAX_CIRCLES)
 	var entity_count := mini(colors.size(), _MAX_ENTITIES)
 	# `entity_colors` stays a plain uniform array — small, so pad explicitly

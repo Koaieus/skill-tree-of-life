@@ -266,6 +266,7 @@ static func _sample_targets(terrain: CurlTerrain, count: int) -> PackedInt32Arra
 	var out := PackedInt32Array()
 	if castable.is_empty():
 		return out
+	@warning_ignore("integer_division")
 	var stride := maxi(1, castable.size() / maxi(1, count))
 	var i := 0
 	while i < castable.size() and out.size() < count:

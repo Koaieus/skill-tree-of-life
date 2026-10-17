@@ -58,6 +58,7 @@ const _XP_DEF := preload("res://stats_system/defs/xp.tres")
 @export var exit_rise: float = -8.0
 
 ## Inspector button: play a sample cascade for live preview in the editor.
+@warning_ignore("unused_private_class_variable")
 @export_tool_button("Preview") var _preview_button: Callable = _preview
 
 @onready var _title: Label = %Title

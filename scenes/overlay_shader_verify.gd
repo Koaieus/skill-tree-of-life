@@ -248,6 +248,7 @@ func _aura_reference_alpha(world_pos: Vector2, circles: Array, aura: AuraOverlay
 func _aura_cone_reference_alpha(world_pos: Vector2, cones: Array, aura: AuraOverlay) -> float:
 	var k: float = aura.union_smoothness
 	var min_d := 1e9
+	@warning_ignore("integer_division")
 	for i in cones.size() / 2:
 		var ca: Vector4 = cones[i * 2]
 		var cb: Vector4 = cones[i * 2 + 1]

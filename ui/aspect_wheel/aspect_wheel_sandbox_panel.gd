@@ -20,7 +20,7 @@ func load_object(_obj: Object) -> void:
 
 func _ready() -> void:
 	for wheel in _wheels:
-		wheel.hovered.connect(func(id: StringName) -> void: _say("hovered %s" % (id if id != &"" else "(none)")))
+		wheel.hovered.connect(func(id: StringName) -> void: _say("hovered %s" % (String(id) if id != &"" else "(none)")))
 		wheel.picked.connect(func(id: StringName) -> void: _say("picked %s" % id))
 		wheel.dismissed.connect(func() -> void: _say("dismissed"))
 	_build_knobs()

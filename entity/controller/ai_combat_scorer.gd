@@ -202,7 +202,7 @@ static func score(mode: BattleSystem.AttackMode, outcome: AttackOutcome, target:
 	# this string, and it is 0.0 for every uncapped attacker.
 	c.trace = "[%s→%s] ev=%.1f kill=%s cut=%.1f weak=%.1f risk=%.1f total=%.1f" % [
 		BattleSystem.AttackMode.keys()[mode],
-		target.name if target != null else "?",
+		String(target.name) if target != null else "?",
 		c.ev, ("yes" if c.is_kill else "no"),
 		c.cut_vertex_bonus, c.enemy_weak_bonus, c.self_shape_risk, c.total]
 	if c.breakout_bonus > 0.0:

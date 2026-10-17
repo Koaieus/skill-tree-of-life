@@ -18,6 +18,7 @@ extends IndicatorRingBand
 func _draw() -> void:
 	if centerline <= 0.0 or width <= 0.0:
 		return
+	@warning_ignore("integer_division")
 	var per_dash := maxi(2, segments / maxi(dash_count, 1))
 	for span in RangeRing.dash_spans(fill, dash_count):
 		draw_arc(Vector2.ZERO, centerline, span.x, span.y, per_dash, Color.WHITE, width, true)

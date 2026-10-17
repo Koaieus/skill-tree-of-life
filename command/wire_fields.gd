@@ -112,6 +112,7 @@ static func _encode(field: Field, value: Variant) -> Variant:
 		if field.type == TYPE_ARRAY:
 			var out: Array = []
 			for element: Variant in value:
+				@warning_ignore("incompatible_ternary")
 				out.append(null if element == null else to_dict(element))
 			return out
 		return to_dict(value)

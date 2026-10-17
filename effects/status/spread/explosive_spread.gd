@@ -52,6 +52,7 @@ func radius_for(node_radius: float, charges: int) -> float:
 func _charge_scale(charges: int) -> float:
 	var halves := roundi(charge_exponent * 2.0)
 	var scale := 1.0
+	@warning_ignore("integer_division")
 	for i in halves / 2:
 		scale *= float(charges)
 	if halves % 2 == 1:

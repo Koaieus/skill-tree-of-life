@@ -166,6 +166,7 @@ func _capture_strip(path: String, pan: bool) -> void:
 		# window may be letterboxed, so the final transform alone misplaces).
 		var canvas_px: Vector2 = get_global_transform_with_canvas() * Vector2.ZERO
 		var px := canvas_px * (Vector2(img.get_size()) / vp.get_visible_rect().size)
+		@warning_ignore("integer_division")
 		var crop := img.get_region(Rect2i(Vector2i(px) - Vector2i(STRIP_CROP / 2, STRIP_CROP / 2),
 				Vector2i(STRIP_CROP, STRIP_CROP)))
 		crop.resize(side, side, Image.INTERPOLATE_LANCZOS)

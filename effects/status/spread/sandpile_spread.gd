@@ -91,6 +91,7 @@ func stabilize(field: StackField) -> ToppleResult:
 			continue
 		# Each topple removes `degree + burn`, not `T`: pop while S stays ≥ T.
 		var loss: int = (around[n] as Array).size() + step
+		@warning_ignore("integer_division")
 		var k := (s - t) / loss + 1
 		if total + k > max_topples:
 			k = max_topples - total

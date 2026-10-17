@@ -98,6 +98,7 @@ func _capture(vfx: AllocationVFX, t: float, dir: String, base_name: String) -> v
 	await RenderingServer.frame_post_draw
 
 	var img := _view.get_texture().get_image()
+	@warning_ignore("integer_division")
 	var half := CROP_SIZE / 2
 	var rect := Rect2i(
 		int(ORIGIN.x) - half, int(ORIGIN.y) - half, CROP_SIZE, CROP_SIZE)

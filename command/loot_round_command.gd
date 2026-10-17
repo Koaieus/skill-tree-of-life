@@ -77,6 +77,7 @@ func _init(entity_id_: int = 0, carrier_id_: int = 0, granted: StatModifier = nu
 		spell_id: StringName = &"", finished: bool = false) -> void:
 	super(entity_id_)
 	carrier_id = carrier_id_
+	@warning_ignore("incompatible_ternary")
 	resolved = {
 		"granted": granted.to_dict() if granted != null else null,
 		"spell_id": String(spell_id),

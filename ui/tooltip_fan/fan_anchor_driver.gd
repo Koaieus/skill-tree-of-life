@@ -121,6 +121,7 @@ const _PIN_SETTLE_EPSILON := 0.0005
 ## WHOLE script, not just this editor-only function. This file shipped with a
 ## dead `FanAnchorDriver` for exactly that reason; `Engine.is_editor_hint()`
 ## does not help, because the failure is at parse time, before any guard runs.
+@warning_ignore("unused_private_class_variable")
 @export_tool_button("◈  Open in Sandbox") var _open_sandbox: Callable = _jump_to_sandbox
 
 func _jump_to_sandbox() -> void:

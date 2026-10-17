@@ -23,6 +23,7 @@ const ADDON_TILE_SCENE: PackedScene = preload("res://scenes/addon_tile.tscn")
 			_grid.columns = v
 @export var tile_size: Vector2 = Vector2(160.0, 180.0)
 @export var node_radius: float = 32.0
+@warning_ignore("unused_private_class_variable")
 @export_tool_button("Rebuild") var _rebuild_button := _rebuild
 
 @onready var _grid: GridContainer = %Grid

@@ -159,7 +159,6 @@ func _draw() -> void:
 	var n := axes.size()
 	if n < 3:
 		return
-	var radius := _get_radius()
 
 	for ring in range(1, ring_count + 1):
 		var frac := float(ring) / float(ring_count)

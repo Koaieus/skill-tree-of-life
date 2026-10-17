@@ -16,6 +16,7 @@ extends Resource
 
 
 ## Inspector button: dumps `format_tables()` to the editor output.
+@warning_ignore("unused_private_class_variable")
 @export_tool_button("Print pools as tables") var _print_button: Callable = _print_tables
 
 

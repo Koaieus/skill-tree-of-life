@@ -24,6 +24,7 @@ extends Label
 @export_range(0.0, 2.0, 0.05) var fade_time: float = 0.35
 
 ## Inspector button: pop a sample chip for live preview in the editor.
+@warning_ignore("unused_private_class_variable")
 @export_tool_button("Preview") var _preview_button: Callable = func(): show_delta(3.0)
 
 ## Amount currently being displayed. A second grant while the chip is still up

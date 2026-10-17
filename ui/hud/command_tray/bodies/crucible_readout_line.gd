@@ -86,4 +86,4 @@ static func _detail_of(line: ReadoutLines.ReadoutLine, spell: SpellDef, board: S
 func first_row_height() -> float:
 	if _main == null:
 		return size.y
-	return _main.get_line_height() if _main.get_line_count() > 0 else _main.size.y
+	return float(_main.get_line_height()) if _main.get_line_count() > 0 else _main.size.y

@@ -217,6 +217,7 @@ static func parse_error(text: String, inputs: PackedStringArray) -> String:
 		return e.get_error_text()
 	var dummy: Array = []
 	for n in inputs:
+		@warning_ignore("incompatible_ternary")
 		dummy.append(&"" if n.ends_with("camp_id") else 0)
 	e.execute(dummy, null, false)
 	return e.get_error_text() if e.has_execute_failed() else ""

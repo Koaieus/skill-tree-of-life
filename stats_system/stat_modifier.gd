@@ -266,6 +266,7 @@ func get_effective_value(board: StatBoard = null) -> float:
 ## This modifier's wire form. [CompositeStatModifier] overrides and adds its
 ## children — the same `super()`-and-extend shape [Command.to_dict] uses.
 func to_dict() -> Dictionary:
+	@warning_ignore("incompatible_ternary")
 	return {
 		"type": StatModifierCodec.TAG_MOD,
 		"stat_id": String(stat_id),

@@ -117,6 +117,7 @@ func _ready() -> void:
 
 ## Rings a core of `level` carries: two, plus one per ten levels, capped at 5.
 static func rings_for_level(level: int) -> int:
+	@warning_ignore("integer_division")
 	return clampi(2 + level / 10, 2, 5)
 
 

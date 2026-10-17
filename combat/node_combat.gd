@@ -744,6 +744,7 @@ func incoming_overlays(stat_id: StringName) -> Array[ModifierBins]:
 	var out: Array[ModifierBins] = []
 	var bins: ModifierBins = null
 	for pass_i in 2:
+		@warning_ignore("incompatible_ternary")
 		var host = self if pass_i == 0 else owner()
 		if host == null:
 			continue

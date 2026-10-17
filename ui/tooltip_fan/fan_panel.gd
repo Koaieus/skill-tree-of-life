@@ -68,7 +68,9 @@ extends Node2D
 		_apply_progress()
 
 
+@warning_ignore("unused_private_class_variable")
 @onready var _header: PanelHeader = %Header
+@warning_ignore("unused_private_class_variable")
 @onready var _rows: VBoxContainer = %Rows
 
 var _lifecycle_tween: Tween = null

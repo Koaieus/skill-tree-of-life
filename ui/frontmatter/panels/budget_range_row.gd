@@ -29,7 +29,6 @@ extends HBoxContainer
 ## override, so "untouched" has to be observable as "this never emitted".
 signal range_changed(base_min: int, base_max: int)
 
-@onready var _label: Label = %Label
 @onready var _min_spin: SpinBox = %MinSpin
 @onready var _max_spin: SpinBox = %MaxSpin
 

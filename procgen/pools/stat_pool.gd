@@ -416,6 +416,7 @@ func _op_symbol() -> String:
 
 ## Inspector button (#628 acceptance 6): preview this pool's own tier table
 ## without printing the whole [ModifierPoolSet] via its set-level button.
+@warning_ignore("unused_private_class_variable")
 @export_tool_button("Print tier table") var _print_button: Callable = _print_table
 
 func _print_table() -> void:

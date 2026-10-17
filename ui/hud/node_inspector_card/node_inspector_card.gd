@@ -10,7 +10,6 @@ extends MarginContainer
 ## card is deliberately scoped to pinned-node display only, not a full
 ## ContextPanel port.
 
-@onready var _panel: GlassPanel = %GlassPanel
 @onready var _name: Label = %NodeName
 @onready var _owner: Label = %OwnerValue
 @onready var _hp: Label = %HpValue

@@ -27,7 +27,6 @@ extends Control
 ## Scale the row starts at when [method set_progress]'s `t` is 0.
 @export_range(0.5, 1.0, 0.01) var start_scale: float = 0.92
 
-@onready var _icon: TextureRect = %Icon
 @onready var _name_label: Label = %NameLabel
 @onready var _value_label: Label = %ValueLabel
 @onready var _paren_label: Label = %ParenLabel

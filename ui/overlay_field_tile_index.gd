@@ -127,6 +127,7 @@ func build(circles: Array, union_smoothness: float) -> void:
 func build_cones(cones: Array, union_smoothness: float) -> void:
 	_reset()
 	_cones = cones
+	@warning_ignore("integer_division")
 	primitive_count = cones.size() / 2
 	circle_count = primitive_count
 	for i in primitive_count:
@@ -317,6 +318,7 @@ func _build_tile_textures() -> void:
 			var bucket: Array = _cells.get(cell, [])
 			tile_index_img.set_pixel(col, row, Color(float(offset), float(bucket.size()), 0.0, 0.0))
 			for idx in bucket:
+				@warning_ignore("integer_division")
 				tile_indices_img.set_pixel(offset % cols, offset / cols, Color(float(idx), 0.0, 0.0, 0.0))
 				offset += 1
 	tile_index_texture = ImageTexture.create_from_image(tile_index_img)

@@ -39,6 +39,7 @@ const BADGE_STAMP_TIME: float = 0.18
 @export var sub_height: int = 80
 
 ## Inspector button: plays a one-shot preview animation in the editor.
+@warning_ignore("unused_private_class_variable")
 @export_tool_button("Preview") var _preview_button: Callable = _preview
 
 @onready var _bg: Panel = $Bg

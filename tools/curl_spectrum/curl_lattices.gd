@@ -60,6 +60,7 @@ static func binary_tree(depth: int) -> CurlTerrain:
 			var a := TAU * float(k) / float(count)
 			pts.append(Vector2(cos(a), sin(a)) * float(level))
 			var child := pts.size() - 1
+			@warning_ignore("integer_division")
 			edges.append([frontier[k / 2], child])
 			next.append(child)
 		frontier = next

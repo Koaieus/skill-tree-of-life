@@ -31,8 +31,10 @@ static func line(spell: SpellDef, aspect_id: StringName, points: int) -> String:
 static func wasted_of(ratio: Vector2i, points: int) -> int:
 	if ratio.x <= 0 or points <= 0:
 		return 0
+	@warning_ignore("integer_division")
 	var gained := (points * ratio.x) / ratio.y
 	# The fewest points that still buy `gained`: ceil(gained × cost / gain).
+	@warning_ignore("integer_division")
 	var needed := (gained * ratio.y + ratio.x - 1) / ratio.x
 	return points - needed
 
