@@ -58,6 +58,11 @@ enum State { LOCKED, BUYABLE, BOUGHT }
 		_apply_background()
 ## Mouse allowance (screen px) past a cell's radius for hover/click.
 @export_range(0.0, 32.0, 1.0) var pick_pad_px: float = 6.0
+## Gap (world px) between a selected cell's rim and its marker ring. Tentative.
+@export_range(0.0, 48.0, 1.0) var marker_gap_px: float = 8.0:
+	set(v):
+		marker_gap_px = v
+		_apply_all()
 
 @onready var _viewport: SubViewport = %Viewport
 @onready var _display: Node2D = %Display
@@ -223,7 +228,7 @@ func _apply_all() -> void:
 	_marker.visible = sel != null
 	if sel != null:
 		_marker.position = sel.global_position
-		_marker.radius = sel.radius + 8.0
+		_marker.radius = sel.radius + marker_gap_px
 
 
 func _apply_background() -> void:
