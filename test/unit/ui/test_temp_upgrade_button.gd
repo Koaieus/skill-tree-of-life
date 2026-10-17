@@ -279,3 +279,45 @@ func test_every_mode_tab_carries_a_glyph() -> void:
 		assert_not_null(btn, "every tab should be an AttackModeButton")
 		assert_not_null(btn.mode_icon,
 			"%s has no mode_icon — the inline glyph AND the shader watermark both go dark" % btn.name)
+
+
+## #1679 — the card is a fixed-size shop item with its price on the face.
+const _CARD := preload("res://ui/hud/command_tray/bodies/temp_upgrade_button.tscn")
+
+
+func _priced_card(costs: Dictionary[StringName, int], title: String = "Clamp") -> TempUpgradeButton:
+	var card := _CARD.instantiate() as TempUpgradeButton
+	add_child_autofree(card)
+	card.label_text = title
+	card.keycap = "Z"
+	card.costs = costs
+	return card
+
+
+func test_price_strip_shows_one_badge_per_cost_with_its_identity() -> void:
+	var card := _priced_card({&"blade_size": 2, &"poison_aspect": 1})
+	var badges := card.price_badges()
+	assert_eq(badges.size(), 2, "one badge per currency in costs")
+	if badges.size() != 2:
+		return
+	assert_eq(badges[0].count_text(), "2", "the blade badge reads its count")
+	var poison := AspectRoster.shared().for_stat(&"poison_aspect")
+	assert_not_null(poison.identity.icon, "fixture check: poison's identity has a glyph")
+	assert_eq(badges[1].icon, poison.identity.icon, "the aspect badge wears its identity's glyph")
+	assert_eq(badges[1].tint, poison.identity.tint, "the aspect badge wears its identity's hue")
+
+
+func test_card_size_does_not_depend_on_its_price() -> void:
+	var cheap := _priced_card({&"blade_size": 1})
+	var dear := _priced_card({&"blade_size": 2, &"poison_aspect": 1,
+		&"curse_aspect": 1, &"corruption_aspect": 1})
+	assert_eq(dear.price_badges().size(), 4, "fixture check: four currencies, four badges")
+	assert_eq(cheap.get_combined_minimum_size(), dear.get_combined_minimum_size(),
+		"every card is the same size, whatever its price")
+
+
+func test_card_size_does_not_depend_on_its_title() -> void:
+	var short := _priced_card({&"blade_size": 1}, "Axe")
+	var long := _priced_card({&"blade_size": 1}, "X".repeat(60))
+	assert_eq(short.get_combined_minimum_size(), long.get_combined_minimum_size(),
+		"a long addon name ellipsizes rather than growing the card")

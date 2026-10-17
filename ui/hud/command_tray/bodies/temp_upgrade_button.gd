@@ -126,6 +126,7 @@ var state: State:
 ## 96px tab, so it takes [constant KeyChip.COMPACT_FONT_SIZE] and tighter
 ## padding, authored on the instance in the .tscn.
 @onready var _key_chip: KeyChip = %KeyChip
+@onready var _price_strip: HBoxContainer = %PriceStrip
 
 
 func _ready() -> void:
@@ -134,6 +135,16 @@ func _ready() -> void:
 	_key_chip.text = keycap
 	_icon.texture = icon_texture
 	_restyle()
+
+
+## The price strip's badges, in strip order (blade first, then each aspect) —
+## what the card's face says it costs.
+func price_badges() -> Array[PriceBadge]:
+	var out: Array[PriceBadge] = []
+	for child in _price_strip.get_children():
+		if child is PriceBadge:
+			out.append(child)
+	return out
 
 
 ## Repaint for the current [member state]. Three visually separate treatments,

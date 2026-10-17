@@ -13,12 +13,17 @@ focus_mode = 0
 mouse_default_cursor_shape = 2
 flat = true
 
-[node name="Row" type="HBoxContainer" parent="."]
+[node name="Stack" type="VBoxContainer" parent="."]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 3
+
+[node name="Row" type="HBoxContainer" parent="Stack"]
 layout_mode = 2
 theme_override_constants/separation = 7
 mouse_filter = 2
 
-[node name="Icon" type="TextureRect" parent="Row"]
+[node name="Icon" type="TextureRect" parent="Stack/Row"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(20, 20)
 layout_mode = 2
@@ -27,17 +32,23 @@ mouse_filter = 2
 expand_mode = 1
 stretch_mode = 5
 
-[node name="Title" type="Label" parent="Row"]
+[node name="Title" type="Label" parent="Stack/Row"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_vertical = 4
 theme_override_font_sizes/font_size = 11
 mouse_filter = 2
 
-[node name="KeyChip" parent="Row" instance=ExtResource("2_keychip")]
+[node name="KeyChip" parent="Stack/Row" instance=ExtResource("2_keychip")]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_vertical = 4
 font_size = 9
 h_padding = 3
 v_padding = 0
+
+[node name="PriceStrip" type="HBoxContainer" parent="Stack"]
+unique_name_in_owner = true
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 6
