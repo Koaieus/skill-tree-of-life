@@ -135,11 +135,11 @@ func test_the_ring_does_not_autoplay_before_arrival() -> void:
 	assert_null(_ring_of(visual), "no ring may exist mid-flight — only at arrival")
 
 
-func test_caster_tint_reaches_the_body_and_never_the_ring() -> void:
+func test_caster_tint_reaches_the_body_and_the_ring() -> void:
 	# The wrapper sits BETWEEN the projectile and the body, so a stamp that
 	# stops at the wrapper is invisible in exactly the composed case. The ring
-	# is punctuation owning its own tier colour: tinting it with the caster's
-	# would make "where it fired" read as identity rather than as placement.
+	# is an arrival companion: it gets the raw caster tint and decides itself
+	# how much to show under its tier ladder.
 	var visual := _spawn_visual()
 	var caster_colour := Color(0.2, 0.9, 0.4)
 	visual.tint = caster_colour
@@ -147,7 +147,7 @@ func test_caster_tint_reaches_the_body_and_never_the_ring() -> void:
 	visual._on_arrival()
 	var body: BoltBody = visual.get_child(0)
 	assert_eq(body.tint, caster_colour, "the caster's colour must reach the flying body")
-	assert_ne(_ring_of(visual).tint, caster_colour, "the ring keeps its own grammar colour")
+	assert_eq(_ring_of(visual).tint, caster_colour, "the ring receives the caster tint")
 
 
 func test_a_crit_reaches_the_body_too_the_storm_escalates() -> void:
