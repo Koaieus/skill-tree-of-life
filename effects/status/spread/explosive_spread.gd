@@ -92,3 +92,11 @@ func on_removed(field: StackField, removed: Array[NodeCombat], cause: int) -> Ar
 		if stacks > 0.0:
 			out.append(StackTransfer.new(r, null, stacks, field.key))
 	return out
+
+
+func describe() -> String:
+	var when := cause_phrase(triggers)
+	if when.is_empty():
+		return ""
+	return "When the node is %s, every charge goes off in one blast for %s damage per charge." % [
+			when, NumFmt.num(damage_per_charge)]

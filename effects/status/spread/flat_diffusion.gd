@@ -43,3 +43,7 @@ func _crowding(field: StackField, h: Dictionary, v: NodeCombat) -> int:
 		if _height(field, h, w) - hv >= min_diff:
 			count += 1
 	return count
+
+
+func describe() -> String:
+	return "Each turn a stack seeps to every neighbour at least %s lower." % NumFmt.num(min_diff)

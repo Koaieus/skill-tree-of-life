@@ -69,3 +69,16 @@ func _sink_count(field: StackField, r: NodeCombat, removed_set: Dictionary, rece
 		if not removed_set.has(m) and not receivers.has(m):
 			n += 1
 	return n
+
+
+func describe() -> String:
+	var when := cause_phrase(triggers)
+	if when.is_empty() or spread_fraction <= 0.0:
+		return ""
+	var text := "When the node is %s, %s%% of its stacks spill evenly onto its surviving neighbours" % [
+			when, NumFmt.num(spread_fraction * 100.0)]
+	if triggers & CAUSE_DEATH and death_fraction < 1.0:
+		text += " (%s%% of that on a kill)" % NumFmt.num(death_fraction * 100.0)
+	if sink_mask & 1:
+		text += "; unowned neighbours soak up their share"
+	return text + "."

@@ -29,3 +29,7 @@ func _degree(field: StackField, memo: Dictionary, n: NodeCombat) -> int:
 	if not memo.has(n):
 		memo[n] = field.masked_degree(n)
 	return memo[n]
+
+
+func describe() -> String:
+	return "Each turn %s%% of the gap to every lower neighbour seeps across, slowed at hubs." % NumFmt.num(fraction * 100.0)

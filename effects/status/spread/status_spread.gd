@@ -43,6 +43,21 @@ func on_removed(_field: StackField, _removed: Array[NodeCombat], _cause: int) ->
 	return [] as Array[StackTransfer]
 
 
-## Stub.
+## One player-facing sentence for how this rule moves stacks, in the rule's
+## own numbers ([NumFmt]) — the concept card's Spread section asks it, never
+## re-derives it. A rule with nothing worth saying returns `""` and the
+## section is omitted. Not abstract: a bare test subclass stays valid.
 func describe() -> String:
-	return "x"
+	return ""
+
+
+## "killed", "released", or "killed or released" for a [param causes] mask of
+## [constant CAUSE_DEATH] / [constant CAUSE_DEALLOC] bits; `""` for none.
+static func cause_phrase(causes: int) -> String:
+	var words: PackedStringArray = []
+	if causes & CAUSE_DEATH:
+		words.append("killed")
+	if causes & CAUSE_DEALLOC:
+		words.append("released")
+	return " or ".join(words)
+

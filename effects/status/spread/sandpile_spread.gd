@@ -171,3 +171,11 @@ static func _net_transfers(order: Array, initial: Dictionary, pile: Dictionary,
 		if give > 0:
 			out.append(StackTransfer.new(n, null, float(give), key))
 	return out
+
+
+func describe() -> String:
+	var text := "A node holding its degree + %s stacks topples: one stack flows down each edge and %s %s" % [
+			NumFmt.num(burn + keep), NumFmt.num(burn), "burns" if burn == 1 else "burn"]
+	if keep > 0:
+		text += ", leaving at least %s behind" % NumFmt.num(keep)
+	return text + "."
