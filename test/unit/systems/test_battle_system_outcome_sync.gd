@@ -22,7 +22,6 @@ extends GutTest
 ## A(0,0) - B(200,0) - C(400,0) layout.
 
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _BOARD := preload("res://entity/default_entity_board.tres")
 const _PLAYER_FACTION := preload("res://entity/factions/player.tres")
 const _NPC_FACTION := preload("res://entity/factions/npc.tres")
@@ -47,8 +46,7 @@ func _set_ranged_damage(node: SkillNode, value: float) -> void:
 ## Builds a fresh graph + attacker + hostile + BattleSystem each call so the
 ## two scenarios (null vfx / live vfx) never share state.
 func _build(with_live_vfx: bool) -> Dictionary:
-	var graph: Graph = _GRAPH_SCENE.instantiate()
-	add_child_autofree(graph)
+	var graph: Graph = TestWorld.create(self).graph
 
 	var core := _SKILL_NODE_SCENE.instantiate() as SkillNode
 	core.position = Vector2(0, 0)
@@ -84,9 +82,7 @@ func _build(with_live_vfx: bool) -> Dictionary:
 	graph.add_child(hostile)
 	await get_tree().process_frame
 
-	var alloc := AllocationSystem.new()
-	alloc.graph = graph
-	add_child_autofree(alloc)
+	var alloc := TestWorld.around(graph).allocator()
 	alloc.force_allocate(attacker, core)
 	alloc.force_allocate(attacker, leaf)
 	attacker.core_location = core

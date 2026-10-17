@@ -98,13 +98,11 @@ func test_top_is_the_last_pushed_and_root_when_empty() -> void:
 # ── The attack level owns the plan ───────────────────────────────────────────
 
 const _BOARD := preload("res://entity/default_entity_board.tres")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _HEALING_BEAM: SpellDef = preload("res://attack/spell/defs/healing_beam.tres")
 
 
 func _melee_fixture() -> Dictionary:
-	var graph: Graph = _GRAPH_SCENE.instantiate()
-	add_child_autofree(graph)
+	var graph: Graph = TestWorld.create(self).graph
 	var tm: TurnManager = autofree(TurnManager.new())
 	add_child(tm)
 	var bs: BattleSystem = autofree(BattleSystem.new())
@@ -115,9 +113,7 @@ func _melee_fixture() -> Dictionary:
 	var player: Entity = autofree(Entity.new())
 	player.stat_board = _BOARD.duplicate(true) as EntityStatBoard
 	graph.entities_container.add_child(player)
-	var alloc := AllocationSystem.new()
-	alloc.graph = graph
-	add_child_autofree(alloc)
+	var alloc := TestWorld.around(graph).allocator()
 	var ctl := PlayerInputController.new()
 	ctl.graph = graph
 	ctl.battle_system = bs

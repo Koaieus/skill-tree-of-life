@@ -10,7 +10,6 @@ extends GutTest
 ##     test_click_grammar.gd).
 
 const _BOARD := preload("res://entity/default_entity_board.tres")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _PLAYER_FACTION := preload("res://entity/factions/player.tres")
 const _NPC_FACTION := preload("res://entity/factions/npc.tres")
@@ -22,8 +21,7 @@ var _player: Entity
 
 
 func before_each() -> void:
-	_graph = _GRAPH_SCENE.instantiate()
-	add_child_autofree(_graph)
+	_graph = TestWorld.create(self).graph
 
 	_tm = autofree(TurnManager.new())
 	add_child(_tm)
@@ -42,9 +40,7 @@ func before_each() -> void:
 
 	# The controller early-returns on a missing dep, so all three ARE needed
 	# (clicks won't route, but the turn-ended subscription only lands with all).
-	var alloc := AllocationSystem.new()
-	alloc.graph = _graph
-	add_child_autofree(alloc)
+	var alloc := TestWorld.around(_graph).allocator()
 
 	_ctl = PlayerInputController.new()
 	_ctl.graph = _graph
@@ -108,9 +104,7 @@ func _cast_fixture() -> Dictionary:
 	_graph.add_edge(core, leaf)
 	_graph.add_edge(leaf, target)
 
-	var alloc := AllocationSystem.new()
-	alloc.graph = _graph
-	add_child_autofree(alloc)
+	var alloc := TestWorld.around(_graph).allocator()
 	alloc.force_allocate(_player, core)
 	alloc.force_allocate(_player, leaf)
 	_player.core_location = core

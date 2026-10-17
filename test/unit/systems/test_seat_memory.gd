@@ -3,7 +3,6 @@ extends GutTest
 ## per entity, so a hot-seat handover neither leaks nor loses it.
 
 const _BOARD := preload("res://entity/default_entity_board.tres")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 ## Not the magic plan's bundled fallback (Spark), so "took the pick" is visible.
 const _PICK: SpellDef = preload("res://attack/spell/defs/healing_beam.tres")
 
@@ -14,8 +13,7 @@ var _b: Entity
 
 
 func before_each() -> void:
-	var graph: Graph = _GRAPH_SCENE.instantiate()
-	add_child_autofree(graph)
+	var graph: Graph = TestWorld.create(self).graph
 	_tm = autofree(TurnManager.new())
 	add_child(_tm)
 	var bs: BattleSystem = autofree(BattleSystem.new())
@@ -25,9 +23,7 @@ func before_each() -> void:
 	add_child(bs)
 	_a = _entity(graph)
 	_b = _entity(graph)
-	var alloc := AllocationSystem.new()
-	alloc.graph = graph
-	add_child_autofree(alloc)
+	var alloc := TestWorld.around(graph).allocator()
 	_ctl = PlayerInputController.new()
 	_ctl.graph = graph
 	_ctl.battle_system = bs

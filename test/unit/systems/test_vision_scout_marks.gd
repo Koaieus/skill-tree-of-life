@@ -14,7 +14,6 @@ extends GutTest
 ## `radius_for(target, 3)` ≈ 173.
 
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _BOARD := preload("res://entity/default_entity_board.tres")
 const _PLAYER_FACTION := preload("res://entity/factions/player.tres")
 const _NPC_FACTION := preload("res://entity/factions/npc.tres")
@@ -30,8 +29,7 @@ var _nodes: Dictionary = {}
 
 func before_each() -> void:
 	_nodes = {}
-	_graph = _GRAPH_SCENE.instantiate()
-	add_child_autofree(_graph)
+	_graph = TestWorld.create(self).graph
 	for entry in [["core", 0.0], ["leaf", 100.0], ["target", 400.0],
 			["neighbour", 700.0], ["probe", 590.0]]:
 		var node := _SKILL_NODE_SCENE.instantiate() as SkillNode
@@ -48,9 +46,7 @@ func before_each() -> void:
 	_defender = _entity("Defender", _NPC_FACTION)
 	await get_tree().process_frame
 
-	var alloc := AllocationSystem.new()
-	alloc.graph = _graph
-	add_child_autofree(alloc)
+	var alloc := TestWorld.around(_graph).allocator()
 	alloc.force_allocate(_attacker, _nodes.core)
 	alloc.force_allocate(_attacker, _nodes.leaf)
 	_attacker.core_location = _nodes.core

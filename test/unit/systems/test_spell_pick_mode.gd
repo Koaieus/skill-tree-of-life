@@ -9,7 +9,6 @@ extends GutTest
 ## Far adjacent to Hostile, both owned by an NPC.
 
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _BOARD := preload("res://entity/default_entity_board.tres")
 const _PLAYER_FACTION := preload("res://entity/factions/player.tres")
 const _NPC_FACTION := preload("res://entity/factions/npc.tres")
@@ -44,8 +43,7 @@ func _entity(faction: Faction) -> Entity:
 
 
 func before_each() -> void:
-	_graph = _GRAPH_SCENE.instantiate()
-	add_child_autofree(_graph)
+	_graph = TestWorld.create(self).graph
 	_pivot = _spawn("Pivot", Vector2(0, 0))
 	_joint = _spawn("Joint", Vector2(200, 0))
 	_tip = _spawn("Tip", Vector2(400, 0))
@@ -57,9 +55,7 @@ func before_each() -> void:
 	_graph.add_edge(_enemy, _far)
 	_attacker = _entity(_PLAYER_FACTION)
 	var hostile := _entity(_NPC_FACTION)
-	_alloc = AllocationSystem.new()
-	_alloc.graph = _graph
-	add_child_autofree(_alloc)
+	_alloc = TestWorld.around(_graph).allocator()
 	for n in [_pivot, _joint, _tip]:
 		_alloc.force_allocate(_attacker, n)
 	_alloc.force_allocate(hostile, _enemy)

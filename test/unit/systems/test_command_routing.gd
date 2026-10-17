@@ -14,7 +14,6 @@ var _catalog: TempUpgradeCatalog = preload("res://attack/melee/temp_upgrade_cata
 
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _BOARD := preload("res://entity/default_entity_board.tres")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 
 var _graph: Graph
 var _alloc: AllocationSystem
@@ -28,9 +27,7 @@ var _denials: Array
 
 
 func before_each() -> void:
-	_graph = _GRAPH_SCENE.instantiate()
-	_graph.name = "TestGraph"
-	add_child_autofree(_graph)
+	_graph = TestWorld.create(self, "TestGraph").graph
 
 	_nodes = {}
 	for id in ["A", "B", "C", "D"]:
@@ -42,10 +39,8 @@ func before_each() -> void:
 	_graph.add_edge(_n("B"), _n("C"))
 	_graph.add_edge(_n("C"), _n("D"))
 
-	_alloc = AllocationSystem.new()
-	_alloc.graph = _graph
+	_alloc = TestWorld.around(_graph).allocator()
 	_alloc.navigator = _graph.navigator
-	add_child_autofree(_alloc)
 
 	_battle = autofree(BattleSystem.new())
 	_battle.temp_upgrade_catalog = _catalog

@@ -8,7 +8,6 @@ extends GutTest
 ## [signal TurnManager.turn_ended]. [method TurnManager.adopt_turn] runs neither.
 
 const _BOARD := preload("res://entity/default_entity_board.tres")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 
 
 ## Records what the entity looked like when its turn reached the controller.
@@ -27,8 +26,7 @@ var _graph: Graph
 func before_each() -> void:
 	_tm = TurnManager.new()
 	add_child_autofree(_tm)
-	_graph = _GRAPH_SCENE.instantiate()
-	add_child_autofree(_graph)
+	_graph = TestWorld.create(self).graph
 	_tm.entity_root = _graph
 
 

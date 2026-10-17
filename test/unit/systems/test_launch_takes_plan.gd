@@ -6,7 +6,6 @@ extends GutTest
 ## and nobody else's. See [method BattleSystem.launch_attack].
 
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _PLAYER_FACTION := preload("res://entity/factions/player.tres")
 const _CATALOG := preload("res://attack/melee/temp_upgrade_catalog.tres")
 const _ArmingCtl := preload("res://test/support/arming_ctl.gd")
@@ -43,8 +42,7 @@ func _make_entity(ent_name: String, faction: Faction = null) -> Entity:
 
 func before_each() -> void:
 	_slot_writes = []
-	_graph = _GRAPH_SCENE.instantiate()
-	add_child_autofree(_graph)
+	_graph = TestWorld.create(self).graph
 	_nodes = []
 	for i in 3:
 		var sn := _SKILL_NODE_SCENE.instantiate() as SkillNode
@@ -53,9 +51,7 @@ func before_each() -> void:
 		_nodes.append(sn)
 	_graph.add_edge(_nodes[0], _nodes[1])
 
-	_alloc = AllocationSystem.new()
-	_alloc.graph = _graph
-	add_child_autofree(_alloc)
+	_alloc = TestWorld.around(_graph).allocator()
 	_tm = autofree(TurnManager.new())
 	add_child(_tm)
 

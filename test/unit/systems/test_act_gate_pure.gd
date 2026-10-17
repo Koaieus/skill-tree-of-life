@@ -24,7 +24,6 @@ extends GutTest
 ## turn-start refill included.
 
 const _BOARD := preload("res://entity/default_entity_board.tres")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 
 var _graph: Graph
 var _tm: TurnManager
@@ -52,19 +51,15 @@ func _make_entity(ent_name: String) -> Entity:
 
 
 func before_each() -> void:
-	_graph = _GRAPH_SCENE.instantiate()
-	_graph.name = "TestGraph"
-	add_child_autofree(_graph)
+	_graph = TestWorld.create(self, "TestGraph").graph
 
 	# TurnManager enters the tree before either entity: `Entity.initialize`
 	# finds it by group.
 	_tm = autofree(TurnManager.new())
 	add_child(_tm)
 
-	var alloc := AllocationSystem.new()
-	alloc.graph = _graph
+	var alloc := TestWorld.around(_graph).allocator()
 	alloc.turn_manager = _tm
-	add_child_autofree(alloc)
 
 	# PIC enters the tree before the entities. The regression story was "gate
 	# computed first, refill second"; since `Entity.begin_turn` refills before

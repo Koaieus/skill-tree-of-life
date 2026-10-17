@@ -10,7 +10,6 @@ extends GutTest
 ## `allocation_system` unset and calls `sources_for` directly.
 
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _BOARD := preload("res://entity/default_entity_board.tres")
 const _SCOUTED: ScoutStatus = preload("res://effects/status/scouted.tres")
 const _FACTIONS := [preload("res://entity/factions/player.tres"),
@@ -29,16 +28,13 @@ var _n5: SkillNode
 
 
 func before_each() -> void:
-	_graph = _GRAPH_SCENE.instantiate()
-	add_child_autofree(_graph)
+	_graph = TestWorld.create(self).graph
 	_n0 = _spawn("N0", 0.0)
 	_n1 = _spawn("N1", 50.0)
 	_n2 = _spawn("N2", 300.0)
 	_n5 = _spawn("N5", 600.0)
 
-	_alloc = AllocationSystem.new()
-	_alloc.graph = _graph
-	add_child_autofree(_alloc)
+	_alloc = TestWorld.around(_graph).allocator()
 
 	_a = _entity("A", 0)
 	_b = _entity("B", 1)
