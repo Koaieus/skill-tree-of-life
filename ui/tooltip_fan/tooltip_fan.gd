@@ -90,6 +90,9 @@ var graph: Graph = null
 ## sandbox, a test that doesn't care) leaves the driver's unbounded default.
 var usable_rect_source: Callable = Callable()
 
+## Stub (red commit).
+var held := false
+
 var _hovered_node: SkillNode = null
 var _current_fan: Node = null
 

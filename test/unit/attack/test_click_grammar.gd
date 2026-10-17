@@ -13,6 +13,10 @@ const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _BOARD := preload("res://entity/default_entity_board.tres")
 const _PLAYER_FACTION := preload("res://entity/factions/player.tres")
 const _NPC_FACTION := preload("res://entity/factions/npc.tres")
+## Paid in blade size alone, so a raised [member StatBoard.blade_size] affords it.
+const _CLAMP := preload("res://skill_node/addons/defs/clamp_addon.tscn")
+const _TOOLTIP_FAN_SCENE := preload("res://ui/tooltip_fan/tooltip_fan.tscn")
+const _BLADE_NODE_MENU_SCENE := preload("res://ui/hud/blade_node_menu/blade_node_menu.tscn")
 
 var _graph: Graph
 var _alloc: AllocationSystem
@@ -87,6 +91,14 @@ func _melee() -> MeleeAttackPlan:
 	return _ctl.armed_stack.attack_plan() as MeleeAttackPlan
 
 
+func _menu() -> BladeNodeMenuMode:
+	return _ctl.armed_stack.top() as BladeNodeMenuMode
+
+
+func _carries_temp(node: SkillNode) -> bool:
+	return node.get_addons().any(func(a: SkillNodeAddon) -> bool: return a.is_temporary)
+
+
 func _upgrade() -> PackedScene:
 	return preload("res://test/support/addons/second_dot_addon.tscn")
 
@@ -117,16 +129,106 @@ func test_melee_pivot_pushes_blade_and_two_pops_reach_the_root() -> void:
 	assert_false(_ctl.pop_armed_level(), "the root does not pop")
 
 
-func test_clicking_the_pivot_at_blade_pops_blade() -> void:
+func test_clicking_the_pivot_at_blade_opens_its_menu_and_hub_unpick_clears_the_blade() -> void:
 	_ctl.arm_attack(BattleSystem.AttackMode.MELEE)
 	_ctl.route_left_click(_pivot)
 	_ctl.route_left_click(_joint)
 	assert_eq(_melee().blade_nodes, [_joint] as Array[SkillNode], "precondition: a member")
 	watch_signals(Events)
 	_ctl.route_left_click(_pivot)
-	assert_eq(_branch(), [ManageMode, MeleeMode], "the pivot click pops Blade")
+	assert_eq(_branch(), [ManageMode, MeleeMode, BladeMode, BladeNodeMenuMode],
+			"a picked pivot opens its menu")
+	assert_eq(_menu().node, _pivot)
+	assert_eq(_melee().source, _pivot, "opening the menu changes nothing")
+	_menu().unpick()
+	assert_eq(_branch(), [ManageMode, MeleeMode], "un-pick on the pivot pops Blade")
 	assert_null(_melee().source)
 	assert_signal_not_emitted(Events, "node_action_denied", "no denial shake")
+
+
+func test_clicking_a_member_opens_its_menu_and_right_click_pops_back_to_blade() -> void:
+	_ctl.arm_attack(BattleSystem.AttackMode.MELEE)
+	_ctl.route_left_click(_pivot)
+	_ctl.route_left_click(_joint)
+	_ctl.route_left_click(_joint)
+	assert_eq(_branch(), [ManageMode, MeleeMode, BladeMode, BladeNodeMenuMode],
+			"a picked member opens its menu")
+	assert_eq(_menu().node, _joint)
+	assert_true(_ctl.pop_armed_level())
+	assert_eq(_branch(), [ManageMode, MeleeMode, BladeMode], "right-click pops only the menu")
+	assert_eq(_melee().blade_nodes, [_joint] as Array[SkillNode], "the member is still in")
+
+
+func test_hub_unpick_on_a_member_removes_it() -> void:
+	_ctl.arm_attack(BattleSystem.AttackMode.MELEE)
+	_ctl.route_left_click(_pivot)
+	_ctl.route_left_click(_joint)
+	_ctl.route_left_click(_joint)
+	_menu().unpick()
+	assert_eq(_branch(), [ManageMode, MeleeMode, BladeMode], "the menu closes, Blade stays")
+	assert_eq(_melee().blade_nodes, [] as Array[SkillNode], "the member is out")
+	assert_eq(_melee().source, _pivot, "pivot intact")
+
+
+func test_clicking_an_unpicked_node_still_adds_it() -> void:
+	_attacker.stat_board.blade_size.base_value = 3.0
+	_ctl.arm_attack(BattleSystem.AttackMode.MELEE)
+	_ctl.route_left_click(_pivot)
+	_ctl.route_left_click(_joint)
+	_ctl.route_left_click(_tip)
+	assert_eq(_branch(), [ManageMode, MeleeMode, BladeMode], "no menu for an unpicked node")
+	assert_eq(_melee().blade_nodes, [_joint, _tip] as Array[SkillNode])
+
+
+func test_an_armed_temp_upgrade_overrides_the_menu_and_places() -> void:
+	_attacker.stat_board.blade_size.base_value = 3.0
+	_ctl.arm_attack(BattleSystem.AttackMode.MELEE)
+	_ctl.route_left_click(_pivot)
+	_ctl.route_left_click(_joint)
+	_ctl.arm_temp_upgrade(_CLAMP)
+	_ctl.route_left_click(_joint)
+	assert_eq(_branch(), [ManageMode, MeleeMode, BladeMode, TempUpgradeMode],
+			"the armed card wins the click: no menu")
+	assert_true(_carries_temp(_joint), "the blueprint is placed")
+
+
+func test_a_menu_pick_places_on_its_node_and_leaves_nothing_armed() -> void:
+	_attacker.stat_board.blade_size.base_value = 3.0
+	_ctl.arm_attack(BattleSystem.AttackMode.MELEE)
+	_ctl.route_left_click(_pivot)
+	_ctl.route_left_click(_joint)
+	_ctl.route_left_click(_joint)
+	_menu().pick(_CLAMP)
+	assert_true(_carries_temp(_joint), "the pick lands on the menu's node")
+	assert_eq(_branch(), [ManageMode, MeleeMode, BladeMode], "the menu pops")
+	assert_null(_ctl.temp_upgrade_arm(), "nothing stays armed")
+
+
+func test_the_hud_menu_holds_the_tooltip_fan_and_its_card_places() -> void:
+	_attacker.stat_board.blade_size.base_value = 3.0
+	_bs.temp_upgrade_catalog = TempUpgradeCatalog.new()
+	var tooltip := _TOOLTIP_FAN_SCENE.instantiate() as TooltipFan
+	add_child_autofree(tooltip)
+	var hud_menu := _BLADE_NODE_MENU_SCENE.instantiate() as BladeNodeMenu
+	add_child_autofree(hud_menu)
+	hud_menu.bind(_ctl, tooltip, null)
+	_ctl.arm_attack(BattleSystem.AttackMode.MELEE)
+	_ctl.route_left_click(_pivot)
+	_ctl.route_left_click(_joint)
+	assert_false(hud_menu.is_open(), "no menu before a picked node is clicked")
+	_ctl.route_left_click(_joint)
+	assert_true(hud_menu.is_open(), "the menu opens on the stack's push")
+	assert_true(tooltip.held, "and holds the tooltip fan down")
+	Events.skill_node_hovered.emit(_joint)
+	assert_null(tooltip._current_fan, "a hover raises no tooltip while the menu is open")
+	var cards := hud_menu.fan().cards()
+	assert_false(cards.is_empty(), "precondition: something is placeable on the member")
+	cards[0].pressed.emit()
+	assert_true(_carries_temp(_joint), "a card pick places on the menu's node")
+	assert_eq(_branch(), [ManageMode, MeleeMode, BladeMode], "and pops the menu")
+	assert_false(hud_menu.is_open(), "which closes")
+	assert_false(tooltip.held, "and lets the tooltip fan go")
+	Events.skill_node_unhovered.emit()
 
 
 func test_reset_button_pops_blade() -> void:
