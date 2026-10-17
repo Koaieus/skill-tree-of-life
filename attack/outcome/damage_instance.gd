@@ -26,6 +26,7 @@ var from_withered_heal: bool = false
 ## nodes its cascade strips spill at 1.0. Shadow-only: the computed spill
 ## rides the hit's [DeallocEntry]s, so the record never carries this.
 var spill_scale: float = 1.0
+var armor_pierce: FoldTerms = null
 
 
 func _init() -> void:

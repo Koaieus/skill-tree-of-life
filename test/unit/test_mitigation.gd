@@ -188,3 +188,114 @@ func test_take_damage_effective_amount_is_mitigated_not_soaked_on_overkill() -> 
 	assert_almost_eq(node.get_current_hp(), 0.0, 0.001)
 	assert_almost_eq(hit.effective_amount, 10.0, 0.001,
 		"effective_amount reports the full mitigated hit, not the 3 HP actually soaked")
+
+
+# ── Armor pierce: the attacker's pipeline over the defender's FINAL armor ────
+# Terms are built from real StatModifiers through ModifierBins, so the bin
+# order (ADD_BASE, then INCREASE × MULTIPLY, then ADD_BONUS; SET wins) is what
+# is tested — never a hand-filled FoldTerms.
+
+func _mod(op: StatModifier.Operation, value: float) -> StatModifier:
+	var m := StatModifier.new()
+	m.stat_id = &"armor_pierce"
+	m.operation = op
+	m.value = value
+	return m
+
+
+func _pierce(mods: Array) -> FoldTerms:
+	var bins := ModifierBins.new()
+	for m in mods:
+		bins.add(m, null)
+	var sources: Array[ModifierBins] = [bins]
+	return ModifierBins.resolve(sources)
+
+
+func test_pierce_multiply_halves_armor_and_floors_to_whole() -> void:
+	# armor 5 × 0.5 = 2.5 → whole 2 → 10 − 2
+	assert_almost_eq(Mitigation.compute(10.0, 5.0, 0.0, _pierce([_mod(StatModifier.Operation.MULTIPLY, 0.5)])), 8.0, 0.001)
+
+
+func test_pierce_add_base_lowers_armor() -> void:
+	assert_almost_eq(Mitigation.compute(10.0, 5.0, 0.0, _pierce([_mod(StatModifier.Operation.ADD_BASE, -3.0)])), 8.0, 0.001)
+
+
+func test_pierce_stops_at_zero_never_inverts() -> void:
+	# (5 × 0.5) − 5 = −2.5 → clamped 0, never a bigger hit
+	var p := _pierce([_mod(StatModifier.Operation.MULTIPLY, 0.5), _mod(StatModifier.Operation.ADD_BONUS, -5.0)])
+	assert_almost_eq(Mitigation.compute(10.0, 5.0, 0.0, p), 10.0, 0.001)
+
+
+func test_pierce_leaves_negative_armor_untouched() -> void:
+	assert_almost_eq(Mitigation.compute(10.0, -4.0, 0.0, _pierce([_mod(StatModifier.Operation.MULTIPLY, 0.5)])), 14.0, 0.001)
+	assert_almost_eq(Mitigation.compute(10.0, -4.0, 0.0, _pierce([_mod(StatModifier.Operation.ADD_BASE, -3.0)])), 14.0, 0.001)
+
+
+func test_pierce_on_zero_armor_is_zero() -> void:
+	assert_almost_eq(Mitigation.compute(10.0, 0.0, 0.0, _pierce([_mod(StatModifier.Operation.ADD_BASE, -3.0)])), 10.0, 0.001)
+
+
+func test_pierce_set_zero_ignores_armor() -> void:
+	assert_almost_eq(Mitigation.compute(10.0, 5.0, 0.0, _pierce([_mod(StatModifier.Operation.SET, 0.0)])), 10.0, 0.001)
+
+
+func test_null_pierce_is_identity() -> void:
+	assert_almost_eq(Mitigation.compute(10.0, 5.0, 0.0, null), 5.0, 0.001)
+
+
+func test_floor_still_wins_after_pierce() -> void:
+	var p := _pierce([_mod(StatModifier.Operation.ADD_BASE, -3.0)])
+	assert_almost_eq(Mitigation.compute(4.0, 5.0, 3.0, p), 3.0, 0.001, "max(floor 3, 4 − 2)")
+	assert_almost_eq(Mitigation.compute(4.0, 5.0, 0.0, p), 2.0, 0.001)
+
+
+## Two pipelines, not merged bins: the defender's armor folds to its FINAL
+## value (base 4, +50% INC, +2 BONUS → 8) and the pierce then folds THAT. A
+## refactor that merges the pierce into the defender's armor bins lands the
+## other column (3 / 6 / 5) and reds here.
+func test_pierce_folds_the_defenders_final_armor() -> void:
+	var node := _owned_node()
+	await get_tree().process_frame
+	node.owned_by.stat_board.armor.base_value = 4.0
+	node.owned_by.stat_board.min_damage_taken.base_value = 0.0
+	var inc := StatModifier.new()
+	inc.stat_id = &"armor"
+	inc.operation = StatModifier.Operation.INCREASE
+	inc.value = 50.0
+	node.add_local_modifier(inc)
+	var bon := StatModifier.new()
+	bon.stat_id = &"armor"
+	bon.operation = StatModifier.Operation.ADD_BONUS
+	bon.value = 2.0
+	node.add_local_modifier(bon)
+	assert_eq(int(node.get_local_value(&"armor")), 8, "fixture: displayed armor 8")
+	var rows := [
+		[_mod(StatModifier.Operation.ADD_BASE, -3.0), 5.0],
+		[_mod(StatModifier.Operation.INCREASE, -50.0), 4.0],
+		[_mod(StatModifier.Operation.MULTIPLY, 0.5), 4.0],
+		[_mod(StatModifier.Operation.SET, 0.0), 0.0],
+	]
+	for row in rows:
+		var hit := _raw(20.0)
+		hit.armor_pierce = _pierce([row[0]])
+		assert_almost_eq(Mitigation.apply(hit, node), 20.0 - row[1], 0.001,
+			"pierce %s on final armor 8 → effective armor %s" % [row[0].operation, row[1]])
+
+
+## The producer's stamp: board terms (node-local) overlaid with the producer's
+## own modifiers; uses_board off with nothing authored → null.
+func test_pierce_terms_overlay_board_with_producer_mods() -> void:
+	var node := _owned_node()
+	await get_tree().process_frame
+	node.add_local_modifier(_mod(StatModifier.Operation.ADD_BASE, -3.0))
+	var no_mods: Array[StatModifier] = []
+	var half: Array[StatModifier] = [_mod(StatModifier.Operation.MULTIPLY, 0.5)]
+	var board_only: FoldTerms = Mitigation.pierce_terms(node.get_combat(), true, no_mods)
+	assert_not_null(board_only, "a node-local armor_pierce modifier reaches the terms")
+	assert_almost_eq(board_only.fold(8.0), 5.0, 0.001)
+	assert_almost_eq(Mitigation.pierce_terms(node.get_combat(), true, half).fold(8.0), 2.5, 0.001,
+		"(8 − 3) × 0.5")
+	assert_null(Mitigation.pierce_terms(node.get_combat(), false, no_mods),
+		"uses_board_pierce off and nothing authored stamps null even with board pierce")
+	assert_almost_eq(Mitigation.pierce_terms(node.get_combat(), false, half).fold(8.0), 4.0, 0.001,
+		"producer-only: the board's −3 is ignored")

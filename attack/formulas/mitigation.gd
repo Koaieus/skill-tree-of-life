@@ -45,7 +45,11 @@ static func apply(raw: DamageInstance, defender: SkillNode) -> float:
 
 
 ## The formula itself, free of any board/node lookup.
-static func compute(amount: float, armor: float, floor_min: float) -> float:
+static func compute(amount: float, armor: float, floor_min: float, _pierce: FoldTerms = null) -> float:
 	if amount <= 0.0:
 		return 0.0
 	return max(floor_min, amount - armor)
+
+
+static func pierce_terms(_read: NodeCombat, _uses_board: bool, _mods: Array[StatModifier]) -> FoldTerms:
+	return null
