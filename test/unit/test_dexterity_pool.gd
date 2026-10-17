@@ -209,7 +209,9 @@ func test_rolled_poison_grant_lands_on_the_board_and_mints_on_reload() -> void:
 	alloc.force_deallocate(b)
 	assert_almost_eq(player.stat_board.facet(&"poison", StatDef.Role.ASPECT).get_value(), before, 0.001,
 			"deallocating the grant node takes the grant back")
-## #1676: armor_pierce rolls ride the DEX pack as boons. Ops and valence only,
+
+
+## armor_pierce rolls ride the DEX pack as boons. Ops and valence only,
 ## never magnitudes: a negative delta on a lower_is_better stat is an improvement.
 func test_armor_pierce_lines_are_boons() -> void:
 	var p: StatPack = _PACK.duplicate(true) as StatPack
