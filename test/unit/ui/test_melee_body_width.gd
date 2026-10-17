@@ -114,30 +114,17 @@ func _mount_body(blade: int) -> MeleeBody:
 
 # ── The bound ────────────────────────────────────────────────────────────────
 
-## A catalog of [constant _FIXTURE_KINDS] aspect-free placeable kinds, written
-## once per run to `user://` and scanned through a fresh [TempUpgradeCatalog]
-## (its [method TempUpgradeCatalog.kinds] caches, so [member folder] is set
-## before the first read).
-const _FIXTURE_DIR := "user://test_melee_body_width_addons"
+## A committed catalog of [constant _FIXTURE_KINDS] aspect-free placeable
+## kinds (`test/fixtures/melee_body_width/`), so the bound never moves with the
+## shipped catalog.
+const _FIXTURE_CATALOG := preload("res://test/fixtures/melee_body_width/ten_kind_catalog.tres")
 const _FIXTURE_KINDS := 10
 
 
 func _fixture_catalog() -> TempUpgradeCatalog:
-	DirAccess.make_dir_recursive_absolute(_FIXTURE_DIR)
-	for i in _FIXTURE_KINDS:
-		var path := _FIXTURE_DIR.path_join("fixture_%02d_addon.tscn" % i)
-		if not FileAccess.file_exists(path):
-			var addon := SkillNodeAddon.new()
-			addon.name = "Fixture%02d" % i
-			addon.temp_placeable = true
-			var packed := PackedScene.new()
-			packed.pack(addon)
-			addon.free()
-			ResourceSaver.save(packed, path)
-	var catalog := TempUpgradeCatalog.new()
-	catalog.folder = _FIXTURE_DIR
+	var catalog := _FIXTURE_CATALOG as TempUpgradeCatalog
 	assert_eq(catalog.offered().size(), _FIXTURE_KINDS,
-			"fixture check: every generated kind is scanned and placeable")
+			"fixture check: every committed kind is scanned and placeable")
 	return catalog
 
 
