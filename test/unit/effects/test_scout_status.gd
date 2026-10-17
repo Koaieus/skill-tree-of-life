@@ -12,21 +12,17 @@ const _BOARD := preload("res://entity/default_entity_board.tres")
 const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _SCOUT_PATH := "res://effects/status/scouted.tres"
 
+var _w: TestWorld
 var _graph: Graph
 var _alloc: AllocationSystem
 var _a: Entity
 
 
 func before_each() -> void:
-	_graph = _GRAPH_SCENE.instantiate()
-	add_child_autofree(_graph)
-	_alloc = AllocationSystem.new()
-	_alloc.graph = _graph
-	add_child_autofree(_alloc)
-	_a = autofree(Entity.new())
-	_a.name = "A"
-	_a.stat_board = _BOARD.duplicate(true) as EntityStatBoard
-	_graph.entities_container.add_child(_a)
+	_w = TestWorld.create(self)
+	_graph = _w.graph
+	_alloc = _w.allocator()
+	_a = _w.add_entity("A", _BOARD.duplicate(true) as EntityStatBoard)
 	await get_tree().process_frame
 
 
@@ -37,8 +33,7 @@ func _def() -> ScoutStatus:
 
 
 func _new_node() -> SkillNode:
-	var n := _SKILL_NODE_SCENE.instantiate() as SkillNode
-	_graph.skill_nodes_container.add_child(n)
+	var n := _w.add_node(StringName("N%d" % _graph.skill_nodes_container.get_child_count()))
 	await get_tree().process_frame
 	return n
 

@@ -5,10 +5,9 @@ extends GutTest
 ## scale and no value-based discard can author. Past the end is
 ## `DistanceScale.NOT_GRANTED`, never 0.
 
-const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _BOARD := preload("res://entity/default_entity_board.tres")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 
+var _w: TestWorld
 var _graph: Graph
 var _alloc: AllocationSystem
 var _chain: Array[SkillNode]
@@ -64,29 +63,20 @@ func test_does_not_use_the_bound() -> void:
 ## One straight line N0—N1—…—N7, so hop distance from N0 IS the index.
 func _build_chain() -> void:
 	AuraDistanceCache.clear()
-	_graph = _GRAPH_SCENE.instantiate()
-	_graph.name = "TestGraph"
-	add_child_autofree(_graph)
+	_w = TestWorld.create(self)
+	_graph = _w.graph
 	_chain = []
 	for i in 8:
-		var sn := _SKILL_NODE_SCENE.instantiate() as SkillNode
-		sn.name = "N%d" % i
-		sn.position = Vector2(i * 100.0, 0.0)
-		_graph.add_skill_node(sn)
+		var sn := _w.add_node(StringName("N%d" % i), Vector2(i * 100.0, 0.0))
 		_chain.append(sn)
 	for i in 7:
-		_graph.add_edge(_chain[i], _chain[i + 1])
-	_alloc = AllocationSystem.new()
-	_alloc.graph = _graph
-	add_child_autofree(_alloc)
+		_w.link(_chain[i], _chain[i + 1])
+	_alloc = _w.allocator()
 
 
 func _spawn_owning_whole_chain() -> Entity:
-	var ent := autofree(Entity.new()) as Entity
-	ent.display_name = "E"
-	ent.stat_board = _BOARD.duplicate(true) as EntityStatBoard
-	# entities_container: NodeEffectReadout.gather walks it for grant rows.
-	_graph.entities_container.add_child(ent)
+		# entities_container: NodeEffectReadout.gather walks it for grant rows.
+	var ent := _w.add_entity("E", _BOARD.duplicate(true) as EntityStatBoard)
 	await get_tree().process_frame
 	for n in _chain:
 		_alloc.force_allocate(ent, n)

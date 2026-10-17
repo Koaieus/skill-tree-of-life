@@ -60,8 +60,6 @@ func test_each_family_decays_in_its_shape() -> void:
 
 # ── RampDecay: the row's stored step ramps the removal ───────────────────────
 
-const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 
 
 func _ramp_def(start: float, step: float) -> StatusDef:
@@ -75,17 +73,10 @@ func _ramp_def(start: float, step: float) -> StatusDef:
 
 ## One allocated node on a deep pool, so nothing dies mid-assert.
 func _host_node() -> SkillNode:
-	var graph: Graph = _GRAPH_SCENE.instantiate()
-	add_child_autofree(graph)
-	var alloc := AllocationSystem.new()
-	alloc.graph = graph
-	add_child_autofree(alloc)
-	var entity: Entity = autofree(Entity.new())
-	entity.stat_board = TestBoards.flat_entity_board()
-	graph.add_child(entity)
-	var node := _SKILL_NODE_SCENE.instantiate() as SkillNode
-	node.name = "N0"
-	graph.skill_nodes_container.add_child(node)
+	var w := TestWorld.create(self)
+	var alloc := w.allocator()
+	var entity := w.add_entity("E", TestBoards.flat_entity_board())
+	var node := w.add_node(&"N0")
 	await get_tree().process_frame
 	alloc.force_allocate(entity, node)
 	entity.core_location = node

@@ -6,10 +6,9 @@ extends GutTest
 ## discard policy ever sees it. Also pins the per-frame evaluation memo: one
 ## `scale_at` per distinct input tuple per recompute.
 
-const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _BOARD := preload("res://entity/default_entity_board.tres")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 
+var _w: TestWorld
 var _graph: Graph
 var _alloc: AllocationSystem
 
@@ -27,19 +26,13 @@ class CountingScale:
 
 func before_each() -> void:
 	AuraDistanceCache.clear()
-	_graph = _GRAPH_SCENE.instantiate()
-	_graph.name = "TestGraph"
-	add_child_autofree(_graph)
-	_alloc = AllocationSystem.new()
-	_alloc.graph = _graph
-	add_child_autofree(_alloc)
+	_w = TestWorld.create(self)
+	_graph = _w.graph
+	_alloc = _w.allocator()
 
 
 func _node(n: String, pos: Vector2) -> SkillNode:
-	var sn := _SKILL_NODE_SCENE.instantiate() as SkillNode
-	sn.name = n
-	sn.position = pos
-	_graph.add_skill_node(sn)
+	var sn := _w.add_node(StringName(n), pos)
 	return sn
 
 
@@ -49,7 +42,7 @@ func _chain(count: int) -> Array[SkillNode]:
 	for i in count:
 		out.append(_node("N%d" % i, Vector2(i * 100.0, 0.0)))
 	for i in count - 1:
-		_graph.add_edge(out[i], out[i + 1])
+		_w.link(out[i], out[i + 1])
 	return out
 
 
@@ -59,16 +52,13 @@ func _star(leaves: int) -> Array[SkillNode]:
 	for i in leaves:
 		var a := TAU * i / leaves
 		out.append(_node("L%d" % i, Vector2(100.0, 0.0).rotated(a)))
-		_graph.add_edge(out[0], out[i + 1])
+		_w.link(out[0], out[i + 1])
 	return out
 
 
 func _spawn_owning(core: SkillNode, owned: Array[SkillNode]) -> Entity:
-	var ent := autofree(Entity.new()) as Entity
-	ent.display_name = "E"
-	ent.stat_board = _BOARD.duplicate(true) as EntityStatBoard
-	# entities_container: NodeEffectReadout.gather walks it for grant rows.
-	_graph.entities_container.add_child(ent)
+		# entities_container: NodeEffectReadout.gather walks it for grant rows.
+	var ent := _w.add_entity("E", _BOARD.duplicate(true) as EntityStatBoard)
 	await get_tree().process_frame
 	for n in owned:
 		_alloc.force_allocate(ent, n)

@@ -12,10 +12,9 @@ extends GutTest
 ## mirror is genuinely populated) — a straight 8-node line here instead of two
 ## disjoint 3-node lines, since several tests below need real hop room.
 
-const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _BOARD := preload("res://entity/default_entity_board.tres")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 
+var _w: TestWorld
 var _graph: Graph
 var _alloc: AllocationSystem
 var _nodes: Array[SkillNode]
@@ -23,25 +22,19 @@ var _nodes: Array[SkillNode]
 
 func before_each() -> void:
 	AuraDistanceCache.clear()
-	_graph = _GRAPH_SCENE.instantiate()
-	_graph.name = "TestGraph"
-	add_child_autofree(_graph)
+	_w = TestWorld.create(self)
+	_graph = _w.graph
 
 	_nodes = []
 	for i in 8:
-		var sn := _SKILL_NODE_SCENE.instantiate() as SkillNode
-		sn.name = "N%d" % i
-		sn.position = Vector2(i * 100.0, 0.0)
-		_graph.add_skill_node(sn)
+		var sn := _w.add_node(StringName("N%d" % i), Vector2(i * 100.0, 0.0))
 		_nodes.append(sn)
 
 	# One straight line: 0-1-2-3-4-5-6-7.
 	for i in range(7):
-		_graph.add_edge(_nodes[i], _nodes[i + 1])
+		_w.link(_nodes[i], _nodes[i + 1])
 
-	_alloc = AllocationSystem.new()
-	_alloc.graph = _graph
-	add_child_autofree(_alloc)
+	_alloc = _w.allocator()
 
 
 func after_each() -> void:
@@ -49,10 +42,7 @@ func after_each() -> void:
 
 
 func _spawn(core: SkillNode, owned: Array[SkillNode]) -> Entity:
-	var ent := autofree(Entity.new()) as Entity
-	ent.display_name = "E"
-	ent.stat_board = _BOARD.duplicate(true) as EntityStatBoard
-	_graph.add_child(ent)
+	var ent := _w.add_entity("E", _BOARD.duplicate(true) as EntityStatBoard)
 	await get_tree().process_frame
 	for n in owned:
 		_alloc.force_allocate(ent, n)

@@ -12,13 +12,11 @@ extends GutTest
 ## `_recompute()` by hand: the fog must re-evaluate on the modifier change
 ## with no allocation event in between (the "poke" the issue asks to verify).
 
-const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
-const _EDGE_SCENE := preload("res://graph/edge.tscn")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _BOARD := preload("res://entity/default_entity_board.tres")
 
 const _STATS: Array[StringName] = [&"vision_range", &"sensor_range"]
 
+var _w: TestWorld
 var _graph: Graph
 var _alloc: AllocationSystem
 var _entity: Entity
@@ -29,31 +27,20 @@ var _shadows: Array[EntityCombat] = []
 
 func before_each() -> void:
 	_shadows = []
-	_graph = _GRAPH_SCENE.instantiate()
-	add_child_autofree(_graph)
+	_w = TestWorld.create(self)
+	_graph = _w.graph
 
-	_alloc = AllocationSystem.new()
-	_alloc.graph = _graph
-	add_child_autofree(_alloc)
+	_alloc = _w.allocator()
 
-	_entity = autofree(Entity.new())
-	_entity.display_name = "Blinkered"
-	_entity.stat_board = _BOARD.duplicate(true) as EntityStatBoard
-	_graph.add_child(_entity)
+	_entity = _w.add_entity("Blinkered", _BOARD.duplicate(true) as EntityStatBoard)
 
 	# Path graph N0 – N1 – N2, 600px apart.
 	_nodes = []
 	for i in 3:
-		var sn := _SKILL_NODE_SCENE.instantiate() as SkillNode
-		sn.name = "N%d" % i
-		sn.position = Vector2(i * 600.0, 0.0)
-		_graph.skill_nodes_container.add_child(sn)
+		var sn := _w.add_node(StringName("N%d" % i), Vector2(i * 600.0, 0.0))
 		_nodes.append(sn)
 	for i in 2:
-		var e := _EDGE_SCENE.instantiate() as Edge
-		e.from = _nodes[i]
-		e.to = _nodes[i + 1]
-		_graph.edges_container.add_child(e)
+		_w.link(_nodes[i], _nodes[i + 1])
 	await get_tree().process_frame
 
 	_alloc.force_allocate(_entity, _nodes[0])

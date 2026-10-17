@@ -1,15 +1,13 @@
 extends GutTest
-const _EDGE_SCENE := preload("res://graph/edge.tscn")
 
 ## [CorruptionStatus]: damage only on a topple — [method StatusDef._on_burst]
 ## deals `topples × T × damage_per_power` of the node's MAX hp, unmitigated
 ## `DamageInstance.Type.TRUE`; a tick deals nothing and nothing is projected.
 ## Same fixture and kill / cascade path as `test_poison_status.gd`.
 
-const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _AUTHORED: CorruptionStatus = preload("res://effects/status/corruption.tres")
 
+var _w: TestWorld
 var _graph: Graph
 var _alloc: AllocationSystem
 var _entity: Entity
@@ -17,22 +15,15 @@ var _nodes: Array[SkillNode]
 
 
 func before_each() -> void:
-	_graph = _GRAPH_SCENE.instantiate()
-	add_child_autofree(_graph)
+	_w = TestWorld.create(self)
+	_graph = _w.graph
 
-	_alloc = AllocationSystem.new()
-	_alloc.graph = _graph
-	add_child_autofree(_alloc)
+	_alloc = _w.allocator()
 
-	_entity = autofree(Entity.new())
-	_entity.display_name = "Corrupted"
 	# Flat board: formula test arranges its own stat inputs, tuned CON must not ride in.
-	_entity.stat_board = TestBoards.flat_entity_board()
-	_graph.add_child(_entity)
+	_entity = _w.add_entity("Corrupted", TestBoards.flat_entity_board())
 
-	var sn := _SKILL_NODE_SCENE.instantiate() as SkillNode
-	sn.name = "N0"
-	_graph.skill_nodes_container.add_child(sn)
+	var sn := _w.add_node(StringName("N0"))
 	_nodes = [sn]
 	await get_tree().process_frame
 
@@ -41,10 +32,7 @@ func before_each() -> void:
 
 
 func _add_edge(a: SkillNode, b: SkillNode) -> void:
-	var e := _EDGE_SCENE.instantiate() as Edge
-	e.from = a
-	e.to = b
-	_graph.edges_container.add_child(e)
+	_w.link(a, b)
 
 
 func _combat() -> NodeCombat:
@@ -122,12 +110,8 @@ func test_projections_are_zero() -> void:
 func test_lethal_burst_kills_islands_and_clears_statuses() -> void:
 	# core(N0) - N1 - N2, N1 a cut vertex: killing N1 islands N2 too. N2 is
 	# corrupted as well so its status must vanish mid cascade without erroring.
-	var n1 := _SKILL_NODE_SCENE.instantiate() as SkillNode
-	n1.name = "N1"
-	_graph.skill_nodes_container.add_child(n1)
-	var n2 := _SKILL_NODE_SCENE.instantiate() as SkillNode
-	n2.name = "N2"
-	_graph.skill_nodes_container.add_child(n2)
+	var n1 := _w.add_node(StringName("N1"))
+	var n2 := _w.add_node(StringName("N2"))
 	_nodes.append(n1)
 	_nodes.append(n2)
 	await get_tree().process_frame

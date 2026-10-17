@@ -160,25 +160,17 @@ func test_diffusion_rule_moves_a_camp_row_under_its_key() -> void:
 
 
 func test_dealloc_spill_driver_keeps_each_camps_row() -> void:
-	var graph: Graph = _GRAPH_SCENE.instantiate()
-	add_child_autofree(graph)
-	var alloc := AllocationSystem.new()
-	alloc.graph = graph
-	add_child_autofree(alloc)
-	var a := Entity.new()
-	a.name = "A"
-	a.stat_board = _BOARD.duplicate(true) as EntityStatBoard
-	graph.entities_container.add_child(a)
+	var w := TestWorld.create(self)
+	var alloc := w.allocator()
+	var a := w.add_entity("A", _BOARD.duplicate(true) as EntityStatBoard)
 	await get_tree().process_frame
 	var n: Array[SkillNode] = []
 	for i in 3:
-		var sn := _SKILL_NODE_SCENE.instantiate() as SkillNode
-		sn.position = Vector2(i * 100, 0)
-		graph.add_skill_node(sn)
+		var sn := w.add_node(StringName("N%d" % i), Vector2(i * 100, 0))
 		n.append(sn)
-	graph.add_edge(n[0], n[1])
-	graph.add_edge(n[0], n[2])
-	graph.add_edge(n[1], n[2])
+	w.link(n[0], n[1])
+	w.link(n[0], n[2])
+	w.link(n[1], n[2])
 	await get_tree().process_frame
 	alloc.force_allocate(a, n[0])
 	a.core_location = n[0]

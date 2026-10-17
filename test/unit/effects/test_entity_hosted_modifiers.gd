@@ -12,10 +12,9 @@ extends GutTest
 ## Fixture: core(N0) - N1, one entity. N1 is the non-core node every
 ## "every node" claim is checked on.
 
-const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _BOARD := preload("res://entity/default_entity_board.tres")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 
+var _w: TestWorld
 var _graph: Graph
 var _alloc: AllocationSystem
 var _entity: Entity
@@ -26,21 +25,16 @@ var _shadows: Array[EntityCombat] = []
 
 func before_each() -> void:
 	_shadows = []
-	_graph = _GRAPH_SCENE.instantiate()
-	add_child_autofree(_graph)
+	_w = TestWorld.create(self)
+	_graph = _w.graph
 	_n0 = _new_node("N0")
 	_n1 = _new_node("N1")
-	_graph.add_edge(_n0, _n1)
+	_w.link(_n0, _n1)
 	await get_tree().process_frame
 
-	_alloc = AllocationSystem.new()
-	_alloc.graph = _graph
-	add_child_autofree(_alloc)
+	_alloc = _w.allocator()
 
-	_entity = autofree(Entity.new())
-	_entity.display_name = "Hosted"
-	_entity.stat_board = _BOARD.duplicate(true) as EntityStatBoard
-	_graph.entities_container.add_child(_entity)
+	_entity = _w.add_entity("Hosted", _BOARD.duplicate(true) as EntityStatBoard)
 	await get_tree().process_frame
 
 	for n in [_n0, _n1]:
@@ -54,9 +48,7 @@ func after_each() -> void:
 
 
 func _new_node(n: String) -> SkillNode:
-	var sn := _SKILL_NODE_SCENE.instantiate() as SkillNode
-	sn.name = n
-	_graph.add_skill_node(sn)
+	var sn := _w.add_node(StringName(n))
 	return sn
 
 

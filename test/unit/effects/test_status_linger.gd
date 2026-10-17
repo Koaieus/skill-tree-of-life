@@ -7,13 +7,13 @@ extends GutTest
 ## ticks on its new owner's turn end only; a death strip releases it. Every
 ## assertion counts turn ends — never frames or seconds.
 
-const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _BOARD := preload("res://entity/default_entity_board.tres")
 const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 ## A file-backed LINGER def (FlatDecay 1, power_max 10): the save interns
 ## statuses by `resource_path`, so the round-trip case needs a real path.
 const _LINGER := preload("res://test/unit/effects/linger_status_fixture.tres")
 
+var _w: TestWorld
 var _graph: Graph
 var _alloc: AllocationSystem
 var _a: Entity
@@ -22,11 +22,9 @@ var _tm: TurnManager
 
 
 func before_each() -> void:
-	_graph = _GRAPH_SCENE.instantiate()
-	add_child_autofree(_graph)
-	_alloc = AllocationSystem.new()
-	_alloc.graph = _graph
-	add_child_autofree(_alloc)
+	_w = TestWorld.create(self)
+	_graph = _w.graph
+	_alloc = _w.allocator()
 	_a = _make_entity("A")
 	_b = _make_entity("B")
 	_tm = autofree(TurnManager.new())
@@ -49,17 +47,12 @@ func _world_turn() -> void:
 
 
 func _make_entity(n: String) -> Entity:
-	var e: Entity = autofree(Entity.new())
-	e.name = n
-	e.display_name = n
-	e.stat_board = _BOARD.duplicate(true) as EntityStatBoard
-	_graph.entities_container.add_child(e)
+	var e: Entity = _w.add_entity(n, _BOARD.duplicate(true) as EntityStatBoard)
 	return e
 
 
 func _new_node() -> SkillNode:
-	var n := _SKILL_NODE_SCENE.instantiate() as SkillNode
-	_graph.skill_nodes_container.add_child(n)
+	var n := _w.add_node(StringName("N%d" % _graph.skill_nodes_container.get_child_count()))
 	return n
 
 

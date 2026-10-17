@@ -11,11 +11,10 @@ extends GutTest
 ## ([method AllocationSystem.force_allocate] → node effects) carries it.
 
 const _BOARD := preload("res://entity/default_entity_board.tres")
-const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _GATE_SCENE := preload("res://skill_node/addons/defs/abyssal_conduit_addon.tscn")
 const _CORRUPTION := preload("res://effects/status/corruption.tres")
 
+var _w: TestWorld
 var _graph: Graph
 var _alloc: AllocationSystem
 var _owner: Entity
@@ -27,23 +26,18 @@ var _aspect_base: float
 
 
 func _spawn(nm: String, pos: Vector2) -> SkillNode:
-	var sn := _SKILL_NODE_SCENE.instantiate() as SkillNode
-	sn.name = nm
-	_graph.add_skill_node(sn)
+	var sn := _w.add_node(StringName(nm))
 	sn.global_position = pos
 	return sn
 
 
 func _make_entity() -> Entity:
-	var entity: Entity = autofree(Entity.new())
-	entity.stat_board = _BOARD.duplicate(true)
-	_graph.add_child(entity)
-	return entity
+	return _w.add_entity("E", _BOARD.duplicate(true) as EntityStatBoard)
 
 
 func before_each() -> void:
-	_graph = _GRAPH_SCENE.instantiate()
-	add_child_autofree(_graph)
+	_w = TestWorld.create(self)
+	_graph = _w.graph
 	_owner = _make_entity()
 	_enemy = _make_entity()
 	var enemy_camp := Faction.new()
@@ -52,15 +46,13 @@ func before_each() -> void:
 
 	_core = _spawn("Core", Vector2.ZERO)
 	_gate_node = _spawn("Gate", Vector2(150.0, 0.0))
-	_graph.add_edge(_core, _gate_node)
+	_w.link(_core, _gate_node)
 	var camp := _spawn("Camp", Vector2(-600.0, 600.0))
 	_gate = _GATE_SCENE.instantiate() as SkillNodeAddon
 	_gate_node.add_child(_gate)
 	await get_tree().process_frame
 
-	_alloc = AllocationSystem.new()
-	_alloc.graph = _graph
-	add_child_autofree(_alloc)
+	_alloc = _w.allocator()
 	_alloc.force_allocate(_owner, _core)
 	_owner.core_location = _core
 	_alloc.force_allocate(_enemy, camp)

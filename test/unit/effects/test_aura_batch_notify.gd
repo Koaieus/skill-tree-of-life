@@ -18,47 +18,37 @@ extends GutTest
 ## is a 2x-per-aura collapse (revoke+grant of the same stat -> 1 settle), not a
 ## 1-per-board settle. Asserted directly below against the real Serpent shape.
 
-const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _BOARD := preload("res://entity/default_entity_board.tres")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 
 ## The 4 stat ids `serpent_core.tres`'s two auras both target — 1 plain
 ## modifier (armor) + 1 composite of the other 3, per aura.
 const _SERPENT_STAT_IDS: Array[StringName] = [&"armor", &"blade_damage", &"spell_damage", &"ranged_damage"]
 
+var _w: TestWorld
 var _graph: Graph
 var _alloc: AllocationSystem
 var _nodes: Array[SkillNode]
 
 
 func before_each() -> void:
-	_graph = _GRAPH_SCENE.instantiate()
-	_graph.name = "TestGraph"
-	add_child_autofree(_graph)
+	_w = TestWorld.create(self)
+	_graph = _w.graph
 
 	# A straight 6-node chain: 0-1-2-3-4-5. Long enough to have a real
 	# "interior" (nodes both revoked from and re-granted to) either side of
 	# the two ends the core visits.
 	_nodes = []
 	for i in 6:
-		var sn := _SKILL_NODE_SCENE.instantiate() as SkillNode
-		sn.name = "N%d" % i
-		sn.position = Vector2(i * 100.0, 0.0)
-		_graph.add_skill_node(sn)
+		var sn := _w.add_node(StringName("N%d" % i), Vector2(i * 100.0, 0.0))
 		_nodes.append(sn)
 	for i in 5:
-		_graph.add_edge(_nodes[i], _nodes[i + 1])
+		_w.link(_nodes[i], _nodes[i + 1])
 
-	_alloc = AllocationSystem.new()
-	_alloc.graph = _graph
-	add_child_autofree(_alloc)
+	_alloc = _w.allocator()
 
 
 func _spawn(core: SkillNode, owned: Array[SkillNode]) -> Entity:
-	var ent := autofree(Entity.new()) as Entity
-	ent.display_name = "E"
-	ent.stat_board = _BOARD.duplicate(true) as EntityStatBoard
-	_graph.add_child(ent)
+	var ent := _w.add_entity("E", _BOARD.duplicate(true) as EntityStatBoard)
 	await get_tree().process_frame
 	for n in owned:
 		_alloc.force_allocate(ent, n)

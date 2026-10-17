@@ -7,9 +7,8 @@ extends GutTest
 ## 0 while it still decays. The projection is the sum of what each tick
 ## actually lands, floored per tick through the same landing rule.
 
-const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 
+var _w: TestWorld
 var _graph: Graph
 var _alloc: AllocationSystem
 var _entity: Entity
@@ -17,21 +16,14 @@ var _node: SkillNode
 
 
 func before_each() -> void:
-	_graph = _GRAPH_SCENE.instantiate()
-	add_child_autofree(_graph)
+	_w = TestWorld.create(self)
+	_graph = _w.graph
 
-	_alloc = AllocationSystem.new()
-	_alloc.graph = _graph
-	add_child_autofree(_alloc)
+	_alloc = _w.allocator()
 
-	_entity = autofree(Entity.new())
-	_entity.display_name = "Resistant"
-	_entity.stat_board = TestBoards.flat_entity_board()
-	_graph.add_child(_entity)
+	_entity = _w.add_entity("Resistant", TestBoards.flat_entity_board())
 
-	_node = _SKILL_NODE_SCENE.instantiate() as SkillNode
-	_node.name = "N0"
-	_graph.skill_nodes_container.add_child(_node)
+	_node = _w.add_node(StringName("N0"))
 	await get_tree().process_frame
 
 	_alloc.force_allocate(_entity, _node)

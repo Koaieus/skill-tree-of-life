@@ -10,10 +10,9 @@ extends GutTest
 ## replace, never mutate, the found modifier. Authored `wither.tres` values
 ## are the owner's knobs and are never pinned here.
 
-const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _BOARD := preload("res://entity/default_entity_board.tres")
 
+var _w: TestWorld
 var _graph: Graph
 var _alloc: AllocationSystem
 var _entity: Entity
@@ -24,21 +23,14 @@ var _shadows: Array[EntityCombat] = []
 
 func before_each() -> void:
 	_shadows = []
-	_graph = _GRAPH_SCENE.instantiate()
-	add_child_autofree(_graph)
+	_w = TestWorld.create(self)
+	_graph = _w.graph
 
-	_alloc = AllocationSystem.new()
-	_alloc.graph = _graph
-	add_child_autofree(_alloc)
+	_alloc = _w.allocator()
 
-	_entity = autofree(Entity.new())
-	_entity.display_name = "Withered"
-	_entity.stat_board = _BOARD.duplicate(true) as EntityStatBoard
-	_graph.add_child(_entity)
+	_entity = _w.add_entity("Withered", _BOARD.duplicate(true) as EntityStatBoard)
 
-	_node = _SKILL_NODE_SCENE.instantiate() as SkillNode
-	_node.name = "N0"
-	_graph.skill_nodes_container.add_child(_node)
+	_node = _w.add_node(StringName("N0"))
 	await get_tree().process_frame
 
 	_alloc.force_allocate(_entity, _node)

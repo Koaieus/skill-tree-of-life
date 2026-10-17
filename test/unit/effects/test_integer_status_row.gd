@@ -5,12 +5,11 @@ extends GutTest
 ## ([method StatusDef.stacks_per_hit]), a fractional decay keeps
 ## `⌊S · (1 − f)⌋` ([method FractionDecay.decayed]) — never at the store.
 
-const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _POISON := preload("res://effects/status/poison.tres")
 const _CORRUPTION := preload("res://effects/status/corruption.tres")
 const _CURSE := preload("res://effects/status/curse.tres")
 
+var _w: TestWorld
 var _graph: Graph
 var _alloc: AllocationSystem
 var _entity: Entity
@@ -18,18 +17,11 @@ var _node: SkillNode
 
 
 func before_each() -> void:
-	_graph = _GRAPH_SCENE.instantiate()
-	add_child_autofree(_graph)
-	_alloc = AllocationSystem.new()
-	_alloc.graph = _graph
-	add_child_autofree(_alloc)
-	_entity = autofree(Entity.new())
-	_entity.display_name = "Host"
-	_entity.stat_board = TestBoards.flat_entity_board()
-	_graph.add_child(_entity)
-	_node = _SKILL_NODE_SCENE.instantiate() as SkillNode
-	_node.name = "N0"
-	_graph.skill_nodes_container.add_child(_node)
+	_w = TestWorld.create(self)
+	_graph = _w.graph
+	_alloc = _w.allocator()
+	_entity = _w.add_entity("Host", TestBoards.flat_entity_board())
+	_node = _w.add_node(StringName("N0"))
 	await get_tree().process_frame
 	_alloc.force_allocate(_entity, _node)
 	_entity.core_location = _node

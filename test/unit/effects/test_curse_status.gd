@@ -9,10 +9,9 @@ extends GutTest
 ## edited in place — a static modifier is shared between a live board and
 ## its shadow clone.
 
-const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _BOARD := preload("res://entity/default_entity_board.tres")
 
+var _w: TestWorld
 var _graph: Graph
 var _alloc: AllocationSystem
 var _entity: Entity
@@ -23,21 +22,14 @@ var _shadows: Array[EntityCombat] = []
 
 func before_each() -> void:
 	_shadows = []
-	_graph = _GRAPH_SCENE.instantiate()
-	add_child_autofree(_graph)
+	_w = TestWorld.create(self)
+	_graph = _w.graph
 
-	_alloc = AllocationSystem.new()
-	_alloc.graph = _graph
-	add_child_autofree(_alloc)
+	_alloc = _w.allocator()
 
-	_entity = autofree(Entity.new())
-	_entity.display_name = "Hexed"
-	_entity.stat_board = _BOARD.duplicate(true) as EntityStatBoard
-	_graph.add_child(_entity)
+	_entity = _w.add_entity("Hexed", _BOARD.duplicate(true) as EntityStatBoard)
 
-	var sn := _SKILL_NODE_SCENE.instantiate() as SkillNode
-	sn.name = "N0"
-	_graph.skill_nodes_container.add_child(sn)
+	var sn := _w.add_node(StringName("N0"))
 	_nodes = [sn]
 	await get_tree().process_frame
 
