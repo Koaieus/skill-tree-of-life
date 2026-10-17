@@ -1,0 +1,7 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" path="res://skill_node/keystone/instances/spirit_node.tscn" id="1_base"]
+
+[node name="MysterySpiritNode" instance=ExtResource("1_base")]
+reveal_on_claim = true
+display_name = "Mystery Spirit"

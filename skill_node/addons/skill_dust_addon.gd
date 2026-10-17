@@ -84,6 +84,14 @@ extends SkillNodeAddon
 ## the victim had no spellbook or LootSystem's spell kill-switch is off.
 @export var spell_candidates: Array[SpellDef] = []
 
+## Hide the offer until it is claimed: the tooltip lists nothing. A mystery
+## spirit's relic ([SpiritNode]) sets it; a kill relic never does.
+@export var conceal_offer: bool = false
+
+## The group a relic placed with its node joins (authored on the scene, as
+## [SpiritNode]'s is): [LootSystem] adopts its members as they enter the tree.
+const HAND_PLACED_GROUP := &"hand_placed_relic"
+
 ## Offer is capped at this many spell candidates (M = min(this, remaining)).
 const _SPELL_OFFER_CAP: int = 3
 
@@ -171,6 +179,8 @@ func get_tooltip_title() -> String:
 
 
 func get_tooltip_modifiers() -> Array[StatModifier]:
+	if conceal_offer:
+		return []
 	return candidates
 
 

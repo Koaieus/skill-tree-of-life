@@ -200,6 +200,10 @@ var _round_controller := LootRoundCommandHandler.new()
 
 func _ready() -> void:
 	Events.entity_dying.connect(_on_entity_dying)
+	# A hand-placed relic (a [SpiritNode]'s dust) has no drop to adopt it from.
+	for n in get_tree().get_nodes_in_group(SkillDustAddon.HAND_PLACED_GROUP):
+		_adopt_hand_placed(n)
+	get_tree().node_added.connect(_adopt_hand_placed)
 	# The mirror-side adapter. Independent of the battle_system-null early
 	# return below — a headless fixture that never runs a cascade may still
 	# want to exercise the loot-offer adapter, and vice versa.
@@ -511,7 +515,16 @@ func _drop_skill_dust(victim: Entity) -> void:
 ## Every relic this system drops is adopted before it enters the tree; a relic
 ## attached by hand (a fixture, a sandbox) claims nothing until adopted.
 func adopt_relic(dust: SkillDustAddon) -> void:
-	dust.claimed.connect(_on_relic_claimed.bind(dust))
+	var on_claimed := _on_relic_claimed.bind(dust)
+	if not dust.claimed.is_connected(on_claimed):
+		dust.claimed.connect(on_claimed)
+
+
+## A relic placed with its node (group [constant SkillDustAddon.HAND_PLACED_GROUP])
+## claims through this system like a dropped one.
+func _adopt_hand_placed(n: Node) -> void:
+	if n is SkillDustAddon and n.is_in_group(SkillDustAddon.HAND_PLACED_GROUP):
+		adopt_relic(n as SkillDustAddon)
 
 
 ## THE HOST GATE (#522). `owned_by` flips on every peer that applies the
