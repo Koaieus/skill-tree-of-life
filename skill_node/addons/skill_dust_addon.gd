@@ -268,7 +268,17 @@ func _stat_offer() -> Array[StatModifier]:
 	for i in candidates.size():
 		if board == null or not board.would_cycle(candidates[i]):
 			safe_indices.append(i)
-	for i in _weighted_sample(safe_indices, mini(3, safe_indices.size())):
+	# Round 1 offers every pinned candidate ([member StatModifier.loot_pinned],
+	# a faced core's grants) ahead of the sample, which fills what is left.
+	var sampled := safe_indices
+	if rounds_remaining == rounds:
+		sampled = []
+		for i in safe_indices:
+			if candidates[i].loot_pinned:
+				offer.append(candidates[i])
+			else:
+				sampled.append(i)
+	for i in _weighted_sample(sampled, clampi(3 - offer.size(), 0, sampled.size())):
 		offer.append(candidates[i])
 	return offer
 
@@ -371,6 +381,8 @@ func _weighted_sample(pool_indices: Array[int], count: int) -> Array[int]:
 func grant_mod(collector: Entity, m: StatModifier) -> void:
 	if collector.core_location == null:
 		return
+	# The pin is the face's grant on the blocker; a looted copy is a plain mod.
+	m.loot_pinned = false
 	collector.absorb_core_modifier(m)
 
 

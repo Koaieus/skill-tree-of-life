@@ -160,5 +160,17 @@ func footprint_range(size: int) -> Vector2i:
 ## [param rng] (the dedicated face stream). Returns `{index: {"face": CoreClass
 ## or null, "seed": int}}`; empty without drawing when [member faces] is empty.
 func roll_faces(indices: Array, rng: RandomNumberGenerator) -> Dictionary:
-	assert(indices != null and rng != null)  # STUB
-	return {}
+	var out := {}
+	if faces.is_empty():
+		return out
+	var total := maxf(faceless_weight, 0.0) + float(faces.size())
+	for idx in indices:
+		# Always two draws per placement (the pick, then the seed), so a weight
+		# retune never shifts a later placement's seed.
+		var roll := rng.randf() * total - maxf(faceless_weight, 0.0)
+		var face_seed := rng.randi()
+		var face: CoreClass = null
+		if roll >= 0.0:
+			face = faces[mini(int(roll), faces.size() - 1)]
+		out[idx] = {"face": face, "seed": face_seed}
+	return out

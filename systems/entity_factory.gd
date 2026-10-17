@@ -111,13 +111,24 @@ func spawn_entity(
 ## snapshot adoption path ([method spawn_snapshot_entity]) leaves it at 1 and
 ## passes no core, so the row's own `stake_level`/`allocation_level` land
 ## untouched by anything here.
+##
+## [param face] (a [BlockerCoreClass], #1654) and [param face_seed] come from
+## procgen's face roll; null keeps the scene's faceless class.
 func spawn_blocker(size: BlockerSize, core_location: SkillNode,
 		footprint: Array[SkillNode] = [], spell_prune_seed: int = 0,
 		spell_prune_m: float = 0.0, preassigned_id: int = 0,
 		stake_level: int = 1, stake_xp_offset_floor: float = 0.25,
 		face: CoreClass = null, face_seed: int = 0) -> Entity:
 	var ent := _BLOCKER_SCENE.instantiate() as Entity
-	assert(face == null or face_seed >= 0)  # STUB
+	# A face overrides the scene's faceless class before `add_child`, so
+	# `Entity.initialize` applies it exactly once; its per-placement seed rides
+	# the entity's meta (the class is a shared resource).
+	if face != null:
+		ent.core_class = face
+		ent.set_meta(BlockerCoreClass.FACE_SEED_META, face_seed)
+		var faced := face as BlockerCoreClass
+		if faced != null and faced.identity != null:
+			ent.color = faced.identity.tint
 	# Before `add_child`: `Graph._mint_entity_id` assigns only to an entity whose
 	# id is still 0, so stamping first is adoption rather than a second mint.
 	ent.entity_id = preassigned_id

@@ -713,9 +713,10 @@ func spawn_entity(ent_name: String, color: Color, core_location: SkillNode = nul
 func spawn_blocker(size: EntityFactory.BlockerSize, core_location: SkillNode,
 		footprint: Array[SkillNode] = [], spell_prune_seed: int = 0,
 		spell_prune_m: float = 0.0, preassigned_id: int = 0,
-		stake_level: int = 1, stake_xp_offset_floor: float = 0.25) -> Entity:
+		stake_level: int = 1, stake_xp_offset_floor: float = 0.25,
+		face: CoreClass = null, face_seed: int = 0) -> Entity:
 	return entity_factory.spawn_blocker(size, core_location, footprint, spell_prune_seed,
-			spell_prune_m, preassigned_id, stake_level, stake_xp_offset_floor)
+			spell_prune_m, preassigned_id, stake_level, stake_xp_offset_floor, face, face_seed)
 
 
 ## The authority's world has landed (#715, [signal NetworkSession.world_ready]).

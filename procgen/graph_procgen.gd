@@ -38,6 +38,9 @@ const _BLOCKER_RNG_SALT := 0x8477
 ## off their own derived stream so the main `rng` is byte-identical with or
 ## without them.
 const _SCENE_RNG_SALT := 0x3300
+## Salt for the Dormant Core face roll ([method GraphProcgenBlockers.roll_faces]):
+## its own stream, so faces on or off leave every blocker draw above it intact.
+const _FACE_RNG_SALT := 0xFACE
 ## Salt for the node-subtype placement roll (#1056), for the same reason as the
 ## two above and one more: the roll happens mid-loop, per node, so off the
 ## shared `rng` every modifier draw after it would shift — both goldens would
@@ -262,6 +265,9 @@ static func generate(
 	# pre-#916 seed produced. Always two draws per blocker, chance or not, so
 	# a later pass appended here is stable across a chance retune too.
 	var blocker_stakes := _roll_blocker_stakes(blocker_sizes, config.blockers, blocker_rng)
+	var face_rng := RandomNumberGenerator.new()
+	face_rng.seed = rng.seed + _FACE_RNG_SALT
+	var blocker_faces := config.blockers.roll_faces(blocker_sizes.keys(), face_rng)
 
 	await _emit_progress(progress_cb, 0.45, "Rolling content")
 	var nodes: Array[SkillNode] = []
@@ -451,6 +457,8 @@ static func generate(
 			"prune_seed": int(blocker_seeds[idx]),
 			"footprint": footprint,
 			"stake_level": int(blocker_stakes.get(idx, 1)),
+			"face": (blocker_faces.get(idx, {}) as Dictionary).get("face"),
+			"face_seed": int((blocker_faces.get(idx, {}) as Dictionary).get("seed", 0)),
 		})
 
 	await _emit_progress(progress_cb, 1.0, "Done")

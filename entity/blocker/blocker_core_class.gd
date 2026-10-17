@@ -57,5 +57,40 @@ func apply(entity: Entity) -> void:
 ## placement seeded [param face_seed]. Pure: same inputs, same grants.
 func grants_for(size: int, face_seed: int) -> Array[StatModifier]:
 	var out: Array[StatModifier] = []
-	assert(size >= 0 or face_seed != 0)  # STUB
+	if identity == null:
+		return out
+	var id := String(identity.id)
+	var count := float(_at(count_by_size, size) + _at(extra_count_by_size, size))
+	_grant(out, StringName(id + "_aspect"), StatModifier.Operation.ADD_BASE, count)
+	var potency_id := StringName(id + "_stacks_per_hit")
+	var potency := float(_at(potency_by_size, size))
+	if size == _SIZE_COUNT - 1 and potency > 0.0 and StatRegistry.get_def(potency_id) != null:
+		var rng := RandomNumberGenerator.new()
+		rng.seed = face_seed
+		if rng.randf() < potency_multiply_weight:
+			_grant(out, potency_id, StatModifier.Operation.MULTIPLY, potency_multiply_value)
+			potency = 0.0
+	_grant(out, potency_id, StatModifier.Operation.ADD_BASE, potency)
+	_grant(out, StringName(id + "_resistance"), StatModifier.Operation.ADD_BASE,
+			float(_at(resistance_by_size, size)))
 	return out
+
+
+## Append a pinned grant unless [param value] is nothing or the stat does not
+## exist (a resistance only five aspects carry; armor break's potency).
+static func _grant(out: Array[StatModifier], stat_id: StringName,
+		op: StatModifier.Operation, value: float) -> void:
+	if value == 0.0 or StatRegistry.get_def(stat_id) == null:
+		return
+	var m := StatModifier.new()
+	m.stat_id = stat_id
+	m.operation = op
+	m.value = value
+	m.loot_pinned = true
+	out.append(m)
+
+
+static func _at(values: Array, size: int) -> Variant:
+	if values.is_empty():
+		return 0
+	return values[clampi(size, 0, values.size() - 1)]

@@ -210,7 +210,8 @@ func _setup_level() -> void:
 		footprint.assign(placement.get("footprint", []))
 		spawn_blocker(placement.get("size"), placement.get("node"), footprint,
 				placement.get("prune_seed", 0), cfg.blockers.blocker_spell_prune_m, 0,
-				placement.get("stake_level", 1), cfg.blockers.stake_xp_offset_floor)
+				placement.get("stake_level", 1), cfg.blockers.stake_xp_offset_floor,
+				placement.get("face"), placement.get("face_seed", 0))
 
 	if not seated:
 		return

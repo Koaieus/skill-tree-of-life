@@ -604,9 +604,14 @@ func _loot_fraction(victim: Entity) -> float:
 ## `_expand_for_loot` whole, so every LEAF is scaled (composite `duplicate(true)`
 ## deep-copies `children` — see `.claude/rules/stats-system.md` — so mutating a
 ## leaf here never reaches the victim's own pack). A plain modifier is its own
-## single leaf via `flatten()`, so one code path covers both.
+## single leaf via `flatten()`, so one code path covers both. Only additive
+## leaves scale: a MULTIPLY's value is a factor and a SET's a result, so a
+## fraction of either is a different modifier (×2 at 0.5 is ×1), not less of it.
 func _scale_loot_value(copy: StatModifier, fraction: float) -> void:
 	for leaf in copy.flatten():
+		if leaf.operation == StatModifier.Operation.MULTIPLY \
+				or leaf.operation == StatModifier.Operation.SET:
+			continue
 		leaf.value *= fraction
 
 
