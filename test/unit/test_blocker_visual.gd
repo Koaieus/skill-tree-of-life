@@ -323,9 +323,7 @@ func _build_config(node_count: int, rng_seed: int) -> GraphProcgenConfig:
 
 func test_procgen_instantiates_blocker_scene_only_for_blocked_nodes() -> void:
 	var cfg := _build_config(60, 2468)
-	var graph_scene: PackedScene = load("res://graph/graph.tscn")
-	var graph: Graph = autofree(graph_scene.instantiate()) as Graph
-	add_child(graph)
+	var graph: Graph = TestWorld.create(self).graph
 	await get_tree().process_frame
 	var result: Dictionary = await GraphProcgen.generate(cfg, graph)
 

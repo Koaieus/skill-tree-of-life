@@ -11,6 +11,7 @@ extends GutTest
 ## test_edge_z_order.gd / test_edge_zoom_width.gd for self-loop z-order/zoom
 ## coverage.
 
+const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 
 var _graph: Graph
@@ -18,7 +19,8 @@ var _nodes: Array[SkillNode]
 
 
 func before_each() -> void:
-	_graph = TestWorld.create(self).graph
+	_graph = _GRAPH_SCENE.instantiate()
+	add_child_autofree(_graph)
 	_nodes = []
 	for i in 3:
 		var sn := _SKILL_NODE_SCENE.instantiate() as SkillNode
