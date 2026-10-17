@@ -100,7 +100,11 @@ atoms/molecules)"*. Act 0's overworld (`lore.md` → *Act 0*) only, never
 signposted. It is the first axis shown before the player knows there are
 axes: the node axis is how the world is built all the way down, and a player
 who finds it in Act 0 has been told the ending in a joke. The tone holds: a
-gag on the same dial as the tree-shudder, dismissible in the moment.
+gag on the same dial as the tree-shudder, dismissible in the moment. Owner, a beat later: *"(or is it really a joke?)"* — so it is a joke only
+on its face. Read straight, it answers Open Q1 and Q4 in `lore.md` at once:
+the Act 0 world was never a different substance, the things you killed there
+were made of what you are now, and the crash did not move you anywhere — it
+changed the zoom.
 
 ## 5. What stays mysterious
 
