@@ -98,3 +98,16 @@ func test_the_hub_emits_hub_pressed() -> void:
 	(_fan.get_node("%Hub") as Button).pressed.emit()
 	assert_signal_emitted(_fan, "hub_pressed")
 	assert_signal_not_emitted(_fan, "picked")
+
+
+func test_a_right_click_on_a_card_dismisses_the_fan() -> void:
+	_fan.bind(_entries(1), _costs, [])
+	watch_signals(_fan)
+	# The card's inner Button covers it and takes the click, so the event lands
+	# there, not on the card control.
+	var ev := InputEventMouseButton.new()
+	ev.button_index = MOUSE_BUTTON_RIGHT
+	ev.pressed = true
+	(_fan.cards()[0].get_node("%Button") as Control).gui_input.emit(ev)
+	assert_signal_emitted(_fan, "dismissed")
+	assert_signal_not_emitted(_fan, "picked")
