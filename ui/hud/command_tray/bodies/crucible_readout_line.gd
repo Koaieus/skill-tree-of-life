@@ -2,16 +2,17 @@ class_name CrucibleReadoutLine
 extends HBoxContainer
 
 ## One aspect line of the [CrucibleReadout]: a small aspect badge and the
-## [method ReadoutLines.ReadoutLine.text] behaviour change. Highlighted while
-## its socket is hovered (the `TierValue` text tier, `TierLabel` at rest);
-## expanded, it adds the detail — the spell's [method AspectIntake.get_description],
-## the socket's [InfusionExchange] line and the status's own description.
+## [method ReadoutLines.ReadoutLine.text] behaviour change, a [BadgeLabel] whose
+## concept token hovers the status's [ConceptCard]. Highlighted while its socket
+## is hovered (the `TierValueRich` text tier, `TierLabelRich` at rest); expanded,
+## it adds the detail — the spell's [method AspectIntake.get_description] and the
+## socket's [InfusionExchange] line (the status's description is the card's).
 
-const _REST_TIER := &"TierLabel"
-const _LIT_TIER := &"TierValue"
+const _REST_TIER := &"TierLabelRich"
+const _LIT_TIER := &"TierValueRich"
 
 @onready var _badge: IdentityBadge = %Badge
-@onready var _main: Label = %Main
+@onready var _main: BadgeLabel = %Main
 @onready var _detail: Label = %Detail
 
 var _line: ReadoutLines.ReadoutLine = null
@@ -25,7 +26,7 @@ func bind(line: ReadoutLines.ReadoutLine, spell: SpellDef, board: StatBoard) -> 
 	var aspect := AspectRoster.shared().by_id(line.aspect_id) if line != null else null
 	_badge.identity = aspect.identity if aspect != null else null
 	_badge.visible = _badge.identity != null
-	_main.text = line.text() if line != null else ""
+	_main.badge_text = line.text() if line != null else ""
 	_detail.text = _detail_of(line, spell, board)
 	set_highlighted(_highlighted)
 
@@ -57,8 +58,9 @@ func is_expanded() -> bool:
 	return _detail.visible
 
 
+## The main line as plain prose.
 func main_text() -> String:
-	return _main.text
+	return _main.plain_text()
 
 
 func detail_text() -> String:
@@ -75,10 +77,6 @@ static func _detail_of(line: ReadoutLines.ReadoutLine, spell: SpellDef, board: S
 	var exchange := line.exchange(spell)
 	if not exchange.is_empty():
 		parts.append("Socket: %s" % exchange)
-	if line.status != null:
-		var described := line.status.get_description()
-		if not described.is_empty():
-			parts.append(described)
 	return "\n".join(parts)
 
 
@@ -86,4 +84,4 @@ static func _detail_of(line: ReadoutLines.ReadoutLine, spell: SpellDef, board: S
 func first_row_height() -> float:
 	if _main == null:
 		return size.y
-	return float(_main.get_line_height()) if _main.get_line_count() > 0 else _main.size.y
+	return float(_main.get_line_height(0)) if _main.get_line_count() > 0 else _main.size.y

@@ -1,16 +1,21 @@
 class_name BadgeText
 extends RefCounted
 
-## Authored text with `{id}` tokens, rendered into a [RichTextLabel]: each token
-## becomes the identity's badge ([method IdentityBadge.composite], hued by
-## [method Emissive.at]) + a non-breaking space + its noun in the same hue.
+## Authored text with `{id}` or `{id:amount}` tokens, rendered into a
+## [RichTextLabel]: each token becomes the optional amount (pre-formatted by the
+## composer) + a non-breaking space, the identity's badge
+## ([method IdentityBadge.composite], hued by [method Emissive.at]) + a
+## non-breaking space + its noun, all in the identity's hue. When the identity
+## has a [ConceptCard] the whole unit sits in one `push_hint` keyed
+## [method hint_of] (the badge image carries the same tooltip), so amount, badge
+## and noun are one hover target — [BadgeLabel] turns that key into the card.
 ## Plain runs go through `append_text`, so BBCode around a token still applies
 ## (`[b]{poison}[/b]` is a bold badge+noun). A token resolves against
 ## [IdentityRoster] first, then as a stat id via its [member StatDef.identity];
 ## an unknown token renders verbatim and warns once per id per process.
 ## [method strip] is the plain-text twin for `Label`s.
 
-const _TOKEN := "\\{([a-z_]+)\\}"
+const _TOKEN := "\\{([a-z_]+)(?::([^}]*))?\\}"
 const _NBSP := "\u00A0"
 
 const HINT_PREFIX := "concept:"
@@ -32,17 +37,26 @@ static func render(label: RichTextLabel, text: String, tier := Emissive.LABEL, s
 		if m.get_start() > cursor:
 			label.append_text(text.substr(cursor, m.get_start() - cursor))
 		var hue := Emissive.at(identity.tint, tier)
-		label.add_image(IdentityBadge.composite(identity, size), size, size, hue)
-		label.add_text(_NBSP)
+		var hint := hint_of(identity)
+		if not hint.is_empty():
+			label.push_hint(hint)
 		label.push_color(hue)
-		label.add_text(identity.noun)
+		var amount := m.get_string(2)
+		if not amount.is_empty():
+			label.add_text(amount + _NBSP)
+		label.add_image(IdentityBadge.composite(identity, size), size, size, hue,
+				INLINE_ALIGNMENT_CENTER, Rect2(), null, false, hint)
+		label.add_text(_NBSP + identity.noun)
 		label.pop()
+		if not hint.is_empty():
+			label.pop()
 		cursor = m.get_end()
 	if cursor < text.length():
 		label.append_text(text.substr(cursor))
 
 
-## [param text] with every resolvable token replaced by its noun.
+## [param text] with every resolvable token replaced by its noun, its amount
+## (if any) and a space in front.
 static func strip(text: String) -> String:
 	var out := ""
 	var cursor := 0
@@ -50,13 +64,24 @@ static func strip(text: String) -> String:
 		var identity := _resolve(m.get_string(1))
 		if identity == null:
 			continue
-		out += text.substr(cursor, m.get_start() - cursor) + identity.noun
+		var amount := m.get_string(2)
+		out += text.substr(cursor, m.get_start() - cursor)
+		out += (amount + " " if not amount.is_empty() else "") + identity.noun
 		cursor = m.get_end()
 	return out + text.substr(cursor)
 
 
-static func hint_of(_identity: Identity) -> String:
-	return ""
+## The hover key of [param identity]'s token — [constant HINT_PREFIX] + its id
+## when it has a [ConceptCard], "" (no hint) otherwise.
+static func hint_of(identity: Identity) -> String:
+	return HINT_PREFIX + String(identity.id) if ConceptCard.supports(identity) else ""
+
+
+## The identity a [method hint_of] key names, or null for any other text.
+static func concept_of(hint: String) -> Identity:
+	if not hint.begins_with(HINT_PREFIX):
+		return null
+	return IdentityRoster.shared().by_id(StringName(hint.trim_prefix(HINT_PREFIX)))
 
 
 ## Forgets which unknown ids already warned — test isolation.

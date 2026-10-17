@@ -31,21 +31,15 @@ class ReadoutLine extends RefCounted:
 	func total() -> int:
 		return innate + infused
 
-	## The status's name as prose (`poison`).
-	func status_name() -> String:
-		if status == null:
-			return String(aspect_id)
-		var name := status.display_name if not status.display_name.is_empty() else String(status.id)
-		return name.to_lower()
-
-	## The behaviour-change line.
+	## The behaviour-change line, as [BadgeText] (`{poison:4}` is the hoverable
+	## concept token).
 	func text() -> String:
 		var parts: PackedStringArray = []
 		if innate > 0:
 			parts.append("%d innate" % innate)
 		if infused > 0 or socket >= 0:
 			parts.append("%d infused" % infused)
-		return "+ applies %s %s stacks per hit (%s)" % [NumFmt.num(per_hit), status_name(),
+		return "+ applies {%s:%s} stacks per hit (%s)" % [aspect_id, NumFmt.num(per_hit),
 				" + ".join(parts)]
 
 	## The socket's exchange line ([method InfusionExchange.line]); "" innate-only.

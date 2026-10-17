@@ -2,6 +2,7 @@
 
 [ext_resource type="Script" path="res://ui/hud/command_tray/bodies/crucible_readout_line.gd" id="1_script"]
 [ext_resource type="PackedScene" path="res://ui/identity_badge/identity_badge.tscn" id="2_badge"]
+[ext_resource type="Script" path="res://ui/identity_badge/badge_label.gd" id="3_label"]
 
 [node name="CrucibleReadoutLine" type="HBoxContainer"]
 theme_override_constants/separation = 6
@@ -18,12 +19,16 @@ layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 2
 
-[node name="Main" type="Label" parent="Text"]
+[node name="Main" type="RichTextLabel" parent="Text"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_type_variation = &"TierLabel"
-theme_override_font_sizes/font_size = 12
+mouse_filter = 1
+theme_type_variation = &"TierLabelRich"
+theme_override_font_sizes/normal_font_size = 12
+fit_content = true
+scroll_active = false
 autowrap_mode = 3
+script = ExtResource("3_label")
 
 [node name="Detail" type="Label" parent="Text"]
 unique_name_in_owner = true
