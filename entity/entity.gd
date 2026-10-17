@@ -215,6 +215,16 @@ const DEFAULT_AP_TRANSFER_RATE := 2.0
 ## Every Nth level mints one extra skill point — see [method sp_minted_for_level].
 const MILESTONE_LEVEL_INTERVAL := 5
 
+## Every Nth level is a milestone that mints one ring point. 0 disables.
+## Tentative, easy to change.
+@export_range(0, 20) var milestone_level_interval := 5
+
+## Emitted after [method buy_ring_cell] lands — what a ring display re-reads on.
+signal ring_changed
+
+## Ring cells (by node name in the ring scene) this entity has bought.
+var ring_spent: Array[StringName] = []
+
 ## The [Graph] this entity belongs to, for a scene that cannot put it UNDER one.
 ## Null (the default, and every level scene) falls back to the ancestor walk in
 ## [method _find_graph].
@@ -269,6 +279,10 @@ var core_modifiers: Array[StatModifier] = []
 ## arrives here already an independent copy (LootSystem's draw duplicates when
 ## building the payload). Duplicating again here would just be redundant work
 ## on the class path and double-duplication on the loot path.
+func buy_ring_cell(_cell: StringName, _grants: Array[StatModifier], _cost: int) -> bool:
+	return false
+
+
 func grant_core_modifier(m: StatModifier) -> void:
 	if m == null:
 		return

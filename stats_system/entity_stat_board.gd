@@ -127,6 +127,9 @@ extends StatBoard
 ## Allocation budget — careful tracking via SkillPointStat (current/wounded/max
 ## with `used + current + wounded == max` invariant; see skill_point_stat.gd).
 @export var skill_points: SkillPointStat
+## Inner-ring budget: cap rises one per milestone level, `.current` = unspent.
+## Spent only by [method Entity.buy_ring_cell].
+@export var ring_points: PoolStat
 ## Wounds healed at this entity's turn start. SkillPointStat.heal(N) flows
 ## that many from `wounded` back into `current`. Consumed by
 ## Entity._on_turn_started.
