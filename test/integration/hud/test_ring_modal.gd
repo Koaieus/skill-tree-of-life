@@ -55,6 +55,13 @@ func _confirm_button() -> Button:
 	return _modal().get_node("%ConfirmButton")
 
 
+func _drained() -> void:
+	var applier := _root.command_applier
+	while applier.is_applying:
+		await applier.applying_changed
+	await wait_physics_frames(1)
+
+
 func _open() -> void:
 	_root.hud_root.open_ring(_player)
 	await wait_physics_frames(1)
@@ -68,27 +75,46 @@ func test_open_ring_shows_the_modal_without_pausing() -> void:
 	assert_not_null(_body(), "the modal presents a RingBody")
 
 
+## As a peer: the confirm goes up as exactly one intent, and the cell stays
+## pending (confirm dead) until the host's confirmed command lands. A
+## [SpendRingCellCommand] bypasses the authority's queue, so the intent is the
+## one door that sees the command itself.
 func test_confirming_a_buyable_t1_submits_one_command() -> void:
 	_earn(2)
 	await _open()
-	watch_signals(_root.command_applier)
+	var applier := _root.command_applier
+	applier.is_authority = false
+	watch_signals(applier)
 	_body().select(&"BleedingT1")
 	assert_true(_body().is_selection_valid(), "a funded, linked T1 is buyable")
 	assert_false(_confirm_button().disabled)
 	_confirm_button().pressed.emit()
 	await wait_physics_frames(1)
-	assert_signal_emit_count(_root.command_applier, "command_applied", 1,
-			"one command per confirm")
-	var params: Variant = get_signal_parameters(_root.command_applier, "command_applied")
-	if params == null:
-		return
-	var cmd := params[0] as SpendRingCellCommand
+	assert_signal_emit_count(applier, "intent_submitted", 1, "one command per confirm")
+	var params: Variant = get_signal_parameters(applier, "intent_submitted")
+	var cmd: SpendRingCellCommand = null
+	if params != null:
+		cmd = params[0] as SpendRingCellCommand
 	assert_not_null(cmd, "the command is a SpendRingCellCommand")
 	if cmd != null:
 		assert_eq(cmd.cell, &"BleedingT1")
 		assert_eq(cmd.entity_id, _player.entity_id)
+	assert_false(_player.ring_spent.has(&"BleedingT1"), "the UI never mutates the ring")
+	assert_true(_modal().visible, "a buy does not close the modal")
+	assert_true(_confirm_button().disabled, "pending until the confirmed command lands")
+	applier.is_authority = true
+
+
+func test_with_points_left_the_modal_stays_open_for_another_buy() -> void:
+	_earn(2)
+	await _open()
+	_body().select(&"BleedingT1")
+	_confirm_button().pressed.emit()
+	await _drained()
 	assert_true(_player.ring_spent.has(&"BleedingT1"), "the authority applied it")
 	assert_true(_modal().visible, "with a point left the modal stays open")
+	_body().select(&"WeaknessT1")
+	assert_true(_body().is_selection_valid(), "the next linked cell is buyable")
 
 
 func test_a_locked_cell_cannot_be_confirmed_and_says_why() -> void:
@@ -105,7 +131,7 @@ func test_at_zero_points_the_modal_stays_open_read_only() -> void:
 	await _open()
 	_body().select(&"BleedingT1")
 	_confirm_button().pressed.emit()
-	await wait_physics_frames(1)
+	await _drained()
 	assert_true(_player.ring_spent.has(&"BleedingT1"))
 	assert_true(_modal().visible, "at zero points the modal stays open to review")
 	_body().select(&"WeaknessT1")

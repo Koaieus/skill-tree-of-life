@@ -6,3 +6,12 @@
 [node name="RingModal" instance=ExtResource("1_base")]
 script = ExtResource("2_script")
 cancellable = true
+
+[node name="Title" parent="Center/Panel/VBox" index="0"]
+text = "INNER RING"
+
+[node name="CancelButton" parent="Center/Panel/VBox/ButtonRow" index="0"]
+text = "LATER"
+
+[node name="ConfirmButton" parent="Center/Panel/VBox/ButtonRow" index="1"]
+text = "BUY"

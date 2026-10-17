@@ -118,6 +118,8 @@ func _ready() -> void:
 		# The catalogue (#853) is read-only and has no request; it still goes
 		# through the queue so its Esc is its own and not the pause menu's.
 		spell_catalogue_modal.closed.connect(_on_modal_closed)
+		ring_modal.closed.connect(_on_modal_closed)
+		ring_modal.confirmed.connect(_on_ring_confirmed)
 		pause_menu.spell_catalogue_requested.connect(_on_spell_catalogue_requested)
 		# HUD-lifetime, not level-lifetime: the chrome is ours whatever level
 		# is bound, so the fan's keep-in is wired here rather than in compose.
@@ -238,6 +240,7 @@ func bind_systems(
 	loot_picker.bind(_input_ctl)
 	spell_loot_picker.bind(_input_ctl)
 	spell_catalogue_modal.bind(_input_ctl)
+	ring_modal.bind(_input_ctl)
 	# The allocation system is the panel's affordability oracle, not its
 	# trigger — a level without one still shows the confirm (dimmed), rather
 	# than arming a request no surface ever presents.
@@ -353,8 +356,35 @@ func _on_spell_catalogue_requested() -> void:
 	_enqueue_modal(func() -> void: spell_catalogue_modal.present())
 
 
-func open_ring(_entity: Entity) -> void:
-	pass
+## Raise the inner-ring modal for `entity` (#1652): request-only — a ring-point
+## mint never calls this. Each confirmed cell becomes one
+## [SpendRingCellCommand] through the level's [CommandApplier], so the HUD never
+## mutates the ring; in a peer game it round-trips the host like a loot pick.
+## No-op without a composition root (a hand-built HUD fixture has no applier).
+func open_ring(entity: Entity) -> void:
+	var applier := _command_applier()
+	if entity == null or applier == null or applier.ring_system == null:
+		return
+	var table := applier.ring_system.table()
+	if table == null:
+		return
+	_enqueue_modal(func() -> void: ring_modal.present(entity, table))
+
+
+func _on_ring_confirmed(chosen: Array, request: Variant) -> void:
+	var applier := _command_applier()
+	var entity := (request as Dictionary).get("entity") as Entity
+	if applier == null or entity == null or chosen.is_empty():
+		return
+	applier.submit(SpendRingCellCommand.new(entity.entity_id, chosen[0]))
+	# The authority applies a ring buy inside `submit` (it bypasses the queue),
+	# so its verdict is already final: a refusal must not leave the cell pending.
+	if applier.is_authority and ring_modal.body() != null:
+		ring_modal.body().clear_pending()
+
+
+func _command_applier() -> CommandApplier:
+	return _game_root.command_applier if _game_root != null else null
 
 
 func _enqueue_modal(show_request: Callable) -> void:
