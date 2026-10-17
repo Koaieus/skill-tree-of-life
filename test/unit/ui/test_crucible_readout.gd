@@ -95,6 +95,11 @@ func test_hovering_a_socket_expands_only_its_line() -> void:
 	assert_true(nodes[1].is_expanded())
 	assert_true(nodes[1].is_highlighted())
 	assert_string_contains(nodes[1].detail_text(), InfusionExchange.line(_VENOM, &"poison", 40))
+	var intake := nodes[1].line().intake_of(_VENOM)
+	assert_not_null(intake, "guard: venom lists poison")
+	if intake != null:
+		assert_string_contains(nodes[1].detail_text(),
+				intake.get_description(plan.attacker.stat_board))
 	var status := nodes[1].line().status
 	assert_not_null(status, "guard: poison's line has its status")
 	if status != null and not status.get_description().is_empty():
