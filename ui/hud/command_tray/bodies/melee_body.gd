@@ -20,11 +20,6 @@ extends CommandTrayBodyBase
 @onready var _receipt: HFlowContainer = %Receipt
 @onready var _detail: AddonItem = %Detail
 
-## Group every live MeleeBody joins, so [HudRoot] can forward the blade-node
-## fan's [signal CardFan.hovered] to [method show_detail] without reaching into
-## [CommandTray]'s current body.
-const DETAIL_GROUP := &"melee_body_detail"
-
 ## Blip tint per addon kind in the battle system's catalog — used for the
 ## upgrade-spend pips, the addon-outline decoration on blade-region pips and the
 ## card accent, so one colour means one addon kind everywhere in this panel.
@@ -47,7 +42,6 @@ var _hover_counts: Dictionary = {}
 
 
 func _on_bound() -> void:
-	add_to_group(DETAIL_GROUP)
 	_swing_button.pressed.connect(_on_swing_pressed)
 	_reform_button.pressed.connect(_on_reform_pressed)
 	_reset_button.pressed.connect(_reset_plan)
@@ -419,7 +413,8 @@ func _has_manual_upgrade(node: SkillNode) -> bool:
 
 ## Binds %Detail to [param scene]'s blueprint — title, modifiers, description
 ## and icon off a throwaway instance — or collapses it on null. Fed by quickbar
-## slot hover and, via [constant DETAIL_GROUP], the blade-node fan's hover.
+## slot hover and, via [method CommandTray.melee_body], the blade-node fan's
+## hover.
 func show_detail(scene: PackedScene) -> void:
 	if _detail == null:
 		return

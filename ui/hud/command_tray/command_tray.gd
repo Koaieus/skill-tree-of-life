@@ -109,6 +109,12 @@ func _swap_body(mode: BattleSystem.AttackMode) -> void:
 	_current_body = body
 
 
+## The live body when it is the melee one, else null. Rebuilt on every mode
+## switch, so resolve it per use — never cache it.
+func melee_body() -> MeleeBody:
+	return _current_body as MeleeBody
+
+
 func _scene_for(mode: BattleSystem.AttackMode) -> PackedScene:
 	match mode:
 		BattleSystem.AttackMode.MELEE: return _MELEE_BODY

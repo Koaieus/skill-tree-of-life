@@ -333,9 +333,11 @@ func rebind_player(player: Entity) -> void:
 
 
 ## Forwards the blade-node fan's hovered blueprint (null on leave) to the
-## melee tray body, whichever one is live.
+## melee tray body, resolved per event since the tray rebuilds it per mode.
 func _on_blade_fan_hovered(scene: PackedScene) -> void:
-	get_tree().call_group(MeleeBody.DETAIL_GROUP, &"show_detail", scene)
+	var body := command_tray.melee_body()
+	if body != null:
+		body.show_detail(scene)
 
 
 ## Pick-1-of-M loot claim (#173). Only the PLAYER's relics get the picker — set
