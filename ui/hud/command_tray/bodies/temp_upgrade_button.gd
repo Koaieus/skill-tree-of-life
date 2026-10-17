@@ -83,11 +83,26 @@ enum State {
 ## ([method MeleeAttackPlan.next_temp_costs] — it escalates per placement): every
 ## currency it spends, listed in the tooltip so "unaffordable" is explicable
 ## rather than merely visible.
+##
+## Also painted on the card's face as its [b]price strip[/b]: one [PriceBadge]
+## per entry, exactly the currencies listed — the card's authored minimum size
+## (in the .tscn) is what keeps a one-badge and a three-badge card the same size.
+## That width is a knob (tentative), capped from above: the melee row carries one
+## card per catalog kind and must stay inside the tray (`test_melee_body_width.gd`).
 @export var costs: Dictionary[StringName, int] = {&"blade_size": 1}:
 	set(v):
 		costs = v
 		if is_node_ready():
+			_rebuild_price_strip()
 			_restyle()
+
+## The blade-node currency's glyph on the price strip — the melee tab's own
+## glyph, authored on the scene. Its hue is the `blade_size` stat's tint.
+@export var blade_icon: Texture2D = null:
+	set(v):
+		blade_icon = v
+		if is_node_ready():
+			_rebuild_price_strip()
 
 ## Whether this card is the currently-armed upgrade. Tracked SEPARATELY from
 ## affordability so budget changes can never silently clear an arm — the arm is
@@ -128,12 +143,15 @@ var state: State:
 @onready var _key_chip: KeyChip = %KeyChip
 @onready var _price_strip: HBoxContainer = %PriceStrip
 
+const _PRICE_BADGE := preload("res://ui/common/price_badge.tscn")
+
 
 func _ready() -> void:
 	_button.pressed.connect(func() -> void: pressed.emit())
 	_title.text = label_text
 	_key_chip.text = keycap
 	_icon.texture = icon_texture
+	_rebuild_price_strip()
 	_restyle()
 
 
@@ -145,6 +163,36 @@ func price_badges() -> Array[PriceBadge]:
 		if child is PriceBadge:
 			out.append(child)
 	return out
+
+
+## One badge per [member costs] entry: `blade_size` first, then every other
+## currency in dictionary order. An aspect stat resolves to its [Aspect]'s
+## identity glyph and hue; an id the roster does not know gets a bare count.
+## Old badges are freed synchronously so a reader never sees a stale strip.
+func _rebuild_price_strip() -> void:
+	for child in _price_strip.get_children():
+		_price_strip.remove_child(child)
+		child.free()
+	var blades: int = costs.get(&"blade_size", 0)
+	if blades > 0:
+		var def := StatRegistry.get_def(&"blade_size")
+		_add_badge(blade_icon, def.tint_color if def != null else Color.WHITE, blades)
+	var roster := AspectRoster.shared()
+	for id in costs:
+		if id == &"blade_size":
+			continue
+		var aspect := roster.for_stat(id) if roster != null else null
+		var identity: Identity = aspect.identity if aspect != null else null
+		_add_badge(identity.icon if identity != null else null,
+			identity.tint if identity != null else Color.WHITE, costs[id])
+
+
+func _add_badge(glyph: Texture2D, hue: Color, amount: int) -> void:
+	var badge := _PRICE_BADGE.instantiate() as PriceBadge
+	badge.icon = glyph
+	badge.tint = hue
+	badge.count = amount
+	_price_strip.add_child(badge)
 
 
 ## Repaint for the current [member state]. Three visually separate treatments,
