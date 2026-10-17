@@ -41,6 +41,7 @@ func before_each() -> void:
 
 func _spawn_victim(faction: Faction = _NPC_FACTION) -> Entity:
 	var victim: Entity = autofree(TestWorld.new_entity("Victim", null, faction))
+	victim.faction = faction  # null stays null: a faction-less blocker is a subject here
 	_graph.add_child(victim)
 	await get_tree().process_frame
 	return victim
