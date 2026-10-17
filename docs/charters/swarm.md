@@ -179,7 +179,20 @@ disk at `scratchpad/land/land-<n>.log` (#920), so filling the ledger is a
     never opens `.claude/agents/drone.md`** (owner, 2026-09-27: "if you
     needed to read the drone contract that's a failure of the `swarm`
     skill"). The digest mirrors a file the lead will now never read: a
-    change to the drone agent re-derives it.
+    change to the drone agent re-derives it. It is, exactly: a `drone`
+    makes its own worktree (`mise run worktree:new -- <slug>`) before any
+    edit, so no `isolation` parameter; reads the issue once, writes only
+    owned paths, reads anything; `git add`s by explicit path, never
+    stashes, never lands, never writes `Closes #n`; writes a named test RED
+    first and confirms it ran, and authors no test for an exact-spec /
+    visual / tuning unit; holds "pre-existing failure" as a claim and notes
+    it; has a coherent commit by ~150k, retires on a blown budget with a
+    successor brief on the issue, never finishes past the stop; calls the
+    `advisor` tool only when the brief names it, never the user; defaults
+    an open number as a knob, not a doubt; batches shell commands, never
+    polls or idles, verifies on the ladder `check` → `test:one` →
+    `test:dir`; ends its turn with its report as its final text — spent
+    once it has reported.
 13. **Brief in `prompt`; `name` for addressability; `subagent_type: "drone"`;
     `model` mandatory and equal to the ledger's tier.** No `isolation`
     parameter — the drone makes its own `mise` worktree. If a drone idles on
@@ -216,7 +229,9 @@ disk at `scratchpad/land/land-<n>.log` (#920), so filling the ledger is a
     is silent when the issue's stamped reading list still holds, prints
     the drifted entries otherwise (then one `Explore(model: haiku)`
     re-verifies them before the brief is written), and says `no stamp` on a
-    pre-charter issue.
+    pre-charter issue. Orientation is one Bash call before any of it:
+    `mise run ledger -- show`, `mise gh-project -- list`, `git -C <repo>
+    worktree list`, `ls .claude/worktrees/`.
 15. **Shared contracts land on master first.** A seam every unit overrides,
     a registry every unit appends to, a `.tres` every unit touches — the
     lead commits it before spawning; drones branch from the tip.
@@ -301,7 +316,12 @@ disk at `scratchpad/land/land-<n>.log` (#920), so filling the ledger is a
     not the six-line report gets one `SendMessage` to continue, never a
     transcript poll or `pgrep` wait (the inbox nap of swarm-train law 23
     is the one sanctioned sleep loop); a drone that ends
-    without its final act is silent, and the top's stall tick is the net.
+    without its final act is silent: one `ListAgents` shows it `completed`
+    or `killed` with no inbox file, and the lead treats it as a failed unit
+    itself — law 24's worktree check, `mise run ledger -- note <n> 'ended
+    without report'`, then re-dispatch or retire — the top's stall tick is
+    only the second net. The lead makes the inbox before the wave: `mkdir
+    -p <inbox>/done` (absolute path).
     **The relief threshold is the lead's own context** — law 6's ceiling,
     relief 50k below it — never the train's size (swarm-train law 15: a
     lead's limit is its context, not its train); what train mode changes is
@@ -346,7 +366,8 @@ disk at `scratchpad/land/land-<n>.log` (#920), so filling the ledger is a
     2026-09-30); or stop — the same blocker twice with no fork, `in-review`
     with a one-line comment — and serve the rest of the swarm.
 19. **"Pre-existing failure" is a claim.** Check against a real `master` run
-    before landing over it.
+    (`mise run test:one -- <script>` in the main checkout) before landing
+    over it.
 20. **`mise run land -- <branch> [--closes <n>]` is the only way onto
     master.** Serial by `flock`; rebases in the worktree; `check` +
     `test:dir`; `--closes` only on the final branch of a multi-unit issue.
@@ -361,7 +382,8 @@ disk at `scratchpad/land/land-<n>.log` (#920), so filling the ledger is a
     train's suite run — a missing or unstaged `.uid` is a test that silently
     never ran, and no cache predicate sees it. The cache needs no hand
     `refresh`: `mise run test*` refreshes it itself on `class_name` drift.
-23. **`Closes` fires on push.** Then `mise gh-project -- hygiene --fix` once,
+23. **`Closes` fires on push** (`git -C <repo> push origin master`). Then
+    `mise gh-project -- hygiene --fix` once,
     which derives every hub. A blocked unit goes back to `ready` with a
     comment; never `in-progress` with nobody on it.
 24. **A killed drone's worktree is checked before it is written off**: `git
@@ -440,7 +462,9 @@ disk at `scratchpad/land/land-<n>.log` (#920), so filling the ledger is a
     rendered as `Follow-ups` with a disposition each — *fixed now* or *a
     drone did it* before *filed*, because small optional work filed "for
     later" is what grew `Needs design` past 80 issues. Same shape for relay
-    and relief; whip's renderer emits the same vocabulary as a file.
+    and relief; whip's renderer emits the same vocabulary as a file. A
+    lesson the skill does not say is posted where it is learned: `mise run
+    feedback -- post swarm <kind> <file>` ([README](README.md)).
 
 ## Frontmatter
 

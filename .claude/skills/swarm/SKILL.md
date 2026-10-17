@@ -37,6 +37,15 @@ at every later wake, and the last unit is landed on what is left.
 
 ## 2. Orient
 
+One Bash call before anything else:
+
+```
+mise run ledger -- show
+mise gh-project -- list
+git -C <repo> worktree list
+ls .claude/worktrees/
+```
+
 - **Mode.** If the launch prompt says *train mode, train `<t>`*, read
   section 10 before anything else; it changes dispatch, reporting and the
   ledger handle. Otherwise this is a standalone swarm.
@@ -161,11 +170,19 @@ Trap list: <peer's list verbatim, unverified items marked as questions>   # only
 ```
 
 Nothing the issue already says; nothing the drone already carries. **Never
-open `.claude/agents/drone.md`** — this is the digest. The drone already
-knows: to read its issue and CLAUDE.md, to make and work in its own `mise`
-worktree and never the main checkout, `git -C` and explicit-path `add`, to
-commit as it goes, that `advisor` exists and how to call it, to retire once
-it has reported, and to return exactly this:
+open `.claude/agents/drone.md`** — this is the digest. A `drone` already:
+makes its own worktree (`mise run worktree:new -- <slug>`) before any edit;
+reads the issue once, writes only owned paths, reads anything; `git add`s by
+explicit path, never stashes, never lands, never writes `Closes #n`; writes
+a named test RED first and confirms it ran, and authors no test for an
+exact-spec / visual / tuning unit; holds "pre-existing failure" as a claim
+and notes it; has a coherent commit by ~150k, retires on a blown budget
+with a successor brief on the issue, never finishes past the stop; calls
+the `advisor` tool only when the brief names it, never the user; defaults
+an open number as a knob, not a doubt; batches shell commands, never polls
+or idles, verifies on the ladder `check` → `test:one` → `test:dir`; ends
+its turn with its report as its final text and is spent once it has
+reported. The report is exactly this:
 
 ```
 BRANCH: <slug>
@@ -198,7 +215,8 @@ summarise.
   reviewed the rest. One `advisor` call per wave for the judgement, not
   per unit.
 - **"Pre-existing failure" is a claim.** Check against a real `master` run
-  before landing over it.
+  — `mise run test:one -- <script>` in the main checkout — before landing
+  over it.
 - **Never acknowledge a finished drone.** Never infer from an idle that a
   drone's background command finished. Relay reports in your own words,
   never paste diffs.
@@ -247,7 +265,7 @@ Before the gate — a sweep drone's branch is part of the batch it gates — swe
 - **After a new `class_name` lands, compare script counts** across the
   train's suite run: a missing or unstaged `.uid` is a test that silently
   never ran. No hand `refresh` — `mise run test*` refreshes the cache itself.
-- Push. **`Closes` fires on push.** Then `mise gh-project -- hygiene --fix`
+- `git -C <repo> push origin master`. **`Closes` fires on push.** Then `mise gh-project -- hygiene --fix`
   once. A blocked unit goes back to `ready` with a comment; never
   `in-progress` with nobody on it.
 
@@ -277,6 +295,8 @@ Before the gate — a sweep drone's branch is part of the batch it gates — swe
   why. Fill the ledger's `adv` / ctx / calls / priced from `mise run
   agent-cost` (your own session via `--main`); every landing's `cost:` rows
   are at `scratchpad/land/land-<n>.log`.
+- A lesson this skill does not say is posted where it is learned: `mise run
+  feedback -- post swarm <kind> <file>`.
 
 ## 10. Train mode
 
@@ -292,8 +312,9 @@ mode; the top carries the transport. Every other step holds; these change:
   outgoing's file to read and its own to write; nothing is `adopt`ed; the
   whip ledger path is read, never adopted. A unit with a row in any other
   live ledger — a draining lead's included — is never dispatched.
-- **Drones go out in the background**: one message per wave, every `Agent`
-  call `run_in_background: true`. Every brief ends with three acts, in
+- **`mkdir -p <inbox>/done` (absolute path) before the wave.** Then drones
+  go out in the background: one message per wave, every `Agent` call
+  `run_in_background: true`. Every brief ends with three acts, in
   order:
   ```
   Final act, in order: (1) write the six-line report to
@@ -331,6 +352,9 @@ mode; the top carries the transport. Every other step holds; these change:
   `drained` line wakes it.
 - **The owner's stop** arrives as a message from the top and drains when
   your nap returns, ten minutes at most.
-- **Report by returning** the session report as your final text; a drone
-  that ends without its final act is silent, and the top's stall tick is
-  the net.
+- **A drone that ends without its final act is silent — you are the first
+  net.** `ListAgents` shows it `completed` or `killed` with no inbox file:
+  treat it as a failed unit yourself — the step-5 killed-drone worktree
+  check, `mise run ledger -- note <n> 'ended without report'`, then
+  re-dispatch or retire. The top's stall tick is only the second net.
+- **Report by returning** the session report as your final text.
