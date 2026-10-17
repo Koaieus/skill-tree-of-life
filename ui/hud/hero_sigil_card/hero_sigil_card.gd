@@ -124,8 +124,7 @@ func bind(entity: Entity) -> void:
 
 
 ## The badge follows the pool's `current` (what is left to spend), and pops on a
-## mint for THIS hero — the pool has already moved when the signal fires, so the
-## pop never lands on a hidden badge.
+## mint for THIS hero.
 func _bind_ring_badge(pool: PoolStat) -> void:
 	if pool == null:
 		_show_ring_points(0)
@@ -146,7 +145,7 @@ func _show_ring_points(count: int) -> void:
 
 
 func _on_ring_point_minted(entity: Entity) -> void:
-	if entity != _entity or _ring_badge == null or not _ring_badge.visible:
+	if entity != _entity or _ring_badge == null:
 		return
 	if _badge_tween != null:
 		_badge_tween.kill()
