@@ -33,7 +33,7 @@ extends MarginContainer
 ## decorative Control under it IGNOREs so the click reaches the root.
 ##
 ## [b]The build it wears.[/b] [code]%RingSilhouette[/code], a `read_only`
-## [AspectWheel] behind the portrait, shows the hero's bought ring cells
+## [AspectWheel] over the emblem (under the badges, so its hub names a hovered wedge over the sigil), shows the hero's bought ring cells
 ## ([RingSilhouette]); it PASSes the mouse (hover names a wedge) and never
 ## accepts a click, so the door above still opens. The emblem rim takes the
 ## most-invested sector's hue, the hero's colour until a cell is bought. The
