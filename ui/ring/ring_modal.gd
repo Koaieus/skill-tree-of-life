@@ -11,11 +11,17 @@ extends ModalBase
 ## entity's `ring_changed`, so a player with points left keeps buying, and at
 ## zero it stays open read-only (confirm dead). Only Later / Esc / right-click
 ## closes it — the base's cancel path, which is also the one `closed` emits on.
+##
+## A refused buy reaches the body through the bound input controller's
+## [CommandApplier]: `command_applied(cmd, false)` is the one route a refusal
+## takes on every peer — the authority's own validate-fail and a host's
+## [method CommandApplier.refuse_intent] alike.
 
 const _BODY_SCENE := preload("res://ui/ring/ring_body.tscn")
 
 
 func present(entity: Entity, table: RingTable) -> void:
+	_watch_refusals()
 	_present(_BODY_SCENE, "INNER RING", {"entity": entity, "table": table})
 
 
@@ -30,3 +36,21 @@ func _on_confirm() -> void:
 	var chosen: Array = _body.resolve()
 	body().mark_pending(chosen[0])
 	confirmed.emit(chosen, _request)
+
+
+## Connected on present rather than in [method ModalBase.bind]: the controller's
+## applier is a scene-wired export, and present is the first moment it matters.
+## The applier is level-lifetime, so this connects once and never disconnects.
+func _watch_refusals() -> void:
+	if _input_ctl == null or _input_ctl.command_applier == null:
+		return
+	var applier := _input_ctl.command_applier
+	if not applier.command_applied.is_connected(_on_command_applied):
+		applier.command_applied.connect(_on_command_applied)
+
+
+func _on_command_applied(command: Command, success: bool) -> void:
+	var spend := command as SpendRingCellCommand
+	if success or spend == null or body() == null:
+		return
+	body().refuse(spend.entity_id, spend.cell)

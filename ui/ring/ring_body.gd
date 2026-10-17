@@ -61,6 +61,14 @@ func mark_pending(cell: StringName) -> void:
 	selection_changed.emit()
 
 
+## The authority refused `entity_id`'s buy of `cell`: drop it if it is the one
+## pending here, so confirm comes back without a reopen. Any other refusal —
+## another entity's, an older cell's — leaves the marker alone.
+func refuse(entity_id: int, cell: StringName) -> void:
+	if _entity != null and _entity.entity_id == entity_id and _pending == cell:
+		clear_pending()
+
+
 ## Drop a pending buy that will never land (the authority refused it).
 func clear_pending() -> void:
 	if _pending == &"":
