@@ -299,3 +299,7 @@ func test_pierce_terms_overlay_board_with_producer_mods() -> void:
 		"uses_board_pierce off and nothing authored stamps null even with board pierce")
 	assert_almost_eq(Mitigation.pierce_terms(node.get_combat(), false, half).fold(8.0), 4.0, 0.001,
 		"producer-only: the board's −3 is ignored")
+
+
+func test_a_pierce_modifier_formats_as_enemy_armor() -> void:
+	assert_eq(_mod(StatModifier.Operation.ADD_BASE, -3.0).format(), "-3 Enemy armor", "StatModifier.format signs with an ASCII hyphen")
