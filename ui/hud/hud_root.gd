@@ -246,6 +246,10 @@ func bind_systems(
 	# with no applier leaves it empty.
 	var applier := _command_applier()
 	hero_sigil_card.ring_system = applier.ring_system if applier != null else null
+	# The inspector reads a pinned core's build against the same rules, gated
+	# by the local seat's fog.
+	node_inspector_card.ring_system = hero_sigil_card.ring_system
+	node_inspector_card.vision_system = _vision_system
 	# The allocation system is the panel's affordability oracle, not its
 	# trigger — a level without one still shows the confirm (dimmed), rather
 	# than arming a request no surface ever presents.

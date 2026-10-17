@@ -218,6 +218,8 @@ func test_ready_and_compose_connect_every_cross_system_signal() -> void:
 	assert_not_null(hud.hero_sigil_card.ring_system, "compose hands the hero card a RingSystem")
 	assert_eq(hud.hero_sigil_card.ring_system, root.command_applier.ring_system,
 			"the card's silhouette reads the level's own ring rules, not a second copy")
+	assert_true(hud.node_inspector_card.ring_system == root.command_applier.ring_system and hud.node_inspector_card.vision_system == root.vision_system,
+			"compose hands the inspector the level's own RingSystem and VisionSystem")
 	for p: Array in pairs:
 		var emitter: Object = p[0]
 		var listener: Object = p[2]
