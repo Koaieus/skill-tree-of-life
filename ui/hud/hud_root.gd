@@ -382,10 +382,6 @@ func _on_ring_confirmed(chosen: Array, request: Variant) -> void:
 	if applier == null or entity == null or chosen.is_empty():
 		return
 	applier.submit(SpendRingCellCommand.new(entity.entity_id, chosen[0]))
-	# The authority applies a ring buy inside `submit` (it bypasses the queue),
-	# so its verdict is already final: a refusal must not leave the cell pending.
-	if applier.is_authority and ring_modal.body() != null:
-		ring_modal.body().clear_pending()
 
 
 func _command_applier() -> CommandApplier:

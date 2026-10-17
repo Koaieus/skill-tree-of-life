@@ -19,9 +19,9 @@ the measurements behind it.
 
 **Why inheritance and not an array of sub-boards.** The existing mechanism *is* `get_property_list()` introspection — `collect_formula_edges`, `get_pool_stats` and `get_stat_ids` discover a subclass's fields for free. Sub-boards would mean reimplementing discovery in `get_stat`, both walks, `bind_modifier`/`unbind_modifier` and `addons/stat_board_visualizer/stat_board_graph.gd`'s `load_board`, and their one upside (authoring a shared group once) does not apply: node boards resolve shared ids dynamically through `StatRegistry`, never as fields.
 
-### `_mint_stat` is the subclass seam; `_ensure_stat` is the gate above it
+### `_mint_stat` is the subclass seam; `ensure_facet` is the gate above it
 
-`_ensure_stat` owns the accessor-token rejection and the already-exists short-circuit, then delegates to `_mint_stat(id)` — so no subclass can forget the gate.
+`ensure_facet` owns the accessor-token rejection and the already-exists short-circuit, then delegates to `_mint_stat(id)` — so no subclass can forget the gate.
 
 - `StatBoard._mint_stat` — mints from `StatRegistry` into `_extra_stats` (the sparse default).
 - `EntityStatBoard._mint_stat` — **refuses, with a warning**, except for a `StatDef` carrying a concept `role` (ADR 0054: those mint eagerly at `apply_intrinsics` through `mint_facets()`, which a test arranging a raw board calls itself). For every other id a mint attempt is a typo in a modifier's `stat_id` (or a node-only id aimed at the wrong board). The rule is derived from the def and the class shape, **not an authored deny-list**, so it cannot drift.
