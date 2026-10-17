@@ -7,9 +7,8 @@ status: settling
 A feature brief in the shape product teams use before a surface is built:
 problem, goals and non-goals, who uses it and when, user stories each with
 acceptance criteria, states, constraints, counter-considerations, open
-questions. Fill the `?` cells before promoting anything to `Ready`; a
-`/swarmify` pass on #1652 fleshes this out with the owner and splits it. The
-skeleton is reusable for any new surface — copy the headings.
+questions. The skeleton is reusable for any new surface — copy the
+headings; the owner calls are §9.
 
 What the ring *is* (data, points, spending) is settled on #199 and built by
 #1651; this brief is only the surface the player sees and touches.
@@ -36,7 +35,7 @@ HUD shows a level-up banner only.
 
 **Non-goals**
 - Designing T3 signatures or opposition (#1653).
-- Per-class bespoke rings (a later `RingDef` per CoreClass).
+- Per-class bespoke rings (a later ring scene per CoreClass).
 - Showing an NPC's ring in full (see info gating, story 7).
 - Respec / refund.
 
@@ -59,8 +58,8 @@ sit on unspent points.
 - Given a point mints on my level-up, when the LEVEL UP beat plays, then the
   hero portrait shows an unspent-points badge and the banner names it.
 - Given unspent points, when my turn starts, then the badge is still there
-  (no nag, no modal). Mint never raises the ring; the loot picker stays the
-  only mid-run interrupter.
+  (no nag, no modal). Mint never raises the ring; the ring never joins the
+  loot pickers as a mid-run interrupter.
 
 **S2 — Open.** As the player I want to open the ring from my hero so the entry
 point is where my identity already lives.
@@ -154,13 +153,13 @@ level-up  ─▶ badge on portrait ─▶ click portrait ─▶ ring modal
 - Spending is a command (host-authoritative), so the UI never mutates state;
   it submits and reflects.
 - Aspect hues and glyphs come from `identity/defs/*.tres`; sector order from
-  the `RingDef` (#1651). Nothing in the UI hardcodes either.
+  the authored ring scene (#1651). Nothing in the UI hardcodes either.
 - A live sandbox-host tab is the tuning surface before a run exists.
 
 ## 8. Counter-considerations
 
 - **Interruption.** A modal on every mint breaks the turn's flow; a badge
-  alone risks forgotten points. The loot picker already interrupts on kills,
+  alone risks forgotten points. The loot pickers already interrupt on kills,
   so a second interrupter compounds. Lean: badge + banner, modal on click.
 - **Choice load.** 30 cells with 1–3 points is a lot of surface for a small
   choice; the ring must guide (buyable cells lit, the rest quiet) or it reads

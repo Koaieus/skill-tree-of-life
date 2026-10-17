@@ -52,11 +52,17 @@ aspect sectors first, keystones already taking up spots but just use the XP
 anchor keystones in there for now; when we switch to each CoreClass getting
 their own bespoke innerskilltree we simply replace those keystones with a set
 of coreclass-specific (or just an inherited scene?)"*. The Ring below is the
-pick, as an authored `RingDef` resource shown in a modal (never a second graph
-of SkillNodes); T1 count, T2 potency, a keystone cell per sector; cells grant
+pick; T1 count, T2 potency, a keystone cell per sector; cells grant
 through the core register, so they are lootable on death. T3 signatures and
 opposition are a Needs-design child of #199. The point cadence (every 3) is a
-knob, the milestone +1 SP stays. The wheel, radar, milestone-draft and literal-inner-graph shapes are dead.
+knob, the milestone +1 SP stays. The wheel, radar and milestone-draft shapes are dead.
+
+**Re-cut 2026-10-17 (owner, #1652 pass):** the ring is *"a hand authored scene
+with nodes and edges and node content readily composed"* — an authored Graph
+of SkillNodes, PoE-passive-tree-like, buyable by adjacency to the core or a
+bought cell. This reverses the earlier "never a second graph of SkillNodes"
+reading; the build and the surface are #1651 and #1652's children
+(`inner_ring_ui.md`).
 
 **Settled the same day — the "taken" channel beside this "earned" one:**
 faced Dormant Cores (a per-aspect core class granting size-scaled count /
@@ -69,7 +75,7 @@ Facts it leans on: 12 `<aspect>_aspect` counts under the `aspects` family
 parent, 10 `<aspect>_stacks_per_hit` potencies (scout, armor_break, explosive
 have none yet), six schools × two aspects (`aspect_matrix.md:395-402`; #1249
 still open on the map), `Entity.MILESTONE_LEVEL_INTERVAL := 5` already exists,
-the loot picker is the only mid-run choice modal. Count is capped per action
+and mid-run choice modals already exist (loot and spell-loot pickers). Count is capped per action
 for melee and magic (#1467) — a count tier is secretly a ranged buff unless the
 pick text says what it does in your mode; potency is uncapped and is the
 equaliser.
@@ -101,7 +107,10 @@ are their own Intake issue.
 
 - **T1** (1 pt): +1 `<aspect>_aspect`. Always buyable.
 - **T2** (1 pt): +1 `<aspect>_stacks_per_hit` (+2 where base is 1 and the
-  aspect is weak). Needs T1 here **and** T1 on a ring-neighbour.
+  aspect is weak). Buyable once an edge links it to a bought cell — gating
+  is PoE adjacency from the core, the authored edges are the rules (owner,
+  2026-10-17, #1652); an AND-gate is a later optional addon if play wants
+  breadth forced.
 - **T3** (2 pts): a signature. Needs T2 here **and** T2 on the sector partner
   (same school). Breadth before depth: three points into Poison alone never
   reach T3.
