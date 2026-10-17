@@ -1,7 +1,56 @@
 [gd_scene format=3]
 
 [ext_resource type="Script" path="res://ui/ring/ring_view.gd" id="1_view"]
+[ext_resource type="PackedScene" path="res://ui/theme/bloom_viewport.tscn" id="2_bloom"]
+[ext_resource type="Script" path="res://ui/ring/ring_glyph.gd" id="3_glyph"]
 
 [node name="RingView" type="SubViewportContainer"]
+custom_minimum_size = Vector2(320, 320)
 stretch = true
 script = ExtResource("1_view")
+
+[node name="Viewport" parent="." instance=ExtResource("2_bloom")]
+unique_name_in_owner = true
+handle_input_locally = false
+size = Vector2i(320, 320)
+render_target_update_mode = 4
+
+[node name="Background" type="CanvasLayer" parent="Viewport"]
+layer = -1
+
+[node name="BackgroundFill" type="ColorRect" parent="Viewport/Background"]
+unique_name_in_owner = true
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 2
+color = Color(0.035, 0.04, 0.07, 1)
+
+[node name="BackgroundTexture" type="TextureRect" parent="Viewport/Background"]
+unique_name_in_owner = true
+visible = false
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 2
+expand_mode = 1
+stretch_mode = 6
+
+[node name="Display" type="Node2D" parent="Viewport"]
+unique_name_in_owner = true
+
+[node name="CoreSigil" type="Node2D" parent="Viewport/Display"]
+unique_name_in_owner = true
+visible = false
+script = ExtResource("3_glyph")
+color = Color(0.8586, 0.9018, 0.9482, 1)
+
+[node name="SelectionMarker" type="Node2D" parent="Viewport/Display"]
+unique_name_in_owner = true
+visible = false
+script = ExtResource("3_glyph")
+width = 3.0
+color = Color(0.8586, 0.9018, 0.9482, 1)
+
+[node name="Camera" type="Camera2D" parent="Viewport"]
+unique_name_in_owner = true
