@@ -51,6 +51,7 @@ func _ladder(pivot_at: Vector2) -> Dictionary:
 	var positions: Array[Vector2] = []
 	var radii: Array[float] = []
 	var edges: Array[Vector2i] = []
+	@warning_ignore("integer_division")
 	var rungs := _VERTICES / 2
 	for i in rungs:
 		positions.append(pivot_at + Vector2(float(i) * 40.0, -20.0))

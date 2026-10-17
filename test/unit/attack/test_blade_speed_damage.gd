@@ -144,7 +144,7 @@ func test_hitscan_stamps_the_events_speed_from_speed_history() -> void:
 	add_child_autofree(graph)
 	var pivot := _spawn(graph, "Pivot", Vector2.ZERO)
 	var arm := _spawn(graph, "Arm", Vector2(150, 0))
-	var target := _spawn(graph, "Target", Vector2(150, 0))
+	var _target := _spawn(graph, "Target", Vector2(150, 0))
 	await get_tree().process_frame
 	await get_tree().physics_frame
 	await get_tree().physics_frame

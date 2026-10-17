@@ -74,7 +74,7 @@ func test_no_marker_outlives_the_blade() -> void:
 	assert_eq(_lanterns().size(), 0, "freeing the blade leaves no marker")
 
 
-func _preview_plan(preview: MeleePreview) -> MeleeAttackPlan:
+func _preview_plan(_preview: MeleePreview) -> MeleeAttackPlan:
 	var graph := _GRAPH_SCENE.instantiate()
 	add_child_autofree(graph)
 	var pivot := _SKILL_NODE_SCENE.instantiate() as SkillNode

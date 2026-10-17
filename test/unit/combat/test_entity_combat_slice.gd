@@ -317,7 +317,7 @@ func test_lazy_and_materialized_shadows_walk_a_cascade_to_identical_state() -> v
 func _entry_rows(entries: Array[DeallocEntry]) -> Array:
 	var rows: Array = []
 	for e in entries:
-		rows.append([e.node.name if e.node != null else "<null>", e.node_id, e.allocation_level,
+		rows.append([String(e.node.name) if e.node != null else "<null>", e.node_id, e.allocation_level,
 				e.wound, e.chip, e.was_core, e.revoked_labels])
 	return rows
 

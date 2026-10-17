@@ -204,7 +204,7 @@ func test_a_forfeited_round_closes_the_clients_open_request_without_a_local_answ
 	add_child_autofree(pair[1])
 	_link(host["applier"], host["graph"], pair[0], NetworkConfig.Role.HOST, host_registry)
 	var client_registry := _receiver()
-	var client_link := _link(client["applier"], client["graph"], pair[1], NetworkConfig.Role.CLIENT,
+	var _client_link := _link(client["applier"], client["graph"], pair[1], NetworkConfig.Role.CLIENT,
 			client_registry)
 	_mirror_adapter(client["applier"], client_registry)
 
@@ -253,7 +253,7 @@ func test_a_collector_death_mid_pick_forfeits_and_travels_upward() -> void:
 	add_child_autofree(pair[1])
 	_link(host["applier"], host["graph"], pair[0], NetworkConfig.Role.HOST, host_registry)
 	var client_registry := _receiver()
-	var client_link := _link(client["applier"], client["graph"], pair[1], NetworkConfig.Role.CLIENT,
+	var _client_link := _link(client["applier"], client["graph"], pair[1], NetworkConfig.Role.CLIENT,
 			client_registry)
 	_mirror_adapter(client["applier"], client_registry)
 

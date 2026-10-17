@@ -58,12 +58,12 @@ func _joined(lines: PackedStringArray) -> String:
 func test_matching_builds_link_normally() -> void:
 	_host.build_stamp = _stamp("4174f36")
 	_client.build_stamp = _stamp("4174f36")
-	var refusals := 0
-	_client.link_refused.connect(func(_r: String) -> void: refusals += 1)
+	var refusals := [0]
+	_client.link_refused.connect(func(_r: String) -> void: refusals[0] += 1)
 
 	_Rig.world(_host).send_hello()
 
-	assert_eq(refusals, 0, "same sha must not refuse")
+	assert_eq(refusals[0], 0, "same sha must not refuse")
 	assert_true(_client.transport.is_linked(), "the link must survive a matching build")
 	assert_string_contains(_joined(_client_lines), "in sync at link-up")
 

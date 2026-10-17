@@ -53,6 +53,7 @@ func test_bench_cache_on_vs_off() -> void:
 	assert_not_null(_attacker.navigator, "the attacker has a navigator, or every gather is empty")
 	var nodes := _graph.navigator.get_mirrored_nodes()
 	_firing = nodes[0]
+	@warning_ignore("integer_division")
 	_target = nodes[nodes.size() / 2]
 	gut.p("--- board: %d nodes ---" % nodes.size())
 
@@ -112,6 +113,7 @@ func _median(fn: Callable) -> float:
 		fn.call()
 		times.append(Time.get_ticks_usec() - t)
 	times.sort()
+	@warning_ignore("integer_division")
 	return float(times[times.size() / 2])
 
 

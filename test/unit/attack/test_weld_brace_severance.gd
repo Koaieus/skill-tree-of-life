@@ -110,6 +110,7 @@ func test_a_vertex_cut_off_a_weld_coasts_on_a_live_swing() -> void:
 	var drivers: Array[BladeDriver] = [BladeArcDriver.new(
 			1, pivot, offset.length(), offset.angle(), TAU, _DURATION)]
 	var total := int(ceil(_DURATION / BladeSim.DEFAULT_DT))
+	@warning_ignore("integer_division")
 	var cut_at := total / 4
 	var head := BladeSim.simulate_range(s, drivers, 0, cut_at)
 	s.positions = head.samples[head.samples.size() - 1].duplicate()

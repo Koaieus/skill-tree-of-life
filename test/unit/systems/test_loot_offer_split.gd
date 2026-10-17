@@ -175,14 +175,14 @@ func test_a_single_survivor_auto_grants_and_still_mirrors() -> void:
 	_link(client["applier"], client["graph"], pair[1], NetworkConfig.Role.CLIENT,
 			_receiver())
 
-	var requests := 0
-	var on_request := func(_r: LootPickRequest) -> void: requests += 1
+	var requests := [0]
+	var on_request := func(_r: LootPickRequest) -> void: requests[0] += 1
 	Events.loot_pick_requested.connect(on_request)
 	_open_stat_round(host)
 	await get_tree().process_frame
 	Events.loot_pick_requested.disconnect(on_request)
 
-	assert_eq(requests, 0, "one survivor is no real choice — nothing is offered")
+	assert_eq(requests[0], 0, "one survivor is no real choice — nothing is offered")
 	assert_eq((host["collector"] as Entity).core_modifiers.size(), 1)
 	assert_eq(
 		(host["collector"] as Entity).core_modifiers.size(),
@@ -203,10 +203,10 @@ func test_a_remote_collectors_pick_round_trips_and_closes_the_clients_gate() -> 
 	var pair := LoopbackTransport.pair()
 	add_child_autofree(pair[0])
 	add_child_autofree(pair[1])
-	var host_link := _link(host["applier"], host["graph"], pair[0],
+	var _host_link := _link(host["applier"], host["graph"], pair[0],
 			NetworkConfig.Role.HOST, host_registry)
 	var client_registry := _receiver()
-	var client_link := _link(client["applier"], client["graph"], pair[1], NetworkConfig.Role.CLIENT,
+	var _client_link := _link(client["applier"], client["graph"], pair[1], NetworkConfig.Role.CLIENT,
 			client_registry)
 	var offers: Array[LootPickOffer] = []
 	client_registry.offer_received.connect(func(o: LootPickOffer) -> void: offers.append(o))

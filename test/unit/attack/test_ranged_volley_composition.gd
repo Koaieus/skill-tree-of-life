@@ -133,6 +133,7 @@ func test_composition_yields_wave_major_schedule_with_types_in_roster_order() ->
 	var expected: Array[SkillNode] = [_near, _mid_leaf, _far, _near, _mid_leaf, _far, _near]
 	for i in schedule.size():
 		assert_eq(schedule[i].firing_node, expected[i], "shot %d fires from the wave-major leaf" % i)
+		@warning_ignore("integer_division")
 		assert_eq(schedule[i].wave, i / 3, "shot %d sits in wave %d" % [i, i / 3])
 	var counts := _leaf_counts(schedule)
 	assert_eq(counts[_near], 3)

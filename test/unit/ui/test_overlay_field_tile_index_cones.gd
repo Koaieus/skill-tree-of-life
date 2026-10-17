@@ -211,6 +211,7 @@ func test_cone_tile_indices_wrap_to_2d_and_round_trip() -> void:
 			var bucket: Array = index._cells.get(Vector2i(col, row), [])
 			assert_eq(int(oc.g), bucket.size())
 			for idx in bucket:
+				@warning_ignore("integer_division")
 				assert_eq(int(img.get_pixel(e % cols, e / cols).r), idx,
 					"flat entry %d round-trips through (e %% COLS, e / COLS)" % e)
 				e += 1

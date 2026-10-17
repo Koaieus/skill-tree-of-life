@@ -55,7 +55,7 @@ func _contact(gate: BladePopResolver.LiveGate, idx: int, target: SkillNode) -> A
 	return [ev, di]
 
 
-func _arm(gate: BladePopResolver.LiveGate, state: BladeState, contact: Array, riders: Array = []) -> Array[HitInstance]:
+func _arm(gate: BladePopResolver.LiveGate, _state: BladeState, contact: Array, riders: Array = []) -> Array[HitInstance]:
 	var hits: Array[HitInstance] = []
 	gate.arm_blasts(contact[0], contact[1], hits, CombatWorld.live(), riders)
 	return hits

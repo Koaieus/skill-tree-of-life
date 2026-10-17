@@ -114,10 +114,10 @@ func test_capture_rebuild_round_trip_preserves_the_ragged_predecessor_sets() -> 
 				"predecessor COUNT round-trips for target %s" % target_key.name)
 		var orig_names: Array = []
 		for p in orig.predecessors:
-			orig_names.append(p.name if p != null else "null")
+			orig_names.append(String(p.name) if p != null else "null")
 		var back_names: Array = []
 		for p in back.predecessors:
-			back_names.append(p.name if p != null else "null")
+			back_names.append(String(p.name) if p != null else "null")
 		assert_eq(back_names, orig_names,
 				"predecessor IDENTITIES round-trip, in order, for target %s" % target_key.name)
 		assert_eq(back.predecessor, orig.predecessor,

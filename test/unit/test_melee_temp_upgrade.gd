@@ -1,7 +1,5 @@
 extends GutTest
 
-var _catalog: TempUpgradeCatalog = preload("res://attack/melee/temp_upgrade_catalog.tres")
-
 ## #406 — MeleeAttackPlan's temp Clamp/Spikes upgrades: shared blade_size
 ## budget, addon_slots gating, and a REAL SkillNodeAddon attached/freed
 ## exactly like a permanent one (owner's retracted-design correction — see

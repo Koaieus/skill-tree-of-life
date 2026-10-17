@@ -131,6 +131,7 @@ func _stats(a: Array[float]) -> String:
 	for v in s:
 		sum += v
 	var n := s.size()
+	@warning_ignore("integer_division")
 	return "n=%d min=%.1f p10=%.1f med=%.1f mean=%.1f p90=%.1f max=%.1f" % [
 		n, s[0], s[int(n * 0.1)], s[n / 2], sum / n, s[mini(int(n * 0.9), n - 1)], s[n - 1]]
 

@@ -77,6 +77,7 @@ func _assert_samples_identical(
 ## The whole issue in one assertion.
 func test_a_chunked_run_is_bit_identical_to_an_unchunked_one() -> void:
 	var steps := _steps()
+	@warning_ignore("integer_division")
 	var cut := steps / 3
 	var whole_state := _chain(6)
 	var whole := BladeSim.simulate(whole_state, _drivers(whole_state), DURATION, DT)

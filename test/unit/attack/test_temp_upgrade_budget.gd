@@ -178,6 +178,7 @@ func _clamp_priced(base: int, step: int) -> PackedScene:
 
 
 static func _closed_form(k: int, base: int, step: int) -> int:
+	@warning_ignore("integer_division")
 	return k * base + step * k * (k - 1) / 2
 
 

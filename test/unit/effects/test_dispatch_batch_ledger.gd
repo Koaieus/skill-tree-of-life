@@ -335,7 +335,7 @@ class CrossEntityDispatchEffect extends Effect:
 	var other: Entity
 	var fired: bool = false
 
-	func _on_core_moved(ctx: EffectContext, _from: SkillNode, _to: SkillNode) -> void:
+	func _on_core_moved(_ctx: EffectContext, _from: SkillNode, _to: SkillNode) -> void:
 		if fired or other == null:
 			return
 		fired = true

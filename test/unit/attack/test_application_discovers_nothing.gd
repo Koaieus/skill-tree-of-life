@@ -131,7 +131,7 @@ func _world(defender_nodes: int, target_health: float = 9999.0) -> Dictionary:
 func _targets_of(outcome: AttackOutcome) -> Array[String]:
 	var out: Array[String] = []
 	for hit in OutcomeApplier.in_arrival_order(outcome.hits):
-		out.append(hit.target.name if hit.target != null else "<null>")
+		out.append(String(hit.target.name) if hit.target != null else "<null>")
 	return out
 
 

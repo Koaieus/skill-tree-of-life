@@ -73,6 +73,7 @@ func test_round_trip_carries_every_field() -> void:
 func test_flipped_body_byte_is_corrupt() -> void:
 	var bytes := _sample().to_bytes()
 	assert_gt(bytes.size(), SaveFile.HEADER_SIZE, "a body follows the header")
+	@warning_ignore("integer_division")
 	var i := SaveFile.HEADER_SIZE + (bytes.size() - SaveFile.HEADER_SIZE) / 2
 	bytes[i] = bytes[i] ^ 0xFF
 	var got := SaveFile.from_bytes(bytes)

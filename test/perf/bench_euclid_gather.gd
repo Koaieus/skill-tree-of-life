@@ -147,6 +147,7 @@ func _pick_sources(nodes: Array[SkillNode]) -> Array[SkillNode]:
 	var sorted := nodes.duplicate()
 	sorted.sort_custom(func(a: SkillNode, b: SkillNode): return a.stable_id < b.stable_id)
 	var out: Array[SkillNode] = []
+	@warning_ignore("integer_division")
 	var step := maxi(1, sorted.size() / _SOURCES)
 	for i in _SOURCES:
 		out.append(sorted[(i * step) % sorted.size()])
@@ -161,6 +162,7 @@ func _median(fn: Callable) -> float:
 		fn.call()
 		times.append(Time.get_ticks_usec() - t)
 	times.sort()
+	@warning_ignore("integer_division")
 	return float(times[times.size() / 2])
 
 

@@ -404,7 +404,7 @@ func test_endpoints_are_read_in_the_views_parent_space() -> void:
 	var edge := _make_edge_view()
 	edge.position = Vector2(50, 50)
 	edge.set_endpoints(Vector2(50, 50), Vector2(356, 50))
-	var xf := edge.segment_transform(
+	var xf := MenuEdgeView.segment_transform(
 			edge.curve_point(0.0) - edge.position, edge.curve_point(1.0) - edge.position)
 	assert_almost_eq(xf.origin.x, 153.0, 0.001, "the midpoint, measured from the view")
 	assert_almost_eq(xf.origin.y, 0.0, 0.001)

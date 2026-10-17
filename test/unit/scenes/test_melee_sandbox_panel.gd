@@ -77,7 +77,7 @@ func test_arm_world_mutes_vfx_so_teardown_and_rearm_stay_silent() -> void:
 
 
 func test_clicks_grow_a_blade_through_the_real_input_channel() -> void:
-	var battle: BattleSystem = _panel._battle
+	var _battle: BattleSystem = _panel._battle
 	var plan := _panel._input_ctl.armed_stack.attack_plan() as MeleeAttackPlan
 	_panel._input_ctl.route_left_click(_node("Hilt"))
 	assert_eq(plan.source, _node("Hilt"), "first click sets the pivot")

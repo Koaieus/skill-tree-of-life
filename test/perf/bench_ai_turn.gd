@@ -436,7 +436,7 @@ func _run_turn(label: String, fixture_builder: Callable) -> Dictionary:
 		gut.p("    %-28s : %8.1f ms  (%5.1f%% of turn)"
 				% [key, _ms(probe, key), 100.0 * _ms(probe, key) / maxf(total_ms, 0.001)])
 
-	await _resolve_micro_split(probe, remote)
+	_resolve_micro_split(probe, remote)
 
 	assert_gt(total_ms, 0.0, "the turn must have taken measurable time")
 	return {"probe": probe, "total_ms": total_ms, "root": root, "remote": remote}

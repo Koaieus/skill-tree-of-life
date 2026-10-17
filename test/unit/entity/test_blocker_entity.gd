@@ -359,7 +359,7 @@ func test_a_footprintless_blocker_is_todays_blocker_with_an_inert_aura() -> void
 ## loses territory, so this is the path players actually take.
 func test_losing_a_footprint_node_re_derives_the_remaining_caps() -> void:
 	var chain := await _extend_chain(3)
-	var blocker := _factory().spawn_blocker(EntityFactory.BlockerSize.MEDIUM, _nodes[2], chain)
+	var _blocker := _factory().spawn_blocker(EntityFactory.BlockerSize.MEDIUM, _nodes[2], chain)
 	await get_tree().process_frame
 	var per_hop := _falloff_per_hop()
 	var full := _authored_node_hp(_MEDIUM_BOARD)

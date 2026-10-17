@@ -181,7 +181,7 @@ func test_a_peer_grants_what_the_record_says() -> void:
 	# Claimed BEFORE the addon is parented: `owner_changed` is what opens a real
 	# round, and an addon with no applier runs one inline (the offline path).
 	_relic.owned_by = _collector
-	var dust := _dust([_mod(&"armor", StatModifier.Operation.ADD_BASE, 99.0)])
+	var _dust := _dust([_mod(&"armor", StatModifier.Operation.ADD_BASE, 99.0)])
 	var command := LootRoundCommand.new(_collector.entity_id, _graph.get_stable_id(_relic),
 			_mod(&"strength", StatModifier.Operation.ADD_BASE, 6.0), &"", false)
 
@@ -224,13 +224,13 @@ func test_a_peer_never_opens_a_round_of_its_own() -> void:
 	add_child_autofree(loot)
 	loot.adopt_relic(dust)
 
-	var requests := 0
-	var handler := func(_req: LootPickRequest) -> void: requests += 1
+	var requests := [0]
+	var handler := func(_req: LootPickRequest) -> void: requests[0] += 1
 	Events.loot_pick_requested.connect(handler)
 	_relic.owned_by = _collector  # the real trigger — same as applying an AllocateCommand
 	Events.loot_pick_requested.disconnect(handler)
 
-	assert_eq(requests, 0, "a peer raises no request")
+	assert_eq(requests[0], 0, "a peer raises no request")
 	assert_eq(_collector.core_modifiers.size(), 0, "and grants nothing on its own")
 	assert_eq(applier.pending_count(), 0, "and submits no round")
 

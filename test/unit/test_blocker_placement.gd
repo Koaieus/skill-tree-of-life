@@ -156,7 +156,7 @@ func test_denom_below_floor_clamps_to_min() -> void:
 	assert_eq(counts.get(EntityFactory.BlockerSize.LARGE, 0), 10, "denom 3 clamps to 5 → 10")
 
 
-func _hops_from(graph: Graph, nodes: Array, origins: Array, max_hops: int) -> Dictionary:
+func _hops_from(graph: Graph, _nodes: Array, origins: Array, max_hops: int) -> Dictionary:
 	# BFS over the live graph, returning {instance_id: true} for every node
 	# within `max_hops` of any origin SkillNode.
 	var seen := {}

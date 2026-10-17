@@ -4,8 +4,6 @@ extends GutTest
 ## melee plan: a temp upgrade folds in as an overlay (never onto the board), so
 ## the readout asks the plan rather than the bare node.
 
-var _catalog: TempUpgradeCatalog = preload("res://attack/melee/temp_upgrade_catalog.tres")
-
 const _BOARD := preload("res://entity/default_entity_board.tres")
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _GRAPH_SCENE := preload("res://graph/graph.tscn")

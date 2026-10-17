@@ -61,6 +61,7 @@ func _rate() -> float:
 
 
 func _hit(target: SkillNode, read_node: SkillNode = null, heal := false) -> HitInstance:
+	@warning_ignore("incompatible_ternary")
 	var hit: HitInstance = HealInstance.new() if heal else DamageInstance.new()
 	hit.attacker = _attacker
 	hit.read_node = read_node if read_node != null else _n.a1

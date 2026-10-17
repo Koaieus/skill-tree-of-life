@@ -172,7 +172,7 @@ func _readout(o: AttackOutcome) -> Array:
 	for h in OutcomeApplier.in_arrival_order(o.hits):
 		var dealloc_names := PackedStringArray()
 		for entry in h.deallocations:
-			dealloc_names.append(entry.node.name if entry.node != null else "<null>")
+			dealloc_names.append(String(entry.node.name) if entry.node != null else "<null>")
 		dealloc_names.sort()
 		rows.append([h.target.name, h.effective_amount, h.hp_before, h.hp_after,
 				h.hp_max, h.gated, dealloc_names])
