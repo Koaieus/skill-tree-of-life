@@ -140,3 +140,26 @@ func test_ui_cancel_dismisses() -> void:
 	ev.pressed = true
 	_wheel._unhandled_input(ev)
 	assert_signal_emitted(_wheel, "dismissed")
+
+
+## A display wheel (the hero card's silhouette) hovers but never picks or
+## dismisses, and leaves both the click and `ui_cancel` to whoever is behind it.
+func test_read_only_hovers_but_never_picks_or_dismisses() -> void:
+	var entries := _entries(3)
+	_wheel.read_only = true
+	_wheel.bind(entries)
+	watch_signals(_wheel)
+	var motion := InputEventMouseMotion.new()
+	motion.position = _mid_point(1)
+	_wheel._gui_input(motion)
+	assert_signal_emitted_with_parameters(_wheel, "hovered", [entries[1].id])
+	_click(MOUSE_BUTTON_LEFT, _mid_point(0))
+	_click(MOUSE_BUTTON_RIGHT, _mid_point(0))
+	assert_signal_not_emitted(_wheel, "picked")
+	assert_signal_not_emitted(_wheel, "dismissed")
+	var ev := InputEventAction.new()
+	ev.action = &"ui_cancel"
+	ev.pressed = true
+	_wheel._unhandled_input(ev)
+	assert_signal_not_emitted(_wheel, "dismissed")
+	assert_false(_wheel.get_viewport().is_input_handled(), "ui_cancel left for the HUD")

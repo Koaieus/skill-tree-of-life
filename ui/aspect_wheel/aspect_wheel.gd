@@ -60,6 +60,14 @@ signal dismissed
 		hover_tier = v
 		queue_redraw()
 
+## A display, not a chooser: hover still names a wedge, but nothing picks or
+## dismisses, clicks and `ui_cancel` fall through to whatever is behind it,
+## and the per-wedge value digits are dropped (the fill is the value).
+@export var read_only: bool = false:
+	set(v):
+		read_only = v
+		queue_redraw()
+
 const _ARC_STEPS_PER_TURN := 96
 
 var _entries: Array[AspectWheelEntry] = []
