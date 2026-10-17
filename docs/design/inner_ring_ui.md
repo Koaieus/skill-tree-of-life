@@ -37,7 +37,7 @@ HUD shows a level-up banner only.
 - Designing T3 signatures or opposition (#1653).
 - Per-class bespoke rings (a later ring scene per CoreClass).
 - Showing an NPC's ring in full (see info gating, story 7).
-- Respec / refund.
+- Respec / refund here (its own pool, #1669).
 
 ## 3. Who, when, where
 
@@ -187,6 +187,10 @@ level-up  ─▶ badge on portrait ─▶ click portrait ─▶ ring modal
   content readily composed. (and keystone position too; can later be swapped
   out for others e.g. coreclass specific keystones if we so want)"* — the
   ring is an authored scene, its size free to grow by authoring.
+- Ring vs board: *"Graph but visuals and background and core visuals differ,
+  core cant move etc, dealloc pts for those is a separate resource"* — the
+  ring view has its own background and core visual; the centre core is inert;
+  refunds spend their own pool (#1669).
 - Mint: badge only (S1).
 - Portrait: *"1 or 2 or 3 or all of these in some form, whatever gets the
   best vibe and readability across"* — delegated; the pass picked the
