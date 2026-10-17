@@ -38,7 +38,7 @@ func apply(landing: HitLanding) -> void:
 	status.paired = landing.paired
 	status.hit_key = landing.hit_key
 	status.stack_scale = landing.stack_scale
-	landing.hits.append(status)
+	landing.emit(status)
 
 
 func status_def() -> StatusDef:

@@ -60,6 +60,12 @@ func _init() -> void:
 	kind = Kind.STATUS
 
 
+## A status rider lands before its paired hit, so its effect (a curse floor,
+## an armor break, a hex) lifts that hit (ADR 0067).
+func land_priority() -> int:
+	return LandPriority.BEFORE
+
+
 ## [param node] is a [NodeCombat] — a shadow slice mid-resolve, or the live
 ## slice on a real landing / a peer's replay (#498 step 3, the same contract
 ## every other [HitInstance] follows: [member HitInstance.target] stays the
@@ -107,7 +113,7 @@ func _init() -> void:
 ## the live host spends the stack the shadow spent. The host is the landing
 ## host: entity Greed is read only on a fall-through, node Greed otherwise.
 func land_on(node: NodeCombat, world: CombatWorld) -> void:
-	if rider_gated(node):
+	if rider_gated(node, world):
 		gated = true
 		power = 0.0
 		amount = 0.0

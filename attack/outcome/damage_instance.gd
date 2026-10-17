@@ -44,8 +44,8 @@ func _init() -> void:
 ## HitInstance.gated] and nothing lands — a gated [member HitInstance.paired]
 ## hit, or a [member HitInstance.land_mask] the node no longer matches (a
 ## [SplashEffect] copy's). A primary hit carries neither, so never gates here.
-func land_on(node: NodeCombat, _world: CombatWorld) -> void:
-	if rider_gated(node):
+func land_on(node: NodeCombat, world: CombatWorld) -> void:
+	if rider_gated(node, world):
 		gated = true
 		amount = 0.0
 		effective_amount = 0.0

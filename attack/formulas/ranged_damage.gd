@@ -63,18 +63,20 @@ static func _read_pierce(firing_slice: NodeCombat, ammo_type: AmmoType) -> FoldT
 
 ## The riders pass of a typed arrow's landing: every one of the arrow's
 ## [member AmmoType.on_hit_effects], in authored order, run against ONE
-## [HitLanding] built from [param hit], behind the [method DetonateEffect.arm]
-## rule — so even an untyped or riderless arrow sets off one explosive charge
-## on a charged node. The landing is paired to the arrow, so each emitted rider is a
-## dud iff the arrow is ([member HitInstance.paired]); each rider is stamped
+## [HitLanding] anchored at [param hit]'s slot in [param hits] (where the
+## caller has already put it), behind the [method DetonateEffect.arm] rule —
+## so even an untyped or riderless arrow sets off one explosive charge on a
+## charged node. The landing is paired to the arrow, so each emitted rider is
+## a dud iff the arrow is ([member HitInstance.paired]); each rider is stamped
 ## with the arrow's [member HitInstance.ammo_type_id], and the arrow takes the
-## landing's [member HitInstance.hit_key] — its riders are the later hits
-## sharing it. An arrow with no riders that sets nothing off emits nothing and
-## stays keyless (`0`).
-## The caller appends the riders right after their arrow: the copied
-## [member HitInstance.structural_key] puts them on its beat, and the later
-## original index keeps the arrow first ([method OutcomeSchedule.compile]). A
-## volley's many arrows on one node therefore re-apply under each def's
+## landing's [member HitInstance.hit_key] — its riders are the hits sharing
+## it. An arrow with no riders that sets nothing off emits nothing and stays
+## keyless (`0`).
+## The landing then [method HitLanding.place]s its span: a status rider lands
+## before its own arrow, damage-shaped riders after it (ADR 0067); the copied
+## [member HitInstance.structural_key] puts them all on the arrow's beat, where
+## list order is the tiebreak ([method OutcomeSchedule.compile]). A volley's
+## many arrows on one node therefore re-apply under each def's
 ## [member StatusDef.reapply] rule — `ACCUMULATE` on poison is what makes
 ## ranged the poison specialist.
 ##
@@ -85,21 +87,33 @@ static func _read_pierce(firing_slice: NodeCombat, ammo_type: AmmoType) -> FoldT
 ## Rides the wire for free: [AttackRecord] serialises any `Kind.STATUS` hit by
 ## its def's `resource_path`, and a gated dud replays as power 0, which
 ## [method NodeCombat.apply_status] ignores.
-static func riders_for(hit: DamageInstance, gather_cache: Dictionary = {}) -> Array[HitInstance]:
+static func ride(hit: DamageInstance, hits: Array[HitInstance], gather_cache: Dictionary = {}) -> void:
 	var arrow := hit as RangedHitInstance
 	if arrow == null:
-		return []
+		return
 	var effects: Array[OnHitEffect] = []
 	if arrow.ammo_type != null:
 		effects = arrow.ammo_type.on_hit_effects
-	var landing := HitLanding.riding(arrow, [] as Array[HitInstance], gather_cache)
+	var landing := HitLanding.riding(arrow, hits, gather_cache)
 	landing.target_mask = SkillNode.Ownership.HOSTILE
 	OnHitEffect.run_all(DetonateEffect.arm(effects), landing)
-	if landing.hits.is_empty() and effects.is_empty():
+	landing.place()
+	if hits.size() - landing.anchor <= 1 and effects.is_empty():
 		arrow.hit_key = 0
-	for rider in landing.hits:
-		rider.ammo_type_id = arrow.ammo_type_id
-	return landing.hits
+	for i in range(landing.anchor, hits.size()):
+		if hits[i] != arrow:
+			hits[i].ammo_type_id = arrow.ammo_type_id
+
+
+## [param hit]'s riders alone, in the order [method ride] places them around
+## it — built on a list holding just the arrow, which is then dropped.
+static func riders_for(hit: DamageInstance, gather_cache: Dictionary = {}) -> Array[HitInstance]:
+	if not hit is RangedHitInstance:
+		return []
+	var hits: Array[HitInstance] = [hit]
+	ride(hit, hits, gather_cache)
+	hits.erase(hit)
+	return hits
 
 
 ## Ranged's land-time GATE (#503) — the arrow's; its riders follow it through
@@ -178,8 +192,22 @@ class RangedHitInstance extends DamageInstance:
 	## HitInstance.gated] so VFX can render the dud beat distinctly from a
 	## hit that landed and fully mitigated to zero.
 	func land_on(node: NodeCombat, world: CombatWorld) -> void:
-		if not RangedDamageFormula.passes_gate(attacker, node,
-				RangedDamageFormula._origin_slice_of(self, world)):
-			gated = true
+		resolve_gate(world)
+		if gated:
 			return
 		super.land_on(node, world)
+
+	## The veto, decided once against this arrow's own target slice — a
+	## status rider landing ahead of the arrow may be the one asking. A
+	## hand-set [member HitInstance.gated] stands.
+	func resolve_gate(world: CombatWorld) -> void:
+		if _gate_resolved:
+			return
+		_gate_resolved = true
+		if gated:
+			return
+		var node: NodeCombat = world.combat_for(target) if target != null and is_instance_valid(target) else null
+		gated = not RangedDamageFormula.passes_gate(attacker, node,
+				RangedDamageFormula._origin_slice_of(self, world))
+
+	var _gate_resolved: bool = false

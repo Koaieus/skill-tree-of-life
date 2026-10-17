@@ -49,7 +49,7 @@ func apply(landing: HitLanding) -> void:
 	hit.structural_key = landing.structural_key
 	hit.paired = landing.paired
 	hit.hit_key = landing.hit_key
-	landing.hits.append(hit)
+	landing.emit(hit)
 
 
 func get_description(_spell: SpellDef = null, _board: StatBoard = null, _read_node: SkillNode = null) -> String:

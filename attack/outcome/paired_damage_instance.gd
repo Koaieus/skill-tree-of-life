@@ -20,7 +20,7 @@ func draws_own_crit() -> bool:
 
 
 func land_on(node: NodeCombat, world: CombatWorld) -> void:
-	if paired != null and not rider_gated(node):
+	if paired != null and not rider_gated(node, world):
 		is_crit = paired.is_crit
 		crit_multiplier = paired.crit_multiplier
 		crit_tier = paired.crit_tier

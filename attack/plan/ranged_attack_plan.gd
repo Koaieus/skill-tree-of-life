@@ -523,9 +523,10 @@ func resolve_against(world: CombatWorld) -> AttackOutcome:
 		hit.structural_key = key
 		outcome.hits.append(hit)
 		# A typed arrow's riders are further hits for the same landing — same
-		# key, appended right after, so they land on the arrow's beat and after
-		# the arrow (the schedule's original-index tiebreak).
-		outcome.hits.append_array(RangedDamageFormula.riders_for(hit, gather_cache))
+		# key, placed around it: its statuses just before it, its damage-shaped
+		# riders just after, all on the arrow's beat (the schedule's
+		# original-index tiebreak), never past the next arrow.
+		RangedDamageFormula.ride(hit, outcome.hits, gather_cache)
 	# Seconds, once, before anything consumes an order: the landing below
 	# draws the seeded crit stream in landing order, which is the schedule's.
 	outcome.schedule = OutcomeSchedule.compile(outcome)

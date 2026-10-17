@@ -33,9 +33,15 @@ var structural_key: float = 0.0
 ## [StatusInstance] carries it as [member HitInstance.paired], which
 ## gates whether it applies.
 var paired: HitInstance = null
-## The sink: every [HitInstance] an effect emits is appended here, in order.
-## Usually the outcome's own [member AttackOutcome.hits], by reference.
+## The sink: every [HitInstance] an effect emits ([method emit]) is appended
+## here, in authored order, until the builder calls [method place]. Usually
+## the outcome's own [member AttackOutcome.hits], by reference.
 var hits: Array[HitInstance] = []
+## Where this landing's span starts in [member hits]: the paired hit's slot
+## ([method riding]), or the spell's first hit at this landing
+## ([SpellResolver] stamps it). [method place] orders [code]hits[anchor..][/code];
+## [code]-1[/code] = no span, nothing to order.
+var anchor: int = -1
 ## Which hit this is — unique per landing, process-wide monotonic from 1;
 ## equality is the only thing anyone reads, never order. Every rider the
 ## landing emits carries it as [member HitInstance.hit_key], so a host can
@@ -94,6 +100,8 @@ static func riding(primary: HitInstance, hits: Array[HitInstance], gather_cache:
 	landing.structural_key = primary.structural_key
 	landing.paired = primary
 	landing.hits = hits
+	var slot := hits.rfind(primary)
+	landing.anchor = slot if slot >= 0 else hits.size()
 	landing.gather_cache = gather_cache
 	primary.hit_key = landing.hit_key
 	var damage := primary as DamageInstance
@@ -103,6 +111,34 @@ static func riding(primary: HitInstance, hits: Array[HitInstance], gather_cache:
 	elif primary is HealInstance:
 		landing.raw_amount = primary.amount
 	return landing
+
+
+## Emit [param hit] into this landing — what every [OnHitEffect] writer calls.
+## Appends in authored order; the landing's builder calls [method place] once
+## its effects have run, which orders the span by priority. Deferred on
+## purpose: a [SplashEffect] / [BlastEffect] stamps the hits its inners
+## appended by index range, which an insert ahead of it would miss.
+func emit(hit: HitInstance) -> void:
+	hits.append(hit)
+
+
+## Order this landing's span ([code]hits[anchor..][/code]) by
+## [method HitInstance.land_priority] — BEFORE, then PRIMARY, then AFTER —
+## keeping authored order within a priority (a stable three-way partition,
+## never a sort). Called once by the landing's builder, after its effects ran.
+## Landing-scoped: hits outside the span, another arrow's included, never move.
+func place() -> void:
+	if anchor < 0 or anchor >= hits.size():
+		return
+	var buckets: Array = [[], [], []]
+	for i in range(anchor, hits.size()):
+		var hit := hits[i]
+		buckets[clampi(hit.land_priority(), -1, 1) + 1].append(hit)
+	var at := anchor
+	for bucket: Array in buckets:
+		for hit: HitInstance in bucket:
+			hits[at] = hit
+			at += 1
 
 
 func _init() -> void:

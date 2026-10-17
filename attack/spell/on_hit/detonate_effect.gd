@@ -109,7 +109,7 @@ func apply(landing: HitLanding) -> void:
 		if not _resolves_on_cast(landing):
 			var ledger := _ledger(landing)
 			ledger[held[0]] = ledger.get(held[0], 0.0) + float(spent)
-		landing.hits.append(_spend(landing, def, held[0] is EntityCombat, spent))
+		landing.emit(_spend(landing, def, held[0] is EntityCombat, spent))
 	var chained := DetonateEffect.new()
 	chained.riders = riders
 	chained.shrapnel = shrapnel

@@ -29,11 +29,12 @@ const _TURNS := 0.15
 var _f: VolleyBoardFixture
 
 
-func _volley_fixture(armor: float) -> void:
+func _volley_fixture(armor: float, damage := 3.0) -> void:
 	_f = await VolleyBoardFixture.build(self, true)
 	for leaf in _f.leaves:
-		VolleyBoardFixture.set_stat(leaf, &"ranged_damage", 3.0)
-	VolleyBoardFixture.set_stat(_f.target, &"armor", armor)
+		VolleyBoardFixture.set_stat(leaf, &"ranged_damage", damage)
+	VolleyBoardFixture.set_stat(_f.target, &"armor",
+			armor - _f.target.get_local_value(&"armor"), StatModifier.Operation.ADD_BASE)
 	VolleyBoardFixture.set_stat(_f.target, &"min_damage_taken",
 			_FLOOR - _f.target.get_local_value(&"min_damage_taken"), StatModifier.Operation.ADD_BASE)
 
@@ -83,7 +84,7 @@ func test_a_curse_arrows_status_lands_before_it_and_lifts_its_own_floor() -> voi
 
 
 func test_an_armor_break_arrow_reads_its_own_shred() -> void:
-	await _volley_fixture(2.0)
+	await _volley_fixture(20.0, 40.0)
 	var broke_world := CombatWorld.shadow()
 	var broke := _arrow_of(_volley_in({_ARMOR_BREAK: 1}, broke_world), _ARMOR_BREAK)
 	var ammo := (broke as RangedDamageFormula.RangedHitInstance).ammo_type
@@ -98,22 +99,25 @@ func test_an_armor_break_arrow_reads_its_own_shred() -> void:
 	bare_world.free_shadow()
 
 
+## The target an earlier arrow of the volley freed (forced here, as that
+## arrow's cascade would): the poison arrow's status, landing ahead of it,
+## decides the arrow's veto and duds.
 func test_a_vetoed_arrows_earlier_landing_status_is_a_dud() -> void:
 	await _volley_fixture(0.0)
-	for leaf in _f.leaves:
-		VolleyBoardFixture.set_stat(leaf, &"ranged_damage", 1000.0)
-	var outcome := _volley_in({_POISON_ID: 3}, CombatWorld.live())
-	var duds := 0
-	for hit in outcome.hits:
-		if hit is RangedDamageFormula.RangedHitInstance and hit.gated:
-			var status := _status_of(outcome, hit)
-			assert_not_null(status, "every poison arrow carries its status")
-			if status != null:
-				assert_lt(_land_index(outcome, status), _land_index(outcome, hit))
-				assert_true(status.gated, "a vetoed arrow's status is a dud")
-				assert_eq(status.power, 0.0)
-				duds += 1
-	assert_eq(duds, 2, "the first arrow kills; the other two are vetoed")
+	var poison := RangedDamageFormula.compute(_f.attacker, _f.leaves[1], _f.target,
+			load("res://attack/ammo/types/poison.tres") as AmmoType)
+	var outcome := AttackOutcome.new()
+	outcome.hits.append(poison)
+	RangedDamageFormula.ride(poison, outcome.hits)
+	var status := _status_of(outcome, poison)
+	assert_not_null(status, "fixture: the poison arrow carries its status")
+	assert_lt(outcome.hits.find(status), outcome.hits.find(poison), "placed ahead of its arrow")
+	_f.alloc.force_deallocate(_f.target)
+	outcome.crit_stream = CritRoll.stream_for(1)
+	OutcomeApplier.apply(outcome, CombatWorld.live())
+	assert_true(poison.gated, "the arrow is vetoed")
+	assert_true(status.gated, "its earlier-landing status is a dud")
+	assert_eq(status.power, 0.0)
 
 
 func test_a_hex_rider_raises_its_own_arrows_crit_chance() -> void:

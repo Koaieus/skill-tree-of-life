@@ -478,7 +478,8 @@ func _land_batch(
 		di.structural_key = ev.t / maxf(0.001, _ctx.swing_duration)
 		sub.hits.append(di)
 		# #951: a toxic vertex's riders run on a landing paired to this
-		# contact — same beat, later index — and apply iff it was admitted.
+		# contact — same beat — and apply iff it was admitted. The landing
+		# places its statuses just before the contact, damage riders after.
 		var riders: Array = state.vertex_on_hit[ev.particle_idx]
 		if not riders.is_empty():
 			var landing := HitLanding.riding(di, sub.hits)
@@ -489,6 +490,7 @@ func _land_batch(
 				landing.read_overlays = func(sid: StringName) -> Array[ModifierBins]:
 					return lookup.call(carrier, sid)
 			OnHitEffect.run_all(riders, landing)
+			landing.place()
 		# A charged piece's board blast (the striker's side): armed here, fired iff
 		# the gate decides it as this contact lands.
 		if gate.piece_charges(ev.particle_idx) > 0:

@@ -247,7 +247,7 @@ var paired: HitInstance = null
 
 ## The landing this hit belongs to ([member HitLanding.hit_key]): an arrow
 ## and every rider it emitted share one key, so "the riders of arrow i" are
-## the later hits sharing its key, and [method StatusHost.greed_arm] spends
+## the hits sharing its key, and [method StatusHost.greed_arm] spends
 ## once per landing. Shipped by [AttackRecord] on every hit. `0` is "no
 ## landing behind it" (a bare arrow, a hand-built hit) and never matches.
 var hit_key: int = 0
@@ -265,14 +265,43 @@ var land_mask: int = 0
 var land_resolved: bool = false
 
 
-## The one rider gate both [method StatusInstance.land_on] and
-## [method DamageInstance.land_on] consult first: true iff [member paired]
-## did not land, or [member land_mask] is set, the hit is not
-## [member land_resolved], and [param node]'s ownership bit to
-## [member attacker] misses the mask. Reports only — each caller duds itself.
-func rider_gated(node: NodeCombat) -> bool:
-	if paired != null and not paired.landed():
-		return true
+## Where a hit lands within its landing's span, relative to the primary hit
+## that span rides on ([method HitLanding.place]): a status rider lands
+## BEFORE it, so a curse floor or an armor break lifts its own hit; the
+## primary is PRIMARY; a damage-shaped rider (paired damage, splash copy,
+## blast, detonate's cure) lands AFTER it. Landing-scoped and applied at
+## build time as list position, never a sort key at land (ADR 0067).
+enum LandPriority { BEFORE = -1, PRIMARY = 0, AFTER = 1 }
+
+
+## This hit's [enum LandPriority] within its landing. Base: [code]AFTER[/code]
+## for a rider ([member paired] set), else [code]PRIMARY[/code] — so a spell's
+## own authored hits, which ride nothing, keep their authored order.
+## [StatusInstance] overrides it to [code]BEFORE[/code].
+func land_priority() -> int:
+	return LandPriority.AFTER if paired != null else LandPriority.PRIMARY
+
+
+## Decide this hit's land-time veto, once — the first asker triggers it: a
+## rider that lands ahead of it ([method rider_gated]) or this hit's own
+## [method land_on]. A no-op once decided, so a gate with a side effect (a
+## spike pop) runs exactly once per hit. Base: no veto. Read the verdict with
+## [method landed] after. Nothing a rider does feeds into it.
+func resolve_gate(_world: CombatWorld) -> void:
+	pass
+
+
+## The one rider gate every rider's [method land_on] consults first: true iff
+## [member paired] did not land (asked of [method resolve_gate] first, so a
+## rider landing ahead of its hit decides that hit's gate), or
+## [member land_mask] is set, the hit is not [member land_resolved], and
+## [param node]'s ownership bit to [member attacker] misses the mask. Reports
+## only — each caller duds itself.
+func rider_gated(node: NodeCombat, world: CombatWorld) -> bool:
+	if paired != null:
+		paired.resolve_gate(world)
+		if not paired.landed():
+			return true
 	return land_mask != 0 and not land_resolved \
 			and (node.ownership_bit(attacker) & land_mask) == 0
 
@@ -288,8 +317,9 @@ func draws_own_crit() -> bool:
 ## Whether this hit actually landed — what a rider of any kind
 ## ([member paired]) gates on. Base: not vetoed by its mode's
 ## land-time gate ([member gated]). A mode whose refusal is not a dud
-## (melee's unadmitted contact) overrides it. Read after this hit's own
-## [method land_on]: a rider lands after its primary hit.
+## (melee's unadmitted contact) overrides it. Read after
+## [method resolve_gate]; a hand-set [member gated] (a fixture, a rebuilt
+## hit) is honoured as it stands.
 func landed() -> bool:
 	return not gated
 

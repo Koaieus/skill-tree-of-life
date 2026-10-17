@@ -363,6 +363,10 @@ static func _resolve(
 				OnHitEffect.run_all(spell.on_hit_effects, alctx)
 				alctx.ride_heal(pre)
 				OnHitEffect.run_all(riders, alctx)
+				# The infusion's statuses land before the spell's own hits at
+				# this hop, its damage-shaped riders after (ADR 0067).
+				alctx.anchor = pre
+				alctx.place()
 				for i in range(pre, outcome.hits.size()):
 					var hit: HitInstance = outcome.hits[i]
 					# The caster is stamped HERE rather than inside each

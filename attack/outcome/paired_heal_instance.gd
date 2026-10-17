@@ -18,7 +18,7 @@ func draws_own_crit() -> bool:
 
 
 func land_on(node: NodeCombat, world: CombatWorld) -> void:
-	if rider_gated(node):
+	if rider_gated(node, world):
 		gated = true
 		amount = 0.0
 		effective_amount = 0.0

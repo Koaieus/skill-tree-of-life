@@ -17,6 +17,7 @@ var _gate: BladePopResolver.LiveGate
 ## hit reads through [method landed] instead of re-asking the gate (#951): a
 ## second `admit` of the same event can pop the vertex twice.
 var admitted: bool = false
+var _gate_resolved: bool = false
 
 
 func _init(event: BladeHitEvent, gate: BladePopResolver.LiveGate) -> void:
@@ -26,22 +27,9 @@ func _init(event: BladeHitEvent, gate: BladePopResolver.LiveGate) -> void:
 
 
 func land_on(node: NodeCombat, world: CombatWorld) -> void:
-	# The gate takes the world rather than the resolved target slice: it reads
-	# the slice of each blade CONTACT's node (`_event.target`), which is not
-	# necessarily this hit's own target — a pop is decided against the node the
-	# vertex swept into.
-	if not _gate.admit(_event, world):
-		# A refusal is either "target already dead / vertex already popped" —
-		# nothing to say, #502's "no dud for melee" — or THIS contact popping a
-		# spike, which is a cue. Only the gate can tell the two apart, so it
-		# reports the pop it just made and the hit carries it; see
-		# [member HitInstance.popped_vertex] for why it is recorded here rather
-		# than announced inside the gate (#536).
-		var pop := _gate.last_pop()
-		if pop != null:
-			popped_vertex = pop.defender
+	resolve_gate(world)
+	if not admitted:
 		return
-	admitted = true
 	# #779: `amount` still holds the COEFFICIENT MeleeAttackPlan.resolve_against
 	# stamped it with — vertex_damage[particle_idx] for a vertex, and a flat 0
 	# for an edge, which carries no damage at all (ADR 0005) — the curve is
@@ -55,6 +43,30 @@ func land_on(node: NodeCombat, world: CombatWorld) -> void:
 	var v_half := BladeState.stat_value(board, &"blade_speed_half", 0.0)
 	amount *= BladeState.speed_damage_multiplier(_event.speed, m, v_half)
 	super.land_on(node, world)
+
+
+## The gate, decided once — by this contact's [method land_on] or by a
+## status rider landing ahead of it, whichever asks first — so `admit`'s
+## "exactly once per event" holds and a spike pops once. The gate takes the
+## world rather than the resolved target slice: it reads the slice of each
+## blade CONTACT's node (`_event.target`) — a pop is decided against the node
+## the vertex swept into.
+func resolve_gate(world: CombatWorld) -> void:
+	if _gate_resolved or _gate == null:
+		return
+	_gate_resolved = true
+	if _gate.admit(_event, world):
+		admitted = true
+		return
+	# A refusal is either "target already dead / vertex already popped" —
+	# nothing to say, #502's "no dud for melee" — or THIS contact popping a
+	# spike, which is a cue. Only the gate can tell the two apart, so it
+	# reports the pop it just made and the hit carries it; see
+	# [member HitInstance.popped_vertex] for why it is recorded here rather
+	# than announced inside the gate (#536).
+	var pop := _gate.last_pop()
+	if pop != null:
+		popped_vertex = pop.defender
 
 
 ## Melee's refusal is not a dud (#502 — [member HitInstance.gated] stays
