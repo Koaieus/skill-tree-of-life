@@ -65,4 +65,4 @@ func set_armed(value: bool) -> void:
 	_armed = value
 	if _button != null:
 		_button.button_pressed = value
-	self_modulate = Color(1.35, 1.35, 1.35, 1) if value else Color(1, 1, 1, 1)
+	self_modulate = Emissive.at(Color.WHITE, Emissive.LABEL) if value else Color(1, 1, 1, 1)

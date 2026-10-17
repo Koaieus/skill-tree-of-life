@@ -9,6 +9,8 @@ extends HBoxContainer
 
 const EMBER_THRESHOLD := 40.0
 const MAX_GLOW_VALUE := 60.0
+## The ember pulse's warm hue; its brightness is the Emissive tier at the tween.
+const EMBER_WARM := Color(1.0, 0.92, 0.77)
 
 signal row_hovered(attr_id: StringName)
 signal row_unhovered(attr_id: StringName)
@@ -115,5 +117,5 @@ func _set_ember(active: bool) -> void:
 		_value.modulate = Color.WHITE
 		return
 	_tween = create_tween().set_loops()
-	_tween.tween_property(_value, ^"modulate", Color(1.3, 1.2, 1.0, 1.0), 0.9)
+	_tween.tween_property(_value, ^"modulate", Emissive.at(EMBER_WARM, Emissive.LABEL), 0.9)
 	_tween.tween_property(_value, ^"modulate", Color(1.0, 1.0, 1.0, 1.0), 0.9)

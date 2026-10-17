@@ -1296,7 +1296,7 @@ func get_display_name() -> String:
 func get_graph_degree(graph: Graph) -> int:
 	if graph == null:
 		return 0
-	return graph.get_neighbours(self).size()
+	return graph.get_neighbours(self).size()  # lint: degree — this IS get_graph_degree
 
 
 ## Degree within the induced subgraph of [param entity]'s owned nodes: how many
