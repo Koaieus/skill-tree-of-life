@@ -53,6 +53,7 @@
 [ext_resource type="Resource" path="res://stats_system/defs/ranged_damage.tres" id="def_ranged_damage"]
 [ext_resource type="Resource" path="res://stats_system/defs/sensor_range.tres" id="def_sensor_range"]
 [ext_resource type="Resource" uid="uid://b47g428wp5d4w" path="res://stats_system/defs/skill_points.tres" id="def_skill_points"]
+[ext_resource type="Resource" path="res://stats_system/defs/ring_points.tres" id="def_ring_points"]
 [ext_resource type="Resource" path="res://stats_system/defs/spell_damage.tres" id="def_spell_damage"]
 [ext_resource type="Resource" path="res://stats_system/defs/spikes.tres" id="def_spikes"]
 [ext_resource type="Resource" path="res://stats_system/defs/spike_regen.tres" id="def_spike_regen"]
@@ -504,6 +505,11 @@ current = 3.0
 definition = ExtResource("def_skill_points")
 base_value = 3.0
 
+[sub_resource type="Resource" id="pool_ring_points"]
+resource_name = "ring_points"
+script = ExtResource("3_pool")
+definition = ExtResource("def_ring_points")
+
 [sub_resource type="Resource" id="scalar_sp_gain_on_levelup"]
 resource_name = "sp_gain_on_levelup"
 script = ExtResource("2_scalar")
@@ -609,6 +615,7 @@ level = SubResource("scalar_level")
 core_kill_xp = SubResource("scalar_core_kill_xp")
 bounty = SubResource("scalar_bounty")
 skill_points = SubResource("sp_skill_points")
+ring_points = SubResource("pool_ring_points")
 wound_heal_per_turn = SubResource("scalar_wound_heal_per_turn")
 sp_gain_on_levelup = SubResource("scalar_sp_gain_on_levelup")
 deallocation_points = SubResource("pool_dealloc")

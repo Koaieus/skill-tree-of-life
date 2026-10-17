@@ -163,3 +163,6 @@ signal loot_pick_requested(request: LootPickRequest)
 ## filters on `request.collector`).
 signal spell_loot_requested(request: SpellLootRequest)
 #endregion
+
+## An entity reached a milestone level and its `ring_points` cap rose by one.
+signal ring_point_minted(entity: Entity)

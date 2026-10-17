@@ -212,11 +212,8 @@ const GROUP := &"entities"
 ## `ap_transfer_rate` ScalarStat — see `_transfer_unused_ap_to_surplus`.
 const DEFAULT_AP_TRANSFER_RATE := 2.0
 
-## Every Nth level mints one extra skill point — see [method sp_minted_for_level].
-const MILESTONE_LEVEL_INTERVAL := 5
-
-## Every Nth level is a milestone that mints one ring point. 0 disables.
-## Tentative, easy to change.
+## Every Nth level is a milestone that mints one ring point (the inner ring's
+## budget, `stat_board.ring_points`). 0 disables. Tentative, easy to change.
 @export_range(0, 20) var milestone_level_interval := 5
 
 ## Emitted after [method buy_ring_cell] lands — what a ring display re-reads on.
@@ -279,8 +276,21 @@ var core_modifiers: Array[StatModifier] = []
 ## arrives here already an independent copy (LootSystem's draw duplicates when
 ## building the payload). Duplicating again here would just be redundant work
 ## on the class path and double-duplication on the loot path.
-func buy_ring_cell(_cell: StringName, _grants: Array[StatModifier], _cost: int) -> bool:
-	return false
+## Buys inner-ring cell `cell`: spends `cost` ring points, records it in
+## [member ring_spent], grants each of `grants` through [method
+## grant_core_modifier] (so they are lootable), emits [signal ring_changed].
+## Called only by [SpendRingCellCommandHandler], which validates adjacency
+## against [RingTable] first — this guards only the pool and double-buys.
+func buy_ring_cell(cell: StringName, grants: Array[StatModifier], cost: int) -> bool:
+	var pool: PoolStat = stat_board.ring_points if stat_board != null else null
+	if pool == null or ring_spent.has(cell) or pool.available() < cost:
+		return false
+	pool.deplete(cost)
+	ring_spent.append(cell)
+	for m in grants:
+		grant_core_modifier(m)
+	ring_changed.emit()
+	return true
 
 
 func grant_core_modifier(m: StatModifier) -> void:
@@ -1015,6 +1025,9 @@ func _on_xp_replenished() -> void:
 		stat_board.level.base_value += 1
 	if stat_board.skill_points != null:
 		stat_board.skill_points.grant(sp_minted_for_level(level))
+	if is_milestone_level(level) and stat_board.ring_points != null:
+		stat_board.ring_points.base_value += 1
+		Events.ring_point_minted.emit(self)
 	leveled_up.emit(level)
 	dispatch(&"_on_level_up", [level])
 
@@ -1026,15 +1039,19 @@ func _on_xp_replenished() -> void:
 ##
 ## D-16 (#271): the per-level yield is a stat, not a hardcoded 1, so a
 ## CoreClass/keystone/node can deviate through the normal modifier pipeline.
-## Falls back to 1 for sparse boards with no such stat. The milestone bonus
-## (+1 on every 5th level) rides on top and lives ONLY here — #320 item 7.
-func sp_minted_for_level(lvl: int) -> int:
+## Falls back to 1 for sparse boards with no such stat. A milestone level pays
+## a ring point instead of extra SP — see [method is_milestone_level].
+func sp_minted_for_level(_lvl: int) -> int:
 	var sp_gain := 1
 	if stat_board != null and stat_board.sp_gain_on_levelup != null:
 		sp_gain = roundi(stat_board.sp_gain_on_levelup.value)
-	if lvl % MILESTONE_LEVEL_INTERVAL == 0:
-		sp_gain += 1
 	return sp_gain
+
+
+## Whether reaching `lvl` mints a ring point. Pure in the level asked, like
+## [method sp_minted_for_level].
+func is_milestone_level(lvl: int) -> bool:
+	return milestone_level_interval > 0 and lvl % milestone_level_interval == 0
 
 
 ## Listens for health.depleted (Entity's core health reduced to 0) → entity dies.

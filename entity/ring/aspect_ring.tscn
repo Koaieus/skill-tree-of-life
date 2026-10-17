@@ -1,0 +1,662 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" path="res://graph/graph.tscn" id="1_graph"]
+[ext_resource type="PackedScene" path="res://skill_node/skill_node.tscn" id="2_skill"]
+[ext_resource type="PackedScene" path="res://graph/edge.tscn" id="3_edge"]
+[ext_resource type="PackedScene" path="res://skill_node/addons/defs/ring_cell_addon.tscn" id="4_addon"]
+[ext_resource type="Script" path="res://stats_system/stat_modifier.gd" id="5_mod"]
+[ext_resource type="PackedScene" path="res://skill_node/keystone/instances/natural_xp_node.tscn" id="6_key0"]
+[ext_resource type="PackedScene" path="res://skill_node/keystone/instances/wisdom_keystone_node.tscn" id="6_key1"]
+[ext_resource type="Resource" path="res://identity/defs/strength.tres" id="id_strength"]
+[ext_resource type="Resource" path="res://aspects/defs/bleeding.tres" id="asp_bleeding"]
+[ext_resource type="Resource" path="res://aspects/defs/weakness.tres" id="asp_weakness"]
+[ext_resource type="Resource" path="res://identity/defs/dexterity.tres" id="id_dexterity"]
+[ext_resource type="Resource" path="res://aspects/defs/poison.tres" id="asp_poison"]
+[ext_resource type="Resource" path="res://aspects/defs/explosive.tres" id="asp_explosive"]
+[ext_resource type="Resource" path="res://identity/defs/intelligence.tres" id="id_intelligence"]
+[ext_resource type="Resource" path="res://aspects/defs/curse.tres" id="asp_curse"]
+[ext_resource type="Resource" path="res://aspects/defs/hex.tres" id="asp_hex"]
+[ext_resource type="Resource" path="res://identity/defs/constitution.tres" id="id_constitution"]
+[ext_resource type="Resource" path="res://aspects/defs/wither.tres" id="asp_wither"]
+[ext_resource type="Resource" path="res://aspects/defs/armor_break.tres" id="asp_armor_break"]
+[ext_resource type="Resource" path="res://identity/defs/perception.tres" id="id_perception"]
+[ext_resource type="Resource" path="res://aspects/defs/scout.tres" id="asp_scout"]
+[ext_resource type="Resource" path="res://aspects/defs/blindness.tres" id="asp_blindness"]
+[ext_resource type="Resource" path="res://identity/defs/wisdom.tres" id="id_wisdom"]
+[ext_resource type="Resource" path="res://aspects/defs/corruption.tres" id="asp_corruption"]
+[ext_resource type="Resource" path="res://aspects/defs/greed.tres" id="asp_greed"]
+
+[sub_resource type="Resource" id="m_BleedingT1"]
+resource_local_to_scene = true
+resource_name = "+1 Bleeding Aspect"
+script = ExtResource("5_mod")
+stat_id = &"bleeding_aspect"
+value = 1.0
+metadata/_custom_type_script = "uid://che6xhl6srqh3"
+
+[sub_resource type="Resource" id="m_BleedingT2"]
+resource_local_to_scene = true
+resource_name = "+1 Bleeding Stacks Per Hit"
+script = ExtResource("5_mod")
+stat_id = &"bleeding_stacks_per_hit"
+value = 1.0
+metadata/_custom_type_script = "uid://che6xhl6srqh3"
+
+[sub_resource type="Resource" id="m_WeaknessT1"]
+resource_local_to_scene = true
+resource_name = "+1 Weakness Aspect"
+script = ExtResource("5_mod")
+stat_id = &"weakness_aspect"
+value = 1.0
+metadata/_custom_type_script = "uid://che6xhl6srqh3"
+
+[sub_resource type="Resource" id="m_WeaknessT2"]
+resource_local_to_scene = true
+resource_name = "+1 Weakness Stacks Per Hit"
+script = ExtResource("5_mod")
+stat_id = &"weakness_stacks_per_hit"
+value = 1.0
+metadata/_custom_type_script = "uid://che6xhl6srqh3"
+
+[sub_resource type="Resource" id="m_PoisonT1"]
+resource_local_to_scene = true
+resource_name = "+1 Poison Aspect"
+script = ExtResource("5_mod")
+stat_id = &"poison_aspect"
+value = 1.0
+metadata/_custom_type_script = "uid://che6xhl6srqh3"
+
+[sub_resource type="Resource" id="m_PoisonT2"]
+resource_local_to_scene = true
+resource_name = "+1 Poison Stacks Per Hit"
+script = ExtResource("5_mod")
+stat_id = &"poison_stacks_per_hit"
+value = 1.0
+metadata/_custom_type_script = "uid://che6xhl6srqh3"
+
+[sub_resource type="Resource" id="m_ExplosiveT1"]
+resource_local_to_scene = true
+resource_name = "+1 Explosive Aspect"
+script = ExtResource("5_mod")
+stat_id = &"explosive_aspect"
+value = 1.0
+metadata/_custom_type_script = "uid://che6xhl6srqh3"
+
+[sub_resource type="Resource" id="m_ExplosiveT2"]
+resource_local_to_scene = true
+resource_name = "+1 Explosive Stacks Per Hit"
+script = ExtResource("5_mod")
+stat_id = &"explosive_stacks_per_hit"
+value = 1.0
+metadata/_custom_type_script = "uid://che6xhl6srqh3"
+
+[sub_resource type="Resource" id="m_CurseT1"]
+resource_local_to_scene = true
+resource_name = "+1 Curse Aspect"
+script = ExtResource("5_mod")
+stat_id = &"curse_aspect"
+value = 1.0
+metadata/_custom_type_script = "uid://che6xhl6srqh3"
+
+[sub_resource type="Resource" id="m_CurseT2"]
+resource_local_to_scene = true
+resource_name = "+1 Curse Stacks Per Hit"
+script = ExtResource("5_mod")
+stat_id = &"curse_stacks_per_hit"
+value = 1.0
+metadata/_custom_type_script = "uid://che6xhl6srqh3"
+
+[sub_resource type="Resource" id="m_HexT1"]
+resource_local_to_scene = true
+resource_name = "+1 Hex Aspect"
+script = ExtResource("5_mod")
+stat_id = &"hex_aspect"
+value = 1.0
+metadata/_custom_type_script = "uid://che6xhl6srqh3"
+
+[sub_resource type="Resource" id="m_HexT2"]
+resource_local_to_scene = true
+resource_name = "+1 Hex Stacks Per Hit"
+script = ExtResource("5_mod")
+stat_id = &"hex_stacks_per_hit"
+value = 1.0
+metadata/_custom_type_script = "uid://che6xhl6srqh3"
+
+[sub_resource type="Resource" id="m_WitherT1"]
+resource_local_to_scene = true
+resource_name = "+1 Wither Aspect"
+script = ExtResource("5_mod")
+stat_id = &"wither_aspect"
+value = 1.0
+metadata/_custom_type_script = "uid://che6xhl6srqh3"
+
+[sub_resource type="Resource" id="m_WitherT2"]
+resource_local_to_scene = true
+resource_name = "+1 Wither Stacks Per Hit"
+script = ExtResource("5_mod")
+stat_id = &"wither_stacks_per_hit"
+value = 1.0
+metadata/_custom_type_script = "uid://che6xhl6srqh3"
+
+[sub_resource type="Resource" id="m_ArmorBreakT1"]
+resource_local_to_scene = true
+resource_name = "+1 Armor Break Aspect"
+script = ExtResource("5_mod")
+stat_id = &"armor_break_aspect"
+value = 1.0
+metadata/_custom_type_script = "uid://che6xhl6srqh3"
+
+[sub_resource type="Resource" id="m_ArmorBreakT2"]
+resource_local_to_scene = true
+resource_name = "+1 Armor Break Aspect"
+script = ExtResource("5_mod")
+stat_id = &"armor_break_aspect"
+value = 1.0
+metadata/_custom_type_script = "uid://che6xhl6srqh3"
+
+[sub_resource type="Resource" id="m_ScoutT1"]
+resource_local_to_scene = true
+resource_name = "+1 Scout Aspect"
+script = ExtResource("5_mod")
+stat_id = &"scout_aspect"
+value = 1.0
+metadata/_custom_type_script = "uid://che6xhl6srqh3"
+
+[sub_resource type="Resource" id="m_ScoutT2"]
+resource_local_to_scene = true
+resource_name = "+1 Scout Stacks Per Hit"
+script = ExtResource("5_mod")
+stat_id = &"scout_stacks_per_hit"
+value = 1.0
+metadata/_custom_type_script = "uid://che6xhl6srqh3"
+
+[sub_resource type="Resource" id="m_BlindnessT1"]
+resource_local_to_scene = true
+resource_name = "+1 Blindness Aspect"
+script = ExtResource("5_mod")
+stat_id = &"blindness_aspect"
+value = 1.0
+metadata/_custom_type_script = "uid://che6xhl6srqh3"
+
+[sub_resource type="Resource" id="m_BlindnessT2"]
+resource_local_to_scene = true
+resource_name = "+1 Blindness Stacks Per Hit"
+script = ExtResource("5_mod")
+stat_id = &"blindness_stacks_per_hit"
+value = 1.0
+metadata/_custom_type_script = "uid://che6xhl6srqh3"
+
+[sub_resource type="Resource" id="m_CorruptionT1"]
+resource_local_to_scene = true
+resource_name = "+1 Corruption Aspect"
+script = ExtResource("5_mod")
+stat_id = &"corruption_aspect"
+value = 1.0
+metadata/_custom_type_script = "uid://che6xhl6srqh3"
+
+[sub_resource type="Resource" id="m_CorruptionT2"]
+resource_local_to_scene = true
+resource_name = "+1 Corruption Stacks Per Hit"
+script = ExtResource("5_mod")
+stat_id = &"corruption_stacks_per_hit"
+value = 1.0
+metadata/_custom_type_script = "uid://che6xhl6srqh3"
+
+[sub_resource type="Resource" id="m_GreedT1"]
+resource_local_to_scene = true
+resource_name = "+1 Greed Aspect"
+script = ExtResource("5_mod")
+stat_id = &"greed_aspect"
+value = 1.0
+metadata/_custom_type_script = "uid://che6xhl6srqh3"
+
+[sub_resource type="Resource" id="m_GreedT2"]
+resource_local_to_scene = true
+resource_name = "+1 Greed Stacks Per Hit"
+script = ExtResource("5_mod")
+stat_id = &"greed_stacks_per_hit"
+value = 1.0
+metadata/_custom_type_script = "uid://che6xhl6srqh3"
+
+[node name="AspectRing" instance=ExtResource("1_graph")]
+
+[node name="Core" parent="Nodes" instance=ExtResource("2_skill")]
+position = Vector2(0, 0)
+
+[node name="BleedingT1" parent="Nodes" instance=ExtResource("2_skill")]
+position = Vector2(-31, -136)
+
+[node name="RingCellAddon" parent="Nodes/BleedingT1" instance=ExtResource("4_addon")]
+aspect = ExtResource("asp_bleeding")
+sector = ExtResource("id_strength")
+tier = 1
+entity_modifiers = Array[ExtResource("5_mod")]([SubResource("m_BleedingT1")])
+
+[node name="BleedingT2" parent="Nodes" instance=ExtResource("2_skill")]
+position = Vector2(-65, -241)
+
+[node name="RingCellAddon" parent="Nodes/BleedingT2" instance=ExtResource("4_addon")]
+aspect = ExtResource("asp_bleeding")
+sector = ExtResource("id_strength")
+tier = 2
+entity_modifiers = Array[ExtResource("5_mod")]([SubResource("m_BleedingT2")])
+
+[node name="WeaknessT1" parent="Nodes" instance=ExtResource("2_skill")]
+position = Vector2(31, -136)
+
+[node name="RingCellAddon" parent="Nodes/WeaknessT1" instance=ExtResource("4_addon")]
+aspect = ExtResource("asp_weakness")
+sector = ExtResource("id_strength")
+tier = 1
+entity_modifiers = Array[ExtResource("5_mod")]([SubResource("m_WeaknessT1")])
+
+[node name="WeaknessT2" parent="Nodes" instance=ExtResource("2_skill")]
+position = Vector2(65, -241)
+
+[node name="RingCellAddon" parent="Nodes/WeaknessT2" instance=ExtResource("4_addon")]
+aspect = ExtResource("asp_weakness")
+sector = ExtResource("id_strength")
+tier = 2
+entity_modifiers = Array[ExtResource("5_mod")]([SubResource("m_WeaknessT2")])
+
+[node name="StrengthKeystone" parent="Nodes" instance=ExtResource("6_key0")]
+position = Vector2(0, -330)
+
+[node name="RingCellAddon" parent="Nodes/StrengthKeystone" instance=ExtResource("4_addon")]
+sector = ExtResource("id_strength")
+tier = 0
+
+[node name="PoisonT1" parent="Nodes" instance=ExtResource("2_skill")]
+position = Vector2(102, -95)
+
+[node name="RingCellAddon" parent="Nodes/PoisonT1" instance=ExtResource("4_addon")]
+aspect = ExtResource("asp_poison")
+sector = ExtResource("id_dexterity")
+tier = 1
+entity_modifiers = Array[ExtResource("5_mod")]([SubResource("m_PoisonT1")])
+
+[node name="PoisonT2" parent="Nodes" instance=ExtResource("2_skill")]
+position = Vector2(177, -177)
+
+[node name="RingCellAddon" parent="Nodes/PoisonT2" instance=ExtResource("4_addon")]
+aspect = ExtResource("asp_poison")
+sector = ExtResource("id_dexterity")
+tier = 2
+entity_modifiers = Array[ExtResource("5_mod")]([SubResource("m_PoisonT2")])
+
+[node name="ExplosiveT1" parent="Nodes" instance=ExtResource("2_skill")]
+position = Vector2(134, -41)
+
+[node name="RingCellAddon" parent="Nodes/ExplosiveT1" instance=ExtResource("4_addon")]
+aspect = ExtResource("asp_explosive")
+sector = ExtResource("id_dexterity")
+tier = 1
+entity_modifiers = Array[ExtResource("5_mod")]([SubResource("m_ExplosiveT1")])
+
+[node name="ExplosiveT2" parent="Nodes" instance=ExtResource("2_skill")]
+position = Vector2(241, -65)
+
+[node name="RingCellAddon" parent="Nodes/ExplosiveT2" instance=ExtResource("4_addon")]
+aspect = ExtResource("asp_explosive")
+sector = ExtResource("id_dexterity")
+tier = 2
+entity_modifiers = Array[ExtResource("5_mod")]([SubResource("m_ExplosiveT2")])
+
+[node name="DexterityKeystone" parent="Nodes" instance=ExtResource("6_key1")]
+position = Vector2(286, -165)
+
+[node name="RingCellAddon" parent="Nodes/DexterityKeystone" instance=ExtResource("4_addon")]
+sector = ExtResource("id_dexterity")
+tier = 0
+
+[node name="CurseT1" parent="Nodes" instance=ExtResource("2_skill")]
+position = Vector2(134, 41)
+
+[node name="RingCellAddon" parent="Nodes/CurseT1" instance=ExtResource("4_addon")]
+aspect = ExtResource("asp_curse")
+sector = ExtResource("id_intelligence")
+tier = 1
+entity_modifiers = Array[ExtResource("5_mod")]([SubResource("m_CurseT1")])
+
+[node name="CurseT2" parent="Nodes" instance=ExtResource("2_skill")]
+position = Vector2(241, 65)
+
+[node name="RingCellAddon" parent="Nodes/CurseT2" instance=ExtResource("4_addon")]
+aspect = ExtResource("asp_curse")
+sector = ExtResource("id_intelligence")
+tier = 2
+entity_modifiers = Array[ExtResource("5_mod")]([SubResource("m_CurseT2")])
+
+[node name="HexT1" parent="Nodes" instance=ExtResource("2_skill")]
+position = Vector2(102, 95)
+
+[node name="RingCellAddon" parent="Nodes/HexT1" instance=ExtResource("4_addon")]
+aspect = ExtResource("asp_hex")
+sector = ExtResource("id_intelligence")
+tier = 1
+entity_modifiers = Array[ExtResource("5_mod")]([SubResource("m_HexT1")])
+
+[node name="HexT2" parent="Nodes" instance=ExtResource("2_skill")]
+position = Vector2(177, 177)
+
+[node name="RingCellAddon" parent="Nodes/HexT2" instance=ExtResource("4_addon")]
+aspect = ExtResource("asp_hex")
+sector = ExtResource("id_intelligence")
+tier = 2
+entity_modifiers = Array[ExtResource("5_mod")]([SubResource("m_HexT2")])
+
+[node name="IntelligenceKeystone" parent="Nodes" instance=ExtResource("6_key0")]
+position = Vector2(286, 165)
+
+[node name="RingCellAddon" parent="Nodes/IntelligenceKeystone" instance=ExtResource("4_addon")]
+sector = ExtResource("id_intelligence")
+tier = 0
+
+[node name="WitherT1" parent="Nodes" instance=ExtResource("2_skill")]
+position = Vector2(31, 136)
+
+[node name="RingCellAddon" parent="Nodes/WitherT1" instance=ExtResource("4_addon")]
+aspect = ExtResource("asp_wither")
+sector = ExtResource("id_constitution")
+tier = 1
+entity_modifiers = Array[ExtResource("5_mod")]([SubResource("m_WitherT1")])
+
+[node name="WitherT2" parent="Nodes" instance=ExtResource("2_skill")]
+position = Vector2(65, 241)
+
+[node name="RingCellAddon" parent="Nodes/WitherT2" instance=ExtResource("4_addon")]
+aspect = ExtResource("asp_wither")
+sector = ExtResource("id_constitution")
+tier = 2
+entity_modifiers = Array[ExtResource("5_mod")]([SubResource("m_WitherT2")])
+
+[node name="ArmorBreakT1" parent="Nodes" instance=ExtResource("2_skill")]
+position = Vector2(-31, 136)
+
+[node name="RingCellAddon" parent="Nodes/ArmorBreakT1" instance=ExtResource("4_addon")]
+aspect = ExtResource("asp_armor_break")
+sector = ExtResource("id_constitution")
+tier = 1
+entity_modifiers = Array[ExtResource("5_mod")]([SubResource("m_ArmorBreakT1")])
+
+[node name="ArmorBreakT2" parent="Nodes" instance=ExtResource("2_skill")]
+position = Vector2(-65, 241)
+
+[node name="RingCellAddon" parent="Nodes/ArmorBreakT2" instance=ExtResource("4_addon")]
+aspect = ExtResource("asp_armor_break")
+sector = ExtResource("id_constitution")
+tier = 2
+entity_modifiers = Array[ExtResource("5_mod")]([SubResource("m_ArmorBreakT2")])
+
+[node name="ConstitutionKeystone" parent="Nodes" instance=ExtResource("6_key1")]
+position = Vector2(0, 330)
+
+[node name="RingCellAddon" parent="Nodes/ConstitutionKeystone" instance=ExtResource("4_addon")]
+sector = ExtResource("id_constitution")
+tier = 0
+
+[node name="ScoutT1" parent="Nodes" instance=ExtResource("2_skill")]
+position = Vector2(-102, 95)
+
+[node name="RingCellAddon" parent="Nodes/ScoutT1" instance=ExtResource("4_addon")]
+aspect = ExtResource("asp_scout")
+sector = ExtResource("id_perception")
+tier = 1
+entity_modifiers = Array[ExtResource("5_mod")]([SubResource("m_ScoutT1")])
+
+[node name="ScoutT2" parent="Nodes" instance=ExtResource("2_skill")]
+position = Vector2(-177, 177)
+
+[node name="RingCellAddon" parent="Nodes/ScoutT2" instance=ExtResource("4_addon")]
+aspect = ExtResource("asp_scout")
+sector = ExtResource("id_perception")
+tier = 2
+entity_modifiers = Array[ExtResource("5_mod")]([SubResource("m_ScoutT2")])
+
+[node name="BlindnessT1" parent="Nodes" instance=ExtResource("2_skill")]
+position = Vector2(-134, 41)
+
+[node name="RingCellAddon" parent="Nodes/BlindnessT1" instance=ExtResource("4_addon")]
+aspect = ExtResource("asp_blindness")
+sector = ExtResource("id_perception")
+tier = 1
+entity_modifiers = Array[ExtResource("5_mod")]([SubResource("m_BlindnessT1")])
+
+[node name="BlindnessT2" parent="Nodes" instance=ExtResource("2_skill")]
+position = Vector2(-241, 65)
+
+[node name="RingCellAddon" parent="Nodes/BlindnessT2" instance=ExtResource("4_addon")]
+aspect = ExtResource("asp_blindness")
+sector = ExtResource("id_perception")
+tier = 2
+entity_modifiers = Array[ExtResource("5_mod")]([SubResource("m_BlindnessT2")])
+
+[node name="PerceptionKeystone" parent="Nodes" instance=ExtResource("6_key0")]
+position = Vector2(-286, 165)
+
+[node name="RingCellAddon" parent="Nodes/PerceptionKeystone" instance=ExtResource("4_addon")]
+sector = ExtResource("id_perception")
+tier = 0
+
+[node name="CorruptionT1" parent="Nodes" instance=ExtResource("2_skill")]
+position = Vector2(-134, -41)
+
+[node name="RingCellAddon" parent="Nodes/CorruptionT1" instance=ExtResource("4_addon")]
+aspect = ExtResource("asp_corruption")
+sector = ExtResource("id_wisdom")
+tier = 1
+entity_modifiers = Array[ExtResource("5_mod")]([SubResource("m_CorruptionT1")])
+
+[node name="CorruptionT2" parent="Nodes" instance=ExtResource("2_skill")]
+position = Vector2(-241, -65)
+
+[node name="RingCellAddon" parent="Nodes/CorruptionT2" instance=ExtResource("4_addon")]
+aspect = ExtResource("asp_corruption")
+sector = ExtResource("id_wisdom")
+tier = 2
+entity_modifiers = Array[ExtResource("5_mod")]([SubResource("m_CorruptionT2")])
+
+[node name="GreedT1" parent="Nodes" instance=ExtResource("2_skill")]
+position = Vector2(-102, -95)
+
+[node name="RingCellAddon" parent="Nodes/GreedT1" instance=ExtResource("4_addon")]
+aspect = ExtResource("asp_greed")
+sector = ExtResource("id_wisdom")
+tier = 1
+entity_modifiers = Array[ExtResource("5_mod")]([SubResource("m_GreedT1")])
+
+[node name="GreedT2" parent="Nodes" instance=ExtResource("2_skill")]
+position = Vector2(-177, -177)
+
+[node name="RingCellAddon" parent="Nodes/GreedT2" instance=ExtResource("4_addon")]
+aspect = ExtResource("asp_greed")
+sector = ExtResource("id_wisdom")
+tier = 2
+entity_modifiers = Array[ExtResource("5_mod")]([SubResource("m_GreedT2")])
+
+[node name="WisdomKeystone" parent="Nodes" instance=ExtResource("6_key1")]
+position = Vector2(-286, -165)
+
+[node name="RingCellAddon" parent="Nodes/WisdomKeystone" instance=ExtResource("4_addon")]
+sector = ExtResource("id_wisdom")
+tier = 0
+
+[node name="E_Core_BleedingT1" parent="Edges" node_paths=PackedStringArray("from", "to") instance=ExtResource("3_edge")]
+from = NodePath("../../Nodes/Core")
+to = NodePath("../../Nodes/BleedingT1")
+
+[node name="E_BleedingT1_BleedingT2" parent="Edges" node_paths=PackedStringArray("from", "to") instance=ExtResource("3_edge")]
+from = NodePath("../../Nodes/BleedingT1")
+to = NodePath("../../Nodes/BleedingT2")
+
+[node name="E_Core_WeaknessT1" parent="Edges" node_paths=PackedStringArray("from", "to") instance=ExtResource("3_edge")]
+from = NodePath("../../Nodes/Core")
+to = NodePath("../../Nodes/WeaknessT1")
+
+[node name="E_WeaknessT1_WeaknessT2" parent="Edges" node_paths=PackedStringArray("from", "to") instance=ExtResource("3_edge")]
+from = NodePath("../../Nodes/WeaknessT1")
+to = NodePath("../../Nodes/WeaknessT2")
+
+[node name="E_BleedingT1_StrengthKeystone" parent="Edges" node_paths=PackedStringArray("from", "to") instance=ExtResource("3_edge")]
+from = NodePath("../../Nodes/BleedingT1")
+to = NodePath("../../Nodes/StrengthKeystone")
+
+[node name="E_WeaknessT1_StrengthKeystone" parent="Edges" node_paths=PackedStringArray("from", "to") instance=ExtResource("3_edge")]
+from = NodePath("../../Nodes/WeaknessT1")
+to = NodePath("../../Nodes/StrengthKeystone")
+
+[node name="E_Core_PoisonT1" parent="Edges" node_paths=PackedStringArray("from", "to") instance=ExtResource("3_edge")]
+from = NodePath("../../Nodes/Core")
+to = NodePath("../../Nodes/PoisonT1")
+
+[node name="E_PoisonT1_PoisonT2" parent="Edges" node_paths=PackedStringArray("from", "to") instance=ExtResource("3_edge")]
+from = NodePath("../../Nodes/PoisonT1")
+to = NodePath("../../Nodes/PoisonT2")
+
+[node name="E_Core_ExplosiveT1" parent="Edges" node_paths=PackedStringArray("from", "to") instance=ExtResource("3_edge")]
+from = NodePath("../../Nodes/Core")
+to = NodePath("../../Nodes/ExplosiveT1")
+
+[node name="E_ExplosiveT1_ExplosiveT2" parent="Edges" node_paths=PackedStringArray("from", "to") instance=ExtResource("3_edge")]
+from = NodePath("../../Nodes/ExplosiveT1")
+to = NodePath("../../Nodes/ExplosiveT2")
+
+[node name="E_PoisonT1_DexterityKeystone" parent="Edges" node_paths=PackedStringArray("from", "to") instance=ExtResource("3_edge")]
+from = NodePath("../../Nodes/PoisonT1")
+to = NodePath("../../Nodes/DexterityKeystone")
+
+[node name="E_ExplosiveT1_DexterityKeystone" parent="Edges" node_paths=PackedStringArray("from", "to") instance=ExtResource("3_edge")]
+from = NodePath("../../Nodes/ExplosiveT1")
+to = NodePath("../../Nodes/DexterityKeystone")
+
+[node name="E_Core_CurseT1" parent="Edges" node_paths=PackedStringArray("from", "to") instance=ExtResource("3_edge")]
+from = NodePath("../../Nodes/Core")
+to = NodePath("../../Nodes/CurseT1")
+
+[node name="E_CurseT1_CurseT2" parent="Edges" node_paths=PackedStringArray("from", "to") instance=ExtResource("3_edge")]
+from = NodePath("../../Nodes/CurseT1")
+to = NodePath("../../Nodes/CurseT2")
+
+[node name="E_Core_HexT1" parent="Edges" node_paths=PackedStringArray("from", "to") instance=ExtResource("3_edge")]
+from = NodePath("../../Nodes/Core")
+to = NodePath("../../Nodes/HexT1")
+
+[node name="E_HexT1_HexT2" parent="Edges" node_paths=PackedStringArray("from", "to") instance=ExtResource("3_edge")]
+from = NodePath("../../Nodes/HexT1")
+to = NodePath("../../Nodes/HexT2")
+
+[node name="E_CurseT1_IntelligenceKeystone" parent="Edges" node_paths=PackedStringArray("from", "to") instance=ExtResource("3_edge")]
+from = NodePath("../../Nodes/CurseT1")
+to = NodePath("../../Nodes/IntelligenceKeystone")
+
+[node name="E_HexT1_IntelligenceKeystone" parent="Edges" node_paths=PackedStringArray("from", "to") instance=ExtResource("3_edge")]
+from = NodePath("../../Nodes/HexT1")
+to = NodePath("../../Nodes/IntelligenceKeystone")
+
+[node name="E_Core_WitherT1" parent="Edges" node_paths=PackedStringArray("from", "to") instance=ExtResource("3_edge")]
+from = NodePath("../../Nodes/Core")
+to = NodePath("../../Nodes/WitherT1")
+
+[node name="E_WitherT1_WitherT2" parent="Edges" node_paths=PackedStringArray("from", "to") instance=ExtResource("3_edge")]
+from = NodePath("../../Nodes/WitherT1")
+to = NodePath("../../Nodes/WitherT2")
+
+[node name="E_Core_ArmorBreakT1" parent="Edges" node_paths=PackedStringArray("from", "to") instance=ExtResource("3_edge")]
+from = NodePath("../../Nodes/Core")
+to = NodePath("../../Nodes/ArmorBreakT1")
+
+[node name="E_ArmorBreakT1_ArmorBreakT2" parent="Edges" node_paths=PackedStringArray("from", "to") instance=ExtResource("3_edge")]
+from = NodePath("../../Nodes/ArmorBreakT1")
+to = NodePath("../../Nodes/ArmorBreakT2")
+
+[node name="E_WitherT1_ConstitutionKeystone" parent="Edges" node_paths=PackedStringArray("from", "to") instance=ExtResource("3_edge")]
+from = NodePath("../../Nodes/WitherT1")
+to = NodePath("../../Nodes/ConstitutionKeystone")
+
+[node name="E_ArmorBreakT1_ConstitutionKeystone" parent="Edges" node_paths=PackedStringArray("from", "to") instance=ExtResource("3_edge")]
+from = NodePath("../../Nodes/ArmorBreakT1")
+to = NodePath("../../Nodes/ConstitutionKeystone")
+
+[node name="E_Core_ScoutT1" parent="Edges" node_paths=PackedStringArray("from", "to") instance=ExtResource("3_edge")]
+from = NodePath("../../Nodes/Core")
+to = NodePath("../../Nodes/ScoutT1")
+
+[node name="E_ScoutT1_ScoutT2" parent="Edges" node_paths=PackedStringArray("from", "to") instance=ExtResource("3_edge")]
+from = NodePath("../../Nodes/ScoutT1")
+to = NodePath("../../Nodes/ScoutT2")
+
+[node name="E_Core_BlindnessT1" parent="Edges" node_paths=PackedStringArray("from", "to") instance=ExtResource("3_edge")]
+from = NodePath("../../Nodes/Core")
+to = NodePath("../../Nodes/BlindnessT1")
+
+[node name="E_BlindnessT1_BlindnessT2" parent="Edges" node_paths=PackedStringArray("from", "to") instance=ExtResource("3_edge")]
+from = NodePath("../../Nodes/BlindnessT1")
+to = NodePath("../../Nodes/BlindnessT2")
+
+[node name="E_ScoutT1_PerceptionKeystone" parent="Edges" node_paths=PackedStringArray("from", "to") instance=ExtResource("3_edge")]
+from = NodePath("../../Nodes/ScoutT1")
+to = NodePath("../../Nodes/PerceptionKeystone")
+
+[node name="E_BlindnessT1_PerceptionKeystone" parent="Edges" node_paths=PackedStringArray("from", "to") instance=ExtResource("3_edge")]
+from = NodePath("../../Nodes/BlindnessT1")
+to = NodePath("../../Nodes/PerceptionKeystone")
+
+[node name="E_Core_CorruptionT1" parent="Edges" node_paths=PackedStringArray("from", "to") instance=ExtResource("3_edge")]
+from = NodePath("../../Nodes/Core")
+to = NodePath("../../Nodes/CorruptionT1")
+
+[node name="E_CorruptionT1_CorruptionT2" parent="Edges" node_paths=PackedStringArray("from", "to") instance=ExtResource("3_edge")]
+from = NodePath("../../Nodes/CorruptionT1")
+to = NodePath("../../Nodes/CorruptionT2")
+
+[node name="E_Core_GreedT1" parent="Edges" node_paths=PackedStringArray("from", "to") instance=ExtResource("3_edge")]
+from = NodePath("../../Nodes/Core")
+to = NodePath("../../Nodes/GreedT1")
+
+[node name="E_GreedT1_GreedT2" parent="Edges" node_paths=PackedStringArray("from", "to") instance=ExtResource("3_edge")]
+from = NodePath("../../Nodes/GreedT1")
+to = NodePath("../../Nodes/GreedT2")
+
+[node name="E_CorruptionT1_WisdomKeystone" parent="Edges" node_paths=PackedStringArray("from", "to") instance=ExtResource("3_edge")]
+from = NodePath("../../Nodes/CorruptionT1")
+to = NodePath("../../Nodes/WisdomKeystone")
+
+[node name="E_GreedT1_WisdomKeystone" parent="Edges" node_paths=PackedStringArray("from", "to") instance=ExtResource("3_edge")]
+from = NodePath("../../Nodes/GreedT1")
+to = NodePath("../../Nodes/WisdomKeystone")
+
+[node name="E_WeaknessT2_PoisonT2" parent="Edges" node_paths=PackedStringArray("from", "to") instance=ExtResource("3_edge")]
+from = NodePath("../../Nodes/WeaknessT2")
+to = NodePath("../../Nodes/PoisonT2")
+
+[node name="E_ExplosiveT2_CurseT2" parent="Edges" node_paths=PackedStringArray("from", "to") instance=ExtResource("3_edge")]
+from = NodePath("../../Nodes/ExplosiveT2")
+to = NodePath("../../Nodes/CurseT2")
+
+[node name="E_HexT2_WitherT2" parent="Edges" node_paths=PackedStringArray("from", "to") instance=ExtResource("3_edge")]
+from = NodePath("../../Nodes/HexT2")
+to = NodePath("../../Nodes/WitherT2")
+
+[node name="E_ArmorBreakT2_ScoutT2" parent="Edges" node_paths=PackedStringArray("from", "to") instance=ExtResource("3_edge")]
+from = NodePath("../../Nodes/ArmorBreakT2")
+to = NodePath("../../Nodes/ScoutT2")
+
+[node name="E_BlindnessT2_CorruptionT2" parent="Edges" node_paths=PackedStringArray("from", "to") instance=ExtResource("3_edge")]
+from = NodePath("../../Nodes/BlindnessT2")
+to = NodePath("../../Nodes/CorruptionT2")
+
+[node name="E_GreedT2_BleedingT2" parent="Edges" node_paths=PackedStringArray("from", "to") instance=ExtResource("3_edge")]
+from = NodePath("../../Nodes/GreedT2")
+to = NodePath("../../Nodes/BleedingT2")
+
+[node name="E_ArmorBreakT1_BleedingT1" parent="Edges" node_paths=PackedStringArray("from", "to") instance=ExtResource("3_edge")]
+from = NodePath("../../Nodes/ArmorBreakT1")
+to = NodePath("../../Nodes/BleedingT1")
+
+[node name="E_BleedingT1_WeaknessT1" parent="Edges" node_paths=PackedStringArray("from", "to") instance=ExtResource("3_edge")]
+from = NodePath("../../Nodes/BleedingT1")
+to = NodePath("../../Nodes/WeaknessT1")
+
+[node name="E_BlindnessT1_CorruptionT1" parent="Edges" node_paths=PackedStringArray("from", "to") instance=ExtResource("3_edge")]
+from = NodePath("../../Nodes/BlindnessT1")
+to = NodePath("../../Nodes/CorruptionT1")

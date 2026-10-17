@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="StandardPoolStatDef" format=3]
+
+[ext_resource type="Script" path="res://stats_system/standard_pool_stat_def.gd" id="1_std_pool_def"]
+
+[resource]
+script = ExtResource("1_std_pool_def")
+on_cap_rise = 1
+id = &"ring_points"
+display_name = "Ring Points"
+description = "Inner-ring budget. The cap rises by one at every milestone level (Entity.milestone_level_interval); current is the unspent remainder, spent only by Entity.buy_ring_cell. on_cap_rise = FOLLOW so a mint gifts current too. No per-turn upkeep. Refunds are a separate pool (#1669)."
+default_value = 0.0
+tint_color = Color(0.95, 0.75, 0.35, 1)
+modifier_name = "Max Ring Points"
+entity_grantable = false

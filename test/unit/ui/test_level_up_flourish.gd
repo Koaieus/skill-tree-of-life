@@ -135,15 +135,15 @@ func test_the_sp_total_accumulates_the_levels_actually_narrated() -> void:
 	var milestones := 0
 	for lvl in range(2, final_level + 1):
 		expected += _entity.sp_minted_for_level(lvl)
-		if lvl % Entity.MILESTONE_LEVEL_INTERVAL == 0:
+		if _entity.is_milestone_level(lvl):
 			milestones += 1
 	assert_gt(milestones, 0, "sanity: the cascade crossed at least one milestone")
 	var detail := (_flourish.get_node("%Detail") as Label).text
 	assert_eq(detail, "+%d SP — LEVEL %d" % [expected, final_level],
 			"each milestone is counted for ITS level, not for the final one")
-	# The whole point: a flat per-level rate would MISS the milestone bonuses.
+	# A milestone pays a ring point, not SP: the SP yield stays flat across it.
 	var flat := _entity.sp_minted_for_level(2) * _stamps.size()
-	assert_eq(expected, flat + milestones, "and that is a real difference")
+	assert_eq(expected, flat, "a milestone adds no SP")
 
 
 ## Released once, at the drain — not per beat, and not while levels are still

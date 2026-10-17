@@ -128,6 +128,9 @@ const CORE_HOP_SLIDE_DELAY := MoveCoreCommandHandler.CORE_HOP_SLIDE_DELAY
 ## The outstanding-loot-pick book, for [PickLootCommand] (#522).
 @export var loot_pick_registry: LootPickRegistry
 
+## The inner ring's rules, for [SpendRingCellCommand].
+@export var ring_system: RingSystem
+
 ## #556: how long [method _pre_roll] holds the drain for a non-local actor's
 ## command, so [CameraDirector] has time to pan there before the mutation
 ## lands. Authored independently of [member CameraDirector.default_focus_duration]
@@ -639,6 +642,7 @@ func _context() -> CommandContext:
 	ctx.battle_system = battle_system
 	ctx.turn_manager = turn_manager
 	ctx.loot_pick_registry = loot_pick_registry
+	ctx.ring_system = ring_system
 	ctx.command_applier = self
 	ctx.tree = get_tree()
 	return ctx

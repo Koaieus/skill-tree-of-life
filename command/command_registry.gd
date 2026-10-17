@@ -53,6 +53,7 @@ static func _build() -> void:
 	_register(EndTurnCommand.TAG, EndTurnCommand.from_dict, EndTurnCommandHandler.new())
 	_register(StartTurnCommand.TAG, StartTurnCommand.from_dict, StartTurnCommandHandler.new())
 	_register(PickLootCommand.TAG, PickLootCommand.from_dict, PickLootCommandHandler.new())
+	_register(SpendRingCellCommand.TAG, SpendRingCellCommand.from_dict, SpendRingCellCommandHandler.new())
 	_register(LootRoundCommand.TAG, LootRoundCommand.from_dict, LootRoundCommandHandler.new())
 	_register(LaunchAttackCommand.TAG, LaunchAttackCommand.from_dict,
 			LaunchAttackCommandHandler.new())

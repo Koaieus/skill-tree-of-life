@@ -119,24 +119,20 @@ func test_level_up_mints_sp_gain_on_levelup_when_stat_is_raised() -> void:
 	assert_eq(board.skill_points.value, max_before + 3.0, "raising the stat to 3 mints 3")
 
 
-## Decision 6: +1 extra SP on every 5th level, on top of sp_gain_on_levelup.
-func test_milestone_level_mints_one_extra_sp() -> void:
+## Decision 6, re-cut by #1651: the every-Nth-level milestone slot pays one
+## ring point instead of its old extra SP, so the SP yield is flat across it.
+func test_milestone_level_mints_a_ring_point_not_extra_sp() -> void:
 	var ent: Entity = await _make_entity()
 	var board := ent.stat_board
-
-	# Level 1 -> 2 -> 3 -> 4 -> 5: the 5th level-up (reaching level 5) is the
-	# milestone and mints sp_gain_on_levelup + 1.
-	for _i in range(3):
+	var n := ent.milestone_level_interval
+	while int(board.level.value) < n - 1:
 		ent._on_xp_replenished()
-	var max_before_milestone: float = board.skill_points.value
-	ent._on_xp_replenished()  # reaches level 5
-	assert_eq(int(board.level.value), 5, "sanity: entity is now level 5")
-	assert_eq(board.skill_points.value, max_before_milestone + 3.0, "level 5 mints sp_gain_on_levelup(2) + 1")
-
-	var max_before_6: float = board.skill_points.value
-	ent._on_xp_replenished()  # reaches level 6
-	assert_eq(int(board.level.value), 6, "sanity: entity is now level 6")
-	assert_eq(board.skill_points.value, max_before_6 + 2.0, "level 6 mints plain sp_gain_on_levelup, no milestone")
+	var sp_before: float = board.skill_points.value
+	var rp_before: float = board.ring_points.value
+	ent._on_xp_replenished()  # reaches the milestone
+	assert_eq(int(board.level.value), n, "sanity: entity is now at the milestone")
+	assert_eq(board.skill_points.value, sp_before + board.sp_gain_on_levelup.value, "the milestone mints only the plain SP yield")
+	assert_eq(board.ring_points.value, rp_before + 1.0, "and one ring point")
 
 
 ## #320 item 7: the milestone rule lives in ONE place, and it is a pure
@@ -150,9 +146,11 @@ func test_sp_minted_for_level_answers_for_the_level_asked_not_the_current_one() 
 		ent._on_xp_replenished()
 	assert_eq(int(ent.level), 6, "sanity: entity is now level 6")
 	var plain: int = ent.sp_minted_for_level(6)
-	assert_eq(ent.sp_minted_for_level(5), plain + 1, "level 5 is a milestone even when asked from level 6")
-	assert_eq(ent.sp_minted_for_level(10), plain + 1, "level 10 is a milestone even before it is reached")
-	assert_eq(ent.sp_minted_for_level(4), plain, "level 4 mints the plain per-level yield")
+	var n := ent.milestone_level_interval
+	assert_eq(ent.sp_minted_for_level(n), plain, "a milestone pays a ring point, not extra SP")
+	assert_true(ent.is_milestone_level(n), "level n is a milestone even when asked from level 6")
+	assert_true(ent.is_milestone_level(2 * n), "level 2n is a milestone even before it is reached")
+	assert_false(ent.is_milestone_level(n - 1), "level n-1 is not")
 
 
 ## Decision 7 / D-16: starting SP is raised above the old default of 1.
