@@ -195,10 +195,14 @@ func test_a_doombrand_kill_spills_scaled_against_a_plain_kill() -> void:
 	_arm()
 	var plain := _spill_to_ward(await _kill_plate(false))
 	assert_gt(plain, 0.0, "precondition: a plain kill spills onto the ward")
-	var doomed := _spill_to_ward(await _kill_plate(true))
+	var doomed_outcome := await _kill_plate(true)
+	var doomed := _spill_to_ward(doomed_outcome)
+	# The contact's own curse rider lands ahead of the killing hit, so the
+	# plate dies holding its curse plus the rider's: the doom scales both.
+	var held := (_PLATE_CURSE + _curse(doomed_outcome)) / _PLATE_CURSE
 	var doom := _effect(DoomSpillEffect) as DoomSpillEffect
-	assert_almost_eq(doomed / plain, doom.spill_scale, 0.0001,
-			"the doom multiplies the plate's spill by the effect's scale")
+	assert_almost_eq(doomed / plain, held * doom.spill_scale, 0.0001,
+			"the doom multiplies the plate's spill, rider curse included, by the effect's scale")
 
 
 func test_a_live_replay_lands_the_doomed_spill() -> void:
