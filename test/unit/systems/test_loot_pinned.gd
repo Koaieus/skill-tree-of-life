@@ -1,5 +1,7 @@
 extends GutTest
 
+const _DUST_SCENE := preload("res://skill_node/addons/defs/skill_dust_addon.tscn")
+
 ## #1654 acceptance 3 — a faced Dormant Core's kill offers its count grant in
 ## round 1 every time ([member StatModifier.loot_pinned]); the tier scale never
 ## touches a MULTIPLY/SET leaf.
@@ -32,7 +34,7 @@ func test_faced_kill_offers_its_count_in_round_one_every_time() -> void:
 	for s in 50:
 		seed(s)
 		var draw := loot._draw_payload(victim)
-		var dust := SkillDustAddon.new()
+		var dust := _DUST_SCENE.instantiate() as SkillDustAddon
 		autofree(dust)
 		dust.candidates.assign(draw["candidates"])
 		dust.weights.assign(draw["weights"])
