@@ -34,6 +34,8 @@ enum LoadResult { OK, MISSING, CORRUPT, VERSION_MISMATCH }
 ##    channel, lifts re-derived from the stake.
 ## 9: the turn cursor grew a sixth element, the world turn's progress (ADR
 ##    0055). An 8 still loads: a five-element cursor decodes it as 0.
+## 10: EntitySnapshot gained `_R_RING_SPENT` (the inner-ring cells bought). A 9
+##    still loads: the absent row decodes as nothing spent.
 const FORMAT_VERSION := 10
 ## The oldest file that still loads — see [constant FORMAT_VERSION].
 const MIN_FORMAT_VERSION := 7

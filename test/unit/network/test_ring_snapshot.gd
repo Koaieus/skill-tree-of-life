@@ -71,6 +71,11 @@ func test_ring_spent_and_the_pool_round_trip() -> void:
 	assert_eq(dst.stat_board.ring_points.available(),
 			src.stat_board.ring_points.available(), "the unspent points crossed")
 	assert_eq(dst.stat_board.ring_points.available(), 1, "one point left of two")
+	assert_eq(float(dst.stat_board.get_stat(&"bleeding_aspect").get_value()),
+			float(src.stat_board.get_stat(&"bleeding_aspect").get_value()), "the grant's effect crossed")
+	# The board carries the grant, but the core register does not restore it
+	# (Entity's restore path, not this row): lootability is lost after a load.
+	pending("restored core_modifiers lack the ring grant — outside this fence, see #1651")
 
 
 func test_a_restored_entity_re_buying_a_spent_cell_is_refused() -> void:
