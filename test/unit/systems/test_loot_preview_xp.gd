@@ -23,11 +23,7 @@ extends GutTest
 ## Per `owner_tunes_agents_test`: `core_kill_xp` is set on the hand-built
 ## victim board here, never asserted at a shipped `.tres` value.
 
-const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
-const _BOARD := preload("res://entity/default_entity_board.tres")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _BALANCED := preload("res://entity/core/balanced_core.tres")
-const _EDGE_SCENE := preload("res://graph/edge.tscn")
 const _PLAYER_FACTION := preload("res://entity/factions/player.tres")
 const _NPC_FACTION := preload("res://entity/factions/npc.tres")
 const _DUST_SCENE := preload("res://skill_node/addons/defs/skill_dust_addon.tscn")
@@ -53,30 +49,18 @@ var _saw_cascade: bool = false
 
 
 func before_each() -> void:
-	_graph = _GRAPH_SCENE.instantiate()
-	add_child_autofree(_graph)
-	_nodes = []
+	var world := TestWorld.create(self)
+	_graph = world.graph
+	_nodes = world.build([[0, 1], [1, 2], [2, 3], [3, 4], [4, 5]])
 	# Chain: K (killer core) – V (victim core) – A – B – C – D. Depleting A (a
 	# cut vertex) islands B/C/D — same fixture shape as test_kill_xp_ledger.gd,
 	# reused here so the cascade-sum pin (test 1 below) exercises a real
 	# multi-node cascade, not a synthetic single-node kill.
-	for i in 6:
-		var sn := _SKILL_NODE_SCENE.instantiate() as SkillNode
-		sn.name = "N%d" % i
-		_graph.skill_nodes_container.add_child(sn)
-		_nodes.append(sn)
-	for i in 5:
-		var e := _EDGE_SCENE.instantiate() as Edge
-		e.from = _nodes[i]
-		e.to = _nodes[i + 1]
-		_graph.edges_container.add_child(e)
 
 	_tm = TurnManager.new()
 	add_child_autofree(_tm)
 
-	_alloc = AllocationSystem.new()
-	_alloc.graph = _graph
-	add_child_autofree(_alloc)
+	_alloc = world.allocator()
 
 	_battle = BattleSystem.new()
 	_battle.allocation_system = _alloc
@@ -90,14 +74,10 @@ func before_each() -> void:
 	_loot.xp_per_node_killed = _PER_NODE
 	add_child_autofree(_loot)
 
-	_killer = autofree(Entity.new())
-	_killer.faction = _PLAYER_FACTION
-	_killer.stat_board = _BOARD.duplicate(true) as EntityStatBoard
+	_killer = autofree(TestWorld.new_entity("", null, _PLAYER_FACTION))
 	_graph.add_child(_killer)
 
-	_victim = autofree(Entity.new())
-	_victim.faction = _NPC_FACTION
-	_victim.stat_board = _BOARD.duplicate(true) as EntityStatBoard
+	_victim = autofree(TestWorld.new_entity("", null, _NPC_FACTION))
 	_victim.core_class = _BALANCED
 	_graph.add_child(_victim)
 	await get_tree().process_frame

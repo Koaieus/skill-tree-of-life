@@ -5,11 +5,9 @@ extends GutTest
 ## the drop entirely — no addon lands on the former core. Set: every minted
 ## dust is a real scene instance, so it carries a `scene_file_path`.
 
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _BOARD := preload("res://entity/default_entity_board.tres")
 const _BALANCED := preload("res://entity/core/balanced_core.tres")
 const _DUST_SCENE := preload("res://skill_node/addons/defs/skill_dust_addon.tscn")
-const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 
 var _graph: Graph
 var _loot: LootSystem
@@ -18,14 +16,13 @@ var _core: SkillNode
 
 
 func before_each() -> void:
-	_graph = _GRAPH_SCENE.instantiate()
-	add_child_autofree(_graph)
+	var world := TestWorld.create(self)
+	_graph = world.graph
 
 	_loot = LootSystem.new()
 	add_child_autofree(_loot)
 
-	_core = _SKILL_NODE_SCENE.instantiate() as SkillNode
-	_graph.add_skill_node(_core)
+	_core = world.add_node()
 
 	_victim = autofree(Entity.new())
 	_victim.display_name = "Victim"

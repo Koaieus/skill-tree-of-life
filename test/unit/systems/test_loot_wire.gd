@@ -9,9 +9,7 @@ extends GutTest
 ##   3. [LootPickRegistry] — one authority mints request ids and parks the
 ##      requests a REMOTE picker owes an answer to.
 
-const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _DUST_SCENE := preload("res://skill_node/addons/defs/skill_dust_addon.tscn")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _BOARD := preload("res://entity/default_entity_board.tres")
 const _LEVEL_SCALING := preload("res://stats_system/formulas/level_scaling.tres")
 
@@ -21,13 +19,10 @@ var _relic: SkillNode
 
 
 func before_each() -> void:
-	_graph = _GRAPH_SCENE.instantiate()
-	_graph.name = "TestGraph"
-	add_child_autofree(_graph)
+	var world := TestWorld.create(self)
+	_graph = world.graph
 
-	_relic = _SKILL_NODE_SCENE.instantiate() as SkillNode
-	_relic.name = "Relic"
-	_graph.skill_nodes_container.add_child(_relic)
+	_relic = world.add_node(&"Relic")
 
 	_collector = autofree(Entity.new())
 	_collector.display_name = "Collector"

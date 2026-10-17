@@ -1,5 +1,4 @@
 extends GutTest
-const _EDGE_SCENE := preload("res://graph/edge.tscn")
 
 ## LootSystem's spellbook draft (#204, re-cut — see loot_system.gd's "#204:
 ## Spellbook loot draft" section and skill_dust_addon.gd's "TERMINAL SPELL
@@ -12,9 +11,7 @@ const _EDGE_SCENE := preload("res://graph/edge.tscn")
 ## triggered via the realistic core-overflow path, claim triggered by
 ## allocating the relic.
 
-const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _BOARD := preload("res://entity/default_entity_board.tres")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _BALANCED := preload("res://entity/core/balanced_core.tres")
 const _DUST_SCENE := preload("res://skill_node/addons/defs/skill_dust_addon.tscn")
 
@@ -29,21 +26,12 @@ var _nodes: Array[SkillNode]
 
 
 func before_each() -> void:
-	_graph = _GRAPH_SCENE.instantiate()
-	_graph.name = "TestGraph"
-	add_child_autofree(_graph)
+	var world := TestWorld.create(self)
+	_graph = world.graph
 
-	_nodes = []
-	for i in 4:
-		var sn := _SKILL_NODE_SCENE.instantiate() as SkillNode
-		sn.name = "N%d" % i
-		_graph.add_skill_node(sn)
-		_nodes.append(sn)
 	# N0 (killer core) – N1 (victim core) – N2 (victim territory)
 	# N0 (killer core) – N3 (killer territory)
-	_add_edge(_nodes[0], _nodes[1])
-	_add_edge(_nodes[1], _nodes[2])
-	_add_edge(_nodes[0], _nodes[3])
+	_nodes = world.build([[0, 1], [1, 2], [0, 3]])
 
 	_tm = TurnManager.new()
 	add_child_autofree(_tm)
@@ -55,9 +43,7 @@ func before_each() -> void:
 	_loot.drop_skill_dust_on_death = false  # isolate the spell draft
 	add_child_autofree(_loot)
 
-	_alloc = AllocationSystem.new()
-	_alloc.graph = _graph
-	add_child_autofree(_alloc)
+	_alloc = world.allocator()
 
 	_battle = BattleSystem.new()
 	_battle.allocation_system = _alloc
@@ -435,8 +421,3 @@ func test_spell_draft_fires_only_after_stat_rounds_resolve() -> void:
 
 
 # ── helpers ──────────────────────────────────────────────────────────────────
-
-func _add_edge(a: SkillNode, b: SkillNode) -> void:
-	# Graph.add_edge emits edge_added so the board Navigator mirrors it
-	# (.claude/rules/graph.md); a container add_child is invisible to it.
-	_graph.add_edge(a, b)

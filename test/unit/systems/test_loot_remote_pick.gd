@@ -14,10 +14,8 @@ extends GutTest
 ## `Events.loot_pick_requested` drives the whole answer path for real, rather
 ## than hand-building a [PickLootCommand] directly the way the #646 tests do.
 
-const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _DUST_SCENE := preload("res://skill_node/addons/defs/skill_dust_addon.tscn")
 const _Rig := preload("res://test/support/link_rig.gd")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _BOARD := preload("res://entity/default_entity_board.tres")
 
 
@@ -40,13 +38,10 @@ func _mod(id: StringName, op: int, v: float) -> StatModifier:
 
 func _build_world(label: String, candidates: Array[StatModifier],
 		registry: LootPickRegistry = null) -> Dictionary:
-	var graph: Graph = _GRAPH_SCENE.instantiate()
-	graph.name = "Graph_%s" % label
-	add_child_autofree(graph)
+	var world := TestWorld.create(self, "Graph_%s" % label)
+	var graph := world.graph
 
-	var relic := _SKILL_NODE_SCENE.instantiate() as SkillNode
-	relic.name = "Relic_%s" % label
-	graph.skill_nodes_container.add_child(relic)
+	var relic := world.add_node(StringName("Relic_%s" % label))
 
 	var collector: Entity = autofree(Entity.new())
 	collector.display_name = "Collector_%s" % label

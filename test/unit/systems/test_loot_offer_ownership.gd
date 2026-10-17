@@ -15,7 +15,6 @@ extends GutTest
 ## `offer_received` and each peer's `_pending_mirror_request` are the
 ## discriminators; the bus count only backs the "exactly one" wording.
 
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _BOARD := preload("res://entity/default_entity_board.tres")
 const _DUST_SCENE := preload("res://skill_node/addons/defs/skill_dust_addon.tscn")
 
@@ -54,9 +53,7 @@ func _two_peer_roster() -> ParticipantRoster:
 ## [param roster] is the SAME instance both peers get, which is the point: a
 ## roster is identical on every machine and only `local_peer_id` differs.
 func _mirror(label: String, local_peer: int, roster: ParticipantRoster) -> Dictionary:
-	var graph: Graph = _GRAPH_SCENE.instantiate()
-	graph.name = "Graph_%s" % label
-	add_child_autofree(graph)
+	var graph := TestWorld.create(self, "Graph_%s" % label).graph
 
 	var by_participant: Dictionary[int, Entity] = {}
 	for p in roster.all():

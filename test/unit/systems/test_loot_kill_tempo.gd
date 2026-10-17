@@ -11,8 +11,6 @@ extends GutTest
 ## `default_entity_board.tres` default (`owner_tunes_agents_test`) — the owner
 ## may tune or even zero it.
 
-const _BOARD := preload("res://entity/default_entity_board.tres")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _PLAYER_FACTION := preload("res://entity/factions/player.tres")
 const _NPC_FACTION := preload("res://entity/factions/npc.tres")
 const _DUST_SCENE := preload("res://skill_node/addons/defs/skill_dust_addon.tscn")
@@ -24,8 +22,7 @@ var _killer: Entity
 
 
 func before_each() -> void:
-	_graph = _GRAPH_SCENE.instantiate()
-	add_child_autofree(_graph)
+	_graph = TestWorld.create(self).graph
 
 	_tm = TurnManager.new()
 	add_child_autofree(_tm)
@@ -35,10 +32,7 @@ func before_each() -> void:
 	_loot.turn_manager = _tm
 	add_child_autofree(_loot)
 
-	_killer = autofree(Entity.new())
-	_killer.display_name = "Killer"
-	_killer.faction = _PLAYER_FACTION  # hostile to the default npc-faction victim
-	_killer.stat_board = _BOARD.duplicate(true) as EntityStatBoard
+	_killer = autofree(TestWorld.new_entity("Killer", null, _PLAYER_FACTION))  # hostile to the default npc-faction victim
 	_graph.add_child(_killer)
 	await get_tree().process_frame  # Entity._ready: board duplication + intrinsics
 
@@ -46,10 +40,7 @@ func before_each() -> void:
 
 
 func _spawn_victim(faction: Faction = _NPC_FACTION) -> Entity:
-	var victim: Entity = autofree(Entity.new())
-	victim.display_name = "Victim"
-	victim.faction = faction
-	victim.stat_board = _BOARD.duplicate(true) as EntityStatBoard
+	var victim: Entity = autofree(TestWorld.new_entity("Victim", null, faction))
 	_graph.add_child(victim)
 	await get_tree().process_frame
 	return victim

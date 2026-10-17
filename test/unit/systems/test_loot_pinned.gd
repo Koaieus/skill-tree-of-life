@@ -6,16 +6,12 @@ const _DUST_SCENE := preload("res://skill_node/addons/defs/skill_dust_addon.tscn
 ## round 1 every time ([member StatModifier.loot_pinned]); the tier scale never
 ## touches a MULTIPLY/SET leaf.
 
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _POISON := preload("res://entity/blocker/faces/poison_face.tres")
 
 
 func _factory() -> EntityFactory:
-	var graph := autofree(_GRAPH_SCENE.instantiate()) as Graph
-	add_child(graph)
-	var alloc := AllocationSystem.new()
-	alloc.graph = graph
-	add_child_autofree(alloc)
+	var graph := TestWorld.create(self).graph
+	var alloc := TestWorld.around(graph).allocator()
 	var factory := EntityFactory.new()
 	autofree(factory)
 	factory.graph = graph
