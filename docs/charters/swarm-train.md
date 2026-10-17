@@ -307,8 +307,8 @@ top session  (/swarm-train: trains, ledger, tick, relief, report)
     *"normally they could handle more or just should do waves until they
     call for relief between 150-200k ctx (gracefully landing some slack
     allowed but not starting more)"*; *"they are highly aware of when they
-    reach 150, 200, 250k"*. The threshold is swarm's (its ceiling, relief
-    50k below); what moved (2026-10-12, #1577) is the moment: with
+    reach 150, 200, 250k"*. The threshold is swarm's (law 6: the lead's
+    own context past 150k); what moved (2026-10-12, #1577) is the moment: with
     background drones the context notice lands mid-flight, not at a wave
     boundary, and the lead acts on it at once — dispatches nothing more,
     `SendMessage`s the top `relief now; I keep <unit list>`, lands each

@@ -96,7 +96,7 @@ live outgoing — never by reading issues to compensate.
    spawns its own if swarm's Sage rule says so; `APPROVED <sha>` lines
    already in the ledger stand.
 7. **Relief carries no thresholds.** Swarm law 6 says when to request it
-   (the per-model ceiling minus 50k); the duplicate-dispatch tripwire, a
+   (the lead's own context past 150k); the duplicate-dispatch tripwire, a
    crash and the owner are the other triggers. Any number in the relief
    skill is a contradiction waiting to happen.
 
@@ -129,8 +129,8 @@ live outgoing — never by reading issues to compensate.
 
 ## What the skill must not contain
 
-- Any threshold (the old file's 180k / 250k contradicted swarm's per-model
-  ceiling); it points at swarm's law.
+- Any threshold (the old file's 180k / 250k contradicted swarm's law
+  6); it points at swarm's law.
 - The retiring state written from swarm's side, the overlap-window
   narrative, the worked-example table, the "Fable advisor optional"
   section — all history, all here.

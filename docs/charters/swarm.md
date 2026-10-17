@@ -42,7 +42,7 @@ sonnet units, mostly cache reads. So `advisor` beats Sage on price only
 at small context — the plan call, which is why it is the default. The
 done-call (no Sage) is dearer in tokens than the lead reading a diff; what
 it buys is the lead's context, the run's scarce resource: every page the
-lead reads is re-read at every later wake and brings its ceiling closer.
+lead reads is re-read at every later wake and brings its 150k line closer.
 
 Everything is measured after the fact by `mise run agent-cost` (`priced`
 column, sonnet units) and logged per unit in the ledger — the lead's own
@@ -101,13 +101,16 @@ disk at `scratchpad/land/land-<n>.log` (#920), so filling the ledger is a
 5. **Per-unit cost is the ledger's number.** Ask the owner for the remaining
    window as one figure; price the wave from the last run's `agent-cost`
    `priced` per landed unit, tier-adjusted. No fixed percentage.
-6. **Dispatch ceiling = ceiling(model) − 15k × drones in flight**, on the
-   hook's `CONTEXT SIZE` marker: 250k for a Sonnet lead, 200k for an Opus
-   lead; each in-flight drone reserves ~15k of settling turns (report,
-   review, land — three turns, not ten). Past the ceiling, dispatch nothing
-   new. **Request relief 50k below it.** Duplicate dispatch — a drone
-   replying "already done" — overrides every number: the lead is past its
-   useful context now.
+6. **A lead dispatches until its own context passes 150k, then nothing
+   new.** The trigger is the hook's first `CONTEXT SIZE SO FAR` notice,
+   which fires at 150k — one number for every lead model, no per-drone
+   deduction, no margin below it. Owner, 2026-10-17: _"leads don't do
+   *that* much, they should just stop adding new ones when over 150k."_
+   At the notice the lead dispatches nothing new,
+   requests relief at once (the request lines are under *Exact
+   strings*), and drains the drones it still has — reviews and lands each
+   report as it arrives. Duplicate dispatch — a drone replying "already
+   done" — overrides the number: the lead is past its useful context now.
 7. **A stop from the owner outranks everything, including spawning.** The
    response is to go quiet — no dispatch, no merge, no test, no review —
    and, if a relief session has named itself, to owe it exactly one wake
@@ -137,7 +140,8 @@ disk at `scratchpad/land/land-<n>.log` (#920), so filling the ledger is a
    only the drone's context, so the done-call checks the unit and the lead
    still checks what spans units. `agent-cost` prices each advisor call and adds it to
    `priced`, so the Sage-vs-advisor comparison is on one axis.
-9. **The lead reviews and lands.** `--stat` for the fence on every unit;
+9. **The lead reviews and lands.** `git -C .worktrees/<slug> diff --stat
+   master..HEAD` for the fence on every unit;
    the full diff only where the cross-unit overview is what's checked (a
    shared seam, anything a player would notice) — a drone's done-call
    reviewed the rest, cheaper than bloating the lead's context; one
@@ -145,7 +149,10 @@ disk at `scratchpad/land/land-<n>.log` (#920), so filling the ledger is a
    from the lead's own cheap context. Never resume a deep-context drone to
    rebase, merge or land.
 10. **Sage is opt-in, and never lands.** At four or more concurrent drones,
-    or an absent owner, spawn one as reviewer and advisor; drones then ask
+    or an absent owner, spawn one `sage` agent (`Agent` with
+    `subagent_type: "sage"`, `name: "Sage"`; its standing brief is the
+    agent file, the prompt names the swarm ledger and the units in flight)
+    as reviewer and advisor; drones then ask
     Sage instead of `advisor`. **`approved` goes back to the drone**, which
     carries it in its report (`NOTES: Sage approved, 2 exchanges`), and the
     lead lands off that report — N wakes, unchanged. Sage messages the lead
@@ -322,8 +329,8 @@ disk at `scratchpad/land/land-<n>.log` (#920), so filling the ledger is a
     without report'`, then re-dispatch or retire — the top's stall tick is
     only the second net. The lead makes the inbox before the wave: `mkdir
     -p <inbox>/done` (absolute path).
-    **The relief threshold is the lead's own context** — law 6's ceiling,
-    relief 50k below it — never the train's size (swarm-train law 15: a
+    **The relief threshold is the lead's own context** — law 6's 150k —
+    never the train's size (swarm-train law 15: a
     lead's limit is its context, not its train); what train mode changes is
     the moment, the notice itself rather than the next boundary. Every
     other law holds.
@@ -335,7 +342,7 @@ disk at `scratchpad/land/land-<n>.log` (#920), so filling the ledger is a
     message that makes it true (the `ledger` tool never touches the prose).
     From then on it is draining for the rest of its life. The check has two
     homes: it is the **first thing law 14's pre-dispatch Bash call does**
-    (`grep -q '^## Draining' "$SWARM_LEDGER"` → no dispatch), and the
+    (the draining guard under *Exact strings* → no dispatch), and the
     first read of any resume — a drone's wake, the top's bare `continue`
     after a cut-off — is the ledger. With a `## Draining` section present
     the lead spawns no drone, lands each kept
@@ -362,9 +369,11 @@ disk at `scratchpad/land/land-<n>.log` (#920), so filling the ledger is a
     drone-contract violation, not something to summarise.
 18. **Per report: fence, content, tests — then branch.** Land it; fix a
     one-liner yourself then land; resume the drone with a sharp diagnosis;
-    pull it — a `PULL` or a fork, back to `Needs design` per law 8 (owner,
-    2026-09-30); or stop — the same blocker twice with no fork, `in-review`
-    with a one-line comment — and serve the rest of the swarm.
+    pull it — a `PULL` or a fork, back to `Needs design` per law 8 (`mise
+    gh-project -- status <n> needs-design`; owner,
+    2026-09-30); or stop — the same blocker twice with no fork, `mise
+    gh-project -- status <n> in-review` with a one-line `gh issue comment
+    <n> --body-file <file>` — and serve the rest of the swarm.
 19. **"Pre-existing failure" is a claim.** Check against a real `master` run
     (`mise run test:one -- <script>` in the main checkout) before landing
     over it.
@@ -457,14 +466,71 @@ disk at `scratchpad/land/land-<n>.log` (#920), so filling the ledger is a
     it verbatim into the brief; anything the peer flagged as *unverified* goes
     to the drone as an open question to resolve by reading, never as fact.
 
-30. **The run ends with the session report** (`docs/domain/session-report.md`),
-    one row per unit under `Landed`, and the `NOTES:` sweep of law 28
+30. **The run ends with the session report** (`docs/domain/session-report.md`).
+    First the ledger's `adv` / ctx / calls / priced are filled from `mise run
+    agent-cost` (the lead's own session via `--main`; every landing's `cost:`
+    rows are at `scratchpad/land/land-<n>.log`), then `mise run ledger --
+    close`; the report has one row per unit under `Landed`, and the `NOTES:` sweep of law 28
     rendered as `Follow-ups` with a disposition each — *fixed now* or *a
     drone did it* before *filed*, because small optional work filed "for
     later" is what grew `Needs design` past 80 issues. Same shape for relay
     and relief; whip's renderer emits the same vocabulary as a file. A
     lesson the skill does not say is posted where it is learned: `mise run
     feedback -- post swarm <kind> <file>` ([README](README.md)).
+
+## Exact strings the skill states
+
+The laws cite these by name; the skill carries each verbatim.
+
+- **Issue read** (law 14's orientation): `gh issue view <n> --comments`.
+- **Draining guard** — the first lines of law 14's pre-dispatch Bash call
+  (law 34), standalone and train mode alike:
+
+  ```
+  # train mode: export SWARM_LEDGER=<path from the launch prompt> first, on this and every ledger/land call
+  { [ -n "${SWARM_LEDGER:-}" ] && grep -q '^## Draining' "$SWARM_LEDGER" \
+    || mise run ledger -- show | grep -q '^## Draining'; } && echo DRAINING && exit 0
+  ```
+
+  The resume read (law 34) is `mise run ledger -- show`, in train mode
+  `cat "$SWARM_LEDGER"`.
+- **Standalone relief request** (law 6): one line to the owner, `relief
+  needed; I keep <unit list>` — the owner starts `/relief` in a fresh
+  session. Train mode's is law 32's `relief now; I keep <unit list>`,
+  by `SendMessage` to `main` (the top).
+- **The bare brief** (law 12) — the template, verbatim:
+
+  ```
+  Unit: #<n> (hub #<h>). Branch from master tip <sha>.
+  Fence (yours alone): <paths — including every scene / board that references the changed system>
+  Seams this run: <who owns what, each seam's sha>
+  Tier: <opus|sonnet>
+  Your advisor is the `advisor` tool.      # or: "Sage is your advisor (SendMessage to Sage)"
+    Plan: after orientation, before your first edit.
+    Stuck: at most once — when you can no longer say what you believe is wrong
+      and what the next attempt will show. A typo or a wrong path is not stuck.
+    Done: before you report, ask it to review your diff.   # omit when Sage runs
+    If the unit hits an unresolved fork or a wall, its answer is "stop — report PULL": do that.
+  Budget: HARD stop at <N> calls to your FIRST report — do not take call N+1. Each
+    review round after that: +<k> calls, two rounds at most.
+  Commit early and often, even partial.
+  Suite: <one of>
+    never the full suite — `mise run check` and `test:one` / `test:dir` only
+    | the full suite: once, only after `test:dir` is green; in the background, then
+      END YOUR TURN (the harness resumes you on exit); report its verdict line.
+      # train mode: the middle clause becomes "in the foreground, timeout 600000"
+  Trap list: <peer's list verbatim, unverified items marked as questions>   # only if one was asked for
+  ```
+
+  Train mode appends law 32's three final acts after it.
+- **Report shape tail** (law 17): six lines; a `PULL` or a stuck stop
+  rides in `NOTES:`.
+- **The gate** (law 21): `mise run test` with `run_in_background: true`,
+  then end the turn (train mode: foreground, `timeout: 600000`).
+- **Worktrees** (laws 25, 35): list with `mise run worktree:ls`; check
+  each with `git -C <path> log master..HEAD` + `status --porcelain`
+  before removing it (a stray too); remove with `mise run worktree:rm --
+  <slug>` then `git branch -d <slug>`.
 
 ## Frontmatter
 
@@ -517,6 +583,7 @@ this at wave size 1; `relief` takes a running swarm over.*
 | 2026-10-08 | 9 units | the lead filtered every `land` with `grep -E 'LANDED\|FAIL\|rror\|board'`; a red `test:dir` prints `✗ … is red` and `[land] ERROR`, neither matched, so the #1490 land failed silently — caught only because `LANDED` was missing | 20 |
 | 2026-10-03 | whip #1363 | both in-flight drones stopped writing at 06:02; no stop wake reached lead-a, which sat "waiting on d1355a and d1362" until the owner found it at 11:13. A waiting lead has no turn to look at disk, so the sensor is the top's (whip law 30, swarm-train law 9); why no wake arrived is open | 24 |
 | 2026-10-16 | train-mode lead, session 153e4757 | draining lead cut off by a session-limit 429, resumed by the top's bare `continue`, dispatched four units the relief already held rows for; two duplicate branches deleted, one relief drone duplicated landed work | 34 |
+| 2026-10-17 | owner | a lead at 106k with 4 drones in flight asked for relief under the old ceiling(model) − 15k × in-flight, relief 50k below; owner: "leads don't do *that* much, they should just stop adding new ones when over 150k. this one here flagged for relief nowhere near" → one 150k line, no deduction, no margin | 6, 32 |
 | 2026-10-16 | run end, ledger | DONE 19/21 with "8 worktree(s) still open"; six `.claude/worktrees/agent-*` and two `.worktrees/wt-*` still listed the next morning | 35 |
 | 2026-10-08 | owner | 100+ parked issues filed by leads under the "not a one-liner → issue" bar → follow-ups ride one sweep drone, filing is the last resort | 28 |
 
