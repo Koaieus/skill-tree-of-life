@@ -44,7 +44,9 @@ func test_density_and_per_node_invariants_across_seeds_and_sizes() -> void:
 			var total := 0
 			for sn: SkillNode in nodes:
 				var count := sn.get_addons().size()
-				total += count
+				# A spirit's relic is the landmark's own, not an AddonPolicy draw.
+				if not (sn is SpiritNode):
+					total += count
 				if count > 1:
 					saw_repeat = true
 				assert_lte(count, int(sn.get_local_value(&"addon_slots")),
@@ -61,5 +63,7 @@ func test_density_and_per_node_invariants_across_seeds_and_sizes() -> void:
 func test_zero_density_places_no_addons() -> void:
 	var graph := await _generate(_config(_SEEDS[0], _SIZES[0], 0.0))
 	for sn: SkillNode in graph.get_skill_nodes():
+		if sn is SpiritNode:
+			continue
 		assert_eq(sn.get_addons().size(), 0, "%s: k=0 places nothing" % sn.name)
 		assert_eq(sn.stake_level, 1)
