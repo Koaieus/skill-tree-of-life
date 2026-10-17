@@ -209,6 +209,9 @@ signal claimed(collector: Entity)
 var claim_collector: Entity = null
 ## Stat rounds left to offer — counts down from [member rounds].
 var rounds_remaining: int = 0
+## Stat rounds resolved since [method begin_claim] — 0 means round 1, the one
+## that offers the pinned candidates. Independent of the count a claim starts at.
+var _rounds_consumed: int = 0
 var phase: Phase = Phase.STAT
 
 
@@ -228,6 +231,7 @@ func _on_carrier_owner_changed() -> void:
 func begin_claim(collector: Entity, rounds_count: int = rounds) -> void:
 	claim_collector = collector
 	rounds_remaining = rounds_count
+	_rounds_consumed = 0
 	phase = Phase.STAT
 
 
@@ -271,7 +275,7 @@ func _stat_offer() -> Array[StatModifier]:
 	# Round 1 offers every pinned candidate ([member StatModifier.loot_pinned],
 	# a faced core's grants) ahead of the sample, which fills what is left.
 	var sampled := safe_indices
-	if rounds_remaining == rounds:
+	if _rounds_consumed == 0:
 		sampled = []
 		for i in safe_indices:
 			if candidates[i].loot_pinned:
@@ -303,6 +307,7 @@ func consume_stat_round(chosen: StatModifier) -> void:
 			candidates.remove_at(idx)
 			weights.remove_at(idx)
 	rounds_remaining -= 1
+	_rounds_consumed += 1
 
 
 ## Every stat round has resolved (or none could run): drop the pool and move
