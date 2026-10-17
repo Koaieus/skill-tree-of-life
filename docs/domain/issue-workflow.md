@@ -20,6 +20,11 @@ one; from `Needs design` on it is scheduled and carries its push.
 that's how an agent finds work to pick up; add `--json` (with `mise run
 --quiet`) for machine-readable output. See `.mise/tasks/gh-project`.
 
+**Priority and size are board fields, never labels** — `gh issue list --label P0`
+finds nothing. `list <lane>` prints them as `[P0/S]` and already sorts by
+priority, then issue number, so "the next P0 in Needs design" is the first line
+of `mise gh-project -- list needs-design`.
+
 **A new issue joins the board by itself** — every issue filed in the repo is
 auto-added to the project and lands in `Intake`. Never `gh-project add` a
 fresh issue (owner, 2026-10-02: *"any issue filed here does NEVER have to be
