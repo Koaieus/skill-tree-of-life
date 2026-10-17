@@ -19,8 +19,6 @@ extends GutTest
 ## what is under test is `_on_resync`'s guard, not the decode. The populated
 ## repair path itself is `test_resync_backstop.gd`'s job.
 
-const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 
 var _host_graph: Graph
 var _client_graph: Graph
@@ -58,16 +56,13 @@ func _make_link(graph: Graph, transport: NetworkTransport, mode: NetworkConfig.R
 ## A path of [param count] nodes. `count == 0` is the joining client's world:
 ## empty, which since #715 is the primary shape rather than the odd one.
 func _build_graph(label: String, count: int) -> Graph:
-	var graph: Graph = _GRAPH_SCENE.instantiate()
-	graph.name = "Graph_%s" % label
-	add_child_autofree(graph)
+	var w := TestWorld.create(self, "Graph_%s" % label)
+	var graph := w.graph
 	var previous: SkillNode = null
 	for i in count:
-		var sn := _SKILL_NODE_SCENE.instantiate() as SkillNode
-		sn.name = "N%d" % i
-		graph.add_skill_node(sn)
+		var sn := w.add_node(StringName("N%d" % i))
 		if previous != null:
-			graph.add_edge(previous, sn)
+			w.link(previous, sn)
 		previous = sn
 	return graph
 

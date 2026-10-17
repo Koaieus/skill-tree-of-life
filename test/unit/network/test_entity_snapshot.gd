@@ -12,7 +12,6 @@ extends GutTest
 ## decode order #560 D5 settled (entities, then nodes, then the entity->node
 ## references).
 
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _BOARD := preload("res://entity/default_entity_board.tres")
 const _NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 ## A landmark whose payload is a StatEffect SubResource — the shape a
@@ -22,8 +21,7 @@ const _TITAN_SCENE := preload("res://test/support/effect_landmark_node.tscn")
 
 
 func _new_graph() -> Graph:
-	var graph: Graph = autofree(_GRAPH_SCENE.instantiate())
-	add_child(graph)
+	var graph := TestWorld.create(self).graph
 	await get_tree().process_frame
 	return graph
 
@@ -32,6 +30,7 @@ func _new_graph() -> Graph:
 ## content draw, so an assertion about a modifier is about THIS test's modifier.
 func _line_graph(count: int) -> Graph:
 	var graph := await _new_graph()
+	var w := TestWorld.around(graph)
 	var previous: SkillNode = null
 	for i in count:
 		var node: SkillNode = _NODE_SCENE.instantiate()
@@ -39,7 +38,7 @@ func _line_graph(count: int) -> Graph:
 		graph.add_skill_node(node)
 		graph.restore_stable_id(node, i + 1)
 		if previous != null:
-			graph.add_edge(previous, node)
+			w.link(previous, node)
 		previous = node
 	return graph
 

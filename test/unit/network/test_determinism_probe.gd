@@ -11,7 +11,6 @@ extends GutTest
 ## attack — the end-to-end path (record captured on a host, compared on a
 ## mirror) is already covered by `test_attack_record_replay.gd`.
 
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 
 
 ## A minimal record with every array of length 2, so a mutation to any one of
@@ -246,8 +245,7 @@ func test_only_attacks_reach_the_resolve_column() -> void:
 ## and the RESOLVE column cannot — re-resolving is by definition something you
 ## do before applying — so it is reported instead of hidden.
 func test_an_unsettled_world_is_flagged_as_deferred() -> void:
-	var graph: Graph = _GRAPH_SCENE.instantiate()
-	add_child_autofree(graph)
+	var graph := TestWorld.create(self).graph
 	var probe := _probe(true)
 	probe.graph = graph
 	var command := LaunchAttackCommand.new(1, {"mode": BattleSystem.AttackMode.NONE}, 42)
@@ -260,8 +258,7 @@ func test_an_unsettled_world_is_flagged_as_deferred() -> void:
 ## third outcome — neither agreement nor divergence. Reporting it as either
 ## would be a lie in one direction or the other.
 func test_an_unrebuildable_plan_is_unavailable_not_diverged() -> void:
-	var graph: Graph = _GRAPH_SCENE.instantiate()
-	add_child_autofree(graph)
+	var graph := TestWorld.create(self).graph
 	var probe := _probe(true)
 	probe.graph = graph
 	var command := LaunchAttackCommand.new(1, {"mode": BattleSystem.AttackMode.NONE}, 42)

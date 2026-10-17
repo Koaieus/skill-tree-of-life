@@ -5,14 +5,12 @@ extends GutTest
 ## accumulated node state: they cross a [GraphSnapshot] by value, the channel
 ## folds into [WorldFingerprint], and a pre-channel (v7) row still decodes.
 
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _V7_ROW_SIZE := 17
 
 
 func _new_graph(node_count: int = 3) -> Graph:
-	var graph: Graph = autofree(_GRAPH_SCENE.instantiate())
-	add_child(graph)
+	var graph := TestWorld.create(self).graph
 	await get_tree().process_frame
 	for i in node_count:
 		var n := _NODE_SCENE.instantiate() as SkillNode

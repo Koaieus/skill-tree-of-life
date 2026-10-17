@@ -122,6 +122,15 @@ static func allocator_for(g: Graph) -> AllocationSystem:
 	return alloc
 
 
+## [method allocator] bound to [param tm] and the graph's navigator, for a
+## world whose allocations must run through a [TurnManager].
+func allocator_with_turns(tm: TurnManager) -> AllocationSystem:
+	var alloc := allocator()
+	alloc.navigator = graph.navigator
+	alloc.turn_manager = tm
+	return alloc
+
+
 ## [method AllocationSystem.force_allocate]s each of [param nodes] to
 ## [param entity]. The first becomes its `core_location` if it has none.
 func allocate(entity: Entity, nodes: Array) -> void:

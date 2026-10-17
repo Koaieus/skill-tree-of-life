@@ -14,9 +14,7 @@ extends GutTest
 ## every footprint node on the client would draw a health bar 5-per-hop too
 ## tall, and the client would disagree with the host about what a kill costs.
 
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _NODE_SCENE := preload("res://skill_node/skill_node.tscn")
-const _EDGE_SCENE := preload("res://graph/edge.tscn")
 const _MEDIUM_BOARD := preload("res://entity/blocker/blocker_medium_board.tres")
 const _FALLOFF := preload("res://effects/blocker_footprint_falloff.tres")
 
@@ -27,26 +25,18 @@ const _FALLOFF := preload("res://effects/blocker_footprint_falloff.tres")
 ## not the value, so a typed one will not parse.
 func _side(count: int) -> Dictionary:
 	var s := {"nodes": [] as Array[SkillNode]}
-	var graph := autofree(_GRAPH_SCENE.instantiate()) as Graph
-	add_child(graph)
+	var w := TestWorld.create(self)
+	var graph := w.graph
 	await get_tree().process_frame
 	var previous: SkillNode = null
 	for i in count:
-		var node: SkillNode = _NODE_SCENE.instantiate()
-		node.name = "N%d" % i
-		node.position = Vector2(i * 100.0, 0.0)
-		graph.add_skill_node(node)
+		var node := w.add_node(StringName("N%d" % i), Vector2(i * 100.0, 0.0))
 		graph.restore_stable_id(node, i + 1)
 		if previous != null:
-			var e := _EDGE_SCENE.instantiate() as Edge
-			e.from = previous
-			e.to = node
-			graph.edges_container.add_child(e)
+			w.link(previous, node)
 		previous = node
 		(s["nodes"] as Array[SkillNode]).append(node)
-	var alloc := AllocationSystem.new()
-	alloc.graph = graph
-	add_child_autofree(alloc)
+	var alloc := w.allocator()
 	var factory := EntityFactory.new()
 	autofree(factory)
 	factory.graph = graph

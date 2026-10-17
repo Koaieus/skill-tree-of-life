@@ -15,14 +15,12 @@ extends GutTest
 ## book the host drew, the TARGET entity holds the whole authored one the level
 ## just assigned it, and the assertion is that the target ends up narrower.
 
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _BOARD := preload("res://entity/default_entity_board.tres")
 const _AUTHORED := preload("res://entity/blocker/blocker_spellbook_medium.tres")
 
 
 func _new_graph() -> Graph:
-	var graph: Graph = _GRAPH_SCENE.instantiate()
-	add_child_autofree(graph)
+	var graph := TestWorld.create(self).graph
 	await wait_physics_frames(1)
 	return graph
 

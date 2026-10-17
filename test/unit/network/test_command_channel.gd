@@ -21,10 +21,8 @@ extends GutTest
 ## guards the outcome. This was invisible while [WorldFingerprint] folded ownership
 ## only; it surfaced the moment #527 folded HP.
 
-const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _Rig := preload("res://test/support/link_rig.gd")
 const _BOARD := preload("res://entity/default_entity_board.tres")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 
 var _host: Dictionary
 var _client: Dictionary
@@ -53,29 +51,22 @@ func _make_link(world: Dictionary, transport: NetworkTransport, mode: NetworkCon
 ## Shaped after `test/unit/command/test_command_applier.gd`'s fixture — the
 ## entity must enter `entities_container` for its `entity_id` to mint (#509).
 func _build_world(label: String) -> Dictionary:
-	var graph: Graph = _GRAPH_SCENE.instantiate()
-	graph.name = "Graph_%s" % label
-	add_child_autofree(graph)
+	var w := TestWorld.create(self, "Graph_%s" % label)
+	var graph := w.graph
 
 	var nodes: Dictionary = {}
 	for id in ["A", "B", "C", "D"]:
-		var sn := _SKILL_NODE_SCENE.instantiate() as SkillNode
-		sn.name = id
-		graph.add_skill_node(sn)
+		var sn := w.add_node(StringName(id))
 		nodes[id] = sn
-	graph.add_edge(nodes["A"], nodes["B"])
-	graph.add_edge(nodes["B"], nodes["C"])
-	graph.add_edge(nodes["C"], nodes["D"])
+	w.link(nodes["A"], nodes["B"])
+	w.link(nodes["B"], nodes["C"])
+	w.link(nodes["C"], nodes["D"])
 
 	var tm: TurnManager = autofree(TurnManager.new())
 	tm.name = "TurnManager_%s" % label
 	add_child(tm)
 
-	var alloc := AllocationSystem.new()
-	alloc.graph = graph
-	alloc.navigator = graph.navigator
-	alloc.turn_manager = tm
-	add_child_autofree(alloc)
+	var alloc := w.allocator_with_turns(tm)
 
 	var player: Entity = autofree(Entity.new())
 	player.display_name = "Player_%s" % label

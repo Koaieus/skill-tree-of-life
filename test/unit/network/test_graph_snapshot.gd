@@ -12,15 +12,13 @@ extends GutTest
 ## matching fingerprint is proving the thing that actually gets checked live,
 ## not a parallel notion of "correct" this test invented.
 
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _BOARD := preload("res://entity/default_entity_board.tres")
 const _CLAMP_ADDON := preload("res://skill_node/addons/defs/clamp_addon.tscn")
 const _TEST_STATUS := preload("res://test/support/status/test_status.tres")
 
 
 func _new_graph() -> Graph:
-	var graph: Graph = autofree(_GRAPH_SCENE.instantiate())
-	add_child(graph)
+	var graph := TestWorld.create(self).graph
 	await get_tree().process_frame
 	return graph
 
@@ -211,6 +209,7 @@ func test_round_trip_reinstantiates_an_authored_scene_node() -> void:
 ## direction (indices into the node list; equal indices make a self-loop).
 func _hand_graph(pairs: Array) -> Graph:
 	var graph := await _new_graph()
+	var w := TestWorld.around(graph)
 	var nodes: Array[SkillNode] = []
 	for i in 3:
 		var n := preload("res://skill_node/skill_node.tscn").instantiate() as SkillNode
@@ -218,7 +217,7 @@ func _hand_graph(pairs: Array) -> Graph:
 		graph.add_skill_node(n)
 		nodes.append(n)
 	for p in pairs:
-		graph.add_edge(nodes[p[0]], nodes[p[1]])
+		w.link(nodes[p[0]], nodes[p[1]])
 	return graph
 
 

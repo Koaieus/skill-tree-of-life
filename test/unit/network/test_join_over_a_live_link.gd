@@ -29,8 +29,7 @@ func after_each() -> void:
 
 
 func _new_graph() -> Graph:
-	var g: Graph = preload("res://graph/graph.tscn").instantiate()
-	add_child_autofree(g)
+	var g := TestWorld.create(self).graph
 	await wait_physics_frames(1)
 	return g
 

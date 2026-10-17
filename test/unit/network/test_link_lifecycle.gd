@@ -384,6 +384,5 @@ func test_the_replayed_lobby_peer_still_gets_its_world() -> void:
 ## joining side — [method WorldSyncChannel.send_resync] no-ops on a null graph, so
 ## the fixture needs one even though its node count is never asserted on.
 func _empty_graph() -> Graph:
-	var graph: Graph = preload("res://graph/graph.tscn").instantiate()
-	add_child_autofree(graph)
+	var graph := TestWorld.create(self).graph
 	return graph

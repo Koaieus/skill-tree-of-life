@@ -16,7 +16,6 @@ extends GutTest
 ## ([method EntitySnapshot.restore_turn_cursor], for a peer whose world was
 ## encoded after the host had already started).
 
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _Rig := preload("res://test/support/link_rig.gd")
 const _BOARD := preload("res://entity/default_entity_board.tres")
 const _NODE_SCENE := preload("res://skill_node/skill_node.tscn")
@@ -27,9 +26,8 @@ const _NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 ## A hand-built line of nodes with pinned stable ids, so the two worlds below
 ## address the same nodes by the same numbers.
 func _line_graph(label: String, count: int) -> Graph:
-	var graph: Graph = autofree(_GRAPH_SCENE.instantiate())
-	graph.name = "Graph_%s" % label
-	add_child(graph)
+	var w := TestWorld.create(self, "Graph_%s" % label)
+	var graph := w.graph
 	await get_tree().process_frame
 	var previous: SkillNode = null
 	for i in count:
@@ -38,16 +36,14 @@ func _line_graph(label: String, count: int) -> Graph:
 		graph.add_skill_node(node)
 		graph.restore_stable_id(node, i + 1)
 		if previous != null:
-			graph.add_edge(previous, node)
+			w.link(previous, node)
 		previous = node
 	return graph
 
 
 func _new_entity(graph: Graph, display_name: String) -> Entity:
-	var e: Entity = autofree(Entity.new())
-	e.display_name = display_name
-	e.stat_board = _BOARD.duplicate(true) as EntityStatBoard
-	graph.entities_container.add_child(e)
+	var w := TestWorld.around(graph)
+	var e: Entity = w.add_entity(display_name, _BOARD.duplicate(true) as EntityStatBoard)
 	return e
 
 
@@ -56,16 +52,13 @@ func _new_entity(graph: Graph, display_name: String) -> Entity:
 ## started — opening the turn is what these tests are about.
 func _build_world(label: String) -> Dictionary:
 	var graph := await _line_graph(label, 4)
+	var w := TestWorld.around(graph)
 
 	var tm: TurnManager = autofree(TurnManager.new())
 	tm.name = "TurnManager_%s" % label
 	add_child(tm)
 
-	var alloc := AllocationSystem.new()
-	alloc.graph = graph
-	alloc.navigator = graph.navigator
-	alloc.turn_manager = tm
-	add_child_autofree(alloc)
+	var alloc := w.allocator_with_turns(tm)
 
 	var p1 := _new_entity(graph, "P1_%s" % label)
 	var p2 := _new_entity(graph, "P2_%s" % label)

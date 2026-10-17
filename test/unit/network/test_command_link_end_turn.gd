@@ -9,10 +9,8 @@ extends GutTest
 ## than just going idle — a fixture that could pass by "current_entity became
 ## null on both" would not distinguish a real handover from a no-op.
 
-const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _Rig := preload("res://test/support/link_rig.gd")
 const _BOARD := preload("res://entity/default_entity_board.tres")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 
 var _host: Dictionary
 var _client: Dictionary
@@ -39,36 +37,21 @@ func _make_link(world: Dictionary, transport: NetworkTransport, mode: NetworkCon
 
 ## Two entities: P1 (opens the turn) and P2 (where it hands off to).
 func _build_world(label: String) -> Dictionary:
-	var graph: Graph = _GRAPH_SCENE.instantiate()
-	graph.name = "Graph_%s" % label
-	add_child_autofree(graph)
+	var w := TestWorld.create(self, "Graph_%s" % label)
+	var graph := w.graph
 
-	var a := _SKILL_NODE_SCENE.instantiate() as SkillNode
-	a.name = "A"
-	graph.add_skill_node(a)
-	var b := _SKILL_NODE_SCENE.instantiate() as SkillNode
-	b.name = "B"
-	graph.add_skill_node(b)
+	var a := w.add_node(StringName("A"))
+	var b := w.add_node(StringName("B"))
 
 	var tm: TurnManager = autofree(TurnManager.new())
 	tm.name = "TurnManager_%s" % label
 	add_child(tm)
 
-	var alloc := AllocationSystem.new()
-	alloc.graph = graph
-	alloc.navigator = graph.navigator
-	alloc.turn_manager = tm
-	add_child_autofree(alloc)
+	var alloc := w.allocator_with_turns(tm)
 
-	var p1: Entity = autofree(Entity.new())
-	p1.display_name = "P1_%s" % label
-	p1.stat_board = _BOARD.duplicate(true) as EntityStatBoard
-	graph.entities_container.add_child(p1)
+	var p1: Entity = w.add_entity("P1_%s" % label, _BOARD.duplicate(true) as EntityStatBoard)
 
-	var p2: Entity = autofree(Entity.new())
-	p2.display_name = "P2_%s" % label
-	p2.stat_board = _BOARD.duplicate(true) as EntityStatBoard
-	graph.entities_container.add_child(p2)
+	var p2: Entity = w.add_entity("P2_%s" % label, _BOARD.duplicate(true) as EntityStatBoard)
 
 	await get_tree().process_frame
 
