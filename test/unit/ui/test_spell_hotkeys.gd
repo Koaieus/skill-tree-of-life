@@ -16,8 +16,6 @@ extends GutTest
 ## The keycap half matters as much as the binding half: a rebind that left a
 ## stale glyph painted would teach the player a key that does nothing.
 
-const _BOARD := preload("res://entity/default_entity_board.tres")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _KEY_CHIP := preload("res://ui/common/key_chip.tscn")
 const _SPELL_PICKER_BUTTON := preload("res://ui/spell_picker_bar/spell_picker_button.tscn")
 
@@ -29,8 +27,8 @@ var _player: Entity
 
 
 func before_each() -> void:
-	_graph = _GRAPH_SCENE.instantiate()
-	add_child_autofree(_graph)
+	var world := TestWorld.create(self)
+	_graph = world.graph
 
 	_tm = autofree(TurnManager.new())
 	add_child(_tm)
@@ -40,10 +38,7 @@ func before_each() -> void:
 	_battle.turn_manager = _tm
 	add_child(_battle)
 
-	_player = autofree(Entity.new())
-	_player.display_name = "Player"
-	_player.stat_board = _BOARD.duplicate(true) as EntityStatBoard
-	_graph.entities_container.add_child(_player)
+	_player = world.add_entity("Player")
 	_tm.start_turn(_player)
 	_player.stat_board.action_points.restore_to_full()
 

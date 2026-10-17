@@ -6,8 +6,6 @@ extends GutTest
 ## `is_visible`/`is_sensed`, so a subclass override is the whole seam.
 
 const _STRIP := preload("res://ui/hud/turn_forecast/turn_forecast_strip.tscn")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
-const _NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 
 
 class StubTurnManager extends TurnManager:
@@ -28,6 +26,7 @@ class StubVision extends VisionSystem:
 		return not unsensed.has(node)
 
 
+var _world: TestWorld
 var _graph: Graph
 var _tm: StubTurnManager
 var _vision: StubVision
@@ -39,22 +38,17 @@ var _node_of: Dictionary = {}
 
 
 func _make_entity(ent_name: String, color: Color) -> Entity:
-	var e := Entity.new()
+	var e := _world.add_entity(ent_name, null, null, color)
 	e.name = ent_name
-	e.display_name = ent_name
-	e.color = color
-	_graph.entities_container.add_child(e)
-	var n: SkillNode = _NODE_SCENE.instantiate()
-	n.name = ent_name + "Core"
-	_graph.add_skill_node(n)
+	var n := _world.add_node(StringName(ent_name + "Core"))
 	n.owned_by = e
 	_node_of[e] = n
 	return e
 
 
 func before_each() -> void:
-	_graph = _GRAPH_SCENE.instantiate()
-	add_child_autofree(_graph)
+	_world = TestWorld.create(self)
+	_graph = _world.graph
 	_tm = autofree(StubTurnManager.new())
 	add_child(_tm)
 	_vision = autofree(StubVision.new())

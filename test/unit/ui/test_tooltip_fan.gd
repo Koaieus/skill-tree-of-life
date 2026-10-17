@@ -26,7 +26,6 @@ const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _BOARD := preload("res://entity/default_entity_board.tres")
 const _SPIKE_RING_ADDON := preload("res://skill_node/addons/defs/spike_ring_addon.tscn")
 const _BUNKER_ADDON := preload("res://skill_node/addons/defs/bunker_addon.tscn")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 
 const _MORE_INFO_ACTION := &"ui_more_info"
 
@@ -485,8 +484,7 @@ func test_coordinator_has_no_fan_wide_progress_variable() -> void:
 ## bound [Graph]'s entities container, so the entity moves into a real one).
 ## The same fixture axes as [FanLiveSandbox]'s core preset.
 func _give_the_node_every_units_content() -> void:
-	var graph: Graph = _GRAPH_SCENE.instantiate()
-	add_child_autofree(graph)
+	var graph := TestWorld.create(self).graph
 	_entity.reparent(graph.entities_container)
 	_fan.bind(graph)
 	_entity.core_location = _node

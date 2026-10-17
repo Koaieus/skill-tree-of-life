@@ -6,7 +6,6 @@ extends GutTest
 ## `Stat.resolve_with([]).describe()`). The per-cast facts — sections, load —
 ## live in the magic tray's configure view.
 
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _ENTITY_SCENE := preload("res://entity/entity.tscn")
 const _MAGIC_SCENE := preload("res://ui/hud/combat_readout/combat_card_magic.tscn")
 const _STUB_ARM := preload("res://test/support/stub_arm.gd")
@@ -37,8 +36,7 @@ func _spell_with_hops(hops: float) -> SpellDef:
 ## Arranges the acceptance board: `cast_range_hops` carrying +3 ADD_BASE and
 ## +50% INCREASE, bound to a fresh magic card. Returns [card, reach value label].
 func _bound_card(_stack: ArmedStack = null) -> Array:
-	var graph: Graph = _GRAPH_SCENE.instantiate()
-	add_child_autofree(graph)
+	var graph := TestWorld.create(self).graph
 	var entity := _spawn_entity(graph)
 	var reach: Stat = entity.stat_board.get_stat(&"cast_range_hops")
 	reach.add_modifier(_mod(&"cast_range_hops", StatModifier.Operation.ADD_BASE, 3.0))

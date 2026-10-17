@@ -5,9 +5,7 @@ extends GutTest
 ## issue's five acceptance points except #5 (mise run check / test:dir, which
 ## is a CI-shaped check, not a GUT assertion).
 
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _ENTITY_SCENE := preload("res://entity/entity.tscn")
-const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _BASE_CARD_SCENE := preload("res://ui/hud/combat_readout/combat_card.tscn")
 const _ROW_SCENE := preload("res://ui/hud/combat_readout/combat_value_row.tscn")
 const _DEFENSE_SCENE := preload("res://ui/hud/combat_readout/combat_card_defense.tscn")
@@ -34,9 +32,8 @@ func _spawn_entity(graph: Graph) -> Entity:
 
 
 func _spawn_owned_node(graph: Graph, owner: Entity) -> SkillNode:
-	var node: SkillNode = _SKILL_NODE_SCENE.instantiate()
+	var node := TestWorld.around(graph).add_node()
 	node.owned_by = owner
-	graph.add_skill_node(node)
 	return node
 
 
@@ -51,8 +48,7 @@ func _static_mod(id: StringName, value: float) -> StatModifier:
 # --- Acceptance 1: a bare row, no subclass, self-binds and updates ---------
 
 func test_bare_row_with_no_subclass_shows_board_value_and_updates_on_change() -> void:
-	var graph: Graph = _GRAPH_SCENE.instantiate()
-	add_child_autofree(graph)
+	var graph := TestWorld.create(self).graph
 	var entity := _spawn_entity(graph)
 	entity.stat_board.armor.base_value = 12.0
 
@@ -73,8 +69,7 @@ func test_bare_row_with_no_subclass_shows_board_value_and_updates_on_change() ->
 func test_row_colours_value_volatile_when_board_stat_is_volatile() -> void:
 	# #1239: the readout asks its bound board is_stat_volatile and colours the
 	# value text with Emissive.VOLATILE; without a volatile modifier, no override.
-	var graph: Graph = _GRAPH_SCENE.instantiate()
-	add_child_autofree(graph)
+	var graph := TestWorld.create(self).graph
 	var entity := _spawn_entity(graph)
 	var card: CombatReadoutCard = _BASE_CARD_SCENE.instantiate()
 	add_child_autofree(card)
@@ -104,8 +99,7 @@ func test_row_colours_value_volatile_when_board_stat_is_volatile() -> void:
 # --- Acceptance 2: hover override shows and clears --------------------------
 
 func test_hover_node_override_shows_then_clears_on_unhover() -> void:
-	var graph: Graph = _GRAPH_SCENE.instantiate()
-	add_child_autofree(graph)
+	var graph := TestWorld.create(self).graph
 	var entity := _spawn_entity(graph)
 	var node := _spawn_owned_node(graph, entity)
 	node.add_local_modifier(_static_mod(&"node_health", 15.0))
