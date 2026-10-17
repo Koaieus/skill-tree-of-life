@@ -6,7 +6,6 @@ extends GutTest
 
 const _TEST_DEF := preload("res://test/support/status/test_status.tres")
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _BOARD := preload("res://entity/default_entity_board.tres")
 
 
@@ -92,11 +91,8 @@ func test_a_bare_landing_is_unscaled() -> void:
 ## status minted on a bare (non-spell) landing at scale 2 lands double the
 ## folded stacks.
 func test_stack_scale_on_a_bare_landing_doubles_the_landed_stacks() -> void:
-	var graph: Graph = _GRAPH_SCENE.instantiate()
-	add_child_autofree(graph)
-	var alloc := AllocationSystem.new()
-	alloc.graph = graph
-	add_child_autofree(alloc)
+	var graph: Graph = TestWorld.create(self).graph
+	var alloc := TestWorld.allocator_for(graph)
 	var attacker := _entity(graph)
 	var defender := _entity(graph)
 	var home := _node(graph)

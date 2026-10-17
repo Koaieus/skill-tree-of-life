@@ -41,17 +41,14 @@ func _node() -> SkillNode:
 ## An owned node: a graph, an entity on [param board], one node force-allocated
 ## to it — so the node tier folds entity bins + node bins + the overlay.
 func _owned_node(board: EntityStatBoard) -> Dictionary:
-	var graph := preload("res://graph/graph.tscn").instantiate()
-	add_child_autofree(graph)
+	var graph := TestWorld.create(self).graph
 	var entity: Entity = autofree(Entity.new())
 	entity.stat_board = board
 	graph.add_child(entity)
 	var node := _NODE_SCENE.instantiate() as SkillNode
 	graph.skill_nodes_container.add_child(node)
 	autofree(node)
-	var alloc := AllocationSystem.new()
-	alloc.graph = graph
-	add_child_autofree(alloc)
+	var alloc := TestWorld.allocator_for(graph)
 	alloc.force_allocate(entity, node)
 	return {"entity": entity, "node": node}
 

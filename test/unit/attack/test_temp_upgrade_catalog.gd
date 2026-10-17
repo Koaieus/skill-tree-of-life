@@ -7,7 +7,6 @@ extends GutTest
 const CATALOG: TempUpgradeCatalog = preload("res://attack/melee/temp_upgrade_catalog.tres")
 const _FIXTURES := "res://test/support/addons"
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _BOARD := preload("res://entity/default_entity_board.tres")
 const _TOXIN := preload("res://skill_node/addons/defs/toxin_addon.tscn")
 
@@ -67,8 +66,7 @@ func test_by_kind_returns_the_kinds_entry_itself() -> void:
 
 
 func test_a_melee_plan_carries_a_temp_toxin_across_the_wire_by_kind() -> void:
-	var graph := _GRAPH_SCENE.instantiate() as Graph
-	add_child_autofree(graph)
+	var graph := TestWorld.create(self).graph
 	var nodes: Array[SkillNode] = []
 	for x in [0, 200]:
 		var node := _SKILL_NODE_SCENE.instantiate() as SkillNode
@@ -80,9 +78,7 @@ func test_a_melee_plan_carries_a_temp_toxin_across_the_wire_by_kind() -> void:
 	attacker.stat_board = _BOARD.duplicate(true) as EntityStatBoard
 	graph.entities_container.add_child(attacker)
 	await get_tree().process_frame
-	var alloc := AllocationSystem.new()
-	alloc.graph = graph
-	add_child_autofree(alloc)
+	var alloc := TestWorld.allocator_for(graph)
 	for n in nodes:
 		alloc.force_allocate(attacker, n)
 	attacker.core_location = nodes[0]

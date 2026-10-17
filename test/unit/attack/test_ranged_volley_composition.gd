@@ -13,7 +13,6 @@ extends GutTest
 ## quiver 15 arrow + 5 poison = 20.
 
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _PLAYER_FACTION := preload("res://entity/factions/player.tres")
 const _NPC_FACTION := preload("res://entity/factions/npc.tres")
 
@@ -48,8 +47,7 @@ func _leaf(pos: Vector2) -> SkillNode:
 
 
 func before_each() -> void:
-	_graph = _GRAPH_SCENE.instantiate()
-	add_child_autofree(_graph)
+	_graph = TestWorld.create(self).graph
 	_mid = _SKILL_NODE_SCENE.instantiate() as SkillNode
 	_mid.position = Vector2(200, 0)
 	_graph.add_skill_node(_mid)
@@ -71,9 +69,7 @@ func before_each() -> void:
 	_graph.entities_container.add_child(_hostile)
 	await get_tree().process_frame
 
-	_alloc = AllocationSystem.new()
-	_alloc.graph = _graph
-	add_child_autofree(_alloc)
+	_alloc = TestWorld.allocator_for(_graph)
 	for n in [_mid, _near, _mid_leaf, _far]:
 		_alloc.force_allocate(_attacker, n)
 	_alloc.force_allocate(_hostile, _target)

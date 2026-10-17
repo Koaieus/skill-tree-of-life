@@ -22,7 +22,6 @@ extends GutTest
 
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _EDGE_SCENE := preload("res://graph/edge.tscn")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _PLAYER_FACTION := preload("res://entity/factions/player.tres")
 
 ## Counts calls to `nodes_within` — the one BFS traversal `HopRangeFinder.gather`
@@ -46,8 +45,7 @@ var _alloc: AllocationSystem
 
 
 func before_each() -> void:
-	_graph = _GRAPH_SCENE.instantiate()
-	add_child_autofree(_graph)
+	_graph = TestWorld.create(self).graph
 
 	# A small hub-and-spoke graph: source + N leaves within hop range.
 	_source = autofree(_SKILL_NODE_SCENE.instantiate())
@@ -75,9 +73,7 @@ func before_each() -> void:
 	# Through the AllocationSystem, not a bare `owned_by =`: #728 reads the
 	# eligible-caster set off `attacker.navigator`, which only a real allocation
 	# populates (see .claude/rules/graph.md).
-	_alloc = autofree(AllocationSystem.new())
-	_alloc.graph = _graph
-	_graph.add_child(_alloc)
+	_alloc = TestWorld.allocator_for(_graph)
 	_alloc.force_allocate(_attacker, _source)
 
 	var targeting := NodeTargeting.new()

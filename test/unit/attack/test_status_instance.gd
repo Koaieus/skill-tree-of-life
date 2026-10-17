@@ -5,7 +5,6 @@ extends GutTest
 ## world lands [method NodeCombat.apply_status] for real.
 
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _BOARD := preload("res://entity/default_entity_board.tres")
 const _TEST_DEF := preload("res://test/support/status/test_status.tres")
 ## Same shape with the poison identity, so the derived stat ids name the poison
@@ -24,12 +23,9 @@ var _worlds: Array[CombatWorld] = []
 
 func before_each() -> void:
 	_worlds = []
-	_graph = _GRAPH_SCENE.instantiate()
-	add_child_autofree(_graph)
+	_graph = TestWorld.create(self).graph
 
-	_alloc = AllocationSystem.new()
-	_alloc.graph = _graph
-	add_child_autofree(_alloc)
+	_alloc = TestWorld.allocator_for(_graph)
 
 	_entity = autofree(Entity.new())
 	_entity.display_name = "Defender"
@@ -256,11 +252,8 @@ func test_a_shadow_land_gates_on_the_shadow_nodes_full_resistance() -> void:
 ## A second allocated graph standing in for a peer, its defender at
 ## [param resistance]; forces the same stable_id sequence as `_graph`.
 func _peer_node(resistance: float) -> SkillNode:
-	var peer_graph: Graph = _GRAPH_SCENE.instantiate()
-	add_child_autofree(peer_graph)
-	var peer_alloc := AllocationSystem.new()
-	peer_alloc.graph = peer_graph
-	add_child_autofree(peer_alloc)
+	var peer_graph: Graph = TestWorld.create(self).graph
+	var peer_alloc := TestWorld.allocator_for(peer_graph)
 	var peer_entity: Entity = autofree(Entity.new())
 	peer_entity.display_name = "PeerDefender"
 	peer_entity.stat_board = _BOARD.duplicate(true) as EntityStatBoard
@@ -340,11 +333,8 @@ func test_the_record_round_trip_lands_the_status_live_on_a_second_world() -> voi
 	# A second, otherwise-untouched node/graph stands in for a peer. Must be
 	# ALLOCATED like `_node` — `apply_status` is a no-op on an unallocated node
 	# for a `CLEAR` def (#872), and the fixture def is `CLEAR`.
-	var peer_graph: Graph = _GRAPH_SCENE.instantiate()
-	add_child_autofree(peer_graph)
-	var peer_alloc := AllocationSystem.new()
-	peer_alloc.graph = peer_graph
-	add_child_autofree(peer_alloc)
+	var peer_graph: Graph = TestWorld.create(self).graph
+	var peer_alloc := TestWorld.allocator_for(peer_graph)
 	var peer_entity: Entity = autofree(Entity.new())
 	peer_entity.display_name = "PeerDefender"
 	peer_entity.stat_board = _BOARD.duplicate(true) as EntityStatBoard

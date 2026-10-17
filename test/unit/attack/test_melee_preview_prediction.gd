@@ -15,7 +15,6 @@ extends GutTest
 
 const _BOARD := preload("res://entity/default_entity_board.tres")
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _CLAMP_SCENE := preload("res://skill_node/addons/defs/clamp_addon.tscn")
 const _BUNKER_SCENE := preload("res://skill_node/addons/defs/bunker_addon.tscn")
 
@@ -81,12 +80,9 @@ func _make_entity() -> Entity:
 ## hostile `blocker` node whose defensive character each test authors itself.
 ## `blocker_pos` places it; the caller attaches the addon it wants.
 func _setup(blocker_pos: Vector2) -> void:
-	_graph = _GRAPH_SCENE.instantiate()
-	add_child_autofree(_graph)
+	_graph = TestWorld.create(self).graph
 
-	_alloc = AllocationSystem.new()
-	_alloc.graph = _graph
-	add_child_autofree(_alloc)
+	_alloc = TestWorld.allocator_for(_graph)
 
 	_tm = autofree(TurnManager.new())
 	add_child(_tm)

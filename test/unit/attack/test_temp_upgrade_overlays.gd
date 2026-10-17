@@ -24,11 +24,8 @@ func _spawn(nm: String) -> SkillNode:
 
 
 func before_each() -> void:
-	_graph = _GRAPH_SCENE.instantiate()
-	add_child_autofree(_graph)
-	_alloc = AllocationSystem.new()
-	_alloc.graph = _graph
-	add_child_autofree(_alloc)
+	_graph = TestWorld.create(self).graph
+	_alloc = TestWorld.allocator_for(_graph)
 	_entity = Entity.new()
 	_entity.stat_board = _BOARD.duplicate(true) as EntityStatBoard
 	_graph.add_child(_entity)

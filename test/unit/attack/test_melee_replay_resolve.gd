@@ -16,7 +16,6 @@ extends GutTest
 ## PREDELETE safety while a replay is in flight.
 
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _BOARD := preload("res://entity/default_entity_board.tres")
 
 var _graph: Graph
@@ -35,12 +34,9 @@ func _spawn(nm: String) -> SkillNode:
 
 
 func before_each() -> void:
-	_graph = _GRAPH_SCENE.instantiate()
-	add_child_autofree(_graph)
+	_graph = TestWorld.create(self).graph
 
-	_alloc = AllocationSystem.new()
-	_alloc.graph = _graph
-	add_child_autofree(_alloc)
+	_alloc = TestWorld.allocator_for(_graph)
 
 	_tm = autofree(TurnManager.new())
 	add_child(_tm)

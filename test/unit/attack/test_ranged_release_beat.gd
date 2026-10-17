@@ -19,7 +19,6 @@ extends GutTest
 ## core(0,0) - leaf(200,0) with a hostile core at (250,0).
 
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _BOARD := preload("res://entity/default_entity_board.tres")
 const _PLAYER_FACTION := preload("res://entity/factions/player.tres")
 const _NPC_FACTION := preload("res://entity/factions/npc.tres")
@@ -34,8 +33,7 @@ func _set_stat(node: SkillNode, id: StringName, value: float) -> void:
 
 
 func _build() -> Dictionary:
-	var graph: Graph = _GRAPH_SCENE.instantiate()
-	add_child_autofree(graph)
+	var graph: Graph = TestWorld.create(self).graph
 
 	var core := _SKILL_NODE_SCENE.instantiate() as SkillNode
 	core.position = Vector2(0, 0)
@@ -65,9 +63,7 @@ func _build() -> Dictionary:
 	graph.add_child(hostile)
 	await get_tree().process_frame
 
-	var alloc := AllocationSystem.new()
-	alloc.graph = graph
-	add_child_autofree(alloc)
+	var alloc := TestWorld.allocator_for(graph)
 	alloc.force_allocate(attacker, core)
 	alloc.force_allocate(attacker, leaf)
 	attacker.core_location = core

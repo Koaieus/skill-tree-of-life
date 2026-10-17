@@ -17,7 +17,6 @@ extends GutTest
 ##      one `is_empty()` — one toasts, the other draws an empty reach.
 
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _BOARD := preload("res://entity/default_entity_board.tres")
 const _PLAYER_FACTION := preload("res://entity/factions/player.tres")
 const _NPC_FACTION := preload("res://entity/factions/npc.tres")
@@ -48,8 +47,7 @@ var _theirs: Array[SkillNode] = []
 ## min_degree=1 spell has three — which is what lets the tests below move the
 ## eligible set without touching the graph.
 func before_each() -> void:
-	_graph = _GRAPH_SCENE.instantiate()
-	add_child_autofree(_graph)
+	_graph = TestWorld.create(self).graph
 
 	var chain: Array[SkillNode] = []
 	for i in 5:
@@ -74,9 +72,7 @@ func before_each() -> void:
 	_graph.add_child(_hostile)
 	await get_tree().process_frame
 
-	_alloc = AllocationSystem.new()
-	_alloc.graph = _graph
-	add_child_autofree(_alloc)
+	_alloc = TestWorld.allocator_for(_graph)
 	_mine = [chain[0], chain[1], chain[2]]
 	_theirs = [chain[3], chain[4]]
 	for n in _mine:

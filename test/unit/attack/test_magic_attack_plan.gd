@@ -13,7 +13,6 @@ extends GutTest
 ## rather than being handed one, so the click tests assert that derivation.
 
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _BOARD := preload("res://entity/default_entity_board.tres")
 const _SPELL_TEST_HELPER := preload("res://test/unit/spell/spell_test_helper.gd")
 const _PLAYER_FACTION := preload("res://entity/factions/player.tres")
@@ -30,8 +29,7 @@ var _spell: SpellDef
 
 
 func before_each() -> void:
-	_graph = _GRAPH_SCENE.instantiate()
-	add_child_autofree(_graph)
+	_graph = TestWorld.create(self).graph
 
 	_source = _SKILL_NODE_SCENE.instantiate() as SkillNode
 	_in_range_target = _SKILL_NODE_SCENE.instantiate() as SkillNode
@@ -53,9 +51,7 @@ func before_each() -> void:
 	_graph.add_child(_hostile)
 	await get_tree().process_frame
 
-	_alloc = AllocationSystem.new()
-	_alloc.graph = _graph
-	add_child_autofree(_alloc)
+	_alloc = TestWorld.allocator_for(_graph)
 	_alloc.force_allocate(_attacker, _source)
 	_alloc.force_allocate(_hostile, _in_range_target)
 	_alloc.force_allocate(_hostile, _out_of_range_target)

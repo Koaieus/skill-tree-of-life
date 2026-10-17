@@ -8,7 +8,6 @@ extends GutTest
 
 const H := preload("res://test/unit/spell/spell_test_helper.gd")
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _BOARD := preload("res://entity/default_entity_board.tres")
 const _PLAYER_FACTION := preload("res://entity/factions/player.tres")
 const _NPC_FACTION := preload("res://entity/factions/npc.tres")
@@ -27,8 +26,7 @@ func _set_local(node: SkillNode, stat_id: StringName, value: float) -> void:
 ## the leaf so a swing's leaf vertex contacts it at t=0 without depending on
 ## physics sync timing (the `test_attack_record_replay.gd` trick).
 func _build() -> Dictionary:
-	var graph: Graph = _GRAPH_SCENE.instantiate()
-	add_child_autofree(graph)
+	var graph: Graph = TestWorld.create(self).graph
 	var nodes: Dictionary = {}
 	for entry in [["core", Vector2(0, 0)], ["leaf", Vector2(150, 0)],
 			["target", Vector2(150, 0)], ["neighbour", Vector2(300, 0)]]:
@@ -55,9 +53,7 @@ func _build() -> Dictionary:
 	graph.entities_container.add_child(defender)
 	await get_tree().process_frame
 
-	var alloc := AllocationSystem.new()
-	alloc.graph = graph
-	add_child_autofree(alloc)
+	var alloc := TestWorld.allocator_for(graph)
 	alloc.force_allocate(attacker, nodes.core)
 	alloc.force_allocate(attacker, nodes.leaf)
 	attacker.core_location = nodes.core

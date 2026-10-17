@@ -9,7 +9,6 @@ extends GutTest
 ## carries the status hits to a peer unchanged.
 
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _BOARD := preload("res://entity/default_entity_board.tres")
 const _PLAYER_FACTION := preload("res://entity/factions/player.tres")
 const _NPC_FACTION := preload("res://entity/factions/npc.tres")
@@ -39,8 +38,7 @@ func _set_local(node: SkillNode, stat_id: StringName, value: float) -> void:
 ## Attacker owns core–leaf, defender owns target–neighbour; the leaf reaches
 ## the target with `shots` shots and a modest `ranged_damage`.
 func _build(origin: Vector2 = Vector2.ZERO, shots: float = 1.0) -> Dictionary:
-	var graph: Graph = _GRAPH_SCENE.instantiate()
-	add_child_autofree(graph)
+	var graph: Graph = TestWorld.create(self).graph
 	var nodes: Dictionary = {}
 	for entry in [["core", Vector2(0, 0)], ["leaf", Vector2(150, 0)],
 			["target", Vector2(150, 0)], ["neighbour", Vector2(300, 0)]]:
@@ -76,9 +74,7 @@ func _build(origin: Vector2 = Vector2.ZERO, shots: float = 1.0) -> Dictionary:
 
 	await get_tree().process_frame
 
-	var alloc := AllocationSystem.new()
-	alloc.graph = graph
-	add_child_autofree(alloc)
+	var alloc := TestWorld.allocator_for(graph)
 	alloc.force_allocate(attacker, nodes.core)
 	alloc.force_allocate(attacker, nodes.leaf)
 	attacker.core_location = nodes.core

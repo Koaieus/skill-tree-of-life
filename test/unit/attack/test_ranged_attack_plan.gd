@@ -11,7 +11,6 @@ extends GutTest
 ## (450, 0) — 50px from C, 450px from A.
 
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _PLAYER_FACTION := preload("res://entity/factions/player.tres")
 const _NPC_FACTION := preload("res://entity/factions/npc.tres")
 
@@ -60,8 +59,7 @@ func _set_ranged_damage(node: SkillNode, value: float) -> void:
 
 
 func before_each() -> void:
-	_graph = _GRAPH_SCENE.instantiate()
-	add_child_autofree(_graph)
+	_graph = TestWorld.create(self).graph
 
 	_leaf_far = _SKILL_NODE_SCENE.instantiate() as SkillNode
 	_mid = _SKILL_NODE_SCENE.instantiate() as SkillNode
@@ -92,9 +90,7 @@ func before_each() -> void:
 	_graph.add_child(_hostile)
 	await get_tree().process_frame
 
-	_alloc = AllocationSystem.new()
-	_alloc.graph = _graph
-	add_child_autofree(_alloc)
+	_alloc = TestWorld.allocator_for(_graph)
 	_alloc.force_allocate(_attacker, _leaf_far)
 	_alloc.force_allocate(_attacker, _mid)
 	_alloc.force_allocate(_attacker, _leaf_near)
@@ -370,8 +366,7 @@ func test_reordering_allocation_does_not_change_the_firing_schedule() -> void:
 ## [param leaf_order] (a permutation of [0, 1, 2]). Used to prove firing
 ## order is independent of allocation order.
 func _build_three_leaf_star(leaf_order: Array) -> Dictionary:
-	var graph := _GRAPH_SCENE.instantiate()
-	add_child_autofree(graph)
+	var graph := TestWorld.create(self).graph
 	var core := _SKILL_NODE_SCENE.instantiate() as SkillNode
 	core.position = Vector2(0, 0)
 	graph.add_skill_node(core)
@@ -398,9 +393,7 @@ func _build_three_leaf_star(leaf_order: Array) -> Dictionary:
 	graph.add_child(hostile)
 	await get_tree().process_frame
 
-	var alloc := AllocationSystem.new()
-	alloc.graph = graph
-	add_child_autofree(alloc)
+	var alloc := TestWorld.allocator_for(graph)
 	alloc.force_allocate(attacker, core)
 	for i in leaf_order:
 		alloc.force_allocate(attacker, leaves[i])

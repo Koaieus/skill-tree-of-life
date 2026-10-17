@@ -8,7 +8,6 @@ extends GutTest
 ## status does, a rebuilt one never re-gating.
 
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _BOARD := preload("res://entity/default_entity_board.tres")
 const _PLAYER_FACTION := preload("res://entity/factions/player.tres")
 const _NPC_FACTION := preload("res://entity/factions/npc.tres")
@@ -19,8 +18,7 @@ const _BLINDNESS_ARROW: AmmoType = preload("res://attack/ammo/types/blindness.tr
 ## the target also touches the attacker's own `mine` node and an unallocated
 ## `neutral` one.
 func _build() -> Dictionary:
-	var graph: Graph = _GRAPH_SCENE.instantiate()
-	add_child_autofree(graph)
+	var graph: Graph = TestWorld.create(self).graph
 	var nodes: Dictionary = {}
 	var names := ["core", "leaf", "target", "hostile_a", "hostile_b", "mine", "neutral"]
 	for i in names.size():
@@ -48,9 +46,7 @@ func _build() -> Dictionary:
 	graph.entities_container.add_child(defender)
 	await get_tree().process_frame
 
-	var alloc := AllocationSystem.new()
-	alloc.graph = graph
-	add_child_autofree(alloc)
+	var alloc := TestWorld.allocator_for(graph)
 	for n in ["core", "leaf", "mine"]:
 		alloc.force_allocate(attacker, nodes[n])
 	attacker.core_location = nodes.core

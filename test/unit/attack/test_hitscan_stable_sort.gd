@@ -13,7 +13,6 @@ extends GutTest
 ## test_same_plan_resolves_an_identical_hit_sequence_twice is the acceptance
 ## claim end to end, through a real swing.
 
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _BOARD := preload("res://entity/default_entity_board.tres")
 const _SPIKE_SCENE := preload("res://skill_node/addons/defs/spike_ring_addon.tscn")
@@ -34,8 +33,7 @@ func _spawn(graph: Graph, nm: String, pos: Vector2) -> SkillNode:
 ## shape an adversarial broadphase could return — and asserts the sort, not
 ## the query, is what fixes the order.
 func test_stable_sort_orders_a_tie_by_stable_id_not_arrival_order() -> void:
-	var graph: Graph = _GRAPH_SCENE.instantiate()
-	add_child_autofree(graph)
+	var graph: Graph = TestWorld.create(self).graph
 	var a := _spawn(graph, "A", Vector2.ZERO)
 	var b := _spawn(graph, "B", Vector2.ZERO)
 	var c := _spawn(graph, "C", Vector2.ZERO)
@@ -59,8 +57,7 @@ func test_stable_sort_orders_a_tie_by_stable_id_not_arrival_order() -> void:
 
 
 func test_stable_sort_keeps_t_as_the_primary_key() -> void:
-	var graph: Graph = _GRAPH_SCENE.instantiate()
-	add_child_autofree(graph)
+	var graph: Graph = TestWorld.create(self).graph
 	var a := _spawn(graph, "A", Vector2.ZERO)
 	var b := _spawn(graph, "B", Vector2.ZERO)
 	graph.get_stable_id(a)
@@ -84,11 +81,8 @@ func test_stable_sort_keeps_t_as_the_primary_key() -> void:
 ## shape whose relative order used to be broadphase-dependent. One target is
 ## spiked, so the pop cascade is exercised, not just the hit list.
 func test_same_plan_resolves_an_identical_hit_sequence_twice() -> void:
-	var graph: Graph = _GRAPH_SCENE.instantiate()
-	add_child_autofree(graph)
-	var alloc := AllocationSystem.new()
-	alloc.graph = graph
-	add_child_autofree(alloc)
+	var graph: Graph = TestWorld.create(self).graph
+	var alloc := TestWorld.allocator_for(graph)
 
 	var attacker := Entity.new()
 	attacker.display_name = "A"

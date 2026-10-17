@@ -8,7 +8,6 @@ extends GutTest
 ## passed explicitly — the authored constant is the owner's to tune.
 
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _DT := 0.05
 const _W := 5.0
 
@@ -79,8 +78,7 @@ func test_an_empty_blade_tracks_the_pivot_alone() -> void:
 # --- acceptance 2 + 3: the placed set and the marker ------------------------
 
 func _blade_fixture() -> Dictionary:
-	var graph := _GRAPH_SCENE.instantiate()
-	add_child_autofree(graph)
+	var graph := TestWorld.create(self).graph
 	var pivot := _SKILL_NODE_SCENE.instantiate() as SkillNode
 	var member := _SKILL_NODE_SCENE.instantiate() as SkillNode
 	graph.skill_nodes_container.add_child(pivot)
