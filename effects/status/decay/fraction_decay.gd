@@ -21,5 +21,6 @@ func decayed(power: float, _row: NodeStatus = null) -> float:
 	return kept if kept >= 1.0 else 0.0
 
 
+## The share removed, as a percentage — never printed as a flat amount.
 func describe() -> String:
-	return "-%s per turn" % NumFmt.num(fraction)
+	return "-%s%% per turn" % NumFmt.num(fraction * 100.0)

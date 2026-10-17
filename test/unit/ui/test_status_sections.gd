@@ -97,3 +97,9 @@ func test_a_bound_poison_card_instances_one_section_per_built_section() -> void:
 	# The Summary entry renders in the card's summary label, not as a section.
 	assert_eq(sections.size(), built.size() - 1)
 	assert_false(card.summary_text().is_empty())
+
+
+func test_a_fraction_decay_reads_as_a_share_not_a_flat_amount() -> void:
+	var text := FractionDecay.new(0.25).describe()
+	assert_string_contains(text, "25%")
+	assert_false(text.contains("0.25"), "not printed as a flat amount: %s" % text)
