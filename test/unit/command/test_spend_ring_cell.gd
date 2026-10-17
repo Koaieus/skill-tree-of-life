@@ -8,11 +8,14 @@ const _RING_PATH := "res://entity/ring/aspect_ring.tscn"
 var _ent: Entity
 var _ctx: CommandContext
 var _handler := SpendRingCellCommandHandler.new()
+var _graph: Graph
+var _sys: RingSystem
 
 
 func before_each() -> void:
 	var graph: Graph = (load("res://graph/graph.tscn") as PackedScene).instantiate()
 	add_child_autofree(graph)
+	_graph = graph
 	_ent = Entity.new()
 	_ent.display_name = "T"
 	_ent.stat_board = _BOARD.duplicate(true) as EntityStatBoard
@@ -20,6 +23,7 @@ func before_each() -> void:
 	var sys := RingSystem.new()
 	sys.ring_scene = load(_RING_PATH)
 	add_child_autofree(sys)
+	_sys = sys
 	_ctx = CommandContext.new()
 	_ctx.graph = graph
 	_ctx.ring_system = sys
@@ -93,3 +97,62 @@ func test_a_keystone_cell_grants_its_scenes_modifiers() -> void:
 	var ids := granted.map(func(m: StatModifier) -> StringName: return m.stat_id)
 	assert_true(ids.has(&"xp_per_turn"), "the natural-xp keystone's +xp_per_turn lands")
 	assert_true(ids.has(&"wisdom"), "and its +wisdom")
+
+
+func _applier(authority: bool) -> CommandApplier:
+	var applier := CommandApplier.new()
+	applier.graph = _graph
+	applier.ring_system = _sys
+	applier.is_authority = authority
+	add_child_autofree(applier)
+	return applier
+
+
+## The authority's spend crosses the wire: [signal CommandApplier.command_confirmed]
+## is the one signal [CommandChannel] broadcasts from, so a spend that never
+## confirms never reaches a peer.
+func test_an_authority_spend_confirms_so_peers_receive_it() -> void:
+	_earn(1)
+	var applier := _applier(true)
+	watch_signals(applier)
+	var cmd := SpendRingCellCommand.new(_ent.entity_id, &"BleedingT1")
+	applier.submit(cmd)
+	while applier.is_applying:
+		await applier.applying_changed
+	assert_true(_ent.ring_spent.has(&"BleedingT1"), "the authority applied it")
+	assert_signal_emit_count(applier, "command_confirmed", 1, "confirmed, so broadcast")
+	assert_signal_emitted_with_parameters(applier, "command_applied", [cmd, true])
+	var wire := CommandCodec.from_dict(cmd.to_dict()) as SpendRingCellCommand
+	assert_not_null(wire, "the command decodes on the far side")
+	if wire != null:
+		assert_eq(wire.cell, &"BleedingT1")
+		assert_eq(wire.entity_id, _ent.entity_id)
+
+
+## A refused authority spend reports through `command_applied(cmd, false)` —
+## the route [CommandChannel] turns into a peer's refusal — and never confirms.
+func test_an_authority_refusal_reports_and_never_confirms() -> void:
+	var applier := _applier(true)
+	watch_signals(applier)
+	var cmd := SpendRingCellCommand.new(_ent.entity_id, &"BleedingT1")
+	applier.submit(cmd)
+	while applier.is_applying:
+		await applier.applying_changed
+	assert_signal_not_emitted(applier, "command_confirmed", "zero points: refused")
+	assert_signal_emitted_with_parameters(applier, "command_applied", [cmd, false])
+
+
+## A peer's spend is an ordinary intent: it opens the awaiting gate, and the
+## host's refusal closes it through `command_applied(cmd, false)`.
+func test_a_peer_spend_awaits_and_a_refusal_reports_back() -> void:
+	_earn(1)
+	var applier := _applier(false)
+	watch_signals(applier)
+	var cmd := SpendRingCellCommand.new(_ent.entity_id, &"BleedingT1")
+	applier.submit(cmd)
+	assert_signal_emit_count(applier, "intent_submitted", 1)
+	assert_true(applier.is_awaiting_confirmation, "the intent awaits the host's verdict")
+	applier.refuse_intent(cmd.intent_id)
+	assert_false(applier.is_awaiting_confirmation)
+	assert_signal_emitted_with_parameters(applier, "command_applied", [cmd, false])
+	assert_false(_ent.ring_spent.has(&"BleedingT1"), "a peer never applies its own intent")
