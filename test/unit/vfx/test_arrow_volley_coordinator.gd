@@ -301,6 +301,31 @@ func test_a_typed_arrows_status_hit_draws_no_second_arrow() -> void:
 	await coord.play(outcome)
 
 
+
+## A status rider lands BEFORE its arrow (ADR 0067): the arrow's riders are
+## the key-sharing hits on either side, and a status rider has none of its own.
+func test_an_arrows_riders_include_the_status_riders_placed_before_it() -> void:
+	var key := 9001
+	var arrow := _hit(0.02)
+	arrow.hit_key = key
+	var splashed := StatusInstance.new()
+	splashed.origin = _origin
+	splashed.target = autofree(SkillNode.new())
+	splashed.hit_key = key
+	splashed.paired = arrow
+	var own := StatusInstance.new()
+	own.origin = _origin
+	own.target = _target
+	own.hit_key = key
+	own.paired = arrow
+	var hits: Array[HitInstance] = [splashed, own, arrow]
+	assert_eq(ArrowVolleyCoordinator.riders_of(hits, 2, false), [splashed, own] as Array[HitInstance],
+			"both leading status riders, in list order")
+	assert_eq(ArrowVolleyCoordinator.riders_of(hits, 2, true), [own] as Array[HitInstance],
+			"only the leading rider on the arrow's own target")
+	assert_true(ArrowVolleyCoordinator.riders_of(hits, 0, false).is_empty(), "a status rides; it is never ridden")
+	assert_true(ArrowVolleyCoordinator.riders_of(hits, 1, false).is_empty(), "a status rides; it is never ridden")
+
 # -- the wind-up (#1042, acceptance 2) ----------------------------------------
 
 
