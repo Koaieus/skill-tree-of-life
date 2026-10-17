@@ -4,8 +4,6 @@ extends GutTest
 ## scout arrow, a scout spell's bolt, and the scout_line streak's tip. The
 ## coordinator decides; [Projectile] / [HitscanStreak] stay scout-unaware.
 
-const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _ARROW_COORD := preload("res://ui/vfx/coordinator/arrow_volley_coordinator.tscn")
 const _SCOUT_LINE_COORD := preload("res://ui/vfx/coordinator/spells/scout_line_coordinator.tscn")
 const _SPARK_COORD := preload("res://ui/vfx/coordinator/spells/spark_coordinator.tscn")
@@ -20,16 +18,11 @@ var _attacker: Entity
 
 
 func before_each() -> void:
-	_graph = _GRAPH_SCENE.instantiate()
-	add_child_autofree(_graph)
-	_origin = _SKILL_NODE_SCENE.instantiate() as SkillNode
-	_target = _SKILL_NODE_SCENE.instantiate() as SkillNode
-	_graph.add_skill_node(_origin)
-	_graph.add_skill_node(_target)
-	_origin.global_position = Vector2.ZERO
-	_target.global_position = Vector2(500, 0)
-	_attacker = Entity.new()
-	autofree(_attacker)
+	var world := TestWorld.create(self)
+	_graph = world.graph
+	_origin = world.add_node(&"", Vector2.ZERO)
+	_target = world.add_node(&"", Vector2(500, 0))
+	_attacker = autofree(TestWorld.new_entity(""))
 
 
 func _arrow_hit(ammo_id: StringName) -> DamageInstance:

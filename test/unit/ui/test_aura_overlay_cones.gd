@@ -9,34 +9,28 @@ extends GutTest
 ## The cone list is read back through the overlay's tile index — the same
 ## primitives the shader fetches — rather than a parallel accessor.
 
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
-const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _AURA_SCENE := preload("res://ui/aura_overlay/aura_overlay.tscn")
 
+var _world: TestWorld
 var _graph: Graph
 var _overlay: AuraOverlay
 
 
 func before_each() -> void:
-	_graph = _GRAPH_SCENE.instantiate()
-	add_child_autofree(_graph)
+	_world = TestWorld.create(self)
+	_graph = _world.graph
 	_overlay = _AURA_SCENE.instantiate()
 	add_child_autofree(_overlay)
 
 
 func _entity(color: Color) -> Entity:
-	var e: Entity = autofree(Entity.new())
-	e.color = color
-	_graph.add_child(e)
-	return e
+	return _world.add_entity("", null, null, color)
 
 
 func _node(pos: Vector2, owner: Entity, base_radius: float = 32.0) -> SkillNode:
-	var sn: SkillNode = _SKILL_NODE_SCENE.instantiate()
-	sn.position = pos
+	var sn := _world.add_node(&"", pos)
 	sn.base_radius = base_radius
 	sn.owned_by = owner
-	_graph.add_skill_node(sn)
 	return sn
 
 

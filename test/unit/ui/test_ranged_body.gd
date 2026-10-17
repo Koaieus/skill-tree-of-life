@@ -12,9 +12,6 @@ extends GutTest
 ## bins {arrow: 9, poison: 2} → max 11, notches 3, 6, 9. A second hostile
 ## target T2 sits at (500,0) for the sticky-count case.
 
-const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
-const _BOARD := preload("res://entity/default_entity_board.tres")
 const _PLAYER_FACTION := preload("res://entity/factions/player.tres")
 const _NPC_FACTION := preload("res://entity/factions/npc.tres")
 const _WATCHTOWER_SCENE := preload("res://skill_node/addons/defs/watchtower_addon.tscn")
@@ -25,6 +22,7 @@ const _BODY_SCENE := preload("res://ui/hud/command_tray/bodies/ranged_body.tscn"
 const _POISON := &"poison"
 const _ARROW := &"arrow"
 
+var _world: TestWorld
 var _graph: Graph
 var _alloc: AllocationSystem
 var _tm: TurnManager
@@ -53,10 +51,7 @@ func _set_stat(node: SkillNode, id: StringName, value: float) -> void:
 
 
 func _node(pos: Vector2) -> SkillNode:
-	var n := _SKILL_NODE_SCENE.instantiate() as SkillNode
-	n.position = pos
-	_graph.add_skill_node(n)
-	return n
+	return _world.add_node(&"", pos)
 
 
 func _leaf(pos: Vector2) -> SkillNode:
@@ -66,17 +61,12 @@ func _leaf(pos: Vector2) -> SkillNode:
 
 
 func _entity(faction: Resource) -> Entity:
-	var e := Entity.new()
-	e.faction = faction
-	e.stat_board = _BOARD.duplicate(true) as EntityStatBoard
-	_graph.entities_container.add_child(e)
-	autofree(e)
-	return e
+	return _world.add_entity("", null, faction as Faction)
 
 
 func before_each() -> void:
-	_graph = _GRAPH_SCENE.instantiate()
-	add_child_autofree(_graph)
+	_world = TestWorld.create(self)
+	_graph = _world.graph
 	_mid = _node(Vector2(200, 0))
 	_near = _leaf(Vector2(400, 0))
 	_mid_leaf = _leaf(Vector2(450, 150))
@@ -91,11 +81,7 @@ func before_each() -> void:
 	_hostile = _entity(_NPC_FACTION)
 	await get_tree().process_frame
 
-	_alloc = AllocationSystem.new()
-	_alloc.graph = _graph
-	_alloc.navigator = _graph.navigator
-	_alloc.turn_manager = _tm
-	add_child_autofree(_alloc)
+	_alloc = _world.allocator_with_turns(_tm)
 	_attacker.core_location = _mid
 	for n in [_mid, _near, _mid_leaf, _far]:
 		_alloc.force_allocate(_attacker, n)

@@ -9,8 +9,6 @@ extends GutTest
 ## raw inputs' luminances) rather than a specific tier — the owner tunes the
 ## tier afterwards in the Bloom sandbox tab (Decisions, #899).
 
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
-const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _AURA_SCENE := preload("res://ui/aura_overlay/aura_overlay.tscn")
 
 const _RED := Color(0.9, 0.2, 0.2)
@@ -27,24 +25,12 @@ static func _luminance(c: Color) -> float:
 
 
 func test_aura_tint_evens_out_luminance_across_hues() -> void:
-	var graph: Graph = _GRAPH_SCENE.instantiate()
-	add_child_autofree(graph)
-
-	var red_entity: Entity = autofree(Entity.new())
-	red_entity.color = _RED
-	graph.add_child(red_entity)
-
-	var blue_entity: Entity = autofree(Entity.new())
-	blue_entity.color = _BLUE
-	graph.add_child(blue_entity)
-
-	var red_node: SkillNode = _SKILL_NODE_SCENE.instantiate()
-	red_node.owned_by = red_entity
-	graph.add_skill_node(red_node)
-
-	var blue_node: SkillNode = _SKILL_NODE_SCENE.instantiate()
-	blue_node.owned_by = blue_entity
-	graph.add_skill_node(blue_node)
+	var world := TestWorld.create(self)
+	var graph := world.graph
+	var red_entity := world.add_entity("", null, null, _RED)
+	var blue_entity := world.add_entity("", null, null, _BLUE)
+	world.add_node().owned_by = red_entity
+	world.add_node().owned_by = blue_entity
 
 	var overlay: AuraOverlay = _AURA_SCENE.instantiate()
 	add_child_autofree(overlay)
