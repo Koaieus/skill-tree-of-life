@@ -96,7 +96,7 @@ echo "✓ msdfgen 1.13 → $BIN"
 '''
 
 [tasks.check]
-depends = ["check-shaders", "lint-editor-hint-guard", "lint-scene-instance-depth", "lint-instanced-anchors", "lint-transcendentals", "lint-module-deps", "lint-house-rules", "lint-gdscript-warnings"]
+depends = ["check-shaders", "lint-editor-hint-guard", "lint-scene-instance-depth", "lint-instanced-anchors", "lint-transcendentals", "lint-module-deps", "lint-house-rules"]
 description = "Headless compile-check of all project scripts (Godot editor import), plus GUT hook scripts by hand — also runs check-shaders, lint-editor-hint-guard, lint-scene-instance-depth, lint-instanced-anchors, lint-transcendentals, lint-module-deps, lint-house-rules and lint-gdscript-warnings (GDScript analyzer warnings promoted to errors, #1647)"
 run = '''
 #!/usr/bin/env bash
@@ -127,8 +127,10 @@ if [ "$hook_failed" -ne 0 ]; then
   exit 1
 fi
 
-# The warnings task sweeps the whole tree under project.godot's [debug] levels;
-# --self-test proves the promotion is live (a planted unused var must fail).
+# Not a `depends` entry (those pass no arguments, i.e. the ~3 min full tree):
+# sweep only what differs from master (full tree when master is no ancestor),
+# and --self-test proves the promotion is live.
+mise run lint-gdscript-warnings -- --changed master || exit 1
 mise run lint-gdscript-warnings -- --self-test || exit 1
 
 echo "✓ all scripts compiled clean"
