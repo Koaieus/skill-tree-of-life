@@ -73,7 +73,10 @@ open a picked node's menu and then pick a blueprint.
 
 - Right-click a favourite to swap it for another blueprint *"where you have
   >0 aspect for"*.
-- **Favourites are per run**, not a profile fact.
+- **Favourites are per run**, not a profile fact, and are *"saved with the
+  run"*.
+- **Run start fills every empty slot** with whatever can be placed, in
+  canonical order.
 - **Auto-fill:** *"if you have empty favorite slots and acquire an aspect
   from 0→>0, pick it in the first open slot"*.
 
@@ -91,6 +94,8 @@ child issue.
 ## Open questions
 
 - The role categories and which addon goes where.
-- Auto-fill for an aspect that owns two addons (Corruption: Compromiser,
-  Abyssal Conduit), and for blade-only addons with no aspect (Spike Ring,
-  Clamp).
+- Whether Clamp gets a pinned or special slot: *"possibly `clamp` option is
+  pinned; or special (it also has special ramping up costing planned for
+  it)"*.
+- Quickbar favourites across a save/load in multiplayer, where the host
+  writes the save but the favourites are each peer's own.
