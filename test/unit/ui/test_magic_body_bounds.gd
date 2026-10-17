@@ -138,6 +138,7 @@ const _GIRDLE: SpellDef = preload("res://attack/spell/defs/girdle.tres")
 const _VENOM: SpellDef = preload("res://attack/spell/defs/venom_burst.tres")
 const _STUB_ARM := preload("res://test/support/stub_arm.gd")
 
+var _graph: Graph
 var _ctl: PlayerInputController
 var _plan: MagicAttackPlan
 
@@ -155,6 +156,7 @@ func after_each() -> void:
 func _configure(spell: SpellDef) -> void:
 	var h := SpellTestHelper.new()
 	var graph := h.make_graph([[0, 1]], self)
+	_graph = graph
 	var caster := h.make_entity(graph, "ATK", Color.RED)
 	var board := caster.stat_board
 	board.intelligence.base_value = 10000.0
@@ -261,7 +263,7 @@ func test_the_sections_are_the_builders_lines_and_rebuild_only_on_a_new_spell() 
 func test_the_sections_read_through_the_plans_source_node() -> void:
 	await _configure(_VENOM)
 	var board := _plan.attacker.stat_board
-	var graph := _plan.attacker.get_parent() as Graph
+	var graph := _graph
 	var src := graph.get_skill_nodes()[0]
 	SpellTestHelper.new().assign_owner(graph, _plan.attacker, [0])
 	var more := StatModifier.new()
