@@ -197,6 +197,27 @@ func get_local_value_with(stat_id: StringName, overlays: Array[ModifierBins]) ->
 	return null
 
 
+## The [FoldTerms] sibling of [method get_local_value_with]: the same entity +
+## node merge (plus [param overlays]), returned unfolded through
+## [method Stat.resolve_with] — for a stat that is a pipeline over another
+## value (`armor_pierce`), not a number. An id on neither board resolves the
+## overlays alone. Accessor tokens are not pipelines: identity terms.
+func get_local_terms(stat_id: StringName, overlays: Array[ModifierBins] = []) -> FoldTerms:
+	if StatFormula.is_accessor_token(stat_id):
+		return FoldTerms.new()
+	var o := owner()
+	if o != null and o.board() != null:
+		var es := o.board().get_stat(stat_id)
+		if es != null:
+			var sources: Array[ModifierBins] = board().bins_for(stat_id) if board() != null else []
+			sources.append_array(overlays)
+			return es.resolve_with(sources)
+	var ns: Stat = board().get_stat(stat_id) if board() != null else null
+	if ns != null:
+		return ns.resolve_with(overlays)
+	return ModifierBins.resolve(overlays)
+
+
 ## Non-allocating passthrough read — the state-half twin of
 ## [method SkillNode.get_local_value], which delegates here (#498 step 2).
 ## [method get_local_value_with] with no overlays, plus the def-default tail
@@ -373,20 +394,8 @@ func take_damage(amount: float, source: HitInstance) -> void:
 	# and the floor are INT, so `effective` below is whole with no second
 	# rounding, and the recorded amount is the whole pre-mitigation number.
 	raw.amount = HitPoints.whole(raw.amount)
-	var effective: float
-	if host != null:
-		effective = Mitigation.apply(raw, host)
-	else:
-		# Mitigation.apply requires a real SkillNode (it reads defensive stats
-		# via SkillNode.get_local_value) — a shadow has none. Mitigation.compute
-		# is the free-standing formula half of the same file; feed it the
-		# armor/floor read through THIS class's own get_local_value instead.
-		if raw.type == DamageInstance.Type.TRUE:
-			effective = raw.amount
-		else:
-			var armor: float = get_local_value(&"armor")
-			var floor_min: float = get_local_value(&"min_damage_taken")
-			effective = Mitigation.compute(raw.amount, armor, floor_min)
+	# The one door, live or shadow: both read this slice's node-local stats.
+	var effective: float = Mitigation.apply_to(raw, self)
 	# #381: a defensive `min_damage_taken` underflow (a negative floor) can push
 	# `effective` negative — that's a real heal, not a damage number that
 	# happened to round to nothing. Reclassify BEFORE the presentation layer

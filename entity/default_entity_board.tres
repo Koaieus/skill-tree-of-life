@@ -11,6 +11,7 @@
 [ext_resource type="Resource" uid="uid://ccpue5w27rur1" path="res://stats_system/defs/action_points.tres" id="def_ap"]
 [ext_resource type="Resource" path="res://stats_system/defs/ap_transfer_rate.tres" id="def_ap_transfer_rate"]
 [ext_resource type="Resource" path="res://stats_system/defs/armor.tres" id="def_armor"]
+[ext_resource type="Resource" path="res://stats_system/defs/armor_pierce.tres" id="def_armor_pierce"]
 [ext_resource type="Resource" path="res://stats_system/defs/arrows.tres" id="def_arrows"]
 [ext_resource type="Resource" path="res://stats_system/defs/arrows_per_reload.tres" id="def_arrows_per_reload"]
 [ext_resource type="Resource" path="res://stats_system/defs/aspects.tres" id="def_aspects"]
@@ -91,6 +92,11 @@ base_value = 2.0
 resource_name = "armor"
 script = ExtResource("2_scalar")
 definition = ExtResource("def_armor")
+
+[sub_resource type="Resource" id="scalar_armor_pierce"]
+resource_name = "armor_pierce"
+script = ExtResource("2_scalar")
+definition = ExtResource("def_armor_pierce")
 
 [sub_resource type="Resource" id="quiver_arrows"]
 resource_name = "arrows"
@@ -601,6 +607,7 @@ node_healing = SubResource("scalar_node_healing")
 node_healing_ramp = SubResource("scalar_node_healing_ramp")
 healing_received = SubResource("scalar_healing_received")
 armor = SubResource("scalar_armor")
+armor_pierce = SubResource("scalar_armor_pierce")
 min_damage_taken = SubResource("scalar_min_dmg_taken")
 dot_stacks_per_hit = SubResource("scalar_dot_stacks_per_hit")
 damage = SubResource("scalar_damage")

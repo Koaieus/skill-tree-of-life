@@ -66,6 +66,10 @@ extends StatBoard
 ## Flat damage reduction. Applied by Mitigation.apply before the
 ## min_damage_taken floor. Default 0.
 @export var armor: ScalarStat
+## The attacker's pipeline over a defender's FINAL armor (Mitigation.pierce_terms
+## stamps it on the hit, node-locally). Its own value is inert: only its bins
+## are ever read, as FoldTerms.
+@export var armor_pierce: ScalarStat
 ## Floor on post-armor damage. A landed hit always deals at least this much
 ## unless TRUE-typed. The board base is only a fresh entity's start: curse
 ## stacks, rolls and node-local modifiers move it, and below zero a hit heals.
