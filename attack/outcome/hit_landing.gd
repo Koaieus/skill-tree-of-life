@@ -42,6 +42,11 @@ var hits: Array[HitInstance] = []
 ## ([SpellResolver] stamps it). [method place] orders [code]hits[anchor..][/code];
 ## [code]-1[/code] = no span, nothing to order.
 var anchor: int = -1
+## Where the landing's OWN hits end and its riders begin: [code]anchor + 1[/code]
+## for a ridden primary, the end of a spell's authored `on_hit_effects` hits at
+## this landing. [method place] keeps [code]hits[anchor..lead)[/code] as one
+## block in authored order and only moves the riders around it.
+var lead: int = -1
 ## Which hit this is — unique per landing, process-wide monotonic from 1;
 ## equality is the only thing anyone reads, never order. Every rider the
 ## landing emits carries it as [member HitInstance.hit_key], so a host can
@@ -102,6 +107,7 @@ static func riding(primary: HitInstance, hits: Array[HitInstance], gather_cache:
 	landing.hits = hits
 	var slot := hits.rfind(primary)
 	landing.anchor = slot if slot >= 0 else hits.size()
+	landing.lead = landing.anchor + 1 if slot >= 0 else landing.anchor
 	landing.gather_cache = gather_cache
 	primary.hit_key = landing.hit_key
 	var damage := primary as DamageInstance
@@ -122,18 +128,26 @@ func emit(hit: HitInstance) -> void:
 	hits.append(hit)
 
 
-## Order this landing's span ([code]hits[anchor..][/code]) by
-## [method HitInstance.land_priority] — BEFORE, then PRIMARY, then AFTER —
-## keeping authored order within a priority (a stable three-way partition,
-## never a sort). Called once by the landing's builder, after its effects ran.
+## Order this landing's span by [method HitInstance.land_priority]: the
+## riders after [member lead] that land BEFORE, then the landing's own block
+## [code]hits[anchor..lead)[/code] untouched, then the riders that land PRIMARY,
+## then AFTER — authored order kept within each (a stable partition, never a
+## sort). Called once by the landing's builder, after its effects ran.
 ## Landing-scoped: hits outside the span, another arrow's included, never move.
 func place() -> void:
 	if anchor < 0 or anchor >= hits.size():
 		return
-	var buckets: Array = [[], [], []]
-	for i in range(anchor, hits.size()):
+	var own_end := clampi(lead, anchor, hits.size())
+	var buckets: Array = [[], hits.slice(anchor, own_end), [], []]
+	for i in range(own_end, hits.size()):
 		var hit := hits[i]
-		buckets[clampi(hit.land_priority(), -1, 1) + 1].append(hit)
+		match hit.land_priority():
+			HitInstance.LandPriority.BEFORE:
+				buckets[0].append(hit)
+			HitInstance.LandPriority.PRIMARY:
+				buckets[2].append(hit)
+			_:
+				buckets[3].append(hit)
 	var at := anchor
 	for bucket: Array in buckets:
 		for hit: HitInstance in bucket:

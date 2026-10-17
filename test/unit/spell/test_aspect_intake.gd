@@ -143,7 +143,9 @@ func test_innate_zero_lands_nothing() -> void:
 	assert_true(Infusion.innate(SpellDef.new()).riders(SpellDef.new()).is_empty())
 
 
-func test_riders_run_after_the_spells_own_effects() -> void:
+## An infusion's status lands before the spell's own hit at its landing
+## (ADR 0067), though the riders still RUN after the spell's effects.
+func test_an_infusion_status_lands_before_the_spells_own_hit() -> void:
 	var outcome := _cast([_intake(_POISON, 1)] as Array[AspectIntake], 0)
 	assert_eq(outcome.hits.size() >= 2, true)
 	var damage_at := -1
@@ -154,7 +156,7 @@ func test_riders_run_after_the_spells_own_effects() -> void:
 			status_at = i
 		elif not hit is StatusInstance and not hit is ExertInstance and damage_at < 0:
 			damage_at = i
-	assert_true(damage_at >= 0 and status_at > damage_at, "damage %d before rider %d" % [damage_at, status_at])
+	assert_true(status_at >= 0 and damage_at > status_at, "rider %d before damage %d" % [status_at, damage_at])
 
 
 func test_affinity_description_reads_the_stacks_fold_and_the_rate() -> void:
