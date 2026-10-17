@@ -2,7 +2,7 @@ extends GutTest
 
 ## A spell picker tile draws its spell's icon full-bleed (no [IdentityBadge]
 ## for the spell), falls back to the noun letter, and lists each innate
-## intake as an [InnateChip] (aspect badge + count) under the name; a non-1:1
+## intake as an [IdentityChip] (aspect glyph + count) under the name; a non-1:1
 ## affinity is named in the hover tooltip only.
 
 const _BUTTON_SCENE := preload("res://ui/spell_picker_bar/spell_picker_button.tscn")
@@ -36,21 +36,20 @@ func _spell(intakes: Array[AspectIntake], icon: Texture2D = null) -> SpellDef:
 	return spell
 
 
-func _chips(button: SpellPickerButton) -> Array[InnateChip]:
-	var out: Array[InnateChip] = []
+func _chips(button: SpellPickerButton) -> Array[IdentityChip]:
+	var out: Array[IdentityChip] = []
 	for child in button.get_node(^"%InnateChips").get_children():
-		if child is InnateChip and not child.is_queued_for_deletion():
+		if child is IdentityChip and not child.is_queued_for_deletion():
 			out.append(child)
 	return out
 
 
-func _chip_text(chip: InnateChip) -> String:
+func _chip_text(chip: IdentityChip) -> String:
 	return (chip.get_node(^"%Count") as Label).text
 
 
-func _chip_aspect(chip: InnateChip) -> StringName:
-	var identity := (chip.get_node(^"%Badge") as IdentityBadge).identity
-	return identity.id if identity != null else &""
+func _chip_aspect(chip: IdentityChip) -> StringName:
+	return chip.identity.id if chip.identity != null else &""
 
 
 func test_the_tile_draws_the_spell_icon_full_bleed_and_has_no_spell_badge() -> void:
@@ -66,8 +65,8 @@ func test_the_tile_draws_the_spell_icon_full_bleed_and_has_no_spell_badge() -> v
 	assert_eq(icon.stretch_mode, TextureRect.STRETCH_KEEP_ASPECT_CENTERED, "kept aspect, centred")
 	assert_gt(minf(icon.size.x, icon.size.y), 32.0, "the icon square is laid out large")
 	var chips := button.get_node(^"%InnateChips")
-	for badge in button.find_children("*", "IdentityBadge", true, false):
-		assert_true(chips.is_ancestor_of(badge), "the only badges are the innate chips', never the spell's")
+	assert_eq(button.find_children("*", "IdentityBadge", true, false).size(), 0, "no framed badge on the tile, neither the spell's nor a chip's")
+	assert_not_null(chips, "the innate row is still there")
 
 
 func test_venom_burst_shows_one_poison_chip_of_fifteen() -> void:
@@ -75,7 +74,7 @@ func test_venom_burst_shows_one_poison_chip_of_fifteen() -> void:
 	assert_eq(chips.size(), 1, "one innate entry, one chip")
 	if chips.is_empty():
 		return
-	assert_eq(_chip_aspect(chips[0]), &"poison", "the chip's badge is poison")
+	assert_eq(_chip_aspect(chips[0]), &"poison", "the chip's identity is poison")
 	assert_eq(_chip_text(chips[0]), "15", "the chip reads the innate count")
 
 

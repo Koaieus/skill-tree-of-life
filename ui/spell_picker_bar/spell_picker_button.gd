@@ -9,7 +9,7 @@ extends Button
 ##     [method IdentityBadge.letter_of]) — the tile is identity enough, so no
 ##     [IdentityBadge] frames the spell here
 ##   * name label
-##   * one [InnateChip] per innate intake (aspect badge + count); a non-1
+##   * one [IdentityChip] per innate intake (aspect glyph + count); a non-1
 ##     ingest rate is named only in [member Control.tooltip_text]
 ##
 ## Same shader scaffolding as [AttackModeButton] — the bg shader handles
@@ -54,7 +54,7 @@ signal spell_picked(spell: SpellDef)
 const BG_SHADER := preload("res://ui/attack_mode_bar/attack_mode_button.gdshader")
 const TEXT_SHADER := preload("res://ui/attack_mode_bar/attack_mode_button_text.gdshader")
 const TICK_SCENE := preload("res://ui/spell_picker_bar/spell_picker_button_tick.tscn")
-const CHIP_SCENE := preload("res://ui/spell_picker_bar/innate_chip.tscn")
+const CHIP_SCENE := preload("res://ui/identity_badge/identity_chip.tscn")
 
 const ANIMATION_TIME: float = 0.2
 
@@ -269,7 +269,7 @@ func _apply_identity(identity: Identity) -> void:
 		_letter.add_theme_color_override(&"font_color", color)
 
 
-## One [InnateChip] per intake with innate load, in [member SpellDef.intakes] order.
+## One [IdentityChip] per intake with innate load, in [member SpellDef.intakes] order.
 func _rebuild_chips() -> void:
 	for chip in _chips.get_children():
 		_chips.remove_child(chip)
@@ -278,9 +278,9 @@ func _rebuild_chips() -> void:
 		for intake in spell.intakes:
 			if intake == null or intake.innate <= 0:
 				continue
-			var chip := CHIP_SCENE.instantiate() as InnateChip
+			var chip := CHIP_SCENE.instantiate() as IdentityChip
 			_chips.add_child(chip)
-			chip.bind(intake.aspect_id(), intake.innate)
+			chip.bind(intake.identity, intake.innate)
 	_chips.visible = _chips.get_child_count() > 0
 
 
