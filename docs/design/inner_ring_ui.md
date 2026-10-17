@@ -193,6 +193,12 @@ level-up  ─▶ badge on portrait ─▶ click portrait ─▶ ring modal
   best vibe and readability across"* — delegated; the pass picked the
   ring-silhouette frame + dominant hue + glyphs on hover (S6).
 - Inspect: *"option 1, but only if you can see the core"* (S7).
+- Size: *"we can start small like not go too ham, can always expand the
+  inner tree's scene"* — the 30-cell ring first; growth is authoring.
+- Cross-aspect mixing is a later design task, not this surface: *"cross-aspect
+  mixing effects might be a real design task. e.g. \"some effect that
+  benefits poison×explosive\" in some way. … more for later than now because
+  we don't have any combo mechanics yet"*.
 - Pass picks (tentative, not owner calls): board dimmed behind the modal;
   ring stays open read-only after the last point; keyboard/gamepad
   navigation later.
