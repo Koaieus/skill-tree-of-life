@@ -38,7 +38,7 @@ from Needs design", "next … + closely related"):
    `mise gh-project -- next [<lane>] [--prio P0[,P1…]] [--not N,M…] --claim`
    (lane `needs-design` unless the selector names another). It prints the
    first issue in the board's own order — priority, then issue number — and
-   moves it to `In design` as this pass's claim. Take its line as printed;
+   moves it to `Designing` as this pass's claim. Take its line as printed;
    never re-sort or re-rank by reasoning about which issue matters more.
    `— no match` → say so and stop; never widen the lane or the filter
    unasked.
@@ -48,7 +48,7 @@ from Needs design", "next … + closely related"):
    `mise gh-project -- related <n>` plus a title scan of
    `mise gh-project -- list <lane>` → one opening message → the owner
    confirms → the confirmed riders get their step 2 read, each claimed with
-   `mise gh-project -- status <n> in-design`.
+   `mise gh-project -- status <n> designing`.
 4. "Closely related" is a candidate list, not a pick, and a judgement
    `related` does not make: an issue sharing the pick's parent, a sub-issue,
    a blocked-by / blocking link, or a sibling on the same surface (same
@@ -326,6 +326,6 @@ Close with the session report (`docs/domain/session-report.md`). `Landed`
 carries the swarmify columns — issue, lane after the pass (`Ready` is the
 goal), the decision direction or fork settled in a clause, what is left
 (stubs, children, a fork kept). `Not done` names every issue that stayed in
-`Needs design` (or was moved back there from `In design`, step 1) and why.
+`Needs design` (or was moved back there from `Designing`, step 1) and why.
 The last message of the pass is this report, never a pasted brief or
 walkthrough.

@@ -48,7 +48,7 @@ CACHE_TTL=${GH_PROJECT_CACHE_TTL:-60}
 ITEMS_TTL=${GH_PROJECT_ITEMS_TTL:-10}
 ID_CACHE="${TMPDIR:-/tmp}/gh-project-${PROJECT}-ids.txt"
 ITEMS_CACHE="${TMPDIR:-/tmp}/gh-project-${PROJECT}-items.json"
-# `hygiene` flags an In design issue untouched this long as a stale claim — a
+# `hygiene` flags an Designing issue untouched this long as a stale claim — a
 # /swarmify pass that died holding it. Hours, measured on the issue's updatedAt.
 STALE_CLAIM_HOURS=${GH_PROJECT_STALE_CLAIM_HOURS:-24}
 
@@ -244,10 +244,7 @@ cmd_status() {
     intake)              option="039468a4" ;;
     backlog)             option="4acdef0f" ;;
     needs-design|nd)     option="d73dcce5" ;;
-    # In design: the board column exists only once the owner adds it in the
-    # GitHub UI (an API option rewrite would regenerate every id above). Then
-    # put its id here from the options query in the comment above.
-    in-design|id)        echo "✗ status in-design: add the In design column in the GitHub UI first, then wire its option id in .mise/tasks/gh-project cmd_status" >&2; exit 1 ;;
+    designing|in-design) option="16a83673" ;;
     ready)               option="8fdb35d1" ;;
     in-progress|ip)      option="22ac5f18" ;;
     in-review|ir)        option="c9eae5dc" ;;
@@ -318,7 +315,7 @@ cmd_size() {
 #   Intake        where every new item lands. the owner routes it out; nobody else.
 #   Backlog       not scheduled. someday. NO LIVE PARENT — see `hygiene`.
 #   Needs design  scheduled, but has open forks. this is the /swarmify inbox.
-#   In design     a /swarmify pass holds it (its claim, `next --claim`); released
+#   Designing     a /swarmify pass holds it (its claim, `next --claim`); released
 #                 to Ready on promotion, back to Needs design if it ends unpromoted.
 #   Ready         a drone can take it: no open forks, clear goal and scope.
 #   In progress / In review / Done
@@ -329,14 +326,14 @@ cmd_size() {
 # never got labelled, while `Ready` accumulated issues with live design forks.
 # One field, one answer. "Swarmable" was never a state anyway — it's a dispatch
 # strategy for whatever is Ready.
-STATUS_NAMES="intake|backlog|needs-design|in-design|ready|in-progress|in-review|done"
+STATUS_NAMES="intake|backlog|needs-design|designing|ready|in-progress|in-review|done"
 
 status_label() {
   case "$1" in
     intake)          echo "Intake" ;;
     backlog)         echo "Backlog" ;;
     needs-design|nd) echo "Needs design" ;;
-    in-design|id)    echo "In design" ;;
+    designing|in-design) echo "Designing" ;;
     ready)           echo "Ready" ;;
     in-progress|ip)  echo "In progress" ;;
     in-review|ir)    echo "In review" ;;
@@ -418,7 +415,7 @@ cmd_list() {
 # own order (priority, then number) — never re-ranked by the caller. Priority
 # is a BOARD FIELD, so `--prio` filters it here; `gh issue list --label P0`
 # finds nothing. `--claim` moves the pick off the queue so a second pass
-# cannot take it: needs-design → in-design, ready → in-progress.
+# cannot take it: needs-design → designing, ready → in-progress.
 cmd_next() {
   local want="needs-design" prio="" not="" claim=false
   while [ $# -gt 0 ]; do
@@ -461,7 +458,7 @@ cmd_next() {
   local n to
   n=$(printf '%s' "$pick" | jq -r '.[0].number')
   case "$want" in
-    needs-design|nd) to="in-design" ;;
+    needs-design|nd) to="designing" ;;
     ready)           to="in-progress" ;;
     *) echo "✗ --claim takes from needs-design or ready, not $want" >&2; exit 2 ;;
   esac
@@ -741,7 +738,7 @@ cmd_hygiene() {
               | { number, title,
                   detail: (.labels | map(select(. == "design" or . == "blocked")) | join(",")) } ],
           stale_claim:
-            [ $all[] | select(.status == "In design" and .updated != null)
+            [ $all[] | select(.status == "Designing" and .updated != null)
               | (now - (.updated | fromdateiso8601)) as $age
               | select($age > $stale)
               | { number, title, detail: "untouched \($age / 3600 | floor)h" } ],
@@ -820,7 +817,7 @@ cmd_hygiene() {
     "The board lies about finished work. Either close it, or move it back to a live column."
   _section forked_ready "Ready, but still carries design/blocked" \
     "A drone must not touch an open fork. Move to needs-design, or drop the label if it is settled."
-  _section stale_claim "In design, untouched past ${STALE_CLAIM_HOURS}h" \
+  _section stale_claim "Designing, untouched past ${STALE_CLAIM_HOURS}h" \
     "A /swarmify pass that died holding its claim. Resume the pass, or release it: mise gh-project -- status <n> nd"
   _section unmilestoned_ready "Ready with no milestone" \
     "Invisible to \`roadmap\`. Until this is zero the roadmap cannot be the planning surface."
@@ -995,10 +992,10 @@ Usage: mise gh-project -- <cmd> [args...]
 
 Commands:
   list [<status>] [--json]     List issues in a column (default: ready), sorted priority then number.
-                               status: intake|backlog|needs-design|in-design|ready|in-progress|in-review|done|all
+                               status: intake|backlog|needs-design|designing|ready|in-progress|in-review|done|all
   next [<lane>] [--prio P0[,P1…]] [--not N,M…] [--claim]
                                The first issue in list's order (lane default: needs-design);
-                               "— no match" + exit 1. --claim: needs-design → in-design,
+                               "— no match" + exit 1. --claim: needs-design → designing,
                                ready → in-progress. Priority/size are board fields, not labels.
   related <n>                  Parent, siblings, sub-issues, blocked-by, blocking — with status
   add <n>                      Add issue to project (idempotent)

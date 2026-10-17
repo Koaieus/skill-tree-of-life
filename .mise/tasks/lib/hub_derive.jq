@@ -5,10 +5,10 @@
 #   1. no open child                              → Done, and close the issue
 #   2. every open child is In review              → In review
 #   3. any child Ready / In progress / In review  → In progress
-#   4. children only Intake / Backlog / Needs design → no action (hand-set filing state)
+#   4. children only Intake / Backlog / Needs design / Designing → no action (hand-set filing state)
 #   5. a hub is never Ready (Ready is the swarm queue) → In progress
 #   6. an Intake hub, once no child is in Intake       → Needs design if any open
-#      child is, else Backlog (it follows its children out of the inbox; rules 2-3
+#      child is Needs design or Designing, else Backlog (it follows its children out of the inbox; rules 2-3
 #      and 5 take precedence)
 # A parent with an OPEN child missing from the board is never derived (you'd
 # close a hub over a child you can't see) — it lands in `unboarded` instead.
@@ -34,7 +34,7 @@ def derive:
             elif $hub.status == "Ready" then
               { to: "In progress", close: false, reason: "a hub is never Ready — Ready is the swarm queue" }
             elif $hub.status == "Intake" and all($open[]; .status != "Intake") then
-              if any($open[]; .status == "Needs design") then
+              if any($open[]; .status == "Needs design" or .status == "Designing") then
                 { to: "Needs design", close: false, reason: "no child left in Intake; a child needs design" }
               else
                 { to: "Backlog", close: false, reason: "no child left in Intake" }
@@ -72,6 +72,6 @@ def stalled:
       | [ $items[] | select(.parent == $hub.number and .state == "OPEN") ] as $open
       | select(($open | length) > 0)
       | select(all($open[]; .status == "Backlog" or .status == "Needs design"))
-      | select($hub.status != (if any($open[]; .status == "Needs design") then "Needs design" else "Backlog" end))
+      | select($hub.status != (if any($open[]; .status == "Needs design" or .status == "Designing") then "Needs design" else "Backlog" end))
       | { number: $hub.number, children: [ $open[].number ] }
     ];
