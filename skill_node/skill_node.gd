@@ -318,6 +318,15 @@ var _scaled_sets: Dictionary[StatModifier, Array] = {}:
 	set(value):
 		state.scaled_sets = value
 
+## Same ledger for the effect path: effect -> scaled leaf-set applied in
+## place of the effect's granted modifiers on the entity board.
+@warning_ignore("unused_private_class_variable") # read by name (test_shadow_revocation)
+var _scaled_effect_sets: Dictionary[Effect, Array] = {}:
+	get:
+		return state.scaled_effect_sets
+	set(value):
+		state.scaled_effect_sets = value
+
 ## Old fill for the mutator's (old_al, new_al) pair — PoolStat.current_changed
 ## only carries the new value.
 var _last_allocation_level: int = 0:
