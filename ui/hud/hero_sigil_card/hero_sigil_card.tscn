@@ -9,7 +9,6 @@
 [ext_resource type="Shader" uid="uid://kwbk1ysay5bw" path="res://ui/gauges/pool_gauge.gdshader" id="5_whxag"]
 [ext_resource type="PackedScene" path="res://ui/status_overlay/status_overlay.tscn" id="6_overlay"]
 [ext_resource type="PackedScene" path="res://ui/aspect_wheel/aspect_wheel.tscn" id="7_wheel"]
-[ext_resource type="Script" path="res://systems/ring_system.gd" id="8_ring_rules"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_ji1wf"]
 resource_local_to_scene = true
@@ -98,10 +97,6 @@ shader_parameter/cell_gap = 3.0
 script = ExtResource("1_script")
 mouse_filter = 0
 mouse_default_cursor_shape = 2
-
-[node name="RingRules" type="Node" parent="."]
-unique_name_in_owner = true
-script = ExtResource("8_ring_rules")
 
 [node name="FloatAnchor" type="Node2D" parent="." unique_id=564361223]
 unique_name_in_owner = true

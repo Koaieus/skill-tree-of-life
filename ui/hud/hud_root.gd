@@ -242,6 +242,10 @@ func bind_systems(
 	spell_loot_picker.bind(_input_ctl)
 	spell_catalogue_modal.bind(_input_ctl)
 	ring_modal.bind(_input_ctl)
+	# The card's build silhouette reads the level's ring rules; a HUD fixture
+	# with no applier leaves it empty.
+	var applier := _command_applier()
+	hero_sigil_card.ring_system = applier.ring_system if applier != null else null
 	# The allocation system is the panel's affordability oracle, not its
 	# trigger — a level without one still shows the confirm (dimmed), rather
 	# than arming a request no surface ever presents.

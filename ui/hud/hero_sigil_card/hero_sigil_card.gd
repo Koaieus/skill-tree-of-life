@@ -37,8 +37,8 @@ extends MarginContainer
 ## ([RingSilhouette]); it PASSes the mouse (hover names a wedge) and never
 ## accepts a click, so the door above still opens. The emblem rim takes the
 ## most-invested sector's hue, the hero's colour until a cell is bought. The
-## card reads its [RingTable] from its own [code]%RingRules[/code] [RingSystem]
-## (the same default ring the level's applier samples).
+## cell table comes from [member ring_system], injected by [HudRoot]; without
+## one the wheel stays empty.
 
 ## The player clicked the card: open the ring for the bound hero.
 signal ring_requested
@@ -57,8 +57,6 @@ signal ring_requested
 @onready var _ring_badge: Label = %RingBadge
 ## The bound hero's bought ring cells as a read-only wheel.
 @onready var _silhouette: AspectWheel = %RingSilhouette
-## Where [member _silhouette]'s cell table comes from.
-@onready var _ring_rules: RingSystem = %RingRules
 
 ## World/UI-space anchor floaters rise from (stat gains, wounds, level-ups).
 ## A plain [Node2D] child works as a [FloaterRequest.target] unmodified —
@@ -73,6 +71,14 @@ signal ring_requested
 ## Seconds the ring badge's scale-pop lasts when a ring point is minted.
 ## Tentative, easy to change.
 @export_range(0.05, 3.0, 0.05) var badge_pulse_s: float = 0.6
+
+## The level's ring rules, set by [method HudRoot.bind_systems]; null (a bare
+## card, a HUD fixture) leaves the silhouette empty. Setting it rebuilds.
+var ring_system: RingSystem:
+	set(v):
+		ring_system = v
+		if is_node_ready():
+			_refresh_silhouette()
 
 var _entity: Entity
 ## The level the badge is currently showing. Driven by [XpTrack]'s gauge beats
@@ -175,7 +181,7 @@ func _on_ring_point_minted(entity: Entity) -> void:
 func _refresh_silhouette() -> void:
 	if _silhouette == null:
 		return
-	var table: RingTable = _ring_rules.table() if _ring_rules != null else null
+	var table: RingTable = ring_system.table() if ring_system != null else null
 	if _entity == null or table == null:
 		_silhouette.bind([] as Array[AspectWheelEntry])
 		return
