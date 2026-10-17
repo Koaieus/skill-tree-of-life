@@ -54,7 +54,7 @@ func test_strength_highest_with_three_points_buys_its_sector_in_order() -> void:
 	assert_eq(_enemy.stat_board.ring_points.available(), 3, "sanity: three points")
 	# STRICTLY highest — the STR-first tie-break must not be what passes this.
 	_boost(&"strength", 50.0)
-	await _ai._spend_ring_points()
+	_ai._spend_ring_points()
 	assert_eq(_enemy.ring_spent, [&"BleedingT1", &"WeaknessT1", &"BleedingT2"] as Array[StringName],
 			"T1 on both aspects, then the first T2")
 	assert_eq(_enemy.stat_board.ring_points.available(), 0, "every point spent")
@@ -63,7 +63,7 @@ func test_strength_highest_with_three_points_buys_its_sector_in_order() -> void:
 func test_another_highest_school_buys_its_own_sector() -> void:
 	_earn(1)
 	_boost(&"dexterity", 50.0)
-	await _ai._spend_ring_points()
+	_ai._spend_ring_points()
 	assert_eq(_enemy.ring_spent.size(), 1)
 	if _enemy.ring_spent.size() == 1:
 		var c := _applier.ring_system.table().cell(_enemy.ring_spent[0])
@@ -72,5 +72,5 @@ func test_another_highest_school_buys_its_own_sector() -> void:
 
 
 func test_no_points_buys_nothing() -> void:
-	await _ai._spend_ring_points()
+	_ai._spend_ring_points()
 	assert_true(_enemy.ring_spent.is_empty())

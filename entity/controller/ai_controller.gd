@@ -95,6 +95,11 @@ const _CLAMP_ADDON: PackedScene = preload("res://skill_node/addons/defs/clamp_ad
 ## LAST gather of each mode this turn. Read by
 ## `test/perf/bench_ai_turn.gd`'s candidate-count instrumentation; nothing in
 ## this class's own control flow reads them back.
+## Attribute stat ids in class-attribute order — the ring spender's tie-break.
+const _RING_SCHOOL_ORDER: Array[StringName] = [&"strength", &"dexterity", &"intelligence", &"constitution", &"perception", &"wisdom"]
+## T1, then T2, then the keystone (tier 0).
+const _RING_TIER_ORDER: Array[int] = [1, 2, 0]
+
 var last_ranged_candidate_count: int = 0
 var last_ranged_promoted_count: int = 0
 var last_magic_candidate_count: int = 0
@@ -207,6 +212,8 @@ func take_turn() -> void:
 	await _wait()
 	if not _continue():
 		return
+
+	_spend_ring_points()
 
 	var visible_enemies := AiRecon.visible_enemy_nodes(entity)
 	var saw_hostile := not visible_enemies.is_empty()
@@ -340,8 +347,59 @@ func _spend_skill_points(visible_enemies: Array[SkillNode]) -> Array[SkillNode]:
 ## Always ASSIGNS rather than only setting on true: the flag must not outlive
 ## the turn that earned it, or an NPC that broke out once keeps shooting
 ## scenery forever.
+## The NPC inner-ring spender, run at turn start: the highest school's sector
+## — T1 on both aspects, then T2 on both, then the keystone — among the cells
+## buyable right now, one [SpendRingCellCommand] per cell (adjacency moves
+## after every buy, so the candidates are re-asked each time). Schools rank by
+## the entity's attribute value, ties by [constant _RING_SCHOOL_ORDER]. When
+## nothing in the top sector is buyable, the rest stays banked.
 func _spend_ring_points() -> void:
-	await get_tree().process_frame
+	var table := _ring_table()
+	var pool: PoolStat = entity.stat_board.ring_points if entity != null and entity.stat_board != null else null
+	if table == null or pool == null:
+		return
+	var school := _ring_school()
+	while pool.available() > 0:
+		var pick := _pick_ring_cell(table, school)
+		if pick == &"" or pool.available() < table.cell(pick).cost:
+			return
+		_decide("ring — %s" % pick)
+		# Fire-and-forget: the spend bypasses the queue (no `command_applied`
+		# to await), so its verdict is whether the cell landed in ring_spent.
+		_submit(SpendRingCellCommand.new(entity.entity_id, pick))
+		if not entity.ring_spent.has(pick):
+			return
+
+
+func _ring_table() -> RingTable:
+	if command_applier == null or command_applier.ring_system == null:
+		return null
+	return command_applier.ring_system.table()
+
+
+## The attribute this entity is highest in; the first of
+## [constant _RING_SCHOOL_ORDER] wins a tie.
+func _ring_school() -> StringName:
+	var best := &""
+	var best_value := -INF
+	for id in _RING_SCHOOL_ORDER:
+		var stat := entity.stat_board.get_stat(id)
+		if stat != null and float(stat.get_value()) > best_value:
+			best = id
+			best_value = float(stat.get_value())
+	return best
+
+
+func _pick_ring_cell(table: RingTable, school: StringName) -> StringName:
+	var buyable := table.buyable(entity.ring_spent)
+	for tier in _RING_TIER_ORDER:
+		for cell_name in buyable:
+			var c := table.cell(cell_name)
+			if c.tier == tier and c.sector != null and c.sector.id == school:
+				return cell_name
+	return &""
+
+
 
 
 func _refresh_dormant_core_stance() -> bool:

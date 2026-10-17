@@ -32,6 +32,7 @@ const _R_TURNS := 12     ## Entity.turns_taken — see [method restore_turn_curs
 const _R_VOLLEYS := 13   ## Entity.volleys_launched_this_turn — a mid-turn arrival keeps the budget spent
 const _R_CORE_MOVED := 15 ## Entity.core_moved_this_turn — a mid-turn arrival must not exert a second time
 const _R_TURN_LEAVES := 14 ## Entity.get_turn_start_leaves() as stable_ids — pass 2 only
+const _R_RING_SPENT := 16 ## Entity.ring_spent as Strings (ring cell names); the ring_points pool rides _R_BOARD
 
 
 ## Build the payload for every [Entity] under `graph.entities_container`.
@@ -203,7 +204,7 @@ static func _encode_entity(
 		if is_instance_valid(n) and graph.get_stable_id(n) != 0:
 			leaves.append(graph.get_stable_id(n))
 	var row: Array
-	row.resize(16)
+	row.resize(17)
 	row[_R_SCENE] = table.intern(e.scene_file_path) if e.scene_file_path != "" else -1
 	row[_R_NAME] = e.display_name
 	row[_R_ENTITY_ID] = e.entity_id
@@ -220,6 +221,10 @@ static func _encode_entity(
 	row[_R_VOLLEYS] = e.volleys_launched_this_turn
 	row[_R_TURN_LEAVES] = leaves
 	row[_R_CORE_MOVED] = e.core_moved_this_turn
+	var ring: Array = []
+	for cell in e.ring_spent:
+		ring.append(String(cell))
+	row[_R_RING_SPENT] = ring
 	return row
 
 
@@ -446,6 +451,12 @@ static func _decode_identity(e: Entity, row: Array, res: Array, spells: Array) -
 		e.volleys_launched_this_turn = int(row[_R_VOLLEYS])
 	if row.size() > _R_CORE_MOVED:
 		e.core_moved_this_turn = bool(row[_R_CORE_MOVED])
+	# Replaced, never appended: decode runs once per pass and must stay idempotent.
+	if row.size() > _R_RING_SPENT and row[_R_RING_SPENT] is Array:
+		var spent: Array[StringName] = []
+		for cell in (row[_R_RING_SPENT] as Array):
+			spent.append(StringName(cell))
+		e.ring_spent = spent
 
 
 ## Rebuild the by-value book [method _encode_spell_ids] sent (#726).

@@ -532,6 +532,7 @@ func _round_context() -> CommandContext:
 	var ctx := CommandContext.new()
 	ctx.command_applier = command_applier
 	ctx.loot_pick_registry = pick_registry
+	ctx.ring_system = command_applier.ring_system if command_applier != null else null
 	ctx.graph = command_applier.graph if command_applier != null else null
 	return ctx
 

@@ -106,16 +106,19 @@ func is_open() -> bool:
 ##
 ## [param stack] is how many levels this cascade has now narrated — shown as
 ## "×N" from 2 up. [param sp_total] is the skill points those levels minted
-## between them, asked of [method Entity.sp_minted_for_level] per level, since
-## the milestone rule makes every 5th level worth more.
-func stamp(level: int, sp_total: int, stack: int) -> void:
+## between them, asked of [method Entity.sp_minted_for_level] per level.
+## [param ring_total] is the inner-ring points they minted — a milestone level
+## (see [method Entity.is_milestone_level]) pays one instead of extra SP — and
+## is announced only when non-zero.
+func stamp(level: int, sp_total: int, stack: int, ring_total: int = 0) -> void:
 	_apply_colors()
 	if not _rest_captured:
 		_rest_position = position
 		_rest_captured = true
 	_cancel_release()
 	_title.text = "L E V E L   U P" if stack <= 1 else "L E V E L   U P  ×%d" % stack
-	_detail.text = "+%d SP — LEVEL %d" % [sp_total, level]
+	_detail.text = "+%d SP — LEVEL %d" % [sp_total, level] if ring_total <= 0 \
+			else "+%d SP · +%d RING — LEVEL %d" % [sp_total, ring_total, level]
 	if _tween != null and _tween.is_valid():
 		_tween.kill()
 	position = _rest_position

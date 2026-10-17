@@ -37,6 +37,9 @@ const _ROW_LAYOUT_PINS := {
 	# 9: the turn cursor grew a sixth element (the world turn's progress). It
 	# is not an `_R_*` row, so the hash is 8's; the bump is the cursor's shape.
 	9: "361baaae99c44377a776aa1b303c572bc244059f9a620be7e1229776f7e35b17",
+	# 10: EntitySnapshot gained `_R_RING_SPENT` (the inner-ring cells bought);
+	# a 9 still loads (the row is a suffix, decoded as "nothing spent").
+	10: "16d7861e9a130a0e4b6cffd1c835ccf58c0839a0132067d9c9079ec58a77bfdd",
 }
 
 
