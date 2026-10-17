@@ -566,3 +566,108 @@ func test_an_aspect_gained_from_zero_fills_the_next_open_slot_with_its_kinds() -
 	for i in before.size():
 		if before[i] != null:
 			assert_eq(_slots()[i], before[i], "slot %d was filled, so it is untouched" % i)
+
+
+# ── The receipt strip and the detail panel ───────────────────────────────────
+
+## Places one fixture kind on each of the first `n` blade members, asserting
+## every placement lands (a refused one would make a bound test vacuous).
+func _place_temps(n: int) -> Array[PackedScene]:
+	var plan := _ctl.armed_stack.attack_plan() as MeleeAttackPlan
+	var kinds := _battle.temp_upgrade_catalog.offered()
+	var placed: Array[PackedScene] = []
+	for i in n:
+		var scene := kinds[i % kinds.size()]
+		assert_true(plan.apply_temp_upgrade(_leaves[i], scene),
+				"fixture check: temp %d lands on its member" % i)
+		placed.append(scene)
+	return placed
+
+
+func _receipt(body: MeleeBody) -> Array[TempUpgradeButton]:
+	var out: Array[TempUpgradeButton] = []
+	for child in body.get_node("%Receipt").get_children():
+		if child is TempUpgradeButton and not child.is_queued_for_deletion():
+			out.append(child)
+	return out
+
+
+func test_two_placed_temps_list_in_order_and_a_click_refunds_the_first() -> void:
+	_battle.temp_upgrade_catalog = _fixture_catalog()
+	await _build_star(4)
+	var body := await _mount_body(2)
+	var placed := _place_temps(2)
+	await get_tree().process_frame
+	var entries := _receipt(body)
+	assert_eq(entries.size(), 2, "one receipt entry per bought temp")
+	if entries.size() != 2:
+		return
+	var titles: Array[String] = []
+	for scene in placed:
+		var tmp := scene.instantiate() as SkillNodeAddon
+		titles.append(tmp.get_tooltip_title())
+		tmp.free()
+	assert_eq(entries[0].label_text, titles[0], "placement order: the first temp leads")
+	assert_eq(entries[1].label_text, titles[1])
+	entries[0].pressed.emit()
+	await get_tree().process_frame
+	var plan := _ctl.armed_stack.attack_plan() as MeleeAttackPlan
+	assert_eq(plan.placed_temp_upgrades().size(), 1, "the click refunded one temp")
+	entries = _receipt(body)
+	assert_eq(entries.size(), 1, "the refunded temp leaves the receipt")
+	if entries.size() == 1:
+		assert_eq(entries[0].label_text, titles[1], "the survivor is the second temp")
+
+
+func test_twelve_receipt_entries_keep_the_tray_body_bounded() -> void:
+	_battle.temp_upgrade_catalog = _fixture_catalog()
+	await _build_star(24)
+	var body := await _mount_body(12)
+	_place_temps(1)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	var one := body.get_combined_minimum_size()
+	var plan := _ctl.armed_stack.attack_plan() as MeleeAttackPlan
+	for i in range(1, 12):
+		assert_true(plan.apply_temp_upgrade(_leaves[i], _battle.temp_upgrade_catalog.offered()[0]),
+				"fixture check: temp %d lands" % i)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	assert_eq(_receipt(body).size(), 12, "fixture check: twelve receipt entries")
+	var twelve := body.get_combined_minimum_size()
+	gut.p("receipt 1 → %s, 12 → %s" % [one, twelve])
+	assert_lte(twelve.x, _MAX_TRAY_WIDTH, "a long receipt widens the tray")
+	assert_eq(twelve.y, one.y, "a long receipt grows the tray past its one-row cap")
+
+
+func test_hovering_a_quickbar_slot_binds_the_detail_and_leaving_collapses_it() -> void:
+	await _build_star(3)
+	var body := await _mount_body(2)
+	var quickbar := body.get_node("%Quickbar")
+	var slot: Control = null
+	var scene: PackedScene = null
+	var bar := _ctl.temp_quickbar()
+	for i in bar.slots.size():
+		if bar.scene_at(i) != null:
+			slot = quickbar.get_child(i) as Control
+			scene = bar.scene_at(i)
+			break
+	if slot == null:
+		bar.swap(0, _catalog.offered()[0])
+		await get_tree().process_frame
+		slot = quickbar.get_child(0) as Control
+		scene = bar.scene_at(0)
+	assert_not_null(slot, "fixture check: a filled quickbar slot")
+	var detail := body.get_node("%Detail") as AddonItem
+	assert_false(detail.visible, "nothing hovered: the detail is collapsed")
+	var tmp := scene.instantiate() as SkillNodeAddon
+	var title := tmp.get_tooltip_title()
+	var description := tmp.description
+	tmp.free()
+	var inner := slot.get_node("%Button") as Control
+	inner.mouse_entered.emit()
+	assert_true(detail.visible, "a hovered slot opens the detail")
+	assert_eq((detail.get_node("%TitleLabel") as Label).text, title)
+	assert_eq((detail.get_node("%DescriptionLabel") as Label).text, description)
+	inner.mouse_exited.emit()
+	assert_false(detail.visible, "hovering off collapses the detail")

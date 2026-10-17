@@ -404,5 +404,10 @@ func _has_manual_upgrade(node: SkillNode) -> bool:
 	return false
 
 
+## Binds %Detail to [param scene]'s blueprint, or collapses it on null.
+func show_detail(_scene: PackedScene) -> void:
+	pass
+
+
 func _on_launch_pressed() -> void:
 	_battle_system.launch_attack(_armed_plan())

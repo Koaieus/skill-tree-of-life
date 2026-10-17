@@ -651,6 +651,15 @@ func _temp_upgrade_carriers() -> Array[SkillNode]:
 	return nodes
 
 
+## Every carried temp upgrade as `{node, scene}`, in carrier order (pivot,
+## then [member blade_nodes], then each node's addon order) — blade order, not
+## placement time. Derived from the carriers, never stored; it changes exactly
+## when [signal AttackPlan.state_changed] fires.
+func placed_temp_upgrades() -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	return out
+
+
 ## True if `node` (a selected member — the pivot is never a valid target, it
 ## drives the swing and has no meaningful collision area) can receive
 ## `scene`: an open addon slot, no unique-collision, and the combined

@@ -340,3 +340,23 @@ func test_placeable_kinds_keep_the_catalog_order() -> void:
 		var at := offered.find(scene)
 		assert_gt(at, last, "%s keeps its catalog slot" % scene.resource_path)
 		last = at
+
+
+# 9 ── placed_temp_upgrades: the tray receipt's source ────────────────────────
+
+func test_placed_temps_are_listed_in_blade_order_and_cleared_by_reset() -> void:
+	var c1 := _clamp_priced(1, 0)
+	var ctx: Dictionary = await _setup_chain(6.0, 2)
+	var plan: MeleeAttackPlan = ctx.plan
+	var members: Array[SkillNode] = []
+	members.assign(ctx.members)
+	assert_true(plan.apply_temp_upgrade(members[0], c1), "fixture check: first temp fits")
+	assert_true(plan.apply_temp_upgrade(members[1], c1), "fixture check: second temp fits")
+	var placed := plan.placed_temp_upgrades()
+	assert_eq(placed.size(), 2, "one entry per carried temp")
+	if placed.size() == 2:
+		assert_eq(placed[0].node, members[0])
+		assert_eq(placed[1].node, members[1])
+		assert_eq((placed[0].scene as PackedScene).resource_path, c1.resource_path)
+	plan.reset()
+	assert_eq(plan.placed_temp_upgrades().size(), 0, "a reset plan carries nothing")
