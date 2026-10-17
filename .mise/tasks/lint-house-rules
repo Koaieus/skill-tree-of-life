@@ -18,8 +18,9 @@ unlike `rules-hygiene`. `--json` prints `{"violations": [...], "exempted": [...]
 off in the default run that gates `check`); `--self-test` feeds every row, report-only
 included, its positive and negative fixtures (and the inline escape) and asserts all three.
 
-  FILE PREDICATE: `file_predicate` gates a row per FILE (it sees the file's code
-  lines, strings blanked) — the one step past line regex, for `access-style`'s
+  FILE PREDICATE: `file_predicate` gates a row per FILE (it sees the file's
+  comment-stripped `code_lines`; string contents are NOT blanked — the predicate
+  blanks them itself, as `_uses_sigil_access` does) — the one step past line regex, for `access-style`'s
   "this file already uses `$`/`%`". A third use of it is the moment to reconsider
   the table.
 
@@ -66,8 +67,8 @@ class Rule:
     # Optional refinement over a match, for a fact a regex states badly (a
     # numeric comparison). Still regex-grade: it sees the match, never a tree.
     predicate: Optional[Callable[[re.Match], bool]] = None
-    # Optional per-file gate: given the file's code lines (comments stripped,
-    # string contents blanked), False skips the row for the whole file.
+    # Optional per-file gate: given the file's `code_lines` (comments stripped,
+    # strings left intact — blank them yourself), False skips the row for the file.
     file_predicate: Optional[Callable[[list], bool]] = None
     # False = report-only: skipped by the default run, on with --rule / --all.
     default_on: bool = True
@@ -223,7 +224,8 @@ RULES = [
         window=COMPOSE_WINDOW,
         default_on=False,
         exempt_dirs={
-            **TEST_DIR,
+            "test/": "a test builds the throwaway tree it asserts on — never a "
+                      "shipped path.",
             "tools/": "dev tooling (editor probes, benches), never a shipped path — "
                       "void if a tool's UI ships to players.",
         },
