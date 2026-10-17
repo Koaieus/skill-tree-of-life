@@ -76,6 +76,8 @@ why swarm routes every landing through it.
    comments usually narrow scope more than the title. A free-text query is
    matched against `gh issue list` or confirmed with the user, never
    guessed silently.
+   A queue selector ("next Ready issue") resolves through
+   `mise gh-project -- next ready --claim`, which also does law 3's claim.
 3. **Claim the board card on start.** `in-progress` the moment the worktree
    exists, so no other agent pulls the issue; moving it to `done` or
    `in-review` at merge time is optional (the `Closes` line does it on push).

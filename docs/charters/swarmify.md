@@ -67,6 +67,40 @@ Numbered so the skill can be checked against them law by law.
    its comment date — never a paraphrase, so the retraction guard holds
    at one remove. This refinement is the pass's tentative call
    (2026-10-14), not an owner decision.
+37. **A queue selector resolves to the pick before anything is read.** The
+   prompt may name a selector instead of numbers — "next issue", "next P0 from
+   Needs design", "next … + closely related". Resolve it with one `mise
+   gh-project -- next [<lane>] [--prio P0[,P1…]] [--not N,M…] --claim` (lane
+   `needs-design` unless the selector names another): it prints the first issue
+   in the board's own order — priority, then issue number — and moves it to `In
+   design`, the pass's claim, so a second pass cannot take it. Its line is taken
+   as printed, never re-sorted or re-ranked by reasoning about which issue
+   matters more; "— no match" → say so and stop, never widen the lane or the
+   filter unasked (the pass's tentative call, 2026-10-17, not an owner
+   decision). Priority and size are **board fields**, printed as `[P0/S]` —
+   never labels, so `gh issue list --label P0` finds nothing and is never the
+   probe (`docs/domain/issue-workflow.md`, *The board*). The order is: resolve
+   and claim the pick → the pick gets its law 2 read → `mise gh-project --
+   related <n>` and a title scan of `mise gh-project -- list <lane>` → one
+   opening message → the owner confirms → the confirmed riders get their law 2
+   read, each claimed with `mise gh-project -- status <n> in-design`. "Closely
+   related" is a candidate list, not a pick, and a judgement `related` does not
+   make: an issue sharing the pick's parent, a sub-issue, a blocked-by /
+   blocking link, or a sibling on the same surface (same subsystem, same swing
+   or feature) found from the lane's titles; an issue that merely shares a
+   keyword is not related. Candidates get the law 2 related-issue treatment (a
+   title line, never a full read) until the owner confirms them. The opening
+   message (law 34) names the issue the selector resolved to and why — lane,
+   priority, number ("first P0 in Needs design: #N") — and lists each candidate
+   with one line on why it is related; the owner confirms which ride along. The
+   named issues of law 2 are the pick plus the confirmed riders. A pass that
+   ends without promoting a claimed issue moves it back with `mise gh-project --
+   status <n> nd` and names it under `Not done` (law 35); promotion to `Ready`
+   is the release otherwise. Why: the owner wants to one-shot a pass from the
+   queue, agents probing for priority by label stall on "P0 is not a label"
+   before they find the board, and the claim is the owner's call (2026-10-17)
+   for one shared selector every skill uses, so two passes never design the same
+   issue.
 3. **The Explore orients and verifies; the session confirms and thinks.**
    One `Explore(model: haiku)`, dispatched always once the question is *how
    to build it* — straight away when there is no design beat, after the
@@ -83,6 +117,28 @@ Numbered so the skill can be checked against them law by law.
    `spec`, not here. Fact-checking is not thinking; skipping it specs work against
    a world two commits stale. A stale item closes with a doc correction,
    not new work. The thinking stays in the session.
+   The brief, verbatim:
+
+   ```
+   Explore(model: haiku) — read-only, against master. Return shaped facts, not excerpts.
+
+   ORIENTATION — one-line answer each, with file:line:
+     - what does `X` look like
+     - where is `Y` wired
+     - what does `Z`'s contract say
+     - what did #N settle about W  → the owner's sentence VERBATIM with its comment date
+
+   CLAIMS — the issue says each of these about the code; report each as
+   verified / false / stale, with a file:line:
+     - "X is unbuilt"
+     - "Y has no caller"
+     - "that helper was deleted"
+
+   SEAM GREP — every caller / consumer / test of: <symbols, signals, scenes>.
+
+   Return: file:line facts, one-line answers, verbatim owner quotes with dates.
+   Never code excerpts. Reading-list ranges are not your job.
+   ```
 36. **The session's own reads are ranged and confirm-only.** During research —
    from the moment the question is how to build it until a fork is
    presented — the session opens a file only to confirm a contract it has
@@ -337,7 +393,9 @@ Numbered so the skill can be checked against them law by law.
     `Landed` carrying the swarmify columns — issue, lane after the pass
     (`Ready` is the goal), the decision direction or fork settled in a
     clause, what is left (stubs, children, a fork kept) — and `Not done`
-    naming every issue that stayed in `Needs design` and why. Owner,
+    naming every issue that stayed in `Needs design` and why. The last
+    message of the pass is this report, never a pasted brief or
+    walkthrough. Owner,
     2026-10-09: *"the most important outcome is which issue, what status
     (`Ready` being the ideal), short decision direction or fork settled, or
     stubs left."* Mined 2026-10-09: swarmify's last long message was often a
@@ -348,7 +406,7 @@ Numbered so the skill can be checked against them law by law.
 
 `name: swarmify`. `description:`, verbatim:
 
-> Take one GitHub issue from "has open design forks" to Ready — remove blockers, read whether the open question is "what would be fun" (design it first, game-designer hat on, with the user) or "how to build it", surface every unresolved decision, research the code and think each fork through with the user, present options scored for cleanliness with the cleanest as the default, get them to settle it, write a crisp acceptance spec, split a hub into coherent children if needed, and move it to the `Ready` column. This is the design gate that feeds the `swarm` skill. Use when the user says "swarmify #<n>", "make #<n> ready/swarmable", "settle the design on #<n>", or asks to prep an issue/epic for autonomous work. Run as Opus — resolving forks is the thinking swarm cannot do.
+> Take one GitHub issue from "has open design forks" to Ready — remove blockers, read whether the open question is "what would be fun" (design it first, game-designer hat on, with the user) or "how to build it", surface every unresolved decision, research the code and think each fork through with the user, present options scored for cleanliness with the cleanest as the default, get them to settle it, write a crisp acceptance spec, split a hub into coherent children if needed, and move it to the `Ready` column. This is the design gate that feeds the `swarm` skill. Use when the user says "swarmify #<n>", "swarmify next issue" or another queue selector ("next P0 from Needs design", "… + closely related"), "make #<n> ready/swarmable", "settle the design on #<n>", or asks to prep an issue/epic for autonomous work. Run as Opus — resolving forks is the thinking swarm cannot do.
 
 ## Incident corpus
 
@@ -357,6 +415,8 @@ have to carry them.
 
 | Date | Where | What happened | Law |
 |---|---|---|---|
+| 2026-10-17 | owner | "i feel like i should be able to oneshot this like 'next issue from needs design queue ordered by prio then by issue number; and if any closely related pick those up too'" and "(as in '/swarmify next issue …' + gotcha/guidance of how to find by P0 (agents often struggle then find 'P0 is not a label, ah'))". The Needs-design head that day was #256 (blade visuals) followed by aspect "× Addon" issues whose titles mention "blade" — keyword siblings, not related | 37 |
+| 2026-10-17 | owner, via AskUserQuestion | asked that the selector work for every skill that picks issues (warp, relay, swarm, triage), not just swarmify; settled SHAPE = "Board cmd" — a shared `gh-project next` + `gh-project related`, no new skill — and CLAIM = "In design lane", a board column between Needs design and Ready | 37 |
 | 2026-10-14 | owner; scan `.claude/skills/swarmify/corpus/2026-10-14-research-cost-scan.md` (133 sessions) | owner: swarmify sessions "should upgrade their initial research … a Fable … exploring codebase rapidly bloating context possibly reading stuff they dont need", asked what to read, what to delegate, how many explorers and what return size. Scan: the research phase is 73% of a session's tool-result bytes (median 62k chars, max 195k); the session's own `cat`/`sed` reads are the largest bucket (3.0M total), issue reads second (2.1M), Explore returns smallest by 7x (0.4M, ~3.4k/agent). The two heaviest passes cat'ed whole source files and a whole review doc that the resulting specs never cite; one ran no Explore at all; 45 of 133 did not. Owner picked: Explore orients + session confirms, no Explore cap, "just a shape" | 3, 36 |
 | 2026-10-14 | same scan, `bebb84f4` (#1381/#1383/#1489) | the max issue-read case (70k chars, 13 `gh issue` calls) read its three named issues once; the rest was six *related* issues' comment tails and a nine-issue status loop. Multi-issue cost is sublinear (median 58k → 76k → 93k chars for 1 / 2–3 / 4+ issues) because code reads are shared. Owner deferred ("what does advisor say? i'm leaning 1 but comments could get *long* right?"); the pass's tentative call: keep full in-session reads of the named issues (the observed ceiling is 17k tokens, half a heavy pass's own cats) and route related issues through the Explore with a verbatim quote-back | 2 |
 | 2026-10-11 | owner, after the 2026-10-10 scan (`docs/corpus/2026-10-10-swarmify-spec-weight-headless-clerk.md`) | asked whether the spec-writing half should be its own skill, loaded at spec time and usable by sessions with no owner; "I want literally all of these enhancements and fixes you propose, I'm sold" | 33 |
