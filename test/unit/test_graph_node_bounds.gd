@@ -4,15 +4,13 @@ extends GutTest
 ## pan limit / fog-of-war rect. Pure geometry, so it earns its own test rather
 ## than only being exercised through GameRoot.
 
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 
 var _graph: Graph
 
 
 func before_each() -> void:
-	_graph = _GRAPH_SCENE.instantiate()
-	add_child_autofree(_graph)
+	_graph = TestWorld.create(self).graph
 
 
 func _add_node_at(pos: Vector2) -> SkillNode:

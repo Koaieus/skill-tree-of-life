@@ -12,7 +12,6 @@ extends GutTest
 
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _BOARD := preload("res://entity/default_entity_board.tres")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 
 var _graph: Graph
 var _alloc: AllocationSystem
@@ -21,9 +20,7 @@ var _chain: Array[SkillNode] = []
 
 ## One straight line N0—N1—…—N7, so hop distance from N0 IS the index.
 func before_each() -> void:
-	_graph = _GRAPH_SCENE.instantiate()
-	_graph.name = "TestGraph"
-	add_child_autofree(_graph)
+	_graph = TestWorld.create(self, "TestGraph").graph
 
 	_chain = []
 	for i in 8:
@@ -35,9 +32,7 @@ func before_each() -> void:
 	for i in 7:
 		_graph.add_edge(_chain[i], _chain[i + 1])
 
-	_alloc = AllocationSystem.new()
-	_alloc.graph = _graph
-	add_child_autofree(_alloc)
+	_alloc = TestWorld.around(_graph).allocator()
 
 
 func _spawn_owning_whole_chain() -> Entity:

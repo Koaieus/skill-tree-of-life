@@ -12,7 +12,6 @@ var _catalog: TempUpgradeCatalog = preload("res://attack/melee/temp_upgrade_cata
 ## attack step.
 
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _PLAYER_FACTION := preload("res://entity/factions/player.tres")
 const _SPARK_SPELL := preload("res://attack/spell/defs/spark.tres")
 const _AMMO_ROSTER: AmmoTypeRoster = preload("res://attack/ammo/ammo_type_roster.tres")
@@ -64,9 +63,7 @@ func before_each() -> void:
 	_decisions = []
 	_launches = []
 
-	_graph = _GRAPH_SCENE.instantiate()
-	_graph.name = "TestGraph"
-	add_child_autofree(_graph)
+	_graph = TestWorld.create(self, "TestGraph").graph
 
 	_nodes = []
 	for i in 3:
@@ -76,9 +73,7 @@ func before_each() -> void:
 		_nodes.append(sn)
 	_add_edge(_nodes[0], _nodes[1])
 
-	_alloc = AllocationSystem.new()
-	_alloc.graph = _graph
-	add_child_autofree(_alloc)
+	_alloc = TestWorld.around(_graph).allocator()
 
 	_tm = autofree(TurnManager.new())
 	add_child(_tm)

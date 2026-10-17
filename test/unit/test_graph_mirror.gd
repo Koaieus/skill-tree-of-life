@@ -7,7 +7,6 @@ extends GutTest
 ## plus enough of the surrounding contract that the next edit has something to
 ## break.
 
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _EDGE_SCENE := preload("res://graph/edge.tscn")
 
@@ -15,8 +14,7 @@ var _graph: Graph
 
 
 func before_each() -> void:
-	_graph = _GRAPH_SCENE.instantiate()
-	add_child_autofree(_graph)
+	_graph = TestWorld.create(self).graph
 
 
 func _add_nodes(count: int) -> Array[SkillNode]:

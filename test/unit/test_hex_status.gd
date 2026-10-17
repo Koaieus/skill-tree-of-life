@@ -9,7 +9,6 @@ extends GutTest
 ## one leaves the stream untouched. The rate is read off the def, never pinned.
 
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _BOARD := preload("res://entity/default_entity_board.tres")
 const _HEXED := preload("res://effects/status/hexed.tres")
 
@@ -22,8 +21,7 @@ var _n: Dictionary = {}
 
 
 func before_each() -> void:
-	var graph: Graph = _GRAPH_SCENE.instantiate()
-	add_child_autofree(graph)
+	var graph: Graph = TestWorld.create(self).graph
 	_graph = graph
 	for i in 5:
 		var node := _SKILL_NODE_SCENE.instantiate() as SkillNode
@@ -45,9 +43,7 @@ func before_each() -> void:
 	graph.entities_container.add_child(_defender)
 	await get_tree().process_frame
 
-	var alloc := AllocationSystem.new()
-	alloc.graph = graph
-	add_child_autofree(alloc)
+	var alloc := TestWorld.around(graph).allocator()
 	alloc.force_allocate(_attacker, _n.a0)
 	alloc.force_allocate(_attacker, _n.a1)
 	_attacker.core_location = _n.a0

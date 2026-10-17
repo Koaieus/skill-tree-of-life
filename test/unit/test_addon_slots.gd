@@ -10,7 +10,6 @@ extends GutTest
 ## `stake_scaling.tres`, so a stake change recomputes reactively.
 
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _BOARD := preload("res://entity/default_entity_board.tres")
 const _BUNKER_SCENE := preload("res://skill_node/addons/defs/bunker_addon.tscn")
 const _ADDON_SLOTS_DEF := preload("res://stats_system/defs/addon_slots.tres")
@@ -19,8 +18,7 @@ var _node: SkillNode
 
 
 func before_each() -> void:
-	var graph := _GRAPH_SCENE.instantiate()
-	add_child_autofree(graph)
+	var graph := TestWorld.create(self).graph
 	var entity: Entity = autofree(Entity.new())
 	entity.stat_board = _BOARD.duplicate(true) as EntityStatBoard
 	graph.add_child(entity)

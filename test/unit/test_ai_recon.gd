@@ -7,7 +7,6 @@ extends GutTest
 const _BOARD := preload("res://entity/default_entity_board.tres")
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _EDGE_SCENE := preload("res://graph/edge.tscn")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _PLAYER_FACTION := preload("res://entity/factions/player.tres")
 const _BLOCKER_FACTION := preload("res://entity/factions/blocker.tres")
 
@@ -29,9 +28,7 @@ func _make_entity(ent_name: String, faction: Faction = null) -> Entity:
 
 
 func before_each() -> void:
-	_graph = _GRAPH_SCENE.instantiate()
-	_graph.name = "TestGraph"
-	add_child_autofree(_graph)
+	_graph = TestWorld.create(self, "TestGraph").graph
 
 	# Line: A0 – A1 (AI territory) ... H0 (hostile, far by default).
 	_nodes = []
@@ -42,9 +39,7 @@ func before_each() -> void:
 		_nodes.append(sn)
 	_graph.add_edge(_nodes[0], _nodes[1])  # emits edge_added — the Navigator mirrors it
 
-	_alloc = AllocationSystem.new()
-	_alloc.graph = _graph
-	add_child_autofree(_alloc)
+	_alloc = TestWorld.around(_graph).allocator()
 
 	_ai_entity = autofree(_make_entity("AI"))
 	_graph.add_child(_ai_entity)

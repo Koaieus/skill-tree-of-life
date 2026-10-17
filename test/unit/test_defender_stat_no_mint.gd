@@ -17,7 +17,6 @@ extends GutTest
 ## every stat in this tier.
 
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _BOARD := preload("res://entity/default_entity_board.tres")
 
 ## The node-local, addon-authored defender tier named in #805 — none of these
@@ -32,8 +31,7 @@ var _entity: Entity
 
 
 func before_each() -> void:
-	_graph = _GRAPH_SCENE.instantiate()
-	add_child_autofree(_graph)
+	_graph = TestWorld.create(self).graph
 	_entity = autofree(Entity.new())
 	_entity.stat_board = _BOARD.duplicate(true) as EntityStatBoard
 	_graph.add_child(_entity)
@@ -85,9 +83,7 @@ func test_a_live_blade_state_build_with_no_defenders_mints_nothing() -> void:
 
 	await get_tree().process_frame
 
-	var alloc := AllocationSystem.new()
-	alloc.graph = _graph
-	add_child_autofree(alloc)
+	var alloc := TestWorld.around(_graph).allocator()
 	alloc.force_allocate(_entity, pivot)
 	alloc.force_allocate(_entity, tip)
 	_entity.core_location = pivot

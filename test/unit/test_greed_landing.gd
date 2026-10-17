@@ -7,7 +7,6 @@ extends GutTest
 ## falls through to the entity, so the entity's Greed is read only then.
 
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _BOARD := preload("res://entity/default_entity_board.tres")
 const _GREED := preload("res://effects/status/greed.tres")
 const _POISON := preload("res://effects/status/poison.tres")
@@ -22,11 +21,8 @@ var _node: SkillNode
 
 
 func before_each() -> void:
-	_graph = _GRAPH_SCENE.instantiate()
-	add_child_autofree(_graph)
-	_alloc = AllocationSystem.new()
-	_alloc.graph = _graph
-	add_child_autofree(_alloc)
+	_graph = TestWorld.create(self).graph
+	_alloc = TestWorld.around(_graph).allocator()
 
 	_entity = autofree(Entity.new())
 	_entity.display_name = "Defender"

@@ -11,7 +11,6 @@ extends GutTest
 
 const _BOARD := preload("res://entity/default_entity_board.tres")
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _TOXIN_SCENE := preload("res://skill_node/addons/defs/toxin_addon.tscn")
 const _POISON := preload("res://effects/status/poison.tres")
 const _SECOND_DOT_SCENE := preload("res://test/support/addons/second_dot_addon.tscn")
@@ -68,8 +67,7 @@ func _set_spikes_cap(node: SkillNode, cap: float) -> void:
 
 
 func before_each() -> void:
-	_graph = _GRAPH_SCENE.instantiate()
-	add_child_autofree(_graph)
+	_graph = TestWorld.create(self).graph
 	_attacker = _make_entity()
 	_defender = _make_entity()
 	var enemy_camp := Faction.new()
@@ -84,9 +82,7 @@ func before_each() -> void:
 	_plate = _spawn("Plate", Vector2.from_angle(_TURNS * TAU) * _SPACING * 2.0)
 	await get_tree().process_frame
 
-	_alloc = AllocationSystem.new()
-	_alloc.graph = _graph
-	add_child_autofree(_alloc)
+	_alloc = TestWorld.around(_graph).allocator()
 	_alloc.force_allocate(_attacker, _pivot)
 	_alloc.force_allocate(_attacker, _mid)
 	_alloc.force_allocate(_attacker, _tip)

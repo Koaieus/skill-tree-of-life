@@ -5,7 +5,6 @@ extends GutTest
 ## eyeball-only concern (see the sandbox); this locks in the structure.
 
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _BOARD := preload("res://entity/default_entity_board.tres")
 const _BALANCED_CORE := preload("res://entity/core/balanced_core.tres")
 const _GEAR := preload("res://skill_node/visuals/core_gear.tscn")
@@ -18,9 +17,7 @@ var _entity: Entity
 
 
 func before_each() -> void:
-	_graph = _GRAPH_SCENE.instantiate()
-	_graph.name = "TestGraph"
-	add_child_autofree(_graph)
+	_graph = TestWorld.create(self, "TestGraph").graph
 
 	_node = _SKILL_NODE_SCENE.instantiate() as SkillNode
 	_node.name = "N0"

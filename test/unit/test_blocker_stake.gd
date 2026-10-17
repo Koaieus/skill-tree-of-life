@@ -4,7 +4,6 @@ extends GutTest
 ## offsets the kill XP by a clamped MULTIPLY read off the blocker's own board,
 ## and the node it leaves behind on a kill is a 0/3 a player can fill.
 
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _NODE_SCENE := preload("res://skill_node/blocker_node.tscn")
 const _EDGE_SCENE := preload("res://graph/edge.tscn")
 const _BOARD := preload("res://entity/default_entity_board.tres")
@@ -16,8 +15,7 @@ var _nodes: Array[SkillNode] = []
 
 
 func before_each() -> void:
-	_graph = autofree(_GRAPH_SCENE.instantiate()) as Graph
-	add_child(_graph)
+	_graph = TestWorld.create(self).graph
 	await get_tree().process_frame
 	_nodes.clear()
 	var previous: SkillNode = null
@@ -33,9 +31,7 @@ func before_each() -> void:
 			_graph.edges_container.add_child(e)
 		previous = node
 		_nodes.append(node)
-	_alloc = AllocationSystem.new()
-	_alloc.graph = _graph
-	add_child_autofree(_alloc)
+	_alloc = TestWorld.around(_graph).allocator()
 	_root = EntityFactory.new()
 	autofree(_root)
 	_root.graph = _graph

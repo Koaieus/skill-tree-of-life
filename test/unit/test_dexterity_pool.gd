@@ -155,7 +155,6 @@ func test_ammo_grants_are_integer_add_base_pools_with_known_tags() -> void:
 
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _BOARD := preload("res://entity/default_entity_board.tres")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 
 ## Acceptance #1: a node rolled with the poison entry, once allocated, raises
 ## the entity's `poison_aspect` by the grant and a reload then adds
@@ -169,8 +168,7 @@ func test_rolled_poison_grant_lands_on_the_board_and_mints_on_reload() -> void:
 	var rolled: StatModifier = pp.to_entries(&"dexterity")[0].roll(_rng(7))
 	var grant := int(rolled.value)
 
-	var graph: Graph = _GRAPH_SCENE.instantiate()
-	add_child_autofree(graph)
+	var graph: Graph = TestWorld.create(self).graph
 	var a := _SKILL_NODE_SCENE.instantiate() as SkillNode
 	var b := _SKILL_NODE_SCENE.instantiate() as SkillNode
 	a.name = "A"; b.name = "B"
@@ -180,11 +178,9 @@ func test_rolled_poison_grant_lands_on_the_board_and_mints_on_reload() -> void:
 
 	var tm: TurnManager = autofree(TurnManager.new())
 	add_child(tm)
-	var alloc := AllocationSystem.new()
-	alloc.graph = graph
+	var alloc := TestWorld.around(graph).allocator()
 	alloc.navigator = graph.navigator
 	alloc.turn_manager = tm
-	add_child_autofree(alloc)
 
 	var player: Entity = autofree(Entity.new())
 	player.display_name = "Archer"

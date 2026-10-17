@@ -112,8 +112,7 @@ func test_bunker_addon_grants_node_local_armor() -> void:
 ## hand-authored owned nodes granted the player nothing at all. (The structural
 ## fix is one teardown/setup atom — triage C11.)
 func test_scene_authored_ownership_applies_node_modifiers() -> void:
-	var graph: Graph = preload("res://graph/graph.tscn").instantiate()
-	add_child_autofree(graph)
+	var graph: Graph = TestWorld.create(self).graph
 
 	# Ownership is baked BEFORE the entity enters the tree, which is the load
 	# order a .tscn actually produces — and it is what makes the navigator
@@ -133,9 +132,7 @@ func test_scene_authored_ownership_applies_node_modifiers() -> void:
 	graph.add_child(ent)  # Entity._ready builds the navigator
 	await get_tree().process_frame
 
-	var alloc := AllocationSystem.new()
-	autofree(alloc)
-	alloc.graph = graph
+	var alloc := TestWorld.allocator_for(graph)
 	alloc.register_scene_authored_ownership()
 
 	assert_eq(ent.stat_board.get_stat(&"strength").value, before + 7.0,

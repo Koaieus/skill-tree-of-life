@@ -4,20 +4,16 @@ extends GutTest
 ## presence dressing while leaving it a core for every gameplay rule.
 
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 
 var _node: SkillNode
 var _entity: Entity
 
 
 func before_each() -> void:
-	var graph: Graph = _GRAPH_SCENE.instantiate()
-	add_child_autofree(graph)
+	var graph: Graph = TestWorld.create(self).graph
 	_node = _SKILL_NODE_SCENE.instantiate() as SkillNode
 	graph.skill_nodes_container.add_child(_node)
-	var alloc := AllocationSystem.new()
-	alloc.graph = graph
-	add_child_autofree(alloc)
+	var alloc := TestWorld.around(graph).allocator()
 	_entity = Entity.new()
 	_entity.stat_board = TestBoards.flat_entity_board()
 	graph.entities_container.add_child(_entity)

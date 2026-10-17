@@ -5,7 +5,6 @@ extends GutTest
 
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _BOARD := preload("res://entity/default_entity_board.tres")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 
 var _graph: Graph
 var _alloc: AllocationSystem
@@ -15,8 +14,7 @@ var _nodes: Dictionary
 
 
 func before_each() -> void:
-	_graph = _GRAPH_SCENE.instantiate()
-	add_child_autofree(_graph)
+	_graph = TestWorld.create(self).graph
 	_nodes = {}
 	for id in ["A", "B", "C", "N", "M", "O", "P"]:
 		var sn := _SKILL_NODE_SCENE.instantiate() as SkillNode
@@ -24,10 +22,8 @@ func before_each() -> void:
 		_graph.add_skill_node(sn)
 		_nodes[id] = sn
 	_graph.add_edge(_n("A"), _n("B"))
-	_alloc = AllocationSystem.new()
-	_alloc.graph = _graph
+	_alloc = TestWorld.around(_graph).allocator()
 	_alloc.navigator = _graph.navigator
-	add_child_autofree(_alloc)
 	_me = _entity("Me")
 	_other = _entity("Other")
 	await get_tree().process_frame

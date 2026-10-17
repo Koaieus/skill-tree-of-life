@@ -13,7 +13,6 @@ const _EDGE_SCENE := preload("res://graph/edge.tscn")
 
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _BOARD := preload("res://entity/default_entity_board.tres")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 
 var _graph: Graph
 var _alloc: AllocationSystem
@@ -28,9 +27,7 @@ func before_each() -> void:
 	_waves = []
 	_dealloc_order = []
 
-	_graph = _GRAPH_SCENE.instantiate()
-	_graph.name = "TestGraph"
-	add_child_autofree(_graph)
+	_graph = TestWorld.create(self, "TestGraph").graph
 
 	_nodes = []
 	for i in 5:
@@ -41,9 +38,7 @@ func before_each() -> void:
 	for i in range(_nodes.size() - 1):
 		_add_edge(_nodes[i], _nodes[i + 1])
 
-	_alloc = AllocationSystem.new()
-	_alloc.graph = _graph
-	add_child_autofree(_alloc)
+	_alloc = TestWorld.around(_graph).allocator()
 
 	_battle = BattleSystem.new()
 	_battle.allocation_system = _alloc

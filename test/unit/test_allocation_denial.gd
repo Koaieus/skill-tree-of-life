@@ -10,7 +10,6 @@ extends GutTest
 ## (N2 is out of reach); N4 hangs off N0 inside reach, unowned.
 
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _ADDON_SCENES := [
 	preload("res://skill_node/addons/defs/bunker_addon.tscn"),
 	preload("res://skill_node/addons/defs/spike_ring_addon.tscn"),
@@ -25,8 +24,7 @@ var _nodes: Array[SkillNode]
 
 
 func before_each() -> void:
-	_graph = _GRAPH_SCENE.instantiate()
-	add_child_autofree(_graph)
+	_graph = TestWorld.create(self).graph
 	_nodes = []
 	for i in 5:
 		var sn := _SKILL_NODE_SCENE.instantiate() as SkillNode
@@ -41,10 +39,8 @@ func before_each() -> void:
 		_nodes[i].position = Vector2(0.6 * REACH * i, 0)
 	_nodes[4].position = Vector2(0, 0.6 * REACH)
 
-	_alloc = AllocationSystem.new()
-	_alloc.graph = _graph
+	_alloc = TestWorld.around(_graph).allocator()
 	_alloc.stake_reach_px = REACH
-	add_child_autofree(_alloc)
 
 	_player = autofree(Entity.new())
 	_player.display_name = "Player"

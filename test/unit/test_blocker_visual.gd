@@ -17,7 +17,6 @@ extends GutTest
 const _EDGE_SCENE := preload("res://graph/edge.tscn")
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _BLOCKER_NODE_SCENE := preload("res://skill_node/blocker_node.tscn")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _BOARD := preload("res://entity/default_entity_board.tres")
 const _SMALL_BOARD := preload("res://entity/blocker/blocker_small_board.tres")
 const _PLAYER_FACTION := preload("res://entity/factions/player.tres")
@@ -31,8 +30,7 @@ var _nodes: Array[SkillNode] = []
 
 
 func before_each() -> void:
-	_graph = _GRAPH_SCENE.instantiate()
-	add_child_autofree(_graph)
+	_graph = TestWorld.create(self).graph
 	_nodes = []
 	for i in 3:
 		var sn := _BLOCKER_NODE_SCENE.instantiate() as SkillNode
@@ -41,9 +39,7 @@ func before_each() -> void:
 		_nodes.append(sn)
 	_add_edge(_nodes[0], _nodes[1])
 
-	_alloc = AllocationSystem.new()
-	_alloc.graph = _graph
-	add_child_autofree(_alloc)
+	_alloc = TestWorld.around(_graph).allocator()
 
 	await get_tree().process_frame  # _ready: navigators + health wiring
 

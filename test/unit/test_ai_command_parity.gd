@@ -14,7 +14,6 @@ extends GutTest
 ##   - SP is granted, so one turn exercises frontier growth AND the AP loop.
 
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _PLAYER_FACTION := preload("res://entity/factions/player.tres")
 
 var _graph: Graph
@@ -53,9 +52,7 @@ func _make_entity(ent_name: String, faction: Faction = null) -> Entity:
 
 func before_each() -> void:
 
-	_graph = _GRAPH_SCENE.instantiate()
-	_graph.name = "TestGraph"
-	add_child_autofree(_graph)
+	_graph = TestWorld.create(self, "TestGraph").graph
 
 	# N0 - N1 - N2 - H0, a line. AI cores on N0 owning nothing else; N1/N2 are
 	# the frontier it grows into; the hostile cores on H0.
@@ -72,11 +69,9 @@ func before_each() -> void:
 	_tm = autofree(TurnManager.new())
 	add_child(_tm)
 
-	_alloc = AllocationSystem.new()
-	_alloc.graph = _graph
+	_alloc = TestWorld.around(_graph).allocator()
 	_alloc.navigator = _graph.navigator
 	_alloc.turn_manager = _tm
-	add_child_autofree(_alloc)
 
 	_bs = autofree(BattleSystem.new())
 	_bs.temp_upgrade_catalog = preload("res://attack/melee/temp_upgrade_catalog.tres")
