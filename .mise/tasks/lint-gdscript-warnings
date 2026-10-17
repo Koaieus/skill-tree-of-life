@@ -88,8 +88,10 @@ def full_tree():
 
 
 def changed_files(ref):
-    if git("merge-base", "--is-ancestor", ref, "HEAD").returncode != 0:
-        print(f"lint-gdscript-warnings: {ref} is not an ancestor of HEAD; full tree",
+    # `ref...HEAD` diffs from the merge-base, so a ref that moved on (master
+    # during a swarm) still yields just this branch's files.
+    if git("merge-base", ref, "HEAD").returncode != 0:
+        print(f"lint-gdscript-warnings: {ref} shares no history with HEAD; full tree",
               file=sys.stderr)
         return full_tree()
     diff = git("diff", "--name-only", f"{ref}...HEAD", "--", "*.gd").stdout.split()
