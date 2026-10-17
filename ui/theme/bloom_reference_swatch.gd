@@ -52,7 +52,6 @@ extends PanelContainer
 ## out exactly the low-tier patches the comparison depends on.
 const _BACKDROP := Color(0.03, 0.035, 0.05, 0.92)
 
-
 const _PATCH := preload("res://ui/theme/bloom_reference_patch.tscn")
 
 
