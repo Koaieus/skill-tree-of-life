@@ -162,6 +162,78 @@ func test_context_tolerates_null_and_foreign_shapes() -> void:
 	assert_almost_eq(ring.expand_radius, authored, 0.001, "an unread shape changes nothing")
 
 
+# ------------------------------------------------------------- visit ramp
+
+
+## Ramp on, with ends authored above the scene's start values.
+func _spawn_ramped(visits: float) -> ImpactRing:
+	var ring := _spawn(ABSORB)
+	ring.visit_ramp_visits = visits
+	ring.visit_expand_radius_end = ring.expand_radius * 2.5
+	ring.visit_emissive_tier_end = ring.emissive_tier + 1.0
+	return ring
+
+
+func test_visit_ramp_is_monotone_and_clamps_at_its_visit_count() -> void:
+	for visits in [1.0, 2.0, 3.0, 5.0]:
+		var prev_radius: float = -1.0
+		var prev_tier: float = -1.0
+		var top_radius: float = 0.0
+		var top_tier: float = 0.0
+		for visit in range(0, int(visits) + 3):
+			var ring := _spawn_ramped(visits)
+			var start_radius: float = ring.expand_radius
+			var start_tier: float = ring.emissive_tier
+			ring._on_context({&"visit_index": float(visit)})
+			if visit == 0:
+				assert_almost_eq(ring.expand_radius, start_radius, 0.001, "visit 0 reads at the authored start")
+				assert_almost_eq(ring.emissive_tier, start_tier, 0.001, "visit 0 reads at the authored tier")
+			if visit <= int(visits):
+				assert_gt(ring.expand_radius, prev_radius, "radius grows with visit_index (visits=%s, visit=%d)" % [visits, visit])
+				assert_gt(ring.emissive_tier, prev_tier, "tier heats with visit_index (visits=%s, visit=%d)" % [visits, visit])
+			else:
+				assert_almost_eq(ring.expand_radius, top_radius, 0.001, "radius clamps past visit_ramp_visits")
+				assert_almost_eq(ring.emissive_tier, top_tier, 0.001, "tier clamps past visit_ramp_visits")
+			if visit == int(visits):
+				top_radius = ring.expand_radius
+				top_tier = ring.emissive_tier
+				assert_almost_eq(top_radius, ring.visit_expand_radius_end, 0.001, "full ramp reaches the radius end")
+				assert_almost_eq(top_tier, ring.visit_emissive_tier_end, 0.001, "full ramp reaches the tier end")
+			prev_radius = ring.expand_radius
+			prev_tier = ring.emissive_tier
+
+
+func test_a_second_visit_entry_does_not_compound() -> void:
+	var ring := _spawn_ramped(4.0)
+	ring._on_context({&"visit_index": 2.0})
+	var radius: float = ring.expand_radius
+	var tier: float = ring.emissive_tier
+	ring._on_context({&"visit_index": 2.0})
+	assert_almost_eq(ring.expand_radius, radius, 0.001, "a repeated entry must not compound the radius")
+	assert_almost_eq(ring.emissive_tier, tier, 0.001, "…nor the tier")
+
+
+func test_with_the_ramp_on_convergence_never_widens_the_ring() -> void:
+	var lone := _spawn_ramped(3.0)
+	lone._on_context({&"visit_index": 1.0, &"convergence_count": 1.0})
+	var met := _spawn_ramped(3.0)
+	met._on_context({&"visit_index": 1.0, &"convergence_count": 5.0})
+	assert_almost_eq(met.expand_radius, lone.expand_radius, 0.001,
+		"the visit ramp owns the radius; convergence must not compete")
+
+
+func test_with_the_ramp_off_convergence_is_unchanged_and_visits_are_ignored() -> void:
+	var plain := _spawn(ABSORB)
+	plain._on_context({&"convergence_count": 4.0})
+	var visited := _spawn(ABSORB)
+	var authored_tier: float = visited.emissive_tier
+	visited._on_context({&"convergence_count": 4.0, &"visit_index": 3.0})
+	assert_eq(visited.visit_ramp_visits, 0.0, "the ramp is off by default")
+	assert_almost_eq(visited.expand_radius, plain.expand_radius, 0.001,
+		"ramp off: visit_index never touches the convergence widening")
+	assert_almost_eq(visited.emissive_tier, authored_tier, 0.001, "ramp off: the tier is the authored one")
+
+
 func test_it_finishes_and_frees_itself() -> void:
 	# NOT `watch_signals` + `assert_signal_emitted`: the ring `queue_free`s
 	# itself in the same frame it emits, and GUT's signal store dereferences

@@ -95,6 +95,30 @@ const CRIT_RING_COUNT: Array[int] = [1, 1, 2]
 ## [constant Emissive.ALERT] — reserve it, or nothing reads as loud.
 @export_range(0.0, 3.0, 0.05) var emissive_tier: float = Emissive.VALUE
 
+## Visit count (0-based) at which the ring reads fully escalated. 0 = off.
+## When on, the visit ramp OWNS [member expand_radius] and [member emissive_tier]
+## and `convergence_count` is ignored — the two channels never compete.
+## Reverberator authors it (#677: "the 1st strike whispers, the 4th blazes").
+## Tentative, easy to change.
+@export_range(0.0, 16.0, 0.5) var visit_ramp_visits: float = 0.0:
+	set(value):
+		visit_ramp_visits = maxf(0.0, value)
+		_rebuild()
+
+## [member expand_radius] at the top of the visit ramp; the authored
+## [member expand_radius] is its start.
+@export_range(1.0, 256.0, 0.5) var visit_expand_radius_end: float = 48.0:
+	set(value):
+		visit_expand_radius_end = value
+		_rebuild()
+
+## [member emissive_tier] at the top of the visit ramp; the authored
+## [member emissive_tier] is its start.
+@export_range(0.0, 3.0, 0.05) var visit_emissive_tier_end: float = Emissive.ALERT:
+	set(value):
+		visit_emissive_tier_end = value
+		_rebuild()
+
 ## Colour a crit retints to. Damage-red by default; #663 D5's critical-heal
 ## gold is authored by the Healing Beam unit setting this, not by a second
 ## code path here.
