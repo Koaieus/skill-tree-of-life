@@ -72,7 +72,7 @@ earliest first; each rung is a beat the systems already produce or nearly do:
 1. **Level 5, the first ring point.** You open your core and there is a tree
    in it, drawn in the board's own node and edge visuals, with an immovable
    core at its centre (#1652 owner call: *"Graph but visuals and background
-   and core visuals differ, core cant move etc"*). The tell is plain: this
+   and core visuals differ, core cant move etc …"*). The tell is plain: this
    looks like where you live.
 2. **Every Breakout.** The zoom-out compresses a whole field into one node. By
    the third, the player has the node axis by heart — and it is the *only*
