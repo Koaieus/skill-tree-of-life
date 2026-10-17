@@ -169,6 +169,20 @@ text = "1"
 horizontal_alignment = 1
 vertical_alignment = 1
 
+[node name="RingBadge" type="Label" parent="Padded/Content/Portrait" unique_id=246929273]
+unique_name_in_owner = true
+visible = false
+layout_mode = 1
+offset_right = 20.0
+offset_bottom = 20.0
+pivot_offset = Vector2(10, 10)
+mouse_filter = 2
+theme_override_font_sizes/font_size = 12
+theme_override_styles/normal = SubResource("StyleBoxFlat_badge")
+text = "0"
+horizontal_alignment = 1
+vertical_alignment = 1
+
 [node name="Vitals" type="VBoxContainer" parent="Padded/Content" unique_id=539041536]
 layout_mode = 2
 size_flags_horizontal = 3
