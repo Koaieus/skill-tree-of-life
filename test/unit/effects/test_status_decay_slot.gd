@@ -19,7 +19,7 @@ const _DESCRIPTIONS := {
 	&"scout": "Scout arrows lit up this node's surroundings for their camp: the disc grows with the root of the stacks, only your own camp's stacks count, and one stack fades each turn.",
 	&"wither": "Every stack cuts healing on this node by 10%; past 10 stacks healing becomes damage that never closes the regen gate. A quarter of the stacks fade each turn and they never cap.",
 	&"weakness": "Attacks from the node deal less damage; deep weakness needs steady reapplication to hold.",
-	&"greed": "The node's next hit lands its negative statuses doubled, and each such hit spends one stack. Greed never fades on its own.",
+	&"greed": "The node's next hit lands its negative statuses doubled, and each such hit spends one stack. Every stack still held raises the XP this node pays when killed by 10%. Greed never fades on its own.",
 	&"hex": "Every stack adds a flat bonus to the crit chance of any hit landing on this node, after the attacker's own increases; a core's hex counts for every node its owner holds. Stacks fall by 1 each turn.",
 	&"bleeding": "Each turn the wound pays half its stacks as damage, rounded up. Using the node doubles the stacks; resting closes the wound faster every turn.",
 	&"explosive": "Charges on a node. A hit on a charged node sets them off: it spends at least one into a blast that grows with the node's charges and the hit's own explosive load, carrying the hit's other effects to whatever the hit may hit around it. A hit that plants charges sets none off. A node killed while charged spends them all in one blast. One charge fades each turn end.",
