@@ -117,5 +117,5 @@ func _set_ember(active: bool) -> void:
 		_value.modulate = Color.WHITE
 		return
 	_tween = create_tween().set_loops()
-	_tween.tween_property(_value, ^"modulate", Emissive.at(EMBER_WARM, Emissive.LABEL), 0.9)
+	_tween.tween_property(_value, ^"modulate", Emissive.at(EMBER_WARM, Emissive.VALUE), 0.9)
 	_tween.tween_property(_value, ^"modulate", Color(1.0, 1.0, 1.0, 1.0), 0.9)

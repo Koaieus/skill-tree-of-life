@@ -104,7 +104,6 @@ RULES = [
                               "texture's payload), not a glow."},
         exempt_files={
             "*emissive*": "the tier table itself — the one place a stop becomes a float.",
-            "*theme.tres": "the Tier* theme_type_variations are authored there.",
         },
         message="hand-picked HDR float in a Color literal — use Emissive.at(base, Emissive.<TIER>) "
                 "or a Tier* theme_type_variation",
@@ -135,7 +134,7 @@ RULES = [
     Rule(
         id="lifecycle-noop",
         doc="docs/domain/scene-composition.md",
-        pattern=re.compile(r"(?m)^\s*func\s+(?:%s)\s*\([^\n]*\)\s*(?:->\s*\w+\s*)?:"
+        pattern=re.compile(r"(?m)^[ \t]*func\s+(?:%s)\s*\([^\n]*\)\s*(?:->\s*\w+\s*)?:"
                            r"\s*(?:pass\s*$|\n\s*pass\s*$)" % LIFECYCLE),
         window=2,
         message="lifecycle override whose body is only `pass` — delete it (an empty "
