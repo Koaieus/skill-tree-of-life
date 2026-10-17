@@ -21,8 +21,9 @@ func test_preset_loads() -> void:
 	assert_not_null(cfg.content.budget_policy)
 	# MinNearStartingPoints + RandomBudgetBoost + the seven landmark
 	# ScenePlacements: titan/archmage/farsight/mythic_ward (#330), the AP
-	# keystone (#886), and natural_xp + the D-23 wisdom keystone (#180).
-	assert_eq(cfg.content.guaranteed_placements.size(), 10)
+	# keystone (#886), natural_xp + the D-23 wisdom keystone (#180), and the
+	# aspect + mystery spirit placements.
+	assert_eq(cfg.content.guaranteed_placements.size(), 12)
 	# Rebalanced in #777: the footprint pass roughly triples a blocker's board
 	# share, so the density that shipped with one-node blockers (10/25/100) would
 	# have put ~42% of an 800-node map under a Dormant Core. 30/50/100 lands at
