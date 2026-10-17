@@ -56,7 +56,7 @@ pick, as an authored `RingDef` resource shown in a modal (never a second graph
 of SkillNodes); T1 count, T2 potency, a keystone cell per sector; cells grant
 through the core register, so they are lootable on death. T3 signatures and
 opposition are a Needs-design child of #199. The point cadence (every 3) is a
-knob, the milestone +1 SP stays. The other shapes in the table are dead.
+knob, the milestone +1 SP stays. The wheel, radar, milestone-draft and literal-inner-graph shapes are dead.
 
 **Settled the same day — the "taken" channel beside this "earned" one:**
 faced Dormant Cores (a per-aspect core class granting size-scaled count /
@@ -78,10 +78,6 @@ equaliser.
 
 | shape | fantasy | costs | kills / awkward |
 |---|---|---|---|
-| **Wheel** — 12 spokes in 6 sectors, 3 tiers each | "I am a Rot Bishop (Wither + Corruption)"; a horoscope of your build | one screen, 36 cells | highest legibility load |
-| **Radar** — 6 school axes 0–5, notches unlock the pair | glanceable polygon | 6 choices | throws away the 12 identities; collides with the six attributes (two 6-axis radars side by side) |
-| **Milestone drafts** — pick 1 of 3 cards | roguelite surprise | loot picker exists, zero UI | not a tree; with 1–3 points a draft is a coin flip |
-| **Inner graph** — 12 real SkillNodes inside the core | the fractal pitch, literally | two allocation UIs, save/sync, AP question | most expensive, least readable |
 | **The Ring** (recommended) — the wheel with adjacency made physical: 12 aspects on a rim in school order, only T1s visible until a neighbour is bought | you *walk* the ring outward from where you started; an arc of 3 is a build, a split across the ring is expensive | one circle, not 36 cells | needs the spoke map (#1249) final |
 
 ### Gating, adjacency, opposition (the Ring)
