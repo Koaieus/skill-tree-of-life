@@ -1,0 +1,20 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://ui/card_fan/card_fan.gd" id="1_fan"]
+
+[node name="CardFan" type="Control"]
+layout_mode = 3
+anchors_preset = 0
+mouse_filter = 2
+script = ExtResource("1_fan")
+
+[node name="Cards" type="Control" parent="."]
+unique_name_in_owner = true
+layout_mode = 0
+mouse_filter = 2
+
+[node name="Hub" type="Button" parent="."]
+unique_name_in_owner = true
+layout_mode = 0
+focus_mode = 0
+text = "Un-pick"

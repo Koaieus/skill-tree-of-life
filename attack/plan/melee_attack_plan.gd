@@ -751,6 +751,10 @@ func can_toggle_temp_upgrade(node: SkillNode, scene: PackedScene) -> bool:
 	return can_apply_temp_upgrade(node, scene)
 
 
+func placeable_temp_kinds(_node: SkillNode, _offered: Array[PackedScene]) -> Array[PackedScene]:
+	return []
+
+
 ## Click-to-toggle entry point for the UI (#406): if `node` already carries
 ## this exact temp upgrade, refund it (same shape as a blade-member toggle);
 ## otherwise try to apply a new one. Returns true if anything changed.

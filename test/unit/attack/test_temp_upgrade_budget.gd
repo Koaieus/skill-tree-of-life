@@ -293,3 +293,50 @@ func test_the_ai_rollout_charges_what_the_plan_charges() -> void:
 	assert_eq(plan.currency_spent(&"blade_size"), int(archetype.get(&"spent", -1)),
 			"the AI's spend is the plan's spend")
 	assert_lte(plan.currency_spent(&"blade_size"), plan.max_blades())
+
+
+# 8 ── placeable_temp_kinds: what the blade-node menu offers on one node ──────
+
+func test_placeable_kinds_are_the_affordable_ones_in_offered_order() -> void:
+	var c3 := _clamp_priced(3, 0)
+	var c2 := _clamp_priced(2, 0)
+	var c4 := _clamp_priced(4, 0)
+	var c2b := _clamp_priced(2, 1)
+	var offered: Array[PackedScene] = [c3, c2, c4, c2b]
+	var ctx: Dictionary = await _setup_chain(3.0, 2, 1)
+	var plan: MeleeAttackPlan = ctx.plan
+	var member: SkillNode = ctx.members[0]
+	assert_eq(plan.currency_remaining(&"blade_size"), 2, "budget for exactly one 2-cost kind")
+	var got := plan.placeable_temp_kinds(member, offered)
+	assert_eq(got, [c2, c2b] as Array[PackedScene], "only the affordable kinds, in offered order")
+
+
+func test_a_kind_carried_on_the_node_stays_placeable_once_the_budget_is_spent() -> void:
+	var c3 := _clamp_priced(3, 0)
+	var c2 := _clamp_priced(2, 0)
+	var c2b := _clamp_priced(2, 1)
+	var offered: Array[PackedScene] = [c3, c2, c2b]
+	var ctx: Dictionary = await _setup_chain(3.0, 2, 2)
+	var plan: MeleeAttackPlan = ctx.plan
+	var members: Array[SkillNode] = []
+	members.assign(ctx.members)
+	_entity.stat_board.blade_size.base_value = 4.0
+	assert_true(plan.apply_temp_upgrade(members[0], c2), "the 2-cost kind fits")
+	assert_eq(plan.currency_remaining(&"blade_size"), 0, "the budget is spent")
+	assert_eq(plan.placeable_temp_kinds(members[0], offered), [c2] as Array[PackedScene],
+			"the carried kind is still offered (a pick refunds it); nothing else is")
+	assert_eq(plan.placeable_temp_kinds(members[1], offered), [] as Array[PackedScene],
+			"a bare node on a spent budget offers nothing")
+
+
+func test_placeable_kinds_keep_the_catalog_order() -> void:
+	var offered := _catalog.offered()
+	var ctx: Dictionary = await _setup_chain(40.0, 2)
+	var plan: MeleeAttackPlan = ctx.plan
+	var got := plan.placeable_temp_kinds(ctx.members[0], offered)
+	assert_false(got.is_empty(), "a roomy budget places something")
+	var last := -1
+	for scene in got:
+		var at := offered.find(scene)
+		assert_gt(at, last, "%s keeps its catalog slot" % scene.resource_path)
+		last = at
