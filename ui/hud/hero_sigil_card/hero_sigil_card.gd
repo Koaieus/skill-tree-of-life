@@ -31,6 +31,14 @@ extends MarginContainer
 ## pops on [signal Events.ring_point_minted] for that hero. The root STOPs
 ## mouse so a click on the card never falls through to the board; every
 ## decorative Control under it IGNOREs so the click reaches the root.
+##
+## [b]The build it wears.[/b] [code]%RingSilhouette[/code], a `read_only`
+## [AspectWheel] behind the portrait, shows the hero's bought ring cells
+## ([RingSilhouette]); it PASSes the mouse (hover names a wedge) and never
+## accepts a click, so the door above still opens. The emblem rim takes the
+## most-invested sector's hue, the hero's colour until a cell is bought. The
+## card reads its [RingTable] from its own [code]%RingRules[/code] [RingSystem]
+## (the same default ring the level's applier samples).
 
 ## The player clicked the card: open the ring for the bound hero.
 signal ring_requested
@@ -47,6 +55,10 @@ signal ring_requested
 @onready var _health_overlay: StatusOverlay = %StatusOverlay
 ## Unspent inner-ring points; hidden at zero.
 @onready var _ring_badge: Label = %RingBadge
+## The bound hero's bought ring cells as a read-only wheel.
+@onready var _silhouette: AspectWheel = %RingSilhouette
+## Where [member _silhouette]'s cell table comes from.
+@onready var _ring_rules: RingSystem = %RingRules
 
 ## World/UI-space anchor floaters rise from (stat gains, wounds, level-ups).
 ## A plain [Node2D] child works as a [FloaterRequest.target] unmodified —
@@ -102,6 +114,7 @@ func bind(entity: Entity) -> void:
 	if _entity == null:
 		_health_overlay.bind(null)
 		_show_ring_points(0)
+		_refresh_silhouette()
 		return
 
 	_name_label.text = _entity.display_name
@@ -111,6 +124,8 @@ func bind(entity: Entity) -> void:
 	_sigil_glyph.visible = sigil != null
 	_emblem_glyph.visible = sigil == null  # fallback glyph for classes with no sigil authored
 	show_level(_entity.level)
+	_refresh_silhouette()
+	_binds.link(_entity.ring_changed, _refresh_silhouette)
 
 	var board := _entity.stat_board
 	if board == null:
@@ -153,6 +168,21 @@ func _on_ring_point_minted(entity: Entity) -> void:
 	_badge_tween = create_tween()
 	_badge_tween.tween_property(_ring_badge, ^"scale", Vector2.ONE, badge_pulse_s) \
 			.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+
+
+## Rebuild the wheel from the bound hero's `ring_spent`, and lend the rim the
+## dominant sector's hue (the hero's own colour while nothing is bought).
+func _refresh_silhouette() -> void:
+	if _silhouette == null:
+		return
+	var table: RingTable = _ring_rules.table() if _ring_rules != null else null
+	if _entity == null or table == null:
+		_silhouette.bind([] as Array[AspectWheelEntry])
+		return
+	_silhouette.bind(RingSilhouette.entries(table, _entity.ring_spent))
+	var sector := RingSilhouette.dominant_sector(table, _entity.ring_spent)
+	if _emblem_ring != null:
+		_emblem_ring.entity_tint = sector.tint if sector != null else _entity.color
 
 
 ## Paint the whole portrait — ring, sigil, fallback glyph — in the bound hero's
