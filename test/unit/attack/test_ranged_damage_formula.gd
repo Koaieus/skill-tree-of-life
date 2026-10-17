@@ -195,3 +195,23 @@ func test_riders_for_is_empty_without_on_hit_effects() -> void:
 	var hit := RangedDamageFormula.compute(null, firing, target, ammo)
 	assert_eq(RangedDamageFormula.riders_for(hit).size(), 0)
 	assert_eq(RangedDamageFormula.riders_for(RangedDamageFormula.compute(null, firing, target)).size(), 0)
+
+
+func test_shot_stamps_the_firing_nodes_armor_pierce() -> void:
+	var firing := _owned_node()
+	await get_tree().process_frame
+	var target := _NODE_SCENE.instantiate() as SkillNode
+	autofree(target)
+	assert_null(RangedDamageFormula.compute(null, firing, target).armor_pierce, "no pierce anywhere → null")
+	var m := StatModifier.new()
+	m.stat_id = &"armor_pierce"
+	m.operation = StatModifier.Operation.ADD_BASE
+	m.value = -3.0
+	firing.add_local_modifier(m)
+	var hit := RangedDamageFormula.compute(null, firing, target)
+	assert_not_null(hit.armor_pierce)
+	assert_almost_eq(hit.armor_pierce.fold(5.0), 2.0, 0.001)
+	var ammo := AmmoType.new()
+	ammo.uses_board_pierce = false
+	assert_null(RangedDamageFormula.compute(null, firing, target, ammo).armor_pierce,
+		"the arrow type opts out of the board's pierce")

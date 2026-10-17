@@ -256,3 +256,20 @@ func _targets_of(hits: Array[HitInstance]) -> Array[SkillNode]:
 	for h in hits:
 		out.append(h.target)
 	return out
+
+
+func test_the_paired_damage_copy_stamps_its_read_nodes_armor_pierce() -> void:
+	var m := StatModifier.new()
+	m.stat_id = &"armor_pierce"
+	m.operation = StatModifier.Operation.ADD_BASE
+	m.value = -3.0
+	_f.target.add_local_modifier(m)
+	var landing := HitLanding.new()
+	landing.attacker = _f.attacker
+	landing.target = _f.target
+	landing.read_node = _f.target
+	landing.raw_amount = RAW
+	PairedDamageEffect.new().apply(landing)
+	var hit := landing.hits[0] as DamageInstance
+	assert_not_null(hit.armor_pierce)
+	assert_almost_eq(hit.armor_pierce.fold(5.0), 2.0, 0.001)
