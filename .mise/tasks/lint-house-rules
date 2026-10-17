@@ -1,0 +1,322 @@
+#!/usr/bin/env python3
+#MISE description="Fail on a regex-grade house-rule violation: `mise run lint-house-rules [-- --json|--rule <id>|--self-test]`"
+"""
+Table-driven lint for the house rules a regex can see. Each rule is one row of
+`RULES`; one loop applies every row to every tracked file in its scope.
+
+  CRITERION: a rule a regex over one line (or a short window of lines) can
+  express is a ROW here. A rule that needs a parse tree is its own task
+  (`lint-editor-hint-guard`, `lint-scene-instance-depth`, `lint-instanced-anchors`
+  are). Never bolt a parser onto this table — a row that wants one has outgrown it.
+
+A row's `doc` is the `docs/domain/*.md` its breadcrule points at; the violation
+line names it, so the reader lands on the why, not on this file.
+
+Output: `path:line  [row-id] message → see doc`. Exit 1 on any violation — a gate,
+unlike `rules-hygiene`. `--json` prints `{"violations": [...], "exempted": [...]}`;
+`--rule <id>` runs one row; `--self-test` feeds every row its positive and
+negative fixture (and the inline escape) and asserts all three.
+
+  EXEMPTION DISCIPLINE (as `lint-transcendentals`): every `exempt_dirs` /
+  `exempt_files` entry carries a REASON, and the reason states the condition
+  under which it stops being true. "Out of scope" is not a reason. A single
+  line escapes with a trailing `# lint: <row-id> — <reason>` on the reported
+  line; the reason is mandatory by convention, and the hit is still listed
+  under `exempted` in `--json`.
+"""
+import fnmatch
+import json
+import re
+import subprocess
+import sys
+from dataclasses import dataclass, field
+from typing import Callable, Optional
+
+# Never scanned by any row: vendored code, not ours to hold to house rules.
+GLOBAL_EXCLUDE = ("addons/", "native/godot-cpp/")
+
+TEST_DIR = {"test/": "tests arrange states gameplay never may, and assert the "
+                     "forbidden form on purpose to pin it."}
+
+
+@dataclass
+class Rule:
+    id: str
+    doc: str
+    pattern: re.Pattern
+    message: str
+    pos: str                       # fixture that MUST hit (self-test)
+    neg: str                       # fixture that must NOT hit (self-test)
+    window: int = 1                # lines joined with "\n" and matched at line i
+    scope: list = field(default_factory=lambda: ["*.gd"])
+    exempt_dirs: dict = field(default_factory=dict)
+    exempt_files: dict = field(default_factory=dict)   # fnmatch globs
+    # Optional refinement over a match, for a fact a regex states badly (a
+    # numeric comparison). Still regex-grade: it sees the match, never a tree.
+    predicate: Optional[Callable[[re.Match], bool]] = None
+
+
+def _any_component_over_one(m):
+    for part in m.group(1).split(","):
+        part = part.strip()
+        if re.fullmatch(r"\d*\.?\d+", part) and float(part) > 1.0:
+            return True
+    return False
+
+
+LIFECYCLE = "_ready|_process|_physics_process|_input|_unhandled_input|_draw|_enter_tree|_exit_tree|_notification"
+
+RULES = [
+    Rule(
+        id="degree",
+        doc="docs/domain/degree.md",
+        # One nesting level inside the call, so `get_neighbours(a.b(c)).size()`
+        # hits but `get_neighbours(n).filter(f).size()` (a filtered count) does not.
+        pattern=re.compile(r"[^\n]*\bget_neighbours\([^()\n]*(?:\([^()\n]*\)[^()\n]*)*\)\s*\\?\n?\s*\.size\(\)"),
+        window=2,
+        exempt_dirs=TEST_DIR,
+        message="degree via get_neighbours().size() — use SkillNode.get_entity_degree / "
+                "get_graph_degree or GraphMirror.get_degree",
+        pos="var d := graph.get_neighbours(n).size()\nvar e := graph.get_neighbours(n)\\\n\t\t.size()",
+        neg="var ns := graph.get_neighbours(n)\nvar k := graph.get_neighbours(n).filter(f).size()",
+    ),
+    Rule(
+        id="pause",
+        doc="docs/domain/modal-system.md",
+        pattern=re.compile(r"\bget_tree\(\)\.paused\s*=(?!=)"),
+        exempt_dirs=TEST_DIR,
+        exempt_files={
+            "ui/pause_menu.gd": "the two sanctioned pause owners (with "
+                "frontmatter_input.gd) — void if a third pause door is designed.",
+            "ui/frontmatter/frontmatter_input.gd": "the two sanctioned pause "
+                "owners — see ui/pause_menu.gd.",
+        },
+        message="get_tree().paused written — raise a modal through HudRoot._enqueue_modal",
+        pos="\tget_tree().paused = true",
+        neg="\tif get_tree().paused == true:\n\t\tpass",
+    ),
+    Rule(
+        id="hdr-float",
+        doc="docs/domain/hdr-color.md",
+        pattern=re.compile(r"\bColor\(([^()\n]*)\)"),
+        predicate=_any_component_over_one,
+        exempt_dirs={"test/": "a Color there is often a data texel (a float "
+                              "texture's payload), not a glow."},
+        exempt_files={
+            "*emissive*": "the tier table itself — the one place a stop becomes a float.",
+            "*theme.tres": "the Tier* theme_type_variations are authored there.",
+        },
+        message="hand-picked HDR float in a Color literal — use Emissive.at(base, Emissive.<TIER>) "
+                "or a Tier* theme_type_variation",
+        pos="\tmodulate = Color(1.3, 1.2, 1.0, 1.0)",
+        neg="\tmodulate = Color(1.0, 0.5, 0.25, 1)\n\tvar c := Color(a, b, 2 * x)",
+    ),
+    Rule(
+        id="base-value-write",
+        doc="docs/domain/stat-knobs-and-bins.md",
+        pattern=re.compile(r"^(?!\s*var\b)[^\n]*\.base_value\s*=(?!=)"),
+        exempt_dirs={
+            "stats_system/": "the stat system owns base_value; this is the door.",
+            "scenes/dev/": "dev sandboxes force stats to stage a scene — never "
+                           "on a shipped path.",
+            "tools/": "in-editor balance/probe tooling, not a shipped path.",
+            **TEST_DIR,
+        },
+        exempt_files={
+            "skill_node/skill_node.gd": "pushes the node's authored backing values "
+                "into its board — void if authored values move into the board itself.",
+            "entity/entity.gd": "the scripted-setup hook that seeds an entity's "
+                "start — void if setup goes through the stat door.",
+        },
+        message="base_value written in gameplay code — use the stat door (modifier / bin)",
+        pos="\tboard.get_stat(&\"hp\").base_value = 5",
+        neg="\tvar base_value = 5\n\tif s.base_value == 5:\n\t\ts.base_value += 1",
+    ),
+    Rule(
+        id="lifecycle-noop",
+        doc="docs/domain/scene-composition.md",
+        pattern=re.compile(r"(?m)^\s*func\s+(?:%s)\s*\([^\n]*\)\s*(?:->\s*\w+\s*)?:"
+                           r"\s*(?:pass\s*$|\n\s*pass\s*$)" % LIFECYCLE),
+        window=2,
+        message="lifecycle override whose body is only `pass` — delete it (an empty "
+                "override silently replaces the parent's hook)",
+        pos="func _ready() -> void:\n\tpass\nfunc _process(_d: float) -> void: pass",
+        neg="func _ready() -> void:\n\tsuper()\nfunc on_hook() -> void:\n\tpass",
+    ),
+    Rule(
+        id="global-position-before-add-child",
+        doc=".claude/rules/gdscript-pitfalls.md",
+        # Same object, same indent block, add_child within six lines: the write
+        # lands in `position` because the node has no parent yet.
+        pattern=re.compile(r"^(\t*)(?!\t)[^\n]*?\b(\w+)\.global_position\s*=(?!=)[^\n]*\n"
+                           r"(?:\1[^\n]*\n|\n){0,4}\1[^\n]*\badd_child\(\s*\2\b"),
+        window=6,
+        exempt_dirs=TEST_DIR,
+        exempt_files={
+            "ui/vfx/projectile/visual/trail_blazer_edge_visual.gd": "the ring is "
+                "`top_level = true`, so position IS global — void if top_level goes.",
+        },
+        message="global_position set before add_child — it silently writes position; add_child first",
+        pos="\tvar fx := S.instantiate()\n\tfx.global_position = p\n\tfx.z = 1\n\tadd_child(fx)",
+        neg="\tadd_child(fx)\n\tfx.global_position = p\n\tglobal_position = q\n\tadd_child(other)",
+    ),
+    Rule(
+        id="shader-param-on-node",
+        doc="docs/domain/rendering-performance.md",
+        pattern=re.compile(r"\bset(?:_instance)?_shader_parameter\("),
+        # skill_node/visuals/* and gate_rope.gd are sanctioned material owners.
+        scope=["skill_node/skill_node.gd", "graph/edge.gd"],
+        message="shader parameter set on the node root — per-instance variation goes in "
+                "modulate / UV / INSTANCE_CUSTOM, or in a visual that owns its material",
+        pos="\tmaterial.set_shader_parameter(&\"glow\", 2.0)",
+        neg="\tmodulate = tint",
+    ),
+]
+
+
+def strip_gd_comment(line):
+    """Drop a trailing `#` comment, ignoring `#` inside a string literal."""
+    out, quote = [], None
+    for ch in line:
+        if quote:
+            out.append(ch)
+            if ch == quote:
+                quote = None
+        elif ch in "\"'":
+            quote = ch
+            out.append(ch)
+        elif ch == "#":
+            break
+        else:
+            out.append(ch)
+    return "".join(out)
+
+
+def code_lines(raw_lines):
+    """Comment-stripped lines, DENSE: a `##` doc line is blanked, never dropped,
+    so index + 1 stays the line number and window rows see real neighbours."""
+    return ["" if r.lstrip().startswith("##") else strip_gd_comment(r) for r in raw_lines]
+
+
+def escaped(raw, rule_id):
+    return re.search(r"#\s*lint:\s*%s\b" % re.escape(rule_id), raw) is not None
+
+
+def match_lines(rule, raw_lines):
+    """Yield (lineno, text) for every line where `rule` hits, before exemptions."""
+    code = code_lines(raw_lines)
+    for i in range(len(code)):
+        text = "\n".join(code[i:i + rule.window]) if rule.window > 1 else code[i]
+        m = rule.pattern.match(text) if rule.window > 1 else rule.pattern.search(text)
+        if m is None:
+            continue
+        if rule.window == 1 and rule.predicate is not None:
+            if not any(rule.predicate(x) for x in rule.pattern.finditer(text)):
+                continue
+        elif rule.predicate is not None and not rule.predicate(m):
+            continue
+        yield i + 1, code[i]
+
+
+def in_scope(rule, path):
+    return any(fnmatch.fnmatch(path, g) for g in rule.scope)
+
+
+def exemption_for(rule, path):
+    for d, why in rule.exempt_dirs.items():
+        if path.startswith(d):
+            return why
+    for g, why in rule.exempt_files.items():
+        if fnmatch.fnmatch(path, g):
+            return why
+    return None
+
+
+def tracked_files():
+    out = subprocess.run(["git", "ls-files", "-z"], capture_output=True, text=True)
+    if out.returncode != 0:
+        print("lint-house-rules: not a git checkout", file=sys.stderr)
+        sys.exit(2)
+    return [p for p in out.stdout.split("\0")
+            if p and not p.startswith(GLOBAL_EXCLUDE)]
+
+
+def scan(rules):
+    hits, exempted = [], []
+    for path in tracked_files():
+        active = [r for r in rules if in_scope(r, path)]
+        if not active:
+            continue
+        with open(path, encoding="utf-8", errors="replace") as fh:
+            raw = fh.read().split("\n")
+        for rule in active:
+            why = exemption_for(rule, path)
+            for lineno, text in match_lines(rule, raw):
+                rec = {"file": path, "line": lineno, "rule": rule.id,
+                       "doc": rule.doc, "text": text.strip()[:120]}
+                if why is None and escaped(raw[lineno - 1], rule.id):
+                    rec["reason"] = "inline escape: " + raw[lineno - 1].split("#", 1)[-1].strip()
+                    exempted.append(rec)
+                elif why is not None:
+                    rec["reason"] = why
+                    exempted.append(rec)
+                else:
+                    rec["message"] = rule.message
+                    hits.append(rec)
+    return hits, exempted
+
+
+def self_test(rules):
+    ok = True
+    for r in rules:
+        pos = r.pos.split("\n")
+        pos_hits = list(match_lines(r, pos))
+        neg_hits = list(match_lines(r, r.neg.split("\n")))
+        if not pos_hits:
+            print(f"  ✗ [{r.id}] positive fixture did not hit")
+            ok = False
+        if neg_hits:
+            print(f"  ✗ [{r.id}] negative fixture hit at line(s) {[n for n, _ in neg_hits]}")
+            ok = False
+        for n, _ in pos_hits:
+            if not escaped(pos[n - 1] + "  # lint: %s — self-test" % r.id, r.id):
+                print(f"  ✗ [{r.id}] inline escape not recognised")
+                ok = False
+    print("✓ lint-house-rules self-test (%d rows)" % len(rules) if ok
+          else "✗ lint-house-rules self-test failed")
+    return 0 if ok else 1
+
+
+def main(argv):
+    rules = RULES
+    if "--rule" in argv:
+        i = argv.index("--rule")
+        want = argv[i + 1] if i + 1 < len(argv) else ""
+        rules = [r for r in RULES if r.id == want]
+        if not rules:
+            print(f"lint-house-rules: no row `{want}` — rows: "
+                  + ", ".join(r.id for r in RULES), file=sys.stderr)
+            return 2
+    if "--self-test" in argv:
+        return self_test(rules)
+
+    hits, exempted = scan(rules)
+    if "--json" in argv:
+        print(json.dumps({"violations": hits, "exempted": exempted}, indent=2))
+        return 1 if hits else 0
+
+    print(f"Scanned tracked files against {len(rules)} row(s) — "
+          f"{len(exempted)} exempted hit(s).")
+    if not hits:
+        print("\n✓ no house-rule violations")
+        return 0
+    print(f"\n{len(hits)} violation(s):")
+    for h in hits:
+        print(f"  {h['file']}:{h['line']}  [{h['rule']}] {h['message']} → see {h['doc']}")
+    print("\nFix it, or — if the rule truly does not apply — exempt it in this file WITH a")
+    print("reason that says when the exemption ends, or a trailing `# lint: <row-id> — <reason>`.")
+    return 1
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))
