@@ -350,7 +350,7 @@ func test_the_spend_pips_live_on_their_own_row_with_no_orphan_divider() -> void:
 	assert_eq(spent.get_parent().name, StringName("SpentRow"))
 
 
-# ── Z / X arm the temp-upgrade cards, by catalog INDEX ───────────────────────
+# ── Z–B arm the quickbar's favourites, by SLOT ───────────────────────────────
 
 func _press(action: StringName) -> void:
 	var ev := InputEventKey.new()
@@ -361,17 +361,63 @@ func _press(action: StringName) -> void:
 	_ctl._unhandled_key_input(ev)
 
 
-func test_z_and_x_arm_the_first_two_catalog_entries() -> void:
+func _slots() -> Array[PackedScene]:
+	return _ctl.temp_quickbar().slots
+
+
+func test_z_and_x_arm_the_first_two_quickbar_slots() -> void:
 	await _build_star(3)
 	await _mount_body(2)
+	assert_not_null(_slots()[0], "fixture check: the first melee plan autofilled slot 1")
+	assert_not_null(_slots()[1], "fixture check: ...and slot 2")
 
 	_press(&"ui_temp_upgrade_1")
-	assert_eq(_ctl.temp_upgrade_arm(), _catalog.offered()[0],
-			"Z arms catalog slot 0 — by INDEX, never by name")
+	assert_eq(_ctl.temp_upgrade_arm(), _slots()[0],
+			"Z arms quickbar slot 1 — by SLOT, never by name")
 
 	_press(&"ui_temp_upgrade_2")
-	assert_eq(_ctl.temp_upgrade_arm(), _catalog.offered()[1],
-			"X arms catalog slot 1")
+	assert_eq(_ctl.temp_upgrade_arm(), _slots()[1],
+			"X arms quickbar slot 2")
+
+
+func test_the_first_melee_plan_autofills_with_what_the_player_can_place() -> void:
+	await _build_star(3)
+	await _mount_body(2)
+	var available := _ctl.available_temp_kinds()
+	for i in _slots().size():
+		assert_eq(_slots()[i], available[i] if i < available.size() else null,
+				"slot %d holds the %d-th placeable kind, in catalog order" % [i, i])
+	for scene in available:
+		for id in SkillNodeAddon.temp_costs_of(scene):
+			if id != &"blade_size":
+				assert_gt(AspectCurrency.cap_of(_player, id), 0,
+						"a kind costing an aspect held at 0 is not placeable")
+
+
+func test_a_right_click_swap_puts_the_pick_in_that_slot_and_pins_it() -> void:
+	await _build_star(3)
+	var body := await _mount_body(2)
+	var row: HBoxContainer = body.get_node("%Quickbar")
+	var right := InputEventMouseButton.new()
+	right.button_index = MOUSE_BUTTON_RIGHT
+	right.pressed = true
+	(row.get_child(3) as Control).gui_input.emit(right)
+	var fan := body.get_node("%SwapFan") as CardFan
+	assert_true(fan.visible, "right-click on a slot opens the swap picker")
+	assert_eq(body.swap_slot(), 3)
+	assert_eq(fan.cards().size(), _ctl.available_temp_kinds().size(),
+			"the picker lists every kind the player can place")
+
+	var pick := _slots()[0]
+	fan.picked.emit(pick)
+	assert_false(fan.visible, "a pick closes the picker")
+	assert_eq(_slots()[3], pick, "the picked scene lands in the right-clicked slot")
+	assert_true(_ctl.temp_quickbar().pinned[3], "a manual swap pins its slot")
+	assert_null(_slots()[0], "the kind moved rather than doubling")
+	await get_tree().process_frame
+	assert_true(row.get_child(3) is TempUpgradeButton, "the row repainted the swapped slot")
+	_press(&"ui_temp_upgrade_4")
+	assert_eq(_ctl.temp_upgrade_arm(), pick, "its key arms the swapped-in kind")
 
 
 func test_re_pressing_the_same_key_cancels_the_arm() -> void:
@@ -408,26 +454,33 @@ func test_the_keys_are_dead_when_the_player_cannot_act() -> void:
 	assert_null(_ctl.temp_upgrade_arm())
 
 
-func test_an_index_past_the_catalog_is_a_silent_no_op() -> void:
-	# The binding is positional, so growing the keycap list ahead of the catalog
-	# (or shrinking the catalog) must not crash — it just does nothing.
+func test_an_empty_slot_is_a_silent_no_op() -> void:
+	# The binding is positional, so an empty slot (or one past the bar) must not
+	# crash — it just does nothing.
 	await _build_star(3)
 	await _mount_body(2)
-	assert_false(_ctl._arm_temp_upgrade_at(_catalog.offered().size()),
-			"an out-of-range slot is unconsumed, leaving the key free downstream")
+	_ctl.temp_quickbar().swap(0, null)
+	assert_null(_slots()[0], "fixture check: slot 1 is empty")
+	assert_false(_ctl._arm_temp_upgrade_at(0),
+			"an empty slot is unconsumed, leaving the key free downstream")
+	assert_false(_ctl._arm_temp_upgrade_at(_slots().size()), "so is one past the bar")
 	assert_null(_ctl.temp_upgrade_arm())
 
 
 func test_the_cards_print_the_key_that_arms_them() -> void:
 	# The character comes from PlayerInputController, not a literal in the card
-	# scene — so a third catalog entry gets its keycap by adding ONE entry there.
+	# scene — so a sixth slot gets its keycap by adding ONE entry there.
 	await _build_star(3)
 	var body := await _mount_body(2)
-	var row: HBoxContainer = body.get_node("%UpgradeRow")
-	assert_eq(row.get_child_count(), _catalog.offered().size(),
-			"one card per catalog entry")
+	var row: HBoxContainer = body.get_node("%Quickbar")
+	assert_eq(row.get_child_count(), PlayerInputController.TEMP_UPGRADE_HOTKEYS.size(),
+			"one slot per arming key, whatever the catalog holds")
 	for i in row.get_child_count():
 		var card := row.get_child(i) as TempUpgradeButton
+		assert_eq(card != null, _slots()[i] != null,
+				"slot %d is a card iff it holds a favourite" % i)
+		if card == null:
+			continue
 		var cap := PlayerInputController.temp_upgrade_keycap(i)
 		assert_eq(card.keycap, cap, "card %d must print its own bound key" % i)
 		# The glyph moved out of the title and into the shared corner KeyChip
@@ -485,3 +538,26 @@ func test_the_hotkeys_do_not_steal_the_debug_clipboard_key() -> void:
 func _attack_mode() -> BattleSystem.AttackMode:
 	var level := _ctl.armed_stack.find(AttackArmMode) as AttackArmMode
 	return level.mode if level != null else BattleSystem.AttackMode.NONE
+
+
+func test_an_aspect_gained_from_zero_fills_the_next_open_slot_with_its_kinds() -> void:
+	await _build_star(3)
+	await _mount_body(2)
+	var aspect := &""
+	var costed: PackedScene = null
+	for scene in _catalog.offered():
+		for id in SkillNodeAddon.temp_costs_of(scene):
+			if id != &"blade_size" and AspectCurrency.cap_of(_player, id) == 0 \
+					and _player.stat_board.get_stat(id) != null:
+				aspect = id
+				costed = scene
+	assert_ne(aspect, &"", "fixture check: some offered kind costs an aspect held at 0")
+	assert_false(_slots().has(costed), "fixture check: it is not on the bar yet")
+	var before := _slots().duplicate()
+	assert_true(before.has(null), "fixture check: the bar has an open slot")
+
+	_player.stat_board.get_stat(aspect).base_value = 1.0
+	assert_true(_slots().has(costed), "0 → 1 of %s puts its kind on the bar" % aspect)
+	for i in before.size():
+		if before[i] != null:
+			assert_eq(_slots()[i], before[i], "slot %d was filled, so it is untouched" % i)

@@ -10,7 +10,8 @@ extends CommandTrayBodyBase
 @onready var _blade_blips: CapacityBlips = %BladeBlips
 @onready var _upgrade_blips: CapacityBlips = %UpgradeBlips
 @onready var _count_label: Label = %CountLabel
-@onready var _upgrade_row: HBoxContainer = %UpgradeRow
+@onready var _quickbar_row: HBoxContainer = %Quickbar
+@onready var _swap_fan: CardFan = %SwapFan
 @onready var _swing_button: Button = %SwingButton
 @onready var _reform_button: Button = %ReformButton
 @onready var _reset_button: Button = %ResetButton
@@ -57,6 +58,11 @@ func _on_bound() -> void:
 	_upgrade_blips.pip_hover_changed.connect(_on_pip_hover_changed)
 	_fuse_scrubber.edited.connect(_refresh)
 	_fuse_scrubber.marker_hovered.connect(_on_fuse_marker_hovered)
+	_swap_fan.picked.connect(_on_swap_picked)
+	_swap_fan.dismissed.connect(_close_swap_fan)
+	_quickbar = _input_ctl.temp_quickbar() if _input_ctl != null else TempQuickbar.new()
+	if not _quickbar.changed.is_connected(_on_quickbar_changed):
+		_quickbar.changed.connect(_on_quickbar_changed)
 	_build_upgrade_buttons()
 	_refresh()
 
@@ -81,6 +87,13 @@ func teardown() -> void:
 		_fuse_scrubber.edited.disconnect(_refresh)
 	if _fuse_scrubber.marker_hovered.is_connected(_on_fuse_marker_hovered):
 		_fuse_scrubber.marker_hovered.disconnect(_on_fuse_marker_hovered)
+	if _swap_fan.picked.is_connected(_on_swap_picked):
+		_swap_fan.picked.disconnect(_on_swap_picked)
+	if _swap_fan.dismissed.is_connected(_close_swap_fan):
+		_swap_fan.dismissed.disconnect(_close_swap_fan)
+	if _quickbar != null and _quickbar.changed.is_connected(_on_quickbar_changed):
+		_quickbar.changed.disconnect(_on_quickbar_changed)
+	_close_swap_fan()
 	_push_fuse_stranded([] as Array[SkillNode])
 	_clear_hover()
 
@@ -134,30 +147,96 @@ func _clear_hover() -> void:
 const _UPGRADE_BUTTON := preload("res://ui/hud/command_tray/bodies/temp_upgrade_button.tscn")
 
 
-## One button per addon scene in [method BattleSystem.temp_upgrade_kinds]
-## (#406) — a future catalog addition (e.g. the filed "edge sharpener") is a
-## `temp_placeable` scene dropped in the catalog's folder, zero changes here.
-## Cost comes off the scene; label and glyph come off a throwaway instance of the addon's own
-## scene (#465), since the addon scene is the source of truth for its own
-## art: the icon here and the one [TempUpgradeMode] puts on the cursor
-## are the same authored [member SkillNodeAddon.icon], never two copies.
+## The player's Z–B favourites this row shows ([TempQuickbar]), from their
+## seat memory; repainted on its [signal TempQuickbar.changed].
+var _quickbar: TempQuickbar
+## The slot the open swap picker replaces, or -1 while it is closed.
+var _swap_slot := -1
+
+
+## One fixed slot per arming key ([constant PlayerInputController.TEMP_UPGRADE_HOTKEYS])
+## — the row never grows with the catalog. A filled slot is a card for its
+## scene; an empty one a same-width placeholder. Cost comes off the scene;
+## label and glyph off a throwaway instance of the addon's own scene (#465),
+## the same authored [member SkillNodeAddon.icon] [TempUpgradeMode] puts on
+## the cursor. Right-click on any slot opens the swap picker.
 func _build_upgrade_buttons() -> void:
-	for child in _upgrade_row.get_children():
+	for child in _quickbar_row.get_children():
+		_quickbar_row.remove_child(child)
 		child.queue_free()
-	var kinds := _battle_system.temp_upgrade_kinds()
-	for i in kinds.size():
-		var upgrade := kinds[i]
-		var tmp := upgrade.instantiate() as SkillNodeAddon
-		var btn := _UPGRADE_BUTTON.instantiate() as TempUpgradeButton
-		btn.label_text = tmp.get_tooltip_title()
-		btn.keycap = PlayerInputController.temp_upgrade_keycap(i)
-		btn.icon_texture = tmp.icon
-		btn.costs = SkillNodeAddon.temp_costs_of(upgrade)
-		tmp.free()
-		btn.accent = _upgrade_color(upgrade)
-		if _input_ctl != null:
-			btn.pressed.connect(_input_ctl.arm_temp_upgrade.bind(upgrade))
-		_upgrade_row.add_child(btn)
+	for i in _quickbar.slots.size():
+		var upgrade := _quickbar.scene_at(i)
+		var slot: Control
+		if upgrade == null:
+			slot = Control.new()
+			slot.custom_minimum_size = Vector2(_SLOT_WIDTH, 0.0)
+			slot.mouse_filter = Control.MOUSE_FILTER_STOP
+		else:
+			var tmp := upgrade.instantiate() as SkillNodeAddon
+			var btn := _UPGRADE_BUTTON.instantiate() as TempUpgradeButton
+			btn.label_text = tmp.get_tooltip_title()
+			btn.icon_texture = tmp.icon
+			tmp.free()
+			btn.keycap = PlayerInputController.temp_upgrade_keycap(i)
+			btn.costs = SkillNodeAddon.temp_costs_of(upgrade)
+			btn.accent = _upgrade_color(upgrade)
+			if _input_ctl != null:
+				btn.pressed.connect(_input_ctl.arm_temp_upgrade.bind(upgrade))
+			slot = btn
+		slot.gui_input.connect(_on_slot_gui_input.bind(i))
+		_quickbar_row.add_child(slot)
+
+
+## An empty slot's width: a [TempUpgradeButton]'s fixed card width.
+const _SLOT_WIDTH := 128.0
+
+
+func _on_quickbar_changed() -> void:
+	_close_swap_fan()
+	_build_upgrade_buttons()
+	_refresh()
+
+
+func _on_slot_gui_input(event: InputEvent, i: int) -> void:
+	var mb := event as InputEventMouseButton
+	if mb != null and mb.pressed and mb.button_index == MOUSE_BUTTON_RIGHT:
+		accept_event()
+		open_swap_picker(i)
+
+
+## Opens the [CardFan] swap picker at slot [param i]: every kind the player
+## could place ([method PlayerInputController.available_temp_kinds]), the
+## slot's current one lit. A pick swaps it in and pins the slot.
+func open_swap_picker(i: int) -> void:
+	if _input_ctl == null or i < 0 or i >= _quickbar_row.get_child_count():
+		return
+	_swap_slot = i
+	var current := _quickbar.scene_at(i)
+	var lit: Array[PackedScene] = []
+	if current != null:
+		lit.append(current)
+	_swap_fan.bind(_input_ctl.available_temp_kinds(), SkillNodeAddon.temp_costs_of, lit)
+	var slot := _quickbar_row.get_child(i) as Control
+	_swap_fan.global_position = slot.get_global_rect().get_center()
+	_swap_fan.visible = true
+
+
+## The open swap picker's slot, or -1 while it is closed.
+func swap_slot() -> int:
+	return _swap_slot
+
+
+func _on_swap_picked(scene: PackedScene) -> void:
+	var i := _swap_slot
+	_close_swap_fan()
+	if i >= 0:
+		_quickbar.swap(i, scene)
+
+
+func _close_swap_fan() -> void:
+	_swap_slot = -1
+	if _swap_fan != null:
+		_swap_fan.visible = false
 
 
 ## Rebuild the last launched blade (#466) — it does NOT launch, so the shape
@@ -251,10 +330,11 @@ func _refresh() -> void:
 	# and "not selected" are three different sentences and the card paints them
 	# as three. Which of them wins visually is TempUpgradeButton.state's call.
 	var arm: PackedScene = _input_ctl.temp_upgrade_arm() if _input_ctl != null else null
-	var kinds := _battle_system.temp_upgrade_kinds()
-	for i in kinds.size():
-		var upgrade := kinds[i]
-		var btn := _upgrade_row.get_child(i) as TempUpgradeButton
+	for i in mini(_quickbar.slots.size(), _quickbar_row.get_child_count()):
+		var upgrade := _quickbar.scene_at(i)
+		var btn := _quickbar_row.get_child(i) as TempUpgradeButton
+		if upgrade == null or btn == null:
+			continue
 		btn.armed = arm == upgrade
 		# The card shows the NEXT one's price: it escalates with the plan.
 		btn.costs = plan.next_temp_costs(upgrade) if plan != null \

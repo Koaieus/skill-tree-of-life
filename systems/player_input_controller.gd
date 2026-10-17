@@ -196,6 +196,7 @@ func _ready() -> void:
 	Events.node_action_denied.connect(_on_node_action_denied)
 
 	armed_stack.attack_plan_changed.connect(_refresh_armed_state.unbind(1))
+	armed_stack.attack_plan_changed.connect(_on_attack_plan_opened)
 	if battle_system != null:
 		# ...and plan *state*, not just plan lifecycle (#683). The melee badge
 		# now reads the pivot, which moves inside a plan that never changes
@@ -675,11 +676,9 @@ func _unhandled_key_input(event: InputEvent) -> void:
 		request_gate_action(GateAction.TOGGLE_UNLOCKED)
 		get_viewport().set_input_as_handled()
 		return
-	# Z / X arm the temp-upgrade cards by CATALOG INDEX, never by name (#718).
-	# `BattleSystem.temp_upgrade_kinds()` is data — the filed "edge sharpener"
-	# should light up on the next key with zero changes here — so the binding is
-	# a positional walk and an out-of-range index is a silent no-op rather than
-	# a crash on a catalog that shrank.
+	# Z–B arm the player's quickbar favourites by SLOT, never by name: the
+	# binding is a positional walk over `TempQuickbar.slots`, and an empty slot
+	# is a silent unconsumed no-op.
 	for i in TEMP_UPGRADE_HOTKEYS.size():
 		if event.is_action_pressed(TEMP_UPGRADE_HOTKEYS[i]) and _arm_temp_upgrade_at(i):
 			get_viewport().set_input_as_handled()
@@ -693,7 +692,8 @@ func _unhandled_key_input(event: InputEvent) -> void:
 			return
 
 
-## The arming actions, in catalog order. `TempUpgradeButton` prints the key
+## The arming actions, in quickbar-slot order; their count IS the slot count
+## ([TempQuickbar]). `TempUpgradeButton` prints the key
 ## bound to the SAME action on its card ([method temp_upgrade_keycap], passed
 ## in by `MeleeBody`) — so the label and the binding can never drift, and
 ## adding a third addon means adding one entry here plus its InputMap action.
@@ -731,8 +731,8 @@ static func spell_keycap(index: int) -> String:
 	return str(index + 1)
 
 
-## The keycap `MeleeBody` prints on catalog entry [param index]'s card, or ""
-## when the catalog has outgrown the bound keys (an unbound card just shows no
+## The keycap `MeleeBody` prints on quickbar slot [param index]'s card, or ""
+## past the bound keys (an unbound card just shows no
 ## keycap rather than a wrong one). DERIVED from the InputMap through
 ## [method KeyChip.keycap_for], never a hand-typed parallel list — rebind the
 ## action in `project.godot` and the card follows.
@@ -742,10 +742,10 @@ static func temp_upgrade_keycap(index: int) -> String:
 	return KeyChip.keycap_for(TEMP_UPGRADE_HOTKEYS[index])
 
 
-## Arms catalog entry [param index], but only while MELEE is the active attack
+## Arms quickbar slot [param index]'s favourite, but only while MELEE is the active attack
 ## mode — the cards these mirror only exist in the melee tray, so the keys are
 ## modal exactly like the tray is. Returns whether the key was consumed, so an
-## unbound index leaves the key free for anything downstream.
+## empty or unbound slot leaves the key free for anything downstream.
 ##
 ## Re-press cancels, because it goes through the same [method arm_temp_upgrade]
 ## toggle the card click already uses — one door, not a parallel one.
@@ -754,10 +754,10 @@ func _arm_temp_upgrade_at(index: int) -> bool:
 		return false
 	if not can_player_act():
 		return false
-	var kinds := battle_system.temp_upgrade_kinds()
-	if index < 0 or index >= kinds.size():
+	var scene := temp_quickbar().scene_at(index)
+	if scene == null:
 		return false
-	arm_temp_upgrade(kinds[index])
+	arm_temp_upgrade(scene)
 	return true
 
 
@@ -1119,6 +1119,94 @@ func temp_upgrade_arm() -> PackedScene:
 	return level.scene if level != null else null
 
 
+## The player's Z–B favourites ([TempQuickbar]), from their seat memory.
+func temp_quickbar() -> TempQuickbar:
+	if armed_stack == null:
+		return TempQuickbar.new()
+	return armed_stack.memory_for(player).melee.quickbar
+
+
+## The offered temp kinds the player could ever place right now: every one
+## whose aspect costs are all held above 0, in catalog order. What the quickbar
+## fills from and what its swap picker lists.
+func available_temp_kinds() -> Array[PackedScene]:
+	var out: Array[PackedScene] = []
+	if battle_system == null:
+		return out
+	for scene in battle_system.temp_upgrade_kinds():
+		var held := true
+		for id in SkillNodeAddon.temp_costs_of(scene):
+			if id != &"blade_size" and AspectCurrency.cap_of(player, id) <= 0:
+				held = false
+				break
+		if held:
+			out.append(scene)
+	return out
+
+
+## Per watched aspect stat id: `{stat, callable, last}` — the board [Stat]
+## subscribed to, the kept Callable (so it can be disconnected) and the cap last
+## seen, since [signal Stat.value_changed] carries no value.
+var _aspect_watch: Dictionary = {}
+
+
+## The first melee plan of the run fills the quickbar's open slots.
+func _on_attack_plan_opened(plan: AttackPlan) -> void:
+	if not plan is MeleeAttackPlan:
+		return
+	_watch_aspects()
+	var bar := temp_quickbar()
+	if not bar.autofilled:
+		bar.autofill(available_temp_kinds())
+
+
+## Subscribes to every aspect stat an offered kind costs, on the player's LIVE
+## board. Idempotent; re-binds a stat whose board was swapped (`Entity._ready`).
+func _watch_aspects() -> void:
+	if battle_system == null or player == null or player.stat_board == null:
+		return
+	for scene in battle_system.temp_upgrade_kinds():
+		for id in SkillNodeAddon.temp_costs_of(scene):
+			if id == &"blade_size":
+				continue
+			var stat := player.stat_board.get_stat(id)
+			if stat == null:
+				continue
+			var entry: Dictionary = _aspect_watch.get(id, {})
+			if entry.get(&"stat") == stat:
+				continue
+			_unwatch_aspect(id)
+			var cb := _on_aspect_stat_changed.bind(id)
+			stat.value_changed.connect(cb)
+			_aspect_watch[id] = {&"stat": stat, &"callable": cb,
+					&"last": AspectCurrency.cap_of(player, id)}
+
+
+func _unwatch_aspect(id: StringName) -> void:
+	var entry: Dictionary = _aspect_watch.get(id, {})
+	var stat := entry.get(&"stat") as Stat
+	if stat != null and stat.value_changed.is_connected(entry[&"callable"]):
+		stat.value_changed.disconnect(entry[&"callable"])
+	_aspect_watch.erase(id)
+
+
+## An aspect going 0 → above 0 hands its now-placeable kinds to the quickbar.
+func _on_aspect_stat_changed(id: StringName) -> void:
+	var entry: Dictionary = _aspect_watch.get(id, {})
+	if entry.is_empty():
+		return
+	var cap := AspectCurrency.cap_of(player, id)
+	var was: int = entry[&"last"]
+	entry[&"last"] = cap
+	if was > 0 or cap <= 0:
+		return
+	var kinds: Array[PackedScene] = []
+	for scene in available_temp_kinds():
+		if SkillNodeAddon.temp_costs_of(scene).has(id):
+			kinds.append(scene)
+	temp_quickbar().on_aspect_gained(kinds)
+
+
 ## Arm a Manage verb card (#338): Deallocate / Stake / Extract / Cancel switch to their
 ## level (pop to root, then push), and re-pressing the armed card pops it.
 ## ALLOCATE and NONE clear to the root — Allocate is the root's native click.
@@ -1338,6 +1426,8 @@ func _set_player(value: Entity) -> void:
 			if prev_ap != null and prev_ap.current_changed.is_connected(_on_ap_changed):
 				prev_ap.current_changed.disconnect(_on_ap_changed)
 		clear_transient_state()
+		for id in _aspect_watch.keys():
+			_unwatch_aspect(id)
 		player = value
 		_on_gate_locks_changed()
 	# Unconditional. A connection left behind on a board the entity discarded
@@ -1347,6 +1437,7 @@ func _set_player(value: Entity) -> void:
 		var ap: PoolStat = player.stat_board.action_points
 		if ap != null and not ap.current_changed.is_connected(_on_ap_changed):
 			ap.current_changed.connect(_on_ap_changed)
+	_watch_aspects()
 
 
 ## Drop every scrap of half-finished intent: armed modes, the in-flight attack
