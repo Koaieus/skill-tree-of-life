@@ -24,6 +24,16 @@ extends MarginContainer
 ## regardless of content, which collapsed this card to zero height inside
 ## HudRoot's LeftColumnSlot VBoxContainer. See combat_readout_card.gd for
 ## the same pattern/writeup (shared bug across all HUD cards).
+##
+## [b]The inner ring's door.[/b] A left click anywhere on the card emits
+## [signal ring_requested] (HudRoot decides what opens); [code]%RingBadge[/code]
+## shows the bound hero's unspent `ring_points.current` while it is > 0 and
+## pops on [signal Events.ring_point_minted] for that hero. The root STOPs
+## mouse so a click on the card never falls through to the board; every
+## decorative Control under it IGNOREs so the click reaches the root.
+
+## The player clicked the card: open the ring for the bound hero.
+signal ring_requested
 
 @onready var _emblem_ring: EmblemRing = %EmblemRing
 @onready var _emblem_glyph: Label = %EmblemGlyph
@@ -35,6 +45,8 @@ extends MarginContainer
 @onready var _health_caption: Label = %HealthCaption
 ## The hero's entity-hosted status rows over the health gauge.
 @onready var _health_overlay: StatusOverlay = %StatusOverlay
+## Unspent inner-ring points; hidden at zero.
+@onready var _ring_badge: Label = %RingBadge
 
 ## World/UI-space anchor floaters rise from (stat gains, wounds, level-ups).
 ## A plain [Node2D] child works as a [FloaterRequest.target] unmodified —
@@ -46,6 +58,10 @@ extends MarginContainer
 ## runtime-only) so it animates in the editor too, per the @tool contract.
 @export_range(0.0, 2.0, 0.01) var emblem_spin_speed: float = 0.35
 
+## Seconds the ring badge's scale-pop lasts when a ring point is minted.
+## Tentative, easy to change.
+@export_range(0.05, 3.0, 0.05) var badge_pulse_s: float = 0.6
+
 var _entity: Entity
 ## The level the badge is currently showing. Driven by [XpTrack]'s gauge beats
 ## (via [method show_level]), not by the model — `stat_board.level` is already
@@ -55,10 +71,19 @@ var _shown_level: int = 1
 ## Everything this card connects to the CURRENT hero's pools, released as a
 ## unit when `bind` re-points at a different hero (#459 hot-seat handover).
 var _binds := BindScope.new()
+var _badge_tween: Tween
 
 
 func _ready() -> void:
 	set_process(true)
+	gui_input.connect(_on_gui_input)
+
+
+func _on_gui_input(event: InputEvent) -> void:
+	var click := event as InputEventMouseButton
+	if click != null and click.pressed and click.button_index == MOUSE_BUTTON_LEFT:
+		accept_event()
+		ring_requested.emit()
 
 
 func _process(delta: float) -> void:
@@ -76,6 +101,7 @@ func bind(entity: Entity) -> void:
 	_apply_entity_tint(_entity.color if _entity != null else Color(0, 0, 0, 0))
 	if _entity == null:
 		_health_overlay.bind(null)
+		_show_ring_points(0)
 		return
 
 	_name_label.text = _entity.display_name
@@ -94,6 +120,40 @@ func bind(entity: Entity) -> void:
 	# integer heal over a sub-1 sliver: zero new UI.
 	_bind_pool(_health_gauge, _health_caption, board.health, board.core_healing)
 	_bind_health_overlay(board.health)
+	_bind_ring_badge(board.ring_points)
+
+
+## The badge follows the pool's `current` (what is left to spend), and pops on a
+## mint for THIS hero — the pool has already moved when the signal fires, so the
+## pop never lands on a hidden badge.
+func _bind_ring_badge(pool: PoolStat) -> void:
+	if pool == null:
+		_show_ring_points(0)
+		return
+	var refresh := func() -> void:
+		_show_ring_points(int(pool.current))
+	refresh.call()
+	_binds.link(pool.current_changed, refresh.unbind(1))
+	_binds.link(pool.value_changed, refresh)
+	_binds.link(Events.ring_point_minted, _on_ring_point_minted)
+
+
+func _show_ring_points(count: int) -> void:
+	if _ring_badge == null:
+		return
+	_ring_badge.visible = count > 0
+	_ring_badge.text = str(count)
+
+
+func _on_ring_point_minted(entity: Entity) -> void:
+	if entity != _entity or _ring_badge == null or not _ring_badge.visible:
+		return
+	if _badge_tween != null:
+		_badge_tween.kill()
+	_ring_badge.scale = Vector2.ONE * 1.5
+	_badge_tween = create_tween()
+	_badge_tween.tween_property(_ring_badge, ^"scale", Vector2.ONE, badge_pulse_s) \
+			.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 
 
 ## Paint the whole portrait — ring, sigil, fallback glyph — in the bound hero's

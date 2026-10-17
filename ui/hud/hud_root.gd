@@ -120,6 +120,7 @@ func _ready() -> void:
 		spell_catalogue_modal.closed.connect(_on_modal_closed)
 		ring_modal.closed.connect(_on_modal_closed)
 		ring_modal.confirmed.connect(_on_ring_confirmed)
+		hero_sigil_card.ring_requested.connect(_on_ring_requested)
 		pause_menu.spell_catalogue_requested.connect(_on_spell_catalogue_requested)
 		# HUD-lifetime, not level-lifetime: the chrome is ours whatever level
 		# is bound, so the fan's keep-in is wired here rather than in compose.
@@ -369,6 +370,10 @@ func open_ring(entity: Entity) -> void:
 	if table == null:
 		return
 	_enqueue_modal(func() -> void: ring_modal.present(entity, table))
+
+
+func _on_ring_requested() -> void:
+	open_ring(_player)
 
 
 func _on_ring_confirmed(chosen: Array, request: Variant) -> void:

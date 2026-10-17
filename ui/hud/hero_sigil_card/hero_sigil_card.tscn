@@ -94,6 +94,8 @@ shader_parameter/cell_gap = 3.0
 
 [node name="HeroSigilCard" type="MarginContainer" unique_id=1208693110]
 script = ExtResource("1_script")
+mouse_filter = 0
+mouse_default_cursor_shape = 2
 
 [node name="FloatAnchor" type="Node2D" parent="." unique_id=564361223]
 unique_name_in_owner = true
@@ -116,11 +118,13 @@ layout_mode = 2
 theme_override_constants/separation = 12
 
 [node name="Portrait" type="Control" parent="Padded/Content" unique_id=1832702480]
+mouse_filter = 2
 custom_minimum_size = Vector2(64, 64)
 layout_mode = 2
 size_flags_vertical = 4
 
 [node name="EmblemRing" type="Control" parent="Padded/Content/Portrait" unique_id=991628644]
+mouse_filter = 2
 unique_name_in_owner = true
 layout_mode = 1
 anchors_preset = 15
@@ -147,6 +151,7 @@ horizontal_alignment = 1
 vertical_alignment = 1
 
 [node name="SigilGlyph" type="Control" parent="Padded/Content/Portrait" unique_id=1578923503]
+mouse_filter = 2
 unique_name_in_owner = true
 layout_mode = 1
 anchors_preset = 15
