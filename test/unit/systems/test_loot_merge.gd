@@ -41,6 +41,28 @@ func _find_intrinsic(id: StringName) -> StatModifier:
 	return null
 
 
+# ── Ring grants are lootable ──────────────────────────────────────────────────
+
+func _count(mods: Array, id: StringName) -> int:
+	var n := 0
+	for m in mods:
+		if m is StatModifier and (m as StatModifier).stat_id == id:
+			n += 1
+	return n
+
+
+func test_a_ring_bought_grant_is_a_register_bucket_candidate() -> void:
+	while _entity.stat_board.ring_points.available() < 1:
+		_entity._on_xp_replenished()
+	var loot := LootSystem.new()
+	autofree(loot)
+	var before := _count(loot._draw_payload(_entity)["candidates"], &"bleeding_aspect")
+	var grant := _mk_mod(&"bleeding_aspect", StatModifier.Operation.ADD_BASE, 1.0)
+	assert_true(_entity.buy_ring_cell(&"BleedingT1", [grant] as Array[StatModifier], 1), "sanity: bought")
+	var after := _count(loot._draw_payload(_entity)["candidates"], &"bleeding_aspect")
+	assert_gt(after, before, "the ring grant joins the killer's register-bucket draw")
+
+
 # ── Merge into an intrinsic ──────────────────────────────────────────────────
 
 func test_absorb_merges_into_a_matching_intrinsic_without_appending() -> void:

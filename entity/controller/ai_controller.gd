@@ -340,6 +340,10 @@ func _spend_skill_points(visible_enemies: Array[SkillNode]) -> Array[SkillNode]:
 ## Always ASSIGNS rather than only setting on true: the flag must not outlive
 ## the turn that earned it, or an NPC that broke out once keeps shooting
 ## scenery forever.
+func _spend_ring_points() -> void:
+	await get_tree().process_frame
+
+
 func _refresh_dormant_core_stance() -> bool:
 	var capped := AiRecon.is_growth_capped(entity)
 	entity.ai_growth_capped = capped
