@@ -15,7 +15,6 @@ extends GutTest
 
 const _BOARD := preload("res://entity/default_entity_board.tres")
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _PLAYER_FACTION := preload("res://entity/factions/player.tres")
 
 
@@ -140,8 +139,7 @@ func _spawn(graph: Graph, nm: String, pos: Vector2) -> SkillNode:
 ## is read off BladeState.speed_history, not invented or left at the
 ## BladeHitEvent default), not a specific numeric value.
 func test_hitscan_stamps_the_events_speed_from_speed_history() -> void:
-	var graph: Graph = _GRAPH_SCENE.instantiate()
-	add_child_autofree(graph)
+	var graph: Graph = TestWorld.create(self).graph
 	var pivot := _spawn(graph, "Pivot", Vector2.ZERO)
 	var arm := _spawn(graph, "Arm", Vector2(150, 0))
 	var _target := _spawn(graph, "Target", Vector2(150, 0))
@@ -184,11 +182,8 @@ func test_hitscan_stamps_the_events_speed_from_speed_history() -> void:
 ## same-position Pivot node. Offsetting the second fixture is what keeps two
 ## calls to this in one test from cross-hitting each other's colliders.
 func _melee_swing(radius: float, origin: Vector2 = Vector2.ZERO) -> Dictionary:
-	var graph: Graph = _GRAPH_SCENE.instantiate()
-	add_child_autofree(graph)
-	var alloc := AllocationSystem.new()
-	alloc.graph = graph
-	add_child_autofree(alloc)
+	var graph: Graph = TestWorld.create(self).graph
+	var alloc := TestWorld.allocator_for(graph)
 
 	var attacker := Entity.new()
 	attacker.display_name = "A"

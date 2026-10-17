@@ -5,15 +5,13 @@ extends GutTest
 ## ([method SkillBlade.arm_lanterns]); a plain blade carries none, the aim-time
 ## preview ghost carries none, and nothing outlives the blade.
 
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _WATCHTOWER := preload("res://skill_node/addons/defs/watchtower_addon.tscn")
 const _GROUP := &"vision_lanterns"
 
 
 func _build_blade(scout_member: bool, autofree: bool = true) -> SkillBlade:
-	var graph := _GRAPH_SCENE.instantiate()
-	add_child_autofree(graph)
+	var graph := TestWorld.create(self).graph
 	var pivot := _SKILL_NODE_SCENE.instantiate() as SkillNode
 	var member := _SKILL_NODE_SCENE.instantiate() as SkillNode
 	graph.skill_nodes_container.add_child(pivot)
@@ -75,8 +73,7 @@ func test_no_marker_outlives_the_blade() -> void:
 
 
 func _preview_plan(_preview: MeleePreview) -> MeleeAttackPlan:
-	var graph := _GRAPH_SCENE.instantiate()
-	add_child_autofree(graph)
+	var graph := TestWorld.create(self).graph
 	var pivot := _SKILL_NODE_SCENE.instantiate() as SkillNode
 	var member := _SKILL_NODE_SCENE.instantiate() as SkillNode
 	graph.skill_nodes_container.add_child(pivot)

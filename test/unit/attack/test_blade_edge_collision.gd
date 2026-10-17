@@ -25,7 +25,6 @@ extends GutTest
 ## sim keeps these assertions independent of solver tuning (#790) and of
 ## physics-server sync timing.
 
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _BOARD := preload("res://entity/default_entity_board.tres")
 const _SPIKE_SCENE := preload("res://skill_node/addons/defs/spike_ring_addon.tscn")
@@ -68,8 +67,7 @@ func _events_on(events: Array[BladeHitEvent], target: SkillNode) -> Array[BladeH
 ## comes anywhere near it (node radii are tens of px, the gap is hundreds), so
 ## before #785 this scan returned nothing at all.
 func test_a_target_between_two_vertices_is_contacted_by_the_connecting_edge() -> void:
-	var graph: Graph = _GRAPH_SCENE.instantiate()
-	add_child_autofree(graph)
+	var graph: Graph = TestWorld.create(self).graph
 	var pivot := _spawn(graph, "Pivot", Vector2.ZERO)
 	var arm := _spawn(graph, "Arm", Vector2(400.0, 0.0))
 	var target := _spawn(graph, "Target", Vector2(200.0, 0.0))
@@ -99,8 +97,7 @@ func test_a_target_between_two_vertices_is_contacted_by_the_connecting_edge() ->
 ## owner retired it 2026-09-08, since a floppy multi-layer blade hits with
 ## something — but for a BUNKER the gap was the straddle defect itself.)
 func test_contact_no_longer_depends_on_where_along_the_segment_a_target_sits() -> void:
-	var graph: Graph = _GRAPH_SCENE.instantiate()
-	add_child_autofree(graph)
+	var graph: Graph = TestWorld.create(self).graph
 	var pivot := _spawn(graph, "Pivot", Vector2.ZERO)
 	var arm := _spawn(graph, "Arm", Vector2(400.0, 0.0))
 	var targets: Array[SkillNode] = []
@@ -147,8 +144,7 @@ func test_contact_no_longer_depends_on_where_along_the_segment_a_target_sits() -
 ## The claim is therefore about DAMAGE, not about the raw event count: a
 ## degree-6 hub is worth one damaging contact, and it is the vertex's.
 func test_a_target_on_a_hub_takes_one_damaging_contact_not_one_per_spoke() -> void:
-	var graph: Graph = _GRAPH_SCENE.instantiate()
-	add_child_autofree(graph)
+	var graph: Graph = TestWorld.create(self).graph
 	var hub := _spawn(graph, "Hub", Vector2.ZERO)
 	var target := _spawn(graph, "Target", Vector2.ZERO)
 	var positions: Array[Vector2] = [Vector2.ZERO]
@@ -189,8 +185,7 @@ func test_a_target_on_a_hub_takes_one_damaging_contact_not_one_per_spoke() -> vo
 ## tuned. Its whole job was to stop one contact being counted as vertex + edge
 ## damage, and an edge no longer has any damage to count.
 func test_two_overlapping_capsules_contact_and_neither_carries_damage() -> void:
-	var graph: Graph = _GRAPH_SCENE.instantiate()
-	add_child_autofree(graph)
+	var graph: Graph = TestWorld.create(self).graph
 	var hub := _spawn(graph, "Hub", Vector2.ZERO)
 	var a := _spawn(graph, "A", Vector2.RIGHT.rotated(0.04) * 400.0)
 	var b := _spawn(graph, "B", Vector2.RIGHT.rotated(-0.04) * 400.0)
@@ -240,8 +235,7 @@ func test_there_is_no_edge_damage_stat_and_no_per_edge_damage_array() -> void:
 
 
 func test_an_edge_contact_lands_no_damage_at_all() -> void:
-	var graph: Graph = _GRAPH_SCENE.instantiate()
-	add_child_autofree(graph)
+	var graph: Graph = TestWorld.create(self).graph
 	var pivot := _spawn(graph, "Pivot", Vector2.ZERO)
 	var arm := _spawn(graph, "Arm", Vector2(400.0, 0.0))
 	var target := _spawn(graph, "Target", Vector2(200.0, 0.0))
@@ -281,8 +275,7 @@ class _SpikeFixture extends RefCounted:
 
 func _spike_fixture(spike_power: float) -> _SpikeFixture:
 	var f := _SpikeFixture.new()
-	f.graph = _GRAPH_SCENE.instantiate()
-	add_child_autofree(f.graph)
+	f.graph = TestWorld.create(self).graph
 	f.attacker = autofree(Entity.new())
 	f.attacker.stat_board = _BOARD.duplicate(true)
 	f.graph.add_child(f.attacker)
@@ -295,9 +288,7 @@ func _spike_fixture(spike_power: float) -> _SpikeFixture:
 
 	f.spiked = _spawn(f.graph, "Spiked", Vector2(200.0, 0.0))
 	await get_tree().process_frame
-	var alloc := AllocationSystem.new()
-	alloc.graph = f.graph
-	add_child_autofree(alloc)
+	var alloc := TestWorld.allocator_for(f.graph)
 	alloc.force_allocate(f.defender, f.spiked)
 
 	var spike := _SPIKE_SCENE.instantiate() as SpikeRingAddon
@@ -361,8 +352,7 @@ func test_an_edge_does_not_even_drain_a_nearly_empty_spike_pool() -> void:
 
 
 func test_a_severed_edge_is_not_scanned_again() -> void:
-	var graph: Graph = _GRAPH_SCENE.instantiate()
-	add_child_autofree(graph)
+	var graph: Graph = TestWorld.create(self).graph
 	var pivot := _spawn(graph, "Pivot", Vector2.ZERO)
 	var arm := _spawn(graph, "Arm", Vector2(400.0, 0.0))
 	var target := _spawn(graph, "Target", Vector2(200.0, 0.0))

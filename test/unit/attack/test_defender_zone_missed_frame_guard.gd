@@ -38,7 +38,6 @@ extends GutTest
 
 const _BOARD := preload("res://entity/default_entity_board.tres")
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 
 const _SPACING := 150.0
 
@@ -66,8 +65,7 @@ func _make_entity(graph: Graph) -> Entity:
 ## position move, so the fixture settles the position through the normal two
 ## physics frames and only the addon attach happens same-frame as the query.
 func _setup() -> Dictionary:
-	var graph := _GRAPH_SCENE.instantiate()
-	add_child_autofree(graph)
+	var graph := TestWorld.create(self).graph
 	var attacker := _make_entity(graph)
 	var defender := _make_entity(graph)
 	var camp := Faction.new()
@@ -84,9 +82,7 @@ func _setup() -> Dictionary:
 
 	await get_tree().process_frame
 
-	var alloc := AllocationSystem.new()
-	alloc.graph = graph
-	add_child_autofree(alloc)
+	var alloc := TestWorld.allocator_for(graph)
 	alloc.force_allocate(attacker, pivot)
 	alloc.force_allocate(attacker, tip)
 	attacker.core_location = pivot

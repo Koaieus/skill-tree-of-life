@@ -9,7 +9,6 @@ extends GutTest
 ## target sets are rebuildable on any peer and must not ride along.
 
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _BOARD := preload("res://entity/default_entity_board.tres")
 const _PLAYER_FACTION := preload("res://entity/factions/player.tres")
 const _NPC_FACTION := preload("res://entity/factions/npc.tres")
@@ -21,8 +20,7 @@ var _nodes: Dictionary = {}
 
 
 func before_each() -> void:
-	_graph = _GRAPH_SCENE.instantiate()
-	add_child_autofree(_graph)
+	_graph = TestWorld.create(self).graph
 	# A(0,0) - B(200,0) - C(400,0); D(600,0) is the hostile's.
 	for entry in [["A", 0], ["B", 200], ["C", 400], ["D", 600]]:
 		var node := _SKILL_NODE_SCENE.instantiate() as SkillNode
@@ -45,9 +43,7 @@ func before_each() -> void:
 	_graph.entities_container.add_child(_hostile)
 	await get_tree().process_frame
 
-	var alloc := AllocationSystem.new()
-	alloc.graph = _graph
-	add_child_autofree(alloc)
+	var alloc := TestWorld.allocator_for(_graph)
 	for key in ["A", "B", "C"]:
 		alloc.force_allocate(_attacker, _nodes[key])
 	_attacker.core_location = _nodes.A

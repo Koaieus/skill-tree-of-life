@@ -6,7 +6,6 @@ extends GutTest
 ## between them pin the flattened offsets.
 
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _POISON := preload("res://effects/status/poison.tres")
 const _TEST_DEF := preload("res://test/support/status/test_status.tres")
 
@@ -16,8 +15,7 @@ var _attacker: Entity
 
 
 func before_each() -> void:
-	_graph = _GRAPH_SCENE.instantiate()
-	add_child_autofree(_graph)
+	_graph = TestWorld.create(self).graph
 	_nodes.clear()
 	for i in 3:
 		var node := _SKILL_NODE_SCENE.instantiate() as SkillNode

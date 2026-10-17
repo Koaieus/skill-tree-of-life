@@ -10,7 +10,6 @@ extends GutTest
 ## default on a peer.
 
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _POISON := "res://effects/status/poison.tres"
 
 var _graph: Graph
@@ -19,8 +18,7 @@ var _attacker: Entity
 
 
 func before_each() -> void:
-	_graph = _GRAPH_SCENE.instantiate()
-	add_child_autofree(_graph)
+	_graph = TestWorld.create(self).graph
 	_nodes.clear()
 	for i in 5:
 		var node := _SKILL_NODE_SCENE.instantiate() as SkillNode

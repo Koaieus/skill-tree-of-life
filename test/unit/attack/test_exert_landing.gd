@@ -8,7 +8,6 @@ extends GutTest
 
 const H := preload("res://test/unit/spell/spell_test_helper.gd")
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _BOARD := preload("res://entity/default_entity_board.tres")
 const _PLAYER_FACTION := preload("res://entity/factions/player.tres")
 const _NPC_FACTION := preload("res://entity/factions/npc.tres")
@@ -65,8 +64,7 @@ func _targets(hits: Array[HitInstance]) -> Array:
 ## Attacker owns core–leaf (and, with [param third], core–leaf2); defender owns
 ## target–neighbour. The target sits ON the leaf so a swing contacts it at t=0.
 func _build(third: bool = false) -> Dictionary:
-	var graph: Graph = _GRAPH_SCENE.instantiate()
-	add_child_autofree(graph)
+	var graph: Graph = TestWorld.create(self).graph
 	var nodes: Dictionary = {}
 	var layout := [["core", Vector2(0, 0)], ["leaf", Vector2(150, 0)],
 			["target", Vector2(150, 0)], ["neighbour", Vector2(300, 0)]]
@@ -100,9 +98,7 @@ func _build(third: bool = false) -> Dictionary:
 	graph.entities_container.add_child(defender)
 	await get_tree().process_frame
 
-	var alloc := AllocationSystem.new()
-	alloc.graph = graph
-	add_child_autofree(alloc)
+	var alloc := TestWorld.allocator_for(graph)
 	alloc.force_allocate(attacker, nodes.core)
 	alloc.force_allocate(attacker, nodes.leaf)
 	if third:

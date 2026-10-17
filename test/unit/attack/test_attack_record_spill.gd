@@ -6,7 +6,6 @@ extends GutTest
 ## Curse is the authored spiller (SpillSpread, Mine).
 
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _BOARD := preload("res://entity/default_entity_board.tres")
 const _CURSE := preload("res://effects/status/curse.tres")
 
@@ -16,11 +15,8 @@ var _a: Entity
 
 
 func before_each() -> void:
-	_graph = _GRAPH_SCENE.instantiate()
-	add_child_autofree(_graph)
-	_alloc = AllocationSystem.new()
-	_alloc.graph = _graph
-	add_child_autofree(_alloc)
+	_graph = TestWorld.create(self).graph
+	_alloc = TestWorld.allocator_for(_graph)
 	_a = Entity.new()
 	_a.name = "A"
 	_a.display_name = "A"

@@ -5,7 +5,6 @@ extends GutTest
 ## shape. Ratios, never the authored literals — knobs move.
 
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _EXPLOSIVE_PATH := "res://effects/status/explosive.tres"
 
 var _graph: Graph
@@ -15,11 +14,8 @@ var _nodes: Array[SkillNode] = []
 
 
 func before_each() -> void:
-	_graph = _GRAPH_SCENE.instantiate()
-	add_child_autofree(_graph)
-	_alloc = AllocationSystem.new()
-	_alloc.graph = _graph
-	add_child_autofree(_alloc)
+	_graph = TestWorld.create(self).graph
+	_alloc = TestWorld.allocator_for(_graph)
 	_entity = autofree(Entity.new())
 	_entity.display_name = "Bomber"
 	_entity.stat_board = TestBoards.flat_entity_board()

@@ -8,7 +8,6 @@ extends GutTest
 
 const _BOARD := preload("res://entity/default_entity_board.tres")
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _CLAMP_SCENE := preload("res://skill_node/addons/defs/clamp_addon.tscn")
 const _SPIKE_SCENE := preload("res://skill_node/addons/defs/spike_ring_addon.tscn")
 
@@ -26,11 +25,8 @@ func _spawn(nm: String) -> SkillNode:
 ## source - joint(Clamp) - tip(SpikeRing), all selected; selection order is
 ## [source, joint, tip] -> particle indices 0, 1, 2.
 func _setup() -> MeleeAttackPlan:
-	_graph = _GRAPH_SCENE.instantiate()
-	add_child_autofree(_graph)
-	var alloc := AllocationSystem.new()
-	alloc.graph = _graph
-	add_child_autofree(alloc)
+	_graph = TestWorld.create(self).graph
+	var alloc := TestWorld.allocator_for(_graph)
 	_entity = Entity.new()
 	_entity.stat_board = _BOARD.duplicate(true) as EntityStatBoard
 	_graph.add_child(_entity)

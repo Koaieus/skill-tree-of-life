@@ -9,13 +9,11 @@ extends GutTest
 ## settled spec; the look itself is judged in the sandbox, per the issue's
 ## own note.
 
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 
 
 func _build_blade(pop_window: float = 0.1) -> Dictionary:
-	var graph := _GRAPH_SCENE.instantiate()
-	add_child_autofree(graph)
+	var graph := TestWorld.create(self).graph
 	var pivot := _SKILL_NODE_SCENE.instantiate() as SkillNode
 	var member := _SKILL_NODE_SCENE.instantiate() as SkillNode
 	graph.skill_nodes_container.add_child(pivot)

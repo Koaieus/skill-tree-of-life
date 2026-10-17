@@ -4,7 +4,6 @@ extends GutTest
 ## column, so a peer's rebuilt (plain) hits still know which [AmmoType] flew.
 
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _ROSTER := preload("res://attack/ammo/ammo_type_roster.tres")
 
 var _graph: Graph
@@ -12,8 +11,7 @@ var _nodes: Array[SkillNode] = []
 
 
 func before_each() -> void:
-	_graph = _GRAPH_SCENE.instantiate()
-	add_child_autofree(_graph)
+	_graph = TestWorld.create(self).graph
 	_nodes.clear()
 	for i in 2:
 		var node := _SKILL_NODE_SCENE.instantiate() as SkillNode

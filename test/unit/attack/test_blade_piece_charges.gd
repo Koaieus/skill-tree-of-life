@@ -6,14 +6,12 @@ extends GutTest
 ## ([member SkillBlade.pop_result], t), like `death_progress`
 ## (`.claude/rules/presentation-clock.md`). The look is judged in the sandbox.
 
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _V := BladePopResolver.Contact.Verdict
 
 
 func _build_blade(charges: int, spend_window: float = 0.2) -> SkillBlade:
-	var graph := _GRAPH_SCENE.instantiate()
-	add_child_autofree(graph)
+	var graph := TestWorld.create(self).graph
 	var pivot := _SKILL_NODE_SCENE.instantiate() as SkillNode
 	var member := _SKILL_NODE_SCENE.instantiate() as SkillNode
 	graph.skill_nodes_container.add_child(pivot)

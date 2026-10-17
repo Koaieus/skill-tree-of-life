@@ -12,7 +12,6 @@ extends GutTest
 
 const _BOARD := preload("res://entity/default_entity_board.tres")
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _SPELL_TEST_HELPER := preload("res://test/unit/spell/spell_test_helper.gd")
 const _PLAYER_FACTION := preload("res://entity/factions/player.tres")
 const _NPC_FACTION := preload("res://entity/factions/npc.tres")
@@ -46,8 +45,7 @@ func _set_stat(node: SkillNode, id: StringName, value: float) -> void:
 
 
 func before_each() -> void:
-	_graph = _GRAPH_SCENE.instantiate()
-	add_child_autofree(_graph)
+	_graph = TestWorld.create(self).graph
 	_pivot = _spawn("Pivot", Vector2(0, 0))
 	_joint = _spawn("Joint", Vector2(200, 0))
 	_tip = _spawn("Tip", Vector2(400, 0))
@@ -70,9 +68,7 @@ func before_each() -> void:
 	_graph.add_child(_hostile)
 	await get_tree().process_frame
 
-	_alloc = AllocationSystem.new()
-	_alloc.graph = _graph
-	add_child_autofree(_alloc)
+	_alloc = TestWorld.allocator_for(_graph)
 	for n in [_pivot, _joint, _tip]:
 		_alloc.force_allocate(_attacker, n)
 	_alloc.force_allocate(_hostile, _enemy)

@@ -13,7 +13,6 @@ extends GutTest
 
 const _BOARD := preload("res://entity/default_entity_board.tres")
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _SPACING := 150.0
 
 var _graph: Graph
@@ -47,12 +46,9 @@ func _make_entity() -> Entity:
 
 func before_each() -> void:
 	_n = {}
-	_graph = _GRAPH_SCENE.instantiate()
-	add_child_autofree(_graph)
-	_alloc = AllocationSystem.new()
-	_alloc.graph = _graph
+	_graph = TestWorld.create(self).graph
+	_alloc = TestWorld.allocator_for(_graph)
 	_alloc.navigator = _graph.navigator
-	add_child_autofree(_alloc)
 	_tm = autofree(TurnManager.new())
 	add_child(_tm)
 	_alloc.turn_manager = _tm

@@ -24,7 +24,6 @@ extends GutTest
 
 const _BOARD := preload("res://entity/default_entity_board.tres")
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _BUNKER_SCENE := preload("res://skill_node/addons/defs/bunker_addon.tscn")
 
 ## The W, exactly as #811's acceptance 1 specifies it. Pivot is index 0.
@@ -64,8 +63,7 @@ func _make_entity(graph: Graph) -> Entity:
 ## The W blade on a fresh graph, plus one hostile node parked far away. The
 ## caller moves that node onto the whip path once it has measured one.
 func _setup() -> Dictionary:
-	var graph := _GRAPH_SCENE.instantiate()
-	add_child_autofree(graph)
+	var graph := TestWorld.create(self).graph
 	var attacker := _make_entity(graph)
 	var defender := _make_entity(graph)
 	var camp := Faction.new()
@@ -82,9 +80,7 @@ func _setup() -> Dictionary:
 
 	await get_tree().process_frame
 
-	var alloc := AllocationSystem.new()
-	alloc.graph = graph
-	add_child_autofree(alloc)
+	var alloc := TestWorld.allocator_for(graph)
 	for sn in members:
 		alloc.force_allocate(attacker, sn)
 	attacker.core_location = members[0]
@@ -241,9 +237,7 @@ func test_the_zone_set_is_ordered_by_stable_id_and_reproduces() -> void:
 	var camp := Faction.new()
 	camp.id = &"whip_reach_order_enemy"
 	defender.faction = camp
-	var alloc := AllocationSystem.new()
-	alloc.graph = graph
-	add_child_autofree(alloc)
+	var alloc := TestWorld.allocator_for(graph)
 
 	# Ring the pivot with walls, spawned in an order that has nothing to do with
 	# their positions, so a position-ordered broadphase cannot accidentally

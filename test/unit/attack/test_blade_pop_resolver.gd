@@ -30,7 +30,6 @@ extends GutTest
 
 const _BOARD := preload("res://entity/default_entity_board.tres")
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _SPIKE_SCENE := preload("res://skill_node/addons/defs/spike_ring_addon.tscn")
 
 const _SPIKE_POWER := 5.0
@@ -56,17 +55,14 @@ func _make_entity(graph: Node) -> Entity:
 ## (spikes are persistent — popping doesn't consume them, see
 ## test_spike_pop.gd's test_persistent_pops_every_call).
 func _setup() -> Dictionary:
-    var graph := _GRAPH_SCENE.instantiate()
-    add_child_autofree(graph)
+    var graph := TestWorld.create(self).graph
     var attacker := _make_entity(graph)
     var defender := _make_entity(graph)
 
     var spike_node := _spawn_node(graph, "Spiked")
     await get_tree().process_frame
 
-    var alloc := AllocationSystem.new()
-    alloc.graph = graph
-    add_child_autofree(alloc)
+    var alloc := TestWorld.allocator_for(graph)
     alloc.force_allocate(defender, spike_node)
 
     var spike := _SPIKE_SCENE.instantiate() as SpikeRingAddon

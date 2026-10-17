@@ -9,7 +9,6 @@ extends GutTest
 
 const _BOARD := preload("res://entity/default_entity_board.tres")
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _STYLE := preload("res://attack/melee/default_blade_style.tres")
 
 
@@ -73,8 +72,7 @@ func test_disabled_part_loses_saturation() -> void:
 # ── The blade wires both through ─────────────────────────────────────────────
 
 func test_blade_takes_its_tint_from_the_wielder() -> void:
-	var graph := _GRAPH_SCENE.instantiate()
-	add_child_autofree(graph)
+	var graph := TestWorld.create(self).graph
 	var entity: Entity = autofree(Entity.new())
 	entity.stat_board = _BOARD.duplicate(true)
 	entity.color = Color(0.1, 0.8, 0.4)
@@ -101,8 +99,7 @@ func test_blade_takes_its_tint_from_the_wielder() -> void:
 
 
 func test_blade_carries_both_radii_from_the_source_skill_nodes() -> void:
-	var graph := _GRAPH_SCENE.instantiate()
-	add_child_autofree(graph)
+	var graph := TestWorld.create(self).graph
 	var pivot := _SKILL_NODE_SCENE.instantiate() as SkillNode
 	var member := _SKILL_NODE_SCENE.instantiate() as SkillNode
 	graph.skill_nodes_container.add_child(pivot)
@@ -133,8 +130,7 @@ func test_a_rebuild_clears_a_previous_swings_deaths() -> void:
 	add_child_autofree(blade)
 	blade.pop_result = BladePopResolver.Result.new()
 	blade.pop_result.dead_at[1] = 0.0
-	var graph := _GRAPH_SCENE.instantiate()
-	add_child_autofree(graph)
+	var graph := TestWorld.create(self).graph
 	var pivot := _SKILL_NODE_SCENE.instantiate() as SkillNode
 	var member := _SKILL_NODE_SCENE.instantiate() as SkillNode
 	graph.skill_nodes_container.add_child(pivot)
@@ -153,8 +149,7 @@ func test_a_rebuild_clears_a_previous_swings_deaths() -> void:
 ## own de-lighting off; SkillBlade must drive it explicitly off
 ## [member BladePopResolver.Result.severed_at] as playback crosses that time.
 func test_a_severed_edge_visual_reads_disabled_once_playback_passes_its_break_time() -> void:
-	var graph := _GRAPH_SCENE.instantiate()
-	add_child_autofree(graph)
+	var graph := TestWorld.create(self).graph
 	var pivot := _SKILL_NODE_SCENE.instantiate() as SkillNode
 	var member := _SKILL_NODE_SCENE.instantiate() as SkillNode
 	graph.skill_nodes_container.add_child(pivot)

@@ -43,7 +43,6 @@ extends GutTest
 
 const _BOARD := preload("res://entity/default_entity_board.tres")
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _BUNKER_SCENE := preload("res://skill_node/addons/defs/bunker_addon.tscn")
 const _SPIKE_SCENE := preload("res://skill_node/addons/defs/spike_ring_addon.tscn")
 
@@ -94,8 +93,7 @@ func _sharpen(node: SkillNode, amount: float) -> void:
 ## reaches it, small enough and it survives the whole swing.
 func _setup(addons: Array[PackedScene], allocate_defender: bool,
 		blade_damage: float, drag := false) -> Dictionary:
-	var graph := _GRAPH_SCENE.instantiate()
-	add_child_autofree(graph)
+	var graph := TestWorld.create(self).graph
 	var attacker := _make_entity(graph)
 	var defender := _make_entity(graph)
 	var enemy_camp := Faction.new()
@@ -116,9 +114,7 @@ func _setup(addons: Array[PackedScene], allocate_defender: bool,
 
 	await get_tree().process_frame
 
-	var alloc := AllocationSystem.new()
-	alloc.graph = graph
-	add_child_autofree(alloc)
+	var alloc := TestWorld.allocator_for(graph)
 	# The LIVE forced-dealloc cascade's entry point. A depleted node reaches it
 	# through `Events.skill_node_depleted`, so without a BattleSystem mounted the
 	# plate would die and stay allocated — `test_bunker_break_live.gd` gets away

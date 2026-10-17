@@ -34,7 +34,6 @@ extends GutTest
 
 const _BOARD := preload("res://entity/default_entity_board.tres")
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _EDGE_SCENE := preload("res://graph/edge.tscn")
 
 ## One point over the `node_health` scaffold's default of 10, so a lethal wave
@@ -88,11 +87,8 @@ func _connect(graph: Graph, a: SkillNode, b: SkillNode) -> void:
 ## it. [param target_health] bottomless by default so nothing dies; pass
 ## something small to make the first landing lethal and the rest gated duds.
 func _world(defender_nodes: int, target_health: float = 9999.0) -> Dictionary:
-	var graph := _GRAPH_SCENE.instantiate() as Graph
-	add_child_autofree(graph)
-	var alloc := AllocationSystem.new()
-	alloc.graph = graph
-	add_child_autofree(alloc)
+	var graph := TestWorld.create(self).graph
+	var alloc := TestWorld.allocator_for(graph)
 
 	var attacker := _make_entity(graph, "Attacker")
 	var defender := _make_entity(graph, "Defender")

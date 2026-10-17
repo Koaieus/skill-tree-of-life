@@ -19,7 +19,6 @@ extends GutTest
 
 const _BOARD := preload("res://entity/default_entity_board.tres")
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _CLAMP_SCENE := preload("res://skill_node/addons/defs/clamp_addon.tscn")
 const _BUNKER_SCENE := preload("res://skill_node/addons/defs/bunker_addon.tscn")
 
@@ -64,8 +63,7 @@ func _make_entity(graph: Graph) -> Entity:
 ## read off its own trajectory (`_FLOPPY_PLATE`), the reference classification
 ## test's same trick. See `_setup_floppy_whip`.
 func _setup(rigid: bool, with_bunker: bool) -> Dictionary:
-	var graph := _GRAPH_SCENE.instantiate()
-	add_child_autofree(graph)
+	var graph := TestWorld.create(self).graph
 	var attacker := _make_entity(graph)
 	var defender := _make_entity(graph)
 	var enemy_camp := Faction.new()
@@ -84,9 +82,7 @@ func _setup(rigid: bool, with_bunker: bool) -> Dictionary:
 
 	await get_tree().process_frame
 
-	var alloc := AllocationSystem.new()
-	alloc.graph = graph
-	add_child_autofree(alloc)
+	var alloc := TestWorld.allocator_for(graph)
 	alloc.force_allocate(attacker, pivot)
 	alloc.force_allocate(attacker, mid)
 	alloc.force_allocate(attacker, tip)
@@ -199,8 +195,7 @@ func test_a_rigid_blade_breaks_the_edge_never_the_vertex_and_still_damages_the_b
 ## rigid fixture's geometry, which a floppy tip never comes near (measured:
 ## the 3-node tip curls to within ~9px of the pivot under a full TAU sweep).
 func _setup_floppy_whip() -> Dictionary:
-	var graph := _GRAPH_SCENE.instantiate()
-	add_child_autofree(graph)
+	var graph := TestWorld.create(self).graph
 	var attacker := _make_entity(graph)
 	var defender := _make_entity(graph)
 	var enemy_camp := Faction.new()
@@ -224,9 +219,7 @@ func _setup_floppy_whip() -> Dictionary:
 
 	await get_tree().process_frame
 
-	var alloc := AllocationSystem.new()
-	alloc.graph = graph
-	add_child_autofree(alloc)
+	var alloc := TestWorld.allocator_for(graph)
 	for n in [pivot, a, b, tip]:
 		alloc.force_allocate(attacker, n)
 	attacker.core_location = pivot

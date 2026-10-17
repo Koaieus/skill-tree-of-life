@@ -20,7 +20,6 @@ extends GutTest
 ## multiplier. A test that zeroed crit could not tell those two designs apart.
 
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _BOARD := preload("res://entity/default_entity_board.tres")
 const _PLAYER_FACTION := preload("res://entity/factions/player.tres")
 const _NPC_FACTION := preload("res://entity/factions/npc.tres")
@@ -50,8 +49,7 @@ func _set_local(node: SkillNode, stat_id: StringName, value: float) -> void:
 ## t=0 (the same trick `test_melee_swing_characterization.gd` uses) so the
 ## physics scan does not depend on server sync timing.
 func _build(origin: Vector2 = Vector2.ZERO) -> Dictionary:
-	var graph: Graph = _GRAPH_SCENE.instantiate()
-	add_child_autofree(graph)
+	var graph: Graph = TestWorld.create(self).graph
 
 	var nodes: Dictionary = {}
 	for entry in [["core", Vector2(0, 0)], ["leaf", Vector2(150, 0)],
@@ -89,9 +87,7 @@ func _build(origin: Vector2 = Vector2.ZERO) -> Dictionary:
 
 	await get_tree().process_frame
 
-	var alloc := AllocationSystem.new()
-	alloc.graph = graph
-	add_child_autofree(alloc)
+	var alloc := TestWorld.allocator_for(graph)
 	alloc.force_allocate(attacker, nodes.core)
 	alloc.force_allocate(attacker, nodes.leaf)
 	attacker.core_location = nodes.core

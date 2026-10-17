@@ -20,7 +20,6 @@ extends GutTest
 
 const _BOARD := preload("res://entity/default_entity_board.tres")
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 
 const _DT := 1.0 / 120.0
 const _SWING := 1.2
@@ -55,8 +54,7 @@ func _spikes_pool(node: SkillNode) -> PoolStat:
 
 ## A graph with an attacker, a hostile defender, and one allocated spiked node.
 func _setup(cap: float) -> Dictionary:
-	var graph := _GRAPH_SCENE.instantiate()
-	add_child_autofree(graph)
+	var graph := TestWorld.create(self).graph
 	var attacker := _make_entity(graph)
 	var defender := _make_entity(graph)
 	var enemy_camp := Faction.new()
@@ -64,9 +62,7 @@ func _setup(cap: float) -> Dictionary:
 	defender.faction = enemy_camp
 	var spiked := _spawn_node(graph, "Spiked")
 	await get_tree().process_frame
-	var alloc := AllocationSystem.new()
-	alloc.graph = graph
-	add_child_autofree(alloc)
+	var alloc := TestWorld.allocator_for(graph)
 	alloc.force_allocate(defender, spiked)
 	_set_spikes_cap(spiked, cap)
 	return {"graph": graph, "attacker": attacker, "defender": defender, "spiked": spiked}

@@ -179,7 +179,6 @@ func test_a_deterministic_spell_needs_no_seed_to_reproduce() -> void:
 
 const _BOARD := preload("res://entity/default_entity_board.tres")
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _PLAYER_FACTION := preload("res://entity/factions/player.tres")
 
 
@@ -187,11 +186,8 @@ const _PLAYER_FACTION := preload("res://entity/factions/player.tres")
 ## EntityNavigator for its firing leaves and `H.assign_owner` only writes
 ## `owned_by` (no mirror). Returns the pieces the two fixtures below share.
 func _make_allocated_world() -> Dictionary:
-	var graph: Graph = _GRAPH_SCENE.instantiate()
-	add_child_autofree(graph)
-	var alloc := AllocationSystem.new()
-	alloc.graph = graph
-	add_child_autofree(alloc)
+	var graph: Graph = TestWorld.create(self).graph
+	var alloc := TestWorld.allocator_for(graph)
 	var attacker := Entity.new()
 	attacker.display_name = "A"
 	attacker.stat_board = _BOARD.duplicate(true) as EntityStatBoard
