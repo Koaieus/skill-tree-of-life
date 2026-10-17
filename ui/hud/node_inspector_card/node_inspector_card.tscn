@@ -1,7 +1,8 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene load_steps=4 format=3]
 
 [ext_resource type="Script" path="res://ui/hud/node_inspector_card/node_inspector_card.gd" id="1_script"]
 [ext_resource type="PackedScene" path="res://ui/theme/glass_panel.tscn" id="2_glass"]
+[ext_resource type="PackedScene" path="res://ui/aspect_wheel/aspect_wheel.tscn" id="3_wheel"]
 
 [node name="NodeInspectorCard" type="MarginContainer"]
 layout_mode = 3
@@ -66,3 +67,15 @@ unique_name_in_owner = true
 layout_mode = 2
 theme_override_font_sizes/font_size = 12
 text = "—"
+
+[node name="RingWheel" parent="Padded/Content" instance=ExtResource("3_wheel")]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+size_flags_horizontal = 4
+radius_px = 48.0
+inner_radius_px = 30.0
+wedge_gap_deg = 4.0
+badge_px = 10
+fill_alpha = 0.5
+read_only = true
