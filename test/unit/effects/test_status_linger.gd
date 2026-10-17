@@ -52,7 +52,7 @@ func _make_entity(n: String) -> Entity:
 
 
 func _new_node() -> SkillNode:
-	var n := _w.add_node(StringName("N%d" % _graph.skill_nodes_container.get_child_count()))
+	var n := _w.add_node()
 	return n
 
 

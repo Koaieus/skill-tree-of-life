@@ -31,9 +31,7 @@ func _line_graph(label: String, count: int) -> Graph:
 	await get_tree().process_frame
 	var previous: SkillNode = null
 	for i in count:
-		var node: SkillNode = _NODE_SCENE.instantiate()
-		node.position = Vector2(i * 100.0, 0.0)
-		graph.add_skill_node(node)
+		var node := w.add_node(&"", Vector2(i * 100.0, 0.0))
 		graph.restore_stable_id(node, i + 1)
 		if previous != null:
 			w.link(previous, node)

@@ -47,10 +47,12 @@ static func around(g: Graph, gut: GutTest = null) -> TestWorld:
 
 
 ## Adds a node named [param id]. [param pos] is a global position, set after
-## the node enters the tree; null leaves it at the origin.
-func add_node(id: StringName, pos: Variant = null) -> SkillNode:
+## the node enters the tree; null leaves it at the origin. An empty [param id]
+## leaves the node unnamed (the engine picks one).
+func add_node(id: StringName = &"", pos: Variant = null) -> SkillNode:
 	var n := _SKILL_NODE_SCENE.instantiate() as SkillNode
-	n.name = String(id)
+	if id != &"":
+		n.name = String(id)
 	graph.add_skill_node(n)
 	if pos != null:
 		n.global_position = pos

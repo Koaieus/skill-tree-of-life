@@ -212,9 +212,7 @@ func _hand_graph(pairs: Array) -> Graph:
 	var w := TestWorld.around(graph)
 	var nodes: Array[SkillNode] = []
 	for i in 3:
-		var n := preload("res://skill_node/skill_node.tscn").instantiate() as SkillNode
-		n.position = Vector2(200 * i, 0)
-		graph.add_skill_node(n)
+		var n := w.add_node(&"", Vector2(200 * i, 0))
 		nodes.append(n)
 	for p in pairs:
 		w.link(nodes[p[0]], nodes[p[1]])

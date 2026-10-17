@@ -33,7 +33,7 @@ func _def() -> ScoutStatus:
 
 
 func _new_node() -> SkillNode:
-	var n := _w.add_node(StringName("N%d" % _graph.skill_nodes_container.get_child_count()))
+	var n := _w.add_node()
 	await get_tree().process_frame
 	return n
 
