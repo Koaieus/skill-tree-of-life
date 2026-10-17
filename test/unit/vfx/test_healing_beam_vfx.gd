@@ -5,7 +5,8 @@ extends GutTest
 ## exploding. The whole point is that this spell's `PropagationConfig` carries
 ## no filter at all, so it heals hostile nodes too (#663's table) — the art
 ## must be honest about that, which means the orb never branches on
-## ownership and never reads the caster's identity colour. Crit is the one
+## ownership — but it does take a LIGHT tint of the caster's colour (owner,
+## 2026-10-17: *they* cast it, whom it hits is irrelevant). Crit is the one
 ## documented exception to "never gold" (#663 D5 / owner call 2026-08-30,
 ## recorded in `.claude/rules/ui-palette.md`).
 
@@ -27,8 +28,8 @@ func _spawn_coordinator() -> MagicBounceCoordinator:
 	return coord
 
 
-func _spawn_orb() -> HealingBeamOrbVisual:
-	var orb: HealingBeamOrbVisual = HEALING_BEAM_ORB.instantiate()
+func _spawn_orb() -> Node:
+	var orb: Node = HEALING_BEAM_ORB.instantiate()
 	add_child_autofree(orb)
 	return orb
 
@@ -100,22 +101,37 @@ func test_orb_body_is_soft_with_no_trail() -> void:
 	assert_eq(body.trail_length, 0, "alpha-led and blurred, no trail — an attack streaks, a heal doesn't")
 
 
-func test_orb_body_is_pinned_neutral_regardless_of_caster() -> void:
+## Replaces the old neutral pin: the orb body is the caster's colour mixed
+## partway in — strictly between bolt_soft's authored colour and the caster's,
+## on every channel — and keeps the authored alpha-soft read.
+func test_orb_body_is_tinted_partway_toward_the_caster() -> void:
 	var orb := _spawn_orb()
 	var body: BoltBody = orb.get_child(0)
-	var neutral := Emissive.NEUTRAL
-	assert_almost_eq(body.tint.r, neutral.r, 0.001)
-	assert_almost_eq(body.tint.g, neutral.g, 0.001)
-	assert_almost_eq(body.tint.b, neutral.b, 0.001)
-	assert_ne(body.tint, Color.WHITE, "must be the named NEUTRAL off-white, not a bare white default")
+	var authored: Color = body.tint
+	var caster := Color(0.2, 0.7, 0.3, 1.0)
+	orb.set("tint", caster)
+	for ch in ["r", "g", "b"]:
+		var lo: float = minf(authored[ch], caster[ch])
+		var hi: float = maxf(authored[ch], caster[ch])
+		assert_gt(body.tint[ch], lo, "%s moved off the authored colour toward the caster" % ch)
+		assert_lt(body.tint[ch], hi, "%s only partway — a LIGHT caster tint, not the full hue" % ch)
+	assert_almost_eq(body.tint.a, authored.a, 0.001, "bolt_soft's authored alpha survives the tint")
 
 
-func test_orb_exposes_no_tint_property_so_the_caster_stamp_is_a_no_op() -> void:
+func test_orb_exposes_tint_so_the_caster_stamp_lands() -> void:
 	# MagicBounceCoordinator stamps `if "tint" in v: v.set("tint", caster_color)`
-	# on every projectile's visual root right after launch (#663 D4). The whole
-	# point of this spell's honesty is that the stamp must find nothing to grab.
+	# on every projectile's visual root right after launch (#663 D4).
 	var orb := _spawn_orb()
-	assert_false("tint" in orb, "the orb root must not expose a tint property")
+	assert_true("tint" in orb, "the orb root exposes tint for the caster stamp")
+
+
+func test_a_crit_does_not_change_the_orb_body() -> void:
+	var orb := _spawn_orb()
+	orb.set("tint", Color(0.2, 0.7, 0.3, 1.0))
+	var body: BoltBody = orb.get_child(0)
+	var before: Color = body.tint
+	orb._on_crit(2)
+	assert_eq(body.tint, before, "a crit escalates only the arrival ring, never the body")
 
 
 func test_arrival_spawns_the_absorb_ring_in_contracting_mode() -> void:
@@ -132,7 +148,7 @@ func test_arrival_spawns_the_absorb_ring_in_contracting_mode() -> void:
 
 
 func test_absorb_ring_configured_scene_matches_the_composed_arrival_companion() -> void:
-	var visual: HealingBeamOrbVisual = HEALING_BEAM_ORB.instantiate()
+	var visual: Node = HEALING_BEAM_ORB.instantiate()
 	add_child_autofree(visual)
 	assert_eq(visual.arrival_companions.size(), 1, "one arrival companion — the absorb ring")
 	assert_eq(visual.arrival_companions[0], HEALING_BEAM_ABSORB_RING)
@@ -225,7 +241,7 @@ func test_no_ownership_branch_anywhere_in_the_spells_own_files() -> void:
 	# looks IDENTICAL to one flying into a friendly node. That is only true if
 	# nothing in this spell's own diff ever asks a relation question at all.
 	var paths := [
-		"res://ui/vfx/projectile/visual/healing_beam_orb_visual.gd",
+		"res://ui/vfx/projectile/visual/composed_projectile_visual.gd",
 	]
 	for path in paths:
 		var src: String = FileAccess.get_file_as_string(path)
@@ -236,6 +252,6 @@ func test_no_ownership_branch_anywhere_in_the_spells_own_files() -> void:
 
 func test_no_per_instance_shader_material() -> void:
 	var src: String = FileAccess.get_file_as_string(
-		"res://ui/vfx/projectile/visual/healing_beam_orb_visual.gd")
+		"res://ui/vfx/projectile/visual/composed_projectile_visual.gd")
 	assert_false(src.contains("ShaderMaterial"),
 		"per-instance variation must ride modulate/UV/transform, never a shader material")
