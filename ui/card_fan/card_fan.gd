@@ -16,7 +16,7 @@ extends Control
 signal picked(scene: PackedScene)
 ## The pointer entered a card, or left one ([code]null[/code]).
 signal hovered(scene: PackedScene)
-## Right-click on the fan, or [code]ui_cancel[/code] while it shows.
+## Right-click on the hub, or [code]ui_cancel[/code] while it shows.
 signal dismissed
 ## The centre button was pressed.
 signal hub_pressed
