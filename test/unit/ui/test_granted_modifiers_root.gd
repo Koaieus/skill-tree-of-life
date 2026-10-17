@@ -9,8 +9,6 @@ extends GutTest
 ## [ModSlabRow] any more). Instantiated standalone — no [TooltipFan] present.
 
 const _ROOT_SCENE := preload("res://ui/tooltip_fan/panels/granted_modifiers_root.tscn")
-const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _BARE_ADDON_SCENE := preload("res://test/support/addons/bare_addon.tscn")
 
 var _graph: Graph
@@ -18,13 +16,9 @@ var _node: SkillNode
 
 
 func before_each() -> void:
-	_graph = _GRAPH_SCENE.instantiate()
-	_graph.name = "TestGraph"
-	add_child_autofree(_graph)
-
-	_node = _SKILL_NODE_SCENE.instantiate() as SkillNode
-	_node.name = "N0"
-	_graph.skill_nodes_container.add_child(_node)
+	var world := TestWorld.create(self)
+	_graph = world.graph
+	_node = world.add_node(&"N0")
 
 
 func _make_modifier(op: StatModifier.Operation, value: float, stat_id: StringName = &"armor") -> StatModifier:

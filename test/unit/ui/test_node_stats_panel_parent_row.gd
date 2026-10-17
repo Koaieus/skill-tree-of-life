@@ -4,16 +4,15 @@ extends GutTest
 ## the node stats panel — "+20% increased" — and never a number of its own.
 ## A child read on that node already folds the entity's parent bins.
 
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
-const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _PANEL_SCENE := preload("res://ui/tooltip_fan/panels/node_stats_panel.tscn")
 
+var _world: TestWorld
 var _graph: Graph
 
 
 func before_each() -> void:
-	_graph = _GRAPH_SCENE.instantiate()
-	add_child_autofree(_graph)
+	_world = TestWorld.create(self)
+	_graph = _world.graph
 
 
 func _mod(stat_id: StringName, op: StatModifier.Operation, value: float) -> StatModifier:
@@ -25,9 +24,7 @@ func _mod(stat_id: StringName, op: StatModifier.Operation, value: float) -> Stat
 
 
 func _node() -> SkillNode:
-	var node := _SKILL_NODE_SCENE.instantiate() as SkillNode
-	_graph.add_skill_node(node)
-	return node
+	return _world.add_node()
 
 
 ## Every Label's text under [param row] the player can see (visible and not
@@ -77,14 +74,9 @@ func test_minted_parent_renders_its_terms_never_a_value() -> void:
 
 func test_child_read_folds_the_entity_parent_increase() -> void:
 	var node := _node()
-	var e: Entity = autofree(Entity.new())
-	e.stat_board = TestBoards.flat_entity_board()
-	_graph.add_child(e)
+	var e := _world.add_entity("", TestBoards.flat_entity_board())
 	await get_tree().process_frame
-	var alloc := AllocationSystem.new()
-	alloc.graph = _graph
-	add_child_autofree(alloc)
-	alloc.force_allocate(e, node)
+	_world.allocator().force_allocate(e, node)
 	node.add_local_modifier(_mod(&"blade_damage", StatModifier.Operation.ADD_BASE, 99.0))
 	var before := float(node.get_local_value(&"blade_damage"))
 	# INT stat: pick a base the +20% scales to a whole number (100 → 120).

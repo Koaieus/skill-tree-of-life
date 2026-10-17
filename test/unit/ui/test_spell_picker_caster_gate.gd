@@ -11,11 +11,9 @@ extends GutTest
 ## the authored min_degree values are tuning, not something a test should pin.
 
 const _BAR_SCENE := preload("res://ui/spell_picker_bar/spell_picker_bar.tscn")
-const _DEFAULT_BOARD := preload("res://entity/default_entity_board.tres")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
-const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 
 var _bar: SpellPickerBar
+var _world: TestWorld
 var _graph: Graph
 var _node: SkillNode
 var _entity: Entity
@@ -27,22 +25,14 @@ func before_each() -> void:
 	# A one-node territory: #728 reads the eligible-caster set off
 	# `attacker.navigator`, so an entity with no graph has no caster for
 	# ANY spell and every press would toast the wrong reason.
-	_graph = _GRAPH_SCENE.instantiate() as Graph
-	add_child_autofree(_graph)
-	_node = _SKILL_NODE_SCENE.instantiate() as SkillNode
-	_graph.add_skill_node(_node)
+	_world = TestWorld.create(self)
+	_graph = _world.graph
+	_node = _world.add_node()
 
-	_entity = Entity.new()
-	_entity.display_name = "Caster"
-	_entity.stat_board = _DEFAULT_BOARD.duplicate(true) as EntityStatBoard
-	_graph.add_child(_entity)
-	autofree(_entity)
+	_entity = _world.add_entity("Caster")
 	await get_tree().process_frame  # Entity._ready wires the navigator
 
-	var alloc := AllocationSystem.new()
-	alloc.graph = _graph
-	add_child_autofree(alloc)
-	alloc.force_allocate(_entity, _node)
+	_world.allocator().force_allocate(_entity, _node)
 	_book = SpellBook.new()
 
 	_bar = _BAR_SCENE.instantiate() as SpellPickerBar
@@ -122,15 +112,9 @@ func test_growing_the_territory_ungreys_a_spell_that_had_no_caster() -> void:
 	assert_eq(_denials.size(), 1, "precondition: denied while the territory is one node")
 
 	# A path of three: the middle node now has owned-subgraph degree 2.
-	var alloc := _graph.get_node_or_null(^"GrowthAlloc") as AllocationSystem
-	if alloc == null:
-		alloc = AllocationSystem.new()
-		alloc.name = "GrowthAlloc"
-		alloc.graph = _graph
-		_graph.add_child(alloc)
+	var alloc := _world.allocator()
 	for _i in 2:
-		var extra := _SKILL_NODE_SCENE.instantiate() as SkillNode
-		_graph.add_skill_node(extra)
+		var extra := _world.add_node()
 		# Allocate BEFORE edging: an EntityNavigator mirrors owned nodes only,
 		# so an edge announced while its far end is still unowned is dropped.
 		alloc.force_allocate(_entity, extra)

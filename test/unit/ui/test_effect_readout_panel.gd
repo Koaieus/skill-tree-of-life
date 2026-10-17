@@ -9,35 +9,26 @@ extends GutTest
 ## `modifiers` (so `_on_granted` is a no-op) — the test grants directly
 ## through the context it's handed, which is the same seam [AuraEffect] uses.
 
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
-const _BOARD := preload("res://entity/default_entity_board.tres")
 const _PANEL_SCENE := preload("res://ui/tooltip_fan/panels/effect_readout_panel.tscn")
 const _PLAYER_FACTION := preload("res://entity/factions/player.tres")
 const _NPC_FACTION := preload("res://entity/factions/npc.tres")
 
+var _world: TestWorld
 var _graph: Graph
 var _node: SkillNode
 
 
 func before_each() -> void:
-	_graph = _GRAPH_SCENE.instantiate()
-	add_child_autofree(_graph)
-	_node = _SKILL_NODE_SCENE.instantiate()
-	_graph.add_skill_node(_node)
+	_world = TestWorld.create(self)
+	_graph = _world.graph
+	_node = _world.add_node()
 
 
 func _spawn_entity(faction: Faction = null) -> Entity:
-	var ent := Entity.new()
-	ent.display_name = "E"
-	ent.stat_board = _BOARD.duplicate(true) as EntityStatBoard
-	if faction != null:
-		ent.faction = faction
 	# Real production wiring (#621's read path scans exactly this container) —
 	# see GameRoot.spawn_entity / Graph._ready's entity_id minting.
-	_graph.entities_container.add_child(ent)
-	autofree(ent)
-	return ent
+	return _world.add_entity("E", null, faction)
 
 
 func _mod(stat_id: StringName, op: StatModifier.Operation, value: float) -> StatModifier:

@@ -5,9 +5,6 @@ extends GutTest
 ## presence — [method StatusReadout.shown_power] answers `-1`, the tooltip
 ## row drops the number, and the node tint blends as if power were 1.
 
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
-const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
-const _BOARD := preload("res://entity/default_entity_board.tres")
 const _ROW_SCENE := preload("res://ui/tooltip_fan/status_row.tscn")
 
 var _def: StatusDef
@@ -107,15 +104,8 @@ func test_presence_tint_matches_a_one_stack_row() -> void:
 
 
 func _live_node() -> SkillNode:
-	var graph: Graph = _GRAPH_SCENE.instantiate()
-	add_child_autofree(graph)
-	var alloc := AllocationSystem.new()
-	alloc.graph = graph
-	add_child_autofree(alloc)
-	var owner_e: Entity = autofree(Entity.new())
-	owner_e.stat_board = _BOARD.duplicate(true) as EntityStatBoard
-	graph.add_child(owner_e)
-	var node := _SKILL_NODE_SCENE.instantiate() as SkillNode
-	graph.skill_nodes_container.add_child(node)
-	alloc.force_allocate(owner_e, node)
+	var world := TestWorld.create(self)
+	var owner_e := world.add_entity("")
+	var node := world.add_node()
+	world.allocator().force_allocate(owner_e, node)
 	return node
