@@ -61,8 +61,12 @@ func _init() -> void:
 
 
 ## A status rider lands before its paired hit, so its effect (a curse floor,
-## an armor break, a hex) lifts that hit (ADR 0067).
+## an armor break, a hex) lifts that hit (ADR 0067). A blast's status or a
+## splash copy ([member HitInstance.blast_mark] / [member HitInstance.land_mask],
+## both stamped before the landing is placed) is damage-shaped and stays after.
 func land_priority() -> int:
+	if blast_mark != null or land_mask != 0:
+		return LandPriority.AFTER
 	return LandPriority.BEFORE
 
 
