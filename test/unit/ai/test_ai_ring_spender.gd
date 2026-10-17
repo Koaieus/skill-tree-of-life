@@ -54,7 +54,7 @@ func test_strength_highest_with_three_points_buys_its_sector_in_order() -> void:
 	assert_eq(_enemy.stat_board.ring_points.available(), 3, "sanity: three points")
 	# STRICTLY highest — the STR-first tie-break must not be what passes this.
 	_boost(&"strength", 50.0)
-	_ai._spend_ring_points()
+	await _ai._spend_ring_points()
 	assert_eq(_enemy.ring_spent, [&"BleedingT1", &"WeaknessT1", &"BleedingT2"] as Array[StringName],
 			"T1 on both aspects, then the first T2")
 	assert_eq(_enemy.stat_board.ring_points.available(), 0, "every point spent")
@@ -63,7 +63,7 @@ func test_strength_highest_with_three_points_buys_its_sector_in_order() -> void:
 func test_another_highest_school_buys_its_own_sector() -> void:
 	_earn(1)
 	_boost(&"dexterity", 50.0)
-	_ai._spend_ring_points()
+	await _ai._spend_ring_points()
 	assert_eq(_enemy.ring_spent.size(), 1)
 	if _enemy.ring_spent.size() == 1:
 		var c := _applier.ring_system.table().cell(_enemy.ring_spent[0])
@@ -72,5 +72,20 @@ func test_another_highest_school_buys_its_own_sector() -> void:
 
 
 func test_no_points_buys_nothing() -> void:
-	_ai._spend_ring_points()
+	await _ai._spend_ring_points()
 	assert_true(_enemy.ring_spent.is_empty())
+
+
+func test_two_points_buy_two_cells_through_a_queued_applier() -> void:
+	_earn(2)
+	assert_eq(_enemy.stat_board.ring_points.available(), 2, "sanity: two points")
+	_boost(&"strength", 50.0)
+	# A turn starting mid-drain: the applier is busy, so each spend is QUEUED
+	# and only lands when the drain reaches it.
+	_applier.is_applying = true
+	_ai._spend_ring_points()
+	assert_true(_enemy.ring_spent.is_empty(), "queued, not yet applied")
+	_applier.is_applying = false
+	_applier._drain()
+	assert_eq(_enemy.ring_spent, [&"BleedingT1", &"WeaknessT1"] as Array[StringName],
+			"both queued spends applied in one turn")

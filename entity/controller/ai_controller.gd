@@ -213,7 +213,7 @@ func take_turn() -> void:
 	if not _continue():
 		return
 
-	_spend_ring_points()
+	await _spend_ring_points()
 
 	var visible_enemies := AiRecon.visible_enemy_nodes(entity)
 	var saw_hostile := not visible_enemies.is_empty()
@@ -354,10 +354,9 @@ func _spend_ring_points() -> void:
 		if pick == &"" or pool.available() < table.cell(pick).cost:
 			return
 		_decide("ring — %s" % pick)
-		# Fire-and-forget: the spend bypasses the queue (no `command_applied`
-		# to await), so its verdict is whether the cell landed in ring_spent.
-		_submit(SpendRingCellCommand.new(entity.entity_id, pick))
-		if not entity.ring_spent.has(pick):
+		# Queued like any other command: await its verdict before re-asking
+		# adjacency for the next pick.
+		if not await _submit_and_wait(SpendRingCellCommand.new(entity.entity_id, pick)):
 			return
 
 
