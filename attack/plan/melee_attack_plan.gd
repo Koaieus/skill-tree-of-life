@@ -726,9 +726,10 @@ func aspect_overrun() -> int:
 	return total
 
 
-## Refund `node`'s temp upgrade, if any — frees the attached addon.
-func remove_temp_upgrade(node: SkillNode) -> void:
-	if _free_temp_addons(node):
+## Refund `node`'s temp upgrades of [param scene]'s kind — every kind when
+## null — freeing the attached addons.
+func remove_temp_upgrade(node: SkillNode, scene: PackedScene = null) -> void:
+	if _free_temp_addons(node, scene):
 		_notify_selection_changed()
 
 
@@ -783,18 +784,19 @@ func placeable_temp_kinds(node: SkillNode, offered: Array[PackedScene]) -> Array
 ## otherwise try to apply a new one. Returns true if anything changed.
 func toggle_temp_upgrade(node: SkillNode, scene: PackedScene) -> bool:
 	if _existing_temp_upgrade(node, scene) != null:
-		remove_temp_upgrade(node)
+		remove_temp_upgrade(node, scene)
 		return true
 	return apply_temp_upgrade(node, scene)
 
 
-## Frees every is_temporary addon on `node`. The one place temp-upgrade
-## removal is written — every mutation site below calls this instead of
-## duplicating the free loop. Returns true if anything was freed.
-func _free_temp_addons(node: SkillNode) -> bool:
+## Frees every is_temporary addon on `node` of [param scene]'s kind, or of
+## every kind when null. The one place temp-upgrade removal is written — every
+## mutation site below calls this instead of duplicating the free loop.
+## Returns true if anything was freed.
+func _free_temp_addons(node: SkillNode, scene: PackedScene = null) -> bool:
 	var freed := false
 	for a in node.get_addons():
-		if a.is_temporary:
+		if a.is_temporary and (scene == null or a.get_kind() == scene.resource_path):
 			node.remove_child(a)
 			a.queue_free()
 			freed = true
