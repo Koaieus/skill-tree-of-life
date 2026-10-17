@@ -132,6 +132,9 @@ var peak_flash_fired: bool = false
 ## [member expand_radius] as authored, latched the first time `_on_context`
 ## widens it. -1 = never widened.
 var _authored_expand_radius: float = -1.0
+## [member emissive_tier] as authored, latched the first time the visit ramp
+## sets it. -1 = never ramped.
+var _authored_emissive_tier: float = -1.0
 
 var _t: float = 0.0
 var _playing: bool = false
@@ -174,12 +177,17 @@ func _on_crit(tier: int) -> void:
 	crit_tier = tier
 
 
-## Typed [Variant] on purpose — #543's `ScheduleEntry` does not exist yet and a
-## typed parameter would refuse to parse. Reads `convergence_count` when it is
-## offered, so Resonator's gather ring widens with the number of branches that
-## actually met; absent, the ring is its authored size.
+## Typed [Variant] on purpose — a typed parameter would refuse the dictionary
+## shapes tests and the playground hand it. Two channels, never both:
+## with [member visit_ramp_visits] on, `visit_index` ramps the radius and tier
+## (Reverberator); otherwise `convergence_count` widens the ring, so
+## Resonator's gather grows with the branches that actually met. Absent, the
+## ring is its authored size. Both work against the AUTHORED values.
 func _on_context(entry: Variant) -> void:
 	if entry == null:
+		return
+	if visit_ramp_visits > 0.0:
+		_apply_visit_ramp(VfxContext.read_float(entry, &"visit_index", 0.0))
 		return
 	var count: float = VfxContext.read_float(entry, &"convergence_count", -1.0)
 	if count > 1.0:
@@ -191,6 +199,19 @@ func _on_context(entry: Variant) -> void:
 
 
 # ------------------------------------------------------------------- internals
+
+
+## Lerps the authored start toward the `_end` knobs by how far `visit` is along
+## [member visit_ramp_visits]; clamps there, so a node revisited past it reads
+## at the loudest authored ring rather than growing without bound.
+func _apply_visit_ramp(visit: float) -> void:
+	if _authored_expand_radius < 0.0:
+		_authored_expand_radius = expand_radius
+	if _authored_emissive_tier < 0.0:
+		_authored_emissive_tier = emissive_tier
+	var f: float = clampf(visit / visit_ramp_visits, 0.0, 1.0)
+	expand_radius = lerpf(_authored_expand_radius, visit_expand_radius_end, f)
+	emissive_tier = lerpf(_authored_emissive_tier, visit_emissive_tier_end, f)
 
 
 ## Number of concentric rings this ring will actually draw — the crit grammar

@@ -13,6 +13,7 @@ const REVERBERATOR_DEF := preload("res://attack/spell/defs/reverberator.tres")
 const REVERBERATOR_COORDINATOR := preload("res://ui/vfx/coordinator/spells/reverberator_coordinator.tscn")
 const SHARED_DEFAULT_COORDINATOR := preload("res://ui/vfx/coordinator/magic_bounce_coordinator.tscn")
 const BOLT_PACKET := preload("res://ui/vfx/projectile/visual/bolt_packet.tscn")
+const REVERBERATE_RING := preload("res://ui/vfx/projectile/visual/impact_ring_reverberate.tscn")
 const GHOST_LOOP_BODY := preload("res://ui/vfx/projectile/visual/ghost_loop_body.tscn")
 const BOUNCE_PATH := preload("res://ui/vfx/projectile/path/bounce_path.tres")
 
@@ -134,7 +135,7 @@ func test_jump_and_edge_visuals_are_the_same_packet_arrival_composition() -> voi
 	assert_not_null(coord.jump_visual)
 	assert_eq(coord.jump_visual, coord.edge_visual,
 		"JUMP and EDGE both read as one packet funnelling toward the hub")
-	var visual: ReverberatorArrivalVisual = coord.jump_visual.instantiate()
+	var visual: ComposedProjectileVisual = coord.jump_visual.instantiate()
 	add_child_autofree(visual)
 	assert_eq(visual.body_scene, BOLT_PACKET, "the flying body is P1-Packet, per the spec")
 
@@ -142,7 +143,7 @@ func test_jump_and_edge_visuals_are_the_same_packet_arrival_composition() -> voi
 func test_self_loop_visual_composes_the_ghost_loop_body() -> void:
 	var coord := _spawn_coordinator()
 	assert_not_null(coord.self_loop_visual)
-	var visual: ReverberatorArrivalVisual = coord.self_loop_visual.instantiate()
+	var visual: ComposedProjectileVisual = coord.self_loop_visual.instantiate()
 	add_child_autofree(visual)
 	assert_eq(visual.body_scene, GHOST_LOOP_BODY,
 		"the self-loop body is the ghost-twin wrapper, not a bare packet")
@@ -201,7 +202,7 @@ func test_crit_forwards_to_both_lead_and_ghost() -> void:
 
 func test_arrival_ring_escalates_with_visit_index() -> void:
 	var coord := _spawn_coordinator()
-	var first: ReverberatorArrivalVisual = coord.jump_visual.instantiate()
+	var first: ComposedProjectileVisual = coord.jump_visual.instantiate()
 	add_child_autofree(first)
 	first._on_launch()
 	first._on_context(_entry(0))
@@ -212,7 +213,7 @@ func test_arrival_ring_escalates_with_visit_index() -> void:
 			first_ring = child
 	assert_not_null(first_ring, "an arrival must spawn a ring")
 
-	var fourth: ReverberatorArrivalVisual = coord.jump_visual.instantiate()
+	var fourth: ComposedProjectileVisual = coord.jump_visual.instantiate()
 	add_child_autofree(fourth)
 	fourth._on_launch()
 	fourth._on_context(_entry(3))
@@ -235,7 +236,7 @@ func test_arrival_ring_escalates_with_visit_index() -> void:
 
 func test_arrival_ring_is_in_absorb_mode() -> void:
 	var coord := _spawn_coordinator()
-	var visual: ReverberatorArrivalVisual = coord.jump_visual.instantiate()
+	var visual: ComposedProjectileVisual = coord.jump_visual.instantiate()
 	add_child_autofree(visual)
 	visual._on_launch()
 	visual._on_context(_entry(0))
@@ -249,11 +250,11 @@ func test_arrival_ring_is_in_absorb_mode() -> void:
 
 
 func test_convergence_count_never_competes_with_the_visit_index_ramp() -> void:
-	# The ring's OWN `_on_context` widens off `convergence_count` — this
-	# visual must never forward context to the ring, or a converging branch
-	# would re-widen a radius the visit_index ramp already set.
+	# The ring receives the whole context; with its visit ramp on it must
+	# ignore `convergence_count`, or a converging branch would re-widen a
+	# radius the visit_index ramp already set.
 	var coord := _spawn_coordinator()
-	var visual: ReverberatorArrivalVisual = coord.jump_visual.instantiate()
+	var visual: ComposedProjectileVisual = coord.jump_visual.instantiate()
 	add_child_autofree(visual)
 	visual._on_launch()
 	visual._on_context(_entry(0, 4))
@@ -262,13 +263,15 @@ func test_convergence_count_never_competes_with_the_visit_index_ramp() -> void:
 	for child in visual.get_children():
 		if child is ImpactRing:
 			ring = child
-	assert_almost_eq(ring.expand_radius, visual.ring_radius_start, 0.001,
+	var authored: ImpactRing = REVERBERATE_RING.instantiate()
+	add_child_autofree(authored)
+	assert_almost_eq(ring.expand_radius, authored.expand_radius, 0.001,
 		"visit_index 0 must read at the smallest ring even with convergence_count 4")
 
 
 func test_crit_tier_still_escalates_the_ring_grammar() -> void:
 	var coord := _spawn_coordinator()
-	var visual: ReverberatorArrivalVisual = coord.jump_visual.instantiate()
+	var visual: ComposedProjectileVisual = coord.jump_visual.instantiate()
 	add_child_autofree(visual)
 	visual._on_launch()
 	visual._on_context(_entry(0))
