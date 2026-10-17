@@ -9,39 +9,22 @@
 extends Control
 class_name StatBoardOverlay
 
-const StatBoardGraphScene := preload("res://addons/stat_board_visualizer/stat_board_graph.tscn")
+## Backdrop, StatBoardGraph and header, authored together.
+const _CONTENT := preload("res://ui/stat_board_overlay/stat_board_overlay_content.tscn")
 
 ## Wired by the enclosing scene.  Set before F3 is first pressed.
 var board: StatBoard = null
 
 var _graph: GraphEdit
-var _bg: ColorRect
 
 
 func _ready() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_STOP
 
-	_bg = ColorRect.new()
-	_bg.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_bg.color = Color(0.05, 0.05, 0.08, 0.55)
-	_bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(_bg)
-
-	_graph = StatBoardGraphScene.instantiate()
-	_graph.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_graph.offset_left = 24
-	_graph.offset_right = -24
-	_graph.offset_top = 48
-	_graph.offset_bottom = -24
-	add_child(_graph)
-
-	var header := Label.new()
-	header.text = "StatBoard  ·  F3 to close"
-	header.add_theme_font_size_override(&"font_size", 14)
-	header.add_theme_color_override(&"font_color", Color(0.9, 0.9, 0.9))
-	header.position = Vector2(28, 18)
-	add_child(header)
+	var content := _CONTENT.instantiate() as Control
+	add_child(content)
+	_graph = content.get_node(^"%Graph") as GraphEdit
 
 	hide()
 

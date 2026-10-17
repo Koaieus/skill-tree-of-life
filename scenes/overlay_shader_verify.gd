@@ -56,11 +56,23 @@ func _ready() -> void:
 	get_tree().quit(0 if _fail_count == 0 else 1)
 
 
-func _verify_fog() -> void:
-	var bg := ColorRect.new()
-	bg.color = Color.WHITE
+## The scene's one authored plate behind every check (it is the first child, so
+## each overlay added after it draws on top). [param behind_aura] pushes it past
+## ZLayers.AURA (-100, see ui/z_layers.gd): AuraOverlay draws behind the default
+## z=0 band, so an opaque plate left there would always win and every sample
+## would read as pure background regardless of what the aura shader painted.
+func _show_backdrop(color: Color, behind_aura: bool) -> ColorRect:
+	var bg := %Backdrop as ColorRect
+	bg.color = color
 	bg.size = _VIEW_SIZE
-	add_child(bg)
+	bg.z_as_relative = not behind_aura
+	bg.z_index = -101 if behind_aura else 0
+	bg.show()
+	return bg
+
+
+func _verify_fog() -> void:
+	var bg := _show_backdrop(Color.WHITE, false)
 
 	var fog: FogOverlay = _FOG_SCENE.instantiate()
 	add_child(fog)
@@ -85,7 +97,7 @@ func _verify_fog() -> void:
 		1.0 - fog._sample_dark(_pixel_center(fade_pt), sources))
 
 	fog.queue_free()
-	bg.queue_free()
+	bg.hide()
 
 	await _verify_fog_multi_tile()
 
@@ -97,10 +109,7 @@ func _verify_fog() -> void:
 ## between two of them, proving the 3x3 neighbourhood read finds the right
 ## circles from the right tiles, not just the trivial single-tile case.
 func _verify_fog_multi_tile() -> void:
-	var bg := ColorRect.new()
-	bg.color = Color.WHITE
-	bg.size = _VIEW_SIZE
-	add_child(bg)
+	var bg := _show_backdrop(Color.WHITE, false)
 
 	var fog: FogOverlay = _FOG_SCENE.instantiate()
 	add_child(fog)
@@ -130,20 +139,11 @@ func _verify_fog_multi_tile() -> void:
 		1.0 - fog._sample_dark(_pixel_center(between), sources))
 
 	fog.queue_free()
-	bg.queue_free()
+	bg.hide()
 
 
 func _verify_aura() -> void:
-	var bg := ColorRect.new()
-	bg.color = Color.BLACK
-	bg.size = _VIEW_SIZE
-	# AuraOverlay draws at ZLayers.AURA (-100, see ui/z_layers.gd) — behind the
-	# default z=0 band. Without pushing the background further back, the
-	# (opaque) background would always win and every sample would read as
-	# pure background regardless of what the aura shader actually painted.
-	bg.z_as_relative = false
-	bg.z_index = -101
-	add_child(bg)
+	var bg := _show_backdrop(Color.BLACK, true)
 
 	var aura: AuraOverlay = _AURA_SCENE.instantiate()
 	add_child(aura)
@@ -167,7 +167,7 @@ func _verify_aura() -> void:
 	_check_channel("aura fade zone", img, fade_pt, Color.RED, Color.BLACK, fade_alpha)
 
 	aura.queue_free()
-	bg.queue_free()
+	bg.hide()
 
 
 ## #898: one rounded cone with UNEQUAL radii through the real cone path
@@ -177,12 +177,7 @@ func _verify_aura() -> void:
 ## by ~0.05 in the fade band — above `_TOL` — while a flat-interior sample
 ## would pass with the dedupe broken.
 func _verify_aura_cone() -> void:
-	var bg := ColorRect.new()
-	bg.color = Color.BLACK
-	bg.size = _VIEW_SIZE
-	bg.z_as_relative = false
-	bg.z_index = -101
-	add_child(bg)
+	var bg := _show_backdrop(Color.BLACK, true)
 
 	var aura: AuraOverlay = _AURA_SCENE.instantiate()
 	add_child(aura)
@@ -211,7 +206,7 @@ func _verify_aura_cone() -> void:
 		_check_channel(label, img, pt, Color.RED, Color.BLACK, alpha)
 
 	aura.queue_free()
-	bg.queue_free()
+	bg.hide()
 
 
 ## The fragment shader samples at the PIXEL CENTER (screen pixel N's world

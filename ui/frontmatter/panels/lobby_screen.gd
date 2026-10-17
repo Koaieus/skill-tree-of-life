@@ -86,7 +86,7 @@ const KNOB_SPAWN_ORDER := &"spawn_order"
 ## builds its whole column in code — see [LobbyPanel] for why that has to stay
 ## true until `configure`'s before-`_ready` contract is retired.
 func add_option(text: String, disabled: bool = false) -> Button:
-	var button := Button.new()
+	var button := Button.new() # lint: control-composed — configure() must run before _ready (LobbyPanel), so the column is built in code
 	button.text = text
 	button.disabled = disabled
 	content.add_child(button)
@@ -218,14 +218,14 @@ func _ready() -> void:
 		# #1086: every AI seat has a tier, so the tier preset is never gated.
 		_ai_preset_row.tier_changed.connect(_on_preset_tier_changed)
 
-	_rows_container = VBoxContainer.new()
+	_rows_container = VBoxContainer.new() # lint: control-composed — configure() must run before _ready (LobbyPanel), so the column is built in code
 	_rows_container.add_theme_constant_override("separation", 4)
 	content.add_child(_rows_container)
 
 	# Pushes everything below the roster — seed, run section, Start — toward
 	# the bottom of the panel instead of crowding it directly under the last
 	# slot row.
-	var roster_spacer := Control.new()
+	var roster_spacer := Control.new() # lint: control-composed — configure() must run before _ready (LobbyPanel), so the column is built in code
 	roster_spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	content.add_child(roster_spacer)
 
@@ -241,10 +241,10 @@ func _ready() -> void:
 	_build_run_section()
 
 	if _roster.network != null and _roster.network.is_online():
-		_link_label = Label.new()
+		_link_label = Label.new() # lint: control-composed — configure() must run before _ready (LobbyPanel), so the column is built in code
 		_link_label.text = _link_caption()
 		content.add_child(_link_label)
-		_status_label = Label.new()
+		_status_label = Label.new() # lint: control-composed — configure() must run before _ready (LobbyPanel), so the column is built in code
 		_status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		content.add_child(_status_label)
 		_report_mount_state()
@@ -615,7 +615,7 @@ func _submit_pick(participant: Participant, changes: Dictionary) -> void:
 func _build_run_section() -> void:
 	if _roster.policy == null or not _roster.policy.offers_run_section():
 		return
-	_run_section = VBoxContainer.new()
+	_run_section = VBoxContainer.new() # lint: control-composed — configure() must run before _ready (LobbyPanel), so the column is built in code
 	_run_section.name = "RunSection"
 	_run_section.add_theme_constant_override("separation", 4)
 	content.add_child(_run_section)

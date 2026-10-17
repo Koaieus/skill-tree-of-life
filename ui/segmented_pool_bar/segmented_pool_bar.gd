@@ -12,8 +12,8 @@ extends HBoxContainer
 ## one-segment changes register peripherally. Segments are [ColorRect] children
 ## (one per unit) so per-segment tooltips work without custom mouse handling.
 
-const SEGMENT_WIDTH: int = 16
-const SEGMENT_HEIGHT: int = 22
+## One segment; its 16x22 px size is authored in the scene.
+const _SEGMENT := preload("res://ui/segmented_pool_bar/pool_segment.tscn")
 const SEGMENT_GAP: int = 2
 const PULSE_TIME: float = 0.22
 
@@ -141,8 +141,7 @@ func _emit_skill_point_segments() -> void:
 
 func _emit_run(n: int, color: Color, tooltip: String) -> void:
 	for i in maxi(0, n):
-		var seg := ColorRect.new()
-		seg.custom_minimum_size = Vector2(SEGMENT_WIDTH, SEGMENT_HEIGHT)
+		var seg := _SEGMENT.instantiate() as ColorRect
 		seg.color = color
 		seg.tooltip_text = tooltip
 		add_child(seg)

@@ -700,7 +700,7 @@ static func apply_roster(entities_by_participant_id: Dictionary, roster: Partici
 func _setup_level() -> void:
 	if false: await get_tree().process_frame # include fake `await` to make godot see this as a coroutine
 	if has_node("%Player"):
-		player = get_node("%Player") as Entity
+		player = %Player as Entity
 
 
 ## Forwarder — see [method EntityFactory.spawn_entity].

@@ -23,6 +23,7 @@ extends FanPanel
 const _CAP := 3
 
 const _ADDON_ITEM_SCENE: PackedScene = preload("res://ui/tooltip_fan/addon_item.tscn")
+const _OVERFLOW_LABEL := preload("res://ui/tooltip_fan/panels/addon_overflow_label.tscn")
 
 ## Per-index reveal delay (fraction of the panel's own `progress`), same
 ## staggered-reveal shape as [GrantedModifiersRoot]'s `_row_setters` /
@@ -90,10 +91,8 @@ func _add_addon_item(addon: SkillNodeAddon) -> void:
 
 
 func _add_overflow_label(overflow: int) -> void:
-	var label := Label.new()
+	var label := _OVERFLOW_LABEL.instantiate() as Label
 	label.text = "+%d more" % overflow
-	label.modulate = Color(0.55, 0.55, 0.6)
-	label.add_theme_font_size_override("font_size", 10)
 	_rows.add_child(label)
 	_row_setters.append(func(t: float) -> void: _apply_control_reveal(label, t))
 

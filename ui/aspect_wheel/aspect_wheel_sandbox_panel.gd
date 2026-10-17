@@ -6,6 +6,7 @@ extends PanelContainer
 ## wedge once it has room. Sliders drive every wheel's knobs live; the log
 ## echoes the signals.
 
+const _KNOB_ROW := preload("res://ui/aspect_wheel/aspect_wheel_knob_row.tscn")
 const _COUNTS: Array[int] = [2, 5, 12]
 
 @onready var _wheels: Array[AspectWheel] = [%Wheel2, %Wheel5, %Wheel12]
@@ -75,21 +76,15 @@ func _build_knobs() -> void:
 
 
 func _slider(text: String, low: float, high: float, step: float, value: float, property: StringName) -> Control:
-	var row := HBoxContainer.new()
-	var label := Label.new()
-	label.text = text
-	label.custom_minimum_size.x = 120
-	row.add_child(label)
-	var slider := HSlider.new()
+	var row := _KNOB_ROW.instantiate() as HBoxContainer
+	(row.get_node(^"%Label") as Label).text = text
+	var slider := row.get_node(^"%Slider") as HSlider
 	slider.min_value = low
 	slider.max_value = high
 	slider.step = step
 	slider.value = value
-	slider.custom_minimum_size.x = 140
-	row.add_child(slider)
-	var readout := Label.new()
+	var readout := row.get_node(^"%Readout") as Label
 	readout.text = str(value)
-	row.add_child(readout)
 	slider.value_changed.connect(func(v: float) -> void:
 		readout.text = str(v)
 		for wheel in _wheels:

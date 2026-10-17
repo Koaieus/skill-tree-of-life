@@ -34,6 +34,10 @@ extends Control
 ## Satisfies [SandboxLiveTab]'s loader contract with [method noop] — there is no
 ## inspected resource, same as `fan_live_panel.gd` and `node_visuals_panel.gd`.
 
+const _KNOB_HEADER := preload("res://ui/frontmatter/knob_header.tscn")
+const _KNOB_SLIDER_ROW := preload("res://ui/frontmatter/knob_slider_row.tscn")
+const _KNOB_READOUT := preload("res://ui/frontmatter/knob_readout.tscn")
+const _KNOB_NAV_GRID := preload("res://ui/frontmatter/knob_nav_grid.tscn")
 const FRONTMATTER_SCENE_PATH := "res://ui/frontmatter/frontmatter_root.tscn"
 const LAYOUT_SCRIPT_PATH := "res://ui/frontmatter/frontmatter_layout.gd"
 
@@ -242,11 +246,10 @@ func _build_controls() -> void:
 ## Built in code because the row count is the TREE's, not this scene's — the
 ## same reason `sandbox_live_tab.gd` builds its breadcrumb in code.
 func _navigation_grid() -> void:
-	var grid := GridContainer.new()
-	grid.columns = 3
+	var grid := _KNOB_NAV_GRID.instantiate() as GridContainer
 	_knobs.add_child(grid)
 	for id in _tree_ids():
-		var button := Button.new()
+		var button := Button.new() # lint: control-composed — one bare Button per tree id; a one-node scene would carry nothing
 		button.text = String(id)
 		button.tooltip_text = "focus(&\"%s\")" % id
 		button.pressed.connect(func() -> void: _frontmatter.focus(id))
@@ -317,9 +320,7 @@ func _geometry_section() -> void:
 			_reset_geometry)
 	_button("✎  Open the selected fan's scene", "Author the numbers this session found",
 			func() -> void: _open(_fan_scene_path()))
-	_geometry_readout = Label.new()
-	_geometry_readout.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_geometry_readout.add_theme_font_size_override(&"font_size", 10)
+	_geometry_readout = _KNOB_READOUT.instantiate() as Label
 	_knobs.add_child(_geometry_readout)
 	_refresh_geometry_readout()
 
@@ -548,10 +549,8 @@ func _tree_ids() -> Array[StringName]:
 # --- control-column primitives -----------------------------------------------
 
 func _header(text: String) -> void:
-	var label := Label.new()
+	var label := _KNOB_HEADER.instantiate() as Label
 	label.text = text
-	label.add_theme_color_override(&"font_color", Color(0.6, 0.85, 0.95, 0.85))
-	label.add_theme_font_size_override(&"font_size", 10)
 	_knobs.add_child(label)
 
 
@@ -580,28 +579,18 @@ func _slider(
 func _labelled_slider(
 	label: String, min_v: float, max_v: float, step: float, value: float, tooltip: String
 ) -> HSlider:
-	var row := HBoxContainer.new()
+	var row := _KNOB_SLIDER_ROW.instantiate() as HBoxContainer
 	row.tooltip_text = tooltip
 	_knobs.add_child(row)
-	var name_label := Label.new()
-	name_label.text = label
-	name_label.custom_minimum_size = Vector2(120.0, 0.0)
-	name_label.add_theme_font_size_override(&"font_size", 11)
-	row.add_child(name_label)
-	var slider := HSlider.new()
+	(row.get_node(^"%NameLabel") as Label).text = label
+	var slider := row.get_node(^"%Slider") as HSlider
 	slider.min_value = min_v
 	slider.max_value = max_v
 	slider.step = step
 	slider.value = value
-	slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	slider.tooltip_text = tooltip
-	row.add_child(slider)
-	var value_label := Label.new()
+	var value_label := row.get_node(^"%ValueLabel") as Label
 	value_label.text = "%.2f" % value
-	value_label.custom_minimum_size = Vector2(44.0, 0.0)
-	value_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	value_label.add_theme_font_size_override(&"font_size", 11)
-	row.add_child(value_label)
 	slider.value_changed.connect(func(v: float) -> void: value_label.text = "%.2f" % v)
 	return slider
 
@@ -618,7 +607,7 @@ func _check(key: StringName, label: String, tooltip: String) -> void:
 
 
 func _button(label: String, tooltip: String, action: Callable) -> void:
-	var button := Button.new()
+	var button := Button.new() # lint: control-composed — one bare Button per authored action; a one-node scene would carry nothing
 	button.text = label
 	button.tooltip_text = tooltip
 	button.pressed.connect(action)

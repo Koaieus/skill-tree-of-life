@@ -11,6 +11,9 @@ extends ModalBodyBase
 ## [method resolve] is empty and [method is_selection_valid] means "can this be
 ## afforded at all", which is what dims Confirm.
 
+const _NODE_BLOCK := preload("res://ui/mass_action_confirm/mass_action_node_block.tscn")
+const _MODIFIER_LABEL := preload("res://ui/mass_action_confirm/mass_action_modifier_label.tscn")
+
 @onready var _node_list: VBoxContainer = %NodeList
 
 var _request: MassActionRequest = null
@@ -81,19 +84,17 @@ func confirm_text() -> String:
 ## [HSeparator] after ([code]<hr>[/code] per the design ask). [param reached]
 ## dims the block when it's past the SP-affordable prefix (allocate only).
 func _add_node_block(node: SkillNode, reached: bool) -> void:
-	var block := VBoxContainer.new()
+	var block := _NODE_BLOCK.instantiate() as VBoxContainer
 	block.modulate = Color(1, 1, 1, 1) if reached else Color(1, 1, 1, 0.4)
+	(block.get_node(^"%Name") as Label).text = node.get_display_name()
 
-	var name_label := Label.new()
-	name_label.text = node.get_display_name()
-	name_label.add_theme_font_size_override("font_size", 16)
-	block.add_child(name_label)
-
+	var mods := block.get_node(^"%Mods") as VBoxContainer
 	for leaf in StatModifier.flatten_all(node.modifiers):
-		var mod_label := Label.new()
+		var mod_label := _MODIFIER_LABEL.instantiate() as Label
 		mod_label.text = leaf.format()
-		mod_label.add_theme_font_size_override("font_size", 13)
-		block.add_child(mod_label)
+		mods.add_child(mod_label)
+	# An empty box would still claim a separation gap under the name.
+	mods.visible = mods.get_child_count() > 0
 
 	_node_list.add_child(block)
 	_node_list.add_child(HSeparator.new())

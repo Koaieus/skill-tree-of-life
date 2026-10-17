@@ -52,9 +52,8 @@ extends PanelContainer
 ## out exactly the low-tier patches the comparison depends on.
 const _BACKDROP := Color(0.03, 0.035, 0.05, 0.92)
 
-const _LABEL_COLOR := Color(0.55, 0.6, 0.65)
 
-var _row: HBoxContainer
+const _PATCH := preload("res://ui/theme/bloom_reference_patch.tscn")
 
 
 func _ready() -> void:
@@ -73,30 +72,21 @@ func _rebuild() -> void:
 	style.content_margin_bottom = 3.0
 	add_theme_stylebox_override("panel", style)
 
-	if _row != null:
-		_row.queue_free()
-	_row = HBoxContainer.new()
-	_row.add_theme_constant_override("separation", 3)
-	add_child(_row)
-
+	var row := %Row as HBoxContainer
+	# remove_child first: a queued-free patch would linger in the row until
+	# frame end, and every inspector edit lands here.
+	for old in row.get_children():
+		row.remove_child(old)
+		old.queue_free()
 	for stop in tiers:
-		_row.add_child(_patch(stop))
+		row.add_child(_patch(stop))
 
 
 func _patch(stop: float) -> VBoxContainer:
-	var cell := VBoxContainer.new()
-	cell.add_theme_constant_override("separation", 1)
-
-	var swatch := ColorRect.new()
+	var cell := _PATCH.instantiate() as VBoxContainer
+	var swatch := cell.get_node(^"%Swatch") as ColorRect
 	swatch.custom_minimum_size = Vector2(patch_size, patch_size)
 	swatch.color = Emissive.neutral(stop)
-	cell.add_child(swatch)
-
-	var label := Label.new()
-	label.text = "%+.0f" % stop
-	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	label.add_theme_color_override("font_color", _LABEL_COLOR)
-	label.add_theme_font_size_override("font_size", 8)
-	cell.add_child(label)
+	(cell.get_node(^"%Label") as Label).text = "%+.0f" % stop
 
 	return cell

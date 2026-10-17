@@ -1,0 +1,4 @@
+[gd_scene format=3]
+
+[node name="MassActionModifierLabel" type="Label"]
+theme_override_font_sizes/font_size = 13
