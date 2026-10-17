@@ -12,12 +12,9 @@ extends GutTest
 ## the same shape test_entity_combat_slice.gd uses, because the point here is
 ## that a whole CASCADE runs on the shadow, not just a subtraction.
 
-const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
-const _EDGE_SCENE := preload("res://graph/edge.tscn")
-const _BOARD := preload("res://entity/default_entity_board.tres")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _PLAYER_FACTION := preload("res://entity/factions/player.tres")
 
+var _w: TestWorld
 var _graph: Graph
 var _alloc: AllocationSystem
 var _battle: BattleSystem
@@ -37,22 +34,20 @@ func before_each() -> void:
 	_events_fired = 0
 	_worlds = []
 
-	_graph = _GRAPH_SCENE.instantiate()
-	add_child_autofree(_graph)
+	_w = TestWorld.create(self)
+	_graph = _w.graph
 
-	_a0 = _new_node("A0")
-	_d0 = _new_node("D0")
-	_d1 = _new_node("D1")
-	_d2 = _new_node("D2")
-	_d3 = _new_node("D3")
-	_add_edge(_a0, _d0)
-	_add_edge(_d0, _d1)
-	_add_edge(_d1, _d2)
-	_add_edge(_d1, _d3)
+	_a0 = _w.add_node(&"A0")
+	_d0 = _w.add_node(&"D0")
+	_d1 = _w.add_node(&"D1")
+	_d2 = _w.add_node(&"D2")
+	_d3 = _w.add_node(&"D3")
+	_w.link(_a0, _d0)
+	_w.link(_d0, _d1)
+	_w.link(_d1, _d2)
+	_w.link(_d1, _d3)
 
-	_alloc = AllocationSystem.new()
-	_alloc.graph = _graph
-	add_child_autofree(_alloc)
+	_alloc = _w.allocator()
 
 	# The live forced-dealloc cascade still ENTERS through the bus
 	# (Events.skill_node_depleted -> BattleSystem._on_node_depleted), so without
@@ -63,11 +58,11 @@ func before_each() -> void:
 	_battle.graph = _graph
 	add_child_autofree(_battle)
 
-	_attacker = _new_entity("Attacker")
-	# Distinct factions — both entities default to `npc.tres`, which makes them
-	# ALLIED, and a landing gate that asks for HOSTILE would veto every hit.
-	_attacker.faction = _PLAYER_FACTION
-	_defender = _new_entity("Defender")
+	# Distinct factions (TestWorld gives each default entity its own camp, so
+	# they are HOSTILE) — a landing gate that asks for HOSTILE would veto an
+	# allied hit.
+	_attacker = _w.add_entity("Attacker", null, _PLAYER_FACTION)
+	_defender = _w.add_entity("Defender")
 	await get_tree().process_frame  # entity._ready: navigator wiring
 
 	_alloc.force_allocate(_attacker, _a0)
@@ -100,28 +95,6 @@ func _bus() -> Array[Signal]:
 
 func _count_event(_a: Variant = null, _b: Variant = null, _c: Variant = null) -> void:
 	_events_fired += 1
-
-
-func _new_node(n: String) -> SkillNode:
-	var sn := _SKILL_NODE_SCENE.instantiate() as SkillNode
-	sn.name = n
-	_graph.skill_nodes_container.add_child(sn)
-	return sn
-
-
-func _add_edge(a: SkillNode, b: SkillNode) -> void:
-	var e := _EDGE_SCENE.instantiate() as Edge
-	e.from = a
-	e.to = b
-	_graph.edges_container.add_child(e)
-
-
-func _new_entity(n: String) -> Entity:
-	var e: Entity = autofree(Entity.new())
-	e.display_name = n
-	e.stat_board = _BOARD.duplicate(true) as EntityStatBoard
-	_graph.add_child(e)
-	return e
 
 
 func _shadow() -> CombatWorld:
@@ -239,8 +212,8 @@ func test_shadow_grows_across_entities_on_demand() -> void:
 
 
 func test_shadow_mints_an_ownerless_slice_for_an_unallocated_conduit() -> void:
-	var conduit := _new_node("Conduit")
-	_add_edge(_d3, conduit)
+	var conduit := _w.add_node(&"Conduit")
+	_w.link(_d3, conduit)
 	var slice := _shadow().combat_for(conduit)
 	assert_not_null(slice, "a spell conduit has no entity to snapshot but still has a board")
 	assert_null(slice.owner())

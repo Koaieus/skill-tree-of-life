@@ -5,10 +5,7 @@ extends GutTest
 ## these — see test_entity_combat_slice.gd for the multi-node / islanding
 ## cases.
 
-const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
-const _BOARD := preload("res://entity/default_entity_board.tres")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
-
+var _w: TestWorld
 var _graph: Graph
 var _alloc: AllocationSystem
 var _entity: Entity
@@ -18,20 +15,11 @@ var _shadows: Array[EntityCombat] = []
 
 func before_each() -> void:
 	_shadows = []
-	_graph = _GRAPH_SCENE.instantiate()
-	add_child_autofree(_graph)
-
-	_alloc = AllocationSystem.new()
-	_alloc.graph = _graph
-	add_child_autofree(_alloc)
-
-	_entity = autofree(Entity.new())
-	_entity.display_name = "Defender"
-	_entity.stat_board = _BOARD.duplicate(true) as EntityStatBoard
-	_graph.add_child(_entity)
-
-	_node = _SKILL_NODE_SCENE.instantiate() as SkillNode
-	_graph.skill_nodes_container.add_child(_node)
+	_w = TestWorld.create(self)
+	_graph = _w.graph
+	_alloc = _w.allocator()
+	_entity = _w.add_entity("Defender")
+	_node = _w.add_node(&"Node")
 	await get_tree().process_frame  # entity._ready: navigator wiring
 
 	# force_allocate, not a bare `owned_by =` — that also mirrors the node into

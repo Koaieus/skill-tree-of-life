@@ -11,11 +11,9 @@ extends GutTest
 ## Fixture: core(N0) - N1, both owned by one entity with armor and the damage
 ## floor zeroed so a fractional hit reaches the door unaltered.
 
-const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
-const _EDGE_SCENE := preload("res://graph/edge.tscn")
 const _BOARD := preload("res://entity/default_entity_board.tres")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 
+var _w: TestWorld
 var _graph: Graph
 var _alloc: AllocationSystem
 var _entity: Entity
@@ -26,25 +24,17 @@ var _shadows: Array[EntityCombat] = []
 
 func before_each() -> void:
 	_shadows = []
-	_graph = _GRAPH_SCENE.instantiate()
-	add_child_autofree(_graph)
-	_n0 = _new_node("N0")
-	_n1 = _new_node("N1")
-	var e := _EDGE_SCENE.instantiate() as Edge
-	e.from = _n0
-	e.to = _n1
-	_graph.edges_container.add_child(e)
+	_w = TestWorld.create(self)
+	_graph = _w.graph
+	_n0 = _w.add_node(&"N0")
+	_n1 = _w.add_node(&"N1")
+	_w.link(_n0, _n1)
+	_alloc = _w.allocator()
 
-	_alloc = AllocationSystem.new()
-	_alloc.graph = _graph
-	add_child_autofree(_alloc)
-
-	_entity = autofree(Entity.new())
-	_entity.display_name = "Defender"
-	_entity.stat_board = _BOARD.duplicate(true) as EntityStatBoard
-	_entity.stat_board.armor.base_value = 0.0
-	_entity.stat_board.min_damage_taken.base_value = 0.0
-	_graph.add_child(_entity)
+	var board := _BOARD.duplicate(true) as EntityStatBoard
+	board.armor.base_value = 0.0
+	board.min_damage_taken.base_value = 0.0
+	_entity = _w.add_entity("Defender", board)
 	await get_tree().process_frame
 
 	for n in [_n0, _n1]:
@@ -55,13 +45,6 @@ func before_each() -> void:
 func after_each() -> void:
 	for s in _shadows:
 		s.free_shadow()
-
-
-func _new_node(n: String) -> SkillNode:
-	var sn := _SKILL_NODE_SCENE.instantiate() as SkillNode
-	sn.name = n
-	_graph.skill_nodes_container.add_child(sn)
-	return sn
 
 
 func _hit(amount: float, type: int = DamageInstance.Type.TRUE) -> DamageInstance:

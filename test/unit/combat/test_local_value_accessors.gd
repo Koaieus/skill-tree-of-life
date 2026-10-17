@@ -10,30 +10,21 @@ extends GutTest
 ## Fixture is deliberately the same shape as test_node_board_health.gd's.
 
 const _BOARD := preload("res://entity/default_entity_board.tres")
-const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 
 
 func _setup(node_count: int = 1, entity_base_node_health: float = 10.0) -> Dictionary:
-	var graph := _GRAPH_SCENE.instantiate()
-	add_child_autofree(graph)
+	var w := TestWorld.create(self)
+	var graph := w.graph
 	var board: EntityStatBoard = _BOARD.duplicate(true)
 	board.node_health.base_value = entity_base_node_health
-	var entity: Entity = autofree(Entity.new())
-	entity.stat_board = board
-	graph.add_child(entity)
+	var entity := w.add_entity("Entity", board)
 
 	var nodes: Array[SkillNode] = []
 	for i in node_count:
-		var n := _SKILL_NODE_SCENE.instantiate() as SkillNode
-		n.name = "N%d" % i
-		graph.skill_nodes_container.add_child(n)
-		nodes.append(n)
+		nodes.append(w.add_node(StringName("N%d" % i)))
 	await get_tree().process_frame
 
-	var alloc := AllocationSystem.new()
-	alloc.graph = graph
-	add_child_autofree(alloc)
+	var alloc := w.allocator()
 	for n in nodes:
 		alloc.force_allocate(entity, n)
 

@@ -12,10 +12,8 @@ extends GutTest
 ##
 ## Both are driven through `TurnManager.start_turn` — the production path.
 
-const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
-const _BOARD := preload("res://entity/default_entity_board.tres")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 
+var _w: TestWorld
 var _graph: Graph
 var _alloc: AllocationSystem
 var _tm: TurnManager
@@ -25,23 +23,18 @@ var _n1: SkillNode
 
 
 func before_each() -> void:
-	_graph = _GRAPH_SCENE.instantiate()
-	add_child_autofree(_graph)
-	_n0 = _new_node("N0")
-	_n1 = _new_node("N1")
-	_graph.add_edge(_n0, _n1)
+	_w = TestWorld.create(self)
+	_graph = _w.graph
+	_n0 = _w.add_node(&"N0")
+	_n1 = _w.add_node(&"N1")
+	_w.link(_n0, _n1)
 	await get_tree().process_frame
 
-	_alloc = AllocationSystem.new()
-	_alloc.graph = _graph
-	add_child_autofree(_alloc)
+	_alloc = _w.allocator()
 	_tm = autofree(TurnManager.new())
 	add_child(_tm)
 
-	_entity = autofree(Entity.new())
-	_entity.display_name = "Healed"
-	_entity.stat_board = _BOARD.duplicate(true) as EntityStatBoard
-	_graph.entities_container.add_child(_entity)
+	_entity = _w.add_entity("Healed")
 	await get_tree().process_frame
 
 	for n in [_n0, _n1]:
@@ -50,13 +43,6 @@ func before_each() -> void:
 	# Entity.begin_turn runs no upkeep on turns_taken == 1 — prime that
 	# throwaway turn so every turn below is a real upkeep turn.
 	_turn()
-
-
-func _new_node(n: String) -> SkillNode:
-	var sn := _SKILL_NODE_SCENE.instantiate() as SkillNode
-	sn.name = n
-	_graph.add_skill_node(sn)
-	return sn
 
 
 func _turn() -> void:

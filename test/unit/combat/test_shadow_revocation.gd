@@ -17,13 +17,11 @@ extends GutTest
 ## 2 hops to 3, which is what makes the distance-scaled aura's VALUES — not just
 ## its membership — observable.
 
-const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
-const _BOARD := preload("res://entity/default_entity_board.tres")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 
 const _NODE_ARMOR: float = 5.0
 const _HIT: float = 12.0
 
+var _w: TestWorld
 var _graph: Graph
 var _alloc: AllocationSystem
 var _battle: BattleSystem
@@ -38,35 +36,30 @@ var _worlds: Array[CombatWorld] = []
 
 func before_each() -> void:
 	_worlds = []
-	_graph = _GRAPH_SCENE.instantiate()
-	add_child_autofree(_graph)
+	_w = TestWorld.create(self)
+	_graph = _w.graph
 
-	_c = _new_node("C")
-	_a = _new_node("A")
-	_b = _new_node("B")
-	_e1 = _new_node("E1")
-	_e2 = _new_node("E2")
-	_graph.add_edge(_c, _a)
-	_graph.add_edge(_a, _b)
-	_graph.add_edge(_c, _e1)
-	_graph.add_edge(_e1, _e2)
-	_graph.add_edge(_e2, _b)
+	_c = _w.add_node(&"C", Vector2(0, 0))
+	_a = _w.add_node(&"A", Vector2(100, 0))
+	_b = _w.add_node(&"B", Vector2(200, 0))
+	_e1 = _w.add_node(&"E1", Vector2(300, 0))
+	_e2 = _w.add_node(&"E2", Vector2(400, 0))
+	_w.link(_c, _a)
+	_w.link(_a, _b)
+	_w.link(_c, _e1)
+	_w.link(_e1, _e2)
+	_w.link(_e2, _b)
 
 	_a.modifiers.append(_armor_mod(_NODE_ARMOR))
 
-	_alloc = AllocationSystem.new()
-	_alloc.graph = _graph
-	add_child_autofree(_alloc)
+	_alloc = _w.allocator()
 
 	_battle = BattleSystem.new()
 	_battle.allocation_system = _alloc
 	_battle.graph = _graph
 	add_child_autofree(_battle)
 
-	_defender = autofree(Entity.new()) as Entity
-	_defender.display_name = "Defender"
-	_defender.stat_board = _BOARD.duplicate(true) as EntityStatBoard
-	_graph.add_child(_defender)
+	_defender = _w.add_entity("Defender")
 	await get_tree().process_frame
 
 	for n in [_c, _a, _b, _e1, _e2]:
@@ -78,14 +71,6 @@ func before_each() -> void:
 func after_each() -> void:
 	for w in _worlds:
 		w.free_shadow()
-
-
-func _new_node(n: String) -> SkillNode:
-	var sn := _SKILL_NODE_SCENE.instantiate() as SkillNode
-	sn.name = n
-	sn.position = Vector2(_graph.get_skill_nodes().size() * 100.0, 0.0)
-	_graph.add_skill_node(sn)
-	return sn
 
 
 func _armor_mod(value: float) -> StatModifier:

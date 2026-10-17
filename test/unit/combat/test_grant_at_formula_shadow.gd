@@ -17,19 +17,15 @@ extends GutTest
 ## acceptance 5b, its own failing test, kept in its own file since it exercises
 ## `EffectContext` directly rather than through `AuraEffect`.
 
-const _BOARD := preload("res://entity/default_entity_board.tres")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
-
+var _w: TestWorld
 var _graph: Graph
 var _entity: Entity
 
 
 func before_each() -> void:
-	_graph = _GRAPH_SCENE.instantiate()
-	add_child_autofree(_graph)
-	_entity = autofree(Entity.new())
-	_entity.stat_board = _BOARD.duplicate(true) as EntityStatBoard
-	_graph.add_child(_entity)
+	_w = TestWorld.create(self)
+	_graph = _w.graph
+	_entity = _w.add_entity("Entity")
 	await get_tree().process_frame
 
 
