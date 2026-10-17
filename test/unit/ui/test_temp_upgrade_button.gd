@@ -96,8 +96,11 @@ func before_each() -> void:
 	_body = _MELEE_BODY.instantiate() as MeleeBody
 	add_child_autofree(_body)
 	_body.bind(_attacker, _bs, _pic)
-	_row = _body.find_child("UpgradeRow", true, false) as HBoxContainer
-	assert_not_null(_row, "melee_body.tscn must still carry an %UpgradeRow")
+	# The run-start fill the first melee plan would run, up front so the cards
+	# exist before any plan does.
+	_pic.temp_quickbar().autofill(_pic.available_temp_kinds())
+	_row = _body.find_child("Quickbar", true, false) as HBoxContainer
+	assert_not_null(_row, "melee_body.tscn must carry a %Quickbar")
 
 
 ## Arm melee and pick the pivot, then grow the blade through `members` — the
@@ -122,36 +125,44 @@ func _card(index: int) -> TempUpgradeButton:
 	return _row.get_child(index) as TempUpgradeButton
 
 
-## The card for [param entry] — by catalog position, never a literal index, so
+## The quickbar's favourites, slot by slot (null = empty).
+func _slots() -> Array[PackedScene]:
+	return _pic.temp_quickbar().slots
+
+
+## The card for [param entry] — by quickbar slot, never a literal index, so
 ## a new temp-placeable addon sorting in between does not shift the subject.
 func _card_of(entry: PackedScene) -> TempUpgradeButton:
-	return _card(_catalog.offered().find(entry))
+	assert_true(_slots().has(entry), "fixture check: %s is on the quickbar" % entry.resource_path)
+	return _card(_slots().find(entry))
 
 
 ## The addon's own authored icon, read the same way production reads it.
-func _authored_icon(index: int) -> Texture2D:
-	var entry: PackedScene = _catalog.offered()[index]
+func _authored_icon(entry: PackedScene) -> Texture2D:
 	var tmp := entry.instantiate() as SkillNodeAddon
 	var tex := tmp.icon
 	tmp.free()
 	return tex
 
 
-func test_one_scene_instance_per_catalog_entry() -> void:
-	var n := _catalog.offered().size()
+func test_one_scene_instance_per_filled_quickbar_slot() -> void:
+	var n := PlayerInputController.TEMP_UPGRADE_HOTKEYS.size()
 	assert_eq(_row.get_child_count(), n,
-		"one card per catalog kind — a new kind should need no code here")
+		"one slot per arming key — a new catalog kind should need no code here")
+	assert_not_null(_slots()[0], "fixture check: the autofill filled slot 1")
 	for i in n:
-		assert_true(_row.get_child(i) is TempUpgradeButton,
-			"card %d must be a TempUpgradeButton scene instance, not a bare Button.new() (#465)" % i)
+		assert_eq(_row.get_child(i) is TempUpgradeButton, _slots()[i] != null,
+			"filled slot %d must be a TempUpgradeButton scene instance, not a bare Button.new() (#465)" % i)
 
 
 func test_card_glyph_and_accent_come_from_authored_data() -> void:
-	for i in _catalog.offered().size():
-		var entry: PackedScene = _catalog.offered()[i]
+	for i in _slots().size():
+		var entry: PackedScene = _slots()[i]
+		if entry == null:
+			continue
 		var card := _card(i)
 		assert_not_null(card.icon_texture, "catalog entry %s has no authored addon icon" % entry.resource_path)
-		assert_eq(card.icon_texture, _authored_icon(i),
+		assert_eq(card.icon_texture, _authored_icon(entry),
 			"card %s must show the addon scene's own icon, not a parallel lookup" % entry.resource_path)
 		assert_eq(card.accent, SkillNodeAddon.tint_of(entry),
 			"card %s must paint the addon scene's own tint" % entry.resource_path)
@@ -169,7 +180,7 @@ func test_three_states_are_each_reachable_and_distinct() -> void:
 	seen.append(_card(0).state)
 
 	# Arm one → it is what the next graph click places.
-	_pic.arm_temp_upgrade(_catalog.offered()[0])
+	_pic.arm_temp_upgrade(_slots()[0])
 	seen.append(_card(0).state)
 
 	assert_eq(seen, [
