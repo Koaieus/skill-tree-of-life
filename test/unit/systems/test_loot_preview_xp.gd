@@ -74,10 +74,10 @@ func before_each() -> void:
 	_loot.xp_per_node_killed = _PER_NODE
 	add_child_autofree(_loot)
 
-	_killer = autofree(TestWorld.new_entity("", null, _PLAYER_FACTION))
+	_killer = autofree(TestWorld.new_entity("Killer", null, _PLAYER_FACTION))
 	_graph.add_child(_killer)
 
-	_victim = autofree(TestWorld.new_entity("", null, _NPC_FACTION))
+	_victim = autofree(TestWorld.new_entity("Victim", null, _NPC_FACTION))
 	_victim.core_class = _BALANCED
 	_graph.add_child(_victim)
 	await get_tree().process_frame

@@ -418,6 +418,3 @@ func test_spell_draft_fires_only_after_stat_rounds_resolve() -> void:
 
 	assert_eq(spell_requests.size(), 1, "spell draft fires once every stat round has resolved")
 	assert_true(spell_requests[0].candidates.has(spell))
-
-
-# ── helpers ──────────────────────────────────────────────────────────────────
