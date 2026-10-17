@@ -4,7 +4,6 @@ extends GutTest
 ## + get_max_hp LocalStat routing with a proper PoolStat on a sparse StatBoard.
 
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 
 
 ## Flat, not the authored board: every test below arranges `node_health`
@@ -22,8 +21,7 @@ func _mod(op: int, value: float, id: StringName = &"strength") -> StatModifier:
 
 
 func _setup_node(entity_base_node_health: float = 10.0) -> Dictionary:
-	var graph := _GRAPH_SCENE.instantiate()
-	add_child_autofree(graph)
+	var graph := TestWorld.create(self).graph
 	var board := _board()
 	board.node_health.base_value = entity_base_node_health
 	var entity: Entity = autofree(Entity.new())
@@ -35,9 +33,7 @@ func _setup_node(entity_base_node_health: float = 10.0) -> Dictionary:
 	graph.skill_nodes_container.add_child(node)
 	await get_tree().process_frame
 
-	var alloc := AllocationSystem.new()
-	alloc.graph = graph
-	add_child_autofree(alloc)
+	var alloc := TestWorld.around(graph).allocator()
 	alloc.force_allocate(entity, node)
 
 	# NOTE: `board` is the entity's LIVE board — the setter takes a private copy,
@@ -57,8 +53,7 @@ func test_allocation_creates_node_health_pool() -> void:
 
 
 func test_unallocated_node_has_no_current_hp() -> void:
-	var graph := _GRAPH_SCENE.instantiate()
-	add_child_autofree(graph)
+	var graph := TestWorld.create(self).graph
 	var node := _SKILL_NODE_SCENE.instantiate() as SkillNode
 	node.name = "N0"
 	graph.skill_nodes_container.add_child(node)

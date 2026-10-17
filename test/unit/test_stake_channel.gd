@@ -12,7 +12,6 @@ extends GutTest
 ##   N5 (0, -0.4) — a leaf off N0, inside reach
 
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const R := 250.0
 const _POS := [Vector2(0, 0), Vector2(0.4, 0), Vector2(0.8, 0), Vector2(3, 0),
 		Vector2(0, 1.2), Vector2(0, -0.4)]
@@ -24,8 +23,7 @@ var _nodes: Array[SkillNode]
 
 
 func before_each() -> void:
-	_graph = _GRAPH_SCENE.instantiate()
-	add_child_autofree(_graph)
+	_graph = TestWorld.create(self).graph
 	_nodes = []
 	for i in _POS.size():
 		var sn := _SKILL_NODE_SCENE.instantiate() as SkillNode
@@ -39,13 +37,11 @@ func before_each() -> void:
 	_graph.add_edge(_nodes[0], _nodes[4])
 	_graph.add_edge(_nodes[0], _nodes[5])
 
-	_alloc = AllocationSystem.new()
-	_alloc.graph = _graph
+	_alloc = TestWorld.around(_graph).allocator()
 	_alloc.stake_reach_px = R
 	_alloc.stake_leash_ratio = 2.0
 	_alloc.stake_channel_turns = 2
 	_alloc.extract_channel_turns = 3
-	add_child_autofree(_alloc)
 
 	_player = autofree(Entity.new())
 	_player.display_name = "Player"

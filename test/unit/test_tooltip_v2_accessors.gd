@@ -3,7 +3,6 @@ extends GutTest
 ## sparse enumeration, SkillNodeAddon identity surface. See #159/#294.
 
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _BOARD := preload("res://entity/default_entity_board.tres")
 const _BUNKER_SCENE := preload("res://skill_node/addons/defs/bunker_addon.tscn")
 const _SPIKE_RING_SCENE := preload("res://skill_node/addons/defs/spike_ring_addon.tscn")
@@ -17,13 +16,9 @@ var _alloc: AllocationSystem
 
 
 func before_each() -> void:
-	_graph = _GRAPH_SCENE.instantiate()
-	_graph.name = "TestGraph"
-	add_child_autofree(_graph)
+	_graph = TestWorld.create(self, "TestGraph").graph
 
-	_alloc = AllocationSystem.new()
-	_alloc.graph = _graph
-	add_child_autofree(_alloc)
+	_alloc = TestWorld.around(_graph).allocator()
 
 
 func _make_node(n: String) -> SkillNode:

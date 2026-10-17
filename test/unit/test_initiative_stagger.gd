@@ -13,7 +13,6 @@ extends GutTest
 ## ([method GameRoot._stagger_initiative]) and is pinned once below.
 
 const _BOARD := preload("res://entity/default_entity_board.tres")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 
 var _graph: Graph
 var _tm: TurnManager
@@ -37,8 +36,7 @@ func _spawn_n(n: int) -> Array[Entity]:
 
 
 func before_each() -> void:
-	_graph = _GRAPH_SCENE.instantiate()
-	add_child_autofree(_graph)
+	_graph = TestWorld.create(self).graph
 	_tm = autofree(TurnManager.new())
 	add_child(_tm)
 
@@ -221,8 +219,7 @@ func test_opening_entity_is_the_first_carrier_in_enumeration_order() -> void:
 ## The clock's own scope: a manager scoped by `entity_root` staggers and opens
 ## only on its own world's carriers.
 func test_a_scoped_manager_staggers_only_its_own_world() -> void:
-	var away: Graph = _GRAPH_SCENE.instantiate()
-	add_child_autofree(away)
+	var away: Graph = TestWorld.create(self).graph
 	var foreign := _make_entity("Foreign")
 	away.entities_container.add_child(foreign)
 	var carriers := _spawn_n(2)

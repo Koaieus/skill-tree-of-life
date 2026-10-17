@@ -10,7 +10,6 @@ extends GutTest
 
 const _BOARD := preload("res://entity/default_entity_board.tres")
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _STAKE_DEF := preload("res://stats_system/defs/stake_level.tres")
 
 var _node: SkillNode
@@ -18,8 +17,7 @@ var _entity: Entity
 
 
 func before_each() -> void:
-	var graph := _GRAPH_SCENE.instantiate()
-	add_child_autofree(graph)
+	var graph := TestWorld.create(self).graph
 	_entity = autofree(Entity.new())
 	_entity.stat_board = _BOARD.duplicate(true) as EntityStatBoard
 	graph.add_child(_entity)

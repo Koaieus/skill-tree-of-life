@@ -45,8 +45,7 @@ func _overlay(base_add: float) -> ModifierBins:
 ## test_spell_range_rules.gd's owned-node fixture so the SkillNode passthrough
 ## is the path under test.
 func _owned_node(es: ScalarStat, ns: ScalarStat) -> SkillNode:
-	var graph := preload("res://graph/graph.tscn").instantiate()
-	add_child_autofree(graph)
+	var graph := TestWorld.create(self).graph
 	var entity: Entity = autofree(Entity.new())
 	entity.stat_board = preload("res://entity/default_entity_board.tres").duplicate(true)
 	graph.add_child(entity)
@@ -60,9 +59,7 @@ func _owned_node(es: ScalarStat, ns: ScalarStat) -> SkillNode:
 	if ns != null:
 		node._init_node_board()
 		node.node_board._register_minted(_ID, ns)
-	var alloc := AllocationSystem.new()
-	alloc.graph = graph
-	add_child_autofree(alloc)
+	var alloc := TestWorld.around(graph).allocator()
 	alloc.force_allocate(entity, node)
 	return node
 
@@ -209,8 +206,7 @@ func _fmod(id: StringName, op: int, value: float, priority: int = 0) -> StatModi
 ## An owned node whose owner carries family stats [param entity_stats]
 ## ({id: base}) on its board, and whose own board is initialised empty.
 func _family_node(entity_stats: Dictionary) -> SkillNode:
-	var graph := preload("res://graph/graph.tscn").instantiate()
-	add_child_autofree(graph)
+	var graph := TestWorld.create(self).graph
 	var entity: Entity = autofree(Entity.new())
 	entity.stat_board = preload("res://entity/default_entity_board.tres").duplicate(true)
 	graph.add_child(entity)
@@ -220,9 +216,7 @@ func _family_node(entity_stats: Dictionary) -> SkillNode:
 	graph.skill_nodes_container.add_child(node)
 	autofree(node)
 	node._init_node_board()
-	var alloc := AllocationSystem.new()
-	alloc.graph = graph
-	add_child_autofree(alloc)
+	var alloc := TestWorld.around(graph).allocator()
 	alloc.force_allocate(entity, node)
 	return node
 

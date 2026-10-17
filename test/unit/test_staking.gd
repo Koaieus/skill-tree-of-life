@@ -16,7 +16,6 @@ extends GutTest
 ## nodes sit 0.6 × reach apart along the chain.
 
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _EDGE_SCENE := preload("res://graph/edge.tscn")
 
 const REACH := 250.0
@@ -34,8 +33,7 @@ class InertEffect extends Effect:
 
 
 func before_each() -> void:
-	_graph = _GRAPH_SCENE.instantiate()
-	add_child_autofree(_graph)
+	_graph = TestWorld.create(self).graph
 	_nodes = []
 	for i in 4:
 		var sn := _SKILL_NODE_SCENE.instantiate() as SkillNode
@@ -48,10 +46,8 @@ func before_each() -> void:
 	for i in _nodes.size():
 		_nodes[i].position = Vector2(0.6 * REACH * i, 0)
 
-	_alloc = AllocationSystem.new()
-	_alloc.graph = _graph
+	_alloc = TestWorld.around(_graph).allocator()
 	_alloc.stake_reach_px = REACH
-	add_child_autofree(_alloc)
 
 	_player = autofree(Entity.new())
 	_player.display_name = "Player"

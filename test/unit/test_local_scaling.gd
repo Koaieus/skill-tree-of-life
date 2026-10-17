@@ -14,7 +14,6 @@ extends GutTest
 ## `_local_scale_override` virtual.
 
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 
 var _graph: Graph
 var _alloc: AllocationSystem
@@ -32,8 +31,7 @@ func _add_mod(id: StringName, value: float) -> StatModifier:
 
 
 func before_each() -> void:
-	_graph = _GRAPH_SCENE.instantiate()
-	add_child_autofree(_graph)
+	_graph = TestWorld.create(self).graph
 	_entity = autofree(Entity.new())
 	# Flat board: formula test arranges its own stat inputs, tuned CON must not ride in.
 	_entity.stat_board = TestBoards.flat_entity_board()
@@ -58,9 +56,7 @@ func after_each() -> void:
 ## clamps fill to cap).
 func _own() -> EntityStatBoard:
 	_node.stake_level = 3
-	_alloc = AllocationSystem.new()
-	_alloc.graph = _graph
-	add_child_autofree(_alloc)
+	_alloc = TestWorld.around(_graph).allocator()
 	_alloc.force_allocate(_entity, _node)
 	return _entity.stat_board
 

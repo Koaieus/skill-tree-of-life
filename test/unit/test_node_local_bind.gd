@@ -128,8 +128,7 @@ func test_no_local_modifiers_leaves_extra_stats_empty() -> void:
 
 
 func test_entity_only_value_passes_through_without_allocating_node_board() -> void:
-	var graph := preload("res://graph/graph.tscn").instantiate()
-	add_child_autofree(graph)
+	var graph := TestWorld.create(self).graph
 	var board: EntityStatBoard = preload("res://entity/default_entity_board.tres").duplicate(true)
 	var entity: Entity = autofree(Entity.new())
 	entity.stat_board = board
@@ -141,9 +140,7 @@ func test_entity_only_value_passes_through_without_allocating_node_board() -> vo
 	var node := _SKILL_NODE_SCENE.instantiate() as SkillNode
 	graph.skill_nodes_container.add_child(node)
 	autofree(node)
-	var alloc := AllocationSystem.new()
-	alloc.graph = graph
-	add_child_autofree(alloc)
+	var alloc := TestWorld.around(graph).allocator()
 	alloc.force_allocate(entity, node)
 
 	# node_board now exists (combat health pool from allocation), but no local

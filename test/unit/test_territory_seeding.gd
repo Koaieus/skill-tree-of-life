@@ -8,7 +8,6 @@ extends GutTest
 ## candidate set.
 
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _ENTITY_SCENE := preload("res://entity/entity.tscn")
 const _BOARD := preload("res://entity/default_entity_board.tres")
 const _BALANCED_CORE := preload("res://entity/core/balanced_core.tres")
@@ -21,13 +20,9 @@ var _alloc: AllocationSystem
 
 
 func before_each() -> void:
-	_graph = _GRAPH_SCENE.instantiate()
-	_graph.name = "TestGraph"
-	add_child_autofree(_graph)
+	_graph = TestWorld.create(self, "TestGraph").graph
 
-	_alloc = AllocationSystem.new()
-	_alloc.graph = _graph
-	add_child_autofree(_alloc)
+	_alloc = TestWorld.around(_graph).allocator()
 
 
 ## Builds a `rows` x `cols` grid graph via add_skill_node/add_edge (never the
@@ -129,11 +124,8 @@ func test_seeded_territory_is_connected_to_core() -> void:
 # ── 3. determinism ───────────────────────────────────────────────────────
 
 func test_same_seed_yields_identical_territory() -> void:
-	var graph_a := _GRAPH_SCENE.instantiate()
-	add_child_autofree(graph_a)
-	var alloc_a := AllocationSystem.new()
-	alloc_a.graph = graph_a
-	add_child_autofree(alloc_a)
+	var graph_a := TestWorld.create(self).graph
+	var alloc_a := TestWorld.around(graph_a).allocator()
 	var nodes_a := _build_grid(graph_a, 6, 6)
 	var entity_a := _make_entity(graph_a, _ENEMY_CORE)
 	await get_tree().process_frame
@@ -142,11 +134,8 @@ func test_same_seed_yields_identical_territory() -> void:
 	entity_a.core_location = nodes_a[0]
 	_new_seeder().seed_territory(entity_a, graph_a, alloc_a, 20, _rng(42))
 
-	var graph_b := _GRAPH_SCENE.instantiate()
-	add_child_autofree(graph_b)
-	var alloc_b := AllocationSystem.new()
-	alloc_b.graph = graph_b
-	add_child_autofree(alloc_b)
+	var graph_b := TestWorld.create(self).graph
+	var alloc_b := TestWorld.around(graph_b).allocator()
 	var nodes_b := _build_grid(graph_b, 6, 6)
 	var entity_b := _make_entity(graph_b, _ENEMY_CORE)
 	await get_tree().process_frame

@@ -6,7 +6,6 @@ extends GutTest
 ## forecast strip (#910) can never drift from the real turn order.
 
 const _BOARD := preload("res://entity/default_entity_board.tres")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 
 var _graph: Graph
 var _tm: TurnManager
@@ -47,9 +46,7 @@ func before_each() -> void:
 	_tm = autofree(TurnManager.new())
 	add_child(_tm)
 
-	_graph = _GRAPH_SCENE.instantiate()
-	_graph.name = "TestGraph"
-	add_child_autofree(_graph)
+	_graph = TestWorld.create(self, "TestGraph").graph
 
 
 # ---------------------------------------------------------------------------

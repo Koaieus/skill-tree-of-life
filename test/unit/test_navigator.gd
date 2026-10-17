@@ -12,15 +12,13 @@ extends GutTest
 ## don't emit signals, so graph.navigator never mirrors a direct child add
 ## and every query would silently return empty. See .claude/rules/graph.md.
 
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 
 var _graph: Graph
 
 
 func before_each() -> void:
-	_graph = _GRAPH_SCENE.instantiate()
-	add_child_autofree(_graph)
+	_graph = TestWorld.create(self).graph
 	await get_tree().process_frame  # Navigator._ready wires to the graph
 
 

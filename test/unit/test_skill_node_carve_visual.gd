@@ -4,7 +4,6 @@ extends GutTest
 ## Exercises the real production wiring, not just the pure resolver.
 
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _DUST_SCENE := preload("res://skill_node/addons/defs/skill_dust_addon.tscn")
 const InnerDiskScript = preload("res://skill_node/visuals/inner_disk.gd")
 
@@ -13,9 +12,7 @@ var _node: SkillNode
 
 
 func before_each() -> void:
-	_graph = _GRAPH_SCENE.instantiate()
-	_graph.name = "TestGraph"
-	add_child_autofree(_graph)
+	_graph = TestWorld.create(self, "TestGraph").graph
 
 	_node = _SKILL_NODE_SCENE.instantiate() as SkillNode
 	_node.name = "N0"

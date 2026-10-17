@@ -13,7 +13,6 @@ extends GutTest
 ## `test/integration/test_game_root_wiring.gd::test_entity_signals_connect_on_spawn`.
 
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 
 var _graph: Graph
 var _alloc: AllocationSystem
@@ -22,13 +21,9 @@ var _con_set: StatModifier  # last SET from _set_con, replaced on the next call
 
 
 func before_each() -> void:
-	_graph = _GRAPH_SCENE.instantiate()
-	_graph.name = "TestGraph"
-	add_child_autofree(_graph)
+	_graph = TestWorld.create(self, "TestGraph").graph
 
-	_alloc = AllocationSystem.new()
-	_alloc.graph = _graph
-	add_child_autofree(_alloc)
+	_alloc = TestWorld.around(_graph).allocator()
 
 	_con_set = null
 	_entity = Entity.new()

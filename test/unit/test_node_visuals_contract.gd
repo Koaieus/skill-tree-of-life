@@ -87,7 +87,7 @@ func test_identity_carries_owner_level_and_node_seed() -> void:
 		assert_eq(child.node_seed, 99, "%s got node_seed" % child.name)
 	assert_true(seen_slot_child, "the slot's look is among the children")
 
-	var graph: Graph = add_child_autofree(preload("res://graph/graph.tscn").instantiate())
+	var graph: Graph = TestWorld.create(self).graph
 	var sn := preload("res://skill_node/skill_node.tscn").instantiate() as SkillNode
 	graph.skill_nodes_container.add_child(sn)
 	sn.stable_id = 42

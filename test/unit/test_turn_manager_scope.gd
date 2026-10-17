@@ -7,7 +7,6 @@ extends GutTest
 ## bystander in either world.
 
 const _BOARD := preload("res://entity/default_entity_board.tres")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 
 var _foreign_tm: TurnManager
 var _tm: TurnManager
@@ -29,10 +28,8 @@ func before_each() -> void:
 	add_child_autofree(_foreign_tm)
 	_tm = TurnManager.new()
 	add_child_autofree(_tm)
-	_home = _GRAPH_SCENE.instantiate()
-	add_child_autofree(_home)
-	_away = _GRAPH_SCENE.instantiate()
-	add_child_autofree(_away)
+	_home = TestWorld.create(self).graph
+	_away = TestWorld.create(self).graph
 	_tm.entity_root = _home
 
 

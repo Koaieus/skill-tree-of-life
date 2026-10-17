@@ -7,7 +7,6 @@ extends GutTest
 
 const _BOARD := preload("res://entity/default_entity_board.tres")
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _WATCHTOWER_SCENE := preload("res://skill_node/addons/defs/watchtower_addon.tscn")
 const _SCOUTED := preload("res://effects/status/scouted.tres")
 ## A rigid spine (mid welded) traces the nominal radius the plate sits on.
@@ -28,8 +27,7 @@ func _spawn_node(graph: Node, nm: String) -> SkillNode:
 
 
 func _setup() -> Dictionary:
-	var graph := _GRAPH_SCENE.instantiate()
-	add_child_autofree(graph)
+	var graph := TestWorld.create(self).graph
 	var board: EntityStatBoard = _BOARD.duplicate(true)
 	var entity: Entity = autofree(Entity.new())
 	entity.stat_board = board
@@ -39,9 +37,7 @@ func _setup() -> Dictionary:
 	var tower := _spawn_node(graph, "Tower")
 	await get_tree().process_frame
 
-	var alloc := AllocationSystem.new()
-	alloc.graph = graph
-	add_child_autofree(alloc)
+	var alloc := TestWorld.around(graph).allocator()
 	alloc.force_allocate(entity, source)
 	alloc.force_allocate(entity, tower)
 
@@ -106,8 +102,7 @@ func _make_entity() -> Entity:
 
 
 func _spine() -> void:
-	_graph = _GRAPH_SCENE.instantiate()
-	add_child_autofree(_graph)
+	_graph = TestWorld.create(self).graph
 	_attacker = _make_entity()
 	_defender = _make_entity()
 	var enemy_camp := Faction.new()
@@ -122,9 +117,7 @@ func _spine() -> void:
 	var plate := _spawn("Plate", Vector2.from_angle(_TURNS * TAU) * _SPACING * 2.0)
 	await get_tree().process_frame
 
-	_alloc = AllocationSystem.new()
-	_alloc.graph = _graph
-	add_child_autofree(_alloc)
+	_alloc = TestWorld.around(_graph).allocator()
 	_alloc.force_allocate(_attacker, _pivot)
 	_alloc.force_allocate(_attacker, _mid)
 	_alloc.force_allocate(_attacker, _tip)

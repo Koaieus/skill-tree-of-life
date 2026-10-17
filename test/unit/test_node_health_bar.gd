@@ -14,7 +14,6 @@ extends GutTest
 
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _BOARD := preload("res://entity/default_entity_board.tres")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 
 var _graph: Graph
 var _alloc: AllocationSystem
@@ -24,17 +23,13 @@ var _bar: ProgressBar
 
 
 func before_each() -> void:
-	_graph = _GRAPH_SCENE.instantiate()
-	_graph.name = "TestGraph"
-	add_child_autofree(_graph)
+	_graph = TestWorld.create(self, "TestGraph").graph
 
 	_node = _SKILL_NODE_SCENE.instantiate() as SkillNode
 	_node.name = "N0"
 	_graph.skill_nodes_container.add_child(_node)
 
-	_alloc = AllocationSystem.new()
-	_alloc.graph = _graph
-	add_child_autofree(_alloc)
+	_alloc = TestWorld.around(_graph).allocator()
 
 	_entity = autofree(Entity.new())
 	_entity.stat_board = _BOARD.duplicate(true) as EntityStatBoard

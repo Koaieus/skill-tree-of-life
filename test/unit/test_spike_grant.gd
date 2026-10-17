@@ -7,7 +7,6 @@ extends GutTest
 ## literal numbers: those are the owner's to tune (issue #778, acceptance 6).
 
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _SPIKE_SCENE := preload("res://skill_node/addons/defs/spike_ring_addon.tscn")
 
 
@@ -29,8 +28,7 @@ func _spiked_node(graph: Node, nm: String, stake: int, alloc: int = -1) -> Skill
 
 
 func _setup_graph() -> Node:
-	var graph := _GRAPH_SCENE.instantiate()
-	add_child_autofree(graph)
+	var graph := TestWorld.create(self).graph
 	return graph
 
 

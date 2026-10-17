@@ -6,7 +6,6 @@ extends GutTest
 ## SkillNode itself never interprets these — just collects specs for EmblemResolver.
 
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _DUST_SCENE := preload("res://skill_node/addons/defs/skill_dust_addon.tscn")
 @warning_ignore("shadowed_global_identifier")
 const EmblemSpec = preload("res://skill_node/visuals/emblem/emblem_spec.gd")
@@ -20,9 +19,7 @@ var _node: SkillNode
 
 
 func before_each() -> void:
-	_graph = _GRAPH_SCENE.instantiate()
-	_graph.name = "TestGraph"
-	add_child_autofree(_graph)
+	_graph = TestWorld.create(self, "TestGraph").graph
 
 	_node = _SKILL_NODE_SCENE.instantiate() as SkillNode
 	_node.name = "N0"

@@ -6,7 +6,6 @@ extends GutTest
 
 const _PACIFIST := preload("res://entity/core/pacifist_core.tres")
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 
 
 func _mod(id: StringName, op: StatModifier.Operation, value: float) -> StatModifier:
@@ -68,17 +67,14 @@ func test_boon_and_bane_alone_are_not_volatile() -> void:
 # --- 4. node-local: either board ---------------------------------------------
 
 func _owned_node() -> Dictionary:
-	var graph := _GRAPH_SCENE.instantiate()
-	add_child_autofree(graph)
+	var graph := TestWorld.create(self).graph
 	var entity: Entity = autofree(Entity.new())
 	entity.stat_board = TestBoards.flat_entity_board()
 	graph.add_child(entity)
 	var node := _SKILL_NODE_SCENE.instantiate() as SkillNode
 	graph.skill_nodes_container.add_child(node)
 	await get_tree().process_frame
-	var alloc := AllocationSystem.new()
-	alloc.graph = graph
-	add_child_autofree(alloc)
+	var alloc := TestWorld.around(graph).allocator()
 	alloc.force_allocate(entity, node)
 	return {"entity": entity, "node": node}
 

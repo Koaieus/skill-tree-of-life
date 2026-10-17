@@ -11,7 +11,6 @@ const _EDGE_SCENE := preload("res://graph/edge.tscn")
 
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _BOARD := preload("res://entity/default_entity_board.tres")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 
 var _graph: Graph
 var _alloc: AllocationSystem
@@ -23,9 +22,7 @@ var _core_moved_events: Array = []
 func before_each() -> void:
 	_core_moved_events = []
 
-	_graph = _GRAPH_SCENE.instantiate()
-	_graph.name = "TestGraph"
-	add_child_autofree(_graph)
+	_graph = TestWorld.create(self, "TestGraph").graph
 
 	_nodes = []
 	for i in 4:
@@ -40,9 +37,7 @@ func before_each() -> void:
 	_add_edge(_nodes[2], _nodes[3])
 	_add_edge(_nodes[1], _nodes[1])  # self-loop — never a valid landing
 
-	_alloc = AllocationSystem.new()
-	_alloc.graph = _graph
-	add_child_autofree(_alloc)
+	_alloc = TestWorld.around(_graph).allocator()
 
 	_player = autofree(Entity.new())
 	_player.display_name = "Player"

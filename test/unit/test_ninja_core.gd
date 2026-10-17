@@ -13,7 +13,6 @@ extends GutTest
 ## the #719 precedent is test_dexterity_pool.gd's test_dexterity_pool_shape.
 
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _NINJA := preload("res://entity/core/ninja_core.tres")
 
 var _graph: Graph
@@ -67,8 +66,7 @@ func _build_ninja_like_core() -> CoreClass:
 
 
 func before_each() -> void:
-	_graph = _GRAPH_SCENE.instantiate()
-	add_child_autofree(_graph)
+	_graph = TestWorld.create(self).graph
 
 	_nodes = []
 	for i in 7:
@@ -82,9 +80,7 @@ func before_each() -> void:
 	for i in 6:
 		_graph.add_edge(_nodes[i], _nodes[i + 1])
 
-	_alloc = AllocationSystem.new()
-	_alloc.graph = _graph
-	add_child_autofree(_alloc)
+	_alloc = TestWorld.around(_graph).allocator()
 
 	_core = _build_ninja_like_core()
 	_entity = autofree(Entity.new()) as Entity

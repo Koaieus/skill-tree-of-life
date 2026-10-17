@@ -14,7 +14,6 @@ extends GutTest
 ## the bottom.
 
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _SERPENT := preload("res://entity/core/serpent_core.tres")
 
 var _graph: Graph
@@ -72,8 +71,7 @@ func _dmg_mod(stat_id: StringName, op: StatModifier.Operation, value: float) -> 
 
 
 func before_each() -> void:
-	_graph = _GRAPH_SCENE.instantiate()
-	add_child_autofree(_graph)
+	_graph = TestWorld.create(self).graph
 
 	_nodes = []
 	for i in 4:
@@ -89,9 +87,7 @@ func before_each() -> void:
 	_graph.add_edge(_nodes[1], _nodes[2])
 	_graph.add_edge(_nodes[2], _nodes[3])
 
-	_alloc = AllocationSystem.new()
-	_alloc.graph = _graph
-	add_child_autofree(_alloc)
+	_alloc = TestWorld.around(_graph).allocator()
 
 	_entity = autofree(Entity.new()) as Entity
 	_entity.display_name = "Coil"

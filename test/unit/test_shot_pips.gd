@@ -8,7 +8,6 @@ extends GutTest
 
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _ArmingCtl := preload("res://test/support/arming_ctl.gd")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _BOARD := preload("res://entity/default_entity_board.tres")
 const _PLAYER_FACTION := preload("res://entity/factions/player.tres")
 
@@ -22,8 +21,7 @@ var _other: SkillNode
 
 
 func before_each() -> void:
-	_graph = _GRAPH_SCENE.instantiate()
-	add_child_autofree(_graph)
+	_graph = TestWorld.create(self).graph
 	_leaf = _SKILL_NODE_SCENE.instantiate() as SkillNode
 	_other = _SKILL_NODE_SCENE.instantiate() as SkillNode
 	_graph.add_skill_node(_leaf)
@@ -36,9 +34,7 @@ func before_each() -> void:
 	_graph.add_child(_attacker)
 	await get_tree().process_frame
 
-	_alloc = AllocationSystem.new()
-	_alloc.graph = _graph
-	add_child_autofree(_alloc)
+	_alloc = TestWorld.around(_graph).allocator()
 	_alloc.force_allocate(_attacker, _leaf)
 	_alloc.force_allocate(_attacker, _other)
 

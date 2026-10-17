@@ -8,7 +8,6 @@ extends GutTest
 ## level the same way addon_slots does (MULTIPLY-by-stake_level).
 
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _BOARD := preload("res://entity/default_entity_board.tres")
 const _WATCHTOWER_SCENE := preload("res://skill_node/addons/defs/watchtower_addon.tscn")
 
@@ -16,8 +15,7 @@ var _node: SkillNode
 
 
 func before_each() -> void:
-	var graph := _GRAPH_SCENE.instantiate()
-	add_child_autofree(graph)
+	var graph := TestWorld.create(self).graph
 	var entity: Entity = autofree(Entity.new())
 	entity.stat_board = _BOARD.duplicate(true) as EntityStatBoard
 	graph.add_child(entity)
