@@ -340,19 +340,31 @@ func _status_tint_for(type: AmmoType) -> Color:
 	return def.tint if def != null else Color(0, 0, 0, 0)
 
 
-## The riders of the hit at [param i]: every later hit sharing its
+## The riders of the hit at [param i]: every other hit sharing its
 ## [member HitInstance.hit_key] ([method RangedDamageFormula.riders_for]
-## stamps the arrow with its landing's key). A key of `0` has no riders —
-## every bare arrow and hand-built hit is keyless. [param same_target] keeps
-## only riders on the hit's own target (a splash spreads to neighbours).
+## stamps the arrow with its landing's key), in list order. A key of `0` has
+## no riders — every bare arrow and hand-built hit is keyless. [param same_target]
+## keeps only riders on the hit's own target (a splash spreads to neighbours).
+## [method HitLanding.place] puts a landing's status riders right before its
+## primary and the rest after it (ADR 0067), so the scan walks back over the
+## contiguous key-sharing [StatusInstance]s and forward as far as the list goes.
+## A [StatusInstance] rides and is never ridden: it has no riders. Told apart
+## by class, as [method play] tells the arrow from its riders — never
+## [member HitInstance.paired], which a rebuilt record leaves null.
 static func riders_of(hits: Array[HitInstance], i: int, same_target: bool) -> Array[HitInstance]:
 	var out: Array[HitInstance] = []
 	var key := hits[i].hit_key
-	if key == 0:
+	if key == 0 or hits[i] is StatusInstance:
 		return out
-	for j in range(i + 1, hits.size()):
-		var rider := hits[j]
-		if rider.hit_key == key and (not same_target or rider.target == hits[i].target):
+	var target := hits[i].target
+	var j := i - 1
+	while j >= 0 and hits[j].hit_key == key and hits[j] is StatusInstance:
+		if not same_target or hits[j].target == target:
+			out.push_front(hits[j])
+		j -= 1
+	for k in range(i + 1, hits.size()):
+		var rider := hits[k]
+		if rider.hit_key == key and (not same_target or rider.target == target):
 			out.append(rider)
 	return out
 
