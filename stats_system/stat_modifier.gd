@@ -173,6 +173,10 @@ func valence(board: StatBoard = null) -> Valence:
 ## Tie-breaker — currently only consulted for SET (the only op where
 ## composition order matters). Higher wins.
 @export var priority: int = 0
+## The loot draw places a pinned candidate in round 1's offer ahead of the
+## weighted sample (a faced Dormant Core's grants, so its kill always offers
+## its face). Draw-time only: never on the wire, and a looted copy drops it.
+@export var loot_pinned: bool = false
 
 
 ## Keeps the inspector's array-entry label (and any other `resource_name`

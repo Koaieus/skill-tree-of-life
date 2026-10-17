@@ -144,3 +144,21 @@ func footprint_range(size: int) -> Vector2i:
 ## collapses the chance a kill offers nothing (at `n == 4`: 20% at 1.0, 2.9%
 ## at 3.0), which is the opposite of what the knob exists for.
 @export_range(0.5, 3.0, 0.05) var blocker_spell_prune_m: float = 1.0
+
+## The aspect faces a placement may wear ([BlockerCoreClass], one per aspect),
+## each drawn at weight 1 against [member faceless_weight]. Empty turns faces
+## off: no face is drawn and every other blocker draw is unchanged either way
+## (the roll has its own stream). Tentative.
+@export var faces: Array[CoreClass] = [preload("res://entity/blocker/faces/armor_break_face.tres"), preload("res://entity/blocker/faces/bleeding_face.tres"), preload("res://entity/blocker/faces/blindness_face.tres"), preload("res://entity/blocker/faces/corruption_face.tres"), preload("res://entity/blocker/faces/curse_face.tres"), preload("res://entity/blocker/faces/explosive_face.tres"), preload("res://entity/blocker/faces/greed_face.tres"), preload("res://entity/blocker/faces/hex_face.tres"), preload("res://entity/blocker/faces/poison_face.tres"), preload("res://entity/blocker/faces/scout_face.tres"), preload("res://entity/blocker/faces/weakness_face.tres"), preload("res://entity/blocker/faces/wither_face.tres")]
+
+## Relative weight of "no face" against EACH face — at 12 faces, 0.5 leaves
+## ≈4% of blockers gray. Tentative.
+@export_range(0.0, 24.0, 0.05) var faceless_weight: float = 0.5
+
+
+## Roll a face for every blocker index in [param indices], in order, off
+## [param rng] (the dedicated face stream). Returns `{index: {"face": CoreClass
+## or null, "seed": int}}`; empty without drawing when [member faces] is empty.
+func roll_faces(indices: Array, rng: RandomNumberGenerator) -> Dictionary:
+	assert(indices != null and rng != null)  # STUB
+	return {}

@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="BlockerCoreClass" load_steps=6 format=3]
+
+[ext_resource type="Script" path="res://entity/blocker/blocker_core_class.gd" id="1_face"]
+[ext_resource type="Script" path="res://effects/effect.gd" id="2_effect"]
+[ext_resource type="Resource" path="res://effects/blocker_footprint_falloff.tres" id="3_falloff"]
+[ext_resource type="PackedScene" path="res://skill_node/visuals/core_gear.tscn" id="4_look"]
+[ext_resource type="Resource" path="res://identity/defs/explosive.tres" id="5_identity"]
+
+[resource]
+script = ExtResource("1_face")
+pickable_in = 0
+display_name = "Explosive Dormant Core"
+description = "A Dormant Core wearing the Explosive face: the faceless core's falloff aura and look, plus Explosive grants scaled by its size (BlockerCoreClass). Never pickable; procgen rolls it per placement."
+effects = Array[ExtResource("2_effect")]([ExtResource("3_falloff")])
+core_look = ExtResource("4_look")
+identity = ExtResource("5_identity")
+
