@@ -99,6 +99,11 @@ func bind(entries: Array[PackedScene], costs_of: Callable, lit: Array[PackedScen
 		card.mouse_exited.connect(hovered.emit.bind(null))
 		card.gui_input.connect(_on_child_gui_input)
 		_cards.add_child(card)
+		# The card's full-rect inner Button takes the click, so a right-click
+		# never reaches the card's own gui_input; listen where it lands.
+		var inner := card.get_node_or_null(^"%Button") as Control
+		if inner != null:
+			inner.gui_input.connect(_on_child_gui_input)
 	_relayout()
 
 
