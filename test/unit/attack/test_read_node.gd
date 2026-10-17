@@ -107,6 +107,24 @@ func test_a_resolved_volleys_hits_read_their_firing_leaf() -> void:
 		assert_eq(hit.read_node, hit.origin, "ranged: read node == origin == firing leaf")
 
 
+func test_a_resolved_volleys_arrows_share_one_pierce_fold_terms() -> void:
+	var ctx: Dictionary = await _build()
+	var m := StatModifier.new()
+	m.stat_id = &"armor_pierce"
+	m.operation = StatModifier.Operation.ADD_BASE
+	m.value = -3.0
+	ctx.nodes.leaf.add_local_modifier(m)
+	var outcome := _ranged_plan(ctx).resolve()
+	var terms: Array[FoldTerms] = []
+	for hit in _combat_hits(outcome):
+		if hit is DamageInstance and hit.read_node == ctx.nodes.leaf:
+			terms.append(hit.armor_pierce)
+	assert_gt(terms.size(), 1, "precondition: the leaf looses a volley, not one arrow")
+	for t in terms:
+		assert_not_null(t)
+		assert_same(t, terms[0], "a volley resolves a firing node's pierce once")
+
+
 func test_a_typed_arrows_riders_carry_its_read_node() -> void:
 	var ctx: Dictionary = await _build()
 	var rider := ApplyStatusEffect.new()
@@ -141,7 +159,7 @@ func test_a_blade_contact_reads_the_vertex_node_while_origin_stays_the_pivot() -
 	assert_gt(from_leaf, 0, "the leaf vertex's contact on the target must read the leaf")
 
 
-func test_a_blade_contact_stamps_its_read_nodes_armor_pierce_shared_per_node() -> void:
+func test_a_blade_contact_stamps_its_read_nodes_armor_pierce() -> void:
 	var ctx: Dictionary = await _build()
 	var m := StatModifier.new()
 	m.stat_id = &"armor_pierce"
@@ -157,7 +175,6 @@ func test_a_blade_contact_stamps_its_read_nodes_armor_pierce_shared_per_node() -
 	for t in leaf_terms:
 		assert_not_null(t, "the melee builder stamps the attacking node's pierce")
 		assert_almost_eq(t.fold(5.0), 2.0, 0.001)
-		assert_same(t, leaf_terms[0], "one swing resolves a node's pierce once")
 
 
 func test_the_blade_state_carries_one_vertex_node_per_particle() -> void:
