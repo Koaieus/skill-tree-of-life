@@ -125,7 +125,6 @@ func _build(scout_stock: int = 4) -> Dictionary:
 
 
 func _arm(ctx: Dictionary, target: SkillNode, counts: Dictionary) -> RangedAttackPlan:
-	var _bs: BattleSystem = ctx.bs
 	(ctx.ctl as PlayerInputController).arm_attack(BattleSystem.AttackMode.RANGED)
 	var plan := (ctx.ctl as PlayerInputController).armed_stack.attack_plan() as RangedAttackPlan
 	plan.set_target(target)
@@ -211,7 +210,6 @@ func test_pick_sensed_follows_the_armed_ranged_plan_with_scout_stock() -> void:
 
 func test_pick_sensed_stays_off_without_scout_stock() -> void:
 	var ctx: Dictionary = await _build(0)
-	var _bs: BattleSystem = ctx.bs
 	(ctx.ctl as PlayerInputController).arm_attack(BattleSystem.AttackMode.RANGED)
 	assert_false((ctx.vision as VisionSystem).pick_sensed, "no scouts, no sensed picking")
 	(ctx.ctl as PlayerInputController).arm_attack(BattleSystem.AttackMode.MELEE)

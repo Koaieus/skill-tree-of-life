@@ -159,7 +159,7 @@ func test_the_icon_spans_the_badge_less_its_inset() -> void:
 		fail_test("no composite")
 		return
 	var image := texture.get_image()
-	@warning_ignore("integer_division")
+	@warning_ignore("integer_division")  # intended truncation: index/count/offset
 	var row := size_px / 2
 	var span := 0
 	for x in size_px:

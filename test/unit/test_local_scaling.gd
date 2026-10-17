@@ -289,7 +289,7 @@ func test_set_is_invariant_by_default() -> void:
 
 class SetOverride extends StatModifier:
 	func _local_scale_override(_old_al: int, new_al: int) -> Variant:
-		@warning_ignore("incompatible_ternary")
+		@warning_ignore("incompatible_ternary")  # Variant return: float or null
 		return 75.0 if new_al == 3 else null
 
 

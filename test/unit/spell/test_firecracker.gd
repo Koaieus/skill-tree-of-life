@@ -140,7 +140,7 @@ func test_a_node_reached_at_fuel_f_is_out_of_reach_at_the_next_fuel() -> void:
 # 3 ---------------------------------------------------------------------------
 
 func test_the_cast_ends_when_the_fuel_runs_out() -> void:
-	@warning_ignore("integer_division")
+	@warning_ignore("integer_division")  # intended truncation: index/count/offset
 	var last := int(load_.get(reach.fuel_aspect, 0)) / reach.fuel_per_jump
 	assert_lt(last, int(FIRECRACKER.propagation.max_hops), "fixture: fuel, not hops, binds")
 	assert_eq(_r(last), 0.0, "fixture: no blast at fuel 0")
@@ -184,7 +184,7 @@ func test_two_nodes_across_a_gap_never_trade_hits() -> void:
 func test_no_node_lands_in_two_waves() -> void:
 	var pos := {}
 	for i in range(1, 30):
-		@warning_ignore("integer_division")
+		@warning_ignore("integer_division")  # intended truncation: index/count/offset
 		pos[i] = Vector2((i % 6) * 0.3 * _r(2), (i / 6) * 0.3 * _r(2))
 	var b := _board(pos)
 	var outcome := _resolve(b, 1)

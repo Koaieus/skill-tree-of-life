@@ -124,7 +124,6 @@ func test_every_authored_pool_default_m_matches_old_highs_and_validates() -> voi
 				assert_false("range_floor" in w or "inverted" in w,
 						"%s should validate: %s" % [String(p.stat_id), w])
 			var lo := clampi(p.min_tier, TierLadder.MIN_TIER, TierLadder.MAX_TIER)
-			var _hi := clampi(p.max_tier, lo, TierLadder.MAX_TIER)
 			var entries := p.to_entries(pack.archetype_stat)
 			for i in entries.size():
 				var t := lo + i

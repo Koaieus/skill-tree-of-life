@@ -69,7 +69,7 @@ func _table(backend: String) -> void:
 func _bench_pop_swing(backend: String) -> void:
 	var k := 20
 	var steps := int(ceil(DURATION / (1.0 / 120.0)))
-	@warning_ignore("integer_division")
+	@warning_ignore("integer_division")  # intended truncation: index/count/offset
 	var cut := steps / 3
 	var whole_us := 0.0
 	var tail_us := 0.0
@@ -223,9 +223,9 @@ func _bench_k100(label: String, k: int, dense: bool, defended: bool) -> void:
 				BladeSim.DEFAULT_DT, BladeSim.DEFAULT_ITERATIONS, 0.0,
 				BladeSim.DEFAULT_SUBSTEPS, true)
 		var last := probe_traj.samples.size() - 1
-		@warning_ignore("integer_division")
+		@warning_ignore("integer_division")  # intended truncation: index/count/offset
 		var wall_at: Vector2 = (probe_traj.samples[last / 3] as PackedVector2Array)[k / 2]
-		@warning_ignore("integer_division")
+		@warning_ignore("integer_division")  # intended truncation: index/count/offset
 		var plate_at: Vector2 = (probe_traj.samples[last * 2 / 3] as PackedVector2Array)[k / 2]
 		var field := BladeObstacleField.new()
 		field.add_defender_zone(wall_at, 32.0, 1.0, false)

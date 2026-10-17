@@ -200,7 +200,7 @@ func _median(times: Array[int]) -> float:
 	if times.is_empty():
 		return 0.0
 	times.sort()
-	@warning_ignore("integer_division")
+	@warning_ignore("integer_division")  # intended truncation: index/count/offset
 	return float(times[times.size() / 2])
 
 
@@ -213,7 +213,7 @@ func test_authoritative_resolve_cost_at_k50_near_defenders() -> void:
 		return
 	var probe := _plan_of_size(_BLADE_SIZE)
 	gut.p("blade requested k=%d, actually reachable=%d" % [_BLADE_SIZE, probe.blade_nodes.size()])
-	@warning_ignore("integer_division")
+	@warning_ignore("integer_division")  # intended truncation: index/count/offset
 	if probe.blade_nodes.size() < _BLADE_SIZE / 2:
 		gut.p("fixture could not grow a blade anywhere near k=%d — skipping" % _BLADE_SIZE)
 		return

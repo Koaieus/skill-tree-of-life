@@ -111,7 +111,6 @@ func test_corruption_and_curse_are_cured_poison_is_not() -> void:
 	assert_gt(_rate_of(_CURSE), 0.0)
 	assert_eq(_rate_of(_POISON), 0.0, "poison is the owner's 'almost nothing'")
 	var r := _cast()
-	var _n: Array = r[0]
 	var seen: Dictionary = {}
 	for ci: CureInstance in _cures(r[1]):
 		for i in ci.defs.size():

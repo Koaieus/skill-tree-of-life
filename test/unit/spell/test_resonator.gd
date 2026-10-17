@@ -132,7 +132,6 @@ func test_straight_line_no_crit() -> void:
 	# Line 1-2-3-4-5 — never more than one incident per node → no crit.
 	var ctx := _setup(
 		[[0, 1], [1, 2], [2, 3], [3, 4], [4, 5]], [0], [1, 2, 3, 4, 5])
-	var _helper: SpellTestHelper = ctx[0]
 	var graph: Graph = ctx[1]
 	var atk: Entity = ctx[2]
 	atk.stat_board.get_stat(&"crit_chance").base_value = 0.0
