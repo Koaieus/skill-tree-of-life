@@ -3,12 +3,12 @@ extends CommandHandler
 ## Validates a [SpendRingCellCommand] against [RingTable] (adjacency, unspent)
 ## and the actor's `ring_points` (affordable), then lands it through
 ## [method Entity.buy_ring_cell] with private copies of the cell's grants.
-
-
-## Like [PickLootCommandHandler]: a ring spend is not a board action and
-## never waits behind one. Tentative.
-func bypasses_queue() -> bool:
-	return true
+##
+## [b]Queued like every board verb[/b] — never [method bypasses_queue]: the
+## queue is the confirmed-command-down route, so the authority's confirm is what
+## carries the spend to every peer, and a peer's intent opens the awaiting gate
+## the host's confirm or refusal closes. Bypassing (as [PickLootCommandHandler]
+## must, to dodge a deadlock) would apply on the authority and broadcast nothing.
 
 
 func validate(command: Command, ctx: CommandContext) -> bool:
