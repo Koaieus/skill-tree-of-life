@@ -81,7 +81,7 @@ the stat system changes**); `VictorySystem` → victory-system.md;
 
 GitHub Issues via `gh` (repo `Koaieus/skill-tree-of-life`); board via `mise
 gh-project -- list|status|…`. The board is authoritative for status,
-dependencies and what shipped; its lanes `Intake` → `Backlog` → `Needs design` → `Ready`
+dependencies and what shipped; its lanes `Intake` → `Backlog` → `Needs design` → `In design` → `Ready`
 → `In progress` → `In review` → `Done` are the pipeline and **`Ready` is the
 only lane a drone pulls from**. Read an issue as `gh issue view <n>` plus
 `--comments` (the decisions live there). Everything else — a new issue joins

@@ -16,7 +16,7 @@ one; from `Needs design` on it is scheduled and carries its push.
 ## The board
 
 `mise gh-project -- list|add|status|priority|size`. `list
-[intake|backlog|needs-design|ready|in-progress|in-review|done|all]` shows a column —
+[intake|backlog|needs-design|in-design|ready|in-progress|in-review|done|all]` shows a column —
 that's how an agent finds work to pick up; add `--json` (with `mise run
 --quiet`) for machine-readable output. See `.mise/tasks/gh-project`.
 
@@ -24,6 +24,15 @@ that's how an agent finds work to pick up; add `--json` (with `mise run
 finds nothing. `list <lane>` prints them as `[P0/S]` and already sorts by
 priority, then issue number, so "the next P0 in Needs design" is the first line
 of `mise gh-project -- list needs-design`.
+
+**Picking work is `next`, not a re-sort.** `mise gh-project -- next [<lane>]
+[--prio P0[,P1…]] [--not N,M…] [--claim]` prints the first issue of a lane
+(default `needs-design`) in that same order, or `— no match` with exit 1.
+`--claim` takes it off the queue: `needs-design` → `in-design`, `ready` →
+`in-progress`. `mise gh-project -- related <n>` prints its parent, siblings,
+sub-issues, blocked-by and blocking with their board status — the candidates
+for "and whatever is closely related"; which of them really are is the
+caller's judgement.
 
 **A new issue joins the board by itself** — every issue filed in the repo is
 auto-added to the project and lands in `Intake`. Never `gh-project add` a
@@ -39,8 +48,11 @@ built-in workflows are (an option-list rewrite silently disables them).
 
 `Intake` (unrouted — the owner's inbox, emptied by `/triage`) → `Backlog`
 (not scheduled) → `Needs design` (scheduled, open forks — the
-`/swarmify` inbox) → `Ready` (a drone can take it) → `In progress` → `In review`
-→ `Done`.
+`/swarmify` inbox) → `In design` (a `/swarmify` pass holds it — its claim,
+released to `Ready` on promotion, or back to `Needs design` with `status <n> nd`
+if the pass ends unpromoted; `hygiene` flags one untouched past
+`STALE_CLAIM_HOURS` as a dead pass's claim) → `Ready` (a drone can take it) →
+`In progress` → `In review` → `Done`.
 
 The design gate: a forked issue sits in `needs-design` → `/swarmify #n` (settle
 forks *with the user*, write acceptance, split hubs into file-disjoint children)
