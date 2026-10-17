@@ -1,5 +1,4 @@
 extends GutTest
-const _EDGE_SCENE := preload("res://graph/edge.tscn")
 
 ## #70 + #71 wiring, end-to-end through AllocationVFX:
 ##   - a VOLUNTARY allocation of a node carrying a modifier sends a pulse that,
@@ -12,10 +11,8 @@ const _EDGE_SCENE := preload("res://graph/edge.tscn")
 ## navigator route (path_between ordering), the Curve2DPath pulse, and the
 ## arrival→floater seam.
 
-const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
-const _BOARD := preload("res://entity/default_entity_board.tres")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 
+var _w: TestWorld
 var _graph: Graph
 var _alloc: AllocationSystem
 var _vfx: AllocationVFX
@@ -26,17 +23,12 @@ var _seen: Array = []
 
 
 func before_each() -> void:
-	_graph = _GRAPH_SCENE.instantiate()
-	add_child_autofree(_graph)
+	_w = TestWorld.create(self)
+	_graph = _w.graph
 
-	_core = _SKILL_NODE_SCENE.instantiate() as SkillNode
-	_core.name = "Core"
-	_graph.add_skill_node(_core)
-	_leaf = _SKILL_NODE_SCENE.instantiate() as SkillNode
-	_leaf.name = "Leaf"
-	_graph.add_skill_node(_leaf)
-
-	_graph.add_edge(_core, _leaf)  # emits edge_added — the Navigator mirrors it (.claude/rules/graph.md)
+	_core = _w.add_node(&"Core")
+	_leaf = _w.add_node(&"Leaf")
+	_w.link(_core, _leaf)
 
 	# The leaf grants +7 Strength when allocated.
 	var mod := StatModifier.new()
@@ -45,19 +37,14 @@ func before_each() -> void:
 	mod.value = 7.0
 	_leaf.modifiers = [mod]
 
-	_alloc = AllocationSystem.new()
-	_alloc.graph = _graph
-	add_child_autofree(_alloc)
+	_alloc = _w.allocator()
 
 	_vfx = AllocationVFX.new()
 	_graph.add_child(_vfx)
 	autofree(_vfx)
 	_vfx.bind(_alloc, null)
 
-	_player = autofree(Entity.new())
-	_player.display_name = "Player"
-	_player.stat_board = _BOARD.duplicate(true) as EntityStatBoard
-	_graph.add_child(_player)
+	_player = _w.add_entity("Player")
 	await get_tree().process_frame
 
 	_alloc.force_allocate(_player, _core)
@@ -91,10 +78,8 @@ func test_voluntary_allocation_pulses_then_floats() -> void:
 
 
 func test_forced_allocation_does_not_float() -> void:
-	var leaf2 := _SKILL_NODE_SCENE.instantiate() as SkillNode
-	leaf2.name = "Leaf2"
-	_graph.add_skill_node(leaf2)
-	_graph.add_edge(_core, leaf2)  # emits edge_added — the Navigator mirrors it (.claude/rules/graph.md)
+	var leaf2 := _w.add_node(&"Leaf2")
+	_w.link(_core, leaf2)
 	var mod := StatModifier.new()
 	mod.stat_id = &"strength"
 	mod.value = 3.0

@@ -10,32 +10,26 @@ extends GutTest
 ## which is the only number worth showing.
 
 const _DIRECTOR_SCENE := preload("res://ui/floating_number_layer/floater_director.tscn")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
-const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
-const _BOARD := preload("res://entity/default_entity_board.tres")
 
 var _director: FloaterDirector
 var _renderer: FloaterToasterManager
+var _w: TestWorld
 var _graph: Graph
 var _entity: Entity
 var _core: SkillNode
 
 
 func before_each() -> void:
-	_graph = _GRAPH_SCENE.instantiate()
-	add_child_autofree(_graph)
-	_core = _SKILL_NODE_SCENE.instantiate() as SkillNode
-	_graph.skill_nodes_container.add_child(_core)
+	_w = TestWorld.create(self)
+	_graph = _w.graph
+	_core = _w.add_node(&"Core")
 
 	_director = _DIRECTOR_SCENE.instantiate() as FloaterDirector
 	_director.vision_system = null  # no fog gating in tests
 	add_child_autofree(_director)
 	_renderer = _director.renderer
 
-	_entity = autofree(Entity.new())
-	_entity.display_name = "XPer"
-	_entity.stat_board = _BOARD.duplicate(true) as EntityStatBoard
-	_graph.add_child(_entity)
+	_entity = _w.add_entity("XPer")
 	await get_tree().process_frame  # _ready wires the xp relay
 	_entity.core_location = _core
 

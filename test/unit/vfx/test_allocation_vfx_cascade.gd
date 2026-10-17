@@ -1,5 +1,4 @@
 extends GutTest
-const _EDGE_SCENE := preload("res://graph/edge.tscn")
 
 ## #870 — the Allocation VFX sandbox's bottom row drives the cascade through a
 ## bare LIVE-world `SkillNode.take_damage(99999.0, null)` (no `HitInstance`,
@@ -12,10 +11,8 @@ const _EDGE_SCENE := preload("res://graph/edge.tscn")
 ## carries the right ripple delay per BFS layer, shards land in the pool —
 ## the actual pixels still want a `mise run play` look per the issue.
 
-const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
-const _BOARD := preload("res://entity/default_entity_board.tres")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 
+var _w: TestWorld
 var _graph: Graph
 var _alloc: AllocationSystem
 var _battle: BattleSystem
@@ -25,25 +22,19 @@ var _nodes: Array[SkillNode]
 
 
 func before_each() -> void:
-	_graph = _GRAPH_SCENE.instantiate()
-	_graph.name = "TestGraph"
-	add_child_autofree(_graph)
+	_w = TestWorld.create(self)
+	_graph = _w.graph
 
 	_nodes = []
 	for i in 3:
-		var sn := _SKILL_NODE_SCENE.instantiate() as SkillNode
-		sn.name = "N%d" % i
-		_graph.skill_nodes_container.add_child(sn)
-		_nodes.append(sn)
+		_nodes.append(_w.add_node(StringName("N%d" % i)))
 	# Line core(N0) - N1 - N2. N1 is a cut vertex: depleting it islands N2 too
 	# -> a 2-layer cascade ([N1], [N2]), same topology as the sandbox's
 	# `cascade_mid` cell (#870).
-	_add_edge(_nodes[0], _nodes[1])
-	_add_edge(_nodes[1], _nodes[2])
+	_w.link(_nodes[0], _nodes[1])
+	_w.link(_nodes[1], _nodes[2])
 
-	_alloc = AllocationSystem.new()
-	_alloc.graph = _graph
-	add_child_autofree(_alloc)
+	_alloc = _w.allocator()
 
 	_battle = BattleSystem.new()
 	_battle.allocation_system = _alloc
@@ -56,10 +47,7 @@ func before_each() -> void:
 	autofree(_vfx)
 	_vfx.bind(_alloc, _battle)
 
-	_entity = autofree(Entity.new())
-	_entity.display_name = "Victim"
-	_entity.stat_board = _BOARD.duplicate(true) as EntityStatBoard
-	_graph.add_child(_entity)
+	_entity = _w.add_entity("Victim")
 
 	await get_tree().process_frame  # entity._ready: navigator wiring
 
@@ -68,13 +56,6 @@ func before_each() -> void:
 	_entity.core_location = _nodes[0]
 	_entity.stat_board.health.base_value = 100.0
 	_entity.stat_board.health.set_current(100.0)
-
-
-func _add_edge(a: SkillNode, b: SkillNode) -> void:
-	var e := _EDGE_SCENE.instantiate() as Edge
-	e.from = a
-	e.to = b
-	_graph.edges_container.add_child(e)
 
 
 ## The regression this issue describes: a record-less depletion

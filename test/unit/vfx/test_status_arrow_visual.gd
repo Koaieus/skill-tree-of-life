@@ -6,27 +6,22 @@ extends GutTest
 ## speak the type's status colour ([member StatusDef.tint], hue asserted, never
 ## the tier float). It reports `finished` only once its trail has drained.
 
-const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _POISON: AmmoType = preload("res://attack/ammo/types/poison.tres")
 const _STATUS_ARROW := "res://ui/vfx/projectile/visual/status_arrow.tscn"
 const _POISON_ARROW := "res://ui/vfx/projectile/visual/arrows/poison_arrow.tscn"
 const _LIGHT_ARROW := "res://ui/vfx/projectile/visual/light_arrow.tscn"
 
+var _w: TestWorld
 var _graph: Graph
 var _origin: SkillNode
 var _target: SkillNode
 
 
 func before_each() -> void:
-	_graph = _GRAPH_SCENE.instantiate()
-	add_child_autofree(_graph)
-	_origin = _SKILL_NODE_SCENE.instantiate() as SkillNode
-	_target = _SKILL_NODE_SCENE.instantiate() as SkillNode
-	_origin.position = Vector2(0, 0)
-	_target.position = Vector2(500, 0)
-	_graph.add_skill_node(_origin)
-	_graph.add_skill_node(_target)
+	_w = TestWorld.create(self)
+	_graph = _w.graph
+	_origin = _w.add_node(&"Origin", Vector2(0, 0))
+	_target = _w.add_node(&"Target", Vector2(500, 0))
 
 
 func _hit(ammo_type_id: StringName, key: float) -> DamageInstance:

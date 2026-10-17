@@ -6,8 +6,6 @@ extends GutTest
 ## builds that context from the landing's own hits.
 
 const _STATUS_ARROW := preload("res://ui/vfx/projectile/visual/status_arrow.tscn")
-const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _TINT := Color(0.3, 0.9, 0.2, 1.0)
 const _STUB_DRAIN := 7.5
 
@@ -103,14 +101,10 @@ func test_no_status_hides_and_never_launches_the_parts() -> void:
 
 
 func test_the_coordinator_hands_only_this_arrows_non_dud_rider_targets() -> void:
-	var graph: Graph = _GRAPH_SCENE.instantiate()
-	add_child_autofree(graph)
+	var w := TestWorld.create(self)
 	var nodes: Array[SkillNode] = []
 	for p in [Vector2(0, 0), Vector2(300, 0), Vector2(300, 200), Vector2(600, 0)]:
-		var n := _SKILL_NODE_SCENE.instantiate() as SkillNode
-		graph.add_skill_node(n)
-		n.global_position = p
-		nodes.append(n)
+		nodes.append(w.add_node(&"N%d" % nodes.size(), p))
 	var origin := nodes[0]
 	var target := nodes[1]
 	var arrow := DamageInstance.new()

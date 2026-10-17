@@ -7,13 +7,12 @@ extends GutTest
 ##   N0 (0, 0) - N1 (0.4, 0) - N2 (0.8, 0) - N3 (3, 0)   (units of R, core N0)
 ##   N4 (0, 1.2) off N0, N5 (0, -0.4) leaf off N0
 
-const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _DIRECTOR_SCENE := preload("res://ui/vfx/channel_lasso/channel_lasso_director.tscn")
 const R := 250.0
 const _POS := [Vector2(0, 0), Vector2(0.4, 0), Vector2(0.8, 0), Vector2(3, 0),
 		Vector2(0, 1.2), Vector2(0, -0.4)]
 
+var _w: TestWorld
 var _graph: Graph
 var _alloc: AllocationSystem
 var _player: Entity
@@ -22,33 +21,24 @@ var _director: ChannelLassoDirector
 
 
 func before_each() -> void:
-	_graph = _GRAPH_SCENE.instantiate()
-	add_child_autofree(_graph)
+	_w = TestWorld.create(self)
+	_graph = _w.graph
 	_nodes = []
 	for i in _POS.size():
-		var sn := _SKILL_NODE_SCENE.instantiate() as SkillNode
-		sn.name = "N%d" % i
-		_graph.add_skill_node(sn)
-		sn.position = (_POS[i] as Vector2) * R
-		_nodes.append(sn)
-	_graph.add_edge(_nodes[0], _nodes[1])
-	_graph.add_edge(_nodes[1], _nodes[2])
-	_graph.add_edge(_nodes[2], _nodes[3])
-	_graph.add_edge(_nodes[0], _nodes[4])
-	_graph.add_edge(_nodes[0], _nodes[5])
+		_nodes.append(_w.add_node(StringName("N%d" % i), (_POS[i] as Vector2) * R))
+	_w.link(_nodes[0], _nodes[1])
+	_w.link(_nodes[1], _nodes[2])
+	_w.link(_nodes[2], _nodes[3])
+	_w.link(_nodes[0], _nodes[4])
+	_w.link(_nodes[0], _nodes[5])
 
-	_alloc = AllocationSystem.new()
-	_alloc.graph = _graph
+	_alloc = _w.allocator()
 	_alloc.stake_reach_px = R
 	_alloc.stake_leash_ratio = 2.0
 	_alloc.stake_channel_turns = 2
 	_alloc.extract_channel_turns = 3
-	add_child_autofree(_alloc)
 
-	_player = autofree(Entity.new())
-	_player.display_name = "Player"
-	_player.stat_board = TestBoards.flat_entity_board()
-	_graph.add_child(_player)
+	_player = _w.add_entity("Player", TestBoards.flat_entity_board())
 	await get_tree().process_frame
 
 	for n in _nodes:

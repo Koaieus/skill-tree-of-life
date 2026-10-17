@@ -161,15 +161,8 @@ func test_crack_beams_are_a_named_tier_and_onset_pushed_onto_the_material() -> v
 
 # ---------------------------------------------- a dying node keeps its glyph (#843)
 
-const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
-
-
 func _carved_node() -> SkillNode:
-	var graph: Graph = _GRAPH_SCENE.instantiate()
-	add_child_autofree(graph)
-	var node := _SKILL_NODE_SCENE.instantiate() as SkillNode
-	graph.skill_nodes_container.add_child(node)
+	var node := TestWorld.create(self).add_node(&"Carved")
 	node.archetype = load("res://archetypes/strength.tres")
 	return node
 

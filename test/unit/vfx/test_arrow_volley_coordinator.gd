@@ -13,26 +13,21 @@ extends GutTest
 ## renders a volley without ever touching the world, and does not return (and
 ## so get freed by [AttackVFX]) while arrows are still in flight.
 
-const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 ## The scene AttackVFX actually instantiates — the only version of this
 ## coordinator whose exports are the shipped ones.
 const _COORD_SCENE := preload("res://ui/vfx/coordinator/arrow_volley_coordinator.tscn")
 
+var _w: TestWorld
 var _graph: Graph
 var _origin: SkillNode
 var _target: SkillNode
 
 
 func before_each() -> void:
-	_graph = _GRAPH_SCENE.instantiate()
-	add_child_autofree(_graph)
-	_origin = _SKILL_NODE_SCENE.instantiate() as SkillNode
-	_target = _SKILL_NODE_SCENE.instantiate() as SkillNode
-	_origin.position = Vector2(0, 0)
-	_target.position = Vector2(500, 0)
-	_graph.add_skill_node(_origin)
-	_graph.add_skill_node(_target)
+	_w = TestWorld.create(self)
+	_graph = _w.graph
+	_origin = _w.add_node(&"Origin", Vector2(0, 0))
+	_target = _w.add_node(&"Target", Vector2(500, 0))
 
 
 func _mount_coord() -> ArrowVolleyCoordinator:
@@ -337,9 +332,7 @@ func _windup_tempo() -> PresentationTempo:
 ## Three arrows from two leaves, RAMP cadence; the middle one from a second
 ## leaf so the inner-disk assert is per leaf, not "near the origin".
 func _volley_outcome() -> AttackOutcome:
-	_leaf_b = _SKILL_NODE_SCENE.instantiate() as SkillNode
-	_leaf_b.position = Vector2(0, 300)
-	_graph.add_skill_node(_leaf_b)
+	_leaf_b = _w.add_node(&"LeafB", Vector2(0, 300))
 	var outcome := AttackOutcome.new()
 	outcome.cadence = ScheduleEntry.Cadence.RAMP
 	for i in 3:
