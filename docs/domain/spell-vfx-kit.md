@@ -59,7 +59,12 @@ per-spell unit after them — compose with it, do not re-invent it.**
 - `forward_crit_to_body` (default true) — set false when the body must not
   escalate on a crit while the ring still does (Bruiser, which must never read
   as lethal).
-- `tint` — forwarded down to the body only, never to companions. See below.
+- `tint` — forwarded down to the body and, raw, to every arrival companion with
+  a `tint` field (at spawn, and again on any later stamp). See below.
+- `tint_strength` (default 1.0, bounded 0..1) — how far the **body's** colour
+  moves from its authored colour toward `tint`; the body's authored alpha is
+  always kept. Body only — companions get the raw `tint`. Healing Beam's orb
+  sets 0.35 (a light caster tint). Tentative, easy to change.
 
 It forwards the whole duck-typed visual contract to the body, and to each
 companion as it spawns. Its own `finished` fires deferred once every child that
@@ -77,9 +82,10 @@ Pinned by `test/unit/vfx/test_caster_tint_stamp.gd`.
 
 The wrapper sits BETWEEN the projectile and the body, so it must forward the
 stamp down — a stamp that stops at the wrapper is invisible in exactly the
-composed case every spell uses. It is **not** forwarded to arrival companions:
-`ImpactRing` is punctuation owning its own tier colour, and tinting it with the
-caster's would make "where it fired" read as identity rather than as placement.
+composed case every spell uses. It reaches the arrival companions too: identity
+rides the body and the rings alike, and each companion decides how much of it to
+show — `ImpactRing` keeps `tint` under its tier ladder, and its `crit_color`
+takes over on a crit. Which colour goes *into* `tint` is the coordinator's call.
 
 **The crit grammar is authored once, in `ImpactRing`** (#663 D6): tier 1 = one
 ring at `Emissive.ALERT`; tier 2+ = a second concentric ring plus a

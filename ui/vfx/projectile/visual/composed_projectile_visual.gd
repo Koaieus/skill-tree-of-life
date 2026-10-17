@@ -44,18 +44,27 @@ signal finished
 
 ## The caster's identity colour, stamped by the coordinator right after
 ## `Projectile.launch` exactly as it is on a bare [BoltBody] — this wrapper sits
-## BETWEEN the projectile and the body, so without forwarding it the stamp would
-## land here and stop, and every composed spell would render neutral-white while
-## an uncomposed one tinted correctly.
+## BETWEEN the projectile and its children, so without forwarding it the stamp
+## would land here and stop, and every composed spell would render neutral-white
+## while an uncomposed one tinted correctly.
 ##
-## Forwarded to [member body_scene] only, never to the arrival companions:
-## identity is carried by the flying body (#663 D3/D4), while [ImpactRing] is
-## crit-grammar punctuation whose colour is its own tier ladder. Tinting the ring
-## with the caster colour would make "where it fired" read as identity instead of
-## as placement.
+## Forwarded to [member body_scene] (scaled by [member tint_strength]) AND, raw,
+## to every arrival companion exposing a `tint` field — at spawn and again on any
+## later stamp. Identity rides the body and the companions alike; each companion
+## decides how much of it to show ([ImpactRing] keeps it under its tier ladder,
+## and its [member ImpactRing.crit_color] still overrides it on a crit).
 @export var tint: Color = Color.WHITE:
 	set(value):
 		tint = value
+		_push_tint()
+
+## How far the BODY's colour moves from its authored colour toward [member tint]
+## — the body's authored alpha is always kept. 1.0 = the body wears the caster's
+## hue outright; Healing Beam's orb sets a light fraction. Body only: companions
+## get the raw [member tint]. Tentative, easy to change.
+@export_range(0.0, 1.0, 0.01) var tint_strength: float = 1.0:
+	set(value):
+		tint_strength = value
 		_push_tint()
 
 ## How much of the wave the arc this projectile draws is carrying (#708),
@@ -73,6 +82,10 @@ signal finished
 		_push_arc_weight()
 
 var _body: Node
+## The body's own `tint` as instantiated, captured before the first push.
+var _authored_body_tint: Color = Color.WHITE
+## Live arrival companions, re-stamped when [member tint] changes after arrival.
+var _companions: Array[Node] = []
 var _drain := VisualDrain.new(finished)
 var _context: Variant = null
 var _crit_tier: int = 0
@@ -96,6 +109,8 @@ func _ready() -> void:
 		return
 	_body = body_scene.instantiate()
 	add_child(_body)
+	if "tint" in _body:
+		_authored_body_tint = _body.get("tint")
 	# The setter may have run before `_ready` (an authored value, or a stamp
 	# that beat instantiation), when there was no body to push onto yet.
 	_push_tint()
@@ -132,6 +147,8 @@ func _on_arrival() -> void:
 		var node: Node = scene.instantiate()
 		add_child(node)
 		_drain.track(node)
+		_companions.append(node)
+		_stamp_companion(node)
 		if _context != null:
 			VisualDrain.forward(node, &"_on_context", [_context])
 		if _crit_tier > 0:
@@ -142,7 +159,16 @@ func _on_arrival() -> void:
 
 func _push_tint() -> void:
 	if _body != null and "tint" in _body:
-		_body.set("tint", tint)
+		# Saturated end copies the RGB verbatim so 1.0 is bit-exact with the caster.
+		var rgb: Color = tint if tint_strength >= 1.0 else _authored_body_tint.lerp(tint, tint_strength)
+		_body.set("tint", Color(rgb.r, rgb.g, rgb.b, _authored_body_tint.a))
+	for node in _companions:
+		_stamp_companion(node)
+
+
+func _stamp_companion(node: Node) -> void:
+	if is_instance_valid(node) and "tint" in node:
+		node.set("tint", tint)
 
 
 func _push_arc_weight() -> void:
