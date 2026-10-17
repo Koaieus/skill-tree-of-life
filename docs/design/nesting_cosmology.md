@@ -92,6 +92,16 @@ earliest first; each rung is a beat the systems already produce or nearly do:
    you grind arc by arc (`lore.md` → *The Ophanim — a ring you cannot cut*),
    and the player has bought their own ring all game.
 
+**Easter egg, off the ladder (owner, 2026-10-17, "as a joke"):** *"in the
+overworld if we ever put some kind of microscope in the play area, the player
+could look at it and zoom in on a random object and if zoomed in enough you
+can start to make out that it's.. made of skillnodes and edges (instead of
+atoms/molecules)"*. Act 0's overworld (`lore.md` → *Act 0*) only, never
+signposted. It is the first axis shown before the player knows there are
+axes: the node axis is how the world is built all the way down, and a player
+who finds it in Act 0 has been told the ending in a joke. The tone holds: a
+gag on the same dial as the tree-shudder, dismissible in the moment.
+
 ## 5. What stays mysterious
 
 Deliberately never answered in text — each is a reading the player may hold:
