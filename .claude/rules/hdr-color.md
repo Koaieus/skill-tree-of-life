@@ -1,1 +1,1 @@
-Glow is one `WorldEnvironment` bloom pass **per viewport**; a thing glows iff its colour exceeds 1.0, authored only as a named tier via `Emissive.at()` or a `Tier*` `theme_type_variation`, never a hand-picked float. See docs/domain/hdr-color.md
+Glow is one `WorldEnvironment` bloom pass **per viewport**, lit iff a colour exceeds 1.0 — only as a named tier via `Emissive.at()` or a `Tier*` `theme_type_variation`, never a raw float (linted: `lint-house-rules`). See docs/domain/hdr-color.md

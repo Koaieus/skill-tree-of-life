@@ -22,6 +22,10 @@ seed. Don't paste the line into `CLAUDE.md`.
 <the one-line claim / pointer>. See docs/domain/<topic>.md
 ```
 
+A mechanical breadcrule — one a regex over a line can check — gets a row in
+`.mise/tasks/lint-house-rules`; the crumb then says "(linted: `lint-house-rules`)"
+and shrinks, since the gate enforces what the prose used to argue.
+
 ## Charters are the same split for skills and agents
 
 A `.claude/skills/<name>/SKILL.md` or `.claude/agents/<name>.md` is read by a

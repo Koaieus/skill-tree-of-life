@@ -1,1 +1,1 @@
-Never compute degree as `graph.get_neighbours(n).size()` — use `SkillNode.get_entity_degree` (gameplay default), `get_graph_degree` (whole board) or `GraphMirror.get_degree`. See docs/domain/degree.md
+Degree is never `get_neighbours().size()` (linted: `lint-house-rules`) — use `SkillNode.get_entity_degree` (gameplay), `get_graph_degree` (board) or `GraphMirror.get_degree`. See docs/domain/degree.md
