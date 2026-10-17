@@ -513,7 +513,8 @@ func _drop_skill_dust(victim: Entity) -> void:
 ## Take charge of [param dust]'s claims: its [signal SkillDustAddon.claimed]
 ## opens rounds through the loot round controller ([LootRoundCommandHandler]).
 ## Every relic this system drops is adopted before it enters the tree; a relic
-## attached by hand (a fixture, a sandbox) claims nothing until adopted.
+## attached by hand (a fixture, a sandbox) claims nothing until adopted, unless
+## it joins [constant SkillDustAddon.HAND_PLACED_GROUP]. Idempotent.
 func adopt_relic(dust: SkillDustAddon) -> void:
 	var on_claimed := _on_relic_claimed.bind(dust)
 	if not dust.claimed.is_connected(on_claimed):

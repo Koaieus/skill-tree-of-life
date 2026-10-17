@@ -51,6 +51,7 @@ func test_a_joining_peer_offers_the_same_aspect() -> void:
 		var src: SpiritNode = faced if s.position == faced.position else mystery
 		assert_eq(s.scene_file_path, src.scene_file_path)
 		assert_eq(s.aspect, src.aspect, "same aspect on both peers")
+		assert_eq(s.get_addons().size(), 1, "one relic, not the scene's plus a re-instantiated one")
 		var dust := s.get_dust()
 		assert_not_null(dust, "the relic came with the scene")
 		if dust == null:
