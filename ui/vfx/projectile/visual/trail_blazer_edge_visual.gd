@@ -56,10 +56,7 @@ var clock := TweenClock.new()
 var _overlay: EdgeEnergize
 var _is_terminal: bool = false
 var _crit_tier: int = 0
-var _slam_pending: int = 0
-var _overlay_done: bool = false
-var _arrival_handled: bool = false
-var _done_emitted: bool = false
+var _drain := VisualDrain.new(finished)
 
 ## The slam lands at the hop's own `target`, read straight off `entry` —
 ## never back off the overlay's own anchoring, which is its own derived
@@ -80,7 +77,7 @@ func _ready() -> void:
 	_overlay.clock = clock
 	_overlay.tint = tint
 	add_child(_overlay)
-	_overlay.finished.connect(_on_overlay_finished)
+	_drain.track(_overlay)
 
 
 # ---------------------------------------------------------------- duck contract
@@ -126,8 +123,7 @@ func _on_arrival() -> void:
 		_overlay._on_arrival()
 	if _is_terminal:
 		_slam()
-	_arrival_handled = true
-	_check_done()
+	_drain.seal()
 
 
 # ------------------------------------------------------------------- internals
@@ -156,7 +152,7 @@ func _slam() -> void:
 	slam.radius = slam_radius
 	slam.expand_radius = slam_expand_radius
 	add_child(slam)
-	_track(slam)
+	_drain.track(slam)
 	slam._on_arrival()
 
 	if _crit_tier > 0:
@@ -169,29 +165,5 @@ func _slam() -> void:
 		crit_ring.expand_radius = slam_expand_radius * 1.3
 		crit_ring.crit_tier = _crit_tier
 		add_child(crit_ring)
-		_track(crit_ring)
+		_drain.track(crit_ring)
 		crit_ring._on_arrival()
-
-
-func _track(node: Node) -> void:
-	if not node.has_signal(&"finished"):
-		return
-	_slam_pending += 1
-	node.finished.connect(func() -> void:
-		_slam_pending -= 1
-		_check_done())
-
-
-func _on_overlay_finished() -> void:
-	_overlay_done = true
-	_check_done()
-
-
-func _check_done() -> void:
-	if not _arrival_handled or _done_emitted or _slam_pending > 0 or not _overlay_done:
-		return
-	_done_emitted = true
-	# Deferred, matching [ComposedProjectileVisual]: a same-frame completion
-	# (e.g. `linger_seconds == 0`) would otherwise emit before
-	# `Projectile._wait_for_visual_done`'s `await finished` has registered.
-	call_deferred(&"emit_signal", &"finished")

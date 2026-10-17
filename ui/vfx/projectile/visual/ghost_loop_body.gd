@@ -49,8 +49,7 @@ const GHOST_T_OFFSET: float = 0.1
 var _lead: Node
 var _ghost: Node2D
 var _history: Array = []
-var _pending: int = 0
-var _done_emitted: bool = false
+var _drain := VisualDrain.new(finished)
 
 
 func _ready() -> void:
@@ -59,14 +58,16 @@ func _ready() -> void:
 	if lead_scene != null:
 		_lead = lead_scene.instantiate()
 		add_child(_lead)
-		_track(_lead)
+		_drain.track(_lead)
 	if ghost_scene != null:
 		_ghost = ghost_scene.instantiate() as Node2D
 		if _ghost != null:
 			_ghost.top_level = true
 			_ghost.self_modulate = Color(1.0, 1.0, 1.0, ghost_alpha)
 			add_child(_ghost)
-			_track(_ghost)
+			_drain.track(_ghost)
+	# Both children live from here on; no arrival gate.
+	_drain.seal()
 	_push_tint()
 
 
@@ -75,36 +76,36 @@ func _ready() -> void:
 
 func _on_launch() -> void:
 	_history.clear()
-	_forward(_lead, &"_on_launch", [])
-	_forward(_ghost, &"_on_launch", [])
+	VisualDrain.forward(_lead, &"_on_launch", [])
+	VisualDrain.forward(_ghost, &"_on_launch", [])
 	if _ghost != null:
 		_ghost.global_position = global_position
 
 
 func _on_progress(t: float) -> void:
-	_forward(_lead, &"_on_progress", [t])
+	VisualDrain.forward(_lead, &"_on_progress", [t])
 	_history.append([t, global_position])
 	var ghost_t: float = t - GHOST_T_OFFSET
 	if _ghost != null:
 		_ghost.global_position = _sample_position(ghost_t)
-	_forward(_ghost, &"_on_progress", [clampf(ghost_t, 0.0, 1.0)])
+	VisualDrain.forward(_ghost, &"_on_progress", [clampf(ghost_t, 0.0, 1.0)])
 
 
 func _on_context(entry: Variant) -> void:
-	_forward(_lead, &"_on_context", [entry])
-	_forward(_ghost, &"_on_context", [entry])
+	VisualDrain.forward(_lead, &"_on_context", [entry])
+	VisualDrain.forward(_ghost, &"_on_context", [entry])
 
 
 func _on_crit(tier: int) -> void:
-	_forward(_lead, &"_on_crit", [tier])
-	_forward(_ghost, &"_on_crit", [tier])
+	VisualDrain.forward(_lead, &"_on_crit", [tier])
+	VisualDrain.forward(_ghost, &"_on_crit", [tier])
 
 
 func _on_arrival() -> void:
 	if _ghost != null:
 		_ghost.global_position = global_position
-	_forward(_lead, &"_on_arrival", [])
-	_forward(_ghost, &"_on_arrival", [])
+	VisualDrain.forward(_lead, &"_on_arrival", [])
+	VisualDrain.forward(_ghost, &"_on_arrival", [])
 
 
 # ------------------------------------------------------------------- internals
@@ -134,21 +135,3 @@ func _push_tint() -> void:
 		_lead.set("tint", tint)
 	if _ghost != null and "tint" in _ghost:
 		_ghost.set("tint", tint)
-
-
-func _forward(node: Node, method: StringName, args: Array) -> void:
-	if node != null and node.has_method(method):
-		node.callv(method, args)
-
-
-func _track(node: Node) -> void:
-	if node != null and node.has_signal(&"finished"):
-		_pending += 1
-		node.finished.connect(_on_child_finished)
-
-
-func _on_child_finished() -> void:
-	_pending -= 1
-	if _pending <= 0 and not _done_emitted:
-		_done_emitted = true
-		call_deferred(&"emit_signal", &"finished")

@@ -66,8 +66,7 @@ var _completed: Array[bool] = []
 var _lap: float = 0.0
 var _arrived: bool = false
 var _crit_tier: int = 0
-var _pending: int = 0
-var _done_emitted: bool = false
+var _drain := VisualDrain.new(finished)
 
 
 # ---------------------------------------------------------------- duck contract
@@ -121,8 +120,10 @@ func _on_arrival() -> void:
 	if _arrived:
 		return
 	_arrived = true
+	# Every edge is tracked by now (built at `_on_context`); none can finish
+	# before its own arrival, which only the lap below hands it.
+	_drain.seal()
 	if _edges.is_empty():
-		_emit_finished()
 		return
 	var tween := create_tween()
 	tween.tween_method(_set_lap, 0.0, 1.0, maxf(0.001, lap_seconds))
@@ -181,9 +182,7 @@ func _add_edge(from_pos: Vector2, to_pos: Vector2) -> void:
 		edge.call(&"_on_crit", _crit_tier)
 	_edges.append(edge)
 	_completed.append(false)
-	if edge.has_signal(&"finished"):
-		_pending += 1
-		edge.connect(&"finished", _on_child_finished)
+	_drain.track(edge)
 
 
 ## The ring off a [ScheduleEntry]-shaped context, guarded at every step: the
@@ -218,16 +217,3 @@ func _push_tint() -> void:
 	for edge in _edges:
 		if "tint" in edge:
 			edge.set(&"tint", tint)
-
-
-func _on_child_finished() -> void:
-	_pending -= 1
-	if _pending <= 0:
-		_emit_finished()
-
-
-func _emit_finished() -> void:
-	if _done_emitted:
-		return
-	_done_emitted = true
-	call_deferred(&"emit_signal", &"finished")

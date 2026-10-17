@@ -73,9 +73,7 @@ signal finished
 		_push_arc_weight()
 
 var _body: Node
-var _pending: int = 0
-var _arrival_handled: bool = false
-var _done_emitted: bool = false
+var _drain := VisualDrain.new(finished)
 var _context: Variant = null
 var _crit_tier: int = 0
 
@@ -105,44 +103,41 @@ func _ready() -> void:
 
 
 func _on_launch() -> void:
-	_forward(_body, &"_on_launch", [])
+	VisualDrain.forward(_body, &"_on_launch", [])
 
 
 func _on_progress(t: float) -> void:
-	_forward(_body, &"_on_progress", [t])
+	VisualDrain.forward(_body, &"_on_progress", [t])
 
 
 func _on_context(entry: Variant) -> void:
 	_context = entry
-	_forward(_body, &"_on_context", [entry])
+	VisualDrain.forward(_body, &"_on_context", [entry])
 
 
 func _on_crit(tier: int) -> void:
 	_crit_tier = tier
 	if forward_crit_to_body:
-		_forward(_body, &"_on_crit", [tier])
+		VisualDrain.forward(_body, &"_on_crit", [tier])
 
 
 func _on_arrival() -> void:
-	# `_track` connects `finished` BEFORE any forwarded call that might emit
-	# it synchronously (a zero-length fade, a same-frame companion) — connect
-	# after invoking and a synchronous emission is missed forever, since a
-	# Godot signal has no replay for a listener that showed up late.
-	_track(_body)
-	_forward(_body, &"_on_arrival", [])
+	# Track BEFORE forwarding: a child that finishes synchronously is still
+	# counted (see [VisualDrain]).
+	_drain.track(_body)
+	VisualDrain.forward(_body, &"_on_arrival", [])
 	for scene in arrival_companions:
 		if scene == null:
 			continue
 		var node: Node = scene.instantiate()
 		add_child(node)
-		_track(node)
+		_drain.track(node)
 		if _context != null:
-			_forward(node, &"_on_context", [_context])
+			VisualDrain.forward(node, &"_on_context", [_context])
 		if _crit_tier > 0:
-			_forward(node, &"_on_crit", [_crit_tier])
-		_forward(node, &"_on_arrival", [])
-	_arrival_handled = true
-	_check_done()
+			VisualDrain.forward(node, &"_on_crit", [_crit_tier])
+		VisualDrain.forward(node, &"_on_arrival", [])
+	_drain.seal()
 
 
 func _push_tint() -> void:
@@ -153,33 +148,3 @@ func _push_tint() -> void:
 func _push_arc_weight() -> void:
 	if _body != null and "arc_weight" in _body:
 		_body.set("arc_weight", arc_weight)
-
-
-
-func _forward(node: Node, method: StringName, args: Array) -> void:
-	if node != null and node.has_method(method):
-		node.callv(method, args)
-
-
-## Only children that actually expose `finished` gate this wrapper's own
-## signal — a companion with no such signal is, per the visual contract,
-## already done the instant it's spawned.
-func _track(node: Node) -> void:
-	if node != null and node.has_signal(&"finished"):
-		_pending += 1
-		node.finished.connect(_on_child_finished)
-
-
-func _on_child_finished() -> void:
-	_pending -= 1
-	_check_done()
-
-
-func _check_done() -> void:
-	if not _arrival_handled or _done_emitted or _pending > 0:
-		return
-	_done_emitted = true
-	# Deferred: a same-frame completion (e.g. a body with fade_seconds == 0)
-	# would otherwise emit before `Projectile._wait_for_visual_done`'s
-	# `await finished` has registered, which hangs the await forever.
-	call_deferred(&"emit_signal", &"finished")
