@@ -74,6 +74,18 @@ for melee and magic (#1467) — a count tier is secretly a ranged buff unless th
 pick text says what it does in your mode; potency is uncapped and is the
 equaliser.
 
+**Open (owner, 2026-10-17): where ring points come from.** *"inner-skill-points,
+gained every X level? or a rare resource acquired in some other way?"* Candidates
+weighed the same night: every X levels (predictable, a second payout on the
+power lever); the every-5th milestone slot repurposed from +1 SP to the ring
+point (one payout, the #199 origin); a rare map resource dropped by large faced
+Dormant Cores and spirits (hunting funds identity; snowball risk, a ringed kill
+pays twice); the first 3/3 stake (garnish, not a source); SP→point exchange
+(muddies "SP is power", AI rule needed). A collapse to consider: a spirit grants
+a ring point rather than a fixed +1 count, so one aspect currency exists on the
+map. Pass lean: milestone slot repurposed plus map drops. #1651 ships the
+counter and the every-N mint behind a knob; the source is swappable there.
+
 ### Shapes
 
 | shape | fantasy | costs | kills / awkward |
