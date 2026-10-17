@@ -89,17 +89,17 @@ const _AMMO_TYPES: AmmoTypeRoster = preload("res://attack/ammo/ammo_type_roster.
 ## The temp upgrade a phantom clamp becomes at launch — a kind is its scene.
 const _CLAMP_ADDON: PackedScene = preload("res://skill_node/addons/defs/clamp_addon.tscn")
 
+## Attribute stat ids in class-attribute order — the ring spender's tie-break.
+const _RING_SCHOOL_ORDER: Array[StringName] = [&"strength", &"dexterity", &"intelligence", &"constitution", &"perception", &"wisdom"]
+## T1, then T2, then the keystone (tier 0).
+const _RING_TIER_ORDER: Array[int] = [1, 2, 0]
+
 ## Diagnostic only (#537's "count it before trusting the arithmetic" ask) —
 ## how many candidates PASS 1 validated (cheaply) before the two-tier gate
 ## trimmed to [constant _CANDIDATE_GATE_K], and how many survived, for the
 ## LAST gather of each mode this turn. Read by
 ## `test/perf/bench_ai_turn.gd`'s candidate-count instrumentation; nothing in
 ## this class's own control flow reads them back.
-## Attribute stat ids in class-attribute order — the ring spender's tie-break.
-const _RING_SCHOOL_ORDER: Array[StringName] = [&"strength", &"dexterity", &"intelligence", &"constitution", &"perception", &"wisdom"]
-## T1, then T2, then the keystone (tier 0).
-const _RING_TIER_ORDER: Array[int] = [1, 2, 0]
-
 var last_ranged_candidate_count: int = 0
 var last_ranged_promoted_count: int = 0
 var last_magic_candidate_count: int = 0
@@ -337,16 +337,6 @@ func _spend_skill_points(visible_enemies: Array[SkillNode]) -> Array[SkillNode]:
 	return visible_enemies
 
 
-## Re-decide, for this turn only, whether Dormant Cores are worth this NPC's AP
-## — true iff it is growth-capped ([method AiRecon.is_growth_capped]). Returns
-## the capped verdict; the stance itself lands on
-## [member Entity.ai_growth_capped], which is where both halves of the
-## AI target filter read it (list building AND swing valuation — see
-## [method AiRecon.is_ai_target]).
-##
-## Always ASSIGNS rather than only setting on true: the flag must not outlive
-## the turn that earned it, or an NPC that broke out once keeps shooting
-## scenery forever.
 ## The NPC inner-ring spender, run at turn start: the highest school's sector
 ## — T1 on both aspects, then T2 on both, then the keystone — among the cells
 ## buyable right now, one [SpendRingCellCommand] per cell (adjacency moves
@@ -400,8 +390,16 @@ func _pick_ring_cell(table: RingTable, school: StringName) -> StringName:
 	return &""
 
 
-
-
+## Re-decide, for this turn only, whether Dormant Cores are worth this NPC's AP
+## — true iff it is growth-capped ([method AiRecon.is_growth_capped]). Returns
+## the capped verdict; the stance itself lands on
+## [member Entity.ai_growth_capped], which is where both halves of the
+## AI target filter read it (list building AND swing valuation — see
+## [method AiRecon.is_ai_target]).
+##
+## Always ASSIGNS rather than only setting on true: the flag must not outlive
+## the turn that earned it, or an NPC that broke out once keeps shooting
+## scenery forever.
 func _refresh_dormant_core_stance() -> bool:
 	var capped := AiRecon.is_growth_capped(entity)
 	entity.ai_growth_capped = capped
