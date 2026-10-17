@@ -27,12 +27,10 @@ var _catalog: TempUpgradeCatalog = preload("res://attack/melee/temp_upgrade_cata
 
 const _MAX_TRAY_WIDTH := 890.0
 
-const _BOARD := preload("res://entity/default_entity_board.tres")
-const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _BLIPS_SCENE := preload("res://ui/gauges/capacity_blips.tscn")
 const _MELEE_BODY := preload("res://ui/hud/command_tray/bodies/melee_body.tscn")
 
+var _world: TestWorld
 var _graph: Graph
 var _alloc: AllocationSystem
 var _battle: BattleSystem
@@ -44,12 +42,9 @@ var _leaves: Array[SkillNode] = []
 
 
 func before_each() -> void:
-	_graph = _GRAPH_SCENE.instantiate()
-	add_child_autofree(_graph)
-
-	_alloc = AllocationSystem.new()
-	_alloc.graph = _graph
-	add_child_autofree(_alloc)
+	_world = TestWorld.create(self)
+	_graph = _world.graph
+	_alloc = _world.allocator()
 
 	_tm = autofree(TurnManager.new())
 	add_child(_tm)
@@ -60,10 +55,7 @@ func before_each() -> void:
 	_battle.turn_manager = _tm
 	add_child(_battle)
 
-	_player = autofree(Entity.new())
-	_player.display_name = "Player"
-	_player.stat_board = _BOARD.duplicate(true) as EntityStatBoard
-	_graph.entities_container.add_child(_player)
+	_player = _world.add_entity("Player")
 
 	_leaves = []
 
@@ -72,14 +64,10 @@ func before_each() -> void:
 ## to the player — so each is a legal blade pick straight off the pivot and the
 ## blade can be grown to any size in one pass.
 func _build_star(leaf_count: int) -> void:
-	_pivot = _SKILL_NODE_SCENE.instantiate() as SkillNode
-	_pivot.name = "Pivot"
-	_graph.add_skill_node(_pivot)
+	_pivot = _world.add_node(&"Pivot")
 	for i in leaf_count:
-		var leaf := _SKILL_NODE_SCENE.instantiate() as SkillNode
-		leaf.name = "Leaf%02d" % i
-		_graph.add_skill_node(leaf)
-		_graph.add_edge(_pivot, leaf)
+		var leaf := _world.add_node(StringName("Leaf%02d" % i))
+		_world.link(_pivot, leaf)
 		_leaves.append(leaf)
 	await get_tree().process_frame
 

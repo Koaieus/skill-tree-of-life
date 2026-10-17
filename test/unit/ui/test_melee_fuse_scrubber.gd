@@ -12,12 +12,10 @@ extends GutTest
 
 var _catalog: TempUpgradeCatalog = preload("res://attack/melee/temp_upgrade_catalog.tres")
 
-const _BOARD := preload("res://entity/default_entity_board.tres")
-const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _MELEE_BODY := preload("res://ui/hud/command_tray/bodies/melee_body.tscn")
 const _SPACING := 150.0
 
+var _world: TestWorld
 var _graph: Graph
 var _alloc: AllocationSystem
 var _battle: BattleSystem
@@ -31,37 +29,27 @@ var _g2: Gate
 
 
 func _spawn(nm: String, pos: Vector2) -> SkillNode:
-	var sn := _SKILL_NODE_SCENE.instantiate() as SkillNode
-	sn.name = nm
-	_graph.add_skill_node(sn)
-	sn.global_position = pos
+	var sn := _world.add_node(StringName(nm), pos)
 	_n[nm] = sn
 	return sn
 
 
 func before_each() -> void:
 	_n = {}
-	_graph = _GRAPH_SCENE.instantiate()
-	add_child_autofree(_graph)
-	_alloc = AllocationSystem.new()
-	_alloc.graph = _graph
-	_alloc.navigator = _graph.navigator
-	add_child_autofree(_alloc)
+	_world = TestWorld.create(self)
+	_graph = _world.graph
 	_tm = autofree(TurnManager.new())
 	add_child(_tm)
-	_alloc.turn_manager = _tm
+	_alloc = _world.allocator_with_turns(_tm)
 	_battle = autofree(BattleSystem.new())
 	_battle.temp_upgrade_catalog = _catalog
 	_battle.graph = _graph
 	_battle.turn_manager = _tm
 	add_child(_battle)
 
-	_attacker = Entity.new()
-	_attacker.display_name = "Player"
-	_attacker.stat_board = _BOARD.duplicate(true) as EntityStatBoard
+	_attacker = _world.add_entity("Player")
 	_attacker.stat_board.get_stat(&"crit_chance").base_value = 0.0
 	_attacker.turns_taken = 1
-	_graph.entities_container.add_child(_attacker)
 	_attacker.stat_board.blade_size.base_value = 5.0
 	_attacker.stat_board.action_points.base_value = 4.0
 	_attacker.stat_board.action_points.current = 4.0

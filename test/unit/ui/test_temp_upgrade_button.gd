@@ -24,13 +24,11 @@ var _catalog: TempUpgradeCatalog = preload("res://attack/melee/temp_upgrade_cata
 ## value: which exact blue "armed" is remains a tuning decision, and pinning it
 ## here would turn every retune into a red suite.
 
-const _BOARD := preload("res://entity/default_entity_board.tres")
-const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _MELEE_BODY := preload("res://ui/hud/command_tray/bodies/melee_body.tscn")
 const _MODE_BAR := preload("res://ui/attack_mode_bar/attack_mode_bar.tscn")
 const _PALETTE := preload("res://ui/theme/action_palette.tres")
 
+var _world: TestWorld
 var _graph: Graph
 var _alloc: AllocationSystem
 var _tm: TurnManager
@@ -50,19 +48,13 @@ var _c: SkillNode
 
 
 func _spawn(nm: String) -> SkillNode:
-	var sn := _SKILL_NODE_SCENE.instantiate() as SkillNode
-	sn.name = nm
-	_graph.add_skill_node(sn)
-	return sn
+	return _world.add_node(StringName(nm))
 
 
 func before_each() -> void:
-	_graph = _GRAPH_SCENE.instantiate()
-	add_child_autofree(_graph)
-
-	_alloc = AllocationSystem.new()
-	_alloc.graph = _graph
-	add_child_autofree(_alloc)
+	_world = TestWorld.create(self)
+	_graph = _world.graph
+	_alloc = _world.allocator()
 
 	_tm = autofree(TurnManager.new())
 	add_child(_tm)
@@ -75,13 +67,11 @@ func before_each() -> void:
 	_bs.graph = _graph
 	add_child(_bs)
 
-	_attacker = Entity.new()
+	_attacker = _world.add_entity("")
 	_attacker.name = "Attacker"
-	_attacker.stat_board = _BOARD.duplicate(true) as EntityStatBoard
 	_attacker.stat_board.blade_size.base_value = 3.0
 	_attacker.stat_board.action_points.base_value = 4.0
 	_attacker.stat_board.action_points.current = 4.0
-	_graph.entities_container.add_child(_attacker)
 	_tm.start_turn(_attacker)
 
 	_pic = autofree(PlayerInputController.new())

@@ -4,12 +4,10 @@ extends GutTest
 ## melee plan: a temp upgrade folds in as an overlay (never onto the board), so
 ## the readout asks the plan rather than the bare node.
 
-const _BOARD := preload("res://entity/default_entity_board.tres")
-const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _ArmingCtl := preload("res://test/support/arming_ctl.gd")
 const _READOUT_SCENE := preload("res://ui/hud/combat_readout/combat_readout.tscn")
 
+var _world: TestWorld
 var _graph: Graph
 var _alloc: AllocationSystem
 var _entity: Entity
@@ -19,21 +17,14 @@ var _readout: CombatReadout
 
 
 func _spawn(nm: String) -> SkillNode:
-	var sn := _SKILL_NODE_SCENE.instantiate() as SkillNode
-	sn.name = nm
-	_graph.add_skill_node(sn)
-	return sn
+	return _world.add_node(StringName(nm))
 
 
 func before_each() -> void:
-	_graph = _GRAPH_SCENE.instantiate()
-	add_child_autofree(_graph)
-	_alloc = AllocationSystem.new()
-	_alloc.graph = _graph
-	add_child_autofree(_alloc)
-	_entity = Entity.new()
-	_entity.stat_board = _BOARD.duplicate(true) as EntityStatBoard
-	_graph.add_child(_entity)
+	_world = TestWorld.create(self)
+	_graph = _world.graph
+	_alloc = _world.allocator()
+	_entity = _world.add_entity("")
 	var tm: TurnManager = autofree(TurnManager.new())
 	add_child(tm)
 	tm.start_turn(_entity)
