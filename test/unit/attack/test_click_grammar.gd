@@ -354,3 +354,22 @@ func test_d_gated_while_attack_plan_armed() -> void:
 	d.pressed = true
 	_ctl._unhandled_input(d)
 	assert_eq(_joint.owned_by, _attacker, "D is gated off while an attack plan is armed (#404)")
+
+
+func test_the_hud_menu_shows_once_the_camera_reveal_settles() -> void:
+	var camera := GraphCamera.new()
+	camera.reveal_duration = 0.0
+	add_child_autofree(camera)
+	var hud_menu := _BLADE_NODE_MENU_SCENE.instantiate() as BladeNodeMenu
+	add_child_autofree(hud_menu)
+	hud_menu.bind(_ctl, null, camera)
+	_ctl.arm_attack(BattleSystem.AttackMode.MELEE)
+	_ctl.route_left_click(_pivot)
+	_ctl.route_left_click(_joint)
+	_ctl.route_left_click(_joint)
+	assert_true(hud_menu.is_open())
+	await get_tree().process_frame
+	await get_tree().process_frame
+	assert_true(hud_menu.fan().visible, "the fan shows on reveal_settled")
+	assert_true(_ctl.pop_armed_level())
+	assert_false(hud_menu.fan().visible, "and hides on the pop")

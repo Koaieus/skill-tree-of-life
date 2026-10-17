@@ -81,8 +81,6 @@ func _open(mode: BladeNodeMenuMode) -> void:
 		_show()
 		return
 	_camera.manual_input_received.connect(_close_mode)
-	# A reveal inside a directed shot is never arbitrated: hand the camera back first.
-	_camera.end_directed_focus()
 	_camera.reveal(_world_rect_of(mode.node), GraphCamera.RevealPolicy.NUDGE)
 	await _camera.reveal_settled
 	if _mode == mode:
