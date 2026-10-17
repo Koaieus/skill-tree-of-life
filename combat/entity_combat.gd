@@ -874,6 +874,15 @@ func apply_status(def: StatusDef, power: float, camp_id: StringName = &"", appli
 	_status_host.apply_status(def, power, camp_id, applier_id)
 
 
+## The receive half of a core crack (ADR 0066): every row on [param src]
+## (the cracked core node's host) moves onto this entity's host through
+## [method StatusHost.transfer_all_to]. Called only by
+## [method NodeCombat.take_damage]'s crack transition.
+func receive_statuses_from(src: StatusHost) -> void:
+	if src != null:
+		src.transfer_all_to(_status_host)
+
+
 ## See [method StatusHost.tick_statuses].
 func tick_statuses() -> void:
 	_status_host.tick_statuses()

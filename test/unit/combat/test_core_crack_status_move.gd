@@ -12,6 +12,9 @@ extends GutTest
 
 const _POISON_DEF: StatusDef = preload("res://effects/status/poison.tres")
 const _CORRUPTION_DEF: StatusDef = preload("res://effects/status/corruption.tres")
+## A removal-spill def ([SpillSpread]): it spills only when a row is removed
+## by a strip — never when it moves.
+const _BLEEDING_DEF: StatusDef = preload("res://effects/status/bleeding.tres")
 
 var _w: TestWorld
 var _graph: Graph
@@ -125,12 +128,12 @@ func test_entity_resistance_blocks_the_move_and_drops_the_row() -> void:
 # ── Acceptance 4: a move is not a removal — no spill
 
 func test_a_moved_row_never_spills_to_the_neighbours() -> void:
-	_core().apply_status(_CORRUPTION_DEF, 4.0)
-	var stacks := _core().get_status_power(_CORRUPTION_DEF.id)
+	_core().apply_status(_BLEEDING_DEF, 4.0)
+	var stacks := _core().get_status_power(_BLEEDING_DEF.id)
 	_crack()
-	assert_almost_eq(_ec().get_status_power(_CORRUPTION_DEF.id), stacks, 0.0001,
-			"the corruption moved whole")
-	assert_almost_eq(_n1.get_combat().get_status_power(_CORRUPTION_DEF.id), 0.0, 0.0001,
+	assert_almost_eq(_ec().get_status_power(_BLEEDING_DEF.id), stacks, 0.0001,
+			"the bleeding moved whole")
+	assert_almost_eq(_n1.get_combat().get_status_power(_BLEEDING_DEF.id), 0.0, 0.0001,
 			"no removal spill reached the neighbour")
 	assert_false(CombatWorld.live().has_pending_removals(), "nothing was noted as removed")
 

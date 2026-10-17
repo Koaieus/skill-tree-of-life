@@ -73,8 +73,11 @@ func _init() -> void:
 ## (`hp.current == 0`) at this moment — damage landed earlier in the same
 ## `outcome.hits` is visible, so an arrow that cracks the core sends its own
 ## poison through. Decided once, on the authority, into [member host_kind];
-## a rebuilt hit lands on the shipped host without re-reading node HP. A
-## node-hosted row on the core stays node-hosted: the hosts never merge.
+## a rebuilt hit lands on the shipped host without re-reading node HP. A row
+## already on the core node does NOT stay there once the core cracks: the
+## crack transition in [method NodeCombat.take_damage] moves every node row
+## onto the entity (ADR 0066), so a rider that landed before its cracking hit
+## reaches the entity too.
 ##
 ## Scaling (`docs/domain/effect-system.md` § "Status effects — the DoT model"):
 ## `StatusDef.stacks_per_hit_at(read slice, power)` — one fold of the stacks

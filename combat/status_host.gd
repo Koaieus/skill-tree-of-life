@@ -248,6 +248,26 @@ func remove_row(id: StringName, key: Variant) -> void:
 	owner._on_statuses_changed()
 
 
+## Move EVERY row on this host onto [param other] — a cracked core handing
+## its statuses to its entity (ADR 0066), the one owner of where those rows
+## live. Each row's stacks go through [param other]'s [method adjust_power]
+## (no attacker fold, no reapply policy, same key) unless [param other]
+## [method blocks] the def, in which case the row is dropped; either way it
+## leaves this host through [method remove_row], so `_on_removed` undoes its
+## effect here but nothing is handed to a removal spill — a move, not a death.
+## A created row carries no applier and restarts its decay ramp. Iterates a
+## COPY and re-checks presence like [method tick_statuses].
+func transfer_all_to(other: StatusHost) -> void:
+	if other == null or other == self:
+		return
+	for row in get_statuses():
+		if _row(row.def.id, row.key) != row:
+			continue
+		if not other.blocks(row.def):
+			other.adjust_power(row.def, float(row.power), row.key)
+		remove_row(row.def.id, row.key)
+
+
 ## Drop every status, each through [method remove_status], and hand back the
 ## rows as they stood — the caller that is stripping the node feeds them to
 ## [method CombatWorld.note_removed] so a spreading def can spill them.

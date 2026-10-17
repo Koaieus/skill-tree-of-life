@@ -446,6 +446,13 @@ func take_damage(amount: float, source: HitInstance) -> void:
 	o = owner()
 	var overflow: float = effective - soaked
 	if is_core():
+		# The crack (ADR 0066): this hit took the shell from > 0 to <= 0, so
+		# every row on it moves to the entity. BEFORE the overflow chip — a
+		# lethal overflow's death strip would otherwise spill these rows as a
+		# removal. The one place that sees the transition; a replay lands the
+		# recorded damage here too, so the move is reproduced, never shipped.
+		if before > 0.0 and hp.current <= 0.0 and o != null:
+			o.receive_statuses_from(_status_host)
 		# The overflow reaches the entity pool through its ONE door (#995) —
 		# the live `health.depleted` cascade and the shadow's simulated death
 		# both live behind it.
