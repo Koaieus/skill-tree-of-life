@@ -1,5 +1,5 @@
 ---
-status: exploring
+status: settling
 ---
 
 # Inner ring — feature brief (UI/UX)
@@ -59,20 +59,27 @@ sit on unspent points.
 - Given a point mints on my level-up, when the LEVEL UP beat plays, then the
   hero portrait shows an unspent-points badge and the banner names it.
 - Given unspent points, when my turn starts, then the badge is still there
-  (no nag, no modal) — `?` or does mint raise the ring immediately, as the
-  loot picker does for a kill?
+  (no nag, no modal). Mint never raises the ring; the loot picker stays the
+  only mid-run interrupter.
 
 **S2 — Open.** As the player I want to open the ring from my hero so the entry
 point is where my identity already lives.
 - Given the hero portrait top-left, when I click it, then the ring opens as a
   full-screen modal (rule `modal-system`: through `_enqueue_modal`, never
-  paused), over the board, with the board still visible dimmed `?`.
+  paused), over the board, with the board still visible behind a dim scrim
+  (the dim is a knob).
 - Given the ring is open, when I press Escape or the close control, then it
   closes and my points stay.
 
 **S3 — Read.** As the player I want the ring to read at a glance so I know
 what I am and what is near.
-- Given the ring, then six sectors sit on a rim in the authored order, each
+- Given the ring, then it reads like a PoE passive tree, not a simple ring:
+  the hero's core at the centre, each sector a cluster radiating outward,
+  node size by rank (T1 small, T2 a notable, keystone large and ornate),
+  paths between them. It is drawn in the board's own SkillNode / edge
+  language (an inherited scene or visual override where a ring cell needs
+  one, mostly the same).
+- Then six sectors sit around the core in the authored order, each
   labelled by its attribute, each aspect spoke tinted its own `Identity.tint`
   (aspect hue is its own, never the school's — `aspect_matrix.md` §Schools).
 - Then bought cells glow (a named `Emissive` tier, never a hand-picked
@@ -93,24 +100,30 @@ requirement before I buy.
 - Given a buyable cell selected and points ≥ cost, when I confirm, then one
   `SpendRingCellCommand` is submitted, the cell flips to bought with a short
   flourish, points decrement, and neighbours re-evaluate to buyable.
-- Given points left, then the ring stays open; given none, `?` it closes or
-  stays.
+- Given points left, then the ring stays open; given none, it also stays
+  open, read-only (the portrait opens it to review, so closing on the last
+  point would be inconsistent).
 - Given a peer-hosted game, then the buy round-trips the host like a loot pick
   and the cell shows a pending state until confirmed.
 
 **S6 — Wear it.** As the player I want my build visible on my hero.
-- Given bought cells, then the hero portrait shows the dominant sector's hue
-  and/or the deepest aspects' glyphs `?`; a spoke at T2 shows differently from
-  T1.
+- Given bought cells, then the hero portrait's frame is a miniature of the
+  ring: each sector's arc fills in its hue as cells are bought (T2 thicker
+  than T1), the frame rim takes the most-invested sector's hue, and the
+  deepest aspects' glyphs show on hover. The same frame is the
+  unspent-points badge's anchor and the click target that opens the ring.
 
 **S7 — Inspect others.** As the player I want to read an enemy's identity
 without seeing their whole ring.
-- Given a hostile entity, when I inspect it, then I see at most the sector
-  hues and tier counts `?` (per `info_gating.md`); never their unspent points.
+- Given another entity (hostile or ally) whose core I can see, when I
+  inspect it, then I see its ring-silhouette frame (S6) — sector hues and
+  depth — and nothing more: never the exact cells, never unspent points.
+  Core not visible: no frame.
 
 **S8 — Input.** As a keyboard/gamepad player I want the ring navigable.
 - Given focus in the ring, then arrows/D-pad move along links; confirm buys;
-  cancel closes. `?` gamepad in scope now or later.
+  cancel closes. Now: mouse + Escape/confirm; arrow/D-pad navigation along
+  links is a later child.
 
 ## 5. Flow
 
@@ -119,7 +132,6 @@ level-up  ─▶ badge on portrait ─▶ click portrait ─▶ ring modal
                                           │            ├─ hover cell → tooltip + status
                                           │            ├─ select buyable → confirm → bought (+ flourish)
                                           │            └─ close → board
-mint (if S1 says so) ───────────────────▶ ring modal (same body)
 ```
 
 ## 6. States
@@ -165,14 +177,25 @@ mint (if S1 says so) ───────────────────�
   portrait badge + hook, modal shell, cell tooltip/status, buy flow + MP
   pending, hero read (S6), inspect-others (S7), input (S8).
 
-## 9. Open questions (owner)
+## 9. Owner calls (2026-10-17, /swarmify #1652)
 
-1. Mint raises the ring, or badge-only until clicked? (S1)
-2. Board visible dimmed behind the ring, or full cover? (S2)
-3. What the hero portrait shows of the build — hue, glyphs, silhouette? (S6)
-4. How much of an enemy's ring is readable? (S7)
-5. Gamepad now or later? (S8)
-6. Ring stays open after the last point or closes? (S5)
+- Look: *"option 1 or possible 2 (might have _some_ inherited scene or
+  overriding visuals, but mostly the same). but also think more like \"PoE
+  passive tree\" than \"a simple ring\""* — core at the centre, sectors as
+  clusters, drawn in the board's own node/edge visuals.
+- Structure: *"all these 3 options would work well and this would not be a
+  procgen unit, but a hand authored scene with nodes and edges and node
+  content readily composed. (and keystone position too; can later be swapped
+  out for others e.g. coreclass specific keystones if we so want)"* — the
+  ring is an authored scene, its size free to grow by authoring.
+- Mint: badge only (S1).
+- Portrait: *"1 or 2 or 3 or all of these in some form, whatever gets the
+  best vibe and readability across"* — delegated; the pass picked the
+  ring-silhouette frame + dominant hue + glyphs on hover (S6).
+- Inspect: *"option 1, but only if you can see the core"* (S7).
+- Pass picks (tentative, not owner calls): board dimmed behind the modal;
+  ring stays open read-only after the last point; keyboard/gamepad
+  navigation later.
 
 ## 10. Reading list
 
