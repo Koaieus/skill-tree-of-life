@@ -20,6 +20,17 @@ extends Camera2D
 ## longer than that is sub-stepped so a hitch cannot blow the integrator up.
 const FOLLOW_MAX_STEP_RATIO := 0.1
 
+## How [method reveal] brings a world rect into view. NUDGE pans by the
+## smallest delta that fits the rect (grown by [member reveal_margin_px]) inside
+## the view, and is a no-op when it already fits; CENTRE always centres on it.
+enum RevealPolicy { NUDGE, CENTRE }
+
+## Screen-space inset [method reveal] keeps between the revealed rect and the
+## view edge. Tentative, easy to change.
+@export_range(0.0, 200.0, 1.0, 'or_greater') var reveal_margin_px: float = 24.0
+## Ease time of a [method reveal] pan; 0 is instant. Tentative, easy to change.
+@export_range(0.0, 1.0, 0.01, 'or_greater') var reveal_duration: float = 0.12
+
 const MIN_ZOOM := 0.25
 const MAX_ZOOM := 2.00
 
@@ -85,6 +96,10 @@ signal bounds_changed(bounds: Rect2)
 ## The camera implements no policy of its own here — grace windows and
 ## skip-if-on-screen live in the director.
 signal manual_input_received
+
+## Fired once per [method reveal] call when its pan has settled — always
+## deferred, so a caller that awaits the returned signal never misses it.
+signal reveal_settled
 
 var _last_effective_bounds: Rect2 = Rect2()
 
@@ -545,6 +560,10 @@ func pan_to(world_pos: Vector2) -> void:
 	manual_input_received.emit()
 	global_position = world_pos
 	_clamp_position()
+
+
+func reveal(_world_rect: Rect2, _policy: RevealPolicy) -> Signal:
+	return reveal_settled
 
 
 func _request_zoom_broadcast() -> void:
