@@ -264,18 +264,6 @@ var _effect_instances: Array[EffectInstance]:
 var core_modifiers: Array[StatModifier] = []
 
 
-## The only path that grants a modifier onto this entity's core permanently.
-## Appends `m` to [member core_modifiers] (register) and mirrors it onto
-## [member stat_board] (the flattened, computed layer). Both [CoreClass.apply]
-## (class-template grants) and SkillDust pickup (looted grants) route through
-## this — see #323.
-##
-## Does NOT duplicate `m` — per #377, formula binding is stateless (lives on
-## the Stat/Board, not the modifier), so the SAME shared `.tres` instance
-## already applies safely to every entity of a class, and a looted candidate
-## arrives here already an independent copy (LootSystem's draw duplicates when
-## building the payload). Duplicating again here would just be redundant work
-## on the class path and double-duplication on the loot path.
 ## Buys inner-ring cell `cell`: spends `cost` ring points, records it in
 ## [member ring_spent], grants each of `grants` through [method
 ## grant_core_modifier] (so they are lootable), emits [signal ring_changed].
@@ -293,6 +281,18 @@ func buy_ring_cell(cell: StringName, grants: Array[StatModifier], cost: int) -> 
 	return true
 
 
+## The only path that grants a modifier onto this entity's core permanently.
+## Appends `m` to [member core_modifiers] (register) and mirrors it onto
+## [member stat_board] (the flattened, computed layer). Both [CoreClass.apply]
+## (class-template grants) and SkillDust pickup (looted grants) route through
+## this — see #323.
+##
+## Does NOT duplicate `m` — per #377, formula binding is stateless (lives on
+## the Stat/Board, not the modifier), so the SAME shared `.tres` instance
+## already applies safely to every entity of a class, and a looted candidate
+## arrives here already an independent copy (LootSystem's draw duplicates when
+## building the payload). Duplicating again here would just be redundant work
+## on the class path and double-duplication on the loot path.
 func grant_core_modifier(m: StatModifier) -> void:
 	if m == null:
 		return
