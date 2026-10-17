@@ -76,9 +76,8 @@ func test_open_ring_shows_the_modal_without_pausing() -> void:
 
 
 ## As a peer: the confirm goes up as exactly one intent, and the cell stays
-## pending (confirm dead) until the host's confirmed command lands. A
-## [SpendRingCellCommand] bypasses the authority's queue, so the intent is the
-## one door that sees the command itself.
+## pending (confirm dead) until the host's confirmed command lands. The intent
+## is the one door a peer's command leaves through.
 func test_confirming_a_buyable_t1_submits_one_command() -> void:
 	_earn(2)
 	await _open()
@@ -138,3 +137,29 @@ func test_at_zero_points_the_modal_stays_open_read_only() -> void:
 	assert_false(_body().is_selection_valid(), "no points: nothing is buyable")
 	assert_true(_confirm_button().disabled, "confirm is disabled at zero")
 	assert_string_contains(_body().status_text().to_lower(), "point")
+
+
+## As a peer: the host refusing the buy drops the pending marker at once, so
+## confirm comes back without a Later-and-reopen.
+func test_a_refused_peer_buy_clears_the_pending_cell() -> void:
+	_earn(2)
+	await _open()
+	var applier := _root.command_applier
+	applier.is_authority = false
+	watch_signals(applier)
+	_body().select(&"BleedingT1")
+	_confirm_button().pressed.emit()
+	await wait_physics_frames(1)
+	var params: Variant = get_signal_parameters(applier, "intent_submitted")
+	var cmd: SpendRingCellCommand = null
+	if params != null:
+		cmd = params[0] as SpendRingCellCommand
+	assert_not_null(cmd, "the buy went up as an intent")
+	assert_string_contains(_body().status_text(), "Buying", "pending while the host decides")
+	if cmd != null:
+		applier.refuse_intent(cmd.intent_id)
+	await wait_physics_frames(1)
+	assert_false(_body().status_text().contains("Buying"), "a refusal clears the pending cell")
+	_body().select(&"BleedingT1")
+	assert_true(_body().is_selection_valid(), "the refused cell is buyable again")
+	applier.is_authority = true
