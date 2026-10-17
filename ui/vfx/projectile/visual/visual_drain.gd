@@ -30,7 +30,7 @@ func track(node: Node) -> void:
 	if node == null or not node.has_signal(&"finished"):
 		return
 	_pending += 1
-	node.connect(&"finished", _on_child_finished)
+	node.connect(&"finished", _on_tracked_finished)
 
 
 ## No more children are coming: emits now if nothing is pending.
@@ -46,7 +46,7 @@ static func forward(node: Node, method: StringName, args: Array) -> void:
 		node.callv(method, args)
 
 
-func _on_child_finished() -> void:
+func _on_tracked_finished() -> void:
 	_pending -= 1
 	_check()
 
