@@ -164,7 +164,7 @@ top session  (/swarm-train: trains, ledger, tick, relief, report)
    unless `external_metadata.permission_mode` is `auto` it asks the owner
    to switch the session to auto and arms nothing until they have or say
    run anyway. Even so the top keeps **at most two wakes pending — the
-   next window boundary** (≈ start + 5 h 05; the spent-window insurance) **and the next
+   next window boundary** (at the time law 8b picks; the spent-window insurance) **and the next
    tick** (`now + tick-minutes`). Whichever fires re-arms its own successor
    while the run is live (a boundary arms the next boundary under the cap;
    a tick the next tick). A wake's prompt and its `wakes:` note name its
@@ -176,13 +176,42 @@ top session  (/swarm-train: trains, ledger, tick, relief, report)
    stops — at most two such turns. **Before arming, the top checks the
    trigger tools exist** (a CLI session may lack the claude-code-remote
    server, 2026-10-11); without them the run is `/loop` self-paced — the
-   same shape without the server. Which wake survives a spent window is
-   still unmeasured.
+   same shape without the server. A wake that fires while the top is
+   itself rate-limited is lost: its turn runs nothing and arms no
+   successor (n=1, 2026-10-16) — law 8b's boundary turn re-arms it.
 8a. **The tick interval sits inside the prompt-cache lifetime.** The cache
    lives one hour from the last request; a tick at 60 min plus scheduler
    jitter misses it every time and pays the uncached rate on the whole
    context. Default 45 min; in usage overage the lifetime is five minutes
    and the only lever is fewer ticks.
+8b. **The boundary is armed at the real reset; start + 5 h 05 is only
+   the fallback.** The boundary's input, in order:
+   `external_metadata.rate_limit_info.resetsAt` (epoch seconds) when the
+   same `get_session` read law 8 already makes returns it, else a reset
+   time the owner stated (their "Resets in …" line or chat), anchored to
+   the moment they said it; the boundary is that time + 5 min. Run start
+   + 5 h 05 is only the fallback when neither exists. `resetsAt` leads
+   because it is absolute and read fresh at arming, where "resets in 1 h
+   05" is relative to a message that may be minutes old; the owner's time
+   is never dropped — the `wakes:` note echoes the time chosen next to
+   every time given (`resetsAt`, the owner's, or `fallback`), so a
+   disagreement or a default applied over a stated time shows on the
+   first tick. Each boundary turn re-reads `resetsAt` to arm the next
+   one. The boundary turn then runs law 9's table first — a lead cut off
+   by the limit gets its one resume (`SendMessage` `continue`, law 5) —
+   and checks the tick: the newest `tick` id in the `wakes:` notes, read
+   with `get_trigger`, showing fired or ended with no newer `tick` note
+   after it means that tick fired while the top was itself rate-limited,
+   ran nothing and armed nothing — the boundary arms a fresh tick. A draining
+   lead's state on resume is the swarm charter's (its drain law), not
+   this one's. Run of 2026-10-16 (session 153e4757): started with the window 53%
+   used, resetting in 1 h 05, the reset time given in chat; the top armed
+   start + 5 h 05 (22:02 CEST), both leads hit 429 at ~17:35, the 17:44
+   tick fired into the limit and left no successor, and the train sat dead
+   from the 18:00 reset until the owner messaged at 18:13 — owner,
+   2026-10-17: *"a swarm train was told when token limit would reset,
+   decided to schedule a wake at some 4+ hours later as if they never
+   heard"*. `resetsAt` is n=1 (named by the post, not yet read in a run).
 
 9. **A tick is a four-row table, nothing else.** Lead `running` and its
    deepest transcript fresher than `stall_minutes` → `noop`. Lead gone
@@ -481,6 +510,7 @@ window kills every agent at once) is why the drone cap stays 2–5.
 | 2026-10-11 | run #1565 | finished 19:20 after 2 h of a 15 h cap; bypass-mode top, allow rule present, 4 deletes refused; the tick and three boundary wakes armed at start fired into the finished run (2 by 22:18; the last two deleted 2026-10-12 01:40 from an auto-mode session) | 8, 18 |
 | 2026-10-13 | run #1589 | bypass-mode top, run DONE: 00:15Z boundary delete + disable refused "requires approval"; the top blamed the allow rule (already present since 2026-10-11) and committed a duplicate; switched to auto by the owner, it deleted a probe wake first call. The Android client attaching to the same RC host had flipped another session bypass→auto (`permission_mode_seq` 2), which is why deletes "worked from the phone"; both filed via `/bug` 224a4a89-41c0-401a-98a1-bd14462b0f3b — drop the auto preflight once bypass deletes go through | 8 |
 | 2026-10-14 | run #1620 | lead-a ended its turn six times in 29 min with drones in flight; each hand-back woke the top — on Fable by accident, meant Opus — for a turn on ~50k cached context | 22, 23, 24 |
+| 2026-10-16 | session 153e4757 | window 53% used at start, reset in 1 h 05 stated in chat; boundary armed start + 5 h 05 (22:02 CEST); both leads 429 at ~17:35; the 17:44 tick fired into the limit, ran nothing, armed nothing; dead from the 18:00 reset to the owner's 18:13 message | 8, 8b |
 | 2026-10-10 | run #1540 | drone-blob ended its turn on a backgrounded baseline → lead-a polled its transcript (owner killed it at 4 min); lead-b reported with a suite wait still running → a duplicate report 29 min later; lead-c2 ran the gate foreground and was clean | 16 |
 
 ## Fold digest — board `swarm-train — skill feedback board`
@@ -496,3 +526,5 @@ window kills every agent at once) is why the drone cap stays 2–5.
 - 2026-10-11 · `law-candidate` ×3 one DAG, window-budget cap, strangler-fig relief, run directory → fork C; one DAG and per-lead files settled 2026-10-12 (#1576) → laws 19–21, law 10 amended; the overlap settled 2026-10-12 (#1577, spike: a depth-2 background drone's `SendMessage` resumes its depth-1 lead) → laws 4, 9, 10, 15, 16, the cost model; fork C closed
 - 2026-10-13 · `autopsy` #1589 bypass top can't disarm, A/B'd to auto → law 8 (auto-mode preflight via `get_session`)
 - 2026-10-15 · `friction` each hand-back is a top turn at Fable price → law 23 (bounded foreground nap on an inbox file; the hand-back line of law 22 is the fallback), law 24 (top model preflight)
+- 2026-10-16 · `gotcha` boundary at start + 5 h 05 missed the 18:00 reset; dead tick left no successor → law 8b (arm at `resetsAt` + 5 min, re-read each boundary; the boundary turn resumes cut-off leads and re-arms a lost tick)
+- 2026-10-17 · `law-candidate` stated reset ignored, default applied → law 8b (an owner-stated reset or `resetsAt` is the input, + 5 h 05 the fallback; the `wakes:` note echoes chosen vs given)
