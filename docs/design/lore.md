@@ -156,7 +156,7 @@ This doctrine has a literal in-game embodiment: a **`coolness`** attribute that 
 
 ### The Ophanim
 
-The Lord of Edge's angelic order takes the form of **rings.** A ring (a cycle) is the purest expression of connection — redundant, 2-edge-connected, no loose ends, no single seam to cut. Biblical angels were sometimes drawn as wheels within wheels: the **Ophanim.** A ring is also, in graph terms, genuinely hard to dismantle — *OP*. We are putting the OP in **OP**hanim, and we mean it. The Ophanim are the divine made structural: connection so total it cannot be severed.
+The Lord of Edge's angelic order takes the form of **rings.** A ring (a cycle) is the purest expression of connection — redundant, 2-edge-connected, no loose ends, no single seam to cut. Biblical angels were sometimes drawn as wheels within wheels: the **Ophanim.** A ring is also, in graph terms, genuinely hard to dismantle — *OP*. We are putting the OP in **OP**hanim, and we mean it. (On the inner-tree level the Apex holds the centre; the candidate reading is that this band *is* its held cells around that centre — `apex_inner_tree.md` §4.) The Ophanim are the divine made structural: connection so total it cannot be severed.
 
 The Apex Entity's signature form is an Ophanim ring (see The Final Ascent). Whether the Apex *is* the Lord of Edge or merely His greatest angel is left ambiguous.
 
@@ -288,18 +288,9 @@ The game never tells you your depth explicitly. But the further you climb, the m
 
 **This is the central mystery:** not "what is the tree," but "how far in are you, and is there a way out?"
 
-### Two axes of nesting (owner, exploring, 2026-10-17)
+### Two axes of nesting
 
-Owner: *"the existence of an inner skill tree in your core is some kind of hint about how this universe works"* — clearing a level zooms the field out until it condenses into one node of an *outer* tree, and opening your core zooms *in* to a tree. Is the condensed node a regular node, or was it the core zooming out? Owner's own pro/con: yes, because that is already happening; no, because one is procgen-rolled and the other static — *"but we CAN hint at there being at least 2 axes of nesting … maybe clearing a level is a node-zoomout and visiting your core's inner tree is a core-zoom-in & closing it is some kind of zoom-out yet maybe we haven't _seen_ the core zoom-out from your normal battlefield layer yet"*.
-
-- **Node axis (the world):** field ↔ node. Procgen, rolled, *other* — a Breakout condenses the field you cleared into your next starter node. Seen every level.
-- **Core axis (the self):** entity ↔ inner tree. Authored, static, *you* — the inner ring keeps its *shape* every run because identity does not reroll; only the buys reset per run (`inner_tree_and_stake_economy.md` §AI and persistence). Seen inward only; closing the ring is the only zoom-out you have done along it, and it lands you back where you started.
-- **The unseen move:** the battlefield, zoomed out along the *core* axis. If your core holds a tree, what core holds the field? Candidate payoff: the Grand Passive Tree (the final level, a PoE homage) is that answer seen from inside — the Apex's level is an inner tree, and the inner ring the player has been buying all game is a miniature of it. The ring's PoE look (#1652) is then foreshadowing, not homage.
-- **Lossy vs lossless:** the node axis is lossy — compression carries stat and modifier, never edge structure (`combat_system.md` §Breakout, *What Carries Forward* above) — so the condensed node is a regular node, and the core already crosses that axis carrying stats. The core axis is lossless: the inner tree is the one thing whose *shape* survives a Breakout.
-- **The safe rhyme, true now:** the Apex is a thick ring you grind arc by arc (*The Ophanim — a ring you cannot cut*); the player buys their own ring all game. That echo holds however the payoff below lands.
-- **Settled (owner, 2026-10-17): the final level IS a core's inner tree.** *"You breakout of the core the last one. Or the level right before is? With then entering a core's inner tree from apparently one of the nodes in there, so the next level is an ordered unit not procgen, and you must defeat the central entity in there - what in your own inner tree would've been the central immovable starter position. Killing that one exits you and boots you back into the metagame, possibly with a reward related to the boss you killed and or extended by reward that was put on the level beforehand (e.g. a metagame skill allocation, is permanent starting stat, the allocation happens when you complete the run it offers)."* So: the penultimate level's Breakout does not condense into a starter node — it drops you *into* a core, entering its inner tree at one of its nodes. The final level is authored, not rolled (the Grand Passive Tree), and its centre — the immovable spot your own core holds in your ring — is the Apex. The exit is that kill, not a Breakout; it boots you to the metagame with a boss-related reward and/or the meta-allocation the run offered, committed on completion.
-- **What falls out for free (owner):** *"boss damage scaling, boss aspect specialization. It'd be a real inner tree, but the keystones may be specific to that boss (their coreclass) so giving bosses unique abilities and characters through bespoke keystones (as one would for a coreclass specific inner skill tree) is doable. And two: bosses can have a subtype, correlated to coreclass or not, expressed by what Aspects the sections they hold within the inner tree"*. A boss is an inner tree like the player's: its keystones (per CoreClass, the same swap the player's ring will get) give it a character, and the aspect sectors it holds are its subtype.
-- **Why static vs procgen is a feature:** the difference *is* the tell. Every outer layer is rolled; the one thing that never rerolls is what is inside you — and the one thing that never rerolls at the top is the Apex's tree.
+Owner (2026-10-17): *"the existence of an inner skill tree in your core is some kind of hint about how this universe works"*. The fractal nests two ways: the **node axis** (a cleared field condenses into one node of an outer tree — procgen, lossy, seen every level) and the **core axis** (your core holds an authored, static inner tree — lossless, seen inward only). The penultimate level's Breakout falls *in* along the core axis, and the final level is the Apex's inner tree. What each zoom means, the hints a run shows, and what stays unsaid: [`nesting_cosmology.md`](nesting_cosmology.md). The final level and the boss-as-inner-tree: [`apex_inner_tree.md`](apex_inner_tree.md).
 
 And there is a layer *above* the levels: the **Metagame** — the hub you return to between runs — is itself a vertex of this same fractal, with its own disguised Tethers and its own possible Breakout. The way out, if there is one, runs through there. See `metagame.md`.
 
@@ -504,9 +495,8 @@ The final level is not about reaching the Tethers. There are none. It is about d
 
 **Every run ends here.** The Apex Ophanim is the capstone of a *run*, not only of the whole game: killing it — at the centre of its inner tree, entered by the penultimate level's Breakout (*Two axes of nesting*) — surfaces the player back in the metagame and commits the meta-allocation that crashed them in (see `metagame.md`). So the first run already culminates in an Apex fight. Subsequent runs face a **tougher Apex** — scaled by accumulated meta-progression, and/or by a player-selectable **heat / ascension modifier** in the roguelike tradition (Hades' Heat, StreetPass-difficulty knobs), letting players dial the challenge up for greater reward. The *truly* final confrontation — the one that ends the game rather than a run — is the **metagame Breakout**, a distinct endgame the player must earn their way to; see the note below and `metagame.md`, The Way Out.
 
-What happens after is unwritten. Possibilities:
-- You Breakout one final time and the camera keeps pulling back — the game world itself is revealed as one node in something even larger.
-- The Apex Entity's core fuses with yours. A stats screen. A seed for the next run that carries a fragment of what the Apex was.
+What the kill pays beyond the committed allocation — a boss-related reward, the Apex's core fusing with yours among the candidates — is `apex_inner_tree.md` §7. What the player *sees* in that moment is unwritten. Possibilities:
+- The camera pulls back from the Apex's tree and it is a core on a field — the one core-axis zoom-out the game ever shows (`nesting_cosmology.md` Q2).
 - The tree collapses. The adventure game boots up. The sword is in your hand. But the skill tree panel, when you open it — is different.
 
 Note the open thread between this in-run summit and the **metagame Breakout** (`metagame.md`, The Way Out): are these the same top reached two ways, or two different escapes? Unresolved.
@@ -533,7 +523,7 @@ Every level takes place on a bounded circular field, but the *feel* of that fiel
 
 The Apex Entity's level is a homage to Path of Exile's passive skill tree. Massive, dense, multiple cluster regions radiating from a center, long bridges between regions.
 
-**Winks to PoE:** filler `+10 to an Attribute of your choosing` nodes; Notable-style named nodes ("Iron Fortress," "Whispers of Doom"); Keystone-style nodes that change a rule for their owner; Jewel sockets that accept a modifier seed affecting nodes within N hops; the dark/gold/amber palette. The final level has no Tethers — the win condition is the Apex's core. This is the only level where Breakout is not the exit. It is the Apex's **inner tree**, entered from one of its nodes — authored, not procgen — and the Apex holds its centre, the immovable spot the player's own core holds in theirs.
+The final level has no Tethers and no Breakout: it is the Apex's **inner tree**, entered from one of its nodes — authored, not procgen — and the Apex holds its centre, the immovable spot the player's own core holds in theirs. Killing it is the exit. Shape, PoE winks, the boss's ring state and the reward: [`apex_inner_tree.md`](apex_inner_tree.md).
 
 ---
 

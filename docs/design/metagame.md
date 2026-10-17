@@ -58,7 +58,7 @@ The defining mechanic: **allocating a node on the meta skill tree is what crashe
 The allocation does not finish when you place it. It finishes when you **survive everything inside it.**
 
 - Place the point → crash → run begins.
-- Complete the run (the final Breakout) → you surface back in the hub → the allocation **commits.** Its modifier is now permanently yours; the node is "cleared."
+- Complete the run (kill the Apex at the centre of its inner tree — `apex_inner_tree.md`) → you surface back in the hub → the allocation **commits.** Its modifier is now permanently yours; the node is "cleared."
 - **Die in the run → the allocation does not commit.** The node stays pending. The fractal is permanent; your attempt was not. Try the dive again.
 
 This is the same compression logic as an in-run Breakout, one layer up: a completed run bakes its essence into your persistent self, exactly as a cleared level bakes into your next starting node. The metagame is the fractal's top floor playing by the fractal's own rules.
