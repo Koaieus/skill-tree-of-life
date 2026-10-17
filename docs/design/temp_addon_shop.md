@@ -28,32 +28,48 @@ with each a price of blade size and 0..2 (maybe 3?) aspect currencies"*.
 
 ## The three surfaces
 
-**1. Radial fan on the node (node first).** Hovering a node in placement mode
-opens a fan of the blueprints you can place *there, now*. It never shows the
-catalog: what you can afford is limited by the aspects you hold budget in
-and the blade size left, so the fan stays small at any catalog size.
+**1. The blade-node menu (node first).** Left-click a node that is already
+in the blade (pivot or member) to open its management menu. Left-click an
+unpicked node still picks it. Any armed mode overrides the menu: with a
+quickbar blueprint armed, the click places that blueprint as it does today.
 
-- **A growing fan, not a circle.** Fixed-width sectors fan out from the top,
-  in a stable canonical order. Only placeable entries are drawn, so the fan's
-  length gives nothing away: *"we also kinda dont want to give away the total
-  amount of available sectors! so stability is fine but the sizing should
-  be.. clever"* → picked: growing fan.
+> *"on unpicked node -> picks it as blade; on picked node: menu for mgmt
+> including list of upgrades (if slots and budget etc, the wheel thing) and an
+> option to un-pick it … it also gets overridden by any other armed mode e.g.
+> from hotbar"*
+
+- **Un-pick sits at the hub, under the cursor.** The cards fan out around
+  it, so a double-click on a picked node un-picks it without needing a new
+  button or a timer.
+- **A growing fan of cards, not a circle.** Uniform fixed-size cards (the
+  same card as the quickbar slot) fan out from the hub in a stable canonical
+  order. Only what you can place there right now is drawn, so the fan's
+  length gives nothing away: *"we also kinda dont want to give away the
+  total amount of available sectors! so stability is fine but the sizing
+  should be.. clever"*.
+- **Cards never move once the menu is open.** The menu has its own geometry,
+  chosen for usability, and does not use the tooltip fan's trunk-and-branch
+  shape or its viewport clamping: *"needs to be a clear pick of cards that
+  don't move around though! … this menu doesn't need to follow that, it
+  could do its own variety to suit good usability"*.
+- **Near a screen edge the camera nudges** just enough to fit the menu. The
+  menu's layout is the same everywhere. This is reusable camera plumbing
+  with a nudge policy and a centre policy, so *"anything else that wants
+  this could fold it in with little to no extra code"*.
 - **The canonical order is grouped by role** (offence, debuff, utility, …),
   so the role shelves the owner liked for discovery live in the fan's order:
   *"2 is neat if you dont know what contents each aspect has, "if you're
   looking for offense you're gonna find it here" solves that."*
-- **The fan's tooltip stays minimal** (icon, costs). The detail goes to the
+- **The menu's tooltip stays minimal** (icon, costs). The detail goes to the
   tray: *"3 is a very strong pick that leaves room for the tray to instead
   show just (extra) info on what you are hovering where the tooltip hover on
-  the radial is minimal or just concise / some icons/costs"*.
-- **Its look is open:** reuse the tooltip-fan module or a new look for a menu
-  with *"more (and more uniform) leafs"*. Settled on the radial's own child
-  issue.
+  the radial is minimal or just concise / some icons/costs"*. While the menu
+  is open, the node's tooltip fan stays down.
 
 **2. Quickbar on the tray (blueprint first).** Z X C V B are the player's
 five favourites. Pressing or clicking one arms that blueprint as it does
 today. **Both paths ship:** arm from the quickbar and then pick a node, or
-open the fan on a node and then pick a blueprint.
+open a picked node's menu and then pick a blueprint.
 
 - Right-click a favourite to swap it for another blueprint *"where you have
   >0 aspect for"*.
@@ -74,7 +90,6 @@ child issue.
 
 ## Open questions
 
-- The fan's look (see surface 1).
 - The role categories and which addon goes where.
 - Auto-fill for an aspect that owns two addons (Corruption: Compromiser,
   Abyssal Conduit), and for blade-only addons with no aspect (Spike Ring,
