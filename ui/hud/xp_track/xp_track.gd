@@ -72,6 +72,7 @@ var _shown_level: int = 1
 ## THIS cascade rather than the run.
 var _cascade_stack: int = 0
 var _cascade_sp: int = 0
+var _cascade_ring: int = 0
 
 ## What this strip connects to the CURRENT hero's XP pool, released as a unit
 ## by [method _unbind] (#459 hot-seat handover).
@@ -132,6 +133,7 @@ func _unbind() -> void:
 		_flourish.cut()
 	_cascade_stack = 0
 	_cascade_sp = 0
+	_cascade_ring = 0
 	_entity = null
 	_pool = null
 	_per_turn = null
@@ -235,8 +237,10 @@ func _stamp_flourish(level: int) -> void:
 	_cascade_stack += 1
 	if _entity != null:
 		_cascade_sp += _entity.sp_minted_for_level(level)
+		if _entity.is_milestone_level(level):
+			_cascade_ring += 1
 	if _flourish != null:
-		_flourish.stamp(level, _cascade_sp, _cascade_stack)
+		_flourish.stamp(level, _cascade_sp, _cascade_stack, _cascade_ring)
 
 
 ## The cascade's queue is empty, so the flourish may leave once it has served
@@ -251,6 +255,7 @@ func _release_flourish() -> void:
 func _on_flourish_closed() -> void:
 	_cascade_stack = 0
 	_cascade_sp = 0
+	_cascade_ring = 0
 
 
 ## The single funnel for "the level readout changed" — every writer of

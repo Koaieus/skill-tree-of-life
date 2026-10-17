@@ -139,8 +139,8 @@ func test_the_sp_total_accumulates_the_levels_actually_narrated() -> void:
 			milestones += 1
 	assert_gt(milestones, 0, "sanity: the cascade crossed at least one milestone")
 	var detail := (_flourish.get_node("%Detail") as Label).text
-	assert_eq(detail, "+%d SP — LEVEL %d" % [expected, final_level],
-			"each milestone is counted for ITS level, not for the final one")
+	assert_eq(detail, "+%d SP · +%d RING — LEVEL %d" % [expected, milestones, final_level],
+			"each milestone is counted for ITS level, and its ring point rides the copy")
 	# A milestone pays a ring point, not SP: the SP yield stays flat across it.
 	var flat := _entity.sp_minted_for_level(2) * _stamps.size()
 	assert_eq(expected, flat, "a milestone adds no SP")
