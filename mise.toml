@@ -21,7 +21,7 @@ pipx = "latest"
 "pipx:scons" = "latest"
 # The Windows cross toolchain is NOT here on purpose — see native:build below.
 # The python file tasks (test, refresh, rules-hygiene, lint-transcendentals,
-# lint-house-rules) are
+# lint-house-rules, lint-gdscript-warnings) are
 # stdlib-only and want nothing newer than 3.7 — pinned so `mise install` is the
 # whole setup, not because the version is delicate.
 python = "3.14"

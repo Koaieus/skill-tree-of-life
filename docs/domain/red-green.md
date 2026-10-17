@@ -60,6 +60,8 @@ moves on; the totals just don't include your file. So "I wrote a test and the
 suite isn't green" is *not* what you observed — you have to check what you
 actually observed.
 
+The same goes for a promoted GDScript warning (an unused variable, `godot-workflow.md`) in a test file: it is a parse error, so the test is skipped silently. `check` catches it; `test:one` does not.
+
 And a brand-new test is the single most likely file in the repo to parse-error,
 because TDD writes it against code that **does not exist yet**. A reference to a
 `class_name` or method you haven't written is a **parse error, not a red test**.
@@ -95,7 +97,7 @@ Red→green is about *order*, not about how much you run. Cost discipline is
 unchanged and orthogonal:
 
 ```
-mise run check                                       # ~20s — after every script edit (also fails on promoted GDScript warnings)
+mise run check                                       # ~20s — after every script edit
 mise run test:one -- res://test/unit/test_<yours>.gd # your red-green loop
 mise run test:dir -- res://test/unit/<subsystem>/    # once you believe you're green
 mise run test                                        # full suite — ONCE, at final green

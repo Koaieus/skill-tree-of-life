@@ -585,6 +585,6 @@ level and cut away from it a moment later. Launch a sandbox by path
 variable/parameter, unreachable code, integer division, standalone expression, …)
 to Error, so a new one fails to compile in the editor and under `check`.
 `mise run lint-gdscript-warnings -- [paths…]` lists every site (`--no-overlay`
-= the real project levels); `check` runs it plus `--self-test`. Fix it properly;
+= the real project levels); `check` runs it changed-only plus `--self-test`; the editor-import pass `check` also runs never reports these warnings (only a per-file `--check-only --script` does), hence the separate sweep. Fix it properly;
 use the warning-ignore annotation with a one-line reason only where the warning is
 intended (a truncating `int / int`, a tool-button var the editor holds).
