@@ -288,6 +288,15 @@ The game never tells you your depth explicitly. But the further you climb, the m
 
 **This is the central mystery:** not "what is the tree," but "how far in are you, and is there a way out?"
 
+### Two axes of nesting (owner, exploring, 2026-10-17)
+
+Owner: *"the existence of an inner skill tree in your core is some kind of hint about how this universe works"* — clearing a level zooms the field out until it condenses into one node of an *outer* tree, and opening your core zooms *in* to a tree. Is the condensed node a regular node, or was it the core zooming out? Owner's own pro/con: yes, because that is already happening; no, because one is procgen-rolled and the other static — *"but we CAN hint at there being at least 2 axes of nesting … maybe clearing a level is a node-zoomout and visiting your core's inner tree is a core-zoom-in & closing it is some kind of zoom-out yet maybe we haven't _seen_ the core zoom-out from your normal battlefield layer yet"*.
+
+- **Node axis (the world):** field ↔ node. Procgen, rolled, *other* — a Breakout condenses the field you cleared into your next starter node. Seen every level.
+- **Core axis (the self):** entity ↔ inner tree. Authored, static, *you* — the inner ring is the same shape every time because identity does not reroll. Seen inward only; closing the ring is the only zoom-out you have done along it, and it lands you back where you started.
+- **The unseen move:** the battlefield, zoomed out along the *core* axis. If your core holds a tree, what core holds the field? Candidate payoff: the Grand Passive Tree (the final level, a PoE homage) is that answer seen from inside — the Apex's level is an inner tree, and the inner ring the player has been buying all game is a miniature of it. The ring's PoE look (#1652) is then foreshadowing, not homage.
+- **Why static vs procgen is a feature:** the difference *is* the tell. Every outer layer is rolled; the one thing that never rerolls is what is inside you — and the one thing that never rerolls at the top is the Apex's tree.
+
 And there is a layer *above* the levels: the **Metagame** — the hub you return to between runs — is itself a vertex of this same fractal, with its own disguised Tethers and its own possible Breakout. The way out, if there is one, runs through there. See `metagame.md`.
 
 ---
@@ -568,7 +577,7 @@ This game earns a JRPG-style finale. The Apex Entity is not ironic. It is the na
 
 4. **The enemies from Act 0.** They existed in the simulation. Do they exist on the tree? Were the cute things you slaughtered the same *kind* of thing you now are?
 
-5. **Going down.** The fractal ascends through Breakouts — does it also go down? Can a node be pried open and fought inside?
+5. **Going down.** The fractal ascends through Breakouts — does it also go down? Can a node be pried open and fought inside? (The core's inner tree is the first downward step the player takes — see *Two axes of nesting*.)
 
 6. **The Fairy across runs.** Resolved that the Fairy is the crash-agent, the antichrist-judge, a herald (not god; owner lean 2026-09-30: that is a disguise, and it is the Lord of Edge), self-trapped in the curse, and carries a late betrayal. *Open:* does it ride along every dive, narrate from the hub "outside," go quiet as betrayal nears, or not even know it is imprisoned? And what *is* the betrayal?
 
