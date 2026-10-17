@@ -170,6 +170,8 @@ func _entry(id: StringName) -> AspectWheelEntry:
 func _gui_input(event: InputEvent) -> void:
 	if event is InputEventMouseMotion:
 		_set_hovered(wedge_at(event.position))
+	elif read_only:
+		return
 	elif event is InputEventMouseButton and event.pressed:
 		if event.button_index == MOUSE_BUTTON_RIGHT:
 			accept_event()
@@ -182,7 +184,7 @@ func _gui_input(event: InputEvent) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if is_visible_in_tree() and event.is_action_pressed(&"ui_cancel"):
+	if not read_only and is_visible_in_tree() and event.is_action_pressed(&"ui_cancel"):
 		get_viewport().set_input_as_handled()
 		dismissed.emit()
 
@@ -229,7 +231,8 @@ func _draw() -> void:
 		if badge != null:
 			draw_texture_rect(badge, Rect2(badge_pos - Vector2.ONE * badge_px * 0.5, Vector2.ONE * badge_px), false, tint)
 		var value_pos := center + _dir(mid) * (badge_r + badge_px * 0.5 + (radius_px - badge_r - badge_px * 0.5) * 0.5)
-		_draw_centered(font, value_pos, str(entry.value), 12, tint)
+		if not read_only:
+			_draw_centered(font, value_pos, str(entry.value), 12, tint)
 		if not entry.is_pickable():
 			draw_line(center + _dir(span.x) * inner_radius_px, center + _dir(span.y) * radius_px, Color(grey, 0.8), 1.5, true)
 		elif entry.checked:
