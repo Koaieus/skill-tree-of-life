@@ -17,6 +17,13 @@ extends CommandTrayBodyBase
 @onready var _reset_button: Button = %ResetButton
 @onready var _launch_button: LaunchAttackButton = %LaunchButton
 @onready var _fuse_scrubber: FuseScrubber = %FuseScrubber
+@onready var _receipt: HFlowContainer = %Receipt
+@onready var _detail: AddonItem = %Detail
+
+## Group every live MeleeBody joins, so [HudRoot] can forward the blade-node
+## fan's [signal CardFan.hovered] to [method show_detail] without reaching into
+## [CommandTray]'s current body.
+const DETAIL_GROUP := &"melee_body_detail"
 
 ## Blip tint per addon kind in the battle system's catalog — used for the
 ## upgrade-spend pips, the addon-outline decoration on blade-region pips and the
@@ -40,6 +47,7 @@ var _hover_counts: Dictionary = {}
 
 
 func _on_bound() -> void:
+	add_to_group(DETAIL_GROUP)
 	_swing_button.pressed.connect(_on_swing_pressed)
 	_reform_button.pressed.connect(_on_reform_pressed)
 	_reset_button.pressed.connect(_reset_plan)
@@ -189,6 +197,10 @@ func _build_upgrade_buttons() -> void:
 		var inner := slot.get_node_or_null(^"%Button") as Control
 		if inner != null:
 			inner.gui_input.connect(_on_slot_gui_input.bind(i))
+		if upgrade != null:
+			var hover_target := inner if inner != null else slot
+			hover_target.mouse_entered.connect(show_detail.bind(upgrade))
+			hover_target.mouse_exited.connect(show_detail.bind(null))
 		_quickbar_row.add_child(slot)
 
 
@@ -349,6 +361,7 @@ func _refresh() -> void:
 		btn.affordable = plan != null and can_act and plan.has_temp_upgrade_budget(upgrade) \
 				and (_input_ctl == null or _input_ctl.can_arm_temp_upgrade())
 
+	_rebuild_receipt(plan)
 	_fuse_scrubber.sync(plan)
 	# _clear_hover() above dropped the marker's hover with everything else.
 	_on_fuse_marker_hovered(_fuse_scrubber.hovered_gate(), true)
@@ -404,9 +417,58 @@ func _has_manual_upgrade(node: SkillNode) -> bool:
 	return false
 
 
-## Binds %Detail to [param scene]'s blueprint, or collapses it on null.
-func show_detail(_scene: PackedScene) -> void:
-	pass
+## Binds %Detail to [param scene]'s blueprint — title, modifiers, description
+## and icon off a throwaway instance — or collapses it on null. Fed by quickbar
+## slot hover and, via [constant DETAIL_GROUP], the blade-node fan's hover.
+func show_detail(scene: PackedScene) -> void:
+	if _detail == null:
+		return
+	if scene == null:
+		_detail.visible = false
+		return
+	var tmp := scene.instantiate() as SkillNodeAddon
+	if tmp == null:
+		_detail.visible = false
+		return
+	_detail.bind(tmp.get_tooltip_title(), tmp.get_tooltip_modifiers(), tmp.description, tmp.icon)
+	tmp.free()
+	_detail.set_progress(1.0)
+	_detail.visible = true
+
+
+## The receipt strip: one small card per temp this swing carries
+## ([method MeleeAttackPlan.placed_temp_upgrades], blade order). A click
+## refunds it through the same toggle a graph click uses; hovering it
+## force-hovers its node like a pip. Rebuilt on every [method _refresh], after
+## [method _clear_hover] has dropped any hover a freed entry was holding.
+func _rebuild_receipt(plan: MeleeAttackPlan) -> void:
+	for child in _receipt.get_children():
+		_receipt.remove_child(child)
+		child.queue_free()
+	if plan == null:
+		return
+	# Same carrier walk, same order: entry i of each is the same addon, so the
+	# card shows what that one was actually charged.
+	var prices := plan.temp_prices()
+	var placed_list := plan.placed_temp_upgrades()
+	for i in placed_list.size():
+		var node: SkillNode = placed_list[i].node
+		var scene: PackedScene = placed_list[i].scene
+		var tmp := scene.instantiate() as SkillNodeAddon
+		var btn := _UPGRADE_BUTTON.instantiate() as TempUpgradeButton
+		btn.label_text = tmp.get_tooltip_title()
+		btn.icon_texture = tmp.icon
+		tmp.free()
+		btn.accent = _upgrade_color(scene)
+		btn.costs = prices[i][1]
+		if _input_ctl != null:
+			btn.pressed.connect(_input_ctl.request_temp_upgrade_at.bind(node, scene))
+		_receipt.add_child(btn)
+		var inner := btn.get_node_or_null(^"%Button") as Control
+		var hover_target := inner if inner != null else btn
+		hover_target.mouse_entered.connect(_on_pip_hover_changed.bind(node, true))
+		hover_target.mouse_exited.connect(_on_pip_hover_changed.bind(node, false))
+
 
 
 func _on_launch_pressed() -> void:

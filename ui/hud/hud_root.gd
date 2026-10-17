@@ -233,6 +233,11 @@ func bind_systems(
 	# driven by the outgoing one would describe the wrong player's next click.
 	armed_mode_icon.bind(_input_ctl)
 	blade_node_menu.bind(_input_ctl, tooltip_fan, _game_root.camera if _game_root != null else null)
+	# The fan's cards show icon and price only; the full blueprint is the melee
+	# tray's %Detail, fed from here.
+	var blade_fan := blade_node_menu.fan()
+	if blade_fan != null and not blade_fan.hovered.is_connected(_on_blade_fan_hovered):
+		blade_fan.hovered.connect(_on_blade_fan_hovered)
 	node_inspector_card.bind(_input_ctl)
 	turn_resources_panel.bind_input_ctl(_input_ctl)
 	combat_readout.bind(_battle_system, _input_ctl.armed_stack if _input_ctl != null else null)
@@ -325,6 +330,12 @@ func rebind_player(player: Entity) -> void:
 	blade_node_menu.bind(_input_ctl, tooltip_fan, _game_root.camera if _game_root != null else null)
 	_bind_initiative_pool()
 	turn_forecast_strip.set_player(_player)
+
+
+## Forwards the blade-node fan's hovered blueprint (null on leave) to the
+## melee tray body, whichever one is live.
+func _on_blade_fan_hovered(scene: PackedScene) -> void:
+	get_tree().call_group(MeleeBody.DETAIL_GROUP, &"show_detail", scene)
 
 
 ## Pick-1-of-M loot claim (#173). Only the PLAYER's relics get the picker — set

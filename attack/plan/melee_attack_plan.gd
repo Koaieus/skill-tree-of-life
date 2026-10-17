@@ -657,6 +657,10 @@ func _temp_upgrade_carriers() -> Array[SkillNode]:
 ## when [signal AttackPlan.state_changed] fires.
 func placed_temp_upgrades() -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
+	for node in _temp_upgrade_carriers():
+		for a in node.get_addons():
+			if a.is_temporary:
+				out.append({&"node": node, &"scene": load(a.get_kind()) as PackedScene})
 	return out
 
 
