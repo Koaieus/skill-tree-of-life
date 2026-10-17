@@ -169,8 +169,11 @@ disk at `scratchpad/land/land-<n>.log` (#920), so filling the ledger is a
     whole unit is never honoured once a reviewer asks for changes, and no
     drone counts its own calls anyway; "commit early and often, even
     partial" as its own
-    line; the three suite clauses if a full suite is allowed at all, else
-    "never the full suite". Nothing the issue already says, nothing the
+    line; the three suite clauses if a full suite is allowed at all — *once,
+    only after `test:dir` is green; in the background, then END YOUR TURN
+    (the harness resumes you on exit); report its verdict line* — else
+    "never the full suite" (train mode swaps the middle clause for the
+    foreground run, law 32). Nothing the issue already says, nothing the
     drone already carries — and **the skill itself holds the digest of
     what a drone carries plus the report shape it returns, so the lead
     never opens `.claude/agents/drone.md`** (owner, 2026-09-27: "if you
@@ -197,7 +200,7 @@ disk at `scratchpad/land/land-<n>.log` (#920), so filling the ledger is a
     <tier>` in the dispatch call (creates the file for a new run, prints the
     roster back so the read is free), `mise run ledger -- report <n>
     --branch <slug> [--plan] [--stuck] [--pull]` in the collect call, and
-    `mise run land --closes <n>` writes the `landed <sha>` row itself;
+    `mise run land -- <branch> --closes <n>` writes the `landed <sha>` row itself;
     `ledger -- note <n> '…'` appends to a row's notes without touching its
     state (an idle, a poison line), since relief classifies units off the
     state column. The roster carries per unit the three advisor moments of law 8 as PLAN /
@@ -305,9 +308,37 @@ disk at `scratchpad/land/land-<n>.log` (#920), so filling the ledger is a
     the moment, the notice itself rather than the next boundary. Every
     other law holds.
 
+34. **A draining lead knows it is draining, across any resume.** Before it
+    sends `relief now; I keep <unit list>` (law 32), the lead writes a
+    `## Draining` section into its own swarm ledger's prose — `relief asked
+    <HH:MM>; I keep <unit list>` — so the state is on disk before the
+    message that makes it true (the `ledger` tool never touches the prose).
+    From then on it is draining for the rest of its life. The check has two
+    homes: it is the **first thing law 14's pre-dispatch Bash call does**
+    (`grep -q '^## Draining' "$SWARM_LEDGER"` → no dispatch), and the
+    first read of any resume — a drone's wake, the top's bare `continue`
+    after a cut-off — is the ledger. With a `## Draining` section present
+    the lead spawns no drone, lands each kept
+    unit's report as it arrives, resumes a kept unit's own drone by
+    `SendMessage` when that drone needs one (finishing, not dispatching),
+    and treats every other unit as the relief's. A resume line is never
+    read as an instruction to dispatch; `continue` is enough (owner,
+    2026-10-16: "`continue` should be enough, a draining lead should *know
+    what it is doing which is draining*"). **Why:** the drain was a
+    decision held only in context; a session-limit cut-off and a bare
+    `continue` lost it, and the resumed lead dispatched four units the
+    relief already held rows for — two duplicate branches deleted, a relief
+    drone duplicating landed work. The fix is the lead's, not the top's
+    message ([swarm-train](swarm-train.md) points here).
+
 **Collect and land**
 
-17. **Read reports, not diffs.** A report is six lines — the sixth is `COST:` (ctx, calls, exchanges), the drone's own count, so the lead can judge resume vs retire and tier the next brief without waiting for `agent-cost` (owner, 2026-09-17: "drone must report ctx size or tool call count if known in report. Helps judge"); a wall of text is a
+17. **Read reports, not diffs.** A report is six lines, the drone agent's
+    own shape, which the skill quotes exactly so the lead never opens the
+    agent (law 12): `BRANCH: <slug>` · `FILES: <paths touched>` · `TESTS:
+    <what ran, what is green>` · `DID: <one line>` · `COST: ctx <k>, calls
+    <n>, exchanges <n>` · `NOTES: <follow-ups, poison: lines, Sage approved
+    N exchanges, PULL>`. `COST:` (ctx, calls, exchanges) is the drone's own count, so the lead can judge resume vs retire and tier the next brief without waiting for `agent-cost` (owner, 2026-09-17: "drone must report ctx size or tool call count if known in report. Helps judge"); a wall of text is a
     drone-contract violation, not something to summarise.
 18. **Per report: fence, content, tests — then branch.** Land it; fix a
     one-liner yourself then land; resume the drone with a sharp diagnosis;
@@ -351,6 +382,27 @@ disk at `scratchpad/land/land-<n>.log` (#920), so filling the ledger is a
     `git add`; `checkout -- .` a worktree that cold-imported before
     rebasing; re-read `master` before concluding a merge misbehaved — it
     moves under you.
+35. **The lead sweeps its run's worktrees before its final report.**
+    `mise run worktree:ls`, then per worktree the law 24 check (`log
+    master..HEAD` + `status --porcelain`). **Its own** — a branch one of
+    its drones reported, or a `.claude/worktrees/agent-<id>` whose id is
+    one of its subagents' — landed or merged → `worktree:rm` then `branch
+    -d` (law 25); dropped or killed → kept only if something in it is worth
+    mining (committed `wip(...)`, named in the report), else removed.
+    **Anything else** with nothing ahead of `master` and a clean tree is
+    removed too, but only by a lead with no other lead live — the last lead
+    of a train, or a standalone swarm: a fresh drone of a live relief or
+    sibling looks exactly like that, so a lead with a live peer touches
+    only its own. The report's `Not done` counts every worktree left, one
+    line each with why. A draining lead sweeps at its own final report, not
+    at `relief now`: the notice is the moment its context is scarcest. One
+    cut off before its report never sweeps; its relief's orientation is the
+    sweep (relief law 1, law 25's stray). **Why:** run 2026-10-16 ended DONE
+    19/21 with 8 worktrees open, all still there the next morning; law 25
+    covered a reported drone and a stray found at orientation, and nothing
+    named who sweeps the run's own — the next run's orientation paid for
+    it, or nobody. Six of the eight were harness `agent-*` worktrees whose
+    branch names match no ledger row, hence the second clause.
 27. **Never acknowledge a finished drone**; never infer from an idle that a
     drone's background command finished; relay reports in your own words,
     never paste diffs.
@@ -440,6 +492,8 @@ this at wave size 1; `relief` takes a running swarm over.*
 | 2026-09-30 | owner | advisor law redrawn: "we shouldn't underestimate the power of the Advisor tool … so long Sonnet gets the plan right at the right time (and doesn't try 100 failed attempts first) that should help a lot"; a loop is not a count — the target is "i'm throwing things at a wall now", where drones "should raise their finger and be like 'help pls sensei, shed some light'"; with no Sage "a final advisor call might still be cheaper than bloating lead's context; though lead may have more of an overview"; an advisor answering a fork says stop and flag the lead, and the issue is "pulled from the swarm, sent back to the drawing board; possibly issues it blocks removed too" | 8, 9 |
 | 2026-10-08 | 9 units | the lead filtered every `land` with `grep -E 'LANDED\|FAIL\|rror\|board'`; a red `test:dir` prints `✗ … is red` and `[land] ERROR`, neither matched, so the #1490 land failed silently — caught only because `LANDED` was missing | 20 |
 | 2026-10-03 | whip #1363 | both in-flight drones stopped writing at 06:02; no stop wake reached lead-a, which sat "waiting on d1355a and d1362" until the owner found it at 11:13. A waiting lead has no turn to look at disk, so the sensor is the top's (whip law 30, swarm-train law 9); why no wake arrived is open | 24 |
+| 2026-10-16 | train-mode lead, session 153e4757 | draining lead cut off by a session-limit 429, resumed by the top's bare `continue`, dispatched four units the relief already held rows for; two duplicate branches deleted, one relief drone duplicated landed work | 34 |
+| 2026-10-16 | run end, ledger | DONE 19/21 with "8 worktree(s) still open"; six `.claude/worktrees/agent-*` and two `.worktrees/wt-*` still listed the next morning | 35 |
 | 2026-10-08 | owner | 100+ parked issues filed by leads under the "not a one-liner → issue" bar → follow-ups ride one sweep drone, filing is the last resort | 28 |
 
 ## What the skill must not contain
@@ -473,8 +527,17 @@ this at wave size 1; `relief` takes a running swarm over.*
   by a spent window or a crash delivers its stop to the lead at all; if it
   never does, every waiting lead depends on an outside sensor, and the
   charter should say so as a law.
+- **The inbox nap's `sleep`** (law 32, swarm-train law 23): the harness's
+  Bash tool says foreground `sleep` is blocked. Probed 2026-10-17 from a
+  subagent in bypass mode: an `until …; do sleep 20; done` loop ran (and a
+  bare `sleep 5` in the swarm-train pass the same day). Unprobed: a lead in another permission mode, and a
+  full 600 s cap. Revisit when a lead's nap returns a block instead of a
+  file or the cap — then the nap moves to `Monitor`, a redesign through
+  swarm-train's charter.
 
 ## Fold digest — board `swarm — skill feedback board`
 
 - 2026-10-03 · `gotcha` lead idle 5 h on dead drones → rejected as a lead-side disk check (a waiting lead has no turn); corpus row (law 24); the no-wake question → open follow-up
 - 2026-10-08 · `autopsy` 100+ parked issues → law 28 (a517124); corpus row
+- 2026-10-16 · `autopsy` draining lead dispatched after a cut-off-and-`continue` → law 34 (a `## Draining` ledger section written before `relief now`, read before any dispatch); corpus row
+- 2026-10-17 · `friction` 8 worktrees open at run end → law 35 (the lead sweeps its own rows' worktrees before its final report; the report counts what is left); corpus row
