@@ -209,6 +209,20 @@ func test_removing_the_first_of_three_spends_as_two() -> void:
 	assert_eq(plan.next_temp_costs(kind)[&"blade_size"], b + 2 * s)
 
 
+func test_toggling_one_kind_off_a_two_kind_node_refunds_only_that_kind() -> void:
+	var a := _clamp_priced(1, 0)
+	var b := _clamp_priced(1, 1)
+	var ctx: Dictionary = await _setup_chain(60.0, 1)
+	var plan: MeleeAttackPlan = ctx.plan
+	var node: SkillNode = ctx.members[0]
+	node.stake_level = 3
+	assert_true(plan.apply_temp_upgrade(node, a), "fixture check: kind A fits")
+	assert_true(plan.apply_temp_upgrade(node, b), "fixture check: kind B fits beside it")
+	assert_true(plan.toggle_temp_upgrade(node, a))
+	assert_eq(plan.temp_count_of(a), 0, "the toggled kind is refunded")
+	assert_eq(plan.temp_count_of(b), 1, "the other kind on that node stays")
+
+
 func test_a_step_zero_kind_never_escalates() -> void:
 	var b := 2
 	var kind := _clamp_priced(b, 0)
