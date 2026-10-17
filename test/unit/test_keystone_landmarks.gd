@@ -215,7 +215,10 @@ func test_keystone_family_scenes_all_inherit_the_base() -> void:
 		if path == _BASE_PATH:
 			continue
 		var text := FileAccess.get_file_as_string(path)
-		var references_base := text.find(_BASE_PATH) != -1
+		# A scene inheriting another family scene is itself walked by this loop,
+		# so referencing one counts as inheriting the base (transitively).
+		var references_base := text.find(_BASE_PATH) != -1 \
+				or text.find("res://skill_node/keystone/instances/") != -1
 		var references_skill_node := text.find(_SKILL_NODE_PATH) != -1
 		if not references_base or references_skill_node:
 			offenders.append(path)
