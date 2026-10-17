@@ -15,3 +15,7 @@ var reform_slot: Dictionary = {}
 ## Sticky swing direction for the next [MeleeAttackPlan]
 ## ([member MeleeAttackPlan.swing_cw]); survives resets and re-arms.
 var next_swing_cw: bool = false
+
+## The Z–B favourites ([TempQuickbar]) — kept for the run, seat-local like the
+## rest of this memory.
+var quickbar := TempQuickbar.new()
