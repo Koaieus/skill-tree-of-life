@@ -1,0 +1,34 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://ui/ring/ring_sandbox_panel.gd" id="1_panel"]
+[ext_resource type="PackedScene" path="res://ui/ring/ring_view.tscn" id="2_view"]
+
+[node name="RingSandboxPanel" type="PanelContainer"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+script = ExtResource("1_panel")
+
+[node name="Body" type="VBoxContainer" parent="."]
+layout_mode = 2
+
+[node name="Bar" type="HBoxContainer" parent="Body"]
+layout_mode = 2
+
+[node name="Cycle" type="Button" parent="Body/Bar"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Bought: 0 (cycle)"
+
+[node name="Log" type="Label" parent="Body/Bar"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "hover / click a cell"
+
+[node name="View" parent="Body" instance=ExtResource("2_view")]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(480, 480)
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
