@@ -5,10 +5,7 @@ extends GutTest
 ## computed model ([member StatusOverlay.segments] / [member StatusOverlay.icons]),
 ## never pixels.
 
-const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _OVERLAY_SCENE := preload("res://ui/status_overlay/status_overlay.tscn")
-const _BOARD := preload("res://entity/default_entity_board.tres")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 
 
 ## A status whose projection is a fixed amount per stack — the overlay's maths
@@ -27,18 +24,11 @@ var _node: SkillNode
 
 
 func before_each() -> void:
-	_graph = _GRAPH_SCENE.instantiate()
-	_graph.name = "TestGraph"
-	add_child_autofree(_graph)
-	_node = _SKILL_NODE_SCENE.instantiate() as SkillNode
-	_node.name = "N0"
-	_graph.skill_nodes_container.add_child(_node)
-	_alloc = AllocationSystem.new()
-	_alloc.graph = _graph
-	add_child_autofree(_alloc)
-	_entity = autofree(Entity.new())
-	_entity.stat_board = _BOARD.duplicate(true) as EntityStatBoard
-	_graph.add_child(_entity)
+	var world := TestWorld.create(self)
+	_graph = world.graph
+	_node = world.add_node(&"N0")
+	_alloc = world.allocator()
+	_entity = world.add_entity("")
 	await get_tree().process_frame
 	_alloc.force_allocate(_entity, _node)
 	_entity.core_location = _node

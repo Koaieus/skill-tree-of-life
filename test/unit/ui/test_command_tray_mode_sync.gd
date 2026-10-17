@@ -12,10 +12,6 @@ extends GutTest
 ## `button_pressed` (unlike `set_pressed_no_signal`) goes through Godot's own
 ## exclusivity pass, same as an actual click.
 
-const _EDGE_SCENE := preload("res://graph/edge.tscn")
-const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
-const _BOARD := preload("res://entity/default_entity_board.tres")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _COMMAND_TRAY_SCENE := preload("res://ui/hud/command_tray/command_tray.tscn")
 
 var _graph: Graph
@@ -29,20 +25,10 @@ var _bar: AttackModeBar
 
 
 func before_each() -> void:
-	_graph = _GRAPH_SCENE.instantiate()
-	add_child_autofree(_graph)
-
-	var nodes: Array[SkillNode] = []
-	for i in 3:
-		var sn := _SKILL_NODE_SCENE.instantiate() as SkillNode
-		_graph.skill_nodes_container.add_child(sn)
-		nodes.append(sn)
-	_add_edge(nodes[0], nodes[1])
-	_add_edge(nodes[1], nodes[2])
-
-	_alloc = AllocationSystem.new()
-	_alloc.graph = _graph
-	add_child_autofree(_alloc)
+	var world := TestWorld.create(self)
+	_graph = world.graph
+	var nodes := world.build([[0, 1], [1, 2]])
+	_alloc = world.allocator()
 
 	_tm = autofree(TurnManager.new())
 	add_child(_tm)
@@ -52,10 +38,7 @@ func before_each() -> void:
 	_battle.turn_manager = _tm
 	add_child(_battle)
 
-	_player = autofree(Entity.new())
-	_player.display_name = "Player"
-	_player.stat_board = _BOARD.duplicate(true) as EntityStatBoard
-	_graph.entities_container.add_child(_player)
+	_player = world.add_entity("Player")
 
 	await get_tree().process_frame
 
@@ -79,13 +62,6 @@ func before_each() -> void:
 	_tray.bind(_battle, _ctl)
 	_tray.set_player(_player)
 	_bar = _tray.attack_mode_bar
-
-
-func _add_edge(a: SkillNode, b: SkillNode) -> void:
-	var e := _EDGE_SCENE.instantiate() as Edge
-	e.from = a
-	e.to = b
-	_graph.edges_container.add_child(e)
 
 
 func _buttons() -> Array[AttackModeButton]:

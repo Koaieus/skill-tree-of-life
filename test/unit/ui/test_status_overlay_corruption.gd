@@ -9,10 +9,7 @@ extends GutTest
 ## keep 0 = 4`. Max hp 100 on a 100 px bar with a full fill: 1 px per HP, and
 ## `X·maxHP = 2` per unit of threshold.
 
-const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _OVERLAY_SCENE := preload("res://ui/status_overlay/status_overlay.tscn")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
-const _EDGE_SCENE := preload("res://graph/edge.tscn")
 const _CORRUPTION: CorruptionStatus = preload("res://effects/status/corruption.tres")
 
 const _HP := 100.0
@@ -24,25 +21,11 @@ var _nodes: Array[SkillNode] = []
 
 
 func before_each() -> void:
-	_graph = _GRAPH_SCENE.instantiate()
-	add_child_autofree(_graph)
-	_alloc = AllocationSystem.new()
-	_alloc.graph = _graph
-	add_child_autofree(_alloc)
-	_entity = autofree(Entity.new())
-	_entity.stat_board = TestBoards.flat_entity_board()
-	_graph.add_child(_entity)
-	_nodes = []
-	for i in 4:
-		var sn := _SKILL_NODE_SCENE.instantiate() as SkillNode
-		sn.name = "N%d" % i
-		_graph.skill_nodes_container.add_child(sn)
-		_nodes.append(sn)
-	for i in [1, 2, 3]:
-		var e := _EDGE_SCENE.instantiate() as Edge
-		e.from = _nodes[0]
-		e.to = _nodes[i]
-		_graph.edges_container.add_child(e)
+	var world := TestWorld.create(self)
+	_graph = world.graph
+	_alloc = world.allocator()
+	_entity = world.add_entity("", TestBoards.flat_entity_board())
+	_nodes = world.build([[0, 1], [0, 2], [0, 3]])
 	await get_tree().process_frame
 	_alloc.force_allocate(_entity, _nodes[1])
 	_entity.core_location = _nodes[1]

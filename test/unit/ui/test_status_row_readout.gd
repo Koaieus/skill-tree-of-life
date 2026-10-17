@@ -10,8 +10,6 @@ extends GutTest
 ## Also covers [method ApplyStatusEffect.get_description]'s per-hit line,
 ## which folds through #1189's `def.stacks_per_hit(board, power)`.
 
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
-const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _BOARD := preload("res://entity/default_entity_board.tres")
 const _POISON := preload("res://effects/status/poison.tres")
 const _CURSE := preload("res://effects/status/curse.tres")
@@ -24,20 +22,11 @@ var _node: SkillNode
 
 
 func before_each() -> void:
-	_graph = _GRAPH_SCENE.instantiate()
-	add_child_autofree(_graph)
-
-	_alloc = AllocationSystem.new()
-	_alloc.graph = _graph
-	add_child_autofree(_alloc)
-
-	_entity = autofree(Entity.new())
-	_entity.display_name = "Defender"
-	_entity.stat_board = _BOARD.duplicate(true) as EntityStatBoard
-	_graph.add_child(_entity)
-
-	_node = _SKILL_NODE_SCENE.instantiate() as SkillNode
-	_graph.skill_nodes_container.add_child(_node)
+	var world := TestWorld.create(self)
+	_graph = world.graph
+	_alloc = world.allocator()
+	_entity = world.add_entity("Defender")
+	_node = world.add_node()
 	await get_tree().process_frame
 
 	_alloc.force_allocate(_entity, _node)

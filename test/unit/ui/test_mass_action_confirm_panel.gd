@@ -12,9 +12,6 @@ extends GutTest
 ## dead board and no way back.
 
 const _PANEL_SCENE := preload("res://ui/mass_action_confirm/mass_action_confirm_panel.tscn")
-const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
-const _BOARD := preload("res://entity/default_entity_board.tres")
 
 var _panel: MassActionConfirmPanel
 var _ctl: PlayerInputController
@@ -24,20 +21,12 @@ var _nodes: Array[SkillNode] = []
 
 
 func before_each() -> void:
-	_graph = _GRAPH_SCENE.instantiate()
-	_graph.name = "TestGraph"
-	add_child_autofree(_graph)
+	var world := TestWorld.create(self)
+	_graph = world.graph
 	_nodes = []
 	for i in 4:
-		var sn := _SKILL_NODE_SCENE.instantiate() as SkillNode
-		sn.name = "N%d" % i
-		_graph.add_skill_node(sn)
-		_nodes.append(sn)
-
-	_player = autofree(Entity.new())
-	_player.display_name = "Player"
-	_player.stat_board = _BOARD.duplicate(true) as EntityStatBoard
-	_graph.entities_container.add_child(_player)
+		_nodes.append(world.add_node(StringName("N%d" % i)))
+	_player = world.add_entity("Player")
 
 	# No CommandApplier: confirm is only asked to REACH the controller here —
 	# that the controller then applies the right command is
