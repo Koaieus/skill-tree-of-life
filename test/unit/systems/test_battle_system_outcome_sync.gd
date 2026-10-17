@@ -21,7 +21,6 @@ extends GutTest
 ## so the fixture stays simple. Mirrors test_ranged_attack_plan.gd's chain
 ## A(0,0) - B(200,0) - C(400,0) layout.
 
-const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _BOARD := preload("res://entity/default_entity_board.tres")
 const _PLAYER_FACTION := preload("res://entity/factions/player.tres")
 const _NPC_FACTION := preload("res://entity/factions/npc.tres")
@@ -46,20 +45,13 @@ func _set_ranged_damage(node: SkillNode, value: float) -> void:
 ## Builds a fresh graph + attacker + hostile + BattleSystem each call so the
 ## two scenarios (null vfx / live vfx) never share state.
 func _build(with_live_vfx: bool) -> Dictionary:
-	var graph: Graph = TestWorld.create(self).graph
+	var world := TestWorld.create(self)
+	var graph := world.graph
 
-	var core := _SKILL_NODE_SCENE.instantiate() as SkillNode
-	core.position = Vector2(0, 0)
-	graph.add_skill_node(core)
-
-	var leaf := _SKILL_NODE_SCENE.instantiate() as SkillNode
-	leaf.position = Vector2(200, 0)
-	graph.add_skill_node(leaf)
-	graph.add_edge(core, leaf)
-
-	var target := _SKILL_NODE_SCENE.instantiate() as SkillNode
-	target.position = Vector2(250, 0)
-	graph.add_skill_node(target)
+	var core := world.add_node(&"", Vector2(0, 0))
+	var leaf := world.add_node(&"", Vector2(200, 0))
+	world.link(core, leaf)
+	var target := world.add_node(&"", Vector2(250, 0))
 
 	var attacker := Entity.new()
 	attacker.faction = _PLAYER_FACTION

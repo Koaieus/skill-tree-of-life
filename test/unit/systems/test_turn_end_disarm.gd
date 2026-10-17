@@ -10,9 +10,9 @@ extends GutTest
 ##     test_click_grammar.gd).
 
 const _BOARD := preload("res://entity/default_entity_board.tres")
-const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _PLAYER_FACTION := preload("res://entity/factions/player.tres")
 const _NPC_FACTION := preload("res://entity/factions/npc.tres")
+var _world: TestWorld
 var _graph: Graph
 var _tm: TurnManager
 var _bs: BattleSystem
@@ -21,7 +21,8 @@ var _player: Entity
 
 
 func before_each() -> void:
-	_graph = TestWorld.create(self).graph
+	_world = TestWorld.create(self)
+	_graph = _world.graph
 
 	_tm = autofree(TurnManager.new())
 	add_child(_tm)
@@ -101,8 +102,8 @@ func _cast_fixture() -> Dictionary:
 	var core := _node("Core", Vector2(0, 0))
 	var leaf := _node("Leaf", Vector2(150, 0))
 	var target := _node("Target", Vector2(300, 0))
-	_graph.add_edge(core, leaf)
-	_graph.add_edge(leaf, target)
+	_world.link(core, leaf)
+	_world.link(leaf, target)
 
 	var alloc := TestWorld.around(_graph).allocator()
 	alloc.force_allocate(_player, core)
@@ -129,11 +130,7 @@ func _cast_fixture() -> Dictionary:
 
 
 func _node(node_name: String, pos: Vector2) -> SkillNode:
-	var node := _SKILL_NODE_SCENE.instantiate() as SkillNode
-	node.name = node_name
-	_graph.add_skill_node(node)
-	node.global_position = pos
-	return node
+	return _world.add_node(StringName(node_name), pos)
 
 
 func test_a_launched_spell_pops_target_and_returns_to_magic() -> void:

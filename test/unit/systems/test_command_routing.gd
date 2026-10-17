@@ -12,9 +12,9 @@ var _catalog: TempUpgradeCatalog = preload("res://attack/melee/temp_upgrade_cata
 ## `test/unit/command/test_command_applier.gd`; this file is about the wiring
 ## either side of it.
 
-const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _BOARD := preload("res://entity/default_entity_board.tres")
 
+var _world: TestWorld
 var _graph: Graph
 var _alloc: AllocationSystem
 var _battle: BattleSystem
@@ -27,17 +27,15 @@ var _denials: Array
 
 
 func before_each() -> void:
-	_graph = TestWorld.create(self, "TestGraph").graph
+	_world = TestWorld.create(self, "TestGraph")
+	_graph = _world.graph
 
 	_nodes = {}
 	for id in ["A", "B", "C", "D"]:
-		var sn := _SKILL_NODE_SCENE.instantiate() as SkillNode
-		sn.name = id
-		_graph.add_skill_node(sn)
-		_nodes[id] = sn
-	_graph.add_edge(_n("A"), _n("B"))
-	_graph.add_edge(_n("B"), _n("C"))
-	_graph.add_edge(_n("C"), _n("D"))
+		_nodes[id] = _world.add_node(StringName(id))
+	_world.link(_n("A"), _n("B"))
+	_world.link(_n("B"), _n("C"))
+	_world.link(_n("C"), _n("D"))
 
 	_alloc = TestWorld.around(_graph).allocator()
 	_alloc.navigator = _graph.navigator

@@ -21,10 +21,10 @@ extends GutTest
 ## pinned by test_highlight_controller.gd, and a role assertion here would test
 ## the union's contents a second time instead of the wiring.
 
-const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _BOARD := preload("res://entity/default_entity_board.tres")
 const _PLAYER_FACTION := preload("res://entity/factions/player.tres")
 
+var _world: TestWorld
 var _graph: Graph
 var _alloc: AllocationSystem
 var _battle: BattleSystem
@@ -35,12 +35,11 @@ var _spare: SkillNode
 
 
 func before_each() -> void:
-	_graph = TestWorld.create(self).graph
-	_owned = _SKILL_NODE_SCENE.instantiate() as SkillNode
-	_spare = _SKILL_NODE_SCENE.instantiate() as SkillNode
-	_graph.add_skill_node(_owned)
-	_graph.add_skill_node(_spare)
-	_graph.add_edge(_owned, _spare)
+	_world = TestWorld.create(self)
+	_graph = _world.graph
+	_owned = _world.add_node()
+	_spare = _world.add_node()
+	_world.link(_owned, _spare)
 
 	_attacker = autofree(Entity.new())
 	_attacker.faction = _PLAYER_FACTION

@@ -8,11 +8,11 @@ extends GutTest
 ## Board: Pivot - Joint - Tip owned by the attacker; Hostile adjacent to Tip,
 ## Far adjacent to Hostile, both owned by an NPC.
 
-const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _BOARD := preload("res://entity/default_entity_board.tres")
 const _PLAYER_FACTION := preload("res://entity/factions/player.tres")
 const _NPC_FACTION := preload("res://entity/factions/npc.tres")
 
+var _world: TestWorld
 var _graph: Graph
 var _alloc: AllocationSystem
 var _tm: TurnManager
@@ -27,11 +27,7 @@ var _far: SkillNode
 
 
 func _spawn(nm: String, pos: Vector2) -> SkillNode:
-	var sn := _SKILL_NODE_SCENE.instantiate() as SkillNode
-	sn.name = nm
-	sn.position = pos
-	_graph.add_skill_node(sn)
-	return sn
+	return _world.add_node(StringName(nm), pos)
 
 
 func _entity(faction: Faction) -> Entity:
@@ -43,16 +39,17 @@ func _entity(faction: Faction) -> Entity:
 
 
 func before_each() -> void:
-	_graph = TestWorld.create(self).graph
+	_world = TestWorld.create(self)
+	_graph = _world.graph
 	_pivot = _spawn("Pivot", Vector2(0, 0))
 	_joint = _spawn("Joint", Vector2(200, 0))
 	_tip = _spawn("Tip", Vector2(400, 0))
 	_enemy = _spawn("Hostile", Vector2(450, 0))
 	_far = _spawn("Far", Vector2(600, 0))
-	_graph.add_edge(_pivot, _joint)
-	_graph.add_edge(_joint, _tip)
-	_graph.add_edge(_tip, _enemy)
-	_graph.add_edge(_enemy, _far)
+	_world.link(_pivot, _joint)
+	_world.link(_joint, _tip)
+	_world.link(_tip, _enemy)
+	_world.link(_enemy, _far)
 	_attacker = _entity(_PLAYER_FACTION)
 	var hostile := _entity(_NPC_FACTION)
 	_alloc = TestWorld.around(_graph).allocator()

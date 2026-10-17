@@ -13,12 +13,12 @@ extends GutTest
 ## inside `radius_for(target, 4)` = 0.5·√4·200 = 200, outside
 ## `radius_for(target, 3)` ≈ 173.
 
-const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _BOARD := preload("res://entity/default_entity_board.tres")
 const _PLAYER_FACTION := preload("res://entity/factions/player.tres")
 const _NPC_FACTION := preload("res://entity/factions/npc.tres")
 const _SCOUTED: ScoutStatus = preload("res://effects/status/scouted.tres")
 
+var _world: TestWorld
 var _graph: Graph
 var _bs: BattleSystem
 var _vision: VisionSystem
@@ -29,16 +29,13 @@ var _nodes: Dictionary = {}
 
 func before_each() -> void:
 	_nodes = {}
-	_graph = TestWorld.create(self).graph
+	_world = TestWorld.create(self)
+	_graph = _world.graph
 	for entry in [["core", 0.0], ["leaf", 100.0], ["target", 400.0],
 			["neighbour", 700.0], ["probe", 590.0]]:
-		var node := _SKILL_NODE_SCENE.instantiate() as SkillNode
-		node.name = str(entry[0])
-		_graph.add_skill_node(node)
-		node.global_position = Vector2(float(entry[1]), 0.0)
-		_nodes[entry[0]] = node
-	_graph.add_edge(_nodes.core, _nodes.leaf)
-	_graph.add_edge(_nodes.leaf, _nodes.target)
+		_nodes[entry[0]] = _world.add_node(StringName(str(entry[0])), Vector2(float(entry[1]), 0.0))
+	_world.link(_nodes.core, _nodes.leaf)
+	_world.link(_nodes.leaf, _nodes.target)
 	_graph.add_edge(_nodes.target, _nodes.neighbour)
 
 	_attacker = _entity("Attacker", _PLAYER_FACTION)

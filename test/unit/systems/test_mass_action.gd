@@ -6,9 +6,9 @@ extends GutTest
 ## `graph.navigator` — the GLOBAL mirror `allocation_path` routes over — is
 ## actually populated (`.claude/rules/graph.md`).
 
-const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _BOARD := preload("res://entity/default_entity_board.tres")
 
+var _world: TestWorld
 var _graph: Graph
 var _alloc: AllocationSystem
 var _player: Entity
@@ -17,14 +17,12 @@ var _nodes: Dictionary  # String -> SkillNode
 
 
 func before_each() -> void:
-	_graph = TestWorld.create(self, "TestGraph").graph
+	_world = TestWorld.create(self, "TestGraph")
+	_graph = _world.graph
 
 	_nodes = {}
 	for id in ["A", "B", "C", "D", "E"]:
-		var sn := _SKILL_NODE_SCENE.instantiate() as SkillNode
-		sn.name = id
-		_graph.add_skill_node(sn)
-		_nodes[id] = sn
+		_nodes[id] = _world.add_node(StringName(id))
 
 	_alloc = TestWorld.around(_graph).allocator()
 	_alloc.navigator = _graph.navigator
@@ -50,7 +48,7 @@ func _n(id: String) -> SkillNode:
 
 
 func _add_edge(a: String, b: String) -> void:
-	_graph.add_edge(_n(a), _n(b))
+	_world.link(_n(a), _n(b))
 
 
 func _grant_sp(entity: Entity, n: int) -> void:
