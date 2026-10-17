@@ -235,12 +235,12 @@ func test_two_dot_addons_on_one_carrier_both_ride_every_contact_in_addon_order()
 	if damage.is_empty():
 		return
 	var at := outcome.hits.find(damage[0])
-	assert_lt(at + 2, outcome.hits.size(), "two riders follow the damage hit")
-	if at + 2 >= outcome.hits.size():
+	assert_gte(at, 2, "two status riders land ahead of the damage hit")
+	if at < 2:
 		return
-	var riders: Array[HitInstance] = [outcome.hits[at + 1], outcome.hits[at + 2]]
+	var riders: Array[HitInstance] = [outcome.hits[at - 2], outcome.hits[at - 1]]
 	for i in riders.size():
-		assert_true(riders[i] is StatusInstance, "rider %d is a status, after its damage" % i)
+		assert_true(riders[i] is StatusInstance, "rider %d is a status, ahead of its damage" % i)
 		assert_eq(riders[i].structural_key, damage[0].structural_key, "rider %d: same beat" % i)
 		assert_eq(riders[i].target, damage[0].target, "rider %d: same node" % i)
 	assert_true(first.get_index() < second.get_index(), "fixture: toxin is the first addon")
