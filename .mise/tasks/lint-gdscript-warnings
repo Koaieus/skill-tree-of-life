@@ -22,7 +22,7 @@ carries the levels, detection finds them and the sweep runs on the real root.
 which root ran. This design never writes an `override.cfg`.
 
 Modes: no argument = the full tree (`git ls-files` `.gd` minus `addons/` and
-`native/godot-cpp/`). Positional paths = just those. `--changed <ref>` = `git
+`native/godot-cpp/`). Positional paths = just those (a directory = its tracked `.gd`). `--changed <ref>` = `git
 diff --name-only <ref>...HEAD` plus untracked `.gd`, falling back to the full
 tree when `<ref>` is not an ancestor of HEAD. Exits 1 on any violation.
 `--self-test` writes a `.gd` with an unused variable and an integer division
@@ -219,7 +219,13 @@ def main(argv):
         del args[i:i + 2]
     positional = [a for a in args if not a.startswith("--")]
     if positional:
-        paths = [p.removeprefix("res://").removeprefix("./") for p in positional]
+        paths = []
+        for p in (p.removeprefix("res://").removeprefix("./").rstrip("/") for p in positional):
+            if os.path.isdir(os.path.join(ROOT, p)):
+                listed = git("ls-files", "-z", "--", p).stdout.split("\0")
+                paths += [q for q in listed if keep(q)]
+            else:
+                paths.append(p)
     elif ref:
         paths = changed_files(ref)
     else:
