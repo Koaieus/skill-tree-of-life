@@ -87,3 +87,14 @@ func test_manual_input_cancels_a_reveal_and_still_settles() -> void:
 	var ok: bool = await wait_for_signal(sig, WAIT_S)
 	assert_true(ok, "a cancelled reveal still settles")
 	assert_almost_eq(_cam.global_position.x, -50.0, 0.5, "the manual pan wins")
+
+
+func test_a_newer_reveal_does_not_settle_early_for_its_caller() -> void:
+	_cam.reveal_duration = 0.1
+	_cam.reveal(Rect2(3000.0, 0.0, 10.0, 10.0), GraphCamera.RevealPolicy.CENTRE)
+	var rect := Rect2(1000.0, 0.0, 10.0, 10.0)
+	var ok: bool = await wait_for_signal(
+			_cam.reveal(rect, GraphCamera.RevealPolicy.CENTRE), WAIT_S)
+	assert_true(ok, "reveal_settled fired")
+	assert_almost_eq(_cam.global_position.x, rect.get_center().x, 0.5,
+			"the settle is the newer pan's, not the superseded one's")

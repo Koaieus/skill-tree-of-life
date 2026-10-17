@@ -98,7 +98,11 @@ signal bounds_changed(bounds: Rect2)
 signal manual_input_received
 
 ## Fired once per [method reveal] call when its pan has settled — always
-## deferred, so a caller that awaits the returned signal never misses it.
+## deferred, so a caller that awaits the returned signal never misses it. A
+## reveal cut short by manual input or a directed shot settles too, wherever
+## the camera then is: an awaiting caller is never stranded. A reveal replaced
+## by a newer one settles with it — one emit for both awaiters, never an early
+## one for the new caller.
 signal reveal_settled
 
 var _last_effective_bounds: Rect2 = Rect2()
@@ -113,6 +117,10 @@ var _directed: bool = false
 ## the 0.25 wheel lattice is never broken (#515 decision 6).
 var _stored_target_zoom: float = 1.0
 var _pan_tween: Tween = null
+## The [method reveal] pan in flight, and whether its [signal reveal_settled]
+## is still owed.
+var _reveal_tween: Tween = null
+var _reveal_pending: bool = false
 
 ## #866's hard input lock. While set, manual pan and zoom are dropped BEFORE
 ## [signal manual_input_received] would fire — so the director's shot is neither
@@ -139,6 +147,7 @@ func _ready() -> void:
 	_target_zoom = zoom.x
 	current_zoom = _target_zoom
 	RenderingServer.global_shader_parameter_set(&"edge_camera_zoom", current_zoom)
+	manual_input_received.connect(_cancel_reveal)
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -254,6 +263,7 @@ func begin_directed_focus(target: Vector2, zoom_target: float, duration: float) 
 ## Latch the directed state (stashing the player's zoom on first take), aim the
 ## zoom, and kill any pan in flight — the shared opening of every directed shot.
 func _take_directed(zoom_target: float) -> void:
+	_cancel_reveal()
 	if not _directed:
 		_resync_target_zoom_if_idle()
 		_stored_target_zoom = _target_zoom
@@ -439,15 +449,22 @@ func set_graph_bounds(bounds: Rect2, margin_at_zoom_1: float) -> void:
 
 
 func _clamp_position() -> void:
+	global_position = _clamped(global_position)
+
+
+## [param pos] pulled inside the pan limits at the live zoom — the pure half of
+## [method _clamp_position], so [method reveal] can aim at where it will land.
+func _clamped(pos: Vector2) -> Vector2:
 	var view_half_size: Vector2 = (get_viewport().get_visible_rect().size / zoom) * 0.5
 	var min_x := limit_left + view_half_size.x
 	var max_x := limit_right - view_half_size.x
-	global_position.x = clampf(global_position.x, min_x, max_x) if min_x <= max_x \
+	pos.x = clampf(pos.x, min_x, max_x) if min_x <= max_x \
 			else (limit_left + limit_right) * 0.5
 	var min_y := limit_top + view_half_size.y
 	var max_y := limit_bottom - view_half_size.y
-	global_position.y = clampf(global_position.y, min_y, max_y) if min_y <= max_y \
+	pos.y = clampf(pos.y, min_y, max_y) if min_y <= max_y \
 			else (limit_top + limit_bottom) * 0.5
+	return pos
 
 
 ## Advances the zoom target by one step and retargets the tween. Killing the
@@ -562,8 +579,68 @@ func pan_to(world_pos: Vector2) -> void:
 	_clamp_position()
 
 
-func reveal(_world_rect: Rect2, _policy: RevealPolicy) -> Signal:
+## Bring [param world_rect] into view under [param policy] — the one call any
+## UI that pops up over the board uses to make room first. Eases over
+## [member reveal_duration] through the normal clamped position path; a rect
+## the limits cannot fully reveal gets the closest pan they allow. Returns
+## [signal reveal_settled], which fires (deferred, so it can be awaited) once
+## the pan is done — the same frame for a no-op. Manual input or a directed
+## shot cancels the pan, and the signal still fires.
+func reveal(world_rect: Rect2, policy: RevealPolicy) -> Signal:
+	if _reveal_tween != null and _reveal_tween.is_valid():
+		_reveal_tween.kill()
+	var target := _clamped(_reveal_target(world_rect, policy))
+	_reveal_pending = true
+	if reveal_duration <= 0.0 or target.is_equal_approx(global_position):
+		global_position = target
+		_settle_reveal()
+		return reveal_settled
+	_reveal_tween = create_tween()
+	_reveal_tween.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	_reveal_tween.tween_property(self, ^"global_position", target, reveal_duration)
+	_reveal_tween.finished.connect(_settle_reveal)
 	return reveal_settled
+
+
+## Where [method reveal] aims before clamping. NUDGE fits the margin-grown rect
+## per axis by the smallest move; an axis where it cannot fit is centred.
+func _reveal_target(world_rect: Rect2, policy: RevealPolicy) -> Vector2:
+	if policy == RevealPolicy.CENTRE:
+		return world_rect.get_center()
+	var inset := view_rect().grow(-reveal_margin_px / zoom.x)
+	return global_position + Vector2(
+			_nudge_axis(world_rect.position.x, world_rect.end.x, inset.position.x, inset.end.x),
+			_nudge_axis(world_rect.position.y, world_rect.end.y, inset.position.y, inset.end.y))
+
+
+## The smallest shift of the view span [param v_lo]..[param v_hi] that contains
+## [param r_lo]..[param r_hi]; centres them when the rect is the wider one.
+static func _nudge_axis(r_lo: float, r_hi: float, v_lo: float, v_hi: float) -> float:
+	if r_hi - r_lo > v_hi - v_lo:
+		return (r_lo + r_hi - v_lo - v_hi) * 0.5
+	if r_lo < v_lo:
+		return r_lo - v_lo
+	if r_hi > v_hi:
+		return r_hi - v_hi
+	return 0.0
+
+
+func _cancel_reveal() -> void:
+	if _reveal_tween != null and _reveal_tween.is_valid():
+		_reveal_tween.kill()
+	_reveal_tween = null
+	_settle_reveal()
+
+
+## Pays the owed [signal reveal_settled], deferred: an emit inside the call
+## would beat the caller's `await`, and a cancel from [method pan_to] fires
+## before it moves the camera.
+func _settle_reveal() -> void:
+	if not _reveal_pending:
+		return
+	_reveal_pending = false
+	_reveal_tween = null
+	reveal_settled.emit.call_deferred()
 
 
 func _request_zoom_broadcast() -> void:
