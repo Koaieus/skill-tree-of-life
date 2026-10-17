@@ -356,7 +356,7 @@ func _on_spell_catalogue_requested() -> void:
 	_enqueue_modal(func() -> void: spell_catalogue_modal.present())
 
 
-## Raise the inner-ring modal for `entity` (#1652): request-only — a ring-point
+## Raise the inner-ring modal for `entity`: request-only — a ring-point
 ## mint never calls this. Each confirmed cell becomes one
 ## [SpendRingCellCommand] through the level's [CommandApplier], so the HUD never
 ## mutates the ring; in a peer game it round-trips the host like a loot pick.
