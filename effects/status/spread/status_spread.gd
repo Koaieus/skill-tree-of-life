@@ -41,3 +41,8 @@ func on_tick(_field: StackField) -> Array[StackTransfer]:
 ## to land, in order.
 func on_removed(_field: StackField, _removed: Array[NodeCombat], _cause: int) -> Array[StackTransfer]:
 	return [] as Array[StackTransfer]
+
+
+## Stub.
+func describe() -> String:
+	return "x"
