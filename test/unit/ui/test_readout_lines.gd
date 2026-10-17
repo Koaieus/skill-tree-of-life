@@ -90,5 +90,5 @@ func test_a_socketed_line_reads_its_exchange_and_phrase() -> void:
 	plan.set_socket(0, &"poison")
 	var line := ReadoutLines.lines(plan)[0]
 	assert_eq(line.exchange(_VENOM), InfusionExchange.line(_VENOM, &"poison", 40))
-	assert_eq(line.text(), "+ applies %s poison stacks per hit (15 innate + 80 infused)"
+	assert_eq(line.text(), "+ applies {poison:%s} stacks per hit (15 innate + 80 infused)"
 			% NumFmt.num(line.per_hit))

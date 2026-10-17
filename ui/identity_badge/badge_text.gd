@@ -13,6 +13,8 @@ extends RefCounted
 const _TOKEN := "\\{([a-z_]+)\\}"
 const _NBSP := "\u00A0"
 
+const HINT_PREFIX := "concept:"
+
 static var _regex: RegEx
 static var _warned := {}
 
@@ -51,6 +53,10 @@ static func strip(text: String) -> String:
 		out += text.substr(cursor, m.get_start() - cursor) + identity.noun
 		cursor = m.get_end()
 	return out + text.substr(cursor)
+
+
+static func hint_of(_identity: Identity) -> String:
+	return ""
 
 
 ## Forgets which unknown ids already warned — test isolation.

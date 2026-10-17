@@ -55,7 +55,7 @@ func test_one_line_per_readout_line_in_order() -> void:
 	var nodes := readout.line_nodes()
 	assert_eq(nodes.size(), expected.size())
 	for i in mini(nodes.size(), expected.size()):
-		assert_eq(nodes[i].main_text(), expected[i].text())
+		assert_eq(nodes[i].main_text(), BadgeText.strip(expected[i].text()))
 		assert_eq(nodes[i].socket(), expected[i].socket)
 	assert_eq(readout.name_text(), _VENOM.name)
 
@@ -95,6 +95,11 @@ func test_hovering_a_socket_expands_only_its_line() -> void:
 	assert_true(nodes[1].is_expanded())
 	assert_true(nodes[1].is_highlighted())
 	assert_string_contains(nodes[1].detail_text(), InfusionExchange.line(_VENOM, &"poison", 40))
+	var status := nodes[1].line().status
+	assert_not_null(status, "guard: poison's line has its status")
+	if status != null and not status.get_description().is_empty():
+		assert_false(nodes[1].detail_text().contains(status.get_description()),
+				"the hover card carries the status's description, not the detail")
 	readout.set_hovered_socket(-1)
 	assert_false(readout.line_nodes()[1].is_expanded(), "unhover collapses")
 
@@ -107,11 +112,12 @@ func test_a_wedge_preview_reads_the_line_as_if_socketed() -> void:
 	var nodes := readout.line_nodes()
 	assert_eq(nodes.size(), 1)
 	if nodes.size() == 1:
-		assert_eq(nodes[0].main_text(), expected[0].text(), "the previewed line")
+		assert_eq(nodes[0].main_text(), BadgeText.strip(expected[0].text()), "the previewed line")
 		assert_true(nodes[0].is_highlighted())
 	assert_eq(plan.infusion.points.size(), 0, "a preview never writes the plan")
 	readout.clear_preview()
-	assert_eq(readout.line_nodes()[0].main_text(), ReadoutLines.lines(plan)[0].text())
+	assert_eq(readout.line_nodes()[0].main_text(),
+			BadgeText.strip(ReadoutLines.lines(plan)[0].text()))
 
 
 func test_sections_sit_behind_more_info() -> void:

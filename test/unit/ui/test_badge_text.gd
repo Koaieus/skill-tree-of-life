@@ -49,3 +49,42 @@ func test_token_inside_bbcode_is_rendered_inside_the_tag() -> void:
 	assert_false(parsed.contains("[b]") or parsed.contains("[/b]"), "tags parsed, not literal")
 	assert_false(parsed.contains("{poison}"), "token resolved")
 	assert_eq(parsed, _image_placeholder() + "\u00A0Poison")
+
+
+func test_amount_token_strips_to_amount_then_noun() -> void:
+	assert_eq(BadgeText.strip("applies {poison:4} stacks"), "applies 4 Poison stacks")
+
+
+func test_amount_token_renders_amount_badge_noun_unbroken() -> void:
+	BadgeText.render(_label, "applies {poison:4} stacks")
+	assert_eq(_label.get_parsed_text(),
+			"applies 4 " + _image_placeholder() + " Poison stacks")
+
+
+func test_a_concept_carries_a_hint_a_stat_does_not() -> void:
+	var poison := IdentityRoster.shared().by_id(&"poison")
+	assert_eq(BadgeText.hint_of(poison), BadgeText.HINT_PREFIX + "poison")
+	var strength := StatRegistry.get_def(&"strength")
+	assert_not_null(strength, "guard: strength is a stat")
+	if strength == null:
+		return
+	assert_not_null(strength.identity, "guard: strength has an identity")
+	assert_eq(BadgeText.hint_of(strength.identity), "", "no concept card, no hint")
+
+
+func test_badge_label_plain_text_is_the_strip() -> void:
+	var label := BadgeLabel.new()
+	add_child_autofree(label)
+	label.badge_text = "applies {poison:4} stacks"
+	assert_eq(label.plain_text(), "applies 4 Poison stacks")
+
+
+func test_badge_label_tooltip_is_the_concept_card() -> void:
+	var label := BadgeLabel.new()
+	add_child_autofree(label)
+	var card = label._make_custom_tooltip(BadgeText.HINT_PREFIX + "poison")
+	assert_true(card is ConceptCard, "a concept hint builds the card")
+	if card is ConceptCard:
+		assert_eq(card.identity.id, &"poison")
+		card.free()
+	assert_null(label._make_custom_tooltip("anything else"), "the engine default")
