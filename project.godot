@@ -33,6 +33,26 @@ Wire="*res://autoload/wire.gd"
 
 [debug]
 
+gdscript/warnings/exclude_addons=true
+gdscript/warnings/unused_variable=2
+gdscript/warnings/unused_local_constant=2
+gdscript/warnings/unused_private_class_variable=2
+gdscript/warnings/unused_parameter=2
+gdscript/warnings/unreachable_code=2
+gdscript/warnings/unreachable_pattern=2
+gdscript/warnings/standalone_expression=2
+gdscript/warnings/standalone_ternary=2
+gdscript/warnings/incompatible_ternary=2
+gdscript/warnings/static_called_on_instance=2
+gdscript/warnings/redundant_await=2
+gdscript/warnings/assert_always_true=2
+gdscript/warnings/assert_always_false=2
+gdscript/warnings/integer_division=2
+gdscript/warnings/confusable_capture_reassignment=2
+gdscript/warnings/native_method_override=2
+gdscript/warnings/get_node_default_without_onready=2
+gdscript/warnings/onready_with_export=2
+gdscript/warnings/enum_variable_without_default=2
 settings/stdout/print_fps=true
 file_logging/max_log_files=50
 

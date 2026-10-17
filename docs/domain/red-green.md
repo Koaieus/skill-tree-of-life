@@ -95,7 +95,7 @@ Red→green is about *order*, not about how much you run. Cost discipline is
 unchanged and orthogonal:
 
 ```
-mise run check                                       # ~20s — after every script edit
+mise run check                                       # ~20s — after every script edit (also fails on promoted GDScript warnings)
 mise run test:one -- res://test/unit/test_<yours>.gd # your red-green loop
 mise run test:dir -- res://test/unit/<subsystem>/    # once you believe you're green
 mise run test                                        # full suite — ONCE, at final green

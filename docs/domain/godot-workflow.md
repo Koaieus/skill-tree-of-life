@@ -578,3 +578,13 @@ purpose: an autoload cannot redirect *before* the main scene is built, so
 pointing the setting at a sandbox made every exported build construct that
 level and cut away from it a moment later. Launch a sandbox by path
 (`godot --path . scenes/<sandbox>.tscn`), never by repointing the main scene.
+
+## GDScript warnings are errors (#1647)
+
+`project.godot`'s `[debug]` section promotes 19 analyzer warnings (unused
+variable/parameter, unreachable code, integer division, standalone expression, …)
+to Error, so a new one fails to compile in the editor and under `check`.
+`mise run lint-gdscript-warnings -- [paths…]` lists every site (`--no-overlay`
+= the real project levels); `check` runs it plus `--self-test`. Fix it properly;
+use the warning-ignore annotation with a one-line reason only where the warning is
+intended (a truncating `int / int`, a tool-button var the editor holds).

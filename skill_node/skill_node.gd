@@ -165,6 +165,7 @@ var last_owned_vision: float:
 		if is_node_ready():
 			_sync_visuals()
 
+@warning_ignore("unused_private_class_variable") # editor button: the inspector holds the Callable
 @export_tool_button('Load color from Archetype', 'ColorPickerButton') var _color_load_button = _load_type_color_from_archetype
 
 ## Constant pixel inset from [member radius] to the rim's interior bevel
@@ -316,14 +317,6 @@ var _scaled_sets: Dictionary[StatModifier, Array] = {}:
 		return state.scaled_sets
 	set(value):
 		state.scaled_sets = value
-
-## Same ledger for the effect path: effect -> scaled leaf-set applied in
-## place of the effect's granted modifiers on the entity board.
-var _scaled_effect_sets: Dictionary[Effect, Array] = {}:
-	get:
-		return state.scaled_effect_sets
-	set(value):
-		state.scaled_effect_sets = value
 
 ## Old fill for the mutator's (old_al, new_al) pair — PoolStat.current_changed
 ## only carries the new value.
