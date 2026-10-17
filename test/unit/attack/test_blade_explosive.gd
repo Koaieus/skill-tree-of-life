@@ -108,7 +108,7 @@ func test_blast_reaches_a_hostile_in_the_striker_sides_reach_and_spends_one_life
 	assert_eq(_shrapnel_on(hits, _f.cluster[1]), 0.0, "and nothing past its reach")
 	for h in hits:
 		assert_ne(h.target.owned_by, _f.attacker, "the blast never hits the swinger's own nodes")
-		assert_true(h.rider_gated(h.target.get_combat()) == false or h.target == _f.target,
+		assert_true(h.rider_gated(h.target.get_combat(), CombatWorld.live()) == false or h.target == _f.target,
 				"the armed blast lands once the gate fired it")
 	var spends := gate.take_spends()
 	assert_eq(spends.size(), 1, "one spend recorded")
