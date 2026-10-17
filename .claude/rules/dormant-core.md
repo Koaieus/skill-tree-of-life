@@ -15,6 +15,8 @@ paths:
 A **Dormant Core** is an entity that holds a small patch of territory — a core
 node plus a rolled 0-6 bonus nodes, size-keyed — and never moves or acts. See
 docs/domain/dormant-core.md for tiers, footprints, loot books, and the prune math.
+A faced core (`BlockerCoreClass`, `entity/blocker/faces/`) mints pinned grants on a
+SPARSE board: ensure the facet before granting it, or it drops (see "Faces").
 
 **Player-facing text says "Dormant Core"; code says `blocker`.** Every
 identifier — `BlockerSize`, `spawn_blocker`, `blocker.tres`, `blocker_per_*` —

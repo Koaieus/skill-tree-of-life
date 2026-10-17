@@ -202,6 +202,49 @@ spells cross **by value**, as indices into the interned spell table on the entit
 snapshot row (`network/entity_snapshot.gd` `_encode_spell_ids`). Never roll the prune
 unseeded at spawn. See `.claude/rules/multiplayer-sync.md`.
 
+## Faces
+
+A Dormant Core can wear an **aspect face** (#1654): a `BlockerCoreClass`
+(`entity/blocker/blocker_core_class.gd`, extends `CoreClass`), one `.tres` per
+aspect under `entity/blocker/faces/`. It keeps the faceless class's falloff aura
+and core look and adds, from `entity_tier` (SMALL..LARGE):
+
+- `<id>_aspect` — `count_by_size` (+ `extra_count_by_size`, which only armor
+  break sets: it has no potency stat, so its bigger tiers grow by count);
+- `<id>_stacks_per_hit` — `potency_by_size`, where the stat exists; a LARGE face
+  rolls MULTIPLY `potency_multiply_value` at `potency_multiply_weight`, else the
+  additive grant;
+- `<id>_resistance` — `resistance_by_size`, only where the stat exists (bleeding,
+  blindness, corruption, curse, poison).
+
+Every number is a tentative exported knob on the face. The grants are minted
+fresh in `apply()` and go through `grant_core_modifier`, so they sit in the core
+register and the kill loots them through the ordinary class bucket. Each one is
+`StatModifier.loot_pinned`: `SkillDustAddon` puts every pinned candidate into
+round 1's offer ahead of the weighted sample, and clears the pin on the copy it
+pours, so a looted face grant is a plain modifier on its new owner. The blocker
+boards are `sparse`, so `apply()` ensures each facet before granting it.
+Otherwise `add_modifier` would drop the grant silently and leave a ghost in the
+register.
+
+**The roll.** `GraphProcgenBlockers.roll_faces` draws a face and a seed per
+placement on its own `face_rng` (salt `_FACE_RNG_SALT`), always two draws, at
+weight 1 per face against `faceless_weight`. An empty `faces` draws nothing, and
+the separate stream leaves every other blocker draw unchanged either way. The
+placement dict carries `face` + `face_seed`, and `spawn_blocker(..., face,
+face_seed)` sets `core_class`, `color` (the `Identity.tint`) and the seed (as
+entity meta `BlockerCoreClass.FACE_SEED_META`, since the class is shared)
+before `add_child`.
+
+**On a join** the face crosses by path (the CORE_CLASS row) and its stats by
+value (the board payload), so the seed never needs to cross. Two things do NOT
+cross, for any entity, not just faces: the `core_modifiers` register (the
+client's stays empty, and loot draws on the authority only) and `Entity.color`
+(a joining peer shows the scene's gray until #1535's per-class look).
+
+**The scale fix.** `LootSystem._scale_loot_value` scales only additive leaves: a
+tier fraction of a MULTIPLY or SET is a different modifier, not less of it.
+
 ## The look
 
 A Dormant Core's core node wears a **null-field blob**, not a rock (#1526): a
