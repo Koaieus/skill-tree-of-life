@@ -751,8 +751,18 @@ func can_toggle_temp_upgrade(node: SkillNode, scene: PackedScene) -> bool:
 	return can_apply_temp_upgrade(node, scene)
 
 
-func placeable_temp_kinds(_node: SkillNode, _offered: Array[PackedScene]) -> Array[PackedScene]:
-	return []
+## The [param offered] kinds a pick on [param node] would change right now, in
+## [param offered]'s order (the caller's canonical order, so a fan built from it
+## never reshuffles): every kind [method can_apply_temp_upgrade] admits, plus
+## every kind [param node] already carries, whose pick refunds it. Composed from
+## [method can_toggle_temp_upgrade], never a copy of its rules. A carried kind
+## missing from [param offered] is not added.
+func placeable_temp_kinds(node: SkillNode, offered: Array[PackedScene]) -> Array[PackedScene]:
+	var out: Array[PackedScene] = []
+	for scene in offered:
+		if can_toggle_temp_upgrade(node, scene):
+			out.append(scene)
+	return out
 
 
 ## Click-to-toggle entry point for the UI (#406): if `node` already carries
