@@ -6,10 +6,6 @@ extends GutTest
 ## suffix in the wound tint. The shadow (a preview) and an entity's death strip
 ## (`charge=false`) announce nothing.
 
-const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
-const _EDGE_SCENE := preload("res://graph/edge.tscn")
-const _BOARD := preload("res://entity/default_entity_board.tres")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _DIRECTOR_SCENE := preload("res://ui/floating_number_layer/floater_director.tscn")
 
 var _graph: Graph
@@ -19,29 +15,12 @@ var _nodes: Array[SkillNode]
 
 
 func before_each() -> void:
-	_graph = _GRAPH_SCENE.instantiate()
-	add_child_autofree(_graph)
-	_nodes = []
+	var world := TestWorld.create(self)
+	_graph = world.graph
 	# Line core(N0) – N1 – N2 – N3; the cascade under test is N1..N3.
-	for i in 4:
-		var sn := _SKILL_NODE_SCENE.instantiate() as SkillNode
-		sn.name = "N%d" % i
-		_graph.skill_nodes_container.add_child(sn)
-		_nodes.append(sn)
-	for i in 3:
-		var e := _EDGE_SCENE.instantiate() as Edge
-		e.from = _nodes[i]
-		e.to = _nodes[i + 1]
-		_graph.edges_container.add_child(e)
-
-	_alloc = AllocationSystem.new()
-	_alloc.graph = _graph
-	add_child_autofree(_alloc)
-
-	_entity = autofree(Entity.new())
-	_entity.display_name = "Victim"
-	_entity.stat_board = _BOARD.duplicate(true) as EntityStatBoard
-	_graph.add_child(_entity)
+	_nodes = world.build([[0, 1], [1, 2], [2, 3]])
+	_alloc = world.allocator()
+	_entity = world.add_entity("Victim")
 	await get_tree().process_frame
 	for n in _nodes:
 		_alloc.force_allocate(_entity, n)

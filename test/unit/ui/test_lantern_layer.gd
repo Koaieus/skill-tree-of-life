@@ -8,13 +8,9 @@ extends GutTest
 ## its only two triggers — `vision_render_tick` and `visibility_changed` — plus
 ## its material's `circle_count` staying put.
 
-const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
-const _EDGE_SCENE := preload("res://graph/edge.tscn")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _FOG_SCENE := preload("res://ui/fog_overlay/fog_overlay.tscn")
 const _LANTERN_SCENE := preload("res://ui/fog_overlay/lantern.tscn")
 const _CLAMP_ADDON_SCENE := preload("res://skill_node/addons/defs/clamp_addon.tscn")
-const _BOARD := preload("res://entity/default_entity_board.tres")
 
 ## Far enough apart that the default vision range reaches only the owned node.
 const _SPACING := 4000.0
@@ -32,28 +28,15 @@ var _layer: LanternLayer
 
 
 func before_each() -> void:
-	_graph = _GRAPH_SCENE.instantiate()
-	add_child_autofree(_graph)
-	_nodes = []
-	var at: Array[Vector2] = [Vector2.ZERO, Vector2(_SPACING, 0.0), Vector2(0.0, _SPACING)]
-	for i in at.size():
-		var sn := _SKILL_NODE_SCENE.instantiate() as SkillNode
-		sn.name = "N%d" % i
-		sn.position = at[i]
-		_graph.skill_nodes_container.add_child(sn)
-		_nodes.append(sn)
-	var e := _EDGE_SCENE.instantiate() as Edge
-	e.from = _nodes[0]
-	e.to = _nodes[1]
-	_graph.edges_container.add_child(e)
+	var world := TestWorld.create(self)
+	_graph = world.graph
+	var at := {0: Vector2.ZERO, 1: Vector2(_SPACING, 0.0), 2: Vector2(0.0, _SPACING)}
+	_nodes = world.build([[0, 1]], at)
+	_nodes.append(world.add_node(&"N2", at[2]))
 	_nodes[1].add_child(_CLAMP_ADDON_SCENE.instantiate())
 
-	_alloc = AllocationSystem.new()
-	_alloc.graph = _graph
-	add_child_autofree(_alloc)
-	_entity = autofree(Entity.new())
-	_entity.stat_board = _BOARD.duplicate(true) as EntityStatBoard
-	_graph.add_child(_entity)
+	_alloc = world.allocator()
+	_entity = world.add_entity("")
 	_enemy = autofree(Entity.new())
 	var camp := Faction.new()
 	camp.id = &"lantern_enemy"

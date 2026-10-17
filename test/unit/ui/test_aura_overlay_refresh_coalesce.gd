@@ -7,9 +7,6 @@ extends GutTest
 ## one-landing-per-step cascade stays in step with the node paint.
 ## Cost at scale: `test/perf/bench_aura_refresh_cost.gd`.
 
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
-const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
-const _BOARD := preload("res://entity/default_entity_board.tres")
 
 const _NODE_COUNT := 6
 
@@ -32,24 +29,15 @@ var _aura: _CountingAura
 
 
 func before_each() -> void:
-	_graph = _GRAPH_SCENE.instantiate()
-	add_child_autofree(_graph)
+	var world := TestWorld.create(self)
+	_graph = world.graph
 	_nodes = []
 	for i in _NODE_COUNT:
-		var sn := _SKILL_NODE_SCENE.instantiate() as SkillNode
-		sn.position = Vector2(i * 200.0, 0.0)
-		_graph.add_skill_node(sn)
-		_nodes.append(sn)
+		_nodes.append(world.add_node(&"", Vector2(i * 200.0, 0.0)))
 	for i in _NODE_COUNT - 1:
-		_graph.add_edge(_nodes[i], _nodes[i + 1])
-
-	_alloc = AllocationSystem.new()
-	_alloc.graph = _graph
-	add_child_autofree(_alloc)
-
-	_entity = autofree(Entity.new())
-	_entity.stat_board = _BOARD.duplicate(true) as EntityStatBoard
-	_graph.entities_container.add_child(_entity)
+		world.link(_nodes[i], _nodes[i + 1])
+	_alloc = world.allocator()
+	_entity = world.add_entity("")
 	await get_tree().process_frame
 	for sn in _nodes:
 		_alloc.force_allocate(_entity, sn)
