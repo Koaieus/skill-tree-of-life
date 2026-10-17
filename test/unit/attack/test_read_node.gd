@@ -141,6 +141,25 @@ func test_a_blade_contact_reads_the_vertex_node_while_origin_stays_the_pivot() -
 	assert_gt(from_leaf, 0, "the leaf vertex's contact on the target must read the leaf")
 
 
+func test_a_blade_contact_stamps_its_read_nodes_armor_pierce_shared_per_node() -> void:
+	var ctx: Dictionary = await _build()
+	var m := StatModifier.new()
+	m.stat_id = &"armor_pierce"
+	m.operation = StatModifier.Operation.ADD_BASE
+	m.value = -3.0
+	ctx.nodes.leaf.add_local_modifier(m)
+	var outcome := _melee_plan(ctx).resolve()
+	var leaf_terms: Array[FoldTerms] = []
+	for hit in _combat_hits(outcome):
+		if hit is DamageInstance and hit.read_node == ctx.nodes.leaf:
+			leaf_terms.append(hit.armor_pierce)
+	assert_gt(leaf_terms.size(), 0, "precondition: the leaf's vertex contacted")
+	for t in leaf_terms:
+		assert_not_null(t, "the melee builder stamps the attacking node's pierce")
+		assert_almost_eq(t.fold(5.0), 2.0, 0.001)
+		assert_same(t, leaf_terms[0], "one swing resolves a node's pierce once")
+
+
 func test_the_blade_state_carries_one_vertex_node_per_particle() -> void:
 	var ctx: Dictionary = await _build()
 	var state := _melee_plan(ctx).build_blade_state()

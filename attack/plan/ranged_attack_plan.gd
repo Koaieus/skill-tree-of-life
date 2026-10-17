@@ -507,6 +507,7 @@ func resolve_against(world: CombatWorld) -> AttackOutcome:
 	# One gather cache per volley: every splash arrow on one node sweeps the
 	# board once ([member HitLanding.gather_cache]). Dies with this compile.
 	var gather_cache: Dictionary = {}
+	var pierce_cache: Dictionary = {}
 	for rank_i in shot_count:
 		var shot: FiringShot = schedule[rank_i]
 		# Exact `<= 0.0`, not is_equal_approx: this guards a DIVISION, and a
@@ -517,7 +518,7 @@ func resolve_against(world: CombatWorld) -> AttackOutcome:
 		# garbage, with no error.
 		var frac: float = 0.0 if span <= 0.0 else (shot.distance - d_min) / span
 		var key: float = (float(shot.wave) + frac) / float(maxi(waves, 1))
-		var hit := RangedDamageFormula.compute(attacker, shot.firing_node, shot.target, shot.ammo_type)
+		var hit := RangedDamageFormula.compute(attacker, shot.firing_node, shot.target, shot.ammo_type, pierce_cache)
 		hit.source = self
 		hit.structural_key = key
 		outcome.hits.append(hit)

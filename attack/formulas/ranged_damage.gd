@@ -29,8 +29,10 @@ class_name RangedDamageFormula
 ## by [member AmmoType.damage_scale] BEFORE mitigation (owner 2026-09-18:
 ## "reduced raw damage + added poison status stacks"). Null is a plain base
 ## shot. The type's riders, if any, are further hits — see [method riders_for].
+## [param pierce_cache] is one volley's: arrows from one firing node and ammo
+## type share a single [FoldTerms], resolved once.
 static func compute(attacker: Entity, firing_node: SkillNode, target: SkillNode,
-		ammo_type: AmmoType = null) -> DamageInstance:
+		ammo_type: AmmoType = null, pierce_cache: Dictionary = {}) -> DamageInstance:
 	var hit := RangedHitInstance.new()
 	hit.attacker = attacker
 	hit.ammo_type = ammo_type
@@ -42,7 +44,10 @@ static func compute(attacker: Entity, firing_node: SkillNode, target: SkillNode,
 	hit.amount = _read_offense(firing_node.get_combat() if firing_node != null else null)
 	if ammo_type != null:
 		hit.amount *= ammo_type.damage_scale
-	hit.armor_pierce = _read_pierce(firing_node.get_combat() if firing_node != null else null, ammo_type)
+	var pierce_key := [firing_node.get_instance_id() if firing_node != null else 0, ammo_type]
+	if not pierce_cache.has(pierce_key):
+		pierce_cache[pierce_key] = _read_pierce(firing_node.get_combat() if firing_node != null else null, ammo_type)
+	hit.armor_pierce = pierce_cache[pierce_key]
 	return hit
 
 

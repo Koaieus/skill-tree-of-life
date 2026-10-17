@@ -215,3 +215,24 @@ func test_shot_stamps_the_firing_nodes_armor_pierce() -> void:
 	ammo.uses_board_pierce = false
 	assert_null(RangedDamageFormula.compute(null, firing, target, ammo).armor_pierce,
 		"the arrow type opts out of the board's pierce")
+
+
+func test_a_volley_shares_one_fold_terms_per_firing_node_and_ammo() -> void:
+	var firing := _owned_node()
+	await get_tree().process_frame
+	var target := _NODE_SCENE.instantiate() as SkillNode
+	autofree(target)
+	var m := StatModifier.new()
+	m.stat_id = &"armor_pierce"
+	m.operation = StatModifier.Operation.ADD_BASE
+	m.value = -3.0
+	firing.add_local_modifier(m)
+	var cache: Dictionary = {}
+	var a := RangedDamageFormula.compute(null, firing, target, null, cache)
+	var b := RangedDamageFormula.compute(null, firing, target, null, cache)
+	assert_not_null(a.armor_pierce)
+	assert_same(a.armor_pierce, b.armor_pierce, "one volley, one FoldTerms per firing node")
+	var ammo := AmmoType.new()
+	ammo.uses_board_pierce = false
+	var c := RangedDamageFormula.compute(null, firing, target, ammo, cache)
+	assert_not_same(a.armor_pierce, c.armor_pierce, "a different ammo type resolves its own terms")
