@@ -68,9 +68,7 @@ func _build(with_live_vfx: bool) -> Dictionary:
 	attacker.stat_board.action_points.current = 2.0
 	graph.add_child(attacker)
 
-	var hostile := Entity.new()
-	hostile.faction = _NPC_FACTION
-	hostile.stat_board = _BOARD.duplicate(true) as EntityStatBoard
+	var hostile := TestWorld.new_entity("", null, _NPC_FACTION)
 	graph.add_child(hostile)
 	await get_tree().process_frame
 

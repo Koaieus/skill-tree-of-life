@@ -9,7 +9,6 @@ extends GutTest
 ## Board: Pivot - Joint - Tip owned by the attacker; Hostile adjacent to Tip,
 ## Far adjacent to Hostile, both owned by an NPC.
 
-const _BOARD := preload("res://entity/default_entity_board.tres")
 const _PLAYER_FACTION := preload("res://entity/factions/player.tres")
 const _NPC_FACTION := preload("res://entity/factions/npc.tres")
 
@@ -32,9 +31,7 @@ func _spawn(nm: String, pos: Vector2) -> SkillNode:
 
 
 func _entity(faction: Faction) -> Entity:
-	var e: Entity = autofree(Entity.new())
-	e.faction = faction
-	e.stat_board = _BOARD.duplicate(true) as EntityStatBoard
+	var e := TestWorld.new_entity("", null, faction)
 	_graph.add_child(e)
 	return e
 

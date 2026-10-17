@@ -21,7 +21,6 @@ extends GutTest
 ## pinned by test_highlight_controller.gd, and a role assertion here would test
 ## the union's contents a second time instead of the wiring.
 
-const _BOARD := preload("res://entity/default_entity_board.tres")
 const _PLAYER_FACTION := preload("res://entity/factions/player.tres")
 
 var _world: TestWorld
@@ -41,9 +40,7 @@ func before_each() -> void:
 	_spare = _world.add_node()
 	_world.link(_owned, _spare)
 
-	_attacker = autofree(Entity.new())
-	_attacker.faction = _PLAYER_FACTION
-	_attacker.stat_board = _BOARD.duplicate(true) as EntityStatBoard
+	_attacker = TestWorld.new_entity("", null, _PLAYER_FACTION)
 	_graph.add_child(_attacker)
 	await get_tree().process_frame
 
