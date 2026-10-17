@@ -38,3 +38,6 @@ docs/handoffs/.whip.lock
 
 # python task bytecode (selftests import task modules)
 __pycache__/
+
+# lint-gdscript-warnings --self-test scratch (created and removed by the task)
+tools/.lint_selftest/

@@ -1,0 +1,241 @@
+#!/usr/bin/env python3
+#MISE description="Fail on GDScript analyzer warnings promoted to Error: `mise run lint-gdscript-warnings [-- --changed <ref> | <paths…>] [--json] [-j N] [--self-test]`"
+"""
+The analyzer warnings `project.godot` promotes to Error (`[debug]
+gdscript/warnings/<rule>=2`) make the editor refuse to run an offending script,
+but the headless editor-import pass `check` runs never reports them. Only a
+per-file `godot --check-only --script res://<path>` does. This task is that
+sweep: one `--check-only` per `.gd` in a process pool, keeping only the stderr
+lines tagged `(Warning treated as error.)` and paired with the `at:
+GDScript::reload (res://…:N)` line that follows. A real parse error (no tag) is
+`check`'s job and is not reported here, so cold-cache noise ("Failed to compile
+depended scripts", "Could not preload resource file") is filtered by
+construction.
+
+OVERLAY: the policy home is `project.godot`. While it does not yet promote every
+rule in PROMOTED, the sweep runs against a shadow root in a tempdir instead:
+symlinks to every top-level entry (`.godot` included, so the class cache stays
+warm) plus a copy of `project.godot` with the levels injected under `[debug]`.
+That lets the sites be listed and fixed before the flip. Once `project.godot`
+carries the levels, detection finds them and the sweep runs on the real root.
+`--no-overlay` forces the real root either way. The verdict line always says
+which root ran. This design never writes an `override.cfg`.
+
+Modes: no argument = the full tree (`git ls-files` `.gd` minus `addons/` and
+`native/godot-cpp/`). Positional paths = just those. `--changed <ref>` = `git
+diff --name-only <ref>...HEAD` plus untracked `.gd`, falling back to the full
+tree when `<ref>` is not an ancestor of HEAD. Exits 1 on any violation.
+`--self-test` writes a `.gd` with an unused variable and an integer division
+under `tools/.lint_selftest/`, sweeps it, asserts exactly those two lines, and
+deletes it.
+"""
+import json
+import os
+import re
+import shutil
+import subprocess
+import sys
+import tempfile
+from concurrent.futures import ThreadPoolExecutor
+
+ROOT = os.environ.get("MISE_PROJECT_ROOT") or os.getcwd()
+
+PROMOTED = [
+    "unused_variable", "unused_local_constant", "unused_private_class_variable",
+    "unused_parameter", "unreachable_code", "unreachable_pattern",
+    "standalone_expression", "standalone_ternary", "incompatible_ternary",
+    "static_called_on_instance", "redundant_await", "assert_always_true",
+    "assert_always_false", "integer_division", "confusable_capture_reassignment",
+    "native_method_override", "get_node_default_without_onready",
+    "onready_with_export", "enum_variable_without_default",
+]
+OVERLAY_SETTINGS = ["gdscript/warnings/exclude_addons=true"] + [
+    f"gdscript/warnings/{r}=2" for r in PROMOTED
+]
+EXCLUDE_PREFIXES = ("addons/", "native/godot-cpp/")
+
+TAG = " (Warning treated as error.)"
+ERR_RE = re.compile(r"^\s*SCRIPT ERROR: (?:Parse Error: )?(.*)$")
+AT_RE = re.compile(r"^\s*at: .*\(res://(.+?):(\d+)\)\s*$")
+
+SELFTEST_DIR = "tools/.lint_selftest"
+SELFTEST_SRC = (
+    "extends RefCounted\n"
+    "\n"
+    "func f() -> int:\n"
+    "\tvar never_read := 3\n"   # line 4: unused_variable
+    "\tvar a := 7\n"
+    "\tvar b := 2\n"
+    "\treturn a / b\n"          # line 7: integer_division
+)
+SELFTEST_EXPECT = [4, 7]
+
+
+def git(*args):
+    return subprocess.run(["git", *args], cwd=ROOT, capture_output=True, text=True)
+
+
+def keep(path):
+    return path.endswith(".gd") and not path.startswith(EXCLUDE_PREFIXES)
+
+
+def full_tree():
+    out = git("ls-files", "-z")
+    if out.returncode != 0:
+        print("lint-gdscript-warnings: not a git checkout", file=sys.stderr)
+        sys.exit(2)
+    return [p for p in out.stdout.split("\0") if keep(p)]
+
+
+def changed_files(ref):
+    if git("merge-base", "--is-ancestor", ref, "HEAD").returncode != 0:
+        print(f"lint-gdscript-warnings: {ref} is not an ancestor of HEAD; full tree",
+              file=sys.stderr)
+        return full_tree()
+    diff = git("diff", "--name-only", f"{ref}...HEAD", "--", "*.gd").stdout.split()
+    wip = git("diff", "--name-only", "HEAD", "--", "*.gd").stdout.split()
+    new = git("ls-files", "--others", "--exclude-standard", "--", "*.gd").stdout.split()
+    paths = sorted(set(diff) | set(wip) | set(new))
+    return [p for p in paths if keep(p) and os.path.exists(os.path.join(ROOT, p))]
+
+
+def project_promotes_all():
+    with open(os.path.join(ROOT, "project.godot")) as f:
+        text = f.read()
+    m = re.search(r"^\[debug\]\n(.*?)(?=^\[|\Z)", text, re.M | re.S)
+    body = m.group(1) if m else ""
+    return all(re.search(rf"^gdscript/warnings/{r}=2\s*$", body, re.M) for r in PROMOTED)
+
+
+def build_overlay():
+    """A tempdir root: symlinks to ROOT's entries plus a patched project.godot."""
+    shadow = tempfile.mkdtemp(prefix="lint-gdscript-warnings-")
+    for entry in os.listdir(ROOT):
+        if entry in (".git", "project.godot", "override.cfg"):
+            continue
+        os.symlink(os.path.join(ROOT, entry), os.path.join(shadow, entry))
+    with open(os.path.join(ROOT, "project.godot")) as f:
+        text = f.read()
+    block = "\n".join(OVERLAY_SETTINGS) + "\n"
+    if re.search(r"^\[debug\]\n", text, re.M):
+        text = re.sub(r"^\[debug\]\n", lambda m: m.group(0) + "\n" + block, text,
+                      count=1, flags=re.M)
+    else:
+        text += "\n[debug]\n\n" + block
+    with open(os.path.join(shadow, "project.godot"), "w") as f:
+        f.write(text)
+    return shadow
+
+
+def parse(stderr):
+    """(path, line, message) for every tagged warning in one godot run."""
+    found = []
+    lines = stderr.splitlines()
+    for i, ln in enumerate(lines):
+        m = ERR_RE.match(ln)
+        if not m or TAG not in m.group(1):
+            continue
+        msg = m.group(1).replace(TAG, "").strip()
+        for nxt in lines[i + 1:i + 3]:
+            a = AT_RE.match(nxt)
+            if a:
+                found.append((a.group(1), int(a.group(2)), msg))
+                break
+    return found
+
+
+def check_one(root, path):
+    out = subprocess.run(
+        ["godot", "--headless", "--path", root, "--check-only", "--script", f"res://{path}"],
+        capture_output=True, text=True, stdin=subprocess.DEVNULL,
+    )
+    return parse(out.stdout + "\n" + out.stderr)
+
+
+def sweep(paths, jobs, overlay):
+    root = build_overlay() if overlay else ROOT
+    try:
+        with ThreadPoolExecutor(max_workers=max(1, jobs)) as pool:
+            results = list(pool.map(lambda p: check_one(root, p), paths))
+    finally:
+        if overlay:
+            shutil.rmtree(root, ignore_errors=True)
+    seen = set()
+    for r in results:
+        seen.update(r)
+    return sorted(seen)
+
+
+def resolve_overlay(args):
+    if "--no-overlay" in args:
+        return False
+    return not project_promotes_all()
+
+
+def self_test(jobs, overlay):
+    os.makedirs(os.path.join(ROOT, SELFTEST_DIR), exist_ok=True)
+    rel = f"{SELFTEST_DIR}/selftest_probe.gd"
+    path = os.path.join(ROOT, rel)
+    with open(path, "w") as f:
+        f.write(SELFTEST_SRC)
+    try:
+        got = sweep([rel], jobs, overlay)
+    finally:
+        os.remove(path)
+        for leftover in (path + ".uid",):
+            if os.path.exists(leftover):
+                os.remove(leftover)
+        try:
+            os.rmdir(os.path.join(ROOT, SELFTEST_DIR))
+        except OSError:
+            pass
+    lines = sorted(ln for p, ln, _ in got if p == rel)
+    mode = "overlay" if overlay else "project.godot"
+    if lines != SELFTEST_EXPECT or len(got) != len(SELFTEST_EXPECT):
+        print(f"lint-gdscript-warnings --self-test: FAIL ({mode}) — expected lines "
+              f"{SELFTEST_EXPECT}, got {got}")
+        return 1
+    print(f"lint-gdscript-warnings --self-test: ok ({mode}) — 2 violations at lines 4, 7")
+    return 0
+
+
+def main(argv):
+    args = list(argv)
+    jobs = os.cpu_count() or 4
+    if "-j" in args:
+        i = args.index("-j")
+        jobs = int(args[i + 1])
+        del args[i:i + 2]
+    overlay = resolve_overlay(args)
+    if "--self-test" in args:
+        return self_test(jobs, overlay)
+    as_json = "--json" in args
+    ref = None
+    if "--changed" in args:
+        i = args.index("--changed")
+        ref = args[i + 1]
+        del args[i:i + 2]
+    positional = [a for a in args if not a.startswith("--")]
+    if positional:
+        paths = [p.removeprefix("res://").removeprefix("./") for p in positional]
+    elif ref:
+        paths = changed_files(ref)
+    else:
+        paths = full_tree()
+
+    found = sweep(paths, jobs, overlay) if paths else []
+    mode = "overlay" if overlay else "project.godot"
+    if as_json:
+        print(json.dumps({"violations": [
+            {"path": p, "line": ln, "rule_message": m} for p, ln, m in found
+        ]}, indent=2))
+    else:
+        for p, ln, m in found:
+            print(f"{p}:{ln}  {m}")
+        print(f"lint-gdscript-warnings: {len(found)} violation(s) in {len(paths)} "
+              f"file(s) [levels: {mode}]")
+    return 1 if found else 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))
