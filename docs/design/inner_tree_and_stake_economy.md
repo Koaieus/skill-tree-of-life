@@ -74,17 +74,22 @@ for melee and magic (#1467) — a count tier is secretly a ranged buff unless th
 pick text says what it does in your mode; potency is uncapped and is the
 equaliser.
 
-**Open (owner, 2026-10-17): where ring points come from.** *"inner-skill-points,
-gained every X level? or a rare resource acquired in some other way?"* Candidates
-weighed the same night: every X levels (predictable, a second payout on the
-power lever); the every-5th milestone slot repurposed from +1 SP to the ring
-point (one payout, the #199 origin); a rare map resource dropped by large faced
-Dormant Cores and spirits (hunting funds identity; snowball risk, a ringed kill
-pays twice); the first 3/3 stake (garnish, not a source); SP→point exchange
-(muddies "SP is power", AI rule needed). A collapse to consider: a spirit grants
-a ring point rather than a fixed +1 count, so one aspect currency exists on the
-map. Pass lean: milestone slot repurposed plus map drops. #1651 ships the
-counter and the every-N mint behind a knob; the source is swappable there.
+**Settled (owner, 2026-10-17): the milestone slot is repurposed.** *"slot
+repurposed sounds like a good idea"* — the every-5th-level extra SP becomes the
+ring point, first at level 5. Ring points are a `PoolStat` like skill points
+(cap from modifiers, current = unspent), so a one-off keystone or spirit that
+grants a point is a +1 cap modifier (#1651 amendment).
+
+**Open (owner, 2026-10-17): the cadence and the rare path.** Cadence: every
+5 ships; the owner floated one point per prime level reached (15 under 50,
+*"a bit lame"*) — *"this whole pacing part is one session worth of discussion
+on its own"*. Rare path, owner's two options: a keystone with a one-off +1
+ring point, skill-dust-like; or *"wait for a better suitor; a feat that
+deserves an award. a particular show of skill, puzzle solved, jimmies
+rustled"* — kills are already rewarded, *"i feel like there's more brewing"*.
+Rejected the same night: SP→point exchange, the first 3/3 stake as a source
+(garnish at most). Corpse spirits (a kill guarantees a spirit on the relic)
+are their own Intake issue.
 
 ### Shapes
 
