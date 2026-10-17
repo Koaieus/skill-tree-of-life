@@ -103,7 +103,7 @@ func test_apply_entity_modifiers_to_rejects_non_entity_grantable() -> void:
 	var m := _mod(ENT_NO)
 	n.modifiers = [m]
 	var b := StatBoard.new()
-	b._ensure_stat(ENT_NO)
+	b.ensure_facet(ENT_NO)
 	n.apply_entity_modifiers_to(b)
 	assert_push_error(String(ENT_NO))
 	assert_eq(float(b.get_stat(ENT_NO).get_value()), 0.0)
@@ -118,8 +118,8 @@ func test_parent_with_non_grantable_descendant_is_rejected() -> void:
 	var n := _make_node()
 	n.modifiers = [_mod(PARENT)]
 	var b := StatBoard.new()
-	b._ensure_stat(PARENT)
-	b._ensure_stat(ENT_NO)
+	b.ensure_facet(PARENT)
+	b.ensure_facet(ENT_NO)
 	n.apply_entity_modifiers_to(b)
 	assert_push_error(String(PARENT))
 	assert_eq(float(b.get_stat(ENT_NO).get_value()), 0.0, "nothing folded into the child")
@@ -142,8 +142,8 @@ func test_composite_with_one_illegal_leaf_is_rejected_whole_on_entity() -> void:
 	var n := _make_node()
 	n.modifiers = [_bundle([_mod(LOCAL_OK, 3.0), _mod(ENT_NO, 3.0)])]
 	var b := StatBoard.new()
-	b._ensure_stat(LOCAL_OK)
-	b._ensure_stat(ENT_NO)
+	b.ensure_facet(LOCAL_OK)
+	b.ensure_facet(ENT_NO)
 	n.apply_entity_modifiers_to(b)
 	assert_push_error(String(ENT_NO))
 	assert_eq(float(b.get_stat(LOCAL_OK).get_value()), 0.0, "the legal leaf did not land either")

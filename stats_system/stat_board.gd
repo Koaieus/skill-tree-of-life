@@ -53,7 +53,7 @@ signal restoring(d: Dictionary)
 # --- Dynamic stats (sparse boards) -----------------------------------------
 
 ## Stats that don't correspond to a hardcoded @export field — created on
-## demand by [method _ensure_stat] for sparse boards (e.g. node-local stats).
+## demand by [method ensure_facet] for sparse boards (e.g. node-local stats).
 var _extra_stats: Dictionary = {}  # StringName → Stat
 
 ## True on a board produced by [method clone_live] — a *shadow*. Flips exactly
@@ -185,10 +185,10 @@ func facet(concept: StringName, role: StatDef.Role) -> ScalarStat:
 ## phantom stat for it on any board, exactly the silent-wrong-state failure
 ## this gate exists to prevent. That gate lives HERE, above the [method
 ## _mint_stat] seam, so no subclass can forget it.
-func _ensure_stat(stat_id: StringName) -> Stat:
+func ensure_facet(stat_id: StringName) -> Stat:
 	if StatFormula.is_accessor_token(stat_id):
 		push_warning(
-			"StatBoard._ensure_stat: '%s' is a formula accessor token, not a stat id"
+			"StatBoard.ensure_facet: '%s' is a formula accessor token, not a stat id"
 			% stat_id
 		)
 		return null
@@ -199,10 +199,10 @@ func _ensure_stat(stat_id: StringName) -> Stat:
 
 
 ## Create the Stat for an id this board has no field for, and file it under
-## [member _extra_stats]. The overridable half of [method _ensure_stat] — the
+## [member _extra_stats]. The overridable half of [method ensure_facet] — the
 ## sparse default mints from [StatRegistry]; [EntityStatBoard] refuses except a
 ## def with a concept [member StatDef.role] (ADR 0054).
-## Never call directly: [method _ensure_stat] owns the accessor-token gate and
+## Never call directly: [method ensure_facet] owns the accessor-token gate and
 ## the already-exists short-circuit.
 func _mint_stat(stat_id: StringName) -> Stat:
 	var s: Stat = null
@@ -755,7 +755,7 @@ func read_dict(d: Dictionary) -> void:
 	sync_register_from_wire(intrinsic_modifiers, d)
 	begin_batch()
 	for key in d:
-		var s := _ensure_stat(StringName(key))
+		var s := ensure_facet(StringName(key))
 		if s == null:
 			continue
 		s.read_dict(d[key] as Dictionary, self)
@@ -876,9 +876,9 @@ func clone_live() -> StatBoard:
 		var src_stat: Stat = get_stat(id)
 		if src_stat == null:
 			continue
-		# _ensure_stat, not get_stat — a dynamically-minted source stat has no
+		# ensure_facet, not get_stat — a dynamically-minted source stat has no
 		# counterpart on `dst` at all yet (see above).
-		var dst_stat: Stat = dst._ensure_stat(id)
+		var dst_stat: Stat = dst.ensure_facet(id)
 		if dst_stat == null:
 			continue
 		# Copying a base onto a clone is not a cap change (#555) — the clone's
@@ -904,7 +904,7 @@ func clone_live() -> StatBoard:
 		dst_stat.bins.winning_set = src_stat.bins.winning_set
 		dst_stat.bins.board = dst
 		# Belt-and-braces, not load-bearing today: dst_stat is fresh out of
-		# _ensure_stat and its get_value() memo already starts dirty (Stat's
+		# ensure_facet and its get_value() memo already starts dirty (Stat's
 		# own default), so this never observably matters — set explicitly so a
 		# direct bins write is never the one place that can leave a stale memo
 		# warm (#470).
@@ -914,7 +914,7 @@ func clone_live() -> StatBoard:
 
 	# Second pass, and it must be second: bind_modifier resolves each formula
 	# input through dst.get_stat(id), which only answers once the loop above has
-	# _ensure_stat'd every dynamically-minted source. Localizing inline would
+	# ensure_facet'd every dynamically-minted source. Localizing inline would
 	# silently drop the binding of any modifier whose source stat had not been
 	# minted on dst yet — a push_warning at clone time, then a stat that never
 	# moves.

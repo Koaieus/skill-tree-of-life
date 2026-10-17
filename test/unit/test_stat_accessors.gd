@@ -305,7 +305,7 @@ func _extends_stat(entry: Dictionary) -> bool:
 
 func test_ensure_stat_rejects_a_decorated_token() -> void:
 	var sparse := StatBoard.new()
-	var s := sparse._ensure_stat(&"health__current")
+	var s := sparse.ensure_facet(&"health__current")
 	assert_null(s, "decorated token must not mint a phantom stat")
 	assert_push_warning("accessor token")
 

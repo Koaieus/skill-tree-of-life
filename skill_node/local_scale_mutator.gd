@@ -176,7 +176,7 @@ func _apply_leaf_set(state: NodeState, board: StatBoard, leaves: Array) -> void:
 	for leaf in leaves:
 		if state.board_ready and board == state.board:
 			state.board.bind_modifier(leaf)
-			state.board._ensure_stat(leaf.stat_id).add_modifier(leaf, state.board)
+			state.board.ensure_facet(leaf.stat_id).add_modifier(leaf, state.board)
 		else:
 			board.add_modifier(leaf)
 

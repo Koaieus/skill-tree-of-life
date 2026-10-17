@@ -202,11 +202,11 @@ func test_where_a_board_clone_spends_its_time() -> void:
 		var t := Time.get_ticks_usec()
 		var raw: NodeStatBoard = n.node_board.duplicate(true)
 		dup_times.append(Time.get_ticks_usec() - t)
-		# The mint half alone: what _ensure_stat costs on a board whose
+		# The mint half alone: what ensure_facet costs on a board whose
 		# `_extra_stats` came back empty from duplicate().
 		var t2 := Time.get_ticks_usec()
 		for id in n.node_board.get_stat_ids():
-			raw._ensure_stat(id)
+			raw.ensure_facet(id)
 		ensure_times.append(Time.get_ticks_usec() - t2)
 		var t3 := Time.get_ticks_usec()
 		var _live := n.node_board.clone_live()
@@ -218,7 +218,7 @@ func test_where_a_board_clone_spends_its_time() -> void:
 	gut.p("")
 	gut.p("per NODE board, median over %d owned nodes:" % nodes.size())
 	gut.p("  duplicate(true)          %7.1f us" % dup)
-	gut.p("  _ensure_stat re-mint     %7.1f us" % ens)
+	gut.p("  ensure_facet re-mint     %7.1f us" % ens)
 	gut.p("  clone_live (whole thing) %7.1f us" % full)
 	gut.p("  => bin-copy + base/current writes ~= %.1f us (%.0f%% of the clone)"
 		% [full - dup - ens, 100.0 * (full - dup - ens) / maxf(1.0, full)])

@@ -318,10 +318,10 @@ func _hp_pool() -> PoolStat:
 	# Materialised on first NEED, never on ownership: the deleted sync used to
 	# mint this pool as a side effect of its per-node push, and an unowned node
 	# must not pay for one across a 2500-node level (.claude/rules/skill-node-scale.md).
-	# `_ensure_stat` routes through [method NodeStatBoard._mint_stat], which is
+	# `ensure_facet` routes through [method NodeStatBoard._mint_stat], which is
 	# what makes this id a PoolStat on a node board and a ScalarStat baseline on
 	# an entity board.
-	var hp := (b._ensure_stat(&"node_health") if is_allocated() else b.get_stat(&"node_health")) as PoolStat
+	var hp := (b.ensure_facet(&"node_health") if is_allocated() else b.get_stat(&"node_health")) as PoolStat
 	if hp != null and hp.base_provider != _node_health_base:
 		hp.base_provider = _node_health_base
 	return hp
@@ -529,7 +529,7 @@ func add_local_modifier(m: StatModifier) -> bool:
 		return false
 	for leaf in m.flatten():
 		b.bind_modifier(leaf)
-		b._ensure_stat(leaf.stat_id).add_modifier(leaf, b)
+		b.ensure_facet(leaf.stat_id).add_modifier(leaf, b)
 	return true
 
 

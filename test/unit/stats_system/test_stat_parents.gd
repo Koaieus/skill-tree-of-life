@@ -44,8 +44,8 @@ func _pair(parent_base: float = 0.0, child_base: float = 10.0) -> StatBoard:
 	_def(P, parent_base)
 	_def(C, child_base, [P])
 	var b := StatBoard.new()
-	b._ensure_stat(P)
-	b._ensure_stat(C)
+	b.ensure_facet(P)
+	b.ensure_facet(C)
 	return b
 
 
@@ -66,8 +66,8 @@ func test_child_minted_before_parent_still_links() -> void:
 	_def(P, 0.0)
 	_def(C, 10.0, [P])
 	var b := StatBoard.new()
-	b._ensure_stat(C)
-	b._ensure_stat(P)
+	b.ensure_facet(C)
+	b.ensure_facet(P)
 	b.add_modifier(_mod(P, StatModifier.Operation.ADD_BASE, 5.0))
 	assert_almost_eq(float(b.get_value(C)), 15.0, 0.0001, "a descendant present before its parent links when the parent arrives")
 
@@ -79,7 +79,7 @@ func test_grandparent_reaches_grandchild_once() -> void:
 	_def(GC, 10.0, [P, P2])
 	var b := StatBoard.new()
 	for id in [GP, P, P2, GC]:
-		b._ensure_stat(id)
+		b.ensure_facet(id)
 	b.add_modifier(_mod(GP, StatModifier.Operation.ADD_BASE, 1.0))
 	assert_almost_eq(float(b.get_value(GC)), 11.0, 0.0001, "two paths, one ancestor: counted once")
 	assert_eq(StatRegistry.ancestors_of(GC), [P, P2, GP] as Array[StringName], "nearest-first, deduped")

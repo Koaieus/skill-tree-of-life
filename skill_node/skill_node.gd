@@ -1050,7 +1050,7 @@ func get_local_terms(stat_id: StringName, overlays: Array[ModifierBins] = []) ->
 ## retired this method's direct write into `node_board._extra_stats`.
 func _ensure_local_stat(stat_id: StringName) -> Stat:
 	_init_node_board()
-	return node_board._ensure_stat(stat_id)
+	return node_board.ensure_facet(stat_id)
 
 
 #region Modifier plumbing

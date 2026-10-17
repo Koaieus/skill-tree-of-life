@@ -234,7 +234,7 @@ func mint_facets() -> void:
 	if sparse:
 		return
 	for def in StatRegistry.facet_defs():
-		_ensure_stat(def.id)
+		ensure_facet(def.id)
 
 
 ## An entity board holds its stats as the typed fields above plus the concept

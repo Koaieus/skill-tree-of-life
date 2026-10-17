@@ -62,8 +62,8 @@ func test_sparse_board_stays_sparse() -> void:
 func test_non_facet_ids_still_refused() -> void:
 	for src in [_BOARD, _SPARSE]:
 		var board := _fresh(src as EntityStatBoard)
-		assert_null(board._ensure_stat(&"not_a_stat"), "unknown id refused")
-		assert_null(board._ensure_stat(&"stake_level"), "node-only id refused")
+		assert_null(board.ensure_facet(&"not_a_stat"), "unknown id refused")
+		assert_null(board.ensure_facet(&"stake_level"), "node-only id refused")
 	assert_push_warning_count(4, "each refusal warns")
 
 

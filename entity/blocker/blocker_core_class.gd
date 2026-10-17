@@ -49,7 +49,7 @@ func apply(entity: Entity) -> void:
 	for m in grants_for(size, int(entity.get_meta(FACE_SEED_META, 0))):
 		# A blocker board is sparse: it mints a facet only on demand, and
 		# `add_modifier` drops one aimed at a facet it lacks.
-		entity.stat_board._ensure_stat(m.stat_id)
+		entity.stat_board.ensure_facet(m.stat_id)
 		entity.grant_core_modifier(m)
 
 

@@ -133,7 +133,7 @@ static func accessor_of(token: StringName) -> StringName:
 
 ## True iff the token names a formula accessor, not a stat — i.e. it
 ## contains `__`. Used to gate registration paths that must reject decorated
-## tokens ([method StatBoard._ensure_stat], a modifier's `stat_id`): these
+## tokens ([method StatBoard.ensure_facet], a modifier's `stat_id`): these
 ## are formula-read tokens, NOT stats. No [StatDef], no [StatRegistry] entry.
 ## See #333 → Decision 7.
 static func is_accessor_token(token: StringName) -> bool:

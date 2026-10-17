@@ -86,8 +86,8 @@ func test_dynamic_stat_ids_reports_only_sparse_extras() -> void:
 	assert_eq(board.get_dynamic_stat_ids(), [] as Array[StringName],
 		"a fresh sparse board has no dynamic stats")
 
-	board._ensure_stat(&"armor")
-	board._ensure_stat(&"min_damage_taken")
+	board.ensure_facet(&"armor")
+	board.ensure_facet(&"min_damage_taken")
 
 	var ids := board.get_dynamic_stat_ids()
 	assert_eq(ids.size(), 2)
@@ -97,9 +97,9 @@ func test_dynamic_stat_ids_reports_only_sparse_extras() -> void:
 
 func test_dynamic_stat_ids_order_is_stable_across_calls() -> void:
 	var board := StatBoard.new()
-	board._ensure_stat(&"armor")
-	board._ensure_stat(&"min_damage_taken")
-	board._ensure_stat(&"node_healing")
+	board.ensure_facet(&"armor")
+	board.ensure_facet(&"min_damage_taken")
+	board.ensure_facet(&"node_healing")
 
 	var first := board.get_dynamic_stat_ids()
 	var second := board.get_dynamic_stat_ids()

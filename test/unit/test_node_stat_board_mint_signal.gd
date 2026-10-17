@@ -14,7 +14,7 @@ func test_minting_node_health_on_a_node_stat_board_fires_stat_created() -> void:
 	var seen: Array = []
 	board.stat_created.connect(func(id: StringName, s: Stat) -> void: seen.append([id, s]))
 
-	var minted := board._ensure_stat(&"node_health")
+	var minted := board.ensure_facet(&"node_health")
 
 	assert_eq(seen.size(), 1, "stat_created fires exactly once for the mint")
 	assert_eq(seen[0][0], &"node_health")
@@ -27,7 +27,7 @@ func test_minting_spikes_on_a_node_stat_board_fires_stat_created() -> void:
 	var seen: Array = []
 	board.stat_created.connect(func(id: StringName, s: Stat) -> void: seen.append([id, s]))
 
-	var minted := board._ensure_stat(&"spikes")
+	var minted := board.ensure_facet(&"spikes")
 
 	assert_eq(seen.size(), 1, "stat_created fires exactly once for the mint")
 	assert_eq(seen[0][0], &"spikes")
@@ -36,10 +36,10 @@ func test_minting_spikes_on_a_node_stat_board_fires_stat_created() -> void:
 
 func test_re_ensuring_an_already_minted_node_health_does_not_re_emit() -> void:
 	var board := NodeStatBoard.new()
-	board._ensure_stat(&"node_health")
+	board.ensure_facet(&"node_health")
 
 	var seen: Array = []
 	board.stat_created.connect(func(id: StringName, s: Stat) -> void: seen.append([id, s]))
-	board._ensure_stat(&"node_health")
+	board.ensure_facet(&"node_health")
 
 	assert_eq(seen.size(), 0, "an existing _extra_stats entry is never re-minted (#810)")
