@@ -591,7 +591,24 @@ the same encoding the obvious one.
 
 ## Explicitly out of scope
 
-- Fog-filtered state deltas and any `StatBoard` wire format.
+- Fog-filtered state deltas and any `StatBoard` wire format. Waits on
+  authoritative fog ([ADR 0015](../adr/0015-hidden-information-is-trusted-friends-until-a-competitive-release.md)).
+  The design is settled already, so reopening it starts from #519 (closed as
+  parked; owner calls 2026-08-24):
+  - **The wire unit is the modifier list** (`StatModifier.to_dict()` /
+    `StatModifierCodec`, as `GraphSnapshot` already sends residual modifiers),
+    never serialized `ModifierBins` and never totals. Every peer runs the one
+    `ModifierBins.compute`, and bin order follows command order.
+  - **No per-stat priority broadcast** (e.g. for `node_health`). One
+    entity-board delta already moves every bar that entity owns.
+  - **A reveal rides the command that caused it.** A confirmed command carries
+    a per-recipient reveal delta over `send_to` (ownership, node-local
+    modifiers, current HP). This is the whole piece of work, and it is a hub,
+    not one unit.
+  - Replication keys on *seen*, never *sensed* (a sensed node is a silhouette
+    with no state). Fog-out keeps the last known state. A hover tooltip
+    becomes a request/response query, filed as its own issue when reveal
+    deltas land.
 - Reconnect of a dropped seat: the host hands it to the AI (`SeatHandover`).
   Save/load and desync repair are the join image and the resync backstop above
   ([ADR 0042](../adr/0042-a-save-is-the-join-world-written-to-disk.md)).
