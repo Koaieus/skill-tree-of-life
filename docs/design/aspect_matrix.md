@@ -441,19 +441,15 @@ level. No defensive face. Looks are drafted from each row's arrow look.
 Owner: *"Dune — basically a lot of sand; no Skill-Spice here tho, just sand
 getting into your eyes"*. Toxin's shape: +1 `blindness_aspect` on the map, and
 on a blade a node-local `+1 blindness_stacks_per_hit` scaled by allocation
-level. No defensive face.
+level, +1 more at 3/3. No defensive face.
 
-- **3/3 unlock: the spill** (owner pick, replacing a flat +1). A Dune contact
-  also lands a little Blindness on the defender's nodes inside the struck
-  node's vision circle, measured before the swing (owner: *"the vision of the
-  defender before any hits/stacks are applied is then used as target
-  gathering"*). Why (owner): *"blindness is as effective as the effective
-  reduction in vision circles on the map. if 2 circles' centers sit close
-  together and one of them shrinks to 0, the total area granted might still be
-  close to 100% due to the overlap"*. The spill goes after the overlapping
-  circles that cover for the struck node. It stays subtle: *"it's still just
-  an addon not a spell"*. Measuring before the swing keeps it order-free
-  (§ The addon recipe, 2026-10-19).
+- **The puff** (owner: *"big puffy dune, 1 hop"*). Every Dune contact also
+  lands its full stacks on the struck node's 1-hop neighbours that the hit's
+  mask allows (hostile today), through the existing `SplashEffect` +
+  `HopRangeFinder`. No new code. Graph neighbours sit closest, so their vision
+  circles overlap the struck node's most: blinding one node is wasted while
+  its neighbours' overlapping circles still cover the same ground. It shares
+  the twist with Ashfall (Wither), knowingly.
 - **Look:** drafted from the row's arrow look. A grit-shedding rim puffing
   grey-lavender sand, never a light flare (that is Scout's).
 
@@ -1194,6 +1190,12 @@ this table's rows.
 - **Murk** (owner, 2026-10-19, *"keeping that one warm"*): an anti-lantern
   that hides owned nodes near the carrier from enemy sight, in the spirit of
   RA2's Gap Generator. It is a defensive face, so not Dune's.
+- **Blind the overlap** (owner, 2026-10-19), a Blindness spell candidate: a
+  hit also blinds the defender's nodes whose discs touch the struck node's
+  pre-swing vision circle, because *"blindness is as effective as the effective
+  reduction in vision circles on the map"*. Struck from Dune as too big for an
+  addon: *"maybe all this AoE ... spreading is actually best fit for a spell"*.
+  It is a third shape only if it closes a gap Dazzle and Throw Sand leave.
 - The Edgelord jab "Bleeding Edge" is renamed now that Bleeding is a row (#1449).
 
 Round 9 (2026-10-06) was the final design round; the table is now the cell swarm's basis.
