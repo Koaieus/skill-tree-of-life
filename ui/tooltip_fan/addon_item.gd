@@ -45,7 +45,8 @@ var _progress: float = 0.0
 
 
 ## Binds this item's title, modifier rows (one [ModSlabRow] per modifier,
-## empty array hides the block entirely), optional description, and optional
+## empty array hides the block entirely; a [method StatModifier.is_dormant]
+## one gets no row), optional description, and optional
 ## icon override (falls back to the built-in placeholder texture).
 ## [param node] is the addon's node, when in hand: each slab asks it
 ## [method SkillNode.is_local_volatile] for its stat; null = no context.
@@ -57,12 +58,16 @@ func bind(title: String, modifiers: Array[StatModifier], description: String = "
 	for child in _modifier_rows.get_children():
 		_modifier_rows.remove_child(child)
 		child.queue_free()
+	var shown := 0
 	for m in modifiers:
+		if m.is_dormant():
+			continue
+		shown += 1
 		var row := _MOD_SLAB_ROW_SCENE.instantiate()
 		_modifier_rows.add_child(row)
 		row.bind(m, node != null and node.is_local_volatile(m.stat_id))
 		row.set_progress(_progress)
-	_modifier_rows.visible = not modifiers.is_empty()
+	_modifier_rows.visible = shown > 0
 
 	_description_label.text = description
 	_description_label.visible = not description.is_empty()

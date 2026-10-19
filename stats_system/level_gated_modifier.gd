@@ -37,6 +37,17 @@ func _shown_value() -> float:
 	return value if is_nan(_authored) else _authored
 
 
+## Live on a carrier (the mutator has captured [member _authored]) and below
+## [member unlock_level]: the value sits at its neutral element.
+func is_dormant() -> bool:
+	return not is_nan(_authored) and value != _authored
+
+
+## Off a carrier it describes the gate ("+5 Armor at 3/X"); live and unlocked
+## it is just its value — the condition already holds, so naming it is noise.
 func format() -> String:
 	var parts := _display_parts()
-	return "%s at %d/X" % [_format_value(parts[0], parts[1], parts[2], _shown_value()), unlock_level]
+	var text := _format_value(parts[0], parts[1], parts[2], _shown_value())
+	if not is_nan(_authored) and not is_dormant():
+		return text
+	return "%s at %d/X" % [text, unlock_level]

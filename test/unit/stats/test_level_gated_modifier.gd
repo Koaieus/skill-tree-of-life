@@ -5,6 +5,7 @@ extends GutTest
 
 const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
+const _ADDON_ITEM_SCENE := preload("res://ui/tooltip_fan/addon_item.tscn")
 
 var _node: SkillNode
 
@@ -86,3 +87,37 @@ func test_scaled_copy_gates_the_same() -> void:
 func test_format_names_the_gate() -> void:
 	var m := _gated(StatModifier.Operation.ADD_BASE, 5.0, 4)
 	assert_string_contains(m.format(), "at 4/X")
+
+
+func test_live_gate_reads_dormant_below_and_plain_at_unlock() -> void:
+	await _fresh_node()
+	_node.allocation_level = 1
+	var m := _gated(StatModifier.Operation.ADD_BASE, 5.0, 3)
+	_node.add_local_modifier(m)
+	assert_true(m.is_dormant(), "live below the gate: contributes nothing")
+	_node.allocation_level = 3
+	assert_false(m.is_dormant(), "live at the gate: in effect")
+	assert_false(m.format().contains("/X"), "in effect on a node: no conditional clause")
+	assert_string_contains(m.format(), "5")
+
+
+func test_off_node_gate_is_never_dormant() -> void:
+	assert_false(_gated(StatModifier.Operation.ADD_BASE, 5.0, 3).is_dormant())
+
+
+func test_addon_item_hides_a_dormant_gated_row() -> void:
+	await _fresh_node()
+	_node.allocation_level = 1
+	var gated := _gated(StatModifier.Operation.ADD_BASE, 5.0, 3)
+	_node.add_local_modifier(gated)
+	var flat := StatModifier.new()
+	flat.stat_id = &"armor"
+	flat.value = 2.0
+	var item := _ADDON_ITEM_SCENE.instantiate()
+	add_child_autofree(item)
+	var mods: Array[StatModifier] = [flat, gated]
+	item.bind("Toxin", mods, "", null, _node)
+	assert_eq(item._modifier_rows.get_child_count(), 1, "the dormant gate gets no row")
+	_node.allocation_level = 3
+	item.bind("Toxin", mods, "", null, _node)
+	assert_eq(item._modifier_rows.get_child_count(), 2, "unlocked: the gate's row shows")

@@ -230,6 +230,13 @@ func _local_scale_override(_old_al: int, _new_al: int) -> Variant:
 	return null
 
 
+## Whether this modifier, live on a carrier, is held off by a condition it
+## does not meet yet — a readout listing what applies NOW skips it rather than
+## print a conditional clause. A plain modifier always applies.
+func is_dormant() -> bool:
+	return false
+
+
 ## Returns the modifier's effective value. When a formula is present, scales
 ## it by `value` so the same field serves both branches: bare-formula reads
 ## pass through (value=1), explicit coefficients show up as the modifier's
