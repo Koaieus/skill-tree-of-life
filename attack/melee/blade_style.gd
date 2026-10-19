@@ -258,8 +258,27 @@ func shrug_color() -> Color:
 ## toward the part's unlit [method base_for] by [member steel_tint], clamped to
 ## 1.0 so the body never blooms (only the in-shader specular does). Disabled,
 ## it desaturates and fades by the same knobs [method _lit] uses.
-func dome_color(_is_pivot: bool, _entity_color: Color, _disabled: bool) -> Color:
-	return Color(2.0, 2.0, 2.0)
+func dome_color(is_pivot: bool, entity_color: Color, disabled: bool) -> Color:
+	return _steel(steel_base.lerp(base_for(is_pivot, entity_color), steel_tint), disabled)
+
+
+## A forged strip's spine: the members' steel, darkened by [member strip_spine_dim].
+func strip_spine_color(entity_color: Color, disabled: bool) -> Color:
+	var c := dome_color(false, entity_color, disabled)
+	var dim := 1.0 - strip_spine_dim
+	return Color(c.r * dim, c.g * dim, c.b * dim, c.a)
+
+
+## The steel half of the lit/de-lit rule: the body is capped at SDR whatever
+## the inputs, and a disabled part bleeds the same saturation and alpha
+## [method _lit] takes off a lit one.
+func _steel(base: Color, disabled: bool) -> Color:
+	var c := Color(clampf(base.r, 0.0, 1.0), clampf(base.g, 0.0, 1.0),
+			clampf(base.b, 0.0, 1.0), clampf(base.a, 0.0, 1.0))
+	if disabled:
+		c.s *= 1.0 - disabled_desaturation
+		c.a *= disabled_alpha
+	return c
 
 func fill_color(is_pivot: bool, entity_color: Color, disabled: bool) -> Color:
 	var c := _lit(base_for(is_pivot, entity_color), fill_tier, disabled)

@@ -41,8 +41,14 @@ float sn_diffuse(vec3 p_normal, vec3 p_light_dir) {
 	return max(dot(p_normal, p_light_dir), 0.0);
 }
 
+// Specular with a caller-chosen exponent: higher is a harder, more metal-like
+// highlight (the blade's steel dome). sn_specular is SkillNode's fixed 24.
+float sn_specular_exp(float p_diffuse, float p_intensity, float p_exponent) {
+	return pow(p_diffuse, p_exponent) * p_intensity;
+}
+
 float sn_specular(float p_diffuse, float p_intensity) {
-	return pow(p_diffuse, 24.0) * p_intensity;
+	return sn_specular_exp(p_diffuse, p_intensity, 24.0);
 }
 
 // Hemisphere-dome surface normal at a normalized (-1..1) disk-space position.
