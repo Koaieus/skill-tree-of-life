@@ -69,6 +69,47 @@ func test_disabled_part_loses_saturation() -> void:
 			"HDR → SDR reads as grey, not merely dim")
 
 
+# ── Steel dome ───────────────────────────────────────────────────────────────
+
+func test_untinted_steel_ignores_the_wielder_and_the_pivot_flag() -> void:
+	var s := _style()
+	s.steel_tint = 0.0
+	for pivot in [false, true]:
+		for wielder in [Color.TRANSPARENT, Color(0.2, 0.5, 1.0), Color(0.9, 0.1, 0.1)]:
+			assert_true(s.dome_color(pivot, wielder, false).is_equal_approx(s.steel_base),
+					"at steel_tint 0 the dome is bare steel whoever wields it")
+
+
+func test_fully_tinted_steel_is_the_parts_own_base() -> void:
+	var s := _style()
+	s.steel_tint = 1.0
+	var wielder := Color(0.2, 0.5, 1.0)
+	for pivot in [false, true]:
+		assert_true(s.dome_color(pivot, wielder, false).is_equal_approx(s.base_for(pivot, wielder)),
+				"at steel_tint 1 the dome is the part's unlit base hue")
+
+
+func test_the_dome_body_never_blooms() -> void:
+	var s := _style()
+	s.steel_base = Color(1.6, 1.2, 0.9)
+	var wielder := Color(3.0, 0.5, 2.0)
+	s.entity_tint = 1.0
+	s.pivot_tint = 1.0
+	for i in range(11):
+		s.steel_tint = i / 10.0
+		for pivot in [false, true]:
+			var c := s.dome_color(pivot, wielder, false)
+			assert_lte(maxf(c.r, maxf(c.g, c.b)), 1.0,
+					"only the in-shader highlight may cross the bloom threshold, never the body (steel_tint %.1f)" % s.steel_tint)
+
+
+func test_a_disabled_dome_loses_saturation() -> void:
+	var s := _style()
+	var wielder := Color(0.9, 0.3, 0.25)
+	s.steel_tint = 0.8
+	assert_lt(s.dome_color(false, wielder, true).s, s.dome_color(false, wielder, false).s,
+			"a de-lit dome reads grey, exactly as the rim does")
+
 # ── The blade wires both through ─────────────────────────────────────────────
 
 func test_blade_takes_its_tint_from_the_wielder() -> void:

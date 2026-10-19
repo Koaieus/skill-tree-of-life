@@ -167,6 +167,65 @@ extends Resource
 		emit_changed()
 
 
+## ── Steel dome + forged strip (#1692) ──────────────────────────────────────
+## The metal's own colour: a blade node's body is a shaded steel dome
+## ([BladeDome]) and each live edge a forged strip ([BladeEdge]). SDR on
+## purpose — the body reads as metal, and only the dome's specular hot spot
+## reaches the bloom threshold.
+@export var steel_base: Color = Color(0.55, 0.58, 0.62):
+	set(value):
+		steel_base = value
+		emit_changed()
+## How much of the unlit [method base_for] (entity / pivot tint) bleeds into
+## the steel. 0 = bare steel, 1 = the part's own base hue.
+@export_range(0.0, 1.0) var steel_tint: float = 0.35:
+	set(value):
+		steel_tint = value
+		emit_changed()
+## Peak of the dome's specular streak.
+@export_range(0.0, 2.0, 0.01) var dome_highlight_intensity: float = 0.9:
+	set(value):
+		dome_highlight_intensity = value
+		emit_changed()
+## Specular exponent of the dome. SkillNode's dome uses 24; higher is a harder,
+## more metal-like highlight.
+@export_range(4.0, 256.0, 1.0) var dome_highlight_sharpness: float = 64.0:
+	set(value):
+		dome_highlight_sharpness = value
+		emit_changed()
+## Anisotropy stretching the highlight into a streak along
+## [member dome_streak_angle_deg]. 1 = a round pinprick.
+@export_range(1.0, 6.0, 0.05) var dome_streak_stretch: float = 2.5:
+	set(value):
+		dome_streak_stretch = value
+		emit_changed()
+## Screen-space axis of the streak, in degrees.
+@export_range(-90.0, 90.0, 0.5) var dome_streak_angle_deg: float = 45.0:
+	set(value):
+		dome_streak_angle_deg = value
+		emit_changed()
+## The faked light's xy over the dome (z is the shared SN_LIGHT_Z) —
+## SkillNode's own [member InnerDisk.highlight_position] default, for kinship.
+@export var dome_light_dir: Vector2 = Vector2(-0.35, -0.35):
+	set(value):
+		dome_light_dir = value
+		emit_changed()
+## Full width (px) of a forged strip mid-segment.
+@export_range(1.0, 24.0, 0.5) var strip_width: float = 6.0:
+	set(value):
+		strip_width = value
+		emit_changed()
+## A strip's width where it meets a dome, as a fraction of [member strip_width].
+@export_range(0.0, 1.0, 0.01) var strip_taper: float = 0.5:
+	set(value):
+		strip_taper = value
+		emit_changed()
+## How much darker than the steel a strip's spine is. 0 = the dome's steel.
+@export_range(0.0, 1.0, 0.01) var strip_spine_dim: float = 0.45:
+	set(value):
+		strip_spine_dim = value
+		emit_changed()
+
 ## The blade's base hue for one part, identity tint applied. `entity_color` is
 ## the wielder's colour; pass [constant Color.TRANSPARENT] for an ownerless
 ## blade (test fixtures) and the authored base comes back untouched.
@@ -194,6 +253,13 @@ func shrug_color() -> Color:
 	var base := identity.tint if identity != null else Color.WHITE
 	return Emissive.tint(base, Emissive.stops(shrug_tier))
 
+
+## The steel dome's SDR body colour for one part: [member steel_base] pulled
+## toward the part's unlit [method base_for] by [member steel_tint], clamped to
+## 1.0 so the body never blooms (only the in-shader specular does). Disabled,
+## it desaturates and fades by the same knobs [method _lit] uses.
+func dome_color(_is_pivot: bool, _entity_color: Color, _disabled: bool) -> Color:
+	return Color(2.0, 2.0, 2.0)
 
 func fill_color(is_pivot: bool, entity_color: Color, disabled: bool) -> Color:
 	var c := _lit(base_for(is_pivot, entity_color), fill_tier, disabled)
