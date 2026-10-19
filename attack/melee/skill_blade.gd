@@ -29,6 +29,8 @@ const _FORM_DIM: float = 0.45
 const _FORM_SCALE: float = 0.4
 ## Scale an addon stamp punches to.
 const _STAMP_SCALE: float = 1.22
+## [member _glint_extent] with no sweep running.
+const _GLINT_UNSET := Vector2(INF, -INF)
 ## How much harder the pivot pulls the blade's centre of interest than any
 ## other vertex (#930) — the camera's rubber band leans toward the arc but
 ## never lets go of the hinge. Presentation, not sim: [BladeTrajectory] stores
@@ -115,10 +117,16 @@ var _form_tween: Tween
 ## vertex's stagger delay; a build, [method form_instantly] and
 ## [method _finish_form] fill it whole. Keys are indices, values unused.
 var _placed: Dictionary = {}
-## The wind-up's BLING sweep, 0 → 1: the band's offset along
-## [method BladeStyle.glint_dir] (see [method glint_band]).
+## The wind-up's BLING sweep, 0 → 1 (see [method glint_band]). Each write
+## pushes the band down to every vertex and edge; the first write after a
+## clear snapshots the blade's extent along the band, so the sweep spans the
+## blade as it stands when the beat starts. [method _finish_form] clears it.
 var glint_progress: float = 0.0:
 	set = _set_glint_progress
+## The blade's extent along [method BladeStyle.glint_dir] for the running
+## sweep — min/max over vertices of `dot(position, n) ∓ radius` — or
+## [constant _GLINT_UNSET] between sweeps.
+var _glint_extent: Vector2 = _GLINT_UNSET
 ## The blade's centre of interest, authored in the scene (#930): a composite
 ## whose origin is not its point of interest exposes one of these and keeps
 ## its `global_position` current itself — the camera follows the node.
@@ -262,8 +270,8 @@ func play(
 		playback_finished.emit()
 		return
 	# The wind-up hands the blade over here fully formed; anything still in
-	# flight (a flare relaxing back down) would keep writing `modulate` under
-	# the swing. Settle it rather than race it.
+	# flight (a glow ramp, a glint mid-sweep) would keep writing under the
+	# swing. Settle it rather than race it.
 	_finish_form()
 	modulate = Color(1.0, 1.0, 1.0, 0.35) if ghostly else Color.WHITE
 	# A fresh play() is a fresh clock: drop anything the LAST swing's pool
@@ -575,33 +583,34 @@ func stop() -> void:
 ## [codeblock]
 ## (pivot focus, the camera's beat) -> vertices form in, staggered by hop
 ## distance from the pivot -> addon stamps land on the vertices that carry one
-## -> the whole blade ramps up in glow -> a flare marks the replay start
+## -> the whole blade ramps up in glow -> one diagonal glint (the BLING)
+## sweeps the whole blade, marking the replay start
 ## [/codeblock]
 ##
 ## [b]Vertices spawn under-lit, not translucent.[/b] Alpha is the fade channel
 ## and colour VALUE is the dimmer (`.claude/rules/hdr-color.md`), so the
 ## appear-in rides `modulate:a` + `scale` while the glow ramp rides the rgb
 ## channels back up to 1.0 — the authored [BladeStyle] tiers are never
-## re-picked, they are only dimmed and restored. The flare is a momentary
-## overshoot to [constant Emissive.PEAK] on the blade's own `modulate`, which
-## is precisely what that tier is reserved for.
+## re-picked, they are only dimmed and restored. The BLING never touches
+## `modulate`: it tweens [member glint_progress], whose band lights each
+## dome's specular and the strips' bevels at [member BladeStyle.glint_tier].
 ##
 ## [param lead] delays the whole sequence, covering the camera's pivot beat.
 ## [param stamp_time] is spent only when some vertex actually carries an addon.
 ## Every duration is authored on [PresentationTempo]; passing 0.0 for all five
 ## reproduces pre-#559 behaviour exactly (the blade is simply there).
 func form_in(lead: float, stagger_span: float, stamp_time: float,
-		glow_ramp: float, flare_time: float) -> float:
+		glow_ramp: float, bling_time: float) -> float:
 	_finish_form()
 	if _node_visuals.is_empty():
 		return 0.0
 	lead = maxf(0.0, lead)
 	stagger_span = maxf(0.0, stagger_span)
 	glow_ramp = maxf(0.0, glow_ramp)
-	flare_time = maxf(0.0, flare_time)
+	bling_time = maxf(0.0, bling_time)
 	var stamped := _stamped_vertices()
 	var stamp := maxf(0.0, stamp_time) if not stamped.is_empty() else 0.0
-	var total := lead + stagger_span + stamp + glow_ramp + flare_time
+	var total := lead + stagger_span + stamp + glow_ramp + bling_time
 	if total <= 0.0:
 		form_instantly()
 		return 0.0
@@ -661,22 +670,66 @@ func form_in(lead: float, stagger_span: float, stamp_time: float,
 		for channel in ["modulate:r", "modulate:g", "modulate:b"]:
 			tween.tween_property(be, channel, 1.0, glow_ramp).set_delay(glow_at)
 
-	if flare_time > 0.0:
-		var flare := Emissive.at(Color.WHITE, Emissive.PEAK)
-		flare.a = modulate.a
-		tween.tween_property(self, "modulate", flare, flare_time * 0.35) \
+	if bling_time > 0.0:
+		# The setter snapshots the extent on its first write, i.e. as the beat
+		# starts; the closing callback takes the band off.
+		tween.tween_property(self, "glint_progress", 1.0, bling_time).from(0.0) \
 				.set_delay(glow_at + glow_ramp)
-		tween.tween_property(self, "modulate", Color.WHITE, flare_time * 0.65) \
-				.set_delay(glow_at + glow_ramp + flare_time * 0.35)
+		tween.tween_callback(_clear_glint).set_delay(glow_at + glow_ramp + bling_time)
 	return total
 
 
 func _set_glint_progress(value: float) -> void:
 	glint_progress = value
+	if _node_visuals.is_empty():
+		return
+	var s := _style_or_default()
+	var n := s.glint_dir()
+	if _glint_extent == _GLINT_UNSET:
+		_glint_extent = _glint_extent_along(n)
+	var band := glint_band(value)
+	for bn in _node_visuals:
+		bn.set_glint((band.x - bn.global_position.dot(n)) / band.y, n)
+	for be in _edge_visuals:
+		be.set_glint(n, band.x, band.y)
 
 
-func glint_band(_progress: float) -> Vector2:
-	return Vector2.ZERO
+## The BLING band at [param progress] ∈ [0, 1]: `(s, width)`, where `s` is the
+## band centre's offset along [method BladeStyle.glint_dir]. It sweeps from
+## one width before the blade's extent to one width past it, so the band is
+## wholly off the blade at both ends. Pure, given the extent the running sweep
+## snapshotted (the live one when no sweep is running).
+func glint_band(progress: float) -> Vector2:
+	var s := _style_or_default()
+	var width := maxf(s.glint_width, 0.001)
+	var extent := _glint_extent
+	if extent == _GLINT_UNSET:
+		extent = _glint_extent_along(s.glint_dir())
+	return Vector2(lerpf(extent.x - width, extent.y + width, progress), width)
+
+
+func _glint_extent_along(n: Vector2) -> Vector2:
+	var lo := INF
+	var hi := -INF
+	for bn in _node_visuals:
+		var d := bn.global_position.dot(n)
+		lo = minf(lo, d - bn.radius)
+		hi = maxf(hi, d + bn.radius)
+	return Vector2(lo, hi)
+
+
+## Takes the band off every visual and forgets the sweep's extent.
+func _clear_glint() -> void:
+	glint_progress = 0.0
+	_glint_extent = _GLINT_UNSET
+	for bn in _node_visuals:
+		bn.set_glint(BladeNode.GLINT_OFF, Vector2.RIGHT)
+	for be in _edge_visuals:
+		be.clear_glint()
+
+
+func _style_or_default() -> BladeStyle:
+	return style if style != null else BladeNode.DEFAULT_STYLE
 
 
 ## The zero-length wind-up: every beat authored (or gated) to 0, so the blade
@@ -703,6 +756,7 @@ func _finish_form() -> void:
 	modulate.r = 1.0
 	modulate.g = 1.0
 	modulate.b = 1.0
+	_clear_glint()
 	_mark_all_placed()
 
 

@@ -20,6 +20,10 @@ var _radius: float = 24.0
 var _is_pivot: bool = false
 var _style: BladeStyle = null
 var _tint: Color = Color.TRANSPARENT
+## The glint band at this dome's centre, in band widths ([member BladeNode.glint]),
+## and its screen-space direction.
+var _glint_offset: float = BladeNode.GLINT_OFF
+var _glint_dir: Vector2 = Vector2.RIGHT
 
 
 func _ready() -> void:
@@ -41,6 +45,15 @@ func configure(r: float, pivot: bool, style: BladeStyle, tint: Color, dead: bool
 	_sync_material()
 
 
+## The BLING band as it crosses this dome: [param offset] is how far its centre
+## has passed the dome's centre, in band widths; [param dir] its screen-space
+## direction. Cheap enough to call every frame of the sweep.
+func set_glint(offset: float, dir: Vector2) -> void:
+	_glint_offset = offset
+	_glint_dir = dir
+	_push_glint()
+
+
 func _sync_material() -> void:
 	if not is_node_ready() or _style == null or not is_visible_in_tree():
 		return
@@ -52,7 +65,21 @@ func _sync_material() -> void:
 	set_instance_shader_parameter(&"streak_stretch", _style.dome_streak_stretch)
 	set_instance_shader_parameter(&"streak_angle", deg_to_rad(_style.dome_streak_angle_deg))
 	set_instance_shader_parameter(&"light_dir", _style.dome_light_dir)
+	set_instance_shader_parameter(&"glint_color", _style.glint_color())
+	_push_glint()
 	queue_redraw()
+
+
+## `glint_dir` reaches the shader in dome-local unit-disc coordinates, scaled
+## by radius / band width, so `glint_offset - dot(p, glint_dir)` is the band
+## coordinate (in widths) at disc point `p` whatever the dome's rotation.
+func _push_glint() -> void:
+	if not is_node_ready() or _style == null or not is_visible_in_tree():
+		return
+	var local_dir := global_transform.affine_inverse().basis_xform(_glint_dir).normalized()
+	set_instance_shader_parameter(&"glint_offset", _glint_offset)
+	set_instance_shader_parameter(&"glint_dir",
+			local_dir * (_radius / maxf(_style.glint_width, 0.001)))
 
 
 func _draw() -> void:

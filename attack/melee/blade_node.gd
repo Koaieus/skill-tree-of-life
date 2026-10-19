@@ -144,6 +144,14 @@ func _reconfigure() -> void:
 			radius, inner_radius, charges, spend_progress, s, death_progress > 0.0)
 
 
+## [SkillBlade]'s glint push: this vertex's [member glint] and the band's
+## screen-space direction [param dir], forwarded to the dome's shader.
+func set_glint(value: float, dir: Vector2) -> void:
+	glint = value
+	if is_node_ready():
+		_dome.set_glint(value, dir)
+
+
 ## Light this vertex for [param source]'s camp: instances [member lantern_scene]
 ## once and keeps it (a second call only re-points its source). The radius is
 ## [param radius] when positive, else the scene's own default.

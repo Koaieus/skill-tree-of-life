@@ -73,6 +73,9 @@ const _KNOBS: Array[Array] = [
 	["strip_width", "Strip width", 1.0, 24.0, 0.5],
 	["strip_taper", "Strip taper", 0.0, 1.0, 0.01],
 	["strip_spine_dim", "Strip spine dim", 0.0, 1.0, 0.01],
+	["glint_angle_deg", "Glint angle", -90.0, 90.0, 0.5],
+	["glint_width", "Glint width (px)", 4.0, 128.0, 1.0],
+	["glint_tier", "Glint tier (0 inert…4 peak)", 0.0, 4.0, 1.0],
 ]
 
 @onready var _world: SubViewport = %World
@@ -555,8 +558,10 @@ func _make_knob(spec: Array) -> Control:
 	value.custom_minimum_size = Vector2(46.0, 0.0)
 	value.add_theme_font_size_override(&"font_size", 11)
 	value.text = "%.2f" % float(slider.value)
+	# An int property (an `Emissive.Tier` enum row) takes the slider's value whole.
+	var is_int := typeof(_style.get(spec[0])) == TYPE_INT
 	slider.value_changed.connect(func(v: float) -> void:
-		_style.set(spec[0], v)
+		_style.set(spec[0], int(v) if is_int else v)
 		value.text = "%.2f" % v)
 	row.add_child(label)
 	row.add_child(slider)

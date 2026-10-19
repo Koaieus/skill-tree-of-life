@@ -21,6 +21,14 @@ instance uniform float highlight_sharpness : hint_range(4.0, 256.0) = 64.0;
 instance uniform float streak_stretch : hint_range(1.0, 6.0) = 2.5;
 instance uniform float streak_angle = 0.7853982;
 instance uniform vec2 light_dir = vec2(-0.35, -0.35);
+// The wind-up's BLING band (SkillBlade owns it): its centre's offset past this
+// dome's centre in band widths, and its direction in dome-local unit-disc
+// coordinates already scaled by radius / width — so the band coordinate at
+// disc point p is glint_offset - dot(p, glint_dir), lit within |1|. Parked
+// far off (-1e4) when no sweep runs. glint_color is HDR (BladeStyle.glint_tier).
+instance uniform float glint_offset = -10000.0;
+instance uniform vec2 glint_dir = vec2(1.0, 0.0);
+instance uniform vec4 glint_color : source_color = vec4(1.0);
 
 
 // The position the SPECULAR normal is read at: squashed along the streak axis
@@ -44,5 +52,8 @@ void fragment() {
 	vec3 body = base_color.rgb * (0.35 + 0.65 * diffuse);
 	float r2 = dot(p, p);
 	float edge_alpha = 1.0 - smoothstep(0.96, 1.0, r2);
-	COLOR = vec4((body + vec3(spec)) * COLOR.rgb, COLOR.a * base_color.a * edge_alpha);
+	// The glint rides the lit side harder, so it reads as light on steel.
+	float band = 1.0 - smoothstep(0.0, 1.0, abs(glint_offset - dot(p, glint_dir)));
+	vec3 glint = glint_color.rgb * band * (0.3 + 0.7 * diffuse);
+	COLOR = vec4((body + vec3(spec) + glint) * COLOR.rgb, COLOR.a * base_color.a * edge_alpha);
 }

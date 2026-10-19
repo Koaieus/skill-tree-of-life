@@ -44,6 +44,27 @@ signal endpoints_changed
 		queue_redraw()
 
 
+## The BLING band ([SkillBlade] pushes it): screen-space direction, centre
+## offset along it and half-thickness, all in global px. Off between sweeps.
+var _glint_on: bool = false
+var _glint_dir: Vector2 = Vector2.RIGHT
+var _glint_offset: float = 0.0
+var _glint_width: float = 1.0
+
+
+func set_glint(dir: Vector2, offset: float, width: float) -> void:
+	_glint_on = true
+	_glint_dir = dir
+	_glint_offset = offset
+	_glint_width = width
+	queue_redraw()
+
+
+func clear_glint() -> void:
+	_glint_on = false
+	queue_redraw()
+
+
 func _process(_delta: float) -> void:
 	queue_redraw()
 
@@ -108,6 +129,40 @@ func _draw_strip(a: Vector2, b: Vector2, s: BladeStyle) -> void:
 	var bevel := s.edge_color(tint, false)
 	draw_polyline(side_l, bevel, s.edge_width, true)
 	draw_polyline(side_r, bevel, s.edge_width, true)
+	if _glint_on:
+		_draw_glint(a, b, n, half, half_end, s)
+
+
+## Over-strokes the two bevel lines where the BLING band covers this segment:
+## the band's span along its direction, clipped to the segment's own
+## projection (in global px), redrawn on the same tapered sides.
+func _draw_glint(a: Vector2, b: Vector2, n: Vector2, half: float, half_end: float,
+		s: BladeStyle) -> void:
+	var pa := to_global(a).dot(_glint_dir)
+	var pb := to_global(b).dot(_glint_dir)
+	var t0 := 0.0
+	var t1 := 1.0
+	if absf(pb - pa) < 0.001:
+		if absf(_glint_offset - pa) > _glint_width:
+			return
+	else:
+		var u := (_glint_offset - _glint_width - pa) / (pb - pa)
+		var v := (_glint_offset + _glint_width - pa) / (pb - pa)
+		t0 = clampf(minf(u, v), 0.0, 1.0)
+		t1 = clampf(maxf(u, v), 0.0, 1.0)
+	if t1 - t0 <= 0.0:
+		return
+	var ts := PackedFloat32Array([t0])
+	if t0 < 0.5 and t1 > 0.5:
+		ts.append(0.5)
+	ts.append(t1)
+	var color := s.glint_color()
+	for side in [1.0, -1.0]:
+		var pts := PackedVector2Array()
+		for t in ts:
+			var h := lerpf(half_end, half, 1.0 - absf(2.0 * t - 1.0))
+			pts.append(a.lerp(b, t) + n * h * side)
+		draw_polyline(pts, color, s.edge_width, true)
 
 
 ## "The line erodes from B's end toward its surviving endpoint with a bright
