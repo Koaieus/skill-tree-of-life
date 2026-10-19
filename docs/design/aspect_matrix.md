@@ -1195,7 +1195,11 @@ this table's rows.
   pre-swing vision circle, because *"blindness is as effective as the effective
   reduction in vision circles on the map"*. Struck from Dune as too big for an
   addon: *"maybe all this AoE ... spreading is actually best fit for a spell"*.
-  It is a third shape only if it closes a gap Dazzle and Throw Sand leave.
+  Home candidate: **Dazzle** (owner, 2026-10-19): *"Dazzle could also take
+  this enemy-vision-range based AoE stack splash, becoming a real flashbang.
+  becoming a really strong play against players who stacked vision range"*.
+  Dazzle already climbs the vision gradient (#1491), so the splash lands where
+  vision is stacked. Needs the distance-gather speed-up (filed 2026-10-19).
 - The Edgelord jab "Bleeding Edge" is renamed now that Bleeding is a row (#1449).
 
 Round 9 (2026-10-06) was the final design round; the table is now the cell swarm's basis.
