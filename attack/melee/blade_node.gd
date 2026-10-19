@@ -107,6 +107,8 @@ const DEFAULT_STYLE: BladeStyle = preload("res://attack/melee/default_blade_styl
 @export var lantern_scene: PackedScene = null
 
 @onready var _visual: Node2D = $Visuals/BladeCircle
+## The steel body under the rim; drawn before [member _visual] in the scene.
+@onready var _dome: BladeDome = $Visuals/Dome
 
 ## The one marker this vertex carries once lit, a child at local zero — so it
 ## sits on the drawn vertex whatever playback writes to [member global_position],
@@ -124,13 +126,13 @@ func _ready() -> void:
 func _reconfigure() -> void:
 	if not is_node_ready():
 		return
+	var s := style if style != null else DEFAULT_STYLE
+	_dome.configure(inner_radius, is_pivot, s, tint, death_progress > 0.0)
 	_visual.configure(
-			radius, inner_radius, is_pivot,
-			style if style != null else DEFAULT_STYLE, tint, death_progress,
+			radius, inner_radius, is_pivot, s, tint, death_progress,
 			shrug_progress)
 	_charge_band.configure(
-			radius, inner_radius, charges, spend_progress,
-			style if style != null else DEFAULT_STYLE, death_progress > 0.0)
+			radius, inner_radius, charges, spend_progress, s, death_progress > 0.0)
 
 
 ## Light this vertex for [param source]'s camp: instances [member lantern_scene]

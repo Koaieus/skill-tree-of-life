@@ -1,7 +1,8 @@
 @tool
 extends Node2D
 
-## The disc + rim of one [BladeNode]. Holds no colour policy of its own — every
+## The rim band + shrug sheen of one [BladeNode]; the body under it is the
+## sibling [BladeDome]. Holds no colour policy of its own — every
 ## hue, tier and width comes from the [BladeStyle] it is configured with, so the
 ## blade's look is tunable from one resource (#256).
 
@@ -41,7 +42,6 @@ func configure(
 func _draw() -> void:
 	if _style == null or _death_progress > 0.0:
 		return
-	draw_circle(Vector2.ZERO, _inner_radius, _style.fill_color(_is_pivot, _tint, false), true)
 	# Rim band runs inner_radius → radius; stroke it as a ring centred in the
 	# band so its outer edge lands exactly on radius (matching SkillNode).
 	if _inner_radius >= _radius:

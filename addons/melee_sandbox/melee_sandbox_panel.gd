@@ -65,6 +65,14 @@ const _KNOBS: Array[Array] = [
 	["shrug_window", "Shrug window (s)", 0.05, 2.0, 0.01],
 	["piece_blast_window", "Blast ring window (s)", 0.05, 2.0, 0.01],
 	["piece_blast_width", "Blast ring width", 0.5, 12.0, 0.5],
+	["steel_tint", "Steel tint", 0.0, 1.0, 0.01],
+	["dome_highlight_intensity", "Dome highlight", 0.0, 2.0, 0.01],
+	["dome_highlight_sharpness", "Dome sharpness", 4.0, 256.0, 1.0],
+	["dome_streak_stretch", "Dome streak stretch", 1.0, 6.0, 0.05],
+	["dome_streak_angle_deg", "Dome streak angle", -90.0, 90.0, 0.5],
+	["strip_width", "Strip width", 1.0, 24.0, 0.5],
+	["strip_taper", "Strip taper", 0.0, 1.0, 0.01],
+	["strip_spine_dim", "Strip spine dim", 0.0, 1.0, 0.01],
 ]
 
 @onready var _world: SubViewport = %World

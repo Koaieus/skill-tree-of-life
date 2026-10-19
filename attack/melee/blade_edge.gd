@@ -2,7 +2,7 @@
 class_name BladeEdge
 extends Node2D
 
-## Pure visual — draws a line between two BladeNodes, trimmed to each rim.
+## Pure visual — draws a forged strip between two BladeNodes, trimmed to each rim.
 ## No collision; hit detection is handled by BladeHitScan against the
 ## simulated trajectory, not by Godot overlap.
 
@@ -86,9 +86,28 @@ func _draw() -> void:
 	if p >= 1.0:
 		return  # fully burned away
 	if p <= 0.0:
-		draw_line(a, b, s.edge_color(tint, false), s.edge_width, true)
+		_draw_strip(a, b, s)
 		return
 	_draw_fuse_burn(a, b, p, s)
+
+
+## A live edge as a forged strip: a dark metal spine tapering into each dome,
+## with a bright bevel line along BOTH sides. Built from its own two endpoints
+## only, so any sim deformation of the blade draws correctly.
+func _draw_strip(a: Vector2, b: Vector2, s: BladeStyle) -> void:
+	var n := (b - a).normalized().orthogonal()
+	var mid := (a + b) * 0.5
+	var half := s.strip_width * 0.5
+	var half_end := half * s.strip_taper
+	var side_l := PackedVector2Array([a + n * half_end, mid + n * half, b + n * half_end])
+	var side_r := PackedVector2Array([a - n * half_end, mid - n * half, b - n * half_end])
+	var spine := side_l.duplicate()
+	for i in range(side_r.size() - 1, -1, -1):
+		spine.append(side_r[i])
+	draw_colored_polygon(spine, s.strip_spine_color(tint, false))
+	var bevel := s.edge_color(tint, false)
+	draw_polyline(side_l, bevel, s.edge_width, true)
+	draw_polyline(side_r, bevel, s.edge_width, true)
 
 
 ## "The line erodes from B's end toward its surviving endpoint with a bright
