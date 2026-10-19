@@ -26,6 +26,7 @@ const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _BOARD := preload("res://entity/default_entity_board.tres")
 const _SPIKE_RING_ADDON := preload("res://skill_node/addons/defs/spike_ring_addon.tscn")
 const _BUNKER_ADDON := preload("res://skill_node/addons/defs/bunker_addon.tscn")
+const _WATCHTOWER_ADDON := preload("res://skill_node/addons/defs/watchtower_addon.tscn")
 
 const _MORE_INFO_ACTION := &"ui_more_info"
 
@@ -265,6 +266,37 @@ func test_damage_on_the_hovered_node_rebinds_without_remounting() -> void:
 	await get_tree().process_frame
 	assert_eq(_fan._current_fan, fan_before,
 		"an HP update re-reads the node into the open panels; it does not re-fan")
+
+
+func test_staking_the_hovered_node_across_a_gate_rebinds_the_addon_rows() -> void:
+	# Watchtower carries a LevelGatedModifier (unlock 3): dormant at 1/X, so
+	# its row is absent; crossing the gate while the pointer stays put must
+	# surface it without a re-hover.
+	_node.stake_level = 3  # the cap: the pool clamps fill to it
+	_node.allocation_level = 1
+	_node.add_child(_WATCHTOWER_ADDON.instantiate())
+	Events.skill_node_hovered.emit(_node)
+	await get_tree().process_frame
+	var before := _addon_mod_row_count()
+	_node.allocation_level = 3
+	assert_eq(_addon_mod_row_count(), before + 1,
+		"the unlocked gate's row appears while the tooltip is open")
+	_node.allocation_level = 1
+	assert_eq(_addon_mod_row_count(), before,
+		"and drops again when the level falls back below the gate")
+
+
+func test_unhovering_drops_the_stake_subscription() -> void:
+	Events.skill_node_hovered.emit(_node)
+	await get_tree().process_frame
+	Events.skill_node_unhovered.emit()
+	assert_false(_node.allocation_level_changed.is_connected(_fan._on_stake_changed),
+		"the stake watch must be released on unhover")
+
+
+func _addon_mod_row_count() -> int:
+	var item := _fan._current_fan.find_children("*", "AddonItem", true, false)[0] as AddonItem
+	return item._modifier_rows.get_child_count()
 
 
 func test_unhovering_drops_the_live_subscriptions() -> void:

@@ -307,15 +307,18 @@ func _on_unhovered() -> void:
 
 ## Subscribes to everything that can change what the mounted fan should show
 ## while the pointer stays put — the three bindings V1's `skill_node_tooltip.gd`
-## carried, re-homed onto a fan that can now respond per panel:
+## carried, re-homed onto a fan that can now respond per panel, plus the stake:
 ##
 ## - `owner_changed`: allocation/deallocation. Flips Owner (and Core) between
 ##   eligible and not, and re-points the core-health watch.
 ## - `damaged`: node HP as hits land.
 ## - the owner's `health` pool: core HP as the death clock drains.
+## - `allocation_level_changed`: staking across a [LevelGatedModifier]'s gate
+##   adds or drops its addon row.
 func _watch_node(node: SkillNode) -> void:
 	node.owner_changed.connect(_on_owner_changed)
 	node.damaged.connect(_on_node_damaged)
+	node.allocation_level_changed.connect(_on_stake_changed)
 	_watch_core_health(node)
 
 
@@ -347,6 +350,8 @@ func _unwatch_node() -> void:
 			_hovered_node.owner_changed.disconnect(_on_owner_changed)
 		if _hovered_node.damaged.is_connected(_on_node_damaged):
 			_hovered_node.damaged.disconnect(_on_node_damaged)
+		if _hovered_node.allocation_level_changed.is_connected(_on_stake_changed):
+			_hovered_node.allocation_level_changed.disconnect(_on_stake_changed)
 	_unwatch_core_health()
 
 
@@ -364,6 +369,10 @@ func _on_owner_changed() -> void:
 
 
 func _on_node_damaged(_amount: float, _source: HitInstance) -> void:
+	_refresh_content()
+
+
+func _on_stake_changed() -> void:
 	_refresh_content()
 
 

@@ -70,6 +70,11 @@ signal depleted
 ## shape (see [method notify_damaged]) rather than a poll. `_sync_status_tint`
 ## is the sole subscriber today; #876's readout row gets the same trigger.
 signal statuses_changed
+## Emitted after every allocation_level change, once the local-scale mutator
+## has retuned this node's modifiers — a listener re-reads level-dependent
+## state (a [LevelGatedModifier]'s dormancy) already current. Rides the stake
+## pool's edge, so a board-less node (never written) never emits.
+signal allocation_level_changed
 
 ## The node's authoritative, SILENT state — every field below that reads or
 ## writes it is a forwarder whose setter keeps the node's emits and visual
@@ -1755,6 +1760,7 @@ func _on_stake_level_changed(new_current: Variant) -> void:
 	var old_al := _last_allocation_level
 	_last_allocation_level = new_al
 	_mutator.apply(state, old_al, new_al, get_node_effects(), self)
+	allocation_level_changed.emit()
 
 
 ## The local-scale law lives in [LocalScaleMutator] (#376, docs/adr/0004);
