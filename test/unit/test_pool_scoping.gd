@@ -116,6 +116,37 @@ func _reachable_stat_ids(primary: StringName,
 ## #1059 then gated every potency to the `blight` subtype, so the sweep runs
 ## over all three poles and exactly one (archetype, pole) cell may reach each
 ## potency.
+## #1249 — each new supply entry (`<aspect>_aspect`) rolls in its school's pack,
+## regular and blighted, never blessed and never in another school's pack.
+const _SUPPLY_HOME := {
+	&"bleeding_aspect": &"strength",
+	&"weakness_aspect": &"strength",
+	&"explosive_aspect": &"dexterity",
+	&"curse_aspect": &"intelligence",
+	&"hex_aspect": &"intelligence",
+	&"wither_aspect": &"constitution",
+	&"armor_break_aspect": &"constitution",
+	&"blindness_aspect": &"perception",
+	&"corruption_aspect": &"wisdom",
+	&"greed_aspect": &"wisdom",
+}
+
+
+func test_each_aspect_supply_rolls_in_its_school_regular_and_blight_only() -> void:
+	var blight := NodeSubtype.new()
+	blight.id = &"blight"
+	var bless := NodeSubtype.new()
+	bless.id = &"bless"
+	var poles: Array[NodeSubtype] = [NodeSubtype.regular(), blight, bless]
+	for primary in _ALL_ARCHETYPES:
+		for stat: StringName in _SUPPLY_HOME:
+			for pole in poles:
+				var reachable := _reachable_stat_ids(primary, pole)
+				var expected: bool = _SUPPLY_HOME[stat] == primary and pole.id != &"bless"
+				assert_eq(stat in reachable, expected,
+					"%s on a %s/%s node: expected %s" % [String(stat), String(primary), String(pole.id), str(expected)])
+
+
 func test_each_dot_stacks_increase_reaches_only_its_own_archetype() -> void:
 	var blight := NodeSubtype.new()
 	blight.id = &"blight"
