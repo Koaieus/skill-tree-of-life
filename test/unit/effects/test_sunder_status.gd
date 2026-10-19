@@ -37,7 +37,7 @@ func before_each() -> void:
 	_entity.stat_board.get_stat(&"armor").base_value = 5.0
 
 	_def = ArmorBreakStatus.new()
-	_def.id = &"armor_break"
+	_def.id = &"sunder"
 	_def.power_max = 0.0
 	_def.decay = FlatDecay.new(1.0)
 	_def.reapply = StatusDef.Reapply.ACCUMULATE
@@ -80,7 +80,7 @@ func test_accumulate_adds_stacks_uncapped_and_armor_goes_negative() -> void:
 	for _i in 10:
 		_combat().apply_status(_def, 1.0)
 	assert_almost_eq(_armor(), -5.0, 0.001, "10 stacks on armor 5 -> -5, no floor at zero")
-	assert_almost_eq(_combat().get_status_power(&"armor_break"), 10.0, 0.001, "uncapped")
+	assert_almost_eq(_combat().get_status_power(&"sunder"), 10.0, 0.001, "uncapped")
 
 
 func test_recovery_one_stack_per_tick_restores_armor_and_strips_the_modifier() -> void:
@@ -90,13 +90,13 @@ func test_recovery_one_stack_per_tick_restores_armor_and_strips_the_modifier() -
 		_combat().tick_statuses()
 		assert_almost_eq(_armor(), expected[step], 0.001, "tick %d" % (step + 1))
 	assert_eq(_armor_modifiers().size(), 0, "no armor-break modifier remains once fully recovered")
-	assert_almost_eq(_combat().get_status_power(&"armor_break"), 0.0, 0.001,
+	assert_almost_eq(_combat().get_status_power(&"sunder"), 0.0, 0.001,
 			"status gone after full recovery")
 
 
 func test_removing_the_status_restores_armor() -> void:
 	_combat().apply_status(_def, 3.0)
-	_combat().remove_status(&"armor_break")
+	_combat().remove_status(&"sunder")
 	assert_almost_eq(_armor(), 5.0, 0.001)
 	assert_eq(_armor_modifiers().size(), 0)
 
@@ -137,31 +137,36 @@ func test_shadow_apply_never_writes_the_live_modifier() -> void:
 
 # ── Authored content loads and is wired (values are the owner's knobs) ──────
 
-func test_authored_armor_break_and_sunder_load_and_are_in_the_debug_book() -> void:
-	var a_break := load("res://effects/status/armor_break.tres") as ArmorBreakStatus
-	assert_not_null(a_break, "armor_break.tres is an ArmorBreakStatus")
+func test_authored_sunder_and_rend_load_and_are_in_the_debug_book() -> void:
+	var a_break := load("res://effects/status/sunder.tres") as ArmorBreakStatus
+	assert_not_null(a_break, "sunder.tres is an ArmorBreakStatus")
 	if a_break == null:
 		return
-	assert_eq(a_break.id, &"armor_break")
+	assert_eq(a_break.id, &"sunder")
+	var stat := load("res://stats_system/defs/sunder_aspect.tres") as StatDef
+	assert_not_null(stat, "sunder_aspect.tres is a StatDef")
+	if stat != null:
+		assert_eq(stat.id, &"sunder_aspect")
 	assert_true(&"debuff" in a_break.tags, "tagged as a debuff")
 	assert_eq(a_break.power_max, 0.0, "uncapped (#962)")
 
-	var sunder := load("res://attack/spell/defs/sunder.tres") as SpellDef
-	assert_not_null(sunder, "sunder.tres is a SpellDef")
-	if sunder == null:
+	var rend := load("res://attack/spell/defs/rend.tres") as SpellDef
+	assert_not_null(rend, "rend.tres is a SpellDef")
+	if rend == null:
 		return
+	assert_eq(rend.id, &"rend")
 	var applier: AspectIntake = null
-	for aff in sunder.intakes:
+	for aff in rend.intakes:
 		applier = aff
 	var has_damage := false
-	for fx in sunder.on_hit_effects:
+	for fx in rend.on_hit_effects:
 		if fx is DamageEffect:
 			has_damage = true
-	assert_true(has_damage, "sunder also deals a little damage")
-	assert_not_null(applier, "sunder carries an innate intake")
+	assert_true(has_damage, "rend also deals a little damage")
+	assert_not_null(applier, "rend carries an innate intake")
 	if applier != null:
-		assert_eq(applier.status(), a_break, "…that applies the authored Armor Break def")
+		assert_eq(applier.status(), a_break, "…that applies the authored Sunder def")
 		assert_gt(applier.innate, 0)
 
 	var book := load("res://entity/spellbook_debug.tres") as SpellBook
-	assert_true(sunder in book.spells, "sunder is in the debug spellbook")
+	assert_true(rend in book.spells, "rend is in the debug spellbook")

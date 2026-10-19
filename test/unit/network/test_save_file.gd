@@ -40,6 +40,10 @@ const _ROW_LAYOUT_PINS := {
 	# 10: EntitySnapshot gained `_R_RING_SPENT` (the inner-ring cells bought);
 	# a 9 still loads (the row is a suffix, decoded as "nothing spent").
 	10: "16d7861e9a130a0e4b6cffd1c835ccf58c0839a0132067d9c9079ec58a77bfdd",
+	# 11: the armor-debuff aspect's resources took the name Sunder, and a save
+	# interns `res://` paths. No row moved, so the hash is 10's; older files
+	# are refused (MIN is 11).
+	11: "16d7861e9a130a0e4b6cffd1c835ccf58c0839a0132067d9c9079ec58a77bfdd",
 }
 
 
@@ -104,15 +108,12 @@ func test_other_version_is_a_version_mismatch() -> void:
 	assert_true(got.world.is_empty())
 
 
-## A v7 file differs from v8 only by rows ending earlier, which
-## [GraphSnapshot] decodes with defaults — so it loads rather than refusing.
-func test_the_previous_version_still_loads() -> void:
+## A v10 file interns the pre-Sunder `res://` paths its statuses name, so it
+## is refused rather than decoded against resources that moved.
+func test_a_version_10_file_is_refused() -> void:
 	var bytes := _sample().to_bytes()
-	bytes.encode_u32(SaveFile.VERSION_OFFSET, 7)
-	var got := SaveFile.from_bytes(bytes)
-	assert_eq(got.load_result, SaveFile.LoadResult.OK)
-	assert_eq(got.format_version, 7, "the file's own version")
-	assert_false(got.world.is_empty())
+	bytes.encode_u32(SaveFile.VERSION_OFFSET, 10)
+	assert_eq(SaveFile.from_bytes(bytes).load_result, SaveFile.LoadResult.VERSION_MISMATCH)
 
 
 func test_a_version_below_the_oldest_loadable_is_a_version_mismatch() -> void:
