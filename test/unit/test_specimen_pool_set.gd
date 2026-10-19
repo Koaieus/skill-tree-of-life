@@ -291,9 +291,9 @@ func _is_stacks_increase_roll(stat_id: StringName, op: int) -> bool:
 
 
 func test_dot_stacks_increase_rolls_only_on_its_attribute_home() -> void:
-	var str_seen := _stacks_increase_ids_over_seeded_draws(&"strength")
-	assert_true(&"corruption_stacks_per_hit" in str_seen, "corruption_stacks_per_hit rolls on a STR node (seen %s)" % [str_seen])
-	assert_false(&"poison_stacks_per_hit" in str_seen, "poison_stacks_per_hit never rolls on a STR node (seen %s)" % [str_seen])
+	var str_seen := _stacks_increase_ids_over_seeded_draws(&"wisdom")
+	assert_true(&"corruption_stacks_per_hit" in str_seen, "corruption_stacks_per_hit rolls on a WIS node (seen %s)" % [str_seen])
+	assert_false(&"poison_stacks_per_hit" in str_seen, "poison_stacks_per_hit never rolls on a WIS node (seen %s)" % [str_seen])
 	var dex_seen := _stacks_increase_ids_over_seeded_draws(&"dexterity")
 	assert_true(&"poison_stacks_per_hit" in dex_seen, "poison_stacks_per_hit rolls on a DEX node (seen %s)" % [dex_seen])
 	assert_false(&"corruption_stacks_per_hit" in dex_seen, "corruption_stacks_per_hit never rolls on a DEX node (seen %s)" % [dex_seen])

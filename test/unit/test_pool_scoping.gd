@@ -39,13 +39,13 @@ const _ALL_ARCHETYPES: Array[StringName] = [&"strength", &"dexterity",
 	&"intelligence", &"constitution", &"wisdom", &"perception"]
 
 ## #1058 decision 4 — where each DoT family's potency lives. Archetype picks
-## the family: STR corrupts, DEX poisons, INT withers, CON curses. Structural
+## the family: WIS corrupts, DEX poisons, CON withers, INT curses (#1249). Structural
 ## only, like everything else here: no magnitude is pinned.
 const _STACKS_INCREASE_HOME := {
-	&"corruption_stacks_per_hit": &"strength",
+	&"corruption_stacks_per_hit": &"wisdom",
 	&"poison_stacks_per_hit": &"dexterity",
-	&"wither_stacks_per_hit": &"intelligence",
-	&"curse_stacks_per_hit": &"constitution",
+	&"wither_stacks_per_hit": &"constitution",
+	&"curse_stacks_per_hit": &"intelligence",
 }
 
 
