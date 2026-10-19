@@ -521,8 +521,8 @@ addon we don't have yet. Not saying we need one"*.
 | PER | Scout, Blindness | owner |
 | WIS | Corruption, Greed | Corruption: owner 2026-10-05. Greed: closed round 6 (owner); row #1419 |
 
-Procgen still ships the 2026-09-22 grid (curse → CON, wither → INT,
-corruption → STR); it moves to this table as a content fix (#1249). Pairs
+Procgen ships this table: potency and supply live in the school's pack
+(`docs/domain/node-subtypes.md` § The school table, #1249). Pairs
 are a content layer (duo content reading two aspects), not rows: pass
 proposal, 2026-10-05.
 

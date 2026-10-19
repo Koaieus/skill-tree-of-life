@@ -133,7 +133,22 @@ min_tier = 2
 max_tier = 2
 metadata/_custom_type_script = "uid://csc1d4c2smgr7"
 
+[sub_resource type="Resource" id="sup_blindness_shape"]
+script = ExtResource("3_sl04t")
+
+[sub_resource type="Resource" id="blindness_aspect"]
+resource_name = "blindness_aspect +"
+script = ExtResource("2_pool")
+stat_id = &"blindness_aspect"
+subtypes = Array[ExtResource("90_nsub")]([ExtResource("91_sreg"), ExtResource("92_sbli")])
+tags = Array[StringName]([&"per", &"flat", &"attack", &"ammo"])
+pool_weight = 1.2
+tier_shape = SubResource("sup_blindness_shape")
+min_tier = 2
+max_tier = 2
+metadata/_custom_type_script = "uid://csc1d4c2smgr7"
+
 [resource]
 script = ExtResource("1_sp")
 archetype_stat = &"perception"
-pools = Array[ExtResource("2_pool")]([SubResource("ab"), SubResource("inc"), SubResource("mul"), SubResource("vr_inc"), SubResource("vr_bn"), SubResource("sr"), SubResource("blindness_pot"), SubResource("blindness_res"), SubResource("scout_arrows")])
+pools = Array[ExtResource("2_pool")]([SubResource("ab"), SubResource("inc"), SubResource("mul"), SubResource("vr_inc"), SubResource("vr_bn"), SubResource("sr"), SubResource("blindness_pot"), SubResource("blindness_res"), SubResource("scout_arrows"), SubResource("blindness_aspect")])

@@ -117,7 +117,52 @@ pool_weight = 2.0
 tier_shape = SubResource("Resource_8t7tn")
 max_tier = 3
 
+[sub_resource type="Resource" id="Resource_8xgmb"]
+script = ExtResource("3_4tcfo")
+
+[sub_resource type="Resource" id="corruption_pot"]
+resource_name = "corruption_stacks_per_hit +%"
+script = ExtResource("2_pool")
+stat_id = &"corruption_stacks_per_hit"
+operation = 1
+subtypes = Array[ExtResource("90_nsub")]([ExtResource("92_sbli")])
+tags = Array[StringName]([&"attack", &"dot", &"percent"])
+unit_value = 7.0
+pool_weight = 3.5
+tier_shape = SubResource("Resource_8xgmb")
+max_tier = 3
+
+[sub_resource type="Resource" id="sup_corruption_shape"]
+script = ExtResource("3_4tcfo")
+
+[sub_resource type="Resource" id="corruption_aspect"]
+resource_name = "corruption_aspect +"
+script = ExtResource("2_pool")
+stat_id = &"corruption_aspect"
+subtypes = Array[ExtResource("90_nsub")]([ExtResource("91_sreg"), ExtResource("92_sbli")])
+tags = Array[StringName]([&"wis", &"flat", &"attack", &"ammo"])
+pool_weight = 1.2
+tier_shape = SubResource("sup_corruption_shape")
+min_tier = 2
+max_tier = 2
+metadata/_custom_type_script = "uid://csc1d4c2smgr7"
+
+[sub_resource type="Resource" id="sup_greed_shape"]
+script = ExtResource("3_4tcfo")
+
+[sub_resource type="Resource" id="greed_aspect"]
+resource_name = "greed_aspect +"
+script = ExtResource("2_pool")
+stat_id = &"greed_aspect"
+subtypes = Array[ExtResource("90_nsub")]([ExtResource("91_sreg"), ExtResource("92_sbli")])
+tags = Array[StringName]([&"wis", &"flat", &"attack", &"ammo"])
+pool_weight = 1.2
+tier_shape = SubResource("sup_greed_shape")
+min_tier = 2
+max_tier = 2
+metadata/_custom_type_script = "uid://csc1d4c2smgr7"
+
 [resource]
 script = ExtResource("1_sp")
 archetype_stat = &"wisdom"
-pools = Array[ExtResource("2_pool")]([SubResource("ab"), SubResource("inc"), SubResource("mul"), SubResource("xpt_inc"), SubResource("dot_stacks"), SubResource("whpt_ab"), SubResource("xpt_ab_bless"), SubResource("xpt_inc_bless")])
+pools = Array[ExtResource("2_pool")]([SubResource("ab"), SubResource("inc"), SubResource("mul"), SubResource("xpt_inc"), SubResource("dot_stacks"), SubResource("whpt_ab"), SubResource("xpt_ab_bless"), SubResource("xpt_inc_bless"), SubResource("corruption_pot"), SubResource("corruption_aspect"), SubResource("greed_aspect")])

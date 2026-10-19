@@ -232,7 +232,22 @@ tier_shape = SubResource("pierce_tier_pct")
 min_tier = 2
 max_tier = 3
 
+[sub_resource type="Resource" id="sup_explosive_shape"]
+script = ExtResource("3_5awml")
+
+[sub_resource type="Resource" id="explosive_aspect"]
+resource_name = "explosive_aspect +"
+script = ExtResource("2_pool")
+stat_id = &"explosive_aspect"
+subtypes = Array[ExtResource("90_nsub")]([ExtResource("91_sreg"), ExtResource("92_sbli")])
+tags = Array[StringName]([&"dex", &"flat", &"attack", &"ammo"])
+pool_weight = 1.2
+tier_shape = SubResource("sup_explosive_shape")
+min_tier = 2
+max_tier = 2
+metadata/_custom_type_script = "uid://csc1d4c2smgr7"
+
 [resource]
 script = ExtResource("1_sp")
 archetype_stat = &"dexterity"
-pools = Array[ExtResource("2_pool")]([SubResource("ab"), SubResource("inc"), SubResource("mul"), SubResource("cc_inc"), SubResource("cm_inc"), SubResource("Resource_u38nb"), SubResource("Resource_0tuuk"), SubResource("armor_debuff"), SubResource("poison_arrows"), SubResource("arrows_per_reload"), SubResource("max_shots_per_leaf"), SubResource("poison_pot"), SubResource("poison_res"), SubResource("pierce_flat"), SubResource("pierce_pct")])
+pools = Array[ExtResource("2_pool")]([SubResource("ab"), SubResource("inc"), SubResource("mul"), SubResource("cc_inc"), SubResource("cm_inc"), SubResource("Resource_u38nb"), SubResource("Resource_0tuuk"), SubResource("armor_debuff"), SubResource("poison_arrows"), SubResource("arrows_per_reload"), SubResource("max_shots_per_leaf"), SubResource("poison_pot"), SubResource("poison_res"), SubResource("pierce_flat"), SubResource("pierce_pct"), SubResource("explosive_aspect")])

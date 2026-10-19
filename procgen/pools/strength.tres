@@ -4,6 +4,7 @@
 [ext_resource type="Script" uid="uid://csc1d4c2smgr7" path="res://procgen/pools/stat_pool.gd" id="2_pool"]
 [ext_resource type="Script" uid="uid://ct7dq3or66mj7" path="res://procgen/pools/tier_shape.gd" id="3_m6jpa"]
 [ext_resource type="Script" uid="uid://dmbbf2cvwsufo" path="res://procgen/subtypes/node_subtype.gd" id="90_nsub"]
+[ext_resource type="Resource" path="res://procgen/subtypes/regular.tres" id="91_sreg"]
 [ext_resource type="Resource" path="res://procgen/subtypes/blight.tres" id="92_sbli"]
 [ext_resource type="Resource" path="res://procgen/subtypes/bless.tres" id="93_sble"]
 
@@ -92,21 +93,6 @@ tier_shape = SubResource("Resource_8nxce")
 max_tier = 2
 metadata/_custom_type_script = "uid://csc1d4c2smgr7"
 
-[sub_resource type="Resource" id="Resource_8xgmb"]
-script = ExtResource("3_m6jpa")
-
-[sub_resource type="Resource" id="corruption_pot"]
-resource_name = "corruption_stacks_per_hit +%"
-script = ExtResource("2_pool")
-stat_id = &"corruption_stacks_per_hit"
-operation = 1
-subtypes = Array[ExtResource("90_nsub")]([ExtResource("92_sbli")])
-tags = Array[StringName]([&"attack", &"dot", &"percent"])
-unit_value = 7.0
-pool_weight = 3.5
-tier_shape = SubResource("Resource_8xgmb")
-max_tier = 3
-
 [sub_resource type="Resource" id="Resource_wikp0"]
 script = ExtResource("3_m6jpa")
 
@@ -132,7 +118,37 @@ pool_weight = 3.5
 tier_shape = SubResource("Resource_wikp0")
 min_tier = 2
 
+[sub_resource type="Resource" id="sup_bleeding_shape"]
+script = ExtResource("3_m6jpa")
+
+[sub_resource type="Resource" id="bleeding_aspect"]
+resource_name = "bleeding_aspect +"
+script = ExtResource("2_pool")
+stat_id = &"bleeding_aspect"
+subtypes = Array[ExtResource("90_nsub")]([ExtResource("91_sreg"), ExtResource("92_sbli")])
+tags = Array[StringName]([&"str", &"flat", &"attack", &"ammo"])
+pool_weight = 1.2
+tier_shape = SubResource("sup_bleeding_shape")
+min_tier = 2
+max_tier = 2
+metadata/_custom_type_script = "uid://csc1d4c2smgr7"
+
+[sub_resource type="Resource" id="sup_weakness_shape"]
+script = ExtResource("3_m6jpa")
+
+[sub_resource type="Resource" id="weakness_aspect"]
+resource_name = "weakness_aspect +"
+script = ExtResource("2_pool")
+stat_id = &"weakness_aspect"
+subtypes = Array[ExtResource("90_nsub")]([ExtResource("91_sreg"), ExtResource("92_sbli")])
+tags = Array[StringName]([&"str", &"flat", &"attack", &"ammo"])
+pool_weight = 1.2
+tier_shape = SubResource("sup_weakness_shape")
+min_tier = 2
+max_tier = 2
+metadata/_custom_type_script = "uid://csc1d4c2smgr7"
+
 [resource]
 script = ExtResource("1_sp")
 archetype_stat = &"strength"
-pools = Array[ExtResource("2_pool")]([SubResource("ab"), SubResource("inc"), SubResource("mul"), SubResource("ar"), SubResource("ar_pct"), SubResource("Resource_u38nb"), SubResource("corruption_pot"), SubResource("corruption_res"), SubResource("bleeding_res")])
+pools = Array[ExtResource("2_pool")]([SubResource("ab"), SubResource("inc"), SubResource("mul"), SubResource("ar"), SubResource("ar_pct"), SubResource("Resource_u38nb"), SubResource("corruption_res"), SubResource("bleeding_res"), SubResource("bleeding_aspect"), SubResource("weakness_aspect")])

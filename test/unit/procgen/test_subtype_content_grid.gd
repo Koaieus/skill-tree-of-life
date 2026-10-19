@@ -30,6 +30,14 @@ const _FAMILY := {
 	&"constitution": &"curse",
 }
 
+## Where each family's potency lives (#1249) — the resistances stay on `_FAMILY`.
+const _POTENCY_FAMILY := {
+	&"wisdom": &"corruption",
+	&"dexterity": &"poison",
+	&"intelligence": &"curse",
+	&"constitution": &"wither",
+}
+
 ## Which (archetype, forced subtype) cells have no content yet — #1061's
 ## children cleared their own entry as they landed: #1093 (blessed WIS)
 ## cleared wisdom/bless, #1094 (blighted WIS) cleared wisdom/blight, #1095
@@ -63,8 +71,8 @@ func _reachable(primary: StringName, subtype: NodeSubtype) -> Array[StringName]:
 func test_blighted_draws_the_family_stacks_increase_and_regular_does_not() -> void:
 	var blight := _subtype(&"blight")
 	var regular := NodeSubtype.regular()
-	for primary: StringName in _FAMILY:
-		var potency: StringName = StringName("%s_stacks_per_hit" % _FAMILY[primary])
+	for primary: StringName in _POTENCY_FAMILY:
+		var potency: StringName = StringName("%s_stacks_per_hit" % _POTENCY_FAMILY[primary])
 		assert_true(potency in _reachable(primary, blight),
 			"a blighted %s node must be able to roll %s" % [primary, potency])
 		assert_false(potency in _reachable(primary, regular),

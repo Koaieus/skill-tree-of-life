@@ -10,6 +10,25 @@ cell holds is authored in `procgen/pools/*.tres` and summarised in
 [../design/node_subtypes.md](../design/node_subtypes.md). Opened from #1025,
 built in #1056 and #1059–#1061, #1093–#1095.
 
+## The school table (#1249)
+
+The six primaries are the schools; an aspect sits in the school whose verb it
+performs (a loose, geographic coupling — ADR 0059, no free scaling). The pack
+carries the school's blighted **potency** (`<aspect>_stacks_per_hit`) where the
+aspect has one, and every aspect's **supply** (`<aspect>_aspect`, regular +
+blight) in its own pack.
+
+| School | Aspects | Potency in pack | Supply in pack |
+|---|---|---|---|
+| STR | Bleeding, Weakness | none yet | `bleeding_aspect`, `weakness_aspect` |
+| DEX | Poison, Explosive | poison | `poison_aspect`, `explosive_aspect` |
+| INT | Curse, Hex | curse | `curse_aspect`, `hex_aspect` |
+| CON | Wither, Armor break | wither | `wither_aspect`, `armor_break_aspect` |
+| PER | Scout, Blindness | blindness | `scout_aspect`, `blindness_aspect` |
+| WIS | Corruption, Greed | corruption (+ `dot_stacks_per_hit`, a different stat) | `corruption_aspect`, `greed_aspect` |
+
+Resistances did not move: `corruption_resistance` stays blessed STR's.
+
 ## The authoring law
 
 **A subtype replaces, never adds.** Every subtype is a sidegrade: blighted DEX
