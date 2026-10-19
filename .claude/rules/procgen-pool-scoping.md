@@ -57,6 +57,10 @@ mechanism. There is no `NodeSubtype.forbid_tags` — the set IS the give-up (D12
   `[]` pool deliberately does not count — it is drawn by everyone, so counting it would
   let a node look blighted and play regular.
 
+**A third key, the pass gate (#1697):** a pool's `passes` list (`[]` = the budget pass
+only) says which roll passes draw it; a subtype's `extra_passes` run after the budget loop
+and spend nothing. See `docs/domain/node-subtypes.md` § Roll passes.
+
 Full model and the decision list: `docs/domain/node-subtypes.md`.
 
 **The subtype half stays per-pool (D8):** a pack is one archetype by definition, so the

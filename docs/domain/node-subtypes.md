@@ -67,6 +67,30 @@ The subtype tint composes into the node's existing `modulate` chain and
 `rim_ring.gdshader` has no `TIME` on purpose — an animated subtype stripe
 would need a per-node phase, which is another instance-uniform slot.
 
+## Roll passes (#1697)
+
+A node's draw is the **budget pass** (the spend-until-broke loop) plus any
+**extra passes** its subtype names in `NodeSubtype.extra_passes`, each a
+`RollPass { id, chance }`. A pool joins passes through `StatPool.passes`:
+**`[]` = the budget pass only** (every pool that predates passes); otherwise it
+rolls in the budget loop iff the list holds `&"budget"`
+(`StatPool.BUDGET_PASS`) and in extra pass X iff it holds X
+(`StatPool.admits_pass`, the third key of `ModifierPoolSet.flatten_for_node`
+beside archetype and subtype).
+
+An extra pass runs after the budget loop, on the same seeded rng, in array
+order (a replay input): `randf() < chance`, then **one** weighted pick through
+`_v4_weighted_pick` with cost ignored. It spends no budget, the subtype and
+archetype gates still apply, a pass with nothing eligible rolls nothing, and a
+stat rolled in both passes stacks through the aggregator.
+
+Shipped: `blight` carries `supply` at chance 1.0, and the twelve
+`<aspect>_aspect` entries list `[&"budget", &"supply"]` — supply stays in the
+budget draw and blight adds one roll of it on top. This is the one deliberate
+**add** beside the authoring law's replace: the owner wanted blighted ground to
+be where supply comes from (2026-10-19). Drawability (D13) is judged on the
+budget pass only. Tuning: #1529.
+
 ## Decision numbers cited elsewhere
 
 Code, rules and docs cite the owner's 2026-09-22/23 subtype decisions by
