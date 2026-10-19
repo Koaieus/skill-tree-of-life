@@ -40,6 +40,11 @@ extends Resource
 ## the remainder and authors none.
 @export_range(0.0, 1.0) var base_chance: float = 0.0
 
+## Extra roll passes this subtype's nodes run after the budget draw, in array
+## order, each spending no budget. A pool joins a pass by naming it in
+## [member StatPool.passes]. See docs/domain/node-subtypes.md § Roll passes.
+@export var extra_passes: Array[RollPass] = []
+
 
 ## The canonical default, used wherever a preset authors no override.
 ##

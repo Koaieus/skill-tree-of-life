@@ -54,6 +54,7 @@ func flatten_all() -> Array[ModifierPoolEntry]:
 func flatten_for_node(
 		primary_stat: StringName,
 		subtype: NodeSubtype = null,
+		_pass_id: StringName = StatPool.BUDGET_PASS,
 ) -> Array[ModifierPoolEntry]:
 	var effective := subtype if subtype != null else NodeSubtype.regular()
 	var out: Array[ModifierPoolEntry] = []

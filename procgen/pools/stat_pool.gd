@@ -53,6 +53,17 @@ extends Resource
 ## See docs/domain/node-subtypes.md.
 @export var subtypes: Array[NodeSubtype] = []
 
+## The pass id of the budget-spending draw every node runs.
+const BUDGET_PASS := &"budget"
+
+## Which roll passes draw this pool. `[]` = the budget pass only (every pool
+## that predates passes). Otherwise the pool rolls in the budget loop iff the
+## list holds [constant BUDGET_PASS], and in a subtype's extra pass X iff it
+## holds X ([member RollPass.id]). Matched by [method admits_pass], beside the
+## subtype gate in [method ModifierPoolSet.flatten_for_node].
+## See docs/domain/node-subtypes.md § Roll passes.
+@export var passes: Array[StringName] = []
+
 ## Tags shared by every tier of this pool, auto-stamped onto each entry
 ## alongside the ladder's tier/rarity tags at flatten. Validated against
 ## [TagRegistry].
@@ -356,6 +367,11 @@ func to_entries(pack_archetype: StringName) -> Array[ModifierPoolEntry]:
 		e.tags = merged
 		out.append(e)
 	return out
+
+
+## Does roll pass `pass_id` draw this pool? See [member passes].
+func admits_pass(_pass_id: StringName) -> bool:
+	return true
 
 
 ## May a node of this subtype draw this pool? `[]` = any subtype, which is
