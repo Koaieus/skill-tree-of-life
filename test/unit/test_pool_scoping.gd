@@ -125,7 +125,7 @@ const _SUPPLY_HOME := {
 	&"curse_aspect": &"intelligence",
 	&"hex_aspect": &"intelligence",
 	&"wither_aspect": &"constitution",
-	&"armor_break_aspect": &"constitution",
+	&"sunder_aspect": &"constitution",
 	&"blindness_aspect": &"perception",
 	&"corruption_aspect": &"wisdom",
 	&"greed_aspect": &"wisdom",
