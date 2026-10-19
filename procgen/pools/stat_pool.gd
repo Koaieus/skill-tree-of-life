@@ -370,8 +370,10 @@ func to_entries(pack_archetype: StringName) -> Array[ModifierPoolEntry]:
 
 
 ## Does roll pass `pass_id` draw this pool? See [member passes].
-func admits_pass(_pass_id: StringName) -> bool:
-	return true
+func admits_pass(pass_id: StringName) -> bool:
+	if passes.is_empty():
+		return pass_id == BUDGET_PASS
+	return passes.has(pass_id)
 
 
 ## May a node of this subtype draw this pool? `[]` = any subtype, which is

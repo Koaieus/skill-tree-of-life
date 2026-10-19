@@ -49,12 +49,15 @@ func flatten_all() -> Array[ModifierPoolEntry]:
 ## subtype — see [method StatPool.admits_subtype]. `null` resolves to
 ## [method NodeSubtype.regular], so an unset node draws what the default draws
 ## and today's one-key callers are unchanged.
+## The third key is `pass_id`: the budget loop flattens for
+## [constant StatPool.BUDGET_PASS] (the default), a subtype's extra pass for its
+## [member RollPass.id] — see [method StatPool.admits_pass].
 ## Weights are passed through as minted — the universal/archetype split is the
 ## draw's, per pick ([member GraphProcgenContent.universal_share]).
 func flatten_for_node(
 		primary_stat: StringName,
 		subtype: NodeSubtype = null,
-		_pass_id: StringName = StatPool.BUDGET_PASS,
+		pass_id: StringName = StatPool.BUDGET_PASS,
 ) -> Array[ModifierPoolEntry]:
 	var effective := subtype if subtype != null else NodeSubtype.regular()
 	var out: Array[ModifierPoolEntry] = []
@@ -68,6 +71,8 @@ func flatten_for_node(
 			if pool == null:
 				continue
 			if not pool.admits_subtype(effective):
+				continue
+			if not pool.admits_pass(pass_id):
 				continue
 			out.append_array(pool.to_entries(pack.archetype_stat))
 	return out

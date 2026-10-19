@@ -1,6 +1,12 @@
-[gd_resource type="Resource" script_class="NodeSubtype" load_steps=2 format=3]
+[gd_resource type="Resource" script_class="NodeSubtype" load_steps=4 format=3]
 
 [ext_resource type="Script" path="res://procgen/subtypes/node_subtype.gd" id="1_ns"]
+[ext_resource type="Script" path="res://procgen/subtypes/roll_pass.gd" id="2_rp"]
+
+[sub_resource type="Resource" id="supply_pass"]
+script = ExtResource("2_rp")
+id = &"supply"
+chance = 1.0
 
 [resource]
 script = ExtResource("1_ns")
@@ -9,3 +15,4 @@ display_name = "Blighted"
 tint = Color(0.52, 0.58, 0.45, 1)
 emissive_tier = 0
 base_chance = 0.1
+extra_passes = Array[ExtResource("2_rp")]([SubResource("supply_pass")])

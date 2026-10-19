@@ -1249,6 +1249,10 @@ static func _has_forbidden_tag(entry: ModifierPoolEntry, forbid: Array[StringNam
 ## Proposed by the issue; not tuned further.
 const _NO_OP_RETRY_CAP := 3
 
+## The `remaining` an extra roll pass hands the pick: large enough that every
+## entry is affordable, which is how "cost ignored" is stated.
+const _EXTRA_PASS_UNBOUNDED_BUDGET := 1 << 30
+
 static func _roll_modifiers_v4(
 		pool_set: ModifierPoolSet,
 		profiles: Array[Resource],
@@ -1271,8 +1275,11 @@ static func _roll_modifiers_v4(
 	if pool_set == null or pool_set.packs.is_empty() or budget <= 0:
 		return out
 
-	var entries := pool_set.flatten_for_node(primary_stat, subtype)
-	if entries.is_empty():
+	var entries := pool_set.flatten_for_node(primary_stat, subtype, StatPool.BUDGET_PASS)
+	var extra_passes: Array[RollPass] = []
+	if subtype != null:
+		extra_passes = subtype.extra_passes
+	if entries.is_empty() and extra_passes.is_empty():
 		return out
 
 	var ctx := WeightContext.new()
@@ -1304,6 +1311,24 @@ static func _roll_modifiers_v4(
 
 	fp["draws"] = draws
 	fp["remaining"] = remaining
+
+	# Extra roll passes: after the budget loop, on the same rng, in array
+	# order — a replay input. Each spends no budget (the pick sees an
+	# unbounded `remaining`, so cost gates nothing) and makes one weighted
+	# pick among the entries that pass admits. Its roll stacks with any
+	# budget roll of the same stat through the aggregator below.
+	# See docs/domain/node-subtypes.md § Roll passes.
+	var extra_rolls := 0
+	for roll_pass in extra_passes:
+		if roll_pass == null or rng.randf() >= roll_pass.chance:
+			continue
+		var pass_entries := pool_set.flatten_for_node(primary_stat, subtype, roll_pass.id)
+		var pick := _v4_weighted_pick(pass_entries, profiles, ctx, _EXTRA_PASS_UNBOUNDED_BUDGET, rng, universal_share)
+		if pick == null:
+			continue
+		rolled.append(pick.roll(rng), pick.cost, pick)
+		extra_rolls += 1
+	fp["extra_rolls"] = extra_rolls
 
 	# Aggregate per (stat_id, operation). ADD_BASE / ADD_BONUS / INCREASE sum
 	# (PoE-additive); MULTIPLY delta sum (\times1.15 & \times1.15 = \times1.30,
