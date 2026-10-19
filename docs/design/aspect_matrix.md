@@ -260,7 +260,7 @@ Each cell links its cell issue (`<Concept> × <Facet>`, a child of the row hub i
 | Corruption | buildup, %dmg, spread | `corruption_aspect` | shipped (#1349, look #1382): beating tip, swelling blips, pustule; `max_stock` 6 | shipped (#1383): `compromiser_addon.tscn` (**Compromiser**, owner 2026-10-08) — +1 `corruption_aspect` on the map; a flat 1-stack corruption rider per contact at every allocation level (no ladder, no 3/X multiplier — the budget is the degree); temp 2 blade size + 1 `corruption_aspect`; pustule-beating rim look | `defile` shipped (see "Spell faces") | #1250 | row: #1378. Spreads as a sandpile by nature (#1202, settled 2026-10-11): topple-only damage `T × X%` the moment a node crosses `T = degree + B + K`, to friendly neighbours, a removed node's stacks vanish; the core's topple is open. Cure: Purification (corruption + curse). The health bar draws no corruption yet (#1092: stacks against `T`). `skill_node_specializations.md`'s Corrupted Node is this row's content under another name; its penalties (double damage, floor −1) are Curse's and the floor axis's |
 | Curse | fragility, spill | `curse_aspect` | type shipped (#1349, #1385) | shipped (#1386): `doombrand_addon.tscn` (**Doombrand**) — +1 `curse_aspect` on the map; a flat 2-curse rider per contact; a node its contact kills spills ×2 (`DoomSpillEffect`, the killing hit carries the scale); temp 2 blade size + 1 `curse_aspect`; turning pentagram look (see "Rows designed" → Curse) | `malediction` shipped (#1560, the old `hex` reshaped): 5 stacks, downhill by `min_damage_taken` up to 4 hops, ties fork, visits 2 summing stacks, off-path neighbours a floored 0.25 share and terminal (`RumourSpread`); **Gloomflux**, a cell under #1379 (see "Rows designed" → Curse) | #1250 | row: #1379. Raises `min_damage_taken`; spills to surviving direct neighbours on death AND dealloc (#1204) — the only authored spread today (`spill_spread.gd`). Lethal once *hits × (floor + curse) > HP*; zero effect while no damaging hits land (owner, 2026-10-11). `spells.md`'s Aftershock restates this spill |
 | Wither | anti-heal | `wither_aspect` | type shipped (#1349); feel and look #1387 | Ashfall #1388 | `girdle` shipped (see "Spell faces") | #1250 | row: #1380. Drives healing received negative: while it does, a negative heal deals damage that does not close the regen gate, so the regen ramp keeps climbing and the node heals itself toward death — temporary, never permanent: as Wither decays the multiplier climbs back through zero, nulling healing, then restoring it (owner, 2026-10-07, moved here from the superseded ADR 0022 d5). Owner, 2026-09-20: *"it ruins your healing to making you effectively undead"*. `spells.md`'s Flood wants this anti-heal (#1389) |
-| Blindness | vision debuff | `blindness_aspect` | type shipped (#1349); feel and look #1390 | #1391 | `dazzle` shipped, reshaped to climb vision #1491 (see "Spell faces"); `scout_line` shipped (#1490); **Throw Sand** #1392 | #1250 | row: #1253. Count stacks, effect reads as a % via a saturating curve |
+| Blindness | vision debuff | `blindness_aspect` | type shipped (#1349); feel and look #1390 | Dune #1391 (see "Dune") | `dazzle` shipped, reshaped to climb vision #1491 (see "Spell faces"); `scout_line` shipped (#1490); **Throw Sand** #1392 | #1250 | row: #1253. Count stacks, effect reads as a % via a saturating curve |
 | Scout (a status whose rows draw vision, #949) | reveal | `scout_aspect` | scouting arrow shipped (stacks: #1345, #1346) | watchtower shipped, map + blade faces (#1393); temp face waits on melee-tray capacity | `eagle_eye` and `scout_line` shipped (see "Spell faces") | #1250 | row: #1254. `effects/status/scouted.tres` is live: the arrow lands camp-keyed stacks, VisionSystem draws `radius_for` discs from the rows (#1346); first-class concept (owner, 2026-09-30). **Two faces (owner, 2026-10-11):** *"scout arrow and eagle eye and scout line ALL apply scouted stacks on hit (tag); while some (or all, or at least the Scout Line) carriers themselves are a lighting/revealing (\"lantern\") vision source"* — every scouting carrier is a lantern (owner pick), mechanism #1557. Scout and Blindness are two PER rows by the owner's table, not one vision axis. Watchtower's offence stats and production-vs-firing: #1413 |
 | Sunder | armor debuff | `sunder_aspect` | type shipped (#1349); feel and look #1395 | Shredder #1396 | `rend` shipped; second spell #1397 | #1250 | row: #395 (child 0: penetration stat #1401). Flat −1 armor per stack, uncapped, can go below zero (#1203, owner 2026-09-30). School CON (round 7). Has no `_stacks_per_hit` / `_resistance` while the DEX pool rolls a raw `armor` −% bane that bypasses the aspect. `spells.md`'s Heavy / Piercing Bolt (seek max / min armor) are its second spell (#1397) |
 | Weakness | damage debuff | `weakness_aspect` | type shipped (#1349); look #1427 (Sap?) | Sapling #1428 | #1429 (Enfeeble?) | #1250 | row: #1425 (child 0: the status, #1426, shipped). Stacks cut damage dealt by attacks originating from the node, % on a saturating curve (round 7) |
@@ -435,6 +435,27 @@ level. No defensive face. Looks are drafted from each row's arrow look.
   carrier gains Greed at each of its owner's turn starts, up to 3 × allocation
   level (owner: *"top up cap, cap = 3×allocation level"*; the per-turn gain
   floated as 1 or the allocation level). Look: a gold-glint rim with coins.
+
+### Dune (Blindness, #1391; owner, 2026-10-19)
+
+Owner: *"Dune — basically a lot of sand; no Skill-Spice here tho, just sand
+getting into your eyes"*. Toxin's shape: +1 `blindness_aspect` on the map, and
+on a blade a node-local `+1 blindness_stacks_per_hit` scaled by allocation
+level. No defensive face.
+
+- **3/3 unlock: the spill** (owner pick, replacing a flat +1). A Dune contact
+  also lands a little Blindness on the defender's nodes inside the struck
+  node's vision circle, measured before the swing (owner: *"the vision of the
+  defender before any hits/stacks are applied is then used as target
+  gathering"*). Why (owner): *"blindness is as effective as the effective
+  reduction in vision circles on the map. if 2 circles' centers sit close
+  together and one of them shrinks to 0, the total area granted might still be
+  close to 100% due to the overlap"*. The spill goes after the overlapping
+  circles that cover for the struck node. It stays subtle: *"it's still just
+  an addon not a spell"*. Measuring before the swing keeps it order-free
+  (§ The addon recipe, 2026-10-19).
+- **Look:** drafted from the row's arrow look. A grit-shedding rim puffing
+  grey-lavender sand, never a light flare (that is Scout's).
 
 ## Arrow faces (owner, 2026-10-07)
 
@@ -1170,6 +1191,9 @@ this table's rows.
 - `dealloc_damage` has no row; Creep (Contenders) is its candidate home; stale facts: #1414 (`damage_over_time.md`'s halving decay closed with #1448).
 - The anti-blade face is Explosive's barrel (2026-10-13, built: `docs/domain/explosive.md`); the pop budget's fate is #1369's; ADR 0005 is superseded, not edited.
 - Combos / hybrids: #1446; third row = pair row is the lens.
+- **Murk** (owner, 2026-10-19, *"keeping that one warm"*): an anti-lantern
+  that hides owned nodes near the carrier from enemy sight, in the spirit of
+  RA2's Gap Generator. It is a defensive face, so not Dune's.
 - The Edgelord jab "Bleeding Edge" is renamed now that Bleeding is a row (#1449).
 
 Round 9 (2026-10-06) was the final design round; the table is now the cell swarm's basis.
