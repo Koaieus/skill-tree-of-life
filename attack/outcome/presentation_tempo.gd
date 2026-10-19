@@ -110,10 +110,12 @@ const DEFAULT_PATH := "res://attack/outcome/default_presentation_tempo.tres"
 ## emissive float — `.claude/rules/hdr-color.md`) and come up together.
 @export var melee_windup_glow_ramp: float = 0.5
 
-## Melee: the ignition flare that marks the replay start — a momentary
-## overshoot to [constant Emissive.PEAK] relaxing back down, exactly what that
-## tier exists for. The last beat before the swing.
-@export var melee_windup_flare: float = 0.1
+## Melee: the BLING that marks the replay start — one straight diagonal glint
+## sweeping the WHOLE formed blade once, lighting each dome's specular and the
+## strips' bevels as it crosses them ([member SkillBlade.glint_progress], its
+## look on [BladeStyle]'s `glint_*` knobs). The last beat before the swing; 0
+## skips it.
+@export_range(0.0, 2.0, 0.01) var melee_windup_bling: float = 0.35
 
 ## [b]Magic wind-up: caster hold → neighbour streaks → flare[/b], the same
 ## clamp-at-zero and all-zero escape hatch as the melee trio (ADR 0027).
@@ -162,7 +164,7 @@ func melee_windup_seconds(has_addons: bool) -> float:
 			+ maxf(0.0, melee_windup_form_span) \
 			+ (maxf(0.0, melee_windup_stamp_time) if has_addons else 0.0) \
 			+ maxf(0.0, melee_windup_glow_ramp) \
-			+ maxf(0.0, melee_windup_flare)
+			+ maxf(0.0, melee_windup_bling)
 
 
 ## Total wind-up length for one committed spell (#1043), in seconds: pivot

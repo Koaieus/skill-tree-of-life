@@ -104,7 +104,7 @@ func test_the_first_hit_lands_strictly_after_the_form_beat_ends_on_the_real_cloc
 	tempo.melee_windup_form_span = 1.4
 	tempo.melee_windup_stamp_time = 0.0
 	tempo.melee_windup_glow_ramp = 0.0
-	tempo.melee_windup_flare = 0.0
+	tempo.melee_windup_bling = 0.0
 	AttackPresenter.ensure_on(_bs).presentation_tempo = tempo
 	var form_beat_end := tempo.windup_lead(BattleSystem.AttackMode.MELEE) + tempo.melee_windup_form_span
 	assert_gt(form_beat_end, tempo.swing_duration,

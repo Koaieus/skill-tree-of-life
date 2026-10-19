@@ -7,6 +7,9 @@ extends Node2D
 
 const DEFAULT_STYLE: BladeStyle = preload("res://attack/melee/default_blade_style.tres")
 
+## [member glint] when no sweep runs: far enough off the band that nothing lights.
+const GLINT_OFF: float = -1.0e4
+
 @export_range(1.0, 100., 1.0) var radius: float = 32.0:
 	set(value):
 		radius = value
@@ -105,6 +108,12 @@ const DEFAULT_STYLE: BladeStyle = preload("res://attack/melee/default_blade_styl
 ## `ui/`, so this script treats the instance as a plain [Node2D] with
 ## `radius`/`source` properties. Null means this vertex can never light.
 @export var lantern_scene: PackedScene = null
+
+## The glint value [SkillBlade] pushes while the wind-up's BLING sweeps:
+## how far the band's centre has passed this vertex, in band widths —
+## below -1 the band has not reached it, above +1 it has gone by, and
+## [constant GLINT_OFF] when no sweep is running.
+var glint: float = GLINT_OFF
 
 @onready var _visual: Node2D = $Visuals/BladeCircle
 ## The steel body under the rim; drawn before [member _visual] in the scene.

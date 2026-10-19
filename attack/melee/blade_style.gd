@@ -226,6 +226,22 @@ extends Resource
 		strip_spine_dim = value
 		emit_changed()
 
+## The wind-up's BLING: one straight band swept once across the whole formed
+## blade. Its direction in screen space (0 = sweeping left to right, 45 = from
+## the top-left corner down), thickness in px, and the tier it lights at.
+@export_range(-90.0, 90.0, 0.5) var glint_angle_deg: float = 45.0:
+	set(value):
+		glint_angle_deg = value
+		emit_changed()
+@export_range(4.0, 128.0, 1.0) var glint_width: float = 28.0:
+	set(value):
+		glint_width = value
+		emit_changed()
+@export var glint_tier: Emissive.Tier = Emissive.Tier.PEAK:
+	set(value):
+		glint_tier = value
+		emit_changed()
+
 ## The blade's base hue for one part, identity tint applied. `entity_color` is
 ## the wielder's colour; pass [constant Color.TRANSPARENT] for an ownerless
 ## blade (test fixtures) and the authored base comes back untouched.
@@ -252,6 +268,16 @@ func shrug_color() -> Color:
 	var identity := IdentityRoster.shared().by_id(charge_identity)
 	var base := identity.tint if identity != null else Color.WHITE
 	return Emissive.tint(base, Emissive.stops(shrug_tier))
+
+
+## The glint band's colour: white at [member glint_tier].
+func glint_color() -> Color:
+	return Emissive.tint(Color.WHITE, Emissive.stops(glint_tier))
+
+
+## The glint's unit sweep direction in screen space, from [member glint_angle_deg].
+func glint_dir() -> Vector2:
+	return Vector2.from_angle(deg_to_rad(glint_angle_deg))
 
 
 ## The steel dome's SDR body colour for one part: [member steel_base] pulled

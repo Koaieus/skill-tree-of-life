@@ -126,7 +126,7 @@ func _zeroed_tempo() -> PresentationTempo:
 	tempo.melee_windup_form_span = 0.0
 	tempo.melee_windup_stamp_time = 0.0
 	tempo.melee_windup_glow_ramp = 0.0
-	tempo.melee_windup_flare = 0.0
+	tempo.melee_windup_bling = 0.0
 	tempo.volley_draw_time = 0.0
 	tempo.volley_windup_pivot_focus = 0.0
 	tempo.magic_windup_pivot_focus = 0.0

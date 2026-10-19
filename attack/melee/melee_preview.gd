@@ -394,7 +394,7 @@ func begin_windup(plan: MeleeAttackPlan, tempo: PresentationTempo) -> float:
 	return blade.form_in(tempo.windup_lead(BattleSystem.AttackMode.MELEE),
 			tempo.melee_windup_form_span,
 			tempo.melee_windup_stamp_time, tempo.melee_windup_glow_ramp,
-			tempo.melee_windup_flare)
+			tempo.melee_windup_bling)
 
 
 ## Re-author an EXISTING blade from [param plan]'s current selection, resetting

@@ -335,13 +335,13 @@ func test_an_attack_in_the_map_corner_still_ends_up_on_screen() -> void:
 # --- #894: centroid tracking waits for the swing; the follow is a spring ------
 
 func _tempo(lead: float, form: float, stamp: float = 0.0, glow: float = 0.0,
-		flare: float = 0.0) -> PresentationTempo:
+		bling: float = 0.0) -> PresentationTempo:
 	var t := PresentationTempo.new()
 	t.melee_windup_pivot_focus = lead
 	t.melee_windup_form_span = form
 	t.melee_windup_stamp_time = stamp
 	t.melee_windup_glow_ramp = glow
-	t.melee_windup_flare = flare
+	t.melee_windup_bling = bling
 	return t
 
 

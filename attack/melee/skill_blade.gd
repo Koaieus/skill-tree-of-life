@@ -115,6 +115,10 @@ var _form_tween: Tween
 ## vertex's stagger delay; a build, [method form_instantly] and
 ## [method _finish_form] fill it whole. Keys are indices, values unused.
 var _placed: Dictionary = {}
+## The wind-up's BLING sweep, 0 → 1: the band's offset along
+## [method BladeStyle.glint_dir] (see [method glint_band]).
+var glint_progress: float = 0.0:
+	set = _set_glint_progress
 ## The blade's centre of interest, authored in the scene (#930): a composite
 ## whose origin is not its point of interest exposes one of these and keeps
 ## its `global_position` current itself — the camera follows the node.
@@ -665,6 +669,14 @@ func form_in(lead: float, stagger_span: float, stamp_time: float,
 		tween.tween_property(self, "modulate", Color.WHITE, flare_time * 0.65) \
 				.set_delay(glow_at + glow_ramp + flare_time * 0.35)
 	return total
+
+
+func _set_glint_progress(value: float) -> void:
+	glint_progress = value
+
+
+func glint_band(_progress: float) -> Vector2:
+	return Vector2.ZERO
 
 
 ## The zero-length wind-up: every beat authored (or gated) to 0, so the blade
