@@ -9,7 +9,7 @@ extends Resource
 ##
 ## SHARED and STATELESS: one instance is referenced by every node carrying
 ## the status, the shadow world's included, so a member holds knobs only —
-## never per-node state (the same gotcha as [ArmorBreakStatus]). A shape that
+## never per-node state (the same gotcha as [SunderStatus]). A shape that
 ## needs the row's history reads it off the [NodeStatus] it is handed
 ## ([member NodeStatus.decay_step]); the host advances it, never the shape.
 ##

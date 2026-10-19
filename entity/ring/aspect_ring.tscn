@@ -18,7 +18,7 @@
 [ext_resource type="Resource" path="res://aspects/defs/hex.tres" id="asp_hex"]
 [ext_resource type="Resource" path="res://identity/defs/constitution.tres" id="id_constitution"]
 [ext_resource type="Resource" path="res://aspects/defs/wither.tres" id="asp_wither"]
-[ext_resource type="Resource" path="res://aspects/defs/armor_break.tres" id="asp_armor_break"]
+[ext_resource type="Resource" path="res://aspects/defs/sunder.tres" id="asp_sunder"]
 [ext_resource type="Resource" path="res://identity/defs/perception.tres" id="id_perception"]
 [ext_resource type="Resource" path="res://aspects/defs/scout.tres" id="asp_scout"]
 [ext_resource type="Resource" path="res://aspects/defs/blindness.tres" id="asp_blindness"]
@@ -138,19 +138,19 @@ stat_id = &"wither_stacks_per_hit"
 value = 1.0
 metadata/_custom_type_script = "uid://che6xhl6srqh3"
 
-[sub_resource type="Resource" id="m_ArmorBreakT1"]
+[sub_resource type="Resource" id="m_SunderT1"]
 resource_local_to_scene = true
-resource_name = "+1 Armor Break Aspect"
+resource_name = "+1 Sunder Aspect"
 script = ExtResource("5_mod")
-stat_id = &"armor_break_aspect"
+stat_id = &"sunder_aspect"
 value = 1.0
 metadata/_custom_type_script = "uid://che6xhl6srqh3"
 
-[sub_resource type="Resource" id="m_ArmorBreakT2"]
+[sub_resource type="Resource" id="m_SunderT2"]
 resource_local_to_scene = true
-resource_name = "+1 Armor Break Aspect"
+resource_name = "+1 Sunder Aspect"
 script = ExtResource("5_mod")
-stat_id = &"armor_break_aspect"
+stat_id = &"sunder_aspect"
 value = 1.0
 metadata/_custom_type_script = "uid://che6xhl6srqh3"
 
@@ -370,23 +370,23 @@ sector = ExtResource("id_constitution")
 tier = 2
 entity_modifiers = Array[ExtResource("5_mod")]([SubResource("m_WitherT2")])
 
-[node name="ArmorBreakT1" parent="Nodes" instance=ExtResource("2_skill")]
+[node name="SunderT1" parent="Nodes" instance=ExtResource("2_skill")]
 position = Vector2(-31, 136)
 
-[node name="RingCellAddon" parent="Nodes/ArmorBreakT1" instance=ExtResource("4_addon")]
-aspect = ExtResource("asp_armor_break")
+[node name="RingCellAddon" parent="Nodes/SunderT1" instance=ExtResource("4_addon")]
+aspect = ExtResource("asp_sunder")
 sector = ExtResource("id_constitution")
 tier = 1
-entity_modifiers = Array[ExtResource("5_mod")]([SubResource("m_ArmorBreakT1")])
+entity_modifiers = Array[ExtResource("5_mod")]([SubResource("m_SunderT1")])
 
-[node name="ArmorBreakT2" parent="Nodes" instance=ExtResource("2_skill")]
+[node name="SunderT2" parent="Nodes" instance=ExtResource("2_skill")]
 position = Vector2(-65, 241)
 
-[node name="RingCellAddon" parent="Nodes/ArmorBreakT2" instance=ExtResource("4_addon")]
-aspect = ExtResource("asp_armor_break")
+[node name="RingCellAddon" parent="Nodes/SunderT2" instance=ExtResource("4_addon")]
+aspect = ExtResource("asp_sunder")
 sector = ExtResource("id_constitution")
 tier = 2
-entity_modifiers = Array[ExtResource("5_mod")]([SubResource("m_ArmorBreakT2")])
+entity_modifiers = Array[ExtResource("5_mod")]([SubResource("m_SunderT2")])
 
 [node name="ConstitutionKeystone" parent="Nodes" instance=ExtResource("6_key1")]
 position = Vector2(0, 330)
@@ -561,20 +561,20 @@ to = NodePath("../../Nodes/WitherT1")
 from = NodePath("../../Nodes/WitherT1")
 to = NodePath("../../Nodes/WitherT2")
 
-[node name="E_Core_ArmorBreakT1" parent="Edges" node_paths=PackedStringArray("from", "to") instance=ExtResource("3_edge")]
+[node name="E_Core_SunderT1" parent="Edges" node_paths=PackedStringArray("from", "to") instance=ExtResource("3_edge")]
 from = NodePath("../../Nodes/Core")
-to = NodePath("../../Nodes/ArmorBreakT1")
+to = NodePath("../../Nodes/SunderT1")
 
-[node name="E_ArmorBreakT1_ArmorBreakT2" parent="Edges" node_paths=PackedStringArray("from", "to") instance=ExtResource("3_edge")]
-from = NodePath("../../Nodes/ArmorBreakT1")
-to = NodePath("../../Nodes/ArmorBreakT2")
+[node name="E_SunderT1_SunderT2" parent="Edges" node_paths=PackedStringArray("from", "to") instance=ExtResource("3_edge")]
+from = NodePath("../../Nodes/SunderT1")
+to = NodePath("../../Nodes/SunderT2")
 
 [node name="E_WitherT1_ConstitutionKeystone" parent="Edges" node_paths=PackedStringArray("from", "to") instance=ExtResource("3_edge")]
 from = NodePath("../../Nodes/WitherT1")
 to = NodePath("../../Nodes/ConstitutionKeystone")
 
-[node name="E_ArmorBreakT1_ConstitutionKeystone" parent="Edges" node_paths=PackedStringArray("from", "to") instance=ExtResource("3_edge")]
-from = NodePath("../../Nodes/ArmorBreakT1")
+[node name="E_SunderT1_ConstitutionKeystone" parent="Edges" node_paths=PackedStringArray("from", "to") instance=ExtResource("3_edge")]
+from = NodePath("../../Nodes/SunderT1")
 to = NodePath("../../Nodes/ConstitutionKeystone")
 
 [node name="E_Core_ScoutT1" parent="Edges" node_paths=PackedStringArray("from", "to") instance=ExtResource("3_edge")]
@@ -637,8 +637,8 @@ to = NodePath("../../Nodes/CurseT2")
 from = NodePath("../../Nodes/HexT2")
 to = NodePath("../../Nodes/WitherT2")
 
-[node name="E_ArmorBreakT2_ScoutT2" parent="Edges" node_paths=PackedStringArray("from", "to") instance=ExtResource("3_edge")]
-from = NodePath("../../Nodes/ArmorBreakT2")
+[node name="E_SunderT2_ScoutT2" parent="Edges" node_paths=PackedStringArray("from", "to") instance=ExtResource("3_edge")]
+from = NodePath("../../Nodes/SunderT2")
 to = NodePath("../../Nodes/ScoutT2")
 
 [node name="E_BlindnessT2_CorruptionT2" parent="Edges" node_paths=PackedStringArray("from", "to") instance=ExtResource("3_edge")]
@@ -649,8 +649,8 @@ to = NodePath("../../Nodes/CorruptionT2")
 from = NodePath("../../Nodes/GreedT2")
 to = NodePath("../../Nodes/BleedingT2")
 
-[node name="E_ArmorBreakT1_BleedingT1" parent="Edges" node_paths=PackedStringArray("from", "to") instance=ExtResource("3_edge")]
-from = NodePath("../../Nodes/ArmorBreakT1")
+[node name="E_SunderT1_BleedingT1" parent="Edges" node_paths=PackedStringArray("from", "to") instance=ExtResource("3_edge")]
+from = NodePath("../../Nodes/SunderT1")
 to = NodePath("../../Nodes/BleedingT1")
 
 [node name="E_BleedingT1_WeaknessT1" parent="Edges" node_paths=PackedStringArray("from", "to") instance=ExtResource("3_edge")]

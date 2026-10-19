@@ -39,7 +39,7 @@ markers, the flare, every arrow's look — is `docs/design/aspect_matrix.md`
 | facet | field | note |
 |---|---|---|
 | stats | `order` | volley position: lower fires and lands first, the base arrow sits at 100, scout last (120). A **marker** flies early (curse 40, hex 30, greed 5) |
-| | `damage_scale` | raw-damage multiplier before mitigation; markers 0.3, plain stacks 0.5 unless the row says otherwise (armor break 0.75), blindness and scout 0 |
+| | `damage_scale` | raw-damage multiplier before mitigation; markers 0.3, plain stacks 0.5 unless the row says otherwise (sunder 0.75), blindness and scout 0 |
 | | `max_stock` | the type's own bank cap, outside the shared quiver capacity (ADR 0041); 999 unless tuned (curse and corruption 6) |
 | | `per_reload_stat_id()` | derived: the concept's ASPECT facet (base arrow authors `base_per_reload_stat_id`) |
 | effect | `on_hit_effects` | `OnHitEffect` riders run in order on every landing arrow ([On-hit shelf](#on-hit-shelf)) — usually one `ApplyStatusEffect` of the concept's `effects/status/<concept>.tres`, its `power` the stacks per landing arrow before potency × (1 − resistance). A scout type is one `ApplyStatusEffect(scouted.tres)` rider with `damage_scale` 0 (`AmmoType.is_scout()`) |
@@ -102,7 +102,7 @@ its exports — never the arrow or a `SkillNode`.
 
 | part | knobs a look sets | used by |
 |---|---|---|
-| `ArrowTip` | `shape` POINTED / BLUNT / CLUB, `length`, `width`, `tier`, `fade_to_shaft` (colour runs out toward the shaft), `pulse_hz` + `pulse_depth` (a beating head) | every look; blunt: armor break, blindness; club: corruption, weakness; pulse: corruption, greed, hex; fade: poison, wither |
+| `ArrowTip` | `shape` POINTED / BLUNT / CLUB, `length`, `width`, `tier`, `fade_to_shaft` (colour runs out toward the shaft), `pulse_hz` + `pulse_depth` (a beating head) | every look; blunt: sunder, blindness; club: corruption, weakness; pulse: corruption, greed, hex; fade: poison, wither |
 | `ArrowShedEmitter` | (emitter knobs) + `density` (share of `amount` emitted; keeps a 20-arrow volley readable), `world_space` | the base trail; a second one: poison's froth |
 | `ArrowImpactEmitter` | (emitter knobs) + `spread` TIP / RIM / RIDERS (every non-dud rider's target), `rim_spots`, `per_spot`, `delay` (hold the burst while a mark lingers) | the base burst; rim: wither; riders: blindness's cloud; delay: corruption |
 | `ArrowImpactSprite` | `texture`, or with none a `shape` RING / EYE (`lid_ratio`, `pupil_ratio`; the scale curve is the lid opening — a blink); `anchor` TIP / NODE; `lifetime`, `size`, `ring_width`, `scale_curve`, `alpha_curve`, `tier` | corruption's pustule, curse's contracting ring, greed's gilding, weakness's thud, hex's eye |
@@ -127,7 +127,7 @@ Gotchas:
 - Writing `amount` restarts an emitter's buffer; the part writes it only on
   a change.
 - A restyled trail usually sets `show_on_dud = false` / `show_on_absorbed =
-  false` explicitly (armor break, bleeding, corruption, wither, poison's
+  false` explicitly (sunder, bleeding, corruption, wither, poison's
   froth) — a per-look choice, not a default.
 - **Widen a part, don't script a look.** Every look so far is a pure `.tscn`;
   when one needed a behaviour the kit lacked, the part grew an export
@@ -138,7 +138,7 @@ Gotchas:
 
 | arrow | parts it touches |
 |---|---|
-| armor break | blunt wide tip; spark trail; fragment burst |
+| sunder | blunt wide tip; spark trail; fragment burst |
 | bleeding | sparse drip trail |
 | blindness | inert blunt tip; grit trail; smoke cloud burst spread over riders |
 | corruption | beating club tip; swelling blip trail; delayed pop burst; pustule sprite |

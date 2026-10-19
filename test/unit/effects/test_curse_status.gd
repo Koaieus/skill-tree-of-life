@@ -4,7 +4,7 @@ extends GutTest
 ## `min_damage_taken`, `value == power` — every stack raises the floor a hit
 ## lands at by 1. Deals nothing itself; halving decay, uncapped; a bunker's
 ## negative floor is pushed toward (and past) zero, so the heal flip goes
-## away under enough stacks. Same shadow-isolation rule as ArmorBreak /
+## away under enough stacks. Same shadow-isolation rule as Sunder /
 ## Blindness: the def is stateless, the handle is FOUND and REPLACED, never
 ## edited in place — a static modifier is shared between a live board and
 ## its shadow clone.

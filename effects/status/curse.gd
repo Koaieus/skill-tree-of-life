@@ -11,7 +11,7 @@ extends StatusDef
 ## past zero, so enough stacks take the heal flip away
 ## (`docs/domain/effect-system.md` § "Status effects — the DoT model").
 ##
-## Same shape and discipline as [ArmorBreakStatus] / [BlindnessStatus]: the
+## Same shape and discipline as [SunderStatus] / [BlindnessStatus]: the
 ## def is shared and stateless, the per-node handle is FOUND by type and
 ## REPLACED on every write, never edited in place — a static modifier is
 ## SHARED between a live board and its shadow clone (`StatBoard._localize`

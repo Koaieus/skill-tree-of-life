@@ -314,16 +314,16 @@ func test_special_counts_survive_a_rebuild_and_a_fresh_plan() -> void:
 
 func test_the_composed_list_follows_the_preference_order_else_the_roster() -> void:
 	_attacker.stat_board.arrows.add(&"curse", 1)
-	_attacker.stat_board.arrows.add(&"armor_break", 1)
+	_attacker.stat_board.arrows.add(&"sunder", 1)
 	var pref: VolleyPreference = _ctl.armed_stack.memory_for(_attacker).ranged
-	pref.order = [&"curse", &"armor_break"] as Array[StringName]
-	_body.set_special(&"armor_break", 1)
+	pref.order = [&"curse", &"sunder"] as Array[StringName]
+	_body.set_special(&"sunder", 1)
 	_body.set_special(&"curse", 1)
-	assert_eq(_plan.types().slice(0, 2), [&"curse", &"armor_break"] as Array[StringName],
+	assert_eq(_plan.types().slice(0, 2), [&"curse", &"sunder"] as Array[StringName],
 			"card order is firing order")
 	pref.order = [] as Array[StringName]
 	_body.set_n(4)
-	assert_eq(_plan.types(), [&"armor_break", &"curse", _ARROW] as Array[StringName],
+	assert_eq(_plan.types(), [&"sunder", &"curse", _ARROW] as Array[StringName],
 			"an empty preference falls back to the roster's authored order")
 
 
@@ -430,8 +430,8 @@ func test_capacity_hint_shows_only_below_max() -> void:
 
 func _four_types() -> void:
 	_attacker.stat_board.arrows.add(&"curse", 1)
-	_attacker.stat_board.arrows.add(&"armor_break", 1)
-	_body.set_special(&"armor_break", 1)
+	_attacker.stat_board.arrows.add(&"sunder", 1)
+	_body.set_special(&"sunder", 1)
 	_body.set_special(&"curse", 1)
 	_body.set_special(_POISON, 1)
 
@@ -471,7 +471,7 @@ func test_dragging_card_three_to_slot_one_reorders_the_plan() -> void:
 func test_restore_default_order_empties_the_preference() -> void:
 	_four_types()
 	var pref: VolleyPreference = _ctl.armed_stack.memory_for(_attacker).ranged
-	pref.order = [_ARROW, _POISON, &"curse", &"armor_break"] as Array[StringName]
+	pref.order = [_ARROW, _POISON, &"curse", &"sunder"] as Array[StringName]
 	_body.set_n(_body.max_n())
 	assert_eq(_plan.types()[0], _ARROW, "control: the custom order applies")
 	var button := _body.get_node_or_null("%DefaultOrderButton") as Button

@@ -267,7 +267,7 @@ var land_resolved: bool = false
 
 ## Where a hit lands within its landing's span, relative to the primary hit
 ## that span rides on ([method HitLanding.place]): a status rider lands
-## BEFORE it, so a curse floor or an armor break lifts its own hit; the
+## BEFORE it, so a curse floor or a sunder lifts its own hit; the
 ## primary is PRIMARY; a damage-shaped rider (paired damage, splash copy,
 ## blast, detonate's cure) lands AFTER it. Landing-scoped and applied at
 ## build time as list position, never a sort key at land (ADR 0067).

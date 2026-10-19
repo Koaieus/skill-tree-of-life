@@ -86,4 +86,4 @@ Owner, 2026-09-30, settled:
 - Cuss: what the ledger's choices are, and whether Cuss and the Fairy
   really are family.
 - Final names for wither and blindness; names at all for corruption,
-  explosive, armor break and scout.
+  explosive, sunder and scout.

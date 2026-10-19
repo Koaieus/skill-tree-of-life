@@ -34,7 +34,7 @@ bin the entity and node carry, and during a run those bins pile up:
   lowers the *enemy's* armor rather than raising yours. One allocated node can move a defence axis.
 - **core class, addons, auras**: Sanctuary's +CON, the Bunker's +armor and
   −floor.
-- **statuses**: each curse stack raises the floor by 1, armor break lowers
+- **statuses**: each curse stack raises the floor by 1, sunder lowers
   armor, wither scales healing.
 
 The floor shows why no single number is the answer. `taken = max(floor, raw −
@@ -56,5 +56,5 @@ the board; the house rules for where a value lives are in
 
 ## The attacker side of armor: pierce
 
-`armor_break` works **inside** the defender's armor bins (a −1 per stack, can go negative). `armor_pierce` works **on its output** (ADR 0065): the hit carries the attacker's pierce as `FoldTerms` (`DamageInstance.armor_pierce`, stamped by its producer via `Mitigation.pierce_terms` off the attacking node), and `Mitigation.effective_armor` folds it over the defender's *final* armor only when that is > 0, clamped at 0 and floored to whole; the `min_damage_taken` floor still applies last. Fixture: defender 4 / +50% / +2 = 8 → −3 ADD_BASE lands 5, −50% INC 4, ×0.5 4, SET 0 0. Producers opt out (`uses_board_pierce`) or add their own (`armor_pierce_modifiers`): `DamageEffect`, `PairedDamageEffect`, `AmmoType`, and the blade via `SwingContext`.
+`sunder` works **inside** the defender's armor bins (a −1 per stack, can go negative). `armor_pierce` works **on its output** (ADR 0065): the hit carries the attacker's pierce as `FoldTerms` (`DamageInstance.armor_pierce`, stamped by its producer via `Mitigation.pierce_terms` off the attacking node), and `Mitigation.effective_armor` folds it over the defender's *final* armor only when that is > 0, clamped at 0 and floored to whole; the `min_damage_taken` floor still applies last. Fixture: defender 4 / +50% / +2 = 8 → −3 ADD_BASE lands 5, −50% INC 4, ×0.5 4, SET 0 0. Producers opt out (`uses_board_pierce`) or add their own (`armor_pierce_modifiers`): `DamageEffect`, `PairedDamageEffect`, `AmmoType`, and the blade via `SwingContext`.
 

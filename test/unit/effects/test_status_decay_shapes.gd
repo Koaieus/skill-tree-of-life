@@ -15,7 +15,7 @@ var _SHAPES := {
 	&"wither": FractionDecay,
 	&"blindness": FractionDecay,
 	&"curse": FlatDecay,
-	&"armor_break": FlatDecay,
+	&"sunder": FlatDecay,
 }
 
 

@@ -2,7 +2,7 @@
 class_name StatusDef
 extends Resource
 
-## The shared definition of a node status — poison, blindness, armor break
+## The shared definition of a node status — poison, blindness, sunder
 ## (#868 hub, #872 plumbing). Authored once as a `.tres`, referenced by every
 ## node carrying that status; it holds NO runtime state. The per-node state
 ## (current power) lives on [NodeCombat]'s status slice as a [NodeStatus] row.

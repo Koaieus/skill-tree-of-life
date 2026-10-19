@@ -4,13 +4,13 @@
 [ext_resource type="Script" path="res://effects/effect.gd" id="2_effect"]
 [ext_resource type="Resource" path="res://effects/blocker_footprint_falloff.tres" id="3_falloff"]
 [ext_resource type="PackedScene" path="res://skill_node/visuals/core_gear.tscn" id="4_look"]
-[ext_resource type="Resource" path="res://identity/defs/armor_break.tres" id="5_identity"]
+[ext_resource type="Resource" path="res://identity/defs/sunder.tres" id="5_identity"]
 
 [resource]
 script = ExtResource("1_face")
 pickable_in = 0
-display_name = "Armor Break Dormant Core"
-description = "A Dormant Core wearing the Armor Break face: the faceless core's falloff aura and look, plus Armor Break grants scaled by its size (BlockerCoreClass). Never pickable; procgen rolls it per placement."
+display_name = "Sunder Dormant Core"
+description = "A Dormant Core wearing the Sunder face: the faceless core's falloff aura and look, plus Sunder grants scaled by its size (BlockerCoreClass). Never pickable; procgen rolls it per placement."
 effects = Array[ExtResource("2_effect")]([ExtResource("3_falloff")])
 core_look = ExtResource("4_look")
 identity = ExtResource("5_identity")

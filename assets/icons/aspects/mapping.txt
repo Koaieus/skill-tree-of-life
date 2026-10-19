@@ -14,7 +14,7 @@ poison	lorc/droplets.svg
 corruption	lorc/gooey-molecule.svg
 curse	skoll/pentacle.svg
 wither	lorc/dead-wood.svg
-armor_break	lorc/cracked-shield.svg
+sunder	lorc/cracked-shield.svg
 blindness	skoll/sight-disabled.svg
 scout	delapouite/binoculars.svg
 explosive	lorc/spiky-explosion.svg

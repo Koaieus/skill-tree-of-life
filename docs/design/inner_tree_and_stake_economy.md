@@ -72,7 +72,7 @@ offer, plus a gray mystery variant). Both are their own Ready issues filed from
 #199's pass.
 
 Facts it leans on: 12 `<aspect>_aspect` counts under the `aspects` family
-parent, 10 `<aspect>_stacks_per_hit` potencies (scout, armor_break, explosive
+parent, 10 `<aspect>_stacks_per_hit` potencies (scout, sunder, explosive
 have none yet), six schools × two aspects (`aspect_matrix.md:395-402`; #1249
 still open on the map), `Entity.MILESTONE_LEVEL_INTERVAL := 5` already exists,
 and mid-run choice modals already exist (loot and spell-loot pickers). Count is capped per action
@@ -115,11 +115,11 @@ are their own Intake issue.
   (same school). Breadth before depth: three points into Poison alone never
   reach T3.
 - Ring order: Bleeding, Weakness | Poison, Explosive | Curse, Hex | Wither,
-  Armor break | Scout, Blindness | Corruption, Greed | back to Bleeding.
+  Sunder | Scout, Blindness | Corruption, Greed | back to Bleeding.
 - **Opposition** (six axes through the centre; no hard lock, which hurts AI
   and experimenters — instead *one T3 per axis* and taking it doubles the
   opposite's T2 cost): Poison ↔ Explosive (slow DoT vs burst) · Bleeding ↔
-  Armor break (soft wounds vs hard armour) · Wither ↔ Greed (starve vs
+  Sunder (soft wounds vs hard armour) · Wither ↔ Greed (starve vs
   amplify) · Scout ↔ Blindness (reveal vs blind) · Curse ↔ Weakness (fragility
   vs damage cut) · Hex ↔ Corruption (crit-taken vs % build-up).
 
@@ -128,9 +128,9 @@ are their own Intake issue.
 Bleeding: stacks are not lost while the bleeder moves · Weakness: a weakened
 node halves a neighbour's damage too · Poison: a stack that would decay holds
 one extra turn · Explosive: +50% blast radius, the blast leaves one Poison or
-Armor-break stack · Curse: death/dealloc spill reaches two hops · Hex: first
+Sunder stack · Curse: death/dealloc spill reaches two hops · Hex: first
 Hex landing per turn on a node counts double · Wither: the first stack already
-zeroes healing, further stacks hurt · Armor break: each landing shaves 1 armor
+zeroes healing, further stacks hurt · Sunder: each landing shaves 1 armor
 from the two nearest neighbours · Scout: a camp's vision disc lingers 2 turns
 after the stack · Blindness: flare reach extends to second-hop hostiles ·
 Corruption: the Compromiser's flat rider is 2 stacks, no ladder · Greed: a

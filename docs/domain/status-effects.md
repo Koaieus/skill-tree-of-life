@@ -111,8 +111,8 @@ bypass are [defense-axes.md](defense-axes.md).
 - **Sync.** `network/graph_snapshot.gd` carries `(status id, power)` rows in resync,
   and `WorldFingerprint` folds them.
 - **Roster.** `effects/status/*.gd`: poison, corruption, curse, wither, bleeding,
-  blindness, armor break, weakness, greed, hex, scout. `BlindnessStatus` (MULTIPLY on
-  vision/sensor range), `ArmorBreakStatus` (MULTIPLY on armor) and `PoisonStatus`
+  blindness, sunder, weakness, greed, hex, scout. `BlindnessStatus` (MULTIPLY on
+  vision/sensor range), `SunderStatus` (MULTIPLY on armor) and `PoisonStatus`
   (unmitigated `DamageInstance.Type.TRUE` damage on `_on_tick`, flat or %-of-max-hp
   per `basis` — `HitInstance.AmountBasis`, resolved in `DamageInstance.land_on`; can
   kill through the ordinary `notify_depleted` cascade) are the reference shapes.
@@ -166,7 +166,7 @@ lands 2). Hit size never scales stacks. Poison, corruption, curse and wither's
 stacks stats share one parent umbrella, `dot_stacks_per_hit`, which lands more
 stacks and never scales damage; bleeding, blindness, greed, hex (`hex_stacks_per_hit`)
 and weakness each carry a parentless `<id>_stacks_per_hit` and sit outside it.
-Armor break and scout author no `StatusDef.stacks_stat_id()` (a flat landing count).
+Sunder and scout author no `StatusDef.stacks_stat_id()` (a flat landing count).
 
 **Resistance** (`poison_resistance`, …, default 0, a fraction) is read on the
 **host** and filters the accumulated row at effect time, never the incoming hit
@@ -192,7 +192,7 @@ multiplier climbs back through zero, nulling healing, then restoring it.
 
 | Status | Shape (`effects/status/*.tres`) |
 |---|---|
-| Poison, Curse, Armor break, Hexed, Scouted | `FlatDecay`, `per_tick` 1 |
+| Poison, Curse, Sunder, Hexed, Scouted | `FlatDecay`, `per_tick` 1 |
 | Wither, Weakened | `FractionDecay`, `fraction` 0.25 removed |
 | Blindness | `FractionDecay`, `fraction` 0.7 removed, ACCUMULATE — see [node-subtypes.md](node-subtypes.md) decision 20 |
 | Bleeding | `RampDecay` — `start` 1, `step` 1 while resting; the ramp position is `NodeStatus.decay_step`, reset by exertion |

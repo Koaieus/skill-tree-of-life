@@ -25,7 +25,7 @@ extends StatusDef
 ## tick body itself is the shared [method DotTick.mint]: poison and
 ## [CorruptionStatus] are two defs over one implementation.
 ##
-## Unlike [ArmorBreakStatus] / `BlindnessStatus`, poison plants no modifier —
+## Unlike [SunderStatus] / `BlindnessStatus`, poison plants no modifier —
 ## `_on_applied` / `_on_removed` are both no-ops.
 
 @export var basis: HitInstance.AmountBasis = HitInstance.AmountBasis.FLAT

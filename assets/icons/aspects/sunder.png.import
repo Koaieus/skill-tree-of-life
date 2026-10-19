@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://nfinphidat4h"
-path="res://.godot/imported/armor_break.png-a7bd01202670bfd648dfa76b5f3cb6f5.ctex"
+path="res://.godot/imported/sunder.png-d799a1c772428704ba912ce3de44070f.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/icons/aspects/armor_break.png"
-dest_files=["res://.godot/imported/armor_break.png-a7bd01202670bfd648dfa76b5f3cb6f5.ctex"]
+source_file="res://assets/icons/aspects/sunder.png"
+dest_files=["res://.godot/imported/sunder.png-d799a1c772428704ba912ce3de44070f.ctex"]
 
 [params]
 

@@ -45,7 +45,7 @@ func _apply_badge_px() -> void:
 ## Renders "<display_name> <⌊power⌋> — <dmg> dmg next tick" for a status that
 ## deals damage — e.g. "Poison 12 — 9 dmg next tick" for a 12.7 row at 25%
 ## resistance — and bare "<display_name> <⌊power⌋>" for one that doesn't
-## (curse, wither, blindness, armor-break). [param host] answers
+## (curse, wither, blindness, sunder). [param host] answers
 ## [method StatusDef.next_tick_damage], the SAME call the health bar's
 ## projection reads its first term from (#1190), so the row and the bar never
 ## disagree; a def that deals no damage answers `0` there and the dmg clause

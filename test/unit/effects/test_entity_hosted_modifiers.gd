@@ -3,7 +3,7 @@ extends GutTest
 ## #997 (hub #994), owner 2026-09-20: an entity-hosted modifier status plants
 ## on the ENTITY board — entity-wide by construction, because every node's
 ## combined read is `[entity.bins, node.bins]`. One proof per def (Blindness,
-## ArmorBreak, Curse, Wither), each with the shadow-isolation assert: the
+## Sunder, Curse, Wither), each with the shadow-isolation assert: the
 ## entity board's static modifiers are SHARED with a shadow clone
 ## (`StatBoard._localize` copies only formula-bearing ones), so a shadow
 ## resolve must replace, never edit, the found modifier. Hand-built defs —
@@ -109,11 +109,11 @@ func test_entity_blindness_halves_every_nodes_combined_vision_range() -> void:
 	assert_almost_eq(float(_n1.get_local_value(&"vision_range")), v1 * 0.5, 0.001, "live world still blinded")
 
 
-# ── ArmorBreak ──────────────────────────────────────────────────────────────
+# ── Sunder ──────────────────────────────────────────────────────────────
 
-func test_entity_armor_break_subtracts_flat_armor_from_every_node() -> void:
-	var def := ArmorBreakStatus.new()
-	def.id = &"armor_break"
+func test_entity_sunder_subtracts_flat_armor_from_every_node() -> void:
+	var def := SunderStatus.new()
+	def.id = &"sunder"
 	def.power_max = 0.0
 	def.decay = FractionDecay.new(0.5)
 	_entity.stat_board.get_stat(&"armor").base_value = 8.0
@@ -121,7 +121,7 @@ func test_entity_armor_break_subtracts_flat_armor_from_every_node() -> void:
 	_combat().apply_status(def, 3.0)
 	assert_almost_eq(float(_n0.get_local_value(&"armor")), 5.0, 0.001, "core armor - 3 stacks")
 	assert_almost_eq(float(_n1.get_local_value(&"armor")), 5.0, 0.001, "non-core armor - 3 stacks")
-	var live := _entity_mods(&"armor", ArmorBreakStatus.ArmorBreakModifier)
+	var live := _entity_mods(&"armor", SunderStatus.SunderModifier)
 	assert_eq(live.size(), 1)
 	if live.is_empty():
 		return

@@ -9,7 +9,7 @@ const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 
 const _ASPECTS: Array[StringName] = [
 	&"poison_aspect", &"corruption_aspect", &"curse_aspect", &"wither_aspect",
-	&"blindness_aspect", &"scout_aspect", &"armor_break_aspect", &"explosive_aspect"]
+	&"blindness_aspect", &"scout_aspect", &"sunder_aspect", &"explosive_aspect"]
 
 var _graph: Graph
 

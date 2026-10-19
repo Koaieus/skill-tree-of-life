@@ -1,8 +1,8 @@
 @tool
-class_name ArmorBreakStatus
+class_name SunderStatus
 extends StatusDef
 
-## Armor Break (#877, flat since #1308): `power` is a STACK COUNT and one stack
+## Sunder (#877, flat since #1308): `power` is a STACK COUNT and one stack
 ## is -1 node-local `armor`, uncapped — armor may go below zero, which
 ## [Mitigation] turns into extra damage before the `min_damage_taken` floor.
 ## `reapply = ACCUMULATE` in the authored def makes repeated hits add stacks.
@@ -23,8 +23,8 @@ extends StatusDef
 ## Own type so a found modifier can be told apart from any other ADD_BASE on
 ## `armor`, and UNSCALED so a broken node's armor loss is not laddered by
 ## allocation depth (#376 — same rationale as Blindness's BlindModifier).
-const ArmorBreakModifier := preload("res://effects/status/modifiers/armor_break_modifier.gd")
-const _MODIFIER_TEMPLATE := preload("res://effects/status/modifiers/armor_break_modifier.tres")
+const SunderModifier := preload("res://effects/status/modifiers/sunder_modifier.gd")
+const _MODIFIER_TEMPLATE := preload("res://effects/status/modifiers/sunder_modifier.tres")
 
 
 func _on_applied(host, power: float) -> void:
@@ -55,7 +55,7 @@ func _set_break(host, power: float) -> void:
 	host.add_local_modifier(m)
 
 
-## The [ArmorBreakModifier] on [param node]'s local `armor`, or null.
+## The [SunderModifier] on [param node]'s local `armor`, or null.
 func _find(host) -> StatModifier:
 	var b: StatBoard = host.board()
 	if b == null:
@@ -64,6 +64,6 @@ func _find(host) -> StatModifier:
 	if s == null:
 		return null
 	for m in s._modifiers:
-		if m is ArmorBreakModifier:
+		if m is SunderModifier:
 			return m
 	return null

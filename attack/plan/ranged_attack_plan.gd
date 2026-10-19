@@ -115,10 +115,10 @@ func n() -> int:
 
 
 ## The volley's ammo, one [AmmoType] per shot, in [member ammo]'s order — the
-## order the schedule assigns them along. Owner: *"5 armor breaker shots
-## configured first -> will land first, regardless of what wave inside the
-## burst they launch at"*; whose arrows are configured first is the player's
-## card order. Unknown ids are skipped (validate refuses them anyway).
+## order the schedule assigns them along: five sunder shots configured first
+## land first, whatever wave inside the burst they launch at; whose arrows are
+## configured first is the player's card order. Unknown ids are skipped
+## (validate refuses them anyway).
 func _ammo_sequence() -> Array[AmmoType]:
 	var seq: Array[AmmoType] = []
 	var roster := _roster()

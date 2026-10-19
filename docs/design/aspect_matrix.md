@@ -251,7 +251,7 @@ Each cell links its cell issue (`<Concept> × <Facet>`, a child of the row hub i
 | Wither | anti-heal | `wither_aspect` | type shipped (#1349); feel and look #1387 | #1388 | `girdle` shipped (see "Spell faces") | #1250 | row: #1380. Drives healing received negative: while it does, a negative heal deals damage that does not close the regen gate, so the regen ramp keeps climbing and the node heals itself toward death — temporary, never permanent: as Wither decays the multiplier climbs back through zero, nulling healing, then restoring it (owner, 2026-10-07, moved here from the superseded ADR 0022 d5). Owner, 2026-09-20: *"it ruins your healing to making you effectively undead"*. `spells.md`'s Flood wants this anti-heal (#1389) |
 | Blindness | vision debuff | `blindness_aspect` | type shipped (#1349); feel and look #1390 | #1391 | `dazzle` shipped, reshaped to climb vision #1491 (see "Spell faces"); `scout_line` shipped (#1490); **Throw Sand** #1392 | #1250 | row: #1253. Count stacks, effect reads as a % via a saturating curve |
 | Scout (a status whose rows draw vision, #949) | reveal | `scout_aspect` | scouting arrow shipped (stacks: #1345, #1346) | watchtower shipped, map + blade faces (#1393); temp face waits on melee-tray capacity | `eagle_eye` and `scout_line` shipped (see "Spell faces") | #1250 | row: #1254. `effects/status/scouted.tres` is live: the arrow lands camp-keyed stacks, VisionSystem draws `radius_for` discs from the rows (#1346); first-class concept (owner, 2026-09-30). **Two faces (owner, 2026-10-11):** *"scout arrow and eagle eye and scout line ALL apply scouted stacks on hit (tag); while some (or all, or at least the Scout Line) carriers themselves are a lighting/revealing (\"lantern\") vision source"* — every scouting carrier is a lantern (owner pick), mechanism #1557. Scout and Blindness are two PER rows by the owner's table, not one vision axis. Watchtower's offence stats and production-vs-firing: #1413 |
-| Armor break | armor debuff | `armor_break_aspect` | type shipped (#1349); feel and look #1395 | #1396 | `rend` shipped; second spell #1397 | #1250 | row: #395 (child 0: penetration stat #1401). Flat −1 armor per stack, uncapped, can go below zero (#1203, owner 2026-09-30). School CON (round 7). Has no `_stacks_per_hit` / `_resistance` while the DEX pool rolls a raw `armor` −% bane that bypasses the aspect. `spells.md`'s Heavy / Piercing Bolt (seek max / min armor) are its second spell (#1397) |
+| Sunder | armor debuff | `sunder_aspect` | type shipped (#1349); feel and look #1395 | #1396 | `rend` shipped; second spell #1397 | #1250 | row: #395 (child 0: penetration stat #1401). Flat −1 armor per stack, uncapped, can go below zero (#1203, owner 2026-09-30). School CON (round 7). Has no `_stacks_per_hit` / `_resistance` while the DEX pool rolls a raw `armor` −% bane that bypasses the aspect. `spells.md`'s Heavy / Piercing Bolt (seek max / min armor) are its second spell (#1397) |
 | Weakness | damage debuff | `weakness_aspect` | type shipped (#1349); look #1427 (Sap?) | #1428 | #1429 (Enfeeble?) | #1250 | row: #1425 (child 0: the status, #1426, shipped). Stacks cut damage dealt by attacks originating from the node, % on a saturating curve (round 7) |
 | Greed | status magnet | `greed_aspect` | type shipped; look #1422 | #1423 | #1424 | #1250 | row: #1419 (child 0: the landing term, #1420, shipped; Avarice #1421, shipped). One Greed stack on the node doubles every negative status the next hit lands, Greed included, then one stack is spent; its Avarice face pays bonus XP per stack left when an attack removes the node (rounds 5–6) |
 | Explosive | charges (AoE) | `explosive_aspect` | #1398 — goo: the PLANT face, coats a node | #1399 — the barrel: stacking, refills N charges; on a blade the warhead's lives | #1400 — Firecracker, Flamestrike | #1466 — DETONATE by default; the intake row picks PLANT, FUEL or a composition | row: #1211. Built in [`docs/domain/explosive.md`](../domain/explosive.md), open parts in § Explosive (owner, 2026-10-14, #1608): charges are a side-less status; a hit's load is spent as a blast (DETONATE), planted (PLANT) or shapes propagation (FUEL); a blast carries the hit in a euclidean radius; a blade's contact pops blade. The concept names the content, never the reverse (owner, 2026-10-05): *"the concept determines arrows+addons+spells etc."* |
@@ -415,7 +415,7 @@ Hue stays `Identity.tint`.
 | Curse | **marker**: owner *"early in volley, low damage value like .3 of original"* | early | dim "anti-glow" tip; an inward-contracting ring on impact |
 | Wither | plain stacks | — | dry ash flakes drifting down off the trail; the rim crumbles on impact |
 | Blindness | **flare**: owner *"target + its direct hostile neighbors. Some more reach. Then we make the damage 0 to really offset the increased reach"*; same stacks on all (*"Possibly: 1 stack for neighbors and more on the main target? Maybe later"*) | — | grit-shedding tip bursting into a grey-lavender smoke/sand cloud over target and neighbours; owner: *"with a flashbang pop on impact? Or just option 1, depends on the final looks"*. Never a light flare: that is Scout's (owner: *"It's literally a fog of war clearing flare"*) |
-| Armor break | plain, generous (#395) | first | heavy blunt tip, spark-shard trail, fragments fly off on impact |
+| Sunder | plain, generous (#395) | first | heavy blunt tip, spark-shard trail, fragments fly off on impact |
 | Greed | plain stacks, owner: *"it'd be up for the situation to determine when it should be put in the volley, i think early better than later"* | early | Midas touch: owner *"I think a Midas touch vibe is warranted here"* — gold glint, coins tumbling off the trail |
 | Weakness | plain stacks | — | blunt concussive tip, a dull thud ring on impact |
 | Bleeding | plain stacks | — | dark wound-red drips off the trail, sparse like poison's froth |
@@ -495,7 +495,7 @@ or is struck (the ADR 0045 "dead for two of three attack modes" test).
 | Paralysis | — | — | — | — | — | **Struck (owner, 2026-10-06)** with Fatigue / Slow. An AP-cap cut also sits on core-class territory (the Pacifist ruling) |
 | Spikes | offense | STR? | — | `spike_ring_addon.tscn`: local `blade_damage` (×1.5, +3), allocation-scaled per #1369 | — | **Not an aspect**: its defensive face (pop a blade vertex) has no ranged or spell meaning. Owner, 2026-10-05: *"spikes addon just adds blade damage. Switch to bleed stacks instead? (Or keep some blade dmg mods why not). Spikes do fit bleeding thematically. Though they also fit poison"*. **Round 9 lean (pass, 2026-10-06): Spike Ring is Bleeding × Addon** — a sawblade that opens wounds: keeps its local `blade_damage`, gains the bleed rider, and Blunting dies with the pop budget; settled on #1369 and the Bleeding addon cell. The pop budget (`spikes`, `node_spikes`, `spike_regen`) is the #1369 fork; the anti-blade face moved to Explosive's barrel (lean 2026-10-04: *"I think the explosive one thematically fits best"*; shape settled 2026-10-13, § Explosive), so those stats go |
 | Blunting | — | — | — | today only a spiked node's +1 | — | Struck candidate: a counter to a counter, meaningless to an arrow or a spell. Dies with the pop budget (the anti-blade face is Explosive's barrel, 2026-10-13) (and #794 with it) |
-| Elemental (family) | — | — | — | — | — | **Keep away (settled with Schools, 2026-10-05):** each pro is harvested as a mechanic for existing rows. Owner, 2026-10-05: *"Chill or burn sound like pure elemental, which is also a real mechanic family we haven't touched on yet. And if we start adding it, shouldn't half-ass it"*. A family, not a row: which elements, what each does on a graph, and whether elements share a resistance layer are one design pass. Chill would absorb the tempo debuffs above (Fatigue/Slow, Paralysis, Petrified). All or nothing (owner, 2026-10-05): *"either fully flesh it out or keep it away"*. Owner's pros: burning is a canonical DoT; burning could spread to neighbours; freeze may lock a node (can't act, can't be deallocated), chill a lesser or building version (*"enough chill turns into freeze idk"*); lightning *"might do hops based shenanigans"*. Against: the settled aspects (Corruption, Curse, Wither, Poison, Armor break) fit none of fire/cold/lightning, nor a fourth element. Advisor read: burn collides with Poison's axis unless edge-spread sets it apart, freeze is the tempo row's name, lightning is a targeting shape — so elements may be flavour, not a school |
+| Elemental (family) | — | — | — | — | — | **Keep away (settled with Schools, 2026-10-05):** each pro is harvested as a mechanic for existing rows. Owner, 2026-10-05: *"Chill or burn sound like pure elemental, which is also a real mechanic family we haven't touched on yet. And if we start adding it, shouldn't half-ass it"*. A family, not a row: which elements, what each does on a graph, and whether elements share a resistance layer are one design pass. Chill would absorb the tempo debuffs above (Fatigue/Slow, Paralysis, Petrified). All or nothing (owner, 2026-10-05): *"either fully flesh it out or keep it away"*. Owner's pros: burning is a canonical DoT; burning could spread to neighbours; freeze may lock a node (can't act, can't be deallocated), chill a lesser or building version (*"enough chill turns into freeze idk"*); lightning *"might do hops based shenanigans"*. Against: the settled aspects (Corruption, Curse, Wither, Poison, Sunder) fit none of fire/cold/lightning, nor a fourth element. Advisor read: burn collides with Poison's axis unless edge-spread sets it apart, freeze is the tempo row's name, lightning is a targeting shape — so elements may be flavour, not a school |
 | Frailty / Fragile | fragility | — | — | — | — | Struck: owner, 2026-10-05, *"likely what curse does so no"* |
 | Healing | heal, regen | CON? | — | — | — | Owner, 2026-10-07, while ruling on Wither's resistance: *"`healing_aspect` sounds like something we might want to look into, maybe a contender? could scale healing power and regen effects. but generally sounds like an odd duck compared to the others"*. A positive aspect among debuffs; whether an arrow or an addon has an honest healing face is the promotion test |
 
@@ -517,7 +517,7 @@ addon we don't have yet. Not saying we need one"*.
 | STR | Bleeding, Weakness | Bleeding: owner 2026-10-05, promoted 2026-10-06 (round 9). Weakness: owner 2026-10-06 (round 7) |
 | DEX | Poison, Explosive | owner 2026-10-05 |
 | INT | Curse, Hex | Curse: owner 2026-09-29. Hex: owner 2026-10-06 (round 9) — the defender side of crit, in the school whose verb (jinx) it performs. Silence stays in Contenders |
-| CON | Wither, Armor break | Wither: owner 2026-10-05. Armor break: owner 2026-10-06 (round 7), *"it straddled STR+CON thematically anyway"* |
+| CON | Wither, Sunder | Wither: owner 2026-10-05. Sunder: owner 2026-10-06 (round 7), *"it straddled STR+CON thematically anyway"* |
 | PER | Scout, Blindness | owner |
 | WIS | Corruption, Greed | Corruption: owner 2026-10-05. Greed: closed round 6 (owner); row #1419 |
 
@@ -619,7 +619,7 @@ lightning's hops become mechanics that existing rows can use.
 - **The placement rule is accepted.** An aspect sits in the school whose verb
   it performs (Poison: the assassin's DEX; Bleeding: STR's force) or whose
   own strength it turns bad (Corruption: WIS's growth gone malignant;
-  Wither: CON's health). By that rule Armor break first read as STR; the owner
+  Wither: CON's health). By that rule Sunder first read as STR; the owner
   moved it to CON in round 7 (below).
 - **Explosive → DEX** (the saboteur beside the poisoner).
 - **Petrified is struck** until the initiative system is expanded. Owner:
@@ -855,7 +855,7 @@ lightning's hops become mechanics that existing rows can use.
 - **Hex fills INT's slot; no reshuffle.** Crit has two sides: the attacker's
   `crit_chance` / `crit_multiplier` are DEX's native stats (the DEX pool rolls
   them; a primary scales its own native stats), never an aspect — as `armor`
-  is CON's stat and Armor break the row attacking it. The row is the defender
+  is CON's stat and Sunder the row attacking it. The row is the defender
   side: a node holding Hex takes crits more often, a per-stack % on the
   saturating curve. Owner floated *"armor break -> INT. explosive -> STR. crit
   -> DEX"* and chose *"Hex into INT, no moves"*. Spread 2/2/2/2/2/2.
@@ -1029,7 +1029,7 @@ proposal, 2026-10-05; the per-addon calls live in
 
 | Family (proposed) | Addons | State |
 |---|---|---|
-| Fortify | Bunker (armor, floor, deflect) | the buff in Armor break's domain, Curse its counter (owner, 2026-10-16, #1369); on a blade: blast-shielded, heavy, and a hard enough bunker × bunker hit destroys the defender's Bunker. Fortress struck (owner, 2026-10-16): `swing_drag` is an unowned concept, never force-homed |
+| Fortify | Bunker (armor, floor, deflect) | the buff in Sunder's domain, Curse its counter (owner, 2026-10-16, #1369); on a blade: blast-shielded, heavy, and a hard enough bunker × bunker hit destroys the defender's Bunker. Fortress struck (owner, 2026-10-16): `swing_drag` is an unowned concept, never force-homed |
 | Survival | Lifeline, Lifelink, Fountain (heal / cleanse) | Lifeline may merge into Fountain; Lifelink keystone / core-class only. Anchor Node (`skill_node_specializations.md`, "a built-in Lifeline") is Lifeline's intrinsic variant or struck — unruled |
 | Topology | Gate, Winch, Clamp | Clamp shipped, aspect-less; each further temp clamp on a swing costs more (owner, 2026-10-16, #1369); Gate landing; Winch has a determinism fork. Clamp is blade-build crafting more than board topology; Winch's Serpent relief is a class concern |
 | Spell routing | Anti-Magic, Conduit, Relay, Void? | needs design. Anti-Magic (+1 hop cost through the node) is an addon, not a status, and never Silence's twin (owner, round 7). Owner shapes, 2026-10-06: a hop-nabbing "black hole, but less intense", a node that mangles its local `degree` to confuse degree-targeting spells, a projectile-eater (struck by the owner as unbalanced). Relay's damage bonus is spell power riding a routing addon |
@@ -1050,7 +1050,7 @@ not a family of their own:
 | flat HP | Poison | nothing (Fortress struck, 2026-10-16) |
 | bulk %HP | Corruption | nothing |
 | damage floor | Curse | Bunker (`min_damage_taken` −5), Bulwark class |
-| armor | Armor break | Bunker (`armor` +5) |
+| armor | Sunder | Bunker (`armor` +5) |
 | healing | Wither | Lifeline / Fountain, `healing_beam` (enemy-targetable — its twist); `wither_resistance` dropped (owner, 2026-10-07) |
 | vision | Blindness | `blindness_resistance` (under `status_resistance`, a blessed PER roll) |
 | damage dealt | Weakness | nothing |
@@ -1111,7 +1111,7 @@ A roll on the parent itself is a later procgen pass, not authored yet.
 based resistance, wouldn't make sense "1 greed stack consumed to get you 1.99
 stacks instead of 2 cuz of your 1% resistance". needs something else for
 decay. what is the opposite of greed? sharing freely? hmm"* — its counter is
-open on #1419. Scout, Explosive and Armor break have none by the rule.
+open on #1419. Scout, Explosive and Sunder have none by the rule.
 
 ## Personas
 
@@ -1125,7 +1125,7 @@ this table's rows.
 - Attribute per concept: settled in § Attributes and pairs; #1249 keeps the
   content work (write it into [node_subtypes.md](node_subtypes.md), swap the
   procgen pools, and supply the six aspect stats that have no node source yet
-  — `corruption`, `curse`, `wither`, `blindness`, `armor_break`, `explosive`).
+  — `corruption`, `curse`, `wither`, `blindness`, `sunder`, `explosive`).
 - Can one hit carry two aspects (#1251).
 - WIS status family: answered — Corruption and Greed (#1252 closes).
 - Travel is an axis (Glossary) any row picks from — in place, sandpile, spill,

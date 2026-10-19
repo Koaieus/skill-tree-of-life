@@ -27,7 +27,7 @@ const _SIZE_COUNT := 3
 ## `<id>_aspect` ADD_BASE per SMALL / MEDIUM / LARGE. Tentative.
 @export var count_by_size: Array[int] = [1, 2, 4]
 ## Extra count per size on top of [member count_by_size] — for an aspect
-## without a potency stat (armor break), whose bigger tiers grow by count
+## without a potency stat (sunder), whose bigger tiers grow by count
 ## instead. Tentative.
 @export var extra_count_by_size: Array[int] = [0, 0, 0]
 ## `<id>_stacks_per_hit` ADD_BASE per size; 0 grants nothing. Tentative.
@@ -77,7 +77,7 @@ func grants_for(size: int, face_seed: int) -> Array[StatModifier]:
 
 
 ## Append a pinned grant unless [param value] is nothing or the stat does not
-## exist (a resistance only five aspects carry; armor break's potency).
+## exist (a resistance only five aspects carry; sunder's potency).
 static func _grant(out: Array[StatModifier], stat_id: StringName,
 		op: StatModifier.Operation, value: float) -> void:
 	if value == 0.0 or StatRegistry.get_def(stat_id) == null:

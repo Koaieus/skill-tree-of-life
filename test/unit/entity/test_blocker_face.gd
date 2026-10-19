@@ -2,12 +2,12 @@ extends GutTest
 
 ## #1654 acceptance 1 — a faced Dormant Core ([BlockerCoreClass]) holds its
 ## aspect grants in the core register, scaled by size; a resistance only where
-## the stat exists; armor break by count only; a faceless blocker unchanged.
+## the stat exists; sunder by count only; a faceless blocker unchanged.
 
 const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _POISON := preload("res://entity/blocker/faces/poison_face.tres")
 const _GREED := preload("res://entity/blocker/faces/greed_face.tres")
-const _ARMOR_BREAK := preload("res://entity/blocker/faces/armor_break_face.tres")
+const _SUNDER := preload("res://entity/blocker/faces/sunder_face.tres")
 const _FACELESS := preload("res://entity/blocker/blocker_core.tres")
 const _LARGE := EntityFactory.BlockerSize.LARGE
 
@@ -81,15 +81,15 @@ func test_greed_face_grants_no_resistance() -> void:
 	assert_eq(_grants(ent, &"greed_resistance").size(), 0, "no greed_resistance stat, no grant")
 
 
-func test_armor_break_face_grants_count_only() -> void:
-	var ent := _spawn(_LARGE, _ARMOR_BREAK)
-	assert_gt(ent.core_modifiers.size(), 0, "armor break grants something")
+func test_sunder_face_grants_count_only() -> void:
+	var ent := _spawn(_LARGE, _SUNDER)
+	assert_gt(ent.core_modifiers.size(), 0, "sunder grants something")
 	var total := 0.0
 	for m in ent.core_modifiers:
-		assert_eq(m.stat_id, &"armor_break_aspect", "count only")
+		assert_eq(m.stat_id, &"sunder_aspect", "count only")
 		total += m.value
-	assert_gt(_ARMOR_BREAK.extra_count_by_size[2], 0, "large armor break grows by count")
-	assert_eq(total, float(_ARMOR_BREAK.count_by_size[2] + _ARMOR_BREAK.extra_count_by_size[2]))
+	assert_gt(_SUNDER.extra_count_by_size[2], 0, "large sunder grows by count")
+	assert_eq(total, float(_SUNDER.count_by_size[2] + _SUNDER.extra_count_by_size[2]))
 
 
 func test_faceless_blocker_is_unchanged() -> void:

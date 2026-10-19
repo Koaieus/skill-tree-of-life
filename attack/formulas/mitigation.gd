@@ -7,7 +7,7 @@ class_name Mitigation
 ## [b]Armor pierce[/b] is the attacker's pipeline over the defender's FINAL
 ## armor ([member DamageInstance.armor_pierce], stamped by [method pierce_terms]):
 ## folded only when armor > 0, clamped at 0 (pierce never makes a hit bigger;
-## breaking armor below 0 is `armor_break`'s job), floored to whole once.
+## breaking armor below 0 is `sunder`'s job), floored to whole once.
 ## Never merged into the defender's armor bins — see docs/domain/defense-axes.md.
 ##
 ## Formula: `final = max(min_damage_taken, raw - effective_armor)`, but only when raw > 0

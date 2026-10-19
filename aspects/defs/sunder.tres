@@ -2,10 +2,10 @@
 
 [ext_resource type="Script" path="res://aspects/aspect.gd" id="1_aspect"]
 [ext_resource type="Script" path="res://attack/spell/spell_def.gd" id="1_spell_def"]
-[ext_resource type="Resource" path="res://identity/defs/armor_break.tres" id="2_identity"]
-[ext_resource type="Resource" path="res://stats_system/defs/armor_break_aspect.tres" id="3_stat"]
-[ext_resource type="Resource" path="res://effects/status/armor_break.tres" id="4_status"]
-[ext_resource type="Resource" path="res://attack/ammo/types/armor_break.tres" id="5_ammo"]
+[ext_resource type="Resource" path="res://identity/defs/sunder.tres" id="2_identity"]
+[ext_resource type="Resource" path="res://stats_system/defs/sunder_aspect.tres" id="3_stat"]
+[ext_resource type="Resource" path="res://effects/status/sunder.tres" id="4_status"]
+[ext_resource type="Resource" path="res://attack/ammo/types/sunder.tres" id="5_ammo"]
 [ext_resource type="Resource" path="res://attack/spell/defs/rend.tres" id="7_rend"]
 
 [resource]

@@ -1,6 +1,6 @@
 extends GutTest
 
-## [ArmorBreakStatus] (#877, flat since #1308): an additive `armor` modifier of
+## [SunderStatus] (#877, flat since #1308): an additive `armor` modifier of
 ## `-power` on the node, `power` a stack count (one stack = -1 armor), uncapped
 ## and free to push armor below zero (Mitigation then raises the hit). `reapply
 ## = ACCUMULATE` makes repeated hits add stacks and a flat `decay` recovers
@@ -15,7 +15,7 @@ var _graph: Graph
 var _alloc: AllocationSystem
 var _entity: Entity
 var _nodes: Array[SkillNode]
-var _def: ArmorBreakStatus
+var _def: SunderStatus
 var _shadows: Array[EntityCombat] = []
 
 
@@ -36,7 +36,7 @@ func before_each() -> void:
 	_entity.core_location = _nodes[0]
 	_entity.stat_board.get_stat(&"armor").base_value = 5.0
 
-	_def = ArmorBreakStatus.new()
+	_def = SunderStatus.new()
 	_def.id = &"sunder"
 	_def.power_max = 0.0
 	_def.decay = FlatDecay.new(1.0)
@@ -62,7 +62,7 @@ func _armor_modifiers() -> Array[StatModifier]:
 	if s == null:
 		return out
 	for m in s._modifiers:
-		if m is ArmorBreakStatus.ArmorBreakModifier:
+		if m is SunderStatus.SunderModifier:
 			out.append(m)
 	return out
 
@@ -89,7 +89,7 @@ func test_recovery_one_stack_per_tick_restores_armor_and_strips_the_modifier() -
 	for step in expected.size():
 		_combat().tick_statuses()
 		assert_almost_eq(_armor(), expected[step], 0.001, "tick %d" % (step + 1))
-	assert_eq(_armor_modifiers().size(), 0, "no armor-break modifier remains once fully recovered")
+	assert_eq(_armor_modifiers().size(), 0, "no sunder modifier remains once fully recovered")
 	assert_almost_eq(_combat().get_status_power(&"sunder"), 0.0, 0.001,
 			"status gone after full recovery")
 
@@ -138,8 +138,8 @@ func test_shadow_apply_never_writes_the_live_modifier() -> void:
 # ── Authored content loads and is wired (values are the owner's knobs) ──────
 
 func test_authored_sunder_and_rend_load_and_are_in_the_debug_book() -> void:
-	var a_break := load("res://effects/status/sunder.tres") as ArmorBreakStatus
-	assert_not_null(a_break, "sunder.tres is an ArmorBreakStatus")
+	var a_break := load("res://effects/status/sunder.tres") as SunderStatus
+	assert_not_null(a_break, "sunder.tres is a SunderStatus")
 	if a_break == null:
 		return
 	assert_eq(a_break.id, &"sunder")

@@ -11,7 +11,7 @@ const _DIR := "res://effects/status/"
 ## Each authored family's tooltip text. Clauses the concept card's Decay and
 ## Spread sections state are left to those sections.
 const _DESCRIPTIONS := {
-	&"armor_break": "The node's armor is chipped away: -1 per stack.",
+	&"sunder": "The node's armor is chipped away: -1 per stack.",
 	&"blindness": "The node sees and senses less; the deeper the blindness, the slower its recovery starts.",
 	&"corruption": "A pile that hurts only when it topples: each topple deals its threshold times 2% of the node's max health, unmitigated. Nothing ticks; the stacks never cap.",
 	&"curse": "Every stack raises the least damage a hit can deal to this node by 1; stacks never cap.",

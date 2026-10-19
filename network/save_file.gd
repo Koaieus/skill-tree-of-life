@@ -36,9 +36,11 @@ enum LoadResult { OK, MISSING, CORRUPT, VERSION_MISMATCH }
 ##    0055). An 8 still loads: a five-element cursor decodes it as 0.
 ## 10: EntitySnapshot gained `_R_RING_SPENT` (the inner-ring cells bought). A 9
 ##    still loads: the absent row decodes as nothing spent.
-const FORMAT_VERSION := 10
+## 11: the armor-debuff aspect's resources were renamed to Sunder, and a save
+##     interns `res://` paths; no row moved. Older files are refused.
+const FORMAT_VERSION := 11
 ## The oldest file that still loads — see [constant FORMAT_VERSION].
-const MIN_FORMAT_VERSION := 7
+const MIN_FORMAT_VERSION := 11
 ## The single slot — mirrors [constant Settings.SAVE_PATH]'s `user://` home.
 const SLOT_PATH := "user://save.bin"
 const MAGIC := "STLS"

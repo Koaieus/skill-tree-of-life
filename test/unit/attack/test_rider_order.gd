@@ -1,7 +1,7 @@
 extends GutTest
 
 ## A status rider lands BEFORE its paired hit, in every mode, so a curse
-## floor, an armor break or a hex lifts its own hit; damage-shaped riders
+## floor, a sunder or a hex lifts its own hit; damage-shaped riders
 ## (paired damage, splash copies, blast, detonate, cures) stay after it. The
 ## hit's land veto is a separate, memoized step the first asker decides
 ## ([method HitInstance.resolve_gate]). ADR 0067.
@@ -9,7 +9,7 @@ extends GutTest
 const _CURSE := &"curse"
 const _HEX := &"hex"
 const _POISON_ID := &"poison"
-const _ARMOR_BREAK := &"armor_break"
+const _SUNDER := &"sunder"
 const _FLOOR := 1.0
 
 const _BOARD := preload("res://entity/default_entity_board.tres")
@@ -83,18 +83,18 @@ func test_a_curse_arrows_status_lands_before_it_and_lifts_its_own_floor() -> voi
 		"the curse arrow deals at least its raised floor %s, dealt %s" % [floor_now, arrow.effective_amount])
 
 
-func test_an_armor_break_arrow_reads_its_own_shred() -> void:
+func test_a_sunder_arrow_reads_its_own_shred() -> void:
 	await _volley_fixture(20.0, 40.0)
 	var broke_world := CombatWorld.shadow()
-	var broke := _arrow_of(_volley_in({_ARMOR_BREAK: 1}, broke_world), _ARMOR_BREAK)
+	var broke := _arrow_of(_volley_in({_SUNDER: 1}, broke_world), _SUNDER)
 	var ammo := (broke as RangedDamageFormula.RangedHitInstance).ammo_type
 	var effects := ammo.on_hit_effects
 	ammo.on_hit_effects = [] as Array[OnHitEffect]
 	var bare_world := CombatWorld.shadow()
-	var bare := _arrow_of(_volley_in({_ARMOR_BREAK: 1}, bare_world), _ARMOR_BREAK)
+	var bare := _arrow_of(_volley_in({_SUNDER: 1}, bare_world), _SUNDER)
 	ammo.on_hit_effects = effects
 	assert_gt(broke.effective_amount, bare.effective_amount,
-		"the armor break shreds before its own arrow lands")
+		"the sunder shreds before its own arrow lands")
 	broke_world.free_shadow()
 	bare_world.free_shadow()
 

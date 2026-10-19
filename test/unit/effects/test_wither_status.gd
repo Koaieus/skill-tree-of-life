@@ -6,7 +6,7 @@ extends GutTest
 ## regen gate open (the "undead" case — [method NodeCombat.heal_damage]), so
 ## the ramp keeps climbing and the node heals itself to death. Stacks halve
 ## per tick (a `FractionDecay`) and the modifier follows them down. Same
-## planted-modifier shape as ArmorBreak, including the shadow-isolation rule:
+## planted-modifier shape as Sunder, including the shadow-isolation rule:
 ## replace, never mutate, the found modifier. Authored `wither.tres` values
 ## are the owner's knobs and are never pinned here.
 

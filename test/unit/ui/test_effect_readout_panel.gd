@@ -369,7 +369,7 @@ func test_an_all_hidden_panel_has_no_pages_to_cycle() -> void:
 
 # --- #876: status readout row (sibling gather off NodeCombat.get_statuses) --
 
-## A bare test def — content (#873 Blindness, #877 armor break) lands on
+## A bare test def — content (#873 Blindness, #877 sunder) lands on
 ## sibling issues; this issue only needs the plumbing shape.
 func _status_def(display: String, power_max: float = 3.0, tint: Color = Color.WHITE) -> StatusDef:
 	var def := StatusDef.new()

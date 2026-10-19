@@ -13,7 +13,7 @@ extends StatusDef
 ## the rest. Stacks fade by a fraction per tick (a [FractionDecay], authored on the
 ## `.tres`) and the modifier is re-planted at the post-decay power.
 ##
-## Same shared-stateless shape as [ArmorBreakStatus]: the per-node handle is
+## Same shared-stateless shape as [SunderStatus]: the per-node handle is
 ## FOUND, and every write REPLACES the found modifier — a static modifier is
 ## SHARED between a live board and its shadow clone, so mutating `value` from
 ## a shadow resolve would write the live world before any [AttackRecord]
