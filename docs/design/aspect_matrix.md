@@ -166,6 +166,17 @@ addon". Designing a concept's addon cell means filling in these parts:
    AoE hit when it impacts (identical to how a procgen rolled addon would
    behave)"*).
 
+**A blade twist works wherever its node sits in the swing (owner,
+2026-10-19).** Several blade nodes strike one target in some order, and a
+twist that only pays off on the last contact is dead: *"say you swing a melee
+blade and 5 blade nodes strike an enemy node, wither addon must be on the last
+one to have any special effect at all. so that's not suitable, too niche /
+won't ever become an usable boon for melee players"*. **A twist reads what the
+player can see** (stacks, HP, armor, degree), never hidden state: *"players
+are mostly unaware of any regen timer nor current regen ramp up ... i don't
+think it's worth designing an addon around"*. Both struck the Wither cell's
+"hits don't reset the regen gate" and "regen ramp becomes stacks" pitches.
+
 **These recipes grow (owner, 2026-10-03).** The facet rules above and the
 addon recipe are a target to iterate on, not a finished checklist. When a
 cell's design pass learns something the next cell should know (a new rule,
@@ -248,12 +259,12 @@ Each cell links its cell issue (`<Concept> × <Facet>`, a child of the row hub i
 | Poison | DoT | `poison_aspect` | shipped; look designed (see "Rows designed in #1318"), per-type scenes shipped (#1352) | shipped (#1271): `toxin_addon.tscn` — +1 `poison_aspect` on the map; local +1 `poison_stacks_per_hit` laddered by allocation, ×2 `MULTIPLY` at 3/X; froth-into-gas rim look | `venom` shipped; `miasma` shipped (name tentative, #1503): 3 stacks, fan 4 hops, visits 2, no damage | #1250 | row: #1377. Spread signature deferred to an authoring pass (owner, #1204) |
 | Corruption | buildup, %dmg, spread | `corruption_aspect` | shipped (#1349, look #1382): beating tip, swelling blips, pustule; `max_stock` 6 | shipped (#1383): `compromiser_addon.tscn` (**Compromiser**, owner 2026-10-08) — +1 `corruption_aspect` on the map; a flat 1-stack corruption rider per contact at every allocation level (no ladder, no 3/X multiplier — the budget is the degree); temp 2 blade size + 1 `corruption_aspect`; pustule-beating rim look | `defile` shipped (see "Spell faces") | #1250 | row: #1378. Spreads as a sandpile by nature (#1202, settled 2026-10-11): topple-only damage `T × X%` the moment a node crosses `T = degree + B + K`, to friendly neighbours, a removed node's stacks vanish; the core's topple is open. Cure: Purification (corruption + curse). The health bar draws no corruption yet (#1092: stacks against `T`). `skill_node_specializations.md`'s Corrupted Node is this row's content under another name; its penalties (double damage, floor −1) are Curse's and the floor axis's |
 | Curse | fragility, spill | `curse_aspect` | type shipped (#1349, #1385) | shipped (#1386): `doombrand_addon.tscn` (**Doombrand**) — +1 `curse_aspect` on the map; a flat 2-curse rider per contact; a node its contact kills spills ×2 (`DoomSpillEffect`, the killing hit carries the scale); temp 2 blade size + 1 `curse_aspect`; turning pentagram look (see "Rows designed" → Curse) | `malediction` shipped (#1560, the old `hex` reshaped): 5 stacks, downhill by `min_damage_taken` up to 4 hops, ties fork, visits 2 summing stacks, off-path neighbours a floored 0.25 share and terminal (`RumourSpread`); **Gloomflux**, a cell under #1379 (see "Rows designed" → Curse) | #1250 | row: #1379. Raises `min_damage_taken`; spills to surviving direct neighbours on death AND dealloc (#1204) — the only authored spread today (`spill_spread.gd`). Lethal once *hits × (floor + curse) > HP*; zero effect while no damaging hits land (owner, 2026-10-11). `spells.md`'s Aftershock restates this spill |
-| Wither | anti-heal | `wither_aspect` | type shipped (#1349); feel and look #1387 | #1388 | `girdle` shipped (see "Spell faces") | #1250 | row: #1380. Drives healing received negative: while it does, a negative heal deals damage that does not close the regen gate, so the regen ramp keeps climbing and the node heals itself toward death — temporary, never permanent: as Wither decays the multiplier climbs back through zero, nulling healing, then restoring it (owner, 2026-10-07, moved here from the superseded ADR 0022 d5). Owner, 2026-09-20: *"it ruins your healing to making you effectively undead"*. `spells.md`'s Flood wants this anti-heal (#1389) |
+| Wither | anti-heal | `wither_aspect` | type shipped (#1349); feel and look #1387 | Ashfall #1388 | `girdle` shipped (see "Spell faces") | #1250 | row: #1380. Drives healing received negative: while it does, a negative heal deals damage that does not close the regen gate, so the regen ramp keeps climbing and the node heals itself toward death — temporary, never permanent: as Wither decays the multiplier climbs back through zero, nulling healing, then restoring it (owner, 2026-10-07, moved here from the superseded ADR 0022 d5). Owner, 2026-09-20: *"it ruins your healing to making you effectively undead"*. `spells.md`'s Flood wants this anti-heal (#1389) |
 | Blindness | vision debuff | `blindness_aspect` | type shipped (#1349); feel and look #1390 | #1391 | `dazzle` shipped, reshaped to climb vision #1491 (see "Spell faces"); `scout_line` shipped (#1490); **Throw Sand** #1392 | #1250 | row: #1253. Count stacks, effect reads as a % via a saturating curve |
 | Scout (a status whose rows draw vision, #949) | reveal | `scout_aspect` | scouting arrow shipped (stacks: #1345, #1346) | watchtower shipped, map + blade faces (#1393); temp face waits on melee-tray capacity | `eagle_eye` and `scout_line` shipped (see "Spell faces") | #1250 | row: #1254. `effects/status/scouted.tres` is live: the arrow lands camp-keyed stacks, VisionSystem draws `radius_for` discs from the rows (#1346); first-class concept (owner, 2026-09-30). **Two faces (owner, 2026-10-11):** *"scout arrow and eagle eye and scout line ALL apply scouted stacks on hit (tag); while some (or all, or at least the Scout Line) carriers themselves are a lighting/revealing (\"lantern\") vision source"* — every scouting carrier is a lantern (owner pick), mechanism #1557. Scout and Blindness are two PER rows by the owner's table, not one vision axis. Watchtower's offence stats and production-vs-firing: #1413 |
-| Sunder | armor debuff | `sunder_aspect` | type shipped (#1349); feel and look #1395 | #1396 | `rend` shipped; second spell #1397 | #1250 | row: #395 (child 0: penetration stat #1401). Flat −1 armor per stack, uncapped, can go below zero (#1203, owner 2026-09-30). School CON (round 7). Has no `_stacks_per_hit` / `_resistance` while the DEX pool rolls a raw `armor` −% bane that bypasses the aspect. `spells.md`'s Heavy / Piercing Bolt (seek max / min armor) are its second spell (#1397) |
-| Weakness | damage debuff | `weakness_aspect` | type shipped (#1349); look #1427 (Sap?) | #1428 | #1429 (Enfeeble?) | #1250 | row: #1425 (child 0: the status, #1426, shipped). Stacks cut damage dealt by attacks originating from the node, % on a saturating curve (round 7) |
-| Greed | status magnet | `greed_aspect` | type shipped; look #1422 | #1423 | #1424 | #1250 | row: #1419 (child 0: the landing term, #1420, shipped; Avarice #1421, shipped). One Greed stack on the node doubles every negative status the next hit lands, Greed included, then one stack is spent; its Avarice face pays bonus XP per stack left when an attack removes the node (rounds 5–6) |
+| Sunder | armor debuff | `sunder_aspect` | type shipped (#1349); feel and look #1395 | Shredder #1396 | `rend` shipped; second spell #1397 | #1250 | row: #395 (child 0: penetration stat #1401). Flat −1 armor per stack, uncapped, can go below zero (#1203, owner 2026-09-30). School CON (round 7). Has no `_stacks_per_hit` / `_resistance` while the DEX pool rolls a raw `armor` −% bane that bypasses the aspect. `spells.md`'s Heavy / Piercing Bolt (seek max / min armor) are its second spell (#1397) |
+| Weakness | damage debuff | `weakness_aspect` | type shipped (#1349); look #1427 (Sap?) | Sapling #1428 | #1429 (Enfeeble?) | #1250 | row: #1425 (child 0: the status, #1426, shipped). Stacks cut damage dealt by attacks originating from the node, % on a saturating curve (round 7) |
+| Greed | status magnet | `greed_aspect` | type shipped; look #1422 | Midas Mark #1423 | #1424 | #1250 | row: #1419 (child 0: the landing term, #1420, shipped; Avarice #1421, shipped). One Greed stack on the node doubles every negative status the next hit lands, Greed included, then one stack is spent; its Avarice face pays bonus XP per stack left when an attack removes the node (rounds 5–6) |
 | Explosive | charges (AoE) | `explosive_aspect` | #1398 — goo: the PLANT face, coats a node | #1399 — the barrel: stacking, refills N charges; on a blade the warhead's lives | #1400 — Firecracker, Flamestrike | #1466 — DETONATE by default; the intake row picks PLANT, FUEL or a composition | row: #1211. Built in [`docs/domain/explosive.md`](../domain/explosive.md), open parts in § Explosive (owner, 2026-10-14, #1608): charges are a side-less status; a hit's load is spent as a blast (DETONATE), planted (PLANT) or shapes propagation (FUEL); a blast carries the hit in a euclidean radius; a blade's contact pops blade. The concept names the content, never the reverse (owner, 2026-10-05): *"the concept determines arrows+addons+spells etc."* |
 | Bleeding | wound, exertion | `bleeding_aspect` | shipped (#1436) | #1437 — Spike Ring refit, with #1369 | #1438 | #1250 | row: #1434 (child 0: the status + origin set, #1435, shipped). Promoted 2026-10-06. **Round 10 (owner, 2026-10-06) replaces round 9's conditional tick:** a node in an attack's origin set has its stacks ×`exert_growth` (2) **at launch**; every turn end the row pays ⌈stacks × `bleed_rate` (½)⌉ flat HP, then decays on a ramp (−1, −2, −3 … while not exerting; exertion resets it). A core exerts by *moving*, once per turn, never by attacking. Dealloc or death spills ⌊S/(N+M)⌋ to each owned neighbour, the unallocated shares soak away. STR: the price of exertion. Edgelord's **Bleeding Edge** jab takes a new name (#1449) |
 | Hex | jinx, crit taken | `hex_aspect` | shipped (#1441) | #1442 | #1443 — a fresh first spell; the shipped `hex` becomes Curse's Malediction (owner, 2026-10-11) | #1250 | row: #1439 (child 0: the status, #1440, shipped). INT's slot (owner, 2026-10-06, round 9). The defender side of crit: per stack, hits *against* the node crit more often, a % on the saturating curve (Blindness / Weakness shape) — **Hex pass (owner, 2026-10-07): flat +5% per stack for now, past 100% is #197; authored as `incoming_modifiers` on the status**; attacker-side `crit_chance` / `crit_multiplier` stay DEX's native stats, never an aspect. The crit roll must open for a hexed target even when the attacker's board holds no crit investment (#1280's stream note) |
@@ -399,6 +410,31 @@ lives here. Issue: #1608 (grammar v2, revisiting #1594 / #1595, row #1211).
   - Two aspects ("detonate" and "explosive"): it splits the row and leaves
     FUEL homeless (owner, 2026-10-14).
 - **Later, maybe:** a cluster-grenade arrow that does set off charges.
+
+### Four addon cells (owner, 2026-10-19)
+
+Each is Toxin's shape: +1 aspect to the allocator on the map, and on a blade a
+rider folding a node-local `+1 <x>_stacks_per_hit` that scales with allocation
+level. No defensive face. Looks are drafted from each row's arrow look.
+
+- **Ashfall (Wither, #1388).** Wither spreads on contact, with no kill needed
+  (owner: *"ashfall but it spreads immediately instead of on kill?"*): the
+  contact's Wither also lands a share on the struck node's neighbours, through
+  `SplashEffect`. ×2 stacks at 3/3. Look: ash flakes drifting off a crumbling rim.
+- **Shredder (Sunder, #1396).** Break, with *"a %-of-defender-armor bonus added on
+  top (so like in total just "more flat" i.e. flat X + some Y = zyx% of defender
+  armor)"*; the armor share is the 3/3 unlock (owner: *"Sunder maybe best gets
+  its %armor part at 3/3"*), and its ratio lives on the addon only (*"we won't be
+  targeting this rate so no stat"*). Pierce stays #1401's attacker stat. Look: a
+  cracked iron plate shedding spark shards.
+- **Sapling (Weakness, #1428).** The base rider only (*"twist or speciality TBD
+  if ever"*), ×2 stacks at 3/3; the effect caps at a 0.1 damage factor and
+  stacks past it are duration. Look: a dull, sagging ring with a slow thud pulse.
+- **Midas Mark (Greed, #1423).** The base rider only: priming the next hit and
+  Avarice's bonus XP are what Greed stacks already do (owner). On the map, the
+  carrier gains Greed at each of its owner's turn starts, up to 3 × allocation
+  level (owner: *"top up cap, cap = 3×allocation level"*; the per-turn gain
+  floated as 1 or the allocation level). Look: a gold-glint rim with coins.
 
 ## Arrow faces (owner, 2026-10-07)
 
