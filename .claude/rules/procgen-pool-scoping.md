@@ -1,5 +1,5 @@
 ---
-description: What gates a procgen StatPool to a node — two keys, the pack's archetype_stat (the file it lives in) and the pool's own subtypes set
+description: What gates a procgen StatPool to a node — three keys, the pack's archetype_stat (the file it lives in), the pool's own subtypes set and its passes list
 paths:
   - "procgen/pools/**"
   - "procgen/modules/**"
@@ -8,14 +8,14 @@ paths:
 
 # Which nodes can roll a StatPool
 
-**The gate is TWO KEYS: the pack's `StatPack.archetype_stat` (a pool rolls where its
-file says) and the pool's own `StatPool.subtypes`.** Pools carry no archetype (ADR 0028).
+**The gate is THREE KEYS: the pack's `StatPack.archetype_stat` (a pool rolls where its
+file says), the pool's own `StatPool.subtypes`, and its `StatPool.passes`.** Pools carry no archetype (ADR 0028).
 
 ```gdscript
 for pack in packs:
     if pack.archetype_stat != &"" and pack.archetype_stat != primary_stat: continue
     for pool in pack.pools:
-        if pool.admits_subtype(node_subtype):   # `subtypes` empty = any
+        if pool.admits_subtype(node_subtype) and pool.admits_pass(pass_id):   # empty = any / budget
 ```
 
 **How to apply:**
@@ -57,7 +57,7 @@ mechanism. There is no `NodeSubtype.forbid_tags` — the set IS the give-up (D12
   `[]` pool deliberately does not count — it is drawn by everyone, so counting it would
   let a node look blighted and play regular.
 
-**A third key, the pass gate (#1697):** a pool's `passes` list (`[]` = the budget pass
+**The third key, the pass gate (#1697):** a pool's `passes` list (`[]` = the budget pass
 only) says which roll passes draw it; a subtype's `extra_passes` run after the budget loop
 and spend nothing. See `docs/domain/node-subtypes.md` § Roll passes.
 
