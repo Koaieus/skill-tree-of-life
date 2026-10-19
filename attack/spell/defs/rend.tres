@@ -13,20 +13,20 @@
 [ext_resource type="PackedScene" path="res://attack/range_finder/visuals/range_edge.tscn" id="10_3k41u"]
 [ext_resource type="PackedScene" path="res://ui/vfx/coordinator/spells/spark_coordinator.tscn" id="10_vfx"]
 [ext_resource type="PackedScene" path="res://attack/range_finder/visuals/range_ring.tscn" id="11_slqml"]
-[ext_resource type="Resource" path="res://identity/defs/spell_sunder.tres" id="identity_ref"]
+[ext_resource type="Resource" path="res://identity/defs/spell_rend.tres" id="identity_ref"]
 
-[sub_resource type="Resource" id="break_sunder"]
+[sub_resource type="Resource" id="break_rend"]
 script = ExtResource("3_affinity")
 identity = ExtResource("identity_armor_break")
 innate = 2
 
-[sub_resource type="Resource" id="dmg_sunder"]
+[sub_resource type="Resource" id="dmg_rend"]
 script = ExtResource("3_dmg")
 
 [sub_resource type="Resource" id="filter_enemy"]
 script = ExtResource("5_filter")
 
-[sub_resource type="Resource" id="prop_sunder"]
+[sub_resource type="Resource" id="prop_rend"]
 script = ExtResource("4_config")
 filter = SubResource("filter_enemy")
 
@@ -39,14 +39,14 @@ range_finder = SubResource("range_3hop")
 
 [resource]
 script = ExtResource("1_spell")
-id = &"sunder"
-name = "Sunder"
-tagline = "A little damage that chips 2 armor off one enemy node."
-description = "Deal a little damage to a single enemy-occupied node within 3 hops and break its armor by 2 (stacks, uncapped, one stack fades each turn)."
+id = &"rend"
+name = "Rend"
+tagline = "A little damage that applies 2 Sunder to one enemy node."
+description = "Deal a little damage to a single enemy-occupied node within 3 hops and apply 2 Sunder, each stack −1 armor (stacks, uncapped, one stack fades each turn)."
 identity = ExtResource("identity_ref")
 power = 0.4
-propagation = SubResource("prop_sunder")
-on_hit_effects = Array[ExtResource("2_effect")]([SubResource("dmg_sunder")])
-intakes = Array[ExtResource("3_affinity")]([SubResource("break_sunder")])
+propagation = SubResource("prop_rend")
+on_hit_effects = Array[ExtResource("2_effect")]([SubResource("dmg_rend")])
+intakes = Array[ExtResource("3_affinity")]([SubResource("break_rend")])
 vfx_coordinator_scene = ExtResource("10_vfx")
 targeting = SubResource("targeting_hostile_3hop")

@@ -25,7 +25,7 @@ const TRAIL_BLAZER: SpellDef = preload("res://attack/spell/defs/trail_blazer.tre
 const LIGHTNING_BOLT: SpellDef = preload("res://attack/spell/defs/lightning_bolt.tres")
 const CYCLONE: SpellDef = preload("res://attack/spell/defs/cyclone.tres")
 const DAZZLE: SpellDef = preload("res://attack/spell/defs/dazzle.tres")
-const SUNDER: SpellDef = preload("res://attack/spell/defs/sunder.tres")
+const REND: SpellDef = preload("res://attack/spell/defs/rend.tres")
 const VENOM_BURST: SpellDef = preload("res://attack/spell/defs/venom_burst.tres")
 const MALEDICTION: SpellDef = preload("res://attack/spell/defs/malediction.tres")
 const EAGLE_EYE: SpellDef = preload("res://attack/spell/defs/eagle_eye.tres")
@@ -42,7 +42,7 @@ const FIRECRACKER: SpellDef = preload("res://attack/spell/defs/firecracker.tres"
 const ALL: Array[SpellDef] = [
 	SPARK, BRUISER, RESONATOR, LEAFBLOWER,
 	REVERBERATOR, HEALING_BEAM, TRAIL_BLAZER, LIGHTNING_BOLT,
-	CYCLONE, DAZZLE, SUNDER, VENOM_BURST, MALEDICTION, EAGLE_EYE,
+	CYCLONE, DAZZLE, REND, VENOM_BURST, MALEDICTION, EAGLE_EYE,
 	GIRDLE, DEFILE, SCOUT_LINE, MIASMA, PESTILENCE, REMEDY, PURIFICATION,
 	FIRECRACKER,
 ]

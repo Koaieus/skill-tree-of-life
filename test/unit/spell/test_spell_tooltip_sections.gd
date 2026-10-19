@@ -8,7 +8,7 @@ extends GutTest
 const _VENOM := preload("res://attack/spell/defs/venom_burst.tres")
 const _MALEDICTION := preload("res://attack/spell/defs/malediction.tres")
 const _DAZZLE := preload("res://attack/spell/defs/dazzle.tres")
-const _SUNDER := preload("res://attack/spell/defs/sunder.tres")
+const _REND := preload("res://attack/spell/defs/rend.tres")
 
 
 func _arrival(def: SpellDef) -> Array:
@@ -41,4 +41,4 @@ func test_the_affinity_line_follows_the_damage_line() -> void:
 func test_every_template_spell_reads_its_innate_count() -> void:
 	assert_true(_has_prefix(_arrival(_MALEDICTION), "Applies Curse (5 per hit"), str(_arrival(_MALEDICTION)))
 	assert_true(_has_prefix(_arrival(_DAZZLE), "Applies Blindness (3 per hit"), str(_arrival(_DAZZLE)))
-	assert_true(_has_prefix(_arrival(_SUNDER), "Applies Armor Break (2 per hit"), str(_arrival(_SUNDER)))
+	assert_true(_has_prefix(_arrival(_REND), "Applies Armor Break (2 per hit"), str(_arrival(_REND)))
