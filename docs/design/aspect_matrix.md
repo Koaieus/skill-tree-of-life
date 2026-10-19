@@ -750,7 +750,7 @@ lightning's hops become mechanics that existing rows can use.
   (*"weakness, or weakening? enfeeble also sounds good. `sap` also comes to
   mind as snappy"*); Sap and Enfeeble are face names waiting for a spell or
   arrow cell. Stat `weakness_aspect`, status *weakened*. Row #1425.
-- **Armor break → CON, Weakness → STR.** Owner: *"how about this: armor break
+- **Sunder → CON, Weakness → STR.** Owner: *"how about this: armor break
   -> CON (it straddled STR+CON thematically anyway?); weakness -> STR"*. Spread
   2/2/1/2/2/2, INT now holding the open slot.
 - **Silence, the contender it is now:** a mute wants a graded shape and has
