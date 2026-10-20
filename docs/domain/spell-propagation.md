@@ -402,8 +402,8 @@ doubling and pre-existing stacks included), never carried from the parent.
 `power` at a spell landing (off one, or with no such extension, `power`
 stands). `HopIndexCondition` gates riders and effects by hop (see
 `LandingCondition`). `CarriedScalar.seed_from_load` is a concept id: the
-scalar starts at that concept's cast load instead of `seed_value`. A PLANT
-`AspectIntake.power_from` makes the intake rider land the named carried scalar's
+scalar starts at that concept's cast load instead of `seed_value`. A `PlantUse`
+`power_from` makes the intake rider land the named carried scalar's
 value instead of the load wherever the payload carries one (`Infusion.riders()`
 copies it). Fault Line's crack rides the Sunder intake rider this way: seeded
 from the Sunder load, halved by `StatusShareReseed` and re-read at each arrival;

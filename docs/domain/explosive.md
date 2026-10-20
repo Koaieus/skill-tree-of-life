@@ -39,12 +39,12 @@ charge's boom shape: every node-centred blast asks `radius_for` /
 
 ## Three faces
 
-What a hit's load does is `AspectIntake.Face` on the spell's intake row
-(`attack/spell/aspect_intake.gd`): `INHERIT` (the default) resolves through
-the concept status's `StatusDef.default_face` (`resolved_face()`,
-`face_of_status()`); explosive authors DETONATE, every other status PLANT, a
-concept with no status PLANT. `StatusDef.default_face` is an int enum
-mirroring `Face` because `effects/` may not name `attack/`.
+What a hit's load does is `AspectIntake.use` (a `LoadUse`) on the spell's intake row
+(`attack/spell/aspect_intake.gd`): left null (the default) it resolves through
+the concept status's `StatusDef.default_face` (`resolved_use()`,
+`use_for_status()`); explosive authors `DetonateUse`, every other status `PlantUse`, a
+concept with no status `PlantUse`. `StatusDef.default_face` is an int enum
+tagging `DetonateUse` because `effects/` may not name `attack/`.
 
 | face | the load | where |
 |---|---|---|
