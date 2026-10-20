@@ -41,4 +41,4 @@ func test_the_affinity_line_follows_the_damage_line() -> void:
 func test_every_template_spell_reads_its_innate_count() -> void:
 	assert_true(_has_prefix(_arrival(_MALEDICTION), "Applies Curse (5 per hit"), str(_arrival(_MALEDICTION)))
 	assert_true(_has_prefix(_arrival(_DAZZLE), "Applies Blindness (3 per hit"), str(_arrival(_DAZZLE)))
-	assert_true(_has_prefix(_arrival(_REND), "Applies Sunder (2 per hit"), str(_arrival(_REND)))
+	assert_true(_has_prefix(_arrival(_REND), "Applies Sunder (5 per hit"), str(_arrival(_REND)))
