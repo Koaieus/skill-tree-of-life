@@ -133,6 +133,21 @@ func test_land_scales_by_the_stacks_increase_and_ignores_resistance_below_100() 
 			"the LANDED stacks ride effective_amount — that is what the record ships")
 
 
+func test_a_raw_instance_lands_exactly_its_authored_power() -> void:
+	var raw_hit := _scaled_hit(1.3, 0.3)
+	raw_hit.raw = true
+	raw_hit.crit_multiplier = 2.0
+	OutcomeApplier.land_one(raw_hit, CombatWorld.live())
+	assert_almost_eq(raw_hit.effective_amount, 2.0, 0.0001,
+			"raw skips the stacks fold AND the crit: exactly the authored 2, not 2 × 1.3 × 2")
+	var folded := _status_hit(2.0, _SCALED_DEF)
+	folded.attacker = _attacker
+	folded.crit_multiplier = 2.0
+	OutcomeApplier.land_one(folded, CombatWorld.live())
+	assert_almost_eq(folded.effective_amount, 6.0, 0.0001,
+			"the non-raw sibling folds: the stacks read rounds 2.6 → 3, then crit × 2 = 6")
+
+
 func test_a_null_attacker_lands_the_authored_amount() -> void:
 	var hit := _scaled_hit(1.3, 0.3)
 	hit.attacker = null
