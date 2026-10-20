@@ -323,24 +323,40 @@ the scalar knobs that don't deserve their own class:
 
 ```gdscript
 @export var filter: PropagationFilter
+@export var reach: PropagationReach = null           # null = the graph's neighbours
 @export var spread: PropagationSpread
 @export var reducer: IncidentReducer
-@export var max_hops: int = 0
+@export var max_hops: float = 0.0
 @export var max_visits_per_node: int = 1   # 1 = never-revisit; INT_MAX = uncapped
 @export var hop_damage: HopDamageProgression = null   # null = damage carried verbatim
+@export var hop_stacks: HopDamageProgression = null   # null = stack_weight carried verbatim
 
-func mint(payload: CastSpell, pick: PropagationPick) -> CastSpell
+func mint(payload: CastSpell, pick: PropagationPick, lctx: LandingContext) -> CastSpell
 ```
 
-**`mint` is the one place a child `CastSpell` is built** (*owner: "Step returns
-picks; config mints."*): `damage = (hop_damage.apply(parent, seed,
-hop_index) if hop_damage else parent) × pick.share`; `hops_remaining - 1`;
-`hop_index + 1`; `visited` = parent trail + destination (or the pick's
-`lineage_override`); caster / graph / rng threaded; then the pick's stamps
-copied verbatim (`arrival_share = share`, `arrival_bearing`, `turn_sign`,
-`closed_cycle`, `came_from`). The resolver calls `select` once per landing and
-`mint` once per pick. Progression first, share second, so an authored ramp
-composes with a spread's split.
+**`static CastSpell.derived(parent)` is the one copy routine** (owner, #1717):
+it copies the universal and walk-bookkeeping fields (arrays duplicated) and
+nothing else; `damage`, `arrival_share`, `incident_count` and `arrived_from`
+are deliberate non-copies. The seed starts from `CastSpell.blank()`; every
+other payload is `derived` and applies only its own deltas:
+
+- **`mint`** (*owner: "Step returns picks; config mints."*) derives from the
+  parent, then: `damage = (hop_damage.apply(parent, seed, hop_index) if
+  hop_damage else parent) × pick.share`; `stack_weight` shaped by `hop_stacks`
+  × `pick.stack_share`; `hops_remaining - 1` (0 on a terminal pick);
+  `hop_index + 1`; `visited` = parent trail + destination (or the pick's
+  `lineage_override`); then the pick's stamps copied verbatim (`arrival_share =
+  share`, `arrival_bearing`, `turn_sign`, `closed_cycle`, `came_from`).
+  Progression first, share second, so an authored ramp composes with a
+  spread's split. `lctx` is the landing the parent just made — the wave has
+  landed, so a read through it sees this wave's stacks.
+- **A reducer's merge** (`IncidentReducer._merge_payload_defaults`) derives
+  from the first incident, then takes MAX `hops_remaining`, the union of
+  `visited` and MAX `stack_weight`; the reducer sets `damage`. A stock merge
+  therefore keeps the first incident's `came_from` and `closed_cycle`.
+
+The resolver calls `select` once per landing and `mint` once per pick, passing
+that landing's `lctx`.
 
 `SpellDef.propagation` is a `PropagationConfig`.
 
