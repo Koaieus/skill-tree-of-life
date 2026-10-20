@@ -76,12 +76,12 @@ func status_def() -> StatusDef:
 func get_description(_spell: SpellDef = null, board: StatBoard = null, read_node: SkillNode = null) -> String:
 	if def == null:
 		return "Applies a status."
-	if not power_from.is_empty():
-		var name := def.display_name if not def.display_name.is_empty() else String(def.id)
-		return "Applies %s as deep as the carried %s." % [name, String(power_from)]
 	var terms := ""
 	for term in stack_terms:
 		var line := term.describe(read_node) if term != null else ""
 		if not line.is_empty():
 			terms += ", " + line
-	return def.applies_line(board, power, terms, OnHitEffect.read_slice(read_node))
+	var line := def.applies_line(board, power, terms, OnHitEffect.read_slice(read_node))
+	if not power_from.is_empty():
+		line += " Past the struck node, as deep as the carried %s." % String(power_from)
+	return line

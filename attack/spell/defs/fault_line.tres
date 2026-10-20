@@ -1,0 +1,110 @@
+[gd_resource type="Resource" script_class="SpellDef" format=3]
+
+[ext_resource type="Script" path="res://attack/spell/condition/landing_condition.gd" id="1_cond"]
+[ext_resource type="Script" path="res://attack/spell/spell_def.gd" id="1_spell"]
+[ext_resource type="Script" path="res://attack/spell/on_hit/on_hit_effect.gd" id="2_effect"]
+[ext_resource type="Script" path="res://attack/spell/aspect_intake.gd" id="3_intake"]
+[ext_resource type="Resource" path="res://identity/defs/sunder.tres" id="identity_sunder"]
+[ext_resource type="Script" path="res://attack/spell/propagation/propagation_config.gd" id="4_config"]
+[ext_resource type="Script" path="res://attack/spell/propagation/filter/owner_filter.gd" id="5_owner"]
+[ext_resource type="Script" path="res://attack/targeting/node_targeting.gd" id="6_targeting"]
+[ext_resource type="Script" path="res://attack/range_finder/hop_range_finder.gd" id="7_range"]
+[ext_resource type="PackedScene" path="res://ui/vfx/coordinator/spells/spark_coordinator.tscn" id="10_vfx"]
+[ext_resource type="Script" path="res://attack/spell/propagation/filter/propagation_filter.gd" id="12_pf"]
+[ext_resource type="Script" path="res://attack/spell/propagation/filter/rank_threshold_filter.gd" id="13_rt"]
+[ext_resource type="Script" path="res://attack/spell/propagation/filter/top_ties_filter.gd" id="14_tt"]
+[ext_resource type="Script" path="res://attack/spell/propagation/filter/composite_filter.gd" id="15_cf"]
+[ext_resource type="Script" path="res://attack/spell/propagation/ranker/stat_ranker.gd" id="16_sr"]
+[ext_resource type="Script" path="res://attack/spell/propagation/spread/fan_all_spread.gd" id="17_fan"]
+[ext_resource type="Script" path="res://attack/spell/propagation/reducer/max_damage_reducer.gd" id="18_max"]
+[ext_resource type="Script" path="res://attack/spell/propagation/payload_extension.gd" id="19_ext"]
+[ext_resource type="Script" path="res://attack/spell/propagation/carried_scalar.gd" id="20_scalar"]
+[ext_resource type="Script" path="res://attack/spell/propagation/status_share_reseed.gd" id="21_reseed"]
+[ext_resource type="Script" path="res://attack/spell/condition/local_extremum_condition.gd" id="22_extremum"]
+[ext_resource type="Resource" path="res://identity/defs/spell_fault_line.tres" id="identity_ref"]
+
+[sub_resource type="Resource" id="intake_sunder"]
+script = ExtResource("3_intake")
+identity = ExtResource("identity_sunder")
+innate = 5
+affinity_gain = 1
+affinity_cost = 2
+power_from = &"crack"
+
+[sub_resource type="Resource" id="filter_enemy"]
+script = ExtResource("5_owner")
+
+[sub_resource type="Resource" id="ranker_armor"]
+script = ExtResource("16_sr")
+stat_id = &"armor"
+
+[sub_resource type="Resource" id="filter_armored"]
+script = ExtResource("13_rt")
+ranker = SubResource("ranker_armor")
+compare = 2
+against = 1
+threshold = 0.0
+
+[sub_resource type="Resource" id="filter_two_heaviest"]
+script = ExtResource("14_tt")
+ranker = SubResource("ranker_armor")
+places = 2
+
+[sub_resource type="Resource" id="filter_composite"]
+script = ExtResource("15_cf")
+children = Array[ExtResource("12_pf")]([SubResource("filter_enemy"), SubResource("filter_armored"), SubResource("filter_two_heaviest")])
+
+[sub_resource type="Resource" id="spread_fan"]
+script = ExtResource("17_fan")
+
+[sub_resource type="Resource" id="reducer_max"]
+script = ExtResource("18_max")
+
+[sub_resource type="Resource" id="reseed_half_sunder"]
+script = ExtResource("21_reseed")
+status_id = &"sunder"
+share = 0.5
+
+[sub_resource type="Resource" id="crack"]
+script = ExtResource("20_scalar")
+id = &"crack"
+seed_from_load = &"sunder"
+reseed = SubResource("reseed_half_sunder")
+min_value = 1.0
+
+[sub_resource type="Resource" id="prop_fault_line"]
+script = ExtResource("4_config")
+filter = SubResource("filter_composite")
+spread = SubResource("spread_fan")
+reducer = SubResource("reducer_max")
+max_hops = 3.0
+max_visits_per_node = 1
+extensions = Array[ExtResource("19_ext")]([SubResource("crack")])
+
+[sub_resource type="Resource" id="weak_point"]
+script = ExtResource("22_extremum")
+ranker = SubResource("ranker_armor")
+mode = 1
+
+[sub_resource type="Resource" id="range_3hop"]
+script = ExtResource("7_range")
+
+[sub_resource type="Resource" id="targeting_hostile_3hop"]
+script = ExtResource("6_targeting")
+range_finder = SubResource("range_3hop")
+
+[resource]
+script = ExtResource("1_spell")
+id = &"fault_line"
+name = "Fault Line"
+tagline = "Cracks an enemy's armor along the seams."
+description = "Strike an enemy node within 3 hops with 5 Sunder, then crack onward up to 3 hops into its two most armored enemy neighbours. Each node the crack reaches takes half the Sunder its predecessor holds after the hit, so already-sundered ground carries the crack further. Crits at a weak point: a node whose armor is the lowest among its neighbours."
+identity = ExtResource("identity_ref")
+power = 0.0
+min_degree = 3
+propagation = SubResource("prop_fault_line")
+on_hit_effects = Array[ExtResource("2_effect")]([])
+intakes = Array[ExtResource("3_intake")]([SubResource("intake_sunder")])
+crit_conditions = Array[ExtResource("1_cond")]([SubResource("weak_point")])
+vfx_coordinator_scene = ExtResource("10_vfx")
+targeting = SubResource("targeting_hostile_3hop")

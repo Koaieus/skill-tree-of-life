@@ -8,6 +8,7 @@
 [ext_resource type="Resource" path="res://attack/ammo/types/sunder.tres" id="5_ammo"]
 [ext_resource type="Resource" path="res://attack/spell/defs/rend.tres" id="7_rend"]
 [ext_resource type="Resource" path="res://attack/spell/defs/hell_gnaw.tres" id="8_hell_gnaw"]
+[ext_resource type="Resource" path="res://attack/spell/defs/fault_line.tres" id="9_fault_line"]
 
 [resource]
 script = ExtResource("1_aspect")
@@ -15,4 +16,4 @@ identity = ExtResource("2_identity")
 stat = ExtResource("3_stat")
 status = ExtResource("4_status")
 ammo = ExtResource("5_ammo")
-spells = Array[ExtResource("1_spell_def")]([ExtResource("7_rend"), ExtResource("8_hell_gnaw")])
+spells = Array[ExtResource("1_spell_def")]([ExtResource("7_rend"), ExtResource("8_hell_gnaw"), ExtResource("9_fault_line")])

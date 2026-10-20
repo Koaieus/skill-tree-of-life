@@ -16,6 +16,7 @@
 [ext_resource type="Resource" path="res://attack/spell/defs/malediction.tres" id="13_malediction"]
 [ext_resource type="Resource" path="res://attack/spell/defs/gloomflux.tres" id="gloomflux_id"]
 [ext_resource type="Resource" path="res://attack/spell/defs/hell_gnaw.tres" id="hell_gnaw_id"]
+[ext_resource type="Resource" path="res://attack/spell/defs/fault_line.tres" id="fault_line_id"]
 [ext_resource type="Resource" path="res://attack/spell/defs/girdle.tres" id="14_girdle"]
 [ext_resource type="Resource" path="res://attack/spell/defs/defile.tres" id="15_defile"]
 [ext_resource type="Resource" path="res://attack/spell/defs/miasma.tres" id="18_miasma"]
@@ -30,4 +31,4 @@
 
 [resource]
 script = ExtResource("1_book")
-spells = Array[ExtResource("1_spell_def")]([ExtResource("2_spark"), ExtResource("3_lightning"), ExtResource("4_bruiser"), ExtResource("5_leafblower"), ExtResource("6_resonator"), ExtResource("7_trail_blazer"), ExtResource("8_reverberator"), ExtResource("9_healing_beam"), ExtResource("10_dazzle"), ExtResource("11_rend"), ExtResource("12_venom"), ExtResource("13_malediction"), ExtResource("14_girdle"), ExtResource("15_defile"), ExtResource("16_eagle_eye"), ExtResource("17_scout_line"), ExtResource("18_miasma"), ExtResource("19_pestilence"), ExtResource("20_remedy"), ExtResource("21_purification"), ExtResource("22_firecracker"), ExtResource("23_pocket_sand"), ExtResource("gloomflux_id"), ExtResource("hell_gnaw_id")])
+spells = Array[ExtResource("1_spell_def")]([ExtResource("2_spark"), ExtResource("3_lightning"), ExtResource("4_bruiser"), ExtResource("5_leafblower"), ExtResource("6_resonator"), ExtResource("7_trail_blazer"), ExtResource("8_reverberator"), ExtResource("9_healing_beam"), ExtResource("10_dazzle"), ExtResource("11_rend"), ExtResource("12_venom"), ExtResource("13_malediction"), ExtResource("14_girdle"), ExtResource("15_defile"), ExtResource("16_eagle_eye"), ExtResource("17_scout_line"), ExtResource("18_miasma"), ExtResource("19_pestilence"), ExtResource("20_remedy"), ExtResource("21_purification"), ExtResource("22_firecracker"), ExtResource("23_pocket_sand"), ExtResource("gloomflux_id"), ExtResource("hell_gnaw_id"), ExtResource("fault_line_id")])

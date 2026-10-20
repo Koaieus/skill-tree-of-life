@@ -40,6 +40,7 @@ const PURIFICATION: SpellDef = preload("res://attack/spell/defs/purification.tre
 const FIRECRACKER: SpellDef = preload("res://attack/spell/defs/firecracker.tres")
 const POCKET_SAND: SpellDef = preload("res://attack/spell/defs/pocket_sand.tres")
 const HELL_GNAW: SpellDef = preload("res://attack/spell/defs/hell_gnaw.tres")
+const FAULT_LINE: SpellDef = preload("res://attack/spell/defs/fault_line.tres")
 
 ## Every authored spell. Order is not a contract — [member SpellDef.id] is.
 const ALL: Array[SpellDef] = [
@@ -48,7 +49,7 @@ const ALL: Array[SpellDef] = [
 	CYCLONE, DAZZLE, REND, VENOM_BURST, MALEDICTION, EAGLE_EYE,
 	GIRDLE, DEFILE, SCOUT_LINE, MIASMA, PESTILENCE, REMEDY, PURIFICATION,
 	FIRECRACKER, POCKET_SAND,
-	GLOOMFLUX, HELL_GNAW,
+	GLOOMFLUX, HELL_GNAW, FAULT_LINE,
 ]
 
 

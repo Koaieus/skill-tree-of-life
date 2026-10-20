@@ -144,5 +144,6 @@ func riders(spell: SpellDef) -> Array[OnHitEffect]:
 		var row := intake_of(spell, id)
 		if row != null:
 			rider.stack_terms = row.stack_terms.duplicate()
+			rider.power_from = row.power_from
 		out.append(rider)
 	return out

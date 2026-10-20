@@ -38,7 +38,9 @@ class State extends PayloadState:
 @export var min_value: float = -INF
 
 
-func seed(_ctx: PropagationContext) -> PayloadState:
+func seed(ctx: PropagationContext) -> PayloadState:
+	if not seed_from_load.is_empty() and ctx != null and ctx.load.has(seed_from_load):
+		return _state(float(ctx.load[seed_from_load]))
 	return _state(seed_value)
 
 
