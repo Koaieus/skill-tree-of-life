@@ -201,3 +201,78 @@ func test_resolve_seeds_stamps_aim_and_node_cast_does_not() -> void:
 		assert_gt(aimed.aim.length, 0.0)
 	var node_cast := SpellResolver.resolve(spell, n[1], n[0], fx[1], graph)
 	assert_null(node_cast.aim)
+
+
+# -- seeds ride the graph's grid (#1704) ------------------------------------
+
+const _GRAPH_SCENE := preload("res://graph/graph.tscn")
+const _PRESET := preload("res://procgen/presets/first_level/first_level.tres")
+const _PROCGEN_NODES := 150
+
+
+## Records how many candidates [method AimShape.crossed] was handed.
+class SpyCone extends ConeShape:
+	var sizes: Array[int] = []
+
+	func crossed(origin: Vector2, angle: float, length: float, nodes: Array[SkillNode]) -> Array[SkillNode]:
+		sizes.append(nodes.size())
+		return super(origin, angle, length, nodes)
+
+
+class SpyLine extends LineShape:
+	var sizes: Array[int] = []
+
+	func crossed(origin: Vector2, angle: float, length: float, nodes: Array[SkillNode]) -> Array[SkillNode]:
+		sizes.append(nodes.size())
+		return super(origin, angle, length, nodes)
+
+
+func _procgen_board() -> Graph:
+	var cfg: GraphProcgenConfig = _PRESET.duplicate(true)
+	cfg.topology = cfg.topology.duplicate(true)
+	cfg.topology.node_count = _PROCGEN_NODES
+	cfg.seed = 0x1704
+	var graph: Graph = _GRAPH_SCENE.instantiate()
+	add_child_autofree(graph)
+	await GraphProcgen.generate(cfg, graph)
+	return graph
+
+
+## Grid-narrowed seeds equal the shape's exact decision over the whole board
+## (same set, same order), and the shape is never handed the whole board.
+func _assert_grid_seeds_match_brute_force(graph: Graph, shape: AimShape, sizes: Array[int]) -> void:
+	var all := _nodes(graph)
+	var t := AimedTargeting.new()
+	t.shape = shape
+	t.ownership_filter = 15
+	t.range_finder = EuclideanRangeFinder.new()
+	t.range_finder.max_distance = 400.0
+	var third := int(all.size() / 3.0)
+	var sources: Array[SkillNode] = [all[0], all[third], all[2 * third], all[all.size() - 1]]
+	var total_hits := 0
+	for source in sources:
+		var rest: Array[SkillNode] = all.filter(func(n: SkillNode) -> bool: return n != source)
+		for angle: float in [0.0, 0.9, 2.3, -1.7, PI]:
+			var got := t.seeds(null, source, angle, graph)
+			var want := shape.crossed(source.global_position, angle, t.length(null, source), rest)
+			assert_eq(got, want, "%s from %s at %.1f" % [shape.get_script().get_global_name(), source.name, angle])
+			total_hits += got.size()
+	assert_gt(total_hits, 0, "the board is dense enough that the shape crosses something")
+	var biggest := 0
+	for i in range(0, sizes.size(), 2):
+		biggest = maxi(biggest, sizes[i])
+	assert_lt(biggest, all.size() - 1, "crossed is handed the grid's candidates, never the whole board")
+
+
+func test_cone_seeds_ride_the_grid_and_match_the_whole_board() -> void:
+	var graph: Graph = await _procgen_board()
+	var cone := SpyCone.new()
+	cone.half_angle_deg = 25.0
+	_assert_grid_seeds_match_brute_force(graph, cone, cone.sizes)
+
+
+func test_line_seeds_ride_the_grid_and_match_the_whole_board() -> void:
+	var graph: Graph = await _procgen_board()
+	var line := SpyLine.new()
+	line.width = 30.0
+	_assert_grid_seeds_match_brute_force(graph, line, line.sizes)
