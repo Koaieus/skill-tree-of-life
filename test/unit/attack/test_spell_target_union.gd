@@ -34,6 +34,17 @@ class CountingTargeting extends NodeTargeting:
 		return super.valid_targets(plan, source)
 
 
+## Counts whole-graph walks on an aimed targeting: spies
+## [method Targeting._filter_skill_nodes] itself, since an aimed spell's
+## [method Targeting.valid_targets] is the method under test.
+class CountingAimed extends AimedTargeting:
+	var walks := 0
+
+	func _filter_skill_nodes(plan: AttackPlan, source: SkillNode) -> Array[SkillNode]:
+		walks += 1
+		return super._filter_skill_nodes(plan, source)
+
+
 var _graph: Graph
 var _alloc: AllocationSystem
 var _attacker: Entity
@@ -166,6 +177,43 @@ func test_euclidean_union_equals_the_naive_per_source_union() -> void:
 	assert_eq(_ids(union.targets()), _ids(_naive_union(spell, plan)),
 			"the single-sweep euclidean union must match the per-source oracle")
 	assert_false(union.targets().is_empty(), "precondition: the fixture reaches something")
+
+
+## An aimed spell takes the main candidate-first path: every direction its
+## shape can point covers exactly its finder's disc, so the per-source reach
+## set is the finder's gather filtered by ownership — the same set a
+## [NodeTargeting] with that finder and filter yields — and no whole-graph
+## walk happens, in the union or in [method Targeting.valid_targets].
+func test_an_aimed_union_is_the_finder_reach_filtered_by_ownership() -> void:
+	var finder := EuclideanRangeFinder.new()
+	finder.max_distance = 150.0
+	var aimed := CountingAimed.new()
+	aimed.shape = LineShape.new()
+	aimed.ownership_filter = SkillNode.Ownership.HOSTILE
+	aimed.range_finder = finder
+	var twin := NodeTargeting.new()
+	twin.ownership_filter = SkillNode.Ownership.HOSTILE
+	twin.range_finder = finder
+	var spell := _spell(aimed)
+	var plan := _plan_for(spell)
+	var union := SpellTargetUnion.build(spell, _attacker, _graph, plan)
+	assert_eq(aimed.walks, 0, "the union gathers from the finder — no whole-graph walk")
+	var reached_any := false
+	for src in union.sources:
+		var oracle: Array[SkillNode] = []
+		for n in _graph.get_skill_nodes():
+			if finder.in_range(_attacker, src, n) \
+					and n.ownership_bit(_attacker) & SkillNode.Ownership.HOSTILE != 0:
+				oracle.append(n)
+		var got: Array = union.per_source[src].keys()
+		reached_any = reached_any or not got.is_empty()
+		assert_eq(_ids(got), _ids(oracle), "per_source is the finder's hostile reach")
+		assert_eq(_ids(got), _ids(twin.valid_targets(plan, src)),
+				"an aimed spell reaches exactly what its NodeTargeting twin does")
+		assert_eq(_ids(aimed.valid_targets(plan, src)), _ids(oracle),
+				"valid_targets agrees with the union")
+	assert_eq(aimed.walks, 0, "valid_targets with a finder never walks the whole graph")
+	assert_true(reached_any, "precondition: the fixture reaches something")
 
 
 ## Reach really is per source and not one radius reused: only the node nearest
