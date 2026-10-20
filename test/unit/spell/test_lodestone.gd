@@ -104,9 +104,13 @@ func test_haul_arithmetic_with_greed_doubling_every_ring() -> void:
 	var poison := _column(r, _POISON)
 	var greed := _column(r, _GREED)
 	assert_eq(poison[0], 85, "the seed lands 84 on its 1 poison")
-	assert_eq(greed[0], 64, "the seed lands 64 Greed, its own stack spent")
+	# At base stats the Greed rider folds through greed_stacks_per_hit (base 1),
+	# so OUT plants 2: every node passes its load (1) of its own and keeps one. The
+	# hauls themselves match the spec's trace (rim 1/1, ring 2 5/4, ring 1 21/16).
+	assert_eq(greed[0], 65, "the seed lands 64 Greed on its 2, one spent")
 	assert_eq(poison.slice(1), [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "every other node hauled clean")
-	assert_eq(greed.slice(1), [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
+	assert_eq(greed.slice(1), [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+			"each keeps the planted stack the load floor (1) leaves behind")
 	r.shadow.free_shadow()
 
 

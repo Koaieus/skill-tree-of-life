@@ -153,18 +153,19 @@ func land_on(node: NodeCombat, world: CombatWorld) -> void:
 			return
 	if not power_resolved:
 		if def != null:
-			var rn: NodeCombat = world.combat_for(read_node) if world != null else null
-			var extra: Array[ModifierBins] = []
-			if read_overlays.is_valid():
-				extra = read_overlays.call(def.stacks_stat_id())
-			power = def.stacks_per_hit_at(rn, power, extra) if rn != null \
-				else def.stacks_per_hit(_attacker_board(), power)
-			if rn != null and host_kind == HostKind.NODE:
-				for term in stack_terms:
-					if term != null:
-						power += maxf(0.0, term.extra(rn, node))
-			power *= absf(crit_multiplier)
-			power *= stack_scale
+			if not raw:
+				var rn: NodeCombat = world.combat_for(read_node) if world != null else null
+				var extra: Array[ModifierBins] = []
+				if read_overlays.is_valid():
+					extra = read_overlays.call(def.stacks_stat_id())
+				power = def.stacks_per_hit_at(rn, power, extra) if rn != null \
+					else def.stacks_per_hit(_attacker_board(), power)
+				if rn != null and host_kind == HostKind.NODE:
+					for term in stack_terms:
+						if term != null:
+							power += maxf(0.0, term.extra(rn, node))
+				power *= absf(crit_multiplier)
+				power *= stack_scale
 			# The row is integer (ADR 0032): round once, half-up, after crit × scale.
 			power = StatusDef.round_half_up(power)
 			if host.blocks_status(def):
