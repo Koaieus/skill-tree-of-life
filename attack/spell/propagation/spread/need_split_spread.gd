@@ -5,7 +5,7 @@ extends PropagationSpread
 ## Splits a cleanse's leftover dose over the already-filtered children, BY
 ## NEED: the whole-number leftover ([code]floor(payload.damage)[/code], the
 ## dose the landing's [CureEffect] wrote back in place) is apportioned by
-## largest remainder, weighted by [method Cure.need_of], and each pick
+## [method Apportion.largest_remainder], weighted by [method Cure.need_of], and each pick
 ## carries [code]share = alloc / leftover[/code] — so the shares × leftover
 ## sum to the leftover exactly. Ties in the remainder go to the earlier
 ## eligible node (deterministic across peers); picks come out in eligible
@@ -31,29 +31,9 @@ func select(eligible: Array[SkillNode], lctx: LandingContext) -> Array[Propagati
 	if leftover <= 0:
 		return out
 	var needs: Array[float] = []
-	var total := 0.0
 	for nb in eligible:
-		var need := maxf(cure.need_of(nb, lctx), 0.0)
-		needs.append(need)
-		total += need
-	if total <= 0.0:
-		return out
-	var alloc: Array[int] = []
-	var fracs: Array[float] = []
-	var given := 0
-	for need in needs:
-		var quota := leftover * need / total
-		var whole := int(floorf(quota + _EPS))
-		alloc.append(whole)
-		fracs.append(quota - whole)
-		given += whole
-	# Hand the remaining units to the largest remainders; a stable sort keeps
-	# the earlier eligible node first on a tie. Zero-need nodes never qualify.
-	var order: Array = range(needs.size()).filter(func(i: int) -> bool: return needs[i] > 0.0)
-	order.sort_custom(func(a: int, b: int) -> bool:
-		return fracs[a] > fracs[b] + _EPS or (absf(fracs[a] - fracs[b]) <= _EPS and a < b))
-	for k in mini(leftover - given, order.size()):
-		alloc[order[k]] += 1
+		needs.append(cure.need_of(nb, lctx))
+	var alloc := Apportion.largest_remainder(leftover, needs)
 	for i in eligible.size():
 		if alloc[i] > 0:
 			out.append(PropagationPick.to(eligible[i], float(alloc[i]) / float(leftover)))
