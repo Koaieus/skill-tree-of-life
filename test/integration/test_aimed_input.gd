@@ -24,6 +24,7 @@ class FogStub extends VisionSystem:
 ## SPARK is borrowed and its targeting swapped (and restored) to drive the aim input over a known def.
 var _spark: SpellDef = SpellCatalog.SPARK
 var _spark_targeting: Targeting
+var _spark_min_degree: int
 
 var _graph: Graph
 var _ctl: PlayerInputController
@@ -45,6 +46,7 @@ func _node(pos: Vector2) -> SkillNode:
 
 func before_each() -> void:
 	_spark_targeting = _spark.targeting
+	_spark_min_degree = _spark.min_degree
 	var t := AimedTargeting.new()
 	t.shape = LineShape.new()
 	t.ownership_filter = 1 | 8
@@ -98,6 +100,7 @@ func before_each() -> void:
 
 func after_each() -> void:
 	_spark.targeting = _spark_targeting
+	_spark.min_degree = _spark_min_degree
 
 
 func _arm() -> MagicAttackPlan:
@@ -176,7 +179,9 @@ func test_right_click_unlocks_back_to_hover() -> void:
 
 
 func test_one_caster_aims_from_it_everywhere() -> void:
+	# A lone owned node has degree 0: drop the gate so it can still cast.
 	_alloc.force_deallocate(_back)
+	_spark.min_degree = 0
 	var plan := _arm()
 	assert_eq(plan.union().sources.size(), 1, "fixture: one eligible caster")
 	for world: Vector2 in [Vector2(-300, 0), Vector2(0, 300), Vector2(500, -500)]:

@@ -5,16 +5,17 @@ extends AttackArmMode
 ## auto-picked caster (#728), pushing [TargetMode]. The badge is the equipped
 ## spell's own icon when it has one.
 ##
-## An aimed spell ([constant Targeting.TargetingKind.AIM]) is dragged instead:
-## a press on an eligible caster arms the gesture, [method update_aim] points it
-## at the cursor while the button is held, and [method release_aim] commits it
-## by pushing [TargetMode] exactly as a clicked target does.
+## An aimed spell ([constant Targeting.TargetingKind.AIM]) is hover-aimed
+## instead: while this level is the top, [method update_aim] snaps the shape to
+## the eligible caster nearest the cursor and points it at the cursor, and
+## [method lock_aim] (a left click) commits it by pushing [TargetMode] exactly
+## as a clicked target does. Popping that level unlocks back to hover-aim.
 
 
 var _on_ownership_3: Callable
 var _on_ownership_2: Callable
 var _on_turn: Callable
-## The caster an aimed drag is anchored on; null when no drag is armed.
+## The caster the hover-aim last snapped to; null before the first snap.
 var _aim_source: SkillNode = null
 
 
@@ -74,50 +75,57 @@ func handle_left_click(node: SkillNode) -> bool:
 	if p == null:
 		return false
 	if p.is_aimed():
-		_begin_aim(p, node)
+		lock_aim()
 		return true
 	if set_target(node):
 		stack.push(TargetMode.new(self))
 	return true
 
 
-## True while an aimed drag is armed (pressed on a caster, not yet released).
+## True while hover-aim is live: an aimed spell is armed and no aim is locked
+## (nothing stands above this level).
 func is_aiming() -> bool:
-	return _aim_source != null
+	var p := plan() as MagicAttackPlan
+	return p != null and p.is_aimed() and stack != null and stack.top() == self
 
 
-## Arms the drag iff [param node] is an eligible caster of the aimed spell;
-## any other press arms nothing.
-func _begin_aim(p: MagicAttackPlan, node: SkillNode) -> bool:
-	_aim_source = node if node != null and p.union().is_source(node) else null
-	return _aim_source != null
-
-
-## Point the armed drag at [param world] (global canvas position). A cursor
-## still inside the caster's own disc is a click, not a drag, and names no
-## direction — ignored, so a plain click on a caster commits nothing.
+## Snap to the eligible caster nearest [param world] (global canvas position)
+## and aim from it at [param world]. The lookup is over the union's casters,
+## never the board; no threshold. A cursor inside the snapped caster's own disc
+## names no direction — the last aim stands, so a click there commits nothing
+## new.
 func update_aim(world: Vector2) -> void:
+	if not is_aiming():
+		return
 	var p := plan() as MagicAttackPlan
-	if p == null or _aim_source == null or not is_instance_valid(_aim_source):
+	var nearest: SkillNode = null
+	var best := INF
+	for src in p.union().sources:
+		if not is_instance_valid(src):
+			continue
+		var d := world.distance_squared_to(src.global_position)
+		if d < best:
+			best = d
+			nearest = src
+	if nearest == null:
 		return
-	var delta := world - _aim_source.global_position
-	if delta.length() <= maxf(_aim_source.radius, 1.0):
+	_aim_source = nearest
+	var delta := world - nearest.global_position
+	if delta.length() <= maxf(nearest.radius, 1.0):
 		return
-	p.set_aim(_aim_source, delta.angle())
+	p.set_aim(nearest, delta.angle())
 
 
-## End the drag. A plan the drag left castable commits: [TargetMode] is
-## pushed unless this level already has one above it (a re-aim from there).
-## A press released without ever aiming commits nothing. True iff a drag was
-## armed.
-func release_aim() -> bool:
-	if _aim_source == null:
+## Lock the hover-aim: a plan it left castable commits by pushing
+## [TargetMode]. Idempotent — a no-op once locked (this level is no longer the
+## top) or while the aim does not validate. True iff it pushed.
+func lock_aim() -> bool:
+	if not is_aiming():
 		return false
-	_aim_source = null
 	var p := plan() as MagicAttackPlan
-	if p != null and p.validate().is_empty() and stack.top() == self:
-		stack.push(TargetMode.new(self))
-	return true
+	if not p.validate().is_empty():
+		return false
+	return stack.push(TargetMode.new(self))
 
 
 ## Open the spell picker ([SpellPickMode]) on top, or close the one on the
@@ -159,12 +167,12 @@ func _open_leaf(leaf: ArmedMode, rival: ArmedMode) -> bool:
 	return stack.switch_to(leaf, branch[branch.find(rival) - 1])
 
 
-## For an aimed spell a click names a caster, not a target: it re-arms the
-## drag (how [TargetMode] re-aims) rather than committing anything.
+## An aimed spell has no target node: a click while locked ([TargetMode]'s
+## retarget) changes nothing — right-click unlocks back to hover-aim.
 func set_target(node: SkillNode) -> bool:
 	var p := plan() as MagicAttackPlan
 	if p != null and p.is_aimed():
-		return _begin_aim(p, node)
+		return false
 	return p != null and p.set_target(node)
 
 

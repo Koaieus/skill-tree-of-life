@@ -594,6 +594,10 @@ func _push_magic_hover(skill_node: SkillNode) -> void:
 ##    own core), dragging the held mouse snaps a ghost core to the nearest
 ##    reachable landing and a hop badge floats by the cursor; release commits.
 ##    Click-to-move still works untouched — drag is the layered accelerator.
+##  - AIMED HOVER: while an aimed spell's [MagicMode] is the top level, every
+##    motion (no button held) snaps the shape to the nearest eligible caster
+##    and points it at the cursor; a left release anywhere locks it, also over
+##    empty space where no node pick fires.
 ##  - RIGHT-CLICK: pops one level off whichever mode is armed (attack plan or
 ##    core-move — docs/domain/click-grammar.md), node-independent like Esc
 ##    (below). Handled here rather than via a per-`SkillNode` signal so it
@@ -614,7 +618,7 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventMouseMotion:
 		var mm := event as InputEventMouseMotion
 		var aiming := _aiming_magic_level()
-		if aiming != null and mm.button_mask & MOUSE_BUTTON_MASK_LEFT:
+		if aiming != null:
 			aiming.update_aim(graph.to_global(graph.make_input_local(mm).position))
 		elif move_targeting_source() != null and Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
 			_update_core_drag()
@@ -624,7 +628,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		if mb.button_index == MOUSE_BUTTON_LEFT and not mb.pressed:
 			var aiming := _aiming_magic_level()
 			if aiming != null:
-				aiming.release_aim()
+				if can_player_act() and aiming.lock_aim():
+					get_viewport().set_input_as_handled()
 				return
 			_on_core_drag_released()
 			return
