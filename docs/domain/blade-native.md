@@ -70,7 +70,7 @@ and/or `BladeObstacleField`. A per-iteration callback was rejected on cost:
 `project()` runs in the innermost loop, millions of crossings a swing. State
 crosses instead: `native_inputs()` (the immutable half: zones as four parallel
 arrays, live edges, `vertex_radii`, and `vertex_restitution` (optional key:
-absent or all-zero → null, the loop untouched), driven particles, `prepare()`'s incidence flattened to a
+absent or all-zero → null, the loop untouched), the field-state keys `impact_peak` / `impact_step` (per-zone impact bank; optional on input, absent → zeroed; `sub_dt` is set per resolve), driven particles, `prepare()`'s incidence flattened to a
 CSR, and `CONTACT_SLOP` / `CONTACT_HYSTERESIS` / `SHATTER_DISTANCE` /
 `EDGE_RADIUS` **passed, not restated in C++**), `native_state()` in, and
 `clock_state` / `field_state` / `clock_history` / `field_history` back.

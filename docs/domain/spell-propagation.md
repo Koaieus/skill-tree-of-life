@@ -92,9 +92,10 @@ Stock subclasses (slot into one or more `PropagationConfig`s):
   so a spell that refuses them has to say so; no other rule covers them
   (`BacktrackFilter` does not).
 - `BacktrackFilter` — vetoes travel back into any node in the payload's
-  `came_from` set (the set, not `predecessor`, so a merged payload refuses every
-  direction its fronts arrived from). An empty set allows everything, so a
-  cycle-closing child minted with an empty `came_from` needs no branch.
+  `CycloneFront` `came_from` set (the set, not `predecessor`, so a merged payload
+  refuses every direction its fronts arrived from). An empty set, or a payload
+  with no front, allows everything, so a cycle-closing child minted with an empty
+  `came_from` needs no branch.
   `attack/spell/propagation/filter/backtrack_filter.gd`.
 - `CoreDistanceFilter` — closer-to-Core / farther-from-Core (Homing
   Decoring, Corifugal Bolt)
@@ -192,7 +193,9 @@ count, a node with no counted neighbour is vacuously an extremum; Rend's armor
 summit, Fault Line's weak point), `HopIndexCondition` (`min_hop..max_hop`
 inclusive, `max_hop = 0` = the struck node only; #1721), `PhaseCondition`
 (a `RetractFront` tendril's phase; false without one; #1424), plus
-`ChokepointCondition`, `NoEdgeToSourceCondition` and `StatCondition`, in
+`ChokepointCondition`, `NoEdgeToSourceCondition` and `StatCondition` (score of a
+`NodeRanker` vs a fixed `threshold`, `RankThresholdFilter.Compare`; Hell Gnaw's
+gnawed-through), in
 `attack/spell/condition/`.
 
 ### `ScaleDamageEffect`
@@ -398,7 +401,17 @@ doubling and pre-existing stacks included), never carried from the parent.
 `ApplyStatusEffect.power_from` names a `CarriedScalar` whose value replaces
 `power` at a spell landing (off one, or with no such extension, `power`
 stands). `HopIndexCondition` gates riders and effects by hop (see
-`LandingCondition`). Fault Line is these together.
+`LandingCondition`). `CarriedScalar.seed_from_load` is a concept id: the
+scalar starts at that concept's cast load instead of `seed_value`. A PLANT
+`AspectIntake.power_from` makes the intake rider land the named carried scalar's
+value instead of the load wherever the payload carries one (`Infusion.riders()`
+copies it). Fault Line's crack rides the Sunder intake rider this way: seeded
+from the Sunder load, halved by `StatusShareReseed` and re-read at each arrival;
+hop 0 lands exactly the load, hops >= 1 land the crack, and it authors a
+`MaxDamageReducer` (a null reducer never merges extras). `RankThresholdFilter`
+with `against = ABSOLUTE` compares each candidate to a fixed `threshold`;
+`TopTiesFilter.places` is a dense ranking keeping every candidate tied at
+places 1..N.
 
 **Out-and-back walks (`RetractFront`, #1424).** A `PayloadExtension` carrying a
 tendril's `phase` (OUT / WAIT / BACK), `depth` and `cargo` (hauled
@@ -772,9 +785,10 @@ The movement verb → `ProjectilePath` mapping and the impact-pinned three-clock
 
 ## Per-branch payload state and the merge trap (#696)
 
-`CastSpell` carries per-branch state beyond damage — `visited`, and since
-Cyclone also `came_from` / `closed_cycle`. **The stock merge silently decides
-what happens to all of it, and its defaults are wrong for anything that reads
+`CastSpell` carries per-branch state beyond damage — `visited`; Cyclone's
+`came_from` / `closed_cycle` ride `CycloneFront.State`. **The stock merge
+silently decides what happens to `visited`, and each extension's `merge` decides
+its own, and its defaults are wrong for anything that reads
 that state as a rule rather than as trivia.**
 
 `IncidentReducer._merge_payload_defaults` does two things worth knowing before

@@ -407,6 +407,15 @@ the Verlet history (`prev`) after the substep's projection
 (`BladeObstacleField.restitute`). Disc contact only; every other contact stays
 position-based and inelastic. Knobs tentative.
 
+**The impact bank and the Bunker knock-off.** Each obstacle zone banks the peak
+momentum a driven particle drives into it (`impact_peak`) and the sample it
+happened at (`impact_step`) in the field dict; the bank rewinds with the resolve
+loop, and the GDScript mirror reads `substep_dt` where the native solver reads
+`sub_dt`. A defender's `BunkerAddon.destroy_momentum` is the threshold:
+`SwingResolve._knock_off_bunkers` mints one `AddonDestroyInstance`
+(`HitInstance.Kind.ADDON_DESTROY`) per defender whose plate's peak reaches it,
+keyed at the peak's sample, and only the replay frees the addon.
+
 ### The metric is the DRIVER's residual
 
 A driven particle is not pinned during projection (only the pivot has `inv_mass 0`),
