@@ -15,6 +15,11 @@ extends SkillNodeAddon
 ## a plate with (0 = the inelastic default, 1 = a perfect bounce).
 ## Tentative, easy to change.
 @export_range(0.0, 1.0, 0.05) var blade_restitution: float = 0.5
+## On the DEFENDER: the peak momentum (a bunker member's normal approach speed
+## in px/s x its [member blade_mass]) a single contact must reach to knock
+## this addon off its node; below it the hit is an elastic clang.
+## Placeholder, tuned by feel in the melee sandbox; tentative, easy to change.
+@export_range(0.0, 100000.0, 10.0, "or_greater") var destroy_momentum: float = 4000.0
 
 
 func apply_to_blade(state: BladeState, particle_idx: int) -> void:

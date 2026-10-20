@@ -24,9 +24,11 @@ extends RefCounted
 ## launch, no HP — it runs [method StatusDef._on_exerted] on the node's rows.
 ## [CureInstance] adds [constant Kind.CURE]: a cleanse's planned per-status
 ## stack removal plus the heal it buys.
+## [AddonDestroyInstance] adds [constant Kind.ADDON_DESTROY]: a bunker hammer
+## knocking the defender's Bunker addon off its node, no HP.
 ## Appended LAST: the wire carries `int(kind)`, so existing values never shift —
 ## 3 was a retired kind and stays unused.
-enum Kind { DAMAGE, HEAL, STATUS, GATE_FLIP = 4, EXERT = 5, CURE = 6 }
+enum Kind { DAMAGE, HEAL, STATUS, GATE_FLIP = 4, EXERT = 5, CURE = 6, ADDON_DESTROY = 7 }
 var kind: Kind = Kind.DAMAGE
 
 ## What [member amount] is denominated in. [constant AmountBasis.FLAT] is HP;
