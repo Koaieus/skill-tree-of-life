@@ -11,7 +11,9 @@
 #   3. rebase the branch onto master INSIDE its own worktree if one exists,
 #      else in a detached throwaway worktree — the branch is never checked out
 #      in the main checkout;
-#   4. `mise run check` always, plus `mise run test:dir` for every
+#   4. when native/ inputs differ between the branch point and the rebased tip,
+#      `mise run native:build` in that tree first (submodule inited if empty);
+#      then `mise run check` always, plus `mise run test:dir` for every
 #      test/unit/<dir>/ the branch touches (test files directly, or by the
 #      top-level dir of a non-test file when test/unit/<dir>/ exists) — a
 #      rebased tree is a tree nobody tested;
@@ -155,6 +157,7 @@ cleanup() {
 trap cleanup EXIT
 
 # --- 4. rebase -------------------------------------------------------------
+base=$(git -C "$main" merge-base master "$branch")  # before the rebase erases it
 if ! git -C "$wt" rebase master >/dev/null 2>&1; then
   echo "✗ rebase of $branch onto master conflicts in:"
   git -C "$wt" diff --name-only --diff-filter=U | sed 's/^/    /'
@@ -221,6 +224,20 @@ run_step() {  # run_step <label> <cmd...>; prints the verdict lines on red
   echo "    (full output: $log)"
   return 1
 }
+
+# --- 4c. a stale native solver is rebuilt, not trusted ----------------------
+# The .so is gitignored, so a rebased tree whose native/ inputs moved (the
+# branch's own, or master's since the branch point) runs the gate on a binary
+# built from older sources. No native change: nothing extra is paid.
+native_changed=$(git -C "$main" diff --name-only "$base" "$sha" -- native/src native/SConstruct native/build_profile.json native/godot-cpp)
+if [ -n "$native_changed" ]; then
+  echo "  native/ changed since $(git -C "$main" rev-parse --short "$base") — rebuilding the solver in $wt"
+  if [ ! -f "$wt/native/godot-cpp/SConstruct" ]; then
+    git -C "$wt" submodule update --init --reference "$main/native/godot-cpp" native/godot-cpp >/dev/null 2>&1 \
+      || fail "could not init native/godot-cpp in $wt (git submodule update --init --reference $main/native/godot-cpp native/godot-cpp)"
+  fi
+  run_step "mise run native:build" mise run native:build || exit 1
+fi
 
 run_step "mise run check" mise run check || exit 1
 for d in $dirs; do

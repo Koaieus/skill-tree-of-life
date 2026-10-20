@@ -129,7 +129,9 @@ in tests and benches.
   never pick up a stale binary. A new worktree gets `native/bin/` copied in
   from `.worktreeinclude` — by Claude Code for agent worktrees, by `mise run
   worktree:new` otherwise (which builds in the new worktree if there is
-  nothing to copy).
+  nothing to copy). A copied binary can still predate the sources: `mise run
+  land` runs `native:build` in the rebased tree (initing the submodule) whenever
+  `native/` inputs differ between the branch point and the rebased tip.
 - **The supported matrix is what is declared and built:** `blade_sim.gdextension`
   declares four keys (linux and windows x86_64, debug and release). Declare
   nothing you do not build; add a target in the same change as its binary.
