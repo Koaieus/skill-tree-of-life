@@ -60,5 +60,5 @@ func get_description() -> String:
 	var metric := ranker.get_description() if ranker != null else "rank"
 	var word := "highest" if direction == Direction.HIGHEST else "lowest"
 	if places > 1:
-		return "Only into nodes among the %d %s %s values." % [places, word, metric]
+		return "Only into the %d %s %s tiers." % [places, word, metric]
 	return "Only into nodes tied for the %s %s." % [word, metric]
