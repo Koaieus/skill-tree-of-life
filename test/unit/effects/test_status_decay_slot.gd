@@ -21,6 +21,7 @@ const _DESCRIPTIONS := {
 	&"weakness": "Attacks from the node deal less damage; deep weakness needs steady reapplication to hold.",
 	&"greed": "The node's next hit lands its negative statuses doubled, and each such hit spends one stack. Every stack still held raises the XP this node pays when killed by 10%.",
 	&"mark": "Every stack adds a flat bonus to the crit chance of any hit landing on this node, after the attacker's own increases; a core's mark counts for every node its owner holds.",
+	&"hex": "Every stack strips 10% of this node's resistance to every status; past zero the node is vulnerable and more stacks land than were sent.",
 	&"bleeding": "Each turn the wound pays half its stacks as damage, rounded up. Using the node doubles the stacks.",
 	&"explosive": "Charges on a node. A hit on a charged node sets them off: it spends at least one into a blast that grows with the node's charges and the hit's own explosive load, carrying the hit's other effects to whatever the hit may hit around it. A hit that plants charges sets none off.",
 }
