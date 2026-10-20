@@ -2,8 +2,9 @@ extends GutTest
 
 ## Status resistance is a live filter on the HOST at effect time (ADR 0031):
 ## each apply and each tick hands the def `row − cancelled`, where
-## `cancelled = ⌈row × res − ½⌉` clamped to `[0, row]` (round half-down); the
-## row itself decays raw. At `res >= 1` nothing lands and a standing row deals
+## `cancelled = ⌈row × res − ½⌉` capped at `row` (round half-down; below 0%
+## it goes negative, so more stacks act than the row holds); the row itself
+## decays raw. At `res >= 1` nothing lands and a standing row deals
 ## 0 while it still decays. The projection is the sum of what each tick
 ## actually lands, floored per tick through the same landing rule.
 
@@ -149,7 +150,7 @@ func test_negative_resistance_lands_more_than_the_row() -> void:
 	# [row, res, effective] — the half still falls the attacker's way.
 	var table := [
 		[4.0, -0.5, 6.0], [1.0, -0.01, 1.0], [1.0, -0.5, 2.0],
-		[10.0, -1.0, 20.0], [10.0, -0.25, 12.0],
+		[10.0, -1.0, 20.0], [10.0, -0.25, 13.0],
 	]
 	for t in table:
 		_set_res(&"poison_resistance", t[1])

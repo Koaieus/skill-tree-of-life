@@ -300,19 +300,21 @@ func has_lingering() -> bool:
 ## every apply and every tick hands the def (ADR 0031). Resistance is read
 ## node-locally on [member owner] (`get_local_value`: a node slice, or the
 ## entity board for a fallen-through row); a blank or unknown id reads 0.
-## Round half-down: `cancelled = ⌈power × res − ½⌉`, clamped to
-## `[0, power]`, so 1% never curbs a small row to 0 and 1·50% keeps its
-## stack. At [method blocks] the answer is 0 outright — the formula alone
-## would leave a fractional row's `< ½` standing. The row itself is never
-## touched: this is a live filter, so shedding resistance restores the full
-## count on the very next tick.
+## Round half-down: `cancelled = ⌈power × res − ½⌉`, capped at `power`,
+## so 1% never curbs a small row to 0 and 1·50% keeps its stack. Negative
+## resistance is vulnerability: `cancelled` goes negative and more stacks act
+## than the row holds (4·−50% → 6; the half still falls the attacker's way,
+## 1·−50% → 2). At [method blocks] the answer is 0 outright — the formula
+## alone would leave a fractional row's `< ½` standing. The row itself is
+## never touched: this is a live filter, so a resistance change reaches the
+## very next apply or tick, DoTs included.
 func effective_power(def: StatusDef, power: float) -> float:
 	if power <= 0.0:
 		return 0.0
 	var res := _resistance(def)
 	if res >= 1.0:
 		return 0.0
-	var cancelled := clampf(ceilf(power * res - 0.5), 0.0, power)
+	var cancelled := minf(ceilf(power * res - 0.5), power)
 	return power - cancelled
 
 
