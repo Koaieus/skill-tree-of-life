@@ -174,7 +174,13 @@ than an answer. Two consumers:
 - **crits** — `SpellDef.crit_conditions`, OR-ed per landing by
   `SpellResolver._stamp_crit_conditions`. The *slot* is the crit consumer, the
   predicate is not.
-- **conditional on-hit effects** — `ScaleDamageEffect.when`.
+- **conditional on-hit effects** — `OnHitEffect.when`, on the base class so
+  every effect has the one gate: `OnHitEffect.run_all` skips an effect whose
+  `when` evaluates false (null = always). On a non-spell `HitLanding` (arrow,
+  blade) a non-null `when` is an authoring error: one `push_error`, and the
+  effect runs ungated. `SpellDef.rider_when` is the same gate for the intake
+  riders: the resolver puts it on every rider of the cast (armed or plain)
+  once, right after `DetonateEffect.arm`.
 
 Stock subclasses: `LeafCondition`, `SelfLoopCondition`, `CycleCondition`,
 `ConvergenceCondition`, `JunctionCondition` (entity degree > 2), in
@@ -183,7 +189,7 @@ Stock subclasses: `LeafCondition`, `SelfLoopCondition`, `CycleCondition`,
 ### `ScaleDamageEffect`
 
 An `OnHitEffect` that scales `CastSpell.damage` in place — `MULTIPLY` /
-`SQUARE` / `MULTIPLY_BY_DEGREE`, optionally gated by a `LandingCondition`
+`SQUARE` / `MULTIPLY_BY_DEGREE`, optionally gated by its inherited `when`
 (null = always) — and emits nothing itself. Author it **before** `DamageEffect`
 and the damage effect emits the scaled number; effects already run in order
 over the one mutable `CastSpell`, so this is that contract used, not a new one.

@@ -23,6 +23,9 @@ extends Resource
 ## error — reported once, and the effect runs ungated.
 @export var when: LandingCondition = null
 
+## Once per effect instance: a gate on a non-spell landing is worth one line.
+var _warned_when_not_spell: bool = false
+
 
 ## Run this effect for one [param landing], appending whatever it emits to
 ## [member HitLanding.hits]. Mode-agnostic: an effect that needs spell context
@@ -37,11 +40,26 @@ func status_def() -> StatusDef:
 
 
 ## Run every effect in [param effects] against [param landing], in order,
-## skipping nulls — the one loop every mode's resolver runs its list through.
+## skipping nulls and any whose [member when] is false — the one loop every mode's resolver runs its list through.
 static func run_all(effects: Array, landing: HitLanding) -> void:
 	for effect in effects:
-		if effect != null:
+		if effect != null and effect.passes_gate(landing):
 			effect.apply(landing)
+
+
+## Whether [member when] lets this effect run at [param landing] — true when
+## null, and on a non-spell landing (after one [code]push_error[/code]).
+func passes_gate(landing: HitLanding) -> bool:
+	if when == null:
+		return true
+	var lctx := landing as LandingContext
+	if lctx == null:
+		if not _warned_when_not_spell:
+			_warned_when_not_spell = true
+			push_error("%s: `when` needs a spell landing (LandingContext); running it ungated"
+					% get_script().get_global_name())
+		return true
+	return when.evaluate(lctx)
 
 
 ## [param value] minus every [SpellOnHitEffect], each dropped with one

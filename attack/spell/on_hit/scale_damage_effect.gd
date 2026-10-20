@@ -43,8 +43,6 @@ func _apply_spell(lctx: LandingContext) -> void:
 	var state := lctx.payload
 	if state == null or state.current_node == null:
 		return
-	if when != null and not when.evaluate(lctx):
-		return
 	state.damage = _scaled(state, lctx)
 
 

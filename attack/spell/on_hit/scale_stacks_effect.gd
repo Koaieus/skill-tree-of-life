@@ -23,8 +23,6 @@ extends SpellOnHitEffect
 func _apply_spell(lctx: LandingContext) -> void:
 	if lctx.node == null and lctx.target == null:
 		return
-	if when != null and not when.evaluate(lctx):
-		return
 	var node: SkillNode = lctx.target if lctx.target != null else lctx.node
 	var scale := ranker.score(node, lctx) if ranker != null else factor
 	lctx.stack_scale *= maxf(scale, 0.0)
