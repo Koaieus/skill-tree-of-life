@@ -30,7 +30,7 @@ func _apply_spell(lctx: LandingContext) -> void:
 	var field := StackField.over_world(def, def.spread.ownership_mask, world, nodes, lctx.cast.graph)
 	for m in field.masked_neighbours(world.combat_for(node)):
 		var hit := _FluxCopy.new()
-		MultiplyRowEffect.stamp(hit, def, lctx)
+		StatusInstance.stamp_landing(hit, def, lctx)
 		hit.target = m.real()
 		hit.origin = node
 		hit.fluxed = node

@@ -32,18 +32,10 @@ func apply(landing: HitLanding) -> void:
 	if landing == null or landing.target == null or def == null:
 		return
 	var status := StatusInstance.new()
-	status.def = def
+	StatusInstance.stamp_landing(status, def, landing)
 	status.power = _power_at(landing)
 	# The potency read at land (#963) is the attacker's board.
-	status.attacker = landing.attacker
-	status.source = landing.source
-	status.target = landing.target
-	status.origin = landing.origin
-	status.read_node = landing.read_node
 	status.read_overlays = landing.read_overlays
-	status.structural_key = landing.structural_key
-	status.paired = landing.paired
-	status.hit_key = landing.hit_key
 	status.stack_scale = landing.stack_scale
 	status.stack_terms = stack_terms
 	landing.emit(status)

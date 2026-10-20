@@ -56,17 +56,9 @@ func _cure_on(from: SkillNode, lctx: LandingContext) -> CureInstance:
 
 func _status_on(d: StatusDef, amount: int, lctx: LandingContext) -> StatusInstance:
 	var status := StatusInstance.new()
-	status.def = d
+	StatusInstance.stamp_landing(status, d, lctx)
 	status.power = float(amount)
 	status.raw = true
-	status.attacker = lctx.attacker
-	status.source = lctx.source
-	status.target = lctx.target
-	status.origin = lctx.origin
-	status.read_node = lctx.read_node
-	status.structural_key = lctx.structural_key
-	status.paired = lctx.paired
-	status.hit_key = lctx.hit_key
 	return status
 
 

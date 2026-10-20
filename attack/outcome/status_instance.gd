@@ -70,6 +70,21 @@ func _init() -> void:
 	kind = Kind.STATUS
 
 
+## Copies [param landing]'s shared facts onto [param status] — the one stamping
+## for a status hit an on-hit effect decides at land. Power, overlays and stack
+## fields are the caller's own writes after the call.
+static func stamp_landing(status: StatusInstance, p_def: StatusDef, landing: HitLanding) -> void:
+	status.def = p_def
+	status.attacker = landing.attacker
+	status.source = landing.source
+	status.target = landing.target
+	status.origin = landing.origin
+	status.read_node = landing.read_node
+	status.structural_key = landing.structural_key
+	status.paired = landing.paired
+	status.hit_key = landing.hit_key
+
+
 ## A status rider lands before its paired hit, so its effect (a curse floor,
 ## a sunder, a mark) lifts that hit (ADR 0067). A blast's status or a
 ## splash copy ([member HitInstance.blast_mark] / [member HitInstance.land_mask],

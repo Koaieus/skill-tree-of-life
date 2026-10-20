@@ -24,24 +24,9 @@ func apply(landing: HitLanding) -> void:
 	if landing == null or landing.target == null or def == null:
 		return
 	var hit := _RowMultiply.new()
-	stamp(hit, def, landing)
+	StatusInstance.stamp_landing(hit, def, landing)
 	hit.factor = factor
 	landing.hits.append(hit)
-
-
-## Copies [param landing]'s shared facts onto [param status], as
-## [ApplyStatusEffect] does for its own hit — the one stamping for a status
-## hit an effect decides at land.
-static func stamp(status: StatusInstance, p_def: StatusDef, landing: HitLanding) -> void:
-	status.def = p_def
-	status.attacker = landing.attacker
-	status.source = landing.source
-	status.target = landing.target
-	status.origin = landing.origin
-	status.read_node = landing.read_node
-	status.structural_key = landing.structural_key
-	status.paired = landing.paired
-	status.hit_key = landing.hit_key
 
 
 func status_def() -> StatusDef:
