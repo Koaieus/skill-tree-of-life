@@ -186,6 +186,6 @@ func test_the_rider_description_carries_the_term_line() -> void:
 	effect.def = _POISON
 	effect.power = 2.0
 	effect.stack_terms = [_share(3)] as Array[StackTerm]
-	assert_string_contains(effect.get_description(), "+25% of target armor at 3/X")
+	assert_eq(effect.get_description(), "Applies Poison (2 per hit, +25% of target armor at 3/X).")
 	_blade.allocation_level = 2
 	assert_false(effect.get_description(null, null, _blade).contains("target armor"), "dormant: no line")

@@ -57,13 +57,14 @@ func status_def() -> StatusDef:
 ## [param board] answers the authored [member power] unscaled and a board with
 ## the attacker's `<family>_stacks_per_hit` folds it in; a [param read_node]
 ## folds through its live slice instead, node-local bonuses included. Each
-## [member stack_terms] line follows on its own line, a dormant one dropped.
+## [member stack_terms] line joins the per-hit parenthetical ("2 per hit, +25%
+## of target armor"), a dormant one dropped — callers join effect lines inline.
 func get_description(_spell: SpellDef = null, board: StatBoard = null, read_node: SkillNode = null) -> String:
 	if def == null:
 		return "Applies a status."
-	var lines := PackedStringArray([def.applies_line(board, power, "", OnHitEffect.read_slice(read_node))])
+	var terms := ""
 	for term in stack_terms:
 		var line := term.describe(read_node) if term != null else ""
 		if not line.is_empty():
-			lines.append(line)
-	return "\n".join(lines)
+			terms += ", " + line
+	return def.applies_line(board, power, terms, OnHitEffect.read_slice(read_node))
