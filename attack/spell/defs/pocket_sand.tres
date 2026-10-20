@@ -1,9 +1,35 @@
 [gd_resource type="Resource" script_class="SpellDef" format=3]
 
 [ext_resource type="Script" path="res://attack/spell/spell_def.gd" id="1_spell"]
+[ext_resource type="Script" path="res://attack/spell/aspect_intake.gd" id="3_affinity"]
+[ext_resource type="Resource" path="res://identity/defs/blindness.tres" id="identity_blindness"]
 [ext_resource type="Script" path="res://attack/targeting/aimed_targeting.gd" id="5_targeting"]
 [ext_resource type="Script" path="res://attack/targeting/cone_shape.gd" id="6_cone"]
 [ext_resource type="Script" path="res://attack/range_finder/euclidean_range_finder.gd" id="7_range"]
+[ext_resource type="Script" path="res://attack/spell/propagation/propagation_config.gd" id="8_config"]
+[ext_resource type="Script" path="res://attack/spell/propagation/filter/owner_filter.gd" id="9_filter"]
+[ext_resource type="Script" path="res://attack/spell/propagation/spread/fan_all_spread.gd" id="10_fan"]
+[ext_resource type="PackedScene" path="res://ui/vfx/coordinator/spells/scout_line_coordinator.tscn" id="11_vfx"]
+[ext_resource type="Resource" path="res://identity/defs/spell_pocket_sand.tres" id="identity_ref"]
+
+[sub_resource type="Resource" id="blind_sand"]
+script = ExtResource("3_affinity")
+identity = ExtResource("identity_blindness")
+innate = 1
+
+[sub_resource type="Resource" id="filter_hostile"]
+script = ExtResource("9_filter")
+ownership_filter = 8
+
+[sub_resource type="Resource" id="spread_fan"]
+script = ExtResource("10_fan")
+
+[sub_resource type="Resource" id="prop_sand"]
+script = ExtResource("8_config")
+filter = SubResource("filter_hostile")
+spread = SubResource("spread_fan")
+max_hops = 2.0
+max_visits_per_node = 1
 
 [sub_resource type="Resource" id="range_cone"]
 script = ExtResource("7_range")
@@ -23,4 +49,11 @@ range_finder = SubResource("range_cone")
 script = ExtResource("1_spell")
 id = &"pocket_sand"
 name = "Pocket Sand"
+tagline = "A fistful of grit flung in a cone. It gets everywhere."
+description = "Fling sand in a cone from the cast-from node. Every enemy node the cone crosses is blinded, even ones hidden in the dark, then the sand spills on into every neighbouring enemy node, up to 2 hops further. Each node it touches takes one blindness stack: it sees and senses a little less for a few turns. Deals no damage."
+identity = ExtResource("identity_ref")
+power = 0.15
+propagation = SubResource("prop_sand")
+intakes = Array[ExtResource("3_affinity")]([SubResource("blind_sand")])
+vfx_coordinator_scene = ExtResource("11_vfx")
 targeting = SubResource("targeting_cone")
