@@ -105,6 +105,15 @@ var tint: Color:
 ## may sit on a carrier (enforced by SkillNode at child_entered_tree —
 ## a duplicate is rejected).
 @export var unique: bool = false
+## The job this addon does when copied onto a forged blade — the shop groups
+## its canonical order by it ([method TempUpgradeCatalog.offered]), in enum
+## order. One tag per addon, whatever it also does as anti-blade armour on a
+## board node. [constant UNSET] is the default only so an explicit tag (even
+## the first one) survives an editor resave; every def sets one, and an
+## untagged addon sorts after all of them.
+enum Role { OFFENCE, DEBUFF, DEFENCE, UTILITY, UNSET }
+## This addon's [enum Role]; read without an instance through [method role_of].
+@export var role: Role = Role.UNSET
 ## Whether a player may place this addon on a blade member as a temp upgrade
 ## for one swing. Off by default: a map-only addon is never offered and never
 ## applied, whatever its costs.
@@ -205,6 +214,12 @@ static func icon_of(scene: PackedScene) -> Texture2D:
 	return _scene_record(scene).get(&"icon", null)
 
 
+## [member role] of [param scene]'s addon, read like [method temp_costs_of];
+## [constant Role.UNSET] for a non-addon scene.
+static func role_of(scene: PackedScene) -> Role:
+	return _scene_record(scene).get(&"role", Role.UNSET)
+
+
 ## Whether [param scene]'s root is a [SkillNodeAddon] — what a folder scan
 ## ([TempUpgradeCatalog]) keeps.
 static func is_addon_scene(scene: PackedScene) -> bool:
@@ -234,6 +249,7 @@ static func _scene_record(scene: PackedScene) -> Dictionary:
 		&"placeable": addon.temp_placeable,
 		&"tint": addon.tint,
 		&"icon": addon.icon,
+		&"role": addon.role,
 	}
 	addon.free()
 	if not key.is_empty():

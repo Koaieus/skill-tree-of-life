@@ -41,25 +41,41 @@ func test_a_catalog_on_the_fixture_folder_lists_its_addons_and_nothing_else() ->
 	] as Array[String], "the non-addon scene is skipped")
 
 
-func test_offered_is_the_temp_placeable_subset_in_order() -> void:
-	assert_eq(_paths(CATALOG.offered()), [
-		"res://skill_node/addons/defs/ashfall_addon.tscn",
-		"res://skill_node/addons/defs/clamp_addon.tscn",
-		"res://skill_node/addons/defs/compromiser_addon.tscn",
-		"res://skill_node/addons/defs/doombrand_addon.tscn",
-		"res://skill_node/addons/defs/dune_addon.tscn",
-		"res://skill_node/addons/defs/midas_mark_addon.tscn",
-		"res://skill_node/addons/defs/sapling_addon.tscn",
-		"res://skill_node/addons/defs/shredder_addon.tscn",
-		"res://skill_node/addons/defs/spike_ring_addon.tscn",
-		"res://skill_node/addons/defs/toxin_addon.tscn",
-		"res://skill_node/addons/defs/watchtower_addon.tscn",
-	] as Array[String])
+func test_offered_is_the_temp_placeable_subset() -> void:
+	var offered := _paths(CATALOG.offered())
+	var expected: Array[String] = []
 	for scene in CATALOG.kinds():
-		assert_eq(CATALOG.offered().has(scene), SkillNodeAddon.temp_placeable_of(scene),
-				"%s offered iff temp_placeable" % scene.resource_path)
+		if SkillNodeAddon.temp_placeable_of(scene):
+			expected.append(scene.resource_path)
+	assert_gt(expected.size(), 1, "fixture check: several kinds are offered")
+	offered.sort()
+	assert_eq(offered, expected, "offered is exactly the temp-placeable kinds")
 	assert_eq(_paths(_fixture_catalog().offered()),
 			[_FIXTURES.path_join("second_dot_addon.tscn")] as Array[String])
+
+
+## The shop's canonical order: by role in enum order, then blade-size price
+## ascending, then scene path.
+func _order_key(scene: PackedScene) -> Array:
+	return [SkillNodeAddon.role_of(scene),
+			SkillNodeAddon.temp_costs_of(scene, 0).get(&"blade_size", 0),
+			scene.resource_path]
+
+
+func test_offered_is_grouped_by_role_then_price_then_path() -> void:
+	var offered := CATALOG.offered()
+	for i in range(1, offered.size()):
+		var a := _order_key(offered[i - 1])
+		var b := _order_key(offered[i])
+		var ordered: bool = a[0] < b[0] or (a[0] == b[0] and (a[1] < b[1]
+				or (a[1] == b[1] and a[2] < b[2])))
+		assert_true(ordered, "%s must precede %s" % [a, b])
+
+
+func test_every_addon_def_has_its_role_set() -> void:
+	for scene in CATALOG.kinds():
+		assert_ne(SkillNodeAddon.role_of(scene), SkillNodeAddon.Role.UNSET,
+				"%s has no role tag" % scene.resource_path)
 
 
 func test_by_kind_returns_the_kinds_entry_itself() -> void:
