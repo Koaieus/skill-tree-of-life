@@ -62,7 +62,7 @@ list. Every current caller sets the endpoints *before* `add_child` (see
 `Graph.add_edge` and `playground_panel._add_edge`), so this is safe today.
 
 **How to apply:** if you ever re-point a live edge's endpoints, call
-`_mark_adjacency_dirty()`. The editor path (`Engine.is_editor_hint()`) skips the
+`_mark_topology_dirty()`. The editor path (`Engine.is_editor_hint()`) skips the
 cache entirely for exactly this reason — an inspector edit to `from`/`to` would
 otherwise go unnoticed.
 
