@@ -142,6 +142,35 @@ func test_poison_at_25_percent_lands_15_and_the_row_halves_raw() -> void:
 			"the row decays from its full, unresisted 20")
 
 
+# ── Negative resistance is vulnerability: more stacks act than the row holds ─
+
+func test_negative_resistance_lands_more_than_the_row() -> void:
+	var def := _poison()
+	# [row, res, effective] — the half still falls the attacker's way.
+	var table := [
+		[4.0, -0.5, 6.0], [1.0, -0.01, 1.0], [1.0, -0.5, 2.0],
+		[10.0, -1.0, 20.0], [10.0, -0.25, 12.0],
+	]
+	for t in table:
+		_set_res(&"poison_resistance", t[1])
+		assert_almost_eq(_combat().effective_status_power(def, t[0]), t[2], 0.0001,
+				"%s stacks at %s%% → %s" % [t[0], t[1] * 100.0, t[2]])
+
+
+func test_poison_at_minus_50_percent_ticks_harder_and_the_row_halves_raw() -> void:
+	_set_node_hp(10000.0)
+	_set_res(&"poison_resistance", -0.5)
+	_combat().apply_status(_poison(), 4.0)
+	var before := _node_hp()
+	_combat().tick_statuses()
+	assert_almost_eq(before - _node_hp(), 6.0, 0.001, "4 − ⌈−2 − ½⌉ = 6")
+	assert_almost_eq(_combat().get_status_power(&"poison"), 2.0, 0.001,
+			"the row decays from its raw 4")
+	before = _node_hp()
+	_combat().tick_statuses()
+	assert_almost_eq(before - _node_hp(), 3.0, 0.001, "2 − ⌈−1 − ½⌉ = 3")
+
+
 func test_resistance_dropped_between_ticks_counts_the_full_row() -> void:
 	_set_node_hp(10000.0)
 	_set_res(&"poison_resistance", 0.5)
