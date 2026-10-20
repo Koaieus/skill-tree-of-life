@@ -360,6 +360,14 @@ func next_tick_damage(_host, _power: float) -> float:
 	return 0.0
 
 
+## What [param stacks] of this status are WORTH when a cleanse clears them off
+## [param host] (a [NodeCombat], or an [EntityCombat] for a core row) — the
+## status's own fact, read by a spell-side [CleanseTerm] that decides what the
+## worth buys or costs. The base is worth nothing, so `0`.
+func cleanse_worth(_host, _stacks: float) -> float:
+	return 0.0
+
+
 # ── Behaviour hooks — override on a subclass; the base does nothing ─────────
 #
 # `host` is the composing slice a [StatusHost] serves — a [NodeCombat] today,

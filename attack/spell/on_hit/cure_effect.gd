@@ -25,6 +25,7 @@ extends SpellOnHitEffect
 ## HP healed per stack cleared, summed over every status. Linear, not the
 ## triangle sum. 1.0 matches poison's damage per stack.
 @export_range(0, 10, 0.1) var heal_per_stack: float = 1.0
+@export var terms: Array[CleanseTerm] = []
 
 
 func _apply_spell(lctx: LandingContext) -> void:
