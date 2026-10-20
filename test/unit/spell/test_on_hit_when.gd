@@ -97,3 +97,11 @@ func test_rider_when_null_lands_the_rider_on_the_seed() -> void:
 	var n: Array = r[0]
 	assert_eq(_statuses_on(r[1], n[1]), 1, "ungated: the seed carries the rider")
 	assert_eq(_statuses_on(r[1], n[2]), 1, "and the next hop")
+
+
+func test_trail_blazer_tres_gate_lands_on_the_inherited_when() -> void:
+	var spell: SpellDef = load("res://attack/spell/defs/trail_blazer.tres")
+	var scales := spell.on_hit_effects.filter(func(e): return e is ScaleDamageEffect)
+	assert_eq(scales.size(), 1, "fixture: one authored scale")
+	if scales.size() == 1:
+		assert_true(scales[0].when is JunctionCondition, "the .tres `when` deserializes onto the base field")
