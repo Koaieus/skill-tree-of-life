@@ -20,6 +20,7 @@ second rounding downstream.
 | AI kill estimate (`AiCombatScorer.cheap_estimate`) | HP, int | mirrors the door: `⌈raw⌉`, then `Mitigation.compute` | `HitPoints.whole` + `Mitigation.compute` | #1307 |
 | INT stat merged read | stat unit | down (truncate), once at the read | `Stat._coerce` | ADR 0017 |
 | Spill on death, per neighbour | stacks, int | down: `⌊⌊S · f⌋ / k⌋`, remainder lost (no total increase) | `SpillSpread` | #1204, #1217 (owner, 2026-09-29/30) |
+| Flux copy-out, per neighbour | stacks, int | down: `⌊⌊S · share · f · df⌋ / (k + sinks)⌋`, nothing debited | `SpillSpread.copy_out` | #1561 |
 | Diffusion, FRACTION mode, per edge | stacks, int | down: `⌊f · d / (1 + max(deg_u, deg_v))⌋` (floored Metropolis) | `FractionDiffusion` | #1264 |
 | Resistance cancel | stacks, int | half-down: `⌈row × res − ½⌉` cancelled (ties to the attacker) | `StatusHost.effective_power` | ADR 0031 |
 | Landing fold `(authored + extras) × (1 + Σinc) × Πmore` | stacks, int | **half-up**, ties to the attacker (noise within `is_equal_approx` of a whole or a half snaps to it first); the `*_stacks_per_hit` stats stay FLOAT so the read never truncates first | `StatusDef.stacks_per_hit` (`round_half_up`), also on the null-board path | ADR 0032, #1310 (owner, 2026-10-01) |

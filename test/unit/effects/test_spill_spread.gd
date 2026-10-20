@@ -286,3 +286,54 @@ func test_death_fraction_scales_kill_share() -> void:
 	assert_eq(t.amount, 1.0, "floor(7 * 0.5 / 3)")
 	var d_out := _sink_rule(0.5).on_removed(s.field, s.removed, StatusSpread.CAUSE_DEALLOC)
 	assert_eq(_find(d_out, s.x, s.recv).amount, 2.0, "dealloc keeps spread_fraction")
+
+
+# ── copy_out: the removal-free quote of the death spill ─────────────────────
+
+func _star() -> Array:
+	## Centre `c` with two masked neighbours `a`, `b` (a 3-node line a–c–b).
+	var d := _def()
+	var a := _node(_me)
+	var c := _node(_me)
+	var b := _node(_me)
+	c.apply_status(d, 7.0)
+	var field := _field(d, {a: [c], c: [a, b], b: [c]})
+	return [d, field, a, c, b]
+
+
+func test_share_one_quote_equals_the_death_spill_minus_its_remainder() -> void:
+	var s := _star()
+	var field: StackField = s[1]
+	var c: NodeCombat = s[3]
+	var rule := SpillSpread.new()
+	rule.spread_fraction = 1.0
+	var removed: Array[NodeCombat] = [c]
+	var spill := rule.on_removed(field, removed, StatusSpread.CAUSE_DEATH)
+	var expected: Array = []
+	for t in spill:
+		if t.to != null:
+			expected.append([t.from, t.to, t.amount])
+	var quote := rule.copy_out(field, c, 1.0)
+	var got: Array = []
+	for t in quote:
+		got.append([t.from, t.to, t.amount])
+	assert_gt(got.size(), 0, "the fixture spills something")
+	assert_eq(got, expected, "copy_out(1.0) is the death spill without the burn")
+
+
+func test_a_dealloc_only_rule_quotes_nothing() -> void:
+	var s := _star()
+	var rule := SpillSpread.new()
+	rule.triggers = StatusSpread.CAUSE_DEALLOC
+	assert_eq(rule.copy_out(s[1], s[3], 1.0).size(), 0, "no death trigger: empty quote")
+
+
+func test_a_quote_debits_nothing() -> void:
+	var s := _star()
+	var field: StackField = s[1]
+	var c: NodeCombat = s[3]
+	var rule := SpillSpread.new()
+	var before := field.stacks(c)
+	rule.copy_out(field, c, 1.0)
+	assert_eq(field.stacks(c), before, "the source row is untouched")
+

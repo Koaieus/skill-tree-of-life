@@ -10,7 +10,8 @@ extends SpellOnHitEffect
 ## The receivers are the rule's neighbours of the node on the world the walk
 ## reads; each gets one status hit whose stacks are decided at LAND, on the
 ## authority's shadow, from the node's row as the earlier hits of this
-## landing left it (so an add and a multiply authored before it count). The
+## landing left it: the intake riders (placed first, ADR 0067) and any effect
+## authored before it. The
 ## hit is then [member StatusInstance.power_resolved]: the record ships plain
 ## status hits and a replay lands the same numbers.
 

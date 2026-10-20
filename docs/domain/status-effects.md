@@ -66,6 +66,9 @@ bypass are [defense-axes.md](defense-axes.md).
   `OutcomeApplier.apply`; one wave in `SpellResolver.resolve_against`; one turn-end
   tick step (flushed before its diffusion sweep); a gate-flip command flushes as its
   own beat; an entity death never flushes, it belongs to the beat that killed it.
+  `StatusSpread.copy_out(field, node, share)` is a removal-free quote of the death
+  spill for `share` of the row; `FluxEffect` lands its `to` side as status hits, the
+  source is never debited.
   Curse and Bleeding are authored with `SpillSpread` (both triggers, 1.0, Mine);
   `SandpileSpread` spills
   nothing (a removed pile vanishes).

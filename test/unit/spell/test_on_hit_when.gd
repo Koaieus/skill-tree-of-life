@@ -52,6 +52,20 @@ func test_an_effect_whose_when_is_null_or_true_emits() -> void:
 	assert_eq(_emitted_through_run_all(_cond(true)), 1, "when true: runs")
 
 
+func test_a_when_on_a_non_spell_landing_runs_ungated() -> void:
+	var helper := H.new()
+	var graph := helper.make_graph([[0, 1]], self)
+	var landing := HitLanding.new()
+	landing.target = graph.get_skill_nodes()[1]
+	var eff := ApplyStatusEffect.new()
+	eff.def = _POISON
+	eff.power = 2.0
+	eff.when = _cond(false)
+	OnHitEffect.run_all([eff], landing)
+	assert_push_error("needs a spell landing")
+	assert_eq(landing.hits.size(), 1, "a plain HitLanding runs the gated effect anyway")
+
+
 ## Line 0(atk) - 1(seed) - 2, both enemy; fan_all, max_hops 1: two landings,
 ## a poison innate intake riding each. Returns [nodes, outcome].
 func _cast(rider_when_false_at_seed: bool) -> Array:
