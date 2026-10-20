@@ -19,7 +19,7 @@ class FogStub extends VisionSystem:
 		return seen.has(node)
 
 
-## The catalog holds no aimed spell yet, so SPARK is borrowed and restored.
+## SPARK is borrowed and its targeting swapped (and restored) to drive the aim input over a known def.
 var _spark: SpellDef = SpellCatalog.SPARK
 var _spark_targeting: Targeting
 
