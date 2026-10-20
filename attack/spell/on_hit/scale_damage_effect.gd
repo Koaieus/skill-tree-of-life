@@ -34,8 +34,6 @@ enum Mode {
 	MULTIPLY_BY_DEGREE,  ## damage × the landed node's ENTITY degree
 }
 
-## Null means "always" — an unconditional scale.
-@export var when: LandingCondition = null
 @export var mode: Mode = Mode.MULTIPLY
 ## Used only when [member mode] is [constant Mode.MULTIPLY].
 @export var factor: float = 2.0

@@ -13,8 +13,6 @@ extends SpellOnHitEffect
 ## scale of 0 lands 0 stacks however much `<family>_stacks_per_hit` is
 ## invested — that is Defile's blank-node immunity.
 
-## Null means "always" — an unconditional scale.
-@export var when: LandingCondition = null
 ## The scale is this ranker's score of the landed node; null falls back to
 ## [member factor].
 @export var ranker: NodeRanker = null

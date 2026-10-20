@@ -113,6 +113,12 @@ var icon: Texture2D:
 ## [ApplyStatusEffect] in [member on_hit_effects].
 @export var intakes: Array[AspectIntake] = []
 
+## The gate every intake rider of a cast carries as its
+## [member OnHitEffect.when] — null lands the riders at every landing, a
+## condition only where it holds (the spell's own [member on_hit_effects]
+## author their gates each).
+@export var rider_when: LandingCondition = null
+
 ## Ingest rate numerator: the spell-wide exchange rate `ingest_gain:ingest_cost`,
 ## multiplied with every concept's affinity (an unlisted concept's is 1:1);
 ## 0 refuses every infusion.

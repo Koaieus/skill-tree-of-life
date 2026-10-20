@@ -17,6 +17,13 @@ extends Resource
 ## [code]Engine.is_editor_hint()[/code] where appropriate.
 
 
+## Gate: [method run_all] skips this effect at a landing this evaluates false
+## on; null means always. A [LandingCondition] reads a spell's
+## [LandingContext], so a non-null gate on any other landing is an authoring
+## error — reported once, and the effect runs ungated.
+@export var when: LandingCondition = null
+
+
 ## Run this effect for one [param landing], appending whatever it emits to
 ## [member HitLanding.hits]. Mode-agnostic: an effect that needs spell context
 ## extends [SpellOnHitEffect], which narrows to [LandingContext].
