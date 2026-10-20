@@ -109,6 +109,11 @@ func land_priority() -> int:
 ## non-positive gate makes a no-op. Resolved once: a rebuilt hit arrives
 ## [member power_resolved] and lands the recorded number as-is.
 ##
+## Stack terms ([member stack_terms]): each adds `≥ 0` stacks to the fold,
+## read against [param world] — the read node's slice and the receiving
+## [param node] — before crit, so crit, scale and Greed multiply the whole sum.
+## Skipped with no read node and on an ENTITY host.
+##
 ## Crit: a spell's condition-tier crit ([CritRoll], never `crit_chance`)
 ## lands the folded stacks × `abs(crit_multiplier)` — a separate factor right
 ## after the fold; a non-crit is ×1. A rebuilt hit arrives resolved, so the
@@ -148,6 +153,10 @@ func land_on(node: NodeCombat, world: CombatWorld) -> void:
 				extra = read_overlays.call(def.stacks_stat_id())
 			power = def.stacks_per_hit_at(rn, power, extra) if rn != null \
 				else def.stacks_per_hit(_attacker_board(), power)
+			if rn != null and host_kind == HostKind.NODE:
+				for term in stack_terms:
+					if term != null:
+						power += maxf(0.0, term.extra(rn, node))
 			power *= absf(crit_multiplier)
 			power *= stack_scale
 			# The row is integer (ADR 0032): round once, half-up, after crit × scale.
