@@ -537,10 +537,10 @@ func _clear_preview() -> void:
 	_preview_outcome = null
 
 
-## gathered only when (source, angle) moved and rerun only when the crossed set
-## differs from the last one — see
-## [member aim_angle] seeds a shadow resolve ([method SpellResolver.resolve_seeds]),
-## rerun only when the crossed set differs from the last one — see
+## The aimed preview: every node the shape crosses from [member source] at
+## [member aim_angle] seeds a shadow resolve ([method SpellResolver.resolve_seeds]).
+## The seeds are gathered only when (source, angle) moved, and the resolve
+## reruns only when the crossed set differs from the last one — see
 ## [member _preview_key_valid]. The kept outcome's [member AttackOutcome.aim]
 ## is the angle it was resolved at, not necessarily the live one.
 func _rebuild_aimed_preview() -> void:
