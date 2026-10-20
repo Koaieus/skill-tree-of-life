@@ -34,6 +34,14 @@ extends Resource
 	set(value):
 		affinity_cost = maxi(value, 1)
 		emit_changed()
+## Extra-stack terms the PLANT rider of this row carries ([member
+## ApplyStatusEffect.stack_terms]), each a [StackTerm] read at land against the
+## landing world. A spell that also scales its damage by the same term shares
+## the SubResource with its [AddStackTermDamageEffect]: one formula, two readers.
+@export var stack_terms: Array[StackTerm] = []:
+	set(value):
+		stack_terms = value
+		emit_changed()
 ## How a hit spends this row's load — the row's **face**:
 ## DETONATE: spent at the hit as a blast ([DetonateEffect]); PLANT: lands as
 ## the concept's status rider at `power = load`; FUEL: no rider, the load only
