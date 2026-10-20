@@ -162,9 +162,15 @@ func test_the_effect_order_lint_actually_catches_a_late_scale() -> void:
 			"scale BEFORE damage is the correct authoring (the Trailblazer's)")
 	assert_eq(_late_scale_index([scale] as Array[OnHitEffect]), -1,
 			"a scale with nothing to emit after it is not this defect")
+	var add_term := AddStackTermDamageEffect.new()
+	assert_eq(_late_scale_index([damage, add_term] as Array[OnHitEffect]), 1,
+			"a stack-term add AFTER damage is the same defect")
+	assert_eq(_late_scale_index([add_term, damage] as Array[OnHitEffect]), -1,
+			"a stack-term add BEFORE damage is Rend's correct authoring")
 
 
-## Index of the first [ScaleDamageEffect] authored after a [DamageEffect] has
+## Index of the first in-place damage scaler ([ScaleDamageEffect] or
+## [AddStackTermDamageEffect]) authored after a [DamageEffect] has
 ## already emitted, or -1 when the ordering is sound.
 func _late_scale_index(effects: Array[OnHitEffect]) -> int:
 	var emitted_at := -1
@@ -172,7 +178,7 @@ func _late_scale_index(effects: Array[OnHitEffect]) -> int:
 		var eff: OnHitEffect = effects[i]
 		if eff is DamageEffect and emitted_at < 0:
 			emitted_at = i
-		elif eff is ScaleDamageEffect and emitted_at >= 0:
+		elif (eff is ScaleDamageEffect or eff is AddStackTermDamageEffect) and emitted_at >= 0:
 			return i
 	return -1
 

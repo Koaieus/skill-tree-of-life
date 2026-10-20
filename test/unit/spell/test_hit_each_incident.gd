@@ -26,7 +26,7 @@ func before_each() -> void:
 
 ## 0 (attacker) → seed 1 → {2, 3, 4} → 5 → 6. [param fan] lists node 1's
 ## edges, so the three fronts into 5 are minted in that order.
-func _cast(fan: Array, per_incident: bool) -> Dictionary:
+func _cast(fan: Array, per_incident: bool, bites: float = 0.0) -> Dictionary:
 	var adj: Array = [[0, 1]]
 	for e in fan:
 		adj.append(e)
@@ -42,7 +42,18 @@ func _cast(fan: Array, per_incident: bool) -> Dictionary:
 	var reducer := h.sum_reducer()
 	reducer.hit_each_incident = per_incident
 	var config := h.make_config(h.fan_all(), h.owner_enemy(), reducer, {max_hops = 3})
-	var spell := h.make_spell(config, [DamageEffect.new()], 10.0)
+	if bites > 0.0:
+		var scalar := CarriedScalar.new()
+		scalar.id = &"bites"
+		scalar.seed_value = bites
+		config.extensions = [scalar]
+		config.repeat_landings_by = &"bites"
+	var effects: Array[OnHitEffect] = [DamageEffect.new()]
+	if bites > 0.0:
+		var rider := ApplyStatusEffect.new()
+		rider.def = preload("res://effects/status/sunder.tres")
+		effects.push_front(rider)
+	var spell := h.make_spell(config, effects, 10.0)
 	var n := graph.get_skill_nodes()
 	var cond := FromCondition.new()
 	cond.from = n[4]
@@ -90,6 +101,26 @@ func test_three_fronts_land_three_hits_each_crit_against_its_own_source() -> voi
 	if events.size() == 1:
 		assert_eq(events[0].hits.size(), 3, "the event carries all three hits")
 	assert_eq(_hits_on(outcome, n[6]).size(), 1, "the node departs once")
+
+
+## `repeat_landings_by` composes with the per-incident landing: three incident
+## arrivals x two repeats = six landings on the converged node, each incident's
+## repeats adjacent and in order. A damage hit carries no key, so the distinct
+## `hit_key`s are read off the status rider each landing plants.
+func test_per_incident_arrivals_each_repeat_n_times() -> void:
+	var r := _cast(FORWARD, true, 2.0)
+	var n: Array = r.n
+	var hits := _hits_on(r.outcome, n[5])
+	var damage := hits.filter(func(x): return x is DamageInstance)
+	var keys := {}
+	for x in hits:
+		if x is StatusInstance:
+			keys[x.hit_key] = true
+	assert_eq(damage.size(), 6, "3 incidents x 2 repeats")
+	assert_eq(keys.size(), 6, "six landings, six distinct hit keys")
+	if damage.size() == 6:
+		assert_eq(damage.map(func(x): return x.origin),
+				[n[2], n[2], n[3], n[3], n[4], n[4]], "each incident's two bites adjacent")
 
 
 func test_off_keeps_one_merged_hit() -> void:

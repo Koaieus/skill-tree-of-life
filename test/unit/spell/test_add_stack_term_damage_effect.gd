@@ -103,7 +103,7 @@ func _land_rider(rider: ApplyStatusEffect, world: CombatWorld = CombatWorld.live
 
 ## Payload damage after one [AddStackTermDamageEffect] landing on [member _target].
 func _damage_after(damage: float, terms: Array[StackTerm], world: CombatWorld = CombatWorld.live()) -> float:
-	var p := CastSpell.new()
+	var p := CastSpell.blank()
 	p.damage = damage
 	p.source = _blade
 	p.current_node = _target
