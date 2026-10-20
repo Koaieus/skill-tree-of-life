@@ -211,7 +211,6 @@ func _shatter() -> void:
 	field.window = shatter_window
 	field.spawn_tier = Emissive.Tier.ALERT
 	add_child(field)
-	field.z_index = ZLayers.SPELL_VFX
 	# The struck node: the far end of the edge in this node's own (rotated)
 	# frame, so it is right whether or not the endpoints are world-space.
 	var at: Vector2 = to_global(Vector2((edge_target - edge_origin).length(), 0.0))
