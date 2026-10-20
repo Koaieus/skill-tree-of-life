@@ -78,6 +78,7 @@ func test_on_a_core_the_owner_s_entity_row_counts() -> void:
 	assert_false(cond.evaluate(_lctx(core)), "entity row alone, one status")
 	core.get_combat().adjust_status_power(_CURSE, 5.0)
 	assert_true(cond.evaluate(_lctx(core)), "entity row + node row")
+	_n[1].get_combat().adjust_status_power(_CURSE, 5.0)
 	assert_false(cond.evaluate(_lctx(_n[1])), "a non-core node ignores the entity row")
 
 
