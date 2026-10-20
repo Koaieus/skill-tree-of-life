@@ -206,7 +206,10 @@ func test_resolve_seeds_stamps_aim_and_node_cast_does_not() -> void:
 # -- seeds ride the graph's grid (#1704) ------------------------------------
 
 const _GRAPH_SCENE := preload("res://graph/graph.tscn")
-const _PRESET := preload("res://procgen/presets/first_level/first_level.tres")
+## Loaded per board, never `preload`ed: a const pins the cached preset and its
+## external modules (`content.tres`) for the whole shard, so a sibling test that
+## edits a `duplicate(true)` copy's external module leaks into later readers.
+const _PRESET_PATH := "res://procgen/presets/first_level/first_level.tres"
 const _PROCGEN_NODES := 150
 
 
@@ -228,7 +231,7 @@ class SpyLine extends LineShape:
 
 
 func _procgen_board() -> Graph:
-	var cfg: GraphProcgenConfig = _PRESET.duplicate(true)
+	var cfg: GraphProcgenConfig = ResourceLoader.load(_PRESET_PATH, "", ResourceLoader.CACHE_MODE_IGNORE)
 	cfg.topology = cfg.topology.duplicate(true)
 	cfg.topology.node_count = _PROCGEN_NODES
 	cfg.seed = 0x1704
