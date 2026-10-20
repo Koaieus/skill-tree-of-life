@@ -37,6 +37,17 @@ extends GutTest
 ## Grid ≈ physics at 250 px (within noise), flat in N like it, with none of its
 ## clauses.
 ##
+## Cone seeds (#1704), measured 2026-10-20 (load 6.4 — noisy), µs per
+## [method AimedTargeting.seeds], default 20° cone at 400 px, seeds asserted
+## equal (set and order) to [method AimShape.crossed] over the whole board:
+##
+##   board | scan | grid | seeds
+##     800 |  895 |   72 |   2.4
+##    2000 | 2344 |   72 |   2.4
+##    3000 | 3563 |   72 |   2.1
+##
+## Grid seeds are flat in N; the whole-board scan grows linearly.
+##
 ## Numbers move with the machine AND with box load — record `uptime` alongside.
 ## `main` re-runs on a quiet master before accepting a verdict.
 
@@ -53,6 +64,8 @@ const _SOURCES := 8
 const _REPS := 20
 ## Cell-size sweep, on the largest board only.
 const _SWEEP_CELLS: Array[float] = [64.0, 128.0, 256.0]
+## Cone seeds (#1704): the default cone (20 deg half-angle) at a cast range.
+const _CONE_REACH := 400.0
 ## Layer 1 is the untouched Godot default every SkillNode's Area2D sits on;
 ## layers 2/3 are the sparse defender bits (#810) and must be excluded.
 const _LAYER_1_MASK := 1
@@ -61,6 +74,7 @@ var _rows: Array[String] = []
 var _multi_rows: Array[String] = []
 var _build_rows: Array[String] = []
 var _sweep_rows: Array[String] = []
+var _cone_rows: Array[String] = []
 var _verdicts: Array[String] = []
 
 
@@ -76,6 +90,10 @@ func test_bench_scan_vs_physics_vs_grid() -> void:
 		gut.p(row)
 	gut.p("\ngrid build (SkillNodeGrid.rebuild, cell 128):")
 	for row in _build_rows:
+		gut.p(row)
+	gut.p("\ncone seeds, us per AimedTargeting.seeds (whole-board crossed vs grid):")
+	gut.p("board | reach | scan us | grid us | seeds  | scan/grid")
+	for row in _cone_rows:
 		gut.p(row)
 	gut.p("\ncell-size sweep (largest board):")
 	for row in _sweep_rows:
@@ -165,6 +183,33 @@ func _bench_board(count: int) -> void:
 	var tm_grid := _median(func(): finder.gather_multi(sources, mirror))
 	_multi_rows.append("%5d nodes: scan %7.0f us | physics %7.0f us | grid %7.0f us | scan/grid %.1fx" % [
 		n, tm_scan, tm_phys, tm_grid, tm_scan / maxf(tm_grid, 1.0)])
+
+	# -- cone seeds (#1704): AimedTargeting.seeds on the grid vs crossed over
+	# the whole board, at the cast-range reach ------------------------------
+	var aimed := AimedTargeting.new()
+	var cone := ConeShape.new()
+	aimed.shape = cone
+	aimed.ownership_filter = 15
+	aimed.range_finder = _FINDER.new()
+	aimed.range_finder.max_distance = _CONE_REACH
+	var angles: Array[float] = [0.0, 1.3, 2.6, -2.0]
+	var seeds_total := 0
+	for s in sources:
+		var rest: Array[SkillNode] = nodes.filter(func(x: SkillNode) -> bool: return x != s)
+		for a in angles:
+			var got := aimed.seeds(null, s, a, graph)
+			assert_eq(got, cone.crossed(s.global_position, a, _CONE_REACH, rest),
+					"board %d: cone seeds grid vs whole board at %s %.1f" % [n, s.name, a])
+			seeds_total += got.size()
+	var tc_scan := _median(func():
+		for s in sources:
+			cone.crossed(s.global_position, angles[0], _CONE_REACH, nodes)) / float(_SOURCES)
+	var tc_grid := _median(func():
+		for s in sources:
+			aimed.seeds(null, s, angles[0], graph)) / float(_SOURCES)
+	_cone_rows.append("%5d | %5d | %7.0f | %7.0f | %6.1f | %8.1fx" % [
+		n, int(_CONE_REACH), tc_scan, tc_grid, float(seeds_total) / (_SOURCES * angles.size()),
+		tc_scan / maxf(tc_grid, 1.0)])
 
 	# -- grid build -----------------------------------------------------------
 	var sorted := graph.get_skill_nodes()
