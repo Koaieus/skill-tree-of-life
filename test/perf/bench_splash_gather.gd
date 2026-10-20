@@ -10,15 +10,18 @@ extends GutTest
 ##
 ## What is timed is the volley's riders pass — [method RangedDamageFormula.compute]
 ## + [method RangedDamageFormula.riders_for] per arrow, the only part of a
-## ranged compile the cache touches. [EuclideanRangeFinder.gather] is a full
-## linear scan whatever the radius, so the uncached cost is ~arrows × one scan.
+## ranged compile the cache touches. [EuclideanRangeFinder.gather] walks the
+## board's spatial index ([method Graph.spatial_candidates], #1701), so the
+## uncached cost is ~arrows × one small cell walk, no longer one board scan.
 ## The mask is HOSTILE on an unowned board: the blast emits on the target only,
 ## so the numbers are the gather, not the damage hits.
 ##
-## Measured 2026-10-08 (dev desktop CPU, load 0.74; a CPU cost — the GPU plays no part), riders pass, off → on:
-## 20 arrows one radius 76.9 → 4.2 ms; 10+10 two radii 77.0 → 8.1 ms;
-## 100 arrows 383.7 → 5.6 ms; 50+50 388.5 → 9.7 ms. One sweep ≈ 3.8 ms at 3k
-## nodes, far above the ~1 ms bar: the cache earns its place.
+## Measured 2026-10-08 (pre-index, load 0.74), riders pass, off → on:
+## 20 arrows one radius 76.9 → 4.2 ms; 100 arrows 383.7 → 5.6 ms — one board
+## sweep ≈ 3.8 ms at 3k nodes. Re-measured 2026-10-20 on the index (load 2.7):
+## 20 arrows 4.86 → 4.14 ms; 10+10 two radii 5.57 → 4.34; 100 arrows
+## 24.60 → 20.35; 50+50 27.58 → 20.43. The index took the uncached pass ~16×
+## down; the cache now saves ~15–25 %, a marginal win kept for free.
 ##
 ## Numbers move with the machine AND with box load — record `uptime` alongside.
 

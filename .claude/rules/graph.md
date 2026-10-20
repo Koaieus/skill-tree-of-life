@@ -66,6 +66,22 @@ list. Every current caller sets the endpoints *before* `add_child` (see
 cache entirely for exactly this reason — an inspector edit to `from`/`to` would
 otherwise go unnoticed.
 
+## The spatial index shares the adjacency cache's dirty hooks
+
+`Graph.spatial_candidates(centre, reach)` reads a `SkillNodeGrid` over node
+centres (ADR 0068), rebuilt lazily by `_mark_topology_dirty` — the same
+container child add/remove hooks — and always in the editor. Every Euclidean
+`gather` / `gather_multi` / `gather_reach` on a mirror with a `graph` rides it,
+then filters by `mirror.vertex_id` and `_reaches`; a graph-less mirror scans.
+
+- **A position write after the first query is unseen** until a container child
+  changes — the same clause as re-pointing a live `Edge`. No play path moves a
+  SkillNode (procgen and snapshot load write positions before
+  `add_skill_node`); if one ever does, call `_mark_topology_dirty()`.
+- **Radius growth needs no rebuild:** each node's `radius_changed` feeds
+  `note_radius`, which only raises the margin (over-inclusive is safe).
+- Buckets keep `stable_id` order, so host and peer walk identical candidates.
+
 ## Reach queries: `gather()`, never `in_range()` in a loop
 
 `RangeFinder.in_range(attacker, source, candidate)` is a per-candidate predicate,
@@ -74,7 +90,7 @@ it "which of my N nodes are in reach?" is N × AStar — the same quadratic shap
 file already documents twice.
 
 `RangeFinder.gather(source, mirror) -> Dictionary[SkillNode, float]` is the
-set-shaped sibling: one BFS (hops) or one linear scan (euclidean), and it returns
+set-shaped sibling: one BFS (hops) or one spatial-index walk (euclidean), and it returns
 the **distance**, which a bool predicate can't (auras need it for `DistanceScale`).
 
 **`gather` and `in_range` are not interchangeable, by design.** `in_range` on
