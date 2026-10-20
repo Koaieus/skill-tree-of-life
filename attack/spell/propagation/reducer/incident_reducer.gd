@@ -87,8 +87,9 @@ func fold_description() -> String:
 
 
 ## Build a resolved payload carrying the merged metadata: [method CastSpell.derived]
-## of the first incident, then MAX hops_remaining, the union of visited and MAX
-## stack_weight. Subclasses call this then set the resolved damage themselves.
+## of the first incident, then MAX hops_remaining, the union of visited, MAX
+## stack_weight and each extension's [method PayloadExtension.merge].
+## Subclasses call this then set the resolved damage themselves.
 static func _merge_payload_defaults(incidents: Array[CastSpell]) -> CastSpell:
 	# Everything universal — seed, source, caster, graph, rng, seed_damage,
 	# hop_index, turn_sign, came_from, closed_cycle, arrival_bearing — is the
@@ -123,4 +124,12 @@ static func _merge_payload_defaults(incidents: Array[CastSpell]) -> CastSpell:
 	# without compounding down the walk.
 	merged.stack_weight = fold_of(incidents, StackFold.MAX)
 	merged.visited = union
+	# extras: each extension merges its own state across the incidents, through
+	# the template the state points back at — every incident of one cast carries
+	# them in [member PropagationConfig.extensions] order.
+	for i in incidents[0].extras.size():
+		var states: Array[PayloadState] = []
+		for inc in incidents:
+			states.append(inc.extras[i])
+		merged.extras.append(incidents[0].extras[i].template.merge(states))
 	return merged

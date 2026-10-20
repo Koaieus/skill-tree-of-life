@@ -65,6 +65,11 @@ extends Resource
 ## Null = the weight is carried unchanged.
 @export var hop_stacks: HopDamageProgression = null
 
+## Spell-specific carried state: each template seeds, mints and merges one
+## [PayloadState] in [member CastSpell.extras]. Empty for a spell that carries
+## nothing beyond the universal fields.
+@export var extensions: Array[PayloadExtension] = []
+
 
 ## Build the child [CastSpell] for one [PropagationPick] — the hop IS a
 ## re-cast. The child is [method CastSpell.derived] from [param payload], then
@@ -75,9 +80,12 @@ extends Resource
 ## [member PropagationPick.lineage_override]). Every other pick field is copied
 ## onto the child as-is: the spread decided it, the mint does not reinterpret it.
 ##
-## [param _lctx] is the landing [param payload] just made — this wave has
+## Then each of [member extensions] mints the child's state from the parent's;
+## a state marked [member PayloadState.terminal] ends the walk at the child.
+##
+## [param lctx] is the landing [param payload] just made — this wave has
 ## LANDED, so a world read through it sees this wave's stacks and damage.
-func mint(payload: CastSpell, pick: PropagationPick, _lctx: LandingContext = null) -> CastSpell:
+func mint(payload: CastSpell, pick: PropagationPick, lctx: LandingContext) -> CastSpell:
 	var next := CastSpell.derived(payload)
 	next.current_node = pick.node
 	next.predecessor = payload.current_node
@@ -100,6 +108,11 @@ func mint(payload: CastSpell, pick: PropagationPick, _lctx: LandingContext = nul
 	next.turn_sign = pick.turn_sign
 	next.closed_cycle = pick.closed_cycle
 	next.came_from = pick.came_from
+	for ext in extensions:
+		var state := ext.mint(payload.extra(ext.id), pick, lctx, payload.hop_index)
+		next.extras.append(state)
+		if state.terminal:
+			next.hops_remaining = 0.0
 	return next
 
 

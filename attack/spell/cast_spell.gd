@@ -143,6 +143,11 @@ var came_from: Array[SkillNode] = []
 ## a closing mint RESETS [member visited] to just the landed node.
 var closed_cycle: bool = false
 
+## Spell-specific carried state: one [PayloadState] per
+## [member PropagationConfig.extensions] entry, in that order. Read one by id
+## with [method extra] — never by index.
+var extras: Array[PayloadState] = []
+
 
 ## The seed's blank payload — the one constructor besides [method derived]. The
 ## resolver stamps one per seed node and fills in the cast's facts.
@@ -161,6 +166,9 @@ static func blank() -> CastSpell:
 ## [member arrival_share] is per-arrival telemetry of ONE arc's mint;
 ## [member incident_count] and [member arrived_from] are resolver facts stamped
 ## at the grouping pass.
+##
+## [member extras] are not copied either: each constructor builds them through
+## the extensions (seed, mint, merge), which own their state's evolution.
 ##
 ## [member came_from], [member closed_cycle] and [member arrival_bearing] ARE
 ## copied, so a stock reducer's merge keeps its first incident's. Only
@@ -187,3 +195,11 @@ static func derived(parent: CastSpell) -> CastSpell:
 	next.came_from = parent.came_from.duplicate()
 	next.closed_cycle = parent.closed_cycle
 	return next
+
+
+## The state the extension with [param id] carries on this payload, or null.
+func extra(id: StringName) -> PayloadState:
+	for s in extras:
+		if s.get_id() == id:
+			return s
+	return null

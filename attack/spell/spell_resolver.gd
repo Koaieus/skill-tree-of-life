@@ -221,6 +221,8 @@ static func _resolve(
 		seed_state.caster = caster
 		seed_state.graph = graph
 		seed_state.rng = rng
+		for ext in config.extensions:
+			seed_state.extras.append(ext.seed(ctx))
 		wave.append(seed_state)
 
 	# Hoisted: ONE crit stream serves the whole cast, drawn per hit as each

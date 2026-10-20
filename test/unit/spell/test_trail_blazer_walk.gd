@@ -59,7 +59,7 @@ func _expand(spread: PropagationSpread, config: PropagationConfig, current: Skil
 	var out: Array[CastSpell] = []
 	var lctx := LandingContext.for_test(payload, current, ctx)
 	for pick in spread.select(eligible, lctx):
-		out.append(config.mint(payload, pick))
+		out.append(config.mint(payload, pick, lctx))
 	return out
 
 
