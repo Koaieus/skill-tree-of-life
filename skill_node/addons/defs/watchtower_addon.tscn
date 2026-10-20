@@ -91,7 +91,7 @@ on_hit_effects = Array[ExtResource("6_effect")]([SubResource("Resource_wtwr_ride
 entity_modifiers = Array[ExtResource("2_wtwr")]([SubResource("Resource_wtwr_aspect")])
 local_modifiers = Array[ExtResource("2_wtwr")]([SubResource("Resource_wtwr"), SubResource("Resource_rtvrv"), SubResource("Resource_cjnh8"), SubResource("Resource_wtwr_arrows"), SubResource("Resource_wtwr_shots"), SubResource("Resource_wtwr_stacks"), SubResource("Resource_wtwr_unlock")])
 description = "A raised lookout post — extends this node's sight radius, no matter who holds it. Its owner gains a scouting arrow, and a blade swung through this node lights up every contact it makes for its camp."
-temp_placeable = false
+temp_placeable = true
 temp_cost_blade_size = 1
 temp_cost_aspects = Dictionary[StringName, int]({
 &"scout_aspect": 1
