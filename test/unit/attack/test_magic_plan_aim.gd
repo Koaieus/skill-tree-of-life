@@ -171,3 +171,75 @@ func test_ai_aims_a_candidate_and_arms_a_valid_plan() -> void:
 	ai._arm_magic_plan(plan, c)
 	assert_null(plan.target)
 	assert_eq(plan.validate(), [] as Array[String])
+
+
+# ── Host confirmation: the source is a caster, the seeds match its hitscan ──
+
+## An honest aimed launch from N0 due east, as the claimant's [method to_dict]
+## sends it. [0] graph, [1] the dict, [2] the nodes.
+func _honest_dict() -> Array:
+	var fx := _board()
+	var graph: Graph = fx[0]
+	var n := _nodes(graph)
+	_spark.targeting = _aimed()
+	var plan := _plan(fx[1], SpellCatalog.SPARK)
+	assert_true(plan.set_aim(n[0], 0.0), "fixture: N0 is an eligible caster")
+	return [graph, plan.to_dict(graph), n]
+
+
+func _decoded(d: Dictionary, graph: Graph) -> MagicAttackPlan:
+	return MagicAttackPlan.from_dict(d, graph)
+
+
+func test_an_aimed_plan_wires_its_seeds_as_stable_ids_in_hitscan_order() -> void:
+	var fx := _honest_dict()
+	var graph: Graph = fx[0]
+	var d: Dictionary = fx[1]
+	var n: Array[SkillNode] = fx[2]
+	assert_true(d.has("seeds"), "an aimed plan carries its claimed seeds")
+	var want: Array[int] = []
+	for s in (_spark.targeting as AimedTargeting).seeds(
+			_decoded(d, graph).attacker,
+			n[0], 0.0, graph):
+		want.append(graph.get_stable_id(s))
+	assert_eq(d["seeds"], want)
+
+
+func test_an_honest_aimed_plan_round_trips_and_validates() -> void:
+	var fx := _honest_dict()
+	var d: Dictionary = fx[1]
+	assert_gt((d.get("seeds", []) as Array).size(), 1, "fixture: the line crosses two hostiles")
+	assert_eq(_decoded(d, fx[0]).validate(), [] as Array[String])
+
+
+func test_a_claimed_seed_added_removed_or_swapped_is_refused() -> void:
+	var fx := _honest_dict()
+	var graph: Graph = fx[0]
+	var d: Dictionary = fx[1]
+	var n: Array[SkillNode] = fx[2]
+	var honest: Array = d.get("seeds", [])
+	assert_gt(honest.size(), 1, "fixture: two seeds to tamper with")
+	var added := honest.duplicate()
+	added.append(graph.get_stable_id(n[2]))
+	var removed := honest.slice(0, honest.size() - 1)
+	var swapped := honest.duplicate()
+	swapped.reverse()
+	for claim in [added, removed, swapped, []]:
+		var tampered := d.duplicate()
+		tampered["seeds"] = claim
+		assert_false(_decoded(tampered, graph).validate().is_empty(),
+				"claimed seeds %s against the hitscan's %s must refuse" % [claim, honest])
+
+
+func test_an_aimed_dict_from_a_node_the_attacker_cannot_cast_from_is_refused() -> void:
+	var fx := _honest_dict()
+	var graph: Graph = fx[0]
+	var d: Dictionary = fx[1]
+	var n: Array[SkillNode] = fx[2]
+	# The enemy's node and a neutral one: neither is a caster of the attacker's.
+	for src in [n[4], n[2]]:
+		var forged := d.duplicate()
+		forged["source"] = graph.get_stable_id(src)
+		forged.erase("seeds")
+		assert_false(_decoded(forged, graph).validate().is_empty(),
+				"%s is not a caster of the attacker's" % src.name)
