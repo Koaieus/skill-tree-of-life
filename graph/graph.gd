@@ -61,6 +61,25 @@ var _edges: Array[Edge] = []
 var _adjacency: Dictionary[SkillNode, Array] = {}
 var _topology_dirty: bool = true
 
+## Cell edge of the board's spatial index ([method spatial_candidates]), in
+## scene px. Tentative default, easy to change: on the first-level preset a
+## 250 px reach examines ~10 candidates and a 1500 px one ~200 at every board
+## size, and 64/256 moved neither query much (`bench_euclid_gather.gd` sweeps
+## it). An edit marks the index dirty; the next query rebuilds.
+@export_range(32.0, 512.0, 1.0, "suffix:px") var spatial_cell_px: float = 128.0:
+	set(value):
+		spatial_cell_px = value
+		_spatial_dirty = true
+
+# Spatial index over SkillNode centres, beside the adjacency cache and dirtied
+# by the same container hooks. Never rebuilds in play (allocation adds or
+# removes no container child); a stake step only widens its margin, fed by
+# each node's `radius_changed` through `_radius_feeds` (kept so exit can
+# disconnect it).
+var _spatial: SkillNodeGrid = SkillNodeGrid.new()
+var _spatial_dirty: bool = true
+var _radius_feeds: Dictionary[SkillNode, Callable] = {}
+
 ## SkillNode.stable_id -> SkillNode, for O(1) lookup that survives a
 ## container-index shift (a removed node reshuffles `_nodes`, but stable_id
 ## is assigned once and never reused). Rebuilt alongside the rest of the
@@ -85,6 +104,10 @@ func _ready() -> void:
 	for c: Node in [skill_nodes_container, edges_container]:
 		c.child_entered_tree.connect(_mark_topology_dirty.unbind(1))
 		c.child_exiting_tree.connect(_mark_topology_dirty.unbind(1))
+	skill_nodes_container.child_entered_tree.connect(_feed_radius)
+	skill_nodes_container.child_exiting_tree.connect(_unfeed_radius)
+	for c in skill_nodes_container.get_children():
+		_feed_radius(c)
 	entities_container.child_entered_tree.connect(_mint_entity_id)
 	entities_container.child_exiting_tree.connect(_drop_entity_id)
 	# Backfill: `child_entered_tree` only fires for children added AFTER the
@@ -400,6 +423,51 @@ func _drop_entity_id(node: Node) -> void:
 
 func _mark_topology_dirty() -> void:
 	_topology_dirty = true
+	_spatial_dirty = true
+
+
+## Every [SkillNode] whose centre lies in a grid cell touching the circle
+## `(centre, reach + largest node radius)` — a SUPERSET of the nodes whose
+## hitbox touches a `reach` circle, in `stable_id` order per cell. CACHES:
+## the index is rebuilt lazily after a container child add/remove (always in
+## the editor, as [method _ensure_topology]), so this is a cell walk, not a
+## board walk. A position written after the first query is unseen until a
+## container child changes — see `.claude/rules/graph.md`. Returns a fresh
+## array; [EuclideanRangeFinder] filters it by membership and `_reaches`.
+func spatial_candidates(centre: Vector2, reach: float) -> Array[SkillNode]:
+	if _spatial_dirty or Engine.is_editor_hint():
+		_rebuild_spatial()
+	return _spatial.candidates_within(centre, reach)
+
+
+func _rebuild_spatial() -> void:
+	_spatial_dirty = false
+	var nodes := get_skill_nodes()
+	nodes.sort_custom(func(a: SkillNode, b: SkillNode) -> bool: return a.stable_id < b.stable_id)
+	_spatial.rebuild(nodes, spatial_cell_px)
+
+
+func _feed_radius(child: Node) -> void:
+	var sn := child as SkillNode
+	if sn == null or _radius_feeds.has(sn):
+		return
+	var feed := _on_node_radius_changed.bind(sn)
+	_radius_feeds[sn] = feed
+	sn.radius_changed.connect(feed)
+
+
+func _unfeed_radius(child: Node) -> void:
+	var sn := child as SkillNode
+	if sn == null or not _radius_feeds.has(sn):
+		return
+	sn.radius_changed.disconnect(_radius_feeds[sn])
+	_radius_feeds.erase(sn)
+
+
+## A dirty index recomputes `max_radius` exactly on its next query anyway.
+func _on_node_radius_changed(sn: SkillNode) -> void:
+	if not _spatial_dirty:
+		_spatial.note_radius(sn.radius)
 
 
 ## Rebuild the node list, edge list, and adjacency index from the containers.

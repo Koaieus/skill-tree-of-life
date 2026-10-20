@@ -23,21 +23,41 @@ func in_range(attacker: Entity, source: SkillNode, candidate: SkillNode) -> bool
 	return _reaches(_centre_distance(source, candidate), candidate, effective_distance(attacker, source))
 
 
-## One linear scan: O(N) over whatever mirror is handed in, and that mirror is
-## usually the WHOLE BOARD — [NodeTargeting] and [SpellTargetUnion] pass
-## `graph.navigator` (800 nodes today, 2k–3k targeted), and ranged leaves reach
-## 1500px+, so this is neither small nor cheap. A spatial/physics-backed scan
-## (#945) would swap the iteration here and leave [method _reaches] alone.
-## Reach stays unscaled whenever [param attacker] is `null` (every pre-#385
-## caller) — see [method RangeFinder.gather].
+## Every node of [param mirror] whose hitbox touches the source's reach circle,
+## mapped to its centre distance. Reach stays unscaled whenever [param attacker]
+## is `null` (every pre-#385 caller) — see [method RangeFinder.gather]. The
+## entry a rider calls once per key; it delegates to [method gather_reach].
 ##
 ## The stored value is the CENTRE distance `d`, not `d - radius`: it feeds
 ## [DistanceScale], which asked for no semantic change.
 func gather(source: SkillNode, mirror: GraphMirror, attacker: Entity = null) -> Dictionary[SkillNode, float]:
+	if source == null or mirror == null:
+		return {} as Dictionary[SkillNode, float]
+	var reach := max_distance if attacker == null else effective_distance(attacker, source)
+	return gather_reach(source, mirror, reach)
+
+
+## [method gather] for a reach the caller supplies (a splash sized by the
+## struck node's own stat). Candidates come from the board's spatial index,
+## [method Graph.spatial_candidates], when [param mirror] has a `graph` — a
+## cell walk, not a board walk — and each is kept only if the mirror holds it
+## (`vertex_id >= 0`: an owned-mirror aura or a shadow-world mirror sees its
+## members only). A graph-less mirror (a bare unit fixture) falls back to a
+## scan of its own nodes. Either way [method _reaches] decides, so the index
+## can only narrow. No result order is promised; a consumer that needs one
+## sorts.
+func gather_reach(source: SkillNode, mirror: GraphMirror, reach: float) -> Dictionary[SkillNode, float]:
 	var out: Dictionary[SkillNode, float] = {}
 	if source == null or mirror == null:
 		return out
-	var reach := max_distance if attacker == null else effective_distance(attacker, source)
+	if mirror.graph != null:
+		for n in mirror.graph.spatial_candidates(source.global_position, reach):
+			if mirror.vertex_id(n) < 0:
+				continue
+			var d := _centre_distance(source, n)
+			if _reaches(d, n, reach):
+				out[n] = d
+		return out
 	for n in mirror.get_mirrored_nodes():
 		var d := _centre_distance(source, n)
 		if _reaches(d, n, reach):
@@ -45,10 +65,9 @@ func gather(source: SkillNode, mirror: GraphMirror, attacker: Entity = null) -> 
 	return out
 
 
-## ONE sweep of the node list for ALL sources, not one per source. The base
-## implementation would run [method gather]'s full linear scan N times; here
-## the widest source radius bounds a single pass, and each node is tested
-## against only the sources whose reach could contain it.
+## One [method gather_reach] per source, each with its own reach: with the
+## index each source is a small cell walk, so there is no shared sweep left to
+## amortise.
 ##
 ## Radii are per-source by construction: `cast_range_distance` is node-local (a
 ## range-extender addon on the cast-from node moves that node's reach alone),
@@ -58,34 +77,19 @@ func gather_multi(sources: Array[SkillNode], mirror: GraphMirror,
 	var out: Dictionary[SkillNode, Dictionary] = {}
 	if mirror == null:
 		return out
-	var reaches: Dictionary[SkillNode, float] = {}
-	var widest := 0.0
 	for source in sources:
 		if source == null:
 			continue
 		var reach := max_distance if attacker == null else effective_distance(attacker, source)
-		reaches[source] = reach
-		widest = max(widest, reach)
-		out[source] = {} as Dictionary[SkillNode, float]
-	if reaches.is_empty():
-		return out
-	for n in mirror.get_mirrored_nodes():
-		for source: SkillNode in reaches:
-			var d := _centre_distance(source, n)
-			# Cheap reject first: nothing whose hitbox lies wholly past the
-			# widest reach can be in range of ANY source, so the per-source
-			# test costs nothing on a miss.
-			if not _reaches(d, n, widest):
-				continue
-			if _reaches(d, n, reaches[source]):
-				(out[source] as Dictionary[SkillNode, float])[n] = d
+		out[source] = gather_reach(source, mirror, reach)
 	return out
 
 
 ## Every node of [param nodes] whose hitbox touches a circle of [param reach]
 ## around [param source], [param source] itself excluded, in the given order.
 ## The per-call-radius entry for a caller with no attacker-scaled reach of its
-## own (a blast sized by fuel); same [method _reaches] test, same linear scan.
+## own (a blast sized by fuel); same [method _reaches] test, a linear scan of
+## the supplied list (no mirror, so no index).
 static func nodes_within(source: SkillNode, nodes: Array[SkillNode], reach: float) -> Array[SkillNode]:
 	var out: Array[SkillNode] = []
 	if source == null:
