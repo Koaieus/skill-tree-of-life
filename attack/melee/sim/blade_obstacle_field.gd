@@ -251,8 +251,6 @@ func has_zones() -> bool:
 	return not zones.is_empty()
 
 
-## Accumulated unresolved drive against zone [param z] right now, in px — the
-## sandbox readout. 0 when nothing is touching it.
 ## The peak momentum a restituting (bunker) member reached against zone
 ## [param z] this swing — normal approach speed in px/s x its mass. 0 = none.
 func impact_peak(z: int) -> float:
@@ -264,6 +262,8 @@ func impact_step(z: int) -> int:
 	return _impact_step[z] if z >= 0 and z < _impact_step.size() else -1
 
 
+## Accumulated unresolved drive against zone [param z] right now, in px — the
+## sandbox readout. 0 when nothing is touching it.
 func strain(z: int) -> float:
 	return _strain[z] if z >= 0 and z < _strain.size() else 0.0
 
