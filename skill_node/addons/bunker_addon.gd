@@ -22,6 +22,16 @@ extends SkillNodeAddon
 @export_range(0.0, 100000.0, 10.0, "or_greater") var destroy_momentum: float = 4000.0
 
 
+## [param sn]'s first Bunker, or null.
+static func on(sn: SkillNode) -> BunkerAddon:
+	if sn == null or not is_instance_valid(sn):
+		return null
+	for addon in sn.get_addons():
+		if addon is BunkerAddon:
+			return addon
+	return null
+
+
 func apply_to_blade(state: BladeState, particle_idx: int) -> void:
 	super.apply_to_blade(state, particle_idx)
 	if blade_mass > 0.0:

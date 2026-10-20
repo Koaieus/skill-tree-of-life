@@ -75,6 +75,8 @@ class Bank extends RefCounted:
 	var break_step: int
 	var break_zone: int
 	var current_step: int
+	var impact_peak: PackedFloat32Array
+	var impact_step: PackedInt32Array
 
 
 ## The defenders this swing can meet — immutable, built once by
@@ -150,6 +152,14 @@ var _contact_particles: Dictionary = {}
 ## its FIRST disc pushout, only for a particle with
 ## [member BladeState.vertex_restitution] > 0. Consumed by [method restitute].
 var _recoil: Dictionary = {}
+## Per zone: the peak momentum a restituting member reached against it (normal
+## approach speed in px/s x mass) and the sample it peaked on (-1 = none).
+## Banked, so it outlives the substep and rewinds with the resolve loop.
+var _impact_peak: PackedFloat32Array = PackedFloat32Array()
+var _impact_step: PackedInt32Array = PackedInt32Array()
+## The GDScript mirror's substep length, set by whoever drives [method project];
+## 0 records no impact peak. The native loop owns its own.
+var substep_dt: float = 0.0
 var _contact_edges: Dictionary = {}
 ## zone -> true while some part is within CONTACT_HYSTERESIS of it this substep.
 ## PLATES only: a wall never enters this set, so it can never meter strain,
@@ -180,8 +190,16 @@ func _init(zones_: BladeDefenderZones = null) -> void:
 	_size_accumulators()
 
 
+func _size_impacts() -> void:
+	var n := zones.size()
+	while _impact_peak.size() < n:
+		_impact_peak.append(0.0)
+		_impact_step.append(-1)
+
+
 func _size_accumulators() -> void:
 	_strain.resize(zones.size())
+	_size_impacts()
 	_edge_residual.clear()
 	for _z in zones.size():
 		_edge_residual.append({})
@@ -223,6 +241,7 @@ func _author(center: Vector2, radius: float, drag: float, deflect: bool,
 	assert(_owns_zones, "cannot author into a SHARED BladeDefenderZones")
 	zones.add(center, radius, drag, deflect, defender)
 	_strain.resize(zones.size())
+	_size_impacts()
 	while _edge_residual.size() < zones.size():
 		_edge_residual.append({})
 	_adopt_authored_zone_values()
@@ -236,8 +255,13 @@ func has_zones() -> bool:
 ## sandbox readout. 0 when nothing is touching it.
 ## The peak momentum a restituting (bunker) member reached against zone
 ## [param z] this swing — normal approach speed in px/s x its mass. 0 = none.
-func impact_peak(_z: int) -> float:
-	return 0.0
+func impact_peak(z: int) -> float:
+	return _impact_peak[z] if z >= 0 and z < _impact_peak.size() else 0.0
+
+
+## The global sample index [method impact_peak] peaked on, or -1.
+func impact_step(z: int) -> int:
+	return _impact_step[z] if z >= 0 and z < _impact_step.size() else -1
 
 
 func strain(z: int) -> float:
@@ -409,7 +433,7 @@ func project(positions: PackedVector2Array, inv_masses: PackedFloat32Array) -> v
 				continue
 			var d := sqrt(d2)
 			var normal := (p - c) / d if d > 1e-6 else Vector2.RIGHT
-			_record_recoil(i, p, normal)
+			_record_recoil(i, p, normal, z, inv_masses[i])
 			positions[i] = c + normal * reach
 			_contact_particles[i] = z
 		if not deflect and not wants_drag:
@@ -463,13 +487,18 @@ func project(positions: PackedVector2Array, inv_masses: PackedFloat32Array) -> v
 			_contact_edges[e_idx] = z
 
 
-func _record_recoil(i: int, p: Vector2, normal: Vector2) -> void:
+func _record_recoil(i: int, p: Vector2, normal: Vector2, z: int, inv_mass: float) -> void:
 	var e := _state.vertex_restitution
 	if i >= e.size() or e[i] <= 0.0 or _recoil.has(i) or i >= _state.prev_positions.size():
 		return
 	var vn := (p - _state.prev_positions[i]).dot(normal)
 	if vn < 0.0:
 		_recoil[i] = [vn, normal]
+		if substep_dt > 0.0 and z < _impact_peak.size():
+			var momentum := -vn / substep_dt / inv_mass
+			if momentum > _impact_peak[z]:
+				_impact_peak[z] = momentum
+				_impact_step[z] = _current_step
 
 
 ## Bunker x bunker recoil (#1634), after a substep's projection: a particle
@@ -647,6 +676,8 @@ func capture() -> Bank:
 	b.break_step = _break_step
 	b.break_zone = _break_zone
 	b.current_step = _current_step
+	b.impact_peak = _impact_peak.duplicate()
+	b.impact_step = _impact_step.duplicate()
 	return b
 
 
@@ -663,6 +694,9 @@ func restore(b: Bank) -> void:
 	_break_step = b.break_step
 	_break_zone = b.break_zone
 	_current_step = b.current_step
+	_impact_peak = b.impact_peak.duplicate()
+	_impact_step = b.impact_step.duplicate()
+	_size_impacts()
 	_contact_particles.clear()
 	_contact_edges.clear()
 	_near.clear()
@@ -747,6 +781,8 @@ func native_state() -> Dictionary:
 		"break_step": _break_step,
 		"break_zone": _break_zone,
 		"current_step": _current_step,
+		"impact_peak": _impact_peak.duplicate(),
+		"impact_step": _impact_step.duplicate(),
 	}
 
 
@@ -763,6 +799,8 @@ static func bank_from_native(d: Dictionary) -> Bank:
 	b.break_step = d["break_step"]
 	b.break_zone = d["break_zone"]
 	b.current_step = d["current_step"]
+	b.impact_peak = d.get("impact_peak", PackedFloat32Array())
+	b.impact_step = d.get("impact_step", PackedInt32Array())
 	return b
 
 
@@ -779,6 +817,9 @@ func apply_native_state(d: Dictionary) -> void:
 	_break_step = d["break_step"]
 	_break_zone = d["break_zone"]
 	_current_step = d["current_step"]
+	_impact_peak = d.get("impact_peak", PackedFloat32Array())
+	_impact_step = d.get("impact_step", PackedInt32Array())
+	_size_impacts()
 	# The per-substep scratch never survives a substep on either path; clearing
 	# it here mirrors [method restore] rather than leaving GDScript's stale.
 	_contact_particles.clear()

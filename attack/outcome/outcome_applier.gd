@@ -136,6 +136,9 @@ static func land_one(hit: HitInstance, world: CombatWorld,
 		world.track_hit(hit)
 	# A fuse's gate flip (#1209) lands on the TOPOLOGY, not on a slice — and
 	# live it needs [param alloc], the one flip-and-cascade implementation.
+	if hit.kind == HitInstance.Kind.ADDON_DESTROY:
+		(hit as AddonDestroyInstance).land_destroy(world)
+		return
 	if hit.kind == HitInstance.Kind.GATE_FLIP:
 		(hit as GateFlipInstance).land_flip(world, alloc)
 		if not recorded:

@@ -12,5 +12,19 @@ func _init() -> void:
 	kind = Kind.ADDON_DESTROY
 
 
-func land_on(_node: NodeCombat, _world: CombatWorld) -> void:
+## Never reached through the applier's slice path (it dispatches here first).
+func land_on(_node: NodeCombat, world: CombatWorld) -> void:
+	land_destroy(world)
+
+
+## Shadow: nothing — the decision is already on the record. Live: free the
+## target's Bunker; a target or addon already gone is a no-op.
+func land_destroy(world: CombatWorld) -> void:
 	effective_amount = 0.0
+	if world.is_shadow():
+		return
+	var plate := BunkerAddon.on(target)
+	if plate == null:
+		return
+	target.remove_child(plate)
+	plate.queue_free()

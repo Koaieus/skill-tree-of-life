@@ -355,11 +355,40 @@ func _finish() -> void:
 	_state.speed_history = _speed_history
 	# One coherent timeline over every batch. The record carries each hit's
 	# structural key and every peer compiles its own seconds from it.
+	_knock_off_bunkers()
 	_outcome.schedule = OutcomeSchedule.compile(_outcome)
 	# The AI's shape-risk signal: how many of the attacker's own vertices this
 	# swing actually DESTROYED. Pops only (#799) — a vertex that merely lost its
 	# path to the handle coasts on in this same trajectory and is not a loss.
 	_outcome.popped_nodes += _gate.result.vertex_pop_count()
+
+
+## Bunker x bunker past the plate's threshold: one [AddonDestroyInstance] per
+## defender whose plate a bunker member hit with a peak momentum of at least
+## its [member BunkerAddon.destroy_momentum], keyed at the peak's sample. Only
+## recorded here; the replay frees the live addon.
+func _knock_off_bunkers() -> void:
+	if _obstacles == null:
+		return
+	var defenders := _obstacles.zone_defenders
+	var seen: Dictionary = {}
+	for z in defenders.size():
+		var sn := defenders[z]
+		if sn == null or seen.has(sn):
+			continue
+		var plate := BunkerAddon.on(sn)
+		var peak := _obstacles.impact_peak(z)
+		if plate == null or peak <= 0.0 or peak < plate.destroy_momentum:
+			continue
+		seen[sn] = true
+		var hit := AddonDestroyInstance.new()
+		hit.target = sn
+		hit.origin = _ctx.origin
+		hit.source = _ctx.hit_source
+		hit.attacker = _ctx.attacker
+		var t := float(maxi(_obstacles.impact_step(z), 0)) * _dt
+		hit.structural_key = t / maxf(0.001, _ctx.swing_duration)
+		_outcome.hits.append(hit)
 
 
 ## The explosive charges the gate spent and has not handed over yet, as one

@@ -113,6 +113,12 @@ struct FieldCtx {
     int64_t break_step = -1;
     int64_t break_zone = -1;
     int64_t current_step = 0;
+    // Per zone: the peak momentum (normal approach speed in px/s x mass) a
+    // restituting member reached against it, and the sample it peaked on.
+    PackedFloat32Array impact_peak;
+    PackedInt32Array impact_step;
+    // The substep length the impact peak divides by.
+    double sub_dt = 0.0;
 
     // ── Per-substep scratch ─────────────────────────────────────────────────
     PackedVector2Array driven_targets;
@@ -256,6 +262,13 @@ void field_project(FieldCtx &f, Vector2 *positions, const Vector2 *prev,
                 if (vn < 0.0) {
                     f.recoil_approach.set(i, (float)vn);
                     f.recoil_normal.set(i, normal);
+                    if (f.sub_dt > 0.0 && z < f.impact_peak.size()) {
+                        const double momentum = -vn / f.sub_dt / (double)inv_masses[i];
+                        if (momentum > (double)f.impact_peak[z]) {
+                            f.impact_peak.set(z, (float)momentum);
+                            f.impact_step.set(z, (int32_t)f.current_step);
+                        }
+                    }
                 }
             }
             positions[i] = c + normal * (real_t)reach;
@@ -533,6 +546,8 @@ Dictionary capture_field(const FieldCtx &f) {
     b["break_step"] = f.break_step;
     b["break_zone"] = f.break_zone;
     b["current_step"] = f.current_step;
+    b["impact_peak"] = f.impact_peak.duplicate();
+    b["impact_step"] = f.impact_step.duplicate();
     return b;
 }
 
@@ -700,6 +715,9 @@ static Dictionary run_range(
     const int64_t sub = p_substeps > 1 ? p_substeps : 1;
     const double sub_dt = p_dt / (double)sub;
     const double sub_dt_sq = sub_dt * sub_dt;
+    if (p_fld != nullptr) {
+        p_fld->sub_dt = sub_dt;
+    }
 
     for (int64_t step = 0; step < steps; step++) {
         // The INTEGER global step index — added as integers, THEN widened —
@@ -1066,6 +1084,17 @@ Dictionary BladeSolverNative::simulate_range_field(
         ctx.break_step = field_state["break_step"];
         ctx.break_zone = field_state["break_zone"];
         ctx.current_step = field_state["current_step"];
+        // Optional, so a caller predating the impact bank still runs.
+        if (field_state.has("impact_peak")) {
+            ctx.impact_peak = PackedFloat32Array(field_state["impact_peak"]).duplicate();
+            ctx.impact_step = PackedInt32Array(field_state["impact_step"]).duplicate();
+        }
+        if (ctx.impact_peak.size() != ctx.zone_count || ctx.impact_step.size() != ctx.zone_count) {
+            ctx.impact_peak.resize(ctx.zone_count);
+            ctx.impact_peak.fill(0.0f);
+            ctx.impact_step.resize(ctx.zone_count);
+            ctx.impact_step.fill(-1);
+        }
     }
 
     Dictionary out = run_range(
