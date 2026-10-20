@@ -311,3 +311,29 @@ func test_a_recorded_crit_replays_its_spend_on_the_live_world() -> void:
 	assert_eq(_defender.get_combat().get_status_power(&"hex"),
 		world.combat_for_entity(_defender).get_status_power(&"hex"), "and the entity's")
 	assert_eq(_hex(_n.t), floorf(4.0 * _HEXED.spend_factor))
+
+
+# ── Authored content loads under the Mark name, in DEX's pack ───────────────
+
+func _supplies(pack_path: String, stat_id: StringName) -> int:
+	var count := 0
+	for pool in load(pack_path).pools:
+		if pool.stat_id == stat_id:
+			count += 1
+	return count
+
+
+func test_authored_mark_loads_resolves_and_rolls_in_dex() -> void:
+	var path := "res://effects/status/marked.tres"
+	assert_true(ResourceLoader.exists(path), "marked.tres exists")
+	var mark: Resource = load(path) if ResourceLoader.exists(path) else null
+	assert_not_null(mark, "marked.tres loads")
+	if mark != null:
+		assert_eq(mark.get("id"), &"mark")
+		assert_eq(mark.get_script().get_global_name(), &"MarkStatus")
+	assert_not_null(StatRegistry.get_def(&"mark_aspect"), "mark_aspect resolves")
+	assert_not_null(StatRegistry.get_def(&"mark_stacks_per_hit"), "mark_stacks_per_hit resolves")
+	assert_eq(_supplies("res://procgen/pools/dexterity.tres", &"mark_aspect"), 1,
+		"DEX carries one mark_aspect supply entry")
+	assert_eq(_supplies("res://procgen/pools/intelligence.tres", &"mark_aspect"), 0,
+		"INT carries none")

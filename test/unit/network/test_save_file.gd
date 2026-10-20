@@ -116,6 +116,15 @@ func test_a_version_10_file_is_refused() -> void:
 	assert_eq(SaveFile.from_bytes(bytes).load_result, SaveFile.LoadResult.VERSION_MISMATCH)
 
 
+## A v11 file interns the pre-Mark `res://` paths its statuses name, and its
+## `hex` rows mean the crit-taken status that id no longer names, so it is
+## refused.
+func test_a_version_11_file_is_refused() -> void:
+	var bytes := _sample().to_bytes()
+	bytes.encode_u32(SaveFile.VERSION_OFFSET, 11)
+	assert_eq(SaveFile.from_bytes(bytes).load_result, SaveFile.LoadResult.VERSION_MISMATCH)
+
+
 func test_a_version_below_the_oldest_loadable_is_a_version_mismatch() -> void:
 	var bytes := _sample().to_bytes()
 	bytes.encode_u32(SaveFile.VERSION_OFFSET, SaveFile.MIN_FORMAT_VERSION - 1)

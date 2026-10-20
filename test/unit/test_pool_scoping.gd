@@ -123,7 +123,7 @@ const _SUPPLY_HOME := {
 	&"weakness_aspect": &"strength",
 	&"explosive_aspect": &"dexterity",
 	&"curse_aspect": &"intelligence",
-	&"hex_aspect": &"intelligence",
+	&"mark_aspect": &"dexterity",
 	&"wither_aspect": &"constitution",
 	&"sunder_aspect": &"constitution",
 	&"blindness_aspect": &"perception",
