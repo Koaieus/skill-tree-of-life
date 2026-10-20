@@ -82,9 +82,12 @@ Stock subclasses (slot into one or more `PropagationConfig`s):
   territory, which is what Leafblower (less-or-equal) and Reverberator
   (greater-or-equal) ship; see `docs/domain/degree.md` for why entity degree
   and not graph degree. With any other ranker it is the same rule on another
-  metric — one implementation of "candidate vs current", not two.
+  metric — one implementation of "candidate vs current", not two. With
+  `against = ABSOLUTE` it compares against the fixed `threshold` instead of
+  the current node ("only into armored nodes": armor > 0).
 - `TopTiesFilter` — set-level: keeps the candidates tying for highest (or
-  lowest) `NodeRanker` score. Overrides `narrow`.
+  lowest) `NodeRanker` score. Overrides `narrow`. `places` > 1 keeps every
+  candidate tied at any of the first `places` dense-ranked score places.
 - `NoSelfLoopFilter` — vetoes `to == from`. Self-loops are first-class here,
   so a spell that refuses them has to say so; no other rule covers them
   (`BacktrackFilter` does not).
@@ -144,7 +147,7 @@ Stock subclasses (`propagation/spread/`):
   one per authored rank; the rank coefficient (× `closing_gain` on a closing
   hop) is the pick's `share`. **The damage split happens in `mint`, nowhere
   else** — the spread only decides the number.
-- `NeedSplitSpread` — a cleanse's leftover dose split over the eligible children by `Cure.need_of`, largest-remainder whole-dose apportionment stamped as `share` (zero need → no pick); pair with `MultiplyProgression` 1.0 and `SumDamageReducer` so the dose is conserved (`MaxDamageReducer` loses it).
+- `NeedSplitSpread` — a cleanse's leftover dose split over the eligible children by `Cure.need_of`, largest-remainder whole-dose apportionment (`Apportion.largest_remainder`, `attack/spell/propagation/apportion.gd`: ties to the lower index; callers order the weights for another tiebreak) stamped as `share` (zero need → no pick); pair with `MultiplyProgression` 1.0 and `SumDamageReducer` so the dose is conserved (`MaxDamageReducer` loses it).
 
 **A spread never transforms damage on arrival, and never decides that the
 walk is over.** Both are authored elsewhere:
@@ -183,7 +186,13 @@ than an answer. Two consumers:
   once, right after `DetonateEffect.arm`.
 
 Stock subclasses: `LeafCondition`, `SelfLoopCondition`, `CycleCondition`,
-`ConvergenceCondition`, `JunctionCondition` (entity degree > 2), in
+`ConvergenceCondition`, `JunctionCondition` (entity degree > 2),
+`LocalExtremumCondition` (ranker MAX|MIN over the counted neighbours, ties
+count, a node with no counted neighbour is vacuously an extremum; Rend's armor
+summit, Fault Line's weak point), `HopIndexCondition` (`min_hop..max_hop`
+inclusive, `max_hop = 0` = the struck node only; #1721), `PhaseCondition`
+(a `RetractFront` tendril's phase; false without one; #1424), plus
+`ChokepointCondition`, `NoEdgeToSourceCondition` and `StatCondition`, in
 `attack/spell/condition/`.
 
 ### `ScaleDamageEffect`
@@ -193,6 +202,11 @@ An `OnHitEffect` that scales `CastSpell.damage` in place — `MULTIPLY` /
 (null = always) — and emits nothing itself. Author it **before** `DamageEffect`
 and the damage effect emits the scaled number; effects already run in order
 over the one mutable `CastSpell`, so this is that contract used, not a new one.
+
+`AddStackTermDamageEffect` is its sibling: it adds `Σ maxf(0, term.extra(read,
+host))` of its `StackTerm`s to `CastSpell.damage` in place, read against the
+cast's world, under the same author-it-before-`DamageEffect` contract (the
+catalogue lint in `test_spell_defs.gd` covers both).
 
 Two consequences worth stating rather than rediscovering:
 
@@ -328,6 +342,7 @@ the scalar knobs that don't deserve their own class:
 @export var reducer: IncidentReducer
 @export var max_hops: float = 0.0
 @export var max_visits_per_node: int = 1   # 1 = never-revisit; INT_MAX = uncapped
+@export var repeat_landings_by: StringName = &""      # a CarriedScalar id; "" = one landing
 @export var hop_damage: HopDamageProgression = null   # null = damage carried verbatim
 @export var hop_stacks: HopDamageProgression = null   # null = stack_weight carried verbatim
 @export var extensions: Array[PayloadExtension] = []  # spell-specific carried state
@@ -338,7 +353,8 @@ func mint(payload: CastSpell, pick: PropagationPick, lctx: LandingContext) -> Ca
 **`static CastSpell.derived(parent)` is the one copy routine** (owner, #1717):
 it copies the universal and walk-bookkeeping fields (arrays duplicated) and
 nothing else; `damage`, `arrival_share`, `incident_count`, `arrived_from` and
-`extras` are deliberate non-copies. The seed starts from `CastSpell.blank()`; every
+`extras` are deliberate non-copies (`_repeated_arrivals` re-copies exactly
+those five on purpose, so each repeat owns its payload). The seed starts from `CastSpell.blank()`; every
 other payload is `derived` and applies only its own deltas:
 
 - **`mint`** (*owner: "Step returns picks; config mints."*) derives from the
@@ -375,6 +391,30 @@ an optional `reseed: ScalarReseed` (`reseed(value, lctx, scalar) -> float`,
 run before `progression`, reading the landed world) and `min_value` (`-INF` =
 off; a value below it marks the child terminal). Its state is
 `CarriedScalar.State` with one `value: float`.
+
+Stock `ScalarReseed`: `StatusShareReseed` (#1721) sets the scalar to `share` ×
+the landed node's stacks of `status_id`, read after this wave landed (a crit's
+doubling and pre-existing stacks included), never carried from the parent.
+`ApplyStatusEffect.power_from` names a `CarriedScalar` whose value replaces
+`power` at a spell landing (off one, or with no such extension, `power`
+stands). `HopIndexCondition` gates riders and effects by hop (see
+`LandingCondition`). Fault Line is these together.
+
+**Out-and-back walks (`RetractFront`, #1424).** A `PayloadExtension` carrying a
+tendril's `phase` (OUT / WAIT / BACK), `depth` and `cargo` (hauled
+status stacks), plus a per-cast `Walk` ledger of each node's parents and trail
+count (BFS path count from the seed) shared by reference across the cast's
+states; nodes keep nothing. `RetractSpread` decides every fact: OUT is a BFS
+(`max_visits_per_node = 1`, a hostile filter), fanning through `outbound_spread`
+until `depth`, then hopping in place (WAIT) until the turn wave
+`2·depth − k + 1` so all returns reach depth j together; BACK passes
+`now − max(0, seen − load)` per debuff to the node's parents, split by trail
+count with `Apportion.largest_remainder`; BACK at the seed ends the cast.
+`HaulEffect` records `State.seen`; `PhaseCondition` splits outbound riders from
+the return haul. `RetractReducer` is the stock merge plus a guard: a WAIT
+tendril and a return meeting on one wave cancel the returns, so a merge never
+mixes phases. Merged fronts concatenate cargo sorted by source node then status
+(replay-stable). Lodestone is the one user.
 
 The resolver calls `select` once per landing and `mint` once per pick, passing
 that landing's `lctx`.
@@ -521,6 +561,17 @@ event's `predecessors` and `incident_shares` follow it, in step with its `hits`.
 Every hit goes into the node's one `PropagationEvent`. The visit bump and
 step 4's departure still run once, from the reducer's merge. A cancelling merge
 (null) cancels the hits too. Off (the default), there is one merged arrival.
+
+**A landing can repeat** (`repeat_landings_by`, #1720). It names a
+`CarriedScalar` in `extensions`; a landing hits `roundi(scalar.value)` times
+(floored at 0, `docs/domain/rounding.md`), in order, so a later repeat sees what
+an earlier one did to the node. Each repeat is its own `derived` payload copy
+(damage, `arrival_share`, `incident_count`, `arrived_from`, `extras` re-copied)
+with its own `LandingContext`, hence its own `hit_key` and crit. Departure reads
+the unrepeated landing. A count of 0 lands nothing; only the scalar's
+`min_value` ends the walk. Composed with `hit_each_incident` the arrivals
+multiply: N incident arrivals × M repeats, each incident's repeats adjacent
+(`_repeated_arrivals` runs after `_incident_arrivals`).
 
 Notes:
 

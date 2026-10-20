@@ -67,8 +67,8 @@ coordinator finds its riders by that key (`riders_of`). What an arrow may carry:
 | `DetonateEffect` | never authored: `DetonateEffect.arm(riders, load)` (the arming rule's one owner) prepends it at the hit's DETONATE `load` to every arrow's riders (`RangedDamageFormula.riders_for`, load 0) and a cast's riders (`SpellResolver`, `Infusion.detonate_load`), unless any rider lands explosive (a PLANT hit, which never blasts); a riderless hit still detonates. With `present` charges on the target (a core with none reads its entity host), not yet set off in `HitLanding.detonated` (per arrow, per spell wave, shared by a splash copy), it blasts iff `power_of(load, present, resonance) > 0`: a `spend_of` = `max(1, min(load, present))`-stack `CureInstance` spend when `present > 0`, then `ExplosiveSpread.blast_for(target, power, [chained Detonate, PairedDamageEffect] + riders minus explosive)` — so a blast chains through charged nodes and never plants. The formula: `docs/domain/explosive.md` | Explosive's detonation |
 | `OnHitEffect.status_def()` | the seam a wrapper answers through, so `AmmoType.first_status_def()` (tint, card swatch, scout check) never type-switches; a new wrapper overrides it | `SplashEffect` |
 
-**Not on the shelf:** `DamageEffect`, `HealEffect` and `ScaleDamageEffect`
-extend `SpellOnHitEffect`, which the `on_hit_effects` setter refuses at load
+**Not on the shelf:** `DamageEffect`, `HealEffect`, `ScaleDamageEffect` and
+`AddStackTermDamageEffect` extend `SpellOnHitEffect`, which the `on_hit_effects` setter refuses at load
 (`attack/ammo/ammo_type.gd`). An arrow's damage is the arrow itself
 (`damage_scale`); a damage-dealing rider is `PairedDamageEffect`.
 
@@ -165,6 +165,7 @@ only when a hook needs code. Lead-by example: `spike_ring_addon.tscn`.
 | blade effect | `on_hit_effects`; `apply_to_blade(state, idx)` for code | optional — node-local stats are often enough (SpikeRing needs none). Any addon's authored `on_hit_effects` (usually one `ApplyStatusEffect`; a `SpellOnHitEffect` is refused) ride every contact its carrier's vertex lands — no subclass; the base `apply_to_blade` appends them to that vertex's rider list, so two addons on one carrier both apply. An override must call `super` |
 | looks | a `Visual` child on the `AddonVisual` base (#1212) and/or `get_emblem()`; `icon`, `tint`, `description` for the tooltip | an addon with no visual child is invisible outside its tooltip |
 | budget | `temp_placeable`, `temp_cost_blade_size` (≥ 1), `temp_cost_aspects` (`{&"<concept>_aspect": n}`, each > 0) | every currency is a pooled per-swing budget capped by the attacker's live stat; landed, guarded by `test_temp_upgrade_budget.gd`. Set `temp_placeable = true` explicitly: the script default `false` is not a design call — every addon is placeable unless its cell records a dated exclusion (`aspect_matrix.md` § The addon recipe, item 6) |
+| role | `SkillNodeAddon.role`: offence / debuff / defence / utility, the job it does on a forged blade; never left `UNSET` (guarded by `test_temp_upgrade_catalog.gd`) | `docs/design/temp_addon_shop.md` § Role tags |
 | procgen | an entry in each content pool's `AddonPolicy` (`procgen/modules/*/content.tres`), `weight`, `unique` | optional, lower priority |
 | customization | anything the contract lacks | a new hook, extra hitscans, perf work — named in the cell so it becomes its own unit |
 
