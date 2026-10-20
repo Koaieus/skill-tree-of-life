@@ -45,6 +45,10 @@ var read_overlays: Callable = Callable()
 ## [member HitLanding.stack_scale]; never shipped, because the landed
 ## [member power] is (a rebuilt hit is [member power_resolved]).
 var stack_scale: float = 1.0
+## Extras added to the folded stacks at [method land_on], before crit — copied
+## from [member ApplyStatusEffect.stack_terms]. Resolve-local like
+## [member stack_scale]: the record ships the landed [member power].
+var stack_terms: Array[StackTerm] = []
 
 ## Which host the status LANDED on (#996, hub #994). NODE is the ordinary
 ## landing; ENTITY is the fall-through — the target is its owner's core and

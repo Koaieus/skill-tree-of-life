@@ -19,6 +19,9 @@ extends OnHitEffect
 
 @export var def: StatusDef = null
 @export var power: float = 1.0
+## Extra stacks evaluated when the status lands ([StackTerm]), summed after the
+## `stacks_per_hit` fold and before crit.
+@export var stack_terms: Array[StackTerm] = []
 
 
 func apply(landing: HitLanding) -> void:
@@ -38,6 +41,7 @@ func apply(landing: HitLanding) -> void:
 	status.paired = landing.paired
 	status.hit_key = landing.hit_key
 	status.stack_scale = landing.stack_scale
+	status.stack_terms = stack_terms
 	landing.emit(status)
 
 
