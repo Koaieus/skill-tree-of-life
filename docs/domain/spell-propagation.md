@@ -410,7 +410,7 @@ until `depth`, then hopping in place (WAIT) until the turn wave
 `2·depth − k + 1` so all returns reach depth j together; BACK passes
 `now − max(0, seen − load)` per debuff to the node's parents, split by trail
 count with `Apportion.largest_remainder`; BACK at the seed ends the cast.
-`HaulEffect` records `State.seen`; `PhaseCondition` splits outbound riders from
+`State.seen` is recorded by a `HaulEffect` (not landed yet); `PhaseCondition` splits outbound riders from
 the return haul. `RetractReducer` is the stock merge plus a guard: a WAIT
 tendril and a return meeting on one wave cancel the returns, so a merge never
 mixes phases. Merged fronts concatenate cargo sorted by source node then status
