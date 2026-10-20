@@ -1,0 +1,96 @@
+[gd_resource type="Resource" script_class="SpellDef" format=3]
+
+[ext_resource type="Script" path="res://attack/spell/condition/landing_condition.gd" id="1_cond"]
+[ext_resource type="Script" path="res://attack/spell/spell_def.gd" id="1_spell"]
+[ext_resource type="Script" path="res://attack/spell/on_hit/on_hit_effect.gd" id="2_effect"]
+[ext_resource type="Script" path="res://attack/spell/aspect_intake.gd" id="3_affinity"]
+[ext_resource type="Script" path="res://attack/spell/on_hit/damage_effect.gd" id="3_dmg"]
+[ext_resource type="Script" path="res://attack/spell/propagation/propagation_config.gd" id="4_config"]
+[ext_resource type="Script" path="res://attack/spell/propagation/filter/owner_filter.gd" id="5_filter"]
+[ext_resource type="Script" path="res://attack/targeting/node_targeting.gd" id="6_targeting"]
+[ext_resource type="Script" path="res://attack/range_finder/hop_range_finder.gd" id="7_range"]
+[ext_resource type="Script" path="res://attack/spell/propagation/spread/fan_all_spread.gd" id="8_fan"]
+[ext_resource type="Script" path="res://attack/spell/propagation/payload_extension.gd" id="9_ext"]
+[ext_resource type="Script" path="res://attack/spell/propagation/carried_scalar.gd" id="10_scalar"]
+[ext_resource type="Script" path="res://attack/spell/propagation/progression/flat_add_progression.gd" id="11_flat"]
+[ext_resource type="Script" path="res://attack/spell/propagation/ranker/stat_ranker.gd" id="12_sr"]
+[ext_resource type="Script" path="res://attack/spell/condition/stat_condition.gd" id="13_stat"]
+[ext_resource type="PackedScene" path="res://ui/vfx/coordinator/spells/spark_coordinator.tscn" id="14_vfx"]
+[ext_resource type="Resource" path="res://identity/defs/sunder.tres" id="identity_sunder"]
+[ext_resource type="Resource" path="res://identity/defs/wither.tres" id="identity_wither"]
+[ext_resource type="Resource" path="res://identity/defs/spell_hell_gnaw.tres" id="identity_ref"]
+
+[sub_resource type="Resource" id="sunder_gnaw"]
+script = ExtResource("3_affinity")
+identity = ExtResource("identity_sunder")
+innate = 1
+
+[sub_resource type="Resource" id="wither_gnaw"]
+script = ExtResource("3_affinity")
+identity = ExtResource("identity_wither")
+innate = 1
+
+[sub_resource type="Resource" id="dmg_gnaw"]
+script = ExtResource("3_dmg")
+
+[sub_resource type="Resource" id="filter_allocated"]
+script = ExtResource("5_filter")
+ownership_filter = 14
+
+[sub_resource type="Resource" id="spread_fan"]
+script = ExtResource("8_fan")
+
+[sub_resource type="Resource" id="bites_step"]
+script = ExtResource("11_flat")
+increment = -1.0
+
+[sub_resource type="Resource" id="bites"]
+script = ExtResource("10_scalar")
+id = &"bites"
+seed_value = 3.0
+progression = SubResource("bites_step")
+min_value = 1.0
+
+[sub_resource type="Resource" id="prop_gnaw"]
+script = ExtResource("4_config")
+filter = SubResource("filter_allocated")
+spread = SubResource("spread_fan")
+max_hops = 3.0
+repeat_landings_by = &"bites"
+extensions = Array[ExtResource("9_ext")]([SubResource("bites")])
+
+[sub_resource type="Resource" id="ranker_armor"]
+script = ExtResource("12_sr")
+stat_id = &"armor"
+
+[sub_resource type="Resource" id="gnawed_through"]
+script = ExtResource("13_stat")
+ranker = SubResource("ranker_armor")
+compare = 1
+threshold = 0.0
+
+[sub_resource type="Resource" id="range_3hop"]
+script = ExtResource("7_range")
+
+[sub_resource type="Resource" id="targeting_allocated_3hop"]
+script = ExtResource("6_targeting")
+ownership_filter = 14
+range_finder = SubResource("range_3hop")
+
+[resource]
+script = ExtResource("1_spell")
+id = &"hell_gnaw"
+name = "Hell Gnaw"
+tagline = "Loose a swarm of hell-rats that gnaw every allocated node they reach — yours too."
+description = "Loose hell-rats on an allocated node within 3 hops — anyone's, your own included. They spread to every allocated neighbour for up to 3 hops, biting 3 times where they land and once fewer each hop. Every bite applies 1 Sunder and 1 Wither, then deals a little damage, so each bite meets the armor the last one tore off. Crits where the node is gnawed through: armor at or below 0."
+identity = ExtResource("identity_ref")
+power = 0.15
+min_degree = 2
+propagation = SubResource("prop_gnaw")
+on_hit_effects = Array[ExtResource("2_effect")]([SubResource("dmg_gnaw")])
+intakes = Array[ExtResource("3_affinity")]([SubResource("sunder_gnaw"), SubResource("wither_gnaw")])
+ingest_gain = 1
+ingest_cost = 3
+crit_conditions = Array[ExtResource("1_cond")]([SubResource("gnawed_through")])
+vfx_coordinator_scene = ExtResource("14_vfx")
+targeting = SubResource("targeting_allocated_3hop")
