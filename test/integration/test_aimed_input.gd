@@ -1,9 +1,11 @@
 extends GutTest
 
-## The aimed-spell gesture end to end through [PlayerInputController]: press
-## on an eligible caster, drag, release. The aim follows the drag vector, a
-## press off the union arms nothing, the preview re-resolves only when the
-## crossed set changes, and predicted hit marks respect the viewer's fog.
+## The aimed-spell gesture end to end through [PlayerInputController]: the
+## shape snaps to the eligible caster nearest the hovering cursor and points
+## at it, a left click locks it, a right-click unlocks back to hover. A cursor
+## inside the caster's disc names no direction, the preview re-resolves only
+## when the crossed set changes, and predicted hit marks respect the viewer's
+## fog.
 
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _GRAPH_SCENE := preload("res://graph/graph.tscn")
@@ -25,6 +27,7 @@ var _spark_targeting: Targeting
 
 var _graph: Graph
 var _ctl: PlayerInputController
+var _alloc: AllocationSystem
 var _attacker: Entity
 var _source: SkillNode
 var _back: SkillNode
@@ -70,6 +73,7 @@ func before_each() -> void:
 	var alloc := AllocationSystem.new()
 	alloc.graph = _graph
 	add_child_autofree(alloc)
+	_alloc = alloc
 	alloc.force_allocate(_attacker, _back)
 	alloc.force_allocate(_attacker, _source)
 
@@ -107,57 +111,90 @@ func _arm() -> MagicAttackPlan:
 	return plan
 
 
+## A hover: no button held.
 func _move(world: Vector2) -> void:
 	var ev := InputEventMouseMotion.new()
 	ev.position = _graph.get_global_transform_with_canvas() * world
-	ev.button_mask = MOUSE_BUTTON_MASK_LEFT
 	_ctl._unhandled_input(ev)
 
 
-func _release() -> void:
+## A left click over empty space — node-independent, like the lock itself.
+func _click() -> void:
+	for pressed in [true, false]:
+		var ev := InputEventMouseButton.new()
+		ev.button_index = MOUSE_BUTTON_LEFT
+		ev.pressed = pressed
+		_ctl._unhandled_input(ev)
+
+
+func _right_click() -> void:
 	var ev := InputEventMouseButton.new()
-	ev.button_index = MOUSE_BUTTON_LEFT
-	ev.pressed = false
+	ev.button_index = MOUSE_BUTTON_RIGHT
+	ev.pressed = true
 	_ctl._unhandled_input(ev)
 
 
-func test_press_drag_release_commits_the_aim() -> void:
+func test_hover_snaps_to_the_nearest_caster() -> void:
 	var plan := _arm()
-	_ctl.route_left_click(_source)
+	assert_true(plan.union().is_source(_back), "fixture: back is a second eligible caster")
+	_move(Vector2(-150, 50))
+	assert_eq(plan.source, _back, "the caster nearest the cursor is the source")
+	assert_almost_eq(plan.aim_angle, 3.0 * PI / 4.0, 0.001, "aimed from that caster at the cursor")
 	_move(Vector2(150, 150))
-	_release()
-	assert_eq(plan.source, _source, "the pressed caster is the plan's source")
-	assert_almost_eq(plan.aim_angle, PI / 4.0, 0.001, "the aim follows the drag vector")
-	assert_eq(plan.validate(), [] as Array[String], "the committed aim validates")
-	assert_true(_ctl.armed_stack.top() is TargetMode, "release commits like a clicked target")
+	assert_eq(plan.source, _source, "the snap follows the cursor to the other caster")
+	assert_almost_eq(plan.aim_angle, PI / 4.0, 0.001, "aimed from the new caster")
+	assert_false(_ctl.armed_stack.top() is TargetMode, "hovering locks nothing")
+
+
+func test_click_locks_the_aim() -> void:
+	var plan := _arm()
+	_move(Vector2(150, 150))
+	_click()
+	assert_eq(plan.source, _source, "the snapped caster is the plan's source")
+	assert_almost_eq(plan.aim_angle, PI / 4.0, 0.001, "the aim follows the cursor")
+	assert_eq(plan.validate(), [] as Array[String], "the locked aim validates")
+	assert_true(_ctl.armed_stack.top() is TargetMode, "a click locks like a clicked target")
+	_move(Vector2(-150, 50))
+	assert_eq(plan.source, _source, "a locked aim ignores the hover")
+	assert_almost_eq(plan.aim_angle, PI / 4.0, 0.001, "a locked angle ignores the hover")
 	var visual := plan.get_range_visual()
 	assert_eq(visual.shapes.size(), 1, "the reach visual carries the aimed shape")
 	assert_eq(visual.shapes[0].length, (_spark.targeting as AimedTargeting).length(_attacker, _source),
 			"drawn to the full reach length")
 
 
+func test_right_click_unlocks_back_to_hover() -> void:
+	var plan := _arm()
+	_move(Vector2(150, 150))
+	_click()
+	assert_true(_ctl.armed_stack.top() is TargetMode, "fixture: locked")
+	_right_click()
+	assert_true(_ctl.armed_stack.top() is MagicMode, "right-click pops back to hover-aim")
+	_move(Vector2(-150, 50))
+	assert_eq(plan.source, _back, "the shape follows the mouse again")
+	assert_almost_eq(plan.aim_angle, 3.0 * PI / 4.0, 0.001, "re-aimed at the cursor")
+
+
+func test_one_caster_aims_from_it_everywhere() -> void:
+	_alloc.force_deallocate(_back)
+	var plan := _arm()
+	assert_eq(plan.union().sources.size(), 1, "fixture: one eligible caster")
+	for world: Vector2 in [Vector2(-300, 0), Vector2(0, 300), Vector2(500, -500)]:
+		_move(world)
+		assert_eq(plan.source, _source, "every cursor aims from the lone caster")
+		assert_almost_eq(plan.aim_angle, world.angle(), 0.001, "pointed at the cursor")
+
+
 func test_a_click_inside_the_caster_commits_nothing() -> void:
 	var plan := _arm()
-	_ctl.route_left_click(_source)
 	_move(Vector2(2, 1))
-	_release()
-	assert_true(is_nan(plan.aim_angle), "jitter inside the caster's disc sets no aim")
-	assert_false(_ctl.armed_stack.top() is TargetMode, "nothing committed")
-
-
-func test_press_on_a_non_source_sets_no_aim() -> void:
-	var plan := _arm()
-	_ctl.route_left_click(_east1)
-	_move(Vector2(150, 150))
-	_release()
-	assert_null(plan.source, "no source stamped")
-	assert_true(is_nan(plan.aim_angle), "no aim set")
+	_click()
+	assert_true(is_nan(plan.aim_angle), "a cursor inside the caster's disc sets no aim")
 	assert_false(_ctl.armed_stack.top() is TargetMode, "nothing committed")
 
 
 func test_preview_resolves_only_when_the_crossed_set_changes() -> void:
 	var plan := _arm()
-	_ctl.route_left_click(_source)
 	_move(Vector2(300, 0))
 	plan.preview_outcome()
 	var after_first := plan.preview_resolves
@@ -179,7 +216,6 @@ func test_predicted_hits_mark_only_seen_nodes() -> void:
 	var fog: FogStub = autofree(FogStub.new())
 	fog.seen = {_back: true, _source: true, _east1: true}
 	plan.viewer_vision = fog
-	_ctl.route_left_click(_source)
 	_move(Vector2(300, 0))
 	assert_eq(plan.get_node_role(_east1), HighlightProvider.HighlightRole.PROPAGATION,
 			"a seen crossed node is marked")
