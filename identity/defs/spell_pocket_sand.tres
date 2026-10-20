@@ -8,5 +8,5 @@ script = ExtResource("1_identity")
 id = &"spell_pocket_sand"
 noun = "Pocket Sand"
 kind = 3
-tint = Color(0.8824, 0.7608, 0.5098, 1)
+tint = Color(0.72, 0.68, 0.6, 1)
 icon = ExtResource("2_icon")
