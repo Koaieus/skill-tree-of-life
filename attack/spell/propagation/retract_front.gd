@@ -7,8 +7,7 @@ extends PayloadExtension
 ## (which records [member State.seen]). A tendril walks OUT as a BFS, hops in
 ## place ([constant Phase.WAIT]) until the returns are in sync, then walks
 ## BACK the way it came, carrying [member State.cargo]. Nodes keep nothing:
-## the tendril and its per-cast [Walk] ledger do. See
-## docs/domain/spell-propagation.md, "Out and back".
+## the tendril and its per-cast [Walk] ledger do.
 
 enum Phase { OUT, WAIT, BACK }
 
