@@ -87,7 +87,7 @@ value = 1.0
 unique_name_in_owner = true
 layout_mode = 2
 button_pressed = true
-text = "Weak-point crit (last node)"
+text = "Weak-point crit (weak-point node)"
 
 [node name="Replay" type="Button" parent="Layout/Split/PanelHost/FaultLinePanel/Split/Knobs"]
 unique_name_in_owner = true

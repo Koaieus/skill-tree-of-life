@@ -41,6 +41,7 @@ sandbox gallery does, for exactly this reason).
 | `BoltBody` | `ui/vfx/projectile/visual/bolt_body.tscn` + five inherited configs (`bolt_small` / `_blunt` / `_streak` / `_packet` / `_soft`) | The workhorse body. Supersedes `GlowingDot` **for spell use** — `GlowingDot` is not deleted, it has non-spell callers. `MAX_TRAIL_SEGMENTS` is **8**; `_TAPER_SPAN` stays pinned at 4 so raising the cap re-spreads nothing, and segments past the fourth extend the tail at tail values. |
 | `ImpactRing` | `ui/vfx/projectile/visual/impact_ring.tscn`, `impact_ring_absorb.tscn`, `impact_ring_reverberate.tscn` | Punctuation, and the **sole home of the crit grammar**. `OUT` = impact, `IN` = absorb/gather. **Reads two context channels off `_on_context`, never both:** with `visit_ramp_visits > 0` the `visit_index` ramp owns `expand_radius` and `emissive_tier` (authored start → `visit_expand_radius_end` / `visit_emissive_tier_end`, clamped at `visit_ramp_visits`; Reverberator's `impact_ring_reverberate.tscn`, #677); otherwise `convergence_count` widens the radius (Resonator). Both work against the authored values, so a repeated entry never compounds. A composing spell just forwards the context — the stock wrapper does. |
 | `EdgeEnergize` | `ui/vfx/projectile/visual/edge_energize.tscn` + `edge_energize.gdshader` | A travelling front of light **painted on top of** an edge. **Self-derives its own endpoints** (#687): `_on_context(entry)` reads `origin`/`target` off the entry and sets `edge_origin`/`edge_target`/`top_level` itself — a composing spell forwards `_on_context`, it does not stamp the endpoints. Composed one-per-bolt by Resonator (`resonator_edge_visual.tscn`, #678) and N-per-closure by Cyclone (`cyclone_ring_flash.tscn`, #710 — one front laps the whole closed ring in walk order over a fixed `lap_seconds`, wraparound edge included). Both are spell-specific compositions deliberately **not** catalogued here; `CycloneRingFlash` takes a plain polyline, so promoting it to a kit `RingFlash` when a second spell has a ring to light is a rename plus a gallery entry. |
+| `FaultLineCrack` | `ui/vfx/fault_line/fault_line_crack.tscn` + `fault_line_crack.gdshader` | A glowing fissure painted on top of an edge, Fault Line's `edge_visual`. Width = the landed `status_id` (Sunder) stacks summed off the entry's `hits`, riding the bar's y-scale (unlike `EdgeEnergize`, where y-scale is left to the shader); a crit lifts it one named tier and shatters the struck node with a `ShatterField`. Self-derives its endpoints like `EdgeEnergize`. Pinned by `test_fault_line_crack.gd`. |
 | `GhostLoopBody` | `ui/vfx/projectile/visual/ghost_loop_body.tscn` | A body wearing TWO heads — a lead plus a `ghost_alpha`-dimmed twin sampled `GHOST_T_OFFSET` behind it, off the lead's own recorded `(t, position)` history rather than a second copy of the path. "An echo chasing itself." Drop-in for any `body_scene` slot; worn by Reverberator (#677) and Resonator (#678). |
 
 ### `ComposedProjectileVisual` — how a spell gets a body AND a ring
@@ -182,9 +183,10 @@ nothing.
 1. **Never a per-instance `ShaderMaterial`, and never animate a per-instance
    shader uniform.** Batching breaks on a different texture *or* a different
    material. All `BoltBody` instances share one texture + one `CanvasItemMaterial`;
-   all `EdgeEnergize` overlays share one `ShaderMaterial`. Per-instance variation
+   all `EdgeEnergize` overlays share one `ShaderMaterial`, and all `FaultLineCrack`
+   instances share a second (`fault_line_crack_material.tres`). Per-instance variation
    goes in `modulate`, transform, UV offset or `INSTANCE_CUSTOM` — nowhere else.
-   `test_bolt_body.gd` and `test_edge_energize.gd` pin this at 60 instances.
+   `test_bolt_body.gd`, `test_edge_energize.gd` and `test_fault_line_crack.gd` pin this at 60 instances.
 2. **`EdgeEnergize` paints on top; it never touches `Edge`, `Graph` or the edge
    MultiMesh** — do not "optimize" it in there (reasons: "Why `EdgeEnergize`
    paints on top" below). Concurrency is bounded by **linger, not hop count**:
