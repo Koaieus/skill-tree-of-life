@@ -26,6 +26,9 @@ extends PropagationSpread
 ## How OUT picks among the next ring. Null = [FanAllSpread].
 @export var outbound_spread: PropagationSpread = null
 
+## The fan used when [member outbound_spread] is unauthored; never written back.
+var _default_outbound: PropagationSpread = null
+
 ## The [RetractFront] this walks, by its [member PayloadExtension.id].
 @export var front_id: StringName = RetractFront.ID
 
@@ -91,9 +94,11 @@ func _record(walk: RetractFront.Walk, lctx: LandingContext) -> void:
 
 
 func _outbound() -> PropagationSpread:
-	if outbound_spread == null:
-		outbound_spread = FanAllSpread.new()
-	return outbound_spread
+	if outbound_spread != null:
+		return outbound_spread
+	if _default_outbound == null:
+		_default_outbound = FanAllSpread.new()
+	return _default_outbound
 
 
 func _as_out(pick: PropagationPick, child_depth: int) -> RetractFront.Pick:

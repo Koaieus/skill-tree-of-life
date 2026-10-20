@@ -38,4 +38,4 @@ func get_description() -> String:
 		RankThresholdFilter.Compare.GREATER: "above",
 		RankThresholdFilter.Compare.GREATER_OR_EQUAL: "at or above",
 	}.get(compare, "at")
-	return "where its %s is %s %s" % [what, how, String.num(threshold)]
+	return "where its %s is %s %s" % [what, how, NumFmt.num(threshold)]

@@ -168,7 +168,7 @@ stat, whose INCREASE/MORE scale the total ([ADR 0029](../adr/0029-related-stats-
 half-up to a whole count (`StatusDef.round_half_up`: 1 × +49% lands 1, 1 × +50%
 lands 2). Hit size never scales stacks. Poison, corruption, curse and wither's
 stacks stats share one parent umbrella, `dot_stacks_per_hit`, which lands more
-stacks and never scales damage; bleeding, blindness, greed, mark (`mark_stacks_per_hit`)
+stacks and never scales damage; bleeding, blindness, greed, mark (`mark_stacks_per_hit`), hex (`hex_stacks_per_hit`)
 and weakness each carry a parentless `<id>_stacks_per_hit` and sit outside it.
 Sunder and scout author no `StatusDef.stacks_stat_id()` (a flat landing count).
 

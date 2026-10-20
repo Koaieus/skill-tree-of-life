@@ -22,7 +22,7 @@ blight) in its own pack.
 |---|---|---|---|
 | STR | Bleeding, Weakness | none yet | `bleeding_aspect`, `weakness_aspect` |
 | DEX | Poison, Explosive, Mark | poison | `poison_aspect`, `explosive_aspect`, `mark_aspect` |
-| INT | Curse (Hex pending, #1712) | curse | `curse_aspect` |
+| INT | Curse, Hex | curse | `curse_aspect`, `hex_aspect` |
 | CON | Wither, Sunder | wither | `wither_aspect`, `sunder_aspect` |
 | PER | Scout, Blindness | blindness | `scout_aspect`, `blindness_aspect` |
 | WIS | Corruption, Greed | corruption (+ `dot_stacks_per_hit`, a different stat) | `corruption_aspect`, `greed_aspect` |

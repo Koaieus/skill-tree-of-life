@@ -186,3 +186,9 @@ func test_a_gated_effect_runs_only_on_its_phase() -> void:
 	assert_eq(gated.rows.size(), 5, "one OUT landing per node")
 	assert_true(gated.rows.all(func(row: Dictionary) -> bool: return row.phase == RetractFront.Phase.OUT))
 	assert_gt(r.rows.size(), 5)
+
+
+func test_unauthored_outbound_fallback_never_lands_in_the_export() -> void:
+	var spread := RetractSpread.new()
+	assert_not_null(spread._outbound(), "an unauthored spread still fans")
+	assert_null(spread.outbound_spread, "the fallback is not written into the @export")
