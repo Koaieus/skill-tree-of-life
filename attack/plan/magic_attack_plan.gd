@@ -595,7 +595,6 @@ func _index_edge_pair(lookup: Dictionary[SkillNode, Dictionary], a: SkillNode, b
 	(lookup[a] as Dictionary)[b] = e
 
 
-## SkillNodes live under Graph/SkillNodes; walk parents to find it.
 ## The nodes the aim crosses from [member source] on [param graph] — the ONE
 ## hitscan behind the preview, the resolve, the wire claim and its check.
 func _aimed_seeds(graph: Graph) -> Array[SkillNode]:
@@ -613,6 +612,7 @@ func _aimed_seed_ids() -> Array[int]:
 	return ids
 
 
+## SkillNodes live under Graph/SkillNodes; walk parents to find it.
 func _graph_of(node: SkillNode) -> Graph:
 	var n: Node = node
 	while n != null and not (n is Graph):
