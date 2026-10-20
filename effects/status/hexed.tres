@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="HexStatus" format=3]
+
+[ext_resource type="Script" path="res://effects/status/hex.gd" id="1_def"]
+[ext_resource type="Script" uid="uid://h4ca876s2ht3" path="res://effects/status/decay/flat_decay.gd" id="decay_script"]
+[ext_resource type="Resource" path="res://identity/defs/hex.tres" id="identity_hex"]
+
+[sub_resource type="Resource" id="Resource_decay"]
+script = ExtResource("decay_script")
+
+[resource]
+script = ExtResource("1_def")
+id = &"hex"
+display_name = "Hexed"
+identity = ExtResource("identity_hex")
+description = "Every stack strips 10% of this node's resistance to every status; past zero the node is vulnerable and more stacks land than were sent."
+tags = Array[StringName]([&"debuff"])
+power_max = 0.0
+decay = SubResource("Resource_decay")
+display_max = 10.0
+reapply = 1
+resist_per_stack = 0.1
