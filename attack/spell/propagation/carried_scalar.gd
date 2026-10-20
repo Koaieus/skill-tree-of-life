@@ -27,6 +27,12 @@ class State extends PayloadState:
 ## Optional: replaces the value from the landed world before [member progression].
 @export var reseed: ScalarReseed = null
 
+## Optional: a concept id whose cast load ([member PropagationContext.load])
+## seeds the value instead of [member seed_value] — a status rider reading this
+## scalar ([member ApplyStatusEffect.power_from]) then lands exactly the load at
+## the seed. Empty = [member seed_value].
+@export var seed_from_load: StringName = &""
+
 ## A minted value below this marks the child terminal — it still lands, the
 ## walk ends there. [code]-INF[/code] = off.
 @export var min_value: float = -INF

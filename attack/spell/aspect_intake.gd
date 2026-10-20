@@ -42,6 +42,10 @@ extends Resource
 	set(value):
 		stack_terms = value
 		emit_changed()
+## The PLANT rider's [member ApplyStatusEffect.power_from]: the id of a
+## [CarriedScalar] whose value it lands instead of the load, where the payload
+## carries one. Empty = the load at every landing.
+@export var power_from: StringName = &""
 ## How a hit spends this row's load — the row's **face**:
 ## DETONATE: spent at the hit as a blast ([DetonateEffect]); PLANT: lands as
 ## the concept's status rider at `power = load`; FUEL: no rider, the load only
