@@ -304,7 +304,7 @@ func has_lingering() -> bool:
 ## so 1% never curbs a small row to 0 and 1·50% keeps its stack. Negative
 ## resistance is vulnerability: `cancelled` goes negative and more stacks act
 ## than the row holds (4·−50% → 6; the half still falls the attacker's way,
-## 1·−50% → 2). At [method blocks] the answer is 0 outright — the formula
+## 1·−50% → 2; ADR 0069). At [method blocks] the answer is 0 outright — the formula
 ## alone would leave a fractional row's `< ½` standing. The row itself is
 ## never touched: this is a live filter, so a resistance change reaches the
 ## very next apply or tick, DoTs included.

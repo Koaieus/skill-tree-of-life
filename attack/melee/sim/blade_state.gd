@@ -86,7 +86,7 @@ var vertex_shielded: PackedByteArray
 ## Per-particle coefficient of restitution against a deflecting plate: the
 ## share of a disc's approach speed along the plate normal it leaves with. 0 —
 ## every plain vertex — is the position-based, inelastic contact; a Bunker
-## member ([BunkerAddon]) recoils, so only bunker x bunker contact is elastic.
+## member ([BunkerAddon]) recoils off a deflecting plate (today: a Bunker).
 ## Written by [method SkillNodeAddon.apply_to_blade]; zero-initialised in build().
 var vertex_restitution: PackedFloat32Array
 ## Per-particle on-hit riders (#951, ADR 0044) — one Array of [OnHitEffect]

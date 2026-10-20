@@ -27,7 +27,7 @@ func before_each() -> void:
 
 	_alloc = _w.allocator()
 
-	_entity = _w.add_entity("Hexed", _BOARD.duplicate(true) as EntityStatBoard)
+	_entity = _w.add_entity("Cursed", _BOARD.duplicate(true) as EntityStatBoard)
 
 	var sn := _w.add_node(StringName("N0"))
 	_nodes = [sn]
@@ -165,7 +165,7 @@ func test_shadow_apply_never_writes_the_live_modifier() -> void:
 
 # ── Authored content loads and is wired (values are the owner's knobs) ──────
 
-func test_authored_curse_and_hex_load_and_are_in_the_debug_book() -> void:
+func test_authored_curse_and_malediction_load_and_are_in_the_debug_book() -> void:
 	var curse := load("res://effects/status/curse.tres") as CurseStatus
 	assert_not_null(curse, "curse.tres is a CurseStatus")
 	if curse == null:

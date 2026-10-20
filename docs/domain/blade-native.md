@@ -69,7 +69,8 @@ takes a `FieldCtx *`, null for a fieldless swing) with a `BladeSwingClock`
 and/or `BladeObstacleField`. A per-iteration callback was rejected on cost:
 `project()` runs in the innermost loop, millions of crossings a swing. State
 crosses instead: `native_inputs()` (the immutable half: zones as four parallel
-arrays, live edges, driven particles, `prepare()`'s incidence flattened to a
+arrays, live edges, `vertex_radii`, and `vertex_restitution` (optional key:
+absent or all-zero → null, the loop untouched), driven particles, `prepare()`'s incidence flattened to a
 CSR, and `CONTACT_SLOP` / `CONTACT_HYSTERESIS` / `SHATTER_DISTANCE` /
 `EDGE_RADIUS` **passed, not restated in C++**), `native_state()` in, and
 `clock_state` / `field_state` / `clock_history` / `field_history` back.

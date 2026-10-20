@@ -85,10 +85,9 @@ default:
   spell. Spells differ from each other by topology (Reverberator on
   self-loops, Trail Blazer on 2-degree strings, Leafblower on leaves) — that
   is the twist — so the eight conceptless damage spells are the spell library,
-  not orphans. Today `hex` and `rend` are one template
-  (3-hop single target, 0.4 power, one status, differing in stack count
-  only) and have no shape yet, so a second-spell fork (#1381, #1397) starts
-  by giving the first one its shape; `dazzle` takes its shape in #1491
+  not orphans. Today `malediction` is a plain template
+  (3-hop single target, 0.4 power, one status) with no shape yet, so a
+  second-spell fork (#1381, #1397) starts by giving the first one its shape; `dazzle` takes its shape in #1491
   (§ Spell faces).
   **A second spell is optional, never a default (owner, 2026-10-03):** one
   closes a gap, never fills a slot. Owner: *"extra spell only needed if gaps
@@ -113,6 +112,8 @@ default:
 defensive option (against just melee) swinging a blade is always just
 swinging it across a mine field"*. An addon's default job is offensive or
 utility; an anti-blade face (pop, deflect, drag) is a deliberate exception.
+(Addons the shop sells carry four roles instead: `docs/design/temp_addon_shop.md`
+§ Role tags.)
 
 **A status should not saturate at 1–2 stacks (owner, 2026-10-06).** *"I
 think generally if a status takes full effect at 1 or 2 stacks already it'd
@@ -262,7 +263,7 @@ Each cell links its cell issue (`<Concept> × <Facet>`, a child of the row hub i
 | Wither | anti-heal | `wither_aspect` | type shipped (#1349); feel and look #1387 | Ashfall #1388 | `girdle` shipped (see "Spell faces") | #1250 | row: #1380. Drives healing received negative: while it does, a negative heal deals damage that does not close the regen gate, so the regen ramp keeps climbing and the node heals itself toward death — temporary, never permanent: as Wither decays the multiplier climbs back through zero, nulling healing, then restoring it (owner, 2026-10-07, moved here from the superseded ADR 0022 d5). Owner, 2026-09-20: *"it ruins your healing to making you effectively undead"*. `spells.md`'s Flood wants this anti-heal (#1389) |
 | Blindness | vision debuff | `blindness_aspect` | type shipped (#1349); feel and look #1390 | Dune #1391 (see "Dune") | `dazzle` shipped, reshaped to climb vision #1491 (see "Spell faces"); `scout_line` shipped (#1490); **Pocket Sand** #1392 | #1250 | row: #1253. Count stacks, effect reads as a % via a saturating curve |
 | Scout (a status whose rows draw vision, #949) | reveal | `scout_aspect` | scouting arrow shipped (stacks: #1345, #1346) | watchtower shipped, map + blade + temp faces (#1393) | `eagle_eye` and `scout_line` shipped (see "Spell faces") | #1250 | row: #1254. `effects/status/scouted.tres` is live: the arrow lands camp-keyed stacks, VisionSystem draws `radius_for` discs from the rows (#1346); first-class concept (owner, 2026-09-30). **Two faces (owner, 2026-10-11):** *"scout arrow and eagle eye and scout line ALL apply scouted stacks on hit (tag); while some (or all, or at least the Scout Line) carriers themselves are a lighting/revealing (\"lantern\") vision source"* — every scouting carrier is a lantern (owner pick), mechanism #1557. Scout and Blindness are two PER rows by the owner's table, not one vision axis. Watchtower's offence stats and production-vs-firing: #1413 |
-| Sunder | armor debuff | `sunder_aspect` | type shipped (#1349); feel and look #1395 | Shredder #1396 | Rend (armor-share strip, armor climb, summit crit; #1719), Hell Gnaw, Fault Line (#1397, § Spell faces) | #1250 | row: #395 (child 0: penetration stat #1401). Flat −1 armor per stack, uncapped, can go below zero (#1203, owner 2026-09-30). School CON (round 7). `sunder_stacks_per_hit` exists (Shredder); has no `_resistance` while the DEX pool rolls a raw `armor` −% bane that bypasses the aspect. Three spells (owner, 2026-10-20, #1397); `spells.md`'s Heavy Bolt is a library spell, not this row's |
+| Sunder | armor debuff | `sunder_aspect` | type shipped (#1349); feel and look #1395 | Shredder #1396 | Rend (shipped #1719: armor-share strip, armor climb, summit crit), Hell Gnaw, Fault Line (#1397, § Spell faces) | #1250 | row: #395 (child 0: penetration stat #1401). Flat −1 armor per stack, uncapped, can go below zero (#1203, owner 2026-09-30). School CON (round 7). `sunder_stacks_per_hit` exists (Shredder); has no `_resistance` while the DEX pool rolls a raw `armor` −% bane that bypasses the aspect. Three spells (owner, 2026-10-20, #1397); `spells.md`'s Heavy Bolt is a library spell, not this row's |
 | Weakness | damage debuff | `weakness_aspect` | type shipped (#1349); look #1427 (Sap?) | Sapling #1428 | #1429 (Enfeeble?) | #1250 | row: #1425 (child 0: the status, #1426, shipped). Stacks cut damage dealt by attacks originating from the node, % on a saturating curve (round 7) |
 | Greed | status magnet | `greed_aspect` | type shipped; look #1422 | Midas Mark #1423 | #1424 | #1250 | row: #1419 (child 0: the landing term, #1420, shipped; Avarice #1421, shipped). One Greed stack on the node doubles every negative status the next hit lands, Greed included, then one stack is spent; its Avarice face pays bonus XP per stack left when an attack removes the node (rounds 5–6) |
 | Explosive | charges (AoE) | `explosive_aspect` | #1398 — goo: the PLANT face, coats a node | #1399 — the barrel: stacking, refills N charges; on a blade the warhead's lives | #1400 — Firecracker, Flamestrike | #1466 — DETONATE by default; the intake row picks PLANT, FUEL or a composition | row: #1211. Built in [`docs/domain/explosive.md`](../domain/explosive.md), open parts in § Explosive (owner, 2026-10-14, #1608): charges are a side-less status; a hit's load is spent as a blast (DETONATE), planted (PLANT) or shapes propagation (FUEL); a blast carries the hit in a euclidean radius; a blade's contact pops blade. The concept names the content, never the reverse (owner, 2026-10-05): *"the concept determines arrows+addons+spells etc."* |
@@ -508,7 +509,7 @@ content a node holds, chokepoints, who has vision on you, the fog.
 | **Pocket Sand** | Blindness | many small | **aimed cone** from the source hitting every hostile node it crosses, fog or not; then up to 2 hops fanning into hostile neighbours. No vision rule | Owner (2026-10-19): *"it's rough, irritating, and gets everywhere. i think cone + 2 hops is good enough. and then no "can see you" or anything. and maybe then even allows for targeting nodes in the dark anyway"* |
 | **Eagle Eye** | Scout | few big | long euclidean reach, one node | One big `scouted` stack, so one big disc (radius ∝ √stacks) |
 | **Flare Line** (name tentative) | Scout | reveal, 1 stack per node | **aimed line hitscan** from the source, passes through everything | Owner: *"a line hitscan. Point it in a direction from the source node and fire. Small width hitscan lights up all along the way, up to some finite distance that scales with spell cast range euclidean"*. Every crossed node, any owner, fog included, gains one `scouted` stack for the caster's camp. Shipped (#1490) |
-| **Rend** (reshaped) | Sunder | few big hits | single target | Strips 25% of the node's armor as Sunder stacks and hits harder the more it strips: the row's "real counter". Owner (2026-10-20): *"Or Rend strips 25% of local armor each hit and gains that much power?"* (#1397) |
+| **Rend** (reshaped, shipped #1719) | Sunder | few big hits | strike within 3 hops, then a 3-hop armor climb forking on ties | Strips 25% of the node's armor as Sunder stacks and hits harder the more it strips: the row's "real counter". Owner (2026-10-20): *"Or Rend strips 25% of local armor each hit and gains that much power?"* (#1397) |
 | **Hell Gnaw** | Sunder + Wither | many small hits | a hell-rat swarm | Each nibble applies Sunder **and** Wither, so later nibbles in one cast land harder as the armor goes. Owner (2026-10-20): *"Swarm of rats nibbling, destroying armor, the low dmg many hits"*; *"Gnawed, withered, yeah that adds up."* (#1397) |
 | **Fault Line** | Sunder | spread utility | along edges into **armored** neighbours only | Copies a share of the struck node's Sunder outward, halving each hop until it runs dry. Owner (2026-10-20): *"Fault Line exposing a faulty armor cracking it along the seams heck yes. And those juicy VFX on top."* (#1397) |
 
@@ -909,11 +910,11 @@ lightning's hops become mechanics that existing rows can use.
   Parked by the owner, not for now: *"magic fires from all eligible owned
   nodes in range of target … a rabbit hole we're not ready for yet"*; and the
   Tesla-relay boost (twist library below).
-- **Hex fills INT's slot; no reshuffle.** Crit has two sides: the attacker's
+- **Hex fills INT's slot; no reshuffle** (*stale: the crit-taken status then named Hex left INT as Mark and moved to DEX, #1710; INT's Hex is now the resistance shred, #1712*). Crit has two sides: the attacker's
   `crit_chance` / `crit_multiplier` are DEX's native stats (the DEX pool rolls
   them; a primary scales its own native stats), never an aspect — as `armor`
   is CON's stat and Sunder the row attacking it. The row is the defender
-  side: a node holding Hex takes crits more often, a per-stack % on the
+  side: a node holding Hex (now Mark) takes crits more often, a per-stack % on the
   saturating curve. Owner floated *"armor break -> INT. explosive -> STR. crit
   -> DEX"* and chose *"Hex into INT, no moves"*. Spread 2/2/2/2/2/2.
 - **ADR 0022 is superseded hard** (owner: *"ADR 22 must be superseded hard,

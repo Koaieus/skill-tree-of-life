@@ -193,7 +193,7 @@ Two things `refresh` does not say:
   unable to load it: `land` tests in the branch's own warmed worktree, the main
   checkout never imported the `.png`/`.svg`, and tests reaching it fail with
   `Parse Error: [ext_resource] referenced non-existent resource`
-  (`assets/icons/aspects/hex.png`, 2026-10-08). Run `mise run refresh` in the
+  (`assets/icons/aspects/mark.png`, 2026-10-08). Run `mise run refresh` in the
   main checkout after landing or pulling such a branch; an older worktree needs
   its own warm.
 

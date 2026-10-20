@@ -5,7 +5,7 @@ extends SkillNodeAddon
 ## Casemate plating. On the defender it is a plate (its `deflection` grant —
 ## see [BladeObstacleField]); on the attacker's blade it is a heavy member: a
 ## bunker vertex weighs [member blade_mass] plain members and recoils off a
-## plate with [member blade_restitution] of its approach speed. Every other
+## deflecting plate (today: a Bunker) with [member blade_restitution] of its approach speed. Every other
 ## contact stays position-based and inelastic. Design: issue #1634.
 
 ## A bunker member's mass in plain members; its `inv_mass` is divided by it.

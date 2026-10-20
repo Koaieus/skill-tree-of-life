@@ -114,6 +114,8 @@ are their own Intake issue.
 - **T3** (2 pts): a signature. Needs T2 here **and** T2 on the sector partner
   (same school). Breadth before depth: three points into Poison alone never
   reach T3.
+- *(Stale: Hex now holds INT beside Curse and Mark moved to DEX; see the
+  `aspect_matrix.md` INT row, "Curse, Hex". The pairing below predates it.)*
 - Ring order: Bleeding, Weakness | Poison, Explosive | Curse, Hex | Wither,
   Sunder | Scout, Blindness | Corruption, Greed | back to Bleeding.
 - **Opposition** (six axes through the centre; no hard lock, which hurts AI

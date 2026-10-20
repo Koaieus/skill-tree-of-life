@@ -79,7 +79,7 @@ The descriptor handed to the sim (`attack/melee/sim/blade_state.gd`; built by
 `BladeState.build(positions, pivot_idx, edges, radii)`, which seeds one
 `BladeDistanceConstraint` per edge at its initial length; callers append more
 constraints). Fields worth knowing: `inv_masses` (0 = static, the pivot and
-frozen corpses), `vertex_damage` (a per-particle damage **coefficient**, not the
+frozen corpses), `vertex_restitution` (per-particle recoil against a deflecting plate; 0 = inelastic), `vertex_damage` (a per-particle damage **coefficient**, not the
 landing amount), `speed_history` (per-particle speed per sample),
 `removed_edges` / `removed_vertices` (recorded sets, never splices), `damping`
 (per-particle, severance only), `obstacles` (the defender field).
@@ -399,6 +399,13 @@ fixed distance into the plate and then **breaks** — never the vertex that touc
 it (ADR 0005), but an edge. `build_defender_zones` + `attach_defender_field` in
 `melee_attack_plan.gd` hang the field off `BladeState.obstacles`, and the resolve
 loop's `consume_break` handling severs.
+
+**A Bunker member on the blade** (`BunkerAddon.apply_to_blade`) weighs
+`blade_mass` plain members (`inv_mass` divided) and recoils off a plate at
+`blade_restitution` × its approach speed along the plate normal, written into
+the Verlet history (`prev`) after the substep's projection
+(`BladeObstacleField.restitute`). Disc contact only; every other contact stays
+position-based and inelastic. Knobs tentative.
 
 ### The metric is the DRIVER's residual
 
