@@ -14,7 +14,7 @@ extends Resource
 ## - [b]Crits[/b] — authored as [member SpellDef.crit_conditions] and OR-ed per
 ##   landing by [method SpellResolver._stamp_crit_conditions]. That slot keeps
 ##   its name: the SLOT is the crit consumer, the predicate is not.
-## - [b]Conditional on-hit effects[/b] — [member ScaleDamageEffect.when]. The
+## - [b]Conditional on-hit effects[/b] — [member OnHitEffect.when]. The
 ##   Trailblazer's junction slam is exactly this: a [JunctionCondition] gating
 ##   a damage scale, where it used to be an `if` inside the old Trail Blazer spread.
 ##
