@@ -11,7 +11,7 @@ extends SpellOnHitEffect
 ## number, which the next hop's mint inherits (it compounds up a walk).
 
 ## The terms whose values add to the damage. Share them with the intake row's
-## [member AspectIntake.stack_terms] when the spell strips by the same amount.
+## [member PlantUse.stack_terms] when the spell strips by the same amount.
 @export var stack_terms: Array[StackTerm] = []
 
 
