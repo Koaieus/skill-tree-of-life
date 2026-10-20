@@ -5,13 +5,14 @@ extends PanelContainer
 ## board (`%Stage`'s discs and edges) the crack spreads over hop by hop on a
 ## fixed beat, each hop landing [code]share[/code] of its predecessor's Sunder
 ## so the crack visibly thins outward, and the weak-point crit
-## (the disc [constant _WEAK_POINT] names) shattering. Sliders tune the crack amount and the visual's own knobs live.
+## (`_WEAK_POINT`, disc `N6`) shattering. Sliders tune the crack amount and the
+## visual's own knobs live.
 
 const _CRACK_SCENE := preload("res://ui/vfx/fault_line/fault_line_crack.tscn")
 const _SUNDER_IDENTITY := preload("res://identity/defs/sunder.tres")
 
 ## The spread, wave by wave: each pair is (origin disc, target disc) under
-## `%Stage`. The weak point is the disc [constant _WEAK_POINT] names.
+## `%Stage`. The weak point is `_WEAK_POINT` (`N6`).
 const _WAVES: Array = [
 	[[&"N0", &"N1"], [&"N0", &"N2"]],
 	[[&"N1", &"N3"], [&"N1", &"N4"], [&"N2", &"N5"]],
