@@ -8,10 +8,11 @@ const BASE_SCRIPT := preload("res://skill_node/addons/skill_node_addon.gd")
 const SPIKE_RING_SCRIPT := preload("res://skill_node/addons/spike_ring_addon.gd")
 
 const _DRAW_ONLY := [
-	"res://skill_node/addons/defs/bunker_addon.tscn",
 	"res://skill_node/addons/defs/watchtower_addon.tscn",
 ]
 const _SPIKE_RING := "res://skill_node/addons/defs/spike_ring_addon.tscn"
+## Behaviour subclass (a heavy, recoiling blade member) that still draws in a child.
+const _BUNKER := "res://skill_node/addons/defs/bunker_addon.tscn"
 
 
 func _instance(path: String) -> SkillNodeAddon:
@@ -42,7 +43,7 @@ func test_spike_ring_keeps_its_subclass_and_draws_in_a_child() -> void:
 
 
 func test_configure_visual_forwards_radius_to_every_visual_child() -> void:
-	for path in _DRAW_ONLY + [_SPIKE_RING]:
+	for path in _DRAW_ONLY + [_SPIKE_RING, _BUNKER]:
 		var addon := _instance(path)
 		addon.configure_visual(41.5)
 		var visuals := _visuals(addon)
@@ -52,7 +53,7 @@ func test_configure_visual_forwards_radius_to_every_visual_child() -> void:
 
 
 func test_entering_a_carrier_seeds_the_visual_radius() -> void:
-	for path in _DRAW_ONLY + [_SPIKE_RING]:
+	for path in _DRAW_ONLY + [_SPIKE_RING, _BUNKER]:
 		var node: SkillNode = SKILL_NODE_SCENE.instantiate()
 		node.base_radius = 47.0
 		add_child_autofree(node)
