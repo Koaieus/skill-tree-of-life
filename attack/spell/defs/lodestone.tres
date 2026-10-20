@@ -1,0 +1,88 @@
+[gd_resource type="Resource" script_class="SpellDef" format=3]
+
+[ext_resource type="Script" path="res://attack/spell/spell_def.gd" id="1_spell"]
+[ext_resource type="Script" path="res://attack/spell/on_hit/on_hit_effect.gd" id="2_effect"]
+[ext_resource type="Script" path="res://attack/spell/aspect_intake.gd" id="3_affinity"]
+[ext_resource type="Script" path="res://attack/spell/on_hit/haul_effect.gd" id="3_haul"]
+[ext_resource type="Script" path="res://attack/spell/propagation/propagation_config.gd" id="4_config"]
+[ext_resource type="Script" path="res://attack/spell/propagation/filter/owner_filter.gd" id="5_filter"]
+[ext_resource type="Script" path="res://attack/targeting/node_targeting.gd" id="6_targeting"]
+[ext_resource type="Script" path="res://attack/range_finder/hop_range_finder.gd" id="7_range"]
+[ext_resource type="Script" path="res://attack/spell/propagation/spread/fan_all_spread.gd" id="8_fan"]
+[ext_resource type="Script" path="res://attack/spell/propagation/payload_extension.gd" id="9_ext"]
+[ext_resource type="Script" path="res://attack/spell/propagation/retract_front.gd" id="10_front"]
+[ext_resource type="Script" path="res://attack/spell/propagation/spread/retract_spread.gd" id="11_retract"]
+[ext_resource type="Script" path="res://attack/spell/propagation/reducer/retract_reducer.gd" id="12_reducer"]
+[ext_resource type="Script" path="res://attack/spell/condition/phase_condition.gd" id="13_phase"]
+[ext_resource type="PackedScene" path="res://ui/vfx/coordinator/spells/lightning_bolt_coordinator.tscn" id="14_vfx"]
+[ext_resource type="Resource" path="res://identity/defs/greed.tres" id="identity_greed"]
+[ext_resource type="Resource" path="res://identity/defs/spell_lodestone.tres" id="identity_ref"]
+
+[sub_resource type="Resource" id="greed_intake"]
+script = ExtResource("3_affinity")
+identity = ExtResource("identity_greed")
+innate = 1
+
+[sub_resource type="Resource" id="when_out"]
+script = ExtResource("13_phase")
+phase = 0
+
+[sub_resource type="Resource" id="when_back"]
+script = ExtResource("13_phase")
+phase = 2
+
+[sub_resource type="Resource" id="haul"]
+script = ExtResource("3_haul")
+when = SubResource("when_back")
+
+[sub_resource type="Resource" id="filter_hostile"]
+script = ExtResource("5_filter")
+ownership_filter = 8
+
+[sub_resource type="Resource" id="spread_fan"]
+script = ExtResource("8_fan")
+
+[sub_resource type="Resource" id="spread_retract"]
+script = ExtResource("11_retract")
+depth = 3
+outbound_spread = SubResource("spread_fan")
+
+[sub_resource type="Resource" id="reducer_retract"]
+script = ExtResource("12_reducer")
+
+[sub_resource type="Resource" id="front"]
+script = ExtResource("10_front")
+
+[sub_resource type="Resource" id="prop_lodestone"]
+script = ExtResource("4_config")
+filter = SubResource("filter_hostile")
+spread = SubResource("spread_retract")
+reducer = SubResource("reducer_retract")
+max_hops = 7.0
+max_visits_per_node = 1
+extensions = Array[ExtResource("9_ext")]([SubResource("front")])
+
+[sub_resource type="Resource" id="range_2hop"]
+script = ExtResource("7_range")
+max_hops = 2
+
+[sub_resource type="Resource" id="targeting_hostile_2hop"]
+script = ExtResource("6_targeting")
+ownership_filter = 8
+range_finder = SubResource("range_2hop")
+
+[resource]
+script = ExtResource("1_spell")
+id = &"lodestone"
+name = "Lodestone"
+tagline = "Tendrils reach out, then drag every debuff home to the target."
+description = "Mark a hostile node within 2 hops. Tendrils fan out through every hostile neighbour for up to 3 rings, planting 1 Greed on each node they reach, then retrace their paths inward. On the way back each node hands its parents everything that landed on it plus up to your Greed load of its own stacks of every debuff, split by how many trails ran through each parent — Greed doubling each haul as it lands. Deals no damage."
+identity = ExtResource("identity_ref")
+min_degree = 4
+power = 0.0
+propagation = SubResource("prop_lodestone")
+on_hit_effects = Array[ExtResource("2_effect")]([SubResource("haul")])
+intakes = Array[ExtResource("3_affinity")]([SubResource("greed_intake")])
+rider_when = SubResource("when_out")
+vfx_coordinator_scene = ExtResource("14_vfx")
+targeting = SubResource("targeting_hostile_2hop")

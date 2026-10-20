@@ -34,6 +34,12 @@ var power: float = 0.0
 ## reconstructs the hit flat so a peer's replay lands it rather than scaling
 ## it a second time (the [member HitInstance.basis] `PERCENT_MAX` precedent).
 var power_resolved: bool = false
+## A raw transfer ([HaulEffect]): [member power] lands as authored — no
+## `stacks_per_hit` fold, no [member stack_terms], no crit, no
+## [member stack_scale] — while the block gate and Greed's ×2 still apply.
+## Resolve-local: the record ships the landed [member power] and a rebuilt hit
+## is [member power_resolved], so a replay never needs it.
+var raw: bool = false
 ## The landing's swing-time overlay lookup ([member HitLanding.read_overlays]),
 ## folded into the stacks read at [method land_on]. Unset for every landing but
 ## a blade contact's. Resolve-local, like [member HitInstance.read_node]: the
