@@ -7,3 +7,4 @@
 script = ExtResource("1_addon")
 identity = ExtResource("identity_ref")
 unique = true
+role = 3

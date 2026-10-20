@@ -11,3 +11,4 @@ description = "Welds this joint rigid — two arms meeting here hold their angle
 unique = true
 temp_placeable = true
 temp_cost_step_blade_size = 1
+role = 3

@@ -40,13 +40,33 @@ func kinds() -> Array[PackedScene]:
 	return _kinds
 
 
-## The [member SkillNodeAddon.temp_placeable] subset of [method kinds], in order.
+## The [member SkillNodeAddon.temp_placeable] subset of [method kinds] in the
+## shop's canonical order — the one owner of it, read by the blade-node fan and
+## the quickbar auto-fill: grouped by [member SkillNodeAddon.role] in enum
+## order, blade-size price ascending within a role, scene path breaking ties.
 func offered() -> Array[PackedScene]:
 	var out: Array[PackedScene] = []
 	for scene in kinds():
 		if SkillNodeAddon.temp_placeable_of(scene):
 			out.append(scene)
+	out.sort_custom(_precedes)
 	return out
+
+
+static func _precedes(a: PackedScene, b: PackedScene) -> bool:
+	var role_a := SkillNodeAddon.role_of(a)
+	var role_b := SkillNodeAddon.role_of(b)
+	if role_a != role_b:
+		return role_a < role_b
+	var price_a := _blade_price(a)
+	var price_b := _blade_price(b)
+	if price_a != price_b:
+		return price_a < price_b
+	return a.resource_path < b.resource_path
+
+
+static func _blade_price(scene: PackedScene) -> int:
+	return SkillNodeAddon.temp_costs_of(scene, 0).get(&"blade_size", 0)
 
 
 ## The kind whose scene path is [param kind] — the very [PackedScene]

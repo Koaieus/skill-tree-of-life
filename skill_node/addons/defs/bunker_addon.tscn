@@ -38,6 +38,7 @@ script = ExtResource("1_83r5f")
 identity = ExtResource("identity_ref")
 local_modifiers = Array[ExtResource("2_efkvd")]([SubResource("Resource_vxeh7"), SubResource("Resource_u38nb"), SubResource("Resource_dflct")])
 description = "Casemate plating — heavy chamfered plates hug this node's rim, blunting every hit that lands on it. A blade cannot pass through it: a floppy one flops around, a rigid one breaks against it."
+role = 2
 
 [node name="Visual" type="Node2D" parent="." unique_id=1796419251]
 script = ExtResource("9_visual")

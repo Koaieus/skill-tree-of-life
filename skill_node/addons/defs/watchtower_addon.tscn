@@ -96,6 +96,7 @@ temp_cost_blade_size = 1
 temp_cost_aspects = Dictionary[StringName, int]({
 &"scout_aspect": 1
 })
+role = 3
 
 [node name="Visual" type="Node2D" parent="." unique_id=744162610]
 script = ExtResource("9_visual")

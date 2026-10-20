@@ -8,6 +8,7 @@
 [node name="SkillDustAddon" type="Node2D"]
 script = ExtResource("1_dust")
 identity = ExtResource("identity_ref")
+role = 3
 
 [node name="InnerDisk" parent="." instance=ExtResource("2_disk")]
 carve_shape = ExtResource("4_gem")

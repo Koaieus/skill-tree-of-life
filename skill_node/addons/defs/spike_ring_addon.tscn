@@ -29,6 +29,7 @@ identity = ExtResource("identity_ref")
 local_modifiers = Array[ExtResource("2_2tu4f")]([SubResource("Resource_arix0"), SubResource("Resource_u38nb")])
 temp_placeable = true
 temp_cost_blade_size = 2
+role = 0
 
 [node name="Visual" type="Node2D" parent="." unique_id=1947363005]
 script = ExtResource("9_visual")

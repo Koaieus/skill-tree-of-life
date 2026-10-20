@@ -28,6 +28,7 @@ entity_modifiers = Array[ExtResource("2_mod")]([SubResource("Resource_gate_aspec
 effects = Array[ExtResource("5_effect")]([SubResource("Resource_gate_self_corrupt")])
 description = "The Abyssal Conduit — a portal held open for power. Its owner gains three corruption arrows, and every turn the conduit grows one corruption on its own node: manage it, or cut the node away."
 unique = true
+role = 0
 
 [node name="Visual" type="Node2D" parent="."]
 script = ExtResource("9_visual")
