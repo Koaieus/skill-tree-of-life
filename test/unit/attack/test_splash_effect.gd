@@ -109,3 +109,40 @@ func test_an_ammo_type_accepts_a_splash_and_a_spell_may_carry_one() -> void:
 	var spell := SpellDef.new()
 	spell.on_hit_effects = [splash] as Array[OnHitEffect]
 	assert_eq(spell.on_hit_effects.size(), 1, "a spell carries one too")
+
+
+## A copy of the blindness flare whose splashed copies land [param scale] of
+## the folded stacks, on an arrow otherwise identical to the shipped one.
+func _scaled_arrow(scale: float) -> AmmoType:
+	var rider := ApplyStatusEffect.new()
+	rider.def = load(_BLINDNESS_DEF_PATH)
+	rider.power = 4.0
+	var splash := (_BLINDNESS_ARROW.on_hit_effects[0] as SplashEffect).duplicate() as SplashEffect
+	splash.inners = [rider] as Array[OnHitEffect]
+	splash.set(&"stack_scale", scale)
+	var ammo := _BLINDNESS_ARROW.duplicate() as AmmoType
+	ammo.on_hit_effects = [splash] as Array[OnHitEffect]
+	return ammo
+
+
+func test_a_scaled_splash_lands_its_share_on_every_splashed_node_and_full_on_the_centre() -> void:
+	var ctx: Dictionary = await _build()
+	var hit := RangedDamageFormula.compute(ctx.attacker, ctx.nodes.leaf, ctx.nodes.target, _scaled_arrow(0.5))
+	var riders := RangedDamageFormula.riders_for(hit)
+	assert_eq(riders.size(), 3, "target + two hostile neighbours")
+	var world := CombatWorld.live()
+	hit.land_on(ctx.nodes.target.get_combat(), world)
+	var centre := -1.0
+	var splashed: Array[float] = []
+	for rider: HitInstance in riders:
+		var status := rider as StatusInstance
+		status.land_on(status.target.get_combat(), world)
+		if status.target == ctx.nodes.target:
+			centre = status.power
+		else:
+			splashed.append(status.power)
+	assert_gt(centre, 1.0, "precondition: the centre folds enough stacks to halve visibly")
+	assert_eq(splashed.size(), 2)
+	for power in splashed:
+		assert_eq(power, StatusDef.round_half_up(centre * 0.5), "a splashed node takes half")
+		assert_ne(power, centre, "no splashed node takes the full amount")
