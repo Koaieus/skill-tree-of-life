@@ -12,7 +12,7 @@ design record: [`docs/design/aspect_matrix.md`](../design/aspect_matrix.md) § E
 - A **hit** is the catch-all: a blade contact, an arrow landing, a spell
   landing (`HitInstance` / `HitLanding` / `OnHitEffect`).
 - A hit's explosive **load** is the explosive it carries: a spell row's
-  DETONATE load, a blade piece's charges. An arrow carries load 0; goo
+  detonate load, a blade piece's charges. An arrow carries load 0; goo
   ammo plants instead (below).
 - A node's **charges** (`present`) are the Explosive status stacks on it.
   A charge is a life: a blade piece's charges are what it spends per contact.
@@ -46,21 +46,21 @@ the concept status's `StatusDef.default_face` (`resolved_use()`,
 concept with no status `PlantUse`. `StatusDef.default_face` is an int enum
 tagging `DetonateUse` because `effects/` may not name `attack/`.
 
-| face | the load | where |
+| use | the load | where |
 |---|---|---|
-| **DETONATE** | spent at the hit as a blast, through the formula below; load 0 still sets off charges present | `Infusion.detonate_load` → `DetonateEffect.arm(riders, load)` in `SpellResolver`; arrows (`RangedDamageFormula.riders_for`, load 0); blade contacts (load = piece charges) |
-| **PLANT** | lands as the status rider at `power = load`; spends nothing, no blast from this hit | `Infusion.riders` (one `ApplyStatusEffect` per PLANT concept); goo ammo `attack/ammo/types/explosive.tres` (an `ApplyStatusEffect` rider, `explosive_stacks_per_hit`) |
-| **FUEL** | no rider; the load only shapes the spell, read from `PropagationContext.load` | Firecracker's `FuelBlastReach` (`attack/spell/propagation/reach/fuel_blast_reach.gd`) |
+| `DetonateUse` | spent at the hit as a blast, through the formula below; load 0 still sets off charges present | `LoadBag.detonate_load` (`DetonateUse.spend`) → `DetonateEffect.arm(riders, load)` in `SpellResolver`; arrows (`RangedDamageFormula.riders_for`, load 0); blade contacts (load = piece charges) |
+| `PlantUse` | lands as the status rider at `power = load`; spends nothing, no blast from this hit | `LoadBag.riders` via `PlantUse.spend` (one `ApplyStatusEffect` per `PlantUse` concept); goo ammo `attack/ammo/types/explosive.tres` (an `ApplyStatusEffect` rider, `explosive_stacks_per_hit`) |
+| `FuelUse` | no rider; the load only shapes the spell, read from `PropagationContext.load` | Firecracker's `FuelBlastReach` (`attack/spell/propagation/reach/fuel_blast_reach.gd`) |
 
-**The PLANT skip.** `DetonateEffect.arm` returns the effects unchanged when
+**The PlantUse skip.** `DetonateEffect.arm` returns the effects unchanged when
 any one lands explosive: a hit that plants never blasts, and a riderless hit
 still detonates. The face is the carrier's author's choice (spell row, ammo
-def, addon), never the player's; a PLANT row's price is its authored
-affinity (house convention: about half a DETONATE row's), no per-face knob.
+def, addon), never the player's; a `PlantUse` row's price is its authored
+affinity (house convention: about half a `DetonateUse` row's), no per-face knob.
 
 ## Spend and power
 
-For a DETONATE hit with `load` on a node holding `present` charges
+For a `DetonateUse` hit with `load` on a node holding `present` charges
 (`attack/spell/on_hit/detonate_effect.gd`):
 
 ```
@@ -173,7 +173,7 @@ All tentative, easy to change.
 No `blast_radius` stat on any board: nothing targets blast size
 (`docs/domain/stat-knobs-and-bins.md` §1).
 
-## Firecracker (FUEL)
+## Firecracker (`FuelUse`)
 
 `attack/spell/defs/firecracker.tres`: each landing is a euclidean blast
 whose hits are the next wave (`FuelBlastReach`, edges play no part); fuel is

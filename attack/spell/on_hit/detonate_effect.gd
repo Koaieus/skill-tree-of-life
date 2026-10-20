@@ -27,7 +27,7 @@ extends OnHitEffect
 var riders: Array[OnHitEffect] = []
 ## The blast's own damage: a share of the triggering landing's raw amount.
 var shrapnel: PairedDamageEffect = null
-## The hit's own explosive load (a spell's DETONATE load); 0 for an arrow, a
+## The hit's own explosive load (a spell's [DetonateUse] load); 0 for an arrow, a
 ## blade and a chained copy — a blast is a zero-load hit on each neighbour.
 var load: int = 0
 ## A chained copy's scope, shared with the landing that set it off; null on
@@ -41,7 +41,7 @@ const SPENT_KEY := &"detonate_spent"
 
 
 ## The arming rule's one owner: [param effects] with a [DetonateEffect] at
-## [param load] prepended — unless any one lands explosive: that is a PLANT
+## [param load] prepended — unless any one lands explosive: that is a [PlantUse]
 ## hit, which never blasts, and they are returned unchanged. A riderless hit
 ## (empty) still detonates.
 static func arm(effects: Array[OnHitEffect], load: int = 0) -> Array[OnHitEffect]:

@@ -172,8 +172,8 @@ static func _resolve(
 	# The cast's intake riders (null = the spell as authored), run after the
 	# spell's own effects at every landing.
 	var cast_infusion := infusion if infusion != null else Infusion.innate(spell)
-	# Behind the arming rule: a landing detonates its DETONATE load with
-	# whatever charges the node holds; a FUEL load never passes.
+	# Behind the arming rule: a landing detonates its [DetonateUse] load with
+	# whatever charges the node holds; a [FuelUse] load never passes.
 	var load_bag := cast_infusion.bag(spell)
 	var riders := DetonateEffect.arm(load_bag.riders, load_bag.detonate_load)
 	# Riders are fresh per cast, so gating them in place is safe.

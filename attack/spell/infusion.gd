@@ -103,7 +103,7 @@ func load_of(spell: SpellDef) -> Dictionary[StringName, int]:
 
 ## The load this cast spends at each hit as a blast: the sum its
 ## [DetonateUse] concepts contribute ([method bag]) — an explosive row left on
-## its status default, today. A FUEL load only shapes the spell, a PLANT load
+## its status default, today. A [FuelUse] load only shapes the spell, a [PlantUse] load
 ## lands as a rider.
 func detonate_load(spell: SpellDef) -> int:
 	return bag(spell).detonate_load

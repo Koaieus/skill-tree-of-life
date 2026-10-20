@@ -193,7 +193,7 @@ count, a node with no counted neighbour is vacuously an extremum; Rend's armor
 summit, Fault Line's weak point), `HopIndexCondition` (`min_hop..max_hop`
 inclusive, `max_hop = 0` = the struck node only; #1721), `PhaseCondition`
 (a `RetractFront` tendril's phase; false without one; #1424), plus
-`ChokepointCondition`, `NoEdgeToSourceCondition` and `StatCondition` (score of a
+`ChokepointCondition`, `NoEdgeToSourceCondition` and `HoldsStatusesCondition` (ALL listed statuses held, spot-wise via `LandingContext.spot_stacks_of`; Absolution's crit), `StatCondition` (score of a
 `NodeRanker` vs a fixed `threshold`, `RankThresholdFilter.Compare`; Hell Gnaw's
 gnawed-through), in
 `attack/spell/condition/`.

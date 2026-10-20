@@ -35,11 +35,12 @@ var template: CleanseEffect = null
 
 ## A fresh per-cast copy of this template: its own empty [member caps], the
 ## template's [member terms] / [member crit_when] by reference (stateless).
+## Its gate is [member SpellDef.rider_when], as every rider's: the resolver sets
+## it on the copy, so the template's own [code]when[/code] is not read.
 func for_cast() -> CleanseEffect:
 	var copy := CleanseEffect.new()
 	copy.terms = terms
 	copy.crit_when = crit_when
-	copy.when = when
 	copy.template = self
 	return copy
 

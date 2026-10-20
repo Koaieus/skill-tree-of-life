@@ -151,6 +151,7 @@ it is its `CureEffect.terms`, a list of `CleanseTerm`s settled on the
 `per_stack` (Purification, Remedy), `PayWorthTerm` appends one TRUE
 `CleansePriceInstance` of Σ worth × `scale` on the node, after the clears and
 never drawing its own crit. An empty list is a free cleanse.
+The load-capped sibling is `CleanseEffect` (`attack/spell/on_hit/`; Absolution): no dose and no drain, its per-status `caps` are the `CleanseUse` loads folded through `stacks_per_hit_at`, and its `crit_when` (`HoldsStatusesCondition`) multiplies the caps by the caster's crit. `terms` live on both `CureEffect` and `CleanseEffect`; `PayWorthTerm` appends a `CleansePriceInstance` (`attack/outcome/`).
 
 | Family | Denomination | Answers | Weak against |
 |---|---|---|---|

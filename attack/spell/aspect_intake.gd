@@ -41,7 +41,7 @@ extends Resource
 		use = value
 		emit_changed()
 
-## [member StatusDef.default_face]'s DETONATE tag; see [method use_for_status].
+## [member StatusDef.default_face]'s detonate tag; see [method use_for_status].
 const _DEFAULT_DETONATE_TAG := 1
 static var _default_detonate: DetonateUse = null
 static var _default_plant: PlantUse = null
