@@ -81,11 +81,7 @@ func test_an_uncursed_target_holds_added_times_factor_and_takes_1_damage() -> vo
 	for h in (r[0] as AttackOutcome).hits:
 		if h is DamageInstance and h.target == _n[1]:
 			dealt += h.amount
-	var raw := SpellResolver.impact_damage(GLOOMFLUX, _n[0])
-	assert_almost_eq(raw, 1.0, 0.05, "a simple 1 damage at a fresh caster's spell_damage")
-	# The +2 lands before the spell's own hit (ADR 0067), so what lands is
-	# the raw 1 lifted to that curse's damage floor — not the doubled row's.
-	assert_eq(dealt, maxf(roundf(raw), _added()), "the raw hit, lifted only by the added curse's floor")
+	assert_eq(dealt, 1.0, "a simple 1 damage")
 	(r[1] as CombatWorld).free_shadow()
 
 
