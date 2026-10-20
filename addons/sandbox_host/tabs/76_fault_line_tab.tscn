@@ -1,0 +1,205 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" path="res://addons/sandbox_host/sandbox_live_tab.tscn" id="1_base"]
+[ext_resource type="Script" path="res://addons/sandbox_host/tabs/76_fault_line_panel.gd" id="2_panel"]
+[ext_resource type="PackedScene" path="res://ui/theme/bloom_viewport.tscn" id="3_vp"]
+
+[node name="FaultLine" instance=ExtResource("1_base")]
+tab_title = "Fault Line"
+tab_id = &"fault_line"
+loader_method = &"noop"
+
+[node name="TitleLabel" parent="Layout/Toolbar" index="0"]
+text = "Fault Line"
+
+[node name="FaultLinePanel" type="PanelContainer" parent="Layout/Split/PanelHost" index="0"]
+layout_mode = 2
+script = ExtResource("2_panel")
+
+[node name="Split" type="HBoxContainer" parent="Layout/Split/PanelHost/FaultLinePanel"]
+layout_mode = 2
+
+[node name="Knobs" type="VBoxContainer" parent="Layout/Split/PanelHost/FaultLinePanel/Split"]
+custom_minimum_size = Vector2(220, 0)
+layout_mode = 2
+
+[node name="SeedLabel" type="Label" parent="Layout/Split/PanelHost/FaultLinePanel/Split/Knobs"]
+layout_mode = 2
+text = "Seed Sunder (hop 0 load)"
+
+[node name="Seed" type="HSlider" parent="Layout/Split/PanelHost/FaultLinePanel/Split/Knobs"]
+unique_name_in_owner = true
+layout_mode = 2
+min_value = 1.0
+max_value = 30.0
+step = 0.5
+value = 7.0
+
+[node name="ShareLabel" type="Label" parent="Layout/Split/PanelHost/FaultLinePanel/Split/Knobs"]
+layout_mode = 2
+text = "Share per hop"
+
+[node name="Share" type="HSlider" parent="Layout/Split/PanelHost/FaultLinePanel/Split/Knobs"]
+unique_name_in_owner = true
+layout_mode = 2
+min_value = 0.1
+max_value = 1.0
+step = 0.05
+value = 0.5
+
+[node name="FullLabel" type="Label" parent="Layout/Split/PanelHost/FaultLinePanel/Split/Knobs"]
+layout_mode = 2
+text = "Full-crack stacks"
+
+[node name="Full" type="HSlider" parent="Layout/Split/PanelHost/FaultLinePanel/Split/Knobs"]
+unique_name_in_owner = true
+layout_mode = 2
+min_value = 1.0
+max_value = 30.0
+step = 0.5
+value = 10.0
+
+[node name="BeatLabel" type="Label" parent="Layout/Split/PanelHost/FaultLinePanel/Split/Knobs"]
+layout_mode = 2
+text = "Beat (s)"
+
+[node name="Beat" type="HSlider" parent="Layout/Split/PanelHost/FaultLinePanel/Split/Knobs"]
+unique_name_in_owner = true
+layout_mode = 2
+min_value = 0.2
+max_value = 1.5
+step = 0.05
+value = 0.5
+
+[node name="ZoomLabel" type="Label" parent="Layout/Split/PanelHost/FaultLinePanel/Split/Knobs"]
+layout_mode = 2
+text = "Zoom"
+
+[node name="Zoom" type="HSlider" parent="Layout/Split/PanelHost/FaultLinePanel/Split/Knobs"]
+unique_name_in_owner = true
+layout_mode = 2
+min_value = 0.25
+max_value = 3.0
+step = 0.05
+value = 1.0
+
+[node name="Crit" type="CheckBox" parent="Layout/Split/PanelHost/FaultLinePanel/Split/Knobs"]
+unique_name_in_owner = true
+layout_mode = 2
+button_pressed = true
+text = "Weak-point crit (last node)"
+
+[node name="Replay" type="Button" parent="Layout/Split/PanelHost/FaultLinePanel/Split/Knobs"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Replay"
+
+[node name="Loop" type="CheckBox" parent="Layout/Split/PanelHost/FaultLinePanel/Split/Knobs"]
+unique_name_in_owner = true
+layout_mode = 2
+button_pressed = true
+text = "Loop"
+
+[node name="Readout" type="Label" parent="Layout/Split/PanelHost/FaultLinePanel/Split/Knobs"]
+unique_name_in_owner = true
+layout_mode = 2
+autowrap_mode = 3
+
+[node name="ViewportContainer" type="SubViewportContainer" parent="Layout/Split/PanelHost/FaultLinePanel/Split"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+stretch = true
+
+[node name="World" parent="Layout/Split/PanelHost/FaultLinePanel/Split/ViewportContainer" instance=ExtResource("3_vp")]
+unique_name_in_owner = true
+handle_input_locally = false
+size = Vector2i(600, 400)
+render_target_update_mode = 4
+
+[node name="Bg" type="ColorRect" parent="Layout/Split/PanelHost/FaultLinePanel/Split/ViewportContainer/World"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+color = Color(0.02, 0.025, 0.035, 1)
+
+[node name="Stage" type="Node2D" parent="Layout/Split/PanelHost/FaultLinePanel/Split/ViewportContainer/World"]
+unique_name_in_owner = true
+
+[node name="EdgeN0N1" type="Line2D" parent="Layout/Split/PanelHost/FaultLinePanel/Split/ViewportContainer/World/Stage"]
+points = PackedVector2Array(-240, 0, -110, -80)
+width = 3.0
+default_color = Color(0.3, 0.33, 0.4, 1)
+
+[node name="EdgeN0N2" type="Line2D" parent="Layout/Split/PanelHost/FaultLinePanel/Split/ViewportContainer/World/Stage"]
+points = PackedVector2Array(-240, 0, -110, 80)
+width = 3.0
+default_color = Color(0.3, 0.33, 0.4, 1)
+
+[node name="EdgeN1N3" type="Line2D" parent="Layout/Split/PanelHost/FaultLinePanel/Split/ViewportContainer/World/Stage"]
+points = PackedVector2Array(-110, -80, 20, -140)
+width = 3.0
+default_color = Color(0.3, 0.33, 0.4, 1)
+
+[node name="EdgeN1N4" type="Line2D" parent="Layout/Split/PanelHost/FaultLinePanel/Split/ViewportContainer/World/Stage"]
+points = PackedVector2Array(-110, -80, 20, -40)
+width = 3.0
+default_color = Color(0.3, 0.33, 0.4, 1)
+
+[node name="EdgeN2N5" type="Line2D" parent="Layout/Split/PanelHost/FaultLinePanel/Split/ViewportContainer/World/Stage"]
+points = PackedVector2Array(-110, 80, 20, 90)
+width = 3.0
+default_color = Color(0.3, 0.33, 0.4, 1)
+
+[node name="EdgeN4N6" type="Line2D" parent="Layout/Split/PanelHost/FaultLinePanel/Split/ViewportContainer/World/Stage"]
+points = PackedVector2Array(20, -40, 150, -90)
+width = 3.0
+default_color = Color(0.3, 0.33, 0.4, 1)
+
+[node name="EdgeN5N7" type="Line2D" parent="Layout/Split/PanelHost/FaultLinePanel/Split/ViewportContainer/World/Stage"]
+points = PackedVector2Array(20, 90, 150, 130)
+width = 3.0
+default_color = Color(0.3, 0.33, 0.4, 1)
+
+[node name="N0" type="Polygon2D" parent="Layout/Split/PanelHost/FaultLinePanel/Split/ViewportContainer/World/Stage"]
+position = Vector2(-240, 0)
+color = Color(0.35, 0.38, 0.45, 1)
+polygon = PackedVector2Array(14.0, 0.0, 12.1, 7.0, 7.0, 12.1, 0.0, 14.0, -7.0, 12.1, -12.1, 7.0, -14.0, 0.0, -12.1, -7.0, -7.0, -12.1, -0.0, -14.0, 7.0, -12.1, 12.1, -7.0)
+
+[node name="N1" type="Polygon2D" parent="Layout/Split/PanelHost/FaultLinePanel/Split/ViewportContainer/World/Stage"]
+position = Vector2(-110, -80)
+color = Color(0.35, 0.38, 0.45, 1)
+polygon = PackedVector2Array(14.0, 0.0, 12.1, 7.0, 7.0, 12.1, 0.0, 14.0, -7.0, 12.1, -12.1, 7.0, -14.0, 0.0, -12.1, -7.0, -7.0, -12.1, -0.0, -14.0, 7.0, -12.1, 12.1, -7.0)
+
+[node name="N2" type="Polygon2D" parent="Layout/Split/PanelHost/FaultLinePanel/Split/ViewportContainer/World/Stage"]
+position = Vector2(-110, 80)
+color = Color(0.35, 0.38, 0.45, 1)
+polygon = PackedVector2Array(14.0, 0.0, 12.1, 7.0, 7.0, 12.1, 0.0, 14.0, -7.0, 12.1, -12.1, 7.0, -14.0, 0.0, -12.1, -7.0, -7.0, -12.1, -0.0, -14.0, 7.0, -12.1, 12.1, -7.0)
+
+[node name="N3" type="Polygon2D" parent="Layout/Split/PanelHost/FaultLinePanel/Split/ViewportContainer/World/Stage"]
+position = Vector2(20, -140)
+color = Color(0.35, 0.38, 0.45, 1)
+polygon = PackedVector2Array(14.0, 0.0, 12.1, 7.0, 7.0, 12.1, 0.0, 14.0, -7.0, 12.1, -12.1, 7.0, -14.0, 0.0, -12.1, -7.0, -7.0, -12.1, -0.0, -14.0, 7.0, -12.1, 12.1, -7.0)
+
+[node name="N4" type="Polygon2D" parent="Layout/Split/PanelHost/FaultLinePanel/Split/ViewportContainer/World/Stage"]
+position = Vector2(20, -40)
+color = Color(0.35, 0.38, 0.45, 1)
+polygon = PackedVector2Array(14.0, 0.0, 12.1, 7.0, 7.0, 12.1, 0.0, 14.0, -7.0, 12.1, -12.1, 7.0, -14.0, 0.0, -12.1, -7.0, -7.0, -12.1, -0.0, -14.0, 7.0, -12.1, 12.1, -7.0)
+
+[node name="N5" type="Polygon2D" parent="Layout/Split/PanelHost/FaultLinePanel/Split/ViewportContainer/World/Stage"]
+position = Vector2(20, 90)
+color = Color(0.35, 0.38, 0.45, 1)
+polygon = PackedVector2Array(14.0, 0.0, 12.1, 7.0, 7.0, 12.1, 0.0, 14.0, -7.0, 12.1, -12.1, 7.0, -14.0, 0.0, -12.1, -7.0, -7.0, -12.1, -0.0, -14.0, 7.0, -12.1, 12.1, -7.0)
+
+[node name="N6" type="Polygon2D" parent="Layout/Split/PanelHost/FaultLinePanel/Split/ViewportContainer/World/Stage"]
+position = Vector2(150, -90)
+color = Color(0.35, 0.38, 0.45, 1)
+polygon = PackedVector2Array(14.0, 0.0, 12.1, 7.0, 7.0, 12.1, 0.0, 14.0, -7.0, 12.1, -12.1, 7.0, -14.0, 0.0, -12.1, -7.0, -7.0, -12.1, -0.0, -14.0, 7.0, -12.1, 12.1, -7.0)
+
+[node name="N7" type="Polygon2D" parent="Layout/Split/PanelHost/FaultLinePanel/Split/ViewportContainer/World/Stage"]
+position = Vector2(150, 130)
+color = Color(0.35, 0.38, 0.45, 1)
+polygon = PackedVector2Array(14.0, 0.0, 12.1, 7.0, 7.0, 12.1, 0.0, 14.0, -7.0, 12.1, -12.1, 7.0, -14.0, 0.0, -12.1, -7.0, -7.0, -12.1, -0.0, -14.0, 7.0, -12.1, 12.1, -7.0)

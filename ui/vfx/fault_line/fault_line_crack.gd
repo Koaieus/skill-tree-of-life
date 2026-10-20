@@ -49,11 +49,11 @@ const EDGE_MATERIAL: ShaderMaterial = preload("res://graph/edge_mesh_material.tr
 
 ## Width factor (times the shared material's stroke) at zero and at full
 ## stacks. Tentative, easy to change.
-@export_range(0.05, 4.0, 0.05) var min_width: float = 0.35:
+@export_range(0.05, 4.0, 0.05) var min_width: float = 0.5:
 	set(value):
 		min_width = value
 		_refresh_crack()
-@export_range(0.05, 4.0, 0.05) var max_width: float = 1.4:
+@export_range(0.05, 4.0, 0.05) var max_width: float = 1.6:
 	set(value):
 		max_width = value
 		_refresh_crack()

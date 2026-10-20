@@ -18,16 +18,16 @@ render_mode blend_add;
 uniform float edge_width : hint_range(0.0, 32.0) = 4.0;
 // Quad half-height over the edge's half-width at width factor 1: room for the
 // jag to wander without leaving the quad.
-uniform float width_scale : hint_range(0.5, 8.0) = 3.0;
+uniform float width_scale : hint_range(0.5, 16.0) = 8.0;
 global uniform float edge_camera_zoom;
 // Jag amplitude as a fraction of the quad's half-height.
 uniform float jag_amplitude : hint_range(0.0, 0.9) = 0.45;
 // World pixels per jag segment (the coarse octave; a finer one rides at /3).
 uniform float jag_period_px : hint_range(2.0, 200.0) = 26.0;
 // Half-thickness of the hot seam, as a fraction of the quad's half-height.
-uniform float seam_half : hint_range(0.01, 0.5) = 0.11;
+uniform float seam_half : hint_range(0.01, 0.5) = 0.14;
 // Brightness of the glow bleeding out of the seam, relative to the seam.
-uniform float halo_level : hint_range(0.0, 1.0) = 0.35;
+uniform float halo_level : hint_range(0.0, 1.0) = 0.45;
 // Hairline side fissures branching off the seam: how much of the length grows
 // one (0 = none, 1 = everywhere).
 uniform float branch_density : hint_range(0.0, 1.0) = 0.35;
