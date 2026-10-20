@@ -32,6 +32,11 @@ func _lctx(current: SkillNode, payload: CastSpell, graph: Graph) -> LandingConte
 	return LandingContext.for_test(payload, current, _ctx(graph))
 
 
+## Mint against the landing [param payload] just made, as the resolver does.
+func _mint(config: PropagationConfig, payload: CastSpell, pick: PropagationPick) -> CastSpell:
+	return config.mint(payload, pick, LandingContext.for_test(payload, payload.current_node))
+
+
 func _payload(current: SkillNode, damage: float, seed_damage: float = -1.0) -> CastSpell:
 	var p := CastSpell.new()
 	p.seed_node = current
@@ -53,7 +58,7 @@ func test_mint_applies_progression_then_share() -> void:
 	var graph := h.make_graph([[0, 1]], self)
 	var nodes := graph.get_skill_nodes()
 	var config := h.make_config(h.fan_all(), null, null, {hop_damage = h.flat_add_progression(2.0)})
-	var child := config.mint(_payload(nodes[0], 10.0), PropagationPick.to(nodes[1], 0.5))
+	var child := _mint(config, _payload(nodes[0], 10.0), PropagationPick.to(nodes[1], 0.5))
 	assert_almost_eq(child.damage, (10.0 + 2.0) * 0.5, 0.0001,
 			"progression first (10 + 2), THEN the pick's share (× 0.5)")
 	assert_almost_eq(child.arrival_share, 0.5, 0.0001, "arrival_share IS the pick's share")
@@ -63,7 +68,7 @@ func test_mint_without_progression_carries_damage_times_share() -> void:
 	var graph := h.make_graph([[0, 1]], self)
 	var nodes := graph.get_skill_nodes()
 	var config := h.make_config(h.fan_all(), null, null)
-	var child := config.mint(_payload(nodes[0], 7.0), PropagationPick.to(nodes[1]))
+	var child := _mint(config, _payload(nodes[0], 7.0), PropagationPick.to(nodes[1]))
 	assert_almost_eq(child.damage, 7.0, 0.0001, "null progression is identity, share 1.0 is identity")
 
 
@@ -72,7 +77,7 @@ func test_mint_advances_hop_counters_and_identity_fields() -> void:
 	var nodes := graph.get_skill_nodes()
 	var config := h.make_config(h.fan_all(), null, null)
 	var parent := _payload(nodes[0], 3.0, 9.0)
-	var child := config.mint(parent, PropagationPick.to(nodes[1]))
+	var child := _mint(config, parent, PropagationPick.to(nodes[1]))
 	assert_eq(child.hops_remaining, 3, "hops_remaining - 1")
 	assert_eq(child.hop_index, 3, "hop_index + 1")
 	assert_eq(child.current_node, nodes[1])
@@ -88,7 +93,7 @@ func test_mint_appends_destination_to_a_copied_lineage() -> void:
 	var nodes := graph.get_skill_nodes()
 	var config := h.make_config(h.fan_all(), null, null)
 	var parent := _payload(nodes[0], 3.0)
-	var child := config.mint(parent, PropagationPick.to(nodes[1]))
+	var child := _mint(config, parent, PropagationPick.to(nodes[1]))
 	assert_eq(child.visited, [nodes[0], nodes[1]] as Array[SkillNode], "parent trail + destination")
 	assert_eq(parent.visited.size(), 1, "the parent's own trail is untouched (copied, not aliased)")
 
@@ -99,7 +104,7 @@ func test_mint_lineage_override_replaces_the_trail() -> void:
 	var config := h.make_config(h.fan_all(), null, null)
 	var pick := PropagationPick.to(nodes[0])
 	pick.lineage_override = [nodes[1], nodes[2], nodes[0]] as Array[SkillNode]
-	var child := config.mint(_payload(nodes[2], 3.0), pick)
+	var child := _mint(config, _payload(nodes[2], 3.0), pick)
 	assert_eq(child.visited, pick.lineage_override, "a closing pick hands the ring over as the whole trail")
 
 
@@ -112,7 +117,7 @@ func test_mint_copies_pick_stamps_verbatim() -> void:
 	pick.turn_sign = -1.0
 	pick.closed_cycle = true
 	pick.came_from = [nodes[0]] as Array[SkillNode]
-	var child := config.mint(_payload(nodes[0], 3.0), pick)
+	var child := _mint(config, _payload(nodes[0], 3.0), pick)
 	assert_eq(child.arrival_bearing, Vector2(0.6, 0.8))
 	assert_almost_eq(child.turn_sign, -1.0, 0.0001)
 	assert_true(child.closed_cycle)
@@ -123,7 +128,7 @@ func test_mint_defaults_leave_non_curl_children_unstamped() -> void:
 	var graph := h.make_graph([[0, 1]], self)
 	var nodes := graph.get_skill_nodes()
 	var config := h.make_config(h.fan_all(), null, null)
-	var child := config.mint(_payload(nodes[0], 3.0), PropagationPick.to(nodes[1]))
+	var child := _mint(config, _payload(nodes[0], 3.0), PropagationPick.to(nodes[1]))
 	assert_eq(child.arrival_bearing, Vector2.ZERO)
 	assert_almost_eq(child.turn_sign, 0.0, 0.0001)
 	assert_false(child.closed_cycle)
@@ -204,6 +209,6 @@ func test_cyclone_select_closing_hop_folds_closing_gain_into_share_and_hands_ove
 	assert_eq(pick.lineage_override, CycloneSpread.closed_ring(payload.visited, 0),
 			"the ring the hop just walked, ending at the landed node")
 	# And the mint honours it: the child's trail IS the ring, damage IS the split.
-	var child := (_CYCLONE.propagation as PropagationConfig).mint(payload, pick)
+	var child := _mint(_CYCLONE.propagation, payload, pick)
 	assert_eq(child.visited, pick.lineage_override)
 	assert_almost_eq(child.arrival_share, pick.share, 0.0001)

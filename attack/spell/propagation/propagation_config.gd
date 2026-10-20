@@ -67,40 +67,33 @@ extends Resource
 
 
 ## Build the child [CastSpell] for one [PropagationPick] — the hop IS a
-## re-cast, and this is the only constructor of one. Damage is shaped by
-## [member hop_damage] (a [HopDamageProgression] — null is identity, damage
-## carried verbatim) and THEN multiplied by [member PropagationPick.share], so
-## an authored ramp composes with a spread's split; hops_remaining decrements;
-## hop_index advances; the lineage gains the destination (or is replaced by the
-## pick's [member PropagationPick.lineage_override]). [member CastSpell.seed_damage]
-## is copied verbatim so a seed-relative progression sees the cast's original
-## magnitude. Every other pick field is copied onto the child as-is: the spread
-## decided it, the mint does not reinterpret it.
-func mint(payload: CastSpell, pick: PropagationPick) -> CastSpell:
-	var next := CastSpell.new()
-	next.seed_node = payload.seed_node
+## re-cast. The child is [method CastSpell.derived] from [param payload], then
+## advanced: damage is shaped by [member hop_damage] (null is identity) and
+## THEN multiplied by [member PropagationPick.share], so an authored ramp
+## composes with a spread's split; hops_remaining decrements; hop_index
+## advances; the lineage gains the destination (or is replaced by the pick's
+## [member PropagationPick.lineage_override]). Every other pick field is copied
+## onto the child as-is: the spread decided it, the mint does not reinterpret it.
+##
+## [param lctx] is the landing [param payload] just made — this wave has
+## LANDED, so a world read through it sees this wave's stacks and damage.
+func mint(payload: CastSpell, pick: PropagationPick, _lctx: LandingContext = null) -> CastSpell:
+	var next := CastSpell.derived(payload)
 	next.current_node = pick.node
 	next.predecessor = payload.current_node
-	next.source = payload.source
-	next.seed_damage = payload.seed_damage
 	var progressed := payload.damage
 	if hop_damage != null:
 		progressed = hop_damage.apply(payload.damage, payload.seed_damage, payload.hop_index)
 	next.damage = progressed * pick.share
-	next.stack_weight = payload.stack_weight
 	if hop_stacks != null:
 		next.stack_weight = hop_stacks.apply(payload.stack_weight, 1.0, payload.hop_index)
 	next.stack_weight *= pick.stack_share
 	next.hops_remaining = 0.0 if pick.terminal else payload.hops_remaining - 1
 	next.hop_index = payload.hop_index + 1
 	if pick.lineage_override.is_empty():
-		next.visited = payload.visited.duplicate()
 		next.visited.append(pick.node)
 	else:
 		next.visited = pick.lineage_override
-	next.caster = payload.caster
-	next.graph = payload.graph
-	next.rng = payload.rng
 	# The pick's stamps, verbatim.
 	next.arrival_share = pick.share
 	next.arrival_bearing = pick.arrival_bearing

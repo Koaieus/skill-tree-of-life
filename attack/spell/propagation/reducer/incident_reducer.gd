@@ -86,41 +86,22 @@ func fold_description() -> String:
 	return ""
 
 
-## Build a resolved payload that carries the merged metadata (max hops_left,
-## union of visited, any-non-null caster/source/rng). Subclasses call this
-## then set the resolved damage themselves. [param node] is dropped as a
-## parameter (#356) — the resolver groups incidents by [code]current_node[/code],
-## so it was always [code]incidents[0].current_node[/code].
+## Build a resolved payload carrying the merged metadata: [method CastSpell.derived]
+## of the first incident, then MAX hops_remaining, the union of visited and MAX
+## stack_weight. Subclasses call this then set the resolved damage themselves.
 static func _merge_payload_defaults(incidents: Array[CastSpell]) -> CastSpell:
-	var merged := CastSpell.new()
-	merged.current_node = incidents[0].current_node
-	merged.seed_node = incidents[0].seed_node
-	# Immutable across the whole cast, like seed_node — a merged payload that
-	# lost it would hand ScaledAddProgression a seed of 0 past a convergence.
-	merged.seed_damage = incidents[0].seed_damage
-	merged.source = incidents[0].source
-	merged.caster = incidents[0].caster
-	merged.graph = incidents[0].graph
-	merged.rng = incidents[0].rng
-	merged.hop_index = incidents[0].hop_index
-	# Handedness is constant for a whole cast (Curl ranks in one fixed direction
-	# at every node), so first-wins here is exact rather than a choice.
+	# Everything universal — seed, source, caster, graph, rng, seed_damage,
+	# hop_index, turn_sign, came_from, closed_cycle, arrival_bearing — is the
+	# first incident's (CastSpell.derived); a convergence groups by node, so
+	# current_node is shared. `arrival_share` is deliberately NOT carried: it
+	# describes ONE arc's mint, and SpellResolver reads the per-arc values
+	# straight off `incidents` beside `predecessors`.
 	#
-	# `arrival_share` is deliberately NOT merged: it describes ONE arc's mint,
-	# and once the fronts have summed there is no such thing as the merged
-	# payload's share. The per-arc values are read straight off `incidents` by
-	# SpellResolver, in the same pass that captures `predecessors`, so the two
-	# arrays cannot drift out of alignment (#704).
-	merged.turn_sign = incidents[0].turn_sign
-	# Inbound predecessor: this merged payload keeps only the CHOSEN one — the
-	# canonical "the projectile has to fly from somewhere" reader (VFX origin,
-	# and anything downstream that wants "the" predecessor rather than the
-	# full converging set). Picking first here does NOT lose the rest of the
-	# set: SpellResolver captures every incident's predecessor straight off
-	# `incidents` at the grouping pass, before this reducer ever runs, and
-	# stamps the full array onto the emitted PropagationEvent's
-	# `predecessors` (#542). This field only ever needed to pick one.
-	merged.predecessor = incidents[0].predecessor
+	# Inbound predecessor: this merged payload keeps only the FIRST one — the
+	# canonical "the projectile has to fly from somewhere" reader. The full
+	# converging set is captured by SpellResolver off `incidents` before this
+	# reducer runs and stamped onto the emitted PropagationEvent.
+	var merged := CastSpell.derived(incidents[0])
 	# hops_remaining: take MAX — gives the merged incident the most generous
 	# remaining budget across its inputs.
 	var hops_max: float = incidents[0].hops_remaining

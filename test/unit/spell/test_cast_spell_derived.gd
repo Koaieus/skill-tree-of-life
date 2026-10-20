@@ -38,3 +38,34 @@ func test_a_sum_merge_keeps_came_from_and_closed_cycle() -> void:
 	assert_almost_eq(merged.damage, 7.0, 0.0001, "the reducer still owns damage")
 	assert_true(merged.came_from.has(n[0]), "came_from survives the merge")
 	assert_true(merged.closed_cycle, "closed_cycle survives the merge")
+
+
+func test_derived_leaves_the_deliberate_non_copies_at_their_defaults() -> void:
+	var graph := h.make_graph([[0, 1]], self)
+	var n := graph.get_skill_nodes()
+	var parent := _incident(n[1], n[0], 5.0)
+	parent.arrival_share = 0.25
+	parent.incident_count = 3
+	parent.arrived_from = [n[0]] as Array[SkillNode]
+
+	var child := CastSpell.derived(parent)
+
+	assert_eq(child.damage, 0.0, "damage is the reducer's / the mint's")
+	assert_eq(child.arrival_share, 1.0, "arrival_share is one arc's telemetry")
+	assert_eq(child.incident_count, 1, "incident_count is a resolver fact")
+	assert_true(child.arrived_from.is_empty(), "arrived_from is a resolver fact")
+	assert_eq(child.seed_node, parent.seed_node)
+	assert_eq(child.hop_index, parent.hop_index)
+
+
+func test_derived_never_shares_its_parents_arrays() -> void:
+	var graph := h.make_graph([[0, 1]], self)
+	var n := graph.get_skill_nodes()
+	var parent := _incident(n[1], n[0], 5.0)
+
+	var child := CastSpell.derived(parent)
+	child.visited.append(n[0])
+	child.came_from.append(n[1])
+
+	assert_eq(parent.visited.size(), 2, "the parent's trail is untouched")
+	assert_eq(parent.came_from.size(), 1, "the parent's came_from is untouched")

@@ -206,7 +206,7 @@ static func _resolve(
 		if node == null or seeded.has(node):
 			continue
 		seeded[node] = true
-		var seed_state := CastSpell.new()
+		var seed_state := CastSpell.blank()
 		seed_state.seed_node = node
 		seed_state.current_node = node
 		seed_state.predecessor = null
@@ -443,7 +443,7 @@ static func _resolve(
 			if picks.is_empty():
 				_mark_terminal(event_of, state)
 			for pick in picks:
-				next_wave.append(config.mint(state, pick))
+				next_wave.append(config.mint(state, pick, lctx))
 		ctx.wave_index += 1
 		wave = next_wave
 

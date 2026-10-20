@@ -142,3 +142,46 @@ var came_from: Array[SkillNode] = []
 ## read-only predicate. The trail cannot be re-derived at landing time, because
 ## a closing mint RESETS [member visited] to just the landed node.
 var closed_cycle: bool = false
+
+
+## The seed's blank payload — the one constructor besides [method derived]. The
+## resolver stamps one per seed node and fills in the cast's facts.
+static func blank() -> CastSpell:
+	return CastSpell.new()
+
+
+## The one copy routine: a fresh payload carrying [param parent]'s universal and
+## walk-bookkeeping fields, and nothing else. Each caller then applies only its
+## deltas — [method PropagationConfig.mint] advances the walk and stamps the
+## pick, [method IncidentReducer._merge_payload_defaults] folds the incidents.
+## Arrays are duplicated, never shared with the parent.
+##
+## Deliberate non-copies, left at their defaults:
+## [member damage] is the reducer's (or the mint's progression) to set;
+## [member arrival_share] is per-arrival telemetry of ONE arc's mint;
+## [member incident_count] and [member arrived_from] are resolver facts stamped
+## at the grouping pass.
+##
+## [member came_from], [member closed_cycle] and [member arrival_bearing] ARE
+## copied, so a stock reducer's merge keeps its first incident's. Only
+## [CycloneSpread] stamps them and [CycloneReducer] re-stamps all three on its
+## merge, so no other spell's walk reads a changed value.
+static func derived(parent: CastSpell) -> CastSpell:
+	var next := CastSpell.new()
+	next.seed_node = parent.seed_node
+	next.current_node = parent.current_node
+	next.predecessor = parent.predecessor
+	next.source = parent.source
+	next.caster = parent.caster
+	next.graph = parent.graph
+	next.rng = parent.rng
+	next.seed_damage = parent.seed_damage
+	next.hops_remaining = parent.hops_remaining
+	next.hop_index = parent.hop_index
+	next.visited = parent.visited.duplicate()
+	next.stack_weight = parent.stack_weight
+	next.arrival_bearing = parent.arrival_bearing
+	next.turn_sign = parent.turn_sign
+	next.came_from = parent.came_from.duplicate()
+	next.closed_cycle = parent.closed_cycle
+	return next
