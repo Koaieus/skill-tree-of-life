@@ -3,7 +3,8 @@
 [ext_resource type="Script" path="res://attack/spell/spell_def.gd" id="1_spell"]
 [ext_resource type="Script" path="res://attack/spell/on_hit/on_hit_effect.gd" id="2_effect"]
 [ext_resource type="Script" path="res://attack/spell/on_hit/damage_effect.gd" id="3_dmg"]
-[ext_resource type="Script" path="res://attack/spell/spell_affinity.gd" id="4_affinity"]
+[ext_resource type="Script" path="res://attack/spell/aspect_intake.gd" id="4_affinity"]
+[ext_resource type="Resource" path="res://identity/defs/curse.tres" id="identity_curse"]
 [ext_resource type="Script" path="res://attack/spell/on_hit/multiply_row_effect.gd" id="5_multiply"]
 [ext_resource type="Script" path="res://attack/spell/on_hit/flux_effect.gd" id="6_flux"]
 [ext_resource type="Resource" path="res://effects/status/curse.tres" id="7_curse"]
@@ -19,7 +20,7 @@ script = ExtResource("3_dmg")
 
 [sub_resource type="Resource" id="curse_gloomflux"]
 script = ExtResource("4_affinity")
-status = ExtResource("7_curse")
+identity = ExtResource("identity_curse")
 innate = 2
 
 [sub_resource type="Resource" id="double_curse"]
@@ -55,7 +56,7 @@ description = "Deal a sliver of damage (1 at a fresh caster's spell damage) to a
 identity = ExtResource("identity_ref")
 power = 0.25
 propagation = SubResource("prop_gloomflux")
-affinities = Array[ExtResource("4_affinity")]([SubResource("curse_gloomflux")])
+intakes = Array[ExtResource("4_affinity")]([SubResource("curse_gloomflux")])
 on_hit_effects = Array[ExtResource("2_effect")]([SubResource("dmg_gloomflux"), SubResource("double_curse"), SubResource("flux_curse")])
 vfx_coordinator_scene = ExtResource("12_vfx")
 targeting = SubResource("targeting_hostile_3hop")

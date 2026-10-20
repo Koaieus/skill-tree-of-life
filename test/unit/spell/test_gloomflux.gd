@@ -37,7 +37,7 @@ func _effect(script: Script) -> OnHitEffect:
 
 
 func _added() -> float:
-	return float(GLOOMFLUX.affinities[0].innate)
+	return float(GLOOMFLUX.intakes[0].innate)
 
 
 func _factor() -> float:
