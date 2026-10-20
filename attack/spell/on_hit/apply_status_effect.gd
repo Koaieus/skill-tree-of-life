@@ -19,6 +19,10 @@ extends OnHitEffect
 
 @export var def: StatusDef = null
 @export var power: float = 1.0
+## The id of a [CarriedScalar] on the landing's payload whose value replaces
+## [member power] at a spell landing; empty = [member power]. Off a spell
+## landing, or with no such extension on the payload, [member power] stands.
+@export var power_from: StringName = &""
 ## Extra stacks evaluated when the status lands ([StackTerm]), summed after the
 ## `stacks_per_hit` fold and before crit.
 @export var stack_terms: Array[StackTerm] = []

@@ -21,8 +21,17 @@ enum Compare {
 	GREATER_OR_EQUAL, ## candidate ≥ current (Reverberator — uphill or plateau)
 }
 
+## What the candidate's score is compared against.
+enum Against {
+	CURRENT,  ## the current node's score on the same ranker
+	ABSOLUTE, ## the fixed [member threshold]
+}
+
 @export var ranker: NodeRanker = null
 @export var compare: Compare = Compare.LESS
+@export var against: Against = Against.CURRENT
+## The bar in [constant Against.ABSOLUTE] mode; unread otherwise.
+@export var threshold: float = 0.0
 
 
 ## NOTE on [constant LESS] / [constant GREATER] with [DegreeRanker]: a strict

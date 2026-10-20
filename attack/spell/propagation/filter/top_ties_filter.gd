@@ -15,6 +15,9 @@ enum Direction { HIGHEST, LOWEST }
 
 @export var ranker: NodeRanker = null
 @export var direction: Direction = Direction.HIGHEST
+## How many distinct score places survive, dense-ranked: 2 keeps every
+## candidate tied at first OR second place, dropping third and below.
+@export_range(1, 5, 1, "or_greater") var places: int = 1
 
 
 ## DERIVED from [method narrow], not asserted: a set of one trivially ties for

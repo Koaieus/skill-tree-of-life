@@ -152,6 +152,73 @@ func test_top_ties_allows_is_derived_from_narrow_not_asserted() -> void:
 			"no ranker → narrow returns empty → allows is false, by derivation")
 
 
+# ── RankThresholdFilter ABSOLUTE / TopTiesFilter places ──────────────────
+
+
+## Scores read off a node-index table; unlisted nodes score 0.
+class _Fixed:
+	extends NodeRanker
+	var by_index: Dictionary = {}
+	var nodes: Array[SkillNode] = []
+
+	func score(node: SkillNode, _lctx: LandingContext) -> float:
+		return float(by_index.get(nodes.find(node), 0.0))
+
+
+func _fixed(by_index: Dictionary) -> _Fixed:
+	var r := _Fixed.new()
+	r.by_index = by_index
+	r.nodes = _n()
+	return r
+
+
+func _all_leaves() -> Array[SkillNode]:
+	var n := _n()
+	return [n[1], n[2], n[3], n[4]] as Array[SkillNode]
+
+
+func test_rank_threshold_absolute_compares_against_the_threshold_not_the_current() -> void:
+	# The current node outscores every candidate, so a CURRENT compare would
+	# keep none; ABSOLUTE > 0 keeps exactly the positive ones.
+	var f := _helper.rank_threshold_filter(RankThresholdFilter.Compare.GREATER,
+			_fixed({0: 100.0, 1: 3.0, 2: 0.0, 3: -1.0, 4: 0.5}))
+	f.against = RankThresholdFilter.Against.ABSOLUTE
+	f.threshold = 0.0
+	assert_eq(_names(f.narrow(_all_leaves(), _lctx(_n()[0]))),
+			["N1", "N4"] as Array[String], "above the bar kept; at or below it dropped")
+
+
+func test_rank_threshold_absolute_needs_no_current_node() -> void:
+	var f := _helper.rank_threshold_filter(RankThresholdFilter.Compare.GREATER_OR_EQUAL,
+			_fixed({1: 2.0}))
+	f.against = RankThresholdFilter.Against.ABSOLUTE
+	f.threshold = 2.0
+	assert_true(f.allows(_n()[1], _lctx(null)), "a tie with the bar passes ≥, no current read")
+	assert_false(f.allows(_n()[2], _lctx(null)), "below the bar")
+
+
+func test_top_ties_two_places_keeps_every_tie_at_first_and_second_dense() -> void:
+	# Scores 5, 3, 5, 1: places are {5, 3, 1} dense — two places keep the
+	# two fives AND the three, and drop the one.
+	var f := _helper.top_ties_filter(TopTiesFilter.Direction.HIGHEST, _fixed({1: 5.0, 2: 3.0, 3: 5.0, 4: 1.0}))
+	f.places = 2
+	assert_eq(_names(f.narrow(_all_leaves(), _lctx(_n()[0]))),
+			["N1", "N2", "N3"] as Array[String], "places 1|2 kept in candidate order, place 3 dropped")
+
+
+func test_top_ties_two_places_lowest_mirrors() -> void:
+	var f := _helper.top_ties_filter(TopTiesFilter.Direction.LOWEST, _fixed({1: 5.0, 2: 3.0, 3: 5.0, 4: 1.0}))
+	f.places = 2
+	assert_eq(_names(f.narrow(_all_leaves(), _lctx(_n()[0]))),
+			["N2", "N4"] as Array[String])
+
+
+func test_top_ties_places_beyond_the_distinct_scores_keeps_all() -> void:
+	var f := _helper.top_ties_filter(TopTiesFilter.Direction.HIGHEST, _fixed({1: 5.0, 2: 5.0, 3: 1.0, 4: 1.0}))
+	f.places = 3
+	assert_eq(f.narrow(_all_leaves(), _lctx(_n()[0])).size(), 4, "two distinct places, all kept")
+
+
 # ── CompositeFilter.narrow ─────────────────────────────────────────────────
 
 
