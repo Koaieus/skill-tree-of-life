@@ -5,8 +5,8 @@ extends PropagationSpread
 ## Splits a cleanse's leftover dose over the already-filtered children, BY
 ## NEED: the whole-number leftover ([code]floor(payload.damage)[/code], the
 ## dose the landing's [CureEffect] wrote back in place) is apportioned by
-## [method Apportion.largest_remainder], weighted by [method Cure.need_of], and each pick
-## carries [code]share = alloc / leftover[/code] — so the shares × leftover
+## [method Apportion.largest_remainder], weighted by [method Cure.need_of],
+## and each pick carries [code]share = alloc / leftover[/code] — so the shares × leftover
 ## sum to the leftover exactly. Ties in the remainder go to the earlier
 ## eligible node (deterministic across peers); picks come out in eligible
 ## order. A zero-need child, or one whose allocation rounds to 0, gets no

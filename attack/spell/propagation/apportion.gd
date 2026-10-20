@@ -4,6 +4,8 @@ extends RefCounted
 ## Splits a whole-number total over weighted slots, conserving it exactly —
 ## the house rounding rule for any spread that divides stacks or dose.
 
+const _EPS := 1e-6
+
 
 ## Largest-remainder split of [param total] over [param weights] (ints or
 ## floats). Each slot first gets the floor of its quota
@@ -41,5 +43,3 @@ static func largest_remainder(total: int, weights: Array) -> Array[int]:
 		alloc[order[k]] += 1
 	return alloc
 
-
-const _EPS := 1e-6
