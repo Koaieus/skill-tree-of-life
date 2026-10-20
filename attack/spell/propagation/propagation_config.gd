@@ -53,7 +53,9 @@ extends Resource
 ## value at a landing is how many times that landing hits — each repeat its own
 ## payload copy, [member HitLanding.hit_key] and crit, landing in order, so a
 ## later repeat sees what an earlier one did to the node. Empty = one landing.
-## A count of 0 lands nothing; the walk still ends there per the scalar.
+## A count of 0 lands nothing — author the scalar's [member CarriedScalar.min_value]
+## so that hop is terminal. Departure reads the unrepeated landing, so an
+## in-place [ScaleDamageEffect] scales each repeat but never the next hop.
 @export var repeat_landings_by: StringName = &""
 
 ## How damage evolves per hop, applied by [method mint].
