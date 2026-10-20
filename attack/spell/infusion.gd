@@ -141,5 +141,8 @@ func riders(spell: SpellDef) -> Array[OnHitEffect]:
 		var rider := ApplyStatusEffect.new()
 		rider.def = status
 		rider.power = float(counts[id])
+		var row := intake_of(spell, id)
+		if row != null:
+			rider.stack_terms = row.stack_terms.duplicate()
 		out.append(rider)
 	return out
