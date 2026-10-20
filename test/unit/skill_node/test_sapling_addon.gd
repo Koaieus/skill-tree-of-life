@@ -3,7 +3,7 @@ extends GutTest
 ## `sapling_addon.tscn` — Weakness x Addon. On the map it grants its owner +1
 ## `weakness_aspect`; on a blade every contact lands Weakness folded through
 ## the carrier's local `weakness_stacks_per_hit` (+1 per allocation level,
-## ×2 at 3/X). A weakened node's own outgoing blade damage drops, and never
+## ×2 at 3/X) on top of the stat's default 1: (1 + L), doubled at 3/X. A weakened node's own outgoing blade damage drops, and never
 ## below the owner's cap of 0.1 × unweakened however many stacks land.
 ##
 ## Fixture: test_compromiser_addon.gd's spine — pivot, mid, tip in a line, a
@@ -124,16 +124,22 @@ func _weakness_on_plate(outcome: AttackOutcome) -> float:
 
 
 func test_a_2_of_x_contact_lands_its_weakness() -> void:
-	assert_eq(_weakness_on_plate(await _swing_at(2)), 2.0)
+	assert_eq(_weakness_on_plate(await _swing_at(2)), 3.0, "default 1 + 2 local")
 
 
 func test_a_3_of_x_contact_lands_doubled_weakness() -> void:
-	assert_eq(_weakness_on_plate(await _swing_at(3)), 6.0)
+	assert_eq(_weakness_on_plate(await _swing_at(3)), 8.0, "(default 1 + 3 local) × 2")
 
 
 func test_the_weakened_nodes_blade_damage_drops_and_floors_at_a_tenth() -> void:
+	# Blade damage reads whole: lift the plate to 100 so a tenth is exact.
+	var sharp := StatModifier.new()
+	sharp.stat_id = &"blade_damage"
+	sharp.operation = StatModifier.Operation.ADD_BASE
+	sharp.value = 100.0 - float(_plate.get_local_value(&"blade_damage"))
+	_plate.add_local_modifier(sharp)
 	var plain: float = _plate.get_local_value(&"blade_damage")
-	assert_gt(plain, 0.0, "precondition: the plate deals blade damage")
+	assert_eq(plain, 100.0, "precondition: the plate deals 100 blade damage")
 	var landed := _weakness_on_plate(await _swing_at(2))
 	_plate.get_combat().apply_status(_WEAKENED, landed)
 	assert_lt(_plate.get_local_value(&"blade_damage"), plain,

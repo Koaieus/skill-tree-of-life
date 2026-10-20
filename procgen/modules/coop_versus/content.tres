@@ -12,6 +12,7 @@
 [ext_resource type="PackedScene" uid="uid://b1addon0watch" path="res://skill_node/addons/defs/watchtower_addon.tscn" id="6_eqvd6"]
 [ext_resource type="PackedScene" uid="uid://b1addon0toxin" path="res://skill_node/addons/defs/toxin_addon.tscn" id="6_toxin"]
 [ext_resource type="PackedScene" uid="uid://b1addon0midas" path="res://skill_node/addons/defs/midas_mark_addon.tscn" id="6_midas_mark"]
+[ext_resource type="PackedScene" uid="uid://b1addon0sapling" path="res://skill_node/addons/defs/sapling_addon.tscn" id="6_sapling"]
 [ext_resource type="PackedScene" uid="uid://b1addon0barrl" path="res://skill_node/addons/defs/explosive_barrel_addon.tscn" id="6_explosive_barrel"]
 [ext_resource type="Script" uid="uid://c4jsrfudhqhuk" path="res://procgen/pools/addon_pool.gd" id="7_nfi6m"]
 [ext_resource type="Script" uid="uid://bi20g047mnsv6" path="res://procgen/pools/addon_policy.gd" id="8_0ok6c"]
@@ -73,6 +74,14 @@ id = &"watchtower"
 addon_scene = ExtResource("6_eqvd6")
 cost = 4
 weight = 15.0
+metadata/_custom_type_script = "uid://b3fhyx2c2bvat"
+
+[sub_resource type="Resource" id="Resource_sapling"]
+script = ExtResource("1_h8ukh")
+id = &"sapling"
+addon_scene = ExtResource("6_sapling")
+cost = 4
+weight = 10.0
 metadata/_custom_type_script = "uid://b3fhyx2c2bvat"
 
 [sub_resource type="Resource" id="Resource_toxin"]
@@ -141,7 +150,7 @@ metadata/_custom_type_script = "uid://b3fhyx2c2bvat"
 
 [sub_resource type="Resource" id="Resource_3kv1o"]
 script = ExtResource("7_nfi6m")
-entries = Array[ExtResource("1_h8ukh")]([SubResource("Resource_68xts"), SubResource("Resource_2jawg"), SubResource("Resource_eyb1c"), SubResource("Resource_watch"), SubResource("Resource_toxin"), SubResource("Resource_compromiser"), SubResource("Resource_doombrand"), SubResource("Resource_abyssal_conduit"), SubResource("Resource_explosive_barrel"), SubResource("Resource_ashfall"), SubResource("Resource_shredder"), SubResource("Resource_midas_mark")])
+entries = Array[ExtResource("1_h8ukh")]([SubResource("Resource_68xts"), SubResource("Resource_2jawg"), SubResource("Resource_eyb1c"), SubResource("Resource_watch"), SubResource("Resource_toxin"), SubResource("Resource_compromiser"), SubResource("Resource_doombrand"), SubResource("Resource_abyssal_conduit"), SubResource("Resource_explosive_barrel"), SubResource("Resource_ashfall"), SubResource("Resource_shredder"), SubResource("Resource_midas_mark"), SubResource("Resource_sapling")])
 metadata/_custom_type_script = "uid://c4jsrfudhqhuk"
 
 [sub_resource type="Resource" id="Resource_c6pvu"]
