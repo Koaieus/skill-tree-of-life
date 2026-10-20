@@ -146,6 +146,7 @@ the dose clears them first, in cure-table order, then the node's
 | **Corruption** | `T` × % of max HP per topple, unmitigated; nothing ticks | bulk (the CON stacker) | rarity and cure only |
 | **Curse** | raises `min_damage_taken` by its stacks | armor: every hit lands again | deals nothing alone |
 | **Wither** | multiplies `healing_received` down, below zero | the heal aura and regen | nodes nobody heals |
+| **Hex** | an ADD_BONUS of −`resist_per_stack` × stacks on `status_resistance`, the parent of every `<aspect>_resistance`; below 0 the node is vulnerable (`HexStatus`) | resistance and immunity: one stack opens a 100%-resistant node | deals nothing alone; no resistance of its own |
 | **Bleeding** | ⌈stacks × `bleed_rate`⌉ flat HP per tick, unmitigated; the row ×`exert_growth` when its host exerts (`BleedingStatus`) | the kiting core and the node that keeps attacking | a host that rests: `RampDecay` closes the wound faster each still turn |
 
 There is **no per-tick clamp**: every family is lethal in sufficient amount.
@@ -177,7 +178,7 @@ each apply and each tick counts `row − cancelled`, with
 resistance is vulnerability**: there is no floor, so below 0% `cancelled` goes
 negative and more stacks act than the row holds, the half still falling the
 attacker's way (4·−50% → 6, 1·−50% → 2, 10·−100% → 20); a vulnerable node's
-DoTs tick harder too. The row itself decays from its unresisted size. At
+DoTs tick harder too. Hex is the status that drives a resistance below 0. The row itself decays from its unresisted size. At
 **≥ 100%** stacks do not land (the authority resolves the hit to 0 and the record carries it); a standing row deals 0 and
 still decays. `StatusDef.next_tick_damage` is the first term of the health-bar
 projection, which walks the raw row down tick by tick, resisted then floored.
@@ -195,7 +196,7 @@ multiplier climbs back through zero, nulling healing, then restoring it.
 
 | Status | Shape (`effects/status/*.tres`) |
 |---|---|
-| Poison, Curse, Sunder, Marked, Scouted | `FlatDecay`, `per_tick` 1 |
+| Poison, Curse, Sunder, Marked, Scouted, Hexed | `FlatDecay`, `per_tick` 1 |
 | Wither, Weakened | `FractionDecay`, `fraction` 0.25 removed |
 | Blindness | `FractionDecay`, `fraction` 0.7 removed, ACCUMULATE — see [node-subtypes.md](node-subtypes.md) decision 20 |
 | Bleeding | `RampDecay` — `start` 1, `step` 1 while resting; the ramp position is `NodeStatus.decay_step`, reset by exertion |
