@@ -177,8 +177,8 @@ each apply and each tick counts `row − cancelled`, with
 resistance is vulnerability**: there is no floor, so below 0% `cancelled` goes
 negative and more stacks act than the row holds, the half still falling the
 attacker's way (4·−50% → 6, 1·−50% → 2, 10·−100% → 20); a vulnerable node's
-DoTs tick harder too. The row itself decays from its unresisted size. At **≥ 100%** stacks do not land (the authority
-resolves the hit to 0 and the record carries it); a standing row deals 0 and
+DoTs tick harder too. The row itself decays from its unresisted size. At
+**≥ 100%** stacks do not land (the authority resolves the hit to 0 and the record carries it); a standing row deals 0 and
 still decays. `StatusDef.next_tick_damage` is the first term of the health-bar
 projection, which walks the raw row down tick by tick, resisted then floored.
 
