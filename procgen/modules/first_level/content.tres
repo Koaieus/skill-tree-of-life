@@ -10,7 +10,7 @@
 [ext_resource type="PackedScene" uid="uid://b1addon0ashfl" path="res://skill_node/addons/defs/ashfall_addon.tscn" id="6_ashfall"]
 [ext_resource type="PackedScene" uid="uid://b1addon0dune0" path="res://skill_node/addons/defs/dune_addon.tscn" id="6_dune"]
 [ext_resource type="PackedScene" uid="uid://b1addon0shred" path="res://skill_node/addons/defs/shredder_addon.tscn" id="6_shredder"]
-[ext_resource type="PackedScene" uid="uid://b1addon0sapling" path="res://skill_node/addons/defs/sapling_addon.tscn" id="6_sapling"]
+[ext_resource type="PackedScene" path="res://skill_node/addons/defs/sapling_addon.tscn" id="6_sapling"]
 [ext_resource type="PackedScene" uid="uid://b1addon0egate" path="res://skill_node/addons/defs/abyssal_conduit_addon.tscn" id="6_abyssal_conduit"]
 [ext_resource type="PackedScene" uid="uid://b1addon0toxin" path="res://skill_node/addons/defs/toxin_addon.tscn" id="6_toxin"]
 [ext_resource type="PackedScene" uid="uid://b1addon0midas" path="res://skill_node/addons/defs/midas_mark_addon.tscn" id="6_midas_mark"]

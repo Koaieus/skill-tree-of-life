@@ -1,4 +1,4 @@
-[gd_scene format=3 uid="uid://b1addon0sapling"]
+[gd_scene format=3 uid="uid://b1addon0sapl"]
 [ext_resource type="Script" uid="uid://dw3civ4fol21f" path="res://attack/spell/on_hit/on_hit_effect.gd" id="6_effect"]
 
 [ext_resource type="Script" uid="uid://bkf87fqtgkm7a" path="res://skill_node/addons/skill_node_addon.gd" id="1_addon"]
@@ -46,7 +46,7 @@ identity = ExtResource("identity_ref")
 on_hit_effects = Array[ExtResource("6_effect")]([SubResource("Resource_sapling_weakness")])
 entity_modifiers = Array[ExtResource("2_mod")]([SubResource("Resource_sapling_aspect")])
 local_modifiers = Array[ExtResource("2_mod")]([SubResource("Resource_sapling_stacks"), SubResource("Resource_sapling_unlock")])
-description = "A sap-heavy shoot — its owner gains weakness, and a blade swung through this node leaves every contact it makes weakened, its own attacks dulled."
+description = "A sap-heavy shoot — its owner's quiver gains weakening arrows, and a blade swung through this node leaves every contact it makes weakened, its own attacks dulled."
 temp_placeable = true
 temp_cost_blade_size = 2
 temp_cost_aspects = Dictionary[StringName, int]({
