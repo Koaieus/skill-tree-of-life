@@ -254,7 +254,7 @@ func test_def_shape() -> void:
 			"no authored status effect: the crack rides the intake rider (ADR 0047)")
 	assert_null(spell.rider_when, "the rider lands at every hop")
 	assert_eq(spell.intakes[0].identity, _SUNDER.identity, "a native Sunder intake")
-	assert_eq(spell.intakes[0].power_from, spell.propagation.extensions[0].id, "the rider reads the crack")
+	assert_eq((spell.intakes[0].use as PlantUse).power_from, spell.propagation.extensions[0].id, "the rider reads the crack")
 	var crit := spell.crit_conditions[0] as LocalExtremumCondition
 	assert_not_null(crit, "the weak-point crit")
 	assert_eq(crit.mode, LocalExtremumCondition.Mode.MIN, "where armor is lowest")

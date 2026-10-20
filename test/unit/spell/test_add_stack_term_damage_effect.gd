@@ -1,6 +1,6 @@
 extends GutTest
 
-## One [StackTerm], two readers: an [AspectIntake]'s `stack_terms` ride its PLANT
+## One [StackTerm], two readers: an intake row's [PlantUse] `stack_terms` ride its
 ## rider out of [method Infusion.riders] and land as extra stacks, and an
 ## [AddStackTermDamageEffect] adds the same term's value to the payload damage —
 ## both read against the cast's world, so a shadow resolve sees earlier sunder.
@@ -74,8 +74,9 @@ func _sunder_spell(innate: int, terms: Array[StackTerm]) -> SpellDef:
 	var row := AspectIntake.new()
 	row.identity = _SUNDER.identity
 	row.innate = innate
-	row.face = AspectIntake.Face.PLANT
-	row.stack_terms = terms
+	var plant := PlantUse.new()
+	plant.stack_terms = terms
+	row.use = plant
 	var spell := SpellDef.new()
 	spell.intakes = [row] as Array[AspectIntake]
 	return spell

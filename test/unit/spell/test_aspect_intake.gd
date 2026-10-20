@@ -175,7 +175,7 @@ func test_apply_status_description_is_the_status_applies_line() -> void:
 	assert_eq(eff.get_description(null, board), expected)
 
 
-# ── A shaping-only intake (face = FUEL) ──────────────────────────────────
+# ── A shaping-only intake (use = FuelUse) ──────────────────────────────────
 
 const _EXPLOSIVE_ID := preload("res://identity/defs/explosive.tres")
 
@@ -184,7 +184,7 @@ func _shaping(identity: Identity, innate: int) -> AspectIntake:
 	var a := AspectIntake.new()
 	a.identity = identity
 	a.innate = innate
-	a.face = AspectIntake.Face.FUEL
+	a.use = FuelUse.new()
 	return a
 
 
@@ -217,19 +217,19 @@ func test_infusing_a_shaping_concept_raises_its_load_and_adds_no_rider() -> void
 	assert_eq((riders[0] as ApplyStatusEffect).def, _POISON)
 
 
-# ── The face a row resolves ─────────────────────────────────────────────
+# ── The use a row resolves ─────────────────────────────────────────────
 
-func _row(identity: Identity, innate: int, face: AspectIntake.Face = AspectIntake.Face.INHERIT) -> AspectIntake:
+func _row(identity: Identity, innate: int, use: LoadUse = null) -> AspectIntake:
 	var a := AspectIntake.new()
 	a.identity = identity
 	a.innate = innate
-	a.face = face
+	a.use = use
 	return a
 
 
 func test_an_explosive_row_left_inherit_detonates_and_lands_no_rider() -> void:
 	var row := _row(_EXPLOSIVE_ID, 3)
-	assert_eq(row.resolved_face(), AspectIntake.Face.DETONATE, "explosive's status authors DETONATE")
+	assert_true(row.resolved_use() is DetonateUse, "explosive's status authors DETONATE")
 	var spell := SpellDef.new()
 	spell.intakes = [row] as Array[AspectIntake]
 	var inf := Infusion.innate(spell)
@@ -240,7 +240,7 @@ func test_an_explosive_row_left_inherit_detonates_and_lands_no_rider() -> void:
 
 func test_a_poison_row_left_inherit_plants_its_rider() -> void:
 	var row := _row(_POISON.identity, 2)
-	assert_eq(row.resolved_face(), AspectIntake.Face.PLANT, "any concept but explosive defaults PLANT")
+	assert_true(row.resolved_use() is PlantUse, "any concept but explosive defaults PLANT")
 	var spell := SpellDef.new()
 	spell.intakes = [row] as Array[AspectIntake]
 	var riders := Infusion.innate(spell).riders(spell)
@@ -252,7 +252,7 @@ func test_a_poison_row_left_inherit_plants_its_rider() -> void:
 
 func test_an_explosive_row_authored_plant_lands_the_explosive_rider_at_its_load() -> void:
 	var spell := SpellDef.new()
-	spell.intakes = [_row(_EXPLOSIVE_ID, 3, AspectIntake.Face.PLANT)] as Array[AspectIntake]
+	spell.intakes = [_row(_EXPLOSIVE_ID, 3, PlantUse.new())] as Array[AspectIntake]
 	var inf := Infusion.for_cast(spell, {&"explosive": 2})
 	var riders := inf.riders(spell)
 	assert_eq(riders.size(), 1, "PLANT overrides the concept's DETONATE")
@@ -303,7 +303,7 @@ func test_the_shipped_firecracker_row_is_fuel() -> void:
 	var spell := load("res://attack/spell/defs/firecracker.tres") as SpellDef
 	var row := Infusion.intake_of(spell, &"explosive")
 	assert_not_null(row, "firecracker lists explosive")
-	assert_eq(row.resolved_face(), AspectIntake.Face.FUEL, "face = 3 deserialises as FUEL")
+	assert_true(row.resolved_use() is FuelUse, "its use deserialises as a FuelUse")
 	assert_eq(Infusion.innate(spell).detonate_load(spell), 0, "its innate 6 is fuel, never a detonation load")
 
 

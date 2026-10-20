@@ -101,49 +101,42 @@ func load_of(spell: SpellDef) -> Dictionary[StringName, int]:
 	return out
 
 
-## The explosive load this cast spends at each hit as a blast: the
-## `explosive` load iff its face resolves DETONATE ([method face_of]), else 0
-## — a FUEL row's load only shapes the spell, a PLANT row's lands as a rider.
+## The load this cast spends at each hit as a blast: the sum its
+## [DetonateUse] concepts contribute ([method bag]) — an explosive row left on
+## its status default, today. A FUEL load only shapes the spell, a PLANT load
+## lands as a rider.
 func detonate_load(spell: SpellDef) -> int:
-	if face_of(spell, DetonateEffect.EXPLOSIVE) != AspectIntake.Face.DETONATE:
-		return 0
-	return load_of(spell).get(DetonateEffect.EXPLOSIVE, 0)
+	return bag(spell).detonate_load
 
 
-## The face concept [param id] resolves to on [param spell]: its intake row's
-## [method AspectIntake.resolved_face], else — an infused concept with no row —
-## its status's default ([method AspectIntake.face_of_status]).
-static func face_of(spell: SpellDef, id: StringName) -> AspectIntake.Face:
+## The [LoadUse] concept [param id] resolves to on [param spell]: its intake
+## row's [method AspectIntake.resolved_use], else — an infused concept with no
+## row — its status's default ([method AspectIntake.use_for_status]).
+static func use_of(spell: SpellDef, id: StringName) -> LoadUse:
 	var row := intake_of(spell, id)
 	if row != null:
-		return row.resolved_face()
-	return AspectIntake.face_of_status(StatusRoster.shared().by_concept(id))
+		return row.resolved_use()
+	return AspectIntake.use_for_status(StatusRoster.shared().by_concept(id))
 
 
-## One [ApplyStatusEffect] per PLANT concept ([method face_of]) whose load is
-## above zero, carrying that concept's status at `power = load`. A DETONATE
-## load is spent at the hit ([method detonate_load]); a FUEL load only shapes
-## the spell.
-## Fresh effects per call — the resolver builds them once per cast.
+## The [OnHitEffect] riders this cast runs after the spell's own effects — one
+## [ApplyStatusEffect] per [PlantUse] concept with a status, at `power = load`
+## ([method bag]). Fresh effects per call — the resolver builds them once per
+## cast.
 func riders(spell: SpellDef) -> Array[OnHitEffect]:
-	var out: Array[OnHitEffect] = []
+	return bag(spell).riders
+
+
+## One walk over [method load_of]: every concept whose load is above zero
+## spends it through its [method use_of] ([method LoadUse.spend]) into a fresh
+## [LoadBag].
+func bag(spell: SpellDef) -> LoadBag:
+	var out := LoadBag.new()
 	if spell == null:
 		return out
 	var counts := load_of(spell)
 	for id in counts:
 		if counts[id] <= 0:
 			continue
-		if face_of(spell, id) != AspectIntake.Face.PLANT:
-			continue
-		var status := StatusRoster.shared().by_concept(id)
-		if status == null:
-			continue
-		var rider := ApplyStatusEffect.new()
-		rider.def = status
-		rider.power = float(counts[id])
-		var row := intake_of(spell, id)
-		if row != null:
-			rider.stack_terms = row.stack_terms.duplicate()
-			rider.power_from = row.power_from
-		out.append(rider)
+		use_of(spell, id).spend(intake_of(spell, id), StatusRoster.shared().by_concept(id), counts[id], out)
 	return out

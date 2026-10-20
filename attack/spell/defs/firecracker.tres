@@ -2,6 +2,7 @@
 
 [ext_resource type="Script" path="res://attack/spell/spell_def.gd" id="1_spell"]
 [ext_resource type="Script" path="res://attack/spell/aspect_intake.gd" id="2_intake"]
+[ext_resource type="Script" path="res://attack/spell/load_use/fuel_use.gd" id="2_fuel_use"]
 [ext_resource type="Resource" path="res://identity/defs/explosive.tres" id="2_explosive"]
 [ext_resource type="Script" path="res://attack/spell/condition/landing_condition.gd" id="3_crit_base"]
 [ext_resource type="Script" path="res://attack/spell/condition/no_edge_to_source_condition.gd" id="3_crit_gap"]
@@ -16,11 +17,14 @@
 [ext_resource type="Script" path="res://attack/range_finder/hop_range_finder.gd" id="6_range"]
 [ext_resource type="Resource" path="res://identity/defs/spell_firecracker.tres" id="7_identity"]
 
+[sub_resource type="Resource" id="fuel_use"]
+script = ExtResource("2_fuel_use")
+
 [sub_resource type="Resource" id="fuel"]
 script = ExtResource("2_intake")
 identity = ExtResource("2_explosive")
 innate = 6
-face = 3
+use = SubResource("fuel_use")
 
 [sub_resource type="Resource" id="crit_gap"]
 script = ExtResource("3_crit_gap")

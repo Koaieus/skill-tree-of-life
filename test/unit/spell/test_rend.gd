@@ -71,10 +71,12 @@ func test_the_intake_and_the_damage_effect_share_one_armor_term() -> void:
 	assert_not_null(fx, "rend carries an AddStackTermDamageEffect")
 	var row: AspectIntake = _rend.intakes[0]
 	assert_eq(row.identity, _SUNDER.identity, "the intake is Sunder")
-	assert_eq(row.stack_terms.size(), 1, "the intake carries one term")
+	var plant := row.use as PlantUse
+	assert_not_null(plant, "the intake plants")
+	assert_eq(plant.stack_terms.size(), 1, "the intake carries one term")
 	assert_eq(fx.stack_terms.size(), 1, "the effect carries one term")
-	assert_same(row.stack_terms[0], fx.stack_terms[0], "one SubResource, two readers")
-	var share := row.stack_terms[0] as DefenderStatShare
+	assert_same(plant.stack_terms[0], fx.stack_terms[0], "one SubResource, two readers")
+	var share := plant.stack_terms[0] as DefenderStatShare
 	assert_not_null(share, "the term is a DefenderStatShare")
 	assert_eq(share.stat_id, &"armor", "the share is of armor")
 

@@ -34,41 +34,17 @@ extends Resource
 	set(value):
 		affinity_cost = maxi(value, 1)
 		emit_changed()
-## Extra-stack terms the PLANT rider of this row carries ([member
-## ApplyStatusEffect.stack_terms]), each a [StackTerm] read at land against the
-## landing world. A spell that also scales its damage by the same term shares
-## the SubResource with its [AddStackTermDamageEffect]: one formula, two readers.
-@export var stack_terms: Array[StackTerm] = []:
-	set(value):
-		stack_terms = value
-		emit_changed()
-## The PLANT rider's [member ApplyStatusEffect.power_from]: the id of a
-## [CarriedScalar] whose value it lands instead of the load, where the payload
-## carries one. Empty = the load at every landing.
-@export var power_from: StringName = &"":
-	set(value):
-		power_from = value
-		emit_changed()
-## How a hit spends this row's load — the row's **face**:
-## DETONATE: spent at the hit as a blast ([DetonateEffect]); PLANT: lands as
-## the concept's status rider at `power = load`; FUEL: no rider, the load only
-## shapes the spell — a spread reads it from [member PropagationContext.load]
-## (Firecracker's explosive fuel). INHERIT takes the concept's
-## [member StatusDef.default_face] ([method resolved_face]).
-enum Face { INHERIT, DETONATE, PLANT, FUEL }
-
-## This row's face; INHERIT (the default) defers to the concept's status.
-@export var face: Face = Face.INHERIT:
-	set(value):
-		face = value
-		emit_changed()
-
 ## How a hit spends this row's load ([LoadUse]); null takes the concept
 ## status's default ([method resolved_use]).
 @export var use: LoadUse = null:
 	set(value):
 		use = value
 		emit_changed()
+
+## [member StatusDef.default_face]'s DETONATE tag; see [method use_for_status].
+const _DEFAULT_DETONATE_TAG := 1
+static var _default_detonate: DetonateUse = null
+static var _default_plant: PlantUse = null
 
 ## The concept id this row keys on (`&"poison"`); `&""` unset.
 func aspect_id() -> StringName:
@@ -81,20 +57,24 @@ func status() -> StatusDef:
 	return null if id.is_empty() else StatusRoster.shared().by_concept(id)
 
 
-## [member face], INHERIT resolved through the concept status's
-## [member StatusDef.default_face] — PLANT when the concept has no status.
-func resolved_face() -> Face:
-	if face != Face.INHERIT:
-		return face
-	return face_of_status(status())
+## [member use], or — left null — its concept status's default
+## ([method use_for_status]).
+func resolved_use() -> LoadUse:
+	return use if use != null else use_for_status(status())
 
 
-## The face a row left INHERIT takes for [param def]: its authored
-## [member StatusDef.default_face], PLANT when [param def] is null.
-static func face_of_status(def: StatusDef) -> Face:
-	if def != null and def.default_face == Face.DETONATE:
-		return Face.DETONATE
-	return Face.PLANT
+## The shared default [LoadUse] for a concept whose status is [param def]: the
+## one place [member StatusDef.default_face]'s int tag (`effects/` may not name
+## `attack/`) maps to a use — 1 → [DetonateUse], anything else, or no status,
+## → [PlantUse]. The defaults are shared: never mutate one.
+static func use_for_status(def: StatusDef) -> LoadUse:
+	if def != null and def.default_face == _DEFAULT_DETONATE_TAG:
+		if _default_detonate == null:
+			_default_detonate = DetonateUse.new()
+		return _default_detonate
+	if _default_plant == null:
+		_default_plant = PlantUse.new()
+	return _default_plant
 
 
 ## True iff this row's affinity is 0 — the spell takes no infusion of it.
@@ -102,16 +82,18 @@ func refuses() -> bool:
 	return affinity_gain <= 0
 
 
-## The on-arrival line: [method StatusDef.applies_line] of the innate load —
-## the fold the landing itself uses, so a [param board] carrying the attacker's
+## The row's tooltip line, as its [method resolved_use] describes it
+## ([method LoadUse.describe]): a plant's or a detonation's is
+## [method StatusDef.applies_line] of the innate load — the fold the landing
+## itself uses, so a [param board] carrying the attacker's
 ## `<family>_stacks_per_hit` scales it here exactly as it scales the rider —
-## with the row's affinity as its suffix. A [param read_node] folds through its
-## live slice instead, as the rider lands.
+## with [method ingest_line] as its suffix. A [param read_node] folds through
+## its live slice instead, as the rider lands.
 func get_description(board: StatBoard = null, read_node: SkillNode = null) -> String:
 	var def := status()
 	if def == null:
 		return "Applies nothing (no status set)."
-	return def.applies_line(board, float(innate), "; " + ingest_line(), OnHitEffect.read_slice(read_node))
+	return resolved_use().describe(self, board, read_node)
 
 
 ## The row's affinity as a tooltip clause: `+N per <concept> infused`, or
