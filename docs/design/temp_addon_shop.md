@@ -56,7 +56,7 @@ quickbar blueprint armed, the click places that blueprint as it does today.
   menu's layout is the same everywhere. This is reusable camera plumbing
   with a nudge policy and a centre policy, so *"anything else that wants
   this could fold it in with little to no extra code"*.
-- **The canonical order is grouped by role** (offence, debuff, utility, …),
+- **The canonical order is grouped by role** (offence, debuff, defence, utility),
   so the role shelves the owner liked for discovery live in the fan's order:
   *"2 is neat if you dont know what contents each aspect has, "if you're
   looking for offense you're gonna find it here" solves that."*
@@ -87,13 +87,52 @@ the blueprint being hovered, whether in the fan or on the quickbar.
 
 ## Role tags
 
-No addon taxonomy exists yet. Every temp-offered addon gets a role tag, and
-the tags set the fan's order. The category list is a design call on its own
-child issue.
+Four roles, in this order: **offence, debuff, defence, utility** (owner,
+2026-10-20, #1681). An addon's role is **the job it does when copied onto your
+blade**: *"from the shopper's perspective (== blade forging == offensive) it's
+just one of the two"*. One tag per addon, even when the addon also defends a
+board node against blades; that anti-blade face plays no part in the tag.
+
+The tag is `SkillNodeAddon.role`, an exported enum read without an instance
+through `SkillNodeAddon.role_of(scene)`. `TempUpgradeCatalog.offered()` is the
+only owner of the order, so the fan and the quickbar auto-fill follow it:
+
+1. by role, in the enum's order (reordering the roles is a one-line change);
+2. then blade-size price ascending (`temp_costs_of(scene, 0)`);
+3. then scene path, for a stable tie-break.
+
+The enum's default is a fifth value, `UNSET`, that no def keeps. It exists
+because Godot omits an export equal to its default when it saves a scene, so a
+default of offence would erase every explicit offence tag on the next editor
+resave and leave "is this def tagged?" unanswerable. A test fails on any def
+left at `UNSET`; an untagged addon would sort after every role.
+
+Order within a role and the role order are tentative knobs. Each assignment is
+a judgement call that the owner retunes by flipping the export:
+
+| Addon | Role | Offered | Note |
+|---|---|---|---|
+| spike_ring | offence | yes | raises `blade_damage` |
+| explosive_barrel | offence | no | |
+| abyssal_conduit | offence | no | grants corruption arrows |
+| toxin | debuff | yes | ambiguous: poison is damage over time, could be offence |
+| ashfall | debuff | yes | wither |
+| dune | debuff | yes | blindness |
+| sapling | debuff | yes | weakened |
+| shredder | debuff | yes | sunder, armour break |
+| doombrand | debuff | yes | curse |
+| compromiser | debuff | yes | corruption |
+| bunker | defence | no | |
+| clamp | utility | yes | ambiguous: a rigid joint, could be defence |
+| watchtower | utility | yes | scouting |
+| midas_mark | utility | yes | ambiguous: greed on contacts, could be debuff |
+| ring_cell | utility | no | |
+| skill_dust | utility | no | |
+
+With toxin as a debuff, spike_ring is the only offered offence addon.
 
 ## Open questions
 
-- The role categories and which addon goes where.
 - Whether Clamp gets a pinned or special slot: *"possibly `clamp` option is
   pinned; or special (it also has special ramping up costing planned for
   it)"*.
