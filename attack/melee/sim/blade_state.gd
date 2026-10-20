@@ -83,6 +83,12 @@ var vertex_charges: PackedInt32Array
 ## keyed on the stat, so whatever grants `deflection` shields. Zero-initialised
 ## in build(): a hand-built state is unshielded.
 var vertex_shielded: PackedByteArray
+## Per-particle coefficient of restitution against a deflecting plate: the
+## share of a disc's approach speed along the plate normal it leaves with. 0 —
+## every plain vertex — is the position-based, inelastic contact; a Bunker
+## member ([BunkerAddon]) recoils, so only bunker x bunker contact is elastic.
+## Written by [method SkillNodeAddon.apply_to_blade]; zero-initialised in build().
+var vertex_restitution: PackedFloat32Array
 ## Per-particle on-hit riders (#951, ADR 0044) — one Array of [OnHitEffect]
 ## per vertex, empty meaning none. Untyped on purpose: naming the type here
 ## closes a class-load cycle through the spell module (`check` fails). Sized in build(), then appended to by each
@@ -185,6 +191,8 @@ static func build(
 	s.vertex_charges.resize(positions_.size())
 	s.vertex_shielded = PackedByteArray()
 	s.vertex_shielded.resize(positions_.size())
+	s.vertex_restitution = PackedFloat32Array()
+	s.vertex_restitution.resize(positions_.size())
 	s.vertex_on_hit = []
 	for i in positions_.size():
 		var riders: Array = []

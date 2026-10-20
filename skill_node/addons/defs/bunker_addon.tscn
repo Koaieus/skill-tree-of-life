@@ -1,6 +1,6 @@
 [gd_scene format=3 uid="uid://cmkt6tybpv38p"]
 
-[ext_resource type="Script" uid="uid://bkf87fqtgkm7a" path="res://skill_node/addons/skill_node_addon.gd" id="1_83r5f"]
+[ext_resource type="Script" uid="uid://i74b0g63r5lk" path="res://skill_node/addons/bunker_addon.gd" id="1_83r5f"]
 [ext_resource type="Script" uid="uid://che6xhl6srqh3" path="res://stats_system/stat_modifier.gd" id="2_efkvd"]
 [ext_resource type="Script" uid="uid://skthvgs1li3x" path="res://skill_node/addons/visuals/bunker_visual.gd" id="9_visual"]
 [ext_resource type="Resource" path="res://identity/defs/addon_bunker.tres" id="identity_ref"]
