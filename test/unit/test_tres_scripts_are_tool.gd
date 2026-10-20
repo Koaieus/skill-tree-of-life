@@ -5,7 +5,7 @@ extends GutTest
 const DIRS: Array[String] = [
 	"res://effects", "res://attack/ammo", "res://attack/outcome",
 	"res://ui/vfx/coordinator", "res://entity", "res://stats_system/defs",
-	"res://procgen/subtypes",
+	"res://procgen/subtypes", "res://attack/spell/defs",
 ]
 
 
