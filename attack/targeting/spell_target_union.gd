@@ -116,12 +116,10 @@ func targets_from(source: SkillNode) -> Dictionary[SkillNode, bool]:
 ## [param attacker] that may cast it.
 ##
 ## [b]Loop order is the whole perf story.[/b] The obvious implementation calls
-## [method Targeting.valid_targets] once per source, and that runs
-## [code]_filter_skill_nodes[/code] — a sweep of ALL 800 nodes — per source.
-## No cache level fixes the cost of the first call. So candidates come from the
-## range finder FIRST ([method RangeFinder.gather_multi]: a bounded BFS per
-## source for hops, one merged sweep for euclidean), and the non-range target
-## predicate runs only over those.
+## [method Targeting.valid_targets] once per source: one gather per caster. So
+## candidates come from the range finder FIRST, for all sources at once
+## ([method RangeFinder.gather_multi]: a bounded BFS per source for hops, one
+## merged sweep for euclidean), and the ownership filter runs only over those.
 ##
 ## [param plan] is unused: every targeting takes the candidate-first path.
 static func build(spell: SpellDef, attacker: Entity, graph: Graph,
