@@ -213,7 +213,7 @@ func _first_rows() -> Array[Node]:
 
 
 func test_a_twelve_aspect_configure_view_stays_inside_the_budget() -> void:
-	assert_eq(AspectRoster.shared().aspects.size(), 12, "guard: the roster holds 12 aspects")
+	assert_eq(AspectRoster.shared().aspects.size(), 13, "guard: the roster holds 13 aspects")
 	var built := SpellSections.build(_GIRDLE)
 	for lines in [built.cast, built.on_arrival, built.then, built.crits]:
 		assert_false(lines.is_empty(), "guard: girdle fills all four sections")

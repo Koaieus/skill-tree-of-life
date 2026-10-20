@@ -137,7 +137,23 @@ min_tier = 2
 max_tier = 2
 metadata/_custom_type_script = "uid://csc1d4c2smgr7"
 
+[sub_resource type="Resource" id="sup_hex_shape"]
+script = ExtResource("3_7qv30")
+
+[sub_resource type="Resource" id="hex_aspect"]
+resource_name = "hex_aspect +"
+script = ExtResource("2_pool")
+stat_id = &"hex_aspect"
+passes = Array[StringName]([&"budget", &"supply"])
+subtypes = Array[ExtResource("90_nsub")]([ExtResource("91_sreg"), ExtResource("92_sbli")])
+tags = Array[StringName]([&"int", &"flat", &"attack", &"ammo"])
+pool_weight = 1.2
+tier_shape = SubResource("sup_hex_shape")
+min_tier = 2
+max_tier = 2
+metadata/_custom_type_script = "uid://csc1d4c2smgr7"
+
 [resource]
 script = ExtResource("1_sp")
 archetype_stat = &"intelligence"
-pools = Array[ExtResource("2_pool")]([SubResource("ab"), SubResource("inc"), SubResource("mul"), SubResource("Resource_0tuuk"), SubResource("mdt"), SubResource("Resource_u38nb"), SubResource("Resource_b5k8y"), SubResource("curse_pot"), SubResource("curse_aspect")])
+pools = Array[ExtResource("2_pool")]([SubResource("ab"), SubResource("inc"), SubResource("mul"), SubResource("Resource_0tuuk"), SubResource("mdt"), SubResource("Resource_u38nb"), SubResource("Resource_b5k8y"), SubResource("curse_pot"), SubResource("curse_aspect"), SubResource("hex_aspect")])
