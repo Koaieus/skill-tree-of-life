@@ -33,6 +33,13 @@ var target: SkillNode = null
 ## spell never sets [member target]. NAN means "not aimed yet". Written by
 ## [method set_aim].
 var aim_angle: float = NAN
+## The seeds a DECODED aimed plan's sender claims its aim crossed — stable ids
+## in [method AimedTargeting.seeds] order, a checked claim [method validate]
+## compares against its own hitscan and never trusts. Meaningful iff
+## [member has_claimed_seeds]; a locally-built plan holds none.
+var claimed_seeds: Array[int] = []
+## True iff the wire form carried a `seeds` key — an empty claim is still a claim.
+var has_claimed_seeds: bool = false
 ## The points this cast spends on aspects — never null; innate-only on a
 ## fresh plan and after [method set_spell]. Set through [method set_infusion].
 var infusion: Infusion = Infusion.new()
@@ -131,6 +138,12 @@ func to_dict(graph: Graph) -> Dictionary:
 	# Only an aimed spell's, and only a set one: NAN never rides the wire.
 	if is_aimed() and not is_nan(aim_angle):
 		d["aim"] = aim_angle
+		# Recomputed here, through the one hitscan the preview and the resolve
+		# share, so the claim is what this board crosses at launch time.
+		var ids: Array[int] = []
+		for n in _aimed_seeds(graph):
+			ids.append(graph.get_stable_id(n))
+		d["seeds"] = ids
 	if infusion.total_points() > 0:
 		var pts := {}
 		for id in infusion.points:
@@ -154,6 +167,9 @@ static func from_dict(d: Dictionary, graph: Graph) -> MagicAttackPlan:
 	plan.source = graph.get_by_stable_id(int(d.get("source", 0))) if graph != null else null
 	plan.target = graph.get_by_stable_id(int(d.get("target", 0))) if graph != null else null
 	plan.aim_angle = float(d.get("aim", NAN))
+	plan.has_claimed_seeds = d.has("seeds")
+	for id in d.get("seeds", []) as Array:
+		plan.claimed_seeds.append(int(id))
 	return plan
 
 
@@ -296,6 +312,15 @@ func validate() -> Array[String]:
 	if is_aimed():
 		if is_nan(aim_angle):
 			errors.append(&'No aim selected')
+		# A submitted aim is a claim, checked against this board: the caster
+		# must be one the union lists, and the seeds its sender saw must be
+		# exactly the ones this hitscan crosses — or the cast would land on
+		# something the sender never previewed.
+		elif source != null and attacker != null:
+			if not union().is_source(source):
+				errors.append(&'Source is not an eligible caster')
+			elif has_claimed_seeds and claimed_seeds != _aimed_seed_ids():
+				errors.append(&'Aim does not match its claimed targets')
 	elif target == null:
 		errors.append(&'No target selected')
 	return errors
@@ -514,7 +539,7 @@ func _rebuild_aimed_preview() -> void:
 	var seeds: Array[SkillNode] = []
 	var graph := _graph_of(source) if source != null else null
 	if graph != null and attacker != null and not is_nan(aim_angle):
-		seeds = (spell.targeting as AimedTargeting).seeds(attacker, source, aim_angle, graph)
+		seeds = _aimed_seeds(graph)
 	if _preview_key_valid and _preview_key_source == source and _preview_key_seeds == seeds:
 		return
 	_preview_key_valid = true
@@ -571,6 +596,23 @@ func _index_edge_pair(lookup: Dictionary[SkillNode, Dictionary], a: SkillNode, b
 
 
 ## SkillNodes live under Graph/SkillNodes; walk parents to find it.
+## The nodes the aim crosses from [member source] on [param graph] — the ONE
+## hitscan behind the preview, the resolve, the wire claim and its check.
+func _aimed_seeds(graph: Graph) -> Array[SkillNode]:
+	return (spell.targeting as AimedTargeting).seeds(attacker, source, aim_angle, graph)
+
+
+## [method _aimed_seeds] on the source's own board, as stable ids.
+func _aimed_seed_ids() -> Array[int]:
+	var ids: Array[int] = []
+	var graph := _graph_of(source)
+	if graph == null:
+		return ids
+	for n in _aimed_seeds(graph):
+		ids.append(graph.get_stable_id(n))
+	return ids
+
+
 func _graph_of(node: SkillNode) -> Graph:
 	var n: Node = node
 	while n != null and not (n is Graph):
@@ -603,7 +645,7 @@ func resolve_against(world: CombatWorld) -> AttackOutcome:
 	# this line closes. See AttackPlan.resolve_seed.
 	var outcome: AttackOutcome
 	if is_aimed():
-		var seeds := (spell.targeting as AimedTargeting).seeds(attacker, source, aim_angle, graph)
+		var seeds := _aimed_seeds(graph)
 		outcome = SpellResolver.resolve_seeds(
 			spell, seeds, source, attacker, graph, world, seeded_rng(), infusion, aim_angle)
 	else:
