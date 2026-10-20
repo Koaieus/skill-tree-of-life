@@ -104,13 +104,20 @@ var _preview_edges: Array[Edge] = []
 ## How many times the preview has re-resolved — an aimed drag re-resolves
 ## only when the crossed set changes. Read-only outside the plan.
 var preview_resolves: int = 0
+## How many times the aimed preview has asked [method AimedTargeting.seeds]
+## — once per (source, angle) change. Read-only outside the plan.
+var preview_seed_queries: int = 0
 ## An aimed preview's key: the (source, crossed set) its resolve was built
-## from. A drag moves the angle every motion event, but the resolve reruns only
-## when this key changes; anything else that moves the outcome (ownership,
+## from. A drag moves the angle every motion event, but the seeds are gathered
+## only when (source, angle) moves and the resolve reruns only when this key
+## changes; anything else that moves the outcome (ownership,
 ## turn, spell, infusion, reset) drops it via [member _preview_key_valid].
 var _preview_key_valid: bool = false
 var _preview_key_source: SkillNode = null
 var _preview_key_seeds: Array[SkillNode] = []
+## The angle [member _preview_key_seeds] was gathered at: an unchanged
+## (source, angle) re-reads the kept set instead of gathering again.
+var _preview_key_angle: float = NAN
 
 
 ## The wind-up hangs off the source (#1048) — empty until one is armed.
@@ -530,17 +537,25 @@ func _clear_preview() -> void:
 	_preview_outcome = null
 
 
-## The aimed preview: every node the shape crosses from [member source] at
+## gathered only when (source, angle) moved and rerun only when the crossed set
+## differs from the last one — see
 ## [member aim_angle] seeds a shadow resolve ([method SpellResolver.resolve_seeds]),
 ## rerun only when the crossed set differs from the last one — see
 ## [member _preview_key_valid]. The kept outcome's [member AttackOutcome.aim]
 ## is the angle it was resolved at, not necessarily the live one.
 func _rebuild_aimed_preview() -> void:
+	if _preview_key_valid and _preview_key_source == source \
+			and is_same(_preview_key_angle, aim_angle):
+		return
 	var seeds: Array[SkillNode] = []
 	var graph := _graph_of(source) if source != null else null
 	if graph != null and attacker != null and not is_nan(aim_angle):
 		seeds = _aimed_seeds(graph)
-	if _preview_key_valid and _preview_key_source == source and _preview_key_seeds == seeds:
+		preview_seed_queries += 1
+	var same_seeds := _preview_key_valid and _preview_key_source == source \
+			and _preview_key_seeds == seeds
+	_preview_key_angle = aim_angle
+	if same_seeds:
 		return
 	_preview_key_valid = true
 	_preview_key_source = source
