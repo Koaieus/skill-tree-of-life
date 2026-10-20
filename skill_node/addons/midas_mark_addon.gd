@@ -22,7 +22,11 @@ extends SkillNodeAddon
 
 
 func on_turn_start() -> void:
-	pass
+	if greed_status == null or carrier == null or not carrier.is_allocated():
+		return
+	var top_up := minf(float(gain()), float(cap()) - greed())
+	if top_up > 0.0:
+		carrier.get_combat().apply_status(greed_status, top_up)
 
 
 ## Greed this mark adds per turn start at the carrier's allocation level.
