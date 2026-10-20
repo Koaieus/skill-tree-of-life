@@ -457,7 +457,6 @@ func project(positions: PackedVector2Array, inv_masses: PackedFloat32Array) -> v
 			_contact_edges[e_idx] = z
 
 
-## Close the substep: meter the strain, arm a break, and roll the driver history.
 func _record_recoil(i: int, p: Vector2, normal: Vector2) -> void:
 	var e := _state.vertex_restitution
 	if i >= e.size() or e[i] <= 0.0 or _recoil.has(i) or i >= _state.prev_positions.size():
@@ -483,6 +482,7 @@ func restitute(positions: PackedVector2Array, prev: PackedVector2Array) -> void:
 	_recoil.clear()
 
 
+## Close the substep: meter the strain, arm a break, and roll the driver history.
 func end_substep(positions: PackedVector2Array) -> void:
 	if _near.is_empty():
 		# Nothing anywhere near a plate: every contact is over. Reset, don't bank.
