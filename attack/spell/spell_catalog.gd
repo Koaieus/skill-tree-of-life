@@ -37,6 +37,7 @@ const SCOUT_LINE: SpellDef = preload("res://attack/spell/defs/scout_line.tres")
 const REMEDY: SpellDef = preload("res://attack/spell/defs/remedy.tres")
 const PURIFICATION: SpellDef = preload("res://attack/spell/defs/purification.tres")
 const FIRECRACKER: SpellDef = preload("res://attack/spell/defs/firecracker.tres")
+const POCKET_SAND: SpellDef = preload("res://attack/spell/defs/pocket_sand.tres")
 
 ## Every authored spell. Order is not a contract — [member SpellDef.id] is.
 const ALL: Array[SpellDef] = [
@@ -44,7 +45,7 @@ const ALL: Array[SpellDef] = [
 	REVERBERATOR, HEALING_BEAM, TRAIL_BLAZER, LIGHTNING_BOLT,
 	CYCLONE, DAZZLE, REND, VENOM_BURST, MALEDICTION, EAGLE_EYE,
 	GIRDLE, DEFILE, SCOUT_LINE, MIASMA, PESTILENCE, REMEDY, PURIFICATION,
-	FIRECRACKER,
+	FIRECRACKER, POCKET_SAND,
 ]
 
 

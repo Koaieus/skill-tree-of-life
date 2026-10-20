@@ -1,0 +1,26 @@
+[gd_resource type="Resource" script_class="SpellDef" format=3]
+
+[ext_resource type="Script" path="res://attack/spell/spell_def.gd" id="1_spell"]
+[ext_resource type="Script" path="res://attack/targeting/aimed_targeting.gd" id="5_targeting"]
+[ext_resource type="Script" path="res://attack/targeting/cone_shape.gd" id="6_cone"]
+[ext_resource type="Script" path="res://attack/range_finder/euclidean_range_finder.gd" id="7_range"]
+
+[sub_resource type="Resource" id="range_cone"]
+script = ExtResource("7_range")
+max_distance = 200.0
+
+[sub_resource type="Resource" id="shape_cone"]
+script = ExtResource("6_cone")
+half_angle_deg = 25.0
+
+[sub_resource type="Resource" id="targeting_cone"]
+script = ExtResource("5_targeting")
+shape = SubResource("shape_cone")
+ownership_filter = 8
+range_finder = SubResource("range_cone")
+
+[resource]
+script = ExtResource("1_spell")
+id = &"pocket_sand"
+name = "Pocket Sand"
+targeting = SubResource("targeting_cone")
