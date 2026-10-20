@@ -13,12 +13,33 @@
 [ext_resource type="PackedScene" path="res://attack/range_finder/visuals/range_edge.tscn" id="10_3k41u"]
 [ext_resource type="PackedScene" path="res://ui/vfx/coordinator/spells/spark_coordinator.tscn" id="10_vfx"]
 [ext_resource type="PackedScene" path="res://attack/range_finder/visuals/range_ring.tscn" id="11_slqml"]
+[ext_resource type="Script" uid="uid://7wdkvrd3qinr" path="res://attack/spell/propagation/filter/propagation_filter.gd" id="12_pf"]
+[ext_resource type="Script" uid="uid://bcsqfpmj6geu6" path="res://attack/spell/propagation/filter/rank_threshold_filter.gd" id="13_rt"]
+[ext_resource type="Script" uid="uid://c622kxr6rwfka" path="res://attack/spell/propagation/filter/top_ties_filter.gd" id="14_tt"]
+[ext_resource type="Script" uid="uid://dpm0inm5l0utx" path="res://attack/spell/propagation/filter/composite_filter.gd" id="15_cf"]
+[ext_resource type="Script" uid="uid://kvd7y10ttqsx" path="res://attack/spell/propagation/ranker/stat_ranker.gd" id="16_sr"]
+[ext_resource type="Script" uid="uid://bqrga3k1hmfut" path="res://attack/spell/propagation/spread/fan_all_spread.gd" id="17_fan"]
+[ext_resource type="Script" uid="uid://c804k0enhfad7" path="res://attack/outcome/stack_term.gd" id="18_term"]
+[ext_resource type="Script" uid="uid://bpuvk3bpwofjd" path="res://attack/outcome/defender_stat_share.gd" id="19_share"]
+[ext_resource type="Script" uid="uid://b3ct7xbawnqow" path="res://attack/spell/on_hit/add_stack_term_damage_effect.gd" id="20_addterm"]
+[ext_resource type="Script" uid="uid://ddpd5ffbap28s" path="res://attack/spell/condition/local_extremum_condition.gd" id="21_extremum"]
 [ext_resource type="Resource" path="res://identity/defs/spell_rend.tres" id="identity_ref"]
+
+[sub_resource type="Resource" id="share_armor"]
+script = ExtResource("19_share")
+stat_id = &"armor"
+ratio = 0.25
 
 [sub_resource type="Resource" id="break_rend"]
 script = ExtResource("3_affinity")
 identity = ExtResource("identity_sunder")
-innate = 2
+innate = 5
+affinity_gain = 2
+stack_terms = Array[ExtResource("18_term")]([SubResource("share_armor")])
+
+[sub_resource type="Resource" id="strip_rend"]
+script = ExtResource("20_addterm")
+stack_terms = Array[ExtResource("18_term")]([SubResource("share_armor")])
 
 [sub_resource type="Resource" id="dmg_rend"]
 script = ExtResource("3_dmg")
@@ -26,9 +47,35 @@ script = ExtResource("3_dmg")
 [sub_resource type="Resource" id="filter_enemy"]
 script = ExtResource("5_filter")
 
+[sub_resource type="Resource" id="ranker_armor"]
+script = ExtResource("16_sr")
+stat_id = &"armor"
+
+[sub_resource type="Resource" id="filter_climb"]
+script = ExtResource("13_rt")
+ranker = SubResource("ranker_armor")
+compare = 3
+
+[sub_resource type="Resource" id="filter_peak"]
+script = ExtResource("14_tt")
+ranker = SubResource("ranker_armor")
+
+[sub_resource type="Resource" id="filter_composite"]
+script = ExtResource("15_cf")
+children = Array[ExtResource("12_pf")]([SubResource("filter_enemy"), SubResource("filter_climb"), SubResource("filter_peak")])
+
+[sub_resource type="Resource" id="spread_fan"]
+script = ExtResource("17_fan")
+
 [sub_resource type="Resource" id="prop_rend"]
 script = ExtResource("4_config")
-filter = SubResource("filter_enemy")
+filter = SubResource("filter_composite")
+spread = SubResource("spread_fan")
+max_hops = 3.0
+
+[sub_resource type="Resource" id="summit_rend"]
+script = ExtResource("21_extremum")
+ranker = SubResource("ranker_armor")
 
 [sub_resource type="Resource" id="range_3hop"]
 script = ExtResource("7_range")
@@ -41,12 +88,14 @@ range_finder = SubResource("range_3hop")
 script = ExtResource("1_spell")
 id = &"rend"
 name = "Rend"
-tagline = "A little damage that applies 2 Sunder to one enemy node."
-description = "Deal a little damage to a single enemy-occupied node within 3 hops and apply 2 Sunder, each stack −1 armor (stacks, uncapped, one stack fades each turn)."
+tagline = "Tears armor off, hits harder for it, and climbs to the thickest plate."
+description = "Strike an enemy node within 3 hops, then climb up to 3 hops toward enemy nodes with as much armor or more, forking on ties and following only the best of them. Each landing applies 5 Sunder plus a quarter of the node's armor more, each stack −1 armor, and hits harder by that same quarter; the added damage carries up the climb. Crits on a summit: a node whose armor tops all its neighbours'."
 identity = ExtResource("identity_ref")
-power = 0.4
+power = 1.2
+min_degree = 2
 propagation = SubResource("prop_rend")
-on_hit_effects = Array[ExtResource("2_effect")]([SubResource("dmg_rend")])
+on_hit_effects = Array[ExtResource("2_effect")]([SubResource("strip_rend"), SubResource("dmg_rend")])
 intakes = Array[ExtResource("3_affinity")]([SubResource("break_rend")])
+crit_conditions = Array[ExtResource("1_jipuy")]([SubResource("summit_rend")])
 vfx_coordinator_scene = ExtResource("10_vfx")
 targeting = SubResource("targeting_hostile_3hop")

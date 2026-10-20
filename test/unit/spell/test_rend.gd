@@ -52,8 +52,8 @@ func _ratio() -> float:
 
 
 ## Each landed node's damage hit (not its Sunder status), by node.
-func _damage_hits() -> Dictionary:
-	var outcome := SpellResolver.resolve(_rend, _n[1], _n[0], _blue, _graph)
+func _damage_hits(spell: SpellDef = _rend) -> Dictionary:
+	var outcome := SpellResolver.resolve(spell, _n[1], _n[0], _blue, _graph)
 	var out := {}
 	for h in outcome.hits:
 		if h is StatusInstance or h is ExertInstance:
@@ -109,10 +109,11 @@ func test_rend_climbs_to_the_highest_armor_and_skips_the_low_branch() -> void:
 
 
 func test_the_seed_damage_is_power_plus_the_armor_share() -> void:
-	var hits := _damage_hits()
-	var base := _rend.power * _h.seed_multiplier(_n[0])
-	assert_almost_eq(hits[_n[1]].amount - base, _ratio() * _ARMOR[1], 0.01,
-			"the seed landing adds ratio × its armor")
+	var plain := _rend.duplicate() as SpellDef
+	plain.on_hit_effects = _rend.on_hit_effects.filter(func(fx): return fx is DamageEffect)
+	var base: float = _damage_hits(plain)[_n[1]].amount
+	assert_almost_eq(_damage_hits()[_n[1]].amount - base, _ratio() * _ARMOR[1], 0.01,
+			"the seed landing adds ratio × its armor to what the power alone deals")
 
 
 func test_each_climb_step_carries_the_damage_and_adds_its_own_share() -> void:
