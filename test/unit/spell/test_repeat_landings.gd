@@ -116,9 +116,9 @@ func test_each_bite_sees_the_sunder_the_bite_before_it_landed() -> void:
 	assert_eq(dmg.size(), 3)
 	if dmg.size() != 3:
 		return
-	assert_gte(dmg[1].amount, dmg[0].amount, "bite 2 lands on less armor than bite 1")
-	assert_gte(dmg[2].amount, dmg[1].amount, "bite 3 on less than bite 2")
-	assert_gt(dmg[2].amount, dmg[0].amount, "the ramp is real, not flat")
+	assert_gte(dmg[1].effective_amount, dmg[0].effective_amount, "bite 2 lands on less armor than bite 1")
+	assert_gte(dmg[2].effective_amount, dmg[1].effective_amount, "bite 3 on less than bite 2")
+	assert_gt(dmg[2].effective_amount, dmg[0].effective_amount, "the ramp is real, not flat")
 
 
 func test_a_later_wave_sees_an_earlier_waves_sunder() -> void:
@@ -129,7 +129,7 @@ func test_a_later_wave_sees_an_earlier_waves_sunder() -> void:
 	assert_eq(dmg.size(), 4, "3 bites at hop 0, 1 at hop 2")
 	if dmg.size() != 4:
 		return
-	assert_gt(dmg[3].amount, dmg[0].amount, "hop 2's bite meets hop 0's Sunder")
+	assert_gt(dmg[3].effective_amount, dmg[0].effective_amount, "hop 2's bite meets hop 0's Sunder")
 
 
 func test_an_in_place_damage_scale_does_not_compound_across_bites() -> void:

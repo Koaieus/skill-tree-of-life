@@ -313,6 +313,8 @@ static func _resolve(
 			var arrivals: Array[LandingContext] = [lctx]
 			if per_incident:
 				arrivals = _incident_arrivals(ctx, node, incidents, arrived, own_weights)
+			if not config.repeat_landings_by.is_empty():
+				arrivals = _repeated_arrivals(ctx, arrivals, config.repeat_landings_by)
 			arrivals_of[resolved] = arrivals
 			var preds: Array[SkillNode] = []
 			var shares := PackedFloat32Array()
@@ -478,6 +480,41 @@ static func _incident_arrivals(ctx: PropagationContext, node: SkillNode,
 		alctx.stack_scale = own_weights[i]
 		alctx.fill_landing()
 		out.append(alctx)
+	return out
+
+
+## Each arrival repeated as many times as its payload's [CarriedScalar]
+## [param id] reads (rounded, never below 0) for a
+## [member PropagationConfig.repeat_landings_by] landing. Each repeat is its
+## own [method CastSpell.derived] payload copy — so an effect writing
+## [member CastSpell.damage] in place scales that repeat alone — and its own
+## [LandingContext], hence its own [member HitLanding.hit_key] and crit. The
+## repeats land in order in step 3b, each seeing what the one before it did.
+## Departure still reads the unrepeated landing.
+static func _repeated_arrivals(ctx: PropagationContext, arrivals: Array[LandingContext],
+		id: StringName) -> Array[LandingContext]:
+	var out: Array[LandingContext] = []
+	for base in arrivals:
+		var state := base.payload.extra(id) as CarriedScalar.State
+		if state == null:
+			push_error("repeat_landings_by names %s, which the payload does not carry" % id)
+			out.append(base)
+			continue
+		for _i in maxi(0, roundi(state.value)):
+			var copy := CastSpell.derived(base.payload)
+			copy.damage = base.payload.damage
+			copy.arrival_share = base.payload.arrival_share
+			copy.incident_count = base.payload.incident_count
+			copy.arrived_from = base.payload.arrived_from
+			copy.extras = base.payload.extras.duplicate()
+			var alctx := LandingContext.new()
+			alctx.cast = ctx
+			alctx.node = base.node
+			alctx.payload = copy
+			alctx.incidents = base.incidents
+			alctx.stack_scale = base.stack_scale
+			alctx.fill_landing()
+			out.append(alctx)
 	return out
 
 
