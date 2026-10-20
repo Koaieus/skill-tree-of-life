@@ -15,8 +15,6 @@ extends AttackArmMode
 var _on_ownership_3: Callable
 var _on_ownership_2: Callable
 var _on_turn: Callable
-## The caster the hover-aim last snapped to; null before the first snap.
-var _aim_source: SkillNode = null
 
 
 func _init(p_ctl: PlayerInputController) -> void:
@@ -51,7 +49,6 @@ func on_popped() -> void:
 	if ctl.turn_manager != null and _on_turn.is_valid() \
 			and ctl.turn_manager.turn_started.is_connected(_on_turn):
 		ctl.turn_manager.turn_started.disconnect(_on_turn)
-	_aim_source = null
 	super()
 
 
@@ -109,7 +106,6 @@ func update_aim(world: Vector2) -> void:
 			nearest = src
 	if nearest == null:
 		return
-	_aim_source = nearest
 	var delta := world - nearest.global_position
 	if delta.length() <= maxf(nearest.radius, 1.0):
 		return

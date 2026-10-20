@@ -121,9 +121,9 @@ func targets_from(source: SkillNode) -> Dictionary[SkillNode, bool]:
 ## ([method RangeFinder.gather_multi]: a bounded BFS per source for hops, one
 ## merged sweep for euclidean), and the ownership filter runs only over those.
 ##
-## [param plan] is unused: every targeting takes the candidate-first path.
+## [param _plan] is unused: every targeting takes the candidate-first path.
 static func build(spell: SpellDef, attacker: Entity, graph: Graph,
-		plan: AttackPlan = null) -> SpellTargetUnion:
+		_plan: AttackPlan = null) -> SpellTargetUnion:
 	if spell == null or attacker == null:
 		return SpellTargetUnion.new()
 	var sources: Array[SkillNode]
@@ -131,7 +131,7 @@ static func build(spell: SpellDef, attacker: Entity, graph: Graph,
 		sources = attacker.spellbook.eligible_sources(spell, attacker)
 	else:
 		sources = _eligible_sources_without_book(spell, attacker)
-	return build_for(spell, attacker, graph, sources, plan)
+	return build_for(spell, attacker, graph, sources)
 
 
 ## [method build] over an EXPLICIT source list, skipping the eligibility
@@ -147,7 +147,7 @@ static func build(spell: SpellDef, attacker: Entity, graph: Graph,
 ## gather did, and keeps both views behind one implementation instead of
 ## resurrecting the old walk.
 static func build_for(spell: SpellDef, attacker: Entity, graph: Graph,
-		sources: Array[SkillNode], _plan: AttackPlan = null) -> SpellTargetUnion:
+		sources: Array[SkillNode]) -> SpellTargetUnion:
 	var union := SpellTargetUnion.new()
 	if spell == null or spell.targeting == null or attacker == null or graph == null:
 		return union

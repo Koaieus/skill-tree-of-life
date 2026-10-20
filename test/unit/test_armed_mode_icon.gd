@@ -106,6 +106,11 @@ func _stat_color(stat_id: StringName) -> Color:
 	return def.tint_color
 
 
+## The clamp addon by path, not by catalog position (new addons sort in).
+func _clamp() -> PackedScene:
+	return load("res://skill_node/addons/defs/clamp_addon.tscn") as PackedScene
+
+
 func _icon(name: String) -> Texture2D:
 	return load("res://assets/icons/addons/%s.png" % name)
 
@@ -263,13 +268,13 @@ func test_clamp_over_melee_badges_the_clamp_while_the_glow_stays_red() -> void:
 	# tint walk does not. Both statements are true at once: the border says
 	# "you are wielding Melee", the badge says "this click places a clamp".
 	_ctl.on_attack_mode_requested(BattleSystem.AttackMode.MELEE)
-	_arm_on_blade(_catalog.offered()[0])
+	_arm_on_blade(_clamp())
 	assert_true(_ctl.temp_upgrade_arm() != null,
 			"fixture check: the temp upgrade should be armed on top")
 
 	assert_eq(_ctl.get_armed_icon(), _icon("addon_clamp"),
 			"the badge forwards the addon scene's own authored icon")
-	assert_eq(_ctl.get_armed_icon_tint(), SkillNodeAddon.tint_of(_catalog.offered()[0]))
+	assert_eq(_ctl.get_armed_icon_tint(), SkillNodeAddon.tint_of(_clamp()))
 	assert_eq(_ctl.get_armed_tint(), _stat_color(&"strength"),
 			"the glow still reads the BASE of the stack — the walks diverge")
 
@@ -300,14 +305,14 @@ func test_icon_signal_fires_when_the_tint_signal_does_not() -> void:
 	_pick_pivot(_nodes[0])
 
 	watch_signals(_ctl)
-	_arm_on_blade(_catalog.offered()[0])
+	_arm_on_blade(_clamp())
 
 	assert_signal_emit_count(_ctl, "armed_tint_changed", 0,
 			"the glow is unchanged — the base of the stack is still the plan")
 	assert_signal_emit_count(_ctl, "armed_icon_changed", 1,
 			"the badge MUST still fire; each channel dedupes against its own cache")
 	assert_signal_emitted_with_parameters(_ctl, "armed_icon_changed",
-			[_icon("addon_clamp"), SkillNodeAddon.tint_of(_catalog.offered()[0])], 0)
+			[_icon("addon_clamp"), SkillNodeAddon.tint_of(_clamp())], 0)
 
 
 func test_a_refresh_that_changed_nothing_does_not_re_fire() -> void:
@@ -321,7 +326,7 @@ func test_a_refresh_that_changed_nothing_does_not_re_fire() -> void:
 
 func test_popping_the_clamp_restores_the_melee_badge() -> void:
 	_ctl.on_attack_mode_requested(BattleSystem.AttackMode.MELEE)
-	_arm_on_blade(_catalog.offered()[0])
+	_arm_on_blade(_clamp())
 
 	watch_signals(_ctl)
 	assert_true(_ctl.pop_armed_level(), "the temp upgrade is the top level")
@@ -399,7 +404,7 @@ func test_every_level_with_an_icon_also_names_a_colour() -> void:
 		func() -> void: _ctl.on_attack_mode_requested(BattleSystem.AttackMode.MAGIC),
 		func() -> void:
 			_ctl.on_attack_mode_requested(BattleSystem.AttackMode.MELEE)
-			_arm_on_blade(_catalog.offered()[0]),
+			_arm_on_blade(_clamp()),
 		func() -> void:
 			_ctl.on_attack_mode_requested(BattleSystem.AttackMode.MELEE)
 			_arm_on_blade(_catalog.offered()[1]),

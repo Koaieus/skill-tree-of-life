@@ -458,7 +458,7 @@ func _rebuild_target_cache() -> void:
 	# SpellTargetUnion.build], which would absorb it).
 	var single: Array[SkillNode] = [source]
 	_cached_valid_targets = SpellTargetUnion.build_for(
-			spell, attacker, _graph_of(source), single, self).targets_from(source)
+			spell, attacker, _graph_of(source), single).targets_from(source)
 
 
 ## The node the aim-time preview should resolve against right now: the
