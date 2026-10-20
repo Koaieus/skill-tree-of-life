@@ -1,0 +1,48 @@
+[gd_scene format=3 uid="uid://b1addon0midas"]
+
+[ext_resource type="Script" uid="uid://dw3civ4fol21f" path="res://attack/spell/on_hit/on_hit_effect.gd" id="6_effect"]
+[ext_resource type="Script" path="res://skill_node/addons/midas_mark_addon.gd" id="1_addon"]
+[ext_resource type="Script" uid="uid://che6xhl6srqh3" path="res://stats_system/stat_modifier.gd" id="2_mod"]
+[ext_resource type="Resource" path="res://effects/status/greed.tres" id="3_greed"]
+[ext_resource type="Script" uid="uid://c2q50hhtuf7g7" path="res://attack/spell/on_hit/apply_status_effect.gd" id="5_status"]
+[ext_resource type="Script" path="res://skill_node/addons/visuals/midas_mark_visual.gd" id="9_visual"]
+[ext_resource type="Resource" path="res://identity/defs/greed.tres" id="identity_ref"]
+
+[sub_resource type="Resource" id="Resource_midas_aspect"]
+resource_local_to_scene = true
+resource_name = "+1 Greed Aspect"
+script = ExtResource("2_mod")
+stat_id = &"greed_aspect"
+value = 1.0
+metadata/_custom_type_script = "uid://che6xhl6srqh3"
+
+[sub_resource type="Resource" id="Resource_midas_greed"]
+script = ExtResource("5_status")
+def = ExtResource("3_greed")
+power = 0.0
+
+[sub_resource type="Resource" id="Resource_midas_stacks"]
+resource_local_to_scene = true
+resource_name = "+1 Greed Stacks per Hit"
+script = ExtResource("2_mod")
+stat_id = &"greed_stacks_per_hit"
+value = 1.0
+metadata/_custom_type_script = "uid://che6xhl6srqh3"
+
+[node name="MidasMarkAddon" type="Node2D"]
+z_index = 1
+script = ExtResource("1_addon")
+greed_status = ExtResource("3_greed")
+identity = ExtResource("identity_ref")
+on_hit_effects = Array[ExtResource("6_effect")]([SubResource("Resource_midas_greed")])
+entity_modifiers = Array[ExtResource("2_mod")]([SubResource("Resource_midas_aspect")])
+local_modifiers = Array[ExtResource("2_mod")]([SubResource("Resource_midas_stacks")])
+description = "A gilded mark — its owner gains Greed aspect, the node gathers Greed of its own each turn up to a cap that grows with its level, and a blade swung through it leaves Greed in every contact."
+temp_placeable = true
+temp_cost_blade_size = 2
+temp_cost_aspects = Dictionary[StringName, int]({
+&"greed_aspect": 1
+})
+
+[node name="Visual" type="Node2D" parent="."]
+script = ExtResource("9_visual")
