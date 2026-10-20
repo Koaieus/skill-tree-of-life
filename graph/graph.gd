@@ -440,7 +440,12 @@ func spatial_candidates(centre: Vector2, reach: float) -> Array[SkillNode]:
 	return _spatial.candidates_within(centre, reach)
 
 
+## Stays dirty before `_ready` (no container yet), so an early query can't
+## latch an empty index over authored nodes that never fire a child hook.
 func _rebuild_spatial() -> void:
+	if skill_nodes_container == null:
+		_spatial.rebuild([] as Array[SkillNode], spatial_cell_px)
+		return
 	_spatial_dirty = false
 	var nodes := get_skill_nodes()
 	nodes.sort_custom(func(a: SkillNode, b: SkillNode) -> bool: return a.stable_id < b.stable_id)
