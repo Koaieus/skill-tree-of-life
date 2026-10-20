@@ -71,4 +71,4 @@ func _status_on(d: StatusDef, amount: int, lctx: LandingContext) -> StatusInstan
 
 
 func get_description(_spell: SpellDef = null, _board: StatBoard = null, _read_node: SkillNode = null) -> String:
-	return "On the way back, drags every debuff home: what landed plus up to the Greed load of the node's own."
+	return "Returning, hauls debuffs home."
