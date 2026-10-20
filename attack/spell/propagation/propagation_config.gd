@@ -49,6 +49,13 @@ extends Resource
 ## it — Resonator territory.
 @export var max_visits_per_node: int = 1
 
+## Repeat each landing: names a [CarriedScalar] in [member extensions] whose
+## value at a landing is how many times that landing hits — each repeat its own
+## payload copy, [member HitLanding.hit_key] and crit, landing in order, so a
+## later repeat sees what an earlier one did to the node. Empty = one landing.
+## A count of 0 lands nothing; the walk still ends there per the scalar.
+@export var repeat_landings_by: StringName = &""
+
 ## How damage evolves per hop, applied by [method mint].
 ## Null = no progression (damage carried verbatim). Plug a stock
 ## [HopDamageProgression] subclass here: [MultiplyProgression] (geometric
