@@ -149,13 +149,13 @@ func test_no_landing_past_a_clean_node() -> void:
 		assert_ne(hit.target, n[6], "infected node 6 sits past a clean one")
 
 
-## (c) heal per landing = Σcleared × heal_per_stack.
+## (c) heal per landing = Σcleared × the heal term's per_stack.
 func test_heal_is_cleared_times_heal_per_stack() -> void:
 	assert_not_null(_def)
 	if _def == null:
 		return
 	var r := _cast()
-	var hps := _cure_effect().heal_per_stack
+	var hps := (_cure_effect().terms[0] as HealPerStackTerm).per_stack
 	var cures := _cures(r[1])
 	assert_gt(cures.size(), 0)
 	for ci: CureInstance in cures:

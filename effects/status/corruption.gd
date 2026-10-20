@@ -37,6 +37,12 @@ func burst_amount(host, topples: int, threshold: int) -> float:
 	return HitPoints.whole(amount) if amount > 0.0 else 0.0
 
 
+## [param stacks] cleansed are worth one topple at that threshold —
+## [method burst_amount], so the 2% lives in one place. Counts are whole.
+func cleanse_worth(host, stacks: float) -> float:
+	return burst_amount(host, 1, int(roundf(stacks)))
+
+
 ## A tick deals nothing: corruption only hurts on a topple.
 func _on_tick(_host, _before: float, _after: float) -> void:
 	pass

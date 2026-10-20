@@ -24,3 +24,4 @@ decay = SubResource("Resource_decay")
 spread = SubResource("Resource_spill")
 display_max = 10.0
 reapply = 1
+cleanse_worth_per_stack = 1.0

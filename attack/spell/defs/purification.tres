@@ -24,6 +24,8 @@
 [ext_resource type="Texture2D" uid="uid://kiwpmieety4s" path="res://assets/emblem_luts/hospital_cross.png" id="22_lut"]
 [ext_resource type="PackedScene" path="res://ui/vfx/coordinator/spells/healing_beam_coordinator.tscn" id="23_vfx"]
 [ext_resource type="Resource" path="res://identity/defs/spell_purification.tres" id="identity_ref"]
+[ext_resource type="Script" path="res://attack/spell/cleanse_term.gd" id="30_cleanse_term"]
+[ext_resource type="Script" path="res://attack/spell/heal_per_stack_term.gd" id="31_heal_term"]
 
 [sub_resource type="Resource" id="carve_purification"]
 script = ExtResource("20_tcs")
@@ -49,10 +51,14 @@ rate = 0.0
 script = ExtResource("4_cure")
 entries = Array[ExtResource("5_entry")]([SubResource("entry_corruption"), SubResource("entry_curse"), SubResource("entry_poison")])
 
+[sub_resource type="Resource" id="heal_term"]
+script = ExtResource("31_heal_term")
+per_stack = 1.0
+
 [sub_resource type="Resource" id="cure_fx"]
 script = ExtResource("3_cure_fx")
 cure = SubResource("cure_table")
-heal_per_stack = 1.0
+terms = Array[ExtResource("30_cleanse_term")]([SubResource("heal_term")])
 
 [sub_resource type="Resource" id="filter_friendly"]
 script = ExtResource("15_owner")

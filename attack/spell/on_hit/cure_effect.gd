@@ -6,8 +6,8 @@ extends SpellOnHitEffect
 ## same figure [HealEffect] heals by — cure is 1:1 with the hit). [member cure]
 ## prices it ([method Cure.plan]); the dose spent is taken out of
 ## [member CastSpell.damage] IN PLACE and one [CureInstance] carries the exact
-## per-status counts (core part first, see [Cure]) plus
-## [code]Σcleared × heal_per_stack[/code] HP, healed on the node for both parts.
+## per-status counts (core part first, see [Cure]). What the clears buy or
+## cost is [member terms]' call, settled on that hit after it is appended.
 ##
 ## [b]Drain in place.[/b] On-hit effects run before departure, so the leftover
 ## is what the next hop inherits — the [ScaleDamageEffect] precedent. Pair it
@@ -22,9 +22,9 @@ extends SpellOnHitEffect
 ## The table: what this cleanse cures and at what price. Shared by reference
 ## with the spell's [NeedSplitSpread]; null makes the effect inert.
 @export var cure: Cure = null
-## HP healed per stack cleared, summed over every status. Linear, not the
-## triangle sum. 1.0 matches poison's damage per stack.
-@export_range(0, 10, 0.1) var heal_per_stack: float = 1.0
+## What this cleanse does with the stacks it cleared, in order
+## ([method CleanseTerm.settle_all]) — a [HealPerStackTerm] heals, a
+## [PayWorthTerm] charges their worth. Empty is a free cleanse.
 @export var terms: Array[CleanseTerm] = []
 
 
@@ -38,24 +38,21 @@ func _apply_spell(lctx: LandingContext) -> void:
 	if cleared.is_empty() and core_cleared.is_empty():
 		return
 	var hit := CureInstance.new()
-	var total := 0.0
 	for def: StatusDef in core_cleared:
 		hit.add(def, core_cleared[def], true)
-		total += core_cleared[def]
 	for def: StatusDef in cleared:
 		hit.add(def, cleared[def])
-		total += cleared[def]
-	hit.heal = total * heal_per_stack
 	hit.source = state
 	hit.target = state.current_node
 	hit.origin = state.predecessor if state.predecessor != null else state.source
 	hit.read_node = state.source
 	lctx.cast.outcome.hits.append(hit)
+	CleanseTerm.settle_all(terms, hit, lctx)
 	state.damage = maxf(state.damage - float(plan.spent), 0.0)
 
 
 ## "Cures Poison, Bleeding (dose = hit)." — the names come from the table, in
-## table order; the per-stack heal follows when it is non-zero.
+## table order; each term's fragment follows ([method CleanseTerm.describe_all]).
 func get_description(_spell: SpellDef = null, _board: StatBoard = null, _read_node: SkillNode = null) -> String:
 	var names: Array[String] = []
 	if cure != null:
@@ -63,7 +60,6 @@ func get_description(_spell: SpellDef = null, _board: StatBoard = null, _read_no
 			if e != null and e.status != null:
 				names.append(e.status.display_name if e.status.display_name != "" else String(e.status.id))
 	var what := ", ".join(names) if not names.is_empty() else "statuses"
-	var line := "Cures %s (dose = hit)" % what
-	if heal_per_stack > 0.0:
-		line += ", healing %s per stack cleared" % NumFmt.num(heal_per_stack)
-	return line + "."
+	var parts: Array[String] = ["Cures %s (dose = hit)" % what]
+	parts.append_array(CleanseTerm.describe_all(terms))
+	return ", ".join(parts) + "."

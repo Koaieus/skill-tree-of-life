@@ -34,6 +34,10 @@ extends StatusDef
 const CurseModifier := preload("res://effects/status/modifiers/curse_modifier.gd")
 const _MODIFIER_TEMPLATE := preload("res://effects/status/modifiers/curse_modifier.tres")
 
+## TRUE damage a cleanse's price charges per curse stack cleared
+## ([method cleanse_worth]). Tentative; authored on `curse.tres`.
+@export_range(0, 10, 0.1) var cleanse_worth_per_stack: float = 1.0
+
 
 func _on_applied(host, power: float) -> void:
 	_set_curse(host, power)
@@ -75,3 +79,8 @@ func _find(host) -> StatModifier:
 		if m is CurseModifier:
 			return m
 	return null
+
+
+## [param stacks] cleansed are worth `stacks × cleanse_worth_per_stack`.
+func cleanse_worth(_host, stacks: float) -> float:
+	return stacks * cleanse_worth_per_stack

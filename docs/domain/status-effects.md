@@ -142,6 +142,15 @@ A cure (`Cure`, `CureEffect`) reads and clears a spot's two holders: on a core
 node the core's rows count toward the walk (`StatusFilter`) and the need, and
 the dose clears them first, in cure-table order, then the node's
 (`Cure.plan`'s `core_cleared`, `CureInstance.on_core`); the heal lands on the node.
+What the clears buy or cost splits in two (owner, 2026-10-20, #1591): a
+stack's **worth** is the status's fact (`StatusDef.cleanse_worth(host, stacks)`
+— corruption one topple's burst at that threshold, curse
+`cleanse_worth_per_stack` each, everything else 0), and what a spell does with
+it is its `CureEffect.terms`, a list of `CleanseTerm`s settled on the
+`CureInstance` after it is appended: `HealPerStackTerm` heals Σcleared ×
+`per_stack` (Purification, Remedy), `PayWorthTerm` appends one TRUE
+`CleansePriceInstance` of Σ worth × `scale` on the node, after the clears and
+never drawing its own crit. An empty list is a free cleanse.
 
 | Family | Denomination | Answers | Weak against |
 |---|---|---|---|

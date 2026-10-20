@@ -52,7 +52,9 @@ func _effect(rows: Array[CureEntry], heal_per_stack: float = 1.0) -> CureEffect:
 	c.entries = rows
 	var e := CureEffect.new()
 	e.cure = c
-	e.heal_per_stack = heal_per_stack
+	var term := HealPerStackTerm.new()
+	term.per_stack = heal_per_stack
+	e.terms.assign([term])
 	return e
 
 
@@ -92,7 +94,7 @@ func test_heal_is_linear_in_stacks_cleared() -> void:
 	_ctx.stacks[_node] = {&"poison": 2.0, &"bleeding": 4.0}
 	var lctx := _land(_effect([_entry(_poison, 1.0), _entry(_bleed, 1.0)], 1.5), 10.0)
 	var ci: CureInstance = _cures(lctx)[0]
-	assert_almost_eq(ci.heal, 6.0 * 1.5, 0.0001, "Σcleared × heal_per_stack")
+	assert_almost_eq(ci.heal, 6.0 * 1.5, 0.0001, "Σcleared × per_stack")
 	assert_almost_eq(lctx.payload.damage, 4.0, 0.0001)
 
 

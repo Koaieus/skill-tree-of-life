@@ -125,7 +125,7 @@ func test_remedy_on_a_cracked_core_leaves_one_on_the_node() -> void:
 	_poison(3.0, 2.0)
 	var effect := CureEffect.new()
 	effect.cure = _remedy()
-	effect.heal_per_stack = 0.0
+	effect.terms = []
 	var p := CastSpell.new()
 	p.damage = 4.0
 	p.current_node = _core
