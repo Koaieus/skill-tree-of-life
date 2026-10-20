@@ -75,7 +75,7 @@ extends Resource
 ## [member PropagationPick.lineage_override]). Every other pick field is copied
 ## onto the child as-is: the spread decided it, the mint does not reinterpret it.
 ##
-## [param lctx] is the landing [param payload] just made — this wave has
+## [param _lctx] is the landing [param payload] just made — this wave has
 ## LANDED, so a world read through it sees this wave's stacks and damage.
 func mint(payload: CastSpell, pick: PropagationPick, _lctx: LandingContext = null) -> CastSpell:
 	var next := CastSpell.derived(payload)

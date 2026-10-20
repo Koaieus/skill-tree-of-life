@@ -331,7 +331,7 @@ the scalar knobs that don't deserve their own class:
 @export var hop_damage: HopDamageProgression = null   # null = damage carried verbatim
 @export var hop_stacks: HopDamageProgression = null   # null = stack_weight carried verbatim
 
-func mint(payload: CastSpell, pick: PropagationPick, lctx: LandingContext) -> CastSpell
+func mint(payload: CastSpell, pick: PropagationPick, lctx: LandingContext = null) -> CastSpell  # default is transitional
 ```
 
 **`static CastSpell.derived(parent)` is the one copy routine** (owner, #1717):

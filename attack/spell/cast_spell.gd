@@ -164,8 +164,10 @@ static func blank() -> CastSpell:
 ##
 ## [member came_from], [member closed_cycle] and [member arrival_bearing] ARE
 ## copied, so a stock reducer's merge keeps its first incident's. Only
-## [CycloneSpread] stamps them and [CycloneReducer] re-stamps all three on its
-## merge, so no other spell's walk reads a changed value.
+## [CycloneSpread] stamps [member came_from] and [member closed_cycle], only it
+## reads [member arrival_bearing] (the resolver's seed bearing never meets a
+## merge: two seeds never share a node), and [CycloneReducer] re-stamps all
+## three on its merge — so no other spell's walk reads a changed value.
 static func derived(parent: CastSpell) -> CastSpell:
 	var next := CastSpell.new()
 	next.seed_node = parent.seed_node
