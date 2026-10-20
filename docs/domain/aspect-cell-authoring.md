@@ -184,9 +184,14 @@ A spell is many facets, each its own design call:
 | cast gate | `min_degree`, `carve_shape` |
 | reach | `targeting` (a `Targeting` with a range finder), `propagation` (`PropagationConfig` + filter; its `reach` swaps graph neighbours for another candidate set, e.g. Firecracker's `FuelBlastReach`) |
 | payload | `power`, `on_hit_effects` (`DamageEffect`, `HealEffect` …; the one on-hit vocabulary for every mode, see `docs/domain/effect-system.md` and ADR 0044) |
-| status | `intakes` (`AspectIntake{identity, innate, affinity_gain, affinity_cost}`) + `ingest_gain` / `ingest_cost` (§ Infusion, ADR 0060) |
+| status | `intakes` (`AspectIntake{identity, innate, affinity_gain, affinity_cost, stack_terms}`) + `ingest_gain` / `ingest_cost` (§ Infusion, ADR 0060) |
 | crit | `crit_conditions` (`LandingCondition`s) |
 | presentation | `vfx_coordinator_scene`, `windup_vfx_scene`, `tempo` (`.claude/rules/spell-vfx.md`) |
+
+An intake row's `stack_terms` (`StackTerm`s, e.g. `DefenderStatShare`) ride its
+rider and land as extra stacks; share the SAME SubResource with an
+`AddStackTermDamageEffect` authored before `DamageEffect` and the spell also hits
+harder by that amount — one formula, two readers (Rend, `rend.tres`).
 
 The design work is what else the spell does, so it is not "damage plus status" again.
 
