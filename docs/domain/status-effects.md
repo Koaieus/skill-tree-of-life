@@ -171,6 +171,8 @@ stacks stats share one parent umbrella, `dot_stacks_per_hit`, which lands more
 stacks and never scales damage; bleeding, blindness, greed, mark (`mark_stacks_per_hit`), hex (`hex_stacks_per_hit`)
 and weakness each carry a parentless `<id>_stacks_per_hit` and sit outside it.
 Sunder and scout author no `StatusDef.stacks_stat_id()` (a flat landing count).
+A `StatusInstance.raw` landing (Lodestone's haul, [spell-propagation.md](spell-propagation.md)) skips this
+fold, `stack_terms`, crit and `stack_scale`; only the block gate and Greed ×2 still apply.
 
 **Resistance** (`poison_resistance`, …, default 0, a fraction) is read on the
 **host** and filters the accumulated row at effect time, never the incoming hit

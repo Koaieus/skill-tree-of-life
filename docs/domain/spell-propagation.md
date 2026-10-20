@@ -423,8 +423,10 @@ until `depth`, then hopping in place (WAIT) until the turn wave
 `2·depth − k + 1` so all returns reach depth j together; BACK passes
 `now − max(0, seen − load)` per debuff to the node's parents, split by trail
 count with `Apportion.largest_remainder`; BACK at the seed ends the cast.
-`State.seen` is recorded by a `HaulEffect` (not landed yet); `PhaseCondition` splits outbound riders from
-the return haul. `RetractReducer` is the stock merge plus a guard: a WAIT
+`HaulEffect` records `State.seen` and lands the haul: one `StatusInstance.raw` per
+debuff on Q (no stacks-per-hit fold, no `stack_terms`, no crit, no `stack_scale`; the
+block gate and Greed ×2 still apply) and one `CureInstance` per source node, its
+entity pile first. `PhaseCondition` splits outbound riders from the return haul. `RetractReducer` is the stock merge plus a guard: a WAIT
 tendril and a return meeting on one wave cancel the returns, so a merge never
 mixes phases. Merged fronts concatenate cargo sorted by source node then status
 (replay-stable). Lodestone is the one user.
