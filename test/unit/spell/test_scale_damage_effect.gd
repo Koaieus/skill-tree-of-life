@@ -159,7 +159,8 @@ func test_a_false_condition_leaves_damage_untouched() -> void:
 	_own_all(graph)
 	var n := graph.get_skill_nodes()
 	var state := _landing(7.0, n[1], graph)
-	_effect(ScaleDamageEffect.Mode.MULTIPLY, 2.0, JunctionCondition.new()).apply(
+	# The gate is the base OnHitEffect's, checked by run_all, not apply.
+	OnHitEffect.run_all([_effect(ScaleDamageEffect.Mode.MULTIPLY, 2.0, JunctionCondition.new())],
 			LandingContext.for_test(state, n[1]))
 	assert_almost_eq(state.damage, 7.0, 0.001, "untouched")
 
