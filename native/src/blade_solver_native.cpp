@@ -72,6 +72,10 @@ struct FieldCtx {
     const float *vertex_radii = nullptr;
     int64_t vertex_radii_count = 0;
 
+    // Per-particle restitution against a deflecting plate (#1634), or null —
+    // every swing without a Bunker member — which skips recording outright.
+    const float *restitution = nullptr;
+
     const int32_t *driven = nullptr;
     int64_t driven_count = 0;
 
@@ -115,6 +119,10 @@ struct FieldCtx {
     Dictionary contact_particles;
     Dictionary contact_edges;
     Dictionary near_plates;
+    // Restitution's record (#1634): per particle, the normal approach speed of
+    // its FIRST disc pushout this substep (0 = none) and that pushout's normal.
+    PackedFloat32Array recoil_approach;
+    PackedVector2Array recoil_normal;
 
     // ── Per-sample history, parallel to `samples[1..]` ──────────────────────
     Array clock_history;
@@ -174,7 +182,8 @@ void field_after_drivers(FieldCtx &f, const Vector2 *positions) {
 }
 
 // BladeObstacleField.project() — the pushout, and the swing's only contact test.
-void field_project(FieldCtx &f, Vector2 *positions, const float *inv_masses, int64_t n) {
+void field_project(FieldCtx &f, Vector2 *positions, const Vector2 *prev,
+        const float *inv_masses, int64_t n) {
     if (n == 0 || f.zone_count == 0) {
         return;
     }
@@ -241,6 +250,14 @@ void field_project(FieldCtx &f, Vector2 *positions, const float *inv_masses, int
             }
             const double d = Math::sqrt(d2);
             const Vector2 normal = d > 1e-6 ? (p - c) / (real_t)d : Vector2(1, 0);
+            if (f.restitution != nullptr && (double)f.restitution[i] > 0.0
+                    && f.recoil_approach[i] == 0.0f) {
+                const double vn = (double)(p - prev[i]).dot(normal);
+                if (vn < 0.0) {
+                    f.recoil_approach.set(i, (float)vn);
+                    f.recoil_normal.set(i, normal);
+                }
+            }
             positions[i] = c + normal * (real_t)reach;
             f.contact_particles[i] = z;
         }
@@ -383,6 +400,30 @@ void field_roll_driven(FieldCtx &f, const Vector2 *positions) {
     f.contact_particles.clear();
     f.contact_edges.clear();
     f.near_plates.clear();
+}
+
+// BladeObstacleField.restitute() — bunker x bunker recoil (#1634). After the
+// substep's projection, a particle that hit a plate leaves along that plate's
+// normal at restitution x its approach speed: written into the Verlet history
+// (`prev`), since the next integrate reads velocity as `position - prev`.
+// Only the normal component moves; a particle already separating faster keeps it.
+void field_restitute(FieldCtx &f, const Vector2 *positions, Vector2 *prev, int64_t n) {
+    if (f.restitution == nullptr) {
+        return;
+    }
+    for (int64_t i = 0; i < n; i++) {
+        const double approach = (double)f.recoil_approach[i];
+        if (approach >= 0.0) {
+            continue;
+        }
+        const Vector2 normal = f.recoil_normal[i];
+        const double target = -(double)f.restitution[i] * approach;
+        const double vn = (double)(positions[i] - prev[i]).dot(normal);
+        if (vn < target) {
+            prev[i] -= normal * (real_t)(target - vn);
+        }
+        f.recoil_approach.set(i, 0.0f);
+    }
 }
 
 // BladeObstacleField.end_substep() — meter the driver residual, bank the load
@@ -786,11 +827,12 @@ static Dictionary run_range(
                 // ends outside every plate — that ordering is what makes
                 // SHATTER_DISTANCE a visual penetration budget too.
                 if (p_fld != nullptr && p_fld->has_field) {
-                    field_project(*p_fld, positions, inv_masses, n);
+                    field_project(*p_fld, positions, prev, inv_masses, n);
                 }
             }
 
             if (p_fld != nullptr && p_fld->has_field) {
+                field_restitute(*p_fld, positions, prev, n);
                 field_end_substep(*p_fld, positions);
             }
         }
@@ -904,6 +946,7 @@ Dictionary BladeSolverNative::simulate_range_field(
     PackedInt32Array edges;
     PackedByteArray edge_removed;
     PackedFloat32Array vertex_radii;
+    PackedFloat32Array vertex_restitution;
     PackedInt32Array driven;
     PackedInt32Array incident_offsets;
     PackedInt32Array incident_edges;
@@ -973,6 +1016,23 @@ Dictionary BladeSolverNative::simulate_range_field(
         ctx.edge_removed = edge_removed.ptr();
         ctx.vertex_radii = vertex_radii.ptr();
         ctx.vertex_radii_count = vertex_radii.size();
+        // Optional (#1634): absent or all-zero leaves `restitution` null, so a
+        // swing with no Bunker member runs the inelastic loop untouched.
+        if (p_field.has("vertex_restitution")) {
+            vertex_restitution = p_field["vertex_restitution"];
+            bool any = false;
+            for (int64_t i = 0; i < vertex_restitution.size(); i++) {
+                any = any || vertex_restitution[i] > 0.0f;
+            }
+            if (any) {
+                ERR_FAIL_COND_V_MSG(vertex_restitution.size() != p_positions.size(), Dictionary(),
+                        "simulate_range_field: vertex_restitution must parallel positions.");
+                ctx.restitution = vertex_restitution.ptr();
+                ctx.recoil_approach.resize(p_positions.size());
+                ctx.recoil_approach.fill(0.0f);
+                ctx.recoil_normal.resize(p_positions.size());
+            }
+        }
         ctx.driven = driven.ptr();
         ctx.driven_count = driven.size();
         ctx.incident_offsets = incident_offsets.ptr();

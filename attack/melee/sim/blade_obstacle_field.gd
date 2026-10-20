@@ -146,6 +146,10 @@ var _driven_set: Dictionary = {}
 var _driven_targets: PackedVector2Array = PackedVector2Array()
 ## particle -> zone, and edge_idx -> zone, for THIS substep. Cleared at its end.
 var _contact_particles: Dictionary = {}
+## Restitution's record (#1634), per substep: particle -> [approach, normal] of
+## its FIRST disc pushout, only for a particle with
+## [member BladeState.vertex_restitution] > 0. Consumed by [method restitute].
+var _recoil: Dictionary = {}
 var _contact_edges: Dictionary = {}
 ## zone -> true while some part is within CONTACT_HYSTERESIS of it this substep.
 ## PLATES only: a wall never enters this set, so it can never meter strain,
@@ -399,6 +403,7 @@ func project(positions: PackedVector2Array, inv_masses: PackedFloat32Array) -> v
 				continue
 			var d := sqrt(d2)
 			var normal := (p - c) / d if d > 1e-6 else Vector2.RIGHT
+			_record_recoil(i, p, normal)
 			positions[i] = c + normal * reach
 			_contact_particles[i] = z
 		if not deflect and not wants_drag:
@@ -453,6 +458,31 @@ func project(positions: PackedVector2Array, inv_masses: PackedFloat32Array) -> v
 
 
 ## Close the substep: meter the strain, arm a break, and roll the driver history.
+func _record_recoil(i: int, p: Vector2, normal: Vector2) -> void:
+	var e := _state.vertex_restitution
+	if i >= e.size() or e[i] <= 0.0 or _recoil.has(i) or i >= _state.prev_positions.size():
+		return
+	var vn := (p - _state.prev_positions[i]).dot(normal)
+	if vn < 0.0:
+		_recoil[i] = [vn, normal]
+
+
+## Bunker x bunker recoil (#1634), after a substep's projection: a particle
+## that hit a plate leaves along its normal at restitution x its approach
+## speed, written into the Verlet history [param prev] (the next integrate
+## reads velocity as `position - prev`). Only the normal component moves.
+## The native loop's `field_restitute` is this, transliterated.
+func restitute(positions: PackedVector2Array, prev: PackedVector2Array) -> void:
+	for i: int in _recoil:
+		var approach: float = _recoil[i][0]
+		var normal: Vector2 = _recoil[i][1]
+		var target := -_state.vertex_restitution[i] * approach
+		var vn := (positions[i] - prev[i]).dot(normal)
+		if vn < target:
+			prev[i] -= normal * (target - vn)
+	_recoil.clear()
+
+
 func end_substep(positions: PackedVector2Array) -> void:
 	if _near.is_empty():
 		# Nothing anywhere near a plate: every contact is over. Reset, don't bank.
@@ -685,6 +715,7 @@ func native_inputs() -> Dictionary:
 		"edges": edges_flat,
 		"edge_removed": edge_removed,
 		"vertex_radii": _state.radii,
+		"vertex_restitution": _state.vertex_restitution,
 		"driven": _driven,
 		"incident_offsets": incident_offsets,
 		"incident_edges": incident_edges,
