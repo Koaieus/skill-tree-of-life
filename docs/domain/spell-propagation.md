@@ -330,14 +330,15 @@ the scalar knobs that don't deserve their own class:
 @export var max_visits_per_node: int = 1   # 1 = never-revisit; INT_MAX = uncapped
 @export var hop_damage: HopDamageProgression = null   # null = damage carried verbatim
 @export var hop_stacks: HopDamageProgression = null   # null = stack_weight carried verbatim
+@export var extensions: Array[PayloadExtension] = []  # spell-specific carried state
 
-func mint(payload: CastSpell, pick: PropagationPick, lctx: LandingContext = null) -> CastSpell  # default is transitional
+func mint(payload: CastSpell, pick: PropagationPick, lctx: LandingContext) -> CastSpell
 ```
 
 **`static CastSpell.derived(parent)` is the one copy routine** (owner, #1717):
 it copies the universal and walk-bookkeeping fields (arrays duplicated) and
-nothing else; `damage`, `arrival_share`, `incident_count` and `arrived_from`
-are deliberate non-copies. The seed starts from `CastSpell.blank()`; every
+nothing else; `damage`, `arrival_share`, `incident_count`, `arrived_from` and
+`extras` are deliberate non-copies. The seed starts from `CastSpell.blank()`; every
 other payload is `derived` and applies only its own deltas:
 
 - **`mint`** (*owner: "Step returns picks; config mints."*) derives from the
@@ -348,12 +349,31 @@ other payload is `derived` and applies only its own deltas:
   `lineage_override`); then the pick's stamps copied verbatim (`arrival_share =
   share`, `arrival_bearing`, `turn_sign`, `closed_cycle`, `came_from`).
   Progression first, share second, so an authored ramp composes with a
-  spread's split. `lctx` is the landing the parent just made — the wave has
-  landed, so a read through it sees this wave's stacks.
+  spread's split. Then each extension mints its state (below). `lctx` is the
+  landing the parent just made — the wave has landed, so a read through it
+  sees this wave's stacks.
 - **A reducer's merge** (`IncidentReducer._merge_payload_defaults`) derives
   from the first incident, then takes MAX `hops_remaining`, the union of
   `visited` and MAX `stack_weight`; the reducer sets `damage`. A stock merge
-  therefore keeps the first incident's `came_from` and `closed_cycle`.
+  therefore keeps the first incident's `came_from` and `closed_cycle`. Then
+  each extension merges its states across the incidents.
+
+**Extensions** (owner, #1717) carry spell-specific state instead of new
+`CastSpell` fields. Each `PayloadExtension` (a `Resource` template with an
+`id`) builds one `PayloadState` (`RefCounted`, back-referencing its template)
+per payload in `CastSpell.extras`: `seed(ctx)` in the resolver's seed loop,
+`mint(parent_state, pick, lctx, hop_index)` in `mint` (`hop_index` is the
+parent's, as `hop_damage` sees it), `merge(states)` in
+`_merge_payload_defaults` through `state.template`. Readers look one up by id:
+`payload.extra(&"bites")`. A merge must be order-independent (MAX/SUM) or sort
+first. A state with `terminal` set ends the walk at that child
+(`hops_remaining = 0`); the child still lands. The stock one is
+`CarriedScalar` — `seed_value`, `progression` (applied as
+`apply(value, seed_value, hop_index)`), `fold` (`IncidentReducer.StackFold`),
+an optional `reseed: ScalarReseed` (`reseed(value, lctx, scalar) -> float`,
+run before `progression`, reading the landed world) and `min_value` (`-INF` =
+off; a value below it marks the child terminal). Its state is
+`CarriedScalar.State` with one `value: float`.
 
 The resolver calls `select` once per landing and `mint` once per pick, passing
 that landing's `lctx`.
