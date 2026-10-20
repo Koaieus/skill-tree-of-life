@@ -45,7 +45,8 @@ func _variant(intakes: Dictionary) -> SpellDef:
 
 ## 0 (attacker) → the tree in [param adj]; the defender owns every other node,
 ## each holding [param poison] stacks. Resolves on a kept shadow.
-func _cast(adj: Array, poison: float, spell: SpellDef = LODESTONE) -> Dictionary:
+func _cast(adj: Array, poison: float, spell: SpellDef = LODESTONE,
+		core_idx: int = -1, core_poison: float = 0.0) -> Dictionary:
 	var graph := h.make_graph(adj, self)
 	var n := graph.get_skill_nodes()
 	var atk := h.make_entity(graph, "A")
@@ -61,6 +62,9 @@ func _cast(adj: Array, poison: float, spell: SpellDef = LODESTONE) -> Dictionary
 	if poison > 0.0:
 		for i in range(1, n.size()):
 			CombatWorld.live().combat_for(n[i]).apply_status(_POISON, poison)
+	if core_idx >= 0:
+		def.core_location = n[core_idx]
+		def.get_combat().adjust_status_power(_POISON, core_poison)
 	var shadow := CombatWorld.shadow()
 	var outcome := SpellResolver.resolve_against(spell, n[1], n[0], atk, graph, shadow)
 	return {n = n, graph = graph, shadow = shadow, outcome = outcome}
@@ -135,6 +139,24 @@ func test_owners_diamond_splits_by_trails_and_conserves() -> void:
 	var poison := _column(r, _POISON)
 	assert_eq(poison, [42, 0, 0, 0, 0, 0, 0], "everything ends on T")
 	assert_eq(_sum(poison), 7 * 6, "with no Greed, total poison is conserved")
+	r.shadow.free_shadow()
+
+
+func test_the_haul_clears_a_hostile_cores_entity_pile_first() -> void:
+	# Leaf 8 is the defender's core: 1 poison on the node plus 3 on the entity.
+	var r := _cast(_fan2(), 1.0, _variant({_POISON_ID: 1}), 8, 3.0)
+	var core_node: SkillNode = r.n[8]
+	var cure: CureInstance = null
+	for hit in (r.outcome as AttackOutcome).hits:
+		if hit is CureInstance and (hit as CureInstance).target == core_node:
+			cure = hit
+	assert_not_null(cure, "the haul cures the core node's source")
+	assert_eq(cure.defs.size(), 1, "one cargo piece: the core's pile covers it, the node row is spared")
+	assert_eq(cure.on_core[0], 1, "the cure entry is on the core's entity pile")
+	assert_almost_eq(cure.cleared[0], 1.0, 0.0001, "exactly the piece's amount comes off the core")
+	assert_almost_eq(r.shadow.combat_for(core_node).owner().get_status_power(&"poison"), 2.0, 0.0001,
+			"3 on the entity pile minus the 1 cleared")
+	assert_eq(_raw_hauls(r).get(1, []), [14], "the cleared stack still lands on the target")
 	r.shadow.free_shadow()
 
 
