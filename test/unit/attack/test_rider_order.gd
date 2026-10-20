@@ -1,13 +1,13 @@
 extends GutTest
 
 ## A status rider lands BEFORE its paired hit, in every mode, so a curse
-## floor, a sunder or a hex lifts its own hit; damage-shaped riders
+## floor, a sunder or a mark lifts its own hit; damage-shaped riders
 ## (paired damage, splash copies, blast, detonate, cures) stay after it. The
 ## hit's land veto is a separate, memoized step the first asker decides
 ## ([method HitInstance.resolve_gate]). ADR 0067.
 
 const _CURSE := &"curse"
-const _HEX := &"hex"
+const _MARK := &"mark"
 const _POISON_ID := &"poison"
 const _SUNDER := &"sunder"
 const _FLOOR := 1.0
@@ -120,16 +120,16 @@ func test_a_vetoed_arrows_earlier_landing_status_is_a_dud() -> void:
 	assert_eq(status.power, 0.0)
 
 
-func test_a_hex_rider_raises_its_own_arrows_crit_chance() -> void:
+func test_a_mark_rider_raises_its_own_arrows_crit_chance() -> void:
 	await _volley_fixture(100.0)
 	_f.attacker.stat_board.get_stat(&"crit_chance").base_value = 0.0
 	var world := CombatWorld.shadow()
-	var outcome := _volley_in({_HEX: 1}, world)
-	var arrow := _arrow_of(outcome, _HEX)
-	var hex := _status_of(outcome, arrow)
-	assert_lt(_land_index(outcome, hex), _land_index(outcome, arrow), "the hex lands first")
+	var outcome := _volley_in({_MARK: 1}, world)
+	var arrow := _arrow_of(outcome, _MARK)
+	var mark := _status_of(outcome, arrow)
+	assert_lt(_land_index(outcome, mark), _land_index(outcome, arrow), "the mark lands first")
 	assert_true(arrow.is_crit or CritRoll.chance_for(arrow, world) > 0.0,
-		"the hex was on the node when its own arrow drew its crit")
+		"the mark was on the node when its own arrow drew its crit")
 	world.free_shadow()
 
 

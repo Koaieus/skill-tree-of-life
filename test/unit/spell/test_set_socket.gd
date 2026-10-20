@@ -66,13 +66,13 @@ func test_an_aspect_in_another_socket_moves_and_displaces() -> void:
 
 
 func test_clearing_a_socket_compacts_and_a_gap_appends() -> void:
-	var plan := _plan(_caster({&"poison": 5, &"curse": 3, &"hex": 2}), _spell())
+	var plan := _plan(_caster({&"poison": 5, &"curse": 3, &"mark": 2}), _spell())
 	plan.set_socket(0, &"poison")
 	plan.set_socket(1, &"curse")
 	plan.set_socket(0, &"")
 	assert_eq(_keys(plan), [&"curse"] as Array[StringName], "curse slid to socket 0")
-	plan.set_socket(2, &"hex")
-	assert_eq(_keys(plan), [&"curse", &"hex"] as Array[StringName], "index 2 with one filled appends at 1")
+	plan.set_socket(2, &"mark")
+	assert_eq(_keys(plan), [&"curse", &"mark"] as Array[StringName], "index 2 with one filled appends at 1")
 
 
 func test_depth_is_min_of_held_and_capacity_left_and_refills_on_clear() -> void:
@@ -114,8 +114,8 @@ func test_a_refused_or_unheld_aspect_never_lands() -> void:
 
 
 func test_no_sequence_overruns() -> void:
-	var plan := _plan(_caster({&"poison": 7, &"curse": 4, &"hex": 9}, 1000.0), _spell(10.0))
-	var ids: Array[StringName] = [&"poison", &"curse", &"hex", &""]
+	var plan := _plan(_caster({&"poison": 7, &"curse": 4, &"mark": 9}, 1000.0), _spell(10.0))
+	var ids: Array[StringName] = [&"poison", &"curse", &"mark", &""]
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 1584
 	for i in 200:

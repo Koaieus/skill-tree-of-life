@@ -531,7 +531,7 @@ func resolve_against(world: CombatWorld) -> AttackOutcome:
 	# draws the seeded crit stream in landing order, which is the schedule's.
 	outcome.schedule = OutcomeSchedule.compile(outcome)
 	# Every arrow rolls its own crit as it lands (owner call: "a hit can
-	# crit"), off the stamped seed, never `randf()` — so a hex a rider landed
+	# crit"), off the stamped seed, never `randf()` — so a mark a rider landed
 	# earlier in this volley reaches the arrows behind it. A 40-leaf empire
 	# therefore rolls 40 times against one node, as intended.
 	outcome.crit_stream = CritRoll.stream_for(resolve_seed)

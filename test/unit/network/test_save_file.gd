@@ -44,6 +44,10 @@ const _ROW_LAYOUT_PINS := {
 	# interns `res://` paths. No row moved, so the hash is 10's; older files
 	# are refused (MIN is 11).
 	11: "16d7861e9a130a0e4b6cffd1c835ccf58c0839a0132067d9c9079ec58a77bfdd",
+	# 12: the crit-taken aspect's resources took the name Mark, freeing `hex`
+	# for another status. No row moved, so the hash is 11's; older files are
+	# refused (MIN is 12).
+	12: "16d7861e9a130a0e4b6cffd1c835ccf58c0839a0132067d9c9079ec58a77bfdd",
 }
 
 

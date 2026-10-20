@@ -2,11 +2,11 @@ extends GutTest
 
 ## Crit rolls at LANDING: each hit draws from the outcome's crit stream as it
 ## lands, in landing order, reading the landing world — so a status landed
-## earlier in the same attack (a hex rider) reaches the crit chance of the
+## earlier in the same attack (a mark rider) reaches the crit chance of the
 ## hits behind it, and never the ones in front. A rebuilt record carries no
 ## stream and lands its recorded crits without drawing.
 
-const _HEXED := preload("res://effects/status/hexed.tres")
+const _MARKED := preload("res://effects/status/marked.tres")
 const _SEED := 0x1473
 
 var _attacker: Entity
@@ -35,24 +35,24 @@ func _arrow(key: float) -> DamageInstance:
 	return hit
 
 
-func _hex_rider(key: float) -> StatusInstance:
+func _mark_rider(key: float) -> StatusInstance:
 	var hit := StatusInstance.new()
-	hit.def = _HEXED
+	hit.def = _MARKED
 	hit.attacker = _attacker
 	hit.read_node = _n.a1
 	hit.origin = _n.a1
 	hit.target = _n.t
-	# Deep enough that the hexed chance clears 1.0 for a zero-crit attacker.
-	hit.power = ceilf(1.5 / _HEXED.incoming_modifiers[0].value)
+	# Deep enough that the marked chance clears 1.0 for a zero-crit attacker.
+	hit.power = ceilf(1.5 / _MARKED.incoming_modifiers[0].value)
 	hit.structural_key = key
 	return hit
 
 
-## arrow (key 0) → hex rider on the same node (key 0, after it) → arrow (key 1).
+## arrow (key 0) → mark rider on the same node (key 0, after it) → arrow (key 1).
 func _volley() -> AttackOutcome:
 	var outcome := AttackOutcome.new()
 	outcome.hits.append(_arrow(0.0))
-	outcome.hits.append(_hex_rider(0.0))
+	outcome.hits.append(_mark_rider(0.0))
 	outcome.hits.append(_arrow(1.0))
 	outcome.resolve_seed = _SEED
 	outcome.crit_stream = CritRoll.stream_for(_SEED)
@@ -66,16 +66,16 @@ func _crits(outcome: AttackOutcome) -> Array:
 	return out
 
 
-# ── 1. A hex landed earlier in the attack reaches the hits behind it ───────
+# ── 1. A mark landed earlier in the attack reaches the hits behind it ───────
 
-func test_an_arrow_behind_the_hex_rider_crits_and_one_in_front_does_not() -> void:
+func test_an_arrow_behind_the_mark_rider_crits_and_one_in_front_does_not() -> void:
 	var world := CombatWorld.shadow()
 	var outcome := _volley()
 	OutcomeApplier.apply(outcome, world)
 	assert_almost_eq(CritRoll.chance_for(_arrow(1.0)), 0.0, 0.0001,
-		"fixture: no crit without the hex")
-	assert_false(outcome.hits[0].is_crit, "the arrow landing before the riders never saw the hex")
-	assert_true(outcome.hits[2].is_crit, "the arrow landing after the riders reads the hex overlay")
+		"fixture: no crit without the mark")
+	assert_false(outcome.hits[0].is_crit, "the arrow landing before the riders never saw the mark")
+	assert_true(outcome.hits[2].is_crit, "the arrow landing after the riders reads the mark overlay")
 	assert_eq(outcome.hits[2].crit_tier, 1, "one draw, stat path only")
 	world.free_shadow()
 
@@ -103,7 +103,7 @@ func test_a_rebuilt_record_lands_its_recorded_crits_without_drawing() -> void:
 	var rebuilt := AttackRecord.rebuild(wired, _graph)
 	assert_null(rebuilt.crit_stream, "a record carries no crit stream")
 	var sentinel_state: int = resolved.crit_stream.state
-	# The live replay lands the recorded hex before the trailing arrow, so a
+	# The live replay lands the recorded mark before the trailing arrow, so a
 	# replay that drew would stack a second tier on top of the recorded one.
 	OutcomeApplier.apply(rebuilt, CombatWorld.live())
 	assert_eq(resolved.crit_stream.state, sentinel_state, "the replay never touches the stream")

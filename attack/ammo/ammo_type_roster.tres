@@ -13,9 +13,9 @@
 [ext_resource type="Resource" path="res://attack/ammo/types/greed.tres" id="11_greed"]
 [ext_resource type="Resource" path="res://attack/ammo/types/weakness.tres" id="12_weakness"]
 [ext_resource type="Resource" path="res://attack/ammo/types/bleeding.tres" id="13_bleeding"]
-[ext_resource type="Resource" path="res://attack/ammo/types/hex.tres" id="14_hex"]
+[ext_resource type="Resource" path="res://attack/ammo/types/mark.tres" id="14_mark"]
 [ext_resource type="Resource" path="res://attack/ammo/types/explosive.tres" id="15_explosive"]
 
 [resource]
 script = ExtResource("1_roster")
-types = Array[ExtResource("2_ammo_type")]([ExtResource("3_arrow"), ExtResource("4_poison"), ExtResource("5_scout"), ExtResource("6_sunder"), ExtResource("7_blindness"), ExtResource("8_curse"), ExtResource("9_wither"), ExtResource("10_corruption"), ExtResource("11_greed"), ExtResource("12_weakness"), ExtResource("13_bleeding"), ExtResource("14_hex"), ExtResource("15_explosive")])
+types = Array[ExtResource("2_ammo_type")]([ExtResource("3_arrow"), ExtResource("4_poison"), ExtResource("5_scout"), ExtResource("6_sunder"), ExtResource("7_blindness"), ExtResource("8_curse"), ExtResource("9_wither"), ExtResource("10_corruption"), ExtResource("11_greed"), ExtResource("12_weakness"), ExtResource("13_bleeding"), ExtResource("14_mark"), ExtResource("15_explosive")])

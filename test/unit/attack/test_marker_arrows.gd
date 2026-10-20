@@ -16,7 +16,7 @@ extends GutTest
 
 const _ARROW := &"arrow"
 const _CURSE := &"curse"
-const _HEX := &"hex"
+const _MARK := &"mark"
 
 ## Small against the default flat-board node HP (10): a 4-arrow volley on the
 ## floor must leave the target alive, or the later arrows land on nothing.
@@ -120,23 +120,23 @@ func test_curse_marker_lifts_the_floor_for_every_base_arrow_behind_it() -> void:
 			"base arrow %d hits harder behind the marker than without it" % i)
 
 
-func test_hex_marker_raises_the_crit_chance_of_every_base_arrow_behind_it() -> void:
+func test_mark_marker_raises_the_crit_chance_of_every_base_arrow_behind_it() -> void:
 	var plain_world := CombatWorld.shadow()
 	var plain := _base_hits(_volley_in({_ARROW: 3}, plain_world))
 	_attacker.stat_board.arrows.take(_ARROW, _attacker.stat_board.arrows.total_stock())
 	var marked_world := CombatWorld.shadow()
-	var marked_outcome := _volley_in({_HEX: 1, _ARROW: 3}, marked_world)
+	var marked_outcome := _volley_in({_MARK: 1, _ARROW: 3}, marked_world)
 	var marked := _base_hits(marked_outcome)
 	assert_eq(plain.size(), 3, "the plain volley lands three base arrows")
 	assert_eq(marked.size(), 3, "the marked volley lands three base arrows")
 	var behind := 0
 	for i in mini(plain.size(), marked.size()):
-		if _stacks_before(marked_outcome, marked[i], _HEX) <= 0.0:
+		if _stacks_before(marked_outcome, marked[i], _MARK) <= 0.0:
 			continue
 		behind += 1
 		assert_gt(CritRoll.chance_for(marked[i], marked_world),
 			CritRoll.chance_for(plain[i], plain_world),
-			"base arrow %d reads a higher crit chance behind the hex marker" % i)
-	assert_eq(behind, 3, "every base arrow lands after the hex rider")
+			"base arrow %d reads a higher crit chance behind the mark marker" % i)
+	assert_eq(behind, 3, "every base arrow lands after the mark rider")
 	plain_world.free_shadow()
 	marked_world.free_shadow()

@@ -9,7 +9,7 @@
 [ext_resource type="Resource" path="res://effects/status/curse.tres" id="6_curse"]
 [ext_resource type="Resource" path="res://effects/status/explosive.tres" id="13_explosive"]
 [ext_resource type="Resource" path="res://effects/status/greed.tres" id="7_greed"]
-[ext_resource type="Resource" path="res://effects/status/hexed.tres" id="8_hexed"]
+[ext_resource type="Resource" path="res://effects/status/marked.tres" id="8_marked"]
 [ext_resource type="Resource" path="res://effects/status/poison.tres" id="9_poison"]
 [ext_resource type="Resource" path="res://effects/status/scouted.tres" id="10_scouted"]
 [ext_resource type="Resource" path="res://effects/status/weakened.tres" id="11_weakened"]
@@ -17,4 +17,4 @@
 
 [resource]
 script = ExtResource("1_roster")
-statuses = Array[ExtResource("1_status_def")]([ExtResource("2_sunder"), ExtResource("3_bleeding"), ExtResource("4_blindness"), ExtResource("5_corruption"), ExtResource("6_curse"), ExtResource("13_explosive"), ExtResource("7_greed"), ExtResource("8_hexed"), ExtResource("9_poison"), ExtResource("10_scouted"), ExtResource("11_weakened"), ExtResource("12_wither")])
+statuses = Array[ExtResource("1_status_def")]([ExtResource("2_sunder"), ExtResource("3_bleeding"), ExtResource("4_blindness"), ExtResource("5_corruption"), ExtResource("6_curse"), ExtResource("13_explosive"), ExtResource("7_greed"), ExtResource("8_marked"), ExtResource("9_poison"), ExtResource("10_scouted"), ExtResource("11_weakened"), ExtResource("12_wither")])

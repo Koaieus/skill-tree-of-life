@@ -11,7 +11,7 @@ point_count = 3
 _data = [Vector2(0, 0.6), 0.0, 0.0, 0, 0, Vector2(0.2, 1), 0.0, 0.0, 0, 0, Vector2(0.55, 1), 0.0, 0.0, 0, 0, Vector2(1, 0), 0.0, 0.0, 0, 0]
 point_count = 4
 
-[node name="HexArrow" instance=ExtResource("1_base")]
+[node name="MarkArrow" instance=ExtResource("1_base")]
 
 [node name="Trail" parent="."]
 density = 0.4

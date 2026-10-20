@@ -38,9 +38,12 @@ enum LoadResult { OK, MISSING, CORRUPT, VERSION_MISMATCH }
 ##    still loads: the absent row decodes as nothing spent.
 ## 11: the armor-debuff aspect's resources were renamed to Sunder, and a save
 ##     interns `res://` paths; no row moved. Older files are refused.
-const FORMAT_VERSION := 11
+## 12: the crit-taken aspect's resources were renamed to Mark, and an 11's
+##     `hex` rows name an id that now means another status; no row moved.
+##     Older files are refused.
+const FORMAT_VERSION := 12
 ## The oldest file that still loads — see [constant FORMAT_VERSION].
-const MIN_FORMAT_VERSION := 11
+const MIN_FORMAT_VERSION := 12
 ## The single slot — mirrors [constant Settings.SAVE_PATH]'s `user://` home.
 const SLOT_PATH := "user://save.bin"
 const MAGIC := "STLS"

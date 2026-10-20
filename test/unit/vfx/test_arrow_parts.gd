@@ -165,8 +165,8 @@ func test_impact_emitter_stop_cancels_a_pending_burst() -> void:
 	assert_false(burst.particles().emitting, "stop cancelled the pending burst")
 
 
-func test_impact_sprite_shape_defaults_to_ring_and_hex_flies_an_eye() -> void:
+func test_impact_sprite_shape_defaults_to_ring_and_mark_flies_an_eye() -> void:
 	var sprite: ArrowImpactSprite = autofree(load("res://ui/vfx/projectile/visual/arrow_parts/arrow_impact_sprite.tscn").instantiate())
 	assert_eq(sprite.get("shape"), 0, "a sprite draws a ring unless told otherwise")
-	var hex: Node = autofree(load("res://ui/vfx/projectile/visual/arrows/hex_arrow.tscn").instantiate())
-	assert_eq(hex.get_node("EyeSigil").get("shape"), 1, "the hex mark is the eye shape")
+	var mark: Node = autofree(load("res://ui/vfx/projectile/visual/arrows/mark_arrow.tscn").instantiate())
+	assert_eq(mark.get_node("EyeSigil").get("shape"), 1, "the mark is the eye shape")

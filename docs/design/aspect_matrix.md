@@ -267,7 +267,7 @@ Each cell links its cell issue (`<Concept> × <Facet>`, a child of the row hub i
 | Greed | status magnet | `greed_aspect` | type shipped; look #1422 | Midas Mark #1423 | #1424 | #1250 | row: #1419 (child 0: the landing term, #1420, shipped; Avarice #1421, shipped). One Greed stack on the node doubles every negative status the next hit lands, Greed included, then one stack is spent; its Avarice face pays bonus XP per stack left when an attack removes the node (rounds 5–6) |
 | Explosive | charges (AoE) | `explosive_aspect` | #1398 — goo: the PLANT face, coats a node | #1399 — the barrel: stacking, refills N charges; on a blade the warhead's lives | #1400 — Firecracker, Flamestrike | #1466 — DETONATE by default; the intake row picks PLANT, FUEL or a composition | row: #1211. Built in [`docs/domain/explosive.md`](../domain/explosive.md), open parts in § Explosive (owner, 2026-10-14, #1608): charges are a side-less status; a hit's load is spent as a blast (DETONATE), planted (PLANT) or shapes propagation (FUEL); a blast carries the hit in a euclidean radius; a blade's contact pops blade. The concept names the content, never the reverse (owner, 2026-10-05): *"the concept determines arrows+addons+spells etc."* |
 | Bleeding | wound, exertion | `bleeding_aspect` | shipped (#1436) | #1437 — Spike Ring refit, with #1369 | #1438 | #1250 | row: #1434 (child 0: the status + origin set, #1435, shipped). Promoted 2026-10-06. **Round 10 (owner, 2026-10-06) replaces round 9's conditional tick:** a node in an attack's origin set has its stacks ×`exert_growth` (2) **at launch**; every turn end the row pays ⌈stacks × `bleed_rate` (½)⌉ flat HP, then decays on a ramp (−1, −2, −3 … while not exerting; exertion resets it). A core exerts by *moving*, once per turn, never by attacking. Dealloc or death spills ⌊S/(N+M)⌋ to each owned neighbour, the unallocated shares soak away. STR: the price of exertion. Edgelord's **Bleeding Edge** jab takes a new name (#1449) |
-| Hex | jinx, crit taken | `hex_aspect` | shipped (#1441) | #1442 | #1443 — a fresh first spell; the shipped `hex` becomes Curse's Malediction (owner, 2026-10-11) | #1250 | row: #1439 (child 0: the status, #1440, shipped). INT's slot (owner, 2026-10-06, round 9). The defender side of crit: per stack, hits *against* the node crit more often, a % on the saturating curve (Blindness / Weakness shape) — **Hex pass (owner, 2026-10-07): flat +5% per stack for now, past 100% is #197; authored as `incoming_modifiers` on the status**; attacker-side `crit_chance` / `crit_multiplier` stay DEX's native stats, never an aspect. The crit roll must open for a hexed target even when the attacker's board holds no crit investment (#1280's stream note) |
+| Mark | hunter's mark, crit taken | `mark_aspect` | shipped (#1441) | #1442 | #1443 — a fresh first spell; the shipped `hex` becomes Curse's Malediction (owner, 2026-10-11) | #1250 | row: #1439 (child 0: the status, #1440, shipped). DEX's slot (owner, 2026-10-20, #1710: today's Hex renamed Mark, mechanic unchanged; it held INT's slot from 2026-10-06, round 9). The defender side of crit: per stack, hits *against* the node crit more often, a % on the saturating curve (Blindness / Weakness shape) — **Mark pass (owner, 2026-10-07, run as Hex): flat +5% per stack for now, past 100% is #197; authored as `incoming_modifiers` on the status**; attacker-side `crit_chance` / `crit_multiplier` stay DEX's native stats, never an aspect. The crit roll must open for a marked target even when the attacker's board holds no crit investment (#1280's stream note) |
 
 ## Rows designed in #1318
 
@@ -472,7 +472,7 @@ Hue stays `Identity.tint`.
 | Greed | plain stacks, owner: *"it'd be up for the situation to determine when it should be put in the volley, i think early better than later"* | early | Midas touch: owner *"I think a Midas touch vibe is warranted here"* — gold glint, coins tumbling off the trail |
 | Weakness | plain stacks | — | blunt concussive tip, a dull thud ring on impact |
 | Bleeding | plain stacks | — | dark wound-red drips off the trail, sparse like poison's froth |
-| Hex | **marker**, early, low damage: Curse lifts the floor, Hex lifts the crit chance of the arrows behind it | early | a magenta eye-sigil blinks open over the node on impact, then fades |
+| Mark | **marker**, early, low damage: Curse lifts the floor, Mark lifts the crit chance of the arrows behind it | early | a magenta eye-sigil blinks open over the node on impact, then fades |
 | Explosive | goo: the PLANT face, coats the node with charges and still deals arrow damage | — | a lit-fuse pulsing tip; short sparks thrown backward off the trail |
 
 - **No "fully absorbed" special.** Owner: *"There is little to no "fully
@@ -571,8 +571,8 @@ addon we don't have yet. Not saying we need one"*.
 | School | Aspects | State |
 |---|---|---|
 | STR | Bleeding, Weakness | Bleeding: owner 2026-10-05, promoted 2026-10-06 (round 9). Weakness: owner 2026-10-06 (round 7) |
-| DEX | Poison, Explosive | owner 2026-10-05 |
-| INT | Curse, Hex | Curse: owner 2026-09-29. Hex: owner 2026-10-06 (round 9) — the defender side of crit, in the school whose verb (jinx) it performs. Silence stays in Contenders |
+| DEX | Poison, Explosive, Mark | Poison, Explosive: owner 2026-10-05. Mark: owner 2026-10-20 (#1710) — today's Hex renamed and moved, *"DEX should house Mark for crits"* |
+| INT | Curse, Hex's slot pending #1712 | Curse: owner 2026-09-29. Hex (the crit-taken status, round 9) left as Mark (#1710); *"INT should house Curse and Hex, no doubt"* (owner, 2026-10-20). Silence stays in Contenders |
 | CON | Wither, Sunder | Wither: owner 2026-10-05. Sunder: owner 2026-10-06 (round 7), *"it straddled STR+CON thematically anyway"* |
 | PER | Scout, Blindness | owner |
 | WIS | Corruption, Greed | Corruption: owner 2026-10-05. Greed: closed round 6 (owner); row #1419 |
@@ -1000,20 +1000,20 @@ damage to every turn, and the flag died.
   it stick on deallocation or clear it, and if not clearing, then the default
   unowned node ticking"*) — Poison row, not here.
 
-**Owner calls, 2026-10-07 (Hex in its `/swarmify` pass, #1440).**
+**Owner calls, 2026-10-07 (Mark — then named Hex — in its `/swarmify` pass, #1440).**
 - **Flat, not a curve, for now.** Owner: *"I think a flat increase in crit% would
   be best for now. Like 5% or so. At 21 stacks would be 105%, which in current
-  system is a guaranteed crit"*. This replaces round 9's saturating curve for Hex;
+  system is a guaranteed crit"*. This replaces round 9's saturating curve for Mark;
   what past 100% means (a chance of a double crit) is #197, pulled into this
   milestone.
 - **The term is an overlay, authored on the status.** Owner: *"the readout could
   simply use an `overlay` … set up to include a ADD BONUS … mod based on the
   defender's stacks"*; node and entity stacks sum. A status declares
   `incoming_modifiers` (a stat an attacker reads differently against its host),
-  so nothing in the attack code names Hex. Chance only; no `crit_multiplier`
+  so nothing in the attack code names Mark. Chance only; no `crit_multiplier`
   term. A `crit_chance_taken` stat is the later path (*"if we ever want to tune
   more of this it warrants a new stat for sure"*).
-- **Decay: flat −1, and a crit taken spends the hex** (×½, a knob). Owner:
+- **Decay: flat −1, and a crit taken spends the mark** (×½, a knob). Owner:
   *"stacks doing crit-buildups then reducing … on trigger is a game-sense
   classic"* (#1454). Greed's landing term gets its own rethink (#1459).
 
@@ -1111,7 +1111,7 @@ not a family of their own:
 | vision | Blindness | `blindness_resistance` (under `status_resistance`, a blessed PER roll) |
 | damage dealt | Weakness | nothing |
 | exertion (HP on use) | Bleeding | rest is the cure, plus `bleeding_resistance` — damage is involved (owner, 2026-10-07; lands in #1435) |
-| crit taken | Hex | nothing; attacker-side crit stats are DEX's own |
+| crit taken | Mark | nothing; attacker-side crit stats are DEX's own |
 | status landing | Greed (more land) | nothing — a % resistance makes no sense on a consumed stack (owner, 2026-10-06); its counter is open on #1419 |
 | tempo | nothing — no status attacks tempo (round 6) | nothing |
 
@@ -1122,9 +1122,9 @@ none-new: *"none new, with a rule of adding one where damage is involved or
 when it just makes sense or no other counterplay is available (e.g. for
 blindness)"*. So a row ships with a blank `resistance_stat_id()` unless its axis
 deals damage or has no other defence; the new rows (Weakness, Greed,
-Hex) ship without one; Bleeding's is round 11's call below. The pass's lens, which the table above
+Mark) ship without one; Bleeding's is round 11's call below. The pass's lens, which the table above
 already encodes: an axis with a native stat to defend with (armor, damage,
-`min_damage_taken`, rest) needs no second dial. Hex (crit taken, nothing
+`min_damage_taken`, rest) needs no second dial. Mark (crit taken, nothing
 native) is the one later candidate, its own pass if ever.
 
 **Round 11 (owner, 2026-10-07): the five judged fresh, not by shipped state.**

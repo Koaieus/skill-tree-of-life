@@ -6,7 +6,7 @@
 [ext_resource type="Script" path="res://identity/identity.gd" id="4_ident"]
 [ext_resource type="Resource" path="res://identity/defs/explosive.tres" id="a0_explosive"]
 [ext_resource type="Resource" path="res://identity/defs/sunder.tres" id="a1_sunder"]
-[ext_resource type="Resource" path="res://identity/defs/hex.tres" id="a2_hex"]
+[ext_resource type="Resource" path="res://identity/defs/mark.tres" id="a2_mark"]
 [ext_resource type="Resource" path="res://identity/defs/bleeding.tres" id="a3_bleeding"]
 [ext_resource type="Resource" path="res://identity/defs/poison.tres" id="a4_poison"]
 [ext_resource type="Resource" path="res://identity/defs/blindness.tres" id="a5_blindness"]
@@ -19,7 +19,7 @@
 
 [node name="SpiritNode" instance=ExtResource("1_base")]
 script = ExtResource("2_script")
-aspects = Array[ExtResource("4_ident")]([ExtResource("a0_explosive"), ExtResource("a1_sunder"), ExtResource("a2_hex"), ExtResource("a3_bleeding"), ExtResource("a4_poison"), ExtResource("a5_blindness"), ExtResource("a6_scout"), ExtResource("a7_greed"), ExtResource("a8_curse"), ExtResource("a9_corruption"), ExtResource("a10_weakness"), ExtResource("a11_wither")])
+aspects = Array[ExtResource("4_ident")]([ExtResource("a0_explosive"), ExtResource("a1_sunder"), ExtResource("a2_mark"), ExtResource("a3_bleeding"), ExtResource("a4_poison"), ExtResource("a5_blindness"), ExtResource("a6_scout"), ExtResource("a7_greed"), ExtResource("a8_curse"), ExtResource("a9_corruption"), ExtResource("a10_weakness"), ExtResource("a11_wither")])
 display_name = "Aspect Spirit"
 
 [node name="SkillDustAddon" parent="." groups=["hand_placed_relic"] instance=ExtResource("3_dust")]

@@ -440,7 +440,7 @@ ladder on hops, a `% increased` line on distance — and lands in the same fold.
 → `NodeCombat.incoming_overlays(stat_id)`: the attacker-side read of a stat
 against a statused host. Each authored sum-op entry adds `value × power` (power
 summed over the node's and its owner's rows) to one `ModifierBins` via
-`apply_delta`, which the reader passes as overlays — Hexed's `crit_chance
+`apply_delta`, which the reader passes as overlays — Marked's `crit_chance
 ADD_BONUS` lands after the attacker's INCREASE / MORE in `CritRoll.chance_for`.
 Nothing is planted on a board; SET / MULTIPLY entries are refused at load.
 

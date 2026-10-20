@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://dqnkv4dh17e6w"
-path="res://.godot/imported/hex.png-c675ba5628d269e8ffc8e2559625a238.ctex"
+path="res://.godot/imported/mark.png-c810d90adab68be376b0d407bdebb1ec.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/icons/aspects/hex.png"
-dest_files=["res://.godot/imported/hex.png-c675ba5628d269e8ffc8e2559625a238.ctex"]
+source_file="res://assets/icons/aspects/mark.png"
+dest_files=["res://.godot/imported/mark.png-c810d90adab68be376b0d407bdebb1ec.ctex"]
 
 [params]
 

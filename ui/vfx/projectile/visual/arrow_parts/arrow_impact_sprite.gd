@@ -2,7 +2,7 @@
 class_name ArrowImpactSprite
 extends ArrowPart
 
-## A mark left by a counting landing that outlives the shaft — a hex sigil, a
+## A mark left by a counting landing that outlives the shaft — a mark sigil, a
 ## pustule, a gilt ring. Draws [member texture] (or, with none, a ring) at the
 ## arrowhead or the node's centre, its size and alpha following
 ## [member scale_curve] / [member alpha_curve] over [member lifetime].

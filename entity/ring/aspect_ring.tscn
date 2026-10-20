@@ -15,7 +15,7 @@
 [ext_resource type="Resource" path="res://aspects/defs/explosive.tres" id="asp_explosive"]
 [ext_resource type="Resource" path="res://identity/defs/intelligence.tres" id="id_intelligence"]
 [ext_resource type="Resource" path="res://aspects/defs/curse.tres" id="asp_curse"]
-[ext_resource type="Resource" path="res://aspects/defs/hex.tres" id="asp_hex"]
+[ext_resource type="Resource" path="res://aspects/defs/mark.tres" id="asp_mark"]
 [ext_resource type="Resource" path="res://identity/defs/constitution.tres" id="id_constitution"]
 [ext_resource type="Resource" path="res://aspects/defs/wither.tres" id="asp_wither"]
 [ext_resource type="Resource" path="res://aspects/defs/sunder.tres" id="asp_sunder"]
@@ -106,19 +106,19 @@ stat_id = &"curse_stacks_per_hit"
 value = 1.0
 metadata/_custom_type_script = "uid://che6xhl6srqh3"
 
-[sub_resource type="Resource" id="m_HexT1"]
+[sub_resource type="Resource" id="m_MarkT1"]
 resource_local_to_scene = true
-resource_name = "+1 Hex Aspect"
+resource_name = "+1 Mark Aspect"
 script = ExtResource("5_mod")
-stat_id = &"hex_aspect"
+stat_id = &"mark_aspect"
 value = 1.0
 metadata/_custom_type_script = "uid://che6xhl6srqh3"
 
-[sub_resource type="Resource" id="m_HexT2"]
+[sub_resource type="Resource" id="m_MarkT2"]
 resource_local_to_scene = true
-resource_name = "+1 Hex Stacks Per Hit"
+resource_name = "+1 Mark Stacks Per Hit"
 script = ExtResource("5_mod")
-stat_id = &"hex_stacks_per_hit"
+stat_id = &"mark_stacks_per_hit"
 value = 1.0
 metadata/_custom_type_script = "uid://che6xhl6srqh3"
 
@@ -327,23 +327,23 @@ sector = ExtResource("id_intelligence")
 tier = 2
 entity_modifiers = Array[ExtResource("5_mod")]([SubResource("m_CurseT2")])
 
-[node name="HexT1" parent="Nodes" instance=ExtResource("2_skill")]
+[node name="MarkT1" parent="Nodes" instance=ExtResource("2_skill")]
 position = Vector2(102, 95)
 
-[node name="RingCellAddon" parent="Nodes/HexT1" instance=ExtResource("4_addon")]
-aspect = ExtResource("asp_hex")
+[node name="RingCellAddon" parent="Nodes/MarkT1" instance=ExtResource("4_addon")]
+aspect = ExtResource("asp_mark")
 sector = ExtResource("id_intelligence")
 tier = 1
-entity_modifiers = Array[ExtResource("5_mod")]([SubResource("m_HexT1")])
+entity_modifiers = Array[ExtResource("5_mod")]([SubResource("m_MarkT1")])
 
-[node name="HexT2" parent="Nodes" instance=ExtResource("2_skill")]
+[node name="MarkT2" parent="Nodes" instance=ExtResource("2_skill")]
 position = Vector2(177, 177)
 
-[node name="RingCellAddon" parent="Nodes/HexT2" instance=ExtResource("4_addon")]
-aspect = ExtResource("asp_hex")
+[node name="RingCellAddon" parent="Nodes/MarkT2" instance=ExtResource("4_addon")]
+aspect = ExtResource("asp_mark")
 sector = ExtResource("id_intelligence")
 tier = 2
-entity_modifiers = Array[ExtResource("5_mod")]([SubResource("m_HexT2")])
+entity_modifiers = Array[ExtResource("5_mod")]([SubResource("m_MarkT2")])
 
 [node name="IntelligenceKeystone" parent="Nodes" instance=ExtResource("6_key0")]
 position = Vector2(286, 165)
@@ -537,20 +537,20 @@ to = NodePath("../../Nodes/CurseT1")
 from = NodePath("../../Nodes/CurseT1")
 to = NodePath("../../Nodes/CurseT2")
 
-[node name="E_Core_HexT1" parent="Edges" node_paths=PackedStringArray("from", "to") instance=ExtResource("3_edge")]
+[node name="E_Core_MarkT1" parent="Edges" node_paths=PackedStringArray("from", "to") instance=ExtResource("3_edge")]
 from = NodePath("../../Nodes/Core")
-to = NodePath("../../Nodes/HexT1")
+to = NodePath("../../Nodes/MarkT1")
 
-[node name="E_HexT1_HexT2" parent="Edges" node_paths=PackedStringArray("from", "to") instance=ExtResource("3_edge")]
-from = NodePath("../../Nodes/HexT1")
-to = NodePath("../../Nodes/HexT2")
+[node name="E_MarkT1_MarkT2" parent="Edges" node_paths=PackedStringArray("from", "to") instance=ExtResource("3_edge")]
+from = NodePath("../../Nodes/MarkT1")
+to = NodePath("../../Nodes/MarkT2")
 
 [node name="E_CurseT1_IntelligenceKeystone" parent="Edges" node_paths=PackedStringArray("from", "to") instance=ExtResource("3_edge")]
 from = NodePath("../../Nodes/CurseT1")
 to = NodePath("../../Nodes/IntelligenceKeystone")
 
-[node name="E_HexT1_IntelligenceKeystone" parent="Edges" node_paths=PackedStringArray("from", "to") instance=ExtResource("3_edge")]
-from = NodePath("../../Nodes/HexT1")
+[node name="E_MarkT1_IntelligenceKeystone" parent="Edges" node_paths=PackedStringArray("from", "to") instance=ExtResource("3_edge")]
+from = NodePath("../../Nodes/MarkT1")
 to = NodePath("../../Nodes/IntelligenceKeystone")
 
 [node name="E_Core_WitherT1" parent="Edges" node_paths=PackedStringArray("from", "to") instance=ExtResource("3_edge")]
@@ -633,8 +633,8 @@ to = NodePath("../../Nodes/PoisonT2")
 from = NodePath("../../Nodes/ExplosiveT2")
 to = NodePath("../../Nodes/CurseT2")
 
-[node name="E_HexT2_WitherT2" parent="Edges" node_paths=PackedStringArray("from", "to") instance=ExtResource("3_edge")]
-from = NodePath("../../Nodes/HexT2")
+[node name="E_MarkT2_WitherT2" parent="Edges" node_paths=PackedStringArray("from", "to") instance=ExtResource("3_edge")]
+from = NodePath("../../Nodes/MarkT2")
 to = NodePath("../../Nodes/WitherT2")
 
 [node name="E_SunderT2_ScoutT2" parent="Edges" node_paths=PackedStringArray("from", "to") instance=ExtResource("3_edge")]

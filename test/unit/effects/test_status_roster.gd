@@ -23,6 +23,6 @@ func test_roster_lists_every_authored_status() -> void:
 func test_by_concept_resolves_through_identity() -> void:
 	var roster := StatusRoster.shared()
 	assert_eq(roster.by_concept(&"poison"), load("res://effects/status/poison.tres"))
-	assert_eq(roster.by_concept(&"hex"), load("res://effects/status/hexed.tres"),
+	assert_eq(roster.by_concept(&"mark"), load("res://effects/status/marked.tres"),
 			"keyed on the concept, not the file name")
 	assert_null(roster.by_concept(&"no_such_concept"))

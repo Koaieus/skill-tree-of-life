@@ -57,7 +57,7 @@ still a knob: their value is the default.
   ratio not the literal:
   - `BleedingStatus.exert_growth` (1–4, default 2.0) — row multiplier per
     exertion; `bleed_rate` (0–2, default 0.5) — flat HP per stack per tick.
-  - `HexStatus.spend_factor` (0–1, default 0.5) — share of the row a crit
+  - `MarkStatus.spend_factor` (0–1, default 0.5) — share of the row a crit
     taken spends (`floor(power × spend_factor)`; 1.0 disables).
   - `GreedStatus.avarice_increase_per_stack` (default 10.0) — `bounty`
     INCREASE % per stack. (No `hoard_increase_per_stack` exists; this is it.)

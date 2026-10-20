@@ -21,7 +21,7 @@ class_name CritRoll
 ## [method OutcomeApplier.land_one] draws right before the hit lands, in
 ## landing order, off the outcome's [member AttackOutcome.crit_stream], reading
 ## the landing world (the shadow during resolve) — so a status landed earlier
-## in the same attack (a hex rider) reaches the chance of the hits behind it.
+## in the same attack (a mark rider) reaches the chance of the hits behind it.
 ## A replay never draws: a rebuilt [AttackRecord] carries no stream and lands
 ## the recorded crit. Every crit reader that runs before a landing (the VFX
 ## stamping [member Projectile.crit_tier], the floaters) reads a REBUILT
@@ -103,7 +103,7 @@ static func _settle(hit: HitInstance) -> void:
 ## gate flip), falls back to the attacker's entity board; no attacker folds 0.
 ##
 ## Every branch also folds the damage target's
-## [method NodeCombat.incoming_overlays] (a hexed target's ADD_BONUS lands after
+## [method NodeCombat.incoming_overlays] (a marked target's ADD_BONUS lands after
 ## the attacker's INCREASE / MORE), which is why the draw gate reads this fold
 ## rather than the attacker's stat alone. A heal gets no overlays.
 static func chance_for(hit: HitInstance, world: CombatWorld = null) -> float:

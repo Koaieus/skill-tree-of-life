@@ -38,7 +38,7 @@ markers, the flare, every arrow's look — is `docs/design/aspect_matrix.md`
 
 | facet | field | note |
 |---|---|---|
-| stats | `order` | volley position: lower fires and lands first, the base arrow sits at 100, scout last (120). A **marker** flies early (curse 40, hex 30, greed 5) |
+| stats | `order` | volley position: lower fires and lands first, the base arrow sits at 100, scout last (120). A **marker** flies early (curse 40, mark 30, greed 5) |
 | | `damage_scale` | raw-damage multiplier before mitigation; markers 0.3, plain stacks 0.5 unless the row says otherwise (sunder 0.75), blindness and scout 0 |
 | | `max_stock` | the type's own bank cap, outside the shared quiver capacity (ADR 0041); 999 unless tuned (curse and corruption 6) |
 | | `per_reload_stat_id()` | derived: the concept's ASPECT facet (base arrow authors `base_per_reload_stat_id`) |
@@ -74,7 +74,7 @@ extend `SpellOnHitEffect`, which the `on_hit_effects` setter refuses at load
 
 **Markers need no plumbing.** A volley lands in `order`, and every landing
 reads the target's live slice, so a status an early arrow landed is already
-there when the arrows behind it hit: curse lifts their damage floor, hex their
+there when the arrows behind it hit: curse lifts their damage floor, mark their
 crit chance. Crit rolls *at landing* (one draw per hit, in landing order, off
 `AttackOutcome.crit_stream` — local, never on the wire, null on a rebuilt
 `AttackRecord`, which lands its recorded crits); `docs/domain/attack-timeline.md`.
@@ -102,10 +102,10 @@ its exports — never the arrow or a `SkillNode`.
 
 | part | knobs a look sets | used by |
 |---|---|---|
-| `ArrowTip` | `shape` POINTED / BLUNT / CLUB, `length`, `width`, `tier`, `fade_to_shaft` (colour runs out toward the shaft), `pulse_hz` + `pulse_depth` (a beating head) | every look; blunt: sunder, blindness; club: corruption, weakness; pulse: corruption, greed, hex; fade: poison, wither |
+| `ArrowTip` | `shape` POINTED / BLUNT / CLUB, `length`, `width`, `tier`, `fade_to_shaft` (colour runs out toward the shaft), `pulse_hz` + `pulse_depth` (a beating head) | every look; blunt: sunder, blindness; club: corruption, weakness; pulse: corruption, greed, mark; fade: poison, wither |
 | `ArrowShedEmitter` | (emitter knobs) + `density` (share of `amount` emitted; keeps a 20-arrow volley readable), `world_space` | the base trail; a second one: poison's froth |
 | `ArrowImpactEmitter` | (emitter knobs) + `spread` TIP / RIM / RIDERS (every non-dud rider's target), `rim_spots`, `per_spot`, `delay` (hold the burst while a mark lingers) | the base burst; rim: wither; riders: blindness's cloud; delay: corruption |
-| `ArrowImpactSprite` | `texture`, or with none a `shape` RING / EYE (`lid_ratio`, `pupil_ratio`; the scale curve is the lid opening — a blink); `anchor` TIP / NODE; `lifetime`, `size`, `ring_width`, `scale_curve`, `alpha_curve`, `tier` | corruption's pustule, curse's contracting ring, greed's gilding, weakness's thud, hex's eye |
+| `ArrowImpactSprite` | `texture`, or with none a `shape` RING / EYE (`lid_ratio`, `pupil_ratio`; the scale curve is the lid opening — a blink); `anchor` TIP / NODE; `lifetime`, `size`, `ring_width`, `scale_curve`, `alpha_curve`, `tier` | corruption's pustule, curse's contracting ring, greed's gilding, weakness's thud, mark's eye |
 
 Emitter knobs (`ArrowEmitterPart`, both particle parts): `process_material`,
 `texture`, `amount`, `lifetime` (also the drain), `tier`.
@@ -145,7 +145,7 @@ Gotchas:
 | curse | inert tip and trail; contracting ring at the node |
 | explosive | pulsing fuse tip; spark trail (second shed emitter) |
 | greed | pulsing tip; tumbling coin trail; gilt ring |
-| hex | pulsing tip; eye sigil blinking open at the node |
+| mark | pulsing tip; eye sigil blinking open at the node |
 | poison | fading neon tip; froth (second shed emitter) |
 | scout | the base look, its own scene so its flare can come |
 | weakness | short wide club tip; thud ring |
