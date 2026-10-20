@@ -305,3 +305,40 @@ func test_the_shipped_firecracker_row_is_fuel() -> void:
 	assert_not_null(row, "firecracker lists explosive")
 	assert_eq(row.resolved_face(), AspectIntake.Face.FUEL, "face = 3 deserialises as FUEL")
 	assert_eq(Infusion.innate(spell).detonate_load(spell), 0, "its innate 6 is fuel, never a detonation load")
+
+
+# ── The row's LoadUse ───────────────────────────────────────────────────
+
+func test_a_fuel_use_row_describes_itself_without_applies() -> void:
+	var row := _row(_EXPLOSIVE_ID, 6)
+	row.use = FuelUse.new()
+	var line := row.get_description()
+	assert_false(line.contains("Applies"), "fuel lands nothing: %s" % line)
+	assert_true(line.contains("Explosive"), "it names its concept: %s" % line)
+
+
+func test_a_row_with_no_use_on_a_plant_default_status_plants_at_its_load() -> void:
+	var row := _row(_POISON.identity, 4)
+	assert_null(row.use)
+	var spell := SpellDef.new()
+	spell.intakes = [row] as Array[AspectIntake]
+	var riders := Infusion.for_cast(spell, {&"poison": 1}).riders(spell)
+	assert_eq(riders.size(), 1, "one rider")
+	var rider := riders[0] as ApplyStatusEffect
+	assert_eq(rider.def, _POISON)
+	assert_eq(rider.power, 5.0, "power = load (4 innate + 1 infused)")
+	assert_true(rider.stack_terms.is_empty(), "a default plant folds no terms")
+
+
+func test_an_explicit_plant_use_folds_its_stack_terms() -> void:
+	var term := DefenderStatShare.new()
+	term.stat_id = &"armor"
+	var plant := PlantUse.new()
+	plant.stack_terms = [term] as Array[StackTerm]
+	var row := _row(_POISON.identity, 2)
+	row.use = plant
+	var spell := SpellDef.new()
+	spell.intakes = [row] as Array[AspectIntake]
+	var riders := Infusion.innate(spell).riders(spell)
+	assert_eq(riders.size(), 1)
+	assert_eq((riders[0] as ApplyStatusEffect).stack_terms, [term] as Array[StackTerm], "the plant's terms ride")

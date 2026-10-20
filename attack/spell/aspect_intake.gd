@@ -63,6 +63,13 @@ enum Face { INHERIT, DETONATE, PLANT, FUEL }
 		face = value
 		emit_changed()
 
+## How a hit spends this row's load ([LoadUse]); null takes the concept
+## status's default ([method resolved_use]).
+@export var use: LoadUse = null:
+	set(value):
+		use = value
+		emit_changed()
+
 ## The concept id this row keys on (`&"poison"`); `&""` unset.
 func aspect_id() -> StringName:
 	return identity.id if identity != null else &""
@@ -104,8 +111,14 @@ func get_description(board: StatBoard = null, read_node: SkillNode = null) -> St
 	var def := status()
 	if def == null:
 		return "Applies nothing (no status set)."
-	var name := def.display_name if not def.display_name.is_empty() else String(def.id)
-	var concept := name.to_lower()
-	var ingest := "refuses %s infusions" % concept if refuses() \
+	return def.applies_line(board, float(innate), "; " + ingest_line(), OnHitEffect.read_slice(read_node))
+
+
+## The row's affinity as a tooltip clause: `+N per <concept> infused`, or
+## `refuses <concept> infusions` at affinity 0. Needs a status.
+func ingest_line() -> String:
+	var def := status()
+	var label := def.display_name if not def.display_name.is_empty() else String(def.id)
+	var concept := label.to_lower()
+	return "refuses %s infusions" % concept if refuses() \
 			else "+%s per %s infused" % [NumFmt.num(float(affinity_gain) / affinity_cost), concept]
-	return def.applies_line(board, float(innate), "; " + ingest, OnHitEffect.read_slice(read_node))
