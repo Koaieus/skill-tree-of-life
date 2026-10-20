@@ -119,7 +119,7 @@ func _scaled_arrow(scale: float) -> AmmoType:
 	rider.power = 4.0
 	var splash := (_BLINDNESS_ARROW.on_hit_effects[0] as SplashEffect).duplicate() as SplashEffect
 	splash.inners = [rider] as Array[OnHitEffect]
-	splash.set(&"stack_scale", scale)
+	splash.stack_scale = scale
 	var ammo := _BLINDNESS_ARROW.duplicate() as AmmoType
 	ammo.on_hit_effects = [splash] as Array[OnHitEffect]
 	return ammo

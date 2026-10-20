@@ -30,6 +30,11 @@ extends OnHitEffect
 ## Who a splash may land on, beyond the target — [NodeTargeting]'s flag set.
 ## 0 = inherit the landing's [member HitLanding.target_mask].
 @export_flags("Neutral:1", "Mine:2", "Ally:4", "Hostile:8", "Friendly:6", "Allocated:14", "Any:15") var ownership_filter: int = 8
+## The share of the folded stacks each SPLASHED copy lands, as its
+## [member HitLanding.stack_scale]; the centre run is never scaled. 1.0 lands
+## the full amount everywhere; 0.5 lands half on each neighbour (rounded
+## half-up at land, like every stack fold).
+@export_range(0.0, 4.0, 0.05) var stack_scale: float = 1.0
 ## Where it reaches. The radius is the finder's own export, unscaled by any
 ## cast-range stat. No finder: no splash.
 @export var range_finder: RangeFinder
@@ -43,6 +48,7 @@ func apply(landing: HitLanding) -> void:
 	var mask := mask_for(landing)
 	for node in _reach_of(landing, mask):
 		var copy := _retargeted(landing, node)
+		copy.stack_scale *= stack_scale
 		var before := landing.hits.size()
 		OnHitEffect.run_all(inners, copy)
 		for i in range(before, landing.hits.size()):
