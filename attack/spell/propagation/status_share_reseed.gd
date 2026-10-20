@@ -13,5 +13,7 @@ extends ScalarReseed
 @export_range(0.0, 1.0, 0.05, "or_greater") var share: float = 0.5
 
 
-func reseed(value: float, _lctx: LandingContext, _scalar: CarriedScalar) -> float:
-	return value
+func reseed(_value: float, lctx: LandingContext, _scalar: CarriedScalar) -> float:
+	if lctx == null or lctx.cast == null:
+		return 0.0
+	return share * lctx.stacks_of(lctx.node, status_id)

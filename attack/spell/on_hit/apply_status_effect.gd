@@ -33,7 +33,7 @@ func apply(landing: HitLanding) -> void:
 		return
 	var status := StatusInstance.new()
 	status.def = def
-	status.power = power
+	status.power = _power_at(landing)
 	# The potency read at land (#963) is the attacker's board.
 	status.attacker = landing.attacker
 	status.source = landing.source
@@ -47,6 +47,16 @@ func apply(landing: HitLanding) -> void:
 	status.stack_scale = landing.stack_scale
 	status.stack_terms = stack_terms
 	landing.emit(status)
+
+
+## [member power], or the [member power_from] scalar's value on a spell landing
+## whose payload carries it.
+func _power_at(landing: HitLanding) -> float:
+	if power_from.is_empty() or not landing is LandingContext:
+		return power
+	var payload := (landing as LandingContext).payload
+	var carried := payload.extra(power_from) as CarriedScalar.State if payload != null else null
+	return carried.value if carried != null else power
 
 
 func status_def() -> StatusDef:
@@ -66,6 +76,9 @@ func status_def() -> StatusDef:
 func get_description(_spell: SpellDef = null, board: StatBoard = null, read_node: SkillNode = null) -> String:
 	if def == null:
 		return "Applies a status."
+	if not power_from.is_empty():
+		var name := def.display_name if not def.display_name.is_empty() else String(def.id)
+		return "Applies %s as deep as the carried %s." % [name, String(power_from)]
 	var terms := ""
 	for term in stack_terms:
 		var line := term.describe(read_node) if term != null else ""

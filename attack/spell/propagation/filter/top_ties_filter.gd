@@ -2,7 +2,8 @@
 class_name TopTiesFilter
 extends PropagationFilter
 
-## Keeps only the candidates tying for first place on a [NodeRanker] —
+## Keeps only the candidates tying for first place (or, with [member places]
+## above 1, for any of the first few dense places) on a [NodeRanker] —
 ## [constant Direction.HIGHEST] keeps every candidate scoring the max,
 ## [constant Direction.LOWEST] every candidate scoring the min.
 ##
@@ -37,11 +38,20 @@ func narrow(candidates: Array[SkillNode], lctx: LandingContext) -> Array[SkillNo
 	for c in candidates:
 		scores.append(ranker.score(c, lctx))
 
-	var target: float = scores.max() if direction == Direction.HIGHEST else scores.min()
+	# Dense ranking: the distinct scores, best first; the first `places` of
+	# them survive, every candidate tied at one of them kept.
+	var distinct: Array[float] = []
+	for s in scores:
+		if not distinct.any(func(d: float) -> bool: return is_equal_approx(d, s)):
+			distinct.append(s)
+	distinct.sort()
+	if direction == Direction.HIGHEST:
+		distinct.reverse()
+	var kept := distinct.slice(0, maxi(places, 1))
 
 	var out: Array[SkillNode] = []
 	for i in range(candidates.size()):
-		if is_equal_approx(scores[i], target):
+		if kept.any(func(d: float) -> bool: return is_equal_approx(d, scores[i])):
 			out.append(candidates[i])
 	return out
 
@@ -49,4 +59,6 @@ func narrow(candidates: Array[SkillNode], lctx: LandingContext) -> Array[SkillNo
 func get_description() -> String:
 	var metric := ranker.get_description() if ranker != null else "rank"
 	var word := "highest" if direction == Direction.HIGHEST else "lowest"
+	if places > 1:
+		return "Only into nodes among the %d %s %s values." % [places, word, metric]
 	return "Only into nodes tied for the %s %s." % [word, metric]

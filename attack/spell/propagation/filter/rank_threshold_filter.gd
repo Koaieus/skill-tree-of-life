@@ -3,7 +3,8 @@ class_name RankThresholdFilter
 extends PropagationFilter
 
 ## Compares each candidate's [NodeRanker] score against the CURRENT node's on
-## the same metric. The one implementation of "candidate vs current on a
+## the same metric — or, with [member against] ABSOLUTE, against the fixed
+## [member threshold] ("only into armored nodes": armor > 0). The one implementation of "candidate vs current on a
 ## metric" — it absorbed both the old `DegreeFilter` (degree, hardcoded) and
 ## the old `CurrentThresholdPass` (any ranker, but buried inside
 ## [TakeTopNSpread]) in #850. Pair it with [DegreeRanker] for the degree-flow
@@ -56,9 +57,13 @@ enum Against {
 ## shipped `.tres` and no test resolves without a graph.
 func allows(to: SkillNode, lctx: LandingContext) -> bool:
 	var from := lctx.node
-	if ranker == null or from == null or to == null:
+	if ranker == null or to == null:
 		return false
-	var cur := ranker.score(from, lctx)
+	var cur := threshold
+	if against == Against.CURRENT:
+		if from == null:
+			return false
+		cur = ranker.score(from, lctx)
 	var nb := ranker.score(to, lctx)
 	# Scores are floats even when the metric is an integer degree, so the
 	# "or equal" half goes through [method @GlobalScope.is_equal_approx]
@@ -74,6 +79,14 @@ func allows(to: SkillNode, lctx: LandingContext) -> bool:
 
 func get_description() -> String:
 	var metric := ranker.get_description() if ranker != null else "rank"
+	if against == Against.ABSOLUTE:
+		var bar := NumFmt.num(threshold)
+		match compare:
+			Compare.LESS: return "Only into %s below %s." % [metric, bar]
+			Compare.LESS_OR_EQUAL: return "Only into %s of %s or less." % [metric, bar]
+			Compare.GREATER: return "Only into %s above %s." % [metric, bar]
+			Compare.GREATER_OR_EQUAL: return "Only into %s of %s or more." % [metric, bar]
+		return ""
 	match compare:
 		Compare.LESS: return "Only into lower %s than the current node." % metric
 		Compare.LESS_OR_EQUAL: return "Only into equal or lower %s." % metric

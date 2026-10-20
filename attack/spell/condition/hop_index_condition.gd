@@ -14,5 +14,16 @@ extends LandingCondition
 @export_range(-1, 10, 1, "or_greater") var max_hop: int = -1
 
 
-func evaluate(_lctx: LandingContext) -> bool:
-	return false
+func evaluate(lctx: LandingContext) -> bool:
+	if lctx == null or lctx.payload == null:
+		return false
+	var hop := lctx.payload.hop_index
+	return hop >= min_hop and (max_hop < 0 or hop <= max_hop)
+
+
+func get_description() -> String:
+	if max_hop == 0:
+		return "on the struck node"
+	if max_hop < 0:
+		return "from hop %d on" % min_hop if min_hop > 0 else ""
+	return "on hops %d to %d" % [min_hop, max_hop]
