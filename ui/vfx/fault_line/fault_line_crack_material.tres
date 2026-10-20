@@ -1,0 +1,15 @@
+[gd_resource type="ShaderMaterial" format=3]
+
+[ext_resource type="Shader" path="res://ui/vfx/fault_line/fault_line_crack.gdshader" id="1_shader"]
+
+[resource]
+shader = ExtResource("1_shader")
+shader_parameter/edge_width = 4.0
+shader_parameter/width_scale = 3.0
+shader_parameter/jag_amplitude = 0.45
+shader_parameter/jag_period_px = 26.0
+shader_parameter/seam_half = 0.11
+shader_parameter/halo_level = 0.35
+shader_parameter/branch_density = 0.35
+shader_parameter/front_gain_stops = 1.0
+shader_parameter/front_width = 0.2
