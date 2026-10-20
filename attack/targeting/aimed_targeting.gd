@@ -9,22 +9,35 @@ extends Targeting
 ## [member range_finder]'s reach, scaled through [SpellRangeRules] like any
 ## euclidean cast range — the aim carries an angle and never a length.
 ##
-## [method is_valid_target] answers the node-shaped question (in reach and
-## passing the filter), so [SpellTargetUnion] and the AI's per-source
-## enumeration see an aimed spell exactly as they see a [NodeTargeting] one.
+## Every direction the shape can point covers exactly the finder's disc, so the
+## node-shaped questions ([method is_valid_target], the base gather-then-filter
+## [method Targeting.valid_targets], [SpellTargetUnion]'s reach sets the AI
+## reads) see an aimed spell exactly as they see a [NodeTargeting] one.
 
 @export var shape: AimShape
-## Same flag set and meaning as [member NodeTargeting.ownership_filter].
-@export_flags("Neutral:1", "Mine:2", "Ally:4", "Hostile:8", "Friendly:6", "Allocated:14", "Any:15") var ownership_filter: int = 8
-@export var range_finder: EuclideanRangeFinder
 
 
 func get_kind() -> TargetingKind:
 	return TargetingKind.AIM
 
 
-func get_range_finder() -> RangeFinder:
-	return range_finder
+## [member Targeting.range_finder], typed: an aimed shape's length is a
+## euclidean distance, so only a [EuclideanRangeFinder] is ever held.
+func euclid_finder() -> EuclideanRangeFinder:
+	return range_finder as EuclideanRangeFinder
+
+
+## Refuses a non-euclidean finder (a hop count has no length to draw).
+func _set_range_finder(value: RangeFinder) -> void:
+	if value != null and not (value is EuclideanRangeFinder):
+		push_error("AimedTargeting needs a EuclideanRangeFinder, got %s" % value)
+		return
+	range_finder = value
+
+
+func _validate_property(property: Dictionary) -> void:
+	if property.name == "range_finder":
+		property.hint_string = "EuclideanRangeFinder"
 
 
 func is_valid_target(plan: AttackPlan, source: SkillNode, candidate: SkillNode) -> bool:
@@ -38,9 +51,10 @@ func is_valid_target(plan: AttackPlan, source: SkillNode, candidate: SkillNode) 
 ## The shape's length from [param source]: the finder's scaled reach, 0 with
 ## no finder (an aimed shape with no length crosses nothing).
 func length(attacker: Entity, source: SkillNode) -> float:
-	if range_finder == null:
+	var finder := euclid_finder()
+	if finder == null:
 		return 0.0
-	return range_finder.effective_distance(attacker, source)
+	return finder.effective_distance(attacker, source)
 
 
 ## What the aim looks like from [param source] at [param angle]: the finder's

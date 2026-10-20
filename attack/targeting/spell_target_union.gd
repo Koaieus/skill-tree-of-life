@@ -123,8 +123,7 @@ func targets_from(source: SkillNode) -> Dictionary[SkillNode, bool]:
 ## source for hops, one merged sweep for euclidean), and the non-range target
 ## predicate runs only over those.
 ##
-## [param plan] is needed only by the non-[NodeTargeting] fallback, which has
-## no candidate-first path to take; nothing ships such a targeting today.
+## [param plan] is unused: every targeting takes the candidate-first path.
 static func build(spell: SpellDef, attacker: Entity, graph: Graph,
 		plan: AttackPlan = null) -> SpellTargetUnion:
 	if spell == null or attacker == null:
@@ -150,7 +149,7 @@ static func build(spell: SpellDef, attacker: Entity, graph: Graph,
 ## gather did, and keeps both views behind one implementation instead of
 ## resurrecting the old walk.
 static func build_for(spell: SpellDef, attacker: Entity, graph: Graph,
-		sources: Array[SkillNode], plan: AttackPlan = null) -> SpellTargetUnion:
+		sources: Array[SkillNode], _plan: AttackPlan = null) -> SpellTargetUnion:
 	var union := SpellTargetUnion.new()
 	if spell == null or spell.targeting == null or attacker == null or graph == null:
 		return union
@@ -162,23 +161,7 @@ static func build_for(spell: SpellDef, attacker: Entity, graph: Graph,
 		return union
 
 	var targeting := spell.targeting
-	if not (targeting is NodeTargeting):
-		# No reach model to invert against — fall back to the O(N) walk per
-		# source. An [AimedTargeting] spell takes this path: O(N) per source,
-		# a cost on a full-size board.
-		for source in union.sources:
-			var found: Dictionary[SkillNode, bool] = {}
-			var reach: Dictionary[SkillNode, float] = {}
-			for sn in targeting.valid_targets(plan, source):
-				found[sn] = true
-				reach[sn] = 0.0
-			union.per_source[source] = found
-			union.per_source_reach[source] = reach
-		union._pick_best_sources(graph)
-		return union
-
-	var nt := targeting as NodeTargeting
-	var finder: RangeFinder = nt.range_finder
+	var finder: RangeFinder = targeting.range_finder
 	var candidates: Dictionary[SkillNode, Dictionary] = {}
 	if finder == null:
 		# Unlimited reach: every graph node is a range candidate, from every
@@ -199,7 +182,7 @@ static func build_for(spell: SpellDef, attacker: Entity, graph: Graph,
 		var legal: Dictionary[SkillNode, bool] = {}
 		var reach_map: Dictionary = candidates[source]
 		for candidate: SkillNode in reach_map:
-			if candidate.ownership_bit(attacker) & nt.ownership_filter != 0:
+			if candidate.ownership_bit(attacker) & targeting.ownership_filter != 0:
 				legal[candidate] = true
 		union.per_source[source] = legal
 		union.per_source_reach[source] = reach_map
