@@ -27,9 +27,10 @@
 [ext_resource type="Resource" path="res://attack/spell/defs/remedy.tres" id="20_remedy"]
 
 [ext_resource type="Resource" path="res://attack/spell/defs/purification.tres" id="21_purification"]
+[ext_resource type="Resource" path="res://attack/spell/defs/absolution.tres" id="absolution_id"]
 [ext_resource type="Resource" path="res://attack/spell/defs/firecracker.tres" id="22_firecracker"]
 [ext_resource type="Resource" path="res://attack/spell/defs/pocket_sand.tres" id="23_pocket_sand"]
 
 [resource]
 script = ExtResource("1_book")
-spells = Array[ExtResource("1_spell_def")]([ExtResource("2_spark"), ExtResource("3_lightning"), ExtResource("4_bruiser"), ExtResource("5_leafblower"), ExtResource("6_resonator"), ExtResource("7_trail_blazer"), ExtResource("8_reverberator"), ExtResource("9_healing_beam"), ExtResource("10_dazzle"), ExtResource("11_rend"), ExtResource("12_venom"), ExtResource("13_malediction"), ExtResource("14_girdle"), ExtResource("15_defile"), ExtResource("16_eagle_eye"), ExtResource("17_scout_line"), ExtResource("18_miasma"), ExtResource("19_pestilence"), ExtResource("20_remedy"), ExtResource("21_purification"), ExtResource("22_firecracker"), ExtResource("23_pocket_sand"), ExtResource("gloomflux_id"), ExtResource("hell_gnaw_id"), ExtResource("fault_line_id"), ExtResource("lodestone_id")])
+spells = Array[ExtResource("1_spell_def")]([ExtResource("2_spark"), ExtResource("3_lightning"), ExtResource("4_bruiser"), ExtResource("5_leafblower"), ExtResource("6_resonator"), ExtResource("7_trail_blazer"), ExtResource("8_reverberator"), ExtResource("9_healing_beam"), ExtResource("10_dazzle"), ExtResource("11_rend"), ExtResource("12_venom"), ExtResource("13_malediction"), ExtResource("14_girdle"), ExtResource("15_defile"), ExtResource("16_eagle_eye"), ExtResource("17_scout_line"), ExtResource("18_miasma"), ExtResource("19_pestilence"), ExtResource("20_remedy"), ExtResource("21_purification"), ExtResource("22_firecracker"), ExtResource("23_pocket_sand"), ExtResource("gloomflux_id"), ExtResource("hell_gnaw_id"), ExtResource("fault_line_id"), ExtResource("lodestone_id"), ExtResource("absolution_id")])

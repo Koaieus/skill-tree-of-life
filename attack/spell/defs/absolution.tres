@@ -1,0 +1,96 @@
+[gd_resource type="Resource" script_class="SpellDef" format=3]
+
+[ext_resource type="Script" path="res://attack/spell/spell_def.gd" id="1_spell"]
+[ext_resource type="Script" path="res://attack/spell/aspect_intake.gd" id="2_intake"]
+[ext_resource type="Script" path="res://attack/spell/load_use/cleanse_use.gd" id="3_use"]
+[ext_resource type="Script" path="res://attack/spell/on_hit/cleanse_effect.gd" id="4_fx"]
+[ext_resource type="Script" path="res://attack/spell/cleanse_term.gd" id="5_term_base"]
+[ext_resource type="Script" path="res://attack/spell/pay_worth_term.gd" id="6_pay"]
+[ext_resource type="Script" path="res://attack/spell/condition/holds_statuses_condition.gd" id="7_holds"]
+[ext_resource type="Resource" path="res://effects/status/corruption.tres" id="8_corruption"]
+[ext_resource type="Resource" path="res://effects/status/curse.tres" id="9_curse"]
+[ext_resource type="Resource" path="res://identity/defs/corruption.tres" id="10_id_corruption"]
+[ext_resource type="Resource" path="res://identity/defs/curse.tres" id="11_id_curse"]
+[ext_resource type="Script" path="res://effects/status/status_def.gd" id="12_status_def"]
+[ext_resource type="Script" path="res://attack/spell/propagation/propagation_config.gd" id="13_config"]
+[ext_resource type="Script" path="res://attack/spell/propagation/spread/no_spread.gd" id="14_nospread"]
+[ext_resource type="Script" path="res://attack/spell/propagation/filter/status_filter.gd" id="15_status_filter"]
+[ext_resource type="Script" path="res://attack/targeting/node_targeting.gd" id="16_targeting"]
+[ext_resource type="Script" path="res://attack/range_finder/euclidean_range_finder.gd" id="17_range"]
+[ext_resource type="Script" path="res://skill_node/visuals/emblem/texture_carve_shape.gd" id="18_tcs"]
+[ext_resource type="Texture2D" uid="uid://bh7gjwa8gtjwe" path="res://assets/icons/spells/hospital_cross.png" id="19_icon"]
+[ext_resource type="Texture2D" uid="uid://kiwpmieety4s" path="res://assets/emblem_luts/hospital_cross.png" id="20_lut"]
+[ext_resource type="PackedScene" path="res://ui/vfx/coordinator/spells/healing_beam_coordinator.tscn" id="21_vfx"]
+[ext_resource type="Resource" path="res://identity/defs/spell_absolution.tres" id="identity_ref"]
+
+[sub_resource type="Resource" id="carve_absolution"]
+script = ExtResource("18_tcs")
+source_texture = ExtResource("19_icon")
+baked_lut = ExtResource("20_lut")
+
+[sub_resource type="Resource" id="pay_worth"]
+script = ExtResource("6_pay")
+
+[sub_resource type="Resource" id="holds_both"]
+script = ExtResource("7_holds")
+statuses = Array[ExtResource("12_status_def")]([ExtResource("8_corruption"), ExtResource("9_curse")])
+
+[sub_resource type="Resource" id="cleanse_template"]
+script = ExtResource("4_fx")
+terms = Array[ExtResource("5_term_base")]([SubResource("pay_worth")])
+crit_when = SubResource("holds_both")
+
+[sub_resource type="Resource" id="use_corruption"]
+script = ExtResource("3_use")
+effect = SubResource("cleanse_template")
+
+[sub_resource type="Resource" id="use_curse"]
+script = ExtResource("3_use")
+effect = SubResource("cleanse_template")
+
+[sub_resource type="Resource" id="intake_corruption"]
+script = ExtResource("2_intake")
+identity = ExtResource("10_id_corruption")
+innate = 5
+use = SubResource("use_corruption")
+
+[sub_resource type="Resource" id="intake_curse"]
+script = ExtResource("2_intake")
+identity = ExtResource("11_id_curse")
+innate = 20
+affinity_gain = 3
+use = SubResource("use_curse")
+
+[sub_resource type="Resource" id="filter_stained"]
+script = ExtResource("15_status_filter")
+statuses = Array[ExtResource("12_status_def")]([ExtResource("8_corruption"), ExtResource("9_curse")])
+
+[sub_resource type="Resource" id="spread_none"]
+script = ExtResource("14_nospread")
+
+[sub_resource type="Resource" id="prop_absolution"]
+script = ExtResource("13_config")
+filter = SubResource("filter_stained")
+spread = SubResource("spread_none")
+
+[sub_resource type="Resource" id="range_euclid"]
+script = ExtResource("17_range")
+
+[sub_resource type="Resource" id="targeting_any"]
+script = ExtResource("16_targeting")
+ownership_filter = 15
+range_finder = SubResource("range_euclid")
+
+[resource]
+script = ExtResource("1_spell")
+id = &"absolution"
+name = "Absolution"
+tagline = "Burns corruption and curses off any node; the node pays what they were worth."
+description = "Clears up to 5 corruption and 20 curse stacks from one node of any owner, core rows first. Each cleared stack costs the node its worth as true damage, after the clears. A node holding both crits: the stacks it may clear multiply by your crit multiplier."
+identity = ExtResource("identity_ref")
+carve_shape = SubResource("carve_absolution")
+power = 1.0
+propagation = SubResource("prop_absolution")
+intakes = Array[ExtResource("2_intake")]([SubResource("intake_corruption"), SubResource("intake_curse")])
+vfx_coordinator_scene = ExtResource("21_vfx")
+targeting = SubResource("targeting_any")

@@ -11,6 +11,7 @@
 
 [ext_resource type="Resource" path="res://attack/spell/defs/purification.tres" id="8_purification"]
 [ext_resource type="Resource" path="res://attack/spell/defs/reverberator.tres" id="9_reverberator"]
+[ext_resource type="Resource" path="res://attack/spell/defs/absolution.tres" id="10_absolution"]
 
 [resource]
 script = ExtResource("1_aspect")
@@ -19,4 +20,4 @@ stat = ExtResource("3_stat")
 status = ExtResource("4_status")
 ammo = ExtResource("5_ammo")
 addon_scene = ExtResource("7_addon")
-spells = Array[ExtResource("1_spell_def")]([ExtResource("6_defile"), ExtResource("8_purification"), ExtResource("9_reverberator")])
+spells = Array[ExtResource("1_spell_def")]([ExtResource("6_defile"), ExtResource("8_purification"), ExtResource("9_reverberator"), ExtResource("10_absolution")])
