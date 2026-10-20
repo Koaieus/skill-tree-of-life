@@ -18,8 +18,10 @@ extends Resource
 
 
 ## Every node in [param nodes] whose disc touches the shape, sorted by centre
-## distance from [param origin] and capped at [member max_hits]. One linear
-## pass — the same cost as [method EuclideanRangeFinder.gather].
+## distance from [param origin] (ties by [member SkillNode.stable_id], so the
+## order never depends on the order [param nodes] came in) and capped at
+## [member max_hits]. One linear pass over [param nodes] — hand it a narrowed
+## candidate set ([method reach]), never the whole board.
 func crossed(origin: Vector2, angle: float, length: float, nodes: Array[SkillNode]) -> Array[SkillNode]:
 	var out: Array[SkillNode] = []
 	if length <= 0.0:
@@ -29,10 +31,18 @@ func crossed(origin: Vector2, angle: float, length: float, nodes: Array[SkillNod
 		if n != null and _touches(origin, dir, length, n):
 			out.append(n)
 	out.sort_custom(func(a: SkillNode, b: SkillNode) -> bool:
-		return origin.distance_squared_to(a.global_position) < origin.distance_squared_to(b.global_position))
+		var da := origin.distance_squared_to(a.global_position)
+		var db := origin.distance_squared_to(b.global_position)
+		return da < db or (da == db and a.stable_id < b.stable_id))
 	if max_hits > 0 and out.size() > max_hits:
 		out.resize(max_hits)
 	return out
+
+
+## The radius around the origin that bounds the shape at [param length]: any
+## node whose disc touches the shape has its centre within
+## `reach + node.radius` of the origin — the circle a grid gather narrows by.
+@abstract func reach(length: float) -> float
 
 
 ## True iff [param node]'s disc touches this shape, anchored at

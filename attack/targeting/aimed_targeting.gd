@@ -73,15 +73,17 @@ func get_visual(attacker: Entity, source: SkillNode, angle: float) -> RangeVisua
 ## Every node the shape crosses aimed at [param angle] from [param source],
 ## nearest-first, that passes [member ownership_filter]. The source itself is
 ## never a seed: its disc contains the origin, so every shape would cross it.
+## Candidates come from the graph's grid ([method Graph.spatial_candidates])
+## around [method AimShape.reach]; [method AimShape.crossed] stays the exact
+## decider, so the grid only narrows — a miss is a bug, never an extra.
 func seeds(attacker: Entity, source: SkillNode, angle: float, graph: Graph) -> Array[SkillNode]:
 	var out: Array[SkillNode] = []
 	if shape == null or source == null or graph == null:
 		return out
-	var candidates: Array[SkillNode] = []
-	for n: SkillNode in graph.get_skill_nodes():
-		if n != source:
-			candidates.append(n)
-	for n in shape.crossed(source.global_position, angle, length(attacker, source), candidates):
+	var len := length(attacker, source)
+	var candidates := graph.spatial_candidates(source.global_position, shape.reach(len))
+	candidates.erase(source)
+	for n in shape.crossed(source.global_position, angle, len, candidates):
 		if attacker == null or n.ownership_bit(attacker) & ownership_filter != 0:
 			out.append(n)
 	return out

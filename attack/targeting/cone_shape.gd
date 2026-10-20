@@ -11,6 +11,11 @@ extends AimShape
 @export_range(1.0, 90.0, 0.5, "suffix:°") var half_angle_deg: float = 20.0
 
 
+## The wedge never leaves the reach circle: its length.
+func reach(length: float) -> float:
+	return length
+
+
 func _touches(origin: Vector2, dir: Vector2, length: float, node: SkillNode) -> bool:
 	var rel := node.global_position - origin
 	var d := rel.length()

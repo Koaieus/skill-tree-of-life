@@ -10,6 +10,11 @@ extends AimShape
 @export_range(0.0, 200.0, 1.0, "or_greater", "suffix:px") var width: float = 24.0
 
 
+## The capsule's far cap: the length plus the band's half-width.
+func reach(length: float) -> float:
+	return length + width
+
+
 func _touches(origin: Vector2, dir: Vector2, length: float, node: SkillNode) -> bool:
 	var rel := node.global_position - origin
 	var along := clampf(rel.dot(dir), 0.0, length)
