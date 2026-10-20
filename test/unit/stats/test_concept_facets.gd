@@ -29,7 +29,7 @@ func test_every_facet_def_has_an_identity_and_indexes_to_itself() -> void:
 		seen[key] = def.id
 		assert_eq(StatRegistry.facet_def(def.identity.id, def.role), def, "facet_def for %s" % def.id)
 		checked += 1
-	assert_eq(checked, 29, "the 29 concept stats carry a role")
+	assert_eq(checked, 31, "the 31 concept stats carry a role")
 	assert_eq(StatRegistry.facet_defs().size(), checked, "facet_defs() is every role-bearing def")
 
 
