@@ -14,9 +14,6 @@ const _CLAMP_SCENE := preload("res://skill_node/addons/defs/clamp_addon.tscn")
 
 const _SPACING := 150.0
 const _TURNS := 0.15
-## The watchtower is not temp_placeable while the melee tray holds five cards;
-## its temp price stays authored so re-enabling is one flag.
-const _TEMP_FACE_PARKED := true
 
 
 func _spawn_node(graph: Node, nm: String) -> SkillNode:
@@ -224,9 +221,6 @@ func _stacks_at_tip_bare() -> float:
 
 
 func test_a_temp_watchtower_lands_scouted_like_a_map_one() -> void:
-	if _TEMP_FACE_PARKED:
-		pending("temp face parked: the melee tray caps at five cards — see #1393")
-		return
 	await _spine()
 	_attacker.stat_board.facet(&"scout", StatDef.Role.ASPECT).base_value = 1.0
 	_attacker.stat_board.blade_size.base_value = 20.0
@@ -242,9 +236,6 @@ func test_a_temp_watchtower_lands_scouted_like_a_map_one() -> void:
 
 
 func test_a_temp_watchtower_costs_1_blade_size_and_1_scout_aspect() -> void:
-	if _TEMP_FACE_PARKED:
-		pending("temp face parked: the melee tray caps at five cards — see #1393")
-		return
 	var costs := SkillNodeAddon.temp_costs_of(_WATCHTOWER_SCENE)
 	assert_eq(costs.get(&"blade_size", 0), 1)
 	assert_eq(costs.get(&"scout_aspect", 0), 1)
@@ -267,9 +258,6 @@ func test_allocating_a_watchtower_node_grants_the_owner_scout_aspect() -> void:
 
 
 func test_a_temp_watchtower_grants_no_scout_aspect() -> void:
-	if _TEMP_FACE_PARKED:
-		pending("temp face parked: the melee tray caps at five cards — see #1393")
-		return
 	await _spine()
 	_attacker.stat_board.facet(&"scout", StatDef.Role.ASPECT).base_value = 1.0
 	_attacker.stat_board.blade_size.base_value = 20.0

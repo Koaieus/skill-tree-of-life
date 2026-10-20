@@ -49,6 +49,7 @@ func test_offered_is_the_temp_placeable_subset_in_order() -> void:
 		"res://skill_node/addons/defs/doombrand_addon.tscn",
 		"res://skill_node/addons/defs/spike_ring_addon.tscn",
 		"res://skill_node/addons/defs/toxin_addon.tscn",
+		"res://skill_node/addons/defs/watchtower_addon.tscn",
 	] as Array[String])
 	for scene in CATALOG.kinds():
 		assert_eq(CATALOG.offered().has(scene), SkillNodeAddon.temp_placeable_of(scene),
