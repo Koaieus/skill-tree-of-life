@@ -98,7 +98,7 @@ var incident_shares: PackedFloat32Array = PackedFloat32Array()
 var closed_ring: Array[SkillNode] = []
 
 ## Which way the storm turned to reach this landing — +1 / -1 / 0 for none.
-## See [member CastSpell.turn_sign]; constant for a cast, carried per event
+## See [member CycloneFront.State.turn_sign]; constant for a cast, carried per event
 ## because the VFX layer cannot honestly derive it.
 var turn_sign: float = 0.0
 

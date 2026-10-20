@@ -19,19 +19,19 @@ var node: SkillNode = null
 var share: float = 1.0
 
 ## Heading the child arrives on; [Vector2.ZERO] leaves the child's
-## [member CastSpell.arrival_bearing] unset (a non-curl spell).
+## [member CycloneFront.State.arrival_bearing] unset (a non-curl spell).
 var arrival_bearing: Vector2 = Vector2.ZERO
 
 ## +1 / -1 handedness of the turn that produced this pick, 0.0 when the spread
-## has no handedness. See [member CastSpell.turn_sign].
+## has no handedness. See [member CycloneFront.State.turn_sign].
 var turn_sign: float = 0.0
 
 ## True when landing on [member node] closes a simple cycle in the lineage.
-## See [member CastSpell.closed_cycle].
+## See [member CycloneFront.State.closed_cycle].
 var closed_cycle: bool = false
 
 ## The predecessor set the arrival records for the closer/backtrack logic;
-## see [member CastSpell.came_from].
+## see [member CycloneFront.State.came_from].
 var came_from: Array[SkillNode] = []
 
 ## When non-empty, REPLACES the child's lineage: the ring a closing hop just

@@ -318,8 +318,7 @@ static func _resolve(
 			var shares := PackedFloat32Array()
 			for inc in incidents:
 				preds.append(inc.predecessor)
-				var inc_front := inc.extra(CycloneFront.ID) as CycloneFront.State
-				shares.append(inc_front.arrival_share if inc_front != null else 1.0)
+				shares.append(inc.arrival_share)
 			predecessor_sets[node] = preds
 			share_sets[node] = shares
 
@@ -634,8 +633,7 @@ static func _record_cancel(
 	var shares := PackedFloat32Array()
 	for inc in incidents:
 		preds.append(inc.predecessor)
-		var inc_front := inc.extra(CycloneFront.ID) as CycloneFront.State
-		shares.append(inc_front.arrival_share if inc_front != null else 1.0)
+		shares.append(inc.arrival_share)
 	cancel_ev.predecessors = preds
 	cancel_ev.incident_shares = shares
 	var first_front := first.extra(CycloneFront.ID) as CycloneFront.State

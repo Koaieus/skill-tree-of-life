@@ -54,12 +54,14 @@ func test_derived_leaves_the_deliberate_non_copies_at_their_defaults() -> void:
 	var graph := h.make_graph([[0, 1]], self)
 	var n := graph.get_skill_nodes()
 	var parent := _incident(n[1], n[0], 5.0)
+	parent.arrival_share = 0.25
 	parent.incident_count = 3
 	parent.arrived_from = [n[0]] as Array[SkillNode]
 
 	var child := CastSpell.derived(parent)
 
 	assert_eq(child.damage, 0.0, "damage is the reducer's / the mint's")
+	assert_eq(child.arrival_share, 1.0, "arrival_share is one arc's telemetry")
 	assert_eq(child.incident_count, 1, "incident_count is a resolver fact")
 	assert_true(child.arrived_from.is_empty(), "arrived_from is a resolver fact")
 	assert_eq(child.seed_node, parent.seed_node)

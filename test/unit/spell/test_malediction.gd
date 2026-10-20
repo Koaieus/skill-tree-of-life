@@ -69,6 +69,19 @@ func test_main_payload_follows_the_lower_floor_and_siblings_take_a_terminal_mino
 		assert_false(hit.has(_n[i]), "nothing propagates from an off-path node (%d)" % i)
 
 
+func test_an_off_path_share_below_one_reaches_the_event() -> void:
+	# arrival_share is per-arc telemetry for every spell, not Cyclone's alone:
+	# a sibling's minor share must reach PropagationEvent.incident_shares.
+	_board([[0, 1], [1, 2], [1, 3], [1, 4]], [1, 2, 3, 4], {2: -1.0})
+	var outcome := SpellResolver.resolve(MALEDICTION, _n[1], _n[0], _blue, _graph)
+	var share := -1.0
+	for ev in outcome.timeline:
+		if ev.target == _n[3] and ev.incident_shares.size() == 1:
+			share = ev.incident_shares[0]
+	assert_gt(share, 0.0, "the sibling's arc reports its share")
+	assert_lt(share, 1.0, "…and it is the minor share, not a default 1.0")
+
+
 func test_tied_lowest_floors_fork_at_full_share() -> void:
 	_board([[0, 1], [1, 2], [1, 3], [1, 4]], [1, 2, 3, 4], {2: -1.0, 3: -1.0})
 	var hit := _cursed(1)

@@ -2,7 +2,7 @@
 class_name CycloneFront
 extends PayloadExtension
 
-## Cyclone's carried front: the five per-payload facts only the curl walk
+## Cyclone's carried front: the per-payload facts only the curl walk
 ## stamps and reads, kept off the baseline [CastSpell]. Read it as
 ## [code]payload.extra(CycloneFront.ID) as CycloneFront.State[/code]; a payload
 ## without one reads the defaults ([BacktrackFilter] allows, [CycleCondition]
@@ -26,11 +26,6 @@ class State extends PayloadState:
 	## [constant Vector2.ZERO] = unset (the seed, or a head-on cancel the
 	## merge resolved): the spread falls back to the predecessor, then source.
 	var arrival_bearing: Vector2 = Vector2.ZERO
-	## The rank coefficient this ONE arc was minted with (closing gain folded
-	## in): the VFX draws the spine heavier than the offshoots off it. Per-arc
-	## telemetry — a merge resets it to 1.0; the resolver reads the per-arc
-	## values off the incidents.
-	var arrival_share: float = 1.0
 	## +1 clockwise, -1 counter-clockwise, 0 at the seed. Constant for a cast.
 	var turn_sign: float = 0.0
 	## The nodes [BacktrackFilter] vetoes this front's next step back into.
@@ -57,7 +52,6 @@ func seed(_ctx: PropagationContext) -> PayloadState:
 func mint(_parent: PayloadState, pick: PropagationPick, _lctx: LandingContext,
 		_hop_index: int) -> PayloadState:
 	var out := _state()
-	out.arrival_share = pick.share
 	out.arrival_bearing = pick.arrival_bearing
 	out.turn_sign = pick.turn_sign
 	out.closed_cycle = pick.closed_cycle

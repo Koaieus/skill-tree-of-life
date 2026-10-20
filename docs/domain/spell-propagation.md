@@ -346,17 +346,18 @@ other payload is `derived` and applies only its own deltas:
   hop_damage else parent) × pick.share`; `stack_weight` shaped by `hop_stacks`
   × `pick.stack_share`; `hops_remaining - 1` (0 on a terminal pick);
   `hop_index + 1`; `visited` = parent trail + destination (or the pick's
-  `lineage_override`); then the pick's stamps copied verbatim (`arrival_share =
-  share`, `arrival_bearing`, `turn_sign`, `closed_cycle`, `came_from`).
+  `lineage_override`); `arrival_share = share`. The curl's stamps
+  (`arrival_bearing`, `turn_sign`, `closed_cycle`, `came_from`) ride the
+  `CycloneFront` extension, which copies them off the pick in its `mint`.
   Progression first, share second, so an authored ramp composes with a
   spread's split. Then each extension mints its state (below). `lctx` is the
   landing the parent just made — the wave has landed, so a read through it
   sees this wave's stacks.
 - **A reducer's merge** (`IncidentReducer._merge_payload_defaults`) derives
   from the first incident, then takes MAX `hops_remaining`, the union of
-  `visited` and MAX `stack_weight`; the reducer sets `damage`. A stock merge
-  therefore keeps the first incident's `came_from` and `closed_cycle`. Then
-  each extension merges its states across the incidents.
+  `visited` and MAX `stack_weight`; the reducer sets `damage`. Then each
+  extension merges its states across the incidents (Cyclone's `came_from` and
+  `closed_cycle` survive a stock merge that way, through `CycloneFront.merge`).
 
 **Extensions** (owner, #1717) carry spell-specific state instead of new
 `CastSpell` fields. Each `PayloadExtension` (a `Resource` template with an
@@ -671,7 +672,7 @@ the ring, and it lives in
   truncates `visited` to *exactly* the loop on every close (that truncation is
   what makes every `CycleCondition` crit a real simple cycle of length ≥ 3),
   and `CycloneReducer` hands a closer's lineage through whole. So the stamp is one
-  line — `ev.closed_ring = state.visited.duplicate()` when `state.closed_cycle` —
+  line — `ev.closed_ring = state.visited.duplicate()` when the landing's `CycloneFront` state has `closed_cycle` —
   and `closed_ring` is non-empty on exactly the landings that closed something.
 - **Array order IS the storm's rotation.** The ring comes back in walking order
   ending at the landed node, so consecutive pairs are its edges and
@@ -737,7 +738,7 @@ you author the next payload field:
 - **`predecessor` keeps only `incidents[0]`'s.** It is the canonical "the
   projectile flew from somewhere" reader for VFX, and it was never meant to be a
   *set*. A rule that needs every direction the fronts arrived from must carry its
-  own array field — that is what `CastSpell.came_from` is, and the full set does
+  own array field — that is what `CycloneFront.State.came_from` is, and the full set does
   also exist on `PropagationEvent.predecessors` (#542), but only for the event,
   after the fact.
 

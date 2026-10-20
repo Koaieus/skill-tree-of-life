@@ -15,7 +15,7 @@ extends PropagationFilter
 ## Reverberator's turf. It used to refuse them [i]by accident[/i] — the claim
 ## was that [BacktrackFilter] covers it, since a self-loop hop has
 ## [code]to == from == current_node[/code]. That was never true.
-## [member CastSpell.came_from] holds the [b]predecessor[/b], never the current
+## [member CycloneFront.State.came_from] holds the [b]predecessor[/b], never the current
 ## node, so the veto never fired and a self-loop crit on the very next wave.
 ## The lesson is the reason this class exists rather than a flag on some other
 ## filter: an unrelated rule that happens to cover your case is a rule that can

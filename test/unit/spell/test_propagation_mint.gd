@@ -125,7 +125,7 @@ func test_mint_copies_pick_stamps_verbatim() -> void:
 	assert_almost_eq(front.turn_sign, -1.0, 0.0001)
 	assert_true(front.closed_cycle)
 	assert_eq(front.came_from, [nodes[0]] as Array[SkillNode])
-	assert_almost_eq(front.arrival_share, 0.7, 0.0001)
+	assert_almost_eq(child.arrival_share, 0.7, 0.0001, "arrival_share IS the pick's share")
 
 
 func test_mint_defaults_leave_non_curl_children_unstamped() -> void:
@@ -212,5 +212,4 @@ func test_cyclone_select_closing_hop_folds_closing_gain_into_share_and_hands_ove
 	# And the mint honours it: the child's trail IS the ring, damage IS the split.
 	var child := _mint(_CYCLONE.propagation, payload, pick)
 	assert_eq(child.visited, pick.lineage_override)
-	var front := child.extra(CycloneFront.ID) as CycloneFront.State
-	assert_almost_eq(front.arrival_share, pick.share, 0.0001)
+	assert_almost_eq(child.arrival_share, pick.share, 0.0001)

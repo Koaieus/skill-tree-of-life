@@ -20,6 +20,22 @@ var current_node: SkillNode = null
 ## VFX layer falls back to [member source] when this is null (see
 ## [DamageEffect]) so the seed projectile flies from the cast-from node.
 var predecessor: SkillNode = null
+## The fraction of the incoming damage THIS front was minted with — the turn-rank
+## coefficient that was actually applied, with any closing bonus already folded
+## in ([member CycloneSpread.closing_gain]).
+##
+## It exists because the number is otherwise destroyed the instant it is used.
+## [CycloneSpread] hands it over as [member PropagationPick.share], the mint
+## multiplies [member damage] by it and it is gone from the arithmetic;
+## [CycloneReducer] then SUMS every incident, and the crit multiplies again
+## at landing. So a landed amount cannot be inverted back to "which rank made
+## this", and rank is the entire mechanic — the sharp turn circulates, the wide
+## turns radiate. The VFX layer has to be TOLD, exactly as it is told
+## [member PropagationEvent.verb] rather than inferring it (#704).
+##
+## Default 1.0 = "full strength, undivided", which is what every spell that does
+## not split its damage across a fan means.
+var arrival_share: float = 1.0
 ## The status-stack weight this arrival carries — the stack counterpart of
 ## [member damage]. Seeded 1.0; [method PropagationConfig.mint] copies it and
 ## shapes it by [member PropagationConfig.hop_stacks]; a merge carries the MAX
@@ -97,6 +113,7 @@ static func blank() -> CastSpell:
 ##
 ## Deliberate non-copies, left at their defaults:
 ## [member damage] is the reducer's (or the mint's progression) to set;
+## [member arrival_share] is per-arrival telemetry of ONE arc's mint;
 ## [member incident_count] and [member arrived_from] are resolver facts stamped
 ## at the grouping pass.
 ##
