@@ -103,6 +103,18 @@ func test_it_gnaws_hostile_allied_and_own_nodes_and_skips_neutral() -> void:
 	assert_false(dmg.has(_n[4]), "nor walked through")
 
 
+func test_every_bite_lands_one_sunder_and_one_wither_rider() -> void:
+	var outcome := SpellResolver.resolve(HELL_GNAW, _n[1], _n[0], _blue, _graph)
+	var bites: int = _damage_by_node(outcome).get(_n[1], []).size()
+	var landed := {}
+	for hit in outcome.hits:
+		if hit is StatusInstance and hit.target == _n[1] and hit.def != null:
+			landed[hit.def.id] = landed.get(hit.def.id, 0) + 1
+	assert_gt(bites, 1, "arranged: the seed is bitten more than once")
+	assert_eq(landed.get(&"sunder", 0), bites, "one Sunder rider per bite")
+	assert_eq(landed.get(&"wither", 0), bites, "one Wither rider per bite")
+
+
 func test_bites_thin_out_as_the_swarm_spreads() -> void:
 	var dmg := _damage_by_node(SpellResolver.resolve(HELL_GNAW, _n[1], _n[0], _blue, _graph))
 	if not (dmg.has(_n[1]) and dmg.has(_n[0]) and dmg.has(_n[5])):
