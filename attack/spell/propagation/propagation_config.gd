@@ -86,10 +86,10 @@ extends Resource
 ## THEN multiplied by [member PropagationPick.share], so an authored ramp
 ## composes with a spread's split; hops_remaining decrements; hop_index
 ## advances; the lineage gains the destination (or is replaced by the pick's
-## [member PropagationPick.lineage_override]). Every other pick field is copied
-## onto the child as-is: the spread decided it, the mint does not reinterpret it.
+## [member PropagationPick.lineage_override]).
 ##
-## Then each of [member extensions] mints the child's state from the parent's;
+## Then each of [member extensions] mints the child's state from the parent's
+## (and copies whichever other pick stamps it carries — [CycloneFront]);
 ## a state marked [member PayloadState.terminal] ends the walk at the child.
 ##
 ## [param lctx] is the landing [param payload] just made — this wave has
@@ -111,12 +111,6 @@ func mint(payload: CastSpell, pick: PropagationPick, lctx: LandingContext) -> Ca
 		next.visited.append(pick.node)
 	else:
 		next.visited = pick.lineage_override
-	# The pick's stamps, verbatim.
-	next.arrival_share = pick.share
-	next.arrival_bearing = pick.arrival_bearing
-	next.turn_sign = pick.turn_sign
-	next.closed_cycle = pick.closed_cycle
-	next.came_from = pick.came_from
 	for ext in extensions:
 		var state := ext.mint(payload.extra(ext.id), pick, lctx, payload.hop_index)
 		next.extras.append(state)

@@ -171,19 +171,18 @@ func test_converging_fronts_combine_their_heading_by_strength() -> void:
 	var node := _graph.get_skill_nodes()[0]
 	var strong := CastSpell.new()
 	strong.damage = 9.0
-	strong.arrival_bearing = Vector2.RIGHT
+	_front(strong).arrival_bearing = Vector2.RIGHT
 	var weak := CastSpell.new()
 	weak.damage = 1.0
-	weak.arrival_bearing = Vector2.UP
+	_front(weak).arrival_bearing = Vector2.UP
 	var incidents: Array[CastSpell] = [strong, weak]
 	for c in incidents:
 		c.current_node = node
 		c.visited = [] as Array[SkillNode]
-		c.came_from = [] as Array[SkillNode]
 	var merged := CycloneReducer.new().reduce(incidents, PropagationContext.new())
-	assert_gt(merged.arrival_bearing.x, 0.0, "still mostly heading the strong way")
-	assert_lt(merged.arrival_bearing.y, 0.0, "but pulled toward the weak front")
-	assert_gt(absf(merged.arrival_bearing.x), absf(merged.arrival_bearing.y) * 5.0,
+	assert_gt(_front_of(merged).arrival_bearing.x, 0.0, "still mostly heading the strong way")
+	assert_lt(_front_of(merged).arrival_bearing.y, 0.0, "but pulled toward the weak front")
+	assert_gt(absf(_front_of(merged).arrival_bearing.x), absf(_front_of(merged).arrival_bearing.y) * 5.0,
 			"9 vs 1 is a strong bias, not an even split")
 
 
@@ -194,17 +193,16 @@ func test_a_head_on_collision_keeps_the_survivors_heading() -> void:
 	var node := _graph.get_skill_nodes()[0]
 	var east := CastSpell.new()
 	east.damage = 5.0
-	east.arrival_bearing = Vector2.RIGHT
+	_front(east).arrival_bearing = Vector2.RIGHT
 	var west := CastSpell.new()
 	west.damage = 5.0
-	west.arrival_bearing = Vector2.LEFT
+	_front(west).arrival_bearing = Vector2.LEFT
 	var incidents: Array[CastSpell] = [east, west]
 	for c in incidents:
 		c.current_node = node
 		c.visited = [] as Array[SkillNode]
-		c.came_from = [] as Array[SkillNode]
 	var merged := CycloneReducer.new().reduce(incidents, PropagationContext.new())
-	assert_ne(merged.arrival_bearing, Vector2.ZERO, "a stalled front has no turn to rank")
+	assert_ne(_front_of(merged).arrival_bearing, Vector2.ZERO, "a stalled front has no turn to rank")
 
 
 func test_the_filter_is_hostile_ground_and_no_self_loops_and_nothing_else() -> void:
@@ -323,7 +321,6 @@ func test_converging_fronts_add_rather_than_take_the_strongest() -> void:
 		var c := CastSpell.new()
 		c.damage = amount
 		c.visited = [] as Array[SkillNode]
-		c.came_from = [] as Array[SkillNode]
 		incidents.append(c)
 	var merged := CycloneReducer.new().reduce(incidents, PropagationContext.new())
 	assert_almost_eq(merged.damage, 8.0, 0.001, "summed, not max'd")
@@ -417,17 +414,30 @@ func test_a_merge_carries_the_closers_ring_not_the_strongest_fronts_trail() -> v
 	var closer := CastSpell.new()
 	closer.current_node = nodes[2]
 	closer.damage = 1.0
-	closer.closed_cycle = true
+	_front(closer).closed_cycle = true
 	closer.visited = loop
-	closer.came_from = [] as Array[SkillNode]
 	var bruiser := CastSpell.new()
 	bruiser.current_node = nodes[2]
 	bruiser.damage = 9.0
-	bruiser.closed_cycle = false
+	_front(bruiser).closed_cycle = false
 	bruiser.visited = trail
-	bruiser.came_from = [] as Array[SkillNode]
 	var incidents: Array[CastSpell] = [bruiser, closer]
 	var merged := CycloneReducer.new().reduce(incidents, PropagationContext.new())
-	assert_true(merged.closed_cycle, "one closer among the incidents closes the merge")
+	assert_true(_front_of(merged).closed_cycle, "one closer among the incidents closes the merge")
 	assert_eq(merged.visited, loop,
 			"the merged landing carries the CLOSER's ring, not the 9-damage front's trail")
+
+
+## Cyclone's front state on a hand-built incident — the merge reads the moved
+## fields there. One template, so every incident's state merges through it.
+var _front_template := CycloneFront.new()
+
+
+func _front(c: CastSpell) -> CycloneFront.State:
+	var s := _front_template.seed(null) as CycloneFront.State
+	c.extras.append(s)
+	return s
+
+
+func _front_of(c: CastSpell) -> CycloneFront.State:
+	return c.extra(CycloneFront.ID) as CycloneFront.State

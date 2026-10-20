@@ -3,12 +3,13 @@ class_name BacktrackFilter
 extends PropagationFilter
 
 ## Vetoes travel back into any node the payload came from — the
-## [member CastSpell.came_from] set.
+## [member CycloneFront.State.came_from] set. A payload with no [CycloneFront]
+## has no set and is allowed everywhere.
 ##
 ## Deliberately reads the SET and not [member CastSpell.predecessor]: a
 ## convergence merges fronts that arrived from several directions at once, and
 ## a merged payload has to refuse all of them, not just the one the reducer
-## picked as canonical. See [CycloneReducer].
+## picked as canonical. See [method CycloneFront.merge].
 ##
 ## [b]An empty set allows everything[/b], and that is load-bearing rather than a
 ## degenerate case: [CycloneSpread] mints a cycle-closing child with an empty
@@ -27,7 +28,8 @@ extends PropagationFilter
 
 
 func allows(to_node: SkillNode, lctx: LandingContext) -> bool:
-	return not lctx.payload.came_from.has(to_node)
+	var front := lctx.payload.extra(CycloneFront.ID) as CycloneFront.State
+	return front == null or not front.came_from.has(to_node)
 
 
 func get_description() -> String:

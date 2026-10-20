@@ -61,7 +61,6 @@ func test_mint_applies_progression_then_share() -> void:
 	var child := _mint(config, _payload(nodes[0], 10.0), PropagationPick.to(nodes[1], 0.5))
 	assert_almost_eq(child.damage, (10.0 + 2.0) * 0.5, 0.0001,
 			"progression first (10 + 2), THEN the pick's share (× 0.5)")
-	assert_almost_eq(child.arrival_share, 0.5, 0.0001, "arrival_share IS the pick's share")
 
 
 func test_mint_without_progression_carries_damage_times_share() -> void:
@@ -112,16 +111,21 @@ func test_mint_copies_pick_stamps_verbatim() -> void:
 	var graph := h.make_graph([[0, 1]], self)
 	var nodes := graph.get_skill_nodes()
 	var config := h.make_config(h.fan_all(), null, null)
+	config.extensions = [CycloneFront.new()] as Array[PayloadExtension]
 	var pick := PropagationPick.to(nodes[1], 0.7)
 	pick.arrival_bearing = Vector2(0.6, 0.8)
 	pick.turn_sign = -1.0
 	pick.closed_cycle = true
 	pick.came_from = [nodes[0]] as Array[SkillNode]
-	var child := _mint(config, _payload(nodes[0], 3.0), pick)
-	assert_eq(child.arrival_bearing, Vector2(0.6, 0.8))
-	assert_almost_eq(child.turn_sign, -1.0, 0.0001)
-	assert_true(child.closed_cycle)
-	assert_eq(child.came_from, [nodes[0]] as Array[SkillNode])
+	var payload := _payload(nodes[0], 3.0)
+	payload.extras.append(config.extensions[0].seed(null))
+	var child := _mint(config, payload, pick)
+	var front := child.extra(CycloneFront.ID) as CycloneFront.State
+	assert_eq(front.arrival_bearing, Vector2(0.6, 0.8))
+	assert_almost_eq(front.turn_sign, -1.0, 0.0001)
+	assert_true(front.closed_cycle)
+	assert_eq(front.came_from, [nodes[0]] as Array[SkillNode])
+	assert_almost_eq(front.arrival_share, 0.7, 0.0001)
 
 
 func test_mint_defaults_leave_non_curl_children_unstamped() -> void:
@@ -129,10 +133,7 @@ func test_mint_defaults_leave_non_curl_children_unstamped() -> void:
 	var nodes := graph.get_skill_nodes()
 	var config := h.make_config(h.fan_all(), null, null)
 	var child := _mint(config, _payload(nodes[0], 3.0), PropagationPick.to(nodes[1]))
-	assert_eq(child.arrival_bearing, Vector2.ZERO)
-	assert_almost_eq(child.turn_sign, 0.0, 0.0001)
-	assert_false(child.closed_cycle)
-	assert_true(child.came_from.is_empty())
+	assert_null(child.extra(CycloneFront.ID), "no CycloneFront, no curl stamps")
 
 
 # ── FanAllSpread.select ───────────────────────────────────────────────────
@@ -211,4 +212,5 @@ func test_cyclone_select_closing_hop_folds_closing_gain_into_share_and_hands_ove
 	# And the mint honours it: the child's trail IS the ring, damage IS the split.
 	var child := _mint(_CYCLONE.propagation, payload, pick)
 	assert_eq(child.visited, pick.lineage_override)
-	assert_almost_eq(child.arrival_share, pick.share, 0.0001)
+	var front := child.extra(CycloneFront.ID) as CycloneFront.State
+	assert_almost_eq(front.arrival_share, pick.share, 0.0001)

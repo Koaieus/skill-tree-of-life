@@ -20,36 +20,6 @@ var current_node: SkillNode = null
 ## VFX layer falls back to [member source] when this is null (see
 ## [DamageEffect]) so the seed projectile flies from the cast-from node.
 var predecessor: SkillNode = null
-## The direction of travel INTO [member current_node] — the storm's heading.
-##
-## Normally just [code]current_node.position - predecessor.position[/code], and
-## a spell that never merges could read that instead. It exists because a
-## MERGED front has no single predecessor to subtract: several incidents
-## arrived from several sides, and the question "which way is this front
-## going now" has a better answer than "whichever predecessor the reducer
-## happened to keep". [CycloneReducer] writes the damage-weighted mean here,
-## so a strong front from the west and a weak one from the south leave heading
-## west-by-south. [CycloneSpread] measures its turn ranking against it.
-##
-## [constant Vector2.ZERO] means "unset" (and also means two fronts cancelled
-## head-on) — readers fall back to [member predecessor], then [member source].
-var arrival_bearing: Vector2 = Vector2.ZERO
-## The fraction of the incoming damage THIS front was minted with — the turn-rank
-## coefficient that was actually applied, with any closing bonus already folded
-## in ([member CycloneSpread.closing_gain]).
-##
-## It exists because the number is otherwise destroyed the instant it is used.
-## [CycloneSpread] hands it over as [member PropagationPick.share], the mint
-## multiplies [member damage] by it and it is gone from the arithmetic;
-## [CycloneReducer] then SUMS every incident, and the crit multiplies again
-## at landing. So a landed amount cannot be inverted back to "which rank made
-## this", and rank is the entire mechanic — the sharp turn circulates, the wide
-## turns radiate. The VFX layer has to be TOLD, exactly as it is told
-## [member PropagationEvent.verb] rather than inferring it (#704).
-##
-## Default 1.0 = "full strength, undivided", which is what every spell that does
-## not split its damage across a fan means.
-var arrival_share: float = 1.0
 ## The status-stack weight this arrival carries — the stack counterpart of
 ## [member damage]. Seeded 1.0; [method PropagationConfig.mint] copies it and
 ## shapes it by [member PropagationConfig.hop_stacks]; a merge carries the MAX
@@ -57,18 +27,6 @@ var arrival_share: float = 1.0
 ## landing's starting [member HitLanding.stack_scale] is
 ## [method IncidentReducer.fold_stacks] over the incidents' weights.
 var stack_weight: float = 1.0
-## Which way the storm turned to get here: +1 clockwise, -1 counter-clockwise,
-## 0 for "no handedness" (the seed, and every non-curl spell).
-##
-## CONSTANT for a whole cast — [method Curl.rank] ranks in one fixed direction
-## from the arrival edge at every single node, so this is one value per cast
-## rather than a per-arc one. It is carried anyway because the VFX layer has no
-## other honest way to reach it: deriving a turn needs the direction the front
-## arrived INTO its origin, which lives in a DIFFERENT event, and
-## [member PropagationEvent.predecessor] is a node ref with the event-to-event
-## link deliberately deferred. With revisits uncapped a node is the target of
-## many events, so "which one fed this arc" is genuinely ambiguous downstream.
-var turn_sign: float = 0.0
 ## The node the spell was originally cast FROM (caster's launching node).
 ## Immutable across hops. Distinct from [member predecessor] so seed-vs-hop
 ## logic stays explicit (a null predecessor unambiguously marks the seed).
@@ -118,30 +76,6 @@ var graph: Graph = null
 ## RandomNumberGenerator. Tests inject a seeded one via [method
 ## SpellResolver.resolve]'s `rng` parameter for determinism.
 var rng: RandomNumberGenerator = null
-## The "where I came from" set — the nodes [BacktrackFilter] vetoes this
-## front's next step back into. Set at SELECT by the spread on its
-## [PropagationPick] and copied onto the child by [method PropagationConfig.mint];
-## [CycloneSpread] stamps the parent node on an open hop and an empty set on a
-## cycle-closing one, and [CycloneReducer] keeps the closer's (cleared) or the
-## surviving lineage's set on a merge. Cyclone itself no longer vetoes on it —
-## its curl ranks from the arrival edge and never offers it — so there it is
-## telemetry; a spell that pairs [BacktrackFilter] with a spread that stamps it
-## gets the veto.
-##
-## [b]Empty means free[/b]: a front with nothing stamped may step anywhere, so
-## the filter is one membership test with no reset special case. Distinct from
-## [member predecessor] (the single "the projectile flew from here" reader for
-## VFX) and from [member arrived_from] (every merged front's predecessor).
-var came_from: Array[SkillNode] = []
-## True when the hop that produced this payload landed on a node already in its
-## own lineage's [member visited] trail — i.e. it CLOSED a cycle.
-##
-## Decided at select by [CycloneSpread], read by [CycleCondition]. This is the
-## Design A split [ConvergenceCondition] documents: the spread/reducer does
-## the math and stamps the fact, the crit condition owns the policy and stays a
-## read-only predicate. The trail cannot be re-derived at landing time, because
-## a closing mint RESETS [member visited] to just the landed node.
-var closed_cycle: bool = false
 
 ## Spell-specific carried state: one [PayloadState] per
 ## [member PropagationConfig.extensions] entry, in that order. Read one by id
@@ -163,19 +97,11 @@ static func blank() -> CastSpell:
 ##
 ## Deliberate non-copies, left at their defaults:
 ## [member damage] is the reducer's (or the mint's progression) to set;
-## [member arrival_share] is per-arrival telemetry of ONE arc's mint;
 ## [member incident_count] and [member arrived_from] are resolver facts stamped
 ## at the grouping pass.
 ##
 ## [member extras] are not copied either: each constructor builds them through
 ## the extensions (seed, mint, merge), which own their state's evolution.
-##
-## [member came_from], [member closed_cycle] and [member arrival_bearing] ARE
-## copied, so a stock reducer's merge keeps its first incident's. Only
-## [CycloneSpread] stamps [member came_from] and [member closed_cycle], only it
-## reads [member arrival_bearing] (the resolver's seed bearing never meets a
-## merge: two seeds never share a node), and [CycloneReducer] re-stamps all
-## three on its merge — so no other spell's walk reads a changed value.
 static func derived(parent: CastSpell) -> CastSpell:
 	var next := CastSpell.new()
 	next.seed_node = parent.seed_node
@@ -190,10 +116,6 @@ static func derived(parent: CastSpell) -> CastSpell:
 	next.hop_index = parent.hop_index
 	next.visited = parent.visited.duplicate()
 	next.stack_weight = parent.stack_weight
-	next.arrival_bearing = parent.arrival_bearing
-	next.turn_sign = parent.turn_sign
-	next.came_from = parent.came_from.duplicate()
-	next.closed_cycle = parent.closed_cycle
 	return next
 
 

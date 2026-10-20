@@ -86,7 +86,7 @@ func select(eligible: Array[SkillNode], lctx: LandingContext) -> Array[Propagati
 		var pick := PropagationPick.new()
 		pick.node = nb
 		# Normalised: a heading, not a displacement, so a long edge cannot
-		# outvote a short one when CycloneReducer averages several of them.
+		# outvote a short one when CycloneFront.merge averages several of them.
 		pick.arrival_bearing = (nb.global_position - current.global_position).normalized()
 		# `payload.visited` is the PARENT's trail: the destination is not on it
 		# yet (the mint appends it), so `find` really asks "have we been here".
@@ -118,15 +118,17 @@ func select(eligible: Array[SkillNode], lctx: LandingContext) -> Array[Propagati
 
 ## Where the front came FROM, as a position — the only thing the ranking needs.
 ##
-## [member CastSpell.arrival_bearing] first, because a merged front's heading is
-## the weighted mean of everything that arrived and NOT the one predecessor the
-## reducer kept; falling back to [member CastSpell.predecessor] would quietly
-## discard the other fronts' contribution to which way the storm is now turning.
-## The seed has neither, so it measures from the cast-from node, which is what
-## gives the opening fan a direction instead of firing symmetrically.
+## [member CycloneFront.State.arrival_bearing] first, because a merged front's
+## heading is the weighted mean of everything that arrived and NOT the one
+## predecessor the reducer kept; falling back to [member CastSpell.predecessor]
+## would quietly discard the other fronts' contribution to which way the storm
+## is now turning. The seed has neither, so it measures from the cast-from
+## node, which is what gives the opening fan a direction instead of firing
+## symmetrically.
 func _arrival_position(current_node: SkillNode, payload: CastSpell) -> Vector2:
-	if payload.arrival_bearing != Vector2.ZERO:
-		return current_node.global_position - payload.arrival_bearing
+	var front := payload.extra(CycloneFront.ID) as CycloneFront.State
+	if front != null and front.arrival_bearing != Vector2.ZERO:
+		return current_node.global_position - front.arrival_bearing
 	if payload.predecessor != null:
 		return payload.predecessor.global_position
 	if payload.source != null:

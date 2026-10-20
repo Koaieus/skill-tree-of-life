@@ -92,11 +92,8 @@ func fold_description() -> String:
 ## Subclasses call this then set the resolved damage themselves.
 static func _merge_payload_defaults(incidents: Array[CastSpell]) -> CastSpell:
 	# Everything universal — seed, source, caster, graph, rng, seed_damage,
-	# hop_index, turn_sign, came_from, closed_cycle, arrival_bearing — is the
-	# first incident's (CastSpell.derived); a convergence groups by node, so
-	# current_node is shared. `arrival_share` is deliberately NOT carried: it
-	# describes ONE arc's mint, and SpellResolver reads the per-arc values
-	# straight off `incidents` beside `predecessors`.
+	# hop_index — is the first incident's (CastSpell.derived); a convergence
+	# groups by node, so current_node is shared.
 	#
 	# Inbound predecessor: this merged payload keeps only the FIRST one — the
 	# canonical "the projectile has to fly from somewhere" reader. The full

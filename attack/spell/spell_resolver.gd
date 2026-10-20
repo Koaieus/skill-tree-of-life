@@ -149,8 +149,8 @@ static func _aim_of(spell: SpellDef, source: SkillNode, caster: Entity, angle: f
 
 
 ## One seed per entry of [param seeds], all in wave 0. [param named_target] is
-## the single-target path's target (null on a multi-seed cast); only it keeps
-## the seed's [member CastSpell.arrival_bearing] unset, exactly as before.
+## the single-target path's target (null on a multi-seed cast), the ledger's
+## [member PropagationContext.seed_node].
 static func _resolve(
 		spell: SpellDef,
 		seeds: Array[SkillNode],
@@ -211,8 +211,6 @@ static func _resolve(
 		seed_state.current_node = node
 		seed_state.predecessor = null
 		seed_state.source = source
-		if named_target == null and source != null:
-			seed_state.arrival_bearing = (node.global_position - source.global_position).normalized()
 		seed_state.damage = damage
 		seed_state.seed_damage = seed_state.damage
 		seed_state.hops_remaining = config.max_hops
@@ -320,7 +318,8 @@ static func _resolve(
 			var shares := PackedFloat32Array()
 			for inc in incidents:
 				preds.append(inc.predecessor)
-				shares.append(inc.arrival_share)
+				var inc_front := inc.extra(CycloneFront.ID) as CycloneFront.State
+				shares.append(inc_front.arrival_share if inc_front != null else 1.0)
 			predecessor_sets[node] = preds
 			share_sets[node] = shares
 
@@ -342,14 +341,15 @@ static func _resolve(
 			ev.predecessors = predecessor_sets[state.current_node]
 			# Same guarantee, same loop: one share per predecessor, in order.
 			ev.incident_shares = share_sets[state.current_node]
-			ev.turn_sign = state.turn_sign
+			var front := state.extra(CycloneFront.ID) as CycloneFront.State
+			ev.turn_sign = front.turn_sign if front != null else 0.0
 			# The ring the closing hop just walked, ending at this landing
 			# (#710). Empty on every landing that did not close one; the
 			# reducer has already picked the dominating closer's lineage, so
 			# `state.visited` IS that ring -- CycloneSpread truncates it to
 			# exactly the loop on every close. Copied, because the walk keeps
 			# extending the payload's own array after this.
-			if state.closed_cycle:
+			if front != null and front.closed_cycle:
 				ev.closed_ring = state.visited.duplicate()
 			ev.origin = state.predecessor if state.predecessor != null else state.source
 			ev.target = state.current_node
@@ -634,10 +634,12 @@ static func _record_cancel(
 	var shares := PackedFloat32Array()
 	for inc in incidents:
 		preds.append(inc.predecessor)
-		shares.append(inc.arrival_share)
+		var inc_front := inc.extra(CycloneFront.ID) as CycloneFront.State
+		shares.append(inc_front.arrival_share if inc_front != null else 1.0)
 	cancel_ev.predecessors = preds
 	cancel_ev.incident_shares = shares
-	cancel_ev.turn_sign = first.turn_sign
+	var first_front := first.extra(CycloneFront.ID) as CycloneFront.State
+	cancel_ev.turn_sign = first_front.turn_sign if first_front != null else 0.0
 	cancel_ev.origin = first.predecessor if first.predecessor != null else first.source
 	cancel_ev.target = node
 	outcome.timeline.append(cancel_ev)
