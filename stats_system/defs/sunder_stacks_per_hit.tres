@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="StatDef" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://stats_system/stat_def.gd" id="1_stat_def"]
+[ext_resource type="Resource" path="res://identity/defs/sunder.tres" id="identity_sunder"]
+
+[resource]
+script = ExtResource("1_stat_def")
+identity = ExtResource("identity_sunder")
+role = 2
+id = &"sunder_stacks_per_hit"
+display_name = "Sunder Stacks per Hit"
+description = "Flat sunder stacks added to every sunder application this entity lands, a base_add overlay on the authored per-hit power: landed = fold(per-hit + Sunder Stacks per Hit), rounded half-up. No resistance filters it. No parent: sunder is not a DoT. Only boosts a sunder application that already happens — never applies sunder on its own. Default 0; read at the attacking node — an entity grant reaches every hit, a node-local grant only the hits that node lands."
+value_type = 1
+default_value = 0.0
+modifier_name = "Sunder Stacks per Hit"
+local_grantable = true

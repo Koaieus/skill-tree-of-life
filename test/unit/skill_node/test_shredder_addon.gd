@@ -100,18 +100,19 @@ func _plan() -> MeleeAttackPlan:
 	return plan
 
 
-func _plate_armor() -> float:
-	return float(CombatWorld.live().combat_for(_plate).get_local_value(&"armor"))
+func _plate_value(stat_id: StringName) -> float:
+	return float(CombatWorld.live().combat_for(_plate).get_local_value(stat_id))
 
 
-## Moves the plate's live armor to exactly [param value], whatever it starts at.
-func _set_plate_armor(value: float) -> void:
+## Moves the plate's live [param stat_id] to exactly [param value] with a
+## node-local ADD_BASE, whatever it starts at.
+func _set_plate(stat_id: StringName, value: float) -> void:
 	var m := StatModifier.new()
-	m.stat_id = &"armor"
+	m.stat_id = stat_id
 	m.operation = StatModifier.Operation.ADD_BASE
-	m.value = value - _plate_armor()
+	m.value = value - _plate_value(stat_id)
 	_plate.add_local_modifier(m)
-	assert_almost_eq(_plate_armor(), value, 0.001, "arranged plate armor")
+	assert_almost_eq(_plate_value(stat_id), value, 0.001, "arranged plate %s" % stat_id)
 
 
 ## The tip filled to [param level]/X (carrying Shredder when [param shredder]),
@@ -142,13 +143,13 @@ func _sunder_on_plate(outcome: AttackOutcome) -> float:
 	return sum
 
 
-## Damage the outcome dealt the plate, summed.
+## Damage the outcome dealt the plate after mitigation, summed.
 func _damage_on_plate(outcome: AttackOutcome) -> float:
 	var sum := 0.0
 	for hit in outcome.hits:
 		var dmg := hit as DamageInstance
 		if dmg != null and dmg.target == _plate:
-			sum += dmg.amount
+			sum += dmg.effective_amount
 	return sum
 
 
@@ -202,7 +203,7 @@ func test_sunder_names_its_stacks_stat_and_an_entity_grant_folds_in() -> void:
 # ── blade face: flat below 3/X, flat + armor share from 3/X ─────────────────
 
 func test_a_2_of_x_contact_lands_the_flat_stacks_only() -> void:
-	_set_plate_armor(_PLATE_ARMOR)
+	_set_plate(&"armor", _PLATE_ARMOR)
 	var outcome := await _swing_at(2)
 	assert_gt(_flat_per_level(), 0.0, "precondition: a local sunder_stacks_per_hit grant")
 	assert_eq(_sunder_on_plate(outcome), _flat_per_level() * 2.0,
@@ -210,7 +211,7 @@ func test_a_2_of_x_contact_lands_the_flat_stacks_only() -> void:
 
 
 func test_a_3_of_x_contact_adds_the_armor_share() -> void:
-	_set_plate_armor(_PLATE_ARMOR)
+	_set_plate(&"armor", _PLATE_ARMOR)
 	var outcome := await _swing_at(3)
 	var share := _share()
 	assert_not_null(share, "the rider carries a DefenderStatShare")
@@ -224,18 +225,22 @@ func test_a_3_of_x_contact_adds_the_armor_share() -> void:
 
 
 func test_a_target_without_armor_takes_the_flat_part_only() -> void:
-	_set_plate_armor(-3.0)
+	_set_plate(&"armor", -3.0)
 	var outcome := await _swing_at(3)
 	assert_eq(_sunder_on_plate(outcome), _flat_per_level() * 3.0,
 			"armor at or below 0 adds no share")
 
 
 func test_the_contact_damage_goes_through_the_armor_it_just_broke() -> void:
-	_set_plate_armor(_PLATE_ARMOR)
-	var plain := _damage_on_plate(await _swing_at(3, false))
+	# No damage floor, and exactly the 2/X flat stacks of armor: a plain hit is
+	# cut by it, a Shredder hit lands after its rider broke it all.
+	_set_plate(&"min_damage_taken", 0.0)
+	_set_plate(&"armor", _flat_per_level() * 2.0)
+	var plain := _damage_on_plate(await _swing_at(2, false))
 	assert_gt(plain, 0.0, "precondition: the plain contact deals damage")
-	var shredded := _damage_on_plate(await _swing_at(3))
-	assert_gt(shredded, plain, "the rider lands first, so the hit sees the reduced armor")
+	var shredded := _damage_on_plate(await _swing_at(2))
+	assert_almost_eq(shredded, plain + _flat_per_level() * 2.0, 0.001,
+			"the rider lands first, so the hit sees the armor it broke")
 
 
 # ── map face and temp price ─────────────────────────────────────────────────
