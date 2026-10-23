@@ -27,7 +27,18 @@ history, or the next rewrite re-learns it.
   file needs justifying, the justification goes in the charter next to the law.
 - **The charter lists the laws numbered**, so a diff of the charter reads as a
   diff of the contract, and the instruction file can be checked against it
-  law by law.
+  law by law. Numbers are stable: a law is never renumbered or deleted —
+  it reads `retired — <why>` or `superseded by law <M>`, and new laws
+  append.
+- **A law lives in one charter.** The charter whose skill or agent does
+  the thing owns it; another charter that relies on it lists it as
+  **foreign** in its `## Foreign laws` section —
+  `- [<owner>](<owner>.md) law <N> — <what this skill does with it>` —
+  cites it in that form, and keeps only its own side. A pass that changes,
+  supersedes or retires a law greps `docs/charters/` for
+  `(<name>.md) law`, reads the hits for that number, and brings every
+  reader along in the same commit ([charter.md](charter.md) laws 13–14). The builder may read each foreign
+  law its charter lists.
 - Charters live here, not next to the file: agents are single `.md` files and
   *every* `.md` in `.claude/agents/` is parsed as an agent definition, so a
   companion doc cannot sit there; skills could hold one in their directory,
@@ -70,7 +81,7 @@ folds each post into the charter — a law, a corpus row, a fork, a
 follow-up — derives the instruction file, commits, then answers every post
 with `mise run feedback -- reply --resolve <comment-id> <file>`, the file
 reading `folded in <sha>` or `rejected: <why>` — as a work order to one
-Haiku `clerk` (its law 11), since the answers are pure tool calls.
+Haiku `clerk` ([clerk](clerk.md) law 11), since the answers are pure tool calls.
 `--resolve` also minimizes the post as *resolved*, which folds its reply
 away with it: the board stays open and reads as its unprocessed posts.
 **Unanswered = unprocessed** — the reply is the contract, the resolve is
