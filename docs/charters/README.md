@@ -18,7 +18,9 @@ history, or the next rewrite re-learns it.
   from it — through the `charter` skill** (`/charter <name>`, charter
   [charter.md](charter.md)): the charter is edited, one advisor pass reads
   it, and a fresh Fable subagent briefed with nothing but the charter path
-  writes the whole file. Never patch the instruction file with a new lesson
+  writes the whole file — or, for a pass that moves only a few laws and no
+  structure, a fresh Opus subagent patches just those laws' lines
+  ([charter.md](charter.md) law 15). Never hand-patch the instruction file with a new lesson
   and leave the charter stale; the charter is the source, the file is the
   build.
 - **The instruction file cites the charter once** (a one-line pointer, so a

@@ -284,6 +284,32 @@ per post, verdict text already written — pure tool calls, a Haiku
     still lands on a law that says where it went. *Why:* a foreign mark
     that is never followed back is a second copy with extra steps; and a
     reference that lands silently on a different law is worse than none.
+15. **A small pass patches; anything else rebuilds.** A charter whose file
+    exists is *patched* when the pass moved about three laws or fewer
+    (changed, added, retired) and changed no existing brief, order, report
+    shape or step order — a new law with a new brief of its own is still
+    additive. Everything else is a full rebuild (law 5): a first charter
+    (law 9), a law-12 first read that lifted anything, a structural
+    change, a patch that fails the law-6 check, or the owner asking for
+    one. The patch builder is one fresh subagent per charter, as in law 5
+    — a `name`, `run_in_background: false`, the same foreign-law reads and
+    the one capped Explore — but `model: "opus"` (Fable when a moved law
+    is subtle, the lead's call) and the *patch brief* below: it reads the
+    charter, the README and the **current file**, and edits only the lines
+    that carry the listed laws, every other line left byte for byte. The
+    brief lists the moved laws by number and nothing more — no summary of
+    the change, no diff. The lead's law-6 check runs on the moved laws, the
+    mechanical greps on the whole file, and law 12's diff read confirms the
+    diff stays inside the moved laws; the report names which mode each
+    charter took. Owner, 2026-10-23: *"i wonder if full rewrites are always
+    needed or that fable could do an additive one. might depend on the
+    blast radius / scope of the change?"*, choosing *patch when small*.
+    *Why:* a full rebuild re-proves every law, but the unmoved ones were
+    proven at the last rebuild, and its price is a Fable context plus
+    wording churn in laws nobody touched; the leak guard matters less here
+    because the file the patcher reads was itself built clean. Structural
+    changes rebuild because a patch cannot tell whether a moved step order
+    left an older line wrong.
 
 ## Frontmatter
 
@@ -293,7 +319,8 @@ per post, verdict text already written — pure tool calls, a Haiku
   `mise run feedback -- unanswered <charter>`), keep foreign laws in sync
   across charters, one advisor pass for the whole pass, one fresh Fable
   (or, for a small charter, Opus) subagent per touched charter re-derives
-  its files from the charter alone, rules-hygiene, one commit, the folded
+  its files from the charter alone — or, for a pass that moves only a few
+  laws, an Opus subagent patches just those laws' lines — rules-hygiene, one commit, the folded
   posts answered through a Haiku clerk. Use when the user says "revise a
   skill", "update the charter", "fold the feedback board", "re-derive
   <skill>", "change the <agent> agent", "/charter <name> [<name>…]", or
@@ -302,7 +329,7 @@ per post, verdict text already written — pure tool calls, a Haiku
 
 ## Briefs and orders, verbatim
 
-The skill file carries these two texts exactly, placeholders in angle
+The skill file carries these three texts exactly, placeholders in angle
 brackets.
 
 **Derive brief** (law 5) — the bracketed alternative for a charter that
@@ -354,6 +381,46 @@ When done, report each path, the gap list (or "no gaps") and the
 grounded list (or "none") via SubagentHandback.
 ```
 
+**Patch brief** (law 15) — the same alternatives as the derive brief:
+
+```
+Repo: <absolute repo path> (a shared checkout; do not commit, do not run
+git write commands).
+
+Patch the file `<absolute target path>` [or: the files `<path 1>` and
+`<path 2>`] so it carries laws <N, M, …> of the charter at
+`<absolute charter path>` as they now read, following the protocol in
+`<absolute README path>`.
+
+Read the charter with `sed -n 'a,bp'` in ranges of about 250 lines, from
+your first call (a whole-file Read of a long file is refused), the README
+with one Read, and the current target file (`sed -n` ranges past 400
+lines). You may also read, and only
+these: the text of each foreign law below, from its owning charter, with
+a `sed -n` range or `grep -n -A` on its number —
+<the charter's *Foreign laws* lines, or "none">
+— and you may spawn at most ONE `Explore` subagent with `model: "sonnet"`,
+its prompt ending "Answer in under 5k tokens.", for context the charter
+does not carry — never about the target file. Open no other file. Run no
+command but those reads and your edits. Do not call advisor. Budget:
+about eight tool calls.
+
+Edit only the lines that carry the listed laws — add, change or remove
+them — and the frontmatter if the charter's *Frontmatter* section no
+longer matches it. Leave every other line byte for byte. A listed law
+whose change reaches lines that carry an unlisted law is not patched:
+say so in your handback and stop.
+
+A string the file must state exactly that the charter does not give is
+never invented. If your Explore found it verbatim, use it and list
+`grounded: law N — <string> — <source>`; otherwise write
+`<gap: law N — what is missing>` in its place and list it. Nothing the
+charter's *What the skill file must not contain* section forbids.
+
+When done, report each path, the laws patched, the gap list (or "no
+gaps") and the grounded list (or "none") via SubagentHandback.
+```
+
 **Clerk order** (law 8) — one block per board for a multi-charter pass:
 
 ```
@@ -378,18 +445,16 @@ line per post (comment id, verdict, done or the error).
 
 The owner's quote, the reasoning behind the fresh-context derivation, the
 names of the charterless files beyond the rule that covers them, this
-charter's history, the cost figures. It carries the steps, the derive brief
+charter's history, the cost figures. It carries the steps, the derive brief, the patch brief
 and the clerk order, verbatim.
 
 ## Revisit when
 
-- Derivation diffs routinely churn wording in laws that did not move —
-  the brief should allow the subagent to read the current file for wording
-  only, or the skill should distinguish a one-law patch from a rewrite (a
-  single-law change patched and checked against that law, a full rebuild
-  only when laws move). Raised again 2026-10-17 as option (d) of the
-  derive-cost post; the bounded brief (law 5) cuts the derive's reads but
-  still rebuilds the whole file, so it does not deliver this for free.
+- Patches accumulate: a file patched many passes in a row reads as
+  layers, or a full rebuild after a patch run moves wording in laws no
+  pass touched — then law 15 gains a rebuild every Nth pass. The size line
+  (about three laws) is a tentative pick, revisable on any patch that
+  disagrees with it.
 - **The derive's tier — closed 2026-10-23, revisit on data.** Owner,
   2026-10-14: *"the actual skill (re)writes would ideally be done by a
   Fable (sub)agent"*; 2026-10-17: *"…went to town on researching the fuck
@@ -438,3 +503,4 @@ and the clerk order, verbatim.
 | 2026-10-17 | owner | *"…went to town on researching the fuck out of what they were rewriting which is uhm.. COSTLY"* | 5, tier fork |
 | 2026-10-17 | `/charter swarm`, commits b786bea + f542946 | the first rebuild from the charter alone dropped six instructions the old file had and the charter lacked, invented two shapes it left implicit; found by a reverse check after the first commit; two commits, a three-turn derive (~87k, 97k, 113k) | 12 |
 | 2026-10-23 | owner | several charters per pass, one advisor call, one builder per touched charter, Opus for a small one; one capped Sonnet Explore for the builder; foreign laws marked and kept in sync — the last salvaged in part from a sibling repo's port of this protocol (*Stays in sync with* sections, stable law numbers) | 3–5, 7, 8, 13, 14 |
+| 2026-10-23 | owner | an additive patch derive for a small pass (about three laws, no structural change), Opus by default; a full rebuild otherwise — closes the *Revisit when* item on wording churn | 15 |

@@ -6,8 +6,9 @@ description: >-
   `mise run feedback -- unanswered <charter>`), keep foreign laws in sync
   across charters, one advisor pass for the whole pass, one fresh Fable (or,
   for a small charter, Opus) subagent per touched charter re-derives its files
-  from the charter alone, rules-hygiene, one commit, the folded posts answered
-  through a Haiku clerk. Use when the user says "revise a skill", "update the
+  from the charter alone — or, for a pass that moves only a few laws, an Opus
+  subagent patches just those laws' lines — rules-hygiene, one commit, the
+  folded posts answered through a Haiku clerk. Use when the user says "revise a skill", "update the
   charter", "fold the feedback board", "re-derive <skill>", "change the <agent>
   agent", "/charter <name> [<name>…]", or when a session is about to patch a
   `SKILL.md` or an agent file directly.
@@ -174,6 +175,64 @@ law in the charter must be recognisable as a step or a line in the file.
 When done, report each path, the gap list (or "no gaps") and the
 grounded list (or "none") via SubagentHandback.
 ```
+
+### A small pass patches instead
+
+A charter whose file exists is *patched*, not rebuilt, when the pass moved
+about three laws or fewer (changed, added, retired) and changed no existing
+brief, order, report shape or step order — a new law with a new brief of its
+own is still additive. Everything else is a full rebuild as above: a first
+charter (step 2), a step-4 first read that lifted anything, a structural
+change, a patch that fails the step-9 check, or the owner asking for one.
+
+The patch builder is one fresh subagent per charter, as above — a `name`,
+`run_in_background: false`, the same foreign-law reads and the one capped
+Explore — but `model: "opus"` (Fable when a moved law is subtle; your call)
+and the brief below, verbatim, listing the moved laws by number and nothing
+more — no summary of the change, no diff:
+
+```
+Repo: <absolute repo path> (a shared checkout; do not commit, do not run
+git write commands).
+
+Patch the file `<absolute target path>` [or: the files `<path 1>` and
+`<path 2>`] so it carries laws <N, M, …> of the charter at
+`<absolute charter path>` as they now read, following the protocol in
+`<absolute README path>`.
+
+Read the charter with `sed -n 'a,bp'` in ranges of about 250 lines, from
+your first call (a whole-file Read of a long file is refused), the README
+with one Read, and the current target file (`sed -n` ranges past 400
+lines). You may also read, and only
+these: the text of each foreign law below, from its owning charter, with
+a `sed -n` range or `grep -n -A` on its number —
+<the charter's *Foreign laws* lines, or "none">
+— and you may spawn at most ONE `Explore` subagent with `model: "sonnet"`,
+its prompt ending "Answer in under 5k tokens.", for context the charter
+does not carry — never about the target file. Open no other file. Run no
+command but those reads and your edits. Do not call advisor. Budget:
+about eight tool calls.
+
+Edit only the lines that carry the listed laws — add, change or remove
+them — and the frontmatter if the charter's *Frontmatter* section no
+longer matches it. Leave every other line byte for byte. A listed law
+whose change reaches lines that carry an unlisted law is not patched:
+say so in your handback and stop.
+
+A string the file must state exactly that the charter does not give is
+never invented. If your Explore found it verbatim, use it and list
+`grounded: law N — <string> — <source>`; otherwise write
+`<gap: law N — what is missing>` in its place and list it. Nothing the
+charter's *What the skill file must not contain* section forbids.
+
+When done, report each path, the laws patched, the gap list (or "no
+gaps") and the grounded list (or "none") via SubagentHandback.
+```
+
+For a patch, step 9's law-by-law check runs on the moved laws and its
+mechanical greps on the whole file; step 10's diff read confirms the diff
+stays inside the moved laws. The report names which mode — rebuild or patch
+— each charter took.
 
 ## 9. Check the build law by law; fix gaps through the builder
 
