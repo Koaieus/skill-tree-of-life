@@ -12,9 +12,11 @@
 #
 # The per-run swarm ledger. Still WRITTEN to disk and still how a `relief` session
 # orients — ignoring it stops the commit churn, it does not stop the mechanism.
-# Durable handoff docs (docs/handoffs/<topic>.md) stay tracked; only swarm-* is a
-# per-run ledger.
+# Durable handoff docs (docs/handoffs/<topic>.md) stay tracked, as does the whip's
+# whip-report-<date>.md (the morning report); swarm-* ledgers and their drone-report
+# .inbox/ dirs are per-run.
 docs/handoffs/swarm-*.md
+docs/handoffs/swarm-*.inbox/
 docs/handoffs/whip-2*
 docs/handoffs/archive/
 docs/handoffs/.whip.lock
