@@ -194,13 +194,9 @@ func test_regular_is_not_filler_where_a_trade_is_authored() -> void:
 # ── 3. the empty cells ───────────────────────────────────────────────────
 
 func _fresh_config() -> GraphProcgenConfig:
-	var cfg: GraphProcgenConfig = (load(_GEN_PRESET) as GraphProcgenConfig).duplicate(true)
+	var cfg: GraphProcgenConfig = (load(_GEN_PRESET) as GraphProcgenConfig).private_copy()
 	cfg.seed = _SEED
-	# `topology` and `content` are top-level module `.tres` ExtResources, so the
-	# deep duplicate above did NOT copy them (#349 acceptance 4).
-	cfg.topology = cfg.topology.duplicate(true)
 	cfg.topology.node_count = _NODE_COUNT
-	cfg.content = cfg.content.duplicate(true)
 	return cfg
 
 

@@ -93,10 +93,7 @@ func _ready() -> void:
 ## scene is also a normal — if small — playable procgen sandbox.
 func _setup_level_as_host_or_solo() -> void:
 	GameSession.ensure_started(fixed_seed)
-	var cfg: GraphProcgenConfig = preset.duplicate(true)
-	# #349: topology is a top-level module .tres (ExtResource); duplicate(true)
-	# does not cross that boundary, so re-duplicate before mutating (acceptance 4).
-	cfg.topology = cfg.topology.duplicate(true)
+	var cfg: GraphProcgenConfig = preset.private_copy()
 	cfg.topology.node_count = node_count_override
 	# `first_level.tres` authors a `CenterCoreStarters` (#742): one centred
 	# human plus a random fill sized off `camp_sizes`. 2 total is the 2 this

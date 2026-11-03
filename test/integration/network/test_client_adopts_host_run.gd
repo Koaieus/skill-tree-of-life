@@ -130,10 +130,7 @@ const _CLIENT_PEER_ID := 2
 
 
 func _generate(root: GameRoot, run_seed: int, node_count: int) -> Array:
-	var gcfg: GraphProcgenConfig = _PRESET.duplicate(true)
-	# #349: `topology` is a top-level module .tres (ExtResource) and does not
-	# cross `duplicate(true)` — re-duplicate before mutating.
-	gcfg.topology = gcfg.topology.duplicate(true)
+	var gcfg: GraphProcgenConfig = _PRESET.private_copy()
 	gcfg.topology.node_count = node_count
 	gcfg.camp_sizes = [2]
 	gcfg.seed = run_seed

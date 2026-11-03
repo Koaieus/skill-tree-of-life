@@ -52,8 +52,7 @@ var _start: SkillNode
 
 
 func test_aura_refresh_cost() -> void:
-	var cfg: GraphProcgenConfig = _PRESET.duplicate(true)
-	cfg.topology = cfg.topology.duplicate(true)
+	var cfg: GraphProcgenConfig = _PRESET.private_copy()
 	cfg.topology.node_count = _NODE_COUNT
 	cfg.seed = _SEED
 	# Starters are placed per camp; one camp of one is the single bench player.

@@ -14,8 +14,7 @@ const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 
 
 func _cfg(with_spirits: bool) -> GraphProcgenConfig:
-	var src: GraphProcgenConfig = load(_PRESET)
-	var cfg: GraphProcgenConfig = src.duplicate(true)
+	var cfg: GraphProcgenConfig = (load(_PRESET) as GraphProcgenConfig).private_copy()
 	cfg.camp_sizes = [1]
 	cfg.seed = 1655
 	cfg.topology.node_count = 200  # spirits only need room, not a full board

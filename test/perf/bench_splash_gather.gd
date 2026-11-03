@@ -41,8 +41,7 @@ var _target: SkillNode
 
 func test_bench_cache_on_vs_off() -> void:
 	gut.p("--- load: %s ---" % _uptime())
-	var cfg: GraphProcgenConfig = _PRESET.duplicate(true)
-	cfg.topology = cfg.topology.duplicate(true)
+	var cfg: GraphProcgenConfig = _PRESET.private_copy()
 	cfg.topology.node_count = _NODES
 	cfg.seed = _SEED
 	_graph = _GRAPH_SCENE.instantiate()

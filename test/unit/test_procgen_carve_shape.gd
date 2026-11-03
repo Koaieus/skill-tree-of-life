@@ -12,23 +12,16 @@ const PolygonCarveShape = preload("res://skill_node/visuals/emblem/polygon_carve
 
 func test_archetype_carve_shape_reaches_the_generated_node() -> void:
 	var cfg_src: GraphProcgenConfig = load(_PRESET_PATH)
-	var cfg: GraphProcgenConfig = cfg_src.duplicate(true)
-	# #349: topology/content are top-level module .tres (ExtResource);
-	# duplicate(true) above does NOT cross that boundary, so both need their
-	# own re-duplication before mutating (acceptance 4's trap, one level
-	# deeper for `content` — see the comment below on the archetype ref).
-	cfg.topology = cfg.topology.duplicate(true)
+	var cfg: GraphProcgenConfig = cfg_src.private_copy()
 	cfg.topology.node_count = 60
 	cfg.seed = 3
 
 	var shape := PolygonCarveShape.new()
 	shape.sides = 9
-	cfg.content = cfg.content.duplicate(true)
 	var tagged_archetype: StringName = cfg.content.archetypes[0].id
-	# `archetype` is an ExtResource (archetypes/strength.tres) — cfg.duplicate(true)
-	# does NOT deep-duplicate across a resource file boundary, only inline
-	# sub-resources. Mutating it in place would corrupt the shared, cached
-	# strength.tres singleton for every other test/consumer that loads it.
+	# `archetype` is an ExtResource (archetypes/strength.tres) one level below
+	# the modules `private_copy()` covers: still shared, so copy it before
+	# writing or the cached strength.tres leaks into every other loader.
 	cfg.content.archetypes[0].archetype = cfg.content.archetypes[0].archetype.duplicate(true)
 	cfg.content.archetypes[0].archetype.carve_shape = shape
 
@@ -62,10 +55,7 @@ func test_archetype_carve_shape_reaches_the_generated_node() -> void:
 ## "leaves carve_shape null" pin, which was the bug this issue fixes.
 func test_every_tagged_node_carries_its_archetypes_shape() -> void:
 	var cfg_src: GraphProcgenConfig = load(_PRESET_PATH)
-	var cfg: GraphProcgenConfig = cfg_src.duplicate(true)
-	# #349: topology is a top-level module .tres (ExtResource); duplicate(true)
-	# does not cross that boundary, so re-duplicate before mutating (acceptance 4).
-	cfg.topology = cfg.topology.duplicate(true)
+	var cfg: GraphProcgenConfig = cfg_src.private_copy()
 	cfg.topology.node_count = 60
 	cfg.seed = 3
 

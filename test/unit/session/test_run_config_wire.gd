@@ -166,10 +166,7 @@ func test_a_client_generating_from_the_decoded_scenario_matches_the_host() -> vo
 ## object would generate the SAME map trivially rather than proving the
 ## decoded config can reproduce it.
 func _generate_from_preset(preset: GraphProcgenConfig, seed_value: int) -> Array:
-	var cfg: GraphProcgenConfig = preset.duplicate(true)
-	# #349 acceptance 4: topology is a top-level module `.tres` (ExtResource);
-	# duplicate(true) does not cross that boundary.
-	cfg.topology = cfg.topology.duplicate(true)
+	var cfg: GraphProcgenConfig = preset.private_copy()
 	cfg.topology.node_count = 40
 	cfg.seed = seed_value
 	var graph_scene: PackedScene = load("res://graph/graph.tscn")

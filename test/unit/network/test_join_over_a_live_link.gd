@@ -38,8 +38,7 @@ func _new_graph() -> Graph:
 ## `owner_id` to mean something in both directions.
 func _authority_world() -> Graph:
 	var g := await _new_graph()
-	var gcfg: GraphProcgenConfig = _PRESET.duplicate(true)
-	gcfg.topology = gcfg.topology.duplicate(true)
+	var gcfg: GraphProcgenConfig = _PRESET.private_copy()
 	gcfg.topology.node_count = 24
 	gcfg.camp_sizes = [2]
 	gcfg.seed = 90210715

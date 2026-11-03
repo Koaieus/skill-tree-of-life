@@ -135,10 +135,7 @@ func _ensure_fixture() -> void:
 		return
 	_built = true
 
-	var cfg: GraphProcgenConfig = _PRESET.duplicate(true)
-	# #349: topology is a top-level module .tres (ExtResource); duplicate(true)
-	# does not cross that boundary, so re-duplicate before mutating (acceptance 4).
-	cfg.topology = cfg.topology.duplicate(true)
+	var cfg: GraphProcgenConfig = _PRESET.private_copy()
 	cfg.seed = _SEED
 	# One AI starter for the defender's core — the shipped level's own
 	# `CenterCoreStarters` sized off a real roster's `camp_sizes` would let AI

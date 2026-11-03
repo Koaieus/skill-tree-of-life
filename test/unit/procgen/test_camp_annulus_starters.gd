@@ -171,10 +171,7 @@ func test_first_level_centers_one_starter_and_fills_the_rest() -> void:
 			"first_level.tres must author a CenterCoreStarters (#742)")
 	assert_true(authored.camp_sizes.is_empty(), "first_level.tres must not author camp_sizes")
 
-	var cfg: GraphProcgenConfig = authored.duplicate(true)
-	# #349: topology is a top-level module .tres (ExtResource); duplicate(true)
-	# does not cross that boundary, so re-duplicate before mutating (acceptance 4).
-	cfg.topology = cfg.topology.duplicate(true)
+	var cfg: GraphProcgenConfig = authored.private_copy()
 	cfg.topology.node_count = 60
 	cfg.seed = 909
 	cfg.camp_sizes = [4]
@@ -245,10 +242,7 @@ func test_arc_clamp_no_drop_8_8() -> void:
 
 
 func test_integration_coop_versus_preset() -> void:
-	var cfg: GraphProcgenConfig = (load(_COOP_VERSUS_PATH) as GraphProcgenConfig).duplicate(true)
-	# #349: topology is a top-level module .tres (ExtResource); duplicate(true)
-	# does not cross that boundary, so re-duplicate before mutating (acceptance 4).
-	cfg.topology = cfg.topology.duplicate(true)
+	var cfg: GraphProcgenConfig = (load(_COOP_VERSUS_PATH) as GraphProcgenConfig).private_copy()
 	cfg.topology.node_count = 200
 	cfg.seed = 555
 	cfg.camp_sizes = [2, 2]
@@ -399,8 +393,7 @@ func _run_with_arrangement(scenario_path: String, arrangement: Variant) -> RunCo
 ## `duplicate(true)` does not cross that boundary — the same trap
 ## `merge_onto`'s `_localize_module` exists for, arriving from the test side.
 func _stamped(cfg_in: GraphProcgenConfig, camp_sizes: Array[int], seed_val: int) -> GraphProcgenConfig:
-	var cfg: GraphProcgenConfig = cfg_in.duplicate(true)
-	cfg.topology = cfg.topology.duplicate(true)
+	var cfg: GraphProcgenConfig = cfg_in.private_copy()
 	cfg.topology.node_count = 200
 	cfg.seed = seed_val
 	cfg.camp_sizes = camp_sizes

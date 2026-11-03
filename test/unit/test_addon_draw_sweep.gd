@@ -10,16 +10,14 @@ const _SEEDS := [11, 2024, 90210]
 const _SIZES := [80, 240]
 
 
-## `content` / `addon_policy` / `topology` are ExtResources a `duplicate(true)`
-## does not deep-copy — re-duplicate each one this test writes, or the cached
-## preset leaks the override into every later test.
+## `addon_policy` is an ExtResource one level below the modules `private_copy()`
+## covers — re-duplicate it before writing, or the cached preset leaks the
+## override into every later test.
 func _config(seed_value: int, node_count: int, k: float = -1.0) -> GraphProcgenConfig:
-	var cfg: GraphProcgenConfig = (load(_PRESET) as GraphProcgenConfig).duplicate(true)
+	var cfg: GraphProcgenConfig = (load(_PRESET) as GraphProcgenConfig).private_copy()
 	cfg.seed = seed_value
-	cfg.topology = cfg.topology.duplicate(true)
 	cfg.topology.node_count = node_count
 	if k >= 0.0:
-		cfg.content = cfg.content.duplicate(true)
 		cfg.content.addon_policy = cfg.content.addon_policy.duplicate(true)
 		cfg.content.addon_policy.addons_per_100_nodes = k
 	return cfg

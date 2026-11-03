@@ -51,9 +51,9 @@ for n in starting_nodes:
     n.add_to_group(&"procgen_starter")
 ```
 
-## Why `preset.duplicate(true)`
+## Why `preset.private_copy()`, never `preset.duplicate(true)`
 
-Levels that override fields on the preset (`procgen_play_sandbox` overrides `node_count`, `camp_sizes`) duplicate the preset before mutating it — otherwise the on-disk `.tres` resource accumulates the overrides across sessions (since Godot caches resources by path). One preset can then serve multiple sandboxes at different sizes without leaking state.
+Levels and tests that override fields on a loaded preset (`procgen_play_sandbox` stamps `node_count`, `camp_sizes`, `seed`) copy it first — Godot caches resources by path, so a write on the loaded instance leaks into every later loader in the process. `duplicate(true)` is not that copy: the five modules (`topology`, `shape`, `starting`, `content`, `blockers`) are top-level `.tres` files, and a deep duplicate stops at every ExtResource boundary, so `dup.topology.node_count = 60` still writes the cached module (the order-dependent flake #1731). `GraphProcgenConfig.private_copy()` re-duplicates each module; a resource a module itself references by path (an `ArchetypePolicy`, `addon_policy`, a pool set) is one level deeper and still shared — duplicate it yourself before writing to it.
 
 ## Extending — adding an archetype theme
 

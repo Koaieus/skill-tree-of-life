@@ -35,10 +35,7 @@ func test_preset_loads() -> void:
 
 func test_modifiers_rolled_on_nodes() -> void:
 	var cfg_src: GraphProcgenConfig = load(_PRESET_PATH)
-	var cfg: GraphProcgenConfig = cfg_src.duplicate(true)
-	# #349: topology is a top-level module .tres (ExtResource); duplicate(true)
-	# does not cross that boundary, so re-duplicate before mutating (acceptance 4).
-	cfg.topology = cfg.topology.duplicate(true)
+	var cfg: GraphProcgenConfig = cfg_src.private_copy()
 	cfg.topology.node_count = 60
 	cfg.camp_sizes = [1]  # keep starter set deterministic (core only, no random fill)
 	cfg.seed = 9
@@ -62,10 +59,7 @@ func test_modifiers_rolled_on_nodes() -> void:
 func test_procgen_generates_full_level() -> void:
 	var cfg_src: GraphProcgenConfig = load(_PRESET_PATH)
 	# Smaller node count for test speed — same shape of pipeline.
-	var cfg: GraphProcgenConfig = cfg_src.duplicate(true)
-	# #349: topology is a top-level module .tres (ExtResource); duplicate(true)
-	# does not cross that boundary, so re-duplicate before mutating (acceptance 4).
-	cfg.topology = cfg.topology.duplicate(true)
+	var cfg: GraphProcgenConfig = cfg_src.private_copy()
 	cfg.topology.node_count = 120
 	cfg.camp_sizes = [1]  # keep starter set deterministic for assertions (core only, no random fill)
 	cfg.seed = 42
