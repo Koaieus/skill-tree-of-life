@@ -1,0 +1,69 @@
+# Merges a cloud Claude session's PR into master unreviewed iff it only
+# touches the docs paths .github/scripts/automerge_gate.py allows. Policy and
+# threat model: docs/domain/cloud-automerge.md.
+#
+# pull_request_target, not pull_request: it runs master's copy of this file
+# and of the gate, so a PR cannot rewrite the check that judges it. That is
+# only safe because no step checks out or runs the PR's head — keep it so.
+name: cloud docs auto-merge
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened, ready_for_review]
+    branches: [master]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: cloud-docs-automerge-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  gate:
+    # Cheap pre-filter; the gate script re-checks all of it.
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      (startsWith(github.event.pull_request.head.ref, 'ccr-') ||
+       startsWith(github.event.pull_request.head.ref, 'claude/'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out the gate (master's copy, never the PR's)
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          sparse-checkout: .github/scripts
+          persist-credentials: false
+
+      - name: Self-test the gate
+        run: python3 .github/scripts/automerge_gate.py --self-test
+
+      - name: List changed files
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+        run: >-
+          gh api --paginate "repos/$GITHUB_REPOSITORY/pulls/$PR/files"
+          --jq '.[] | {filename, previous_filename, status}' > "$RUNNER_TEMP/files.ndjson"
+
+      - name: Decide
+        id: gate
+        run: |
+          rc=0
+          python3 .github/scripts/automerge_gate.py "$GITHUB_EVENT_PATH" "$RUNNER_TEMP/files.ndjson" > "$RUNNER_TEMP/verdict" || rc=$?
+          cat "$RUNNER_TEMP/verdict" | tee -a "$GITHUB_STEP_SUMMARY"
+          if [ "$rc" -eq 0 ]; then echo "merge=true" >> "$GITHUB_OUTPUT"; fi
+
+      # `sha` pins the merge to the head the event judged: if anything was
+      # pushed since, GitHub refuses (409) and that push's own run decides.
+      - name: Merge
+        if: steps.gate.outputs.merge == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+          SHA: ${{ github.event.pull_request.head.sha }}
+        run: >-
+          gh api -X PUT "repos/$GITHUB_REPOSITORY/pulls/$PR/merge"
+          -f sha="$SHA" -f merge_method=rebase

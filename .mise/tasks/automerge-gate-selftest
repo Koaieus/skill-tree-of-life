@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+#MISE description="Self-test for .github/scripts/automerge_gate.py (the cloud docs auto-merge policy). `mise run automerge-gate-selftest`"
+set -eu
+exec python3 "$(dirname "$0")/../../.github/scripts/automerge_gate.py" --self-test
