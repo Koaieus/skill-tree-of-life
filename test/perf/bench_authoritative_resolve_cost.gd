@@ -74,8 +74,7 @@ func _ensure_fixture() -> void:
 		return
 	_built = true
 
-	var cfg: GraphProcgenConfig = _PRESET.duplicate(true)
-	cfg.topology = cfg.topology.duplicate(true)
+	var cfg: GraphProcgenConfig = _PRESET.private_copy()
 	cfg.seed = _SEED
 	cfg.camp_sizes = [2]
 

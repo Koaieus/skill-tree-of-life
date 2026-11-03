@@ -105,8 +105,7 @@ func test_bench_scan_vs_physics_vs_grid() -> void:
 
 
 func _bench_board(count: int) -> void:
-	var cfg: GraphProcgenConfig = _PRESET.duplicate(true)
-	cfg.topology = cfg.topology.duplicate(true)
+	var cfg: GraphProcgenConfig = _PRESET.private_copy()
 	cfg.topology.node_count = count
 	cfg.seed = _SEED
 	var graph: Graph = _GRAPH_SCENE.instantiate()

@@ -53,10 +53,7 @@ func _ensure_fixture() -> void:
 		return
 	_built = true
 
-	var cfg: GraphProcgenConfig = _PRESET.duplicate(true)
-	# #349: topology is a top-level module .tres; duplicate(true) does not cross
-	# that boundary, so re-duplicate before mutating.
-	cfg.topology = cfg.topology.duplicate(true)
+	var cfg: GraphProcgenConfig = _PRESET.private_copy()
 	cfg.topology.node_count = _NODE_COUNT
 	cfg.seed = _SEED
 	# One camp of one: a single caster core and no AI starters, so the board

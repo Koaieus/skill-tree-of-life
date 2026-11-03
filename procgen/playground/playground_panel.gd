@@ -363,10 +363,7 @@ func _on_regenerate_graph_pressed() -> void:
 func _regenerate_graph(reuse_seed: bool = false) -> void:
 	if _config == null or _graph_view == null:
 		return
-	var cfg: GraphProcgenConfig = _config.duplicate(true)
-	# #349: see the comment in _set_config — re-duplicate before mutating.
-	cfg.topology = cfg.topology.duplicate(true)
-	cfg.content = cfg.content.duplicate(true)
+	var cfg: GraphProcgenConfig = _config.private_copy()
 	cfg.topology.node_count = int(_graph_node_count_spin.value) if _graph_node_count_spin != null else _GRAPH_PREVIEW_NODE_COUNT
 	# One lone starter, regardless of which `starter_placement` the preset
 	# authors (#742) — this preview has no roster, and a stray camp/AI fill

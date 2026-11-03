@@ -171,14 +171,9 @@ func test_subtype_gated_pools_do_not_collide_on_entry_id() -> void:
 # ── generation helpers (tests 4 & 5) ─────────────────────────────────────
 
 func _fresh_config() -> GraphProcgenConfig:
-	var cfg: GraphProcgenConfig = (load(_PRESET) as GraphProcgenConfig).duplicate(true)
+	var cfg: GraphProcgenConfig = (load(_PRESET) as GraphProcgenConfig).private_copy()
 	cfg.seed = _SEED
-	# `topology` and `content` are top-level module `.tres` ExtResources, so the
-	# deep duplicate above did NOT copy them — mutating either in place would
-	# poison the cached resource every other test loads (#349 acceptance 4).
-	cfg.topology = cfg.topology.duplicate(true)
 	cfg.topology.node_count = _NODE_COUNT
-	cfg.content = cfg.content.duplicate(true)
 	return cfg
 
 

@@ -12,10 +12,7 @@ const _PRESET_PATH := "res://procgen/presets/first_level/first_level.tres"
 
 func test_first_level_graph_is_one_component() -> void:
 	var cfg_src: GraphProcgenConfig = load(_PRESET_PATH)
-	var cfg: GraphProcgenConfig = cfg_src.duplicate(true)
-	# #349: topology is a top-level module .tres (ExtResource); duplicate(true)
-	# does not cross that boundary, so re-duplicate before mutating (acceptance 4).
-	cfg.topology = cfg.topology.duplicate(true)
+	var cfg: GraphProcgenConfig = cfg_src.private_copy()
 	cfg.topology.node_count = 120
 	cfg.seed = 42
 

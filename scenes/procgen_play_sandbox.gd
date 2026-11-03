@@ -111,20 +111,15 @@ func _setup_level() -> void:
 		push_warning("%s: no preset available — the run's Scenario carries none "
 				% name + "and `preset` is unassigned in the inspector")
 		return
-	var cfg: GraphProcgenConfig = source_preset.duplicate(true)
+	# `private_copy()`, not `duplicate(true)`: the five modules are top-level
+	# `.tres` files a plain duplicate shares, and the stamps below must never
+	# land on the cached preset every later run in this process loads.
+	var cfg: GraphProcgenConfig = source_preset.private_copy()
 	# #457: one resolved seed for the whole run, resolved by `GameSession.start`
 	# before anything reached this scene. The preset's authored seed is an
 	# authoring default that the run has already superseded.
 	cfg.seed = GameSession.config.seed
 	if node_count_override > 0:
-		# #349 acceptance 4: `topology` is a top-level module `.tres`
-		# (ExtResource), so `preset.duplicate(true)` above did NOT deep-copy
-		# it — only embedded SubResources cross that boundary. Writing
-		# `node_count` straight onto `cfg.topology` would mutate the shared,
-		# cached, on-disk Topology module and leak into every subsequent run
-		# in this process. Re-duplicate it first so the stamp lands on a
-		# private copy, same as `cfg` itself already is.
-		cfg.topology = cfg.topology.duplicate(true)
 		cfg.topology.node_count = node_count_override
 
 	# #553: the roster is decided BEFORE generation and the level only READS it.

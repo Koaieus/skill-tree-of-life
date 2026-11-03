@@ -51,8 +51,7 @@ var _lanterns: Array[Lantern] = []
 
 
 func test_lantern_frame_cost() -> void:
-	var cfg: GraphProcgenConfig = _PRESET.duplicate(true)
-	cfg.topology = cfg.topology.duplicate(true)
+	var cfg: GraphProcgenConfig = _PRESET.private_copy()
 	cfg.topology.node_count = _NODE_COUNT
 	cfg.seed = _SEED
 	cfg.camp_sizes = [1]

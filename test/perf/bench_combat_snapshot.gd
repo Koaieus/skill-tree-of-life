@@ -51,10 +51,7 @@ func _ensure_fixture() -> void:
 		return
 	_built = true
 
-	var cfg: GraphProcgenConfig = _PRESET.duplicate(true)
-	# #349: topology is a top-level module .tres (ExtResource); duplicate(true)
-	# does not cross that boundary, so re-duplicate before mutating (acceptance 4).
-	cfg.topology = cfg.topology.duplicate(true)
+	var cfg: GraphProcgenConfig = _PRESET.private_copy()
 	cfg.topology.node_count = _NODE_COUNT
 	cfg.seed = _SEED
 	# The placement derives the starter count from camp_sizes; empty places none.

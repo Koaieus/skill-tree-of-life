@@ -118,10 +118,7 @@ func _join() -> Dictionary:
 	var cfg := RunConfig.new()
 	cfg.seed = _FIXED_SEED
 	GameSession.start(cfg)
-	var gcfg: GraphProcgenConfig = _PRESET.duplicate(true)
-	# #349: topology is a top-level module .tres (ExtResource); duplicate(true)
-	# does not cross that boundary, so re-duplicate before mutating (acceptance 4).
-	gcfg.topology = gcfg.topology.duplicate(true)
+	var gcfg: GraphProcgenConfig = _PRESET.private_copy()
 	gcfg.topology.node_count = 60
 	gcfg.camp_sizes = [2]
 	gcfg.seed = GameSession.config.seed

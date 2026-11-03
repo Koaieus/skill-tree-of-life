@@ -71,3 +71,19 @@ extends Resource
 ## shape, translated out of its [Faction]s (procgen never sees a Faction).
 ## Inert unless [member GraphProcgenStartingPoints.starter_placement] is set.
 @export var camp_sizes: Array[int] = []
+
+
+## The copy to take before WRITING to a loaded preset. `duplicate(true)` stops
+## at every ExtResource boundary, and all five modules are top-level `.tres`
+## files, so a write through a plain duplicate lands on the cached module
+## every other loader of the preset in this process shares. This re-duplicates
+## each module so the copy is private end to end. Resources a module itself
+## references by path (an `ArchetypePolicy`, the `addon_policy`, a pool set)
+## are still shared: re-duplicate those yourself before writing to one.
+func private_copy() -> GraphProcgenConfig:
+	var out: GraphProcgenConfig = duplicate(true)
+	for module in [&"topology", &"shape", &"starting", &"content", &"blockers"]:
+		var m: Resource = out.get(module)
+		if m != null:
+			out.set(module, m.duplicate(true))
+	return out

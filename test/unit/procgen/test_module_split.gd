@@ -11,28 +11,25 @@ const _TOPOLOGY_PATH := "res://procgen/modules/first_level/topology.tres"
 ## Acceptance 4 — the runtime stamp must not leak into the authored module.
 ##
 ## `procgen_play_sandbox.gd` (and every test in this suite that overrides
-## `node_count`) does `preset.duplicate(true)` then writes `node_count`. Since
-## Topology is now a top-level `.tres` (an ExtResource from the preset's
-## perspective), `duplicate(true)` does NOT deep-copy it — only embedded
-## SubResources cross that boundary. Without `cfg.topology =
-## cfg.topology.duplicate(true)` first, that write lands on the SAME cached
-## Topology object every other loader of `first_level.tres` in this process
-## shares, corrupting the on-disk-authored value for the rest of the run.
+## `node_count`) copies the preset then writes `node_count`. Since Topology is
+## a top-level `.tres` (an ExtResource from the preset's perspective), a plain
+## `duplicate(true)` does NOT deep-copy it — only embedded SubResources cross
+## that boundary — and the write would land on the SAME cached Topology object
+## every other loader of `first_level.tres` in this process shares.
+## [method GraphProcgenConfig.private_copy] is the copy that crosses it
+## (its own unit: `test_procgen_config_private_copy.gd`).
 ##
 ## Generates twice from the same preset with different overrides, then
 ## reloads the Topology module fresh from disk and asserts it still reads
-## its authored value. Confirmed to fail without the
-## `cfg.topology = cfg.topology.duplicate(true)` guard by commenting it out
-## locally and re-running — do not remove that guard from
-## `scenes/procgen_play_sandbox.gd` / the test helpers that carry it.
+## its authored value. Fails with `private_copy()` swapped for
+## `duplicate(true)` — keep the sandbox and the test helpers on the former.
 func test_node_count_override_does_not_leak_into_the_authored_module() -> void:
 	var authored_topology: GraphProcgenTopology = load(_TOPOLOGY_PATH)
 	var authored_node_count := authored_topology.node_count
 	assert_gt(authored_node_count, 0, "sanity: first_level's Topology module authors a real node_count")
 
 	for override in [55, 77]:
-		var cfg: GraphProcgenConfig = (load(_FIRST_LEVEL_PATH) as GraphProcgenConfig).duplicate(true)
-		cfg.topology = cfg.topology.duplicate(true)
+		var cfg: GraphProcgenConfig = (load(_FIRST_LEVEL_PATH) as GraphProcgenConfig).private_copy()
 		cfg.topology.node_count = override
 		cfg.seed = 42
 

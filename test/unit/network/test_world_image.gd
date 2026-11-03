@@ -101,8 +101,7 @@ func _played_host() -> Array[Entity]:
 	var cfg := RunConfig.new()
 	cfg.seed = _FIXED_SEED
 	GameSession.start(cfg)
-	var gcfg: GraphProcgenConfig = _PRESET.duplicate(true)
-	gcfg.topology = gcfg.topology.duplicate(true)
+	var gcfg: GraphProcgenConfig = _PRESET.private_copy()
 	gcfg.topology.node_count = 60
 	gcfg.camp_sizes = [2]
 	gcfg.seed = GameSession.config.seed
