@@ -2,7 +2,7 @@
 """Decide whether a PR is a cloud-session docs-only change the auto-merge
 workflow may merge unreviewed. Stdlib only; never executes PR content.
 
-    automerge_gate.py <event.json> <files.ndjson>   exit 0 = merge, 1 = leave for review
+    automerge_gate.py <event.json> <files.ndjson>   exit 0 = merge, 1 = leave for review, 2 = crashed
     automerge_gate.py --self-test
 
 <event.json> is the `pull_request_target` payload ($GITHUB_EVENT_PATH);
@@ -22,14 +22,28 @@ ALLOWED_PREFIXES = (
     "docs/reviews/",
     "docs/design/",
 )
+# Inert content only: under docs/ a `.gdextension`, `.tscn` or script would be
+# loaded by the next editor scan, and these dirs also hold tooling (`.sh`).
+ALLOWED_EXTENSIONS = (".md", ".txt", ".jsonl", ".csv", ".png")
+# Files agent harnesses load as instructions from whatever directory holds them.
+BLOCKED_BASENAMES = {"claude.md", "claude.local.md", "agents.md"}
+# Swarm-train scaffolding under docs/handoffs/ (gitignored, but a PR can still
+# add it): a relief lead acts on these inboxes and ledgers by landing branches.
+BLOCKED_COMPONENT_PREFIXES = ("swarm-", "whip-")
 FILES_API_CAP = 3000  # pulls/{n}/files silently truncates past this
 
 
 def path_allowed(path):
-    return (
-        path.startswith(ALLOWED_PREFIXES)
-        and ".." not in path.split("/")
-    )
+    if not path.startswith(ALLOWED_PREFIXES):
+        return False
+    parts = path.split("/")
+    for part in parts:
+        if part in ("", "..") or part.startswith("."):
+            return False
+        if part.startswith(BLOCKED_COMPONENT_PREFIXES) or part.endswith(".inbox"):
+            return False
+    name = parts[-1]
+    return name.lower() not in BLOCKED_BASENAMES and name.lower().endswith(ALLOWED_EXTENSIONS)
 
 
 def decide(pr, files):
@@ -52,7 +66,10 @@ def decide(pr, files):
     if len(files) >= FILES_API_CAP or len(files) != pr.get("changed_files"):
         return False, "file list incomplete or truncated"
     for f in files:
-        for path in (f.get("filename"), f.get("previous_filename")):
+        name, prev = f.get("filename"), f.get("previous_filename")
+        if not isinstance(name, str) or not (prev is None or isinstance(prev, str)):
+            return False, f"malformed file entry {f!r}"
+        for path in (name, prev):
             if path is not None and not path_allowed(path):
                 return False, f"touches {path!r}, outside the auto-merge paths"
     return True, f"{len(files)} file(s), all under the auto-merge paths"
@@ -91,6 +108,24 @@ def _self_test():
         ("rename out of code blocks", pr(), [f("docs/handoffs/x.gd", prev="entity/x.gd")], False),
         ("dot-dot path blocks", pr(), [f("docs/handoffs/../../mise.toml")], False),
         ("lookalike prefix blocks", pr(), [f("docs/handoffs-evil/x.md")], False),
+        ("corpus jsonl merges", pr(), [f("docs/corpus/x.jsonl")], True),
+        ("review png merges", pr(), [f("docs/reviews/a/b.png")], True),
+        ("nested CLAUDE.md blocks", pr(), [f("docs/design/sub/CLAUDE.md")], False),
+        ("lowercase claude.md blocks", pr(), [f("docs/design/claude.md")], False),
+        ("AGENTS.md blocks", pr(), [f("docs/handoffs/AGENTS.md")], False),
+        ("dot dir blocks", pr(), [f("docs/design/.claude/rules/x.md")], False),
+        ("dotfile blocks", pr(), [f("docs/reviews/x/.gdignore")], False),
+        ("gdextension blocks", pr(), [f("docs/design/foo.gdextension")], False),
+        ("scene blocks", pr(), [f("docs/design/x.tscn")], False),
+        ("shell script blocks", pr(), [f("docs/handoffs/x.pending/run.sh")], False),
+        ("html blocks", pr(), [f("docs/design/mock.html")], False),
+        ("mise.toml blocks", pr(), [f("docs/design/mise.toml")], False),
+        ("swarm inbox blocks", pr(), [f("docs/handoffs/swarm-a-lead-1.inbox/r.md")], False),
+        ("swarm ledger blocks", pr(), [f("docs/handoffs/swarm-ledger.md")], False),
+        ("whip ledger blocks", pr(), [f("docs/handoffs/whip-2026-11-03.md")], False),
+        ("other .inbox blocks", pr(), [f("docs/handoffs/x.inbox/r.md")], False),
+        ("null filename blocks", pr(), [{"filename": None}], False),
+        ("non-str previous blocks", pr(), [{"filename": "docs/handoffs/x.md", "previous_filename": 3}], False),
         ("fork blocks", pr(head={"ref": "ccr-x", "repo": {"full_name": "evil/r"}}),
          [f("docs/handoffs/x.md")], False),
         ("deleted fork repo blocks", pr(head={"ref": "ccr-x", "repo": None}),
@@ -120,11 +155,15 @@ def main(argv):
     if len(argv) != 3:
         print(__doc__, file=sys.stderr)
         return 2
-    with open(argv[1]) as fh:
-        pr = json.load(fh)["pull_request"]
-    with open(argv[2]) as fh:
-        files = [json.loads(line) for line in fh if line.strip()]
-    merge, reason = decide(pr, files)
+    try:
+        with open(argv[1]) as fh:
+            pr = json.load(fh)["pull_request"]
+        with open(argv[2]) as fh:
+            files = [json.loads(line) for line in fh if line.strip()]
+        merge, reason = decide(pr, files)
+    except Exception as exc:  # exit 2, never 1: a crash must not read as a skip
+        print(f"ERROR: gate crashed: {exc!r}", file=sys.stderr)
+        return 2
     print(("MERGE: " if merge else "SKIP: ") + reason)
     return 0 if merge else 1
 

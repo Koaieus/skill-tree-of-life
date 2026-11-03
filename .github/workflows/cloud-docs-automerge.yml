@@ -48,22 +48,38 @@ jobs:
           gh api --paginate "repos/$GITHUB_REPOSITORY/pulls/$PR/files"
           --jq '.[] | {filename, previous_filename, status}' > "$RUNNER_TEMP/files.ndjson"
 
+      # Exit 1 is a deliberate skip (green run, PR stays open); anything else
+      # is a gate crash and must turn the run red, not pass for a skip.
       - name: Decide
         id: gate
+        shell: bash
         run: |
           rc=0
           python3 .github/scripts/automerge_gate.py "$GITHUB_EVENT_PATH" "$RUNNER_TEMP/files.ndjson" > "$RUNNER_TEMP/verdict" || rc=$?
-          cat "$RUNNER_TEMP/verdict" | tee -a "$GITHUB_STEP_SUMMARY"
-          if [ "$rc" -eq 0 ]; then echo "merge=true" >> "$GITHUB_OUTPUT"; fi
+          tee -a "$GITHUB_STEP_SUMMARY" < "$RUNNER_TEMP/verdict"
+          case "$rc" in
+            0) echo "merge=true" >> "$GITHUB_OUTPUT" ;;
+            1) ;;
+            *) exit "$rc" ;;
+          esac
 
       # `sha` pins the merge to the head the event judged: if anything was
       # pushed since, GitHub refuses (409) and that push's own run decides.
+      # Squash, so the commits behind the judged net diff never reach master's
+      # history. A freshly opened PR has `mergeable: null` until GitHub has
+      # computed it, and the merge endpoint refuses until then — wait it out.
       - name: Merge
         if: steps.gate.outputs.merge == 'true'
+        shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
           PR: ${{ github.event.pull_request.number }}
           SHA: ${{ github.event.pull_request.head.sha }}
-        run: >-
-          gh api -X PUT "repos/$GITHUB_REPOSITORY/pulls/$PR/merge"
-          -f sha="$SHA" -f merge_method=rebase
+        run: |
+          for _ in $(seq 1 10); do
+            m=$(gh api "repos/$GITHUB_REPOSITORY/pulls/$PR" --jq '.mergeable')
+            [ "$m" != "null" ] && break
+            sleep 3
+          done
+          gh api -X PUT "repos/$GITHUB_REPOSITORY/pulls/$PR/merge" \
+            -f sha="$SHA" -f merge_method=squash
