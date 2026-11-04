@@ -162,3 +162,14 @@ three-spoke tree. Filed against the element hub, not settled here.
 - The arc pick rule and radius-per-load numbers: #1733.
 - Which inner-tree shape holds elements, and the card offer's cadence.
 - Shocked / Burning, and a fire ladder (blaze, inferno): parked above.
+- **Payload ordering by group** (owner, 2026-11-04, worth exploring): *"if hit
+  payload ordering matters then maybe applying elemental statuses as a group,
+  and aspect statuses as a group, (but in what order?) could be a move for
+  clarity? (And dmg statuses as a group?) Like the elemental ones toy with
+  reach and may best do so as a unit and have the other stuff happen not in
+  between the elemental payload elements resolving"*. Today a rider lands
+  before its paired hit and Greed spends at the rider's land (ADR 0067), so
+  order already matters; the candidate is three phases per landing — reach
+  (element loads and mediums resolve, the hit fans out), then damage, then
+  aspect riders — with the phase order itself the open pick. Couples with
+  #1733 R1 (one entry per status id, coalesced at emit).
