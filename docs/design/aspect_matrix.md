@@ -31,7 +31,7 @@ and correct a loose one when you see it (the owner asked to be corrected too).
 | **Pie break** / **bleed** | A mechanic on a row that doesn't express it (Fortress drag) | — |
 | **Parasitic** | A mechanic that only works with its own kind (MTG). `spikes` × `blunting` was: each existed only for the other, melee-only | — |
 | **Horizontal vs vertical** | Variation by shape vs by numbers. Our variants must be horizontal | — |
-| **Element** | A second axis beside aspects: one count (`fire`), a status family with fixed roles — **medium** (side-less terrain, gives reach), **mover** (sided, hurts), **state** (a threshold, no count). Aspects feed payload, elements feed reach — [elements.md](elements.md) | an aspect, a damage type, a parent of aspects |
+| **Element** | A second axis beside aspects: one count (`fire`), a status family with fixed roles — **medium** (side-less terrain, gives reach), **mover** (sided, hurts), **state** (a threshold, no count). An element's reach load feeds reach; its statuses ride as any rider does. An aspect is one status; only an element is a family — [elements.md](elements.md) | an aspect, a damage type, a parent of aspects |
 | **Payload** / **reach** | What a hit delivers (damage + aspect riders) / where it lands (point, disc, path) | each other |
 
 Further reading: Mark Rosewater's *Making Magic* columns (color pie,
