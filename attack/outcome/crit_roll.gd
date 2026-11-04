@@ -22,6 +22,13 @@ class_name CritRoll
 ## landing order, off the outcome's [member AttackOutcome.crit_stream], reading
 ## the landing world (the shadow during resolve) — so a status landed earlier
 ## in the same attack (a mark rider) reaches the chance of the hits behind it.
+##
+## [b]A hit crits first; its payload copies it.[/b] A lead's draw happens the
+## moment its first rider lands (riders land BEFORE their hit, ADR 0067), so
+## the one draw per lead precedes the whole payload and every rider
+## [method HitInstance.copy_crit_from] it — a status rider lands its stacks ×
+## `abs(crit_multiplier)`, a paired damage share its share × the multiplier.
+## A mark rider therefore lifts the hits BEHIND its own, never its own.
 ## A replay never draws: a rebuilt [AttackRecord] carries no stream and lands
 ## the recorded crit. Every crit reader that runs before a landing (the VFX
 ## stamping [member Projectile.crit_tier], the floaters) reads a REBUILT
@@ -59,26 +66,30 @@ static func stream_for(resolve_seed: int) -> RandomNumberGenerator:
 ## ([method OutcomeApplier.in_arrival_order], the structural index, never
 ## seconds), which is what keeps one seed reproducing one set of crits.
 ##
-## Consumes exactly one draw from [param rng], and only when the hit's folded
-## chance ([method chance_for]) is non-zero — a hit with no crit investment
-## behind it must not shift the stream for everyone else. A
-## zero/negative-amount hit is skipped entirely (nothing to multiply) — save a
-## [StatusInstance], which settles a stamped condition tier without drawing — and so
-## is one that carries another hit's crit ([method HitInstance.draws_own_crit]
-## false) — it draws nothing, so the stream never shifts for it.
+## A rider ([member HitInstance.paired] set) decides its LEAD first — memoised
+## by [member HitInstance.crit_decided], so the lead's own later call is a
+## no-op and the stream is consumed exactly once per lead, at the moment its
+## first payload element lands — then copies the lead's crit and draws
+## nothing itself. A lead consumes exactly one draw from [param rng], and only
+## when its folded chance ([method chance_for]) is non-zero — a hit with no
+## crit investment behind it must not shift the stream for everyone else. A
+## zero/negative-amount lead is skipped entirely (nothing to multiply) — save
+## a status-only lead ([StatusInstance], amount 0 until it lands), which rolls
+## like any hit on top of a stamped condition tier. A kind that never crits
+## ([method HitInstance.draws_own_crit] false on a lead) draws nothing.
 ## `crit_multiplier` stays an entity read.
 static func decide(hit: HitInstance, rng: RandomNumberGenerator,
 		world: CombatWorld = null) -> void:
-	if hit == null or not hit.draws_own_crit():
+	if hit == null or hit.crit_decided:
 		return
-	# A status hit crits on its spell's CONDITION tier only (stamped at
-	# resolve) and never rolls `crit_chance`: no draw, so no later hit's crit
-	# shifts, and an arrow's or a blade's rider (no tier) never crits. Settled
-	# ahead of the amount gate — a status hit's amount is 0 until it lands.
-	if hit is StatusInstance:
-		_settle(hit)
+	if hit.paired != null:
+		decide(hit.paired, rng, world)
+		hit.copy_crit_from(hit.paired)
 		return
-	if hit.amount <= 0.0:
+	hit.crit_decided = true
+	if not hit.draws_own_crit():
+		return
+	if hit.amount <= 0.0 and not hit is StatusInstance:
 		return
 	if rng != null:
 		var cc_val := chance_for(hit, world)

@@ -83,13 +83,15 @@ var read_node: SkillNode = null
 ## the parallel-mirrors trap, and the shared [CritRoll] needs exactly one.
 var attacker: Entity = null
 
-## Whether this hit was elevated to a critical strike/heal. Decided at
-## LANDING by [method CritRoll.decide] (stat roll + magic's condition tier),
-## called from [method OutcomeApplier.land_one] off
-## [member AttackOutcome.crit_stream] right before [method land_on]; on a
-## replay the recorded value lands as-is, and the VFX layer reads it off that
-## rebuilt record. The multiplier it implies is applied in [method land_on],
-## by [method CritRoll.apply]; see [CritRoll].
+## Whether this hit was elevated to a critical strike/heal. A HIT crits once,
+## as its own fact, before any of its payload lands: decided at LANDING by
+## [method CritRoll.decide] (stat roll + magic's condition tier), called from
+## [method OutcomeApplier.land_one] off [member AttackOutcome.crit_stream] —
+## for a lead ([member paired] null) the moment its first rider lands, or
+## it lands itself bare; a rider never draws, it [method copy_crit_from] its
+## lead. On a replay the recorded value lands as-is, and the VFX layer reads
+## it off that rebuilt record. The multiplier it implies is applied in
+## [method land_on], by [method CritRoll.apply]; see [CritRoll].
 var is_crit: bool = false
 ## The effective multiplier applied on a crit (default 1.0 = normal hit).
 var crit_multiplier: float = 1.0
@@ -97,6 +99,11 @@ var crit_multiplier: float = 1.0
 ## from [PropagationEvent] (#381): crit-ness belongs to the hit, not the
 ## propagation step that carried it.
 var crit_tier: int = 0
+## Set once [method CritRoll.decide] settled this hit's crit. A lead's draw
+## happens when its first rider lands, ahead of its own landing, and this
+## memo makes the lead's own later `decide` a no-op — the stream is consumed
+## exactly once per lead. Never shipped: a rebuilt hit never decides.
+var crit_decided: bool = false
 
 ## This landing's STRUCTURAL position, in whatever units its outcome's
 ## [member AttackOutcome.cadence] names — a hop ordinal for magic, normalized
@@ -269,7 +276,8 @@ var land_resolved: bool = false
 
 ## Where a hit lands within its landing's span, relative to the primary hit
 ## that span rides on ([method HitLanding.place]): a status rider lands
-## BEFORE it, so a curse floor or a sunder lifts its own hit; the
+## BEFORE it, so a curse floor or a sunder lifts its own hit (a mark lifts
+## the NEXT hit — its own drew its crit ahead of the rider); the
 ## primary is PRIMARY; a damage-shaped rider (paired damage, splash copy,
 ## blast, detonate's cure) lands AFTER it. Landing-scoped and applied at
 ## build time as list position, never a sort key at land (ADR 0067).
@@ -309,11 +317,23 @@ func rider_gated(node: NodeCombat, world: CombatWorld) -> bool:
 
 
 ## Whether [method CritRoll.decide] rolls this hit's crit off the outcome's
-## stream. False for a hit that inherits its crit from [member paired]
-## ([PairedDamageInstance]) — it must draw nothing, or every later hit's
-## crit shifts.
+## stream: a lead does, a rider ([member paired] set) never — it
+## [method copy_crit_from] its lead, or every later hit's crit would shift.
+## A kind that never crits at all ([CureInstance]) overrides to false.
 func draws_own_crit() -> bool:
-	return true
+	return paired == null
+
+
+## Take [param lead]'s settled crit as this hit's own — the one way a rider
+## gets a crit, so "what tier T multiplies by" has one owner,
+## [method CritRoll._settle]. What the copy MEANS is each kind's
+## [method land_on]: damage and heals × `crit_multiplier`, a status rider's
+## stacks × its absolute value. A kind that never crits overrides to a no-op.
+func copy_crit_from(lead: HitInstance) -> void:
+	is_crit = lead.is_crit
+	crit_multiplier = lead.crit_multiplier
+	crit_tier = lead.crit_tier
+	crit_decided = true
 
 
 ## Whether this hit actually landed — what a rider of any kind

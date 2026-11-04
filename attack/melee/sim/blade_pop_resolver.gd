@@ -160,17 +160,16 @@ class BlastToken extends HitInstance:
 	var blast_kind: StringName
 	var _contact: HitInstance
 
+	## Rides the contact ([member HitInstance.paired]) so a blast rider's
+	## [method CritRoll.decide] reaches the contact's crit through the token.
 	func _init(gate: LiveGate, event: BladeHitEvent, kind_: StringName, contact: HitInstance) -> void:
 		_gate = gate
 		_event = event
 		blast_kind = kind_
 		_contact = contact
+		paired = contact
 
 	func landed() -> bool:
-		if _contact != null:
-			is_crit = _contact.is_crit
-			crit_multiplier = _contact.crit_multiplier
-			crit_tier = _contact.crit_tier
 		return _gate.blast_of(_event) == blast_kind
 
 

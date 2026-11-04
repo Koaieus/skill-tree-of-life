@@ -181,6 +181,16 @@ stacks stats share one parent umbrella, `dot_stacks_per_hit`, which lands more
 stacks and never scales damage; bleeding, blindness, greed, mark (`mark_stacks_per_hit`), hex (`hex_stacks_per_hit`)
 and weakness each carry a parentless `<id>_stacks_per_hit` and sit outside it.
 Sunder and scout author no `StatusDef.stacks_stat_id()` (a flat landing count).
+**A rider's crit is its hit's crit.** A hit crits once, as its own fact, before
+any of its payload lands: `CritRoll.decide` draws the lead's `crit_chance` the
+moment its first rider lands (riders land before their hit) and every rider
+copies it (`HitInstance.copy_crit_from`); a status rider lands the folded stacks
+× `abs(crit_multiplier)`, so poison 1 + curse 1 on a ×2 crit land 2 + 2. A rider
+never draws. A status-only hit (a spell whose landing is a bare status, `paired`
+null) is a lead and rolls `crit_chance` on top of its stamped condition tier.
+Consequence: curse and sunder lift their own hit (they land before its damage),
+but a mark lifts the hits *behind* its own — its own hit drew before the mark
+landed — while that hit's crit still spends it.
 A `StatusInstance.raw` landing (Lodestone's haul, [spell-propagation.md](spell-propagation.md)) skips this
 fold, `stack_terms`, crit and `stack_scale`; only the block gate and Greed ×2 still apply.
 

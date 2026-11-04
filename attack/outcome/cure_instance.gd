@@ -7,8 +7,9 @@ extends HitInstance
 ## VERBATIM: no re-read of the node's stacks, no clamp. Re-deciding here would
 ## let the landing disagree with the drain that already passed the leftover on.
 ##
-## Never crits ([method draws_own_crit] false, no [method CritRoll.apply]): a
-## crit would clear more than the drain planned and desync the leftover.
+## Never crits ([method draws_own_crit] false, [method copy_crit_from] a
+## no-op even as a rider, no [method CritRoll.apply]): a crit would clear more
+## than the drain planned and desync the leftover.
 ##
 ## On the wire ([AttackRecord]) the defs ride as `resource_path`s, the counts
 ## beside them, and [member heal] rides the generic amount column — so a def
@@ -39,6 +40,10 @@ func add(def: StatusDef, count: float, core: bool = false) -> void:
 
 func draws_own_crit() -> bool:
 	return false
+
+
+func copy_crit_from(_lead: HitInstance) -> void:
+	crit_decided = true
 
 
 ## Clear each planned count off its holder — [param node], or for an
