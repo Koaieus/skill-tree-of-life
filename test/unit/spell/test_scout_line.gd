@@ -46,6 +46,9 @@ func before_each() -> void:
 
 	_attacker = _entity("Attacker", _PLAYER_FACTION)
 	_defender = _entity("Defender", _NPC_FACTION)
+	# A scouted row is a status-only hit, so it rolls `crit_chance` like any
+	# hit; the counts below are exact, so no dice.
+	_attacker.stat_board.get_stat(&"crit_chance").base_value = 0.0
 	await get_tree().process_frame
 
 	var alloc := AllocationSystem.new()

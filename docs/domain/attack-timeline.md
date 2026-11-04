@@ -131,7 +131,7 @@ every expansion from wave N onward.**
 | Ordering of landings (authored into `arrival_time`; `OutcomeApplier` sorts on it) | **Resolve** |
 | Landing gate (target still allocated / still hostile / vertex still alive) | **Land** |
 | Attacker offense (`ranged_damage`, blade vertex damage, spell damage) | **Commit** |
-| Crit *decision* (`crit_chance` roll, `SpellDef.crit_conditions`) | **Resolve** — one shared `CritRoll`, see below |
+| Crit *decision* (`crit_chance` roll, `SpellDef.crit_conditions`) | **Land** — one shared `CritRoll.decide`, drawn once per hit before any of the hit's payload (its first rider's landing triggers it); every rider copies it |
 | Crit *multiplier* (`amount ×= crit_multiplier`) | **Land** — base `DamageInstance`/`HealInstance.land_on` |
 | Amount *basis* (`HitInstance.basis` — FLAT HP, `PERCENT_MAX` of the target's max hp, or `PERCENT_CURRENT` of its current hp) | **Land** — `HitInstance.resolve_amount`, ahead of the crit multiply; resolves once and flips itself to FLAT, so a rebuilt record never re-scales. Sizes the number *before* `Mitigation` — bypass is `Type.TRUE`'s axis, not this one |
 | Defender mitigation (`armor`, `min_damage_taken`) | **Land** — `Mitigation.apply` inside `SkillNode.take_damage` |

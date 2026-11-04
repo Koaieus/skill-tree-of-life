@@ -1,7 +1,8 @@
 extends GutTest
 
 ## A status rider lands BEFORE its paired hit, in every mode, so a curse
-## floor, a sunder or a mark lifts its own hit; damage-shaped riders
+## floor or a sunder lifts its own hit (a mark lifts the NEXT one: the hit's
+## crit is drawn ahead of its riders, and the mark copies it); damage-shaped riders
 ## (paired damage, splash copies, blast, detonate, cures) stay after it. The
 ## hit's land veto is a separate, memoized step the first asker decides
 ## ([method HitInstance.resolve_gate]). ADR 0067.
@@ -120,16 +121,19 @@ func test_a_vetoed_arrows_earlier_landing_status_is_a_dud() -> void:
 	assert_eq(status.power, 0.0)
 
 
-func test_a_mark_rider_raises_its_own_arrows_crit_chance() -> void:
+func test_a_mark_rider_lifts_the_next_arrow_never_its_own() -> void:
 	await _volley_fixture(100.0)
 	_f.attacker.stat_board.get_stat(&"crit_chance").base_value = 0.0
 	var world := CombatWorld.shadow()
-	var outcome := _volley_in({_MARK: 1}, world)
+	var outcome := _volley_in({_MARK: 1, &"arrow": 1}, world)
 	var arrow := _arrow_of(outcome, _MARK)
 	var mark := _status_of(outcome, arrow)
+	var next := _arrow_of(outcome, &"arrow")
 	assert_lt(_land_index(outcome, mark), _land_index(outcome, arrow), "the mark lands first")
-	assert_true(arrow.is_crit or CritRoll.chance_for(arrow, world) > 0.0,
-		"the mark was on the node when its own arrow drew its crit")
+	assert_false(arrow.is_crit, "its own arrow drew before it landed")
+	assert_lt(_land_index(outcome, arrow), _land_index(outcome, next),
+		"fixture: the plain arrow lands behind the mark")
+	assert_gt(CritRoll.chance_for(next, world), 0.0, "the arrow behind the mark reads it")
 	world.free_shadow()
 
 

@@ -578,12 +578,13 @@ static func impact_damage(spell: SpellDef, source: SkillNode, board: StatBoard =
 ##
 ## [param hit] is a [HitInstance], not a [DamageInstance] specifically (#381) —
 ## heals crit too, since a heal landing at the base-class level has no way to
-## opt out.
+## opt out. A rider ([member HitInstance.paired] set) is skipped: it copies
+## its lead's crit at land, tier included.
 static func _stamp_crit_conditions(
 		spell: SpellDef,
 		lctx: LandingContext,
 		hit: HitInstance) -> void:
-	if hit == null or (hit.amount <= 0.0 and not hit is StatusInstance):
+	if hit == null or hit.paired != null or (hit.amount <= 0.0 and not hit is StatusInstance):
 		return
 	for cond in spell.crit_conditions:
 		if cond != null and cond.evaluate(lctx):

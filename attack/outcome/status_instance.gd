@@ -135,10 +135,11 @@ func land_priority() -> int:
 ## [param node] — before crit, so crit, scale and Greed multiply the whole sum.
 ## Skipped with no read node and on an ENTITY host.
 ##
-## Crit: a spell's condition-tier crit ([CritRoll], never `crit_chance`)
-## lands the folded stacks × `abs(crit_multiplier)` — a separate factor right
-## after the fold; a non-crit is ×1. A rebuilt hit arrives resolved, so the
-## peer never multiplies twice.
+## Crit: the HIT's crit, copied from the paired lead by [method CritRoll.decide]
+## (a rider never draws; a status-only lead rolls `crit_chance` on top of its
+## stamped condition tier like any hit), lands the folded stacks ×
+## `abs(crit_multiplier)` — a separate factor right after the fold; a non-crit
+## is ×1. A rebuilt hit arrives resolved, so the peer never multiplies twice.
 ##
 ## Greed (the defender-side term): a landed, positive, `debuff`-tagged power
 ## doubles iff the receiving host [method StatusHost.greed_arm]s this hit —
