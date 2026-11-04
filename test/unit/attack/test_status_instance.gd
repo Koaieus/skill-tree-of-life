@@ -427,19 +427,41 @@ func test_a_negative_multiplier_lands_the_same_count_as_the_positive_one() -> vo
 	assert_almost_eq(hit.power, 6.0, 0.0001, "abs(crit_multiplier)")
 
 
-func test_a_status_hit_never_rolls_crit_chance_and_never_draws() -> void:
+func test_a_bare_status_hit_is_a_lead_and_rolls_crit_chance() -> void:
 	_attacker.stat_board.get_stat(&"crit_chance").base_value = 1.0
 	var hit := _status_hit(2.0)
 	hit.attacker = _attacker
 	var rng := CritRoll.stream_for(1234)
 	var before := rng.state
 	CritRoll.decide(hit, rng, _shadow())
-	assert_false(hit.is_crit, "no condition tier: a status hit is never a crit")
-	assert_eq(rng.state, before, "the stream is untouched, so no later hit's crit shifts")
+	assert_true(hit.is_crit, "no paired hit: a status-only hit draws like any lead")
+	assert_eq(hit.crit_tier, 1)
+	assert_ne(rng.state, before, "one draw")
 
 
-func test_a_stamped_condition_tier_settles_into_a_crit_without_a_draw() -> void:
+func test_a_status_rider_copies_its_hits_crit_and_never_draws() -> void:
 	_attacker.stat_board.get_stat(&"crit_chance").base_value = 1.0
+	var lead := DamageInstance.new()
+	lead.attacker = _attacker
+	lead.target = _node
+	lead.amount = 1.0
+	var hit := _status_hit(2.0)
+	hit.attacker = _attacker
+	hit.paired = lead
+	var rng := CritRoll.stream_for(1234)
+	var before := rng.state
+	CritRoll.decide(hit, rng, _shadow())
+	assert_true(lead.is_crit, "the rider's decide draws the lead's crit first")
+	assert_true(hit.is_crit, "and copies it")
+	assert_eq(hit.crit_tier, lead.crit_tier)
+	var after := rng.state
+	assert_ne(after, before, "the lead drew once")
+	CritRoll.decide(lead, rng, _shadow())
+	assert_eq(rng.state, after, "the lead's own later decide is a no-op")
+
+
+func test_a_stamped_condition_tier_settles_into_a_crit_at_zero_chance() -> void:
+	_attacker.stat_board.get_stat(&"crit_chance").base_value = 0.0
 	var hit := _status_hit(2.0)
 	hit.attacker = _attacker
 	hit.crit_tier = 1
@@ -447,6 +469,12 @@ func test_a_stamped_condition_tier_settles_into_a_crit_without_a_draw() -> void:
 	var before := rng.state
 	CritRoll.decide(hit, rng, _shadow())
 	assert_true(hit.is_crit, "the spell's condition tier makes it a crit")
-	assert_eq(hit.crit_tier, 1, "the stat path never adds a tier")
+	assert_eq(hit.crit_tier, 1, "no chance: the stat path adds no tier")
 	assert_almost_eq(hit.crit_multiplier, CritRoll.multiplier_for(_attacker.stat_board), 0.0001)
-	assert_eq(rng.state, before, "settling a condition crit draws nothing")
+	assert_eq(rng.state, before, "a zero chance draws nothing")
+	_attacker.stat_board.get_stat(&"crit_chance").base_value = 1.0
+	var both := _status_hit(2.0)
+	both.attacker = _attacker
+	both.crit_tier = 1
+	CritRoll.decide(both, rng, _shadow())
+	assert_eq(both.crit_tier, 2, "both paths fired on a status-only lead, as on any hit")

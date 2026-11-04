@@ -190,13 +190,10 @@ func test_landing_with_a_status_effect_resolves_on_a_shadow_only() -> void:
 	assert_eq(_combat_hits(outcome).size(), 2, "one damage hit AND one status hit from the single landing")
 	assert_eq(_combat_hits(outcome)[1].kind, HitInstance.Kind.STATUS)
 	assert_eq(_combat_hits(outcome)[1].attacker, atk, "the resolver stamps the caster onto every hit it appends")
-	# A status hit's `amount` is 0.0 until `land_on` sets it to `power`, and
-	# `CritRoll.decide` runs BEFORE the land pass and skips any hit with
-	# `amount <= 0.0` — so this hit never consumes the seeded crit stream. A
-	# future refactor that sets `amount` at construction would silently shift
-	# every crit roll after it; that is what this assert guards.
+	# The status rides the damage hit and copies its crit; the helper's
+	# entity rolls at zero `crit_chance`, so neither crits.
 	assert_false(_combat_hits(outcome)[1].is_crit,
-			"a status hit must not consume the seeded crit roll")
+			"a status rider copies its hit's (non-)crit")
 	assert_almost_eq(n[1].get_combat().get_status_power(&"test_status"), 0.0, 0.0001,
 			"resolved on a shadow: the live node must not carry the status")
 

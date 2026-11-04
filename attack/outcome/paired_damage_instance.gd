@@ -7,21 +7,9 @@ extends DamageInstance
 ## before the paired arrow's own crit multiplies the arrow's amount at land,
 ## so the share is of the RAW number and each landed node mitigates it once.
 ##
-## It carries the paired hit's crit rather than rolling its own: the arrow
-## lands first on the shared beat, and [method land_on] copies its
-## `is_crit` / `crit_multiplier` / `crit_tier` before the multiplier goes on,
-## and [method draws_own_crit] keeps it off the outcome's crit stream.
-## A rebuilt record never sees this class — a peer lands a plain
-## [DamageInstance] with the authority's number and crit flags.
-
-
-func draws_own_crit() -> bool:
-	return false
-
-
-func land_on(node: NodeCombat, world: CombatWorld) -> void:
-	if paired != null and not rider_gated(node, world):
-		is_crit = paired.is_crit
-		crit_multiplier = paired.crit_multiplier
-		crit_tier = paired.crit_tier
-	super.land_on(node, world)
+## It carries the paired hit's crit rather than rolling its own — the base
+## rider contract: [method CritRoll.decide] draws the arrow's crit and
+## [method HitInstance.copy_crit_from] hands it down before the multiplier
+## goes on, and the rider never touches the outcome's crit stream. A rebuilt
+## record never sees this class — a peer lands a plain [DamageInstance] with
+## the authority's number and crit flags.

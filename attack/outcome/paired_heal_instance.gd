@@ -10,11 +10,8 @@ extends HealInstance
 ## Gated like a damage rider ([method HitInstance.rider_gated]): a dud paired
 ## heal, or a node its [member HitInstance.land_mask] no longer matches, lands
 ## nothing — [HealInstance] has no gate of its own. Otherwise it carries the
-## paired heal's crit and [method draws_own_crit] keeps it off the stream.
-
-
-func draws_own_crit() -> bool:
-	return false
+## paired heal's crit ([method HitInstance.copy_crit_from], the base rider
+## contract) and never draws from the stream.
 
 
 func land_on(node: NodeCombat, world: CombatWorld) -> void:
@@ -23,8 +20,4 @@ func land_on(node: NodeCombat, world: CombatWorld) -> void:
 		amount = 0.0
 		effective_amount = 0.0
 		return
-	if paired != null:
-		is_crit = paired.is_crit
-		crit_multiplier = paired.crit_multiplier
-		crit_tier = paired.crit_tier
 	super.land_on(node, world)

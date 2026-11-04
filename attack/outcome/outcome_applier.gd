@@ -115,7 +115,8 @@ static func _announce_blast(hit: HitInstance, world: CombatWorld, announced: Dic
 ## resolve's [member AttackOutcome.crit_stream] — the hit draws its crit
 ## ([method CritRoll.decide]) right before it lands, reading [param world] as
 ## the landings before it left it, so a status landed earlier in the same
-## attack reaches its chance. Null on a replay (a rebuilt record carries no
+## attack reaches its chance. A rider draws its LEAD's crit instead (once,
+## ahead of the lead's own landing) and copies it. Null on a replay (a rebuilt record carries no
 ## stream): the recorded crit lands as-is. Never key that off a per-hit field
 ## — a recorded hit with no dealloc would read as fresh and re-draw. A hit
 ## that does not reach its landing (freed target or origin) draws nothing.
