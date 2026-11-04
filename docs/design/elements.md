@@ -200,20 +200,20 @@ What a hop is worth, measured (2026-11-04, 10 procgen maps of 800 nodes,
 mean degree 3.1, 300 seed nodes, whole graph; enemy territory is a subset so
 real numbers sit lower):
 
-| hops | unique nodes reached | landings at max visits 2 | ratio (unique) |
-|---|---|---|---|
-| 1 | 4.0 | 4.0 | 4.0 |
-| 2 | 8.8 | 11.3 | 2.2 |
-| 3 | 15.4 | 22.9 | 1.75 |
-| 4 | 23.8 | 38.1 | 1.55 |
-| 5 | 33.7 | 56.8 | 1.42 |
-| 6 | 45.6 | 78.8 | 1.35 |
+| hops | unique nodes | landings, visits ≤ 2 | ≤ 3 | ≤ 4 | unbounded |
+|---|---|---|---|---|---|
+| 1 | 4.0 | 4.0 | 4.1 | 4.1 | 4.2 |
+| 2 | 8.9 | 11.9 | 13.4 | 14.3 | 15.9 |
+| 3 | 15.5 | 24.4 | 30.6 | 35.5 | 59 |
+| 4 | 24.1 | 40.9 | 54.6 | 66.5 | 214 |
+| 5 | 34.2 | 60.8 | 84.0 | 105 | 669 |
+| 6 | 46.1 | 84.6 | 119 | 151 | 1525 |
 
 Coverage grows sub-quadratically with hops on these planar maps (exponent
 about 1.65 between 4 and 8 hops; paths re-merge, the map has edges), never
 exponentially. The exponential lives in `max_visits`: unbounded, walks grow
-like mean degree to the power of the hops, and a visit cap k clamps landings
-at k × coverage. So an Ice price reads both `max_hops` and `max_visits`, both
+like mean degree to the power of the hops (measured ×3.6 per hop), and a
+visit cap k clamps landings near k × coverage. So an Ice price reads both `max_hops` and `max_visits`, both
 known at cast, and the first hops are worth the most: a flat bonus per hop
 removed overpays long spells and underpays short ones. **Pass lean:**
 the Ice row's int:int affinity converts count to hops per spell (Venom Burst
