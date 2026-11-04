@@ -34,7 +34,7 @@ at. Owner: *"that table looks very good, should be persisted"*.
 | Element | Count (entity) | Medium — terrain, side-less, gives reach | Mover — sided, hurts, spreads | State — derived, no count of its own |
 |---|---|---|---|---|
 | Fire | `fire` | **Fuel** (a volatile node) | **Heat** (the Metropolis diffusion locked in #1660 round 2) | none in v1; *Burning* parked |
-| Ice | `ice` | **Frost** | **Frostbite** (#1444's inward pack) | **Frozen** = Frost at or above a threshold; the "timer" is Frost decaying back under it |
+| Ice | `ice` | **Frost** (what a pack sheds; #1444's resting stacks) | **Frostbite** (#1444's inward pack; the working name *Hypothermia* retires) | **Frozen** = Frost at or above a threshold; the "timer" is Frost decaying back under it |
 | Lightning | `lightning` | **Charge** | none in v1 | none in v1; *Shocked* parked |
 
 - **The count never ticks on anyone.** Only movers deal damage, and a mover is
@@ -58,7 +58,12 @@ at. Owner: *"that table looks very good, should be persisted"*.
 
 **A hit's reach is set by the element it carries plus the element resting on
 the node it lands on. Its payload is copied to every node reached at one
-share. The node's medium is spent by the reach; the hit's own load is not.**
+share. A medium that gives reach is spent by the reach it gives; the hit's
+own load is not.** Frost gives no reach, so a hit spends none of it: Frost
+is spent only by its counters (a thaw, a shatter, the Frostbite toll of
+#1444). That asymmetry is the point — a frozen chokepoint holds against every
+arc and blast that lands on it, and costs its owner nothing until Fire or a
+blade arrives.
 
 The owner's atomics (2026-11-04), each a tiny unit of play the rule must
 produce:
@@ -109,7 +114,7 @@ and each attack mode is born with one. An element lets any mode borrow it
 | Mode | School | Native reach | Element | What the medium does to a hit |
 |---|---|---|---|---|
 | Melee | STR | **disc** — a blade sweeps a hurtbox | Fire | replicate into a disc |
-| Ranged | DEX | **point** — a target is 0-dimensional | Ice | insulate: collapse reach to a point (Frozen ends a chain, stops a sweep, sinks a blast) |
+| Ranged | DEX | **point** — a target is 0-dimensional | Ice | insulate: a hit lands on a Frozen node and never leaves it (an arc grounds, a blast sinks, a hop walk ends). A blade is the one hit that answers back: contact shatters (#1444), so melee meets Ice in the counters, not in the reach |
 | Magic | INT | **path** — projectiles are graph automata over edges | Lightning | conduct along edges |
 
 Ice reads as ranged's nature turned into terrain: the kiter's gift is
@@ -126,6 +131,25 @@ hang off all six attributes, elements off the three attack schools. Owner,
 2026-11-04: *"It really shapes up the game content to be somewhat.. spread
 out, instead of a burning focus on just 1 group of features. which is a
 feature on it's own"*.
+
+## Pair rules (pass proposal; each pair is argued on its own issue)
+
+Nine cells, no type chart. Rows are what rests on the node, columns what
+arrives. A cell is one verb, and a blank cell means *nothing special*: the hit
+lands and the medium sits.
+
+| On the node ↓ / arriving → | a Fire hit (load or Heat) | a Lightning hit (load or arc) | a blade | Heat (world turn) | a Frostbite pack |
+|---|---|---|---|---|---|
+| **Fuel** | blast (ignition if it is Heat, #1696) | blast — an arc is a landing | blast on contact (#1660 R2) | ignition | — |
+| **Charge** | arcs, then the blast | arcs, Charge absorbed into the budget (#1733) | arcs | — | — |
+| **Frost / Frozen** | Heat nets against Frost and clamps at 0: thaw (#1444). The hit's own fire *load* plants nothing, so it thaws nothing | grounds: lands, chain ends, no Frost spent | shatters when Frozen; drags below the threshold (#1444) | thaw | pays the toll: Frost sheds first (#1444) |
+
+What the table enforces: **a hit's element load sets reach and never counts
+as a counter**; the counters are movers and contacts (Heat thaws, a blade
+shatters, an arc sparks), so an Ice chokepoint is answered with content,
+never with a stat. The one place two mediums meet on one node (Fuel and
+Charge together) resolves arcs first and the blast after, each spending its
+own medium — the chain cap of #1733 R3 still holds per node per attack.
 
 ## Vocabulary guard (owner, 2026-11-04: *"stay mindful of concepts drifting"*)
 
@@ -153,6 +177,25 @@ three-spoke tree. Filed against the element hub, not settled here.
 
 ## Open
 
+- **How the count becomes a load on a hit that is not a spell.** A spell
+  draws from `fire` the way it draws from `poison_aspect`: as infusion supply
+  (ADR 0060, load = innate + infused). The doc's line *"how much reach every
+  hit I make carries"* reads as if the count were a flat per-hit load instead,
+  and that is a different game: every blade vertex of a 30-hit sweep would
+  blast, which is exactly the reach-per-hit grain #1733 R2 forbids. Two shapes:
+  (a) **the count is supply**, and a hit carries an element only when a face
+  loads it — an infusion row, an element arrow, an addon vertex — in parity with
+  how an aspect reaches an arrow or a blade today; (b) **the count is the
+  load**, every hit carries it, and R2's conservation has to come from the
+  medium side alone. Pass lean: (a); it keeps a zero-element build and a
+  zero-element *hit* both untouched, and makes "+1 fire" read as "one more to
+  infuse", the same sentence an aspect point already says.
+- **A hit's element against a Frozen node.** The reach rule says load plus
+  medium; insulation says neither moves. Pass lean: **Frozen wins** — the load
+  and any other medium on the node are inert, the payload lands once. Written
+  into the pair table above; one line to strike if the owner wants a fire-loaded
+  hit to thaw by itself (that would make the counter a stat, which the table
+  argues against).
 - **Greed under the new vocabulary** (#1659, owner 2026-11-03: the "stacks
   outlive the kill" direction is *"a lame exploit already on paper"* — kill
   for the XP, the enemy retakes, kill again at the same count). Greed is an
