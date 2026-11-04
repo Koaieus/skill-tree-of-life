@@ -92,6 +92,10 @@ A hit has three kinds of entry, and the first two are its **payload**:
 | **riders** | status id → stacks, one entry per id (#1733 R1) | statuses planted — aspect statuses and element statuses alike |
 | **reach** | one `(element, load)` | *where* the payload is copied; resolved first |
 
+A hit also crits once, as its own fact, before any of its payload lands, and
+every rider and every reach copy carries that crit (#1741, built 2026-11-04).
+The reach entry does not change this: a blast copy crits iff its parent did.
+
 An element status (Fuel, Heat, Frost, Frostbite, Charge) rides exactly as
 Poison rides; it differs only in which count caps it. Owner, on the hit's
 three entry kinds with one rider map: held, conditional on aspects being 1:1
@@ -214,7 +218,11 @@ about 1.65 between 4 and 8 hops; paths re-merge, the map has edges), never
 exponentially. The exponential lives in `max_visits`: unbounded, walks grow
 like mean degree to the power of the hops (measured ×3.6 per hop), and a
 visit cap k clamps landings near k × coverage. So an Ice price reads both `max_hops` and `max_visits`, both
-known at cast, and the first hops are worth the most: a flat bonus per hop
+known at cast. Hop reach is absolute, not relative: 8 hops is ~75 nodes on
+an 800-map and about the same on the aimed 2–4k map, so the number to
+reason against is reach versus the *target's territory*, which grows over a
+run (an entity holding 100 nodes is covered by a 6-hop fan). The first hops
+are worth the most: a flat bonus per hop
 removed overpays long spells and underpays short ones. **Pass lean:**
 the Ice row's int:int affinity converts count to hops per spell (Venom Burst
 2:1, Pestilence 4:1 — the ADR 0060 mechanism, which also absorbs counts of
@@ -232,8 +240,8 @@ order ever matters (#1733 R4, R5):
    mediums *as they were before this hit*. The Frozen check is here.
 2. **Land.** Damage and every rider are added, aspect and element statuses
    alike. Nothing reacts during land.
-3. **Settle.** One pure function of the node as it now stands: the netting
-   (§ Open), the mediums the read phase charged are spent, and the copies go
+3. **Settle.** One pure function of the node as it now stands: the Heat ×
+   Frost netting, the mediums the read phase charged are spent, and the copies go
    out to the reached nodes — each running its own read, land, settle under
    the once-per-node-per-attack cap.
 
@@ -245,8 +253,8 @@ after every world-turn tick, which is how #1660 already framed ignition.
 and Fuel, or a fire-loaded hit on a charged node: every reach source present
 at read time fires, each spends its own medium, the hit's load spends
 nothing; a node inside the disc that an arc also reaches takes one copy per
-reach (R3). A Cold-loaded cast landing on a charged node has no reach entry
-at landing (Cold was spent on the spell's hops at cast time), so Charge arcs
+reach (R3). An Ice-loaded cast landing on a charged node has no reach entry
+at landing (Ice was spent on the spell's hops at cast time), so Charge arcs
 as it always does.
 
 ## The reach triad (pass proposal, 2026-11-04; owner asked for the shape)
@@ -288,13 +296,12 @@ feature on it's own"*.
 
 Rows are what rests on the node, columns what arrives. A cell is one verb,
 and a blank cell means *nothing special*: the hit lands and the medium sits.
-The netting cells wait on § Open's cancellation call.
 
 | On the node ↓ / arriving → | a Fire-loaded hit | a Lightning-loaded hit | an arc landing | a Heat rider or diffusion | a Frost rider | a Frostbite pack | a blade |
 |---|---|---|---|---|---|---|---|
 | **Fuel** | blast, radius from Fuel plus load | arcs from load, then blast | blast — an arc is a landing | ignition (#1696), spends min(heat, fuel) | blast, Frost copied into the disc | — | blast on contact (#1660 R2) |
 | **Charge** | arcs from Charge, then the blast | arcs from Charge plus load, Charge absorbed (#1733) | arcs | arcs if a rider, nothing if diffusion | arcs, Frost copied along | — | arcs |
-| **Frost under T** | lands, **no thaw** (a load is unspent, so a thaw by load would be free) | arcs from load | chain continues | nets (§ Open) | adds | pays the toll: Frost sheds first (#1444) | drags (#1444) |
+| **Frost under T** | lands, **no thaw** (a load is unspent, so a thaw by load would be free) | arcs from load | chain continues | nets: thaw | adds | pays the toll: Frost sheds first (#1444) | drags (#1444) |
 | **Frozen** | lands, load inert | lands, load inert | grounds: lands, chain ends, no Frost spent | nets; unfreezes for the next landing | adds | toll, a free hop if deep enough | shatters (#1444) |
 
 What the table enforces: **a hit's element load sets reach and never counts
@@ -303,6 +310,45 @@ shatters, an arc sparks), so an Ice chokepoint is answered with content,
 never with a stat. A Frost arrow onto a charged or fuelled node spreads Frost
 along the arcs or into the disc — Lightning carrying Ice is a feature that
 needs no rule of its own.
+
+## Cancellation: one pair (owner, 2026-11-04)
+
+Exactly one pair nets: **Heat against Frost**, both losing `min(heat,
+frost)` in every settle, order independent; Frozen ends when Frost drops
+under its threshold. Everything else coexists. A load never thaws (unspent,
+so it would be free). Fuel and Frost coexist: a frozen keg nobody can set
+off until it is thawed. Movers never fight movers — owner: *"Heat & Cold
+don't make sense together. frostBITE is an ailment"* — so Heat never touches
+a Frostbite pack. Charge has no opposite; Frozen grounds an arc without
+spending Frost. Rejected: Fuel damped by Frost (terrain fighting terrain with
+nobody acting).
+
+## Three things wear the word "explosive" (pass clarification, 2026-11-04)
+
+Owner: *"fuel defensive: explode (trigger aoe reach), fuel rider: splodes
+(spreads) or plants?? (adds fuel??) or is that Magic making an exception …
+i confuse myself"*. No status has an offensive and a defensive face; three
+different rows share the old word, on every facet alike:
+
+| | Row | What happens | Plants |
+|---|---|---|---|
+| "infuse Explosive to make it AoE" | Fire **reach** row (the element slot, or an element arrow / vertex) | the hit itself blasts at landing | nothing |
+| "goo arrow" | Fuel **ride** row | Fuel is added to the landing node; the planting hit never trips it | Fuel |
+| "a fuelled node" | the medium on the node | any later landing blasts it, Fuel spent | — |
+
+Poison has the second and a third of its own ("poison on a node ticks");
+the only novelty is that a medium reacts to *landings* where a mover reacts
+to a *clock*. There is no Magic exception: an arrow with a Fire reach row
+blasts exactly as an infused cast does.
+
+**Why Ice reads the cast and the others read the node.** Fire and Lightning
+reach by *adding* copies, and a copy needs a node to be added from, so they
+are read at every landing. Ice reaches by *removing* copies, and the only
+copies that exist to remove are the cast's own walk, so it is read once,
+from the cast — at the seed landing's read phase (`hops_remaining`), so the
+three phases still hold. An arrow or a blade has no walk, so an Ice reach row
+on it does nothing; their Ice faces are Frost ride rows. Anti-reach, not an
+exception.
 
 ## Vocabulary guard (owner, 2026-11-04: *"stay mindful of concepts drifting"*)
 
@@ -335,25 +381,24 @@ here.
 
 ## Open
 
-- **Cancellation.** Proposal: exactly one pair nets, Heat against Frost (both
-  lose `min(heat, frost)`, order independent, in every settle), Frozen ending
-  when Frost drops under T. Everything else coexists: a load never thaws
-  (unspent, so free); Fuel and Frost coexist (a frozen keg nobody can set off
-  until it is thawed); movers never fight movers (Frostbite is a pack on the
-  victim's clock, not a hit); Charge has no opposite, Frozen grounds an arc
-  without spending Frost. Owner deferred the call until the Fire/Heat split
-  was settled (now above).
-- **Ranged's access to Fuel.** With no Explosive aspect, the rolled Explosive
-  addon (an Aspect Matrix cell) loses its row. Owner, 2026-11-04: *"ranged
-  (imho) needs some fuel application up front as much as Melee needs a
-  (permanently available!) Clamp addon on the first 1 (or 2, or 3, …) blade
-  node besides the Pivot"*. Shapes on the table: an **Element Matrix** with
-  one sub-row per status (`Status : Ammo : Addon : Spell : Infusion`) so the
-  addon becomes the Fire::Fuel addon cell; a reload grant (*"on each reload
-  grant {fire_element} Explosive (fuel-planting) arrows"*); or a StatFormula
-  on the element count. Pass lean: the Element Matrix, since every status in
-  the family table needs its three faces authored somewhere anyway, and the
-  Fuel addon is one cell of it.
+- **Ranged's access to Fuel: an Element Matrix** (owner, 2026-11-04:
+  *"option 1 sounds good"*), one row per family status, columns `Ammo :
+  Addon : Spell : Infusion`, so the Explosive addon becomes the Fire::Fuel
+  addon cell. Still open on it: **availability** — a found addon is not
+  Clamp-like (owner: *"god i hope i find an explosive addon anywhere in the
+  nearest 20 hops from where i spawned"*; the fuel-arrow count *"need to get
+  into 10s ASAP"*, and late-game ranged fires hundreds of arrows), so the
+  Fuel ammo cell wants a steady source (a reload grant from the count is one)
+  and **a stock cap per element ammo type** (owner: *"storing 1000 heat arrows
+  sounds like bad juju"*) — the `Quiver` already caps per type
+  (`AmmoType.max_stock`, 999 default), so each element ammo type sets its
+  own lower cap; whether that cap is a knob or a stat is open. **A name for
+  "a status of an element"** is wanted (owner): pass proposal *member* —
+  Fuel is a member of Fire, an Element Matrix row is a member row; *facet*
+  (arrow / blade / spell) and *role* (medium / mover / state) stay what they
+  are.
+- **Landing resolution** (read / land / settle, above) and dual reach are
+  pass proposals still awaiting the owner; they go to an ADR only once held.
 - **Ice pricing knob**: one number per spell vs the measured ladder, above.
 - **Greed under the new vocabulary** (#1659, owner 2026-11-03: the "stacks
   outlive the kill" direction is *"a lame exploit already on paper"* — kill
