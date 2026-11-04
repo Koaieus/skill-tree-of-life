@@ -21,9 +21,15 @@ Elements are **not** a parent of aspects (owner, 2026-11-04: *"elements not
 being parents of aspects makes sense"*), and an aspect never belongs to an
 element: Hex is never "lightning-typed".
 
-The split of labour: **aspects feed payload, elements feed reach.** A hit
-carries damage plus aspect riders (its payload) and lands somewhere (its
-reach). The two never read each other.
+**An aspect is one status; an element is a family.** Owner, 2026-11-04, on
+re-enforcing Aspect:Status as 1:1 with elements the only axis that owns a
+status family: *"option 1 sounds very clean"*. The code is 1:1 today
+(`aspects/aspect.gd` holds one `status`; thirteen aspects, thirteen defs);
+the widening #1694 asked for was only ever for Fire's second status, and Fire
+is now wholly an element, so #1694 is unneeded and a test guards the 1:1.
+Poison's "does it move" idea (#1657) must therefore be a behaviour of the one
+Poison status, never a second one. No Explosive aspect survives: Fuel is
+Fire's medium (the ranged-access question this raises is in § Open).
 
 ## One count, a family of statuses with fixed roles (owner, 2026-11-04)
 
@@ -54,6 +60,84 @@ at. Owner: *"that table looks very good, should be persisted"*.
   lightning. Or perhaps burning is so too for fire? Or a sleuth of ramping up
   fire der states to blaze to inferno"*).
 
+## The count is supply, never a load (owner, 2026-11-04)
+
+The count is a budget a face draws from; by itself it loads nothing onto a
+hit. Owner: *"this is like "how Fire/Ice/Lightning ARE you really" counter,
+which likely ends up being a maximum/budget of sorts for some situation, but
+in most cases doesn't load automatically (maybe some cases would arise later?
+so far just none)"*. This is the same sentence an aspect count already says —
+X poison means X poison arrows a reload, X of poison-costing temp addons, X
+maximum poison infusion — and it keeps #1733 R2: a 30-vertex sweep is never
+30 blasts, because reach per hit is paid for by a face, never granted by a
+stat. A build with zero in every element is untouched, and so is a hit no
+face loaded.
+
+The counts are meant to grow well past the small ints aspects sit at today.
+Owner: *"attaining 20 of it, or maybe into 50 or possibly even 100 (tho 100,
+that's a stretch. 50 sounds *somewhat* reasonable for late late game …)
+everything starts small. the inner-core mini skill tree, i envision, would be
+one of the primary sources of adding +1..N modifiers to aspects, alongside
+map-found modifiers, or stolen mods from slain enemies"*. Every rate that
+reads a count is therefore an int:int affinity (ADR 0060), never "one count,
+one hop".
+
+## The hit: damage, riders, reach (owner, 2026-11-04)
+
+A hit has three kinds of entry, and the first two are its **payload**:
+
+| Entry | Shape | Lands as |
+|---|---|---|
+| **damage** | one number | HP loss |
+| **riders** | status id → stacks, one entry per id (#1733 R1) | statuses planted — aspect statuses and element statuses alike |
+| **reach** | one `(element, load)` | *where* the payload is copied; resolved first |
+
+An element status (Fuel, Heat, Frost, Frostbite, Charge) rides exactly as
+Poison rides; it differs only in which count caps it. Owner, on the hit's
+three entry kinds with one rider map: held, conditional on aspects being 1:1
+(*"depends on the status cardinality maybe"*), which the section above
+settles. There is no fourth entry: anything new is a number that lands
+(payload) or a rule about where it lands (reach).
+
+**Which element statuses ride.** Every counted role — medium and mover — can
+be a rider row (a goo arrow plants Fuel, an ice spell plants Frost on the
+chokepoint, a hot arrow plants Heat); a state never rides, it has no count.
+Owner, 2026-11-04: *"if fuel is to be a fire status.. and option 2 says
+`fire:heat` at exactly one then how could a fuel-planting arrow exist? it
+couldn't. so i guess that rules out option 2? option 1 sounds reasonable"*.
+One cap per element across its whole family.
+
+## The forge: one row type, three uses (owner, 2026-11-04)
+
+An intake row is the one `AspectIntake` type (ADR 0060: identity, innate,
+int:int rates) plus a **use** that says what its load buys. The seam exists:
+Firecracker's fuel row already carries a `use` (`attack/spell/load_use/`).
+
+| Row use | Buys | Supply cap | Slot |
+|---|---|---|---|
+| **ride** | a rider of the named status | that status's aspect or element count | the aspect slots (INT) |
+| **reach** | the cast's one element load | the element count | **the one element slot** |
+| **shape** | spell-specific (Firecracker's blast waves) | whichever count it names | authored only, never infused |
+
+- **One element slot per cast, separate from the aspect slots.** A cast
+  borrows at most one reach: it is a fire cast or a lightning cast, never
+  both. Owner, 2026-11-04: *"managing reach does feel like something you'd
+  wanna keep separate (and whose contribution in the Payload you'd wanna
+  resolve first on landing the Hit) and maybe even restrict to 1 element at
+  once"*; on the slot options, *"option 1 sounds best"*. Rejected: shared
+  slots (arcs-then-blast per hit becomes routine and unreadable), an N-slot
+  element pool (dual-element casts nobody asked for).
+- **The element slot buys reach only.** A Heat or Fuel rider is its own
+  `ride` row the spell offers or the forge adds, drawing from the same count
+  as a cap (owner picked this over "reach plus the family's default status"
+  and over "reach only, ever"). Poison, with one status, collapses to one row,
+  so nothing changes for aspects.
+- Firecracker's fuel row is the element slot in disguise; once the slot
+  exists it is an ordinary `reach` row and the spell gets simpler.
+- For arrows and blades the same formula applies with no per-cast choice: an
+  element arrow or an element addon vertex carries `innate + floor(count ×
+  affinity)` of its named use. One formula across the three facets.
+
 ## The reach rule (pass proposal, 2026-11-04, from the owner's atomics)
 
 **A hit's reach is set by the element it carries plus the element resting on
@@ -80,12 +164,11 @@ produce:
    target *and* to 1..N neighbors"* — the arrow carries no lightning; Charge N
    gives up to N arcs (the pick rule is #1733's); Charge is spent.
 
-What falls out: the count reads the same for an arrow, a blade vertex and a
-spell hit (*"how much reach every hit I make carries"*), and a build with
-zero in every element is untouched. **Planting** a medium (a goo arrow laying
-Fuel, an ice spell laying Frost on a chokepoint — the player control #1716
-asks for) is content: a rider that plants the medium status, like any rider.
-The shipped rule stays: a hit that plants a medium does not trip it.
+What falls out: the reach entry reads the same for an arrow, a blade vertex
+and a spell hit. **Planting** a medium (a goo arrow laying Fuel, an ice spell
+laying Frost on a chokepoint — the player control #1716 asks for) is a `ride`
+row like any rider. The shipped rule stays: a hit that plants a medium does
+not trip it.
 
 **Chain reactions** are bounded (#1733 R3): a copied hit landing on a node
 that holds a medium spends it and reaches again from there, once per node per
@@ -99,22 +182,91 @@ fourth type ever earns its place it is one word, "elemental" (owner,
 2026-11-04: *"if it gets one, its just 'elemental' (opposing physical or magic
 or true)"*).
 
+## Ice on a cast: concentrate (owner, 2026-11-04; pricing open)
+
+Fire and Lightning add a reach at each landing. Ice does the opposite and
+does it **at cast time**: an Ice load rewrites the spell's own hops down and
+pays the seed payload up. Owner: *"a 4-hop spell could be shrunk to a 1 hop
+spell at more damage (or statuses?) for the one hop. or reduced to 0 hops
+even for 1 pinpoint hit. as balance against AoE euclidean or hop based
+proliferation being almost strictly "more", frost could reduce hops yet still
+achieve "more" somehow"*. The price must be something the cast knows before
+it lands — `max_hops` and the seed load — never the realized landing count
+(*"a spell beforehand doesnt know how many hits a 4-hop spell would do"*).
+Pure hop reduction with no bonus is out: *"a pure nerf if it just reduces
+hops"*.
+
+What a hop is worth, measured (2026-11-04, 10 procgen maps of 800 nodes,
+mean degree 3.1, 300 seed nodes, whole graph; enemy territory is a subset so
+real numbers sit lower):
+
+| hops | unique nodes | landings, visits ≤ 2 | ≤ 3 | ≤ 4 | unbounded |
+|---|---|---|---|---|---|
+| 1 | 4.0 | 4.0 | 4.1 | 4.1 | 4.2 |
+| 2 | 8.9 | 11.9 | 13.4 | 14.3 | 15.9 |
+| 3 | 15.5 | 24.4 | 30.6 | 35.5 | 59 |
+| 4 | 24.1 | 40.9 | 54.6 | 66.5 | 214 |
+| 5 | 34.2 | 60.8 | 84.0 | 105 | 669 |
+| 6 | 46.1 | 84.6 | 119 | 151 | 1525 |
+
+Coverage grows sub-quadratically with hops on these planar maps (exponent
+about 1.65 between 4 and 8 hops; paths re-merge, the map has edges), never
+exponentially. The exponential lives in `max_visits`: unbounded, walks grow
+like mean degree to the power of the hops (measured ×3.6 per hop), and a
+visit cap k clamps landings near k × coverage. So an Ice price reads both `max_hops` and `max_visits`, both
+known at cast, and the first hops are worth the most: a flat bonus per hop
+removed overpays long spells and underpays short ones. **Pass lean:**
+the Ice row's int:int affinity converts count to hops per spell (Venom Burst
+2:1, Pestilence 4:1 — the ADR 0060 mechanism, which also absorbs counts of
+20–50), and each hop removed multiplies the seed payload by a per-spell knob
+near the measured ratio of the hop it removes. Surplus Ice beyond the spell's
+hops is wasted; a 0-hop spell has nothing to trade. Open: the knob's shape
+(one number per spell vs the measured ladder).
+
+## Landing resolution (pass proposal, 2026-11-04)
+
+Three phases per landing, each a pure function of one snapshot, so no rider
+order ever matters (#1733 R4, R5):
+
+1. **Read.** Reach is computed from the hit's reach entry plus the node's
+   mediums *as they were before this hit*. The Frozen check is here.
+2. **Land.** Damage and every rider are added, aspect and element statuses
+   alike. Nothing reacts during land.
+3. **Settle.** One pure function of the node as it now stands: the netting
+   (§ Open), the mediums the read phase charged are spent, and the copies go
+   out to the reached nodes — each running its own read, land, settle under
+   the once-per-node-per-attack cap.
+
+A hit carrying +1 Heat onto a 5-Frost node is read against 5, lands, and
+leaves 4: it thaws for the *next* hit, never for itself. The same settle runs
+after every world-turn tick, which is how #1660 already framed ignition.
+
+**Dual reach** resolves by the read phase alone. A node holding both Charge
+and Fuel, or a fire-loaded hit on a charged node: every reach source present
+at read time fires, each spends its own medium, the hit's load spends
+nothing; a node inside the disc that an arc also reaches takes one copy per
+reach (R3). A Cold-loaded cast landing on a charged node has no reach entry
+at landing (Cold was spent on the spell's hops at cast time), so Charge arcs
+as it always does.
+
 ## The reach triad (pass proposal, 2026-11-04; owner asked for the shape)
 
 Owner, 2026-11-04: *"1. Melee - STR - AoE - explosive (fuel = AoE) - fire …
 2. Ranged - DEX - single target - … - …ice? … 3. Magic - INT - edge hops based
 propagation (like 90% of the time) - lightning. Make sense? Canonicalize this
-somehow? What shape is this here exactly?"*
+somehow? What shape is this here exactly?"*; later: *"the vibes are: fire -
+AoE spread - euclidean - melee; lightning - edge-hop spread - edge-hops-based
+- magic; ice - single-target - pinpoint / 0-D - ranged"*.
 
 The shape: **each element is one attack mode's native reach, made portable.**
 There are three reaches a hit can have on a graph — a disc, a path, a point —
 and each attack mode is born with one. An element lets any mode borrow it
-(Fire, Lightning) or impose it on the board (Ice).
+(Fire, Lightning) or impose it on the board and on a cast (Ice).
 
-| Mode | School | Native reach | Element | What the medium does to a hit |
+| Mode | School | Native reach | Element | What the element does to a hit |
 |---|---|---|---|---|
 | Melee | STR | **disc** — a blade sweeps a hurtbox | Fire | replicate into a disc |
-| Ranged | DEX | **point** — a target is 0-dimensional | Ice | insulate: a hit lands on a Frozen node and never leaves it (an arc grounds, a blast sinks, a hop walk ends). A blade is the one hit that answers back: contact shatters (#1444), so melee meets Ice in the counters, not in the reach |
+| Ranged | DEX | **point** — a target is 0-dimensional | Ice | concentrate: a cast trades hops for seed payload; on the board, a hit lands on a Frozen node and never leaves it (an arc grounds, a blast sinks, a hop walk ends). A blade is the one hit that answers back: contact shatters (#1444), so melee meets Ice in the counters, not in the reach |
 | Magic | INT | **path** — projectiles are graph automata over edges | Lightning | conduct along edges |
 
 Ice reads as ranged's nature turned into terrain: the kiter's gift is
@@ -134,22 +286,23 @@ feature on it's own"*.
 
 ## Pair rules (pass proposal; each pair is argued on its own issue)
 
-Nine cells, no type chart. Rows are what rests on the node, columns what
-arrives. A cell is one verb, and a blank cell means *nothing special*: the hit
-lands and the medium sits.
+Rows are what rests on the node, columns what arrives. A cell is one verb,
+and a blank cell means *nothing special*: the hit lands and the medium sits.
+The netting cells wait on § Open's cancellation call.
 
-| On the node ↓ / arriving → | a Fire hit (load or Heat) | a Lightning hit (load or arc) | a blade | Heat (world turn) | a Frostbite pack |
-|---|---|---|---|---|---|
-| **Fuel** | blast (ignition if it is Heat, #1696) | blast — an arc is a landing | blast on contact (#1660 R2) | ignition | — |
-| **Charge** | arcs, then the blast | arcs, Charge absorbed into the budget (#1733) | arcs | — | — |
-| **Frost / Frozen** | Heat nets against Frost and clamps at 0: thaw (#1444). The hit's own fire *load* plants nothing, so it thaws nothing | grounds: lands, chain ends, no Frost spent | shatters when Frozen; drags below the threshold (#1444) | thaw | pays the toll: Frost sheds first (#1444) |
+| On the node ↓ / arriving → | a Fire-loaded hit | a Lightning-loaded hit | an arc landing | a Heat rider or diffusion | a Frost rider | a Frostbite pack | a blade |
+|---|---|---|---|---|---|---|---|
+| **Fuel** | blast, radius from Fuel plus load | arcs from load, then blast | blast — an arc is a landing | ignition (#1696), spends min(heat, fuel) | blast, Frost copied into the disc | — | blast on contact (#1660 R2) |
+| **Charge** | arcs from Charge, then the blast | arcs from Charge plus load, Charge absorbed (#1733) | arcs | arcs if a rider, nothing if diffusion | arcs, Frost copied along | — | arcs |
+| **Frost under T** | lands, **no thaw** (a load is unspent, so a thaw by load would be free) | arcs from load | chain continues | nets (§ Open) | adds | pays the toll: Frost sheds first (#1444) | drags (#1444) |
+| **Frozen** | lands, load inert | lands, load inert | grounds: lands, chain ends, no Frost spent | nets; unfreezes for the next landing | adds | toll, a free hop if deep enough | shatters (#1444) |
 
 What the table enforces: **a hit's element load sets reach and never counts
 as a counter**; the counters are movers and contacts (Heat thaws, a blade
 shatters, an arc sparks), so an Ice chokepoint is answered with content,
-never with a stat. The one place two mediums meet on one node (Fuel and
-Charge together) resolves arcs first and the blast after, each spending its
-own medium — the chain cap of #1733 R3 still holds per node per attack.
+never with a stat. A Frost arrow onto a charged or fuelled node spreads Frost
+along the arcs or into the disc — Lightning carrying Ice is a feature that
+needs no rule of its own.
 
 ## Vocabulary guard (owner, 2026-11-04: *"stay mindful of concepts drifting"*)
 
@@ -158,44 +311,50 @@ can carry, so the words are pinned here and in the matrix Glossary:
 
 | Term | Means | Not |
 |---|---|---|
-| **Payload** | What a hit delivers: damage plus its aspect riders | where it lands |
+| **Payload** | What a hit delivers: damage plus its riders, any status | where it lands |
 | **Reach** | Where a hit lands: a point, a disc, a path | how much it delivers |
-| **Load** | The amount of an infused thing a cast carries (ADR 0060's word); now an aspect load *or* an element load | a node's stacks |
-| **Rider** | Plants a status — any status, a medium included (a goo arrow plants Fuel) | an element on the hit |
-| **Element on a hit** | Sets reach, plants nothing | a rider |
+| **Load** | The amount of an infused thing a cast carries (ADR 0060's word): an aspect load, an element-status load *or* the one reach load | a node's stacks |
+| **Rider** | Plants a status — any status, a medium or mover included (a goo arrow plants Fuel) | an element on the hit |
+| **Element on a hit** | The reach entry: sets reach, plants nothing | a rider |
+| **Use** | What an intake row's load buys: ride, reach or shape | a slot |
 | **Medium / Mover / State** | The three roles in an element's status family (table above) | "the fire status" |
+| **Fire / Heat / Burn** | The element (count and reach) / its mover status / at most the word for Heat ticking | three things a hit can carry |
 
-## Acquisition (owner sketches, 2026-11-03; nothing picked)
+## Acquisition (owner sketches, 2026-11-03/04; nothing picked)
 
 Both sources every stat already has: **permanent, slow** (an inner-tree ring
-or sector, or a periodic *"+1 to <element of choice | choose 1 el out of 3
-cards>"* offer) and **board-temporary** (a keystone: *"a fire keystone that
-also supplies heat or fire stacks"* — the Hearth of #1716 round 2, emitting
-Heat each world turn and granting fire while held). `apex_inner_tree.md` is
-six schools × two aspects today; elements would be a third ring or a
-three-spoke tree. Filed against the element hub, not settled here.
+or sector — owner, 2026-11-04: the inner-core mini skill tree as *"one of the
+primary sources of adding +1..N modifiers"* — a periodic *"+1 to <element of
+choice | choose 1 el out of 3 cards>"* offer, map-found modifiers, mods stolen
+from slain enemies) and **board-temporary** (a keystone: *"a fire keystone
+that also supplies heat or fire stacks"* — the Hearth of #1716 round 2,
+emitting Heat each world turn and granting fire while held).
+`apex_inner_tree.md` is six schools × two aspects today; elements would be a
+third ring or a three-spoke tree. Filed against the element hub, not settled
+here.
 
 ## Open
 
-- **How the count becomes a load on a hit that is not a spell.** A spell
-  draws from `fire` the way it draws from `poison_aspect`: as infusion supply
-  (ADR 0060, load = innate + infused). The doc's line *"how much reach every
-  hit I make carries"* reads as if the count were a flat per-hit load instead,
-  and that is a different game: every blade vertex of a 30-hit sweep would
-  blast, which is exactly the reach-per-hit grain #1733 R2 forbids. Two shapes:
-  (a) **the count is supply**, and a hit carries an element only when a face
-  loads it — an infusion row, an element arrow, an addon vertex — in parity with
-  how an aspect reaches an arrow or a blade today; (b) **the count is the
-  load**, every hit carries it, and R2's conservation has to come from the
-  medium side alone. Pass lean: (a); it keeps a zero-element build and a
-  zero-element *hit* both untouched, and makes "+1 fire" read as "one more to
-  infuse", the same sentence an aspect point already says.
-- **A hit's element against a Frozen node.** The reach rule says load plus
-  medium; insulation says neither moves. Pass lean: **Frozen wins** — the load
-  and any other medium on the node are inert, the payload lands once. Written
-  into the pair table above; one line to strike if the owner wants a fire-loaded
-  hit to thaw by itself (that would make the counter a stat, which the table
-  argues against).
+- **Cancellation.** Proposal: exactly one pair nets, Heat against Frost (both
+  lose `min(heat, frost)`, order independent, in every settle), Frozen ending
+  when Frost drops under T. Everything else coexists: a load never thaws
+  (unspent, so free); Fuel and Frost coexist (a frozen keg nobody can set off
+  until it is thawed); movers never fight movers (Frostbite is a pack on the
+  victim's clock, not a hit); Charge has no opposite, Frozen grounds an arc
+  without spending Frost. Owner deferred the call until the Fire/Heat split
+  was settled (now above).
+- **Ranged's access to Fuel.** With no Explosive aspect, the rolled Explosive
+  addon (an Aspect Matrix cell) loses its row. Owner, 2026-11-04: *"ranged
+  (imho) needs some fuel application up front as much as Melee needs a
+  (permanently available!) Clamp addon on the first 1 (or 2, or 3, …) blade
+  node besides the Pivot"*. Shapes on the table: an **Element Matrix** with
+  one sub-row per status (`Status : Ammo : Addon : Spell : Infusion`) so the
+  addon becomes the Fire::Fuel addon cell; a reload grant (*"on each reload
+  grant {fire_element} Explosive (fuel-planting) arrows"*); or a StatFormula
+  on the element count. Pass lean: the Element Matrix, since every status in
+  the family table needs its three faces authored somewhere anyway, and the
+  Fuel addon is one cell of it.
+- **Ice pricing knob**: one number per spell vs the measured ladder, above.
 - **Greed under the new vocabulary** (#1659, owner 2026-11-03: the "stacks
   outlive the kill" direction is *"a lame exploit already on paper"* — kill
   for the XP, the enemy retakes, kill again at the same count). Greed is an
