@@ -23,7 +23,7 @@ element: Hex is never "lightning-typed".
 
 **An aspect is one status; an element is a family.** Owner, 2026-11-04, on
 re-enforcing Aspect:Status as 1:1 with elements the only axis that owns a
-status family: *"option 1 sounds very clean"*. The code is 1:1 today
+status family: *"option 1 sounds very clean"*. ADR 0072 records it. The code is 1:1 today
 (`aspects/aspect.gd` holds one `status`; thirteen aspects, thirteen defs);
 the widening #1694 asked for was only ever for Fire's second status, and Fire
 is now wholly an element, so #1694 is unneeded and a test guards the 1:1.
@@ -82,7 +82,7 @@ map-found modifiers, or stolen mods from slain enemies"*. Every rate that
 reads a count is therefore an int:int affinity (ADR 0060), never "one count,
 one hop".
 
-## The hit: damage, riders, reach (owner, 2026-11-04)
+## The hit: damage, riders, reach (owner, 2026-11-04; ADR 0073)
 
 A hit has three kinds of entry, and the first two are its **payload**:
 
