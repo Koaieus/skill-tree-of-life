@@ -78,3 +78,61 @@ The cycle is `StatBoard` → its `Stat`s → `Stat._board` / `bins.board` → ba
 ### Cost
 
 The cost of `clone_live` is `Resource.duplicate(true)` and nothing else: the bin copy does not register on a microsecond timer (a clone copies the fold, it never replays the modifiers), so there is no bin-copy optimisation to find. Order of magnitude: entity board ~0.9–1.7 ms, node board ~160 µs. `EntityCombat.snapshot()` mints node boards lazily, on first touch (`shadow_for`; `_materialize_all` only where an entity-wide read needs the whole set), so one `snapshot()` + `free_shadow()` is ~2.0–2.5 ms flat from 10 to 200 owned (2026-10-16, RX 7900 XTX), against ~39 ms to clone all 200 node boards eagerly. A cascade still pays the full set: `cascade_set` materializes before islanding. The lever if it bites: `ModifierBins.compute` is already N-source, so a slice can compose `[live.bins, …, overlay.bins]` and copy nothing. Rerun `test/perf/bench_combat_snapshot.gd` for current numbers.
+
+## StatBoard deep clone keeps live state (`stats_system/stat_board.gd`)
+
+Deep-clone this board INCLUDING its live state — every modifier already
+applied to it, and every dynamically-minted stat.
+
+**Use this, not a bare `duplicate(true)`, whenever the source board is
+already live.** `duplicate(true)` carries only EXPORTED properties, so
+every typed `Stat`/`PoolStat` field survives as its own resource but each
+one's `Stat.bins` (a plain, non-exported `ModifierBins`) comes back
+fresh and EMPTY, and `_extra_stats` — where every dynamically-minted
+stat lives, `node_health` among them — does not survive at all. No error
+either way; the clone just quietly reads as an unmodified board.
+
+Nothing needed this before #498, which is why the gap went unnoticed: every
+other `duplicate(true)` in the codebase clones a VIRGIN template and builds
+its bins up live afterwards (`apply_intrinsics`, `AllocationSystem`'s
+`add_modifier` calls). A combat shadow (`EntityCombat.snapshot`) is
+the first caller that must clone an already-modified board and keep what is
+on it — there, a bare `duplicate()` silently drops every applied modifier,
+which is the scoring inaccuracy #498 exists to fix, reintroduced one layer
+down.
+
+`ModifierBins.multipliers` is copied one level deep: the Array is the
+clone's own, so membership changes are isolated, but the [StatModifier]s
+inside are SHARED with the source (as is `winning_set`). That is deliberate
+and safe — a modifier is stateless and may live on N boards at once (#377),
+and a shadow adds or revokes modifiers, it never edits one in place.
+`Stat._modifiers` and `Stat._last_contrib` travel the same way,
+and for a stronger reason than symmetry (#506):
+
+**The bin tally is only meaningful next to the modifier list it was folded
+from.** `Stat.add_modifier` ends in
+`Stat._resync_bins_if_trivial`, which WIPES every bin and rebuilds
+from scratch whenever `_modifiers.size() <= 1`. On a clone that carried bins
+but no `_modifiers`, the first modifier added afterwards therefore threw the
+whole copied tally away — a board reading 40 STR came back 20 after a +10,
+silently. `_last_contrib` is the same story on the remove side (an absent
+entry falls back to re-deriving the contribution and then hits the same
+wipe). Carrying both is what makes a clone a board you may go on to MUTATE,
+rather than one you may only read.
+
+**Formula binding IS rebuilt here, but only after every formula-bearing
+modifier has been replaced by a private copy (#506).** Binding the SHARED
+instances — the obvious one-liner — is wrong twice over: (a) a clone's
+`value_changed` would drive `StatModifier._on_source_changed`, which
+`emit_changed()`s on an instance the LIVE board is also subscribed to, so
+simulating a CON buff on a shadow would fire recomputes and `value_changed`
+storms on the real board, exactly what a shadow exists not to do; and (b) a
+`Callable` connected to a live modifier's `changed` holds a strong reference
+to the clone's `Stat`, leaking every shadow for as long as that modifier
+lives. With copies, the whole `source stat -> modifier -> target stat` chain
+is owned by the clone, so it reacts fully and the source board hears nothing.
+
+Static modifiers stay shared and unsubscribed — they have no source to watch.
+A clone therefore does not track later `value` edits to the live statics it
+borrowed; see `Stat.localize_formula_modifiers` for why that asymmetry
+is the intended trade rather than an oversight.

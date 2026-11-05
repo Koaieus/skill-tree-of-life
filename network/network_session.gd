@@ -191,37 +191,10 @@ func open_link() -> void:
 			transport.start_client(net.address, net.port)
 
 
-## #463/#715: how a joining client gets a world at all. It does not generate one
-## — it asks the authority for the serialized one, through the [constant
-## WorldSyncChannel.KIND_RESYNC] envelope #561 already ships: entities, graph, then
-## the entity->node pass, in one message.
-##
-## [b]#715 made this the ONLY way a client gets a map, and that closed a
-## window.[/b] Until then the client generated from the host's seed and pulled on
-## top, because generating from a seed is not the same as playing the host's map
-## (`procgen/` leans on transcendentals whose last bit is not portable across two
-## platforms' libm, #547). So there was a period where the link was up and a
-## WRONG world was present. There is no longer: the client builds nothing, and
-## `#689`/`#706`'s `pow()` in the seeded draw leaves the LAN critical path with
-## it, because nothing on this machine re-derives the map.
-##
-## [b]A pull, not a push, and that is the whole ordering answer.[/b] A push
-## races the level's own construction — over a loopback it lands INSIDE
-## `_on_run_setup`, before the level has spawned anything at all. Asking once
-## the level is built has no such window, and needs no upward "I am ready"
-## message: [method WorldSyncChannel.request_resync] IS that message.
-##
-## [b]The reply's internal order is load-bearing, and it serves BOTH shapes.[/b]
-## [method WorldSyncChannel._on_resync] decodes entities, decodes the graph, THEN
-## resolves the entity->node refs. On the join path the graph is EMPTY, which is
-## the #533 harness's old odd case and is now the primary one. On a mid-run
-## repair (#521/#560/#561) it is POPULATED, and the order is what stops
-## [method EntitySnapshot.resolve_graph_refs] resolving every `core_location`
-## against nodes [method GraphSnapshot.decode] is about to delete. One order,
-## both shapes — which is the reason this is a resync pull and not the two
-## pushed snapshots `scenes/dev/mp_procgen_sandbox.gd` sends in the opposite
-## order. Anyone "fixing" this to match the harness's order will reintroduce the
-## bug; `test_graph_snapshot.gd` pins both shapes.
+## A joining client generates nothing: it pulls the authority's serialized world
+## through the `KIND_RESYNC` envelope (entities, graph, then entity->node refs, in
+## that order, load-bearing for both join and mid-run repair).
+## See docs/domain/multiplayer-sync-model.md
 func pull_host_world() -> void:
 	if world_sync == null or not is_client():
 		return
@@ -248,62 +221,12 @@ func join_world() -> bool:
 	return _join_world_arrived
 
 
-## The whole join-or-host step, called by the root once its world is built —
-## after `_setup_level` and the HUD compose, before the run is armed. `true`
-## when there is a world to play on: at once for offline and host, and for a
-## client once the authority's world has landed; `false` when a client's link
-## ended first (refused, or the host went away), in which case the root
-## presents that and stops.
-##
-## EVERY role opens here (#715), and the reason the host and offline always
-## did is finally the reason on the joining side too: opening after
-## `_setup_level` means a command arriving the instant the link comes up finds
-## a world to apply to. Split from [method adopt_role] because the role has to
-## be known far earlier than the socket may open.
-##
-## [b]#667's drop latch stays, and its window is what changed.[/b] It used to
-## span the client's whole procgen — seconds, with a socket up and no world.
-## It now spans the ONE round trip between adopting the link and the resync
-## landing: this peer's world is empty until the pull answers, and a
-## `KIND_COMMAND` that arrives meanwhile would apply against nothing.
-## Narrower, not gone — the latch is still what makes the window safe rather
-## than merely short, because `apply_remote` enqueues and drains AT ONCE
-## against whatever world is there. If the command's ids do not resolve,
-## `CommandApplier._validate` warns and DROPS it. If they DO resolve, nothing
-## warns at all and it lands on whatever node happens to carry that
-## `stable_id`. Silence here is not evidence that nothing went wrong.
-##
-## Either way it is survivable for exactly one reason: [method pull_host_world]
-## asks the authority for its whole world, and the reply carries the
-## authority's whole state, superseding both shapes above — what this peer
-## missed and what it misapplied alike. Ordering makes it airtight rather than
-## probable — `Wire._receive` is an `@rpc(..., "reliable")`, so it is ordered
-## as well as delivered: the host encodes the resync when the request arrives,
-## and anything it applies after that is sent after the envelope and lands on
-## top of it. Nothing this window swallowed can outlive the pull.
-##
-## So the gate is not a buffer, it is the repair — and the pull must stay
-## immediately after the link is up. Moving it later (behind a fade, an await,
-## a turn start) reopens the hole this comment is about.
-##
-## And then WAIT for the answer, on the joining side only (#715). Before this,
-## a client had a world of its own — the wrong one, but a populated one — so
-## everything after could run against it and the pull repaired it a moment
-## later. It no longer has one: its graph is empty until the resync lands, and
-## arming [VictorySystem], starting a turn or lifting the curtain over nothing
-## is not "a bit early", it is a level with no map. This wait IS what the
-## client's loading bar has been covering since `_setup_level` — the host's
-## generate and ship, rather than this machine's own procgen.
-##
-## Unbounded for the world, and bounded by the LINK (2026-09-06). It used to be
-## a bare `await resync_applied`, with [SceneDirector]'s 30s reveal timeout as
-## the only way out — and a link that died meanwhile (the host refusing this
-## peer, the host quitting) presented its overlay UNDER the curtain: the
-## run-end overlay is a layer-100 canvas and [SceneTransition] sits at 101, so
-## the joiner looked at a black screen with a bar at 0% for the rest of the
-## timeout. Now the wait ends the moment the link does, and the curtain lifts
-## on the overlay that says why. While it waits, it re-asks for the world
-## every [member join_pull_retry_sec] rather than trusting one ask.
+## The whole join-or-host step, called once the root's world is built. Returns
+## `true` when there is a world to play on (at once for offline/host, after the
+## authority's world lands for a client), `false` if a client's link ended first.
+## The drop latch spans the one round trip until the resync lands; the pull must
+## stay immediately after the link is up.
+## See docs/domain/multiplayer-sync-model.md
 func join_or_host() -> bool:
 	var joining := is_client() and network_link != null
 	if joining:
