@@ -271,7 +271,7 @@ layers inside and a scanline-tear / channel-jitter glitch.
   needs no code change. Tuning lives on the material (`deform_speed`,
   `glitch_intensity`, `damage_spread`, tints, scrolls) — open it in the inspector.
 - **Territory colour** is a void indigo, `Color(0.30, 0.27, 0.42)`, on
-  `blocker_entity.tscn` (what the territory tint reads) and `factions/blocker.tres`.
+  `blocker_entity.tscn` (what the territory tint reads) and `entity/factions/blocker.tres`.
 
 ## BlockerVisual internals
 
