@@ -31,6 +31,20 @@ var _enemy: SkillNode
 var _far: SkillNode
 
 
+## A pad plugged into the host feeds `ui_*` even headless, and GraphCamera
+## polls those every frame as manual input — cancelling reveals and panning.
+## Strip the pad bindings for this script; InputMap is process-global.
+func before_all() -> void:
+	for action: StringName in [&"ui_left", &"ui_right", &"ui_up", &"ui_down"]:
+		for event in InputMap.action_get_events(action):
+			if event is InputEventJoypadMotion or event is InputEventJoypadButton:
+				InputMap.action_erase_event(action, event)
+
+
+func after_all() -> void:
+	InputMap.load_from_project_settings()
+
+
 func _spawn(nm: String, pos: Vector2) -> SkillNode:
 	var sn := _SKILL_NODE_SCENE.instantiate() as SkillNode
 	sn.name = nm
@@ -368,8 +382,7 @@ func test_the_hud_menu_shows_once_the_camera_reveal_settles() -> void:
 	_ctl.route_left_click(_joint)
 	_ctl.route_left_click(_joint)
 	assert_true(hud_menu.is_open())
-	await get_tree().process_frame
-	await get_tree().process_frame
+	assert_true(await wait_for_signal(camera.reveal_settled, 0.5), "the reveal settles")
 	assert_true(hud_menu.fan().visible, "the fan shows on reveal_settled")
 	assert_true(_ctl.pop_armed_level())
 	assert_false(hud_menu.fan().visible, "and hides on the pop")

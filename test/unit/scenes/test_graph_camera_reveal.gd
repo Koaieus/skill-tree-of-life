@@ -9,6 +9,20 @@ const WAIT_S := 0.5
 var _cam: GraphCamera
 
 
+## A pad plugged into the host feeds `ui_*` even headless, and GraphCamera
+## polls those every frame as manual input — cancelling reveals and panning.
+## Strip the pad bindings for this script; InputMap is process-global.
+func before_all() -> void:
+	for action: StringName in [&"ui_left", &"ui_right", &"ui_up", &"ui_down"]:
+		for event in InputMap.action_get_events(action):
+			if event is InputEventJoypadMotion or event is InputEventJoypadButton:
+				InputMap.action_erase_event(action, event)
+
+
+func after_all() -> void:
+	InputMap.load_from_project_settings()
+
+
 func before_each() -> void:
 	_cam = GraphCamera.new()
 	add_child_autofree(_cam)
