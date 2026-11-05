@@ -521,6 +521,16 @@ to sRGB, the engine auto-decodes it back to linear on upload because of the
 `MultiMesh.set_instance_color`/`set_instance_custom_data` carry no such
 hint — Godot uploads them as raw numbers and `graph/edge_mesh.gdshader`
 reads them straight into `COLOR`/`INSTANCE_CUSTOM`, no auto-decode. Calling
+`Emissive.at()` here re-encoded a value nothing downstream ever decoded
+back — sRGB's gamma curve is sub-linear even past 1.0, so each stop's
+intended linear overshoot got compressed before it ever reached the glow
+pass, and `glow_hdr_threshold`'s 1.0 cutoff barely triggered regardless of
+`lit_glow_stops` (confirmed empirically: stops up to 6.0 produced no
+visible bloom at the project's default `glow_intensity`). Multiplying the
+raw sRGB-numeric base directly by `pow(2, stops)` — same convention
+`rim_ring.gdshader` uses on its already-linear-decoded `ring_tint`, just
+without a decode step this path never had to begin with — hands the glow
+pass the actual intended overshoot.
 
 The boost is applied relative to the colour's OWN gray floor
 (`minf(r,g,b)`), not to the raw channels — scaling all three channels by

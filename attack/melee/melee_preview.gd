@@ -290,7 +290,7 @@ func focus_marker() -> Node2D:
 ## finished a full second before the last damage number. Null (a sandbox, a
 ## test) keeps the authored 1.0 pace.
 func launch(plan: MeleeAttackPlan, schedule: OutcomeSchedule = null) -> void:
-	# : [method begin_windup] already claimed the ghost the
+	# Normally [method begin_windup] has already claimed the ghost the
 	# player has been watching and formed it back up, so the live swing takes
 	# it over as-is. A caller that skipped the wind-up entirely (a sandbox, a
 	# fixture calling `launch` straight) still gets one spawned here.

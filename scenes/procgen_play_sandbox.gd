@@ -94,7 +94,7 @@ func _setup_level() -> void:
 	if GameSession.world_source == GameSession.WorldSource.ARRIVES:
 		await _setup_level_awaiting_world()
 		return
-	#: the run's Scenario names the preset; `preset` (the scene export
+	# The run's Scenario names the preset; `preset` (the scene export
 	# above) is the fallback for a run that opened with none.
 	#
 	# Through `resolved_preset()` rather than `scenario.preset` directly,
@@ -290,13 +290,13 @@ func _seat_the_roster(
 		var participant: Participant = grouped_participants[i]
 		var ent: Entity
 		var where: SkillNode = starting_nodes[i] if i < starting_nodes.size() else null
-		#: the ROSTER decides the colour, for every entity alike. The
+		# The ROSTER decides the colour, for every entity alike. The
 		# `player_color` / `enemy_colors` exports are reached only through
 		# `resolve_spawn_color`'s fallback arm, and only for a participant that
 		# carries no colour at all.
 		var color := resolve_spawn_color(
 				participant, player_color, enemy_colors, enemies.size())
-		#: and the roster decides the CLASS the same way. The
+		# And the roster decides the CLASS the same way. The
 		# `core_class` / `enemy_core_class` exports are the fallback for a
 		# participant that carries none, not the answer.
 		var core := resolve_spawn_core(participant, core_class, enemy_core_class)

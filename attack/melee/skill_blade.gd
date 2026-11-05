@@ -353,7 +353,7 @@ func _apply_playback_frame(
 			var due := _pending_pops[0]
 			_pending_pops = _pending_pops.slice(1)
 			if not ghostly:
-				# : the ghost/preview drives death_progress
+				# The ghost/preview drives death_progress
 				# like any swing but spawns no shards.
 				_spawn_shard_for(int(roundf(due.y)), due.x, traj)
 	while not pending.is_empty() and pending[0].t <= t:

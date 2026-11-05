@@ -36,7 +36,7 @@ const FIRST_LEVEL_SANDBOX := preload("res://scenes/level.tscn")
 func _ready() -> void:
 	_bind_panels()
 	_frontmatter.focus_started.connect(_on_focus_started)
-	#: a CLIENT learns its own id the instant the socket
+	# A CLIENT learns its own id the instant the socket
 	# connects — which is now in the LOBBY, long before a level exists. This is
 	# the same routing decision the rest of this file makes ("which peer is this
 	# machine"), so it stays here. [LobbyScreen] asks its own transport the same

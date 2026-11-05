@@ -227,13 +227,13 @@ static func generate(
 		blocker_seeds[idx] = blocker_rng.randi()
 	# Bonus-node footprints, drawn LAST off the same stream so every
 	# draw above — the cores, the sizes, the prune seeds — is byte-for-byte
-	# what a pre- seed produced. Appending is the whole reason this is a
+	# what an earlier seed produced. Appending is the whole reason this is a
 	# separate pass rather than a branch inside the placement loop.
 	var blocker_footprints := _place_blocker_footprints(
 			blocker_sizes, placement_ctx, config, blocker_rng)
 	# Pre-stake rolls, drawn after the footprints off the same stream
-	# and for the same reason: appended last, so every draw above is what a
-	# pre- seed produced. Always two draws per blocker, chance or not, so
+	# and for the same reason: appended last, so every draw above is what an
+	# earlier seed produced. Always two draws per blocker, chance or not, so
 	# a later pass appended here is stable across a chance retune too.
 	var blocker_stakes := _roll_blocker_stakes(blocker_sizes, config.blockers, blocker_rng)
 	var face_rng := RandomNumberGenerator.new()
@@ -531,7 +531,7 @@ static func _triangulate_and_prune(positions: Array[Vector2], connectivity: floa
 
 ## Cluster assignment. Returns an int per position, indexing into
 ## [GraphProcgenContent.archetypes]. Algorithm (BFS-grow; see the clustering
-## section of docs/domain/procgen-v2.md):
+## section of docs/domain/procgen.md):
 ##  1. Compute target node count per archetype from target_ratio shares.
 ##  2. Per archetype, sample cluster sizes from cluster_size_weights until
 ##     Σ sizes ≥ target_count. Build a flat plan list.
@@ -923,7 +923,7 @@ static func _place_blocker_indices(
 		if denom <= 0:
 			continue
 		# Clamp positive-but-too-small denominators up to the safety floor
-		#: denom 1..4 would otherwise place a blocker on nearly every
+		# Denom 1..4 would otherwise place a blocker on nearly every
 		# node, so a joker authoring `1` still gets `5`.
 		denom = maxi(denom, GraphProcgenBlockers.MIN_BLOCKER_PER)
 		# node_count, not positions_count/eligible.size() — see docstring.

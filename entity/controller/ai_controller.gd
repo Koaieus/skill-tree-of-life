@@ -36,7 +36,7 @@ const _NO_RUN_RNG_BASE_SEED := 823
 ## lockstep with melee's own constant rather than drifting to a tuned number
 ## nobody asked for (D2: "the worst has passed", not a millisecond target).
 ## Below this count, gating is a no-op — every candidate is both cheaply AND
-## gate-accurately scored, identically to the pre- exhaustive behaviour.
+## gate-accurately scored, identically to the earlier exhaustive behaviour.
 const _CANDIDATE_GATE_K := 3
 ## Arrows a kill-sized volley carries BEYOND arrows-to-kill — the
 ## owner's "+ margin": a shadow-world resolve is exact for the seed it rolled,
@@ -618,7 +618,7 @@ func _gather_magic_candidates(visible_enemies: Array[SkillNode]) -> Array[AiComb
 		var union := SpellTargetUnion.build(spell, entity, graph, asker)
 		# `sources` and not `per_source`: the latter is keyed in gather_multi's
 		# own order, while `sources` is a filtered subsequence of
-		# get_mirrored_nodes — the order the pre- loop walked. It is also
+		# get_mirrored_nodes — the order the earlier loop walked. It is also
 		# already min_degree-filtered, so the ineligible sources that used to be
 		# probed and then thrown away by is_valid() never enter the loop at all.
 		for source in union.sources:
@@ -751,7 +751,7 @@ func _execute_candidate(candidate: AiCombatScorer.ScoredCandidate) -> bool:
 			# no human sticky toggle, and this is what makes the swing the
 			# scored one.
 			plan.swing_cw = candidate.swing_cw
-			#: arm the SAME handle the rollout scored —
+			# Arm the SAME handle the rollout scored —
 			# a phantom clamp only ever existed to be scored
 			# (`MeleeAttackPlan.ai_phantom_clamp_nodes`), so launching without
 			# turning it into a real temp-upgrade addon would execute a floppier

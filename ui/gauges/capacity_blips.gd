@@ -147,7 +147,7 @@ class Run extends RefCounted:
 	var highlighted: bool
 	## The raw `bound_nodes` entries this run covers, in order. Deliberately
 	## untyped and unvalidated — a typed read of a freed Object crashes at the
-	## assignment (`docs/domain/gdscript-pitfalls.md`), so validity is checked
+	## assignment (`.claude/rules/gdscript-pitfalls.md`), so validity is checked
 	## at emit time, not here.
 	var nodes: Array = []
 

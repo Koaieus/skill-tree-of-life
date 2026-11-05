@@ -101,7 +101,7 @@ func is_authority() -> bool:
 ## lobby settings are a wish, not a run: `GameSession.apply_received` replaces
 ## its [RunConfig] and its whole [ParticipantRoster] with the host's, so
 ## everything this machine builds must wait for that message. Offline play and
-## the host both answer false and take the untouched pre- path.
+## the host both answer false and take the untouched earlier path.
 ##
 ## [b]Read from [member GameSession.network], never from the link's mode[/b] —
 ## the two are different sources on purpose. `scenes/dev/mp_procgen_sandbox.gd`

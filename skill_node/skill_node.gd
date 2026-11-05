@@ -310,7 +310,7 @@ var _local_modifiers: Array[StatModifier] = []:
 
 ## An addon's `local_modifiers` / `entity_modifiers` need no clone ledger: every
 ## addon `.tscn` carrying a `StatModifier` sub-resource sets
-## `resource_local_to_scene = true` (docs/domain/resource-local-to-scene.md), so
+## `resource_local_to_scene = true` (docs/domain/godot-workflow.md), so
 ## each instantiation owns a private copy and `_attach_addon` / `_detach_addon`
 ## route `a.get_local_modifiers()` / `a.get_entity_modifiers()` straight through.
 ##

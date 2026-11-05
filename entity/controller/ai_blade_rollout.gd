@@ -460,7 +460,7 @@ static func _coarse_rank_and_select(proposals: Array, entity: Entity, enemy_posi
 		# so setting it afterwards would rank a trajectory the finalist
 		# resolve then never reproduces.
 		probe.swing_cw = proposal[2]
-		#: the coarse tier must see the same phantom clamps
+		# The coarse tier must see the same phantom clamps
 		# the finalist resolve will — a rigidified handle swings measurably
 		# differently (faster tip, different closest approach), so ranking an
 		# unclamped geometry here would rank the wrong candidate.
@@ -566,7 +566,7 @@ static func _resolve_and_score(
 	plan.source = pivot
 	plan.blade_nodes = blade_nodes
 	plan.swing_cw = swing_cw
-	#: reach the FINALIST resolve too, not just the coarse
+	# Reach the FINALIST resolve too, not just the coarse
 	# tier's own build_blade_state call — `resolve()` builds its own state
 	# internally, so this has to be a field `build_blade_state` reads, never a
 	# parameter that would stop at the coarse tier.

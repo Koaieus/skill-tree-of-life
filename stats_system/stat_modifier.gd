@@ -399,7 +399,7 @@ func format_effective(board: StatBoard = null) -> String:
 ## names the target stat, so the full sentence would print it twice. A BOOL
 ## stat has no magnitude and yields "" (its trait line IS the name).
 ##
-## Contrast [method contribution_text], the pre- fragment that rounds
+## Contrast [method contribution_text], the earlier fragment that rounds
 ## unconditionally and knows nothing of the def.
 func effective_value_text(board: StatBoard = null) -> String:
 	var parts := _display_parts()
