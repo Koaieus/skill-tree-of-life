@@ -311,3 +311,65 @@ shipped). Determinism is guarded by the self-comparing `test_procgen_determinism
 the repo at 6 `value_overrides` (D11). Adding a seventh turns it red on
 purpose — that is the escape hatch's budget working, not fragility. Raise the
 budget deliberately or use the ladder instead.
+
+## Blocker footprint growth (`procgen/graph_procgen.gd`)
+
+Grow each placed blocker's bonus-node FOOTPRINT (#777) — the pass that turns
+a Dormant Core from "the node it sits on" into territory whose extent reads
+its size.
+
+Per blocker, in the same insertion (tier) order `_place_blocker_indices` produced: roll `randi_range` over the tier's authored
+`GraphProcgenBlockers.footprint_range`, then grow that many nodes by
+repeatedly picking a random ELIGIBLE node adjacent to what the blocker
+already holds.
+
+**Randomized frontier growth, not "BFS then sample".** Sampling `n` nodes
+out of the hop-ball could hand a blocker a hop-2 node without the hop-1 that
+connects it — and then `blocker_footprint_falloff.tres` measures hops over
+the OWNED subgraph, where that node is unreachable and takes no falloff at
+all. Growing through the frontier makes the footprint connected by
+construction, which is also what bounds the max hop at the rolled count and
+so keeps `node_health` off zero without a stat floor (#777 decision 5).
+
+Eligibility is the placement pass's own filter plus the claim set: never a
+starter core, never an authored-scene node, never inside a starter's `GraphProcgenBlockers.blocker_min_hops_from_core` ball (the safe radius covers
+the whole footprint, not just the core — #777 decision 6), and never a node
+another blocker already holds as a core or a footprint node. Short of
+candidates, a blocker shrinks its footprint rather than stealing a claim or
+reaching inside a camp.
+
+Returns index → `PackedInt32Array` of bonus-node indices (core excluded);
+a blocker that rolled 0, or found nothing to grow into, is simply absent.
+
+## Blocker index placement (`procgen/graph_procgen.gd`)
+
+Pre-loop pass picking which node INDICES get a removable blocker (#477),
+so `generate` can instantiate `_BLOCKER_NODE_SCENE` for them
+before the edges/self-loops wire nodes by reference (#478 — a node can't be
+swapped after that). Picks each size tier's count — `floor(config.topology.node_count
+/ denom)`, where denom 0 disables the tier and any positive denominator
+below `GraphProcgenBlockers.MIN_BLOCKER_PER` is clamped up to it —
+by sampling uniformly WITHOUT replacement from the regular node indices.
+Excluded from the pool: every starter core (the first `ctx`.starter_indices.size() indices), every authored-scene index
+(`ctx`.scenes[i] != null, the pre-roll pass's `ScenePlacement` slot), and —
+per `GraphProcgenBlockers.blocker_min_hops_from_core` — every node
+inside the hop-ball around ANY starter core, so no camp opens the run
+boxed in by boulders.
+
+Exclusion shrinks the POOL, never the requested count: a tier whose count
+exceeds what's left simply places fewer blockers (the existing
+`mini(count, eligible.size())` clamp). It never falls back to a node inside
+the safe radius — a too-dense level yielding zero blockers is a legible
+failure, a blocker two hops off a core is not.
+
+**The denominator basis is `node_count` — `GraphProcgenTopology.node_count`, the AUTHORED count — never `positions`.size().** Poisson-disk sampling routinely yields fewer points
+than requested, and `test_blocker_placement.gd`'s density tests assert
+exact counts against the authored value; silently switching the basis to
+the sampled count would drift those counts for no reason a level author
+could see in the inspector.
+
+Returns a `Dictionary` mapping index → `EntityFactory.BlockerSize` int, in
+insertion (tier) order. Rides its own derived `rng` (see
+`_BLOCKER_RNG_SALT`), not the shared stream the rest of `generate`
+uses — so placements are still seed-deterministic without perturbing every
+other roll.

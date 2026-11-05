@@ -50,40 +50,11 @@ const _SUBTYPE_RNG_SALT := 0x5B17
 ## Salt for the addon placement pass's own stream (see [method _place_addons]).
 const _ADDON_RNG_SALT := 0xADD0
 
-## Poisson-disk auto-scale sizing (#164, retuned in #566). The disc area a
-## ShapeMask needs to hold `node_count` points at spacing `d = min_dist`.
-##
-## This is ONE MEASURED NUMBER, not a derivation. It is the area per point
-## Bridson actually achieves inside a mask — measured as `π·(R/d)² / uncapped
-## fill`, 6 seeds per cell, and identical to three digits across d = 100 / 150
-## / 250 (the whole pipeline is expressed in units of `min_dist`, so
-## `node_radius` and `node_padding` only zoom the board — retuning either
-## needs no change here):
-##
-##     R/d     8.0    12.0    16.0    21.4    30.0
-##     n      ~130    ~292    ~519    ~928   ~1824
-##     area/pt 1.489  1.511   1.536   1.550   1.562
-##
-## It drifts ~5% with n (a mask-clipped rim point spends less exclusion area
-## than an interior one, so more perimeter per unit area → a lower ratio).
-## 1.60 sits just above that whole curve, which is the side to err on:
-## ABOVE means the disc outlasts the `max_points` cap and
-## `PoissonDiskSampler.sample` exits mid-flood, stranding the unplaced points
-## in one contiguous arc — the #566 ragged rim; BELOW means the level author
-## asks for `node_count` and silently gets fewer. At 1.60 the flood exhausts
-## exactly as it hits the cap: `placed == node_count` at every n from 150 to
-## 3000 over 20 seeds, ring density within ±2% of uniform.
-##
-## The predecessor split this into a `_POISSON_PACKING_EFFICIENCY` of 0.69
-## (× hex-cell area) plus a 1.434 `_POISSON_SAFETY_MARGIN`, "kept separate so
-## each is individually inspectable". They never were: the efficiency was
-## optimistic (real is ~0.55) and the margin existed only to paper over it,
-## so their product overshot by 16% and produced the very rim raggedness the
-## margin was named for. One measured constant states the truth.
-##
-## #163 (territory stamping) PREDICTS a stamp's node count from this ratio
-## rather than resampling locally, so don't retune without re-checking
-## test_procgen_sizing.gd.
+## Poisson-disk auto-scale sizing: the disc area a ShapeMask needs to hold
+## `node_count` points at spacing `min_dist`. ONE MEASURED constant (area per
+## point Bridson achieves), set just above the measured curve so the flood exhausts
+## at the `max_points` cap. Re-check `test_procgen_sizing.gd` before retuning.
+## See docs/domain/procgen.md
 const _POISSON_AREA_PER_POINT := 1.60
 
 ## Relative slack in [method node_count_for_area] so it stays an exact inverse
@@ -905,39 +876,11 @@ static func _build_placement_context(
 # ── Removable-blocker placement (#477) ───────────────────────────────────
 
 
-## Pre-loop pass picking which node INDICES get a removable blocker (#477),
-## so `generate` can instantiate [constant _BLOCKER_NODE_SCENE] for them
-## before the edges/self-loops wire nodes by reference (#478 — a node can't be
-## swapped after that). Picks each size tier's count — `floor(config.topology.node_count
-## / denom)`, where denom 0 disables the tier and any positive denominator
-## below [constant GraphProcgenBlockers.MIN_BLOCKER_PER] is clamped up to it —
-## by sampling uniformly WITHOUT replacement from the regular node indices.
-## Excluded from the pool: every starter core (the first [param
-## ctx].starter_indices.size() indices), every authored-scene index
-## ([param ctx].scenes[i] != null, the pre-roll pass's [ScenePlacement] slot), and —
-## per [member GraphProcgenBlockers.blocker_min_hops_from_core] — every node
-## inside the hop-ball around ANY starter core, so no camp opens the run
-## boxed in by boulders.
-##
-## Exclusion shrinks the POOL, never the requested count: a tier whose count
-## exceeds what's left simply places fewer blockers (the existing
-## `mini(count, eligible.size())` clamp). It never falls back to a node inside
-## the safe radius — a too-dense level yielding zero blockers is a legible
-## failure, a blocker two hops off a core is not.
-##
-## [b]The denominator basis is [param node_count] — [member
-## GraphProcgenTopology.node_count], the AUTHORED count — never [param
-## positions].size().[/b] Poisson-disk sampling routinely yields fewer points
-## than requested, and `test_blocker_placement.gd`'s density tests assert
-## exact counts against the authored value; silently switching the basis to
-## the sampled count would drift those counts for no reason a level author
-## could see in the inspector.
-##
-## Returns a [Dictionary] mapping index → [EntityFactory.BlockerSize] int, in
-## insertion (tier) order. Rides its own derived [param rng] (see
-## [constant _BLOCKER_RNG_SALT]), not the shared stream the rest of `generate`
-## uses — so placements are still seed-deterministic without perturbing every
-## other roll.
+## Pre-loop pass picking which node INDICES get a removable blocker, per size
+## tier (`floor(node_count / denom)`, sampled without replacement). Excludes
+## starter cores, authored-scene nodes and the safe hop-ball around any starter.
+## The basis is the AUTHORED `node_count`. Uses its own derived rng.
+## See docs/domain/procgen-v4.md
 static func _place_blocker_indices(
 		positions_count: int,
 		ctx: PlacementContext,
@@ -997,35 +940,7 @@ static func _place_blocker_indices(
 
 
 
-## Grow each placed blocker's bonus-node FOOTPRINT (#777) — the pass that turns
-## a Dormant Core from "the node it sits on" into territory whose extent reads
-## its size.
-##
-## Per blocker, in the same insertion (tier) order [method
-## _place_blocker_indices] produced: roll `randi_range` over the tier's authored
-## [method GraphProcgenBlockers.footprint_range], then grow that many nodes by
-## repeatedly picking a random ELIGIBLE node adjacent to what the blocker
-## already holds.
-##
-## [b]Randomized frontier growth, not "BFS then sample".[/b] Sampling `n` nodes
-## out of the hop-ball could hand a blocker a hop-2 node without the hop-1 that
-## connects it — and then `blocker_footprint_falloff.tres` measures hops over
-## the OWNED subgraph, where that node is unreachable and takes no falloff at
-## all. Growing through the frontier makes the footprint connected by
-## construction, which is also what bounds the max hop at the rolled count and
-## so keeps `node_health` off zero without a stat floor (#777 decision 5).
-##
-## Eligibility is the placement pass's own filter plus the claim set: never a
-## starter core, never an authored-scene node, never inside a starter's [member
-## GraphProcgenBlockers.blocker_min_hops_from_core] ball (the safe radius covers
-## the whole footprint, not just the core — #777 decision 6), and never a node
-## another blocker already holds as a core or a footprint node. Short of
-## candidates, a blocker shrinks its footprint rather than stealing a claim or
-## reaching inside a camp.
-##
-## Returns index → [PackedInt32Array] of bonus-node indices (core excluded);
-## a blocker that rolled 0, or found nothing to grow into, is simply absent.
-## The #916 pre-stake per placed blocker: a chain of two draws against the
+## The pre-stake per placed blocker: a chain of two draws against the
 ## tier's chance — P(stake 2), then P(stake 3 | stake 2) — so with chance `p`
 ## the split is `1−p : p(1−p) : p²`. Draws are ALWAYS consumed (both of them,
 ## whatever the chance) so the stream stays aligned across a retune. 1..3 by
@@ -1049,6 +964,11 @@ static func _roll_blocker_stakes(
 	return out
 
 
+## Grow each placed blocker's bonus-node FOOTPRINT: randomized frontier growth
+## (connected by construction) over eligible nodes, in tier order. Returns index ->
+## PackedInt32Array of bonus-node indices (core excluded); short of candidates a
+## blocker shrinks rather than steals a claim.
+## See docs/domain/procgen-v4.md
 static func _place_blocker_footprints(
 		blocker_sizes: Dictionary,
 		ctx: PlacementContext,
