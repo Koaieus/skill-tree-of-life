@@ -26,7 +26,7 @@ re-enforcing Aspect:Status as 1:1 with elements the only axis that owns a
 status family: *"option 1 sounds very clean"*. ADR 0072 records it. The code is 1:1 today
 (`aspects/aspect.gd` holds one `status`; thirteen aspects, thirteen defs);
 the widening #1694 asked for was only ever for Fire's second status, and Fire
-is now wholly an element, so #1694 is unneeded and a test guards the 1:1.
+is now wholly an element, so #1694 is unneeded; the 1:1 is to be guarded by a test (none exists yet).
 Poison's "does it move" idea (#1657) must therefore be a behaviour of the one
 Poison status, never a second one. No Explosive aspect survives: Fuel is
 Fire's medium (the ranged-access question this raises is in § Open).
@@ -46,8 +46,10 @@ at. Owner: *"that table looks very good, should be persisted"*.
 - **The count never ticks on anyone.** Only movers deal damage, and a mover is
   an ordinary sided status that clears with its owner like Poison does.
 - **The medium is terrain.** It rests on a node regardless of owner, survives
-  kills, retakes and deallocs, and leaves only by being *spent* (a blast
-  spends Fuel, an arc spends Charge, a thaw spends Frost) or cleansed. The
+  kills, retakes and deallocs, and leaves by being *spent* (a blast spends
+  Fuel, an arc spends Charge, a thaw spends Frost), by its own decay (per-def,
+  ADR 0048; Frozen's "timer") or by a cleanse. A death *spends*: the #1660
+  owner call that a death blasts first is a spend, not a clear. The
   readability test: *if nobody owned this node, would it still make sense for
   this to be here?* Fuel on an empty node, yes; Poison on an empty node, no.
   Build note: today's `on_dealloc` has CLEAR and LINGER and a death clears
@@ -92,9 +94,12 @@ A hit has three kinds of entry, and the first two are its **payload**:
 | **riders** | status id → stacks, one entry per id (#1733 R1) | statuses planted — aspect statuses and element statuses alike |
 | **reach** | one `(element, load)` | *where* the payload is copied; resolved first |
 
-A hit also crits once, as its own fact, before any of its payload lands, and
-every rider and every reach copy carries that crit (#1741, built 2026-11-04).
-The reach entry does not change this: a blast copy crits iff its parent did.
+A hit crits once, as its own fact, and its riders copy it (#1741, built
+2026-11-04). Whether a *reach copy* also copies its parent's crit is open: a
+spell blast's shrapnel draws its own crit today (`PairedDamageEffect`, no
+paired lead), only a melee blast and riding landings copy. #1741's owner line
+also fixes an order inside a hit — *"elemental riders first … then other
+status(es), then damage(s)"* — which § Landing resolution must keep.
 
 An element status (Fuel, Heat, Frost, Frostbite, Charge) rides exactly as
 Poison rides; it differs only in which count caps it. Owner, on the hit's
@@ -138,9 +143,18 @@ Firecracker's fuel row already carries a `use` (`attack/spell/load_use/`).
   so nothing changes for aspects.
 - Firecracker's fuel row is the element slot in disguise; once the slot
   exists it is an ordinary `reach` row and the spell gets simpler.
-- For arrows and blades the same formula applies with no per-cast choice: an
-  element arrow or an element addon vertex carries `innate + floor(count ×
-  affinity)` of its named use. One formula across the three facets.
+- For arrows and blades the count is supply the way an aspect count is:
+  it sets how many element arrows a reload mints (`AmmoType.per_reload_stat_id`)
+  or how much element addon a build affords, and each arrow or vertex carries
+  an *authored* innate load. A count-scaled load on every arrow would be the
+  per-hit load this doc rejects. There is no int:int rate seam on an ammo type
+  or an addon today; whether one is wanted is a spec-time call.
+- **Infusing a second element onto a spell that has one** (Firecracker's
+  authored Fire): the slot is one row, so a Lightning infusion has no row to
+  land in and is refused — the forge shows the slot as taken, the way an
+  affinity of 0 refuses an aspect today (ADR 0060). A spell that should accept
+  a swap authors a row per element it accepts, the player fills one; pass
+  lean is to start without swaps and let content ask for them.
 
 ## The reach rule (pass proposal, 2026-11-04, from the owner's atomics)
 
@@ -150,8 +164,8 @@ share. A medium that gives reach is spent by the reach it gives; the hit's
 own load is not.** Frost gives no reach, so a hit spends none of it: Frost
 is spent only by its counters (a thaw, a shatter, the Frostbite toll of
 #1444). That asymmetry is the point — a frozen chokepoint holds against every
-arc and blast that lands on it, and costs its owner nothing until Fire or a
-blade arrives.
+arc and blast that lands on it — the freezer's own included, Frost is
+side-less — and costs its owner nothing else until Heat or a blade arrives.
 
 The owner's atomics (2026-11-04), each a tiny unit of play the rule must
 produce:
@@ -233,8 +247,11 @@ hops is wasted; a 0-hop spell has nothing to trade. Open: the knob's shape
 
 ## Landing resolution (pass proposal, 2026-11-04)
 
-Three phases per landing, each a pure function of one snapshot, so no rider
-order ever matters (#1733 R4, R5):
+Three phases per landing. Read and settle are pure functions of one
+snapshot (#1733 R4); *inside* land the shipped order stands — riders before
+their hit (ADR 0067) and the owner's #1741 order, element riders, then other
+statuses, then damage — so a Curse arrow still lifts its own hit. What the
+phases forbid is a rider *reacting* mid-land, not an order:
 
 1. **Read.** Reach is computed from the hit's reach entry plus the node's
    mediums *as they were before this hit*. The Frozen check is here.
@@ -399,6 +416,30 @@ here.
   are.
 - **Landing resolution** (read / land / settle, above) and dual reach are
   pass proposals still awaiting the owner; they go to an ADR only once held.
+- **Adversarial review, 2026-11-05** (full list in `docs/handoffs/elements.md`),
+  the items that need an owner call before any element issue is `Ready`:
+  (a) **row keys**: `Infusion.load_of` and `StatusRoster.by_concept` key on
+  one concept id, so a Fuel ride row, a Heat ride row and a Fire reach row
+  cannot all key on `fire` — #1660's B2 (*"intake row names which of its
+  aspect's statuses it plants"*) is the fix and must be carried into the
+  slot design; (b) **facet ids**: `<x>_stacks_per_hit` / `<x>_resistance`
+  key per status (#1660 A1), so a member keys on itself (`fuel_`, `heat_`),
+  while the count needs a new `StatDef.Role` (`fire` is not `fire_aspect`);
+  (c) **ADR 0073 vs 0070**: 0073 wrote the use as a closed set where 0070
+  made it an open set of `LoadUse` classes, and `CleanseUse` fits none of
+  its three words — a short superseding ADR, since an ADR is never edited;
+  (d) **pair-table cells that overran owner verdicts**: blast power *"is
+  the node's fuel"* (#1660 r2) not Fuel plus load; Charge *"consuming 1 at a
+  time"* (#1733 r3) not absorbed; the chain copy's share is #1735's open
+  fork; (e) **Ice raising seed payload** strains "the slot buys reach only";
+  (f) **Charge** collides with explosive's `charge` tag and `vertex_charges`
+  — the #1716 r2 retag to `fuel` is the plan and must be in the first Fire
+  issue; (g) **settle after a tick** (ignition, death, thaw) has no parent
+  hit: what the copies carry, which crit, and whether a peer receives or
+  reproduces them (ADR 0002); (h) a rider map keyed by id merges a BEFORE
+  rider with an AFTER copy of the same id — coalescing is still #1741's open
+  NOTE, not an owner call; (i) the chain cap is per wave in code and R3, the
+  doc says per attack.
 - **Ice pricing knob**: one number per spell vs the measured ladder, above.
 - **Greed under the new vocabulary** (#1659, owner 2026-11-03: the "stacks
   outlive the kill" direction is *"a lame exploit already on paper"* — kill
