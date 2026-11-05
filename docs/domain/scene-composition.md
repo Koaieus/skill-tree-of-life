@@ -22,8 +22,7 @@ wire, and preview something for you, don't reimplement that in `_ready`.
   `instantiate()`s; a one-off node is authored in the owner's `.tscn` and
   reached by `%`. Escape, on the `.new()` line:
   `# lint: control-composed — <reason>`. A real reason is a row list built from
-  data, a bare one-node primitive that a scene would add nothing to, or a
-  documented build-order contract (`LobbyScreen.configure` runs before `_ready`).
+  data, a bare one-node primitive that a scene would add nothing to.
   "It was quicker" is not a reason.
 - `access-style` — a file that uses `$`/`%` must not also call a literal
   `get_node("A/B")` on itself; write `$A/B` or `%B`. `get_node(path_var)` and

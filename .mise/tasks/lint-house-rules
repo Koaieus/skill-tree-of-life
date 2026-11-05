@@ -29,8 +29,7 @@ included, its positive and negative fixtures (and the inline escape) and asserts
   — dev tooling, never a shipped path; (3) `addons/` — vendored (GLOBAL_EXCLUDE).
   A row list built from DATA (a sandbox-host tab, a dev scene) is the inline
   escape on the `.new()` line, with that reason — as is a bare one-node primitive a
-  scene would add nothing to, or a documented build-order contract
-  (`LobbyScreen.configure` before `_ready`); "it was quicker" is not one.
+  scene would add nothing to; "it was quicker" is not one.
 
   EXEMPTION DISCIPLINE (as `lint-transcendentals`): every `exempt_dirs` /
   `exempt_files` entry carries a REASON, and the reason states the condition
