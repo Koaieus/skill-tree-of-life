@@ -5,7 +5,7 @@ extends RefCounted
 ## preview). Exactly ONE chunked loop: [method advance] takes a step budget and
 ## `<= 0` is the whole-remainder bake. The clock, the obstacle field and
 ## [member BladeState.speed_history] are chunk-local and stitched across
-## boundaries. See docs/domain/melee-blade-sim.md "SwingResolve".
+## boundaries. See docs/domain/melee-blade-internals.md "SwingResolve".
 
 ## The bundle, LIVE: `trajectory`, `events` and `hits` are the very arrays the
 ## run appends to, so a PARTIAL run is readable and grows in place. See

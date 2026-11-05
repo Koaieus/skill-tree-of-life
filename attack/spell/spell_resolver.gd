@@ -7,7 +7,7 @@ extends RefCounted
 ## [IncidentReducer] before any [OnHitEffect] fires, and each wave is LANDED on
 ## [param world] (always a shadow; [method resolve] mints one by default)
 ## before the next wave expands. The VFX layer only observes what landed.
-## See docs/domain/spell-propagation.md "SpellResolver".
+## See docs/domain/spell-resolver-internals.md "SpellResolver".
 
 
 ## [b]The wave interval and the bolt lead-in used to live here as constants,

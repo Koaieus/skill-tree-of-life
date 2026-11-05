@@ -6,7 +6,7 @@ extends RefCounted
 ## `blunting` drain of the defender's `spikes` pool) and which vertices are then
 ## severed from the handle. The result is a RECORD, not a solver. [LiveGate] is
 ## the single implementation of these predicates; the AI/preview estimate runs
-## it against a shadow [CombatWorld]. See docs/domain/melee-blade-sim.md
+## it against a shadow [CombatWorld]. See docs/domain/melee-blade-internals.md
 ## "Spike pop".
 
 ## Per-pop record. `t` is the contact time; `defender` is the spiked node that

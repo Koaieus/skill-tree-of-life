@@ -7,7 +7,7 @@ extends PropagationSpread
 ## each carrying a decaying share of the incoming damage; the split itself
 ## happens in [method PropagationConfig.mint]. Authoring condition
 ## `c_1 < 1 < sum(c_r)`. Every knob is an export (tuned live in the playground).
-## See docs/domain/spell-propagation.md "CycloneSpread: the curl".
+## See docs/domain/spell-resolver-internals.md "CycloneSpread: the curl".
 
 
 ## Shortest ring worth remembering. Below this the "cycle" is the reversal edge

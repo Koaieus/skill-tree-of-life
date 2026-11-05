@@ -20,3 +20,4 @@ The layer/dependency rules are in `docs/architecture.md`.
 
 Spawning runtime entities: in `_setup_level()`, call `spawn_entity(name, color, core_location, core_class)`. See `scenes/procgen_play_sandbox.gd`.
 
+Module-internals docs (per-class contracts moved out of code comments): `docs/domain/melee-blade-internals.md` (blade pop / hit scan / swing resolve / exclude set), `docs/domain/spell-resolver-internals.md` (`SpellResolver`, `CycloneSpread`), `docs/domain/turn-manager.md` (`abandon_turn` / `adopt_turn`).

@@ -1579,7 +1579,7 @@ func _set_swing_cw(value: bool) -> void:
 ## selection plus the attacker's own and every ALLIED entity's mirrored nodes,
 ## sorted by `stable_id`. Unallocated nodes are NOT excluded (the live gate runs
 ## at land time). The one answer to "is that node on my side"; the defender
-## query reuses it. See docs/domain/melee-blade-sim.md "collect_target_excludes".
+## query reuses it. See docs/domain/melee-blade-internals.md "collect_target_excludes".
 func collect_target_excludes() -> Array[RID]:
 	var out: Array[RID] = []
 	if attacker == null or attacker.navigator == null:

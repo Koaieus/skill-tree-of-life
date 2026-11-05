@@ -6,7 +6,7 @@ extends RefCounted
 ## each element emitting at most one event per collider (first contact). Output
 ## is stable-sorted by `t` then [member SkillNode.stable_id]. Reproducible only
 ## while no query hits [constant _MAX_HITS_PER_QUERY].
-## See docs/domain/melee-blade-sim.md "BladeHitScan determinism".
+## See docs/domain/melee-blade-internals.md "BladeHitScan determinism".
 
 ## Bound on one shape query (one blade element, one substep) — NOT on the
 ## sweep. A blade particle realistically overlaps 0 nodes in ~99% of substeps

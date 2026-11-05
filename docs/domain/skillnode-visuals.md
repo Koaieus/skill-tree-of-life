@@ -73,7 +73,7 @@ stay in the repo and previewable in the sandbox host's Node Visuals tab, which i
 the shelf. Nothing hidden-but-instanced is left behind on purpose: a level
 carries ~500-2500 of these, so an unused child is tree nodes, `_ready` work and
 potentially an instance-uniform slot on every one
-(`.claude/rules/skill-node-scale.md`). The dial's function was reclaimed as a
+(a level carries thousands of nodes). The dial's function was reclaimed as a
 shader term on `RimRing` itself: `_sync_stake` forwards
 `allocation_level` / `stake_level` into `%RimRing.fill_current` / `.fill_max`.
 
