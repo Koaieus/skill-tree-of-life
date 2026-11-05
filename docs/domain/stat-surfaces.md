@@ -60,6 +60,7 @@ below unless noted otherwise.
 | `health` | `ui/hud/hero_sigil_card/hero_sigil_card.gd`; also the live pool at `skill_node/core_health_bar.gd` |
 | `core_healing` | `ui/hud/hero_sigil_card/hero_sigil_card.gd` |
 | `level` | `ui/hud/hero_sigil_card/hero_sigil_card.gd` |
+| `ring_points` | `ui/hud/hero_sigil_card/hero_sigil_card.gd` (unspent-count badge while `current` > 0); `ui/ring/ring_body.gd` (the inner-ring cell shop's budget) |
 | `xp` | `ui/hud/xp_track/xp_track.gd` |
 | `xp_per_turn` | `ui/hud/xp_track/xp_track.gd` |
 | `sp_gain_on_levelup` | `ui/hud/xp_track/level_up_flourish.gd` (`stamp()`'s "+N SP — LEVEL L" detail line) — indirect: the SP total comes from `Entity.sp_minted_for_level()` (`entity/entity.gd`), which reads this stat plus the every-5th-level milestone bonus |
@@ -108,8 +109,8 @@ above).
 | `max_shots_per_leaf` | `skill_node/shots_pips.gd` (per-leaf shot pips) |
 | `volleys_per_turn` | no row; derived from `max_shots_per_leaf` (innate intrinsic) |
 | `infusion_slots` | `ui/hud/command_tray/bodies/infusion_sockets.gd` (one socket per slot, plus a ghost socket labelled with the next INT threshold) |
-| `*_aspect` (`sunder`, `bleeding`, `blindness`, `corruption`, `curse`, `explosive`, `greed`, `mark`, `poison`, `scout`, `weakness`, `wither`) | caster load in `ui/hud/command_tray/bodies/readout_lines.gd` (the crucible readout's lines) and `infusion_choices.gd` (the aspect wheel entries); also the per-reload stat of a special ammo type |
-| `*_stacks_per_hit` (`bleeding`, `blindness`, `corruption`, `curse`, `greed`, `mark`, `poison`, `weakness`, `wither`) | `readout_lines.gd`, shown by `crucible_readout.gd` (through `StatusDef.stacks_per_hit`) |
+| `*_aspect` (`bleeding`, `blindness`, `corruption`, `curse`, `explosive`, `greed`, `hex`, `mark`, `poison`, `scout`, `sunder`, `weakness`, `wither`) | caster load in `ui/hud/command_tray/bodies/readout_lines.gd` (the crucible readout's lines) and `infusion_choices.gd` (the aspect wheel entries); also the per-reload stat of a special ammo type |
+| `*_stacks_per_hit` (`bleeding`, `blindness`, `corruption`, `curse`, `explosive`, `greed`, `hex`, `mark`, `poison`, `scout`, `sunder`, `weakness`, `wither`) | `readout_lines.gd`, shown by `crucible_readout.gd` (through `StatusDef.stacks_per_hit`) |
 | `*_resistance` (`bleeding`, `blindness`, `corruption`, `curse`, `poison`) | `ui/tooltip_fan/panels/node_stats_panel.gd` (dynamic, when a node or its owner carries one); also `addons/status_sandbox/` |
 | `healing_received` | no row; read at the heal doors (`NodeCombat.heal_damage`, `EntityCombat.heal`) |
 | `bounty` | no row; read by `systems/loot_system.gd` as a node's payout overlay |
@@ -130,6 +131,7 @@ None of these has a HUD row; each reads only as a formula input or a tuning leve
 | `armor_pierce` | A pipeline over the defender's final armor, never a number: its value is inert by contract (ADR 0065). Excluded from `node_stats_panel` (`_EXCLUDED_STAT_IDS`); a future readout renders `get_local_terms(&"armor_pierce").describe("Enemy armor")`, and a modifier formats as "−3 Enemy armor" |
 | `node_healing_ramp` | Extra HP `node_healing` gains per consecutive undamaged turn — same read path; display decided with `node_healing` |
 | `tempo` | Once-per-turn kill-AP refund budget — a latch consumed by the kill-refund mechanic, distinct from the AP/DP/MP trio it refunds into. Spec'd as a lit/hollow pip trailing the AP gauge; unbuilt |
+| `stake_ceiling` | Node-only cap on how far a staking verb may raise `stake_level` — read via `SkillNode.stake_ceiling`; no `ui/` code reads it. Procgen writes past it grant a +1 lift (`skill_node/stake_ceiling_lift_modifier.tres`) |
 | `core_kill_xp` | XP bonus paid to the killer on this entity's core death — read once by `LootSystem`, not a standing stat |
 | `dealloc_damage` | Flat HP damage per forced-dealloc in a battle cascade — a tuning lever read inside the cascade resolver; its chip surfaces in the cascade toast at the core (`Events.entity_cascade_charged`: summed chip, `+N W` wound suffix) |
 
