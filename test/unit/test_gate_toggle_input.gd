@@ -136,6 +136,61 @@ func test_a_different_request_disarms_the_confirm() -> void:
 		assert_eq(_named(_submitted[0]), ["B-E"] as Array[String])
 
 
+# ── The confirm is an armed level: Esc / right-click pop it ────────────────
+
+func _arm_stranding_confirm() -> Array:
+	_alloc.force_allocate(_me, _n("D"))  # D hangs off the core only via A–D
+	var armed: Array = []
+	_ctl.gate_confirm_changed.connect(func(s): armed.append(s))
+	_ctl.request_gate_action(PlayerInputController.GateAction.TOGGLE_UNLOCKED)
+	return armed
+
+
+func test_the_armed_confirm_stands_on_the_armed_stack() -> void:
+	_arm_stranding_confirm()
+	assert_not_null(_ctl.armed_stack.find(GateConfirmMode), "the confirm is a level")
+
+
+## Esc and right-click share `pop_armed_level`.
+func test_the_shared_pop_disarms_the_confirm() -> void:
+	var armed := _arm_stranding_confirm()
+	assert_true(_ctl.pop_armed_level(), "a level was popped")
+	assert_true(_ctl.pending_gate_strand().is_empty(), "nothing stays armed")
+	assert_eq(armed.size(), 2, "armed, then disarmed")
+	if armed.size() == 2:
+		assert_true((armed[1] as Array).is_empty(), "the disarm announces an empty set")
+	assert_null(_ctl.armed_stack.find(GateConfirmMode), "no level left")
+	assert_false(_ctl.pop_armed_level(), "and the root refuses the next pop")
+
+
+func test_confirming_leaves_no_level_behind() -> void:
+	_arm_stranding_confirm()
+	_ctl.request_gate_action(PlayerInputController.GateAction.TOGGLE_UNLOCKED)
+	assert_eq(_submitted.size(), 1, "the second press submits")
+	assert_null(_ctl.armed_stack.find(GateConfirmMode), "and pops the confirm")
+
+
+func test_a_different_request_leaves_no_level_behind() -> void:
+	_arm_stranding_confirm()
+	_ctl.request_gate_action(PlayerInputController.GateAction.OPEN_UNLOCKED)
+	assert_null(_ctl.armed_stack.find(GateConfirmMode))
+
+
+func test_turn_end_leaves_no_level_behind() -> void:
+	var armed := _arm_stranding_confirm()
+	_tm.end_turn()
+	assert_true(_ctl.pending_gate_strand().is_empty())
+	assert_null(_ctl.armed_stack.find(GateConfirmMode))
+	assert_eq(armed.size(), 2, "the disarm announced once")
+
+
+func test_a_rebind_leaves_no_level_behind() -> void:
+	_arm_stranding_confirm()
+	_ctl.player = _other
+	assert_true(_ctl.pending_gate_strand().is_empty())
+	assert_null(_ctl.armed_stack.find(GateConfirmMode))
+
+
 func test_the_highlight_provider_reads_the_stranded_set() -> void:
 	var provider := GateCutHighlightProvider.new()
 	var stranded: Array[SkillNode] = [_n("D")]
