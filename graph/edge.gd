@@ -450,12 +450,11 @@ func _push_self_loop_colors() -> void:
 
 
 ## Registers `self` into `from.self_loops` the moment both endpoints make
-## this edge a self-loop — idempotent, and independent of whoever built the
-## edge (Graph.add_edge already does this for runtime/procgen edges, but a
-## scene-authored self-loop sets `from`/`to` straight through these setters
-## and would otherwise never register). Without this,
+## this edge a self-loop — idempotent. Edge is the ONLY registrar: every path
+## (Graph.add_edge, procgen, a scene-authored loop) reaches here through the
+## `from`/`to` setters and `_enter_tree`. Without this,
 ## `_push_self_loop_transform`'s `self_loops.find(self)` returns -1 for every
-## scene-baked self-loop, so they'd all nest at the same radius instead of
+## self-loop, so they'd all nest at the same radius instead of
 ## spreading. Also the inverse: an edge that stops being a loop leaves the
 ## index, and every call prunes freed/stale entries so the index stays exact.
 func _register_self_loop() -> void:
