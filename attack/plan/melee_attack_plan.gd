@@ -1659,21 +1659,14 @@ func selection_set() -> Dictionary:
 
 func _is_neighbor_of_blade_set(node: SkillNode) -> bool:
 	# Adjacency to pivot OR any current blade member, via the live graph's
-	# edges. The mirror can't answer this for candidates (they're not yet
-	# in it); use the graph directly.
+	# cached adjacency (O(degree)). The mirror can't answer this for
+	# candidates (they're not yet in it); use the graph directly.
 	if attacker == null or attacker.navigator == null:
 		return false
 	var graph := attacker.navigator.graph
 	if graph == null:
 		return false
-	for e in graph.get_edges():
-		var other: SkillNode = null
-		if e.from == node:
-			other = e.to
-		elif e.to == node:
-			other = e.from
-		else:
-			continue
+	for other in graph.get_neighbours(node):
 		if other == source or blade_nodes.has(other):
 			return true
 	return false
