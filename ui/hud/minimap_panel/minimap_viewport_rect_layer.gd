@@ -2,48 +2,11 @@
 class_name MinimapViewportRectLayer
 extends Control
 
-## The white outline showing what the main view currently covers (#453).
-##
-## Split out of [MinimapGraphLayer] because its cadence is the opposite: this
-## moves on every pan and breathes through every zoom tween, while the graph
-## underneath is static for whole turns at a time. One `draw_rect`.
-##
-## Holds a rect in MINIMAP-LOCAL space, not a camera — [MinimapPanel] owns the
-## world mapping and the polling, so this layer has nothing to keep in sync.
-##
-## [b]The box is four filled spans, snapped to DEVICE pixel boundaries.[/b]
-## Getting here took three passes, because each fix exposed the next cause:
-##
-##  1. A stroked `draw_rect` centres its hairline on the path, so an edge on a
-##     pixel boundary covers half of each neighbouring column and reads as
-##     nothing.
-##  2. Snapping to whole LOCAL pixels does not fix that, because `project.godot`
-##     sets `stretch/mode = "canvas_items"` against a 1440x960 base: at any
-##     other window size the whole HUD is scaled by a non-integer factor, so one
-##     local pixel is not one device pixel.
-##  3. Nor does making each span one device pixel WIDE. Godot's 2D canvas does
-##     not antialias filled geometry — a pixel is covered iff its CENTRE falls
-##     inside the span. A span exactly one device pixel wide, landing halfway
-##     between two centres, contains neither and draws nothing at all.
-##  4. And snapping against [method CanvasItem.get_global_transform_with_canvas]
-##     is snapping to the wrong grid: that transform stops at the canvas and
-##     does NOT include the viewport's stretch. A 1440x960 canvas in a 1440x932
-##     window reports scale (1, 1) there while the screen is really being
-##     scaled by ~0.971 — so a span snapped to whole canvas pixels arrives at
-##     the screen 0.971 px wide, at an arbitrary offset, and drops out again.
-##     [method CanvasItem.get_screen_transform] is the one that goes all the
-##     way to the screen, and is what this layer snaps against.
-##
-## (3) is what produced the reported symptom exactly: "fault lines" at a fixed
-## set of screen positions, per axis, hitting all four edges — a vertical edge
-## vanishing only at certain x, unaffected by vertical panning, and at the same
-## x for the left and right side alike. That is a property of the coordinate,
-## not of the edge.
-##
-## So the box is transformed into device space, snapped to integers there, and
-## the spans are transformed back ([method _draw]). Each span then covers
-## exactly one full pixel column or row and contains its centre by construction
-## — at any window size, at every camera position.
+## The white outline showing what the main view covers, as four filled spans in
+## MINIMAP-LOCAL space, snapped to DEVICE pixel boundaries via
+## [method CanvasItem.get_screen_transform] ([method _draw]) so each span covers a
+## whole pixel column or row at any window size. [MinimapPanel] owns the world
+## mapping. See docs/domain/hud-widgets.md
 
 @export var outline_color: Color = Color(1.0, 1.0, 1.0, 0.85)
 @export var outline_width: float = 1.0

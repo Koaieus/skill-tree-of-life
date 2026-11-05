@@ -2,12 +2,12 @@ class_name LobbyScreen
 extends VBoxContainer
 
 ## Lobby: one row per participant, a host-side "AI opponents" count, a seed
-## field and a Start button. The seed field is live (#457): START hands this
+## field and a Start button. The seed field is live: START hands this
 ## screen's [RunConfig] to `GameSession`, which resolves the seed once and feeds
 ## it to procgen — so typing back the seed the pause-menu footer shows replays
 ## the same map. Blank means "randomise me".
 ##
-## [b]A view over a [LobbyRoster] (#1002).[/b] The run's shape — who is seated,
+## [b]A view over a [LobbyRoster].[/b] The run's shape — who is seated,
 ## on which camp, in which colour, whether START is allowed — is the roster's;
 ## this screen renders rows from it, forwards every edit to its writers, and
 ## repaints on [signal LobbyRoster.changed]. What stays here is what only a
@@ -18,11 +18,11 @@ extends VBoxContainer
 ## The three roster shapes, why the remote seat is declared before anybody
 ## joins, and why colour is run shape are documented on [LobbyRoster].
 ##
-## Deliberately minimal: scenic screens are what remains of #461.
+## Deliberately minimal: scenic screens are out of scope here.
 
 signal start_pressed(run_config: RunConfig)
 
-## The HOST pressed START and this machine is the one that joined (#715). The
+## The HOST pressed START and this machine is the one that joined. The
 ## sibling of [signal start_pressed] for the peer that does not decide: same
 ## destination, same [RunConfig], reached from the wire rather than a button —
 ## and deliberately its own signal, because the shell must NOT re-open the run
@@ -31,7 +31,7 @@ signal start_pressed(run_config: RunConfig)
 ## different map).
 signal remote_start(run_config: RunConfig)
 
-## Every hero colour a slot may hold (#616 D5). One authored resource, not a
+## Every hero colour a slot may hold. One authored resource, not a
 ## const array here — see `session/player_palette.gd` for why gold and pure
 ## white are both absent from it.
 const _PALETTE := preload("res://session/player_palette.tres")
@@ -46,7 +46,7 @@ const MAX_AI_OPPONENTS := LobbyRoster.MAX_AI_OPPONENTS
 ## The rows this screen stacks, kept under the name the shipped code and its
 ## tests already use. It is this node: the screen IS its own column now that
 ## [FrontmatterPanel] supplies the frame, the title and the back button around
-## it (#579). Before the cutover this was a child [VBoxContainer] built by
+## it. Before the cutover this was a child [VBoxContainer] built by
 ## the deleted `MenuScreen._ready`, which also drew a background and a title bar
 ## — chrome that would be drawn twice inside a panel.
 var content: VBoxContainer:
@@ -60,28 +60,27 @@ const _OPTION_CHOICE_ROW := preload("res://ui/frontmatter/panels/option_choice_r
 const _BUDGET_RANGE_ROW := preload("res://ui/frontmatter/panels/budget_range_row.tscn")
 const _ROW_SCENE := preload("res://ui/common/labelled_row.tscn")
 
-## Keys into [member _run_picks] (#643 decision 1 — these are per-RUN, so
-## they are keyed by KNOB, not by [member Participant.id] the way
-## a [LobbyRoster.Pick] is). A knob ABSENT from that dictionary is the
-## "host never touched this control" state, and #643 acceptance 5 is exactly
-## the assertion that such a knob contributes no override at all.
+## Keys into [member _run_picks] (these are per-RUN, so they are keyed by
+## KNOB, not by [member Participant.id] the way a [LobbyRoster.Pick] is). A knob
+## ABSENT from that dictionary is the "host never touched this control" state,
+## and such a knob contributes no override at all.
 const KNOB_MAP_SIZE := &"map_size"
 const KNOB_BLOCKERS := &"blockers"
-## Which shape the starters are laid out in (#558) — GROUPED / ALTERNATING /
+## Which shape the starters are laid out in — GROUPED / ALTERNATING /
 ## RANDOM. Per-RUN like the rest: one arrangement describes the whole board's
 ## seating, not one participant's.
 const KNOB_ARRANGEMENT := &"arrangement"
 const KNOB_BUDGET := &"budget"
-## How a run ENDS (#638, #742). Per-run like every other knob here — a
+## How a run ENDS. Per-run like every other knob here — a
 ## [VictoryCondition] describes the whole board, not one participant's slot.
 const KNOB_VICTORY := &"victory"
-## Center vs. edge (#742) — which [StarterPlacement] the run generates from.
+## Center vs. edge — which [StarterPlacement] the run generates from.
 const KNOB_SPAWN_ORDER := &"spawn_order"
 
 ## Adds a Button to [member content]. Caller connects `.pressed` itself.
 ##
 ## The last code-composed button in the panel layer: the other screen that had
-## one of these (#531's host/join screen) is gone, and both its successors
+## one of these (the old host/join screen) is gone, and both its successors
 ## author their button in their own `.tscn`. This screen keeps it because it
 ## builds its whole column in code — see [LobbyPanel] for why that has to stay
 ## true until `configure`'s before-`_ready` contract is retired.
@@ -92,7 +91,7 @@ func add_option(text: String, disabled: bool = false) -> Button:
 	content.add_child(button)
 	return button
 
-## The domain half (#1002): participants, pick memory, seat vetoes and the
+## The domain half: participants, pick memory, seat vetoes and the
 ## START gate. Minted by [method configure]; an unconfigured instance gets the
 ## single-player shape in [method _ready].
 var _roster: LobbyRoster = null
@@ -102,7 +101,7 @@ var _ai_count_row: AiCountRow
 var _ai_preset_row: AiPresetRow
 var _rows_container: VBoxContainer
 
-## --- #714: the roster replicates while the menu is up --------------------------
+## --- the roster replicates while the menu is up --------------------------
 ##
 ## The lobby's own [NetworkTransport] + [NetworkLink] pair, mounted only when a
 ## socket is ALREADY open (see [method _mount_link]). It is the same seam the
@@ -116,7 +115,7 @@ var _lobby: LobbyChannel = null
 
 const _LOBBY_LINK := preload("res://network/lobby_link.tscn")
 
-## --- #716: what the wire is doing, said out loud -------------------------------
+## --- what the wire is doing, said out loud -------------------------------
 ##
 ## Two labels, because they answer two different questions and only one of them
 ## is ever empty. [member _link_label] is the standing caption ("Others join at
@@ -136,15 +135,14 @@ var _link_lost: bool = false
 var _refusal_shown: bool = false
 
 
-## One-shot: this lobby's run has opened and been broadcast (#715). See
+## One-shot: this lobby's run has opened and been broadcast. See
 ## [method _on_run_started] for why it is latched before the send.
 var _started: bool = false
 
 
-## The run-level section beside the seed field (#643). Named and reachable
-## through [method add_run_row] because it is a SHARED surface: #558 appends a
-## starter-arrangement control here and #638 a victory-condition one, in a later
-## wave. Nothing about it is map-size-shaped.
+## The run-level section beside the seed field. Named and reachable
+## through [method add_run_row] because it is a SHARED surface: the
+## starter-arrangement and victory-condition controls append here. Nothing about it is map-size-shaped.
 var _run_section: VBoxContainer
 var _map_size_row: OptionChoiceRow
 var _blocker_row: OptionChoiceRow
@@ -168,13 +166,13 @@ var _run_picks: Dictionary = {}
 ## Configures this lobby before it enters the tree (call right after
 ## [method LobbyScreen.new], before it enters the tree). [param mode] is
 ## the shape the menu route ASKED for, not the mode the run ends up with —
-## [method LobbyRoster.resolve_mode] derives that from the roster at START (#554 D3).
+## [method LobbyRoster.resolve_mode] derives that from the roster at START.
 ## Defaults to the single-player shape so an unconfigured instance still behaves
 ## as it always has.
-## [param policy] is what this lobby's ROUTE lets its slots choose (#615 D2) —
+## [param policy] is what this lobby's ROUTE lets its slots choose —
 ## it hangs on the route rather than being looked up from [param mode] precisely
-## because [param mode] is not authoritative. Null reproduces the pre-#615
-## lobby exactly: no camp control anywhere, and START never refused.
+## because [param mode] is not authoritative. Null reproduces the
+## policy-less lobby exactly: no camp control anywhere, and START never refused.
 func configure(
 	mode: RunConfig.Mode, network: NetworkConfig = null, policy: LobbyPolicy = null
 ) -> void:
@@ -204,18 +202,18 @@ func _ready() -> void:
 		# replaced. Host-only by construction — only a host owns this row.
 		_ai_count_row.value_changed.connect(_on_ai_count_changed)
 
-		# #841: gated the same as the count row above it — a client authors no
+		# gated the same as the count row above it — a client authors no
 		# AI slots at all ([method _offers_ai_opponents]), so it has nothing to
 		# template.
 		_ai_preset_row = _AI_PRESET_ROW.instantiate()
 		content.add_child(_ai_preset_row)
 		_ai_preset_row.set_core_choices(CoreClass.pickable_for(CoreClass.PICKABLE_AI))
 		_ai_preset_row.core_changed.connect(_on_preset_core_changed)
-		# #884: camp joins the preset only where an AI seat may pick one.
+		# camp joins the preset only where an AI seat may pick one.
 		if _roster.policy != null and _roster.policy.may_pick_camp(Participant.Kind.AI):
 			_ai_preset_row.set_camp_choices(_roster.policy.camp_choices())
 			_ai_preset_row.camp_changed.connect(_on_preset_camp_changed)
-		# #1086: every AI seat has a tier, so the tier preset is never gated.
+		# every AI seat has a tier, so the tier preset is never gated.
 		_ai_preset_row.tier_changed.connect(_on_preset_tier_changed)
 
 	_rows_container = VBoxContainer.new() # lint: control-composed — configure() must run before _ready (LobbyPanel), so the column is built in code
@@ -258,16 +256,16 @@ func _ready() -> void:
 
 ## What the lobby says about the wire.
 ##
-## [b]A host reads out where it can be REACHED[/b] (#582 acceptance 3) — the
+## [b]A host reads out where it can be REACHED[/b] — the
 ## address a joiner types into [JoinPanel], picked out of every address this
 ## machine answers to by [method NetworkConfig.pick_advertised_address]. It has
 ## to be said somewhere, because nothing discovers it: LAN broadcast was
-## evaluated and dropped (#463), so "one room, one number" means a human reads
+## evaluated and dropped, so "one room, one number" means a human reads
 ## the number to another human.
 ##
 ## [b]A client keeps [method NetworkConfig.describe][/b] — it already knows what
 ## it dialled, and telling it its own local address would be noise at best and
-## the wrong number at worst (#582 D6).
+## the wrong number at worst.
 func _link_caption() -> String:
 	if _roster.network.role != NetworkConfig.Role.HOST:
 		return _roster.network.describe()
@@ -275,14 +273,14 @@ func _link_caption() -> String:
 
 
 ## The policy's veto, applied at the one place it can be: a versus lobby whose
-## humans all share a camp has no opposing side, and #554 D3's
+## humans all share a camp has no opposing side, and
 ## [method resolve_mode] would quietly hand back COOP_HOTSEAT rather than fail.
 ## The button is also disabled, so this guard is belt-and-braces for a caller
 ## that emits `pressed` directly (every test does).
 func _on_start_button_pressed() -> void:
 	if not can_start():
 		return
-	# The link is NOT released here any more (#715). START's whole job on a host
+	# The link is NOT released here any more. START's whole job on a host
 	# is now to broadcast the settled run, and the seed it has to carry is not
 	# resolved until the shell calls [method GameSession.start] on the config this
 	# emit hands up. So the release moved one signal later, onto
@@ -294,7 +292,7 @@ func _on_start_button_pressed() -> void:
 ## The run is open — on a HOST because the shell just called
 ## [method GameSession.start] with what the button above emitted, on a CLIENT
 ## because the host's [constant LobbyChannel.KIND_SETUP] landed on this lobby's
-## own link and [method GameSession.apply_received] adopted it (#715).
+## own link and [method GameSession.apply_received] adopted it.
 ##
 ## [b]One signal, both sides, and that symmetry is the point.[/b] Before this,
 ## the run's shape crossed on JOIN, pushed by [code]GameRoot._on_peer_joined[/code]
@@ -306,7 +304,7 @@ func _on_start_button_pressed() -> void:
 ##
 ## The release is here rather than at the button for the ordering reason above,
 ## and it still runs BEFORE either machine routes: the socket outlives this
-## screen and the level adopts it (#713), but this lobby's [NetworkLink] must
+## screen and the level adopts it, but this lobby's [NetworkLink] must
 ## not, or two bound facades answer every packet ([method Wire.claim_binder]).
 func _on_run_started(config: RunConfig) -> void:
 	if _link == null or _started:
@@ -350,7 +348,7 @@ func _refresh_start_enabled() -> void:
 		_set_status(start_blocked_reason())
 
 
-## --- #716 item 4: link loss has somewhere to appear ---------------------------
+## --- link loss has somewhere to appear ---------------------------
 ##
 ## Three distinct sentences, because they are three distinct situations and a
 ## human on a dead screen needs to know which one they are in: the host dropped
@@ -391,7 +389,7 @@ func _on_link_refused(reason: String) -> void:
 ## seated, so the roster is deliberately untouched here — the only trace a
 ## refused peer leaves anywhere is this line.
 ##
-## [b]Removal path for the #736 connecting gate[/b] — the refusal already
+## [b]Removal path for the connecting gate[/b] — the refusal already
 ## dropped the socket ([method NetworkLink._refuse_peer]), so this seat's
 ## transient hold on START is over too. Erase-then-refresh BEFORE the explicit
 ## message below, so that message is the one left standing rather than
@@ -401,7 +399,7 @@ func _on_link_refused(reason: String) -> void:
 ## call, though — not until something else explicit overwrites it.[/b] Unlike
 ## the client-side refusal ([method _on_link_refused]), which latches
 ## [member _refusal_shown] and so is protected, nothing latches this one: it
-## shares [member _status_label] with the #736 gate reason, and any later
+## shares [member _status_label] with the connecting-gate reason, and any later
 ## roster change (a colour pick, the AI count, another peer connecting) recomputes
 ## and can blank it. Deliberate — tracking "was the last write mine" costs more
 ## than a status line that outlives its moment, and skipping the empty write
@@ -412,7 +410,7 @@ func _on_link_peer_refused(peer_id: int, reason: String) -> void:
 	_set_status("Refused peer %d — %s" % [peer_id, reason])
 
 
-## What the wire was already doing when this screen mounted (#716 item 4). A dial
+## What the wire was already doing when this screen mounted. A dial
 ## that fails SYNCHRONOUSLY — an unreachable or malformed address, where
 ## `create_client` itself errors — is over before any panel exists, so no signal
 ## will ever arrive and [member Wire.last_status] is the only account of it left.
@@ -435,18 +433,18 @@ func participants() -> Array[Participant]:
 
 
 ## The domain half itself, for a caller that wants the picks and the START
-## gate rather than the list (#1002).
+## gate rather than the list.
 func roster() -> LobbyRoster:
 	return _roster
 
 
 ## Is anybody's seat still waiting for a real id? The only honest "may START
-## now" question a caller outside this file can ask (#715).
+## now" question a caller outside this file can ask.
 func has_pending_remote() -> bool:
 	return _roster.has_pending_remote()
 
 
-## shim: removed when #1004 lands. `scenes/game_root.gd` still stamps the
+## shim: removed once the game root stops stamping it. `scenes/game_root.gd` still stamps the
 ## level-time join through this name; the rule lives on [LobbyRoster].
 static func stamp_pending_remote(roster_in: ParticipantRoster, peer_id: int) -> bool:
 	return LobbyRoster.stamp_pending_remote(roster_in, peer_id)
@@ -483,13 +481,13 @@ func bind_link(transport: NetworkTransport) -> void:
 	_link = _LOBBY_LINK.instantiate()
 	_link.transport = _transport
 	_lobby = _link.get_node("LobbyChannel") as LobbyChannel
-	# #741: only a CLIENT's own [method NetworkLink.announce_self] ever reads
+	# only a CLIENT's own [method NetworkLink.announce_self] ever reads
 	# this — a host announces its WORLD, not an identity — but setting it here
 	# unconditionally means this file is the one place the value comes from.
 	_link.join_display_name = Settings.current.player_name
 	_lobby.lobby_roster_received.connect(_adopt_remote_roster)
 	_lobby.lobby_pick_received.connect(_on_remote_pick)
-	# #716: the build gate, on both of its ends. A seat is offered on
+	# the build gate, on both of its ends. A seat is offered on
 	# `peer_cleared` and never on the bare join, so a peer on the wrong commit
 	# cannot appear in anybody's roster even for one broadcast.
 	_link.peer_cleared.connect(_on_link_peer_cleared)
@@ -508,7 +506,7 @@ func bind_link(transport: NetworkTransport) -> void:
 	_transport.peer_joined.connect(_on_link_peer_joined)
 	_transport.peer_left.connect(_on_link_peer_left)
 	_transport.link_lost.connect(_on_transport_link_lost)
-	# #715: START's broadcast (host) and the route-out it produces (both sides)
+	# START's broadcast (host) and the route-out it produces (both sides)
 	# hang off the run opening, not off the button — see [method _on_run_started].
 	# Connected only on a lobby that HAS a link, so an offline lobby is untouched.
 	if not GameSession.run_started.is_connected(_on_run_started):
@@ -526,11 +524,11 @@ func bind_link(transport: NetworkTransport) -> void:
 
 
 ## Drop this lobby's binding to the socket WITHOUT closing it. The socket is what
-## the level adopts (#713); what must not survive is a second [NetworkLink]
+## the level adopts; what must not survive is a second [NetworkLink]
 ## listening on it, which is why this runs at START rather than waiting for the
 ## menu scene to be freed.
 ##
-## [b]Public, and both roles call it (#715).[/b] The host used to be the only one
+## [b]Public, and both roles call it.[/b] The host used to be the only one
 ## that ever released — a client was routed by nothing in particular and relied
 ## on the menu scene being freed synchronously before the level's
 ## [EnetTransport] bound. It is not, and [method Wire.claim_binder] now refuses
@@ -559,14 +557,14 @@ func _is_client() -> bool:
 ## which is what makes [method Participant.is_local] answer for the row it is
 ## sitting at.
 ##
-## [b]On a HOST this no longer seats anybody (#716 item 1).[/b] A socket-level
+## [b]On a HOST this no longer seats anybody.[/b] A socket-level
 ## join says only that somebody connected; whether they are running this code is
-## not known until the build gate has answered, and #716 acceptance 2 is that a
+## not known until the build gate has answered, and the invariant is that a
 ## refused peer never appears in anyone's roster — not even for the one broadcast
 ## it would take to seat it and un-seat it. The seating moved to
 ## [method _on_link_peer_cleared], one signal later.
 ##
-## [b]It still gates START (#736).[/b] Not seating the peer left nothing marking
+## [b]It still gates START.[/b] Not seating the peer left nothing marking
 ## that this window is even open, so a host who pressed START right here shipped
 ## a roster the joiner could not find itself in — see [method LobbyRoster.add_remote].
 func _on_link_peer_joined(peer_id: int) -> void:
@@ -636,8 +634,8 @@ func _build_run_section() -> void:
 		_budget_row.range_changed.connect(_on_budget_range_changed)
 
 
-## Appends [param row] to the run section — the seam #558 (starter arrangement)
-## and #638 (victory condition) add their own controls through, so neither has
+## Appends [param row] to the run section — the seam the starter-arrangement
+## and victory-condition controls add themselves through, so neither has
 ## to know how this screen builds its column. Safe before `_ready` only in the
 ## sense that the section must exist; a route that unlocks nothing has no
 ## section and silently accepts nothing, which is the correct answer for a knob
@@ -680,7 +678,7 @@ func _authored_budget() -> Array[int]:
 
 
 ## The [Scenario] this run generates from — authored per ROUTE, on the policy
-## (#597 fork 3, settled by the owner 2026-08-28).
+## (settled by the owner 2026-08-28).
 ##
 ## [b]Why not derived from [method resolve_mode].[/b] That is a fact about the
 ## ROSTER, and the roster changes while the lobby is open: seating a second
@@ -712,8 +710,8 @@ func _on_option_picked(index: int, knob: StringName) -> void:
 	_run_picks[knob] = index
 
 
-## Make a ladder pick from code, exactly as a host clicking the row would
-## (#754): the widget moves AND [member _run_picks] records it, so the
+## Make a ladder pick from code, exactly as a host clicking the row would:
+## the widget moves AND [member _run_picks] records it, so the
 ## pick reaches [method build_run_config] as a real override rather than a
 ## dropdown that merely looks changed.
 ##
@@ -765,9 +763,8 @@ func _on_budget_range_changed(base_min: int, base_max: int) -> void:
 	_run_picks[KNOB_BUDGET] = [base_min, base_max]
 
 
-## Every [ScenarioOverride] the host's run-level picks amount to (#643
-## acceptance 1/4). Built fresh from [member _run_picks] on each call, so
-## an untouched knob contributes NOTHING — #643 acceptance 5 is "no override is
+## Every [ScenarioOverride] the host's run-level picks amount to. Built fresh from [member _run_picks] on each call, so
+## an untouched knob contributes NOTHING — the contract is "no override is
 ## written", not "the value happens to match the authored one", and only an
 ## absent entry can satisfy that.
 ##
@@ -853,7 +850,7 @@ func _add_participant_row(participant: Participant) -> void:
 	row.set_color_choices(_PALETTE, LobbyRoster.taken_colors(_roster.participants, participant.id))
 	row.set_core_choices(CoreClass.pickable_for(LobbyRoster.slot_bit_for(participant.kind)))
 	# Only a policied lobby ever asks for a camp control — a null policy leaves
-	# `%Camp` untouched and hidden, which is the pre-#615 row (#615 D3).
+	# `%Camp` untouched and hidden, which is the policy-less row.
 	if _roster.policy != null:
 		row.set_camp_choices(
 				_roster.policy.camp_choices(), _roster.policy.may_pick_camp(participant.kind))
@@ -862,7 +859,7 @@ func _add_participant_row(participant: Participant) -> void:
 		tiers.assign(AIController.Tier.values())
 		row.set_tier_choices(tiers)
 	row.set_editable(_roster.may_edit_locally(participant))
-	# #841: an AI row holding an explicit pick shows the un-override control —
+	# an AI row holding an explicit pick shows the un-override control —
 	# provenance the roster tracks, never a value comparison against the preset.
 	row.set_core_overridden(_roster.is_core_overridden(participant))
 	row.set_camp_overridden(_roster.is_camp_overridden(participant))
@@ -877,7 +874,7 @@ func _add_participant_row(participant: Participant) -> void:
 	row.tier_picked.connect(_on_row_tier_picked.bind(participant))
 	row.tier_reset_requested.connect(_on_row_tier_reset.bind(participant))
 	row.name_committed.connect(_on_row_name_committed.bind(participant))
-## (#714) and waits for the host's roster to say what happened.
+## and waits for the host's roster to say what happened.
 ## --- row signals: ask on a CLIENT, write on everything else ------------------
 ##
 ## On a client a pick is a REQUEST that crosses the wire and comes back as the
@@ -962,7 +959,7 @@ func _on_row_name_committed(text: String, participant: Participant) -> void:
 	_broadcast_roster()
 
 
-## #741: a name typed into MY seat becomes the saved default. Hot-seat's second
+## a name typed into MY seat becomes the saved default. Hot-seat's second
 ## slot is a guest on this machine and never overwrites it.
 func _maybe_save_default_name(participant: Participant, text: String) -> void:
 	if _roster.mode == RunConfig.Mode.COOP_HOTSEAT and participant.id != 1:

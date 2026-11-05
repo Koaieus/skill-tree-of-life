@@ -342,3 +342,208 @@ core is the origin rule `ctx.source_node ?? ctx.core_location`, resolved once in
 | A hook that **returns a value** to change *whether* something happens (LifeLine veto) | Not supported (hooks are fire-and-forget `void`) | Query hook — LifeLine, Deferred above |
 | An effect on an **unallocated** node (map/environment hazard) | Not supported (node effects are dormant until owned) | A distinct `NodeHazardEffect` feature — no issue yet |
 | A spell/tag grant that **survives its granting node** on death | Handled *outside* the ledger (`SpellBook` innate/permanent add) | Spellbook looting — [#204](https://github.com/Koaieus/skill-tree-of-life/issues/204) |
+
+## ExpressionScale formula inputs and semantics (`effects/distance_scale/expression_scale.gd`)
+
+An authored `(d, max, v, h, e, rel) => value` formula, evaluated through
+Godot's `Expression`. The escape hatch that makes the closed-form library
+optional.
+
+Six inputs, and it returns the value to grant:
+
+- `d` — the metric's distance to this node.
+- `max` — the reach bound in the same units, or `-1.0` unbounded.
+- `v` — the authored value being shaped (the leaf modifier's
+  `value`). Per leaf, so a composite's three leaves get three results.
+- `h` — hop depth from the source over the aura's mirror,
+  whatever the metric measured; `-1.0` for a node in another component.
+- `e` — pixels from the source, whatever the metric measured.
+- `rel` — the node's `SkillNode.Ownership` bit as the aura's
+  owner sees it: NEUTRAL 1, MINE 2, ALLY 4, HOSTILE 8 (an int, so `rel & 8`
+  works as well as `rel == 8`).
+
+```
+"5 - d"                     # 5 at the core, 4, 3, 2, 1 — the absolute ladder
+"v * (1 - d / max)"         # LinearScale
+"v"                         # FlatScale
+"v * d"                     # ProportionalScale
+"v * (1 - h / 4)"           # fall off by hops on an aura that REACHES by pixels
+"v * (1 + int(rel == 8))"  # double on HOSTILE; Expression has no ternary, so bool → int
+"[NAN, v][int(h >= 2)]"     # NOT granted inside 2 hops — the escape hatch, see below
+```
+
+**0 is a value; `NAN` is absence.** A formula that computes `0` grants a
+real +0 under `discard = NONE` — a ledger row, a tooltip line, a `SET 0` on
+a derived stat. To grant *nothing* at a node, return
+`DistanceScale.NOT_GRANTED`: write the built-in constant `NAN`.
+`Expression` has no ternary (`a ? b : c` and `b if a else c` both fail to
+parse), so select with an array literal indexed by the bool-as-int:
+`[NAN, v][int(h >= 2)]`. Both elements are evaluated; NaN is inert, so
+that costs nothing. This is the *escape hatch* — gating ("start after
+N hops", "band N..M") belongs in the reach, where a range finder drops the
+node before any formula runs and the aura never pays for it. `NONE` is not
+an alias: it already names `AuraEffect.Discard` `NONE`. `v / d` at
+the source is `inf`, not NaN; `AuraEffect` drops any non-finite result the
+same way, so that node is simply not granted.
+
+**`h` and `e` are paid for only when named**: `AuraEffect` asks `wants_hops` / `wants_euclid`
+and walks the bounded hop ball (`HopMetric.depths`) or takes the per-node `distance_to` only then.
+The 3-arg `scale` path feeds the sentinels `h = -1, e = -1, rel = 0`,
+so a formula that never names them evaluates exactly as it did before.
+`HealAuraEffect`'s turn-start ramp still calls that 3-arg path, so a heal
+formula naming `h`, `e` or `rel` sees the sentinels, not the node's facts.
+
+**`v` is opt-in, and that is the point.** A formula that omits it ignores
+the authored number entirely — which is how you say "heal 5, 4, 3, 2, 1"
+instead of "some fraction of 5". Mention it when you mean "scale what I
+authored". For a MULTIPLY or SET leaf the result is the factor / the set
+value itself — see `EffectContext.grant_at`.
+
+**Whether a result lands is `AuraEffect.discard`'s call**, not
+this class's. `5 - d` over reach 5 computes a 0 at the rim; the default
+`NON_POSITIVE` drops it, `NEGATIVE` keeps it, `NONE` lets the ladder run on
+into negatives. The scale never second-guesses its own arithmetic.
+
+**Stateless like every other scale.** `_expr` is compile state — one
+parsed `Expression` shared by every entity using this resource — never
+anything per-entity. Parsing is lazy and cached exactly as
+`ExpressionFormula` does it, and the `formula` setter invalidates so
+an inspector hot-edit in the sandbox host takes effect immediately.
+
+## AuraEffect (`effects/aura_effect.gd`)
+
+A buff (or debuff) radiating from a source node to nodes around it,
+re-evaluated whenever the world moves under it. The source is the carrier
+node for a node-granted aura (keystone/addon), falling back to the entity's
+core for an entity-wide one (core class) — see `recompute`'s origin rule.
+
+Four orthogonal knobs:
+
+- `reach` — *which* nodes are touched. `null` floods the whole scope.
+- `metric` — *how far* each is, feeding the scale. `null` reuses the
+  distances `reach` already produced.
+- `distance_scale` — the VALUE each modifier leaf gets at that
+  distance, from the leaf's authored `value` (#900). `null` is flat.
+- `discard` — which computed values aren't worth granting.
+
+Sign lives on the modifier: negative values make a debuff aura. So the Ninja's
+"−1 armor per hop from core, going negative" is
+`reach: null, metric: HopMetric, distance_scale: ProportionalScale,
+modifiers: [armor ADD_BONUS -1]`. The Serpent is two of these side by side, one
+per metric — which is why `Array[Effect]` needs no `CompositeEffect`.
+
+**Stateless.** This resource may be shared by every entity of a class, so it
+keeps no buffed-set dict. The applied handles live in the per-grant
+`EffectInstance` ledger, and a recompute reads them back from there. A `_buffed`
+member here would have every Ninja silently clobbering every other Ninja's aura.
+
+**The PAYLOAD is the swappable state, not the walk.** Everything above —
+the four knobs, the origin rule, `recompute`'s batching, and #626's
+incremental `_topology_changed` paths — is channel-agnostic. What a
+subclass swaps is the pair `_has_payload` / `_grant_to`:
+"is anything configured" and "put one grant on this node at this distance".
+The seam is deliberately per-node-per-scale, not per-modifier, so a
+non-modifier payload (`HealAuraEffect`) fits without a second walk and reuses
+`_distances`.
+
+## Effect base class (`effects/effect.gd`)
+
+Persistent, hook-driven behaviour carried by a `CoreClass`, a `SkillNode`
+(a landmark scene's `effects`), or a `SkillNodeAddon`, and dispatched by
+the `Entity` that owns it.
+
+**Stat math — a formula included — is a `StatModifier`, not an Effect.**
+Reach for an Effect only for behaviour that needs a lifecycle hook.
+
+**Not to be confused with `OnHitEffect`**, which is transient: it fires
+once as a spell lands on a node and keeps no state. An `Effect` is granted,
+lives, reacts to gameplay moments, and is revoked. Sibling concepts, not a
+hierarchy.
+
+**Composition, not a subclass zoo.** There is no `TurnStartEffect` /
+`BattleStartEffect` split — those would be uncomposable (an effect can't be
+both). Triggers are *methods*; the composite is an `Array[Effect]` on
+the carrier, which the Godot inspector edits natively. So no `CompositeEffect`
+is needed either.
+
+**Hooks are declared, not inherited.** This base defines none of the `_on_*`
+world/combat hooks, so `has_method()` is an exact test of "does this effect
+care" — and `Entity` buckets by hook once at grant time, making dispatch
+O(interested) rather than O(all effects). Implement only what you need:
+```
+func _on_core_moved(ctx: EffectContext, from: SkillNode, to: SkillNode) -> void:
+    ...
+```
+
+The two lifecycle hooks below are the exception — defined here and always
+called. Everything else is optional and listed in `HOOKS`.
+
+**Effects are shared resources.** One `.tres` may sit on many entities.
+Never store runtime state on the effect; use the `EffectInstance` ledger via
+`EffectContext`.
+
+## HealAuraEffect (`effects/heal_aura_effect.gd`)
+
+The D-10 healing channel, ported onto `AuraEffect` (#720, replacing the
+standalone `CoreAura`/`HealAura` pair): heals through
+combat (ignores the D-9 damage gate, `SkillNode.apply_turn_regen`)
+and grants no ramp — a flat top-up applied alongside, never through, that
+method's `node_healing` / `regen_stacks` term.
+
+**A payload-channel subclass, per the `AuraEffect` docstring's
+`_has_payload` / `_grant_to` split.** `TagAuraEffect` is
+that split on the tag channel; this is the same split on a per-turn
+channel — the heal is not a membership grant, so it lands from an
+overridden `_on_turn_start` instead. Everything else (the three
+knobs, the origin rule, batching, the #626 incremental
+`AuraEffect._topology_changed` paths) is inherited unchanged, and
+stays harmless for this channel because `_grant_to` never grants
+anything — an alloc/dealloc between turns walks and no-ops, it does not
+double-heal.
+
+**Clamped at 0 regardless of `AuraEffect.discard`.** A negative
+heal at turn start would be damage with no `AttackRecord` behind it (see
+`.claude/rules/attack-timeline.md`), so the floor is an explicit `maxf`
+here, never `discard`'s job — `discard` only ever decided whether a
+MODIFIER-channel value was worth granting.
+
+**Whole HP, rounded once by the heal door (ADR 0033).** This effect hands
+the clamped raw amount to `SkillNode.heal_damage`; the door applies
+`healing_received` and rounds up to whole HP. A computed `6.667` heals `7`.
+
+**Readout.** `readout_payloads` answers the tooltip's "+N HP/turn"
+through the same `_heal_frame` / `amount_at` pair
+`_on_turn_start` uses, so the scaled, clamped math is never mirrored.
+
+## DistanceScale (`effects/distance_scale/distance_scale.gd`)
+
+Maps a distance to the VALUE an aura grants at that distance (#900).
+
+**It returns the value, not a multiplier.** The third parameter is the
+authored value it is shaping — a leaf modifier's `value`, or a heal effect's
+`base` — so a library scale spells itself as `value * <its multiplier>` and
+an `ExpressionScale` can ignore `value` entirely (`5 - d` is the heal ramp:
+5 at the core, 4 one hop out, …). Before #900 this returned the multiplier
+alone and `EffectContext` multiplied; the aura could then never express an
+absolute per-hop ladder, and `LinearScale` forced the rim ring to 0.
+
+**Deliberately not called "falloff."** The return is an unbounded scalar,
+not an attenuation. It may rise with distance (the Serpent's hop buff), fall
+(a fortress zone), spike at exactly one ring (a halo), or deepen a negative modifier
+(the Ninja's armor debuff). "Falloff" would imply `<= 1` and monotonic
+decrease — precisely the constraint this abstraction must not have.
+
+Also not "Gradient": Godot ships a built-in `Gradient`, and `Edge.gd` already
+carries one. Shadowing it in a `@tool` script is a live footgun.
+
+**Sign lives on the modifier, shape lives here.** A negative `value` makes a
+debuff aura; a rising scale makes its magnitude grow with distance. The two
+compose freely, which is why this must stay direction-agnostic.
+
+`max_distance` is the aura's reach bound in the same units, or -1.0 when
+unbounded. A scale that doesn't normalize ignores it — say so by leaving
+`uses_bound` at its default.
+
+**Whether a computed value is worth granting is not this class's call.**
+A 0 (or a sign flip) is a legitimate result; `AuraEffect.discard`
+decides whether it lands. See that enum's docs for the authoring recipes.

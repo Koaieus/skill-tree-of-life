@@ -2,40 +2,11 @@
 class_name CommandApplier
 extends Node
 
-## The one place a [Command] becomes a world mutation (#510,
-## `docs/domain/multiplayer-sync-model.md`). Every peer — host included — runs
-## its confirmed commands through exactly one of these, in submission order.
-##
-## [b]One serial queue.[/b] [method submit] enqueues and, if nothing is being
-## applied, drains. If a drain is already in flight it just enqueues and
-## returns: a command raised from inside another command's application is
-## QUEUED, never applied re-entrantly. That is not a hardening pass bolted on
-## later — the codebase already re-enters on the temp-upgrade path
-## (`ui/gauges/capacity_blips.gd`'s `pip_clicked -> ... -> _rebuild()` note),
-## so the guard ships on day one.
-##
-## [b]The queue is ASYNC.[/b] Two verbs are not synchronous:
-## [MoveCoreCommand] waits a beat between hops so the slides read as a cascade,
-## and [EndTurnCommand] runs [method TurnManager.end_turn], which ticks
-## initiative and can start an AI turn. A command may therefore take seconds,
-## and [member is_applying] must survive the whole await. This copies the shape
-## [member BattleSystem.is_launching] already proved works; it deliberately
-## does not reuse that flag, which keeps answering the narrower question "is an
-## attack in flight" (owner's clarification on #510).
-##
-## [b]Signal order is load-bearing.[/b] [signal command_applied] fires INSIDE
-## the guard, so a fallback handler that submits (the deallocate -> cascade
-## offer does exactly this) is queued rather than re-entering.
-## [signal applying_changed] fires after the flag clears — the same ordering
-## `battle_system.gd:282-289` documents for `is_launching`, and for the same
-## reason: the listener reads the flag the instant the signal arrives.
-##
-## The flip side of that ordering: a [signal command_applied] handler that
-## submits UNCONDITIONALLY never lets the drain end. The queue is FIFO and
-## terminates exactly when handlers stop feeding it — there is no re-entrancy
-## depth to run out of, so a runaway handler is an infinite loop, not a stack
-## overflow. Every fallback here latches (PIC's cascade offer fires only on a
-## failed deallocate, and the request it opens waits on the player).
+## The one place a `Command` becomes a world mutation; every peer, host included,
+## runs confirmed commands through one. One serial ASYNC queue: a command raised
+## during another's application is queued, never re-entered. `command_applied`
+## fires inside the guard, `applying_changed` after the flag clears.
+## See docs/domain/command-applier.md
 
 ## One command finished applying. [param success] is the gated system's own
 ## verdict — a command that fails its gate is a normal outcome, not an error,
@@ -47,24 +18,22 @@ signal command_applied(command: Command, success: bool)
 ## now. Fires at most once per command, always before that command's
 ## [signal command_applied], and never for a command that failed its gate.
 ##
-## [b]Since #540 this fires BEFORE the mutation, not after it.[/b] That is the
-## ordering flip: [method _validate] is the gate, so "validated" already means
-## "will apply", and the authority no longer has to finish mutating before it can
-## tell anyone. Confirm-after-apply structurally put every peer one full mutation
-## window behind the authority — see #534.
+## [b]This fires BEFORE the mutation, not after it.[/b] [method _validate] is the
+## gate, so "validated" already means "will apply", and the authority does not
+## have to finish mutating before it can tell anyone. Confirming after apply
+## would put every peer one full mutation window behind the authority.
 ##
 ## [b]Why this is not just [signal command_applied].[/b] Two separate reasons,
 ## and both still hold:
 ##   * Application spans more than mutation. [method BattleSystem._commit] keeps
 ##     awaiting after the world has settled, holding `is_launching` until the
 ##     animation tail finishes so a player cannot arm and fire again mid-swing.
-##     Mirroring off `command_applied` made a peer wait out the HOST's animation
-##     before starting its own (#511 shipped that way) — lag proportional to
-##     spell length.
+##     Mirroring off `command_applied` would make a peer wait out the HOST's
+##     animation before starting its own — lag proportional to spell length.
 ##   * `command_applied` fires for a REFUSED command too, with success false. A
 ##     refusal changed nothing and must never cross the wire.
 ##
-## [b]No verb opts out of this ordering (#545).[/b] [LaunchAttackCommand] was the
+## [b]No verb opts out of this ordering.[/b] [LaunchAttackCommand] was the
 ## last that did — its [AttackRecord] was computed inside the apply, so
 ## confirming first would have broadcast an empty record that a peer reads as an
 ## initiate it cannot run. Moving that compute into
@@ -76,7 +45,7 @@ signal command_confirmed(command: Command)
 ## [member Command.pre_fingerprint] has just been written for a command that is
 ## about to be validated — the instant this peer's pre-state for it is knowable,
 ## and BEFORE the gate, so a command that goes on to be refused is still
-## compared (#756).
+## compared.
 ##
 ## Exists so the divergence check happens at the same point of the same queue on
 ## both peers. [method CommandChannel._on_remote_command] used to compare on
@@ -86,7 +55,7 @@ signal command_confirmed(command: Command)
 ## the mirror's own is produced.
 signal command_stamped(command: Command)
 
-## A command was submitted on a peer that does NOT decide (#548) — send it
+## A command was submitted on a peer that does NOT decide — send it
 ## upward as an INTENT. Carries the command with its [member Command.intent_id]
 ## already minted; the authority echoes that id back verbatim on the confirm.
 ##
@@ -106,7 +75,7 @@ signal applying_changed(applying: bool)
 ## [PlayerInputController], never two.
 signal awaiting_confirmation_changed(awaiting: bool)
 
-## [method has_outstanding_loot] transitioned (#646). A relic's offer/pick/roll
+## [method has_outstanding_loot] transitioned. A relic's offer/pick/roll
 ## sequence now runs OUTSIDE this queue between rounds (see
 ## [SkillDustAddon]'s class doc), so [member is_applying] no longer implies "a
 ## pick is outstanding" — this is the gate that has to exist explicitly instead,
@@ -125,20 +94,20 @@ const CORE_HOP_SLIDE_DELAY := MoveCoreCommandHandler.CORE_HOP_SLIDE_DELAY
 @export var battle_system: BattleSystem
 @export var turn_manager: TurnManager
 
-## The outstanding-loot-pick book, for [PickLootCommand] (#522).
+## The outstanding-loot-pick book, for [PickLootCommand].
 @export var loot_pick_registry: LootPickRegistry
 
 ## The inner ring's rules, for [SpendRingCellCommand].
 @export var ring_system: RingSystem
 
-## #556: how long [method _pre_roll] holds the drain for a non-local actor's
+## How long [method _pre_roll] holds the drain for a non-local actor's
 ## command, so [CameraDirector] has time to pan there before the mutation
 ## lands. Authored independently of [member CameraDirector.default_focus_duration]
 ## — 0.35 in spirit, but this applier must not read the director. `0.0` (or no
 ## [member seat_policy]) disables the pre-roll entirely.
 @export_range(0.0, 2.0, 0.05) var pre_roll_seconds: float = 0.35
 
-## Who THIS MACHINE plays (#556) — the same [SeatPolicy] [GameRoot] pushes onto
+## Who THIS MACHINE plays — the same [SeatPolicy] [GameRoot] pushes onto
 ## [CameraDirector], asked here rather than re-derived. `null` until pushed, the
 ## same as the director's own field: no gate means no pre-roll, which is also
 ## every fixture's default and why no existing test needed to change.
@@ -159,7 +128,7 @@ var seat_policy: SeatPolicy = null
 var is_authority: bool = true
 
 ## Who this peer is on the link, for minting a globally-unique
-## [member Command.intent_id] (#548). Written by [CommandChannel] whenever [member NetworkLink.role] changes,
+## [member Command.intent_id]. Written by [CommandChannel] whenever [member NetworkLink.role] changes,
 ## alongside [member is_authority] — one place, one lifetime — and left at 0
 ## offline, where there is nobody to collide with.
 var local_peer_id: int = 0
@@ -168,40 +137,15 @@ var local_peer_id: int = 0
 ## empty — spanning every await inside every command, not just the mutation.
 var is_applying: bool = false
 
-## [b]Submitted, awaiting confirmation[/b] (#541) — a command has been handed to
-## this applier and the authority has not yet decided it is going ahead. The
-## world has not moved and the player must not act.
-##
-## [b]Zero-length locally for every verb (#545).[/b] [method submit] drains
-## synchronously down to [method _validate], so on a peer that DECIDES this is
-## true for a stack frame. It is not dead code: it is the round trip on a peer
-## that is told, which is what #463 opens, and it is the only phase name that
-## fits the window — [member BattleSystem.is_launching] means "an attack is in
-## flight" and [member is_applying] means "a mutation is under way", and neither
-## is true yet.
-##
-## [b]#548 opened that round trip.[/b] On a peer that is TOLD, this is true from
-## [method _submit_upward] until the authority's confirm lands in
-## [method apply_remote] carrying the same [member Command.intent_id] — or until
-## [method refuse_intent] closes it on a refusal. Still zero-length on a peer
-## that decides.
-##
-## The attack used to be the exception and the LONG one, spanning its whole
-## resolve + mutation loop because it confirmed late. It no longer is: its
-## resolve happens inside the validate this flag closes on, so the window is a
-## stack frame here too — the same shape, not a special case with a shorter tail.
-##
-## [b]Nested inside [member is_applying] everywhere but one place.[/b] The gate
-## is an OR ([method PlayerInputController.can_player_act]) and on every path but
-## that one the OR cannot change the answer. The exception is the first
-## [method submit] of a drain: this flips true BEFORE `is_applying` does, which
-## is both the honest reading — the command is submitted, nothing is applying
-## yet — and the only moment the third gate is the sole reason the player cannot
-## act. Do not "simplify" it to a read after the pop.
+## Submitted, awaiting confirmation: handed to this applier, the authority has not
+## yet decided. The world has not moved and the player must not act. Zero-length on
+## a peer that DECIDES; on a peer that is told, it spans `_submit_upward` to the
+## confirm (or refusal). Nested inside `is_applying` except for a drain's first submit.
+## See docs/domain/command-applier.md
 var is_awaiting_confirmation: bool = false
 
 ## How many relic claim chains this applier is currently driving OUTSIDE the
-## queue (#646) — see [method notify_loot_round_opened]. A count, not a bool,
+## queue — see [method notify_loot_round_opened]. A count, not a bool,
 ## so two relics claimed back to back (or concurrently, on separate carriers)
 ## don't stomp each other's close.
 var _outstanding_loot_rounds: int = 0
@@ -221,7 +165,7 @@ var _in_flight: Command = null
 ## non-re-entrant, so only one command is ever mid-apply.
 var _confirmed: Command = null
 
-## The intent this peer sent upward and has not yet heard back about (#548), or
+## The intent this peer sent upward and has not yet heard back about, or
 ## null. It is the fourth thing [method _refresh_awaiting] derives from, and the
 ## only one that can outlive a stack frame — on a peer that is TOLD, this is the
 ## whole round trip.
@@ -259,7 +203,7 @@ func _ready() -> void:
 func submit(command: Command) -> void:
 	if command == null:
 		return
-	# Mint-if-absent, and NEVER unconditionally (#548). A locally-originated
+	# Mint-if-absent, and NEVER unconditionally. A locally-originated
 	# command arrives with 0 and gets an id; a decoded INTENT arrives non-zero
 	# and is preserved verbatim, because the authority puts a received intent
 	# through this same method. An unconditional mint here would overwrite the
@@ -277,10 +221,10 @@ func submit(command: Command) -> void:
 	_enqueue(command)
 
 
-## A peer that is TOLD does not queue its own command (#548): the intent goes
+## A peer that is TOLD does not queue its own command: the intent goes
 ## up, and the authority's confirm comes back down through
 ## [method apply_remote] like any other. No local pre-application, no second
-## apply path, no prediction (settled, #548 decision 5).
+## apply path, no prediction (settled).
 ##
 ## [PickLootCommand] crosses the wire but deliberately does NOT open the
 ## awaiting gate — it bypasses the queue locally too
@@ -295,13 +239,13 @@ func _submit_upward(command: Command) -> void:
 
 
 ## A command the authority has already CONFIRMED, arriving down the wire — it
-## enters the one serial queue exactly as a local one does (#548). Separate from
+## enters the one serial queue exactly as a local one does. Separate from
 ## [method submit] only because `submit` is now the *intent* door and would send
 ## this straight back up.
 ##
 ## [b]This peer still runs the full [method _drain].[/b] It validates, it
 ## [method confirm]s — so [signal command_confirmed] fires HERE too, on every
-## peer that applies, not only on the authority. #525's camera director hangs
+## peer that applies, not only on the authority. The camera director hangs
 ## off that signal; making the confirm authority-only would leave a mirror
 ## peer's camera dead.
 func apply_remote(command: Command) -> void:
@@ -340,14 +284,14 @@ func _enqueue(command: Command) -> void:
 	_drain()
 
 
-## The authority refused the intent [param intent_id] (#548). Closes this peer's
+## The authority refused the intent [param intent_id]. Closes this peer's
 ## awaiting window and reports the refusal through the SAME
 ## [signal command_applied] route a local refusal takes, so
 ## [method PlayerInputController._on_command_applied] renders it with no new
 ## feedback path.
 ##
 ## [b]It must never [method confirm].[/b] A refused command changed nothing, and
-## #525's camera director pans on [signal command_confirmed] — a confirm here
+## The camera director pans on [signal command_confirmed] — a confirm here
 ## would pan to a node that did not move.
 ##
 ## [param reason] is an enum-ish [StringName], never a UI string; see
@@ -397,7 +341,7 @@ func pending_count() -> int:
 	return _queue.size()
 
 
-## A relic's claim chain opened on THIS applier (#646) — called only from the
+## A relic's claim chain opened on THIS applier — called only from the
 ## authority side of [method LootRoundCommandHandler.open_round], since a
 ## MIRROR peer never drives a chain, only replays it. Paired with
 ## [method notify_loot_round_closed], called from the same authority-gated
@@ -434,7 +378,7 @@ func is_quiescent() -> bool:
 
 ## "This command's payload is final and it is going to be applied" — announce it
 ## to the mirror. [method _drain] calls this for every verb at the flip point,
-## and since #545 nothing else calls it in production; it stays public and
+## and nothing else calls it in production; it stays public and
 ## idempotent because that is what makes the flip point the ONLY announcement
 ## even when something announces twice.
 ##
@@ -455,8 +399,8 @@ func confirm(command: Command) -> void:
 	command_confirmed.emit(command)
 
 
-## [b]validate -> confirm -> apply[/b] (#540), for every verb without exception
-## (#545). The ordering flip: the authority decides a command is legal, announces
+## [b]validate -> confirm -> apply[/b], for every verb without exception.
+## The ordering flip: the authority decides a command is legal, announces
 ## it, and only THEN mutates — so [method _apply] is the shared
 ## post-confirmation apply every peer runs, authority included, instead of the
 ## authority's mutation being what a confirm reports after the fact.
@@ -473,14 +417,14 @@ func confirm(command: Command) -> void:
 ## the resolution it has to run IS the command's wire payload. So
 ## [method BattleSystem.prepare_launch_command] resolves (on a shadow — nothing
 ## real moves) and stamps the record from inside the validate, which is what let
-## #545 delete the last confirm-after-apply exception. Do not read `_validate` as
+## the command confirm before it applies, with no exception. Do not read `_validate` as
 ## side-effect-free; read it as "the command is final and legal, or it is
 ## refused".
 ##
 ## The two verbs where validate cannot fully answer for apply are known and
 ## deliberate: [MoveCoreCommand] can only vet its FIRST hop (a partial core walk
-## is a legal observable state, #458 decision 4), and [MassAllocateCommand]
-## re-computes its affordable count at apply time on purpose (#458 — a stale
+## is a legal observable state), and [MassAllocateCommand]
+## re-computes its affordable count at apply time on purpose (a stale
 ## sender must never dictate how much the authority spends). Both still land
 ## identically on every peer, because every peer applies the same command
 ## through this same method.
@@ -490,21 +434,20 @@ func _drain() -> void:
 	while not _queue.is_empty():
 		var command: Command = _queue.pop_front()
 		_in_flight = command
-		# Stamped BEFORE the gate, for EVERY command on EVERY peer (#540
-		# decision 4) — this is the world the command is about to be applied to,
+		# Stamped BEFORE the gate, for EVERY command on EVERY peer — this is the world the command is about to be applied to,
 		# and both sides compare pre-state against pre-state. Uniform rather than
 		# staged: nothing has to unwind when [LaunchAttackCommand] stops being
 		# an exception. See [member Command.pre_fingerprint].
 		if graph != null:
 			command.pre_fingerprint = WorldFingerprint.compute(graph)
 		# The one moment this peer's pre-state is knowable for THIS command, and
-		# therefore the only honest place to compare it against the host's stamp
-		# (#756). Emitted for every command on every peer; [CommandChannel] is the
+		# therefore the only honest place to compare it against the host's stamp.
+		# Emitted for every command on every peer; [CommandChannel] is the
 		# only listener and it answers on a MIRROR only.
 		command_stamped.emit(command)
 		var success := _validate(command)
 		if success:
-			# THE FLIP, and since #545 there is no branch around it: every verb
+			# THE FLIP, and there is no branch around it: every verb
 			# reaches here with its whole payload final, the attack included —
 			# [method BattleSystem.prepare_launch_command] stamped its record
 			# inside the validate above.
@@ -537,7 +480,7 @@ func _drain() -> void:
 var clock := TweenClock.new()
 
 
-## #556: a fixed pause between a command's confirmation and its mutation, for a
+## A fixed pause between a command's confirmation and its mutation, for a
 ## NON-LOCAL actor only, so [CameraDirector] has time to pan there before the
 ## world changes under it. Called from inside [method _drain]'s :385-:422
 ## bracket, so [member is_applying] is already true across it — the same
@@ -555,7 +498,7 @@ var clock := TweenClock.new()
 ## "not seated": falling through would delay every command whose actor this
 ## applier cannot look up.
 ##
-## [b]Seat-gated on purpose, confirmed safe under the sync model (#556).[/b]
+## [b]Seat-gated on purpose, confirmed safe under the sync model.[/b]
 ## [method _drain] runs identically on every peer, so this makes a
 ## seat-dependent peer apply at a different wall-clock moment than another —
 ## timing drift, not divergence, under host-authoritative
@@ -579,7 +522,7 @@ func _pre_roll(command: Command) -> void:
 ##
 ## Flag first, emit second — [method PlayerInputController._emit_gate_changed]
 ## reads the gate the instant the signal arrives, and a listener that saw a stale
-## "still pending" would leave `AttackModeBar` disabled forever (#541; the same
+## "still pending" would leave `AttackModeBar` disabled forever (the same
 ## hazard `battle_system.gd:489-494` documents for `is_launching`).
 func _refresh_awaiting() -> void:
 	var awaiting := not _queue.is_empty() \
@@ -592,13 +535,13 @@ func _refresh_awaiting() -> void:
 
 
 ## Is [param command] legal against the world as it stands right now? The gate,
-## and since #540 the ONLY gate that decides whether a command confirms.
+## and the ONLY gate that decides whether a command confirms.
 ##
 ## For [LaunchAttackCommand] it is also where the payload is produced — see
 ## [method _drain]'s note, and do not assume every handler's gate is read-only.
 ##
 ## One lookup, same as [method _apply] — [CommandRegistry] is the ONE table of
-## verbs, so the two can never disagree about which verb a command is (#999).
+## verbs, so the two can never disagree about which verb a command is.
 ## No handler re-implements a verb's rules: each forwards to the owning
 ## system's own `can_*` query, which the mutating call then asks again. That
 ## second ask is not a duplicate check, it is the mutating method keeping its

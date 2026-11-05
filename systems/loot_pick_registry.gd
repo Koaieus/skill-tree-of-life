@@ -2,64 +2,12 @@
 class_name LootPickRegistry
 extends Node
 
-## The outstanding loot picks nobody has answered yet — the registry
-## [CommandApplier]'s `PickLootCommand` branch said #510 deliberately did not
-## build (#522).
-##
-## Two jobs, and they are the same job seen from either end of the wire:
-##
-## [b]1. It mints request ids.[/b] [LootPickRequest] used to mint its own from a
-## per-process `static var`, which is precisely what a wire id must not be: two
-## processes mint the same id for different requests the moment their request
-## COUNTS diverge, and a peer that never auto-resolves an NPC pick diverges on
-## the first relic. One authority minting into one id space also means
-## [PickLootCommand] can address a [LootPickRequest] and a [SpellLootRequest]
-## with the same field and no kind discriminator — which is what let
-## [SpellLootRequest] gain a plain `request_id` instead of a second counter.
-##
-## [b]2. It parks a request that a REMOTE human owes an answer to[/b], so the
-## returning [PickLootCommand] has something to land on. Without this the host
-## has no local HUD to claim such a request, auto-resolves it randomly on the
-## very next line, and the pick that arrives a round trip later hits an
-## already-resolved request and is silently dropped.
-##
-## [b]A MIRROR peer's registry is inert, always (#564).[/b] A relic's
-## whole claim chain is HOST-GATED at [method LootSystem._on_relic_claimed] — a peer never
-## opens a round on its own, it only replays a [LootRoundCommand] as it arrives
-## — so [method park] is never called there. [method pending_count] reads 0 for
-## the entire span of a mirror peer's loot round, by construction: there is no
-## local state to strand, so there is nothing to leave unresolved. Do not add a
-## client-side park/await — see `.claude/rules/multiplayer-sync.md` and the
-## owner call this class's issue settled (a mirror decides nothing and
-## reproduces nothing it can be told; the resolved outcome rides down as a
-## confirmed [LootRoundCommand] instead).
-## [i]Inert means it parks nothing, not that it answers nothing:[/i] a mirror
-## peer's registry is where an incoming [LootPickOffer] lands ([method
-## receive_offer]), gated on [method is_local_collector] before [signal
-## offer_received] hands it to [LootSystem].
-##
-## [b]The upward channel and the roster correlation both exist now (#564).[/b]
-## The intent channel (#548: [CommandChannel] sends intents up,
-## [method CommandApplier._submit_upward] routes a [PickLootCommand] there) and
-## the roster CAN say which peer a participant sits at
-## ([member Participant.peer_id], [method Participant.is_local] — never
-## [SeatPolicy], which is the per-machine half and deliberately never feeds
-## anything a peer must reproduce). The other half — mapping a live [Entity]
-## back to the [Participant] that seats it — is [member Entity.participant_id],
-## set once at [method GameRoot.apply_roster] time. [method is_remote_collector]
-## looks the collector's [member Entity.participant_id] up in [member roster]
-## and answers from [method Participant.is_local]. Everything the harness could
-## already reach without this — a local human picking, an NPC auto-picking, a
-## headless auto-resolve — still rides down as a [LootRoundCommand] and needs
-## none of it; this only turns on the remote-human branch.
-##
-## [b]The one thing #463 must not undo.[/b] An answer to a parked request must
-## NOT be submitted onto [CommandApplier]'s queue. A round runs inside its own
-## [LootRoundCommand]'s application, so the queue is blocked on the very await
-## the answer releases, and an enqueued answer can never be reached — a hang,
-## not a delay. [method PickLootCommandHandler.apply] is the door, and
-## [method CommandApplier.submit] routes [PickLootCommand] there rather than
-## enqueueing it.
+## The outstanding loot picks nobody has answered yet. Mints the request ids
+## [PickLootCommand] addresses, and parks a request owed an answer by a REMOTE
+## human so the returning command has something to land on. A mirror peer's
+## registry parks nothing (a relic's claim chain is host-gated); an answer to a
+## parked request is never enqueued on [CommandApplier] (the queue is blocked
+## on the await it releases). See docs/domain/loot-system.md.
 
 ## A request was parked for a REMOTE collector (#646) — [LootOfferChannel] listens
 ## for this to send the matching [LootPickOffer] to the one peer that owes the
@@ -196,36 +144,10 @@ func is_remote_collector(collector: Entity) -> bool:
 
 
 ## Is [param collector] played by a human sitting at THIS peer — the receive-side
-## question, and the reason a mirror's registry is READ even though it parks
-## nothing (#668). [method receive_offer] gates on it. The offer is addressed
-## to [method peer_for]'s answer, so this is a sanity check now; before it was,
-## two clients both raised a picker for one broadcast offer and whichever
-## answered first submitted a [PickLootCommand] for a collector not theirs.
-##
-## [b]Not the negation of [method is_remote_collector].[/b] Two independent
-## predicates over the same roster, and only the last two rows are complements:
-##
-## [codeblock]
-##                              is_remote_collector   is_local_collector
-##   null collector                     false               false
-##   no roster                          false               TRUE
-##   NPC (participant_id == 0)          false               false
-##   AI seat                            false               false
-##   human at another peer              true                false
-##   human at this peer                 false               true
-## [/codeblock]
-##
-## The no-roster row is not an inconsistency — it is the same sentence read from
-## both ends. A run with no roster (a hand-authored sandbox, a headless fixture,
-## an offline level) is ONE machine: nobody is remote and everything is local.
-## Answering `false` there would silently swallow every offer on a harness that
-## never built a roster, which is a worse failure than the bug being fixed —
-## a picker that never opens looks like a hang.
-##
-## Roster-sourced, never [SeatPolicy] — the same rule [method
-## is_remote_collector] follows, stated at `scenes/game_root.gd`'s #564 wiring:
-## the per-machine seat policy structurally cannot answer for a peer, and
-## "which participant sits where" is the roster's half of a run's setup.
+## question; [method receive_offer] gates on it. Not the negation of
+## [method is_remote_collector]: a run with no roster is one machine, so
+## everyone is local and nobody is remote. Roster-sourced, never [SeatPolicy].
+## See docs/domain/loot-system.md "is_local_collector vs is_remote_collector".
 func is_local_collector(collector: Entity) -> bool:
 	if collector == null:
 		return false

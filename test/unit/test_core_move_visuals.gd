@@ -1,5 +1,4 @@
 extends GutTest
-const _EDGE_SCENE := preload("res://graph/edge.tscn")
 
 ## Core-move visuals (#21 step 5/6 support): the reachability + path helpers on
 ## AllocationSystem that drive the CoreMoveHighlightProvider and the drag commit.

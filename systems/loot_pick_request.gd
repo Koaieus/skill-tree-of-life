@@ -1,39 +1,13 @@
 class_name LootPickRequest
 extends RefCounted
 
-## A pick-ONE-from-M loot choice, passed over `Events.loot_pick_requested`
-## (#173). Same request/response-over-the-bus idiom as [SpellCancellation], but
-## with a response: the emitter ([SkillDustAddon]) hands over `candidates` (M)
-## and a resolver callback, then waits to see if anyone claimed the pick.
-##
-## [b]There is no pick count.[/b] The loot shape is "pick 1 out of M, N times" —
-## N is [member SkillDustAddon.rounds], and each round raises one of these. A
-## `pick_count` field lived here until 2026-08-22 and was always constructed
-## with 1; it existed because "pick 1 of M, N times" kept getting written up as
-## "pick N of M" (owner's words: *"for the longest time i said 'pick 1 out of N,
-## M times' and agents wrote up 'pick M from N'"*). Do not reintroduce it —
-## multi-select per draw is not a thing.
-##
-## THE HANDSHAKE (load-bearing): `emit()` is synchronous. A UI consumer that
-## intends to present the choice sets [member claim] to `LOCAL` inside its
-## handler — before emit() returns. The emitter checks it right after emit();
-## if still `UNCLAIMED` it auto-resolves a RANDOM pick. That single rule keeps
-## NPCs, headless tests, and the "no HUD mounted" path all on the auto-resolve
-## branch, which is therefore the default the test suite exercises. Only the
-## human player's relic gets `LOCAL` (the HUD filters on `collector`).
-##
-## [b]`claim` is TRI-state, not a bool (#522).[/b] It was `handled: bool` until
-## the wire landed, and a bool cannot express the case that breaks over a
-## network: a REMOTE human is picking. The host has no local HUD to claim that
-## request, so a bool left it `false` and the emitter random-picked on the very
-## next line — before a round trip could even begin — and the returning pick
-## then landed on an already-resolved request and was silently dropped. `REMOTE`
-## is the state that says "somebody IS picking, just not here; park, do not
-## auto-resolve".
-##
-## `resolve(chosen)` is idempotent and fires the resolver once — the picker calls
-## it on confirm (async, possibly seconds later), so the resolver must re-check
-## that its collector is still valid.
+## A pick-ONE-from-M loot choice passed over `Events.loot_pick_requested`; there
+## is no pick count (N is [member SkillDustAddon.rounds], one request per round).
+## `emit()` is synchronous: a UI consumer sets [member claim] to LOCAL inside its
+## handler, and the emitter auto-resolves a random pick if it is still UNCLAIMED.
+## `claim` is tri-state because a REMOTE human is picking elsewhere: park, do not
+## auto-resolve. [method resolve] is idempotent.
+## See docs/domain/loot-system.md "The handshake".
 
 ## Who is answering this request. See the handshake note above.
 enum Claim {

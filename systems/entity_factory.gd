@@ -59,61 +59,12 @@ func spawn_entity(
 	return ent
 
 
-## Spawn a removable blocker entity (#300) owning [param core_location] and
-## [param footprint]. A blocker is a plain [Entity] — no controller — whose
-## tiered board ([param size] → CON/armor/health, no initiative) and the size's
-## spellbook are authored under `entity/blocker/`.
-##
-## [b]The #777 falloff aura is NOT granted here.[/b] `blocker_entity.tscn`
-## authors `core_class = blocker_core.tres`, whose `effects` array carries it,
-## so [method Entity._ready] grants it on `add_child` below — the ordinary
-## entity-wide effect seam, reached with no code. That class is deliberately
-## not a pickable one: `pickable_in = 0`, absent from `core_class_roster.tres`,
-## and filed under `entity/blocker/` rather than `entity/core/`.
-##
-## The aura is inert on a footprintless blocker — [ProportionalScale] puts the
-## source itself at scale 0, so a lone core is the only node in scope and takes
-## nothing. It is also inert at grant time on the [method spawn_snapshot_entity]
-## path, which spawns with a null core; the snapshot's later `core_location`
-## assignment is what fills it, since that setter dispatches `_on_core_moved`
-## (a full recompute — see [member Entity.core_location]). Parents under
-## `graph.entities_container` and force-allocates the core, exactly like
-## [method spawn_entity] (procgen setup, not a gameplay action). Returns the
-## entity, with [member Entity.entity_tier] set to size + 1 (1/2/3).
-## Spawn one Dormant Core of [param size] onto [param core_location].
-##
-## [param spell_prune_m] is the #586 loot-book prune's shape parameter (see
-## [method SpellBook.duplicate_pruned]); leaving it at `0.0` keeps the tier's
-## authored book whole, which is what a hand-authored level or a fixture
-## wants. [param spell_prune_seed] seeds that prune — procgen hands one out
-## per placement, because every peer re-runs this and must land on the same
-## book. The prune copies before it pops — the tier books are `preload`ed
-## resources shared by every blocker of a size, so popping in place would
-## strip the tier for the rest of the run.
-##
-## [param preassigned_id] adopts an [Entity] id decided elsewhere instead of
-## letting [Graph] mint one (#715) — the authority's, when a snapshot is
-## rebuilding a blocker on a peer that ran no procgen. `0`, the default, is
-## every ordinary caller and mints as before.
-##
-## [param stake_level] is the #916 pre-stake (procgen rolls 1..3 per
-## placement) and only RAISES the core node's cap — a node procgen already
-## staked keeps its own. Ungated by the node's ceiling: a raise past it lifts
-## [member SkillNode.stake_ceiling] (see [method set_procgen_stake]). The fill
-## and kill-XP offset read that effective stake:
-## the cap is stamped, `force_allocate` opens the 0→1 as usual, and
-## [method AllocationSystem.force_fill] walks the fill to the cap — no SP
-## minted for the fill, so the blocker's pool never says it bought it. A
-## staked kill then frees a node already filled to 3, SP the killer never
-## spent, so the kill XP is offset by a MULTIPLY on `core_kill_xp` clamped to
-## `blockers_cfg.stake_xp_offset_floor` (owner's formula on #784; every input
-## is a live board read). Only the CORE is staked, never the footprint. The
-## snapshot adoption path ([method spawn_snapshot_entity]) leaves it at 1 and
-## passes no core, so the row's own `stake_level`/`allocation_level` land
-## untouched by anything here.
-##
-## [param face] (a [BlockerCoreClass], #1654) and [param face_seed] come from
-## procgen's face roll; null keeps the scene's faceless class.
+## Spawn one Dormant Core of [param size] onto [param core_location]: a plain
+## [Entity] (no controller) with the tier's board and spellbook from
+## `entity/blocker/`, parented under `graph.entities_container` with its core
+## force-allocated. The falloff aura comes from the scene's `core_class`, not
+## from here. Returns the entity with `entity_tier` = size + 1.
+## See docs/domain/dormant-core.md "spawn_blocker (EntityFactory)".
 func spawn_blocker(size: BlockerSize, core_location: SkillNode,
 		footprint: Array[SkillNode] = [], spell_prune_seed: int = 0,
 		spell_prune_m: float = 0.0, preassigned_id: int = 0,

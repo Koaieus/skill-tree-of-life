@@ -16,7 +16,6 @@ extends GutTest
 ## nodes sit 0.6 × reach apart along the chain.
 
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
-const _EDGE_SCENE := preload("res://graph/edge.tscn")
 
 const REACH := 250.0
 

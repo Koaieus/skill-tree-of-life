@@ -95,58 +95,12 @@ func land_priority() -> int:
 	return LandPriority.BEFORE
 
 
-## [param node] is a [NodeCombat] — a shadow slice mid-resolve, or the live
-## slice on a real landing / a peer's replay (#498 step 3, the same contract
-## every other [HitInstance] follows: [member HitInstance.target] stays the
-## real identity, [param node] is whichever state this landing mutates).
-## [method StatusHost.apply_status] is already a no-op on a null def, a
-## non-positive power, and an unallocated host under a `CLEAR` policy (#872),
-## so this does not re-gate any of that.
-##
-## Fall-through (#996, owner 2026-09-20 on #994): the status lands on the
-## ENTITY iff [param node] is its owner's core AND that core is cracked
-## (`hp.current == 0`) at this moment — damage landed earlier in the same
-## `outcome.hits` is visible, so an arrow that cracks the core sends its own
-## poison through. Decided once, on the authority, into [member host_kind];
-## a rebuilt hit lands on the shipped host without re-reading node HP. A row
-## already on the core node does NOT stay there once the core cracks: the
-## crack transition in [method NodeCombat.take_damage] moves every node row
-## onto the entity (ADR 0066), so a rider that landed before its cracking hit
-## reaches the entity too.
-##
-## Scaling (`docs/domain/effect-system.md` § "Status effects — the DoT model"):
-## `StatusDef.stacks_per_hit_at(read slice, power)` — one fold of the stacks
-## stat through [member HitInstance.read_node]'s slice in [param world] (entity
-## bins, that node's local bins, the authored power as `base_add`), so a shadow
-## resolve reads the shadow and a node-local modifier scales only that node's
-## hits. No read node (a hand-built hit) falls back to
-## `StatusDef.stacks_per_hit(attacker board, power)`; a null attacker, blank id
-## or unknown stat leaves it at the authored power.
-## Resistance is NOT folded here (ADR 0031): the host filters the row at each
-## apply and tick. The one thing decided at land is the 100% gate — the
-## RECEIVING host (the landing slice, so a shadow resolve reads the shadow,
-## or the entity on fall-through) [method NodeCombat.blocks_status] it and
-## the hit resolves to 0, which [method StatusHost.apply_status]'s
-## non-positive gate makes a no-op. Resolved once: a rebuilt hit arrives
-## [member power_resolved] and lands the recorded number as-is.
-##
-## Stack terms ([member stack_terms]): each adds `≥ 0` stacks to the fold,
-## read against [param world] — the read node's slice and the receiving
-## [param node] — before crit, so crit, scale and Greed multiply the whole sum.
-## Skipped with no read node and on an ENTITY host.
-##
-## Crit: the HIT's crit, copied from the paired lead by [method CritRoll.decide]
-## (a rider never draws; a status-only lead rolls `crit_chance` on top of its
-## stamped condition tier like any hit), lands the folded stacks ×
-## `abs(crit_multiplier)` — a separate factor right after the fold; a non-crit
-## is ×1. A rebuilt hit arrives resolved, so the peer never multiplies twice.
-##
-## Greed (the defender-side term): a landed, positive, `debuff`-tagged power
-## doubles iff the receiving host [method StatusHost.greed_arm]s this hit —
-## after the stacks fold and the block gate, so a blocked rider never spends.
-## A rebuilt hit's recorded power is already doubled, but it still arms, so
-## the live host spends the stack the shadow spent. The host is the landing
-## host: entity Greed is read only on a fall-through, node Greed otherwise.
+## Land the status on [param node] (a [NodeCombat]: a shadow slice mid-resolve,
+## or the live slice on a real landing / a peer's replay). Falls through to the
+## ENTITY iff the node is its owner's cracked core. Stacks are folded once on
+## the authority (scaling, [member stack_terms], crit, Greed) and a rebuilt hit
+## lands its recorded number as-is. See docs/domain/status-effects.md
+## "StatusInstance.land_on".
 func land_on(node: NodeCombat, world: CombatWorld) -> void:
 	if rider_gated(node, world):
 		gated = true

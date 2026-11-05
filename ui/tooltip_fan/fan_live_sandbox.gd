@@ -1,48 +1,12 @@
 @tool
 extends Node2D
 
-## #309 — the LIVE fan bench: hosts the REAL `fan.tscn` (the same scene
-## [TooltipFan] mounts) over a real [SkillNode] + [Entity] fixture, and drives
-## its actual inputs instead of benching a hand-rolled mock fan. The old
-## `fan_trace_sandbox.gd` was a second implementation of the fan's layout that
-## no test covered and nothing kept in sync; this script is a control surface,
-## not a substitute — the mounted scene IS the shipped one.
-##
-## What lives here (mirrors the roles [TooltipFan] plays at runtime):
-##   - mount + anchor: the fan instance sits at this node's origin; the
-##     fixture [SkillNode] renders there too (the chip the pins ride), and
-##     [member zoom] multiplies the node's radius into the driver's
-##     `node_radius` — the sandbox's stand-in for camera zoom.
-##   - content binding: exactly [method TooltipFan._bind_content] — every
-##     [FanUnit] gets `bind(node, graph)` and `participating = has_content()`,
-##     [GrantedModifiersRoot] gets `bind(node)`. Collected by group, sorted by
-##     [method FanAnchorDriver.fan_sort_angle], duck-typed on
-##     `play_in`/`play_out` — same member contract as the runtime coordinator.
-##   - reconciliation: exactly [method TooltipFan._reconcile] — on any fixture
-##     change, only the units whose participation FLIPPED play in (staggered
-##     among themselves) or play out; the panels already up stay up.
-##   - presets: whole-situation fixtures (unallocated / friendly / enemy /
-##     core) so any occupancy the gating can produce is one click away, not a
-##     boot-and-hunt in-game.
-##   - drive modes: manual play-in/erase, loop, hover (distance test on the
-##     fixture node + ring), a clock scrub (writes component `progress`
-##     directly — the doc-blessed preview scrubber), and pointer-drag on the
-##     real units (FanAnchorDriver re-routes the traces live; this supersedes
-##     the old draggable [Marker2D] handles). Grabbing the fixture node itself
-##     drags the whole rig — the live-panel way to relocate the bench, instead
-##     of hand-editing `Sandbox.position` in the `.tscn`.
-##
-## This script's scene is `fan_live_sandbox.tscn` — fixture and fan are
-## preauthored children (`%Graph`/`%SkillNode`/`%Fan`), the same "real node,
-## not a mock" convention `node_visuals_panel.gd`'s `%SkillNodeLab` already
-## established for this family of live-preview panels. `fan_live_panel.tscn`
-## instances that scene (as `Sandbox`) rather than authoring the fixture
-## inline, which is also what lets `test_fan_live_sandbox.gd` instantiate the
-## same bench standalone. It's only ever `instantiate()`d at runtime — by the
-## sandbox-host dock (`sandbox_live_tab.gd`) or by the test — never opened as
-## the editor's primary edited scene, so property writes below never round-trip
-## into the `.tscn`. The two off-screen neighbour nodes (for a real IdChip
-## degree) have no authorable content of their own and stay runtime-spawned.
+## The LIVE fan bench: hosts the REAL `fan.tscn` over a real [SkillNode] + [Entity]
+## fixture and drives its actual inputs (mirroring [method TooltipFan._bind_content]
+## and [method TooltipFan._reconcile]) — a control surface, never a hand-rolled mock.
+## Presets, drive modes (play-in, loop, hover, clock scrub, pointer-drag). Its scene
+## `fan_live_sandbox.tscn` is only ever `instantiate()`d, so writes never round-trip
+## into the `.tscn`. See docs/domain/tooltip-fan-units.md
 const _NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _ENTITY_BOARD := preload("res://entity/default_entity_board.tres")
 const _BALANCED_CORE := preload("res://entity/core/balanced_core.tres")

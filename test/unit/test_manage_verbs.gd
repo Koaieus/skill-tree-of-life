@@ -1,5 +1,4 @@
 extends GutTest
-const _EDGE_SCENE := preload("res://graph/edge.tscn")
 
 ## Manage-tab verb dispatch (#338): Stake/Extract/Deallocate arm via
 ## PlayerInputController.arm_verb (a level pushed on ArmedStack), then resolve on the next legal node

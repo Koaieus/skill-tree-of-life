@@ -73,3 +73,30 @@ CON gets **no** intrinsic targeting `armor` or `min_damage_taken`: letting CON d
 **`describe_per()` is the phrase; `describe_clause()` is what renders.** `StatModifier._with_per_clause` calls `formula.describe_clause()`; the base default wraps `describe_per()` in `" per %s"`. `ThresholdFormula` overrides `describe_clause()` alone for its non-geometric, unauthored ladder — that shape has no ratio, so `" per WIS"` would misdescribe it — and renders `" at 50 / 150 / 500 / 1000 / 5000 INT"`. `describe_per()` still returns the bare abbreviation there (non-empty, because the every-formula-described test needs an answer). A new shape needing the same escape hatch overrides `describe_clause()`, not `describe_per()`.
 
 **A `StatDef.description`'s own "+N per D STAT" prose is a separate, hand-written field** that drifts independently of `describe_per()`. `test_stat_def_description_ratio_agreement.gd` guards every `RatioFormula`-backed intrinsic on `default_entity_board.tres` and the `entity/blocker/blocker_*_board.tres` boards: it reads the divisor off the live formula and the ratio off the target stat's description and asserts they agree, so it stays green across a retune and reds only on real drift. A description with no "per N STAT" phrase is skipped.
+
+## `NodeCombat._read_accessor`: accessor tokens resolve, they do not merge
+
+`NodeCombat._read_accessor` reads an accessor token (`<stat_id>__<accessor>`) off
+whichever board owns the state. It adds no grammar: `StatFormula`'s statics split
+the token and `Stat.read_accessor` dispatches through the per-subclass
+`Stat.accessors` map, so a new accessor on a new `Stat` subclass reaches every
+caller for free.
+
+- **It deliberately does not merge.** The bin merge used for a modifier-computed
+  cap is meaningful because the entity's and node's modifiers genuinely stack. It
+  is meaningless for `.current` / `wounded` / `surplus`, ephemeral state living on
+  exactly one `Stat` instance; merging two boards' bins onto one would compute a
+  number nothing stores.
+- **Node board first.** A node's own `node_health` `PoolStat` holds its damage,
+  and only the owner's board holds an entity-scope pool like `skill_points`, so
+  `skill_points__wounded` works with no further code: it misses the node board
+  and finds the owner's `SkillPointStat`.
+- A base id absent from both boards falls through to the def default on the base
+  id, like the bare-id tail. An accessor the found stat does not answer to is
+  `Stat.read_accessor`'s call: it warns once and degrades to `Stat.get_value`
+  (not overridden per caller; degrading beats a `0.0` that would silently invert
+  a ranking). Typos are caught at load time by the authored-content test.
+- `node_health` resolves through `_hp_pool`, never a raw board read: a shadow
+  slice's pool has its cap provider cleared on snapshot, and reading `current`
+  before it is reinstalled derives it off the stored base instead of the owner's
+  baseline.

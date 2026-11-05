@@ -844,3 +844,4 @@ fronts extinguished on even rings) that nothing authored. Cyclone now sums
    `AttackOutcome` beyond the `cancellations` projection. Out of scope until
    something consumes it.
 
+Cyclone as a linear operator (`CurlOperator`, spectral radius vs the shipped walk): `docs/domain/curl-operator.md`.

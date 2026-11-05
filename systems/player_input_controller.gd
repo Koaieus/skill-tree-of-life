@@ -8,7 +8,7 @@ extends Node
 ##
 ##   - Left-click an unowned node            → allocate (SP + adjacency)
 ##   - Hover a node + press `D`              → deallocate (DP, non-islanding)
-##   - Left-click own core (no active attack)→ core-move targeting (#21)
+## - Left-click own core (no active attack)→ core-move targeting
 ##   - Attack / cast                         → AttackModeBar picks the mode,
 ##                                             then node clicks feed the plan
 ##                                             (left arms/resolves, right pops
@@ -26,7 +26,7 @@ extends Node
 ## stays self-contained; promote to an action if rebinding is ever wanted.
 const _DEALLOC_KEY := KEY_D
 
-## Core-move drag (#21). Cursor must leave the core by this many world px before
+## Core-move drag. Cursor must leave the core by this many world px before
 ## a press-hold counts as a drag (so a plain click still routes to click-to-move).
 const CORE_DRAG_THRESHOLD := 10.0
 ## Max world distance from cursor to a landing for the ghost to snap onto it.
@@ -38,11 +38,11 @@ const CORE_DRAG_SNAP_RADIUS := 90.0
 @export var player: Entity: set = _set_player
 @export var turn_manager: TurnManager
 ## Every world mutation this controller asks for goes through here as a
-## [Command] (#510) — never a direct `allocation_system.allocate(...)` call.
+## [Command] — never a direct `allocation_system.allocate(...)` call.
 ## Local plan-building (hover, pin, the armed-mode stack, the core-drag ghost,
 ## attack-mode selection) deliberately does NOT: it never crosses a wire.
 @export var command_applier: CommandApplier
-## The seat-local armed stack (#1222) — a sibling system in the level scene
+## The seat-local armed stack — a sibling system in the level scene
 ## (`%ArmedStack`). Left unwired (a bare fixture), the controller makes a
 ## private one in `_ready`.
 @export var armed_stack: ArmedStack
@@ -52,7 +52,7 @@ const CORE_DRAG_SNAP_RADIUS := 90.0
 @export var vision_system: VisionSystem
 
 signal player_can_act_changed(can_act: bool)
-## Core-move targeting state (#21). `source` is the player's core node while a
+## Core-move targeting state. `source` is the player's core node while a
 ## click-source-then-target move is in flight, or null when no move is being
 ## composed. Future highlight overlay subscribes here to paint CORE_LANDING /
 ## CORE_PATH roles.
@@ -67,13 +67,13 @@ signal core_drag_target_changed(landing: SkillNode)
 signal node_pinned(node: SkillNode)
 
 ## Derived off the stack: fires when the [CoreMoveMode] source changes.
-## Which temp upgrade is armed ([TempUpgradeMode] on the branch), or null (#406).
+## Which temp upgrade is armed ([TempUpgradeMode] on the branch), or null.
 ## Derived off the stack; fires once per transition.
 signal temp_upgrade_arm_changed(upgrade: PackedScene)
 var _last_temp_upgrade: PackedScene = null
 var _last_move_source: SkillNode = null
 
-## Manage-tab verb ids (#338) — the tray's card ids and the highlight's verb
+## Manage-tab verb ids — the tray's card ids and the highlight's verb
 ## key. NOT arm state: that is the [ArmedStack] branch, where Deallocate,
 ## Stake, Extract and Cancel are [ManageVerbMode] levels on the [ManageMode] root.
 enum ManageVerb { NONE, ALLOCATE, DEALLOCATE, STAKE, EXTRACT, CANCEL }
@@ -83,7 +83,7 @@ enum ManageVerb { NONE, ALLOCATE, DEALLOCATE, STAKE, EXTRACT, CANCEL }
 signal mass_action_pending_changed(request: MassActionRequest)
 var _last_mass_request: MassActionRequest = null
 
-## Gate management (#1206). The bulk verbs a toggle expands into; locks are a
+## Gate management. The bulk verbs a toggle expands into; locks are a
 ## seat-local input filter held by [GateLockSet], never world state.
 enum GateAction { TOGGLE_UNLOCKED, OPEN_UNLOCKED, CLOSE_UNLOCKED, UNLOCK_ALL, LOCK_ALL }
 ## A gate flip that would strand owned nodes is armed (non-empty) or disarmed
@@ -98,7 +98,7 @@ var _gate_pending_key: Array[Vector2i] = []
 var _gate_pending_strand: Array[SkillNode] = []
 
 
-## Colour for the viewport armed-mode glow (#412), carried so the overlay is a
+## Colour for the viewport armed-mode glow, carried so the overlay is a
 ## pure consumer with no knowledge of the stack. Fires on every *tint*
 ## transition — deliberately not on every arm/disarm, because most armed levels
 ## contribute no tint at all (see [method ArmedMode.tint]); arming a Manage verb
@@ -107,7 +107,7 @@ signal armed_tint_changed(tint: Color)
 ## Last tint emitted, so a level that re-sets the same value doesn't re-fire.
 var _armed_tint: Color = Color.TRANSPARENT
 
-## Badge for the cursor-following armed-mode icon (#664), carried so
+## Badge for the cursor-following armed-mode icon, carried so
 ## [ArmedModeIcon] is a pure consumer with no knowledge of the stack — the same
 ## deal [signal armed_tint_changed] gives [ArmedModeGlow].
 ##
@@ -116,7 +116,7 @@ var _armed_tint: Color = Color.TRANSPARENT
 ## at different moments: arming a clamp on top of an armed melee plan moves the
 ## badge and leaves the border red. Folding this emit in under the tint's
 ## early-return would swallow exactly that case — the headline scenario of
-## #664 — so each channel compares against its own cached value below.
+## So each channel compares against its own cached value below.
 signal armed_icon_changed(icon: Texture2D, tint: Color)
 ## Last badge emitted, so a refresh that changed nothing doesn't re-fire.
 var _armed_icon: Texture2D = null
@@ -126,7 +126,7 @@ var _armed_icon_tint: Color = Color.TRANSPARENT
 ## `D`-to-deallocate channel knows what to act on. Null when nothing hovered.
 var _hovered_node: SkillNode = null
 
-## True while a full-screen modal (LootPicker/SpellLootPicker, #486) is up.
+## True while a full-screen modal (LootPicker/SpellLootPicker) is up.
 ## Replaces the old `get_tree().paused` block: freezes every player input
 ## channel (click, D-key, right-click/Esc pop) without pausing the SceneTree,
 ## which would also stall confirmed-command RPC dispatch under the LAN sync
@@ -140,7 +140,7 @@ var _pinned_node: SkillNode = null
 
 const _CORE_DRAG_GHOST_SCENE := preload("res://skill_node/visuals/core_drag_ghost.tscn")
 
-## Core-move drag state (#21, #128). `_core_drag_started` flips once the
+## Core-move drag state. `_core_drag_started` flips once the
 ## cursor leaves the core past CORE_DRAG_THRESHOLD; `_core_drag_landing` is the
 ## currently snapped landing (committed on release). The [CoreDragGhost]
 ## (presence + badge) is lazily built on the first drag step.
@@ -154,7 +154,7 @@ var _core_drag_ghost: CoreDragGhost = null
 ## from tool code, so `_ready` runs there with `is_editor_hint()` TRUE — and a
 ## blanket early return left the controller half-built: every `attack_launched`,
 ## `applying_changed` and armed-mode subscription below silently absent, which
-## is how the #466 reform slot could never be captured in the melee sandbox
+## is how the reform slot could never be captured in the melee sandbox
 ## while every headless test stayed green (GUT has no editor hint to see).
 ## Anything that reaches for the OS instead — a [SkillNode]'s own Area2D pick
 ## (the sandbox hand-routes those itself), `_unhandled_input`, the mouse cursor
@@ -196,7 +196,7 @@ func _ready() -> void:
 	armed_stack.attack_plan_changed.connect(_refresh_armed_state.unbind(1))
 	armed_stack.attack_plan_changed.connect(_on_attack_plan_opened)
 	if battle_system != null:
-		# ...and plan *state*, not just plan lifecycle (#683). The melee badge
+		# ...and plan *state*, not just plan lifecycle. The melee badge
 		# now reads the pivot, which moves inside a plan that never changes
 		# identity — `attack_plan_changed` would never fire for it. This is the
 		# higher-frequency of the two (every blade toggle, every temp upgrade),
@@ -204,7 +204,7 @@ func _ready() -> void:
 		# icon/tint that actually differs, and `_update_cursor` above the dedup
 		# is an idempotent `Input.set_default_cursor_shape`.
 		armed_stack.attack_plan_state_changed.connect(_refresh_armed_state)
-		# can_player_act() now also reads battle_system.is_launching (#406),
+		# can_player_act() now also reads battle_system.is_launching,
 		# whose transitions have no signal of their own. attack_plan_changed
 		# fires when a swing's post-await _reset() clears the plan — the only
 		# observable moment is_launching flips back false — so AttackModeBar
@@ -214,17 +214,17 @@ func _ready() -> void:
 		battle_system.in_flight_plan_changed.connect(_emit_gate_changed.unbind(1))
 		battle_system.attack_launched.connect(_on_attack_launched)
 	if command_applier != null:
-		# Outcomes arrive here instead of as a `bool` return (#510). The four
+		# Outcomes arrive here instead of as a `bool` return. The four
 		# sites that used to branch on success inline — deallocate's cascade
 		# offer, stake/extract denial feedback — are now handlers.
 		command_applier.command_applied.connect(_on_command_applied)
 		# can_player_act() reads is_applying, whose transitions are otherwise
 		# unobservable — same reason attack_plan_changed feeds this gate.
 		command_applier.applying_changed.connect(_emit_gate_changed.unbind(1))
-		# The third gate (#541) rides the SAME refresh route rather than growing
+		# The third gate rides the SAME refresh route rather than growing
 		# a second one — one `_emit_gate_changed`, four things that can move it.
 		command_applier.awaiting_confirmation_changed.connect(_emit_gate_changed.unbind(1))
-		# The fourth gate (#646): a relic's claim chain now runs OUTSIDE the
+		# The fourth gate: a relic's claim chain now runs OUTSIDE the
 		# queue between rounds, so `is_applying` no longer covers "a pick is
 		# outstanding" — see [CommandApplier.has_outstanding_loot].
 		command_applier.outstanding_loot_changed.connect(_emit_gate_changed.unbind(1))
@@ -280,7 +280,7 @@ func _try_begin_mass_allocate(target: SkillNode) -> void:
 		return
 	var request := MassActionRequest.new(player, MassActionRequest.Verb.ALLOCATE, path)
 	# Display only. The applier recomputes this at apply time from the same
-	# helper — the count never travels on the command (#458).
+	# helper — the count never travels on the command.
 	request.affordable_count = allocation_system.affordable_allocation_count(player, path)
 	request.target = target
 	begin_mass_action(request)
@@ -293,14 +293,14 @@ func _skill_points_available() -> int:
 	return sp.available() if sp != null else 0
 
 
-## Shared deallocate verb call (#338) — both the `D`-hover accelerator and an
+## Shared deallocate verb call — both the `D`-hover accelerator and an
 ## armed-Deallocate click resolve through this. Unlike the `D` channel (which
 ## pre-gates on `owned_by == player` and stays silent otherwise, see
 ## _unhandled_input), this always fires denial feedback on failure — an
 ## explicit click on an illegal node while armed is a deliberate attempt, not
 ## an idle hover.
 ##
-## No return since #510: the verb is a [DeallocateCommand] now, and its failure
+## No return: the verb is a [DeallocateCommand] now, and its failure
 ## branch (the cascade offer) lives in [method _on_command_applied]. Nothing
 ## ever read the old `bool` — both callers consumed the click unconditionally.
 func _resolve_deallocate(node: SkillNode) -> void:
@@ -317,11 +317,11 @@ func _resolve_extract(node: SkillNode) -> void:
 
 ## Hand the turn back, as an [EndTurnCommand] rather than a direct
 ## [method TurnManager.end_turn] — the clock is a mutation like any other, and
-## [AiController] has ended its turns this way since #512.
+## [AiController] has ended its turns this way.
 ##
 ## Lives here rather than on the HUD's ActionCluster because the command needs
 ## BOTH the applier (a `bind_systems()`-lifetime dep) and the acting player (a
-## `rebind_player()`-lifetime one, see #459). This controller already holds and
+## `rebind_player()`-lifetime one). This controller already holds and
 ## rebinds both; giving a HUD cluster its own player reference is how hot-seat
 ## handover breaks.
 ##
@@ -333,7 +333,7 @@ func request_end_turn() -> void:
 	_submit(EndTurnCommand.new(player.entity_id))
 
 
-## Submit a [ReloadCommand] for the acting player (#957). Only while the
+## Submit a [ReloadCommand] for the acting player. Only while the
 ## ranged plan is armed, and only when the player can act and can pay. Returns
 ## whether a command was submitted. The `ui_reload` key reaches this through
 ## [method reload_in_hand]; the ranged tray's button calls it directly.
@@ -348,7 +348,7 @@ func request_reload() -> bool:
 	return true
 
 
-## Where the four `if`-gated mutation sites went (#510). A command that failed
+## Where the four `if`-gated mutation sites went. A command that failed
 ## its gate is a normal outcome, so this is the only place player-facing
 ## feedback for a refusal is decided.
 ##
@@ -417,13 +417,13 @@ static func _gate_denial(reason: StringName, generic: StringName) -> String:
 	return String(generic if reason == &"" else reason)
 
 
-## Requests an armed temp-upgrade placement (#406) — click-to-toggle, same
+## Requests an armed temp-upgrade placement — click-to-toggle, same
 ## shape as blade-member selection: clicking a node that already carries
 ## this exact temp upgrade refunds it, clicking any other eligible node
 ## applies a new one. Stays armed either way — the toggle's own gating already
 ## makes a failed attempt fail gracefully with denial feedback, so there's
 ## no correctness reason to force a re-click of the tray button per action.
-## Public so the melee command tray's blade blips (#406 follow-up) can drive
+## Public so the melee command tray's blade blips can drive
 ## the exact same gating/denial path when a red blip is clicked, instead of
 ## routing a synthetic graph click.
 ##
@@ -447,7 +447,7 @@ func request_temp_upgrade_at(skill_node: SkillNode, scene: PackedScene = null) -
 	return true
 
 
-# ── Reform last blade (#466) ───────────────────────────────────────────────
+# ── Reform last blade ───────────────────────────────────────────────
 
 ## Capture the blade that just launched. [signal BattleSystem.attack_launched]
 ## fires inside `_commit`, i.e. only AFTER `_compute_record` cleared the
@@ -516,7 +516,7 @@ func can_reform() -> bool:
 ## The `ui_reload` action: re-arm whatever weapon is in hand. The ARMED LEVEL
 ## owns the verb — [method ArmedMode.reload] — so a ranged plan refills its
 ## quiver and a melee plan re-forms its blade, and the two handlers are never
-## live at once. With nothing armed it is #466's global accelerator: re-form
+## live at once. With nothing armed it is the global accelerator: re-form
 ## the last blade, which arms melee itself. Returns whether the key was
 ## consumed; false leaves it free for anything downstream.
 func reload_in_hand() -> bool:
@@ -578,7 +578,7 @@ func _on_skill_node_unhovered() -> void:
 
 
 ## Feeds the hover into the active magic plan's aim-time propagation preview
-## (#679) -- a no-op for every other mode/plan, and for a plan that isn't the
+## -- a no-op for every other mode/plan, and for a plan that isn't the
 ## player's own (mirrors [method _active_attack_plan]'s ownership gate, so a
 ## hot-seat peer's hover never drives the LOCAL player's preview).
 func _push_magic_hover(skill_node: SkillNode) -> void:
@@ -588,7 +588,7 @@ func _push_magic_hover(skill_node: SkillNode) -> void:
 
 
 ## Channels live here:
-##  - Core-move DRAG (#21): once targeting is active (the player pressed their
+## - Core-move DRAG: once targeting is active (the player pressed their
 ##    own core), dragging the held mouse snaps a ghost core to the nearest
 ##    reachable landing and a hop badge floats by the cursor; release commits.
 ##    Click-to-move still works untouched — drag is the layered accelerator.
@@ -646,7 +646,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	# D is Manage's accelerator, not a global override — gated off while any
 	# other targeting mode is armed so it can't deallocate mid-attack-plan-
-	# selection or mid-core-move (#404).
+	# selection or mid-core-move.
 	if has_armed_level():
 		return
 	if _hovered_node.owned_by == player:
@@ -706,7 +706,7 @@ const TEMP_UPGRADE_HOTKEYS: Array[StringName] = [
 ]
 
 
-## Spell-picking hotkeys, in SPELLBOOK ORDER (#718 follow-up). Owner call
+## Spell-picking hotkeys, in SPELLBOOK ORDER. Owner call
 ## (2026-09-04): *"spells best be indexed by number key! (regular row OR
 ## keypad)"* — each action carries BOTH events, so the two rows are one
 ## binding rather than two parallel ones that could drift.
@@ -811,8 +811,8 @@ func _is_players_turn() -> bool:
 			and turn_manager.current_entity == player
 
 
-## Feedback for a node-targeted verb that was gated away (#89, generalized
-## #404). If the reason is islanding, the nodes that would be cut off from the
+## Feedback for a node-targeted verb that was gated away (generalized). If the reason is islanding,
+## the nodes that would be cut off from the
 ## core pulse danger-red; the node the player actually tried to act on always
 ## gets a short "no" shake. Other denials (out of DP, core node) just shake
 ## the target — there's no "these get cut off" story to tell. Self-subscribed
@@ -840,7 +840,7 @@ func _active_attack_plan() -> AttackPlan:
 	return plan if plan.attacker == player else null
 
 
-## Node-independent pop shared by right-click and Esc (#404): right-click
+## Node-independent pop shared by right-click and Esc: right-click
 ## "ignores which node was clicked" (docs/domain/click-grammar.md) and Esc has
 ## no node at all. The top level first retreats inside itself
 ## ([method ArmedMode.pop_within]); otherwise it pops. False at the root, so
@@ -859,8 +859,8 @@ func pop_armed_level() -> bool:
 	return armed_stack.pop_top()
 
 
-## Swaps the OS cursor while any targeting mode is armed (#404) — a plain
-## shape swap, cleared on resolve/cancel. The viewport-wide glow (#412) is the
+## Swaps the OS cursor while any targeting mode is armed — a plain
+## shape swap, cleared on resolve/cancel. The viewport-wide glow is the
 ## other consumer of the same state; both hang off
 ## [method _refresh_armed_state].
 func _update_cursor() -> void:
@@ -873,7 +873,7 @@ func _update_cursor() -> void:
 			Input.CURSOR_CROSS if has_armed_level() else Input.CURSOR_ARROW)
 
 
-## The colour the viewport armed-mode glow should paint (#412), or a
+## The colour the viewport armed-mode glow should paint, or a
 ## transparent colour when nothing armed contributes one.
 ##
 ## Walks [method ArmedStack.branch] **base-first** — the BASE of the stack
@@ -909,7 +909,7 @@ func _armed_icon_level() -> ArmedMode:
 	return null
 
 
-## The badge texture for the armed-mode cursor icon (#664), or null when
+## The badge texture for the armed-mode cursor icon, or null when
 ## nothing armed contributes one.
 ##
 ## Pure: no side effects, no frame state — same reason [method get_armed_tint]
@@ -939,7 +939,7 @@ func _refresh_armed_state() -> void:
 	# guarding both. The tint walks the stack base-first and the icon walks it
 	# top-first, so they genuinely change at different moments; a shared
 	# early-return on the tint would swallow every badge change that leaves the
-	# border colour alone, which is precisely the melee+clamp case #664 exists
+	# border colour alone, which is precisely the melee+clamp case this exists
 	# for. See [signal armed_icon_changed].
 	var next_tint := get_armed_tint()
 	if next_tint != _armed_tint:
@@ -1013,7 +1013,7 @@ func _update_core_drag() -> void:
 		_ensure_core_drag_visuals()
 	var landing := _nearest_reachable_landing(world)
 	_core_drag_landing = landing
-	# Bloom glyph joins the ghost only once snapped to a valid target (#128) —
+	# Bloom glyph joins the ghost only once snapped to a valid target —
 	# the halo alone follows the cursor otherwise.
 	if landing != null:
 		var hops := maxi(0, allocation_system.core_path(player, landing).size() - 1)
@@ -1095,7 +1095,7 @@ func _player_has_movement_points() -> bool:
 	return mp != null and mp.available() >= 1
 
 
-## Arm or disarm [param upgrade] on the [BladeMode] (#406): re-arming the
+## Arm or disarm [param upgrade] on the [BladeMode]: re-arming the
 ## armed card pops it, another card replaces it. Refused (nothing pushed)
 ## while no blade stands — see [method can_arm_temp_upgrade].
 func arm_temp_upgrade(upgrade: PackedScene) -> void:
@@ -1210,7 +1210,7 @@ func _on_aspect_stat_changed(id: StringName) -> void:
 	temp_quickbar().on_aspect_gained(kinds)
 
 
-## Arm a Manage verb card (#338): Deallocate / Stake / Extract / Cancel switch to their
+## Arm a Manage verb card: Deallocate / Stake / Extract / Cancel switch to their
 ## level (pop to root, then push), and re-pressing the armed card pops it.
 ## ALLOCATE and NONE clear to the root — Allocate is the root's native click.
 func arm_verb(verb: ManageVerb) -> void:
@@ -1295,7 +1295,7 @@ func confirm_mass_action() -> void:
 	match request.verb:
 		MassActionRequest.Verb.ALLOCATE:
 			# `affordable_count` stays off the wire — the applier recomputes it
-			# from the board it is actually applying against (#458).
+			# from the board it is actually applying against.
 			_submit(MassAllocateCommand.new(request.entity.entity_id, ids))
 		MassActionRequest.Verb.DEALLOCATE:
 			_submit(DeallocateSetCommand.new(request.entity.entity_id, ids))
@@ -1348,12 +1348,12 @@ func set_input_frozen(frozen: bool) -> void:
 func can_player_act() -> bool:
 	if not _is_players_turn():
 		return false
-	# A swing is resolving (#406) — the plan stays live through the live-swing
+	# A swing is resolving — the plan stays live through the live-swing
 	# await so its temp-upgrade addons keep rendering, but that's not an
 	# invitation to click it mid-swing.
 	if battle_system != null and battle_system.is_launching:
 		return false
-	# A command is mid-application (#510). Nested inside, not merged with,
+	# A command is mid-application. Nested inside, not merged with,
 	# `is_launching`: that flag answers "an attack is in flight" and keeps
 	# owning the attack plan's lifetime; this one answers "a command is being
 	# applied" and covers every verb, of which the attack is one. A player
@@ -1361,7 +1361,7 @@ func can_player_act() -> bool:
 	# only knew about attacks.
 	if command_applier != null and command_applier.is_applying:
 		return false
-	# A command is submitted and the authority has not decided yet (#541) — the
+	# A command is submitted and the authority has not decided yet — the
 	# phase BEFORE either of the two above. Locally it is a stack frame wide;
 	# on a peer it is the round trip, and it is exactly when a second input
 	# would produce a command resolved against a world the player cannot see.
@@ -1369,8 +1369,8 @@ func can_player_act() -> bool:
 	# mutation is under way", and here nothing has moved yet.
 	if command_applier != null and command_applier.is_awaiting_confirmation:
 		return false
-	# A relic's claim chain is being driven (#646) — offer/pick/roll no longer
-	# runs inside `is_applying`, on purpose (issue #646 acceptance 3: it must
+	# A relic's claim chain is being driven — offer/pick/roll no longer
+	# runs inside `is_applying`, on purpose (it must
 	# not hold this applier's queue for a remote human's pick), so the gate
 	# that used to fall out of `is_applying` for free has to be explicit here
 	# instead. See [CommandApplier.has_outstanding_loot] and the owner's
@@ -1378,7 +1378,7 @@ func can_player_act() -> bool:
 	if command_applier != null and command_applier.has_outstanding_loot():
 		return false
 	# No AP clause: this is the FLOW gate (turn, in-flight command, pending
-	# loot). Affordability is per verb — a ranged volley costs 0 AP (#957) and
+	# loot). Affordability is per verb — a ranged volley costs 0 AP and
 	# must stay launchable at 0 — so it lives in `can_afford`, not here.
 	return true
 
@@ -1403,7 +1403,7 @@ func _emit_gate_changed() -> void:
 	_refresh_armed_state()
 
 
-## Hot-seat handover (#459) rides this setter, not a second public entry
+## Hot-seat handover rides this setter, not a second public entry
 ## point: `player` is an `@export`, so anything that assigns it directly —
 ## GameRoot's `bind_player`, a scene's edit-time wiring, a test — has to get
 ## the transient-state clear too, or player 2 inherits player 1's half-built
@@ -1490,7 +1490,7 @@ func _on_ap_changed(_new_current: Variant) -> void:
 	_emit_gate_changed()
 
 
-# ── Gates (#1206) ───────────────────────────────────────────────────────────
+# ── Gates ───────────────────────────────────────────────────────────
 # Locks are seat-local (GateLockSet); a flip goes out as one ToggleGatesCommand
 # naming every gate explicitly. A flip whose preview strands owned nodes arms a
 # one-warning confirm first — the identical request again submits it, any other

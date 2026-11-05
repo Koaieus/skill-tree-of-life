@@ -2,44 +2,12 @@ class_name SpellResolver
 extends RefCounted
 
 ## Pure resolution: produces an [AttackOutcome] for a [SpellDef] seeded at
-## [param target] from [param source] (cast-from node) by [param caster],
-## using [param graph] for topology queries.
-##
-## Wave-based BFS: each iteration processes a whole frontier at once so the
-## [IncidentReducer] can collapse simultaneous arrivals at the same node
-## before any [OnHitEffect] fires. This is what makes self-loops + diamond
-## convergence a first-class mechanic (see Resonator).
-##
-## [b]This walk MUTATES the world it is handed, and never the real one[/b]
-## (#536, closing #498 step 3). Each wave is LANDED — through
-## [method OutcomeApplier.land_one], the same landing every other path uses —
-## between "reduce incidents" and "expand next wave", so wave N+1's
-## [PropagationFilter] selects against a world in which wave N's kills have
-## already happened. That is the whole point: the filters that decide where a
-## spell goes next ([OwnerFilter], and [ExpressionFilter] via
-## `to_owned_by_caster` / `to_unallocated`) read ownership, and a spell used to
-## be able to propagate back into a node this same cast had just killed.
-##
-## Closing it by landing, rather than by a resolve-local "who died" ledger, is
-## deliberate: a ledger is a second implementation of death, it cannot see
-## [Mitigation] or a forced-dealloc cascade, and a gate that disagrees with the
-## real applier is the exact drift docs/domain/attack-timeline.md exists to
-## prevent. See #501.
-##
-## [b]So [param world] must be a shadow, and callers get one by default.[/b]
-## Owner call 2026-08-23 — [i]"shadow always"[/i]. [method resolve] mints a
-## throwaway [method CombatWorld.shadow] and frees it, which is what the dozen
-## preview callers (SpellTooltip, the spell playground, the balance harness, the
-## AI's magic candidates) want: they ask what a spell WOULD do and the real
-## world is untouched, with no real/preview flag anywhere in the chain. The
-## authority's launch path resolves against a shadow too and then replays its
-## own record on the live world exactly as a peer does, which is what leaves
-## [OutcomeApplier] the sole mutator of the real world — see
-## [method BattleSystem.apply_launch_command].
-##
-## The VFX layer stays a pure observer that replays what already landed (#474) —
-## the coordinator does NOT apply damage on projectile arrival, whatever an
-## older docstring said.
+## [param target] from [param source] by [param caster], using [param graph]
+## for topology. Wave-based BFS: a whole frontier is reduced by the
+## [IncidentReducer] before any [OnHitEffect] fires, and each wave is LANDED on
+## [param world] (always a shadow; [method resolve] mints one by default)
+## before the next wave expands. The VFX layer only observes what landed.
+## See docs/domain/spell-resolver-internals.md "SpellResolver".
 
 
 ## [b]The wave interval and the bolt lead-in used to live here as constants,

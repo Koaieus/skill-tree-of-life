@@ -15,12 +15,12 @@ extends Node2D
 ## allocates a core if given. The hand-authored dev_sandbox `%Player` skips
 ## this path; that's fine, `%Player` lookup ignores parent.
 
-## Where a finished run routes (#460). A path, not a preload: the meta-shell
+## Where a finished run routes. A path, not a preload: the meta-shell
 ## pulls in the whole menu tree, and SceneDirector loads threaded anyway.
 const META_ROOT := "res://scenes/meta/meta_root.tscn"
 
 
-## Dev shortcut (#244): `F2` flips FogOverlay.intensity between fully opaque
+## Dev shortcut: `F2` flips FogOverlay.intensity between fully opaque
 ## (ship default, 1.0) and the dimmer "almost black" (0.88) that lets a dev see
 ## enemy positions through unsensed fog.
 ##
@@ -34,7 +34,7 @@ const _FOG_INTENSITY_DEV: float = 0.88
 ## Intent flags — let a subclass / inherited scene run a *neutered* GameRoot
 ## (e.g. a live showcase in an editor tab) without the parts a self-driven demo
 ## doesn't want. Defaults preserve full-game behaviour, so real levels are
-## untouched. Every system is present in every GameRoot scene (#1006, ADR
+## untouched. Every system is present in every GameRoot scene (ADR
 ## 0026): "off" is a flag on the system it toggles, never a missing node —
 ## [member TurnManager.opens_first_turn], [member HudRoot.enabled],
 ## [member VisionSystem.enabled] — and a missing `%System` is the assert at
@@ -42,10 +42,10 @@ const _FOG_INTENSITY_DEV: float = 0.88
 @export_group("Showcase / embed")
 ## When false, a finished run announces its outcome but stays put — a sandbox
 ## or a showcase must not teleport itself back to the main menu. Vetoes BOTH
-## ways out (#526): the fallback timeout below and the overlay's own button.
+## ways out: the fallback timeout below and the overlay's own button.
 @export var route_to_meta_on_run_end: bool = true
 ## Seconds between the terminal outcome and the FALLBACK route back to the
-## meta-shell. Since #526 the run-end overlay carries a *to main menu* button,
+## meta-shell. The run-end overlay carries a *to main menu* button,
 ## so this is what catches a player who never clicks it — long enough to read
 ## the outcome and decide, not the primary way out.
 @export_range(0.0, 60.0, 0.5, "or_greater") var run_end_route_delay: float = 20.0
@@ -67,7 +67,7 @@ var player: Entity
 ## `_setup_level`, before `bind_player` runs. Never read by anything a peer
 ## must reproduce — see [SeatPolicy].
 var seat_policy: SeatPolicy = SeatPolicy.couch()
-## Latched by [method route_to_meta_now] so the run leaves the level once (#526)
+## Latched by [method route_to_meta_now] so the run leaves the level once
 ## — the overlay's button and the fallback timeout are two callers of one route.
 var _run_end_routed: bool = false
 ## Set at the tail of `_ready`, read by [method is_reveal_ready] — the whole
@@ -93,17 +93,17 @@ var _link_end_presented: bool = false
 ## GameRoot walk as [member battle_system].
 @onready var loot_system: LootSystem = %LootSystem
 @onready var turn_manager: TurnManager = %TurnManager
-## The one mutation path (#510). Exposed here because [AIController] resolves it
+## The one mutation path. Exposed here because [AIController] resolves it
 ## by walking up to its GameRoot, the same way it resolves [member battle_system]
-## — the applier node itself has been in `game_root.tscn` since #510.
+## — the applier node itself has been in `game_root.tscn` from the start.
 @onready var command_applier: CommandApplier = %CommandApplier
-## #564: the registry needs the roster + this machine's peer id to answer
+## The registry needs the roster + this machine's peer id to answer
 ## `is_remote_collector`. Injected below rather than read off the [GameSession]
 ## autoload from inside the registry itself, matching how [member seat_policy]
 ## reaches [member command_applier] — GameRoot mediates, the leaf system stays
 ## a plain dependency-taking object.
 @onready var pick_registry: LootPickRegistry = %LootPickRegistry
-## The wire, mounted every level (#531). [b]The node PATH is the contract[/b] —
+## The wire, mounted every level. [b]The node PATH is the contract[/b] —
 ## Godot resolves an RPC by node path, so `Transport` and `NetworkLink` must sit
 ## at the same place in every scene both peers run, which is why they live in
 ## the composition root rather than in whichever level happens to be networked.
@@ -116,7 +116,7 @@ var _link_end_presented: bool = false
 @onready var transport: NetworkTransport = %Transport
 @onready var network_link: NetworkLink = %NetworkLink
 @onready var world_sync: WorldSyncChannel = %WorldSyncChannel
-## The network role of this level (#1004): who decides, bringing the socket
+## The network role of this level: who decides, bringing the socket
 ## up, a joiner's wait for the world, and the peer events. The root subscribes
 ## to its signals for the presentation half.
 @onready var network_session: NetworkSession = %NetworkSession
@@ -130,7 +130,7 @@ var _link_end_presented: bool = false
 
 # UI
 @onready var camera: GraphCamera = %GraphCamera
-## The sole decider of where the camera looks (#523). GameRoot never pokes
+## The sole decider of where the camera looks. GameRoot never pokes
 ## `camera.position` around it.
 @onready var camera_director: CameraDirector = %CameraDirector
 @onready var hud_root: HudRoot = %HudRoot
@@ -143,7 +143,7 @@ var _link_end_presented: bool = false
 @onready var melee_preview: MeleePreview = %MeleePreview
 
 
-## Every system is present in every GameRoot scene (#1006, ADR 0026). A
+## Every system is present in every GameRoot scene (ADR 0026). A
 ## fixture that wants one "off" sets that system's own flag; a scene that
 ## dropped the node is a wiring error, and this is where it says so — before
 ## the first `system.method()` reads as a confusing "Nonexistent function in
@@ -175,7 +175,7 @@ func _ready() -> void:
 	# has decided locally has already diverged. The socket opens later, in
 	# [method NetworkSession.join_or_host].
 	network_session.adopt_role()
-	# #715: how the arriving world builds an entity the roster never names — see
+	# How the arriving world builds an entity the roster never names — see
 	# [method EntityFactory.spawn_snapshot_entity]. Set here, before any link
 	# can be up, because the first thing a joining client does with its link is ask for that world.
 	world_sync.entity_spawner = entity_factory.spawn_snapshot_entity
@@ -184,7 +184,7 @@ func _ready() -> void:
 	channel_lasso_director.initialize()
 	world_sync.resync_applied.connect(channel_lasso_director.rebuild)
 	# The session owns the wire's lifecycle; the root keeps the presentation of
-	# each event (#1004). The world-arrived hook re-runs `_ensure_controllers`
+	# each event. The world-arrived hook re-runs `_ensure_controllers`
 	# for entities the resync brought with it — idempotent and cheap.
 	network_session.world_ready.connect(_on_world_ready)
 	network_session.refused.connect(_present_link_end)
@@ -193,18 +193,18 @@ func _ready() -> void:
 	# The handover itself is [SeatHandover]'s; the root presents it (`quiet`
 	# is [MpHarness]'s to set).
 	seat_handover.seat_handed_over.connect(_on_seat_handed_over)
-	# Entity death (#18): AllocationSystem strips the corpse off the same bus
+	# Entity death: AllocationSystem strips the corpse off the same bus
 	# signal; GameRoot owns the player-vs-NPC consequence, and its VISUAL half
 	# rides `entity_death_shown`, which `Entity.die()` emits last.
 	Events.entity_died.connect(_on_entity_died)
 	Events.entity_death_shown.connect(_on_entity_death_shown)
-	# #460: VictorySystem decides the run's end; GameRoot presents and routes.
+	# VictorySystem decides the run's end; GameRoot presents and routes.
 	Events.run_ended.connect(_on_run_ended)
 
 	# Scene-authored ownership (dev_sandbox-style) must claim SP before
 	# _setup_level runs — hand-authored owned_by= skips force_allocate's claim.
 	allocation_system.register_scene_authored_ownership()
-	# Nothing opens a socket before this on either role (#715): the run's shape
+	# Nothing opens a socket before this on either role: the run's shape
 	# crossed from the LOBBY at START, so `GameSession` already holds the host's
 	# run on every machine. `_setup_level` runs BEFORE hud_root.compose because
 	# compose reads `player.stat_board` immediately; `await` is harmless on
@@ -216,21 +216,21 @@ func _ready() -> void:
 	_ensure_controllers()
 	# After `_setup_level`, which is where a roster-driven level replaces the
 	# default couch policy — pushed from the one place that owns it to the three
-	# consumers that ask "is this actor mine?" (#524, #556, #819/#820).
+	# consumers that ask "is this actor mine?".
 	camera_director.seat_policy = seat_policy
 	command_applier.seat_policy = seat_policy
 	battle_system.seat_policy = seat_policy
 	mp_harness.seat_policy = seat_policy
-	# #564: NOT seat_policy — is_remote_collector answers for a PEER (a roster
+	# NOT seat_policy — is_remote_collector answers for a PEER (a roster
 	# question). A null roster (no lobby) reads as "nobody is remote".
 	pick_registry.roster = GameSession.roster
 	pick_registry.local_peer_id = GameSession.local_peer_id
-	# The run decides how it ends (#457/#460); `resolved_...` falls back to the
+	# The run decides how it ends; `resolved_...` falls back to the
 	# MODE's default when the run authored no condition.
 	if GameSession.is_active():
 		victory_system.condition = GameSession.config.resolved_victory_condition()
 	bind_player(player)
-	# Hot-seat coop (#459): connected unconditionally — [member seat_policy]
+	# Hot-seat coop: connected unconditionally — [member seat_policy]
 	# decides whether the handler does anything. After `_ensure_controllers` so
 	# the `is_human_controlled` flag it reads is settled.
 	turn_manager.turn_started.connect(_on_turn_started_for_handover)
@@ -255,10 +255,10 @@ func _ready() -> void:
 		if SceneTransition.is_curtain_up():
 			await SceneTransition.fade_in()
 		return
-	# #667, second half. The world now exists on EVERY path — offline, host and
-	# client alike — so the run may be judged. Before this line a death would
-	# let `LastCampStandingCondition` read a partially-populated entity group
-	# and latch an outcome that can never be un-fired. Not a network concept:
+	# The world now exists on EVERY path — offline, host and client alike — so
+	# the run may be judged. Judging earlier would let `LastCampStandingCondition`
+	# read a partially-populated entity group and latch an outcome that can never
+	# be un-fired. Not a network concept:
 	# the same one line arms it for a solo sandbox.
 	# A loaded save's world lands where a joiner's does — after the HUD is
 	# composed, so the turn cursor it restores reaches a listening HUD.
@@ -323,7 +323,7 @@ func _stagger_initiative() -> void:
 	turn_manager.stagger_opening_clocks()
 
 
-## Open the run's clock — as a [StartTurnCommand], never as a local call (#756).
+## Open the run's clock — as a [StartTurnCommand], never as a local call.
 ##
 ## [b]The mirror never starts a turn on its own.[/b] Before this, every peer ran
 ## `turn_manager.start_turn(player)` here on ITS OWN seated hero, so the host
@@ -333,7 +333,7 @@ func _stagger_initiative() -> void:
 ## `.claude/rules/multiplayer-sync.md` a peer receives a decision or reproduces
 ## it — this one was doing neither. Every later [EndTurnCommand] then reproduced
 ## `_tick_until_ready` from a different cursor, so turn-start upkeep ran for the
-## wrong entity and the accumulated tier drifted apart (#756).
+## wrong entity and the accumulated tier drifted apart.
 ##
 ## So the authority SUBMITS and the mirror WAITS. A mirror's cursor arrives
 ## either as this command coming back down the [constant
@@ -351,7 +351,7 @@ func _open_first_turn() -> void:
 		return
 	if player == null:
 		return
-	# #923 (owner call on #911): the entity that opens is
+	# The entity that opens is
 	# [method TurnManager.opening_entity] — spawn/roster index 0, the same rule
 	# offline, couch and remote alike. `player` is a fallback for a fixture
 	# where nothing carries a clock. On a couch/hot-seat authority seating >=2
@@ -370,7 +370,7 @@ func _open_first_turn() -> void:
 	command_applier.submit(StartTurnCommand.new(opener.entity_id))
 
 
-## The drain (#504, design B). An attack's world mutation is spread across a
+## The drain (design B). An attack's world mutation is spread across a
 ## real interval, so a scene change mid-volley would strand every hit that had
 ## not landed yet — a world that is valid but permanently wrong. Draining here
 ## lands the rest synchronously, while the nodes involved are still alive.
@@ -410,14 +410,14 @@ func _present_link_end(reason: String) -> void:
 		hud_root.present_link_lost(reason)
 
 
-## Client-side (#668): the socket just told us our own peer id. Restate BOTH
+## Client-side: the socket just told us our own peer id. Restate BOTH
 ## registry copies — `_ready` pushed a snapshot of `GameSession.roster` and
 ## `.local_peer_id`, and this exists precisely for the case where those were
 ## not yet known then. Both, not just the id — they fail through
 ## [method LootPickRegistry.is_local_collector] in OPPOSITE directions, and
 ## only one of them is safe. A stale `local_peer_id` of 0 answers false for
 ## this peer's own hero (its loot picker never opens — visible); a stale null
-## `roster` answers true for EVERYONE (every peer opens a picker — #668 back,
+## `roster` answers true for EVERYONE (every peer opens a picker — wrong,
 ## and silent).
 func _on_local_peer_resolved(peer_id: int) -> void:
 	pick_registry.roster = GameSession.roster
@@ -448,19 +448,19 @@ func _unhandled_input(event: InputEvent) -> void:
 	get_viewport().set_input_as_handled()
 
 
-## Entity death consequence (#18). Node-stripping is AllocationSystem's job (it
+## Entity death consequence. Node-stripping is AllocationSystem's job (it
 ## also listens to `entity_died`); here we handle the turn-loop-critical half of
 ## what's left SYNCHRONOUSLY — a corpse must not hold/receive a turn — and
 ## defer the VISUAL half (despawn) to `_on_entity_death_shown`.
 ##
-## #460: this used to skip the player, which was only safe because player death
+## This used to skip the player, which was only safe because player death
 ## ended play immediately. It no longer does — [VictorySystem] decides that, and
 ## in hot-seat coop a dead player may leave a living ally — so a player corpse
 ## must be pulled from the turn loop like any other, or TurnManager keeps
 ## ticking its initiative and eventually hands the turn to a dead entity whose
 ## PlayerController waits forever for input.
 ##
-## #504: `Entity.die()` emits `entity_death_shown` itself, last — after both
+## `Entity.die()` emits `entity_death_shown` itself, last — after both
 ## bus phases, so AllocationSystem's strip has run against a still-owned world
 ## before the corpse despawns. Under design B the model dies at the moment it
 ## is drawn dying, so there is no reveal to wait for and no fallback branch:
@@ -474,12 +474,12 @@ func _on_entity_died(entity: Entity) -> void:
 
 ## Pull a corpse out of the turn-loop groups SYNCHRONOUSLY so TurnManager's
 ## tick / `_tick_until_ready` skip it this frame — `queue_free` leaves the node
-## valid (and group-resident) until frame end, or later still under #479's
+## valid (and group-resident) until frame end, or later still under the
 ## reveal gate, so the group removal can't wait for either. Defensive: if the
 ## corpse somehow held the turn, end that turn so the loop isn't stalled on an
 ## actor that's about to disappear.
 ##
-## #443: through [method TurnManager.abandon_turn], never by nulling
+## Through [method TurnManager.abandon_turn], never by nulling
 ## `current_entity` from out here. The field write left the turn silently
 ## un-ended — [signal TurnManager.turn_ended] never fired, and the only thing
 ## that noticed was an `assert` in `start_turn` that a release build compiles
@@ -491,7 +491,7 @@ func _pull_from_turn_loop(entity: Entity) -> void:
 	turn_manager.abandon_turn(entity)
 
 
-## Presentation clock (#479): the killing blow's own reveal has landed (or, per
+## Presentation clock: the killing blow's own reveal has landed (or, per
 ## `_on_entity_died`, nothing was ever going to reveal one) — do the actual
 ## despawn / game-over now.
 func _on_entity_death_shown(entity: Entity) -> void:
@@ -502,7 +502,7 @@ func _on_entity_death_shown(entity: Entity) -> void:
 ## nodes SYNCHRONOUSLY (off `entity_died`, before either call path here can
 ## run), so freeing the entity itself — now or after the reveal gate — can't
 ## orphan them.
-## #460: the player's corpse is NOT freed — it stays in the tree (dead, and
+## The player's corpse is NOT freed — it stays in the tree (dead, and
 ## already stripped of its nodes) so the camera and HUD still have something to
 ## point at while VictorySystem decides the run's fate. Whether a player death
 ## ends the run is no longer GameRoot's call: in hot-seat coop an ally may still
@@ -514,17 +514,17 @@ func _reveal_entity_death(entity: Entity) -> void:
 		entity.queue_free()
 
 
-## The run is over (#460) — [VictorySystem] is the sole decider; GameRoot only
+## The run is over — [VictorySystem] is the sole decider; GameRoot only
 ## presents and routes.
 ##
-## GameRoot no longer decides what the run-end LOOKS like (#517). It used to
+## GameRoot no longer decides what the run-end LOOKS like. It used to
 ## re-emit `Events.game_over` whenever the outcome was not a local WIN, which
 ## meant the composition root held a point of view — and on a hot-seat couch
 ## "the local camp" is whoever acted last, so the answer was undefined by
 ## construction. [HudRoot] now listens to [signal Events.run_ended] directly and
 ## gates the overlay on [member seat_policy], which is a fact about this
 ## machine rather than about the turn order. `Events.game_over` went with the
-## last of that (#526) — the signal is deleted, not left dangling.
+## last of that — the signal is deleted, not left dangling.
 ##
 ## The route back to the meta-shell is deliberately minimal per the issue ("a
 ## results screen is out of scope — a minimal route is enough"). This is now the
@@ -538,7 +538,7 @@ func _on_run_ended(_outcome: RunOutcome) -> void:
 		route_to_meta_now()
 
 
-## Leave the finished run for the meta-shell. The ONE way out (#526): both the
+## Leave the finished run for the meta-shell. The ONE way out: both the
 ## overlay's button and the fallback timeout above come through here, so
 ## clicking out early and then sitting past the timeout cannot `goto` twice —
 ## and cannot end the session twice, which would spend the next run's seed.
@@ -554,7 +554,7 @@ func route_to_meta_now() -> bool:
 		return false
 	_run_end_routed = true
 	# The run is over and we're leaving it: close the session so the next one
-	# resolves its own seed instead of inheriting a spent one (#457). The
+	# resolves its own seed instead of inheriting a spent one. The
 	# outcome it recorded is read by whoever presents it before this.
 	GameSession.end()
 	_leave_for_meta()
@@ -570,7 +570,7 @@ func _leave_for_meta() -> void:
 
 ## Wire a (possibly late-resolved) human player into the *player-interaction*
 ## layer — highlight fallback owner, input controller, vision viewer. Faction
-## and controller kind are decided elsewhere (#475: [method apply_roster], or
+## and controller kind are decided elsewhere (by [method apply_roster], or
 ## authored directly on a hand-authored scene's node) — this only wires the
 ## camera/HUD's notion of "who am I looking through".
 ## Null-safe + idempotent: GameRoot calls it once at the tail of `_ready` (after
@@ -591,12 +591,12 @@ func bind_player(p: Entity) -> void:
 	# way in — see [method PlayerInputController._set_player].
 	input_ctl.player = player
 	_apply_seat_vision()
-	# Nothing victory-side is set from here any more (#517). A hot-seat handover
+	# Nothing victory-side is set from here any more. A hot-seat handover
 	# re-enters this method, so anything point-of-view-ish assigned here would
 	# read from whoever acted last — which is exactly how `local_camp` came to
 	# be undefined on a versus couch. The outcome is POV-free; the HUD resolves
 	# the local reading from `seat_policy`, which a handover cannot change.
-	# #91/#108 — the Hero Sigil Card's floater anchor follows the active hero
+	# the Hero Sigil Card's floater anchor follows the active hero
 	# too, or player 1 keeps collecting player 2's wound/heal toasts. No-op
 	# until the HUD is composed.
 	_wire_hud_floater_anchor()
@@ -604,7 +604,7 @@ func bind_player(p: Entity) -> void:
 	_focus_camera_on_player()
 
 
-## Fog is an ALLIED-HUMANS reveal, not a per-hero one (#459) — the rule and
+## Fog is an ALLIED-HUMANS reveal, not a per-hero one — the rule and
 ## its four cases live on [method SeatPolicy.vision_group]. Coop shares
 ## (handover doesn't re-derive fog from a different subgraph and flash the
 ## map); versus doesn't (rivals are different camps); AI and blockers never do.
@@ -633,7 +633,7 @@ func _apply_seat_vision() -> void:
 	vision_system.viewers = viewers
 
 
-## Hot-seat handover (#459). On a shared couch "the player" is whoever's turn
+## Hot-seat handover. On a shared couch "the player" is whoever's turn
 ## it is among this machine's heroes — the HUD, the input channel, the camera
 ## and the victory viewpoint all re-point through the one seam that already
 ## owns them. Behind a wire the local view is pinned and this does nothing.
@@ -661,7 +661,7 @@ func _ensure_controllers() -> void:
 
 ## Applies each roster participant's authored camp + control-kind + name onto its
 ## already-spawned entity — the roster-driven replacement for deciding
-## faction or controller from "is this entity named player" (#475).
+## faction or controller from "is this entity named player".
 ## [param entities_by_participant_id] maps [member Participant.id] to the
 ## [Entity] spawned for it; participants with no matching entry, or whose
 ## [member Participant.camp] is unset, are skipped. Static + side-effect-only
@@ -678,7 +678,7 @@ static func apply_roster(entities_by_participant_id: Dictionary, roster: Partici
 			continue
 		ent.faction = participant.camp
 		ent.is_human_controlled = participant.kind != Participant.Kind.AI
-		# #564: the correlation LootPickRegistry.is_remote_collector needs.
+		# The correlation LootPickRegistry.is_remote_collector needs.
 		# Set alongside the other roster-authored fields above rather than in
 		# a second pass — every entity this loop actually touches IS the
 		# seated entity.
@@ -717,7 +717,7 @@ func spawn_blocker(size: EntityFactory.BlockerSize, core_location: SkillNode,
 			spell_prune_m, preassigned_id, stake_level, stake_xp_offset_floor, face, face_seed)
 
 
-## The authority's world has landed (#715, [signal NetworkSession.world_ready]).
+## The authority's world has landed ([signal NetworkSession.world_ready]).
 ## Anything [method EntityFactory.spawn_snapshot_entity]
 ## built arrived after the level's own pass, so give it a controller and put the
 ## fog back on this machine's real subgraph — the seat's vision was derived from
@@ -740,7 +740,7 @@ func _on_core_moved(_entity: Entity, from_node: SkillNode, to_node: SkillNode) -
 	to_node.play_core_slide_from(from_node.global_position)
 
 
-## #91/#108 — routes the player's entity-level toasts (wound/heal, stat
+## routes the player's entity-level toasts (wound/heal, stat
 ## modifier gain) to the Hero Sigil Card's FloatAnchor instead of the
 ## world-space core. No-op if the HUD is off ([member HudRoot.enabled]) or
 ## the player hasn't resolved yet.
@@ -751,7 +751,7 @@ func _wire_hud_floater_anchor() -> void:
 	floater_director.player_anchor = hud_root.hero_sigil_card.float_anchor
 
 
-## #306 — "you just got these": on a voluntary player allocation, slab the
+## "you just got these": on a voluntary player allocation, slab the
 ## node's granted modifiers beside the Hero avatar, then absorb them into it.
 ##
 ## Its own layer, deliberately NOT the floater queue (different dwell, anchor
@@ -762,8 +762,8 @@ func _wire_hud_floater_anchor() -> void:
 ##   - `entity == player` — this is the HERO avatar's surface; an NPC
 ##     allocating a node must not toast on it.
 ##   - `not forced` — mirrors the existing convention for cosmetic gain
-##     reactions (see AllocationSystem's `allocated` docstring: #70 floaters
-##     and #71 pulses gate the same way), so a level's setup/procgen
+## reactions (see AllocationSystem's `allocated` docstring: floaters
+## and pulses gate the same way), so a level's setup/procgen
 ##     allocations don't fire a flurry at startup.
 func _wire_gained_modifier_toast() -> void:
 	if not hud_root.enabled or player == null:
@@ -823,19 +823,18 @@ func _on_camera_bounds_changed(bounds: Rect2) -> void:
 	aura_overlay.bounds = bounds
 
 
-## Point the view at the bound hero — level start, and every hot-seat handover
-## (#459). Routed through [CameraDirector] (#523) so there is exactly ONE thing
+## Point the view at the bound hero — level start, and every hot-seat handover.
+## Routed through [CameraDirector] so there is exactly ONE thing
 ## deciding where the camera looks; the request is [b]mandatory[/b] (it bypasses
 ## the grace window and the skip-if-on-screen check) and a hard cut, because a
 ## seat changing hands must re-point the view unconditionally — anything softer
-## would be a behaviour change to #459.
+## would be a behaviour change to the hot-seat handover.
 func _focus_camera_on_player() -> void:
 	if player == null:
 		return
 	# `Entity` extends [Node], not [Node2D] — it has no `position` of its own, and
-	# the hero's place in the world IS its core node. Before #715 the fallback was
-	# unreachable (a spawned hero always got a core), so it read `player.position`
-	# and would have thrown on the first machine that hit it. A joining client
+	# the hero's place in the world IS its core node. A `player.position` read
+	# would throw on a machine that reaches this fallback. A joining client
 	# reaches it every time: it seats the roster before any node exists and the
 	# core arrives with the resync, so the camera simply has nowhere to look yet.
 	# `_on_world_ready` -> `bind_player` is not what re-points it; the turn

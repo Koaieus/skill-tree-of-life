@@ -6,7 +6,6 @@ extends GutTest
 ## key, and a save round-trips the rows with their key and applier.
 
 const _GRAPH_SCENE := preload("res://graph/graph.tscn")
-const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _BOARD := preload("res://entity/default_entity_board.tres")
 const _CAMP_STATUS := preload("res://test/support/status/test_camp_status.tres")
 

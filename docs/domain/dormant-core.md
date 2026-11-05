@@ -272,3 +272,93 @@ layers inside and a scanline-tear / channel-jitter glitch.
   `glitch_intensity`, `damage_spread`, tints, scrolls) — open it in the inspector.
 - **Territory colour** is a void indigo, `Color(0.30, 0.27, 0.42)`, on
   `blocker_entity.tscn` (what the territory tint reads) and `entity/factions/blocker.tres`.
+
+## BlockerVisual internals
+
+`skill_node/visuals/blocker_visual.gd` draws the null-field blob over a blocked
+node. The look is above; these are the invariants the script keeps.
+
+- **One shared material, bound only while visible** (the InnerDisk pattern,
+  `skillnode-visuals.md`). Lobe count, seed and damage travel as `instance
+  uniform`s, and binding the material is what claims an instance-uniform slot,
+  so a cleared or sensed blob binds none.
+- **Tier is fused lobe count**, never node size: `SkillNode.radius` already
+  grows with stake. Three crack stages follow the node's combat-HP fraction
+  (intact above 66%, cracked at or below 66%, shattered at or below 33%); as
+  the stage rises the lobes drift apart, the edge fractures and the glitch
+  light bleeds. Each node's variant derives from `seed_for(stable_id)`, so
+  every peer draws the same blob.
+- **Crack stage is combat paint and the model is the presentation clock.** A
+  hit mutates the world at its own `arrival_time` (`BeatClock`), so
+  `_on_damaged`, bound to the node's `damaged` / `healed`, fires exactly when
+  the blob should crack, with no view store in between. Crack stage also lags
+  one idle frame behind a fresh allocation (see `_ready`); that only delays
+  picking up new ownership, never a mid-life damage tick.
+- **Blocked is a latch, not a live predicate.** The first entity to own the
+  node (a blocker force-allocates its node as its core at spawn) is latched as
+  `_latched_owner_id`; the node reads blocked while `SkillNode.owned_by` stays
+  that entity. Once ownership differs, including null on the blocker's death,
+  clearing is permanent: a later real owner must never re-show the blob.
+  `owned_by.core_class == null` is not the predicate: it cannot tell the
+  original blocker from another null-core actor, and re-derives each read
+  instead of remembering who owned the node first.
+- **The latch holds an instance ID, never an `Entity`.** A freed Object
+  compares equal to null, so a latched reference reads "nothing latched" once
+  the corpse is freed on `entity_death_shown`, and the next owner re-latches.
+  `get_instance_id()` is never reused. It is deliberately not
+  `Entity.entity_id`, which is 0 until the entity enters a graph's
+  `entities_container`, so two unparented entities would compare equal.
+- **The core look is not this script's business.** The blocker's class is
+  `blocker_core.tres` whose `core_look` is the gear (`core_gear.tscn`); a
+  re-owned node wears the new owner's class look, both through
+  `SkillNode._refresh_core_presence`.
+- **Fog:** hidden while `SkillNode.sensed`, resynced off `sensed_changed` plus
+  one initial sync in `_ready`, never a `_process` poll.
+- **Not `@tool`.** An `@tool` `_ready` writing `visible` while
+  `blocker_node.tscn` is open in the editor would be serialized back into the
+  scene on save (`.claude/rules/godot-workflow.md`); the blob only runs in a
+  live game or test tree.
+
+## spawn_blocker (EntityFactory)
+
+`EntityFactory.spawn_blocker(size, core_location, footprint, ...)` spawns a
+removable blocker: a plain `Entity` with no controller, whose tiered board
+(`size` to CON/armor/health, no initiative) and the size's spellbook are
+authored under `entity/blocker/`. It parents under `graph.entities_container`
+and force-allocates the core like `spawn_entity` (procgen setup, not a gameplay
+action), and returns the entity with `Entity.entity_tier` = size + 1 (1/2/3).
+
+- **The falloff aura is not granted in code.** `blocker_entity.tscn` authors
+  `core_class = blocker_core.tres`, whose `effects` array carries it, so
+  `Entity._ready` grants it on `add_child` through the ordinary entity-wide
+  effect seam. That class is deliberately not pickable: `pickable_in = 0`,
+  absent from `core_class_roster.tres`, filed under `entity/blocker/`. The aura
+  is inert on a footprintless blocker (`ProportionalScale` puts the source at
+  scale 0) and at grant time on the `spawn_snapshot_entity` path, which spawns
+  with a null core; the later `core_location` assignment dispatches
+  `_on_core_moved` (a full recompute) and fills it.
+- **`spell_prune_m` / `spell_prune_seed`** shape the loot-book prune
+  (`SpellBook.duplicate_pruned`). `0.0` keeps the tier's authored book whole
+  (hand-authored levels, fixtures). Procgen hands out one seed per placement
+  because every peer re-runs the spawn and must land on the same book. The
+  prune copies before it pops: tier books are `preload`ed resources shared by
+  every blocker of a size.
+- **`preassigned_id`** adopts an entity id decided elsewhere instead of letting
+  `Graph` mint one (the authority's id, when a snapshot rebuilds a blocker on a
+  peer that ran no procgen). `0` mints as usual. It is stamped before
+  `add_child` because `Graph._mint_entity_id` assigns only to an id still 0.
+- **`stake_level`** is procgen's pre-stake (1..3 per placement). It only raises
+  the core node's cap; a node procgen already staked keeps its own. A raise
+  past the node's ceiling lifts `SkillNode.stake_ceiling`
+  (`set_procgen_stake`). The cap is stamped, `force_allocate` opens the 0 to 1,
+  and `AllocationSystem.force_fill` walks to the cap with no SP minted, so the
+  blocker's pool never says it bought the fill. A staked kill frees a node
+  already filled to 3, SP the killer never spent, so kill XP is offset by a
+  MULTIPLY on `core_kill_xp` clamped to `blockers_cfg.stake_xp_offset_floor`
+  (every input a live board read). Only the core is staked, never the
+  footprint. The snapshot path leaves it at 1 and passes no core, so the row's
+  own `stake_level` / `allocation_level` land untouched.
+- **`face`** (a `BlockerCoreClass`) and `face_seed` come from procgen's face
+  roll; null keeps the scene's faceless class. The face is set before
+  `add_child` so `Entity.initialize` applies it once; the seed rides entity meta
+  (the class is a shared resource).

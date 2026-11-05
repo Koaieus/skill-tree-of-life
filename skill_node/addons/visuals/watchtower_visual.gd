@@ -2,41 +2,12 @@
 class_name WatchtowerVisual
 extends AddonVisual
 
-## The one addon that is a BUILDING rather than a shell, and it is drawn as
-## one: a lattice tower standing in elevation on the carrier's rim, roof and
-## railing above, legs planted on a contact shadow.
-##
-## [b]Why this one breaks the concentric habit.[/b] [BunkerVisual]
-## armours the node itself, so it becomes part of its
-## shell and is drawn in plan, as a band. Watchtower doesn't change what the
-## node is made of — it grants `vision_range` and `range`, i.e. it projects
-## outward — so it is a structure standing ON the territory, and the honest
-## projection for that is elevation. The split is the rule, not a compromise:
-## shell in plan, building in elevation.
-##
-## [b]It stands on the rim, not on the middle.[/b] The retired art pasted the
-## tooltip icon across the centre of the disk — simultaneously the busiest
-## region on the node (the CARVE slot, docs/domain/skillnode-emblem.md) and a
-## projection clash, a side-view building laid flat over a dome lit from above.
-##
-## [b]Bearing is constrained, not aesthetic.[/b] Straight up is taken:
-## `skill_node.tscn` parks `HealthBar` at y −59..−46 and `CoreHealthBar` at
-## y −44..−28, both spanning x ±35, and `FloatAnchor` sits at (0, −50). The
-## default lower-right bearing puts the whole silhouette below y ≈ −21, clear
-## of both bands, while keeping the tower's feet in contact with the rim.
-##
-## [b]Built as bold closed shapes, with the lattice as detail on top.[/b] At
-## the zoom where a few hundred nodes share the screen, thin many-part glyphs
-## fragment into noise and solid silhouettes hold (.claude/rules/icon-assets.md
-## makes the same point about baked icons). So the legs, cabin and roof are
-## filled polygons that survive minification, and the X-bracing is drawn over
-## them as lines that simply fade out — losing detail, never the shape.
-##
-## [b]The lantern.[/b] The cabin window holds a lit beacon in the addon's own
-## identity hue (Scout's, never a school family colour), glowing on a named
-## [Emissive] tier with a slow breath and a soft halo: the tower that scouts
-## is the tower that shines. Its hue is derived from the parent addon's
-## [member SkillNodeAddon.tint], never authored here.
+## The one addon that is a BUILDING rather than a shell: a lattice tower in
+## elevation on the carrier's rim, drawn as bold closed shapes with the bracing
+## as fading detail, and a lit beacon in the parent addon's [member
+## SkillNodeAddon.tint] on a named [Emissive] tier. The default bearing keeps it
+## clear of the health bars. See docs/domain/addon-visual-registers.md
+## "WatchtowerVisual".
 
 ## Where on the rim the tower plants its feet, measured clockwise from +X in
 ## screen space (so positive is downward). The default puts it lower-right;

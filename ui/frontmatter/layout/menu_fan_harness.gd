@@ -2,38 +2,13 @@
 class_name MenuFanHarness
 extends MarginContainer
 
-## One menu's geometry, AUTHORED (#589 D1/D2). The base scene is
-## `menu_harness.tscn`; every fan in the game is an inherited scene of it that
-## adds its own slots and tunes its own separation and margins in a full-screen
-## editor preview.
-##
-## [codeblock]
-##   MenuFanHarness (MarginContainer, the project viewport)
-##     %Row          (HBoxContainer)
-##       %HeroSlot   (MenuSlot)  — where the focused node docks
-##       %OptionsVBox(VBoxContainer)
-##         MenuSlot x N          — one per child of [member hero_id]
-## [/codeblock]
-##
-## [b]It replaced a recursion, not an offset table.[/b] The old solver derived a
-## sibling pitch from peek-stack collision constraints, which is why the root fan
-## ended up 52% looser than every fan below it at a number nobody authored. A
-## container authors that pitch directly, so `_group_gap()` and
-## `_collapsed_extent()` have no reason to exist and are gone.
-##
-## [b]It is never ALIVE while the menu is (#589 D3).[/b] This is a [Control] tree
-## in SCREEN space; the menu is [Node2D] views under a [Camera2D] in WORLD space.
-## A live harness would re-lay-out on window resize under a camera that already
-## baked its numbers — a second layout system racing the first. So
-## [FrontmatterLayout] instances it, calls [method measure], and frees it.
-## [method measure] drives the container sort by hand rather than waiting for a
-## frame, which is what lets the whole geometry stay a pure static function with
-## no `await`. It does parent itself for the length of that one synchronous call
-## — [ControlMeasure.parent_for_measuring] explains why it has no choice — but
-## it is never in the tree across a frame, and that is what D3 is about.
-##
-## And never a [RemoteTransform2D] between the two: it pushes GLOBAL transform
-## and would double-apply the camera.
+## One menu's geometry, AUTHORED. Every fan is an inherited scene of
+## `menu_harness.tscn` (MarginContainer > %Row > %HeroSlot + %OptionsVBox of
+## [MenuSlot]s), tuned in a full-screen editor preview. It is never ALIVE while
+## the menu is: [FrontmatterLayout] instances it, calls [method measure]
+## (a synchronous container sort), and frees it. Never a [RemoteTransform2D]
+## between it and the camera — that would double-apply the camera.
+## See docs/domain/frontmatter-shell.md
 
 
 ## What one fan authors, once [method measure] has laid it out and read every

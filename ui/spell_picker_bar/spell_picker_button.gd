@@ -2,48 +2,13 @@
 class_name SpellPickerButton
 extends Button
 
-## A single spell pick in [SpellPickerBar]. Toggle button (radio-managed by
-## the bar's ButtonGroup) that renders a spell card:
-##   * top inset — one tick per [member SpellDef.min_degree]
-##   * the spell icon, full-bleed in its square (or the noun letter, via
-##     [method IdentityBadge.letter_of]) — the tile is identity enough, so no
-##     [IdentityBadge] frames the spell here
-##   * name label
-##   * one [IdentityChip] per innate intake (aspect glyph + count); a non-1
-##     ingest rate is named only in [member Control.tooltip_text]
-##
-## Same shader scaffolding as [AttackModeButton] — the bg shader handles
-## rounded-rect rendering, mouse-proximity glow, rim, breathing pulse when
-## active, and a desaturated/dimmed disabled state; the text shader gives
-## the name label a soft halo + tint blend. State plumbing routes
-## hover / pressed (toggle) / disabled into shader strength uniforms via
-## tweens so transitions are smooth.
-##
-## On hover emits [signal Events.spell_hovered] / [signal Events.spell_unhovered]
-## so the floating [SpellTooltip] (mounted in HudRoot) shows a formatted scene
-## with dynamic-value highlighting. The native [member Control.tooltip_text]
-## carries only the non-1 ingest-rate note (`poison ×2`).
-##
-## [b]Two independent gates (#728).[/b] Both grey the same shader term, but
-## only one flips the engine [member Button.disabled]:
-##
-## - [method set_actionable] — the bar-wide "your turn, AP left" gate. Genuinely
-##   disabled: there is nothing to explain, the whole bar is already dimmed.
-## - [method set_has_caster] — does any owned node clear the spell's min_degree
-##   (#728). Grey but CLICKABLE.
-##
-## The caster gate stays clickable so a press can explain itself; a disabled
-## Button swallows the very click its denial toast needs. [method set_actionable]
-## replaced a `set_castable` that also carried min_degree — that term moved out
-## when #728 removed the pre-picked source it was measured against, and became
-## the bar-wide [method SpellBook.eligible_sources] question instead of a
-## per-source one.
-##
-## [signal spell_picked] is the gated report of a press: [SpellPickerBar]
-## connects to THAT, never to the raw [signal BaseButton.pressed], because two
-## independent listeners on one native signal can't have one veto the other,
-## and only this button knows whether its own press should count as a pick or
-## a denial.
+## A single spell pick in [SpellPickerBar]: a toggle button rendering a spell card
+## (min_degree ticks, icon full-bleed, name, an [IdentityChip] per innate intake),
+## on the [AttackModeButton] shader scaffolding. Hover emits
+## [signal Events.spell_hovered] / `spell_unhovered`. Two gates: [method set_actionable]
+## truly disables; [method set_has_caster] greys but stays CLICKABLE so the denial
+## can explain itself. The bar listens to [signal spell_picked], never `pressed`.
+## See docs/domain/hud-widgets.md
 
 ## Emitted on press when every clickable gate is met — the pick
 ## [SpellPickerBar] acts on. A press blocked by "no eligible caster" instead

@@ -440,3 +440,5 @@ The skin's z-sandwich (`HoloPanel` `z = -1` / content `z = 0` / `ScanlineOverlay
 
 - Entry-animation *style*: which reveal a panel plays is not yet chosen; the
   `FanAnimation` resource type can carry phase knobs later.
+
+Per-unit contracts (FanAnchor, FanAnchorDriver, FanLayout, FanTrace, TraceRouter, TooltipFan coordinator, panels, SlabRow): `docs/domain/tooltip-fan-units.md`.

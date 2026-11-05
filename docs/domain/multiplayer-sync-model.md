@@ -652,3 +652,40 @@ the same encoding the obvious one.
   re-derives rather than receives, it draws from the seed it was handed. What
   changed is the *scope* — host-only rolls (loot, relics) are exempt, because
   nothing re-derives them.
+
+## AttackRecord: the post-apply wire form
+
+`AttackRecord` (`attack/outcome/attack_record.gd`) is what crosses the wire for
+an attack. It is **post-apply, not resolve-time**: the host resolves
+(`AttackPlan.resolve`), applies through `OutcomeApplier` with every mode's
+land-time gate live, and records what each landing actually did. A client
+cannot re-derive a combat number: mitigation is read node-locally at land time,
+an earlier beat's cascade can change what a later beat lands on, and a target
+may sit under fog the client knows nothing about. A peer never calls `land_on`
+on a mode-specific hit, never re-runs a gate, never computes a number; it
+replays the recorded deltas through the same `OutcomeApplier` loop on the same
+`BeatClock`.
+
+- **The cascade's machinery is shared, its input is not re-derived.** The record
+  carries the deallocation set per hit and the peer applies it through the same
+  `EntityCombat.apply_cascade` the host used. A fogged client may not hold the
+  islanded nodes at all, so walking the defender's navigator on a peer would be
+  wrong, not merely redundant.
+- **Encoding is parallel arrays of scalars, not ~100 dictionaries.** First for
+  correctness: a `PropagationEvent`'s `hits` are shared references into
+  `AttackOutcome.hits`, so the timeline carries indices into the flat hit list
+  and `rebuild` restores the aliasing instead of building independent copies per
+  event. Second for volume: `trail_blazer.tres` has `max_hops = inf` (only the
+  never-revisit rule ends its walk) and `reverberator.tres` authorises
+  `max_visits_per_node = 6`, so one cast can produce ~100 landings.
+- **What does not cross.** `HitInstance.source` and `read_node` are
+  resolve-local (the one reader, `ArrowVolleyCoordinator`, dereferences
+  `.attacker`, a typed base-class field the wire carries as an `entity_id`).
+  `AttackOutcome.cancellations` is read only by tests (cancel VFX rides the
+  timeline's `Verb.CANCEL`). `AttackOutcome.popped_nodes` is read only by
+  `AiCombatScorer`, which is host-side.
+- **Known asymmetry, deliberate.** A landing that mitigated to exactly zero
+  mutates nothing, so its replay is a no-op and the peer does not re-announce
+  it on `Events.skill_node_damaged`: the world matches, a "0" floater does not
+  appear on the peer. Forcing the announcement would need a second
+  implementation of `SkillNode.take_damage`, the parallel-mirrors trap.

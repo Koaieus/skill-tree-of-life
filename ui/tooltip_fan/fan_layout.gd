@@ -1,47 +1,13 @@
 class_name FanLayout
 extends RefCounted
 
-## Pure rect relaxation solver for the tooltip fan: N bodies spring toward
-## authored rests while position projection keeps them apart from each
-## other, from fixed obstacles, and inside a keep-in rect. No nodes; the
-## driver feeds bodies in and reads `position` back each frame. The solver is
-## bloom-agnostic: [FanAnchorDriver] solves warm and flies a blooming panel
-## onto its solved spot as a separate visual leg (a lone body, no obstacles).
-##
-## Two forces only. (1) A critically damped spring toward `rest` clamped
-## into the window — the camera's rubber band (`scenes/camera_2d.gd`):
-## `ω = 1 / settle_seconds`, `accel = (rest − pos)·ω² − vel·2ω`,
-## semi-implicit Euler, sub-stepped so `ω·dt ≤ MAX_STEP_RATIO`; no
-## transcendentals. (2) Position projection: after integrating, up to
-## `relax_iterations` passes push every overlapping inflated pair apart —
-## half each for a body pair (a wall's share going to the partner), the
-## whole correction against an obstacle — then `keep_in` is applied last
-## and absolutely (a body larger than the window pins to its top-left).
-## Contact is INELASTIC: on each axis projection corrected, the velocity
-## driving into the correction is dropped. A body held off its rest then
-## re-presses its contact by one frame's spring pull, not by the closing
-## speed it built up — which is what lets a crowded fan against a wall
-## come to rest instead of reshuffling every frame.
-##
-## JAMS, not just contacts. Projection is local: each push is the
-## shallowest one with room, which a wall, an obstacle or an over-full stack
-## can undo within the same pass — the pair pass shoves a panel onto the
-## node and the obstacle pass shoves it straight back, and the fan rests
-## still but overlapping. So (a) a body inside two obstacles escapes each
-## one on its own axis when that lands clear, the merged rect only when it
-## does not; (b) an obstacle push that has no room on its shallow side
-## takes the shortest far-edge clear that does; and (c) when the relax cap
-## runs out with a pair still overlapping past `JAM_TOLERANCE` (a
-## converging chain's residual is sub-pixel), a second capped relax
-## separates exactly those pairs along their OTHER axis, pinned for the
-## whole round so a pair cannot flip back mid-way. Once apart sideways the
-## pair's next contact is shallow on that axis, so the escape holds.
-##
-## Inflation: `padding` is the gap the solver maintains between any two
-## rects. A body-vs-body test inflates each side by `padding / 2`; a
-## body-vs-obstacle test inflates the body by the full `padding`.
-## Pair order is body index order and every sign has a total fallback
-## chain, so the result is deterministic.
+## Pure rect relaxation solver for the tooltip fan: N bodies spring (critically
+## damped, toward authored rests) while position projection keeps them apart from
+## each other and fixed obstacles and inside a keep-in rect. No nodes; the driver
+## feeds bodies in and reads `position` back each frame. Deterministic (pair order
+## is body index order). Contact is inelastic, and a jam (a pair still overlapping
+## past `JAM_TOLERANCE`) is escaped along the OTHER axis.
+## See docs/domain/tooltip-fan-units.md
 
 ## The camera's sub-step cap: `ω·dt` per sub-step never exceeds this.
 const MAX_STEP_RATIO := 0.25

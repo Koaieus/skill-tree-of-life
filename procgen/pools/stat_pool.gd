@@ -97,37 +97,11 @@ const BUDGET_PASS := &"budget"
 		value_overrides = v
 		_update_resource_name()
 
-## Tunable floor magnitude — "M" in #628. `L(min_tier) = range_floor`; every
-## higher tier's low bound is `H(previous tier) + range_floor` ([method
-## TierLadder.low]). Same units as `unit_value` — the *excess* for MULTIPLY
-## pools (the +1 is folded in at flatten, same as `unit_value`), raw
-## otherwise. Validation is sign-aware (#637): for a positive (or zero)
-## `unit_value` the constraint stays `range_floor <= unit_value` (a floor
-## above the T1 ceiling inverts the range) — negative `range_floor` is legal
-## and intended, it spans the range across zero so a normal pool can roll a
-## small penalty alongside its usual upside. For a negative `unit_value` the
-## constraint is magnitude-based instead — `sign(range_floor) ==
-## sign(unit_value) and abs(range_floor) <= abs(unit_value)` — because an
-## always-negative pool must stay always-negative; a floor that crossed zero
-## or overshot the T1 ceiling's magnitude would break that guarantee.
-## `_get_configuration_warnings` enforces both branches; see
-## docs/domain/procgen-v4.md.
-##
-## Sentinel default: [constant FLOOR_UNSET] means "not authored" and resolves
-## to `unit_value`, which is always valid under either branch above (equality
-## trivially satisfies both) and reproduces pre-#628 behaviour exactly — a
-## zero-width min_tier, unchanged highs. A literal numeric default could not
-## do this: it would fail validation for any pool whose `unit_value` is
-## smaller than it (e.g. `attribute .mul`'s 0.05) or wrong-signed (a negative
-## pool's `unit_value`). Every already-authored `.tres` under
-## `procgen/pools/` that doesn't deliberately author a `range_floor` omits
-## this field and so gets `range_floor == unit_value` for free — the "no
-## existing pool rebalances" regression the acceptance spec asks for.
-##
-## Negative pools (`unit_value < 0`, D9) are NOT exempt from `range_floor` as
-## of #637 — they roll a real range like any other pool. See [method
-## _tier_magnitude_bounds] for how the recurrence's near/far pair is ordered
-## for a negative pool.
+## Tunable floor magnitude "M": `L(min_tier) = range_floor`; each higher tier's low
+## bound is `H(previous) + range_floor`. Validation is sign-aware (for a negative
+## `unit_value`, `range_floor` must share its sign and not exceed its magnitude).
+## `FLOOR_UNSET` resolves to `unit_value`.
+## See docs/domain/procgen-v4.md
 const FLOOR_UNSET := INF
 @export var range_floor: float = FLOOR_UNSET:
 	set(v):
@@ -272,36 +246,12 @@ func valence_tag() -> String:
 func _effective_floor() -> float:
 	return unit_value if is_inf(range_floor) else range_floor
 
-## One (lo, hi) magnitude pair per tier in `min_tier..max_tier` — the shared
-## computation behind [method to_entries], [method format_table], and
-## [method _get_configuration_warnings]. "Magnitude" = pre-"+1" excess for
-## MULTIPLY pools, raw value otherwise (the transform is applied by callers,
-## same split [method to_entries] always used for `unit_value`). Single
-## source of the low-bound recurrence so every reader sees the same chain
-## through (possibly overridden) highs — see [method TierLadder.low].
-##
-## Negative pools (`unit_value < 0`, D9) roll a real range too, as of #637 —
-## the old exemption ("low ends up right of high") was a **naming** problem,
-## not a math failure: [method TierLadder.low] is sign-agnostic, and for a
-## negative pool the recurrence yields the tier's *near*-zero end while the
-## ladder (`unit_value × V(t)`) yields its *far* end — the mirror image of a
-## positive pool, where the recurrence yields the near end and the ladder the
-## far end. This function orders the pair by that role (not by raw numeric
-## sort) before returning it, so both [method to_entries]'s `value_range` and
-## [method _get_configuration_warnings]'s inversion check can keep comparing
-## `lo` against `hi` with the exact same `>` — unchanged for either sign — and
-## get the right answer: `lo` is always "the end nearer zero should not have
-## overshot past hi" in the appropriate direction. Example, the repo's INT
-## pool (`unit_value = -3`, `range_floor = -1`): T1 near = -1, far = -3 →
-## ordered (lo, hi) = (-3, -1); T2 near = -4, far = -9 → (lo, hi) = (-9, -4).
-##
-## A tier with a [member value_overrides] entry is ALSO a fixed point at its
-## own tier — #629's decision text: "value_overrides still pins a tier to an
-## exact value, bypassing the roll entirely." Its (overridden) `H` still
-## feeds the NEXT tier's low bound via the chain — the guard [method
-## _get_configuration_warnings] enforces is specifically about THAT: a large
-## override can invert a LATER, non-overridden tier, not the overridden tier
-## itself (which can never invert — its own lo and hi are the same number).
+## One (lo, hi) magnitude pair per tier in `min_tier..max_tier`: the shared
+## computation behind `to_entries`, `format_table` and the config warnings. Pairs
+## are ordered by ROLE (near/far end) not numeric sort, so negative pools compare
+## the same way. A `value_overrides` tier is a fixed point that still feeds the
+## next tier's low bound.
+## See docs/domain/procgen-v4.md
 func _tier_magnitude_bounds() -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
 	var lo := clampi(min_tier, TierLadder.MIN_TIER, TierLadder.MAX_TIER)

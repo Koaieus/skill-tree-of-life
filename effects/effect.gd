@@ -3,39 +3,11 @@
 class_name Effect
 extends Resource
 
-## Persistent, hook-driven behaviour carried by a [CoreClass], a [SkillNode]
-## (a landmark scene's `effects`), or a [SkillNodeAddon], and dispatched by
-## the [Entity] that owns it.
-##
-## [b]Stat math — a formula included — is a [StatModifier], not an Effect.[/b]
-## Reach for an Effect only for behaviour that needs a lifecycle hook.
-##
-## [b]Not to be confused with [OnHitEffect][/b], which is transient: it fires
-## once as a spell lands on a node and keeps no state. An [Effect] is granted,
-## lives, reacts to gameplay moments, and is revoked. Sibling concepts, not a
-## hierarchy.
-##
-## [b]Composition, not a subclass zoo.[/b] There is no `TurnStartEffect` /
-## `BattleStartEffect` split — those would be uncomposable (an effect can't be
-## both). Triggers are [i]methods[/i]; the composite is an `Array[Effect]` on
-## the carrier, which the Godot inspector edits natively. So no `CompositeEffect`
-## is needed either.
-##
-## [b]Hooks are declared, not inherited.[/b] This base defines none of the `_on_*`
-## world/combat hooks, so `has_method()` is an exact test of "does this effect
-## care" — and [Entity] buckets by hook once at grant time, making dispatch
-## O(interested) rather than O(all effects). Implement only what you need:
-## [codeblock]
-## func _on_core_moved(ctx: EffectContext, from: SkillNode, to: SkillNode) -> void:
-##     ...
-## [/codeblock]
-##
-## The two lifecycle hooks below are the exception — defined here and always
-## called. Everything else is optional and listed in [constant HOOKS].
-##
-## [b]Effects are shared resources.[/b] One `.tres` may sit on many entities.
-## Never store runtime state on the effect; use the [EffectInstance] ledger via
-## [EffectContext].
+## Persistent, hook-driven behaviour carried by a `CoreClass`, `SkillNode` or
+## `SkillNodeAddon` and dispatched by the owning `Entity`. Stat math is a
+## `StatModifier`, not an Effect. Hooks are declared, not inherited (`has_method`
+## is the test, see `HOOKS`). Effects are shared resources: no runtime state.
+## See docs/domain/effect-system.md
 
 ## Every legal optional hook name. A GUT test asserts each `_on_*` method on
 ## each subclass appears here — the price of the `has_method` approach is that

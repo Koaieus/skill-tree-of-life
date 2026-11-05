@@ -61,6 +61,22 @@ own `tint_mix`; CoreHalos reads `entity_tint` and keeps only `halo_opacity`
 private. The contract guarantees both identities are reachable and in sync, so
 switching a component from one to the other is a one-line edit.
 
+The composite is also the only layer that knows both `InnerDisk` and `RimRing`
+exist: `geom_inner_r` is handed to both so the disk's edge and the ring's floor
+line up, and `RimRing` carries no disk knowledge. Never merge the two tints back
+into one.
+
+**Shelved encoders.** `RimBonuses` (rim gems plus the segmented stake dial) and
+`RuneRing` were authored as alternate looks, never simultaneous layers, and
+crowded each other out; both are cut from the production stack. Their scenes
+stay in the repo and previewable in the sandbox host's Node Visuals tab, which is
+the shelf. Nothing hidden-but-instanced is left behind on purpose: a level
+carries ~500-2500 of these, so an unused child is tree nodes, `_ready` work and
+potentially an instance-uniform slot on every one
+(a level carries thousands of nodes). The dial's function was reclaimed as a
+shader term on `RimRing` itself: `_sync_stake` forwards
+`allocation_level` / `stake_level` into `%RimRing.fill_current` / `.fill_max`.
+
 `entity_tint` says "this is MINE" (the disk, the core look); `archetype_tint` says
 "this is what I AM" (every rim) and stays legible whether or not the node is
 owned. `allocation_level` (0 unowned, 1 baseline, 2+ staked, capped by
@@ -151,6 +167,31 @@ it hides the `ShaderStack` and shows `SensedOutline`, a non-shader
    `instantiate()` then `sensed = true` hides the stack before the children's
    `_ready` runs and they never bind a material. Guarded by
    `test_node_visuals_contract.gd`'s `*_sensed_*` tests.
+
+## RimRing: band, bevel, batching
+
+`RimRing` is the raised chrome / gem-holder band around a node's disk (not a
+"wall"), and knows nothing about the disk beneath it: it owns only
+`inner_radius` to `outer_radius` (base class) with `crest_r` as an interior
+control point where the flat floor ends and the bevel to the rim begins. The
+composite lines `inner_radius` up with the disk radius. "No bevel" is
+`crest_r == outer_radius` (a flat plateau); `crest_r == inner_radius` bevels the
+whole band. The composite instances it once for the basic rim, or N times for
+ring-stacking stake mode.
+
+- The crest-to-rim bevel is a real height(radius) bumpmap lit by
+  `rim_ring.gdshader` (fragment side, not a CPU-banded fake). level / terrace /
+  smooth / sharpen are four closed-form presets baked into the shader, so every
+  preset `rim_ring` shares ONE `ShaderMaterial` (one draw call) and varies per
+  node through `instance uniform`s.
+- A genuinely custom `Curve` in `rim_height_style` opts that instance out of the
+  shared material (samplers cannot be instance uniforms): it bakes a small LUT
+  texture on a dedicated per-instance material. That is a deliberate, opt-in
+  cost; the preset path stays batched.
+- The stake dial (below) is an additive shader term: `fill_current` /
+  `fill_max` of 0 draws nothing, N > 1 divides the band into N evenly-gapped
+  slots anchored at 12 o'clock and growing outward symmetrically, and M == N == 1
+  is the gapless single-ring case. No spin.
 
 ## RimRing stake dial
 
@@ -323,3 +364,41 @@ decoupled from the consumer's rebuild.
 `node_highlight_overlay.gd`'s range ring draws AT `range_radius` (centerline), not
 through the convention: it is a gameplay reach in world space, not a decoration
 band.
+
+## SkillNodeAddon contract
+
+`SkillNodeAddon` (`skill_node/addons/skill_node_addon.gd`) is a scene, not a
+script: read `<name>_addon.tscn` first. Its root names the script it runs
+(often the base one; `toxin_addon.tscn` runs `skill_node_addon.gd`) and holds
+the authored modifiers, icon and visuals. Subclass only for behaviour a scene
+cannot author. An addon is a component-as-node: a plain direct child of a
+`SkillNode` carrying stat modifiers (entity- or node-scoped), a visual, and
+behaviour hooks other systems dispatch into (e.g. `SkillBlade.apply_to_blade`).
+
+- **Attaching is `skill_node.add_child(addon)`.** No anchor node, no
+  `attach_addon()`; procgen, loot and editor authoring use the one path. Order
+  is free: an addon parented before the carrier enters the tree is adopted by
+  the carrier's `_ready` sweep. Only direct children are adopted; nesting an
+  addon under `Visuals` or another addon resolves `carrier` (the lookup walks
+  up) but never attaches.
+- **Positioning:** an addon's own transform stays identity. It renders
+  concentric with the carrier and inherits its transform; an offset or rotated
+  element lives in the addon's child visuals, never its root transform.
+- **Visuals are children.** Drawing lives in a direct child `AddonVisual` (its
+  own `.gd` under `visuals/`, holding draw code and look knobs). `_ready` seeds
+  every direct `AddonVisual` child from `carrier.radius` and
+  `configure_visual` forwards each later change. A subclass that only draws
+  itself has no reason to exist.
+- **Lifecycle:** on becoming a child, the carrier transfers the addon's
+  modifiers into its own arrays and, if allocated, the entity board; symmetric
+  on removal. The carrier owns the "is this mod attached" truth.
+  `entity_modifiers` are appended to `carrier.modifiers` (what
+  `AllocationSystem` iterates) and, while the carrier is allocated, pushed or
+  popped live on the entity stat board. `local_modifiers` route to
+  `carrier.node_board` via `SkillNode._ensure_local_stat`, applying regardless
+  of allocation (an unallocated node is inert in combat anyway).
+- **In the editor the modifier transfer is skipped.** An addon shows its
+  visuals but grants no stats, because `SkillNode.modifiers` is an `@export`
+  and writing derived modifiers there would serialize them into the `.tscn`.
+- A stacking cap (e.g. "1 + 1/<stat>" addon capacity) belongs at
+  allocation/edit time and does not touch this class.

@@ -16,3 +16,47 @@ REGEN_OUTCOME_FIXTURE=1 mise run test:one -- \
 That captures a live attack in the same headless context and rewrites the `.tres` the tab's Save button writes, so the two authoring paths cannot become two formats. Read the diff before committing. **A missing fixture is a failure, never a silent re-capture** — a test that captured its own expectation when it found none would pass everywhere while asserting nothing.
 
 **Untested:** every amount in `spark_cascade.tres` is integral, so whether a text resource round-trips `AttackRecord`'s `PackedFloat64Array` amounts exactly is unverified. They are float64 so a peer's HP lands on the host's number; if a fixture with a mitigated or crit-multiplied amount loses precision, the fix is a binary `.res`, not a change of format.
+
+## Outcome playground world (`scenes/dev/outcome_playground_world.gd`)
+
+The world the Outcome playground replays into (#539) — built in CODE, on
+purpose, and shared verbatim by the tab and by the headless fixture test.
+
+**Why not a `.tscn`.** A recorded `LaunchAttackCommand` names nodes by
+`stable_id` and its attacker by `entity_id`, and both mint from per-`Graph`
+counters walking container CHILD ORDER (`Graph._ensure_topology` /
+`_mint_entity_id`). So a fixture only replays if the world it lands on is
+reproduced *identically* — same nodes, same order, same allocation. One
+builder called from both places makes that true by construction; a scene
+plus two copies of "now arm it" is exactly where that drifts. This is the
+same call `scenes/dev/sandbox_world.gd` documents for the systems half, and
+like it this script carries **no `class_name`** — consumers preload it, and
+the global class cache stays out of it.
+
+**The shape, and why each piece is there.**
+
+```
+  a_core ── a_leaf ── d_gate ── d_core
+                         │
+                      d_limb1
+                         │
+                      d_limb2
+```
+
+  * Two factions, authored on both sides. Two entities that never set one
+    are ALLIES (`.claude/rules/melee-fixtures.md`), and an allied node is
+    dropped before a plan ever queries it.
+  * `d_gate` is a CUT VERTEX of the defender's territory: killing it islands
+    `d_limb1` + `d_limb2` while `d_core` survives. That is the point — the
+    forced-dealloc cascade then BFSs into THREE layers, which is what
+    acceptance 3 pins (the shatter stagger must survive the replay path),
+    and it is the "3 nodes turn to dead instantly" report #534 names.
+  * `a_leaf` carries LOCAL `spell_damage` + `range`, because
+    `SpellResolver` reads `spell_damage` off the cast-from node
+    first. Overkill is deliberate: a cast that only chips HP leaves
+    ownership untouched and the fingerprint assertion passes vacuously.
+
+Crit is deliberately left ON. The record is captured post-roll and a replay
+re-rolls nothing (`crit_multiplier` comes back 1.0), so the fixture is
+reproducible with crit live — and zeroing it would hide the very asymmetry
+the replay path exists to prove.

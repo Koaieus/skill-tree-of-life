@@ -271,40 +271,12 @@ func start_turn(entity: Entity) -> void:
 	forecast_changed.emit()
 
 
-## Take the authority's cursor as given (#756) — the resync half of "the mirror
-## never starts a turn on its own".
-##
-## [method start_turn] is a DECISION: it consumes readiness, tallies a turn and
-## fires the upkeep that turning gives you. This is the same cursor arriving as
-## a RESULT, from [method EntitySnapshot.restore_turn_cursor], on a peer that has
-## just had its whole world overwritten by the authority's. So it sets what
-## `start_turn` sets and runs none of what `start_turn` runs — no
-## [method Entity.begin_turn], only [method Entity.mark_turn_adopted] — because the payload it came with is the world AFTER
-## all of that already happened.
-##
-## [param total_turns_taken] is the authority's [member turns_taken], adopted
-## outright: it is what [member RunOutcome.turn_count] reports, and a repaired
-## mirror counting its own was #756's second symptom (host 48, client 38).
-##
-## [b]No [signal turn_ended] for the entity being displaced.[/b] That signal
-## MUTATES ([method Entity.finish_turn] moves unused AP into next turn's
-## surplus), and the surplus this repair should end with is already in the board
-## the snapshot just restored. A repair has no presentation semantics and must
-## never acquire any (#521 D1); this is the same rule one level down.
-##
-## A no-op when the cursor already agrees, which is the ordinary case for a
-## mid-run repair — and what keeps this idempotent, like every other step of a
-## resync decode.
-##
-## [param rounds], [param round_open] and [param waiting] are the authority's
-## round state ([member rounds_completed], whether a round is open, and
-## [method round_waiting]), adopted outright for the same reason as the tally —
-## a mirror that counted its own would end a turn-limited run on a different
-## turn. [param rounds] `< 0` leaves the round state untouched (a caller with
-## only a cursor to set). Never emits [signal round_completed].
-## [param world_progress] is the authority's [member world_turn_progress],
-## adopted with the round state (and only then); never emits
-## [signal world_turn_ended].
+## Take the authority's cursor as given — the resync half of "the mirror never
+## starts a turn on its own". Sets what [method start_turn] sets and runs none of
+## its upkeep (the payload is the world AFTER it); emits no [signal turn_ended]
+## for the displaced entity and no round signals; idempotent when the cursor
+## already agrees. `rounds < 0` leaves round state untouched.
+## See docs/domain/turn-manager.md "adopt_turn".
 func adopt_turn(
 	entity: Entity, total_turns_taken: int, rounds: int = -1,
 	round_open: bool = false, waiting: Array[Entity] = [],
@@ -362,41 +334,10 @@ func end_turn() -> void:
 	_tick_until_ready(entity)
 
 
-## The acting entity died mid-turn — end its turn without handing the clock on.
-## [GameRoot._pull_from_turn_loop] is the caller; a corpse must not hold the
-## turn, and until this existed the field was simply nulled from the outside, so
-## [signal turn_ended] never fired for a turn that ended by death. The only
-## guard on that invariant was [method start_turn]'s `assert`, which is compiled
-## out of a release build — the listeners that go stale are real ones
-## ([ActionCluster] leaves the End Turn button live, the initiative bar keeps
-## the acting tint, [PlayerInputController]'s act-gate never re-emits).
-##
-## [b]Deliberately does NOT tick on to the next entity[/b], unlike
-## [method end_turn]. The handoff is command-ordered: [EndTurnCommand] exists
-## precisely so `_tick_until_ready`'s group-order tiebreak runs at the same
-## point of the command stream on every peer, and a clock advanced locally out
-## of a death handler is that hazard reopened. One death reaches this path with
-## the actor's own entity: a status tick killing it at its own turn end — but
-## that tick runs inside [method end_turn] after the cursor is nulled, so the
-## call is a no-op and `end_turn` does the handoff. Chip damage and core
-## overflow kill the DEFENDER during the attacker's turn; a mid-turn death of
-## the actor (thorns / counter-damage, named at `LootSystem`'s
-## killer-attribution note) is still the unbuilt case this guards.
-##
-## [b]Never ticks statuses[/b]: an abandoned turn (a death, the status
-## sandbox's `disarm`) was not played out — see [method Entity.resolve_turn_end].
-##
-## No-op unless `entity` is the one actually holding the turn: death fires for
-## bystanders too, and `Entity.die()` is re-entrant from inside a forced-dealloc
-## cascade, so a second arrival must not emit a second [signal turn_ended].
-##
-## This does put a side-effect-bearing emit inside the `entity_died` phase —
-## [method Entity.finish_turn] runs on the CORPSE, transferring its unused
-## AP into a DP/MP surplus and dispatching `_on_turn_end`. Whether that lands
-## before or after AllocationSystem's strip is decided by child order in
-## `game_root.tscn`, which is scene-authored and therefore identical on every
-## peer — deterministic, not a sync hazard — and the surplus itself is written
-## to an entity that will never take another turn.
+## The acting entity died mid-turn — end its turn without handing the clock on
+## (the handoff is command-ordered via [EndTurnCommand]; it never ticks statuses
+## and is a no-op unless `entity` holds the turn). [GameRoot._pull_from_turn_loop]
+## is the caller. See docs/domain/turn-manager.md "abandon_turn".
 func abandon_turn(entity: Entity) -> void:
 	if entity == null or current_entity != entity:
 		return

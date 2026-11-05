@@ -8,8 +8,13 @@ The layer/dependency rules are in `docs/architecture.md`.
 `Graph` (`graph/graph.gd`) — owns `SkillNode`s + `Edge`s + `entities_container`; pure topology, structural signals.
 `Entity` (`entity/entity.gd`) — players and NPCs share the class; ownership is set by `AllocationSystem`. Composes a `CoreClass` (`entity/core/`) — identity modifiers + an `on_turn_started` hook.
 `SeatPolicy` (`session/seat_policy.gd`) — the per-machine half of a run's setup (who this machine plays, whose eyes it draws with); run shape is the roster's half. See `docs/domain/seat-policy.md`.
+`AIController` (`entity/controller/ai_controller.gd`) — budget-driven NPC turn; candidate enumeration and scoring in `docs/domain/ai-controller.md`, melee rollout in `docs/domain/ai-blade-rollout.md`.
+`LobbyRoster` / `RunBootstrap` (`session/`) — the pre-run seats, palette, overrides and editor-launch bootstrap. See `docs/domain/lobby.md`.
+`CommandApplier` / `NetworkSession` (`command/`, `network/`) — the confirmed-command queue and the join/host step; details in `docs/domain/command-applier.md` and `docs/domain/network-session.md` (sync model: `docs/domain/multiplayer-sync-model.md`).
+`GraphSnapshot` / `EntitySnapshot` (`network/`) — row encoding for join and resync; see `docs/domain/entity-snapshot.md`, encoding detail in `docs/domain/snapshot-encoding.md`.
+Procgen sizing and the playground panel (`procgen/`) — see `docs/domain/procgen-sizing.md`.
 `Navigator` (`graph/navigator.gd`) — full-graph `AStar2D` mirror; `EntityNavigator` is the per-entity mirror for cut-vertex / islanding queries.
-`TurnManager` (`systems/turn_manager.gd`) — initiative ticks to 100 → entity acts; `end_turn()` deducts 100. See `.claude/rules/turn-manager.md`.
+`TurnManager` (`systems/turn_manager.gd`) — initiative ticks to 100 → entity acts; `end_turn()` deducts 100. See `.claude/rules/turn-manager.md`. `abandon_turn` / `adopt_turn`: `docs/domain/turn-manager.md`.
 `AllocationSystem` (`systems/allocation_system.gd`) — `allocate` / `deallocate` (gated) + `force_allocate` / `force_deallocate` (primitives). See `docs/domain/allocation_system.md`.
 `BattleSystem` (`systems/battle_system.gd`) — owns the active `AttackPlan`; `launch_attack` submits a command to `CommandApplier`, which replays the resolved `AttackRecord` on the reveal clock. See `docs/domain/attack_plan_system.md`.
 `VisionSystem` (`systems/vision_system.gd`) — fog of war; reads owned subgraph + per-entity `vision_range` / `sensor_range`. See `docs/domain/vision-system.md`.
@@ -17,6 +22,11 @@ The layer/dependency rules are in `docs/architecture.md`.
 `StatBoard` (`stats_system/`) — PoE-style modifier pipeline. See `.claude/rules/stats-system.md` — **update it when the stat system changes.**
 `VictorySystem` (`systems/victory_system.gd`) — sole emitter of `Events.run_ended(RunOutcome)`; owns the *when* and the *once*, the swappable `VictoryCondition` owns the *what*. See `docs/domain/victory-system.md`.
 `GraphProcgen` (`procgen/graph_procgen.gd`) — static pipeline; `generate(config, graph)` returns nodes + starting_nodes. See `docs/domain/procgen.md` (topology), `docs/domain/procgen-v4.md` (content).
+Frontmatter shell (`ui/frontmatter/`) — the menu as a moving-camera skill tree: layout, back button, keyboard input, splash, edges, tooltip. See `docs/domain/frontmatter-shell.md` (panels: `docs/domain/frontmatter-panels.md`).
+Tooltip fan units (`ui/tooltip_fan/`) — anchor, layout, trace router, coordinator, panels. See `docs/domain/tooltip-fan-units.md` (system: `docs/domain/tooltip-fan.md`).
+HUD widgets (`ui/hud/`, `ui/spell_picker_bar/`, `ui/status_overlay/`, `ui/gained_modifier_toast/`) — per-unit contracts. See `docs/domain/hud-widgets.md`.
+VFX units (`ui/vfx/coordinator/`, `ui/vfx/shatter/`) — arrow/magic coordinators and the shard field. See `docs/domain/vfx-units.md` (kit: `docs/domain/spell-vfx-kit.md`).
 
 Spawning runtime entities: in `_setup_level()`, call `spawn_entity(name, color, core_location, core_class)`. See `scenes/procgen_play_sandbox.gd`.
 
+Module-internals docs (per-class contracts moved out of code comments): `docs/domain/melee-blade-internals.md` (blade pop / hit scan / swing resolve / exclude set), `docs/domain/spell-resolver-internals.md` (`SpellResolver`, `CycloneSpread`), `docs/domain/turn-manager.md` (`abandon_turn` / `adopt_turn`).

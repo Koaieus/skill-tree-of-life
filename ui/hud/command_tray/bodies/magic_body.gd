@@ -1,50 +1,12 @@
 @tool
 class_name MagicBody
 extends CommandTrayBodyBase
-## Magic tab content: the crucible (#1585). The vessel (%SpellButton, the
-## equipped spell full-bleed at [member vessel_px], an [ArcaneCircle] turning
-## behind it) on the left, its [InfusionSockets] fanned on an arc hugging its
-## bottom edge, a circuit trace from each filled socket down, then right into
-## its own line of the always-on [CrucibleReadout] in the middle, and Launch
-## bottom-right. The traces are [method CrucibleTraces.route] over the laid-out
-## rects: socket 0 sits rightmost ([member InfusionSockets.right_to_left]) and
-## the readout lists its line topmost, so they nest without crossing.
-##
-## The readout owns its hover, wheel-preview and Shift state; the body only
-## forwards socket hovers and wheel-wedge hovers to it. The readout scrolls
-## inside %ReadoutScroll, so its Shift expansion never grows the tray.
-##
-## [b]The picker floats (#1485).[/b] The body shows the equipped spell as
-## %SpellButton, the vessel; pressing it toggles [SpellPickMode] on the seat's
-## [ArmedStack] ([method MagicMode.toggle_picker]). The spell bar lives in
-## %PickerPanel, a `top_level` panel whose bottom edge sits
-## [member picker_gap_px] above the body's top edge and which grows upward over
-## the graph. It is outside the body's layout, so it adds nothing to the body's
-## combined minimum size, shown or hidden. The STACK decides its visibility —
-## shown iff a [SpellPickMode] is on the branch — so the body keeps no
-## open/closed state of its own, and every close (a pick, a hotkey, a graph
-## click, right-click, a launch) hides it for free.
-##
-## [b]The spell bar is bounded, not merely wide (#753).[/b] A [Control] is
-## clamped UP to its combined minimum size, so a row of N fixed 96px buttons
-## used to set this body's min width — and the spellbook grows through loot
-## without bound, which is what shoved the whole tray out from under its slot.
-## The fix is two-part and both halves are load-bearing: [SpellPickerBar] is an
-## [HFlowContainer] (min width = ONE button, overflow wraps to rows), and the
-## rows past [constant MAX_VISIBLE_ROWS] live inside %SpellScroll rather than
-## growing this body further. So a 20-spell book costs exactly the same width
-## and height as a 3-spell one that already wrapped.
-##
-## %SpellScroll uses [constant ScrollContainer.SCROLL_MODE_RESERVE], NOT
-## `AUTO`. Under `AUTO` the scrollbar only takes its 8px once it appears, which
-## narrows the bar by 8px at the exact moment content overflows — and a
-## narrower [HFlowContainer] can wrap to one MORE row, so a book that needs two
-## rows can land on three and start scrolling a row early. It converges (the
-## bar only ever gets narrower) rather than oscillating, but it means the row
-## count is not a pure function of the spell count. `RESERVE` keeps the gutter
-## reserved whether or not the bar is shown, which makes the layout a
-## single-pass fixed point for 8px of permanent width. Verified against 4.7.1:
-## inner width is 292/292 under RESERVE where AUTO gives 300/292.
+## Magic tab content: the crucible. The vessel (%SpellButton, an [ArcaneCircle]
+## behind it), its [InfusionSockets] on an arc, a circuit trace per filled socket
+## ([method CrucibleTraces.route]) into the always-on [CrucibleReadout], Launch
+## bottom-right. The spell picker floats in %PickerPanel, shown iff a
+## [SpellPickMode] is on the [ArmedStack] branch; the bounded spell bar scrolls in
+## %SpellScroll (`SCROLL_MODE_RESERVE`). See docs/domain/hud-widgets.md
 
 ## How many wrapped rows of spell buttons the body shows before %SpellScroll
 ## starts scrolling instead of growing. Owner call (2026-09-04): "the entire

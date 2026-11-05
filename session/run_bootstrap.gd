@@ -1,48 +1,11 @@
 class_name RunBootstrap
 extends Node
 
-## Starts a run from an authored [RunConfig] when no composer did — the
-## editor-launch half of #584.
-##
-## [b]This is a child node, deliberately, and it is the whole mechanism.[/b] A
-## level scene that can be launched directly needs a run to consume, and there
-## are three ways to give it one: a fallback branch inside the level (what this
-## replaces), a virtual hook the sandbox subclass overrides (what `9b0e185`
-## did), or a sibling that fills [GameSession] in before the level looks. Only
-## the third leaves the level with [b]one[/b] way to learn what run it is
-## generating, and that property is the point:
-##
-## [codeblock]
-## lobby  → GameSession.start(composed RunConfig)  ┐
-##                                                 ├→ level reads GameSession
-## RunBootstrap → GameSession.start(authored .tres)┘
-## [/codeblock]
-##
-## A sandbox that parsed its settings differently from a lobby-launched run
-## would stop being a rehearsal of the real game — the owner's call, 2026-08-26:
-## [i]"if our first level sandbox deviates from the 'lobby launched level' in a
-## meaningful way (or in how it parses its settings) it becomes less of a real
-## representative of the real game"[/i]. Here the two paths differ only in
-## [b]who authored the RunConfig[/b], never in what the level does with it.
-##
-## The level never references this class. That is what makes it a rehearsal
-## rather than an accommodation: `scenes/level.tscn` has no idea a bootstrap
-## exists, so there is no sandbox-shaped seam in the shipped code for the two
-## paths to drift apart along.
-##
-## [b]Ordering.[/b] A child's `_ready` runs before its parent's, and
-## [method GameRoot._ready] is where the level reaches `_setup_level` — the only
-## thing in a level's bring-up that reads [member GameSession.roster]. So the
-## bootstrap wins that race wherever it sits, with no explicit call from
-## [GameRoot] to keep in sync.
-##
-## It is nonetheless authored as the [b]first[/b] child (`index="0"`). Godot
-## readies depth-first in tree order, so last-child would leave the guarantee
-## resting on an audit — "nothing under `Graph` or `HudRoot` reads
-## [member GameSession.config] in its own `_ready`" — that is true today and
-## that a future sibling could quietly break, with the symptom being a null
-## config rather than an error. First-child makes it true by layout instead:
-## nothing in the level can observe a session this node has not opened yet.
+## Starts a run from an authored `RunConfig` when no composer did (the
+## editor-launch half). A child node, authored as the FIRST child, so it opens
+## `GameSession` before the level reads it; the level never references this class,
+## so sandbox and lobby-launched runs differ only in who authored the config.
+## See docs/domain/lobby.md
 
 ## The run this scene starts itself with. Authored `.tres` under `session/runs/`.
 ##

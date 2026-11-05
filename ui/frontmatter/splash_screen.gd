@@ -2,73 +2,13 @@
 class_name SplashScreen
 extends Control
 
-## The attract state — which is not a screen at all, but the frontmatter's own
-## camera parked hard on the root node (#574).
-##
-## [b]"Press any key" IS allocating the first node.[/b] The motion notes are
-## explicit: [i]"The splash 'press any button' prompt is really just allocating
-## the very first node of the run."[/i] So press any key -> allocate root ->
-## allocate Single Player -> allocate New Game must read as the same action four
-## times, and the only way that reads true is if the splash and the tree are the
-## same picture at two zoom levels. There is no cut and no cross-fade.
-##
-## [b]Advancing is a CHARGE and a BOOM, across two camera legs (#734).[/b] Owner,
-## 2026-09-03: [i]"it should ramp up the ring. a bespoke effect, not part of the
-## regular skillnodes. just for this one. the idea is this: click it, and it
-## starts glowing, until BOOM allocation vfx (which is some power needle spike
-## thingy)."[/i] So:
-##
-## [b]Leg 1[/b] — the charge, and it is TWO beats rather than one. For the first
-## [member charge_camera_fraction] of [member charge_duration] the camera crawls
-## out from [method FrontmatterLayout.splash_camera] to
-## [method FrontmatterLayout.charged_camera] — "slow slow", zooming a little and
-## taking the tiny pan up. Then it STOPS. For the remaining fraction the frame is
-## perfectly still while the [ChargeGlow] finishes ramping from
-## [constant Emissive.INERT] toward [constant Emissive.PEAK]. The ring stays
-## UNLIT throughout — the thing being sold is the build-up, and the stillness is
-## what lets it read as a wind-up rather than as more camera motion.
-##
-## [b]The BOOM[/b] — into that stillness. The root reads allocated, the charge
-## detonates into a shockwave, and the game's own allocation needle drops, all in
-## one frame with nothing else moving. Owner, 2026-09-03: [i]"crescendo: stop
-## zooming/panning (the whole node+spike would still be taking the majority of
-## the screen), the vfx + vfx + vfx all hit."[/i]
-##
-## [b]The settle[/b] — [member settle_pause] of dead air, letting the crescendo
-## land before the menu pulls away from it.
-##
-## [b]Leg 2[/b] — the existing [method FrontmatterRoot.focus] on the root: the
-## slide into the hero slot, carrying the LAST of the zoom-out with it. Leg 1
-## stops at [member charge_end_zoom], short of tree zoom, so the flash lands
-## while the camera is still opening rather than after it has settled.
-##
-## [b]What this replaced, and why the old knobs are gone.[/b] The root used to
-## snap to its final lit state in one frame, hold there for an `allocation_hold`,
-## and then travel with the needle dropping a `spike_lead` fraction INTO the
-## travel. Both knobs are retired. `spike_lead` existed only to dodge a clipping
-## defect — the needle is `radius * AllocationVFX.SPIKE_HEIGHT_FACTOR` in WORLD
-## units, so at [constant FrontmatterLayout.SPLASH_ZOOM] it was 845px tall on a
-## 960px screen whose root sat 422px down. The BOOM now happens at
-## [member charge_end_zoom] with the root pushed south to
-## [constant FrontmatterLayout.CHARGE_SLOT_Y_RATIO] — but the containment that
-## placement bought is NOT a guard any more. Owner, 2026-09-03: *"looks can
-## differ, and it's a matter of taste, having the thing entirely on screen or
-## partially off screen, is not something we should be pinning with tests. the
-## orchestration as a whole is more important."* The framing follows whatever
-## the scene authors; what is pinned (in `test_splash.gd`) is the orchestration.
-##
-## [b]This scene therefore paints no background.[/b] The tree is meant to be
-## visible behind the title, hugely magnified — that is the whole effect.
-##
-## [b]It parks the camera rather than being asked to.[/b] [FrontmatterRoot.build]
-## ends on `focus(root, true)`, so by the time this node is ready the camera is
-## already at tree zoom and the root already reads allocated. Undoing both here,
-## in `_ready`, keeps the whole splash concern in one file instead of threading a
-## start-up mode through the shell — and it is why this node must be ordered
-## AFTER the frontmatter in `meta_root.tscn`.
-##
-## Gamepad is #576, which is sequenced immediately after this unit and owns the
-## input side. Keep new input handling there, not here.
+## The attract state — not a screen, but the frontmatter's own camera parked hard
+## on the root node, so "press any key" reads as allocating the first node.
+## Advancing is a CHARGE (leg 1: crawl, then stillness while [ChargeGlow] ramps),
+## a BOOM (allocation needle + shockwave in one still frame), a settle pause, then
+## leg 2 ([method FrontmatterRoot.focus] on the root). Paints no background; parks
+## the camera in `_ready`, so it must be ordered AFTER the frontmatter in
+## `meta_root.tscn`. Gamepad input lives in [FrontmatterInput]. See docs/domain/frontmatter-shell.md
 
 ## Emitted once, when the attract state gives way to the tree. The shell and
 ## `test_meta_routing_parity.gd` hang off it.

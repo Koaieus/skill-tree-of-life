@@ -1,47 +1,12 @@
 class_name BladeHitScan
 extends RefCounted
 
-## Hit detection over a BladeTrajectory via the 2D physics server.
-##
-## Each sub-step, every blade particle is queried as a circle at its
-## sampled position, and every blade edge as a swept CAPSULE along its
-## sampled endpoints, trimmed back to the rim of each endpoint's own disk
-## (#785) so a hub never deals vertex + one-per-incident-edge. A cheap
-## whole-blade bounding-box query short-circuits any substep sweeping empty
-## space; see [method _is_region_empty]. The physics server returns whatever
-## colliders overlap — this module doesn't encode target geometry at all; targets
-## just publish a CollisionShape2D and we get hits back.
-##
-## Determinism: queries are a pure function of (sim positions, world
-## state) [b]only while no query hits [constant _MAX_HITS_PER_QUERY][/b] —
-## see that constant. As long as the world state is itself sim-driven and
-## the cap is never reached, replays reproduce the same events. Ghost
-## previews work the same way because the blade never enters the physics
-## world — only the query shapes do.
-##
-## Result ORDER within one query is broadphase-dependent, for which Godot
-## documents no guarantee (#530). Since [MeleeAttackPlan] pops defensive
-## spikes DURING its scan of these events, that raw order could make the hit
-## SET itself, not merely its arithmetic, depend on broadphase — so [method
-## scan] stable-sorts its own output before returning: `t` first (the
-## gameplay-meaningful ordering — earlier contact, earlier consequence),
-## ties broken on [member SkillNode.stable_id], a value every peer agrees
-## on, never on collider identity or query position. This closes the
-## WITHIN-one-scan nondeterminism; it does not touch the
-## [constant _MAX_HITS_PER_QUERY] gap above, which is a different failure
-## mode (a truncated query can drop a collider entirely, not just reorder
-## it) and stays open — see `test_gap_melee_hit_detection_truncates_a_physics_query`.
-##
-## Per-element-per-collider dedup, and that is the whole counting rule: each
-## particle/edge emits at most one event per collider across the whole sweep,
-## on first contact. Nothing arbitrates between elements. #785 briefly added a
-## per-substep "highest-damage element wins" pass on top, to stop an edge
-## double-dipping with its own endpoints; [b]ADR 0005[/b] removed the premise
-## by removing edge damage — [b]nodes deal damage, edges give rigidity[/b] — so
-## an edge contact carries no damage to double-count and the arbitration went
-## with it. A degree-6 hub is still worth one damaging contact because the
-## capsules are trimmed back to their endpoints' rims (geometry), not because
-## a tiebreak suppressed them.
+## Hit detection over a BladeTrajectory via the 2D physics server: every particle
+## as a circle, every edge as a swept capsule trimmed to its endpoints' rims,
+## each element emitting at most one event per collider (first contact). Output
+## is stable-sorted by `t` then [member SkillNode.stable_id]. Reproducible only
+## while no query hits [constant _MAX_HITS_PER_QUERY].
+## See docs/domain/melee-blade-internals.md "BladeHitScan determinism".
 
 ## Bound on one shape query (one blade element, one substep) — NOT on the
 ## sweep. A blade particle realistically overlaps 0 nodes in ~99% of substeps
