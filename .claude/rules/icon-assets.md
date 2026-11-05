@@ -58,7 +58,7 @@ by name or by the 512px preview is how a "perfect" icon ships as noise.
 
 It reprocesses **every** folder, then rebakes the CARVE LUTs and repacks the
 atlas — and `test/unit/test_carve_atlas.gd` / `test_texture_carve_bake.gd` assert
-against the committed atlas. It also has live drift: `spells/ATTRIBUTION.md` says
+against the committed atlas. It also has live drift: `assets/icons/spells/ATTRIBUTION.md` says
 `lightning_bolt ← chain-lightning.svg`, `spells/mapping.txt` says
 `lorc/lightning-trio.svg`, so a run is a coin flip on whether committed spell art
 moves. To add icons to one folder, hand-run the two-line `sed` + `rsvg-convert`
