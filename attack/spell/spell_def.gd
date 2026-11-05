@@ -27,7 +27,7 @@ extends Resource
 ## Snappy one-liner shown under the header in [SpellTooltip] (#764) — the
 ## LAN-08 finding was that nobody reads a wall of text mid-turn. Capped at 80
 ## chars, pinned by `test_spell_tooltip_sections.gd` over
-## [constant SpellCatalog.ALL]. [member description] stays the long form,
+## [member SpellCatalog.spells]. [member description] stays the long form,
 ## reserved for the spell catalogue (#853) and no longer rendered here.
 @export var tagline: String = ""
 
