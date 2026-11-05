@@ -34,8 +34,8 @@ func _make_node() -> SkillNode:
 func test_farsight_scene_still_carries_its_modifier() -> void:
 	var n: SkillNode = autofree(_FARSIGHT.instantiate()) as SkillNode
 	assert_eq(n.get_display_name(), "Farsight Spire")
-	assert_eq(n.modifiers.size(), 1, "authored modifier bundle was stripped")
-	var m: StatModifier = n.modifiers[0]
+	assert_eq(n.authored_modifiers.size(), 1, "authored modifier bundle was stripped")
+	var m: StatModifier = n.authored_modifiers[0]
 	assert_not_null(m, "modifier entry lost its script")
 	assert_eq(m.stat_id, &"vision_range")
 	assert_eq(m.value, 100.0)
@@ -205,7 +205,7 @@ func _sp_cap_mod() -> StatModifier:
 func test_an_authored_node_modifier_on_skill_points_is_rejected() -> void:
 	var ent := _make_entity()
 	var n := _make_node()
-	n.authored_modifiers = [_sp_cap_mod()]
+	n.modifiers = [_sp_cap_mod()]
 	var before: float = ent.stat_board.skill_points.value
 	n.apply_entity_modifiers_to(ent.stat_board)
 	assert_push_error("skill_points")
@@ -217,7 +217,7 @@ func test_a_composite_child_on_skill_points_is_rejected() -> void:
 	var n := _make_node()
 	var bundle := CompositeStatModifier.new()
 	bundle.children = [_sp_cap_mod()]
-	n.authored_modifiers = [bundle]
+	n.modifiers = [bundle]
 	var before: float = ent.stat_board.skill_points.value
 	n.apply_entity_modifiers_to(ent.stat_board)
 	assert_push_error("skill_points")
