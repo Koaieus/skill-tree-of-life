@@ -60,6 +60,7 @@ const VIS_SENSED: float = 2.0
 		if from == value:
 			return
 		_disconnect_endpoint(from)
+		_unregister_self_loop()
 		from = value
 		_connect_endpoint(from)
 		_register_self_loop()
@@ -152,6 +153,14 @@ func push_render_state() -> void:
 func _ready() -> void:
 	_update_endpoints()
 	_update_visual()
+
+
+func _enter_tree() -> void:
+	_register_self_loop()
+
+
+func _exit_tree() -> void:
+	_unregister_self_loop()
 
 ## Lit when both endpoints are owned by the same entity. Override in a
 ## subclass or replace the predicate later for richer states (e.g. owned
@@ -447,12 +456,26 @@ func _push_self_loop_colors() -> void:
 ## and would otherwise never register). Without this,
 ## `_push_self_loop_transform`'s `self_loops.find(self)` returns -1 for every
 ## scene-baked self-loop, so they'd all nest at the same radius instead of
-## spreading.
+## spreading. Also the inverse: an edge that stops being a loop leaves the
+## index, and every call prunes freed/stale entries so the index stays exact.
 func _register_self_loop() -> void:
 	if not is_self_loop:
+		_unregister_self_loop()
 		return
-	if not from.self_loops.has(self):
-		from.self_loops.append(self)
+	var loops := from.self_loops
+	for i in range(loops.size() - 1, -1, -1):
+		var e := loops[i]
+		if not is_instance_valid(e) or e.from != from or not e.is_self_loop:
+			loops.remove_at(i)
+	if not loops.has(self):
+		loops.append(self)
+
+
+## Drops `self` from `from.self_loops` — on leaving the tree, on `from` being
+## reassigned (called before the write), and when `to` moves off `from`.
+func _unregister_self_loop() -> void:
+	if is_instance_valid(from):
+		from.self_loops.erase(self)
 
 
 ## Returns the direction (radians) the self-loop should sit in: the

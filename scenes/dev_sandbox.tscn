@@ -728,14 +728,13 @@ owned_by = NodePath("../../Entities/Enemy")
 modifiers = Array[ExtResource("2_mod")]([SubResource("mod_str_1"), SubResource("mod_xp_2")])
 node_board = SubResource("Resource_bykwf")
 
-[node name="Down_Out" parent="Graph/Nodes" parent_id_path=PackedInt32Array(1851662701, 1428063024) index="8" unique_id=8800201 node_paths=PackedStringArray("owned_by", "self_loops") instance=ExtResource("9_skill")]
+[node name="Down_Out" parent="Graph/Nodes" parent_id_path=PackedInt32Array(1851662701, 1428063024) index="8" unique_id=8800201 node_paths=PackedStringArray("owned_by") instance=ExtResource("9_skill")]
 z_index = 1001
 z_as_relative = false
 position = Vector2(27, 263)
 owned_by = NodePath("../../Entities/Player")
 modifiers = Array[ExtResource("2_mod")]([SubResource("mod_xp_2_b")])
 base_type_color = Color(0.9019608, 0.73333335, 0.27450982, 1)
-self_loops = [NodePath("../../Edges/Edge_DownOut_self")]
 node_board = SubResource("Resource_n6wys")
 
 [node name="AbyssalConduitAddon" parent="Graph/Nodes/Down_Out" index="3" instance=ExtResource("53_abyssal_conduit")]

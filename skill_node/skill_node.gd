@@ -230,7 +230,11 @@ var radius: float:
 var inner_radius: float:
 	get: return base_inner_radius + _stake_growth()
 
-@export var self_loops: Array[Edge] = []
+## Back-index of the Edges whose `from == to == self`, maintained by
+## [Edge] itself (registers on becoming a loop / entering the tree, unregisters
+## on leaving either). Derived runtime state — deliberately NOT `@export`ed, so
+## an editor save can never bake a stale or null entry into a scene.
+var self_loops: Array[Edge] = []
 
 ## World px the mouse hover/click ring reaches past [member radius] — a
 ## mouse-only allowance; the gameplay hitbox stays at `radius`. Neighbours'
@@ -626,8 +630,14 @@ var _hit_flash_tween: Tween
 # the deallocate key doesn't stack shakes / leave a stuck offset or tint.
 var _feedback_tweens: Array[Tween] = []
 
+## Live self-loops only: a freed or since-reassigned entry never counts.
 var self_loop_count: int:
-	get(): return self_loops.size()
+	get():
+		var n := 0
+		for e in self_loops:
+			if is_instance_valid(e) and e.from == self and e.is_self_loop:
+				n += 1
+		return n
 
 ## Assigned once by [method Graph._ensure_topology] the first time this node
 ## is indexed — stable across a removal reshuffling the container's child

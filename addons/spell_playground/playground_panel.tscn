@@ -259,10 +259,9 @@ owned_by = NodePath("../../Entities/CasterEntity")
 position = Vector2(120, 300)
 owned_by = NodePath("../../Entities/DefenderEntity")
 
-[node name="d_hub" parent="HBox/WorldContainer/World/Graph/Nodes" parent_id_path=PackedInt32Array(1726628961, 1428063024) index="5" unique_id=3000021 node_paths=PackedStringArray("owned_by", "self_loops") instance=ExtResource("2_sn")]
+[node name="d_hub" parent="HBox/WorldContainer/World/Graph/Nodes" parent_id_path=PackedInt32Array(1726628961, 1428063024) index="5" unique_id=3000021 node_paths=PackedStringArray("owned_by") instance=ExtResource("2_sn")]
 position = Vector2(270, 300)
 owned_by = NodePath("../../Entities/DefenderEntity")
-self_loops = [NodePath("../../Edges/e_hub_self")]
 
 [node name="d_gate" parent="HBox/WorldContainer/World/Graph/Nodes" parent_id_path=PackedInt32Array(1726628961, 1428063024) index="6" unique_id=3000022 node_paths=PackedStringArray("owned_by") instance=ExtResource("2_sn")]
 position = Vector2(270, 150)

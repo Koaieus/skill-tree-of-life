@@ -48,16 +48,15 @@ func test_the_authored_edges_reach_the_shared_multimesh() -> void:
 	assert_eq(mm.visible_instance_count, 23, "one buffer slot per authored edge")
 
 
-## `self_loops` is a DERIVED runtime index that the editor serializes anyway
-## (audit finding C7). A save had once baked `[null, NodePath(...)]` onto the
-## carrier — one real entry plus a null — which makes `self_loop_count` report 2
-## for a single loop, and `GraphMirror.get_degree` adds `2 * self_loop_count`, so
-## the node's degree came out +2 too high while `Graph._ensure_topology` counted
-## it right. Two disagreeing degree answers feed spell `min_degree` gating.
+## `self_loops` is a DERIVED runtime index the authored Edge rebuilds on load;
+## it is not exported, so no save can bake it. A save once baked
+## `[null, NodePath(...)]` onto this carrier — `self_loop_count` read 2 for one
+## loop and `GraphMirror.get_degree` (`+ 2 * self_loop_count`) disagreed with
+## `Graph._ensure_topology`. Two degree answers feed spell `min_degree` gating.
 func test_the_one_self_loop_counts_once() -> void:
 	var hub := _graph.get_node("Nodes/d_hub") as SkillNode
 	assert_eq(hub.self_loop_count, 1,
-		"a null entry baked into the exported `self_loops` array inflates this")
+		"the scene-authored loop must register exactly once")
 	for sl in hub.self_loops:
 		assert_not_null(sl, "no null may sit in the self_loops index")
 

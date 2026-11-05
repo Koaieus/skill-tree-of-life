@@ -560,8 +560,8 @@ func add_edge(from: SkillNode, to: SkillNode) -> Edge:
 
 
 func remove_edge(edge: Edge) -> void:
-	if edge.from != null:
-		edge.from.self_loops.erase(edge)
+	# `remove_child` fires Edge._exit_tree, which drops a loop from its node's
+	# self_loops index — the Edge owns that bookkeeping.
 	edges_container.remove_child(edge)
 	edge_removed.emit(edge)
 	edge.queue_free()
