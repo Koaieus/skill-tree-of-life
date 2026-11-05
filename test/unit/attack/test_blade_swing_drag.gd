@@ -422,18 +422,25 @@ func test_a_severed_edge_senses_nothing() -> void:
 			"a severed edge (#781) is gone and must touch nothing")
 
 
-## One wall zone, one projection pass, at the blade's REST pose — the direct
+## One wall zone, ONE sim step at the blade's REST pose — the direct
 ## replacement for `BladeSwingClock.sense()`, which #811 deleted. The contact
-## test now lives in [method BladeObstacleField.project], so exercising the
-## geometry means running one pass of the field rather than calling the clock.
+## test lives in the native `FieldCtx` pass that [method BladeSim.simulate_range]
+## runs, so exercising the geometry means stepping the sim once with no drivers
+## (nothing moves; the blade holds its rest pose) and reading the clock it banked
+## onto. A declined sim would leave `touched` empty and pass the negative test
+## vacuously, so the run itself is asserted first.
 func _sense_once(state: BladeState, center: Vector2, radius: float,
 		amount: float) -> BladeSwingClock:
 	var field := BladeObstacleField.new()
 	field.add_drag_zone(center, radius, amount)
 	state.obstacles = field
 	var clock := BladeSwingClock.new(_DURATION)
-	field.prepare(state, [] as Array[BladeDriver], clock)
-	field.project(state.positions, state.inv_masses)
+	var traj := BladeSim.simulate_range(
+			state, [] as Array[BladeDriver], 0, 1, BladeSim.DEFAULT_DT,
+			BladeSim.DEFAULT_ITERATIONS, 0.0, BladeSim.DEFAULT_SUBSTEPS, true, clock)
+	assert_not_null(traj, "arrange: the one sensing step must actually run")
+	if traj != null:
+		assert_eq(traj.samples.size(), 2, "arrange: rest pose plus one step")
 	return clock
 
 
