@@ -201,7 +201,7 @@ will hand you a *drafted body* to review, attribute and commit yourself.
 
 ## Why immutable — the specific failure this prevents
 
-`docs/FOCUS.md` was rewritten twice, both times for the same cause, stated in the
+A prose priority file was rewritten twice, both times for the same cause, stated in the
 file itself: **per-issue prose in a mutable document is "irresistible to append to
 and invisible to prune."** It regrew to 353 lines in twelve days, and 81 of the 89
 issues it described as live had already closed.

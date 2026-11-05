@@ -1,6 +1,10 @@
 ---
-status: settling
+status: built
+domain: docs/domain/temp-addon-shop.md
 ---
+
+> **Archived 2026-11-05 — design record, never cite as truth.** What is: [docs/domain/temp-addon-shop.md](../../domain/temp-addon-shop.md).
+> Decisions: none — no architectural call.
 
 # The temp-addon shop
 

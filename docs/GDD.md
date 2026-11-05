@@ -203,21 +203,18 @@ Beyond these seven, the detail doc also carries the **Edgelord** (fights *with* 
 > *Short summary — what stats exist, what they govern, and how modifiers work. The live reference is `.claude/rules/stats-system.md`; the stat ids are `stats_system/defs/*.tres`.*
 
 ### Stat categories
-One shared vocabulary, instantiated by every entity (player and NPC alike). The main buckets:
-- **Attributes (six)** — three attack: `strength` (melee/R), `dexterity` (ranged/G), `intelligence` (magic/B); three utility: `constitution` (durability/White), `wisdom` (XP-growth/Gold), `perception` (sensing/Purple). Base ≈ 10 each at run start. All attack scaling runs through `attribute//10` (the spine). Plus non-mechanical `coolness`.
-- **Defense** — `armor` (flat), `resist_r/g/b` (per-color, where the triangle emerges), `min_damage_taken` (the floor), the persistent `health`/`health_max` **death-clock pool**, plus per-node `node_health`/`node_health_max` (scaled by CON, not degree; resets each owner turn — the focus-soak gate). `core_health` now **folds into `health`** as a class bonus (the core node's `node_health` is a recharging shield over that pool — see §5 Per-node health).
-- **Economy** — `xp`, `skill_points`, and their `_per_turn` income siblings (`xp_per_turn`, `sp_per_turn`); **Gold (WIS)** nodes are the lifeblood here (the role formerly assigned to White).
-- **Movement** — `movement_speed` (core hops/turn) and `deallocation_points` (per-turn reshape budget). Two distinct stats on purpose.
-- **Perception** — `sense_range` (hops, silhouettes) and `vision_range` (euclidean, full detail).
-- **Core/aura** — `aura_range`, `aura_strength` (only meaningful on core-bearing entities).
-- **Combat misc** — `crit_chance`, `crit_mult`, `attack_range`, `pressure_capacity`, `core_charge_capacity`.
+One shared vocabulary, instantiated by every entity (player and NPC alike). The main buckets (ids are the `.tres` files in `stats_system/defs/`):
+- **Attributes (six)** — three attack: `strength` (melee/R), `dexterity` (ranged/G), `intelligence` (magic/B); three utility: `constitution` (durability/White), `wisdom` (XP-growth/Gold), `perception` (sensing/Purple). Base ≈ 10 each at run start. All attack scaling runs through `attribute//10` (the spine).
+- **Defense** — `armor` (flat), `min_damage_taken` (the floor), `status_resistance` plus per-aspect `*_resistance`, the persistent `health` **death-clock pool**, and per-node `node_health` (scaled by CON, not degree; resets each owner turn — the focus-soak gate). `core_health` folds into `health` as a class bonus (the core node's `node_health` is a recharging shield over that pool — see §5 Per-node health).
+- **Economy** — `xp`, `skill_points`, and the `xp_per_turn` income sibling; **Gold (WIS)** nodes are the lifeblood here.
+- **Turn resources** — `action_points`, `movement_points` and `deallocation_points` (per-turn reshape budget), plus `initiative` (the turn-order clock) and `tempo` (once-per-turn kill-AP refund budget).
+- **Perception** — `sensor_range` (hops, silhouettes) and `vision_range` (euclidean, full detail).
+- **Combat** — `damage`, `ranged_damage`, `spell_damage`, `crit_chance`, `crit_multiplier`, `range`, and the per-aspect `*_aspect` / `*_stacks_per_hit` status stats.
 
 ### How modifiers attach
-Nodes carry `StatModifier`s — a `stat_id` (StringName), an operator, and a value. Allocate a node → its modifiers are added to the entity's board; deallocate or lose it → they're removed. The board recomputes reactively. Operators apply in the Path of Exile order: **`ADD_FLAT` → `ADD_PERCENT` → `MULTIPLY`** (with `SET` used sparingly). For a designer, adding a new stat is: define it once as a resource, and it's instantly a valid modifier target — no per-stat class file.
+Nodes carry `StatModifier`s — a `stat_id` (StringName), an operator, and a value. Allocate a node → its modifiers are added to the entity's board; deallocate or lose it → they're removed. The board recomputes reactively. Operators apply in the Path of Exile order: **`ADD_BASE` → `INCREASE` → `MULTIPLY` → `ADD_BONUS`** (with `SET` used sparingly; see `stats_system/stat_modifier.gd`). For a designer, adding a new stat is: define it once as a resource, and it's instantly a valid modifier target — no per-stat class file.
 
-**Status:** 🔨 In progress (v2 refactor). v2 replaces GDScript-as-key with `StatDefinition` resources, `StringName` IDs, a `StatRegistry` autoload, and slim `RuntimeStat`/`RuntimePoolStat` objects. Prefer v2 patterns for new stats.
-
-**Detail docs:** `.claude/rules/stats-system.md`, `docs/domain/stat-board-classes.md`; the stat ids are the `.tres` files in `stats_system/defs/`.
+**Detail docs:** `.claude/rules/stats-system.md`, `docs/domain/stats-system.md`, `docs/domain/stat-surfaces.md` (where each stat shows in the HUD).
 
 ---
 
