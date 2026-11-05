@@ -63,7 +63,7 @@ var _origin: Entity
 ## per live instance, each with COPIED ledger rows and a context bound to this
 ## slice. Without it a shadow could strip a node's ownership but not the
 ## modifiers that node's effects had granted — the pre-cascade-armour divergence
-## #518 shipped with and this closes.
+## this closes.
 var _effects: Array[EffectInstance] = []
 ## The [CombatWorld] that minted this shadow, so an [Effect] granting to a
 ## [SkillNode] can find that node's slice in the SAME world. Set by
@@ -80,7 +80,7 @@ var _owns_world: bool = false
 ## [method dispatch] (0 = none), and the [StatBoard]s [method hold_batch] has
 ## opened for its duration.
 ##
-## [b]Why the ledger, and not the obvious shape.[/b] #627 batches inside one
+## [b]Why the ledger, and not the obvious shape.[/b] Batching happens inside one
 ## [method AuraEffect.recompute], so two auras touching the SAME node board in
 ## the same hook dispatch still settle twice. The naive fix — bracket every
 ## owned node's board around every dispatch — was rejected on the own
@@ -96,7 +96,7 @@ var _owns_world: bool = false
 var _dispatch_depth: int = 0
 var _held_batches: Array[StatBoard] = []
 var _held_seen: Dictionary[StatBoard, bool] = {}
-## The entity's own status rows (#996, hub #994): what a status lands on when
+## The entity's own status rows: what a status lands on when
 ## it falls through a cracked core. The SAME [StatusHost] the node composes,
 ## with THIS slice as its duck-typed owner; [method snapshot] clones the rows
 ## so a shadow tick never moves a live one. Rows live on the entity, so a
@@ -189,8 +189,8 @@ func board() -> StatBoard:
 	return _state.stat_board
 
 
-## The ONE door every drain of the entity `health` pool goes through (#995,
-## hub #994): the core-overflow tail of [method NodeCombat.take_damage], the
+## The ONE door every drain of the entity `health` pool goes through: the
+## core-overflow tail of [method NodeCombat.take_damage], the
 ## cascade chip of [method apply_cascade], and (C1) the entity-hosted DoT tick.
 ## Depletes `health` by [param amount]; [param source] is the same
 ## attacker-or-null a node's `take_damage` carries, unread here today.
@@ -221,8 +221,7 @@ func take_pool_damage(amount: float, _source: HitInstance) -> void:
 		simulate_entity_death()
 
 
-## The ONE door every raise of the entity `health` pool goes through (#997,
-## hub #994) — the twin of [method NodeCombat.heal_damage]. Owner
+## The ONE door every raise of the entity `health` pool goes through — the twin of [method NodeCombat.heal_damage]. Owner
 ## (2026-09-20): "All heals must consult it" — [param amount] is multiplied by
 ## the entity board's `healing_received` exactly once, here, AFTER the
 ## raw-amount guard (a negative raw amount times a negative multiplier must
@@ -284,7 +283,7 @@ func heal(amount: float, source: HitInstance, raw: bool = false) -> void:
 ## Every [NodeCombat] this entity owns. Live: derived from
 ## [member Entity.navigator] on every call (never cached, same rule as
 ## [method board]). Shadow: the slice's own ledger — an entity-wide read, so it
-## materializes first (#695; see [method _materialize_all]).
+## materializes first (see [method _materialize_all]).
 func owned() -> Array[NodeCombat]:
 	if host != null:
 		var out: Array[NodeCombat] = []
@@ -324,7 +323,7 @@ func core() -> NodeCombat:
 ## the core's: [method core] / [method NodeCombat.is_core] are read on every
 ## hit's ownership check, independent of the materialize triggers, and `_core`
 ## would otherwise dangle null until the core happened to be hit (owner call,
-## 2026-08-31, on #695).
+## 2026-08-31).
 func snapshot(into: CombatWorld = null) -> EntityCombat:
 	var shadow := EntityCombat.new()
 	if host == null:
@@ -403,7 +402,7 @@ func shadow_for(real_node: SkillNode) -> NodeCombat:
 ## Called at the top of every entity-wide entry point — [method owned],
 ## [method cascade_set], [method apply_cascade], [method simulate_entity_death]
 ## and the shadow branch of [method dispatch] (the list the owner blessed on
-## #695, 2026-08-31). A missed trigger fails SILENTLY as a subtly wrong preview
+## 2026-08-31). A missed trigger fails SILENTLY as a subtly wrong preview
 ## — [method nodes_islanded_by_removing] translates through
 ## [member _shadow_by_real] and would drop an unminted islanded node — so add
 ## to this list before adding a new enumerating read, never after.
@@ -570,7 +569,7 @@ func end_dispatch() -> void:
 ## Take ownership of batching [param board] for the rest of the running
 ## dispatch. Returns `true` when this slice took it — the caller must NOT call
 ## `end_batch` itself. Returns `false` when there is no live dispatch (or no
-## board), leaving the caller to batch and close it the #627 way.
+## board), leaving the caller to batch and close it as batching does.
 ##
 ## Idempotent per board: a second aura asking for a board the first already
 ## opened joins that batch instead of nesting a second one, which is the whole
@@ -720,7 +719,7 @@ func apply_cascade(nodes: Array[NodeCombat], alloc: AllocationSystem = null,
 		entry.node = real_node_for(n)
 		entry.node_id = entry.node.stable_id if entry.node != null else 0
 		# PRE-strip, always — see [member DeallocEntry.allocation_level] for the
-		# #337 collapse this ordering exists to avoid.
+		# collapse this ordering exists to avoid.
 		entry.allocation_level = maxi(n.get_allocation_level(), 1)
 		entry.wound = entry.allocation_level
 		var hp_per_node: float = rates[n]
@@ -862,7 +861,7 @@ func _on_pile_rose(_def: StatusDef, _key: Variant) -> void:
 
 
 ## Host contract: the live entity announces its rows changed (the node
-## tint has no entity twin yet — #953 reads the rows at the core's readout).
+## tint has no entity twin yet).
 func _on_statuses_changed() -> void:
 	if host != null:
 		host.statuses_changed.emit()
@@ -960,8 +959,7 @@ func real_node_for(n: NodeCombat) -> SkillNode:
 
 ## Display names of the modifiers [param node] grants its owner — the
 ## presentation half of a [DeallocEntry], for the client's "modifier lost"
-## toast. A pure READ: #518 does not revoke a shadow's grants at all (that is
-## #520), and reading names is the part that could ship without mutating the
+## toast. A pure READ: a shadow's grants are not revoked at all, and reading names is the part that could ship without mutating the
 ## real node.
 static func _granted_labels(node: SkillNode) -> PackedStringArray:
 	var out := PackedStringArray()

@@ -7,7 +7,7 @@ extends Node2D
 ## swing [method MeleeAttackPlan.resolve] would produce for it. On commit,
 ## BattleSystem awaits launch() to play the swing live with damage application.
 ##
-## [b]#782: the ghost is a PREDICTION, not a lookalike.[/b] The loop replays the
+## [b]The ghost is a PREDICTION, not a lookalike.[/b] The loop replays the
 ## trajectory and pop outcome of one real resolve against a shadow world — the
 ## same [method MeleeAttackPlan._resolve_swing] the authority runs — so the arc
 ## the player watches, the vertices that go dark and the edges that part are the
@@ -52,7 +52,7 @@ const _SWING_FADE: float = 0.45
 ## click costs is one budget's worth of samples, and a bigger blade simply takes
 ## more frames to finish. Raising it shortens the wait for the full arc and
 ## lengthens the worst frame; 0 or less resolves the whole swing in one frame,
-## which is the pre-#821 behaviour.
+## which is the unsliced behaviour.
 @export var prediction_slice_steps: int = 12
 
 ## Trajectory samples a MIRROR's committed-swing draw-only resim steps per
@@ -95,8 +95,8 @@ var _ghost: SkillBlade
 ## read it for `drag` / `progress()`, never write it. The one place a readout
 ## of the predicted swing's clock can ask; nothing in the tree reads it today.
 ##
-## [b]#782: this is the resolved swing's clock, at its END state[/b], not a
-## per-cycle one being filled in as the ghost animates. (#821 qualifies that
+## [b]This is the resolved swing's clock, at its END state[/b], not a
+## per-cycle one being filled in as the ghost animates. (A sliced prediction qualifies that
 ## by exactly one window: while the prediction is still being sliced the clock
 ## is at the end of the samples resolved SO FAR, and reaches the swing's end
 ## when the last slice lands.) The preview no longer
@@ -127,7 +127,7 @@ var _live_swing: bool = false
 
 
 func _ready() -> void:
-	# Idle costs nothing: `_process` is the #821 slice pump and is armed only
+	# Idle costs nothing: `_process` is the slice pump and is armed only
 	# while a prediction is actually part-way resolved.
 	set_process(false)
 
@@ -268,7 +268,7 @@ func focus_marker() -> Node2D:
 ## MeleeAttackPlan.last_events] — the same scan [method
 ## MeleeAttackPlan.resolve] ran.
 ##
-## [b]#504: this is concurrent with the mutation, not after it.[/b]
+## [b]This is concurrent with the mutation, not after it.[/b]
 ## `BattleSystem.launch_attack` starts this un-awaited and then walks the same
 ## events on a [BeatClock], landing each hit at its `arrival_time` — which for
 ## melee is that event's own `BladeHitEvent.t`. So the blade reaching a node
@@ -276,7 +276,7 @@ func focus_marker() -> Node2D:
 ## draws (HP bar, shatter, damage number, spike-pop burst) reads the model.
 ## This class announces nothing; it used to, and that mirror is gone.
 ##
-## Still does NOT rescan, for the reason #474 established: a rescan here would
+## Still does NOT rescan, for a reason that holds: a rescan here would
 ## re-derive damage from a fresh blade state and drift from what
 ## [OutcomeApplier] actually lands. Note the old objection to a rescan — that
 ## it "would run after the depletion cascade" — described replaying a FINISHED
@@ -290,7 +290,7 @@ func focus_marker() -> Node2D:
 ## finished a full second before the last damage number. Null (a sandbox, a
 ## test) keeps the authored 1.0 pace.
 func launch(plan: MeleeAttackPlan, schedule: OutcomeSchedule = null) -> void:
-	# #559 decision 2: [method begin_windup] already claimed the ghost the
+	# : [method begin_windup] already claimed the ghost the
 	# player has been watching and formed it back up, so the live swing takes
 	# it over as-is. A caller that skipped the wind-up entirely (a sandbox, a
 	# fixture calling `launch` straight) still gets one spawned here.
@@ -347,16 +347,16 @@ func launch(plan: MeleeAttackPlan, schedule: OutcomeSchedule = null) -> void:
 ## the player has been watching loop is CLAIMED rather than rebuilt: nothing
 ## here calls [method MeleeAttackPlan.refresh_prediction], so
 ## [member MeleeAttackPlan.prediction_runs] cannot move during a launch. With
-## #782 the ghost is already a real resolve of the current world and the
+## The ghost is already a real resolve of the current world and the
 ## authority re-resolved at submit; a third resolve of the same swing would buy
 ## nothing and cost a frame hitch.
 ##
-## [b]There is no seated shape (#865, reversing #559 decision 2).[/b] The
+## [b]There is no seated shape (reversing).[/b] The
 ## seated branch used to `form_instantly()` and return 0.0 on the theory that
 ## the aim-time ghost had already been watched; the owner's call (2026-09-10,
 ## *"your own blade gets the maximum treatment sure"*) is that the wind-up is
 ## the payoff for a swing you spent the aim phase building, not a third viewing.
-## One sequence, one set of authored durations, seated and incoming alike (#866
+## One sequence, one set of authored durations, seated and incoming alike (this
 ## gives both the same camera shot for the same reason); the escape hatch is
 ## purely the authored tempo: zero every beat and this returns 0.0 for everyone.
 ##
@@ -436,7 +436,7 @@ func _spawn_blade(plan: MeleeAttackPlan) -> void:
 
 ## Replay the PREDICTED swing, forever, until the selection changes.
 ##
-## [b]#782: this loop no longer simulates.[/b] It used to run its own
+## [b]This loop no longer simulates.[/b] It used to run its own
 ## [method SkillBlade.simulate] every cycle, with a fresh drag clock and a fresh
 ## bunker field — which was both the expensive half of an always-running surface
 ## and,, wrong: the authoritative resolve REBAKES from each severance
@@ -465,7 +465,7 @@ func _run_preview_loop(gen: int) -> void:
 		_pump_prediction(live_plan)
 		# The PARTIAL is a head start, not a first cycle. The run appends
 		# to this same trajectory in place, so a cycle started mid-slice is
-		# sized to the WHOLE swing (`prediction_duration`, the #796 shape
+		# sized to the WHOLE swing (`prediction_duration`, the resim shape
 		# `launch` already uses) and `play` picks up each slice as it lands
 		# behind the playhead — the player sees `1 2 3 … 9` once, never
 		# `1 2 - pause - 1 2 3 … 9`. Should the playhead ever outrun the pump,

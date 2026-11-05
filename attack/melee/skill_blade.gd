@@ -63,7 +63,7 @@ const BLADE_SHARD_FIELD := preload("res://attack/melee/blade_shard_field.tscn")
 ## The swing's pop outcome, set by the caller BEFORE [method play] when one is
 ## known ([member MeleeAttackPlan.last_pops]). Vertices it reports dead go
 ## [member BladeNode.death_progress] from 0 to 1 across [member BladeStyle.pop_window]
-## starting at exactly the `t` they died (#787, replacing the de-lit
+## starting at exactly the `t` they died (replacing the de-lit
 ## interim), and spawn their shards into [member _shard_field] the frame
 ## playback crosses that `t`. Null (the preview loop) means nothing ever dies.
 ##
@@ -254,7 +254,7 @@ func simulate(
 ##     sim/presentation invariant in docs/domain/melee-blade-sim.md — hit
 ## scheduling stays in trajectory time regardless of this knob.
 ##   - duration_override: >= 0.0 overrides [method BladeTrajectory.duration] as
-##     the tween's trajectory-time span. #796: a mirror's committed-swing resim
+##     the tween's trajectory-time span. A mirror's committed-swing resim
 ##     may still be stepping when this call starts (`traj.samples` grows in
 ##     place as it does), so `traj.duration()` would underreport and cut the
 ##     tween short. [method MeleeAttackPlan.replay_duration] is the real span
@@ -332,7 +332,7 @@ func _apply_playback_frame(
 	# the swing writes vertex positions is the one place the focus follows them.
 	# Only the committed swing, though — the idle preview loop plays the ghost
 	# `ghostly`, and a camera following this marker must not rock while
-	# the player aims (#894 arms tracking on the swing-start beat for exactly
+	# the player aims (tracking is armed on the swing-start beat for exactly
 	# that reason), so the ghost loop leaves the marker on the rest centre.
 	if not ghostly and state != null and positions.size() > 0:
 		_set_focus(weighted_focus(_pivot_position(), traj.centroid_at(t), positions.size()))
@@ -353,7 +353,7 @@ func _apply_playback_frame(
 			var due := _pending_pops[0]
 			_pending_pops = _pending_pops.slice(1)
 			if not ghostly:
-				# #787 decision 11: the ghost/preview drives death_progress
+				# : the ghost/preview drives death_progress
 				# like any swing but spawns no shards.
 				_spawn_shard_for(int(roundf(due.y)), due.x, traj)
 	while not pending.is_empty() and pending[0].t <= t:
@@ -598,7 +598,7 @@ func stop() -> void:
 ## [param lead] delays the whole sequence, covering the camera's pivot beat.
 ## [param stamp_time] is spent only when some vertex actually carries an addon.
 ## Every duration is authored on [PresentationTempo]; passing 0.0 for all five
-## reproduces pre-#559 behaviour exactly (the blade is simply there).
+## reproduces the pre-wind-up behaviour exactly (the blade is simply there).
 func form_in(lead: float, stagger_span: float, stamp_time: float,
 		glow_ramp: float, bling_time: float) -> float:
 	_finish_form()
@@ -735,7 +735,7 @@ func _style_or_default() -> BladeStyle:
 ## The zero-length wind-up: every beat authored (or gated) to 0, so the blade
 ## is simply there, fully formed and fully lit. This is what a SEATED actor
 ## gets — the sharpening on decision 1 is that the sequence still RUNS for
-## every actor, and only its durations collapse, so the await point #796 needs
+## every actor, and only its durations collapse, so the await point the resim needs
 ## survives on the one machine that most needs it.
 func form_instantly() -> void:
 	_finish_form()

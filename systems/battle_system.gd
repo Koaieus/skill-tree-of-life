@@ -14,7 +14,7 @@ enum AttackMode {
 ## Consumed by [AnnouncementLayer] for the mode-tinted CALLOUT FX.
 signal attack_launched(mode: AttackMode, spell: SpellDef)
 ## The same moment, carrying the APPLIED outcome — for a presentation observer
-## that needs to know what the attack will touch and when (#524:
+## that needs to know what the attack will touch and when (
 ## [CameraDirector] frames the from->to span). A sibling of
 ## [signal attack_launched] rather than a widening of it: that one has six
 ## production listeners and ~ten test call sites, none of which want the
@@ -42,12 +42,12 @@ signal attack_replay_started(outcome: AttackOutcome)
 ## Emitted BEFORE the synchronous force_deallocate loop so VFX can snapshot
 ## owner colour + schedule a staggered ripple. See docs/domain/allocation-vfx.md.
 ##
-## Two independent emitters (#837 added the second): [method _on_node_depleted]
+## Two independent emitters (the second was added later): [method _on_node_depleted]
 ## for a non-core node reaching 0 HP (impact = that node), and
 ## [method _on_entity_dying] for the entity itself dying (impact = its core) —
 ## the whole-board strip [AllocationSystem.deallocate_all_owned] runs
 ## un-staggered. Both fire BEFORE their respective strip; neither sequences the
-## other (#257 scenario 2 just chains: the node-cascade's own wave completes,
+## other (the node-cascade case just chains: the node-cascade's own wave completes,
 ## then a chip death fires this one separately).
 signal cascade_started(layers: Array, defender: Entity)
 
@@ -128,13 +128,13 @@ var instant_mutation: bool = false
 ## short on teardown like any other beat.
 ##
 ## Melee is deliberately excluded: its plan (and the temp-upgrade addons
-## mounted on it, #406) must stay live through the visible swing, so it still
+## mounted on it) must stay live through the visible swing, so it still
 ## releases when the [member stage] stops holding it.
 @export var release_beat: float = 0.12
 
 
 ## True while resolve()..VFX-await..AP-deduction is in flight, independent
-## of whether the plan is still live (#406 — the plan now stays live
+## of whether the plan is still live (the plan now stays live
 ## through the melee await so its temp-upgrade addons render correctly).
 ## The one thing that blocks a second launch_attack() mid-swing.
 var is_launching := false
@@ -226,7 +226,7 @@ static func mint_plan(mode: AttackMode, attacker: Entity, vision: VisionSystem) 
 ##
 ## Randomised at `_ready`, and it stays that way. Each RUN's attacks are
 ## unique while every attack WITHIN a run is individually reproducible from
-## its stamp. #457 settled this the opposite way to what an earlier note here
+## its stamp. This is settled the opposite way to what an earlier note here
 ## predicted — owner call, 2026-08-21: the run seed is procgen's and nothing
 ## else's, so the acceptance reads *"the resolved seed reaches `GraphProcgen`
 ## and nothing else. Do not thread it into `BattleSystem`, `SpellResolver`,
@@ -248,7 +248,7 @@ func _ready() -> void:
 
 
 ## Commit [param plan] — the HUD passes the seat's armed plan, an
-## [AIController] the one it built with [method new_plan]. Since #511
+## [AIController] the one it built with [method new_plan]. Since the record is captured at prepare time,
 ## this is a thin front for a
 ## [LaunchAttackCommand]: build it, submit it, and wait out the queue. The
 ## work itself lives in [method apply_launch_command], which the
@@ -517,7 +517,7 @@ func _can_afford(plan: AttackPlan, outcome: AttackOutcome) -> bool:
 ## machine that computed it.
 ##
 ## Costs are deducted up front; the plan itself stays live through the whole
-## await (#406 — a melee plan's attached temp-upgrade addons must keep
+## await (a melee plan's attached temp-upgrade addons must keep
 ## rendering through the live swing) and is cleared in one place, after.
 ## `is_launching` — not a live plan — is what blocks a second
 ## launch during the await window.
@@ -585,7 +585,7 @@ func _commit(plan: AttackPlan, outcome: AttackOutcome) -> void:
 	# World mutation, on the beat clock. Awaited: `is_launching` gates on the
 	# WORLD being finished, never on the animation.
 	await _apply_outcome(outcome)
-	# Nothing is captured and nothing is confirmed here (#536, then #545). The
+	# Nothing is captured and nothing is confirmed here here. The
 	# record was complete before this method was entered — it is the record this
 	# pass just replayed — and the confirm went with it, up into
 	# [method CommandApplier._drain], where it fires for this verb exactly as it
@@ -636,7 +636,7 @@ func _stage_holds(plan: AttackPlan) -> bool:
 
 
 ## [b]"The record is ready" — the swing beat's one await point, and the seam
-## #796 drives.[/b] Returns immediately unless something has declared the
+## the committed-swing resim drives.[/b] Returns immediately unless something has declared the
 ## record outstanding via [method hold_record].
 ##
 ## [b]Today this is a satisfied no-op on every path that exists[/b], and it is
@@ -646,16 +646,16 @@ func _stage_holds(plan: AttackPlan) -> bool:
 ## the same command — so by the time [method _commit] reaches the swing there
 ## is nothing left to wait for.
 ##
-## It exists so #796 has a seam to cite rather than guess at. When the melee
+## It exists so the committed-swing resim has a seam to cite rather than guess at. When the melee
 ## resolve moves off the synchronous `_validate` and onto a [WorkerThreadPool],
 ## the thing that becomes asynchronous is exactly this, and nothing else in
-## [method _commit] has to move. Per #559 decision 3 the AUTHORITY has no floor
+## [method _commit] has to move. Per the AUTHORITY has no floor
 ## here — there is no swing to start without a record, so the form loop holds
 ## until it exists — while a mirror already holds one and never parks at all.
 ##
 ## [b]Awaited on the seated path too.[/b] The typical authority IS the seated
 ## local player, so a `seats()` early-return would delete this await on the one
-## machine #796 needs it on (#559, sharpening on decision 1).
+## machine the resim needs it on.
 func await_record_ready() -> void:
 	if not _record_pending:
 		return
@@ -664,7 +664,7 @@ func await_record_ready() -> void:
 
 ## Declare the in-flight launch's record OUTSTANDING, so the swing beat parks
 ## in [method await_record_ready] until [method release_record]. Nothing in
-## production calls this yet — #796 is what will.
+## production calls this yet.
 func hold_record() -> void:
 	_record_pending = true
 
@@ -685,7 +685,7 @@ func presenter() -> Node:
 	return stage.focus() if stage != null else null
 
 
-## Stage a committed attack's wind-up (#559, generalised by ADR 0027): the
+## Stage a committed attack's wind-up (generalised by ADR 0027): the
 ## presenter focuses, forms, stamps, ramps, flares — whatever its mode's
 ## picture is — and returns the seconds that takes; then the replay begins.
 ##
@@ -805,7 +805,7 @@ func _on_node_depleted(node: SkillNode, source: HitInstance = null) -> void:
 	# it is wrong.
 	#
 	# [b]The invariant this rests on:[/b] a non-empty `deallocations` means
-	# "this hit has already been cascaded", NOT "I am a peer" — and since #536
+	# "this hit has already been cascaded", NOT "I am a peer" — and since there is one launch path
 	# the two no longer coincide even loosely, because the authority replays a
 	# record too. Its DERIVING pass happens on a shadow world, inside
 	# [method _compute_record], where `host == null` sends

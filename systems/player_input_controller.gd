@@ -116,7 +116,7 @@ var _armed_tint: Color = Color.TRANSPARENT
 ## at different moments: arming a clamp on top of an armed melee plan moves the
 ## badge and leaves the border red. Folding this emit in under the tint's
 ## early-return would swallow exactly that case — the headline scenario of
-## #664 — so each channel compares against its own cached value below.
+## So each channel compares against its own cached value below.
 signal armed_icon_changed(icon: Texture2D, tint: Color)
 ## Last badge emitted, so a refresh that changed nothing doesn't re-fire.
 var _armed_icon: Texture2D = null
@@ -126,7 +126,7 @@ var _armed_icon_tint: Color = Color.TRANSPARENT
 ## `D`-to-deallocate channel knows what to act on. Null when nothing hovered.
 var _hovered_node: SkillNode = null
 
-## True while a full-screen modal (LootPicker/SpellLootPicker, #486) is up.
+## True while a full-screen modal (LootPicker/SpellLootPicker) is up.
 ## Replaces the old `get_tree().paused` block: freezes every player input
 ## channel (click, D-key, right-click/Esc pop) without pausing the SceneTree,
 ## which would also stall confirmed-command RPC dispatch under the LAN sync
@@ -154,7 +154,7 @@ var _core_drag_ghost: CoreDragGhost = null
 ## from tool code, so `_ready` runs there with `is_editor_hint()` TRUE — and a
 ## blanket early return left the controller half-built: every `attack_launched`,
 ## `applying_changed` and armed-mode subscription below silently absent, which
-## is how the #466 reform slot could never be captured in the melee sandbox
+## is how the reform slot could never be captured in the melee sandbox
 ## while every headless test stayed green (GUT has no editor hint to see).
 ## Anything that reaches for the OS instead — a [SkillNode]'s own Area2D pick
 ## (the sandbox hand-routes those itself), `_unhandled_input`, the mouse cursor
@@ -811,8 +811,8 @@ func _is_players_turn() -> bool:
 			and turn_manager.current_entity == player
 
 
-## Feedback for a node-targeted verb that was gated away (#89, generalized
-## #404). If the reason is islanding, the nodes that would be cut off from the
+## Feedback for a node-targeted verb that was gated away (generalized). If the reason is islanding,
+## the nodes that would be cut off from the
 ## core pulse danger-red; the node the player actually tried to act on always
 ## gets a short "no" shake. Other denials (out of DP, core node) just shake
 ## the target — there's no "these get cut off" story to tell. Self-subscribed
@@ -939,7 +939,7 @@ func _refresh_armed_state() -> void:
 	# guarding both. The tint walks the stack base-first and the icon walks it
 	# top-first, so they genuinely change at different moments; a shared
 	# early-return on the tint would swallow every badge change that leaves the
-	# border colour alone, which is precisely the melee+clamp case #664 exists
+	# border colour alone, which is precisely the melee+clamp case this exists
 	# for. See [signal armed_icon_changed].
 	var next_tint := get_armed_tint()
 	if next_tint != _armed_tint:
@@ -1370,7 +1370,7 @@ func can_player_act() -> bool:
 	if command_applier != null and command_applier.is_awaiting_confirmation:
 		return false
 	# A relic's claim chain is being driven — offer/pick/roll no longer
-	# runs inside `is_applying`, on purpose (issue #646 acceptance 3: it must
+	# runs inside `is_applying`, on purpose (: it must
 	# not hold this applier's queue for a remote human's pick), so the gate
 	# that used to fall out of `is_applying` for free has to be explicit here
 	# instead. See [CommandApplier.has_outstanding_loot] and the owner's

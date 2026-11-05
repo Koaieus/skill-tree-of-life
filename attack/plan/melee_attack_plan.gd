@@ -331,7 +331,7 @@ func toggle_member(node: SkillNode) -> bool:
 ## question must never be able to destroy a live plan's temp upgrades.
 ##
 ## [b]Deliberately not a topology hash[/b] of the owned subgraph, which is what
-## #466 originally sketched. Such a hash has to tolerate an allocation
+## was once sketched. Such a hash has to tolerate an allocation
 ## SUPERSET — the common case, since staking grows territory without
 ## invalidating an old blade — and a superset-tolerant hash is ill-defined.
 ## Replaying the gates answers exactly the question asked, is exact rather than
@@ -384,7 +384,7 @@ static func can_reform_selection(attacker: Entity, pivot: SkillNode,
 ## [b]Never [method _try_select_path].[/b] That is the click path's mass-select,
 ## and on a member that has drifted out of adjacency it silently pulls in a
 ## shortest path to reach it — reporting success while producing a DIFFERENT,
-## larger blade. #466 asks for the opposite: grey out rather than half-reform.
+## larger blade. This moves for the opposite: grey out rather than half-reform.
 ## The size check below is what keeps that true if this ever gets rewired.
 ##
 ## The stored order is authoring order, which was chain-valid when captured, so
@@ -921,7 +921,7 @@ func _can_be_blade(node: SkillNode) -> bool:
 ## against the post-cascade world and re-derive damage from a fresh blade
 ## state, drifting from what [OutcomeApplier] actually landed — a bug about
 ## replaying a finished mutation, not a reason to freeze the LANDING gate
-## itself. #502 moves that gate to consumption time deliberately; see
+## itself. This moves that gate to consumption time deliberately; see
 ## [BladePopResolver.LiveGate] and docs/domain/attack-timeline.md.
 var last_trajectory: BladeTrajectory = null
 var last_events: Array[BladeHitEvent] = []
@@ -1054,7 +1054,7 @@ func refresh_prediction() -> void:
 ## A budget of 0 or less means "the whole remaining swing", which is
 ## [method refresh_prediction].
 ##
-## [b]#821: this is the aim-time path.[/b] A melee resolve is a ~72 sample
+## [b]This is the aim-time path.[/b] A melee resolve is a ~72 sample
 ## physics scan and it used to run whole, synchronously, on every node click
 ## while aiming — a multi-frame stall on the one input the player is watching
 ## for an answer to. It is draw-only and nothing replays it, so it carries none
@@ -1063,7 +1063,7 @@ func refresh_prediction() -> void:
 ## partial arc it has, which is the picture the player wants ("roughly where
 ## does this go") sooner than a finished one would arrive.
 ##
-## Threading it was the rejected alternative — [WorkerThreadPool] is #796's
+## Threading it was the rejected alternative — [WorkerThreadPool] is the
 ## answer for the AUTHORITATIVE resolve, which has the wind-up to hide
 ## behind. Here there is no wind-up, and a partial picture beats a whole one
 ## that arrives later.
@@ -1082,7 +1082,7 @@ func advance_prediction(max_steps: int) -> bool:
 		_pending_world = CombatWorld.shadow()
 		_pending_prediction = _new_run(swing_context(_pending_world))
 		# Counted per RUN, not per slice: one logical prediction per selection is
-		# what this number has always meant (#782 acceptance 5, #821 acceptance 4).
+		# what this number has always meant.
 		prediction_runs += 1
 	if not _pending_prediction.advance(max_steps):
 		return false
@@ -1278,7 +1278,7 @@ func swing_context(world: CombatWorld,
 func _resolve_swing(world: CombatWorld) -> SwingResult:
 	var run := _new_run(swing_context(world))
 	# Unbounded: one optimistic bake per severance, exactly the loop this method
-	# ran inline before #821 hoisted it into [SwingResolve]. The slice budget is
+	# is the loop [SwingResolve] now holds. The slice budget is
 	# the ONLY thing the preview varies — see that class for why there is not a
 	# second chunked path.
 	while not run.advance(0):
@@ -1289,7 +1289,7 @@ func _resolve_swing(world: CombatWorld) -> SwingResult:
 ## The one place a [SwingResolve] of THIS plan is minted — the prediction, the
 ## committed resolve and the peer's draw-only replay all arm the same fuses.
 ## A fuse whose gate is no longer [method fusable_gates] (closed, frozen, or
-## outside the blade since it was armed) is dropped here, silently: #1209
+## outside the blade since it was armed) is dropped here, silently:
 ## acceptance 4, a no-op rather than an error.
 func _new_run(ctx: SwingContext) -> SwingResolve:
 	var run := SwingResolve.new(ctx)
@@ -1361,7 +1361,7 @@ func build_blade_state(zones: BladeDefenderZones = null) -> BladeState:
 	for node in ai_phantom_clamp_nodes:
 		if sn_to_idx.has(node):
 			ClampAddon.append_weld_braces(blade_state, sn_to_idx[node])
-	# The merged defender field (#780 walls + #781 plates, one query)
+	# The merged defender field (walls + plates, one query)
 	# — attached here so every consumer of this state (the resolve, the AI
 	# rollout) meets the same defenders. Null for the ordinary swing.
 	attach_defender_field(blade_state, zones if zones != null else build_defender_zones(blade_state))
@@ -1393,7 +1393,7 @@ static func attach_defender_field(blade_state: BladeState, zones: BladeDefenderZ
 ## constraint list, `AttackPlan`'s wire payload) treats this as a set of
 ## pairs, never a fixed sequence, so a stable-but-different order is a
 ## behavioural no-op — see `.claude/rules/degree.md`'s neighbouring guidance
-## and the #809 acceptance note on iteration order.
+## and the note on iteration order.
 ##
 ## Self-loops are preserved at their true multiplicity: [method
 ## Graph.get_neighbours] lists a self-looped node as its own neighbour TWICE
@@ -1429,7 +1429,7 @@ func get_induced_edges() -> Array:
 
 
 ## Public so callers can run their own [method BladeSim.simulate] pass over
-## the same drivers this plan's own [method resolve] uses (#378 slice C: the
+## the same drivers this plan's own [method resolve] uses (the
 ## AI's coarse-fidelity rollout re-simulates candidate blades before scanning
 ## only the survivors at full fidelity).
 func build_drivers(blade_state: BladeState) -> Array[BladeDriver]:
@@ -1470,9 +1470,9 @@ func build_drivers(blade_state: BladeState) -> Array[BladeDriver]:
 ## [method _resolve_swing].
 ##
 ## [b]Queried once; FILTERED live.[/b] The set is never re-queried mid-swing —
-## one `intersect_shape` per swing is the whole point of #811, and a defender
+## one `intersect_shape` per swing is the whole point of the single-query field, and a defender
 ## cannot join a swing it was out of reach of at t=0. But it no longer survives
-## its own destruction either: #867 retires a zone whose node the swing itself
+## its own destruction either: the swing retires a zone whose node the swing itself
 ## disowned, at the re-bake boundary the severance already creates
 ## ([method BladeObstacleField.retire_disowned_defenders]). So "unallocated
 ## nodes do not defend" holds at every sample, not only the first.
