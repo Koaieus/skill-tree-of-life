@@ -13,7 +13,7 @@ bypass are [defense-axes.md](defense-axes.md).
   display identity. Subclasses override `_on_applied` / `_on_tick` / `_on_removed`
   and stay stateless.
 - **Rows.** A `NodeStatus{power, key, camp_id, applier_id}` per `(def.id, key)`,
-  held on the `StatusHost` slice `NodeCombat` composes beside `_tags`/`_board` —
+  held on the `StatusHost` slice `NodeCombat` composes beside `_board` —
   "on NodeCombat, like node HP" (owner). See
   [Status rows](#status-rows-group_by-keys-them-visible_if-gates-the-count-1343).
 - **Application.** `ApplyStatusEffect : OnHitEffect` pushes a

@@ -4,7 +4,7 @@
 subject, composed alongside it at the same handshake point with its own
 `WorldSyncChannel.KIND_ENTITIES` envelope. `GraphSnapshot` carries which `Entity`
 owns each `SkillNode`; this class carries what each entity *has accumulated* —
-its board, its effects, its tags, its core — so a joining peer's boards match
+its board, its effects, its core — so a joining peer's boards match
 the authority's from the first frame. The sync model it serves is
 `docs/domain/multiplayer-sync-model.md`; this page is the class contract.
 
@@ -27,7 +27,7 @@ missing `+5 CON` moved every health bar that entity owns at once — silently
 - **Accumulated** — per-stat `base_value` and the applied modifier list, every
   `PoolStat.current`, `SkillPointStat`'s `wounded` / `staked`,
   `SurplusPoolStat.surplus`, the granted `EffectInstance`s with their source
-  node's `stable_id`, active tags, `Entity.entity_tier`, `Entity.core_location`
+  node's `stable_id`, `Entity.entity_tier`, `Entity.core_location`
   by `stable_id`, and the two per-turn fields a mid-turn arrival (resync, load)
   would otherwise lose — `Entity.volleys_launched_this_turn` (else the volley
   budget refills) and the turn-start reload leaves (`get_turn_start_leaves`)
@@ -69,8 +69,8 @@ cross:
 `resolve_graph_refs` runs AFTER, because `core_location`, the turn-start
 leaves and an effect's `source_node` resolve entity → node, the opposite direction from
 `GraphSnapshot._decode_node`'s `owner_id`. Both passes are idempotent: effects
-are granted only if an equal grant is not already present, tags only if not
-already held, and `StatBoard.read_dict` reconciles rather than rebuilds. That
+are granted only if an equal grant is not already present, and
+`StatBoard.read_dict` reconciles rather than rebuilds. That
 is what lets pass 2 re-run the board restore to absorb the node-sourced
 effects it just granted. Order between the graph and entity snapshots
 therefore does not matter; hello still has to be last (send order: see
