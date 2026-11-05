@@ -289,7 +289,7 @@ func _apply_pending_world() -> bool:
 	if image == null:
 		return false
 	GameSession.pending_world = null
-	image.apply(graph, entity_factory.spawn_snapshot_entity, turn_manager)
+	image.apply(graph, entity_factory.spawn_snapshot_entity, turn_manager, world_sync.spell_catalog)
 	_apply_graph_bounds()
 	_on_world_ready("loaded")
 	return true
