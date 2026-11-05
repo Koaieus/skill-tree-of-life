@@ -280,6 +280,10 @@ var self_loops: Array[Edge] = []
 		pin_health_bar = value
 		if is_node_ready():
 			_health_bar.pinned = value
+
+@export_group("Lab")
+@warning_ignore("unused_private_class_variable") # editor button: the inspector holds the Callable
+@export_tool_button("Open Node Lab", "PackedScene") var _open_lab_button = _open_node_lab
 @export_group("")
 
 @onready var visuals: Node2D = $Visuals
@@ -2079,3 +2083,13 @@ func _on_pick_input_event(_viewport: Node, event: InputEvent, _shape_idx: int) -
 			left_clicked.emit(self)
 		# Right-click is handled node-independently in
 		# PlayerInputController._unhandled_input — see the comment there.
+
+
+const NODE_LAB_SCENE := "res://skill_node/visuals/panel/skill_node_lab.tscn"
+
+
+## Editor-only: opens the node visuals lab scene in the editor.
+func _open_node_lab() -> void:
+	if not Engine.is_editor_hint():
+		return
+	Engine.get_singleton(&"EditorInterface").open_scene_from_path(NODE_LAB_SCENE)
