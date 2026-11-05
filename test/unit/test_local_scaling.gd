@@ -209,7 +209,7 @@ class DoublingComposite extends CompositeStatModifier:
 func test_composite_swap_produces_doubled_leaves_and_restores() -> void:
 	var comp := DoublingComposite.new()
 	comp.children = [_add_mod(&"strength", 2.0), _add_mod(&"armor", 3.0)]
-	_node.modifiers = [comp]
+	_node.authored_modifiers = [comp]
 	var board := _own()
 	var strength: Stat = board.get_stat(&"strength")
 	var armor: Stat = board.get_stat(&"armor")
@@ -330,7 +330,7 @@ func test_null_override_follows_universal_law() -> void:
 # ── Entity-grant path (decision 3) ────────────────────────────────────────────
 
 func test_entity_grant_scales_with_fill() -> void:
-	_node.modifiers = [_add_mod(&"strength", 1.0)]
+	_node.authored_modifiers = [_add_mod(&"strength", 1.0)]
 	var board := _own()
 	var strength: Stat = board.get_stat(&"strength")
 	assert_eq(int(strength.get_value()), 11, "al=1: entity STR+1")
@@ -348,7 +348,7 @@ func test_multi_owner_grant_computes_independently_on_each_board() -> void:
 	# foreign board" from "already on this one"; both are legal add_modifier
 	# calls now.
 	var m := _add_mod(&"strength", 5.0)
-	_node.modifiers = [m]
+	_node.authored_modifiers = [m]
 	var board_a: EntityStatBoard = TestBoards.flat_entity_board()
 	board_a.add_modifier(m)
 	var board_b: EntityStatBoard = TestBoards.flat_entity_board()
@@ -394,7 +394,7 @@ func test_al_ramp_does_not_interfere_with_the_hp_ratchet() -> void:
 	# D-21 ratchet interaction: the mutator writes `value`, never
 	# `health.base_value`, so the node pool's cap behaviour stays intact across
 	# an al ramp. The +15 local node_health mod scales the CAP.
-	_node.modifiers = [_add_mod(&"node_health", 15.0)]
+	_node.authored_modifiers = [_add_mod(&"node_health", 15.0)]
 	_own()
 	var hp := _node.node_board.get_stat(&"node_health") as PoolStat
 	var base := float(hp.value) - 15.0  # the owner's node_health baseline
@@ -414,7 +414,7 @@ func test_al_ramp_does_not_interfere_with_the_hp_ratchet() -> void:
 # ── force_fill (#915): stepwise fill through the allocate path ───────────────
 
 func test_force_fill_walks_the_ladder_stepwise_and_mints_no_sp() -> void:
-	_node.modifiers = [_add_mod(&"strength", 1.0)]
+	_node.authored_modifiers = [_add_mod(&"strength", 1.0)]
 	var board := _own()
 	var sp: SkillPointStat = board.skill_points
 	var max_before: float = sp.get_value()
@@ -434,7 +434,7 @@ func test_force_fill_walks_the_ladder_stepwise_and_mints_no_sp() -> void:
 func test_force_fill_composite_swap_restores_cleanly_after_force_deallocate() -> void:
 	var comp := DoublingComposite.new()
 	comp.children = [_add_mod(&"strength", 2.0), _add_mod(&"armor", 3.0)]
-	_node.modifiers = [comp]
+	_node.authored_modifiers = [comp]
 	var board := _own()
 	var strength: Stat = board.get_stat(&"strength")
 	var armor: Stat = board.get_stat(&"armor")

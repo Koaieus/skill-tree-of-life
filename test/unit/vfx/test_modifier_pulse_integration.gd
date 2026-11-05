@@ -35,7 +35,7 @@ func before_each() -> void:
 	mod.stat_id = &"strength"
 	mod.operation = StatModifier.Operation.ADD_BASE
 	mod.value = 7.0
-	_leaf.modifiers = [mod]
+	_leaf.authored_modifiers = [mod]
 
 	_alloc = _w.allocator()
 
@@ -83,7 +83,7 @@ func test_forced_allocation_does_not_float() -> void:
 	var mod := StatModifier.new()
 	mod.stat_id = &"strength"
 	mod.value = 3.0
-	leaf2.modifiers = [mod]
+	leaf2.authored_modifiers = [mod]
 
 	_alloc.force_allocate(_player, leaf2)  # setup path — forced=true
 	await get_tree().create_timer(0.6).timeout

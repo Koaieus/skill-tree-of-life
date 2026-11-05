@@ -1,5 +1,5 @@
 ---
-description: How SkillNodeAddons attach to a carrier — direct-child contract, adoption, idempotence, and the editor modifier guard
+description: How SkillNodeAddons attach to a carrier — direct-child contract, adoption, and idempotence
 paths:
   - "skill_node/**"
   - "procgen/graph_procgen.gd"
@@ -73,22 +73,6 @@ accessor results — see `graph.md`). Internal loops iterate `_addons` directly.
 
 `test/unit/test_addon_attachment.gd` pins all of this, including the re-entry
 case.
-
-## The modifier transfer is skipped in the editor
-
-`_attach_addon` guards the `entity_modifiers` / `local_modifiers` handoff with
-`not Engine.is_editor_hint()`. Visuals still attach; stats don't.
-
-**Why:** `SkillNode.modifiers` is an `@export` **and** the sink for
-addon-derived modifiers. `SkillNode` is `@tool`, so transferring under the
-editor would serialize those modifiers into the `.tscn` and re-apply them on the
-next load — compounding on every save. That's exactly godot-workflow.md's "never
-write a DERIVED value back into an `@export`". The bug was already reachable via
-editable-children before #334; the pre-tree inertness merely masked it.
-
-**How to apply:** don't remove the guard while `modifiers` stays exported. #335
-tracks splitting authored from derived modifiers, which retires the guard
-properly.
 
 ## Positioning: an addon's own transform stays identity
 

@@ -157,7 +157,7 @@ func test_a_fold_composes_with_a_content_scale() -> void:
 		m.stat_id = &"armor"
 		m.value = 1.0
 		mods.append(m)
-	n[4].modifiers = mods
+	n[4].authored_modifiers = mods
 	var scale := ScaleStacksEffect.new()
 	scale.ranker = ContentRanker.new()
 	var score: float = scale.ranker.score(n[4], null)

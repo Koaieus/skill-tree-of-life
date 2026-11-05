@@ -347,7 +347,7 @@ static func generate(
 			# reaches this branch, so its own radius stands (#330).
 			_stamp_radius(sn, config.topology.radius_for_budget(budget))
 			if config.content.modifier_pool_set != null:
-				sn.modifiers = _roll_modifiers_v4(
+				sn.authored_modifiers = _roll_modifiers_v4(
 						config.content.modifier_pool_set, config.content.weight_profiles,
 						archetype_id, archetype_primary_stat, archetype_forbid,
 						positions[i], i, budget, rng, fp, node_subtype,

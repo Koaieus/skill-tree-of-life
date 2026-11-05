@@ -135,7 +135,7 @@ func _make_node(color: Color, str_mod: float = 0.0) -> SkillNode:
 		m.operation = StatModifier.Operation.ADD_BASE
 		m.value = str_mod
 		var mods: Array[StatModifier] = [m]
-		node.modifiers = mods
+		node.authored_modifiers = mods
 	graph.add_skill_node(node)
 	return node
 

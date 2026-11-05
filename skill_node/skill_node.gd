@@ -107,11 +107,26 @@ var last_owned_vision: float:
 	set(value):
 		state.last_owned_vision = value
 
-## The modifier offerings this node carries — pushed onto an allocating
-## entity's stat board by AllocationSystem. Node-level data, no behaviour.
-@export var authored_modifiers: Array[StatModifier] = []
+## The modifier offerings an author or procgen wrote onto this node — the
+## ONLY serialized modifier list. Composed into [member modifiers] at `_ready`
+## by array copy (the same [StatModifier] instances, a distinct array), so a
+## runtime grant appended to the runtime list can never land back here and
+## compound on the next save. Assigning it on a ready node recomposes
+## [member modifiers] in place.
+@export var authored_modifiers: Array[StatModifier] = []:
+	set(value):
+		var previous := authored_modifiers
+		authored_modifiers = value
+		if is_node_ready():
+			_recompose_authored_modifiers(previous)
 
-@export var modifiers: Array[StatModifier] = []:
+## The modifiers this node carries at runtime — [member authored_modifiers]
+## plus every addon / effect / loot grant that arrived through
+## [method add_entity_modifier] — pushed onto an allocating entity's stat
+## board by AllocationSystem. Derived and never serialized: a `.tscn` carries
+## the authored list only. A code-built node may assign it before `_ready`;
+## the authored list composes on top when the node enters the tree.
+var modifiers: Array[StatModifier]:
 	get:
 		return state.modifiers
 	set(value):
@@ -121,7 +136,7 @@ var last_owned_vision: float:
 ## allocate and revokes them (keyed by this node) on deallocate. This is the
 ## authoring surface for behavioural landmark content — a keystone is a
 ## hand-authored inherited scene of `skill_node/keystone/keystone_skill_node.tscn`;
-## a pure stat grant goes in [member modifiers] instead. Procgen's rolled
+## a pure stat grant goes in [member authored_modifiers] instead. Procgen's rolled
 ## [SpellGrant]s land here too via [method add_effect].
 @export var effects: Array[Effect] = []:
 	get:
@@ -648,6 +663,13 @@ func get_combat() -> NodeCombat:
 
 
 func _ready() -> void:
+	# Authored offerings compose into the runtime list first — before the
+	# addon sweep below appends its grants after them. No board push here: a
+	# pre-owned node's offerings reach its owner through AllocationSystem's
+	# apply_entity_modifiers_to, exactly as a code-assigned list always did.
+	for m in authored_modifiers:
+		if m != null and not state.modifiers.has(m):
+			state.modifiers.append(m)
 	# No authored-radius capture here any more: `radius` is a getter over
 	# `base_radius` + stake growth, so it's correct from construction onward —
 	# including for a `stake_level` set before the node entered the tree, which
@@ -1070,6 +1092,24 @@ func add_entity_modifier(m: StatModifier) -> void:
 	var board: StatBoard = owned_by.stat_board if owned_by != null else null
 	if board != null:
 		board.add_modifier(m)
+
+
+## A post-ready write to [member authored_modifiers]: entries that left the
+## authored list leave the runtime list (and the owner's board, when
+## allocated); entries new to it join both. Identity is kept — the board
+## strips by identity, so the authored instance must be the one it was given.
+func _recompose_authored_modifiers(previous: Array[StatModifier]) -> void:
+	var board: StatBoard = owned_by.stat_board if owned_by != null else null
+	for m in previous:
+		if m != null and not authored_modifiers.has(m) and state.modifiers.has(m):
+			state.modifiers.erase(m)
+			if board != null:
+				board.remove_modifier(m)
+	for m in authored_modifiers:
+		if m != null and not state.modifiers.has(m):
+			state.modifiers.append(m)
+			if board != null:
+				board.add_modifier(m)
 
 
 ## Remove an entity-scoped modifier added by [method add_entity_modifier],
@@ -1851,15 +1891,12 @@ func _attach_addon(a: SkillNodeAddon) -> void:
 	# Draw order is the addon's own business — see SkillNodeAddon.BASE_Z. The
 	# carrier deliberately doesn't write it.
 	#
-	# The modifier transfer is runtime-only: `modifiers` is an @export, so doing
-	# this under the editor would serialize addon-derived modifiers into the
-	# .tscn and compound them on every save (see .claude/rules/godot-workflow.md,
-	# "never write a DERIVED value back into an @export"). The editor still gets
-	# the addon's visuals — it just doesn't get its stats. #335 removes this
-	# guard by splitting authored from derived modifiers.
+	# The transfer runs under the editor too: `modifiers` is derived and never
+	# serialized (only `authored_modifiers` is), so an addon's stats showing on
+	# an open scene cannot compound into the .tscn on save.
 	# A temporary addon (a swing's temp upgrade) never transfers: the swing
 	# folds its modifiers as overlays (MeleeAttackPlan.overlays_for).
-	if not Engine.is_editor_hint() and not a.is_temporary:
+	if not a.is_temporary:
 		# No clone-and-track needed (#377): every StatModifier sub-resource an
 		# addon .tscn carries sets `resource_local_to_scene = true`, so Godot
 		# already hands each `instantiate()` its own private copy — the modifier
@@ -1882,9 +1919,9 @@ func _detach_addon(a: SkillNodeAddon) -> void:
 	# Mirror `_attach_addon`'s `_sync_visuals()`: a departing addon stops
 	# contributing its emblem, so the carve must be re-resolved — otherwise a
 	# consumed SkillDustAddon (looted relic) leaves its LOOT gem dent behind
-	# (#369). Runs in the editor branch too, same as attach.
+	# (#369). Runs for a temporary addon too, same as attach.
 	_sync_visuals()
-	if Engine.is_editor_hint() or a.is_temporary:
+	if a.is_temporary:
 		addons_changed.emit()
 		return
 	# Reverse whatever attach added (#377): identity never changed at attach

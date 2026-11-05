@@ -98,7 +98,7 @@ func before_each() -> void:
 	_killer.core_location = _nodes[0]
 
 	var node_mods: Array[StatModifier] = [_mk_mod(&"armor", 3.0)]  # set X
-	_nodes[2].modifiers = node_mods
+	_nodes[2].authored_modifiers = node_mods
 	_alloc.force_allocate(_victim, _nodes[1])
 	_alloc.force_allocate(_victim, _nodes[2])
 	_victim.core_location = _nodes[1]

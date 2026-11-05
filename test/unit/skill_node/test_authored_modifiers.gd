@@ -21,8 +21,9 @@ const STANDALONE_SCENES: Array[String] = [
 	"res://skill_node/keystone/instances/natural_xp_node.tscn",
 	"res://skill_node/keystone/instances/titan_node.tscn",
 	"res://skill_node/keystone/instances/wisdom_keystone_node.tscn",
-	"res://test/support/effect_landmark_node.tscn",
 ]
+# (`test/support/effect_landmark_node.tscn` also has a baked `modifiers =`
+# line, but it belongs to its StatEffect sub-resource, not the SkillNode.)
 
 ## Composed scenes → how many of their SkillNodes carried a baked line.
 const COMPOSED_SCENES: Dictionary = {

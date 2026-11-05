@@ -30,7 +30,7 @@ func _setup(scene_authored := false) -> void:
 	var a := _w.add_node(&"a", Vector2(0, 0))
 	_node = _w.add_node(&"b", Vector2(100, 0))
 	_w.link(a, _node)
-	_node.modifiers = [_strength_mod()]
+	_node.authored_modifiers = [_strength_mod()]
 	_ent = TestWorld.new_entity("Red")
 	_base_str = _ent.stat_board.get_stat(&"strength").value
 	if scene_authored:

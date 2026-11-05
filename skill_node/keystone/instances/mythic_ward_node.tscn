@@ -11,5 +11,5 @@ value = -1.0
 
 [node name="MythicWardNode" instance=ExtResource("1_base")]
 base_type_color = Color(0.3, 0.45, 0.65, 1)
-modifiers = Array[ExtResource("3_mod")]([SubResource("m_min_damage_taken")])
+authored_modifiers = Array[ExtResource("3_mod")]([SubResource("m_min_damage_taken")])
 display_name = "Mythic Ward"

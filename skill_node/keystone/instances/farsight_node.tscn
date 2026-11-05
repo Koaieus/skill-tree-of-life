@@ -11,5 +11,5 @@ value = 100.0
 
 [node name="FarsightNode" instance=ExtResource("1_base")]
 base_type_color = Color(0.2, 0.75, 0.75, 1)
-modifiers = Array[ExtResource("3_mod")]([SubResource("m_vision_range")])
+authored_modifiers = Array[ExtResource("3_mod")]([SubResource("m_vision_range")])
 display_name = "Farsight Spire"

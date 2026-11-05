@@ -661,7 +661,7 @@ node_board = SubResource("Resource_hk07i")
 z_index = 1001
 z_as_relative = false
 position = Vector2(58, -136)
-modifiers = Array[ExtResource("2_mod")]([SubResource("mod_dex_2")])
+authored_modifiers = Array[ExtResource("2_mod")]([SubResource("mod_dex_2")])
 archetype = ExtResource("44_arch_dex")
 base_type_color = Color(0.31764707, 0.7764706, 0.44705883, 1)
 
@@ -672,7 +672,7 @@ z_index = 1001
 z_as_relative = false
 position = Vector2(151, 78)
 owned_by = NodePath("../../Entities/Player")
-modifiers = Array[ExtResource("2_mod")]([SubResource("mod_str_2")])
+authored_modifiers = Array[ExtResource("2_mod")]([SubResource("mod_str_2")])
 base_type_color = Color(0.94509804, 0.27058825, 0.24705882, 1)
 node_board = SubResource("Resource_i20lm")
 
@@ -683,7 +683,7 @@ z_index = 1001
 z_as_relative = false
 position = Vector2(43, 148)
 owned_by = NodePath("../../Entities/Player")
-modifiers = Array[ExtResource("2_mod")]([SubResource("mod_hp_5"), SubResource("Resource_f63mm")])
+authored_modifiers = Array[ExtResource("2_mod")]([SubResource("mod_hp_5"), SubResource("Resource_f63mm")])
 base_type_color = Color(0.94509804, 0.27058825, 0.24705882, 1)
 node_board = SubResource("Resource_v35nn")
 
@@ -694,7 +694,7 @@ local_modifiers = Array[ExtResource("2_mod")]([SubResource("Resource_tx111")])
 z_index = 1001
 z_as_relative = false
 position = Vector2(-150, -23)
-modifiers = Array[ExtResource("2_mod")]([SubResource("mod_int_2")])
+authored_modifiers = Array[ExtResource("2_mod")]([SubResource("mod_int_2")])
 archetype = ExtResource("44_arch_int")
 base_type_color = Color(0.2901961, 0.5882353, 1, 1)
 
@@ -704,7 +704,7 @@ base_type_color = Color(0.2901961, 0.5882353, 1, 1)
 z_index = 1001
 z_as_relative = false
 position = Vector2(163, -64)
-modifiers = Array[ExtResource("2_mod")]([SubResource("mod_per_2")])
+authored_modifiers = Array[ExtResource("2_mod")]([SubResource("mod_per_2")])
 archetype = ExtResource("44_arch_per")
 base_type_color = Color(0.69411767, 0.40392157, 0.96862745, 1)
 node_board = SubResource("Resource_ch6bb")
@@ -716,7 +716,7 @@ local_modifiers = Array[ExtResource("2_mod")]([SubResource("Resource_5ns4p"), Su
 z_index = 1001
 z_as_relative = false
 position = Vector2(145, -232)
-modifiers = Array[ExtResource("2_mod")]([SubResource("mod_dex_1"), SubResource("mod_xp_1")])
+authored_modifiers = Array[ExtResource("2_mod")]([SubResource("mod_dex_1"), SubResource("mod_xp_1")])
 archetype = ExtResource("44_arch_dex")
 base_type_color = Color(0.31764707, 0.7764706, 0.44705883, 1)
 
@@ -725,7 +725,7 @@ z_index = 1001
 z_as_relative = false
 position = Vector2(261, -41)
 owned_by = NodePath("../../Entities/Enemy")
-modifiers = Array[ExtResource("2_mod")]([SubResource("mod_str_1"), SubResource("mod_xp_2")])
+authored_modifiers = Array[ExtResource("2_mod")]([SubResource("mod_str_1"), SubResource("mod_xp_2")])
 node_board = SubResource("Resource_bykwf")
 
 [node name="Down_Out" parent="Graph/Nodes" parent_id_path=PackedInt32Array(1851662701, 1428063024) index="8" unique_id=8800201 node_paths=PackedStringArray("owned_by") instance=ExtResource("9_skill")]
@@ -733,7 +733,7 @@ z_index = 1001
 z_as_relative = false
 position = Vector2(27, 263)
 owned_by = NodePath("../../Entities/Player")
-modifiers = Array[ExtResource("2_mod")]([SubResource("mod_xp_2_b")])
+authored_modifiers = Array[ExtResource("2_mod")]([SubResource("mod_xp_2_b")])
 base_type_color = Color(0.9019608, 0.73333335, 0.27450982, 1)
 node_board = SubResource("Resource_n6wys")
 
@@ -743,14 +743,14 @@ node_board = SubResource("Resource_n6wys")
 z_index = 1001
 z_as_relative = false
 position = Vector2(-283, -107)
-modifiers = Array[ExtResource("2_mod")]([SubResource("mod_per_2_b")])
+authored_modifiers = Array[ExtResource("2_mod")]([SubResource("mod_per_2_b")])
 archetype = ExtResource("44_arch_per")
 
 [node name="SW" parent="Graph/Nodes" parent_id_path=PackedInt32Array(1851662701, 1428063024) index="10" unique_id=8800203 instance=ExtResource("9_skill")]
 z_index = 1001
 z_as_relative = false
 position = Vector2(-203, 103)
-modifiers = Array[ExtResource("2_mod")]([SubResource("mod_int_2_b")])
+authored_modifiers = Array[ExtResource("2_mod")]([SubResource("mod_int_2_b")])
 archetype = ExtResource("44_arch_int")
 base_type_color = Color(0.2901961, 0.5882353, 1, 1)
 node_board = SubResource("Resource_eh457")
@@ -762,7 +762,7 @@ z_index = 1001
 z_as_relative = false
 position = Vector2(299, 99)
 owned_by = NodePath("../../Entities/Enemy")
-modifiers = Array[ExtResource("2_mod")]([SubResource("mod_dex_1_b")])
+authored_modifiers = Array[ExtResource("2_mod")]([SubResource("mod_dex_1_b")])
 archetype = ExtResource("44_arch_dex")
 base_type_color = Color(0.31764707, 0.7764706, 0.44705883, 1)
 node_board = SubResource("Resource_mdu4w")
@@ -772,7 +772,7 @@ z_index = 1001
 z_as_relative = false
 position = Vector2(197, 223)
 owned_by = NodePath("../../Entities/Player")
-modifiers = Array[ExtResource("2_mod")]([SubResource("mod_hp_5_b")])
+authored_modifiers = Array[ExtResource("2_mod")]([SubResource("mod_hp_5_b")])
 archetype = ExtResource("44_arch_con")
 base_type_color = Color(0.85882354, 0.9019608, 0.9490196, 1)
 node_board = SubResource("Resource_dje0j")
@@ -822,7 +822,7 @@ node_board = SubResource("Resource_hch10")
 z_index = 1001
 z_as_relative = false
 position = Vector2(300, -260)
-modifiers = Array[ExtResource("2_mod")]([SubResource("mod_vision_100"), SubResource("mod_hp_3")])
+authored_modifiers = Array[ExtResource("2_mod")]([SubResource("mod_vision_100"), SubResource("mod_hp_3")])
 archetype = ExtResource("44_arch_per")
 base_type_color = Color(0.69411767, 0.40392157, 0.96862745, 1)
 node_board = SubResource("Resource_ettse")
@@ -834,7 +834,7 @@ local_modifiers = Array[ExtResource("2_mod")]([SubResource("Resource_bvfgh")])
 z_index = 1001
 z_as_relative = false
 position = Vector2(-50, -290)
-modifiers = Array[ExtResource("2_mod")]([SubResource("mod_dex_3")])
+authored_modifiers = Array[ExtResource("2_mod")]([SubResource("mod_dex_3")])
 archetype = ExtResource("44_arch_dex")
 base_type_color = Color(0.31764707, 0.7764706, 0.44705883, 1)
 
@@ -842,14 +842,14 @@ base_type_color = Color(0.31764707, 0.7764706, 0.44705883, 1)
 z_index = 1001
 z_as_relative = false
 position = Vector2(-380, -180)
-modifiers = Array[ExtResource("2_mod")]([SubResource("mod_sensor_1"), SubResource("mod_per_1")])
+authored_modifiers = Array[ExtResource("2_mod")]([SubResource("mod_sensor_1"), SubResource("mod_per_1")])
 archetype = ExtResource("44_arch_per")
 
 [node name="Library" parent="Graph/Nodes" parent_id_path=PackedInt32Array(1851662701, 1428063024) index="21" unique_id=9000004 instance=ExtResource("9_skill")]
 z_index = 1001
 z_as_relative = false
 position = Vector2(-380, 50)
-modifiers = Array[ExtResource("2_mod")]([SubResource("mod_int_3"), SubResource("mod_wis_2")])
+authored_modifiers = Array[ExtResource("2_mod")]([SubResource("mod_int_3"), SubResource("mod_wis_2")])
 archetype = ExtResource("44_arch_int")
 base_type_color = Color(0.2901961, 0.5882353, 1, 1)
 
@@ -857,26 +857,26 @@ base_type_color = Color(0.2901961, 0.5882353, 1, 1)
 z_index = 1001
 z_as_relative = false
 position = Vector2(-350, 200)
-modifiers = Array[ExtResource("2_mod")]([SubResource("mod_str_1_b"), SubResource("mod_hp_3_b")])
+authored_modifiers = Array[ExtResource("2_mod")]([SubResource("mod_str_1_b"), SubResource("mod_hp_3_b")])
 
 [node name="Crossroads" parent="Graph/Nodes" parent_id_path=PackedInt32Array(1851662701, 1428063024) index="23" unique_id=9000006 instance=ExtResource("9_skill")]
 z_index = 1001
 z_as_relative = false
 position = Vector2(359, -28)
-modifiers = Array[ExtResource("2_mod")]([SubResource("mod_xp_1_b"), SubResource("mod_mp_1")])
+authored_modifiers = Array[ExtResource("2_mod")]([SubResource("mod_xp_1_b"), SubResource("mod_mp_1")])
 archetype = ExtResource("44_arch_wis")
 base_type_color = Color(0.9019608, 0.73333335, 0.27450982, 1)
 
 [node name="Enemy_Tower" parent="Graph/Nodes" parent_id_path=PackedInt32Array(1851662701, 1428063024) index="24" unique_id=9000007 instance=ExtResource("9_skill")]
 position = Vector2(650, -80)
 input_pickable = false
-modifiers = Array[ExtResource("2_mod")]([SubResource("mod_vision_50")])
+authored_modifiers = Array[ExtResource("2_mod")]([SubResource("mod_vision_50")])
 archetype = ExtResource("44_arch_per")
 
 [node name="Enemy_Recon" parent="Graph/Nodes" parent_id_path=PackedInt32Array(1851662701, 1428063024) index="25" unique_id=9000008 instance=ExtResource("9_skill")]
 position = Vector2(750, 120)
 input_pickable = false
-modifiers = Array[ExtResource("2_mod")]([SubResource("mod_sensor_2"), SubResource("mod_per_2_c")])
+authored_modifiers = Array[ExtResource("2_mod")]([SubResource("mod_sensor_2"), SubResource("mod_per_2_c")])
 archetype = ExtResource("44_arch_per")
 
 [node name="Edge_Core_Up" parent="Graph/Edges" parent_id_path=PackedInt32Array(1851662701, 983028403) index="0" unique_id=709243764 node_paths=PackedStringArray("from", "to") instance=ExtResource("4_edge_scene")]

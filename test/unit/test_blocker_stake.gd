@@ -65,7 +65,7 @@ func test_stake_3_spawns_filled_with_local_modifiers_at_x3() -> void:
 	m.stat_id = &"strength"
 	m.operation = StatModifier.Operation.ADD_BASE
 	m.value = 1.0
-	_nodes[1].modifiers = [m]
+	_nodes[1].authored_modifiers = [m]
 	var blocker := _spawn(3)
 	var node := _nodes[1]
 	assert_eq(node.owned_by, blocker)

@@ -11,5 +11,5 @@ value = 20.0
 
 [node name="WisdomKeystoneNode" instance=ExtResource("1_base")]
 base_type_color = Color(0.85, 0.75, 1.0, 1)
-modifiers = Array[ExtResource("3_mod")]([SubResource("m_wisdom")])
+authored_modifiers = Array[ExtResource("3_mod")]([SubResource("m_wisdom")])
 display_name = "Wellspring of Thought"

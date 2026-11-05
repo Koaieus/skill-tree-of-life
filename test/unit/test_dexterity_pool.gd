@@ -174,7 +174,7 @@ func test_rolled_poison_grant_lands_on_the_board_and_mints_on_reload() -> void:
 	a.name = "A"; b.name = "B"
 	graph.add_skill_node(a); graph.add_skill_node(b)
 	graph.add_edge(a, b)
-	b.modifiers = [rolled]
+	b.authored_modifiers = [rolled]
 
 	var tm: TurnManager = autofree(TurnManager.new())
 	add_child(tm)

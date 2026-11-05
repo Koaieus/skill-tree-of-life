@@ -35,7 +35,7 @@ func test_bind_renders_one_mod_slab_row_per_flattened_leaf() -> void:
 	var child_a := _make_modifier(StatModifier.Operation.ADD_BASE, 2.0, &"dexterity")
 	var child_b := _make_modifier(StatModifier.Operation.INCREASE, 20.0, &"armor")
 	composite.children = [child_a, child_b]
-	_node.modifiers = [str_mod, composite]
+	_node.authored_modifiers = [str_mod, composite]
 
 	var root := _ROOT_SCENE.instantiate() as GrantedModifiersRoot
 	add_child_autofree(root)
@@ -74,7 +74,7 @@ func test_spell_grant_renders_above_the_modifier_slabs_in_keystone_gold() -> voi
 	var grant := SpellGrant.new()
 	grant.spell_def = spell_def
 	_node.effects = [grant]
-	_node.modifiers = [_make_modifier(StatModifier.Operation.ADD_BASE, 4.0, &"strength")]
+	_node.authored_modifiers = [_make_modifier(StatModifier.Operation.ADD_BASE, 4.0, &"strength")]
 
 	var root := _ROOT_SCENE.instantiate() as GrantedModifiersRoot
 	add_child_autofree(root)
@@ -109,7 +109,7 @@ func test_spell_grant_with_no_spell_def_is_skipped() -> void:
 
 
 func test_bind_adds_no_header_no_legend_no_frame() -> void:
-	_node.modifiers = [_make_modifier(StatModifier.Operation.ADD_BASE, 1.0, &"strength")]
+	_node.authored_modifiers = [_make_modifier(StatModifier.Operation.ADD_BASE, 1.0, &"strength")]
 	var root := _ROOT_SCENE.instantiate() as GrantedModifiersRoot
 	add_child_autofree(root)
 	root.bind(_node)
@@ -125,7 +125,7 @@ func test_bind_adds_no_header_no_legend_no_frame() -> void:
 
 
 func test_rows_rest_at_zero_and_are_driven_via_set_progress_stagger() -> void:
-	_node.modifiers = [
+	_node.authored_modifiers = [
 		_make_modifier(StatModifier.Operation.ADD_BASE, 1.0, &"strength"),
 		_make_modifier(StatModifier.Operation.ADD_BASE, 1.0, &"dexterity"),
 	]
@@ -149,13 +149,13 @@ func test_rows_rest_at_zero_and_are_driven_via_set_progress_stagger() -> void:
 
 
 func test_adding_rows_grows_the_stack_downward_only() -> void:
-	_node.modifiers = [_make_modifier(StatModifier.Operation.ADD_BASE, 1.0, &"strength")]
+	_node.authored_modifiers = [_make_modifier(StatModifier.Operation.ADD_BASE, 1.0, &"strength")]
 	var root := _ROOT_SCENE.instantiate() as GrantedModifiersRoot
 	add_child_autofree(root)
 	root.bind(_node)
 	var top_before: float = root.position.y
 
-	_node.modifiers = [
+	_node.authored_modifiers = [
 		_make_modifier(StatModifier.Operation.ADD_BASE, 1.0, &"strength"),
 		_make_modifier(StatModifier.Operation.ADD_BASE, 1.0, &"dexterity"),
 		_make_modifier(StatModifier.Operation.ADD_BASE, 1.0, &"constitution"),
@@ -172,7 +172,7 @@ func test_adding_rows_grows_the_stack_downward_only() -> void:
 ## only the right edge out (Control grows END by default), sliding the whole
 ## column right by half the overflow.
 func test_a_row_wider_than_the_authored_box_stays_centred_on_the_origin() -> void:
-	_node.modifiers = [_make_modifier(StatModifier.Operation.ADD_BASE, 123.0, &"intelligence")]
+	_node.authored_modifiers = [_make_modifier(StatModifier.Operation.ADD_BASE, 123.0, &"intelligence")]
 	var root := _ROOT_SCENE.instantiate() as GrantedModifiersRoot
 	add_child_autofree(root)
 	root.bind(_node)
@@ -187,7 +187,7 @@ func test_a_row_wider_than_the_authored_box_stays_centred_on_the_origin() -> voi
 ## size flag: under the container default (FILL) it stretched across the box
 ## and drew its text flush LEFT, ~20px off the node it hangs under.
 func test_the_empty_state_row_is_centred_on_the_origin() -> void:
-	_node.modifiers = []
+	_node.authored_modifiers = []
 	var root := _ROOT_SCENE.instantiate() as GrantedModifiersRoot
 	add_child_autofree(root)
 	root.bind(_node)

@@ -123,7 +123,7 @@ func test_scene_authored_ownership_applies_node_modifiers() -> void:
 	m.stat_id = &"strength"
 	m.operation = StatModifier.Operation.ADD_BASE
 	m.value = 7.0
-	node.modifiers = [m]
+	node.authored_modifiers = [m]
 	graph.skill_nodes_container.add_child(node)
 	await get_tree().process_frame
 	node.owned_by = ent  # what the .tscn bakes
@@ -205,7 +205,7 @@ func _sp_cap_mod() -> StatModifier:
 func test_an_authored_node_modifier_on_skill_points_is_rejected() -> void:
 	var ent := _make_entity()
 	var n := _make_node()
-	n.modifiers = [_sp_cap_mod()]
+	n.authored_modifiers = [_sp_cap_mod()]
 	var before: float = ent.stat_board.skill_points.value
 	n.apply_entity_modifiers_to(ent.stat_board)
 	assert_push_error("skill_points")
@@ -217,7 +217,7 @@ func test_a_composite_child_on_skill_points_is_rejected() -> void:
 	var n := _make_node()
 	var bundle := CompositeStatModifier.new()
 	bundle.children = [_sp_cap_mod()]
-	n.modifiers = [bundle]
+	n.authored_modifiers = [bundle]
 	var before: float = ent.stat_board.skill_points.value
 	n.apply_entity_modifiers_to(ent.stat_board)
 	assert_push_error("skill_points")
