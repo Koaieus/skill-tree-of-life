@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
-#MISE description="Self-test for gh-project's hub derivation (lib/hub_derive.jq): fixture boards in, expected actions out. `mise run gh-project-selftest`"
+#MISE description="Self-test for gh-project's pure jq halves (lib/hub_derive.jq, lib/claims.jq): fixture boards in, expected actions out. `mise run gh-project-selftest`"
 import json, os, subprocess, sys
+from datetime import datetime, timezone
 
 JQ = os.path.join(os.path.dirname(os.path.abspath(__file__)), "lib", "hub_derive.jq")
 
@@ -108,6 +109,59 @@ for name, items, want in stalled_cases:
     if not ok:
         failed += 1
         print("   got:", json.dumps(got))
-total = len(cases) + len(stalled_cases)
+
+# in_progress_stale (lib/claims.jq): $now injected so ages are deterministic.
+NOW = 1_800_000_000
+HOUR = 3600
+THRESHOLD = 6 * HOUR
+
+def iso(epoch):
+    return datetime.fromtimestamp(epoch, timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+def aged(n, status, hours_ago, **kw):
+    it = item(n, status, **kw)
+    it["updated"] = iso(NOW - hours_ago * HOUR)
+    return it
+
+def in_progress_stale(items, activity):
+    p = subprocess.run(["jq", "-c", "--argjson", "now", str(NOW), "--argjson", "activity", json.dumps(activity),
+                        "--argjson", "threshold", str(THRESHOLD),
+                        "include \"claims\"; in_progress_stale($now; $activity; $threshold)", "-L", os.path.dirname(JQ)],
+                       input=json.dumps(items), capture_output=True, text=True)
+    if p.returncode != 0:
+        print(p.stderr); sys.exit(1)
+    return json.loads(p.stdout)
+
+stale_cases = [
+    ("In progress leaf, last activity 7h ago -> reported",
+     [aged(5, "In progress", 7)], {},
+     [{"number": 5, "age_hours": 7}]),
+    ("same leaf, a commit citing it 1h ago -> not reported",
+     [aged(5, "In progress", 7)], {"5": NOW - 1 * HOUR},
+     []),
+    ("an old activity signal never hides a fresh updatedAt",
+     [aged(5, "In progress", 1)], {"5": NOW - 30 * HOUR},
+     []),
+    ("hub In progress with an In progress child -> hub never reported; the old child is",
+     [aged(1, "In progress", 200, kids=2), aged(2, "In progress", 9, parent=1), aged(3, "Backlog", 50, parent=1)], {},
+     [{"number": 2, "age_hours": 9}]),
+    ("Ready / In review / Designing with old activity -> not reported",
+     [aged(5, "Ready", 48), aged(6, "In review", 48), aged(7, "Designing", 48)], {},
+     []),
+    ("closed In progress -> not reported (closed_not_done owns it)",
+     [aged(5, "In progress", 48, state="CLOSED")], {},
+     []),
+    ("no updatedAt, no activity -> reported as never touched, no crash",
+     [item(5, "In progress")], {},
+     [{"number": 5, "age_hours": NOW // HOUR}]),
+]
+for name, items, activity, want in stale_cases:
+    got = in_progress_stale(items, activity)
+    ok = got == want
+    print(("✓" if ok else "✗"), "in_progress_stale:", name)
+    if not ok:
+        failed += 1
+        print("   got:", json.dumps(got))
+total = len(cases) + len(stalled_cases) + len(stale_cases)
 print(f"{total - failed}/{total} passed")
 sys.exit(1 if failed else 0)
