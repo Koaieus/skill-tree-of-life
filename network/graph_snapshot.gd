@@ -56,53 +56,10 @@ static func encode(graph: Graph) -> PackedByteArray:
 	return _pack({"res": table.paths, "nodes": nodes, "edges": edges})
 
 
-## Decode a payload built by [method encode] into [param graph] — a RECONCILE,
-## not a rebuild (#561 D6). A node whose `stable_id` is already present is
-## updated in place; only a genuinely-new id mints a [SkillNode], only a
-## genuinely-absent one is removed, and the same holds edge-by-edge.
-##
-## [b]Decoding into a POPULATED graph is therefore safe, and that is the
-## resync backstop's whole contract[/b] (#561; the join case is just the
-## degenerate one where the graph starts empty and every row is new). The
-## alternative D6 offered — tear the world down and replay — was rejected
-## against what #560 had since built: [method StatBoard.read_dict] reconciles
-## rather than wipes precisely so a live entity's `initialize()` signal wiring
-## survives a resync, and freeing every [SkillNode] would strand every
-## [EffectInstance] `source_node` and every [Navigator] mirror that a repair
-## has no business disturbing. A repair that touches nothing when nothing
-## drifted is also what keeps a resync silent (#561 acceptance 6).
-##
-## [b]The existing id index is built ONCE, up front, and every lookup below
-## reads it rather than [method Graph.get_by_stable_id].[/b] Not a
-## micro-optimization: every `add_skill_node` marks the graph's topology dirty,
-## so a per-row lookup through the graph would rebuild the whole index once per
-## row — an O(nodes^2) decode at the 2000-node scale this payload exists for,
-## the exact shape `.claude/rules/graph.md` says this repo has shipped twice.
-## Re-apply nothing but each node's CURRENT HP (#715). Run it LAST, after
-## [method EntitySnapshot.resolve_graph_refs].
-##
-## [b]`node_health` is a POOL, and a pool clamps.[/b]
-## [method SkillNode.restore_current_hp] writes through
-## [method PoolStat.set_current], which cannot exceed the pool's cap — and that
-## cap is derived: [method NodeCombat.get_local_value] merges the node's own
-## board with its OWNER's, so it moves with whatever the owner has been granted.
-## [method decode] therefore restores HP at a moment when the owner's board is
-## only partly rebuilt: the node-sourced effects an owner holds are granted in
-## [EntitySnapshot]'s PASS 2, which by construction runs after this. Every node
-## whose true HP sat above the not-yet-raised cap is silently clamped down, and
-## nothing ever raises it again — the value is simply lost.
-##
-## [b]It only surfaced once a peer stopped generating its own world (#715).[/b]
-## A client that had just run the same procgen already held caps within a
-## rounding error of the authority's, so the clamp had nothing to bite. Starting
-## from an empty graph it bites on every owned node at once: measured over the
-## shipped 800-node preset, 125 owned nodes lost ~2-4 HP each and the
-## accumulated fold disagreed on the first compare while ownership and topology
-## agreed exactly. That signature — `own` and `topo` equal, `accum` off — is what
-## this method exists to keep from coming back.
-##
-## Idempotent and cheap: one pool write per node, no signals
-## ([method SkillNode.restore_current_hp] bypasses damage/heal by design).
+## Re-apply nothing but each node's CURRENT HP. Run it LAST, after
+## `EntitySnapshot.resolve_graph_refs`: HP is a pool clamped by a cap derived from
+## the owner's board, which is only fully rebuilt by then. Idempotent, no signals.
+## See docs/domain/entity-snapshot.md
 static func restore_hp(bytes: PackedByteArray, graph: Graph) -> void:
 	if graph == null or bytes.is_empty():
 		return
@@ -113,6 +70,10 @@ static func restore_hp(bytes: PackedByteArray, graph: Graph) -> void:
 			node.restore_current_hp(float((row as Array)[_R_HP]) / 100.0)
 
 
+## Decode a payload built by [method encode] into [param graph] as a RECONCILE,
+## not a rebuild: matching `stable_id`s update in place, new ids mint, absent
+## ids are removed (edges likewise). Safe on a populated graph.
+## See docs/domain/entity-snapshot.md
 static func decode(bytes: PackedByteArray, graph: Graph) -> void:
 	var payload := _unpack(bytes)
 	var res: Array = payload.get("res", [])

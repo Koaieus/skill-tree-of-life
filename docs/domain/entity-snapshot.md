@@ -151,3 +151,46 @@ owner id with no matching `Entity` (via `Graph.get_by_entity_id`)
 decodes as unowned — spawning entities and minting their ids is #528's
 concern (`RunConfig` / `ParticipantRoster`), not this unit's. A mid-run join
 is expected to land its roster before (or alongside) its graph snapshot.
+
+## GraphSnapshot decode (reconcile) and restore_hp (`network/graph_snapshot.gd`)
+
+Decode a payload built by `encode` into `graph` — a RECONCILE,
+not a rebuild (#561 D6). A node whose `stable_id` is already present is
+updated in place; only a genuinely-new id mints a `SkillNode`, only a
+genuinely-absent one is removed, and the same holds edge-by-edge.
+
+**Decoding into a POPULATED graph is therefore safe, and that is the
+resync backstop's whole contract** (#561; the join case is just the
+degenerate one where the graph starts empty and every row is new). The
+
+**The existing id index is built ONCE, up front, and every lookup below
+reads it rather than `Graph.get_by_stable_id`.** Not a
+micro-optimization: every `add_skill_node` marks the graph's topology dirty,
+so a per-row lookup through the graph would rebuild the whole index once per
+row — an O(nodes^2) decode at the 2000-node scale this payload exists for,
+the exact shape `.claude/rules/graph.md` says this repo has shipped twice.
+Re-apply nothing but each node's CURRENT HP (#715). Run it LAST, after
+`EntitySnapshot.resolve_graph_refs`.
+
+**`node_health` is a POOL, and a pool clamps.**
+`SkillNode.restore_current_hp` writes through
+`PoolStat.set_current`, which cannot exceed the pool's cap — and that
+cap is derived: `NodeCombat.get_local_value` merges the node's own
+board with its OWNER's, so it moves with whatever the owner has been granted.
+`decode` therefore restores HP at a moment when the owner's board is
+only partly rebuilt: the node-sourced effects an owner holds are granted in
+`EntitySnapshot`'s PASS 2, which by construction runs after this. Every node
+whose true HP sat above the not-yet-raised cap is silently clamped down, and
+nothing ever raises it again — the value is simply lost.
+
+**It only surfaced once a peer stopped generating its own world (#715).**
+A client that had just run the same procgen already held caps within a
+rounding error of the authority's, so the clamp had nothing to bite. Starting
+from an empty graph it bites on every owned node at once: measured over the
+shipped 800-node preset, 125 owned nodes lost ~2-4 HP each and the
+accumulated fold disagreed on the first compare while ownership and topology
+agreed exactly. That signature — `own` and `topo` equal, `accum` off — is what
+this method exists to keep from coming back.
+
+Idempotent and cheap: one pool write per node, no signals
+(`SkillNode.restore_current_hp` bypasses damage/heal by design).
