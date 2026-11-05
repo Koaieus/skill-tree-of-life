@@ -4,7 +4,8 @@ extends LinkChannel
 ## confirmed command down (`KIND_COMMAND`), refusals on their own leg
 ## (`KIND_REFUSAL`); no prediction, no timeout. `PickLootCommand` is the upward-only
 ## exception. Tells the applier whether it DECIDES or is told.
-## See docs/domain/multiplayer-harness.md and docs/domain/determinism-probe.md
+## See docs/domain/network-session.md, docs/domain/multiplayer-harness.md and
+## docs/domain/determinism-probe.md
 
 ## Wire envelope keys. The command's own dictionary is nested rather than merged
 ## so the codec keeps owning its whole namespace.

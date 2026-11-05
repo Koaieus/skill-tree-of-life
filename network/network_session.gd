@@ -194,7 +194,7 @@ func open_link() -> void:
 ## A joining client generates nothing: it pulls the authority's serialized world
 ## through the `KIND_RESYNC` envelope (entities, graph, then entity->node refs, in
 ## that order, load-bearing for both join and mid-run repair).
-## See docs/domain/multiplayer-sync-model.md
+## See docs/domain/network-session.md
 func pull_host_world() -> void:
 	if world_sync == null or not is_client():
 		return
@@ -226,7 +226,7 @@ func join_world() -> bool:
 ## authority's world lands for a client), `false` if a client's link ended first.
 ## The drop latch spans the one round trip until the resync lands; the pull must
 ## stay immediately after the link is up.
-## See docs/domain/multiplayer-sync-model.md
+## See docs/domain/network-session.md
 func join_or_host() -> bool:
 	var joining := is_client() and network_link != null
 	if joining:

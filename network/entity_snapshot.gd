@@ -232,7 +232,7 @@ static func _encode_entity(
 ## `null` for every book that HAS one. `null` and `[]` are different answers. Ids
 ## (`SpellDef.id`), never paths, are the cross-process reference, and are interned
 ## through `spell_table`.
-## See docs/domain/entity-snapshot.md
+## See docs/domain/snapshot-encoding.md
 static func _encode_spell_ids(
 	book: SpellBook, spell_table: GraphSnapshot._InternTable
 ) -> Variant:
@@ -353,7 +353,7 @@ static func _resolve(graph: Graph, row: Array, res: Array, spawner: Callable) ->
 ## there is no spawner or it declines. The id is the authority's, stamped before
 ## the entity enters `entities_container`. A callback, not `instantiate()`: the
 ## level knows how to build a board.
-## See docs/domain/entity-snapshot.md
+## See docs/domain/snapshot-encoding.md
 static func _materialize(row: Array, res: Array, spawner: Callable) -> Entity:
 	if not spawner.is_valid() or row.size() <= _R_SCENE:
 		return null
@@ -406,7 +406,7 @@ static func _decode_identity(e: Entity, row: Array, res: Array, spells: Array) -
 ## Rebuild the by-value book `_encode_spell_ids` sent. A no-op when membership
 ## already agrees (idempotent); otherwise always a FRESH `SpellBook`, compared by
 ## id and in order. Assumes no `SpellGrant` crosses (a tripwire test pins it).
-## See docs/domain/entity-snapshot.md
+## See docs/domain/snapshot-encoding.md
 static func _restore_pruned_spellbook(e: Entity, row: Array, interned: Array) -> void:
 	if row.size() <= _R_SPELL_IDS or row[_R_SPELL_IDS] == null:
 		return

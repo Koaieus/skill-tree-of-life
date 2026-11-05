@@ -4,7 +4,7 @@ extends Control
 ## A sidebar of shared sampling state beside "Map Sample" / "Node Graph" sub-tabs;
 ## the tree is authored in `playground_panel.tscn`. `refresh_from_config`
 ## re-renders in place on every inspector edit.
-## See docs/domain/procgen.md
+## See docs/domain/procgen-sizing.md
 
 const _DEFAULT_PRESET := preload("res://procgen/presets/first_level/first_level.tres")
 const _PRESETS_DIR := "res://procgen/presets/"

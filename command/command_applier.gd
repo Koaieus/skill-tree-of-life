@@ -6,7 +6,7 @@ extends Node
 ## runs confirmed commands through one. One serial ASYNC queue: a command raised
 ## during another's application is queued, never re-entered. `command_applied`
 ## fires inside the guard, `applying_changed` after the flag clears.
-## See docs/domain/multiplayer-sync-model.md
+## See docs/domain/command-applier.md
 
 ## One command finished applying. [param success] is the gated system's own
 ## verdict — a command that fails its gate is a normal outcome, not an error,
@@ -141,7 +141,7 @@ var is_applying: bool = false
 ## yet decided. The world has not moved and the player must not act. Zero-length on
 ## a peer that DECIDES; on a peer that is told, it spans `_submit_upward` to the
 ## confirm (or refusal). Nested inside `is_applying` except for a drain's first submit.
-## See docs/domain/multiplayer-sync-model.md
+## See docs/domain/command-applier.md
 var is_awaiting_confirmation: bool = false
 
 ## How many relic claim chains this applier is currently driving OUTSIDE the

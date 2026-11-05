@@ -5,7 +5,7 @@ extends RefCounted
 ## regenerates. Three tiers: authored (interned resource refs), accumulated (by
 ## value), derived (never crosses). Rows are positional, zstd-compressed;
 ## ownership resolves through the receiving graph's entities.
-## See docs/domain/entity-snapshot.md
+## See docs/domain/snapshot-encoding.md
 
 ## Node row indices — so `_encode_node`/`_decode_node` don't repeat magic
 ## numbers, and a positional row still self-documents at the call site.
@@ -59,7 +59,7 @@ static func encode(graph: Graph) -> PackedByteArray:
 ## Re-apply nothing but each node's CURRENT HP. Run it LAST, after
 ## `EntitySnapshot.resolve_graph_refs`: HP is a pool clamped by a cap derived from
 ## the owner's board, which is only fully rebuilt by then. Idempotent, no signals.
-## See docs/domain/entity-snapshot.md
+## See docs/domain/snapshot-encoding.md
 static func restore_hp(bytes: PackedByteArray, graph: Graph) -> void:
 	if graph == null or bytes.is_empty():
 		return
@@ -73,7 +73,7 @@ static func restore_hp(bytes: PackedByteArray, graph: Graph) -> void:
 ## Decode a payload built by [method encode] into [param graph] as a RECONCILE,
 ## not a rebuild: matching `stable_id`s update in place, new ids mint, absent
 ## ids are removed (edges likewise). Safe on a populated graph.
-## See docs/domain/entity-snapshot.md
+## See docs/domain/snapshot-encoding.md
 static func decode(bytes: PackedByteArray, graph: Graph) -> void:
 	var payload := _unpack(bytes)
 	var res: Array = payload.get("res", [])

@@ -54,7 +54,7 @@ const _ADDON_RNG_SALT := 0xADD0
 ## `node_count` points at spacing `min_dist`. ONE MEASURED constant (area per
 ## point Bridson achieves), set just above the measured curve so the flood exhausts
 ## at the `max_points` cap. Re-check `test_procgen_sizing.gd` before retuning.
-## See docs/domain/procgen.md
+## See docs/domain/procgen-sizing.md
 const _POISSON_AREA_PER_POINT := 1.60
 
 ## Relative slack in [method node_count_for_area] so it stays an exact inverse
