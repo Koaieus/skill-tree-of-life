@@ -39,7 +39,7 @@ at. Owner: *"that table looks very good, should be persisted"*.
 
 | Element | Count (entity) | Medium — terrain, side-less, gives reach | Mover — sided, hurts, spreads | State — derived, no count of its own |
 |---|---|---|---|---|
-| Fire | `fire` | **Fuel** (a volatile node) | **Heat** (the Metropolis diffusion locked in #1660 round 2) | **Burning** = Heat ≥ T (derived, no count; T as Frozen's); its effect is parked |
+| Fire | `fire` | **Fuel** (a volatile node) | **Heat** (the Metropolis diffusion locked in #1660 round 2) | **Burning** = Heat ≥ T (derived, no count; T as Frozen's); a keg goes off only while its node is Burning (owner, 2026-11-05) |
 | Ice | `ice` | **Cold** (what a pack sheds; #1444's resting stacks; was *Frost* — owner, 2026-11-05: *"Cold i think. Frozen is a different effect, derived by Cold count (and degree) … frost sounds too "already being a DoT""*; Cold below the threshold still drags blades, #1444) | **Frostbite** (#1444's inward pack; the working name *Hypothermia* retires) | **Frozen** = Cold at or above a threshold; the "timer" is Cold decaying back under it |
 | Lightning | `lightning` | **Charge** | none in v1 | none in v1; *Shocked* parked |
 
@@ -233,7 +233,7 @@ parent's share, a geometric cap however much Fuel is on the board. The owner's
 own volley needs the per-hit scope: *"if you land F+1 hits on it it would
 explode for size(F), size(F-1), …, size(1)"*. **Ignition** (#1696, Heat
 meeting Fuel) is one trigger among several, no longer the only route to a
-blast; its threshold is open (§ Open).
+blast; it fires only while the node is Burning (§ Temperature).
 
 **A go-off with no parent hit** — a tick's ignition, a thaw, a death blast —
 is a **terrain hit** (owner, 2026-11-05: *"option 1"*): its copies carry only
@@ -406,7 +406,7 @@ and a blank cell means *nothing special*: the hit lands and the medium sits.
 
 | On the node ↓ / arriving → | a Fire-loaded hit | a Lightning-loaded hit | an arc landing | a Heat rider or diffusion | a Cold rider | a Frostbite pack | a blade |
 |---|---|---|---|---|---|---|---|
-| **Fuel** | one blast, radius from Fuel plus load (`S + SI`), one Fuel spent | arcs from load, then blast | blast — an arc is a landing | ignition (#1696), spends min(heat, fuel) | blast, Cold copied into the disc | — | blast on contact (#1660 R2) |
+| **Fuel** | one blast, radius from Fuel plus load (`S + SI`), one Fuel spent | arcs from load, then blast | blast — an arc is a landing | ignition while Burning (Heat ≥ T, #1696), spends min(heat, fuel) Fuel, Heat stays | blast, Cold copied into the disc | — | blast on contact (#1660 R2) |
 | **Charge** | arcs from Charge, then the blast | arcs from Charge plus load (`S + SI`), one Charge spent | arcs | arcs if a rider, nothing if diffusion | arcs, Cold copied along | — | arcs |
 | **Cold under T** | absorbs: each Cold stack eats one radius step and melts; the rest goes out | absorbs: each stack eats one arc and melts | lands; the copy's onward reach is absorbed the same way | nets: thaw | adds | pays the toll: Cold sheds first (#1444) | drags (#1444) |
 | **Frozen** (Cold ≥ T, T = graph degree + 1) | reach < T: the glass holds, reach lost, no Cold spent; reach ≥ T: breaks, then absorbs 1:1 | same | same; an arc into a Frozen node grounds (mirror idea parked, § Open) | nets; unfreezes for the next landing | adds | toll, a free hop if deep enough | shatters (#1444) |
@@ -464,9 +464,31 @@ so the netting is the diffusion itself; the per-landing `min(heat, cold)` at
 settle is the same rule applied to a rider. Sinks stay per member: positive
 flow onto unallocated ground is deleted (Heat dies out, #1660), negative
 rests (cold ground). Frozen ends when Cold drops under T; **Burning** is its
-mirror — Heat ≥ T, same T, derived, never saved — with its *effect parked*
-(owner, 2026-11-05: *"keeping door open to add a bespoke twist or tweaked T
-value later for Burn. or extinguish mechanics. and park effect for now"*).
+mirror — Heat ≥ T, same T, derived, never saved — and **Burning is what
+ignites**: a keg goes off only while its node is Burning (owner, 2026-11-05,
+*"Burning ignites"*, picked over "any Heat ignites" of #1660 round 2 and over
+"H ≥ F"). Below T a keg is warm and inert; a leaf (T 2) lights from two Heat,
+a degree-5 hub needs six, so hubs are hard to blow and tips burn bright. Spend
+and power stay #1660's: min(heat, fuel) Fuel is spent at the node's Fuel as
+power, Heat stays, so a Burning keg goes off again next tick. The door the
+owner kept open (*"a bespoke twist or tweaked T value later for Burn. or
+extinguish mechanics"*) stays open.
+
+**The world clock.** Diffusion, decay of terrain and the terrain settle run
+on the world turn as built (owner, 2026-11-05: *"option 1"*) — today it fires
+once every N played turn ends, N = living initiative carriers, reproduced on
+every peer — over a **temperature index** of the nodes holding Heat or Cold
+(the `_lingering` registry's shape), never a walk of the graph: 3k hot nodes
+at mean degree 3 is ~9k integer ops a step, under a frame. Steps per world
+turn is an exported knob (pass default 1). The owner wants the world turn's
+own rate revisited: *"possibly revise the rate at which the world clock
+ticks. like maybe speed it up with the number of entities (but not linearly?
+idk)"* — pass knob: a world turn every `ceil(sqrt(N))` played turn ends
+instead of every N (2 entities: every 2; 4: every 2; 9: every 3), tentative,
+easy to change, and it moves the turnless hosts and lingering rows that
+already ride that clock. Rejected: an initiative clock (a new seam in
+TurnManager plus a resync row), per-node staggered clocks (the one-snapshot
+Metropolis rule needs one snapshot).
 
 Everything else coexists. A load never thaws for free (it pays in reach,
 § The reach rule). Fuel and Cold coexist: a frozen keg nobody can set off
@@ -547,18 +569,6 @@ here.
   sounds like bad juju"*) — the `Quiver` already caps per type
   (`AmmoType.max_stock`, 999 default), so each element ammo type sets its
   own lower cap; whether that cap is a knob or a stat is open.
-- **Ignition threshold** (owner, 2026-11-05, reopening #1660 round 2's
-  "heat > 0 and fuel > 0"): *"i'm not sure if 1 Heat would set off Fuel
-  stacks … 1 Heat can ignite 1 Fuel? if not, can 2 Heat ignite 1 Fuel?
-  generalized rule: H Heat ignites F Fuel when <something with H and F>? or:
-  Heat doesn't ignite. but enough Heat grants derived status Burn, and Burn
-  always ignites"*. The last shape gives the parked Burning state its effect.
-- **World-tick cadence and cost** (owner, 2026-11-05): *"what if world ticks
-  at e.g. 10 initiative/tick? or: what if each node has their own clock? …
-  at 2~3k nodes, ticking *each* is not that performant (or causes a massive
-  burst), possibly the updates can be done in waves"*. Diffusion, decay and
-  the terrain settle all ride this clock; the shape wants numbers from the
-  tick as built.
 - **Play-situation review, 2026-11-05** (four Sonnet lenses, rated by each
   other; full text in `docs/handoffs/elements-play-situations.md`). Items
   1–4 and 6's fold half are settled above. Still wanting a call: (5) "a
