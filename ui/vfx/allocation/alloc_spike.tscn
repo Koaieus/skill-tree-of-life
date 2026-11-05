@@ -1,0 +1,13 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://ui/vfx/allocation/alloc_spike.gd" id="1_script"]
+[ext_resource type="PackedScene" path="res://ui/vfx/allocation/snapshot_disk.tscn" id="2_disk"]
+
+[node name="AllocSpike" type="Node2D"]
+script = ExtResource("1_script")
+
+[node name="Disk" parent="." instance=ExtResource("2_disk")]
+unique_name_in_owner = true
+
+[node name="Needle" type="Polygon2D" parent="."]
+unique_name_in_owner = true

@@ -1,0 +1,29 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://ui/vfx/allocation/pop_burst.gd" id="1_script"]
+
+[sub_resource type="Gradient" id="Gradient_ramp"]
+resource_local_to_scene = true
+offsets = PackedFloat32Array(0, 1)
+colors = PackedColorArray(1, 1, 1, 1, 1, 1, 1, 0)
+
+[node name="PopBurst" type="Node2D"]
+script = ExtResource("1_script")
+
+[node name="Particles" type="CPUParticles2D" parent="."]
+unique_name_in_owner = true
+emitting = false
+amount = 24
+lifetime = 0.35
+one_shot = true
+explosiveness = 1.0
+emission_shape = 1
+emission_sphere_radius = 6.0
+direction = Vector2(1, 0)
+spread = 180.0
+gravity = Vector2(0, 0)
+initial_velocity_min = 132.0
+initial_velocity_max = 220.0
+scale_amount_min = 2.0
+scale_amount_max = 4.0
+color_ramp = SubResource("Gradient_ramp")

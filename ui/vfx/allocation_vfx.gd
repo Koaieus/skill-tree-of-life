@@ -23,39 +23,11 @@ const NodeVisualsCompositeScript := preload("res://skill_node/visuals/node_visua
 
 # --- Tunables ----------------------------------------------------------------
 
-const SPIKE_DURATION: float = 0.4
-# Base width = SkillNode.inner_radius * 2 (the horizontal chord through the
-# inner fill circle). Spike sits flush on the disk.
-const SPIKE_HEIGHT_FACTOR: float = 6.0  # multiplied by node radius
-# Lorentzian / Breit-Wigner-ish profile: w(t) ∝ γ² / (γ² + t²), tip pinned to 0.
-# Smaller γ → narrower needle, sharper concave shoulders. ~0.22 reads as a
-# clean resonance peak; raise toward 0.5 for a candle-flame, drop below 0.15
-# for a hair-thin spire.
-const SPIKE_NEEDLE_GAMMA: float = 0.22
-const SPIKE_SAMPLES: int = 14  # per side; total poly verts = 2*samples + 2
-
-# Z-order: must render above EVERYTHING the FogOverlay promotes — see ZLayers.
-# We use SPELL_VFX absolute (z_as_relative = false) so the VFX always wins
-# regardless of parent chain.
-
-const LIFT_DURATION: float = 0.30
-const LIFT_RISE_FACTOR: float = 1.5  # multiplied by node radius
-const LIFT_END_SCALE: float = 0.6
-
-## #257's ShatterField-driven node death replaced the old vibrate + particle
-## pair outright; only the particle burst consts below survive, for
-## `_spawn_pop_burst` (#170, untouched by #257 — see its own doc).
-const SHATTER_PARTICLE_COUNT: int = 24
-const SHATTER_PARTICLE_LIFETIME: float = 0.35
-const SHATTER_OUTWARD_SPEED: float = 220.0
-
-# Blade-pop burst (#170): a sharp, short radial spray where a defender's spike
-# pops an incoming enemy blade vertex. Reuses the shatter burst idiom; tighter
-# and faster than a node shatter. Radius scales mildly with spike power.
-const POP_BURST_DURATION: float = 0.5
-const POP_BASE_RADIUS: float = 6.0
-const POP_RADIUS_PER_POWER: float = 2.0
-const POP_MAX_RADIUS: float = 22.0
+# The transient effects are scenes under `ui/vfx/allocation/`; their tuning is
+# `@export`ed on each scene root (and the pop spray on its `%Particles`).
+const _ALLOC_SPIKE: PackedScene = preload("res://ui/vfx/allocation/alloc_spike.tscn")
+const _DEALLOC_LIFT: PackedScene = preload("res://ui/vfx/allocation/dealloc_lift.tscn")
+const _POP_BURST: PackedScene = preload("res://ui/vfx/allocation/pop_burst.tscn")
 
 # --- Modifier pulses (#71) ---------------------------------------------------
 # On voluntary allocation, one pulse per granted modifier flows from the
@@ -386,9 +358,7 @@ func _on_blade_vertex_popped(defender: SkillNode, _attacker: Entity, at_pos: Vec
 	# Pop in the defender's colour (the node whose spikes did the popping).
 	var color: Color = defender.owned_by.color if defender.owned_by != null \
 			else Color(0.95, 0.55, 0.4, 0.95)
-	var power := defender.get_spike_power()
-	var radius := minf(POP_MAX_RADIUS, POP_BASE_RADIUS + power * POP_RADIUS_PER_POWER)
-	_spawn_pop_burst(at_pos, radius, color)
+	_spawn_pop_burst(at_pos, defender.get_spike_power(), color)
 
 
 ## A forced-dealloc cascade is about to run in the model. Two jobs, both of
@@ -503,69 +473,22 @@ func _emit_modifier_floater(entity: Entity, modifier: StatModifier) -> void:
 ## construction (see [MenuNodeView]), so anything it reuses has to be reusable as
 ## a scene or a function, never as a class.
 ##
-## [param host] is what the effect is parented to and what its [Tween] runs
-## against — this instance in gameplay, `%GraphLayer` in the menu. It sets its
+## [param host] is what the effect is parented to — this instance in gameplay,
+## the view itself in the menu; the effect runs its own [Tween]. It sets its
 ## own absolute z rather than inheriting one, so it wins over fog-promoted nodes
 ## from any parent chain.
 static func spawn_alloc_spike(
 	host: Node2D, world_pos: Vector2, inner_radius: float, node_radius: float, color: Color
 ) -> void:
-	var container := Node2D.new()
-	# Absolute (z_as_relative = false), for the reason `_ready` gives: a
-	# transient added under a relative parent lands at parent_z + child_z.
-	container.z_as_relative = false
-	container.z_index = ZLayers.SPELL_VFX
-	host.add_child(container)
-
-	var disk := _make_snapshot_disk(inner_radius, color)
-	disk.modulate = Emissive.at(Color.WHITE, Emissive.PEAK)
-	# Parented FIRST, positioned second. `global_position` on a node that is not
-	# in the tree yet has no parent transform to invert, so it silently writes
-	# `position` — and the child then lands at `host.global_position + world_pos`
-	# once it is added. Invisible while every host sat at the origin
-	# (`%AllocationVFX` does); the frontmatter menu parents a spike to the NODE
-	# VIEW itself, which is at its own world home, so the offset read as exactly
-	# doubled (#599 follow-up, reported 2026-08-26).
-	container.add_child(disk)
-	disk.global_position = world_pos
-
-	var spike := Polygon2D.new()
-	spike.polygon = _build_needle_polygon(inner_radius, node_radius * SPIKE_HEIGHT_FACTOR)
-	# Polygon2D.color is the draw tint — alpha here multiplies with modulate.a,
-	# so keep it opaque and animate visibility via modulate.a only.
-	spike.color = color
-	spike.modulate = Emissive.at(Color.WHITE, Emissive.PEAK)
-	container.add_child(spike)  # before `global_position` — see the disk above.
-	spike.global_position = world_pos
-
-	# White flash: disk + spike both ramp toward a lightened tint, then settle
-	# back to the entity color. Disk is the snapshot reused from the lift VFX.
-	#var flash_color := color
-	# Bound to the container rather than to `host`: the effect owns its own
-	# clock, so a static caller needs no node of its own to hang it off.
-	var tween := container.create_tween()
-	tween.set_parallel(true)
-
-	# Alpha 0.5 → 1 → 0.
-	container.modulate.a = 0.5
-	tween.tween_property(container, "modulate:a", 1.0, SPIKE_DURATION * 0.2)
-	
-	# Height 0.0 → 1 → 0.
-	# Height collapses into the node center (poly's bottom edge is at y=0,
-	# so scaling y → 0 makes it sink in).
-	const SCALE_RAMPUP_FRAC := 0.5
-	spike.scale.y = 0.0
-	tween.tween_property(spike, "scale:y", 1.0, SPIKE_DURATION * SCALE_RAMPUP_FRAC)
-	tween.tween_property(spike, "scale:y", 0.0, SPIKE_DURATION * (1.0 - SCALE_RAMPUP_FRAC))\
-			.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)\
-			.set_delay(SPIKE_DURATION * SCALE_RAMPUP_FRAC)
-	
-	const DISK_LINGER_TIME := 2.
-	tween.tween_property(disk, "modulate:a", 0.0, DISK_LINGER_TIME)\
-			.set_trans(Tween.TRANS_QUINT).set_ease(Tween.EASE_OUT)\
-			.set_delay(SPIKE_DURATION)
-	
-	tween.chain().tween_callback(container.queue_free)
+	var spike := _ALLOC_SPIKE.instantiate()
+	# Parented FIRST, positioned second (inside `play`). `global_position` on a
+	# node not yet in the tree has no parent transform to invert, so it silently
+	# writes `position` — and the effect then lands at `host.global_position +
+	# world_pos`. Invisible while every host sat at the origin (`%AllocationVFX`
+	# does); the frontmatter menu parents a spike to the NODE VIEW itself, so the
+	# offset read as exactly doubled.
+	host.add_child(spike)
+	spike.play(world_pos, inner_radius, node_radius, color)
 
 
 ## Floating colored disk on voluntary deallocation — a puff marking the spot
@@ -577,32 +500,14 @@ static func spawn_alloc_spike(
 ## no [AllocationSystem] to mount an [AllocationVFX] under (see
 ## [MenuNodeView]), so anything it reuses has to be reusable as a function.
 ##
-## [param host] is what the effect is parented to and what its [Tween] runs
-## against — this instance in gameplay, `%GraphLayer` in the menu (the lift
+## [param host] is what the effect is parented to — this instance in gameplay,
+## `%GraphLayer` in the menu; the effect runs its own [Tween] (the lift
 ## marks the spot vacated, not the node itself, which is about to collapse to
 ## `FrontmatterLayout.PREVIEW_SCALE` on its own parent).
 static func spawn_dealloc_lift(host: Node2D, world_pos: Vector2, disk_radius: float, color: Color) -> void:
-	var disk := _make_snapshot_disk(disk_radius, color)
-	host.add_child(disk)  # before `global_position` — see [method spawn_alloc_spike].
-	disk.global_position = world_pos
-	var rise := disk_radius * LIFT_RISE_FACTOR
-	var tween := host.create_tween()
-	tween.set_parallel(true)
-	# The rise is off the disk's OWN `position`, not off `world_pos` — those
-	# agree only for a host at the origin, and the whole point of `host` being a
-	# parameter is that it need not be.
-	tween.tween_property(disk, "position:y", disk.position.y - rise, LIFT_DURATION)\
-			.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
-	tween.tween_property(disk, "scale", Vector2.ONE * LIFT_END_SCALE, LIFT_DURATION)
-	# Color shift owner → white (holy puff of smoke) over the first ~70% of
-	# the lift, so the bloom reads BEFORE the fade really kicks in. Keeps
-	# alpha at 1 during the shift; the modulate:a tween below handles fade.
-	tween.tween_property(disk, "disk_color", Color(1.0, 1.0, 1.0, 1.0),
-			LIFT_DURATION * 0.7)\
-			.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
-	tween.tween_property(disk, "modulate:a", 0.0, LIFT_DURATION)\
-			.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
-	tween.chain().tween_callback(disk.queue_free)
+	var lift := _DEALLOC_LIFT.instantiate()
+	host.add_child(lift)  # before `play` positions it — see [method spawn_alloc_spike].
+	lift.play(world_pos, disk_radius, color)
 
 
 func _spawn_lift(world_pos: Vector2, disk_radius: float, color: Color) -> void:
@@ -630,91 +535,9 @@ func _spawn_shatter(world_pos: Vector2, disk_radius: float, color: Color, delay:
 			shatter_shard_count, shatter_fling_speed, carve)
 
 
-## Blade-pop burst (#170): a self-freeing one-shot spray at the contact point.
-func _spawn_pop_burst(world_pos: Vector2, radius: float, color: Color) -> void:
-	var stage := Node2D.new()
-	add_child(stage)  # before `global_position` — see [method spawn_alloc_spike].
-	stage.global_position = world_pos
-	_emit_burst(stage, radius, color)
-	var tween := create_tween()
-	tween.tween_interval(POP_BURST_DURATION)
-	tween.tween_callback(stage.queue_free)
-
-
-func _emit_burst(parent: Node2D, disk_radius: float, color: Color) -> void:
-	var particles := CPUParticles2D.new()
-	particles.emitting = false
-	particles.one_shot = true
-	particles.explosiveness = 1.0
-	particles.amount = SHATTER_PARTICLE_COUNT
-	particles.lifetime = SHATTER_PARTICLE_LIFETIME
-	particles.direction = Vector2.RIGHT
-	particles.spread = 180.0
-	particles.gravity = Vector2.ZERO
-	particles.initial_velocity_min = SHATTER_OUTWARD_SPEED * 0.6
-	particles.initial_velocity_max = SHATTER_OUTWARD_SPEED
-	particles.scale_amount_min = 2.0
-	particles.scale_amount_max = 4.0
-	particles.color = color
-	# Fade-out alpha curve so particles fizzle.
-	var ramp := Gradient.new()
-	ramp.set_color(0, Color(color.r, color.g, color.b, 1.0))
-	ramp.set_color(1, Color(color.r, color.g, color.b, 0.0))
-	particles.color_ramp = ramp
-	# Spawn distributed inside the snapshot disk so the burst reads as the
-	# disk shattering, not a point implosion.
-	particles.emission_shape = CPUParticles2D.EMISSION_SHAPE_SPHERE
-	particles.emission_sphere_radius = max(1.0, disk_radius)
-	parent.add_child(particles)
-	particles.emitting = true
-
-
-static func _make_snapshot_disk(disk_radius: float, color: Color) -> Node2D:
-	var disk := _SnapshotDisk.new()
-	disk.disk_radius = max(1.0, disk_radius)
-	disk.disk_color = color
-	return disk
-
-
-## Lorentzian (Breit-Wigner-ish) needle profile. Base sits at y=0 with full
-## width `2 * half_w`; tip pinned to (0, -height). γ controls how aggressively
-## the sides pinch toward the tip — see SPIKE_NEEDLE_GAMMA.
-##
-## Polygon wound CCW: right-side base → right shoulder → tip → left shoulder
-## → left base. y axis points DOWN in Godot, so "up" is negative y.
-static func _build_needle_polygon(half_w: float, height: float) -> PackedVector2Array:
-	var pts: PackedVector2Array = []
-	var gamma_sq := SPIKE_NEEDLE_GAMMA * SPIKE_NEEDLE_GAMMA
-	# Right side: bottom (t=0) → just-below-tip (t≈1). Skip t=1 here; the
-	# tip vertex is appended explicitly so its width is exactly 0.
-	for i in SPIKE_SAMPLES:
-		var t := float(i) / float(SPIKE_SAMPLES)
-		var w := half_w * gamma_sq / (gamma_sq + t * t)
-		# (1 - t^6) eases the last few samples cleanly into the pinned tip
-		# so there's no kink between the lorentzian shoulder and the apex.
-		w *= 1.0 - pow(t, 6.0)
-		pts.append(Vector2(w, -t * height))
-	pts.append(Vector2(0.0, -height))  # tip
-	# Left side mirrored, walking back down toward the base.
-	for i in range(SPIKE_SAMPLES - 1, -1, -1):
-		var t := float(i) / float(SPIKE_SAMPLES)
-		var w := half_w * gamma_sq / (gamma_sq + t * t)
-		w *= 1.0 - pow(t, 6.0)
-		pts.append(Vector2(-w, -t * height))
-	return pts
-
-
-# Local helper class — a Node2D that renders one filled circle. Future texture
-# swap: replace _draw with a Sprite2D; keep the same disk_radius / disk_color
-# API and all callers stay valid.
-class _SnapshotDisk extends Node2D:
-	var disk_radius: float = 16.0
-	# Property with setter so tween_property("disk_color", ...) repaints
-	# every frame — without this the colour change isn't visible.
-	var disk_color: Color = Color.WHITE:
-		set(value):
-			disk_color = value
-			queue_redraw()
-
-	func _draw() -> void:
-		draw_circle(Vector2.ZERO, disk_radius, disk_color, true)
+## Blade-pop burst (#170): a self-freeing one-shot spray at the contact point,
+## its radius scaled by the defender's [param spike_power].
+func _spawn_pop_burst(world_pos: Vector2, spike_power: float, color: Color) -> void:
+	var burst := _POP_BURST.instantiate()
+	add_child(burst)  # before `play` positions it — see [method spawn_alloc_spike].
+	burst.play(world_pos, spike_power, color)
