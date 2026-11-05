@@ -88,6 +88,8 @@ func test_degree_queries_agree_with_get_degree_on_self_loops() -> void:
 
 	var m := _mirror_all(n)
 	assert_eq(m.get_degree(n[1]), 3, "one edge + a self-loop counting twice")
+	assert_eq(m.get_degree(n[1]), n[1].get_graph_degree(_graph),
+		"the mirror and the board must give one degree answer")
 	assert_true(m.get_nodes_by_degree(3).has(n[1]),
 		"get_nodes_by_degree must use the same degree definition as get_degree")
 	assert_false(m.get_nodes_by_degree(1).has(n[1]),
