@@ -2,54 +2,13 @@
 class_name MinimapPanel
 extends MarginContainer
 
-## Bottom-left HUD cluster (#453) — the whole board at a fixed scale, with fog,
-## a live viewport outline, and click/drag to move the camera.
-##
-## [b]Three layers, split by redraw cadence[/b], which is the entire
-## performance story at 500–2500 SkillNodes:
-##   - [MinimapGraphLayer] — dots + edges. Rebuilt on topology/ownership
-##     change only, and drawn in two batched calls (see that class). It
-##     self-shades against the vision field (`minimap_graph_fog.gdshader`), so
-##     a fogged node is drawn at alpha zero rather than relying on the fog quad
-##     above it to bury it.
-##   - `FogLayer` — a ColorRect running `minimap_fog.gdshader`, which samples
-##     the same GLOBAL vision field `FogOverlay` writes each vision tick. Zero
-##     CPU: the minimap asks [VisionSystem] nothing, per node or otherwise.
-##   - [MinimapViewportRectLayer] — the outline. The only thing that moves with
-##     the camera, and the only thing a pan invalidates.
-##
-## [b]Extent[/b] is the raw SkillNode AABB plus a few percent of breathing room,
-## held FIXED. Two things it deliberately is NOT:
-##
-##  - [b]Not the camera's effective bounds.[/b] Those follow `bounds_changed`
-##    and rescale on every zoom step, so the board would breathe underneath an
-##    outline that is itself already resizing — one of the two has to hold
-##    still, and it should be the board.
-##  - [b]Not the AABB grown by [method GraphCamera.pan_margin_base].[/b] Tried
-##    first, and wrong by eye: that margin is pan SLACK, sized for how far past
-##    the graph the camera may drift, and at 400 world units a side it nearly
-##    tripled a typical level's extent — the board drew at about a third of the
-##    panel, ringed by dead black. The minimap frames the graph, not the
-##    camera's freedom of movement.
-##
-## The outline can therefore run off the board's edge when the camera is panned
-## into the slack (~350 world units), and at low zoom the view is simply wider
-## than the graph. `MapArea` clips the overhanging sides away.
-##
-## [b]Owner call, 2026-08-24[/b], choosing that over clamping the box to the
-## panel or widening the board to swallow the slack: "Leave it clipped." The
-## box tells the truth — you really are looking past the graph, and the side
-## that goes missing is which way you overshot. Clamping would draw four sides
-## always, at the cost of a box that understates the view and stops moving once
-## you pan into the slack.
-##
-## Not to be confused with the hairline flicker that also dropped sides — that
-## was a pixel-grid bug, fixed in [MinimapViewportRectLayer].
-##
-## v0 deliberately stops short of: sensed-only blips, archetype fill +
-## ownership ring, per-entity territory boxes, combat pings, and minimap zoom
-## levels. Each is an added layer or a swapped colour helper, not a rewrite —
-## see the class docs on the pieces they'd touch.
+## Bottom-left HUD cluster — the whole board at a fixed scale, with fog, a live
+## viewport outline, and click/drag to move the camera. Three layers split by
+## redraw cadence: [MinimapGraphLayer] (topology/ownership only), `FogLayer`
+## (shader over the global vision field, zero CPU), [MinimapViewportRectLayer]
+## (the only thing a pan invalidates). Extent is the raw node AABB plus breathing
+## room, held FIXED; the outline may overhang and `MapArea` clips it.
+## See docs/domain/hud-widgets.md
 
 ## Colour of a node nobody owns. Dim on purpose: the map's job is "where is
 ## everyone", and unowned nodes are the ground that question is asked against.

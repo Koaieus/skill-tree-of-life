@@ -2,54 +2,13 @@
 class_name GainedModifierToast
 extends Node2D
 
-## "You just got these." (#306, epic #159 Phase 0.) When the player allocates a
-## node, shows the node's actual [ModSlabRow] slabs beside the Hero avatar —
-## staggered in, held long enough to read, then slid INTO the avatar while
-## fading, signalling absorption. Allocation-only by design (loot/level-up gains
-## are out of scope, see the issue); batch-per-allocation, not per-modifier.
-##
-## Its own layer, deliberately NOT routed through [FloaterDirector]/[FloaterToaster]
-## — different dwell (much longer, meant to be READ), different anchor (the
-## avatar, not the event position), different exit (directional absorb, not
-## drift-and-fade). Sharing the floater queue would force its timing model onto
-## a surface that exists to be slower.
-##
-## Fully standalone: instantiate, set [member float_anchor], call
-## [method show_gains]. No HUD, no AllocationSystem wiring baked in here — see
-## "Mount" below for what a composer (GameRoot/HudRoot, wired elsewhere) needs
-## to do.
-##
-## ## Reuse contract
-## Rows are bare [ModSlabRow] instances (#221/#306's "second consumer" of its
-## standalone contract) — this layer BINDS them (`bind(m)`) and DRIVES their
-## reveal (`set_progress(t)`) itself, exactly per `.claude/rules/tooltip-fan.md`'s
-## "content rows take set_progress, driven by their panel" rule. [method
-## ModSlabRow.play_entry] does not exist any more and is never called here.
-##
-## ## Mount (for the integration commit — this scene does not wire itself)
-## - Add an instance under HudRoot (or wherever the Hero avatar lives in the
-##   scene tree) as a sibling of [HeroSigilCard], so it draws on top.
-## - Set `float_anchor = hud_root.hero_sigil_card.float_anchor` — same DI
-##   pattern as `scenes/game_root.gd`'s `floater_director.player_anchor` wiring.
-## - Connect `AllocationSystem.allocated(node, entity, forced)`, and call
-##   `toast.show_gains(node.modifiers)` — gated:
-##     - `entity == <the player entity>` — this is the HERO avatar's toast;
-##       NPC allocations must not fire it.
-##     - `not forced` — mirrors the existing convention for cosmetic gain
-##       reactions (`AllocationSystem`'s own docstring: "#71 modifier pulses +
-##       #70 floaters gate on `not forced`, so a level's setup allocations
-##       don't fire a pulse/floater flurry"). A forced allocation (spawn/procgen)
-##       is not a player choice and has nothing for the player to "just got".
-##
-## ## Concurrent batches, never replace
-## A rapid second allocation (fast clicking, no turn-gate mid-dwell in some
-## flows) must NOT cut off the stack that's still being read. Each call to
-## [method show_gains] spawns its own independent batch — its own reveal,
-## dwell, and absorb timeline — appended BELOW whatever rows are currently on
-## screen. Batches absorb independently and in whatever order their own dwell
-## finishes; [method _reflow] then closes the gap by sliding every remaining
-## batch's rows up to a contiguous stack, so the pile never grows a permanent
-## hole. Nothing here assumes batches finish in the order they were spawned.
+## "You just got these." On allocation, shows the node's [ModSlabRow] slabs beside
+## the Hero avatar — staggered in, held to be read, slid INTO the avatar. Its own
+## layer, not routed through [FloaterDirector] (different dwell, anchor, exit).
+## Standalone: set [member float_anchor], call [method show_gains]; rows are bound
+## and revealed by `set_progress` here. Each call is an independent batch, never
+## replacing one still on screen; [method _reflow] closes gaps.
+## Mounting and gating: docs/domain/hud-widgets.md
 
 ## Where the first row lands, in this node's OWN local space (i.e. relative to
 ## [member float_anchor] once [method show_gains] has repositioned this node

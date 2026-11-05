@@ -1,41 +1,11 @@
 class_name ParticipantRow
 extends HBoxContainer
 ## One participant row: faction emblem, swatch, hero-colour picker, core-class
-## picker with its sigil preview, camp dropdown, name, seat description ("you",
-## "AI", "peer N"). Configured with a [Participant] in [method configure].
-##
-## [b]Two marks, two questions.[/b] The emblem is the CAMP's, tinted with the
-## camp's colour, and answers "which side is this slot on"; the sigil is the
-## slot's own [CoreClass] glyph, tinted with the hero colour, and answers "what
-## does it play as". They are separate fields on separate resources (#617 D1)
-## and are deliberately not collapsed into one picture.
-##
-## [b]The row asks; it never writes.[/b] The pickers and the name field emit a
-## signal and leave the [Participant] alone — [LobbyScreen] owns the roster, and
-## a row that wrote into it would make "who decided this seat's colour" a
-## two-answer question.
-##
-## [b]Widget order is a shared contract — five issues land here.[/b] #613 made
-## the row a scene; #616 added the colour picker; #618 the core picker; #615 the
-## camp dropdown and #617 the faction emblem; #841 the core un-override
-## control, right beside the picker it un-overrides; #1086 the AI tier picker
-## and its un-override. The authored order is,
-## left to right:
-##
-## [codeblock]
-##   Emblem? | Swatch | ColorPick | Sigil | CorePick | CoreReset? | Camp? | CampReset?
-##     | Tier? | TierReset? | Name | Seat
-## [/codeblock]
-##
-## Only the widgets whose issue has landed exist as nodes; the rest are named
-## here so the next author inserts rather than reshuffles. Two layout rules keep
-## that additive: the row carries [b]no fixed width[/b] (it sizes from its
-## content — the panel's old `_CONTENT_MAX_WIDTH` cap was retired in #611), and
-## [code]Name[/code] is the sole `SIZE_EXPAND_FILL` child, so every widget added
-## takes its space from the name field rather than from its neighbours. The
-## field itself was a read-only label until names became editable: it commits on
-## Enter or focus loss ([signal name_committed]) and greys with the seat like
-## the pickers do.
+## picker with its sigil preview, camp dropdown, AI tier, name, seat description.
+## Configured with a [Participant] in [method configure]. The row asks; it never
+## writes — [LobbyScreen] owns the roster. Widget order and the sole
+## `SIZE_EXPAND_FILL` Name child are a shared contract.
+## See docs/domain/frontmatter-panels.md
 
 ## A slot chose a hero colour. The lobby owns the roster, so the row asks
 ## rather than writes — it never mutates the [Participant] it was configured

@@ -11,7 +11,7 @@ const NodeVisualsCompositeScript := preload("res://skill_node/visuals/node_visua
 ## (cascade_started) and spawns transient world-space effects:
 ##   - alloc spike   : "skill point from the heavens" on every allocation
 ##   - dealloc lift  : floating colored disk on voluntary deallocation
-##   - shatter       : #257's InnerDisk fragmentation on forced deallocation —
+##   - shatter       : InnerDisk fragmentation on forced deallocation —
 ##                     an intact-disc crescendo (cracks glow, disc shatters)
 ##                     THEN the disc comes apart into flying shards, staggered
 ##                     by BFS-distance-from-impact when part of a battle
@@ -42,14 +42,13 @@ const LIFT_DURATION: float = 0.30
 const LIFT_RISE_FACTOR: float = 1.5  # multiplied by node radius
 const LIFT_END_SCALE: float = 0.6
 
-## #257's ShatterField-driven node death replaced the old vibrate + particle
-## pair outright; only the particle burst consts below survive, for
-## `_spawn_pop_burst` (#170, untouched by #257 — see its own doc).
+## Particle burst consts for `_spawn_pop_burst` (node death itself is
+## ShatterField-driven — see `_spawn_shatter`).
 const SHATTER_PARTICLE_COUNT: int = 24
 const SHATTER_PARTICLE_LIFETIME: float = 0.35
 const SHATTER_OUTWARD_SPEED: float = 220.0
 
-# Blade-pop burst (#170): a sharp, short radial spray where a defender's spike
+# Blade-pop burst: a sharp, short radial spray where a defender's spike
 # pops an incoming enemy blade vertex. Reuses the shatter burst idiom; tighter
 # and faster than a node shatter. Radius scales mildly with spike power.
 const POP_BURST_DURATION: float = 0.5
@@ -57,10 +56,10 @@ const POP_BASE_RADIUS: float = 6.0
 const POP_RADIUS_PER_POWER: float = 2.0
 const POP_MAX_RADIUS: float = 22.0
 
-# --- Modifier pulses (#71) ---------------------------------------------------
+# --- Modifier pulses ---------------------------------------------------
 # On voluntary allocation, one pulse per granted modifier flows from the
 # allocated node along the entity-navigator path to the core; on arrival each
-# fires #70's stat-modifier floater. Travel time scales with hop count so the
+# fires its stat-modifier floater. Travel time scales with hop count so the
 # per-hop speed stays roughly constant regardless of path length.
 const _PULSE_VISUAL: PackedScene = preload("res://ui/vfx/projectile/visual/glowing_dot.tscn")
 const PULSE_STAGGER: float = 0.07     # s between successive pulses (burst feel)
@@ -78,7 +77,7 @@ var muted: bool = false
 
 @export var allocation_system: AllocationSystem
 @export var battle_system: BattleSystem
-## Seconds between cascade layers' shatters. #504: the forced-dealloc cascade
+## Seconds between cascade layers' shatters. The forced-dealloc cascade
 ## MUTATES synchronously — all layers in one beat, and it must (see
 ## `BattleSystem._on_node_depleted`) — so the layer-by-layer ripple is owned
 ## here, as pure animation. Delaying a shatter spawn is not frame-ordered
@@ -94,10 +93,9 @@ const CASCADE_STEP: float = 0.35
 ## (non-cascade) force-dealloc has no entry and reads live values at zero delay.
 var _cascade_snapshot: Dictionary[SkillNode, Dictionary] = {}
 
-# --- #257 node-death shatter tuning (exposed on this node so #838's live tab
-# tunes it via the Inspector — no new resource type, per the issue's own
-# "the tuning resource is almost certainly just the material" call; these are
-# the CPU-side half of the same knobs, the rest live on the material .tres) --
+# --- Node-death shatter tuning (exposed on this node so the live tab tunes it
+# via the Inspector — no new resource type; these are the CPU-side half of the
+# same knobs, the rest live on the material .tres) --
 
 ## Seconds a shatter takes from spawn (cascade delay) to fully faded — the
 ## crescendo AND the flight together. Pushed to `ShatterField.window`.
@@ -116,13 +114,13 @@ var _cascade_snapshot: Dictionary[SkillNode, Dictionary] = {}
 ## (32) — the half-float packing budget.
 @export_range(1, 32, 1) var shatter_shard_count: int = 14
 ## Each shard's own outward push speed (px/s) — the WHOLE of its velocity, a
-## dying node is stationary so there is no momentum to inherit (#257 decision
-## 7). "Sending far could be hella fun" (the issue body) is this knob.
+## dying node is stationary so there is no momentum to inherit.
+## "Sending far could be hella fun" is this knob.
 @export_range(0.0, 2000.0, 1.0) var shatter_fling_speed: float = 90.0
 ## Tier a shard's COLOR is lifted to at spawn. Pinned to INERT (0 stops, the
 ## identity lift) — anything higher would make the pre-flight intact-disc
-## crescendo render brighter than the live InnerDisk, breaking #257
-## acceptance 2. The shader's own crack-glow/ray HDR boost is independent of
+## crescendo render brighter than the live InnerDisk, breaking the
+## pixel-match. The shader's own crack-glow/ray HDR boost is independent of
 ## this (see `inner_disk_shatter.gdshader`'s header). Still an `@export`
 ## (not a `const`) so the live tab can SEE why, and because `ShatterField`
 ## itself expects a real tier to push.
@@ -138,7 +136,7 @@ var _cascade_snapshot: Dictionary[SkillNode, Dictionary] = {}
 		shatter_end_tier = value
 		_push_shatter_tuning()
 
-## Tier a shard's colour is lifted to AT release (#871) — the "explode" flash
+## Tier a shard's colour is lifted to AT release — the "explode" flash
 ## the owner wanted on the pieces, decaying back to the spawn tier by the time
 ## the shard has faded ("glow and bloom and *explode* — move a bit then
 ## fizzle"). Separate from [member shatter_spawn_tier] on purpose: that one
@@ -153,7 +151,7 @@ var _cascade_snapshot: Dictionary[SkillNode, Dictionary] = {}
 
 
 ## Tier the crack-anchored light beams peak at, the instant before the disc
-## lets go (#871 reopened). PEAK — "a momentary overshoot .. relaxing back
+## lets go. PEAK — "a momentary overshoot .. relaxing back
 ## down" — is exactly an ignition flash; pushed as the material's `ray_stops`
 ## via `Emissive.stops()`, never a hand float.
 @export var shatter_ray_tier: Emissive.Tier = Emissive.Tier.PEAK:
@@ -174,7 +172,7 @@ var _cascade_snapshot: Dictionary[SkillNode, Dictionary] = {}
 ## the crack-seam glow, 0..1, for `prog` in [0, 1] of the shatter window.
 ## Line for line: `if (prog >= p0) return 0.0; return clamp(prog / p0, 0, 1)`.
 ## The crack phase ENDS at [member shatter_flight_start] — from there only
-## shards draw, so the seams are never lit after the disc lets go (#871).
+## shards draw, so the seams are never lit after the disc lets go.
 static func crack_glow_at(prog: float, flight_start: float) -> float:
 	if prog >= flight_start:
 		return 0.0
@@ -187,7 +185,7 @@ static func crack_glow_at(prog: float, flight_start: float) -> float:
 ## The beams are the LATE phase of the same crescendo [method crack_glow_at]
 ## drives — dark until the cracks have lit to `onset` (a fraction of the crack
 ## phase), then a smooth rise to 1 at the burst, never above the crack glow
-## itself, and gone with the intact disc (#871 reopened: "cracks lighting up,
+## itself, and gone with the intact disc ("cracks lighting up,
 ## until light beams fire out of them").
 static func ray_glow_at(prog: float, flight_start: float, onset: float) -> float:
 	if prog >= flight_start:
@@ -200,14 +198,14 @@ static func ray_glow_at(prog: float, flight_start: float, onset: float) -> float
 ## the release bloom, 0..1. Line for line: `if (prog < p0) return 0.0;
 ## return 1.0 - shatter_fade_ramp(prog)` with `shatter_fade_ramp` being
 ## `ShatterField.fade_ramp_at` — 0 while the disc is intact, exactly 1 at
-## release, linearly down to 0 at progress 1 (#871).
+## release, linearly down to 0 at progress 1.
 static func shard_bloom_at(prog: float, flight_start: float) -> float:
 	if prog < flight_start:
 		return 0.0
 	return 1.0 - ShatterField.fade_ramp_at(prog, flight_start)
 
 
-## #257's node-death shard field. One per AllocationVFX (one graph's worth of
+## The node-death shard field. One per AllocationVFX (one graph's worth of
 ## node deaths pool together, same idiom as `SkillBlade._shard_field`), an
 ## inherited `shatter_field.tscn` with its own `resource_local_to_scene`
 ## material (`inner_disk_shatter_material.tres`). Must stay a non-moving
@@ -235,7 +233,7 @@ func _ready() -> void:
 		_shard_field.name = "ShatterField"
 		add_child(_shard_field)
 	_push_shatter_tuning()
-	# Ticks in the editor too (no `is_editor_hint()` gate) — #838's live tab
+	# Ticks in the editor too (no `is_editor_hint()` gate) — the live tab
 	# is exactly where this needs to be SEEN playing.
 	set_process(true)
 	bind(allocation_system, battle_system)
@@ -262,21 +260,20 @@ func _push_shatter_tuning() -> void:
 		mat.set_shader_parameter(&"shard_bloom_stops", Emissive.stops(shatter_shard_bloom_tier))
 		mat.set_shader_parameter(&"ray_stops", Emissive.stops(shatter_ray_tier))
 		mat.set_shader_parameter(&"ray_onset", shatter_ray_onset)
-		# The textures a dying node's carve indexes into (#843).
+		# The textures a dying node's carve indexes into.
 		InnerDiskScript.bind_carve_samplers(mat)
 
 
-## The shard field #257's node deaths spawn into — exposed for the live tab
+## The shard field node deaths spawn into — exposed for the live tab
 ## and test inspection, same as `SkillBlade.get_shard_field()`.
 func get_shard_field() -> ShatterField:
 	return _shard_field
 
 func bind(_allocation_system: AllocationSystem, _battle_system: BattleSystem) -> void:
-	# NO blanket `Engine.is_editor_hint()` guard here (removed while wiring
-	# #257's shatter into this file) — `Engine.is_editor_hint()` is TRUE
+	# NO blanket `Engine.is_editor_hint()` guard here — `Engine.is_editor_hint()` is TRUE
 	# inside a live sandbox tab too, and AllocationSystem/BattleSystem are
-	# `@tool` (#260), so the signals below are real there, not placeholders.
-	# A blanket guard would leave #838's live tab "silently half-built": every
+	# `@tool`, so the signals below are real there, not placeholders.
+	# A blanket guard would leave the live tab "silently half-built": every
 	# signal-driven VFX (this shatter included) simply never firing, no error.
 	# See `docs/domain/sandbox-framework.md`'s "Engine.is_editor_hint() is TRUE
 	# inside a live tab" section and `.claude/rules/gdscript-pitfalls.md`.
@@ -291,7 +288,7 @@ func bind(_allocation_system: AllocationSystem, _battle_system: BattleSystem) ->
 		# The pre-dealloc snapshot point AND where the ripple schedule is
 		# assigned — see `_on_cascade_started`.
 		battle_system.cascade_started.connect(_on_cascade_started)
-	# #170: bus-driven, not system-bound — a spike pop is a world event, not an
+	# bus-driven, not system-bound — a spike pop is a world event, not an
 	# allocation. Connect once (idempotent guard for repeat bind() calls).
 	if not Events.blade_vertex_popped.is_connected(_on_blade_vertex_popped):
 		Events.blade_vertex_popped.connect(_on_blade_vertex_popped)
@@ -353,13 +350,13 @@ func _on_deallocated(node: SkillNode, previous_owner: Entity) -> void:
 	if muted or node == null or previous_owner == null:
 		return
 	_spawn_lift(node.global_position, node.inner_radius, previous_owner.color)
-	# #70: voluntary dealloc only (force-dealloc / death use force_deallocated,
+	# voluntary dealloc only (force-dealloc / death use force_deallocated,
 	# so the death-strip flurry is suppressed by construction).
-	for m in StatModifier.flatten_all(node.modifiers):  # bundles → one floater per leaf (#183)
+	for m in StatModifier.flatten_all(node.modifiers):  # bundles → one floater per leaf
 		Events.stat_modifier_changed.emit(previous_owner, m, ModifierBinding.Kind.NODE, false)
 
 
-## #504: `force_deallocated` fires when the node ACTUALLY changes hands — which
+## `force_deallocated` fires when the node ACTUALLY changes hands — which
 ## under design B is the landing's own `arrival_time` — so the shatter spawns
 ## from here directly. Its only scheduling is the intra-cascade ripple delay
 ## `_on_cascade_started` assigned it (0.0 for a standalone dealloc).
@@ -399,8 +396,7 @@ func _on_blade_vertex_popped(defender: SkillNode, _attacker: Entity, at_pos: Vec
 ##    dealloc shrinks `inner_radius` out from under any later read.
 ## 2. Assign each node its ripple slot. `layers` arrives in BFS order from the
 ##    impact, so layer `i` shatters `i * CASCADE_STEP` after the hit — the
-##    cascade reads as spreading outward rather than popping at once. #504
-##    moved this here: the mutation is synchronous and cannot be staggered
+##    cascade reads as spreading outward rather than popping at once. The mutation is synchronous and cannot be staggered
 ##    (see `BattleSystem._on_node_depleted`), but the ANIMATION can.
 func _on_cascade_started(layers: Array, defender: Entity) -> void:
 	if muted or defender == null or layers.is_empty():
@@ -415,21 +411,21 @@ func _on_cascade_started(layers: Array, defender: Entity) -> void:
 				"radius": n.inner_radius,
 				"color": color,
 				"delay": i * CASCADE_STEP,
-				# The glyph the shards keep (#843) — resolved state, valid on a
+				# The glyph the shards keep — resolved state, valid on a
 				# fogged node, and taken before the dealloc can re-resolve it.
 				"carve": n.carve_params(),
 			}
 
 
-# --- Modifier pulses (#71) ---------------------------------------------------
+# --- Modifier pulses ---------------------------------------------------
 
 ## One pulse per modifier the allocation grants, flowing node → core along the
-## entity's owned subgraph, each firing #70's floater on arrival. The modifier
+## entity's owned subgraph, each firing its stat-modifier floater on arrival. The modifier
 ## is ALREADY on the board (allocation applied it synchronously) — this is the
-## visual catching up. The #70→#71 seam: the floater emit now waits for arrival
-## instead of firing in `_on_allocated` directly.
+## visual catching up. The floater emit waits for arrival rather than firing in
+## `_on_allocated`.
 func _spawn_modifier_pulses(node: SkillNode, entity: Entity) -> void:
-	# Flatten so a CompositeStatModifier pulses one floater per leaf (#183).
+	# Flatten so a CompositeStatModifier pulses one floater per leaf.
 	var mods := StatModifier.flatten_all(node.modifiers)
 	if mods.is_empty():
 		return
@@ -497,7 +493,7 @@ func _emit_modifier_floater(entity: Entity, modifier: StatModifier) -> void:
 ## [b]Static, and takes primitives rather than a [SkillNode][/b] — the last
 ## spawner here that did not. `_spawn_lift` and `_spawn_shatter` already took
 ## `(world_pos, radius, colour)`; this one kept a node reference only to read
-## two radii off it. Making it match is what lets the frontmatter menu (#574)
+## two radii off it. Making it match is what lets the frontmatter menu
 ## play the SAME spike when the splash allocates its root node: that menu has no
 ## [SkillNode], no [Entity] and no [AllocationSystem] anywhere in it by
 ## construction (see [MenuNodeView]), so anything it reuses has to be reusable as
@@ -525,7 +521,7 @@ static func spawn_alloc_spike(
 	# once it is added. Invisible while every host sat at the origin
 	# (`%AllocationVFX` does); the frontmatter menu parents a spike to the NODE
 	# VIEW itself, which is at its own world home, so the offset read as exactly
-	# doubled (#599 follow-up, reported 2026-08-26).
+	# doubled.
 	container.add_child(disk)
 	disk.global_position = world_pos
 
@@ -572,7 +568,7 @@ static func spawn_alloc_spike(
 ## the node vacated as it collapses back onto its parent.
 ##
 ## [b]Static, and takes a [param host] rather than assuming `self`[/b] — the
-## last spawner here that did. Extracted so the frontmatter menu (#599) can
+## last spawner here that did. Extracted so the frontmatter menu can
 ## play the SAME lift when a view loses focus-path allocation: that menu has
 ## no [AllocationSystem] to mount an [AllocationVFX] under (see
 ## [MenuNodeView]), so anything it reuses has to be reusable as a function.
@@ -609,10 +605,10 @@ func _spawn_lift(world_pos: Vector2, disk_radius: float, color: Color) -> void:
 	spawn_dealloc_lift(self, world_pos, disk_radius, color)
 
 
-## Node "death" animation (#257): fragments the dying node's own dome into
+## Node "death" animation: fragments the dying node's own dome into
 ## [member _shard_field] — an intact-disc crescendo (the crack seams glow)
 ## through the cascade `delay`, then the disc comes apart at
-## `shatter_flight_start` and the shards bloom, fly and fizzle (#871; the rim
+## `shatter_flight_start` and the shards bloom, fly and fizzle (the rim
 ## is untouched). Replaces the old vibrate + particle-burst pair
 ## outright, same handoff shape: the real SkillNode's InnerDisk hides at
 ## `force_deallocate` (see `skill_node.gd`), the shard field takes over.
@@ -625,12 +621,12 @@ func _spawn_shatter(world_pos: Vector2, disk_radius: float, color: Color, delay:
 	var spawn_time := _shatter_clock + delay
 	var origin := _shard_field.to_local(world_pos)
 	# A dying node is stationary — its shards' entire velocity is their own
-	# radial kick, never inherited momentum (#257 decision 7).
+	# radial kick, never inherited momentum.
 	return _shard_field.spawn_shatter(origin, disk_radius, color, Vector2.ZERO, spawn_time,
 			shatter_shard_count, shatter_fling_speed, carve)
 
 
-## Blade-pop burst (#170): a self-freeing one-shot spray at the contact point.
+## Blade-pop burst: a self-freeing one-shot spray at the contact point.
 func _spawn_pop_burst(world_pos: Vector2, radius: float, color: Color) -> void:
 	var stage := Node2D.new()
 	add_child(stage)  # before `global_position` — see [method spawn_alloc_spike].

@@ -374,3 +374,107 @@ The named constants an owner is most likely to want to move:
 
 Emissive values are **never** hand-picked floats: everything routes through
 `Emissive.at` / `.tint` / `.tint_peak` with a named tier.
+
+## Projectile visual contract and per-unit notes
+
+`Projectile` is a single projectile-shaped VFX element: pure kinematics + visual
+delegation, no game-state references. A `VFXCoordinator` spawns and configures it and
+wires `arrived` to whatever mutation the action needs. Two axes: `path` (how it moves —
+a `ProjectilePath`) and `visual_scene` (what it looks like — any `PackedScene`,
+instantiated as a child so its transform rides along).
+
+**Visual scene hooks (duck-typed).**
+
+- inbound: `_on_launch()` once when flight begins (post-delay); `_on_progress(t)` each
+  frame, t in [0, 1]; `_on_arrival()` once on impact, before the linger / free;
+  `_on_crit(tier)` immediately after `_on_launch` when `crit_tier` > 0;
+  `_on_context(entry)` once, at instantiation and therefore BEFORE `_on_launch`, with
+  this projectile's `ScheduleEntry` (beat fraction, normalized magnitude, convergence
+  count, visit index, terminal flag, its own launch/arrive window); skipped when no
+  coordinator supplied one.
+- outbound: `finished` — the visual says "fully done draining", so the projectile (and
+  the `BattleSystem` await chain it feeds) waits on the actual fade-out instead of a
+  fixed linger.
+
+Any subset is fine; missing inbound methods are skipped, and a missing `finished`
+signal falls back to `linger_seconds`.
+
+### BoltBody
+
+The workhorse body: one additive sprite quad plus an optional 0-4 segment micro-trail,
+all drawing from ONE shared texture (`bolt_head_texture.tres`) and ONE shared
+`CanvasItemMaterial` (`bolt_additive_material.tres`).
+
+**The batching contract is the whole design.** Batching breaks on a different texture
+*or* material (`docs/domain/rendering-performance.md`), and Resonator peaks at ~30-60
+simultaneous bolts. Every instance shares those two resources and all per-instance
+variation rides `scale`, `rotation` and `modulate`. Never give one instance its own
+`ShaderMaterial`; that turns ~60 batched quads into ~60 draw calls.
+
+Identity is **motion and heat, never hue**: the five shipped configs differ by
+silhouette, trail and size-ramp, and the body colour is the **caster's** identity tint
+stamped by the coordinator (the same `tint` precedent as `ArrowVolleyCoordinator` on
+`LightArrow`). `GlowingDot`'s reserved-gold default does not carry forward; `GlowingDot`
+is NOT deleted — it still has non-spell callers.
+
+Five inherited configs ship beside the scene: `bolt_small` (Spark), `bolt_blunt`
+(Bruiser), `bolt_streak` (Leafblower), `bolt_packet` (Reverberator/Resonator),
+`bolt_soft` (Healing Beam).
+
+### CycloneRingFlash
+
+Cyclone's closing gesture: the ring the storm just closed, lit AS a ring. One front
+runs the whole loop in the walk's own rotation over a fixed `lap_seconds`, and each
+edge lingers and fades from its own completion.
+
+**A composition of kit primitives, not a new primitive.** N `EdgeEnergize` children on
+the N ring edges, all on `EdgeEnergize.SHARED_MATERIAL` — one batch, with paint-on-top /
+width-tracks-zoom / fog-oblivious inherited. No new shader, no per-instance uniform.
+`ResonatorEdgeVisual` is the precedent for a spell-specific composition deliberately
+NOT catalogued; the API is a plain polyline of node positions with nothing
+Cyclone-specific in it.
+
+**One lap, whatever the ring's length** (owner, 2026-09-03). A 3-ring and a 20-ring both
+take `lap_seconds`; per-edge speed would give a 20-ring a ~7-beat gesture that stacks
+with the next closure. Simultaneous flash of all N was rejected — it loses the "it
+circulates" read, and Cyclone's identity is motion.
+
+**Stateless, once per event.** Uncapped revisits mean a triangle can close every beat;
+each closing landing re-runs the lap, which reads as a continuously spinning ring.
+Nothing remembers a ring across events — that would be the parallel view store
+`.claude/rules/presentation-clock.md` forbids, and escalation-on-repeat would have to be
+resolver-stamped. Simultaneous closures stack on purpose; a shared edge simply adds up.
+
+**The concurrency bound is linger**, the `EdgeEnergize` precedent:
+`ring_size * EdgeEnergize.max_live_overlays(lap_seconds + linger, beat)`.
+
+### EdgeEnergize
+
+An animated travelling front of light laid ALONG a real edge, drawn as an overlay quad.
+Trail Blazer's fuse and Resonator's converging waves are built on it.
+
+**Paint-on-top. It never touches `Edge`, `Graph` or the edge MultiMesh** (the reasoning
+lives in `edge_energize.gdshader`'s header). The overlay frees itself and the edge was
+never written to, so a cast cut short by teardown cannot leave an edge stuck energized.
+
+**One material, one texture, for every overlay alive.** At Resonator's ~60 that is one
+batch — and the only thing that keeps it true is that per-instance animation rides
+**transform and `modulate` only**. The ignition front is the quad's x-scale
+(`set_front`); intensity is `modulate` through `Emissive` tiers. Animating a per-overlay
+shader UNIFORM duplicates the material and the batch is gone
+(`test/unit/vfx/test_edge_energize.gd` pins this).
+
+**Width tracks the edge, with no CPU mirror.** The shader reads the same
+`edge_camera_zoom` global `graph/edge_mesh.gdshader` reads (pushed by `GraphCamera` on
+every zoom step), and `_sync_width` pushes the edge material's own `width` onto the
+shared overlay material once at load. No per-frame sync can drift.
+
+**Fog-oblivious** (owner call 2026-08-30), matching every existing spell visual — see the
+shader header for the one-line upgrade whenever fog-gating arrives.
+
+**Concurrency is bounded by LINGER, not hop count.** Trail Blazer's `max_hops` is `inf`,
+so N is unbounded. What caps live overlays is `max_live_overlays` — at the shipped 2.5 s
+linger over 0.4 s beats that is 7, whatever the path length.
+
+**Opt-in needs no new knob.** The coordinator's per-verb `edge_visual` slot already
+expresses it; a bool on the def or the tempo resource would be a second opt-in channel.

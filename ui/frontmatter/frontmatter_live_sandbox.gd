@@ -1,38 +1,12 @@
 @tool
 extends Control
 
-## The LIVE frontmatter bench (#567 / #578) — the real `frontmatter_root.tscn`
-## in a bloom [SubViewport], with a control column for every knob the motion
-## notes flag as eyeballed.
-##
-## [b]It benches the shipped scene, not a mock.[/b] That is the #309 lesson,
-## paid for once already: the tooltip fan's first live tab drove a hand-rolled
-## copy of the fan's layout, no test covered the copy, and it drifted. The
-## [SubViewport] below instances `frontmatter_root.tscn` itself, so what is
-## tuned here is what ships — and when a knob has no visible effect, that is a
-## finding about the menu rather than about the bench.
-##
-## [b]Why a bloom viewport.[/b] Glow is one [WorldEnvironment] pass PER VIEWPORT
-## (`.claude/rules/hdr-color.md`), and `scenes/meta/meta_root.tscn`'s pass does
-## not reach a [SubViewport] mounted here. `ui/theme/bloom_viewport.tscn` is the
-## shared HDR-2D viewport the other live benches use; without it every
-## [Emissive] tier in the menu would render flat and this tab would be judging
-## the wrong picture.
-##
-## [b]The clock is driven, never watched.[/b] Every animated unit in this family
-## exposes `set_progress(t)` and owns no [Tween]; the scrub slider writes `t`
-## straight onto [method FrontmatterRoot.set_progress], which is the
-## doc-blessed preview scrubber rather than a second drive model.
-##
-## [b]Knob state lives in one dictionary and is re-pushed wholesale.[/b]
-## [method FrontmatterRoot.build] is idempotent by design — it clears what it
-## made and rebuilds — so Rebuild is a real cold boot of the menu, and the only
-## way the knobs survive it is for this panel to hold them and push them again.
-## That also makes "does this knob do anything" answerable: the push is one
-## function, [method _apply_all].
-##
-## Satisfies [SandboxLiveTab]'s loader contract with [method noop] — there is no
-## inspected resource, same as `fan_live_panel.gd` and `node_visuals_panel.gd`.
+## The LIVE frontmatter bench — the real `frontmatter_root.tscn` in a bloom
+## [SubViewport], with a control column for every eyeballed motion knob. It
+## benches the shipped scene, never a mock; the scrub slider drives
+## [method FrontmatterRoot.set_progress]; knob state is held here and re-pushed
+## wholesale through [method _apply_all] on every rebuild.
+## See docs/domain/frontmatter-shell.md
 
 const _KNOB_HEADER := preload("res://ui/frontmatter/knob_header.tscn")
 const _KNOB_SLIDER_ROW := preload("res://ui/frontmatter/knob_slider_row.tscn")

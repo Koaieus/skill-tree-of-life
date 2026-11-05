@@ -2,43 +2,12 @@
 class_name HeroSigilCard
 extends MarginContainer
 
-## Left column, top card (#108): class emblem (spinning ring + glyph), level
-## badge, entity name + class subtitle, Health as a [PoolGauge] with a
-## dimmed "+N/t" regen caption. Also the floater-anchor origin for
-## entity/core stat-change toasts (closes #91) — see [member float_anchor]
-## and [method GameRoot]'s wiring of [FloaterDirector.player_anchor].
-##
-## [b]XP is no longer this card's business (#320).[/b] The gauge, its "+N XP"
-## chip and the whole level-replay state machine moved to [XpTrack], the
-## top-center strip. `XPRow` survives here only as hidden scenery — deliberately
-## kept rather than deleted while the new placement settles, and deliberately
-## unbound: a second binder on the same `xp` pool would run its own sequencer
-## and emit a second `level_reached`, which the [LevelUpFlourish] would stamp as
-## "×2" for a single level.
-## The level badge stays — [HudRoot] drives it from [signal
-## XpTrack.level_display_changed] via [method show_level], so badge, flourish
-## and bar all beat together.
-##
-## Root is a 0-margin MarginContainer (not a plain Control) so its reported
-## minimum size aggregates its children's — a plain Control reports (0,0)
-## regardless of content, which collapsed this card to zero height inside
-## HudRoot's LeftColumnSlot VBoxContainer. See combat_readout_card.gd for
-## the same pattern/writeup (shared bug across all HUD cards).
-##
-## [b]The inner ring's door.[/b] A left click anywhere on the card emits
-## [signal ring_requested] (HudRoot decides what opens); [code]%RingBadge[/code]
-## shows the bound hero's unspent `ring_points.current` while it is > 0 and
-## pops on [signal Events.ring_point_minted] for that hero. The root STOPs
-## mouse so a click on the card never falls through to the board; every
-## decorative Control under it IGNOREs so the click reaches the root.
-##
-## [b]The build it wears.[/b] [code]%RingSilhouette[/code], a `read_only`
-## [AspectWheel] over the emblem (under the badges, so its hub names a hovered wedge over the sigil), shows the hero's bought ring cells
-## ([RingSilhouette]); it PASSes the mouse (hover names a wedge) and never
-## accepts a click, so the door above still opens. The emblem rim takes the
-## most-invested sector's hue, the hero's colour until a cell is bought. The
-## cell table comes from [member ring_system], injected by [HudRoot]; without
-## one the wheel stays empty.
+## Left column, top card: class emblem (spinning ring + glyph), level badge, name +
+## class subtitle, Health as a [PoolGauge]. Also the floater-anchor origin
+## ([member float_anchor]). XP lives in [XpTrack]; `XPRow` is hidden and UNBOUND.
+## Root is a 0-margin MarginContainer so its minimum aggregates its children. A
+## left click emits [signal ring_requested]; the root STOPs mouse, decoration IGNOREs.
+## See docs/domain/hud-widgets.md
 
 ## The player clicked the card: open the ring for the bound hero.
 signal ring_requested

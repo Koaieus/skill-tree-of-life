@@ -480,3 +480,28 @@ for animated reveals, where the bloom ramping in with the fade is a feature.
 - `.claude/rules/godot-shaders.md` — headless import doesn't compile GLSL;
   verify under a real renderer.
 - `.claude/rules/ui-palette.md` — the SDR palette this HDR layer rides atop.
+## BloomReferenceSwatch (`ui/theme/bloom_reference_swatch.gd`)
+
+A small, reusable row of test patches at rising EV tiers (default 0 through +4),
+meant to be dropped into the corner of any world `SubViewport` as a "slap it in
+and forget it" instrument. Two jobs:
+
+1. **Proof.** If the higher-tier patches visibly glow, the hosting viewport's glow
+   pass is running. The silent-failure risks `addons/bloom_sandbox/bloom_sandbox_panel.gd`
+   documents (wrong renderer, `use_hdr_2d` off, an unregistered `WorldEnvironment`,
+   an 8-bit render target) all read identically: patches that sit there, flat.
+2. **Scale.** Every patch is at a known, named EV stop, so it doubles as a
+   comparison ruler — "does my effect read hotter or cooler than the +2 patch" is a
+   steadier question than eyeballing raw brightness.
+
+**It only tells the truth inside a bloom-capable `SubViewport`**
+(`ui/theme/bloom_viewport.tscn`: `own_world_3d` + `use_hdr_2d` + a
+`WorldEnvironment`). In an ordinary outer `Control` tree it renders unglowed flat
+squares and proves the opposite of what it is for. Every patch colour is
+`Emissive.at()`-derived, never a hand-picked float.
+
+**Deliberately NOT the bloom sandbox's own reference chart** (`_build_chart` /
+`_sample_row` / `_sample`): that is a full diagnostic surface wired to the
+live-tuning sliders. The swatch is small, static, host-agnostic, and depends on
+nothing but `Emissive`. If the two ever share code, the shared unit is
+`Emissive.neutral(stop)`, not the chart-building machinery.

@@ -1,62 +1,14 @@
 class_name OverlayFieldTileIndex
 extends RefCounted
 
-## World-space uniform-grid tile index over a circle-field overlay's circles,
-## shared by [FogOverlay] and [AuraOverlay]. Packs the circle set and a
-## tile → (offset, count) lookup into data textures so the fragment shader can
-## read only its own 3×3 tile neighbourhood instead of looping every circle in
-## the scene. See #177 and docs/domain/overlay-field-rendering.md.
-##
-## [b]Cell size = reach, same proof as [code]VisionSourceIndex[/code].[/b]
-## `field_smin(a, b, k)` erases any contribution at least `k` past the running
-## minimum (see that class's docstring for the full argument): a circle only
-## matters at a query point while its normalized distance is `< 1 + k`, i.e.
-## its centre is within `(1 + k) * its own radius`. `max_radius` bounds that
-## over the whole set, so a grid whose cell size equals that reach answers any
-## query from its 3×3 neighbourhood — no candidate is ever missed.
-##
-## [b]Circles are bucketed into exactly one cell each[/b] (the cell containing
-## their centre); the 3×3 gather happens at QUERY time (GPU: per pixel, CPU:
-## per [method gather_tile_order] call), not at build time. So the flat index
-## buffer this produces has exactly `circle_count` entries — no duplication.
-##
-## [b]Cones (#897) are bucketed into every cell their segment's AABB touches[/b]
-## — a long edge genuinely reaches into many cells, and the alternative
-## (inflating `cell_size` to half the longest segment) makes every cell on the
-## board hostage to one long Delaunay bridge. Multi-cell bucketing means a
-## gather's 3×3 can meet the same primitive several times, and `field_smin` is
-## NOT idempotent (`smin(d, d, k) == d - k/4`), so a double-fold would deepen
-## the field in a grid-correlated pattern. The fix is the [b]projection-dedupe
-## invariant[/b]: a primitive contributes only from the tile whose cell
-## contains `q`, the clamped orthogonal projection of the query point onto the
-## segment ([method OverlayFieldCone.project]).
-##
-## That is exact, not just duplicate-free. If the cone contributes at `p` at
-## all then `|p - c(t)| < (1 + k) * max_radius == cell_size` for some `t` on
-## the segment, and `q` is the segment's closest point, so `|p - q| <=
-## cell_size` — `q`'s cell is inside `p`'s 3×3 and the primitive is seen.
-## Dropping it when `q`'s cell is outside the 3×3 therefore drops nothing that
-## could have contributed.
-##
-## [b]A circle is a degenerate cone[/b] (`a == b`, `ra == rb`), so both
-## [method build] and [method build_cones] run the same bucketing and the same
-## gather. For a circle `project` returns the stored `a` untouched, whose cell
-## is by construction the one cell it was bucketed into — so the dedupe test
-## always passes and [method gather_tile_order] is bit-identical to the
-## pre-cone behaviour. The two paths differ only in how they SERIALIZE to the
-## GPU: fog keeps its 1-texel `circles_texture`, cones use the 2-texel
-## `primitives_texture`. `test_tile_gather_fold_order_drift.gd` and
-## `test_vision_source_index.gd` guard that, unmodified.
-##
-## [b]Order is NOT global circle-index order.[/b] The shader visits tiles in
-## (dx, dy) scan order and, within a tile, bucket-insertion order (which IS
-## global order, since circles are inserted in the order passed to
-## [method build]). `field_smin` is not associative, so this measurably
-## differs from folding in pure global order — measured max drift 0.0026
-## against a visible threshold of 1/255 = 0.0039 in
-## test_tile_gather_fold_order_drift.gd. Any CPU consumer needing lockstep
-## with the shader (FogOverlay's per-element dimming) MUST walk
-## [method gather_tile_order], never re-sort it back to ascending index.
+## World-space uniform-grid tile index over a circle-field overlay's primitives
+## (circles, or cones with `a != b`), shared by [FogOverlay] and [AuraOverlay]. Packs
+## them and a tile -> (offset, count) lookup into data textures so the fragment
+## shader reads only its own 3x3 tile neighbourhood. Cell size = max reach; a
+## primitive is bucketed by centre (circle) or AABB (cone) and contributes only
+## from the tile holding its projection ([method OverlayFieldCone.project]). Fold
+## order is [method gather_tile_order], never global index order.
+## See docs/domain/overlay-field-rendering.md
 
 ## Row width of the cone path's `tile_circle_indices_texture` (#898). Cone
 ## bucketing makes the flat index buffer as long as total bucket OCCUPANCY —

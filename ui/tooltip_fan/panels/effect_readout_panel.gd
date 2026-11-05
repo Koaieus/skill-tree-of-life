@@ -17,54 +17,12 @@ extends FanPanel
 ## Both row kinds share the same cap + carousel/pagination below.
 ##
 
-## [b]HIDING RULE (settled).[/b] A row hides when its EFFECTIVE value
-## ([method StatModifier.get_effective_value] — never the raw `.value`; a
-## formula-bearing modifier's coefficient is not what the node is actually
-## getting) DISPLAYS as its operation's neutral element: 0 for
-## ADD_BASE/ADD_BONUS/INCREASE, 1 for MULTIPLY. `SET` never hides — it has no
-## neutral, per [method StatModifier.format]'s own pipeline doc. "Displays as"
-## goes through [method StatDef.format_number] (#622, this issue's own
-## dependency) — the SAME rounding the row itself would render with, so a
-## value reading "+0" on screen hides even when its raw float is 0.004, and a
-## value that reads real never hides just because it's a hair off its literal
-## neutral. A `×0` MULTIPLY is annihilation, not the neutral (`×1` is) — it
-## is never a hide candidate.
-##
-## [b]ROLLUP (owner comment, 2026-08-27).[/b] Individually-hidden rows are
-## grouped by `(stat_id, operation)`. If the GROUP's own combined contribution
-## — summed for ADD_BASE/ADD_BONUS/INCREASE, multiplied for MULTIPLY, the same
-## composition each op uses in the live pipeline (see [method StatModifier]'s
-## own pipeline doc) — displays as non-neutral, ONE rolled-up row replaces the
-## whole group instead of it vanishing silently (ten `+0`s that sum to a real
-## `+4`). A single hidden row is its own "group of one": its combined value
-## equals its own already-neutral value, so it degrades back to a true hide,
-## matching the issue's ten-row example rather than a one-row false positive.
-##
-## [b]"Does this affect me" (in scope, mechanism only — no acceptance test
-## pins the visual).[/b] Per [method SkillNode.ownership_bit] — never
-## `owned_by == entity` — a row whose [member NodeEffectReadout.source_entity]
-## reads HOSTILE relative to the hovered node tints redder, so an intruding
-## enemy aura reads differently from the territory's own. Kept minimal
-## (retint an existing [SlabRow], no new chrome) since #621 leaves the exact
-## rendering open.
-##
-## [b]CAP + CAROUSEL (owner call, 2026-08-31).[/b] A node can legitimately sit
-## under more auras than the panel's authored envelope fits, and the usual
-## answer — a ScrollContainer — is unusable HERE BY CONSTRUCTION: the pointer is
-## captive on the node this tooltip describes, so it can never reach the panel
-## to scroll it. So the panel caps at [member max_rows_per_page] rows and PAGES
-## instead: fill, hold, crossfade, next page, loop. Pagination is by whole rows,
-## never by pixels, which is what makes "no row is ever rendered clipped"
-## structural rather than a tuning result — a row is either wholly on this page
-## or wholly on the next. Pages are balanced ([method paginate]) so the last one
-## is never a lonely leftover.
-##
-## Under the cap there is NO carousel and no page indicator — one page, no
-## tween, no subheader rewrite: the panel behaves exactly as it did before the
-## cap existed. The indicator rides the authored [PanelHeader] subheader rather
-## than a new node, because adding a child under an instanced sub-scene is the
-## `[editable path=]` trap (`.claude/rules/scene-composition.md`), too much
-## scene surgery for three characters of chrome.
+## A row hides when its EFFECTIVE value, as [method StatDef.format_number] displays
+## it, is its operation's neutral (0 for ADD/INCREASE, 1 for MULTIPLY; `SET` and
+## `x0` never hide). Hidden rows roll up per `(stat_id, operation)` when the group's
+## combined contribution is non-neutral. A HOSTILE [member NodeEffectReadout.source_entity]
+## ([method SkillNode.ownership_bit]) tints redder. Over [member max_rows_per_page]
+## rows PAGE as a carousel by whole rows ([method paginate]). See docs/domain/tooltip-fan-units.md
 
 const _SLAB_ROW_SCENE: PackedScene = preload("res://ui/tooltip_fan/slab_row.tscn")
 const _STATUS_ROW_SCENE: PackedScene = preload("res://ui/tooltip_fan/status_row.tscn")
