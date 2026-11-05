@@ -7,8 +7,7 @@ A node carries two identities: its **archetype** (one of the six) and its
 family's offence, blessed its defence. Which pools each archetype × subtype
 cell holds is authored in `procgen/pools/*.tres` and summarised in
 [procgen-v4.md](procgen-v4.md) § Pack homes; open threads are in
-[../design/node_subtypes.md](../design/node_subtypes.md). Opened from #1025,
-built in #1056 and #1059–#1061, #1093–#1095.
+[../design/node_subtypes.md](../design/node_subtypes.md).
 
 ## The school table (#1249)
 
@@ -45,7 +44,7 @@ What a subtype may draw and what it gives up are one fact, stated per pool by
 | present for some, absent for others, identical where present | `subtypes = [regular, bless]` | none |
 | present for several at different values or weights | one pool per value, each gated | yes |
 
-**Leave the shared ladder at `[]` and gate only the flavour** (decision 16).
+**Leave the shared ladder at `[]` and gate only the flavour**.
 This is discipline, not a validated invariant: copy a pool to
 `[regular, bless]`, forget `blight`, and blighted nodes silently lose that
 content — the demotion below does not catch it. A coverage warning was
@@ -88,24 +87,5 @@ Shipped: `blight` carries `supply` at chance 1.0, and the twelve
 `<aspect>_aspect` entries list `[&"budget", &"supply"]` — supply stays in the
 budget draw and blight adds one roll of it on top. This is the one deliberate
 **add** beside the authoring law's replace: the owner wanted blighted ground to
-be where supply comes from (2026-10-19). Drawability (D13) is judged on the
+be where supply comes from (2026-10-19). Drawability is judged on the
 budget pass only. Tuning: #1529.
-
-## Decision numbers cited elsewhere
-
-Code, rules and docs cite the owner's 2026-09-22/23 subtype decisions by
-number. The full log is `docs/design/node_subtypes.md` at `179054c`; each
-number still cited resolves to where it is embodied now:
-
-| # | Settled in / embodied by |
-|---|---|
-| 5 | #1095; `procgen/pools/perception.tres` |
-| 8 | ADR 0028 |
-| 11 | #1093; `procgen/pools/wisdom.tres` |
-| 12 | `StatPool.subtypes`; § The authoring law |
-| 13 | § Placement; `GraphProcgen._build_subtype_drawability` |
-| 14 | `NodeSubtype.regular()`, `GraphProcgenContent.default_subtype` |
-| 16 | § The authoring law |
-| 17 | #1094; `procgen/pools/wisdom.tres` |
-| 18 | #1093; `procgen/pools/wisdom.tres` |
-| 20 | `effects/status/blindness.gd` |

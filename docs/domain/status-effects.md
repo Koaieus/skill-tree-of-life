@@ -221,9 +221,9 @@ multiplier climbs back through zero, nulling healing, then restoring it.
 
 | Status | Shape (`effects/status/*.tres`) |
 |---|---|
-| Poison, Curse, Sunder, Marked, Scouted, Hexed | `FlatDecay`, `per_tick` 1 |
+| Poison, Curse, Sunder, Marked, Scouted, Hexed, Explosive | `FlatDecay`, `per_tick` 1 (Explosive's `.tres` leaves the default, 1.0) |
 | Wither, Weakened | `FractionDecay`, `fraction` 0.25 removed |
-| Blindness | `FractionDecay`, `fraction` 0.7 removed, ACCUMULATE — see [node-subtypes.md](node-subtypes.md) decision 20 |
+| Blindness | `FractionDecay`, `fraction` 0.7 removed, ACCUMULATE (`effects/status/blindness.gd`) |
 | Bleeding | `RampDecay` — `start` 1, `step` 1 while resting; the ramp position is `NodeStatus.decay_step`, reset by exertion |
 | Corruption, Greed | `null` — never decays |
 
